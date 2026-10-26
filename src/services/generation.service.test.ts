@@ -17,6 +17,11 @@ const mockDbTransaction = vi.hoisted(() => vi.fn())
 const mockQueryRaw = vi.hoisted(() => vi.fn())
 const mockExecuteRaw = vi.hoisted(() => vi.fn())
 const mockUpdatePreferenceOnDeleted = vi.hoisted(() => vi.fn())
+const mockExpandSearchQuery = vi.hoisted(() => vi.fn())
+
+vi.mock('@/services/search-expansion.service', () => ({
+  expandSearchQuery: (...args: unknown[]) => mockExpandSearchQuery(...args),
+}))
 
 vi.mock('@/services/user-preference.service', () => ({
   updatePreferenceOnDeleted: (...args: unknown[]) =>
@@ -105,6 +110,7 @@ describe('generation.service', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockUpdatePreferenceOnDeleted.mockResolvedValue(undefined)
+    mockExpandSearchQuery.mockResolvedValue([])
     // 取号那两条 raw 查询的默认回答：第一条是锁（不返回行），第二条给下一个号。
     mockQueryRaw.mockResolvedValue([{ next: 1 }])
     mockDbTransaction.mockImplementation(
@@ -614,6 +620,74 @@ describe('generation.service', () => {
           },
         }),
       )
+    })
+
+    it('owner search: after the last literal page, appends whole-word matches of the translated words', async () => {
+      mockExpandSearchQuery.mockResolvedValue(['rain', 'cat ears'])
+      const row = (id: string, prompt: string) => ({
+        ...BASE_GENERATION,
+        id,
+        prompt,
+        user: null,
+      })
+      mockGenerationFindMany
+        .mockResolvedValueOnce([row('literal', '下雨的街道')])
+        .mockResolvedValueOnce([
+          row('rain', '1girl, rain, street'),
+          row('training', 'training ground'),
+          row('ears', '1girl, cat_ears'),
+        ])
+      mockGenerationCount.mockResolvedValue(1)
+
+      const page = await getPublicGenerationPage({
+        userId: 'user-1',
+        search: '下雨',
+      })
+
+      expect(page.generations.map((generation) => generation.id)).toEqual([
+        'literal',
+        'rain',
+        'ears',
+      ])
+      expect(page.total).toBe(3)
+      expect(page.hasMore).toBe(false)
+      expect(mockExpandSearchQuery).toHaveBeenCalledWith('下雨')
+      expect(mockGenerationFindMany).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          where: {
+            AND: [
+              { userId: 'user-1' },
+              { NOT: { prompt: { contains: '下雨', mode: 'insensitive' } } },
+              {
+                OR: ['rain', 'cat ears', 'cat_ears'].map((word) => ({
+                  prompt: { contains: word, mode: 'insensitive' },
+                })),
+              },
+            ],
+          },
+        }),
+      )
+    })
+
+    it('owner search: does not translate while more literal pages remain', async () => {
+      mockGenerationFindMany.mockResolvedValue(
+        Array.from({ length: 3 }, (_, index) => ({
+          ...BASE_GENERATION,
+          id: `gen-${index}`,
+          user: null,
+        })),
+      )
+      mockGenerationCount.mockResolvedValue(10)
+
+      const page = await getPublicGenerationPage({
+        userId: 'user-1',
+        search: 'prompt',
+        limit: 2,
+      })
+
+      expect(page.hasMore).toBe(true)
+      expect(page.generations).toHaveLength(2)
+      expect(mockExpandSearchQuery).not.toHaveBeenCalled()
     })
 
     it('returns picker images without waiting for a total count', async () => {

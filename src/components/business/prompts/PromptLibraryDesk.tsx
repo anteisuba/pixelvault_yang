@@ -43,8 +43,10 @@ import {
 import { usePromptTemplateModelLabel } from '@/hooks/use-prompt-template-model-label'
 import { useReportLibraryItem } from '@/hooks/use-library-view'
 import { usePromptTemplateUse } from '@/hooks/use-prompt-template-use'
+import { useSearchExpansion } from '@/hooks/use-search-expansion'
 import type { AppLocale } from '@/i18n/routing'
 import { setRecipeFavoriteAPI } from '@/lib/api-client/recipes'
+import { withWordMatches } from '@/lib/search-words'
 import { parseTagChips } from '@/lib/tag-composer'
 
 import {
@@ -133,21 +135,24 @@ export function PromptLibraryDesk({
 
   const favorites = items.filter((recipe) => recipe.isFavorite).length
   const needle = query.trim().toLocaleLowerCase(locale)
-  const shown = useMemo(
-    () =>
-      items
-        .filter((recipe) => !favoritesOnly || recipe.isFavorite)
-        .filter((recipe) => matchesType(recipe, type))
-        .filter(
-          (recipe) =>
-            !needle ||
-            `${recipe.name} ${recipe.compiledPrompt}`
-              .toLocaleLowerCase(locale)
-              .includes(needle),
-        )
-        .sort(sort === 'recent' ? byRecent : byCreated),
-    [favoritesOnly, items, locale, needle, sort, type],
-  )
+  // 字面没对上的，把搜索词翻成标签（下雨 → rain）再整词对一遍提示词，接在后面。
+  const expansion = useSearchExpansion(query)
+  const shown = useMemo(() => {
+    const pool = items
+      .filter((recipe) => !favoritesOnly || recipe.isFavorite)
+      .filter((recipe) => matchesType(recipe, type))
+      .sort(sort === 'recent' ? byRecent : byCreated)
+    if (!needle) return pool
+    const literal = pool.filter((recipe) =>
+      `${recipe.name} ${recipe.compiledPrompt}`
+        .toLocaleLowerCase(locale)
+        .includes(needle),
+    )
+    return withWordMatches(pool, literal, expansion, (recipe) => [
+      recipe.name,
+      recipe.compiledPrompt,
+    ])
+  }, [expansion, favoritesOnly, items, locale, needle, sort, type])
 
   const patch = useCallback(
     (next: Partial<PromptTemplateListItem> & { id: string }) =>

@@ -7,10 +7,12 @@ import {
   PROJECT_RULE_KIND_IDS,
 } from '@/constants/assistant-operator'
 import { GENERATION_NAME_PREFIX_BY_OUTPUT_TYPE } from '@/constants/generation-naming'
+import { SEARCH_EXPANSION } from '@/constants/semantic-search'
 import { USER_UPLOAD_PROVIDER } from '@/constants/uploads'
 import { buildAssetRecipeText } from '@/lib/asset-recipe-text'
 import { db } from '@/lib/db'
 import { buildGenerationTag } from '@/lib/generation-name'
+import { matchesAnyWord } from '@/lib/search-words'
 import type { AssistantOperatorSnapshot } from '@/types/assistant-operator'
 import type { AssistantV3PictureRef } from '@/types/assistant-v3'
 import { getAssistantPersona } from '@/services/assistant-persona.service'
@@ -22,6 +24,7 @@ import {
 } from '@/services/lora-asset.service'
 import { listProjectSourceRules } from '@/services/project-rule.service'
 import { listRecipeSummaries } from '@/services/prompts/recipe.service'
+import { expandSearchQuery } from '@/services/search-expansion.service'
 import {
   ASSISTANT_NEXT_FIND_KIND_IDS as KIND,
   ASSISTANT_NEXT_FIND_LIMITS as LIMITS,
@@ -237,8 +240,9 @@ async function findPictures(
     return Prisma.sql`(CASE WHEN "prompt" ILIKE ${like} OR "model" ILIKE ${like} THEN 1 ELSE 0 END)`
   }
   const score = Prisma.join(words.map(hit), ' + ')
+  const expansion = expandSearchQuery(query)
   // ⚠ 先只算 id 和分数挑出那几张，再取整行：快照那两格很大，⛔ 别给每一张命中的都取一遍。
-  return db.$queryRaw<PictureRow[]>`
+  const literal = await db.$queryRaw<PictureRow[]>`
     SELECT ${PICTURE_COLUMNS}
       FROM "Generation"
       JOIN (
@@ -254,6 +258,69 @@ async function findPictures(
          LIMIT ${LIMITS.perKind}
       ) AS "hits" ON "hits"."hitId" = "Generation"."id"
      ORDER BY "hitScore" DESC, "hitAt" DESC`
+  if (literal.length >= LIMITS.perKind) return literal
+  return [
+    ...literal,
+    ...(await picturesByWords(
+      userId,
+      await expansion,
+      literal.map((row) => row.id),
+      LIMITS.perKind - literal.length,
+    )),
+  ]
+}
+
+/**
+ * 字面没对上、但搜索词翻成的标签整词对得上的图（下雨 → rain，语义检索第 3 块）：
+ * 先按包含粗筛一批 id（`_` 在 LIKE 里配任意一个字，空格、下划线两种写法都中），再按整词筛。
+ */
+async function picturesByWords(
+  userId: string,
+  words: readonly string[],
+  exclude: readonly string[],
+  limit: number,
+): Promise<PictureRow[]> {
+  if (words.length === 0 || limit <= 0) return []
+  const likes = words.map((word) => `%${likeEscape(word).replace(/ /g, '_')}%`)
+  const candidates = await db.$queryRaw<{ id: string; prompt: string }[]>`
+    SELECT "id", "prompt" FROM "Generation"
+     WHERE "userId" = ${userId}
+       AND "status" = 'COMPLETED'
+       AND "seq" IS NOT NULL
+       AND "prompt" ILIKE ANY(${likes}::text[])
+     ORDER BY "createdAt" DESC
+     LIMIT ${SEARCH_EXPANSION.CANDIDATE_LIMIT}`
+  const ids = candidates
+    .filter(
+      (row) => !exclude.includes(row.id) && matchesAnyWord(row.prompt, words),
+    )
+    .slice(0, limit)
+    .map((row) => row.id)
+  if (ids.length === 0) return []
+  return db.$queryRaw<PictureRow[]>`
+    SELECT ${PICTURE_COLUMNS}
+      FROM "Generation"
+     WHERE "id" = ANY(${ids}::text[])
+     ORDER BY "createdAt" DESC`
+}
+
+/**
+ * 字面命中的在前；不够 `perKind` 条时，把搜索词翻成标签（下雨 → rain）再整词对一遍，接在后面。
+ */
+async function rankedWithExpansion<T>(
+  items: readonly T[],
+  query: string,
+  fields: (item: T) => readonly (string | null | undefined)[],
+): Promise<T[]> {
+  const literal = ranked(items, query, fields)
+  if (literal.length >= LIMITS.perKind || !query.trim()) return literal
+  const words = await expandSearchQuery(query)
+  const extras = items.filter(
+    (item) =>
+      !literal.includes(item) &&
+      matchesAnyWord(fields(item).filter(Boolean).join('\n'), words),
+  )
+  return [...literal, ...extras].slice(0, LIMITS.perKind)
 }
 
 function likeEscape(text: string): string {
@@ -587,7 +654,7 @@ async function readConversation(
 async function findCharacters(clerkId: string, query: string) {
   const cards = await listCharacterCards(clerkId)
   // 设定、简介、造型说明也搜（10-25：「马尔福」写在女德拉科的设定里，只搜名字就查不到）。
-  return ranked(cards, query, (card) => [
+  return rankedWithExpansion(cards, query, (card) => [
     card.name,
     card.handle,
     card.tags.join(' '),
@@ -660,7 +727,7 @@ async function readCharacter(
 
 async function findLoras(clerkId: string, query: string) {
   const assets = await listLoraAssetsForUser(clerkId, LIMITS.listScan)
-  return ranked(assets, query, (asset) => [
+  return rankedWithExpansion(assets, query, (asset) => [
     asset.name,
     asset.styleCode,
     asset.triggerWord,
@@ -697,7 +764,7 @@ async function readLora(
 
 async function findPrompts(clerkId: string, query: string) {
   const recipes = await listRecipeSummaries(clerkId, 1, LIMITS.listScan)
-  return ranked(recipes, query, (recipe) => [
+  return rankedWithExpansion(recipes, query, (recipe) => [
     recipe.name,
     recipe.compiledPrompt,
     recipe.modelId,

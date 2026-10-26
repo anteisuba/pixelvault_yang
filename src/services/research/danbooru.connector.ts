@@ -14,6 +14,7 @@ import {
 } from '@/constants/research'
 import type { EvidenceItem } from '@/types/research'
 import { isStyleMediumTag } from '@/lib/tag-lookup'
+import { withinBudget } from '@/lib/within-budget'
 import {
   findTagsByLocalName,
   findTagsByMeaning,
@@ -472,23 +473,6 @@ async function aliasTags(text: string): Promise<CatalogTag[]> {
  */
 /** 字面结果已经排满时，按意思找最多再等这么久（转向量要 0.5–4.5 秒，2026-10-26 实测）。 */
 const MEANING_BUDGET_MS = 300
-
-async function withinBudget<T>(
-  work: Promise<T>,
-  budgetMs: number,
-  fallback: T,
-): Promise<T> {
-  let timer: ReturnType<typeof setTimeout> | undefined
-  const late = Symbol('late')
-  const result = await Promise.race([
-    work,
-    new Promise<typeof late>((resolve) => {
-      timer = setTimeout(() => resolve(late), budgetMs)
-    }),
-  ])
-  clearTimeout(timer)
-  return result === late ? fallback : result
-}
 
 async function matchTags(
   text: string,

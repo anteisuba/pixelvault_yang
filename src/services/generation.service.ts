@@ -13,6 +13,7 @@ import {
 import { getPublishBlockedErrorCode } from '@/lib/content-safety'
 import { buildGenerationDisplayName } from '@/lib/generation-name'
 import { normalizeReferenceImages } from '@/lib/reference-image-compat'
+import { matchesAnyWord } from '@/lib/search-words'
 import type {
   AssetSectionCounts,
   GenerationRecord,
@@ -23,6 +24,7 @@ import type {
   OutputTypeValue,
 } from '@/types'
 import { PAGINATION } from '@/constants/config'
+import { SEARCH_EXPANSION } from '@/constants/semantic-search'
 import {
   GENERATION_REVIEW_STATES,
   GENERATION_REVIEW_STATE_IDS,
@@ -34,6 +36,7 @@ import {
   folderScopeWhere,
 } from '@/services/asset-folder.service'
 import { updatePreferenceOnDeleted } from '@/services/user-preference.service'
+import { expandSearchQuery } from '@/services/search-expansion.service'
 
 // ─── Input Types ──────────────────────────────────────────────────
 
@@ -829,7 +832,10 @@ async function getPublicGenerationSlice({
   projectId,
   provider,
 }: GalleryQueryOptions = {}): Promise<
-  Pick<GalleryGenerationPage, 'generations' | 'hasMore' | 'nextCursor'>
+  Pick<GalleryGenerationPage, 'generations' | 'hasMore' | 'nextCursor'> & {
+    /** 最后一页后面按意思补了几条（总数要加上）。 */
+    searchExtraCount?: number
+  }
 > {
   // Owner-scoped queries (mine=1, /assets) don't render like badges, so
   // we skip the join + aggregate. Public/community queries still need
@@ -931,11 +937,63 @@ async function getPublicGenerationSlice({
   const nextCursor =
     hasMore && lastPageResult ? encodeGalleryCursor(lastPageResult) : null
 
+  // 自己的东西按意思补（语义检索第 3 块）：字面那几页翻完了，最后一页后面接上
+  // 「搜索词翻成标签后对得上」的那些（下雨 → rain）。只在最后一页等，前面几页不受影响。
+  const extras =
+    isOwnerView && search && !hasMore
+      ? await searchExtraRows({ where: baseWhere, search, sort, select })
+      : []
+
   return {
-    generations: toRecords(pageResults),
+    generations: toRecords([...pageResults, ...extras]),
     hasMore,
     nextCursor,
+    searchExtraCount: extras.length,
   }
+}
+
+/**
+ * 字面没对上、但搜索词翻成的标签整词对得上的那些（同样的筛选、同样的排序）。
+ * 先按包含粗筛一批（空格、下划线两种写法），再按整词筛：`rain` ⛔ 算进 `training`。
+ */
+async function searchExtraRows({
+  where,
+  search,
+  sort,
+  select,
+}: {
+  where: Record<string, unknown>
+  search: string
+  sort: GallerySortOption
+  select: Prisma.GenerationSelect
+}): Promise<unknown[]> {
+  const words = await expandSearchQuery(search)
+  if (words.length === 0) return []
+  // 字面那一条（`prompt contains`）换成下面的「没对上字面、对上了翻出来的词」。
+  const rest = { ...where }
+  delete rest.prompt
+  const variants = [
+    ...new Set(words.flatMap((word) => [word, word.replace(/ /g, '_')])),
+  ]
+  const candidates = await db.generation.findMany({
+    where: {
+      AND: [
+        rest,
+        { NOT: { prompt: { contains: search, mode: 'insensitive' } } },
+        {
+          OR: variants.map((word) => ({
+            prompt: { contains: word, mode: 'insensitive' as const },
+          })),
+        },
+      ],
+    },
+    orderBy: getGalleryOrderBy(sort),
+    take: SEARCH_EXPANSION.CANDIDATE_LIMIT,
+    select,
+  })
+  return (candidates as unknown as { prompt: string }[])
+    .filter((row) => matchesAnyWord(row.prompt, words))
+    .slice(0, SEARCH_EXPANSION.EXTRA_LIMIT)
 }
 
 /**
@@ -1058,9 +1116,10 @@ export async function getPublicGenerationPage(
       : Promise.resolve(null),
   ])
 
+  const { searchExtraCount = 0, ...rest } = page
   return {
-    ...page,
-    total,
+    ...rest,
+    total: total === null ? null : total + searchExtraCount,
   }
 }
 

@@ -115,6 +115,7 @@ export const DEFAULT_ASPECT_RATIO: AspectRatio = '1:1'
 /** API endpoint paths */
 export const API_ENDPOINTS = {
   DANBOORU_CATALOG: '/api/danbooru/catalog',
+  SEARCH_EXPAND: '/api/search/expand',
   DANBOORU_FAVORITES: '/api/danbooru/favorites',
   DANBOORU_IMAGE: '/api/danbooru/image',
   PROMPT_TAG_STACK: '/api/prompt-tags/stack',

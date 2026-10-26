@@ -10,6 +10,7 @@ import type {
   AssistantSpeakRequest,
   AssistantSpeakResponseData,
 } from '@/types/assistant-speak'
+import type { VoiceBenchData } from '@/types/voice-bench'
 
 /**
  * 助手设置（persona）与项目规则的客户端封装
@@ -98,6 +99,18 @@ export async function speakAssistantReplyAPI(
     return await parseJsonResult(response, 'Failed to read the reply aloud')
   } catch (error) {
     return toFailure(error, 'Failed to read the reply aloud')
+  }
+}
+
+/** 配音台（③）：现在这一位的嗓子念过的台词。 */
+export async function getVoiceBenchAPI(): Promise<ApiResult<VoiceBenchData>> {
+  try {
+    const response = await fetch(API_ENDPOINTS.VOICE_BENCH, {
+      cache: 'no-store',
+    })
+    return await parseJsonResult(response, 'Failed to load the voice bench')
+  } catch (error) {
+    return toFailure(error, 'Failed to load the voice bench')
   }
 }
 

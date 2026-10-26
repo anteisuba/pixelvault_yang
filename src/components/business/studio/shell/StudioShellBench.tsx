@@ -44,7 +44,7 @@ import {
 } from '@/lib/studio-shell-route'
 import { cn } from '@/lib/utils'
 
-/** 台条上的五个台，按 `STUDIO_SHELL_BENCH_IDS` 的顺序。 */
+/** 台条上的几个台，按 `STUDIO_SHELL_BENCH_IDS` 的顺序。 */
 const BENCH_ITEMS: readonly ShellNavItem[] = STUDIO_SHELL_BENCH_IDS.flatMap(
   (id) => SHELL_NAV_TOOLS.filter((item) => item.id === id),
 )

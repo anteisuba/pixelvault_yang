@@ -73,7 +73,15 @@
 
 - 配音间的聊天房间（`/studio/audio`、`VoiceRoom` / `VoiceLine` 两张表、`/api/voiceroom/*`、左栏「聊天」键）**10-26 整块删掉**（owner：「直接删掉吧，基本都是我自己的，没关系」；不迁移、不备份，迁移 `20261026170000_drop_voice_rooms`）。和角色聊天并回首页对话（[`../assistant-next.md`](../assistant-next.md)「聊天并回对话」）：没开台时她用自己的口吻说、一行一个气泡，🔊 用她角色卡绑的嗓子念（`services/voice-speak.service.ts`）。
 - 念出来的音频照旧是 Generation，留在素材库；头像规则（绑了角色挂角色的名字和头像）在 `speakWithVoiceCard` 里照旧。
-- `/studio/audio` 先重定向回 `/studio`，路径留给 ③ 配音台。原来的做法（班底、念台词、SSE 聊天、挂件、时限）看 git 历史。
+- 原来的做法（班底、念台词、SSE 聊天、挂件、时限）看 git 历史。
+
+### 3.3 配音台（③-1，2026-10-26）
+
+- `/studio/audio` = 配音台（左栏「工作台」竖排第三颗，LoRA 后面），**只配当前人设那个角色**（owner 10-26「是」）；默认助手没嗓子 → 空态 + 换人。
+- 台上那几句 = **素材库里她这副嗓子念过的音频**（`Generation.outputType = AUDIO` 且 `snapshot.voiceId` = 角色卡绑的音色，最近 60 条、旧的在前；`listVoiceBenchLines` → `GET /api/voice-bench`）。⛔ 另存台词表（owner 10-26 选「直接用素材库里的」），没念的草稿不留。
+- 写 → 念：一行一句（每句 ≤500 字），可选语气（`AUDIO_EMOTIONS`，写成句首 `[语气]` 进念的字里）和型号（免费 / Pro / Drama 3，和对话 🔊 同一份设备偏好）；走 `POST /api/assistant/speak`（`speakAsPersona`），念好自动放一遍。▶/■ 重放，↻ 重录 = 同一句再念一条新的（旧的留着）。头上 chip 点开换嗓子（`VoicePickerDialog`），缺 Fish key 就地 `QuickSetupDialog`。
+- 代码：`components/business/studio/voice-bench/VoiceBench.tsx`、`hooks/use-voice-bench.ts`、`hooks/use-persona-voice.ts`。
+- ③-2（待对齐）：按她的说法改、全部导出、助手写几句放到台上。
 
 ### 3.3 素材库头像与 Fish 升级（「声音」模块第 3/4 步，owner 2026-10-23）
 
@@ -134,10 +142,11 @@ B/C 可并行于 D；A 独立最先。每个 Phase 完成走 UI 确认阶梯（l
 
 ## 7. 移动端等级（owner 2026-09-03 拍板，配方见 `../ui-defaults.md §6`）
 
-- **降级**。配音台（③，待做）在手机上：对话流占满，输入条固定底部，参数进底部抽屉；播放器控件命中区 44px。
+- **降级**。配音台（③）在手机上：对话流占满，输入条固定底部，参数进底部抽屉；播放器控件命中区 44px。
 
 ## Last Verified
 
+- 2026-10-26 · 新增 §3.3 配音台（③-1）。
 - 2026-10-26 · §3.2 配音间聊天整块删除（聊天并回对话 ②c-3）。
 - 2026-10-23 · 新增 §3.2 配音间聊天。
 - 2026-10-23 · 新增 §3.1 音色库页 `/voices`。

@@ -209,6 +209,10 @@
       "imageTags": {
         "title": "タグスタジオ — ANTEI",
         "description": "NovelAI と PixAI 向けの danbooru タグプロンプトを組み立てます。"
+      },
+      "audio": {
+        "title": "吹き替え台 — ANTEI",
+        "description": "キャラクターの声でセリフを読む。"
       }
     },
     "gallery": {

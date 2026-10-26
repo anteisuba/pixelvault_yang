@@ -209,6 +209,10 @@
       "imageTags": {
         "title": "标签台 — ANTEI",
         "description": "为 NovelAI 与 PixAI 编写 danbooru 风格的标签提示词。"
+      },
+      "audio": {
+        "title": "配音台 — ANTEI",
+        "description": "用你角色的嗓子念台词。"
       }
     },
     "gallery": {

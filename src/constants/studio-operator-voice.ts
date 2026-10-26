@@ -23,3 +23,13 @@ export const STUDIO_OPERATOR_VOICE = {
 
 export type StudioOperatorVoiceModelId =
   (typeof STUDIO_OPERATOR_VOICE.modelIds)[number]
+
+/**
+ * 配音台（③，样件 v5）：只配现在这一位（全局人设那个角色）。⛔ 不另建台词表（用户 10-26）——
+ * 台上列的就是素材库里她这副嗓子念过的音频，最近这么多条。
+ */
+export const VOICE_BENCH = {
+  listLimit: 60,
+  /** 一句台词的上限（一行就是一句；长段落去对话里让她念）。 */
+  lineMaxChars: 500,
+} as const

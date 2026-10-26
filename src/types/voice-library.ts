@@ -6,7 +6,7 @@ import type { VoiceCardProvider } from '@/constants/voice-cards'
  * 声音库的域类型。
  *
  * 单独成文件而不是塞进 `src/types/index.ts`：那是 333 个文件依赖的枢纽，
- * 一个只有声音库用得上的形状没有理由挤进去（`research.ts` / `voiceroom.ts`
+ * 一个只有声音库用得上的形状没有理由挤进去（`research.ts`
  * 都是这个先例）。
  */
 

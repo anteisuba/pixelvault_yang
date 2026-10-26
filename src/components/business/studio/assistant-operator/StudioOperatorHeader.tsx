@@ -605,7 +605,6 @@ export function StudioOperatorHeader({
         <span className="flex-1" />
 
         {board ? <StudioOperatorVoiceKey /> : null}
-        {board ? shellSlots?.chat : null}
 
         {/* ── 右上**一颗 ⋯**（D7b ④ · 画板 `DesignD7bToggle` 的「⋯ 菜单」）────
             设置 · 分隔线 · 隐身。⛔ 历史会话只走标题下拉（D12 B7：⋯ 里那一项与它

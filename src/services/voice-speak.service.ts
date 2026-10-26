@@ -6,21 +6,20 @@ import { AUDIO_KIND, type AudioKind } from '@/constants/audio-options'
 import { getAvailableAudioModels } from '@/constants/models'
 import { resolveAudioKind } from '@/constants/models/audio'
 import { characterCoverUrl } from '@/lib/card-bus'
-import { spokenVoiceText } from '@/lib/voiceroom-chat-prompt'
+import { spokenVoiceText } from '@/lib/chat-voice'
 import {
   CHARACTER_LOOKS_INCLUDE,
   mapCharacterLookRow,
 } from '@/services/cards/character-card.mapper'
 import { submitAudioGeneration } from '@/services/generate-audio.service'
 import { ensureUser } from '@/services/user.service'
-import type { VoiceLineDelivery } from '@/types/voiceroom'
 import type {
   AssistantSpeakRequest,
   AssistantSpeakResponseData,
 } from '@/types/assistant-speak'
 
 /**
- * 用一副音色卡念一段话 —— 配音间的台词与对话里 🔊 念回复（②c-2）共用这一条。
+ * 用一副音色卡念一段话（对话里 🔊 念回复，②c-2）。
  * 生成本身走 `submitAudioGeneration`（和音频工作台同一条链路），这里只管「谁的嗓子、念什么」。
  */
 
@@ -33,7 +32,7 @@ export function resolveAudioModelId(kind: AudioKind): string {
     throw new ApiRequestError(
       'AUDIO_MODEL_UNAVAILABLE',
       503,
-      'errors.voiceRoom.modelUnavailable',
+      'errors.assistantVoice.modelUnavailable',
       `No available audio model for ${kind}`,
     )
   }
@@ -56,10 +55,10 @@ export async function speakWithVoiceCard(params: {
   userId: string
   voiceCardId: string
   text: string
-  emotion?: string | null
-  delivery?: Partial<VoiceLineDelivery>
+  /** 不给 = 目录里第一个可用的。 */
+  modelId?: string
 }): Promise<string> {
-  const { clerkId, userId, voiceCardId, text, emotion, delivery } = params
+  const { clerkId, userId, voiceCardId, text, modelId } = params
   const [card, character] = await Promise.all([
     db.voiceCard.findFirst({
       where: { id: voiceCardId, userId, isDeleted: false },
@@ -77,7 +76,7 @@ export async function speakWithVoiceCard(params: {
     throw new ApiRequestError(
       'VOICE_CARD_UNAVAILABLE',
       400,
-      'errors.voiceRoom.voiceCardUnavailable',
+      'errors.assistantVoice.voiceCardUnavailable',
       'That voice is no longer available',
     )
   }
@@ -86,7 +85,7 @@ export async function speakWithVoiceCard(params: {
     // 新内核的回复会带作品号、链接：念的时候只念说的话。
     prompt: spokenVoiceText(text),
     // 选过就用它，没选过退回目录里第一个可用的。
-    modelId: delivery?.modelId ?? resolveAudioModelId(AUDIO_KIND.SPEECH),
+    modelId: modelId ?? resolveAudioModelId(AUDIO_KIND.SPEECH),
     voiceId: card.voiceId,
     // 素材库靠这两个把音频卡画成「头像 + 名字」。
     voiceName: character?.name ?? card.name,
@@ -97,11 +96,6 @@ export async function speakWithVoiceCard(params: {
             looks: character.looks.map(mapCharacterLookRow),
           }),
       ) ?? toCoverUrl(card.coverImage),
-    ...(emotion ? { emotion: emotion as never } : {}),
-    ...(delivery?.pace ? { pace: delivery.pace } : {}),
-    ...(delivery?.expressiveness
-      ? { expressiveness: delivery.expressiveness }
-      : {}),
   })
   return jobId
 }
@@ -136,7 +130,7 @@ export async function speakAsPersona(
     userId: user.id,
     voiceCardId,
     text: request.text,
-    ...(request.modelId ? { delivery: { modelId: request.modelId } } : {}),
+    ...(request.modelId ? { modelId: request.modelId } : {}),
   })
   return { jobId }
 }

@@ -76,7 +76,7 @@ export function useModelPickerMemory(
 
   // 只在挂载后读 —— localStorage 在服务端不存在，初值直接读会让 SSR 与首帧不一致。
   // 这不是「从渲染输入推得出来的状态」，是**向外部系统取一次数据后回填**，与
-  // 全仓既有 hook 同一个写法（`use-voiceroom` / `use-context-cards`）。
+  // 全仓既有 hook 同一个写法（`use-context-cards`）。
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- 挂载时读一次 localStorage（外部系统），不是级联推导
     setChannels(readJson<ScopedRecord>(MODEL_PICKER_CHANNEL_STORAGE_KEY, {}))

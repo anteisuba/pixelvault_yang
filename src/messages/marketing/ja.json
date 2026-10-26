@@ -198,10 +198,6 @@
         "title": "動画スタジオ — ANTEI",
         "description": "ショット、動き、シーンの展開をAIで動画化。"
       },
-      "audio": {
-        "title": "チャット — ANTEI",
-        "description": "アシスタントやキャラクターとチャット。声に出すこともできます。"
-      },
       "edit": {
         "title": "画像編集 — ANTEI",
         "description": "インペイント、超解像、背景除去、要素抽出で生成画像を編集。"

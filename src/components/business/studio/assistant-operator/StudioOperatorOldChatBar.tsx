@@ -4,12 +4,13 @@ import { useTranslations } from 'next-intl'
 
 import { Button } from '@/components/ui/button'
 import { useChatCharacters } from '@/hooks/use-chat-characters'
-import { useOpenPersonaChat } from '@/hooks/use-chat-persona'
+import { usePersonaSwitch } from '@/hooks/use-chat-persona'
+import { useStudioOperatorActions } from '@/hooks/use-studio-operator-actions'
 import type { StudioOperatorChatCharacter } from '@/hooks/use-studio-operator-store'
 
 /**
  * 以前在助手里「和角色聊」留下的那几段（用户 10-25 去掉聊天模式）：**只能看**，输入区换成这一条 ——
- * 一句「和她的旧聊天」+「和她聊天」：助手换成她、进「聊天」接着聊（用户 10-25 聊天跟着全局人设）。
+ * 一句「和她的旧聊天」+「和她聊天」：助手换成她、开一段新对话接着聊（②c 聊天并回对话）。
  */
 export function StudioOperatorOldChatBar({
   character,
@@ -18,7 +19,8 @@ export function StudioOperatorOldChatBar({
 }) {
   const t = useTranslations('StudioOperator.chat')
   const { characters } = useChatCharacters(true)
-  const personaChat = useOpenPersonaChat()
+  const personaSwitch = usePersonaSwitch()
+  const actions = useStudioOperatorActions()
   const chat = characters.find((item) => item.character.id === character.id)
 
   return (
@@ -32,16 +34,15 @@ export function StudioOperatorOldChatBar({
       {chat ? (
         <Button
           size="sm"
-          disabled={personaChat.busy}
+          disabled={personaSwitch.busy}
           onClick={() =>
-            void personaChat.switchTo(chat.character.id, {
-              voiceCardId: chat.voiceCardId,
-              openChat: true,
+            void personaSwitch.switchTo(chat.character.id).then((ok) => {
+              if (ok) actions?.newThread()
             })
           }
-          data-testid="operator-old-chat-go-room"
+          data-testid="operator-old-chat-continue"
         >
-          {t('goVoiceRoom')}
+          {t('continueChat')}
         </Button>
       ) : null}
     </div>

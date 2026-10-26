@@ -11,13 +11,12 @@ import {
 } from '@/lib/studio-shell-route'
 
 describe('studio-shell-route', () => {
-  it('classifies routes into home / bench / page', () => {
+  it('classifies routes into home / bench / library', () => {
     expect(studioShellRouteKind('/studio')).toBe('home')
     expect(studioShellRouteKind('/studio/c/abc')).toBe('home')
     expect(studioShellRouteKind('/studio/image')).toBe('bench')
     expect(studioShellRouteKind('/studio/lora/library')).toBe('bench')
     expect(studioShellRouteKind('/studio/node')).toBe('bench')
-    expect(studioShellRouteKind('/studio/audio')).toBe('page')
     expect(studioShellRouteKind('/library/assets')).toBe('library')
     expect(studioShellRouteKind('/u/me')).toBe('library')
   })

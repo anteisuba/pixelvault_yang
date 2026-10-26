@@ -306,7 +306,7 @@ studio 内容裁出视口，是因为侧栏能展开到 144；平板档现在钉
 ≥1024（`desk:`）的 `/studio/**` 不再走全站侧栏：`StudioShell`（`studio/layout.tsx`）自己摆三层 ——
 左 = 对话列表（新对话 · 库 · 配音间 · 最近对话 · 账号），中 = 对话（助手面板**只挂这一份**），右 = 台。
 
-- 路由：`/studio` = 创作首页（新对话）；`/studio/c/<编号>` = 只开着这段对话；`/studio/<台>?c=<编号>` = 对话 + 台；`/studio/audio` 整页（不挂对话）。浏览器后退先收台。规则在 `src/lib/studio-shell-route.ts`。
+- 路由：`/studio` = 创作首页（新对话）；`/studio/c/<编号>` = 只开着这段对话；`/studio/<台>?c=<编号>` = 对话 + 台；`/studio/audio` 10-26 起重定向回 `/studio`（聊天页删了，路径留给 ③ 配音台）。浏览器后退先收台。规则在 `src/lib/studio-shell-route.ts`。
 - 台照旧用 `StudioOperatorHostProvider` 包住自己，它顺手把宿主**登记**给外壳（`StudioOperatorHostSlotProvider`，取最里面那一层）；没台时面板拿首页那张脸。
 - 面板挂哪儿：`StudioOperatorDockPlacement` —— ≥1024 外壳挂（台上 `StudioOperatorBenchDock` 不挂）；更窄照旧台自己挂浮起的那颗；屏宽没量出来前哪边都不挂。
 - 对话 | 台 一根分隔线，宽度记在 `pv:studio-shell:split`；往左拖到底收起对话，往右拖到底收起台。台条竖在台左沿（台都按整屏高写死，横条会把台压出屏）。
@@ -320,6 +320,7 @@ studio 内容裁出视口，是因为侧栏能展开到 144；平板档现在钉
 - **列表活起来（9f-3）**：「最近」= 助手对话与配音间混排，按最近用过的时间（`StudioConversationRecent`）。对话的封面 = 这段里最新出完的一张（`GET /api/studio/conversation-activity`，看 `GenerationJob.conversationId`）；有任务在跑盖进度圈、右边写「出好 / 一共」，跑着时每 4 秒问一次；你不在这段时它出完了亮小点（「最后看它的时间」只记本机 `pv:studio-shell:seen`，头一回见到的记成已看过）。出图 / 视频 / 3D 请求由 api-client 自动带上外壳开着的那段对话（`lib/studio-active-conversation.ts`，外壳写、api-client 读）。台跟着对话走：地址上的对话 = 当前对话时记下台的地址（`PATCH /api/assistant/conversation/<id>/bench`，只剩对话 = null）；点列表回到它的台，同一个台上就地换对话。配音间：房间进地址 `?room=`，左栏「配音间」图标 = `?new=1` 新开一间（owner 2026-10-25 从首页顶上「助手 | 配音间」挪到左栏）；≥1024 配音间页不再画自己的房间列（`.vr-rail`），列表里原来那一行「配音」去掉（一样一个家）。手机不变。
 - **⛔ 对话列表（owner 2026-10-25）**：左栏的「对话」浮出列表已去掉（「配音间」图标同日 owner 又要回来：画廊下面，点了 = `/studio/audio`，回到最近那一间、没有就开一间），配音间页的房间列（`VoiceRoomRail`）删掉。改成先选人、再选历史：最上面那格换人（角色 = 进她的配音间：只有她一个人的那组里最近那段，没有就照她开一段；没绑音色先弹 `VoicePickerDialog` 绑到角色卡上；群 = 开过的多人配音间），历史在对话顶上标题 ▾（助手 `StudioOperatorHeader` 的 board 档也用下拉；配音间 `VoiceRoomHistoryMenu`，只列同一组人 `voiceRoomCastKey`，「新话题」= 照这组人新开一段，删到一段不剩就照她再开一段）。上面那条里的封面 / 进度 / 小点挪到了助手标题 ▾ 的行上，标题旁一颗点 = 别的几段有出好了没看的；`?new=1` 已删。
 - **动效与手势（9f-4）**：四种，常量只在 `constants/motion.ts` 的 `SHELL_MOTION`，同一条 `EASE_STANDARD`、都 ≤460ms，`prefers-reduced-motion` 下直接到位。**推**：只有对话 → 开台，整一栏台从右边推进来；收台（台顶 ×、分隔线往右拖过头松手）先退出去再换地址。**滑**：台顶换台，旧台往反方向滑走一小拍再换地址，新台按台条先后方向滑进来；库里换类正文左右滑（卸掉到挂上 250ms 内算换类）。**叠**：库从左边盖到对话上、关掉退回去，台不动。**拉**：拖线跟手，离默认宽 16px 吸过去；拖过头要收的那一边变淡、**松手才收**；双击回默认宽；松手 / 键盘 / 双击后宽走 320ms 过渡。两指横滑（触控板）换上 / 下一个台，一次手势一格，台里能横滚的地方先自己滚；⛔ 画布台（两指滑是平移画布）。台开着时台条横在台顶（`StudioBenchBar`，`h-12`），关着时竖着贴右边；台框挂 `bench-screen-h`，把 `--screen-h` 改成 `100svh - 3rem`，台里按整屏写的高一律写 `var(--screen-h, 100svh)`，⛔ 直接写 `100svh`。台窄到输入区放不进一行（图片台约 680px 以下）时**分两行**：左边几颗图标一行、右边模型 / 规格 / 价格 / 生成键一行，⛔ 为挤成一行把规格、价格藏掉（owner 10-24 选）。
+- **聊天并回对话（②c-3，2026-10-26）**：配音间的聊天房间、对话头「聊天」键（`StudioShellChatKey`）、`VoiceRoom` / `VoiceLine` 两张表整块删了（owner：「直接删掉吧」）；上面几条里写到配音间 / 混排 / 进她的配音间的，以这条为准。换人 = 换全局人设（`usePersonaSwitch`），角色页「和她聊」= 换人设回首页对话；外壳 `page` 那一种只剩库就地铺开在用。
 - 之后：9f-4 动效，手机端另做。
 
 ## Last Verified

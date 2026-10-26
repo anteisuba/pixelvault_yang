@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 
 import { useChatBubbleReveal } from '@/hooks/use-chat-bubble-reveal'
-import { chatBubbles } from '@/lib/voiceroom-chat-prompt'
+import { chatBubbles } from '@/lib/chat-voice'
 import { cn } from '@/lib/utils'
 
 const BUBBLE_CLASS =

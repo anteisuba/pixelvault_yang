@@ -3,24 +3,10 @@
 import { useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
 
-import {
-  ROUTES,
-  studioConversationPath,
-  voiceRoomPath,
-} from '@/constants/routes'
+import { ROUTES, studioConversationPath } from '@/constants/routes'
 import { STUDIO_OPERATOR_HISTORY } from '@/constants/studio-assistant-operator'
+import { ChevronDown, History, PanelLeftOpen } from '@/components/icons'
 import {
-  VOICE_ROOM_NAME_MAX_LENGTH,
-  VOICE_ROOM_SPEAKER_KIND,
-} from '@/constants/voiceroom'
-import {
-  ChatCircle,
-  ChevronDown,
-  History,
-  PanelLeftOpen,
-} from '@/components/icons'
-import {
-  GroupDisc,
   StudioOperatorAvatarSwitcher,
   StudioOperatorCurrentAvatar,
 } from '@/components/business/studio/assistant-operator/StudioOperatorAvatarSwitcher'
@@ -34,24 +20,13 @@ import {
   listAssistantConversationsAPI,
   renameAssistantConversationAPI,
 } from '@/lib/api-client'
-import {
-  deleteVoiceRoomAPI,
-  updateVoiceRoomAPI,
-} from '@/lib/api-client/voiceroom'
-import { useChatPersona, useOpenPersonaChat } from '@/hooks/use-chat-persona'
-import {
-  refreshShellVoiceRooms,
-  setShellVoiceRooms,
-  useShellVoiceRooms,
-} from '@/hooks/use-shell-voice-rooms'
+import { useChatPersona } from '@/hooks/use-chat-persona'
 import { useStudioConversationActivity } from '@/hooks/use-studio-conversation-activity'
 import { useStudioOperatorActions } from '@/hooks/use-studio-operator-actions'
 import { useStudioOperatorHistoryView } from '@/hooks/use-studio-operator-history'
 import { useStudioOperatorState } from '@/hooks/use-studio-operator-store'
 import { usePathname, useRouter } from '@/i18n/navigation'
 import { studioShellRouteKind } from '@/lib/studio-shell-route'
-import { roomsForPersona } from '@/lib/voiceroom-cast'
-import { cn } from '@/lib/utils'
 import type { AssistantConversationSummary } from '@/types/assistant-conversation'
 
 /** 对话头里的图标键（和头部 ⋯ 同一档）。 */
@@ -222,113 +197,6 @@ export function StudioShellHistoryExpandKey({
     >
       <PanelLeftOpen />
     </button>
-  )
-}
-
-/**
- * 「聊天」（用户 10-25：配音间改名聊天，和工作台的对话分开；10-26 搬进对话头右边）：点开 = 「＋ 和 X 新聊天」+ 和现在这一位
- * （全局助手人设）的几段，有她的群也算。换了人设，这里跟着换。
- */
-export function StudioShellChatKey({ active }: { active: boolean }) {
-  const t = useTranslations('StudioShell')
-  const router = useRouter()
-  const chatPersona = useChatPersona()
-  const personaChat = useOpenPersonaChat()
-  const { rooms, activeRoomId, actions } = useShellVoiceRooms()
-  const [renamingId, setRenamingId] = useState<string | null>(null)
-  const [deletingId, setDeletingId] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  const mine = chatPersona.ready ? roomsForPersona(rooms, chatPersona.ref) : []
-  const items: ShellHistoryItem[] = mine.map((room) => {
-    const voices = room.cast.filter(
-      (member) => member.kind === VOICE_ROOM_SPEAKER_KIND.VOICE,
-    )
-    return {
-      id: room.id,
-      title:
-        room.name ??
-        (voices.length > 1
-          ? voices.map((member) => member.name).join(' · ')
-          : null),
-      updatedAt: room.updatedAt,
-      leading:
-        voices.length > 1 ? (
-          <span className="size-5.5 shrink-0">
-            <GroupDisc members={voices} />
-          </span>
-        ) : undefined,
-    }
-  })
-
-  const rename = async (id: string, name: string | null) => {
-    if (actions) return actions.rename(id, name)
-    const result = await updateVoiceRoomAPI({ roomId: id, name })
-    if (!result.success || !result.data) {
-      setError(result.error ?? null)
-      return
-    }
-    const updated = result.data
-    setShellVoiceRooms(rooms.map((room) => (room.id === id ? updated : room)))
-  }
-
-  return (
-    <ShellHistoryMenu
-      testId="studio-shell-chat-history"
-      tooltip={t('chat')}
-      newLabel={t('newChatWith', { name: chatPersona.name })}
-      newDisabled={!chatPersona.ready || personaChat.busy}
-      onNew={() => void personaChat.open(chatPersona.target, { fresh: true })}
-      items={items}
-      currentId={activeRoomId}
-      loading={!chatPersona.ready}
-      error={error}
-      titleMaxLength={VOICE_ROOM_NAME_MAX_LENGTH}
-      renamingId={renamingId}
-      deletingId={deletingId}
-      onOpenChange={(open) => {
-        // 「聊天」那一页开着时它手上那份才是真的；不在那一页就重新问一次。
-        if (open && !actions) void refreshShellVoiceRooms()
-      }}
-      onSelect={(id) => {
-        if (id !== activeRoomId) router.push(voiceRoomPath(id))
-      }}
-      onRename={(id, title) => {
-        setRenamingId(id)
-        void rename(id, title.trim() || null).finally(() => setRenamingId(null))
-      }}
-      onDelete={async (id) => {
-        setDeletingId(id)
-        try {
-          if (actions) {
-            await actions.remove(id)
-            return true
-          }
-          const result = await deleteVoiceRoomAPI(id)
-          if (!result.success) {
-            setError(result.error ?? null)
-            return false
-          }
-          setShellVoiceRooms(rooms.filter((room) => room.id !== id))
-          return true
-        } finally {
-          setDeletingId(null)
-        }
-      }}
-    >
-      <button
-        type="button"
-        aria-label={t('chat')}
-        aria-current={active ? 'page' : undefined}
-        data-testid="studio-shell-voice-room"
-        className={cn(
-          HEADER_KEY_CLASS,
-          active && 'bg-surface-fill text-foreground',
-        )}
-      >
-        <ChatCircle />
-      </button>
-    </ShellHistoryMenu>
   )
 }
 

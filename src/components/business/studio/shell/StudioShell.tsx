@@ -51,7 +51,6 @@ import {
 } from '@/components/business/studio/shell/StudioShellBench'
 import { StudioShellHistoryColumn } from '@/components/business/studio/shell/StudioShellHistoryColumn'
 import {
-  StudioShellChatKey,
   StudioShellHistoryExpandKey,
   StudioShellHistoryKey,
   StudioShellPersonaKey,
@@ -192,9 +191,6 @@ export function StudioShell({
     [isDesk, kind, restore],
   )
 
-  const voiceRoomActive =
-    pathname === ROUTES.STUDIO_AUDIO ||
-    pathname.startsWith(`${ROUTES.STUDIO_AUDIO}/`)
   /**
    * 框里那一列对话记录（用户 10-26 定稿 v5）：没开台时摊开，一开台自动收起、收台再摊开；
    * 中间用户自己开合照用户的。⚠ 渲染期按 `kind` 调整（⛔ 晚一帧闪一下）。
@@ -206,7 +202,7 @@ export function StudioShell({
     if (kind === 'bench') setHistoryOpen(false)
     else if (historyKind === 'bench') setHistoryOpen(true)
   }
-  /** 对话头（和「聊天」那一页顶上）那几颗键（用户 10-26：从左栏搬进白板）。 */
+  /** 对话头那几颗键（用户 10-26：从左栏搬进白板）。 */
   const headerSlots = useMemo<StudioShellHeaderSlots>(
     () => ({
       // 桌面上记录是框里那一列，收起时这里留一颗展开键；手机没有那一列，照旧弹下拉。
@@ -217,10 +213,9 @@ export function StudioShell({
       ) : (
         <StudioShellHistoryKey />
       ),
-      chat: <StudioShellChatKey active={voiceRoomActive} />,
       renderPersona: (fly) => <StudioShellPersonaKey fly={fly} />,
     }),
-    [historyOpen, isDesk, voiceRoomActive],
+    [historyOpen, isDesk],
   )
 
   const libraryLayer = (

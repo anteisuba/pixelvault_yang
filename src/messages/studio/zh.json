@@ -1166,8 +1166,6 @@
     "libraryAssistant": "助手",
     "libraryRailHide": "收起侧栏",
     "libraryRailShow": "展开侧栏",
-    "chat": "聊天",
-    "newChatWith": "和 {name} 新聊天",
     "historyBucket": {
       "today": "今天",
       "yesterday": "昨天",

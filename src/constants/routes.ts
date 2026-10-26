@@ -89,12 +89,6 @@ export const LEGACY_LIBRARY_REDIRECTS = [
 /** 开着台时，对话编号跟在台地址后面的那一格（`/studio/image?c=<编号>`）。 */
 export const STUDIO_CONVERSATION_QUERY = 'c'
 
-/** 配音间地址上开着哪一段（头像点角色 / 群、标题 ▾ 换一段都走它）。 */
-export const VOICE_ROOM_QUERY = 'room'
-export function voiceRoomPath(id: string): string {
-  return `${ROUTES.STUDIO_AUDIO}?${VOICE_ROOM_QUERY}=${encodeURIComponent(id)}`
-}
-
 /** `/studio/c/<编号>`：只有对话、没开台的那段对话。 */
 export function studioConversationPath(id: string): string {
   return `${ROUTES.STUDIO_CONVERSATION}/${encodeURIComponent(id)}`

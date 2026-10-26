@@ -34,7 +34,7 @@
  * ⛔ 不是开放代理：host 只认 `HOTLINK_HOSTS` 那几家图床（及其子域），跳转也只跟到
  * 同一张名单里；回来的必须是图（魔数判型，同上面那一支），否则 415。
  * ⚠ Danbooru（cdn.donmai.us）⛔ 放这里：它的 Cloudflare 把 Worker 的回源也拦成 403
- *   质询（2026-10-26 实测），改走 Vercel 同源 rewrite，见 `WEB_IMAGE_SAME_ORIGIN_REWRITES`。
+ *   质询（2026-10-26 实测），改为直连失败再退自家服务端，见 `WEB_IMAGE_SERVER_FALLBACK`。
  * 前端改写在 `src/lib/third-party-image-url.ts`（名单 = `WEB_IMAGE_HOTLINK_PROXY`，
  * 与这里的 `HOTLINK_HOSTS` 两处要一起改）。
  */

@@ -56,8 +56,8 @@ img.anteisuba.com/hotlink/<host>/<path>
 
 > ⚠ Danbooru（`cdn.donmai.us`）不在表里：它的 Cloudflare 把可疑客户端拦成 403 质询页
 > （带 CORP `same-origin`，浏览器报 `NotSameOrigin`），Worker 回源也被拦（2026-10-26
-> 实测 `Upstream 403`）。标签库样图改走 Vercel 同源 rewrite（`/danbooru-img/`，见
-> `next.config.ts` 与 `WEB_IMAGE_SAME_ORIGIN_REWRITES`）。
+> 实测 `Upstream 403`）。标签库样图改为直连在前、失败再退
+> `/api/danbooru/image`（服务端代取，见 `WEB_IMAGE_SERVER_FALLBACK`）。
 
 - **不是开放代理**：host 只认上表（`HOTLINK_HOSTS`），跳转手动跟、只跟到同一张表里，
   回来的必须是图（魔数判型，否则 415），声明长度超过 20 MB 回 413。

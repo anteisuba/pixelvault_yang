@@ -7,7 +7,6 @@ import createNextIntlPlugin from 'next-intl/plugin'
 import type { NextConfig } from 'next'
 
 import { LEGACY_LIBRARY_REDIRECTS } from './src/constants/routes'
-import { WEB_IMAGE_SAME_ORIGIN_REWRITES } from './src/constants/web-image-sources'
 import { LOCALES } from './src/i18n/routing'
 
 const PROJECT_ROOT = dirname(fileURLToPath(import.meta.url))
@@ -96,13 +95,6 @@ const nextConfig: NextConfig = {
       source: `/:locale(${locales})${from}`,
       destination: `/:locale${to}`,
       permanent: true,
-    }))
-  },
-  // 浏览器直连会被源站 Cloudflare 拦的图床（Danbooru 样图），由自家站点同源转一道。
-  async rewrites() {
-    return WEB_IMAGE_SAME_ORIGIN_REWRITES.map(({ host, pathPrefix }) => ({
-      source: `${pathPrefix}/:path*`,
-      destination: `https://${host}/:path*`,
     }))
   },
   async headers() {

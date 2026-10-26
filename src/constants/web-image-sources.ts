@@ -1,3 +1,5 @@
+import { API_ENDPOINTS } from '@/constants/config'
+
 /**
  * 一张联网候选**能不能当生成输入**的判据（切片 3b）。
  *
@@ -122,16 +124,17 @@ export const WEB_IMAGE_HOTLINK_PROXY = {
 } as const
 
 /**
- * **浏览器看图时由自家站点同源转一道的图床**（Vercel 外部 rewrite，`next.config.ts`）。
+ * **浏览器直连取不到时退回自家服务端去取的图床**（直连在前、服务端在后）。
  *
  * Danbooru 的 `cdn.donmai.us`（标签库样图，2026-10-26）拦的不是 Referer：它的 Cloudflare
- * 把判为可疑的客户端（无头浏览器、部分机房 / VPN 出口）回成 403 质询页，那页带 CORP
- * `same-origin`，浏览器报 `ERR_BLOCKED_BY_RESPONSE.NotSameOrigin`、样图空白。自家图片
- * Worker 回源同样被拦（`Upstream 403`），所以⛔ 进 `WEB_IMAGE_HOTLINK_PROXY`。
- * ⚠ 路径前缀须带图片扩展名才能绕开 `src/proxy.ts` 的 matcher —— Danbooru 的图都带。
+ * 把判为可疑的客户端（无头浏览器、隐私浏览器、部分 VPN 出口）回成 403 质询页，那页带
+ * CORP `same-origin`，浏览器报 `ERR_BLOCKED_BY_RESPONSE.NotSameOrigin`、样图空白。
+ * 🔬 实测：真 Chrome 直连放行，所以直连在前、不白花服务端；自家图片 Worker 回源也被拦
+ *   （`Upstream 403`），⛔ 进 `WEB_IMAGE_HOTLINK_PROXY`；Vercel 外部 rewrite 会把浏览器的
+ *   UA 转过去，「Chrome UA + 非 Chrome 指纹」照样被拦，⛔ 用 rewrite。服务端用自己的 UA 取才放行。
  */
-export const WEB_IMAGE_SAME_ORIGIN_REWRITES = [
-  { host: 'cdn.donmai.us', pathPrefix: '/danbooru-img' },
+export const WEB_IMAGE_SERVER_FALLBACK = [
+  { host: 'cdn.donmai.us', route: API_ENDPOINTS.DANBOORU_IMAGE },
 ] as const
 
 /**

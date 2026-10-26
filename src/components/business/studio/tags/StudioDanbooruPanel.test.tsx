@@ -284,7 +284,7 @@ describe('查资料 B · 角色', () => {
     const dialog = screen.getByRole('dialog')
     expect(within(dialog).getByRole('img')).toHaveAttribute(
       'src',
-      '/danbooru-img/7.jpg',
+      'https://cdn.donmai.us/7.jpg',
     )
     expect(
       within(dialog).getByRole('link', { name: 'openPost' }),
@@ -309,7 +309,7 @@ describe('查资料 B · 角色', () => {
     // 样图用大图，点开 Danbooru 原帖。
     expect(screen.getByRole('img', { name: 'sample(7)' })).toHaveAttribute(
       'src',
-      '/danbooru-img/7.jpg',
+      'https://cdn.donmai.us/7.jpg',
     )
     expect(
       mocks.requests.some(

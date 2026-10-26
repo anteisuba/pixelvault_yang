@@ -69,17 +69,17 @@ describe('thirdPartyImageSources', () => {
     expect(thirdPartyImageSources(PIXIV, undefined)).toEqual([PIXIV])
   })
 
-  it('Danbooru 样图先走同源 rewrite，再直连；大图取不到退小图', () => {
+  it('Danbooru 样图先直连，取不到退自家服务端；大图取不到退小图', () => {
     vi.stubEnv('NEXT_PUBLIC_CIVITAI_IMAGE_PROXY_BASE', BASE)
     const large = 'https://cdn.donmai.us/720x720/9b/67/9b67.webp'
     const small = 'https://cdn.donmai.us/180x180/9b/67/9b67.jpg'
     expect(thirdPartyImageSources(large, small)).toEqual([
-      '/danbooru-img/720x720/9b/67/9b67.webp',
       large,
-      '/danbooru-img/180x180/9b/67/9b67.jpg',
+      '/api/danbooru/image?path=%2F720x720%2F9b%2F67%2F9b67.webp',
       small,
+      '/api/danbooru/image?path=%2F180x180%2F9b%2F67%2F9b67.jpg',
     ])
-    // ⛔ 仿冒域、别的 donmai 子域不改写。
+    // ⛔ 仿冒域不改写。
     expect(
       thirdPartyImageSources('https://cdn.donmai.us.evil.com/a.jpg'),
     ).toEqual(['https://cdn.donmai.us.evil.com/a.jpg'])

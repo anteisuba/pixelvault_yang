@@ -34,6 +34,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { useIntentPrefetch } from '@/hooks/use-intent-prefetch'
 import { useStudioOperatorState } from '@/hooks/use-studio-operator-store'
 import { Link, useRouter } from '@/i18n/navigation'
 import { shellEnter, shellLeave } from '@/lib/studio-shell-motion'
@@ -70,9 +71,11 @@ export function activeBenchId(pathname: string): string | undefined {
 
 /**
  * 台的「推」与「滑」（第 9f 步 9f-4）：
- * - 推：从只有对话到开着台，整一栏台从右边推进来；收台时先退出去再换地址。
- * - 滑：换台时旧台往反方向滑走一小拍（`slideOutS`）再换地址，新台从它在台条上的方向
- *   滑进来（`slideS`）。地址不是从台条换的（后退、列表里点了别的对话）就只有进来那一段。
+ * - 推：从只有对话到开着台，整一栏台从右边推进来；收台时先退出去再换地址（退的同时先把
+ *   对话页取好，退完一换就到）。
+ * - 滑：换台时旧台往反方向滑走一小拍（`slideOutS`），**同时**换地址 —— 滑走和取新台并行，
+ *   ⛔ 先滑完再去取（10-26 实测串行要多等一整段）。新台从它在台条上的方向滑进来（`slideS`）。
+ *   地址不是从台条换的（后退、列表里点了别的对话）就只有进来那一段。
  * ⚠ 动的是 transform / opacity；进场都在 layout effect 里起，⛔ 先闪一帧到位的样子。
  */
 export function useStudioBenchMotion({
@@ -127,20 +130,23 @@ export function useStudioBenchMotion({
     const column = columnRef.current
     if (leaving.current) return
     leaving.current = true
+    const href = studioConversationHref(sessionId)
+    router.prefetch(href)
     if (column && !reduceMotion) {
       await shellLeave(column, { x: '100%' }, SHELL_MOTION.pushS)
     }
-    router.push(studioConversationHref(sessionId))
+    router.push(href)
     restoreIfStuck(previous, { bench: true, id: activeId }, leaving, column)
   }, [activeId, columnRef, reduceMotion, router, sessionId])
 
-  /** 换台：旧台先往反方向滑走，再换地址（新台进来那一段在上面的 effect 里）。 */
+  /** 换台：旧台往反方向滑走、同时换地址（新台进来那一段在上面的 effect 里）。 */
   const switchBench = useCallback(
     async (item: ShellNavItem) => {
       if (item.id === activeId || leaving.current) return
       const href = studioBenchHref(item.href, sessionId)
       const content = contentRef.current
       leaving.current = true
+      router.push(href)
       if (content && !reduceMotion) {
         const dir = benchIndex(item.id) >= benchIndex(activeId) ? 1 : -1
         await shellLeave(
@@ -149,7 +155,6 @@ export function useStudioBenchMotion({
           SHELL_MOTION.slideOutS,
         )
       }
-      router.push(href)
       restoreIfStuck(previous, { bench: true, id: activeId }, leaving, content)
     },
     [activeId, contentRef, reduceMotion, router, sessionId],
@@ -275,6 +280,7 @@ export function StudioBenchRail({
   const t = useTranslations('StudioShell')
   const tAll = useTranslations()
   const { sessionId } = useStudioOperatorState()
+  const intent = useIntentPrefetch()
 
   return (
     <nav
@@ -301,6 +307,8 @@ export function StudioBenchRail({
             <BarTip key={item.id} label={active ? t('closeBench') : label}>
               <Link
                 href={studioBenchHref(item.href, sessionId)}
+                prefetch={false}
+                {...intent(studioBenchHref(item.href, sessionId))}
                 aria-label={label}
                 aria-current={active ? 'page' : undefined}
                 data-bench={item.id}
@@ -343,6 +351,7 @@ export function StudioBenchPicker({
   const t = useTranslations('StudioShell')
   const tAll = useTranslations()
   const { sessionId } = useStudioOperatorState()
+  const intent = useIntentPrefetch()
 
   return (
     <nav
@@ -354,6 +363,9 @@ export function StudioBenchPicker({
         const Icon = item.icon
         const label = tAll(item.labelKey)
         const active = item.id === activeId
+        const href = active
+          ? studioConversationHref(sessionId)
+          : studioBenchHref(item.href, sessionId)
         return (
           <BarTip
             key={item.id}
@@ -361,11 +373,9 @@ export function StudioBenchPicker({
             side="right"
           >
             <Link
-              href={
-                active
-                  ? studioConversationHref(sessionId)
-                  : studioBenchHref(item.href, sessionId)
-              }
+              href={href}
+              prefetch={false}
+              {...intent(href)}
               aria-label={label}
               aria-current={active ? 'page' : undefined}
               data-bench={item.id}
@@ -402,6 +412,7 @@ export function StudioLibraryPicker({
 }) {
   const t = useTranslations('StudioShell')
   const tAll = useTranslations()
+  const intent = useIntentPrefetch()
 
   return (
     <nav
@@ -417,6 +428,10 @@ export function StudioLibraryPicker({
           <BarTip key={item.id} label={label} side="right">
             <Link
               href={studioLibraryPath(item.id as StudioLibraryCategoryId)}
+              prefetch={false}
+              {...intent(
+                studioLibraryPath(item.id as StudioLibraryCategoryId),
+              )}
               replace={replace}
               aria-label={label}
               aria-current={active ? 'page' : undefined}

@@ -491,9 +491,17 @@ export function useStudioOperatorHistory({
    */
   useEffect(() => {
     const epoch = ++lifecycle.current
+    /**
+     * 同一个人只是换了台（作用域没变、这次页面加载已水化过）：列表是这个人全部的会话、不分台，
+     * 留着上一份，新鲜就不再拉（换台实测每次都重拉一遍列表、先清空再填回来）。
+     */
+    const sameScope =
+      scope !== null &&
+      lastListedAt.current?.scope === scope &&
+      hydratedScopes.has(scope)
     mountedScope.current = scope
     loadIntent.current += 1
-    setSessions([])
+    if (!sameScope) setSessions([])
     setLoadingSessionId(null)
     setRenamingSessionId(null)
     setDeletingSessionId(null)
@@ -518,9 +526,13 @@ export function useStudioOperatorHistory({
     const before = getOperatorState()
     const restoreLatest = scope !== null && !hydratedScopes.has(scope)
     if (scope) hydratedScopes.add(scope)
-    setIsHydrating(scope !== null)
+    const listFresh =
+      sameScope &&
+      Date.now() - (lastListedAt.current?.at ?? 0) <
+        STUDIO_OPERATOR_HISTORY.listFreshMs
+    setIsHydrating(scope !== null && !sameScope)
 
-    if (scope)
+    if (scope && !listFresh)
       void (async () => {
         try {
           const merged = await fetchSessions()

@@ -314,7 +314,7 @@ describe('streamVoiceRoomChat', () => {
       expect.objectContaining({
         userId: 'user-1',
         cardId: DENIA_ID,
-        roomId: 'room-1',
+        said: expect.any(Array),
       }),
     )
 

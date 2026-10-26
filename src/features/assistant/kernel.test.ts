@@ -58,6 +58,11 @@ vi.mock('@/services/assistant-memory.service', () => ({
   },
 }))
 const skillStore = vi.hoisted(() => ({ rows: [] as unknown[] }))
+const homeChat = vi.hoisted(() => ({ id: null as string | null }))
+vi.mock('@/services/assistant-persona.service', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  getHomeChatCharacterId: vi.fn(async () => homeChat.id),
+}))
 vi.mock('@/services/assistant-skill.service', async () => {
   const { resolveSkills } = await import('@/features/assistant/skills')
   return {
@@ -354,6 +359,49 @@ describe('新内核主循环', () => {
     expect(sent).toContain('THE PAGE: HOME')
     expect(sent).toContain('HOME — no bench is open')
     expect(sent).toContain('THE DRAFT — what is in it right now.')
+  })
+
+  it('没开台 = 和现在这位聊天（用户 10-26）：首页按设置里那张卡带上 chatCharacterId；台上 / 盖过章的照旧', async () => {
+    const card = '11111111-1111-4111-8111-111111111111'
+    const stamped = '22222222-2222-4222-8222-222222222222'
+    homeChat.id = card
+    const prepare = vi.mocked(prepareOperatorTurn)
+    try {
+      models.main = mockModel([textTurn('在呢。')])
+      prepare.mockClear()
+      await collect(
+        runAssistantNext(
+          'clerk-1',
+          imageRequest('嗨', { domain: 'home', workspaceKey: 'home' } as never),
+        ),
+      )
+      expect(prepare.mock.calls[0]?.[1]).toMatchObject({
+        chatCharacterId: card,
+      })
+
+      models.main = mockModel([textTurn('好。')])
+      prepare.mockClear()
+      await collect(runAssistantNext('clerk-1', imageRequest('改一下')))
+      expect(prepare.mock.calls[0]?.[1]).not.toHaveProperty('chatCharacterId')
+
+      models.main = mockModel([textTurn('嗯。')])
+      prepare.mockClear()
+      await collect(
+        runAssistantNext(
+          'clerk-1',
+          imageRequest('嗨', {
+            domain: 'home',
+            workspaceKey: 'home',
+            chatCharacterId: stamped,
+          } as never),
+        ),
+      )
+      expect(prepare.mock.calls[0]?.[1]).toMatchObject({
+        chatCharacterId: stamped,
+      })
+    } finally {
+      homeChat.id = null
+    }
   })
 
   it('改提示词：落一步，结果接回给模型，模型说完收尾；不设步数闸', async () => {

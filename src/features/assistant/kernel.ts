@@ -2,6 +2,7 @@ import 'server-only'
 
 import { randomUUID } from 'node:crypto'
 
+import { after } from 'next/server'
 import {
   APICallError,
   streamText,
@@ -59,6 +60,11 @@ import {
   type AssistantTurnDraft,
 } from '@/services/assistant-turn-record.service'
 import { listNextAssistantMemoriesForPrompt } from '@/services/assistant-memory.service'
+import { getHomeChatCharacterId } from '@/services/assistant-persona.service'
+import {
+  learnCreatorPhrases,
+  shouldLearnPhrases,
+} from '@/services/cards/character-learned-phrases.service'
 import { loadAssistantSkills } from '@/services/assistant-skill.service'
 import { startCallLog } from '@/services/kernel/assistant-completion.service'
 import {
@@ -465,6 +471,50 @@ function transcriptTool(name: string): AssistantV3Tool {
   ) as AssistantV3Tool
 }
 
+/** 你在这段里说了第几句：正好是间隔的倍数就排一次学说法（`after`，⛔ 拖慢这一轮）。 */
+function learnPhrasesAfterTurn(input: {
+  userId: string
+  cardId: string
+  messages: AssistantOperatorRequest['messages']
+  assistant: Parameters<typeof learnCreatorPhrases>[0]['assistant']
+}) {
+  const said = input.messages
+    .filter((message) => message.role === 'user')
+    .map((message) => message.content)
+  if (!shouldLearnPhrases(said.length)) return
+  try {
+    after(() =>
+      learnCreatorPhrases({
+        userId: input.userId,
+        cardId: input.cardId,
+        said,
+        assistant: input.assistant,
+      }),
+    )
+  } catch (error) {
+    // 不在请求里（单测 / 脚本）：学不了就算了。
+    logger.warn('assistant next phrase learning not scheduled', {
+      error: error instanceof Error ? error.message : String(error),
+    })
+  }
+}
+
+/**
+ * 没开台 = 和现在这位聊天（用户 10-26：她的对话只有一份，收台聊天、开台工作，⛔ 开关）。会话自己盖过章的
+ * 旧聊天照它自己的。读不出来就照工作口吻答（⛔ 掀翻这一轮）。
+ */
+async function homeChatCharacter(clerkId: string): Promise<string | null> {
+  try {
+    return await getHomeChatCharacterId(clerkId)
+  } catch (error) {
+    logger.warn('assistant next home chat character not loaded', {
+      userId: clerkId,
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return null
+  }
+}
+
 async function* runNextTurn(
   clerkId: string,
   initialRequest: AssistantOperatorRequest,
@@ -488,8 +538,14 @@ async function* runNextTurn(
   const homeDraft =
     initialRequest.domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.home &&
     isHomeDraftSnapshot(initialRequest.snapshot)
+  const homeChatCharacterId =
+    initialRequest.domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.home &&
+    !initialRequest.chatCharacterId
+      ? await homeChatCharacter(clerkId)
+      : null
   const request: AssistantOperatorRequest = {
     ...initialRequest,
+    ...(homeChatCharacterId ? { chatCharacterId: homeChatCharacterId } : {}),
     ...(homeDraft ? { domain: ASSISTANT_PROTOCOL_DOMAIN_IDS.image } : {}),
     ...(initialRequest.mediaAttachments
       ? {
@@ -553,6 +609,14 @@ async function* runNextTurn(
 
   const { turns, latest } = splitAssistantV3History(request.messages)
   const latestUserText = saved?.latestUserText ?? latest
+  // 和她聊天：你每说第 8 句，响应发完之后学一次你的说法（原在聊天页，用户 10-26 并进对话）。
+  if (chat && !saved && request.incognito !== true)
+    learnPhrasesAfterTurn({
+      userId: user.id,
+      cardId: chat.id,
+      messages: request.messages,
+      assistant: { route, modelId },
+    })
   // 这个人眼前的技能（内置 + 改版 / 关掉 + 自己写的，第 7b 步）；读不出来就只有内置的。
   const skills = await loadAssistantSkills(user.id).catch((error) => {
     logger.warn('assistant skills load failed, using built-ins', {

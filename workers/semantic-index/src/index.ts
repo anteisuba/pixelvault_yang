@@ -8,6 +8,7 @@ import {
   deleteItems,
   queryItems,
   upsertItems,
+  type QueryTimings,
   type SemanticMatch,
 } from './semantic'
 
@@ -18,12 +19,13 @@ export interface Env {
   INDEX_TOKEN: string
 }
 
-function json(body: unknown, status = 200): Response {
+function json(body: unknown, status = 200, serverTiming?: string): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
       'Content-Type': 'application/json',
       'Cache-Control': 'no-store',
+      ...(serverTiming === undefined ? {} : { 'Server-Timing': serverTiming }),
     },
   })
 }
@@ -58,7 +60,13 @@ const semanticIndexWorker = {
     if (pathname === '/query') {
       const input = await parse(request, QueryInputSchema)
       if (!input) return json({ error: 'Invalid query input' }, 400)
-      return json({ matches: await queryItems(env.AI, env.VECTORS, input) })
+      const timings: QueryTimings = { embedMs: 0, vectorMs: 0 }
+      const matches = await queryItems(env.AI, env.VECTORS, input, timings)
+      return json(
+        { matches },
+        200,
+        `embed;dur=${timings.embedMs}, vector;dur=${timings.vectorMs}`,
+      )
     }
 
     if (pathname === '/upsert') {

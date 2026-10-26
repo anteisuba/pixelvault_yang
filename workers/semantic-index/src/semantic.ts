@@ -176,12 +176,43 @@ export async function deleteItems(
  *   `category $in [1, 5]` 时 watercolor_(medium)（0.61）整个没回来，回来的是 0.46 的画师名 ——
  *   近似检索带宽筛选会漏，单个 `$eq` 才准。向量只算一次，多几次查询几乎不要钱。
  */
+/**
+ * 查询句的向量记在 isolate 里：转向量是查询里最慢的一段（2026-10-26 实测 0.5–4.5 秒，
+ * 查向量库 0.2–1.7 秒），同一句话（翻页、换类别、几个人搜同一个词）不再算。
+ * ⛔ Cache API：workers.dev 上与 RPC 调用里它都不生效。
+ */
+const QUERY_VECTOR_CACHE_SIZE = 500
+const queryVectors = new Map<string, Promise<number[]>>()
+
+function queryVector(ai: Ai, text: string): Promise<number[]> {
+  const cached = queryVectors.get(text)
+  if (cached) return cached
+  const vector = embed(ai, [text], 'queries').then(([first]) => first)
+  // 出错的不记：下一次再算。
+  vector.catch(() => queryVectors.delete(text))
+  queryVectors.set(text, vector)
+  if (queryVectors.size > QUERY_VECTOR_CACHE_SIZE) {
+    queryVectors.delete(queryVectors.keys().next().value as string)
+  }
+  return vector
+}
+
+/** 查询各段耗时（毫秒），给 Server-Timing。 */
+export interface QueryTimings {
+  embedMs: number
+  vectorMs: number
+}
+
 export async function queryItems(
   ai: Ai,
   index: VectorizeIndex,
   input: QueryInput,
+  timings?: QueryTimings,
 ): Promise<SemanticMatch[]> {
-  const [vector] = await embed(ai, [input.text], 'queries')
+  const startedAt = Date.now()
+  const vector = await queryVector(ai, input.text)
+  const embeddedAt = Date.now()
+  if (timings) timings.embedMs = embeddedAt - startedAt
   const filters: Record<string, unknown>[] = input.categories
     ? [...new Set(input.categories)].map((category) => ({
         kind: input.kind,
@@ -198,6 +229,7 @@ export async function queryItems(
       }),
     ),
   )
+  if (timings) timings.vectorMs = Date.now() - embeddedAt
   return results
     .flatMap(({ matches }) => matches)
     .sort((a, b) => b.score - a.score)

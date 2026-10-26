@@ -812,6 +812,42 @@ describe('按意思搜', () => {
     expect(queries).toEqual(['水彩风'])
   })
 
+  it('does not hold a page of literal results for a slow semantic side, and uses it on the next page', async () => {
+    let release: () => void = () => undefined
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const deferred: Promise<unknown>[] = []
+    const binding: SemanticIndexBinding = {
+      upsert: async () => 0,
+      query: async () => {
+        await gate
+        return [{ key: '6', score: 0.8 }]
+      },
+    }
+    const run = (page: number) =>
+      searchIndex(
+        db,
+        SearchInputSchema.parse({
+          q: 'silver',
+          sort: 'downloads',
+          pageSize: 2,
+          page,
+        }),
+        { semantic: binding, defer: (work) => deferred.push(work) },
+      )
+    const first = await run(1)
+    expect(first.rows.map((row) => row.modelId)).toEqual([1, 3])
+    expect(first.total).toBe(3)
+    expect(deferred).toHaveLength(1)
+    release()
+    await Promise.all(deferred)
+    // 排到字面最后一条的那一页照等，总数是真的。
+    const second = await run(2)
+    expect(second.rows.map((row) => row.modelId)).toEqual([2, 6])
+    expect(second.total).toBe(4)
+  })
+
   it('keeps the literal results when the semantic side fails', async () => {
     const binding: SemanticIndexBinding = {
       upsert: async () => 0,

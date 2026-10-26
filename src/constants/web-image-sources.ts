@@ -112,13 +112,16 @@ export const WEB_IMAGE_SOURCE_HOTLINK_LIST = [
  * ⭐ 面板里的网图一律 `referrerPolicy="no-referrer"` 直连，多数图床就放行了；这几家
  * 连**空** Referer 也拒（pixiv 最出名），只能由 `workers/civitai-image-proxy` 的
  * `/hotlink/` 那一支带上它们自己站内的 Referer 去取。
- * ⚠ 这是上面 `WEB_IMAGE_SOURCE_HOTLINK_LIST` 的**子集**，而且只收**图床**域（页面域
+ * ⭐ `donmai.us`（标签库的 Danbooru 样图，2026-10-26）不是 Referer 的事：Cloudflare 把
+ *   可疑客户端（无头浏览器、部分机房 / VPN 出口）拦成 403 质询页，那页带 CORP
+ *   `same-origin`，浏览器报 NotSameOrigin。服务端取得到，所以它⛔ 不进上面那张表。
+ * ⚠ 除 `donmai.us` 外是上面 `WEB_IMAGE_SOURCE_HOTLINK_LIST` 的**子集**，而且只收**图床**域（页面域
  *   不会出现在 `<img src>` 里）。Worker 那边的 `HOTLINK_HOSTS` 是同一张表 —— 两处一起改。
  * ⚠ 只管「看」：转存（`web-image-import`）是服务端直取，这张表不让它取得回来。
  */
 export const WEB_IMAGE_HOTLINK_PROXY = {
   pathPrefix: '/hotlink',
-  hosts: ['pximg.net', 'hdslb.com', 'sinaimg.cn'],
+  hosts: ['pximg.net', 'hdslb.com', 'sinaimg.cn', 'donmai.us'],
 } as const
 
 /**

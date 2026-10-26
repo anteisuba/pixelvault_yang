@@ -1,8 +1,7 @@
 'use client'
 
-import Image from 'next/image'
-
 import type { DanbooruCatalogKind } from '@/types/danbooru-catalog'
+import { ThirdPartyImage } from '@/components/business/ThirdPartyImage'
 import { Check, ChevronRight, ExternalLink } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -139,8 +138,7 @@ function Thumb({ url, className }: { url?: string; className: string }) {
       )}
     >
       {url ? (
-        <Image
-          unoptimized
+        <ThirdPartyImage
           src={url}
           alt=""
           fill

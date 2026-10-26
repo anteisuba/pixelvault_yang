@@ -48,11 +48,16 @@ img.anteisuba.com/hotlink/<host>/<path>
   → https://<host>/<path>      Referer: 那一家的首页
 ```
 
-| 图床（含子域） | 带的 Referer                |
-| -------------- | --------------------------- |
-| `pximg.net`    | `https://www.pixiv.net/`    |
-| `hdslb.com`    | `https://www.bilibili.com/` |
-| `sinaimg.cn`   | `https://weibo.com/`        |
+| 图床（含子域） | 带的 Referer                  |
+| -------------- | ----------------------------- |
+| `pximg.net`    | `https://www.pixiv.net/`      |
+| `hdslb.com`    | `https://www.bilibili.com/`   |
+| `sinaimg.cn`   | `https://weibo.com/`          |
+| `donmai.us`    | `https://danbooru.donmai.us/` |
+
+> `donmai.us`（标签库样图，2026-10-26）拦的不是 Referer：Cloudflare 判可疑客户端
+> （无头浏览器、部分机房 / VPN 出口）回 403 质询页，那页带 CORP `same-origin`，浏览器
+> 报 `ERR_BLOCKED_BY_RESPONSE.NotSameOrigin`。走这一支由 Worker 服务端取，并共享缓存。
 
 - **不是开放代理**：host 只认上表（`HOTLINK_HOSTS`），跳转手动跟、只跟到同一张表里，
   回来的必须是图（魔数判型，否则 415），声明长度超过 20 MB 回 413。

@@ -35,6 +35,9 @@ describe('hotlinkProxyImageUrl', () => {
     expect(hotlinkProxyImageUrl('https://WX1.sinaimg.cn/large/b.jpg')).toBe(
       `${BASE}/hotlink/wx1.sinaimg.cn/large/b.jpg`,
     )
+    expect(
+      hotlinkProxyImageUrl('https://cdn.donmai.us/180x180/9b/67/9b67.jpg'),
+    ).toBe(`${BASE}/hotlink/cdn.donmai.us/180x180/9b/67/9b67.jpg`)
   })
 
   it('⛔ 名单外、仿冒域、带端口 / userinfo 的一律不改写', () => {

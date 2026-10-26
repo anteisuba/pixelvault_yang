@@ -103,6 +103,7 @@ export function LookupDetailPane({
   const shots: LookupShot[] = detail.images.map((image) => ({
     id: image.id,
     url: image.large ?? image.url,
+    thumbUrl: image.url,
     alt: t('sample', { id: image.id }),
     href: danbooruPostUrl(image.id),
     hrefLabel: t('openPost'),

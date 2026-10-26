@@ -793,6 +793,7 @@ describe('read_state', () => {
               backstory: '',
               boundaries: '',
               catchphrases: '',
+              moods: '',
               scenario: '',
               opening: '',
               examples: '',

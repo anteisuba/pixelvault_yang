@@ -35,6 +35,7 @@ import {
 import { getGenerationErrorI18nKey } from '@/constants/generation-errors'
 import { isGenerationError, ProviderError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
+import { voiceCueRules } from '@/lib/voiceroom-chat-prompt'
 import { openCharacterImages } from '@/lib/assistant-v3-cards-board'
 import {
   assistantV3HistoryMessages,
@@ -618,12 +619,21 @@ async function* runNextTurn(
         ]
       : []
     // 「别出戏」放在这一轮的消息里（⛔ 进系统提示：每轮都变会废掉缓存）。
-    const reminder = chat ? chatReminder(persona) : null
+    const reminder = chat
+      ? chatReminder(
+          persona,
+          request.messages.filter((message) => message.role === 'user').length,
+        )
+      : null
+    // 会被念出来（聊天页开着声音）：方括号语气提示的写法，和薄管子同一段（⛔ 进系统提示：开关随时会变）。
+    const voice = request.chatVoice
+      ? `HOW YOUR VOICE SOUNDS\n${voiceCueRules(request.chatVoice.expressive)}\n- These cues are not stage directions: they are allowed, and they are how the voice gets its feeling.`
+      : null
     // 「/」点名的技能：全文直接进这一轮的消息，不等模型自己去读。
     const called = renderCalledSkills(latestUserText, skills)
     messages = [
       openingUserMessage(
-        [bench, called, reminder].filter(Boolean).join('\n\n'),
+        [bench, called, voice, reminder].filter(Boolean).join('\n\n'),
         pictures,
       ),
     ]

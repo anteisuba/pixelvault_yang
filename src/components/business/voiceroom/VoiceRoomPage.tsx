@@ -40,6 +40,7 @@ export function VoiceRoomPage() {
     pendingLine,
     pendingUserText,
     streamingReply,
+    finishReply,
     mode,
     setMode,
     llmModel,
@@ -145,6 +146,7 @@ export function VoiceRoomPage() {
             pendingLine={pendingLine}
             pendingUserText={pendingUserText}
             streamingReply={streamingReply}
+            onReplyRevealed={finishReply}
             mode={mode}
             onModeChange={setMode}
             llmModel={llmModel}

@@ -268,6 +268,9 @@ describe('useVoiceRoom 聊天（owner 10-23）', () => {
       expect(result.current.streamingReply).toEqual({
         speakerId: SPEAKER_ID,
         text: '在的。',
+        // 查完资料重起一段 = 第二段。
+        round: 1,
+        done: false,
       }),
     )
     expect(result.current.detail?.lines.map((line) => line.id)).toEqual([
@@ -280,7 +283,16 @@ describe('useVoiceRoom 聊天（owner 10-23）', () => {
       await sent
     })
     expect(await sent).toBe(true)
+    // 写完了：气泡还在按节奏出（F），真台词先收着、输入框还锁着。
+    expect(result.current.streamingReply).toMatchObject({ done: true })
+    expect(result.current.sending).toBe(true)
+    expect(result.current.detail?.lines.map((line) => line.id)).toEqual([
+      'line-user',
+    ])
+
+    act(() => result.current.finishReply())
     expect(result.current.streamingReply).toBeNull()
+    expect(result.current.sending).toBe(false)
     expect(result.current.detail?.lines.map((line) => line.id)).toEqual([
       'line-user',
       'line-reply',

@@ -128,6 +128,17 @@ function isPending(line: VoiceLineRecord): boolean {
   return line.audio?.status === 'QUEUED' || line.audio?.status === 'RUNNING'
 }
 
+/**
+ * 聊天：她正在写的那条回复。`round` 换一段就加一（查完资料重起一段 = 气泡从头排）；
+ * `done` = 写完、真台词已经回来，等最后几个气泡按节奏出完（`finishReply`）才换成真台词。
+ */
+export interface VoiceRoomStreamingReply {
+  speakerId: string
+  text: string
+  round: number
+  done: boolean
+}
+
 export interface UseVoiceRoomResult {
   rooms: VoiceRoomRecord[]
   detail: VoiceRoomDetail | null
@@ -150,8 +161,10 @@ export interface UseVoiceRoomResult {
   pendingLine: { speakerId: string; text: string } | null
   /** 聊天：你刚发出、还没落库的那句（右边先摆出来）。 */
   pendingUserText: string | null
-  /** 聊天：她正在写的回复（一个字一个字长出来）。 */
-  streamingReply: { speakerId: string; text: string } | null
+  /** 聊天：她正在写的回复（一个字一个字长出来，按行拆成几个气泡）。 */
+  streamingReply: VoiceRoomStreamingReply | null
+  /** 聊天：写完的回复气泡都出完了 → 换成真台词、放开输入框（10-26「更像真人」F）。 */
+  finishReply: () => void
   /** 聊天 / 念台词（owner 10-23 方案 A）。会话级，不落库。 */
   mode: VoiceRoomMode
   setMode: (mode: VoiceRoomMode) => void
@@ -219,9 +232,12 @@ export function useVoiceRoom(): UseVoiceRoomResult {
     text: string
   } | null>(null)
   const [pendingUserText, setPendingUserText] = useState<string | null>(null)
-  const [streamingReply, setStreamingReply] = useState<{
-    speakerId: string
-    text: string
+  const [streamingReply, setStreamingReply] =
+    useState<VoiceRoomStreamingReply | null>(null)
+  /** 写完了、还在等气泡出完的那条真台词（和它属于哪一间）。 */
+  const finishedReplyRef = useRef<{
+    roomId: string
+    line: VoiceLineRecord
   } | null>(null)
   const [mode, setMode] = useState<VoiceRoomMode>(VOICE_ROOM_MODE.CHAT)
   const [delivery, setDeliveryState] =
@@ -327,6 +343,13 @@ export function useVoiceRoom(): UseVoiceRoomResult {
         activeRoomRef.current !== null && activeRoomRef.current !== roomId
       activeRoomRef.current = roomId
       setActiveRoomId(roomId)
+
+      // 换房间时上一间还在出气泡的回复不等了（新的那间从服务端整份拉，里面有它）。
+      if (finishedReplyRef.current) {
+        finishedReplyRef.current = null
+        setStreamingReply(null)
+        setSending(false)
+      }
 
       if (!isSwitch) {
         setDetail(null)
@@ -532,21 +555,34 @@ export function useVoiceRoom(): UseVoiceRoomResult {
             userLanded = true
             append(line)
             setPendingUserText(null)
-            setStreamingReply({ speakerId, text: '' })
+            setStreamingReply({ speakerId, text: '', round: 0, done: false })
           },
           // `restart`：她查完资料重起一段，换掉还在写的那段。
           onDelta: (delta, restart) =>
             setStreamingReply((current) =>
               current
-                ? { ...current, text: restart ? delta : current.text + delta }
+                ? restart
+                  ? { ...current, text: delta, round: current.round + 1 }
+                  : { ...current, text: current.text + delta }
                 : current,
             ),
         },
       )
-      if (result.reply) append(result.reply)
-      setStreamingReply(null)
       setPendingUserText(null)
-      setSending(false)
+      if (result.reply) {
+        // 气泡还在按节奏出（F）：真台词先收着，等 `finishReply` 再换上、放开输入框。
+        const reply = result.reply
+        finishedReplyRef.current = { roomId, line: reply }
+        setStreamingReply((current) => ({
+          speakerId,
+          text: reply.text,
+          round: current?.round ?? 0,
+          done: true,
+        }))
+      } else {
+        setStreamingReply(null)
+        setSending(false)
+      }
       const setup = assistantKeySetupForError(result)
       if (setup) setKeySetup(setup)
       else if (result.error) setError(result.error)
@@ -554,6 +590,22 @@ export function useVoiceRoom(): UseVoiceRoomResult {
     },
     [activeRoomId, delivery, llmModel, voiceOn],
   )
+
+  const finishReply = useCallback(() => {
+    const finished = finishedReplyRef.current
+    finishedReplyRef.current = null
+    if (finished)
+      setDetail((current) =>
+        current &&
+        current.id === finished.roomId &&
+        // 轮询可能已经把它拉回来了。
+        !current.lines.some((line) => line.id === finished.line.id)
+          ? { ...current, lines: [...current.lines, finished.line] }
+          : current,
+      )
+    setStreamingReply(null)
+    setSending(false)
+  }, [])
 
   const retake = useCallback(
     async (
@@ -607,6 +659,7 @@ export function useVoiceRoom(): UseVoiceRoomResult {
     pendingLine,
     pendingUserText,
     streamingReply,
+    finishReply,
     mode,
     setMode,
     llmModel,

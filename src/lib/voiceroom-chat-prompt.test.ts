@@ -4,6 +4,7 @@ import { CharacterPersonaSchema } from '@/types'
 
 import {
   buildVoiceChatPrompt,
+  chatBubbles,
   cleanVoiceChatReply,
   pictureHandlesOf,
   spokenVoiceText,
@@ -87,6 +88,28 @@ describe('cleanVoiceChatReply', () => {
     )
     // 中间还有引号就不是「整句被包起来」，原样留着。
     expect(cleanVoiceChatReply('"A" and "B"', 'Denia')).toBe('"A" and "B"')
+  })
+
+  it('keeps one bubble per line, cleans each, and folds extras into the last', () => {
+    expect(
+      cleanVoiceChatReply(
+        'Denia: 画崩了？\n\n「嘿嘿」\n好啦，拿给我看看',
+        'Denia',
+      ),
+    ).toBe('画崩了？\n嘿嘿\n好啦，拿给我看看')
+    expect(cleanVoiceChatReply('一\n二\n三\n四\n五', 'Denia')).toBe(
+      '一\n二\n三\n四 五',
+    )
+  })
+})
+
+describe('chatBubbles', () => {
+  it('splits on lines and drops empty ones', () => {
+    expect(chatBubbles('  又熬夜了吧\n\n图先放着嘛\n')).toEqual([
+      '又熬夜了吧',
+      '图先放着嘛',
+    ])
+    expect(chatBubbles('')).toEqual([])
   })
 })
 

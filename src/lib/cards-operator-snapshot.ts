@@ -79,6 +79,7 @@ export function buildCardsOperatorSnapshot(
             backstory: clip(openCard.persona?.backstory),
             boundaries: clip(openCard.persona?.boundaries),
             catchphrases: clip(openCard.persona?.catchphrases.join('\n')),
+            moods: clip(openCard.persona?.moods.join('\n')),
             scenario: clip(openCard.persona?.scenario),
             opening: clip(openCard.persona?.opening),
             examples: clip(

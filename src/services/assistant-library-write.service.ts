@@ -25,6 +25,7 @@ import {
 } from '@/constants/assistant-persona'
 import { NODE_STUDIO_ASSISTANT_ROUTE_MODELS } from '@/constants/node-studio'
 import { ASSISTANT_V3_CHARACTER_WRITE_PARTS } from '@/constants/assistant-v3'
+import { CHARACTER_PERSONA_LIMITS } from '@/constants/cards/character-card'
 import {
   ASSISTANT_MEMORY_KIND_IDS as MEMORY_KIND,
   ASSISTANT_MEMORY_LIMITS as MEMORY_LIMITS,
@@ -241,6 +242,14 @@ function applyPersonaField(
       .split(/\n|、|\s\/\s/)
       .map((phrase) => phrase.trim().replace(/^[「『"]|[」』"]$/g, ''))
       .filter(Boolean)
+    return
+  }
+  if (field === 'moods') {
+    persona.moods = text
+      .split('\n')
+      .map((mood) => mood.trim().slice(0, CHARACTER_PERSONA_LIMITS.moodChars))
+      .filter(Boolean)
+      .slice(0, CHARACTER_PERSONA_LIMITS.moods)
     return
   }
   if (field === 'examples') {

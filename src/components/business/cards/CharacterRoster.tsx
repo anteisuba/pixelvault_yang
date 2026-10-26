@@ -143,6 +143,8 @@ export function CharacterRoster() {
         boundaries: '',
         backstory: '',
         catchphrases: [],
+        moods: [],
+        learnedPhrases: [],
         scenario: '',
         opening: '',
         examples: [],

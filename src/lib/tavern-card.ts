@@ -189,6 +189,8 @@ export function mapTavernCard(card: {
       speech: '',
       boundaries: '',
       catchphrases: [],
+      moods: [],
+      learnedPhrases: [],
       scenario: clip(fields.scenario, CHARACTER_PERSONA_LIMITS.scenario),
       opening: clip(fields.first_mes, CHARACTER_PERSONA_LIMITS.opening),
       examples: parseTavernExamples(fields.mes_example, fields.name.trim()),

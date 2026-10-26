@@ -320,6 +320,36 @@ describe('新内核改库：做 → 撤 → 回到原状', () => {
     expect(snapshot()).toEqual(before)
   })
 
+  it('开场白、对话示例、口头禅、不会做的事也能直接写（10-26），撤销写回', async () => {
+    const before = snapshot()
+    const outcome = await writeCharacterProfile(owner, {
+      character: '马尔福',
+      fields: [
+        { field: 'opening', text: '哼，又是你。' },
+        {
+          field: 'examples',
+          text: '<START>\n{{user}}: 谢谢你\n{{char}}: 别以为我会说不客气。\n<START>\n{{char}}: 走开。',
+        },
+        { field: 'catchphrases', text: '「哼」\n我父亲会听说这件事的' },
+        { field: 'boundaries', text: '不当着别人面道谢' },
+      ],
+    })
+    expect(outcome.ok).toBe(true)
+    expect(store.cards[0]!.persona).toMatchObject({
+      identity: 'student',
+      opening: '哼，又是你。',
+      examples: [
+        { user: '谢谢你', reply: '别以为我会说不客气。' },
+        { user: '', reply: '走开。' },
+      ],
+      catchphrases: ['哼', '我父亲会听说这件事的'],
+      boundaries: '不当着别人面道谢',
+    })
+    if (!outcome.ok) return
+    await revertLibraryWrite(owner.userId, outcome.inverse)
+    expect(snapshot()).toEqual(before)
+  })
+
   it('LoRA 加到角色的某套造型，撤销把这一条拿掉', async () => {
     const before = snapshot()
     const outcome = await linkLoraToCharacter(owner, {

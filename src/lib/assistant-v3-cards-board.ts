@@ -1,6 +1,6 @@
 import {
   ASSISTANT_V3_CARDS_ITEM_IDS,
-  ASSISTANT_V3_CARDS_PROFILE_PARTS as CARDS_PROFILE_PARTS,
+  ASSISTANT_V3_CHARACTER_WRITE_PARTS as CARDS_PROFILE_PARTS,
 } from '@/constants/assistant-v3'
 import {
   buildAssistantV3Handles,

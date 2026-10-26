@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, type ReactNode } from 'react'
-import Image from 'next/image'
 
+import { ThirdPartyImage } from '@/components/business/ThirdPartyImage'
 import { Check, ExternalLink, Star } from '@/components/icons'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
@@ -16,6 +16,8 @@ import { cn } from '@/lib/utils'
 export interface LookupShot {
   id: number
   url: string
+  /** 大图取不到时退回的小图。 */
+  thumbUrl?: string
   alt: string
   href: string
   /** 大图底下那条去 Danbooru 原帖的链接。 */
@@ -42,9 +44,9 @@ function ShotZoom({
           className="w-auto max-w-[calc(100%-2rem)] justify-items-center gap-3 border-0 bg-transparent p-0 shadow-none sm:max-w-[min(90vw,72rem)]"
         >
           <DialogTitle className="sr-only">{shot.alt}</DialogTitle>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <ThirdPartyImage
             src={shot.url}
+            fallback={shot.thumbUrl}
             alt={shot.alt}
             onClick={onClose}
             className="max-h-[80svh] max-w-full cursor-zoom-out rounded-xl object-contain shadow-lg"
@@ -101,9 +103,9 @@ export function LookupShots({
                 'cursor-zoom-in focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
               )}
             >
-              <Image
-                unoptimized
+              <ThirdPartyImage
                 src={shot.url}
+                fallback={shot.thumbUrl}
                 alt={shot.alt}
                 fill
                 sizes="148px"
@@ -132,9 +134,9 @@ export function LookupShots({
           >
             {/* ⚠ 不用 next/image 的 fill：要的是图自己的比例，不是一个固定框 —— 图框就是图，
                 圆角才落在图上。 */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <ThirdPartyImage
               src={shot.url}
+              fallback={shot.thumbUrl}
               alt={shot.alt}
               className="max-h-full max-w-full animate-in rounded-xl fade-in-0 duration-base ease-linear motion-reduce:animate-none"
             />

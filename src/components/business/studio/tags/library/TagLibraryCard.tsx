@@ -1,8 +1,8 @@
 'use client'
 
-import Image from 'next/image'
 import { useLocale, useTranslations } from 'next-intl'
 
+import { ThirdPartyImage } from '@/components/business/ThirdPartyImage'
 import { Check } from '@/components/icons'
 import { useDanbooruTagPreview } from '@/hooks/use-danbooru-tag-library'
 import { useNearViewport } from '@/hooks/use-near-viewport'
@@ -62,8 +62,7 @@ export function TagLibraryCard({
       >
         <span className="relative block aspect-3/4 w-full overflow-hidden rounded-lg bg-muted">
           {previews[0] ? (
-            <Image
-              unoptimized
+            <ThirdPartyImage
               src={previews[0]}
               alt=""
               fill

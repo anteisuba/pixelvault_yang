@@ -49,7 +49,7 @@
  *  · `none` —— 布局 A「分栏并排」（图片台桌面）：头像留在面板**上方**那一行里，
  *    头部不留位，标题从左缘起。
  *  · `board` / `boardStatic` —— `/studio` 外壳那一栏（ui-spec §1 板头，用户 10-26 定稿 v5）：
- *    对话记录 · 头像 + 名字 ▾（换人）· 淡标题 …… 聊天 · ⋯；开着台时最右多一颗收起（`board`），
+ *    对话记录 · 头像 + 名字 ▾（换人）…… 聊天 · ⋯；开着台时最右多一颗收起（`board`），
  *    首页没有台可让（`boardStatic`）。那几颗键由外壳经 context 给（`studio-shell-header-slots`）。
  *    ⚠ 外壳里头像管换人，所以收起单独一颗 —— 下面「收起 = 点头像」只说 `own`（手机 Sheet）。
  *    这两档的标题**不是**下拉（用户 10-25：工作台的历史挪到左栏「新对话」那颗里），只写这段的名字。
@@ -384,16 +384,8 @@ export function StudioOperatorHeader({
           />
         ) : null}
 
-        {board ? (
-          // `/studio` 外壳那一栏：标题只是这段对话的名字（淡一档，主角是头像 + 名字）。
-          <span
-            data-testid="operator-session-title"
-            title={sessionTitle}
-            className="min-w-0 truncate px-1 text-2sm text-muted-foreground"
-          >
-            {sessionTitle}
-          </span>
-        ) : (
+        {/* `/studio` 外壳那一栏不写标题（样件 v5）：哪一段看框里那一列的选中行。 */}
+        {board ? null : (
           <DropdownMenu
             modal={false}
             open={menuOpen}

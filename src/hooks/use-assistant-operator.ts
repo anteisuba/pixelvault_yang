@@ -2248,14 +2248,11 @@ export function useAssistantOperator(
       if (getOperatorState().benchOpen !== benchOpen || !isCurrentThread())
         return true
       const here = hostRef.current
-      const reached =
-        assistantBenchReached(
-          benchOpen.target,
-          here.workspace,
-          here.projectId,
-        ) &&
-        (!benchOpen.target.characterId ||
-          here.buildSnapshot().cards?.open?.id === benchOpen.target.characterId)
+      const reached = assistantBenchReached(
+        benchOpen.target,
+        here.workspace,
+        here.projectId,
+      )
       if (reached && runRef.current) {
         setOperatorBenchOpen(null)
         here.setOpen(true)

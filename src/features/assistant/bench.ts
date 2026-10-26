@@ -205,10 +205,10 @@ const HOME_DRAFT_OPS: readonly AssistantNextEditOp[] = [
 ]
 
 /** 首页的板子（第 9f 步）：没有台，说清能做什么、要干活先开台。 */
-const HOME_BOARD = `HOME — no bench is open: the creator is on the home page, talking with you before any work starts. There is no form here to change and nothing to generate. Talk the idea through; find and look work as usual, and library / settings / memory edits work everywhere. When it is time to make something, open the bench it belongs on (image, tags, video, lora, canvas, character) and carry on there.`
+const HOME_BOARD = `HOME — no bench is open: the creator is on the home page, talking with you before any work starts. There is no form here to change and nothing to generate. Talk the idea through; find and look work as usual, and library / settings / memory edits work everywhere. When it is time to make something, open the bench it belongs on (image, tags, video, lora, canvas) and carry on there. A character's profile and looks are not a bench: change them with edit right here.`
 
 /** 首页那份小配方的开头（第 9g 步）：下面接图片台那块板子，只是能改的格子少。 */
-const HOME_DRAFT_BOARD = `HOME — no bench is open: the creator is on the home page. A simple picture is made right here in the conversation: below is the small draft it is made from (the confirm card shows it as a little form the creator can change). edit ops on the draft: ${HOME_DRAFT_OPS.join(', ')}. Anything more (negative prompt, model options, LoRAs, the tag bench's people, video, canvas) belongs on a bench: open it and carry on there.`
+const HOME_DRAFT_BOARD = `HOME — no bench is open: the creator is on the home page. A simple picture is made right here in the conversation: below is the small draft it is made from (the confirm card shows it as a little form the creator can change). edit ops on the draft: ${HOME_DRAFT_OPS.join(', ')}. Library / settings / memory edits (a character's profile and looks, saved prompts, LoRAs in their library…) work here too, no bench needed. Anything more for the picture (negative prompt, model options, LoRAs, the tag bench's people, video, canvas) belongs on a bench: open it and carry on there.`
 
 export interface BenchResult {
   readonly output: string

@@ -110,7 +110,7 @@ v3 的问题不在某一条规矩，而在外壳替模型做了太多事（审�
 
 **第 9e 步：开台**（owner 10-23：直接开不先问；改到一半也不拦；画布默认最近那块，说「新的」才新建）：
 
-- 第六个工具 `open`（`features/assistant/open.ts`）：`bench` = image / tags / video / lora / canvas（`canvas: recent|new`）/ character（`character` 按名字或页上的句柄）。去哪由服务端认（最近那块画布 `listRecentNodeWorkflowProjectsForUser`，角色 `findOwnCharacter`），⛔ 不收模型写的 id；已经在那个台上就直说，不白跳。⚠ 没有配音间：那边单独做、助手不负责（owner 10-23）。
+- 第六个工具 `open`（`features/assistant/open.ts`）：`bench` = image / tags / video / lora / canvas（`canvas: recent|new`）；角色页 10-26 去掉（见下「库开着时」节）。去哪由服务端认（最近那块画布 `listRecentNodeWorkflowProjectsForUser`），⛔ 不收模型写的 id；已经在那个台上就直说，不白跳。⚠ 没有配音间：那边单独做、助手不负责（owner 10-23）。
 - 一步里 `open` 最后跑（之后的调用回「没跑」）：存好这一步（`NextTurnState.pending.open`，结果待补）、交接力条，停在 `bench_open`（帧上带 `open` 目标）。浏览器记进 store 的 `benchOpen`、`router.push(assistantBenchPath)`；新台的面板轮询到「到了」（`assistantBenchReached`：画布要那块真打开，`?project=new` 由 `useCanvasOpenProjectV4` 建好后把项目号补回；角色页要打开那一位）就带着接力条接着发；30 秒没到作废，落一行 `benchOpenMissed`。到了那一跳，`open` 的结果 = 新台的板子，模型用那个台的 `edit` 接着摆（每项照样可撤），花钱照旧走确认卡 /「交给 AI 出图」。换台那一行就是 9d 的 `domainMark`。
 - 删掉三种交接卡：角色页「交给图片助手」（`imageHandoff`）、自然语言 ↔ 标签「换台」（`workbenchHandoff`）、工作台 ↔ 画布（`moveWork`）连同 `lib/bench-canvas-handoff.ts`、`use-bench-handoff-arrival-v4.ts`、宿主那几只手和旧工具 `hand_off_to_image_assistant` / `switch_workbench`。旧历史里的那几种系统行码留着，照旧画得出来。
 
@@ -131,6 +131,7 @@ v3 的问题不在某一条规矩，而在外壳替模型做了太多事（审�
 **库开着时助手认得出你在看什么**（owner 10-26 选「A + 先查再回答」）：
 
 - 库叠层里的页面不当宿主（`StudioOperatorDetachedScope`，⛔ 一打开库就掐掉台上那一轮），助手仍是底下那个台的身份。库改为往 `hooks/use-library-view.ts` 报一句：叠层挂上时报开着哪个库（`setLibraryViewCategory`），各页点开某一样时报那一样（`useReportLibraryItem`：角色、LoRA（收藏 / Civitai 抽屉）、标签详情、素材详情图、提示词）。发请求时带 `libraryView`，服务端在任何一张脸的板子底下接一句 `LIBRARY ON SCREEN …, looking at 角色·Denia`（`renderLibraryView`），「这个」就是它，先 `look`。音色 / 酒馆 / 画廊只报开着哪个库。
+- `open` 不再有 `character`（10-26）：角色页进了库、桌面上不当宿主，开过去永远「没到」（线上「没能打开那个台」）。角色的设定 / 造型用 edit 的库改法在哪个台都能改，首页两块板子也写明。
 - 系统提示加一条：没在这段对话里 `find` 过、结果为空之前，不许说「库里没有 / 你没有」。
 
 **过程记录**：照写 `AssistantTurnRecord`，`promptVersion = next-YYYY-MM-DD`；本轮记录投成 v3 形状（自带联网记成 `search_web`、`find` 记成 `search_library`），评测工具照用。

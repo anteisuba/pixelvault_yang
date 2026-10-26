@@ -4,7 +4,6 @@ import { CANVAS_NEW_PROJECT_QUERY_VALUE } from '@/constants/routes'
 import type { AssistantOperatorBenchOpen } from '@/types/assistant-operator'
 import type { AssistantWorkspace } from '@/types/assistant-workspace'
 import { assistantWorkspaceFromKey } from '@/lib/assistant-workspace'
-import { findOwnCharacter } from '@/services/assistant-library-write.service'
 import type { V3Context } from '@/services/kernel/assistant-v3-steps.service'
 import { listRecentNodeWorkflowProjectsForUser } from '@/services/node/node-workflow.service'
 import {
@@ -12,7 +11,6 @@ import {
   type AssistantNextOpenBench,
 } from '@/features/assistant/constants'
 import type { OpenInput } from '@/features/assistant/tools'
-import { parseWorkspaceHandle } from '@/features/assistant/workspace.service'
 
 /**
  * 开台（第 9e 步，owner 10-23：直接开、不先问；改到一半也不拦；画布默认最近那块）。
@@ -20,7 +18,8 @@ import { parseWorkspaceHandle } from '@/features/assistant/workspace.service'
  * ⭐ 一步里 `open` 最后跑：这一跳存好（结果待补），帧上带着去哪，停在 `bench_open`；浏览器换过去、
  *   等那个台准备好，带着接力条与新台面接着发。到了那一跳，这次调用的结果就是新台的板子，模型用那个台的
  *   改法接着摆（每一项照样带撤销）。⛔ 开台不花钱；花钱那一步照旧是确认卡 /「交给 AI 出图」。
- * ⚠ 去哪由服务端认（画布最近那块、角色按名字），⛔ 不收模型写的 id。
+ * ⚠ 去哪由服务端认（画布最近那块），⛔ 不收模型写的 id。
+ * ⚠ 没有角色页（10-26）：它进了库、不当宿主，开过去永远「没到」；角色在哪个台都用 edit 改。
  */
 
 export interface BenchOpening {
@@ -45,21 +44,6 @@ export function benchLabel(workspace: AssistantWorkspace): string {
 
 function currentWorkspace(context: V3Context) {
   return assistantWorkspaceFromKey(context.request.workspaceKey)
-}
-
-async function characterOf(
-  context: V3Context,
-  raw: string,
-): Promise<{ id: string; name: string } | null> {
-  const onPage = context.request.snapshot.cards?.characters.find(
-    (entry) => entry.id === context.handles.idOf(raw),
-  )
-  if (onPage) return { id: onPage.id, name: onPage.name }
-  const handle = parseWorkspaceHandle(raw)
-  const name =
-    handle?.kind === 'character' ? handle.name : raw.split('/')[0]!.trim()
-  const card = await findOwnCharacter(context.prepared.user.id, name)
-  return card ? { id: card.id, name: card.name } : null
 }
 
 /** `open` 这一次调用：认出去哪；就在那个台上就直说，⛔ 不白跳一次。 */
@@ -108,33 +92,6 @@ export async function planOpen(
         }
   }
 
-  if (workspace === 'cards') {
-    const raw = input.character?.trim()
-    const character = raw ? await characterOf(context, raw) : null
-    if (raw && !character)
-      return {
-        output: `${raw}: not a character of theirs. Use "角色·<name>"; find can look it up.`,
-        error: true,
-      }
-    const openId = context.request.snapshot.cards?.open?.id ?? null
-    if (here?.workspace === 'cards' && (!character || character.id === openId))
-      return {
-        output: `You are on the character page already${character ? ` with ${character.name} open` : ''}.`,
-        error: false,
-      }
-    return {
-      output: `Opening ${label}${character ? ` with ${character.name}` : ''}…`,
-      error: false,
-      opening: {
-        target: {
-          workspace,
-          ...(character ? { characterId: character.id } : {}),
-        },
-        label: character ? `${label} (${character.name} open)` : label,
-      },
-    }
-  }
-
   if (here?.workspace === workspace)
     return { output: `You are on ${label} already.`, error: false }
   return {
@@ -144,7 +101,7 @@ export async function planOpen(
   }
 }
 
-/** 到了没有：现在这一跳的台就是要开的那个（新画布认任何一块，角色页不看开着谁）。 */
+/** 到了没有：现在这一跳的台就是要开的那个（新画布认任何一块）。 */
 export function arrivedAt(
   context: V3Context,
   target: AssistantOperatorBenchOpen,

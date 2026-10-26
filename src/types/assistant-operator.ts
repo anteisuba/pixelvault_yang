@@ -5013,7 +5013,6 @@ export const AssistantOperatorDoneEventSchema = z.object({
 export const AssistantOperatorBenchOpenSchema = z.object({
   workspace: AssistantWorkspaceSchema,
   projectId: z.string().min(1).max(160).optional(),
-  characterId: z.string().min(1).max(160).optional(),
 })
 
 export type AssistantOperatorBenchOpen = z.infer<

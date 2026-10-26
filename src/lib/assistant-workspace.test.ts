@@ -14,9 +14,7 @@ describe('开台去哪、到了没有（第 9e 步）', () => {
     expect(assistantBenchPath({ workspace: 'canvas', projectId: 'new' })).toBe(
       '/studio/node?project=new',
     )
-    expect(
-      assistantBenchPath({ workspace: 'cards', characterId: 'card-9' }),
-    ).toBe('/library/cards?character=card-9')
+    expect(assistantBenchPath({ workspace: 'cards' })).toBe('/library/cards')
   })
 
   it('画布要等那块真打开（new 不算到）；别的台只看台', () => {

@@ -35,6 +35,7 @@ import { useCharacterLibrary } from '@/hooks/cards/use-character-library'
 import { useIsMobile } from '@/hooks/use-mobile'
 import type { VoiceRoomStreamingReply } from '@/hooks/use-voiceroom'
 import { useStudioOperatorWebImport } from '@/hooks/use-studio-operator-web-import'
+import { useStudioShellHeaderSlots } from '@/contexts/studio-shell-header-slots'
 
 import { VoiceLineBubble } from './VoiceLineBubble'
 import { VoiceLineFiles, VoiceLineImages } from './VoiceLineExtras'
@@ -115,6 +116,7 @@ export function VoiceRoomStage({
   onDismissError,
 }: VoiceRoomStageProps) {
   const t = useTranslations('VoiceRoom')
+  const shellSlots = useStudioShellHeaderSlots()
   const { cards: characters } = useCharacterLibrary()
 
   /**
@@ -263,6 +265,13 @@ export function VoiceRoomStage({
   return (
     <div className="vr-stage workbench-card">
       <div data-bench-header className="vr-bar">
+        {/* 聊天记录 · 头像 + 名字 ▾（用户 10-26 从左栏搬进来，和对话头同一副键）。 */}
+        {shellSlots ? (
+          <>
+            {shellSlots.chat}
+            {shellSlots.renderPersona(false)}
+          </>
+        ) : null}
         <span
           className="vr-bar-title vr-bar-name"
           data-unnamed={!detail.name}

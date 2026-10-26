@@ -29,6 +29,10 @@ import {
 } from '@/constants/studio-shell'
 import { StudioLibraryPickProvider } from '@/contexts/studio-library-pick'
 import {
+  StudioShellHeaderSlotsProvider,
+  type StudioShellHeaderSlots,
+} from '@/contexts/studio-shell-header-slots'
+import {
   StudioOperatorDockPlacementProvider,
   StudioOperatorHostSlotProvider,
   type StudioOperatorDockPlacement,
@@ -45,6 +49,11 @@ import {
   useStudioBenchMotion,
   useStudioBenchSwipe,
 } from '@/components/business/studio/shell/StudioShellBench'
+import {
+  StudioShellChatKey,
+  StudioShellHistoryKey,
+  StudioShellPersonaKey,
+} from '@/components/business/studio/shell/StudioShellHistoryKeys'
 import { useHomeOperatorHost } from '@/hooks/use-home-operator-host'
 import { useIsDesk } from '@/hooks/use-mobile'
 import { useStudioConversationBenchSync } from '@/hooks/use-studio-conversation-bench'
@@ -181,6 +190,19 @@ export function StudioShell({
     [isDesk, kind, restore],
   )
 
+  const voiceRoomActive =
+    pathname === ROUTES.STUDIO_AUDIO ||
+    pathname.startsWith(`${ROUTES.STUDIO_AUDIO}/`)
+  /** 对话头（和「聊天」那一页顶上）那几颗键（用户 10-26：从左栏搬进白板）。 */
+  const headerSlots = useMemo<StudioShellHeaderSlots>(
+    () => ({
+      history: <StudioShellHistoryKey />,
+      chat: <StudioShellChatKey active={voiceRoomActive} />,
+      renderPersona: (fly) => <StudioShellPersonaKey fly={fly} />,
+    }),
+    [voiceRoomActive],
+  )
+
   const libraryLayer = (
     <div
       ref={setLibraryTarget}
@@ -191,46 +213,48 @@ export function StudioShell({
 
   return (
     <StudioOperatorDockPlacementProvider value={placement}>
-      <StudioLibraryTargetContext.Provider value={libraryContext}>
-        <StudioLibraryPickProvider>
-          <StudioOperatorHostSlotProvider fallback={homeHost}>
-            {() => (
-              <div
-                data-testid="studio-shell"
-                data-kind={kind}
-                data-library={libraryCategory ?? undefined}
-                className="desk:flex desk:h-svh desk:overflow-hidden desk:bg-surface-sunken"
-              >
-                <StudioConversationList className="hidden desk:flex" />
-                {kind === 'page' ? (
-                  <div
-                    className={cn(SHELL_BOARD_CLASS, 'desk:overflow-y-auto')}
-                    style={libraryWidth('100%')}
-                  >
-                    {children}
-                    {libraryLayer}
-                  </div>
-                ) : (
-                  <StudioShellStage
-                    kind={kind}
-                    benchPathname={base?.pathname ?? ROUTES.STUDIO}
-                    shellDock={placement.owner === 'shell'}
-                    libraryOpen={libraryOpen}
-                    libraryAssistantOpen={libraryAssistantOpen}
-                    libraryLayer={libraryLayer}
-                  >
-                    {children}
-                  </StudioShellStage>
-                )}
-                {library}
-                {kind === 'home' ? (
-                  <HomeDraftBench onHost={setDraftHost} />
-                ) : null}
-              </div>
-            )}
-          </StudioOperatorHostSlotProvider>
-        </StudioLibraryPickProvider>
-      </StudioLibraryTargetContext.Provider>
+      <StudioShellHeaderSlotsProvider value={headerSlots}>
+        <StudioLibraryTargetContext.Provider value={libraryContext}>
+          <StudioLibraryPickProvider>
+            <StudioOperatorHostSlotProvider fallback={homeHost}>
+              {() => (
+                <div
+                  data-testid="studio-shell"
+                  data-kind={kind}
+                  data-library={libraryCategory ?? undefined}
+                  className="desk:flex desk:h-svh desk:overflow-hidden desk:bg-surface-sunken"
+                >
+                  <StudioConversationList className="hidden desk:flex" />
+                  {kind === 'page' ? (
+                    <div
+                      className={cn(SHELL_BOARD_CLASS, 'desk:overflow-y-auto')}
+                      style={libraryWidth('100%')}
+                    >
+                      {children}
+                      {libraryLayer}
+                    </div>
+                  ) : (
+                    <StudioShellStage
+                      kind={kind}
+                      benchPathname={base?.pathname ?? ROUTES.STUDIO}
+                      shellDock={placement.owner === 'shell'}
+                      libraryOpen={libraryOpen}
+                      libraryAssistantOpen={libraryAssistantOpen}
+                      libraryLayer={libraryLayer}
+                    >
+                      {children}
+                    </StudioShellStage>
+                  )}
+                  {library}
+                  {kind === 'home' ? (
+                    <HomeDraftBench onHost={setDraftHost} />
+                  ) : null}
+                </div>
+              )}
+            </StudioOperatorHostSlotProvider>
+          </StudioLibraryPickProvider>
+        </StudioLibraryTargetContext.Provider>
+      </StudioShellHeaderSlotsProvider>
       <Suspense fallback={null}>
         <StudioConversationUrlSync />
       </Suspense>
@@ -431,7 +455,8 @@ function StudioShellStage({
         />
       ) : null}
 
-      {libraryOpen || !bench ? null : (
+      {/* 首页也摆（用户 10-26 定稿 v5：左栏不再有「工作台」，开台只走这一条）。 */}
+      {libraryOpen ? null : (
         <StudioBenchRail
           activeId={activeId}
           onSwitch={(item) => void switchBench(item)}

@@ -1166,14 +1166,16 @@
     "libraryAssistant": "アシスタント",
     "libraryRailHide": "サイドバーを閉じる",
     "libraryRailShow": "サイドバーを開く",
-    "workbench": "ワークベンチ",
     "chat": "チャット",
     "newChatWith": "{name} と新しいチャット",
     "historyBucket": {
       "today": "今日",
       "yesterday": "昨日",
       "earlier": "それ以前"
-    }
+    },
+    "conversation": "会話",
+    "history": "会話履歴",
+    "switchPersona": "相手を切り替え（いまは {name}）"
   },
   "ImageRecipeImport": {
     "button": "画像から読む",

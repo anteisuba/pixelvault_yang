@@ -1166,14 +1166,16 @@
     "libraryAssistant": "助手",
     "libraryRailHide": "收起侧栏",
     "libraryRailShow": "展开侧栏",
-    "workbench": "工作台",
     "chat": "聊天",
     "newChatWith": "和 {name} 新聊天",
     "historyBucket": {
       "today": "今天",
       "yesterday": "昨天",
       "earlier": "更早"
-    }
+    },
+    "conversation": "对话",
+    "history": "对话记录",
+    "switchPersona": "换人（现在是 {name}）"
   },
   "ImageRecipeImport": {
     "button": "从图读串",

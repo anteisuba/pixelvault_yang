@@ -127,11 +127,8 @@ export function StudioOperatorCurrentAvatar({ fly }: { fly: boolean }) {
 }
 
 interface StudioOperatorAvatarSwitcherProps {
-  /** 头像本身（触发键）：由宿主给，位置、尺寸各处不同。 */
+  /** 头像 + 名字 ▾（触发键）：对话头那一颗。 */
   children: ReactNode
-  side: 'right'
-  /** 换了人 / 点了自己之后（左栏那格用它把对话拉回来）。 */
-  onPicked?: () => void
 }
 
 /**
@@ -139,12 +136,10 @@ interface StudioOperatorAvatarSwitcherProps {
  * 角色多了顶上出搜索）。点谁 = 全局助手换成谁（头像 + 名字 + 口吻，`withAssistantCharacter`，角色页
  * 「设为助手人设」同一份），对话不断、工具照旧；正在「聊天」里就换到和她的聊天。现在是谁，头像套一圈。
  *
- * ⛔ 不再进配音间、不列群：聊天记录在左栏「聊天」那颗里（只列现在这一位的）。
+ * ⛔ 不再进配音间、不列群：聊天记录在对话头「聊天」那颗里（只列现在这一位的）。
  */
 export function StudioOperatorAvatarSwitcher({
   children,
-  side,
-  onPicked,
 }: StudioOperatorAvatarSwitcherProps) {
   const t = useTranslations('StudioOperator')
   const [open, setOpen] = useState(false)
@@ -161,7 +156,6 @@ export function StudioOperatorAvatarSwitcher({
     // 正看着以前的聊天（只读）→ 开一段新的工作对话。
     if (chatCharacter && !inChat) operatorActions?.newThread()
     setOpen(false)
-    onPicked?.()
     if (characterCardId === currentId) return
     void personaChat.switchTo(characterCardId, {
       voiceCardId,
@@ -176,7 +170,7 @@ export function StudioOperatorAvatarSwitcher({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>{children}</PopoverTrigger>
       <PopoverContent
-        side={side}
+        side="bottom"
         align="start"
         sideOffset={8}
         className="w-60 p-0"

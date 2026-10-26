@@ -13,8 +13,12 @@ import {
   VOICE_ROOM_NAME_MAX_LENGTH,
   VOICE_ROOM_SPEAKER_KIND,
 } from '@/constants/voiceroom'
-import { ChatCircle, SquarePen } from '@/components/icons'
-import { GroupDisc } from '@/components/business/studio/assistant-operator/StudioOperatorAvatarSwitcher'
+import { ChatCircle, ChevronDown, History } from '@/components/icons'
+import {
+  GroupDisc,
+  StudioOperatorAvatarSwitcher,
+  StudioOperatorCurrentAvatar,
+} from '@/components/business/studio/assistant-operator/StudioOperatorAvatarSwitcher'
 import { SessionActivityBadge } from '@/components/business/studio/assistant-operator/StudioOperatorHeader'
 import {
   ShellHistoryMenu,
@@ -45,25 +49,17 @@ import { roomsForPersona } from '@/lib/voiceroom-cast'
 import { cn } from '@/lib/utils'
 import type { AssistantConversationSummary } from '@/types/assistant-conversation'
 
-/** 左栏的图标键（与 `StudioConversationList` 同一份皮肤）。 */
-const NAV_BUTTON_CLASS =
-  'grid size-10 place-items-center rounded-12 text-ink-2 transition-colors duration-fast ease-standard hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus data-[state=open]:bg-fill-strong data-[state=open]:text-foreground [&>svg]:size-4.5'
+/** 对话头里的图标键（和头部 ⋯ 同一档）。 */
+const HEADER_KEY_CLASS =
+  'grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus data-[state=open]:bg-surface-fill data-[state=open]:text-foreground motion-reduce:transition-none [&>svg]:size-4.5'
 
 /**
- * 「新对话」那一颗（用户 10-25 定 B）：白底小方块，比别的图标显眼一点，⛔ 黑圆。
- * 开着浮层时压一档底，和别的键开着时同一种说法。
- */
-const NEW_CHAT_BUTTON_CLASS =
-  'mb-2 grid size-10 place-items-center rounded-12 bg-raise text-foreground shadow-soft transition-[transform,background-color] duration-fast ease-standard active:scale-96 focus-visible:outline-none focus-visible:shadow-focus data-[state=open]:bg-fill-strong data-[state=open]:shadow-none motion-reduce:transition-none [&>svg]:size-4.5'
-
-/**
- * 工作台的对话：左栏「新对话」那颗点开 = 第一行「＋ 新对话」+ 以前的几段（用户 10-25 定 A，
- * 对话顶上标题 ▾ 的历史挪到这里）。
+ * 对话记录（对话头最左那颗，用户 10-26 从左栏搬进来）：点开 = 第一行「＋ 新对话」+ 以前的几段。
  *
  * ⚠ 对话面板在场时读它发布的那份历史（`useStudioOperatorHistoryView`），选一段就地换上；
- *   不在场（「聊天」那一页、整页的库）就自己拿一份列表，选一段去 `/studio/c/<编号>`。
+ *   不在场（「聊天」那一页）就自己拿一份列表，选一段去 `/studio/c/<编号>`。
  */
-export function StudioShellNewChatKey() {
+export function StudioShellHistoryKey() {
   const t = useTranslations('StudioShell')
   const tOperator = useTranslations('StudioOperator')
   const pathname = usePathname()
@@ -126,7 +122,7 @@ export function StudioShellNewChatKey() {
   return (
     <ShellHistoryMenu
       testId="studio-shell-work-history"
-      tooltip={t('newChat')}
+      tooltip={t('history')}
       newLabel={t('newChat')}
       newDisabled={working}
       onNew={startNewChat}
@@ -184,18 +180,18 @@ export function StudioShellNewChatKey() {
     >
       <button
         type="button"
-        aria-label={t('newChat')}
-        data-testid="studio-shell-new-chat"
-        className={NEW_CHAT_BUTTON_CLASS}
+        aria-label={t('history')}
+        data-testid="studio-shell-history"
+        className={HEADER_KEY_CLASS}
       >
-        <SquarePen />
+        <History />
       </button>
     </ShellHistoryMenu>
   )
 }
 
 /**
- * 「聊天」（用户 10-25：配音间改名聊天，和工作台的对话分开）：点开 = 「＋ 和 X 新聊天」+ 和现在这一位
+ * 「聊天」（用户 10-25：配音间改名聊天，和工作台的对话分开；10-26 搬进对话头右边）：点开 = 「＋ 和 X 新聊天」+ 和现在这一位
  * （全局助手人设）的几段，有她的群也算。换了人设，这里跟着换。
  */
 export function StudioShellChatKey({ active }: { active: boolean }) {
@@ -291,12 +287,43 @@ export function StudioShellChatKey({ active }: { active: boolean }) {
         aria-current={active ? 'page' : undefined}
         data-testid="studio-shell-voice-room"
         className={cn(
-          NAV_BUTTON_CLASS,
-          active && 'bg-fill-strong text-foreground',
+          HEADER_KEY_CLASS,
+          active && 'bg-surface-fill text-foreground',
         )}
       >
         <ChatCircle />
       </button>
     </ShellHistoryMenu>
+  )
+}
+
+/**
+ * 头像 + 名字 ▾（对话头，用户 10-26 定稿 v5）：点开换人（`StudioOperatorAvatarSwitcher`）。
+ * 正看着以前的聊天（只读）时写那个角色的名字，和头像同一个判据。
+ */
+export function StudioShellPersonaKey({ fly }: { fly: boolean }) {
+  const t = useTranslations('StudioShell')
+  const chatPersona = useChatPersona()
+  const { chatCharacter } = useStudioOperatorState()
+  const name = chatCharacter?.name ?? chatPersona.name
+
+  return (
+    <StudioOperatorAvatarSwitcher>
+      <button
+        type="button"
+        aria-label={t('switchPersona', { name })}
+        data-testid="studio-shell-persona"
+        className="group/persona flex h-9 min-w-0 shrink items-center gap-2 rounded-full py-0 pr-2 pl-0.5 text-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill focus-visible:outline-none focus-visible:shadow-focus data-[state=open]:bg-surface-fill motion-reduce:transition-none"
+      >
+        <span className="size-8 shrink-0 rounded-full">
+          <StudioOperatorCurrentAvatar fly={fly} />
+        </span>
+        <span className="min-w-0 truncate text-sm font-semibold">{name}</span>
+        <ChevronDown
+          aria-hidden
+          className="size-3.5 shrink-0 text-muted-foreground transition-transform duration-base ease-standard group-data-[state=open]/persona:rotate-180 motion-reduce:transition-none"
+        />
+      </button>
+    </StudioOperatorAvatarSwitcher>
   )
 }

@@ -666,6 +666,14 @@ function SettingTavernGroups({
             hint={t('learnedPhrasesHint')}
             onSave={(text) => save({ learnedPhrases: text })}
           />
+          {/* 和你的关系（10-26「更像真人」C）：她整理聊天时自己写，称呼跟着它。 */}
+          <CharacterTextField
+            label={t('fieldRelationship')}
+            value={draft.relationship}
+            limit={CHARACTER_PERSONA_LIMITS.relationship}
+            hint={t('relationshipHint')}
+            onSave={(text) => save({ relationship: text })}
+          />
           <div className="flex min-w-0 flex-col gap-3">
             {greetings.map((greeting, index) => (
               <CharacterTextField

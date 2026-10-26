@@ -3027,6 +3027,12 @@ export const CharacterPersonaSchema = z.object({
     )
     .max(CHARACTER_PERSONA_LIMITS.learnedPhrases)
     .default([]),
+  /** 和你的关系（10-26「更像真人」C）：她整理聊天时自己写；称呼、亲近程度跟着它。 */
+  relationship: z
+    .string()
+    .trim()
+    .max(CHARACTER_PERSONA_LIMITS.relationship)
+    .default(''),
   scenario: z
     .string()
     .trim()

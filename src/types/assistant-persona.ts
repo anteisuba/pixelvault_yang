@@ -232,6 +232,8 @@ export const AssistantPromptCharacterSchema = z.object({
   moods: z.array(z.string()).optional(),
   /** 从你的话里学来的说法（F）：偶尔用一个；缺席 = 还没学到。 */
   learnedPhrases: z.array(z.string()).optional(),
+  /** 和你的关系（10-26「更像真人」C）：她整理时写的那一句；称呼和亲近程度跟着它。 */
+  relationship: z.string().optional(),
 })
 
 export type AssistantPromptCharacter = z.infer<
@@ -265,6 +267,8 @@ export const AssistantPromptRoleplaySchema = z.object({
   world: z.array(AssistantPromptWorldEntrySchema).optional(),
   /** 你在这段故事里是谁（会话那一格，内核按请求填）；空 / 缺席 = 没写。 */
   userRole: z.string().optional(),
+  /** 她最近一篇日记（C）：聊天时带上，她偶尔会提起；缺席 = 还没写过。 */
+  journal: z.string().optional(),
 })
 
 export type AssistantPromptRoleplay = z.infer<

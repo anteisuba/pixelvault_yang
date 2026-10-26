@@ -65,6 +65,10 @@ import {
   learnCreatorPhrases,
   shouldLearnPhrases,
 } from '@/services/cards/character-learned-phrases.service'
+import {
+  reflectOnChat,
+  shouldReflect,
+} from '@/services/cards/character-reflection.service'
 import { loadAssistantSkills } from '@/services/assistant-skill.service'
 import { startCallLog } from '@/services/kernel/assistant-completion.service'
 import {
@@ -500,6 +504,38 @@ function learnPhrasesAfterTurn(input: {
 }
 
 /**
+ * 你在这段里说的第 30 句（的倍数）：响应发完之后她整理一次（C：日记、关系、记忆、改卡）。
+ * ⚠ 和学说法同一种触发（⛔ 定时任务，owner 10-26）。
+ */
+function reflectAfterTurn(input: {
+  userId: string
+  cardId: string
+  messages: AssistantOperatorRequest['messages']
+  assistant: Parameters<typeof reflectOnChat>[0]['assistant']
+  conversationId?: string | undefined
+}) {
+  const said = input.messages.filter((message) => message.role === 'user')
+  if (!shouldReflect(said.length)) return
+  try {
+    after(() =>
+      reflectOnChat({
+        userId: input.userId,
+        cardId: input.cardId,
+        messages: input.messages,
+        assistant: input.assistant,
+        ...(input.conversationId
+          ? { conversationId: input.conversationId }
+          : {}),
+      }),
+    )
+  } catch (error) {
+    logger.warn('assistant next reflection not scheduled', {
+      error: error instanceof Error ? error.message : String(error),
+    })
+  }
+}
+
+/**
  * 没开台 = 和现在这位聊天（用户 10-26：她的对话只有一份，收台聊天、开台工作，⛔ 开关）。会话自己盖过章的
  * 旧聊天照它自己的。读不出来就照工作口吻答（⛔ 掀翻这一轮）。
  */
@@ -618,13 +654,21 @@ async function* runNextTurn(
   const { turns, latest } = splitAssistantV3History(request.messages)
   const latestUserText = saved?.latestUserText ?? latest
   // 和她聊天：你每说第 8 句，响应发完之后学一次你的说法（原在聊天页，用户 10-26 并进对话）。
-  if (chat && !saved && request.incognito !== true)
+  if (chat && !saved && request.incognito !== true) {
     learnPhrasesAfterTurn({
       userId: user.id,
       cardId: chat.id,
       messages: request.messages,
       assistant: { route, modelId },
     })
+    reflectAfterTurn({
+      userId: user.id,
+      cardId: chat.id,
+      messages: request.messages,
+      assistant: { route, modelId },
+      conversationId: request.conversationId,
+    })
+  }
   // 这个人眼前的技能（内置 + 改版 / 关掉 + 自己写的，第 7b 步）；读不出来就只有内置的。
   const skills = await loadAssistantSkills(user.id).catch((error) => {
     logger.warn('assistant skills load failed, using built-ins', {

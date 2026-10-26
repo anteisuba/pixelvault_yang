@@ -48,6 +48,8 @@ export interface CharacterCardDraft {
   moods: string
   /** 学到的说法（F），一行一个；聊天里自动攒，这里能删能改。 */
   learnedPhrases: string
+  /** 和你的关系（C）：她整理聊天时自己写，这里能改。 */
+  relationship: string
   /** 作者备注（酒馆 creator_notes）= 我们的简介。 */
   summary: string
   alternateGreetings: string[]
@@ -141,6 +143,7 @@ export function draftFromCard(card: CharacterCardRecord): CharacterCardDraft {
     examples: examplesToTavernText(card.persona?.examples ?? []),
     moods: (card.persona?.moods ?? []).join('\n'),
     learnedPhrases: (card.persona?.learnedPhrases ?? []).join('\n'),
+    relationship: card.persona?.relationship ?? '',
     summary: card.summary ?? '',
     alternateGreetings: card.tavern?.alternateGreetings ?? [],
     systemPrompt: card.tavern?.systemPrompt ?? '',
@@ -183,6 +186,10 @@ export function updateFromDraft(
         chars: CHARACTER_PERSONA_LIMITS.learnedPhraseChars,
         fromEnd: true,
       }),
+      relationship: clip(
+        draft.relationship,
+        CHARACTER_PERSONA_LIMITS.relationship,
+      ),
     },
     extensions: {
       ...(tavern ? { [TAVERN_CARD.EXTENSION_KEY]: tavern } : {}),

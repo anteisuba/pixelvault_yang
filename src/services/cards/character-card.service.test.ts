@@ -247,6 +247,7 @@ describe('createImportedCharacterCard（导入的酒馆卡，附录J ⑥）', ()
       catchphrases: [],
       moods: [],
       learnedPhrases: [],
+      relationship: '',
       scenario: '雨夜的小店',
       opening: '欢迎光临。',
       examples: [{ user: '你好', reply: '嗯。' }],

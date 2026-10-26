@@ -119,6 +119,8 @@
     "moodsHint": "One per line, e.g. “Stubborn: denies it first, then softens.” Each chat turn picks one.",
     "fieldLearnedPhrases": "Picked-up phrases",
     "learnedPhrasesHint": "Learned from how you talk in chats, one per line. Added automatically; delete any you like.",
+    "fieldRelationship": "Between you two",
+    "relationshipHint": "She updates this herself when she looks back over your chats: what she calls you and how close you are. You can edit it.",
     "draftExamples": "Draft a few from the profile ›",
     "draftOpening": "Draft one from the profile ›",
     "draftFailed": "Couldn’t draft it. Try again ›",

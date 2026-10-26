@@ -16,6 +16,7 @@ import {
   type AssistantAvatarChoice,
 } from '@/constants/assistant-persona'
 import { CHARACTER_PERSONA_LIMITS } from '@/constants/cards/character-card'
+import { CHARACTER_REFLECTION } from '@/constants/cards/character-reflection'
 import { slotsCoverUrl } from '@/lib/card-bus'
 import { ApiRequestError } from '@/lib/errors'
 import { readTavernWorldBook } from '@/lib/tavern-card'
@@ -126,6 +127,7 @@ function toPromptCharacter(
     learnedPhrases: profile.learnedPhrases
       .map((phrase) => phrase.trim())
       .filter(Boolean),
+    relationship: profile.relationship.trim(),
   }
   const empty =
     !character.identity &&
@@ -345,7 +347,15 @@ export async function getAssistantPersonaByUserId(
     const chatCard = await db.characterCard.findFirst({
       where: { id: chatCharacterId, userId, isDeleted: false },
       // 聊天多读卡上原样存的那份（世界书在里面）。
-      select: { ...PERSONA_SELECT.characterCard.select, extensions: true },
+      select: {
+        ...PERSONA_SELECT.characterCard.select,
+        extensions: true,
+        journals: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: { text: true },
+        },
+      },
     })
     const chat = chatCard ? toChatPersona(persona, chatCard) : null
     if (chat) return chat
@@ -372,7 +382,10 @@ export async function getAssistantPersonaByUserId(
  */
 function toChatPersona(
   persona: AssistantPersona,
-  card: PersonaCharacterRow & { extensions: unknown },
+  card: PersonaCharacterRow & {
+    extensions: unknown
+    journals: readonly { text: string }[]
+  },
 ): AssistantPromptPersona | null {
   const profile = readCharacterProfile(card)
   if (!profile) return null
@@ -388,6 +401,8 @@ function toChatPersona(
     world: readTavernWorldBook(card.extensions),
     /** 你在她的故事里是谁 —— 按角色记在卡上（owner 2026-10-16），每段聊天都带。 */
     userRole: readChatUserRole(card.extensions),
+    /** 她最近一篇日记（C）：她偶尔会提起。 */
+    journal: card.journals[0]?.text ?? '',
   }
   return {
     ...persona,
@@ -516,6 +531,10 @@ export function sanitizePromptCharacter(
         )
         .filter(Boolean)
         .slice(-CHARACTER_PERSONA_LIMITS.learnedPhrases),
+      relationship: clean(
+        character.relationship ?? '',
+        CHARACTER_PERSONA_LIMITS.relationship,
+      ),
       scenario: '',
       opening: '',
       examples: [],
@@ -578,6 +597,7 @@ export function sanitizePromptRoleplay(
       roleplay.userRole ?? '',
       ASSISTANT_PERSONA_LIMITS.maxChatUserRoleChars,
     ),
+    journal: clean(roleplay.journal ?? '', CHARACTER_REFLECTION.journalChars),
   }
   return cleaned
 }

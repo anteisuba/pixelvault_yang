@@ -829,7 +829,9 @@ describe('聊天模式按会话那张卡', () => {
         { user: '你好', reply: '……你好喵' },
         { user: '', reply: '' },
       ],
+      relationship: '叫{{user}}「常客」，见面会多聊两句',
     },
+    journals: [{ text: '今天常客又来了，还是点了热可可。' }],
   }
 
   beforeEach(() => {
@@ -852,9 +854,13 @@ describe('聊天模式按会话那张卡', () => {
         scenario: CHAT_CARD.persona.scenario,
         opening: '欢迎光临喵',
         examples: [{ user: '你好', reply: '……你好喵' }],
+        journal: '今天常客又来了，还是点了热可可。',
       },
     })
     expect(persona.promptCharacter?.name).toBe('Rin')
+    expect(persona.promptCharacter?.relationship).toBe(
+      '叫{{user}}「常客」，见面会多聊两句',
+    )
   })
 
   it('⭐ 世界书从卡上原样存的那份读；进提示前清洗、条数封顶、只留正文', async () => {

@@ -164,6 +164,7 @@ const CARDS = [
       catchphrases: [],
       moods: [],
       learnedPhrases: [],
+      relationship: '',
       scenario: '',
       opening: '',
       examples: [],

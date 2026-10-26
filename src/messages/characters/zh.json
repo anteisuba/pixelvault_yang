@@ -119,6 +119,8 @@
     "moodsHint": "一行一种，比如「嘴硬：先否认再软下来」。聊天时每轮挑一种。",
     "fieldLearnedPhrases": "学到的说法",
     "learnedPhrasesHint": "聊天里从你的话学来的，一行一个，自动添加，可以删。",
+    "fieldRelationship": "和你的关系",
+    "relationshipHint": "聊天每聊一阵她会自己整理一次，顺手写下你们现在的关系和称呼，可以改。",
     "draftExamples": "按设定写几段 ›",
     "draftOpening": "按设定写一句 ›",
     "draftFailed": "没写出来，再试一次 ›",

@@ -1096,6 +1096,25 @@
       "label": "スキル",
       "mine": "自分の",
       "builtin": "内蔵"
+    },
+    "voice": {
+      "label": "音声",
+      "turnOn": "音声をオン：返事を読み上げる",
+      "turnOff": "音声をオフ",
+      "speaking": "{name} が声で話しています",
+      "pickVoice": "声を選ぶ",
+      "model": "読み上げモデル",
+      "models": {
+        "free": "無料",
+        "pro": "Pro",
+        "drama": "Drama 3"
+      },
+      "pending": "読み上げ中…",
+      "replay": "もう一度聞く",
+      "stop": "停止",
+      "failed": "読み上げられませんでした。もう一度",
+      "setupKey": "Fish Audio のキーを設定",
+      "provider": "Fish Audio"
     }
   },
   "ContextCards": {

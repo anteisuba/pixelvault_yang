@@ -74,6 +74,6 @@ describe('chatBubblePauseMs', () => {
     expect(chatBubblePauseMs('短')).toBeLessThan(
       chatBubblePauseMs('长一点的一句话'),
     )
-    expect(chatBubblePauseMs('字'.repeat(500))).toBe(1600)
+    expect(chatBubblePauseMs('字'.repeat(500))).toBe(4000)
   })
 })

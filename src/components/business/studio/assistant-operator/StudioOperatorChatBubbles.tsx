@@ -9,11 +9,18 @@ import { cn } from '@/lib/utils'
 const BUBBLE_CLASS =
   'w-fit max-w-full whitespace-pre-wrap rounded-2xl rounded-tl-sm border border-border bg-card px-3 py-2 text-md leading-reading text-foreground'
 
+/** 还在写的那段里**已经写完**的几行（最后一行换了行才算完）；写完了 = 全部。 */
+function finishedBubbles(text: string, streaming: boolean): string[] {
+  if (!streaming) return chatBubbles(text)
+  return chatBubbles(text.slice(0, text.lastIndexOf('\n') + 1))
+}
+
 /**
- * 她在聊天时的回复（②c-2，聊天并回对话）：一行一个气泡，像发消息一样一条一条出——
- * 后一个要等前一个出完、再停一会儿（三点「正在输入」）才露面。
+ * 她在聊天时的回复（②c-2，聊天并回对话；出场照用户 10-26 定的样件 F）：一行一个气泡，
+ * 像发消息一样——先三点「正在输入」，一行写完整条一次弹出，后一条等前一条出完再停一会儿
+ * （500ms + 每字 70ms）。⛔ 一个字一个字打、⛔ 末尾光标。
  *
- * `live`：这一段是挂上时还在写的那段才一条一条出；翻历史 / 重挂一律整段直接摆出来。
+ * 挂上时还在写的那段才一条一条出；翻历史 / 重挂一律整段直接摆出来。
  */
 export function StudioOperatorChatBubbles({
   text,
@@ -23,9 +30,9 @@ export function StudioOperatorChatBubbles({
   streaming: boolean
 }) {
   const [live] = useState(streaming)
-  const bubbles = chatBubbles(text)
+  const bubbles = finishedBubbles(text, streaming)
   const revealed = useChatBubbleReveal(bubbles, !streaming)
-  const shown = live ? revealed : bubbles.length
+  const shown = live ? Math.min(revealed, bubbles.length) : bubbles.length
   const endRef = useRef<HTMLSpanElement | null>(null)
   // 新气泡 / 三点露面不改字数，对话那边的「滚到底」看不见：这里自己往下带一下。
   useEffect(() => {
@@ -33,11 +40,8 @@ export function StudioOperatorChatBubbles({
   }, [live, shown])
 
   const visible = bubbles.slice(0, shown)
-  // 前一个写完、下一个还没开头（刚换行）也算在路上。
-  const waiting =
-    live &&
-    (shown < bubbles.length ||
-      (streaming && visible.length > 0 && /\n\s*$/.test(text)))
+  // 还在写、或者写完的还没轮到露面：末尾摆三点。
+  const typing = live && (streaming || shown < bubbles.length)
 
   return (
     <div
@@ -48,23 +52,20 @@ export function StudioOperatorChatBubbles({
         <p
           key={index}
           data-testid="operator-chat-bubble"
-          className={cn(
-            BUBBLE_CLASS,
-            'animate-in fade-in-0 slide-in-from-bottom-1 duration-base ease-standard motion-reduce:animate-none',
-          )}
+          className={cn(BUBBLE_CLASS, live && 'operator-chat-bubble-in')}
         >
           {bubble}
         </p>
       ))}
-      {waiting ? (
+      {typing ? (
         <span
           aria-hidden
           data-testid="operator-chat-typing"
-          className={cn(BUBBLE_CLASS, 'flex items-center gap-1 py-3')}
+          className={cn(BUBBLE_CLASS, 'operator-chat-typing flex gap-1 py-3')}
         >
-          <i className="size-1.25 rounded-full bg-muted-foreground animate-spinner-dot-1 motion-reduce:animate-none" />
-          <i className="size-1.25 rounded-full bg-muted-foreground animate-spinner-dot-2 motion-reduce:animate-none" />
-          <i className="size-1.25 rounded-full bg-muted-foreground animate-spinner-dot-3 motion-reduce:animate-none" />
+          <i className="size-1.5 rounded-full bg-muted-foreground" />
+          <i className="size-1.5 rounded-full bg-muted-foreground" />
+          <i className="size-1.5 rounded-full bg-muted-foreground" />
         </span>
       ) : null}
       <span ref={endRef} aria-hidden />

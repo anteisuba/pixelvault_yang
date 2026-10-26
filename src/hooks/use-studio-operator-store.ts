@@ -55,6 +55,7 @@ import type {
   StudioOperatorConfirmPrompt,
   StudioOperatorErrorTrace,
   StudioOperatorMessageEntry,
+  StudioOperatorMessageVoice,
   StudioOperatorQuestionPrompt,
   StudioOperatorQueuedMessage,
   StudioOperatorResultEntry,
@@ -731,6 +732,24 @@ export function finalizeOperatorMessage(
   emit({
     ...state,
     entries: state.entries.map((item, i) => (i === index ? entry : item)),
+  })
+}
+
+/** 🔊 念她的回复（②c-2）：把这段念到哪了记在那条正文上；那条已经不在就算了。 */
+export function setOperatorMessageVoice(
+  id: string,
+  voice: StudioOperatorMessageVoice,
+): void {
+  const index = state.entries.findIndex(
+    (item) => item.kind === 'message' && item.id === id,
+  )
+  const current = index >= 0 ? state.entries[index] : undefined
+  if (!current || current.kind !== 'message') return
+  emit({
+    ...state,
+    entries: state.entries.map((item, i) =>
+      i === index ? { ...current, voice } : item,
+    ),
   })
 }
 

@@ -51,6 +51,7 @@ import {
   StudioOperatorThoughtReceipt,
 } from './StudioOperatorThinkingRow'
 import { StudioOperatorChatBubbles } from './StudioOperatorChatBubbles'
+import { StudioOperatorChatVoice } from './StudioOperatorVoice'
 import { withFindRefs } from './StudioOperatorFindRef'
 import { openOperatorLightbox } from './StudioOperatorLightbox'
 import {
@@ -495,10 +496,19 @@ export function StudioOperatorMessageBody({
         />
       ) : null}
       {entry.chat && entry.text ? (
-        <StudioOperatorChatBubbles
-          text={entry.text}
-          streaming={entry.streaming ?? false}
-        />
+        <>
+          <StudioOperatorChatBubbles
+            text={entry.text}
+            streaming={entry.streaming ?? false}
+          />
+          {entry.voice ? (
+            <StudioOperatorChatVoice
+              entryId={entry.id}
+              text={entry.text}
+              voice={entry.voice}
+            />
+          ) : null}
+        </>
       ) : (
         <StudioOperatorCollapsibleText
           text={entry.text}

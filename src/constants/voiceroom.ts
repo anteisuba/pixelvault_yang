@@ -92,9 +92,10 @@ export const VOICE_ROOM_CHAT_HISTORY_LINES = 30
  */
 export const VOICE_ROOM_CHAT_BUBBLES_MAX = 4
 export const VOICE_ROOM_CHAT_BUBBLE_PAUSE = {
-  baseMs: 450,
-  perCharMs: 35,
-  maxMs: 1600,
+  // 10-26 用户定（样件 F）：500ms + 每字 70ms；封顶只防一行写成一大段时干等。
+  baseMs: 500,
+  perCharMs: 70,
+  maxMs: 4000,
 } as const
 
 /**

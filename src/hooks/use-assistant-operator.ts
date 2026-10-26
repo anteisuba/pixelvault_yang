@@ -78,6 +78,7 @@ import {
   getProviderLabel,
 } from '@/constants/providers'
 import { ASSISTANT_V3_CLIP_LIMITS } from '@/constants/assistant-v3'
+import { AI_MODELS } from '@/constants/models'
 import { CONTEXT_CARD_STATUS_IDS } from '@/constants/context-cards'
 import {
   STUDIO_OPERATOR_BENCH_OPEN_POLL_MS,
@@ -129,6 +130,10 @@ import {
   upsertOperatorStep,
 } from '@/hooks/use-studio-operator-store'
 import { readLibraryView } from '@/hooks/use-library-view'
+import {
+  getOperatorVoicePrefs,
+  speakOperatorReply,
+} from '@/hooks/use-operator-voice'
 import { getGenerationErrorMessage } from '@/lib/api-error-message'
 import { studioBenchHref } from '@/lib/studio-shell-route'
 import {
@@ -227,6 +232,12 @@ import type {
  * ⚠ 没有 `traceId` 就整块不画（`GenerationError` 那一族本来就说得出原因），
  * ⛔ 不为它编一个短码 —— 编出来的号在日志里查不到，比没有更糟。
  */
+/** 🔊 开着、这段是她在聊天（②c-2）：念出来。 */
+function speakIfVoiceOn(event: { text: string; chat?: true }, id: string) {
+  if (event.chat && getOperatorVoicePrefs().on && event.text.trim())
+    void speakOperatorReply(id, event.text.trim())
+}
+
 function toErrorTrace(payload: {
   traceId?: string | undefined
   detail?: string | undefined
@@ -1360,6 +1371,16 @@ export function useAssistantOperator(
            *   「用户特意关掉了隐身」，而绝大多数轮次里他从没碰过这颗开关。
            */
           ...(getOperatorState().incognito ? { incognito: true } : {}),
+          // 🔊 开着（②c-2）：她这一轮会被念出来，服务端教她写语气提示（只在聊天时用）。
+          ...(getOperatorVoicePrefs().on
+            ? {
+                chatVoice: {
+                  expressive:
+                    getOperatorVoicePrefs().modelId ===
+                    AI_MODELS.FISH_AUDIO_DRAMA_3,
+                },
+              }
+            : {}),
           // 聊天会话（附录L）：每轮带上和谁聊，服务端按这张卡扮演。
           ...(getOperatorState().chatCharacter
             ? { chatCharacterId: getOperatorState().chatCharacter?.id }
@@ -1708,6 +1729,7 @@ export function useAssistantOperator(
                   )
                   dropOperatorPending(entry.id)
                 }
+                speakIfVoiceOn(event, streamed.at(-1)!.id)
                 break
               }
               const index = entries.findIndex(
@@ -1720,6 +1742,7 @@ export function useAssistantOperator(
                 event.text,
                 event.chat === true,
               )
+              speakIfVoiceOn(event, messageEntryId())
               break
             }
             case ASSISTANT_OPERATOR_EVENTS.step: {

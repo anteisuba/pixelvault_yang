@@ -88,7 +88,17 @@ export interface StudioOperatorMessageEntry {
   versionIndex?: number
   /** 「她」在聊天（没开台 + 换成了某个角色，②c-2）：一行一个气泡，⛔ 走正文排版。 */
   chat?: true
+  /** 🔊 开着时这段念到哪了（②c-2）。⛔ 不落库：念好的音频在素材库里。 */
+  voice?: StudioOperatorMessageVoice
 }
+
+/**
+ * 一段回复的念读状态：`unbound` = 这位还没绑嗓子；`needsKey` = 那个型号缺 key（就地配）。
+ */
+export type StudioOperatorMessageVoice =
+  | { status: 'pending' }
+  | { status: 'ready'; url: string }
+  | { status: 'failed' | 'unbound' | 'needsKey' }
 
 /** 计划条（一轮最多一条）。 */
 export interface StudioOperatorPlanEntry {

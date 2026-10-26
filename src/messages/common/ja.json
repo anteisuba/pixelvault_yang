@@ -483,6 +483,9 @@
     },
     "imageRecipe": {
       "readFailed": "この画像を読み込めませんでした。別の画像でお試しください。"
+    },
+    "assistantVoice": {
+      "unbound": "まだ声がありません。先に声を選んでください"
     }
   },
   "DropZone": {

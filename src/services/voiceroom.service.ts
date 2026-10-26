@@ -5,9 +5,7 @@ import 'server-only'
 import { Prisma } from '@/lib/generated/prisma/client'
 import { db } from '@/lib/db'
 import { ApiRequestError } from '@/lib/errors'
-import { AUDIO_KIND, type AudioKind } from '@/constants/audio-options'
-import { getAvailableAudioModels } from '@/constants/models'
-import { resolveAudioKind } from '@/constants/models/audio'
+import { AUDIO_KIND } from '@/constants/audio-options'
 import {
   VOICE_LINE_SPEAKER_KINDS,
   VOICE_ROOM_LINES_MAX,
@@ -16,19 +14,17 @@ import {
   VOICE_ROOM_VOICE_CAST_MAX,
   type VoiceLineSpeakerKind,
 } from '@/constants/voiceroom'
-import { characterCoverUrl } from '@/lib/card-bus'
 import { parseVoiceLineEmotion } from '@/lib/voice-line-emotion'
 import {
   reconcileStaleGenerationJob,
   STALE_EXECUTION_FAILURE_MESSAGE,
 } from '@/services/execution-sweeper.service'
-import {
-  CHARACTER_LOOKS_INCLUDE,
-  mapCharacterLookRow,
-} from '@/services/cards/character-card.mapper'
 import { castMemberForSpeaker } from '@/lib/voiceroom-cast'
-import { spokenVoiceText } from '@/lib/voiceroom-chat-prompt'
 import { submitAudioGeneration } from '@/services/generate-audio.service'
+import {
+  resolveAudioModelId,
+  speakWithVoiceCard,
+} from '@/services/voice-speak.service'
 import { ensureUser } from '@/services/user.service'
 import {
   VoiceLineAttachmentsSchema,
@@ -308,33 +304,6 @@ export async function deleteVoiceRoom(
 
 /* ── 台词 ───────────────────────────────────────────────────────── */
 
-/**
- * 选模型：语音档挑第一个可用的 speech 模型，音效档挑第一个可用的 sfx 模型。
- *
- * 不让用户选模型是刻意的——配音间的主张是「选个音色，打字就开口」，模型下拉
- * 属于工作台的词汇表。目录里当前每档也只有一个可用模型。
- */
-function resolveAudioModelId(kind: AudioKind): string {
-  const model = getAvailableAudioModels().find(
-    (candidate) => resolveAudioKind(candidate) === kind,
-  )
-  if (!model) {
-    throw new ApiRequestError(
-      'AUDIO_MODEL_UNAVAILABLE',
-      503,
-      'errors.voiceRoom.modelUnavailable',
-      `No available audio model for ${kind}`,
-    )
-  }
-  return model.id
-}
-
-/** 只有 http(s) 的封面能进 `coverImageUrl`——那个字段是 `.url()` 校验的。 */
-function toCoverUrl(cover: string | null | undefined): string | undefined {
-  if (!cover) return undefined
-  return /^https?:\/\//i.test(cover) ? cover : undefined
-}
-
 /** 能开口的班底成员（配乐不算）。 */
 export type SpeakingCastMember = VoiceRoomCastMember & {
   kind: Exclude<VoiceRoomCastMember['kind'], 'bgm'>
@@ -365,12 +334,7 @@ export function findCastMember(
   return { ...member, kind: member.kind }
 }
 
-/**
- * 把一条台词派给生成链路，返回 jobId。
- *
- * ⚠ `voiceId` 是**实时**从 VoiceCard 查的，不是从班底快照里取：班底存的
- * name / coverImage 漂了无所谓（那是显示用的），voiceId 漂了会发错声音。
- */
+/** 把一条台词派给生成链路，返回 jobId（嗓子那一档走 `speakWithVoiceCard`）。 */
 export async function dispatchLine(params: {
   clerkId: string
   userId: string
@@ -390,50 +354,14 @@ export async function dispatchLine(params: {
     return jobId
   }
 
-  const [card, character] = await Promise.all([
-    db.voiceCard.findFirst({
-      where: { id: member.id, userId, isDeleted: false },
-      select: { voiceId: true, name: true, coverImage: true },
-    }),
-    // 头像规则（owner 10-23）：绑了角色，素材库里这条就挂角色的名字和头像。
-    // 一副嗓子被几个角色绑着时取最近改过的那个——和聊天用的人设同一条规则。
-    db.characterCard.findFirst({
-      where: { userId, voiceCardId: member.id, isDeleted: false },
-      orderBy: { updatedAt: 'desc' },
-      select: { name: true, ...CHARACTER_LOOKS_INCLUDE },
-    }),
-  ])
-  if (!card?.voiceId) {
-    throw new ApiRequestError(
-      'VOICE_CARD_UNAVAILABLE',
-      400,
-      'errors.voiceRoom.voiceCardUnavailable',
-      'That voice is no longer available',
-    )
-  }
-
-  const { jobId } = await submitAudioGeneration(clerkId, {
-    // 新内核的回复会带作品号、链接：念的时候只念说的话。
-    prompt: spokenVoiceText(text),
-    // 顶栏选过就用它，没选过退回目录里第一个可用的。
-    modelId: delivery.modelId ?? resolveAudioModelId(AUDIO_KIND.SPEECH),
-    voiceId: card.voiceId,
-    // 素材库靠这两个把音频卡画成「头像 + 名字」。
-    voiceName: character?.name ?? card.name,
-    coverImageUrl:
-      toCoverUrl(
-        character &&
-          characterCoverUrl({
-            looks: character.looks.map(mapCharacterLookRow),
-          }),
-      ) ?? toCoverUrl(card.coverImage),
-    ...(emotion ? { emotion: emotion as never } : {}),
-    ...(delivery.pace ? { pace: delivery.pace } : {}),
-    ...(delivery.expressiveness
-      ? { expressiveness: delivery.expressiveness }
-      : {}),
+  return speakWithVoiceCard({
+    clerkId,
+    userId,
+    voiceCardId: member.id,
+    text,
+    emotion,
+    delivery,
   })
-  return jobId
 }
 
 /** 一个房间到顶了就提示新开房间，而不是静默截断。 */

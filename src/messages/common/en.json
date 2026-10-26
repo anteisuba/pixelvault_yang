@@ -483,6 +483,9 @@
     },
     "imageRecipe": {
       "readFailed": "Could not read this picture. Try another one."
+    },
+    "assistantVoice": {
+      "unbound": "This persona has no voice yet — pick one first"
     }
   },
   "DropZone": {

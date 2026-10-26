@@ -6,6 +6,10 @@ import type {
   ProjectRule,
   UpdateAssistantPersonaRequest,
 } from '@/types/assistant-persona'
+import type {
+  AssistantSpeakRequest,
+  AssistantSpeakResponseData,
+} from '@/types/assistant-speak'
 
 /**
  * 助手设置（persona）与项目规则的客户端封装
@@ -78,6 +82,22 @@ export async function updateAssistantPersonaAPI(
     return await parseJsonResult(response, 'Failed to save assistant settings')
   } catch (error) {
     return toFailure(error, 'Failed to save assistant settings')
+  }
+}
+
+/** 对话里 🔊 念她的回复（②c-2）：派任务，回 jobId（等它好走 `checkAudioStatusAPI`）。 */
+export async function speakAssistantReplyAPI(
+  request: AssistantSpeakRequest,
+): Promise<ApiResult<AssistantSpeakResponseData>> {
+  try {
+    const response = await fetch(API_ENDPOINTS.ASSISTANT_SPEAK, {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify(request),
+    })
+    return await parseJsonResult(response, 'Failed to read the reply aloud')
+  } catch (error) {
+    return toFailure(error, 'Failed to read the reply aloud')
   }
 }
 

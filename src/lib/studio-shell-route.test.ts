@@ -34,6 +34,8 @@ describe('studio-shell-route', () => {
     expect(libraryCategoryFromPath('/studio/image')).toBeNull()
     expect(isStudioShellPath('/library/assets')).toBe(true)
     expect(isStudioShellPath('/studio')).toBe(true)
+    expect(isStudioShellPath('/u/me')).toBe(true)
+    expect(isStudioShellPath('/u/someone')).toBe(false)
     expect(isStudioShellPath('/gallery')).toBe(false)
     expect(isStudioShellPath('/librarything')).toBe(false)
   })

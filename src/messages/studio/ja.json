@@ -1175,7 +1175,9 @@
     },
     "conversation": "会話",
     "history": "会話履歴",
-    "switchPersona": "相手を切り替え（いまは {name}）"
+    "switchPersona": "相手を切り替え（いまは {name}）",
+    "historyShow": "会話履歴を表示",
+    "historyHide": "会話履歴を隠す"
   },
   "ImageRecipeImport": {
     "button": "画像から読む",

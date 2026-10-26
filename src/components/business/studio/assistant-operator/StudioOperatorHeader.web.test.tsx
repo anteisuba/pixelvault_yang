@@ -399,8 +399,8 @@ describe('StudioOperatorHeader', () => {
     expect(screen.queryByTestId('operator-header-avatar')).toBeNull()
   })
 
-  /** ui-spec §1 板头（用户 10-26 定稿 v5）：头像管换人，收起单独一颗；标题只是名字。 */
-  it('⭐ board：收起是单独一颗（头像不再收起）；标题只是名字（历史在对话记录那颗里）', () => {
+  /** ui-spec §1 板头（用户 10-26 定稿 v5）：头像管换人，收起单独一颗；⛔ 标题（看记录那一列）。 */
+  it('⭐ board：收起是单独一颗（头像不再收起）；不写标题、⛔ 标题下拉', () => {
     const history = {
       ...HISTORY,
       sessions: SESSIONS,
@@ -415,12 +415,10 @@ describe('StudioOperatorHeader', () => {
     fireEvent.click(screen.getByTestId('operator-header-collapse'))
     expect(onCollapse).toHaveBeenCalledTimes(1)
     expect(screen.queryByTestId('operator-session-menu')).toBeNull()
-    expect(
-      screen.getByTestId('operator-session-title').textContent,
-    ).toBeTruthy()
+    expect(screen.queryByTestId('operator-session-title')).toBeNull()
     cleanup()
 
-    // 首页：没台可让，⛔ 收起键；标题同样只是名字。
+    // 首页：没台可让，⛔ 收起键；同样 ⛔ 标题下拉。
     renderHeader({ avatar: 'boardStatic', history })
     expect(screen.queryByTestId('operator-header-collapse')).toBeNull()
     expect(screen.queryByTestId('operator-session-menu')).toBeNull()

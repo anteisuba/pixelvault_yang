@@ -1175,7 +1175,9 @@
     },
     "conversation": "Conversation",
     "history": "Conversations",
-    "switchPersona": "Switch persona (now {name})"
+    "switchPersona": "Switch persona (now {name})",
+    "historyShow": "Show conversations",
+    "historyHide": "Hide conversations"
   },
   "ImageRecipeImport": {
     "button": "Read from image",

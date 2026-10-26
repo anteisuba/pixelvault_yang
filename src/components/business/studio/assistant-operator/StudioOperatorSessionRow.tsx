@@ -54,7 +54,13 @@
  * ⚠ 编辑态**不淡入**（画板动效表）：要等动画才能打字的输入框是坏动画。
  */
 
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type SyntheticEvent,
+} from 'react'
 import { Pencil, Trash2 } from '@/components/icons'
 import { motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
@@ -95,7 +101,58 @@ const DELETE_PILL_WORD_MOTION_CLASS =
 const ROW_ICON_BUTTON_CLASS =
   'flex h-6 shrink-0 items-center justify-center rounded-sm p-0'
 
+interface RowItemProps {
+  inMenu: boolean
+  className?: string
+  disabled?: boolean
+  onSelect(event: Event | SyntheticEvent): void
+  children: ReactNode
+  'aria-label'?: string
+  [data: `data-${string}`]: string | undefined
+}
+
+/**
+ * 行里能点的那几格：在下拉里是菜单项（键盘上下走、选了关菜单），摆在框里那一列（用户 10-26
+ * 历史列）就是普通按钮 —— ⛔ 菜单项离了菜单会报错。两边同一套皮肤。
+ */
+function RowItem({
+  inMenu,
+  className,
+  disabled,
+  onSelect,
+  children,
+  ...rest
+}: RowItemProps) {
+  if (inMenu)
+    return (
+      <DropdownMenuItem
+        className={className}
+        disabled={disabled}
+        onSelect={onSelect}
+        {...rest}
+      >
+        {children}
+      </DropdownMenuItem>
+    )
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onSelect}
+      className={cn(
+        'relative flex cursor-default items-center text-left text-2sm outline-hidden select-none disabled:pointer-events-none disabled:opacity-50',
+        className,
+      )}
+      {...rest}
+    >
+      {children}
+    </button>
+  )
+}
+
 interface StudioOperatorSessionRowProps {
+  /** `false` = 摆在框里那一列（不在下拉菜单里）。默认在菜单里。 */
+  inMenu?: boolean
   /** 助手的一段会话，或配音间的一段（用户 10-25：标题 ▾ 两边同一套行）。 */
   session: Pick<AssistantConversationSummary, 'id' | 'title'> & {
     surface?: AssistantConversationSummary['surface']
@@ -136,6 +193,7 @@ export function StudioOperatorSessionRow({
   titleMaxLength = ASSISTANT_CONVERSATION_LIMITS.titleMaxLength,
   badge,
   compact = false,
+  inMenu = true,
   leading,
   domainLabel,
   dateLabel,
@@ -205,7 +263,8 @@ export function StudioOperatorSessionRow({
         confirming && 'opacity-100',
       )}
     >
-      <DropdownMenuItem
+      <RowItem
+        inMenu={inMenu}
         className={cn(
           ROW_ICON_BUTTON_CLASS,
           'w-6 text-muted-foreground transition-colors duration-fast ease-linear focus:bg-surface-fill-hover focus:text-foreground motion-reduce:transition-none',
@@ -221,8 +280,9 @@ export function StudioOperatorSessionRow({
         }}
       >
         <Pencil className="size-3.5 text-current" aria-hidden />
-      </DropdownMenuItem>
-      <DropdownMenuItem
+      </RowItem>
+      <RowItem
+        inMenu={inMenu}
         className={cn(
           ROW_ICON_BUTTON_CLASS,
           DELETE_PILL_MOTION_CLASS,
@@ -261,7 +321,7 @@ export function StudioOperatorSessionRow({
             {deleting ? t('history.deleting') : t('history.deleteConfirm')}
           </span>
         </span>
-      </DropdownMenuItem>
+      </RowItem>
     </span>
   )
 
@@ -355,7 +415,8 @@ export function StudioOperatorSessionRow({
           </div>
         ) : (
           <>
-            <DropdownMenuItem
+            <RowItem
+              inMenu={inMenu}
               /* ⚠ 菜单项自己那一层底色**关掉**：亮起来的是整行（见上）。 */
               className="min-w-0 flex-1 gap-1.5 rounded-sm p-0 focus:bg-transparent"
               disabled={selectDisabled}
@@ -402,7 +463,7 @@ export function StudioOperatorSessionRow({
                 </span>
               )}
               {badge}
-            </DropdownMenuItem>
+            </RowItem>
 
             {/* ── 两颗图标：默认透明、hover / 聚焦才淡入（画板动效表第 3 行）────
               ⚠ 整块**常驻占位**：`opacity` 之外一个盒模型属性都不动，所以标题的

@@ -1175,7 +1175,9 @@
     },
     "conversation": "对话",
     "history": "对话记录",
-    "switchPersona": "换人（现在是 {name}）"
+    "switchPersona": "换人（现在是 {name}）",
+    "historyShow": "展开对话记录",
+    "historyHide": "收起对话记录"
   },
   "ImageRecipeImport": {
     "button": "从图读串",

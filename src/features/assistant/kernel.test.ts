@@ -997,7 +997,7 @@ describe('记忆与之前几轮（第 6 步）', () => {
     })
     const main = mockModel([textTurn('哼，又是你。')])
     models.main = main
-    await collect(
+    const events = await collect(
       runAssistantNext(
         'clerk-1',
         imageRequest('你好呀', {
@@ -1007,6 +1007,12 @@ describe('记忆与之前几轮（第 6 步）', () => {
         } as never),
       ),
     )
+    // ②c-2：她说的那几段带记号，界面拆成气泡。
+    const said = events.filter(
+      (event) => event.type === 'message' || event.type === 'message_delta',
+    )
+    expect(said.length).toBeGreaterThan(0)
+    expect(said.every((event) => 'chat' in event && event.chat)).toBe(true)
     const prompt = promptOf(main.doStreamCalls[0]!)
     expect(prompt).toContain('you are that character')
     expect(prompt).not.toContain("You are ANTEI's creative assistant")

@@ -1665,6 +1665,7 @@ export function useAssistantOperator(
                 messageEntryId(),
                 event.delta,
                 event.restart === true,
+                event.chat === true,
               )
               break
             }
@@ -1700,7 +1701,11 @@ export function useAssistantOperator(
                   .trim() === event.text.trim()
               ) {
                 for (const entry of streamed) {
-                  finalizeOperatorMessage(entry.id, entry.text.trim())
+                  finalizeOperatorMessage(
+                    entry.id,
+                    entry.text.trim(),
+                    event.chat === true,
+                  )
                   dropOperatorPending(entry.id)
                 }
                 break
@@ -1710,7 +1715,11 @@ export function useAssistantOperator(
                   entry.kind === 'message' && entry.id === messageEntryId(),
               )
               if (index >= 0 && index !== entries.length - 1) messageSeq += 1
-              finalizeOperatorMessage(messageEntryId(), event.text)
+              finalizeOperatorMessage(
+                messageEntryId(),
+                event.text,
+                event.chat === true,
+              )
               break
             }
             case ASSISTANT_OPERATOR_EVENTS.step: {

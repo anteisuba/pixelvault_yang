@@ -397,6 +397,20 @@ describe('历史 ↔ 库里的 messages', () => {
     expect(fromStoredOperatorMessages(stored)).toEqual(history)
   })
 
+  it('⭐ 她在聊天那几段的气泡记号跟着落库，读回来还是气泡（②c-2）', () => {
+    const history = toOperatorHistory([
+      { kind: 'message', id: 'm-1', text: '在呢\n怎么啦', chat: true },
+      { kind: 'message', id: 'm-2', text: '改好了。' },
+    ])
+    expect(history).toEqual([
+      { kind: 'message', id: 'm-1', text: '在呢\n怎么啦', chat: true },
+      { kind: 'message', id: 'm-2', text: '改好了。' },
+    ])
+    expect(
+      fromStoredOperatorMessages(toStoredOperatorMessages(history)),
+    ).toEqual(history)
+  })
+
   it('⭐ NAI 标签核对那句灰字跟着写提示词那一步进历史，存了再读回来还在', () => {
     const tagCheck = {
       fixes: [{ from: 'cherry blossom', to: 'cherry blossoms' }],

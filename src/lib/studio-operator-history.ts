@@ -619,6 +619,7 @@ export function toOperatorHistoryEntry(
               versionIndex: entry.versionIndex ?? versions.length - 1,
             }
           : {}),
+        ...(entry.chat ? { chat: true as const } : {}),
       }
     }
     case 'plan': {

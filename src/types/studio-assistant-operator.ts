@@ -86,6 +86,8 @@ export interface StudioOperatorMessageEntry {
    */
   versions?: readonly string[]
   versionIndex?: number
+  /** 「她」在聊天（没开台 + 换成了某个角色，②c-2）：一行一个气泡，⛔ 走正文排版。 */
+  chat?: true
 }
 
 /** 计划条（一轮最多一条）。 */

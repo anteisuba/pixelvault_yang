@@ -32,4 +32,6 @@ export const VOICE_BENCH = {
   listLimit: 60,
   /** 一句台词的上限（一行就是一句；长段落去对话里让她念）。 */
   lineMaxChars: 500,
+  /** 「按她说」一次最多改多少字（输入框里那几行加起来）。 */
+  rewriteMaxChars: 2_000,
 } as const

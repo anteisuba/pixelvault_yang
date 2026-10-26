@@ -474,6 +474,10 @@
       "unbound": "This persona has no voice yet — pick one first",
       "modelUnavailable": "No audio model is available right now",
       "voiceCardUnavailable": "That voice is no longer available"
+    },
+    "voiceBench": {
+      "noPersona": "Switch to a character first, then rewrite in her words",
+      "rewriteEmpty": "The rewrite came back empty. Try again"
     }
   },
   "DropZone": {

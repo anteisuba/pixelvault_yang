@@ -10,7 +10,11 @@ import type {
   AssistantSpeakRequest,
   AssistantSpeakResponseData,
 } from '@/types/assistant-speak'
-import type { VoiceBenchData } from '@/types/voice-bench'
+import type {
+  VoiceBenchData,
+  VoiceBenchRewriteData,
+  VoiceBenchRewriteRequest,
+} from '@/types/voice-bench'
 
 /**
  * 助手设置（persona）与项目规则的客户端封装
@@ -111,6 +115,22 @@ export async function getVoiceBenchAPI(): Promise<ApiResult<VoiceBenchData>> {
     return await parseJsonResult(response, 'Failed to load the voice bench')
   } catch (error) {
     return toFailure(error, 'Failed to load the voice bench')
+  }
+}
+
+/** 配音台「按她说」（③-2a）：把输入框里那几行改成她的口吻。 */
+export async function rewriteVoiceBenchTextAPI(
+  request: VoiceBenchRewriteRequest,
+): Promise<ApiResult<VoiceBenchRewriteData>> {
+  try {
+    const response = await fetch(API_ENDPOINTS.VOICE_BENCH_REWRITE, {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify(request),
+    })
+    return await parseJsonResult(response, 'Failed to rewrite the lines')
+  } catch (error) {
+    return toFailure(error, 'Failed to rewrite the lines')
   }
 }
 

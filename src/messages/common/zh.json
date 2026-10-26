@@ -474,6 +474,10 @@
       "unbound": "这位还没有嗓子，先给她挑一副",
       "modelUnavailable": "当前没有可用的音频模型",
       "voiceCardUnavailable": "这个音色已不可用"
+    },
+    "voiceBench": {
+      "noPersona": "先换成一个角色，再按她的说法改",
+      "rewriteEmpty": "没改出来，再试一次"
     }
   },
   "DropZone": {

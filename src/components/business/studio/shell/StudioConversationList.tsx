@@ -37,6 +37,7 @@ import { useNavIndicator } from '@/hooks/use-nav-indicator'
 import { useStudioOperatorState } from '@/hooks/use-studio-operator-store'
 import { Link, usePathname } from '@/i18n/navigation'
 import {
+  isStudioShellPath,
   libraryCategoryFromPath,
   studioConversationHref,
   studioShellRouteKind,
@@ -89,9 +90,11 @@ export function StudioConversationList({ className }: { className?: string }) {
   const libraryActive =
     openCategory !== null &&
     (STUDIO_LIBRARY_TAB_IDS as readonly string[]).includes(openCategory)
-  /** 对话亮着：首页、开着台（台也是这段对话的一部分）。聊天页、整页的库不算。 */
+  /** 对话亮着：首页、开着台（台也是这段对话的一部分）。整页的库、外壳以外的页（设置等，`AppRail`）不算。 */
   const conversationActive =
-    (kind === 'home' || kind === 'bench') && openCategory === null
+    isStudioShellPath(pathname) &&
+    (kind === 'home' || kind === 'bench') &&
+    openCategory === null
   const navRef = useRef<HTMLElement>(null)
   const indicator = useNavIndicator(navRef, pathname)
   /** 库是整页、没有返回键：再点一下亮着的那一颗 = 收起库，回到进来之前那一页。 */

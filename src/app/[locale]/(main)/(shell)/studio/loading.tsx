@@ -1,17 +1,7 @@
-import { Skeleton } from '@/components/ui/skeleton'
-
+/**
+ * 换台 / 开台时新台还没到的那一拍：台那一栏先空着跟着滑进来（点下去立刻有反应），
+ * 到了再填上。⛔ 画骨架 —— 原来那份是改版前侧栏的样子，换台时闪一下旧界面（10-26）。
+ */
 export default function StudioLoading() {
-  return (
-    <div className="flex h-[calc(100svh-4rem)] gap-4 p-4">
-      <div className="w-64 shrink-0 space-y-3">
-        <Skeleton className="h-10 w-full rounded-xl" />
-        <Skeleton className="h-32 w-full rounded-xl" />
-        <Skeleton className="h-32 w-full rounded-xl" />
-      </div>
-      <div className="flex flex-1 flex-col gap-3">
-        <Skeleton className="flex-1 rounded-2xl" />
-        <Skeleton className="h-24 w-full rounded-xl" />
-      </div>
-    </div>
-  )
+  return <div data-shell-loading aria-busy="true" className="h-full" />
 }

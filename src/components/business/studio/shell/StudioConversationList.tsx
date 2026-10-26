@@ -37,6 +37,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { useIntentPrefetch } from '@/hooks/use-intent-prefetch'
 import { useMyProfile } from '@/hooks/use-my-profile'
 import { useStudioShellAvatar } from '@/hooks/use-studio-shell-avatar'
 import { Link, usePathname } from '@/i18n/navigation'
@@ -79,6 +80,7 @@ export function StudioConversationList({ className }: { className?: string }) {
   const tAll = useTranslations()
   const tOperator = useTranslations('StudioOperator')
   const avatar = useStudioShellAvatar()
+  const intent = useIntentPrefetch()
   const pathname = usePathname()
   const kind = studioShellRouteKind(pathname)
   const openCategory = libraryCategoryFromPath(pathname)
@@ -131,6 +133,8 @@ export function StudioConversationList({ className }: { className?: string }) {
       <NavTip label={tNav('links.gallery')}>
         <Link
           href={studioLibraryPath('gallery')}
+          prefetch={false}
+          {...intent(studioLibraryPath('gallery'))}
           replace={openCategory !== null}
           onClick={closeIfActive(openCategory === 'gallery')}
           aria-label={tNav('links.gallery')}
@@ -212,6 +216,8 @@ export function StudioConversationList({ className }: { className?: string }) {
           <NavTip key={item.id} label={label}>
             <Link
               href={studioLibraryPath(item.id)}
+              prefetch={false}
+              {...intent(studioLibraryPath(item.id))}
               replace={openCategory !== null}
               onClick={closeIfActive(active)}
               aria-label={label}

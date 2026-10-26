@@ -5,12 +5,11 @@ import { z } from 'zod'
 import { CHARACTER_PERSONA_LIMITS } from '@/constants/cards/character-card'
 import {
   VOICE_LINE_TEXT_MAX_LENGTH,
-  VOICE_LINE_USER_KIND,
   VOICE_ROOM_LEARN_PHRASES,
 } from '@/constants/voiceroom'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
-import type { resolveAssistantRoute } from '@/services/kernel/assistant-route.service'
+import type { AssistantRoute } from '@/services/kernel/assistant-route.service'
 import { llmTextCompletion } from '@/services/llm-text.service'
 import { CharacterPersonaSchema } from '@/types'
 
@@ -84,34 +83,31 @@ export function shouldLearnPhrases(userLineCount: number): boolean {
   )
 }
 
+/**
+ * `said` = 你最近说的几句，旧的在前（调用方各自从自己那份记录里取：聊天房间的台词 / 对话的消息），
+ * 只看最后 `readUserLines` 句。
+ */
 export async function learnCreatorPhrases(input: {
   userId: string
   cardId: string
-  roomId: string
-  assistant: Awaited<ReturnType<typeof resolveAssistantRoute>>
+  said: readonly string[]
+  assistant: Pick<AssistantRoute, 'route' | 'modelId'>
 }): Promise<string[] | null> {
   try {
-    const [card, lines] = await Promise.all([
-      db.characterCard.findFirst({
-        where: { id: input.cardId, userId: input.userId, isDeleted: false },
-        select: { id: true, persona: true, updatedAt: true },
-      }),
-      db.voiceLine.findMany({
-        where: { roomId: input.roomId, speakerKind: VOICE_LINE_USER_KIND },
-        orderBy: { order: 'desc' },
-        take: VOICE_ROOM_LEARN_PHRASES.readUserLines,
-        select: { text: true },
-      }),
-    ])
-    if (!card || lines.length === 0) return null
+    const said = input.said
+      .slice(-VOICE_ROOM_LEARN_PHRASES.readUserLines)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .join('\n')
+    if (!said) return null
+    const card = await db.characterCard.findFirst({
+      where: { id: input.cardId, userId: input.userId, isDeleted: false },
+      select: { id: true, persona: true, updatedAt: true },
+    })
+    if (!card) return null
     const persona = CharacterPersonaSchema.safeParse(card.persona ?? {})
     if (!persona.success) return null
 
-    const said = lines
-      .reverse()
-      .map((line) => line.text.trim())
-      .filter(Boolean)
-      .join('\n')
     const raw = await llmTextCompletion({
       systemPrompt: LEARN_SYSTEM_PROMPT,
       userPrompt: said,

@@ -299,6 +299,18 @@ async function findPersonaRow(userId: string): Promise<PersonaRow | null> {
   })
 }
 
+/**
+ * 没开台时和谁聊（用户 10-26：她的对话只有一份，收台 = 聊天、开台 = 工作）：设置里「用哪个角色」那张卡。
+ * 默认助手 / 卡删了 = `null`（照工作口吻答）。
+ */
+export async function getHomeChatCharacterId(
+  clerkId: string,
+): Promise<string | null> {
+  const user = await ensureUser(clerkId)
+  const card = (await findPersonaRow(user.id))?.characterCard
+  return card && !card.isDeleted ? card.id : null
+}
+
 /** 设置里读的那一份（`GET /api/assistant/persona`）：语气是创作者自己那一份。 */
 export async function getAssistantPersona(
   clerkId: string,

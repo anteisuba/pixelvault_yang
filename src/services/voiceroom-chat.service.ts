@@ -19,6 +19,7 @@ import {
   VOICE_ROOM_CHAT_EVENT,
   VOICE_ROOM_CHAT_HISTORY_LINES,
   VOICE_ROOM_CHAT_KERNEL_TIME_BUDGET,
+  VOICE_ROOM_LEARN_PHRASES,
   VOICE_ROOM_SPEAKER_KIND,
 } from '@/constants/voiceroom'
 import { db } from '@/lib/db'
@@ -504,10 +505,16 @@ export async function streamVoiceRoomChat(
               where: { roomId: room.id, speakerKind: VOICE_LINE_USER_KIND },
             })
             if (!shouldLearnPhrases(said)) return
+            const lines = await db.voiceLine.findMany({
+              where: { roomId: room.id, speakerKind: VOICE_LINE_USER_KIND },
+              orderBy: { order: 'desc' },
+              take: VOICE_ROOM_LEARN_PHRASES.readUserLines,
+              select: { text: true },
+            })
             await learnCreatorPhrases({
               userId: user.id,
               cardId: character.id,
-              roomId: room.id,
+              said: lines.reverse().map((line) => line.text),
               assistant,
             })
           }

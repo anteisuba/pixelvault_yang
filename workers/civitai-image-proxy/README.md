@@ -48,16 +48,16 @@ img.anteisuba.com/hotlink/<host>/<path>
   → https://<host>/<path>      Referer: 那一家的首页
 ```
 
-| 图床（含子域） | 带的 Referer                  |
-| -------------- | ----------------------------- |
-| `pximg.net`    | `https://www.pixiv.net/`      |
-| `hdslb.com`    | `https://www.bilibili.com/`   |
-| `sinaimg.cn`   | `https://weibo.com/`          |
-| `donmai.us`    | `https://danbooru.donmai.us/` |
+| 图床（含子域） | 带的 Referer                |
+| -------------- | --------------------------- |
+| `pximg.net`    | `https://www.pixiv.net/`    |
+| `hdslb.com`    | `https://www.bilibili.com/` |
+| `sinaimg.cn`   | `https://weibo.com/`        |
 
-> `donmai.us`（标签库样图，2026-10-26）拦的不是 Referer：Cloudflare 判可疑客户端
-> （无头浏览器、部分机房 / VPN 出口）回 403 质询页，那页带 CORP `same-origin`，浏览器
-> 报 `ERR_BLOCKED_BY_RESPONSE.NotSameOrigin`。走这一支由 Worker 服务端取，并共享缓存。
+> ⚠ Danbooru（`cdn.donmai.us`）不在表里：它的 Cloudflare 把可疑客户端拦成 403 质询页
+> （带 CORP `same-origin`，浏览器报 `NotSameOrigin`），Worker 回源也被拦（2026-10-26
+> 实测 `Upstream 403`）。标签库样图改走 Vercel 同源 rewrite（`/danbooru-img/`，见
+> `next.config.ts` 与 `WEB_IMAGE_SAME_ORIGIN_REWRITES`）。
 
 - **不是开放代理**：host 只认上表（`HOTLINK_HOSTS`），跳转手动跟、只跟到同一张表里，
   回来的必须是图（魔数判型，否则 415），声明长度超过 20 MB 回 413。

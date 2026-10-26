@@ -1,6 +1,7 @@
 import {
   matchesHostPattern,
   WEB_IMAGE_HOTLINK_PROXY,
+  WEB_IMAGE_SAME_ORIGIN_REWRITES,
 } from '@/constants/web-image-sources'
 
 /**
@@ -45,6 +46,25 @@ export function hotlinkProxyImageUrl(url: string): string | null {
   return `${base}${WEB_IMAGE_HOTLINK_PROXY.pathPrefix}/${host}${parsed.pathname}${parsed.search}`
 }
 
+/**
+ * 走自家站点同源 rewrite 的地址（`WEB_IMAGE_SAME_ORIGIN_REWRITES`，如 Danbooru 样图）；
+ * 不在名单里或地址不合规矩时是 `null`。
+ */
+export function sameOriginRewriteImageUrl(url: string): string | null {
+  let parsed: URL
+  try {
+    parsed = new URL(url)
+  } catch {
+    return null
+  }
+  if (parsed.protocol !== 'https:') return null
+  if (parsed.port || parsed.username || parsed.password) return null
+  const rule = WEB_IMAGE_SAME_ORIGIN_REWRITES.find(
+    (candidate) => candidate.host === parsed.hostname.toLowerCase(),
+  )
+  return rule ? `${rule.pathPrefix}${parsed.pathname}${parsed.search}` : null
+}
+
 /** 这个地址是不是自家代理的 `/hotlink/` 那一支（`hotlinkProxyImageUrl` 的产物）。 */
 export function isHotlinkProxyImageUrl(url: string): boolean {
   const rawBase = process.env.NEXT_PUBLIC_CIVITAI_IMAGE_PROXY_BASE
@@ -67,7 +87,7 @@ export function thirdPartyImageSources(
   const sources: string[] = []
   for (const url of urls) {
     if (!url) continue
-    const proxied = hotlinkProxyImageUrl(url)
+    const proxied = sameOriginRewriteImageUrl(url) ?? hotlinkProxyImageUrl(url)
     for (const candidate of proxied ? [proxied, url] : [url]) {
       if (!sources.includes(candidate)) sources.push(candidate)
     }

@@ -35,9 +35,6 @@ describe('hotlinkProxyImageUrl', () => {
     expect(hotlinkProxyImageUrl('https://WX1.sinaimg.cn/large/b.jpg')).toBe(
       `${BASE}/hotlink/wx1.sinaimg.cn/large/b.jpg`,
     )
-    expect(
-      hotlinkProxyImageUrl('https://cdn.donmai.us/180x180/9b/67/9b67.jpg'),
-    ).toBe(`${BASE}/hotlink/cdn.donmai.us/180x180/9b/67/9b67.jpg`)
   })
 
   it('⛔ 名单外、仿冒域、带端口 / userinfo 的一律不改写', () => {
@@ -70,6 +67,22 @@ describe('thirdPartyImageSources', () => {
   it('代理没配时就是原地址本身', () => {
     vi.stubEnv('NEXT_PUBLIC_CIVITAI_IMAGE_PROXY_BASE', '')
     expect(thirdPartyImageSources(PIXIV, undefined)).toEqual([PIXIV])
+  })
+
+  it('Danbooru 样图先走同源 rewrite，再直连；大图取不到退小图', () => {
+    vi.stubEnv('NEXT_PUBLIC_CIVITAI_IMAGE_PROXY_BASE', BASE)
+    const large = 'https://cdn.donmai.us/720x720/9b/67/9b67.webp'
+    const small = 'https://cdn.donmai.us/180x180/9b/67/9b67.jpg'
+    expect(thirdPartyImageSources(large, small)).toEqual([
+      '/danbooru-img/720x720/9b/67/9b67.webp',
+      large,
+      '/danbooru-img/180x180/9b/67/9b67.jpg',
+      small,
+    ])
+    // ⛔ 仿冒域、别的 donmai 子域不改写。
+    expect(
+      thirdPartyImageSources('https://cdn.donmai.us.evil.com/a.jpg'),
+    ).toEqual(['https://cdn.donmai.us.evil.com/a.jpg'])
   })
 })
 

@@ -36,6 +36,7 @@ import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
 import { useCivitaiDownloadGate } from '@/hooks/use-civitai-download-gate'
 import { useCivitaiLoraLibraryWithUrl } from '@/hooks/use-civitai-lora-library-url'
 import { useCivitaiMinedPrompts } from '@/hooks/prompts/use-civitai-mined-prompts'
+import { useReportLibraryItem } from '@/hooks/use-library-view'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
@@ -387,6 +388,10 @@ export function CivitaiCommunityBranch({
   // 兜底，列表一变（换排序/翻页/重拉）抽屉就会静默换成另一个 LoRA 的详情。
   const drawerItem =
     library.items.find((item) => item.id === expandedItemId) ?? null
+  // 助手认得出「这把」（库开着时报给它，`use-library-view`）。
+  useReportLibraryItem(
+    drawerItem ? { kind: 'lora', name: drawerItem.name } : null,
+  )
 
   return (
     <section className="flex min-h-0 flex-1 flex-col lg:block lg:space-y-3">

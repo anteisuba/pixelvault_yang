@@ -17,6 +17,7 @@ import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
 import { useCivitaiDownloadGate } from '@/hooks/use-civitai-download-gate'
 import { useHandMentionToAssistant } from '@/hooks/use-hand-to-assistant'
 import { useLocalPreference } from '@/hooks/use-local-preference'
+import { useReportLibraryItem } from '@/hooks/use-library-view'
 import { proxyCivitaiImageUrl } from '@/lib/civitai-image-url'
 import { getLoraAssetSourceUrl } from '@/lib/lora-asset-source-url'
 import { buildLibraryFavoriteRequest } from '@/lib/lora-source-snapshot'
@@ -302,6 +303,10 @@ export function LoraFavoritesBrowse({
   )
 
   const detailItem = openAsset ? assetToLibraryItem(openAsset) : null
+  // 助手认得出「这把」（库开着时报给它，`use-library-view`）。
+  useReportLibraryItem(
+    openAsset ? { kind: 'lora', name: openAsset.name } : null,
+  )
   const openIsTrained = openAsset?.source === 'trained'
   const extraMenu: LoraLibraryDetailMenuItem[] =
     openAsset && openIsTrained && openAsset.isOwn

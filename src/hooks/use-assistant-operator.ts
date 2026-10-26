@@ -128,6 +128,7 @@ import {
   takeOperatorQueue,
   upsertOperatorStep,
 } from '@/hooks/use-studio-operator-store'
+import { readLibraryView } from '@/hooks/use-library-view'
 import { getGenerationErrorMessage } from '@/lib/api-error-message'
 import { studioBenchHref } from '@/lib/studio-shell-route'
 import {
@@ -1247,6 +1248,7 @@ export function useAssistantOperator(
             }
           : undefined,
       )
+      const libraryView = readLibraryView()
       const authoredByAssistant = buildAuthoredByAssistant(
         entries,
         snapshot,
@@ -1338,6 +1340,8 @@ export function useAssistantOperator(
           ...(getOperatorState().autoGenerate
             ? { autoGenerate: true as const }
             : {}),
+          /** 库开着时报一句开着哪个库、点开了谁（`readLibraryView`）：「这个角色」才认得出。 */
+          ...(libraryView ? { libraryView } : {}),
           /**
            * ⭐ **这一轮属于哪段会话**（v2 §7.5 / §7.6，commit #12）—— 结账写库与
            * 下一轮注入唯一的落点：服务端零会话态，会话的身份一直由客户端持有

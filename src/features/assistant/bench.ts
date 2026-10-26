@@ -37,6 +37,8 @@ import { assistantWorkspaceFromKey } from '@/lib/assistant-workspace'
 import { resolveClosestStudioAspectRatio } from '@/lib/studio-remix'
 import type { PromptAssistantResponseLanguage } from '@/types'
 import type {
+  AssistantLibraryView,
+  AssistantLibraryViewItem,
   AssistantOperatorEvent,
   AssistantOperatorRequest,
   AssistantOperatorSnapshot,
@@ -79,6 +81,7 @@ import {
   ASSISTANT_NEXT_EDIT_OP_IDS as OP,
   ASSISTANT_NEXT_FIND_KIND_IDS,
   ASSISTANT_NEXT_FIND_DEFAULT_KINDS,
+  ASSISTANT_NEXT_HANDLE_PREFIXES,
   ASSISTANT_NEXT_LIMITS,
   ASSISTANT_NEXT_LORA_PARAM_KEYS,
   ASSISTANT_NEXT_RECIPE_PART_IDS as PART,
@@ -314,6 +317,59 @@ export function renderBench(
   attachedNames: readonly string[],
   latestUserText: string,
   aliases = '',
+): string {
+  return renderBenchBody(
+    context,
+    attachedNames,
+    latestUserText,
+    aliases,
+  ).concat(renderLibraryView(context.request.libraryView))
+}
+
+/** 库在模型眼里叫什么（`AssistantLibraryView.library`）。 */
+const LIBRARY_VIEW_LABELS: Record<AssistantLibraryView['library'], string> = {
+  lora: 'LoRA library',
+  tavern: 'Chub character-card library',
+  tags: 'Danbooru tag library',
+  voices: 'voice library',
+  assets: 'asset library (their pictures)',
+  cards: 'character library',
+  prompts: 'saved-prompt library',
+  gallery: 'gallery',
+}
+
+const LIBRARY_VIEW_PREFIXES: Record<
+  Exclude<AssistantLibraryViewItem['kind'], 'picture'>,
+  string
+> = {
+  character: ASSISTANT_NEXT_HANDLE_PREFIXES.character,
+  lora: ASSISTANT_NEXT_HANDLE_PREFIXES.lora,
+  prompt: ASSISTANT_NEXT_HANDLE_PREFIXES.prompt,
+  tag: ASSISTANT_NEXT_HANDLE_PREFIXES.tag,
+}
+
+/**
+ * 库开着时板子底下那一句（10-26）：助手仍是台的身份，看不见库 —— 用户说「这个角色」时
+ * 指的就是库里点开的那一样，先 `look` 它再答。
+ */
+export function renderLibraryView(
+  view: AssistantLibraryView | undefined,
+): string {
+  if (!view) return ''
+  const where = `\nLIBRARY ON SCREEN: the creator has their ${LIBRARY_VIEW_LABELS[view.library]} open next to this chat`
+  if (!view.item) return `${where}.`
+  const handle =
+    view.item.kind === 'picture'
+      ? view.item.name
+      : `${LIBRARY_VIEW_PREFIXES[view.item.kind]}${view.item.name}`
+  return `${where}, looking at ${handle}. When they say "this one", "her", "it" without naming it, they mean ${handle}: look ${handle} before you answer.`
+}
+
+function renderBenchBody(
+  context: V3Context,
+  attachedNames: readonly string[],
+  latestUserText: string,
+  aliases: string,
 ): string {
   const autoGenerate = context.request.autoGenerate
     ? context.face === ASSISTANT_V3_FACE_IDS.canvas

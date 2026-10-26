@@ -15,6 +15,7 @@ import type { V3Context } from '@/services/kernel/assistant-v3-steps.service'
 import {
   isHomeDraftSnapshot,
   renderBench,
+  renderLibraryView,
   runEdit,
   toV3Mutation,
 } from './bench'
@@ -216,5 +217,67 @@ describe('新工具的一条改动 → v3 执行函数的入参', () => {
       tool: null,
       error: 'option needs value.',
     })
+  })
+})
+
+describe('库开着、在看哪一样（10-26）', () => {
+  it('没开库：板子底下什么都不加', () => {
+    expect(renderLibraryView(undefined)).toBe('')
+  })
+
+  it('只开着库：说开着哪个库', () => {
+    expect(renderLibraryView({ library: 'voices' })).toBe(
+      '\nLIBRARY ON SCREEN: the creator has their voice library open next to this chat.',
+    )
+  })
+
+  it('点开了一位角色：给出编号，「这个」就是她，先 look', () => {
+    const line = renderLibraryView({
+      library: 'cards',
+      item: { kind: 'character', name: 'Denia' },
+    })
+    expect(line).toContain('character library open next to this chat')
+    expect(line).toContain('looking at 角色·Denia')
+    expect(line).toContain('look 角色·Denia before you answer')
+  })
+
+  it('图按身份段原样给，标签 / LoRA 带各自前缀', () => {
+    expect(
+      renderLibraryView({
+        library: 'assets',
+        item: { kind: 'picture', name: '图_012' },
+      }),
+    ).toContain('looking at 图_012.')
+    expect(
+      renderLibraryView({
+        library: 'tags',
+        item: { kind: 'tag', name: 'watercolor_(medium)' },
+      }),
+    ).toContain('标签·watercolor_(medium)')
+    expect(
+      renderLibraryView({
+        library: 'lora',
+        item: { kind: 'lora', name: 'Firefly' },
+      }),
+    ).toContain('LoRA·Firefly')
+  })
+
+  it('任何一张脸的板子都接上这一句', () => {
+    const context = homeDraftContext()
+    const board = renderBench(
+      {
+        ...context,
+        request: {
+          ...context.request,
+          libraryView: {
+            library: 'cards',
+            item: { kind: 'character', name: 'Denia' },
+          },
+        },
+      } as V3Context,
+      [],
+      '这个角色的设定怎么完善',
+    )
+    expect(board.endsWith('look 角色·Denia before you answer.')).toBe(true)
   })
 })

@@ -114,6 +114,7 @@ import {
   useJustifiedGrid,
 } from '@/hooks/use-justified-grid'
 import { useStableDragState } from '@/hooks/use-stable-drag-state'
+import { useReportLibraryItem } from '@/hooks/use-library-view'
 import { ROUTES } from '@/constants/routes'
 import { PROJECT } from '@/constants/config'
 import {
@@ -169,6 +170,7 @@ import {
   uploadVideoFileAPI,
 } from '@/lib/api-client/generation'
 import { readAudioFileMetadata } from '@/lib/audio-metadata'
+import { buildGenerationTag } from '@/lib/generation-name'
 import { getApiErrorMessage } from '@/lib/api-error-message'
 import { prepareImageUpload } from '@/lib/prepare-image-upload'
 import { runUndoableAction } from '@/lib/undoable-action'
@@ -466,6 +468,13 @@ export function KreaAssetBrowser({
   // sheet would steal the click target.
   const [selectedGeneration, setSelectedGeneration] =
     useState<GenerationRecord | null>(initialSelectedGeneration)
+  // 助手认得出「这张」（库开着时报给它，`use-library-view`）；没号的图报不了。
+  const selectedTag = selectedGeneration
+    ? buildGenerationTag(selectedGeneration)
+    : undefined
+  useReportLibraryItem(
+    selectedTag ? { kind: 'picture', name: selectedTag } : null,
+  )
   const imageGenerations = useMemo(
     () => generations.filter((generation) => generation.outputType === 'IMAGE'),
     [generations],

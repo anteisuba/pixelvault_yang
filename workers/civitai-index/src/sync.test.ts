@@ -390,6 +390,34 @@ describe('searchIndex', () => {
     expect(result.rows.map((row) => row.modelId)).toEqual([8])
   })
 
+  it('treats underscores, punctuation and full-width letters like plain words', async () => {
+    for (const q of ['silver_hair', 'Silver-Hair!', 'ｓｉｌｖｅｒ　ｈａｉｒ']) {
+      expect((await search(db, { q })).rows.map((row) => row.modelId)).toEqual([
+        1,
+      ])
+    }
+  })
+
+  it('does not require generic words, but still ranks by them', async () => {
+    await syncAll(
+      db,
+      new FakeUpstream([
+        ...SEARCH_FIXTURE,
+        { id: 8, name: 'Silver style', downloadCount: 1 },
+      ]),
+    )
+    const { rows } = await search(db, {
+      q: 'silver style lora',
+      sort: 'relevance',
+    })
+    // 名字里连 style 都有的排最前，其余照「名字含 silver」→「只在触发词里」。
+    expect(rows.map((row) => row.modelId)).toEqual([8, 1, 2, 3])
+    // 整句都是通用词：照常当条件（Lifestyle 的名字、Silver 的标签里都有 style）。
+    expect(
+      (await search(db, { q: 'style' })).rows.map((row) => row.modelId).sort(),
+    ).toEqual([2, 3, 8])
+  })
+
   it('matches short Latin terms as whole words', async () => {
     expect(
       (await search(db, { q: 'oc' })).rows.map((row) => row.modelId),

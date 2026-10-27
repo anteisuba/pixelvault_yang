@@ -9,7 +9,8 @@ import type { IndexImage, IndexPermissions, IndexVersion } from './rows'
  * 白名单拼接，用户输入一律走参数。
  */
 export const SearchInputSchema = z.object({
-  q: z.string().trim().max(200).default(''),
+  /** 进来先规整（normalizeQuery），计数缓存、按意思找、排序都用规整后的这一份 */
+  q: z.string().max(200).default('').transform(normalizeQuery),
   /** 精确的 base_model 取值；空 = 不限 */
   baseModels: z.array(z.string().min(1).max(100)).max(40).default([]),
   /** 「其他」桶：排除这些 base_model（没有 base_model 的也算其他） */
@@ -79,6 +80,30 @@ const TRIGRAM_MIN_CHARS = 3
 const WALK_ORDER_INDEX_MIN_TOTAL = 2000
 const MAX_QUERY_TERMS = 8
 /**
+ * 搜索词里这些字当空格：`arknights_endfield` 只有 6 个、带空格是 353 个（2026-10-22
+ * 线上实测）。索引的整词本来就按字母数字切（rows.ts 的 indexTerms），这里对齐。
+ * ⚠ 保留 `@`：触发词常带它（`@anima_tag`）。
+ */
+const QUERY_SEPARATORS =
+  /[\s_\-/\\.,;:!?()[\]{}"'`|+*~#&^=<>·、，。：；！？（）【】「」『』《》〈〉“”‘’…—～]+/gu
+/**
+ * 通用词：不要求一定出现，只参与排序。助手和人都爱在词后面加 `lora` / `style`，
+ * `endfield style lora` 原来只有 4 个、`endfield` 是 367 个（owner 2026-10-22 定）。
+ * 整句只剩这些词时照常当条件（搜 `style` 就是要找名字里有 style 的）。
+ */
+const GENERIC_QUERY_WORDS = new Set([
+  'lora',
+  'loras',
+  'lycoris',
+  'locon',
+  'loha',
+  'style',
+  'model',
+  '模型',
+  '风格',
+  '画风',
+])
+/**
  * 总数数到这里为止，界面写「1 万+」。常见词（girl 命中 17 万行）照实数要把整个
  * 命中集读一遍，冷的时候 5–11 秒；数到上限就停只读一万多行（30 ms 上下）。
  */
@@ -121,14 +146,33 @@ function escapeLike(text: string): string {
   return text.replace(/[\\%_]/g, (char) => `\\${char}`)
 }
 
-function queryTerms(query: string): { terms: string[]; longTerms: string[] } {
-  const terms = [...new Set(query.split(/\s+/).filter(Boolean))].slice(
+/** 全角转半角、小写、分隔符当空格（见 QUERY_SEPARATORS）。 */
+export function normalizeQuery(query: string): string {
+  return query
+    .normalize('NFKC')
+    .toLowerCase()
+    .replace(QUERY_SEPARATORS, ' ')
+    .trim()
+}
+
+/**
+ * `terms` 是必须命中的词（去掉了通用词）；`rankTerms` 是整句的词，只用来排序。
+ */
+function queryTerms(query: string): {
+  terms: string[]
+  longTerms: string[]
+  rankTerms: string[]
+} {
+  const rankTerms = [...new Set(query.split(/\s+/).filter(Boolean))].slice(
     0,
     MAX_QUERY_TERMS,
   )
+  const specific = rankTerms.filter((term) => !GENERIC_QUERY_WORDS.has(term))
+  const terms = specific.length > 0 ? specific : rankTerms
   return {
     terms,
     longTerms: terms.filter((term) => charLength(term) >= TRIGRAM_MIN_CHARS),
+    rankTerms,
   }
 }
 
@@ -200,8 +244,8 @@ export function buildSearchQuery(
     )
   }
 
-  const query = input.q.toLowerCase()
-  const { terms, longTerms } = queryTerms(query)
+  const query = input.q
+  const { terms, longTerms, rankTerms } = queryTerms(query)
   if (longTerms.length > 0) {
     const match = param(longTerms.map(ftsString).join(' '))
     if (driveFromFts) {
@@ -252,19 +296,25 @@ export function buildSearchQuery(
   let orderBy: string
   let tierExpr: string | null = null
   if (sort === 'relevance') {
-    // 名字完全相同 → 名字以它开头 → 名字含整句 → 名字含每个词 → 只在标签 /
-    // 作者 / 触发词里命中；同一档里按下载量。
+    // 名字完全相同 → 名字以它开头 → 名字含整句 → 名字含每个必须的词（还含通用词
+    // 的在前）→ 只在标签 / 作者 / 触发词里命中；同一档里按下载量。
     const exact = param(query)
     const prefix = param(`${escapeLike(query)}%`)
-    const everyTerm = terms
-      .map((term) => `instr(lower(lora.name), ${param(term)}) > 0`)
-      .join(' AND ')
+    const inName = (term: string) =>
+      `instr(lower(lora.name), ${param(term)}) > 0`
+    const everyTerm = terms.map(inName).join(' AND ')
+    const generic = rankTerms.filter((term) => !terms.includes(term))
+    const nameTiers =
+      generic.length > 0
+        ? `WHEN ${everyTerm} AND (${generic.map(inName).join(' OR ')}) THEN 3
+      WHEN ${everyTerm} THEN 4`
+        : `WHEN ${everyTerm} THEN 3`
     tierExpr = `CASE
       WHEN lower(lora.name) = ${exact} THEN 0
       WHEN lower(lora.name) LIKE ${prefix} ESCAPE '\\' THEN 1
       WHEN instr(lower(lora.name), ${exact}) > 0 THEN 2
-      WHEN ${everyTerm} THEN 3
-      ELSE 4
+      ${nameTiers}
+      ELSE 5
     END`
     orderBy = `${tierExpr}, download_count DESC, model_id`
     // ⚠ 下面三档必须与迁移里的排序索引逐列一致（model_id 升序 = 索引自带的
@@ -637,7 +687,7 @@ export interface SearchTimings {
  * 先取出来，这里只需要看 50 行。
  */
 function literalTextCheck(q: string): { where: string; params: unknown[] } {
-  const { terms, longTerms } = queryTerms(q.toLowerCase())
+  const { terms, longTerms } = queryTerms(q)
   const params: unknown[] = []
   const param = (value: unknown) => {
     params.push(value)

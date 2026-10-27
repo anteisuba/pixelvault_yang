@@ -32,13 +32,43 @@ export function measureStudioShellAvatar(
 
 const ease = cubicBezier(...EASE_STANDARD)
 
+/** 落点跟着走的那一块：对话头那颗在对话正文里，台角那颗在台那一列里。 */
+const MOVER: Record<StudioShellAvatarSpot, string> = {
+  header: '[data-testid="studio-shell-conversation-body"]',
+  bench: '[data-testid="studio-shell-bench-column"]',
+}
+
+/**
+ * 落点**走完之后**会在哪：那一块此刻在滑，滑完它的左边贴到对话栏的左边（收起：台那一列顶上来；
+ * 展开：贴右的正文随栏变宽退回原位）。⛔ 直接追落点此刻的位置 —— 一开始会先往反方向冲。
+ */
+function measureLanding(
+  root: HTMLElement | null,
+  spot: StudioShellAvatarSpot,
+): DOMRect | null {
+  const anchor = measureStudioShellAvatar(root, spot)
+  const mover = root?.querySelector<HTMLElement>(MOVER[spot])
+  const section = root?.querySelector<HTMLElement>(
+    '[data-testid="studio-shell-conversation"]',
+  )
+  if (!anchor || !mover || !section) return anchor
+  const shift =
+    mover.getBoundingClientRect().left - section.getBoundingClientRect().left
+  return new DOMRect(
+    anchor.left - shift,
+    anchor.top,
+    anchor.width,
+    anchor.height,
+  )
+}
+
 /**
  * 对话收起 / 展开时头像飞过去（用户 10-27：⛔ 先消失再冒出来）。
  *
  * ⚠ 不用 Motion `layoutId` 接力：对话头那一颗在对话栏里，栏是 `overflow-hidden`、展开时
  *   整块从左边滑进来，接力的那一颗前半程一直被栏裁掉 —— 看着就是没了、再冒出来。
- *   这里起飞时在 body 上放一颗 fixed 的替身，每帧读落点**此刻**的位置追过去（落点自己还在跟着
- *   栏 / 台滑），到了再把真的那颗露出来。两头真的那颗在飞的这一拍藏着（外壳挂
+ *   这里起飞时在 body 上放一颗 fixed 的替身，每帧量一次落点滑完会在哪（`measureLanding`）飞过去，
+ *   到了再把真的那颗露出来。两头真的那颗在飞的这一拍藏着（外壳挂
  *   `studio-shell-avatar-flying`）。
  */
 export function StudioShellAvatarFlight({
@@ -61,7 +91,7 @@ export function StudioShellAvatarFlight({
     let frame = 0
     const step = (now: number) => {
       const t = Math.min(1, (now - start) / SHELL_MOTION.pullMs)
-      const target = measureStudioShellAvatar(rootRef.current, to) ?? from
+      const target = measureLanding(rootRef.current, to) ?? from
       const k = ease(t)
       const x = from.left + (target.left - from.left) * k
       const y = from.top + (target.top - from.top) * k

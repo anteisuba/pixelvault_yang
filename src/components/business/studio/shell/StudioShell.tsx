@@ -387,15 +387,6 @@ function StudioShellStage({
    */
   const openWidth = useRef<number | null>(null)
   const [pinnedPx, setPinnedPx] = useState<number | null>(null)
-  useEffect(() => {
-    const node = conversationRef.current
-    if (!node || typeof ResizeObserver === 'undefined') return
-    const observer = new ResizeObserver(() => {
-      if (node.offsetWidth > 0) openWidth.current = node.offsetWidth
-    })
-    observer.observe(node)
-    return () => observer.disconnect()
-  }, [])
 
   /** 头像飞的那一拍（用户 10-27：⛔ 消失又出现）：起飞时量好原位，替身追到落点。 */
   const [flight, setFlight] = useState<StudioShellAvatarFlightPlan | null>(null)
@@ -414,6 +405,7 @@ function StudioShellStage({
       return
     }
     takeOff('header', 'bench')
+    openWidth.current = conversationRef.current?.offsetWidth || null
     setPinnedPx(openWidth.current)
     setPulling('collapse')
     window.setTimeout(() => {
@@ -426,7 +418,17 @@ function StudioShellStage({
     setConversationCollapsed(false)
     if (reduceMotion) return
     takeOff('bench', 'header')
-    setPinnedPx(openWidth.current)
+    // 还没在这台上开过对话（进台就收着）：按记住的宽、给台留够最小宽估一个。
+    const stageWidth = stageRef.current?.clientWidth
+    setPinnedPx(
+      openWidth.current ??
+        (stageWidth
+          ? Math.min(
+              split.conversationPx,
+              stageWidth - STUDIO_SHELL_SPLIT.minBenchPx,
+            )
+          : null),
+    )
     setPulling('expand')
     // 先按 0 宽画一帧，下一帧再放回记住的宽，宽的过渡才有起点；走完那一段再松开钉住的宽。
     requestAnimationFrame(() =>
@@ -435,7 +437,7 @@ function StudioShellStage({
         window.setTimeout(() => setPinnedPx(null), SHELL_MOTION.pullMs)
       }),
     )
-  }, [reduceMotion, setConversationCollapsed, takeOff])
+  }, [reduceMotion, setConversationCollapsed, split.conversationPx, takeOff])
 
   // 库是整页（ui-spec §9）：盖满白板；叫出助手时对话按记住的宽贴到右边。
   const conversationHidden =
@@ -509,6 +511,7 @@ function StudioShellStage({
       >
         {shellDock ? (
           <div
+            data-testid="studio-shell-conversation-body"
             className={cn(
               'flex min-h-0 min-w-0 flex-1 flex-col',
               pinnedPx !== null && 'desk:absolute desk:inset-y-0 desk:right-0',

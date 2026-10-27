@@ -221,6 +221,12 @@ export const ASSISTANT_NEXT_FIND_KIND_IDS = {
   /** 外面的库（10-25 打通）：Danbooru 标签（含她的标签收藏）、Civitai LoRA 大库。⚠ 要点名才查。 */
   tags: 'tags',
   loraLibrary: 'lora_library',
+  /**
+   * 联网找图 / 找视频（10-27 owner：「去网上找的图片和视频也无法发给我」）：走旧执行器的
+   * `search_web_images` / `search_web_videos`，结果卡摆在回答底下，号 `#n` 进本轮记录。⚠ 点名才查。
+   */
+  webImages: 'web_images',
+  webVideos: 'web_videos',
 } as const
 
 export const ASSISTANT_NEXT_FIND_KINDS = Object.values(

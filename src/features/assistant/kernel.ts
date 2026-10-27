@@ -1276,9 +1276,11 @@ async function* runNextTurn(
                 ),
               }
             : {}),
+          ...(result.finds?.length ? { finds: [...result.finds] } : {}),
         })
-        // 画布出图前的核对按本轮记录认「已经报过」（v3 执行函数读 context 那一份）。
-        if (face === ASSISTANT_V3_FACE_IDS.canvas)
+        // 画布出图前的核对按本轮记录认「已经报过」；联网找到的 `#n` 也按它换回那一张
+        // （v3 执行函数读 context 那一份）。
+        if (face === ASSISTANT_V3_FACE_IDS.canvas || result.finds?.length)
           context.transcript.push(transcript[transcript.length - 1]!)
       }
       if (stopped) {

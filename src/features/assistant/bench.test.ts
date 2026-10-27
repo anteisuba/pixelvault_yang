@@ -5,7 +5,8 @@ vi.mock('@/services/kernel/assistant-operator.service', () => ({}))
 vi.mock('@/services/kernel/assistant-v3-image.service', () => ({}))
 vi.mock('@/services/kernel/assistant-v3-lora.service', () => ({}))
 vi.mock('@/services/kernel/assistant-v3-cards.service', () => ({}))
-vi.mock('@/services/kernel/assistant-v3-bench.service', () => ({}))
+const runWebFind = vi.hoisted(() => vi.fn())
+vi.mock('@/services/kernel/assistant-v3-bench.service', () => ({ runWebFind }))
 vi.mock('@/services/kernel/assistant-v3-steps.service', () => ({}))
 vi.mock('@/services/kernel/assistant-v3-look.service', () => ({}))
 vi.mock('@/services/kernel/assistant-v3-watch.service', () => ({}))
@@ -17,6 +18,7 @@ import {
   renderBench,
   renderLibraryView,
   runEdit,
+  runFind,
   toV3Mutation,
 } from './bench'
 
@@ -279,5 +281,78 @@ describe('库开着、在看哪一样（10-26）', () => {
       '这个角色的设定怎么完善',
     )
     expect(board.endsWith('look 角色·Denia before you answer.')).toBe(true)
+  })
+})
+
+describe('find 联网找图 / 找视频（10-27「网上找的图片和视频发不过来」）', () => {
+  const imageFind = {
+    kind: 'image' as const,
+    n: 1,
+    imageUrl: 'https://example.com/draco.jpg',
+    title: 'Draco Malfoy',
+  }
+  const videoFind = {
+    kind: 'video' as const,
+    n: 2,
+    url: 'https://www.youtube.com/watch?v=abc',
+    platform: 'youtube' as const,
+    title: 'Draco scenes',
+  }
+
+  it('web_images / web_videos 走旧执行器那两步，号带回本轮记录，模型被叮嘱只用 #n', async () => {
+    runWebFind.mockReset()
+    runWebFind
+      .mockImplementationOnce(async function* () {
+        return {
+          kind: 'result',
+          output: '#1 · Draco Malfoy · example.com · usable as reference',
+          error: false,
+          finds: [imageFind],
+        }
+      })
+      .mockImplementationOnce(async function* () {
+        return {
+          kind: 'result',
+          output: '#2 · Draco scenes · YouTube',
+          error: false,
+          finds: [videoFind],
+        }
+      })
+    const context = homeDraftContext()
+    const result = await drain(
+      runFind(context, {
+        query: 'Draco Malfoy',
+        kinds: ['web_images', 'web_videos'],
+        subject: 'Harry Potter · Draco Malfoy',
+      }),
+    )
+    expect(runWebFind).toHaveBeenNthCalledWith(
+      1,
+      context,
+      'web_images',
+      'Draco Malfoy',
+      'Harry Potter · Draco Malfoy',
+    )
+    expect(runWebFind).toHaveBeenNthCalledWith(
+      2,
+      context,
+      'web_videos',
+      'Draco Malfoy',
+      'Harry Potter · Draco Malfoy',
+    )
+    expect(result.error).toBe(false)
+    expect(result.finds).toEqual([imageFind, videoFind])
+    expect(result.output).toContain('#1 · Draco Malfoy')
+    expect(result.output).toContain('refer to them by #n')
+  })
+
+  it('没给查询词不去联网，只说清要什么', async () => {
+    runWebFind.mockReset()
+    const result = await drain(
+      runFind(homeDraftContext(), { query: '  ', kinds: ['web_images'] }),
+    )
+    expect(runWebFind).not.toHaveBeenCalled()
+    expect(result.error).toBe(true)
+    expect(result.output).toContain('needs a query')
   })
 })

@@ -72,7 +72,13 @@ export const FindInputSchema = z.object({
     .array(z.enum(ASSISTANT_NEXT_FIND_KINDS))
     .nullish()
     .describe(
-      "Which kinds to search. Their own: pictures (generations and uploads), characters (with their looks and settings), loras (every LoRA they saved), prompts (their saved prompts), conversations (earlier conversations on every bench), memories (what you remember about the creator), voices (their voice library). The project's shared libraries, searched only when named: tags (Danbooru tags — artists and art media/styles, characters, series, general tags — plus the tags they favourited; the same source as the tag library page), lora_library (the Civitai LoRA library, the same index as the LoRA library page). null = all of their own.",
+      "Which kinds to search. Their own: pictures (generations and uploads), characters (with their looks and settings), loras (every LoRA they saved), prompts (their saved prompts), conversations (earlier conversations on every bench), memories (what you remember about the creator), voices (their voice library). The project's shared libraries, searched only when named: tags (Danbooru tags — artists and art media/styles, characters, series, general tags — plus the tags they favourited; the same source as the tag library page), lora_library (the Civitai LoRA library, the same index as the LoRA library page). The web, searched only when named: web_images (pictures on the web — references, stills, fan art) and web_videos (videos on the web); the creator sees what comes back as cards under your reply, numbered #1, #2… — refer to them by number, never paste their links. Use these whenever the creator wants pictures or videos from the web shown or sent to them. null = all of their own.",
+    ),
+  subject: z
+    .string()
+    .nullish()
+    .describe(
+      'web_images only: the work and character the pictures are of ("Harry Potter · Draco Malfoy"), so official pictures come first.',
     ),
 })
 export type FindInput = z.infer<typeof FindInputSchema>
@@ -605,7 +611,7 @@ export function parseToolInput<T>(
 }
 
 const DESCRIPTIONS = {
-  find: "Search the creator's workspace (their pictures, characters and looks, saved LoRAs, saved prompts, voices, earlier conversations on every bench, what you remember about them) and the project's own libraries (Danbooru tags, the Civitai LoRA library). Returns numbered lines; open any of them with look.",
+  find: "Search the creator's workspace (their pictures, characters and looks, saved LoRAs, saved prompts, voices, earlier conversations on every bench, what you remember about them), the project's own libraries (Danbooru tags, the Civitai LoRA library), and pictures / videos on the web (shown to the creator as cards). Returns numbered lines; open any of them with look.",
   look: 'Read the bench as it is right now, and optionally open things by number or name: pictures (with their full recipe), characters, LoRAs, Danbooru tags, voices, saved prompts, earlier conversations, settings. Pictures you open stay in front of you. tagger: true also reads who drew them / the style / the character as Danbooru tags.',
   edit: 'Change the bench, the creator\'s library (pictures, folders, characters and looks, LoRAs, saved prompts), their settings (model channels, assistant settings, search source lists), or what you remember (remember). All changes for one request go in ONE call, applied in order; each lands at once and can be undone. For the prompt prefer mode "edit" with exact {find, replace} pairs so everything else stays as it is.',
   ask: 'Ask the creator when you cannot go on without their choice. Puts a card with options in front of them and ends this turn until they answer.',

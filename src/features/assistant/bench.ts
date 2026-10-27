@@ -19,6 +19,8 @@ import {
   ASSISTANT_V3_LORA_WRITE_FIELD_IDS,
   ASSISTANT_V3_TOOL_IDS,
   ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS,
+  ASSISTANT_V3_WEB_IMAGES_SEARCH_KIND,
+  ASSISTANT_V3_WEB_VIDEOS_SEARCH_KIND,
 } from '@/constants/assistant-v3'
 import {
   assistantV3CanvasNodes,
@@ -48,6 +50,7 @@ import type {
   AssistantV3PictureRef,
   AssistantV3Transcript,
 } from '@/types/assistant-v3'
+import type { AssistantWebFind } from '@/types/assistant-web-finds'
 import {
   normalizePlanQuestions,
   type PreparedOperatorTurn,
@@ -55,6 +58,7 @@ import {
 import {
   refused,
   runOldTool,
+  runWebFind,
 } from '@/services/kernel/assistant-v3-bench.service'
 import {
   executeAssistantV3CardsCall,
@@ -216,6 +220,8 @@ export interface BenchResult {
   readonly error: boolean
   /** look 摆到模型眼前的图（地址 + 称呼）；字节由循环现下。 */
   readonly pictures?: readonly AssistantV3PictureRef[]
+  /** 联网找到的图 / 视频（`#n`）—— 循环记进本轮记录，后面的 look / 挂卡按号换回那一张。 */
+  readonly finds?: readonly AssistantWebFind[]
   /** 停在问题卡 / 确认卡上：这一轮到此为止。 */
   readonly stop?: boolean
   /** 画布：这次 edit 里要交给浏览器落的那一批（循环合成一批再落，落完再接着跑）。 */
@@ -448,6 +454,7 @@ function outcomeOf(outcome: V3Outcome): BenchResult {
     output: outcome.output,
     error: outcome.error,
     ...(outcome.images?.length ? { pictures: outcome.images } : {}),
+    ...(outcome.finds?.length ? { finds: outcome.finds } : {}),
   }
 }
 
@@ -1232,7 +1239,15 @@ export async function* runLook(
   }
 }
 
-/** find：工作区一次查几类；记忆走 v3 那条（隐身与作用域都在那里）。 */
+const WEB_FIND_KINDS: readonly AssistantNextFindKind[] = [
+  ASSISTANT_NEXT_FIND_KIND_IDS.webImages,
+  ASSISTANT_NEXT_FIND_KIND_IDS.webVideos,
+]
+
+/**
+ * find：工作区一次查几类；记忆走 v3 那条（隐身与作用域都在那里）；联网找图 / 找视频走旧执行器
+ * 那两步（步骤事件里带整卡，面板把图网格 / 视频卡摆在回答底下，模型只拿 `#n` 那一行）。
+ */
 export async function* runFind(
   context: V3Context,
   input: FindInput,
@@ -1242,8 +1257,12 @@ export async function* runFind(
     input.kinds?.length ? input.kinds : ASSISTANT_NEXT_FIND_DEFAULT_KINDS
   ) as AssistantNextFindKind[]
   const parts: string[] = []
+  const finds: AssistantWebFind[] = []
+  let webFailed = 0
   const workspaceKinds = kinds.filter(
-    (kind) => kind !== ASSISTANT_NEXT_FIND_KIND_IDS.memories,
+    (kind) =>
+      kind !== ASSISTANT_NEXT_FIND_KIND_IDS.memories &&
+      !WEB_FIND_KINDS.includes(kind),
   )
   if (workspaceKinds.length > 0) {
     const found = await findInWorkspace(ownerOf(context), query, workspaceKinds)
@@ -1254,9 +1273,35 @@ export async function* runFind(
     const memories = outcomeOf(yield* searchMemoriesStep(context, query))
     parts.push(`MEMORIES\n${memories.output}`)
   }
+  const webKinds = WEB_FIND_KINDS.filter((kind) => kinds.includes(kind))
+  for (const kind of webKinds) {
+    if (!query) {
+      parts.push(`${kind}: needs a query (what to look for on the web).`)
+      webFailed += 1
+      continue
+    }
+    const found = outcomeOf(
+      yield* runWebFind(
+        context,
+        kind === ASSISTANT_NEXT_FIND_KIND_IDS.webVideos
+          ? ASSISTANT_V3_WEB_VIDEOS_SEARCH_KIND
+          : ASSISTANT_V3_WEB_IMAGES_SEARCH_KIND,
+        query,
+        input.subject ?? null,
+      ),
+    )
+    if (found.error) webFailed += 1
+    finds.push(...(found.finds ?? []))
+    parts.push(found.output)
+  }
   return {
-    output: `${parts.join('\n\n')}\n\nOpen any of these with look (by its number or name).`,
-    error: false,
+    output: `${parts.join('\n\n')}\n\n${
+      finds.length
+        ? 'The creator already sees these web finds as cards under your reply; refer to them by #n, never paste their links or image addresses. '
+        : ''
+    }Open any of these with look (by its number or name).`,
+    error: webKinds.length === kinds.length && webFailed === webKinds.length,
+    ...(finds.length ? { finds } : {}),
   }
 }
 

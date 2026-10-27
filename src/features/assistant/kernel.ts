@@ -648,7 +648,31 @@ async function* runNextTurn(
   const language = resolveResponseLanguage(request, persona)
 
   const token = relayTokenOf(request)
-  const saved = token ? await loadTurnState(user.id, token.id) : null
+  const historyOwner = {
+    userId: user.id,
+    clerkId,
+    conversationId: request.conversationId,
+    incognito: request.incognito === true,
+  }
+  /**
+   * 开跑前这几样互不依赖，一起读（10-27 实测串着读多等近 1 秒：开发机到 Neon 每次往返约 220 ms）。
+   * 之前几轮的摘要只有新开的一轮要（接力那几跳照第一跳定下的）；接力条丢了的那一跳下面再补读。
+   */
+  const [saved, skills, aliases, memories, summaries] = await Promise.all([
+    token ? loadTurnState(user.id, token.id) : null,
+    // 这个人眼前的技能（内置 + 改版 / 关掉 + 自己写的，第 7b 步）；读不出来就只有内置的。
+    loadAssistantSkills(user.id).catch((error) => {
+      logger.warn('assistant skills load failed, using built-ins', {
+        userId: clerkId,
+        error: error instanceof Error ? error.message : String(error),
+      })
+      return [...BUILTIN_SKILLS]
+    }),
+    // 台上的参考图 / 结果各自是哪一张（ref-N / result-N ↔ 图_N），每一跳现读。
+    benchAliases(user.id, request.snapshot).catch(() => ''),
+    nextMemories(user.id, clerkId, request, chat?.id ?? null),
+    token ? null : loadAssistantV3HistorySummaries(historyOwner),
+  ])
   if (token && !saved)
     logger.warn('assistant next relay state missing, starting the turn again', {
       userId: clerkId,
@@ -677,14 +701,6 @@ async function* runNextTurn(
       conversationId: request.conversationId,
     })
   }
-  // 这个人眼前的技能（内置 + 改版 / 关掉 + 自己写的，第 7b 步）；读不出来就只有内置的。
-  const skills = await loadAssistantSkills(user.id).catch((error) => {
-    logger.warn('assistant skills load failed, using built-ins', {
-      userId: clerkId,
-      error: error instanceof Error ? error.message : String(error),
-    })
-    return [...BUILTIN_SKILLS]
-  })
   const mentioned = (request.mentionedAssets ?? []).slice(
     0,
     ASSISTANT_V3_LIMITS.maxLookCards,
@@ -708,8 +724,6 @@ async function* runNextTurn(
     model = model.fallback
 
   const transcript: AssistantV3Transcript = saved ? [...saved.transcript] : []
-  // 台上的参考图 / 结果各自是哪一张（ref-N / result-N ↔ 图_N），每一跳现读。
-  const aliases = await benchAliases(user.id, request.snapshot).catch(() => '')
   let messages: ModelMessage[]
   if (saved) {
     // 做到一半换了型号（或换了接法）：旧型号的思考块与它自己跑的联网，新型号多半读不懂、
@@ -845,17 +859,11 @@ async function* runNextTurn(
    * ⭐ 之前几轮（第 6 步）：按块开窗，滑出去的那几轮用后台写好的摘要接在系统提示里；缺口交给后台补
    *   （这一轮回完才跑，用这一轮的型号与 key、低档思考）。接力那几跳照第一跳定下的窗口与摘要，逐字不变。
    */
-  const historyOwner = {
-    userId: user.id,
-    clerkId,
-    conversationId: request.conversationId,
-    incognito: request.incognito === true,
-  }
   const historyPlan = saved?.history
     ? pinnedAssistantV3History(turns, saved.history)
     : planAssistantV3History({
         turns,
-        ...(await loadAssistantV3HistorySummaries(historyOwner)),
+        ...(summaries ?? (await loadAssistantV3HistorySummaries(historyOwner))),
         window: NEXT_HISTORY_WINDOW,
       })
   if (!saved)
@@ -881,7 +889,7 @@ async function* runNextTurn(
     request,
     persona,
     rules,
-    memories: await nextMemories(user.id, clerkId, request, chat?.id ?? null),
+    memories,
     historySummary: historyPlan.summary,
     accountName: user.displayName ?? user.username ?? null,
     language,

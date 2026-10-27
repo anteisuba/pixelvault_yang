@@ -12506,15 +12506,14 @@ export async function prepareOperatorTurn(
       'Assistant workspace does not match its domain',
     )
   }
-  if (request.conversationId) {
-    await assertAssistantConversationWorkspaceAccess(
-      user.id,
-      request.conversationId,
-      request.workspaceKey,
-    )
-  } else {
-    await assertAssistantWorkspaceAccess(user.id, request.workspaceKey)
-  }
+  // ⭐ 和下面那批只读查询一起等（10-27 实测串着多等一次往返）；不通过照旧整轮抛。
+  const workspaceAccess = request.conversationId
+    ? assertAssistantConversationWorkspaceAccess(
+        user.id,
+        request.conversationId,
+        request.workspaceKey,
+      )
+    : assertAssistantWorkspaceAccess(user.id, request.workspaceKey)
   if (
     workspace.workspace === 'image-natural' ||
     workspace.workspace === 'image-tags'
@@ -12618,6 +12617,7 @@ export async function prepareOperatorTurn(
           ? getCreativePreferenceDigest(user.id)
           : Promise.resolve(null),
       ),
+      workspaceAccess,
     ])
   // 常挂上下文卡不再注入：owner 2026-09-25「上下文卡整体去掉」，入口早已删除。
   const contextCards: ContextCard[] = []

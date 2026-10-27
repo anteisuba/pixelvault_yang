@@ -152,6 +152,16 @@ const LUCIDE_FORBIDDEN_PATHS = [
  * config 里**后一个块会整块替换同名规则的 options**，所以这两道门必须写在
  * 同一个 `paths` 数组里，⛔ 不能各起一个块。
  */
+/** 字体只从 npm 包本地加载（owner 2026-10-27）：next/font/google 构建时去 Google
+ * 拉，拉不到 Production Build 就挂。做法见 `src/i18n/fonts.ts`。 */
+const FONT_FORBIDDEN_PATHS = [
+  {
+    name: "next/font/google",
+    message:
+      "字体走 npm 包 + next/font/local（见 src/i18n/fonts.ts）：next/font/google 构建时联网拉字体，拉不到就挂。",
+  },
+];
+
 const ANIMATION_LIBRARY_FORBIDDEN_PATHS = [
   {
     name: "framer-motion",
@@ -257,6 +267,7 @@ const eslintConfig = defineConfig([
           paths: [
             ...LUCIDE_FORBIDDEN_PATHS,
             ...ANIMATION_LIBRARY_FORBIDDEN_PATHS,
+            ...FONT_FORBIDDEN_PATHS,
           ],
         },
       ],
@@ -272,6 +283,7 @@ const eslintConfig = defineConfig([
         {
           paths: [
             ...LUCIDE_FORBIDDEN_PATHS,
+            ...FONT_FORBIDDEN_PATHS,
             ...ANIMATION_LIBRARY_FORBIDDEN_PATHS.filter(
               (entry) => entry.name !== "gsap",
             ),

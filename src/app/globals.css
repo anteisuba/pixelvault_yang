@@ -636,7 +636,12 @@
 :root {
   /* ── 字体三槽 · 三语栈（ui-defaults.md §1）──────────────────────────
      拉丁字体永远排第一，CJK 排第二；三语只换 CJK 那一位。next/font 变量挂在
-     <html>（layout.tsx），所以这里 :root 上能取到。 */
+     <html>（layout.tsx），所以这里 :root 上能取到；CJK 四套是 fontsource 的
+     family 名（src/i18n/fonts.ts 引的样式表）。 */
+  --font-noto-sans-sc: 'Noto Sans SC Variable';
+  --font-noto-sans-jp: 'Noto Sans JP Variable';
+  --font-noto-serif-sc: 'Noto Serif SC Variable';
+  --font-noto-serif-jp: 'Noto Serif JP Variable';
   --font-stack-sans:
     var(--font-geist), var(--font-noto-sans-sc), 'PingFang SC',
     'Microsoft YaHei', ui-sans-serif, system-ui, sans-serif;

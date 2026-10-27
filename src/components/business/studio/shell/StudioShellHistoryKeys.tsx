@@ -223,8 +223,6 @@ export function StudioShellPersonaKey() {
   const chatPersona = useChatPersona()
   const { chatCharacter } = useStudioOperatorState()
   const name = chatCharacter?.name ?? chatPersona.name
-  const swapKey =
-    chatCharacter?.id ?? chatPersona.ref.characterCardId ?? 'assistant'
   const reduceMotion = useReducedMotion()
 
   return (
@@ -237,7 +235,8 @@ export function StudioShellPersonaKey() {
       >
         <AnimatePresence mode="popLayout" initial={false}>
           <motion.span
-            key={swapKey}
+            // 按名字换：换人时名字先到（乐观更新），卡 id 晚一拍，按 id 会先硬换名字、过一会儿再闪一次。
+            key={name}
             className="flex min-w-0 items-center gap-2"
             initial={reduceMotion ? false : PERSONA_SWAP_HIDDEN}
             animate={PERSONA_SWAP_SHOWN}

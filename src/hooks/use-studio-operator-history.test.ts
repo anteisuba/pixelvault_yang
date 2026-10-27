@@ -336,6 +336,34 @@ it('deletes the active conversation and does not autosave it back', async () => 
   expect(upsertMock).not.toHaveBeenCalled()
 })
 
+it('does not recreate a conversation that was deleted in another tab', async () => {
+  upsertMock.mockResolvedValue({
+    success: false,
+    error: 'Conversation not found',
+    errorCode: 'ASSISTANT_CONVERSATION_NOT_FOUND',
+  })
+  await mount()
+  act(() => {
+    store.setOperatorSession(session.id, session.surface)
+    say('u1', 'Deleted elsewhere')
+  })
+  await settleDebounce()
+  expect(upsertMock).toHaveBeenCalledOnce()
+  expect(lastUpsertBody().id).toBe(session.id)
+  expect(store.getOperatorState().sessionId).toBeNull()
+  expect(store.getOperatorState().entries).toHaveLength(0)
+  expect(store.getOperatorState().saveFailed).toBe(false)
+
+  upsertMock.mockResolvedValue({ success: true, data: { id: 'conv-new' } })
+  act(() => say('u2', 'Fresh start'))
+  await settleDebounce()
+  expect(upsertMock).toHaveBeenCalledTimes(2)
+  expect(lastUpsertBody().id).toBeUndefined()
+  expect(lastUpsertBody().messages.map((message) => message.content)).toEqual([
+    'Fresh start',
+  ])
+})
+
 it('preserves the current conversation when deletion fails', async () => {
   deleteMock.mockResolvedValue({ success: false, error: 'Offline' })
   const hook = await mount()

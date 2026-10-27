@@ -450,6 +450,9 @@ export const SHELL_MOTION = {
   personaSwapS: DURATION.base,
   personaSwapScale: 0.85,
   personaSwapBlurPx: 4,
+  /** 放回输入框（按她说改好 / ✎，用户 10-27 要淡入）：字从模糊淡进来。 */
+  draftFillS: DURATION.base,
+  draftFillBlurPx: 4,
 } as const
 
 export const INGEST_MOTION = {

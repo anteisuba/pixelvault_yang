@@ -1,8 +1,10 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
+import { EASE_STANDARD, SHELL_MOTION } from '@/constants/motion'
 import { ROUTES, studioConversationPath } from '@/constants/routes'
 import { STUDIO_OPERATOR_HISTORY } from '@/constants/studio-assistant-operator'
 import { ChevronDown, History, PanelLeftOpen } from '@/components/icons'
@@ -205,11 +207,23 @@ export function StudioShellHistoryExpandKey({
  * 头像 + 名字 ▾（对话头，用户 10-26 定稿 v5）：点开换人（`StudioOperatorAvatarSwitcher`）。
  * 正看着以前的聊天（只读）时写那个角色的名字，和头像同一个判据。
  */
+const PERSONA_SWAP_HIDDEN = {
+  opacity: 0,
+  scale: SHELL_MOTION.personaSwapScale,
+  filter: `blur(${SHELL_MOTION.personaSwapBlurPx}px)`,
+}
+const PERSONA_SWAP_SHOWN = { opacity: 1, scale: 1, filter: 'blur(0px)' }
+const PERSONA_SWAP_TRANSITION = {
+  duration: SHELL_MOTION.personaSwapS,
+  ease: EASE_STANDARD,
+}
+
 export function StudioShellPersonaKey() {
   const t = useTranslations('StudioShell')
   const chatPersona = useChatPersona()
   const { chatCharacter } = useStudioOperatorState()
   const name = chatCharacter?.name ?? chatPersona.name
+  const reduceMotion = useReducedMotion()
 
   return (
     <StudioOperatorAvatarSwitcher>
@@ -217,15 +231,29 @@ export function StudioShellPersonaKey() {
         type="button"
         aria-label={t('switchPersona', { name })}
         data-testid="studio-shell-persona"
-        className="group/persona flex h-9 min-w-0 shrink items-center gap-2 rounded-full py-0 pr-2 pl-0.5 text-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill focus-visible:outline-none focus-visible:shadow-focus data-[state=open]:bg-surface-fill motion-reduce:transition-none"
+        className="group/persona relative flex h-9 min-w-0 shrink items-center gap-2 rounded-full py-0 pr-2 pl-0.5 text-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill focus-visible:outline-none focus-visible:shadow-focus data-[state=open]:bg-surface-fill motion-reduce:transition-none"
       >
-        <span
-          {...{ [STUDIO_SHELL_AVATAR_ATTR]: 'header' }}
-          className="size-8 shrink-0 rounded-full"
-        >
-          <StudioOperatorCurrentAvatar />
-        </span>
-        <span className="min-w-0 truncate text-sm font-semibold">{name}</span>
+        <AnimatePresence mode="popLayout" initial={false}>
+          <motion.span
+            // 按名字换：换人时名字先到（乐观更新），卡 id 晚一拍，按 id 会先硬换名字、过一会儿再闪一次。
+            key={name}
+            className="flex min-w-0 items-center gap-2"
+            initial={reduceMotion ? false : PERSONA_SWAP_HIDDEN}
+            animate={PERSONA_SWAP_SHOWN}
+            exit={reduceMotion ? undefined : PERSONA_SWAP_HIDDEN}
+            transition={PERSONA_SWAP_TRANSITION}
+          >
+            <span
+              {...{ [STUDIO_SHELL_AVATAR_ATTR]: 'header' }}
+              className="size-8 shrink-0 rounded-full"
+            >
+              <StudioOperatorCurrentAvatar />
+            </span>
+            <span className="min-w-0 truncate text-sm font-semibold">
+              {name}
+            </span>
+          </motion.span>
+        </AnimatePresence>
         <ChevronDown
           aria-hidden
           className="size-3.5 shrink-0 text-muted-foreground transition-transform duration-base ease-standard group-data-[state=open]/persona:rotate-180 motion-reduce:transition-none"

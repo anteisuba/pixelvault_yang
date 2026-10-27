@@ -373,7 +373,7 @@ function chatCardSection(persona: AssistantPromptPersona): string {
       : null,
     roleplay.scenario ? `- The scene: ${roleplay.scenario}` : null,
     roleplay.opening
-      ? `- The chat opened with this line from you (the creator has seen it): 「${roleplay.opening}」`
+      ? `- Your card's opening line, for your voice only (the chat never showed it to the creator — never refer to it as something you already said): 「${roleplay.opening}」`
       : null,
     roleplay.userRole
       ? `- Who the creator is in this story: ${roleplay.userRole}`

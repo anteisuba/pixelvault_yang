@@ -30,6 +30,7 @@ import { GENERATION_REVIEW_STATE_IDS } from '@/constants/assistant-operator'
 import type { GenerationReviewState } from '@/constants/assistant-operator'
 import {
   STUDIO_OPERATOR_CONFIRM_STATUS_IDS,
+  STUDIO_OPERATOR_STREAMING,
   type StudioOperatorConfirmStatus,
   type StudioOperatorField,
 } from '@/constants/studio-assistant-operator'
@@ -643,6 +644,15 @@ export function appendOperatorPending(
   })
 }
 
+/** 这一条攒下的思考摘要 —— 正文增量 / 定稿重建条目时带着走。 */
+function thinkingOf(
+  current: StudioOperatorThreadEntry | undefined,
+): Pick<StudioOperatorMessageEntry, 'thinking'> {
+  return current?.kind === 'message' && current.thinking
+    ? { thinking: current.thinking }
+    : {}
+}
+
 /**
  * 第一个字到达时**这一段想了多久** —— 占位行还空着就从它挂上那一刻算，已经算过就
  * 沿用（⛔ 每来一段增量重算一次，数会一直涨）。
@@ -696,6 +706,7 @@ export function appendOperatorStreamingMessage(
     text,
     streaming: true,
     ...(thoughtMs !== undefined ? { thoughtMs } : {}),
+    ...thinkingOf(current),
     ...(chat ? { chat: true as const } : {}),
   }
   if (index < 0) {
@@ -717,12 +728,14 @@ export function finalizeOperatorMessage(
   const index = state.entries.findIndex(
     (item) => item.kind === 'message' && item.id === id,
   )
-  const thoughtMs = thoughtMsOf(index >= 0 ? state.entries[index] : undefined)
+  const current = index >= 0 ? state.entries[index] : undefined
+  const thoughtMs = thoughtMsOf(current)
   const entry: StudioOperatorMessageEntry = {
     kind: 'message',
     id,
     text,
     ...(thoughtMs !== undefined ? { thoughtMs } : {}),
+    ...thinkingOf(current),
     ...(chat ? { chat: true as const } : {}),
   }
   if (index < 0) {
@@ -764,7 +777,89 @@ export function dropOperatorPending(id: string): void {
       entry.kind === 'message' && entry.id === id && entry.text.length === 0,
   )
   if (index < 0) return
+  const current = state.entries[index]!
+  /**
+   * ⭐ 想过的那一格**留下来当回执**（10-27「流出思考摘要」）：工具步压上来时，这一段想了什么、
+   * 想了多久得留在它该在的位置（工具步上面），⛔ 跟着空占位行一起扔掉 —— 以前的回执只剩最后
+   * 一段的秒数，就是因为前几段的这一格都被扔了。
+   */
+  const thoughtMs = thoughtMsOf(current)
+  if (
+    current.kind === 'message' &&
+    (current.thinking ||
+      (thoughtMs !== undefined &&
+        thoughtMs >= STUDIO_OPERATOR_STREAMING.thinkingRevealMs))
+  ) {
+    // 收成回执：占位行那两格（从哪一刻数 / 在等什么）不再有意义。
+    const rest = { ...current }
+    delete rest.pendingSince
+    delete rest.pendingPhase
+    emit({
+      ...state,
+      entries: state.entries.map((entry, i) =>
+        i === index
+          ? {
+              ...rest,
+              streaming: false,
+              ...(thoughtMs !== undefined ? { thoughtMs } : {}),
+            }
+          : entry,
+      ),
+    })
+    return
+  }
   emit({ ...state, entries: state.entries.filter((_, i) => i !== index) })
+}
+
+/**
+ * 这一段想完时回执写几秒：服务端量的（只算模型调用）与这一行自己数到的（从占位行挂上算，含开跑前
+ * 准备）取大的 —— 🔬 10-27 实跑：那一行数到 7 秒，回执写「想了 4 秒」，两个数对不上。
+ */
+function thoughtMsWith(base: StudioOperatorMessageEntry, ms: number): number {
+  const observed =
+    !base.text && base.pendingSince !== undefined
+      ? Date.now() - base.pendingSince
+      : 0
+  return Math.max((base.thoughtMs ?? 0) + ms, observed)
+}
+
+/**
+ * 模型在想（`thinking` 帧）—— 摘要追加进这一条占位行，`ms` 到了就记下这一段想了多久。
+ * ⚠ 那一条还不在（工具步之后的占位行还没挂出来）就**当场挂一条**：摘要来了就该看得见。
+ *   只带 `ms` 的那一帧⛔ 不为它挂：没有可看的，挂了下一帧又拆就是闪一下。
+ * ⚠ 一段里想了好几回（联网查完接着想）秒数累加。
+ */
+export function appendOperatorThinking(
+  id: string,
+  delta: string | undefined,
+  ms: number | undefined,
+): void {
+  const index = state.entries.findIndex(
+    (item) => item.kind === 'message' && item.id === id,
+  )
+  const current = index >= 0 ? state.entries[index] : undefined
+  if (current && current.kind !== 'message') return
+  if (!current && !delta) return
+  const base: StudioOperatorMessageEntry = current ?? {
+    kind: 'message',
+    id,
+    text: '',
+    streaming: true,
+    pendingSince: Date.now(),
+  }
+  const entry: StudioOperatorMessageEntry = {
+    ...base,
+    ...(delta ? { thinking: `${base.thinking ?? ''}${delta}` } : {}),
+    ...(ms !== undefined ? { thoughtMs: thoughtMsWith(base, ms) } : {}),
+  }
+  if (index < 0) {
+    appendOperatorEntry(entry)
+    return
+  }
+  emit({
+    ...state,
+    entries: state.entries.map((item, i) => (i === index ? entry : item)),
+  })
 }
 
 /**

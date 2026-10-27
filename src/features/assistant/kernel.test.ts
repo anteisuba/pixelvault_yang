@@ -405,6 +405,33 @@ describe('新内核主循环', () => {
     }
   })
 
+  it('思考摘要流出来：摘要逐段发 thinking.delta，开口那一刻收一帧 thinking.ms', async () => {
+    models.main = mockModel([
+      [
+        { type: 'reasoning-start', id: 'r' },
+        { type: 'reasoning-delta', id: 'r', delta: '**Planning the edit**\n' },
+        { type: 'reasoning-delta', id: 'r', delta: 'One edit is enough.' },
+        { type: 'reasoning-end', id: 'r' },
+        ...textTurn('好。'),
+      ],
+    ])
+    const events = await collect(
+      runAssistantNext('clerk-1', imageRequest('改一下')),
+    )
+    const thinking = events.filter((event) => event.type === 'thinking')
+    expect(thinking.map((event) => event.delta).filter(Boolean)).toEqual([
+      '**Planning the edit**\n',
+      'One edit is enough.',
+    ])
+    // 秒数只收一次，并且在第一个字之前。
+    const ended = thinking.filter((event) => event.ms !== undefined)
+    expect(ended).toHaveLength(1)
+    const types = events.map((event) => event.type)
+    expect(types.lastIndexOf('thinking')).toBeLessThan(
+      types.indexOf('message_delta'),
+    )
+  })
+
   it('改提示词：落一步，结果接回给模型，模型说完收尾；不设步数闸', async () => {
     const main = mockModel([toolTurn(editPrompt), textTurn('改好了。')])
     models.main = main
@@ -422,9 +449,12 @@ describe('新内核主循环', () => {
       },
       'user-1',
     )
+    // 每次调用开口那一刻收一帧思考秒数（10-27）：工具调用前一帧、说话前一帧。
     expect(events.map((event) => event.type)).toEqual([
+      'thinking',
       'step',
       'step',
+      'thinking',
       'message_delta',
       'message',
       'done',

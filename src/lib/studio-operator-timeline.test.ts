@@ -19,6 +19,7 @@ import {
   placeOperatorRoundSummaries,
   splitOperatorHistoryRounds,
   operatorRunningPhrase,
+  operatorThoughtSteps,
 } from './studio-operator-timeline'
 import { STUDIO_OPERATOR_TIMELINE } from '@/constants/studio-assistant-operator'
 import type {
@@ -804,5 +805,34 @@ describe('找到的东西编号 #n（搜索期第三片）', () => {
 
   it('webFindNumbersIn：去重、按出场顺序', () => {
     expect(webFindNumbersIn('#3、#1 和 #3')).toEqual([3, 1])
+  })
+})
+
+describe('operatorThoughtSteps（10-27 足迹）', () => {
+  it('独占一行的加粗小标题一个一步，正文取第一句；正文里的加粗不算', () => {
+    expect(
+      operatorThoughtSteps(
+        '**Understanding the request**\nThe user wants **portrait**. Nothing else.\n\n**Planning the edit**\nOne edit',
+      ),
+    ).toEqual([
+      { title: 'Understanding the request', line: 'The user wants portrait.' },
+      { title: 'Planning the edit', line: 'One edit' },
+    ])
+  })
+
+  it('没有小标题：按空行分段，标题取每段第一句', () => {
+    expect(
+      operatorThoughtSteps('先看台上的比例。再决定。\n\n只改画幅就够了'),
+    ).toEqual([
+      { title: '先看台上的比例。', line: '' },
+      { title: '只改画幅就够了', line: '' },
+    ])
+  })
+
+  it('还没写完的小标题行也算一步', () => {
+    expect(operatorThoughtSteps('**Checking')).toEqual([])
+    expect(operatorThoughtSteps('**Checking the bench**')).toEqual([
+      { title: 'Checking the bench', line: '' },
+    ])
   })
 })

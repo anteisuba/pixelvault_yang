@@ -978,6 +978,17 @@ async function* runNextTurn(
     const calls: ClientCall[] = []
     const searches = new Map<string, SearchStep>()
     const sources: AssistantOperatorWebSearchResult[] = []
+    /**
+     * 这一段从什么时候开始想（10-27「流出思考摘要」）：调用一开始就算在想，开口（第一个字 / 第一个
+     * 工具调用）那一刻收成一帧 `thinking.ms`；开口之后又想（联网查完接着想）从那一刻重新数。
+     */
+    let thinkingSince: number | null = Date.now()
+    const thoughtFrame = () => {
+      if (thinkingSince === null) return null
+      const ms = Date.now() - thinkingSince
+      thinkingSince = null
+      return { type: ASSISTANT_OPERATOR_EVENTS.thinking, ms }
+    }
     let response: { messages: ModelMessage[] }
     try {
       const result = streamText({
@@ -1006,8 +1017,26 @@ async function* runNextTurn(
         watch.onChunk()
         chunks += 1
         switch (part.type) {
-          case 'text-delta':
+          case 'reasoning-delta':
             if (!part.text) break
+            thinkingSince ??= Date.now()
+            yield {
+              type: ASSISTANT_OPERATOR_EVENTS.thinking,
+              delta: part.text.slice(
+                0,
+                ASSISTANT_OPERATOR_LIMITS.maxMessageChars,
+              ),
+            }
+            break
+          case 'tool-input-start': {
+            const thought = thoughtFrame()
+            if (thought) yield thought
+            break
+          }
+          case 'text-delta': {
+            if (!part.text) break
+            const thought = thoughtFrame()
+            if (thought) yield thought
             reply += part.text
             yield {
               type: ASSISTANT_OPERATOR_EVENTS.messageDelta,
@@ -1017,7 +1046,10 @@ async function* runNextTurn(
             }
             restart = false
             break
-          case 'tool-call':
+          }
+          case 'tool-call': {
+            const thought = thoughtFrame()
+            if (thought) yield thought
             if (part.providerExecuted) {
               // 厂商自己跑的联网 / 读网页：时间线上一行「联网查 …」，结果由模型自己读。
               // 没有查询词也没有网址的（Claude 联网时自己跑的整理代码）不出行。
@@ -1042,6 +1074,7 @@ async function* runNextTurn(
               })
             }
             break
+          }
           case 'tool-error':
             // SDK 认不出的入参（不是合法 JSON）：它先发一条 `invalid` 的 tool-call、再发这条
             // tool-error —— 同一个调用只收一次，交给我们自己的解析再判。
@@ -1072,10 +1105,13 @@ async function* runNextTurn(
             break
           case 'error':
             throw part.error
-          case 'finish':
+          case 'finish': {
+            const thought = thoughtFrame()
+            if (thought) yield thought
             if (!reply && calls.length === 0)
               filtered = part.finishReason === 'content-filter'
             break
+          }
           default:
             break
         }

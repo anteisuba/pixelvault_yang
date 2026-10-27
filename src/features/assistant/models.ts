@@ -236,8 +236,11 @@ function geminiModel(route: ResolvedLlmTextRoute, modelId: string): NextModel {
     maxOutputTokens: assistantV3VerifiedOutputCap(modelId),
     ...plainShape,
     // 思考签名由 SDK 自己带着走（`thoughtSignature`），跟在完整回复里接回去就行。
+    // `includeThoughts`：思考摘要流给界面（10-27「流出思考摘要」），不额外计费。
     providerOptions: (_cacheKey, effort) => ({
-      google: { thinkingConfig: { thinkingLevel: effort } },
+      google: {
+        thinkingConfig: { thinkingLevel: effort, includeThoughts: true },
+      },
     }),
     fallback: null,
   }

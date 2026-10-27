@@ -1453,7 +1453,11 @@ export function StudioOperatorPanel({
   )
   const answerWebFinds = collectOperatorAnswerWebFinds(
     entries,
-    (entry) => !entry.streaming && !foldedMessageIds.has(entry.id),
+    // 只想没说的那一格（思考回执，10-27）⛔ 当锚。
+    (entry) =>
+      !entry.streaming &&
+      Boolean(entry.text) &&
+      !foldedMessageIds.has(entry.id),
   )
   /**
    * **回复里的 `#n`**（搜索期第三片，附录 I §四「模型点名」）：每段回复认哪几张卡（这一轮 +

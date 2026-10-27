@@ -109,6 +109,7 @@ import {
   enqueueOperatorMessage,
   finalizeOperatorMessage,
   appendOperatorStreamingMessage,
+  appendOperatorThinking,
   getOperatorReviewState,
   getOperatorState,
   nextOperatorEntryId,
@@ -1230,12 +1231,14 @@ export function useAssistantOperator(
            * ⚠ 线程尾部**还有一条活的助手正文**就不挂：那条本身已经写完了，
            * 再挂一行三点是同一件事说两遍。判据取「这个 id 还在不在」。
            */
-          const id = messageEntryId()
-          const live = getOperatorState().entries.some(
-            (entry) => entry.kind === 'message' && entry.id === id,
+          const entry = getOperatorState().entries.find(
+            (item) => item.kind === 'message' && item.id === messageEntryId(),
           )
-          if (live) return
-          appendOperatorPending(id)
+          if (entry?.kind === 'message' && (entry.text || entry.streaming))
+            return
+          // 那一格已经收成思考回执（工具步上面那句「想了 N 秒」）：下一段另起一条。
+          if (entry) messageSeq += 1
+          appendOperatorPending(messageEntryId())
         }, STUDIO_OPERATOR_STREAMING.pendingAfterStepMs)
       }
 
@@ -1466,6 +1469,8 @@ export function useAssistantOperator(
              * 一格。
              */
             event.type !== ASSISTANT_OPERATOR_EVENTS.messageDelta &&
+            // ⛔ 思考帧同理：它写的也是这条占位行（想的时候那一行）。
+            event.type !== ASSISTANT_OPERATOR_EVENTS.thinking &&
             /**
              * ⛔ `open` **不算「它开口了」**：那一帧是成帧器在模型开口之前就发的
              * 握手（见 `lib/assistant-operator-stream.ts` 头注），它到达时模型还
@@ -1702,6 +1707,25 @@ export function useAssistantOperator(
                 event.restart === true,
                 event.chat === true,
               )
+              break
+            }
+            /**
+             * 模型在想（10-27）：摘要与秒数写进此刻那条占位行。进位判据同正文增量：那一格已经被
+             * 压在下面、或已经收成回执（不再 `streaming`），这一段就是新的一段。
+             */
+            case ASSISTANT_OPERATOR_EVENTS.thinking: {
+              const entries = getOperatorState().entries
+              const index = entries.findIndex(
+                (entry) =>
+                  entry.kind === 'message' && entry.id === messageEntryId(),
+              )
+              const entry = index >= 0 ? entries[index] : undefined
+              if (
+                entry?.kind === 'message' &&
+                (index !== entries.length - 1 || !entry.streaming)
+              )
+                messageSeq += 1
+              appendOperatorThinking(messageEntryId(), event.delta, event.ms)
               break
             }
             /**

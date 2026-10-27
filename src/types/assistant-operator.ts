@@ -4795,6 +4795,18 @@ export const AssistantOperatorMessageDeltaEventSchema = z.object({
 })
 
 /**
+ * 模型在想（10-27）—— 见 `ASSISTANT_OPERATOR_EVENTS.thinking`。两格至少有一格；
+ * 和 `message_delta` 一样没有 id：写进的是客户端此刻那条占位行。
+ */
+export const AssistantOperatorThinkingEventSchema = z.object({
+  type: z.literal(ASSISTANT_OPERATOR_EVENTS.thinking),
+  /** 思考摘要的一小段，客户端追加。 */
+  delta: z.string().min(1).max(LIMITS.maxMessageChars).optional(),
+  /** 这一段想完了：想了多久（ms）。 */
+  ms: z.number().int().nonnegative().optional(),
+})
+
+/**
  * 助手引用了一条项目规则（§10，拍板 23）—— 规则薄卡收的就是它。
  *
  * ⚠ 载荷里的 `text` / `createdAt` **由服务端填**（模型只给 id），所以这里可以、
@@ -5115,6 +5127,7 @@ export const AssistantOperatorEventSchema = z.discriminatedUnion('type', [
   AssistantOperatorConfirmEventSchema,
   AssistantOperatorMessageEventSchema,
   AssistantOperatorMessageDeltaEventSchema,
+  AssistantOperatorThinkingEventSchema,
   AssistantOperatorRuleHitEventSchema,
   AssistantOperatorDoneEventSchema,
   AssistantOperatorStoppedEventSchema,

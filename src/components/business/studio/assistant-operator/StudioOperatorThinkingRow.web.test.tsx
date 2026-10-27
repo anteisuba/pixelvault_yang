@@ -110,3 +110,39 @@ describe('StudioOperatorThoughtReceipt', () => {
     expect(screen.queryByTestId('operator-message-thought')).toBeNull()
   })
 })
+
+describe('思考摘要（10-27 B 一行 + ② 足迹）', () => {
+  const SUMMARY =
+    '**Understanding the request**\nSwitch to 3:4.\n\n**Planning the edit**\nOne edit is enough.'
+
+  it('想的时候：一步一道短线，只露最新一步的小标题，⛔ 铺正文', () => {
+    render(<StudioOperatorThinkingRow since={START} thinking={SUMMARY} />)
+    const row = screen.getByTestId('operator-message-pending')
+    expect(
+      screen.getByTestId('operator-message-thinking-title').textContent,
+    ).toBe('Planning the edit')
+    expect(row.textContent).not.toContain('One edit is enough')
+    expect(row.querySelectorAll('.h-0\\.75')).toHaveLength(2)
+  })
+
+  it('想完：前面留短线，点开一步一行（小标题 + 一句）', () => {
+    render(
+      <StudioOperatorThoughtReceipt thoughtMs={17_000} thinking={SUMMARY} />,
+    )
+    const toggle = screen.getByRole('button')
+    expect(toggle.textContent).toContain('thought:17')
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
+    act(() => toggle.click())
+    const steps = screen.getByTestId('operator-message-thought-steps')
+    expect(steps.querySelectorAll('li')).toHaveLength(2)
+    expect(steps.textContent).toContain('Switch to 3:4.')
+  })
+
+  it('没摘要的型号：只是一句灰字，⛔ 画展开键', () => {
+    render(<StudioOperatorThoughtReceipt thoughtMs={9_000} />)
+    expect(screen.queryByRole('button')).toBeNull()
+    expect(screen.getByTestId('operator-message-thought').textContent).toBe(
+      'thought:9',
+    )
+  })
+})

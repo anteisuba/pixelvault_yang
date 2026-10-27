@@ -78,8 +78,16 @@ export interface StudioOperatorMessageEntry {
   pendingSince?: number
   /** 占位行在等什么：缺席 = 等模型开口；`landing` = 画布接力那一跳（「正在画布上落地…」）。 */
   pendingPhase?: 'landing'
-  /** 从占位行挂上到第一个字到达用了多久（ms）—— 正文上方那句「想了 N 秒」。 */
+  /**
+   * 这一段想了多久（ms）—— 正文上方那句「想了 N 秒」。服务端量的（`thinking.ms`）为准；
+   * 老内核不发那一帧时退回「占位行挂上到第一个字」。
+   */
   thoughtMs?: number
+  /**
+   * 思考摘要原文（10-27 `thinking.delta` 攒起来的）—— 想的时候那一行露最新一步的小标题，想完点开
+   * 列每一步。⛔ 不落库（owner 10-27：只在这一次打开时能看）。
+   */
+  thinking?: string
   /**
    * 聊天会话里「重新生成」留下的各版（附录L 第二片），`text` 永远是 `versions[versionIndex]`。
    * 缺席 = 只有这一版。⚠ 进下一轮对白的只有 `text`（用户左右切到哪版，她就接着哪版说）。

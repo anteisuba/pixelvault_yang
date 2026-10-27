@@ -2,8 +2,10 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
+import { animate, useReducedMotion } from 'motion/react'
 import { toast } from 'sonner'
 
+import { EASE_STANDARD, SHELL_MOTION } from '@/constants/motion'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   STUDIO_OPERATOR_VOICE,
@@ -108,6 +110,7 @@ export function VoiceBench() {
   const listRef = useRef<HTMLDivElement | null>(null)
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
   const [rewriting, setRewriting] = useState(false)
+  const reduceMotion = useReducedMotion()
 
   const lines = bench.data?.lines ?? []
   const count = lines.length + bench.pending.length
@@ -123,7 +126,7 @@ export function VoiceBench() {
     setDraft('')
   }
 
-  /** 改好放回输入框、光标落到最后，看一眼再念。 */
+  /** 改好放回输入框、光标落到最后，看一眼再念；字淡入（⛔ 直接换字，用户 10-27）。 */
   const fillDraft = (text: string) => {
     setDraft(text)
     requestAnimationFrame(() => {
@@ -131,6 +134,15 @@ export function VoiceBench() {
       if (!input) return
       input.focus()
       input.setSelectionRange(text.length, text.length)
+      if (reduceMotion) return
+      void animate(
+        input,
+        {
+          opacity: [0, 1],
+          filter: [`blur(${SHELL_MOTION.draftFillBlurPx}px)`, 'blur(0px)'],
+        },
+        { duration: SHELL_MOTION.draftFillS, ease: EASE_STANDARD },
+      )
     })
   }
 

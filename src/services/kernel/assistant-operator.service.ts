@@ -10225,7 +10225,7 @@ function buildRoleplaySection(
       : null,
     roleplay.scenario ? `- The scene: ${roleplay.scenario}` : null,
     roleplay.opening
-      ? `- The chat opened with this line from you (the creator has seen it): 「${roleplay.opening}」`
+      ? `- Your card's opening line, for your voice only (the chat never showed it to the creator — never refer to it as something you already said): 「${roleplay.opening}」`
       : null,
     roleplay.userRole
       ? `- Who the creator is in this story (they wrote it for this chat): ${roleplay.userRole}`
@@ -11740,10 +11740,8 @@ export function memoryScopeForDomain(
 }
 
 /**
- * 聊天这一轮的人设（附录L 第二片）：
- *  ① 「她先说的那句」以对白里真放着的那句为准：你可能切到了卡上的备选开场白，或者改过它 ——
- *     系统提示里再引卡上那句原文就和对白对不上了。对白不是她先开口的就照卡上的。
- *  ② 世界书只留这一轮提到的那几条（`pickWorldNotes`）。
+ * 聊天这一轮的人设（附录L 第二片）：世界书只留这一轮提到的那几条（`pickWorldNotes`）。
+ * ⚠ 卡上的开场白只给模型当口吻参考：对话里从不显示它（owner 10-27：你先开口她才说话）。
  */
 function withChatTurn(
   persona: AssistantPromptPersona,
@@ -11751,16 +11749,10 @@ function withChatTurn(
 ): AssistantPromptPersona {
   const roleplay = persona.roleplay
   if (!roleplay) return persona
-  const first = request.messages[0]
-  const opening =
-    first?.role === 'assistant' && first.content.trim()
-      ? first.content.trim()
-      : roleplay.opening
   return {
     ...persona,
     roleplay: {
       ...roleplay,
-      opening,
       world: pickWorldNotes(roleplay.world ?? [], request),
     },
   }

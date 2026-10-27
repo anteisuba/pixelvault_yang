@@ -20,11 +20,32 @@ export function voiceCueRules(expressive: boolean): string {
   }`
 }
 
-/** 一段回复按行拆成气泡（10-26 F：像发消息一样一句一条）；空行不算。 */
+const VOICE_CUE = /[ \t]*\[[^\]\n]{1,40}\](?!\()[ \t]*/g
+const DRAMA_TAG = new RegExp(`</?(?:${DRAMA_PAIRED_TAGS.join('|')})>`, 'g')
+/** 中日文字与全角标点：挨着它的那一格空白是提示带进来的，藏掉提示时一起去掉。 */
+const CJK = /[\u3000-\u30ff\u3400-\u9fff\uff00-\uffef]/
+
+/**
+ * 念的语气提示（`[laughing]`、`[压低声音]`、`<whisper>…</whisper>`）只给嗓子听，字里藏掉（用户 10-27）。
+ * 成对标签只去标签、留里面的字；markdown 链接 `[字](地址)` 不算。提示两边是西文就留一格空，挨着中日文就不留。
+ */
+export function withoutVoiceCues(text: string): string {
+  return text
+    .replace(DRAMA_TAG, '')
+    .replace(VOICE_CUE, (cue: string, offset: number, whole: string) => {
+      const before = whole[offset - 1]
+      const after = whole[offset + cue.length]
+      if (!before || !after || CJK.test(before) || CJK.test(after)) return ''
+      return ' '
+    })
+    .trim()
+}
+
+/** 一段回复按行拆成气泡（10-26 F：像发消息一样一句一条）；语气提示藏掉，空行不算。 */
 export function chatBubbles(text: string): string[] {
   return text
     .split(/\n+/)
-    .map((line) => line.trim())
+    .map((line) => withoutVoiceCues(line))
     .filter(Boolean)
 }
 

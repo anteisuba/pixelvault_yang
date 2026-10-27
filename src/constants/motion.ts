@@ -446,6 +446,10 @@ export const SHELL_MOTION = {
   pullMs: DURATION_MS.slow,
   /** 拖过头、松手就会收起的那一边变淡到多少。 */
   collapsePreviewOpacity: 0.4,
+  /** 换人（用户 10-27 要过渡）：对话头的头像 + 名字，旧的淡出缩小、新的模糊淡入。 */
+  personaSwapS: DURATION.base,
+  personaSwapScale: 0.85,
+  personaSwapBlurPx: 4,
 } as const
 
 export const INGEST_MOTION = {

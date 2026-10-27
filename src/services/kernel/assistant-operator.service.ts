@@ -3892,7 +3892,7 @@ function planImportUserUrl(run: OperatorRun, args: { url: string }): ToolPlan {
   }
 
   if (run.state.referenceCount >= run.state.referenceLimit) {
-    return reject(REJECT.referencesFull)
+    return reject(REJECT.referencesFull, referencesFullDetail(run))
   }
 
   /**
@@ -3933,6 +3933,7 @@ function planImportUserUrl(run: OperatorRun, args: { url: string }): ToolPlan {
     apply: () => {
       run.state.referenceCount += 1
       run.state.referenceUrls.push(null)
+      refreshCapabilities(run)
     },
   }
 }
@@ -4145,7 +4146,7 @@ async function planMountReference(
 
   if (!run.state.hasReferenceControl) return reject(REJECT.noSuchControl)
   if (run.state.referenceCount >= run.state.referenceLimit) {
-    return reject(REJECT.referencesFull)
+    return reject(REJECT.referencesFull, referencesFullDetail(run))
   }
 
   return {
@@ -4165,6 +4166,7 @@ async function planMountReference(
     apply: () => {
       run.state.referenceCount += 1
       run.state.referenceUrls.push(asset.url)
+      refreshCapabilities(run)
     },
   }
 }
@@ -4267,8 +4269,50 @@ function planUnmountReference(
     apply: () => {
       run.state.referenceUrls.splice(index, 1)
       run.state.referenceCount = Math.max(0, run.state.referenceCount - 1)
+      refreshCapabilities(run)
     },
   }
+}
+
+/**
+ * 专属 chip 行按**此刻**的模型与参考图重算（拆分与反推 X8 · 10-27 标签台真机）。
+ *
+ * ⚠ 换模型、挂 / 摘 / 导入参考图之后都要调：「精确参考」这类挂了图才成立的项，开跑时
+ * 快照里是不可设的；不重算的下场是同一轮刚挂上图，再设它就被拒「先挂一张」，模型以为
+ * 没挂上，又挂一次撞「位满」。与界面同一份派生，按整轮（主模型 + 一起跑的）的并集。
+ */
+function refreshCapabilities(run: OperatorRun): void {
+  if (!run.state.hasCapabilityControl || !run.state.modelId) return
+  const values = Object.fromEntries(
+    run.state.capabilities.map((item) => [item.key, item.value]),
+  )
+  const runModels = [
+    run.state.modelId,
+    ...run.state.extraModels.map((model) => model.id),
+  ].flatMap((modelId) => {
+    const adapterType = resolveAdapterType(modelId)
+    return adapterType ? [{ adapterType, modelId }] : []
+  })
+  run.state.capabilities =
+    buildOperatorCapabilities(
+      runModels,
+      values,
+      run.state.referenceCount > 0,
+    ) ?? []
+}
+
+/**
+ * 参考位满了时给模型的那句：占着位的是哪几张、换图怎么换（10-27 真机：空说明之下模型
+ * 只会原样再挂一次）。⚠ 只指路不代换 —— 摘哪张是创作者的图，模型自己判断该不该换。
+ */
+function referencesFullDetail(run: OperatorRun): string {
+  const taken = run.state.referenceCount
+  return `All ${run.state.referenceLimit} reference slot(s) are taken (${taken} mounted: ${Array.from(
+    { length: taken },
+    (_, index) => `ref-${index + 1}`,
+  ).join(
+    ', ',
+  )}). The one you wanted may already be on — check the bench before mounting again. To swap in a different picture, remove_reference ref-N first, then add it.`
 }
 
 function planSetModel(
@@ -4372,24 +4416,7 @@ function planSetModel(
        * V4.5 之后「角色参考」那颗设不进去，要等下一轮。与界面同一份派生 ——
        * 按**整轮**（新主模型 + 一起跑的那几个）的并集。
        */
-      if (run.state.hasCapabilityControl) {
-        const values = Object.fromEntries(
-          run.state.capabilities.map((item) => [item.key, item.value]),
-        )
-        const runModels = [
-          match.id,
-          ...run.state.extraModels.map((model) => model.id),
-        ].flatMap((modelId) => {
-          const adapterType = resolveAdapterType(modelId)
-          return adapterType ? [{ adapterType, modelId }] : []
-        })
-        run.state.capabilities =
-          buildOperatorCapabilities(
-            runModels,
-            values,
-            run.state.referenceUrls.some(Boolean),
-          ) ?? []
-      }
+      refreshCapabilities(run)
       /**
        * LoRA 域换底模 = 换家族（2026-09-12 真机 bug）。`loraBaseFamily` 原本只在
        * 开跑时从快照取一次，同一轮里 set_model 之后的兼容判定、权重预算、状态块
@@ -5956,7 +5983,7 @@ function planSetCapability(
   }
   if (!chip.available) {
     return reject(
-      REJECT.noSuchControl,
+      REJECT.referenceRequired,
       `${chip.key} only applies once a reference image is mounted — mount one first.`,
     )
   }

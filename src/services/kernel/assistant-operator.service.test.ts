@@ -1843,3 +1843,66 @@ describe('search_web_images · 观察只指够得着的路', () => {
     expect(observation).toContain('"use this"')
   })
 })
+
+describe('同一轮先挂参考图再设要图的专属项（10-27 标签台真机）', () => {
+  async function naiRun() {
+    queueTurns()
+    const prepared = await prepareOperatorTurn(
+      'clerk-1',
+      buildRequest({
+        snapshot: {
+          ...SNAPSHOT,
+          model: { id: 'nai-diffusion-4-5-full', label: 'NovelAI V4.5 Full' },
+          capabilities: [
+            {
+              key: 'novelAiReferenceMode',
+              kind: 'select',
+              value: null,
+              defaultValue: 'standard',
+              options: ['standard', 'precise'],
+              available: false,
+            },
+          ],
+          references: { items: [], limit: 1 },
+        },
+      }),
+      new AbortController().signal,
+    )
+    prepared.run.searchIndex.set('asset-1', {
+      assetId: 'asset-1',
+      displayName: '图_1215',
+      url: 'https://cdn.example.com/a.png',
+      kind: 'image',
+    })
+    return prepared
+  }
+
+  it('挂上之后要图的那一项当场可设；位满时说清占位的是谁、怎么换', async () => {
+    const prepared = await naiRun()
+    const plan = (tool: string, args: Record<string, unknown>) =>
+      planTool(prepared.run, tool as never, args as never, prepared.user.id)
+    const before = await plan(ASSISTANT_OPERATOR_TOOL_IDS.setCapability, {
+      key: 'novelAiReferenceMode',
+      value: 'precise',
+    })
+    expect(before).toMatchObject({
+      kind: 'rejected',
+      reason: 'referenceRequired',
+    })
+    const mount = await plan(ASSISTANT_OPERATOR_TOOL_IDS.mountReference, {
+      assetId: 'asset-1',
+    })
+    expect(mount.kind).toBe('mutate')
+    if (mount.kind === 'mutate') mount.apply?.()
+    const after = await plan(ASSISTANT_OPERATOR_TOOL_IDS.setCapability, {
+      key: 'novelAiReferenceMode',
+      value: 'precise',
+    })
+    expect(after.kind).toBe('mutate')
+    const again = await plan(ASSISTANT_OPERATOR_TOOL_IDS.mountReference, {
+      assetId: 'asset-1',
+    })
+    expect(again).toMatchObject({ kind: 'rejected', reason: 'referencesFull' })
+    expect(JSON.stringify(again)).toContain('remove_reference ref-N')
+  })
+})

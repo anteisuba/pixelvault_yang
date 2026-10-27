@@ -2,6 +2,7 @@ import 'server-only'
 
 import {
   ASSISTANT_OPERATOR_LIMITS,
+  ASSISTANT_OPERATOR_REJECT_REASON_IDS as REJECT,
   ASSISTANT_OPERATOR_STEP_STATUS_IDS as STATUS,
   ASSISTANT_OPERATOR_TOOL_IDS as TOOL,
 } from '@/constants/assistant-operator'
@@ -139,6 +140,7 @@ async function* runEditOp(
           TOOL.setModel,
           title,
           `"${op.model}" is not one of the base models on the board.`,
+          REJECT.notOnBench,
         )
       return yield* runOldTool(context, TOOL.setModel, title, {
         modelId: match.id,
@@ -289,6 +291,7 @@ export async function* executeAssistantV3LoraCall(
           items.length === 0
             ? 'items is empty'
             : `Nothing called ${unknown.map((entry) => `"${entry.item}"`).join(', ')} on the bench. Use "prompt", "negative", "sample", a LoRA handle or "ref-N".`,
+          REJECT.notOnBench,
         )
       const step = nextStep(context, TOOL.readState, title)
       yield toStepEvent({

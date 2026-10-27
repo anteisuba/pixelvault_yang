@@ -60,7 +60,7 @@ function modelLines(snapshot: AssistantOperatorSnapshot): string[] {
       : []),
     ...(snapshot.otherWorkbenchModels?.length
       ? [
-          `On another workbench (not selectable here): ${snapshot.otherWorkbenchModels
+          `On the other image bench (open it to pick one): ${snapshot.otherWorkbenchModels
             .map((option) => option.label)
             .join(', ')}`,
         ]

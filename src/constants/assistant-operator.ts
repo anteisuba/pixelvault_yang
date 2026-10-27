@@ -3047,6 +3047,22 @@ export const ASSISTANT_OPERATOR_REJECT_REASON_IDS = {
    * ⚠ 不是失败：它会在下一次请求里重做。这一条只为把时间线上那一行 `running` 收掉。
    */
   timeBudget: 'timeBudget',
+  /**
+   * 这一项要**先挂上参考图**才成立（精确参考、参考强度这类）。
+   * ⚠ 与 `noSuchControl` 分开（10-27 标签台真机）：那条说「这台上没这回事」，用户读到
+   * 会以为换个台才行；这条说「还差一步」，挂上图就通。
+   */
+  referenceRequired: 'referenceRequired',
+  /** 指的那一项（ref-N、某个名字）**此刻台上没有**。 */
+  notOnBench: 'notOnBench',
+  /** 要的东西在**别的工作台**上 —— 先 open 那一台再接着做。 */
+  onOtherBench: 'onOtherBench',
+  /**
+   * 这一步没做成，原因写在给模型的说明里（参数不全、编号不对……）。
+   * ⚠ 这是 v3 执行层的缺省理由：此前一律贴 `noSuchControl`，界面上全是「这个工作台上
+   * 没有这个控件」这句假话。能说清的地方传具体理由，说不清的至少不说错。
+   */
+  notDone: 'notDone',
 } as const
 
 /**

@@ -33,6 +33,7 @@ const { plan, closeRound, recordTurn, soft, models, run, recipe } = vi.hoisted(
       mainModelLooks: false,
       nextKernel: false,
       loraIndex: new Map<string, { candidateId: string; name: string }>(),
+      searchIndex: new Map<string, { displayName?: string }>(),
       apiKeyId: 'key-1',
       state: {
         prompt: 'a girl in a garden',
@@ -502,6 +503,38 @@ describe('新内核主循环', () => {
     )
     expect(promptOf(main.doStreamCalls[1]!)).toContain('changes.0.op')
     expect(events.at(-1)).toMatchObject({ type: 'done' })
+  })
+
+  it('同一调用失败后原样再来、中间没做成任何一步：不跑，告诉模型别再试（软拦，不断回合）', async () => {
+    const bad = { changes: [{ op: 'paint' }] }
+    const main = mockModel([
+      toolTurn({ id: 'bad1', name: 'edit', input: bad }),
+      toolTurn({ id: 'bad2', name: 'edit', input: bad }),
+      textTurn('这一步做不了。'),
+    ])
+    models.main = main
+    const events = await collect(
+      runAssistantNext('clerk-1', imageRequest('改一下')),
+    )
+    expect(promptOf(main.doStreamCalls[2]!)).toContain(
+      'Not run: you made this exact call already',
+    )
+    expect(events.at(-1)).toMatchObject({ type: 'done' })
+  })
+
+  it('失败之后中间有一步做成了：同样的调用照常再跑（条件可能已经变了）', async () => {
+    const bad = { changes: [{ op: 'paint' }] }
+    const main = mockModel([
+      toolTurn({ id: 'bad1', name: 'edit', input: bad }),
+      toolTurn(editPrompt),
+      toolTurn({ id: 'bad2', name: 'edit', input: bad }),
+      textTurn('好了。'),
+    ])
+    models.main = main
+    await collect(runAssistantNext('clerk-1', imageRequest('改一下')))
+    expect(promptOf(main.doStreamCalls[3]!)).not.toContain(
+      'Not run: you made this exact call already',
+    )
   })
 
   it('入参不是合法 JSON：只回一条结果（两条同 id 厂商会拒收），模型重发', async () => {

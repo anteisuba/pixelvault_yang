@@ -2,6 +2,7 @@ import 'server-only'
 
 import {
   ASSISTANT_OPERATOR_LIMITS,
+  ASSISTANT_OPERATOR_REJECT_REASON_IDS as REJECT,
   ASSISTANT_OPERATOR_STEP_STATUS_IDS as STATUS,
   ASSISTANT_OPERATOR_TOOL_IDS as TOOL,
 } from '@/constants/assistant-operator'
@@ -80,6 +81,12 @@ async function* importWebFind(
   })
 }
 
+/** 查到 / 打开过的图在步骤标题里用它的名字（图_N），⛔ 不露一串 id。 */
+function pictureName(context: V3Context, asset: string): string {
+  const id = asset.trim()
+  return context.prepared.run.searchIndex.get(id)?.displayName ?? id
+}
+
 /** 创作者在话里提到了清晰度没有（数字档位或这几个词）。 */
 const RESOLUTION_WORDS =
   /\d{3,4}\s*p|\b[248]k\b|清晰度|分辨率|高清|画质|解像度|resolution/i
@@ -153,7 +160,7 @@ async function* runVideoEditOp(
       return yield* runOldTool(
         context,
         TOOL.mountReference,
-        `${text.mountReference}「${attached?.label ?? op.asset}」`,
+        `${text.mountReference}「${attached?.label ?? pictureName(context, op.asset)}」`,
         {
           assetId: attached?.id ?? op.asset.trim(),
           ...(op.slot ? { slot: op.slot } : {}),
@@ -212,8 +219,9 @@ async function* runEditOp(
           TOOL.setModel,
           title,
           elsewhere
-            ? `${elsewhere.label} lives on another workbench and cannot be picked here. Say so to the creator.`
+            ? `${elsewhere.label} lives on the other image bench. open "${context.request.workspaceKey === 'image-tags' ? 'image' : 'tags'}", then pick it there.`
             : `"${op.model}" is not one of the models on the board.`,
+          elsewhere ? REJECT.onOtherBench : REJECT.notOnBench,
         )
       }
       const channelKey = op.channel?.trim().toLowerCase()
@@ -230,6 +238,7 @@ async function* runEditOp(
           TOOL.setModel,
           title,
           `${match.label} has no channel "${op.channel}".`,
+          REJECT.notOnBench,
         )
       return yield* runOldTool(context, TOOL.setModel, title, {
         modelId: match.id,
@@ -289,7 +298,7 @@ async function* runEditOp(
       return yield* runOldTool(
         context,
         TOOL.mountReference,
-        `${text.mountReference}「${attached?.label ?? op.asset}」`,
+        `${text.mountReference}「${attached?.label ?? pictureName(context, op.asset)}」`,
         { assetId: attached?.id ?? op.asset.trim() },
       )
     }
@@ -389,6 +398,7 @@ export async function* executeAssistantV3ImageCall(
           items.length === 0
             ? 'items is empty'
             : `Nothing called ${unknown.map((entry) => `"${entry.item}"`).join(', ')} on the bench. Use "prompt", "negative" or "ref-N".`,
+          REJECT.notOnBench,
         )
       const step = nextStep(context, TOOL.readState, title)
       yield toStepEvent({

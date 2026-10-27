@@ -214,6 +214,14 @@ const NOT_RUN_AFTER_OPEN =
 /** 接力条没存下：这一次开不了台。 */
 const OPEN_NOT_KEPT =
   'Could not open it right now. Tell the creator which bench to switch to, or carry on here.'
+/**
+ * 同一调用原样再来、而且上次失败之后**一步都没做成**（台上没变）→ 不跑（owner「同类失败两次停」，
+ * 10-27 标签台真机：同样的设选项被拒了还连发两轮）。⚠ 中间有一步做成就放行：选完模型再设规格
+ * 是对的重试（`REJECT.repeatedStep` 头注同一条理由）。软拦：不记红行、不断回合，只把话说给模型。
+ */
+const NOT_RUN_REPEATED_FAILURE =
+  'Not run: you made this exact call already this turn, it failed, and nothing has gone through since — it would fail the same way. Do not repeat it: change what the failure points at, or tell the creator plainly what did not work. It failed with: '
+
 const NOT_RUN_AFTER_FAILED_EDIT =
   'Not shown: an edit earlier in this step did not land, so the bench is not what you meant to generate. Fix that edit first, then call generate again.'
 
@@ -914,6 +922,9 @@ async function* runNextTurn(
   let emptyRetried = false
   let timeoutRetried = false
   let succeededOnce = Boolean(saved)
+  /** 这一跳里失败过的调用（工具名 + 原样参数）→ 失败说明与当时做成过几步。 */
+  const failedCalls = new Map<string, { output: string; okCount: number }>()
+  let okCount = 0
 
   for (let step = 0; ; step += 1) {
     if (signal.aborted) {
@@ -1302,6 +1313,15 @@ async function* runNextTurn(
         settle({ output: NOT_RUN_WHILE_BOARD_CHANGES, error: true })
         continue
       }
+      const callKey = `${call.toolName}:${JSON.stringify(call.input)}`
+      const failedBefore = failedCalls.get(callKey)
+      if (failedBefore && failedBefore.okCount === okCount) {
+        settle({
+          output: `${NOT_RUN_REPEATED_FAILURE}${failedBefore.output}`,
+          error: true,
+        })
+        continue
+      }
       const result = yield* runTool(
         context,
         call,
@@ -1318,6 +1338,9 @@ async function* runNextTurn(
         continue
       }
       settle(result)
+      if (result.error)
+        failedCalls.set(callKey, { output: result.output, okCount })
+      else okCount += 1
       if (result.pictures?.length) looked.push(...result.pictures)
       if (result.stop) stopped = true
       if (result.error && call.toolName === ASSISTANT_NEXT_TOOL_IDS.edit)

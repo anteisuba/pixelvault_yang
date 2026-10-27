@@ -17,7 +17,6 @@ import {
 } from '@/constants/navigation'
 import { ROUTES } from '@/constants/routes'
 import { Link, usePathname } from '@/i18n/navigation'
-import { isStudioShellPath } from '@/lib/studio-shell-route'
 import { AccountMenu } from '@/components/layout/AccountMenu'
 import { ProfileAvatar } from '@/components/layout/ProfileAvatar'
 import { Button } from '@/components/ui/button'
@@ -77,7 +76,6 @@ const SIDEBAR_FOOTER_CLASS = 'gap-1 p-1'
  */
 export function AppSidebar() {
   const { isMobile } = useSidebar()
-  const pathname = usePathname()
 
   // <768 **完全没有侧栏**（方向 M2「顶栏当切换器」）——由 MobileShell 接管。
   // 768–1023 是平板：同一条侧栏，钉死在收起档（owner 2026-10-09 平板 v10）。
@@ -89,8 +87,9 @@ export function AppSidebar() {
     <Sidebar
       collapsible="icon"
       className="z-40 text-sidebar-foreground"
-      // ≥1024 的 `/studio` 与 `/library` 由外壳自己的左栏接手（第 9f 步）；平板照旧是这条侧栏。
-      rootClassName={isStudioShellPath(pathname) ? 'desk:hidden' : undefined}
+      // ≥1024 全站都是外壳那条窄图标栏（外壳里由 `StudioShell` 画，别的页由 `AppRail` 画，
+      // 用户 10-27「只保留最新的」）；平板照旧是这条侧栏。
+      rootClassName="desk:hidden"
     >
       <AppSidebarHeader />
       <AppSidebarContent />

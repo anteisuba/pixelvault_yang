@@ -2,6 +2,7 @@ import { NextIntlClientProvider } from 'next-intl'
 import { getMessages, getTranslations } from 'next-intl/server'
 
 import { AuthArrivalToast } from '@/components/business/auth/AuthArrivalToast'
+import { AppRail } from '@/components/layout/AppRail'
 import { AppSidebar } from '@/components/layout/AppSidebar'
 import { MainProviders } from '@/components/layout/MainProviders'
 import { MobileShell, MobileShellInset } from '@/components/layout/MobileShell'
@@ -47,6 +48,7 @@ export default async function MainLayout({
         <MainProviders>
           <SidebarProvider defaultOpen={false}>
             <AppSidebar />
+            <AppRail />
             {/* <768 走方向 P3「底栏」（app-shell.md §6）：页面上是底栏，工作台里
                 换成顶上一条「← · 图片 ▾」。主区让位跟着路由走，见 `MobileShellInset`。 */}
             <MobileShell />

@@ -388,6 +388,75 @@ export function LoraLibraryBrowse({
     .filter(Boolean)
     .join(' · ')
 
+  const renderTile = (item: CivitaiLoraLibraryItem) => {
+    const cover = item.cardImageUrl ?? item.thumbImageUrl ?? item.coverImageUrl
+    return (
+      <LoraLibraryTile
+        name={item.name}
+        meta={`${item.baseModelFamily} · ↓ ${formatCompactNumber(item.downloadCount)}`}
+        coverUrl={cover ? proxyCivitaiImageUrl(cover) : null}
+        coverColor={item.coverColor ?? null}
+        coverVideoUrl={item.cardVideoUrl ?? null}
+        coverVideoActive={openItem === null}
+        mounted={isMounted(item)}
+        mounting={mountingId === item.id}
+        agentPick={
+          !isMounted(item) &&
+          agent.picks.some((pick) => pick.candidateId === item.id)
+        }
+        onOpen={() => setOpenItem(item)}
+        onMount={() => handleMount(item)}
+        pickId={item.id}
+        favorite={{
+          saved: isFavorited(item.loraUrl),
+          onToggle: () => void handleFavoriteToggle(item),
+        }}
+        onHandToAssistant={hand ? () => hand(loraMention(item)) : undefined}
+      />
+    )
+  }
+
+  // 结果分段（lora-library.md §3）：字面命中 → 纠错/现查 → 意思接近，后两段各带一条分隔线说明。
+  const segments = library.debouncedSearch ? library.segments : null
+  const resultGroups: {
+    key: string
+    label: string | null
+    items: CivitaiLoraLibraryItem[]
+  }[] = []
+  if (!segments) {
+    resultGroups.push({ key: 'all', label: null, items: library.items })
+  } else {
+    const fallbackEnd = segments.literalTotal + (segments.fallback?.total ?? 0)
+    const literal = library.items.slice(0, segments.literalTotal)
+    const fallback = library.items.slice(segments.literalTotal, fallbackEnd)
+    const meaning = library.items.slice(fallbackEnd)
+    if (literal.length > 0) {
+      resultGroups.push({ key: 'literal', label: null, items: literal })
+    }
+    if (segments.fallback && fallback.length > 0) {
+      const count = format.number(segments.fallback.total)
+      resultGroups.push({
+        key: 'fallback',
+        label:
+          segments.fallback.kind === 'corrected'
+            ? tb('segmentCorrected', {
+                query: library.debouncedSearch,
+                corrected: segments.fallback.query,
+                count,
+              })
+            : tb('segmentLive', { count }),
+        items: fallback,
+      })
+    }
+    if (meaning.length > 0) {
+      resultGroups.push({
+        key: 'meaning',
+        label: tb('segmentMeaning'),
+        items: meaning,
+      })
+    }
+  }
+
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
       {/* 顶上一行（ui-spec §9）：搜索 · 底模 · 分级 · 来源 ……… 排序；下面类型切换条。 */}
@@ -536,49 +605,31 @@ export function LoraLibraryBrowse({
           </div>
         ) : (
           <>
-            <div
-              className={cn(
-                LIBRARY_GRID_CLASS,
-                'transition-opacity duration-base ease-linear',
-                library.isReplacing && 'opacity-42',
-              )}
-            >
-              {library.items.map((item) => {
-                const cover =
-                  item.cardImageUrl ?? item.thumbImageUrl ?? item.coverImageUrl
-                return (
-                  <div
-                    key={item.id}
-                    className="animate-in fade-in duration-base ease-linear motion-reduce:animate-none"
-                  >
-                    <LoraLibraryTile
-                      name={item.name}
-                      meta={`${item.baseModelFamily} · ↓ ${formatCompactNumber(item.downloadCount)}`}
-                      coverUrl={cover ? proxyCivitaiImageUrl(cover) : null}
-                      coverColor={item.coverColor ?? null}
-                      coverVideoUrl={item.cardVideoUrl ?? null}
-                      coverVideoActive={openItem === null}
-                      mounted={isMounted(item)}
-                      mounting={mountingId === item.id}
-                      agentPick={
-                        !isMounted(item) &&
-                        agent.picks.some((pick) => pick.candidateId === item.id)
-                      }
-                      onOpen={() => setOpenItem(item)}
-                      onMount={() => handleMount(item)}
-                      pickId={item.id}
-                      favorite={{
-                        saved: isFavorited(item.loraUrl),
-                        onToggle: () => void handleFavoriteToggle(item),
-                      }}
-                      onHandToAssistant={
-                        hand ? () => hand(loraMention(item)) : undefined
-                      }
-                    />
-                  </div>
-                )
-              })}
-            </div>
+            {resultGroups.map((group) => (
+              <section key={group.key} className="contents">
+                {group.label ? (
+                  <p className="flex items-center gap-2.5 pb-3 pt-5 text-xs text-muted-foreground before:h-px before:w-6 before:bg-border after:h-px after:flex-1 after:bg-border">
+                    {group.label}
+                  </p>
+                ) : null}
+                <div
+                  className={cn(
+                    LIBRARY_GRID_CLASS,
+                    'transition-opacity duration-base ease-linear',
+                    library.isReplacing && 'opacity-42',
+                  )}
+                >
+                  {group.items.map((item) => (
+                    <div
+                      key={item.id}
+                      className="animate-in fade-in duration-base ease-linear motion-reduce:animate-none"
+                    >
+                      {renderTile(item)}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ))}
             {library.contentType !== DEFAULT_LORA_CONTENT_TYPE &&
             library.items.length <= 5 &&
             typeFallbackTerm ? (

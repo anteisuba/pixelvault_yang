@@ -46,8 +46,19 @@ export interface UseCivitaiLoraLibraryOptions {
   pageSize?: number
 }
 
+/** 这一组结果怎么分段（见 CivitaiLoraLibraryResult 的同名字段）。 */
+export type CivitaiLoraLibrarySegments = Pick<
+  CivitaiLoraLibraryResult,
+  'literalTotal' | 'fallback'
+>
+
 export interface UseCivitaiLoraLibraryReturn {
   items: CivitaiLoraLibraryItem[]
+  /**
+   * 前 `literalTotal` 个是字面命中，之后是兜底那一段与「意思接近」。还没取到
+   * 时是 null。
+   */
+  segments: CivitaiLoraLibrarySegments | null
   selectedItem: CivitaiLoraLibraryItem | null
   total: number | null
   /** 索引数到上限就停了：真实命中比 `total` 多（界面写「1 万+」）。 */
@@ -185,6 +196,9 @@ export function useCivitaiLoraLibrary(
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
   const [total, setTotal] = useState<number | null>(null)
   const [totalCapped, setTotalCapped] = useState(false)
+  const [segments, setSegments] = useState<CivitaiLoraLibrarySegments | null>(
+    null,
+  )
   const [page, setPage] = useState(1)
   const [hasNextPage, setHasNextPage] = useState(false)
   // `isLoading` = "I have nothing to show yet". `isRevalidating` = "a fetch is
@@ -248,6 +262,10 @@ export function useCivitaiLoraLibrary(
       setTotal(result.total)
       setTotalCapped(result.totalCapped)
       setHasNextPage(result.hasNextPage)
+      setSegments({
+        literalTotal: result.literalTotal,
+        fallback: result.fallback,
+      })
       // 接下一段时选中项还在列表里，⛔ 被新一段的第一项顶掉。
       if (appending) return
       setSelectedItemId((current) => {
@@ -270,6 +288,7 @@ export function useCivitaiLoraLibrary(
       setSelectedItemId(null)
       setTotal(null)
       setTotalCapped(false)
+      setSegments(null)
       setHasNextPage(false)
     }
     setError(null)
@@ -503,6 +522,7 @@ export function useCivitaiLoraLibrary(
 
   return {
     items,
+    segments,
     selectedItem,
     total,
     totalCapped,

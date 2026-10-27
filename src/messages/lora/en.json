@@ -674,7 +674,10 @@
       "handToAssistant": "Hand to assistant",
       "favorite": "Favorite",
       "unfavorite": "Unfavorite",
-      "openDetail": "View details"
+      "openDetail": "View details",
+      "segmentCorrected": "Nothing for “{query}” · {count} for “{corrected}”",
+      "segmentLive": "Not indexed yet · {count} found live on Civitai",
+      "segmentMeaning": "Similar in meaning"
     },
     "characterLoras": {
       "pickEntry": "From character",

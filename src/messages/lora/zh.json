@@ -674,7 +674,10 @@
       "handToAssistant": "交给助手",
       "favorite": "收藏",
       "unfavorite": "取消收藏",
-      "openDetail": "查看详情"
+      "openDetail": "查看详情",
+      "segmentCorrected": "没搜到「{query}」· 按「{corrected}」找到的 {count} 个",
+      "segmentLive": "索引里还没有 · 现查 Civitai 找到的 {count} 个",
+      "segmentMeaning": "意思接近的"
     },
     "characterLoras": {
       "pickEntry": "从角色选",

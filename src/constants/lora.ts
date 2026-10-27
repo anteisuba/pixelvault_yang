@@ -1011,6 +1011,14 @@ export type LoraNsfwFilter = (typeof LORA_NSFW_FILTER_VALUES)[number]
 
 export const DEFAULT_LORA_NSFW_FILTER: LoraNsfwFilter = 'safe'
 
+/**
+ * 搜到了、但名字强命中的几个被筛选挡住了：是哪一项挡的（索引 Worker 的
+ * `HiddenFilter`，owner 2026-10-22 定「自动单列一行」）。
+ */
+export const LORA_HIDDEN_FILTER_VALUES = ['base', 'type', 'nsfw'] as const
+
+export type LoraHiddenFilter = (typeof LORA_HIDDEN_FILTER_VALUES)[number]
+
 export function isLoraNsfwFilter(value: string): value is LoraNsfwFilter {
   return (LORA_NSFW_FILTER_VALUES as readonly string[]).includes(value)
 }

@@ -10,6 +10,7 @@ import {
   DEFAULT_LORA_CONTENT_TYPE,
   DEFAULT_LORA_NSFW_FILTER,
   getLoraContentTypeDefinition,
+  LORA_HIDDEN_FILTER_VALUES,
   type CivitaiLoraBaseModel,
   type CivitaiLoraSort,
   type LoraContentType,
@@ -27,7 +28,11 @@ import {
   acceptedBaseModelNames,
   maxImageNsfwLevelFor,
 } from '@/services/civitai-lora.service'
-import type { CivitaiLoraLibraryItem, CivitaiLoraLibraryResult } from '@/types'
+import {
+  CivitaiLoraLibraryResultSchema,
+  type CivitaiLoraLibraryItem,
+  type CivitaiLoraLibraryResult,
+} from '@/types'
 
 /**
  * Civitai LoRA 库的列表与搜索：只查我们自己的全量索引（Cloudflare D1，
@@ -86,8 +91,23 @@ const IndexRowSchema = z.object({
 const IndexSearchResponseSchema = z.object({
   rows: z.array(IndexRowSchema),
   total: z.number().int().nonnegative(),
-  // 索引 Worker 与应用分开部署：Worker 还没换上封顶计数时缺这一格，按没封顶算。
+  // 索引 Worker 与应用分开部署：Worker 还没换上新字段时缺这几格，按旧口径
+  // （没封顶、全是字面命中、没有兜底和挡住的）算。
   totalCapped: z.boolean().default(false),
+  literalTotal: z.number().int().nonnegative().optional(),
+  fallback: CivitaiLoraLibraryResultSchema.shape.fallback.default(null),
+  hidden: z
+    .object({
+      total: z.number().int().nonnegative().nullable(),
+      totalCapped: z.boolean(),
+      rows: z.array(
+        IndexRowSchema.extend({
+          blockedBy: z.array(z.enum(LORA_HIDDEN_FILTER_VALUES)),
+        }),
+      ),
+    })
+    .nullable()
+    .default(null),
 })
 
 const IndexStatusSchema = z.object({
@@ -287,6 +307,22 @@ async function queryCivitaiIndex({
     total: result.total,
     totalCapped: result.totalCapped,
     hasNextPage: page * pageSize < result.total,
+    literalTotal: result.literalTotal ?? result.total,
+    fallback: result.fallback,
+    hidden: result.hidden && {
+      total: result.hidden.total,
+      totalCapped: result.hidden.totalCapped,
+      // 被分级挡住的照样带上封面（界面先模糊、点一下才看清，owner 10-22 定）。
+      items: result.hidden.rows.map(({ blockedBy, ...row }) => ({
+        ...indexRowToLibraryItem(
+          row,
+          blockedBy.includes('nsfw')
+            ? maxImageNsfwLevelFor('unrestricted')
+            : maxImageNsfwLevel,
+        ),
+        blockedBy,
+      })),
+    },
   }
 }
 

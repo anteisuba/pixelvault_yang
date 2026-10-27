@@ -187,6 +187,52 @@ describe('listCivitaiLoras', () => {
     expect(item?.coverImageUrlOriginal).toContain('safe-uuid')
   })
 
+  it('passes the segments through, with an unrestricted cover for rows hidden by rating', async () => {
+    mockFetch.mockResolvedValue(
+      jsonResponse({
+        rows: [indexRow],
+        total: 3,
+        totalCapped: false,
+        literalTotal: 0,
+        fallback: { kind: 'corrected', query: 'endfield', total: 3 },
+        hidden: {
+          total: 9,
+          totalCapped: false,
+          rows: [
+            { ...indexRow, blockedBy: ['nsfw'] },
+            { ...indexRow, modelId: 12, blockedBy: ['base'] },
+          ],
+        },
+      }),
+    )
+
+    const result = await listCivitaiLoras({ search: 'endfeild' })
+
+    expect(result.literalTotal).toBe(0)
+    expect(result.fallback).toEqual({
+      kind: 'corrected',
+      query: 'endfield',
+      total: 3,
+    })
+    expect(result.hidden?.total).toBe(9)
+    const [byRating, byBase] = result.hidden?.items ?? []
+    expect(byRating?.blockedBy).toEqual(['nsfw'])
+    expect(byRating?.coverImageUrlOriginal).toContain('explicit-uuid')
+    expect(byBase?.coverImageUrlOriginal).toContain('safe-uuid')
+  })
+
+  it('reads an index without segments as all literal', async () => {
+    mockFetch.mockResolvedValue(
+      jsonResponse({ rows: [indexRow], total: 25, totalCapped: false }),
+    )
+    const result = await listCivitaiLoras({ search: 'maker' })
+    expect(result).toMatchObject({
+      literalTotal: 25,
+      fallback: null,
+      hidden: null,
+    })
+  })
+
   it('covers a video sample with its still and carries the clip for the card', async () => {
     mockFetch.mockResolvedValue(
       jsonResponse({

@@ -2,6 +2,8 @@ import { z } from 'zod'
 
 import { findLorasByMeaning, type SemanticIndexBinding } from './meaning'
 import type { IndexImage, IndexPermissions, IndexVersion } from './rows'
+import { writeLiveHits } from './sync'
+import { correctQuery } from './words'
 
 /**
  * 搜索与浏览的唯一入口。业务口径（安全档的分级线、家族对应哪些 baseModel、
@@ -711,41 +713,56 @@ function literalTextCheck(q: string): { where: string; params: unknown[] } {
   return { where: where.length > 0 ? where.join(' AND ') : '1 = 1', params }
 }
 
+type SqlCondition = { where: string; params: unknown[] }
+
+/** 只按某几项筛选（q 清空）拼出来的条件。 */
+function filterCondition(input: SearchInput): SqlCondition {
+  const built = buildSearchQuery({ ...input, q: '' })
+  return {
+    where: built.where,
+    params: built.params.slice(0, built.whereParamCount),
+  }
+}
+
+/** 这几个 id 里满足条件的那些。 */
+function idsMatching(
+  db: D1Database,
+  ids: readonly number[],
+  { where, params }: SqlCondition,
+): D1PreparedStatement {
+  return db
+    .prepare(
+      `SELECT lora.model_id AS id FROM lora
+       WHERE lora.model_id IN (SELECT value FROM json_each(?${params.length + 1}))
+         AND ${where}`,
+    )
+    .bind(...params, JSON.stringify(ids))
+}
+
 /**
- * 「意思接近」里能接到字面结果后面的那些：同样过底模 / 分级 / 内容类型的筛选，
- * 去掉字面已经命中的，顺序照相似度。两条查询一趟发出去。
+ * 「意思接近」里能接到前面几段后面的那些：同样过底模 / 分级 / 内容类型的筛选，
+ * 去掉前面字面（含纠正后的词）已经命中的与 `exclude` 里的，顺序照相似度。
  */
 async function readMeaningExtras(
   db: D1Database,
   input: SearchInput,
   ids: readonly number[],
+  literalQueries: readonly string[],
+  exclude: ReadonlySet<number>,
 ): Promise<number[]> {
-  if (ids.length === 0) return []
-  const restrictTo = ({
-    where,
-    params,
-  }: {
-    where: string
-    params: unknown[]
-  }) =>
-    db
-      .prepare(
-        `SELECT lora.model_id AS id FROM lora
-         WHERE lora.model_id IN (SELECT value FROM json_each(?${params.length + 1}))
-           AND ${where}`,
-      )
-      .bind(...params, JSON.stringify(ids))
-  const filters = buildSearchQuery({ ...input, q: '' })
-  const [filtered, literal] = await db.batch<{ id: number }>([
-    restrictTo({
-      where: filters.where,
-      params: filters.params.slice(0, filters.whereParamCount),
-    }),
-    restrictTo(literalTextCheck(input.q)),
+  const candidates = ids.filter((id) => !exclude.has(id))
+  if (candidates.length === 0) return []
+  const [filtered, ...literal] = await db.batch<{ id: number }>([
+    idsMatching(db, candidates, filterCondition(input)),
+    ...literalQueries.map((q) =>
+      idsMatching(db, candidates, literalTextCheck(q)),
+    ),
   ])
-  const passes = new Set(filtered.results.map((row) => row.id))
-  const literalHits = new Set(literal.results.map((row) => row.id))
-  return ids.filter((id) => passes.has(id) && !literalHits.has(id))
+  const passes = new Set(filtered!.results.map((row) => row.id))
+  const literalHits = new Set(
+    literal.flatMap((result) => result.results.map((row) => row.id)),
+  )
+  return candidates.filter((id) => passes.has(id) && !literalHits.has(id))
 }
 
 async function readRowsById(
@@ -792,6 +809,184 @@ async function readLiteralPage(
   return results
 }
 
+/** 现查上游最多要几个（一页的量）。 */
+const LIVE_LIMIT = 24
+/** 名字强命中却被筛选挡住的，最多列几个。 */
+const HIDDEN_ROWS_LIMIT = 8
+/** 相关度分档里「名字含每个必须的词」及更强的那几档（见 buildSearchQuery）。 */
+const STRONG_NAME_TIER_MAX = 4
+
+export type HiddenFilter = 'base' | 'type' | 'nsfw'
+
+export interface HiddenRow extends SearchRow {
+  /** 被哪几项筛选挡住 */
+  blockedBy: HiddenFilter[]
+}
+
+export type SearchFallback =
+  /** 打错字：按纠正后的词搜到的 */
+  | { kind: 'corrected'; query: string; total: number }
+  /** 本地一个都没有，现查 Civitai 拿到的（已写回索引） */
+  | { kind: 'live'; total: number }
+
+export interface SearchSegments {
+  /** 排在最前的这么多条是字面命中 */
+  literalTotal: number
+  /** 字面一个都没有时接在前面的那一段，没有就是 null */
+  fallback: SearchFallback | null
+  /**
+   * 有搜索词、开着筛选（只在第 1 页给）：去掉底模与类型后字面有多少（分级是用户
+   * 的偏好，⛔ 替他放宽；两项都没开是 null），和名字强命中却被挡住的那几个。两样都
+   * 没有多出来的就是 null。
+   */
+  hidden: {
+    total: number | null
+    totalCapped: boolean
+    rows: HiddenRow[]
+  } | null
+}
+
+function unfiltered(input: SearchInput): SearchInput {
+  return {
+    ...input,
+    baseModels: [],
+    excludeBaseModels: [],
+    nsfw: {},
+    contentType: null,
+  }
+}
+
+function hasFilters(input: SearchInput): boolean {
+  return (
+    input.baseModels.length > 0 ||
+    input.excludeBaseModels.length > 0 ||
+    input.nsfw.someImageAtMost !== undefined ||
+    input.nsfw.someImageAbove !== undefined ||
+    input.contentType !== null
+  )
+}
+
+/**
+ * 名字强命中（相关度前几档）却被筛选挡住的：去掉筛选按相关度取前几个，逐项看
+ * 是哪个筛选挡的，三项都过的（本来就在结果里）不要。
+ */
+async function readHiddenStrong(
+  db: D1Database,
+  input: SearchInput,
+): Promise<HiddenRow[]> {
+  const open = { ...unfiltered(input), sort: 'relevance' as const }
+  const { where, tierExpr, params, joinsFts } = buildSearchQuery(open, {
+    driveFromFts: true,
+  })
+  if (!tierExpr) return []
+  const source = filterSource(open, joinsFts)
+  const candidates = source
+    ? `lora.model_id IN (SELECT lora.model_id FROM ${source} WHERE ${where})`
+    : where
+  const limitParam = params.length + 1
+  const { results } = await db
+    .prepare(
+      `SELECT ${ROW_COLUMNS} FROM lora WHERE ${candidates}
+         AND ${tierExpr} <= ${STRONG_NAME_TIER_MAX}
+       ORDER BY ${tierExpr}, download_count DESC, model_id LIMIT ?${limitParam}`,
+    )
+    // 排序里的分档表达式再用一遍同一组参数（SQLite 按编号取，重复引用无妨）。
+    .bind(...params, HIDDEN_ROWS_LIMIT * 3)
+    .all<RawRow>()
+  if (results.length === 0) return []
+  const ids = results.map((row) => row.model_id)
+  const checks: [HiddenFilter, SearchInput][] = []
+  if (input.baseModels.length > 0 || input.excludeBaseModels.length > 0) {
+    checks.push([
+      'base',
+      {
+        ...unfiltered(input),
+        baseModels: input.baseModels,
+        excludeBaseModels: input.excludeBaseModels,
+      },
+    ])
+  }
+  if (input.contentType) {
+    checks.push([
+      'type',
+      { ...unfiltered(input), contentType: input.contentType },
+    ])
+  }
+  if (
+    input.nsfw.someImageAtMost !== undefined ||
+    input.nsfw.someImageAbove !== undefined
+  ) {
+    checks.push(['nsfw', { ...unfiltered(input), nsfw: input.nsfw }])
+  }
+  const passing = await db.batch<{ id: number }>(
+    checks.map(([, check]) => idsMatching(db, ids, filterCondition(check))),
+  )
+  const passes = passing.map(
+    (result) => new Set(result.results.map((row) => row.id)),
+  )
+  return results
+    .map((row) => ({
+      ...toSearchRow(row, open),
+      blockedBy: checks
+        .filter((_, index) => !passes[index]!.has(row.model_id))
+        .map(([key]) => key),
+    }))
+    .filter((row) => row.blockedBy.length > 0)
+    .slice(0, HIDDEN_ROWS_LIMIT)
+}
+
+/** 现查上游、写回索引，回过了筛选的那些 id（顺序照上游）。出错就当没有。 */
+async function readLiveIds(
+  db: D1Database,
+  input: SearchInput,
+  live: LiveSearch,
+): Promise<number[]> {
+  try {
+    const hits = await live(input.q, LIVE_LIMIT)
+    const ids = await writeLiveHits(db, hits, Date.now())
+    if (ids.length === 0) return []
+    const { results } = await idsMatching(db, ids, filterCondition(input)).all<{
+      id: number
+    }>()
+    const passes = new Set(results.map((row) => row.id))
+    return ids.filter((id) => passes.has(id))
+  } catch {
+    return []
+  }
+}
+
+/** 按文字现查上游（upstream.ts 的 searchCivitaiLive）。 */
+export type LiveSearch = (q: string, limit: number) => Promise<unknown[]>
+
+interface Segment {
+  total: number
+  read(offset: number, limit: number): Promise<RawRow[]>
+}
+
+/** 几段首尾相接，取总列表里 [offset, offset + limit) 的那些行。 */
+async function readSegments(
+  segments: readonly Segment[],
+  offset: number,
+  limit: number,
+): Promise<RawRow[]> {
+  const rows: RawRow[] = []
+  let start = 0
+  for (const segment of segments) {
+    const end = start + segment.total
+    const from = Math.max(offset + rows.length, start)
+    if (rows.length < limit && from < end) {
+      rows.push(
+        ...(await segment.read(
+          from - start,
+          Math.min(limit - rows.length, end - from),
+        )),
+      )
+    }
+    start = end
+  }
+  return rows
+}
+
 export async function searchIndex(
   db: D1Database,
   input: SearchInput,
@@ -800,46 +995,144 @@ export async function searchIndex(
     defer?: Defer
     /** 没给（或语义那边出错）就只有字面结果 */
     semantic?: SemanticIndexBinding
+    /** 没给就不现查上游（测试、或上游不可用） */
+    live?: LiveSearch
   } = {},
-): Promise<SearchResult> {
-  const { timings, defer, semantic } = options
+): Promise<SearchResult & SearchSegments> {
+  const { timings, defer, semantic, live } = options
   // 先数，按总数决定取这一页时走哪条路；按意思找同时跑。
   const startedAt = Date.now()
-  const meaning = findLorasByMeaning(semantic, input.q)
-    .then((ids) => readMeaningExtras(db, input, ids))
-    .catch(() => [] as number[])
+  const meaningIds = findLorasByMeaning(semantic, input.q).catch(
+    () => [] as number[],
+  )
+  const offset = (input.page - 1) * input.pageSize
+  // 开着筛选时，去掉底模与类型后的字面总数与挡住的名字强命中（只在第 1 页给）。
+  const wantsHidden = Boolean(input.q) && input.page === 1 && hasFilters(input)
+  const relaxable =
+    input.baseModels.length > 0 ||
+    input.excludeBaseModels.length > 0 ||
+    input.contentType !== null
+  const relaxedCount =
+    wantsHidden && relaxable
+      ? countMatches(
+          db,
+          {
+            ...input,
+            baseModels: [],
+            excludeBaseModels: [],
+            contentType: null,
+          },
+          defer,
+        )
+      : Promise.resolve(null)
   const {
     total: literalTotal,
     totalCapped,
     syncedAt,
   } = await countMatches(db, input, defer)
   if (timings) timings.countMs = Date.now() - startedAt
-  const offset = (input.page - 1) * input.pageSize
-  // 这一页字面结果就排得满：意思那边（转向量要 0.5–4.5 秒，2026-10-26 实测）只等一小会儿，
-  // 没回来就先出字面结果、总数先不算它们；它照样算完记进缓存，下一页接着用。
-  // 字面不够一页时照等：那时意思接近的就是要给用户看的东西。⚠ 用 `<`：排到字面最后一条
+
+  // 字面一个都没有：先试纠正打错的词，还没有再现查上游（owner 10-22 定：只在前面
+  // 都空时才查 Civitai）。
+  let fallback: SearchFallback | null = null
+  let fallbackSegment: Segment | null = null
+  const literalQueries = input.q ? [input.q] : []
+  const excludeFromMeaning = new Set<number>()
+  if (input.q && literalTotal === 0) {
+    const corrected = await correctQuery(db, input.q).catch(() => null)
+    if (corrected) {
+      const correctedInput = { ...input, q: corrected }
+      const count = await countMatches(db, correctedInput, defer)
+      if (count.total > 0) {
+        fallback = { kind: 'corrected', query: corrected, total: count.total }
+        literalQueries.push(corrected)
+        fallbackSegment = {
+          total: count.total,
+          read: (from, limit) =>
+            readLiteralPage(
+              db,
+              { ...correctedInput, pageSize: limit },
+              from,
+              count.total,
+            ),
+        }
+      }
+    }
+    if (!fallback && live) {
+      const ids = await readLiveIds(db, input, live)
+      if (ids.length > 0) {
+        fallback = { kind: 'live', total: ids.length }
+        for (const id of ids) excludeFromMeaning.add(id)
+        fallbackSegment = {
+          total: ids.length,
+          read: (from, limit) =>
+            readRowsById(db, ids.slice(from, from + limit)),
+        }
+      }
+    }
+  }
+  const headTotal = literalTotal + (fallback?.total ?? 0)
+
+  // 这一页前面几段就排得满：意思那边（转向量要 0.5–4.5 秒，2026-10-26 实测）只等一小会儿，
+  // 没回来就先出前面的、总数先不算它们；它照样算完记进缓存，下一页接着用。
+  // 不够一页时照等：那时意思接近的就是要给用户看的东西。⚠ 用 `<`：排到前面最后一条
   // 的那一页也照等，它回的总数是真的，界面才知道后面还有意思接近的可翻。
-  const literalFillsPage = offset + input.pageSize < literalTotal
-  const extras = literalFillsPage
+  const meaning = meaningIds.then((ids) =>
+    readMeaningExtras(db, input, ids, literalQueries, excludeFromMeaning).catch(
+      () => [] as number[],
+    ),
+  )
+  const headFillsPage = offset + input.pageSize < headTotal
+  const extras = headFillsPage
     ? await withinBudget(meaning, MEANING_BUDGET_MS, [], defer)
     : await meaning
   if (timings) timings.meaningMs = Date.now() - startedAt
   const pageStartedAt = Date.now()
-  const total = literalTotal + extras.length
-  if (offset >= total) return { rows: [], total, totalCapped, syncedAt }
+  const total = headTotal + extras.length
 
-  // 字面在前，意思接后：这一页跨过字面结果的末尾时，余下的位置由意思接近的补上。
-  const literalRows = await readLiteralPage(db, input, offset, literalTotal)
-  const extraStart = Math.max(0, offset - literalTotal)
-  const extraRows = await readRowsById(
-    db,
-    extras.slice(extraStart, extraStart + input.pageSize - literalRows.length),
-  )
+  const hidden = wantsHidden
+    ? Promise.all([
+        relaxedCount,
+        countMatches(db, unfiltered(input), defer).then((open) =>
+          open.total > literalTotal && open.total <= WALK_ORDER_INDEX_MIN_TOTAL
+            ? readHiddenStrong(db, input).catch(() => [] as HiddenRow[])
+            : [],
+        ),
+      ]).then(([relaxed, rows]) => {
+        const total =
+          relaxed && relaxed.total > literalTotal ? relaxed.total : null
+        return total === null && rows.length === 0
+          ? null
+          : { total, totalCapped: relaxed?.totalCapped ?? false, rows }
+      })
+    : Promise.resolve(null)
+
+  const segments: Segment[] = [
+    {
+      total: literalTotal,
+      read: (from, limit) =>
+        readLiteralPage(db, { ...input, pageSize: limit }, from, literalTotal),
+    },
+    ...(fallbackSegment ? [fallbackSegment] : []),
+    {
+      total: extras.length,
+      read: (from, limit) => readRowsById(db, extras.slice(from, from + limit)),
+    },
+  ]
+  const [rows, hiddenResult] = await Promise.all([
+    offset >= total
+      ? Promise.resolve([] as RawRow[])
+      : readSegments(segments, offset, input.pageSize),
+    hidden,
+  ])
   if (timings) timings.pageMs = Date.now() - pageStartedAt
   return {
-    rows: [...literalRows, ...extraRows].map((row) => toSearchRow(row, input)),
+    rows: rows.map((row) => toSearchRow(row, input)),
     total,
     totalCapped,
     syncedAt,
+    literalTotal,
+    fallback,
+    hidden: hiddenResult,
   }
 }

@@ -20,7 +20,13 @@ import {
   syncPages,
   type SyncProgress,
 } from './sync'
-import { civitaiUpstream } from './upstream'
+import { civitaiUpstream, searchCivitaiLive } from './upstream'
+import {
+  buildWordSegment,
+  finishWordDictionary,
+  resetWordDictionary,
+  WORD_SEGMENTS,
+} from './words'
 
 export interface Env {
   DB: D1Database
@@ -34,6 +40,8 @@ export interface Env {
 interface SyncParams {
   /** 只补算向量、不同步（首灌、或排查时） */
   embedOnly?: boolean
+  /** 只重建纠错词表、不同步（首灌、或排查时） */
+  wordsOnly?: boolean
 }
 
 /** 一轮最多走多少个 step（每步 5 千条）——两百万条的余量，防死循环。 */
@@ -109,6 +117,7 @@ const civitaiIndexWorker = {
       const search = searchIndex(env.DB, parsed.data, {
         timings,
         semantic: env.SEMANTIC,
+        live: searchCivitaiLive,
         defer: (work) => ctx.waitUntil(work.catch(() => undefined)),
       }).finally(() => {
         const totalMs = Date.now() - startedAt
@@ -142,6 +151,13 @@ const civitaiIndexWorker = {
     // 手动开一轮（首灌、或排查时不想等到明天）。
     if (request.method === 'POST' && pathname === '/sync') {
       return json({ id: await startSync(env, `manual-${Date.now()}`) })
+    }
+
+    // 只重建纠错词表（迁移 0008 首灌、或排查时）。
+    if (request.method === 'POST' && pathname === '/words') {
+      return json({
+        id: await startSync(env, `words-${Date.now()}`, { wordsOnly: true }),
+      })
     }
 
     // 只补算向量（首灌按意思搜、或换了拼文字的口径之后）。
@@ -181,6 +197,7 @@ export class CivitaiIndexSyncWorkflow extends WorkflowEntrypoint<
 > {
   async run(event: WorkflowEvent<SyncParams>, step: WorkflowStep) {
     if (event.payload.embedOnly) return { embedded: await this.embedAll(step) }
+    if (event.payload.wordsOnly) return { words: await this.buildWords(step) }
 
     // 用实例创建时刻当这一轮写入的 refreshed_at：重放时值不变。
     const startedAt = event.timestamp.getTime()
@@ -230,7 +247,24 @@ export class CivitaiIndexSyncWorkflow extends WorkflowEntrypoint<
       .catch(() => 0)
     // 同上：没算完的行明天这一轮接着算，期间只是按意思搜不到它们。
     const embedded = await this.embedAll(step).catch(() => -1)
-    return { ...totals, rowCount, warmedCounts, embedded }
+    // 同上：失败就照用昨天的词表，只是今天新出现的词纠不到。
+    const words = await this.buildWords(step).catch(() => -1)
+    return { ...totals, rowCount, warmedCounts, embedded, words }
+  }
+
+  /** 按首字分段重建纠错词表（见 src/words.ts），返回词表里有几个词。 */
+  private async buildWords(step: WorkflowStep): Promise<number> {
+    await step.do('words-reset', SYNC_STEP_CONFIG, () =>
+      resetWordDictionary(this.env.DB),
+    )
+    for (const first of WORD_SEGMENTS) {
+      await step.do(`words-${first}`, SYNC_STEP_CONFIG, () =>
+        buildWordSegment(this.env.DB, first),
+      )
+    }
+    return step.do('words-index', SYNC_STEP_CONFIG, () =>
+      finishWordDictionary(this.env.DB),
+    )
   }
 
   /** 把今天新出现 / 变过的行算成向量，直到没有剩下的。返回算了几行。 */

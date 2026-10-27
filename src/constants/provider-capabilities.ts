@@ -44,8 +44,9 @@ export type ProviderCapability =
  * How the adapter handles reference images:
  * - 'native': Model natively understands "keep this character, change the scene" (OpenAI, Gemini)
  * - 'img2img': Model treats reference as base image to modify / style transfer (fal.ai Flux, Recraft, SD, NovelAI)
- * - 'director': Specialized character-reference system. Unused in production after
- *   NovelAI V5 launch (no Precise Reference) and the V4.5 Director worker gap.
+ * - 'director': Specialized character-reference system. Unused: NovelAI's character
+ *   lock (Precise Reference, V4.5 only) is a per-model capability
+ *   (`novelAiReferenceMode`), not an adapter-wide mode.
  */
 export type ReferenceImageMode = 'native' | 'img2img' | 'director'
 
@@ -226,8 +227,9 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
       cfgRescale: { min: 0, max: 1, step: 0.05, default: 0 },
       img2imgNoise: { min: 0, max: 1, step: 0.01, default: 0 },
       maxReferenceImages: 1,
-      // Production worker treats a single reference as img2img. V5 launch has
-      // no Director / Precise Reference; V4.5 Director is not worker-migrated.
+      // A single reference defaults to img2img. V4.5 Full / Curated add
+      // Precise Reference via `novelAiReferenceMode` (model overrides below);
+      // V5 has none.
       referenceImageMode: 'img2img',
     },
 

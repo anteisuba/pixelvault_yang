@@ -1845,14 +1845,16 @@ describe('search_web_images · 观察只指够得着的路', () => {
 })
 
 describe('同一轮先挂参考图再设要图的专属项（10-27 标签台真机）', () => {
-  async function naiRun() {
+  async function naiRun(
+    model = { id: 'nai-diffusion-4-5-full', label: 'NovelAI V4.5 Full' },
+  ) {
     queueTurns()
     const prepared = await prepareOperatorTurn(
       'clerk-1',
       buildRequest({
         snapshot: {
           ...SNAPSHOT,
-          model: { id: 'nai-diffusion-4-5-full', label: 'NovelAI V4.5 Full' },
+          model,
           capabilities: [
             {
               key: 'novelAiReferenceMode',
@@ -1904,5 +1906,82 @@ describe('同一轮先挂参考图再设要图的专属项（10-27 标签台真�
     })
     expect(again).toMatchObject({ kind: 'rejected', reason: 'referencesFull' })
     expect(JSON.stringify(again)).toContain('remove_reference ref-N')
+  })
+
+  it('V4.5：挂图 → 开精确参考 → 两个滑块都设得上；img2img 强度此时说明不生效', async () => {
+    const prepared = await naiRun()
+    const plan = async (tool: string, args: Record<string, unknown>) => {
+      const result = await planTool(
+        prepared.run,
+        tool as never,
+        args as never,
+        prepared.user.id,
+      )
+      if (result.kind === 'mutate') result.apply?.()
+      return result
+    }
+    await plan(ASSISTANT_OPERATOR_TOOL_IDS.mountReference, {
+      assetId: 'asset-1',
+    })
+    const early = await plan(ASSISTANT_OPERATOR_TOOL_IDS.setCapability, {
+      key: 'preciseReferenceStrength',
+      value: 0.5,
+    })
+    expect(JSON.stringify(early)).toContain(
+      'only takes effect once novelAiReferenceMode is precise',
+    )
+    expect(
+      (
+        await plan(ASSISTANT_OPERATOR_TOOL_IDS.setCapability, {
+          key: 'novelAiReferenceMode',
+          value: 'precise',
+        })
+      ).kind,
+    ).toBe('mutate')
+    for (const [key, value] of [
+      ['preciseReferenceStrength', 0.8],
+      ['preciseReferenceFidelity', 0.6],
+    ] as const) {
+      const result = await plan(ASSISTANT_OPERATOR_TOOL_IDS.setCapability, {
+        key,
+        value,
+      })
+      expect(result.kind).toBe('mutate')
+      expect(JSON.stringify(result)).not.toContain('only takes effect')
+    }
+    const img2img = await plan(ASSISTANT_OPERATOR_TOOL_IDS.setCapability, {
+      key: 'referenceStrength',
+      value: 0.8,
+    })
+    expect(JSON.stringify(img2img)).toContain(
+      'Ignored while novelAiReferenceMode is precise',
+    )
+    expect(
+      prepared.run.state.capabilities.find(
+        (item) => item.key === 'preciseReferenceFidelity',
+      )?.value,
+    ).toBe(0.6)
+  })
+
+  it('V5：没有精确参考 —— 拒因是「台上没有这一项」，并指向换模型', async () => {
+    const prepared = await naiRun({
+      id: 'nai-diffusion-5-full',
+      label: 'NovelAI V5 Full',
+    })
+    const mount = await planTool(
+      prepared.run,
+      ASSISTANT_OPERATOR_TOOL_IDS.mountReference as never,
+      { assetId: 'asset-1' } as never,
+      prepared.user.id,
+    )
+    if (mount.kind === 'mutate') mount.apply?.()
+    const result = await planTool(
+      prepared.run,
+      ASSISTANT_OPERATOR_TOOL_IDS.setCapability as never,
+      { key: 'novelAiReferenceMode', value: 'precise' } as never,
+      prepared.user.id,
+    )
+    expect(result).toMatchObject({ kind: 'rejected', reason: 'notOnBench' })
+    expect(JSON.stringify(result)).toContain('set_model')
   })
 })

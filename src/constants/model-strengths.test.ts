@@ -387,3 +387,23 @@ describe('各家官方语法的关键事实写进了 hint', () => {
     expect(hint).toContain('Undesired Content')
   })
 })
+
+describe('NovelAI 参考图说明按能力表派生', () => {
+  it.each([AI_MODELS.NOVELAI_V45_FULL, AI_MODELS.NOVELAI_V45_CURATED])(
+    '%s：说得出精确参考，不再说「不是角色锁定」',
+    (modelId) => {
+      const hint = getModelEnhanceHint(modelId, AI_ADAPTER_TYPES.NOVELAI) ?? ''
+      expect(hint).toContain('novelAiReferenceMode to precise')
+      expect(hint).not.toContain('not a character lock')
+    },
+  )
+
+  it.each([AI_MODELS.NOVELAI_V5_FULL, AI_MODELS.NOVELAI_V5_CURATED])(
+    '%s：只有 img2img，不提可以开精确参考',
+    (modelId) => {
+      const hint = getModelEnhanceHint(modelId, AI_ADAPTER_TYPES.NOVELAI) ?? ''
+      expect(hint).toContain('img2img only')
+      expect(hint).not.toContain('novelAiReferenceMode')
+    },
+  )
+})

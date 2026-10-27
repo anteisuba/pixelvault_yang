@@ -5961,6 +5961,27 @@ function planSetSceneTexts(
  * 「值写错了」，是「这颗此刻点不动」，而下一步该做的事是先挂一张图。
  * ⚠ `inverse` 里放**旧值**，旧值允许 `null`（用户没设过那一档）。
  */
+/**
+ * NovelAI 两套参考互斥（界面同源 `isCapabilityChipVisible`）：精确参考的两个滑块只在
+ * `novelAiReferenceMode=precise` 时生效，img2img 的强度 / 噪声那时反而不用。设了不生效的那一格
+ * 要说出来 —— 10-27 真机：开了精确又去调 referenceStrength，以为调的是角色强度。
+ */
+function referenceModeNote(run: OperatorRun, key: string): string {
+  const mode = run.state.capabilities.find(
+    (item) => item.key === 'novelAiReferenceMode',
+  )
+  if (!mode) return ''
+  const precise = mode.value === 'precise'
+  if (
+    !precise &&
+    (key === 'preciseReferenceStrength' || key === 'preciseReferenceFidelity')
+  )
+    return ' It only takes effect once novelAiReferenceMode is precise.'
+  if (precise && (key === 'referenceStrength' || key === 'img2imgNoise'))
+    return ' Ignored while novelAiReferenceMode is precise — the character lock uses preciseReferenceStrength / preciseReferenceFidelity.'
+  return ''
+}
+
 function planSetCapability(
   run: OperatorRun,
   args: { key: string; value: string | number | boolean },
@@ -5975,10 +5996,12 @@ function planSetCapability(
   const chip = run.state.capabilities.find((item) => item.key === args.key)
   if (!chip) {
     return reject(
-      REJECT.unknownValue,
-      `"${clamp(args.key, LIMITS.maxLabelChars)}" is not one of the model-specific controls here — they are: ${run.state.capabilities
+      REJECT.notOnBench,
+      `"${clamp(args.key, LIMITS.maxLabelChars)}" is not one of the model-specific controls on the current model — they are: ${run.state.capabilities
         .map((item) => item.key)
-        .join(', ')}.`,
+        .join(
+          ', ',
+        )}. If another model has it, switch with set_model first; otherwise tell the creator this model does not offer it.`,
     )
   }
   if (!chip.available) {
@@ -6041,7 +6064,7 @@ function planSetCapability(
       chip.models
         ? ` Only ${chip.models.join(', ')} use it; the other models this round ignore it.`
         : ''
-    }`,
+    }${referenceModeNote(run, chip.key)}`,
     apply: () => {
       chip.value = args.value
     },

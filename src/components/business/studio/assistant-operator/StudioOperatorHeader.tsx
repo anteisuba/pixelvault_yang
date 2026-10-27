@@ -362,7 +362,7 @@ export function StudioOperatorHeader({
                   avatar === 'board' && avatarDocked && 'invisible',
                 )}
               >
-                {shellSlots.renderPersona(avatar === 'board' && !avatarDocked)}
+                {shellSlots.persona}
               </span>
             </>
           ) : (
@@ -370,7 +370,7 @@ export function StudioOperatorHeader({
               data-testid="operator-header-avatar"
               className="size-8 shrink-0 rounded-full"
             >
-              <StudioOperatorCurrentAvatar fly={false} />
+              <StudioOperatorCurrentAvatar />
             </span>
           )
         ) : avatar === 'slot' ? (

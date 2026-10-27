@@ -43,6 +43,12 @@ import { HomeDraftBench } from '@/components/business/studio/shell/HomeDraftBenc
 import { StudioConversationList } from '@/components/business/studio/shell/StudioConversationList'
 import { StudioLibraryTargetContext } from '@/components/business/studio/shell/StudioLibraryOverlay'
 import {
+  measureStudioShellAvatar,
+  StudioShellAvatarFlight,
+  type StudioShellAvatarFlightPlan,
+  type StudioShellAvatarSpot,
+} from '@/components/business/studio/shell/StudioShellAvatarFlight'
+import {
   StudioBenchRail,
   StudioShellExpandChat,
   activeBenchId,
@@ -213,7 +219,7 @@ export function StudioShell({
       ) : (
         <StudioShellHistoryKey />
       ),
-      renderPersona: (fly) => <StudioShellPersonaKey fly={fly} />,
+      persona: <StudioShellPersonaKey />,
     }),
     [historyOpen, isDesk],
   )
@@ -375,24 +381,63 @@ function StudioShellStage({
     restoreAfterClose.current = null
   }, [bench, setConversationPx])
 
+  /**
+   * 「拉」的那一段里对话正文按开着时的宽钉住、贴右边（用户 10-27 嫌卡）：栏宽在变，
+   * 里面的字 ⛔ 跟着一帧帧重新换行，整块像滑出去 / 滑进来。
+   */
+  const openWidth = useRef<number | null>(null)
+  const [pinnedPx, setPinnedPx] = useState<number | null>(null)
+
+  /** 头像飞的那一拍（用户 10-27：⛔ 消失又出现）：起飞时量好原位，替身追到落点。 */
+  const [flight, setFlight] = useState<StudioShellAvatarFlightPlan | null>(null)
+  const endFlight = useCallback(() => setFlight(null), [])
+  const takeOff = useCallback(
+    (from: StudioShellAvatarSpot, to: StudioShellAvatarSpot) => {
+      const rect = measureStudioShellAvatar(stageRef.current, from)
+      if (rect) setFlight({ from: rect, to })
+    },
+    [],
+  )
+
   const collapseConversation = () => {
     if (reduceMotion) {
       setConversationCollapsed(true)
       return
     }
+    takeOff('header', 'bench')
+    openWidth.current = conversationRef.current?.offsetWidth || null
+    setPinnedPx(openWidth.current)
     setPulling('collapse')
     window.setTimeout(() => {
       setConversationCollapsed(true)
       setPulling(null)
+      setPinnedPx(null)
     }, SHELL_MOTION.pullMs)
   }
   const expandConversation = useCallback(() => {
     setConversationCollapsed(false)
     if (reduceMotion) return
+    takeOff('bench', 'header')
+    // 还没在这台上开过对话（进台就收着）：按记住的宽、给台留够最小宽估一个。
+    const stageWidth = stageRef.current?.clientWidth
+    setPinnedPx(
+      openWidth.current ??
+        (stageWidth
+          ? Math.min(
+              split.conversationPx,
+              stageWidth - STUDIO_SHELL_SPLIT.minBenchPx,
+            )
+          : null),
+    )
     setPulling('expand')
-    // 先按 0 宽画一帧，下一帧再放回记住的宽，宽的过渡才有起点。
-    requestAnimationFrame(() => requestAnimationFrame(() => setPulling(null)))
-  }, [reduceMotion, setConversationCollapsed])
+    // 先按 0 宽画一帧，下一帧再放回记住的宽，宽的过渡才有起点；走完那一段再松开钉住的宽。
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        setPulling(null)
+        window.setTimeout(() => setPinnedPx(null), SHELL_MOTION.pullMs)
+      }),
+    )
+  }, [reduceMotion, setConversationCollapsed, split.conversationPx, takeOff])
 
   // 库是整页（ui-spec §9）：盖满白板；叫出助手时对话按记住的宽贴到右边。
   const conversationHidden =
@@ -420,7 +465,11 @@ function StudioShellStage({
     <div
       ref={stageRef}
       data-testid="studio-shell-stage"
-      className={cn(SHELL_BOARD_CLASS, 'desk:flex desk:overflow-hidden')}
+      className={cn(
+        SHELL_BOARD_CLASS,
+        'desk:flex desk:overflow-hidden',
+        flight && 'studio-shell-avatar-flying',
+      )}
       style={libraryWidth(
         libraryChat ? `calc(100% - ${conversationWidth})` : '100%',
       )}
@@ -461,10 +510,19 @@ function StudioShellStage({
         }
       >
         {shellDock ? (
-          <StudioOperatorDock
-            variant="column"
-            onCollapseColumn={bench ? collapseConversation : undefined}
-          />
+          <div
+            data-testid="studio-shell-conversation-body"
+            className={cn(
+              'flex min-h-0 min-w-0 flex-1 flex-col',
+              pinnedPx !== null && 'desk:absolute desk:inset-y-0 desk:right-0',
+            )}
+            style={pinnedPx !== null ? { width: `${pinnedPx}px` } : undefined}
+          >
+            <StudioOperatorDock
+              variant="column"
+              onCollapseColumn={bench ? collapseConversation : undefined}
+            />
+          </div>
         ) : null}
       </section>
 
@@ -521,6 +579,11 @@ function StudioShellStage({
         </div>
       </div>
       {libraryLayer}
+      <StudioShellAvatarFlight
+        plan={flight}
+        rootRef={stageRef}
+        onLanded={endFlight}
+      />
     </div>
   )
 }

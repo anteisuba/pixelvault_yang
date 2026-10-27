@@ -11,8 +11,8 @@ import { createContext, useContext, type ReactNode } from 'react'
 export interface StudioShellHeaderSlots {
   /** 对话记录（第一行「＋ 新对话」）。 */
   history: ReactNode
-  /** 头像 + 名字 ▾（点开换人）。`fly`：挂飞行标记（对话收起时飞到台左上角那一颗）。 */
-  renderPersona(fly: boolean): ReactNode
+  /** 头像 + 名字 ▾（点开换人）。 */
+  persona: ReactNode
 }
 
 const StudioShellHeaderSlotsContext =

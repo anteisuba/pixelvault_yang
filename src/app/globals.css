@@ -2992,6 +2992,12 @@ html:lang(ja) {
     transition: none;
   }
 }
+/* 头像飞的那一拍：两头真的那颗藏着，只看 body 上那颗替身（StudioShellAvatarFlight）。 */
+@utility studio-shell-avatar-flying {
+  & [data-shell-avatar] > * {
+    visibility: hidden;
+  }
+}
 @utility studio-shell-chat-collapsed {
   & [data-bench-header] {
     /* 头像 32 + 间距 12；那一行自己本来有左内距的写 `--bench-header-inset`，头像也对齐到那里。 */

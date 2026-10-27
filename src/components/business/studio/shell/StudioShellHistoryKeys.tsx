@@ -11,6 +11,7 @@ import {
   StudioOperatorCurrentAvatar,
 } from '@/components/business/studio/assistant-operator/StudioOperatorAvatarSwitcher'
 import { SessionActivityBadge } from '@/components/business/studio/assistant-operator/StudioOperatorHeader'
+import { STUDIO_SHELL_AVATAR_ATTR } from '@/components/business/studio/shell/StudioShellAvatarFlight'
 import {
   ShellHistoryMenu,
   type ShellHistoryItem,
@@ -204,7 +205,7 @@ export function StudioShellHistoryExpandKey({
  * 头像 + 名字 ▾（对话头，用户 10-26 定稿 v5）：点开换人（`StudioOperatorAvatarSwitcher`）。
  * 正看着以前的聊天（只读）时写那个角色的名字，和头像同一个判据。
  */
-export function StudioShellPersonaKey({ fly }: { fly: boolean }) {
+export function StudioShellPersonaKey() {
   const t = useTranslations('StudioShell')
   const chatPersona = useChatPersona()
   const { chatCharacter } = useStudioOperatorState()
@@ -218,8 +219,11 @@ export function StudioShellPersonaKey({ fly }: { fly: boolean }) {
         data-testid="studio-shell-persona"
         className="group/persona flex h-9 min-w-0 shrink items-center gap-2 rounded-full py-0 pr-2 pl-0.5 text-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill focus-visible:outline-none focus-visible:shadow-focus data-[state=open]:bg-surface-fill motion-reduce:transition-none"
       >
-        <span className="size-8 shrink-0 rounded-full">
-          <StudioOperatorCurrentAvatar fly={fly} />
+        <span
+          {...{ [STUDIO_SHELL_AVATAR_ATTR]: 'header' }}
+          className="size-8 shrink-0 rounded-full"
+        >
+          <StudioOperatorCurrentAvatar />
         </span>
         <span className="min-w-0 truncate text-sm font-semibold">{name}</span>
         <ChevronDown

@@ -1,6 +1,8 @@
 // ⚠ 用 `fireEvent` 不是 `user-event`：本仓没装 `@testing-library/user-event`。
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+
+import { resetPictureNumberCacheForTests } from '@/hooks/use-picture-number-references'
 
 import { StudioOperatorHistoryItem } from './StudioOperatorHistoryItem'
 
@@ -21,6 +23,12 @@ vi.mock('next-intl', () => ({
   },
 }))
 
+const lookupMentions = vi.hoisted(() => vi.fn())
+vi.mock('@/lib/api-client', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api-client')>()),
+  lookupAssistantMentionAssetsAPI: lookupMentions,
+}))
+
 const LONG =
   ['一', '二', '三', '四', '五', '六', '七', '八'].join('。\n') + '。'
 
@@ -34,6 +42,27 @@ describe('StudioOperatorHistoryItem', () => {
     expect(screen.getAllByTestId('operator-chat-bubble')).toHaveLength(8)
     expect(screen.queryByTestId('operator-chat-typing')).toBeNull()
     expect(screen.queryByTestId('operator-message-expand')).toBeNull()
+  })
+
+  it('聊天气泡里的「图_N」换成缩略图（10-27 owner 真机：历史回放里只剩字）', async () => {
+    resetPictureNumberCacheForTests()
+    lookupMentions.mockResolvedValue({
+      success: true,
+      data: [{ seq: 1215, thumb: 'https://cdn.example/1215.webp' }],
+    })
+    render(
+      <StudioOperatorHistoryItem
+        entry={{
+          kind: 'message',
+          id: 'h3',
+          text: '下一步将「图_1215」添加为参考图。',
+          chat: true,
+        }}
+      />,
+    )
+    await waitFor(() =>
+      expect(screen.getByAltText('图_1215')).toBeInTheDocument(),
+    )
   })
 
   it('⭐ 历史里的长正文也折成首句 + 「展开全文」，点开才是全文', () => {

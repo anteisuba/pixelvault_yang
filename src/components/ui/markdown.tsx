@@ -85,8 +85,13 @@ const MemoizedMarkdownBlock = memo(
       </ReactMarkdown>
     )
   },
+  // ⚠ `components` 也要比：覆盖表晚到（正文里 `图_N` 的缩略图查回来）时只比字会让这一块永远停在旧表上。
+  //   调用方负责把表 `useMemo` 钉住，流式里才不会每个字都重挂。
   function propsAreEqual(prevProps, nextProps) {
-    return prevProps.content === nextProps.content
+    return (
+      prevProps.content === nextProps.content &&
+      prevProps.components === nextProps.components
+    )
   },
 )
 

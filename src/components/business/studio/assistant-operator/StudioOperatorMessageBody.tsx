@@ -31,7 +31,7 @@
  * 重新读这条会话）。
  */
 
-import { Children, Fragment, isValidElement, useMemo, useState } from 'react'
+import { Children, Fragment, isValidElement, useCallback, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { motion } from 'motion/react'
 import Image from 'next/image'
@@ -105,6 +105,7 @@ interface StudioOperatorMessageBodyProps {
 /** 没有可认的号时共用这一份，⛔ 别写成行内 `new Map()`（每次 render 换引用）。 */
 const NO_FIND_REFS: ReadonlyMap<number, OperatorFindRef> = new Map()
 const NO_REFERENCES: readonly NamedImageReference[] = []
+const NO_SOURCES: readonly StudioOperatorAnswerSource[] = []
 
 /**
  * 参考图缩略图（D12 P8 / C10）—— 地址过期或被删时画一格占位，⛔ 不出破图标。
@@ -346,9 +347,11 @@ export function StudioOperatorCollapsibleText({
       numbered.length ? [...passedReferences, ...numbered] : passedReferences,
     [passedReferences, numbered],
   )
+  // ⚠ 按号钉，不按数组引用：面板每帧都重算一份来源，引用一换整张覆盖表就换、段落整段重挂。
+  const citeSignature = sources.map((source) => source.cite).join(',')
   const known = useMemo(
-    () => new Set(sources.map((source) => source.cite)),
-    [sources],
+    () => new Set(citeSignature ? citeSignature.split(',').map(Number) : []),
+    [citeSignature],
   )
   /**
    * ⚠ 覆盖表在 `INITIAL_COMPONENTS` **之上叠加**而不是替换（那份的头注写死了
@@ -466,16 +469,44 @@ export function StudioOperatorCollapsibleText({
   )
 }
 
+/**
+ * 她聊天口吻的回复（`chat`）—— 一行一个气泡，**也认 `图_N`**（10-27 owner 真机：气泡里写
+ * 「图_1215」只剩字，普通正文却有图）。实时线程与历史回放共用这一颗。
+ * ⚠ 与 `StudioOperatorCollapsibleText` 同一个 hook、同一个替换函数，⛔ 别另写一套规则。
+ */
+export function StudioOperatorChatText({
+  text,
+  streaming,
+  references = NO_REFERENCES,
+}: {
+  text: string
+  streaming: boolean
+  references?: readonly NamedImageReference[]
+}) {
+  const numbered = usePictureNumberReferences(streaming ? '' : text)
+  const all = useMemo(
+    () => (numbered.length ? [...references, ...numbered] : references),
+    [references, numbered],
+  )
+  return (
+    <StudioOperatorChatBubbles
+      text={text}
+      streaming={streaming}
+      renderBubble={(bubble) => withImageReferences(bubble, all)}
+    />
+  )
+}
+
 export function StudioOperatorMessageBody({
   entry,
-  sources = [],
+  sources = NO_SOURCES,
   pinned,
   onTogglePin,
   onDeepResearch,
   receiptLabel,
   onSearchXWithGrok,
   webFinds,
-  references = [],
+  references = NO_REFERENCES,
   findRefs,
 }: StudioOperatorMessageBodyProps) {
   const t = useTranslations('StudioOperator')
@@ -485,6 +516,11 @@ export function StudioOperatorMessageBody({
    * ⚠ 再点一次同一个号就熄灭 —— 高亮是一次阅读动作，不是一个要人去关的模式。
    */
   const [activeCite, setActiveCite] = useState<number | null>(null)
+  const pickCitation = useCallback(
+    (cite: number) =>
+      setActiveCite((current) => (current === cite ? null : cite)),
+    [],
+  )
 
   return (
     <div className="flex min-w-0 flex-col gap-2">
@@ -496,9 +532,10 @@ export function StudioOperatorMessageBody({
         />
       ) : null}
       {entry.chat && entry.text ? (
-        <StudioOperatorChatBubbles
+        <StudioOperatorChatText
           text={entry.text}
           streaming={entry.streaming ?? false}
+          references={references}
         />
       ) : (
         <StudioOperatorCollapsibleText
@@ -512,9 +549,7 @@ export function StudioOperatorMessageBody({
           {...(entry.pendingPhase ? { pendingPhase: entry.pendingPhase } : {})}
           sources={sources}
           activeCite={activeCite}
-          onPickCitation={(cite) =>
-            setActiveCite((current) => (current === cite ? null : cite))
-          }
+          onPickCitation={pickCitation}
         />
       )}
       {/* 🔊 开着时这段念到哪了（②c-2）：聊天整段、开着台只念首尾段。 */}

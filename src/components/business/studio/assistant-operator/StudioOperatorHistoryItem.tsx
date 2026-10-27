@@ -27,8 +27,8 @@ import {
   StudioOperatorChatMark,
   StudioOperatorDomainMark,
 } from '@/components/business/studio/assistant-operator/StudioOperatorChatMark'
-import { StudioOperatorChatBubbles } from '@/components/business/studio/assistant-operator/StudioOperatorChatBubbles'
 import {
+  StudioOperatorChatText,
   StudioOperatorCollapsibleText,
   StudioOperatorUserText,
 } from '@/components/business/studio/assistant-operator/StudioOperatorMessageBody'
@@ -81,7 +81,11 @@ export function StudioOperatorHistoryItem({
            而历史恰恰是最需要折的地方（几十轮堆在一起）。 */
         <div className="flex min-w-0 flex-col gap-1">
           {entry.chat ? (
-            <StudioOperatorChatBubbles text={entry.text} streaming={false} />
+            <StudioOperatorChatText
+              text={entry.text}
+              streaming={false}
+              references={references}
+            />
           ) : (
             <StudioOperatorCollapsibleText
               text={entry.text}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 
 import { useChatBubbleReveal } from '@/hooks/use-chat-bubble-reveal'
 import { chatBubbles } from '@/lib/chat-voice'
@@ -25,9 +25,12 @@ function finishedBubbles(text: string, streaming: boolean): string[] {
 export function StudioOperatorChatBubbles({
   text,
   streaming,
+  renderBubble = (bubble) => bubble,
 }: {
   text: string
   streaming: boolean
+  /** 一行气泡里的字怎么画 —— 正文那一格借它把 `图_N` 换成缩略图（与非聊天正文同一条规则）。 */
+  renderBubble?: (bubble: string) => ReactNode
 }) {
   const [live] = useState(streaming)
   const bubbles = finishedBubbles(text, streaming)
@@ -54,7 +57,7 @@ export function StudioOperatorChatBubbles({
           data-testid="operator-chat-bubble"
           className={cn(BUBBLE_CLASS, live && 'operator-chat-bubble-in')}
         >
-          {bubble}
+          {renderBubble(bubble)}
         </p>
       ))}
       {typing ? (

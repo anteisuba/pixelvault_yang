@@ -1,12 +1,11 @@
-import {
-  Fraunces,
-  Geist,
-  Geist_Mono,
-  Noto_Sans_JP,
-  Noto_Sans_SC,
-  Noto_Serif_JP,
-  Noto_Serif_SC,
-} from 'next/font/google'
+import localFont from 'next/font/local'
+
+/* CJK 四套走 fontsource 的样式表：按 unicode-range 切片，页面用到哪段字才下哪片，
+   不进其他 locale 的关键路径。family 名在 globals.css 的 :root 接成 `--font-noto-*`。 */
+import '@fontsource-variable/noto-sans-sc'
+import '@fontsource-variable/noto-sans-jp'
+import '@fontsource-variable/noto-serif-sc'
+import '@fontsource-variable/noto-serif-jp'
 
 /**
  * 字体三槽（docs/references/ui-defaults.md §1，owner 2026-09-03 拍板）：
@@ -14,73 +13,38 @@ import {
  *   等宽 `font-mono`    = Geist Mono   + 回落正文 CJK
  *   展示 `font-display` = Fraunces     + Noto Serif SC / JP
  *
+ * 字体文件全部来自 npm 包、随仓库构建（owner 2026-10-27 定）：⛔ next/font/google——
+ * 构建时去 Google 拉字体，拉不到整个 Production Build 就挂（10-27 两次）。
+ *
  * 这里只声明 next/font 变量（挂在 <html> 上），三语字体栈在 globals.css 的
  * `:root` / `html:lang(ja)` 里组装。变量名与栈名刻意不同：此前 next/font 把
  * `--font-app-sans` 挂在 body 上，把 globals.css 里 `html:lang(zh)` 的同名覆盖
  * 整个遮掉，中文环境实际从未加载 Noto Sans SC。
  */
 
-export const geistSans = Geist({
+export const geistSans = localFont({
+  src: '../../node_modules/geist/dist/fonts/geist-sans/Geist-Variable.woff2',
   variable: '--font-geist',
-  subsets: ['latin'],
+  weight: '100 900',
   display: 'swap',
-  weight: ['400', '500', '600', '700'],
 })
 
-export const geistMono = Geist_Mono({
+export const geistMono = localFont({
+  src: '../../node_modules/geist/dist/fonts/geist-mono/GeistMono-Variable.woff2',
   variable: '--font-geist-mono',
-  subsets: ['latin'],
+  weight: '100 900',
   display: 'swap',
 })
 
-export const fraunces = Fraunces({
+export const fraunces = localFont({
+  src: '../../node_modules/@fontsource-variable/fraunces/files/fraunces-latin-wght-normal.woff2',
   variable: '--font-fraunces',
-  subsets: ['latin'],
+  weight: '100 900',
   display: 'swap',
-  weight: 'variable',
-})
-
-/* CJK 面没有有用的 latin-only 切片，不 subset；preload: false 让它们不进
-   其他 locale 的关键路径。fallback 保证 webfont 未到时先用系统 CJK。 */
-
-export const notoSansSC = Noto_Sans_SC({
-  variable: '--font-noto-sans-sc',
-  weight: ['400', '500', '700'],
-  display: 'swap',
-  preload: false,
-  fallback: ['PingFang SC', 'Microsoft YaHei', 'sans-serif'],
-})
-
-export const notoSansJP = Noto_Sans_JP({
-  variable: '--font-noto-sans-jp',
-  weight: ['400', '500', '700'],
-  display: 'swap',
-  preload: false,
-  fallback: ['Hiragino Sans', 'Yu Gothic UI', 'sans-serif'],
-})
-
-export const notoSerifSC = Noto_Serif_SC({
-  variable: '--font-noto-serif-sc',
-  weight: ['600', '900'],
-  display: 'swap',
-  preload: false,
-  fallback: ['Songti SC', 'serif'],
-})
-
-export const notoSerifJP = Noto_Serif_JP({
-  variable: '--font-noto-serif-jp',
-  weight: ['600', '900'],
-  display: 'swap',
-  preload: false,
-  fallback: ['Hiragino Mincho ProN', 'Yu Mincho', 'serif'],
 })
 
 export const FONT_VARIABLE_CLASSES = [
   geistSans.variable,
   geistMono.variable,
   fraunces.variable,
-  notoSansSC.variable,
-  notoSansJP.variable,
-  notoSerifSC.variable,
-  notoSerifJP.variable,
 ].join(' ')

@@ -29,6 +29,7 @@ import {
   type StudioShellBenchId,
 } from '@/constants/studio-shell'
 import { StudioOperatorCurrentAvatar } from '@/components/business/studio/assistant-operator/StudioOperatorAvatarSwitcher'
+import { STUDIO_SHELL_AVATAR_ATTR } from '@/components/business/studio/shell/StudioShellAvatarFlight'
 import {
   Tooltip,
   TooltipContent,
@@ -497,11 +498,12 @@ export function StudioShellExpandChat({ onExpand }: { onExpand: () => void }) {
         type="button"
         aria-label={t('expandChat')}
         data-testid="studio-shell-expand-chat"
+        {...{ [STUDIO_SHELL_AVATAR_ATTR]: 'bench' }}
         onClick={onExpand}
         style={spot ?? undefined}
         className="absolute top-2.5 left-3 z-20 hidden size-8 rounded-full transition-transform duration-fast ease-standard active:scale-96 focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none desk:block"
       >
-        <StudioOperatorCurrentAvatar fly />
+        <StudioOperatorCurrentAvatar />
       </button>
     </BarTip>
   )

@@ -2,7 +2,6 @@
 
 import { useState, type ReactNode } from 'react'
 import Image from 'next/image'
-import { motion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
 import { ASSISTANT_PERSONA_DEFAULTS } from '@/constants/assistant-persona'
@@ -30,7 +29,6 @@ import { useStudioOperatorState } from '@/hooks/use-studio-operator-store'
 import { cn } from '@/lib/utils'
 
 /** 收起 / 展开时飞来飞去的那一颗（对话头 ↔ 台左上角）。 */
-export const STUDIO_ASSISTANT_AVATAR_LAYOUT_ID = 'studio-assistant-avatar'
 
 /** 角色超过这么多才在列表顶上出搜索。 */
 const SEARCH_THRESHOLD = 8
@@ -73,9 +71,8 @@ export function AvatarDisc({
 /**
  * 此刻陪你的那一位的头像 = 全局助手（用户 10-25：头像菜单点谁，助手就是谁）。
  * 正看着以前的聊天（只读）时画那个角色。
- * `fly`：挂上飞行标记（对话头 ↔ 台左上角同一颗，Motion `layoutId` 接力）。
  */
-export function StudioOperatorCurrentAvatar({ fly }: { fly: boolean }) {
+export function StudioOperatorCurrentAvatar() {
   const { chatCharacter } = useStudioOperatorState()
   const { persona } = useAssistantPersona()
   const characters = useChatCharacters(chatCharacter !== null)
@@ -94,15 +91,7 @@ export function StudioOperatorCurrentAvatar({ fly }: { fly: boolean }) {
       assistantPreset={persona.avatarPreset ?? null}
     />
   )
-  if (!fly) return <span className="block size-full">{disc}</span>
-  return (
-    <motion.span
-      layoutId={STUDIO_ASSISTANT_AVATAR_LAYOUT_ID}
-      className="block size-full"
-    >
-      {disc}
-    </motion.span>
-  )
+  return <span className="block size-full">{disc}</span>
 }
 
 interface StudioOperatorAvatarSwitcherProps {

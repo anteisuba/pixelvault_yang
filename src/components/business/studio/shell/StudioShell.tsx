@@ -43,6 +43,12 @@ import { HomeDraftBench } from '@/components/business/studio/shell/HomeDraftBenc
 import { StudioConversationList } from '@/components/business/studio/shell/StudioConversationList'
 import { StudioLibraryTargetContext } from '@/components/business/studio/shell/StudioLibraryOverlay'
 import {
+  measureStudioShellAvatar,
+  StudioShellAvatarFlight,
+  type StudioShellAvatarFlightPlan,
+  type StudioShellAvatarSpot,
+} from '@/components/business/studio/shell/StudioShellAvatarFlight'
+import {
   StudioBenchRail,
   StudioShellExpandChat,
   activeBenchId,
@@ -213,7 +219,7 @@ export function StudioShell({
       ) : (
         <StudioShellHistoryKey />
       ),
-      renderPersona: (fly) => <StudioShellPersonaKey fly={fly} />,
+      persona: <StudioShellPersonaKey />,
     }),
     [historyOpen, isDesk],
   )
@@ -391,11 +397,23 @@ function StudioShellStage({
     return () => observer.disconnect()
   }, [])
 
+  /** 头像飞的那一拍（用户 10-27：⛔ 消失又出现）：起飞时量好原位，替身追到落点。 */
+  const [flight, setFlight] = useState<StudioShellAvatarFlightPlan | null>(null)
+  const endFlight = useCallback(() => setFlight(null), [])
+  const takeOff = useCallback(
+    (from: StudioShellAvatarSpot, to: StudioShellAvatarSpot) => {
+      const rect = measureStudioShellAvatar(stageRef.current, from)
+      if (rect) setFlight({ from: rect, to })
+    },
+    [],
+  )
+
   const collapseConversation = () => {
     if (reduceMotion) {
       setConversationCollapsed(true)
       return
     }
+    takeOff('header', 'bench')
     setPinnedPx(openWidth.current)
     setPulling('collapse')
     window.setTimeout(() => {
@@ -407,6 +425,7 @@ function StudioShellStage({
   const expandConversation = useCallback(() => {
     setConversationCollapsed(false)
     if (reduceMotion) return
+    takeOff('bench', 'header')
     setPinnedPx(openWidth.current)
     setPulling('expand')
     // 先按 0 宽画一帧，下一帧再放回记住的宽，宽的过渡才有起点；走完那一段再松开钉住的宽。
@@ -416,7 +435,7 @@ function StudioShellStage({
         window.setTimeout(() => setPinnedPx(null), SHELL_MOTION.pullMs)
       }),
     )
-  }, [reduceMotion, setConversationCollapsed])
+  }, [reduceMotion, setConversationCollapsed, takeOff])
 
   // 库是整页（ui-spec §9）：盖满白板；叫出助手时对话按记住的宽贴到右边。
   const conversationHidden =
@@ -444,7 +463,11 @@ function StudioShellStage({
     <div
       ref={stageRef}
       data-testid="studio-shell-stage"
-      className={cn(SHELL_BOARD_CLASS, 'desk:flex desk:overflow-hidden')}
+      className={cn(
+        SHELL_BOARD_CLASS,
+        'desk:flex desk:overflow-hidden',
+        flight && 'studio-shell-avatar-flying',
+      )}
       style={libraryWidth(
         libraryChat ? `calc(100% - ${conversationWidth})` : '100%',
       )}
@@ -553,6 +576,11 @@ function StudioShellStage({
         </div>
       </div>
       {libraryLayer}
+      <StudioShellAvatarFlight
+        plan={flight}
+        rootRef={stageRef}
+        onLanded={endFlight}
+      />
     </div>
   )
 }

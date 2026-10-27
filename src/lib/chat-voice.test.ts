@@ -24,6 +24,17 @@ describe('chatBubbles', () => {
     ])
     expect(chatBubbles('')).toEqual([])
   })
+
+  it('hides the voice cues she writes for her voice', () => {
+    expect(
+      chatBubbles(
+        '嗨！[laughing] 我这边挺顺利的。\n[sighs]\n<whisper>别告诉别人</whisper> [压低声音，带着笑意]好吗？\nOh [laughing] really',
+      ),
+    ).toEqual(['嗨！我这边挺顺利的。', '别告诉别人好吗？', 'Oh really'])
+    expect(chatBubbles('看[这里](https://a.b)')).toEqual([
+      '看[这里](https://a.b)',
+    ])
+  })
 })
 
 describe('picture handles in her reply', () => {

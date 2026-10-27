@@ -106,9 +106,11 @@ function clampToWidth(text: string, maxWidth: number): string {
  * 一段原文 → 一个标题。读不出内容时回 `null`（调用方画「未命名会话」）。
  *
  * @param raw 第一条用户消息的原文，或库里存着的那一列。
+ * @param options.clamp `false` = 不按宽度截短（改名预填：⛔ 把「…」填进输入框再存回去）。
  */
 export function deriveAssistantConversationTitle(
   raw: string | null | undefined,
+  { clamp = true }: { clamp?: boolean } = {},
 ): string | null {
   const source = raw?.trim()
   if (!source) return null
@@ -131,5 +133,6 @@ export function deriveAssistantConversationTitle(
   const body = stripped || source.replace(/[^\S\n]+/g, ' ').trim()
 
   const firstSentence = body.split(SENTENCE_END_PATTERN)[0]?.trim() || body
+  if (!clamp) return firstSentence || null
   return clampToWidth(firstSentence, TITLE_MAX_WIDTH) || null
 }

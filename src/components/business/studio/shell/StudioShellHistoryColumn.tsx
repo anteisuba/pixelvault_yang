@@ -96,7 +96,6 @@ export function StudioShellHistoryColumn({
                   compact
                   inMenu={false}
                   session={{ id: item.id, title: item.title }}
-                  badge={item.badge}
                   domainLabel={null}
                   dateLabel={bucket.timeLabel(item.updatedAt)}
                   current={item.id === history.currentId}

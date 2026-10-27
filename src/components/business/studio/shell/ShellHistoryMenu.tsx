@@ -5,6 +5,7 @@ import { useFormatter, useTranslations } from 'next-intl'
 
 import { Plus } from '@/components/icons'
 import {
+  SESSION_ROW_MENU_ATTR,
   StudioOperatorSessionDeleteDialog,
   StudioOperatorSessionRow,
 } from '@/components/business/studio/assistant-operator/StudioOperatorSessionRow'
@@ -38,8 +39,6 @@ export interface ShellHistoryItem {
   id: string
   title: string | null
   updatedAt: string
-  /** 行右边时间前面那一格：进度「2/4」/ 出好了没看的小点。 */
-  badge?: ReactNode
   /** 标题前面那一格（群聊叠两颗头像）。 */
   leading?: ReactNode
 }
@@ -173,6 +172,14 @@ export function ShellHistoryMenu({
           sideOffset={8}
           data-testid={testId}
           className="max-h-[70svh] w-64 overflow-y-auto rounded-xl p-1.5"
+          onInteractOutside={(event) => {
+            // 行菜单（右键 / ⋯）是另一层下拉，点它不算外面。
+            if (
+              event.target instanceof Element &&
+              event.target.closest(`[${SESSION_ROW_MENU_ATTR}]`)
+            )
+              event.preventDefault()
+          }}
         >
           <DropdownMenuItem
             data-testid={`${testId}-new`}
@@ -202,7 +209,6 @@ export function ShellHistoryMenu({
                   session={{ id: item.id, title: item.title }}
                   {...(titleMaxLength ? { titleMaxLength } : {})}
                   leading={item.leading}
-                  badge={item.badge}
                   domainLabel={null}
                   dateLabel={bucket.timeLabel(item.updatedAt)}
                   current={item.id === currentId}

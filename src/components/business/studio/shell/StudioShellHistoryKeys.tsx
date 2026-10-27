@@ -12,7 +12,6 @@ import {
   StudioOperatorAvatarSwitcher,
   StudioOperatorCurrentAvatar,
 } from '@/components/business/studio/assistant-operator/StudioOperatorAvatarSwitcher'
-import { SessionActivityBadge } from '@/components/business/studio/assistant-operator/StudioOperatorHeader'
 import { STUDIO_SHELL_AVATAR_ATTR } from '@/components/business/studio/shell/StudioShellAvatarFlight'
 import {
   ShellHistoryMenu,
@@ -24,7 +23,6 @@ import {
   renameAssistantConversationAPI,
 } from '@/lib/api-client'
 import { useChatPersona } from '@/hooks/use-chat-persona'
-import { useStudioConversationActivity } from '@/hooks/use-studio-conversation-activity'
 import { useStudioOperatorActions } from '@/hooks/use-studio-operator-actions'
 import { useStudioOperatorHistoryView } from '@/hooks/use-studio-operator-history'
 import { useStudioOperatorState } from '@/hooks/use-studio-operator-store'
@@ -43,7 +41,6 @@ const HEADER_KEY_CLASS =
  *   不在场就自己拿一份列表（`refresh` 时拿），选一段去 `/studio/c/<编号>`。
  */
 export function useShellWorkHistory() {
-  const tOperator = useTranslations('StudioOperator')
   const pathname = usePathname()
   const router = useRouter()
   const kind = studioShellRouteKind(pathname)
@@ -65,20 +62,12 @@ export function useShellWorkHistory() {
     () => (view ? view.sessions : (own ?? [])),
     [view, own],
   )
-  const ids = useMemo(() => sessions.map((session) => session.id), [sessions])
   const currentId = inPlace ? (view?.currentSessionId ?? null) : null
-  const activity = useStudioConversationActivity(ids, currentId)
 
   const items: ShellHistoryItem[] = sessions.map((session) => ({
     id: session.id,
     title: session.title,
     updatedAt: session.updatedAt,
-    badge: (
-      <SessionActivityBadge
-        view={activity.get(session.id)}
-        unseenLabel={tOperator('history.unseen')}
-      />
-    ),
   }))
   const find = (id: string) => sessions.find((session) => session.id === id)
 

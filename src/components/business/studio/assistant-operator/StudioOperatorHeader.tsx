@@ -85,10 +85,7 @@ import {
   setOperatorIncognito,
   useStudioOperatorState,
 } from '@/hooks/use-studio-operator-store'
-import {
-  useStudioConversationActivity,
-  type StudioConversationActivityView,
-} from '@/hooks/use-studio-conversation-activity'
+import { useStudioConversationActivity } from '@/hooks/use-studio-conversation-activity'
 import { AssistantAvatarGlyph } from '@/components/business/studio/assistant-operator/AssistantAvatarGlyph'
 import { ArrivalReveal } from '@/components/ui/load-reveal'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -100,6 +97,7 @@ import { useStudioShellAvatar } from '@/hooks/use-studio-shell-avatar'
 import { useStudioShellHeaderSlots } from '@/contexts/studio-shell-header-slots'
 import { StudioOperatorCurrentAvatar } from '@/components/business/studio/assistant-operator/StudioOperatorAvatarSwitcher'
 import {
+  SESSION_ROW_MENU_ATTR,
   StudioOperatorSessionDeleteDialog,
   StudioOperatorSessionRow,
 } from '@/components/business/studio/assistant-operator/StudioOperatorSessionRow'
@@ -422,9 +420,12 @@ export function StudioOperatorHeader({
               align="start"
               onInteractOutside={(event) => {
                 // 点历史图标不算「点了外面」—— 否则它永远关不掉菜单（见头注）。
+                // 行菜单（右键 / ⋯）是另一层下拉，点它也不算外面。
                 if (
                   event.target instanceof Element &&
-                  event.target.closest(`[${HISTORY_BUTTON_ATTR}]`)
+                  event.target.closest(
+                    `[${HISTORY_BUTTON_ATTR}], [${SESSION_ROW_MENU_ATTR}]`,
+                  )
                 )
                   event.preventDefault()
               }}
@@ -501,12 +502,6 @@ export function StudioOperatorHeader({
                             domain ? t(`domainName.${domain}`) : null
                           }
                           dateLabel={sessionDateLabel(session.updatedAt)}
-                          badge={
-                            <SessionActivityBadge
-                              view={activity.get(session.id)}
-                              unseenLabel={t('history.unseen')}
-                            />
-                          }
                           current={session.id === history.currentSessionId}
                           selectDisabled={
                             working ||
@@ -672,29 +667,4 @@ export function StudioOperatorHeader({
       </div>
     </div>
   )
-}
-
-/** 会话行右边：在跑写「出好几个 / 一共几个」，出完了没看过点一颗小点（9f-3）。 */
-export function SessionActivityBadge({
-  view,
-  unseenLabel,
-}: {
-  view: StudioConversationActivityView | undefined
-  unseenLabel: string
-}) {
-  if (view?.progress)
-    return (
-      <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-        {view.progress.done}/{view.progress.total}
-      </span>
-    )
-  if (view?.unseen)
-    return (
-      <span
-        aria-label={unseenLabel}
-        data-testid="operator-session-unseen"
-        className="size-1.5 shrink-0 rounded-full bg-primary"
-      />
-    )
-  return null
 }

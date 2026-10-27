@@ -66,6 +66,7 @@
     "@prisma/client": "7.7.0",
     "@radix-ui/react-toolbar": "^1.1.11",
     "@sentry/nextjs": "^10.76.2",
+    "@tanstack/react-query": "^5.104.5",
     "@tanstack/react-virtual": "^3.14.10",
     "@tiptap/pm": "^3.31.3",
     "@tiptap/react": "^3.31.3",

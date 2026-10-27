@@ -1,11 +1,13 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
+import { QUERY_KEYS } from '@/constants/query'
 import { listCharacterLorasAPI, setLoraCharactersAPI } from '@/lib/api-client'
-import { deferEffectTask } from '@/lib/defer-effect-task'
+import { queryClient } from '@/lib/query-client'
 import type {
   CharacterLoraGroup,
   FavoriteLoraRequest,
@@ -26,6 +28,8 @@ export interface UseCharacterLorasReturn {
   ) => Promise<boolean>
 }
 
+const EMPTY: CharacterLoraGroup[] = []
+
 /**
  * 角色收的 LoRA（角色③）。LoRA 台「从角色选」、LoRA 库「加到角色…」与角色详情
  * 「她的 LoRA」共用这一份；给 `characterCardId` 只取那一位。
@@ -34,20 +38,25 @@ export function useCharacterLoras(
   characterCardId?: string,
 ): UseCharacterLorasReturn {
   const t = useTranslations('LoraWorkbench.characterLoras')
-  const [groups, setGroups] = useState<CharacterLoraGroup[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
+  const queryKey = QUERY_KEYS.characterLoras(characterCardId ?? null)
+  const query = useQuery(
+    {
+      queryKey,
+      queryFn: async () => {
+        const result = await listCharacterLorasAPI(characterCardId)
+        if (!result.success || !result.data) {
+          throw new Error(result.error ?? t('loadFailed'))
+        }
+        return result.data
+      },
+    },
+    queryClient,
+  )
+  const groups = query.data ?? EMPTY
+  const { refetch } = query
   const refresh = useCallback(async () => {
-    setIsLoading(true)
-    setError(null)
-    const result = await listCharacterLorasAPI(characterCardId)
-    if (result.success && result.data) setGroups(result.data)
-    else setError(result.error ?? t('loadFailed'))
-    setIsLoading(false)
-  }, [characterCardId, t])
-
-  useEffect(() => deferEffectTask(() => void refresh()), [refresh])
+    await refetch()
+  }, [refetch])
 
   const byLora = useMemo(() => {
     const map = new Map<string, CharacterLoraGroup[]>()
@@ -74,7 +83,12 @@ export function useCharacterLoras(
         toast.error(result.error ?? t('saveFailed'))
         return false
       }
-      setGroups(result.data)
+      // 回来的是整份分组；只看某一位的那几份（带 id 的键）也跟着重拉。
+      queryClient.setQueryData(QUERY_KEYS.characterLoras(null), result.data)
+      void queryClient.invalidateQueries({
+        queryKey: ['character-loras'],
+        predicate: (q) => q.queryKey[1] !== null,
+      })
       return true
     },
     [t],
@@ -82,8 +96,8 @@ export function useCharacterLoras(
 
   return {
     groups,
-    isLoading,
-    error,
+    isLoading: query.isPending,
+    error: query.error?.message ?? null,
     refresh,
     charactersOf,
     setLoraCharacters,

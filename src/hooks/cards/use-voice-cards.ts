@@ -1,11 +1,13 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 
+import { QUERY_KEYS } from '@/constants/query'
 import type { VoiceCardRecord } from '@/types'
 import { listVoiceCardsAPI } from '@/lib/api-client'
-import { deferEffectTask } from '@/lib/defer-effect-task'
+import { queryClient } from '@/lib/query-client'
 
 export interface UseVoiceCardsReturn {
   cards: VoiceCardRecord[]
@@ -15,49 +17,35 @@ export interface UseVoiceCardsReturn {
   refresh: () => Promise<void>
 }
 
+const EMPTY: VoiceCardRecord[] = []
+
+/** 失败时 message 是服务端给的那句（可能没有，界面就用通用文案）。 */
+async function fetchVoiceCards(): Promise<VoiceCardRecord[]> {
+  const response = await listVoiceCardsAPI(1, 50)
+  if (!response.success || !response.data) {
+    throw new Error(response.error ?? '')
+  }
+  return response.data.items
+}
+
 export function useVoiceCards(options?: {
   enabled?: boolean
 }): UseVoiceCardsReturn {
   const t = useTranslations('StudioPage')
   const enabled = options?.enabled ?? true
-  const [cards, setCards] = useState<VoiceCardRecord[]>([])
-  const [isLoading, setIsLoading] = useState(false)
-  /**
-   * ⚠ 存**文案键**不存译文。
-   *
-   * 译文要 `t`，而 `t` 一旦进 `refresh` 的依赖，`refresh` 就每渲染换一个新引用——
-   * 下面那个 effect 的依赖里正好有它，于是每渲染都重新排一次拉取，`setIsLoading(true)`
-   * 也跟着一遍遍闪。真机症状：在配音间收藏一下，整个音色库网格闪回骨架。
-   * （`useTranslations()` 每次返回新函数，同一个坑在 `use-voice-library` 里让列表
-   * 永远停在加载态。）
-   */
-  const [failure, setFailure] = useState<{ message?: string } | null>(null)
-
+  const query = useQuery(
+    {
+      queryKey: QUERY_KEYS.voiceCards,
+      queryFn: fetchVoiceCards,
+      enabled,
+    },
+    queryClient,
+  )
+  const cards = query.data ?? EMPTY
+  const { refetch } = query
   const refresh = useCallback(async () => {
-    if (!enabled) {
-      return
-    }
-
-    setIsLoading(true)
-    setFailure(null)
-    const response = await listVoiceCardsAPI(1, 50)
-    if (response.success && response.data) {
-      setCards(response.data.items)
-    } else {
-      setFailure({ message: response.error })
-    }
-    setIsLoading(false)
-  }, [enabled])
-
-  useEffect(() => {
-    if (!enabled) {
-      return undefined
-    }
-
-    return deferEffectTask(() => {
-      void refresh()
-    })
-  }, [enabled, refresh])
+    if (enabled) await refetch()
+  }, [enabled, refetch])
 
   const findCard = useCallback(
     (id: string): VoiceCardRecord | null =>
@@ -65,8 +53,11 @@ export function useVoiceCards(options?: {
     [cards],
   )
 
-  // 译文在这里才生成：数据层只认「失败了没有」，`t` 于是不进任何依赖数组。
-  const error = failure ? (failure.message ?? t('voiceCardsLoadFailed')) : null
+  // 译文在这里才生成：数据层只认「失败了没有」，`t` 不进取数那一层。
+  const error = query.isError
+    ? query.error.message || t('voiceCardsLoadFailed')
+    : null
+  const isLoading = query.isFetching
 
   return useMemo(
     () => ({

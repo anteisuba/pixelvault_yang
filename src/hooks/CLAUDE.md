@@ -4,6 +4,13 @@
 
 All hooks use `'use client'`. Less than half have a `.test` file — check for a sibling test before relying on one, and verify untested hooks manually.
 
+## 取数：共用查询缓存（TanStack Query，2026-10-27 起）
+
+- 多处同时挂、切库会反复挂上的**读**数据走 `useQuery(options, queryClient)`：单例在 `src/lib/query-client.ts`，键与时长在 `src/constants/query.ts`（`QUERY_KEYS` / `QUERY_TIMING`）。⛔ 在 hook 里手写字符串键、⛔ 自己再写模块级缓存 / 去重。
+- 写操作照旧调 api-client，成功后用 `queryClient.setQueryData` 改那一份（乐观更新先读 `getQueryData` 留底，失败写回）；所有挂着的地方一起变。
+- 已接：助手设置 persona、我的资料、LoRA 收藏 + 发现、角色 LoRA、Civitai token、标签收藏、音色卡。没接的旧 hook 轮到改它时再接，⛔ 为接而接。
+- 换账号由 `QueryUserBoundary`（`MainProviders`）整份清空；单测每例清空、同步通知、失败不重试（`vitest.setup.ts`）。
+
 ## Hook Domains
 
 ### Generation (core — changes affect Studio + all generation flows)

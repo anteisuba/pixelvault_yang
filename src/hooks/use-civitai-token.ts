@@ -1,15 +1,18 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useCallback } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { useTranslations } from 'next-intl'
+
+import { QUERY_KEYS } from '@/constants/query'
 
 import {
   getCivitaiTokenStatusAPI,
   setCivitaiTokenAPI,
   deleteCivitaiTokenAPI,
 } from '@/lib/api-client'
-import { deferEffectTask } from '@/lib/defer-effect-task'
+import { queryClient } from '@/lib/query-client'
 
 export interface UseCivitaiTokenReturn {
   hasToken: boolean
@@ -19,25 +22,28 @@ export interface UseCivitaiTokenReturn {
   refresh: () => Promise<void>
 }
 
+async function fetchHasCivitaiToken(): Promise<boolean> {
+  const result = await getCivitaiTokenStatusAPI()
+  if (!result.success || !result.data) {
+    throw new Error(result.error ?? 'Failed to load Civitai token status')
+  }
+  return result.data.hasToken
+}
+
+function setHasToken(hasToken: boolean) {
+  queryClient.setQueryData(QUERY_KEYS.civitaiToken, hasToken)
+}
+
 export function useCivitaiToken(): UseCivitaiTokenReturn {
-  const [hasToken, setHasToken] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
   const t = useTranslations('CivitaiToken')
-
+  const query = useQuery(
+    { queryKey: QUERY_KEYS.civitaiToken, queryFn: fetchHasCivitaiToken },
+    queryClient,
+  )
+  const { refetch } = query
   const refresh = useCallback(async () => {
-    setIsLoading(true)
-    const result = await getCivitaiTokenStatusAPI()
-    if (result.success && result.data) {
-      setHasToken(result.data.hasToken)
-    }
-    setIsLoading(false)
-  }, [])
-
-  useEffect(() => {
-    return deferEffectTask(() => {
-      void refresh()
-    })
-  }, [refresh])
+    await refetch()
+  }, [refetch])
 
   const save = useCallback(
     async (token: string): Promise<boolean> => {
@@ -64,5 +70,11 @@ export function useCivitaiToken(): UseCivitaiTokenReturn {
     return false
   }, [t])
 
-  return { hasToken, isLoading, save, remove, refresh }
+  return {
+    hasToken: query.data ?? false,
+    isLoading: query.isPending,
+    save,
+    remove,
+    refresh,
+  }
 }

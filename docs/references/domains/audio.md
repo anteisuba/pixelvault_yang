@@ -79,10 +79,10 @@
 
 - `/studio/audio` = 配音台（左栏「工作台」竖排第三颗，LoRA 后面），**只配当前人设那个角色**（owner 10-26「是」）；默认助手没嗓子 → 空态 + 换人。
 - 台上那几句 = **素材库里她这副嗓子念过的音频**（`Generation.outputType = AUDIO` 且 `snapshot.voiceId` = 角色卡绑的音色，最近 60 条、旧的在前；`listVoiceBenchLines` → `GET /api/voice-bench`）。⛔ 另存台词表（owner 10-26 选「直接用素材库里的」），没念的草稿不留。
-- 写 → 念：一行一句（每句 ≤500 字），可选语气（`AUDIO_EMOTIONS`，写成句首 `[语气]` 进念的字里）和型号（免费 / Pro / Drama 3，和对话 🔊 同一份设备偏好）；走 `POST /api/assistant/speak`（`speakAsPersona`），念好自动放一遍（「念」= 和对话同一颗黑圆发送键）。▶/■ 重放；✎ = 把那句放回输入框，改了再念一条新的（旧的留着）。
+- 写 → 念：一行一句（每句 ≤500 字），「语气」药丸点开按 情绪 · 更多情绪 · 语气 · 音效 · 停顿 分组（Fish 官方标记表照抄，`VOICE_CUE_GROUPS`），点一个把 `[标记]` 插到光标处、句首句中都行（owner 10-27「情绪要齐」，替掉原来只加句首的 9 档情绪），再选型号（免费 / Pro / Drama 3，和对话 🔊 同一份设备偏好）；走 `POST /api/assistant/speak`（`speakAsPersona`），念好自动放一遍（「念」= 和对话同一颗黑圆发送键）。▶/■ 重放；✎ = 把那句放回输入框，改了再念一条新的（旧的留着）。
 - 「按她说」（③-2a，10-27）：输入框里那几行用她的人设卡（说话方式 / 口头禅 / 学到的说法 / 和你的关系）改成她的口吻，走助手那一家（`resolveAssistantRoute`）；改完**回到输入框**给你看，⛔ 直接念（owner 10-27）。几行进几行出、句首 `[语气]` 原样留。`POST /api/voice-bench/rewrite` → `services/voice-bench-rewrite.service.ts`。头上 chip 点开换嗓子（`VoicePickerDialog`），缺 Fish key 就地 `QuickSetupDialog`。
 - 代码：`components/business/studio/voice-bench/VoiceBench.tsx`、`hooks/use-voice-bench.ts`、`hooks/use-persona-voice.ts`。
-- ③-2 其余（待对齐）：全部导出、助手写几句放到台上。
+- ③-2 其余：全部导出、助手写几句放到台上——owner 10-27「先不做」。默认助手挑声音 owner 10-27 也定不做。
 
 ### 3.3 素材库头像与 Fish 升级（「声音」模块第 3/4 步，owner 2026-10-23）
 
@@ -147,6 +147,7 @@ B/C 可并行于 D；A 独立最先。每个 Phase 完成走 UI 确认阶梯（l
 
 ## Last Verified
 
+- 2026-10-27 · §3.3 配音台「情绪」改成分组「语气」菜单、插到光标处；对话气泡藏掉方括号语气（`withoutVoiceCues`）。
 - 2026-10-27 · §3.3 加「按她说」，✎ 放回输入框替掉 ↻ 重录。
 - 2026-10-26 · 新增 §3.3 配音台（③-1）。
 - 2026-10-26 · §3.2 配音间聊天整块删除（聊天并回对话 ②c-3）。

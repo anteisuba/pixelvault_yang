@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { VOICE_BENCH } from '@/constants/studio-operator-voice'
-import type { AudioEmotion } from '@/constants/voice-cards'
 import {
   getOperatorVoicePrefs,
   playOperatorVoice,
@@ -16,7 +15,6 @@ import type { VoiceBenchData } from '@/types/voice-bench'
 export interface VoiceBenchPending {
   key: string
   text: string
-  emotion?: AudioEmotion
   /** `unbound` = 她还没嗓子（就地挑）；`needsKey` = 缺 Fish key（就地配）。 */
   status: 'pending' | 'failed' | 'unbound' | 'needsKey'
 }
@@ -78,7 +76,6 @@ export function useVoiceBench(personaKey: string) {
       const submitted = await speakAssistantReplyAPI({
         text: item.text,
         modelId: getOperatorVoicePrefs().modelId,
-        ...(item.emotion ? { emotion: item.emotion } : {}),
       })
       if (!submitted.success) {
         patch(item.key, {
@@ -108,12 +105,11 @@ export function useVoiceBench(personaKey: string) {
 
   /** 念：打了几行就排几句，一句念完再念下一句（顺序就是台上的顺序）。 */
   const speak = useCallback(
-    async (text: string, emotion?: AudioEmotion) => {
+    async (text: string) => {
       const items = voiceBenchLines(text).map(
         (line): VoiceBenchPending => ({
           key: `p${(pendingSeq += 1)}`,
           text: line,
-          ...(emotion ? { emotion } : {}),
           status: 'pending',
         }),
       )

@@ -12,10 +12,7 @@ import {
   CHARACTER_LOOKS_INCLUDE,
   mapCharacterLookRow,
 } from '@/services/cards/character-card.mapper'
-import {
-  applyAudioStylePrompt,
-  submitAudioGeneration,
-} from '@/services/generate-audio.service'
+import { submitAudioGeneration } from '@/services/generate-audio.service'
 import { ensureUser } from '@/services/user.service'
 import type {
   AssistantSpeakRequest,
@@ -107,7 +104,7 @@ export async function speakWithVoiceCard(params: {
 
 /**
  * 用设置里那位角色绑的嗓子念（对话里 🔊 念回复 ②c-2 / 配音台念台词 ③）。
- * 情绪写成句首的方括号语气进到念的字里（和画布音频卡同一个映射），素材库里那条的字也带着它——配音台靠它显示、重录照念。
+ * 语气是台词里的 `[标记]`（配音台「语气」菜单插的，句首句中都行），素材库里那条的字也带着它——配音台靠它显示、重录照念。
  * 默认助手 / 角色没绑嗓子 = 念不了（界面上先让人挑一副）。
  */
 export async function speakAsPersona(
@@ -135,9 +132,7 @@ export async function speakAsPersona(
     clerkId,
     userId: user.id,
     voiceCardId,
-    text: request.emotion
-      ? applyAudioStylePrompt(request.text, request.emotion)
-      : request.text,
+    text: request.text,
     ...(request.modelId ? { modelId: request.modelId } : {}),
   })
   return { jobId }

@@ -5,17 +5,13 @@ import { useTranslations } from 'next-intl'
 import { animate, useReducedMotion } from 'motion/react'
 import { toast } from 'sonner'
 
+import { VOICE_CUE_GROUPS } from '@/constants/chat-voice'
 import { EASE_STANDARD, SHELL_MOTION } from '@/constants/motion'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   STUDIO_OPERATOR_VOICE,
   type StudioOperatorVoiceModelId,
 } from '@/constants/studio-operator-voice'
-import {
-  AUDIO_EMOTIONS,
-  AUDIO_STYLE,
-  type AudioEmotion,
-} from '@/constants/voice-cards'
 import {
   ArrowUp,
   ChevronDown,
@@ -40,6 +36,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { EmptyState } from '@/components/ui/empty-state'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
 import { Spinner } from '@/components/ui/spinner'
 import { useAssistantPersona } from '@/hooks/use-assistant-persona'
 import {
@@ -101,7 +102,6 @@ export function VoiceBench() {
   const { modelId, setModel } = useOperatorVoice()
   const playingId = usePlayingOperatorVoice()
   const [draft, setDraft] = useState('')
-  const [emotion, setEmotion] = useState<AudioEmotion>(AUDIO_STYLE.NONE)
   /** 就地挑嗓子 / 配 key；`retryKey` = 弄好之后接着念的那一句。 */
   const [dialog, setDialog] = useState<{
     kind: 'voice' | 'key'
@@ -122,7 +122,7 @@ export function VoiceBench() {
 
   const submit = () => {
     if (!draft.trim()) return
-    void bench.speak(draft, emotion === AUDIO_STYLE.NONE ? undefined : emotion)
+    void bench.speak(draft)
     setDraft('')
   }
 
@@ -143,6 +143,21 @@ export function VoiceBench() {
         },
         { duration: SHELL_MOTION.draftFillS, ease: EASE_STANDARD },
       )
+    })
+  }
+
+  /** 「语气」菜单挑了一个：`[标记]` 插到光标处（没点过输入框 = 插在最前面），光标落到它后面。 */
+  const insertCue = (tag: string) => {
+    const input = inputRef.current
+    const cue = `[${tag}]`
+    const start = input?.selectionStart ?? 0
+    const end = input?.selectionEnd ?? start
+    const next = draft.slice(0, start) + cue + draft.slice(end)
+    setDraft(next)
+    requestAnimationFrame(() => {
+      if (!input) return
+      input.focus()
+      input.setSelectionRange(start + cue.length, start + cue.length)
     })
   }
 
@@ -277,15 +292,7 @@ export function VoiceBench() {
               className="max-h-40 w-full resize-none bg-transparent text-md leading-reading text-foreground outline-none placeholder:text-muted-foreground"
             />
             <div className="flex items-center gap-1.5">
-              <ChipMenu
-                label={`${t('emotion')} · ${t(`emotions.${emotion}`)}`}
-                value={emotion}
-                onChange={(next) => setEmotion(next as AudioEmotion)}
-                options={AUDIO_EMOTIONS.map((id) => ({
-                  id,
-                  label: t(`emotions.${id}`),
-                }))}
-              />
+              <CueMenu onPick={insertCue} />
               <ChipMenu
                 label={tv(
                   `models.${MODEL_LABEL_KEYS[STUDIO_OPERATOR_VOICE.modelIds.indexOf(modelId)] ?? 'free'}`,
@@ -358,6 +365,63 @@ export function VoiceBench() {
         />
       ) : null}
     </div>
+  )
+}
+
+/**
+ * 「语气」药丸（用户 10-27：情绪要齐）：点开按 情绪 · 更多情绪 · 语气 · 音效 · 停顿 分组，一组一排小药丸；
+ * 点一个就插进台词、菜单收起。词表照 Fish 官方（`VOICE_CUE_GROUPS`）。
+ */
+function CueMenu({ onPick }: { onPick(tag: string): void }) {
+  const t = useTranslations('VoiceBench')
+  const [open, setOpen] = useState(false)
+  return (
+    <Popover open={open} onOpenChange={setOpen} modal={false}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          data-testid="voice-bench-cues"
+          className={cn(
+            studioOutlineChipClass,
+            'data-[state=open]:bg-fill-strong data-[state=open]:text-foreground',
+          )}
+        >
+          {t('cue')}
+          <ChevronDown className="size-3" aria-hidden />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        side="top"
+        // 点完药丸焦点回到输入框，⛔ 被浮层抢走。
+        onCloseAutoFocus={(event) => event.preventDefault()}
+        className="flex max-h-(--radix-popover-content-available-height) w-96 max-w-(--radix-popover-content-available-width) flex-col gap-3 overflow-y-auto p-3"
+      >
+        {VOICE_CUE_GROUPS.map((group) => (
+          <section key={group.id} className="flex flex-col gap-1.5">
+            <h3 className="text-xs text-muted-foreground">
+              {t(`cueGroups.${group.id}`)}
+            </h3>
+            <div className="flex flex-wrap gap-1">
+              {group.cues.map((cue) => (
+                <button
+                  key={cue.id}
+                  type="button"
+                  title={`[${cue.tag}]`}
+                  onClick={() => {
+                    onPick(cue.tag)
+                    setOpen(false)
+                  }}
+                  className="h-7 rounded-full bg-muted px-2.5 text-2sm text-foreground transition-colors duration-fast ease-standard hover:bg-fill-strong focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none"
+                >
+                  {t(`cues.${cue.id}`)}
+                </button>
+              ))}
+            </div>
+          </section>
+        ))}
+      </PopoverContent>
+    </Popover>
   )
 }
 

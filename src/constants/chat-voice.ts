@@ -37,3 +37,108 @@ export const CHAT_LEARN_PHRASES = {
   maxNewPerRun: 4,
   lineMaxChars: 2_000,
 } as const
+
+/**
+ * 配音台「语气」菜单（用户 10-27：情绪要齐）：Fish 官方标记表照抄，点一个就把 `[标记]` 插到光标处。
+ * 表在 https://docs.fish.audio/developer-guide/core-features/emotions ；S2.1 / Drama 3 都认，
+ * 写在句首管整句、句中管从那儿往后，音效后面要跟着那声的字（`[laughing] 哈哈`）。
+ * `id` 是文案键，`tag` 是写进台词的那个词（⛔ 自造词，表里查不到的不放）。
+ */
+export const VOICE_CUE_GROUPS = [
+  {
+    id: 'emotion',
+    cues: [
+      'happy',
+      'sad',
+      'angry',
+      'excited',
+      'calm',
+      'nervous',
+      'confident',
+      'surprised',
+      'satisfied',
+      'delighted',
+      'scared',
+      'worried',
+      'upset',
+      'frustrated',
+      'depressed',
+      'empathetic',
+      'embarrassed',
+      'disgusted',
+      'moved',
+      'proud',
+      'relaxed',
+      'grateful',
+      'curious',
+      'sarcastic',
+    ].map((tag) => ({ id: tag, tag })),
+  },
+  {
+    id: 'emotionMore',
+    cues: [
+      'disdainful',
+      'unhappy',
+      'anxious',
+      'hysterical',
+      'indifferent',
+      'uncertain',
+      'doubtful',
+      'confused',
+      'disappointed',
+      'regretful',
+      'guilty',
+      'ashamed',
+      'jealous',
+      'envious',
+      'hopeful',
+      'optimistic',
+      'pessimistic',
+      'nostalgic',
+      'lonely',
+      'bored',
+      'contemptuous',
+      'sympathetic',
+      'compassionate',
+      'determined',
+      'resigned',
+    ].map((tag) => ({ id: tag, tag })),
+  },
+  {
+    id: 'tone',
+    cues: [
+      { id: 'hurried', tag: 'in a hurry tone' },
+      { id: 'shouting', tag: 'shouting' },
+      { id: 'screaming', tag: 'screaming' },
+      { id: 'whispering', tag: 'whispering' },
+      { id: 'soft', tag: 'soft tone' },
+      { id: 'emphasis', tag: 'emphasis' },
+    ],
+  },
+  {
+    id: 'sound',
+    cues: [
+      { id: 'laughing', tag: 'laughing' },
+      { id: 'chuckling', tag: 'chuckling' },
+      { id: 'sobbing', tag: 'sobbing' },
+      { id: 'cryingLoudly', tag: 'crying loudly' },
+      { id: 'sighing', tag: 'sighing' },
+      { id: 'groaning', tag: 'groaning' },
+      { id: 'panting', tag: 'panting' },
+      { id: 'gasping', tag: 'gasping' },
+      { id: 'yawning', tag: 'yawning' },
+      { id: 'snoring', tag: 'snoring' },
+      { id: 'clearThroat', tag: 'clear throat' },
+    ],
+  },
+  {
+    id: 'pause',
+    cues: [
+      { id: 'shortPause', tag: 'break' },
+      { id: 'longPause', tag: 'long-break' },
+    ],
+  },
+] as const satisfies readonly {
+  id: string
+  cues: readonly { id: string; tag: string }[]
+}[]

@@ -95,10 +95,17 @@ describe('VoiceBench（配音台 ③）', () => {
 
     fireEvent.change(box, { target: { value: '欢迎来到图书馆。' } })
     fireEvent.keyDown(box, { key: 'Enter' })
-    expect(state.bench.speak).toHaveBeenCalledWith(
-      '欢迎来到图书馆。',
-      undefined,
-    )
+    expect(state.bench.speak).toHaveBeenCalledWith('欢迎来到图书馆。')
+  })
+
+  it('语气菜单：点一个就把 [标记] 插到光标处', () => {
+    render(<VoiceBench />)
+    const box = screen.getByRole('textbox') as HTMLTextAreaElement
+    fireEvent.change(box, { target: { value: '别回头走吧' } })
+    box.setSelectionRange(3, 3)
+    fireEvent.click(screen.getByTestId('voice-bench-cues'))
+    fireEvent.click(screen.getByTitle('[sighing]'))
+    expect(box.value).toBe('别回头[sighing]走吧')
   })
 
   it('按她说：改好的字回到输入框，⛔ 直接念', async () => {

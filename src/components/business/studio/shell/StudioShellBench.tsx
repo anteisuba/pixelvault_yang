@@ -443,7 +443,7 @@ export function StudioLibraryPicker({
 
 /**
  * 对话收起时（用户 10-25 ① A）：助手头像落在台的左上角，再点展开。点哪颗收、点同一颗开 ——
- * 对话头里那颗飞过来（Motion `layoutId`）。台顶那一行（`data-bench-header`）同一拍往右让位，
+ * 对话头里那颗飞过来（`StudioShellAvatarFlight`，落点照这里同一套算法算）。台顶那一行（`data-bench-header`）同一拍往右让位，
  * 头像按那一行的实际位置摆：上下居中、左边对齐它让位前的起点（`--bench-header-inset`），
  * 各台那一行高低不一也对得齐（用户 10-25：「不在一个平行线上」）。找不到那一行就退回板头位置。
  */

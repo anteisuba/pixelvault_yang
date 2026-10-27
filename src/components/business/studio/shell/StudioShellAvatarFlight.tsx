@@ -32,10 +32,36 @@ export function measureStudioShellAvatar(
 
 const ease = cubicBezier(...EASE_STANDARD)
 
+/** 台角那颗 = `size-8`。 */
+const STUDIO_SHELL_EXPAND_CHAT_PX = 32
+
 /** 落点跟着走的那一块：对话头那颗在对话正文里，台角那颗在台那一列里。 */
 const MOVER: Record<StudioShellAvatarSpot, string> = {
   header: '[data-testid="studio-shell-conversation-body"]',
   bench: '[data-testid="studio-shell-bench-column"]',
+}
+
+/**
+ * 台角那颗该落在哪：照 `StudioShellExpandChat` 摆自己的算法，直接从台头那一行算。
+ * ⛔ 读那颗按钮自己 —— 它的位置是台变宽后 ResizeObserver 回头再摆的，晚一拍，边飞边量会一抖一抖。
+ */
+function measureBenchCorner(
+  column: HTMLElement | null | undefined,
+): DOMRect | null {
+  const row = column?.querySelector<HTMLElement>('[data-bench-header]')
+  if (!row) return null
+  const rect = row.getBoundingClientRect()
+  const inset =
+    Number.parseFloat(
+      getComputedStyle(row).getPropertyValue('--bench-header-inset'),
+    ) || 0
+  const size = STUDIO_SHELL_EXPAND_CHAT_PX
+  return new DOMRect(
+    rect.left + inset,
+    rect.top + (rect.height - size) / 2,
+    size,
+    size,
+  )
 }
 
 /**
@@ -46,12 +72,16 @@ function measureLanding(
   root: HTMLElement | null,
   spot: StudioShellAvatarSpot,
 ): DOMRect | null {
-  const anchor = measureStudioShellAvatar(root, spot)
   const mover = root?.querySelector<HTMLElement>(MOVER[spot])
+  const anchor =
+    (spot === 'bench' ? measureBenchCorner(mover) : null) ??
+    measureStudioShellAvatar(root, spot)
   const section = root?.querySelector<HTMLElement>(
     '[data-testid="studio-shell-conversation"]',
   )
-  if (!anchor || !mover || !section) return anchor
+  // 收完那一拍对话栏 `display: none`，台那一列已经顶到位，不用再挪。
+  if (!anchor || !mover || !section || section.offsetParent === null)
+    return anchor
   const shift =
     mover.getBoundingClientRect().left - section.getBoundingClientRect().left
   return new DOMRect(

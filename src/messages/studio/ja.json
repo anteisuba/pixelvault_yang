@@ -1104,7 +1104,7 @@
     "renameLabel": "テンプレート名",
     "renameHint": "Enter で保存 · Esc でキャンセル",
     "delete": "削除",
-    "confirmDelete": "削除を確定",
+    "deleteTitle": "このテンプレートを削除しますか？",
     "applied": "「{name}」を適用しました",
     "undo": "元に戻す",
     "saveFailed": "保存できませんでした。もう一度お試しください",

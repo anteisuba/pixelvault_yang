@@ -43,6 +43,8 @@ interface ConfirmDialogProps {
   confirmPhrase?: string
   /** 输入框上那句说明（「输入「注销」确认」）。给了 `confirmPhrase` 就必须给。 */
   confirmPhraseLabel?: string
+  /** 关窗后焦点落哪（桌面弹窗）：删掉的那一项本来是焦点的去处时由调用方接走。 */
+  onCloseAutoFocus?: (event: Event) => void
 }
 
 /**
@@ -63,6 +65,7 @@ export function ConfirmDialog({
   confirmPhraseLabel,
   open: openProp,
   onOpenChange,
+  onCloseAutoFocus,
 }: ConfirmDialogProps) {
   const [typed, setTyped] = useState('')
   const inputId = useId()
@@ -158,7 +161,7 @@ export function ConfirmDialog({
       {trigger ? (
         <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>
       ) : null}
-      <AlertDialogContent>
+      <AlertDialogContent onCloseAutoFocus={onCloseAutoFocus}>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>{description}</AlertDialogDescription>

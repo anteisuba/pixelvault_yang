@@ -294,7 +294,7 @@ describe('模板面板（模板 C）', () => {
     })
   })
 
-  it('⋯ → 删除：第一下变红「确认删除」、菜单不关，第二下才删', async () => {
+  it('⋯ → 删除：先弹确认窗（owner 10-27），点删除才删', async () => {
     mocks.remove.mockResolvedValue({ success: true })
     renderPanel()
     fireEvent.keyDown(screen.getByRole('button', { name: 'more:雨夜人像' }), {
@@ -302,8 +302,10 @@ describe('模板面板（模板 C）', () => {
     })
     fireEvent.click(await screen.findByRole('menuitem', { name: 'delete' }))
     expect(mocks.remove).not.toHaveBeenCalled()
+    const dialog = await screen.findByRole('alertdialog')
+    expect(dialog).toHaveTextContent('deleteTitle')
     fireEvent.click(
-      await screen.findByRole('menuitem', { name: 'confirmDelete' }),
+      screen.getByRole('button', { name: 'deleteDialog.confirm' }),
     )
     expect(mocks.removeRecipe).toHaveBeenCalledWith('image')
     await waitFor(() => expect(mocks.remove).toHaveBeenCalledWith('image'))

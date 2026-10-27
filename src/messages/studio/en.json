@@ -1104,7 +1104,7 @@
     "renameLabel": "Template name",
     "renameHint": "Enter to save · Esc to cancel",
     "delete": "Delete",
-    "confirmDelete": "Confirm delete",
+    "deleteTitle": "Delete this template?",
     "applied": "Applied “{name}”",
     "undo": "Undo",
     "saveFailed": "Couldn’t save, try again",

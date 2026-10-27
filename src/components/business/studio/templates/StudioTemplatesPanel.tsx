@@ -35,6 +35,7 @@ import { getDefaultTemplateName } from '@/lib/recipe-template-name'
 import { cn } from '@/lib/utils'
 import type { CreateRecipeRequest, OutputType, RecipeRecord } from '@/types'
 import { Button } from '@/components/ui/button'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -139,7 +140,7 @@ const applySelector = (id: string) => `[data-template-apply="${id}"]`
  * 模板 = **在舞台上打开的一块面板**（owner 2026-09-26 从三个方向里选 C，画板
  * 「模板 C · 全部状态」+「模板 C · 动效表」）：封面卡片一屏看全，点一张即套用并
  * 回到结果（可撤销，撤销住在宿主那里）；左上一张「当前提示词」一键存下，「新建
- * 模板」自己填；悬停卡片出 ⋯ —— 改名 / 删除（原位两段确认）。
+ * 模板」自己填；悬停卡片出 ⋯ —— 改名 / 删除（弹窗确认，owner 2026-10-27 与历史会话一起改）。
  *
  * ⚠ 每台只列自己能用的那一种（`matchesRecipeTemplateScope`），⛔ 不给一排类型筛选。
  * ⚠ 列表是会话内共享的缓存（`useRecipes`）：打开时直接画，后台再拉一遍。
@@ -153,6 +154,7 @@ export function StudioTemplatesPanel({
   promptBelow = true,
 }: StudioTemplatesPanelProps) {
   const t = useTranslations('StudioTemplates')
+  const tFeedback = useTranslations('Feedback')
   const router = useRouter()
   const reducedMotion = useReducedMotion()
   const { lastGeneration } = useStudioGen()
@@ -188,7 +190,7 @@ export function StudioTemplatesPanel({
   } | null>(null)
   const [savingNow, setSavingNow] = useState(false)
   const [menuFor, setMenuFor] = useState<string | null>(null)
-  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<RecipeRecord | null>(null)
   const [renaming, setRenaming] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
 
@@ -196,11 +198,11 @@ export function StudioTemplatesPanel({
   const renameCancelled = useRef(false)
   /**
    * 下一次渲染后焦点落到哪（选择器）：改名用回车 / Esc 收尾 → 那张卡；表单收起 →
-   * 「新建模板」；新建存好 → 新的那张。删掉一张之后落到标题（`deletedFromMenu`）。
+   * 「新建模板」；新建存好 → 新的那张。删掉一张之后落到标题（删除弹窗的 `onCloseAutoFocus`）。
    * ⛔ 让焦点掉到 body 上 —— 键盘用户就找不到自己在哪了。
    */
   const focusAfter = useRef<string | null>(null)
-  const deletedFromMenu = useRef<string | null>(null)
+  const justDeleted = useRef(false)
   const heading = useRef<HTMLHeadingElement>(null)
   const section = useRef<HTMLElement>(null)
   useEffect(() => {
@@ -377,9 +379,6 @@ export function StudioTemplatesPanel({
   }
 
   const deleteRecipe = (recipe: RecipeRecord) => {
-    deletedFromMenu.current = recipe.id
-    setMenuFor(null)
-    setConfirmDelete(null)
     removeRecipe(recipe.id)
     void deleteRecipeAPI(recipe.id).then((result) => {
       if (result.success) return
@@ -646,7 +645,6 @@ export function StudioTemplatesPanel({
             <AnimatePresence initial={false}>
               {shown.map((recipe, index) => {
                 const menuOpen = menuFor === recipe.id
-                const confirming = confirmDelete === recipe.id
                 const lora = tags && getTagTemplateSource(recipe) === 'lora'
                 const name = recipe.name || recipe.modelId
                 const first = firstBatch?.has(recipe.id) ?? false
@@ -762,7 +760,6 @@ export function StudioTemplatesPanel({
                               open={menuOpen}
                               onOpenChange={(open) => {
                                 setMenuFor(open ? recipe.id : null)
-                                if (!open) setConfirmDelete(null)
                               }}
                             >
                               <DropdownMenuTrigger asChild>
@@ -788,16 +785,6 @@ export function StudioTemplatesPanel({
                                 sideOffset={6}
                                 className={cn('w-37', menuMotion.className)}
                                 style={menuMotion.style}
-                                onCloseAutoFocus={(event) => {
-                                  // 删掉的那张正在退场：焦点还给它的 ⋯ 会跟着掉到 body 上。
-                                  if (deletedFromMenu.current !== recipe.id)
-                                    return
-                                  deletedFromMenu.current = null
-                                  event.preventDefault()
-                                  heading.current?.focus({
-                                    preventScroll: true,
-                                  })
-                                }}
                               >
                                 <DropdownMenuItem
                                   onSelect={() => {
@@ -813,29 +800,14 @@ export function StudioTemplatesPanel({
                                   {t('rename')}
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
-                                  onSelect={(event) => {
-                                    if (!confirming) {
-                                      // 第一下只把这一项变红，⛔ 不关菜单。
-                                      event.preventDefault()
-                                      setConfirmDelete(recipe.id)
-                                      return
-                                    }
-                                    deleteRecipe(recipe)
-                                  }}
-                                  className={cn(
-                                    'h-8 rounded-lg px-2.5 text-2sm transition-colors duration-fast ease-linear',
-                                    confirming
-                                      ? 'bg-status-risk text-background focus:bg-status-risk focus:text-background'
-                                      : 'text-status-risk focus:text-status-risk',
-                                  )}
+                                  onSelect={() => setDeleteTarget(recipe)}
+                                  className="h-8 rounded-lg px-2.5 text-2sm text-status-risk focus:text-status-risk"
                                 >
                                   <Trash2
                                     className="size-3.5 text-current"
                                     aria-hidden
                                   />
-                                  {confirming
-                                    ? t('confirmDelete')
-                                    : t('delete')}
+                                  {t('delete')}
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
@@ -952,6 +924,28 @@ export function StudioTemplatesPanel({
           </div>
         ) : null}
       </div>
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null)
+        }}
+        title={t('deleteTitle')}
+        description={tFeedback('deleteDialog.irreversible')}
+        cancelLabel={tFeedback('deleteDialog.cancel')}
+        confirmLabel={tFeedback('deleteDialog.confirm')}
+        onConfirm={() => {
+          if (!deleteTarget) return
+          justDeleted.current = true
+          deleteRecipe(deleteTarget)
+        }}
+        onCloseAutoFocus={(event) => {
+          // 删掉的那张正在退场：焦点还给它的 ⋯ 会跟着掉到 body 上。
+          if (!justDeleted.current) return
+          justDeleted.current = false
+          event.preventDefault()
+          heading.current?.focus({ preventScroll: true })
+        }}
+      />
     </section>
   )
 }

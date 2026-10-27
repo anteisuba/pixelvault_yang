@@ -375,23 +375,47 @@ function StudioShellStage({
     restoreAfterClose.current = null
   }, [bench, setConversationPx])
 
+  /**
+   * 「拉」的那一段里对话正文按开着时的宽钉住、贴右边（用户 10-27 嫌卡）：栏宽在变，
+   * 里面的字 ⛔ 跟着一帧帧重新换行，整块像滑出去 / 滑进来。
+   */
+  const openWidth = useRef<number | null>(null)
+  const [pinnedPx, setPinnedPx] = useState<number | null>(null)
+  useEffect(() => {
+    const node = conversationRef.current
+    if (!node || typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(() => {
+      if (node.offsetWidth > 0) openWidth.current = node.offsetWidth
+    })
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [])
+
   const collapseConversation = () => {
     if (reduceMotion) {
       setConversationCollapsed(true)
       return
     }
+    setPinnedPx(openWidth.current)
     setPulling('collapse')
     window.setTimeout(() => {
       setConversationCollapsed(true)
       setPulling(null)
+      setPinnedPx(null)
     }, SHELL_MOTION.pullMs)
   }
   const expandConversation = useCallback(() => {
     setConversationCollapsed(false)
     if (reduceMotion) return
+    setPinnedPx(openWidth.current)
     setPulling('expand')
-    // 先按 0 宽画一帧，下一帧再放回记住的宽，宽的过渡才有起点。
-    requestAnimationFrame(() => requestAnimationFrame(() => setPulling(null)))
+    // 先按 0 宽画一帧，下一帧再放回记住的宽，宽的过渡才有起点；走完那一段再松开钉住的宽。
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        setPulling(null)
+        window.setTimeout(() => setPinnedPx(null), SHELL_MOTION.pullMs)
+      }),
+    )
   }, [reduceMotion, setConversationCollapsed])
 
   // 库是整页（ui-spec §9）：盖满白板；叫出助手时对话按记住的宽贴到右边。
@@ -461,10 +485,18 @@ function StudioShellStage({
         }
       >
         {shellDock ? (
-          <StudioOperatorDock
-            variant="column"
-            onCollapseColumn={bench ? collapseConversation : undefined}
-          />
+          <div
+            className={cn(
+              'flex min-h-0 min-w-0 flex-1 flex-col',
+              pinnedPx !== null && 'desk:absolute desk:inset-y-0 desk:right-0',
+            )}
+            style={pinnedPx !== null ? { width: `${pinnedPx}px` } : undefined}
+          >
+            <StudioOperatorDock
+              variant="column"
+              onCollapseColumn={bench ? collapseConversation : undefined}
+            />
+          </div>
         ) : null}
       </section>
 

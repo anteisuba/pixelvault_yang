@@ -145,10 +145,7 @@ export function useShellWorkHistory() {
       setOwnBusy((busy) => ({ ...busy, deleting: id }))
       const result = await deleteAssistantConversationAPI(id)
       setOwnBusy((busy) => ({ ...busy, deleting: null }))
-      if (!result.success) {
-        setOwnError(result.error)
-        return false
-      }
+      if (!result.success) return false
       setOwn((list) => (list ?? []).filter((item) => item.id !== id))
       return true
     },

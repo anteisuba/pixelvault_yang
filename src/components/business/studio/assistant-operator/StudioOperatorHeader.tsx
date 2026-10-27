@@ -56,7 +56,7 @@
  *    别的宿主（手机 Sheet、画布）照旧是标题 ▾ 历史。
  */
 
-import { useCallback, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   Check,
   MessageSquarePlus,
@@ -99,7 +99,10 @@ import { useSlowLoadingNotice } from '@/hooks/use-slow-loading-notice'
 import { useStudioShellAvatar } from '@/hooks/use-studio-shell-avatar'
 import { useStudioShellHeaderSlots } from '@/contexts/studio-shell-header-slots'
 import { StudioOperatorCurrentAvatar } from '@/components/business/studio/assistant-operator/StudioOperatorAvatarSwitcher'
-import { StudioOperatorSessionRow } from '@/components/business/studio/assistant-operator/StudioOperatorSessionRow'
+import {
+  StudioOperatorSessionDeleteDialog,
+  StudioOperatorSessionRow,
+} from '@/components/business/studio/assistant-operator/StudioOperatorSessionRow'
 import { StudioOperatorVoiceKey } from '@/components/business/studio/assistant-operator/StudioOperatorVoice'
 import { deriveAssistantConversationTitle } from '@/lib/assistant-conversation-title'
 import {
@@ -243,16 +246,8 @@ export function StudioOperatorHeader({
    * 一次同一个布尔。
    */
   const { incognito } = useStudioOperatorState()
-  /**
-   * **举着刀的那一行**（owner 2026-09-20 真机第 3 条）—— 删除是原位两段确认，
-   * ⛔ 不再弹 `AlertDialog`。
-   *
-   * ⚠ 这一格住在这里而不是各行自己：同一列表**同时只能有一行**处于确认态，
-   * 各记各的表现是一屏红字。⚠ 换会话列表 / 关菜单时清掉（见下面那两处）。
-   */
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
-  /** ⚠ 稳定引用：行里的 3 秒定时器把它当 effect 依赖。 */
-  const cancelConfirmDelete = useCallback(() => setConfirmDeleteId(null), [])
+  /** 要删的那一段（owner 10-27：删除弹窗确认）；弹窗挂在菜单外面，点垃圾桶菜单就关了。 */
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string } | null>(null)
   /** 标题▾ 与历史图标共开的那一个菜单（见头注），⛔ 不是两个实例。 */
   const [menuOpen, setMenuOpen] = useState(false)
   const { docked: avatarDocked } = useStudioShellAvatar()
@@ -393,8 +388,6 @@ export function StudioOperatorHeader({
             onOpenChange={(next) => {
               setMenuOpen(next)
               if (next) history.refreshSessions(true)
-              // ⚠ 关掉菜单就把刀放下：下次打开不该有一行还举着「确认删除」。
-              else setConfirmDeleteId(null)
             }}
           >
             <DropdownMenuTrigger asChild>
@@ -526,20 +519,11 @@ export function StudioOperatorHeader({
                           }
                           renaming={history.renamingSessionId === session.id}
                           deleting={history.deletingSessionId === session.id}
-                          confirming={confirmDeleteId === session.id}
                           onSelect={() => history.selectSession(session)}
                           onRename={(title) =>
                             void history.renameSession(session, title)
                           }
-                          onRequestDelete={() => setConfirmDeleteId(session.id)}
-                          onCancelDelete={cancelConfirmDelete}
-                          onConfirmDelete={() => {
-                            void history
-                              .deleteSession(session)
-                              .then((deleted) => {
-                                if (deleted) setConfirmDeleteId(null)
-                              })
-                          }}
+                          onRequestDelete={() => setDeleteTarget(session)}
                         />
                       )
                     })}
@@ -570,6 +554,16 @@ export function StudioOperatorHeader({
             </DropdownMenuContent>
           </DropdownMenu>
         )}
+        <StudioOperatorSessionDeleteDialog
+          target={deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          onDelete={(id) => {
+            const session = history.sessions.find((item) => item.id === id)
+            return session
+              ? history.deleteSession(session)
+              : Promise.resolve(false)
+          }}
+        />
 
         {/* ── 隐身胶囊（56a · 画板 `DesignD56Simple`「隐身开着」）──────
             ⚠ **一枚文字胶囊**，⛔ 不用红点：红点说的是「有东西要你看」，而隐身

@@ -1,11 +1,21 @@
 // ⚠ 用 `fireEvent` 不是 `user-event`：本仓没装 `@testing-library/user-event`。
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { ASSISTANT_SURFACE_IDS } from '@/types/assistant-conversation'
 import type { AssistantConversationSummary } from '@/types/assistant-conversation'
 
-import { StudioOperatorSessionRow } from './StudioOperatorSessionRow'
+import {
+  StudioOperatorSessionDeleteDialog,
+  StudioOperatorSessionRow,
+} from './StudioOperatorSessionRow'
 
 /**
  * 历史会话行的回归闸（owner 2026-09-20 真机第 3 条 + D7c ④ 画板）。
@@ -13,8 +23,7 @@ import { StudioOperatorSessionRow } from './StudioOperatorSessionRow'
  * 钉七件事：
  *  ① 点铅笔 = **就地**出现输入框，⛔ 屏幕上一个 dialog 都没有，且进来就全选；
  *  ② 回车保存 · Esc 取消 · 失焦保存（与 56a 记忆行同一套）；
- *  ③ 点垃圾桶 = 原位切确认态，**第一下不删**，第二下才删；
- *  ④ 确认态自己退回去的三条路（3 秒 · 指针离开 · 焦点离开），且有 `aria-live`；
+ *  ③ 点垃圾桶只交出 `onRequestDelete`；确认在弹窗里（owner 10-27「像 Claude」），删不掉走黑条；
  *  ⑤ ⭐ 两层一行：「工作台 · 日期」连在一起，⛔ 不是隔着一格的两段；
  *  ⑥ ⭐ 两颗图标**默认不可见**（只动 `opacity`，位子常驻），hover / 聚焦才淡入；
  *  ⑦ ⭐ 动的那几处都挂着 `motion-reduce:transition-none`（D7c ④ 动效表末行）；
@@ -26,6 +35,9 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
     values ? `${key}(${Object.values(values).join(',')})` : key,
 }))
+
+const toastError = vi.hoisted(() => vi.fn())
+vi.mock('sonner', () => ({ toast: { error: toastError } }))
 
 vi.mock('@/components/ui/dropdown-menu', () => ({
   DropdownMenuItem: ({
@@ -63,8 +75,6 @@ function renderRow(
     onSelect: vi.fn(),
     onRename: vi.fn(),
     onRequestDelete: vi.fn(),
-    onCancelDelete: vi.fn(),
-    onConfirmDelete: vi.fn(),
   }
   const view = render(
     <StudioOperatorSessionRow
@@ -76,7 +86,6 @@ function renderRow(
       deleteDisabled={false}
       renaming={false}
       deleting={false}
-      confirming={false}
       {...handlers}
       {...overrides}
     />,
@@ -228,13 +237,6 @@ describe('StudioOperatorSessionRow — 一行两层（D7c ④）', () => {
     // ⛔ 只动 opacity：位移会让行抖，标题的截断点也会跟着变。
     expect(actions.className).toContain('transition-opacity')
   })
-
-  it('确认态里那两颗强制可见（⛔ 不许随 hover 消失）', () => {
-    renderRow({ confirming: true })
-    expect(screen.getByTestId('operator-session-actions').className).toContain(
-      'opacity-100',
-    )
-  })
 })
 
 describe('StudioOperatorSessionRow — 当前那一条', () => {
@@ -293,7 +295,7 @@ describe('StudioOperatorSessionRow — 当前那一条', () => {
 describe('StudioOperatorSessionRow — 降级', () => {
   /**
    * D7c ④ 动效表末行：「全部包在 `motion-reduce:` 里」。这一行里动的几处都是
-   * `transition-*`（底色 / 图标淡入 / 药丸撑开），所以都用 `transition-none`。
+   * `transition-*`（底色 / 图标淡入），所以都用 `transition-none`。
    * ⛔ 这条红 = 有人把降级删了。
    */
   it('⭐ 底色 · 图标淡入 · 两颗钮都带 `motion-reduce:transition-none`', () => {
@@ -308,92 +310,68 @@ describe('StudioOperatorSessionRow — 降级', () => {
         'motion-reduce:transition-none',
       )
     }
-    // 药丸那两个字自己也在动（`max-width`），它同样要降级。
-    expect(screen.getByTestId('operator-session-delete').innerHTML).toContain(
-      'motion-reduce:transition-none',
-    )
   })
 })
 
-describe('StudioOperatorSessionRow — 删除两段', () => {
-  it('第一下只切确认态，⛔ 不删', () => {
-    const { onRequestDelete, onConfirmDelete } = renderRow()
+describe('StudioOperatorSessionRow — 删除弹窗（owner 10-27）', () => {
+  it('点垃圾桶只交出请求，⛔ 不删、⛔ 不在行上撑确认药丸', () => {
+    const { onRequestDelete } = renderRow()
 
     fireEvent.click(screen.getByTestId('operator-session-delete'))
 
     expect(onRequestDelete).toHaveBeenCalledTimes(1)
-    expect(onConfirmDelete).not.toHaveBeenCalled()
-    expect(screen.queryByRole('alertdialog')).toBeNull()
+    expect(screen.getByTestId('operator-session-delete').textContent).toBe('')
   })
 
-  /**
-   * D7c ④：确认态是垃圾桶**就地撑成**一颗红色药丸（画板「删除确认」）——
-   * ⚠ 它与「命中区不变」那条旧口径不同：形变本身是反馈，但起点（垃圾桶那一格）
-   *   没动，所以第二下点的还是同一个位置。
-   */
-  it('确认态：红底药丸 + aria-live，再点一次才删', () => {
-    const { onConfirmDelete } = renderRow({ confirming: true })
-
-    const button = screen.getByTestId('operator-session-delete')
-    expect(button).toHaveAttribute('data-confirming', 'true')
-    expect(button.className).toContain('bg-status-risk')
-    expect(button.textContent).toContain('history.deleteConfirm')
-    // 宽度靠那两个字的 max-width 撑（`width:auto` 过渡不了），⛔ 不是换一颗按钮；
-    // 颜色线性、内距走弹簧（画板动效表）。
-    expect(button.className).toContain('transition-delete-pill')
-    expect(
-      screen.getByTestId('operator-session-delete-live'),
-    ).toHaveTextContent('history.deleteConfirmInline')
-
-    fireEvent.click(button)
-    expect(onConfirmDelete).toHaveBeenCalledTimes(1)
-  })
-
-  it('3 秒无操作自己退回去', () => {
-    vi.useFakeTimers()
-    const { onCancelDelete } = renderRow({ confirming: true })
-
-    expect(onCancelDelete).not.toHaveBeenCalled()
-    act(() => {
-      vi.advanceTimersByTime(3000)
-    })
-    expect(onCancelDelete).toHaveBeenCalledTimes(1)
-  })
-
-  it('指针离开 / 焦点离开这一行也退回去', () => {
-    const { onCancelDelete, rerender } = renderRow({ confirming: true })
-    fireEvent.pointerLeave(screen.getByTestId('operator-session-row'))
-    expect(onCancelDelete).toHaveBeenCalledTimes(1)
-
-    rerender(<div />)
-    const second = renderRow({ confirming: true })
-    fireEvent.blur(screen.getByTestId('operator-session-delete'), {
-      relatedTarget: document.body,
-    })
-    expect(second.onCancelDelete).toHaveBeenCalledTimes(1)
-  })
-
-  /**
-   * owner 2026-09-26「要点好多次才出确认」的真因：点完删除手一动（滑出那颗按钮、
-   * 还在这一行里），Radix 把焦点停回菜单容器（`role="menu"`）。⛔ 这不算离开这一行。
-   */
-  it('焦点落回菜单容器（指针滑出按钮）⛔ 不退回', () => {
-    const menu = document.createElement('div')
-    menu.setAttribute('role', 'menu')
-    menu.tabIndex = -1
-    document.body.appendChild(menu)
-    const { onCancelDelete } = renderRow({ confirming: true })
-    fireEvent.blur(screen.getByTestId('operator-session-delete'), {
-      relatedTarget: menu,
-    })
-    expect(onCancelDelete).not.toHaveBeenCalled()
-    menu.remove()
-  })
-
-  it('⛔ 不在确认态时不画那句 aria-live', () => {
-    renderRow()
-    expect(screen.getByTestId('operator-session-delete-live').textContent).toBe(
-      '',
+  it('弹窗点删除：关窗、按 id 删', async () => {
+    const onClose = vi.fn()
+    const onDelete = vi.fn().mockResolvedValue(true)
+    render(
+      <StudioOperatorSessionDeleteDialog
+        target={{ id: 'session-1' }}
+        onClose={onClose}
+        onDelete={onDelete}
+      />,
     )
+
+    expect(screen.getByText('history.deleteTitle')).toBeInTheDocument()
+    fireEvent.click(
+      screen.getByRole('button', { name: 'deleteDialog.confirm' }),
+    )
+
+    expect(onClose).toHaveBeenCalled()
+    expect(onDelete).toHaveBeenCalledWith('session-1')
+    await act(async () => {})
+    expect(toastError).not.toHaveBeenCalled()
+  })
+
+  it('⭐ 删不掉走底部黑条（⛔ 不再塞在列表最底下）', async () => {
+    toastError.mockClear()
+    render(
+      <StudioOperatorSessionDeleteDialog
+        target={{ id: 'session-1' }}
+        onClose={vi.fn()}
+        onDelete={vi.fn().mockResolvedValue(false)}
+      />,
+    )
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'deleteDialog.confirm' }),
+    )
+
+    await waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith('history.deleteFailed'),
+    )
+  })
+
+  it('没有要删的就不开窗', () => {
+    render(
+      <StudioOperatorSessionDeleteDialog
+        target={null}
+        onClose={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    )
+    expect(screen.queryByText('history.deleteTitle')).toBeNull()
   })
 })

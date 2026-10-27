@@ -405,10 +405,8 @@ export function useStudioOperatorHistory({
       if (!isActive(epoch)) return false
       if (deletingRef.current) return false
       const current = getOperatorState()
-      if (current.sessionId === session.id && current.status === 'working') {
-        setError(t('deleteBusy'))
+      if (current.sessionId === session.id && current.status === 'working')
         return false
-      }
       deletingRef.current = true
       removedIds.current.add(session.id)
       setDeletingSessionId(session.id)
@@ -417,7 +415,6 @@ export function useStudioOperatorHistory({
         const result = await deleteAssistantConversationAPI(session.id)
         if (!result.success && result.errorCode !== 'NOT_FOUND') {
           removedIds.current.delete(session.id)
-          if (isActive(epoch)) setError(t('deleteFailed'))
           return false
         }
         const target = getOperatorThread(scope)
@@ -427,14 +424,13 @@ export function useStudioOperatorHistory({
         return true
       } catch {
         removedIds.current.delete(session.id)
-        if (isActive(epoch)) setError(t('deleteFailed'))
         return false
       } finally {
         deletingRef.current = false
         if (isActive(epoch)) setDeletingSessionId(null)
       }
     },
-    [isActive, scope, t],
+    [isActive, scope],
   )
 
   const applyConversation = useCallback(

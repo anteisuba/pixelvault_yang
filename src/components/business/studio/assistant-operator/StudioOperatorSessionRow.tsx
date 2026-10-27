@@ -3,16 +3,14 @@
 /**
  * 历史下拉里的**一条会话**（D7c ④ · 画板 `DesignD7cShell` 六态）。
  *
- * ── 它替掉了什么 ────────────────────────────────────────────────
- * 铅笔开一张 `AlertDialog` 改名、垃圾桶开另一张 `AlertDialog` 确认删除。
- * owner 原话：「点击编辑后应该直接编辑；点击删除后按钮切换成确认删除的按钮，
- * 再点一次才删」。两张弹层整块退场 —— 一次改名要穿过一层浮层、一次删除要读一段
- * 说明文字，而这两件事都只有一个可能的对象：手指底下这一行。
- *
- *  · **编辑 = 就地**：标题那一格换成 `<input>`（回车保存 · Esc 取消 · 失焦保存），
- *    逐字沿用 56a 记忆列表那一套（`SettingsAssistantSection` 的 `MemoryRow`），
- *    连 `cancelledRef` 那一手都一样 —— Esc 之后紧跟着的那一拍 blur 不许当成保存。
- *  · **删除 = 原位两段**：垃圾桶就地撑成一颗红色「确认」药丸，再点一次才真删。
+ * ── 改名就地、删除弹窗 ────────────────────────────────────────────
+ *  · **编辑 = 就地**（owner 原话：「点击编辑后应该直接编辑」）：标题那一格换成
+ *    `<input>`（回车保存 · Esc 取消 · 失焦保存），逐字沿用 56a 记忆列表那一套
+ *    （`SettingsAssistantSection` 的 `MemoryRow`），连 `cancelledRef` 那一手都一样 ——
+ *    Esc 之后紧跟着的那一拍 blur 不许当成保存。
+ *  · **删除 = 弹窗确认**（owner 10-27 选「像 Claude」，推翻 09-20 的原位两段：红色药丸
+ *    3 秒自己退回，点慢了就像没删）：垃圾桶只交出 `onRequestDelete`，弹窗由宿主挂
+ *    `StudioOperatorSessionDeleteDialog`（行在下拉里，菜单一关行就卸了），失败走底部黑条。
  *
  * ── D7c ④ 改了长相（owner 2026-09-20 确认画板）────────────────────
  *  · **一行两层**：标题 13px 单行截断，下面 11px「工作台 · 日期」用 `·` 连起来 ——
@@ -30,22 +28,8 @@
  *    `opacity`）。⚠ 位子**常驻**：两态之间标题的截断点必须逐像素一致，⛔ 不做位移
  *    —— 会抖的行没法用指针瞄准。⚠ 触屏（`coarse:`）常显：那一档没有 hover，
  *    留一颗看不见却按得到的删除是陷阱（`ui-defaults.md §6`）。
- *  · **两段确认是一次宽度形变**：药丸由「按钮左右内距 + 那两个字的 `max-width`」
- *    一起过渡（⛔ 不是换一颗按钮）—— `width: auto` 过渡不了，这是它的替身。
- *    节拍走 `spring-slot` 弹簧（轻过冲，owner 2026-09-26「加上今天那套动效」），
- *    字由糊变清跟着撑开；退回时原路缩回。
  *  · **删掉 = 这一行收起**：确认之后（请求在飞时）行高收到 0、同时淡出，删成功
  *    再从列表里摘掉；失败就原样展开回来。⛔ 不是瞬间消失 —— 列表会整块跳一下。
- *
- * ── 退回确认态的三条路 ─────────────────────────────────────────
- * 3 秒无操作 · 指针离开这一行 · 焦点离开这一行。三条都退回，因为「举着一把刀」
- * 不该是列表的常态；⛔ 也不靠点别处冒泡来退（下拉里点别处会顺手关掉整个菜单）。
- * ⚠ 「焦点离开」**不算**焦点落回菜单本身（`role="menu"`）：指针一离开某个菜单项
- *   （哪怕只是滑到这一行的空白处），Radix 就把焦点停回菜单容器 —— 把它当成离开，
- *   点完删除手一动确认就没了（owner 2026-09-26「要点好多次才出确认」的真因）。
- *   指针真离开这一行由上面那条管。
- * **同一列表同时只有一行能进确认态**：那一格状态住在父级（`confirming` 是 prop，
- * 不是自己的 state），⛔ 不让每行各记各的 —— 各记各的表现是一屏红字。
  *
  * ⚠ **输入框在 Radix 菜单里要挡住两件事**：菜单的 typeahead（任何可打印键都会
  * 跳到另一行）与 Esc 关菜单。所以编辑态整格 `onKeyDown` 先 `stopPropagation()`，
@@ -54,18 +38,14 @@
  * ⚠ 编辑态**不淡入**（画板动效表）：要等动画才能打字的输入框是坏动画。
  */
 
-import {
-  useEffect,
-  useRef,
-  useState,
-  type ReactNode,
-  type SyntheticEvent,
-} from 'react'
+import { useRef, useState, type ReactNode, type SyntheticEvent } from 'react'
 import { Pencil, Trash2 } from '@/components/icons'
 import { motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
+import { toast } from 'sonner'
 
 import { DURATION_MS, EASE_STANDARD } from '@/constants/motion'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu'
 import { deriveAssistantConversationTitle } from '@/lib/assistant-conversation-title'
 import { ASSISTANT_CONVERSATION_LIMITS } from '@/types/assistant-conversation'
@@ -73,33 +53,13 @@ import type { AssistantConversationSummary } from '@/types/assistant-conversatio
 import { cn } from '@/lib/utils'
 
 /**
- * 确认态自己退回去要多久。
- *
- * ⚠ ⛔ 不走 `constants/motion` 的四档：那四档说的是**过渡多长**（120–500ms），
- * 这是一段**停留** —— 手指从垃圾桶挪到同一个位置再点一次要多久。
- * 3 秒是 owner 在批注里写死的数。
- */
-const DELETE_CONFIRM_DWELL_MS = 3000
-
-/**
  * 两颗行内图标钮的皮肤（画板：24px 见方、6px 圆角）。
  *
  * ⚠ ⛔ 不继承 `DropdownMenuItem` 的 `px-2 py-1.5`：那一档是给「一行文字菜单项」的，
  * 套在一枚图标上会把 44px 的行撑开。
  */
-/**
- * 删除药丸撑开 / 缩回（画板「历史会话行 · 动效表」）：底色与字色 120ms 线性，
- * 左右内距走 spring-slot。⛔ 颜色不走弹簧 —— 过冲会把颜色推出终点。
- */
-const DELETE_PILL_MOTION_CLASS =
-  'transition-delete-pill motion-reduce:transition-none'
-
-/** 药丸里那两个字：宽度跟着弹簧撑开，字由糊变清 200ms 线性。 */
-const DELETE_PILL_WORD_MOTION_CLASS =
-  'transition-delete-pill-word motion-reduce:transition-none'
-
 const ROW_ICON_BUTTON_CLASS =
-  'flex h-6 shrink-0 items-center justify-center rounded-sm p-0'
+  'flex h-6 w-6 shrink-0 items-center justify-center rounded-sm p-0 text-muted-foreground transition-colors duration-fast ease-linear focus:bg-surface-fill-hover motion-reduce:transition-none'
 
 interface RowItemProps {
   inMenu: boolean
@@ -176,16 +136,13 @@ interface StudioOperatorSessionRowProps {
   selectDisabled: boolean
   /** 这一行的删除此刻能不能点（别处正在删 / 正在跑的当前会话）。 */
   deleteDisabled: boolean
-  /** 这一行正在写库 —— 编辑态锁住输入框、删除态写「删除中…」。 */
+  /** 这一行正在写库 —— 编辑态锁住输入框、删除时整行收起。 */
   renaming: boolean
   deleting: boolean
-  /** 确认态的真值住在父级：同一列表一次只有一行（见头注）。 */
-  confirming: boolean
   onSelect(): void
   onRename(title: string): void
+  /** 点了垃圾桶：宿主弹 `StudioOperatorSessionDeleteDialog`（见头注）。 */
   onRequestDelete(): void
-  onCancelDelete(): void
-  onConfirmDelete(): void
 }
 
 export function StudioOperatorSessionRow({
@@ -202,12 +159,9 @@ export function StudioOperatorSessionRow({
   deleteDisabled,
   renaming,
   deleting,
-  confirming,
   onSelect,
   onRename,
   onRequestDelete,
-  onCancelDelete,
-  onConfirmDelete,
 }: StudioOperatorSessionRowProps) {
   const t = useTranslations('StudioOperator')
   /**
@@ -235,13 +189,6 @@ export function StudioOperatorSessionRow({
    */
   const cancelledRef = useRef(false)
 
-  /** 3 秒无操作自己退回去。⚠ 卸载 / 退出确认态时清掉定时器。 */
-  useEffect(() => {
-    if (!confirming) return
-    const timer = window.setTimeout(onCancelDelete, DELETE_CONFIRM_DWELL_MS)
-    return () => window.clearTimeout(timer)
-  }, [confirming, onCancelDelete])
-
   const commitRename = () => {
     const cancelled = cancelledRef.current
     cancelledRef.current = false
@@ -258,17 +205,11 @@ export function StudioOperatorSessionRow({
   const actionButtons = (
     <span
       data-testid="operator-session-actions"
-      className={cn(
-        'flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity duration-fast ease-linear group-hover/row:opacity-100 group-focus-within/row:opacity-100 coarse:opacity-100 motion-reduce:transition-none',
-        confirming && 'opacity-100',
-      )}
+      className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity duration-fast ease-linear group-hover/row:opacity-100 group-focus-within/row:opacity-100 coarse:opacity-100 motion-reduce:transition-none"
     >
       <RowItem
         inMenu={inMenu}
-        className={cn(
-          ROW_ICON_BUTTON_CLASS,
-          'w-6 text-muted-foreground transition-colors duration-fast ease-linear focus:bg-surface-fill-hover focus:text-foreground motion-reduce:transition-none',
-        )}
+        className={cn(ROW_ICON_BUTTON_CLASS, 'focus:text-foreground')}
         data-testid="operator-session-rename"
         aria-label={t('history.renameLabel', { title })}
         disabled={renaming || deleting}
@@ -283,44 +224,14 @@ export function StudioOperatorSessionRow({
       </RowItem>
       <RowItem
         inMenu={inMenu}
-        className={cn(
-          ROW_ICON_BUTTON_CLASS,
-          DELETE_PILL_MOTION_CLASS,
-          confirming
-            ? 'gap-0 bg-status-risk px-1.5 text-background focus:bg-status-risk focus:text-background'
-            : 'min-w-6 text-muted-foreground focus:bg-surface-fill-hover focus:text-status-risk',
-        )}
+        className={cn(ROW_ICON_BUTTON_CLASS, 'focus:text-status-risk')}
         data-testid="operator-session-delete"
-        data-confirming={confirming ? 'true' : 'false'}
-        aria-label={
-          confirming
-            ? t('history.deleteConfirmInline', { title })
-            : t('history.deleteLabel', { title })
-        }
+        aria-label={t('history.deleteLabel', { title })}
         disabled={deleteDisabled}
-        onSelect={(event) => {
-          // 两段都不关菜单：第一下要留在原地等第二下，第二下之后列表还要刷新。
-          event.preventDefault()
-          if (confirming) onConfirmDelete()
-          else onRequestDelete()
-        }}
+        // 在下拉里让菜单照常关掉：弹窗由宿主挂在菜单外面。
+        onSelect={onRequestDelete}
       >
         <Trash2 className="size-3.5 shrink-0 text-current" aria-hidden />
-        {/* ⚠ 药丸是**撑出来**的：`width: auto` 过渡不了，所以让这两个字
-                  自己从 `max-w-0` 长到 `max-w-20`，左内距写在里层（被裁掉）。 */}
-        <span
-          className={cn(
-            'overflow-hidden whitespace-nowrap',
-            DELETE_PILL_WORD_MOTION_CLASS,
-            confirming
-              ? 'max-w-20 opacity-100 blur-none'
-              : 'max-w-0 opacity-0 blur-2xs',
-          )}
-        >
-          <span className="pl-1 text-2xs font-medium">
-            {deleting ? t('history.deleting') : t('history.deleteConfirm')}
-          </span>
-        </span>
       </RowItem>
     </span>
   )
@@ -358,22 +269,6 @@ export function StudioOperatorSessionRow({
           // 编辑态左边少 2px：输入框自己那条 1px 边把文字往里推了一格。
           editing ? 'pl-1.75' : 'pl-2.25',
         )}
-        /* 指针离开 / 焦点离开都退回确认态（见头注的三条路）。 */
-        onPointerLeave={confirming ? onCancelDelete : undefined}
-        onBlur={
-          confirming
-            ? (event) => {
-                const next = event.relatedTarget
-                if (
-                  next instanceof Element &&
-                  (event.currentTarget.contains(next) ||
-                    next.getAttribute('role') === 'menu')
-                )
-                  return
-                onCancelDelete()
-              }
-            : undefined
-        }
       >
         {editing ? (
           /* ⚠ 整格挡住菜单的 typeahead 与 Esc（见头注），⛔ 不是 `DropdownMenuItem`。 */
@@ -467,18 +362,12 @@ export function StudioOperatorSessionRow({
 
             {/* ── 两颗图标：默认透明、hover / 聚焦才淡入（画板动效表第 3 行）────
               ⚠ 整块**常驻占位**：`opacity` 之外一个盒模型属性都不动，所以标题的
-                截断点在两态之间逐像素一致。
-              ⚠ 确认态强制可见：此刻这一行正举着刀，⛔ 不许它随 hover 消失。 */}
+                截断点在两态之间逐像素一致。 */}
             {compact ? (
               /* 时间与两颗图标叠在同一格（`grid` 一格两层）：hover / 聚焦时时间淡出、图标淡入，宽度取两者大的那个，
                  ⛔ 不位移。 */
               <span className="grid shrink-0 items-center justify-items-end">
-                <span
-                  className={cn(
-                    'col-start-1 row-start-1 font-mono text-2xs tabular-nums text-muted-foreground transition-opacity duration-fast ease-linear group-hover/row:opacity-0 group-focus-within/row:opacity-0 coarse:opacity-0 motion-reduce:transition-none',
-                    confirming && 'opacity-0',
-                  )}
-                >
+                <span className="col-start-1 row-start-1 font-mono text-2xs tabular-nums text-muted-foreground transition-opacity duration-fast ease-linear group-hover/row:opacity-0 group-focus-within/row:opacity-0 coarse:opacity-0 motion-reduce:transition-none">
                   {dateLabel}
                 </span>
                 <span className="col-start-1 row-start-1">{actionButtons}</span>
@@ -488,17 +377,44 @@ export function StudioOperatorSessionRow({
             )}
           </>
         )}
-
-        {/* 确认态说给读屏听的那一句（`forbidden.md`：状态不许只靠颜色）。 */}
-        <span
-          role="status"
-          aria-live="polite"
-          data-testid="operator-session-delete-live"
-          className="sr-only"
-        >
-          {confirming ? t('history.deleteConfirmInline', { title }) : ''}
-        </span>
       </div>
     </motion.div>
+  )
+}
+
+/**
+ * 删一段会话的确认弹窗（owner 10-27 选「像 Claude」）：三处历史宿主（标题 ▾、手机历史键、
+ * 白板历史列）共用。`target` 非空即开着；删不掉走底部黑条，⛔ 不再塞在列表最底下。
+ */
+export function StudioOperatorSessionDeleteDialog({
+  target,
+  onClose,
+  onDelete,
+}: {
+  target: { id: string } | null
+  onClose(): void
+  /** 真删；`false` = 没删掉。 */
+  onDelete(id: string): Promise<boolean>
+}) {
+  const t = useTranslations('StudioOperator')
+  const tFeedback = useTranslations('Feedback')
+  return (
+    <ConfirmDialog
+      open={target !== null}
+      onOpenChange={(open) => {
+        if (!open) onClose()
+      }}
+      title={t('history.deleteTitle')}
+      description={tFeedback('deleteDialog.irreversible')}
+      cancelLabel={tFeedback('deleteDialog.cancel')}
+      confirmLabel={tFeedback('deleteDialog.confirm')}
+      onConfirm={() => {
+        if (!target) return
+        onClose()
+        void onDelete(target.id).then((deleted) => {
+          if (!deleted) toast.error(t('history.deleteFailed'))
+        })
+      }}
+    />
   )
 }

@@ -1,10 +1,13 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 
 import { PanelLeftClose, Plus } from '@/components/icons'
-import { StudioOperatorSessionRow } from '@/components/business/studio/assistant-operator/StudioOperatorSessionRow'
+import {
+  StudioOperatorSessionDeleteDialog,
+  StudioOperatorSessionRow,
+} from '@/components/business/studio/assistant-operator/StudioOperatorSessionRow'
 import {
   SHELL_HISTORY_SKELETON_WIDTHS,
   useShellHistoryBuckets,
@@ -31,8 +34,7 @@ export function StudioShellHistoryColumn({
   // 这一列只摆在首页 / 台上，对话面板总在场：列表就是它手上那份，后台自己会刷。
   const history = useShellWorkHistory()
   const buckets = useShellHistoryBuckets(history.items)
-  const [confirmId, setConfirmId] = useState<string | null>(null)
-  const cancelConfirm = useCallback(() => setConfirmId(null), [])
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string } | null>(null)
 
   return (
     <aside
@@ -107,16 +109,9 @@ export function StudioShellHistoryColumn({
                   }
                   renaming={history.renamingId === item.id}
                   deleting={history.deletingId === item.id}
-                  confirming={confirmId === item.id}
                   onSelect={() => history.onSelect(item.id)}
                   onRename={(title) => history.onRename(item.id, title)}
-                  onRequestDelete={() => setConfirmId(item.id)}
-                  onCancelDelete={cancelConfirm}
-                  onConfirmDelete={() => {
-                    void history.onDelete(item.id).then((deleted) => {
-                      if (deleted) setConfirmId(null)
-                    })
-                  }}
+                  onRequestDelete={() => setDeleteTarget(item)}
                 />
               ))}
             </div>
@@ -128,6 +123,11 @@ export function StudioShellHistoryColumn({
           ) : null}
         </div>
       </div>
+      <StudioOperatorSessionDeleteDialog
+        target={deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onDelete={history.onDelete}
+      />
     </aside>
   )
 }

@@ -3156,23 +3156,6 @@ html:lang(ja) {
    shadow 工具要能解析出颜色，值里带 `var(--foreground)` 时整条规则被跳过（真机
    实测 `box-shadow: none`）。⛔ 也不用 `ring-2`：2px 在缩放的画布上读成描边框，
    而不是「这张被选中了」。 */
-/* 历史会话行的删除药丸（画板「历史会话行 · 动效表」）：底色 / 字色 120ms 线性，
-   左右内距走 spring-slot。⛔ 颜色不走弹簧 —— 过冲会把颜色推出终点。 */
-@utility transition-delete-pill {
-  transition:
-    background-color var(--duration-fast) linear,
-    color var(--duration-fast) linear,
-    padding var(--spring-slot-duration) var(--spring-slot-ease);
-}
-
-/* 药丸里那两个字：宽度跟着弹簧撑开，字由糊变清 200ms 线性。 */
-@utility transition-delete-pill-word {
-  transition:
-    max-width var(--spring-slot-duration) var(--spring-slot-ease),
-    opacity var(--duration-base) linear,
-    filter var(--duration-base) linear;
-}
-
 /* 选中环的轨道：平时就挂一圈透明 outline，选中只换颜色 —— `outline-style` 不能过渡，
    选中那一刻才挂上的话环会瞬出瞬没（node-canvas-v2 §1 第 12 条：选中环走 120）。 */
 /* 剪辑台的磁性让位（v2 关键切片动效表「插、删、换位、变长短」）：段、挂件、连接线、

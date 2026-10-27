@@ -376,7 +376,8 @@ it('preserves the current conversation when deletion fails', async () => {
   })
   expect(store.getOperatorState().sessionId).toBe(session.id)
   expect(store.getOperatorState().entries).toHaveLength(1)
-  expect(hook.result.current.error).toBe('deleteFailed')
+  // 删不掉由弹窗走底部黑条（owner 10-27），⛔ 不再写进列表底下那一行。
+  expect(hook.result.current.error).toBeNull()
 })
 
 it('ignores a late save response after deleting the current conversation', async () => {

@@ -60,7 +60,6 @@ import {
   HUGGINGFACE_SHOWCASE_REPO_ID_MAX_LENGTH,
   HUGGINGFACE_SHOWCASE_REVISION_MAX_LENGTH,
   LORA_CONTENT_TYPE_VALUES,
-  LORA_HIDDEN_FILTER_VALUES,
 } from '@/constants/lora'
 import {
   LORA_ASSET_TYPE_VALUES,
@@ -4391,27 +4390,7 @@ export const CivitaiLoraLibraryResultSchema = z.object({
       }),
     ])
     .nullable(),
-  /**
-   * 有搜索词、开着筛选（只在第 1 页）：去掉底模与类型后的总数，和名字强命中却
-   * 被挡住的那几个（各带被哪几项挡住）。
-   */
-  hidden: z
-    .object({
-      /** 去掉底模与类型后的总数（分级照旧）；这两项都没开、或没多出来是 null */
-      total: z.number().int().nonnegative().nullable(),
-      totalCapped: z.boolean(),
-      items: z.array(
-        CivitaiLoraLibraryItemSchema.extend({
-          blockedBy: z.array(z.enum(LORA_HIDDEN_FILTER_VALUES)),
-        }),
-      ),
-    })
-    .nullable(),
 })
-
-export type CivitaiLoraHiddenItem = NonNullable<
-  z.infer<typeof CivitaiLoraLibraryResultSchema>['hidden']
->['items'][number]
 
 export type CivitaiLoraLibraryResult = z.infer<
   typeof CivitaiLoraLibraryResultSchema

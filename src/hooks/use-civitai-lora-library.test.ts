@@ -74,7 +74,6 @@ function createResult(
     hasNextPage,
     literalTotal: 1000,
     fallback: null,
-    hidden: null,
   }
 }
 
@@ -578,7 +577,6 @@ describe('useCivitaiLoraLibrary', () => {
             hasNextPage: false,
             literalTotal: 0,
             fallback: null,
-            hidden: null,
           },
         })
       })

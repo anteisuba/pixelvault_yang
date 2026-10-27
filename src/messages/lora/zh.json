@@ -675,13 +675,6 @@
       "favorite": "收藏",
       "unfavorite": "取消收藏",
       "openDetail": "查看详情",
-      "relaxBaseAndType": "去掉底模和类型",
-      "hiddenTitle": "名字对得上的 {count} 个被筛选挡住了",
-      "hiddenTitleCountOnly": "还有一些被筛选挡住了",
-      "hiddenRelaxCount": "共 {count} 个",
-      "hiddenByBase": "底模不同",
-      "hiddenByType": "类型不符",
-      "hiddenByNsfw": "分级挡住",
       "segmentCorrected": "没搜到「{query}」· 按「{corrected}」找到的 {count} 个",
       "segmentLive": "索引里还没有 · 现查 Civitai 找到的 {count} 个",
       "segmentMeaning": "意思接近的"

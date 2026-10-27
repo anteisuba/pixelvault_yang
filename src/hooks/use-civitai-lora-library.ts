@@ -49,14 +49,14 @@ export interface UseCivitaiLoraLibraryOptions {
 /** 这一组结果怎么分段（见 CivitaiLoraLibraryResult 的同名字段）。 */
 export type CivitaiLoraLibrarySegments = Pick<
   CivitaiLoraLibraryResult,
-  'literalTotal' | 'fallback' | 'hidden'
+  'literalTotal' | 'fallback'
 >
 
 export interface UseCivitaiLoraLibraryReturn {
   items: CivitaiLoraLibraryItem[]
   /**
-   * 前 `literalTotal` 个是字面命中，之后是兜底那一段与「意思接近」；`hidden` 是
-   * 第 1 页带回来的「被筛选挡住的」。还没取到时是 null。
+   * 前 `literalTotal` 个是字面命中，之后是兜底那一段与「意思接近」。还没取到
+   * 时是 null。
    */
   segments: CivitaiLoraLibrarySegments | null
   selectedItem: CivitaiLoraLibraryItem | null
@@ -262,12 +262,10 @@ export function useCivitaiLoraLibrary(
       setTotal(result.total)
       setTotalCapped(result.totalCapped)
       setHasNextPage(result.hasNextPage)
-      // 「被筛选挡住的」只在第 1 页带回来：接下一段时留着第 1 页那份。
-      setSegments((current) => ({
+      setSegments({
         literalTotal: result.literalTotal,
         fallback: result.fallback,
-        hidden: appending ? (current?.hidden ?? null) : result.hidden,
-      }))
+      })
       // 接下一段时选中项还在列表里，⛔ 被新一段的第一项顶掉。
       if (appending) return
       setSelectedItemId((current) => {

@@ -811,18 +811,6 @@ async function readLiteralPage(
 
 /** 现查上游最多要几个（一页的量）。 */
 const LIVE_LIMIT = 24
-/** 名字强命中却被筛选挡住的，最多列几个。 */
-const HIDDEN_ROWS_LIMIT = 8
-/** 相关度分档里「名字含每个必须的词」及更强的那几档（见 buildSearchQuery）。 */
-const STRONG_NAME_TIER_MAX = 4
-
-export type HiddenFilter = 'base' | 'type' | 'nsfw'
-
-export interface HiddenRow extends SearchRow {
-  /** 被哪几项筛选挡住 */
-  blockedBy: HiddenFilter[]
-}
-
 export type SearchFallback =
   /** 打错字：按纠正后的词搜到的 */
   | { kind: 'corrected'; query: string; total: number }
@@ -834,105 +822,6 @@ export interface SearchSegments {
   literalTotal: number
   /** 字面一个都没有时接在前面的那一段，没有就是 null */
   fallback: SearchFallback | null
-  /**
-   * 有搜索词、开着筛选（只在第 1 页给）：去掉底模与类型后字面有多少（分级是用户
-   * 的偏好，⛔ 替他放宽；两项都没开是 null），和名字强命中却被挡住的那几个。两样都
-   * 没有多出来的就是 null。
-   */
-  hidden: {
-    total: number | null
-    totalCapped: boolean
-    rows: HiddenRow[]
-  } | null
-}
-
-function unfiltered(input: SearchInput): SearchInput {
-  return {
-    ...input,
-    baseModels: [],
-    excludeBaseModels: [],
-    nsfw: {},
-    contentType: null,
-  }
-}
-
-function hasFilters(input: SearchInput): boolean {
-  return (
-    input.baseModels.length > 0 ||
-    input.excludeBaseModels.length > 0 ||
-    input.nsfw.someImageAtMost !== undefined ||
-    input.nsfw.someImageAbove !== undefined ||
-    input.contentType !== null
-  )
-}
-
-/**
- * 名字强命中（相关度前几档）却被筛选挡住的：去掉筛选按相关度取前几个，逐项看
- * 是哪个筛选挡的，三项都过的（本来就在结果里）不要。
- */
-async function readHiddenStrong(
-  db: D1Database,
-  input: SearchInput,
-): Promise<HiddenRow[]> {
-  const open = { ...unfiltered(input), sort: 'relevance' as const }
-  const { where, tierExpr, params, joinsFts } = buildSearchQuery(open, {
-    driveFromFts: true,
-  })
-  if (!tierExpr) return []
-  const source = filterSource(open, joinsFts)
-  const candidates = source
-    ? `lora.model_id IN (SELECT lora.model_id FROM ${source} WHERE ${where})`
-    : where
-  const limitParam = params.length + 1
-  const { results } = await db
-    .prepare(
-      `SELECT ${ROW_COLUMNS} FROM lora WHERE ${candidates}
-         AND ${tierExpr} <= ${STRONG_NAME_TIER_MAX}
-       ORDER BY ${tierExpr}, download_count DESC, model_id LIMIT ?${limitParam}`,
-    )
-    // 排序里的分档表达式再用一遍同一组参数（SQLite 按编号取，重复引用无妨）。
-    .bind(...params, HIDDEN_ROWS_LIMIT * 3)
-    .all<RawRow>()
-  if (results.length === 0) return []
-  const ids = results.map((row) => row.model_id)
-  const checks: [HiddenFilter, SearchInput][] = []
-  if (input.baseModels.length > 0 || input.excludeBaseModels.length > 0) {
-    checks.push([
-      'base',
-      {
-        ...unfiltered(input),
-        baseModels: input.baseModels,
-        excludeBaseModels: input.excludeBaseModels,
-      },
-    ])
-  }
-  if (input.contentType) {
-    checks.push([
-      'type',
-      { ...unfiltered(input), contentType: input.contentType },
-    ])
-  }
-  if (
-    input.nsfw.someImageAtMost !== undefined ||
-    input.nsfw.someImageAbove !== undefined
-  ) {
-    checks.push(['nsfw', { ...unfiltered(input), nsfw: input.nsfw }])
-  }
-  const passing = await db.batch<{ id: number }>(
-    checks.map(([, check]) => idsMatching(db, ids, filterCondition(check))),
-  )
-  const passes = passing.map(
-    (result) => new Set(result.results.map((row) => row.id)),
-  )
-  return results
-    .map((row) => ({
-      ...toSearchRow(row, open),
-      blockedBy: checks
-        .filter((_, index) => !passes[index]!.has(row.model_id))
-        .map(([key]) => key),
-    }))
-    .filter((row) => row.blockedBy.length > 0)
-    .slice(0, HIDDEN_ROWS_LIMIT)
 }
 
 /** 现查上游、写回索引，回过了筛选的那些 id（顺序照上游）。出错就当没有。 */
@@ -1006,25 +895,6 @@ export async function searchIndex(
     () => [] as number[],
   )
   const offset = (input.page - 1) * input.pageSize
-  // 开着筛选时，去掉底模与类型后的字面总数与挡住的名字强命中（只在第 1 页给）。
-  const wantsHidden = Boolean(input.q) && input.page === 1 && hasFilters(input)
-  const relaxable =
-    input.baseModels.length > 0 ||
-    input.excludeBaseModels.length > 0 ||
-    input.contentType !== null
-  const relaxedCount =
-    wantsHidden && relaxable
-      ? countMatches(
-          db,
-          {
-            ...input,
-            baseModels: [],
-            excludeBaseModels: [],
-            contentType: null,
-          },
-          defer,
-        )
-      : Promise.resolve(null)
   const {
     total: literalTotal,
     totalCapped,
@@ -1090,23 +960,6 @@ export async function searchIndex(
   const pageStartedAt = Date.now()
   const total = headTotal + extras.length
 
-  const hidden = wantsHidden
-    ? Promise.all([
-        relaxedCount,
-        countMatches(db, unfiltered(input), defer).then((open) =>
-          open.total > literalTotal && open.total <= WALK_ORDER_INDEX_MIN_TOTAL
-            ? readHiddenStrong(db, input).catch(() => [] as HiddenRow[])
-            : [],
-        ),
-      ]).then(([relaxed, rows]) => {
-        const total =
-          relaxed && relaxed.total > literalTotal ? relaxed.total : null
-        return total === null && rows.length === 0
-          ? null
-          : { total, totalCapped: relaxed?.totalCapped ?? false, rows }
-      })
-    : Promise.resolve(null)
-
   const segments: Segment[] = [
     {
       total: literalTotal,
@@ -1119,12 +972,8 @@ export async function searchIndex(
       read: (from, limit) => readRowsById(db, extras.slice(from, from + limit)),
     },
   ]
-  const [rows, hiddenResult] = await Promise.all([
-    offset >= total
-      ? Promise.resolve([] as RawRow[])
-      : readSegments(segments, offset, input.pageSize),
-    hidden,
-  ])
+  const rows =
+    offset >= total ? [] : await readSegments(segments, offset, input.pageSize)
   if (timings) timings.pageMs = Date.now() - pageStartedAt
   return {
     rows: rows.map((row) => toSearchRow(row, input)),
@@ -1133,6 +982,5 @@ export async function searchIndex(
     syncedAt,
     literalTotal,
     fallback,
-    hidden: hiddenResult,
   }
 }

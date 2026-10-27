@@ -59,7 +59,6 @@ import {
   LORA_LIBRARY_FAMILY_LABEL_KEYS,
 } from './lora-library-filter-labels'
 import { LoraLibraryFilterCombobox } from './LoraLibraryFilterCombobox'
-import { LoraLibraryHiddenBand } from './LoraLibraryHiddenBand'
 import { LoraLibrarySearchBox } from './LoraLibrarySearchBox'
 import { LoraLibraryTile, loraMention } from './LoraLibraryTile'
 import { LoraLibraryTypeSparseCard } from './LoraLibraryTypeStates'
@@ -389,34 +388,23 @@ export function LoraLibraryBrowse({
     .filter(Boolean)
     .join(' · ')
 
-  const renderTile = (
-    item: CivitaiLoraLibraryItem,
-    overrides: { meta?: string; veiled?: boolean; reveal?: () => void } = {},
-  ) => {
+  const renderTile = (item: CivitaiLoraLibraryItem) => {
     const cover = item.cardImageUrl ?? item.thumbImageUrl ?? item.coverImageUrl
     return (
       <LoraLibraryTile
         name={item.name}
-        meta={
-          overrides.meta ??
-          `${item.baseModelFamily} · ↓ ${formatCompactNumber(item.downloadCount)}`
-        }
+        meta={`${item.baseModelFamily} · ↓ ${formatCompactNumber(item.downloadCount)}`}
         coverUrl={cover ? proxyCivitaiImageUrl(cover) : null}
         coverColor={item.coverColor ?? null}
-        coverVideoUrl={overrides.veiled ? null : (item.cardVideoUrl ?? null)}
+        coverVideoUrl={item.cardVideoUrl ?? null}
         coverVideoActive={openItem === null}
-        coverVeiled={overrides.veiled}
         mounted={isMounted(item)}
         mounting={mountingId === item.id}
         agentPick={
           !isMounted(item) &&
           agent.picks.some((pick) => pick.candidateId === item.id)
         }
-        onOpen={
-          overrides.veiled && overrides.reveal
-            ? overrides.reveal
-            : () => setOpenItem(item)
-        }
+        onOpen={() => setOpenItem(item)}
         onMount={() => handleMount(item)}
         pickId={item.id}
         favorite={{
@@ -428,20 +416,6 @@ export function LoraLibraryBrowse({
     )
   }
 
-  // 搜到了、名字对得上的几个被筛选挡住了（lora-library.md §3）：只在有搜索词时。
-  const hidden = library.debouncedSearch
-    ? (library.segments?.hidden ?? null)
-    : null
-  const baseOn = library.baseModel !== 'all'
-  const typeOn = library.contentType !== DEFAULT_LORA_CONTENT_TYPE
-  const hiddenRelaxLabel =
-    baseOn && typeOn
-      ? tb('relaxBaseAndType')
-      : baseOn
-        ? tb('relaxBase', { label: familyLabel })
-        : typeOn
-          ? tb('relaxType', { label: typeLabel })
-          : null
   // 结果分段（lora-library.md §3）：字面命中 → 纠错/现查 → 意思接近，后两段各带一条分隔线说明。
   const segments = library.debouncedSearch ? library.segments : null
   const resultGroups: {
@@ -481,10 +455,6 @@ export function LoraLibraryBrowse({
         items: meaning,
       })
     }
-  }
-  const relaxBaseAndType = () => {
-    if (baseOn) library.setBaseModel('all')
-    if (typeOn) library.setContentType(DEFAULT_LORA_CONTENT_TYPE)
   }
 
   return (
@@ -635,23 +605,6 @@ export function LoraLibraryBrowse({
           </div>
         ) : (
           <>
-            {hidden && !library.isReplacing ? (
-              <LoraLibraryHiddenBand
-                items={hidden.items}
-                relaxTotal={
-                  hidden.total === null
-                    ? null
-                    : formatLibraryTotal(
-                        format,
-                        hidden.total,
-                        hidden.totalCapped,
-                      )
-                }
-                relaxLabel={hiddenRelaxLabel}
-                onRelax={relaxBaseAndType}
-                renderTile={(item, tile) => renderTile(item, tile)}
-              />
-            ) : null}
             {resultGroups.map((group) => (
               <section key={group.key} className="contents">
                 {group.label ? (

@@ -898,7 +898,7 @@ describe('按意思搜', () => {
   })
 })
 
-describe('搜不到、被挡住时', () => {
+describe('字面搜不到时', () => {
   const ENDFIELD: FakeModel[] = [
     {
       id: 11,
@@ -935,45 +935,6 @@ describe('搜不到、被挡住时', () => {
     expect(editDistance('endfeild', 'endfield')).toBe(1)
     expect(editDistance('endfeld', 'endfield')).toBe(1)
     expect(editDistance('silver', 'sliver')).toBe(1)
-  })
-
-  it('shows strong name matches hidden by filters, and which filter hid them', async () => {
-    const result = await run({
-      q: 'endfield',
-      baseModels: ['Illustrious'],
-      nsfw: { someImageAtMost: 2 },
-    })
-    expect(result.literalTotal).toBe(2)
-    expect(result.rows.map((row) => row.modelId)).toEqual([13, 14])
-    // 去掉底模（分级照旧）：名字里有、又是安全的 3 个 + 只在标签里的 1 个。
-    expect(result.hidden?.total).toBe(4)
-    expect(
-      result.hidden?.rows.map((row) => [row.modelId, row.blockedBy]),
-    ).toEqual([
-      [11, ['base']],
-      [12, ['nsfw']],
-    ])
-    // 只在第 1 页给。
-    expect(
-      (await run({ q: 'endfield', baseModels: ['Illustrious'], page: 2 }))
-        .hidden,
-    ).toBeNull()
-  })
-
-  it('only lists rating-hidden matches, without a total, when rating is the only filter', async () => {
-    const result = await run({ q: 'endfield', nsfw: { someImageAtMost: 2 } })
-    expect(result.hidden).toEqual({
-      total: null,
-      totalCapped: false,
-      rows: [expect.objectContaining({ modelId: 12, blockedBy: ['nsfw'] })],
-    })
-  })
-
-  it('gives no hidden block without filters or when nothing is hidden', async () => {
-    expect((await run({ q: 'endfield' })).hidden).toBeNull()
-    expect(
-      (await run({ q: 'silver', nsfw: { someImageAtMost: 2 } })).hidden,
-    ).toBeNull()
   })
 
   it('searches the corrected word when a typo matches nothing', async () => {

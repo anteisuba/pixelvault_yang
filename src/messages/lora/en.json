@@ -675,13 +675,6 @@
       "favorite": "Favorite",
       "unfavorite": "Unfavorite",
       "openDetail": "View details",
-      "relaxBaseAndType": "Clear base model and type",
-      "hiddenTitle": "{count} name {count, plural, one {match} other {matches}} hidden by filters",
-      "hiddenTitleCountOnly": "More results are hidden by filters",
-      "hiddenRelaxCount": "{count} total",
-      "hiddenByBase": "Other base",
-      "hiddenByType": "Other type",
-      "hiddenByNsfw": "Rating",
       "segmentCorrected": "Nothing for “{query}” · {count} for “{corrected}”",
       "segmentLive": "Not indexed yet · {count} found live on Civitai",
       "segmentMeaning": "Similar in meaning"

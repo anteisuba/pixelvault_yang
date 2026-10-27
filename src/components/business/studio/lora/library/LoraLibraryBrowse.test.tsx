@@ -299,50 +299,6 @@ describe('LoraLibraryBrowse（库 B · Civitai）', () => {
     expect(mockSetNsfwFilter).toHaveBeenCalledWith('unrestricted')
   })
 
-  it('lists name matches hidden by filters first, veils rating-hidden covers, and clears base on the chip', () => {
-    const setBaseModel = vi.fn()
-    mockLibrary = libraryState({
-      debouncedSearch: 'endfield',
-      search: 'endfield',
-      baseModel: 'Illustrious',
-      setBaseModel,
-      segments: {
-        literalTotal: 2,
-        fallback: null,
-        hidden: {
-          total: 9,
-          totalCapped: false,
-          items: [
-            { ...makeItem('perlica', 'Perlica'), blockedBy: ['base'] },
-            {
-              ...makeItem('chen', 'Chen'),
-              coverImageUrl: 'https://image.civitai.com/x/chen.jpeg',
-              blockedBy: ['nsfw'],
-            },
-          ],
-        },
-      },
-    })
-    renderBrowse()
-
-    expect(
-      screen.getByText('LoraWorkbench.browse:hiddenTitle:{"count":2}'),
-    ).toBeInTheDocument()
-    expect(
-      screen.getByText(/LoraWorkbench\.browse:hiddenByBase/),
-    ).toBeInTheDocument()
-    // 被分级挡住的：点一下先揭开，再点才开详情。
-    const veiled = document.querySelector('img.blur-xl')
-    expect(veiled).not.toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'Chen' }))
-    expect(document.querySelector('img.blur-xl')).toBeNull()
-
-    fireEvent.click(
-      screen.getByRole('button', { name: /LoraWorkbench\.browse:relaxBase/ }),
-    )
-    expect(setBaseModel).toHaveBeenCalledWith('all')
-  })
-
   it('labels the corrected and similar-meaning segments after the literal hits', () => {
     mockLibrary = libraryState({
       debouncedSearch: 'endfeild',
@@ -355,7 +311,6 @@ describe('LoraLibraryBrowse（库 B · Civitai）', () => {
       segments: {
         literalTotal: 0,
         fallback: { kind: 'corrected', query: 'endfield', total: 2 },
-        hidden: null,
       },
     })
     renderBrowse()
@@ -368,20 +323,6 @@ describe('LoraLibraryBrowse（库 B · Civitai）', () => {
     expect(
       screen.getByText('LoraWorkbench.browse:segmentMeaning'),
     ).toBeInTheDocument()
-  })
-
-  it('shows no hidden block while browsing without a search term', () => {
-    mockLibrary = libraryState({
-      segments: {
-        literalTotal: 2,
-        fallback: null,
-        hidden: { total: 9, totalCapped: false, items: [] },
-      },
-    })
-    renderBrowse()
-    expect(
-      screen.queryByText(/LoraWorkbench\.browse:hiddenTitle/),
-    ).not.toBeInTheDocument()
   })
 
   it('raises the detail page over the grid and puts it back on ‹', async () => {

@@ -27,7 +27,6 @@ const emptyResult = {
   hasNextPage: false,
   literalTotal: 0,
   fallback: null,
-  hidden: null,
 }
 
 beforeEach(() => {

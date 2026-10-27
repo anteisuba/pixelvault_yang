@@ -187,7 +187,7 @@ describe('listCivitaiLoras', () => {
     expect(item?.coverImageUrlOriginal).toContain('safe-uuid')
   })
 
-  it('passes the segments through, with an unrestricted cover for rows hidden by rating', async () => {
+  it('passes the segments through', async () => {
     mockFetch.mockResolvedValue(
       jsonResponse({
         rows: [indexRow],
@@ -195,14 +195,6 @@ describe('listCivitaiLoras', () => {
         totalCapped: false,
         literalTotal: 0,
         fallback: { kind: 'corrected', query: 'endfield', total: 3 },
-        hidden: {
-          total: 9,
-          totalCapped: false,
-          rows: [
-            { ...indexRow, blockedBy: ['nsfw'] },
-            { ...indexRow, modelId: 12, blockedBy: ['base'] },
-          ],
-        },
       }),
     )
 
@@ -214,11 +206,6 @@ describe('listCivitaiLoras', () => {
       query: 'endfield',
       total: 3,
     })
-    expect(result.hidden?.total).toBe(9)
-    const [byRating, byBase] = result.hidden?.items ?? []
-    expect(byRating?.blockedBy).toEqual(['nsfw'])
-    expect(byRating?.coverImageUrlOriginal).toContain('explicit-uuid')
-    expect(byBase?.coverImageUrlOriginal).toContain('safe-uuid')
   })
 
   it('reads an index without segments as all literal', async () => {
@@ -229,7 +216,6 @@ describe('listCivitaiLoras', () => {
     expect(result).toMatchObject({
       literalTotal: 25,
       fallback: null,
-      hidden: null,
     })
   })
 

@@ -64,11 +64,6 @@ interface LoraLibraryTileProps {
   onHandToAssistant?: () => void
   /** 挑选框里认这一格用的 id（同一把在库与收藏里写法不同，各给各的）。 */
   pickId?: string
-  /**
-   * 封面先糊着（被分级挡住、搜名字搜到的那几个，owner 2026-10-22 定）：点一下
-   * 由宿主揭开（`onOpen` 那一下给揭开用），⛔ 直接给看。
-   */
-  coverVeiled?: boolean
 }
 
 /** 「交给助手」递过去的那一枚 `@LoRA` 胶囊（同 LoRA 台 `@` 菜单里那一组）。 */
@@ -111,7 +106,6 @@ export function LoraLibraryTile({
   favorite,
   onHandToAssistant,
   pickId,
-  coverVeiled = false,
 }: LoraLibraryTileProps) {
   const t = useTranslations('LoraWorkbench.browse')
   const tPicker = useTranslations('LoraWorkbench.picker')
@@ -160,7 +154,6 @@ export function LoraLibraryTile({
             className={cn(
               'absolute inset-0 size-full object-cover transition-[filter,scale,opacity] duration-base ease-standard motion-reduce:transition-none',
               loaded ? 'opacity-100' : 'scale-118 opacity-0 blur-md',
-              coverVeiled && 'scale-118 blur-xl',
             )}
           />
         ) : coverPending ? null : (

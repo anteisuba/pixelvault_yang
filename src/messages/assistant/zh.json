@@ -809,6 +809,8 @@
       "copied": "已复制",
       "missingKey": "助手需要你自己的 AI 文本模型 Key。Gemini 的 Key 可以在 Google AI Studio 免费申请。",
       "modelKeyMissing": "{model} 还没有可用的 {provider} Key，这一轮没有跑，也没有改用别家的 Key。配好 Key，或者换个模型。",
+      "providerOutOfCredit": "{provider} 那边的额度用完了，{model} 这一轮没跑成。去 {provider} 充值后点重试，或者换个别家的模型。",
+      "providerKeyInvalid": "{provider} 拒收了这把 Key（失效或没有权限），{model} 这一轮没跑成。重新配一把 {provider} Key，或者换个模型。",
       "upscaleKeyMissing": "放大要用你自己的 {provider} Key，还没配，所以没有放大，也没有改用别家的 Key。配好后再说一次「放大」。",
       "addKey": "配置 Key",
       "addProviderKey": "配置 {provider} Key",

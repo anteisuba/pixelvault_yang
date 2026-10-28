@@ -9,6 +9,7 @@ import { ASSISTANT_MEMORY_SCOPES } from '@/constants/assistant-memory'
 import {
   ASSISTANT_OPERATOR_ERROR_MESSAGE_KEYS,
   ASSISTANT_OPERATOR_REJECT_REASON_IDS,
+  ASSISTANT_PROVIDER_ERROR_MESSAGE_KEYS,
 } from '@/constants/assistant-operator'
 import { ASSISTANT_PROTOCOL_DOMAINS } from '@/constants/assistant-protocol'
 import {
@@ -551,14 +552,8 @@ describe('i18n completeness', () => {
       const missingInLocale = enKeys.filter((k) => !localeKeys.includes(k))
       const extraInLocale = localeKeys.filter((k) => !enKeys.includes(k))
 
-      expect(
-        missingInLocale,
-        `Keys in en missing from ${locale}`,
-      ).toEqual([])
-      expect(
-        extraInLocale,
-        `Keys in ${locale} not found in en`,
-      ).toEqual([])
+      expect(missingInLocale, `Keys in en missing from ${locale}`).toEqual([])
+      expect(extraInLocale, `Keys in ${locale} not found in en`).toEqual([])
     }
   })
 
@@ -698,7 +693,10 @@ describe('i18n completeness', () => {
     {
       label: 'StudioOperator.error',
       prefix: 'StudioOperator.error',
-      values: Object.values(ASSISTANT_OPERATOR_ERROR_MESSAGE_KEYS),
+      values: [
+        ...Object.values(ASSISTANT_OPERATOR_ERROR_MESSAGE_KEYS),
+        ...Object.values(ASSISTANT_PROVIDER_ERROR_MESSAGE_KEYS),
+      ],
     },
     /**
      * 记忆每一行的「用在哪」（助手设置 B）—— 域词表加一档而三语没跟上时，下拉与

@@ -809,6 +809,8 @@
       "copied": "Copied",
       "missingKey": "The assistant needs your own AI text model key. Gemini keys are free to create in Google AI Studio.",
       "modelKeyMissing": "{model} has no {provider} key yet, so nothing ran — no other provider was used in its place. Add the key, or pick another model.",
+      "providerOutOfCredit": "Your {provider} credit has run out, so {model} could not run this turn. Top up with {provider} and retry, or switch to a model from another provider.",
+      "providerKeyInvalid": "{provider} rejected this key (invalid or not authorized), so {model} could not run this turn. Set up a new {provider} key, or switch models.",
       "upscaleKeyMissing": "Upscaling runs on your own {provider} key, which isn't set up yet, so nothing was upscaled and no other provider's key was used. Add the key, then ask to upscale again.",
       "addKey": "Add a key",
       "addProviderKey": "Add {provider} key",

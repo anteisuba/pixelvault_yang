@@ -188,6 +188,38 @@ export class AssistantModelKeyMissingError extends GenerationError {
 }
 
 /**
+ * 助手的模型调用被厂商拒了，而且认得出原因（余额 / key / 限流 / 暂时不可用）：码照
+ * `llm-text.service` 那张表，再带上是哪一家、哪个型号 —— 界面据它点名「Gemini 的额度用完了」，
+ * ⛔ 不再一律「模型调用失败」（10-27：Gemini 预付额度用完，界面只说「Agent Key 余额不足」）。
+ */
+export class AssistantModelCallError extends ApiRequestError {
+  readonly adapterType: AI_ADAPTER_TYPES
+  readonly modelId: string
+
+  constructor(
+    classified: ApiRequestError,
+    adapterType: AI_ADAPTER_TYPES,
+    modelId: string,
+  ) {
+    super(
+      classified.errorCode,
+      classified.httpStatus,
+      classified.i18nKey,
+      classified.message,
+    )
+    this.adapterType = adapterType
+    this.modelId = modelId
+  }
+
+  override toJSON() {
+    return {
+      ...super.toJSON(),
+      provider: { adapterType: this.adapterType, modelId: this.modelId },
+    }
+  }
+}
+
+/**
  * The assistant's model (the one the creator picked, or the one "auto" picked) cannot look
  * at pictures, and this job needs to (owner 2026-10-15: say it plainly, never borrow another
  * provider's key that can see).

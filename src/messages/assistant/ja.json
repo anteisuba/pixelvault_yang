@@ -809,6 +809,8 @@
       "copied": "コピーしました",
       "missingKey": "アシスタントにはご自身の AI テキストモデルのキーが必要です。Gemini のキーは Google AI Studio で無料で作成できます。",
       "modelKeyMissing": "{model} の {provider} キーがまだないため、実行していません（他社のキーで代わりに動かすことはしません）。キーを追加するか、別のモデルを選んでください。",
+      "providerOutOfCredit": "{provider} 側のクレジットが尽きたため、{model} はこのターンを実行できませんでした。{provider} でチャージしてから再試行するか、別のプロバイダーのモデルに切り替えてください。",
+      "providerKeyInvalid": "{provider} がこのキーを拒否しました（無効または権限なし）。{model} はこのターンを実行できませんでした。{provider} のキーを設定し直すか、モデルを切り替えてください。",
       "upscaleKeyMissing": "拡大にはあなたの {provider} キーが必要ですが、まだ設定されていないため拡大していません（他社のキーで代わりに動かすことはしません）。キーを設定してから、もう一度「拡大」と伝えてください。",
       "addKey": "キーを追加",
       "addProviderKey": "{provider} のキーを追加",

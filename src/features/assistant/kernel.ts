@@ -34,7 +34,12 @@ import {
   type AssistantV3Tool,
 } from '@/constants/assistant-v3'
 import { getGenerationErrorI18nKey } from '@/constants/generation-errors'
-import { isGenerationError, ProviderError } from '@/lib/errors'
+import type { AI_ADAPTER_TYPES } from '@/constants/providers'
+import {
+  AssistantModelCallError,
+  isGenerationError,
+  ProviderError,
+} from '@/lib/errors'
 import { logger } from '@/lib/logger'
 import { voiceCueRules } from '@/lib/chat-voice'
 import { openCharacterImages } from '@/lib/assistant-v3-cards-board'
@@ -60,6 +65,10 @@ import {
   type AssistantTurnDraft,
 } from '@/services/assistant-turn-record.service'
 import { listNextAssistantMemoriesForPrompt } from '@/services/assistant-memory.service'
+import {
+  LLM_TEXT_PROVIDER_ERROR_CODES,
+  toLlmTextProviderError,
+} from '@/services/llm-text.service'
 import { getHomeChatCharacterId } from '@/services/assistant-persona.service'
 import {
   learnCreatorPhrases,
@@ -387,12 +396,26 @@ function providerReasonOf(error: unknown): string {
   return `${message}: ${error.responseBody.slice(0, 300)}`
 }
 
-function toProviderError(provider: string, error: unknown): unknown {
+function toProviderError(
+  provider: AI_ADAPTER_TYPES,
+  modelId: string,
+  error: unknown,
+): unknown {
   if (error instanceof ProviderError || isFatalOperatorToolError(error))
     return error
   const status = APICallError.isInstance(error) ? error.statusCode : undefined
   const message = providerReasonOf(error)
   logger.warn('assistant next model call failed', { provider, status, message })
+  // 认得出原因（余额 / key / 限流 / 暂时不可用 …）：照 llm-text 同一张码表记，并带上是哪一家，
+  // 过程记录与界面都分得开。认不出的照旧带厂商原话（原话常是唯一的线索）。
+  if (status !== undefined) {
+    const classified = toLlmTextProviderError(status, message, {
+      adapterType: provider,
+      modelId,
+    })
+    if (classified.errorCode !== LLM_TEXT_PROVIDER_ERROR_CODES.failed)
+      return new AssistantModelCallError(classified, provider, modelId)
+  }
   const i18nKey = getGenerationErrorI18nKey(message, {
     hasReferenceImage: false,
   })
@@ -1179,7 +1202,7 @@ async function* runNextTurn(
         messages = stripForFallback(messages)
         continue
       }
-      throw toProviderError(route.adapterType, error)
+      throw toProviderError(route.adapterType, modelId, error)
     }
     watch.dispose()
     succeededOnce = true

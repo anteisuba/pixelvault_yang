@@ -26,7 +26,11 @@ import type {
   AssistantOperatorErrorEvent,
   AssistantOperatorEvent,
 } from '@/types/assistant-operator'
-import { AssistantModelKeyMissingError, isGenerationError } from '@/lib/errors'
+import {
+  AssistantModelCallError,
+  AssistantModelKeyMissingError,
+  isGenerationError,
+} from '@/lib/errors'
 import { logger } from '@/lib/logger'
 import { encodeSseEvent } from '@/lib/sse'
 
@@ -85,6 +89,14 @@ function toErrorEvent(error: unknown): AssistantOperatorErrorEvent {
     ...(error instanceof AssistantModelKeyMissingError
       ? {
           missingKey: {
+            adapterType: error.adapterType,
+            modelId: error.modelId,
+          },
+        }
+      : {}),
+    ...(error instanceof AssistantModelCallError
+      ? {
+          provider: {
             adapterType: error.adapterType,
             modelId: error.modelId,
           },

@@ -5112,6 +5112,8 @@ export const AssistantOperatorErrorEventSchema = z.object({
   detail: z.string().optional(),
   /** 选定的模型缺 key（`ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE`）时才有。 */
   missingKey: AssistantOperatorMissingKeySchema.optional(),
+  /** 模型调用被厂商拒了、认得出原因（余额 / key / 限流…）时：是哪一家、哪个型号。 */
+  provider: AssistantOperatorMissingKeySchema.optional(),
 })
 
 /** 错误那一帧（成帧器与客户端错误条共用的形状）。 */

@@ -411,7 +411,7 @@ const LLM_TEXT_PROVIDER_HTTP_STATUS = {
   requestTooLarge: 413,
 } as const
 
-const LLM_TEXT_PROVIDER_ERROR_CODES = {
+export const LLM_TEXT_PROVIDER_ERROR_CODES = {
   authFailed: 'PROVIDER_AUTH_FAILED',
   insufficientBalance: 'PROVIDER_INSUFFICIENT_BALANCE',
   rateLimited: 'PROVIDER_RATE_LIMITED',
@@ -763,7 +763,7 @@ function throwNoOpenAiTextResponse(
   throw textResponseError(modelId)
 }
 
-function toLlmTextProviderError(
+export function toLlmTextProviderError(
   responseStatus: number,
   errorBody: string,
   context: {
@@ -798,6 +798,21 @@ function toLlmTextProviderError(
       VIDEO_ANALYSIS_UNREACHABLE_ERROR.httpStatus,
       VIDEO_ANALYSIS_UNREACHABLE_ERROR.i18nKey,
       `${VIDEO_ANALYSIS_UNREACHABLE_ERROR.message} (provider status ${responseStatus}, model=${context.modelId})`,
+    )
+  }
+
+  // ⚠ 排在 403 那条之前：xAI 额度用完回的是 403 + 「used all available credits」，
+  // 落到 403 就成了「key 失效」，把人引去换一把好好的 key。
+  if (
+    (parsedCode === GENERATION_ERROR_CODES.PROVIDER_INSUFFICIENT_BALANCE &&
+      responseStatus !== LLM_TEXT_PROVIDER_HTTP_STATUS.unauthorized) ||
+    responseStatus === LLM_TEXT_PROVIDER_HTTP_STATUS.paymentRequired
+  ) {
+    return new ApiRequestError(
+      LLM_TEXT_PROVIDER_ERROR_CODES.insufficientBalance,
+      LLM_TEXT_PROVIDER_HTTP_STATUS.paymentRequired,
+      LLM_TEXT_PROVIDER_ERROR_I18N_KEYS.insufficientBalance,
+      LLM_TEXT_PROVIDER_ERROR_MESSAGES.insufficientBalance,
     )
   }
 
@@ -836,18 +851,6 @@ function toLlmTextProviderError(
       LLM_TEXT_PROVIDER_HTTP_STATUS.invalidRequest,
       `errors.generation.${parsedCode}`,
       parsedCode,
-    )
-  }
-
-  if (
-    parsedCode === GENERATION_ERROR_CODES.PROVIDER_INSUFFICIENT_BALANCE ||
-    responseStatus === LLM_TEXT_PROVIDER_HTTP_STATUS.paymentRequired
-  ) {
-    return new ApiRequestError(
-      LLM_TEXT_PROVIDER_ERROR_CODES.insufficientBalance,
-      LLM_TEXT_PROVIDER_HTTP_STATUS.paymentRequired,
-      LLM_TEXT_PROVIDER_ERROR_I18N_KEYS.insufficientBalance,
-      LLM_TEXT_PROVIDER_ERROR_MESSAGES.insufficientBalance,
     )
   }
 

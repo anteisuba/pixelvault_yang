@@ -45,6 +45,7 @@ import {
   ASSISTANT_OPERATOR_ERROR_MESSAGE_KEYS,
   ASSISTANT_OPERATOR_EVENTS,
   ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE,
+  ASSISTANT_PROVIDER_ERROR_MESSAGE_KEYS,
   ASSISTANT_AUTO_GENERATE_LIMITS,
   ASSISTANT_OPERATOR_LIMITS,
   ASSISTANT_OPERATOR_TOOL_VERBS,
@@ -943,6 +944,7 @@ export function useAssistantOperator(
       errorCode?: string
       i18nKey?: string
       missingKey?: AssistantOperatorMissingKey
+      provider?: AssistantOperatorMissingKey
     }): string => {
       // 选定的模型缺 key：点名是哪个模型、缺哪一家的 key（owner 2026-10-15，⛔ 换别家顶上）。
       if (
@@ -955,6 +957,19 @@ export function useAssistantOperator(
             payload.missingKey.modelId,
           provider: getProviderLabel(
             getDefaultProviderConfig(payload.missingKey.adapterType),
+          ),
+        })
+      // 厂商那边额度用完 / key 失效：点名是哪一家、哪个型号，出路写在话里（10-27）。
+      const providerKey = payload.errorCode
+        ? ASSISTANT_PROVIDER_ERROR_MESSAGE_KEYS[payload.errorCode]
+        : undefined
+      if (providerKey && payload.provider)
+        return tError(providerKey, {
+          model:
+            getAssistantRouteModelEntry(payload.provider.modelId)?.label ??
+            payload.provider.modelId,
+          provider: getProviderLabel(
+            getDefaultProviderConfig(payload.provider.adapterType),
           ),
         })
       const key = payload.errorCode
@@ -2120,7 +2135,7 @@ export function useAssistantOperator(
                 describeError(event),
                 toErrorTrace(event),
                 event.errorCode ?? null,
-                event.missingKey ?? null,
+                event.missingKey ?? event.provider ?? null,
               )
               break
             default:

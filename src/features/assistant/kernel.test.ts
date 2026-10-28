@@ -718,8 +718,47 @@ describe('新内核主循环', () => {
     await expect(
       collect(runAssistantNext('clerk-1', imageRequest('你好'))),
     ).rejects.toMatchObject({
+      errorCode: 'PROVIDER_INSUFFICIENT_BALANCE',
       i18nKey: 'errors.provider.insufficientBalance',
-      message: expect.stringContaining('monthly spending limit'),
+      adapterType: 'anthropic',
+      modelId: 'claude-sonnet-5-5',
+    })
+  })
+
+  it('Gemini 预付额度用完（402）：记成余额不足并点名是哪一家，不是笼统的 PROVIDER_ERROR', async () => {
+    models.main = mockModel([
+      new APICallError({
+        message:
+          'Your prepayment credits are depleted. Please go to AI Studio to manage your project and billing.',
+        url: 'https://generativelanguage.googleapis.com',
+        requestBodyValues: {},
+        statusCode: 402,
+      }),
+    ])
+    const error = await collect(
+      runAssistantNext('clerk-1', imageRequest('你好')),
+    ).catch((caught: { toJSON(): unknown }) => caught.toJSON())
+    expect(error).toMatchObject({
+      errorCode: 'PROVIDER_INSUFFICIENT_BALANCE',
+      provider: { adapterType: 'anthropic', modelId: 'claude-sonnet-5-5' },
+    })
+  })
+
+  it('认不出原因的 400（如思考块签名对不上）：照旧带厂商原话，不硬套一个码', async () => {
+    const rejected = () =>
+      new APICallError({
+        message: 'Invalid `signature` in `thinking` block.',
+        url: 'https://api.anthropic.com',
+        requestBodyValues: {},
+        statusCode: 400,
+      })
+    models.main = mockModel([rejected()])
+    models.fallback = mockModel([rejected()])
+    await expect(
+      collect(runAssistantNext('clerk-1', imageRequest('你好'))),
+    ).rejects.toMatchObject({
+      errorCode: 'PROVIDER_ERROR',
+      message: expect.stringContaining('signature'),
     })
   })
 

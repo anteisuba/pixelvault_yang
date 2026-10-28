@@ -1664,6 +1664,23 @@ export const ASSISTANT_OPERATOR_ERROR_MESSAGE_KEYS: Readonly<
   MISSING_API_KEY: 'missingKey',
 }
 
+/**
+ * 助手的模型调用被厂商拒、认得出原因、而且**换个说法就有出路**的两种（帧上带 `provider`）：
+ * 点名是哪一家、哪个型号（10-27：Gemini 预付额度用完，界面只说「Agent Key 余额不足」）。
+ * 码与 `llm-text.service` 的 `LLM_TEXT_PROVIDER_ERROR_CODES` 同值（那边是 server-only）。
+ */
+export const ASSISTANT_PROVIDER_ERROR_CODES = {
+  insufficientBalance: 'PROVIDER_INSUFFICIENT_BALANCE',
+  authFailed: 'PROVIDER_AUTH_FAILED',
+} as const
+
+export const ASSISTANT_PROVIDER_ERROR_MESSAGE_KEYS: Readonly<
+  Record<string, string>
+> = {
+  [ASSISTANT_PROVIDER_ERROR_CODES.insufficientBalance]: 'providerOutOfCredit',
+  [ASSISTANT_PROVIDER_ERROR_CODES.authFailed]: 'providerKeyInvalid',
+}
+
 /** 会触发就地确认的字段 —— 只有这两个是「用户手写的自由文本」。 */
 export const ASSISTANT_OPERATOR_CONFIRM_FIELDS = {
   prompt: 'prompt',

@@ -5,12 +5,21 @@ import { Prisma } from '@/lib/generated/prisma/client'
 import {
   ASSISTANT_EVIDENCE_RECALL_LIMITS,
   ASSISTANT_EVIDENCE_REF_PREFIX,
+  ASSISTANT_PAST_SEARCH_LIMITS,
 } from '@/constants/assistant-operator'
-import { RESEARCH_RUN_STATUSES } from '@/constants/research'
+import {
+  EVIDENCE_SOURCE_TIERS,
+  RESEARCH_RUN_STATUSES,
+  RESEARCH_SOURCE_IDS,
+} from '@/constants/research'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
+import { assistantWorkspaceFromKey } from '@/lib/assistant-workspace'
 import { findOwnConversation } from '@/services/assistant-conversation.service'
-import type { AssistantSurfaceId } from '@/types/assistant-conversation'
+import {
+  ASSISTANT_SURFACE_BY_DOMAIN,
+  type AssistantSurfaceId,
+} from '@/types/assistant-conversation'
 import {
   EvidenceItemSchema,
   type EvidenceItem,
@@ -100,6 +109,11 @@ export async function appendAssistantEvidenceBook(args: {
   /** 这一轮助手用的文本模型标识，落库只为归因。 */
   model?: string | undefined
   entries: readonly AssistantEvidenceBookEntry[]
+  /**
+   * 默认 true（打了我们的源、花了 Serper）。模型自带联网搜到的传 false：花的是
+   * 创作者自己的 key，⛔ 计进平台的当日检索配额。
+   */
+  grounded?: boolean
 }): Promise<AssistantEvidenceBookResult> {
   const entries = args.entries.filter((entry) => entry.items.length > 0)
   if (entries.length === 0) return { refs: [], researchRunIds: [] }
@@ -132,7 +146,7 @@ export async function appendAssistantEvidenceBook(args: {
               goal: entry.goal,
               query: entry.queries.join(' · '),
               status: RESEARCH_RUN_STATUSES.succeeded,
-              grounded: true,
+              grounded: args.grounded ?? true,
               evidence: numbered as unknown as Prisma.InputJsonValue,
               perSource: entry.receipts as unknown as Prisma.InputJsonValue,
               ...(args.model ? { model: args.model } : {}),
@@ -242,4 +256,123 @@ export async function recallAssistantEvidence(args: {
       .filter((item): item is AssistantRecalledEvidence => Boolean(item)),
     missing: wanted.filter((ref) => !found.has(ref)),
   }
+}
+
+/** 以前的一次搜索（跨会话），给翻记忆那一步带回去。 */
+export interface AssistantPastSearch {
+  goal: string
+  /** 哪天搜的（YYYY-MM-DD）。 */
+  day: string
+  items: { title: string; url?: string; excerpt?: string }[]
+}
+
+function evidenceExcerpt(item: EvidenceItem): string | undefined {
+  const text =
+    item.kind === 'text'
+      ? item.excerpt
+      : item.kind === 'tags'
+        ? item.tags.join(', ')
+        : item.kind === 'video'
+          ? item.excerpt
+          : undefined
+  if (!text) return undefined
+  const max = ASSISTANT_PAST_SEARCH_LIMITS.maxExcerptChars
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text
+}
+
+/**
+ * 翻**以前搜过的**（不分会话）：最近那批搜索里，目标或查询词含其中任一个词的几次。
+ * 空词 = 最近几次。⚠ 打了注入标记的条目不带回；只读，⛔ 不花钱、⛔ 不打外部源。
+ */
+export async function searchPastResearch(
+  userId: string,
+  query: string,
+): Promise<AssistantPastSearch[]> {
+  const words = query
+    .toLowerCase()
+    .split(/[\s,，、;；]+/)
+    .map((word) => word.trim())
+    .filter(Boolean)
+  const rows = await db.researchRun.findMany({
+    where: { userId, status: RESEARCH_RUN_STATUSES.succeeded },
+    orderBy: { createdAt: 'desc' },
+    take: ASSISTANT_PAST_SEARCH_LIMITS.scanRuns,
+    select: { goal: true, query: true, evidence: true, createdAt: true },
+  })
+  const found: AssistantPastSearch[] = []
+  for (const row of rows) {
+    if (found.length >= ASSISTANT_PAST_SEARCH_LIMITS.maxRuns) break
+    const haystack = `${row.goal} ${row.query}`.toLowerCase()
+    if (words.length > 0 && !words.some((word) => haystack.includes(word)))
+      continue
+    const items = (Array.isArray(row.evidence) ? row.evidence : [])
+      .map((raw) => EvidenceItemSchema.safeParse(raw).data)
+      // 视觉线的行装的是创作者自己给的图，不是搜来的。
+      .filter(
+        (item): item is EvidenceItem =>
+          !!item &&
+          !item.untrusted &&
+          item.sourceId !== RESEARCH_SOURCE_IDS.visionInput,
+      )
+      .slice(0, ASSISTANT_PAST_SEARCH_LIMITS.maxItemsPerRun)
+      .map((item) => {
+        const excerpt = evidenceExcerpt(item)
+        return {
+          title: item.title,
+          ...(item.url ? { url: item.url } : {}),
+          ...(excerpt ? { excerpt } : {}),
+        }
+      })
+    if (items.length === 0) continue
+    found.push({
+      goal: row.goal,
+      day: row.createdAt.toISOString().slice(0, 10),
+      items,
+    })
+  }
+  return found
+}
+
+/**
+ * 模型**自带联网**搜到的那几页记进证据本（新内核：厂商自己跑的搜索，我们只拿到标题与网址，
+ * 摘要是厂商加密的）。⭐ 为的是换个会话也翻得到「以前搜过什么」（`searchPastResearch`）。
+ * ⚠ 不计平台检索配额（`grounded: false`、无回执）；写不进去不抛。
+ */
+export async function recordNativeSearches(args: {
+  userId: string
+  workspaceKey: string
+  domain: keyof typeof ASSISTANT_SURFACE_BY_DOMAIN
+  conversationId: string
+  model?: string | undefined
+  queries: readonly string[]
+  sources: readonly { title: string; url: string }[]
+}): Promise<void> {
+  if (args.queries.length === 0 || args.sources.length === 0) return
+  const retrievedAt = new Date().toISOString()
+  await appendAssistantEvidenceBook({
+    userId: args.userId,
+    workspaceKey: args.workspaceKey,
+    surface: ASSISTANT_SURFACE_BY_DOMAIN[args.domain],
+    projectId: assistantWorkspaceFromKey(args.workspaceKey)?.projectId ?? null,
+    conversationId: args.conversationId,
+    model: args.model,
+    grounded: false,
+    entries: [
+      {
+        goal: args.queries.join(' · ').slice(0, 300),
+        queries: args.queries,
+        items: args.sources.map((source, index) => ({
+          kind: 'text' as const,
+          id: `native-${index + 1}`,
+          sourceId: RESEARCH_SOURCE_IDS.webSearch,
+          sourceTier: EVIDENCE_SOURCE_TIERS.community,
+          retrievedAt,
+          title: source.title,
+          url: source.url,
+          excerpt: '',
+        })),
+        receipts: [],
+      },
+    ],
+  })
 }

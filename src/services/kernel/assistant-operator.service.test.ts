@@ -1450,8 +1450,18 @@ describe('v3 收尾（P2 §2.5）', () => {
     const { run, user } = await prepare()
     recordLedgerStep(run, ASSISTANT_OPERATOR_VERB_IDS.look, '看图', '黑长直')
     mockListMemoriesForReview.mockResolvedValueOnce([
-      { id: 'm-a', kind: 'preference', text: '偏好竖构图 9:16' },
-      { id: 'm-b', kind: 'fact', text: '主角叫小林' },
+      {
+        id: 'm-a',
+        kind: 'preference',
+        text: '偏好竖构图 9:16',
+        updatedAt: '2026-09-01T08:00:00.000Z',
+      },
+      {
+        id: 'm-b',
+        kind: 'fact',
+        text: '主角叫小林',
+        updatedAt: '2026-10-20T08:00:00.000Z',
+      },
     ])
     mockLlmTextCompletion.mockResolvedValueOnce(
       JSON.stringify({
@@ -1470,8 +1480,10 @@ describe('v3 收尾（P2 §2.5）', () => {
     const prompt = (
       mockLlmTextCompletion.mock.calls[0]?.[0] as { userPrompt: string }
     ).userPrompt
-    expect(prompt).toContain('#1 [preference] 偏好竖构图 9:16')
-    expect(prompt).toContain('#2 [fact] 主角叫小林')
+    expect(prompt).toContain(
+      '#1 [preference, noted 2026-09-01] 偏好竖构图 9:16',
+    )
+    expect(prompt).toContain('#2 [fact, noted 2026-10-20] 主角叫小林')
     expect(mockRecordMemories).toHaveBeenCalledTimes(1)
     expect(mockRecordMemories.mock.calls[0]?.[0]).toMatchObject({
       scope: 'image',

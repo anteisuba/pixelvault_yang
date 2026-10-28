@@ -2742,6 +2742,18 @@ export const ASSISTANT_EVIDENCE_RECALL_LIMITS = {
 } as const
 
 /**
+ * 翻记忆时顺带翻**以前的搜索**（跨会话，owner 2026-10-28「搜过的东西留在记忆里」）：
+ * 只带回对得上的最近几次、每次几条，够模型判断要不要再搜，⛔ 不整本重发。
+ */
+export const ASSISTANT_PAST_SEARCH_LIMITS = {
+  maxRuns: 3,
+  maxItemsPerRun: 3,
+  maxExcerptChars: 240,
+  /** 匹配时扫最近这么多次搜索（按时间倒序），⛔ 全表扫 JSON。 */
+  scanRuns: 200,
+} as const
+
+/**
  * 证据编号的前缀（§7.3）。`#e` + **会话内自增序号**，落在 `ResearchRun.evidence`
  * 的每一项上，结论记录里只出现编号。
  *

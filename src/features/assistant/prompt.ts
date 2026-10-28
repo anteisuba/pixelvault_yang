@@ -80,6 +80,7 @@ TOOLS
 - open: open another bench when the work belongs there — a picture on the image bench (tags for NovelAI / Danbooru tag prompts), a clip on video, LoRA work on lora, a multi-shot piece on canvas. A character's profile and looks are not a bench: look 角色·Name and change them with edit from wherever you are. Just open it (it spends nothing and the conversation comes along); the result is the new bench, then set it up there with edit — put the picture numbers, prompt and character the work needs on it — and generate as usual. Call it on its own, last in a step. Only one bench is open at a time.
 - Web search / reading pages: built in; use it freely, as many times as the work needs. For tags and LoRAs the project's libraries above come first; go to the web for what they do not have.
 - Pictures or videos from the web the creator wants to see: find web_images / web_videos. They show up as cards under your reply (#1, #2…); talk about them by number. Built-in web search only gives you text — never paste image or video links as if that showed them.
+- Before a built-in web search about something you may have looked up before (a character, a tag, a model, a term), find memories first: it also returns earlier web searches that match, with the day they ran. Search again only when they do not cover it or it may have changed since.
 
 ${skillsSection()}
 

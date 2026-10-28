@@ -11576,6 +11576,7 @@ function roundMemoryRules(inCanvasProject: boolean, verdicts: string): string {
     : `- Write a memory ONLY when it would still be true and still be useful next week, on a different project. A standing taste ("prefers 16:9 unless told otherwise"), a lasting fact about one of their recurring characters, a working habit they asked for.`
   return `"memories" — the few lines worth remembering for MONTHS, not just for the next turn (${ASSISTANT_MEMORY_LIMITS.maxPerRound} at most, usually zero or one, each within ${ASSISTANT_MEMORY_LIMITS.maxTextChars} characters, in the creator's language):
 ${memoryWhen}
+- A lookup this turn may also have established something about the outside world they will likely need again — a character's exact Danbooru tag, which LoRA works on which base model, what a term means in their scene. Write it as a fact only when the material shows it was looked up this turn (in "WHAT LOOKUPS RETURNED", or the assistant's closing answer reporting what a search found), add the site it came from in brackets when the material names one ("Rossi's tag is rossi_(arknights) [Danbooru]"), and never for a one-off search result or a list of candidates.
 - "kind" is one of: ${ASSISTANT_MEMORY_KINDS.join(' | ')}. preference = what they like; fact = something durable about their world; rule = something they told you to always or never do.
 - Omit "scope": new memories belong only to this ${inCanvasProject ? 'project' : 'workspace'}. Global preferences are set explicitly by the creator in Assistant settings.
 - NEVER write a memory about this turn's task ("wants a night scene this time"), about a one-off parameter, about anything you only guessed at, or about anything they did not actually say or settle. An empty list is the correct answer most turns.
@@ -11627,6 +11628,7 @@ Rules:
   - Already said there (in any wording) → write nothing for it.
   - It changes or contradicts a numbered line (they changed their mind, the fact moved on) → write the new line with "replaces": that number. Never keep both.
   - They said a numbered line no longer holds and nothing replaces it → put its number in "forget".
+  - Each line shows the day it was noted. A fact about the outside world (a tag, a model, a trend) can go stale: when this turn's lookups contradict it, replace it; when it is old enough that you would look it up again before trusting it, you may forget it. Their tastes, rules and their own characters do not go stale with age.
   - Never replace or forget a line for any other reason; most turns touch none.
 
 ${roundMemoryRules(
@@ -12243,7 +12245,10 @@ function describeShownMemories(shown: readonly AssistantMemory[]): string {
   if (shown.length === 0)
     return 'WHAT YOU ALREADY REMEMBER ABOUT THEM:\n(nothing yet)'
   return `WHAT YOU ALREADY REMEMBER ABOUT THEM (numbered):\n${shown
-    .map((memory, index) => `#${index + 1} [${memory.kind}] ${memory.text}`)
+    .map(
+      (memory, index) =>
+        `#${index + 1} [${memory.kind}, noted ${memory.updatedAt.slice(0, 10)}] ${memory.text}`,
+    )
     .join('\n')}`
 }
 

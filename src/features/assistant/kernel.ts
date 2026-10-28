@@ -70,6 +70,7 @@ import {
   toLlmTextProviderError,
 } from '@/services/llm-text.service'
 import { getHomeChatCharacterId } from '@/services/assistant-persona.service'
+import { recordNativeSearches } from '@/services/research/assistant-evidence-book.service'
 import {
   learnCreatorPhrases,
   shouldLearnPhrases,
@@ -1260,6 +1261,18 @@ async function* runNextTurn(
           .join('\n')
           .slice(0, ASSISTANT_V3_LIMITS.maxEntryChars),
         error: false,
+      })
+
+    // 自带联网搜到的记进证据本：换个会话翻记忆时也看得到「以前搜过什么」。隐身不记。
+    if (searches.size > 0 && request.conversationId && !historyOwner.incognito)
+      await recordNativeSearches({
+        userId: user.id,
+        workspaceKey: request.workspaceKey,
+        domain: request.domain,
+        conversationId: request.conversationId,
+        model: modelId,
+        queries: [...searches.values()].map((search) => search.query),
+        sources,
       })
 
     if (calls.length === 0) {

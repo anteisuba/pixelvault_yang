@@ -134,6 +134,14 @@ v3 的问题不在某一条规矩，而在外壳替模型做了太多事（审�
 - `open` 不再有 `character`（10-26）：角色页进了库、桌面上不当宿主，开过去永远「没到」（线上「没能打开那个台」）。角色的设定 / 造型用 edit 的库改法在哪个台都能改，首页两块板子也写明。
 - 系统提示加一条：没在这段对话里 `find` 过、结果为空之前，不许说「库里没有 / 你没有」。
 
+**库页助手能看能操作**（owner 10-28：屏上那一页 · 刷新 + 就地翻给你看 · 填进台走开台 · 只做桌面）：
+
+- 看：素材 / 角色 / 提示词 / LoRA 四个库页另报「屏上那一页」（`useReportLibraryScreen` → `libraryView.screen`）：哪一格 / 夹与筛选、搜索词、屏上前 20 样（按编号写）、素材多选了哪几张。板子底下 `LIBRARY ON SCREEN` 接着写出来；更多的叫它 `find`。页面还在取时不报；报上来的那一页对不上开着的库就不算。LoRA 库 Civitai 那一格不列结果。
+- 刷新：助手改了库（素材四条、`library_write` 的角色 / LoRA / 提示词）或撤销一条，`notifyLibraryChanged` 让开着的那一页重读（`useLibraryChanged`）；不走宿主，因为库叠层里的页面不当宿主。
+- 翻给你看：`open` 多一支 `bench: "library"`（`library` = assets / characters / prompts / loras，`show` 编号或名字，`search`，LoRA 的 `section`）。台不动；图按编号由服务端认成 id，别的只带名字、页面在自己列表里找（找不到就搜这个名字；LoRA 库只切到放着它的那一格）。浏览器 `requestLibraryShow` 交给页面（`useLibraryShowRequest`），换库时与左栏同一种换法（库开着用 replace），从台上翻开的库把对话一起叫出来；页面翻好（那一样打开了或在屏上、搜索词对上）或等满 `STUDIO_OPERATOR_LIBRARY_SHOW_SETTLE_MS` 就接着发，结果是新的屏上那一页，到没到由服务端照实说（`open.ts` 的 `libraryArrived`，与浏览器共用 `libraryItemShown`）。
+- 挂上 LoRA / 填进台照旧走开台再摆（`open` 台 + `edit`）。
+- 没做：手机；LoRA 收藏那一格里的搜索框与详情抽屉（另一会话在改那几个文件）；角色页的卡库（Chub）那一格。
+
 **聊天并回对话（owner 10-26，样件 v5 / 气泡出场样件 F）**：
 
 - 没开台 = 和现在这位聊：首页这一轮请求没带 `chatCharacterId` 时，内核按设置里那张角色卡补上（`getHomeChatCharacterId`），走聊天口吻；学说法（`learnCreatorPhrases`）挪进内核，聊天轮结束后 `after()` 跑。
@@ -156,6 +164,8 @@ v3 的问题不在某一条规矩，而在外壳替模型做了太多事（审�
 - 接口与搜索调研：项目文件 `assistant-reliability/model-interfaces.md`
 
 ## Last Verified
+
+- 2026-10-28 · 库页助手能看能操作：tsc 0 error、相关 vitest 1307 绿；真浏览器（localhost:3000）四页各走通一条：提示词库搜「雨」并报出屏上那几条、角色库打开 Denia 并列出屏上其余角色、素材库打开第一张图 + 建文件夹当场出现 / 撤销当场消失、LoRA 库切到收藏并报出前三把。
 
 - 2026-10-26 · ②c-3 删旧聊天房间：`tsc` 0 error、相关 vitest 全绿（含 i18n 齐全 / 键覆盖）；迁移漂移交 CI 检查。
 - 2026-10-26 · 聊天并回对话 ②c-1 / ②c-2：`tsc` 0 error、相关 vitest 全绿（首页补角色卡、事件记号、气泡出场时序、历史落库、念读接口与状态）。🔊 真念要在 preview 上用有 Fish key 的账号点一次。

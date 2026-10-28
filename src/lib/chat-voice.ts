@@ -49,6 +49,19 @@ export function chatBubbles(text: string): string[] {
     .filter(Boolean)
 }
 
+/** 她发的表情包那一行（服务端换好的 `![表情](地址)`，4d）。 */
+const STICKER_LINE = /^!\[表情\]\((\S+)\)$/
+
+/**
+ * 这一行是不是她发的表情包；是就回图片地址。⚠ 只认我们自己存储域名下的图（服务端换出来的都在那儿），
+ * 模型自己写的外链图 ⛔ 画。
+ */
+export function stickerUrlOf(line: string): string | null {
+  const url = STICKER_LINE.exec(line.trim())?.[1]
+  const base = process.env.NEXT_PUBLIC_STORAGE_BASE_URL
+  return url && base && url.startsWith(`${base}/`) ? url : null
+}
+
 const PICTURE_HANDLE = new RegExp(
   `(?:${GENERATION_NAME_PREFIX_BY_OUTPUT_TYPE.IMAGE}|${GENERATION_NAME_PREFIX_BY_OUTPUT_TYPE.VIDEO})${GENERATION_NAME.prefixSeparator}\\d{1,9}(?![0-9])`,
   'g',
@@ -69,6 +82,8 @@ export function withoutPictureHandles(text: string): string {
  */
 export function spokenVoiceText(text: string): string {
   const spoken = withoutPictureHandles(text)
+    // 表情包那一行不念（4d）。
+    .replace(/!\[表情\]\([^)]*\)/g, '')
     .replace(/\[([^\]]*)\]\((?:[^)]*)\)/g, '$1')
     .replace(/https?:\/\/\S+/g, '')
     .replace(/[*_`#>]+/g, '')

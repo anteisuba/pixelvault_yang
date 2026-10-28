@@ -119,6 +119,12 @@ export async function recallFindings(input: {
           take: 1,
           select: { id: true, ...select },
         })
+    // 「你不看就少出门」读它：被想起过的卡照常每天出门。
+    if (rows.length)
+      await db.characterFinding.updateMany({
+        where: { id: { in: rows.map((row) => row.id) } },
+        data: { recalledAt: new Date() },
+      })
     logger.info('character findings recalled', {
       cardId: input.cardId,
       byMeaning: matches.length,

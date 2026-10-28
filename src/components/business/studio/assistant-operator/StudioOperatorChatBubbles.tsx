@@ -1,10 +1,14 @@
 'use client'
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import Image from 'next/image'
 
 import { useChatBubbleReveal } from '@/hooks/use-chat-bubble-reveal'
-import { chatBubbles } from '@/lib/chat-voice'
+import { chatBubbles, stickerUrlOf } from '@/lib/chat-voice'
 import { cn } from '@/lib/utils'
+
+/** 表情包裸图的边长（与 `size-30` 同一个数）。 */
+const STICKER_SIZE_PX = 120
 
 const BUBBLE_CLASS =
   'w-fit max-w-full whitespace-pre-wrap rounded-2xl rounded-tl-sm border border-border bg-card px-3 py-2 text-md leading-reading text-foreground'
@@ -51,15 +55,33 @@ export function StudioOperatorChatBubbles({
       data-testid="operator-chat-bubbles"
       className="flex min-w-0 flex-col items-start gap-1.5"
     >
-      {visible.map((bubble, index) => (
-        <p
-          key={index}
-          data-testid="operator-chat-bubble"
-          className={cn(BUBBLE_CLASS, live && 'operator-chat-bubble-in')}
-        >
-          {renderBubble(bubble)}
-        </p>
-      ))}
+      {visible.map((bubble, index) => {
+        const sticker = stickerUrlOf(bubble)
+        // 她发的表情包（4d，owner 10-29 定 A）：不套气泡，就一张图，弹一下出现。
+        return sticker ? (
+          <Image
+            key={index}
+            src={sticker}
+            alt=""
+            width={STICKER_SIZE_PX}
+            height={STICKER_SIZE_PX}
+            unoptimized
+            data-testid="operator-chat-sticker"
+            className={cn(
+              'size-30 object-contain',
+              live && 'operator-chat-sticker-in',
+            )}
+          />
+        ) : (
+          <p
+            key={index}
+            data-testid="operator-chat-bubble"
+            className={cn(BUBBLE_CLASS, live && 'operator-chat-bubble-in')}
+          >
+            {renderBubble(bubble)}
+          </p>
+        )
+      })}
       {typing ? (
         <span
           aria-hidden

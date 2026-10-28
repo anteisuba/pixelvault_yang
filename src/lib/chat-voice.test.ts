@@ -1,9 +1,10 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   chatBubbles,
   leadingVoiceCues,
   spokenVoiceText,
+  stickerUrlOf,
   voiceCueRules,
   withoutPictureHandles,
 } from './chat-voice'
@@ -65,5 +66,32 @@ describe('leadingVoiceCues', () => {
       cues: [],
       rest: '欢迎 [laughing] 来玩',
     })
+  })
+})
+
+describe('her stickers (4d)', () => {
+  beforeEach(() =>
+    vi.stubEnv('NEXT_PUBLIC_STORAGE_BASE_URL', 'https://cdn.test'),
+  )
+  afterEach(() => vi.unstubAllEnvs())
+
+  it('recognises a sticker line only when it points at our own storage', () => {
+    expect(
+      stickerUrlOf('![表情](https://cdn.test/characters/u/c/stickers/a.png)'),
+    ).toBe('https://cdn.test/characters/u/c/stickers/a.png')
+    expect(stickerUrlOf('![表情](https://evil.example/a.png)')).toBeNull()
+    expect(stickerUrlOf('好耶')).toBeNull()
+  })
+
+  it('keeps the sticker line as its own bubble and hides a raw token while writing', () => {
+    expect(
+      chatBubbles('笑死\n![表情](https://cdn.test/s.png)\n[表情·ab12cd]'),
+    ).toEqual(['笑死', '![表情](https://cdn.test/s.png)'])
+  })
+
+  it('never reads a sticker out loud', () => {
+    expect(spokenVoiceText('笑死\n![表情](https://cdn.test/s.png)')).toBe(
+      '笑死',
+    )
   })
 })

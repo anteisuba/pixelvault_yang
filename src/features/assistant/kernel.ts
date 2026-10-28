@@ -80,6 +80,10 @@ import {
   renderFindingsRecall,
 } from '@/services/cards/character-findings.service'
 import {
+  loadChatStickers,
+  resolveStickerTokens,
+} from '@/services/cards/character-sticker.service'
+import {
   loadAssistantLastTime,
   renderAssistantLastTime,
 } from '@/services/kernel/assistant-last-time.service'
@@ -755,6 +759,11 @@ async function* runNextTurn(
           text: latestUserText,
         })
       : []
+  // 4d：她手上能发的表情包（只在和她聊天时）。
+  const stickers =
+    chat && request.incognito !== true
+      ? await loadChatStickers(user.id, chat.id).catch(() => null)
+      : null
   // 和她聊天：你每说第 8 句，响应发完之后学一次你的说法（原在聊天页，用户 10-26 并进对话）。
   if (chat && !saved && request.incognito !== true) {
     learnPhrasesAfterTurn({
@@ -969,6 +978,7 @@ async function* runNextTurn(
     skillsNote: skillsSettingsNote(skills),
     lastTime: renderAssistantLastTime(lastTime),
     findings: renderFindingsRecall(findings),
+    stickers: stickers?.section ?? '',
   })
   recording.turn = {
     userId: user.id,
@@ -1358,7 +1368,9 @@ async function* runNextTurn(
       } else {
         yield {
           type: ASSISTANT_OPERATOR_EVENTS.message,
-          text: closing,
+          text: stickers
+            ? await resolveStickerTokens(closing, stickers)
+            : closing,
           ...chatReply,
         }
       }
@@ -1377,7 +1389,9 @@ async function* runNextTurn(
     if (reply.trim())
       yield {
         type: ASSISTANT_OPERATOR_EVENTS.message,
-        text: reply.trim(),
+        text: stickers
+          ? await resolveStickerTokens(reply.trim(), stickers)
+          : reply.trim(),
         ...chatReply,
       }
     context.replyText.current = reply

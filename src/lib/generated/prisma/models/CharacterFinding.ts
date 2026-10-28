@@ -37,6 +37,7 @@ export type CharacterFindingMinAggregateOutputType = {
   title: string | null
   note: string | null
   seenAt: Date | null
+  recalledAt: Date | null
 }
 
 export type CharacterFindingMaxAggregateOutputType = {
@@ -48,6 +49,7 @@ export type CharacterFindingMaxAggregateOutputType = {
   title: string | null
   note: string | null
   seenAt: Date | null
+  recalledAt: Date | null
 }
 
 export type CharacterFindingCountAggregateOutputType = {
@@ -59,6 +61,7 @@ export type CharacterFindingCountAggregateOutputType = {
   title: number
   note: number
   seenAt: number
+  recalledAt: number
   _all: number
 }
 
@@ -72,6 +75,7 @@ export type CharacterFindingMinAggregateInputType = {
   title?: true
   note?: true
   seenAt?: true
+  recalledAt?: true
 }
 
 export type CharacterFindingMaxAggregateInputType = {
@@ -83,6 +87,7 @@ export type CharacterFindingMaxAggregateInputType = {
   title?: true
   note?: true
   seenAt?: true
+  recalledAt?: true
 }
 
 export type CharacterFindingCountAggregateInputType = {
@@ -94,6 +99,7 @@ export type CharacterFindingCountAggregateInputType = {
   title?: true
   note?: true
   seenAt?: true
+  recalledAt?: true
   _all?: true
 }
 
@@ -178,6 +184,7 @@ export type CharacterFindingGroupByOutputType = {
   title: string
   note: string
   seenAt: Date
+  recalledAt: Date | null
   _count: CharacterFindingCountAggregateOutputType | null
   _min: CharacterFindingMinAggregateOutputType | null
   _max: CharacterFindingMaxAggregateOutputType | null
@@ -210,6 +217,7 @@ export type CharacterFindingWhereInput = {
   title?: Prisma.StringFilter<"CharacterFinding"> | string
   note?: Prisma.StringFilter<"CharacterFinding"> | string
   seenAt?: Prisma.DateTimeFilter<"CharacterFinding"> | Date | string
+  recalledAt?: Prisma.DateTimeNullableFilter<"CharacterFinding"> | Date | string | null
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
   characterCard?: Prisma.XOR<Prisma.CharacterCardScalarRelationFilter, Prisma.CharacterCardWhereInput>
 }
@@ -223,6 +231,7 @@ export type CharacterFindingOrderByWithRelationInput = {
   title?: Prisma.SortOrder
   note?: Prisma.SortOrder
   seenAt?: Prisma.SortOrder
+  recalledAt?: Prisma.SortOrderInput | Prisma.SortOrder
   user?: Prisma.UserOrderByWithRelationInput
   characterCard?: Prisma.CharacterCardOrderByWithRelationInput
 }
@@ -240,6 +249,7 @@ export type CharacterFindingWhereUniqueInput = Prisma.AtLeast<{
   title?: Prisma.StringFilter<"CharacterFinding"> | string
   note?: Prisma.StringFilter<"CharacterFinding"> | string
   seenAt?: Prisma.DateTimeFilter<"CharacterFinding"> | Date | string
+  recalledAt?: Prisma.DateTimeNullableFilter<"CharacterFinding"> | Date | string | null
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
   characterCard?: Prisma.XOR<Prisma.CharacterCardScalarRelationFilter, Prisma.CharacterCardWhereInput>
 }, "id" | "characterCardId_url">
@@ -253,6 +263,7 @@ export type CharacterFindingOrderByWithAggregationInput = {
   title?: Prisma.SortOrder
   note?: Prisma.SortOrder
   seenAt?: Prisma.SortOrder
+  recalledAt?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.CharacterFindingCountOrderByAggregateInput
   _max?: Prisma.CharacterFindingMaxOrderByAggregateInput
   _min?: Prisma.CharacterFindingMinOrderByAggregateInput
@@ -270,6 +281,7 @@ export type CharacterFindingScalarWhereWithAggregatesInput = {
   title?: Prisma.StringWithAggregatesFilter<"CharacterFinding"> | string
   note?: Prisma.StringWithAggregatesFilter<"CharacterFinding"> | string
   seenAt?: Prisma.DateTimeWithAggregatesFilter<"CharacterFinding"> | Date | string
+  recalledAt?: Prisma.DateTimeNullableWithAggregatesFilter<"CharacterFinding"> | Date | string | null
 }
 
 export type CharacterFindingCreateInput = {
@@ -279,6 +291,7 @@ export type CharacterFindingCreateInput = {
   title: string
   note: string
   seenAt?: Date | string
+  recalledAt?: Date | string | null
   user: Prisma.UserCreateNestedOneWithoutCharacterFindingsInput
   characterCard: Prisma.CharacterCardCreateNestedOneWithoutFindingsInput
 }
@@ -292,6 +305,7 @@ export type CharacterFindingUncheckedCreateInput = {
   title: string
   note: string
   seenAt?: Date | string
+  recalledAt?: Date | string | null
 }
 
 export type CharacterFindingUpdateInput = {
@@ -301,6 +315,7 @@ export type CharacterFindingUpdateInput = {
   title?: Prisma.StringFieldUpdateOperationsInput | string
   note?: Prisma.StringFieldUpdateOperationsInput | string
   seenAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  recalledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   user?: Prisma.UserUpdateOneRequiredWithoutCharacterFindingsNestedInput
   characterCard?: Prisma.CharacterCardUpdateOneRequiredWithoutFindingsNestedInput
 }
@@ -314,6 +329,7 @@ export type CharacterFindingUncheckedUpdateInput = {
   title?: Prisma.StringFieldUpdateOperationsInput | string
   note?: Prisma.StringFieldUpdateOperationsInput | string
   seenAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  recalledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 export type CharacterFindingCreateManyInput = {
@@ -325,6 +341,7 @@ export type CharacterFindingCreateManyInput = {
   title: string
   note: string
   seenAt?: Date | string
+  recalledAt?: Date | string | null
 }
 
 export type CharacterFindingUpdateManyMutationInput = {
@@ -334,6 +351,7 @@ export type CharacterFindingUpdateManyMutationInput = {
   title?: Prisma.StringFieldUpdateOperationsInput | string
   note?: Prisma.StringFieldUpdateOperationsInput | string
   seenAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  recalledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 export type CharacterFindingUncheckedUpdateManyInput = {
@@ -345,6 +363,7 @@ export type CharacterFindingUncheckedUpdateManyInput = {
   title?: Prisma.StringFieldUpdateOperationsInput | string
   note?: Prisma.StringFieldUpdateOperationsInput | string
   seenAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  recalledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 export type CharacterFindingListRelationFilter = {
@@ -371,6 +390,7 @@ export type CharacterFindingCountOrderByAggregateInput = {
   title?: Prisma.SortOrder
   note?: Prisma.SortOrder
   seenAt?: Prisma.SortOrder
+  recalledAt?: Prisma.SortOrder
 }
 
 export type CharacterFindingMaxOrderByAggregateInput = {
@@ -382,6 +402,7 @@ export type CharacterFindingMaxOrderByAggregateInput = {
   title?: Prisma.SortOrder
   note?: Prisma.SortOrder
   seenAt?: Prisma.SortOrder
+  recalledAt?: Prisma.SortOrder
 }
 
 export type CharacterFindingMinOrderByAggregateInput = {
@@ -393,6 +414,7 @@ export type CharacterFindingMinOrderByAggregateInput = {
   title?: Prisma.SortOrder
   note?: Prisma.SortOrder
   seenAt?: Prisma.SortOrder
+  recalledAt?: Prisma.SortOrder
 }
 
 export type CharacterFindingCreateNestedManyWithoutUserInput = {
@@ -486,6 +508,7 @@ export type CharacterFindingCreateWithoutUserInput = {
   title: string
   note: string
   seenAt?: Date | string
+  recalledAt?: Date | string | null
   characterCard: Prisma.CharacterCardCreateNestedOneWithoutFindingsInput
 }
 
@@ -497,6 +520,7 @@ export type CharacterFindingUncheckedCreateWithoutUserInput = {
   title: string
   note: string
   seenAt?: Date | string
+  recalledAt?: Date | string | null
 }
 
 export type CharacterFindingCreateOrConnectWithoutUserInput = {
@@ -537,6 +561,7 @@ export type CharacterFindingScalarWhereInput = {
   title?: Prisma.StringFilter<"CharacterFinding"> | string
   note?: Prisma.StringFilter<"CharacterFinding"> | string
   seenAt?: Prisma.DateTimeFilter<"CharacterFinding"> | Date | string
+  recalledAt?: Prisma.DateTimeNullableFilter<"CharacterFinding"> | Date | string | null
 }
 
 export type CharacterFindingCreateWithoutCharacterCardInput = {
@@ -546,6 +571,7 @@ export type CharacterFindingCreateWithoutCharacterCardInput = {
   title: string
   note: string
   seenAt?: Date | string
+  recalledAt?: Date | string | null
   user: Prisma.UserCreateNestedOneWithoutCharacterFindingsInput
 }
 
@@ -557,6 +583,7 @@ export type CharacterFindingUncheckedCreateWithoutCharacterCardInput = {
   title: string
   note: string
   seenAt?: Date | string
+  recalledAt?: Date | string | null
 }
 
 export type CharacterFindingCreateOrConnectWithoutCharacterCardInput = {
@@ -593,6 +620,7 @@ export type CharacterFindingCreateManyUserInput = {
   title: string
   note: string
   seenAt?: Date | string
+  recalledAt?: Date | string | null
 }
 
 export type CharacterFindingUpdateWithoutUserInput = {
@@ -602,6 +630,7 @@ export type CharacterFindingUpdateWithoutUserInput = {
   title?: Prisma.StringFieldUpdateOperationsInput | string
   note?: Prisma.StringFieldUpdateOperationsInput | string
   seenAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  recalledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   characterCard?: Prisma.CharacterCardUpdateOneRequiredWithoutFindingsNestedInput
 }
 
@@ -613,6 +642,7 @@ export type CharacterFindingUncheckedUpdateWithoutUserInput = {
   title?: Prisma.StringFieldUpdateOperationsInput | string
   note?: Prisma.StringFieldUpdateOperationsInput | string
   seenAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  recalledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 export type CharacterFindingUncheckedUpdateManyWithoutUserInput = {
@@ -623,6 +653,7 @@ export type CharacterFindingUncheckedUpdateManyWithoutUserInput = {
   title?: Prisma.StringFieldUpdateOperationsInput | string
   note?: Prisma.StringFieldUpdateOperationsInput | string
   seenAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  recalledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 export type CharacterFindingCreateManyCharacterCardInput = {
@@ -633,6 +664,7 @@ export type CharacterFindingCreateManyCharacterCardInput = {
   title: string
   note: string
   seenAt?: Date | string
+  recalledAt?: Date | string | null
 }
 
 export type CharacterFindingUpdateWithoutCharacterCardInput = {
@@ -642,6 +674,7 @@ export type CharacterFindingUpdateWithoutCharacterCardInput = {
   title?: Prisma.StringFieldUpdateOperationsInput | string
   note?: Prisma.StringFieldUpdateOperationsInput | string
   seenAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  recalledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   user?: Prisma.UserUpdateOneRequiredWithoutCharacterFindingsNestedInput
 }
 
@@ -653,6 +686,7 @@ export type CharacterFindingUncheckedUpdateWithoutCharacterCardInput = {
   title?: Prisma.StringFieldUpdateOperationsInput | string
   note?: Prisma.StringFieldUpdateOperationsInput | string
   seenAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  recalledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 export type CharacterFindingUncheckedUpdateManyWithoutCharacterCardInput = {
@@ -663,6 +697,7 @@ export type CharacterFindingUncheckedUpdateManyWithoutCharacterCardInput = {
   title?: Prisma.StringFieldUpdateOperationsInput | string
   note?: Prisma.StringFieldUpdateOperationsInput | string
   seenAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  recalledAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 
@@ -676,6 +711,7 @@ export type CharacterFindingSelect<ExtArgs extends runtime.Types.Extensions.Inte
   title?: boolean
   note?: boolean
   seenAt?: boolean
+  recalledAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   characterCard?: boolean | Prisma.CharacterCardDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["characterFinding"]>
@@ -689,6 +725,7 @@ export type CharacterFindingSelectCreateManyAndReturn<ExtArgs extends runtime.Ty
   title?: boolean
   note?: boolean
   seenAt?: boolean
+  recalledAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   characterCard?: boolean | Prisma.CharacterCardDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["characterFinding"]>
@@ -702,6 +739,7 @@ export type CharacterFindingSelectUpdateManyAndReturn<ExtArgs extends runtime.Ty
   title?: boolean
   note?: boolean
   seenAt?: boolean
+  recalledAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   characterCard?: boolean | Prisma.CharacterCardDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["characterFinding"]>
@@ -715,9 +753,10 @@ export type CharacterFindingSelectScalar = {
   title?: boolean
   note?: boolean
   seenAt?: boolean
+  recalledAt?: boolean
 }
 
-export type CharacterFindingOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "characterCardId" | "source" | "url" | "title" | "note" | "seenAt", ExtArgs["result"]["characterFinding"]>
+export type CharacterFindingOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "characterCardId" | "source" | "url" | "title" | "note" | "seenAt" | "recalledAt", ExtArgs["result"]["characterFinding"]>
 export type CharacterFindingInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   characterCard?: boolean | Prisma.CharacterCardDefaultArgs<ExtArgs>
@@ -752,6 +791,10 @@ export type $CharacterFindingPayload<ExtArgs extends runtime.Types.Extensions.In
      */
     note: string
     seenAt: Date
+    /**
+     * 上次在聊天里被想起的时间（4c）。「你不看就少出门」读它：7 天没被想起就隔天出门。
+     */
+    recalledAt: Date | null
   }, ExtArgs["result"]["characterFinding"]>
   composites: {}
 }
@@ -1185,6 +1228,7 @@ export interface CharacterFindingFieldRefs {
   readonly title: Prisma.FieldRef<"CharacterFinding", 'String'>
   readonly note: Prisma.FieldRef<"CharacterFinding", 'String'>
   readonly seenAt: Prisma.FieldRef<"CharacterFinding", 'DateTime'>
+  readonly recalledAt: Prisma.FieldRef<"CharacterFinding", 'DateTime'>
 }
     
 

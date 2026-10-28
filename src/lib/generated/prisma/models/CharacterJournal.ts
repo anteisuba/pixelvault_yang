@@ -14,8 +14,7 @@ import type * as Prisma from "../internal/prismaNamespace"
 
 /**
  * Model CharacterJournal
- * **她的日记**（10-26「更像真人」C）：每聊够一段她整理一次，写一篇短日记（她自己的视角）。
- * 设置里能看；聊天时带上最近一篇，她偶尔会提起（owner 10-26）。每张卡只留最近 100 篇。
+ * 
  */
 export type CharacterJournalModel = runtime.Types.Result.DefaultSelection<Prisma.$CharacterJournalPayload>
 

@@ -122,3 +122,24 @@ export async function storeByMeaning(
   }
   return stored
 }
+
+/** 删掉这些（同 kind + key），分批删。删不掉照常抛错：漏删了要让调用方知道。 */
+export async function forgetByMeaning(
+  items: readonly { kind: SemanticKind; key: string }[],
+  namespace: string,
+): Promise<void> {
+  for (
+    let index = 0;
+    index < items.length;
+    index += SEMANTIC_SEARCH.UPSERT_BATCH
+  ) {
+    await callIndex(
+      '/delete',
+      {
+        namespace,
+        items: items.slice(index, index + SEMANTIC_SEARCH.UPSERT_BATCH),
+      },
+      SEMANTIC_SEARCH.UPSERT_TIMEOUT_MS,
+    )
+  }
+}

@@ -463,6 +463,8 @@ export function buildNextSystemPrompt(input: {
   skillsNote?: string
   /** 新对话第一句时「上次停在哪」那一段（第 3 批，已渲染好）；没有 = 空串。 */
   lastTime?: string
+  /** 聊天时想起的她最近的见闻（第 4 批 4c，已渲染好）；没有 = 空串。 */
+  findings?: string
 }): NextSystemPrompt {
   const { persona } = input
   const style = buildPersonaStyleSection(persona, 'v3')
@@ -479,7 +481,7 @@ export function buildNextSystemPrompt(input: {
     style ? `\n\nHOW YOU TALK${style}` : ''
   }${buildCreatorSection(persona, input.accountName, [], null)}${rulesSection(
     input.rules,
-  )}${memorySection(input.memories, chat ?? openCharacterOf(input.request))}${input.lastTime ?? ''}${renderAssistantV3HistorySummary(
+  )}${memorySection(input.memories, chat ?? openCharacterOf(input.request))}${input.lastTime ?? ''}${input.findings ?? ''}${renderAssistantV3HistorySummary(
     input.historySummary ?? null,
     chat ? 'story' : 'work',
   )}${dialect}`

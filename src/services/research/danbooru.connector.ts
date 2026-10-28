@@ -926,3 +926,41 @@ export async function fetchDanbooruCatalog(
   )
   return query.preview ? catalog : withLocalNames(catalog)
 }
+
+// ─── 评论（角色出门逛，第 4 批）─────────────────────────────────
+
+interface DanbooruComment {
+  body?: string
+  score?: number
+  is_deleted?: boolean
+}
+
+/**
+ * 一张帖子下分数最高的几条评论正文（去掉 DText 的引用块与链接标记）。只给模型读，
+ * ⛔ 存原文、⛔ 存作者。拿不到就是空数组。
+ */
+export async function fetchDanbooruComments(
+  postId: number,
+  limit: number,
+): Promise<string[]> {
+  const comments = await researchFetchJson<DanbooruComment[]>(
+    RESEARCH_SOURCE_IDS.danbooru,
+    danbooruUrl('/comments.json', {
+      'search[post_id]': String(postId),
+      limit: String(limit * 2),
+    }),
+    { maxAttempts: 1 },
+  ).catch((): DanbooruComment[] => [])
+  return comments
+    .filter((comment) => !comment.is_deleted && comment.body)
+    .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+    .map((comment) =>
+      (comment.body ?? '')
+        .replace(/\[quote\][\s\S]*?\[\/quote\]/gi, '')
+        .replace(/"([^"]+)":\S+/g, '$1')
+        .replace(/\s+/g, ' ')
+        .trim(),
+    )
+    .filter(Boolean)
+    .slice(0, limit)
+}

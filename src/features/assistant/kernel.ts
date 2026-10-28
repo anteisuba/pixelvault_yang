@@ -76,6 +76,10 @@ import { getHomeChatCharacterId } from '@/services/assistant-persona.service'
 import { recordNativeSearches } from '@/services/research/assistant-evidence-book.service'
 import { maybeDistillTaste } from '@/services/kernel/assistant-taste.service'
 import {
+  recallFindings,
+  renderFindingsRecall,
+} from '@/services/cards/character-findings.service'
+import {
   loadAssistantLastTime,
   renderAssistantLastTime,
 } from '@/services/kernel/assistant-last-time.service'
@@ -742,6 +746,15 @@ async function* runNextTurn(
 
   const { turns, latest } = splitAssistantV3History(request.messages)
   const latestUserText = saved?.latestUserText ?? latest
+  // 和她聊天（4c）：拿你这句话想起她最近逛到的、对得上的几条见闻；隐身不读。
+  const findings =
+    chat && !saved && request.incognito !== true
+      ? await recallFindings({
+          userId: user.id,
+          cardId: chat.id,
+          text: latestUserText,
+        })
+      : []
   // 和她聊天：你每说第 8 句，响应发完之后学一次你的说法（原在聊天页，用户 10-26 并进对话）。
   if (chat && !saved && request.incognito !== true) {
     learnPhrasesAfterTurn({
@@ -955,6 +968,7 @@ async function* runNextTurn(
     language,
     skillsNote: skillsSettingsNote(skills),
     lastTime: renderAssistantLastTime(lastTime),
+    findings: renderFindingsRecall(findings),
   })
   recording.turn = {
     userId: user.id,

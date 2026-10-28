@@ -241,9 +241,23 @@ export type AssistantMemory = Prisma.AssistantMemoryModel
  */
 export type CharacterCardRevision = Prisma.CharacterCardRevisionModel
 /**
- * Model CharacterJournal
+ * Model CharacterFinding
  * **她的日记**（10-26「更像真人」C）：每聊够一段她整理一次，写一篇短日记（她自己的视角）。
  * 设置里能看；聊天时带上最近一篇，她偶尔会提起（owner 10-26）。每张卡只留最近 100 篇。
+ * **她的见闻**（第 4 批「人味」，owner 2026-10-28）：她出门逛时看到的一样东西 + 她用自己的口吻写的一句笔记。
+ * ⛔ 不进素材库（素材库读 `Generation`）；按 userId + characterCardId 隔离，卡或账号删了一起删。
+ * 检索向量在语义索引里这张卡自己的命名空间（`card-<id>`），这里只存原文。
+ */
+export type CharacterFinding = Prisma.CharacterFindingModel
+/**
+ * Model CharacterSticker
+ * **她的表情包**（第 4 批）：逛到的表情图存进 R2 独立路径 `characters/<userId>/<cardId>/stickers/`，
+ * ⛔ 不进素材库。聊天时按 `whenToUse` 挑一张发；拉黑的不再发。
+ */
+export type CharacterSticker = Prisma.CharacterStickerModel
+/**
+ * Model CharacterJournal
+ * 
  */
 export type CharacterJournal = Prisma.CharacterJournalModel
 /**

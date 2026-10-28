@@ -878,11 +878,17 @@ model CharacterCard {
 
   // ── 出门逛（第 4 批「人味」，owner 2026-10-28）──
   /// 让她每天按人设出门逛一次（B 站 / Danbooru / Civitai / X / 网页）。默认关。
-  browseEnabled    Boolean   @default(false)
+  browseEnabled      Boolean   @default(false)
   /// 每天最多看几样（图、视频、页面），到了就停 —— 每样都是一次看图 / 读页调用，花 owner 的 key。
-  browseDailyLimit Int       @default(20)
+  browseDailyLimit   Int       @default(20)
   /// 上次逛完的时间；每日任务按它挑今天还没逛的。
-  browsedAt        DateTime?
+  browsedAt          DateTime?
+  /// 出门用哪个型号（助手路由表里的 modelId，owner 2026-10-28：开着就必须明确，打开时默认填当时助手那个）。
+  /// 只有开关关着的卡是空的；⛔ 悄悄跟着助手变、⛔ 换别家。
+  browseModel        String?
+  /// 出不了门的原因（`CHARACTER_BROWSE_PAUSE_REASONS`）：型号下架、那一家的 key 没了……角色页照着说。
+  /// 下一次顺利出门就清掉。
+  browsePausedReason String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -3,15 +3,19 @@ import 'server-only'
 import { z } from 'zod'
 
 import { assistantAdapterSupportsImage } from '@/constants/assistant'
+import { getAssistantRouteModelEntry } from '@/constants/assistant-persona'
 import {
   CHARACTER_BROWSE,
+  CHARACTER_BROWSE_PAUSE_REASONS,
   CHARACTER_BROWSE_SOURCE_IDS,
   CHARACTER_BROWSE_SOURCES,
+  type CharacterBrowsePauseReason,
   type CharacterBrowseSource,
 } from '@/constants/character-browse'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { WEB_VIDEO_SEARCH } from '@/constants/web-search'
 import { db } from '@/lib/db'
+import { ApiKeyError, AssistantModelKeyMissingError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 import { listCivitaiLoras } from '@/services/civitai-lora-library.service'
 import { completeAssistantTextWithContextRetry } from '@/services/kernel/assistant-completion.service'
@@ -330,6 +334,27 @@ function personaText(raw: unknown): string {
     .slice(0, CHARACTER_BROWSE.personaChars)
 }
 
+async function routeFor(
+  userId: string,
+  browseModel: string | null,
+): Promise<{ route: BrowseRoute } | { reason: CharacterBrowsePauseReason }> {
+  if (!browseModel) return { reason: CHARACTER_BROWSE_PAUSE_REASONS.noModel }
+  if (!getAssistantRouteModelEntry(browseModel))
+    return { reason: CHARACTER_BROWSE_PAUSE_REASONS.modelUnavailable }
+  try {
+    return {
+      route: await resolveAssistantRoute(userId, { routeModel: browseModel }),
+    }
+  } catch (error) {
+    if (
+      error instanceof ApiKeyError ||
+      error instanceof AssistantModelKeyMissingError
+    )
+      return { reason: CHARACTER_BROWSE_PAUSE_REASONS.missingKey }
+    throw error
+  }
+}
+
 function startOfToday(): Date {
   const now = new Date()
   now.setHours(0, 0, 0, 0)
@@ -348,16 +373,25 @@ export async function browseCharacter(input: {
       tags: true,
       persona: true,
       browseDailyLimit: true,
+      browseModel: true,
       updatedAt: true,
     },
   })
   if (!card) return { seen: 0, kept: 0 }
+  // 用她自己选定的那个型号（⛔ 跟着助手变、⛔ 换别家）；用不了就停下、记下为什么。
+  const picked = await routeFor(input.userId, card.browseModel)
   // 先记时间：失败了也不在同一天反复重试花钱。⚠ `updatedAt` 写回原值：逛一次不该把她顶到角色列表最前面。
   await db.characterCard.update({
     where: { id: card.id },
-    data: { browsedAt: new Date(), updatedAt: card.updatedAt },
+    data: {
+      browsedAt: new Date(),
+      browsePausedReason: 'reason' in picked ? picked.reason : null,
+      updatedAt: card.updatedAt,
+    },
     select: { id: true },
   })
+  if ('reason' in picked) return { seen: 0, kept: 0 }
+  const { route } = picked
 
   const today = await db.characterFinding.count({
     where: { characterCardId: card.id, seenAt: { gte: startOfToday() } },
@@ -365,7 +399,6 @@ export async function browseCharacter(input: {
   const budget = Math.max(0, card.browseDailyLimit - today)
   if (budget === 0) return { seen: 0, kept: 0 }
 
-  const route = await resolveAssistantRoute(input.userId)
   const persona = personaText(card.persona)
   const recent = await db.characterFinding.findMany({
     where: { characterCardId: card.id },

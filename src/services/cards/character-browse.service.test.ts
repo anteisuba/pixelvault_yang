@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
+import { ApiKeyError } from '@/lib/errors'
+
 const mocks = vi.hoisted(() => ({
   cardFind: vi.fn(),
   cardUpdate: vi.fn(),
@@ -80,6 +83,7 @@ describe('browseCharacter（她出门逛一次）', () => {
       tags: ['猫娘'],
       persona: { identity: '喜欢水彩和猫的画师' },
       browseDailyLimit: 3,
+      browseModel: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
       updatedAt,
     })
     mocks.findingCount.mockResolvedValue(0)
@@ -126,9 +130,17 @@ describe('browseCharacter（她出门逛一次）', () => {
 
     expect(mocks.cardUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: { browsedAt: expect.any(Date), updatedAt },
+        data: {
+          browsedAt: expect.any(Date),
+          browsePausedReason: null,
+          updatedAt,
+        },
       }),
     )
+    // 用她自己选的型号，⛔ 跟着助手变。
+    expect(mocks.route).toHaveBeenCalledWith('u', {
+      routeModel: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
+    })
     // 看过的 BV1 去掉，额度 3 → 看 BV2、BV3、BV4
     const viewed = mocks.complete.mock.calls[1]?.[0] as {
       buildUserPrompt: () => string
@@ -176,13 +188,47 @@ describe('browseCharacter（她出门逛一次）', () => {
     expect(result.kept).toBe(1)
   })
 
+  it.each([
+    ['没选型号', { browseModel: null }, 'no_model'],
+    ['型号已下架', { browseModel: 'retired-model-1' }, 'model_unavailable'],
+  ])('%s：不出门，记下原因', async (_, patch, reason) => {
+    mocks.cardFind.mockResolvedValue({
+      ...(await mocks.cardFind()),
+      ...patch,
+    })
+    expect(await browseCharacter({ userId: 'u', cardId: 'card-1' })).toEqual({
+      seen: 0,
+      kept: 0,
+    })
+    expect(mocks.cardUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ browsePausedReason: reason }),
+      }),
+    )
+    expect(mocks.route).not.toHaveBeenCalled()
+  })
+
+  it('那一家的 key 没了：不出门、⛔ 换别家，记下 missing_key', async () => {
+    mocks.route.mockRejectedValue(new ApiKeyError('missing'))
+    expect(await browseCharacter({ userId: 'u', cardId: 'card-1' })).toEqual({
+      seen: 0,
+      kept: 0,
+    })
+    expect(mocks.cardUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ browsePausedReason: 'missing_key' }),
+      }),
+    )
+    expect(mocks.complete).not.toHaveBeenCalled()
+  })
+
   it('今天的额度用完就不出门', async () => {
     mocks.findingCount.mockResolvedValue(3)
     expect(await browseCharacter({ userId: 'u', cardId: 'card-1' })).toEqual({
       seen: 0,
       kept: 0,
     })
-    expect(mocks.route).not.toHaveBeenCalled()
+    expect(mocks.complete).not.toHaveBeenCalled()
   })
 
   it('不是自己的卡、删了的卡什么都不做', async () => {

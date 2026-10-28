@@ -45,3 +45,18 @@ export const CHARACTER_BROWSE = {
   /** 定时任务一趟最多跑多久：Vercel 函数 300 s 的上限前留出收尾。 */
   cronBudgetMs: 240_000,
 } as const
+
+/**
+ * 她出不了门的原因（存在 `CharacterCard.browsePausedReason`，角色页照着说）。⛔ 出了问题悄悄换别家。
+ */
+export const CHARACTER_BROWSE_PAUSE_REASONS = {
+  /** 开着开关却没选型号（打开时本该默认填上当时助手那个）。 */
+  noModel: 'no_model',
+  /** 选的型号已经不在助手路由表里（下架 / 改名）。 */
+  modelUnavailable: 'model_unavailable',
+  /** 那一家的 key 没了。 */
+  missingKey: 'missing_key',
+} as const
+
+export type CharacterBrowsePauseReason =
+  (typeof CHARACTER_BROWSE_PAUSE_REASONS)[keyof typeof CHARACTER_BROWSE_PAUSE_REASONS]

@@ -570,6 +570,8 @@ export const CharacterCardScalarFieldEnum = {
   browseEnabled: 'browseEnabled',
   browseDailyLimit: 'browseDailyLimit',
   browsedAt: 'browsedAt',
+  browseModel: 'browseModel',
+  browsePausedReason: 'browsePausedReason',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const

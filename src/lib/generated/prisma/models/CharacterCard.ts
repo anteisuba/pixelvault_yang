@@ -49,6 +49,8 @@ export type CharacterCardMinAggregateOutputType = {
   browseEnabled: boolean | null
   browseDailyLimit: number | null
   browsedAt: Date | null
+  browseModel: string | null
+  browsePausedReason: string | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -66,6 +68,8 @@ export type CharacterCardMaxAggregateOutputType = {
   browseEnabled: boolean | null
   browseDailyLimit: number | null
   browsedAt: Date | null
+  browseModel: string | null
+  browsePausedReason: string | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -87,6 +91,8 @@ export type CharacterCardCountAggregateOutputType = {
   browseEnabled: number
   browseDailyLimit: number
   browsedAt: number
+  browseModel: number
+  browsePausedReason: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -116,6 +122,8 @@ export type CharacterCardMinAggregateInputType = {
   browseEnabled?: true
   browseDailyLimit?: true
   browsedAt?: true
+  browseModel?: true
+  browsePausedReason?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -133,6 +141,8 @@ export type CharacterCardMaxAggregateInputType = {
   browseEnabled?: true
   browseDailyLimit?: true
   browsedAt?: true
+  browseModel?: true
+  browsePausedReason?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -154,6 +164,8 @@ export type CharacterCardCountAggregateInputType = {
   browseEnabled?: true
   browseDailyLimit?: true
   browsedAt?: true
+  browseModel?: true
+  browsePausedReason?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -262,6 +274,8 @@ export type CharacterCardGroupByOutputType = {
   browseEnabled: boolean
   browseDailyLimit: number
   browsedAt: Date | null
+  browseModel: string | null
+  browsePausedReason: string | null
   createdAt: Date
   updatedAt: Date
   _count: CharacterCardCountAggregateOutputType | null
@@ -306,6 +320,8 @@ export type CharacterCardWhereInput = {
   browseEnabled?: Prisma.BoolFilter<"CharacterCard"> | boolean
   browseDailyLimit?: Prisma.IntFilter<"CharacterCard"> | number
   browsedAt?: Prisma.DateTimeNullableFilter<"CharacterCard"> | Date | string | null
+  browseModel?: Prisma.StringNullableFilter<"CharacterCard"> | string | null
+  browsePausedReason?: Prisma.StringNullableFilter<"CharacterCard"> | string | null
   createdAt?: Prisma.DateTimeFilter<"CharacterCard"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"CharacterCard"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
@@ -339,6 +355,8 @@ export type CharacterCardOrderByWithRelationInput = {
   browseEnabled?: Prisma.SortOrder
   browseDailyLimit?: Prisma.SortOrder
   browsedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  browseModel?: Prisma.SortOrderInput | Prisma.SortOrder
+  browsePausedReason?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   user?: Prisma.UserOrderByWithRelationInput
@@ -376,6 +394,8 @@ export type CharacterCardWhereUniqueInput = Prisma.AtLeast<{
   browseEnabled?: Prisma.BoolFilter<"CharacterCard"> | boolean
   browseDailyLimit?: Prisma.IntFilter<"CharacterCard"> | number
   browsedAt?: Prisma.DateTimeNullableFilter<"CharacterCard"> | Date | string | null
+  browseModel?: Prisma.StringNullableFilter<"CharacterCard"> | string | null
+  browsePausedReason?: Prisma.StringNullableFilter<"CharacterCard"> | string | null
   createdAt?: Prisma.DateTimeFilter<"CharacterCard"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"CharacterCard"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
@@ -409,6 +429,8 @@ export type CharacterCardOrderByWithAggregationInput = {
   browseEnabled?: Prisma.SortOrder
   browseDailyLimit?: Prisma.SortOrder
   browsedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  browseModel?: Prisma.SortOrderInput | Prisma.SortOrder
+  browsePausedReason?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.CharacterCardCountOrderByAggregateInput
@@ -438,6 +460,8 @@ export type CharacterCardScalarWhereWithAggregatesInput = {
   browseEnabled?: Prisma.BoolWithAggregatesFilter<"CharacterCard"> | boolean
   browseDailyLimit?: Prisma.IntWithAggregatesFilter<"CharacterCard"> | number
   browsedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"CharacterCard"> | Date | string | null
+  browseModel?: Prisma.StringNullableWithAggregatesFilter<"CharacterCard"> | string | null
+  browsePausedReason?: Prisma.StringNullableWithAggregatesFilter<"CharacterCard"> | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"CharacterCard"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"CharacterCard"> | Date | string
 }
@@ -457,6 +481,8 @@ export type CharacterCardCreateInput = {
   browseEnabled?: boolean
   browseDailyLimit?: number
   browsedAt?: Date | string | null
+  browseModel?: string | null
+  browsePausedReason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutCharacterCardsInput
@@ -490,6 +516,8 @@ export type CharacterCardUncheckedCreateInput = {
   browseEnabled?: boolean
   browseDailyLimit?: number
   browsedAt?: Date | string | null
+  browseModel?: string | null
+  browsePausedReason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   assistantPersonas?: Prisma.AssistantPersonaUncheckedCreateNestedManyWithoutCharacterCardInput
@@ -519,6 +547,8 @@ export type CharacterCardUpdateInput = {
   browseEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   browseDailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   browsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  browseModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  browsePausedReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutCharacterCardsNestedInput
@@ -552,6 +582,8 @@ export type CharacterCardUncheckedUpdateInput = {
   browseEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   browseDailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   browsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  browseModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  browsePausedReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   assistantPersonas?: Prisma.AssistantPersonaUncheckedUpdateManyWithoutCharacterCardNestedInput
@@ -583,6 +615,8 @@ export type CharacterCardCreateManyInput = {
   browseEnabled?: boolean
   browseDailyLimit?: number
   browsedAt?: Date | string | null
+  browseModel?: string | null
+  browsePausedReason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -602,6 +636,8 @@ export type CharacterCardUpdateManyMutationInput = {
   browseEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   browseDailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   browsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  browseModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  browsePausedReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -623,6 +659,8 @@ export type CharacterCardUncheckedUpdateManyInput = {
   browseEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   browseDailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   browsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  browseModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  browsePausedReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -664,6 +702,8 @@ export type CharacterCardCountOrderByAggregateInput = {
   browseEnabled?: Prisma.SortOrder
   browseDailyLimit?: Prisma.SortOrder
   browsedAt?: Prisma.SortOrder
+  browseModel?: Prisma.SortOrder
+  browsePausedReason?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -686,6 +726,8 @@ export type CharacterCardMaxOrderByAggregateInput = {
   browseEnabled?: Prisma.SortOrder
   browseDailyLimit?: Prisma.SortOrder
   browsedAt?: Prisma.SortOrder
+  browseModel?: Prisma.SortOrder
+  browsePausedReason?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -703,6 +745,8 @@ export type CharacterCardMinOrderByAggregateInput = {
   browseEnabled?: Prisma.SortOrder
   browseDailyLimit?: Prisma.SortOrder
   browsedAt?: Prisma.SortOrder
+  browseModel?: Prisma.SortOrder
+  browsePausedReason?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -971,6 +1015,8 @@ export type CharacterCardCreateWithoutUserInput = {
   browseEnabled?: boolean
   browseDailyLimit?: number
   browsedAt?: Date | string | null
+  browseModel?: string | null
+  browsePausedReason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   voiceCard?: Prisma.VoiceCardCreateNestedOneWithoutCharacterCardsInput
@@ -1002,6 +1048,8 @@ export type CharacterCardUncheckedCreateWithoutUserInput = {
   browseEnabled?: boolean
   browseDailyLimit?: number
   browsedAt?: Date | string | null
+  browseModel?: string | null
+  browsePausedReason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   assistantPersonas?: Prisma.AssistantPersonaUncheckedCreateNestedManyWithoutCharacterCardInput
@@ -1062,6 +1110,8 @@ export type CharacterCardScalarWhereInput = {
   browseEnabled?: Prisma.BoolFilter<"CharacterCard"> | boolean
   browseDailyLimit?: Prisma.IntFilter<"CharacterCard"> | number
   browsedAt?: Prisma.DateTimeNullableFilter<"CharacterCard"> | Date | string | null
+  browseModel?: Prisma.StringNullableFilter<"CharacterCard"> | string | null
+  browsePausedReason?: Prisma.StringNullableFilter<"CharacterCard"> | string | null
   createdAt?: Prisma.DateTimeFilter<"CharacterCard"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"CharacterCard"> | Date | string
 }
@@ -1081,6 +1131,8 @@ export type CharacterCardCreateWithoutVoiceCardInput = {
   browseEnabled?: boolean
   browseDailyLimit?: number
   browsedAt?: Date | string | null
+  browseModel?: string | null
+  browsePausedReason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutCharacterCardsInput
@@ -1112,6 +1164,8 @@ export type CharacterCardUncheckedCreateWithoutVoiceCardInput = {
   browseEnabled?: boolean
   browseDailyLimit?: number
   browsedAt?: Date | string | null
+  browseModel?: string | null
+  browsePausedReason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   assistantPersonas?: Prisma.AssistantPersonaUncheckedCreateNestedManyWithoutCharacterCardInput
@@ -1167,6 +1221,8 @@ export type CharacterCardCreateWithoutAssistantPersonasInput = {
   browseEnabled?: boolean
   browseDailyLimit?: number
   browsedAt?: Date | string | null
+  browseModel?: string | null
+  browsePausedReason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutCharacterCardsInput
@@ -1199,6 +1255,8 @@ export type CharacterCardUncheckedCreateWithoutAssistantPersonasInput = {
   browseEnabled?: boolean
   browseDailyLimit?: number
   browsedAt?: Date | string | null
+  browseModel?: string | null
+  browsePausedReason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutCharacterCardInput
@@ -1243,6 +1301,8 @@ export type CharacterCardUpdateWithoutAssistantPersonasInput = {
   browseEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   browseDailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   browsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  browseModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  browsePausedReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutCharacterCardsNestedInput
@@ -1275,6 +1335,8 @@ export type CharacterCardUncheckedUpdateWithoutAssistantPersonasInput = {
   browseEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   browseDailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   browsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  browseModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  browsePausedReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutCharacterCardNestedInput
@@ -1303,6 +1365,8 @@ export type CharacterCardCreateWithoutLooksInput = {
   browseEnabled?: boolean
   browseDailyLimit?: number
   browsedAt?: Date | string | null
+  browseModel?: string | null
+  browsePausedReason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutCharacterCardsInput
@@ -1335,6 +1399,8 @@ export type CharacterCardUncheckedCreateWithoutLooksInput = {
   browseEnabled?: boolean
   browseDailyLimit?: number
   browsedAt?: Date | string | null
+  browseModel?: string | null
+  browsePausedReason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   assistantPersonas?: Prisma.AssistantPersonaUncheckedCreateNestedManyWithoutCharacterCardInput
@@ -1379,6 +1445,8 @@ export type CharacterCardUpdateWithoutLooksInput = {
   browseEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   browseDailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   browsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  browseModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  browsePausedReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutCharacterCardsNestedInput
@@ -1411,6 +1479,8 @@ export type CharacterCardUncheckedUpdateWithoutLooksInput = {
   browseEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   browseDailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   browsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  browseModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  browsePausedReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   assistantPersonas?: Prisma.AssistantPersonaUncheckedUpdateManyWithoutCharacterCardNestedInput
@@ -1439,6 +1509,8 @@ export type CharacterCardCreateWithoutGenerationLinksInput = {
   browseEnabled?: boolean
   browseDailyLimit?: number
   browsedAt?: Date | string | null
+  browseModel?: string | null
+  browsePausedReason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutCharacterCardsInput
@@ -1471,6 +1543,8 @@ export type CharacterCardUncheckedCreateWithoutGenerationLinksInput = {
   browseEnabled?: boolean
   browseDailyLimit?: number
   browsedAt?: Date | string | null
+  browseModel?: string | null
+  browsePausedReason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   assistantPersonas?: Prisma.AssistantPersonaUncheckedCreateNestedManyWithoutCharacterCardInput
@@ -1515,6 +1589,8 @@ export type CharacterCardUpdateWithoutGenerationLinksInput = {
   browseEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   browseDailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   browsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  browseModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  browsePausedReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutCharacterCardsNestedInput
@@ -1547,6 +1623,8 @@ export type CharacterCardUncheckedUpdateWithoutGenerationLinksInput = {
   browseEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   browseDailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   browsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  browseModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  browsePausedReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   assistantPersonas?: Prisma.AssistantPersonaUncheckedUpdateManyWithoutCharacterCardNestedInput
@@ -1575,6 +1653,8 @@ export type CharacterCardCreateWithoutLoraLinksInput = {
   browseEnabled?: boolean
   browseDailyLimit?: number
   browsedAt?: Date | string | null
+  browseModel?: string | null
+  browsePausedReason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutCharacterCardsInput
@@ -1607,6 +1687,8 @@ export type CharacterCardUncheckedCreateWithoutLoraLinksInput = {
   browseEnabled?: boolean
   browseDailyLimit?: number
   browsedAt?: Date | string | null
+  browseModel?: string | null
+  browsePausedReason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   assistantPersonas?: Prisma.AssistantPersonaUncheckedCreateNestedManyWithoutCharacterCardInput
@@ -1651,6 +1733,8 @@ export type CharacterCardUpdateWithoutLoraLinksInput = {
   browseEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   browseDailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   browsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  browseModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  browsePausedReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutCharacterCardsNestedInput
@@ -1683,6 +1767,8 @@ export type CharacterCardUncheckedUpdateWithoutLoraLinksInput = {
   browseEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   browseDailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   browsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  browseModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  browsePausedReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   assistantPersonas?: Prisma.AssistantPersonaUncheckedUpdateManyWithoutCharacterCardNestedInput
@@ -1711,6 +1797,8 @@ export type CharacterCardCreateWithoutLoraTrainingJobsInput = {
   browseEnabled?: boolean
   browseDailyLimit?: number
   browsedAt?: Date | string | null
+  browseModel?: string | null
+  browsePausedReason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutCharacterCardsInput
@@ -1743,6 +1831,8 @@ export type CharacterCardUncheckedCreateWithoutLoraTrainingJobsInput = {
   browseEnabled?: boolean
   browseDailyLimit?: number
   browsedAt?: Date | string | null
+  browseModel?: string | null
+  browsePausedReason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   assistantPersonas?: Prisma.AssistantPersonaUncheckedCreateNestedManyWithoutCharacterCardInput
@@ -1787,6 +1877,8 @@ export type CharacterCardUpdateWithoutLoraTrainingJobsInput = {
   browseEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   browseDailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   browsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  browseModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  browsePausedReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutCharacterCardsNestedInput
@@ -1819,6 +1911,8 @@ export type CharacterCardUncheckedUpdateWithoutLoraTrainingJobsInput = {
   browseEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   browseDailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   browsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  browseModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  browsePausedReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   assistantPersonas?: Prisma.AssistantPersonaUncheckedUpdateManyWithoutCharacterCardNestedInput
@@ -1847,6 +1941,8 @@ export type CharacterCardCreateWithoutAssistantMemoriesInput = {
   browseEnabled?: boolean
   browseDailyLimit?: number
   browsedAt?: Date | string | null
+  browseModel?: string | null
+  browsePausedReason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutCharacterCardsInput
@@ -1879,6 +1975,8 @@ export type CharacterCardUncheckedCreateWithoutAssistantMemoriesInput = {
   browseEnabled?: boolean
   browseDailyLimit?: number
   browsedAt?: Date | string | null
+  browseModel?: string | null
+  browsePausedReason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   assistantPersonas?: Prisma.AssistantPersonaUncheckedCreateNestedManyWithoutCharacterCardInput
@@ -1923,6 +2021,8 @@ export type CharacterCardUpdateWithoutAssistantMemoriesInput = {
   browseEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   browseDailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   browsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  browseModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  browsePausedReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutCharacterCardsNestedInput
@@ -1955,6 +2055,8 @@ export type CharacterCardUncheckedUpdateWithoutAssistantMemoriesInput = {
   browseEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   browseDailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   browsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  browseModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  browsePausedReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   assistantPersonas?: Prisma.AssistantPersonaUncheckedUpdateManyWithoutCharacterCardNestedInput
@@ -1983,6 +2085,8 @@ export type CharacterCardCreateWithoutRevisionsInput = {
   browseEnabled?: boolean
   browseDailyLimit?: number
   browsedAt?: Date | string | null
+  browseModel?: string | null
+  browsePausedReason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutCharacterCardsInput
@@ -2015,6 +2119,8 @@ export type CharacterCardUncheckedCreateWithoutRevisionsInput = {
   browseEnabled?: boolean
   browseDailyLimit?: number
   browsedAt?: Date | string | null
+  browseModel?: string | null
+  browsePausedReason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   assistantPersonas?: Prisma.AssistantPersonaUncheckedCreateNestedManyWithoutCharacterCardInput
@@ -2059,6 +2165,8 @@ export type CharacterCardUpdateWithoutRevisionsInput = {
   browseEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   browseDailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   browsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  browseModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  browsePausedReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutCharacterCardsNestedInput
@@ -2091,6 +2199,8 @@ export type CharacterCardUncheckedUpdateWithoutRevisionsInput = {
   browseEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   browseDailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   browsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  browseModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  browsePausedReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   assistantPersonas?: Prisma.AssistantPersonaUncheckedUpdateManyWithoutCharacterCardNestedInput
@@ -2119,6 +2229,8 @@ export type CharacterCardCreateWithoutFindingsInput = {
   browseEnabled?: boolean
   browseDailyLimit?: number
   browsedAt?: Date | string | null
+  browseModel?: string | null
+  browsePausedReason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutCharacterCardsInput
@@ -2151,6 +2263,8 @@ export type CharacterCardUncheckedCreateWithoutFindingsInput = {
   browseEnabled?: boolean
   browseDailyLimit?: number
   browsedAt?: Date | string | null
+  browseModel?: string | null
+  browsePausedReason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   assistantPersonas?: Prisma.AssistantPersonaUncheckedCreateNestedManyWithoutCharacterCardInput
@@ -2195,6 +2309,8 @@ export type CharacterCardUpdateWithoutFindingsInput = {
   browseEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   browseDailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   browsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  browseModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  browsePausedReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutCharacterCardsNestedInput
@@ -2227,6 +2343,8 @@ export type CharacterCardUncheckedUpdateWithoutFindingsInput = {
   browseEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   browseDailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   browsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  browseModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  browsePausedReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   assistantPersonas?: Prisma.AssistantPersonaUncheckedUpdateManyWithoutCharacterCardNestedInput
@@ -2255,6 +2373,8 @@ export type CharacterCardCreateWithoutStickersInput = {
   browseEnabled?: boolean
   browseDailyLimit?: number
   browsedAt?: Date | string | null
+  browseModel?: string | null
+  browsePausedReason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutCharacterCardsInput
@@ -2287,6 +2407,8 @@ export type CharacterCardUncheckedCreateWithoutStickersInput = {
   browseEnabled?: boolean
   browseDailyLimit?: number
   browsedAt?: Date | string | null
+  browseModel?: string | null
+  browsePausedReason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   assistantPersonas?: Prisma.AssistantPersonaUncheckedCreateNestedManyWithoutCharacterCardInput
@@ -2331,6 +2453,8 @@ export type CharacterCardUpdateWithoutStickersInput = {
   browseEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   browseDailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   browsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  browseModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  browsePausedReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutCharacterCardsNestedInput
@@ -2363,6 +2487,8 @@ export type CharacterCardUncheckedUpdateWithoutStickersInput = {
   browseEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   browseDailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   browsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  browseModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  browsePausedReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   assistantPersonas?: Prisma.AssistantPersonaUncheckedUpdateManyWithoutCharacterCardNestedInput
@@ -2391,6 +2517,8 @@ export type CharacterCardCreateWithoutJournalsInput = {
   browseEnabled?: boolean
   browseDailyLimit?: number
   browsedAt?: Date | string | null
+  browseModel?: string | null
+  browsePausedReason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutCharacterCardsInput
@@ -2423,6 +2551,8 @@ export type CharacterCardUncheckedCreateWithoutJournalsInput = {
   browseEnabled?: boolean
   browseDailyLimit?: number
   browsedAt?: Date | string | null
+  browseModel?: string | null
+  browsePausedReason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   assistantPersonas?: Prisma.AssistantPersonaUncheckedCreateNestedManyWithoutCharacterCardInput
@@ -2467,6 +2597,8 @@ export type CharacterCardUpdateWithoutJournalsInput = {
   browseEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   browseDailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   browsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  browseModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  browsePausedReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutCharacterCardsNestedInput
@@ -2499,6 +2631,8 @@ export type CharacterCardUncheckedUpdateWithoutJournalsInput = {
   browseEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   browseDailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   browsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  browseModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  browsePausedReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   assistantPersonas?: Prisma.AssistantPersonaUncheckedUpdateManyWithoutCharacterCardNestedInput
@@ -2528,6 +2662,8 @@ export type CharacterCardCreateManyUserInput = {
   browseEnabled?: boolean
   browseDailyLimit?: number
   browsedAt?: Date | string | null
+  browseModel?: string | null
+  browsePausedReason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -2547,6 +2683,8 @@ export type CharacterCardUpdateWithoutUserInput = {
   browseEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   browseDailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   browsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  browseModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  browsePausedReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   voiceCard?: Prisma.VoiceCardUpdateOneWithoutCharacterCardsNestedInput
@@ -2578,6 +2716,8 @@ export type CharacterCardUncheckedUpdateWithoutUserInput = {
   browseEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   browseDailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   browsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  browseModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  browsePausedReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   assistantPersonas?: Prisma.AssistantPersonaUncheckedUpdateManyWithoutCharacterCardNestedInput
@@ -2608,6 +2748,8 @@ export type CharacterCardUncheckedUpdateManyWithoutUserInput = {
   browseEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   browseDailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   browsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  browseModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  browsePausedReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -2628,6 +2770,8 @@ export type CharacterCardCreateManyVoiceCardInput = {
   browseEnabled?: boolean
   browseDailyLimit?: number
   browsedAt?: Date | string | null
+  browseModel?: string | null
+  browsePausedReason?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -2647,6 +2791,8 @@ export type CharacterCardUpdateWithoutVoiceCardInput = {
   browseEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   browseDailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   browsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  browseModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  browsePausedReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutCharacterCardsNestedInput
@@ -2678,6 +2824,8 @@ export type CharacterCardUncheckedUpdateWithoutVoiceCardInput = {
   browseEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   browseDailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   browsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  browseModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  browsePausedReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   assistantPersonas?: Prisma.AssistantPersonaUncheckedUpdateManyWithoutCharacterCardNestedInput
@@ -2708,6 +2856,8 @@ export type CharacterCardUncheckedUpdateManyWithoutVoiceCardInput = {
   browseEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   browseDailyLimit?: Prisma.IntFieldUpdateOperationsInput | number
   browsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  browseModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  browsePausedReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -2841,6 +2991,8 @@ export type CharacterCardSelect<ExtArgs extends runtime.Types.Extensions.Interna
   browseEnabled?: boolean
   browseDailyLimit?: boolean
   browsedAt?: boolean
+  browseModel?: boolean
+  browsePausedReason?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -2875,6 +3027,8 @@ export type CharacterCardSelectCreateManyAndReturn<ExtArgs extends runtime.Types
   browseEnabled?: boolean
   browseDailyLimit?: boolean
   browsedAt?: boolean
+  browseModel?: boolean
+  browsePausedReason?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -2898,6 +3052,8 @@ export type CharacterCardSelectUpdateManyAndReturn<ExtArgs extends runtime.Types
   browseEnabled?: boolean
   browseDailyLimit?: boolean
   browsedAt?: boolean
+  browseModel?: boolean
+  browsePausedReason?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -2921,11 +3077,13 @@ export type CharacterCardSelectScalar = {
   browseEnabled?: boolean
   browseDailyLimit?: boolean
   browsedAt?: boolean
+  browseModel?: boolean
+  browsePausedReason?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type CharacterCardOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "name" | "tags" | "isDeleted" | "isFavorite" | "voiceCardId" | "voiceProfile" | "persona" | "version" | "handle" | "summary" | "extensions" | "browseEnabled" | "browseDailyLimit" | "browsedAt" | "createdAt" | "updatedAt", ExtArgs["result"]["characterCard"]>
+export type CharacterCardOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "name" | "tags" | "isDeleted" | "isFavorite" | "voiceCardId" | "voiceProfile" | "persona" | "version" | "handle" | "summary" | "extensions" | "browseEnabled" | "browseDailyLimit" | "browsedAt" | "browseModel" | "browsePausedReason" | "createdAt" | "updatedAt", ExtArgs["result"]["characterCard"]>
 export type CharacterCardInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   voiceCard?: boolean | Prisma.CharacterCard$voiceCardArgs<ExtArgs>
@@ -3035,6 +3193,16 @@ export type $CharacterCardPayload<ExtArgs extends runtime.Types.Extensions.Inter
      * 上次逛完的时间；每日任务按它挑今天还没逛的。
      */
     browsedAt: Date | null
+    /**
+     * 出门用哪个型号（助手路由表里的 modelId，owner 2026-10-28：开着就必须明确，打开时默认填当时助手那个）。
+     * 只有开关关着的卡是空的；⛔ 悄悄跟着助手变、⛔ 换别家。
+     */
+    browseModel: string | null
+    /**
+     * 出不了门的原因（`CHARACTER_BROWSE_PAUSE_REASONS`）：型号下架、那一家的 key 没了……角色页照着说。
+     * 下一次顺利出门就清掉。
+     */
+    browsePausedReason: string | null
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["characterCard"]>
@@ -3488,6 +3656,8 @@ export interface CharacterCardFieldRefs {
   readonly browseEnabled: Prisma.FieldRef<"CharacterCard", 'Boolean'>
   readonly browseDailyLimit: Prisma.FieldRef<"CharacterCard", 'Int'>
   readonly browsedAt: Prisma.FieldRef<"CharacterCard", 'DateTime'>
+  readonly browseModel: Prisma.FieldRef<"CharacterCard", 'String'>
+  readonly browsePausedReason: Prisma.FieldRef<"CharacterCard", 'String'>
   readonly createdAt: Prisma.FieldRef<"CharacterCard", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"CharacterCard", 'DateTime'>
 }

@@ -19,7 +19,7 @@ import { DURATION_MS, EASE_STANDARD } from '@/constants/motion'
 import type { PromptDialect } from '@/constants/prompt-dialects'
 import { ROUTES } from '@/constants/routes'
 import { STUDIO_TEMPLATES_PANEL_ID } from '@/constants/studio'
-import { useStudioGen } from '@/contexts/studio-context'
+import { useStudioGenOptional } from '@/contexts/studio-context'
 import { useRecipes } from '@/hooks/prompts/use-recipes'
 import { useRouter } from '@/i18n/navigation'
 import {
@@ -58,31 +58,36 @@ const CARD_STAGGER_CLASS =
 const CARD_ARRIVE_CLASS =
   'animate-in fade-in-0 duration-fast ease-linear motion-reduce:animate-none'
 
-/** 这一台是哪一种模板：图片 / 标签（NAI）/ 视频 —— 文案按它挑。 */
-type TemplateKind = 'image' | 'tags' | 'video'
+/** 这一台是哪一种模板：图片 / 标签（NAI）/ LoRA 台（也列标签模板）/ 视频 —— 文案按它挑。 */
+type TemplateKind = 'image' | 'tags' | 'lora' | 'video'
 const TITLE_KEY = {
   image: 'titleImage',
   tags: 'titleTags',
+  lora: 'titleTags',
   video: 'titleVideo',
 } as const
 const EMPTY_KEY = {
   image: 'emptyImage',
   tags: 'emptyTags',
+  lora: 'emptyTags',
   video: 'emptyVideo',
 } as const
 const EMPTY_HINT_KEY = {
   image: 'emptyHintImage',
   tags: 'emptyHintTags',
+  lora: 'emptyHintLora',
   video: 'emptyHintVideo',
 } as const
 const FOOT_KEY = {
   image: 'footImage',
   tags: 'footTags',
+  lora: 'footLora',
   video: 'footImage',
 } as const
 const NAME_PLACEHOLDER_KEY = {
   image: 'namePlaceholderImage',
   tags: 'namePlaceholderTags',
+  lora: 'namePlaceholderTags',
   video: 'namePlaceholderVideo',
 } as const
 
@@ -98,6 +103,19 @@ export interface StudioTemplateSaveContext {
   params: Record<string, unknown>
   modelId: string | undefined
   provider: string | undefined
+  /**
+   * 「存下」挂哪一件出的图；不给就用 StudioProvider 里刚出的那一件（LoRA 台没有
+   * StudioProvider，自己给）。
+   */
+  lastGeneration?: TemplateCoverSource | null
+}
+
+interface TemplateCoverSource {
+  id: string
+  outputType: OutputType
+  thumbnailUrl?: string | null
+  previewUrl?: string | null
+  url?: string | null
 }
 
 interface StudioTemplatesPanelProps {
@@ -113,20 +131,15 @@ interface StudioTemplatesPanelProps {
   variant?: 'stage' | 'phone'
   /** 提示词框在舞台下面（底部输入框）：空着时说「先在下面写」，否则不指方位。 */
   promptBelow?: boolean
+  /** LoRA 台：列标签模板，存下的连挂载一起，说明换成 LoRA 台那一句。 */
+  bench?: 'lora'
 }
 
 /**
  * 「存下」挂的那一张：只认这一台刚出的那一件（换过档的上一件 ⛔ 不挂）；封面只能
  * 是一张图 —— 视频只认封面帧，音频没有。
  */
-function coverOf(
-  generation: {
-    outputType: OutputType
-    thumbnailUrl?: string | null
-    previewUrl?: string | null
-    url?: string | null
-  } | null,
-): string | null {
+function coverOf(generation: TemplateCoverSource | null): string | null {
   if (!generation) return null
   if (generation.outputType !== 'IMAGE') return generation.thumbnailUrl ?? null
   return (
@@ -152,12 +165,17 @@ export function StudioTemplatesPanel({
   onClose,
   variant = 'stage',
   promptBelow = true,
+  bench,
 }: StudioTemplatesPanelProps) {
   const t = useTranslations('StudioTemplates')
   const tFeedback = useTranslations('Feedback')
   const router = useRouter()
   const reducedMotion = useReducedMotion()
-  const { lastGeneration } = useStudioGen()
+  const studioGen = useStudioGenOptional()
+  const lastGeneration =
+    save.lastGeneration !== undefined
+      ? save.lastGeneration
+      : (studioGen?.lastGeneration ?? null)
   const {
     recipes,
     isLoading,
@@ -171,7 +189,9 @@ export function StudioTemplatesPanel({
   const tags = dialect === 'tags'
   const phone = variant === 'phone'
   const kind: TemplateKind = tags
-    ? 'tags'
+    ? bench === 'lora'
+      ? 'lora'
+      : 'tags'
     : save.outputType === 'VIDEO'
       ? 'video'
       : 'image'

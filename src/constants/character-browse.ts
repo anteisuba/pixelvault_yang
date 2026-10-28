@@ -40,6 +40,8 @@ export const CHARACTER_BROWSE = {
   recentTitles: 20,
   /** 单次模型调用的时限。 */
   callTimeoutMs: 60_000,
+  /** B 站只留具体的视频页（`/video/BV…` 或 `/video/av…`）；网搜退路偶尔回搜索结果页。 */
+  bilibiliVideoUrl: /bilibili\.com\/video\/(?:BV|av)\w+/i,
   /** 定时任务一趟最多跑多久：Vercel 函数 300 s 的上限前留出收尾。 */
   cronBudgetMs: 240_000,
 } as const

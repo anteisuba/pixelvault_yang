@@ -64,7 +64,7 @@ function video(n: number) {
     sourceId: 'bilibili',
     sourceTier: 'community',
     retrievedAt: '2026-10-28T00:00:00.000Z',
-    title: `视频 ${n}`,
+    title: `bilibili（经网搜）· 视频 ${n}`,
     videoUrl: `https://www.bilibili.com/video/BV${n}`,
     thumbnailUrl: `https://i0.hdslb.com/${n}.jpg`,
     site: 'bilibili',
@@ -106,7 +106,17 @@ describe('browseCharacter（她出门逛一次）', () => {
         }),
       )
     mocks.bilibili.mockResolvedValue({
-      items: [video(1), video(2), video(3), video(4)],
+      items: [
+        video(1),
+        video(2),
+        // 网搜退路回来的搜索结果页：不是具体视频，不要。
+        {
+          ...video(9),
+          videoUrl: 'https://search.bilibili.com/all?keyword=%E7%8C%AB',
+        },
+        video(3),
+        video(4),
+      ],
     })
     mocks.findingCreateMany.mockResolvedValue({ count: 2 })
   })
@@ -138,6 +148,7 @@ describe('browseCharacter（她出门逛一次）', () => {
         }),
         expect.objectContaining({
           url: 'https://www.bilibili.com/video/BV4',
+          title: '视频 4',
           note: '配色好甜',
         }),
       ],

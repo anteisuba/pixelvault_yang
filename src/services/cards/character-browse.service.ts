@@ -10,6 +10,7 @@ import {
   type CharacterBrowseSource,
 } from '@/constants/character-browse'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { WEB_VIDEO_SEARCH } from '@/constants/web-search'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import { listCivitaiLoras } from '@/services/civitai-lora-library.service'
@@ -173,6 +174,12 @@ async function findCandidates(
         source,
         (await fetchBilibiliEvidence({ query })).items,
       )
+        .filter((item) => CHARACTER_BROWSE.bilibiliVideoUrl.test(item.url))
+        .map((item) => ({
+          ...item,
+          // 连接器给标题加了来源名（「bilibili（经网搜）· 」），站名单独存在 source 里。
+          title: item.title.replace(WEB_VIDEO_SEARCH.bilibiliTitlePrefix, ''),
+        }))
     case CHARACTER_BROWSE_SOURCE_IDS.danbooru:
       return fromEvidence(
         source,

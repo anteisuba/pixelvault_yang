@@ -9,6 +9,10 @@
     {
       "path": "/api/internal/execution/sweep",
       "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/internal/characters/browse",
+      "schedule": "0 3 * * *"
     }
   ]
 }

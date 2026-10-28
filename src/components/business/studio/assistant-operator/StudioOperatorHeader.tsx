@@ -95,7 +95,10 @@ import type { UseStudioOperatorHistoryResult } from '@/hooks/use-studio-operator
 import { useSlowLoadingNotice } from '@/hooks/use-slow-loading-notice'
 import { useStudioShellAvatar } from '@/hooks/use-studio-shell-avatar'
 import { useStudioShellHeaderSlots } from '@/contexts/studio-shell-header-slots'
-import { StudioOperatorCurrentAvatar } from '@/components/business/studio/assistant-operator/StudioOperatorAvatarSwitcher'
+import {
+  StudioOperatorChatModeChip,
+  StudioOperatorCurrentAvatar,
+} from '@/components/business/studio/assistant-operator/StudioOperatorAvatarSwitcher'
 import {
   SESSION_ROW_MENU_ATTR,
   StudioOperatorSessionDeleteDialog,
@@ -549,6 +552,8 @@ export function StudioOperatorHeader({
             </DropdownMenuContent>
           </DropdownMenu>
         )}
+        {/* 台上的面板头没有「头像 + 名字」那一颗（首页外壳才有），聊天 / 工作胶囊挂在标题后面。 */}
+        {board ? null : <StudioOperatorChatModeChip />}
         <StudioOperatorSessionDeleteDialog
           target={deleteTarget}
           onClose={() => setDeleteTarget(null)}

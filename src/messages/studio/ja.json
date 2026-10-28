@@ -1177,7 +1177,13 @@
     "history": "会話履歴",
     "switchPersona": "相手を切り替え（いまは {name}）",
     "historyShow": "会話履歴を表示",
-    "historyHide": "会話履歴を隠す"
+    "historyHide": "会話履歴を隠す",
+    "chatMode": {
+      "chat": "おしゃべり",
+      "work": "作業",
+      "toWork": "いまはおしゃべり。作業に切り替え",
+      "toChat": "いまは作業。おしゃべりに切り替え"
+    }
   },
   "ImageRecipeImport": {
     "button": "画像から読む",

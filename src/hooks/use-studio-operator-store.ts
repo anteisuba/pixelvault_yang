@@ -23,7 +23,11 @@ import {
   ASSISTANT_MENTION_SCOPE_IDS,
 } from '@/constants/assistant-mention'
 import { ASSISTANT_PERSONA_DEFAULTS } from '@/constants/assistant-persona'
-import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
+import {
+  ASSISTANT_CHAT_MODE_IDS,
+  ASSISTANT_PROTOCOL_DOMAIN_IDS,
+  type AssistantChatMode,
+} from '@/constants/assistant-protocol'
 import type { AssistantPersonaPlanMode } from '@/constants/assistant-persona'
 import type { AssistantOperatorDomain } from '@/constants/assistant-operator'
 import { GENERATION_REVIEW_STATE_IDS } from '@/constants/assistant-operator'
@@ -71,7 +75,10 @@ import type {
   AssistantOperatorStep,
 } from '@/types/assistant-operator'
 import type { AssistantV3Transcript } from '@/types/assistant-v3'
-import type { AssistantSurfaceId } from '@/types/assistant-conversation'
+import {
+  ASSISTANT_SURFACE_IDS,
+  type AssistantSurfaceId,
+} from '@/types/assistant-conversation'
 import type {
   StudioOperatorHistoryEntry,
   StudioOperatorPending,
@@ -234,6 +241,12 @@ export interface StudioOperatorState {
    */
   chatCharacter: StudioOperatorChatCharacter | null
   /**
+   * 这段对话在哪一档（owner 2026-10-28 B1：名字旁那枚胶囊）。`null` = 还没定：没开口前跟着
+   * 你站在哪儿走（`resolveOperatorChatMode`），开口那一刻定下来，之后换台、刷新都不变，
+   * 只有点胶囊会改。载回的会话从最后一条切模式标记读回。
+   */
+  chatMode: AssistantChatMode | null
+  /**
    * 上一轮是**步数用完**停下的（D12 S12）—— 面板据此在末尾给「继续 / 先到这里」。
    * ⚠ 用户一开口（或新对话 / 换会话）就清掉。
    */
@@ -346,6 +359,7 @@ const INITIAL_STATE: StudioOperatorState = {
   incognito: false,
   offTheRecord: false,
   chatCharacter: null,
+  chatMode: null,
   outOfSteps: false,
   capturingFrames: false,
   reviewStates: {},
@@ -1312,6 +1326,70 @@ export function setOperatorOutOfSteps(outOfSteps: boolean): void {
   emit({ ...state, outOfSteps })
 }
 
+/** 载回的会话停在哪一档：最后一条切模式标记说了算；一条都没有 = 还没定（按会话从哪儿开始的算）。 */
+function chatModeFromHistory(
+  history: readonly StudioOperatorHistoryEntry[],
+): AssistantChatMode | null {
+  const mark = history.findLast((entry) => entry.kind === 'chatMark')
+  if (!mark || mark.kind !== 'chatMark') return null
+  return mark.characterId
+    ? ASSISTANT_CHAT_MODE_IDS.chat
+    : ASSISTANT_CHAT_MODE_IDS.work
+}
+
+/**
+ * 这段对话现在在哪一档。没有人设角色 = 只有工作（胶囊不出现）；定过的照定的；没定 = 载回的会话
+ * 按它从哪儿开始，新对话按你现在站在哪儿（首页聊、台上干活）。
+ */
+export function resolveOperatorChatMode(
+  current: Pick<StudioOperatorState, 'chatMode' | 'sessionSurface' | 'domain'>,
+  hasCharacter: boolean,
+): AssistantChatMode {
+  if (!hasCharacter) return ASSISTANT_CHAT_MODE_IDS.work
+  if (current.chatMode) return current.chatMode
+  const home = current.sessionSurface
+    ? current.sessionSurface === ASSISTANT_SURFACE_IDS.home
+    : current.domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.home
+  return home ? ASSISTANT_CHAT_MODE_IDS.chat : ASSISTANT_CHAT_MODE_IDS.work
+}
+
+/** 开口那一刻把档位定下来（还没定才定）：之后换台不再跟着变。 */
+export function settleOperatorChatMode(mode: AssistantChatMode): void {
+  if (state.chatMode) return
+  emit({ ...state, chatMode: mode })
+}
+
+/**
+ * 点胶囊换档。对话里已经有话时，时间线上留一条细线（「切到聊天 · 和她」/「回到工作」），模型也读
+ * 得到；连着切回去就把上一条细线拿掉，⛔ 留两条互相抵消的线。
+ */
+export function switchOperatorChatMode(
+  mode: AssistantChatMode,
+  character: { id: string; name: string },
+): void {
+  const last = state.entries.at(-1)
+  if (last?.kind === 'chatMark') {
+    emit({ ...state, chatMode: mode, entries: state.entries.slice(0, -1) })
+    return
+  }
+  const talked = state.entries.length > 0 || state.history.length > 0
+  emit({
+    ...state,
+    chatMode: mode,
+    entries: talked
+      ? [
+          ...state.entries,
+          {
+            kind: 'chatMark',
+            id: nextOperatorEntryId('chat-mark'),
+            character: mode === ASSISTANT_CHAT_MODE_IDS.chat ? character : null,
+            previous: mode === ASSISTANT_CHAT_MODE_IDS.chat ? null : character,
+          },
+        ]
+      : state.entries,
+  })
+}
+
 export function setOperatorIncognito(incognito: boolean): void {
   if (state.incognito === incognito) return
   emit({ ...state, incognito, offTheRecord: state.offTheRecord || incognito })
@@ -1492,6 +1570,7 @@ export function loadOperatorThread(args: {
     incognito: false,
     offTheRecord: false,
     chatCharacter: args.chatCharacter ?? null,
+    chatMode: chatModeFromHistory(args.history),
   })
   hydrateOperatorResume()
 }
@@ -1681,6 +1760,7 @@ export function resetOperatorThread(
     history: EMPTY_HISTORY,
     historyRounds: EMPTY_ROUNDS,
     chatCharacter: null,
+    chatMode: null,
     sessionId: null,
     sessionSurface: null,
     entries: [],

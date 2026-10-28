@@ -1177,7 +1177,13 @@
     "history": "对话记录",
     "switchPersona": "换人（现在是 {name}）",
     "historyShow": "展开对话记录",
-    "historyHide": "收起对话记录"
+    "historyHide": "收起对话记录",
+    "chatMode": {
+      "chat": "聊天",
+      "work": "工作",
+      "toWork": "现在是聊天，点一下切到工作",
+      "toChat": "现在是工作，点一下切到聊天"
+    }
   },
   "ImageRecipeImport": {
     "button": "从图读串",

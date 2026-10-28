@@ -131,7 +131,10 @@ import {
   useStudioOperatorState,
   takeOperatorQueue,
   upsertOperatorStep,
+  resolveOperatorChatMode,
+  settleOperatorChatMode,
 } from '@/hooks/use-studio-operator-store'
+import { getCachedAssistantCharacter } from '@/hooks/use-assistant-persona'
 import {
   libraryShowSettled,
   readLibraryView,
@@ -245,6 +248,16 @@ import type {
  * 🔊 开着、这段是用着角色的她说的（②c-2）：念出来。聊天整段念；开着台只念开头和收尾两段，
  * 中间的正文只出字（`splitSpokenSegments`）。
  */
+/** 这一轮在哪一档：还没定就按现在站在哪儿定下来（之后换台不跟着变）。 */
+function settledChatMode() {
+  const mode = resolveOperatorChatMode(
+    getOperatorState(),
+    getCachedAssistantCharacter() !== null,
+  )
+  settleOperatorChatMode(mode)
+  return mode
+}
+
 function speakIfVoiceOn(
   event: { text: string; chat?: true; spoken?: true },
   id: string,
@@ -1423,6 +1436,8 @@ export function useAssistantOperator(
           ...(getOperatorState().chatCharacter
             ? { chatCharacterId: getOperatorState().chatCharacter?.id }
             : {}),
+          // 聊天 / 工作那一档（名字旁那枚胶囊）：开口这一刻定下来，之后换台不跟着变。
+          chatMode: settledChatMode(),
           ...(searchWithGrok ? { searchWithGrok: true as const } : {}),
           ...(timeZone ? { timeZone } : {}),
           ...(videoClips?.length ? { videoClips } : {}),

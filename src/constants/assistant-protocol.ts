@@ -175,3 +175,19 @@ export const ASSISTANT_DOMAIN_BRIEFS: Record<
     ],
   },
 }
+
+/**
+ * 聊天 / 工作两档（owner 2026-10-28 B1：名字旁一枚胶囊切换，切了就粘在这段对话上）。
+ * 聊天 = 用人设角色的口吻聊，能看、能记，⛔ 改台、⛔ 出图；工作 = 照常干活。
+ */
+export const ASSISTANT_CHAT_MODE_IDS = {
+  chat: 'chat',
+  work: 'work',
+} as const
+
+export const ASSISTANT_CHAT_MODES = [
+  ASSISTANT_CHAT_MODE_IDS.chat,
+  ASSISTANT_CHAT_MODE_IDS.work,
+] as const
+
+export type AssistantChatMode = (typeof ASSISTANT_CHAT_MODES)[number]

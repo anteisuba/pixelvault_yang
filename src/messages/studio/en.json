@@ -1177,7 +1177,13 @@
     "history": "Conversations",
     "switchPersona": "Switch persona (now {name})",
     "historyShow": "Show conversations",
-    "historyHide": "Hide conversations"
+    "historyHide": "Hide conversations",
+    "chatMode": {
+      "chat": "Chat",
+      "work": "Work",
+      "toWork": "Chatting now. Switch to work",
+      "toChat": "Working now. Switch to chat"
+    }
   },
   "ImageRecipeImport": {
     "button": "Read from image",

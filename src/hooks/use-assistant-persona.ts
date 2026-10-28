@@ -54,6 +54,14 @@ export async function reloadAssistantPersonaEverywhere(): Promise<void> {
   if (result.success) publishPersona(result.data)
 }
 
+/** 事件处理器里同步读「现在的人设角色是谁」（发消息时定聊天 / 工作那一档）；还没读回来 = null。 */
+export function getCachedAssistantCharacter(): AssistantPersona['character'] {
+  return (
+    queryClient.getQueryData<AssistantPersona>(QUERY_KEYS.assistantPersona)
+      ?.character ?? null
+  )
+}
+
 export interface UseAssistantPersonaValue {
   persona: AssistantPersona
   isLoading: boolean

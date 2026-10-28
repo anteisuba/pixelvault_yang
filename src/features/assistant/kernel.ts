@@ -21,7 +21,10 @@ import {
   ASSISTANT_OPERATOR_TOOL_VERBS,
 } from '@/constants/assistant-operator'
 import type { AssistantRouteModel } from '@/constants/assistant-persona'
-import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
+import {
+  ASSISTANT_CHAT_MODE_IDS,
+  ASSISTANT_PROTOCOL_DOMAIN_IDS,
+} from '@/constants/assistant-protocol'
 import {
   ASSISTANT_TURN_RECORD_LIMITS,
   ASSISTANT_TURN_RECORD_OUTCOME_IDS as TURN_OUTCOME,
@@ -126,7 +129,9 @@ import {
 } from '@/features/assistant/bench'
 import { benchAliases } from '@/features/assistant/workspace.service'
 import {
+  ASSISTANT_NEXT_EDIT_OP_IDS,
   ASSISTANT_NEXT_LIMITS,
+  ASSISTANT_NEXT_OPEN_LIBRARY_BENCH,
   ASSISTANT_NEXT_PROMPT_VERSION,
   ASSISTANT_NEXT_TOOL_IDS,
 } from '@/features/assistant/constants'
@@ -606,9 +611,12 @@ async function* runNextTurn(
   const homeDraft =
     initialRequest.domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.home &&
     isHomeDraftSnapshot(initialRequest.snapshot)
+  // 聊不聊看名字旁那枚胶囊（`chatMode`，跟着这段对话走）；没带的旧客户端照旧：首页聊、台上干活。
+  const wantsChat = initialRequest.chatMode
+    ? initialRequest.chatMode === ASSISTANT_CHAT_MODE_IDS.chat
+    : initialRequest.domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.home
   const homeChatCharacterId =
-    initialRequest.domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.home &&
-    !initialRequest.chatCharacterId
+    wantsChat && !initialRequest.chatCharacterId
       ? await homeChatCharacter(clerkId)
       : null
   const request: AssistantOperatorRequest = {
@@ -1619,6 +1627,38 @@ function searchStepEvent(
   })
 }
 
+/**
+ * 聊天档动不动手（owner 2026-10-28）：能找、能看、能问、能记、能在库里翻给你看；⛔ 改台、⛔ 出图、⛔ 换台。
+ * 要干活时说一声，让创作者点名字旁的胶囊切到工作。
+ */
+function chatModeRefusal(call: ClientCall): BenchResult | null {
+  const editsOnlyMemory = (input: unknown) => {
+    const parsed = EditInputSchema.safeParse(input)
+    return (
+      parsed.success &&
+      parsed.data.changes.every(
+        (change) => change.op === ASSISTANT_NEXT_EDIT_OP_IDS.remember,
+      )
+    )
+  }
+  const opensLibrary = (input: unknown) =>
+    OpenInputSchema.safeParse(input).data?.bench ===
+    ASSISTANT_NEXT_OPEN_LIBRARY_BENCH
+  const allowed =
+    call.toolName === ASSISTANT_NEXT_TOOL_IDS.find ||
+    call.toolName === ASSISTANT_NEXT_TOOL_IDS.look ||
+    call.toolName === ASSISTANT_NEXT_TOOL_IDS.ask ||
+    (call.toolName === ASSISTANT_NEXT_TOOL_IDS.edit &&
+      editsOnlyMemory(call.input)) ||
+    (call.toolName === ASSISTANT_NEXT_TOOL_IDS.open && opensLibrary(call.input))
+  if (allowed) return null
+  return {
+    output:
+      'You are in chat mode: you can find, look, ask and remember, but you do not change the bench or the library, generate, or open another bench. Say in your own voice what you would do and that they can switch to work mode with the 聊天 / 工作 switch at the top of the chat (say it in their language).',
+    error: true,
+  }
+}
+
 async function* runTool(
   context: V3Context,
   call: ClientCall,
@@ -1626,6 +1666,10 @@ async function* runTool(
   latestUserText: string,
   aliases: string,
 ): AsyncGenerator<AssistantOperatorEvent, BenchResult> {
+  if (chatCharacterOf(context.prepared.persona)) {
+    const refused = chatModeRefusal(call)
+    if (refused) return refused
+  }
   switch (call.toolName) {
     case ASSISTANT_NEXT_TOOL_IDS.find: {
       const parsed = parseToolInput(FindInputSchema, call.input, call.toolName)

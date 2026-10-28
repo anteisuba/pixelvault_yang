@@ -10,6 +10,7 @@ import { STUDIO_OPERATOR_HISTORY } from '@/constants/studio-assistant-operator'
 import { ChevronDown, History, PanelLeftOpen } from '@/components/icons'
 import {
   StudioOperatorAvatarSwitcher,
+  StudioOperatorChatModeChip,
   StudioOperatorCurrentAvatar,
 } from '@/components/business/studio/assistant-operator/StudioOperatorAvatarSwitcher'
 import { STUDIO_SHELL_AVATAR_ATTR } from '@/components/business/studio/shell/StudioShellAvatarFlight'
@@ -212,39 +213,42 @@ export function StudioShellPersonaKey() {
   const reduceMotion = useReducedMotion()
 
   return (
-    <StudioOperatorAvatarSwitcher>
-      <button
-        type="button"
-        aria-label={t('switchPersona', { name })}
-        data-testid="studio-shell-persona"
-        className="group/persona relative flex h-9 min-w-0 shrink items-center gap-2 rounded-full py-0 pr-2 pl-0.5 text-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill focus-visible:outline-none focus-visible:shadow-focus data-[state=open]:bg-surface-fill motion-reduce:transition-none"
-      >
-        <AnimatePresence mode="popLayout" initial={false}>
-          <motion.span
-            // 按名字换：换人时名字先到（乐观更新），卡 id 晚一拍，按 id 会先硬换名字、过一会儿再闪一次。
-            key={name}
-            className="flex min-w-0 items-center gap-2"
-            initial={reduceMotion ? false : PERSONA_SWAP_HIDDEN}
-            animate={PERSONA_SWAP_SHOWN}
-            exit={reduceMotion ? undefined : PERSONA_SWAP_HIDDEN}
-            transition={PERSONA_SWAP_TRANSITION}
-          >
-            <span
-              {...{ [STUDIO_SHELL_AVATAR_ATTR]: 'header' }}
-              className="size-8 shrink-0 rounded-full"
+    <span className="flex min-w-0 items-center gap-1.5">
+      <StudioOperatorAvatarSwitcher>
+        <button
+          type="button"
+          aria-label={t('switchPersona', { name })}
+          data-testid="studio-shell-persona"
+          className="group/persona relative flex h-9 min-w-0 shrink items-center gap-2 rounded-full py-0 pr-2 pl-0.5 text-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill focus-visible:outline-none focus-visible:shadow-focus data-[state=open]:bg-surface-fill motion-reduce:transition-none"
+        >
+          <AnimatePresence mode="popLayout" initial={false}>
+            <motion.span
+              // 按名字换：换人时名字先到（乐观更新），卡 id 晚一拍，按 id 会先硬换名字、过一会儿再闪一次。
+              key={name}
+              className="flex min-w-0 items-center gap-2"
+              initial={reduceMotion ? false : PERSONA_SWAP_HIDDEN}
+              animate={PERSONA_SWAP_SHOWN}
+              exit={reduceMotion ? undefined : PERSONA_SWAP_HIDDEN}
+              transition={PERSONA_SWAP_TRANSITION}
             >
-              <StudioOperatorCurrentAvatar />
-            </span>
-            <span className="min-w-0 truncate text-sm font-semibold">
-              {name}
-            </span>
-          </motion.span>
-        </AnimatePresence>
-        <ChevronDown
-          aria-hidden
-          className="size-3.5 shrink-0 text-muted-foreground transition-transform duration-base ease-standard group-data-[state=open]/persona:rotate-180 motion-reduce:transition-none"
-        />
-      </button>
-    </StudioOperatorAvatarSwitcher>
+              <span
+                {...{ [STUDIO_SHELL_AVATAR_ATTR]: 'header' }}
+                className="size-8 shrink-0 rounded-full"
+              >
+                <StudioOperatorCurrentAvatar />
+              </span>
+              <span className="min-w-0 truncate text-sm font-semibold">
+                {name}
+              </span>
+            </motion.span>
+          </AnimatePresence>
+          <ChevronDown
+            aria-hidden
+            className="size-3.5 shrink-0 text-muted-foreground transition-transform duration-base ease-standard group-data-[state=open]/persona:rotate-180 motion-reduce:transition-none"
+          />
+        </button>
+      </StudioOperatorAvatarSwitcher>
+      <StudioOperatorChatModeChip />
+    </span>
   )
 }

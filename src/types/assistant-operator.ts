@@ -36,6 +36,7 @@ import {
   NOVELAI_V5_MAX_CHARACTERS,
 } from '@/constants/novelai'
 import { ASSISTANT_MEDIA_LIMITS } from '@/constants/assistant'
+import { ASSISTANT_CHAT_MODES } from '@/constants/assistant-protocol'
 import {
   ASSISTANT_MEMORY_KINDS,
   ASSISTANT_MEMORY_LIMITS,
@@ -2087,6 +2088,11 @@ export const AssistantOperatorRequestSchema = z.object({
    * ⚠ 模式跟会话走：客户端从会话上取、每轮上送，同一段会话不切。
    */
   chatCharacterId: z.string().uuid().optional(),
+  /**
+   * 这段对话在哪一档（名字旁那枚胶囊）。`chat` = 用设置里的人设角色聊，哪个台上都一样；
+   * `work` = 首页也照常干活。缺席 = 旧行为（首页聊、台上干活）。
+   */
+  chatMode: z.enum(ASSISTANT_CHAT_MODES).optional(),
   /**
    * **这段回复会被念出来**（聊天页开着声音，10-26）：内核在这一轮的消息里加上念法提示（方括号语气），
    * `expressive` = 用的是 Fish Drama 3（多认中文提示与成对标签）。缺席 = 只打字。

@@ -41,7 +41,10 @@ import {
 import { StudioOperatorDock } from '@/components/business/studio/assistant-operator'
 import { HomeDraftBench } from '@/components/business/studio/shell/HomeDraftBench'
 import { StudioConversationList } from '@/components/business/studio/shell/StudioConversationList'
-import { StudioLibraryTargetContext } from '@/components/business/studio/shell/StudioLibraryOverlay'
+import {
+  StudioLibrarySlotContext,
+  StudioLibraryTargetContext,
+} from '@/components/business/studio/shell/StudioLibraryOverlay'
 import {
   measureStudioShellAvatar,
   StudioShellAvatarFlight,
@@ -161,6 +164,12 @@ export function StudioShell({
   const [libraryCategory, setLibraryCategory] =
     useState<StudioShellOverlayId | null>(null)
   const libraryOpen = libraryCategory !== null
+  /** `@library` 那一格里挂着几份库（拦截路由），见 `StudioLibraryTarget.slotOverlayOpen`。 */
+  const [slotOverlays, setSlotOverlays] = useState(0)
+  const registerSlotOverlay = useCallback(() => {
+    setSlotOverlays((count) => count + 1)
+    return () => setSlotOverlays((count) => count - 1)
+  }, [])
   /** 库里右上「助手」开着（对话从右边出来）；库收掉就复位。 */
   const [libraryAssistantOpen, setLibraryAssistantOpen] = useState(false)
   if (!libraryOpen && libraryAssistantOpen) setLibraryAssistantOpen(false)
@@ -169,6 +178,8 @@ export function StudioShell({
     () => ({
       target: libraryTarget,
       inPlace: libraryInPlace ? shellOverlayFromPath(pathname) : null,
+      slotOverlayOpen: slotOverlays > 0,
+      registerSlotOverlay,
       setOpenCategory: setLibraryCategory,
       // 从外壳里点开的 → 后退回到进来之前那一页（台还在）；直接打开的 → 回首页。
       close: () => (cameFromShell ? router.back() : router.push(ROUTES.STUDIO)),
@@ -181,7 +192,9 @@ export function StudioShell({
       libraryInPlace,
       libraryTarget,
       pathname,
+      registerSlotOverlay,
       router,
+      slotOverlays,
     ],
   )
   const placement = useMemo<StudioOperatorDockPlacement>(
@@ -268,7 +281,9 @@ export function StudioShell({
                       {children}
                     </StudioShellStage>
                   )}
-                  {library}
+                  <StudioLibrarySlotContext.Provider value>
+                    {library}
+                  </StudioLibrarySlotContext.Provider>
                   {kind === 'home' ? (
                     <HomeDraftBench onHost={setDraftHost} />
                   ) : null}

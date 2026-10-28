@@ -51,6 +51,13 @@ interface StudioLibraryTarget {
    * 上一类还留在 `children` 里，只画地址说的那一类，⛔ 两类叠着画。`null` = 照常传送。
    */
   inPlace: StudioShellOverlayId | null
+  /**
+   * `@library` 那一格里挂着库（拦截路由）。直接打开库之后再软跳转换类，旧那一类还留在
+   * `children` 里，新那一类进了 `@library`：这时 `children` 那一份让位，⛔ 两类叠在同一个落点。
+   */
+  slotOverlayOpen: boolean
+  /** `@library` 那一格里的库挂上时登记，返回撤销。 */
+  registerSlotOverlay: () => () => void
   setOpenCategory: (category: StudioShellOverlayId | null) => void
   close: () => void
   /** 库里右上「助手」：对话从右边出来接着聊（ui-spec §9「库 + 助手」）。 */
@@ -61,6 +68,9 @@ interface StudioLibraryTarget {
 export const StudioLibraryTargetContext =
   createContext<StudioLibraryTarget | null>(null)
 
+/** 外壳把 `@library` 那一格包在这里面：库知道自己是拦截路由那一份还是 `children` 那一份。 */
+export const StudioLibrarySlotContext = createContext(false)
+
 export function StudioLibraryOverlay({
   category,
   children,
@@ -69,11 +79,24 @@ export function StudioLibraryOverlay({
   children: ReactNode
 }) {
   const slot = useContext(StudioLibraryTargetContext)
+  const fromSlot = useContext(StudioLibrarySlotContext)
   const setOpenCategory = slot?.setOpenCategory
   const setAssistantOpen = slot?.setAssistantOpen
+  const registerSlotOverlay = slot?.registerSlotOverlay
+  // `@library` 那一份登记上了才算数、`children` 那一份同一拍让位：收与开落在同一次提交里
+  //（先收后开），⛔ 旧那一份收的时候把新那一类记下的「开着哪类」清掉。
+  const slotOverlayOpen = slot?.slotOverlayOpen ?? false
+  const active =
+    (fromSlot ? slotOverlayOpen : !slotOverlayOpen) &&
+    (!slot?.inPlace || slot.inPlace === category)
+
+  // 布局期登记：上屏之前就换好，⛔ 两类叠着、⛔ 空一帧。
+  useLayoutEffect(() => {
+    if (fromSlot && registerSlotOverlay) return registerSlotOverlay()
+  }, [fromSlot, registerSlotOverlay])
 
   useEffect(() => {
-    if (!setOpenCategory) return
+    if (!setOpenCategory || !active) return
     setOpenCategory(category)
     setLibraryViewCategory(category)
     if (takeLibraryOpenedByAssistant()) setAssistantOpen?.(true)
@@ -81,11 +104,12 @@ export function StudioLibraryOverlay({
       setOpenCategory(null)
       setLibraryViewCategory(null)
     }
-  }, [category, setAssistantOpen, setOpenCategory])
+  }, [active, category, setAssistantOpen, setOpenCategory])
 
   // 不在外壳里（不该发生）就原地画，⛔ 白屏。
   if (!slot) return <>{children}</>
-  if (slot.inPlace) return slot.inPlace === category ? <>{children}</> : null
+  if (!active) return null
+  if (slot.inPlace) return <>{children}</>
   if (!slot.target) return null
 
   return createPortal(

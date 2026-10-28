@@ -13,6 +13,8 @@ export const SEMANTIC_SEARCH = {
   PUBLIC_NAMESPACE: 'public',
   KINDS: {
     DANBOORU_TAG: 'danbooru-tag',
+    /** 角色出门逛写下的见闻（第 4 批）：每张卡自己一区（`characterNamespace`）。 */
+    CHARACTER_FINDING: 'character-finding',
   },
   /**
    * 分数低于它当没对上：库里总有「最近的」几条，词不达意时也会回来。
@@ -21,6 +23,11 @@ export const SEMANTIC_SEARCH = {
    */
   MIN_SCORE: 0.55,
 } as const
+
+/** 一张角色卡自己那一区：见闻只在这里存、只在这里查，别的卡、别的用户查不到。 */
+export function characterNamespace(cardId: string): string {
+  return `card-${cardId}`
+}
 
 export type SemanticKind =
   (typeof SEMANTIC_SEARCH.KINDS)[keyof typeof SEMANTIC_SEARCH.KINDS]

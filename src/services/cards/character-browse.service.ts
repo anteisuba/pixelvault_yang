@@ -17,6 +17,10 @@ import { WEB_VIDEO_SEARCH } from '@/constants/web-search'
 import { db } from '@/lib/db'
 import { ApiKeyError, AssistantModelKeyMissingError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
+import {
+  forgetFindings,
+  indexFindings,
+} from '@/services/cards/character-findings.service'
 import { listCivitaiLoras } from '@/services/civitai-lora-library.service'
 import { completeAssistantTextWithContextRetry } from '@/services/kernel/assistant-completion.service'
 import {
@@ -579,14 +583,16 @@ export async function browseCharacter(input: {
         : []
     })
     .slice(0, budget)
-  const kept = rows.length
-    ? (
-        await db.characterFinding.createMany({
-          data: rows,
-          skipDuplicates: true,
-        })
-      ).count
-    : 0
+  const written = rows.length
+    ? await db.characterFinding.createManyAndReturn({
+        data: rows,
+        skipDuplicates: true,
+        select: { id: true, title: true, note: true, source: true },
+      })
+    : []
+  // 4c：存进她自己那一区的语义索引，聊天时按意思想得起来。
+  await indexFindings(card.id, written)
+  const kept = written.length
   await pruneFindings(card.id)
   return { seen: chosen.length, kept }
 }
@@ -599,10 +605,10 @@ async function pruneFindings(cardId: string): Promise<void> {
     skip: CHARACTER_BROWSE.keepFindings,
     select: { id: true },
   })
-  if (stale.length)
-    await db.characterFinding.deleteMany({
-      where: { id: { in: stale.map((row) => row.id) } },
-    })
+  if (stale.length === 0) return
+  const ids = stale.map((row) => row.id)
+  await db.characterFinding.deleteMany({ where: { id: { in: ids } } })
+  await forgetFindings(cardId, ids)
 }
 
 /* ── 每天那一趟 ─────────────────────────────────────────────────────── */

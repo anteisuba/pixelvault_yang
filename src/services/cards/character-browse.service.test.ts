@@ -10,6 +10,8 @@ const mocks = vi.hoisted(() => ({
   findingCount: vi.fn(),
   findingFindMany: vi.fn(),
   findingCreateMany: vi.fn(),
+  indexFindings: vi.fn(),
+  forgetFindings: vi.fn(),
   findingDeleteMany: vi.fn(),
   danmaku: vi.fn(),
   comments: vi.fn(),
@@ -32,10 +34,14 @@ vi.mock('@/lib/db', () => ({
     characterFinding: {
       count: mocks.findingCount,
       findMany: mocks.findingFindMany,
-      createMany: mocks.findingCreateMany,
+      createManyAndReturn: mocks.findingCreateMany,
       deleteMany: mocks.findingDeleteMany,
     },
   },
+}))
+vi.mock('@/services/cards/character-findings.service', () => ({
+  indexFindings: mocks.indexFindings,
+  forgetFindings: mocks.forgetFindings,
 }))
 vi.mock('@/services/kernel/assistant-route.service', () => ({
   resolveAssistantRoute: mocks.route,
@@ -139,7 +145,11 @@ describe('browseCharacter（她出门逛一次）', () => {
         video(4),
       ],
     })
-    mocks.findingCreateMany.mockResolvedValue({ count: 2 })
+    mocks.findingCreateMany.mockImplementation(({ data }) =>
+      Promise.resolve(
+        data.map((row: object, n: number) => ({ id: `f${n}`, ...row })),
+      ),
+    )
   })
 
   it('先记时间（不顶到列表最前），按额度看没看过的，没意思的不记', async () => {
@@ -184,7 +194,13 @@ describe('browseCharacter（她出门逛一次）', () => {
         }),
       ],
       skipDuplicates: true,
+      select: { id: true, title: true, note: true, source: true },
     })
+    // 4c：写下的两条存进她自己那一区的索引。
+    expect(mocks.indexFindings).toHaveBeenCalledWith(
+      'card-1',
+      expect.arrayContaining([expect.objectContaining({ id: 'f0' })]),
+    )
     expect(result).toEqual({ seen: 3, kept: 2 })
   })
 
@@ -198,7 +214,11 @@ describe('browseCharacter（她出门逛一次）', () => {
       .mockResolvedValueOnce(
         JSON.stringify({ notes: [{ n: 1, note: '标题就很可爱' }] }),
       )
-    mocks.findingCreateMany.mockResolvedValue({ count: 1 })
+    mocks.findingCreateMany.mockImplementation(({ data }) =>
+      Promise.resolve(
+        data.map((row: object, n: number) => ({ id: `f${n}`, ...row })),
+      ),
+    )
 
     const result = await browseCharacter({ userId: 'u', cardId: 'card-1' })
 
@@ -323,7 +343,9 @@ describe('三级漏斗', () => {
         }),
       )
     mocks.findingCreateMany.mockImplementation(({ data }) =>
-      Promise.resolve({ count: data.length }),
+      Promise.resolve(
+        data.map((row: object, n: number) => ({ id: `f${n}`, ...row })),
+      ),
     )
 
     const result = await browseCharacter({ userId: 'u', cardId: 'card-1' })

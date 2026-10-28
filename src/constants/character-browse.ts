@@ -74,3 +74,13 @@ export const CHARACTER_BROWSE_PAUSE_REASONS = {
 
 export type CharacterBrowsePauseReason =
   (typeof CHARACTER_BROWSE_PAUSE_REASONS)[keyof typeof CHARACTER_BROWSE_PAUSE_REASONS]
+
+/** 聊天时想起她的见闻（4c）。 */
+export const CHARACTER_FINDINGS_RECALL = {
+  /** 按意思最多想起几条。 */
+  topK: 3,
+  /** 拿你这句话的前多少字去找。 */
+  queryChars: 300,
+  /** 一条都对不上时，最近这么久看到的最新一条可以顺口提。 */
+  freshMs: 2 * 24 * 60 * 60 * 1000,
+} as const

@@ -2700,6 +2700,18 @@ html:lang(ja) {
   }
 }
 
+/* 她发的表情包（4d，owner 10-29 定 A）：裸图，弹一下出现（略转、回弹）。减少动效时不动。 */
+.operator-chat-sticker-in {
+  animation: operator-chat-sticker-in 450ms cubic-bezier(0.3, 1.4, 0.5, 1) both;
+}
+
+@keyframes operator-chat-sticker-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6) rotate(-6deg);
+  }
+}
+
 .operator-chat-typing > i {
   animation: operator-chat-typing 1s infinite both;
 }
@@ -2724,6 +2736,7 @@ html:lang(ja) {
 
 @media (prefers-reduced-motion: reduce) {
   .operator-chat-bubble-in,
+  .operator-chat-sticker-in,
   .operator-chat-typing > i {
     animation: none;
   }

@@ -14,6 +14,12 @@ const mocks = vi.hoisted(() => ({
   forgetFindings: vi.fn(),
   findingDeleteMany: vi.fn(),
   danmaku: vi.fn(),
+  imageSearch: vi.fn(),
+  upload: vi.fn(),
+  deleteR2: vi.fn(),
+  stickerCreate: vi.fn(),
+  stickerFindMany: vi.fn(),
+  stickerDeleteMany: vi.fn(),
   comments: vi.fn(),
   route: vi.fn(),
   complete: vi.fn(),
@@ -31,6 +37,11 @@ vi.mock('@/lib/db', () => ({
       update: mocks.cardUpdate,
       findMany: mocks.cardFindMany,
     },
+    characterSticker: {
+      create: mocks.stickerCreate,
+      findMany: mocks.stickerFindMany,
+      deleteMany: mocks.stickerDeleteMany,
+    },
     characterFinding: {
       count: mocks.findingCount,
       findMany: mocks.findingFindMany,
@@ -42,6 +53,13 @@ vi.mock('@/lib/db', () => ({
 vi.mock('@/services/cards/character-findings.service', () => ({
   indexFindings: mocks.indexFindings,
   forgetFindings: mocks.forgetFindings,
+}))
+vi.mock('@/services/web-research.service', () => ({
+  webImageSearch: mocks.imageSearch,
+}))
+vi.mock('@/services/storage/r2', () => ({
+  uploadVerifiedHttpToR2: mocks.upload,
+  deleteFromR2: mocks.deleteR2,
 }))
 vi.mock('@/services/kernel/assistant-route.service', () => ({
   resolveAssistantRoute: mocks.route,
@@ -362,7 +380,145 @@ describe('三级漏斗', () => {
   })
 })
 
+describe('表情包（4d）', () => {
+  function setup() {
+    vi.clearAllMocks()
+    // 前面几条排队没用完的回答别串过来。
+    mocks.complete.mockReset()
+    mocks.findingFindMany.mockReset()
+    mocks.findingCreateMany.mockReset()
+    mocks.cardFind.mockResolvedValue({
+      id: 'card-1',
+      name: 'Denia',
+      tags: [],
+      persona: {},
+      browseDailyLimit: 20,
+      browseModel: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
+      updatedAt,
+    })
+    mocks.findingCount.mockResolvedValue(0)
+    mocks.findingFindMany.mockResolvedValue([])
+    mocks.route.mockResolvedValue({
+      route: { adapterType: 'gemini', apiKey: 'k', providerConfig: {} },
+      modelId: 'gemini-3.8-flash',
+    })
+    mocks.danmaku.mockResolvedValue([])
+    mocks.bilibili.mockResolvedValue({ items: [video(1)] })
+    mocks.findingCreateMany.mockResolvedValue([])
+    mocks.upload.mockResolvedValue({
+      publicUrl: 'https://cdn.example/s.png',
+      mimeType: 'image/png',
+      sizeBytes: 100,
+    })
+    mocks.stickerFindMany.mockResolvedValue([])
+    mocks.imageSearch.mockResolvedValue([
+      {
+        imageUrl: 'https://img.example/haoye.png',
+        thumbnailUrl: 'https://thumb.example/haoye.jpg',
+        title: '猫猫 好耶',
+      },
+    ])
+  }
+
+  it('专门搜表情包：她把关收下的那张，下原图存进 R2 独立路径和表情包表', async () => {
+    setup()
+    mocks.complete
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          queries: [{ source: 'bilibili', query: '猫' }],
+          sticker: '猫猫',
+        }),
+      )
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          notes: [
+            { n: 1, note: '笑死', sticker: null },
+            { n: 2, note: null, sticker: '被夸的时候发' },
+          ],
+        }),
+      )
+
+    await browseCharacter({ userId: 'u', cardId: 'card-1' })
+
+    // 搜词自动补上「表情包」。
+    expect(mocks.imageSearch).toHaveBeenCalledWith('猫猫 表情包', {
+      num: 10,
+    })
+    const upload = mocks.upload.mock.calls[0]?.[0] as {
+      key: string
+      sourceUrl: string
+    }
+    expect(upload.sourceUrl).toBe('https://img.example/haoye.png')
+    expect(upload.key).toMatch(/^characters\/u\/card-1\/stickers\/.+\.png$/)
+    expect(mocks.stickerCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        userId: 'u',
+        characterCardId: 'card-1',
+        url: 'https://cdn.example/s.png',
+        whenToUse: '被夸的时候发',
+      }),
+    })
+  })
+
+  it('普通的图（视频封面）就算她标了也不收；表情包候选不写成见闻', async () => {
+    setup()
+    mocks.complete
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          queries: [{ source: 'bilibili', query: '猫' }],
+          sticker: '猫猫 表情包',
+        }),
+      )
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          notes: [
+            { n: 1, note: '笑死', sticker: '想发' },
+            { n: 2, note: '这张也好笑', sticker: null },
+          ],
+        }),
+      )
+    mocks.findingCreateMany.mockImplementation(({ data }) =>
+      Promise.resolve(
+        data.map((row: object, n: number) => ({ id: `f${n}`, ...row })),
+      ),
+    )
+
+    await browseCharacter({ userId: 'u', cardId: 'card-1' })
+
+    expect(mocks.upload).not.toHaveBeenCalled()
+    expect(mocks.stickerCreate).not.toHaveBeenCalled()
+    const written = mocks.findingCreateMany.mock.calls[0]?.[0] as {
+      data: { note: string }[]
+    }
+    expect(written.data.map((row) => row.note)).toEqual(['笑死'])
+  })
+})
+
 describe('runDailyCharacterBrowse（每天那一趟）', () => {
+  it('出门超过 7 天、7 天里一条见闻都没被想起：隔天才出门', async () => {
+    vi.clearAllMocks()
+    mocks.findingFindMany.mockReset().mockResolvedValue([])
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000)
+    mocks.cardFindMany.mockResolvedValue([
+      { id: 'idle', userId: 'u1', browsedAt: yesterday },
+      { id: 'liked', userId: 'u1', browsedAt: yesterday },
+      { id: 'new', userId: 'u1', browsedAt: yesterday },
+    ])
+    mocks.findingFindMany
+      .mockResolvedValueOnce([
+        { characterCardId: 'idle' },
+        { characterCardId: 'liked' },
+      ])
+      .mockResolvedValueOnce([{ characterCardId: 'liked' }])
+    mocks.cardFind.mockResolvedValue(null)
+
+    expect(await runDailyCharacterBrowse()).toEqual({
+      cards: 2,
+      kept: 0,
+      left: 0,
+    })
+  })
+
   it('一个人最多带 3 张卡出门', async () => {
     vi.clearAllMocks()
     mocks.cardFindMany.mockResolvedValue([

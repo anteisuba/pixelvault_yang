@@ -1375,7 +1375,9 @@ model CharacterFinding {
   /// 她的口吻写的那句。
   note   String @db.Text
 
-  seenAt DateTime @default(now())
+  seenAt     DateTime  @default(now())
+  /// 上次在聊天里被想起的时间（4c）。「你不看就少出门」读它：7 天没被想起就隔天出门。
+  recalledAt DateTime?
 
   /// 同一张卡同一个链接只记一次。
   @@unique([characterCardId, url])
@@ -1396,11 +1398,13 @@ model CharacterSticker {
   characterCard   CharacterCard @relation(fields: [characterCardId], references: [id], onDelete: Cascade)
 
   storageKey String
-  url        String  @db.Text
-  sourceUrl  String? @db.Text
+  url        String    @db.Text
+  sourceUrl  String?   @db.Text
   /// 什么情境下用它（她自己写的一句）。
-  whenToUse  String  @db.Text
-  isBlocked  Boolean @default(false)
+  whenToUse  String    @db.Text
+  isBlocked  Boolean   @default(false)
+  /// 上次在聊天里发出的时间；超过 30 张时先删最旧、没发过的。
+  sentAt     DateTime?
 
   createdAt DateTime @default(now())
 

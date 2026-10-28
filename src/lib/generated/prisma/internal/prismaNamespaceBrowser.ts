@@ -793,7 +793,8 @@ export const CharacterFindingScalarFieldEnum = {
   url: 'url',
   title: 'title',
   note: 'note',
-  seenAt: 'seenAt'
+  seenAt: 'seenAt',
+  recalledAt: 'recalledAt'
 } as const
 
 export type CharacterFindingScalarFieldEnum = (typeof CharacterFindingScalarFieldEnum)[keyof typeof CharacterFindingScalarFieldEnum]
@@ -808,6 +809,7 @@ export const CharacterStickerScalarFieldEnum = {
   sourceUrl: 'sourceUrl',
   whenToUse: 'whenToUse',
   isBlocked: 'isBlocked',
+  sentAt: 'sentAt',
   createdAt: 'createdAt'
 } as const
 

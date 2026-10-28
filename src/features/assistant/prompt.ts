@@ -465,6 +465,8 @@ export function buildNextSystemPrompt(input: {
   lastTime?: string
   /** 聊天时想起的她最近的见闻（第 4 批 4c，已渲染好）；没有 = 空串。 */
   findings?: string
+  /** 聊天时她手上能发的表情包（4d，已渲染好）；没有 = 空串。 */
+  stickers?: string
 }): NextSystemPrompt {
   const { persona } = input
   const style = buildPersonaStyleSection(persona, 'v3')
@@ -481,7 +483,7 @@ export function buildNextSystemPrompt(input: {
     style ? `\n\nHOW YOU TALK${style}` : ''
   }${buildCreatorSection(persona, input.accountName, [], null)}${rulesSection(
     input.rules,
-  )}${memorySection(input.memories, chat ?? openCharacterOf(input.request))}${input.lastTime ?? ''}${input.findings ?? ''}${renderAssistantV3HistorySummary(
+  )}${memorySection(input.memories, chat ?? openCharacterOf(input.request))}${input.lastTime ?? ''}${input.findings ?? ''}${input.stickers ?? ''}${renderAssistantV3HistorySummary(
     input.historySummary ?? null,
     chat ? 'story' : 'work',
   )}${dialect}`

@@ -34,6 +34,7 @@ export type CharacterStickerMinAggregateOutputType = {
   sourceUrl: string | null
   whenToUse: string | null
   isBlocked: boolean | null
+  sentAt: Date | null
   createdAt: Date | null
 }
 
@@ -46,6 +47,7 @@ export type CharacterStickerMaxAggregateOutputType = {
   sourceUrl: string | null
   whenToUse: string | null
   isBlocked: boolean | null
+  sentAt: Date | null
   createdAt: Date | null
 }
 
@@ -58,6 +60,7 @@ export type CharacterStickerCountAggregateOutputType = {
   sourceUrl: number
   whenToUse: number
   isBlocked: number
+  sentAt: number
   createdAt: number
   _all: number
 }
@@ -72,6 +75,7 @@ export type CharacterStickerMinAggregateInputType = {
   sourceUrl?: true
   whenToUse?: true
   isBlocked?: true
+  sentAt?: true
   createdAt?: true
 }
 
@@ -84,6 +88,7 @@ export type CharacterStickerMaxAggregateInputType = {
   sourceUrl?: true
   whenToUse?: true
   isBlocked?: true
+  sentAt?: true
   createdAt?: true
 }
 
@@ -96,6 +101,7 @@ export type CharacterStickerCountAggregateInputType = {
   sourceUrl?: true
   whenToUse?: true
   isBlocked?: true
+  sentAt?: true
   createdAt?: true
   _all?: true
 }
@@ -181,6 +187,7 @@ export type CharacterStickerGroupByOutputType = {
   sourceUrl: string | null
   whenToUse: string
   isBlocked: boolean
+  sentAt: Date | null
   createdAt: Date
   _count: CharacterStickerCountAggregateOutputType | null
   _min: CharacterStickerMinAggregateOutputType | null
@@ -214,6 +221,7 @@ export type CharacterStickerWhereInput = {
   sourceUrl?: Prisma.StringNullableFilter<"CharacterSticker"> | string | null
   whenToUse?: Prisma.StringFilter<"CharacterSticker"> | string
   isBlocked?: Prisma.BoolFilter<"CharacterSticker"> | boolean
+  sentAt?: Prisma.DateTimeNullableFilter<"CharacterSticker"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"CharacterSticker"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
   characterCard?: Prisma.XOR<Prisma.CharacterCardScalarRelationFilter, Prisma.CharacterCardWhereInput>
@@ -228,6 +236,7 @@ export type CharacterStickerOrderByWithRelationInput = {
   sourceUrl?: Prisma.SortOrderInput | Prisma.SortOrder
   whenToUse?: Prisma.SortOrder
   isBlocked?: Prisma.SortOrder
+  sentAt?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   user?: Prisma.UserOrderByWithRelationInput
   characterCard?: Prisma.CharacterCardOrderByWithRelationInput
@@ -245,6 +254,7 @@ export type CharacterStickerWhereUniqueInput = Prisma.AtLeast<{
   sourceUrl?: Prisma.StringNullableFilter<"CharacterSticker"> | string | null
   whenToUse?: Prisma.StringFilter<"CharacterSticker"> | string
   isBlocked?: Prisma.BoolFilter<"CharacterSticker"> | boolean
+  sentAt?: Prisma.DateTimeNullableFilter<"CharacterSticker"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"CharacterSticker"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
   characterCard?: Prisma.XOR<Prisma.CharacterCardScalarRelationFilter, Prisma.CharacterCardWhereInput>
@@ -259,6 +269,7 @@ export type CharacterStickerOrderByWithAggregationInput = {
   sourceUrl?: Prisma.SortOrderInput | Prisma.SortOrder
   whenToUse?: Prisma.SortOrder
   isBlocked?: Prisma.SortOrder
+  sentAt?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   _count?: Prisma.CharacterStickerCountOrderByAggregateInput
   _max?: Prisma.CharacterStickerMaxOrderByAggregateInput
@@ -277,6 +288,7 @@ export type CharacterStickerScalarWhereWithAggregatesInput = {
   sourceUrl?: Prisma.StringNullableWithAggregatesFilter<"CharacterSticker"> | string | null
   whenToUse?: Prisma.StringWithAggregatesFilter<"CharacterSticker"> | string
   isBlocked?: Prisma.BoolWithAggregatesFilter<"CharacterSticker"> | boolean
+  sentAt?: Prisma.DateTimeNullableWithAggregatesFilter<"CharacterSticker"> | Date | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"CharacterSticker"> | Date | string
 }
 
@@ -287,6 +299,7 @@ export type CharacterStickerCreateInput = {
   sourceUrl?: string | null
   whenToUse: string
   isBlocked?: boolean
+  sentAt?: Date | string | null
   createdAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutCharacterStickersInput
   characterCard: Prisma.CharacterCardCreateNestedOneWithoutStickersInput
@@ -301,6 +314,7 @@ export type CharacterStickerUncheckedCreateInput = {
   sourceUrl?: string | null
   whenToUse: string
   isBlocked?: boolean
+  sentAt?: Date | string | null
   createdAt?: Date | string
 }
 
@@ -311,6 +325,7 @@ export type CharacterStickerUpdateInput = {
   sourceUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   whenToUse?: Prisma.StringFieldUpdateOperationsInput | string
   isBlocked?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutCharacterStickersNestedInput
   characterCard?: Prisma.CharacterCardUpdateOneRequiredWithoutStickersNestedInput
@@ -325,6 +340,7 @@ export type CharacterStickerUncheckedUpdateInput = {
   sourceUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   whenToUse?: Prisma.StringFieldUpdateOperationsInput | string
   isBlocked?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -337,6 +353,7 @@ export type CharacterStickerCreateManyInput = {
   sourceUrl?: string | null
   whenToUse: string
   isBlocked?: boolean
+  sentAt?: Date | string | null
   createdAt?: Date | string
 }
 
@@ -347,6 +364,7 @@ export type CharacterStickerUpdateManyMutationInput = {
   sourceUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   whenToUse?: Prisma.StringFieldUpdateOperationsInput | string
   isBlocked?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -359,6 +377,7 @@ export type CharacterStickerUncheckedUpdateManyInput = {
   sourceUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   whenToUse?: Prisma.StringFieldUpdateOperationsInput | string
   isBlocked?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -381,6 +400,7 @@ export type CharacterStickerCountOrderByAggregateInput = {
   sourceUrl?: Prisma.SortOrder
   whenToUse?: Prisma.SortOrder
   isBlocked?: Prisma.SortOrder
+  sentAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -393,6 +413,7 @@ export type CharacterStickerMaxOrderByAggregateInput = {
   sourceUrl?: Prisma.SortOrder
   whenToUse?: Prisma.SortOrder
   isBlocked?: Prisma.SortOrder
+  sentAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -405,6 +426,7 @@ export type CharacterStickerMinOrderByAggregateInput = {
   sourceUrl?: Prisma.SortOrder
   whenToUse?: Prisma.SortOrder
   isBlocked?: Prisma.SortOrder
+  sentAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -499,6 +521,7 @@ export type CharacterStickerCreateWithoutUserInput = {
   sourceUrl?: string | null
   whenToUse: string
   isBlocked?: boolean
+  sentAt?: Date | string | null
   createdAt?: Date | string
   characterCard: Prisma.CharacterCardCreateNestedOneWithoutStickersInput
 }
@@ -511,6 +534,7 @@ export type CharacterStickerUncheckedCreateWithoutUserInput = {
   sourceUrl?: string | null
   whenToUse: string
   isBlocked?: boolean
+  sentAt?: Date | string | null
   createdAt?: Date | string
 }
 
@@ -552,6 +576,7 @@ export type CharacterStickerScalarWhereInput = {
   sourceUrl?: Prisma.StringNullableFilter<"CharacterSticker"> | string | null
   whenToUse?: Prisma.StringFilter<"CharacterSticker"> | string
   isBlocked?: Prisma.BoolFilter<"CharacterSticker"> | boolean
+  sentAt?: Prisma.DateTimeNullableFilter<"CharacterSticker"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"CharacterSticker"> | Date | string
 }
 
@@ -562,6 +587,7 @@ export type CharacterStickerCreateWithoutCharacterCardInput = {
   sourceUrl?: string | null
   whenToUse: string
   isBlocked?: boolean
+  sentAt?: Date | string | null
   createdAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutCharacterStickersInput
 }
@@ -574,6 +600,7 @@ export type CharacterStickerUncheckedCreateWithoutCharacterCardInput = {
   sourceUrl?: string | null
   whenToUse: string
   isBlocked?: boolean
+  sentAt?: Date | string | null
   createdAt?: Date | string
 }
 
@@ -611,6 +638,7 @@ export type CharacterStickerCreateManyUserInput = {
   sourceUrl?: string | null
   whenToUse: string
   isBlocked?: boolean
+  sentAt?: Date | string | null
   createdAt?: Date | string
 }
 
@@ -621,6 +649,7 @@ export type CharacterStickerUpdateWithoutUserInput = {
   sourceUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   whenToUse?: Prisma.StringFieldUpdateOperationsInput | string
   isBlocked?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   characterCard?: Prisma.CharacterCardUpdateOneRequiredWithoutStickersNestedInput
 }
@@ -633,6 +662,7 @@ export type CharacterStickerUncheckedUpdateWithoutUserInput = {
   sourceUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   whenToUse?: Prisma.StringFieldUpdateOperationsInput | string
   isBlocked?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -644,6 +674,7 @@ export type CharacterStickerUncheckedUpdateManyWithoutUserInput = {
   sourceUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   whenToUse?: Prisma.StringFieldUpdateOperationsInput | string
   isBlocked?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -655,6 +686,7 @@ export type CharacterStickerCreateManyCharacterCardInput = {
   sourceUrl?: string | null
   whenToUse: string
   isBlocked?: boolean
+  sentAt?: Date | string | null
   createdAt?: Date | string
 }
 
@@ -665,6 +697,7 @@ export type CharacterStickerUpdateWithoutCharacterCardInput = {
   sourceUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   whenToUse?: Prisma.StringFieldUpdateOperationsInput | string
   isBlocked?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutCharacterStickersNestedInput
 }
@@ -677,6 +710,7 @@ export type CharacterStickerUncheckedUpdateWithoutCharacterCardInput = {
   sourceUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   whenToUse?: Prisma.StringFieldUpdateOperationsInput | string
   isBlocked?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -688,6 +722,7 @@ export type CharacterStickerUncheckedUpdateManyWithoutCharacterCardInput = {
   sourceUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   whenToUse?: Prisma.StringFieldUpdateOperationsInput | string
   isBlocked?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -702,6 +737,7 @@ export type CharacterStickerSelect<ExtArgs extends runtime.Types.Extensions.Inte
   sourceUrl?: boolean
   whenToUse?: boolean
   isBlocked?: boolean
+  sentAt?: boolean
   createdAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   characterCard?: boolean | Prisma.CharacterCardDefaultArgs<ExtArgs>
@@ -716,6 +752,7 @@ export type CharacterStickerSelectCreateManyAndReturn<ExtArgs extends runtime.Ty
   sourceUrl?: boolean
   whenToUse?: boolean
   isBlocked?: boolean
+  sentAt?: boolean
   createdAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   characterCard?: boolean | Prisma.CharacterCardDefaultArgs<ExtArgs>
@@ -730,6 +767,7 @@ export type CharacterStickerSelectUpdateManyAndReturn<ExtArgs extends runtime.Ty
   sourceUrl?: boolean
   whenToUse?: boolean
   isBlocked?: boolean
+  sentAt?: boolean
   createdAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   characterCard?: boolean | Prisma.CharacterCardDefaultArgs<ExtArgs>
@@ -744,10 +782,11 @@ export type CharacterStickerSelectScalar = {
   sourceUrl?: boolean
   whenToUse?: boolean
   isBlocked?: boolean
+  sentAt?: boolean
   createdAt?: boolean
 }
 
-export type CharacterStickerOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "characterCardId" | "storageKey" | "url" | "sourceUrl" | "whenToUse" | "isBlocked" | "createdAt", ExtArgs["result"]["characterSticker"]>
+export type CharacterStickerOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "characterCardId" | "storageKey" | "url" | "sourceUrl" | "whenToUse" | "isBlocked" | "sentAt" | "createdAt", ExtArgs["result"]["characterSticker"]>
 export type CharacterStickerInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   characterCard?: boolean | Prisma.CharacterCardDefaultArgs<ExtArgs>
@@ -779,6 +818,10 @@ export type $CharacterStickerPayload<ExtArgs extends runtime.Types.Extensions.In
      */
     whenToUse: string
     isBlocked: boolean
+    /**
+     * 上次在聊天里发出的时间；超过 30 张时先删最旧、没发过的。
+     */
+    sentAt: Date | null
     createdAt: Date
   }, ExtArgs["result"]["characterSticker"]>
   composites: {}
@@ -1213,6 +1256,7 @@ export interface CharacterStickerFieldRefs {
   readonly sourceUrl: Prisma.FieldRef<"CharacterSticker", 'String'>
   readonly whenToUse: Prisma.FieldRef<"CharacterSticker", 'String'>
   readonly isBlocked: Prisma.FieldRef<"CharacterSticker", 'Boolean'>
+  readonly sentAt: Prisma.FieldRef<"CharacterSticker", 'DateTime'>
   readonly createdAt: Prisma.FieldRef<"CharacterSticker", 'DateTime'>
 }
     

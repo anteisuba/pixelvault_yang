@@ -5,11 +5,17 @@ const mocks = vi.hoisted(() => ({
   store: vi.fn(),
   forget: vi.fn(),
   findMany: vi.fn(),
+  updateMany: vi.fn(),
 }))
 
 vi.mock('server-only', () => ({}))
 vi.mock('@/lib/db', () => ({
-  db: { characterFinding: { findMany: mocks.findMany } },
+  db: {
+    characterFinding: {
+      findMany: mocks.findMany,
+      updateMany: mocks.updateMany,
+    },
+  },
 }))
 vi.mock('@/services/semantic-search.service', () => ({
   searchByMeaning: mocks.search,
@@ -84,6 +90,11 @@ describe('她的见闻怎么被想起来（4c）', () => {
       }),
     )
     expect(found.map((item) => item.title)).toEqual(['松饼', '知乎'])
+    // 「你不看就少出门」：想起的这几条记下时间。
+    expect(mocks.updateMany).toHaveBeenCalledWith({
+      where: { id: { in: ['f1', 'f2'] } },
+      data: { recalledAt: expect.any(Date) },
+    })
   })
 
   it('一条都对不上：带最近两天最新的一条', async () => {

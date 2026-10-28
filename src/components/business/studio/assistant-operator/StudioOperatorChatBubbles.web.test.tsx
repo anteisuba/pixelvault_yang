@@ -50,3 +50,24 @@ describe('StudioOperatorChatBubbles（②c-2，出场照样件 F）', () => {
     expect(typing()).toBeNull()
   })
 })
+
+describe('她发的表情包（4d，定 A：裸图）', () => {
+  beforeEach(() =>
+    vi.stubEnv('NEXT_PUBLIC_STORAGE_BASE_URL', 'https://cdn.test'),
+  )
+  afterEach(() => vi.unstubAllEnvs())
+
+  it('表情包那一行画成一张图，⛔ 套气泡；外链图照字摆', () => {
+    render(
+      <StudioOperatorChatBubbles
+        text={
+          '笑死\n![表情](https://cdn.test/s.png)\n![表情](https://evil.example/x.png)'
+        }
+        streaming={false}
+      />,
+    )
+    const sticker = screen.getByTestId('operator-chat-sticker')
+    expect(sticker.getAttribute('src')).toContain('https://cdn.test/s.png')
+    expect(shown()).toEqual(['笑死', '![表情](https://evil.example/x.png)'])
+  })
+})

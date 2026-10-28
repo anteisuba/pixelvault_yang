@@ -84,3 +84,30 @@ export const CHARACTER_FINDINGS_RECALL = {
   /** 一条都对不上时，最近这么久看到的最新一条可以顺口提。 */
   freshMs: 2 * 24 * 60 * 60 * 1000,
 } as const
+
+/** 她的表情包（4d，owner 2026-10-28）：细看时顺手挑，存 R2 独立路径，⛔ 进素材库。 */
+export const CHARACTER_STICKERS = {
+  /** 一次出门最多收几张。 */
+  perOuting: 2,
+  /** 专门搜表情包时要几张结果、细看时带几张候选。 */
+  searchResults: 10,
+  candidates: 4,
+  /** 每张卡最多留几张；超了先删最旧、没发过的。 */
+  perCard: 30,
+  /** 单张图的上限（外站大图不收）。 */
+  maxBytes: 5 * 1024 * 1024,
+  downloadTimeoutMs: 30_000,
+  /** 「什么时候用」那句的长度上限。 */
+  whenChars: 60,
+  /** 聊天里那个记号用 id 的前几位（`[表情·ab12cd]`）。 */
+  handleChars: 6,
+  /** 你上传时没写「什么时候发」就用这一句。 */
+  defaultWhen: '你喂给她的，觉得合适时发',
+} as const
+
+/** 「你不看就少出门」：她的见闻这么久没在聊天里被想起，就隔天出门。 */
+export const CHARACTER_BROWSE_THROTTLE = {
+  idleDays: 7,
+  /** 隔天出门：距上次出门至少这么久（Hobby 定时任务落点会漂一小时）。 */
+  slowIntervalMs: 44 * 60 * 60 * 1000,
+} as const

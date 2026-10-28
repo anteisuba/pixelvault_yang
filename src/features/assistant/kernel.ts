@@ -74,6 +74,7 @@ import {
 } from '@/services/llm-text.service'
 import { getHomeChatCharacterId } from '@/services/assistant-persona.service'
 import { recordNativeSearches } from '@/services/research/assistant-evidence-book.service'
+import { maybeDistillTaste } from '@/services/kernel/assistant-taste.service'
 import {
   learnCreatorPhrases,
   shouldLearnPhrases,
@@ -572,6 +573,17 @@ function reflectAfterTurn(input: {
   }
 }
 
+/** 响应发完之后看一眼要不要提炼口味（`maybeDistillTaste` 自己判攒够没有）。 */
+function distillTasteAfterTurn(input: Parameters<typeof maybeDistillTaste>[0]) {
+  try {
+    after(() => maybeDistillTaste(input))
+  } catch (error) {
+    logger.warn('assistant next taste distill not scheduled', {
+      error: error instanceof Error ? error.message : String(error),
+    })
+  }
+}
+
 /**
  * 没开台 = 和现在这位聊天（用户 10-26：她的对话只有一份，收台聊天、开台工作，⛔ 开关）。会话自己盖过章的
  * 旧聊天照它自己的。读不出来就照工作口吻答（⛔ 掀翻这一轮）。
@@ -733,6 +745,9 @@ async function* runNextTurn(
       conversationId: request.conversationId,
     })
   }
+  // 口味提炼（第 2 批）：攒够了新的「留下 / 否掉」才真的跑；隐身、不让记都不跑。
+  if (!saved && request.incognito !== true && persona.memoryCapture)
+    distillTasteAfterTurn({ userId: user.id, assistant: { route, modelId } })
   const mentioned = (request.mentionedAssets ?? []).slice(
     0,
     ASSISTANT_V3_LIMITS.maxLookCards,

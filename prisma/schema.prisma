@@ -776,6 +776,10 @@ model AssistantPersona {
   /// 思考档位 low / medium / high（`ASSISTANT_REASONING_EFFORTS`），输入区「思考」chip 选的。
   reasoningEffort String @default("medium")
 
+  /// 上次从收藏 / 审核 / 挑中这些信号里提炼口味的时间（第 2 批「审美」，owner 2026-10-28）。
+  /// null = 还没提炼过。只用来判断「攒够新信号没有」，⛔ 别拿它当别的时间戳。
+  tasteDistilledAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

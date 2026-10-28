@@ -22,6 +22,7 @@ import {
   isHuggingFaceSocialThumbnailCoverUrl,
 } from '@/constants/lora'
 import { getCompatibleBases } from '@/constants/lora-base-models'
+import { useLoraBenchHandoff } from '@/contexts/studio-library-pick'
 import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
 import { useHuggingFaceLoraLibraryWithUrl } from '@/hooks/use-huggingface-lora-library-url'
 import { useHuggingFaceShowcaseCover } from '@/hooks/use-huggingface-showcase-cover'
@@ -185,6 +186,7 @@ export function LoraHuggingFaceBrowse({
   const tb = useTranslations('LoraWorkbench.browse')
   const format = useFormatter()
   const stack = useActiveLoraStack()
+  const handoff = useLoraBenchHandoff()
   const stage = useLoraStage()
   const library = useHuggingFaceLoraLibraryWithUrl({
     accumulate: true,
@@ -228,7 +230,10 @@ export function LoraHuggingFaceBrowse({
 
   const mountFile = useCallback(
     (repo: HuggingFaceLoraSearchItem, file: HuggingFaceLoraFile) => {
-      if (isMounted({ loraUrl: file.downloadUrl })) return
+      if (isMounted({ loraUrl: file.downloadUrl })) {
+        handoff?.()
+        return
+      }
       // 没有可用底模的家族：去 Hugging Face 看，⛔ 挂上一个注定失败的。
       if (
         !getCompatibleBases(file.baseModelFamily).some((base) => base.available)
@@ -240,8 +245,9 @@ export function LoraHuggingFaceBrowse({
         return
       }
       stack.push(fileToLibraryItem(repo, file, retrievedAtFor(repo.repoId)))
+      handoff?.()
     },
-    [isMounted, retrievedAtFor, stack, t],
+    [handoff, isMounted, retrievedAtFor, stack, t],
   )
   const toggleFavorite = useCallback(
     (repo: HuggingFaceLoraSearchItem, file: HuggingFaceLoraFile) => {

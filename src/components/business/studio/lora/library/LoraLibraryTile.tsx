@@ -3,7 +3,7 @@
 import { useState, type CSSProperties } from 'react'
 import { useTranslations } from 'next-intl'
 
-import { Check, Eye, Plus, Sparkles } from '@/components/icons'
+import { ArrowUpRight, Check, Eye, Plus, Sparkles } from '@/components/icons'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,6 +22,7 @@ import {
   ASSISTANT_MENTION_KIND_IDS,
   ASSISTANT_MENTION_SCOPE_IDS,
 } from '@/constants/assistant-mention'
+import { useLoraBenchHandoff } from '@/contexts/studio-library-pick'
 import { clampLabel } from '@/lib/assistant-mention'
 import { cn } from '@/lib/utils'
 import type { AssistantMention } from '@/types/assistant-mention'
@@ -86,7 +87,8 @@ export function loraMention(lora: {
  *
  * ⭐ 点卡开详情 = 垫在最底下、铺满整格的一颗按钮；悬停出「交给助手 · 收藏 · 更多」，
  *   「挂载」收进「更多」（⛔ 按钮套按钮，读屏与 Tab 序都会乱）。
- * ⭐ 挂了留在原地：封面右上一个 ✓；⛔ toast、⛔ 跳页。
+ * ⭐ 挂了留在原地：封面右上一个 ✓；⛔ toast。只有 LoRA 台没开（从左栏进的库）时那一项写
+ *   「去 LoRA 台用」，挂上就跳过去（`useLoraBenchHandoff`，owner 2026-10-28）。
  * ⚠ 封面先铺平均色、真图解码好了再由糊变清（200）；⛔ 灰骨架一闪。
  */
 export function LoraLibraryTile({
@@ -111,6 +113,8 @@ export function LoraLibraryTile({
   const tPicker = useTranslations('LoraWorkbench.picker')
   // 挑选框里（ui-spec ㉔）：整格 = 圈 / 不圈（同素材挑选框），详情收进「更多」；已挂的写「已挂」。
   const pick = useLoraPickSelection()
+  // 台没开：「挂载」换成「去 LoRA 台用」，已挂的也能点（直接跳过去）。
+  const handoff = useLoraBenchHandoff() !== null && !mountChooses
   const picking = pick !== null && pickId !== undefined
   const pickable = picking && onMount !== undefined && !mountChooses && !mounted
   const picked = pickable && pick.isSelected(pickId)
@@ -210,26 +214,39 @@ export function LoraLibraryTile({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="min-w-36">
                 {onMount ? (
-                  <DropdownMenuItem
-                    disabled={mounted || mounting}
-                    onSelect={() => {
-                      if (!mounted && !mounting) onMount()
-                    }}
-                    aria-label={
-                      mounted
-                        ? t('mountedLabel', { name })
+                  handoff ? (
+                    <DropdownMenuItem
+                      disabled={mounting}
+                      onSelect={() => {
+                        if (!mounting) onMount()
+                      }}
+                      aria-label={t('useOnBenchLabel', { name })}
+                    >
+                      <ArrowUpRight aria-hidden />
+                      {t('useOnBench')}
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem
+                      disabled={mounted || mounting}
+                      onSelect={() => {
+                        if (!mounted && !mounting) onMount()
+                      }}
+                      aria-label={
+                        mounted
+                          ? t('mountedLabel', { name })
+                          : mountChooses
+                            ? t('mountChooseLabel', { name })
+                            : t('mountLabel', { name })
+                      }
+                    >
+                      {mounted ? <Check aria-hidden /> : <Plus aria-hidden />}
+                      {mounted
+                        ? t('mounted')
                         : mountChooses
-                          ? t('mountChooseLabel', { name })
-                          : t('mountLabel', { name })
-                    }
-                  >
-                    {mounted ? <Check aria-hidden /> : <Plus aria-hidden />}
-                    {mounted
-                      ? t('mounted')
-                      : mountChooses
-                        ? t('mountChoose')
-                        : t('mount')}
-                  </DropdownMenuItem>
+                          ? t('mountChoose')
+                          : t('mount')}
+                    </DropdownMenuItem>
+                  )
                 ) : null}
                 <DropdownMenuItem onSelect={onOpen}>
                   <Eye aria-hidden />

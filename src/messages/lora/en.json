@@ -626,6 +626,8 @@
       "mount": "Mount",
       "mounted": "Mounted",
       "mountLabel": "Mount {name}",
+      "useOnBench": "Use on the LoRA bench",
+      "useOnBenchLabel": "Mount {name} and use it on the LoRA bench",
       "agentPick": "Assistant pick",
       "agentSearching": "Assistant searching…",
       "agentSearched": "Searched by the assistant",

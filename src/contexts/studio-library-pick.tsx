@@ -2,6 +2,7 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -9,6 +10,8 @@ import {
   type ReactNode,
 } from 'react'
 
+import { ROUTES } from '@/constants/routes'
+import { useRouter } from '@/i18n/navigation'
 import type { LoraStageContextValue } from '@/components/business/studio/lora/lora-stage-context'
 
 /**
@@ -50,6 +53,7 @@ interface StudioLibraryPickValue {
   setLora: (stage: LoraStageContextValue | null) => void
   tags: TagsLibraryAdder | null
   setTags: (adder: TagsLibraryAdder | null) => void
+  openLoraBench: () => void
 }
 
 const StudioLibraryPickContext = createContext<StudioLibraryPickValue | null>(
@@ -63,14 +67,20 @@ export function StudioLibraryPickProvider({
 }) {
   const [lora, setLora] = useState<LoraStageContextValue | null>(null)
   const [tags, setTags] = useState<TagsLibraryAdder | null>(null)
+  const router = useRouter()
+  const openLoraBench = useCallback(
+    () => router.push(ROUTES.STUDIO_LORA),
+    [router],
+  )
   const value = useMemo<StudioLibraryPickValue>(
     () => ({
       lora,
       setLora,
       tags,
       setTags,
+      openLoraBench,
     }),
-    [lora, tags],
+    [lora, openLoraBench, tags],
   )
   return (
     <StudioLibraryPickContext.Provider value={value}>
@@ -107,4 +117,15 @@ export function useStudioLibraryPick(): {
 } {
   const ctx = useContext(StudioLibraryPickContext)
   return { lora: ctx?.lora ?? null, tags: ctx?.tags ?? null }
+}
+
+/**
+ * 库里「挂上」之后去不去 LoRA 台（owner 2026-10-28）：外壳里、LoRA 台没开（从左栏进的
+ * 库）时给出跳过去的那一下，键写「去 LoRA 台用」—— 挂上就跳，已经挂着的直接跳。台开着
+ * （台上「+ LoRA」进来）或不在外壳里一律 `null`：照旧只挂上、留在原地。
+ */
+export function useLoraBenchHandoff(): (() => void) | null {
+  const ctx = useContext(StudioLibraryPickContext)
+  if (!ctx || ctx.lora) return null
+  return ctx.openLoraBench
 }

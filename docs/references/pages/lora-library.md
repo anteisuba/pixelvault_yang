@@ -14,6 +14,7 @@
 - ≥768 的库 / 收藏⛔ 再住在 LoRA 台里：它们是外壳库叠层的「LoRA」一类（`/library/lora`，收藏 = `?view=favorites`），叠在中间那一栏、盖住对话、⛔ 盖住台（`app-shell.md` §12）。LoRA 台顶上不再有分段（2026-10-25 起训练入口是「自训」第一格虚线「训练新 LoRA」）；旧链接 `?section=community|mine` 送到叠层对应那一格。
 - 挂上去进的是外壳上那一份挂载栈（`LoraStackProvider` 挂在 `(shell)/layout.tsx`）：右边 LoRA 台输入框里当场多一颗药丸，台不卸载、不换场。
 - LoRA 台开着时登记当前底模（`useRegisterLoraLibraryPick`）：叠层顶上写「选给 LoRA 台 · 底模 X」，详情页按它判断装不装得上；台没开就只按 LoRA 自己的条件说。
+- LoRA 台没开（从左栏进的库，没有登记）时（owner 2026-10-28）：卡片「更多」里与详情页的挂载键写「去 LoRA 台用」，点了挂上并跳到 LoRA 台；已经挂着的点了直接跳（`useLoraBenchHandoff`）。台开着（台上「+ LoRA」的挑选框）照旧只挂上、留在原地。
 - 助手「打开库 / 圈几把」开这一层（输入框里的「＋ LoRA」2026-10-25 起改弹「挑 LoRA」框，见 ui-spec ㉔）；已经开着就不再压一层历史。原来的「竖条浮出整列」「回到生成」与生成 ↔ 库换场一并删掉（台就在旁边，用不着）。
 
 ## 3. 库（Civitai / Hugging Face）（③ ⑥ 已落）

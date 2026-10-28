@@ -31,6 +31,7 @@ import {
   isCivitaiLoraSort,
   type LoraNsfwFilter,
 } from '@/constants/lora'
+import { useLoraBenchHandoff } from '@/contexts/studio-library-pick'
 import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
 import { useCivitaiDownloadGate } from '@/hooks/use-civitai-download-gate'
 import { useCivitaiLoraLibraryWithUrl } from '@/hooks/use-civitai-lora-library-url'
@@ -110,6 +111,7 @@ export function LoraLibraryBrowse({
   const tb = useTranslations('LoraWorkbench.browse')
   const format = useFormatter()
   const stack = useActiveLoraStack()
+  const handoff = useLoraBenchHandoff()
   const { ensureMountable } = useCivitaiDownloadGate()
   const library = useCivitaiLoraLibraryWithUrl({
     accumulate: true,
@@ -205,7 +207,11 @@ export function LoraLibraryBrowse({
   )
   const handleMount = useCallback(
     async (item: CivitaiLoraLibraryItem) => {
-      if (isMounted(item) || mountingId) return
+      if (mountingId) return
+      if (isMounted(item)) {
+        handoff?.()
+        return
+      }
       setMountingId(item.id)
       try {
         // ⛔ 作者关了下载的挂上去只是陷阱——判据在下载闸里（与库 modal 同一份）。
@@ -221,11 +227,12 @@ export function LoraLibraryBrowse({
         stack.push(item)
         // 挂的是助手圈的那一把：那张撤圈，线程里落一行「你挂上了…」。
         markLoraLibraryPickMounted(item.id)
+        handoff?.()
       } finally {
         setMountingId(null)
       }
     },
-    [ensureMountable, isMounted, mountingId, stack, t],
+    [ensureMountable, handoff, isMounted, mountingId, stack, t],
   )
   const handleFavoriteToggle = useCallback(
     async (item: CivitaiLoraLibraryItem) => {

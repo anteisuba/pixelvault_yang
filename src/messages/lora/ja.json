@@ -626,6 +626,8 @@
       "mount": "マウント",
       "mounted": "マウント済み",
       "mountLabel": "{name} をマウント",
+      "useOnBench": "LoRA 台で使う",
+      "useOnBenchLabel": "{name} をマウントして LoRA 台で使う",
       "agentPick": "アシスタントのおすすめ",
       "agentSearching": "アシスタントが検索中…",
       "agentSearched": "アシスタントが検索",

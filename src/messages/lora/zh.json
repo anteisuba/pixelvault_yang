@@ -626,6 +626,8 @@
       "mount": "挂载",
       "mounted": "已挂载",
       "mountLabel": "挂载 {name}",
+      "useOnBench": "去 LoRA 台用",
+      "useOnBenchLabel": "挂上 {name}，去 LoRA 台用",
       "agentPick": "助手推荐",
       "agentSearching": "助手在搜…",
       "agentSearched": "助手搜的",

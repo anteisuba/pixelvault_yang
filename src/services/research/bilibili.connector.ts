@@ -5,6 +5,7 @@ import {
   RESEARCH_LIMITS,
   RESEARCH_RECEIPT_VIAS,
   RESEARCH_SOURCE_IDS,
+  RESEARCH_USER_AGENT,
   detectResearchVideoSite,
 } from '@/constants/research'
 import { logger } from '@/lib/logger'
@@ -41,6 +42,7 @@ interface BilibiliEnvelope<TData> {
 
 interface BilibiliViewData {
   bvid?: string
+  cid?: number
   title?: string
   desc?: string
   duration?: number
@@ -322,4 +324,52 @@ export async function fetchBilibiliEvidence(params: {
       return { items, via: RESEARCH_RECEIPT_VIAS.serperFallback }
     }
   }
+}
+
+// ─── 弹幕（角色出门逛，第 4 批）─────────────────────────────────
+
+function decodeXmlText(text: string): string {
+  return text
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, '&')
+}
+
+/**
+ * 一个稿件里刷得最多的那几条弹幕（按出现次数，去重）。只给模型读个热闹，⛔ 存原文、⛔ 存发送者。
+ * 拿不到（没有 cid、被风控）就是空数组。
+ */
+export async function fetchBilibiliDanmaku(
+  bvid: string,
+  limit: number,
+): Promise<string[]> {
+  const payload = await researchFetchJson<BilibiliEnvelope<BilibiliViewData>>(
+    RESEARCH_SOURCE_IDS.bilibili,
+    `${BILIBILI_REQUEST.viewEndpoint}?bvid=${encodeURIComponent(bvid)}`,
+    { headers: bilibiliHeaders(), maxAttempts: 1 },
+  )
+  const cid = unwrap(payload).cid
+  if (!cid) return []
+  const response = await fetch(
+    `${BILIBILI_REQUEST.danmakuEndpoint}?oid=${cid}`,
+    {
+      headers: { 'User-Agent': RESEARCH_USER_AGENT, ...bilibiliHeaders() },
+      signal: AbortSignal.timeout(RESEARCH_LIMITS.sourceTimeoutMs),
+    },
+  )
+  if (!response.ok) return []
+  const xml = await response.text()
+  const counts = new Map<string, number>()
+  for (const match of xml.matchAll(/<d [^>]*>([^<]{1,60})<\/d>/g)) {
+    const text = decodeXmlText(match[1] ?? '').trim()
+    // 倒计时「5」「4」、单个字不算热闹。
+    if ([...text].length < 2 || /^\d+$/.test(text)) continue
+    counts.set(text, (counts.get(text) ?? 0) + 1)
+  }
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([text]) => text)
 }

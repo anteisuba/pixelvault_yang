@@ -28,10 +28,24 @@ export const CHARACTER_BROWSE = {
   minIntervalMs: 20 * 60 * 60 * 1000,
   /** 一次逛最多想几个搜索词。 */
   maxQueries: 5,
-  /** 每个搜索词最多留几样候选。 */
-  perQueryItems: 4,
-  /** 一次看图调用里放几样（图 / 视频封面 / 页面标题）。 */
-  viewBatch: 6,
+  /**
+   * 三级漏斗（owner 2026-10-28：看多少决定花多少，记多少决定好不好）：
+   * ① 广撒网：每个搜索词留 `perQueryItems` 样、一共最多 `candidatePool` 样，只调搜索接口；
+   * ② 文字初筛：一次纯文字调用从里面挑 `screenPick` 样细看，同一来源最多 `perSourcePick` 样；
+   * ③ 带图细看：只这几样带图（和弹幕 / 评论）看，最多记 `keepMax` 条见闻。
+   */
+  perQueryItems: 8,
+  candidatePool: 30,
+  screenPick: 8,
+  perSourcePick: 3,
+  keepMax: 5,
+  /** 细看时每样带几条最热的弹幕 / 评论（只喂模型，⛔ 存原文）。 */
+  danmakuTop: 20,
+  commentsTop: 8,
+  /** 每张卡最多留几条见闻，超了删最旧的。 */
+  keepFindings: 200,
+  /** 每天那一趟，一个人最多带几张卡出门（卡多了轮着来，最久没出门的先）。 */
+  cardsPerUserPerDay: 3,
   /** 见闻那句笔记的长度上限。 */
   noteChars: 200,
   /** 人设交给模型时截到多少字。 */

@@ -10,6 +10,9 @@ const mocks = vi.hoisted(() => ({
   findingCount: vi.fn(),
   findingFindMany: vi.fn(),
   findingCreateMany: vi.fn(),
+  findingDeleteMany: vi.fn(),
+  danmaku: vi.fn(),
+  comments: vi.fn(),
   route: vi.fn(),
   complete: vi.fn(),
   bilibili: vi.fn(),
@@ -30,6 +33,7 @@ vi.mock('@/lib/db', () => ({
       count: mocks.findingCount,
       findMany: mocks.findingFindMany,
       createMany: mocks.findingCreateMany,
+      deleteMany: mocks.findingDeleteMany,
     },
   },
 }))
@@ -41,9 +45,11 @@ vi.mock('@/services/kernel/assistant-completion.service', () => ({
 }))
 vi.mock('@/services/research/bilibili.connector', () => ({
   fetchBilibiliEvidence: mocks.bilibili,
+  fetchBilibiliDanmaku: mocks.danmaku,
 }))
 vi.mock('@/services/research/danbooru.connector', () => ({
   fetchDanbooruEvidence: mocks.danbooru,
+  fetchDanbooruComments: mocks.comments,
 }))
 vi.mock('@/services/civitai-lora-library.service', () => ({
   listCivitaiLoras: mocks.civitai,
@@ -60,6 +66,11 @@ import {
 
 const updatedAt = new Date('2026-10-01T00:00:00.000Z')
 
+/** 真实长度的 BV 号（BV + 10 位）。 */
+function bv(n: number) {
+  return `BV1aaaaaaaa${n}`
+}
+
 function video(n: number) {
   return {
     kind: 'video',
@@ -68,7 +79,7 @@ function video(n: number) {
     sourceTier: 'community',
     retrievedAt: '2026-10-28T00:00:00.000Z',
     title: `bilibili（经网搜）· 视频 ${n}`,
-    videoUrl: `https://www.bilibili.com/video/BV${n}`,
+    videoUrl: `https://www.bilibili.com/video/${bv(n)}`,
     thumbnailUrl: `https://i0.hdslb.com/${n}.jpg`,
     site: 'bilibili',
   }
@@ -87,9 +98,14 @@ describe('browseCharacter（她出门逛一次）', () => {
       updatedAt,
     })
     mocks.findingCount.mockResolvedValue(0)
+    mocks.danmaku.mockResolvedValue(['好可爱', 'kksk'])
+    mocks.comments.mockResolvedValue([])
     mocks.findingFindMany
+      .mockResolvedValue([])
       .mockResolvedValueOnce([{ title: '旧的' }])
-      .mockResolvedValueOnce([{ url: 'https://www.bilibili.com/video/BV1' }])
+      .mockResolvedValueOnce([
+        { url: `https://www.bilibili.com/video/${bv(1)}` },
+      ])
     mocks.route.mockResolvedValue({
       route: { adapterType: 'gemini', apiKey: 'k', providerConfig: {} },
       modelId: 'gemini-3.8-flash',
@@ -103,7 +119,8 @@ describe('browseCharacter（她出门逛一次）', () => {
       .mockResolvedValueOnce(
         JSON.stringify({
           notes: [
-            { n: 1, note: '这只猫的晕染好软，想学' },
+            // 写长了的那条截断收下，⛔ 整份丢掉。
+            { n: 1, note: '这只猫的晕染好软，想学' + '。'.repeat(300) },
             { n: 2, note: null },
             { n: 3, note: '配色好甜' },
           ],
@@ -149,17 +166,19 @@ describe('browseCharacter（她出门逛一次）', () => {
     expect(viewed.buildUserPrompt()).toContain('视频 2')
     expect(viewed.buildUserPrompt()).not.toContain('视频 1')
     expect(viewed.imageData).toHaveLength(3)
+    // 细看时带上最热的弹幕（只喂模型）。
+    expect(viewed.buildUserPrompt()).toContain('What people say: 好可爱 / kksk')
     expect(mocks.findingCreateMany).toHaveBeenCalledWith({
       data: [
         expect.objectContaining({
           userId: 'u',
           characterCardId: 'card-1',
           source: 'bilibili',
-          url: 'https://www.bilibili.com/video/BV2',
-          note: '这只猫的晕染好软，想学',
+          url: `https://www.bilibili.com/video/${bv(2)}`,
+          note: expect.stringMatching(/^这只猫的晕染好软，想学。+$/),
         }),
         expect.objectContaining({
-          url: 'https://www.bilibili.com/video/BV4',
+          url: `https://www.bilibili.com/video/${bv(4)}`,
           title: '视频 4',
           note: '配色好甜',
         }),
@@ -249,7 +268,96 @@ describe('browseCharacter（她出门逛一次）', () => {
   })
 })
 
+describe('三级漏斗', () => {
+  it('候选多时先用文字初筛挑 8 样，同一来源最多 3 样，最多记 5 条', async () => {
+    vi.clearAllMocks()
+    // 前面几条用不完的排队回答别串过来。
+    mocks.complete.mockReset()
+    mocks.cardFind.mockResolvedValue({
+      id: 'card-1',
+      name: 'Denia',
+      tags: [],
+      persona: {},
+      browseDailyLimit: 20,
+      browseModel: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
+      updatedAt,
+    })
+    mocks.findingCount.mockResolvedValue(0)
+    mocks.findingFindMany.mockResolvedValue([])
+    mocks.route.mockResolvedValue({
+      route: { adapterType: 'gemini', apiKey: 'k', providerConfig: {} },
+      modelId: 'gemini-3.8-flash',
+    })
+    mocks.danmaku.mockResolvedValue([])
+    mocks.bilibili.mockResolvedValue({
+      items: Array.from({ length: 8 }, (_, n) => video(n + 1)),
+    })
+    mocks.civitai.mockResolvedValue({
+      items: Array.from({ length: 8 }, (_, n) => ({
+        name: `风格 ${n + 1}`,
+        modelPageUrl: `https://civitai.com/models/${n + 1}`,
+        thumbImageUrl: `https://image.civitai.com/${n + 1}.jpg`,
+        coverImageUrlOriginal: null,
+        tags: ['anime'],
+      })),
+    })
+    mocks.complete
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          queries: [
+            { source: 'bilibili', query: '猫' },
+            { source: 'civitai', query: '水彩' },
+          ],
+        }),
+      )
+      // 初筛：挑了 5 个 B 站的、3 个 Civitai 的 —— B 站超了 3 个的部分由别的补上。
+      .mockResolvedValueOnce(
+        JSON.stringify({ pick: [1, 2, 3, 4, 5, 9, 10, 11] }),
+      )
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          notes: Array.from({ length: 8 }, (_, n) => ({
+            n: n + 1,
+            note: `第 ${n + 1} 条`,
+          })),
+        }),
+      )
+    mocks.findingCreateMany.mockImplementation(({ data }) =>
+      Promise.resolve({ count: data.length }),
+    )
+
+    const result = await browseCharacter({ userId: 'u', cardId: 'card-1' })
+
+    const screen = mocks.complete.mock.calls[1]?.[0] as {
+      callLog: { purpose: string }
+      imageData?: string[]
+    }
+    expect(screen.callLog.purpose).toBe('characterBrowseScreen')
+    expect(screen.imageData).toBeUndefined()
+    const viewed = mocks.complete.mock.calls[2]?.[0] as { imageData: string[] }
+    expect(viewed.imageData).toHaveLength(6)
+    expect(result).toEqual({ seen: 6, kept: 5 })
+  })
+})
+
 describe('runDailyCharacterBrowse（每天那一趟）', () => {
+  it('一个人最多带 3 张卡出门', async () => {
+    vi.clearAllMocks()
+    mocks.cardFindMany.mockResolvedValue([
+      { id: 'a1', userId: 'u1' },
+      { id: 'a2', userId: 'u1' },
+      { id: 'b1', userId: 'u2' },
+      { id: 'a3', userId: 'u1' },
+      { id: 'a4', userId: 'u1' },
+    ])
+    mocks.cardFind.mockResolvedValue(null)
+    expect(await runDailyCharacterBrowse()).toEqual({
+      cards: 4,
+      kept: 0,
+      left: 0,
+    })
+  })
+
   it('只挑开着开关、今天没逛过、最近有来往的卡；一张出错照样往下走', async () => {
     vi.clearAllMocks()
     mocks.cardFindMany.mockResolvedValue([

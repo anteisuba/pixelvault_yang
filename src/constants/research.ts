@@ -399,6 +399,8 @@ export const RESEARCH_USER_AGENT =
 /** B站要 Referer 才不被风控页挡（元数据 only，边界 16）。 */
 export const BILIBILI_REQUEST = {
   viewEndpoint: 'https://api.bilibili.com/x/web-interface/view',
+  /** 弹幕（公开 XML，按稿件的 cid 取；角色出门逛时读个热闹，第 4 批）。 */
+  danmakuEndpoint: 'https://api.bilibili.com/x/v1/dm/list.so',
   searchEndpoint: 'https://api.bilibili.com/x/web-interface/search/type',
   referer: 'https://www.bilibili.com/',
   /**

@@ -44,7 +44,7 @@ export function StudioShellHistoryColumn({
       data-testid="studio-shell-history-column"
       data-open={open}
       className={cn(
-        'hidden shrink-0 overflow-hidden border-r transition-[width,border-color] duration-slow ease-standard desk:block motion-reduce:transition-none',
+        'hidden shrink-0 overflow-hidden border-r transition-[width,border-color] duration-slow ease-standard lg:block motion-reduce:transition-none',
         open ? 'w-58 border-border' : 'w-0 border-transparent',
       )}
     >

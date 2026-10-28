@@ -2970,10 +2970,10 @@ html:lang(ja) {
   contain: layout;
 }
 
-/* `/studio` 外壳的白板（ui-spec §1）：≥1024 白板落在灰底上、上下各留 8（`my-2` = 1rem），
+/* `/studio` 外壳的白板（ui-spec §1）：≥768 白板落在灰底上、上下各留 8（`my-2` = 1rem），
    板里按整屏写的高（`var(--screen-h, 100svh)`）一起扣掉它。手机上没有白板，照旧整屏。 */
 @utility bench-screen-h {
-  @media (width >= 64rem) {
+  @media (width >= 48rem) {
     --screen-h: calc(100svh - 1rem);
   }
 }

@@ -60,7 +60,7 @@ primitive → semantic → domain/component → page
 ## 布局壳（2026-07-10 核验 `(main)/layout.tsx`）
 
 - 结构：`SidebarProvider` → `AppSidebar` + `MobileCollapsedRail` + `MobileHeader` + `SidebarInset`(#main-content) + `MobileTabBar`；Mobile 三件套都从 `src/components/layout/MobileTabBar.tsx` 导出。
-- **紧凑断点 = 768**（`use-mobile.ts` MOBILE_BREAKPOINT；owner 2026-10-09 平板 v10 推翻 C4 的 1024：<768 移动 chrome，≥768 桌面侧栏，768–1023 平板侧栏钉死收起、助手不让位，`useIsTablet`）。Tailwind `lg:` 挪到 48rem = 桌面壳，原 1024 档叫 `desk:`。inset padding：`pt-11 pb-12 pl-11 lg:pt-0 lg:pb-0 lg:pl-0`。
+- **紧凑断点 = 768**（`use-mobile.ts` MOBILE_BREAKPOINT；owner 2026-10-09 平板 v10 推翻 C4 的 1024：<768 移动 chrome，≥768 桌面侧栏，768–1023 平板侧栏钉死收起，`useIsTablet`；`/studio` 外壳 10-28 起 ≥768 就与电脑同一套，`useIsDesktopShell`）。Tailwind `lg:` 挪到 48rem = 桌面壳，原 1024 档叫 `desk:`。inset padding：`pt-11 pb-12 pl-11 lg:pt-0 lg:pb-0 lg:pl-0`。
 - 侧栏：展开 12rem / 折叠 3rem；初始状态 = `sidebar_state` cookie + UA 判断；快捷键 ctrl/⌘+B。
 - skip link → `#main-content`（保持，勿删）。
 - `KeyboardInsetBridge`：visualViewport 软键盘适配（dock 感知）。

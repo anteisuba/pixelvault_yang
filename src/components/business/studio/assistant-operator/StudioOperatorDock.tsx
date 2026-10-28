@@ -67,7 +67,7 @@ import {
   useStudioOperatorDockPlacement,
   useStudioOperatorHost,
 } from '@/contexts/studio-operator-host'
-import { useIsMobile, useIsTablet } from '@/hooks/use-mobile'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { useAssistantOperator } from '@/hooks/use-assistant-operator'
 import { useCanvasOperatorRequests } from '@/hooks/node/use-canvas-operator-requests'
 import { useAssistantPersona } from '@/hooks/use-assistant-persona'
@@ -206,7 +206,7 @@ function writeWidth(next: number): void {
  * 面板挂在哪种容器里。
  *
  * - `floating`（缺省）：右侧那颗浮起的 `<aside>` + 头像开关 + 收放法则 + 拖宽；手机是底部 Sheet。
- *   `/cards` 角色页与 `/studio` 外壳的窄屏（<1024 开着台）用它。
+ *   `/cards` 角色页与 `/studio` 外壳的手机（<768 开着台）用它。
  * - `column`（第 9f 步方向 E）：`/studio` 外壳中间那一栏本身就是对话 —— 面板整块铺满那一栏，
  *   ⛔ 没有头像开关、点台就收、自己拖宽与让位（宽窄只归外壳那一根分隔线）。
  */
@@ -279,12 +279,6 @@ export function StudioOperatorDock({
    */
   const slides = Boolean(anchor.avatarStays)
   const isMobile = useIsMobile()
-  /**
-   * 平板（768–1023）：面板照样从右边滑进来，但工作台不让位（消费方经
-   * `useStudioOperatorYield` 拿到恒 0），面板盖在工作台上 —— 所以这一档补上投影，
-   * 读得出它是浮在上面的。点面板外照旧收（下面那条注意力收放法则）。
-   */
-  const isTablet = useIsTablet()
   const { entries, question, confirm, threadScope, localThreadId, status } =
     useStudioOperatorState()
   const attachmentScope =
@@ -1232,9 +1226,7 @@ export function StudioOperatorDock({
                * 把助手挂进任何一条 overlay 的人会原样再撞一次。
                */
               'overflow-hidden border border-border',
-              slides
-                ? cn('rounded-node', isTablet && 'shadow-assistant-panel')
-                : 'rounded-2xl shadow-assistant-panel',
+              slides ? 'rounded-node' : 'rounded-2xl shadow-assistant-panel',
               /**
                * ⚠ **毛玻璃只在静止档挂**（D7b 铁律）：`assistant-glass-panel` 带
                * `backdrop-filter`，而过渡中开它会让整块在每一帧重新采样背景 ——

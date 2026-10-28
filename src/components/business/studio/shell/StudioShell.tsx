@@ -65,7 +65,7 @@ import {
   StudioShellPersonaKey,
 } from '@/components/business/studio/shell/StudioShellHistoryKeys'
 import { useHomeOperatorHost } from '@/hooks/use-home-operator-host'
-import { useIsDesk } from '@/hooks/use-mobile'
+import { useIsDesktopShell } from '@/hooks/use-mobile'
 import { useStudioConversationBenchSync } from '@/hooks/use-studio-conversation-bench'
 import { useStudioConversationUrl } from '@/hooks/use-studio-conversation-url'
 import { useStudioOperatorActions } from '@/hooks/use-studio-operator-actions'
@@ -90,7 +90,7 @@ import { cn } from '@/lib/utils'
  * `bench-screen-h` 把板里按整屏写的高（`var(--screen-h, 100svh)`）扣掉这上下 8。
  */
 const SHELL_BOARD_CLASS =
-  'bench-screen-h relative min-w-0 desk:my-2 desk:mr-2 desk:flex-1 desk:rounded-20 desk:bg-background desk:shadow-ring'
+  'bench-screen-h relative min-w-0 lg:my-2 lg:mr-2 lg:flex-1 lg:rounded-20 lg:bg-background lg:shadow-ring'
 
 /**
  * 这次页面加载一进来载回哪一段 —— 地址说了算：首页 = 新对话；`/studio/c/<编号>` 与
@@ -115,7 +115,7 @@ function initialRestore(pathname: string): StudioOperatorHistoryRestore {
  * `/studio` 的外壳（第 9f 步方向 E「分层」，9f-1）：
  * 左 = 在哪儿（列表）· 中 = 想什么（对话，面板**只挂这一份**）· 右 = 用什么做（台）。
  *
- * - ≥1024 三层摆开：对话与台之间一根分隔线定宽窄（记得住）；往左拖到底收起对话，
+ * - ≥768 三层摆开：对话与台之间一根分隔线定宽窄（记得住）；往左拖到底收起对话，
  *   往右拖到底收起台（回到只有对话）。台开着时台条横在台顶，没开台时竖着贴右边（9f-4）。
  * - 更窄照旧：台全屏、面板由台自己挂（浮起的那一颗）；首页就是一整页对话。
  * - 台照旧用 `StudioOperatorHostProvider` 包住自己，同一个 Provider 把宿主登记给这里；
@@ -146,9 +146,9 @@ export function StudioShell({
   )
   if (routeKind !== 'library' && base?.pathname !== pathname)
     setBase({ kind: routeKind, pathname })
-  const isDesk = useIsDesk()
+  const isDesk = useIsDesktopShell()
   /**
-   * 手机 / 平板（<1024）直接打开库（旧地址 308 过来、底栏点「素材」…）：没有台可留，
+   * 手机（<768）直接打开库（旧地址 308 过来、底栏点「素材」…）：没有台可留，
    * 就地当一整页画，⛔ 盖满屏的叠层 —— 与搬进库之前那一页长得一样，底栏照旧（9f-2e）。
    * 从台上点开（`base` 有值）照旧叠上来，关掉回到台。
    */
@@ -241,7 +241,7 @@ export function StudioShell({
     <div
       ref={setLibraryTarget}
       data-testid="studio-library-target"
-      className="fixed inset-0 z-40 empty:hidden desk:absolute desk:overflow-hidden desk:inset-y-0 desk:right-auto desk:left-0 desk:z-10 desk:w-(--library-width)"
+      className="fixed inset-0 z-40 empty:hidden lg:absolute lg:overflow-hidden lg:inset-y-0 lg:right-auto lg:left-0 lg:z-10 lg:w-(--library-width)"
     />
   )
 
@@ -256,12 +256,12 @@ export function StudioShell({
                   data-testid="studio-shell"
                   data-kind={kind}
                   data-library={libraryCategory ?? undefined}
-                  className="desk:flex desk:h-svh desk:overflow-hidden desk:bg-surface-sunken"
+                  className="lg:flex lg:h-svh lg:overflow-hidden lg:bg-surface-sunken"
                 >
-                  <StudioConversationList className="hidden desk:flex" />
+                  <StudioConversationList className="hidden lg:flex" />
                   {kind === 'page' ? (
                     <div
-                      className={cn(SHELL_BOARD_CLASS, 'desk:overflow-y-auto')}
+                      className={cn(SHELL_BOARD_CLASS, 'lg:overflow-y-auto')}
                       style={libraryWidth('100%')}
                     >
                       {children}
@@ -317,7 +317,7 @@ function StudioConversationUrlSync() {
   return null
 }
 
-/** 叠层落点的宽（≥1024）：写进 `--library-width`，⛔ 直接写 width（手机上落点是整屏）。 */
+/** 叠层落点的宽（≥768）：写进 `--library-width`，⛔ 直接写 width（手机上落点是整屏）。 */
 function libraryWidth(width: string): CSSProperties {
   return { '--library-width': width } as CSSProperties
 }
@@ -438,9 +438,12 @@ function StudioShellStage({
     setPinnedPx(
       openWidth.current ??
         (stageWidth
-          ? Math.min(
-              split.conversationPx,
-              stageWidth - STUDIO_SHELL_SPLIT.minBenchPx,
+          ? Math.max(
+              STUDIO_SHELL_SPLIT.minConversationPx,
+              Math.min(
+                split.conversationPx,
+                stageWidth - STUDIO_SHELL_SPLIT.minBenchPx,
+              ),
             )
           : null),
     )
@@ -482,7 +485,7 @@ function StudioShellStage({
       data-testid="studio-shell-stage"
       className={cn(
         SHELL_BOARD_CLASS,
-        'desk:flex desk:overflow-hidden',
+        'lg:flex lg:overflow-hidden',
         flight && 'studio-shell-avatar-flying',
       )}
       style={libraryWidth(
@@ -501,12 +504,12 @@ function StudioShellStage({
         className={cn(
           'relative min-h-0 min-w-0 flex-col',
           bench
-            ? 'hidden desk:flex desk:shrink-0 desk:overflow-hidden'
+            ? 'hidden lg:flex lg:shrink-0 lg:overflow-hidden'
             : 'flex h-page flex-1',
-          conversationHidden && 'desk:hidden',
-          libraryOpen && !libraryAssistantOpen && 'desk:hidden',
+          conversationHidden && 'lg:hidden',
+          libraryOpen && !libraryAssistantOpen && 'lg:hidden',
           libraryChat &&
-            'desk:absolute desk:inset-y-0 desk:right-0 desk:z-20 desk:flex desk:border-l desk:border-border',
+            'lg:absolute lg:inset-y-0 lg:right-0 lg:z-20 lg:flex lg:border-l lg:border-border',
         )}
         style={
           libraryChat
@@ -514,7 +517,8 @@ function StudioShellStage({
             : bench
               ? {
                   width: pulling ? 0 : conversationWidth,
-                  maxWidth: `calc(100% - ${STUDIO_SHELL_SPLIT.minBenchPx}px)`,
+                  // 与拖线同一条规矩：放不下两边最小宽时（平板竖拿）对话保住 320，台让。
+                  maxWidth: `max(${STUDIO_SHELL_SPLIT.minConversationPx}px, calc(100% - ${STUDIO_SHELL_SPLIT.minBenchPx}px))`,
                   opacity:
                     collapsePreview === 'conversation'
                       ? SHELL_MOTION.collapsePreviewOpacity
@@ -529,7 +533,7 @@ function StudioShellStage({
             data-testid="studio-shell-conversation-body"
             className={cn(
               'flex min-h-0 min-w-0 flex-1 flex-col',
-              pinnedPx !== null && 'desk:absolute desk:inset-y-0 desk:right-0',
+              pinnedPx !== null && 'lg:absolute lg:inset-y-0 lg:right-0',
             )}
             style={pinnedPx !== null ? { width: `${pinnedPx}px` } : undefined}
           >
@@ -571,7 +575,7 @@ function StudioShellStage({
         data-testid="studio-shell-bench-column"
         className={cn(
           'min-w-0 flex-1 flex-col',
-          bench ? 'block desk:flex desk:h-full' : 'hidden',
+          bench ? 'block lg:flex lg:h-full' : 'hidden',
           avatarDocked && 'studio-shell-chat-collapsed',
         )}
         style={{
@@ -588,7 +592,7 @@ function StudioShellStage({
         <div
           ref={contentRef}
           data-testid="studio-shell-bench"
-          className="relative min-w-0 desk:min-h-0 desk:flex-1 desk:overscroll-x-none desk:contain-layout"
+          className="relative min-w-0 lg:min-h-0 lg:flex-1 lg:overscroll-x-none lg:contain-layout"
         >
           {children}
         </div>
@@ -742,7 +746,7 @@ function StudioShellDivider({
         onResize(Math.min(maxConversationPx(), defaultConversationPx))
       }
       onKeyDown={onKeyDown}
-      className="group relative hidden w-px shrink-0 cursor-col-resize touch-none bg-border focus-visible:outline-none desk:block"
+      className="group relative hidden w-px shrink-0 cursor-col-resize touch-none bg-border focus-visible:outline-none lg:block"
     >
       {/* 线只有 1px，手感区左右各放宽一截。 */}
       <span

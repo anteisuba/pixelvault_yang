@@ -47,7 +47,7 @@ import { cn } from '@/lib/utils'
 interface StudioLibraryTarget {
   target: HTMLElement | null
   /**
-   * 就地画（<1024 直接打开库，见 `StudioShell`）时地址上的那一样；⛔ 传送。库里换类是软跳转，
+   * 就地画（<768 直接打开库，见 `StudioShell`）时地址上的那一样；⛔ 传送。库里换类是软跳转，
    * 上一类还留在 `children` 里，只画地址说的那一类，⛔ 两类叠着画。`null` = 照常传送。
    */
   inPlace: StudioShellOverlayId | null
@@ -272,7 +272,7 @@ function StudioLibraryFrame({
           data-testid="studio-library-assistant"
           onClick={onToggleAssistant}
           className={cn(
-            'ml-auto hidden h-9 shrink-0 items-center gap-2 rounded-full pr-3.5 pl-1 text-2sm font-medium text-foreground transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus desk:flex',
+            'ml-auto hidden h-9 shrink-0 items-center gap-2 rounded-full pr-3.5 pl-1 text-2sm font-medium text-foreground transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus lg:flex',
             assistantOpen ? 'bg-fill-strong' : 'bg-raise shadow-soft',
           )}
         >

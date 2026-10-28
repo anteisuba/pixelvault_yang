@@ -2,7 +2,7 @@ import { ROUTES } from '@/constants/routes'
 
 /**
  * `/studio` 外壳（第 9f 步，方向 E「分层」）：左 = 在哪儿（列表），中 = 想什么（对话），
- * 右 = 用什么做（台）。三层只在 ≥1024（`desk:`）摆开；更窄照旧（台全屏 + 浮起的助手）。
+ * 右 = 用什么做（台）。三层在 ≥768（`lg:`，平板与电脑同一套）摆开；手机照旧（台全屏 + 浮起的助手）。
  * 设计稿：`/mnt/project-files/assistant-reliability/step9f-e.md`。
  */
 

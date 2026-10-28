@@ -144,8 +144,6 @@ export interface LlmTextInput {
   adapterType: AI_ADAPTER_TYPES
   providerConfig: ProviderConfig
   apiKey: string
-  /** Enable web search grounding (Gemini google_search / OpenAI web_search) */
-  useGrounding?: boolean
   /**
    * provider 每报一次 usage 就回调一次（流式可能多次，以最后一次为准）。
    * ⚠ 只给日志用：回调里不许抛、不许影响这次调用。
@@ -1614,7 +1612,6 @@ async function buildGeminiRequest(
             ? {
                 responseMimeType: 'application/json',
                 ...(input.jsonSchema &&
-                !input.useGrounding &&
                 LLM_STRUCTURED_OUTPUT_MODELS[AI_ADAPTER_TYPES.GEMINI]?.includes(
                   modelId,
                 )
@@ -1623,7 +1620,6 @@ async function buildGeminiRequest(
               }
             : {}),
         },
-        ...(input.useGrounding ? { tools: [{ google_search: {} }] } : {}),
       }),
     }
   } catch (error) {
@@ -1752,10 +1748,8 @@ async function buildOpenAiChatRequest(
   if (input.videoData) {
     throw new Error('OpenAI assistant route does not support video input.')
   }
-  const modelId = input.modelId ?? LLM_TEXT_MODELS[AI_ADAPTER_TYPES.OPENAI]
-  const requestModelId = input.useGrounding
-    ? LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_SEARCH_API
-    : modelId
+  const requestModelId =
+    input.modelId ?? LLM_TEXT_MODELS[AI_ADAPTER_TYPES.OPENAI]
   const baseUrl = getOpenAiChatBaseUrl(input.providerConfig.baseUrl)
 
   const messages: Array<Record<string, unknown>> = [
@@ -1805,9 +1799,7 @@ async function buildOpenAiChatRequest(
       ...(input.cacheKey && baseUrl === AI_PROVIDER_ENDPOINTS.OPENAI_CHAT
         ? { prompt_cache_key: input.cacheKey }
         : {}),
-      ...(input.reasoningEffort &&
-      !input.useGrounding &&
-      baseUrl === AI_PROVIDER_ENDPOINTS.OPENAI_CHAT
+      ...(input.reasoningEffort && baseUrl === AI_PROVIDER_ENDPOINTS.OPENAI_CHAT
         ? { reasoning_effort: input.reasoningEffort }
         : {}),
       ...(!input.providerManagedOutput
@@ -1820,7 +1812,6 @@ async function buildOpenAiChatRequest(
         ? {
             response_format:
               input.jsonSchema &&
-              !input.useGrounding &&
               LLM_STRUCTURED_OUTPUT_MODELS[AI_ADAPTER_TYPES.OPENAI]?.includes(
                 requestModelId,
               )
@@ -1835,7 +1826,6 @@ async function buildOpenAiChatRequest(
                 : { type: 'json_object' },
           }
         : {}),
-      ...(input.useGrounding ? { web_search_options: {} } : {}),
     }),
   }
 }
@@ -1893,10 +1883,6 @@ function buildDeepseekChatRequest(
 ): { endpoint: string; modelId: string; body: string } {
   if (input.videoData) {
     throw new Error('DeepSeek text completion does not support video input.')
-  }
-
-  if (input.useGrounding) {
-    throw new Error('DeepSeek text completion does not support grounding.')
   }
 
   const modelId = input.modelId ?? LLM_TEXT_MODELS[AI_ADAPTER_TYPES.DEEPSEEK]
@@ -1994,20 +1980,17 @@ async function deepseekTextCompletion(input: LlmTextInput): Promise<string> {
  * streaming consumers.
  *
  * ⚠ Deliberately NOT routed through `buildOpenAiChatRequest`, even though the
- * wire format matches. That helper is OpenAI-specific in two ways that would
- * silently break this route: it resolves its base URL via
- * `getOpenAiChatBaseUrl()` (which falls back to **OpenAI's** host), and on
- * `useGrounding` it swaps `modelId` for `OPENAI_GPT_5_SEARCH_API` — i.e. a
- * grounded Grok turn would be billed to OpenAI. Copying the DeepSeek shape
- * keeps this route's host and model ids its own; it also sidesteps
+ * wire format matches. That helper resolves its base URL via
+ * `getOpenAiChatBaseUrl()`, which falls back to **OpenAI's** host — a Grok
+ * turn would be billed to OpenAI. Copying the DeepSeek shape keeps this
+ * route's host its own; it also sidesteps
  * `isOpenAiReasoningModel`, whose `/^(gpt-[56]|o[134])/` regex never matches a
  * `grok-*` id. Token budget is `max_completion_tokens` (visible only) plus
  * `reasoning_effort: 'low'` — not the deprecated `max_tokens` total cap.
  *
  * Image input IS supported (grok-4.7 takes `text, image → text`; 20MiB max,
  * jpg/png only) using the same OpenAI multimodal content shape DeepSeek uses.
- * Video and grounding are not — xAI search lives on the Responses API
- * (`xaiNativeWebSearch`), so we fail loudly rather than silently dropping it.
+ * Video is not; xAI search lives on the Responses API (`xaiNativeWebSearch`).
  */
 function buildXaiChatRequest(
   input: LlmTextInput,
@@ -2015,9 +1998,6 @@ function buildXaiChatRequest(
 ): { endpoint: string; modelId: string; body: string } {
   if (input.videoData) {
     throw new Error('Grok (xAI) text completion does not support video input.')
-  }
-  if (input.useGrounding) {
-    throw new Error('Grok (xAI) text completion does not support grounding.')
   }
 
   const modelId = input.modelId ?? LLM_TEXT_MODELS[AI_ADAPTER_TYPES.XAI]
@@ -2210,10 +2190,6 @@ function buildAnthropicMessagesRequest(
 ): { endpoint: string; modelId: string; body: string } {
   if (input.videoData) {
     throw new Error('Claude text completion does not support video input.')
-  }
-
-  if (input.useGrounding) {
-    throw new Error('Claude text completion does not support grounding.')
   }
 
   const modelId = input.modelId ?? LLM_TEXT_MODELS[AI_ADAPTER_TYPES.ANTHROPIC]
@@ -3157,8 +3133,7 @@ function sentenceBefore(text: string, index: number): string {
 }
 
 /**
- * OpenAI：Responses API 的 `web_search` 工具 —— 用的是**所选的那个模型**，
- * ⛔ 不是 chat 那条路换成 `gpt-5-search-api` 的做法。
+ * OpenAI：Responses API 的 `web_search` 工具 —— 用的是**所选的那个模型**。
  * ⭐ 来源白名单走 `filters.allowed_domains`（≤100，没有黑名单），时区走
  *   `user_location`（2026-10-14）。
  */

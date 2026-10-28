@@ -629,7 +629,6 @@ export const LLM_TEXT_MODEL_IDS = {
   OPENAI_GPT_6_ASTRA: 'gpt-6-astra',
   OPENAI_GPT_6_1_SOL: 'gpt-6.1-sol',
   OPENAI_GPT_6_LUNA: 'gpt-6-luna',
-  OPENAI_GPT_5_SEARCH_API: 'gpt-5-search-api',
   DEEPSEEK_V4_PRO: 'deepseek-v4-pro',
   // DeepSeek's vision tier. 2026-09-17: the official model list retired
   // `deepseek-v4-flash` / `deepseek-v4-flash-vision-exp` (the legacy names

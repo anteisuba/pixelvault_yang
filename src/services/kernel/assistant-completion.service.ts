@@ -40,7 +40,6 @@ interface CompleteAssistantTextOptions {
    * 半小时的视频照全片满帧烧，只有账单看得见。
    */
   videoAnalysis?: LlmTextInput['videoAnalysis']
-  useGrounding?: boolean
   /** Request strict JSON where the provider supports it (F1 结构化输出). */
   responseFormat?: LlmTextInput['responseFormat']
   jsonSchema?: LlmTextInput['jsonSchema']
@@ -224,7 +223,6 @@ export async function completeAssistantTextWithContextRetry({
   videoData,
   audioData,
   videoAnalysis,
-  useGrounding,
   responseFormat,
   jsonSchema,
   callLog,
@@ -253,7 +251,6 @@ export async function completeAssistantTextWithContextRetry({
         adapterType: route.adapterType,
         providerConfig: route.providerConfig,
         apiKey: route.apiKey,
-        useGrounding,
         providerManagedOutput: true,
         promptGuardMaxLength: null,
         responseFormat,
@@ -352,7 +349,6 @@ export async function* streamAssistantTextWithContextRetry({
   videoData,
   audioData,
   videoAnalysis,
-  useGrounding,
   responseFormat,
   jsonSchema,
   callLog,
@@ -383,7 +379,6 @@ export async function* streamAssistantTextWithContextRetry({
         adapterType: route.adapterType,
         providerConfig: route.providerConfig,
         apiKey: route.apiKey,
-        useGrounding,
         providerManagedOutput: true,
         promptGuardMaxLength: null,
         responseFormat,

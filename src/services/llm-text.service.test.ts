@@ -1398,44 +1398,6 @@ describe('llmTextCompletion - OpenAI', () => {
     expect(payload.max_completion_tokens).toBe(5000)
     expect(payload.response_format?.type).toBe('json_object')
   })
-
-  it('uses Chat Completions web search parameters for OpenAI grounding', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          choices: [{ message: { content: 'grounded openai reply' } }],
-        }),
-        { status: 200 },
-      ),
-    )
-    vi.stubGlobal('fetch', fetchMock)
-
-    const result = await llmTextCompletion({
-      systemPrompt: 'sys',
-      userPrompt: 'latest visual trend',
-      adapterType: AI_ADAPTER_TYPES.OPENAI,
-      providerConfig: { label: 'OpenAI', baseUrl: 'https://api.openai.com/v1' },
-      apiKey: 'sk-test',
-      modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_1_SOL,
-      useGrounding: true,
-    })
-
-    const requestInit = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined
-    const body = requestInit?.body
-    if (typeof body !== 'string') {
-      throw new Error('Expected OpenAI request body to be a JSON string')
-    }
-    const payload = JSON.parse(body) as {
-      model: string
-      tools?: unknown
-      web_search_options?: Record<string, unknown>
-    }
-
-    expect(result).toBe('grounded openai reply')
-    expect(payload.model).toBe(LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_SEARCH_API)
-    expect(payload.web_search_options).toEqual({})
-    expect(payload.tools).toBeUndefined()
-  })
 })
 
 describe('llmTextCompletion - DeepSeek', () => {
@@ -1875,21 +1837,6 @@ describe('llmTextCompletion — xAI (Grok)', () => {
     })
     expect(content[1]).toEqual({ type: 'text', text: 'Describe this image.' })
   })
-
-  it('rejects grounding loudly instead of silently dropping it', async () => {
-    // xAI's Live Search is a separate API surface. Failing here is the point:
-    // a silent no-op would return an ungrounded answer that reads grounded.
-    await expect(
-      llmTextCompletion({
-        systemPrompt: 'sys',
-        userPrompt: 'latest news',
-        adapterType: AI_ADAPTER_TYPES.XAI,
-        providerConfig: { label: 'Grok', baseUrl: 'https://api.x.ai/v1' },
-        apiKey: 'xai-test',
-        useGrounding: true,
-      }),
-    ).rejects.toThrow(/grounding/i)
-  })
 })
 
 describe('llmTextCompletion - Claude (Anthropic)', () => {
@@ -2281,19 +2228,6 @@ describe('llmTextCompletion - Claude (Anthropic)', () => {
       ])
     },
   )
-
-  it('rejects grounding requests', async () => {
-    await expect(
-      llmTextCompletion({
-        systemPrompt: 'sys',
-        userPrompt: 'user',
-        useGrounding: true,
-        adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
-        providerConfig: ANTHROPIC_PROVIDER_CONFIG,
-        apiKey: 'sk-ant-test',
-      }),
-    ).rejects.toThrow('does not support grounding')
-  })
 
   it('throws a structured auth error on a 401 response', async () => {
     vi.stubGlobal(

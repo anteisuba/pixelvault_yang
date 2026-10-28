@@ -6,12 +6,19 @@ import { useSearchParams } from 'next/navigation'
 
 import { Bookmark, LayoutGrid, SwatchBook, User } from '@/components/icons'
 import { ROUTES } from '@/constants/routes'
+import { LORA_LIBRARY_VIEW_PARAM } from '@/constants/studio-shell'
+import { ASSISTANT_LIBRARY_SCREEN_LIMIT } from '@/types/assistant-operator'
 import {
   LORA_WORKBENCH_SEARCH_PARAM,
   LORA_WORKBENCH_SECTIONS,
 } from '@/constants/lora'
 import { useStudioLibraryPick } from '@/contexts/studio-library-pick'
 import { useCharacterLoras } from '@/hooks/cards/use-character-loras'
+import {
+  useLibraryChanged,
+  useLibraryShowRequest,
+  useReportLibraryScreen,
+} from '@/hooks/use-library-view'
 import { useLoraAssets } from '@/hooks/use-lora-assets'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { usePathname, useRouter } from '@/i18n/navigation'
@@ -30,7 +37,7 @@ import { LoraLibraryStage } from './LoraLibraryStage'
  * `/library/lora?view=favorites|trained|characters` = 左栏「收藏 / 自训 / 角色」那一格；
  * 不写就是「全部」（库）。手机只有「库 / 收藏」两格，收藏那格就是 `favorites`。
  */
-const VIEW_PARAM = 'view'
+const VIEW_PARAM = LORA_LIBRARY_VIEW_PARAM
 const SECTION_VIEWS: readonly FavoritesSection[] = [
   'favorites',
   'trained',
@@ -43,6 +50,9 @@ function isSectionView(value: string | null): value is FavoritesSection {
 }
 
 const NO_STAGE = { base: null, baseLabel: null } as const
+
+/** 助手按名字换格时晚这么久再换（见 `useLibraryShowRequest` 那一段）。 */
+const LIBRARY_SHOW_SECTION_DELAY_MS = 300
 
 /**
  * 库的四格（全部 · 收藏 · 自训 · 角色）各放什么：库整页与挑选框（`LoraPickerDialog`）共用，
@@ -112,6 +122,24 @@ export function useLoraLibrarySections(
   return {
     content,
     characterLoras,
+    /** 各格里有哪几把（库整页报给助手「屏上那一页」、助手改了库时重读）。 */
+    names: {
+      favorites: favoriteAssets.map((asset) => asset.name),
+      trained: trainedAssets.map((asset) => asset.name),
+      characters: [
+        ...new Set(
+          characterLoras.groups.flatMap((group) =>
+            group.loras.map((lora) => lora.name),
+          ),
+        ),
+      ],
+    },
+    /** 收藏 / 自训那两份还在取（这时屏上那一页先不报，⛔ 让助手以为是空的）。 */
+    loading: isLoadingMine,
+    refresh: () => {
+      void refresh()
+      void characterLoras.refresh()
+    },
     counts: {
       favorites: favoriteAssets.length,
       trained: trainedAssets.length,
@@ -201,10 +229,38 @@ export function LoraLibraryOverlayView() {
     },
     [pathname, router],
   )
-  const { content, characterLoras, counts } = useLoraLibrarySections(
-    view,
-    setView,
+  const { content, characterLoras, counts, names, loading, refresh } =
+    useLoraLibrarySections(view, setView)
+  // 屏上那一页（owner 10-28）：哪一格、那一格里有哪几把（Civitai 那一格的结果不在这里，助手用 find 查）。
+  const sectionNames = view === 'library' ? [] : names[view]
+  useReportLibraryScreen(
+    view !== 'library' && loading
+      ? null
+      : {
+          kind: 'lora',
+          scope:
+            view === 'library'
+              ? 'the Civitai LoRA library (search it with find lora_library)'
+              : `their ${view === 'trained' ? 'trained' : view === 'characters' ? 'character-linked' : 'favorite'} LoRAs`,
+          total: sectionNames.length,
+          visible: sectionNames.slice(0, ASSISTANT_LIBRARY_SCREEN_LIMIT),
+        },
   )
+  // 助手改了 LoRA 库（收藏 / 封面 / 关联角色）：收藏与角色那两份重读。
+  useLibraryChanged('lora', refresh)
+  // 助手翻给你看：切到那一格；点名的那一把在哪一格就切到哪一格。
+  useLibraryShowRequest('lora', (show) => {
+    const target = show.itemName?.toLowerCase()
+    const holder = target
+      ? (['favorites', 'trained', 'characters'] as const).find((section) =>
+          names[section].some((name) => name.toLowerCase() === target),
+        )
+      : undefined
+    const next = show.section ?? holder
+    if (!next || next === view) return
+    // ⚠ 等 Civitai 那一格挂载时那一次写网址落定再换格，⛔ 被它按旧网址盖回去。
+    window.setTimeout(() => setView(next), LIBRARY_SHOW_SECTION_DELAY_MS)
+  })
 
   const pickTarget = pick ? (
     <p

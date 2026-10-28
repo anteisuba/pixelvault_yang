@@ -38,7 +38,11 @@ import {
 } from '@/components/business/cards/CharacterOverview'
 import { StudioOperatorHostProvider } from '@/contexts/studio-operator-host'
 import { useCardsOperatorHost } from '@/hooks/cards/use-cards-operator-host'
-import { useReportLibraryItem } from '@/hooks/use-library-view'
+import {
+  useLibraryChanged,
+  useLibraryShowRequest,
+  useReportLibraryItem,
+} from '@/hooks/use-library-view'
 import { appendSlotSources } from '@/hooks/cards/use-character-card-editor'
 import { defaultLook } from '@/lib/card-bus'
 import { useCharacterCards } from '@/hooks/cards/use-character-cards'
@@ -210,6 +214,21 @@ export function CharacterRoster() {
     setDetailLookId(null)
     setOpenId(id)
   }, [])
+  // 助手改了角色库：名册重读（库叠层里这一页不当宿主，宿主那条 `libraryChanged` 够不着）。
+  useLibraryChanged('cards', characters.refresh)
+  // 助手翻给你看：按名字打开那一位（找不到就搜这个名字），或搜那个词。
+  useLibraryShowRequest('cards', (show) => {
+    setTab(CHARACTER_PAGE_TABS.roster)
+    setDrafting(false)
+    const target = show.itemName?.toLowerCase()
+    const found = target
+      ? flatCards.find((card) => card.name.toLowerCase() === target)
+      : undefined
+    if (show.search !== undefined || (target && !found))
+      setQuery(show.search ?? show.itemName ?? '')
+    if (found) openCharacter(found.id)
+    else if (show.search !== undefined) setOpenId(null)
+  })
   useEffect(
     () => () => {
       if (closeTimer.current) window.clearTimeout(closeTimer.current)

@@ -99,6 +99,23 @@ export function studioLibraryPath(category: StudioLibraryCategoryId): string {
   return `${ROUTES.LIBRARY}/${category}`
 }
 
+/** LoRA 库左栏那一格记在网址里（`?view=favorites|trained|characters`，不写 = 全部）。 */
+export const LORA_LIBRARY_VIEW_PARAM = 'view'
+
+/**
+ * 助手「翻给你看」换到那个库时去的地址（owner 10-28）：LoRA 库点名了哪一格就直接写进网址 ——
+ * ⚠ 挂上之后再换格会被 Civitai 那一格挂载时按旧网址写回的筛选参数盖掉。
+ */
+export function studioLibraryShowPath(
+  category: StudioLibraryCategoryId,
+  loraSection?: string,
+): string {
+  const path = studioLibraryPath(category)
+  return category === 'lora' && loraSection && loraSection !== 'library'
+    ? `${path}?${LORA_LIBRARY_VIEW_PARAM}=${loraSection}`
+    : path
+}
+
 /** 库左栏收起 / 展开（本机记住，七个库同一份）。 */
 export const LIBRARY_RAIL_STORAGE_KEY = 'pv:library:rail'
 

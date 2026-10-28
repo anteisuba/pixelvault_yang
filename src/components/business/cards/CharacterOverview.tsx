@@ -7,7 +7,9 @@ import { useLocale, useTranslations } from 'next-intl'
 
 import { LIQUID_SPRING } from '@/constants/motion'
 import type { CharacterCardRecord } from '@/types'
+import { ASSISTANT_LIBRARY_SCREEN_LIMIT } from '@/types/assistant-operator'
 import { Search } from '@/components/icons'
+import { useReportLibraryScreen } from '@/hooks/use-library-view'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useSearchExpansion } from '@/hooks/use-search-expansion'
 import { useTouchLongPress } from '@/hooks/use-touch-long-press'
@@ -138,6 +140,20 @@ export function CharacterOverview({
     : null
   const activeGroup = groups.find((group) => group.key === workKey) ?? null
   const ranked = [...entries].sort(byImages).slice(0, RANKED_COUNT)
+  // 屏上那一页（owner 10-28）：哪部作品、搜了什么、屏上前几位。
+  const onScreen =
+    matches ?? activeGroup?.entries ?? [...entries].sort(byImages)
+  useReportLibraryScreen({
+    kind: 'character',
+    scope: activeGroup
+      ? `characters from 「${activeGroup.label}」`
+      : 'all their characters',
+    ...(needle ? { search: query.trim() } : {}),
+    total: onScreen.length,
+    visible: onScreen
+      .slice(0, ASSISTANT_LIBRARY_SCREEN_LIMIT)
+      .map((entry) => entry.card.name),
+  })
 
   const pressProps = (id: string) =>
     onLongPress

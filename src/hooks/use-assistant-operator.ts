@@ -83,6 +83,7 @@ import { AI_MODELS } from '@/constants/models'
 import { CONTEXT_CARD_STATUS_IDS } from '@/constants/context-cards'
 import {
   STUDIO_OPERATOR_BENCH_OPEN_POLL_MS,
+  STUDIO_OPERATOR_LIBRARY_SHOW_SETTLE_MS,
   STUDIO_OPERATOR_BENCH_OPEN_TIMEOUT_MS,
   STUDIO_OPERATOR_CONFIRM_STATUS_IDS,
   STUDIO_OPERATOR_FIELD_IDS,
@@ -131,7 +132,11 @@ import {
   takeOperatorQueue,
   upsertOperatorStep,
 } from '@/hooks/use-studio-operator-store'
-import { readLibraryView } from '@/hooks/use-library-view'
+import {
+  libraryShowSettled,
+  readLibraryView,
+  requestLibraryShow,
+} from '@/hooks/use-library-view'
 import {
   getOperatorVoicePrefs,
   speakOperatorReply,
@@ -139,6 +144,7 @@ import {
 import { getGenerationErrorMessage } from '@/lib/api-error-message'
 import { splitSpokenSegments } from '@/lib/spoken-segments'
 import { studioBenchHref } from '@/lib/studio-shell-route'
+import { studioLibraryShowPath } from '@/constants/studio-shell'
 import {
   assistantBenchPath,
   assistantBenchReached,
@@ -2187,6 +2193,19 @@ export function useAssistantOperator(
           steps: canvasSteps,
           at: Date.now(),
         })
+        // 库那一支（owner 10-28）：台不动，库换到那一页；已经开着那个库就只翻页面。
+        if (benchOpenTarget.library) {
+          const show = benchOpenTarget.library
+          requestLibraryShow(show)
+          const openLibrary = readLibraryView()?.library
+          if (openLibrary !== show.library) {
+            const href = studioLibraryShowPath(show.library, show.section)
+            // 与左栏同一种换法：库开着时换类用 replace（⛔ push 会把两类叠着画）。
+            if (openLibrary) router.replace(href)
+            else router.push(href)
+          }
+          return
+        }
         // 对话跟着台走（第 9f 步）：开台那一页的地址带上这段对话的编号。
         router.push(
           studioBenchHref(
@@ -2333,11 +2352,18 @@ export function useAssistantOperator(
       if (getOperatorState().benchOpen !== benchOpen || !isCurrentThread())
         return true
       const here = hostRef.current
-      const reached = assistantBenchReached(
-        benchOpen.target,
-        here.workspace,
-        here.projectId,
-      )
+      const library = benchOpen.target.library
+      // 库那一支：页面接走、翻好（或等过一会儿）就接着发，到没到由服务端照屏上那一页如实说。
+      const reached = library
+        ? libraryShowSettled(
+            library,
+            Date.now() - benchOpen.at >= STUDIO_OPERATOR_LIBRARY_SHOW_SETTLE_MS,
+          )
+        : assistantBenchReached(
+            benchOpen.target,
+            here.workspace,
+            here.projectId,
+          )
       if (reached && runRef.current) {
         setOperatorBenchOpen(null)
         here.setOpen(true)

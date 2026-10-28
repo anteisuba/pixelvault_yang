@@ -114,7 +114,12 @@ import {
   useJustifiedGrid,
 } from '@/hooks/use-justified-grid'
 import { useStableDragState } from '@/hooks/use-stable-drag-state'
-import { useReportLibraryItem } from '@/hooks/use-library-view'
+import {
+  useLibraryChanged,
+  useLibraryShowRequest,
+  useReportLibraryItem,
+  useReportLibraryScreen,
+} from '@/hooks/use-library-view'
 import { ROUTES } from '@/constants/routes'
 import { PROJECT } from '@/constants/config'
 import {
@@ -159,6 +164,7 @@ import { Link, useRouter } from '@/i18n/navigation'
 import {
   batchDeleteGenerationsAPI,
   batchSetLikeAPI,
+  fetchGenerationByIdAPI,
   batchUpdateVisibilityAPI,
   fetchAssetSectionCounts,
 } from '@/lib/api-client/gallery'
@@ -195,6 +201,7 @@ import {
   type OutputTypeValue,
   type ProjectRecord,
 } from '@/types'
+import { ASSISTANT_LIBRARY_SCREEN_LIMIT } from '@/types/assistant-operator'
 
 type LockedMediaType = 'image' | 'video' | 'audio' | 'model_3d'
 
@@ -1597,6 +1604,63 @@ export function KreaAssetBrowser({
     )
     return () => window.clearTimeout(timer)
   }, [deskSearch, filters, isPhone, setFilters])
+
+  // 屏上那一页（owner 10-28）：哪个夹、哪些筛选、搜了什么、屏上前几张、多选了哪几张。
+  const screenTags = (list: readonly GenerationRecord[]) =>
+    list.flatMap((generation) => buildGenerationTag(generation) ?? [])
+  useReportLibraryScreen({
+    kind: 'picture',
+    scope: [
+      folderScope.kind === 'unassigned'
+        ? 'pictures in no folder'
+        : scopeFolder
+          ? `folder 「${scopeFolder.name}」`
+          : 'all their assets',
+      filters.types.length ? `type ${filters.types.join('/')}` : '',
+      filters.liked ? 'favorites only' : '',
+      filters.published ? 'published only' : '',
+      filters.provider === USER_UPLOAD_PROVIDER ? 'uploads only' : '',
+      filters.models.length ? `models ${filters.models.join(', ')}` : '',
+      filters.timeRange === 'all' ? '' : `time ${filters.timeRange}`,
+    ]
+      .filter(Boolean)
+      .join(' · '),
+    ...(filters.search ? { search: filters.search } : {}),
+    total,
+    visible: screenTags(generations).slice(0, ASSISTANT_LIBRARY_SCREEN_LIMIT),
+    ...(selectedIds.size
+      ? {
+          selected: screenTags(
+            generations.filter((generation) => selectedIds.has(generation.id)),
+          ).slice(0, ASSISTANT_LIBRARY_SCREEN_LIMIT),
+        }
+      : {}),
+  })
+  // 助手改了素材（标签 / 收藏 / 建夹 / 放进夹，或撤销）：格子、夹、计数重读。
+  useLibraryChanged('assets', () => {
+    retryGallery()
+    void refreshFolders()
+    void refreshCounts()
+  })
+  // 助手翻给你看：打开那一张（⭐ 打开优先，不动筛选，免得一换筛选查看器就关上），或搜那个词。
+  useLibraryShowRequest('assets', (show) => {
+    if (show.itemId) {
+      const id = show.itemId
+      const loaded = generations.find((generation) => generation.id === id)
+      if (loaded) {
+        setSelectedGeneration(loaded)
+        return
+      }
+      void fetchGenerationByIdAPI(id).then((response) => {
+        if (response.success) setSelectedGeneration(response.data)
+      })
+      return
+    }
+    if (show.search === undefined) return
+    setDeskSearch(show.search)
+    setPhoneSearch(null)
+    setFilters({ ...filters, search: show.search })
+  })
   /** 桌面那条切换条：全部 · 图片 · 视频 · 音频 · 3D（一段 = 一个类型）。 */
   const deskTypeTab: DeskTypeTab =
     filters.types.length === 1

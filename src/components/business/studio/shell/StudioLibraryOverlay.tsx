@@ -25,7 +25,10 @@ import { PanelLeft } from '@/components/icons'
 import { AssistantAvatarGlyph } from '@/components/business/studio/assistant-operator/AssistantAvatarGlyph'
 import { useAssistantPersona } from '@/hooks/use-assistant-persona'
 import { useLibraryRailOpen } from '@/hooks/use-library-rail'
-import { setLibraryViewCategory } from '@/hooks/use-library-view'
+import {
+  setLibraryViewCategory,
+  takeLibraryOpenedByAssistant,
+} from '@/hooks/use-library-view'
 import { Link } from '@/i18n/navigation'
 import { shellEnter } from '@/lib/studio-shell-motion'
 import { cn } from '@/lib/utils'
@@ -67,16 +70,18 @@ export function StudioLibraryOverlay({
 }) {
   const slot = useContext(StudioLibraryTargetContext)
   const setOpenCategory = slot?.setOpenCategory
+  const setAssistantOpen = slot?.setAssistantOpen
 
   useEffect(() => {
     if (!setOpenCategory) return
     setOpenCategory(category)
     setLibraryViewCategory(category)
+    if (takeLibraryOpenedByAssistant()) setAssistantOpen?.(true)
     return () => {
       setOpenCategory(null)
       setLibraryViewCategory(null)
     }
-  }, [category, setOpenCategory])
+  }, [category, setAssistantOpen, setOpenCategory])
 
   // 不在外壳里（不该发生）就原地画，⛔ 白屏。
   if (!slot) return <>{children}</>

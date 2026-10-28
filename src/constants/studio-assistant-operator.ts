@@ -458,6 +458,11 @@ export const STUDIO_OPERATOR_CHAT = {
 export const STUDIO_OPERATOR_BENCH_OPEN_TIMEOUT_MS = 30_000
 /** 换页之后隔多久看一眼新台好了没有。 */
 export const STUDIO_OPERATOR_BENCH_OPEN_POLL_MS = 250
+/**
+ * 库里「翻给你看」（owner 10-28）：页面接走之后最多等这么久让它报上新的屏上那一页（搜索要取一次），
+ * 过了照样接着发，到没到由服务端按屏上那一页如实说。
+ */
+export const STUDIO_OPERATOR_LIBRARY_SHOW_SETTLE_MS = 4_000
 
 export const STUDIO_OPERATOR_HISTORY = {
   saveDebounceMs: 1200,

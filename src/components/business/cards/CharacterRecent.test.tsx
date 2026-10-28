@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import type { CharacterGrowth } from '@/types/character-growth'
+import type { CharacterStickerRecord } from '@/types/character-sticker'
 
 vi.mock('next-intl', () => {
   const t = (key: string, values?: Record<string, string | number>) =>
@@ -21,7 +22,10 @@ vi.mock(
     ),
   }),
 )
-vi.mock('@/hooks/cards', () => ({ useCharacterGrowth: vi.fn() }))
+vi.mock('@/hooks/cards', () => ({
+  useCharacterGrowth: vi.fn(),
+  useCharacterStickers: vi.fn(),
+}))
 vi.mock('@/hooks/use-chat-persona', () => ({ usePersonaSwitch: vi.fn() }))
 vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => false }))
 
@@ -103,9 +107,39 @@ function hookOf(growth: CharacterGrowth) {
   }
 }
 
+function stickersOf(rows: CharacterStickerRecord[] = []) {
+  return {
+    stickers: rows,
+    setBlocked: vi.fn(async () => true),
+    remove: vi.fn(async () => true),
+    upload: vi.fn(async () => ({ ok: true as const })),
+  }
+}
+
+const sticker = (
+  id: string,
+  patch: Partial<CharacterStickerRecord> = {},
+): CharacterStickerRecord => ({
+  id,
+  url: `https://cdn.example/${id}.png`,
+  sourceUrl: null,
+  whenToUse: '开心的时候',
+  isBlocked: false,
+  fromCreator: false,
+  createdAt: today(9),
+  sentAt: null,
+  ...patch,
+})
+
 describe('CharacterRecent', () => {
   it('同一天的见闻折成一趟出门：最新一趟展开，更早的折着、点开才看', () => {
-    render(<CharacterRecent growth={hookOf(growthOf())} reducedMotion />)
+    render(
+      <CharacterRecent
+        stickers={stickersOf()}
+        growth={hookOf(growthOf())}
+        reducedMotion
+      />,
+    )
     expect(screen.getByText('先铺冷色再压暖色。')).toBeTruthy()
     expect(screen.getByText('透明的伞我想要。')).toBeTruthy()
     expect(screen.queryByText('人脸有点糊。')).toBeNull()
@@ -117,7 +151,9 @@ describe('CharacterRecent', () => {
 
   it('删见闻先弹确认，确认了才删', () => {
     const hook = hookOf(growthOf({ opinions: [] }))
-    render(<CharacterRecent growth={hook} reducedMotion />)
+    render(
+      <CharacterRecent stickers={stickersOf()} growth={hook} reducedMotion />,
+    )
     fireEvent.click(screen.getAllByText('delete')[0])
     expect(hook.removeFinding).not.toHaveBeenCalled()
     expect(screen.getByText('deleteFindingTitle')).toBeTruthy()
@@ -125,12 +161,17 @@ describe('CharacterRecent', () => {
 
   it('X 只在出门用 Grok 时出现；出不了门写原因 + 换一个型号', () => {
     const { unmount } = render(
-      <CharacterRecent growth={hookOf(growthOf())} reducedMotion />,
+      <CharacterRecent
+        stickers={stickersOf()}
+        growth={hookOf(growthOf())}
+        reducedMotion
+      />,
     )
     expect(screen.queryByText('sourceX')).toBeNull()
     unmount()
     render(
       <CharacterRecent
+        stickers={stickersOf()}
         growth={hookOf(
           growthOf({
             browse: {
@@ -152,6 +193,7 @@ describe('CharacterRecent', () => {
   it('出门关着又没见闻：空态卡；型号行不出', () => {
     render(
       <CharacterRecent
+        stickers={stickersOf()}
         growth={hookOf(
           growthOf({
             findings: [],
@@ -168,5 +210,41 @@ describe('CharacterRecent', () => {
     )
     expect(screen.getByText('neverOutTitle')).toBeTruthy()
     expect(screen.queryByTestId('model-chip')).toBeNull()
+  })
+
+  it('她逛来的表情在「全部」里按天一条，点一张拉黑；你上传的不进河', () => {
+    const rows = stickersOf([
+      sticker('s1'),
+      sticker('s2', { fromCreator: true }),
+    ])
+    render(
+      <CharacterRecent
+        growth={hookOf(growthOf())}
+        stickers={rows}
+        reducedMotion
+      />,
+    )
+    expect(screen.getByText('gotStickers|1')).toBeTruthy()
+    fireEvent.click(screen.getByLabelText('blockSticker'))
+    expect(rows.setBlocked).toHaveBeenCalledWith('s1', true)
+  })
+
+  it('筛到「表情」：整格表情（含你上传的）+ 上传那一格 + 张数', () => {
+    render(
+      <CharacterRecent
+        growth={hookOf(growthOf())}
+        stickers={stickersOf([
+          sticker('s1', { isBlocked: true }),
+          sticker('s2', { fromCreator: true }),
+        ])}
+        reducedMotion
+      />,
+    )
+    fireEvent.click(screen.getByText('filterStickers'))
+    expect(screen.getByText('stickersTitle')).toBeTruthy()
+    expect(screen.getByText('uploadSticker')).toBeTruthy()
+    expect(screen.getByText('2 / 30')).toBeTruthy()
+    expect(screen.getByLabelText('unblockSticker')).toBeTruthy()
+    expect(screen.getByLabelText('blockSticker')).toBeTruthy()
   })
 })

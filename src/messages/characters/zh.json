@@ -237,7 +237,21 @@
       "loadFailed": "她最近的事没读出来",
       "retry": "重试",
       "paneHer": "她",
-      "paneLabel": "看她还是看最近"
+      "paneLabel": "看她还是看最近",
+      "filterStickers": "表情",
+      "gotStickers": "收了 {count} 张表情",
+      "stickerHint": "点一张拉黑，她聊天时就不发它",
+      "stickersTitle": "她的表情包",
+      "uploadSticker": "上传",
+      "blockSticker": "拉黑这张",
+      "unblockSticker": "恢复这张",
+      "deleteSticker": "删除这张",
+      "deleteStickerTitle": "删除这张表情？",
+      "deleteStickerBody": "删了就找不回来了。",
+      "uploadTooLarge": "这张图超过 5 MB 了",
+      "uploadNotImage": "这个文件不是图",
+      "uploadFailed": "没传上去，再试一次",
+      "stickersEmpty": "还没有表情包。她出门会自己收，你也可以上传一张。"
     }
   },
   "CharacterImagePick": {

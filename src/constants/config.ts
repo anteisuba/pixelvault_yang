@@ -299,6 +299,8 @@ export const API_ENDPOINTS = {
   CHARACTER_CARDS_IMPORT: '/api/character-cards/import',
   /** 她出门看到的一条（角色页右栏删见闻） */
   CHARACTER_FINDINGS: '/api/character-findings',
+  /** 她的一张表情包（拉黑 / 删） */
+  CHARACTER_STICKERS: '/api/character-stickers',
   /** 导入酒馆卡第一步：签直传 R2 的地址 */
   CHARACTER_CARDS_IMPORT_UPLOADS: '/api/character-cards/import/uploads',
   /** 卡库：浏览器从 chub.ai 取来的一张卡建成角色卡（搜索由浏览器直接问 chub） */

@@ -5,10 +5,18 @@ import { motion, useReducedMotion } from 'motion/react'
 import { useFormatter, useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
-import { ArrowUpRight, ChevronRight, Home } from '@/components/icons'
+import {
+  ArrowUpRight,
+  Ban,
+  ChevronRight,
+  Home,
+  Plus,
+  X,
+} from '@/components/icons'
 import { CHARACTER_REVISION_SOURCE_IDS } from '@/constants/cards'
 import {
   CHARACTER_BROWSE_SOURCE_IDS,
+  CHARACTER_STICKERS,
   type CharacterBrowseSource,
 } from '@/constants/character-browse'
 import { assistantAdapterSupportsImage } from '@/constants/assistant'
@@ -25,13 +33,14 @@ import type {
   CharacterOpinionEntry,
   CharacterRevisionEntry,
 } from '@/types/character-growth'
+import type { CharacterStickerRecord } from '@/types/character-sticker'
 import { StudioOperatorModelChip } from '@/components/business/studio/assistant-operator/StudioOperatorModelChip'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
 import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import { Spinner } from '@/components/ui/spinner'
 import { Switch } from '@/components/ui/switch'
-import { useCharacterGrowth } from '@/hooks/cards'
+import { useCharacterGrowth, useCharacterStickers } from '@/hooks/cards'
 import { usePersonaSwitch } from '@/hooks/use-chat-persona'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { getApiErrorMessage } from '@/lib/api-error-message'
@@ -39,15 +48,16 @@ import { cn } from '@/lib/utils'
 
 /**
  * **角色页右栏「最近」**（方向 B，`docs/references/pages/cards.md` §2.2–§2.3）：出门卡 →
- * 筛选切换条 → 按天分组的时间河。河里四种事件：出门（同一天带回的见闻折成一条）· 观点 ·
- * 改动（能撤回）· 日记。表情包等接口到了再加一类（§10 第 3 片）。
+ * 筛选切换条 → 按天分组的时间河。河里五种事件：出门（同一天带回的见闻折成一条）· 收了表情 ·
+ * 观点 · 改动（能撤回）· 日记。筛到「表情」时整栏换成她的表情包格子（能上传一张）。
  *
  * ⚠ 后台没有「一次出门」这张表、也不记哪一站失败：同一天看到的见闻就是那天那一趟（每天只出门
  * 一次）；单站失败不画（`pages/cards.md` §2.3 那一行等后台记下了再加）。
  */
 
 type Growth = ReturnType<typeof useCharacterGrowth>
-type Filter = 'all' | 'finding' | 'opinion' | 'journal' | 'revision'
+type Stickers = ReturnType<typeof useCharacterStickers>
+type Filter = 'all' | 'finding' | 'sticker' | 'opinion' | 'journal' | 'revision'
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000
 
@@ -66,27 +76,48 @@ function daysAgo(iso: string): number {
 
 type RiverEvent =
   | { kind: 'outing'; at: string; findings: CharacterFindingEntry[] }
+  | { kind: 'stickers'; at: string; stickers: CharacterStickerRecord[] }
   | { kind: 'opinion'; at: string; opinion: CharacterOpinionEntry }
   | { kind: 'journal'; at: string; journal: CharacterJournalEntry }
   | { kind: 'revision'; at: string; revision: CharacterRevisionEntry }
 
-/** 一天一组，组内新的在上；同一天看到的见闻折成一趟出门（时间 = 那天最早看到的那一条）。 */
-function buildRiver(growth: CharacterGrowth, filter: Filter) {
+/** 同一天的几样折成一条，时间 = 那天最早的那一样。 */
+function byDay<T>(rows: readonly T[], at: (row: T) => string) {
+  const groups = new Map<string, T[]>()
+  for (const row of rows) {
+    const key = dayKey(at(row))
+    groups.set(key, [...(groups.get(key) ?? []), row])
+  }
+  return [...groups.values()].map((items) => ({
+    items,
+    at: items.reduce(
+      (earliest, row) => (at(row) < earliest ? at(row) : earliest),
+      at(items[0]),
+    ),
+  }))
+}
+
+/**
+ * 一天一组，组内新的在上；同一天看到的见闻折成一趟出门。她逛来的表情（⛔ 你上传的）只在「全部」
+ * 里按天出一条「收了 N 张表情」。
+ */
+function buildRiver(
+  growth: CharacterGrowth,
+  filter: Filter,
+  stickers: readonly CharacterStickerRecord[],
+) {
   const show = (kind: Exclude<Filter, 'all'>) =>
     filter === 'all' || filter === kind
   const events: RiverEvent[] = []
   if (show('finding')) {
-    const byDay = new Map<string, CharacterFindingEntry[]>()
-    for (const finding of growth.findings) {
-      const key = dayKey(finding.seenAt)
-      byDay.set(key, [...(byDay.get(key) ?? []), finding])
+    for (const { items, at } of byDay(growth.findings, (row) => row.seenAt)) {
+      events.push({ kind: 'outing', at, findings: items })
     }
-    for (const findings of byDay.values()) {
-      const at = findings.reduce(
-        (earliest, row) => (row.seenAt < earliest ? row.seenAt : earliest),
-        findings[0].seenAt,
-      )
-      events.push({ kind: 'outing', at, findings })
+  }
+  if (filter === 'all') {
+    const found = stickers.filter((row) => !row.fromCreator)
+    for (const { items, at } of byDay(found, (row) => row.createdAt)) {
+      events.push({ kind: 'stickers', at, stickers: items })
     }
   }
   if (show('opinion')) {
@@ -529,20 +560,167 @@ function RevisionEvent({
   )
 }
 
+/** 一格表情：点一下拉黑 / 恢复；悬停（触屏常显）右上角 × 删掉。 */
+function StickerTile({
+  sticker,
+  size,
+  onToggle,
+  onDelete,
+}: {
+  sticker: CharacterStickerRecord
+  size: 'row' | 'grid'
+  onToggle(): void
+  onDelete(): void
+}) {
+  const t = useTranslations('CharacterRoster.recent')
+  return (
+    <div
+      className={cn(
+        'group relative shrink-0',
+        size === 'row' ? 'size-18' : 'aspect-square w-full',
+      )}
+    >
+      <button
+        type="button"
+        aria-pressed={sticker.isBlocked}
+        aria-label={sticker.isBlocked ? t('unblockSticker') : t('blockSticker')}
+        title={sticker.whenToUse}
+        onClick={onToggle}
+        className="relative grid size-full place-items-center overflow-hidden rounded-12 bg-muted transition-transform duration-fast active:scale-[.98] focus-visible:shadow-focus focus-visible:outline-none"
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={sticker.url}
+          alt=""
+          loading="lazy"
+          className={cn(
+            'size-full object-contain transition-opacity duration-fast',
+            sticker.isBlocked && 'opacity-35',
+          )}
+        />
+        {sticker.isBlocked ? (
+          <Ban aria-hidden className="absolute size-9 text-foreground" />
+        ) : null}
+      </button>
+      <button
+        type="button"
+        aria-label={t('deleteSticker')}
+        onClick={onDelete}
+        className="absolute -right-1.5 -top-1.5 grid size-6 place-items-center rounded-full bg-raise text-ink-2 opacity-0 shadow-soft transition-opacity duration-fast group-hover:opacity-100 focus-visible:opacity-100 coarse:opacity-100"
+      >
+        <X aria-hidden className="size-3" />
+      </button>
+    </div>
+  )
+}
+
+function StickerGrid({
+  stickers,
+  onToggle,
+  onDelete,
+}: {
+  stickers: Stickers
+  onToggle(sticker: CharacterStickerRecord): void
+  onDelete(sticker: CharacterStickerRecord): void
+}) {
+  const t = useTranslations('CharacterRoster.recent')
+  const [uploading, setUploading] = useState(false)
+  const rows = stickers.stickers
+  if (!rows)
+    return (
+      <div className="flex justify-center py-16">
+        <Spinner className="text-muted-foreground" />
+      </div>
+    )
+  const upload = async (file: File | undefined) => {
+    if (!file) return
+    setUploading(true)
+    const result = await stickers.upload(file)
+    setUploading(false)
+    if (!result.ok)
+      toast.error(
+        t(
+          result.reason === 'tooLarge'
+            ? 'uploadTooLarge'
+            : result.reason === 'notAnImage'
+              ? 'uploadNotImage'
+              : 'uploadFailed',
+        ),
+      )
+  }
+  return (
+    <section aria-label={t('stickersTitle')} className="flex flex-col gap-3">
+      <div className="flex items-baseline gap-2">
+        <h3 className="text-2sm font-semibold">{t('stickersTitle')}</h3>
+        <span className="font-mono text-xs text-muted-foreground tabular-nums">
+          {rows.length} / {CHARACTER_STICKERS.perCard}
+        </span>
+        <span className="ml-auto text-xs text-muted-foreground">
+          {t('stickerHint')}
+        </span>
+      </div>
+      <ul className="grid grid-cols-4 gap-2 md:grid-cols-6">
+        <li>
+          <label
+            className={cn(
+              'grid aspect-square w-full cursor-pointer place-items-center rounded-12 border border-dashed border-input text-ink-2 transition-colors duration-fast hover:tint-hover focus-within:shadow-focus',
+              uploading && 'pointer-events-none opacity-45',
+            )}
+          >
+            <span className="flex flex-col items-center gap-1 text-xs">
+              {uploading ? (
+                <Spinner size="sm" />
+              ) : (
+                <Plus aria-hidden className="size-4" />
+              )}
+              {t('uploadSticker')}
+            </span>
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              className="sr-only"
+              onChange={(event) => {
+                void upload(event.target.files?.[0])
+                event.target.value = ''
+              }}
+            />
+          </label>
+        </li>
+        {rows.map((sticker) => (
+          <li key={sticker.id}>
+            <StickerTile
+              sticker={sticker}
+              size="grid"
+              onToggle={() => onToggle(sticker)}
+              onDelete={() => onDelete(sticker)}
+            />
+          </li>
+        ))}
+      </ul>
+      {rows.length === 0 ? (
+        <p className="text-2sm text-muted-foreground">{t('stickersEmpty')}</p>
+      ) : null}
+    </section>
+  )
+}
+
 /* ── 整栏 ───────────────────────────────────────────────────────────── */
 
 type Pending =
   | { kind: 'finding'; id: string }
   | { kind: 'opinion'; id: string }
+  | { kind: 'sticker'; id: string }
   | null
 
 export function CharacterRecent({
   growth: data,
+  stickers,
   header,
   reducedMotion,
   showTitle = true,
 }: {
   growth: Growth
+  stickers: Stickers
   /** 栏头右边（电脑是「和她聊」；手机由外面另放）。 */
   header?: ReactNode
   reducedMotion: boolean
@@ -555,8 +733,8 @@ export function CharacterRecent({
   const [pending, setPending] = useState<Pending>(null)
   const growth = data.growth
   const days = useMemo(
-    () => (growth ? buildRiver(growth, filter) : []),
-    [filter, growth],
+    () => (growth ? buildRiver(growth, filter, stickers.stickers ?? []) : []),
+    [filter, growth, stickers.stickers],
   )
   /** 最新那一趟出门默认展开，其余折着（owner 2026-10-28）。 */
   const newestOuting = useMemo(() => {
@@ -569,17 +747,27 @@ export function CharacterRecent({
 
   const confirmDelete = async () => {
     if (!pending) return
-    const result =
+    const ok =
       pending.kind === 'finding'
-        ? await data.removeFinding(pending.id)
-        : await data.removeOpinion(pending.id)
+        ? (await data.removeFinding(pending.id)).ok
+        : pending.kind === 'opinion'
+          ? (await data.removeOpinion(pending.id)).ok
+          : await stickers.remove(pending.id)
     setPending(null)
-    if (!result.ok) toast.error(t('deleteFailed'))
+    if (!ok) toast.error(t('deleteFailed'))
   }
+
+  const toggleSticker = (sticker: CharacterStickerRecord) =>
+    void stickers.setBlocked(sticker.id, !sticker.isBlocked).then((ok) => {
+      if (!ok) toast.error(t('saveFailed'))
+    })
+  const askDeleteSticker = (sticker: CharacterStickerRecord) =>
+    setPending({ kind: 'sticker', id: sticker.id })
 
   const filters = [
     { value: 'all', label: t('filterAll') },
     { value: 'finding', label: t('filterFindings') },
+    { value: 'sticker', label: t('filterStickers') },
     { value: 'opinion', label: t('filterOpinions') },
     { value: 'journal', label: t('filterJournal') },
     { value: 'revision', label: t('filterRevisions') },
@@ -636,7 +824,13 @@ export function CharacterRecent({
                 size="row"
                 className="self-start"
               />
-              {days.length === 0 ? (
+              {filter === 'sticker' ? (
+                <StickerGrid
+                  stickers={stickers}
+                  onToggle={toggleSticker}
+                  onDelete={askDeleteSticker}
+                />
+              ) : days.length === 0 ? (
                 <p className="py-8 text-center text-2sm text-muted-foreground">
                   {t('nothingHere')}
                 </p>
@@ -681,6 +875,28 @@ export function CharacterRecent({
                                   })
                                 }
                               />
+                            ) : event.kind === 'stickers' ? (
+                              <>
+                                <p className="text-2sm font-medium">
+                                  {t('gotStickers', {
+                                    count: event.stickers.length,
+                                  })}
+                                </p>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  {event.stickers.map((sticker) => (
+                                    <StickerTile
+                                      key={sticker.id}
+                                      sticker={sticker}
+                                      size="row"
+                                      onToggle={() => toggleSticker(sticker)}
+                                      onDelete={() => askDeleteSticker(sticker)}
+                                    />
+                                  ))}
+                                  <span className="text-xs text-muted-foreground">
+                                    {t('stickerHint')}
+                                  </span>
+                                </div>
+                              </>
                             ) : event.kind === 'opinion' ? (
                               <OpinionEvent
                                 opinion={event.opinion}
@@ -738,12 +954,16 @@ export function CharacterRecent({
         title={
           pending?.kind === 'opinion'
             ? t('deleteOpinionTitle')
-            : t('deleteFindingTitle')
+            : pending?.kind === 'sticker'
+              ? t('deleteStickerTitle')
+              : t('deleteFindingTitle')
         }
         description={
           pending?.kind === 'opinion'
             ? t('deleteOpinionBody')
-            : t('deleteFindingBody')
+            : pending?.kind === 'sticker'
+              ? t('deleteStickerBody')
+              : t('deleteFindingBody')
         }
         cancelLabel={t('cancel')}
         confirmLabel={t('delete')}
@@ -766,6 +986,7 @@ export function CharacterDetailSplit({
 }) {
   const t = useTranslations('CharacterRoster.recent')
   const growth = useCharacterGrowth(cardId)
+  const stickers = useCharacterStickers(cardId)
   const personaSwitch = usePersonaSwitch()
   const isMobile = useIsMobile()
   const reducedMotion = useReducedMotion() ?? false
@@ -806,6 +1027,7 @@ export function CharacterDetailSplit({
           ) : (
             <CharacterRecent
               growth={growth}
+              stickers={stickers}
               reducedMotion={reducedMotion}
               showTitle={false}
             />
@@ -824,6 +1046,7 @@ export function CharacterDetailSplit({
       </div>
       <CharacterRecent
         growth={growth}
+        stickers={stickers}
         reducedMotion={reducedMotion}
         header={chat}
       />

@@ -237,7 +237,21 @@
       "loadFailed": "最近の様子を読み込めませんでした",
       "retry": "再試行",
       "paneHer": "彼女",
-      "paneLabel": "彼女か最近か"
+      "paneLabel": "彼女か最近か",
+      "filterStickers": "スタンプ",
+      "gotStickers": "スタンプを {count} 枚もらった",
+      "stickerHint": "タップでブロック。会話で送らなくなります",
+      "stickersTitle": "彼女のスタンプ",
+      "uploadSticker": "アップロード",
+      "blockSticker": "これをブロック",
+      "unblockSticker": "ブロックを解除",
+      "deleteSticker": "これを削除",
+      "deleteStickerTitle": "このスタンプを削除しますか？",
+      "deleteStickerBody": "削除すると元に戻せません。",
+      "uploadTooLarge": "画像が 5 MB を超えています",
+      "uploadNotImage": "このファイルは画像ではありません",
+      "uploadFailed": "アップロードできませんでした。もう一度お試しください",
+      "stickersEmpty": "まだスタンプがありません。お出かけで集めてくるほか、アップロードもできます。"
     }
   },
   "CharacterImagePick": {

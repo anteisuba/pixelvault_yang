@@ -237,7 +237,21 @@
       "loadFailed": "Couldn't load her recent days",
       "retry": "Retry",
       "paneHer": "Her",
-      "paneLabel": "Her or recent"
+      "paneLabel": "Her or recent",
+      "filterStickers": "Stickers",
+      "gotStickers": "{count, plural, one {Picked up # sticker} other {Picked up # stickers}}",
+      "stickerHint": "Tap one to block it so she won't send it",
+      "stickersTitle": "Her stickers",
+      "uploadSticker": "Upload",
+      "blockSticker": "Block this one",
+      "unblockSticker": "Unblock this one",
+      "deleteSticker": "Delete this one",
+      "deleteStickerTitle": "Delete this sticker?",
+      "deleteStickerBody": "You can't get it back.",
+      "uploadTooLarge": "That image is over 5 MB.",
+      "uploadNotImage": "That file isn't an image.",
+      "uploadFailed": "Didn't upload. Try again.",
+      "stickersEmpty": "No stickers yet. She collects them when she goes out, or you can upload one."
     }
   },
   "CharacterImagePick": {

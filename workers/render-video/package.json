@@ -9,7 +9,7 @@
     "test": "vitest run"
   },
   "devDependencies": {
-    "vitest": "^4.1.9",
+    "vitest": "^4.1.12",
     "wrangler": "^4.135.0"
   }
 }

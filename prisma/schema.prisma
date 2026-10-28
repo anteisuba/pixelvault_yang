@@ -166,6 +166,8 @@ model User {
   assistantMemories      AssistantMemory[]
   characterCardRevisions CharacterCardRevision[]
   characterJournals      CharacterJournal[]
+  characterFindings      CharacterFinding[]
+  characterStickers      CharacterSticker[]
   assistantSkills        AssistantSkill[]
   mcpTokens              McpToken[]
   danbooruFavorites      DanbooruFavorite[]
@@ -871,6 +873,16 @@ model CharacterCard {
   revisions         CharacterCardRevision[]
   /// 她的日记（C）。
   journals          CharacterJournal[]
+  findings          CharacterFinding[]
+  stickers          CharacterSticker[]
+
+  // ── 出门逛（第 4 批「人味」，owner 2026-10-28）──
+  /// 让她每天按人设出门逛一次（B 站 / Danbooru / Civitai / X / 网页）。默认关。
+  browseEnabled    Boolean   @default(false)
+  /// 每天最多看几样（图、视频、页面），到了就停 —— 每样都是一次看图 / 读页调用，花 owner 的 key。
+  browseDailyLimit Int       @default(20)
+  /// 上次逛完的时间；每日任务按它挑今天还没逛的。
+  browsedAt        DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1339,6 +1351,57 @@ model CharacterCardRevision {
 
 /// **她的日记**（10-26「更像真人」C）：每聊够一段她整理一次，写一篇短日记（她自己的视角）。
 /// 设置里能看；聊天时带上最近一篇，她偶尔会提起（owner 10-26）。每张卡只留最近 100 篇。
+/// **她的见闻**（第 4 批「人味」，owner 2026-10-28）：她出门逛时看到的一样东西 + 她用自己的口吻写的一句笔记。
+/// ⛔ 不进素材库（素材库读 `Generation`）；按 userId + characterCardId 隔离，卡或账号删了一起删。
+/// 检索向量在语义索引里这张卡自己的命名空间（`card-<id>`），这里只存原文。
+model CharacterFinding {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  characterCardId String
+  characterCard   CharacterCard @relation(fields: [characterCardId], references: [id], onDelete: Cascade)
+
+  /// 来源站：bilibili / danbooru / civitai / x / web（`CHARACTER_BROWSE_SOURCE_IDS`）。
+  source String
+  url    String @db.Text
+  title  String @db.Text
+  /// 她的口吻写的那句。
+  note   String @db.Text
+
+  seenAt DateTime @default(now())
+
+  /// 同一张卡同一个链接只记一次。
+  @@unique([characterCardId, url])
+  /// 角色页按卡列最近的。
+  @@index([characterCardId, seenAt(sort: Desc)])
+  /// 每日额度按人按天数。
+  @@index([userId, seenAt(sort: Desc)])
+}
+
+/// **她的表情包**（第 4 批）：逛到的表情图存进 R2 独立路径 `characters/<userId>/<cardId>/stickers/`，
+/// ⛔ 不进素材库。聊天时按 `whenToUse` 挑一张发；拉黑的不再发。
+model CharacterSticker {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  characterCardId String
+  characterCard   CharacterCard @relation(fields: [characterCardId], references: [id], onDelete: Cascade)
+
+  storageKey String
+  url        String  @db.Text
+  sourceUrl  String? @db.Text
+  /// 什么情境下用它（她自己写的一句）。
+  whenToUse  String  @db.Text
+  isBlocked  Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([characterCardId, isBlocked, createdAt(sort: Desc)])
+  @@index([userId])
+}
+
 model CharacterJournal {
   id     String @id @default(uuid())
   userId String

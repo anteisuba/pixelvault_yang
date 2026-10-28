@@ -45,9 +45,34 @@ export const ASSISTANT_NEXT_OPEN_BENCH_WORKSPACES = {
 export type AssistantNextOpenBench =
   keyof typeof ASSISTANT_NEXT_OPEN_BENCH_WORKSPACES
 
-export const ASSISTANT_NEXT_OPEN_BENCHES = Object.keys(
-  ASSISTANT_NEXT_OPEN_BENCH_WORKSPACES,
-) as [AssistantNextOpenBench, ...AssistantNextOpenBench[]]
+/**
+ * `open` 的另一支：不换台，在库里翻给创作者看（owner 10-28「就地翻给你看」）。
+ * 键是给模型的名字，值是库（`STUDIO_LIBRARY_CATEGORY_IDS`）。
+ */
+export const ASSISTANT_NEXT_OPEN_LIBRARIES = {
+  assets: 'assets',
+  characters: 'cards',
+  prompts: 'prompts',
+  loras: 'lora',
+} as const
+
+export type AssistantNextOpenLibrary =
+  keyof typeof ASSISTANT_NEXT_OPEN_LIBRARIES
+
+export const ASSISTANT_NEXT_OPEN_LIBRARY_NAMES = Object.keys(
+  ASSISTANT_NEXT_OPEN_LIBRARIES,
+) as [AssistantNextOpenLibrary, ...AssistantNextOpenLibrary[]]
+
+/** `open` 的 `bench` 填它 = 走库那一支。 */
+export const ASSISTANT_NEXT_OPEN_LIBRARY_BENCH = 'library'
+
+export const ASSISTANT_NEXT_OPEN_BENCHES = [
+  ...(Object.keys(ASSISTANT_NEXT_OPEN_BENCH_WORKSPACES) as [
+    AssistantNextOpenBench,
+    ...AssistantNextOpenBench[],
+  ]),
+  ASSISTANT_NEXT_OPEN_LIBRARY_BENCH,
+] as const
 
 /** 开画布开哪一块：默认最近那块，创作者说「新的」才新建（owner 10-23）。 */
 export const ASSISTANT_NEXT_OPEN_CANVAS = ['recent', 'new'] as const

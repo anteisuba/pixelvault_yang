@@ -11,6 +11,7 @@ import {
   ASSISTANT_V3_CHARACTER_WRITE_PARTS,
   ASSISTANT_V3_VIDEO_REFERENCE_SLOTS,
 } from '@/constants/assistant-v3'
+import { ASSISTANT_LIBRARY_SHOW_LORA_SECTIONS } from '@/types/assistant-operator'
 import { IMAGE_PROMPT_TEMPLATE_CHOICES } from '@/constants/image-prompt-templates'
 import { NODE_SCRIPT_PROJECTION_MODES } from '@/constants/node-script'
 import { NODE_SLOT_TEXT_ROLES, NODE_SLOTS } from '@/constants/node-slots'
@@ -21,6 +22,7 @@ import {
   ASSISTANT_NEXT_LIMITS,
   ASSISTANT_NEXT_OPEN_BENCHES,
   ASSISTANT_NEXT_OPEN_CANVAS,
+  ASSISTANT_NEXT_OPEN_LIBRARY_NAMES,
   ASSISTANT_NEXT_TOOL_IDS,
   ASSISTANT_NEXT_WRITE_MODES,
 } from '@/features/assistant/constants'
@@ -468,13 +470,37 @@ export const OpenInputSchema = z.object({
   bench: z
     .enum(ASSISTANT_NEXT_OPEN_BENCHES)
     .describe(
-      'image = the image bench (natural-language prompts), tags = the tag bench (NovelAI / Danbooru tags), video, lora (LoRA work), canvas (a multi-card, multi-shot piece).',
+      'image = the image bench (natural-language prompts), tags = the tag bench (NovelAI / Danbooru tags), video, lora (LoRA work), canvas (a multi-card, multi-shot piece). library = stay on this bench and show something in one of their libraries next to the chat (fill library, and show / search / section).',
     ),
   canvas: z
     .enum(ASSISTANT_NEXT_OPEN_CANVAS)
     .nullish()
     .describe(
       'Canvas only: "recent" (the default) opens the canvas they worked on last; "new" starts a new one — only when they ask for a new canvas.',
+    ),
+  library: z
+    .enum(ASSISTANT_NEXT_OPEN_LIBRARY_NAMES)
+    .nullish()
+    .describe(
+      'bench "library" only: which library to show — assets (their pictures), characters, prompts (saved prompts), loras.',
+    ),
+  show: z
+    .string()
+    .nullish()
+    .describe(
+      'bench "library" only: open this one on their screen, by number or name ("图_12", "角色·<name>", "提示词·<name>", "LoRA·<name>"). null = just the list.',
+    ),
+  search: z
+    .string()
+    .nullish()
+    .describe(
+      'bench "library" only: put these words in the library search box. null = leave the search as it is.',
+    ),
+  section: z
+    .enum(ASSISTANT_LIBRARY_SHOW_LORA_SECTIONS)
+    .nullish()
+    .describe(
+      'library "loras" only: library = the Civitai library, favorites, trained (their own), characters (LoRAs linked to characters).',
     ),
 })
 export type OpenInput = z.infer<typeof OpenInputSchema>
@@ -617,7 +643,7 @@ const DESCRIPTIONS = {
   ask: 'Ask the creator when you cannot go on without their choice. Puts a card with options in front of them and ends this turn until they answer.',
   generate:
     'Generate one batch of what is on the bench now (on the canvas: the cards you list): starts at once when LET AI GENERATE is on, otherwise a confirm card the creator presses. Ends this turn.',
-  open: 'Open another bench when the work belongs there. The conversation comes along; the result is the new bench as it is, and you carry on there with edit / generate. Opening spends nothing. Call it on its own, as the last call of a step.',
+  open: 'Open another bench when the work belongs there. The conversation comes along; the result is the new bench as it is, and you carry on there with edit / generate. With bench "library" it stays on this bench and shows something in a library next to the chat (open one item, search, switch section); the result is their screen afterwards. Opening spends nothing. Call it on its own, as the last call of a step.',
 } as const
 
 /** 交给 `streamText` 的那一份：只有描述与 JSON schema，⛔ 没有 execute（循环自己执行）。 */

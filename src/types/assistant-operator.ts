@@ -1982,6 +1982,17 @@ export const ASSISTANT_LIBRARY_VIEW_ITEM_KINDS = [
   'picture',
 ] as const
 
+/** LoRA 库左栏那四格（`LoraLibraryView`）。 */
+export const ASSISTANT_LIBRARY_SHOW_LORA_SECTIONS = [
+  'library',
+  'favorites',
+  'trained',
+  'characters',
+] as const
+
+/** 屏上那一页最多报几样（屏上前 N 个 / 多选前 N 个）。 */
+export const ASSISTANT_LIBRARY_SCREEN_LIMIT = 20
+
 export const AssistantLibraryViewSchema = z.object({
   library: z.enum(STUDIO_LIBRARY_CATEGORY_IDS),
   item: z
@@ -1991,9 +2002,46 @@ export const AssistantLibraryViewSchema = z.object({
       name: z.string().trim().min(1).max(200),
     })
     .optional(),
+  /**
+   * 屏上那一页（owner 10-28「屏上那一页」）：在哪一格 / 夹、搜了什么、屏上前几样的名字、多选了哪几样。
+   * 名字同 `item.name` 的写法（`kind` 决定前缀）；更多的由助手自己 `find`。
+   */
+  screen: z
+    .object({
+      kind: z.enum(ASSISTANT_LIBRARY_VIEW_ITEM_KINDS),
+      /** 给模型读的一句范围（英文，页面自己拼）：哪一格 / 夹、哪些筛选。 */
+      scope: z.string().trim().max(400).optional(),
+      search: z.string().trim().max(200).optional(),
+      total: z.number().int().min(0).optional(),
+      visible: z
+        .array(z.string().trim().min(1).max(200))
+        .max(ASSISTANT_LIBRARY_SCREEN_LIMIT),
+      selected: z
+        .array(z.string().trim().min(1).max(200))
+        .max(ASSISTANT_LIBRARY_SCREEN_LIMIT)
+        .optional(),
+    })
+    .optional(),
 })
 export type AssistantLibraryView = z.infer<typeof AssistantLibraryViewSchema>
 export type AssistantLibraryViewItem = NonNullable<AssistantLibraryView['item']>
+export type AssistantLibraryViewScreen = NonNullable<
+  AssistantLibraryView['screen']
+>
+
+/**
+ * 助手「翻给你看」（`open` 的库那一支，owner 10-28）：换到哪个库、打开哪一样、搜什么、切到哪一格。
+ * `itemId` 由服务端按编号认出来（⛔ 不收模型写的 id）；`itemName` = 页面报回 `item.name` 时的那个名字，到没到按它认。
+ */
+export const AssistantLibraryShowSchema = z.object({
+  library: z.enum(STUDIO_LIBRARY_CATEGORY_IDS),
+  itemId: z.string().trim().min(1).max(160).optional(),
+  itemName: z.string().trim().min(1).max(200).optional(),
+  search: z.string().trim().max(200).optional(),
+  /** 只有 LoRA 库：全部 / 收藏 / 自训 / 角色那一格。 */
+  section: z.enum(ASSISTANT_LIBRARY_SHOW_LORA_SECTIONS).optional(),
+})
+export type AssistantLibraryShow = z.infer<typeof AssistantLibraryShowSchema>
 
 export const AssistantOperatorRequestSchema = z.object({
   workspaceKey: AssistantWorkspaceKeySchema,
@@ -5047,6 +5095,8 @@ export const AssistantOperatorDoneEventSchema = z.object({
 export const AssistantOperatorBenchOpenSchema = z.object({
   workspace: AssistantWorkspaceSchema,
   projectId: z.string().min(1).max(160).optional(),
+  /** 不换台、在库里翻给创作者看（owner 10-28）：台不动，库换到这一页。 */
+  library: AssistantLibraryShowSchema.optional(),
 })
 
 export type AssistantOperatorBenchOpen = z.infer<

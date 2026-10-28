@@ -264,6 +264,31 @@ describe('库开着、在看哪一样（10-26）', () => {
     ).toContain('LoRA·Firefly')
   })
 
+  it('屏上那一页：范围、搜索词、屏上前几样与多选，都按编号写', () => {
+    const line = renderLibraryView({
+      library: 'assets',
+      screen: {
+        kind: 'picture',
+        scope: 'folder 「夏日」',
+        search: 'rain',
+        total: 42,
+        visible: ['图_001', '图_002'],
+        selected: ['图_002'],
+      },
+    })
+    expect(line).toContain('Showing: folder 「夏日」.')
+    expect(line).toContain('Search box: "rain".')
+    expect(line).toContain('On screen (first 2 of 42): 图_001, 图_002.')
+    expect(line).toContain('Selected by the creator: 图_002.')
+    expect(line).toContain('call open with library')
+    expect(
+      renderLibraryView({
+        library: 'cards',
+        screen: { kind: 'character', visible: ['Denia'] },
+      }),
+    ).toContain('角色·Denia')
+  })
+
   it('任何一张脸的板子都接上这一句', () => {
     const context = homeDraftContext()
     const board = renderBench(

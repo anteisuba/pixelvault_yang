@@ -364,12 +364,37 @@ export function renderLibraryView(
 ): string {
   if (!view) return ''
   const where = `\nLIBRARY ON SCREEN: the creator has their ${LIBRARY_VIEW_LABELS[view.library]} open next to this chat`
-  if (!view.item) return `${where}.`
-  const handle =
-    view.item.kind === 'picture'
-      ? view.item.name
-      : `${LIBRARY_VIEW_PREFIXES[view.item.kind]}${view.item.name}`
-  return `${where}, looking at ${handle}. When they say "this one", "her", "it" without naming it, they mean ${handle}: look ${handle} before you answer.`
+  const screen = renderLibraryScreen(view.screen)
+  if (!view.item) return `${where}.${screen}`
+  const handle = libraryHandle(view.item.kind, view.item.name)
+  return `${where}, looking at ${handle}. When they say "this one", "her", "it" without naming it, they mean ${handle}: look ${handle} before you answer.${screen}`
+}
+
+function libraryHandle(
+  kind: AssistantLibraryViewItem['kind'],
+  name: string,
+): string {
+  return kind === 'picture' ? name : `${LIBRARY_VIEW_PREFIXES[kind]}${name}`
+}
+
+/** 屏上那一页（owner 10-28）：范围、搜索词、屏上前几样、多选了哪几样。更多的叫它 `find`。 */
+function renderLibraryScreen(
+  screen: AssistantLibraryView['screen'] | undefined,
+): string {
+  if (!screen) return ''
+  const handles = (names: readonly string[]) =>
+    names.map((name) => libraryHandle(screen.kind, name)).join(', ')
+  const lines = [
+    screen.scope ? `Showing: ${screen.scope}.` : '',
+    screen.search ? `Search box: "${screen.search}".` : '',
+    screen.visible.length
+      ? `On screen (first ${screen.visible.length}${screen.total === undefined ? '' : ` of ${screen.total}`}): ${handles(screen.visible)}.`
+      : 'Nothing on screen.',
+    screen.selected?.length
+      ? `Selected by the creator: ${handles(screen.selected)}. "These" means them.`
+      : '',
+  ].filter(Boolean)
+  return `\n${lines.join('\n')}\nTo change what is on their screen (open one of them, search, switch section), call open with library.`
 }
 
 function renderBenchBody(

@@ -125,6 +125,45 @@ export function readPngTextChunks(
   return texts
 }
 
+const CRC_TABLE = Array.from({ length: 256 }, (_, n) => {
+  let c = n
+  for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1
+  return c >>> 0
+})
+
+function crc32(bytes: Uint8Array): number {
+  let c = 0xffffffff
+  for (const byte of bytes) c = CRC_TABLE[(c ^ byte) & 0xff] ^ (c >>> 8)
+  return (c ^ 0xffffffff) >>> 0
+}
+
+/**
+ * 在 `IEND` 前插一个 tEXt 块（正文按 latin1 写，调用方给 ASCII，如 base64）。
+ * 不是 PNG 或找不到 `IEND` 原样返回。
+ */
+export function addPngTextChunk(
+  bytes: Uint8Array,
+  keyword: string,
+  text: string,
+): Uint8Array {
+  if (!isPng(bytes)) return bytes
+  const iend = readChunks(bytes).find((chunk) => chunk.type === 'IEND')
+  if (!iend) return bytes
+  const body = Uint8Array.from(`tEXt${keyword}\0${text}`, (char) =>
+    char.charCodeAt(0),
+  )
+  const chunk = new Uint8Array(body.length + 8)
+  const view = new DataView(chunk.buffer)
+  view.setUint32(0, body.length - 4)
+  chunk.set(body, 4)
+  view.setUint32(body.length + 4, crc32(body))
+  const out = new Uint8Array(bytes.length + chunk.length)
+  out.set(bytes.subarray(0, iend.start), 0)
+  out.set(chunk, iend.start)
+  out.set(bytes.subarray(iend.start), iend.start + chunk.length)
+  return out
+}
+
 /**
  * 去掉 PNG 里的文本块再当参考图存：卡的 JSON（常有几十 KB 的世界书）不该跟着图走到
  * 每一家出图服务商那里。

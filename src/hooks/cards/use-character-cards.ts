@@ -28,6 +28,7 @@ import {
 } from '@/lib/api-client'
 import { getApiErrorMessage } from '@/lib/api-error-message'
 import { tavernCardMime } from '@/lib/tavern-card'
+import { shrinkTavernCardPng } from '@/lib/tavern-card-shrink'
 import {
   makeCardCacheKey,
   readCardCache,
@@ -309,11 +310,23 @@ export function useCharacterCards(): UseCharacterCardsReturn {
         toast.error(tErrors('tavernCard.notACard'))
         return null
       }
+      let upload = file
       if (file.size > TAVERN_CARD.MAX_FILE_BYTES) {
-        toast.error(tErrors('tavernCard.tooLarge'))
-        return null
+        const shrunk =
+          mime === 'image/png' ? await shrinkTavernCardPng(file) : null
+        if (shrunk?.kind !== 'file') {
+          toast.error(
+            tErrors(
+              shrunk?.kind === 'notACard'
+                ? 'tavernCard.notACard'
+                : 'tavernCard.tooLarge',
+            ),
+          )
+          return null
+        }
+        upload = shrunk.file
       }
-      const base64 = await readFileBase64(file)
+      const base64 = await readFileBase64(upload)
       if (base64 === null) {
         toast.error(t('characterCardImportFailed'))
         return null

@@ -446,6 +446,10 @@
     "promptTags": {
       "unusable": "助手没翻出标签，整句先留着。"
     },
+    "characterBrowse": {
+      "noModel": "还没选她出门用的型号",
+      "unknownModel": "这个型号用不了，换一个"
+    },
     "tavernCard": {
       "notACard": "这个文件不是酒馆角色卡（PNG 或 JSON）",
       "tooLarge": "卡文件超过 20 MB 了",

@@ -1,9 +1,14 @@
 import { API_ENDPOINTS } from '@/constants/config'
 import { getErrorPayload } from '@/lib/api-client/shared'
-import type { CharacterGrowth } from '@/types/character-growth'
+import type {
+  CharacterBrowseState,
+  CharacterGrowth,
+  UpdateCharacterBrowseRequest,
+} from '@/types/character-growth'
 
 /**
- * **她的成长**的客户端封装（C 第 3 步）：设置「她」那一页读日记与「她改了什么」、撤回一条。
+ * **她的成长**的客户端封装（C 第 3 步；角色页右栏「最近」）：读日记、她改了什么、见闻、观点与
+ * 出门设置；撤回一条、改出门开关与型号、删一条见闻。观点的改删走记忆那两个接口。
  * 形状照抄 `api-client/assistant-memories.ts`。
  */
 
@@ -64,5 +69,39 @@ export async function revertCharacterRevisionAPI(
     return await parseJsonResult(response, 'Failed to revert')
   } catch (error) {
     return toFailure(error, 'Failed to revert')
+  }
+}
+
+export async function updateCharacterBrowseAPI(
+  cardId: string,
+  input: UpdateCharacterBrowseRequest,
+): Promise<ApiResult<CharacterBrowseState>> {
+  try {
+    const response = await fetch(
+      `${API_ENDPOINTS.CHARACTER_CARDS}/${encodeURIComponent(cardId)}/browse`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(input),
+      },
+    )
+    return await parseJsonResult(response, 'Failed to save going out')
+  } catch (error) {
+    return toFailure(error, 'Failed to save going out')
+  }
+}
+
+export async function deleteCharacterFindingAPI(
+  findingId: string,
+): Promise<ApiResult<unknown>> {
+  try {
+    const response = await fetch(
+      `${API_ENDPOINTS.CHARACTER_FINDINGS}/${encodeURIComponent(findingId)}`,
+      { method: 'DELETE' },
+    )
+    if (!response.ok) return await parseJsonResult(response, 'Failed to delete')
+    return { success: true, data: null }
+  } catch (error) {
+    return toFailure(error, 'Failed to delete')
   }
 }

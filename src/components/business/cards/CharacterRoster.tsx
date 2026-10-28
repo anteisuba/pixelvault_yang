@@ -29,6 +29,7 @@ import {
   CharacterDetailHeader,
   CharacterDraftBody,
 } from '@/components/business/cards/CharacterDetail'
+import { CharacterDetailSplit } from '@/components/business/cards/CharacterRecent'
 import { CharacterLibrary } from '@/components/business/cards/CharacterLibrary'
 import { CharacterPhoneBar } from '@/components/business/cards/CharacterPhoneBar'
 import {
@@ -553,21 +554,27 @@ export function CharacterRoster() {
                 !selected && 'pointer-events-none',
               )}
             >
-              <CharacterDetailBody
-                card={detailCard}
-                lookId={detailLookId}
-                onLookChange={setDetailLookId}
-                onUpdate={(data) => characters.update(detailCard.id, data)}
-                onCreateLook={(data) =>
-                  characters.createLook(detailCard.id, data)
+              <CharacterDetailSplit
+                key={detailCard.id}
+                cardId={detailCard.id}
+                body={
+                  <CharacterDetailBody
+                    card={detailCard}
+                    lookId={detailLookId}
+                    onLookChange={setDetailLookId}
+                    onUpdate={(data) => characters.update(detailCard.id, data)}
+                    onCreateLook={(data) =>
+                      characters.createLook(detailCard.id, data)
+                    }
+                    onUpdateLook={(lookId, data) =>
+                      characters.updateLook(detailCard.id, lookId, data)
+                    }
+                    onDeleteLook={(lookId) =>
+                      characters.removeLook(detailCard.id, lookId)
+                    }
+                    onDelete={() => deleteCharacter(detailCard.id)}
+                  />
                 }
-                onUpdateLook={(lookId, data) =>
-                  characters.updateLook(detailCard.id, lookId, data)
-                }
-                onDeleteLook={(lookId) =>
-                  characters.removeLook(detailCard.id, lookId)
-                }
-                onDelete={() => deleteCharacter(detailCard.id)}
               />
             </motion.div>
           ) : null}

@@ -1365,19 +1365,6 @@
       "noCharacters": "No characters yet",
       "noCharactersHint": "Create a character and chat for a while. Her diary and the changes she made will show up here.",
       "createCharacter": "Create a character",
-      "failed": "Couldn't load this. Try again in a moment.",
-      "journal": "Diary",
-      "noJournal": "No diary yet. She looks back every 30 lines and writes an entry.",
-      "journalEarlier": "{count} earlier",
-      "journalCollapse": "Collapse",
-      "revisions": "What she changed",
-      "noRevisions": "She hasn't changed her card yet.",
-      "revertFailed": "Couldn't revert. Try again.",
-      "reason": "“{reason}”",
-      "fromChat": "Changed in chat",
-      "reverted": "Reverted",
-      "revert": "Revert",
-      "emptyValue": "(empty)",
       "fields": {
         "name": "Name",
         "tags": "Tags",
@@ -1394,7 +1381,8 @@
         "opening": "Opening",
         "examples": "Example dialogue",
         "backstory": "Backstory"
-      }
+      },
+      "openOnPage": "See on her page"
     }
   }
 }

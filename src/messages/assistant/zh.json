@@ -1363,21 +1363,8 @@
     },
     "her": {
       "noCharacters": "还没有角色",
-      "noCharactersHint": "建一个角色，跟她聊一阵，这里会出现她的日记和她改了什么。",
+      "noCharactersHint": "建一个角色，跟她聊一阵，她的页上会出现她的日记和她改了什么。",
       "createCharacter": "去建一个角色",
-      "failed": "没读出来，过一会儿再试。",
-      "journal": "日记",
-      "noJournal": "还没写日记。每聊 30 句她会整理一次，顺手写一篇。",
-      "journalEarlier": "更早的 {count} 篇",
-      "journalCollapse": "收起",
-      "revisions": "她改了什么",
-      "noRevisions": "她还没改过自己的卡。",
-      "revertFailed": "没撤回成功，再试一次。",
-      "reason": "「{reason}」",
-      "fromChat": "对话里改的",
-      "reverted": "已撤回",
-      "revert": "撤回",
-      "emptyValue": "（空）",
       "fields": {
         "name": "名字",
         "tags": "标签",
@@ -1394,7 +1381,8 @@
         "opening": "开场白",
         "examples": "对话示例",
         "backstory": "经历"
-      }
+      },
+      "openOnPage": "在她的页里看"
     }
   }
 }

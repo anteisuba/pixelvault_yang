@@ -75,6 +75,27 @@ export const CHARACTER_BROWSE_PAUSE_REASONS = {
 export type CharacterBrowsePauseReason =
   (typeof CHARACTER_BROWSE_PAUSE_REASONS)[keyof typeof CHARACTER_BROWSE_PAUSE_REASONS]
 
+/** 她的观点存在她自己那份记忆里（`AssistantMemory.characterCardId`），正文以它开头。 */
+export const CHARACTER_OPINION_PREFIX = '观点：'
+
+/** 角色页改「出门逛」开关 / 型号失败的几种原因（前端按 `i18nKey` 说人话）。 */
+export const CHARACTER_BROWSE_SETTING_ERRORS = {
+  /** 打开时既没给型号、助手「自动」也挑不出一个（一把 key 都没有）。 */
+  noModel: {
+    code: 'CHARACTER_BROWSE_NO_MODEL',
+    httpStatus: 409,
+    i18nKey: 'errors.characterBrowse.noModel',
+    message: 'Pick a model for her to go out with.',
+  },
+  /** 给的型号不在助手路由表里。 */
+  unknownModel: {
+    code: 'CHARACTER_BROWSE_UNKNOWN_MODEL',
+    httpStatus: 422,
+    i18nKey: 'errors.characterBrowse.unknownModel',
+    message: 'That model is not available.',
+  },
+} as const
+
 /** 聊天时想起她的见闻（4c）。 */
 export const CHARACTER_FINDINGS_RECALL = {
   /** 按意思最多想起几条。 */

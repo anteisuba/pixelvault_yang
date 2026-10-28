@@ -184,7 +184,7 @@ export function UseCharacterMenu({
         aria-expanded={visible}
         onClick={visible ? close : open}
         className={cn(
-          'flex h-9 items-center gap-1 rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground transition-opacity duration-fast',
+          'flex h-9 items-center gap-1 rounded-full bg-raise px-4 text-sm font-medium text-foreground shadow-soft transition-opacity duration-fast',
           visible && 'opacity-0',
         )}
       >
@@ -201,7 +201,7 @@ export function UseCharacterMenu({
             <button
               type="button"
               onClick={close}
-              className="flex h-9 items-center gap-1 rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground"
+              className="flex h-9 items-center gap-1 rounded-full bg-raise px-4 text-sm font-medium text-foreground shadow-soft"
             >
               {label}
             </button>

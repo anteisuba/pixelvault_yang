@@ -1365,19 +1365,6 @@
       "noCharacters": "まだキャラクターがいません",
       "noCharactersHint": "キャラクターを作ってしばらく話すと、ここに彼女の日記と変えたことが出てきます。",
       "createCharacter": "キャラクターを作る",
-      "failed": "読み込めませんでした。少ししてからもう一度。",
-      "journal": "日記",
-      "noJournal": "まだ日記はありません。30 回話すごとに振り返って一篇書きます。",
-      "journalEarlier": "以前の {count} 篇",
-      "journalCollapse": "たたむ",
-      "revisions": "彼女が変えたこと",
-      "noRevisions": "まだ自分のカードを変えていません。",
-      "revertFailed": "元に戻せませんでした。もう一度。",
-      "reason": "「{reason}」",
-      "fromChat": "会話で変更",
-      "reverted": "元に戻した",
-      "revert": "元に戻す",
-      "emptyValue": "（空）",
       "fields": {
         "name": "名前",
         "tags": "タグ",
@@ -1394,7 +1381,8 @@
         "opening": "最初のひとこと",
         "examples": "会話例",
         "backstory": "経歴"
-      }
+      },
+      "openOnPage": "彼女のページで見る"
     }
   }
 }

@@ -2,16 +2,30 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import { CHARACTER_OPINION_PREFIX } from '@/constants/character-browse'
 import {
+  deleteAssistantMemoryAPI,
+  deleteCharacterFindingAPI,
   getCharacterGrowthAPI,
   revertCharacterRevisionAPI,
+  updateAssistantMemoryAPI,
+  updateCharacterBrowseAPI,
 } from '@/lib/api-client'
 import { deferEffectTask } from '@/lib/defer-effect-task'
-import type { CharacterGrowth } from '@/types/character-growth'
+import type {
+  CharacterGrowth,
+  UpdateCharacterBrowseRequest,
+} from '@/types/character-growth'
+
+/** 写操作的结果：失败带 `i18nKey` 时调用方说人话。 */
+export type GrowthWriteResult =
+  | { ok: true }
+  | { ok: false; error: string; i18nKey?: string }
 
 /**
- * 设置「她」那一页（C 第 3 步）：选中的角色的日记与「她改了什么」，能撤回一条。
- * `cardId` 为空 = 还没选角色，什么都不读；换角色时调用方用 key 重置。撤回成功后整份重读。
+ * 角色页右栏「最近」（C 第 3 步起；2026-10-28 改版 B）：她的日记、她改了什么、见闻、观点、
+ * 出门设置；撤回一条、改出门开关与型号、删见闻、改 / 删观点。`cardId` 为空 = 什么都不读；
+ * 换角色时调用方用 key 重置。撤回成功后整份重读（左栏那几格也跟着变），其余就地改手里那份。
  */
 export function useCharacterGrowth(cardId: string | null) {
   const [growth, setGrowth] = useState<CharacterGrowth | null>(null)
@@ -64,5 +78,91 @@ export function useCharacterGrowth(cardId: string | null) {
     [reload],
   )
 
-  return { growth, isLoading, error, revertingId, revert, reload }
+  const write = useCallback(
+    async (
+      call: () => Promise<
+        { success: true } | { success: false; error: string; i18nKey?: string }
+      >,
+      apply: (current: CharacterGrowth) => CharacterGrowth,
+    ): Promise<GrowthWriteResult> => {
+      const result = await call()
+      if (!aliveRef.current) return { ok: result.success } as GrowthWriteResult
+      if (!result.success) {
+        return { ok: false, error: result.error, i18nKey: result.i18nKey }
+      }
+      setGrowth((current) => (current ? apply(current) : current))
+      return { ok: true }
+    },
+    [],
+  )
+
+  const setBrowse = useCallback(
+    async (input: UpdateCharacterBrowseRequest): Promise<GrowthWriteResult> => {
+      if (!cardId) return { ok: false, error: 'No character' }
+      const result = await updateCharacterBrowseAPI(cardId, input)
+      if (!aliveRef.current) return { ok: result.success } as GrowthWriteResult
+      if (!result.success) {
+        return { ok: false, error: result.error, i18nKey: result.i18nKey }
+      }
+      setGrowth((current) =>
+        current ? { ...current, browse: result.data } : current,
+      )
+      return { ok: true }
+    },
+    [cardId],
+  )
+
+  const removeFinding = useCallback(
+    (findingId: string) =>
+      write(
+        () => deleteCharacterFindingAPI(findingId),
+        (current) => ({
+          ...current,
+          findings: current.findings.filter((row) => row.id !== findingId),
+        }),
+      ),
+    [write],
+  )
+
+  const editOpinion = useCallback(
+    (opinionId: string, text: string) =>
+      write(
+        () =>
+          updateAssistantMemoryAPI(opinionId, {
+            text: `${CHARACTER_OPINION_PREFIX}${text.trim()}`,
+          }),
+        (current) => ({
+          ...current,
+          opinions: current.opinions.map((row) =>
+            row.id === opinionId ? { ...row, text: text.trim() } : row,
+          ),
+        }),
+      ),
+    [write],
+  )
+
+  const removeOpinion = useCallback(
+    (opinionId: string) =>
+      write(
+        () => deleteAssistantMemoryAPI(opinionId),
+        (current) => ({
+          ...current,
+          opinions: current.opinions.filter((row) => row.id !== opinionId),
+        }),
+      ),
+    [write],
+  )
+
+  return {
+    growth,
+    isLoading,
+    error,
+    revertingId,
+    revert,
+    reload,
+    setBrowse,
+    removeFinding,
+    editOpinion,
+    removeOpinion,
+  }
 }

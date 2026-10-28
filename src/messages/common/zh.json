@@ -448,7 +448,8 @@
     },
     "tavernCard": {
       "notACard": "这个文件不是酒馆角色卡（PNG 或 JSON）",
-      "tooLarge": "卡文件超过 3 MB 了",
+      "tooLarge": "卡文件超过 20 MB 了",
+      "uploadMissing": "卡文件没传上去，再导入一次",
       "limitReached": "角色数到上限了，删掉一个再导入"
     },
     "chubLibrary": {

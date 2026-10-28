@@ -297,6 +297,8 @@ export const API_ENDPOINTS = {
   CHARACTER_LORAS: '/api/character-loras',
   /** 导入酒馆卡（PNG / JSON，附录J ⑥） */
   CHARACTER_CARDS_IMPORT: '/api/character-cards/import',
+  /** 导入酒馆卡第一步：签直传 R2 的地址 */
+  CHARACTER_CARDS_IMPORT_UPLOADS: '/api/character-cards/import/uploads',
   /** 卡库：浏览器从 chub.ai 取来的一张卡建成角色卡（搜索由浏览器直接问 chub） */
   CHARACTER_CARDS_CHUB_IMPORT: '/api/character-cards/chub/import',
 

@@ -16,7 +16,7 @@ import {
   type ChubSearchResult,
   type ImportChubCardRequest,
 } from '@/types/chub-library'
-import type { ImportTavernCardRequest } from '@/types/tavern-card'
+import type { TavernCardUploadTarget } from '@/types/tavern-card'
 import {
   CHUB_LIBRARY,
   CHUB_LIBRARY_ERRORS,
@@ -79,15 +79,56 @@ export async function createCharacterCardAPI(
   }
 }
 
-/** 导入一张酒馆卡（PNG / JSON）→ 一张角色卡。失败带 `i18nKey`，调用方说人话。 */
+/**
+ * 导入一张酒馆卡（PNG / JSON）→ 一张角色卡。文件 ⛔ 经过 Vercel：
+ *   1. POST `/import/uploads`  → 直传 R2 的 PUT 地址（只报名字、类型、大小）
+ *   2. PUT  那个地址           → 浏览器 → R2
+ *   3. POST `/import`          → 服务端从 R2 读回来拆卡、建卡
+ * 失败带 `i18nKey`，调用方说人话。
+ */
 export async function importTavernCardAPI(
-  data: ImportTavernCardRequest,
+  file: File,
+  mimeType: 'image/png' | 'application/json',
+  fileName: string,
 ): Promise<CharacterCardResponse & { i18nKey?: string }> {
   try {
+    const prepareResponse = await fetch(
+      API_ENDPOINTS.CHARACTER_CARDS_IMPORT_UPLOADS,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileName, mimeType, sizeBytes: file.size }),
+      },
+    )
+    if (!prepareResponse.ok) {
+      const payload = await getErrorPayload(
+        prepareResponse,
+        `Failed with status ${prepareResponse.status}`,
+      )
+      return { success: false, error: payload.error, i18nKey: payload.i18nKey }
+    }
+    const prepare = (await prepareResponse.json()) as {
+      data: TavernCardUploadTarget
+    }
+
+    // 唯一一个跨域请求：浏览器 → R2。抛错多半是桶的 CORS，不是卡坏了。
+    const storageResponse = await fetch(prepare.data.uploadUrl, {
+      method: 'PUT',
+      headers: prepare.data.headers,
+      body: file,
+    }).catch(() => null)
+    if (!storageResponse?.ok) {
+      return {
+        success: false,
+        error: `Card storage rejected the upload (status ${storageResponse?.status ?? 'network'})`,
+        i18nKey: 'errors.tavernCard.uploadMissing',
+      }
+    }
+
     const response = await fetch(API_ENDPOINTS.CHARACTER_CARDS_IMPORT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
+      body: JSON.stringify({ fileName, storageKey: prepare.data.storageKey }),
     })
     if (!response.ok) {
       const payload = await getErrorPayload(

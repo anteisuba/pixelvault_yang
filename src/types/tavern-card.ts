@@ -73,19 +73,33 @@ export const TavernCardEnvelopeSchema = z.object({
 })
 
 /**
- * POST `/api/character-cards/import` 的载荷：一个文件，PNG 卡或 JSON 卡，base64
- * 数据地址（与角色卡上传图同一种形状）。
+ * 文件导入第一步 POST `/api/character-cards/import/uploads`：要一个直传 R2 的地址。
+ * 只报名字、类型和大小，文件本身 ⛔ 经过 Vercel。
+ */
+export const PrepareTavernCardUploadSchema = z.object({
+  fileName: z.string().trim().max(TAVERN_CARD.FILE_NAME_MAX_LENGTH),
+  mimeType: z.enum(TAVERN_CARD.UPLOAD_MIME_TYPES),
+  sizeBytes: z.number().int().positive().max(TAVERN_CARD.UPLOAD_MAX_BYTES),
+})
+
+export type PrepareTavernCardUploadRequest = z.infer<
+  typeof PrepareTavernCardUploadSchema
+>
+
+/** 第一步的回答：浏览器拿它把文件 PUT 到 R2。 */
+export interface TavernCardUploadTarget {
+  uploadUrl: string
+  storageKey: string
+  headers: Record<string, string>
+}
+
+/**
+ * 文件导入第二步 POST `/api/character-cards/import`：文件已经传到 R2 的哪儿。
+ * 服务端认 `storageKey` 是不是这个人的，读回来拆卡，读完删掉。
  */
 export const ImportTavernCardSchema = z.object({
   fileName: z.string().trim().max(TAVERN_CARD.FILE_NAME_MAX_LENGTH),
-  data: z
-    .string()
-    .regex(
-      /^data:(image\/png|application\/json);base64,[A-Za-z0-9+/=]+$/,
-      'Expected a PNG or JSON character card',
-    )
-    // base64 膨胀 4/3，再给前缀留点余量。
-    .max(Math.ceil((TAVERN_CARD.MAX_FILE_BYTES * 4) / 3) + 64),
+  storageKey: z.string().trim().min(1).max(300),
 })
 
 export type ImportTavernCardRequest = z.infer<typeof ImportTavernCardSchema>

@@ -3,7 +3,6 @@ import { inflateSync } from 'node:zlib'
 import { describe, expect, it } from 'vitest'
 
 import {
-  addPngTextChunk,
   isPng,
   readPngTextChunks,
   stripPngTextChunks,
@@ -76,26 +75,5 @@ describe('stripPngTextChunks', () => {
     expect(extractTavernCardJson(stripped)).toBeNull()
     expect(readPngTextChunks(stripped)).toEqual([])
     expect(stripped).toEqual(png())
-  })
-})
-
-describe('addPngTextChunk', () => {
-  it('插在 IEND 前，读得回来，CRC 对得上', () => {
-    const bytes = addPngTextChunk(png(), 'chara', 'eyJuYW1lIjoieCJ9')
-    expect(readPngTextChunks(bytes)).toEqual([
-      { keyword: 'chara', text: 'eyJuYW1lIjoieCJ9' },
-    ])
-    expect(extractTavernCardJson(bytes)).toBe('{"name":"x"}')
-    expect(stripPngTextChunks(bytes)).toEqual(png())
-    // 块尾 4 字节 = 类型 + 正文的 CRC32（「tEXt」+ 关键字 \0 正文）
-    const view = new DataView(bytes.buffer)
-    const start = png().length - 12
-    const length = view.getUint32(start)
-    expect(view.getUint32(start + 8 + length)).toBe(0xea0634af)
-  })
-
-  it('不是 PNG 原样返回', () => {
-    const bytes = new Uint8Array([1, 2, 3])
-    expect(addPngTextChunk(bytes, 'chara', 'x')).toBe(bytes)
   })
 })

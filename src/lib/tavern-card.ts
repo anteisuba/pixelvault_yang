@@ -39,13 +39,8 @@ function decodeBase64Utf8(text: string): string | null {
   }
 }
 
-/**
- * PNG 卡里装卡的那个文本块（`ccv3` 优先，`chara` 回落），正文是原样的 base64；
- * 不是卡是 `null`。缩图重打包时原样写回去。
- */
-export function findTavernCardChunk(
-  bytes: Uint8Array,
-): { keyword: string; payload: string; json: string } | null {
+/** PNG 卡里那段 JSON 文本（`ccv3` 优先，`chara` 回落）；不是卡是 `null`。 */
+export function extractTavernCardJson(bytes: Uint8Array): string | null {
   const texts = new Map<string, string>()
   for (const { keyword, text } of readPngTextChunks(bytes)) {
     texts.set(keyword.toLowerCase(), text)
@@ -53,14 +48,9 @@ export function findTavernCardChunk(
   for (const keyword of TAVERN_CARD.PNG_KEYWORDS) {
     const payload = texts.get(keyword)
     const json = payload ? decodeBase64Utf8(payload) : null
-    if (payload && json) return { keyword, payload, json }
+    if (json) return json
   }
   return null
-}
-
-/** PNG 卡里那段 JSON 文本（`ccv3` 优先，`chara` 回落）；不是卡是 `null`。 */
-export function extractTavernCardJson(bytes: Uint8Array): string | null {
-  return findTavernCardChunk(bytes)?.json ?? null
 }
 
 /** JSON → 卡上的字段（V2 / V3 拆 `data`，否则按 V1 平铺）。没有名字就不是卡：`null`。 */

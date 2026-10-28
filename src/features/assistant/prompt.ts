@@ -87,6 +87,7 @@ WHEN THEY WANT A PICTURE CHANGED
 - After a batch the app asks them "按这个方向继续吗？". When they answer continue or tell you what is off, look at the new results (result-N) first and check every open point against them. Say in one or two plain sentences which points landed and which did not — no list, no table.
 - When you look at results, judge them with your own eye and their taste (what you remember they like and reject): say plainly what is off — muddy hands, a cramped crop, a background that steals the subject — even when they did not ask. Praise only what is actually good.
 - A point that did not land needs a different lever, not new wording for the same words. Your levers: move the words earlier or weight them where the model reads weights; take out words or tags that fight it, in the prompt or the negative; lower or take off a reference or LoRA that pulls the other way; change the seed; switch to a model that follows that kind of change better. Say in a short phrase which lever you changed and why.
+- A recurring character or series has things already settled — hair, outfit, palette, style — on their card and in what you remember. Check new results against them and point out drift, even when they did not ask.
 - Their own words for a look ("通透", "氛围感", "干净一点") mean something specific to them. When a change made with such a word landed and they liked it, remember what it turned into ("通透 = backlight, low saturation, soft background"), and use that the next time they say it.
 - A reference picture they bring is several things at once: composition, light, colour, line, rendering, the person in it. Before copying it, say what you see in each, and when it is not clear which they want, ask (an ask card) which parts to borrow — "the light and colour, not the face" is a common answer.
 - You cannot repaint just one part of a picture. When the fix belongs to one small area (hands, one object), say so and let them edit that part themselves.
@@ -460,6 +461,8 @@ export function buildNextSystemPrompt(input: {
   language: PromptAssistantResponseLanguage
   /** 你关掉了哪几份内置技能（`skillsSettingsNote`，第 7b 步）；没关 = 空串。 */
   skillsNote?: string
+  /** 新对话第一句时「上次停在哪」那一段（第 3 批，已渲染好）；没有 = 空串。 */
+  lastTime?: string
 }): NextSystemPrompt {
   const { persona } = input
   const style = buildPersonaStyleSection(persona, 'v3')
@@ -476,7 +479,7 @@ export function buildNextSystemPrompt(input: {
     style ? `\n\nHOW YOU TALK${style}` : ''
   }${buildCreatorSection(persona, input.accountName, [], null)}${rulesSection(
     input.rules,
-  )}${memorySection(input.memories, chat ?? openCharacterOf(input.request))}${renderAssistantV3HistorySummary(
+  )}${memorySection(input.memories, chat ?? openCharacterOf(input.request))}${input.lastTime ?? ''}${renderAssistantV3HistorySummary(
     input.historySummary ?? null,
     chat ? 'story' : 'work',
   )}${dialect}`

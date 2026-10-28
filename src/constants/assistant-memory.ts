@@ -234,7 +234,17 @@ export const ASSISTANT_TASTE_DISTILL = {
   samplesPerSide: 6,
   /** 一张图带多少字的提示词当背景。 */
   promptCharsPerPicture: 300,
-  /** 一次最多写几条口味。 */
-  maxLines: 4,
+  /** 一次最多写几条（口味 + 经验）。 */
+  maxLines: 5,
+  /** 顺带复盘最近这么多段对话的结尾（第 3 批「人味」）。 */
+  reviewConversations: 3,
   timeoutMs: 60_000,
+} as const
+
+/** 「上次停在哪」那一段（第 3 批）：新对话第一句时读一次，只当背景。 */
+export const ASSISTANT_LAST_TIME = {
+  /** 上次你说的 / 她回的，各截到多少字。 */
+  maxChars: 300,
+  /** 从那以后新记下的偏好最多带几条。 */
+  maxNewTaste: 3,
 } as const

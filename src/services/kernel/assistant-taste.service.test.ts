@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   listShown: vi.fn(),
   record: vi.fn(),
   complete: vi.fn(),
+  conversationFind: vi.fn(),
 }))
 
 vi.mock('server-only', () => ({}))
@@ -30,6 +31,7 @@ vi.mock('@/lib/db', () => ({
       count: mocks.generationCount,
       findMany: mocks.generationFind,
     },
+    assistantConversation: { findMany: mocks.conversationFind },
     $queryRaw: mocks.queryRaw,
   },
 }))
@@ -85,6 +87,15 @@ describe('maybeDistillTaste（口味提炼）', () => {
     mocks.likeFind.mockResolvedValue([])
     mocks.generationFind.mockResolvedValue([])
     mocks.listShown.mockResolvedValue([])
+    mocks.conversationFind.mockResolvedValue([
+      {
+        title: '逆光的猫',
+        messages: [
+          { kind: 'user', id: 'u1', text: '发色还是没变浅', attachments: [] },
+          { kind: 'message', id: 'm1', text: '这次把参考图强度降了一档' },
+        ],
+      },
+    ])
   })
 
   it('看不了图的型号不跑，一次库都不查', async () => {
@@ -126,6 +137,12 @@ describe('maybeDistillTaste（口味提炼）', () => {
     }
     expect(call.imageData).toEqual(['https://cdn/x.png', 'https://cdn/y.png'])
     expect(call.imageLabels[1]).toContain('塑料皮肤')
+    // 复盘：最近对话的结尾跟着一起给模型。
+    const material = (
+      mocks.complete.mock.calls[0]?.[0] as { buildUserPrompt: () => string }
+    ).buildUserPrompt()
+    expect(material).toContain('发色还是没变浅')
+    expect(material).toContain('这次把参考图强度降了一档')
     expect(mocks.record).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: 'u',

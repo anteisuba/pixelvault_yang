@@ -76,6 +76,10 @@ import { getHomeChatCharacterId } from '@/services/assistant-persona.service'
 import { recordNativeSearches } from '@/services/research/assistant-evidence-book.service'
 import { maybeDistillTaste } from '@/services/kernel/assistant-taste.service'
 import {
+  loadAssistantLastTime,
+  renderAssistantLastTime,
+} from '@/services/kernel/assistant-last-time.service'
+import {
   learnCreatorPhrases,
   shouldLearnPhrases,
 } from '@/services/cards/character-learned-phrases.service'
@@ -702,21 +706,30 @@ async function* runNextTurn(
    * 开跑前这几样互不依赖，一起读（10-27 实测串着读多等近 1 秒：开发机到 Neon 每次往返约 220 ms）。
    * 之前几轮的摘要只有新开的一轮要（接力那几跳照第一跳定下的）；接力条丢了的那一跳下面再补读。
    */
-  const [saved, skills, aliases, memories, summaries] = await Promise.all([
-    token ? loadTurnState(user.id, token.id) : null,
-    // 这个人眼前的技能（内置 + 改版 / 关掉 + 自己写的，第 7b 步）；读不出来就只有内置的。
-    loadAssistantSkills(user.id).catch((error) => {
-      logger.warn('assistant skills load failed, using built-ins', {
-        userId: clerkId,
-        error: error instanceof Error ? error.message : String(error),
-      })
-      return [...BUILTIN_SKILLS]
-    }),
-    // 台上的参考图 / 结果各自是哪一张（ref-N / result-N ↔ 图_N），每一跳现读。
-    benchAliases(user.id, request.snapshot).catch(() => ''),
-    nextMemories(user.id, clerkId, request, chat?.id ?? null),
-    token ? null : loadAssistantV3HistorySummaries(historyOwner),
-  ])
+  // 新对话的第一句（第 3 批「人味」）：读一次上次停在哪，她跟你这句有关才提。
+  const firstMessage =
+    !token &&
+    request.incognito !== true &&
+    request.messages.filter((message) => message.role === 'user').length === 1
+  const [saved, skills, aliases, memories, summaries, lastTime] =
+    await Promise.all([
+      token ? loadTurnState(user.id, token.id) : null,
+      // 这个人眼前的技能（内置 + 改版 / 关掉 + 自己写的，第 7b 步）；读不出来就只有内置的。
+      loadAssistantSkills(user.id).catch((error) => {
+        logger.warn('assistant skills load failed, using built-ins', {
+          userId: clerkId,
+          error: error instanceof Error ? error.message : String(error),
+        })
+        return [...BUILTIN_SKILLS]
+      }),
+      // 台上的参考图 / 结果各自是哪一张（ref-N / result-N ↔ 图_N），每一跳现读。
+      benchAliases(user.id, request.snapshot).catch(() => ''),
+      nextMemories(user.id, clerkId, request, chat?.id ?? null),
+      token ? null : loadAssistantV3HistorySummaries(historyOwner),
+      firstMessage
+        ? loadAssistantLastTime(user.id, request.conversationId)
+        : null,
+    ])
   if (token && !saved)
     logger.warn('assistant next relay state missing, starting the turn again', {
       userId: clerkId,
@@ -941,6 +954,7 @@ async function* runNextTurn(
     accountName: user.displayName ?? user.username ?? null,
     language,
     skillsNote: skillsSettingsNote(skills),
+    lastTime: renderAssistantLastTime(lastTime),
   })
   recording.turn = {
     userId: user.id,

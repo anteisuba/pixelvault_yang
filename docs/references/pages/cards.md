@@ -37,7 +37,7 @@
 - **出不了门要说出来**：后台 `CharacterCard.browsePausedReason` 有值时，型号那一行下面一条 `danger-soft`：`no_model`「她出不了门：还没选出门用的型号」· `model_unavailable`「她出不了门：Claude Sonnet 5.5 下架了」· `missing_key`「她出不了门：Claude Sonnet 5.5 的 key 不见了」，右边「换一个型号」（打开同一个选择器）。下一次顺利出门后台就清空，这条跟着消失。
 - 某一站自己缺 key（如 Civitai 令牌）的那一站小签变淡写「Civitai · 缺 key」，点它就地弹 `QuickSetupDialog`（Hard Rule 8，⛔ 跳 `/settings/keys`）。
 - 默认关（域契约）；开关就是动作，出门关时河顶的空态卡 ⛔ 再放一颗按钮。
-- **打开就去**（owner 2026-10-29）：关→开时马上出门一趟（`POST /api/character-cards/[id]/browse/now`，⛔ 等第二天定时那趟、⛔ 看「最近有没有来往」），状态行这时写「正在出门逛…」，回来后整份重读、河里接上这一趟。20 小时内出过门就不再去（同一天反复拨开关不重复花钱）。
+- **打开就去**（owner 2026-10-29）：关→开时马上出门一趟（`POST /api/character-cards/[id]/browse/now`，⛔ 等第二天定时那趟、⛔ 看「最近有没有来往」），状态行这时写「正在出门逛…」，回来后整份重读、河里接上这一趟。开关本身就是「现在出门」（owner 同日），⛔ 按上次出门时间拦；花费靠每天见闻上限（`browseDailyLimit`）兜住。每天定时那一趟照旧。
 
 ### 2.3 时间河
 

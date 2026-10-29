@@ -228,12 +228,8 @@ describe('updateCharacterBrowseForClerkId', () => {
 })
 
 describe('goOutNowForClerkId', () => {
-  it('开着、最近没出过门：马上出门一趟', async () => {
-    mocks.findFirst.mockResolvedValue({
-      id: 'card-1',
-      browseEnabled: true,
-      browsedAt: null,
-    })
+  it('开着就马上出门一趟，昨天刚出过也照去', async () => {
+    mocks.findFirst.mockResolvedValue({ id: 'card-1', browseEnabled: true })
     mocks.browse.mockResolvedValue({ seen: 6, kept: 3 })
 
     await expect(goOutNowForClerkId('clerk-1', 'card-1')).resolves.toEqual({
@@ -246,21 +242,8 @@ describe('goOutNowForClerkId', () => {
     })
   })
 
-  it('关着或刚出过门：不去，⛔ 重复花钱', async () => {
-    mocks.findFirst.mockResolvedValueOnce({
-      id: 'card-1',
-      browseEnabled: false,
-      browsedAt: null,
-    })
-    await expect(goOutNowForClerkId('clerk-1', 'card-1')).resolves.toEqual({
-      went: false,
-      kept: 0,
-    })
-    mocks.findFirst.mockResolvedValueOnce({
-      id: 'card-1',
-      browseEnabled: true,
-      browsedAt: new Date(Date.now() - 60_000),
-    })
+  it('开关关着：不去', async () => {
+    mocks.findFirst.mockResolvedValue({ id: 'card-1', browseEnabled: false })
     await expect(goOutNowForClerkId('clerk-1', 'card-1')).resolves.toEqual({
       went: false,
       kept: 0,

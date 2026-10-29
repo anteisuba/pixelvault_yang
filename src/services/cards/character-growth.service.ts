@@ -3,7 +3,6 @@ import 'server-only'
 import { getAssistantRouteModelEntry } from '@/constants/assistant-persona'
 import { CHARACTER_GROWTH_PAGE } from '@/constants/cards'
 import {
-  CHARACTER_BROWSE,
   CHARACTER_BROWSE_PAUSE_REASONS,
   CHARACTER_BROWSE_SETTING_ERRORS,
   CHARACTER_BROWSE_SOURCES,
@@ -227,8 +226,9 @@ export async function updateCharacterBrowseForClerkId(
 }
 
 /**
- * 打开开关就出门（owner 2026-10-29「打开就去」）：⛔ 等第二天的定时那一趟，也不看「最近有没有来往」。
- * 开关关着、或 `minIntervalMs` 内已经出过门 → 不去（`went: false`），同一天反复拨开关不重复花钱。
+ * 打开开关就出门（owner 2026-10-29：「这个开关就是现在出门的意思」）：拨开就去，⛔ 等第二天定时那一趟、
+ * ⛔ 看「最近有没有来往」、⛔ 看上次什么时候出过门。花费由 `browseCharacter` 里的每天见闻上限
+ * （`browseDailyLimit`）兜住：今天记满了就在调模型之前停。开关关着 → 不去（`went: false`）。
  * 卡不是你的 / 已删 → `null`（404）。
  */
 export async function goOutNowForClerkId(
@@ -238,13 +238,10 @@ export async function goOutNowForClerkId(
   const user = await ensureUser(clerkId)
   const card = await db.characterCard.findFirst({
     where: { id: cardId, userId: user.id, isDeleted: false },
-    select: { id: true, browseEnabled: true, browsedAt: true },
+    select: { id: true, browseEnabled: true },
   })
   if (!card) return null
-  const recent =
-    card.browsedAt !== null &&
-    Date.now() - card.browsedAt.getTime() < CHARACTER_BROWSE.minIntervalMs
-  if (!card.browseEnabled || recent) return { went: false, kept: 0 }
+  if (!card.browseEnabled) return { went: false, kept: 0 }
   const result = await browseCharacter({ userId: user.id, cardId: card.id })
   return { went: true, kept: result.kept }
 }

@@ -845,7 +845,7 @@ async function* runNextTurn(
     const userTurns = request.messages.filter(
       (message) => message.role === 'user',
     ).length
-    // 工作台用角色：这一轮的口吻只管开头和收尾（10-26「三处怎么说话」）。
+    // 工作台用角色：这一轮的口吻（10-29 起管整条回复）。
     const reminder = chat
       ? chatReminder(persona, userTurns)
       : workMoodReminder(persona, userTurns)
@@ -854,7 +854,7 @@ async function* runNextTurn(
       ? `HOW YOUR VOICE SOUNDS\n${voiceCueRules(request.chatVoice.expressive)}\n- These cues are not stage directions: they are allowed, and they are how the voice gets its feeling.${
           chat
             ? ''
-            : '\n- While a bench is open only your first and last paragraphs are read aloud: put the cues there, never in the report between them.'
+            : '\n- While a bench is open a reply of three or more paragraphs is read aloud only at its first and last paragraph: put the cues there.'
         }`
       : null
     // 「/」点名的技能：全文直接进这一轮的消息，不等模型自己去读。

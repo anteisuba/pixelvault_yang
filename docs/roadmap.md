@@ -202,6 +202,7 @@
 | `p-library-assistant-link`  | 库与助手互通、LoRA 台存模板                              | 10-28 | 直推 main                          |
 | `p-assistant-bench-ux`      | 助手工作台体验：联网 400、出完图自动看图再改（评测延后） | 10-29 | #479 #480                          |
 | `p-voice-tone-menu`         | 配音台「语气」菜单（68 个 Fish 标记，插到光标处）        | 10-29 | #473                               |
+| `p-workbench-persona-voice` | 工作台带角色：去掉固定三段式，只要求口吻像她             | 10-29 | #485                               |
 
 ### 调研
 

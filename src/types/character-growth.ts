@@ -56,7 +56,7 @@ export const CharacterOpinionEntrySchema = z.object({
 /** 出门逛的设置与状态（`CharacterCard.browse*`）。 */
 export const CharacterBrowseStateSchema = z.object({
   enabled: z.boolean(),
-  /** 助手路由表的 modelId；开关关着时是空。 */
+  /** 助手路由表的 modelId；关上也留着，再打开接着用。从没打开过时是空。 */
   model: z.string().nullable(),
   pausedReason: z
     .enum([

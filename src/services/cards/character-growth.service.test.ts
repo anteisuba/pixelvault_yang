@@ -197,7 +197,24 @@ describe('updateCharacterBrowseForClerkId', () => {
     expect(mocks.update).not.toHaveBeenCalled()
   })
 
-  it('点名一个型号就固定用它；不认识的型号拒；关上清掉型号', async () => {
+  it('关上留着型号，再打开接着用上次那个，⛔ 换成助手此刻的', async () => {
+    const grok = NODE_STUDIO_ASSISTANT_ROUTE_MODELS.at(-1)!.modelId
+    mocks.findFirst.mockResolvedValue({
+      id: 'card-1',
+      updatedAt: AT,
+      browseModel: grok,
+    })
+    mocks.routeModel.mockResolvedValue(MODEL)
+    await expect(
+      updateCharacterBrowseForClerkId('clerk', 'card-1', { enabled: false }),
+    ).resolves.toMatchObject({ enabled: false, model: grok })
+    await expect(
+      updateCharacterBrowseForClerkId('clerk', 'card-1', { enabled: true }),
+    ).resolves.toMatchObject({ enabled: true, model: grok })
+    expect(mocks.routeModel).not.toHaveBeenCalled()
+  })
+
+  it('点名一个型号就固定用它；不认识的型号拒', async () => {
     await expect(
       updateCharacterBrowseForClerkId('clerk', 'card-1', {
         enabled: true,
@@ -212,10 +229,6 @@ describe('updateCharacterBrowseForClerkId', () => {
         model: 'gone-model',
       }),
     ).rejects.toMatchObject({ i18nKey: 'errors.characterBrowse.unknownModel' })
-
-    await expect(
-      updateCharacterBrowseForClerkId('clerk', 'card-1', { enabled: false }),
-    ).resolves.toMatchObject({ enabled: false, model: null })
   })
 
   it('不是你的卡回 null', async () => {

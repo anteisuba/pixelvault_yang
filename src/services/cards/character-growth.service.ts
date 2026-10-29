@@ -193,8 +193,9 @@ async function pickBrowseModel(
 }
 
 /**
- * 开关与型号（owner 2026-10-28）：打开时型号默认填助手当时那个，之后固定用它；关上清掉型号
- * （下次打开再按那时的助手填）。改了就清掉「出不了门」的原因 —— 下一趟出门会重新判。
+ * 开关与型号（owner 2026-10-28）：第一次打开时型号默认填助手当时那个，之后固定用它。
+ * 关上 ⛔ 清型号（owner 2026-10-29：关了再开变成别的模型，就再也用不上 Grok 去搜），再打开接着用
+ * 上次那个。改了就清掉「出不了门」的原因 —— 下一趟出门会重新判。
  * 卡不是你的 / 已删 → `null`（404）。
  */
 export async function updateCharacterBrowseForClerkId(
@@ -205,12 +206,13 @@ export async function updateCharacterBrowseForClerkId(
   const user = await ensureUser(clerkId)
   const card = await db.characterCard.findFirst({
     where: { id: cardId, userId: user.id, isDeleted: false },
-    select: { id: true, updatedAt: true },
+    select: { id: true, updatedAt: true, browseModel: true },
   })
   if (!card) return null
-  const model = input.enabled
-    ? await pickBrowseModel(user.id, input.model)
-    : null
+  const model =
+    input.enabled && (input.model || !card.browseModel)
+      ? await pickBrowseModel(user.id, input.model)
+      : card.browseModel
   const updated = await db.characterCard.update({
     where: { id: card.id },
     // ⚠ `updatedAt` 写回原值：改开关不该把她顶到角色列表最前面。

@@ -32,7 +32,7 @@
 
 - **额度不给调**（owner 10-28）：固定每天 1 次、每次最多带回 5 条见闻；卡上只写「每天 1 次」。⛔ 次数 / 条数切换条。
 - 状态那一行：关着 =「关着」；开着 =「每天 1 次 · 今天 09:10 出门 · 带回 3 条」（一条没带回 =「这趟没带回什么」；条数 = 出门那一刻之后写下的见闻；时间按看的人本地时区，见 `src/i18n/time-zone.ts`）；暂停 =「7 天没聊，先不出门 · 聊一句就接着逛」；有一站失败 =「每天 1 次 · 今天 09:10 回来，Civitai 没连上」；出不了门 =「她出不了门」。
-- **出门用哪个模型**（owner 2026-10-28）：开着就必须有一个型号。打开开关时默认填助手输入框当时那颗模型，之后固定用它，⛔ 悄悄跟着助手变、⛔ 换别家。点那一行弹助手模型选择器同一份清单（`ModelPickerPopover` 那一套，行尾灰字「助手正在用」「能逛 X」「看不了图」）；没配 key 的型号照 Hard Rule 8 就地弹 `QuickSetupDialog`。存 `CharacterCard.browseModel`（助手路由表的 modelId）。
+- **出门用哪个模型**（owner 2026-10-28）：开着就必须有一个型号。第一次打开开关时默认填助手输入框当时那颗模型，之后固定用它，⛔ 悄悄跟着助手变、⛔ 换别家；关上 ⛔ 清型号，再打开接着用上次那个（owner 2026-10-29）。点那一行弹助手模型选择器同一份清单（`ModelPickerPopover` 那一套，行尾灰字「助手正在用」「能逛 X」「看不了图」）；没配 key 的型号照 Hard Rule 8 就地弹 `QuickSetupDialog`。存 `CharacterCard.browseModel`（助手路由表的 modelId）。
 - **X 只在选的是 Grok 时出现**（别家搜不了 X）；选了看不了图的型号（目前只有 DeepSeek V4 Pro）时，型号后面跟一句灰字「这个模型看不了图，她只能读标题」。
 - **出不了门要说出来**：后台 `CharacterCard.browsePausedReason` 有值时，型号那一行下面一条 `danger-soft`：`no_model`「她出不了门：还没选出门用的型号」· `model_unavailable`「她出不了门：Claude Sonnet 5.5 下架了」· `missing_key`「她出不了门：Claude Sonnet 5.5 的 key 不见了」，右边「换一个型号」（打开同一个选择器）。下一次顺利出门后台就清空，这条跟着消失。
 - 某一站自己缺 key（如 Civitai 令牌）的那一站小签变淡写「Civitai · 缺 key」，点它就地弹 `QuickSetupDialog`（Hard Rule 8，⛔ 跳 `/settings/keys`）。

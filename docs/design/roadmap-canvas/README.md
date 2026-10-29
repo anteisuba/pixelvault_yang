@@ -1,5 +1,7 @@
 # 设计总图 · 画布源码与调研稿
 
+> 2026-10-29 起进度与顺序以 [docs/roadmap.md](../../roadmap.md) 为准；本目录的画布（含第 4 页进度表）是 09 月的旧总图，不再更新。`research/` 调研稿仍可引用。
+
 线上画布：https://claude.ai/artifact/AGugEALDdyBLHMqDeNjaTD —— **以画布为准**。2026-09-23 由原 19 页 / 86 张画板浓缩为 5 页 / 20 张（Version 119），owner 便签与手绘板的内容已并入各页后删除；09-24 加第 6 页放正在设计的条目（Version 120）。
 
 | 页           | 内容                                                                                           |

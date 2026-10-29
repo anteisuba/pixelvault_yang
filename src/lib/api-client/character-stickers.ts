@@ -4,6 +4,7 @@ import type {
   CharacterStickerRecord,
   UpdateCharacterStickerRequest,
 } from '@/types/character-sticker'
+import { apiFetch } from '@/lib/api-client/api-fetch'
 
 /**
  * **她的表情包**的客户端封装（4d，角色页右栏）：列、上传一张、拉黑 / 恢复、删。
@@ -42,7 +43,7 @@ export async function listCharacterStickersAPI(
   cardId: string,
 ): Promise<ApiResult<CharacterStickerRecord[]>> {
   try {
-    const response = await fetch(cardStickers(cardId), {
+    const response = await apiFetch(cardStickers(cardId), {
       headers: { Accept: 'application/json' },
     })
     return await parse(response, 'Failed to load stickers')
@@ -60,7 +61,7 @@ export async function uploadCharacterStickerAPI(
     const form = new FormData()
     form.append('image', image)
     if (whenToUse) form.append('whenToUse', whenToUse)
-    const response = await fetch(cardStickers(cardId), {
+    const response = await apiFetch(cardStickers(cardId), {
       method: 'POST',
       body: form,
     })
@@ -75,7 +76,7 @@ export async function updateCharacterStickerAPI(
   input: UpdateCharacterStickerRequest,
 ): Promise<ApiResult<unknown>> {
   try {
-    const response = await fetch(stickerUrl(stickerId), {
+    const response = await apiFetch(stickerUrl(stickerId), {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(input),
@@ -90,7 +91,7 @@ export async function deleteCharacterStickerAPI(
   stickerId: string,
 ): Promise<ApiResult<unknown>> {
   try {
-    const response = await fetch(stickerUrl(stickerId), { method: 'DELETE' })
+    const response = await apiFetch(stickerUrl(stickerId), { method: 'DELETE' })
     return await parse(response, 'Failed to delete sticker')
   } catch (error) {
     return toFailure(error, 'Failed to delete sticker')

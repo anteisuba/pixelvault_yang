@@ -5,6 +5,7 @@ import {
   DanbooruFavoriteSchema,
   type CreateDanbooruFavorite,
 } from '@/types/danbooru-catalog'
+import { apiFetch } from '@/lib/api-client/api-fetch'
 
 /** 查资料收藏的客户端出口；失败一律抛，调用方负责把乐观更新退回去。 */
 
@@ -18,13 +19,13 @@ async function readData(response: Response): Promise<unknown> {
 export async function listDanbooruFavoritesAPI() {
   return z
     .array(DanbooruFavoriteSchema)
-    .parse(await readData(await fetch(API_ENDPOINTS.DANBOORU_FAVORITES)))
+    .parse(await readData(await apiFetch(API_ENDPOINTS.DANBOORU_FAVORITES)))
 }
 
 export async function addDanbooruFavoriteAPI(input: CreateDanbooruFavorite) {
   return DanbooruFavoriteSchema.parse(
     await readData(
-      await fetch(API_ENDPOINTS.DANBOORU_FAVORITES, {
+      await apiFetch(API_ENDPOINTS.DANBOORU_FAVORITES, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(input),
@@ -35,7 +36,7 @@ export async function addDanbooruFavoriteAPI(input: CreateDanbooruFavorite) {
 
 export async function removeDanbooruFavoriteAPI(id: string) {
   await readData(
-    await fetch(
+    await apiFetch(
       `${API_ENDPOINTS.DANBOORU_FAVORITES}/${encodeURIComponent(id)}`,
       { method: 'DELETE' },
     ),

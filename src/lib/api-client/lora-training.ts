@@ -7,6 +7,7 @@ import type {
 import { API_ENDPOINTS } from '@/constants/config'
 
 import { getErrorMessage } from '@/lib/api-client/shared'
+import { apiFetch } from '@/lib/api-client/api-fetch'
 
 /**
  * Submit-failure shape the hook reads. The route returns this body for
@@ -68,11 +69,14 @@ export async function uploadLoraTrainingImageAPI(
   file: File,
 ): Promise<UploadLoraTrainingImageResult> {
   try {
-    const prepareResponse = await fetch(API_ENDPOINTS.LORA_TRAINING_UPLOADS, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mimeType: file.type, sizeBytes: file.size }),
-    })
+    const prepareResponse = await apiFetch(
+      API_ENDPOINTS.LORA_TRAINING_UPLOADS,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mimeType: file.type, sizeBytes: file.size }),
+      },
+    )
     if (!prepareResponse.ok) {
       return {
         success: false,
@@ -93,7 +97,7 @@ export async function uploadLoraTrainingImageAPI(
     // bad file — say so instead of surfacing "Failed to fetch".
     let storageResponse: Response
     try {
-      storageResponse = await fetch(prepare.data.uploadUrl, {
+      storageResponse = await apiFetch(prepare.data.uploadUrl, {
         method: 'PUT',
         headers: prepare.data.headers,
         body: file,
@@ -113,7 +117,7 @@ export async function uploadLoraTrainingImageAPI(
       }
     }
 
-    const completeResponse = await fetch(
+    const completeResponse = await apiFetch(
       API_ENDPOINTS.LORA_TRAINING_UPLOADS_COMPLETE,
       {
         method: 'POST',
@@ -145,7 +149,7 @@ export async function submitLoraTrainingAPI(
   data: SubmitLoraTrainingRequest,
 ): Promise<LoraTrainingResponse | LoraTrainingSubmitFailure> {
   try {
-    const response = await fetch(API_ENDPOINTS.LORA_TRAINING, {
+    const response = await apiFetch(API_ENDPOINTS.LORA_TRAINING, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -182,7 +186,7 @@ export async function submitLoraTrainingAPI(
 
 export async function listLoraTrainingJobsAPI(): Promise<LoraTrainingListResponse> {
   try {
-    const response = await fetch(API_ENDPOINTS.LORA_TRAINING)
+    const response = await apiFetch(API_ENDPOINTS.LORA_TRAINING)
     if (!response.ok) {
       return {
         success: false,
@@ -204,7 +208,7 @@ export async function getLoraTrainingStatusAPI(
   jobId: string,
 ): Promise<LoraTrainingResponse> {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_ENDPOINTS.LORA_TRAINING}/${jobId}/status`,
     )
     if (!response.ok) {

@@ -8,6 +8,14 @@ import { DEFAULT_LOCALE, LOCALES, routing } from '@/i18n/routing'
 
 const handleI18nRouting = createIntlMiddleware(routing)
 
+/** 与 `AuthError#toJSON()` 同形；不 import 它是为了不把整张错误表拖进 proxy 包。 */
+const API_UNAUTHENTICATED_BODY = {
+  success: false,
+  error: 'Unauthorized',
+  errorCode: 'UNAUTHORIZED',
+  i18nKey: 'errors.auth.unauthorized',
+} as const
+
 const publicLocaleRoutes = LOCALES.flatMap((locale) => [
   `/${locale}`,
   `/${locale}${ROUTES.GALLERY}`,
@@ -99,7 +107,14 @@ export default clerkMiddleware(
         !isPublicRoute(request) &&
         !isPublicUserApi
       ) {
-        await auth.protect()
+        // ⚠ 不用 `auth.protect()`：它对非页面请求回一个**空的 404**，前台只能显示
+        // 「Failed with status 404」，也认不出是会话过期（2026-10-29 助手出图）。
+        // 回 401 + 与 `AuthError` 同形的 JSON：`apiFetch` 据此续会话重发一次，
+        // 续不上时界面显示「请登录后继续」。
+        const { userId } = await auth()
+        if (!userId) {
+          return NextResponse.json(API_UNAUTHENTICATED_BODY, { status: 401 })
+        }
       }
       // Explicit NextResponse.next() ensures public API routes (e.g. /api/health)
       // are not inadvertently blocked by Clerk when returning void.

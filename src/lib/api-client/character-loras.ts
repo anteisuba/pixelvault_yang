@@ -6,6 +6,7 @@ import type {
 } from '@/types'
 
 import { getErrorMessage } from '@/lib/api-client/shared'
+import { apiFetch } from '@/lib/api-client/api-fetch'
 
 interface CharacterLoraGroupsResponse {
   success: boolean
@@ -43,7 +44,7 @@ export function listCharacterLorasAPI(
   const query = characterCardId
     ? `?characterCardId=${encodeURIComponent(characterCardId)}`
     : ''
-  return readGroups(fetch(`${API_ENDPOINTS.CHARACTER_LORAS}${query}`))
+  return readGroups(apiFetch(`${API_ENDPOINTS.CHARACTER_LORAS}${query}`))
 }
 
 /** 这个 LoRA 属于哪些角色（整组替换），返回替换后所有角色的分组。 */
@@ -52,7 +53,7 @@ export function setLoraCharactersAPI(
   characters: SetLoraCharactersRequest['characters'],
 ): Promise<CharacterLoraGroupsResponse> {
   return readGroups(
-    fetch(API_ENDPOINTS.CHARACTER_LORAS, {
+    apiFetch(API_ENDPOINTS.CHARACTER_LORAS, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ lora, characters }),

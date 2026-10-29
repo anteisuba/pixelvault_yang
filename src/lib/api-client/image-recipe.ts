@@ -10,6 +10,7 @@ import {
   type ImageRecipePrepare,
   type ImageRecipeReading,
 } from '@/types/image-recipe'
+import { apiFetch } from '@/lib/api-client/api-fetch'
 
 export type ImageRecipeReadResponse =
   | { success: true; data: ImageRecipeReading }
@@ -19,7 +20,7 @@ async function post(
   endpoint: string,
   body: Record<string, unknown>,
 ): Promise<{ ok: true; data: unknown } | ImageRecipeReadResponse> {
-  const response = await fetch(endpoint, {
+  const response = await apiFetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -53,7 +54,7 @@ export async function readImageRecipeAPI(
 
     let stored: Response
     try {
-      stored = await fetch(uploadUrl, { method: 'PUT', headers, body: file })
+      stored = await apiFetch(uploadUrl, { method: 'PUT', headers, body: file })
     } catch (error) {
       return {
         success: false,

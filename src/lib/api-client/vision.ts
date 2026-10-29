@@ -6,6 +6,7 @@ import {
 import { getErrorPayload } from '@/lib/api-client/shared'
 import type { VideoAnalyzeRequest } from '@/lib/video-frame-request'
 import type { VisionAnalysisResult, VisionAnalyzeRequest } from '@/types/vision'
+import { apiFetch } from '@/lib/api-client/api-fetch'
 
 type ApiResult<T> =
   | { success: true; data: T }
@@ -24,7 +25,7 @@ async function postVisionJson<TRequest, TResult>(
   failureMessage: string,
 ): Promise<ApiResult<TResult>> {
   try {
-    const response = await fetch(endpoint, {
+    const response = await apiFetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(request),

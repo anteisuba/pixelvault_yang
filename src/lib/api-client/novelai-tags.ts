@@ -3,12 +3,13 @@ import {
   NovelAiTagResponseSchema,
   type NovelAiTagQuery,
 } from '@/types/novelai-tags'
+import { apiFetch } from '@/lib/api-client/api-fetch'
 
 export async function getNovelAiTagSuggestionsAPI(
   query: NovelAiTagQuery,
   signal: AbortSignal,
 ) {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_ENDPOINTS.NOVELAI_TAG_SUGGESTIONS}?${new URLSearchParams(query)}`,
     { signal },
   )

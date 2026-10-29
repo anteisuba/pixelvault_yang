@@ -58,6 +58,7 @@ import {
   notifyStudioConversationActivity,
   withActiveStudioConversation,
 } from '@/lib/studio-active-conversation'
+import { apiFetch } from '@/lib/api-client/api-fetch'
 
 export { downloadRemoteAsset }
 
@@ -65,7 +66,7 @@ export async function generateImageAPI(
   params: GenerateRequest,
 ): Promise<GenerateResponse> {
   try {
-    const response = await fetch(API_ENDPOINTS.GENERATE, {
+    const response = await apiFetch(API_ENDPOINTS.GENERATE, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
@@ -98,7 +99,7 @@ export async function submitVideoAPI(
   params: GenerateVideoRequest,
 ): Promise<VideoSubmitResponse> {
   try {
-    const response = await fetch(API_ENDPOINTS.GENERATE_VIDEO, {
+    const response = await apiFetch(API_ENDPOINTS.GENERATE_VIDEO, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(withActiveStudioConversation(params)),
@@ -132,7 +133,7 @@ export async function checkVideoStatusAPI(
   jobId: string,
 ): Promise<VideoStatusResponse> {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_ENDPOINTS.GENERATE_VIDEO_STATUS}?jobId=${encodeURIComponent(jobId)}`,
     )
 
@@ -170,7 +171,7 @@ export async function uploadGenerationPosterAPI(
   error?: string
 }> {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_ENDPOINTS.GENERATION_POSTER}/${encodeURIComponent(generationId)}/poster`,
       {
         method: 'POST',
@@ -203,7 +204,7 @@ export async function uploadImageAPI(
   params: UploadImageRequest,
 ): Promise<UploadImageResponse> {
   try {
-    const response = await fetch(API_ENDPOINTS.UPLOAD_IMAGE, {
+    const response = await apiFetch(API_ENDPOINTS.UPLOAD_IMAGE, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
@@ -253,7 +254,7 @@ async function postJson<TResponse>(
   fallbackMessage: string,
 ): Promise<TResponse | { success: false; error: string }> {
   const send = () =>
-    fetch(endpoint, {
+    apiFetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -402,7 +403,7 @@ export async function uploadImageFileAPI(
             options.onProgress,
             options.signal,
           )
-        : await fetch(prepare.data.uploadUrl, {
+        : await apiFetch(prepare.data.uploadUrl, {
             method: 'PUT',
             headers: prepare.data.headers,
             body: file,
@@ -491,7 +492,7 @@ export async function uploadVideoFileAPI(
             options.onProgress,
             options.signal,
           )
-        : await fetch(prepare.data.uploadUrl, {
+        : await apiFetch(prepare.data.uploadUrl, {
             method: 'PUT',
             headers: prepare.data.headers,
             body: file,
@@ -593,7 +594,7 @@ export async function uploadAudioFileAPI(
             options.onProgress,
             options.signal,
           )
-        : await fetch(prepare.data.uploadUrl, {
+        : await apiFetch(prepare.data.uploadUrl, {
             method: 'PUT',
             headers: prepare.data.headers,
             body: file,
@@ -641,7 +642,7 @@ export async function submit3DAPI(
   params: Generate3DRequest,
 ): Promise<Model3DSubmitResponse> {
   try {
-    const response = await fetch(API_ENDPOINTS.GENERATE_3D, {
+    const response = await apiFetch(API_ENDPOINTS.GENERATE_3D, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(withActiveStudioConversation(params)),
@@ -675,7 +676,7 @@ export async function check3DStatusAPI(
   jobId: string,
 ): Promise<Model3DStatusResponse> {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_ENDPOINTS.GENERATE_3D_STATUS}?jobId=${encodeURIComponent(jobId)}`,
     )
 
@@ -703,7 +704,7 @@ export async function continue3DAPI(
   params: Continue3DRequest,
 ): Promise<Model3DStatusResponse> {
   try {
-    const response = await fetch(API_ENDPOINTS.GENERATE_3D_CONTINUE, {
+    const response = await apiFetch(API_ENDPOINTS.GENERATE_3D_CONTINUE, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
@@ -733,7 +734,7 @@ export async function retryMesh3DAPI(
   params: RetryMesh3DRequest,
 ): Promise<Model3DStatusResponse> {
   try {
-    const response = await fetch(API_ENDPOINTS.GENERATE_3D_RETRY_MESH, {
+    const response = await apiFetch(API_ENDPOINTS.GENERATE_3D_RETRY_MESH, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
@@ -763,7 +764,7 @@ export async function cancel3DAPI(
   params: Cancel3DRequest,
 ): Promise<Model3DStatusResponse> {
   try {
-    const response = await fetch(API_ENDPOINTS.GENERATE_3D_CANCEL, {
+    const response = await apiFetch(API_ENDPOINTS.GENERATE_3D_CANCEL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
@@ -799,7 +800,7 @@ export async function cancelGenerationsAPI(
   jobIds: string[],
 ): Promise<CancelGenerationsResponse> {
   try {
-    const response = await fetch(API_ENDPOINTS.GENERATIONS_CANCEL, {
+    const response = await apiFetch(API_ENDPOINTS.GENERATIONS_CANCEL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ jobIds }),
@@ -832,7 +833,7 @@ export async function generateAudioAPI(
   params: GenerateAudioRequest,
 ): Promise<GenerateAudioResponse> {
   try {
-    const response = await fetch(API_ENDPOINTS.GENERATE_AUDIO, {
+    const response = await apiFetch(API_ENDPOINTS.GENERATE_AUDIO, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
@@ -865,7 +866,7 @@ export async function checkAudioStatusAPI(
   jobId: string,
 ): Promise<AudioStatusResponse> {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_ENDPOINTS.GENERATE_AUDIO_STATUS}?jobId=${encodeURIComponent(jobId)}`,
     )
 
@@ -895,7 +896,7 @@ export async function toggleGenerationVisibility(
   value?: boolean,
 ): Promise<ToggleVisibilityResponse> {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_ENDPOINTS.GENERATIONS}/${id}/visibility`,
       {
         method: 'PATCH',
@@ -933,7 +934,7 @@ export async function setGenerationVisibility(
   >,
 ): Promise<ToggleVisibilityResponse> {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_ENDPOINTS.GENERATIONS}/${id}/visibility`,
       {
         method: 'PATCH',
@@ -985,12 +986,15 @@ export async function setGenerationReviewStateAPI(
   error?: string
 }> {
   try {
-    const response = await fetch(`${API_ENDPOINTS.GENERATIONS}/${id}/review`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ state, ...(reason ? { reason } : {}) }),
-      signal: AbortSignal.timeout(CLIENT_API.ACTION_TIMEOUT_MS),
-    })
+    const response = await apiFetch(
+      `${API_ENDPOINTS.GENERATIONS}/${id}/review`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ state, ...(reason ? { reason } : {}) }),
+        signal: AbortSignal.timeout(CLIENT_API.ACTION_TIMEOUT_MS),
+      },
+    )
     if (!response.ok) {
       const payload = await getErrorPayload(
         response,
@@ -1017,12 +1021,15 @@ export async function setAudioCoverAPI(
   error?: string
 }> {
   try {
-    const response = await fetch(`${API_ENDPOINTS.GENERATIONS}/${id}/cover`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ coverImageUrl }),
-      signal: AbortSignal.timeout(CLIENT_API.ACTION_TIMEOUT_MS),
-    })
+    const response = await apiFetch(
+      `${API_ENDPOINTS.GENERATIONS}/${id}/cover`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ coverImageUrl }),
+        signal: AbortSignal.timeout(CLIENT_API.ACTION_TIMEOUT_MS),
+      },
+    )
     if (!response.ok) {
       const payload = await getErrorPayload(
         response,
@@ -1044,7 +1051,7 @@ export async function enhancePromptAPI(
   params: EnhancePromptRequest,
 ): Promise<EnhancePromptResponse> {
   try {
-    const response = await fetch(API_ENDPOINTS.ENHANCE_PROMPT, {
+    const response = await apiFetch(API_ENDPOINTS.ENHANCE_PROMPT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
@@ -1078,7 +1085,7 @@ export async function translatePromptToTagsAPI(
   | { success: false; error: string; errorCode?: string; i18nKey?: string }
 > {
   try {
-    const response = await fetch(API_ENDPOINTS.PROMPT_TO_TAGS, {
+    const response = await apiFetch(API_ENDPOINTS.PROMPT_TO_TAGS, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
@@ -1116,7 +1123,7 @@ export async function promptFeedbackAPI(
   params: PromptFeedbackRequest,
 ): Promise<PromptFeedbackResponse> {
   try {
-    const response = await fetch(API_ENDPOINTS.PROMPT_FEEDBACK, {
+    const response = await apiFetch(API_ENDPOINTS.PROMPT_FEEDBACK, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
@@ -1146,7 +1153,7 @@ export async function generationFeedbackAPI(
   params: GenerationFeedbackRequest,
 ): Promise<GenerationFeedbackResponse> {
   try {
-    const response = await fetch(API_ENDPOINTS.GENERATION_FEEDBACK, {
+    const response = await apiFetch(API_ENDPOINTS.GENERATION_FEEDBACK, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
@@ -1196,7 +1203,7 @@ export async function editImageAPI(
   i18nKey?: string
 }> {
   try {
-    const response = await fetch(API_ENDPOINTS.IMAGE_EDIT, {
+    const response = await apiFetch(API_ENDPOINTS.IMAGE_EDIT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       // Persist defaults to true server-side; only forward the field when the
@@ -1253,7 +1260,7 @@ export async function extractElementAPI(params: {
   i18nKey?: string
 }> {
   try {
-    const response = await fetch(API_ENDPOINTS.IMAGE_EXTRACT, {
+    const response = await apiFetch(API_ENDPOINTS.IMAGE_EXTRACT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
@@ -1290,7 +1297,7 @@ export async function checkImageGenerationStatusAPI(
   }
 > {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_ENDPOINTS.STUDIO_GENERATE_STATUS}?jobId=${encodeURIComponent(jobId)}`,
       signal ? { signal } : undefined,
     )
@@ -1321,7 +1328,7 @@ export async function studioGenerateAPI(
   data: StudioGenerateRequest,
 ): Promise<StudioGenerateResponse> {
   try {
-    const response = await fetch(API_ENDPOINTS.STUDIO_GENERATE, {
+    const response = await apiFetch(API_ENDPOINTS.STUDIO_GENERATE, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(withActiveStudioConversation(data)),
@@ -1354,7 +1361,7 @@ export async function studioSelectWinnerAPI(data: {
   generationId: string
 }): Promise<{ success: boolean; error?: string }> {
   try {
-    const response = await fetch(API_ENDPOINTS.STUDIO_SELECT_WINNER, {
+    const response = await apiFetch(API_ENDPOINTS.STUDIO_SELECT_WINNER, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -1378,7 +1385,7 @@ export async function studioSelectWinnerAPI(data: {
 
 export async function getCivitaiTokenStatusAPI(): Promise<CivitaiTokenStatusResponse> {
   try {
-    const response = await fetch(API_ENDPOINTS.CIVITAI_TOKEN)
+    const response = await apiFetch(API_ENDPOINTS.CIVITAI_TOKEN)
     if (!response.ok) {
       return {
         success: false,
@@ -1399,7 +1406,7 @@ export async function setCivitaiTokenAPI(
   token: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const response = await fetch(API_ENDPOINTS.CIVITAI_TOKEN, {
+    const response = await apiFetch(API_ENDPOINTS.CIVITAI_TOKEN, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token }),
@@ -1425,7 +1432,7 @@ export async function deleteCivitaiTokenAPI(): Promise<{
   error?: string
 }> {
   try {
-    const response = await fetch(API_ENDPOINTS.CIVITAI_TOKEN, {
+    const response = await apiFetch(API_ENDPOINTS.CIVITAI_TOKEN, {
       method: 'DELETE',
     })
     if (!response.ok) {
@@ -1454,7 +1461,7 @@ export async function fetchGenerationPlanAPI(
   error?: string
 }> {
   try {
-    const response = await fetch(API_ENDPOINTS.GENERATION_PLAN, {
+    const response = await apiFetch(API_ENDPOINTS.GENERATION_PLAN, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
@@ -1489,7 +1496,7 @@ export async function evaluateGenerationAPI(generationId: string): Promise<{
   missingKey?: AssistantOperatorMissingKey
 }> {
   try {
-    const response = await fetch(API_ENDPOINTS.GENERATION_EVALUATE, {
+    const response = await apiFetch(API_ENDPOINTS.GENERATION_EVALUATE, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ generationId }),

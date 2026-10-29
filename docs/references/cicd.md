@@ -141,10 +141,9 @@ Preview scope 的 `DIRECT_URL` 至此已经用不上了（那条路径不跑迁�
 2. **同步把路径加进 `src/proxy.ts` 的 `isPublicRoute`。** Vercel Cron 没有
    Clerk 会话，漏了不是"偶尔失败"是 **100% 被拦在路由外**——连路由里的
    `CRON_SECRET` 校验都够不到，失败也不进 logger，表现为这条 cron 静悄悄地
-   永远没跑过。⚠ **症状是 404 不是 401**：Clerk 的 `auth.protect()` 只对页面
-   请求 redirect 到登录页，非页面请求走 `notFound()`（见
-   `@clerk/nextjs/server/protect`）。所以去 Vercel Function 日志里 grep 401
-   会一无所获，要找的是每天一条 404。`src/proxy.test.ts` 有 `it.each` 守着三
+   永远没跑过。症状是门口回的 **401**（`{ errorCode: 'UNAUTHORIZED' }`，
+   2026-10-29 起；之前 `auth.protect()` 对非页面请求回空的 404）。门口的 401
+   不进 logger，去 Vercel 日志里找每天一条 401。`src/proxy.test.ts` 有 `it.each` 守着三
    条路径，加 cron 时把新路径加进那个数组。
 
 3. **给它上心跳**：在路由的每条出口调 `recordCronRun(CRON_JOBS.<名字>, …)`，

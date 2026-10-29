@@ -11,10 +11,11 @@ import type {
 import { API_ENDPOINTS, CLIENT_API } from '@/constants/config'
 
 import { getErrorMessage } from '@/lib/api-client/shared'
+import { apiFetch } from '@/lib/api-client/api-fetch'
 
 export async function listProjectsAPI(): Promise<ProjectsResponse> {
   try {
-    const response = await fetch(API_ENDPOINTS.PROJECTS)
+    const response = await apiFetch(API_ENDPOINTS.PROJECTS)
     if (!response.ok) {
       return {
         success: false,
@@ -36,7 +37,7 @@ export async function createProjectAPI(
   data: CreateProjectRequest,
 ): Promise<ProjectResponse> {
   try {
-    const response = await fetch(API_ENDPOINTS.PROJECTS, {
+    const response = await apiFetch(API_ENDPOINTS.PROJECTS, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -64,7 +65,7 @@ export async function updateProjectAPI(
   data: UpdateProjectRequest,
 ): Promise<ProjectResponse> {
   try {
-    const response = await fetch(`${API_ENDPOINTS.PROJECTS}/${id}`, {
+    const response = await apiFetch(`${API_ENDPOINTS.PROJECTS}/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -91,7 +92,7 @@ export async function deleteProjectAPI(
   id: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const response = await fetch(`${API_ENDPOINTS.PROJECTS}/${id}`, {
+    const response = await apiFetch(`${API_ENDPOINTS.PROJECTS}/${id}`, {
       method: 'DELETE',
       signal: AbortSignal.timeout(CLIENT_API.ACTION_TIMEOUT_MS),
     })
@@ -126,7 +127,7 @@ export async function getProjectHistoryAPI(
     if (type && type !== 'all') params.set('type', type)
     const qs = params.toString()
     const url = `${API_ENDPOINTS.PROJECTS}/${projectId}/history${qs ? `?${qs}` : ''}`
-    const response = await fetch(url)
+    const response = await apiFetch(url)
     if (!response.ok) {
       return {
         success: false,
@@ -149,7 +150,7 @@ export async function reorderProjectsAPI(
   data: ReorderProjectsRequest,
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const response = await fetch(`${API_ENDPOINTS.PROJECTS}/order`, {
+    const response = await apiFetch(`${API_ENDPOINTS.PROJECTS}/order`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -178,7 +179,7 @@ export async function updateFolderItemsAPI(
   data: UpdateFolderItemsRequest,
 ): Promise<{ success: boolean; data?: FolderItemsResult; error?: string }> {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_ENDPOINTS.PROJECTS}/${folderId}/items`,
       {
         method: 'PATCH',
@@ -213,7 +214,7 @@ export async function getFolderMembershipsAPI(
   error?: string
 }> {
   try {
-    const response = await fetch(`${API_ENDPOINTS.PROJECTS}/memberships`, {
+    const response = await apiFetch(`${API_ENDPOINTS.PROJECTS}/memberships`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ generationIds }),

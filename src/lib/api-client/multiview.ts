@@ -6,12 +6,13 @@ import type {
 import { API_ENDPOINTS } from '@/constants/config'
 
 import { getErrorPayload } from '@/lib/api-client/shared'
+import { apiFetch } from '@/lib/api-client/api-fetch'
 
 export async function generateMultiViewAPI(
   params: MultiViewGenerateRequest,
 ): Promise<MultiViewGenerateResponse> {
   try {
-    const response = await fetch(API_ENDPOINTS.GENERATE_MULTIVIEW, {
+    const response = await apiFetch(API_ENDPOINTS.GENERATE_MULTIVIEW, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
@@ -49,7 +50,7 @@ export async function checkMultiViewStatusAPI(
       batchId,
       jobIds: jobIds.join(','),
     })
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_ENDPOINTS.GENERATE_MULTIVIEW_STATUS}?${params.toString()}`,
     )
 

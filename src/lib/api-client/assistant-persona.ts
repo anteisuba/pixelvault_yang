@@ -15,6 +15,7 @@ import type {
   VoiceBenchRewriteData,
   VoiceBenchRewriteRequest,
 } from '@/types/voice-bench'
+import { apiFetch } from '@/lib/api-client/api-fetch'
 
 /**
  * 助手设置（persona）与项目规则的客户端封装
@@ -65,7 +66,7 @@ export async function getAssistantPersonaAPI(): Promise<
   ApiResult<AssistantPersona>
 > {
   try {
-    const response = await fetch(API_ENDPOINTS.ASSISTANT_PERSONA, {
+    const response = await apiFetch(API_ENDPOINTS.ASSISTANT_PERSONA, {
       method: 'GET',
       headers: { Accept: 'application/json' },
     })
@@ -79,7 +80,7 @@ export async function updateAssistantPersonaAPI(
   persona: UpdateAssistantPersonaRequest,
 ): Promise<ApiResult<AssistantPersona>> {
   try {
-    const response = await fetch(API_ENDPOINTS.ASSISTANT_PERSONA, {
+    const response = await apiFetch(API_ENDPOINTS.ASSISTANT_PERSONA, {
       method: 'PUT',
       headers: JSON_HEADERS,
       body: JSON.stringify(persona),
@@ -95,7 +96,7 @@ export async function speakAssistantReplyAPI(
   request: AssistantSpeakRequest,
 ): Promise<ApiResult<AssistantSpeakResponseData>> {
   try {
-    const response = await fetch(API_ENDPOINTS.ASSISTANT_SPEAK, {
+    const response = await apiFetch(API_ENDPOINTS.ASSISTANT_SPEAK, {
       method: 'POST',
       headers: JSON_HEADERS,
       body: JSON.stringify(request),
@@ -109,7 +110,7 @@ export async function speakAssistantReplyAPI(
 /** 配音台（③）：现在这一位的嗓子念过的台词。 */
 export async function getVoiceBenchAPI(): Promise<ApiResult<VoiceBenchData>> {
   try {
-    const response = await fetch(API_ENDPOINTS.VOICE_BENCH, {
+    const response = await apiFetch(API_ENDPOINTS.VOICE_BENCH, {
       cache: 'no-store',
     })
     return await parseJsonResult(response, 'Failed to load the voice bench')
@@ -123,7 +124,7 @@ export async function rewriteVoiceBenchTextAPI(
   request: VoiceBenchRewriteRequest,
 ): Promise<ApiResult<VoiceBenchRewriteData>> {
   try {
-    const response = await fetch(API_ENDPOINTS.VOICE_BENCH_REWRITE, {
+    const response = await apiFetch(API_ENDPOINTS.VOICE_BENCH_REWRITE, {
       method: 'POST',
       headers: JSON_HEADERS,
       body: JSON.stringify(request),
@@ -139,7 +140,7 @@ export async function uploadAssistantAvatarAPI(
   imageData: string,
 ): Promise<ApiResult<{ url: string }>> {
   try {
-    const response = await fetch(API_ENDPOINTS.ASSISTANT_PERSONA_AVATAR, {
+    const response = await apiFetch(API_ENDPOINTS.ASSISTANT_PERSONA_AVATAR, {
       method: 'POST',
       headers: JSON_HEADERS,
       body: JSON.stringify({ imageData }),
@@ -155,10 +156,13 @@ export async function listProjectRulesAPI(
 ): Promise<ApiResult<ProjectRule[]>> {
   try {
     const query = scope ? `?scope=${encodeURIComponent(scope)}` : ''
-    const response = await fetch(`${API_ENDPOINTS.ASSISTANT_RULES}${query}`, {
-      method: 'GET',
-      headers: { Accept: 'application/json' },
-    })
+    const response = await apiFetch(
+      `${API_ENDPOINTS.ASSISTANT_RULES}${query}`,
+      {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+      },
+    )
     return await parseJsonResult(response, 'Failed to load rules')
   } catch (error) {
     return toFailure(error, 'Failed to load rules')
@@ -169,7 +173,7 @@ export async function createProjectRuleAPI(
   input: CreateProjectRuleInput,
 ): Promise<ApiResult<ProjectRule>> {
   try {
-    const response = await fetch(API_ENDPOINTS.ASSISTANT_RULES, {
+    const response = await apiFetch(API_ENDPOINTS.ASSISTANT_RULES, {
       method: 'POST',
       headers: JSON_HEADERS,
       body: JSON.stringify(input),
@@ -184,7 +188,7 @@ export async function deleteProjectRuleAPI(
   ruleId: string,
 ): Promise<ApiResult<unknown>> {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_ENDPOINTS.ASSISTANT_RULES}/${encodeURIComponent(ruleId)}`,
       { method: 'DELETE' },
     )

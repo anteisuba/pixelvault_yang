@@ -430,6 +430,11 @@ export const STUDIO_OPERATOR_SYSTEM_CODES = [
    * 卡留着等你按。⛔ 不静默：开关开着却没出图，用户会以为自动生成坏了。
    */
   'autoGenerateHeld',
+  /**
+   * **助手自己看图再改了一轮**（owner 2026-10-29）——「自己看图再改 · 第 1/1 轮」。
+   * 这一行同时是替创作者说的那句「看看这批」（`userText`），模型据此看图、对着要求改。
+   */
+  'autoReview',
 ] as const
 
 export type StudioOperatorSystemCode =

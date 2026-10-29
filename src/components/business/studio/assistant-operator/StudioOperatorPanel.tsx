@@ -75,6 +75,7 @@ import { toast } from 'sonner'
 import { useFormatter, useTranslations } from 'next-intl'
 
 import {
+  ASSISTANT_AUTO_REVIEW_ROUNDS,
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS,
   ASSISTANT_OPERATOR_STEP_STATUS_IDS,
   ASSISTANT_OPERATOR_TOOL_IDS,
@@ -195,6 +196,7 @@ import { useStudioOperatorRevert } from '@/hooks/use-studio-operator-revert'
 import {
   getOperatorState,
   setOperatorAutoGenerate,
+  setOperatorAutoReviewRounds,
   setOperatorOutOfSteps,
   setOperatorQuestionChecked,
   updateOperatorRoundSummary,
@@ -471,6 +473,7 @@ export function StudioOperatorPanel({
     confirm,
     resume,
     autoGenerate,
+    autoReviewRounds,
     outOfSteps,
     saveFailed,
     chatCharacter,
@@ -2293,6 +2296,33 @@ export function StudioOperatorPanel({
         />
       </label>
     ) : null
+  /*
+    出完图自己看、再改几轮（owner 2026-10-29，默认 1 轮）：开关开着才出现，点一下换档
+    （1 → 2 → 3 → 出完就停 → 1）。
+  */
+  const autoReviewChip =
+    autoGenerateSwitch && autoGenerate ? (
+      <button
+        type="button"
+        data-testid="operator-auto-review"
+        onClick={() =>
+          setOperatorAutoReviewRounds(
+            (autoReviewRounds + 1) % (ASSISTANT_AUTO_REVIEW_ROUNDS.max + 1),
+          )
+        }
+        title={t('autoGenerate.reviewHint')}
+        className={cn(
+          'shrink-0 whitespace-nowrap rounded-full hover:tint-hover',
+          isMobile
+            ? 'min-h-11 w-full px-2.5 text-left text-2sm text-foreground'
+            : 'mr-1 h-6 px-2 text-xs text-muted-foreground',
+        )}
+      >
+        {autoReviewRounds > 0
+          ? t('autoGenerate.review', { count: autoReviewRounds })
+          : t('autoGenerate.reviewOff')}
+      </button>
+    ) : null
 
   return (
     <>
@@ -3209,10 +3239,18 @@ export function StudioOperatorPanel({
                     }
                     onChange={onSelectReasoningEffort}
                     /* 手机：自动生成收进这张参数卡（iOS 稿 v19），栏上只留 ＋ · 模型 · 思考 · 发送。 */
-                    footer={isMobile ? autoGenerateSwitch : null}
+                    footer={
+                      isMobile ? (
+                        <>
+                          {autoGenerateSwitch}
+                          {autoReviewChip}
+                        </>
+                      ) : null
+                    }
                   />
                   <span className="flex-1" />
                   {!isMobile && autoGenerateSwitch}
+                  {!isMobile && autoReviewChip}
                   {/*
               ⭐ 跑着且输入框是空的 → 这一颗就是**停止**（S2）；跑着但你打了字 →
                 仍是发送，这一句排队（§3.1 ㉒）。⛔ 不并排两颗。

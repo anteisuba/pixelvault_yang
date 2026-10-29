@@ -623,7 +623,8 @@
       "moveWorkAccepted": "{subject}",
       "moveWorkDeclined": "{subject}",
       "moveWorkDroppedReferences": "有 {subject} 张参考图没带过去（超过上限或还没传完）。",
-      "autoGenerateHeld": "这次要出 {subject} 张，超过「交给 AI 出图」每句话 4 张的上限 —— 没替你按，确认后再出。"
+      "autoGenerateHeld": "这次要出 {subject} 张，超过「交给 AI 出图」每句话 4 张的上限 —— 没替你按，确认后再出。",
+      "autoReview": "自己看图再改 · 第 {subject} 轮"
     },
     "attach": {
       "latestResult": "最新 · {label}",
@@ -1056,7 +1057,10 @@
       }
     },
     "autoGenerate": {
-      "label": "交给 AI 出图"
+      "label": "交给 AI 出图",
+      "review": "看图再改 {count} 轮",
+      "reviewOff": "出完就停",
+      "reviewHint": "出完图她自己看、对着你的要求再改几轮；点一下换档"
     },
     "continueAsk": {
       "header": "接下来",

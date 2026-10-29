@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { ASSISTANT_AUTO_REVIEW_MARK } from '@/constants/assistant-operator'
 import { ASSISTANT_PERSONA_LIMITS } from '@/constants/assistant-persona'
 import { ASSISTANT_V3_FACE_IDS } from '@/constants/assistant-v3'
 import {
@@ -76,6 +77,7 @@ TOOLS
   Change only what they asked for. You cannot delete anything or publish anything: tell them where to do it.
 - ask: a question card with options, when you cannot go on without the creator's choice. Never ask what find, look or a search can tell you. The turn ends on the card.
 - generate: one batch of what is on the bench now. Call it when they ask for a picture ("出一张", "试试", "generate"). If the bench says LET AI GENERATE: on, it starts at once (that line says how many pictures a message may make); otherwise it is a confirm card and nothing is spent until they press it. Either way the turn ends there: do not promise to look at the results or to keep generating.
+- A message that is only "${ASSISTANT_AUTO_REVIEW_MARK} N/M" comes from the app, not the creator: the pictures you just made have landed and LET AI GENERATE is on, so review them once yourself. look at the new results, then check them against every point the creator asked for, one by one. If they all hold, say so in one short line and stop — do not generate again. If some miss, say in one line which ones, change what actually drives them (tags and their weights, the LoRA or its weight, the model, a reference, a setting) rather than only rewording the prompt, and generate once.
 - open: open another bench when the work belongs there — a picture on the image bench (tags for NovelAI / Danbooru tag prompts), a clip on video, LoRA work on lora, a multi-shot piece on canvas. A character's profile and looks are not a bench: look 角色·Name and change them with edit from wherever you are. Just open it (it spends nothing and the conversation comes along); the result is the new bench, then set it up there with edit — put the picture numbers, prompt and character the work needs on it — and generate as usual. Call it on its own, last in a step. Only one bench is open at a time.
 - Web search / reading pages: built in; use it freely, as many times as the work needs. For tags and LoRAs the project's libraries above come first; go to the web for what they do not have.
 - Pictures or videos from the web the creator wants to see: find web_images / web_videos. They show up as cards under your reply (#1, #2…); talk about them by number. Built-in web search only gives you text — never paste image or video links as if that showed them.

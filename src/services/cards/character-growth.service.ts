@@ -3,6 +3,7 @@ import 'server-only'
 import { getAssistantRouteModelEntry } from '@/constants/assistant-persona'
 import { CHARACTER_GROWTH_PAGE } from '@/constants/cards'
 import {
+  CHARACTER_BROWSE,
   CHARACTER_BROWSE_PAUSE_REASONS,
   CHARACTER_BROWSE_SETTING_ERRORS,
   CHARACTER_BROWSE_SOURCES,
@@ -18,9 +19,11 @@ import { ensureUser } from '@/services/user.service'
 import type {
   CharacterBrowseState,
   CharacterGrowth,
+  CharacterGoOutResult,
   UpdateCharacterBrowseRequest,
 } from '@/types/character-growth'
 
+import { browseCharacter } from './character-browse.service'
 import { forgetFindings } from './character-findings.service'
 import { revertCharacterRevision } from './character-revision.service'
 
@@ -221,6 +224,29 @@ export async function updateCharacterBrowseForClerkId(
     select: BROWSE_SELECT,
   })
   return browseState(updated)
+}
+
+/**
+ * 打开开关就出门（owner 2026-10-29「打开就去」）：⛔ 等第二天的定时那一趟，也不看「最近有没有来往」。
+ * 开关关着、或 `minIntervalMs` 内已经出过门 → 不去（`went: false`），同一天反复拨开关不重复花钱。
+ * 卡不是你的 / 已删 → `null`（404）。
+ */
+export async function goOutNowForClerkId(
+  clerkId: string,
+  cardId: string,
+): Promise<CharacterGoOutResult | null> {
+  const user = await ensureUser(clerkId)
+  const card = await db.characterCard.findFirst({
+    where: { id: cardId, userId: user.id, isDeleted: false },
+    select: { id: true, browseEnabled: true, browsedAt: true },
+  })
+  if (!card) return null
+  const recent =
+    card.browsedAt !== null &&
+    Date.now() - card.browsedAt.getTime() < CHARACTER_BROWSE.minIntervalMs
+  if (!card.browseEnabled || recent) return { went: false, kept: 0 }
+  const result = await browseCharacter({ userId: user.id, cardId: card.id })
+  return { went: true, kept: result.kept }
 }
 
 /** 删一条见闻（连同聊天时「想起」用的索引）。不是你的 → `false`（404）。 */

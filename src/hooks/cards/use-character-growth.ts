@@ -7,6 +7,7 @@ import {
   deleteAssistantMemoryAPI,
   deleteCharacterFindingAPI,
   getCharacterGrowthAPI,
+  goOutNowAPI,
   revertCharacterRevisionAPI,
   updateAssistantMemoryAPI,
   updateCharacterBrowseAPI,
@@ -32,6 +33,8 @@ export function useCharacterGrowth(cardId: string | null) {
   const [isLoading, setIsLoading] = useState(Boolean(cardId))
   const [error, setError] = useState<string | null>(null)
   const [revertingId, setRevertingId] = useState<string | null>(null)
+  /** 打开开关后她正在外面逛（等这一趟回来再整份重读）。 */
+  const [goingOut, setGoingOut] = useState(false)
   const aliveRef = useRef(true)
 
   useEffect(() => {
@@ -112,6 +115,16 @@ export function useCharacterGrowth(cardId: string | null) {
     [cardId],
   )
 
+  /** 打开就出门（owner 2026-10-29）：逛完整份重读，河里接上这一趟；失败只在状态行体现，不弹错。 */
+  const goOutNow = useCallback(async (): Promise<void> => {
+    if (!cardId) return
+    setGoingOut(true)
+    const result = await goOutNowAPI(cardId)
+    if (!aliveRef.current) return
+    setGoingOut(false)
+    if (result.success && result.data.went) await reload()
+  }, [cardId, reload])
+
   const removeFinding = useCallback(
     (findingId: string) =>
       write(
@@ -161,6 +174,8 @@ export function useCharacterGrowth(cardId: string | null) {
     revert,
     reload,
     setBrowse,
+    goingOut,
+    goOutNow,
     removeFinding,
     editOpinion,
     removeOpinion,

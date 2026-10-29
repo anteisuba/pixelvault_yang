@@ -85,6 +85,14 @@ export const UpdateCharacterBrowseSchema = z.object({
   model: z.string().trim().min(1).max(120).optional(),
 })
 
+/** POST `/api/character-cards/[id]/browse/now`：打开开关就出门一趟。`went: false` = 关着或刚出过门。 */
+export const CharacterGoOutResultSchema = z.object({
+  went: z.boolean(),
+  kept: z.number().int().nonnegative(),
+})
+
+export const GoOutNowSchema = z.object({})
+
 export type CharacterJournalEntry = z.infer<typeof CharacterJournalEntrySchema>
 export type CharacterRevisionEntry = z.infer<
   typeof CharacterRevisionEntrySchema
@@ -93,6 +101,7 @@ export type CharacterFindingEntry = z.infer<typeof CharacterFindingEntrySchema>
 export type CharacterOpinionEntry = z.infer<typeof CharacterOpinionEntrySchema>
 export type CharacterBrowseState = z.infer<typeof CharacterBrowseStateSchema>
 export type CharacterGrowth = z.infer<typeof CharacterGrowthSchema>
+export type CharacterGoOutResult = z.infer<typeof CharacterGoOutResultSchema>
 export type UpdateCharacterBrowseRequest = z.infer<
   typeof UpdateCharacterBrowseSchema
 >

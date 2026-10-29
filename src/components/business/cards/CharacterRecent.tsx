@@ -241,7 +241,11 @@ function OutingCard({ growth: data }: { growth: Growth }) {
     setSaving(true)
     const result = await data.setBrowse(input)
     setSaving(false)
-    if (result.ok) return true
+    if (result.ok) {
+      // 打开就出门（owner 2026-10-29），⛔ 等第二天定时那一趟；刚出过门服务端会跳过。
+      if (input.enabled && !browse.enabled) void data.goOutNow()
+      return true
+    }
     // 只认翻译过的原因，⛔ 把英文原话递给用户。
     toast.error(
       getApiErrorMessage(tErrors, { i18nKey: result.i18nKey }, t('saveFailed')),
@@ -253,23 +257,25 @@ function OutingCard({ growth: data }: { growth: Growth }) {
 
   const status = !browse.enabled
     ? t('off')
-    : browse.pausedReason
-      ? t('cannotGoOut')
-      : browse.browsedAt
-        ? daysAgo(browse.browsedAt) <= 0
-          ? t('backToday', {
-              time: format.dateTime(new Date(browse.browsedAt), {
-                hour: '2-digit',
-                minute: '2-digit',
-              }),
-            })
-          : t('lastOut', {
-              date: format.dateTime(new Date(browse.browsedAt), {
-                month: 'long',
-                day: 'numeric',
-              }),
-            })
-        : t('notYet')
+    : data.goingOut
+      ? t('goingOut')
+      : browse.pausedReason
+        ? t('cannotGoOut')
+        : browse.browsedAt
+          ? daysAgo(browse.browsedAt) <= 0
+            ? t('backToday', {
+                time: format.dateTime(new Date(browse.browsedAt), {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                }),
+              })
+            : t('lastOut', {
+                date: format.dateTime(new Date(browse.browsedAt), {
+                  month: 'long',
+                  day: 'numeric',
+                }),
+              })
+          : t('notYet')
 
   return (
     <section

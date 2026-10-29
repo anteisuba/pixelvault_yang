@@ -1,5 +1,11 @@
 // ⚠ 用 `fireEvent` 不是 `user-event`：本仓没装 `@testing-library/user-event`。
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { STUDIO_OPERATOR_SHELL } from '@/constants/studio-assistant-operator'
@@ -277,24 +283,21 @@ describe('StudioOperatorHeader', () => {
   })
 
   /**
-   * owner 2026-09-20 真机第 3 条：删除是**原位两段**，⛔ 不再弹 `AlertDialog`。
-   * 这一条只钉头部这一侧的那一格 —— 同一列表**同时只有一行**能举着刀。
-   * 行内的两个状态机在 `StudioOperatorSessionRow.web.test.tsx` 里逐条验。
+   * owner 10-27「像 Claude」：点垃圾桶弹确认窗，确认了才按那一行删（推翻 09-20 的原位两段）。
    */
-  it('⭐ 同一列表同时只有一行处于确认删除态；⛔ 两张弹层都退场', () => {
-    renderHeader({ history: { ...HISTORY, sessions: SESSIONS } })
+  it('⭐ 点垃圾桶弹确认窗，确认才删那一行', async () => {
+    const deleteSession = vi.fn().mockResolvedValue(true)
+    renderHeader({ history: { ...HISTORY, sessions: SESSIONS, deleteSession } })
     const deletes = screen.getAllByTestId('operator-session-delete')
 
-    fireEvent.click(deletes[0] as HTMLElement)
-    expect(deletes[0]).toHaveAttribute('data-confirming', 'true')
-
     fireEvent.click(deletes[1] as HTMLElement)
-    expect(deletes[1]).toHaveAttribute('data-confirming', 'true')
-    expect(deletes[0]).toHaveAttribute('data-confirming', 'false')
+    expect(deleteSession).not.toHaveBeenCalled()
+    expect(screen.getByRole('alertdialog')).toBeTruthy()
 
-    // ⛔ 改名弹层与删除弹层都不在了。
-    expect(screen.queryByRole('alertdialog')).toBeNull()
-    expect(screen.queryByRole('dialog')).toBeNull()
+    fireEvent.click(
+      screen.getByRole('button', { name: 'deleteDialog.confirm' }),
+    )
+    await waitFor(() => expect(deleteSession).toHaveBeenCalledWith(SESSIONS[1]))
   })
 
   /**

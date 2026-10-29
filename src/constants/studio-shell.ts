@@ -2,7 +2,7 @@ import { ROUTES } from '@/constants/routes'
 
 /**
  * `/studio` 外壳（第 9f 步，方向 E「分层」）：左 = 在哪儿（列表），中 = 想什么（对话），
- * 右 = 用什么做（台）。三层只在 ≥1024（`desk:`）摆开；更窄照旧（台全屏 + 浮起的助手）。
+ * 右 = 用什么做（台）。三层在 ≥768（`lg:`，平板与电脑同一套）摆开；手机照旧（台全屏 + 浮起的助手）。
  * 设计稿：`/mnt/project-files/assistant-reliability/step9f-e.md`。
  */
 
@@ -97,6 +97,23 @@ export type StudioShellOverlayId = StudioLibraryCategoryId | 'profile'
 
 export function studioLibraryPath(category: StudioLibraryCategoryId): string {
   return `${ROUTES.LIBRARY}/${category}`
+}
+
+/** LoRA 库左栏那一格记在网址里（`?view=favorites|trained|characters`，不写 = 全部）。 */
+export const LORA_LIBRARY_VIEW_PARAM = 'view'
+
+/**
+ * 助手「翻给你看」换到那个库时去的地址（owner 10-28）：LoRA 库点名了哪一格就直接写进网址 ——
+ * ⚠ 挂上之后再换格会被 Civitai 那一格挂载时按旧网址写回的筛选参数盖掉。
+ */
+export function studioLibraryShowPath(
+  category: StudioLibraryCategoryId,
+  loraSection?: string,
+): string {
+  const path = studioLibraryPath(category)
+  return category === 'lora' && loraSection && loraSection !== 'library'
+    ? `${path}?${LORA_LIBRARY_VIEW_PARAM}=${loraSection}`
+    : path
 }
 
 /** 库左栏收起 / 展开（本机记住，七个库同一份）。 */

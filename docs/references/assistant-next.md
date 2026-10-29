@@ -11,6 +11,7 @@ v3 的问题不在某一条规矩，而在外壳替模型做了太多事（审�
 - **各家自带联网直接挂主循环**（`models.ts`）：Claude `web_search_20260209` + `web_fetch`、OpenAI / Grok Responses `web_search`、Gemini `google_search` + `url_context`、DeepSeek 走 Anthropic 兼容入口的 `web_search`。搜不搜、搜几次模型自己定。
 - **思考跨步接上**：每一步把模型的完整回复（思考、签名、联网结果）原样接回去；OpenAI / Grok 带回加密思考（`store: false`）；DeepSeek 改走 Anthropic 兼容入口（OpenAI 兼容那条 SDK 不回传 `reasoning_content`）。
 - **思考档整轮用创作者选的那一档**，⛔ 不按步降档。
+- **厂商调用要成对**（10-29）：Claude 联网时自己跑的整理代码（`code_execution`）结果 SDK 有时接不住，只剩调用 → 下一步整轮 400。发之前 `pairProviderToolParts` 把落单的厂商调用 / 结果（连它发起的）拿掉；还被拒就整对拿掉、同一接法重来一次。
 - **看过的图一直留在眼前**，超过 16 张才把最早的换成一行字。
 - ⛔ 没有步数上限、⛔ 没有「同一错 N 次就停」：停只有创作者按停（owner 2026-10-22）。
 
@@ -66,7 +67,8 @@ v3 的问题不在某一条规矩，而在外壳替模型做了太多事（审�
 
 - 5a 按账号排队在 Worker 里（见 `backend.md`「按账号排队」）：同一账号同时几张见 `IMAGE_ACCOUNT_CONCURRENCY`，429 退回去等。
 - 5b 面板开关改名「交给 AI 出图」。开着时浏览器替创作者按出图卡（一句话最多 4 张，超了照旧摆卡），关着时创作者自己按；台面末尾多一行 `LET AI GENERATE: on` 告诉模型。
-  - 不管开不开，图落地后 ⛔ 不自动看图，钉一张「按这个方向继续吗？」（继续 / 换个方向，`use-assistant-operator` 的 `then: 'ask'`）。点了或直接打字，助手才看 `result-N`、接着改。
+  - 关着时图落地后 ⛔ 不自动看图，钉一张「按这个方向继续吗？」（继续 / 换个方向）。点了或直接打字，助手才看 `result-N`、接着改。
+  - **出完图自己再改几轮**（owner 2026-10-29，默认 1 轮）：「交给 AI 出图」开着时开关右边多一颗「看图再改 N 轮」（点一下换档 1→2→3→出完就停，`store.autoReviewRounds`，按工作台记在本机）。一批落地、这一串还没用完轮数，就不问了：替创作者发一句 `[auto review] n/N`（`ASSISTANT_AUTO_REVIEW_MARK`），时间线只留一行「自己看图再改 · 第 n/N 轮」（`autoReview`）。提示词让她看新结果、逐条对要求，都对上就说一句停下、不再出；没对上就说哪几条、改真正起作用的（tag 与权重、LoRA 与权重、型号、参考图、设置）而不只是改措辞，再出一次。轮数用完照旧钉「继续吗」；创作者一开口从 0 重数；停止键照旧停。
   - 「先问我」（`planMode`）新内核本来就不读，不管出图。
 
 **第 6 步**（owner 10-23：照 Claude 的项目记忆做；要「关于你」这一层；先清后摘要；一份 PR）：
@@ -134,6 +136,14 @@ v3 的问题不在某一条规矩，而在外壳替模型做了太多事（审�
 - `open` 不再有 `character`（10-26）：角色页进了库、桌面上不当宿主，开过去永远「没到」（线上「没能打开那个台」）。角色的设定 / 造型用 edit 的库改法在哪个台都能改，首页两块板子也写明。
 - 系统提示加一条：没在这段对话里 `find` 过、结果为空之前，不许说「库里没有 / 你没有」。
 
+**库页助手能看能操作**（owner 10-28：屏上那一页 · 刷新 + 就地翻给你看 · 填进台走开台 · 只做桌面）：
+
+- 看：素材 / 角色 / 提示词 / LoRA 四个库页另报「屏上那一页」（`useReportLibraryScreen` → `libraryView.screen`）：哪一格 / 夹与筛选、搜索词、屏上前 20 样（按编号写）、素材多选了哪几张。板子底下 `LIBRARY ON SCREEN` 接着写出来；更多的叫它 `find`。页面还在取时不报；报上来的那一页对不上开着的库就不算。LoRA 库 Civitai 那一格不列结果。
+- 刷新：助手改了库（素材四条、`library_write` 的角色 / LoRA / 提示词）或撤销一条，`notifyLibraryChanged` 让开着的那一页重读（`useLibraryChanged`）；不走宿主，因为库叠层里的页面不当宿主。
+- 翻给你看：`open` 多一支 `bench: "library"`（`library` = assets / characters / prompts / loras，`show` 编号或名字，`search`，LoRA 的 `section`）。台不动；图按编号由服务端认成 id，别的只带名字、页面在自己列表里找（找不到就搜这个名字；LoRA 库只切到放着它的那一格）。浏览器 `requestLibraryShow` 交给页面（`useLibraryShowRequest`），换库时与左栏同一种换法（库开着用 replace），从台上翻开的库把对话一起叫出来；页面翻好（那一样打开了或在屏上、搜索词对上）或等满 `STUDIO_OPERATOR_LIBRARY_SHOW_SETTLE_MS` 就接着发，结果是新的屏上那一页，到没到由服务端照实说（`open.ts` 的 `libraryArrived`，与浏览器共用 `libraryItemShown`）。
+- 挂上 LoRA / 填进台照旧走开台再摆（`open` 台 + `edit`）。
+- 没做：手机；LoRA 收藏那一格里的搜索框与详情抽屉（另一会话在改那几个文件）；角色页的卡库（Chub）那一格。
+
 **聊天并回对话（owner 10-26，样件 v5 / 气泡出场样件 F）**：
 
 - 没开台 = 和现在这位聊：首页这一轮请求没带 `chatCharacterId` 时，内核按设置里那张角色卡补上（`getHomeChatCharacterId`），走聊天口吻；学说法（`learnCreatorPhrases`）挪进内核，聊天轮结束后 `after()` 跑。
@@ -156,6 +166,8 @@ v3 的问题不在某一条规矩，而在外壳替模型做了太多事（审�
 - 接口与搜索调研：项目文件 `assistant-reliability/model-interfaces.md`
 
 ## Last Verified
+
+- 2026-10-28 · 库页助手能看能操作：tsc 0 error、相关 vitest 1307 绿；真浏览器（localhost:3000）四页各走通一条：提示词库搜「雨」并报出屏上那几条、角色库打开 Denia 并列出屏上其余角色、素材库打开第一张图 + 建文件夹当场出现 / 撤销当场消失、LoRA 库切到收藏并报出前三把。
 
 - 2026-10-26 · ②c-3 删旧聊天房间：`tsc` 0 error、相关 vitest 全绿（含 i18n 齐全 / 键覆盖）；迁移漂移交 CI 检查。
 - 2026-10-26 · 聊天并回对话 ②c-1 / ②c-2：`tsc` 0 error、相关 vitest 全绿（首页补角色卡、事件记号、气泡出场时序、历史落库、念读接口与状态）。🔊 真念要在 preview 上用有 Fish key 的账号点一次。

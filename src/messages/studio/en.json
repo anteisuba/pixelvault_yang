@@ -1081,6 +1081,7 @@
     "emptyTags": "No tag templates yet",
     "emptyHintImage": "When an image comes out right, press “Save” on “Current prompt”, or write one yourself with “New template”.",
     "emptyHintTags": "Press “Save” on “Current tags”. Tag templates saved in LoRA or on the prompts page show up here too.",
+    "emptyHintLora": "Press “Save” on “Current tags” — the mounted LoRAs, their weights, the base and the parameters are saved with it. Tag templates saved in the tag studio or on the prompts page show up here too.",
     "noResult": "No templates match “{query}”",
     "clearSearch": "Clear search",
     "loadFailed": "Templates didn’t load",
@@ -1097,6 +1098,7 @@
     "saveForm": "Save",
     "footImage": "Click a template to apply it · model and aspect ratio switch too, then back to results",
     "footTags": "Click a template to apply it · ones saved in LoRA or on the prompts page only swap the tags, the model stays",
+    "footLora": "Click a template to apply it · ones saved in LoRA also swap the LoRAs, base and parameters; others only swap the tags",
     "manage": "Manage in Prompts",
     "apply": "Apply “{name}”",
     "more": "More actions for “{name}”",
@@ -1104,7 +1106,7 @@
     "renameLabel": "Template name",
     "renameHint": "Enter to save · Esc to cancel",
     "delete": "Delete",
-    "confirmDelete": "Confirm delete",
+    "deleteTitle": "Delete this template?",
     "applied": "Applied “{name}”",
     "undo": "Undo",
     "saveFailed": "Couldn’t save, try again",
@@ -1175,7 +1177,13 @@
     "history": "Conversations",
     "switchPersona": "Switch persona (now {name})",
     "historyShow": "Show conversations",
-    "historyHide": "Hide conversations"
+    "historyHide": "Hide conversations",
+    "chatMode": {
+      "chat": "Chat",
+      "work": "Work",
+      "toWork": "Chatting now. Switch to work",
+      "toChat": "Working now. Switch to chat"
+    }
   },
   "ImageRecipeImport": {
     "button": "Read from image",

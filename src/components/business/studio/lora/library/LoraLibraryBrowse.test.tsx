@@ -299,6 +299,32 @@ describe('LoraLibraryBrowse（库 B · Civitai）', () => {
     expect(mockSetNsfwFilter).toHaveBeenCalledWith('unrestricted')
   })
 
+  it('labels the corrected and similar-meaning segments after the literal hits', () => {
+    mockLibrary = libraryState({
+      debouncedSearch: 'endfeild',
+      search: 'endfeild',
+      items: [
+        makeItem('a', 'Alpha'),
+        makeItem('b', 'Beta'),
+        makeItem('c', 'Gamma'),
+      ],
+      segments: {
+        literalTotal: 0,
+        fallback: { kind: 'corrected', query: 'endfield', total: 2 },
+      },
+    })
+    renderBrowse()
+
+    expect(
+      screen.getByText(
+        'LoraWorkbench.browse:segmentCorrected:{"query":"endfeild","corrected":"endfield","count":"2"}',
+      ),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('LoraWorkbench.browse:segmentMeaning'),
+    ).toBeInTheDocument()
+  })
+
   it('raises the detail page over the grid and puts it back on ‹', async () => {
     renderBrowse()
 

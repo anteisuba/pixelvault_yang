@@ -23,13 +23,21 @@ import {
   ASSISTANT_MENTION_SCOPE_IDS,
 } from '@/constants/assistant-mention'
 import { ASSISTANT_PERSONA_DEFAULTS } from '@/constants/assistant-persona'
-import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
+import {
+  ASSISTANT_CHAT_MODE_IDS,
+  ASSISTANT_PROTOCOL_DOMAIN_IDS,
+  type AssistantChatMode,
+} from '@/constants/assistant-protocol'
 import type { AssistantPersonaPlanMode } from '@/constants/assistant-persona'
 import type { AssistantOperatorDomain } from '@/constants/assistant-operator'
-import { GENERATION_REVIEW_STATE_IDS } from '@/constants/assistant-operator'
+import {
+  ASSISTANT_AUTO_REVIEW_ROUNDS,
+  GENERATION_REVIEW_STATE_IDS,
+} from '@/constants/assistant-operator'
 import type { GenerationReviewState } from '@/constants/assistant-operator'
 import {
   STUDIO_OPERATOR_CONFIRM_STATUS_IDS,
+  STUDIO_OPERATOR_STREAMING,
   type StudioOperatorConfirmStatus,
   type StudioOperatorField,
 } from '@/constants/studio-assistant-operator'
@@ -70,7 +78,10 @@ import type {
   AssistantOperatorStep,
 } from '@/types/assistant-operator'
 import type { AssistantV3Transcript } from '@/types/assistant-v3'
-import type { AssistantSurfaceId } from '@/types/assistant-conversation'
+import {
+  ASSISTANT_SURFACE_IDS,
+  type AssistantSurfaceId,
+} from '@/types/assistant-conversation'
 import type {
   StudioOperatorHistoryEntry,
   StudioOperatorPending,
@@ -169,6 +180,12 @@ export interface StudioOperatorState {
    * ⚠ 钱闸不变：扳机仍是客户端这一下，服务端没有任何工具能建 generation。
    */
   autoGenerate: boolean
+  /**
+   * **出完图自己看、再改几轮**（owner 2026-10-29）：「交给 AI 出图」开着时，一批落地后助手
+   * 自己看图、对着要求改一次再出，最多这么多轮；0 = 出完就停、照旧问。和 `autoGenerate`
+   * 一样按 `threadScope` 记在本机。
+   */
+  autoReviewRounds: number
   /** 用户、工作区和项目共同决定的作用域；null 时不得持久化。 */
   threadScope: string | null
   /**
@@ -232,6 +249,12 @@ export interface StudioOperatorState {
    * 这段只能看、输入区换成「去她的配音间」。`null` = 工作会话（新会话一律是工作）。
    */
   chatCharacter: StudioOperatorChatCharacter | null
+  /**
+   * 这段对话在哪一档（owner 2026-10-28 B1：名字旁那枚胶囊）。`null` = 还没定：没开口前跟着
+   * 你站在哪儿走（`resolveOperatorChatMode`），开口那一刻定下来，之后换台、刷新都不变，
+   * 只有点胶囊会改。载回的会话从最后一条切模式标记读回。
+   */
+  chatMode: AssistantChatMode | null
   /**
    * 上一轮是**步数用完**停下的（D12 S12）—— 面板据此在末尾给「继续 / 先到这里」。
    * ⚠ 用户一开口（或新对话 / 换会话）就清掉。
@@ -336,6 +359,7 @@ const INITIAL_STATE: StudioOperatorState = {
   mentions: [],
   mentionInbox: [],
   autoGenerate: false,
+  autoReviewRounds: ASSISTANT_AUTO_REVIEW_ROUNDS.default,
   threadScope: null,
   selectedResultId: null,
   pendingResultId: null,
@@ -345,6 +369,7 @@ const INITIAL_STATE: StudioOperatorState = {
   incognito: false,
   offTheRecord: false,
   chatCharacter: null,
+  chatMode: null,
   outOfSteps: false,
   capturingFrames: false,
   reviewStates: {},
@@ -643,6 +668,15 @@ export function appendOperatorPending(
   })
 }
 
+/** 这一条攒下的思考摘要 —— 正文增量 / 定稿重建条目时带着走。 */
+function thinkingOf(
+  current: StudioOperatorThreadEntry | undefined,
+): Pick<StudioOperatorMessageEntry, 'thinking'> {
+  return current?.kind === 'message' && current.thinking
+    ? { thinking: current.thinking }
+    : {}
+}
+
 /**
  * 第一个字到达时**这一段想了多久** —— 占位行还空着就从它挂上那一刻算，已经算过就
  * 沿用（⛔ 每来一段增量重算一次，数会一直涨）。
@@ -696,6 +730,7 @@ export function appendOperatorStreamingMessage(
     text,
     streaming: true,
     ...(thoughtMs !== undefined ? { thoughtMs } : {}),
+    ...thinkingOf(current),
     ...(chat ? { chat: true as const } : {}),
   }
   if (index < 0) {
@@ -717,12 +752,14 @@ export function finalizeOperatorMessage(
   const index = state.entries.findIndex(
     (item) => item.kind === 'message' && item.id === id,
   )
-  const thoughtMs = thoughtMsOf(index >= 0 ? state.entries[index] : undefined)
+  const current = index >= 0 ? state.entries[index] : undefined
+  const thoughtMs = thoughtMsOf(current)
   const entry: StudioOperatorMessageEntry = {
     kind: 'message',
     id,
     text,
     ...(thoughtMs !== undefined ? { thoughtMs } : {}),
+    ...thinkingOf(current),
     ...(chat ? { chat: true as const } : {}),
   }
   if (index < 0) {
@@ -764,7 +801,89 @@ export function dropOperatorPending(id: string): void {
       entry.kind === 'message' && entry.id === id && entry.text.length === 0,
   )
   if (index < 0) return
+  const current = state.entries[index]!
+  /**
+   * ⭐ 想过的那一格**留下来当回执**（10-27「流出思考摘要」）：工具步压上来时，这一段想了什么、
+   * 想了多久得留在它该在的位置（工具步上面），⛔ 跟着空占位行一起扔掉 —— 以前的回执只剩最后
+   * 一段的秒数，就是因为前几段的这一格都被扔了。
+   */
+  const thoughtMs = thoughtMsOf(current)
+  if (
+    current.kind === 'message' &&
+    (current.thinking ||
+      (thoughtMs !== undefined &&
+        thoughtMs >= STUDIO_OPERATOR_STREAMING.thinkingRevealMs))
+  ) {
+    // 收成回执：占位行那两格（从哪一刻数 / 在等什么）不再有意义。
+    const rest = { ...current }
+    delete rest.pendingSince
+    delete rest.pendingPhase
+    emit({
+      ...state,
+      entries: state.entries.map((entry, i) =>
+        i === index
+          ? {
+              ...rest,
+              streaming: false,
+              ...(thoughtMs !== undefined ? { thoughtMs } : {}),
+            }
+          : entry,
+      ),
+    })
+    return
+  }
   emit({ ...state, entries: state.entries.filter((_, i) => i !== index) })
+}
+
+/**
+ * 这一段想完时回执写几秒：服务端量的（只算模型调用）与这一行自己数到的（从占位行挂上算，含开跑前
+ * 准备）取大的 —— 🔬 10-27 实跑：那一行数到 7 秒，回执写「想了 4 秒」，两个数对不上。
+ */
+function thoughtMsWith(base: StudioOperatorMessageEntry, ms: number): number {
+  const observed =
+    !base.text && base.pendingSince !== undefined
+      ? Date.now() - base.pendingSince
+      : 0
+  return Math.max((base.thoughtMs ?? 0) + ms, observed)
+}
+
+/**
+ * 模型在想（`thinking` 帧）—— 摘要追加进这一条占位行，`ms` 到了就记下这一段想了多久。
+ * ⚠ 那一条还不在（工具步之后的占位行还没挂出来）就**当场挂一条**：摘要来了就该看得见。
+ *   只带 `ms` 的那一帧⛔ 不为它挂：没有可看的，挂了下一帧又拆就是闪一下。
+ * ⚠ 一段里想了好几回（联网查完接着想）秒数累加。
+ */
+export function appendOperatorThinking(
+  id: string,
+  delta: string | undefined,
+  ms: number | undefined,
+): void {
+  const index = state.entries.findIndex(
+    (item) => item.kind === 'message' && item.id === id,
+  )
+  const current = index >= 0 ? state.entries[index] : undefined
+  if (current && current.kind !== 'message') return
+  if (!current && !delta) return
+  const base: StudioOperatorMessageEntry = current ?? {
+    kind: 'message',
+    id,
+    text: '',
+    streaming: true,
+    pendingSince: Date.now(),
+  }
+  const entry: StudioOperatorMessageEntry = {
+    ...base,
+    ...(delta ? { thinking: `${base.thinking ?? ''}${delta}` } : {}),
+    ...(ms !== undefined ? { thoughtMs: thoughtMsWith(base, ms) } : {}),
+  }
+  if (index < 0) {
+    appendOperatorEntry(entry)
+    return
+  }
+  emit({
+    ...state,
+    entries: state.entries.map((item, i) => (i === index ? entry : item)),
+  })
 }
 
 /**
@@ -1040,6 +1159,27 @@ function writeAutoGenerate(scope: string | null, on: boolean): void {
   }
 }
 
+const AUTO_REVIEW_STORAGE_PREFIX = 'antei:assistant-auto-review:'
+
+function readAutoReviewRounds(scope: string | null): number {
+  if (!scope) return ASSISTANT_AUTO_REVIEW_ROUNDS.default
+  try {
+    const saved = Number(
+      globalThis.localStorage?.getItem(AUTO_REVIEW_STORAGE_PREFIX + scope),
+    )
+    return globalThis.localStorage?.getItem(
+      AUTO_REVIEW_STORAGE_PREFIX + scope,
+    ) !== null &&
+      Number.isInteger(saved) &&
+      saved >= 0 &&
+      saved <= ASSISTANT_AUTO_REVIEW_ROUNDS.max
+      ? saved
+      : ASSISTANT_AUTO_REVIEW_ROUNDS.default
+  } catch {
+    return ASSISTANT_AUTO_REVIEW_ROUNDS.default
+  }
+}
+
 export function claimOperatorThreadScope(
   scope: string | null,
   domain: AssistantOperatorDomain,
@@ -1053,6 +1193,7 @@ export function claimOperatorThreadScope(
     localThreadId: crypto.randomUUID(),
     planMode: scope ? state.planMode : INITIAL_STATE.planMode,
     autoGenerate: readAutoGenerate(scope),
+    autoReviewRounds: readAutoReviewRounds(scope),
   }
   pendingAttachment = null
   if (
@@ -1101,6 +1242,26 @@ export function setOperatorAutoGenerate(autoGenerate: boolean): void {
   if (state.autoGenerate === autoGenerate) return
   writeAutoGenerate(state.threadScope, autoGenerate)
   emit({ ...state, autoGenerate })
+}
+
+/** 出完图自己再改几轮 —— 跟着工作台走，见 `autoReviewRounds` 头注。 */
+export function setOperatorAutoReviewRounds(rounds: number): void {
+  const next = Math.max(
+    0,
+    Math.min(ASSISTANT_AUTO_REVIEW_ROUNDS.max, Math.round(rounds)),
+  )
+  if (state.autoReviewRounds === next) return
+  if (state.threadScope) {
+    try {
+      globalThis.localStorage?.setItem(
+        AUTO_REVIEW_STORAGE_PREFIX + state.threadScope,
+        String(next),
+      )
+    } catch {
+      // 存不下（隐私模式 / 配额）：只在这次打开期间有效。
+    }
+  }
+  emit({ ...state, autoReviewRounds: next })
 }
 
 /** 结果行卡的选中格（§4.2）。⚠ 再点一次同一格 = 取消选中，由调用方传 `null`。 */
@@ -1215,6 +1376,70 @@ export function settleOperatorBenchOpenProject(projectId: string): void {
 export function setOperatorOutOfSteps(outOfSteps: boolean): void {
   if (state.outOfSteps === outOfSteps) return
   emit({ ...state, outOfSteps })
+}
+
+/** 载回的会话停在哪一档：最后一条切模式标记说了算；一条都没有 = 还没定（按会话从哪儿开始的算）。 */
+function chatModeFromHistory(
+  history: readonly StudioOperatorHistoryEntry[],
+): AssistantChatMode | null {
+  const mark = history.findLast((entry) => entry.kind === 'chatMark')
+  if (!mark || mark.kind !== 'chatMark') return null
+  return mark.characterId
+    ? ASSISTANT_CHAT_MODE_IDS.chat
+    : ASSISTANT_CHAT_MODE_IDS.work
+}
+
+/**
+ * 这段对话现在在哪一档。没有人设角色 = 只有工作（胶囊不出现）；定过的照定的；没定 = 载回的会话
+ * 按它从哪儿开始，新对话按你现在站在哪儿（首页聊、台上干活）。
+ */
+export function resolveOperatorChatMode(
+  current: Pick<StudioOperatorState, 'chatMode' | 'sessionSurface' | 'domain'>,
+  hasCharacter: boolean,
+): AssistantChatMode {
+  if (!hasCharacter) return ASSISTANT_CHAT_MODE_IDS.work
+  if (current.chatMode) return current.chatMode
+  const home = current.sessionSurface
+    ? current.sessionSurface === ASSISTANT_SURFACE_IDS.home
+    : current.domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.home
+  return home ? ASSISTANT_CHAT_MODE_IDS.chat : ASSISTANT_CHAT_MODE_IDS.work
+}
+
+/** 开口那一刻把档位定下来（还没定才定）：之后换台不再跟着变。 */
+export function settleOperatorChatMode(mode: AssistantChatMode): void {
+  if (state.chatMode) return
+  emit({ ...state, chatMode: mode })
+}
+
+/**
+ * 点胶囊换档。对话里已经有话时，时间线上留一条细线（「切到聊天 · 和她」/「回到工作」），模型也读
+ * 得到；连着切回去就把上一条细线拿掉，⛔ 留两条互相抵消的线。
+ */
+export function switchOperatorChatMode(
+  mode: AssistantChatMode,
+  character: { id: string; name: string },
+): void {
+  const last = state.entries.at(-1)
+  if (last?.kind === 'chatMark') {
+    emit({ ...state, chatMode: mode, entries: state.entries.slice(0, -1) })
+    return
+  }
+  const talked = state.entries.length > 0 || state.history.length > 0
+  emit({
+    ...state,
+    chatMode: mode,
+    entries: talked
+      ? [
+          ...state.entries,
+          {
+            kind: 'chatMark',
+            id: nextOperatorEntryId('chat-mark'),
+            character: mode === ASSISTANT_CHAT_MODE_IDS.chat ? character : null,
+            previous: mode === ASSISTANT_CHAT_MODE_IDS.chat ? null : character,
+          },
+        ]
+      : state.entries,
+  })
 }
 
 export function setOperatorIncognito(incognito: boolean): void {
@@ -1397,6 +1622,7 @@ export function loadOperatorThread(args: {
     incognito: false,
     offTheRecord: false,
     chatCharacter: args.chatCharacter ?? null,
+    chatMode: chatModeFromHistory(args.history),
   })
   hydrateOperatorResume()
 }
@@ -1586,6 +1812,7 @@ export function resetOperatorThread(
     history: EMPTY_HISTORY,
     historyRounds: EMPTY_ROUNDS,
     chatCharacter: null,
+    chatMode: null,
     sessionId: null,
     sessionSurface: null,
     entries: [],

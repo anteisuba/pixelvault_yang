@@ -334,16 +334,14 @@
       "loading": "読み込み中…",
       "untitled": "無題の会話",
       "earlierRounds": "それ以前の {count} 件",
+      "rename": "名前を変更",
+      "delete": "削除",
+      "moreLabel": "その他の操作：{title}",
       "deleteLabel": "会話を削除：{title}",
-      "deleteConfirmInline": "もう一度押すと「{title}」を完全に削除します",
-      "deleteConfirm": "確認",
-      "deleting": "削除中…",
+      "deleteTitle": "この会話を削除しますか？",
       "deleteFailed": "削除できませんでした。もう一度お試しください。",
-      "deleteBusy": "現在の応答が完了してから、この会話を削除してください。",
       "loadFailed": "会話一覧を読み込めませんでした。一覧を開き直してください。",
       "renameLabel": "{title} の名前を変更",
-      "renameHint": "Enter で保存 · Esc でキャンセル",
-      "renaming": "保存中…",
       "renameFailed": "名前を変更できませんでした。再試行してください。",
       "switching": "会話を読み込み中…",
       "saveFailed": "会話を保存できませんでした。下書きはこの画面に残っています。",
@@ -417,6 +415,10 @@
       "critiqueFailed": "結果の評価を読み取れませんでした",
       "urlNotFromUser": "そのリンクはあなたが渡したものではないため、そのまま取り込めません",
       "repeatedStep": "同じ手順をすでに実行済みのため、見送りました",
+      "referenceRequired": "先に参照画像を付けてください",
+      "notOnBench": "いまのワークベンチにはありません",
+      "onOtherBench": "別のワークベンチにあります。先にそちらを開いてください",
+      "notDone": "この手順は完了しませんでした",
       "ruleLimitReached": "ソースリストの上限に達しました。1 件削除してから追加してください。",
       "memoryOff": "記憶がオフ（シークレット、または「アシスタントに覚えさせる」がオフ）なので、保存していません",
       "ruleTooLong": "このルールは長すぎるため、保存していません",
@@ -621,7 +623,8 @@
       "moveWorkAccepted": "{subject}",
       "moveWorkDeclined": "{subject}",
       "moveWorkDroppedReferences": "参照画像 {subject} 枚は持っていけませんでした（上限超過、またはアップロード未完了）。",
-      "autoGenerateHeld": "このカードは {subject} 枚を生成します。「AI に生成を任せる」の上限（1 メッセージ 4 枚）を超えるため自動では押していません。確認すると生成します。"
+      "autoGenerateHeld": "このカードは {subject} 枚を生成します。「AI に生成を任せる」の上限（1 メッセージ 4 枚）を超えるため自動では押していません。確認すると生成します。",
+      "autoReview": "自分で見直して再生成 · {subject} 回目"
     },
     "attach": {
       "latestResult": "最新 · {label}",
@@ -807,6 +810,8 @@
       "copied": "コピーしました",
       "missingKey": "アシスタントにはご自身の AI テキストモデルのキーが必要です。Gemini のキーは Google AI Studio で無料で作成できます。",
       "modelKeyMissing": "{model} の {provider} キーがまだないため、実行していません（他社のキーで代わりに動かすことはしません）。キーを追加するか、別のモデルを選んでください。",
+      "providerOutOfCredit": "{provider} 側のクレジットが尽きたため、{model} はこのターンを実行できませんでした。{provider} でチャージしてから再試行するか、別のプロバイダーのモデルに切り替えてください。",
+      "providerKeyInvalid": "{provider} がこのキーを拒否しました（無効または権限なし）。{model} はこのターンを実行できませんでした。{provider} のキーを設定し直すか、モデルを切り替えてください。",
       "upscaleKeyMissing": "拡大にはあなたの {provider} キーが必要ですが、まだ設定されていないため拡大していません（他社のキーで代わりに動かすことはしません）。キーを設定してから、もう一度「拡大」と伝えてください。",
       "addKey": "キーを追加",
       "addProviderKey": "{provider} のキーを追加",
@@ -1052,7 +1057,10 @@
       }
     },
     "autoGenerate": {
-      "label": "AI に生成を任せる"
+      "label": "AI に生成を任せる",
+      "review": "見直し {count} 回",
+      "reviewOff": "生成したら止める",
+      "reviewHint": "生成後に自分で見直して、指示に合わせて何回作り直すか。クリックで切り替え"
     },
     "continueAsk": {
       "header": "次は",
@@ -1361,19 +1369,6 @@
       "noCharacters": "まだキャラクターがいません",
       "noCharactersHint": "キャラクターを作ってしばらく話すと、ここに彼女の日記と変えたことが出てきます。",
       "createCharacter": "キャラクターを作る",
-      "failed": "読み込めませんでした。少ししてからもう一度。",
-      "journal": "日記",
-      "noJournal": "まだ日記はありません。30 回話すごとに振り返って一篇書きます。",
-      "journalEarlier": "以前の {count} 篇",
-      "journalCollapse": "たたむ",
-      "revisions": "彼女が変えたこと",
-      "noRevisions": "まだ自分のカードを変えていません。",
-      "revertFailed": "元に戻せませんでした。もう一度。",
-      "reason": "「{reason}」",
-      "fromChat": "会話で変更",
-      "reverted": "元に戻した",
-      "revert": "元に戻す",
-      "emptyValue": "（空）",
       "fields": {
         "name": "名前",
         "tags": "タグ",
@@ -1390,7 +1385,8 @@
         "opening": "最初のひとこと",
         "examples": "会話例",
         "backstory": "経歴"
-      }
+      },
+      "openOnPage": "彼女のページで見る"
     }
   }
 }

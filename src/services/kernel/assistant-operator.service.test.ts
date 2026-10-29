@@ -1450,8 +1450,18 @@ describe('v3 收尾（P2 §2.5）', () => {
     const { run, user } = await prepare()
     recordLedgerStep(run, ASSISTANT_OPERATOR_VERB_IDS.look, '看图', '黑长直')
     mockListMemoriesForReview.mockResolvedValueOnce([
-      { id: 'm-a', kind: 'preference', text: '偏好竖构图 9:16' },
-      { id: 'm-b', kind: 'fact', text: '主角叫小林' },
+      {
+        id: 'm-a',
+        kind: 'preference',
+        text: '偏好竖构图 9:16',
+        updatedAt: '2026-09-01T08:00:00.000Z',
+      },
+      {
+        id: 'm-b',
+        kind: 'fact',
+        text: '主角叫小林',
+        updatedAt: '2026-10-20T08:00:00.000Z',
+      },
     ])
     mockLlmTextCompletion.mockResolvedValueOnce(
       JSON.stringify({
@@ -1470,8 +1480,10 @@ describe('v3 收尾（P2 §2.5）', () => {
     const prompt = (
       mockLlmTextCompletion.mock.calls[0]?.[0] as { userPrompt: string }
     ).userPrompt
-    expect(prompt).toContain('#1 [preference] 偏好竖构图 9:16')
-    expect(prompt).toContain('#2 [fact] 主角叫小林')
+    expect(prompt).toContain(
+      '#1 [preference, noted 2026-09-01] 偏好竖构图 9:16',
+    )
+    expect(prompt).toContain('#2 [fact, noted 2026-10-20] 主角叫小林')
     expect(mockRecordMemories).toHaveBeenCalledTimes(1)
     expect(mockRecordMemories.mock.calls[0]?.[0]).toMatchObject({
       scope: 'image',
@@ -1841,5 +1853,147 @@ describe('search_web_images · 观察只指够得着的路', () => {
     )
     expect(observation).not.toContain('import_user_url')
     expect(observation).toContain('"use this"')
+  })
+})
+
+describe('同一轮先挂参考图再设要图的专属项（10-27 标签台真机）', () => {
+  async function naiRun(
+    model = { id: 'nai-diffusion-4-5-full', label: 'NovelAI V4.5 Full' },
+  ) {
+    queueTurns()
+    const prepared = await prepareOperatorTurn(
+      'clerk-1',
+      buildRequest({
+        snapshot: {
+          ...SNAPSHOT,
+          model,
+          capabilities: [
+            {
+              key: 'novelAiReferenceMode',
+              kind: 'select',
+              value: null,
+              defaultValue: 'standard',
+              options: ['standard', 'precise'],
+              available: false,
+            },
+          ],
+          references: { items: [], limit: 1 },
+        },
+      }),
+      new AbortController().signal,
+    )
+    prepared.run.searchIndex.set('asset-1', {
+      assetId: 'asset-1',
+      displayName: '图_1215',
+      url: 'https://cdn.example.com/a.png',
+      kind: 'image',
+    })
+    return prepared
+  }
+
+  it('挂上之后要图的那一项当场可设；位满时说清占位的是谁、怎么换', async () => {
+    const prepared = await naiRun()
+    const plan = (tool: string, args: Record<string, unknown>) =>
+      planTool(prepared.run, tool as never, args as never, prepared.user.id)
+    const before = await plan(ASSISTANT_OPERATOR_TOOL_IDS.setCapability, {
+      key: 'novelAiReferenceMode',
+      value: 'precise',
+    })
+    expect(before).toMatchObject({
+      kind: 'rejected',
+      reason: 'referenceRequired',
+    })
+    const mount = await plan(ASSISTANT_OPERATOR_TOOL_IDS.mountReference, {
+      assetId: 'asset-1',
+    })
+    expect(mount.kind).toBe('mutate')
+    if (mount.kind === 'mutate') mount.apply?.()
+    const after = await plan(ASSISTANT_OPERATOR_TOOL_IDS.setCapability, {
+      key: 'novelAiReferenceMode',
+      value: 'precise',
+    })
+    expect(after.kind).toBe('mutate')
+    const again = await plan(ASSISTANT_OPERATOR_TOOL_IDS.mountReference, {
+      assetId: 'asset-1',
+    })
+    expect(again).toMatchObject({ kind: 'rejected', reason: 'referencesFull' })
+    expect(JSON.stringify(again)).toContain('remove_reference ref-N')
+  })
+
+  it('V4.5：挂图 → 开精确参考 → 两个滑块都设得上；img2img 强度此时说明不生效', async () => {
+    const prepared = await naiRun()
+    const plan = async (tool: string, args: Record<string, unknown>) => {
+      const result = await planTool(
+        prepared.run,
+        tool as never,
+        args as never,
+        prepared.user.id,
+      )
+      if (result.kind === 'mutate') result.apply?.()
+      return result
+    }
+    await plan(ASSISTANT_OPERATOR_TOOL_IDS.mountReference, {
+      assetId: 'asset-1',
+    })
+    const early = await plan(ASSISTANT_OPERATOR_TOOL_IDS.setCapability, {
+      key: 'preciseReferenceStrength',
+      value: 0.5,
+    })
+    expect(JSON.stringify(early)).toContain(
+      'only takes effect once novelAiReferenceMode is precise',
+    )
+    expect(
+      (
+        await plan(ASSISTANT_OPERATOR_TOOL_IDS.setCapability, {
+          key: 'novelAiReferenceMode',
+          value: 'precise',
+        })
+      ).kind,
+    ).toBe('mutate')
+    for (const [key, value] of [
+      ['preciseReferenceStrength', 0.8],
+      ['preciseReferenceFidelity', 0.6],
+    ] as const) {
+      const result = await plan(ASSISTANT_OPERATOR_TOOL_IDS.setCapability, {
+        key,
+        value,
+      })
+      expect(result.kind).toBe('mutate')
+      expect(JSON.stringify(result)).not.toContain('only takes effect')
+    }
+    const img2img = await plan(ASSISTANT_OPERATOR_TOOL_IDS.setCapability, {
+      key: 'referenceStrength',
+      value: 0.8,
+    })
+    expect(JSON.stringify(img2img)).toContain(
+      'Ignored while novelAiReferenceMode is precise',
+    )
+    expect(
+      prepared.run.state.capabilities.find(
+        (item) => item.key === 'preciseReferenceFidelity',
+      )?.value,
+    ).toBe(0.6)
+  })
+
+  it('V5：没有精确参考 —— 拒因是「台上没有这一项」，并指向换模型', async () => {
+    const prepared = await naiRun({
+      id: 'nai-diffusion-5-full',
+      label: 'NovelAI V5 Full',
+    })
+    const mount = await planTool(
+      prepared.run,
+      ASSISTANT_OPERATOR_TOOL_IDS.mountReference as never,
+      { assetId: 'asset-1' } as never,
+      prepared.user.id,
+    )
+    if (mount.kind === 'mutate') mount.apply?.()
+    const result = await planTool(
+      prepared.run,
+      ASSISTANT_OPERATOR_TOOL_IDS.setCapability as never,
+      { key: 'novelAiReferenceMode', value: 'precise' } as never,
+      prepared.user.id,
+    )
+    expect(result).toMatchObject({ kind: 'rejected', reason: 'notOnBench' })
+    expect(JSON.stringify(result)).toContain('set_model')
   })
 })

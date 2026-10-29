@@ -4,6 +4,7 @@ import {
   ASSISTANT_OPERATOR_APPEND_SEPARATOR,
   ASSISTANT_OPERATOR_REJECT_REASON_IDS as REJECT,
   ASSISTANT_OPERATOR_TOOL_IDS as TOOL,
+  type AssistantOperatorRejectReason,
   type AssistantOperatorTool,
 } from '@/constants/assistant-operator'
 import {
@@ -172,15 +173,9 @@ export function* refused(
   tool: AssistantOperatorTool,
   title: string,
   error: string,
+  reason: AssistantOperatorRejectReason = REJECT.notDone,
 ): Generator<AssistantOperatorEvent, V3Outcome> {
-  return yield* rejectedStep(
-    context,
-    tool,
-    title,
-    REJECT.noSuchControl,
-    error,
-    true,
-  )
+  return yield* rejectedStep(context, tool, title, reason, error, true)
 }
 
 /** `ref-2` → 第几张参考图（从 0 起）；对不上回 `null`。 */
@@ -192,10 +187,25 @@ export function referenceIndexOf(
   if (!key.startsWith(ASSISTANT_V3_LORA_ITEM_IDS.referencePrefix)) return null
   const index =
     Number(key.slice(ASSISTANT_V3_LORA_ITEM_IDS.referencePrefix.length)) - 1
+  // ⚠ 按**此刻**台上那几张认（10-27 真机）：本轮刚换上的图，看 ref-1 看到的得是新那张 ——
+  //   读开场快照的下场是看见旧图，模型以为没换成，摘了又挂、挂了又看。
   return Number.isInteger(index) &&
-    context.request.snapshot.references?.items[index]
+    context.prepared.run.state.referenceUrls[index]
     ? index
     : null
+}
+
+/** 此刻台上第 N 张参考图（`referenceIndexOf` 认出来的那一位）的地址与名字。 */
+export function currentReference(
+  context: V3Context,
+  index: number,
+): { url: string; label?: string } {
+  const url = context.prepared.run.state.referenceUrls[index]!
+  const opening = context.request.snapshot.references?.items[index]
+  // 名字只在还是开场那张时带：换过的那一位，旧名字是另一张图的。
+  return opening?.url === url && opening.label
+    ? { url, label: opening.label }
+    : { url }
 }
 
 /** 卸下一张参考图。⚠ 旧执行器的 `slotIndex` 是 @ImageN 的 N（从 1 起）。 */
@@ -204,13 +214,21 @@ export async function* unmountReference(
   ref: string,
 ): AsyncGenerator<AssistantOperatorEvent, V3Outcome> {
   const title = `${TITLE_TEXT[context.language].unmount} ${ref}`
-  const index = referenceIndexOf(context, ref)
-  if (index === null)
+  // ⚠ 按**此刻**台上的张数认（10-27 真机）：开场快照里没有、本轮刚挂上的那张也要摘得掉。
+  const key = ref.trim().toLowerCase()
+  const count = context.prepared.run.state.referenceCount
+  const index = key.startsWith(ASSISTANT_V3_LORA_ITEM_IDS.referencePrefix)
+    ? Number(key.slice(ASSISTANT_V3_LORA_ITEM_IDS.referencePrefix.length)) - 1
+    : -1
+  if (!Number.isInteger(index) || index < 0 || index >= count)
     return yield* refused(
       context,
       TOOL.unmountReference,
       title,
-      `There is no reference "${ref}" on the bench.`,
+      count
+        ? `There is no reference "${ref}" on the bench: name one of ${Array.from({ length: count }, (_, i) => `ref-${i + 1}`).join(', ')}.`
+        : `There is no reference "${ref}" on the bench: none are mounted.`,
+      REJECT.notOnBench,
     )
   return yield* runOldTool(context, TOOL.unmountReference, title, {
     slotIndex: index + 1,
@@ -320,7 +338,6 @@ export async function* executeBenchLook(
 ): AsyncGenerator<AssistantOperatorEvent, V3Outcome> {
   // ⚠ 看不了图的模型也照样认出要看的是哪几张，交给 `executeV3Look`：图自带配方的照样给配方。
   const mentioned = context.request.mentionedAssets ?? []
-  const references = context.request.snapshot.references?.items ?? []
   const referenceVideos = context.request.snapshot.videoReferences?.items ?? []
   const board = context.transcript[0]
   const boardClips =
@@ -352,7 +369,7 @@ export async function* executeBenchLook(
     }
     const index = referenceIndexOf(context, image)
     if (index !== null) {
-      const reference = references[index]!
+      const reference = currentReference(context, index)
       targets.push({
         url: reference.url,
         label: `ref-${index + 1}${reference.label ? ` ${reference.label}` : ''}`,

@@ -5,6 +5,7 @@ import { createHash, randomBytes } from 'node:crypto'
 import { Prisma, type AssistantSurface } from '@/lib/generated/prisma/client'
 
 import { deriveAssistantConversationTitle } from '@/lib/assistant-conversation-title'
+import { scheduleAssistantConversationTitle } from '@/services/kernel/assistant-conversation-title.service'
 import {
   assistantWorkspaceFromKey,
   assistantWorkspaceKeyOfRow,
@@ -326,6 +327,13 @@ export async function upsertAssistantConversation(
       title,
       messages: messages as unknown as Prisma.InputJsonValue,
     },
+  })
+  // 先挂截第一句的那一版，后台再按内容起一个（owner 2026-10-27「AI 自动起标题」）。
+  scheduleAssistantConversationTitle({
+    userId: user.id,
+    conversationId: created.id,
+    autoTitle: title,
+    messages,
   })
   return toRecord(created)
 }

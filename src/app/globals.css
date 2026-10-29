@@ -636,7 +636,12 @@
 :root {
   /* ── 字体三槽 · 三语栈（ui-defaults.md §1）──────────────────────────
      拉丁字体永远排第一，CJK 排第二；三语只换 CJK 那一位。next/font 变量挂在
-     <html>（layout.tsx），所以这里 :root 上能取到。 */
+     <html>（layout.tsx），所以这里 :root 上能取到；CJK 四套是 fontsource 的
+     family 名（src/i18n/fonts.ts 引的样式表）。 */
+  --font-noto-sans-sc: 'Noto Sans SC Variable';
+  --font-noto-sans-jp: 'Noto Sans JP Variable';
+  --font-noto-serif-sc: 'Noto Serif SC Variable';
+  --font-noto-serif-jp: 'Noto Serif JP Variable';
   --font-stack-sans:
     var(--font-geist), var(--font-noto-sans-sc), 'PingFang SC',
     'Microsoft YaHei', ui-sans-serif, system-ui, sans-serif;
@@ -2695,6 +2700,18 @@ html:lang(ja) {
   }
 }
 
+/* 她发的表情包（4d，owner 10-29 定 A）：裸图，弹一下出现（略转、回弹）。减少动效时不动。 */
+.operator-chat-sticker-in {
+  animation: operator-chat-sticker-in 450ms cubic-bezier(0.3, 1.4, 0.5, 1) both;
+}
+
+@keyframes operator-chat-sticker-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6) rotate(-6deg);
+  }
+}
+
 .operator-chat-typing > i {
   animation: operator-chat-typing 1s infinite both;
 }
@@ -2719,6 +2736,7 @@ html:lang(ja) {
 
 @media (prefers-reduced-motion: reduce) {
   .operator-chat-bubble-in,
+  .operator-chat-sticker-in,
   .operator-chat-typing > i {
     animation: none;
   }
@@ -2965,10 +2983,10 @@ html:lang(ja) {
   contain: layout;
 }
 
-/* `/studio` 外壳的白板（ui-spec §1）：≥1024 白板落在灰底上、上下各留 8（`my-2` = 1rem），
+/* `/studio` 外壳的白板（ui-spec §1）：≥768 白板落在灰底上、上下各留 8（`my-2` = 1rem），
    板里按整屏写的高（`var(--screen-h, 100svh)`）一起扣掉它。手机上没有白板，照旧整屏。 */
 @utility bench-screen-h {
-  @media (width >= 64rem) {
+  @media (width >= 48rem) {
     --screen-h: calc(100svh - 1rem);
   }
 }
@@ -3151,23 +3169,6 @@ html:lang(ja) {
    shadow 工具要能解析出颜色，值里带 `var(--foreground)` 时整条规则被跳过（真机
    实测 `box-shadow: none`）。⛔ 也不用 `ring-2`：2px 在缩放的画布上读成描边框，
    而不是「这张被选中了」。 */
-/* 历史会话行的删除药丸（画板「历史会话行 · 动效表」）：底色 / 字色 120ms 线性，
-   左右内距走 spring-slot。⛔ 颜色不走弹簧 —— 过冲会把颜色推出终点。 */
-@utility transition-delete-pill {
-  transition:
-    background-color var(--duration-fast) linear,
-    color var(--duration-fast) linear,
-    padding var(--spring-slot-duration) var(--spring-slot-ease);
-}
-
-/* 药丸里那两个字：宽度跟着弹簧撑开，字由糊变清 200ms 线性。 */
-@utility transition-delete-pill-word {
-  transition:
-    max-width var(--spring-slot-duration) var(--spring-slot-ease),
-    opacity var(--duration-base) linear,
-    filter var(--duration-base) linear;
-}
-
 /* 选中环的轨道：平时就挂一圈透明 outline，选中只换颜色 —— `outline-style` 不能过渡，
    选中那一刻才挂上的话环会瞬出瞬没（node-canvas-v2 §1 第 12 条：选中环走 120）。 */
 /* 剪辑台的磁性让位（v2 关键切片动效表「插、删、换位、变长短」）：段、挂件、连接线、

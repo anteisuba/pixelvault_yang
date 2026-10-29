@@ -13,6 +13,7 @@ import {
   isCivitaiBaseModelGeneratable,
   isLoraNsfwFilter,
 } from '@/constants/lora'
+import { useLoraBenchHandoff } from '@/contexts/studio-library-pick'
 import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
 import { useCivitaiDownloadGate } from '@/hooks/use-civitai-download-gate'
 import { useHandMentionToAssistant } from '@/hooks/use-hand-to-assistant'
@@ -152,6 +153,7 @@ export function LoraFavoritesBrowse({
   const format = useFormatter()
   const hand = useHandMentionToAssistant()
   const stack = useActiveLoraStack()
+  const handoff = useLoraBenchHandoff()
   const { ensureMountable } = useCivitaiDownloadGate()
   const [storedNsfwFilter] = useLocalPreference(LORA_LIBRARY_NSFW_STORAGE_KEY)
   const nsfwFilter =
@@ -263,9 +265,14 @@ export function LoraFavoritesBrowse({
     async (asset: LoraAssetRecord, target?: CivitaiLoraLibraryItem) => {
       const version =
         target && target.modelVersionId !== asset.modelVersionId ? target : null
-      if (isMounted(version ?? asset) || mountingId) return
+      if (mountingId) return
+      if (isMounted(version ?? asset)) {
+        handoff?.()
+        return
+      }
       if (!version) {
         stack.push(asset)
+        handoff?.()
         return
       }
       setMountingId(version.id)
@@ -279,11 +286,12 @@ export function LoraFavoritesBrowse({
           return
         }
         stack.push(version)
+        handoff?.()
       } finally {
         setMountingId(null)
       }
     },
-    [ensureMountable, isMounted, mountingId, stack, t],
+    [ensureMountable, handoff, isMounted, mountingId, stack, t],
   )
 
   // 格子上的书签：收着就取消（按记录自己的链接），角色里没收藏的那把就收进来。

@@ -1,3 +1,4 @@
+import { cookies } from 'next/headers'
 import { NextIntlClientProvider } from 'next-intl'
 import { getMessages, getTranslations } from 'next-intl/server'
 
@@ -7,10 +8,12 @@ import { AppSidebar } from '@/components/layout/AppSidebar'
 import { MainProviders } from '@/components/layout/MainProviders'
 import { MobileShell, MobileShellInset } from '@/components/layout/MobileShell'
 import { ThemedScope } from '@/components/layout/ThemedScope'
+import { TimeZoneSync } from '@/components/layout/TimeZoneSync'
 import { SidebarProvider } from '@/components/ui/sidebar'
 import { Toaster } from '@/components/ui/sonner'
 import { omitMessages, OUTSIDE_APP_NAMESPACES } from '@/i18n/messages-split'
 import { DEFAULT_LOCALE, isAppLocale } from '@/i18n/routing'
+import { TIME_ZONE_COOKIE, validTimeZone } from '@/i18n/time-zone'
 
 export default async function MainLayout({
   children,
@@ -33,6 +36,9 @@ export default async function MainLayout({
     await getMessages({ locale }),
     OUTSIDE_APP_NAMESPACES,
   )
+  // 时间按看的人本地时区显示（`TimeZoneSync` 写 cookie）；没写过之前 next-intl 按 UTC。
+  const savedTimeZone = (await cookies()).get(TIME_ZONE_COOKIE)?.value
+  const timeZone = validTimeZone(savedTimeZone)
 
   return (
     <div className="min-h-svh overflow-x-clip bg-background">
@@ -44,7 +50,12 @@ export default async function MainLayout({
       >
         {tCommon('skipToMainContent')}
       </a>
-      <NextIntlClientProvider locale={locale} messages={appMessages}>
+      <NextIntlClientProvider
+        locale={locale}
+        messages={appMessages}
+        {...(timeZone ? { timeZone } : {})}
+      >
+        <TimeZoneSync current={savedTimeZone} />
         <MainProviders>
           <SidebarProvider defaultOpen={false}>
             <AppSidebar />

@@ -430,6 +430,11 @@ export const STUDIO_OPERATOR_SYSTEM_CODES = [
    * 卡留着等你按。⛔ 不静默：开关开着却没出图，用户会以为自动生成坏了。
    */
   'autoGenerateHeld',
+  /**
+   * **助手自己看图再改了一轮**（owner 2026-10-29）——「自己看图再改 · 第 1/1 轮」。
+   * 这一行同时是替创作者说的那句「看看这批」（`userText`），模型据此看图、对着要求改。
+   */
+  'autoReview',
 ] as const
 
 export type StudioOperatorSystemCode =
@@ -458,6 +463,11 @@ export const STUDIO_OPERATOR_CHAT = {
 export const STUDIO_OPERATOR_BENCH_OPEN_TIMEOUT_MS = 30_000
 /** 换页之后隔多久看一眼新台好了没有。 */
 export const STUDIO_OPERATOR_BENCH_OPEN_POLL_MS = 250
+/**
+ * 库里「翻给你看」（owner 10-28）：页面接走之后最多等这么久让它报上新的屏上那一页（搜索要取一次），
+ * 过了照样接着发，到没到由服务端按屏上那一页如实说。
+ */
+export const STUDIO_OPERATOR_LIBRARY_SHOW_SETTLE_MS = 4_000
 
 export const STUDIO_OPERATOR_HISTORY = {
   saveDebounceMs: 1200,

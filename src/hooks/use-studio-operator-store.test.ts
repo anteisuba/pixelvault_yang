@@ -355,6 +355,20 @@ describe('工作区作用域', () => {
     expect(result.current.primed).toBe(true)
   })
 
+  it('出完图自己再改几轮：默认 1 轮，按工作台记在本机，0–3 之间', () => {
+    localStorage.clear()
+    act(() => store.claimOperatorThreadScope('user:image-natural', 'image'))
+    expect(store.getOperatorState().autoReviewRounds).toBe(1)
+    act(() => store.setOperatorAutoReviewRounds(0))
+    act(() => store.claimOperatorThreadScope(null, 'image'))
+    act(() => store.claimOperatorThreadScope('user:image-natural', 'image'))
+    expect(store.getOperatorState().autoReviewRounds).toBe(0)
+    act(() => store.setOperatorAutoReviewRounds(9))
+    expect(store.getOperatorState().autoReviewRounds).toBe(3)
+    act(() => store.claimOperatorThreadScope('user:lora', 'lora'))
+    expect(store.getOperatorState().autoReviewRounds).toBe(1)
+  })
+
   it('自动生成偏好跟着工作台走：新对话、换会话、刷新都保留，另一工作区和账号不继承', () => {
     localStorage.clear()
     act(() => store.claimOperatorThreadScope('user:image-natural', 'image'))
@@ -594,6 +608,63 @@ describe('正文与占位行', () => {
       pendingPhase: 'landing',
       streaming: true,
     })
+  })
+
+  it('思考摘要攒进占位行，秒数以服务端的为准，正文来了摘要还跟着（10-27）', () => {
+    const result = readState()
+    act(() => store.appendOperatorPending('run-1:msg-0'))
+    act(() =>
+      store.appendOperatorThinking('run-1:msg-0', '**Plan**\n', undefined),
+    )
+    act(() => store.appendOperatorThinking('run-1:msg-0', 'Edit.', 17_000))
+    act(() => store.appendOperatorStreamingMessage('run-1:msg-0', '好。'))
+    act(() => store.finalizeOperatorMessage('run-1:msg-0', '好。'))
+    expect(result.current.entries).toEqual([
+      {
+        kind: 'message',
+        id: 'run-1:msg-0',
+        text: '好。',
+        thoughtMs: 17_000,
+        thinking: '**Plan**\nEdit.',
+      },
+    ])
+  })
+
+  it('⭐ 想过的空占位行被工具步顶掉时留成回执，没想过的照旧扔（10-27）', () => {
+    const result = readState()
+    act(() => store.appendOperatorPending('run-1:msg-0'))
+    act(() => store.appendOperatorThinking('run-1:msg-0', '**Plan**', 9_000))
+    act(() => store.dropOperatorPending('run-1:msg-0'))
+    expect(result.current.entries).toEqual([
+      {
+        kind: 'message',
+        id: 'run-1:msg-0',
+        text: '',
+        streaming: false,
+        thoughtMs: 9_000,
+        thinking: '**Plan**',
+      },
+    ])
+    act(() => store.appendOperatorPending('run-1:msg-1'))
+    act(() => store.dropOperatorPending('run-1:msg-1'))
+    expect(result.current.entries).toHaveLength(1)
+  })
+
+  it('只带秒数的思考帧⛔ 为它挂一条占位行；带摘要的当场挂（10-27）', () => {
+    const result = readState()
+    act(() => store.appendOperatorThinking('run-1:msg-0', undefined, 300))
+    expect(result.current.entries).toEqual([])
+    act(() =>
+      store.appendOperatorThinking('run-1:msg-0', '**Plan**', undefined),
+    )
+    expect(result.current.entries).toEqual([
+      expect.objectContaining({
+        id: 'run-1:msg-0',
+        text: '',
+        streaming: true,
+        thinking: '**Plan**',
+      }),
+    ])
   })
 
   it('⭐ 增量**追加**到那条 streaming 气泡后面，定稿再整体覆盖并降旗（56b 切片 3）', () => {

@@ -109,6 +109,7 @@ describe('readCronHeartbeats', () => {
 
     expect(entries.map((entry) => entry.name)).toEqual([
       CRON_JOBS.EXECUTION_SWEEP,
+      CRON_JOBS.CHARACTER_BROWSE,
     ])
     for (const entry of entries) {
       expect(entry.lastRun).toBeNull()

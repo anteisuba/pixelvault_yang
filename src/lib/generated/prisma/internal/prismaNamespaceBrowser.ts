@@ -87,6 +87,8 @@ export const ModelName = {
   ContextCard: 'ContextCard',
   AssistantMemory: 'AssistantMemory',
   CharacterCardRevision: 'CharacterCardRevision',
+  CharacterFinding: 'CharacterFinding',
+  CharacterSticker: 'CharacterSticker',
   CharacterJournal: 'CharacterJournal',
   AssistantSkill: 'AssistantSkill',
   AssistantTurnRecord: 'AssistantTurnRecord'
@@ -506,6 +508,7 @@ export const AssistantPersonaScalarFieldEnum = {
   archetype: 'archetype',
   routeModel: 'routeModel',
   reasoningEffort: 'reasoningEffort',
+  tasteDistilledAt: 'tasteDistilledAt',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -564,6 +567,11 @@ export const CharacterCardScalarFieldEnum = {
   handle: 'handle',
   summary: 'summary',
   extensions: 'extensions',
+  browseEnabled: 'browseEnabled',
+  browseDailyLimit: 'browseDailyLimit',
+  browsedAt: 'browsedAt',
+  browseModel: 'browseModel',
+  browsePausedReason: 'browsePausedReason',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -775,6 +783,37 @@ export const CharacterCardRevisionScalarFieldEnum = {
 } as const
 
 export type CharacterCardRevisionScalarFieldEnum = (typeof CharacterCardRevisionScalarFieldEnum)[keyof typeof CharacterCardRevisionScalarFieldEnum]
+
+
+export const CharacterFindingScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  characterCardId: 'characterCardId',
+  source: 'source',
+  url: 'url',
+  title: 'title',
+  note: 'note',
+  seenAt: 'seenAt',
+  recalledAt: 'recalledAt'
+} as const
+
+export type CharacterFindingScalarFieldEnum = (typeof CharacterFindingScalarFieldEnum)[keyof typeof CharacterFindingScalarFieldEnum]
+
+
+export const CharacterStickerScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  characterCardId: 'characterCardId',
+  storageKey: 'storageKey',
+  url: 'url',
+  sourceUrl: 'sourceUrl',
+  whenToUse: 'whenToUse',
+  isBlocked: 'isBlocked',
+  sentAt: 'sentAt',
+  createdAt: 'createdAt'
+} as const
+
+export type CharacterStickerScalarFieldEnum = (typeof CharacterStickerScalarFieldEnum)[keyof typeof CharacterStickerScalarFieldEnum]
 
 
 export const CharacterJournalScalarFieldEnum = {

@@ -284,3 +284,16 @@ export const ASSISTANT_MEDIA_UNSUPPORTED_ERRORS = {
       'The selected assistant model cannot analyze video. A Gemini key analyzes video directly.',
   },
 } as const
+
+/**
+ * 对话标题由助手按内容起（owner 2026-10-27「AI 自动起标题」：截第一句时一串同名，分不清）。
+ * 第一次落库建行时在后台起一次；起好之前先挂截第一句的那一版。
+ */
+export const ASSISTANT_CONVERSATION_TITLE = {
+  /** 自己的时限，⛔ 挂请求的 signal（`after` 里跑）。 */
+  timeoutMs: 20_000,
+  /** 喂给模型的原料（第一句 + 第一段回复）最多几个字。 */
+  materialChars: 1_200,
+  /** 起出来的标题最多几个字（中文约一行；超了截掉，⛔ 带「…」）。 */
+  maxChars: 24,
+} as const

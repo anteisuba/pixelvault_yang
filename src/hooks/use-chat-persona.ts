@@ -3,9 +3,15 @@
 import { useCallback, useState } from 'react'
 import { useTranslations } from 'next-intl'
 
+import { ASSISTANT_CHAT_MODE_IDS } from '@/constants/assistant-protocol'
 import { ROUTES } from '@/constants/routes'
 import { useAssistantPersona } from '@/hooks/use-assistant-persona'
 import { useChatCharacters } from '@/hooks/use-chat-characters'
+import {
+  resolveOperatorChatMode,
+  switchOperatorChatMode,
+  useStudioOperatorState,
+} from '@/hooks/use-studio-operator-store'
 import { useRouter } from '@/i18n/navigation'
 import { withAssistantCharacter } from '@/types/assistant-persona'
 
@@ -76,4 +82,29 @@ export function usePersonaSwitch() {
   )
 
   return { switchTo, busy }
+}
+
+/**
+ * 聊天 / 工作那一档（owner 2026-10-28 B1：名字旁一枚胶囊）。人设是默认助手时只有工作，胶囊不出现；
+ * 正看着以前的聊天（只读）也不出现。切了就粘在这段对话上，换台、刷新都不变。
+ */
+export function useOperatorChatMode() {
+  const state = useStudioOperatorState()
+  const { persona } = useAssistantPersona()
+  const character = persona.character
+  const mode = resolveOperatorChatMode(state, character !== null)
+  const toggle = useCallback(() => {
+    if (!character) return
+    switchOperatorChatMode(
+      mode === ASSISTANT_CHAT_MODE_IDS.chat
+        ? ASSISTANT_CHAT_MODE_IDS.work
+        : ASSISTANT_CHAT_MODE_IDS.chat,
+      { id: character.id, name: character.name },
+    )
+  }, [character, mode])
+  return {
+    mode,
+    available: character !== null && state.chatCharacter === null,
+    toggle,
+  }
 }

@@ -29,6 +29,7 @@ import {
   CharacterDetailHeader,
   CharacterDraftBody,
 } from '@/components/business/cards/CharacterDetail'
+import { CharacterDetailSplit } from '@/components/business/cards/CharacterRecent'
 import { CharacterLibrary } from '@/components/business/cards/CharacterLibrary'
 import { CharacterPhoneBar } from '@/components/business/cards/CharacterPhoneBar'
 import {
@@ -38,7 +39,11 @@ import {
 } from '@/components/business/cards/CharacterOverview'
 import { StudioOperatorHostProvider } from '@/contexts/studio-operator-host'
 import { useCardsOperatorHost } from '@/hooks/cards/use-cards-operator-host'
-import { useReportLibraryItem } from '@/hooks/use-library-view'
+import {
+  useLibraryChanged,
+  useLibraryShowRequest,
+  useReportLibraryItem,
+} from '@/hooks/use-library-view'
 import { appendSlotSources } from '@/hooks/cards/use-character-card-editor'
 import { defaultLook } from '@/lib/card-bus'
 import { useCharacterCards } from '@/hooks/cards/use-character-cards'
@@ -210,6 +215,21 @@ export function CharacterRoster() {
     setDetailLookId(null)
     setOpenId(id)
   }, [])
+  // 助手改了角色库：名册重读（库叠层里这一页不当宿主，宿主那条 `libraryChanged` 够不着）。
+  useLibraryChanged('cards', characters.refresh)
+  // 助手翻给你看：按名字打开那一位（找不到就搜这个名字），或搜那个词。
+  useLibraryShowRequest('cards', (show) => {
+    setTab(CHARACTER_PAGE_TABS.roster)
+    setDrafting(false)
+    const target = show.itemName?.toLowerCase()
+    const found = target
+      ? flatCards.find((card) => card.name.toLowerCase() === target)
+      : undefined
+    if (show.search !== undefined || (target && !found))
+      setQuery(show.search ?? show.itemName ?? '')
+    if (found) openCharacter(found.id)
+    else if (show.search !== undefined) setOpenId(null)
+  })
   useEffect(
     () => () => {
       if (closeTimer.current) window.clearTimeout(closeTimer.current)
@@ -534,21 +554,27 @@ export function CharacterRoster() {
                 !selected && 'pointer-events-none',
               )}
             >
-              <CharacterDetailBody
-                card={detailCard}
-                lookId={detailLookId}
-                onLookChange={setDetailLookId}
-                onUpdate={(data) => characters.update(detailCard.id, data)}
-                onCreateLook={(data) =>
-                  characters.createLook(detailCard.id, data)
+              <CharacterDetailSplit
+                key={detailCard.id}
+                cardId={detailCard.id}
+                body={
+                  <CharacterDetailBody
+                    card={detailCard}
+                    lookId={detailLookId}
+                    onLookChange={setDetailLookId}
+                    onUpdate={(data) => characters.update(detailCard.id, data)}
+                    onCreateLook={(data) =>
+                      characters.createLook(detailCard.id, data)
+                    }
+                    onUpdateLook={(lookId, data) =>
+                      characters.updateLook(detailCard.id, lookId, data)
+                    }
+                    onDeleteLook={(lookId) =>
+                      characters.removeLook(detailCard.id, lookId)
+                    }
+                    onDelete={() => deleteCharacter(detailCard.id)}
+                  />
                 }
-                onUpdateLook={(lookId, data) =>
-                  characters.updateLook(detailCard.id, lookId, data)
-                }
-                onDeleteLook={(lookId) =>
-                  characters.removeLook(detailCard.id, lookId)
-                }
-                onDelete={() => deleteCharacter(detailCard.id)}
               />
             </motion.div>
           ) : null}

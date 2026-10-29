@@ -29,6 +29,7 @@ import {
   type LoraRecipeViewerOrigin,
 } from '@/components/business/studio/lora/LoraRecipeViewer'
 import { useLoraStage } from '@/components/business/studio/lora/lora-stage-context'
+import { useLoraBenchHandoff } from '@/contexts/studio-library-pick'
 import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
 import { useHuggingFaceLoraShowcase } from '@/hooks/use-huggingface-lora-showcase'
 import { useCivitaiModelDetail } from '@/hooks/prompts/use-civitai-model-description'
@@ -193,6 +194,8 @@ export function LoraLibraryDetailPage({
   const currentKey = versionKey(current)
   const mined = useCivitaiMinedPrompts(isCivitai ? current : null)
   const mounted = isMounted(current)
+  // LoRA 台没开（从左栏进的库）：主键写「去 LoRA 台用」，挂上就跳；已挂的点了直接跳。
+  const handoff = useLoraBenchHandoff() !== null
   const favorited = isFavorited(current)
   const canFavorite = origin !== 'trained'
   const license = licenseFacts(current, origin)
@@ -433,7 +436,7 @@ export function LoraLibraryDetailPage({
           </div>
         </div>
         <div className="relative ml-auto flex shrink-0 items-center gap-2">
-          {mounted ? (
+          {mounted && !handoff ? (
             <span
               aria-disabled="true"
               className={cn(ghost, 'cursor-default bg-muted text-foreground')}
@@ -451,8 +454,12 @@ export function LoraLibraryDetailPage({
                 mountingId === current.id && 'opacity-70',
               )}
             >
-              <Plus className="size-3.5" aria-hidden />
-              {tb('mount')}
+              {handoff ? (
+                <ArrowUpRight className="size-3.5" aria-hidden />
+              ) : (
+                <Plus className="size-3.5" aria-hidden />
+              )}
+              {handoff ? tb('useOnBench') : tb('mount')}
             </button>
           )}
           {canFavorite ? (

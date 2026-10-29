@@ -5,8 +5,7 @@ import { createContext, useContext, type ReactNode } from 'react'
 /**
  * 外壳塞进对话头的几颗键（用户 10-26：左栏只管「在哪儿」，历史 · 换人搬进白板头）。
  *
- * ⚠ 走 context 不直接 import：那几颗键要用对话头里的 `SessionActivityBadge`，
- *   对话头再反过来 import 它们就成了环。
+ * ⚠ 走 context 不直接 import：那几颗键住在外壳里，对话头再反过来 import 它们容易成环。
  */
 export interface StudioShellHeaderSlots {
   /** 对话记录（第一行「＋ 新对话」）。 */

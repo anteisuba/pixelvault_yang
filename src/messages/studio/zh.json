@@ -1081,6 +1081,7 @@
     "emptyTags": "还没有标签模板",
     "emptyHintImage": "出一张满意的图，在「当前提示词」上点「存下」；或者点「新建模板」自己写一个。",
     "emptyHintTags": "在「当前标签」上点「存下」；LoRA 台和提示词页存的标签模板也会出现在这里。",
+    "emptyHintLora": "在「当前标签」上点「存下」，挂的 LoRA 和权重、底模、参数一起存；标签台和提示词页存的标签模板也会出现在这里。",
     "noResult": "没有和「{query}」有关的模板",
     "clearSearch": "清空搜索",
     "loadFailed": "模板没载出来",
@@ -1097,6 +1098,7 @@
     "saveForm": "保存",
     "footImage": "点一张即套用 · 模型和比例一起换，回到结果",
     "footTags": "点一张即套用 · LoRA 台和提示词页存的只换标签，模型不变",
+    "footLora": "点一张即套用 · LoRA 台存的连 LoRA、底模、参数一起换；别处存的只换标签",
     "manage": "在提示词页管理",
     "apply": "套用「{name}」",
     "more": "「{name}」的更多操作",
@@ -1104,7 +1106,7 @@
     "renameLabel": "模板名字",
     "renameHint": "回车保存 · Esc 取消",
     "delete": "删除",
-    "confirmDelete": "确认删除",
+    "deleteTitle": "删除这个模板？",
     "applied": "已套用「{name}」",
     "undo": "撤销",
     "saveFailed": "没存上，再试一次",
@@ -1175,7 +1177,13 @@
     "history": "对话记录",
     "switchPersona": "换人（现在是 {name}）",
     "historyShow": "展开对话记录",
-    "historyHide": "收起对话记录"
+    "historyHide": "收起对话记录",
+    "chatMode": {
+      "chat": "聊天",
+      "work": "工作",
+      "toWork": "现在是聊天，点一下切到工作",
+      "toChat": "现在是工作，点一下切到聊天"
+    }
   },
   "ImageRecipeImport": {
     "button": "从图读串",

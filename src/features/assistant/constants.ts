@@ -45,9 +45,34 @@ export const ASSISTANT_NEXT_OPEN_BENCH_WORKSPACES = {
 export type AssistantNextOpenBench =
   keyof typeof ASSISTANT_NEXT_OPEN_BENCH_WORKSPACES
 
-export const ASSISTANT_NEXT_OPEN_BENCHES = Object.keys(
-  ASSISTANT_NEXT_OPEN_BENCH_WORKSPACES,
-) as [AssistantNextOpenBench, ...AssistantNextOpenBench[]]
+/**
+ * `open` 的另一支：不换台，在库里翻给创作者看（owner 10-28「就地翻给你看」）。
+ * 键是给模型的名字，值是库（`STUDIO_LIBRARY_CATEGORY_IDS`）。
+ */
+export const ASSISTANT_NEXT_OPEN_LIBRARIES = {
+  assets: 'assets',
+  characters: 'cards',
+  prompts: 'prompts',
+  loras: 'lora',
+} as const
+
+export type AssistantNextOpenLibrary =
+  keyof typeof ASSISTANT_NEXT_OPEN_LIBRARIES
+
+export const ASSISTANT_NEXT_OPEN_LIBRARY_NAMES = Object.keys(
+  ASSISTANT_NEXT_OPEN_LIBRARIES,
+) as [AssistantNextOpenLibrary, ...AssistantNextOpenLibrary[]]
+
+/** `open` 的 `bench` 填它 = 走库那一支。 */
+export const ASSISTANT_NEXT_OPEN_LIBRARY_BENCH = 'library'
+
+export const ASSISTANT_NEXT_OPEN_BENCHES = [
+  ...(Object.keys(ASSISTANT_NEXT_OPEN_BENCH_WORKSPACES) as [
+    AssistantNextOpenBench,
+    ...AssistantNextOpenBench[],
+  ]),
+  ASSISTANT_NEXT_OPEN_LIBRARY_BENCH,
+] as const
 
 /** 开画布开哪一块：默认最近那块，创作者说「新的」才新建（owner 10-23）。 */
 export const ASSISTANT_NEXT_OPEN_CANVAS = ['recent', 'new'] as const
@@ -174,7 +199,7 @@ export const ASSISTANT_NEXT_LORA_PARAM_KEYS: Readonly<Record<string, string>> =
   }
 
 /** 过程记录里标「这一轮是新内核跑的」（`AssistantTurnRecord.promptVersion`）。改系统提示时一起换。 */
-export const ASSISTANT_NEXT_PROMPT_VERSION = 'next-2026-10-26b'
+export const ASSISTANT_NEXT_PROMPT_VERSION = 'next-2026-10-29'
 
 export const ASSISTANT_NEXT_LIMITS = {
   /**
@@ -221,6 +246,12 @@ export const ASSISTANT_NEXT_FIND_KIND_IDS = {
   /** 外面的库（10-25 打通）：Danbooru 标签（含她的标签收藏）、Civitai LoRA 大库。⚠ 要点名才查。 */
   tags: 'tags',
   loraLibrary: 'lora_library',
+  /**
+   * 联网找图 / 找视频（10-27 owner：「去网上找的图片和视频也无法发给我」）：走旧执行器的
+   * `search_web_images` / `search_web_videos`，结果卡摆在回答底下，号 `#n` 进本轮记录。⚠ 点名才查。
+   */
+  webImages: 'web_images',
+  webVideos: 'web_videos',
 } as const
 
 export const ASSISTANT_NEXT_FIND_KINDS = Object.values(

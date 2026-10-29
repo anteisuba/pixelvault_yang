@@ -56,7 +56,7 @@
  *    别的宿主（手机 Sheet、画布）照旧是标题 ▾ 历史。
  */
 
-import { useCallback, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   Check,
   MessageSquarePlus,
@@ -85,10 +85,7 @@ import {
   setOperatorIncognito,
   useStudioOperatorState,
 } from '@/hooks/use-studio-operator-store'
-import {
-  useStudioConversationActivity,
-  type StudioConversationActivityView,
-} from '@/hooks/use-studio-conversation-activity'
+import { useStudioConversationActivity } from '@/hooks/use-studio-conversation-activity'
 import { AssistantAvatarGlyph } from '@/components/business/studio/assistant-operator/AssistantAvatarGlyph'
 import { ArrivalReveal } from '@/components/ui/load-reveal'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -98,8 +95,15 @@ import type { UseStudioOperatorHistoryResult } from '@/hooks/use-studio-operator
 import { useSlowLoadingNotice } from '@/hooks/use-slow-loading-notice'
 import { useStudioShellAvatar } from '@/hooks/use-studio-shell-avatar'
 import { useStudioShellHeaderSlots } from '@/contexts/studio-shell-header-slots'
-import { StudioOperatorCurrentAvatar } from '@/components/business/studio/assistant-operator/StudioOperatorAvatarSwitcher'
-import { StudioOperatorSessionRow } from '@/components/business/studio/assistant-operator/StudioOperatorSessionRow'
+import {
+  StudioOperatorChatModeChip,
+  StudioOperatorCurrentAvatar,
+} from '@/components/business/studio/assistant-operator/StudioOperatorAvatarSwitcher'
+import {
+  SESSION_ROW_MENU_ATTR,
+  StudioOperatorSessionDeleteDialog,
+  StudioOperatorSessionRow,
+} from '@/components/business/studio/assistant-operator/StudioOperatorSessionRow'
 import { StudioOperatorVoiceKey } from '@/components/business/studio/assistant-operator/StudioOperatorVoice'
 import { deriveAssistantConversationTitle } from '@/lib/assistant-conversation-title'
 import {
@@ -243,16 +247,8 @@ export function StudioOperatorHeader({
    * 一次同一个布尔。
    */
   const { incognito } = useStudioOperatorState()
-  /**
-   * **举着刀的那一行**（owner 2026-09-20 真机第 3 条）—— 删除是原位两段确认，
-   * ⛔ 不再弹 `AlertDialog`。
-   *
-   * ⚠ 这一格住在这里而不是各行自己：同一列表**同时只能有一行**处于确认态，
-   * 各记各的表现是一屏红字。⚠ 换会话列表 / 关菜单时清掉（见下面那两处）。
-   */
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
-  /** ⚠ 稳定引用：行里的 3 秒定时器把它当 effect 依赖。 */
-  const cancelConfirmDelete = useCallback(() => setConfirmDeleteId(null), [])
+  /** 要删的那一段（owner 10-27：删除弹窗确认）；弹窗挂在菜单外面，点垃圾桶菜单就关了。 */
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string } | null>(null)
   /** 标题▾ 与历史图标共开的那一个菜单（见头注），⛔ 不是两个实例。 */
   const [menuOpen, setMenuOpen] = useState(false)
   const { docked: avatarDocked } = useStudioShellAvatar()
@@ -393,8 +389,6 @@ export function StudioOperatorHeader({
             onOpenChange={(next) => {
               setMenuOpen(next)
               if (next) history.refreshSessions(true)
-              // ⚠ 关掉菜单就把刀放下：下次打开不该有一行还举着「确认删除」。
-              else setConfirmDeleteId(null)
             }}
           >
             <DropdownMenuTrigger asChild>
@@ -429,9 +423,12 @@ export function StudioOperatorHeader({
               align="start"
               onInteractOutside={(event) => {
                 // 点历史图标不算「点了外面」—— 否则它永远关不掉菜单（见头注）。
+                // 行菜单（右键 / ⋯）是另一层下拉，点它也不算外面。
                 if (
                   event.target instanceof Element &&
-                  event.target.closest(`[${HISTORY_BUTTON_ATTR}]`)
+                  event.target.closest(
+                    `[${HISTORY_BUTTON_ATTR}], [${SESSION_ROW_MENU_ATTR}]`,
+                  )
                 )
                   event.preventDefault()
               }}
@@ -508,12 +505,6 @@ export function StudioOperatorHeader({
                             domain ? t(`domainName.${domain}`) : null
                           }
                           dateLabel={sessionDateLabel(session.updatedAt)}
-                          badge={
-                            <SessionActivityBadge
-                              view={activity.get(session.id)}
-                              unseenLabel={t('history.unseen')}
-                            />
-                          }
                           current={session.id === history.currentSessionId}
                           selectDisabled={
                             working ||
@@ -526,20 +517,11 @@ export function StudioOperatorHeader({
                           }
                           renaming={history.renamingSessionId === session.id}
                           deleting={history.deletingSessionId === session.id}
-                          confirming={confirmDeleteId === session.id}
                           onSelect={() => history.selectSession(session)}
                           onRename={(title) =>
                             void history.renameSession(session, title)
                           }
-                          onRequestDelete={() => setConfirmDeleteId(session.id)}
-                          onCancelDelete={cancelConfirmDelete}
-                          onConfirmDelete={() => {
-                            void history
-                              .deleteSession(session)
-                              .then((deleted) => {
-                                if (deleted) setConfirmDeleteId(null)
-                              })
-                          }}
+                          onRequestDelete={() => setDeleteTarget(session)}
                         />
                       )
                     })}
@@ -570,6 +552,18 @@ export function StudioOperatorHeader({
             </DropdownMenuContent>
           </DropdownMenu>
         )}
+        {/* 台上的面板头没有「头像 + 名字」那一颗（首页外壳才有），聊天 / 工作胶囊挂在标题后面。 */}
+        {board ? null : <StudioOperatorChatModeChip />}
+        <StudioOperatorSessionDeleteDialog
+          target={deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          onDelete={(id) => {
+            const session = history.sessions.find((item) => item.id === id)
+            return session
+              ? history.deleteSession(session)
+              : Promise.resolve(false)
+          }}
+        />
 
         {/* ── 隐身胶囊（56a · 画板 `DesignD56Simple`「隐身开着」）──────
             ⚠ **一枚文字胶囊**，⛔ 不用红点：红点说的是「有东西要你看」，而隐身
@@ -678,29 +672,4 @@ export function StudioOperatorHeader({
       </div>
     </div>
   )
-}
-
-/** 会话行右边：在跑写「出好几个 / 一共几个」，出完了没看过点一颗小点（9f-3）。 */
-export function SessionActivityBadge({
-  view,
-  unseenLabel,
-}: {
-  view: StudioConversationActivityView | undefined
-  unseenLabel: string
-}) {
-  if (view?.progress)
-    return (
-      <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-        {view.progress.done}/{view.progress.total}
-      </span>
-    )
-  if (view?.unseen)
-    return (
-      <span
-        aria-label={unseenLabel}
-        data-testid="operator-session-unseen"
-        className="size-1.5 shrink-0 rounded-full bg-primary"
-      />
-    )
-  return null
 }

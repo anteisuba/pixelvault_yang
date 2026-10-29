@@ -5,6 +5,7 @@ import { GoogleOneTap, useAuth } from '@clerk/nextjs'
 import { useLocale } from 'next-intl'
 
 import { ROUTES } from '@/constants/routes'
+import { useHasHydrated } from '@/hooks/use-has-hydrated'
 import { getPathname } from '@/i18n/navigation'
 import type { AppLocale } from '@/i18n/routing'
 import {
@@ -25,7 +26,10 @@ import {
 export function AuthOneTap() {
   const { isLoaded, isSignedIn } = useAuth()
   const locale = useLocale() as AppLocale
-  const signedOut = isLoaded && !isSignedIn
+  /* Clerk 在服务端就可能已知未登录；水合前就挂 GoogleOneTap 的话，它服务端与客户端
+     的结构不同，水合必报错。所以水合完成前一律当「还不知道」。 */
+  const hasHydrated = useHasHydrated()
+  const signedOut = hasHydrated && isLoaded && !isSignedIn
 
   /* 只在确定未登录之后才去读这次访问出没出过（服务端与首帧都还不知道）。 */
   const [decision, setDecision] = useState<'unknown' | 'show' | 'skip'>(

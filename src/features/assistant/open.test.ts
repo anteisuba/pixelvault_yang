@@ -10,6 +10,15 @@ const { recent } = vi.hoisted(() => ({
 vi.mock('@/services/node/node-workflow.service', () => ({
   listRecentNodeWorkflowProjectsForUser: async () => recent,
 }))
+vi.mock('@/features/assistant/workspace.service', async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import('@/features/assistant/workspace.service')
+  >()),
+  resolvePicture: async (_owner: unknown, raw: string) =>
+    raw === '图_012'
+      ? { generationId: 'gen-12', url: 'https://x/12.png', label: '图_012' }
+      : null,
+}))
 
 import { arrivedAt, openedOutput, planOpen } from './open'
 
@@ -95,5 +104,99 @@ describe('到了没有', () => {
     expect(result.error).toBe(true)
     expect(result.output).toContain('on the image bench')
     expect(board).not.toHaveBeenCalled()
+  })
+})
+
+describe('库里翻给你看（owner 10-28）', () => {
+  function withView(workspaceKey: string, libraryView: unknown): V3Context {
+    const context = contextOn(workspaceKey)
+    ;(context.request as { libraryView?: unknown }).libraryView = libraryView
+    return context
+  }
+
+  it('台不动：带着库、按编号认出那张图的 id', async () => {
+    const result = await planOpen(contextOn('lora'), {
+      bench: 'library',
+      library: 'assets',
+      show: '图_012',
+    })
+    expect(result.opening?.target).toEqual({
+      workspace: 'lora',
+      library: { library: 'assets', itemId: 'gen-12', itemName: '图_012' },
+    })
+  })
+
+  it('角色 / 提示词只带名字；搜索词与 LoRA 那一格照收', async () => {
+    expect(
+      (
+        await planOpen(contextOn('image-natural'), {
+          bench: 'library',
+          library: 'characters',
+          show: '角色·Denia',
+          search: '猫耳',
+        })
+      ).opening?.target.library,
+    ).toEqual({ library: 'cards', itemName: 'Denia', search: '猫耳' })
+    expect(
+      (
+        await planOpen(contextOn('lora'), {
+          bench: 'library',
+          library: 'loras',
+          section: 'trained',
+        })
+      ).opening?.target.library,
+    ).toEqual({ library: 'lora', section: 'trained' })
+  })
+
+  it('认不出的图、素材库里按名字、缺 library：如实退回', async () => {
+    const here = contextOn('lora')
+    expect(
+      (
+        await planOpen(here, {
+          bench: 'library',
+          library: 'assets',
+          show: '图_999',
+        })
+      ).error,
+    ).toBe(true)
+    expect(
+      (
+        await planOpen(here, {
+          bench: 'library',
+          library: 'assets',
+          show: '雨夜',
+        })
+      ).error,
+    ).toBe(true)
+    expect((await planOpen(here, { bench: 'library' })).error).toBe(true)
+  })
+
+  it('到没到：那一样打开了或就在屏上、搜索词对上；结果是屏上那一页', () => {
+    const target = {
+      workspace: 'lora' as const,
+      library: { library: 'cards' as const, itemName: 'Denia', search: '猫耳' },
+    }
+    const arrived = withView('lora', {
+      library: 'cards',
+      screen: { kind: 'character', search: '猫耳', visible: ['Denia', 'Mia'] },
+    })
+    expect(arrivedAt(arrived, target)).toBe(true)
+    expect(
+      arrivedAt(
+        withView('lora', {
+          library: 'cards',
+          screen: { kind: 'character', visible: ['Denia'] },
+        }),
+        target,
+      ),
+    ).toBe(false)
+    const output = openedOutput(
+      arrived,
+      { target, label: 'their character library' },
+      () => 'BOARD',
+    )
+    expect(output.error).toBe(false)
+    expect(output.output).toContain('Search box: "猫耳"')
+    expect(output.output).not.toContain('BOARD')
   })
 })

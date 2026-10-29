@@ -18,7 +18,7 @@
 
 角色页「导入酒馆卡」键（紧挨「新角色」）或把文件拖进总览：一张 SillyTavern 卡 → 一张我们的角色卡，建好直接打开。调研与取舍见项目文件 `assistant-overhaul/附录J-酒馆角色设定调研.md`。
 
-- **认的格式**：PNG 卡（`tEXt` 块，`ccv3` 优先、`chara` 回落，base64 JSON）与 .json（V1 平铺 / V2 / V3 外壳）。`.charx` 暂不认。文件上限 `TAVERN_CARD.MAX_FILE_BYTES`（3 MB，走 JSON + base64，Vercel 请求体 4.5 MB）。解析是 `src/lib/tavern-card.ts` 的纯函数，建卡在 `tavern-card-import.service.ts` → `createImportedCharacterCard`。
+- **认的格式**：PNG 卡（`tEXt` 块，`ccv3` 优先、`chara` 回落，base64 JSON）与 .json（V1 平铺 / V2 / V3 外壳）。`.charx` 暂不认。文件上限 `TAVERN_CARD.UPLOAD_MAX_BYTES`（20 MB，owner 2026-10-28）：文件由浏览器直传 R2、⛔ 经过 Vercel——`POST /api/character-cards/import/uploads` 签 PUT 地址（落 `tavern-imports/<userId>/`）→ 浏览器 PUT → `POST /api/character-cards/import { storageKey }` 从 R2 读回来拆卡，读完成没成都删；key 不是这个人的直接拒。⚠ 传完却没走最后一步（中途关页）的文件会留下。卡里装 JSON 的文本块超过 2 MB 认不出（`png-text-chunks`）。解析是 `src/lib/tavern-card.ts` 的纯函数，建卡在 `tavern-card-import.service.ts` → `createImportedCharacterCard`。
 - **字段落点**：description → 经历 · personality → 性格 · scenario → 情境 · first_mes → 开场白 · mes_example → 示例对白（按 `<START>` 切块）· creator_notes → 简介 · tags → 标签。PNG 去掉文本块后当第一张参考图（⛔ 卡的 JSON 跟着图走到出图服务商）；JSON 卡没有图。
 - **⛔ 不注入**：世界书、卡自带系统提示词、「历史之后的指令」、备选开场白、作者、版本原样存进扩展键 `st.card`；经历装不下的 description 全文也留在这里，⛔ 不静默丢。经历上限 3 万字（owner 2026-10-15，原 6000）；旧卡被截过的，经历没被改写（仍是原文开头）时详情直接显示全文，存一次后全文进经历、`st.card.description` 删掉。助手只读经历前 1500 字，不受这个上限影响。卡覆盖系统提示是安全问题，等我们自己的世界书做好再转。
 - **宏原样存**：`{{char}}` / `{{user}}`（及 `<BOT>` / `<USER>`）进提示词那一跳才换成名字（称呼会改）。
@@ -36,7 +36,7 @@
 
 - **⚠ 浏览器直接问 api.chub.ai**（2026-10-15 改）：chub 的 Cloudflare 拒云厂商 / 机房 IP（2026-10-15 从 Vercel 东京 hnd1、弗吉尼亚 iad1 实测都是 403 `This service is not available in your country.`，与 `x-src-country`、UA、Origin 无关），而它对任何来源（含错误响应）都回 `access-control-allow-origin: *`，所以搜索与取卡定义都由用户浏览器去问，⛔ 回到服务端代问。浏览器只带 `Accept: application/json`（CORS 安全名单，不触发预检）。
 - **接口**：搜索 `searchChubCardsAPI`（`src/lib/api-client/cards.ts`）直接打 `https://api.chub.ai/search`；读结果的规则（卡片字段、NSFL 标签兜底、相关度排序、图床判断、去 `ROOT`、`hasMore` / `MAX_PAGE`）在共用纯函数 `src/lib/chub-library.ts`。建卡 `importChubCardAPI` 先在浏览器取 `/api/characters/<作者>/<卡名>?full=true`，再 `POST /api/character-cards/chub/import { fullPath, node }` → `importChubCard`（`src/services/cards/chub-library.service.ts`），服务端 ⛔ 再问 api.chub.ai。chub 没有公开文档，地址与字段照酒馆 `downloadChubCharacter`（常量头注写了出处，改前先对）。
-- **递上来的 `node` 当用户输入看**（与拖进来的卡文件同级）：`ImportChubCardSchema`（`src/types/chub-library.ts`）只留落格要的几格（多余的键丢掉）、类型不对的格当空、超长一律拒——长文各格与整张卡（序列化后）沿用文件导入的 `TAVERN_CARD.MAX_FILE_BYTES`（3 MB），名字 / 标签 / 图片地址另有 `CHUB_LIBRARY.NODE_LIMITS`；`fullPath` 仍过 `ChubFullPathSchema`。浏览器先按同一份 schema 判一遍，太大就直接说，⛔ 递上去。
+- **递上来的 `node` 当用户输入看**（与拖进来的卡文件同级）：`ImportChubCardSchema`（`src/types/chub-library.ts`）只留落格要的几格（多余的键丢掉）、类型不对的格当空、超长一律拒——长文各格与整张卡（序列化后）用 `TAVERN_CARD.MAX_FILE_BYTES`（3 MB，这一条走 JSON 请求体，Vercel 4.5 MB 封顶），名字 / 标签 / 图片地址另有 `CHUB_LIBRARY.NODE_LIMITS`；`fullPath` 仍过 `ChubFullPathSchema`。浏览器先按同一份 schema 判一遍，太大就直接说，⛔ 递上去。
 - **落格**：`node.definition` 按酒馆的映射拼成 V2 卡（chub 的 `personality` → 酒馆 description → 我们的经历；`tavern_personality` → 性格；`description` → 简介），再走文件导入那条 `mapTavernCard` → `createImportedCharacterCard`；`st.card` 另记 `source: 'chub'` 与 `fullPath`。
 - **⛔ 成人内容**：搜索固定 `nsfw=false&nsfl=false`，再按 `NSFW` / `NSFL` 标签兜一层。没有开关（要开再问 owner）。
 - **图**：搜索结果的头像只认 chub 图床（`*.charhub.io` / `*.chub.ai`），不认就按路径拼 `avatar.webp`（`<img>` 直接显示；CSP 没有 `img-src` / `connect-src`，不用另开）；导入时卡图 `max_res_url` 由服务端只从图床取（防 SSRF；avatars.charhub.io 从机房能取），≤ 8 MB、png / webp / jpeg，PNG 去掉文本块；取不到就建一张没图的卡，⛔ 不因此拒整张卡。
@@ -75,7 +75,7 @@ owner 逐项定的口径（对齐稿 https://claude.ai/artifact/FTTAHbuCwHmnMcPr
 
 ## 角色卡字段 v2（2026-09-17）
 
-目的：把角色卡从「一堆图 + 一段视觉描述」补齐成**命名实体**——图片、视频、语音、画布四条链都能引用同一张卡。方向依据见 `docs/design/roadmap-canvas/research/cards.md`（Kling 元素库 / Vidu `subjects[].voice_id` / Runway `{uri, tag}` / Gemini 分槽配额 / SillyTavern V2 / weavai）。
+目的：把角色卡从「一堆图 + 一段视觉描述」补齐成**命名实体**——图片、视频、语音、画布四条链都能引用同一张卡。方向依据见 `docs/design/research/cards.md`（Kling 元素库 / Vidu `subjects[].voice_id` / Runway `{uri, tag}` / Gemini 分槽配额 / SillyTavern V2 / weavai）。
 
 **本轮只落数据层**：字段全部可空、不回填、不加业务约束，写入路径是角色卡 create / update 的透传。编译期怎么用这些字段是下一片的事，在那一片之前它们没有读方。
 
@@ -105,7 +105,7 @@ owner 逐项定的口径（对齐稿 https://claude.ai/artifact/FTTAHbuCwHmnMcPr
 
 ## v3 方向（owner 2026-09-19 拍板，随 D6 卡片设计落地）
 
-来源：`docs/design/roadmap-canvas/research/sillytavern-cards.md` §9–§12（逐条取舍 · v3 字段草案 · owner 拍板 · 语气/情感/关系的实现机制）。这一节只记**已拍板的方向**，字段级落点以那份调研的 §10 表为准，实现时代码赢。
+来源：`docs/design/research/sillytavern-cards.md` §9–§12（逐条取舍 · v3 字段草案 · owner 拍板 · 语气/情感/关系的实现机制）。这一节只记**已拍板的方向**，字段级落点以那份调研的 §10 表为准，实现时代码赢。
 
 - **`description` 现在就拆**：`description` 收窄成**只写视觉**（外观 / 体态 / 服饰基调）并进编译器；新增 `summary` 给人看，**⛔ 不进 prompt**。迁移随 D6 一起做：现有文字默认归视觉，简介留空待补。拆的理由是语义混淆只会越来越贵，不是美观。
 - **`loreEntries` 做最小版**：纯文本 `keys[]` + `slot`（positive 前缀 / 后缀 / negative / 参考图选择）+ `order` + `enabled`。⛔ 不做正则、递归、概率、装饰器。先进 `extensions` 观察，出现第二个消费方再提成正式表。价值是**用 prompt 预算换表达力**；裁剪按 block 砍而不按句子砍，且必须是确定性的。
@@ -218,9 +218,9 @@ owner 逐项定的口径（对齐稿 https://claude.ai/artifact/FTTAHbuCwHmnMcPr
 
 ## Source of Truth
 
-调研与 v3 方向：`docs/design/roadmap-canvas/research/sillytavern-cards.md`（§9 逐条取舍 · §10 字段草案 · §11 owner 拍板 · §12 语气/情感/关系的实现机制，2026-09-19）。
+调研与 v3 方向：`docs/design/research/sillytavern-cards.md`（§9 逐条取舍 · §10 字段草案 · §11 owner 拍板 · §12 语气/情感/关系的实现机制，2026-09-19）。
 
-`prisma/schema.prisma`（`CharacterCard` / `VoiceCard`）· `src/types/index.ts`（Character Card 段）· `src/constants/cards/character-card.ts` · `src/constants/node-studio.ts` · 调研证据 `docs/design/roadmap-canvas/research/cards.md`。
+`prisma/schema.prisma`（`CharacterCard` / `VoiceCard`）· `src/types/index.ts`（Character Card 段）· `src/constants/cards/character-card.ts` · `src/constants/node-studio.ts` · 调研证据 `docs/design/research/cards.md`。
 
 ## Last Verified
 

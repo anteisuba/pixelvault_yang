@@ -220,3 +220,31 @@ export function normalizeAssistantMemoryText(text: string): string {
       '',
     )
 }
+
+/**
+ * 口味提炼（第 2 批「审美」，owner 2026-10-28）：后台读你最近留下 / 否掉的图，写成几行「关于你」的
+ * 口味记忆。新信号攒够了、离上次也够久了才跑一次 —— 每次都是一次看图调用，用的是你的 key。
+ */
+export const ASSISTANT_TASTE_DISTILL = {
+  /** 上次提炼之后至少新添这么多条信号（审核通过 / 否掉、点赞、对比里挑中）才跑。 */
+  minNewSignals: 8,
+  /** 两次提炼至少隔这么久。 */
+  minIntervalMs: 24 * 60 * 60 * 1000,
+  /** 留下的、否掉的各给模型看几张（新的在前）。 */
+  samplesPerSide: 6,
+  /** 一张图带多少字的提示词当背景。 */
+  promptCharsPerPicture: 300,
+  /** 一次最多写几条（口味 + 经验）。 */
+  maxLines: 5,
+  /** 顺带复盘最近这么多段对话的结尾（第 3 批「人味」）。 */
+  reviewConversations: 3,
+  timeoutMs: 60_000,
+} as const
+
+/** 「上次停在哪」那一段（第 3 批）：新对话第一句时读一次，只当背景。 */
+export const ASSISTANT_LAST_TIME = {
+  /** 上次你说的 / 她回的，各截到多少字。 */
+  maxChars: 300,
+  /** 从那以后新记下的偏好最多带几条。 */
+  maxNewTaste: 3,
+} as const

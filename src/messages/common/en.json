@@ -446,9 +446,14 @@
     "promptTags": {
       "unusable": "The assistant couldn't turn that into tags."
     },
+    "characterBrowse": {
+      "noModel": "Pick a model for her to go out with.",
+      "unknownModel": "That model isn't available. Pick another one."
+    },
     "tavernCard": {
       "notACard": "That file isn't a SillyTavern character card (PNG or JSON).",
-      "tooLarge": "That card file is over 3 MB.",
+      "tooLarge": "That card file is over 20 MB.",
+      "uploadMissing": "The card file didn't finish uploading. Try importing it again.",
       "limitReached": "You've reached the character limit. Delete one to import more."
     },
     "chubLibrary": {

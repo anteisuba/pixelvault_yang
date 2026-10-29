@@ -1,6 +1,8 @@
 // ⚠ 用 `fireEvent` 不是 `user-event`：本仓没装 `@testing-library/user-event`。
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+
+import { resetPictureNumberCacheForTests } from '@/hooks/use-picture-number-references'
 
 import {
   StudioOperatorMessageBody,
@@ -21,6 +23,12 @@ import {
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
+}))
+
+const lookupMentions = vi.hoisted(() => vi.fn())
+vi.mock('@/lib/api-client', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api-client')>()),
+  lookupAssistantMentionAssetsAPI: lookupMentions,
 }))
 
 const LONG =
@@ -280,5 +288,29 @@ describe('StudioOperatorUserText 引用', () => {
     expect(bubble.querySelectorAll('[title="剧本"]').length).toBe(1)
     expect(bubble.querySelector('[title="分镜"]')).toBeNull()
     expect(bubble.querySelectorAll('svg').length).toBe(1)
+  })
+})
+
+describe('StudioOperatorMessageBody — 正文里的 `图_N`', () => {
+  /** 10-27 owner 真机：她聊天口吻的回复（`chat`）里写「图_1215」只剩字，普通正文却有图。 */
+  it.each([
+    ['聊天气泡', true],
+    ['普通正文', false],
+  ])('%s：作品编号换成缩略图', async (_label, chat) => {
+    resetPictureNumberCacheForTests()
+    lookupMentions.mockResolvedValue({
+      success: true,
+      data: [{ seq: 1215, thumb: 'https://cdn.example/1215.webp' }],
+    })
+    renderBody({
+      text: '你库里这张「图_1215」早就占全了。',
+      ...(chat ? { chat: true } : {}),
+    })
+    await waitFor(() =>
+      expect(screen.getByAltText('图_1215')).toBeInTheDocument(),
+    )
+    expect(lookupMentions).toHaveBeenCalledWith([], [1215])
+    // 书名号随名字一起吞掉，⛔ 不剩一对空的「」。
+    expect(document.body.textContent).not.toContain('「')
   })
 })

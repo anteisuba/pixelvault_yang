@@ -16,6 +16,12 @@ import {
 import { recordSyncCompleted, syncPages } from './sync'
 import { createTestDb } from './test/d1'
 import { LIGHT_PAGE_SIZE, type Upstream } from './upstream'
+import {
+  buildWordSegment,
+  editDistance,
+  finishWordDictionary,
+  WORD_SEGMENTS,
+} from './words'
 
 interface FakeModel {
   id: number
@@ -889,5 +895,97 @@ describe('按意思搜', () => {
       { semantic: binding },
     )
     expect(result.rows.map((row) => row.modelId)).toEqual([1, 3, 2])
+  })
+})
+
+describe('字面搜不到时', () => {
+  const ENDFIELD: FakeModel[] = [
+    {
+      id: 11,
+      name: 'Endfield Perlica',
+      baseModel: 'Anima',
+      downloadCount: 900,
+    },
+    { id: 12, name: 'Endfield Chen', downloadCount: 800, nsfwLevel: [8] },
+    { id: 13, name: 'Endfield screencap', downloadCount: 700 },
+    { id: 14, name: 'Endfield squad', downloadCount: 600 },
+    {
+      id: 15,
+      name: 'Pack',
+      tags: ['endfield'],
+      baseModel: 'Pony',
+      downloadCount: 5000,
+    },
+  ]
+
+  beforeEach(async () => {
+    await syncAll(db, new FakeUpstream([...SEARCH_FIXTURE, ...ENDFIELD]))
+    for (const first of WORD_SEGMENTS) await buildWordSegment(db, first)
+    await finishWordDictionary(db)
+  })
+
+  const run = (input: Partial<SearchInput>, live?: () => Promise<unknown[]>) =>
+    searchIndex(
+      db,
+      SearchInputSchema.parse({ sort: 'relevance', pageSize: 2, ...input }),
+      live ? { live } : {},
+    )
+
+  it('counts adjacent swaps as one edit', () => {
+    expect(editDistance('endfeild', 'endfield')).toBe(1)
+    expect(editDistance('endfeld', 'endfield')).toBe(1)
+    expect(editDistance('silver', 'sliver')).toBe(1)
+  })
+
+  it('searches the corrected word when a typo matches nothing', async () => {
+    const result = await run({ q: 'endfeild squad' })
+    expect(result.literalTotal).toBe(0)
+    expect(result.fallback).toEqual({
+      kind: 'corrected',
+      query: 'endfield squad',
+      total: 1,
+    })
+    expect(result.rows.map((row) => row.modelId)).toEqual([14])
+    // 词表里本来就有的词不纠：一个都没有就是没有。
+    expect((await run({ q: 'endfield zzzz' })).fallback).toBeNull()
+  })
+
+  it('looks Civitai up live when nothing matches, writes the hits back, and pages through them', async () => {
+    const queries: string[] = []
+    const live = async () => {
+      queries.push('called')
+      return [
+        fullHit({ id: 21, name: '明日方舟：终末地 Rossi', downloadCount: 3 }),
+        fullHit({ id: 22, name: '明日方舟：终末地 Yvonne', baseModel: 'Pony' }),
+        fullHit({ id: 23, name: '明日方舟：终末地 Chen' }),
+      ]
+    }
+    const first = await run({ q: '明日方舟终末地' }, live)
+    expect(first.fallback).toEqual({ kind: 'live', total: 3 })
+    expect(first.total).toBe(3)
+    expect(first.rows.map((row) => row.modelId)).toEqual([21, 22])
+    expect(
+      (await run({ q: '明日方舟终末地', page: 2 }, live)).rows.map(
+        (row) => row.modelId,
+      ),
+    ).toEqual([23])
+    // 现查的照样过筛选。
+    const pony = await run({ q: '明日方舟终末地', baseModels: ['Pony'] }, live)
+    expect(pony.rows.map((row) => row.modelId)).toEqual([22])
+    // 写回了索引：之后本地就搜得到。
+    const local = await run({ q: 'Rossi' })
+    expect(local.rows.map((row) => row.modelId)).toEqual([21])
+    // 字面有结果时不现查。
+    queries.length = 0
+    await run({ q: 'endfield' }, live)
+    expect(queries).toEqual([])
+  })
+
+  it('ignores a failing live lookup', async () => {
+    const result = await run({ q: 'nothinghere' }, async () => {
+      throw new Error('down')
+    })
+    expect(result.fallback).toBeNull()
+    expect(result.rows).toEqual([])
   })
 })

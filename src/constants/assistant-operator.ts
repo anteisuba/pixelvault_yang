@@ -95,6 +95,13 @@ export const ASSISTANT_OPERATOR_EVENTS = {
    */
   messageDelta: 'message_delta',
   /**
+   * **模型在想**（owner 2026-10-27「流出思考摘要」）：`delta` = 思考摘要的一小段（客户端追加，
+   * 只露小标题那一行），`ms` = 这一段想完了、从模型调用开始（或上一次开口之后）想了多久。
+   * ⚠ 只活在这一次打开的线程里（owner 10-27：刷新后只剩回执也不要），⛔ 不落库、⛔ 历史回放不发。
+   * ⚠ 不给摘要的型号也会在开口时发一帧只带 `ms` 的 —— 回执的秒数一律以服务端量的为准。
+   */
+  thinking: 'thinking',
+  /**
    * 助手**引用了一条项目规则**（§10，拍板 23）。载荷是规则 id + 原文 + 记录日期，
    * 客户端据此在动作卡下贴一张规则薄卡。
    *
@@ -1568,6 +1575,18 @@ export const ASSISTANT_AUTO_GENERATE_LIMITS = {
   maxOutputsPerRound: 4,
 } as const
 
+/**
+ * **出完图自己看、再改几轮**（owner 2026-10-29：「默认一轮，不想太浪费 token，看到不对的我还能纠正」）。
+ * 只在「交给 AI 出图」开着时生效；0 = 出完就停、照旧问「按这个方向继续吗？」。
+ */
+export const ASSISTANT_AUTO_REVIEW_ROUNDS = {
+  default: 1,
+  max: 3,
+} as const
+
+/** 替创作者说的那句「看看这批」打头的记号；系统提示词认它（`features/assistant/prompt.ts`）。 */
+export const ASSISTANT_AUTO_REVIEW_MARK = '[auto review]'
+
 export type AssistantOperatorStopReason =
   (typeof ASSISTANT_OPERATOR_STOP_REASONS)[keyof typeof ASSISTANT_OPERATOR_STOP_REASONS]
 
@@ -1655,6 +1674,23 @@ export const ASSISTANT_OPERATOR_ERROR_MESSAGE_KEYS: Readonly<
    * 错误条上给「配置 Key」，⛔ 不借 `Errors.apiKey.missing` 那句「此模型需要 API Key」。
    */
   MISSING_API_KEY: 'missingKey',
+}
+
+/**
+ * 助手的模型调用被厂商拒、认得出原因、而且**换个说法就有出路**的两种（帧上带 `provider`）：
+ * 点名是哪一家、哪个型号（10-27：Gemini 预付额度用完，界面只说「Agent Key 余额不足」）。
+ * 码与 `llm-text.service` 的 `LLM_TEXT_PROVIDER_ERROR_CODES` 同值（那边是 server-only）。
+ */
+export const ASSISTANT_PROVIDER_ERROR_CODES = {
+  insufficientBalance: 'PROVIDER_INSUFFICIENT_BALANCE',
+  authFailed: 'PROVIDER_AUTH_FAILED',
+} as const
+
+export const ASSISTANT_PROVIDER_ERROR_MESSAGE_KEYS: Readonly<
+  Record<string, string>
+> = {
+  [ASSISTANT_PROVIDER_ERROR_CODES.insufficientBalance]: 'providerOutOfCredit',
+  [ASSISTANT_PROVIDER_ERROR_CODES.authFailed]: 'providerKeyInvalid',
 }
 
 /** 会触发就地确认的字段 —— 只有这两个是「用户手写的自由文本」。 */
@@ -2718,6 +2754,18 @@ export const ASSISTANT_EVIDENCE_RECALL_LIMITS = {
 } as const
 
 /**
+ * 翻记忆时顺带翻**以前的搜索**（跨会话，owner 2026-10-28「搜过的东西留在记忆里」）：
+ * 只带回对得上的最近几次、每次几条，够模型判断要不要再搜，⛔ 不整本重发。
+ */
+export const ASSISTANT_PAST_SEARCH_LIMITS = {
+  maxRuns: 3,
+  maxItemsPerRun: 3,
+  maxExcerptChars: 240,
+  /** 匹配时扫最近这么多次搜索（按时间倒序），⛔ 全表扫 JSON。 */
+  scanRuns: 200,
+} as const
+
+/**
  * 证据编号的前缀（§7.3）。`#e` + **会话内自增序号**，落在 `ResearchRun.evidence`
  * 的每一项上，结论记录里只出现编号。
  *
@@ -3047,6 +3095,22 @@ export const ASSISTANT_OPERATOR_REJECT_REASON_IDS = {
    * ⚠ 不是失败：它会在下一次请求里重做。这一条只为把时间线上那一行 `running` 收掉。
    */
   timeBudget: 'timeBudget',
+  /**
+   * 这一项要**先挂上参考图**才成立（精确参考、参考强度这类）。
+   * ⚠ 与 `noSuchControl` 分开（10-27 标签台真机）：那条说「这台上没这回事」，用户读到
+   * 会以为换个台才行；这条说「还差一步」，挂上图就通。
+   */
+  referenceRequired: 'referenceRequired',
+  /** 指的那一项（ref-N、某个名字）**此刻台上没有**。 */
+  notOnBench: 'notOnBench',
+  /** 要的东西在**别的工作台**上 —— 先 open 那一台再接着做。 */
+  onOtherBench: 'onOtherBench',
+  /**
+   * 这一步没做成，原因写在给模型的说明里（参数不全、编号不对……）。
+   * ⚠ 这是 v3 执行层的缺省理由：此前一律贴 `noSuchControl`，界面上全是「这个工作台上
+   * 没有这个控件」这句假话。能说清的地方传具体理由，说不清的至少不说错。
+   */
+  notDone: 'notDone',
 } as const
 
 /**

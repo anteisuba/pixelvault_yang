@@ -46,6 +46,7 @@ import {
 } from '@/constants/studio-assistant-operator'
 import type { LoraCandidateConfirmOutcome } from '@/types/lora-candidate'
 import { reloadAssistantPersonaEverywhere } from '@/hooks/use-assistant-persona'
+import { notifyLibraryChanged } from '@/hooks/use-library-view'
 import { applyPromptFindReplace } from '@/lib/prompt-find-replace'
 import { describeLoraParameters } from '@/lib/studio-operator-history'
 import type { StudioAction, StudioFormState } from '@/contexts/studio-context'
@@ -53,6 +54,7 @@ import { AdvancedParamsSchema } from '@/types'
 import type {
   AssistantOperatorCharacterProfileField,
   AssistantAssetWriteRevert,
+  AssistantLibraryView,
   AssistantOperatorAppliedStep,
   AssistantOperatorGenerationRequest,
   AssistantOperatorStep,
@@ -363,12 +365,42 @@ export interface StudioOperatorApplyContext {
   libraryChanged?(kind: AssistantLibraryWriteKind): void
 }
 
+/** 改库落在哪个库页上（owner 10-28：库开着时那一页当场重读）；设置 / 记忆不在库页上。 */
+const LIBRARY_OF_WRITE_KIND: Partial<
+  Record<AssistantLibraryWriteKind, AssistantLibraryView['library']>
+> = {
+  [ASSISTANT_LIBRARY_WRITE_KIND_IDS.character]: 'cards',
+  [ASSISTANT_LIBRARY_WRITE_KIND_IDS.newCharacter]: 'cards',
+  [ASSISTANT_LIBRARY_WRITE_KIND_IDS.look]: 'cards',
+  [ASSISTANT_LIBRARY_WRITE_KIND_IDS.newLook]: 'cards',
+  [ASSISTANT_LIBRARY_WRITE_KIND_IDS.loraToCharacter]: 'lora',
+  [ASSISTANT_LIBRARY_WRITE_KIND_IDS.favoriteLora]: 'lora',
+  [ASSISTANT_LIBRARY_WRITE_KIND_IDS.loraCover]: 'lora',
+  [ASSISTANT_LIBRARY_WRITE_KIND_IDS.savePrompt]: 'prompts',
+  [ASSISTANT_LIBRARY_WRITE_KIND_IDS.updatePrompt]: 'prompts',
+}
+
+/** 素材那几条撤回成了：素材页重读。 */
+function assetsReverted(
+  undo: Promise<boolean> | false,
+): Promise<boolean> | false {
+  if (!undo) return false
+  return undo.then((ok) => {
+    if (ok) notifyLibraryChanged('assets')
+    return ok
+  })
+}
+
 /** 改库 / 改设置落地或撤回之后：页上那份重读；助手设置改了，开着的 persona（模型 chip）也重读。 */
 function libraryWritten(
   ctx: StudioOperatorApplyContext,
   kind: AssistantLibraryWriteKind,
 ): void {
   ctx.libraryChanged?.(kind)
+  const library = LIBRARY_OF_WRITE_KIND[kind]
+  if (library) notifyLibraryChanged(library)
+  if (kind === ASSISTANT_LIBRARY_WRITE_KIND_IDS.loraToCharacter)
+    notifyLibraryChanged('cards')
   if (kind === ASSISTANT_LIBRARY_WRITE_KIND_IDS.assistant)
     void reloadAssistantPersonaEverywhere()
 }
@@ -629,12 +661,13 @@ export function applyOperatorStep(
      * 星 / 归属夹，工作台上一格旋钮都没动。返回 null = 登记簿不记账、归属标记（✦）
      * 不会亮在一个它没改过的字段上 —— 与规则那条逐字同源。
      * ⛔ 但它们**照旧可撤销**：撤销那一跳走 `revertAssetWrite`（后果在库里），
-     * 不靠登记簿。
+     * 不靠登记簿。库开着时素材页当场重读（owner 10-28）。
      */
     case ASSISTANT_OPERATOR_TOOL_IDS.tagAsset:
     case ASSISTANT_OPERATOR_TOOL_IDS.favoriteAsset:
     case ASSISTANT_OPERATOR_TOOL_IDS.createFolder:
     case ASSISTANT_OPERATOR_TOOL_IDS.addToFolder:
+      notifyLibraryChanged('assets')
       return null
 
     case ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult:
@@ -1248,36 +1281,36 @@ export function revertOperatorStep(
      * ⚠ 调用方等待宿主回执，缺席时不能宣称撤销成功。
      */
     case ASSISTANT_OPERATOR_TOOL_IDS.tagAsset:
-      return (
+      return assetsReverted(
         ctx.revertAssetWrite?.({
           tool: ASSISTANT_OPERATOR_TOOL_IDS.tagAsset,
           entries: step.inverse.entries,
-        }) ?? false
+        }) ?? false,
       )
 
     case ASSISTANT_OPERATOR_TOOL_IDS.favoriteAsset:
-      return (
+      return assetsReverted(
         ctx.revertAssetWrite?.({
           tool: ASSISTANT_OPERATOR_TOOL_IDS.favoriteAsset,
           entries: step.inverse.entries,
-        }) ?? false
+        }) ?? false,
       )
 
     case ASSISTANT_OPERATOR_TOOL_IDS.createFolder:
-      return (
+      return assetsReverted(
         ctx.revertAssetWrite?.({
           tool: ASSISTANT_OPERATOR_TOOL_IDS.createFolder,
           folderId: step.inverse.folderId,
-        }) ?? false
+        }) ?? false,
       )
 
     case ASSISTANT_OPERATOR_TOOL_IDS.addToFolder:
-      return (
+      return assetsReverted(
         ctx.revertAssetWrite?.({
           tool: ASSISTANT_OPERATOR_TOOL_IDS.addToFolder,
           folderId: step.inverse.folderId,
           assetIds: step.inverse.assetIds,
-        }) ?? false
+        }) ?? false,
       )
     /** 新内核改库（第 4b 步）：原值交回服务端写回；成了页上那份重读。 */
     case ASSISTANT_OPERATOR_TOOL_IDS.libraryWrite: {

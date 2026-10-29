@@ -8,6 +8,7 @@
 import { AI_MODELS } from '@/constants/models'
 import { MEDIA_MODEL_STRENGTHS } from '@/constants/model-strengths.media'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { hasCapability } from '@/constants/provider-capabilities'
 
 /**
  * 负向提示的能力档位 —— 这是**产品事实**，不是偏好：
@@ -78,7 +79,7 @@ export const ADAPTER_PROMPT_HINTS: Record<string, string> = {
   [AI_ADAPTER_TYPES.FAL]:
     'Target model: FLUX. Prefer photographic terminology, specific lens/camera details, precise lighting descriptions, and full natural language sentences.',
   [AI_ADAPTER_TYPES.NOVELAI]:
-    'Target model: NovelAI (anime diffusion). Prefer comma-separated danbooru-style tags. Quality tags first, then character tags, then style and scene. Natural-language sentences are acceptable on V5 but tags remain the reliable dialect. A reference image is optional: one image becomes img2img, not a character lock. Do not assume Director / Vibe Transfer.',
+    'Target model: NovelAI (anime diffusion). Prefer comma-separated danbooru-style tags. Quality tags first, then character tags, then style and scene. Natural-language sentences are acceptable on V5 but tags remain the reliable dialect.',
   [AI_ADAPTER_TYPES.PIXAI]:
     'Target model: PixAI (anime diffusion). Prefer comma-separated danbooru-style tags: subject and character tags first, then clothing and pose, then scene and lighting. Text-to-image only — there is no reference image, no img2img and no editing on this route, so never write instructions that refer to an input picture.',
   [AI_ADAPTER_TYPES.GEMINI]:
@@ -414,7 +415,7 @@ export const MODEL_STRENGTHS: Partial<Record<AI_MODELS, ModelStrength>> = {
     bestFor: ['anime', 'illustration', 'character-design', 'detailed'],
     promptStyle: 'tag-based',
     negativePrompt: 'undesired-content',
-    enhanceHint: `NovelAI V4.5 Full. English danbooru tags, comma separated: subject and character first, then outfit, pose, expression, then scene and lighting. ${NOVELAI_PROMPT_SYNTAX} The V4.5 Full quality string is appended at the END, not the front: location, very aesthetic, masterpiece, no text. A reference image is img2img, not a character lock.`,
+    enhanceHint: `NovelAI V4.5 Full. English danbooru tags, comma separated: subject and character first, then outfit, pose, expression, then scene and lighting. ${NOVELAI_PROMPT_SYNTAX} The V4.5 Full quality string is appended at the END, not the front: location, very aesthetic, masterpiece, no text.`,
     routerWeights: {
       referenceFit: 0.55,
       costEfficiency: 0.55,
@@ -426,7 +427,7 @@ export const MODEL_STRENGTHS: Partial<Record<AI_MODELS, ModelStrength>> = {
     bestFor: ['anime', 'illustration', 'character-design'],
     promptStyle: 'tag-based',
     negativePrompt: 'undesired-content',
-    enhanceHint: `NovelAI V4.5 Curated. Same tag dialect and emphasis syntax as Full on a cleaner dataset. Subject and character first, then outfit and pose, then scene. ${NOVELAI_PROMPT_SYNTAX} Curated ships its own quality preset — do not paste Full's quality string here. A reference image is img2img only.`,
+    enhanceHint: `NovelAI V4.5 Curated. Same tag dialect and emphasis syntax as Full on a cleaner dataset. Subject and character first, then outfit and pose, then scene. ${NOVELAI_PROMPT_SYNTAX} Curated ships its own quality preset — do not paste Full's quality string here.`,
     routerWeights: {
       referenceFit: 0.5,
       costEfficiency: 0.55,
@@ -438,7 +439,7 @@ export const MODEL_STRENGTHS: Partial<Record<AI_MODELS, ModelStrength>> = {
     bestFor: ['anime', 'illustration', 'character-design', 'detailed'],
     promptStyle: 'tag-based',
     negativePrompt: 'undesired-content',
-    enhanceHint: `NovelAI V5 Full. Tags first; short natural-language clauses are also understood. Subject and character, then outfit and pose, then scene. ${NOVELAI_PROMPT_SYNTAX} Quality string is , very aesthetic, masterpiece, no text. Director, Vibe Transfer and Precise Reference are not on V5 yet; one reference image is img2img only.`,
+    enhanceHint: `NovelAI V5 Full. Tags first; short natural-language clauses are also understood. Subject and character, then outfit and pose, then scene. ${NOVELAI_PROMPT_SYNTAX} Quality string is , very aesthetic, masterpiece, no text.`,
     routerWeights: {
       referenceFit: 0.45,
       costEfficiency: 0.4,
@@ -450,7 +451,7 @@ export const MODEL_STRENGTHS: Partial<Record<AI_MODELS, ModelStrength>> = {
     bestFor: ['anime', 'illustration', 'character-design'],
     promptStyle: 'tag-based',
     negativePrompt: 'undesired-content',
-    enhanceHint: `NovelAI V5 Curated. Tag dialect first, short natural-language clauses are fine; cleaner dataset, easier to steer. ${NOVELAI_PROMPT_SYNTAX} Quality string is , very aesthetic, masterpiece, no text. No Director / Vibe Transfer on V5 yet; one reference image is img2img only.`,
+    enhanceHint: `NovelAI V5 Curated. Tag dialect first, short natural-language clauses are fine; cleaner dataset, easier to steer. ${NOVELAI_PROMPT_SYNTAX} Quality string is , very aesthetic, masterpiece, no text.`,
     routerWeights: {
       referenceFit: 0.4,
       costEfficiency: 0.4,
@@ -601,9 +602,27 @@ export function getModelEnhanceHint(
   const modelHint =
     MODEL_STRENGTHS[modelId as AI_MODELS]?.enhanceHint ??
     MEDIA_MODEL_STRENGTHS[modelId as AI_MODELS]?.enhanceHint
-  if (modelHint) return modelHint
-  if (adapterType) return ADAPTER_PROMPT_HINTS[adapterType] ?? null
-  return null
+  const hint =
+    modelHint ??
+    (adapterType ? (ADAPTER_PROMPT_HINTS[adapterType] ?? null) : null)
+  if (hint && adapterType === AI_ADAPTER_TYPES.NOVELAI)
+    return `${hint}${novelAiReferenceHint(modelId)}`
+  return hint
+}
+
+/**
+ * NovelAI 参考图那一句按能力表派生：声明了 `novelAiReferenceMode`（V4.5）才说有精确参考，
+ * 否则（V5）只说 img2img。⛔ 别再写死进 enhanceHint —— 10-27 线上助手照着写死的
+ * 「img2img，不是角色锁定」不肯开精确参考。
+ */
+function novelAiReferenceHint(modelId: string): string {
+  return hasCapability(
+    AI_ADAPTER_TYPES.NOVELAI,
+    'novelAiReferenceMode',
+    modelId,
+  )
+    ? ' One reference image. By default it is img2img (the picture is the starting canvas). To lock a character instead, set novelAiReferenceMode to precise (Precise Reference) and tune preciseReferenceStrength / preciseReferenceFidelity (0–1); it costs 5 extra Anlas per image and cannot be combined with inpaint.'
+    : ' One reference image is img2img only; Precise Reference, Director and Vibe Transfer are not available on this model.'
 }
 
 /**

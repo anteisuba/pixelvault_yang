@@ -139,6 +139,8 @@ export function collectOperatorAnswerSources(
     }
     if (entry.kind !== 'message') return
     if (pending.length === 0) return
+    // 只想没说的那一格（工具步上面的思考回执，10-27）不是回答，⛔ 当锚。
+    if (!entry.text && !entry.streaming) return
     byMessage.set(entry.id, { runKey, steps: pending })
     pending = []
   })
@@ -559,6 +561,43 @@ export function firstOperatorSentence(text: string): string {
   const match = trimmed.match(/^[\s\S]*?(?:[。！？！？!?]|(?<!\d)\.)/)
   const sentence = (match?.[0] ?? trimmed.split('\n')[0] ?? trimmed).trim()
   return sentence
+}
+
+/** 思考摘要里的一步：小标题 + 这段的第一句（展开回执时一行一步）。 */
+export interface OperatorThoughtStep {
+  title: string
+  line: string
+}
+
+/**
+ * 把思考摘要切成一步一步（owner 2026-10-27 选「足迹」：一步一道短线，展开只列每一步的总结）。
+ *
+ * ⚠ Gemini 的摘要一段一个加粗小标题（`**Planning the edit**`）：一个小标题 = 一步，正文取第一句。
+ * ⚠ 没有小标题的（Claude 的摘要多半是这样）：按空行分段，一段 = 一步，标题取这段的第一句。
+ * ⚠ 还在写的最后一段也算一步 —— 想的时候那一行露的就是它的标题。
+ */
+export function operatorThoughtSteps(raw: string): OperatorThoughtStep[] {
+  // 流到一半的小标题（`**Check`，后半个 `**` 还没来）先不算：⛔ 露出半截星号。
+  const text = raw.replace(/(?:^|\n)[ \t]*\*\*[^*\n]*$/, '')
+  // 独占一行的加粗才是小标题；正文里顺手加粗的词不算。
+  const heading = /(?:^|\n)[ \t]*\*\*([^*\n]+?)\*\*[ \t]*(?=\n|$)/g
+  const marks = [...text.matchAll(heading)]
+  if (marks.length > 0)
+    return marks.map((mark, index) => {
+      const start = (mark.index ?? 0) + mark[0].length
+      const end = marks[index + 1]?.index ?? text.length
+      return {
+        title: mark[1]!.trim(),
+        line: firstOperatorSentence(
+          text.slice(start, end).replace(/\*\*/g, ''),
+        ),
+      }
+    })
+  return text
+    .split(/\n\s*\n/)
+    .map((block) => block.trim())
+    .filter(Boolean)
+    .map((block) => ({ title: firstOperatorSentence(block), line: '' }))
 }
 
 /** 连着出现时并成一行的系统行（owner 2026-09-24：「放在一起，没必要一个一个拿出来」）。 */

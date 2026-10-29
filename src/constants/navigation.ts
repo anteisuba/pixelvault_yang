@@ -348,8 +348,8 @@ export const SHELL_CANVAS_BOTTOM_ENTRIES: readonly ShellNavCanvasEntry[] =
   ).map((id) => SHELL_NAV_CANVAS_ENTRY_BY_ID[id])
 
 /**
- * ≥1024 的 `/studio` 外壳里全站侧栏让给了外壳左栏（第 9f 步），侧栏「画布」下面那几格
- * 改长在画布底栏上（只在 `desk:` 露出来）。「历史对话」不搬 —— 外壳左栏就是对话列表。
+ * ≥768 的 `/studio` 外壳里全站侧栏让给了外壳左栏（第 9f 步），侧栏「画布」下面那几格
+ * 改长在画布底栏上（只在 `lg:` 露出来）。「历史对话」不搬 —— 外壳左栏就是对话列表。
  */
 export const SHELL_CANVAS_DESK_BOTTOM_ENTRIES: readonly ShellNavCanvasEntry[] =
   SHELL_NAV_CANVAS_ENTRIES.filter(

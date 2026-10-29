@@ -2,7 +2,10 @@ import {
   ASSISTANT_FREE_TIER_ROUTE_MODEL,
   getAssistantRouteModelEntry,
 } from '@/constants/assistant-persona'
-import { ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE } from '@/constants/assistant-operator'
+import {
+  ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE,
+  ASSISTANT_PROVIDER_ERROR_CODES,
+} from '@/constants/assistant-operator'
 import type { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type { AssistantOperatorMissingKey } from '@/types/assistant-operator'
 
@@ -22,6 +25,7 @@ export interface AssistantKeySetupTarget {
  * 错误 → 该配的那一家：
  * - `MISSING_API_KEY`（五家一把都没有）→ 免费档那一家（Gemini）；
  * - 选定的模型缺 key（带 `missingKey`）→ **它那一家**，⛔ 不换别家（owner 2026-10-15）；
+ * - 那一家的 key 被厂商拒了（`PROVIDER_AUTH_FAILED`，帧上的 `provider` 落在同一格）→ 同上，重配它；
  * - 别的（含「看不了图」）→ `null`：配 key 解决不了，照实说一句就好。
  */
 export function assistantKeySetupForError(error: {
@@ -40,7 +44,8 @@ export function assistantKeySetupForError(error: {
     }
   }
   if (
-    error.errorCode === ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE &&
+    (error.errorCode === ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE ||
+      error.errorCode === ASSISTANT_PROVIDER_ERROR_CODES.authFailed) &&
     error.missingKey
   ) {
     return {

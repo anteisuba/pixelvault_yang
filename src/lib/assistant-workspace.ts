@@ -4,7 +4,10 @@ import {
   cardManagementPath,
   ROUTES,
 } from '@/constants/routes'
-import type { AssistantOperatorBenchOpen } from '@/types/assistant-operator'
+import type {
+  AssistantLibraryView,
+  AssistantOperatorBenchOpen,
+} from '@/types/assistant-operator'
 import {
   ASSISTANT_SURFACE_BY_DOMAIN,
   type AssistantSurfaceId,
@@ -127,5 +130,20 @@ export function assistantBenchReached(
     projectId &&
     target.projectId !== CANVAS_NEW_PROJECT_QUERY_VALUE &&
     (!target.projectId || target.projectId === projectId),
+  )
+}
+
+/**
+ * 库里「翻给你看」那一样到了没有（owner 10-28）：页面打开了它，或它就在屏上那一页里
+ *（LoRA 库只切到放着它的那一格）。浏览器等翻好、服务端判到没到，同一份判据。
+ */
+export function libraryItemShown(
+  name: string,
+  view: AssistantLibraryView,
+): boolean {
+  const key = name.toLowerCase()
+  if (view.item?.name.toLowerCase() === key) return true
+  return Boolean(
+    view.screen?.visible.some((visible) => visible.toLowerCase() === key),
   )
 }

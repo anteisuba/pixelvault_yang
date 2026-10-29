@@ -36,7 +36,7 @@ vi.mock('@/i18n/navigation', () => ({
   useRouter: () => ({ push: mocks.push }),
 }))
 vi.mock('@/contexts/studio-context', () => ({
-  useStudioGen: () => ({ lastGeneration: mocks.lastGeneration }),
+  useStudioGenOptional: () => ({ lastGeneration: mocks.lastGeneration }),
 }))
 vi.mock('@/hooks/prompts/use-recipes', () => ({
   useRecipes: () => ({
@@ -201,6 +201,43 @@ describe('模板面板（模板 C）', () => {
     expect(screen.getByText('emptyHintImage')).toBeInTheDocument()
   })
 
+  it('LoRA 台：列标签模板、说明换成 LoRA 那一句；存下挂台自己给的那一张', async () => {
+    mocks.create.mockResolvedValue({
+      success: true,
+      data: recipe({ id: 'new', name: 'rossi' }),
+    })
+    const params = { aspectRatio: '1:1', loraSetup: { baseId: 'b', items: [] } }
+    renderPanel({
+      dialect: 'tags',
+      bench: 'lora',
+      save: {
+        ...SAVE,
+        prompt: 'rossi',
+        params,
+        lastGeneration: {
+          id: 'lora-gen',
+          outputType: 'IMAGE',
+          url: 'https://cdn.test/lora.png',
+        },
+      },
+    })
+    expect(screen.getByText('footLora')).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'apply:LoRA one' }),
+    ).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'save' }))
+    await waitFor(() =>
+      expect(mocks.create).toHaveBeenCalledWith(
+        expect.objectContaining({ params, parentGenerationId: 'lora-gen' }),
+      ),
+    )
+    expect(mocks.addRecipe).toHaveBeenCalledWith(
+      expect.objectContaining({
+        coverThumbnailUrl: 'https://cdn.test/lora.png',
+      }),
+    )
+  })
+
   it('「存下」把当前提示词存成模板：名字取首行、封面挂最近一张', async () => {
     mocks.create.mockResolvedValue({
       success: true,
@@ -294,7 +331,7 @@ describe('模板面板（模板 C）', () => {
     })
   })
 
-  it('⋯ → 删除：第一下变红「确认删除」、菜单不关，第二下才删', async () => {
+  it('⋯ → 删除：先弹确认窗（owner 10-27），点删除才删', async () => {
     mocks.remove.mockResolvedValue({ success: true })
     renderPanel()
     fireEvent.keyDown(screen.getByRole('button', { name: 'more:雨夜人像' }), {
@@ -302,8 +339,10 @@ describe('模板面板（模板 C）', () => {
     })
     fireEvent.click(await screen.findByRole('menuitem', { name: 'delete' }))
     expect(mocks.remove).not.toHaveBeenCalled()
+    const dialog = await screen.findByRole('alertdialog')
+    expect(dialog).toHaveTextContent('deleteTitle')
     fireEvent.click(
-      await screen.findByRole('menuitem', { name: 'confirmDelete' }),
+      screen.getByRole('button', { name: 'deleteDialog.confirm' }),
     )
     expect(mocks.removeRecipe).toHaveBeenCalledWith('image')
     await waitFor(() => expect(mocks.remove).toHaveBeenCalledWith('image'))

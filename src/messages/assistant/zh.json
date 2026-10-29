@@ -334,16 +334,14 @@
       "loading": "读取中…",
       "untitled": "未命名会话",
       "earlierRounds": "更早的 {count} 条",
+      "rename": "重命名",
+      "delete": "删除",
+      "moreLabel": "更多操作：{title}",
       "deleteLabel": "删除对话：{title}",
-      "deleteConfirmInline": "再点一次就永久删除“{title}”",
-      "deleteConfirm": "确认",
-      "deleting": "删除中…",
+      "deleteTitle": "删除这段对话？",
       "deleteFailed": "删除失败，请重试。",
-      "deleteBusy": "请等待当前回复结束后再删除这段对话。",
       "loadFailed": "对话列表加载失败，请重新打开列表重试。",
       "renameLabel": "重命名 {title}",
-      "renameHint": "回车保存 · Esc 取消",
-      "renaming": "保存中…",
       "renameFailed": "修改失败，请重试。",
       "switching": "正在加载对话…",
       "saveFailed": "对话保存失败，草稿仍保留在当前页面。",
@@ -417,6 +415,10 @@
       "critiqueFailed": "看过了，但没读出可用的评价",
       "urlNotFromUser": "这条链接不是你给的，助手不能自己收下",
       "repeatedStep": "这一步刚才做过了，跳过",
+      "referenceRequired": "要先挂上参考图",
+      "notOnBench": "台上没有这一项",
+      "onOtherBench": "这个在别的工作台上，要先打开那一台",
+      "notDone": "这一步没做成",
       "ruleLimitReached": "来源名单已达上限，先删掉一条再添加。",
       "memoryOff": "记忆关着（隐身或「让助手记住」已关），这条没记",
       "ruleTooLong": "这条规矩太长，没记下",
@@ -621,7 +623,8 @@
       "moveWorkAccepted": "{subject}",
       "moveWorkDeclined": "{subject}",
       "moveWorkDroppedReferences": "有 {subject} 张参考图没带过去（超过上限或还没传完）。",
-      "autoGenerateHeld": "这次要出 {subject} 张，超过「交给 AI 出图」每句话 4 张的上限 —— 没替你按，确认后再出。"
+      "autoGenerateHeld": "这次要出 {subject} 张，超过「交给 AI 出图」每句话 4 张的上限 —— 没替你按，确认后再出。",
+      "autoReview": "自己看图再改 · 第 {subject} 轮"
     },
     "attach": {
       "latestResult": "最新 · {label}",
@@ -807,6 +810,8 @@
       "copied": "已复制",
       "missingKey": "助手需要你自己的 AI 文本模型 Key。Gemini 的 Key 可以在 Google AI Studio 免费申请。",
       "modelKeyMissing": "{model} 还没有可用的 {provider} Key，这一轮没有跑，也没有改用别家的 Key。配好 Key，或者换个模型。",
+      "providerOutOfCredit": "{provider} 那边的额度用完了，{model} 这一轮没跑成。去 {provider} 充值后点重试，或者换个别家的模型。",
+      "providerKeyInvalid": "{provider} 拒收了这把 Key（失效或没有权限），{model} 这一轮没跑成。重新配一把 {provider} Key，或者换个模型。",
       "upscaleKeyMissing": "放大要用你自己的 {provider} Key，还没配，所以没有放大，也没有改用别家的 Key。配好后再说一次「放大」。",
       "addKey": "配置 Key",
       "addProviderKey": "配置 {provider} Key",
@@ -1052,7 +1057,10 @@
       }
     },
     "autoGenerate": {
-      "label": "交给 AI 出图"
+      "label": "交给 AI 出图",
+      "review": "看图再改 {count} 轮",
+      "reviewOff": "出完就停",
+      "reviewHint": "出完图她自己看、对着你的要求再改几轮；点一下换档"
     },
     "continueAsk": {
       "header": "接下来",
@@ -1359,21 +1367,8 @@
     },
     "her": {
       "noCharacters": "还没有角色",
-      "noCharactersHint": "建一个角色，跟她聊一阵，这里会出现她的日记和她改了什么。",
+      "noCharactersHint": "建一个角色，跟她聊一阵，她的页上会出现她的日记和她改了什么。",
       "createCharacter": "去建一个角色",
-      "failed": "没读出来，过一会儿再试。",
-      "journal": "日记",
-      "noJournal": "还没写日记。每聊 30 句她会整理一次，顺手写一篇。",
-      "journalEarlier": "更早的 {count} 篇",
-      "journalCollapse": "收起",
-      "revisions": "她改了什么",
-      "noRevisions": "她还没改过自己的卡。",
-      "revertFailed": "没撤回成功，再试一次。",
-      "reason": "「{reason}」",
-      "fromChat": "对话里改的",
-      "reverted": "已撤回",
-      "revert": "撤回",
-      "emptyValue": "（空）",
       "fields": {
         "name": "名字",
         "tags": "标签",
@@ -1390,7 +1385,8 @@
         "opening": "开场白",
         "examples": "对话示例",
         "backstory": "经历"
-      }
+      },
+      "openOnPage": "在她的页里看"
     }
   }
 }

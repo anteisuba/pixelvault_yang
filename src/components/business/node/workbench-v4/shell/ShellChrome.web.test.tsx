@@ -571,7 +571,7 @@ describe('ShellBottomBar · 无加号', () => {
     expect(screen.getByTestId('shell-zoom-level').textContent).toBe('80%')
     const bar = screen.getByTestId('shell-bottom-bar')
     // ⛔ 底栏不该再有加号：八颗相机 / 编辑键（缩放百分比不是按钮）；角色 / 素材库已进侧栏。
-    // ≥1024 的 `/studio` 外壳里侧栏不在，那几格只在 `desk:` 露出来（第 9f 步），另算。
+    // ≥768 的 `/studio` 外壳里侧栏不在，那几格只在 `lg:` 露出来（第 9f 步），另算。
     const deskEntries = bar.querySelectorAll(
       '[data-testid^="shell-bottom-desk-"]',
     )

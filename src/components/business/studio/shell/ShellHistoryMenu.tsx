@@ -1,10 +1,14 @@
 'use client'
 
-import { useCallback, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useFormatter, useTranslations } from 'next-intl'
 
 import { Plus } from '@/components/icons'
-import { StudioOperatorSessionRow } from '@/components/business/studio/assistant-operator/StudioOperatorSessionRow'
+import {
+  SESSION_ROW_MENU_ATTR,
+  StudioOperatorSessionDeleteDialog,
+  StudioOperatorSessionRow,
+} from '@/components/business/studio/assistant-operator/StudioOperatorSessionRow'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,8 +39,6 @@ export interface ShellHistoryItem {
   id: string
   title: string | null
   updatedAt: string
-  /** 行右边时间前面那一格：进度「2/4」/ 出好了没看的小点。 */
-  badge?: ReactNode
   /** 标题前面那一格（群聊叠两颗头像）。 */
   leading?: ReactNode
 }
@@ -118,8 +120,8 @@ export function useShellHistoryBuckets(
  * 对话头里「对话记录」与「聊天」两颗键弹出来的那一块（用户 10-25 定样子：第一行「＋ 新…」，下面按今天 /
  * 昨天 / 更早分组，时间靠右，当前那一行浅灰底）。两边同一块，⛔ 各画各的。
  *
- * 行就是标题 ▾ 历史那一套（`StudioOperatorSessionRow` 的 `compact`）：就地改名、删除两段确认；
- * 同一列表同时只有一行举着刀，所以确认态住在这里。
+ * 行就是标题 ▾ 历史那一套（`StudioOperatorSessionRow` 的 `compact`）：就地改名；删除弹窗挂在
+ * 菜单外面（点垃圾桶菜单就关了）。
  */
 export function ShellHistoryMenu({
   children,
@@ -144,92 +146,98 @@ export function ShellHistoryMenu({
 }: ShellHistoryMenuProps) {
   const t = useTranslations('StudioShell')
   const [open, setOpen] = useState(false)
-  const [confirmId, setConfirmId] = useState<string | null>(null)
-  const cancelConfirm = useCallback(() => setConfirmId(null), [])
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string } | null>(null)
 
   const buckets = useShellHistoryBuckets(items)
 
   return (
-    <DropdownMenu
-      modal={false}
-      open={open}
-      onOpenChange={(next) => {
-        setOpen(next)
-        if (!next) setConfirmId(null)
-        onOpenChange?.(next)
-      }}
-    >
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>
-        </TooltipTrigger>
-        <TooltipContent side="bottom">{tooltip}</TooltipContent>
-      </Tooltip>
-      <DropdownMenuContent
-        side="bottom"
-        align="start"
-        sideOffset={8}
-        data-testid={testId}
-        className="max-h-[70svh] w-64 overflow-y-auto rounded-xl p-1.5"
+    <>
+      <DropdownMenu
+        modal={false}
+        open={open}
+        onOpenChange={(next) => {
+          setOpen(next)
+          onOpenChange?.(next)
+        }}
       >
-        <DropdownMenuItem
-          data-testid={`${testId}-new`}
-          disabled={newDisabled}
-          onSelect={onNew}
-          className="h-9 gap-2 px-2.25 font-medium"
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">{tooltip}</TooltipContent>
+        </Tooltip>
+        <DropdownMenuContent
+          side="bottom"
+          align="start"
+          sideOffset={8}
+          data-testid={testId}
+          className="max-h-[70svh] w-64 overflow-y-auto rounded-xl p-1.5"
+          onInteractOutside={(event) => {
+            // 行菜单（右键 / ⋯）是另一层下拉，点它不算外面。
+            if (
+              event.target instanceof Element &&
+              event.target.closest(`[${SESSION_ROW_MENU_ATTR}]`)
+            )
+              event.preventDefault()
+          }}
         >
-          <Plus className="size-4" aria-hidden />
-          <span className="min-w-0 truncate">{newLabel}</span>
-        </DropdownMenuItem>
-        {loading && items.length === 0
-          ? SHELL_HISTORY_SKELETON_WIDTHS.map((width) => (
-              <div key={width} className="flex h-9 items-center px-2.25">
-                <Skeleton className={`h-2.5 rounded-sm ${width}`} />
-              </div>
-            ))
-          : null}
-        {buckets.map((bucket) => (
-          <div key={bucket.id}>
-            <DropdownMenuLabel className="px-2.25 pt-2 pb-0.5 text-2xs font-normal text-muted-foreground">
-              {t(`historyBucket.${bucket.id}`)}
-            </DropdownMenuLabel>
-            {bucket.items.map((item) => (
-              <StudioOperatorSessionRow
-                key={item.id}
-                compact
-                session={{ id: item.id, title: item.title }}
-                {...(titleMaxLength ? { titleMaxLength } : {})}
-                leading={item.leading}
-                badge={item.badge}
-                domainLabel={null}
-                dateLabel={bucket.timeLabel(item.updatedAt)}
-                current={item.id === currentId}
-                selectDisabled={
-                  deletingId === item.id || (selectDisabled?.(item.id) ?? false)
-                }
-                deleteDisabled={
-                  deletingId !== null || (deleteDisabled?.(item.id) ?? false)
-                }
-                renaming={renamingId === item.id}
-                deleting={deletingId === item.id}
-                confirming={confirmId === item.id}
-                onSelect={() => onSelect(item.id)}
-                onRename={(title) => onRename(item.id, title)}
-                onRequestDelete={() => setConfirmId(item.id)}
-                onCancelDelete={cancelConfirm}
-                onConfirmDelete={() => {
-                  void onDelete(item.id).then((deleted) => {
-                    if (deleted) setConfirmId(null)
-                  })
-                }}
-              />
-            ))}
-          </div>
-        ))}
-        {error ? (
-          <p className="px-2.25 py-2 text-2sm text-destructive">{error}</p>
-        ) : null}
-      </DropdownMenuContent>
-    </DropdownMenu>
+          <DropdownMenuItem
+            data-testid={`${testId}-new`}
+            disabled={newDisabled}
+            onSelect={onNew}
+            className="h-9 gap-2 px-2.25 font-medium"
+          >
+            <Plus className="size-4" aria-hidden />
+            <span className="min-w-0 truncate">{newLabel}</span>
+          </DropdownMenuItem>
+          {loading && items.length === 0
+            ? SHELL_HISTORY_SKELETON_WIDTHS.map((width) => (
+                <div key={width} className="flex h-9 items-center px-2.25">
+                  <Skeleton className={`h-2.5 rounded-sm ${width}`} />
+                </div>
+              ))
+            : null}
+          {buckets.map((bucket) => (
+            <div key={bucket.id}>
+              <DropdownMenuLabel className="px-2.25 pt-2 pb-0.5 text-2xs font-normal text-muted-foreground">
+                {t(`historyBucket.${bucket.id}`)}
+              </DropdownMenuLabel>
+              {bucket.items.map((item) => (
+                <StudioOperatorSessionRow
+                  key={item.id}
+                  compact
+                  session={{ id: item.id, title: item.title }}
+                  {...(titleMaxLength ? { titleMaxLength } : {})}
+                  leading={item.leading}
+                  domainLabel={null}
+                  dateLabel={bucket.timeLabel(item.updatedAt)}
+                  current={item.id === currentId}
+                  selectDisabled={
+                    deletingId === item.id ||
+                    (selectDisabled?.(item.id) ?? false)
+                  }
+                  deleteDisabled={
+                    deletingId !== null || (deleteDisabled?.(item.id) ?? false)
+                  }
+                  renaming={renamingId === item.id}
+                  deleting={deletingId === item.id}
+                  onSelect={() => onSelect(item.id)}
+                  onRename={(title) => onRename(item.id, title)}
+                  onRequestDelete={() => setDeleteTarget(item)}
+                />
+              ))}
+            </div>
+          ))}
+          {error ? (
+            <p className="px-2.25 py-2 text-2sm text-destructive">{error}</p>
+          ) : null}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <StudioOperatorSessionDeleteDialog
+        target={deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onDelete={onDelete}
+      />
+    </>
   )
 }

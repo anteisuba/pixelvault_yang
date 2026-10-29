@@ -11,6 +11,7 @@ import {
 } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useUser } from '@clerk/nextjs'
+import * as Toolbar from '@radix-ui/react-toolbar'
 import { motion, useTransform } from 'motion/react'
 import {
   AlertCircle,
@@ -119,6 +120,9 @@ import {
   type LoraRecipeViewerOrigin,
 } from '@/components/business/studio/lora/LoraRecipeViewer'
 import { LoraResultStage } from '@/components/business/studio/lora/LoraResultStage'
+import { StudioTemplatesChip } from '@/components/business/studio/templates/StudioTemplatesChip'
+import { StudioTemplatesPanel } from '@/components/business/studio/templates/StudioTemplatesPanel'
+import { StudioTemplateUndoToast } from '@/components/business/studio/templates/StudioTemplateUndoToast'
 import {
   LoraSourceBand,
   type LoraSourceBandMode,
@@ -201,8 +205,12 @@ import { SpecChip } from '@/components/business/studio-shared/spec'
 import { StudioGenerateButton } from '@/components/business/studio-shared/workflow/StudioGenerateButton'
 import { StudioMobileAddSheet } from '@/components/business/studio/StudioMobileAddSheet'
 import { ResponsivePopoverPhoneCard } from '@/components/ui/responsive-popover'
-import { AI_ADAPTER_TYPES } from '@/constants/providers'
-import { getAvailableImageModels, resolveAdapterType } from '@/constants/models'
+import { AI_ADAPTER_TYPES, getProviderLabel } from '@/constants/providers'
+import {
+  getAvailableImageModels,
+  getModelById,
+  resolveAdapterType,
+} from '@/constants/models'
 import {
   getCapabilityConfig,
   getMaxReferenceImages,
@@ -1532,7 +1540,7 @@ function GenerateBranch({
       if (base) setSelectedBaseId(base.id)
       setAppliedRecipe(null)
       setPrompt(recipe.compiledPrompt)
-      const negative = recipe.negativePrompt?.trim() ?? ''
+      const negative = readRecipeNegativePrompt(recipe)
       setNegativePrompt(negative)
       setNegativePromptExpanded(negative.length > 0)
       const ratio = readRecipeAspectRatio(recipe.params)
@@ -2471,6 +2479,120 @@ function GenerateBranch({
     },
     [router, t, templateSaves],
   )
+
+  // 「模板」药丸（模板 C，与图片台同一块面板）：台面换上模板面板，左上「当前标签」把
+  // 这一刻的整套存下（提示词 · 负面 · 开着的 LoRA 与权重 · 底模 · 比例 · 参数），点一张
+  // 整套装回、回到结果；输入框上沿 5 秒「撤销」换回套用前那一套。
+  const [templatesOpen, setTemplatesOpen] = useState(false)
+  // 出图一开始就回到结果：进度在结果那一屏。
+  if (isGenerating && templatesOpen) setTemplatesOpen(false)
+  const [templateUndo, setTemplateUndo] = useState<{
+    key: number
+    name: string
+    restore: () => void
+  } | null>(null)
+  const templateSaveParams = useMemo(() => {
+    const entries = stack.items
+      .filter((entry) => entry.enabled !== false)
+      .map((entry) => ({
+        asset: entry.asset,
+        scale: entry.scale ?? entry.asset.defaultScale,
+      }))
+    const advanced: Record<string, unknown> = {}
+    if (entries.length > 0)
+      advanced.loras = entries.map((entry) => ({
+        url: entry.asset.loraUrl,
+        scale: entry.scale,
+      }))
+    const negative = negativePrompt.trim()
+    if (negative) advanced.negativePrompt = negative
+    const steps = parseOptionalRunnerNumber(runnerSteps)
+    const cfg = parseOptionalRunnerNumber(runnerCfg)
+    const width = parseOptionalRunnerNumber(runnerWidth)
+    const height = parseOptionalRunnerNumber(runnerHeight)
+    if (steps !== undefined) advanced.steps = steps
+    if (cfg !== undefined) advanced.guidanceScale = cfg
+    if (runnerSampler) advanced.runnerSampler = runnerSampler
+    if (runnerScheduler) advanced.runnerScheduler = runnerScheduler
+    if (width !== undefined && height !== undefined) {
+      advanced.runnerWidth = width
+      advanced.runnerHeight = height
+    }
+    if (runnerUpscaler === '4x-AnimeSharp')
+      advanced.runnerUpscaler = runnerUpscaler
+    const setup = buildRecipeLoraSetup(selectedBase?.id ?? null, entries)
+    return {
+      aspectRatio,
+      advancedParams: advanced,
+      ...(setup ? { loraSetup: setup } : {}),
+    }
+  }, [
+    aspectRatio,
+    negativePrompt,
+    runnerCfg,
+    runnerHeight,
+    runnerSampler,
+    runnerScheduler,
+    runnerSteps,
+    runnerUpscaler,
+    runnerWidth,
+    selectedBase?.id,
+    stack.items,
+  ])
+  const templateProviderConfig = selectedBase
+    ? getModelById(selectedBase.providerModelId)?.providerConfig
+    : undefined
+  const latestResult = resultHistory[0] ?? null
+  const handleApplyTemplate = (recipe: RecipeRecord) => {
+    // 套用前这一套原样记下：撤销整套换回（挂载 · 开关 · 底模 · 正文 · 负面 · 比例 · 参数 · 种子）。
+    const items = stack.items
+    const before = {
+      baseId: selectedBaseId,
+      prompt,
+      negativePrompt,
+      negativePromptExpanded,
+      aspectRatio,
+      seed,
+      runnerSeed,
+      runnerSteps,
+      runnerCfg,
+      runnerSampler,
+      runnerScheduler,
+      runnerWidth,
+      runnerHeight,
+      runnerUpscaler,
+      appliedRecipe,
+    }
+    applyLoraTemplate(recipe)
+    setTemplatesOpen(false)
+    setTemplateUndo((current) => ({
+      key: (current?.key ?? 0) + 1,
+      name: recipe.name || recipe.modelId,
+      restore: () => {
+        stack.clear()
+        for (const item of items) {
+          stack.push(item.asset, item.scale)
+          if (item.enabled === false) stack.setEnabled(item.asset.id, false)
+        }
+        setSelectedBaseId(before.baseId)
+        setPrompt(before.prompt)
+        setNegativePrompt(before.negativePrompt)
+        setNegativePromptExpanded(before.negativePromptExpanded)
+        setAspectRatio(before.aspectRatio)
+        setSeed(before.seed)
+        setRunnerSeed(before.runnerSeed)
+        setRunnerSteps(before.runnerSteps)
+        setRunnerCfg(before.runnerCfg)
+        setRunnerSampler(before.runnerSampler)
+        setRunnerScheduler(before.runnerScheduler)
+        setRunnerWidth(before.runnerWidth)
+        setRunnerHeight(before.runnerHeight)
+        setRunnerUpscaler(before.runnerUpscaler)
+        setAppliedRecipe(before.appliedRecipe)
+      },
+    }))
+  }
+  const dismissTemplateUndo = useCallback(() => setTemplateUndo(null), [])
 
   /**
    * 移动端自动滚动（owner 2026-09-03「结果在眼前、输入在拇指区」）。
@@ -4109,10 +4231,45 @@ function GenerateBranch({
             handleApplyRecipe(recipe, { includeSeed, extraLoras })
           }
         />
+        {templatesOpen ? (
+          // 盖在结果上（结果层不卸载，收起就回到原来那一屏）。
+          <div className="absolute inset-0 z-10 flex flex-col bg-background">
+            <StudioTemplatesPanel
+              dialect="tags"
+              bench="lora"
+              save={{
+                outputType: 'IMAGE',
+                prompt,
+                params: templateSaveParams,
+                modelId: selectedBase?.providerModelId,
+                provider: templateProviderConfig
+                  ? getProviderLabel(templateProviderConfig)
+                  : undefined,
+                lastGeneration: latestResult
+                  ? {
+                      id: latestResult.id,
+                      outputType: 'IMAGE',
+                      url: latestResult.url,
+                    }
+                  : null,
+              }}
+              onApply={handleApplyTemplate}
+              onClose={() => setTemplatesOpen(false)}
+            />
+          </div>
+        ) : null}
       </section>
 
       {/* 输入框（§2.4）：搭配状态条 → 提示词 → 负面词（原位展开）→ 工具行。 */}
-      <div className="shrink-0">
+      <div className="relative shrink-0">
+        {templateUndo ? (
+          <StudioTemplateUndoToast
+            key={templateUndo.key}
+            name={templateUndo.name}
+            onUndo={templateUndo.restore}
+            onDismiss={dismissTemplateUndo}
+          />
+        ) : null}
         <div
           ref={composerCardRef}
           data-testid="lora-composer-card"
@@ -4413,6 +4570,13 @@ function GenerateBranch({
                     disabled={!selectedBase?.available || isGenerating}
                   />
                 ) : null}
+                <Toolbar.Root className="flex">
+                  <StudioTemplatesChip
+                    open={templatesOpen}
+                    onToggle={() => setTemplatesOpen((open) => !open)}
+                    disabled={isGenerating}
+                  />
+                </Toolbar.Root>
                 <button
                   type="button"
                   aria-disabled={!activeAsset || isGenerating}

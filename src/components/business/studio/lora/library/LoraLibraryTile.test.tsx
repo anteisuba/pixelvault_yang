@@ -17,6 +17,11 @@ vi.mock('next-intl', () => ({
         : `${namespace}:${key}`,
 }))
 
+const handoff = vi.hoisted(() => ({ value: null as (() => void) | null }))
+vi.mock('@/contexts/studio-library-pick', () => ({
+  useLoraBenchHandoff: () => handoff.value,
+}))
+
 function PickHarness({ children }: { children: ReactNode }) {
   const [selected, setSelected] = useState<readonly LoraPickEntry[]>([])
   const value = useMemo<LoraPickSelection>(
@@ -99,5 +104,24 @@ describe('LoraLibraryTile（挑选框 ui-spec ㉔）', () => {
     expect(screen.getByText('LoraWorkbench.picker:mounted')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Sue' }))
     expect(onOpen).toHaveBeenCalled()
+  })
+
+  it('LoRA 台没开：「更多」里写「去 LoRA 台用」，已挂的也能点', () => {
+    handoff.value = vi.fn()
+    const onMount = vi.fn()
+    render(
+      <LoraLibraryTile {...base} mounted onOpen={vi.fn()} onMount={onMount} />,
+    )
+    fireEvent.keyDown(
+      screen.getByRole('button', { name: 'LoraWorkbench.browse:more' }),
+      { key: 'Enter' },
+    )
+    fireEvent.click(
+      screen.getByRole('menuitem', {
+        name: 'LoraWorkbench.browse:useOnBenchLabel(Sue)',
+      }),
+    )
+    expect(onMount).toHaveBeenCalled()
+    handoff.value = null
   })
 })

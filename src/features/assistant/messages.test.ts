@@ -7,6 +7,8 @@ import {
   hydratePictures,
   lookedPicturesMessage,
   openingUserMessage,
+  isUnpairedToolError,
+  pairProviderToolParts,
   stripForFallback,
 } from './messages'
 import { renderSkill } from './skills'
@@ -86,6 +88,78 @@ describe('换保守接法', () => {
     }[]
     expect(assistant.map((part) => part.type)).toEqual(['text', 'tool-call'])
     expect(assistant[1]!.toolName).toBe('edit')
+  })
+})
+
+describe('厂商自己跑的调用要成对', () => {
+  const user: ModelMessage = { role: 'user', content: 'hi' }
+  const assistant = (content: unknown[]): ModelMessage =>
+    ({ role: 'assistant', content }) as ModelMessage
+  const call = (id: string, toolName: string, caller?: string) => ({
+    type: 'tool-call',
+    toolCallId: id,
+    toolName,
+    input: {},
+    providerExecuted: true,
+    ...(caller
+      ? { providerOptions: { anthropic: { caller: { toolId: caller } } } }
+      : {}),
+  })
+  const result = (id: string, toolName: string) => ({
+    type: 'tool-result',
+    toolCallId: id,
+    toolName,
+    output: { type: 'json', value: {} },
+  })
+
+  it('落单的整理代码调用拿掉（连它发起的联网），成对的联网留着', () => {
+    const messages = [
+      user,
+      assistant([
+        { type: 'reasoning', text: 'hm' },
+        call('s1', 'web_search'),
+        result('s1', 'web_search'),
+        call('c1', 'code_execution'),
+        call('f1', 'web_fetch', 'c1'),
+        result('f1', 'web_fetch'),
+        { type: 'text', text: 'done' },
+      ]),
+    ]
+    const [, out] = pairProviderToolParts(messages)
+    const parts = out!.content as { type: string; toolCallId?: string }[]
+    expect(parts.map((part) => part.toolCallId ?? part.type)).toEqual([
+      'reasoning',
+      's1',
+      's1',
+      'text',
+    ])
+  })
+
+  it('都成对：原样返回同一个数组；drop 时整对拿掉', () => {
+    const messages = [
+      user,
+      assistant([
+        call('s1', 'web_search'),
+        result('s1', 'web_search'),
+        { type: 'text', text: 'ok' },
+      ]),
+    ]
+    expect(pairProviderToolParts(messages)).toBe(messages)
+    const [, out] = pairProviderToolParts(messages, { drop: true })
+    expect(
+      (out!.content as { type: string }[]).map((part) => part.type),
+    ).toEqual(['text'])
+  })
+
+  it('认得出 Claude 的「没有对应结果」那一类 400', () => {
+    expect(
+      isUnpairedToolError(
+        'messages.1: `code_execution` tool use with id `srvtoolu_01` was found without a corresponding `code_execution_tool_result` block',
+      ),
+    ).toBe(true)
+    expect(isUnpairedToolError('Invalid `signature` in `thinking` block')).toBe(
+      false,
+    )
   })
 })
 

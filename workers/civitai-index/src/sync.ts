@@ -136,6 +136,45 @@ function toWritableRow(row: IndexRow) {
   }
 }
 
+/** 写入（或覆盖）完整行与它们的精确词。 */
+function fullRowStatements(
+  db: D1Database,
+  fullRows: readonly IndexRow[],
+): D1PreparedStatement[] {
+  const termRows = fullRows.flatMap((row) =>
+    row.terms.map((term) => ({ term, modelId: row.modelId })),
+  )
+  return [
+    ...chunk(fullRows.map(toWritableRow), WRITE_CHUNK_SIZE).map((rows) =>
+      db.prepare(UPSERT_SQL).bind(JSON.stringify(rows)),
+    ),
+    ...chunk(
+      fullRows.map((row) => row.modelId),
+      WRITE_CHUNK_SIZE,
+    ).map((ids) => db.prepare(TERM_DELETE_SQL).bind(JSON.stringify(ids))),
+    ...chunk(termRows, TERM_CHUNK_SIZE).map((rows) =>
+      db.prepare(TERM_INSERT_SQL).bind(JSON.stringify(rows)),
+    ),
+  ]
+}
+
+/**
+ * 搜索时现查上游拿到的完整 hit 写回索引（下次就不用再查），返回能用的模型 id，
+ * 顺序照上游。读不懂的、没有可用版本的跳过。
+ */
+export async function writeLiveHits(
+  db: D1Database,
+  hits: readonly unknown[],
+  now: number,
+): Promise<number[]> {
+  const rows = hits
+    .map((hit) => mapFullHit(hit, now))
+    .filter((row): row is IndexRow => row !== null)
+  const statements = fullRowStatements(db, rows)
+  if (statements.length > 0) await db.batch(statements)
+  return rows.map((row) => row.modelId)
+}
+
 function hitId(hit: unknown): number | null {
   const id = (hit as { id?: unknown } | null)?.id
   return typeof id === 'number' && Number.isInteger(id) ? id : null
@@ -229,20 +268,8 @@ async function syncOnePage(
   }
   toDelete.push(...unusable)
 
-  const termRows = fullRows.flatMap((row) =>
-    row.terms.map((term) => ({ term, modelId: row.modelId })),
-  )
   const statements: D1PreparedStatement[] = [
-    ...chunk(fullRows.map(toWritableRow), WRITE_CHUNK_SIZE).map((rows) =>
-      db.prepare(UPSERT_SQL).bind(JSON.stringify(rows)),
-    ),
-    ...chunk(
-      fullRows.map((row) => row.modelId),
-      WRITE_CHUNK_SIZE,
-    ).map((ids) => db.prepare(TERM_DELETE_SQL).bind(JSON.stringify(ids))),
-    ...chunk(termRows, TERM_CHUNK_SIZE).map((rows) =>
-      db.prepare(TERM_INSERT_SQL).bind(JSON.stringify(rows)),
-    ),
+    ...fullRowStatements(db, fullRows),
     ...chunk(metrics, WRITE_CHUNK_SIZE).map((rows) =>
       db.prepare(METRICS_SQL).bind(JSON.stringify(rows)),
     ),

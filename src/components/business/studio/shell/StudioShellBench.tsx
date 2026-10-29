@@ -290,7 +290,7 @@ export function StudioBenchRail({
       // 浮在台上面、⛔ 单独占一列（用户 10-25）；平时只留右边缘一道细线，鼠标移过去 / 键盘
       // 走到才浮出那张白卡（用户 10-25 ①：浮着的卡挡住了图片台右边那列工具）。外层点不着，
       // 点得着的只有细线那一条感应区和浮出来的卡。
-      className="group/rail pointer-events-none absolute inset-y-0 right-0 z-20 hidden items-center desk:flex"
+      className="group/rail pointer-events-none absolute inset-y-0 right-0 z-20 hidden items-center lg:flex"
     >
       <span
         aria-hidden
@@ -501,7 +501,7 @@ export function StudioShellExpandChat({ onExpand }: { onExpand: () => void }) {
         {...{ [STUDIO_SHELL_AVATAR_ATTR]: 'bench' }}
         onClick={onExpand}
         style={spot ?? undefined}
-        className="absolute top-2.5 left-3 z-20 hidden size-8 rounded-full transition-transform duration-fast ease-standard active:scale-96 focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none desk:block"
+        className="absolute top-2.5 left-3 z-20 hidden size-8 rounded-full transition-transform duration-fast ease-standard active:scale-96 focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none lg:block"
       >
         <StudioOperatorCurrentAvatar />
       </button>

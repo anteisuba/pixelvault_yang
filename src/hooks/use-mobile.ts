@@ -3,7 +3,8 @@ import * as React from 'react'
 /**
  * 紧凑布局阈值：<768 为「手机」——移动 chrome（顶栏 / 抽屉 / 底部条）+ 抽屉式披露；
  * ≥768 出桌面壳（左侧栏）。owner 2026-10-09 平板 v10：平板 = 缩小版电脑，
- * 所以平板（768–1023）走桌面壳，只是侧栏钉死在收起档、助手改成盖上来（见 `useIsTablet`）。
+ * 所以平板（768–1023）走桌面壳，只是侧栏钉死在收起档（见 `useIsTablet`）；`/studio` 外壳
+ * 从 768 起就与电脑同一套（`useIsDesktopShell`）。
  * 必须与布局 chrome 的 `lg:` 断点（`globals.css` 把 `--breakpoint-lg` 挪到 48rem）
  * 及各 CSS 文件里 767.98 / 768 那几条媒体查询保持同一边界。
  * 这个数同时决定画布是不是整个换成镜头带（node-canvas-v2 §7.x：< 768 渲染镜头带，
@@ -13,7 +14,7 @@ export const MOBILE_BREAKPOINT = 768
 
 /**
  * 「1024 才放得下」的那一档（原来的 `lg`，Tailwind 里叫 `desk:`）。
- * 768–1023 是平板：桌面壳，但侧栏不展开、助手不挤工作台。
+ * 768–1023 是平板：桌面壳，但侧栏不展开。
  */
 export const DESK_BREAKPOINT = 1024
 
@@ -57,11 +58,12 @@ export function useIsTablet() {
 }
 
 /**
- * ≥1024（`desk:`）：`/studio` 外壳三层摆开的那一档（第 9f 步）。
+ * ≥768（`lg:`）：`/studio` 外壳三层摆开的那一档（第 9f 步；owner 2026-10-28「平板直接用 PC
+ * 那个」，从 1024 挪下来，平板与电脑同一套外壳）。
  * ⚠ 三态：还没量出来 = `undefined`（首帧，与 SSR 一致）—— 外壳靠它决定面板挂在哪儿，
  *   量出来之前哪边都不挂，⛔ 先挂一份再换一份（会多开一条流、多认领一次作用域）。
  */
-export function useIsDesk(): boolean | undefined {
+export function useIsDesktopShell(): boolean | undefined {
   const [flag, setFlag] = React.useState<boolean | undefined>(undefined)
 
   React.useEffect(() => {
@@ -69,7 +71,7 @@ export function useIsDesk(): boolean | undefined {
       setFlag(false)
       return
     }
-    const mql = window.matchMedia(`(min-width: ${DESK_BREAKPOINT}px)`)
+    const mql = window.matchMedia(`(min-width: ${MOBILE_BREAKPOINT}px)`)
     const onChange = () => setFlag(mql.matches)
     mql.addEventListener('change', onChange)
     setFlag(mql.matches)

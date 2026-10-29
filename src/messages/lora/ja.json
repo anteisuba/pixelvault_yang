@@ -626,6 +626,8 @@
       "mount": "マウント",
       "mounted": "マウント済み",
       "mountLabel": "{name} をマウント",
+      "useOnBench": "LoRA 台で使う",
+      "useOnBenchLabel": "{name} をマウントして LoRA 台で使う",
       "agentPick": "アシスタントのおすすめ",
       "agentSearching": "アシスタントが検索中…",
       "agentSearched": "アシスタントが検索",
@@ -674,7 +676,10 @@
       "handToAssistant": "アシスタントに渡す",
       "favorite": "お気に入り",
       "unfavorite": "お気に入りを外す",
-      "openDetail": "詳細を見る"
+      "openDetail": "詳細を見る",
+      "segmentCorrected": "「{query}」は 0 件 ·「{corrected}」で {count} 件",
+      "segmentLive": "索引に未収録 · Civitai で直接 {count} 件",
+      "segmentMeaning": "意味が近いもの"
     },
     "characterLoras": {
       "pickEntry": "キャラから選ぶ",

@@ -31,7 +31,14 @@
  * 重新读这条会话）。
  */
 
-import { Children, Fragment, isValidElement, useMemo, useState } from 'react'
+import {
+  Children,
+  Fragment,
+  isValidElement,
+  useCallback,
+  useMemo,
+  useState,
+} from 'react'
 import type { ReactNode } from 'react'
 import { motion } from 'motion/react'
 import Image from 'next/image'
@@ -105,6 +112,7 @@ interface StudioOperatorMessageBodyProps {
 /** 没有可认的号时共用这一份，⛔ 别写成行内 `new Map()`（每次 render 换引用）。 */
 const NO_FIND_REFS: ReadonlyMap<number, OperatorFindRef> = new Map()
 const NO_REFERENCES: readonly NamedImageReference[] = []
+const NO_SOURCES: readonly StudioOperatorAnswerSource[] = []
 
 /**
  * 参考图缩略图（D12 P8 / C10）—— 地址过期或被删时画一格占位，⛔ 不出破图标。
@@ -318,6 +326,7 @@ export function StudioOperatorCollapsibleText({
   findRefs = NO_FIND_REFS,
   pendingSince,
   pendingPhase,
+  thinking,
 }: {
   references?: readonly NamedImageReference[]
   /** 正文里的 `#n` 认哪张卡（搜索期第三片）。 */
@@ -327,6 +336,8 @@ export function StudioOperatorCollapsibleText({
   pendingSince?: number
   /** `landing` = 画布接力那一跳（「正在画布上落地…」）。 */
   pendingPhase?: 'landing'
+  /** 还空着时，到此刻为止的思考摘要（10-27）—— 那一行露最新一步的小标题。 */
+  thinking?: string
   /**
    * 这一条**还没有字**（发送即回显的占位行）—— 空正文时画「正在想…」那一行。
    * 有字且仍 streaming = 收尾轮还在写，不折叠。
@@ -346,9 +357,11 @@ export function StudioOperatorCollapsibleText({
       numbered.length ? [...passedReferences, ...numbered] : passedReferences,
     [passedReferences, numbered],
   )
+  // ⚠ 按号钉，不按数组引用：面板每帧都重算一份来源，引用一换整张覆盖表就换、段落整段重挂。
+  const citeSignature = sources.map((source) => source.cite).join(',')
   const known = useMemo(
-    () => new Set(sources.map((source) => source.cite)),
-    [sources],
+    () => new Set(citeSignature ? citeSignature.split(',').map(Number) : []),
+    [citeSignature],
   )
   /**
    * ⚠ 覆盖表在 `INITIAL_COMPONENTS` **之上叠加**而不是替换（那份的头注写死了
@@ -408,6 +421,7 @@ export function StudioOperatorCollapsibleText({
       <StudioOperatorThinkingRow
         {...(pendingSince === undefined ? {} : { since: pendingSince })}
         landing={pendingPhase === 'landing'}
+        {...(thinking ? { thinking } : {})}
       />
     )
   }
@@ -466,16 +480,44 @@ export function StudioOperatorCollapsibleText({
   )
 }
 
+/**
+ * 她聊天口吻的回复（`chat`）—— 一行一个气泡，**也认 `图_N`**（10-27 owner 真机：气泡里写
+ * 「图_1215」只剩字，普通正文却有图）。实时线程与历史回放共用这一颗。
+ * ⚠ 与 `StudioOperatorCollapsibleText` 同一个 hook、同一个替换函数，⛔ 别另写一套规则。
+ */
+export function StudioOperatorChatText({
+  text,
+  streaming,
+  references = NO_REFERENCES,
+}: {
+  text: string
+  streaming: boolean
+  references?: readonly NamedImageReference[]
+}) {
+  const numbered = usePictureNumberReferences(streaming ? '' : text)
+  const all = useMemo(
+    () => (numbered.length ? [...references, ...numbered] : references),
+    [references, numbered],
+  )
+  return (
+    <StudioOperatorChatBubbles
+      text={text}
+      streaming={streaming}
+      renderBubble={(bubble) => withImageReferences(bubble, all)}
+    />
+  )
+}
+
 export function StudioOperatorMessageBody({
   entry,
-  sources = [],
+  sources = NO_SOURCES,
   pinned,
   onTogglePin,
   onDeepResearch,
   receiptLabel,
   onSearchXWithGrok,
   webFinds,
-  references = [],
+  references = NO_REFERENCES,
   findRefs,
 }: StudioOperatorMessageBodyProps) {
   const t = useTranslations('StudioOperator')
@@ -485,20 +527,28 @@ export function StudioOperatorMessageBody({
    * ⚠ 再点一次同一个号就熄灭 —— 高亮是一次阅读动作，不是一个要人去关的模式。
    */
   const [activeCite, setActiveCite] = useState<number | null>(null)
+  const pickCitation = useCallback(
+    (cite: number) =>
+      setActiveCite((current) => (current === cite ? null : cite)),
+    [],
+  )
 
   return (
     <div className="flex min-w-0 flex-col gap-2">
-      {entry.text ? (
+      {/* 想完的回执：正文上方；工具步之前那一段只想没说的，这一条就只有它（10-27）。 */}
+      {entry.text || !entry.streaming ? (
         <StudioOperatorThoughtReceipt
           {...(entry.thoughtMs === undefined
             ? {}
             : { thoughtMs: entry.thoughtMs })}
+          {...(entry.thinking ? { thinking: entry.thinking } : {})}
         />
       ) : null}
-      {entry.chat && entry.text ? (
-        <StudioOperatorChatBubbles
+      {!entry.text && !entry.streaming ? null : entry.chat && entry.text ? (
+        <StudioOperatorChatText
           text={entry.text}
           streaming={entry.streaming ?? false}
+          references={references}
         />
       ) : (
         <StudioOperatorCollapsibleText
@@ -510,11 +560,10 @@ export function StudioOperatorMessageBody({
             ? {}
             : { pendingSince: entry.pendingSince })}
           {...(entry.pendingPhase ? { pendingPhase: entry.pendingPhase } : {})}
+          {...(entry.thinking ? { thinking: entry.thinking } : {})}
           sources={sources}
           activeCite={activeCite}
-          onPickCitation={(cite) =>
-            setActiveCite((current) => (current === cite ? null : cite))
-          }
+          onPickCitation={pickCitation}
         />
       )}
       {/* 🔊 开着时这段念到哪了（②c-2）：聊天整段、开着台只念首尾段。 */}

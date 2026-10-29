@@ -91,13 +91,19 @@ describe('给模型看的 JSON schema：严格模式的形状', () => {
     const schema = toModelJsonSchema(LookInputSchema) as {
       required: string[]
       additionalProperties: boolean
-      properties: Record<string, { anyOf?: { type: string }[] }>
+      properties: Record<
+        string,
+        { type?: string | string[]; anyOf?: { type: string }[] }
+      >
     }
     expect(schema.required).toEqual(['names', 'question', 'tagger'])
     expect(schema.additionalProperties).toBe(false)
-    expect(
-      schema.properties.question?.anyOf?.map((entry) => entry.type),
-    ).toContain('null')
+    // zod 4.6 起可空写成 `type: [X, 'null']`（之前是 anyOf）；两种 OpenAI strict 都认。
+    const question = schema.properties.question
+    expect([
+      ...[question?.type ?? []].flat(),
+      ...(question?.anyOf?.map((entry) => entry.type) ?? []),
+    ]).toContain('null')
   })
 })
 

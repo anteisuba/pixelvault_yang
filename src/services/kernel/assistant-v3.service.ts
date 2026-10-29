@@ -521,7 +521,7 @@ function askImageUrl(
     ]
   const reference = referenceIndexOf(context, lowered)
   if (reference !== null)
-    return context.request.snapshot.references?.items[reference]?.url
+    return context.prepared.run.state.referenceUrls[reference] ?? undefined
   const id = context.handles.idOf(key)
   const node = id
     ? context.nodes.find((candidate) => candidate.id === id)

@@ -45,7 +45,9 @@ import {
   ASSISTANT_OPERATOR_ERROR_MESSAGE_KEYS,
   ASSISTANT_OPERATOR_EVENTS,
   ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE,
+  ASSISTANT_PROVIDER_ERROR_MESSAGE_KEYS,
   ASSISTANT_AUTO_GENERATE_LIMITS,
+  ASSISTANT_AUTO_REVIEW_MARK,
   ASSISTANT_OPERATOR_LIMITS,
   ASSISTANT_OPERATOR_TOOL_VERBS,
   ASSISTANT_OPERATOR_REJECT_REASON_IDS,
@@ -82,6 +84,7 @@ import { AI_MODELS } from '@/constants/models'
 import { CONTEXT_CARD_STATUS_IDS } from '@/constants/context-cards'
 import {
   STUDIO_OPERATOR_BENCH_OPEN_POLL_MS,
+  STUDIO_OPERATOR_LIBRARY_SHOW_SETTLE_MS,
   STUDIO_OPERATOR_BENCH_OPEN_TIMEOUT_MS,
   STUDIO_OPERATOR_CONFIRM_STATUS_IDS,
   STUDIO_OPERATOR_FIELD_IDS,
@@ -109,6 +112,7 @@ import {
   enqueueOperatorMessage,
   finalizeOperatorMessage,
   appendOperatorStreamingMessage,
+  appendOperatorThinking,
   getOperatorReviewState,
   getOperatorState,
   nextOperatorEntryId,
@@ -128,8 +132,15 @@ import {
   useStudioOperatorState,
   takeOperatorQueue,
   upsertOperatorStep,
+  resolveOperatorChatMode,
+  settleOperatorChatMode,
 } from '@/hooks/use-studio-operator-store'
-import { readLibraryView } from '@/hooks/use-library-view'
+import { getCachedAssistantCharacter } from '@/hooks/use-assistant-persona'
+import {
+  libraryShowSettled,
+  readLibraryView,
+  requestLibraryShow,
+} from '@/hooks/use-library-view'
 import {
   getOperatorVoicePrefs,
   speakOperatorReply,
@@ -137,6 +148,7 @@ import {
 import { getGenerationErrorMessage } from '@/lib/api-error-message'
 import { splitSpokenSegments } from '@/lib/spoken-segments'
 import { studioBenchHref } from '@/lib/studio-shell-route'
+import { studioLibraryShowPath } from '@/constants/studio-shell'
 import {
   assistantBenchPath,
   assistantBenchReached,
@@ -237,6 +249,16 @@ import type {
  * 🔊 开着、这段是用着角色的她说的（②c-2）：念出来。聊天整段念；开着台只念开头和收尾两段，
  * 中间的正文只出字（`splitSpokenSegments`）。
  */
+/** 这一轮在哪一档：还没定就按现在站在哪儿定下来（之后换台不跟着变）。 */
+function settledChatMode() {
+  const mode = resolveOperatorChatMode(
+    getOperatorState(),
+    getCachedAssistantCharacter() !== null,
+  )
+  settleOperatorChatMode(mode)
+  return mode
+}
+
 function speakIfVoiceOn(
   event: { text: string; chat?: true; spoken?: true },
   id: string,
@@ -942,6 +964,7 @@ export function useAssistantOperator(
       errorCode?: string
       i18nKey?: string
       missingKey?: AssistantOperatorMissingKey
+      provider?: AssistantOperatorMissingKey
     }): string => {
       // 选定的模型缺 key：点名是哪个模型、缺哪一家的 key（owner 2026-10-15，⛔ 换别家顶上）。
       if (
@@ -954,6 +977,19 @@ export function useAssistantOperator(
             payload.missingKey.modelId,
           provider: getProviderLabel(
             getDefaultProviderConfig(payload.missingKey.adapterType),
+          ),
+        })
+      // 厂商那边额度用完 / key 失效：点名是哪一家、哪个型号，出路写在话里（10-27）。
+      const providerKey = payload.errorCode
+        ? ASSISTANT_PROVIDER_ERROR_MESSAGE_KEYS[payload.errorCode]
+        : undefined
+      if (providerKey && payload.provider)
+        return tError(providerKey, {
+          model:
+            getAssistantRouteModelEntry(payload.provider.modelId)?.label ??
+            payload.provider.modelId,
+          provider: getProviderLabel(
+            getDefaultProviderConfig(payload.provider.adapterType),
           ),
         })
       const key = payload.errorCode
@@ -985,6 +1021,11 @@ export function useAssistantOperator(
     | { kind: 'result'; resultId: string }
     | null
   >(null)
+  /**
+   * 这一串里助手已经自己看图改了几轮（owner 2026-10-29「出完图自动迭代」）：到了
+   * `autoReviewRounds` 就照旧停下问；创作者一开口就从 0 重新数。
+   */
+  const autoReviewDoneRef = useRef(0)
 
   useEffect(
     () => () => {
@@ -1230,12 +1271,14 @@ export function useAssistantOperator(
            * ⚠ 线程尾部**还有一条活的助手正文**就不挂：那条本身已经写完了，
            * 再挂一行三点是同一件事说两遍。判据取「这个 id 还在不在」。
            */
-          const id = messageEntryId()
-          const live = getOperatorState().entries.some(
-            (entry) => entry.kind === 'message' && entry.id === id,
+          const entry = getOperatorState().entries.find(
+            (item) => item.kind === 'message' && item.id === messageEntryId(),
           )
-          if (live) return
-          appendOperatorPending(id)
+          if (entry?.kind === 'message' && (entry.text || entry.streaming))
+            return
+          // 那一格已经收成思考回执（工具步上面那句「想了 N 秒」）：下一段另起一条。
+          if (entry) messageSeq += 1
+          appendOperatorPending(messageEntryId())
         }, STUDIO_OPERATOR_STREAMING.pendingAfterStepMs)
       }
 
@@ -1399,6 +1442,8 @@ export function useAssistantOperator(
           ...(getOperatorState().chatCharacter
             ? { chatCharacterId: getOperatorState().chatCharacter?.id }
             : {}),
+          // 聊天 / 工作那一档（名字旁那枚胶囊）：开口这一刻定下来，之后换台不跟着变。
+          chatMode: settledChatMode(),
           ...(searchWithGrok ? { searchWithGrok: true as const } : {}),
           ...(timeZone ? { timeZone } : {}),
           ...(videoClips?.length ? { videoClips } : {}),
@@ -1466,6 +1511,8 @@ export function useAssistantOperator(
              * 一格。
              */
             event.type !== ASSISTANT_OPERATOR_EVENTS.messageDelta &&
+            // ⛔ 思考帧同理：它写的也是这条占位行（想的时候那一行）。
+            event.type !== ASSISTANT_OPERATOR_EVENTS.thinking &&
             /**
              * ⛔ `open` **不算「它开口了」**：那一帧是成帧器在模型开口之前就发的
              * 握手（见 `lib/assistant-operator-stream.ts` 头注），它到达时模型还
@@ -1702,6 +1749,25 @@ export function useAssistantOperator(
                 event.restart === true,
                 event.chat === true,
               )
+              break
+            }
+            /**
+             * 模型在想（10-27）：摘要与秒数写进此刻那条占位行。进位判据同正文增量：那一格已经被
+             * 压在下面、或已经收成回执（不再 `streaming`），这一段就是新的一段。
+             */
+            case ASSISTANT_OPERATOR_EVENTS.thinking: {
+              const entries = getOperatorState().entries
+              const index = entries.findIndex(
+                (entry) =>
+                  entry.kind === 'message' && entry.id === messageEntryId(),
+              )
+              const entry = index >= 0 ? entries[index] : undefined
+              if (
+                entry?.kind === 'message' &&
+                (index !== entries.length - 1 || !entry.streaming)
+              )
+                messageSeq += 1
+              appendOperatorThinking(messageEntryId(), event.delta, event.ms)
               break
             }
             /**
@@ -2096,7 +2162,7 @@ export function useAssistantOperator(
                 describeError(event),
                 toErrorTrace(event),
                 event.errorCode ?? null,
-                event.missingKey ?? null,
+                event.missingKey ?? event.provider ?? null,
               )
               break
             default:
@@ -2148,6 +2214,19 @@ export function useAssistantOperator(
           steps: canvasSteps,
           at: Date.now(),
         })
+        // 库那一支（owner 10-28）：台不动，库换到那一页；已经开着那个库就只翻页面。
+        if (benchOpenTarget.library) {
+          const show = benchOpenTarget.library
+          requestLibraryShow(show)
+          const openLibrary = readLibraryView()?.library
+          if (openLibrary !== show.library) {
+            const href = studioLibraryShowPath(show.library, show.section)
+            // 与左栏同一种换法：库开着时换类用 replace（⛔ push 会把两类叠着画）。
+            if (openLibrary) router.replace(href)
+            else router.push(href)
+          }
+          return
+        }
         // 对话跟着台走（第 9f 步）：开台那一页的地址带上这段对话的编号。
         router.push(
           studioBenchHref(
@@ -2294,11 +2373,18 @@ export function useAssistantOperator(
       if (getOperatorState().benchOpen !== benchOpen || !isCurrentThread())
         return true
       const here = hostRef.current
-      const reached = assistantBenchReached(
-        benchOpen.target,
-        here.workspace,
-        here.projectId,
-      )
+      const library = benchOpen.target.library
+      // 库那一支：页面接走、翻好（或等过一会儿）就接着发，到没到由服务端照屏上那一页如实说。
+      const reached = library
+        ? libraryShowSettled(
+            library,
+            Date.now() - benchOpen.at >= STUDIO_OPERATOR_LIBRARY_SHOW_SETTLE_MS,
+          )
+        : assistantBenchReached(
+            benchOpen.target,
+            here.workspace,
+            here.projectId,
+          )
       if (reached && runRef.current) {
         setOperatorBenchOpen(null)
         here.setOpen(true)
@@ -2372,6 +2458,7 @@ export function useAssistantOperator(
       clearOperatorPrompts()
       // 用户自己开口了：这一枪的「出图后看一眼」作废（他要说的比这件事优先）。
       autoReviewRef.current = null
+      autoReviewDoneRef.current = 0
       appendOperatorEntry({
         kind: 'user',
         id: nextOperatorEntryId('user'),
@@ -2413,6 +2500,26 @@ export function useAssistantOperator(
       if (entry.items.length === 0 || entry.completed < entry.total) return
     }
     autoReviewRef.current = null
+    /**
+     * ⭐ 出完图自己看、再改（owner 2026-10-29）：「交给 AI 出图」开着、这一串还没用完
+     * `autoReviewRounds` 轮，就不问了，替你说一句「看看这批」—— 时间线上只留一行
+     * 「自己看图再改 · 第 1/1 轮」。她觉得都对上了就停下说一句、不再出图。
+     */
+    const { autoGenerate, autoReviewRounds } = getOperatorState()
+    if (autoGenerate && autoReviewDoneRef.current < autoReviewRounds) {
+      autoReviewDoneRef.current += 1
+      const round = `${autoReviewDoneRef.current}/${autoReviewRounds}`
+      appendOperatorEntry({
+        kind: 'system',
+        id: nextOperatorEntryId('sys'),
+        code: 'autoReview',
+        subject: round,
+        userText: `${ASSISTANT_AUTO_REVIEW_MARK} ${round}`,
+      })
+      void run()
+      return
+    }
+    autoReviewDoneRef.current = 0
     // 出完就停（第 5b 步）：问一句，卡钉在输入框上方；直接打字 = 用一句话回答。
     setOperatorQuestion({
       id: nextOperatorEntryId('question'),
@@ -2440,7 +2547,7 @@ export function useAssistantOperator(
       ],
       answers: [],
     })
-  }, [operatorState, canvasTargets, tContinueAsk])
+  }, [operatorState, canvasTargets, tContinueAsk, run])
 
   /**
    * 撤回一条还没轮到的排队消息（§3.1 ㉔）。

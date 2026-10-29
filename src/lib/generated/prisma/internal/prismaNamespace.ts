@@ -420,6 +420,8 @@ export const ModelName = {
   ContextCard: 'ContextCard',
   AssistantMemory: 'AssistantMemory',
   CharacterCardRevision: 'CharacterCardRevision',
+  CharacterFinding: 'CharacterFinding',
+  CharacterSticker: 'CharacterSticker',
   CharacterJournal: 'CharacterJournal',
   AssistantSkill: 'AssistantSkill',
   AssistantTurnRecord: 'AssistantTurnRecord'
@@ -438,7 +440,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "mcpToken" | "danbooruFavorite" | "danbooruTagName" | "promptTagStack" | "assistantConversation" | "assistantConversationShare" | "researchRun" | "nodeWorkflowProject" | "project" | "projectItem" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "userCreativePreference" | "assistantPersona" | "projectRule" | "modelConfig" | "characterCard" | "characterLook" | "generationCharacterCard" | "userLike" | "userFollow" | "characterCardLora" | "loraTrainingJob" | "loraAsset" | "extractedElement" | "generationLayer" | "contextCard" | "assistantMemory" | "characterCardRevision" | "characterJournal" | "assistantSkill" | "assistantTurnRecord"
+    modelProps: "user" | "mcpToken" | "danbooruFavorite" | "danbooruTagName" | "promptTagStack" | "assistantConversation" | "assistantConversationShare" | "researchRun" | "nodeWorkflowProject" | "project" | "projectItem" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "userCreativePreference" | "assistantPersona" | "projectRule" | "modelConfig" | "characterCard" | "characterLook" | "generationCharacterCard" | "userLike" | "userFollow" | "characterCardLora" | "loraTrainingJob" | "loraAsset" | "extractedElement" | "generationLayer" | "contextCard" | "assistantMemory" | "characterCardRevision" | "characterFinding" | "characterSticker" | "characterJournal" | "assistantSkill" | "assistantTurnRecord"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -3106,6 +3108,154 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    CharacterFinding: {
+      payload: Prisma.$CharacterFindingPayload<ExtArgs>
+      fields: Prisma.CharacterFindingFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.CharacterFindingFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterFindingPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.CharacterFindingFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterFindingPayload>
+        }
+        findFirst: {
+          args: Prisma.CharacterFindingFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterFindingPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.CharacterFindingFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterFindingPayload>
+        }
+        findMany: {
+          args: Prisma.CharacterFindingFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterFindingPayload>[]
+        }
+        create: {
+          args: Prisma.CharacterFindingCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterFindingPayload>
+        }
+        createMany: {
+          args: Prisma.CharacterFindingCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.CharacterFindingCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterFindingPayload>[]
+        }
+        delete: {
+          args: Prisma.CharacterFindingDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterFindingPayload>
+        }
+        update: {
+          args: Prisma.CharacterFindingUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterFindingPayload>
+        }
+        deleteMany: {
+          args: Prisma.CharacterFindingDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.CharacterFindingUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.CharacterFindingUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterFindingPayload>[]
+        }
+        upsert: {
+          args: Prisma.CharacterFindingUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterFindingPayload>
+        }
+        aggregate: {
+          args: Prisma.CharacterFindingAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateCharacterFinding>
+        }
+        groupBy: {
+          args: Prisma.CharacterFindingGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CharacterFindingGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.CharacterFindingCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CharacterFindingCountAggregateOutputType> | number
+        }
+      }
+    }
+    CharacterSticker: {
+      payload: Prisma.$CharacterStickerPayload<ExtArgs>
+      fields: Prisma.CharacterStickerFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.CharacterStickerFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterStickerPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.CharacterStickerFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterStickerPayload>
+        }
+        findFirst: {
+          args: Prisma.CharacterStickerFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterStickerPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.CharacterStickerFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterStickerPayload>
+        }
+        findMany: {
+          args: Prisma.CharacterStickerFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterStickerPayload>[]
+        }
+        create: {
+          args: Prisma.CharacterStickerCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterStickerPayload>
+        }
+        createMany: {
+          args: Prisma.CharacterStickerCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.CharacterStickerCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterStickerPayload>[]
+        }
+        delete: {
+          args: Prisma.CharacterStickerDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterStickerPayload>
+        }
+        update: {
+          args: Prisma.CharacterStickerUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterStickerPayload>
+        }
+        deleteMany: {
+          args: Prisma.CharacterStickerDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.CharacterStickerUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.CharacterStickerUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterStickerPayload>[]
+        }
+        upsert: {
+          args: Prisma.CharacterStickerUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterStickerPayload>
+        }
+        aggregate: {
+          args: Prisma.CharacterStickerAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateCharacterSticker>
+        }
+        groupBy: {
+          args: Prisma.CharacterStickerGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CharacterStickerGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.CharacterStickerCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CharacterStickerCountAggregateOutputType> | number
+        }
+      }
+    }
     CharacterJournal: {
       payload: Prisma.$CharacterJournalPayload<ExtArgs>
       fields: Prisma.CharacterJournalFieldRefs
@@ -3765,6 +3915,7 @@ export const AssistantPersonaScalarFieldEnum = {
   archetype: 'archetype',
   routeModel: 'routeModel',
   reasoningEffort: 'reasoningEffort',
+  tasteDistilledAt: 'tasteDistilledAt',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -3823,6 +3974,11 @@ export const CharacterCardScalarFieldEnum = {
   handle: 'handle',
   summary: 'summary',
   extensions: 'extensions',
+  browseEnabled: 'browseEnabled',
+  browseDailyLimit: 'browseDailyLimit',
+  browsedAt: 'browsedAt',
+  browseModel: 'browseModel',
+  browsePausedReason: 'browsePausedReason',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -4034,6 +4190,37 @@ export const CharacterCardRevisionScalarFieldEnum = {
 } as const
 
 export type CharacterCardRevisionScalarFieldEnum = (typeof CharacterCardRevisionScalarFieldEnum)[keyof typeof CharacterCardRevisionScalarFieldEnum]
+
+
+export const CharacterFindingScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  characterCardId: 'characterCardId',
+  source: 'source',
+  url: 'url',
+  title: 'title',
+  note: 'note',
+  seenAt: 'seenAt',
+  recalledAt: 'recalledAt'
+} as const
+
+export type CharacterFindingScalarFieldEnum = (typeof CharacterFindingScalarFieldEnum)[keyof typeof CharacterFindingScalarFieldEnum]
+
+
+export const CharacterStickerScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  characterCardId: 'characterCardId',
+  storageKey: 'storageKey',
+  url: 'url',
+  sourceUrl: 'sourceUrl',
+  whenToUse: 'whenToUse',
+  isBlocked: 'isBlocked',
+  sentAt: 'sentAt',
+  createdAt: 'createdAt'
+} as const
+
+export type CharacterStickerScalarFieldEnum = (typeof CharacterStickerScalarFieldEnum)[keyof typeof CharacterStickerScalarFieldEnum]
 
 
 export const CharacterJournalScalarFieldEnum = {
@@ -4578,6 +4765,8 @@ export type GlobalOmitConfig = {
   contextCard?: Prisma.ContextCardOmit
   assistantMemory?: Prisma.AssistantMemoryOmit
   characterCardRevision?: Prisma.CharacterCardRevisionOmit
+  characterFinding?: Prisma.CharacterFindingOmit
+  characterSticker?: Prisma.CharacterStickerOmit
   characterJournal?: Prisma.CharacterJournalOmit
   assistantSkill?: Prisma.AssistantSkillOmit
   assistantTurnRecord?: Prisma.AssistantTurnRecordOmit

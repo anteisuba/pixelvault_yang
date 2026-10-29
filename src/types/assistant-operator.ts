@@ -36,6 +36,7 @@ import {
   NOVELAI_V5_MAX_CHARACTERS,
 } from '@/constants/novelai'
 import { ASSISTANT_MEDIA_LIMITS } from '@/constants/assistant'
+import { ASSISTANT_CHAT_MODES } from '@/constants/assistant-protocol'
 import {
   ASSISTANT_MEMORY_KINDS,
   ASSISTANT_MEMORY_LIMITS,
@@ -1982,6 +1983,17 @@ export const ASSISTANT_LIBRARY_VIEW_ITEM_KINDS = [
   'picture',
 ] as const
 
+/** LoRA 库左栏那四格（`LoraLibraryView`）。 */
+export const ASSISTANT_LIBRARY_SHOW_LORA_SECTIONS = [
+  'library',
+  'favorites',
+  'trained',
+  'characters',
+] as const
+
+/** 屏上那一页最多报几样（屏上前 N 个 / 多选前 N 个）。 */
+export const ASSISTANT_LIBRARY_SCREEN_LIMIT = 20
+
 export const AssistantLibraryViewSchema = z.object({
   library: z.enum(STUDIO_LIBRARY_CATEGORY_IDS),
   item: z
@@ -1991,9 +2003,46 @@ export const AssistantLibraryViewSchema = z.object({
       name: z.string().trim().min(1).max(200),
     })
     .optional(),
+  /**
+   * 屏上那一页（owner 10-28「屏上那一页」）：在哪一格 / 夹、搜了什么、屏上前几样的名字、多选了哪几样。
+   * 名字同 `item.name` 的写法（`kind` 决定前缀）；更多的由助手自己 `find`。
+   */
+  screen: z
+    .object({
+      kind: z.enum(ASSISTANT_LIBRARY_VIEW_ITEM_KINDS),
+      /** 给模型读的一句范围（英文，页面自己拼）：哪一格 / 夹、哪些筛选。 */
+      scope: z.string().trim().max(400).optional(),
+      search: z.string().trim().max(200).optional(),
+      total: z.number().int().min(0).optional(),
+      visible: z
+        .array(z.string().trim().min(1).max(200))
+        .max(ASSISTANT_LIBRARY_SCREEN_LIMIT),
+      selected: z
+        .array(z.string().trim().min(1).max(200))
+        .max(ASSISTANT_LIBRARY_SCREEN_LIMIT)
+        .optional(),
+    })
+    .optional(),
 })
 export type AssistantLibraryView = z.infer<typeof AssistantLibraryViewSchema>
 export type AssistantLibraryViewItem = NonNullable<AssistantLibraryView['item']>
+export type AssistantLibraryViewScreen = NonNullable<
+  AssistantLibraryView['screen']
+>
+
+/**
+ * 助手「翻给你看」（`open` 的库那一支，owner 10-28）：换到哪个库、打开哪一样、搜什么、切到哪一格。
+ * `itemId` 由服务端按编号认出来（⛔ 不收模型写的 id）；`itemName` = 页面报回 `item.name` 时的那个名字，到没到按它认。
+ */
+export const AssistantLibraryShowSchema = z.object({
+  library: z.enum(STUDIO_LIBRARY_CATEGORY_IDS),
+  itemId: z.string().trim().min(1).max(160).optional(),
+  itemName: z.string().trim().min(1).max(200).optional(),
+  search: z.string().trim().max(200).optional(),
+  /** 只有 LoRA 库：全部 / 收藏 / 自训 / 角色那一格。 */
+  section: z.enum(ASSISTANT_LIBRARY_SHOW_LORA_SECTIONS).optional(),
+})
+export type AssistantLibraryShow = z.infer<typeof AssistantLibraryShowSchema>
 
 export const AssistantOperatorRequestSchema = z.object({
   workspaceKey: AssistantWorkspaceKeySchema,
@@ -2039,6 +2088,11 @@ export const AssistantOperatorRequestSchema = z.object({
    * ⚠ 模式跟会话走：客户端从会话上取、每轮上送，同一段会话不切。
    */
   chatCharacterId: z.string().uuid().optional(),
+  /**
+   * 这段对话在哪一档（名字旁那枚胶囊）。`chat` = 用设置里的人设角色聊，哪个台上都一样；
+   * `work` = 首页也照常干活。缺席 = 旧行为（首页聊、台上干活）。
+   */
+  chatMode: z.enum(ASSISTANT_CHAT_MODES).optional(),
   /**
    * **这段回复会被念出来**（聊天页开着声音，10-26）：内核在这一轮的消息里加上念法提示（方括号语气），
    * `expressive` = 用的是 Fish Drama 3（多认中文提示与成对标签）。缺席 = 只打字。
@@ -4795,6 +4849,18 @@ export const AssistantOperatorMessageDeltaEventSchema = z.object({
 })
 
 /**
+ * 模型在想（10-27）—— 见 `ASSISTANT_OPERATOR_EVENTS.thinking`。两格至少有一格；
+ * 和 `message_delta` 一样没有 id：写进的是客户端此刻那条占位行。
+ */
+export const AssistantOperatorThinkingEventSchema = z.object({
+  type: z.literal(ASSISTANT_OPERATOR_EVENTS.thinking),
+  /** 思考摘要的一小段，客户端追加。 */
+  delta: z.string().min(1).max(LIMITS.maxMessageChars).optional(),
+  /** 这一段想完了：想了多久（ms）。 */
+  ms: z.number().int().nonnegative().optional(),
+})
+
+/**
  * 助手引用了一条项目规则（§10，拍板 23）—— 规则薄卡收的就是它。
  *
  * ⚠ 载荷里的 `text` / `createdAt` **由服务端填**（模型只给 id），所以这里可以、
@@ -5035,6 +5101,8 @@ export const AssistantOperatorDoneEventSchema = z.object({
 export const AssistantOperatorBenchOpenSchema = z.object({
   workspace: AssistantWorkspaceSchema,
   projectId: z.string().min(1).max(160).optional(),
+  /** 不换台、在库里翻给创作者看（owner 10-28）：台不动，库换到这一页。 */
+  library: AssistantLibraryShowSchema.optional(),
 })
 
 export type AssistantOperatorBenchOpen = z.infer<
@@ -5100,6 +5168,8 @@ export const AssistantOperatorErrorEventSchema = z.object({
   detail: z.string().optional(),
   /** 选定的模型缺 key（`ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE`）时才有。 */
   missingKey: AssistantOperatorMissingKeySchema.optional(),
+  /** 模型调用被厂商拒了、认得出原因（余额 / key / 限流…）时：是哪一家、哪个型号。 */
+  provider: AssistantOperatorMissingKeySchema.optional(),
 })
 
 /** 错误那一帧（成帧器与客户端错误条共用的形状）。 */
@@ -5115,6 +5185,7 @@ export const AssistantOperatorEventSchema = z.discriminatedUnion('type', [
   AssistantOperatorConfirmEventSchema,
   AssistantOperatorMessageEventSchema,
   AssistantOperatorMessageDeltaEventSchema,
+  AssistantOperatorThinkingEventSchema,
   AssistantOperatorRuleHitEventSchema,
   AssistantOperatorDoneEventSchema,
   AssistantOperatorStoppedEventSchema,

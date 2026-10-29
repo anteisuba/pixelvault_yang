@@ -169,13 +169,25 @@ function persistThread(request: ThreadSave): Promise<boolean> {
       const identity = { threadScope: current.scope, localThreadId: id }
       if (!result.success) {
         saved = false
+        /**
+         * 那一行在别处删掉了（另一个标签页 / 窗口）：删除是用户的决定，⛔ 不清掉身份再整份
+         * 新建一行把它写回来（owner 10-27「删了刷新又出来」）。与本页删除同一个收尾。
+         * ⚠ 正在跑的那一段不当场清空，只是不再存。
+         */
+        if (
+          sessionId &&
+          result.errorCode === 'ASSISTANT_CONVERSATION_NOT_FOUND'
+        ) {
+          removedSessionIds.add(sessionId)
+          const thread = getOperatorThread(current.scope)
+          if (thread?.localThreadId === id && thread.status !== 'working')
+            resetOperatorThread(identity)
+          continue
+        }
         logger.warn('[studio-operator-history] persist failed', {
           error: result.error,
           errorCode: result.errorCode,
         })
-        if (result.errorCode === 'ASSISTANT_CONVERSATION_NOT_FOUND') {
-          setOperatorSession(null, null, identity)
-        }
         setOperatorSaveFailed(identity, true)
         continue
       }
@@ -393,10 +405,8 @@ export function useStudioOperatorHistory({
       if (!isActive(epoch)) return false
       if (deletingRef.current) return false
       const current = getOperatorState()
-      if (current.sessionId === session.id && current.status === 'working') {
-        setError(t('deleteBusy'))
+      if (current.sessionId === session.id && current.status === 'working')
         return false
-      }
       deletingRef.current = true
       removedIds.current.add(session.id)
       setDeletingSessionId(session.id)
@@ -405,7 +415,6 @@ export function useStudioOperatorHistory({
         const result = await deleteAssistantConversationAPI(session.id)
         if (!result.success && result.errorCode !== 'NOT_FOUND') {
           removedIds.current.delete(session.id)
-          if (isActive(epoch)) setError(t('deleteFailed'))
           return false
         }
         const target = getOperatorThread(scope)
@@ -415,14 +424,13 @@ export function useStudioOperatorHistory({
         return true
       } catch {
         removedIds.current.delete(session.id)
-        if (isActive(epoch)) setError(t('deleteFailed'))
         return false
       } finally {
         deletingRef.current = false
         if (isActive(epoch)) setDeletingSessionId(null)
       }
     },
-    [isActive, scope, t],
+    [isActive, scope],
   )
 
   const applyConversation = useCallback(

@@ -450,9 +450,9 @@ export function MobileShellInset({ children }: { children: React.ReactNode }) {
       id="main-content"
       className={cn(
         isStudioPath(pathname) ? 'mobile-inset-topbar' : 'mobile-inset-tabbar',
-        // ≥1024 侧栏让给外壳的左栏（第 9f 步）：主卡不再浮起。
+        // ≥768 侧栏让给外壳的左栏（第 9f 步）：主卡不再浮起。
         isStudioShellPath(pathname) &&
-          'desk:rounded-none desk:border-l-0 desk:shadow-none',
+          'lg:rounded-none lg:border-l-0 lg:shadow-none',
       )}
     >
       {children}

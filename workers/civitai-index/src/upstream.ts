@@ -25,7 +25,32 @@ export interface Upstream {
   fullHits(ids: readonly number[]): Promise<unknown[]>
 }
 
-async function search(query: Record<string, unknown>): Promise<unknown[]> {
+/** 现查上游的单次时限：搜索时用，慢了就当没有，⛔ 拖住整个搜索。 */
+const LIVE_TIMEOUT_MS = 4000
+
+/**
+ * 按文字现查上游（完整字段，上游自己的相关度）。本地索引一个都没搜到时用：今天
+ * 刚发布的、以及中文不带标点这类本地字面对不上的（上游会切词）。
+ */
+export async function searchCivitaiLive(
+  q: string,
+  limit: number,
+): Promise<unknown[]> {
+  return search(
+    {
+      q,
+      limit,
+      filter: [TYPE_FILTER],
+      attributesToRetrieve: [...FULL_ATTRIBUTES],
+    },
+    LIVE_TIMEOUT_MS,
+  )
+}
+
+async function search(
+  query: Record<string, unknown>,
+  timeoutMs = REQUEST_TIMEOUT_MS,
+): Promise<unknown[]> {
   const response = await fetch(SEARCH_URL, {
     method: 'POST',
     headers: {
@@ -33,7 +58,7 @@ async function search(query: Record<string, unknown>): Promise<unknown[]> {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ queries: [{ indexUid: SEARCH_INDEX, ...query }] }),
-    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    signal: AbortSignal.timeout(timeoutMs),
   })
   if (!response.ok) {
     throw new Error(`Civitai search responded ${response.status}`)

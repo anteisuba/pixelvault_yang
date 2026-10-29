@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
 import { PROMPT_OUTPUT_TYPE_LABEL_KEYS } from '@/constants/prompt-library'
+import { ASSISTANT_LIBRARY_SCREEN_LIMIT } from '@/types/assistant-operator'
 import {
   Bookmark,
   Copy,
@@ -41,9 +42,15 @@ import {
   MediaTileShade,
 } from '@/components/ui/media-tile'
 import { usePromptTemplateModelLabel } from '@/hooks/use-prompt-template-model-label'
-import { useReportLibraryItem } from '@/hooks/use-library-view'
+import {
+  useLibraryChanged,
+  useLibraryShowRequest,
+  useReportLibraryItem,
+  useReportLibraryScreen,
+} from '@/hooks/use-library-view'
 import { usePromptTemplateUse } from '@/hooks/use-prompt-template-use'
 import { useSearchExpansion } from '@/hooks/use-search-expansion'
+import { useRouter } from '@/i18n/navigation'
 import type { AppLocale } from '@/i18n/routing'
 import { setRecipeFavoriteAPI } from '@/lib/api-client/recipes'
 import { withWordMatches } from '@/lib/search-words'
@@ -189,6 +196,38 @@ export function PromptLibraryDesk({
   useReportLibraryItem(
     openItem ? { kind: 'prompt', name: openItem.name } : null,
   )
+  // 屏上那一页（owner 10-28）：哪些筛选、搜了什么、屏上前几条。
+  useReportLibraryScreen({
+    kind: 'prompt',
+    scope: [
+      favoritesOnly ? 'favorites only' : 'all saved prompts',
+      type === 'ALL' ? '' : `type ${type.toLowerCase()}`,
+      `sorted by ${sort === 'recent' ? 'recently used' : 'newest'}`,
+    ]
+      .filter(Boolean)
+      .join(' · '),
+    ...(query.trim() ? { search: query.trim() } : {}),
+    total: shown.length,
+    visible: shown
+      .slice(0, ASSISTANT_LIBRARY_SCREEN_LIMIT)
+      .map((recipe) => recipe.name),
+  })
+  // 助手改了提示词库：重读那一份（列表从服务端来）。
+  const router = useRouter()
+  useLibraryChanged('prompts', router.refresh)
+  // 助手翻给你看：按名字打开那一条（找不到就搜这个名字），搜那个词。
+  useLibraryShowRequest('prompts', (show) => {
+    const target = show.itemName?.toLocaleLowerCase(locale)
+    const found = target
+      ? items.find((recipe) => recipe.name.toLocaleLowerCase(locale) === target)
+      : undefined
+    if (show.search !== undefined || (target && !found)) {
+      setFavoritesOnly(false)
+      setType('ALL')
+      setQuery(show.search ?? show.itemName ?? '')
+    }
+    if (found) setOpenId(found.id)
+  })
 
   const body =
     shown.length === 0 && favoritesOnly && !needle && type === 'ALL' ? (

@@ -4371,6 +4371,25 @@ export const CivitaiLoraLibraryResultSchema = z.object({
   /** 索引数到上限就停：真实命中比 `total` 多，界面写「1 万+」。 */
   totalCapped: z.boolean(),
   hasNextPage: z.boolean(),
+  /** 排在最前的这么多条是字面命中，之后是兜底那一段与「意思接近」。 */
+  literalTotal: z.number().int().nonnegative(),
+  /**
+   * 字面一个都没有时接在前面的那一段：按纠正后的词搜到的（打错字），或现查
+   * Civitai 拿到的（今天刚发布、中文不带标点）。
+   */
+  fallback: z
+    .discriminatedUnion('kind', [
+      z.object({
+        kind: z.literal('corrected'),
+        query: z.string(),
+        total: z.number().int().nonnegative(),
+      }),
+      z.object({
+        kind: z.literal('live'),
+        total: z.number().int().nonnegative(),
+      }),
+    ])
+    .nullable(),
 })
 
 export type CivitaiLoraLibraryResult = z.infer<

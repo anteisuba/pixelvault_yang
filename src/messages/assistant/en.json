@@ -334,16 +334,14 @@
       "loading": "Loading…",
       "untitled": "Untitled chat",
       "earlierRounds": "{count} earlier entries",
+      "rename": "Rename",
+      "delete": "Delete",
+      "moreLabel": "More actions: {title}",
       "deleteLabel": "Delete conversation: {title}",
-      "deleteConfirmInline": "Click delete again to remove “{title}” for good",
-      "deleteConfirm": "Confirm",
-      "deleting": "Deleting…",
+      "deleteTitle": "Delete this conversation?",
       "deleteFailed": "Could not delete the conversation. Try again.",
-      "deleteBusy": "Wait for the current response to finish before deleting this conversation.",
       "loadFailed": "Could not load conversations. Reopen the list to try again.",
       "renameLabel": "Rename {title}",
-      "renameHint": "Enter to save · Esc to cancel",
-      "renaming": "Saving…",
       "renameFailed": "Could not rename. Please try again.",
       "switching": "Loading conversation…",
       "saveFailed": "Conversation could not be saved. Your draft is still here.",
@@ -417,6 +415,10 @@
       "critiqueFailed": "The result review couldn't be read",
       "urlNotFromUser": "That link did not come from you, so it cannot be taken directly",
       "repeatedStep": "It already ran this exact step — skipped",
+      "referenceRequired": "Mount a reference image first",
+      "notOnBench": "That isn't on the bench right now",
+      "onOtherBench": "That lives on another bench — open it first",
+      "notDone": "This step didn't go through",
       "ruleLimitReached": "Source-list limit reached — delete one before adding another.",
       "memoryOff": "Memory is off (incognito, or \"Let the assistant remember\" is off), so this wasn't saved",
       "ruleTooLong": "This rule is too long to save",
@@ -621,7 +623,8 @@
       "moveWorkAccepted": "{subject}",
       "moveWorkDeclined": "{subject}",
       "moveWorkDroppedReferences": "{subject} reference image(s) were left behind (over the limit or not uploaded yet).",
-      "autoGenerateHeld": "This card would make {subject} pictures, over the Let AI generate limit of 4 per message. It was not pressed for you; confirm it to run."
+      "autoGenerateHeld": "This card would make {subject} pictures, over the Let AI generate limit of 4 per message. It was not pressed for you; confirm it to run.",
+      "autoReview": "Reviewing the pictures and trying again · round {subject}"
     },
     "attach": {
       "latestResult": "Latest · {label}",
@@ -807,6 +810,8 @@
       "copied": "Copied",
       "missingKey": "The assistant needs your own AI text model key. Gemini keys are free to create in Google AI Studio.",
       "modelKeyMissing": "{model} has no {provider} key yet, so nothing ran — no other provider was used in its place. Add the key, or pick another model.",
+      "providerOutOfCredit": "Your {provider} credit has run out, so {model} could not run this turn. Top up with {provider} and retry, or switch to a model from another provider.",
+      "providerKeyInvalid": "{provider} rejected this key (invalid or not authorized), so {model} could not run this turn. Set up a new {provider} key, or switch models.",
       "upscaleKeyMissing": "Upscaling runs on your own {provider} key, which isn't set up yet, so nothing was upscaled and no other provider's key was used. Add the key, then ask to upscale again.",
       "addKey": "Add a key",
       "addProviderKey": "Add {provider} key",
@@ -1052,7 +1057,10 @@
       }
     },
     "autoGenerate": {
-      "label": "Let AI generate"
+      "label": "Let AI generate",
+      "review": "Review ×{count}",
+      "reviewOff": "Stop after generating",
+      "reviewHint": "How many times she reviews the pictures and tries again on her own. Click to change"
     },
     "continueAsk": {
       "header": "Next",
@@ -1361,19 +1369,6 @@
       "noCharacters": "No characters yet",
       "noCharactersHint": "Create a character and chat for a while. Her diary and the changes she made will show up here.",
       "createCharacter": "Create a character",
-      "failed": "Couldn't load this. Try again in a moment.",
-      "journal": "Diary",
-      "noJournal": "No diary yet. She looks back every 30 lines and writes an entry.",
-      "journalEarlier": "{count} earlier",
-      "journalCollapse": "Collapse",
-      "revisions": "What she changed",
-      "noRevisions": "She hasn't changed her card yet.",
-      "revertFailed": "Couldn't revert. Try again.",
-      "reason": "“{reason}”",
-      "fromChat": "Changed in chat",
-      "reverted": "Reverted",
-      "revert": "Revert",
-      "emptyValue": "(empty)",
       "fields": {
         "name": "Name",
         "tags": "Tags",
@@ -1390,7 +1385,8 @@
         "opening": "Opening",
         "examples": "Example dialogue",
         "backstory": "Backstory"
-      }
+      },
+      "openOnPage": "See on her page"
     }
   }
 }

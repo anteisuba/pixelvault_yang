@@ -3892,7 +3892,7 @@ function planImportUserUrl(run: OperatorRun, args: { url: string }): ToolPlan {
   }
 
   if (run.state.referenceCount >= run.state.referenceLimit) {
-    return reject(REJECT.referencesFull)
+    return reject(REJECT.referencesFull, referencesFullDetail(run))
   }
 
   /**
@@ -3933,6 +3933,7 @@ function planImportUserUrl(run: OperatorRun, args: { url: string }): ToolPlan {
     apply: () => {
       run.state.referenceCount += 1
       run.state.referenceUrls.push(null)
+      refreshCapabilities(run)
     },
   }
 }
@@ -4145,7 +4146,7 @@ async function planMountReference(
 
   if (!run.state.hasReferenceControl) return reject(REJECT.noSuchControl)
   if (run.state.referenceCount >= run.state.referenceLimit) {
-    return reject(REJECT.referencesFull)
+    return reject(REJECT.referencesFull, referencesFullDetail(run))
   }
 
   return {
@@ -4165,6 +4166,7 @@ async function planMountReference(
     apply: () => {
       run.state.referenceCount += 1
       run.state.referenceUrls.push(asset.url)
+      refreshCapabilities(run)
     },
   }
 }
@@ -4267,8 +4269,50 @@ function planUnmountReference(
     apply: () => {
       run.state.referenceUrls.splice(index, 1)
       run.state.referenceCount = Math.max(0, run.state.referenceCount - 1)
+      refreshCapabilities(run)
     },
   }
+}
+
+/**
+ * 专属 chip 行按**此刻**的模型与参考图重算（拆分与反推 X8 · 10-27 标签台真机）。
+ *
+ * ⚠ 换模型、挂 / 摘 / 导入参考图之后都要调：「精确参考」这类挂了图才成立的项，开跑时
+ * 快照里是不可设的；不重算的下场是同一轮刚挂上图，再设它就被拒「先挂一张」，模型以为
+ * 没挂上，又挂一次撞「位满」。与界面同一份派生，按整轮（主模型 + 一起跑的）的并集。
+ */
+function refreshCapabilities(run: OperatorRun): void {
+  if (!run.state.hasCapabilityControl || !run.state.modelId) return
+  const values = Object.fromEntries(
+    run.state.capabilities.map((item) => [item.key, item.value]),
+  )
+  const runModels = [
+    run.state.modelId,
+    ...run.state.extraModels.map((model) => model.id),
+  ].flatMap((modelId) => {
+    const adapterType = resolveAdapterType(modelId)
+    return adapterType ? [{ adapterType, modelId }] : []
+  })
+  run.state.capabilities =
+    buildOperatorCapabilities(
+      runModels,
+      values,
+      run.state.referenceCount > 0,
+    ) ?? []
+}
+
+/**
+ * 参考位满了时给模型的那句：占着位的是哪几张、换图怎么换（10-27 真机：空说明之下模型
+ * 只会原样再挂一次）。⚠ 只指路不代换 —— 摘哪张是创作者的图，模型自己判断该不该换。
+ */
+function referencesFullDetail(run: OperatorRun): string {
+  const taken = run.state.referenceCount
+  return `All ${run.state.referenceLimit} reference slot(s) are taken (${taken} mounted: ${Array.from(
+    { length: taken },
+    (_, index) => `ref-${index + 1}`,
+  ).join(
+    ', ',
+  )}). The one you wanted may already be on — check the bench before mounting again. To swap in a different picture, remove_reference ref-N first, then add it.`
 }
 
 function planSetModel(
@@ -4372,24 +4416,7 @@ function planSetModel(
        * V4.5 之后「角色参考」那颗设不进去，要等下一轮。与界面同一份派生 ——
        * 按**整轮**（新主模型 + 一起跑的那几个）的并集。
        */
-      if (run.state.hasCapabilityControl) {
-        const values = Object.fromEntries(
-          run.state.capabilities.map((item) => [item.key, item.value]),
-        )
-        const runModels = [
-          match.id,
-          ...run.state.extraModels.map((model) => model.id),
-        ].flatMap((modelId) => {
-          const adapterType = resolveAdapterType(modelId)
-          return adapterType ? [{ adapterType, modelId }] : []
-        })
-        run.state.capabilities =
-          buildOperatorCapabilities(
-            runModels,
-            values,
-            run.state.referenceUrls.some(Boolean),
-          ) ?? []
-      }
+      refreshCapabilities(run)
       /**
        * LoRA 域换底模 = 换家族（2026-09-12 真机 bug）。`loraBaseFamily` 原本只在
        * 开跑时从快照取一次，同一轮里 set_model 之后的兼容判定、权重预算、状态块
@@ -5934,6 +5961,27 @@ function planSetSceneTexts(
  * 「值写错了」，是「这颗此刻点不动」，而下一步该做的事是先挂一张图。
  * ⚠ `inverse` 里放**旧值**，旧值允许 `null`（用户没设过那一档）。
  */
+/**
+ * NovelAI 两套参考互斥（界面同源 `isCapabilityChipVisible`）：精确参考的两个滑块只在
+ * `novelAiReferenceMode=precise` 时生效，img2img 的强度 / 噪声那时反而不用。设了不生效的那一格
+ * 要说出来 —— 10-27 真机：开了精确又去调 referenceStrength，以为调的是角色强度。
+ */
+function referenceModeNote(run: OperatorRun, key: string): string {
+  const mode = run.state.capabilities.find(
+    (item) => item.key === 'novelAiReferenceMode',
+  )
+  if (!mode) return ''
+  const precise = mode.value === 'precise'
+  if (
+    !precise &&
+    (key === 'preciseReferenceStrength' || key === 'preciseReferenceFidelity')
+  )
+    return ' It only takes effect once novelAiReferenceMode is precise.'
+  if (precise && (key === 'referenceStrength' || key === 'img2imgNoise'))
+    return ' Ignored while novelAiReferenceMode is precise — the character lock uses preciseReferenceStrength / preciseReferenceFidelity.'
+  return ''
+}
+
 function planSetCapability(
   run: OperatorRun,
   args: { key: string; value: string | number | boolean },
@@ -5948,15 +5996,17 @@ function planSetCapability(
   const chip = run.state.capabilities.find((item) => item.key === args.key)
   if (!chip) {
     return reject(
-      REJECT.unknownValue,
-      `"${clamp(args.key, LIMITS.maxLabelChars)}" is not one of the model-specific controls here — they are: ${run.state.capabilities
+      REJECT.notOnBench,
+      `"${clamp(args.key, LIMITS.maxLabelChars)}" is not one of the model-specific controls on the current model — they are: ${run.state.capabilities
         .map((item) => item.key)
-        .join(', ')}.`,
+        .join(
+          ', ',
+        )}. If another model has it, switch with set_model first; otherwise tell the creator this model does not offer it.`,
     )
   }
   if (!chip.available) {
     return reject(
-      REJECT.noSuchControl,
+      REJECT.referenceRequired,
       `${chip.key} only applies once a reference image is mounted — mount one first.`,
     )
   }
@@ -6014,7 +6064,7 @@ function planSetCapability(
       chip.models
         ? ` Only ${chip.models.join(', ')} use it; the other models this round ignore it.`
         : ''
-    }`,
+    }${referenceModeNote(run, chip.key)}`,
     apply: () => {
       chip.value = args.value
     },
@@ -11526,6 +11576,9 @@ function roundMemoryRules(inCanvasProject: boolean, verdicts: string): string {
     : `- Write a memory ONLY when it would still be true and still be useful next week, on a different project. A standing taste ("prefers 16:9 unless told otherwise"), a lasting fact about one of their recurring characters, a working habit they asked for.`
   return `"memories" — the few lines worth remembering for MONTHS, not just for the next turn (${ASSISTANT_MEMORY_LIMITS.maxPerRound} at most, usually zero or one, each within ${ASSISTANT_MEMORY_LIMITS.maxTextChars} characters, in the creator's language):
 ${memoryWhen}
+- A lookup this turn may also have established something about the outside world they will likely need again — a character's exact Danbooru tag, which LoRA works on which base model, what a term means in their scene. Write it as a fact only when the material shows it was looked up this turn (in "WHAT LOOKUPS RETURNED", or the assistant's closing answer reporting what a search found), add the site it came from in brackets when the material names one ("Rossi's tag is rossi_(arknights) [Danbooru]"), and never for a one-off search result or a list of candidates.
+- A word they use for a look ("通透", "氛围感") and what it turned into when a change made with it landed and they were happy ("通透 = backlight, low saturation, soft background") is a preference worth keeping.
+- What a model or LoRA reliably did or failed to do this turn, when the results showed it across batches ("Anima ignores hair-colour changes while a reference is mounted"), is a fact worth keeping: it decides the lever next time.
 - "kind" is one of: ${ASSISTANT_MEMORY_KINDS.join(' | ')}. preference = what they like; fact = something durable about their world; rule = something they told you to always or never do.
 - Omit "scope": new memories belong only to this ${inCanvasProject ? 'project' : 'workspace'}. Global preferences are set explicitly by the creator in Assistant settings.
 - NEVER write a memory about this turn's task ("wants a night scene this time"), about a one-off parameter, about anything you only guessed at, or about anything they did not actually say or settle. An empty list is the correct answer most turns.
@@ -11577,6 +11630,7 @@ Rules:
   - Already said there (in any wording) → write nothing for it.
   - It changes or contradicts a numbered line (they changed their mind, the fact moved on) → write the new line with "replaces": that number. Never keep both.
   - They said a numbered line no longer holds and nothing replaces it → put its number in "forget".
+  - Each line shows the day it was noted. A fact about the outside world (a tag, a model, a trend) can go stale: when this turn's lookups contradict it, replace it; when it is old enough that you would look it up again before trusting it, you may forget it. Their tastes, rules and their own characters do not go stale with age.
   - Never replace or forget a line for any other reason; most turns touch none.
 
 ${roundMemoryRules(
@@ -12193,7 +12247,10 @@ function describeShownMemories(shown: readonly AssistantMemory[]): string {
   if (shown.length === 0)
     return 'WHAT YOU ALREADY REMEMBER ABOUT THEM:\n(nothing yet)'
   return `WHAT YOU ALREADY REMEMBER ABOUT THEM (numbered):\n${shown
-    .map((memory, index) => `#${index + 1} [${memory.kind}] ${memory.text}`)
+    .map(
+      (memory, index) =>
+        `#${index + 1} [${memory.kind}, noted ${memory.updatedAt.slice(0, 10)}] ${memory.text}`,
+    )
     .join('\n')}`
 }
 
@@ -12479,15 +12536,14 @@ export async function prepareOperatorTurn(
       'Assistant workspace does not match its domain',
     )
   }
-  if (request.conversationId) {
-    await assertAssistantConversationWorkspaceAccess(
-      user.id,
-      request.conversationId,
-      request.workspaceKey,
-    )
-  } else {
-    await assertAssistantWorkspaceAccess(user.id, request.workspaceKey)
-  }
+  // ⭐ 和下面那批只读查询一起等（10-27 实测串着多等一次往返）；不通过照旧整轮抛。
+  const workspaceAccess = request.conversationId
+    ? assertAssistantConversationWorkspaceAccess(
+        user.id,
+        request.conversationId,
+        request.workspaceKey,
+      )
+    : assertAssistantWorkspaceAccess(user.id, request.workspaceKey)
   if (
     workspace.workspace === 'image-natural' ||
     workspace.workspace === 'image-tags'
@@ -12591,6 +12647,7 @@ export async function prepareOperatorTurn(
           ? getCreativePreferenceDigest(user.id)
           : Promise.resolve(null),
       ),
+      workspaceAccess,
     ])
   // 常挂上下文卡不再注入：owner 2026-09-25「上下文卡整体去掉」，入口早已删除。
   const contextCards: ContextCard[] = []

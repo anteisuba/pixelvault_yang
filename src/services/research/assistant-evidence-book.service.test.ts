@@ -23,6 +23,7 @@ vi.mock('@/lib/db', () => ({
 import {
   appendAssistantEvidenceBook,
   recallAssistantEvidence,
+  searchPastResearch,
 } from '@/services/research/assistant-evidence-book.service'
 
 const ITEM = {
@@ -332,6 +333,48 @@ describe('按编号翻证据本', () => {
     })
     expect(result.missing).toHaveLength(
       ASSISTANT_EVIDENCE_RECALL_LIMITS.maxRefsPerCall,
+    )
+  })
+})
+
+describe('searchPastResearch（翻记忆时顺带翻以前搜过的，跨会话）', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('只回目标或查询词对得上的；不带打了注入标记的、也不带创作者自己给的图', async () => {
+    mocks.findMany.mockResolvedValueOnce([
+      {
+        goal: '时夜 外貌',
+        query: '时夜 外貌',
+        createdAt: new Date('2026-10-01T03:00:00.000Z'),
+        evidence: [
+          ITEM,
+          { ...ITEM, id: 'bad', title: '可疑', untrusted: true },
+          { ...ITEM, id: 'mine', title: '你给的图', sourceId: 'vision_input' },
+        ],
+      },
+      {
+        goal: 'Rossi 标签',
+        query: 'rossi arknights',
+        createdAt: new Date('2026-10-02T03:00:00.000Z'),
+        evidence: [ITEM],
+      },
+    ])
+
+    const found = await searchPastResearch('owner-id', '时夜')
+
+    expect(found).toEqual([
+      {
+        goal: '时夜 外貌',
+        day: '2026-10-01',
+        items: [{ title: '萌娘百科 · 时夜', excerpt: '黑色长发。' }],
+      },
+    ])
+    expect(mocks.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: 'owner-id', status: 'succeeded' },
+      }),
     )
   })
 })

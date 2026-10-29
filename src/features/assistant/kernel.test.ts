@@ -33,6 +33,7 @@ const { plan, closeRound, recordTurn, soft, models, run, recipe } = vi.hoisted(
       mainModelLooks: false,
       nextKernel: false,
       loraIndex: new Map<string, { candidateId: string; name: string }>(),
+      searchIndex: new Map<string, { displayName?: string }>(),
       apiKeyId: 'key-1',
       state: {
         prompt: 'a girl in a garden',
@@ -404,6 +405,33 @@ describe('新内核主循环', () => {
     }
   })
 
+  it('思考摘要流出来：摘要逐段发 thinking.delta，开口那一刻收一帧 thinking.ms', async () => {
+    models.main = mockModel([
+      [
+        { type: 'reasoning-start', id: 'r' },
+        { type: 'reasoning-delta', id: 'r', delta: '**Planning the edit**\n' },
+        { type: 'reasoning-delta', id: 'r', delta: 'One edit is enough.' },
+        { type: 'reasoning-end', id: 'r' },
+        ...textTurn('好。'),
+      ],
+    ])
+    const events = await collect(
+      runAssistantNext('clerk-1', imageRequest('改一下')),
+    )
+    const thinking = events.filter((event) => event.type === 'thinking')
+    expect(thinking.map((event) => event.delta).filter(Boolean)).toEqual([
+      '**Planning the edit**\n',
+      'One edit is enough.',
+    ])
+    // 秒数只收一次，并且在第一个字之前。
+    const ended = thinking.filter((event) => event.ms !== undefined)
+    expect(ended).toHaveLength(1)
+    const types = events.map((event) => event.type)
+    expect(types.lastIndexOf('thinking')).toBeLessThan(
+      types.indexOf('message_delta'),
+    )
+  })
+
   it('改提示词：落一步，结果接回给模型，模型说完收尾；不设步数闸', async () => {
     const main = mockModel([toolTurn(editPrompt), textTurn('改好了。')])
     models.main = main
@@ -421,9 +449,12 @@ describe('新内核主循环', () => {
       },
       'user-1',
     )
+    // 每次调用开口那一刻收一帧思考秒数（10-27）：工具调用前一帧、说话前一帧。
     expect(events.map((event) => event.type)).toEqual([
+      'thinking',
       'step',
       'step',
+      'thinking',
       'message_delta',
       'message',
       'done',
@@ -502,6 +533,38 @@ describe('新内核主循环', () => {
     )
     expect(promptOf(main.doStreamCalls[1]!)).toContain('changes.0.op')
     expect(events.at(-1)).toMatchObject({ type: 'done' })
+  })
+
+  it('同一调用失败后原样再来、中间没做成任何一步：不跑，告诉模型别再试（软拦，不断回合）', async () => {
+    const bad = { changes: [{ op: 'paint' }] }
+    const main = mockModel([
+      toolTurn({ id: 'bad1', name: 'edit', input: bad }),
+      toolTurn({ id: 'bad2', name: 'edit', input: bad }),
+      textTurn('这一步做不了。'),
+    ])
+    models.main = main
+    const events = await collect(
+      runAssistantNext('clerk-1', imageRequest('改一下')),
+    )
+    expect(promptOf(main.doStreamCalls[2]!)).toContain(
+      'Not run: you made this exact call already',
+    )
+    expect(events.at(-1)).toMatchObject({ type: 'done' })
+  })
+
+  it('失败之后中间有一步做成了：同样的调用照常再跑（条件可能已经变了）', async () => {
+    const bad = { changes: [{ op: 'paint' }] }
+    const main = mockModel([
+      toolTurn({ id: 'bad1', name: 'edit', input: bad }),
+      toolTurn(editPrompt),
+      toolTurn({ id: 'bad2', name: 'edit', input: bad }),
+      textTurn('好了。'),
+    ])
+    models.main = main
+    await collect(runAssistantNext('clerk-1', imageRequest('改一下')))
+    expect(promptOf(main.doStreamCalls[3]!)).not.toContain(
+      'Not run: you made this exact call already',
+    )
   })
 
   it('入参不是合法 JSON：只回一条结果（两条同 id 厂商会拒收），模型重发', async () => {
@@ -638,6 +701,28 @@ describe('新内核主循环', () => {
     expect(events.at(-1)).toMatchObject({ type: 'done' })
   })
 
+  it('Claude 说联网调用没有对应结果：拿掉厂商调用，同一接法重来一次', async () => {
+    const main = mockModel([
+      new APICallError({
+        message:
+          'messages.1: `code_execution` tool use with id `srvtoolu_01` was found without a corresponding `code_execution_tool_result` block',
+        url: 'https://api.anthropic.com/v1/messages',
+        requestBodyValues: {},
+        statusCode: 400,
+      }),
+      textTurn('好。'),
+    ])
+    models.main = main
+    const fallback = mockModel([textTurn('不该到这里。')])
+    models.fallback = fallback
+    const events = await collect(
+      runAssistantNext('clerk-1', imageRequest('你好')),
+    )
+    expect(main.doStreamCalls).toHaveLength(2)
+    expect(fallback.doStreamCalls).toHaveLength(0)
+    expect(events.at(-1)).toMatchObject({ type: 'done' })
+  })
+
   it('厂商 403 额度用完：认出原因、带余额文案，不说成一句「调用失败」', async () => {
     models.main = mockModel([
       new APICallError({
@@ -655,8 +740,47 @@ describe('新内核主循环', () => {
     await expect(
       collect(runAssistantNext('clerk-1', imageRequest('你好'))),
     ).rejects.toMatchObject({
+      errorCode: 'PROVIDER_INSUFFICIENT_BALANCE',
       i18nKey: 'errors.provider.insufficientBalance',
-      message: expect.stringContaining('monthly spending limit'),
+      adapterType: 'anthropic',
+      modelId: 'claude-sonnet-5-5',
+    })
+  })
+
+  it('Gemini 预付额度用完（402）：记成余额不足并点名是哪一家，不是笼统的 PROVIDER_ERROR', async () => {
+    models.main = mockModel([
+      new APICallError({
+        message:
+          'Your prepayment credits are depleted. Please go to AI Studio to manage your project and billing.',
+        url: 'https://generativelanguage.googleapis.com',
+        requestBodyValues: {},
+        statusCode: 402,
+      }),
+    ])
+    const error = await collect(
+      runAssistantNext('clerk-1', imageRequest('你好')),
+    ).catch((caught: { toJSON(): unknown }) => caught.toJSON())
+    expect(error).toMatchObject({
+      errorCode: 'PROVIDER_INSUFFICIENT_BALANCE',
+      provider: { adapterType: 'anthropic', modelId: 'claude-sonnet-5-5' },
+    })
+  })
+
+  it('认不出原因的 400（如思考块签名对不上）：照旧带厂商原话，不硬套一个码', async () => {
+    const rejected = () =>
+      new APICallError({
+        message: 'Invalid `signature` in `thinking` block.',
+        url: 'https://api.anthropic.com',
+        requestBodyValues: {},
+        statusCode: 400,
+      })
+    models.main = mockModel([rejected()])
+    models.fallback = mockModel([rejected()])
+    await expect(
+      collect(runAssistantNext('clerk-1', imageRequest('你好'))),
+    ).rejects.toMatchObject({
+      errorCode: 'PROVIDER_ERROR',
+      message: expect.stringContaining('signature'),
     })
   })
 

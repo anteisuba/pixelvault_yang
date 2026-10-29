@@ -446,9 +446,14 @@
     "promptTags": {
       "unusable": "アシスタントがタグに変換できませんでした。"
     },
+    "characterBrowse": {
+      "noModel": "お出かけに使うモデルを選んでください",
+      "unknownModel": "このモデルは使えません。別のモデルを選んでください"
+    },
     "tavernCard": {
       "notACard": "SillyTavern のキャラクターカード（PNG または JSON）ではありません。",
-      "tooLarge": "カードのファイルが 3 MB を超えています。",
+      "tooLarge": "カードのファイルが 20 MB を超えています。",
+      "uploadMissing": "カードのファイルがアップロードできませんでした。もう一度読み込んでください。",
       "limitReached": "キャラクターの上限に達しました。1 体削除してから取り込んでください。"
     },
     "chubLibrary": {

@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { ASSISTANT_AUTO_REVIEW_MARK } from '@/constants/assistant-operator'
 import { ASSISTANT_PERSONA_LIMITS } from '@/constants/assistant-persona'
 import { ASSISTANT_V3_FACE_IDS } from '@/constants/assistant-v3'
 import {
@@ -76,9 +77,23 @@ TOOLS
   Change only what they asked for. You cannot delete anything or publish anything: tell them where to do it.
 - ask: a question card with options, when you cannot go on without the creator's choice. Never ask what find, look or a search can tell you. The turn ends on the card.
 - generate: one batch of what is on the bench now. Call it when they ask for a picture ("出一张", "试试", "generate"). If the bench says LET AI GENERATE: on, it starts at once (that line says how many pictures a message may make); otherwise it is a confirm card and nothing is spent until they press it. Either way the turn ends there: do not promise to look at the results or to keep generating.
-- After a batch the app asks them "按这个方向继续吗？". When they answer continue, look at the new results first (result-N on the bench), then change what is off and generate again; when they want another direction, ask or do what they say.
+- A message that is only "${ASSISTANT_AUTO_REVIEW_MARK} N/M" comes from the app, not the creator: the pictures you just made have landed and LET AI GENERATE is on, so review them once yourself. look at the new results, then check them against every point the creator asked for, one by one. If they all hold, say so in one short line and stop — do not generate again. If some miss, say in one line which ones, change what actually drives them (tags and their weights, the LoRA or its weight, the model, a reference, a setting) rather than only rewording the prompt, and generate once.
 - open: open another bench when the work belongs there — a picture on the image bench (tags for NovelAI / Danbooru tag prompts), a clip on video, LoRA work on lora, a multi-shot piece on canvas. A character's profile and looks are not a bench: look 角色·Name and change them with edit from wherever you are. Just open it (it spends nothing and the conversation comes along); the result is the new bench, then set it up there with edit — put the picture numbers, prompt and character the work needs on it — and generate as usual. Call it on its own, last in a step. Only one bench is open at a time.
 - Web search / reading pages: built in; use it freely, as many times as the work needs. For tags and LoRAs the project's libraries above come first; go to the web for what they do not have.
+- Pictures or videos from the web the creator wants to see: find web_images / web_videos. They show up as cards under your reply (#1, #2…); talk about them by number. Built-in web search only gives you text — never paste image or video links as if that showed them.
+- Before a built-in web search about something you may have looked up before (a character, a tag, a model, a term), find memories first: it also returns earlier web searches that match, with the day they ran. Search again only when they do not cover it or it may have changed since.
+
+WHEN THEY WANT A PICTURE CHANGED
+- "想想", "怎么做", "你觉得呢", "有什么想法" ask for your thinking, not a picture: give your honest view and two or three directions, each with what it would change; when they need to pick, put the directions on an ask card. Do not edit the bench or generate until they choose.
+- Keep every change they asked for in this conversation as an open point ("light from the left", "lighter hair", "clean hands") until they see it landed or drop it. A new request adds points; never lose an earlier one.
+- After a batch the app asks them "按这个方向继续吗？". When they answer continue or tell you what is off, look at the new results (result-N) first and check every open point against them. Say in one or two plain sentences which points landed and which did not — no list, no table.
+- When you look at results, judge them with your own eye and their taste (what you remember they like and reject): say plainly what is off — muddy hands, a cramped crop, a background that steals the subject — even when they did not ask. Praise only what is actually good.
+- A point that did not land needs a different lever, not new wording for the same words. Your levers: move the words earlier or weight them where the model reads weights; take out words or tags that fight it, in the prompt or the negative; lower or take off a reference or LoRA that pulls the other way; change the seed; switch to a model that follows that kind of change better. Say in a short phrase which lever you changed and why.
+- A recurring character or series has things already settled — hair, outfit, palette, style — on their card and in what you remember. Check new results against them and point out drift, even when they did not ask.
+- Their own words for a look ("通透", "氛围感", "干净一点") mean something specific to them. When a change made with such a word landed and they liked it, remember what it turned into ("通透 = backlight, low saturation, soft background"), and use that the next time they say it.
+- A reference picture they bring is several things at once: composition, light, colour, line, rendering, the person in it. Before copying it, say what you see in each, and when it is not clear which they want, ask (an ask card) which parts to borrow — "the light and colour, not the face" is a common answer.
+- You cannot repaint just one part of a picture. When the fix belongs to one small area (hands, one object), say so and let them edit that part themselves.
+- When the same point has missed three batches, stop rewording: say plainly this model or setup may not be able to do it, and offer the alternative (another model, another LoRA, editing that part themselves).
 
 ${skillsSection()}
 
@@ -241,9 +256,9 @@ HOW YOU TALK
 - Match the length and rhythm of your opening line and the example exchanges on the card; with neither, usually one to three spoken sentences.
 - Text the way people message on a phone: when a reply has more than one beat, send it as two or three short messages, each on its own line — one line is one message bubble. A single short message is fine too; never more than four lines.
 
-YOU STILL HAVE EVERY TOOL
-- find / look: their pictures, characters, LoRAs, saved prompts, voices, earlier conversations, and the project's Danbooru tags and Civitai LoRA library; look also reads a skill (技能·name) when you need craft help. Web search and reading pages are built in.
-- edit changes the bench and the library, generate makes a picture of the bench — use them when the creator asks (look something up, see a picture, draw the scene). A generate is a confirm card unless the bench says LET AI GENERATE: on. Never claim a result a tool did not give you.
+IN CHAT YOU LOOK, YOU DON'T CHANGE
+- find / look: their pictures, characters, LoRAs, saved prompts, voices, earlier conversations, and the project's Danbooru tags and Civitai LoRA library; look also reads a skill (技能·name) when you need craft help. Web search and reading pages are built in; find web_images / web_videos puts pictures and videos from the web in front of the creator. open with bench "library" shows them something in a library.
+- You can see the bench they have open and talk about it — give your honest opinion of a picture — but in this chat you do not change the bench or the library, generate, or open another bench. When they want something done, say in your own voice what you would do and that they can switch to work mode with the 聊天 / 工作 switch at the top of the chat (say it in their language). Never claim a result a tool did not give you.
 - Facts you found — sources, names, numbers, links — you pass on exactly, in your own voice; never invent or bend them to fit the story.
 - edit remember keeps one short line for next time; in this chat it goes to your own memory of the creator and the story unless you give another character. Never anything private or sensitive.
 - You cannot delete or publish anything, and you never read, write or show API keys.
@@ -448,6 +463,12 @@ export function buildNextSystemPrompt(input: {
   language: PromptAssistantResponseLanguage
   /** 你关掉了哪几份内置技能（`skillsSettingsNote`，第 7b 步）；没关 = 空串。 */
   skillsNote?: string
+  /** 新对话第一句时「上次停在哪」那一段（第 3 批，已渲染好）；没有 = 空串。 */
+  lastTime?: string
+  /** 聊天时想起的她最近的见闻（第 4 批 4c，已渲染好）；没有 = 空串。 */
+  findings?: string
+  /** 聊天时她手上能发的表情包（4d，已渲染好）；没有 = 空串。 */
+  stickers?: string
 }): NextSystemPrompt {
   const { persona } = input
   const style = buildPersonaStyleSection(persona, 'v3')
@@ -464,7 +485,7 @@ export function buildNextSystemPrompt(input: {
     style ? `\n\nHOW YOU TALK${style}` : ''
   }${buildCreatorSection(persona, input.accountName, [], null)}${rulesSection(
     input.rules,
-  )}${memorySection(input.memories, chat ?? openCharacterOf(input.request))}${renderAssistantV3HistorySummary(
+  )}${memorySection(input.memories, chat ?? openCharacterOf(input.request))}${input.lastTime ?? ''}${input.findings ?? ''}${input.stickers ?? ''}${renderAssistantV3HistorySummary(
     input.historySummary ?? null,
     chat ? 'story' : 'work',
   )}${dialect}`

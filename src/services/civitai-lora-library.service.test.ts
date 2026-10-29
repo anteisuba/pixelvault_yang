@@ -187,6 +187,38 @@ describe('listCivitaiLoras', () => {
     expect(item?.coverImageUrlOriginal).toContain('safe-uuid')
   })
 
+  it('passes the segments through', async () => {
+    mockFetch.mockResolvedValue(
+      jsonResponse({
+        rows: [indexRow],
+        total: 3,
+        totalCapped: false,
+        literalTotal: 0,
+        fallback: { kind: 'corrected', query: 'endfield', total: 3 },
+      }),
+    )
+
+    const result = await listCivitaiLoras({ search: 'endfeild' })
+
+    expect(result.literalTotal).toBe(0)
+    expect(result.fallback).toEqual({
+      kind: 'corrected',
+      query: 'endfield',
+      total: 3,
+    })
+  })
+
+  it('reads an index without segments as all literal', async () => {
+    mockFetch.mockResolvedValue(
+      jsonResponse({ rows: [indexRow], total: 25, totalCapped: false }),
+    )
+    const result = await listCivitaiLoras({ search: 'maker' })
+    expect(result).toMatchObject({
+      literalTotal: 25,
+      fallback: null,
+    })
+  })
+
   it('covers a video sample with its still and carries the clip for the card', async () => {
     mockFetch.mockResolvedValue(
       jsonResponse({

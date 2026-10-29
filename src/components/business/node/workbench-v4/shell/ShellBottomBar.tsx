@@ -192,8 +192,8 @@ export function ShellBottomBar({
           onClick={() => onTogglePanel(entry.id)}
         />
       ))}
-      {/* ≥1024 `/studio` 外壳里侧栏不在了（第 9f 步）：侧栏下面那几格搬到这里。 */}
-      <span className="hidden desk:contents">
+      {/* ≥768 `/studio` 外壳里侧栏不在了（第 9f 步）：侧栏下面那几格搬到这里。 */}
+      <span className="hidden lg:contents">
         <span className="mx-1 h-5 w-px bg-node-panel-inner" aria-hidden />
         {SHELL_CANVAS_DESK_BOTTOM_ENTRIES.map((entry) => (
           <ShellIconButton

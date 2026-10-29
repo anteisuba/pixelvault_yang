@@ -207,6 +207,9 @@ function anthropicModel(
   /**
    * ⭐ 2026-02 版联网（先写代码筛结果再进上下文）+ 读网页；adaptive 思考 = 想不想、想多久模型
    * 自己定，档位管上限。思考块带签名，SDK 原样回传。
+   * ⚠ 签名绑着它产生时的系统提示与之前每条消息：接力那一跳系统提示会变（开台换脸、台上换型号、
+   *   记忆现读），一轮太长时旧工具结果 / 旧图也会被换成一行 —— 都会让之前的思考块对不上，
+   *   8/31 后开的账号直接 400（10-27 实测）。`drop_block` = 对不上的由 Claude 丢掉、照常往下跑。
    */
   return {
     ...v3Path,
@@ -219,7 +222,11 @@ function anthropicModel(
     providerOptions: (_cacheKey, effort) => ({
       anthropic: {
         effort,
-        thinking: { type: 'adaptive', display: 'summarized' },
+        thinking: {
+          type: 'adaptive',
+          display: 'summarized',
+          blockBinding: { prefixMismatchBehavior: 'drop_block' },
+        },
       },
     }),
     fallback: v3Path,
@@ -236,8 +243,11 @@ function geminiModel(route: ResolvedLlmTextRoute, modelId: string): NextModel {
     maxOutputTokens: assistantV3VerifiedOutputCap(modelId),
     ...plainShape,
     // 思考签名由 SDK 自己带着走（`thoughtSignature`），跟在完整回复里接回去就行。
+    // `includeThoughts`：思考摘要流给界面（10-27「流出思考摘要」），不额外计费。
     providerOptions: (_cacheKey, effort) => ({
-      google: { thinkingConfig: { thinkingLevel: effort } },
+      google: {
+        thinkingConfig: { thinkingLevel: effort, includeThoughts: true },
+      },
     }),
     fallback: null,
   }

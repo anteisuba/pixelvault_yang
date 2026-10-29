@@ -11,7 +11,7 @@ Personal AI Gallery — multi-model AI 生成（图/视频/音频/3D）+ 永久�
 
 ## 任务入口（必读）
 
-按 [WORKFLOW](docs/WORKFLOW.md) 选择最小 scene/业务域阅读集与验证。问题先从已有上下文和代码回答，缺少实质决策时才问 owner。代码修改前读 `docs/forbidden.md` 的相关节。
+**进度与下一步看 [docs/roadmap.md](docs/roadmap.md)（施工单，唯一来源）**；owner 的工作规矩在 AGENTS.md「owner 工作规矩」，待做模块的设计稿在 `docs/design/`。按 [WORKFLOW](docs/WORKFLOW.md) 选择最小 scene/业务域阅读集与验证。问题先从已有上下文和代码回答，缺少实质决策时才问 owner。代码修改前读 `docs/forbidden.md` 的相关节。
 
 ## 工程原则
 

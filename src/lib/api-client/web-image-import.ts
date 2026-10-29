@@ -14,6 +14,7 @@ import { API_ENDPOINTS } from '@/constants/config'
 import { getErrorPayload } from '@/lib/api-client/shared'
 import type { GenerationRecord } from '@/types'
 import type { WebImageImportRequest } from '@/types/web-image-import'
+import { apiFetch } from '@/lib/api-client/api-fetch'
 
 export type WebImageImportApiResponse =
   | { success: true; data: { generation: GenerationRecord; reused: boolean } }
@@ -30,7 +31,7 @@ export async function importWebImageAPI(
   request: WebImageImportRequest,
 ): Promise<WebImageImportApiResponse> {
   try {
-    const response = await fetch(API_ENDPOINTS.STUDIO_WEB_IMAGE_IMPORT, {
+    const response = await apiFetch(API_ENDPOINTS.STUDIO_WEB_IMAGE_IMPORT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(request),

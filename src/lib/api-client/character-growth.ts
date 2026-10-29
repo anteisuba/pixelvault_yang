@@ -6,6 +6,7 @@ import type {
   CharacterGrowth,
   UpdateCharacterBrowseRequest,
 } from '@/types/character-growth'
+import { apiFetch } from '@/lib/api-client/api-fetch'
 
 /**
  * **她的成长**的客户端封装（C 第 3 步；角色页右栏「最近」）：读日记、她改了什么、见闻、观点与
@@ -45,7 +46,7 @@ export async function getCharacterGrowthAPI(
   cardId: string,
 ): Promise<ApiResult<CharacterGrowth>> {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_ENDPOINTS.CHARACTER_CARDS}/${encodeURIComponent(cardId)}/growth`,
       { method: 'GET', headers: { Accept: 'application/json' } },
     )
@@ -59,7 +60,7 @@ export async function revertCharacterRevisionAPI(
   revisionId: string,
 ): Promise<ApiResult<{ reverted: true }>> {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_ENDPOINTS.CHARACTER_CARDS}/revisions/${encodeURIComponent(revisionId)}/revert`,
       {
         method: 'POST',
@@ -78,7 +79,7 @@ export async function updateCharacterBrowseAPI(
   input: UpdateCharacterBrowseRequest,
 ): Promise<ApiResult<CharacterBrowseState>> {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_ENDPOINTS.CHARACTER_CARDS}/${encodeURIComponent(cardId)}/browse`,
       {
         method: 'PUT',
@@ -97,7 +98,7 @@ export async function goOutNowAPI(
   cardId: string,
 ): Promise<ApiResult<CharacterGoOutResult>> {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_ENDPOINTS.CHARACTER_CARDS}/${encodeURIComponent(cardId)}/browse/now`,
       {
         method: 'POST',
@@ -115,7 +116,7 @@ export async function deleteCharacterFindingAPI(
   findingId: string,
 ): Promise<ApiResult<unknown>> {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_ENDPOINTS.CHARACTER_FINDINGS}/${encodeURIComponent(findingId)}`,
       { method: 'DELETE' },
     )

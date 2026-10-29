@@ -25,6 +25,7 @@ export async function transcribeAudioUrl(
 ): Promise<AudioTranscribeResult> {
   let file: File
   try {
+    // eslint-disable-next-line no-restricted-globals -- 拉 CDN 上的音频文件，不是自家 /api
     const response = await fetch(url)
     if (!response.ok) return { ok: false, error: `HTTP ${response.status}` }
     const blob = await response.blob()

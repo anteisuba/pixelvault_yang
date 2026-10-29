@@ -1,7 +1,7 @@
-import { defineConfig, globalIgnores } from "eslint/config";
-import nextVitals from "eslint-config-next/core-web-vitals";
-import nextTs from "eslint-config-next/typescript";
-import prettier from "eslint-config-prettier";
+import { defineConfig, globalIgnores } from 'eslint/config'
+import nextVitals from 'eslint-config-next/core-web-vitals'
+import nextTs from 'eslint-config-next/typescript'
+import prettier from 'eslint-config-prettier'
 
 // Boundary rules — scoped per spec. Other modules opt in once their
 // respective specs land. See:
@@ -15,72 +15,72 @@ import prettier from "eslint-config-prettier";
 const KERNEL_FORBIDDEN_PATTERNS = [
   {
     group: [
-      "@/services/prompts/**",
-      "@/services/gallery/**",
-      "@/services/assets/**",
-      "@/services/cards/**",
-      "@/services/image/**",
-      "@/hooks/prompts/**",
-      "@/hooks/gallery/**",
-      "@/hooks/assets/**",
-      "@/hooks/cards/**",
-      "@/hooks/image/**",
-      "@/components/business/prompts/**",
-      "@/components/business/gallery/**",
-      "@/components/business/assets/**",
-      "@/components/business/cards/**",
-      "@/components/business/image/**",
-      "@/services/node/**",
-      "@/hooks/node/**",
-      "@/components/business/node/**",
+      '@/services/prompts/**',
+      '@/services/gallery/**',
+      '@/services/assets/**',
+      '@/services/cards/**',
+      '@/services/image/**',
+      '@/hooks/prompts/**',
+      '@/hooks/gallery/**',
+      '@/hooks/assets/**',
+      '@/hooks/cards/**',
+      '@/hooks/image/**',
+      '@/components/business/prompts/**',
+      '@/components/business/gallery/**',
+      '@/components/business/assets/**',
+      '@/components/business/cards/**',
+      '@/components/business/image/**',
+      '@/services/node/**',
+      '@/hooks/node/**',
+      '@/components/business/node/**',
     ],
     message:
-      "L0 Shared Kernel must not import from L1+ modules. See docs/spark/2026-05-28-architecture-contract-design.md §3.2.",
+      'L0 Shared Kernel must not import from L1+ modules. See docs/spark/2026-05-28-architecture-contract-design.md §3.2.',
   },
   {
-    group: ["@/app/**", "@/contexts/**"],
+    group: ['@/app/**', '@/contexts/**'],
     message:
-      "L0 Shared Kernel must not import from app routes or React contexts (those are L1+).",
+      'L0 Shared Kernel must not import from app routes or React contexts (those are L1+).',
   },
-];
+]
 
 /** Sibling L1 modules that L1 Prompts must NEVER import from. */
 const PROMPTS_FORBIDDEN_SIBLINGS = [
   {
     group: [
-      "@/services/gallery/**",
-      "@/services/assets/**",
-      "@/services/cards/**",
-      "@/hooks/gallery/**",
-      "@/hooks/assets/**",
-      "@/hooks/cards/**",
-      "@/components/business/gallery/**",
-      "@/components/business/assets/**",
-      "@/components/business/cards/**",
+      '@/services/gallery/**',
+      '@/services/assets/**',
+      '@/services/cards/**',
+      '@/hooks/gallery/**',
+      '@/hooks/assets/**',
+      '@/hooks/cards/**',
+      '@/components/business/gallery/**',
+      '@/components/business/assets/**',
+      '@/components/business/cards/**',
     ],
     message:
-      "L1 content domains must not import from sibling L1 modules. Route through L0 Shared Kernel or use a cross-cutting capability there.",
+      'L1 content domains must not import from sibling L1 modules. Route through L0 Shared Kernel or use a cross-cutting capability there.',
   },
-];
+]
 
 /** Sibling L1 modules that L1 Cards must NEVER import from. */
 const CARDS_FORBIDDEN_SIBLINGS = [
   {
     group: [
-      "@/services/gallery/**",
-      "@/services/assets/**",
-      "@/services/prompts/**",
-      "@/hooks/gallery/**",
-      "@/hooks/assets/**",
-      "@/hooks/prompts/**",
-      "@/components/business/gallery/**",
-      "@/components/business/assets/**",
-      "@/components/business/prompts/**",
+      '@/services/gallery/**',
+      '@/services/assets/**',
+      '@/services/prompts/**',
+      '@/hooks/gallery/**',
+      '@/hooks/assets/**',
+      '@/hooks/prompts/**',
+      '@/components/business/gallery/**',
+      '@/components/business/assets/**',
+      '@/components/business/prompts/**',
     ],
     message:
-      "L1 content domains must not import from sibling L1 modules. Route through L0 Shared Kernel or use a cross-cutting capability there.",
+      'L1 content domains must not import from sibling L1 modules. Route through L0 Shared Kernel or use a cross-cutting capability there.',
   },
-];
+]
 
 /** L2 tools / L3 orchestrator paths that L1.5 Studio Shared must NEVER import from.
  *
@@ -94,32 +94,32 @@ const CARDS_FORBIDDEN_SIBLINGS = [
 const STUDIO_SHARED_FORBIDDEN_PATTERNS = [
   {
     group: [
-      "@/components/business/studio/edit/**",
-      "@/components/business/studio/lora/**",
-      "@/components/business/studio/node/**",
+      '@/components/business/studio/edit/**',
+      '@/components/business/studio/lora/**',
+      '@/components/business/studio/node/**',
     ],
     message:
-      "L1.5 Studio Shared must not import from L2 tools (edit/lora) or L3 orchestrator (node). Tools call into shared, not the other way around.",
+      'L1.5 Studio Shared must not import from L2 tools (edit/lora) or L3 orchestrator (node). Tools call into shared, not the other way around.',
   },
   {
-    group: ["@/app/**"],
+    group: ['@/app/**'],
     message:
-      "L1.5 Studio Shared must not import from app routes — keep components pure UI.",
+      'L1.5 Studio Shared must not import from app routes — keep components pure UI.',
   },
-];
+]
 
 /** L3 Node and app paths that L2 Image must NEVER import from. */
 const IMAGE_FORBIDDEN_PATTERNS = [
   {
-    group: ["@/components/business/studio/node/**"],
-    message: "L2 Image must not import from L3 orchestrator (Node).",
+    group: ['@/components/business/studio/node/**'],
+    message: 'L2 Image must not import from L3 orchestrator (Node).',
   },
   {
-    group: ["@/app/**"],
+    group: ['@/app/**'],
     message:
-      "L2 Image must not import from app routes — services/hooks are pure logic.",
+      'L2 Image must not import from app routes — services/hooks are pure logic.',
   },
-];
+]
 
 /** Icons come from `@/components/icons` (Phosphor base). `lucide-react` is no
  * longer a dependency, so the gate exists to keep it from coming back.
@@ -133,11 +133,11 @@ const IMAGE_FORBIDDEN_PATTERNS = [
  * land later. */
 const LUCIDE_FORBIDDEN_PATHS = [
   {
-    name: "lucide-react",
+    name: 'lucide-react',
     message:
-      "Icons come from `@/components/icons` (Phosphor base, lucide names kept as aliases).",
+      'Icons come from `@/components/icons` (Phosphor base, lucide names kept as aliases).',
   },
-];
+]
 
 /** 动效库分工（`CLAUDE.md` + `ui-defaults.md` §4）。
  *
@@ -156,24 +156,24 @@ const LUCIDE_FORBIDDEN_PATHS = [
  * 拉，拉不到 Production Build 就挂。做法见 `src/i18n/fonts.ts`。 */
 const FONT_FORBIDDEN_PATHS = [
   {
-    name: "next/font/google",
+    name: 'next/font/google',
     message:
-      "字体走 npm 包 + next/font/local（见 src/i18n/fonts.ts）：next/font/google 构建时联网拉字体，拉不到就挂。",
+      '字体走 npm 包 + next/font/local（见 src/i18n/fonts.ts）：next/font/google 构建时联网拉字体，拉不到就挂。',
   },
-];
+]
 
 const ANIMATION_LIBRARY_FORBIDDEN_PATHS = [
   {
-    name: "framer-motion",
+    name: 'framer-motion',
     message:
-      "app 内动效一律 `motion/react`（服务端安全的用 `motion/react-client`）。framer-motion 是 motion 的旧包名，项目没有这个依赖。",
+      'app 内动效一律 `motion/react`（服务端安全的用 `motion/react-client`）。framer-motion 是 motion 的旧包名，项目没有这个依赖。',
   },
   {
-    name: "gsap",
+    name: 'gsap',
     message:
-      "GSAP 只给首页营销域（src/components/business/home-v4/**），且只动态导入。app 内用 motion/react。",
+      'GSAP 只给首页营销域（src/components/business/home-v4/**），且只动态导入。app 内用 motion/react。',
   },
-];
+]
 
 const eslintConfig = defineConfig([
   ...nextVitals,
@@ -181,27 +181,36 @@ const eslintConfig = defineConfig([
   prettier,
   // ─── Spec 1 boundary rules ─────────────────────────────────────
   {
-    files: ["src/services/kernel/**/*.{ts,tsx}", "src/hooks/kernel/**/*.{ts,tsx}"],
+    files: [
+      'src/services/kernel/**/*.{ts,tsx}',
+      'src/hooks/kernel/**/*.{ts,tsx}',
+    ],
     rules: {
-      "no-restricted-imports": ["error", { patterns: KERNEL_FORBIDDEN_PATTERNS }],
+      'no-restricted-imports': [
+        'error',
+        { patterns: KERNEL_FORBIDDEN_PATTERNS },
+      ],
     },
   },
   {
     files: [
-      "src/services/prompts/**/*.{ts,tsx}",
-      "src/hooks/prompts/**/*.{ts,tsx}",
-      "src/components/business/prompts/**/*.{ts,tsx}",
+      'src/services/prompts/**/*.{ts,tsx}',
+      'src/hooks/prompts/**/*.{ts,tsx}',
+      'src/components/business/prompts/**/*.{ts,tsx}',
     ],
     rules: {
-      "no-restricted-imports": ["error", { patterns: PROMPTS_FORBIDDEN_SIBLINGS }],
+      'no-restricted-imports': [
+        'error',
+        { patterns: PROMPTS_FORBIDDEN_SIBLINGS },
+      ],
     },
   },
   // ─── Spec 2 boundary rules ─────────────────────────────────────
   {
-    files: ["src/components/business/studio-shared/**/*.{ts,tsx}"],
+    files: ['src/components/business/studio-shared/**/*.{ts,tsx}'],
     rules: {
-      "no-restricted-imports": [
-        "error",
+      'no-restricted-imports': [
+        'error',
         { patterns: STUDIO_SHARED_FORBIDDEN_PATTERNS },
       ],
     },
@@ -209,41 +218,47 @@ const eslintConfig = defineConfig([
   // ─── Spec 3 boundary rules ─────────────────────────────────────
   {
     files: [
-      "src/services/cards/**/*.{ts,tsx}",
-      "src/hooks/cards/**/*.{ts,tsx}",
-      "src/components/business/cards/**/*.{ts,tsx}",
+      'src/services/cards/**/*.{ts,tsx}',
+      'src/hooks/cards/**/*.{ts,tsx}',
+      'src/components/business/cards/**/*.{ts,tsx}',
     ],
     rules: {
-      "no-restricted-imports": ["error", { patterns: CARDS_FORBIDDEN_SIBLINGS }],
+      'no-restricted-imports': [
+        'error',
+        { patterns: CARDS_FORBIDDEN_SIBLINGS },
+      ],
     },
   },
   // ─── Spec 4 boundary rules ─────────────────────────────────────
   {
     files: [
-      "src/services/image/**/*.{ts,tsx}",
-      "src/hooks/image/**/*.{ts,tsx}",
-      "src/components/business/image/**/*.{ts,tsx}",
+      'src/services/image/**/*.{ts,tsx}',
+      'src/hooks/image/**/*.{ts,tsx}',
+      'src/components/business/image/**/*.{ts,tsx}',
     ],
     rules: {
-      "no-restricted-imports": ["error", { patterns: IMAGE_FORBIDDEN_PATTERNS }],
+      'no-restricted-imports': [
+        'error',
+        { patterns: IMAGE_FORBIDDEN_PATTERNS },
+      ],
     },
   },
   // ─── Spec 5a boundary rules ────────────────────────────────────
   {
     files: [
-      "src/services/node/**/*.{ts,tsx}",
-      "src/hooks/node/**/*.{ts,tsx}",
-      "src/components/business/node/**/*.{ts,tsx}",
+      'src/services/node/**/*.{ts,tsx}',
+      'src/hooks/node/**/*.{ts,tsx}',
+      'src/components/business/node/**/*.{ts,tsx}',
     ],
     rules: {
-      "no-restricted-imports": [
-        "error",
+      'no-restricted-imports': [
+        'error',
         {
           patterns: [
             {
-              group: ["@/app/**"],
+              group: ['@/app/**'],
               message:
-                "L3 Node must not import from app routes — components/hooks/services are pure logic.",
+                'L3 Node must not import from app routes — components/hooks/services are pure logic.',
             },
           ],
         },
@@ -259,10 +274,10 @@ const eslintConfig = defineConfig([
   // 同一条规则 id 管两件事（见 ANIMATION_LIBRARY_FORBIDDEN_PATHS 头注里的
   // flat-config 替换陷阱）：图标基座 + 动效库分工。
   {
-    files: ["src/**/*.{ts,tsx}"],
+    files: ['src/**/*.{ts,tsx}'],
     rules: {
-      "@typescript-eslint/no-restricted-imports": [
-        "error",
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
         {
           paths: [
             ...LUCIDE_FORBIDDEN_PATHS,
@@ -276,18 +291,42 @@ const eslintConfig = defineConfig([
   // 首页营销域是 GSAP 唯一的家：把 gsap 这一条摘掉，图标门与 framer-motion
   // 门照旧（整块替换 → 必须把要保留的两条重新列一遍）。
   {
-    files: ["src/components/business/home-v4/**/*.{ts,tsx}"],
+    files: ['src/components/business/home-v4/**/*.{ts,tsx}'],
     rules: {
-      "@typescript-eslint/no-restricted-imports": [
-        "error",
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
         {
           paths: [
             ...LUCIDE_FORBIDDEN_PATHS,
             ...FONT_FORBIDDEN_PATHS,
             ...ANIMATION_LIBRARY_FORBIDDEN_PATHS.filter(
-              (entry) => entry.name !== "gsap",
+              (entry) => entry.name !== 'gsap',
             ),
           ],
+        },
+      ],
+    },
+  },
+  // ─── 前台请求门 ────────────────────────────────────────────────
+  // 前台调自家 /api 一律走 apiFetch：会话 token 过期时门口回 401，它续一次会话
+  // 再重发（2026-10-29 助手出图报「Failed with status 404」）。裸 fetch 绕过这一步，
+  // 组件/hook 里的 fetch 还违反「组件不 fetch」。拉媒体文件等确需裸 fetch 的地方
+  // 就地 eslint-disable 并写明理由。
+  {
+    files: [
+      'src/lib/api-client/**/*.{ts,tsx}',
+      'src/hooks/**/*.{ts,tsx}',
+      'src/components/**/*.{ts,tsx}',
+      'src/contexts/**/*.{ts,tsx}',
+    ],
+    ignores: ['src/lib/api-client/api-fetch.ts', '**/*.test.{ts,tsx}'],
+    rules: {
+      'no-restricted-globals': [
+        'error',
+        {
+          name: 'fetch',
+          message:
+            '调自家 /api 用 src/lib/api-client 里的包装（底层 apiFetch）；组件和 hook 不直接发请求。',
         },
       ],
     },
@@ -295,15 +334,15 @@ const eslintConfig = defineConfig([
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:
-    ".next/**",
-    "out/**",
-    "build/**",
-    "next-env.d.ts",
+    '.next/**',
+    'out/**',
+    'build/**',
+    'next-env.d.ts',
     // Generated Salesforce metadata/types are not part of the app source tree.
-    ".sfdx/**",
-    "workers/**/.wrangler/**",
-    "workers/**/node_modules/**",
+    '.sfdx/**',
+    'workers/**/.wrangler/**',
+    'workers/**/node_modules/**',
   ]),
-]);
+])
 
-export default eslintConfig;
+export default eslintConfig

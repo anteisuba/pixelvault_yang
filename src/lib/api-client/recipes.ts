@@ -7,6 +7,7 @@ import type {
 } from '@/types'
 
 import { getErrorMessage } from '@/lib/api-client/shared'
+import { apiFetch } from '@/lib/api-client/api-fetch'
 
 export interface RecipeApiResponse<TData> {
   success: boolean
@@ -38,7 +39,7 @@ export async function createRecipeAPI(
   data: CreateRecipeRequest,
 ): Promise<RecipeApiResponse<RecipeRecord>> {
   try {
-    const response = await fetch(API_ENDPOINTS.RECIPES, {
+    const response = await apiFetch(API_ENDPOINTS.RECIPES, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: stringifyRecipeRequest(data),
@@ -64,11 +65,14 @@ export async function createRecipeFromGenerationAPI(
   data: CreateRecipeFromGenerationRequest,
 ): Promise<RecipeApiResponse<RecipeRecord>> {
   try {
-    const response = await fetch(`${API_ENDPOINTS.RECIPES}/from-generation`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    })
+    const response = await apiFetch(
+      `${API_ENDPOINTS.RECIPES}/from-generation`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      },
+    )
 
     if (!response.ok) {
       return {
@@ -95,7 +99,7 @@ export async function listRecipesAPI(
       page: String(page),
       limit: String(limit),
     })
-    const response = await fetch(`${API_ENDPOINTS.RECIPES}?${params}`)
+    const response = await apiFetch(`${API_ENDPOINTS.RECIPES}?${params}`)
 
     if (!response.ok) {
       return {
@@ -117,7 +121,7 @@ export async function getRecipeAPI(
   id: string,
 ): Promise<RecipeApiResponse<RecipeRecord>> {
   try {
-    const response = await fetch(getRecipeUrl(id))
+    const response = await apiFetch(getRecipeUrl(id))
 
     if (!response.ok) {
       return {
@@ -140,7 +144,7 @@ export async function updateRecipeAPI(
   data: CreateRecipeRequest,
 ): Promise<RecipeApiResponse<RecipeRecord>> {
   try {
-    const response = await fetch(getRecipeUrl(id), {
+    const response = await apiFetch(getRecipeUrl(id), {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: stringifyRecipeRequest(data),
@@ -167,7 +171,7 @@ export async function markRecipeUsedAPI(
   id: string,
 ): Promise<RecipeApiResponse<{ id: string; lastUsedAt: string }>> {
   try {
-    const response = await fetch(`${getRecipeUrl(id)}/use`, {
+    const response = await apiFetch(`${getRecipeUrl(id)}/use`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: '{}',
@@ -195,7 +199,7 @@ export async function setRecipeFavoriteAPI(
   isFavorite: boolean,
 ): Promise<RecipeApiResponse<{ id: string; isFavorite: boolean }>> {
   try {
-    const response = await fetch(`${getRecipeUrl(id)}/favorite`, {
+    const response = await apiFetch(`${getRecipeUrl(id)}/favorite`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ isFavorite }),
@@ -221,7 +225,7 @@ export async function listRecipeGenerationsAPI(
   id: string,
 ): Promise<RecipeApiResponse<GenerationRecord[]>> {
   try {
-    const response = await fetch(`${getRecipeUrl(id)}/generations`)
+    const response = await apiFetch(`${getRecipeUrl(id)}/generations`)
 
     if (!response.ok) {
       return {
@@ -243,7 +247,7 @@ export async function deleteRecipeAPI(
   id: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const response = await fetch(getRecipeUrl(id), {
+    const response = await apiFetch(getRecipeUrl(id), {
       method: 'DELETE',
     })
 

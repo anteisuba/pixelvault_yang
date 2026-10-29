@@ -6,6 +6,7 @@ import {
 } from '@/types/script-breakdown'
 
 import { getErrorPayload } from '@/lib/api-client/shared'
+import { apiFetch } from '@/lib/api-client/api-fetch'
 
 export type ScriptBreakdownApiResponse =
   | {
@@ -23,7 +24,7 @@ export async function createScriptBreakdownAPI(
   params: ScriptBreakdownRequest,
 ): Promise<ScriptBreakdownApiResponse> {
   try {
-    const response = await fetch(API_ENDPOINTS.SCRIPT_BREAKDOWN, {
+    const response = await apiFetch(API_ENDPOINTS.SCRIPT_BREAKDOWN, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),

@@ -6,6 +6,7 @@ import {
 } from '@/types/script-doc'
 
 import { getErrorPayload } from '@/lib/api-client/shared'
+import { apiFetch } from '@/lib/api-client/api-fetch'
 
 export type NodeScriptDocApiResponse =
   | {
@@ -23,7 +24,7 @@ export async function createNodeScriptDocAPI(
   params: NodeScriptDocRequest,
 ): Promise<NodeScriptDocApiResponse> {
   try {
-    const response = await fetch(API_ENDPOINTS.NODE_SCRIPT_DOC, {
+    const response = await apiFetch(API_ENDPOINTS.NODE_SCRIPT_DOC, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),

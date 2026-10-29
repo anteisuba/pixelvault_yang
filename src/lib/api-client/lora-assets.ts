@@ -22,6 +22,7 @@ import type {
 
 import { normalizeOptionalCivitaiHash } from '@/lib/civitai-lora-reference'
 import { getErrorMessage } from '@/lib/api-client/shared'
+import { apiFetch } from '@/lib/api-client/api-fetch'
 
 interface ListResponse {
   success: boolean
@@ -56,7 +57,7 @@ interface HuggingFaceShowcaseResponse {
 
 export async function listLoraAssetsAPI(): Promise<ListResponse> {
   try {
-    const response = await fetch(API_ENDPOINTS.LORA_ASSETS)
+    const response = await apiFetch(API_ENDPOINTS.LORA_ASSETS)
     if (!response.ok) {
       return {
         success: false,
@@ -77,7 +78,7 @@ export async function listLoraAssetsAPI(): Promise<ListResponse> {
 
 export async function listDiscoverLoraAssetsAPI(): Promise<ListResponse> {
   try {
-    const response = await fetch(`${API_ENDPOINTS.LORA_ASSETS}/discover`)
+    const response = await apiFetch(`${API_ENDPOINTS.LORA_ASSETS}/discover`)
     if (!response.ok) {
       return {
         success: false,
@@ -125,7 +126,7 @@ export async function listCivitaiLoraAssetsAPI(params: {
       query.set('type', params.contentType)
     }
 
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_ENDPOINTS.LORA_ASSETS_CIVITAI}?${query.toString()}`,
       { signal: params.signal },
     )
@@ -176,7 +177,7 @@ export async function listHuggingFaceLoraAssetsAPI(params: {
     if (params.page) query.set('page', String(params.page))
     if (params.cursor) query.set('cursor', params.cursor)
 
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_ENDPOINTS.LORA_ASSETS_HUGGINGFACE}?${query.toString()}`,
       {
         // Repository classification can change when Hub metadata is corrected
@@ -217,7 +218,7 @@ export async function fetchHuggingFaceShowcaseAPI(params: {
       repoId: params.repoId,
       revision: params.revision,
     })
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_ENDPOINTS.LORA_ASSETS_HUGGINGFACE_SHOWCASE}?${query.toString()}`,
     )
     if (!response.ok) {
@@ -260,7 +261,7 @@ export async function mineCivitaiLoraPromptsAPI(params: {
       query.set('fileHash', params.fileHash)
     }
 
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_ENDPOINTS.LORA_ASSETS_CIVITAI_MINED_PROMPTS}?${query.toString()}`,
     )
     if (!response.ok) {
@@ -296,7 +297,7 @@ export async function fetchCivitaiModelDescriptionAPI(
   try {
     const query = new URLSearchParams({ modelId: String(modelId) })
     if (nsfwFilter) query.set('nsfw', nsfwFilter)
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_ENDPOINTS.LORA_ASSETS_CIVITAI_DESCRIPTION}?${query.toString()}`,
     )
     if (!response.ok) {
@@ -338,7 +339,7 @@ export async function fetchCivitaiLoraDownloadPolicyAPI(
   modelVersionId: number,
 ): Promise<CivitaiDownloadPolicyResponse> {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_ENDPOINTS.LORA_ASSETS_CIVITAI_DOWNLOAD_POLICY}?modelVersionId=${modelVersionId}`,
     )
     if (!response.ok) {
@@ -368,7 +369,7 @@ interface RunnerUsageResponse {
 // 当前用户的 runner 月度额度快照（「本月剩余 N/100」主动提示）。
 export async function fetchRunnerUsageAPI(): Promise<RunnerUsageResponse> {
   try {
-    const response = await fetch(API_ENDPOINTS.RUNNER_USAGE)
+    const response = await apiFetch(API_ENDPOINTS.RUNNER_USAGE)
     if (!response.ok) {
       return {
         success: false,
@@ -420,7 +421,7 @@ export async function resolveCivitaiLoraAPI(params: {
       query.set('baseModelFamily', params.baseModelFamily)
     }
 
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_ENDPOINTS.LORA_ASSETS_CIVITAI_RESOLVE}?${query.toString()}`,
     )
     if (!response.ok) {
@@ -454,7 +455,7 @@ export async function setLoraAssetVisibilityAPI(
   isPublic: boolean,
 ): Promise<SingleAssetResponse> {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_ENDPOINTS.LORA_ASSETS}/${encodeURIComponent(loraAssetId)}`,
       {
         method: 'PATCH',
@@ -485,7 +486,7 @@ export async function updateLoraAssetCoverAPI(
   coverImageUrl: string,
 ): Promise<SingleAssetResponse> {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_ENDPOINTS.LORA_ASSETS}/${encodeURIComponent(loraAssetId)}`,
       {
         method: 'PATCH',
@@ -515,7 +516,7 @@ export async function favoriteLoraAPI(
   input: FavoriteLoraRequest,
 ): Promise<SingleAssetResponse> {
   try {
-    const response = await fetch(API_ENDPOINTS.LORA_ASSETS_FAVORITE, {
+    const response = await apiFetch(API_ENDPOINTS.LORA_ASSETS_FAVORITE, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(input),
@@ -542,7 +543,7 @@ export async function unfavoriteLoraAPI(
   assetId: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_ENDPOINTS.LORA_ASSETS_FAVORITE}?assetId=${encodeURIComponent(assetId)}`,
       { method: 'DELETE' },
     )
@@ -573,7 +574,7 @@ export async function deleteLoraAssetAPI(
   assetId: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_ENDPOINTS.LORA_ASSETS}/${encodeURIComponent(assetId)}`,
       { method: 'DELETE' },
     )
@@ -599,7 +600,7 @@ export async function getLoraAssetByCodeAPI(
   code: string,
 ): Promise<SingleResponse> {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_ENDPOINTS.LORA_ASSET_BY_CODE}/${encodeURIComponent(code)}`,
     )
     if (!response.ok) {

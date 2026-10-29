@@ -32,10 +32,11 @@ import {
   parseChubCharacter,
   parseChubSearch,
 } from '@/lib/chub-library'
+import { apiFetch } from '@/lib/api-client/api-fetch'
 
 export async function listCharacterCardsAPI(): Promise<CharacterCardsResponse> {
   try {
-    const response = await fetch(API_ENDPOINTS.CHARACTER_CARDS)
+    const response = await apiFetch(API_ENDPOINTS.CHARACTER_CARDS)
     if (!response.ok) {
       return {
         success: false,
@@ -57,7 +58,7 @@ export async function createCharacterCardAPI(
   data: CreateCharacterCardRequest,
 ): Promise<CharacterCardResponse> {
   try {
-    const response = await fetch(API_ENDPOINTS.CHARACTER_CARDS, {
+    const response = await apiFetch(API_ENDPOINTS.CHARACTER_CARDS, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -92,7 +93,7 @@ export async function importTavernCardAPI(
   fileName: string,
 ): Promise<CharacterCardResponse & { i18nKey?: string }> {
   try {
-    const prepareResponse = await fetch(
+    const prepareResponse = await apiFetch(
       API_ENDPOINTS.CHARACTER_CARDS_IMPORT_UPLOADS,
       {
         method: 'POST',
@@ -112,7 +113,7 @@ export async function importTavernCardAPI(
     }
 
     // 唯一一个跨域请求：浏览器 → R2。抛错多半是桶的 CORS，不是卡坏了。
-    const storageResponse = await fetch(prepare.data.uploadUrl, {
+    const storageResponse = await apiFetch(prepare.data.uploadUrl, {
       method: 'PUT',
       headers: prepare.data.headers,
       body: file,
@@ -125,7 +126,7 @@ export async function importTavernCardAPI(
       }
     }
 
-    const response = await fetch(API_ENDPOINTS.CHARACTER_CARDS_IMPORT, {
+    const response = await apiFetch(API_ENDPOINTS.CHARACTER_CARDS_IMPORT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ fileName, storageKey: prepare.data.storageKey }),
@@ -180,7 +181,7 @@ async function fetchChubJson(
   if (signal?.aborted) abort()
   signal?.addEventListener('abort', abort)
   try {
-    const response = await fetch(url, {
+    const response = await apiFetch(url, {
       headers: { Accept: 'application/json' },
       signal: controller.signal,
     })
@@ -259,7 +260,7 @@ export async function importChubCardAPI({
 
   const body: ImportChubCardRequest = { fullPath: path.data, node: card.node }
   try {
-    const response = await fetch(API_ENDPOINTS.CHARACTER_CARDS_CHUB_IMPORT, {
+    const response = await apiFetch(API_ENDPOINTS.CHARACTER_CARDS_CHUB_IMPORT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -283,7 +284,7 @@ export async function getCharacterCardAPI(
   id: string,
 ): Promise<CharacterCardResponse> {
   try {
-    const response = await fetch(`${API_ENDPOINTS.CHARACTER_CARDS}/${id}`)
+    const response = await apiFetch(`${API_ENDPOINTS.CHARACTER_CARDS}/${id}`)
     if (!response.ok) {
       return {
         success: false,
@@ -306,7 +307,7 @@ export async function updateCharacterCardAPI(
   data: UpdateCharacterCardRequest,
 ): Promise<CharacterCardResponse> {
   try {
-    const response = await fetch(`${API_ENDPOINTS.CHARACTER_CARDS}/${id}`, {
+    const response = await apiFetch(`${API_ENDPOINTS.CHARACTER_CARDS}/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -332,7 +333,7 @@ export async function deleteCharacterCardAPI(
   id: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const response = await fetch(`${API_ENDPOINTS.CHARACTER_CARDS}/${id}`, {
+    const response = await apiFetch(`${API_ENDPOINTS.CHARACTER_CARDS}/${id}`, {
       method: 'DELETE',
     })
     if (response.status === 204) return { success: true }
@@ -360,7 +361,7 @@ async function sendCharacterCardWrite(
   body: unknown,
 ): Promise<CharacterCardResponse & { i18nKey?: string }> {
   try {
-    const response = await fetch(url, {
+    const response = await apiFetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -418,9 +419,12 @@ export async function deleteCharacterLookAPI(
   lookId: string,
 ): Promise<{ success: boolean; error?: string; i18nKey?: string }> {
   try {
-    const response = await fetch(`${API_ENDPOINTS.CHARACTER_LOOKS}/${lookId}`, {
-      method: 'DELETE',
-    })
+    const response = await apiFetch(
+      `${API_ENDPOINTS.CHARACTER_LOOKS}/${lookId}`,
+      {
+        method: 'DELETE',
+      },
+    )
     if (response.ok || response.status === 204) return { success: true }
     const payload = await getErrorPayload(
       response,
@@ -444,7 +448,7 @@ export async function sampleCharacterLinesAPI(id: string): Promise<{
   i18nKey?: string
 }> {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_ENDPOINTS.CHARACTER_CARDS}/${id}/sample-lines`,
       {
         method: 'POST',
@@ -481,7 +485,7 @@ export async function draftCharacterDialogueAPI(
   i18nKey?: string
 }> {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_ENDPOINTS.CHARACTER_CARDS}/${id}/draft-dialogue`,
       {
         method: 'POST',
@@ -518,7 +522,7 @@ export async function getCharacterCardGenerationsAPI(
       limit: String(limit),
     })
     if (cursor) params.set('cursor', cursor)
-    const response = await fetch(
+    const response = await apiFetch(
       `/api/character-cards/${cardId}/generations?${params}`,
     )
     return await response.json()

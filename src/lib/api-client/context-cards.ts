@@ -10,6 +10,7 @@ import type {
   CreateContextCardRequest,
   UpdateContextCardRequest,
 } from '@/types/context-cards'
+import { apiFetch } from '@/lib/api-client/api-fetch'
 
 /**
  * **上下文卡**的客户端封装（第三期 K1）。
@@ -77,7 +78,7 @@ export async function listContextCardsAPI(
     if (filter.status) params.set('status', filter.status)
     if (filter.pinnedScope) params.set('pinnedScope', filter.pinnedScope)
     const query = params.toString()
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_ENDPOINTS.CONTEXT_CARDS}${query ? `?${query}` : ''}`,
       { method: 'GET', headers: { Accept: 'application/json' } },
     )
@@ -91,7 +92,7 @@ export async function createContextCardAPI(
   input: CreateContextCardRequest,
 ): Promise<ApiResult<ContextCard>> {
   try {
-    const response = await fetch(API_ENDPOINTS.CONTEXT_CARDS, {
+    const response = await apiFetch(API_ENDPOINTS.CONTEXT_CARDS, {
       method: 'POST',
       headers: JSON_HEADERS,
       body: JSON.stringify(input),
@@ -107,7 +108,7 @@ export async function updateContextCardAPI(
   input: UpdateContextCardRequest,
 ): Promise<ApiResult<ContextCard>> {
   try {
-    const response = await fetch(cardUrl(cardId), {
+    const response = await apiFetch(cardUrl(cardId), {
       method: 'PATCH',
       headers: JSON_HEADERS,
       body: JSON.stringify(input),
@@ -122,7 +123,7 @@ export async function deleteContextCardAPI(
   cardId: string,
 ): Promise<ApiResult<unknown>> {
   try {
-    const response = await fetch(cardUrl(cardId), { method: 'DELETE' })
+    const response = await apiFetch(cardUrl(cardId), { method: 'DELETE' })
     return await parseJsonResult(response, 'Failed to delete context card')
   } catch (error) {
     return toFailure(error, 'Failed to delete context card')
@@ -135,7 +136,7 @@ export async function addContextCardImageAPI(
   input: AddContextCardImageRequest,
 ): Promise<ApiResult<ContextCard>> {
   try {
-    const response = await fetch(cardUrl(cardId, '/images'), {
+    const response = await apiFetch(cardUrl(cardId, '/images'), {
       method: 'POST',
       headers: JSON_HEADERS,
       body: JSON.stringify(input),
@@ -152,7 +153,7 @@ export async function removeContextCardImageAPI(
   url: string,
 ): Promise<ApiResult<ContextCard>> {
   try {
-    const response = await fetch(cardUrl(cardId, '/images'), {
+    const response = await apiFetch(cardUrl(cardId, '/images'), {
       method: 'DELETE',
       headers: JSON_HEADERS,
       body: JSON.stringify({ url }),

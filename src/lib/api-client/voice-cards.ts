@@ -6,6 +6,7 @@ import type {
 } from '@/types'
 
 import { getErrorMessage } from '@/lib/api-client/shared'
+import { apiFetch } from '@/lib/api-client/api-fetch'
 
 export interface VoiceCardApiResponse<TData> {
   success: boolean
@@ -30,7 +31,7 @@ export async function createVoiceCardAPI(
   data: CreateVoiceCardRequest,
 ): Promise<VoiceCardApiResponse<VoiceCardRecord>> {
   try {
-    const response = await fetch(API_ENDPOINTS.VOICE_CARDS, {
+    const response = await apiFetch(API_ENDPOINTS.VOICE_CARDS, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -61,7 +62,7 @@ export async function listVoiceCardsAPI(
       page: String(page),
       pageSize: String(pageSize),
     })
-    const response = await fetch(`${API_ENDPOINTS.VOICE_CARDS}?${params}`)
+    const response = await apiFetch(`${API_ENDPOINTS.VOICE_CARDS}?${params}`)
 
     if (!response.ok) {
       return {
@@ -83,7 +84,7 @@ export async function getVoiceCardAPI(
   id: string,
 ): Promise<VoiceCardApiResponse<VoiceCardRecord>> {
   try {
-    const response = await fetch(getVoiceCardUrl(id))
+    const response = await apiFetch(getVoiceCardUrl(id))
 
     if (!response.ok) {
       return {
@@ -106,7 +107,7 @@ export async function updateVoiceCardAPI(
   data: UpdateVoiceCardRequest,
 ): Promise<VoiceCardApiResponse<VoiceCardRecord>> {
   try {
-    const response = await fetch(getVoiceCardUrl(id), {
+    const response = await apiFetch(getVoiceCardUrl(id), {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -132,7 +133,7 @@ export async function deleteVoiceCardAPI(
   id: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const response = await fetch(getVoiceCardUrl(id), {
+    const response = await apiFetch(getVoiceCardUrl(id), {
       method: 'DELETE',
     })
 
@@ -158,7 +159,7 @@ export async function uploadVoiceCardCoverAPI(
   imageData: string,
 ): Promise<VoiceCardApiResponse<VoiceCardRecord>> {
   try {
-    const response = await fetch(`${getVoiceCardUrl(id)}/cover`, {
+    const response = await apiFetch(`${getVoiceCardUrl(id)}/cover`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ imageData }),

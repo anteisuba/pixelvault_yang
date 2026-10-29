@@ -16,6 +16,7 @@ import {
   cancelGenerationsAPI,
   checkImageGenerationStatusAPI,
 } from './generation'
+import { apiFetch } from '@/lib/api-client/api-fetch'
 
 export interface ImageEditApiResult {
   imageUrl: string
@@ -138,7 +139,7 @@ async function postImageEdit(
     const streaming =
       params.options?.preview === true &&
       params.modelId?.startsWith('gpt-image-')
-    const response = await fetch(
+    const response = await apiFetch(
       streaming ? API_ENDPOINTS.IMAGE_EDIT_STREAM : endpoint,
       {
         method: 'POST',

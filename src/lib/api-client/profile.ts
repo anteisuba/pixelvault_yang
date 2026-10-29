@@ -9,6 +9,7 @@ import type {
 import { API_ENDPOINTS, CLIENT_API } from '@/constants/config'
 
 import { getErrorMessage, getErrorPayload } from '@/lib/api-client/shared'
+import { apiFetch } from '@/lib/api-client/api-fetch'
 
 export async function getCreatorProfileAPI(
   username: string,
@@ -20,7 +21,7 @@ export async function getCreatorProfileAPI(
     const params = new URLSearchParams({ page: String(page) })
     if (limit) params.set('limit', String(limit))
     if (cursor) params.set('cursor', cursor)
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_ENDPOINTS.USERS}/${encodeURIComponent(username)}?${params.toString()}`,
     )
     if (!response.ok) {
@@ -41,7 +42,7 @@ export async function getCreatorProfileAPI(
 
 export async function getMyProfileAPI(): Promise<UpdateProfileResponse> {
   try {
-    const response = await fetch(API_ENDPOINTS.USER_PROFILE)
+    const response = await apiFetch(API_ENDPOINTS.USER_PROFILE)
     if (!response.ok) {
       return {
         success: false,
@@ -62,7 +63,7 @@ export async function updateProfileAPI(
   data: UpdateProfileRequest,
 ): Promise<UpdateProfileResponse> {
   try {
-    const response = await fetch(API_ENDPOINTS.USER_PROFILE, {
+    const response = await apiFetch(API_ENDPOINTS.USER_PROFILE, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -95,7 +96,9 @@ export async function syncAvatarAPI(): Promise<{
   error?: string
 }> {
   try {
-    const response = await fetch(API_ENDPOINTS.AVATAR_SYNC, { method: 'POST' })
+    const response = await apiFetch(API_ENDPOINTS.AVATAR_SYNC, {
+      method: 'POST',
+    })
     if (!response.ok) {
       return {
         success: false,
@@ -116,7 +119,7 @@ export async function uploadAvatarAPI(
   imageData: string,
 ): Promise<UploadProfileImageResponse> {
   try {
-    const response = await fetch(API_ENDPOINTS.UPLOAD_AVATAR, {
+    const response = await apiFetch(API_ENDPOINTS.UPLOAD_AVATAR, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ imageData }),
@@ -144,7 +147,7 @@ export async function uploadBannerAPI(
   imageData: string,
 ): Promise<UploadProfileImageResponse> {
   try {
-    const response = await fetch(API_ENDPOINTS.UPLOAD_BANNER, {
+    const response = await apiFetch(API_ENDPOINTS.UPLOAD_BANNER, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ imageData }),
@@ -172,7 +175,7 @@ export async function toggleLikeAPI(
   generationId: string,
 ): Promise<ToggleLikeResponse> {
   try {
-    const response = await fetch(API_ENDPOINTS.LIKES, {
+    const response = await apiFetch(API_ENDPOINTS.LIKES, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ generationId }),
@@ -201,7 +204,7 @@ export async function batchGetLikesAPI(generationIds: string[]): Promise<{
 }> {
   try {
     const ids = generationIds.join(',')
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_ENDPOINTS.LIKES}?ids=${encodeURIComponent(ids)}`,
     )
     if (!response.ok) {
@@ -221,7 +224,7 @@ export async function toggleFollowAPI(
   targetUserId: string,
 ): Promise<ToggleFollowResponse> {
   try {
-    const response = await fetch(API_ENDPOINTS.FOLLOWS, {
+    const response = await apiFetch(API_ENDPOINTS.FOLLOWS, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ targetUserId }),

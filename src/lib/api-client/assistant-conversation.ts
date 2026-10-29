@@ -10,6 +10,7 @@ import type {
 
 import type { StudioConversationActivity } from '@/types/studio-conversation-activity'
 import { getErrorPayload } from '@/lib/api-client/shared'
+import { apiFetch } from '@/lib/api-client/api-fetch'
 
 type ApiResult<T> =
   | { success: true; data: T }
@@ -58,7 +59,7 @@ export async function listAssistantConversationsAPI(args: {
       params.set('operatorOnly', args.operatorOnly ? '1' : '0')
     if (args.limit) params.set('limit', String(args.limit))
 
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_ENDPOINTS.ASSISTANT_CONVERSATION}?${params.toString()}`,
       { method: 'GET', headers: { Accept: 'application/json' } },
     )
@@ -82,7 +83,7 @@ export async function getAssistantConversationAPI(args: {
     if (args.operatorOnly !== undefined)
       params.set('operatorOnly', args.operatorOnly ? '1' : '0')
 
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_ENDPOINTS.ASSISTANT_CONVERSATION}?${params.toString()}`,
       { method: 'GET', headers: { Accept: 'application/json' } },
     )
@@ -100,7 +101,7 @@ export async function upsertAssistantConversationAPI(
   body: UpsertAssistantConversationRequest,
 ): Promise<ApiResult<AssistantConversationRecord>> {
   try {
-    const response = await fetch(API_ENDPOINTS.ASSISTANT_CONVERSATION, {
+    const response = await apiFetch(API_ENDPOINTS.ASSISTANT_CONVERSATION, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -119,7 +120,7 @@ export async function deleteAssistantConversationAPI(
   id: string,
 ): Promise<ApiResult<null>> {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_ENDPOINTS.ASSISTANT_CONVERSATION}/${encodeURIComponent(id)}`,
       { method: 'DELETE' },
     )
@@ -140,7 +141,7 @@ export async function getSharedAssistantConversationAPI(
 ): Promise<ApiResult<SharedAssistantConversationRecord>> {
   try {
     const params = new URLSearchParams({ token })
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_ENDPOINTS.ASSISTANT_SHARE}?${params.toString()}`,
       { method: 'GET', headers: { Accept: 'application/json' } },
     )
@@ -161,7 +162,7 @@ export async function renameAssistantConversationAPI(
   title: string,
 ): Promise<ApiResult<{ title: string }>> {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_ENDPOINTS.ASSISTANT_CONVERSATION}/${encodeURIComponent(id)}`,
       {
         method: 'PATCH',
@@ -181,7 +182,7 @@ export async function getStudioConversationActivityAPI(
 ): Promise<ApiResult<StudioConversationActivity[]>> {
   try {
     const params = new URLSearchParams({ ids: ids.join(',') })
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_ENDPOINTS.STUDIO_CONVERSATION_ACTIVITY}?${params}`,
     )
     return parseJsonResult(response, 'Failed to load conversation activity')
@@ -196,7 +197,7 @@ export async function setAssistantConversationBenchAPI(
   bench: string | null,
 ): Promise<ApiResult<{ bench: string | null }>> {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_ENDPOINTS.ASSISTANT_CONVERSATION}/${encodeURIComponent(id)}/bench`,
       {
         method: 'PATCH',
@@ -220,7 +221,7 @@ export async function updateAssistantConversationRoundAPI(
   body: UpdateAssistantConversationRoundRequest,
 ): Promise<ApiResult<AssistantConversationRoundStored>> {
   try {
-    const response = await fetch(API_ENDPOINTS.ASSISTANT_CONVERSATION, {
+    const response = await apiFetch(API_ENDPOINTS.ASSISTANT_CONVERSATION, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),

@@ -12,7 +12,7 @@ docs/
 ├── forbidden.md     禁忌清单：AVOID/PREFER 成对，分域（UI/代码/架构/DB/CI/测试）
 ├── roadmap.md       施工单：正在做 / 下一个 / 待做 / 已完成（做事顺序的唯一来源）
 ├── status.md        唯一活跃状态（覆盖更新，不追加历史）
-├── design/          待做模块的设计稿（worker / prompt-save / libraries / tag-studio-nai）；roadmap-canvas/ 是 09 月旧设计总图，调研稿仍可引用
+├── design/          待做模块的设计稿（worker / prompt-save / libraries / tag-studio-nai）；research/ 是一手调研稿
 ├── checklists/      P0/P1/P2 质检：ui · backend · database · release
 ├── scenes/          任务类型场景：专属工作流 + 场景自查
 ├── references/      规则知识库：ui-defaults（UI 默认食谱，动 UI 必读）· ui-spec（界面规范：骨架 / token / 组件，和 ui-defaults 冲突时为准）· frontend · backend · database · cicd · testing · loading 等

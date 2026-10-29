@@ -52,6 +52,9 @@ export const CHARACTER_BROWSE = {
   personaChars: 1200,
   /** 告诉模型最近已经看过什么（免得天天搜同一样），带几条标题。 */
   recentTitles: 20,
+  /** 细看时每张图最多多大、取多久；取不到的那张只看标题。 */
+  pictureMaxBytes: 3 * 1024 * 1024,
+  pictureTimeoutMs: 15_000,
   /** 单次模型调用的时限。 */
   callTimeoutMs: 60_000,
   /** B 站只留具体的视频页（`/video/BV…` 或 `/video/av…`）；网搜退路偶尔回搜索结果页。 */

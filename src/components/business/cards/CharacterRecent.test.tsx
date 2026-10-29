@@ -151,6 +151,34 @@ describe('CharacterRecent', () => {
     expect(screen.getByText('数他叹了七口气。')).toBeTruthy()
   })
 
+  it('状态行写「今天几点出门 · 带回几条」，一条没带回就直说', () => {
+    const { unmount } = render(
+      <CharacterRecent
+        stickers={stickersOf()}
+        growth={hookOf(growthOf())}
+        reducedMotion
+      />,
+    )
+    expect(
+      screen.getByText('daily · outToday|09:10 · broughtBack|2'),
+    ).toBeTruthy()
+    unmount()
+    render(
+      <CharacterRecent
+        stickers={stickersOf()}
+        growth={hookOf(
+          growthOf({
+            browse: { ...growthOf().browse, browsedAt: today(11) },
+          }),
+        )}
+        reducedMotion
+      />,
+    )
+    expect(
+      screen.getByText('daily · outToday|09:10 · broughtNothing'),
+    ).toBeTruthy()
+  })
+
   it('删见闻先弹确认，确认了才删', () => {
     const hook = hookOf(growthOf({ opinions: [] }))
     render(

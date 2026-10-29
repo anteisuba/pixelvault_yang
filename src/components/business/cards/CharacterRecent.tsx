@@ -255,6 +255,12 @@ function OutingCard({ growth: data }: { growth: Growth }) {
     return false
   }
 
+  // 出门时先记的时间，这趟写下的见闻都在它之后（一趟最多 `keepMax` 条，列表里一定有）。
+  const broughtBack = browse.browsedAt
+    ? (data.growth?.findings ?? []).filter(
+        (finding) => finding.seenAt >= (browse.browsedAt as string),
+      ).length
+    : 0
   const status = !browse.enabled
     ? t('off')
     : data.goingOut
@@ -262,19 +268,25 @@ function OutingCard({ growth: data }: { growth: Growth }) {
       : browse.pausedReason
         ? t('cannotGoOut')
         : browse.browsedAt
-          ? daysAgo(browse.browsedAt) <= 0
-            ? t('backToday', {
-                time: format.dateTime(new Date(browse.browsedAt), {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                }),
-              })
-            : t('lastOut', {
-                date: format.dateTime(new Date(browse.browsedAt), {
-                  month: 'long',
-                  day: 'numeric',
-                }),
-              })
+          ? `${
+              daysAgo(browse.browsedAt) <= 0
+                ? t('outToday', {
+                    time: format.dateTime(new Date(browse.browsedAt), {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    }),
+                  })
+                : t('lastOut', {
+                    date: format.dateTime(new Date(browse.browsedAt), {
+                      month: 'long',
+                      day: 'numeric',
+                    }),
+                  })
+            } · ${
+              broughtBack > 0
+                ? t('broughtBack', { count: broughtBack })
+                : t('broughtNothing')
+            }`
           : t('notYet')
 
   return (

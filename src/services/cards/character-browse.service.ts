@@ -30,7 +30,11 @@ import {
 } from '@/services/cards/character-sticker.service'
 import { listCivitaiLoras } from '@/services/civitai-lora-library.service'
 import { webImageSearch } from '@/services/web-research.service'
-import { deleteFromR2, uploadVerifiedHttpToR2 } from '@/services/storage/r2'
+import {
+  deleteFromR2,
+  fetchAsBuffer,
+  uploadVerifiedHttpToR2,
+} from '@/services/storage/r2'
 import { completeAssistantTextWithContextRetry } from '@/services/kernel/assistant-completion.service'
 import {
   resolveAssistantRoute,
@@ -304,6 +308,39 @@ interface Seen {
   sticker: string | null
 }
 
+/**
+ * 细看前先把图取下来（外站图床要 Referer 的带上），取不到的那几张单独去掉、只看标题，
+ * ⛔ 因为一张图挂了整批都不带图（10-29：B 站封面没带 Referer，整批退成只看标题）。
+ */
+async function reachablePictures(
+  batch: readonly Candidate[],
+): Promise<{ item: Candidate; data: string }[]> {
+  const fetched = await Promise.all(
+    batch.map(async (item) => {
+      if (!item.imageUrl) return null
+      try {
+        const { buffer, mimeType } = await fetchAsBuffer(item.imageUrl, {
+          headers: imageFetchHeaders(item.imageUrl),
+          maxBytes: CHARACTER_BROWSE.pictureMaxBytes,
+          signal: AbortSignal.timeout(CHARACTER_BROWSE.pictureTimeoutMs),
+        })
+        if (!mimeType.startsWith('image/')) return null
+        return {
+          item,
+          data: `data:${mimeType.split(';')[0]};base64,${buffer.toString('base64')}`,
+        }
+      } catch (error) {
+        logger.info('character browse picture dropped', {
+          source: item.source,
+          error: error instanceof Error ? error.message : String(error),
+        })
+        return null
+      }
+    }),
+  )
+  return fetched.filter((picture) => picture !== null)
+}
+
 async function writeNotes(
   route: BrowseRoute,
   card: { name: string; persona: string },
@@ -313,7 +350,7 @@ async function writeNotes(
   const sees =
     options.images &&
     assistantAdapterSupportsImage(route.route.adapterType, route.modelId)
-  const withImages = sees ? batch.filter((item) => item.imageUrl) : []
+  const withImages = sees ? await reachablePictures(batch) : []
   const material = `YOU ARE: ${card.name}
 ${card.persona}
 
@@ -321,7 +358,7 @@ WHAT YOU CAME ACROSS:
 ${batch
   .map(
     (item, index) =>
-      `${index + 1}. ${item.stickerCandidate ? '[sticker candidate]' : `[${item.source}]`} ${item.title}${item.excerpt ? ` — ${item.excerpt.slice(0, 240)}` : ''}${item.imageUrl && sees ? ' (picture attached)' : ''}${item.chatter?.length ? `\n   What people say: ${item.chatter.join(' / ')}` : ''}`,
+      `${index + 1}. ${item.stickerCandidate ? '[sticker candidate]' : `[${item.source}]`} ${item.title}${item.excerpt ? ` — ${item.excerpt.slice(0, 240)}` : ''}${withImages.some((picture) => picture.item === item) ? ' (picture attached)' : ''}${item.chatter?.length ? `\n   What people say: ${item.chatter.join(' / ')}` : ''}`,
   )
   .join('\n')}`
   const raw = await completeAssistantTextWithContextRetry({
@@ -341,9 +378,9 @@ ${
     modelId: route.modelId,
     ...(withImages.length
       ? {
-          imageData: withImages.map((item) => item.imageUrl as string),
+          imageData: withImages.map((picture) => picture.data),
           imageLabels: withImages.map(
-            (item) => `${batch.indexOf(item) + 1}. ${item.title}`,
+            ({ item }) => `${batch.indexOf(item) + 1}. ${item.title}`,
           ),
         }
       : {}),
@@ -360,7 +397,8 @@ ${
       note: entry?.note?.trim() || null,
       // 只认真的带了图的那几样：没看到图的不许拿来当表情。
       sticker:
-        item.stickerCandidate && item.imageUrl && withImages.includes(item)
+        item.stickerCandidate &&
+        withImages.some((picture) => picture.item === item)
           ? entry?.sticker?.trim() || null
           : null,
     }
@@ -559,7 +597,10 @@ export async function browseCharacter(input: {
     },
     select: { id: true },
   })
-  if ('reason' in picked) return { seen: 0, kept: 0 }
+  if ('reason' in picked) {
+    logOuting(card.id, { why: picked.reason })
+    return { seen: 0, kept: 0 }
+  }
   const { route } = picked
 
   const today = await db.characterFinding.count({
@@ -569,7 +610,10 @@ export async function browseCharacter(input: {
     CHARACTER_BROWSE.keepMax,
     Math.max(0, card.browseDailyLimit - today),
   )
-  if (budget === 0) return { seen: 0, kept: 0 }
+  if (budget === 0) {
+    logOuting(card.id, { why: 'daily_limit_reached' })
+    return { seen: 0, kept: 0 }
+  }
 
   const persona = personaText(card.persona)
   const recent = await db.characterFinding.findMany({
@@ -618,7 +662,14 @@ export async function browseCharacter(input: {
   const pool = candidates
     .filter((item) => !already.has(item.url))
     .slice(0, CHARACTER_BROWSE.candidatePool)
-  if (pool.length === 0) return { seen: 0, kept: 0 }
+  if (pool.length === 0) {
+    logOuting(card.id, {
+      queries: queries.length,
+      candidates: candidates.length,
+      why: candidates.length ? 'all_seen_before' : 'nothing_found',
+    })
+    return { seen: 0, kept: 0 }
+  }
 
   // ② 文字初筛，③ 带图（和弹幕 / 评论）细看，最多记 `budget` 条；专门搜的表情包候选一起看。
   const profile = { name: card.name, persona }
@@ -661,7 +712,23 @@ export async function browseCharacter(input: {
   const kept = written.length
   await pruneFindings(card.id)
   await keepStickers(input.userId, card.id, chosen, notes)
+  logOuting(card.id, {
+    queries: queries.length,
+    candidates: candidates.length,
+    pool: pool.length,
+    looked: chosen.length - stickerCandidates.length,
+    noted: rows.length,
+    kept,
+    ...(kept
+      ? {}
+      : { why: rows.length ? 'all_duplicates' : 'nothing_worth_noting' }),
+  })
   return { seen: chosen.length - stickerCandidates.length, kept }
+}
+
+/** 每趟一行：看了多少、留了几条、一条没留时为什么（10-29：出门回来一条没有，查不出卡在哪）。 */
+function logOuting(cardId: string, detail: Record<string, string | number>) {
+  logger.info('character browse outing', { cardId, ...detail })
 }
 
 /** 外站图床认 Referer 的几家（B 站封面不带它会 403）。 */

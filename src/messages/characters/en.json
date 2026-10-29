@@ -193,6 +193,7 @@
       "daily": "Once a day",
       "off": "Off",
       "notYet": "Hasn't gone out yet",
+      "goingOut": "Out browsing now…",
       "backToday": "Back today at {time}",
       "lastOut": "Last out {date}",
       "cannotGoOut": "She can't go out",

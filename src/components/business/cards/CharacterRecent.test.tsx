@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import type { CharacterGrowth } from '@/types/character-growth'
@@ -101,6 +101,8 @@ function hookOf(growth: CharacterGrowth) {
     revert: vi.fn(),
     reload: vi.fn(),
     setBrowse: vi.fn(async () => ({ ok: true as const })),
+    goingOut: false,
+    goOutNow: vi.fn(async () => {}),
     removeFinding: vi.fn(async () => ({ ok: true as const })),
     editOpinion: vi.fn(async () => ({ ok: true as const })),
     removeOpinion: vi.fn(async () => ({ ok: true as const })),
@@ -188,6 +190,46 @@ describe('CharacterRecent', () => {
     expect(screen.getByText('sourceX')).toBeTruthy()
     expect(screen.getByText(`paused.missing_key|${grok.label}`)).toBeTruthy()
     expect(screen.getByText('changeModel')).toBeTruthy()
+  })
+
+  it('打开出门开关就马上出门一趟；出门中状态行写「正在出门」', async () => {
+    const hook = hookOf(
+      growthOf({
+        browse: {
+          enabled: false,
+          model: null,
+          pausedReason: null,
+          browsedAt: null,
+        },
+      }),
+    )
+    const { unmount } = render(
+      <CharacterRecent stickers={stickersOf()} growth={hook} reducedMotion />,
+    )
+    fireEvent.click(screen.getByRole('switch', { name: 'goOut' }))
+    await waitFor(() => expect(hook.goOutNow).toHaveBeenCalledTimes(1))
+    expect(hook.setBrowse).toHaveBeenCalledWith({ enabled: true })
+    unmount()
+    render(
+      <CharacterRecent
+        stickers={stickersOf()}
+        growth={{
+          ...hookOf(
+            growthOf({
+              browse: {
+                enabled: true,
+                model: claude.modelId,
+                pausedReason: null,
+                browsedAt: null,
+              },
+            }),
+          ),
+          goingOut: true,
+        }}
+        reducedMotion
+      />,
+    )
+    expect(screen.getByText('daily · goingOut')).toBeTruthy()
   })
 
   it('出门关着又没见闻：空态卡；型号行不出', () => {

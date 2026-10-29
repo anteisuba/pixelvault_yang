@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   forget: vi.fn(),
   routeModel: vi.fn(),
   resolveRoute: vi.fn(),
+  browse: vi.fn(),
 }))
 
 vi.mock('@/lib/db', () => ({
@@ -33,6 +34,9 @@ vi.mock('./character-revision.service', () => ({
 vi.mock('./character-findings.service', () => ({
   forgetFindings: mocks.forget,
 }))
+vi.mock('./character-browse.service', () => ({
+  browseCharacter: mocks.browse,
+}))
 vi.mock('@/services/assistant-persona.service', () => ({
   getAssistantRouteModelByUserId: mocks.routeModel,
 }))
@@ -44,6 +48,7 @@ import { NODE_STUDIO_ASSISTANT_ROUTE_MODELS } from '@/constants/node-studio'
 import {
   deleteCharacterFindingForClerkId,
   getCharacterGrowthForClerkId,
+  goOutNowForClerkId,
   revertCharacterRevisionForClerkId,
   updateCharacterBrowseForClerkId,
 } from './character-growth.service'
@@ -219,6 +224,36 @@ describe('updateCharacterBrowseForClerkId', () => {
       updateCharacterBrowseForClerkId('clerk', 'card-x', { enabled: false }),
     ).resolves.toBeNull()
     expect(mocks.update).not.toHaveBeenCalled()
+  })
+})
+
+describe('goOutNowForClerkId', () => {
+  it('开着就马上出门一趟，昨天刚出过也照去', async () => {
+    mocks.findFirst.mockResolvedValue({ id: 'card-1', browseEnabled: true })
+    mocks.browse.mockResolvedValue({ seen: 6, kept: 3 })
+
+    await expect(goOutNowForClerkId('clerk-1', 'card-1')).resolves.toEqual({
+      went: true,
+      kept: 3,
+    })
+    expect(mocks.browse).toHaveBeenCalledWith({
+      userId: 'user-1',
+      cardId: 'card-1',
+    })
+  })
+
+  it('开关关着：不去', async () => {
+    mocks.findFirst.mockResolvedValue({ id: 'card-1', browseEnabled: false })
+    await expect(goOutNowForClerkId('clerk-1', 'card-1')).resolves.toEqual({
+      went: false,
+      kept: 0,
+    })
+    expect(mocks.browse).not.toHaveBeenCalled()
+  })
+
+  it('不是你的卡回 null', async () => {
+    mocks.findFirst.mockResolvedValue(null)
+    await expect(goOutNowForClerkId('clerk-1', 'card-x')).resolves.toBeNull()
   })
 })
 

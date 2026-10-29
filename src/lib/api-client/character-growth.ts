@@ -2,6 +2,7 @@ import { API_ENDPOINTS } from '@/constants/config'
 import { getErrorPayload } from '@/lib/api-client/shared'
 import type {
   CharacterBrowseState,
+  CharacterGoOutResult,
   CharacterGrowth,
   UpdateCharacterBrowseRequest,
 } from '@/types/character-growth'
@@ -88,6 +89,25 @@ export async function updateCharacterBrowseAPI(
     return await parseJsonResult(response, 'Failed to save going out')
   } catch (error) {
     return toFailure(error, 'Failed to save going out')
+  }
+}
+
+/** 打开开关就出门一趟；要等她逛完才回（可能一两分钟）。 */
+export async function goOutNowAPI(
+  cardId: string,
+): Promise<ApiResult<CharacterGoOutResult>> {
+  try {
+    const response = await fetch(
+      `${API_ENDPOINTS.CHARACTER_CARDS}/${encodeURIComponent(cardId)}/browse/now`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      },
+    )
+    return await parseJsonResult(response, 'Failed to go out')
+  } catch (error) {
+    return toFailure(error, 'Failed to go out')
   }
 }
 

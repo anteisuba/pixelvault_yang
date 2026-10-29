@@ -18,9 +18,11 @@ import { ensureUser } from '@/services/user.service'
 import type {
   CharacterBrowseState,
   CharacterGrowth,
+  CharacterGoOutResult,
   UpdateCharacterBrowseRequest,
 } from '@/types/character-growth'
 
+import { browseCharacter } from './character-browse.service'
 import { forgetFindings } from './character-findings.service'
 import { revertCharacterRevision } from './character-revision.service'
 
@@ -221,6 +223,27 @@ export async function updateCharacterBrowseForClerkId(
     select: BROWSE_SELECT,
   })
   return browseState(updated)
+}
+
+/**
+ * 打开开关就出门（owner 2026-10-29：「这个开关就是现在出门的意思」）：拨开就去，⛔ 等第二天定时那一趟、
+ * ⛔ 看「最近有没有来往」、⛔ 看上次什么时候出过门。花费由 `browseCharacter` 里的每天见闻上限
+ * （`browseDailyLimit`）兜住：今天记满了就在调模型之前停。开关关着 → 不去（`went: false`）。
+ * 卡不是你的 / 已删 → `null`（404）。
+ */
+export async function goOutNowForClerkId(
+  clerkId: string,
+  cardId: string,
+): Promise<CharacterGoOutResult | null> {
+  const user = await ensureUser(clerkId)
+  const card = await db.characterCard.findFirst({
+    where: { id: cardId, userId: user.id, isDeleted: false },
+    select: { id: true, browseEnabled: true },
+  })
+  if (!card) return null
+  if (!card.browseEnabled) return { went: false, kept: 0 }
+  const result = await browseCharacter({ userId: user.id, cardId: card.id })
+  return { went: true, kept: result.kept }
 }
 
 /** 删一条见闻（连同聊天时「想起」用的索引）。不是你的 → `false`（404）。 */

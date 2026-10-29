@@ -37,6 +37,7 @@
 - **出不了门要说出来**：后台 `CharacterCard.browsePausedReason` 有值时，型号那一行下面一条 `danger-soft`：`no_model`「她出不了门：还没选出门用的型号」· `model_unavailable`「她出不了门：Claude Sonnet 5.5 下架了」· `missing_key`「她出不了门：Claude Sonnet 5.5 的 key 不见了」，右边「换一个型号」（打开同一个选择器）。下一次顺利出门后台就清空，这条跟着消失。
 - 某一站自己缺 key（如 Civitai 令牌）的那一站小签变淡写「Civitai · 缺 key」，点它就地弹 `QuickSetupDialog`（Hard Rule 8，⛔ 跳 `/settings/keys`）。
 - 默认关（域契约）；开关就是动作，出门关时河顶的空态卡 ⛔ 再放一颗按钮。
+- **打开就去**（owner 2026-10-29）：关→开时马上出门一趟（`POST /api/character-cards/[id]/browse/now`，⛔ 等第二天定时那趟、⛔ 看「最近有没有来往」），状态行这时写「正在出门逛…」，回来后整份重读、河里接上这一趟。开关本身就是「现在出门」（owner 同日），⛔ 按上次出门时间拦；花费靠每天见闻上限（`browseDailyLimit`）兜住。每天定时那一趟照旧。
 
 ### 2.3 时间河
 
@@ -127,6 +128,8 @@
 现有代码对应：详情宿主 `cards/CharacterRoster.tsx`；头 / 正文 / 设定 `cards/CharacterDetail.tsx`（`CharacterDetailHeader` · `CharacterDetailBody` · `CharacterSettingModule` · `SettingTavernGroups`）；造型 `cards/CharacterLookStrip.tsx`；「用她 ▾」`cards/UseCharacterMenu.tsx`；手机顶栏 `cards/CharacterPhoneBar.tsx`。组件 ⛔ 自造：开关 / 切换条 / 删除确认 / 空态 / 查看器 / 抽屉照 ui-spec §9。
 
 ## Last Verified
+
+- 2026-10-29 · 补「打开就去」：开关打开后立刻出门一趟（owner 同日要求）。
 
 - 2026-10-28 · 补「出门用哪个模型」（owner 同日定：开着必须有型号、默认填助手当时那颗、固定不跟、X 只在 Grok、看不了图写明、出不了门三种原因）；额度那一条等「三级漏斗」讨论，未改。
 

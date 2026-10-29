@@ -115,6 +115,7 @@
 - 标签台负向页签的数字：现在只数当前这一位，是否改回加总待 owner 答。
 - 助手反推画风（#427）、SDXL 系来源图底模（#409）线上端到端待 owner 实测。
 - owner 手动：删 Vercel / Worker 里的 `RUNPOD_KEY` 和 RunPod 端点、Volume。
+- 偶发测试报错：`HuggingFaceLoraLibrary.test.tsx` 结束后 Radix `react-focus-scope` 定时器在 jsdom 里 `dispatchEvent` 报错，让「Unit Tests」整片变红（10-29 #483 遇到一次），要修测试的清理。
 - NAI「Concurrent generation is locked」：5a 排队上线后线上是否归零，下次看日志时确认。
 
 ## 已完成

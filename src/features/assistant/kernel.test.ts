@@ -701,6 +701,28 @@ describe('新内核主循环', () => {
     expect(events.at(-1)).toMatchObject({ type: 'done' })
   })
 
+  it('Claude 说联网调用没有对应结果：拿掉厂商调用，同一接法重来一次', async () => {
+    const main = mockModel([
+      new APICallError({
+        message:
+          'messages.1: `code_execution` tool use with id `srvtoolu_01` was found without a corresponding `code_execution_tool_result` block',
+        url: 'https://api.anthropic.com/v1/messages',
+        requestBodyValues: {},
+        statusCode: 400,
+      }),
+      textTurn('好。'),
+    ])
+    models.main = main
+    const fallback = mockModel([textTurn('不该到这里。')])
+    models.fallback = fallback
+    const events = await collect(
+      runAssistantNext('clerk-1', imageRequest('你好')),
+    )
+    expect(main.doStreamCalls).toHaveLength(2)
+    expect(fallback.doStreamCalls).toHaveLength(0)
+    expect(events.at(-1)).toMatchObject({ type: 'done' })
+  })
+
   it('厂商 403 额度用完：认出原因、带余额文案，不说成一句「调用失败」', async () => {
     models.main = mockModel([
       new APICallError({

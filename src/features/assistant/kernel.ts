@@ -152,8 +152,10 @@ import {
   clearOldToolResults,
   historyMessages,
   hydratePictures,
+  isUnpairedToolError,
   lookedPicturesMessage,
   openingUserMessage,
+  pairProviderToolParts,
   stripForFallback,
 } from '@/features/assistant/messages'
 import { resolveNextModel, type NextModel } from '@/features/assistant/models'
@@ -1014,6 +1016,7 @@ async function* runNextTurn(
     })
   let emptyRetried = false
   let timeoutRetried = false
+  let unpairedRetried = false
   let succeededOnce = Boolean(saved)
   /** 这一跳里失败过的调用（工具名 + 原样参数）→ 失败说明与当时做成过几步。 */
   const failedCalls = new Map<string, { output: string; okCount: number }>()
@@ -1081,7 +1084,10 @@ async function* runNextTurn(
         system: model.system(system),
         messages: model.messages([
           ...history,
-          ...(await hydratePictures(messages, loadBytes)),
+          ...(await hydratePictures(
+            pairProviderToolParts(messages),
+            loadBytes,
+          )),
         ]),
         tools: {
           ...assistantNextTools(model.strictTools),
@@ -1244,6 +1250,17 @@ async function* runNextTurn(
         })
         continue
       }
+      // 厂商说某个联网调用没有对应结果：前面几步的厂商调用整对拿掉，同一接法重来一次。
+      if (!unpairedRetried && isUnpairedToolError(providerReasonOf(error))) {
+        unpairedRetried = true
+        logger.warn('assistant next dropped unpaired provider tool parts', {
+          userId: clerkId,
+          step,
+          modelId,
+        })
+        messages = pairProviderToolParts(messages, { drop: true })
+        continue
+      }
       // 新接法被厂商拒了（参数 / 工具不认）：整轮换成保守接法，从这一步重来。
       if (
         model.fallback &&
@@ -1269,6 +1286,7 @@ async function* runNextTurn(
     watch.dispose()
     succeededOnce = true
     timeoutRetried = false
+    unpairedRetried = false
 
     for (const search of searches.values())
       yield searchStepEvent(search, STATUS.done, sources)

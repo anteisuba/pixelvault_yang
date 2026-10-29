@@ -11,6 +11,7 @@ v3 的问题不在某一条规矩，而在外壳替模型做了太多事（审�
 - **各家自带联网直接挂主循环**（`models.ts`）：Claude `web_search_20260209` + `web_fetch`、OpenAI / Grok Responses `web_search`、Gemini `google_search` + `url_context`、DeepSeek 走 Anthropic 兼容入口的 `web_search`。搜不搜、搜几次模型自己定。
 - **思考跨步接上**：每一步把模型的完整回复（思考、签名、联网结果）原样接回去；OpenAI / Grok 带回加密思考（`store: false`）；DeepSeek 改走 Anthropic 兼容入口（OpenAI 兼容那条 SDK 不回传 `reasoning_content`）。
 - **思考档整轮用创作者选的那一档**，⛔ 不按步降档。
+- **厂商调用要成对**（10-29）：Claude 联网时自己跑的整理代码（`code_execution`）结果 SDK 有时接不住，只剩调用 → 下一步整轮 400。发之前 `pairProviderToolParts` 把落单的厂商调用 / 结果（连它发起的）拿掉；还被拒就整对拿掉、同一接法重来一次。
 - **看过的图一直留在眼前**，超过 16 张才把最早的换成一行字。
 - ⛔ 没有步数上限、⛔ 没有「同一错 N 次就停」：停只有创作者按停（owner 2026-10-22）。
 

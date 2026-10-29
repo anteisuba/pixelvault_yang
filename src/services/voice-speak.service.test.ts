@@ -80,13 +80,15 @@ describe('speakAsPersona（②c-2 对话里 🔊 念回复）', () => {
 })
 
 describe('配音台（③）', () => {
-  it('念台词带情绪：写成句首方括号语气进到念的字里', async () => {
+  it('台词里插的语气标记原样念（句中也行）', async () => {
     mocks.db.assistantPersona.findUnique.mockResolvedValue({
       characterCard: { voiceCardId: 'voice-card-1', isDeleted: false },
     })
-    await speakAsPersona('clerk-1', { text: '别回头', emotion: 'whisper' })
+    await speakAsPersona('clerk-1', {
+      text: '[whispering]别回头，[sighing]走吧',
+    })
     const prompt = mocks.submitAudioGeneration.mock.calls[0]![1].prompt
-    expect(prompt).toMatch(/^\[[^\]]+\]别回头$/)
+    expect(prompt).toBe('[whispering]别回头，[sighing]走吧')
   })
 
   it('台词 = 素材库里她这副嗓子念过的音频，旧的在前', async () => {

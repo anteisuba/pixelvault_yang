@@ -60,14 +60,13 @@ describe('useVoiceBench（配音台 ③）', () => {
     await waitFor(() => expect(result.current.data?.lines).toHaveLength(1))
 
     act(() => {
-      void result.current.speak('欢迎来到图书馆。', 'whisper')
+      void result.current.speak('[whispering]欢迎来到图书馆。')
     })
     await waitFor(() => expect(result.current.pending).toHaveLength(1))
     expect(result.current.pending[0]).toMatchObject({ status: 'pending' })
     expect(mocks.speakAssistantReplyAPI).toHaveBeenCalledWith({
-      text: '欢迎来到图书馆。',
+      text: '[whispering]欢迎来到图书馆。',
       modelId: 'fish-free',
-      emotion: 'whisper',
     })
 
     mocks.getVoiceBenchAPI.mockResolvedValue({

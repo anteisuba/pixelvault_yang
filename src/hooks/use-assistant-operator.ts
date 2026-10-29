@@ -47,6 +47,7 @@ import {
   ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE,
   ASSISTANT_PROVIDER_ERROR_MESSAGE_KEYS,
   ASSISTANT_AUTO_GENERATE_LIMITS,
+  ASSISTANT_AUTO_REVIEW_MARK,
   ASSISTANT_OPERATOR_LIMITS,
   ASSISTANT_OPERATOR_TOOL_VERBS,
   ASSISTANT_OPERATOR_REJECT_REASON_IDS,
@@ -1020,6 +1021,11 @@ export function useAssistantOperator(
     | { kind: 'result'; resultId: string }
     | null
   >(null)
+  /**
+   * 这一串里助手已经自己看图改了几轮（owner 2026-10-29「出完图自动迭代」）：到了
+   * `autoReviewRounds` 就照旧停下问；创作者一开口就从 0 重新数。
+   */
+  const autoReviewDoneRef = useRef(0)
 
   useEffect(
     () => () => {
@@ -2452,6 +2458,7 @@ export function useAssistantOperator(
       clearOperatorPrompts()
       // 用户自己开口了：这一枪的「出图后看一眼」作废（他要说的比这件事优先）。
       autoReviewRef.current = null
+      autoReviewDoneRef.current = 0
       appendOperatorEntry({
         kind: 'user',
         id: nextOperatorEntryId('user'),
@@ -2493,6 +2500,26 @@ export function useAssistantOperator(
       if (entry.items.length === 0 || entry.completed < entry.total) return
     }
     autoReviewRef.current = null
+    /**
+     * ⭐ 出完图自己看、再改（owner 2026-10-29）：「交给 AI 出图」开着、这一串还没用完
+     * `autoReviewRounds` 轮，就不问了，替你说一句「看看这批」—— 时间线上只留一行
+     * 「自己看图再改 · 第 1/1 轮」。她觉得都对上了就停下说一句、不再出图。
+     */
+    const { autoGenerate, autoReviewRounds } = getOperatorState()
+    if (autoGenerate && autoReviewDoneRef.current < autoReviewRounds) {
+      autoReviewDoneRef.current += 1
+      const round = `${autoReviewDoneRef.current}/${autoReviewRounds}`
+      appendOperatorEntry({
+        kind: 'system',
+        id: nextOperatorEntryId('sys'),
+        code: 'autoReview',
+        subject: round,
+        userText: `${ASSISTANT_AUTO_REVIEW_MARK} ${round}`,
+      })
+      void run()
+      return
+    }
+    autoReviewDoneRef.current = 0
     // 出完就停（第 5b 步）：问一句，卡钉在输入框上方；直接打字 = 用一句话回答。
     setOperatorQuestion({
       id: nextOperatorEntryId('question'),
@@ -2520,7 +2547,7 @@ export function useAssistantOperator(
       ],
       answers: [],
     })
-  }, [operatorState, canvasTargets, tContinueAsk])
+  }, [operatorState, canvasTargets, tContinueAsk, run])
 
   /**
    * 撤回一条还没轮到的排队消息（§3.1 ㉔）。

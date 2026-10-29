@@ -623,7 +623,8 @@
       "moveWorkAccepted": "{subject}",
       "moveWorkDeclined": "{subject}",
       "moveWorkDroppedReferences": "{subject} reference image(s) were left behind (over the limit or not uploaded yet).",
-      "autoGenerateHeld": "This card would make {subject} pictures, over the Let AI generate limit of 4 per message. It was not pressed for you; confirm it to run."
+      "autoGenerateHeld": "This card would make {subject} pictures, over the Let AI generate limit of 4 per message. It was not pressed for you; confirm it to run.",
+      "autoReview": "Reviewing the pictures and trying again · round {subject}"
     },
     "attach": {
       "latestResult": "Latest · {label}",
@@ -1056,7 +1057,10 @@
       }
     },
     "autoGenerate": {
-      "label": "Let AI generate"
+      "label": "Let AI generate",
+      "review": "Review ×{count}",
+      "reviewOff": "Stop after generating",
+      "reviewHint": "How many times she reviews the pictures and tries again on her own. Click to change"
     },
     "continueAsk": {
       "header": "Next",

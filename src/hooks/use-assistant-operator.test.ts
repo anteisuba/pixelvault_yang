@@ -2412,7 +2412,7 @@ describe('生成确认卡（v2 §3.3 / §5）', () => {
       expect(store.getOperatorState().confirm?.status).toBe('cancelled')
     })
 
-    it('⭐ 自动生成出图后停下问一句：卡上的图换了就钉出「继续吗」，⛔ 不自己发一轮', async () => {
+    it('⭐ 自己再改 0 轮：卡上的图换了就钉出「继续吗」，⛔ 不自己发一轮', async () => {
       canvasGenerationState.enabled = true
       canvasGenerationState.current = {
         id: 'shot-1',
@@ -2426,6 +2426,7 @@ describe('生成确认卡（v2 §3.3 / §5）', () => {
         name: '主角正面',
       }
       const { rerender } = await proposeOnCanvas(true)
+      act(() => store.setOperatorAutoReviewRounds(0))
       expect(canvasGenerate).toHaveBeenCalledWith('shot-1')
       // 图还没换：不问。
       rerender()
@@ -2441,6 +2442,7 @@ describe('生成确认卡（v2 §3.3 / §5）', () => {
       expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(1)
       canvasOutput.current = undefined
       canvasGenerationState.enabled = false
+      act(() => store.setOperatorAutoReviewRounds(1))
     })
 
     it('自动生成后用户先开口了：这一枪出完不再问', async () => {
@@ -4349,7 +4351,7 @@ describe('新内核：出完就停，问要不要继续', () => {
   function landResult() {
     const result = store
       .getOperatorState()
-      .entries.find((entry) => entry.kind === 'result')
+      .entries.findLast((entry) => entry.kind === 'result')
     if (!result || result.kind !== 'result') throw new Error('no result card')
     act(() =>
       store.updateOperatorResult(result.id, {
@@ -4362,6 +4364,7 @@ describe('新内核：出完就停，问要不要继续', () => {
   it.each([true, false])(
     '交给 AI 出图 = %s：图落地后挂一张「继续 / 换个方向」，⛔ 不自己发一轮去看',
     async (autoGenerate) => {
+      act(() => store.setOperatorAutoReviewRounds(0))
       const { result, rerender } = await generateOnNext(autoGenerate)
       if (!autoGenerate) act(() => result.current.confirmGeneration())
       expect(triggerGeneration).toHaveBeenCalledTimes(1)
@@ -4382,6 +4385,46 @@ describe('新内核：出完就停，问要不要继续', () => {
       })
     },
   )
+
+  it('交给 AI 出图开着、默认再改 1 轮：图落地后她自己看一轮再出，用完了才问', async () => {
+    act(() => store.setOperatorAutoReviewRounds(1))
+    const { rerender } = await generateOnNext(true)
+    landResult()
+    rerender()
+    await settle()
+
+    // 不问，替你说一句「看看这批」，时间线留一行。
+    expect(store.getOperatorState().question).toBeNull()
+    expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(2)
+    expect(
+      store
+        .getOperatorState()
+        .entries.some(
+          (entry) =>
+            entry.kind === 'system' &&
+            entry.code === 'autoReview' &&
+            entry.subject === '1/1',
+        ),
+    ).toBe(true)
+    expect(
+      JSON.stringify(streamAssistantOperatorAPI.mock.calls[1][0]),
+    ).toContain('[auto review] 1/1')
+
+    // 她改了再出一批；这批落地后轮数用完 → 照旧问。
+    streams[1].emit(generateConfirmEvent())
+    streams[1].emit({
+      type: ASSISTANT_OPERATOR_EVENTS.stopped,
+      reason: 'awaiting_confirm',
+    })
+    streams[1].close()
+    await settle()
+    expect(triggerGeneration).toHaveBeenCalledTimes(2)
+    landResult()
+    rerender()
+    await settle()
+    expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(2)
+    expect(store.getOperatorState().question?.questions).toHaveLength(1)
+  })
 
   it('用户先开口了：这一批不再问', async () => {
     const { result, rerender } = await generateOnNext(true)

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 
 import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
 import { ApiKeyError } from '@/lib/errors'
@@ -27,6 +27,15 @@ const mocks = vi.hoisted(() => ({
   danbooru: vi.fn(),
   civitai: vi.fn(),
   nativeSearch: vi.fn(),
+  fetchPicture: vi.fn<
+    (
+      url: string,
+      options?: object,
+    ) => Promise<{ buffer: Buffer; mimeType: string }>
+  >(async () => ({
+    buffer: Buffer.from('png'),
+    mimeType: 'image/png',
+  })),
 }))
 
 vi.mock('server-only', () => ({}))
@@ -60,6 +69,7 @@ vi.mock('@/services/web-research.service', () => ({
 vi.mock('@/services/storage/r2', () => ({
   uploadVerifiedHttpToR2: mocks.upload,
   deleteFromR2: mocks.deleteR2,
+  fetchAsBuffer: mocks.fetchPicture,
 }))
 vi.mock('@/services/kernel/assistant-route.service', () => ({
   resolveAssistantRoute: mocks.route,
@@ -243,6 +253,34 @@ describe('browseCharacter（她出门逛一次）', () => {
     const retry = mocks.complete.mock.calls[2]?.[0] as { imageData?: string[] }
     expect(retry.imageData).toBeUndefined()
     expect(result.kept).toBe(1)
+  })
+
+  it('取不到的那张图单独去掉，别的照样带图看；B 站封面带上 Referer', async () => {
+    const reachable = mocks.fetchPicture.getMockImplementation()
+    mocks.fetchPicture.mockImplementation(async (url: string) => {
+      if (url.endsWith('/3.jpg')) throw new Error('Failed to fetch image (403)')
+      return { buffer: Buffer.from('png'), mimeType: 'image/png' }
+    })
+    onTestFinished(() => {
+      mocks.fetchPicture.mockImplementation(reachable!)
+    })
+
+    await browseCharacter({ userId: 'u', cardId: 'card-1' })
+
+    const viewed = mocks.complete.mock.calls[1]?.[0] as {
+      buildUserPrompt: () => string
+      imageData: string[]
+    }
+    expect(viewed.imageData).toHaveLength(2)
+    expect(viewed.imageData[0]).toMatch(/^data:image\/png;base64,/)
+    expect(viewed.buildUserPrompt()).toMatch(/视频 2 \(picture attached\)/)
+    expect(viewed.buildUserPrompt()).not.toMatch(/视频 3 \(picture attached\)/)
+    expect(mocks.fetchPicture).toHaveBeenCalledWith(
+      'https://i0.hdslb.com/2.jpg',
+      expect.objectContaining({
+        headers: { Referer: expect.any(String) },
+      }),
+    )
   })
 
   it.each([

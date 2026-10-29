@@ -355,6 +355,20 @@ describe('工作区作用域', () => {
     expect(result.current.primed).toBe(true)
   })
 
+  it('出完图自己再改几轮：默认 1 轮，按工作台记在本机，0–3 之间', () => {
+    localStorage.clear()
+    act(() => store.claimOperatorThreadScope('user:image-natural', 'image'))
+    expect(store.getOperatorState().autoReviewRounds).toBe(1)
+    act(() => store.setOperatorAutoReviewRounds(0))
+    act(() => store.claimOperatorThreadScope(null, 'image'))
+    act(() => store.claimOperatorThreadScope('user:image-natural', 'image'))
+    expect(store.getOperatorState().autoReviewRounds).toBe(0)
+    act(() => store.setOperatorAutoReviewRounds(9))
+    expect(store.getOperatorState().autoReviewRounds).toBe(3)
+    act(() => store.claimOperatorThreadScope('user:lora', 'lora'))
+    expect(store.getOperatorState().autoReviewRounds).toBe(1)
+  })
+
   it('自动生成偏好跟着工作台走：新对话、换会话、刷新都保留，另一工作区和账号不继承', () => {
     localStorage.clear()
     act(() => store.claimOperatorThreadScope('user:image-natural', 'image'))

@@ -1575,6 +1575,18 @@ export const ASSISTANT_AUTO_GENERATE_LIMITS = {
   maxOutputsPerRound: 4,
 } as const
 
+/**
+ * **出完图自己看、再改几轮**（owner 2026-10-29：「默认一轮，不想太浪费 token，看到不对的我还能纠正」）。
+ * 只在「交给 AI 出图」开着时生效；0 = 出完就停、照旧问「按这个方向继续吗？」。
+ */
+export const ASSISTANT_AUTO_REVIEW_ROUNDS = {
+  default: 1,
+  max: 3,
+} as const
+
+/** 替创作者说的那句「看看这批」打头的记号；系统提示词认它（`features/assistant/prompt.ts`）。 */
+export const ASSISTANT_AUTO_REVIEW_MARK = '[auto review]'
+
 export type AssistantOperatorStopReason =
   (typeof ASSISTANT_OPERATOR_STOP_REASONS)[keyof typeof ASSISTANT_OPERATOR_STOP_REASONS]
 

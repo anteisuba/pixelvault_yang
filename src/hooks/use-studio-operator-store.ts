@@ -30,7 +30,10 @@ import {
 } from '@/constants/assistant-protocol'
 import type { AssistantPersonaPlanMode } from '@/constants/assistant-persona'
 import type { AssistantOperatorDomain } from '@/constants/assistant-operator'
-import { GENERATION_REVIEW_STATE_IDS } from '@/constants/assistant-operator'
+import {
+  ASSISTANT_AUTO_REVIEW_ROUNDS,
+  GENERATION_REVIEW_STATE_IDS,
+} from '@/constants/assistant-operator'
 import type { GenerationReviewState } from '@/constants/assistant-operator'
 import {
   STUDIO_OPERATOR_CONFIRM_STATUS_IDS,
@@ -177,6 +180,12 @@ export interface StudioOperatorState {
    * ⚠ 钱闸不变：扳机仍是客户端这一下，服务端没有任何工具能建 generation。
    */
   autoGenerate: boolean
+  /**
+   * **出完图自己看、再改几轮**（owner 2026-10-29）：「交给 AI 出图」开着时，一批落地后助手
+   * 自己看图、对着要求改一次再出，最多这么多轮；0 = 出完就停、照旧问。和 `autoGenerate`
+   * 一样按 `threadScope` 记在本机。
+   */
+  autoReviewRounds: number
   /** 用户、工作区和项目共同决定的作用域；null 时不得持久化。 */
   threadScope: string | null
   /**
@@ -350,6 +359,7 @@ const INITIAL_STATE: StudioOperatorState = {
   mentions: [],
   mentionInbox: [],
   autoGenerate: false,
+  autoReviewRounds: ASSISTANT_AUTO_REVIEW_ROUNDS.default,
   threadScope: null,
   selectedResultId: null,
   pendingResultId: null,
@@ -1149,6 +1159,27 @@ function writeAutoGenerate(scope: string | null, on: boolean): void {
   }
 }
 
+const AUTO_REVIEW_STORAGE_PREFIX = 'antei:assistant-auto-review:'
+
+function readAutoReviewRounds(scope: string | null): number {
+  if (!scope) return ASSISTANT_AUTO_REVIEW_ROUNDS.default
+  try {
+    const saved = Number(
+      globalThis.localStorage?.getItem(AUTO_REVIEW_STORAGE_PREFIX + scope),
+    )
+    return globalThis.localStorage?.getItem(
+      AUTO_REVIEW_STORAGE_PREFIX + scope,
+    ) !== null &&
+      Number.isInteger(saved) &&
+      saved >= 0 &&
+      saved <= ASSISTANT_AUTO_REVIEW_ROUNDS.max
+      ? saved
+      : ASSISTANT_AUTO_REVIEW_ROUNDS.default
+  } catch {
+    return ASSISTANT_AUTO_REVIEW_ROUNDS.default
+  }
+}
+
 export function claimOperatorThreadScope(
   scope: string | null,
   domain: AssistantOperatorDomain,
@@ -1162,6 +1193,7 @@ export function claimOperatorThreadScope(
     localThreadId: crypto.randomUUID(),
     planMode: scope ? state.planMode : INITIAL_STATE.planMode,
     autoGenerate: readAutoGenerate(scope),
+    autoReviewRounds: readAutoReviewRounds(scope),
   }
   pendingAttachment = null
   if (
@@ -1210,6 +1242,26 @@ export function setOperatorAutoGenerate(autoGenerate: boolean): void {
   if (state.autoGenerate === autoGenerate) return
   writeAutoGenerate(state.threadScope, autoGenerate)
   emit({ ...state, autoGenerate })
+}
+
+/** 出完图自己再改几轮 —— 跟着工作台走，见 `autoReviewRounds` 头注。 */
+export function setOperatorAutoReviewRounds(rounds: number): void {
+  const next = Math.max(
+    0,
+    Math.min(ASSISTANT_AUTO_REVIEW_ROUNDS.max, Math.round(rounds)),
+  )
+  if (state.autoReviewRounds === next) return
+  if (state.threadScope) {
+    try {
+      globalThis.localStorage?.setItem(
+        AUTO_REVIEW_STORAGE_PREFIX + state.threadScope,
+        String(next),
+      )
+    } catch {
+      // 存不下（隐私模式 / 配额）：只在这次打开期间有效。
+    }
+  }
+  emit({ ...state, autoReviewRounds: next })
 }
 
 /** 结果行卡的选中格（§4.2）。⚠ 再点一次同一格 = 取消选中，由调用方传 `null`。 */

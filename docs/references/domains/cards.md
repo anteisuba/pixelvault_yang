@@ -75,7 +75,7 @@ owner 逐项定的口径（对齐稿 https://claude.ai/artifact/FTTAHbuCwHmnMcPr
 
 ## 角色卡字段 v2（2026-09-17）
 
-目的：把角色卡从「一堆图 + 一段视觉描述」补齐成**命名实体**——图片、视频、语音、画布四条链都能引用同一张卡。方向依据见 `docs/design/roadmap-canvas/research/cards.md`（Kling 元素库 / Vidu `subjects[].voice_id` / Runway `{uri, tag}` / Gemini 分槽配额 / SillyTavern V2 / weavai）。
+目的：把角色卡从「一堆图 + 一段视觉描述」补齐成**命名实体**——图片、视频、语音、画布四条链都能引用同一张卡。方向依据见 `docs/design/research/cards.md`（Kling 元素库 / Vidu `subjects[].voice_id` / Runway `{uri, tag}` / Gemini 分槽配额 / SillyTavern V2 / weavai）。
 
 **本轮只落数据层**：字段全部可空、不回填、不加业务约束，写入路径是角色卡 create / update 的透传。编译期怎么用这些字段是下一片的事，在那一片之前它们没有读方。
 
@@ -105,7 +105,7 @@ owner 逐项定的口径（对齐稿 https://claude.ai/artifact/FTTAHbuCwHmnMcPr
 
 ## v3 方向（owner 2026-09-19 拍板，随 D6 卡片设计落地）
 
-来源：`docs/design/roadmap-canvas/research/sillytavern-cards.md` §9–§12（逐条取舍 · v3 字段草案 · owner 拍板 · 语气/情感/关系的实现机制）。这一节只记**已拍板的方向**，字段级落点以那份调研的 §10 表为准，实现时代码赢。
+来源：`docs/design/research/sillytavern-cards.md` §9–§12（逐条取舍 · v3 字段草案 · owner 拍板 · 语气/情感/关系的实现机制）。这一节只记**已拍板的方向**，字段级落点以那份调研的 §10 表为准，实现时代码赢。
 
 - **`description` 现在就拆**：`description` 收窄成**只写视觉**（外观 / 体态 / 服饰基调）并进编译器；新增 `summary` 给人看，**⛔ 不进 prompt**。迁移随 D6 一起做：现有文字默认归视觉，简介留空待补。拆的理由是语义混淆只会越来越贵，不是美观。
 - **`loreEntries` 做最小版**：纯文本 `keys[]` + `slot`（positive 前缀 / 后缀 / negative / 参考图选择）+ `order` + `enabled`。⛔ 不做正则、递归、概率、装饰器。先进 `extensions` 观察，出现第二个消费方再提成正式表。价值是**用 prompt 预算换表达力**；裁剪按 block 砍而不按句子砍，且必须是确定性的。
@@ -218,9 +218,9 @@ owner 逐项定的口径（对齐稿 https://claude.ai/artifact/FTTAHbuCwHmnMcPr
 
 ## Source of Truth
 
-调研与 v3 方向：`docs/design/roadmap-canvas/research/sillytavern-cards.md`（§9 逐条取舍 · §10 字段草案 · §11 owner 拍板 · §12 语气/情感/关系的实现机制，2026-09-19）。
+调研与 v3 方向：`docs/design/research/sillytavern-cards.md`（§9 逐条取舍 · §10 字段草案 · §11 owner 拍板 · §12 语气/情感/关系的实现机制，2026-09-19）。
 
-`prisma/schema.prisma`（`CharacterCard` / `VoiceCard`）· `src/types/index.ts`（Character Card 段）· `src/constants/cards/character-card.ts` · `src/constants/node-studio.ts` · 调研证据 `docs/design/roadmap-canvas/research/cards.md`。
+`prisma/schema.prisma`（`CharacterCard` / `VoiceCard`）· `src/types/index.ts`（Character Card 段）· `src/constants/cards/character-card.ts` · `src/constants/node-studio.ts` · 调研证据 `docs/design/research/cards.md`。
 
 ## Last Verified
 

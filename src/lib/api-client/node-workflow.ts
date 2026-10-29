@@ -9,6 +9,7 @@ import type {
 } from '@/types/node-workflow'
 
 import { getErrorMessage } from '@/lib/api-client/shared'
+import { apiFetch } from '@/lib/api-client/api-fetch'
 
 export interface NodeWorkflowApiResponse<TData> {
   success: boolean
@@ -40,7 +41,7 @@ export async function listNodeWorkflowProjectsAPI(): Promise<
   NodeWorkflowApiResponse<NodeWorkflowProjectRecord[]>
 > {
   try {
-    const response = await fetch(API_ENDPOINTS.NODE_WORKFLOW_PROJECTS)
+    const response = await apiFetch(API_ENDPOINTS.NODE_WORKFLOW_PROJECTS)
     if (!response.ok) {
       return {
         success: false,
@@ -62,7 +63,7 @@ export async function listRecentNodeWorkflowProjectsAPI(): Promise<
   NodeWorkflowApiResponse<NodeWorkflowProjectSummary[]>
 > {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_ENDPOINTS.NODE_WORKFLOW_PROJECTS}?view=recent`,
     )
     if (!response.ok) {
@@ -85,7 +86,7 @@ export async function createNodeWorkflowProjectAPI(
   data: CreateNodeWorkflowProjectRequest,
 ): Promise<NodeWorkflowApiResponse<NodeWorkflowProjectRecord>> {
   try {
-    const response = await fetch(API_ENDPOINTS.NODE_WORKFLOW_PROJECTS, {
+    const response = await apiFetch(API_ENDPOINTS.NODE_WORKFLOW_PROJECTS, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -111,7 +112,7 @@ export async function updateNodeWorkflowProjectAPI(
   data: UpdateNodeWorkflowProjectRequest,
 ): Promise<NodeWorkflowApiResponse<NodeWorkflowProjectRecord>> {
   try {
-    const response = await fetch(endpointWithId(id), {
+    const response = await apiFetch(endpointWithId(id), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -137,7 +138,7 @@ export async function getNodeWorkflowProjectAPI(
   id: string,
 ): Promise<NodeWorkflowApiResponse<NodeWorkflowProjectRecord>> {
   try {
-    const response = await fetch(endpointWithId(id), { cache: 'no-store' })
+    const response = await apiFetch(endpointWithId(id), { cache: 'no-store' })
     if (!response.ok) {
       return {
         success: false,
@@ -162,7 +163,7 @@ export async function getNodeWorkflowProjectVersionAPI(
   id: string,
 ): Promise<NodeWorkflowApiResponse<ProjectFollowStatus>> {
   try {
-    const response = await fetch(`${endpointWithId(id)}/version`, {
+    const response = await apiFetch(`${endpointWithId(id)}/version`, {
       cache: 'no-store',
     })
     if (!response.ok) {
@@ -185,7 +186,7 @@ export async function deleteNodeWorkflowProjectAPI(
   id: string,
 ): Promise<NodeWorkflowApiResponse<null>> {
   try {
-    const response = await fetch(endpointWithId(id), { method: 'DELETE' })
+    const response = await apiFetch(endpointWithId(id), { method: 'DELETE' })
     if (!response.ok) {
       return {
         success: false,
@@ -206,7 +207,7 @@ export async function activateNodeWorkflowProjectAPI(
   id: string,
 ): Promise<NodeWorkflowApiResponse<null>> {
   try {
-    const response = await fetch(`${endpointWithId(id)}/activate`, {
+    const response = await apiFetch(`${endpointWithId(id)}/activate`, {
       method: 'POST',
     })
     if (!response.ok) {
@@ -253,10 +254,13 @@ export async function uploadReferenceVideoAPI(
       formData.append('thumbnail', thumbnailBlob, 'thumbnail.webp')
     }
 
-    const response = await fetch('/api/node-workflow/upload-reference-video', {
-      method: 'POST',
-      body: formData,
-    })
+    const response = await apiFetch(
+      '/api/node-workflow/upload-reference-video',
+      {
+        method: 'POST',
+        body: formData,
+      },
+    )
     if (!response.ok) {
       const payload = (await response.json().catch(() => ({}))) as {
         error?: string
@@ -283,7 +287,7 @@ export async function backupNodeWorkflowV3StateAPI(
   reason?: string,
 ): Promise<NodeWorkflowApiResponse<NodeWorkflowV3BackupResult>> {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_ENDPOINTS.STUDIO_NODE_WORKFLOW}/${encodeURIComponent(projectId)}/backup`,
       {
         method: 'POST',

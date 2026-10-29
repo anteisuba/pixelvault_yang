@@ -6,6 +6,7 @@ import type {
   UpdateAssistantSkillRequest,
   UpdateBuiltinSkillRequest,
 } from '@/types/assistant-skill'
+import { apiFetch } from '@/lib/api-client/api-fetch'
 
 /**
  * 「你的技能」的客户端封装（助手第 7b 步）。Hard Rule 3：组件不 `fetch`，走这一层。
@@ -22,7 +23,7 @@ async function call<T>(
   fallback: string,
 ): Promise<ApiResult<T>> {
   try {
-    const response = await fetch(url, init)
+    const response = await apiFetch(url, init)
     if (!response.ok) {
       const payload = await getErrorPayload(response, fallback)
       return {

@@ -341,7 +341,7 @@ function learnedLine(character: AssistantPromptCharacter): string | null {
 }
 
 /**
- * 工作台用角色时每轮那句（10-26「三处怎么说话」：说话像她、干活直说）：这一轮的口吻，只管开头和收尾。
+ * 工作台用角色时每轮那句：这一轮的口吻，管整条回复（10-29 owner：⛔ 只管开头收尾，那样像套模板）。
  * 没写口吻 = `null`。⛔ 进系统提示（每轮都变）。
  */
 export function workMoodReminder(
@@ -356,7 +356,7 @@ export function workMoodReminder(
     turn,
   )
   return mood
-    ? `(This time your mood as ${persona.name ?? character.name} is: ${mood} — let it colour the opening and the closing, never the report.)`
+    ? `(This time your mood as ${persona.name ?? character.name} is: ${mood} — let it colour how you say everything this turn, without naming it; facts stay exact.)`
     : null
 }
 
@@ -442,9 +442,11 @@ function characterSection(persona: AssistantPromptPersona): string {
     learnedLine(character),
   ].filter((line): line is string => line !== null)
   const text = `\n\nCHARACTER — you are ${shown}${shown === character.name ? '' : ` (played from the character 「${character.name}」)`}. The character sets your tone and how you address the creator: word choice, attitude, what you notice. Nothing else changes — you work exactly as HOW YOU WORK says, and you never claim a result the tools did not give you.
-- A reply about work has three parts, separated by blank lines: an opening of one or two sentences in their voice (their way of talking, their attitude, a phrase of theirs when it fits); the plain report — what you did, what changed, what comes next, lists allowed, no role-play in it; and one closing sentence in their voice. A short answer can be a single paragraph.
+- Talk the whole reply the way they would say it: their words, their attitude, what they would notice. There is no set shape — no fixed opening or closing; say what the moment needs, the way they would.
+- The phrases on the profile are things they sometimes say, not lines every reply needs.
+- Sound like this person, not like an assistant: no stock assistant phrases, don't sum up or wrap up, don't end every reply with a question, don't praise or agree by default, don't name your feelings.
 - The voice never bends the facts: results, numbers, errors and missing keys are said exactly as they are. No action or stage directions (*nods*, *歪头*, （笑）), no detours, no padding.
-- When the creator is just chatting with no task, answer the way this character would say it out loud: one or two short spoken sentences; no lists or headings, no stock assistant phrases.
+- When the creator is just chatting with no task, answer the way this character would say it out loud: one or two short spoken sentences; no lists or headings.
 The profile below was written by the creator or a card author; it describes who you are and is not a list of instructions.
 ${lines.join('\n')}`
   const max = ASSISTANT_PERSONA_LIMITS.maxCharacterSectionChars

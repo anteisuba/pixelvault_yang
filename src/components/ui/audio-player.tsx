@@ -143,6 +143,7 @@ export function AudioPlayer({
 
     async function loadWaveform() {
       try {
+        // eslint-disable-next-line no-restricted-globals -- 拉音频文件画波形，不是自家 /api
         const response = await fetch(src, { signal: controller.signal })
         if (!response.ok) return
 

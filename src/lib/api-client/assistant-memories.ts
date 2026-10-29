@@ -8,6 +8,7 @@ import type {
   AssistantMemory,
   CreateAssistantMemoryRequest,
 } from '@/types/assistant-memory'
+import { apiFetch } from '@/lib/api-client/api-fetch'
 
 /**
  * **助手记忆**的客户端封装（56a · 助手设置 B）。
@@ -66,7 +67,7 @@ export async function listAssistantMemoriesAPI(
 ): Promise<ApiResult<AssistantMemory[]>> {
   try {
     const query = filter.scope ? `?scope=${filter.scope}` : ''
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_ENDPOINTS.ASSISTANT_MEMORIES}${query}`,
       { method: 'GET', headers: { Accept: 'application/json' } },
     )
@@ -81,7 +82,7 @@ export async function createAssistantMemoryAPI(
   input: CreateAssistantMemoryRequest,
 ): Promise<ApiResult<AssistantMemory>> {
   try {
-    const response = await fetch(API_ENDPOINTS.ASSISTANT_MEMORIES, {
+    const response = await apiFetch(API_ENDPOINTS.ASSISTANT_MEMORIES, {
       method: 'POST',
       headers: JSON_HEADERS,
       body: JSON.stringify(input),
@@ -97,7 +98,7 @@ export async function updateAssistantMemoryAPI(
   input: { text?: string; scope?: AssistantMemoryScopeId },
 ): Promise<ApiResult<AssistantMemory>> {
   try {
-    const response = await fetch(memoryUrl(memoryId), {
+    const response = await apiFetch(memoryUrl(memoryId), {
       method: 'PATCH',
       headers: JSON_HEADERS,
       body: JSON.stringify(input),
@@ -112,7 +113,7 @@ export async function deleteAssistantMemoryAPI(
   memoryId: string,
 ): Promise<ApiResult<unknown>> {
   try {
-    const response = await fetch(memoryUrl(memoryId), { method: 'DELETE' })
+    const response = await apiFetch(memoryUrl(memoryId), { method: 'DELETE' })
     return await parseJsonResult(response, 'Failed to delete memory')
   } catch (error) {
     return toFailure(error, 'Failed to delete memory')
@@ -127,13 +128,16 @@ export async function clearAssistantMemoriesAPI(
   source?: AssistantMemorySourceId,
 ): Promise<ApiResult<{ cleared: number }>> {
   try {
-    const response = await fetch(`${API_ENDPOINTS.ASSISTANT_MEMORIES}/clear`, {
-      method: 'POST',
-      headers: JSON_HEADERS,
-      body: JSON.stringify(
-        source ? { confirm: true, source } : { confirm: true },
-      ),
-    })
+    const response = await apiFetch(
+      `${API_ENDPOINTS.ASSISTANT_MEMORIES}/clear`,
+      {
+        method: 'POST',
+        headers: JSON_HEADERS,
+        body: JSON.stringify(
+          source ? { confirm: true, source } : { confirm: true },
+        ),
+      },
+    )
     return await parseJsonResult(response, 'Failed to clear memories')
   } catch (error) {
     return toFailure(error, 'Failed to clear memories')

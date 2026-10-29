@@ -124,22 +124,23 @@
 
 ### 插队修 bug
 
-| id                             | 事项                                                    | 完成  | PR             |
-| ------------------------------ | ------------------------------------------------------- | ----- | -------------- |
-| `bug-lora-refresh`             | LoRA 库经常刷新不出来（冷查询数总数慢）                 | 10-22 | #318           |
-| `bug-asset-picker-scroll`      | 助手里打开素材库滑不下去                                | 10-22 | #320           |
-| `bug-tag-seed`                 | 助手在标签台锁不了种子                                  | 10-22 | #321           |
-| `bug-style-tab`                | 画风页搜不到 blender\_(medium)（分「画师 + 画法」两段） | 10-22 | #323           |
-| `bug-generate-oom`             | 出图接口内存爆掉 / 60 秒超时（LoRA 边下边传）           | 10-22 | #324           |
-| `bug-runner-worker-400`        | Runner 出图全部被 Worker 拒收                           | 10-23 | #348           |
-| `bug-nai-small-fixes`          | NAI 请求体对齐网页端 + 助手 NAI 写法                    | 10-23 | #358 #359      |
-| `f-runner-source-checkpoint`   | SDXL 系底模跟随示例图 + RIN Flanime v5.0                | 10-25 | #409           |
-| `bug-assistant-stage-results`  | 助手看不到台上的结果图                                  | 10-25 | #421           |
-| `bug-assistant-library-access` | 助手读不到各个库（统一查库）                            | 10-25 | #422 #426      |
-| `bug-library-speed`            | 库页切换卡 + LoRA 加载失败（缓存 + TanStack Query）     | 10-27 | #461 #463      |
-| `bug-lora-name-search`         | LoRA 搜索优化（写法规整、结果分段、纠错）               | 10-27 | #318 #472 #474 |
-| `bug-build-fonts`              | 构建挂在拉 Google 字体 → 本地字体                       | 10-27 | #475           |
-| `bug-nai-concurrency`          | NAI 同时发多张被拒 → 按账号排队                         | 10-23 | #351           |
+| id                             | 事项                                                                                             | 完成  | PR             |
+| ------------------------------ | ------------------------------------------------------------------------------------------------ | ----- | -------------- |
+| `bug-lora-refresh`             | LoRA 库经常刷新不出来（冷查询数总数慢）                                                          | 10-22 | #318           |
+| `bug-asset-picker-scroll`      | 助手里打开素材库滑不下去                                                                         | 10-22 | #320           |
+| `bug-tag-seed`                 | 助手在标签台锁不了种子                                                                           | 10-22 | #321           |
+| `bug-style-tab`                | 画风页搜不到 blender\_(medium)（分「画师 + 画法」两段）                                          | 10-22 | #323           |
+| `bug-generate-oom`             | 出图接口内存爆掉 / 60 秒超时（LoRA 边下边传）                                                    | 10-22 | #324           |
+| `bug-runner-worker-400`        | Runner 出图全部被 Worker 拒收                                                                    | 10-23 | #348           |
+| `bug-nai-small-fixes`          | NAI 请求体对齐网页端 + 助手 NAI 写法                                                             | 10-23 | #358 #359      |
+| `f-runner-source-checkpoint`   | SDXL 系底模跟随示例图 + RIN Flanime v5.0                                                         | 10-25 | #409           |
+| `bug-assistant-stage-results`  | 助手看不到台上的结果图                                                                           | 10-25 | #421           |
+| `bug-assistant-library-access` | 助手读不到各个库（统一查库）                                                                     | 10-25 | #422 #426      |
+| `bug-library-speed`            | 库页切换卡 + LoRA 加载失败（缓存 + TanStack Query）                                              | 10-27 | #461 #463      |
+| `bug-lora-name-search`         | LoRA 搜索优化（写法规整、结果分段、纠错）                                                        | 10-27 | #318 #472 #474 |
+| `bug-build-fonts`              | 构建挂在拉 Google 字体 → 本地字体                                                                | 10-27 | #475           |
+| `bug-nai-concurrency`          | NAI 同时发多张被拒 → 按账号排队                                                                  | 10-23 | #351           |
+| `bug-session-expired-404`      | 出图报「Failed with status 404」= 会话过期被门口拦（401 + apiFetch 续会话重发，api-client 全迁） | 10-29 | #486           |
 
 ### 第 1 批 清场
 
@@ -202,6 +203,7 @@
 | `p-library-assistant-link`  | 库与助手互通、LoRA 台存模板                              | 10-28 | 直推 main                          |
 | `p-assistant-bench-ux`      | 助手工作台体验：联网 400、出完图自动看图再改（评测延后） | 10-29 | #479 #480                          |
 | `p-voice-tone-menu`         | 配音台「语气」菜单（68 个 Fish 标记，插到光标处）        | 10-29 | #473                               |
+| `p-workbench-persona-voice` | 工作台带角色：去掉固定三段式，只要求口吻像她             | 10-29 | #485                               |
 
 ### 调研
 

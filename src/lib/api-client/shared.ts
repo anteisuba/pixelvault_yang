@@ -3,6 +3,7 @@ import {
   AssistantOperatorMissingKeySchema,
   type AssistantOperatorMissingKey,
 } from '@/types/assistant-operator'
+import { apiFetch } from '@/lib/api-client/api-fetch'
 
 interface ApiErrorPayload {
   error?: string
@@ -90,7 +91,7 @@ export async function downloadRemoteAsset(
   i18nKey?: string
 }> {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_ENDPOINTS.DOWNLOAD}?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(fileName)}`,
     )
 

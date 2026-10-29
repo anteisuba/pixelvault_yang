@@ -24,6 +24,7 @@ import {
   type AssistantOperatorEvent,
   type AssistantOperatorRequest,
 } from '@/types/assistant-operator'
+import { apiFetch } from '@/lib/api-client/api-fetch'
 
 export type AssistantOperatorStreamApiResponse =
   | { success: true; events: AsyncIterable<AssistantOperatorEvent> }
@@ -134,7 +135,7 @@ export async function streamAssistantOperatorAPI(
   options: { signal?: AbortSignal } = {},
 ): Promise<AssistantOperatorStreamApiResponse> {
   try {
-    const response = await fetch(API_ENDPOINTS.STUDIO_ASSISTANT_OPERATOR, {
+    const response = await apiFetch(API_ENDPOINTS.STUDIO_ASSISTANT_OPERATOR, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(request),
@@ -192,11 +193,14 @@ export async function revertAssistantAssetWriteAPI(
   input: AssistantAssetWriteRevert,
 ): Promise<AssistantAssetWriteRevertResult | null> {
   try {
-    const response = await fetch(API_ENDPOINTS.ASSISTANT_ASSET_WRITE_REVERT, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(input),
-    })
+    const response = await apiFetch(
+      API_ENDPOINTS.ASSISTANT_ASSET_WRITE_REVERT,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(input),
+      },
+    )
     if (!response.ok) return null
     const body = (await response.json()) as {
       success?: boolean

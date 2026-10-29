@@ -8,6 +8,7 @@ import type {
 import { API_ENDPOINTS, CLIENT_API, PAGINATION } from '@/constants/config'
 
 import { getErrorMessage, getErrorPayload } from '@/lib/api-client/shared'
+import { apiFetch } from '@/lib/api-client/api-fetch'
 
 export async function fetchGalleryImages(
   page: number = PAGINATION.DEFAULT_PAGE,
@@ -59,7 +60,9 @@ export async function fetchGalleryImages(
     if (filters?.view === 'prompts') params.set('view', 'prompts')
     if (filters?.samePromptAs) params.set('samePromptAs', filters.samePromptAs)
 
-    const response = await fetch(`${API_ENDPOINTS.IMAGES}?${params.toString()}`)
+    const response = await apiFetch(
+      `${API_ENDPOINTS.IMAGES}?${params.toString()}`,
+    )
     if (!response.ok) {
       const payload = await getErrorPayload(
         response,
@@ -94,7 +97,7 @@ export async function fetchGenerationByIdAPI(
   { success: true; data: GenerationRecord } | { success: false; error: string }
 > {
   try {
-    const response = await fetch(`${API_ENDPOINTS.GENERATIONS}/${id}`)
+    const response = await apiFetch(`${API_ENDPOINTS.GENERATIONS}/${id}`)
     if (!response.ok) {
       return {
         success: false,
@@ -118,7 +121,7 @@ export async function deleteGenerationAPI(
   id: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const response = await fetch(`${API_ENDPOINTS.GENERATIONS}/${id}`, {
+    const response = await apiFetch(`${API_ENDPOINTS.GENERATIONS}/${id}`, {
       method: 'DELETE',
       signal: AbortSignal.timeout(CLIENT_API.ACTION_TIMEOUT_MS),
     })
@@ -148,7 +151,7 @@ export async function batchDeleteGenerationsAPI(ids: string[]): Promise<{
   error?: string
 }> {
   try {
-    const response = await fetch(`${API_ENDPOINTS.GENERATIONS}/batch`, {
+    const response = await apiFetch(`${API_ENDPOINTS.GENERATIONS}/batch`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'delete', ids }),
@@ -189,7 +192,7 @@ export async function fetchAssetSectionCounts(
     const url = type?.length
       ? `${API_ENDPOINTS.ASSET_SECTION_COUNTS}?type=${type.join(',')}`
       : API_ENDPOINTS.ASSET_SECTION_COUNTS
-    const response = await fetch(url, {
+    const response = await apiFetch(url, {
       cache: 'no-store',
     })
     if (!response.ok) {
@@ -222,7 +225,7 @@ export async function batchUpdateVisibilityAPI(
   error?: string
 }> {
   try {
-    const response = await fetch(`${API_ENDPOINTS.GENERATIONS}/batch`, {
+    const response = await apiFetch(`${API_ENDPOINTS.GENERATIONS}/batch`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'visibility', ids, field, value }),
@@ -256,7 +259,7 @@ export async function batchSetLikeAPI(
   error?: string
 }> {
   try {
-    const response = await fetch(`${API_ENDPOINTS.GENERATIONS}/batch`, {
+    const response = await apiFetch(`${API_ENDPOINTS.GENERATIONS}/batch`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'like', ids, value }),

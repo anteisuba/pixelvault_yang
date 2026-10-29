@@ -5,6 +5,7 @@ import type {
 } from '@/types'
 
 import { getErrorMessage } from '@/lib/api-client/shared'
+import { apiFetch } from '@/lib/api-client/api-fetch'
 
 interface ListResponse {
   success: boolean
@@ -33,7 +34,9 @@ export async function listExtractedElementsAPI(params?: {
     if (params?.limit) query.set('limit', String(params.limit))
     if (params?.cursor) query.set('cursor', params.cursor)
     const suffix = query.toString() ? `?${query.toString()}` : ''
-    const response = await fetch(`${API_ENDPOINTS.EXTRACTED_ELEMENTS}${suffix}`)
+    const response = await apiFetch(
+      `${API_ENDPOINTS.EXTRACTED_ELEMENTS}${suffix}`,
+    )
     if (!response.ok) {
       return {
         success: false,
@@ -56,7 +59,7 @@ export async function createExtractedElementAPI(
   input: ExtractedElementCreateRequest,
 ): Promise<SingleResponse> {
   try {
-    const response = await fetch(API_ENDPOINTS.EXTRACTED_ELEMENTS, {
+    const response = await apiFetch(API_ENDPOINTS.EXTRACTED_ELEMENTS, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(input),
@@ -83,7 +86,7 @@ export async function deleteExtractedElementAPI(
   id: string,
 ): Promise<DeleteResponse> {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_ENDPOINTS.EXTRACTED_ELEMENTS}/${encodeURIComponent(id)}`,
       { method: 'DELETE' },
     )

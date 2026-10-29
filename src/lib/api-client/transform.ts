@@ -2,6 +2,7 @@ import { API_ENDPOINTS } from '@/constants/config'
 import type { TransformInput, TransformOutput } from '@/types/transform'
 
 import { getErrorPayload } from './shared'
+import { apiFetch } from '@/lib/api-client/api-fetch'
 
 export interface TransformResponse {
   success: boolean
@@ -15,7 +16,7 @@ export async function transformImageAPI(
   params: TransformInput,
 ): Promise<TransformResponse> {
   try {
-    const response = await fetch(API_ENDPOINTS.IMAGE_TRANSFORM, {
+    const response = await apiFetch(API_ENDPOINTS.IMAGE_TRANSFORM, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),

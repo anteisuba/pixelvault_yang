@@ -1506,7 +1506,7 @@ describe('workMoodReminder（10-26 工作台：说话像她、干活直说）', 
       },
     } as never
     expect(workMoodReminder(persona, 3)).toBe(
-      '(This time your mood as Denia is: 慵懒 — let it colour the opening and the closing, never the report.)',
+      '(This time your mood as Denia is: 慵懒 — let it colour how you say everything this turn, without naming it; facts stay exact.)',
     )
     expect(
       workMoodReminder(

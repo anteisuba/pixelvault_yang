@@ -6,6 +6,7 @@ import type {
 } from '@/types/mcp'
 
 import { getErrorMessage } from '@/lib/api-client/shared'
+import { apiFetch } from '@/lib/api-client/api-fetch'
 
 /**
  * 外部 Claude 连接令牌的客户端出口（`docs/references/mcp.md` §3.1）。
@@ -45,7 +46,7 @@ export async function listMcpTokensAPI(): Promise<
   McpApiResponse<McpTokenRecord[]>
 > {
   try {
-    return await readJson(await fetch(API_ENDPOINTS.MCP_TOKENS))
+    return await readJson(await apiFetch(API_ENDPOINTS.MCP_TOKENS))
   } catch (error) {
     return { success: false, error: unexpected(error) }
   }
@@ -57,7 +58,7 @@ export async function createMcpTokenAPI(
 ): Promise<McpApiResponse<CreatedMcpToken>> {
   try {
     return await readJson(
-      await fetch(API_ENDPOINTS.MCP_TOKENS, {
+      await apiFetch(API_ENDPOINTS.MCP_TOKENS, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -73,7 +74,7 @@ export async function revokeMcpTokenAPI(
 ): Promise<McpApiResponse<null>> {
   try {
     return await readJson(
-      await fetch(
+      await apiFetch(
         `${API_ENDPOINTS.MCP_TOKENS}/${encodeURIComponent(tokenId)}`,
         { method: 'DELETE' },
       ),

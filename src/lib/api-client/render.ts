@@ -7,6 +7,7 @@ import {
 } from '@/constants/render-video'
 
 import { getErrorMessage } from '@/lib/api-client/shared'
+import { apiFetch } from '@/lib/api-client/api-fetch'
 
 /**
  * 剪辑台渲染层的客户端出口（S9）。
@@ -65,7 +66,7 @@ export async function submitRenderAPI(body: {
   readonly locale?: string
 }): Promise<RenderApiResponse<RenderJobResponse>> {
   try {
-    const response = await fetch(RENDER_API_ENDPOINTS.SUBMIT, {
+    const response = await apiFetch(RENDER_API_ENDPOINTS.SUBMIT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -81,7 +82,7 @@ export async function getRenderJobAPI(
 ): Promise<RenderApiResponse<RenderJobResponse>> {
   try {
     return await readJson<RenderJobResponse>(
-      await fetch(renderJobEndpoint(jobId)),
+      await apiFetch(renderJobEndpoint(jobId)),
     )
   } catch (error) {
     return { success: false, error: unexpected(error) }
@@ -93,7 +94,7 @@ export async function cancelRenderJobAPI(
 ): Promise<RenderApiResponse<RenderJobResponse>> {
   try {
     return await readJson<RenderJobResponse>(
-      await fetch(renderCancelEndpoint(jobId), { method: 'POST' }),
+      await apiFetch(renderCancelEndpoint(jobId), { method: 'POST' }),
     )
   } catch (error) {
     return { success: false, error: unexpected(error) }

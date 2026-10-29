@@ -4,6 +4,7 @@ import type {
   AssistantMentionLibraryItem,
   AssistantMentionLibraryResult,
 } from '@/types/assistant-mention'
+import { apiFetch } from '@/lib/api-client/api-fetch'
 
 type Result<T> = { success: true; data: T } | { success: false; error: string }
 
@@ -17,7 +18,7 @@ export async function searchAssistantMentionLibraryAPI(
     if (input.q) params.set('q', input.q)
     if (input.folderId) params.set('folderId', input.folderId)
     if (input.limit) params.set('limit', String(input.limit))
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_ENDPOINTS.ASSISTANT_MENTIONS}?${params.toString()}`,
       { signal },
     )
@@ -46,7 +47,7 @@ export async function lookupAssistantMentionAssetsAPI(
   seqs: readonly number[] = [],
 ): Promise<Result<AssistantMentionLibraryItem[]>> {
   try {
-    const response = await fetch(API_ENDPOINTS.ASSISTANT_MENTIONS_LOOKUP, {
+    const response = await apiFetch(API_ENDPOINTS.ASSISTANT_MENTIONS_LOOKUP, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

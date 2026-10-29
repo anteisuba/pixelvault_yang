@@ -7,6 +7,7 @@ import type {
 } from '@/services/fish-audio-voice.service'
 import type { VoiceLibrarySortBy } from '@/constants/voice-cards'
 import type { VoiceCardRecord } from '@/types'
+import { apiFetch } from '@/lib/api-client/api-fetch'
 
 interface VoiceListResponse {
   success: boolean
@@ -53,7 +54,9 @@ interface ReferenceAudioUploadResponse {
  */
 export async function getVoiceAPI(voiceId: string): Promise<VoiceResponse> {
   try {
-    const response = await fetch(`/api/voices/${encodeURIComponent(voiceId)}`)
+    const response = await apiFetch(
+      `/api/voices/${encodeURIComponent(voiceId)}`,
+    )
     if (!response.ok) {
       const payload = await response.json().catch(() => ({}))
       return {
@@ -86,7 +89,7 @@ export async function importVoiceSampleAPI(
   voiceId: string,
 ): Promise<ImportVoiceSampleApiResponse> {
   try {
-    const response = await fetch(API_ENDPOINTS.VOICE_SAMPLE, {
+    const response = await apiFetch(API_ENDPOINTS.VOICE_SAMPLE, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ voiceId }),
@@ -136,7 +139,7 @@ export async function listVoicesAPI(params: {
     if (params.language) query.set('language', params.language)
     if (params.sortBy) query.set('sortBy', params.sortBy)
 
-    const response = await fetch(`/api/voices?${query.toString()}`)
+    const response = await apiFetch(`/api/voices?${query.toString()}`)
     if (!response.ok) {
       const payload = await response.json().catch(() => ({}))
       return {
@@ -161,7 +164,7 @@ export async function createVoiceAPI(
   formData: FormData,
 ): Promise<VoiceResponse> {
   try {
-    const response = await fetch('/api/voices', {
+    const response = await apiFetch('/api/voices', {
       method: 'POST',
       body: formData,
     })
@@ -189,7 +192,7 @@ export async function transcribeVoiceAPI(
   formData: FormData,
 ): Promise<VoiceTranscriptionResponse> {
   try {
-    const response = await fetch('/api/voices/transcribe', {
+    const response = await apiFetch('/api/voices/transcribe', {
       method: 'POST',
       body: formData,
     })
@@ -220,7 +223,7 @@ export async function uploadReferenceAudioAPI(
     const formData = new FormData()
     formData.append('audio', file)
 
-    const response = await fetch('/api/voices/upload-reference', {
+    const response = await apiFetch('/api/voices/upload-reference', {
       method: 'POST',
       body: formData,
     })
@@ -248,7 +251,7 @@ export async function deleteVoiceAPI(
   voiceId: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const response = await fetch(`/api/voices/${voiceId}`, {
+    const response = await apiFetch(`/api/voices/${voiceId}`, {
       method: 'DELETE',
     })
     if (!response.ok && response.status !== 204) {

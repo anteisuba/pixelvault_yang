@@ -3,6 +3,7 @@ import {
   DanbooruCatalogSchema,
   type DanbooruCatalogQuery,
 } from '@/types/danbooru-catalog'
+import { apiFetch } from '@/lib/api-client/api-fetch'
 
 export async function getDanbooruCatalogAPI(
   query: DanbooruCatalogQuery,
@@ -15,9 +16,12 @@ export async function getDanbooruCatalogAPI(
   if (query.random) params.set('random', query.random)
   if (query.page) params.set('page', String(query.page))
   if (query.preview) params.set('preview', query.preview)
-  const response = await fetch(`${API_ENDPOINTS.DANBOORU_CATALOG}?${params}`, {
-    signal,
-  })
+  const response = await apiFetch(
+    `${API_ENDPOINTS.DANBOORU_CATALOG}?${params}`,
+    {
+      signal,
+    },
+  )
   if (!response.ok) throw new Error('UPSTREAM_ERROR')
   const body = await response.json()
   if (!body.success) throw new Error('UPSTREAM_ERROR')

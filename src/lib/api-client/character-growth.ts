@@ -4,8 +4,10 @@ import type {
   CharacterBrowseState,
   CharacterGoOutResult,
   CharacterGrowth,
+  CharacterJournalEntry,
   CharacterRecentActivity,
   UpdateCharacterBrowseRequest,
+  UpdateCharacterJournalRequest,
 } from '@/types/character-growth'
 import { apiFetch } from '@/lib/api-client/api-fetch'
 
@@ -125,6 +127,42 @@ export async function goOutNowAPI(
     return await parseJsonResult(response, 'Failed to go out')
   } catch (error) {
     return toFailure(error, 'Failed to go out')
+  }
+}
+
+/** 改她的一篇日记（第 ③ 步）。 */
+export async function updateCharacterJournalAPI(
+  journalId: string,
+  input: UpdateCharacterJournalRequest,
+): Promise<ApiResult<CharacterJournalEntry>> {
+  try {
+    const response = await apiFetch(
+      `${API_ENDPOINTS.CHARACTER_JOURNALS}/${encodeURIComponent(journalId)}`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(input),
+      },
+    )
+    return await parseJsonResult(response, 'Failed to save')
+  } catch (error) {
+    return toFailure(error, 'Failed to save')
+  }
+}
+
+/** 删她的一篇日记（第 ③ 步）。 */
+export async function deleteCharacterJournalAPI(
+  journalId: string,
+): Promise<ApiResult<unknown>> {
+  try {
+    const response = await apiFetch(
+      `${API_ENDPOINTS.CHARACTER_JOURNALS}/${encodeURIComponent(journalId)}`,
+      { method: 'DELETE' },
+    )
+    if (!response.ok) return await parseJsonResult(response, 'Failed to delete')
+    return { success: true, data: null }
+  } catch (error) {
+    return toFailure(error, 'Failed to delete')
   }
 }
 

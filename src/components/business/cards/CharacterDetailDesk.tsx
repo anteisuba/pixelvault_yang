@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
-import { useReducedMotion } from 'motion/react'
 import { useLocale, useTranslations } from 'next-intl'
 
 import type { CharacterCardRecord } from '@/types'
@@ -21,10 +20,10 @@ import {
   CharacterPersonPane,
 } from '@/components/business/cards/CharacterDetail'
 import {
-  CharacterRecent,
   CharacterStickersPane,
   OutingCard,
 } from '@/components/business/cards/CharacterRecent'
+import { CharacterRecentDiary } from '@/components/business/cards/CharacterRecentDiary'
 import { useCharacterGrowth, useCharacterStickers } from '@/hooks/cards'
 import { usePersonaSwitch } from '@/hooks/use-chat-persona'
 import { characterCoverUrl } from '@/lib/card-bus'
@@ -53,7 +52,6 @@ export function CharacterDetailDesk({
   const growth = useCharacterGrowth(card.id)
   const stickers = useCharacterStickers(card.id)
   const personaSwitch = usePersonaSwitch()
-  const reducedMotion = useReducedMotion() ?? false
   const [tab, setTab] = useState<DetailTab>('recent')
   const [confirmingDelete, setConfirmingDelete] = useState(false)
 
@@ -101,12 +99,7 @@ export function CharacterDetailDesk({
         />
         <div className="min-h-0 flex-1">
           {tab === 'recent' ? (
-            <CharacterRecent
-              growth={growth}
-              stickers={stickers}
-              reducedMotion={reducedMotion}
-              tabbed
-            />
+            <CharacterRecentDiary growth={growth} stickers={stickers} />
           ) : tab === 'person' ? (
             <div className="h-full overflow-y-auto pb-12">
               <CharacterPersonPane {...paneProps} />

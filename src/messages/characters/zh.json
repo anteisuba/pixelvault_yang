@@ -233,7 +233,11 @@
       "uploadTooLarge": "这张图超过 5 MB 了",
       "uploadNotImage": "这个文件不是图",
       "uploadFailed": "没传上去，再试一次",
-      "stickersEmpty": "还没有表情包。她出门会自己收，你也可以上传一张。"
+      "stickersEmpty": "还没有表情包。她出门会自己收，你也可以上传一张。",
+      "editJournal": "编辑",
+      "deleteJournalTitle": "删除这篇日记？",
+      "deleteJournalBody": "删了就找不回来了。",
+      "diaryEmpty": "她还没写过日记，也还没出过门。"
     },
     "recentCards": {
       "wentOut": "出门调查",

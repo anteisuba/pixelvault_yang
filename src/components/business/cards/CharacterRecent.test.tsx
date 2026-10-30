@@ -106,6 +106,8 @@ function hookOf(growth: CharacterGrowth) {
     removeFinding: vi.fn(async () => ({ ok: true as const })),
     editOpinion: vi.fn(async () => ({ ok: true as const })),
     removeOpinion: vi.fn(async () => ({ ok: true as const })),
+    editJournal: vi.fn(async () => ({ ok: true as const })),
+    removeJournal: vi.fn(async () => ({ ok: true as const })),
   }
 }
 

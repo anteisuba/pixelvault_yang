@@ -22,8 +22,10 @@ import type {
   CharacterBrowseState,
   CharacterGrowth,
   CharacterGoOutResult,
+  CharacterJournalEntry,
   CharacterRecentActivity,
   UpdateCharacterBrowseRequest,
+  UpdateCharacterJournalRequest,
 } from '@/types/character-growth'
 
 import { browseCharacter } from './character-browse.service'
@@ -314,6 +316,38 @@ export async function goOutNowForClerkId(
   if (!card.browseEnabled) return { went: false, kept: 0 }
   const result = await browseCharacter({ userId: user.id, cardId: card.id })
   return { went: true, kept: result.kept }
+}
+
+/** 改一篇她的日记（第 ③ 步）。不是你的 → `null`（404）。 */
+export async function updateCharacterJournalForClerkId(
+  clerkId: string,
+  journalId: string,
+  input: UpdateCharacterJournalRequest,
+): Promise<CharacterJournalEntry | null> {
+  const user = await ensureUser(clerkId)
+  const journal = await db.characterJournal.findFirst({
+    where: { id: journalId, userId: user.id },
+    select: { id: true },
+  })
+  if (!journal) return null
+  const row = await db.characterJournal.update({
+    where: { id: journal.id },
+    data: { text: input.text },
+    select: { id: true, text: true, createdAt: true },
+  })
+  return { id: row.id, text: row.text, createdAt: row.createdAt.toISOString() }
+}
+
+/** 删一篇她的日记（第 ③ 步）。不是你的 → `false`（404）。 */
+export async function deleteCharacterJournalForClerkId(
+  clerkId: string,
+  journalId: string,
+): Promise<boolean> {
+  const user = await ensureUser(clerkId)
+  const { count } = await db.characterJournal.deleteMany({
+    where: { id: journalId, userId: user.id },
+  })
+  return count > 0
 }
 
 /** 删一条见闻（连同聊天时「想起」用的索引）。不是你的 → `false`（404）。 */

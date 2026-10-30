@@ -6,11 +6,13 @@ import { CHARACTER_OPINION_PREFIX } from '@/constants/character-browse'
 import {
   deleteAssistantMemoryAPI,
   deleteCharacterFindingAPI,
+  deleteCharacterJournalAPI,
   getCharacterGrowthAPI,
   goOutNowAPI,
   revertCharacterRevisionAPI,
   updateAssistantMemoryAPI,
   updateCharacterBrowseAPI,
+  updateCharacterJournalAPI,
 } from '@/lib/api-client'
 import { deferEffectTask } from '@/lib/defer-effect-task'
 import type {
@@ -154,6 +156,33 @@ export function useCharacterGrowth(cardId: string | null) {
     [write],
   )
 
+  /** 日记你能改能删（第 ③ 步）。 */
+  const editJournal = useCallback(
+    (journalId: string, text: string) =>
+      write(
+        () => updateCharacterJournalAPI(journalId, { text: text.trim() }),
+        (current) => ({
+          ...current,
+          journals: current.journals.map((row) =>
+            row.id === journalId ? { ...row, text: text.trim() } : row,
+          ),
+        }),
+      ),
+    [write],
+  )
+
+  const removeJournal = useCallback(
+    (journalId: string) =>
+      write(
+        () => deleteCharacterJournalAPI(journalId),
+        (current) => ({
+          ...current,
+          journals: current.journals.filter((row) => row.id !== journalId),
+        }),
+      ),
+    [write],
+  )
+
   const removeOpinion = useCallback(
     (opinionId: string) =>
       write(
@@ -179,5 +208,7 @@ export function useCharacterGrowth(cardId: string | null) {
     removeFinding,
     editOpinion,
     removeOpinion,
+    editJournal,
+    removeJournal,
   }
 }

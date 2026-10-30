@@ -16,6 +16,9 @@ const mocks = vi.hoisted(() => ({
   journals: vi.fn(),
   revisions: vi.fn(),
   findings: vi.fn(),
+  journalFirst: vi.fn(),
+  journalUpdate: vi.fn(),
+  journalDeleteMany: vi.fn(),
 }))
 
 vi.mock('@/lib/db', () => ({
@@ -27,7 +30,12 @@ vi.mock('@/lib/db', () => ({
       delete: mocks.findingDelete,
       findMany: mocks.findings,
     },
-    characterJournal: { findMany: mocks.journals },
+    characterJournal: {
+      findMany: mocks.journals,
+      findFirst: mocks.journalFirst,
+      update: mocks.journalUpdate,
+      deleteMany: mocks.journalDeleteMany,
+    },
     characterCardRevision: { findMany: mocks.revisions },
   },
 }))
@@ -53,12 +61,53 @@ vi.mock('@/services/kernel/assistant-route.service', () => ({
 import { NODE_STUDIO_ASSISTANT_ROUTE_MODELS } from '@/constants/node-studio'
 import {
   deleteCharacterFindingForClerkId,
+  deleteCharacterJournalForClerkId,
   getCharacterGrowthForClerkId,
   goOutNowForClerkId,
   listCharacterRecentActivityForClerkId,
   revertCharacterRevisionForClerkId,
   updateCharacterBrowseForClerkId,
+  updateCharacterJournalForClerkId,
 } from './character-growth.service'
+
+describe('日记能改能删（第 ③ 步）', () => {
+  it('只改自己的；别人的回 null', async () => {
+    mocks.journalFirst.mockResolvedValueOnce({ id: 'j1' })
+    mocks.journalUpdate.mockResolvedValueOnce({
+      id: 'j1',
+      text: '新的',
+      createdAt: new Date('2026-10-30T00:00:00Z'),
+    })
+    await expect(
+      updateCharacterJournalForClerkId('clerk', 'j1', { text: '新的' }),
+    ).resolves.toEqual({
+      id: 'j1',
+      text: '新的',
+      createdAt: '2026-10-30T00:00:00.000Z',
+    })
+    expect(mocks.journalFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'j1', userId: 'user-1' } }),
+    )
+    mocks.journalFirst.mockResolvedValueOnce(null)
+    await expect(
+      updateCharacterJournalForClerkId('clerk', 'j9', { text: 'x' }),
+    ).resolves.toBeNull()
+  })
+
+  it('删只删自己的那篇', async () => {
+    mocks.journalDeleteMany.mockResolvedValueOnce({ count: 1 })
+    await expect(deleteCharacterJournalForClerkId('clerk', 'j1')).resolves.toBe(
+      true,
+    )
+    expect(mocks.journalDeleteMany).toHaveBeenCalledWith({
+      where: { id: 'j1', userId: 'user-1' },
+    })
+    mocks.journalDeleteMany.mockResolvedValueOnce({ count: 0 })
+    await expect(deleteCharacterJournalForClerkId('clerk', 'j9')).resolves.toBe(
+      false,
+    )
+  })
+})
 
 const AT = new Date('2026-10-26T10:00:00Z')
 const MODEL = NODE_STUDIO_ASSISTANT_ROUTE_MODELS[0].modelId

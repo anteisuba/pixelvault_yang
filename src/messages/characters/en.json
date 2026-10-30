@@ -233,7 +233,11 @@
       "uploadTooLarge": "That image is over 5 MB.",
       "uploadNotImage": "That file isn't an image.",
       "uploadFailed": "Didn't upload. Try again.",
-      "stickersEmpty": "No stickers yet. She collects them when she goes out, or you can upload one."
+      "stickersEmpty": "No stickers yet. She collects them when she goes out, or you can upload one.",
+      "editJournal": "Edit",
+      "deleteJournalTitle": "Delete this diary entry?",
+      "deleteJournalBody": "It can't be brought back.",
+      "diaryEmpty": "She hasn't written a diary or gone out yet."
     },
     "recentCards": {
       "wentOut": "Went out",

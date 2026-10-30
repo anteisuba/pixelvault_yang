@@ -707,6 +707,7 @@
       "description": "Pick LoRAs from the library to mount on the LoRA bench.",
       "count": "{count} selected",
       "confirm": "Mount {count}",
+      "confirmCollect": "Add {count} to her",
       "selectLabel": "Pick {name}",
       "mounted": "Mounted"
     },

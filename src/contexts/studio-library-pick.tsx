@@ -126,6 +126,21 @@ export function useStudioLibraryPick(): {
  */
 export function useLoraBenchHandoff(): (() => void) | null {
   const ctx = useContext(StudioLibraryPickContext)
-  if (!ctx || ctx.lora) return null
+  const off = useContext(LoraBenchHandoffOffContext)
+  if (!ctx || ctx.lora || off) return null
   return ctx.openLoraBench
+}
+
+const LoraBenchHandoffOffContext = createContext(false)
+
+/**
+ * 挑 LoRA 的框里一律不跳 LoRA 台：框是停在原处挑的（台上「＋ LoRA」、她页「添加 LoRA」）。
+ * 她页在外壳里、台没开，⛔ 这一层就会「挂上就跳」。
+ */
+export function LoraBenchHandoffOff({ children }: { children: ReactNode }) {
+  return (
+    <LoraBenchHandoffOffContext.Provider value>
+      {children}
+    </LoraBenchHandoffOffContext.Provider>
+  )
 }

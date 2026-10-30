@@ -707,6 +707,7 @@
       "description": "ライブラリから LoRA を選んで LoRA 台に装着します。",
       "count": "{count} 件選択",
       "confirm": "{count} 件装着",
+      "confirmCollect": "{count} 件を彼女に追加",
       "selectLabel": "{name} を選ぶ",
       "mounted": "装着済み"
     },

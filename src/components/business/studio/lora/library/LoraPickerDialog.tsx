@@ -1,8 +1,11 @@
 'use client'
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 
+import type { LoraAssetRecord } from '@/types'
+import { LoraBenchHandoffOff } from '@/contexts/studio-library-pick'
+import { LoraStackCollector } from '@/hooks/use-active-lora-stack'
 import { LibraryQueryScope } from '@/hooks/use-library-query'
 import { LibraryRailPinnedContext } from '@/hooks/use-library-rail'
 import {
@@ -38,6 +41,16 @@ interface LoraPickerDialogProps {
   onOpenChange: (open: boolean) => void
   /** 台上现在的底模（格子上「装不上」的判断用它）。 */
   stage: LoraStageContextValue
+  /**
+   * 不往台上挂、收给别人（她页「添加 LoRA」，第 ⑧ 步）：`mounted` 是她已有的（格子标已挂），
+   * 圈好点「加给她 N 个」→ `onConfirm` 拿到圈的那几把；返回 false 框不关。
+   */
+  collect?: LoraPickCollect
+}
+
+export interface LoraPickCollect {
+  mounted: readonly LoraAssetRecord[]
+  onConfirm: (assets: LoraAssetRecord[]) => Promise<boolean>
 }
 
 /**
@@ -50,6 +63,7 @@ export function LoraPickerDialog({
   open,
   onOpenChange,
   stage,
+  collect,
 }: LoraPickerDialogProps) {
   const t = useTranslations('LoraWorkbench.picker')
   return (
@@ -64,7 +78,11 @@ export function LoraPickerDialog({
         </DialogDescription>
         {/* 每次打开从头来：圈的、筛的都不留。 */}
         {open ? (
-          <LoraPickerBody stage={stage} onClose={() => onOpenChange(false)} />
+          <LoraPickerBody
+            stage={stage}
+            collect={collect}
+            onClose={() => onOpenChange(false)}
+          />
         ) : null}
       </DialogContent>
     </Dialog>
@@ -73,9 +91,11 @@ export function LoraPickerDialog({
 
 function LoraPickerBody({
   stage,
+  collect,
   onClose,
 }: {
   stage: LoraStageContextValue
+  collect?: LoraPickCollect
   onClose: () => void
 }) {
   const t = useTranslations('LoraWorkbench.picker')
@@ -101,51 +121,75 @@ function LoraPickerBody({
     [selected],
   )
 
+  /** 收给别人时：格子「挂上」那一下 push 进这里。 */
+  const collected = useRef<LoraAssetRecord[]>([])
+  const onPush = useCallback((asset: LoraAssetRecord) => {
+    collected.current.push(asset)
+  }, [])
+
   // 一把一把挂（各自过下载闸），全挂完再关框。
   const confirm = useCallback(async () => {
     if (confirming) return
     setConfirming(true)
+    collected.current = []
+    let done = true
     try {
       for (const entry of selected) await entry.mount()
+      if (collect) done = await collect.onConfirm(collected.current)
     } finally {
       setConfirming(false)
     }
-    onClose()
-  }, [confirming, onClose, selected])
+    if (done) onClose()
+  }, [collect, confirming, onClose, selected])
+
+  const withStack = (children: ReactNode) =>
+    collect ? (
+      <LoraStackCollector mounted={collect.mounted} onPush={onPush}>
+        {children}
+      </LoraStackCollector>
+    ) : (
+      children
+    )
 
   return (
-    <LibraryQueryScope>
-      <LibraryRailPinnedContext.Provider value>
-        <CharacterLorasProvider value={characterLoras}>
-          <LoraStageProvider value={stage}>
-            <LoraPickSelectionProvider value={selection}>
-              <LibraryPickerHeader
-                title={t('title')}
-                closeLabel={tCommon('close')}
-                onClose={onClose}
-              />
-              <div className="domain-lora relative flex min-h-0 flex-1 gap-6 pt-4 pr-5 pl-3">
-                <LoraLibrarySectionRail
-                  view={view}
-                  onViewChange={setView}
-                  counts={counts}
-                />
-                <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-                  {content}
-                </div>
-                <LibraryPickBar
-                  count={selected.length}
-                  countLabel={t('count', { count: selected.length })}
-                  cancelLabel={tCommon('cancel')}
-                  confirmLabel={t('confirm', { count: selected.length })}
-                  onCancel={() => setSelected([])}
-                  onConfirm={() => void confirm()}
-                />
-              </div>
-            </LoraPickSelectionProvider>
-          </LoraStageProvider>
-        </CharacterLorasProvider>
-      </LibraryRailPinnedContext.Provider>
-    </LibraryQueryScope>
+    <LoraBenchHandoffOff>
+      {withStack(
+        <LibraryQueryScope>
+          <LibraryRailPinnedContext.Provider value>
+            <CharacterLorasProvider value={characterLoras}>
+              <LoraStageProvider value={stage}>
+                <LoraPickSelectionProvider value={selection}>
+                  <LibraryPickerHeader
+                    title={t('title')}
+                    closeLabel={tCommon('close')}
+                    onClose={onClose}
+                  />
+                  <div className="domain-lora relative flex min-h-0 flex-1 gap-6 pt-4 pr-5 pl-3">
+                    <LoraLibrarySectionRail
+                      view={view}
+                      onViewChange={setView}
+                      counts={counts}
+                    />
+                    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+                      {content}
+                    </div>
+                    <LibraryPickBar
+                      count={selected.length}
+                      countLabel={t('count', { count: selected.length })}
+                      cancelLabel={tCommon('cancel')}
+                      confirmLabel={t(collect ? 'confirmCollect' : 'confirm', {
+                        count: selected.length,
+                      })}
+                      onCancel={() => setSelected([])}
+                      onConfirm={() => void confirm()}
+                    />
+                  </div>
+                </LoraPickSelectionProvider>
+              </LoraStageProvider>
+            </CharacterLorasProvider>
+          </LibraryRailPinnedContext.Provider>
+        </LibraryQueryScope>,
+      )}
+    </LoraBenchHandoffOff>
   )
 }

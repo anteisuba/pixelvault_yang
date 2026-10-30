@@ -531,6 +531,41 @@ describe('browseRound（她出门逛一轮）', () => {
     ).toBe(false)
   })
 
+  it('网页里搜到 YouTube 视频：按 YouTube 的开关交给 Gemini 看', async () => {
+    freshFindings()
+    mocks.nativeSearch.mockResolvedValue({
+      status: 'ok',
+      answer: '',
+      queries: [],
+      sources: [
+        {
+          url: 'https://youtu.be/dQw4w9WgXcQ',
+          title: '水彩教程',
+          excerpt: '',
+        },
+      ],
+    })
+    mocks.complete.mockReset()
+    mocks.complete
+      .mockResolvedValueOnce(
+        JSON.stringify({ queries: [{ source: 'web', query: '水彩' }] }),
+      )
+      .mockResolvedValueOnce(JSON.stringify({ note: '学到了' }))
+      .mockResolvedValue(JSON.stringify({ notes: [] }))
+
+    await browseCharacter(
+      { userId: 'u', cardId: 'card-1' },
+      new OutingMeter(10_000_000),
+      ['web'],
+      ['youtube'],
+    )
+
+    const watched = mocks.complete.mock.calls[1]?.[0] as { videoData: string }
+    expect(watched.videoData).toBe(
+      'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    )
+  })
+
   it('别家看得了图的模型：B 站换成分帧拼图细看', async () => {
     freshFindings()
     mocks.route.mockResolvedValue({

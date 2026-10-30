@@ -1501,6 +1501,10 @@ model CharacterSticker {
   sentAt      DateTime?
   /// 图片内容的 sha256（10-30 owner「表情包找了好多次重复的」）：同一张图只收一次。旧行为空，读到时补上。
   contentHash String?
+  /// 长相指纹（dHash 64 位，16 位十六进制）：裁边 / 缩放 / 加水印的同一张也认得出（第 ⑨ 步）。旧行为空，读到时补上。
+  visualHash  String?
+  /// 宽 × 高：相似的两张留像素多（更清楚）的那张。
+  pixels      Int?
 
   createdAt DateTime @default(now())
 

@@ -32,8 +32,8 @@ import {
 } from '@/services/cards/character-findings.service'
 import { recordCharacterRevision } from '@/services/cards/character-revision.service'
 import {
+  placeSticker,
   pruneCharacterStickers,
-  stickerContentHash,
   stickerKey,
 } from '@/services/cards/character-sticker.service'
 import { listCivitaiLoras } from '@/services/civitai-lora-library.service'
@@ -1473,29 +1473,16 @@ async function keepStickers(
           await deleteFromR2(key)
           continue
         }
-        // 同一张图换个地址也认得出（10-30 owner「表情包找了好多次重复的」）：已经有了就不收。
-        const contentHash = stickerContentHash(
-          (await fetchAsBuffer(uploaded.publicUrl)).buffer,
-        )
-        const duplicate = await db.characterSticker.findFirst({
-          where: { characterCardId: cardId, contentHash },
-          select: { id: true },
-        })
+        // 同一张图换个地址、裁边缩放的也认得出（10-30 owner「表情包找了好多次重复的」；第 ⑨ 步）。
         stored = true
-        if (duplicate) {
-          await deleteFromR2(key)
-          continue
-        }
-        await db.characterSticker.create({
-          data: {
-            userId,
-            characterCardId: cardId,
-            storageKey: key,
-            url: uploaded.publicUrl,
-            sourceUrl: item.url,
-            whenToUse: when,
-            contentHash,
-          },
+        await placeSticker({
+          userId,
+          cardId,
+          key,
+          url: uploaded.publicUrl,
+          sourceUrl: item.url,
+          whenToUse: when,
+          data: (await fetchAsBuffer(uploaded.publicUrl)).buffer,
         })
       } catch (error) {
         logger.info('character sticker not kept', {

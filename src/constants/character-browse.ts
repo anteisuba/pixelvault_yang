@@ -234,6 +234,8 @@ export const CHARACTER_STICKERS = {
   whenChars: 60,
   /** 聊天里那个记号用 id 的前几位（`[表情·ab12cd]`）。 */
   handleChars: 6,
+  /** 两张图长相指纹差几位以内算同一张（dHash 64 位；裁边 / 缩放 / 小水印一般在 10 以内）。 */
+  similarMaxDistance: 10,
   /** 你上传时没写「什么时候发」就用这一句。 */
   defaultWhen: '你喂给她的，觉得合适时发',
 } as const

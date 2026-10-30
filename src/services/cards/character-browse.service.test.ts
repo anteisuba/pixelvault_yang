@@ -739,6 +739,7 @@ describe('表情包（4d）', () => {
     expect(upload.sourceUrl).toBe('https://img.example/haoye.png')
     expect(upload.key).toMatch(/^characters\/u\/card-1\/stickers\/.+\.png$/)
     expect(mocks.stickerCreate).toHaveBeenCalledWith({
+      select: expect.any(Object),
       data: expect.objectContaining({
         userId: 'u',
         characterCardId: 'card-1',

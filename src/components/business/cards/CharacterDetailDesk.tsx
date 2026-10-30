@@ -22,7 +22,7 @@ import {
 import { CharacterInterests } from '@/components/business/cards/CharacterInterests'
 import { CharacterMemoryPane } from '@/components/business/cards/CharacterMemoryPane'
 import { OutingCard } from '@/components/business/cards/CharacterOutingCard'
-import { CharacterStickersPane } from '@/components/business/cards/CharacterRecent'
+import { CharacterStickersPane } from '@/components/business/cards/CharacterStickersPane'
 import { CharacterRecentDiary } from '@/components/business/cards/CharacterRecentDiary'
 import {
   useCharacterGrowth,

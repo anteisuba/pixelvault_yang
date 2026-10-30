@@ -315,26 +315,23 @@ export function CharacterImagesPane(props: CharacterPaneProps) {
         }}
       />
       <ImageBand card={card} look={look} save={saveLook} />
-      <div className="mb-8 flex flex-col gap-1">
-        <p className="text-xs text-muted-foreground">{t('fieldLooks')}</p>
+      {/* 外观三格套一块灰框，与人物页同一种分组（样件 v4）。 */}
+      <SettingGroup title={t('settingLook')}>
         <CharacterTextField
           label={t('fieldLooks')}
           value={look.description ?? ''}
-          placeholder={t('fieldLooks')}
           limit={CHARACTER_CARD.DESCRIPTION_MAX_LENGTH}
-          showLabel={false}
           clamp={false}
           onSave={(description) => saveLook({ description })}
-          textClassName="lg:text-md"
         />
-      </div>
-      <TagsModule
-        card={card}
-        look={look}
-        save={save}
-        saveLook={saveLook}
-        bare
-      />
+        <TagsModule
+          card={card}
+          look={look}
+          save={save}
+          saveLook={saveLook}
+          bare
+        />
+      </SettingGroup>
     </div>
   )
 }
@@ -992,8 +989,8 @@ function TagsModule({
   return (
     <section
       className={cn(
-        'mb-8 flex flex-col gap-4',
-        !bare && 'border-t border-border pt-6',
+        'flex flex-col gap-4',
+        !bare && 'mb-8 border-t border-border pt-6',
       )}
     >
       <div className="flex flex-col gap-1.5">

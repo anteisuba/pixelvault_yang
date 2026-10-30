@@ -30,6 +30,7 @@ import {
   springTransition,
 } from '@/constants/motion'
 import type { CreatedMcpToken, McpTokenRecord } from '@/types/mcp'
+import { useMcpGenerationRequests } from '@/hooks/use-mcp-generation-requests'
 import { useMcpTokens } from '@/hooks/use-mcp-tokens'
 import { toastSuccess } from '@/lib/toast'
 import { cn } from '@/lib/utils'
@@ -150,6 +151,8 @@ export function SettingsConnectionsSection() {
         </p>
       </header>
 
+      <PendingGenerations />
+
       <div className="mt-5 flex flex-col gap-3 @md:flex-row @md:items-start">
         <div className="min-w-0 flex-1">
           <h3 className="text-sm font-medium">
@@ -249,6 +252,65 @@ export function SettingsConnectionsSection() {
         </ul>
       ) : null}
     </section>
+  )
+}
+
+/**
+ * 「等你确认」（§4.4）：外部 AI 的客户端弹不了确认框时，出图在这里由她亲自点。
+ * 没有在等的就整块不出现。「出图」这一下就真的出图、用她自己的 key。
+ */
+function PendingGenerations() {
+  const t = useTranslations('Settings')
+  const { requests, deciding, failed, decide } = useMcpGenerationRequests()
+  if (requests.length === 0 && !failed) return null
+
+  return (
+    <div className="mt-5 grid gap-2">
+      <h3 className="text-sm font-medium">{t('connections.pending.title')}</h3>
+      {failed ? (
+        <p role="alert" className="text-xs text-status-risk">
+          {t('connections.pending.failed')}
+        </p>
+      ) : null}
+      <ul className="grid gap-2">
+        {requests.map((request) => {
+          const busy = deciding === request.id
+          return (
+            <li
+              key={request.id}
+              className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-foreground bg-card px-3.5 py-3 text-sm"
+            >
+              <span className="min-w-0 flex-1 basis-60 break-words">
+                {request.summary}
+                {request.tokenName ? (
+                  <span className="ml-2 text-xs text-muted-foreground">
+                    {request.tokenName}
+                  </span>
+                ) : null}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={deciding !== null}
+                onClick={() => void decide(request.id, 'decline')}
+                className="coarse:h-11"
+              >
+                {t('connections.pending.decline')}
+              </Button>
+              <Button
+                size="sm"
+                disabled={deciding !== null}
+                onClick={() => void decide(request.id, 'confirm')}
+                className="coarse:h-11"
+              >
+                {busy ? <Spinner size="sm" /> : null}
+                {t('connections.pending.confirm')}
+              </Button>
+            </li>
+          )
+        })}
+      </ul>
+    </div>
   )
 }
 

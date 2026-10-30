@@ -120,6 +120,12 @@
         "read": "只看",
         "edit": "可改",
         "generate": "可出图"
+      },
+      "pending": {
+        "title": "等你确认的出图",
+        "confirm": "出图",
+        "decline": "不出",
+        "failed": "没能完成，再试一次。"
       }
     }
   }

@@ -14,6 +14,10 @@ import {
   MCP_EDIT_MAX_CHANGES,
   MCP_EDIT_OPS,
   MCP_FIND_KINDS,
+  MCP_GENERATE_MAX_COUNT,
+  MCP_GENERATE_MAX_REFERENCES,
+  MCP_GENERATION_DECISIONS,
+  MCP_GENERATION_REQUEST_STATUSES,
   MCP_LOOK_AT_MAX_TIMES,
   MCP_LOOK_MAX_NAMES,
   MCP_RENDER_KINDS,
@@ -21,6 +25,7 @@ import {
 } from '@/constants/mcp'
 import { ASSISTANT_V3_CHARACTER_WRITE_PARTS } from '@/constants/assistant-v3'
 import { LOCALES } from '@/i18n/routing'
+import { GenerateRequestSchema } from '@/types'
 import { CANVAS_APPLY_OP_IDS } from '@/types/assistant-operator'
 import { NodeAssistantOpV4Schema } from '@/types/node-assistant-ops'
 
@@ -334,3 +339,74 @@ export const ProjectFollowStatusSchema = z.object({
 })
 
 export type ProjectFollowStatus = z.infer<typeof ProjectFollowStatusSchema>
+
+/* ─── 出图（§4.4）：她亲自确认后才出 ─────────────────────────────────── */
+
+export const McpListModelsInputSchema = z.object({})
+
+export const McpGenerateInputSchema = z.object({
+  prompt: z.string().trim().min(1).max(8000),
+  negativePrompt: z.string().max(8000).optional(),
+  model: z
+    .string()
+    .trim()
+    .min(1)
+    .max(160)
+    .describe('A model id from list_models.'),
+  aspectRatio: GenerateRequestSchema.shape.aspectRatio.optional(),
+  count: z
+    .number()
+    .int()
+    .min(1)
+    .max(MCP_GENERATE_MAX_COUNT)
+    .optional()
+    .describe(
+      `How many pictures (default 1, at most ${MCP_GENERATE_MAX_COUNT}).`,
+    ),
+  references: z
+    .array(z.string().trim().min(1).max(200))
+    .max(MCP_GENERATE_MAX_REFERENCES)
+    .optional()
+    .describe('Reference pictures from their library, by number ("图_1624").'),
+})
+
+export type McpGenerateInput = z.infer<typeof McpGenerateInputSchema>
+
+export const McpGetGenerationInputSchema = z.object({
+  requestId: z
+    .string()
+    .trim()
+    .min(1)
+    .max(160)
+    .describe('The requestId generate gave back.'),
+})
+
+export type McpGetGenerationInput = z.infer<typeof McpGetGenerationInputSchema>
+
+/** 网站上「等你确认」那一条。 */
+export const McpGenerationRequestRecordSchema = z.object({
+  id: z.string(),
+  summary: z.string(),
+  status: z.enum(MCP_GENERATION_REQUEST_STATUSES),
+  tokenName: z.string().nullable(),
+  createdAt: z.string(),
+  expiresAt: z.string(),
+})
+
+export type McpGenerationRequestRecord = z.infer<
+  typeof McpGenerationRequestRecordSchema
+>
+
+export const DecideMcpGenerationRequestSchema = z.object({
+  decision: z.enum(MCP_GENERATION_DECISIONS),
+})
+
+export type DecideMcpGenerationRequest = z.infer<
+  typeof DecideMcpGenerationRequestSchema
+>
+
+export interface McpDecisionResult {
+  readonly status: (typeof MCP_GENERATION_REQUEST_STATUSES)[number]
+  readonly jobIds: readonly string[]
+  readonly error: string | null
+}

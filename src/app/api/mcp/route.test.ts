@@ -28,6 +28,18 @@ vi.mock('@/services/mcp/mcp-tools.service', () => ({
   getRenderForMcp: vi.fn(),
 }))
 
+const mockCreateRequest = vi.fn()
+const mockReadPending = vi.fn()
+const mockDecide = vi.fn()
+const mockGetGeneration = vi.fn()
+vi.mock('@/services/mcp/mcp-generate.service', () => ({
+  createGenerationRequest: (...args: unknown[]) => mockCreateRequest(...args),
+  readPendingSummary: (...args: unknown[]) => mockReadPending(...args),
+  decideGenerationRequest: (...args: unknown[]) => mockDecide(...args),
+  getGenerationForMcp: (...args: unknown[]) => mockGetGeneration(...args),
+  listModelsForMcp: vi.fn(),
+}))
+
 const mockFind = vi.fn()
 const mockLook = vi.fn()
 const mockEdit = vi.fn()
@@ -127,7 +139,10 @@ describe('/api/mcp', () => {
       'apply_ops',
       'edit',
       'find',
+      'generate',
+      'get_generation',
       'get_render',
+      'list_models',
       'list_projects',
       'look',
       'look_at',
@@ -212,6 +227,137 @@ describe('/api/mcp', () => {
 
     expect(resultOf(body).isError).toBe(true)
     expect(mockList).not.toHaveBeenCalled()
+  })
+})
+
+/** 2026-07-28 那一代（Claude Code 2.1 起）：每个请求自带信封，弹框走多轮往返。 */
+async function rpc2026(
+  name: string,
+  args: Record<string, unknown>,
+  extra: Record<string, unknown> = {},
+  capabilities: Record<string, unknown> = { elicitation: { form: {} } },
+): Promise<Record<string, unknown> | null> {
+  const response = await POST(
+    new Request('https://www.anteisuba.com/api/mcp', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        accept: 'application/json, text/event-stream',
+        'mcp-protocol-version': '2026-07-28',
+        'mcp-method': 'tools/call',
+        'mcp-name': name,
+        authorization: `Bearer ${TOKEN}`,
+      },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: nextId++,
+        method: 'tools/call',
+        params: {
+          name,
+          arguments: args,
+          ...extra,
+          _meta: {
+            'io.modelcontextprotocol/protocolVersion': '2026-07-28',
+            'io.modelcontextprotocol/clientInfo': {
+              name: 'test',
+              version: '1',
+            },
+            'io.modelcontextprotocol/clientCapabilities': capabilities,
+          },
+        },
+      }),
+    }),
+  )
+  const text = await response.text()
+  const line = text.includes('data:')
+    ? text
+        .split('\n')
+        .filter((entry) => entry.startsWith('data:'))
+        .map((entry) => entry.slice(5).trim())
+        .pop()
+    : text
+  return line ? (JSON.parse(line) as Record<string, unknown>) : null
+}
+
+describe('/api/mcp generate (the user confirms)', () => {
+  const ARGS = { prompt: 'rainy street', model: 'gemini-image' }
+  const PENDING = { requestId: 'req_1', summary: '1 × gemini-image · 1:1' }
+
+  it('asks the client to confirm before anything is generated', async () => {
+    mockCreateRequest.mockResolvedValue(PENDING)
+
+    const body = await rpc2026('generate', ARGS)
+    const result = body?.result as Record<string, unknown>
+
+    expect(result.resultType).toBe('input_required')
+    expect(result.requestState).toBe('req_1')
+    expect(JSON.stringify(result.inputRequests)).toContain('elicitation/create')
+    expect(mockDecide).not.toHaveBeenCalled()
+  })
+
+  it('generates once the user accepts in the client', async () => {
+    mockReadPending.mockResolvedValue(PENDING)
+    mockDecide.mockResolvedValue({
+      status: 'confirmed',
+      jobIds: ['j1'],
+      error: null,
+    })
+    mockGetGeneration.mockResolvedValue('Confirmed. in queue…')
+
+    const body = await rpc2026('generate', ARGS, {
+      requestState: 'req_1',
+      inputResponses: {
+        confirm: { action: 'accept', content: { confirm: true } },
+      },
+    })
+
+    expect(mockDecide).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: 'db_user_1' }),
+      'req_1',
+      'confirm',
+    )
+    expect(JSON.stringify(body?.result)).toContain('Confirmed')
+  })
+
+  it('records a decline and generates nothing', async () => {
+    mockReadPending.mockResolvedValue(PENDING)
+    mockDecide.mockResolvedValue({
+      status: 'declined',
+      jobIds: [],
+      error: null,
+    })
+
+    const body = await rpc2026('generate', ARGS, {
+      requestState: 'req_1',
+      inputResponses: { confirm: { action: 'decline' } },
+    })
+
+    expect(mockDecide).toHaveBeenCalledWith(
+      expect.anything(),
+      'req_1',
+      'decline',
+    )
+    expect(JSON.stringify(body?.result)).toContain('declined')
+  })
+
+  it('sends the user to the website when the client cannot show a confirmation', async () => {
+    mockCreateRequest.mockResolvedValue(PENDING)
+
+    const body = await rpc2026('generate', ARGS, {}, {})
+
+    const text = JSON.stringify(body?.result)
+    expect(text).toContain('/settings/connections')
+    expect(text).toContain('req_1')
+    expect(mockDecide).not.toHaveBeenCalled()
+  })
+
+  it('needs a token that may generate', async () => {
+    mockVerify.mockResolvedValue({ ...OWNER, access: 'edit' })
+
+    const body = await rpc2026('generate', ARGS)
+
+    expect(JSON.stringify(body?.result)).toContain('Settings → Connections')
+    expect(mockCreateRequest).not.toHaveBeenCalled()
   })
 })
 

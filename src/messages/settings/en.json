@@ -120,6 +120,12 @@
         "read": "View",
         "edit": "Edit",
         "generate": "Generate"
+      },
+      "pending": {
+        "title": "Waiting for your OK to generate",
+        "confirm": "Generate",
+        "decline": "Skip",
+        "failed": "Couldn't do that. Try again."
       }
     }
   }

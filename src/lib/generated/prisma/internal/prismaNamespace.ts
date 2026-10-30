@@ -3711,7 +3711,7 @@ export const McpGenerationRequestScalarFieldEnum = {
   request: 'request',
   summary: 'summary',
   status: 'status',
-  generationId: 'generationId',
+  jobIds: 'jobIds',
   error: 'error',
   createdAt: 'createdAt',
   expiresAt: 'expiresAt',

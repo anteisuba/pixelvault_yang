@@ -204,25 +204,25 @@ model McpToken {
 /// 外部 AI 发起、等她亲自确认的一次出图（2026-10-30，`docs/references/mcp.md` §4.4）。
 /// 客户端能弹框就在客户端点；不能就在网站上点这一条。确认后才调出图服务、才花钱。
 model McpGenerationRequest {
-  id           String    @id @default(uuid())
-  userId       String
-  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tokenId      String?
-  token        McpToken? @relation(fields: [tokenId], references: [id], onDelete: SetNull)
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenId   String?
+  token     McpToken? @relation(fields: [tokenId], references: [id], onDelete: SetNull)
   /// image（先只做图）。
-  kind         String
+  kind      String
   /// 出图服务收的那份请求原样（`GenerateRequestSchema`）。
-  request      Json
+  request   Json
   /// 给她看的一句话：模型 · 张数 · 比例 · 提示词开头。
-  summary      String    @db.Text
+  summary   String    @db.Text
   /// pending · confirmed · declined · expired
-  status       String    @default("pending")
-  /// 确认后出的那张（generationId），或出图失败的原因。
-  generationId String?
-  error        String?   @db.Text
-  createdAt    DateTime  @default(now())
-  expiresAt    DateTime
-  decidedAt    DateTime?
+  status    String    @default("pending")
+  /// 确认后发出去的出图任务（一张一个），或出图失败的原因。
+  jobIds    String[]  @default([])
+  error     String?   @db.Text
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+  decidedAt DateTime?
 
   @@index([userId, status, createdAt])
 }

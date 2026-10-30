@@ -32,7 +32,6 @@ export type McpGenerationRequestMinAggregateOutputType = {
   kind: string | null
   summary: string | null
   status: string | null
-  generationId: string | null
   error: string | null
   createdAt: Date | null
   expiresAt: Date | null
@@ -46,7 +45,6 @@ export type McpGenerationRequestMaxAggregateOutputType = {
   kind: string | null
   summary: string | null
   status: string | null
-  generationId: string | null
   error: string | null
   createdAt: Date | null
   expiresAt: Date | null
@@ -61,7 +59,7 @@ export type McpGenerationRequestCountAggregateOutputType = {
   request: number
   summary: number
   status: number
-  generationId: number
+  jobIds: number
   error: number
   createdAt: number
   expiresAt: number
@@ -77,7 +75,6 @@ export type McpGenerationRequestMinAggregateInputType = {
   kind?: true
   summary?: true
   status?: true
-  generationId?: true
   error?: true
   createdAt?: true
   expiresAt?: true
@@ -91,7 +88,6 @@ export type McpGenerationRequestMaxAggregateInputType = {
   kind?: true
   summary?: true
   status?: true
-  generationId?: true
   error?: true
   createdAt?: true
   expiresAt?: true
@@ -106,7 +102,7 @@ export type McpGenerationRequestCountAggregateInputType = {
   request?: true
   summary?: true
   status?: true
-  generationId?: true
+  jobIds?: true
   error?: true
   createdAt?: true
   expiresAt?: true
@@ -194,7 +190,7 @@ export type McpGenerationRequestGroupByOutputType = {
   request: runtime.JsonValue
   summary: string
   status: string
-  generationId: string | null
+  jobIds: string[]
   error: string | null
   createdAt: Date
   expiresAt: Date
@@ -230,7 +226,7 @@ export type McpGenerationRequestWhereInput = {
   request?: Prisma.JsonFilter<"McpGenerationRequest">
   summary?: Prisma.StringFilter<"McpGenerationRequest"> | string
   status?: Prisma.StringFilter<"McpGenerationRequest"> | string
-  generationId?: Prisma.StringNullableFilter<"McpGenerationRequest"> | string | null
+  jobIds?: Prisma.StringNullableListFilter<"McpGenerationRequest">
   error?: Prisma.StringNullableFilter<"McpGenerationRequest"> | string | null
   createdAt?: Prisma.DateTimeFilter<"McpGenerationRequest"> | Date | string
   expiresAt?: Prisma.DateTimeFilter<"McpGenerationRequest"> | Date | string
@@ -247,7 +243,7 @@ export type McpGenerationRequestOrderByWithRelationInput = {
   request?: Prisma.SortOrder
   summary?: Prisma.SortOrder
   status?: Prisma.SortOrder
-  generationId?: Prisma.SortOrderInput | Prisma.SortOrder
+  jobIds?: Prisma.SortOrder
   error?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   expiresAt?: Prisma.SortOrder
@@ -267,7 +263,7 @@ export type McpGenerationRequestWhereUniqueInput = Prisma.AtLeast<{
   request?: Prisma.JsonFilter<"McpGenerationRequest">
   summary?: Prisma.StringFilter<"McpGenerationRequest"> | string
   status?: Prisma.StringFilter<"McpGenerationRequest"> | string
-  generationId?: Prisma.StringNullableFilter<"McpGenerationRequest"> | string | null
+  jobIds?: Prisma.StringNullableListFilter<"McpGenerationRequest">
   error?: Prisma.StringNullableFilter<"McpGenerationRequest"> | string | null
   createdAt?: Prisma.DateTimeFilter<"McpGenerationRequest"> | Date | string
   expiresAt?: Prisma.DateTimeFilter<"McpGenerationRequest"> | Date | string
@@ -284,7 +280,7 @@ export type McpGenerationRequestOrderByWithAggregationInput = {
   request?: Prisma.SortOrder
   summary?: Prisma.SortOrder
   status?: Prisma.SortOrder
-  generationId?: Prisma.SortOrderInput | Prisma.SortOrder
+  jobIds?: Prisma.SortOrder
   error?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   expiresAt?: Prisma.SortOrder
@@ -305,7 +301,7 @@ export type McpGenerationRequestScalarWhereWithAggregatesInput = {
   request?: Prisma.JsonWithAggregatesFilter<"McpGenerationRequest">
   summary?: Prisma.StringWithAggregatesFilter<"McpGenerationRequest"> | string
   status?: Prisma.StringWithAggregatesFilter<"McpGenerationRequest"> | string
-  generationId?: Prisma.StringNullableWithAggregatesFilter<"McpGenerationRequest"> | string | null
+  jobIds?: Prisma.StringNullableListFilter<"McpGenerationRequest">
   error?: Prisma.StringNullableWithAggregatesFilter<"McpGenerationRequest"> | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"McpGenerationRequest"> | Date | string
   expiresAt?: Prisma.DateTimeWithAggregatesFilter<"McpGenerationRequest"> | Date | string
@@ -318,7 +314,7 @@ export type McpGenerationRequestCreateInput = {
   request: Prisma.JsonNullValueInput | runtime.InputJsonValue
   summary: string
   status?: string
-  generationId?: string | null
+  jobIds?: Prisma.McpGenerationRequestCreatejobIdsInput | string[]
   error?: string | null
   createdAt?: Date | string
   expiresAt: Date | string
@@ -335,7 +331,7 @@ export type McpGenerationRequestUncheckedCreateInput = {
   request: Prisma.JsonNullValueInput | runtime.InputJsonValue
   summary: string
   status?: string
-  generationId?: string | null
+  jobIds?: Prisma.McpGenerationRequestCreatejobIdsInput | string[]
   error?: string | null
   createdAt?: Date | string
   expiresAt: Date | string
@@ -348,7 +344,7 @@ export type McpGenerationRequestUpdateInput = {
   request?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   summary?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.StringFieldUpdateOperationsInput | string
-  generationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  jobIds?: Prisma.McpGenerationRequestUpdatejobIdsInput | string[]
   error?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -365,7 +361,7 @@ export type McpGenerationRequestUncheckedUpdateInput = {
   request?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   summary?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.StringFieldUpdateOperationsInput | string
-  generationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  jobIds?: Prisma.McpGenerationRequestUpdatejobIdsInput | string[]
   error?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -380,7 +376,7 @@ export type McpGenerationRequestCreateManyInput = {
   request: Prisma.JsonNullValueInput | runtime.InputJsonValue
   summary: string
   status?: string
-  generationId?: string | null
+  jobIds?: Prisma.McpGenerationRequestCreatejobIdsInput | string[]
   error?: string | null
   createdAt?: Date | string
   expiresAt: Date | string
@@ -393,7 +389,7 @@ export type McpGenerationRequestUpdateManyMutationInput = {
   request?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   summary?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.StringFieldUpdateOperationsInput | string
-  generationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  jobIds?: Prisma.McpGenerationRequestUpdatejobIdsInput | string[]
   error?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -408,7 +404,7 @@ export type McpGenerationRequestUncheckedUpdateManyInput = {
   request?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   summary?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.StringFieldUpdateOperationsInput | string
-  generationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  jobIds?: Prisma.McpGenerationRequestUpdatejobIdsInput | string[]
   error?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -425,6 +421,14 @@ export type McpGenerationRequestOrderByRelationAggregateInput = {
   _count?: Prisma.SortOrder
 }
 
+export type StringNullableListFilter<$PrismaModel = never> = {
+  equals?: string[] | Prisma.ListStringFieldRefInput<$PrismaModel> | null
+  has?: string | Prisma.StringFieldRefInput<$PrismaModel> | null
+  hasEvery?: string[] | Prisma.ListStringFieldRefInput<$PrismaModel>
+  hasSome?: string[] | Prisma.ListStringFieldRefInput<$PrismaModel>
+  isEmpty?: boolean
+}
+
 export type McpGenerationRequestCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
@@ -433,7 +437,7 @@ export type McpGenerationRequestCountOrderByAggregateInput = {
   request?: Prisma.SortOrder
   summary?: Prisma.SortOrder
   status?: Prisma.SortOrder
-  generationId?: Prisma.SortOrder
+  jobIds?: Prisma.SortOrder
   error?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   expiresAt?: Prisma.SortOrder
@@ -447,7 +451,6 @@ export type McpGenerationRequestMaxOrderByAggregateInput = {
   kind?: Prisma.SortOrder
   summary?: Prisma.SortOrder
   status?: Prisma.SortOrder
-  generationId?: Prisma.SortOrder
   error?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   expiresAt?: Prisma.SortOrder
@@ -461,7 +464,6 @@ export type McpGenerationRequestMinOrderByAggregateInput = {
   kind?: Prisma.SortOrder
   summary?: Prisma.SortOrder
   status?: Prisma.SortOrder
-  generationId?: Prisma.SortOrder
   error?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   expiresAt?: Prisma.SortOrder
@@ -552,13 +554,22 @@ export type McpGenerationRequestUncheckedUpdateManyWithoutTokenNestedInput = {
   deleteMany?: Prisma.McpGenerationRequestScalarWhereInput | Prisma.McpGenerationRequestScalarWhereInput[]
 }
 
+export type McpGenerationRequestCreatejobIdsInput = {
+  set: string[]
+}
+
+export type McpGenerationRequestUpdatejobIdsInput = {
+  set?: string[]
+  push?: string | string[]
+}
+
 export type McpGenerationRequestCreateWithoutUserInput = {
   id?: string
   kind: string
   request: Prisma.JsonNullValueInput | runtime.InputJsonValue
   summary: string
   status?: string
-  generationId?: string | null
+  jobIds?: Prisma.McpGenerationRequestCreatejobIdsInput | string[]
   error?: string | null
   createdAt?: Date | string
   expiresAt: Date | string
@@ -573,7 +584,7 @@ export type McpGenerationRequestUncheckedCreateWithoutUserInput = {
   request: Prisma.JsonNullValueInput | runtime.InputJsonValue
   summary: string
   status?: string
-  generationId?: string | null
+  jobIds?: Prisma.McpGenerationRequestCreatejobIdsInput | string[]
   error?: string | null
   createdAt?: Date | string
   expiresAt: Date | string
@@ -617,7 +628,7 @@ export type McpGenerationRequestScalarWhereInput = {
   request?: Prisma.JsonFilter<"McpGenerationRequest">
   summary?: Prisma.StringFilter<"McpGenerationRequest"> | string
   status?: Prisma.StringFilter<"McpGenerationRequest"> | string
-  generationId?: Prisma.StringNullableFilter<"McpGenerationRequest"> | string | null
+  jobIds?: Prisma.StringNullableListFilter<"McpGenerationRequest">
   error?: Prisma.StringNullableFilter<"McpGenerationRequest"> | string | null
   createdAt?: Prisma.DateTimeFilter<"McpGenerationRequest"> | Date | string
   expiresAt?: Prisma.DateTimeFilter<"McpGenerationRequest"> | Date | string
@@ -630,7 +641,7 @@ export type McpGenerationRequestCreateWithoutTokenInput = {
   request: Prisma.JsonNullValueInput | runtime.InputJsonValue
   summary: string
   status?: string
-  generationId?: string | null
+  jobIds?: Prisma.McpGenerationRequestCreatejobIdsInput | string[]
   error?: string | null
   createdAt?: Date | string
   expiresAt: Date | string
@@ -645,7 +656,7 @@ export type McpGenerationRequestUncheckedCreateWithoutTokenInput = {
   request: Prisma.JsonNullValueInput | runtime.InputJsonValue
   summary: string
   status?: string
-  generationId?: string | null
+  jobIds?: Prisma.McpGenerationRequestCreatejobIdsInput | string[]
   error?: string | null
   createdAt?: Date | string
   expiresAt: Date | string
@@ -685,7 +696,7 @@ export type McpGenerationRequestCreateManyUserInput = {
   request: Prisma.JsonNullValueInput | runtime.InputJsonValue
   summary: string
   status?: string
-  generationId?: string | null
+  jobIds?: Prisma.McpGenerationRequestCreatejobIdsInput | string[]
   error?: string | null
   createdAt?: Date | string
   expiresAt: Date | string
@@ -698,7 +709,7 @@ export type McpGenerationRequestUpdateWithoutUserInput = {
   request?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   summary?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.StringFieldUpdateOperationsInput | string
-  generationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  jobIds?: Prisma.McpGenerationRequestUpdatejobIdsInput | string[]
   error?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -713,7 +724,7 @@ export type McpGenerationRequestUncheckedUpdateWithoutUserInput = {
   request?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   summary?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.StringFieldUpdateOperationsInput | string
-  generationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  jobIds?: Prisma.McpGenerationRequestUpdatejobIdsInput | string[]
   error?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -727,7 +738,7 @@ export type McpGenerationRequestUncheckedUpdateManyWithoutUserInput = {
   request?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   summary?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.StringFieldUpdateOperationsInput | string
-  generationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  jobIds?: Prisma.McpGenerationRequestUpdatejobIdsInput | string[]
   error?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -741,7 +752,7 @@ export type McpGenerationRequestCreateManyTokenInput = {
   request: Prisma.JsonNullValueInput | runtime.InputJsonValue
   summary: string
   status?: string
-  generationId?: string | null
+  jobIds?: Prisma.McpGenerationRequestCreatejobIdsInput | string[]
   error?: string | null
   createdAt?: Date | string
   expiresAt: Date | string
@@ -754,7 +765,7 @@ export type McpGenerationRequestUpdateWithoutTokenInput = {
   request?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   summary?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.StringFieldUpdateOperationsInput | string
-  generationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  jobIds?: Prisma.McpGenerationRequestUpdatejobIdsInput | string[]
   error?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -769,7 +780,7 @@ export type McpGenerationRequestUncheckedUpdateWithoutTokenInput = {
   request?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   summary?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.StringFieldUpdateOperationsInput | string
-  generationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  jobIds?: Prisma.McpGenerationRequestUpdatejobIdsInput | string[]
   error?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -783,7 +794,7 @@ export type McpGenerationRequestUncheckedUpdateManyWithoutTokenInput = {
   request?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   summary?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.StringFieldUpdateOperationsInput | string
-  generationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  jobIds?: Prisma.McpGenerationRequestUpdatejobIdsInput | string[]
   error?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -800,7 +811,7 @@ export type McpGenerationRequestSelect<ExtArgs extends runtime.Types.Extensions.
   request?: boolean
   summary?: boolean
   status?: boolean
-  generationId?: boolean
+  jobIds?: boolean
   error?: boolean
   createdAt?: boolean
   expiresAt?: boolean
@@ -817,7 +828,7 @@ export type McpGenerationRequestSelectCreateManyAndReturn<ExtArgs extends runtim
   request?: boolean
   summary?: boolean
   status?: boolean
-  generationId?: boolean
+  jobIds?: boolean
   error?: boolean
   createdAt?: boolean
   expiresAt?: boolean
@@ -834,7 +845,7 @@ export type McpGenerationRequestSelectUpdateManyAndReturn<ExtArgs extends runtim
   request?: boolean
   summary?: boolean
   status?: boolean
-  generationId?: boolean
+  jobIds?: boolean
   error?: boolean
   createdAt?: boolean
   expiresAt?: boolean
@@ -851,14 +862,14 @@ export type McpGenerationRequestSelectScalar = {
   request?: boolean
   summary?: boolean
   status?: boolean
-  generationId?: boolean
+  jobIds?: boolean
   error?: boolean
   createdAt?: boolean
   expiresAt?: boolean
   decidedAt?: boolean
 }
 
-export type McpGenerationRequestOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "tokenId" | "kind" | "request" | "summary" | "status" | "generationId" | "error" | "createdAt" | "expiresAt" | "decidedAt", ExtArgs["result"]["mcpGenerationRequest"]>
+export type McpGenerationRequestOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "tokenId" | "kind" | "request" | "summary" | "status" | "jobIds" | "error" | "createdAt" | "expiresAt" | "decidedAt", ExtArgs["result"]["mcpGenerationRequest"]>
 export type McpGenerationRequestInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   token?: boolean | Prisma.McpGenerationRequest$tokenArgs<ExtArgs>
@@ -899,9 +910,9 @@ export type $McpGenerationRequestPayload<ExtArgs extends runtime.Types.Extension
      */
     status: string
     /**
-     * 确认后出的那张（generationId），或出图失败的原因。
+     * 确认后发出去的出图任务（一张一个），或出图失败的原因。
      */
-    generationId: string | null
+    jobIds: string[]
     error: string | null
     createdAt: Date
     expiresAt: Date
@@ -1338,7 +1349,7 @@ export interface McpGenerationRequestFieldRefs {
   readonly request: Prisma.FieldRef<"McpGenerationRequest", 'Json'>
   readonly summary: Prisma.FieldRef<"McpGenerationRequest", 'String'>
   readonly status: Prisma.FieldRef<"McpGenerationRequest", 'String'>
-  readonly generationId: Prisma.FieldRef<"McpGenerationRequest", 'String'>
+  readonly jobIds: Prisma.FieldRef<"McpGenerationRequest", 'String[]'>
   readonly error: Prisma.FieldRef<"McpGenerationRequest", 'String'>
   readonly createdAt: Prisma.FieldRef<"McpGenerationRequest", 'DateTime'>
   readonly expiresAt: Prisma.FieldRef<"McpGenerationRequest", 'DateTime'>

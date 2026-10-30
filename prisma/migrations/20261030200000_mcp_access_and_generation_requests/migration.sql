@@ -9,7 +9,7 @@ CREATE TABLE "McpGenerationRequest" (
     "request" JSONB NOT NULL,
     "summary" TEXT NOT NULL,
     "status" TEXT NOT NULL DEFAULT 'pending',
-    "generationId" TEXT,
+    "jobIds" TEXT[] DEFAULT ARRAY[]::TEXT[],
     "error" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "expiresAt" TIMESTAMP(3) NOT NULL,

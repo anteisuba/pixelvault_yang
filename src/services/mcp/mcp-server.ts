@@ -1,15 +1,27 @@
 import 'server-only'
 
-import type {
-  AuthInfo,
-  CallToolResult,
-  McpServer,
+import {
+  acceptedContent,
+  CLIENT_CAPABILITIES_META_KEY,
+  inputRequired,
+  type AuthInfo,
+  type CallToolResult,
+  type InputRequiredResult,
+  type McpServer,
+  type ServerContext,
 } from '@modelcontextprotocol/server'
 import { z } from 'zod'
 
 import { logger } from '@/lib/logger'
 import { rateLimit } from '@/lib/rate-limit'
 import { editForMcp, undoForMcp } from '@/services/mcp/mcp-edit.service'
+import {
+  createGenerationRequest,
+  decideGenerationRequest,
+  getGenerationForMcp,
+  listModelsForMcp,
+  readPendingSummary,
+} from '@/services/mcp/mcp-generate.service'
 import { findForMcp, lookForMcp } from '@/services/mcp/mcp-library.service'
 import {
   verifyMcpToken,
@@ -25,17 +37,23 @@ import {
   renderForMcp,
 } from '@/services/mcp/mcp-tools.service'
 import type { EdgeFrame } from '@/services/video-frames/edge-frame.service'
+import { getAppOrigin } from '@/constants/config'
 import {
   MCP_ACCESS_LEVELS,
+  MCP_CONFIRM_INPUT_KEY,
   MCP_RATE_LIMIT,
   MCP_TOOL_ACCESS,
   MCP_TOOL_IDS,
   mcpAccessAllows,
 } from '@/constants/mcp'
+import { ROUTES } from '@/constants/routes'
 import {
   McpApplyOpsInputSchema,
   McpEditInputSchema,
   McpFindInputSchema,
+  McpGenerateInputSchema,
+  McpGetGenerationInputSchema,
+  McpListModelsInputSchema,
   McpGetRenderInputSchema,
   McpListProjectsInputSchema,
   McpLookAtInputSchema,
@@ -91,11 +109,11 @@ function frameContent(frame: EdgeFrame): CallToolResult['content'] {
     : [{ type: 'text', text: `${frame.label}: ${frame.reason}` }]
 }
 
-async function guard(
+async function guard<R extends CallToolResult | InputRequiredResult>(
   tool: (typeof MCP_TOOL_IDS)[keyof typeof MCP_TOOL_IDS],
   authInfo: AuthInfo | undefined,
-  run: (owner: McpTokenOwner) => Promise<CallToolResult>,
-): Promise<CallToolResult> {
+  run: (owner: McpTokenOwner) => Promise<R>,
+): Promise<R | CallToolResult> {
   const parsed = OwnerSchema.safeParse(authInfo?.extra)
   if (!parsed.success) return textResult('Not signed in to ANTEI.', true)
   const owner = parsed.data
@@ -136,6 +154,83 @@ async function guard(
     })
     return textResult('Something went wrong on ANTEI’s side; try again.', true)
   }
+}
+
+/* ─── 出图确认（§4.4）────────────────────────────────────────────────── */
+
+const ConfirmSchema = z.object({
+  confirm: z.boolean().describe('Generate it'),
+})
+
+/**
+ * 客户端会不会弹框：只认 2026-07-28 的每请求信封里声明的 `elicitation.form`。
+ * ⚠ 2025 那一代在无状态部署上没有会话，服务器→客户端的弹框请求回不来，所以一律当不会，
+ *   走网站确认。
+ */
+function clientCanConfirm(ctx: ServerContext): boolean {
+  const envelope = (ctx.mcpReq.envelope ?? {}) as Record<string, unknown>
+  const capabilities = (envelope[CLIENT_CAPABILITIES_META_KEY] ??
+    envelope.clientCapabilities) as
+    | { elicitation?: { form?: unknown } | Record<string, never> }
+    | undefined
+  const elicitation = capabilities?.elicitation
+  // 老写法 `elicitation: {}` 等于只会表单。
+  return Boolean(
+    elicitation &&
+    ('form' in elicitation || Object.keys(elicitation).length === 0),
+  )
+}
+
+function confirmOnSiteUrl(): string {
+  return `${getAppOrigin()}${ROUTES.SETTINGS_CONNECTIONS}`
+}
+
+async function runGenerate(
+  owner: McpTokenOwner,
+  input: z.infer<typeof McpGenerateInputSchema>,
+  ctx: ServerContext,
+): Promise<CallToolResult | InputRequiredResult> {
+  const state = ctx.mcpReq.requestState()
+  if (typeof state === 'string' && state) {
+    const pending = await readPendingSummary(owner, state)
+    // 已经定过 / 过期：照实说，⛔ 不再发起一条新的。
+    if (!pending) return textResult(await getGenerationForMcp(owner, state))
+    if (ctx.mcpReq.inputResponses?.[MCP_CONFIRM_INPUT_KEY] !== undefined) {
+      const answer = acceptedContent(
+        ctx.mcpReq.inputResponses,
+        MCP_CONFIRM_INPUT_KEY,
+        ConfirmSchema,
+      )
+      const decision = answer?.confirm === true ? 'confirm' : 'decline'
+      const decided = await decideGenerationRequest(owner, state, decision)
+      if (decision === 'decline' || !decided)
+        return textResult('The user declined this generation.')
+      return textResult(
+        `${await getGenerationForMcp(owner, state)}\nrequestId: ${state} — poll get_generation until the pictures are done.`,
+      )
+    }
+    return askToConfirm(pending, ctx)
+  }
+  return askToConfirm(await createGenerationRequest(owner, input), ctx)
+}
+
+function askToConfirm(
+  pending: { requestId: string; summary: string },
+  ctx: ServerContext,
+): CallToolResult | InputRequiredResult {
+  if (clientCanConfirm(ctx))
+    return inputRequired({
+      inputRequests: {
+        [MCP_CONFIRM_INPUT_KEY]: inputRequired.elicit({
+          message: `ANTEI: generate ${pending.summary}? It uses your own API key. (You can also confirm it at ${confirmOnSiteUrl()})`,
+          requestedSchema: ConfirmSchema,
+        }),
+      },
+      requestState: pending.requestId,
+    })
+  return textResult(
+    `Nothing is generated yet: the user has to confirm it themselves. Tell them to open ${confirmOnSiteUrl()} and confirm "${pending.summary}" (it waits 30 minutes). Then poll get_generation with requestId ${pending.requestId}.`,
+  )
 }
 
 export function registerMcpTools(server: McpServer): void {
@@ -309,6 +404,56 @@ export function registerMcpTools(server: McpServer): void {
     async (input, ctx) =>
       guard(MCP_TOOL_IDS.undo, ctx.http?.authInfo, async (owner) =>
         textResult(await undoForMcp(owner, input)),
+      ),
+  )
+
+  server.registerTool(
+    MCP_TOOL_IDS.models,
+    {
+      title: 'List image models',
+      description:
+        'Lists the image models generate can use: model id and provider, and whether they have a key for that provider yet.',
+      inputSchema: McpListModelsInputSchema,
+      annotations: { readOnlyHint: true },
+    },
+    async (_input, ctx) =>
+      guard(MCP_TOOL_IDS.models, ctx.http?.authInfo, async (owner) =>
+        textResult(await listModelsForMcp(owner)),
+      ),
+  )
+
+  server.registerTool(
+    MCP_TOOL_IDS.generate,
+    {
+      title: 'Generate pictures (the user confirms)',
+      description:
+        'Asks to generate pictures with their own key: prompt, model (from list_models), aspect ratio, how many, and optional reference pictures from their library. Nothing is generated until the user confirms it themselves — in this client if it can show a confirmation, otherwise on the ANTEI website. Returns a requestId; poll get_generation for the pictures.',
+      inputSchema: McpGenerateInputSchema,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
+    },
+    async (input, ctx) =>
+      guard(MCP_TOOL_IDS.generate, ctx.http?.authInfo, (owner) =>
+        runGenerate(owner, input, ctx),
+      ),
+  )
+
+  server.registerTool(
+    MCP_TOOL_IDS.getGeneration,
+    {
+      title: 'Check a generation',
+      description:
+        'Status of a generate request: waiting for the user, declined, expired, or confirmed with each picture’s progress. Finished pictures come back as numbers (图_N) to open with look.',
+      inputSchema: McpGetGenerationInputSchema,
+      annotations: { readOnlyHint: true },
+    },
+    async (input, ctx) =>
+      guard(MCP_TOOL_IDS.getGeneration, ctx.http?.authInfo, async (owner) =>
+        textResult(await getGenerationForMcp(owner, input.requestId)),
       ),
   )
 }

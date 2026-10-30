@@ -680,7 +680,8 @@ export function CharacterSettingModule({
     <section className="mb-8 flex flex-col gap-3">
       <h3 className="text-base font-semibold">{t('setting')}</h3>
       <SettingGroup title={t('settingPerson')}>
-        <div className="grid gap-x-10 gap-y-5 lg:grid-cols-2">
+        {/* 平板（<1280）一列、电脑两列：owner 10-30「平板上也改成一页」。 */}
+        <div className="grid gap-x-10 gap-y-5 xl:grid-cols-2">
           {PERSON_FIELDS.map(([key, label]) => (
             <CharacterTextField
               key={key}
@@ -689,7 +690,7 @@ export function CharacterSettingModule({
               limit={CHARACTER_PERSONA_LIMITS[key]}
               hint={key === 'behavior' ? t('behaviorHint') : undefined}
               // 经历最长，单独占一整行（五格排两列不留孤格）。
-              className={key === 'backstory' ? 'lg:col-span-2' : undefined}
+              className={key === 'backstory' ? 'xl:col-span-2' : undefined}
               onSave={(text) => save({ [key]: text })}
               {...pin(key)}
               {...(key === 'speech'
@@ -834,7 +835,7 @@ function SettingTavernGroups({
   return (
     <>
       <SettingGroup title={t('settingDialogue')}>
-        <div className="grid gap-x-10 gap-y-5 lg:grid-cols-2">
+        <div className="grid gap-x-10 gap-y-5 xl:grid-cols-2">
           <CharacterTextField
             label={t('fieldScenario')}
             value={draft.scenario}
@@ -930,7 +931,7 @@ function SettingTavernGroups({
       </SettingGroup>
 
       <SettingGroup title={t('settingTavern')}>
-        <div className="grid gap-x-10 gap-y-5 lg:grid-cols-2">
+        <div className="grid gap-x-10 gap-y-5 xl:grid-cols-2">
           <CharacterTextField
             label={t('fieldSummary')}
             value={draft.summary}

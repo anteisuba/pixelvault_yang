@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
+  withoutVoiceCuesInProse,
   withoutStageDirections,
   chatBubbles,
   leadingVoiceCues,
@@ -37,6 +38,21 @@ describe('withoutStageDirections (owner 10-30)', () => {
   it('bubbles and the spoken text skip the action too', () => {
     expect(chatBubbles('*歪头*\n真的吗？')).toEqual(['真的吗？'])
     expect(spokenVoiceText('好啊 *笑着点头* 走吧')).toBe('好啊走吧')
+  })
+})
+
+describe('withoutVoiceCuesInProse (owner 10-30)', () => {
+  it('hides the voice cues in her bench replies but leaves prompt text in code alone', () => {
+    expect(
+      withoutVoiceCuesInProse(
+        '[softly] 好了，换成这串：\n`[blue hair], 1girl`\n\n```\n[[masterpiece]]\n```\n[laughing] 再跑一次看看。',
+      ),
+    ).toBe(
+      '好了，换成这串：\n`[blue hair], 1girl`\n\n```\n[[masterpiece]]\n```\n再跑一次看看。',
+    )
+    expect(withoutVoiceCuesInProse('看[链接](https://a.b)')).toBe(
+      '看[链接](https://a.b)',
+    )
   })
 })
 

@@ -714,6 +714,8 @@ export function appendOperatorStreamingMessage(
   restart = false,
   /** 她在聊天：拆成气泡（②c-2）。 */
   chat = false,
+  /** 用着角色说的：正文藏掉方括号语气提示。 */
+  spoken = false,
 ): void {
   const index = state.entries.findIndex(
     (item) => item.kind === 'message' && item.id === id,
@@ -732,6 +734,7 @@ export function appendOperatorStreamingMessage(
     ...(thoughtMs !== undefined ? { thoughtMs } : {}),
     ...thinkingOf(current),
     ...(chat ? { chat: true as const } : {}),
+    ...(spoken ? { spoken: true as const } : {}),
   }
   if (index < 0) {
     appendOperatorEntry(entry)
@@ -748,6 +751,8 @@ export function finalizeOperatorMessage(
   text: string,
   /** 她在聊天：拆成气泡（②c-2）。 */
   chat = false,
+  /** 用着角色说的：正文藏掉方括号语气提示。 */
+  spoken = false,
 ): void {
   const index = state.entries.findIndex(
     (item) => item.kind === 'message' && item.id === id,
@@ -761,6 +766,7 @@ export function finalizeOperatorMessage(
     ...(thoughtMs !== undefined ? { thoughtMs } : {}),
     ...thinkingOf(current),
     ...(chat ? { chat: true as const } : {}),
+    ...(spoken ? { spoken: true as const } : {}),
   }
   if (index < 0) {
     appendOperatorEntry(entry)

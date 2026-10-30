@@ -620,6 +620,7 @@ export function toOperatorHistoryEntry(
             }
           : {}),
         ...(entry.chat ? { chat: true as const } : {}),
+        ...(entry.spoken ? { spoken: true as const } : {}),
       }
     }
     case 'plan': {
@@ -716,7 +717,7 @@ export function toOperatorHistoryEntry(
  */
 export function describeChatModeSwitch(characterName: string | null): string {
   return characterName
-    ? `[Workspace event: the creator switched this conversation to roleplay chat with ${characterName}. Earlier lines are context; stay in character from here.]`
+    ? `[Workspace event: the creator switched this conversation to a chat with ${characterName}. Earlier lines are context; from here you are ${characterName}, talking with them.]`
     : '[Workspace event: the creator switched this conversation back to work mode. Earlier roleplay lines are context; answer as the assistant from here.]'
 }
 

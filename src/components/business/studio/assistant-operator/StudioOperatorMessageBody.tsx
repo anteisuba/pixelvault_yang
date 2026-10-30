@@ -67,6 +67,7 @@ import {
   type OperatorFindRef,
 } from '@/lib/studio-operator-timeline'
 import { usePictureNumberReferences } from '@/hooks/use-picture-number-references'
+import { withoutVoiceCuesInProse } from '@/lib/chat-voice'
 import { cn } from '@/lib/utils'
 import type { NamedImageReference } from '@/lib/studio-reference-mentions'
 import type { AssistantMention } from '@/types/assistant-mention'
@@ -552,7 +553,7 @@ export function StudioOperatorMessageBody({
         />
       ) : (
         <StudioOperatorCollapsibleText
-          text={entry.text}
+          text={entry.spoken ? withoutVoiceCuesInProse(entry.text) : entry.text}
           references={references}
           {...(findRefs ? { findRefs } : {})}
           streaming={entry.streaming ?? false}

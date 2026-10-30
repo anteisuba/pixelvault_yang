@@ -33,6 +33,27 @@ export function withoutVoiceCues(text: string): string {
   return text.replace(DRAMA_TAG, '').replace(VOICE_CUE, dropped).trim()
 }
 
+/**
+ * 开着台时她说的正文（markdown）：方括号语气提示同样只给嗓子听（owner 10-30「语音要情绪词，用户看不到」）。
+ * ⚠ 代码块和行内代码里的方括号 ⛔ 动 —— 那是提示词（`[blue hair]`、NAI 的降权），不是语气。
+ */
+export function withoutVoiceCuesInProse(text: string): string {
+  return text
+    .split(/(```[\s\S]*?(?:```|$)|`[^`\n]*`)/)
+    .map((part, index) =>
+      index % 2 === 1
+        ? part
+        : part
+            .replace(DRAMA_TAG, '')
+            .replace(VOICE_CUE, (cut, offset: number, whole: string) =>
+              /\n/.test(whole[offset - 1] ?? '\n')
+                ? ''
+                : dropped(cut, offset, whole),
+            ),
+    )
+    .join('')
+}
+
 /** 藏掉的那一截两边：挨着中日文或在头尾就不留空，两边都是西文留一格。 */
 function dropped(cut: string, offset: number, whole: string): string {
   const before = whole[offset - 1]

@@ -1748,6 +1748,7 @@ export function useAssistantOperator(
                 event.delta,
                 event.restart === true,
                 event.chat === true,
+                event.spoken === true,
               )
               break
             }
@@ -1806,6 +1807,7 @@ export function useAssistantOperator(
                     entry.id,
                     entry.text.trim(),
                     event.chat === true,
+                    event.spoken === true,
                   )
                   dropOperatorPending(entry.id)
                 }
@@ -1821,6 +1823,7 @@ export function useAssistantOperator(
                 messageEntryId(),
                 event.text,
                 event.chat === true,
+                event.spoken === true,
               )
               speakIfVoiceOn(event, messageEntryId())
               break

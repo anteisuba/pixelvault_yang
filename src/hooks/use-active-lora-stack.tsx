@@ -500,6 +500,36 @@ export function LoraStackStyleParamSync() {
   return null
 }
 
+/**
+ * 换一份「挂上」的去向（她页「添加 LoRA」，角色大项目第 ⑧ 步）：框里的格子照旧往栈里 push，
+ * 这里收下交给宿主；`mounted` 当成已挂（她已经有的那几把，格子标「已挂」）。其余照外面那份。
+ */
+export function LoraStackCollector({
+  mounted,
+  onPush,
+  children,
+}: {
+  mounted: readonly LoraAssetRecord[]
+  onPush: (asset: LoraAssetRecord) => void
+  children: ReactNode
+}) {
+  const outer = useActiveLoraStack()
+  const value = useMemo<ActiveLoraStackValue>(
+    () => ({
+      ...outer,
+      items: mounted.map((asset) => ({ asset })),
+      push: (asset) => onPush(asset),
+      mountEvent: null,
+    }),
+    [mounted, onPush, outer],
+  )
+  return (
+    <ActiveLoraStackContext.Provider value={value}>
+      {children}
+    </ActiveLoraStackContext.Provider>
+  )
+}
+
 export function useActiveLoraStack(): ActiveLoraStackValue {
   const ctx = useContext(ActiveLoraStackContext)
   if (!ctx) {

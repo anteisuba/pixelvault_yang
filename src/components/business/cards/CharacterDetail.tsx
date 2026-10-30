@@ -30,6 +30,8 @@ import {
   CharacterFieldEditor,
   CharacterTextField,
 } from '@/components/business/cards/CharacterTextField'
+import { CharacterImageShelves } from '@/components/business/cards/CharacterImageShelves'
+import { CharacterLoraGrid } from '@/components/business/cards/CharacterLoraGrid'
 import { CharacterLookStrip } from '@/components/business/cards/CharacterLookStrip'
 import { VoicePickerDialog } from '@/components/business/voices/VoicePickerDialog'
 import {
@@ -300,7 +302,7 @@ export function CharacterImagesPane(props: CharacterPaneProps) {
   const { card, onLookChange, onCreateLook, onUpdateLook, onDeleteLook } = props
   const { look, save, saveLook } = usePaneSave(props)
   return (
-    <div className="h-full overflow-y-auto pb-12">
+    <div className="flex h-full flex-col gap-7 overflow-y-auto pb-12">
       <CharacterLookStrip
         card={card}
         lookId={look.id}
@@ -314,31 +316,33 @@ export function CharacterImagesPane(props: CharacterPaneProps) {
           return ok
         }}
       />
-      <ImageBand card={card} look={look} save={saveLook} />
-      {/* 外观三格套一块灰框，与人物页同一种分组（样件 v4）。 */}
-      <SettingGroup title={t('settingLook')}>
-        <CharacterTextField
-          label={t('fieldLooks')}
-          value={look.description ?? ''}
-          limit={CHARACTER_CARD.DESCRIPTION_MAX_LENGTH}
-          clamp={false}
-          onSave={(description) => saveLook({ description })}
-        />
-        <TagsModule
-          card={card}
-          look={look}
-          save={save}
-          saveLook={saveLook}
-          bare
-        />
-      </SettingGroup>
+      {/* 外观两格套一块灰框，与人物页同一种分组（样件 v4）。 */}
+      <div className="max-w-180">
+        <SettingGroup title={t('settingLook')}>
+          <CharacterTextField
+            label={t('fieldLooks')}
+            value={look.description ?? ''}
+            limit={CHARACTER_CARD.DESCRIPTION_MAX_LENGTH}
+            clamp={false}
+            onSave={(description) => saveLook({ description })}
+          />
+          <TagsModule
+            card={card}
+            look={look}
+            save={save}
+            saveLook={saveLook}
+            bare
+          />
+        </SettingGroup>
+      </div>
+      <CharacterImageShelves card={card} look={look} save={saveLook} />
     </div>
   )
 }
 
-/** 电脑详情「LoRA」页签：她收的 LoRA，原样搬过来（第 ⑧ 步换成库的格子）。 */
+/** 电脑详情「LoRA」页签：她收的 LoRA，库那种格子 + 虚线添加 + 卸下（第 ⑧ 步）。 */
 export function CharacterLorasPane({ card }: { card: CharacterCardRecord }) {
-  return <LorasModule card={card} bare />
+  return <CharacterLoraGrid card={card} />
 }
 
 function ImageBand({
@@ -1031,14 +1035,7 @@ function TagsModule({
  * 「加到角色…」或从「用她 ▾」训练，挂在 LoRA 台「从角色选」。挂在某套造型下的
  * 标出造型名（角色④）。
  */
-function LorasModule({
-  card,
-  bare = false,
-}: {
-  card: CharacterCardRecord
-  /** 电脑详情页签里：⛔ 顶上那道分隔线和小标题。 */
-  bare?: boolean
-}) {
+function LorasModule({ card }: { card: CharacterCardRecord }) {
   const t = useTranslations('CharacterRoster')
   const tLooks = useTranslations('CharacterLooks')
   const { groups, isLoading } = useCharacterLoras(card.id)
@@ -1050,15 +1047,8 @@ function LorasModule({
     return look ? lookLabel(look, card.looks, tLooks) : null
   }
   return (
-    <section
-      className={cn(
-        'mb-8 flex flex-col gap-3',
-        !bare && 'border-t border-border pt-6',
-      )}
-    >
-      {bare ? null : (
-        <p className="text-xs text-muted-foreground">{t('fieldLoras')}</p>
-      )}
+    <section className="mb-8 flex flex-col gap-3 border-t border-border pt-6">
+      <p className="text-xs text-muted-foreground">{t('fieldLoras')}</p>
       {isLoading && loras.length === 0 ? (
         <Spinner />
       ) : loras.length === 0 ? (

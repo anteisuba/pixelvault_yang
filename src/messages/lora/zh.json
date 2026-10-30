@@ -707,6 +707,7 @@
       "description": "从库里挑几把 LoRA 挂到 LoRA 台。",
       "count": "已选 {count}",
       "confirm": "挂上 {count} 个",
+      "confirmCollect": "加给她 {count} 个",
       "selectLabel": "挑 {name}",
       "mounted": "已挂"
     },

@@ -275,7 +275,7 @@ export function CharacterPersonPane(props: CharacterPaneProps) {
   const { card } = props
   const { save } = usePaneSave(props)
   return (
-    <div className="max-w-3xl">
+    <div>
       <div className="mb-6 flex flex-col gap-1">
         <p className="text-xs text-muted-foreground">{t('fieldName')}</p>
         <CharacterInlineField
@@ -315,7 +315,7 @@ export function CharacterImagesPane(props: CharacterPaneProps) {
         }}
       />
       <ImageBand card={card} look={look} save={saveLook} />
-      <div className="mb-8 flex max-w-3xl flex-col gap-1">
+      <div className="mb-8 flex flex-col gap-1">
         <p className="text-xs text-muted-foreground">{t('fieldLooks')}</p>
         <CharacterTextField
           label={t('fieldLooks')}

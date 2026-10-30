@@ -62,6 +62,7 @@ export type WorkspaceHandle =
   | { kind: 'skill'; name: string }
   | { kind: 'tag'; name: string }
   | { kind: 'voice'; name: string }
+  | { kind: 'gallery'; id: string }
   | { kind: 'settings' }
 
 export interface WorkspaceOwner {
@@ -138,6 +139,9 @@ export function parseWorkspaceHandle(raw: string): WorkspaceHandle | null {
   if (tag) return { kind: 'tag', name: tag }
   const voice = after(PREFIX.voice)
   if (voice) return { kind: 'voice', name: voice }
+  const gallery = after(PREFIX.gallery)
+  if (gallery && /^[\w-]{6,64}$/.test(gallery))
+    return { kind: 'gallery', id: gallery }
   if (text === PREFIX.settings || text.toLowerCase() === 'settings')
     return { kind: 'settings' }
   return null
@@ -406,6 +410,27 @@ async function pictureRecipe(userId: string, row: PictureRow): Promise<string> {
     )
   }
   return lines.filter(Boolean).join('\n')
+}
+
+/**
+ * 画廊里的一张（10-30「可以点开别人的图去看」）：公开的谁的都能看，没公开的只认自己的。
+ * ⚠ 别人的图只读：编号是 `画廊·<id>`，⛔ 不给 generationId（挂参考图 / 改库认的是自己的图_N）。
+ */
+async function readGalleryPicture(
+  userId: string,
+  id: string,
+): Promise<(PictureRow & { userId: string; author: string | null }) | null> {
+  const rows = await db.$queryRaw<
+    (PictureRow & { userId: string; author: string | null })[]
+  >`
+    SELECT ${PICTURE_COLUMNS}, "userId",
+           (SELECT COALESCE(u."displayName", u."username")
+              FROM "User" u WHERE u."id" = "Generation"."userId") AS "author"
+      FROM "Generation"
+     WHERE "id" = ${id}
+       AND ("isPublic" = true OR "userId" = ${userId})
+     LIMIT 1`
+  return rows[0] ?? null
 }
 
 /** 改库用（第 4b 步）：`图_N` → 那一张的 generationId 与原图地址；不是她的 / 认不出回 null。 */
@@ -947,6 +972,30 @@ export async function openWorkspaceHandle(
       return {
         text: `${pictureTag(row)} · ${day(row.createdAt)}\n${await pictureRecipe(owner.userId, row)}`,
         pictures: [pictureRef(row)],
+      }
+    }
+    case 'gallery': {
+      const row = await readGalleryPicture(owner.userId, handle.id)
+      if (!row) return null
+      const own = row.userId === owner.userId
+      const tag = own ? pictureTag(row) : ''
+      return {
+        text: `${PREFIX.gallery}${row.id}${tag ? ` (= ${tag}, theirs)` : row.author ? ` · by ${row.author}` : ''} · ${day(row.createdAt)}\n${
+          own
+            ? await pictureRecipe(owner.userId, row)
+            : buildAssetRecipeText({
+                ...row,
+                snapshot: { advancedParams: row.advancedParams ?? undefined },
+              })
+        }`,
+        pictures: [
+          own
+            ? pictureRef(row)
+            : {
+                url: row.thumbnailUrl ?? row.url,
+                label: `${PREFIX.gallery}${row.id}`,
+              },
+        ],
       }
     }
     case 'character':

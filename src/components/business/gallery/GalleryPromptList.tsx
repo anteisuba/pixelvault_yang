@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl'
 import type { Route } from '@/constants/routes'
 import { Link } from '@/i18n/navigation'
 import { getGenerationPreviewUrl } from '@/lib/generation-media'
+import { screenItemProps } from '@/lib/assistant-screen-scan'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 
 import { CopyButton } from '@/components/ui/copy-button'
@@ -91,7 +92,10 @@ function GalleryPromptCard({
   const workCount = generation.promptWorkCount ?? 1
 
   return (
-    <article className="relative flex gap-3 rounded-2xl border border-border/70 bg-background p-3 shadow-sm transition-shadow duration-fast ease-linear hover:shadow-md">
+    <article
+      {...screenItemProps('gallery', generation.id, stillUrl)}
+      className="relative flex gap-3 rounded-2xl border border-border/70 bg-background p-3 shadow-sm transition-shadow duration-fast ease-linear hover:shadow-md"
+    >
       <span className="relative shrink-0">
         {stillUrl ? (
           <img src={stillUrl} alt="" loading="lazy" className={thumbClass} />

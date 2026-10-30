@@ -48,7 +48,7 @@ export const LookInputSchema = z.object({
     .max(ASSISTANT_NEXT_LIMITS.maxLookPictures)
     .nullish()
     .describe(
-      'What to open, by number or name: a picture number ("图_1624"), a bench name ("ref-1", "result-1", "sample", or a picture attached to the message), "角色·<name>" (optionally "角色·<name>/<look>"), "LoRA·<name>" (theirs, or one from the Civitai LoRA library), "标签·<danbooru_tag>" (post count, wiki, tags it goes with, sample pictures), "音色·<name>", "提示词·<name>", "对话·<id>", "技能·<name>" (the full text of a skill), or "设置". Pictures are put in front of you with their full recipe. null = only read the bench.',
+      'What to open, by number or name: a picture number ("图_1624"), a bench name ("ref-1", "result-1", "sample", or a picture attached to the message), "角色·<name>" (optionally "角色·<name>/<look>"), "LoRA·<name>" (theirs, or one from the Civitai LoRA library), "标签·<danbooru_tag>" (post count, wiki, tags it goes with, sample pictures), "音色·<name>", "提示词·<name>", "画廊·<id>" (a public picture in the gallery, by anyone), "对话·<id>", "技能·<name>" (the full text of a skill), "设置", or "屏幕" (the library page the creator has open, as one numbered picture of what is on their screen). Pictures are put in front of you with their full recipe. null = only read the bench.',
     ),
   question: z
     .string()

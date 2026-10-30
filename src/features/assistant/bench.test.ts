@@ -381,3 +381,29 @@ describe('find 联网找图 / 找视频（10-27「网上找的图片和视频发
     expect(result.output).toContain('needs a query')
   })
 })
+
+describe('看屏：屏上那几格按位置编号（10-30）', () => {
+  it('扫到的格子：按号列出，带图的提醒先 look 屏幕', () => {
+    const line = renderLibraryView({
+      library: 'gallery',
+      screen: {
+        kind: 'gallery',
+        visible: ['g1', 'g2'],
+        tiles: [{ thumb: 'https://cdn/1.jpg', box: [0, 0, 0.2, 0.3] }, {}],
+        viewport: { width: 1000, height: 800 },
+      },
+    })
+    expect(line).toContain('gallery (public pictures by everyone) open')
+    expect(line).toContain('numbered top-left first: 1 画廊·g1 · 2 画廊·g2.')
+    expect(line).toContain('look 屏幕 first')
+  })
+
+  it('没图的格子（音色）：只列号，不提看屏', () => {
+    const line = renderLibraryView({
+      library: 'voices',
+      screen: { kind: 'voice', visible: ['Aemeath'], tiles: [{}] },
+    })
+    expect(line).toContain('1 音色·Aemeath')
+    expect(line).not.toContain('look 屏幕')
+  })
+})

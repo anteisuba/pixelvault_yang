@@ -25,6 +25,7 @@ import {
 import { useLoraBenchHandoff } from '@/contexts/studio-library-pick'
 import { clampLabel } from '@/lib/assistant-mention'
 import { cn } from '@/lib/utils'
+import { screenItemProps } from '@/lib/assistant-screen-scan'
 import type { AssistantMention } from '@/types/assistant-mention'
 
 import { useLoraPickSelection } from './lora-pick-selection'
@@ -129,7 +130,8 @@ export function LoraLibraryTile({
     : undefined
 
   return (
-    <div className="min-w-0">
+    // 助手「看屏」认得出这一格（库开着时报给它，`assistant-screen-scan`）。
+    <div className="min-w-0" {...screenItemProps('lora', name, coverUrl)}>
       <div
         style={coverStyle}
         className={cn(

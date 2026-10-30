@@ -42,6 +42,7 @@ import type { UseVoicesPageReturn } from '@/hooks/use-voices-page'
 import { canPreviewVoiceSample } from '@/hooks/use-voice-sample-preview'
 import { charactersOfVoice, voiceAvatarCover } from '@/lib/voice-avatar'
 import { cn } from '@/lib/utils'
+import { screenItemProps } from '@/lib/assistant-screen-scan'
 
 import { VoiceTileMenuItems, type VoiceTileActions } from './VoiceTile'
 
@@ -391,7 +392,12 @@ export function VoiceLibraryTile({
 }) {
   const t = useTranslations('VoicesPage')
   return (
-    <div data-testid="voice-tile" className="min-w-0">
+    <div
+      data-testid="voice-tile"
+      className="min-w-0"
+      // 助手「看屏」认得出这一格（音色库开着时报给它，`assistant-screen-scan`）。
+      {...screenItemProps('voice', name, cover)}
+    >
       <div
         className={cn(MEDIA_TILE_CLASS, 'grid aspect-3/4 place-items-center')}
       >

@@ -177,6 +177,8 @@ import {
 } from '@/lib/api-client/generation'
 import { readAudioFileMetadata } from '@/lib/audio-metadata'
 import { buildGenerationTag } from '@/lib/generation-name'
+import { screenItemProps } from '@/lib/assistant-screen-scan'
+import { getGenerationThumbnailUrl } from '@/lib/generation-media'
 import { getApiErrorMessage } from '@/lib/api-error-message'
 import { prepareImageUpload } from '@/lib/prepare-image-upload'
 import { runUndoableAction } from '@/lib/undoable-action'
@@ -2606,6 +2608,11 @@ export function KreaAssetBrowser({
                             <div
                               key={gen.id}
                               {...tileLongPress.bind(gen.id)}
+                              {...screenItemProps(
+                                'picture',
+                                buildGenerationTag(gen),
+                                audioCoverUrl ?? getGenerationThumbnailUrl(gen),
+                              )}
                               className={cn(
                                 'shrink-0 transition-[scale,opacity] duration-base ease-standard motion-reduce:transition-none',
                                 leavingIds.has(gen.id) && 'scale-95 opacity-0',

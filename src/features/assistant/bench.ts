@@ -18,6 +18,7 @@ import {
   ASSISTANT_V3_LORA_EDIT_OP_IDS,
   ASSISTANT_V3_LORA_WRITE_FIELD_IDS,
   ASSISTANT_V3_TOOL_IDS,
+  ASSISTANT_V3_RESULT_PREFIX,
   ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS,
   ASSISTANT_V3_WEB_IMAGES_SEARCH_KIND,
   ASSISTANT_V3_WEB_VIDEOS_SEARCH_KIND,
@@ -40,8 +41,6 @@ import { assistantWorkspaceFromKey } from '@/lib/assistant-workspace'
 import { resolveClosestStudioAspectRatio } from '@/lib/studio-remix'
 import type { PromptAssistantResponseLanguage } from '@/types'
 import type {
-  AssistantLibraryView,
-  AssistantLibraryViewItem,
   AssistantOperatorEvent,
   AssistantOperatorRequest,
   AssistantOperatorSnapshot,
@@ -105,6 +104,12 @@ import {
 } from '@/features/assistant/canvas'
 import { isLibraryOp, runLibraryChange } from '@/features/assistant/library'
 import { readTaggerFor } from '@/features/assistant/tagger'
+import { renderLibraryView } from '@/features/assistant/library-view'
+import {
+  buildBenchScreenSheet,
+  buildScreenSheet,
+  type BenchScreenPicture,
+} from '@/features/assistant/screen.service'
 import type { BenchOpening } from '@/features/assistant/open'
 import type {
   AskInput,
@@ -325,76 +330,54 @@ export function renderBench(
   latestUserText: string,
   aliases = '',
 ): string {
-  return renderBenchBody(
-    context,
-    attachedNames,
-    latestUserText,
-    aliases,
-  ).concat(renderLibraryView(context.request.libraryView))
+  return renderBenchBody(context, attachedNames, latestUserText, aliases)
+    .concat(benchScreenHint(context))
+    .concat(renderLibraryView(context.request.libraryView))
 }
 
-/** 库在模型眼里叫什么（`AssistantLibraryView.library`）。 */
-const LIBRARY_VIEW_LABELS: Record<AssistantLibraryView['library'], string> = {
-  lora: 'LoRA library',
-  tavern: 'Chub character-card library',
-  tags: 'Danbooru tag library',
-  voices: 'voice library',
-  assets: 'asset library (their pictures)',
-  cards: 'character library',
-  prompts: 'saved-prompt library',
-  gallery: 'gallery',
+export { renderLibraryView }
+
+/** 台上此刻的参考图（按现在台上那几张，与 `look ref-N` 同一份）与最新一批结果。 */
+function benchScreenPictures(context: V3Context): {
+  references: BenchScreenPicture[]
+  results: BenchScreenPicture[]
+} {
+  const opening = context.request.snapshot.references?.items ?? []
+  const references = (context.prepared.run.state?.referenceUrls ?? []).flatMap(
+    (url, index) => {
+      if (!url) return []
+      const label =
+        opening[index]?.url === url ? opening[index]?.label : undefined
+      return [{ name: `ref-${index + 1}`, url, ...(label ? { label } : {}) }]
+    },
+  )
+  const results = (context.request.snapshot.results ?? []).map(
+    (result, index) => ({
+      name: `${ASSISTANT_V3_RESULT_PREFIX}${index + 1}`,
+      url: result.url,
+      ...(result.label ? { label: result.label } : {}),
+      ...(result.selected ? { selected: true } : {}),
+    }),
+  )
+  return { references, results }
 }
 
-const LIBRARY_VIEW_PREFIXES: Record<
-  Exclude<AssistantLibraryViewItem['kind'], 'picture'>,
-  string
-> = {
-  character: ASSISTANT_NEXT_HANDLE_PREFIXES.character,
-  lora: ASSISTANT_NEXT_HANDLE_PREFIXES.lora,
-  prompt: ASSISTANT_NEXT_HANDLE_PREFIXES.prompt,
-  tag: ASSISTANT_NEXT_HANDLE_PREFIXES.tag,
+/** 板子底下那一句：台上有两张以上的图时，提醒它能一眼看完。 */
+function benchScreenHint(context: V3Context): string {
+  if (
+    context.request.libraryView ||
+    context.face === ASSISTANT_V3_FACE_IDS.canvas
+  )
+    return ''
+  const { references, results } = benchScreenPictures(context)
+  return references.length + results.length >= 2
+    ? `\nTo see every picture on the bench at once (references on top, results below, numbered), look ${ASSISTANT_NEXT_HANDLE_PREFIXES.screen}. When they point at the bench without naming one ("左边那张 / 这几张 / which one"), look ${ASSISTANT_NEXT_HANDLE_PREFIXES.screen} first.`
+    : ''
 }
 
-/**
- * 库开着时板子底下那一句（10-26）：助手仍是台的身份，看不见库 —— 用户说「这个角色」时
- * 指的就是库里点开的那一样，先 `look` 它再答。
- */
-export function renderLibraryView(
-  view: AssistantLibraryView | undefined,
-): string {
-  if (!view) return ''
-  const where = `\nLIBRARY ON SCREEN: the creator has their ${LIBRARY_VIEW_LABELS[view.library]} open next to this chat`
-  const screen = renderLibraryScreen(view.screen)
-  if (!view.item) return `${where}.${screen}`
-  const handle = libraryHandle(view.item.kind, view.item.name)
-  return `${where}, looking at ${handle}. When they say "this one", "her", "it" without naming it, they mean ${handle}: look ${handle} before you answer.${screen}`
-}
-
-function libraryHandle(
-  kind: AssistantLibraryViewItem['kind'],
-  name: string,
-): string {
-  return kind === 'picture' ? name : `${LIBRARY_VIEW_PREFIXES[kind]}${name}`
-}
-
-/** 屏上那一页（owner 10-28）：范围、搜索词、屏上前几样、多选了哪几样。更多的叫它 `find`。 */
-function renderLibraryScreen(
-  screen: AssistantLibraryView['screen'] | undefined,
-): string {
-  if (!screen) return ''
-  const handles = (names: readonly string[]) =>
-    names.map((name) => libraryHandle(screen.kind, name)).join(', ')
-  const lines = [
-    screen.scope ? `Showing: ${screen.scope}.` : '',
-    screen.search ? `Search box: "${screen.search}".` : '',
-    screen.visible.length
-      ? `On screen (first ${screen.visible.length}${screen.total === undefined ? '' : ` of ${screen.total}`}): ${handles(screen.visible)}.`
-      : 'Nothing on screen.',
-    screen.selected?.length
-      ? `Selected by the creator: ${handles(screen.selected)}. "These" means them.`
-      : '',
-  ].filter(Boolean)
-  return `\n${lines.join('\n')}\nTo change what is on their screen (open one of them, search, switch section), call open with library.`
+function isScreenName(name: string): boolean {
+  const key = name.trim().toLowerCase()
+  return key === ASSISTANT_NEXT_HANDLE_PREFIXES.screen || key === 'screen'
 }
 
 function renderBenchBody(
@@ -1158,6 +1141,30 @@ export async function* runLook(
   const benchNames: string[] = []
   let failed = 0
   for (const name of names) {
+    // 看屏（10-30）：你眼前那一屏拼成的一张带编号小样图，先看个大概。
+    if (isScreenName(name)) {
+      // 库开着 = 看库那一屏；没开 = 看台（参考图 + 结果，10-30 owner「整个台一起拼」）。
+      const sheet = context.request.libraryView
+        ? await buildScreenSheet({
+            userId: context.prepared.user.id,
+            view: context.request.libraryView,
+            signal: context.prepared.run.signal,
+          })
+        : context.face === ASSISTANT_V3_FACE_IDS.canvas
+          ? {
+              text: `${ASSISTANT_NEXT_HANDLE_PREFIXES.screen}: on the canvas, look the cards by name (their pictures and clips come with them).`,
+              picture: null,
+            }
+          : await buildBenchScreenSheet({
+              userId: context.prepared.user.id,
+              ...benchScreenPictures(context),
+              signal: context.prepared.run.signal,
+            })
+      parts.push(sheet.text)
+      if (sheet.picture) pictures.push(sheet.picture)
+      else failed += 1
+      continue
+    }
     // 角色页：打开那位的设定全文（look / identity / … / tags）。
     const profilePart =
       context.face === ASSISTANT_V3_FACE_IDS.cards

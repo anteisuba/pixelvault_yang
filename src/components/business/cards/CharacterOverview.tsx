@@ -24,6 +24,7 @@ import {
 import { characterImageCount, characterWork } from '@/lib/character-works'
 import { withWordMatches } from '@/lib/search-words'
 import { cn } from '@/lib/utils'
+import { screenItemProps } from '@/lib/assistant-screen-scan'
 
 /**
  * **角色页总览 · 方向 A「书架」**（owner 09-26 选 A，原型见画布第 7 页）。
@@ -498,6 +499,7 @@ function CharacterTile({
         transition={LIQUID_SPRING.unfold}
         onClick={() => onOpen(card.id)}
         {...pressProps}
+        {...screenItemProps('character', name, cover)}
         data-testid="roster-tile"
         className="group block w-full select-none text-left transition-transform duration-fast ease-standard active:scale-96 motion-reduce:transition-none"
       >
@@ -539,6 +541,7 @@ function CharacterTile({
       transition={LIQUID_SPRING.unfold}
       onClick={() => onOpen(card.id)}
       {...pressProps}
+      {...screenItemProps('character', name, cover)}
       data-testid="roster-tile"
       className="group relative block aspect-4/5 w-full text-left"
     >

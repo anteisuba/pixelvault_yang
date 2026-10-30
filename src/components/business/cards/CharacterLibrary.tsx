@@ -43,6 +43,7 @@ import { useChubCard } from '@/hooks/cards/use-chub-card'
 import type { UseChubLibraryReturn } from '@/hooks/cards/use-chub-library'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { cn } from '@/lib/utils'
+import { screenItemProps } from '@/lib/assistant-screen-scan'
 
 /**
  * **角色页 · 卡库**（owner 2026-10-14 选「角色页里加 tab」）：站内搜 chub.ai 上别人
@@ -266,6 +267,7 @@ function LibraryTile({
       <button
         type="button"
         data-testid="library-tile"
+        {...screenItemProps('tavern', card.name, card.avatarUrl)}
         onClick={onOpen}
         aria-label={t('libraryOpenDetail', { name: card.name })}
         className="block w-full text-left transition-transform duration-fast ease-standard active:scale-96 motion-reduce:transition-none"
@@ -286,6 +288,7 @@ function LibraryTile({
     <button
       type="button"
       data-testid="library-tile"
+      {...screenItemProps('tavern', card.name, card.avatarUrl)}
       onClick={onOpen}
       aria-label={t('libraryOpenDetail', { name: card.name })}
       className="group relative block aspect-4/5 w-full text-left"

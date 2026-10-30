@@ -132,7 +132,7 @@ v3 的问题不在某一条规矩，而在外壳替模型做了太多事（审�
 
 **库开着时助手认得出你在看什么**（owner 10-26 选「A + 先查再回答」）：
 
-- 库叠层里的页面不当宿主（`StudioOperatorDetachedScope`，⛔ 一打开库就掐掉台上那一轮），助手仍是底下那个台的身份。库改为往 `hooks/use-library-view.ts` 报一句：叠层挂上时报开着哪个库（`setLibraryViewCategory`），各页点开某一样时报那一样（`useReportLibraryItem`：角色、LoRA（收藏 / Civitai 抽屉）、标签详情、素材详情图、提示词）。发请求时带 `libraryView`，服务端在任何一张脸的板子底下接一句 `LIBRARY ON SCREEN …, looking at 角色·Denia`（`renderLibraryView`），「这个」就是它，先 `look`。音色 / 酒馆 / 画廊只报开着哪个库。
+- 库叠层里的页面不当宿主（`StudioOperatorDetachedScope`，⛔ 一打开库就掐掉台上那一轮），助手仍是底下那个台的身份。库改为往 `hooks/use-library-view.ts` 报一句：叠层挂上时报开着哪个库（`setLibraryViewCategory`），各页点开某一样时报那一样（`useReportLibraryItem`：角色、LoRA（收藏 / Civitai 抽屉）、标签详情、素材详情图、提示词）。发请求时带 `libraryView`，服务端在任何一张脸的板子底下接一句 `LIBRARY ON SCREEN …, looking at 角色·Denia`（`renderLibraryView`），「这个」就是它，先 `look`。音色 / 酒馆 / 画廊 10-30 起也报（见下「看屏」）。
 - `open` 不再有 `character`（10-26）：角色页进了库、桌面上不当宿主，开过去永远「没到」（线上「没能打开那个台」）。角色的设定 / 造型用 edit 的库改法在哪个台都能改，首页两块板子也写明。
 - 系统提示加一条：没在这段对话里 `find` 过、结果为空之前，不许说「库里没有 / 你没有」。
 
@@ -141,6 +141,14 @@ v3 的问题不在某一条规矩，而在外壳替模型做了太多事（审�
 - 看：素材 / 角色 / 提示词 / LoRA 四个库页另报「屏上那一页」（`useReportLibraryScreen` → `libraryView.screen`）：哪一格 / 夹与筛选、搜索词、屏上前 20 样（按编号写）、素材多选了哪几张。板子底下 `LIBRARY ON SCREEN` 接着写出来；更多的叫它 `find`。页面还在取时不报；报上来的那一页对不上开着的库就不算。LoRA 库 Civitai 那一格不列结果。
 - 刷新：助手改了库（素材四条、`library_write` 的角色 / LoRA / 提示词）或撤销一条，`notifyLibraryChanged` 让开着的那一页重读（`useLibraryChanged`）；不走宿主，因为库叠层里的页面不当宿主。
 - 翻给你看：`open` 多一支 `bench: "library"`（`library` = assets / characters / prompts / loras，`show` 编号或名字，`search`，LoRA 的 `section`）。台不动；图按编号由服务端认成 id，别的只带名字、页面在自己列表里找（找不到就搜这个名字；LoRA 库只切到放着它的那一格）。浏览器 `requestLibraryShow` 交给页面（`useLibraryShowRequest`），换库时与左栏同一种换法（库开着用 replace），从台上翻开的库把对话一起叫出来；页面翻好（那一样打开了或在屏上、搜索词对上）或等满 `STUDIO_OPERATOR_LIBRARY_SHOW_SETTLE_MS` 就接着发，结果是新的屏上那一页，到没到由服务端照实说（`open.ts` 的 `libraryArrived`，与浏览器共用 `libraryItemShown`）。
+
+**看屏**（owner 10-30「像 Claude in Chrome 那样看见页面」，选方向 B：结构 + 按需看屏，八个库全补）：
+
+- 报屏改为**发请求那一刻扫你眼前那一屏**（`lib/assistant-screen-scan.ts`）：库里每一格挂 `screenItemProps(kind, 名字, 缩略图)` 那几个 data 属性，`readLibraryView` 现扫视口里露出 ≥40% 的格子，按排从上到下、从左到右排号，带缩略图地址与在视口里的位置（`screen.tiles` / `screen.viewport`）。页面报的范围 / 搜索 / 多选照留，屏上那几样以扫到的为准（滚到哪儿就是哪儿）；没扫到才退回页面报的前 20 样。已接：画廊（格子与提示词卡）、素材、角色、LoRA（收藏 / 自训 / Civitai）、提示词、标签（列表行，角色类带样图）、音色、酒馆。
+- 板子那一句按号列出（`features/assistant/library-view.ts`，与小样图共用写法）；带图时提醒「指着屏上说（这边 / 屏上 / 哪张）先 `look 屏幕`」。
+- `look 屏幕`（`features/assistant/screen.service.ts`）：服务端照报上来的地址取缩略图（⚠ 只认白名单图床：自家 R2、Civitai 及代理、chub、Danbooru），按屏上位置拼成一张 1280 宽、每格角上标号的 JPEG（裁到格子占的那一段；没报位置退回 5 列网格），存 R2 `assistant-screens/<userId>/<hash>.jpg`（同一屏同一个键），当一张 look 图摆给模型 —— 先看大概，要细看再 look 单张。⛔ 不在浏览器里截网页：别的域上的图常截成空白。下不来 / 解不开的格子点名不画。
+- 台上也能看屏（owner 10-30「把整个台（参考图 + 结果）一起拼」）：库没开时 `look 屏幕` 拼台上此刻的参考图（上面一排，`ref-N`，按 `run.state.referenceUrls` 现读）与最新一批结果（下面，`result-N`），每张看全貌不裁、选中那张描白边（`buildBenchScreenSheet`）；台上有两张以上的图时板子底下提醒先看屏。画布不拼（卡按名字 look）。
+- 画廊里的图编号 `画廊·<generationId>`：`look` 打得开公开的（谁的都行，写作者）和自己的（自己的照常带完整配方与 generationId）；别人的只读，⛔ 不给 generationId（挂参考图 / 改库认的是自己的 `图_N`）。酒馆卡编号 `酒馆卡·<名字>` 只认得名字，look 打不开。
 - 挂上 LoRA / 填进台照旧走开台再摆（`open` 台 + `edit`）。
 - 没做：手机；LoRA 收藏那一格里的搜索框与详情抽屉（另一会话在改那几个文件）；角色页的卡库（Chub）那一格。
 

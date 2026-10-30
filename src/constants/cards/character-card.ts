@@ -66,6 +66,12 @@ export const CHARACTER_PERSONA_LIMITS = {
   learnedPhraseChars: 16,
   /** 和你的关系（10-26「更像真人」C）：她整理聊天时自己写，称呼和亲近程度跟着它走。 */
   relationship: 300,
+  /**
+   * 她在意的东西（角色大项目第 ④ 步，owner 10-30）：出门照着找；你能增删，她出门回来也会自己
+   * 加减，钉住了她就动不了。
+   */
+  interests: 12,
+  interestChars: 30,
   scenario: 2000,
   opening: 2000,
   examples: 10,

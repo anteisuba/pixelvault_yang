@@ -95,6 +95,7 @@ vi.mock('@/services/llm-text.service', () => ({
 
 import {
   browseCharacter,
+  nextInterests,
   runDailyCharacterBrowse,
 } from './character-browse.service'
 
@@ -178,6 +179,79 @@ describe('browseCharacter（她出门逛一次）', () => {
         data.map((row: object, n: number) => ({ id: `f${n}`, ...row })),
       ),
     )
+  })
+
+  it('她在意的东西照着找，回来自己加一样（记进人设）', async () => {
+    mocks.cardFind.mockResolvedValueOnce({
+      id: 'card-1',
+      name: 'Denia',
+      tags: [],
+      persona: { identity: '画师', interests: ['水彩'] },
+      extensions: null,
+      browseDailyLimit: 3,
+      browseModel: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
+      updatedAt,
+    })
+    mocks.complete.mockReset()
+    mocks.complete
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          queries: [{ source: 'bilibili', query: '水彩 猫' }],
+          interests: { add: ['猫咖'], drop: [] },
+        }),
+      )
+      .mockResolvedValue(JSON.stringify({ notes: [] }))
+
+    await browseCharacter({ userId: 'u', cardId: 'card-1' })
+
+    const plan = mocks.complete.mock.calls[0]?.[0] as {
+      buildUserPrompt(): string
+      systemPrompt: string
+    }
+    expect(plan.buildUserPrompt()).toContain('- 水彩')
+    expect(plan.systemPrompt).toContain('"interests"')
+    expect(mocks.cardUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          persona: expect.objectContaining({ interests: ['水彩', '猫咖'] }),
+          updatedAt,
+        }),
+      }),
+    )
+  })
+
+  it('钉住了：不问她加减，也不改', async () => {
+    mocks.cardFind.mockResolvedValueOnce({
+      id: 'card-1',
+      name: 'Denia',
+      tags: [],
+      persona: { interests: ['水彩'] },
+      extensions: { 'pv.pinnedFields': ['interests'] },
+      browseDailyLimit: 3,
+      browseModel: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
+      updatedAt,
+    })
+    mocks.complete.mockReset()
+    mocks.complete
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          queries: [{ source: 'bilibili', query: '水彩' }],
+          interests: { add: ['猫咖'], drop: ['水彩'] },
+        }),
+      )
+      .mockResolvedValue(JSON.stringify({ notes: [] }))
+
+    await browseCharacter({ userId: 'u', cardId: 'card-1' })
+
+    const plan = mocks.complete.mock.calls[0]?.[0] as { systemPrompt: string }
+    expect(plan.systemPrompt).not.toContain('"interests"')
+    expect(
+      mocks.cardUpdate.mock.calls.some(
+        ([arg]) =>
+          (arg as { data: object }).data &&
+          'persona' in (arg as { data: object }).data,
+      ),
+    ).toBe(false)
   })
 
   it('先记时间（不顶到列表最前），按额度看没看过的，没意思的不记', async () => {
@@ -590,5 +664,21 @@ describe('runDailyCharacterBrowse（每天那一趟）', () => {
     })
     const where = mocks.cardFindMany.mock.calls[0]?.[0]?.where
     expect(where).toMatchObject({ browseEnabled: true, isDeleted: false })
+  })
+})
+
+describe('nextInterests（她在意的东西加减一次）', () => {
+  it('去掉只认原样的、加的去重截短、封顶', () => {
+    expect(
+      nextInterests(['水彩', '猫'], {
+        add: ['猫', '  胶片  '],
+        drop: ['水彩'],
+      }),
+    ).toEqual(['猫', '胶片'])
+    expect(nextInterests(['水彩'], { add: ['a', 'b', 'c'], drop: [] })).toEqual(
+      ['水彩', 'a', 'b'],
+    )
+    expect(nextInterests(['水彩'], { add: [], drop: ['不在单上'] })).toBeNull()
+    expect(nextInterests(['水彩'], null)).toBeNull()
   })
 })

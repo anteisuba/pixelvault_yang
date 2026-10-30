@@ -3034,6 +3034,11 @@ export const CharacterPersonaSchema = z.object({
     .trim()
     .max(CHARACTER_PERSONA_LIMITS.relationship)
     .default(''),
+  /** 她在意的东西（角色大项目第 ④ 步）：出门照着找；你能增删，她出门回来也会自己加减。 */
+  interests: z
+    .array(z.string().trim().min(1).max(CHARACTER_PERSONA_LIMITS.interestChars))
+    .max(CHARACTER_PERSONA_LIMITS.interests)
+    .default([]),
   scenario: z
     .string()
     .trim()

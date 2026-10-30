@@ -51,6 +51,8 @@ export interface CharacterCardDraft {
   learnedPhrases: string
   /** 和你的关系（C）：她整理聊天时自己写，这里能改。 */
   relationship: string
+  /** 她在意的东西（第 ④ 步），一样一条。 */
+  interests: string[]
   /** 作者备注（酒馆 creator_notes）= 我们的简介。 */
   summary: string
   alternateGreetings: string[]
@@ -149,6 +151,7 @@ export function draftFromCard(card: CharacterCardRecord): CharacterCardDraft {
     moods: (card.persona?.moods ?? []).join('\n'),
     learnedPhrases: (card.persona?.learnedPhrases ?? []).join('\n'),
     relationship: card.persona?.relationship ?? '',
+    interests: card.persona?.interests ?? [],
     summary: card.summary ?? '',
     alternateGreetings: card.tavern?.alternateGreetings ?? [],
     systemPrompt: card.tavern?.systemPrompt ?? '',
@@ -198,6 +201,10 @@ export function updateFromDraft(
         draft.relationship,
         CHARACTER_PERSONA_LIMITS.relationship,
       ),
+      interests: linesOf(draft.interests.join('\n'), {
+        max: CHARACTER_PERSONA_LIMITS.interests,
+        chars: CHARACTER_PERSONA_LIMITS.interestChars,
+      }),
     },
     extensions: {
       ...(tavern ? { [TAVERN_CARD.EXTENSION_KEY]: tavern } : {}),

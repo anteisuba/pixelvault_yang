@@ -254,6 +254,11 @@
       "stickers": "Stickers"
     },
     "detailNow": "Now",
+    "interestsTitle": "What she cares about",
+    "interestsEmpty": "Nothing yet. Until you add some, she goes by her persona.",
+    "interestsAdd": "Add one",
+    "interestsPlaceholder": "e.g. watercolor",
+    "interestsRemove": "Remove “{item}”",
     "detailMore": "More",
     "settingTavern": "SillyTavern",
     "editAction": "Edit",

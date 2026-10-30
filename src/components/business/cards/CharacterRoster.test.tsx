@@ -179,6 +179,7 @@ const CARDS = [
       moods: [],
       learnedPhrases: [],
       relationship: '',
+      interests: [],
       scenario: '',
       opening: '',
       examples: [],

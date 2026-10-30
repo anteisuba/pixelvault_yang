@@ -126,6 +126,12 @@
         "confirm": "出图",
         "decline": "不出",
         "failed": "没能完成，再试一次。"
+      },
+      "connector": {
+        "title": "Claude.ai · ChatGPT",
+        "description": "在它们的「连接器」里添加自定义连接器，填这个地址，登录 ANTEI 同意一次就连上了。连上后会出现在上面的列表里，默认只看。",
+        "urlLabel": "连接器地址",
+        "copy": "复制地址"
       }
     }
   }

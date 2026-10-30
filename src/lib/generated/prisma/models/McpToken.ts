@@ -32,6 +32,7 @@ export type McpTokenMinAggregateOutputType = {
   tokenHash: string | null
   last4: string | null
   access: string | null
+  oauthClientId: string | null
   lastUsedAt: Date | null
   revokedAt: Date | null
   createdAt: Date | null
@@ -44,6 +45,7 @@ export type McpTokenMaxAggregateOutputType = {
   tokenHash: string | null
   last4: string | null
   access: string | null
+  oauthClientId: string | null
   lastUsedAt: Date | null
   revokedAt: Date | null
   createdAt: Date | null
@@ -56,6 +58,7 @@ export type McpTokenCountAggregateOutputType = {
   tokenHash: number
   last4: number
   access: number
+  oauthClientId: number
   lastUsedAt: number
   revokedAt: number
   createdAt: number
@@ -70,6 +73,7 @@ export type McpTokenMinAggregateInputType = {
   tokenHash?: true
   last4?: true
   access?: true
+  oauthClientId?: true
   lastUsedAt?: true
   revokedAt?: true
   createdAt?: true
@@ -82,6 +86,7 @@ export type McpTokenMaxAggregateInputType = {
   tokenHash?: true
   last4?: true
   access?: true
+  oauthClientId?: true
   lastUsedAt?: true
   revokedAt?: true
   createdAt?: true
@@ -94,6 +99,7 @@ export type McpTokenCountAggregateInputType = {
   tokenHash?: true
   last4?: true
   access?: true
+  oauthClientId?: true
   lastUsedAt?: true
   revokedAt?: true
   createdAt?: true
@@ -179,6 +185,7 @@ export type McpTokenGroupByOutputType = {
   tokenHash: string
   last4: string
   access: string
+  oauthClientId: string | null
   lastUsedAt: Date | null
   revokedAt: Date | null
   createdAt: Date
@@ -212,6 +219,7 @@ export type McpTokenWhereInput = {
   tokenHash?: Prisma.StringFilter<"McpToken"> | string
   last4?: Prisma.StringFilter<"McpToken"> | string
   access?: Prisma.StringFilter<"McpToken"> | string
+  oauthClientId?: Prisma.StringNullableFilter<"McpToken"> | string | null
   lastUsedAt?: Prisma.DateTimeNullableFilter<"McpToken"> | Date | string | null
   revokedAt?: Prisma.DateTimeNullableFilter<"McpToken"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"McpToken"> | Date | string
@@ -226,6 +234,7 @@ export type McpTokenOrderByWithRelationInput = {
   tokenHash?: Prisma.SortOrder
   last4?: Prisma.SortOrder
   access?: Prisma.SortOrder
+  oauthClientId?: Prisma.SortOrderInput | Prisma.SortOrder
   lastUsedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   revokedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -243,6 +252,7 @@ export type McpTokenWhereUniqueInput = Prisma.AtLeast<{
   name?: Prisma.StringFilter<"McpToken"> | string
   last4?: Prisma.StringFilter<"McpToken"> | string
   access?: Prisma.StringFilter<"McpToken"> | string
+  oauthClientId?: Prisma.StringNullableFilter<"McpToken"> | string | null
   lastUsedAt?: Prisma.DateTimeNullableFilter<"McpToken"> | Date | string | null
   revokedAt?: Prisma.DateTimeNullableFilter<"McpToken"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"McpToken"> | Date | string
@@ -257,6 +267,7 @@ export type McpTokenOrderByWithAggregationInput = {
   tokenHash?: Prisma.SortOrder
   last4?: Prisma.SortOrder
   access?: Prisma.SortOrder
+  oauthClientId?: Prisma.SortOrderInput | Prisma.SortOrder
   lastUsedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   revokedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -275,6 +286,7 @@ export type McpTokenScalarWhereWithAggregatesInput = {
   tokenHash?: Prisma.StringWithAggregatesFilter<"McpToken"> | string
   last4?: Prisma.StringWithAggregatesFilter<"McpToken"> | string
   access?: Prisma.StringWithAggregatesFilter<"McpToken"> | string
+  oauthClientId?: Prisma.StringNullableWithAggregatesFilter<"McpToken"> | string | null
   lastUsedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"McpToken"> | Date | string | null
   revokedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"McpToken"> | Date | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"McpToken"> | Date | string
@@ -286,6 +298,7 @@ export type McpTokenCreateInput = {
   tokenHash: string
   last4: string
   access?: string
+  oauthClientId?: string | null
   lastUsedAt?: Date | string | null
   revokedAt?: Date | string | null
   createdAt?: Date | string
@@ -300,6 +313,7 @@ export type McpTokenUncheckedCreateInput = {
   tokenHash: string
   last4: string
   access?: string
+  oauthClientId?: string | null
   lastUsedAt?: Date | string | null
   revokedAt?: Date | string | null
   createdAt?: Date | string
@@ -312,6 +326,7 @@ export type McpTokenUpdateInput = {
   tokenHash?: Prisma.StringFieldUpdateOperationsInput | string
   last4?: Prisma.StringFieldUpdateOperationsInput | string
   access?: Prisma.StringFieldUpdateOperationsInput | string
+  oauthClientId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastUsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -326,6 +341,7 @@ export type McpTokenUncheckedUpdateInput = {
   tokenHash?: Prisma.StringFieldUpdateOperationsInput | string
   last4?: Prisma.StringFieldUpdateOperationsInput | string
   access?: Prisma.StringFieldUpdateOperationsInput | string
+  oauthClientId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastUsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -339,6 +355,7 @@ export type McpTokenCreateManyInput = {
   tokenHash: string
   last4: string
   access?: string
+  oauthClientId?: string | null
   lastUsedAt?: Date | string | null
   revokedAt?: Date | string | null
   createdAt?: Date | string
@@ -350,6 +367,7 @@ export type McpTokenUpdateManyMutationInput = {
   tokenHash?: Prisma.StringFieldUpdateOperationsInput | string
   last4?: Prisma.StringFieldUpdateOperationsInput | string
   access?: Prisma.StringFieldUpdateOperationsInput | string
+  oauthClientId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastUsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -362,6 +380,7 @@ export type McpTokenUncheckedUpdateManyInput = {
   tokenHash?: Prisma.StringFieldUpdateOperationsInput | string
   last4?: Prisma.StringFieldUpdateOperationsInput | string
   access?: Prisma.StringFieldUpdateOperationsInput | string
+  oauthClientId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastUsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -384,6 +403,7 @@ export type McpTokenCountOrderByAggregateInput = {
   tokenHash?: Prisma.SortOrder
   last4?: Prisma.SortOrder
   access?: Prisma.SortOrder
+  oauthClientId?: Prisma.SortOrder
   lastUsedAt?: Prisma.SortOrder
   revokedAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -396,6 +416,7 @@ export type McpTokenMaxOrderByAggregateInput = {
   tokenHash?: Prisma.SortOrder
   last4?: Prisma.SortOrder
   access?: Prisma.SortOrder
+  oauthClientId?: Prisma.SortOrder
   lastUsedAt?: Prisma.SortOrder
   revokedAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -408,6 +429,7 @@ export type McpTokenMinOrderByAggregateInput = {
   tokenHash?: Prisma.SortOrder
   last4?: Prisma.SortOrder
   access?: Prisma.SortOrder
+  oauthClientId?: Prisma.SortOrder
   lastUsedAt?: Prisma.SortOrder
   revokedAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -486,6 +508,7 @@ export type McpTokenCreateWithoutUserInput = {
   tokenHash: string
   last4: string
   access?: string
+  oauthClientId?: string | null
   lastUsedAt?: Date | string | null
   revokedAt?: Date | string | null
   createdAt?: Date | string
@@ -498,6 +521,7 @@ export type McpTokenUncheckedCreateWithoutUserInput = {
   tokenHash: string
   last4: string
   access?: string
+  oauthClientId?: string | null
   lastUsedAt?: Date | string | null
   revokedAt?: Date | string | null
   createdAt?: Date | string
@@ -540,6 +564,7 @@ export type McpTokenScalarWhereInput = {
   tokenHash?: Prisma.StringFilter<"McpToken"> | string
   last4?: Prisma.StringFilter<"McpToken"> | string
   access?: Prisma.StringFilter<"McpToken"> | string
+  oauthClientId?: Prisma.StringNullableFilter<"McpToken"> | string | null
   lastUsedAt?: Prisma.DateTimeNullableFilter<"McpToken"> | Date | string | null
   revokedAt?: Prisma.DateTimeNullableFilter<"McpToken"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"McpToken"> | Date | string
@@ -551,6 +576,7 @@ export type McpTokenCreateWithoutGenerationRequestsInput = {
   tokenHash: string
   last4: string
   access?: string
+  oauthClientId?: string | null
   lastUsedAt?: Date | string | null
   revokedAt?: Date | string | null
   createdAt?: Date | string
@@ -564,6 +590,7 @@ export type McpTokenUncheckedCreateWithoutGenerationRequestsInput = {
   tokenHash: string
   last4: string
   access?: string
+  oauthClientId?: string | null
   lastUsedAt?: Date | string | null
   revokedAt?: Date | string | null
   createdAt?: Date | string
@@ -591,6 +618,7 @@ export type McpTokenUpdateWithoutGenerationRequestsInput = {
   tokenHash?: Prisma.StringFieldUpdateOperationsInput | string
   last4?: Prisma.StringFieldUpdateOperationsInput | string
   access?: Prisma.StringFieldUpdateOperationsInput | string
+  oauthClientId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastUsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -604,6 +632,7 @@ export type McpTokenUncheckedUpdateWithoutGenerationRequestsInput = {
   tokenHash?: Prisma.StringFieldUpdateOperationsInput | string
   last4?: Prisma.StringFieldUpdateOperationsInput | string
   access?: Prisma.StringFieldUpdateOperationsInput | string
+  oauthClientId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastUsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -615,6 +644,7 @@ export type McpTokenCreateManyUserInput = {
   tokenHash: string
   last4: string
   access?: string
+  oauthClientId?: string | null
   lastUsedAt?: Date | string | null
   revokedAt?: Date | string | null
   createdAt?: Date | string
@@ -626,6 +656,7 @@ export type McpTokenUpdateWithoutUserInput = {
   tokenHash?: Prisma.StringFieldUpdateOperationsInput | string
   last4?: Prisma.StringFieldUpdateOperationsInput | string
   access?: Prisma.StringFieldUpdateOperationsInput | string
+  oauthClientId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastUsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -638,6 +669,7 @@ export type McpTokenUncheckedUpdateWithoutUserInput = {
   tokenHash?: Prisma.StringFieldUpdateOperationsInput | string
   last4?: Prisma.StringFieldUpdateOperationsInput | string
   access?: Prisma.StringFieldUpdateOperationsInput | string
+  oauthClientId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastUsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -650,6 +682,7 @@ export type McpTokenUncheckedUpdateManyWithoutUserInput = {
   tokenHash?: Prisma.StringFieldUpdateOperationsInput | string
   last4?: Prisma.StringFieldUpdateOperationsInput | string
   access?: Prisma.StringFieldUpdateOperationsInput | string
+  oauthClientId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastUsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -693,6 +726,7 @@ export type McpTokenSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs
   tokenHash?: boolean
   last4?: boolean
   access?: boolean
+  oauthClientId?: boolean
   lastUsedAt?: boolean
   revokedAt?: boolean
   createdAt?: boolean
@@ -708,6 +742,7 @@ export type McpTokenSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Exte
   tokenHash?: boolean
   last4?: boolean
   access?: boolean
+  oauthClientId?: boolean
   lastUsedAt?: boolean
   revokedAt?: boolean
   createdAt?: boolean
@@ -721,6 +756,7 @@ export type McpTokenSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exte
   tokenHash?: boolean
   last4?: boolean
   access?: boolean
+  oauthClientId?: boolean
   lastUsedAt?: boolean
   revokedAt?: boolean
   createdAt?: boolean
@@ -734,12 +770,13 @@ export type McpTokenSelectScalar = {
   tokenHash?: boolean
   last4?: boolean
   access?: boolean
+  oauthClientId?: boolean
   lastUsedAt?: boolean
   revokedAt?: boolean
   createdAt?: boolean
 }
 
-export type McpTokenOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "name" | "tokenHash" | "last4" | "access" | "lastUsedAt" | "revokedAt" | "createdAt", ExtArgs["result"]["mcpToken"]>
+export type McpTokenOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "name" | "tokenHash" | "last4" | "access" | "oauthClientId" | "lastUsedAt" | "revokedAt" | "createdAt", ExtArgs["result"]["mcpToken"]>
 export type McpTokenInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   generationRequests?: boolean | Prisma.McpToken$generationRequestsArgs<ExtArgs>
@@ -771,6 +808,10 @@ export type $McpTokenPayload<ExtArgs extends runtime.Types.Extensions.InternalAr
      * 权限三档（2026-10-30）：read 只查看 · edit 能改库与画布 · generate 还能发起出图（每次仍要她亲自确认）。
      */
     access: string
+    /**
+     * OAuth 连上来的那一家（Claude.ai / ChatGPT 连接器，§3.2）；令牌自己生成的是 null。
+     */
+    oauthClientId: string | null
     lastUsedAt: Date | null
     revokedAt: Date | null
     createdAt: Date
@@ -1205,6 +1246,7 @@ export interface McpTokenFieldRefs {
   readonly tokenHash: Prisma.FieldRef<"McpToken", 'String'>
   readonly last4: Prisma.FieldRef<"McpToken", 'String'>
   readonly access: Prisma.FieldRef<"McpToken", 'String'>
+  readonly oauthClientId: Prisma.FieldRef<"McpToken", 'String'>
   readonly lastUsedAt: Prisma.FieldRef<"McpToken", 'DateTime'>
   readonly revokedAt: Prisma.FieldRef<"McpToken", 'DateTime'>
   readonly createdAt: Prisma.FieldRef<"McpToken", 'DateTime'>

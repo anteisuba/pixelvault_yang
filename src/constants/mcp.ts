@@ -32,6 +32,15 @@ export function mcpAccessAllows(
   return MCP_ACCESS_LEVELS.indexOf(granted) >= MCP_ACCESS_LEVELS.indexOf(needed)
 }
 
+/** OAuth 连上来的那一家在单子上叫什么（后面接 clientId 末几位）。 */
+export const MCP_OAUTH_CONNECTION_NAME_PREFIX = 'OAuth · '
+
+/**
+ * 受保护资源元数据（RFC 9728）挂在哪：未认证的 401 在 `WWW-Authenticate` 里指向这里。
+ * ⚠ 放在 /api 下：页面路径会被 i18n 中间件加语言前缀；客户端照响应头去取，不靠猜 well-known。
+ */
+export const MCP_OAUTH_METADATA_PATH = '/api/mcp/oauth-protected-resource'
+
 /** 设置页「连接」生成令牌时预填的名字。 */
 export const MCP_TOKEN_DEFAULT_NAME = 'Claude Code'
 

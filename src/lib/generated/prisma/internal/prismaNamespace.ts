@@ -3695,6 +3695,7 @@ export const McpTokenScalarFieldEnum = {
   tokenHash: 'tokenHash',
   last4: 'last4',
   access: 'access',
+  oauthClientId: 'oauthClientId',
   lastUsedAt: 'lastUsedAt',
   revokedAt: 'revokedAt',
   createdAt: 'createdAt'

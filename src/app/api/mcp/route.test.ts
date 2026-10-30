@@ -28,6 +28,11 @@ vi.mock('@/services/mcp/mcp-tools.service', () => ({
   getRenderForMcp: vi.fn(),
 }))
 
+const mockVerifyOAuth = vi.fn()
+vi.mock('@/services/mcp/mcp-oauth.service', () => ({
+  verifyMcpOAuthToken: (...args: unknown[]) => mockVerifyOAuth(...args),
+}))
+
 const mockCreateRequest = vi.fn()
 const mockReadPending = vi.fn()
 const mockDecide = vi.fn()
@@ -358,6 +363,41 @@ describe('/api/mcp generate (the user confirms)', () => {
 
     expect(JSON.stringify(body?.result)).toContain('Settings → Connections')
     expect(mockCreateRequest).not.toHaveBeenCalled()
+  })
+})
+
+describe('/api/mcp OAuth (Claude.ai / ChatGPT connectors)', () => {
+  it('points an unsigned client at the resource metadata', async () => {
+    const response = await POST(
+      new Request('https://www.anteisuba.com/api/mcp', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          accept: 'application/json, text/event-stream',
+        },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
+      }),
+    )
+
+    expect(response.status).toBe(401)
+    expect(response.headers.get('www-authenticate')).toContain(
+      'resource_metadata="https://www.anteisuba.com/api/mcp/oauth-protected-resource"',
+    )
+  })
+
+  it('treats a token without the ANTEI prefix as a Clerk OAuth access token', async () => {
+    mockVerifyOAuth.mockResolvedValue({ ...OWNER, access: 'read' })
+    mockFind.mockResolvedValue('PICTURES: none found')
+
+    const { body } = await rpc(
+      'tools/call',
+      { name: 'find', arguments: {} },
+      'oat_abc',
+    )
+
+    expect(mockVerifyOAuth).toHaveBeenCalledWith('oat_abc')
+    expect(mockVerify).not.toHaveBeenCalled()
+    expect(resultOf(body).isError).toBeFalsy()
   })
 })
 

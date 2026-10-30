@@ -1,6 +1,6 @@
 # MCP 参考 — 外部 Claude 剪片接入契约
 
-> 状态：**施工基准**（进度表 37）。S2–S4 已上线（2026-09-28，令牌表迁移与 render worker 均已在生产）；令牌管理界面 2026-10-07 落在 `/settings/connections`（未推）；S5 的「快照加时间线 · 教 op」与站内看片 `canvas_look_at` 2026-10-07 施工完（未推），S7 未开工。owner 2026-09-28 设计门 ①–③ 定案：「用 Claude 控制我的项目剪片，它需要什么功能就做什么」。外部 Claude 经 MCP 读写画布项目，站内助手用**同一套工具**。剪辑台界面的改版（第 ④ 步画板）另行出稿，本文只管工具、数据与同步。
+> 状态：**施工基准**（进度表 37）。2026-10-30 扩到全站（§4.3–4.5）并写完 S7 OAuth（§3.2），施工单 `p-mcp-everywhere`。S2–S4 已上线（2026-09-28，令牌表迁移与 render worker 均已在生产）；令牌管理界面 2026-10-07 落在 `/settings/connections`（未推）；S5 的「快照加时间线 · 教 op」与站内看片 `canvas_look_at` 2026-10-07 施工完（未推），S7 未开工。owner 2026-09-28 设计门 ①–③ 定案：「用 Claude 控制我的项目剪片，它需要什么功能就做什么」。外部 Claude 经 MCP 读写画布项目，站内助手用**同一套工具**。剪辑台界面的改版（第 ④ 步画板）另行出稿，本文只管工具、数据与同步。
 
 ## 1. 定位
 
@@ -43,7 +43,11 @@ claude mcp add --transport http --scope user antei https://www.anteisuba.com/api
 - 授权服务器 = **Clerk 的 OAuth 应用**（Dashboard 打开，发布 CIMD 与 DCR 支持；DCR 在 MCP 规范里已标弃用，CIMD 优先，Claude 两种都支持）。同意页由 Clerk 出。
 - 受保护资源元数据（RFC 9728）我们自己出：`resource` 必须与用户粘贴的地址**逐字相同**（含 `/api/mcp`），`authorization_servers` 只写 Clerk 的 issuer（Claude 只读第一项）。
 - 未认证请求回 **401** 并带 `WWW-Authenticate: Bearer resource_metadata="…"`（Claude 不认 200 上的这个头）。
-- 验令牌用 `@clerk/nextjs` 6.39 自带的 `auth({ acceptsToken: 'oauth_token' })`。⛔ 不引 `@clerk/mcp-tools`：它要求 `@clerk/nextjs` ^7.2.3 且还依赖 v1 SDK，为它升整站登录的大版本不值得。
+- 2026-10-30 已写（`src/services/mcp/mcp-oauth.service.ts`）：不带 `pvmcp_` 前缀的 Bearer 一律当 Clerk OAuth 访问令牌，用 `clerkClient().idPOAuthAccessToken.verify` 验（`/api/mcp` 在 proxy 公开表里，`auth()` 拿不到中间件上下文，所以不用 `auth({ acceptsToken })`）。issuer 从 publishable key 解出（生产 = `https://clerk.anteisuba.com`）。
+- 元数据挂在 `/api/mcp/oauth-protected-resource`（`MCP_OAUTH_METADATA_PATH`，proxy 公开 + 测试），⛔ 不放 `/.well-known/…`：页面路径会被 i18n 中间件加语言前缀；客户端照 401 的 `WWW-Authenticate` 去取。
+- **每一家一行**：她 × clientId 在 `McpToken` 里占一行（`oauthClientId`，`tokenHash` = 那一对的哈希），和自己生成的令牌在设置页同一张单子上，权限同样三档、默认只看。吊销那一行 = 断开那一家；她重新同意后 Clerk 签的令牌晚于吊销时间 → 重新连上（回到只看），早于吊销的一律拒。
+- ⚠ **owner 要做**：Clerk Dashboard → OAuth applications 打开 Dynamic client registration（截至 10-30 `clerk.anteisuba.com/.well-known/oauth-authorization-server` 还没有 `registration_endpoint`），不开 Claude.ai / ChatGPT 加不上连接器。
+- 原计划：验令牌用 `@clerk/nextjs` 6.39 自带的 `auth({ acceptsToken: 'oauth_token' })`。⛔ 不引 `@clerk/mcp-tools`：它要求 `@clerk/nextjs` ^7.2.3 且还依赖 v1 SDK，为它升整站登录的大版本不值得。
 - 受众：Clerk 这个实例只服务本站一个资源，它签出的访问令牌天然就是给本站的；将来若挂第二个资源服务器，受众校验要改成显式比对。
 - 回调地址由 Clerk 按 CIMD / DCR 处理：托管端 `https://claude.ai/api/mcp/auth_callback`，Claude Code 是任意端口的 localhost / 127.0.0.1 回环。
 

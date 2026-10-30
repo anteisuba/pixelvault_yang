@@ -23,6 +23,7 @@ import {
   readPendingSummary,
 } from '@/services/mcp/mcp-generate.service'
 import { findForMcp, lookForMcp } from '@/services/mcp/mcp-library.service'
+import { verifyMcpOAuthToken } from '@/services/mcp/mcp-oauth.service'
 import {
   verifyMcpToken,
   type McpTokenOwner,
@@ -42,6 +43,7 @@ import {
   MCP_ACCESS_LEVELS,
   MCP_CONFIRM_INPUT_KEY,
   MCP_RATE_LIMIT,
+  MCP_TOKEN_PREFIX,
   MCP_TOOL_ACCESS,
   MCP_TOOL_IDS,
   mcpAccessAllows,
@@ -81,7 +83,10 @@ export async function verifyMcpBearer(
   bearerToken?: string,
 ): Promise<AuthInfo | undefined> {
   if (!bearerToken) return undefined
-  const owner = await verifyMcpToken(bearerToken)
+  // 自己生成的令牌认前缀；其余当 Clerk 签的 OAuth 访问令牌（§3.2）。
+  const owner = bearerToken.startsWith(MCP_TOKEN_PREFIX)
+    ? await verifyMcpToken(bearerToken)
+    : await verifyMcpOAuthToken(bearerToken)
   if (!owner) return undefined
   return {
     token: bearerToken,

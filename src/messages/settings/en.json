@@ -126,6 +126,12 @@
         "confirm": "Generate",
         "decline": "Skip",
         "failed": "Couldn't do that. Try again."
+      },
+      "connector": {
+        "title": "Claude.ai · ChatGPT",
+        "description": "Add a custom connector in their Connectors settings with this address, then sign in to ANTEI and approve once. It then shows up in the list above, view-only to start.",
+        "urlLabel": "Connector address",
+        "copy": "Copy address"
       }
     }
   }

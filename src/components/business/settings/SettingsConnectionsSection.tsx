@@ -53,7 +53,7 @@ import { Spinner } from '@/components/ui/spinner'
  * 与 API key 方向相反：那边是你去用别家的模型，这边是让 Claude 进来用你的项目。
  * 一块「Claude Code」：生成键 → 列表顶上一行填名字 → 刚生成那张卡给明文与
  * 填好令牌的接入命令（**只此一次**）→「我复制好了」收成普通一行。
- * ⛔ 不放 Claude.ai 连接器的占位：那一块做出来（mcp.md S7）才出现在这一页。
+ * 底下一块给网页版 Claude / ChatGPT 的连接器地址（S7 OAuth，2026-10-30）。
  *
  * 动效（owner 2026-10-08 设置页原型 v1）：虚线那一行**长高**出来；回车后同一格长成
  * 黑框卡（糊一下换进来）；「我复制好了」同一格收回普通一行；吊销过正中弹窗，那一行
@@ -251,7 +251,34 @@ export function SettingsConnectionsSection() {
           </AnimatePresence>
         </ul>
       ) : null}
+
+      <ConnectorBlock />
     </section>
+  )
+}
+
+/**
+ * 网页版 Claude / ChatGPT（§3.2 OAuth）：它们只认「自定义连接器 + 地址」，登录与同意页由 Clerk 出。
+ * 连上之后那一家会自己出现在上面的单子里（默认只看），在那一行调权限、吊销。
+ */
+function ConnectorBlock() {
+  const t = useTranslations('Settings')
+  return (
+    <div className="mt-6 grid gap-2.5">
+      <div>
+        <h3 className="text-sm font-medium">
+          {t('connections.connector.title')}
+        </h3>
+        <p className="mt-0.5 text-2sm leading-relaxed text-muted-foreground">
+          {t('connections.connector.description')}
+        </p>
+      </div>
+      <CodeLine
+        label={t('connections.connector.urlLabel')}
+        value={`${getAppOrigin()}${API_ENDPOINTS.MCP}`}
+        copyLabel={t('connections.connector.copy')}
+      />
+    </div>
   )
 }
 

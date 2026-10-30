@@ -1,5 +1,6 @@
 -- MCP 扩展到全站（2026-10-30）：令牌权限三档 + 等她确认的出图
-ALTER TABLE "McpToken" ADD COLUMN "access" TEXT NOT NULL DEFAULT 'read';
+ALTER TABLE "McpToken" ADD COLUMN "access" TEXT NOT NULL DEFAULT 'read',
+ADD COLUMN "oauthClientId" TEXT;
 
 CREATE TABLE "McpGenerationRequest" (
     "id" TEXT NOT NULL,

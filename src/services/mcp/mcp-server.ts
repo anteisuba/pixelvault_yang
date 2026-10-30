@@ -9,6 +9,7 @@ import { z } from 'zod'
 
 import { logger } from '@/lib/logger'
 import { rateLimit } from '@/lib/rate-limit'
+import { editForMcp, undoForMcp } from '@/services/mcp/mcp-edit.service'
 import { findForMcp, lookForMcp } from '@/services/mcp/mcp-library.service'
 import {
   verifyMcpToken,
@@ -27,6 +28,7 @@ import type { EdgeFrame } from '@/services/video-frames/edge-frame.service'
 import { MCP_RATE_LIMIT, MCP_TOOL_IDS } from '@/constants/mcp'
 import {
   McpApplyOpsInputSchema,
+  McpEditInputSchema,
   McpFindInputSchema,
   McpGetRenderInputSchema,
   McpListProjectsInputSchema,
@@ -34,6 +36,7 @@ import {
   McpLookInputSchema,
   McpReadProjectInputSchema,
   McpRenderInputSchema,
+  McpUndoInputSchema,
 } from '@/types/mcp'
 
 /**
@@ -253,5 +256,43 @@ export function registerMcpTools(server: McpServer): void {
           ]),
         }
       }),
+  )
+
+  server.registerTool(
+    MCP_TOOL_IDS.edit,
+    {
+      title: 'Change their ANTEI library',
+      description:
+        'Changes their library, a batch at a time: tag, favourite or file pictures, make folders, edit or add characters and their looks, attach a LoRA to a character, favourite a LoRA or change its cover, save or edit a prompt. Name things the way find prints them. Each change succeeds or fails on its own and comes back with an undo code. Nothing is deleted or made public, and nothing generates.',
+      inputSchema: McpEditInputSchema,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+      },
+    },
+    async (input, ctx) =>
+      guard(MCP_TOOL_IDS.edit, ctx.http?.authInfo, async (owner) =>
+        jsonResult(await editForMcp(owner, input)),
+      ),
+  )
+
+  server.registerTool(
+    MCP_TOOL_IDS.undo,
+    {
+      title: 'Undo a library change',
+      description:
+        'Undoes one change edit made, by the undo code it gave back. Only what that change did is taken back; anything changed since is left alone.',
+      inputSchema: McpUndoInputSchema,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+      },
+    },
+    async (input, ctx) =>
+      guard(MCP_TOOL_IDS.undo, ctx.http?.authInfo, async (owner) =>
+        textResult(await undoForMcp(owner, input)),
+      ),
   )
 }

@@ -10,12 +10,15 @@ import { z } from 'zod'
 import { EDIT_RESOLUTIONS } from '@/constants/edit-desk'
 import {
   MCP_APPLY_OPS_MAX,
+  MCP_EDIT_MAX_CHANGES,
+  MCP_EDIT_OPS,
   MCP_FIND_KINDS,
   MCP_LOOK_AT_MAX_TIMES,
   MCP_LOOK_MAX_NAMES,
   MCP_RENDER_KINDS,
   MCP_TOKEN_NAME_MAX_LENGTH,
 } from '@/constants/mcp'
+import { ASSISTANT_V3_CHARACTER_WRITE_PARTS } from '@/constants/assistant-v3'
 import { LOCALES } from '@/i18n/routing'
 import { CANVAS_APPLY_OP_IDS } from '@/types/assistant-operator'
 import { NodeAssistantOpV4Schema } from '@/types/node-assistant-ops'
@@ -236,6 +239,80 @@ export const McpLookInputSchema = z.object({
 })
 
 export type McpLookInput = z.infer<typeof McpLookInputSchema>
+
+const NameSchema = z.string().trim().min(1).max(200)
+
+export const McpEditChangeSchema = z.object({
+  op: z
+    .enum(MCP_EDIT_OPS)
+    .describe(
+      'tag_pictures (pictures, tags) · favorite_pictures (pictures, value) · new_folder (name, folder = parent) · put_in_folder (pictures, folder) · character_profile (character, and name / tags / fields) · new_character (name, tags, fields) · character_look (character "角色·<name>/<look>", label / text / tags / pictures to add) · new_character_look (character, label, text, tags, pictures) · lora_to_character (lora, character, optionally "/<look>") · favorite_lora (lora, value) · lora_cover (lora, picture) · save_prompt (name, text, negativeText, model) · update_prompt (saved, and name / text / negativeText).',
+    ),
+  pictures: z
+    .array(NameSchema)
+    .max(20)
+    .optional()
+    .describe('Picture numbers ("图_1624").'),
+  picture: NameSchema.optional().describe('One picture number ("图_1624").'),
+  tags: z.array(z.string().trim().min(1).max(40)).max(20).optional(),
+  value: z
+    .boolean()
+    .optional()
+    .describe('favorite_*: true to favourite (default), false to take it out.'),
+  name: NameSchema.optional().describe(
+    'new_folder / new_character / save_prompt: the name. character_profile / update_prompt: a new name.',
+  ),
+  folder: NameSchema.optional().describe('A folder of theirs, by name.'),
+  character: NameSchema.optional().describe(
+    '"角色·<name>", or "角色·<name>/<look>" for one look.',
+  ),
+  fields: z
+    .array(
+      z.object({
+        field: z.enum(ASSISTANT_V3_CHARACTER_WRITE_PARTS),
+        text: z.string().max(8000),
+      }),
+    )
+    .max(ASSISTANT_V3_CHARACTER_WRITE_PARTS.length)
+    .optional()
+    .describe(
+      'character_profile / new_character: setting parts to write, each replacing that part. Pinned parts are refused.',
+    ),
+  label: NameSchema.optional().describe('A look: its name.'),
+  text: z
+    .string()
+    .max(8000)
+    .optional()
+    .describe(
+      'A look: its one-line appearance. save_prompt / update_prompt: the prompt.',
+    ),
+  negativeText: z.string().max(8000).optional(),
+  lora: NameSchema.optional().describe(
+    '"LoRA·<name>" (theirs, or one from the Civitai library for favorite_lora).',
+  ),
+  saved: NameSchema.optional().describe('update_prompt: "提示词·<name>".'),
+  model: NameSchema.optional().describe(
+    'save_prompt: the model id the prompt is for (a saved prompt keeps its model).',
+  ),
+})
+
+export type McpEditChange = z.infer<typeof McpEditChangeSchema>
+
+export const McpEditInputSchema = z.object({
+  changes: z.array(McpEditChangeSchema).min(1).max(MCP_EDIT_MAX_CHANGES),
+})
+
+export type McpEditInput = z.infer<typeof McpEditInputSchema>
+
+export const McpUndoInputSchema = z.object({
+  undo: z
+    .string()
+    .min(1)
+    .max(20_000)
+    .describe('The undo code edit gave back for that change.'),
+})
+
+export type McpUndoInput = z.infer<typeof McpUndoInputSchema>
 
 /* ─── 浏览器实时跟随（§6）─────────────────────────────────────────────── */
 

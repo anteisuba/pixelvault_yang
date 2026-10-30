@@ -346,7 +346,7 @@ export function StudioLibraryLoading({
 
 /**
  * 助手贴左那几页（`LIBRARY_ASSISTANT_LEFT_CATEGORIES`）顶上最左那颗助手头像（角色大项目 ①）：
- * 点一下叫出 / 收回助手（对话从左边出来，和工作台对齐）。`dot` = 有事要叫你（缺东西时）。
+ * 点一下叫出助手（对话从左边出来，和工作台对齐；收回走对话头的收起键）。`dot` = 有事要叫你（缺东西时）。
  * 不在外壳里、或手机上不画。
  */
 export function StudioLibraryAssistantAvatar({
@@ -357,25 +357,21 @@ export function StudioLibraryAssistantAvatar({
   const t = useTranslations('StudioShell')
   const slot = useContext(StudioLibraryTargetContext)
   const { persona } = useAssistantPersona()
-  if (!slot) return null
-  const open = slot.assistantOpen
+  // 助手开着时对话头已经有它那颗头像（收起键也在那儿），这里让掉：左上只留一颗。
+  if (!slot || slot.assistantOpen) return null
   return (
     <button
       type="button"
-      aria-pressed={open}
       aria-label={t('libraryAssistant')}
       title={t('libraryAssistant')}
       data-testid="studio-library-assistant-avatar"
-      onClick={() => slot.setAssistantOpen(!open)}
-      className={cn(
-        'relative hidden size-8 shrink-0 place-items-center rounded-full transition-transform duration-fast ease-standard active:scale-[.98] focus-visible:outline-none focus-visible:shadow-focus lg:grid',
-        open ? 'bg-fill-strong' : 'bg-raise shadow-soft',
-      )}
+      onClick={() => slot.setAssistantOpen(true)}
+      className="relative hidden size-8 shrink-0 place-items-center rounded-full bg-raise shadow-soft transition-transform duration-fast ease-standard active:scale-[.98] focus-visible:outline-none focus-visible:shadow-focus lg:grid"
     >
       <span className="grid size-7 place-items-center overflow-hidden rounded-full">
         <AssistantAvatarGlyph presetId={persona.avatarPreset ?? null} />
       </span>
-      {dot && !open ? (
+      {dot ? (
         <span
           aria-hidden
           className="absolute top-0 right-0 size-2 rounded-full bg-highlight ring-2 ring-background"

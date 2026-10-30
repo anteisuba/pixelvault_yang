@@ -27,6 +27,12 @@ const mocks = vi.hoisted(() => ({
   danbooru: vi.fn(),
   civitai: vi.fn(),
   nativeSearch: vi.fn(),
+  findingUpsert: vi.fn(),
+  videoInfo: vi.fn(),
+  bilibiliComments: vi.fn(),
+  downloadVideo: vi.fn(),
+  framePicture: vi.fn(),
+  oembed: vi.fn(),
   fetchPicture: vi.fn<
     (
       url: string,
@@ -57,6 +63,7 @@ vi.mock('@/lib/db', () => ({
       findMany: mocks.findingFindMany,
       createManyAndReturn: mocks.findingCreateMany,
       deleteMany: mocks.findingDeleteMany,
+      upsert: mocks.findingUpsert,
     },
   },
 }))
@@ -81,7 +88,20 @@ vi.mock('@/services/kernel/assistant-completion.service', () => ({
 vi.mock('@/services/research/bilibili.connector', () => ({
   fetchBilibiliEvidence: mocks.bilibili,
   fetchBilibiliDanmaku: mocks.danmaku,
+  fetchBilibiliVideoInfo: mocks.videoInfo,
+  fetchBilibiliComments: mocks.bilibiliComments,
 }))
+vi.mock('./character-outing-video.service', async () => {
+  const actual = await vi.importActual<
+    typeof import('./character-outing-video.service')
+  >('./character-outing-video.service')
+  return {
+    ...actual,
+    downloadBilibiliVideo: mocks.downloadVideo,
+    bilibiliFramePicture: mocks.framePicture,
+    youtubeOembed: mocks.oembed,
+  }
+})
 vi.mock('@/services/research/danbooru.connector', () => ({
   fetchDanbooruEvidence: mocks.danbooru,
   fetchDanbooruComments: mocks.comments,
@@ -101,6 +121,7 @@ import {
   normalizeOutingSite,
   OutingBudgetExhausted,
   OutingMeter,
+  watchPinnedVideos,
 } from './character-browse.service'
 
 const updatedAt = new Date('2026-10-01T00:00:00.000Z')
@@ -129,6 +150,7 @@ async function browseCharacter(
   input: { userId: string; cardId: string },
   meter = new OutingMeter(10_000_000),
   sources: string[] = ['bilibili', 'danbooru', 'civitai', 'web'],
+  watch: string[] = [],
 ) {
   const card = await mocks.cardFind()
   const route = await mocks.route(input.userId, {
@@ -139,10 +161,20 @@ async function browseCharacter(
     card: { extensions: null, ...card },
     route: { ...route, meter },
     sources,
+    watch: new Set(watch),
     askInterests: true,
     onNow: async () => {},
   })
   return { seen: result.seen, kept: result.kept }
+}
+
+/** 前一个测试没用完的 once 队列会串过来：看视频这几个测试重新排一遍。 */
+function freshFindings() {
+  mocks.findingFindMany
+    .mockReset()
+    .mockResolvedValue([])
+    .mockResolvedValueOnce([{ title: '旧的' }])
+    .mockResolvedValueOnce([{ url: `https://www.bilibili.com/video/${bv(1)}` }])
 }
 
 describe('browseRound（她出门逛一轮）', () => {
@@ -159,6 +191,18 @@ describe('browseRound（她出门逛一轮）', () => {
     mocks.findingCount.mockResolvedValue(0)
     mocks.danmaku.mockResolvedValue(['好可爱', 'kksk'])
     mocks.comments.mockResolvedValue([])
+    mocks.videoInfo.mockImplementation(async (bvid: string) => ({
+      bvid,
+      aid: 1,
+      cid: 2,
+      duration: 120,
+      title: bvid,
+      cover: null,
+      desc: '',
+    }))
+    mocks.bilibiliComments.mockResolvedValue(['UP 主画得真好'])
+    mocks.downloadVideo.mockResolvedValue('data:video/mp4;base64,AAAA')
+    mocks.framePicture.mockResolvedValue('data:image/jpeg;base64,BBBB')
     mocks.findingFindMany
       .mockResolvedValue([])
       .mockResolvedValueOnce([{ title: '旧的' }])
@@ -294,7 +338,12 @@ describe('browseRound（她出门逛一轮）', () => {
     expect(viewed.buildUserPrompt()).not.toContain('视频 1')
     expect(viewed.imageData).toHaveLength(3)
     // 细看时带上最热的弹幕（只喂模型）。
-    expect(viewed.buildUserPrompt()).toContain('What people say: 好可爱 / kksk')
+    // 关着「看视频」= 只看评论区：热评 + 弹幕（只喂模型）。
+    expect(viewed.buildUserPrompt()).toContain(
+      'What people say: UP 主画得真好 / 好可爱 / kksk',
+    )
+    expect(mocks.downloadVideo).not.toHaveBeenCalled()
+    expect(mocks.framePicture).not.toHaveBeenCalled()
     expect(mocks.findingCreateMany).toHaveBeenCalledWith({
       data: [
         expect.objectContaining({
@@ -399,6 +448,115 @@ describe('browseRound（她出门逛一轮）', () => {
       seen: 0,
       kept: 0,
     })
+  })
+
+  it('开着看视频（Gemini）：B 站下 360P 真看，一轮最多 2 个，剩下的照常一批看', async () => {
+    freshFindings()
+    mocks.complete.mockReset()
+    mocks.complete
+      .mockResolvedValueOnce(
+        JSON.stringify({ queries: [{ source: 'bilibili', query: '水彩 猫' }] }),
+      )
+      .mockResolvedValueOnce(JSON.stringify({ note: '笔刷声好治愈' }))
+      .mockResolvedValueOnce(JSON.stringify({ note: null }))
+      .mockResolvedValueOnce(
+        JSON.stringify({ notes: [{ n: 1, note: '配色好甜' }] }),
+      )
+    const meter = new OutingMeter(10_000_000)
+
+    await browseCharacter(
+      { userId: 'u', cardId: 'card-1' },
+      meter,
+      ['bilibili'],
+      ['bilibili'],
+    )
+
+    const watched = mocks.complete.mock.calls[1]?.[0] as {
+      videoData: string
+      videoAnalysis: object
+      buildUserPrompt(): string
+    }
+    expect(watched.videoData).toBe('data:video/mp4;base64,AAAA')
+    expect(watched.videoAnalysis).toEqual({
+      fps: 0.5,
+      startOffset: 0,
+      endOffset: 120,
+    })
+    expect(watched.buildUserPrompt()).toContain('UP 主画得真好')
+    expect(mocks.downloadVideo).toHaveBeenCalledTimes(2)
+    const batch = mocks.complete.mock.calls[3]?.[0] as {
+      buildUserPrompt(): string
+    }
+    expect(batch.buildUserPrompt()).toContain('视频 4')
+    expect(batch.buildUserPrompt()).not.toContain('视频 2')
+    // 视频那份按秒估进额度表：120 s ×（0.5 帧 × 258 + 32）。
+    expect(meter.usedTokens).toBeGreaterThan(2 * 120 * 161)
+    expect(mocks.findingCreateMany).toHaveBeenCalledWith({
+      data: [
+        expect.objectContaining({
+          url: `https://www.bilibili.com/video/${bv(2)}`,
+          note: '笔刷声好治愈',
+        }),
+        expect.objectContaining({
+          url: `https://www.bilibili.com/video/${bv(4)}`,
+          note: '配色好甜',
+        }),
+      ],
+      skipDuplicates: true,
+      select: expect.any(Object),
+    })
+  })
+
+  it('额度不够看完一个视频：逛到的不看了，退回只看评论（⛔ 超）', async () => {
+    freshFindings()
+    mocks.complete.mockReset()
+    mocks.complete
+      .mockResolvedValueOnce(
+        JSON.stringify({ queries: [{ source: 'bilibili', query: '水彩 猫' }] }),
+      )
+      .mockResolvedValue(JSON.stringify({ notes: [] }))
+
+    await browseCharacter(
+      { userId: 'u', cardId: 'card-1' },
+      new OutingMeter(15_000),
+      ['bilibili'],
+      ['bilibili'],
+    )
+
+    expect(mocks.downloadVideo).not.toHaveBeenCalled()
+    expect(
+      mocks.complete.mock.calls.some(
+        ([arg]) => (arg as { videoData?: string }).videoData,
+      ),
+    ).toBe(false)
+  })
+
+  it('别家看得了图的模型：B 站换成分帧拼图细看', async () => {
+    freshFindings()
+    mocks.route.mockResolvedValue({
+      route: { adapterType: 'openai', apiKey: 'k', providerConfig: {} },
+      modelId: undefined,
+    })
+    mocks.complete.mockReset()
+    mocks.complete
+      .mockResolvedValueOnce(
+        JSON.stringify({ queries: [{ source: 'bilibili', query: '水彩 猫' }] }),
+      )
+      .mockResolvedValue(JSON.stringify({ notes: [] }))
+
+    await browseCharacter(
+      { userId: 'u', cardId: 'card-1' },
+      new OutingMeter(10_000_000),
+      ['bilibili'],
+      ['bilibili'],
+    )
+
+    expect(mocks.downloadVideo).not.toHaveBeenCalled()
+    expect(mocks.framePicture).toHaveBeenCalledWith(bv(2), expect.any(Object))
+    const batch = mocks.complete.mock.calls[1]?.[0] as {
+      buildUserPrompt(): string
+    }
+    expect(batch.buildUserPrompt()).toContain('(video frames attached)')
   })
 })
 
@@ -614,6 +772,104 @@ describe('表情包（4d）', () => {
       data: { note: string }[]
     }
     expect(written.data.map((row) => row.note)).toEqual(['笑死'])
+  })
+})
+
+describe('watchPinnedVideos（你贴的视频，第 ⑥ 步）', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.findingUpsert.mockImplementation(async ({ create }) => ({
+      id: 'f1',
+      title: create.title,
+      note: create.note,
+      source: create.source,
+    }))
+    mocks.findingFindMany.mockResolvedValue([])
+    mocks.oembed.mockResolvedValue({ title: '水彩教程', author: 'Ann' })
+  })
+
+  it('YouTube 交给 Gemini 只看那一段，一定写一句，记成见闻', async () => {
+    mocks.complete.mockResolvedValueOnce(
+      JSON.stringify({ note: '原来要先湿画' }),
+    )
+    const onNow = vi.fn(async () => {})
+    const kept = await watchPinnedVideos({
+      userId: 'u',
+      card: { id: 'card-1', name: 'Denia', persona: {} },
+      route: {
+        route: {
+          adapterType: 'gemini',
+          apiKey: 'k',
+          providerConfig: {},
+        } as never,
+        modelId: 'gemini-3.8-flash',
+        meter: new OutingMeter(10_000_000),
+      },
+      links: [
+        {
+          platform: 'youtube',
+          url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+          start: 180,
+          end: 300,
+        },
+      ],
+      onNow,
+    })
+
+    expect(kept).toBe(1)
+    expect(onNow).toHaveBeenCalledWith('youtube', '水彩教程')
+    const call = mocks.complete.mock.calls[0]?.[0] as {
+      videoData: string
+      videoAnalysis: object
+      systemPrompt: string
+    }
+    expect(call.videoData).toBe('https://www.youtube.com/watch?v=dQw4w9WgXcQ')
+    expect(call.videoAnalysis).toEqual({
+      fps: 1,
+      startOffset: 180,
+      endOffset: 300,
+    })
+    expect(call.systemPrompt).toContain('Always write the line')
+    expect(mocks.findingUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          source: 'youtube',
+          note: '原来要先湿画',
+        }),
+        update: expect.objectContaining({ note: '原来要先湿画' }),
+      }),
+    )
+  })
+
+  it('额度不够看完：截短到够的那么长再看', async () => {
+    mocks.complete.mockResolvedValueOnce(JSON.stringify({ note: '只看了开头' }))
+    await watchPinnedVideos({
+      userId: 'u',
+      card: { id: 'card-1', name: 'Denia', persona: {} },
+      route: {
+        route: {
+          adapterType: 'gemini',
+          apiKey: 'k',
+          providerConfig: {},
+        } as never,
+        modelId: 'gemini-3.8-flash',
+        meter: new OutingMeter(30_000),
+      },
+      links: [
+        {
+          platform: 'youtube',
+          url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+        },
+      ],
+      onNow: async () => {},
+    })
+    const call = mocks.complete.mock.calls[0]?.[0] as {
+      videoAnalysis: { startOffset: number; endOffset: number }
+    }
+    // 30k 里扣掉提示词和回答那份，按每秒 290 token 算，看不满 30 分钟。
+    expect(call.videoAnalysis.startOffset).toBe(0)
+    expect(call.videoAnalysis.endOffset).toBeGreaterThan(20)
+    expect(call.videoAnalysis.endOffset).toBeLessThan(100)
   })
 })
 

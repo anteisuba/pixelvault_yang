@@ -17,6 +17,8 @@ import {
   CHARACTER_OUTING,
   CHARACTER_OUTING_END_REASONS,
   CHARACTER_OUTING_STATUS,
+  CHARACTER_OUTING_VIDEO,
+  CHARACTER_VIDEO_SOURCES,
 } from '@/constants/character-browse'
 
 export const CharacterJournalEntrySchema = z.object({
@@ -67,6 +69,14 @@ export const CharacterOpinionEntrySchema = z.object({
   createdAt: z.string(),
 })
 
+/** 指定视频（第 ⑥ 步，`parseOutingVideoLink` 认出来的那一条）。 */
+export const OutingVideoLinkSchema = z.object({
+  platform: z.enum(CHARACTER_VIDEO_SOURCES),
+  url: z.string().url().max(300),
+  start: z.number().int().min(0).optional(),
+  end: z.number().int().min(1).optional(),
+})
+
 /**
  * 一趟出门（角色大项目第 ⑤ 步）。`nowLabel` = 「来源\n搜索词」（来源是内置站 id 或 `site:域名`）；
  * `usedTokens` 按 `CHARACTER_OUTING.tokensPerPoint` 折点给人看。
@@ -82,6 +92,9 @@ export const CharacterOutingRunSchema = z.object({
   model: z.string(),
   sources: z.array(z.string()),
   sites: z.array(z.string()),
+  /** 开着「看视频」的来源（第 ⑥ 步）。 */
+  videos: z.array(z.string()),
+  pinnedVideos: z.array(OutingVideoLinkSchema),
   budgetPoints: z.number().int(),
   usedTokens: z.number().int(),
   kept: z.number().int(),
@@ -117,6 +130,16 @@ export const StartCharacterOutingSchema = z.object({
   sites: z
     .array(z.string().trim().min(1).max(CHARACTER_OUTING.siteChars))
     .max(CHARACTER_OUTING.maxSites),
+  /** 开着「看视频」的来源；关着的只看评论区。 */
+  videos: z
+    .array(z.enum(CHARACTER_VIDEO_SOURCES))
+    .max(CHARACTER_VIDEO_SOURCES.length)
+    .default([]),
+  /** 你贴的视频链接（服务端再认一遍，认不出的丢掉）。 */
+  pinnedVideos: z
+    .array(OutingVideoLinkSchema)
+    .max(CHARACTER_OUTING_VIDEO.maxPinned)
+    .default([]),
   budgetPoints: z
     .number()
     .int()

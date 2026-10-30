@@ -165,6 +165,7 @@
       "today": "Today",
       "yesterday": "Yesterday",
       "sourceBilibili": "Bilibili",
+      "sourceYoutube": "YouTube",
       "sourceDanbooru": "Danbooru",
       "sourceCivitai": "Civitai",
       "sourceX": "X",
@@ -228,8 +229,8 @@
         "sources": "Sources",
         "auto": "Auto",
         "addSite": "Add a site",
-        "sitePlaceholder": "A site, like pixiv.net",
-        "siteInvalid": "That doesn't look like a site",
+        "sitePlaceholder": "A site or a video link, add 3:00-5:00 for a part",
+        "siteInvalid": "That doesn't look like a site or a video link",
         "budget": "Budget (points)",
         "custom": "Custom",
         "customLabel": "Custom points",
@@ -250,6 +251,23 @@
           "stopped": "You called her back",
           "nothing": "Nothing new found",
           "failed": "Something went wrong"
+        },
+        "capVideo": "Video",
+        "capAudio": "Audio",
+        "videos": "Watch videos",
+        "pinnedHint": "She watches the videos you pasted first",
+        "pinnedLabel": "Video {name}",
+        "removePinned": "Don't watch this video",
+        "hint": {
+          "bilibiliWatch": "Downloads it in 360p, watches and listens to the whole thing",
+          "bilibiliFrames": "Looks at 24 frames, plus comments and bullet chat",
+          "bilibiliOff": "Only reads the comments and bullet chat",
+          "youtubeWatch": "Watches straight from the link, with sound",
+          "youtubeOff": "Only reads the title and description",
+          "youtubeNeedsGemini": "Switch to Gemini to watch; for now only the title and description",
+          "xWatch": "Grok watches the videos in posts; costs more points",
+          "xOff": "Only reads the text and pictures in posts",
+          "needsImage": "This model can't see pictures; switch to Gemini to watch"
         }
       }
     },

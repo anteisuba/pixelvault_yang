@@ -401,6 +401,14 @@ export const BILIBILI_REQUEST = {
   viewEndpoint: 'https://api.bilibili.com/x/web-interface/view',
   /** 弹幕（公开 XML，按稿件的 cid 取；角色出门逛时读个热闹，第 4 批）。 */
   danmakuEndpoint: 'https://api.bilibili.com/x/v1/dm/list.so',
+  /**
+   * 角色出门看视频（角色大项目第 ⑥ 步，owner 10-30 点头下 360P）：都不用登录。
+   * `playurl` 带 `platform=html5` 给一条带声音的 mp4（qn=16 = 360P）；`videoshot` 给预览雪碧图
+   * （每张 10×10 格、160×90）和每格的时间；`reply` 给热评（oid = aid）。
+   */
+  playurlEndpoint: 'https://api.bilibili.com/x/player/playurl',
+  videoshotEndpoint: 'https://api.bilibili.com/x/player/videoshot',
+  replyEndpoint: 'https://api.bilibili.com/x/v2/reply',
   searchEndpoint: 'https://api.bilibili.com/x/web-interface/search/type',
   referer: 'https://www.bilibili.com/',
   /**

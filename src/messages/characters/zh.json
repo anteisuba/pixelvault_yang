@@ -165,6 +165,7 @@
       "today": "今天",
       "yesterday": "昨天",
       "sourceBilibili": "B 站",
+      "sourceYoutube": "YouTube",
       "sourceDanbooru": "Danbooru",
       "sourceCivitai": "Civitai",
       "sourceX": "X",
@@ -228,8 +229,8 @@
         "sources": "来源",
         "auto": "自动",
         "addSite": "添加网址",
-        "sitePlaceholder": "网址，比如 pixiv.net",
-        "siteInvalid": "认不出这个网址",
+        "sitePlaceholder": "网址或视频链接，可加 3:00-5:00",
+        "siteInvalid": "认不出这个网址或视频链接",
         "budget": "额度（点）",
         "custom": "自定",
         "customLabel": "自定点数",
@@ -250,6 +251,23 @@
           "stopped": "你让她回来了",
           "nothing": "没找到新东西",
           "failed": "半路出了问题"
+        },
+        "capVideo": "视频",
+        "capAudio": "声音",
+        "videos": "看视频",
+        "pinnedHint": "贴的视频她会先看",
+        "pinnedLabel": "指定视频 {name}",
+        "removePinned": "不看这个视频",
+        "hint": {
+          "bilibiliWatch": "先下载 360P，看完整段并听声音",
+          "bilibiliFrames": "看 24 张分帧，加评论和弹幕",
+          "bilibiliOff": "只看评论和弹幕",
+          "youtubeWatch": "直接看链接，能听声音",
+          "youtubeOff": "只看标题和简介",
+          "youtubeNeedsGemini": "换 Gemini 才能看视频，现在只看标题和简介",
+          "xWatch": "Grok 直接看帖子里的视频，点数花得多一些",
+          "xOff": "只看帖子的文字和图片",
+          "needsImage": "这个模型看不了图，换 Gemini 才能看视频"
         }
       }
     },

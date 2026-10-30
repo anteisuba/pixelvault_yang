@@ -1382,6 +1382,12 @@ model CharacterOuting {
   sources       String[]
   /// 你添加的网址（域名），用模型自带的网搜 `site:` 去找。
   sites         String[]
+  /// 开着「看视频」的来源（`CHARACTER_VIDEO_SOURCES`，第 ⑥ 步）；关着的只看评论区。
+  videos        String[]  @default([])
+  /// 你贴的视频链接 [{platform,url,start?,end?}]（`OutingVideoLinkSchema`），她先看。
+  pinnedVideos  Json?
+  /// 指定视频看完了（跨段不重看）。
+  pinnedDone    Boolean   @default(false)
   budgetPoints  Int
   usedTokens    Int       @default(0)
   calls         Int       @default(0)

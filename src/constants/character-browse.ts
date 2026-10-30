@@ -5,6 +5,8 @@
  */
 export const CHARACTER_BROWSE_SOURCE_IDS = {
   bilibili: 'bilibili',
+  /** YouTube 视频：模型自带网搜 `site:youtube.com` 找（第 ⑥ 步）。 */
+  youtube: 'youtube',
   danbooru: 'danbooru',
   civitai: 'civitai',
   /** X 上的帖子：只在助手用 Grok 时搜得到（Grok 自带 X 搜索）。 */
@@ -14,6 +16,7 @@ export const CHARACTER_BROWSE_SOURCE_IDS = {
 
 export const CHARACTER_BROWSE_SOURCES = [
   CHARACTER_BROWSE_SOURCE_IDS.bilibili,
+  CHARACTER_BROWSE_SOURCE_IDS.youtube,
   CHARACTER_BROWSE_SOURCE_IDS.danbooru,
   CHARACTER_BROWSE_SOURCE_IDS.civitai,
   CHARACTER_BROWSE_SOURCE_IDS.x,
@@ -21,6 +24,15 @@ export const CHARACTER_BROWSE_SOURCES = [
 ] as const
 
 export type CharacterBrowseSource = (typeof CHARACTER_BROWSE_SOURCES)[number]
+
+/** 能「看视频」的来源（第 ⑥ 步，弹框里每个一个开关）。 */
+export const CHARACTER_VIDEO_SOURCES = [
+  CHARACTER_BROWSE_SOURCE_IDS.bilibili,
+  CHARACTER_BROWSE_SOURCE_IDS.youtube,
+  CHARACTER_BROWSE_SOURCE_IDS.x,
+] as const
+
+export type CharacterVideoSource = (typeof CHARACTER_VIDEO_SOURCES)[number]
 
 export const CHARACTER_BROWSE = {
   /** 一次逛最多想几个搜索词。 */
@@ -102,6 +114,45 @@ export const CHARACTER_OUTING = {
   frequentSites: 6,
   /** 写日记时每条见闻带多少字。 */
   diaryFindingChars: 240,
+} as const
+
+/**
+ * 出门看视频（角色大项目第 ⑥ 步，owner 10-30）。开关开着 = 真的看：
+ * - Gemini：B 站下 360P（不登录）整段看、听声音；YouTube 直接把链接交给 Gemini（不经我们）；
+ * - 别的看得了图的模型：B 站看分帧（预览雪碧图拼成一张），YouTube 只有封面；
+ * - X：只有 Grok，X 搜索开 `enable_video_understanding`。
+ * 关着 = 只看评论区（B 站评论 + 弹幕；YouTube 拿不到评论，只看标题和简介）。
+ * 你贴的视频链接 = 指定视频，她先看；可带时间段只看那一段。
+ * ⭐ 每个视频看之前按「秒数 × 每秒 token」估，估得超额度：逛到的退回只看评论，指定的截短到够的那么长。
+ */
+export const CHARACTER_OUTING_VIDEO = {
+  /** 逛到的视频最多看多长、每秒几帧（随便看看）；指定的最多多长、每秒几帧（认真看）。 */
+  browseSeconds: 300,
+  browseFps: 0.5,
+  pinnedMaxSeconds: 1800,
+  pinnedFps: 1,
+  /** Gemini 每帧 / 每秒声音的 token（按上限估）。 */
+  frameTokens: 258,
+  audioTokensPerSecond: 32,
+  /** 截短到额度够的那么长时，最少也得看这么久，不然不看。 */
+  minWatchSeconds: 20,
+  /** 一轮最多真看几个逛到的视频。 */
+  perRound: 2,
+  /** B 站下载的上限（360P 约 3 MB/分钟）；超了退回分帧。 */
+  bilibiliMaxBytes: 40 * 1024 * 1024,
+  downloadTimeoutMs: 90_000,
+  /** 看一个视频那一次调用的时限。 */
+  watchTimeoutMs: 150_000,
+  /** 分帧拼图：最多几格、每行几格。 */
+  frameTiles: 24,
+  frameColumns: 6,
+  /** Grok 看一段 X 视频按这么多 token 算（不报）；一次搜索最多看几段。 */
+  xVideoTokens: 30_000,
+  xVideosPerSearch: 3,
+  /** 一趟最多指定几个视频。 */
+  maxPinned: 4,
+  /** 细看时带几条最热评论。 */
+  commentsTop: 10,
 } as const
 
 /** 一段跑完接着跑下一段：自己调自己这条内部接口（`Authorization: Bearer CRON_SECRET`）。 */

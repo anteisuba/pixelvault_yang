@@ -948,47 +948,6 @@ export function CharacterRecent({
 }
 
 /**
- * 电脑详情的「表情包」页签（角色大项目 ①）：格子原样（上传 · 拉黑 / 恢复 · 删除），删前确认。
- */
-export function CharacterStickersPane({ stickers }: { stickers: Stickers }) {
-  const t = useTranslations('CharacterRoster.recent')
-  const [deletingId, setDeletingId] = useState<string | null>(null)
-  return (
-    <div>
-      <StickerGrid
-        stickers={stickers}
-        onToggle={(sticker) =>
-          void stickers
-            .setBlocked(sticker.id, !sticker.isBlocked)
-            .then((ok) => {
-              if (!ok) toast.error(t('saveFailed'))
-            })
-        }
-        onDelete={(sticker) => setDeletingId(sticker.id)}
-      />
-      <ConfirmDialog
-        open={deletingId !== null}
-        onOpenChange={(open) => {
-          if (!open) setDeletingId(null)
-        }}
-        title={t('deleteStickerTitle')}
-        description={t('deleteStickerBody')}
-        cancelLabel={t('cancel')}
-        confirmLabel={t('delete')}
-        onConfirm={() => {
-          const id = deletingId
-          setDeletingId(null)
-          if (id)
-            void stickers.remove(id).then((ok) => {
-              if (!ok) toast.error(t('deleteFailed'))
-            })
-        }}
-      />
-    </div>
-  )
-}
-
-/**
  * **详情两栏**（方向 B）：左「她」（`body`，原样的详情正文）· 右「最近」。768 起并排（平板左栏 300，
  * 1024 起 380）；手机顶上一条「她 · 最近」切换，默认「最近」。
  */

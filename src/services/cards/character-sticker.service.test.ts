@@ -1,3 +1,4 @@
+import sharp from 'sharp'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
@@ -44,6 +45,9 @@ import {
   CharacterStickerUploadError,
   dedupeCharacterStickers,
   deleteCharacterSticker,
+  placeSticker,
+  stickerLook,
+  stickerLookDistance,
   listCharacterStickers,
   loadChatStickers,
   pruneCharacterStickers,
@@ -259,5 +263,97 @@ describe('表情包去重（10-30「找了好多次重复的」）', () => {
     mocks.stickerFindMany.mockResolvedValue([{ ...row, contentHash: null }])
     await listCharacterStickers('clerk', 'c')
     expect(mocks.after).toHaveBeenCalledTimes(1)
+  })
+})
+
+/** 一张有内容的小图：左亮右暗的斜条，`size` 边长，`mark` 角上加一块「水印」。 */
+async function drawing(size: number, flip = false, mark = false) {
+  const pixels = Buffer.alloc(size * size * 3)
+  for (let y = 0; y < size; y++)
+    for (let x = 0; x < size; x++) {
+      const v = Math.round(((x + y * 0.5) / (size * 1.5)) * 255)
+      const value = flip ? 255 - v : v
+      const inMark = mark && x > size * 0.85 && y > size * 0.85
+      pixels.fill(
+        inMark ? 255 : value,
+        (y * size + x) * 3,
+        (y * size + x) * 3 + 3,
+      )
+    }
+  return sharp(pixels, { raw: { width: size, height: size, channels: 3 } })
+    .png()
+    .toBuffer()
+}
+
+describe('表情包相似图（第 ⑨ 步）', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('缩放、加小水印的同一张认得出，反过来的那张不算', async () => {
+    const big = (await stickerLook(await drawing(256)))!
+    const small = (await stickerLook(await drawing(96, false, true)))!
+    const other = (await stickerLook(await drawing(256, true)))!
+    expect(big.pixels).toBe(256 * 256)
+    expect(
+      stickerLookDistance(big.visualHash, small.visualHash),
+    ).toBeLessThanOrEqual(10)
+    expect(
+      stickerLookDistance(big.visualHash, other.visualHash),
+    ).toBeGreaterThan(10)
+  })
+
+  it('长得像的已经有了、新的更清楚：那一行换成新图，旧图删掉', async () => {
+    const look = (await stickerLook(await drawing(96)))!
+    mocks.stickerFindFirst.mockResolvedValue(null)
+    mocks.stickerFindMany.mockResolvedValue([
+      { ...row, visualHash: look.visualHash, pixels: look.pixels },
+    ])
+    mocks.stickerUpdate.mockResolvedValue(row)
+    const result = await placeSticker({
+      userId: 'u',
+      cardId: 'c',
+      key: 'new-key',
+      url: 'https://cdn/new.png',
+      sourceUrl: null,
+      whenToUse: 'x',
+      data: await drawing(256),
+    })
+    expect(result.created).toBe(false)
+    expect(mocks.stickerUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 's1' },
+        data: expect.objectContaining({
+          storageKey: 'new-key',
+          pixels: 256 * 256,
+        }),
+      }),
+    )
+    expect(mocks.deleteR2).toHaveBeenCalledWith(row.storageKey)
+    expect(mocks.stickerCreate).not.toHaveBeenCalled()
+  })
+
+  it('长得像的已经有了、新的没它清楚：不收，删掉刚传的', async () => {
+    const look = (await stickerLook(await drawing(256)))!
+    mocks.stickerFindFirst.mockResolvedValue(null)
+    mocks.stickerFindMany.mockResolvedValue([
+      { ...row, visualHash: look.visualHash, pixels: look.pixels },
+    ])
+    const result = await placeSticker({
+      userId: 'u',
+      cardId: 'c',
+      key: 'new-key',
+      url: 'https://cdn/new.png',
+      sourceUrl: null,
+      whenToUse: 'x',
+      data: await drawing(96),
+    })
+    expect(result).toEqual({
+      row: expect.objectContaining({ id: 's1' }),
+      created: false,
+    })
+    expect(mocks.deleteR2).toHaveBeenCalledWith('new-key')
+    expect(mocks.stickerUpdate).not.toHaveBeenCalled()
+    expect(mocks.stickerCreate).not.toHaveBeenCalled()
   })
 })

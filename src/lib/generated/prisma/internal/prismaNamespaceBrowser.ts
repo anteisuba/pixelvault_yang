@@ -844,6 +844,8 @@ export const CharacterStickerScalarFieldEnum = {
   isBlocked: 'isBlocked',
   sentAt: 'sentAt',
   contentHash: 'contentHash',
+  visualHash: 'visualHash',
+  pixels: 'pixels',
   createdAt: 'createdAt'
 } as const
 

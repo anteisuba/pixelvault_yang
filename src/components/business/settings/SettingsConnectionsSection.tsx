@@ -15,10 +15,12 @@ import { Copy, Plus } from '@/components/icons'
 import { API_ENDPOINTS, getAppOrigin } from '@/constants/config'
 import {
   buildClaudeCodeMcpCommand,
+  MCP_ACCESS_LEVELS,
   MCP_ACTIVE_WINDOW_MS,
   MCP_MAX_ACTIVE_TOKENS,
   MCP_TOKEN_DEFAULT_NAME,
   MCP_TOKEN_NAME_MAX_LENGTH,
+  type McpAccessLevel,
 } from '@/constants/mcp'
 import {
   COPIED_ACK_MS,
@@ -40,6 +42,7 @@ import {
   useButtonFeedback,
 } from '@/components/ui/feedback-button'
 import { Input } from '@/components/ui/input'
+import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import { Spinner } from '@/components/ui/spinner'
 
 /**
@@ -58,7 +61,8 @@ import { Spinner } from '@/components/ui/spinner'
  */
 export function SettingsConnectionsSection() {
   const t = useTranslations('Settings')
-  const { tokens, isLoading, failure, create, revoke, reload } = useMcpTokens()
+  const { tokens, isLoading, failure, create, setAccess, revoke, reload } =
+    useMcpTokens()
   const reduceMotion = useReducedMotion()
   const [naming, setNaming] = useState<{ focus: boolean } | null>(null)
   const [creating, setCreating] = useState(false)
@@ -233,6 +237,7 @@ export function SettingsConnectionsSection() {
                       <TokenRow
                         token={token}
                         now={now}
+                        onAccess={(access) => void setAccess(token.id, access)}
                         onRevoke={() => void revokeToken(token)}
                       />
                     )}
@@ -458,10 +463,12 @@ function CodeLine({
 function TokenRow({
   token,
   now,
+  onAccess,
   onRevoke,
 }: {
   token: McpTokenRecord
   now: number
+  onAccess: (access: McpAccessLevel) => void
   onRevoke: () => void
 }) {
   const t = useTranslations('Settings')
@@ -507,6 +514,17 @@ function TokenRow({
         {usage} · {createdOn}
       </span>
       <span className="flex-1 @md:hidden" aria-hidden />
+      <LiquidSegmented
+        size="xs"
+        semantics="radio"
+        ariaLabel={t('connections.access.label', { name: token.name })}
+        value={token.access}
+        onChange={onAccess}
+        items={MCP_ACCESS_LEVELS.map((level) => ({
+          value: level,
+          label: t(`connections.access.${level}`),
+        }))}
+      />
       <ConfirmDialog
         trigger={
           <Button

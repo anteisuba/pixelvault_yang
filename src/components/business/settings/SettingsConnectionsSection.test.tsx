@@ -35,6 +35,7 @@ function record(overrides: Partial<McpTokenRecord> = {}): McpTokenRecord {
     id: 't1',
     name: 'Claude Code',
     last4: 'a3f9',
+    access: 'read',
     createdAt: '2026-10-04T00:00:00.000Z',
     lastUsedAt: null,
     ...overrides,

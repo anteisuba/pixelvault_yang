@@ -6,11 +6,14 @@ import { db } from '@/lib/db'
 import { ApiRequestError } from '@/lib/errors'
 import { ensureUser } from '@/services/user.service'
 import {
+  MCP_ACCESS_LEVELS,
+  MCP_DEFAULT_ACCESS,
   MCP_MAX_ACTIVE_TOKENS,
   MCP_TOKEN_PREFIX,
   MCP_TOKEN_RANDOM_BYTES,
   MCP_TOKEN_TOUCH_INTERVAL_MS,
   MCP_TOKEN_VISIBLE_SUFFIX_LENGTH,
+  type McpAccessLevel,
 } from '@/constants/mcp'
 import type { CreatedMcpToken, McpTokenRecord } from '@/types/mcp'
 
@@ -39,6 +42,15 @@ export interface McpTokenOwner {
   readonly tokenId: string
   readonly userId: string
   readonly clerkId: string
+  /** 这把令牌给了哪一档（OAuth 连上来的另算，见 §3.2）。 */
+  readonly access: McpAccessLevel
+}
+
+/** 库里的字符串 → 一档；认不出的当最低档（⛔ 不往高里猜）。 */
+export function toMcpAccess(raw: string | null | undefined): McpAccessLevel {
+  return (MCP_ACCESS_LEVELS as readonly string[]).includes(raw ?? '')
+    ? (raw as McpAccessLevel)
+    : MCP_DEFAULT_ACCESS
 }
 
 export function hashMcpToken(token: string): string {
@@ -49,6 +61,7 @@ function toRecord(row: {
   id: string
   name: string
   last4: string
+  access: string
   createdAt: Date
   lastUsedAt: Date | null
 }): McpTokenRecord {
@@ -56,6 +69,7 @@ function toRecord(row: {
     id: row.id,
     name: row.name,
     last4: row.last4,
+    access: toMcpAccess(row.access),
     createdAt: row.createdAt.toISOString(),
     lastUsedAt: row.lastUsedAt?.toISOString() ?? null,
   }
@@ -94,6 +108,22 @@ export async function createMcpToken(
   return { ...toRecord(row), token }
 }
 
+/** 改权限，立即生效。`null` = 不是这个人的、或已吊销（路由回 404）。 */
+export async function updateMcpTokenAccess(
+  clerkId: string,
+  tokenId: string,
+  access: McpAccessLevel,
+): Promise<McpTokenRecord | null> {
+  const user = await ensureUser(clerkId)
+  const result = await db.mcpToken.updateMany({
+    where: { id: tokenId, userId: user.id, revokedAt: null },
+    data: { access },
+  })
+  if (result.count === 0) return null
+  const row = await db.mcpToken.findUnique({ where: { id: tokenId } })
+  return row ? toRecord(row) : null
+}
+
 /** 吊销。`false` = 不是这个人的、或已经吊销过（路由回 404）。 */
 export async function revokeMcpToken(
   clerkId: string,
@@ -125,6 +155,7 @@ export async function verifyMcpToken(
       id: true,
       revokedAt: true,
       lastUsedAt: true,
+      access: true,
       user: { select: { id: true, clerkId: true, isDeleted: true } },
     },
   })
@@ -139,5 +170,10 @@ export async function verifyMcpToken(
       .catch(() => undefined)
   }
 
-  return { tokenId: row.id, userId: row.user.id, clerkId: row.user.clerkId }
+  return {
+    tokenId: row.id,
+    userId: row.user.id,
+    clerkId: row.user.clerkId,
+    access: toMcpAccess(row.access),
+  }
 }

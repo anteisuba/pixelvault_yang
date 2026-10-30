@@ -3,6 +3,7 @@ import type {
   CreateMcpTokenRequest,
   CreatedMcpToken,
   McpTokenRecord,
+  UpdateMcpTokenRequest,
 } from '@/types/mcp'
 
 import { getErrorMessage } from '@/lib/api-client/shared'
@@ -63,6 +64,26 @@ export async function createMcpTokenAPI(
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       }),
+    )
+  } catch (error) {
+    return { success: false, error: unexpected(error) }
+  }
+}
+
+export async function updateMcpTokenAPI(
+  tokenId: string,
+  body: UpdateMcpTokenRequest,
+): Promise<McpApiResponse<McpTokenRecord>> {
+  try {
+    return await readJson(
+      await apiFetch(
+        `${API_ENDPOINTS.MCP_TOKENS}/${encodeURIComponent(tokenId)}`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        },
+      ),
     )
   } catch (error) {
     return { success: false, error: unexpected(error) }

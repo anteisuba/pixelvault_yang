@@ -16,6 +16,22 @@ export const MCP_TOKEN_NAME_MAX_LENGTH = 60
 /** 明文末几位留在列表里认令牌。 */
 export const MCP_TOKEN_VISIBLE_SUFFIX_LENGTH = 4
 
+/**
+ * 令牌权限三档（2026-10-30 owner：查、看、操作都行，生成要她亲自确认）。逐级包含：
+ * read 只查看 · edit 还能改库与画布、出小样 · generate 还能发起出图（每次仍要她确认）。
+ * 新令牌默认 read。
+ */
+export const MCP_ACCESS_LEVELS = ['read', 'edit', 'generate'] as const
+export type McpAccessLevel = (typeof MCP_ACCESS_LEVELS)[number]
+export const MCP_DEFAULT_ACCESS: McpAccessLevel = 'read'
+
+export function mcpAccessAllows(
+  granted: McpAccessLevel,
+  needed: McpAccessLevel,
+): boolean {
+  return MCP_ACCESS_LEVELS.indexOf(granted) >= MCP_ACCESS_LEVELS.indexOf(needed)
+}
+
 /** 设置页「连接」生成令牌时预填的名字。 */
 export const MCP_TOKEN_DEFAULT_NAME = 'Claude Code'
 
@@ -61,6 +77,16 @@ export const MCP_TOOL_IDS = {
   edit: 'edit',
   undo: 'undo',
 } as const
+
+/** 每个工具要哪一档；没列的工具（只读）read 就够。 */
+export const MCP_TOOL_ACCESS: Partial<
+  Record<(typeof MCP_TOOL_IDS)[keyof typeof MCP_TOOL_IDS], McpAccessLevel>
+> = {
+  apply_ops: 'edit',
+  render: 'edit',
+  edit: 'edit',
+  undo: 'edit',
+}
 
 /**
  * `find` 能查的几类 —— 站内助手 find 的子集（`ASSISTANT_NEXT_FIND_KIND_IDS` 同名）。

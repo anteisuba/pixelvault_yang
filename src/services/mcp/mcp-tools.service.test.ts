@@ -48,7 +48,12 @@ import {
 import { NodeWorkflowStateV4Schema } from '@/types/node-workflow'
 
 const CDN = 'https://cdn.test.com'
-const OWNER = { tokenId: 'tok_1', userId: 'db_user_1', clerkId: 'clerk_1' }
+const OWNER = {
+  tokenId: 'tok_1',
+  userId: 'db_user_1',
+  clerkId: 'clerk_1',
+  access: 'generate' as const,
+}
 const NOW = '2026-09-28T00:00:00.000Z'
 const VERSION = '2026-09-28T03:00:00.000Z'
 

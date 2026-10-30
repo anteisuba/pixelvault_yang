@@ -25,7 +25,13 @@ import {
   renderForMcp,
 } from '@/services/mcp/mcp-tools.service'
 import type { EdgeFrame } from '@/services/video-frames/edge-frame.service'
-import { MCP_RATE_LIMIT, MCP_TOOL_IDS } from '@/constants/mcp'
+import {
+  MCP_ACCESS_LEVELS,
+  MCP_RATE_LIMIT,
+  MCP_TOOL_ACCESS,
+  MCP_TOOL_IDS,
+  mcpAccessAllows,
+} from '@/constants/mcp'
 import {
   McpApplyOpsInputSchema,
   McpEditInputSchema,
@@ -49,6 +55,7 @@ const OwnerSchema = z.object({
   tokenId: z.string(),
   userId: z.string(),
   clerkId: z.string(),
+  access: z.enum(MCP_ACCESS_LEVELS),
 })
 
 export async function verifyMcpBearer(
@@ -85,13 +92,22 @@ function frameContent(frame: EdgeFrame): CallToolResult['content'] {
 }
 
 async function guard(
-  tool: string,
+  tool: (typeof MCP_TOOL_IDS)[keyof typeof MCP_TOOL_IDS],
   authInfo: AuthInfo | undefined,
   run: (owner: McpTokenOwner) => Promise<CallToolResult>,
 ): Promise<CallToolResult> {
   const parsed = OwnerSchema.safeParse(authInfo?.extra)
   if (!parsed.success) return textResult('Not signed in to ANTEI.', true)
   const owner = parsed.data
+
+  // 权限闸（§3.3）：工具照样列出来，调用时才拦，回一句她能照着做的话。
+  const needed = MCP_TOOL_ACCESS[tool] ?? 'read'
+  if (!mcpAccessAllows(owner.access, needed)) {
+    return textResult(
+      `This connection can only ${owner.access === 'read' ? 'look' : 'look and change things'}; ${tool} needs "${needed}". Ask the user to raise it for this connection in ANTEI Settings → Connections.`,
+      true,
+    )
+  }
 
   const limited = await rateLimit(`mcp:${owner.userId}`, MCP_RATE_LIMIT)
   if (!limited.success) {

@@ -26,7 +26,12 @@ import { findForMcp, lookForMcp } from '@/services/mcp/mcp-library.service'
 import { MCP_FIND_KINDS, MCP_LOOK_MAX_PICTURES } from '@/constants/mcp'
 import { ASSISTANT_NEXT_FIND_KINDS } from '@/features/assistant/constants'
 
-const OWNER = { tokenId: 'tok_1', userId: 'db_user_1', clerkId: 'clerk_1' }
+const OWNER = {
+  tokenId: 'tok_1',
+  userId: 'db_user_1',
+  clerkId: 'clerk_1',
+  access: 'generate' as const,
+}
 
 beforeEach(() => {
   vi.clearAllMocks()

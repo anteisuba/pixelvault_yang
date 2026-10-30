@@ -34,7 +34,12 @@ import { editForMcp, undoForMcp } from '@/services/mcp/mcp-edit.service'
 import { ASSISTANT_NEXT_EDIT_OPS } from '@/features/assistant/constants'
 import { MCP_EDIT_OPS } from '@/constants/mcp'
 
-const OWNER = { tokenId: 'tok_1', userId: 'db_user_1', clerkId: 'clerk_1' }
+const OWNER = {
+  tokenId: 'tok_1',
+  userId: 'db_user_1',
+  clerkId: 'clerk_1',
+  access: 'generate' as const,
+}
 
 beforeEach(() => vi.clearAllMocks())
 

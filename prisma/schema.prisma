@@ -171,6 +171,7 @@ model User {
   characterStickers      CharacterSticker[]
   assistantSkills        AssistantSkill[]
   mcpTokens              McpToken[]
+  mcpGenerationRequests  McpGenerationRequest[]
   danbooruFavorites      DanbooruFavorite[]
   promptTagStack         PromptTagStack?
   assistantTurnRecords   AssistantTurnRecord[]
@@ -189,11 +190,41 @@ model McpToken {
   tokenHash  String    @unique
   /// 明文末 4 位，列表里认得出是哪一个。
   last4      String
+  /// 权限三档（2026-10-30）：read 只查看 · edit 能改库与画布 · generate 还能发起出图（每次仍要她亲自确认）。
+  access     String    @default("read")
   lastUsedAt DateTime?
   revokedAt  DateTime?
   createdAt  DateTime  @default(now())
 
+  generationRequests McpGenerationRequest[]
+
   @@index([userId, revokedAt])
+}
+
+/// 外部 AI 发起、等她亲自确认的一次出图（2026-10-30，`docs/references/mcp.md` §4.4）。
+/// 客户端能弹框就在客户端点；不能就在网站上点这一条。确认后才调出图服务、才花钱。
+model McpGenerationRequest {
+  id           String    @id @default(uuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenId      String?
+  token        McpToken? @relation(fields: [tokenId], references: [id], onDelete: SetNull)
+  /// image（先只做图）。
+  kind         String
+  /// 出图服务收的那份请求原样（`GenerateRequestSchema`）。
+  request      Json
+  /// 给她看的一句话：模型 · 张数 · 比例 · 提示词开头。
+  summary      String    @db.Text
+  /// pending · confirmed · declined · expired
+  status       String    @default("pending")
+  /// 确认后出的那张（generationId），或出图失败的原因。
+  generationId String?
+  error        String?   @db.Text
+  createdAt    DateTime  @default(now())
+  expiresAt    DateTime
+  decidedAt    DateTime?
+
+  @@index([userId, status, createdAt])
 }
 
 /// 标签台查资料的收藏（owner 2026-09-28）：角色 / 画师 / 作品 / 特征整条收藏，

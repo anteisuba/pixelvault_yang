@@ -9,6 +9,7 @@ import { z } from 'zod'
 
 import { EDIT_RESOLUTIONS } from '@/constants/edit-desk'
 import {
+  MCP_ACCESS_LEVELS,
   MCP_APPLY_OPS_MAX,
   MCP_EDIT_MAX_CHANGES,
   MCP_EDIT_OPS,
@@ -31,10 +32,19 @@ export const CreateMcpTokenRequestSchema = z.object({
 
 export type CreateMcpTokenRequest = z.infer<typeof CreateMcpTokenRequestSchema>
 
+export const McpAccessLevelSchema = z.enum(MCP_ACCESS_LEVELS)
+
+export const UpdateMcpTokenRequestSchema = z.object({
+  access: McpAccessLevelSchema,
+})
+
+export type UpdateMcpTokenRequest = z.infer<typeof UpdateMcpTokenRequestSchema>
+
 export const McpTokenRecordSchema = z.object({
   id: z.string(),
   name: z.string(),
   last4: z.string(),
+  access: McpAccessLevelSchema,
   createdAt: z.string(),
   lastUsedAt: z.string().nullable(),
 })

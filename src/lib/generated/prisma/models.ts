@@ -10,6 +10,7 @@
  */
 export type * from './models/User'
 export type * from './models/McpToken'
+export type * from './models/McpGenerationRequest'
 export type * from './models/DanbooruFavorite'
 export type * from './models/DanbooruTagName'
 export type * from './models/PromptTagStack'

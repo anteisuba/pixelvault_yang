@@ -53,6 +53,7 @@ export const AnyNull = runtime.AnyNull
 export const ModelName = {
   User: 'User',
   McpToken: 'McpToken',
+  McpGenerationRequest: 'McpGenerationRequest',
   DanbooruFavorite: 'DanbooruFavorite',
   DanbooruTagName: 'DanbooruTagName',
   PromptTagStack: 'PromptTagStack',
@@ -138,12 +139,31 @@ export const McpTokenScalarFieldEnum = {
   name: 'name',
   tokenHash: 'tokenHash',
   last4: 'last4',
+  access: 'access',
   lastUsedAt: 'lastUsedAt',
   revokedAt: 'revokedAt',
   createdAt: 'createdAt'
 } as const
 
 export type McpTokenScalarFieldEnum = (typeof McpTokenScalarFieldEnum)[keyof typeof McpTokenScalarFieldEnum]
+
+
+export const McpGenerationRequestScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  tokenId: 'tokenId',
+  kind: 'kind',
+  request: 'request',
+  summary: 'summary',
+  status: 'status',
+  generationId: 'generationId',
+  error: 'error',
+  createdAt: 'createdAt',
+  expiresAt: 'expiresAt',
+  decidedAt: 'decidedAt'
+} as const
+
+export type McpGenerationRequestScalarFieldEnum = (typeof McpGenerationRequestScalarFieldEnum)[keyof typeof McpGenerationRequestScalarFieldEnum]
 
 
 export const DanbooruFavoriteScalarFieldEnum = {

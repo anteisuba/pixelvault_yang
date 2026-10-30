@@ -30,8 +30,9 @@ vi.mock('@/services/mcp/mcp-tools.service', () => ({
 
 const mockFind = vi.fn()
 const mockLook = vi.fn()
+const mockEdit = vi.fn()
 vi.mock('@/services/mcp/mcp-edit.service', () => ({
-  editForMcp: vi.fn(),
+  editForMcp: (...args: unknown[]) => mockEdit(...args),
   undoForMcp: vi.fn(),
 }))
 vi.mock('@/services/mcp/mcp-library.service', () => ({
@@ -45,7 +46,12 @@ import { MCP_TOKEN_PREFIX } from '@/constants/mcp'
 import { POST } from './route'
 
 const TOKEN = `${MCP_TOKEN_PREFIX}test`
-const OWNER = { tokenId: 'tok_1', userId: 'db_user_1', clerkId: 'clerk_1' }
+const OWNER = {
+  tokenId: 'tok_1',
+  userId: 'db_user_1',
+  clerkId: 'clerk_1',
+  access: 'generate' as const,
+}
 
 let nextId = 1
 
@@ -206,6 +212,33 @@ describe('/api/mcp', () => {
 
     expect(resultOf(body).isError).toBe(true)
     expect(mockList).not.toHaveBeenCalled()
+  })
+})
+
+describe('/api/mcp access levels', () => {
+  it('refuses a change from a view-only connection and says where to raise it', async () => {
+    mockVerify.mockResolvedValue({ ...OWNER, access: 'read' })
+
+    const { body } = await rpc('tools/call', {
+      name: 'edit',
+      arguments: { changes: [{ op: 'favorite_lora', lora: 'LoRA·x' }] },
+    })
+
+    expect(resultOf(body).isError).toBe(true)
+    expect(resultOf(body).content?.[0]?.text).toMatch(/Settings → Connections/)
+    expect(mockEdit).not.toHaveBeenCalled()
+  })
+
+  it('lets a view-only connection look', async () => {
+    mockVerify.mockResolvedValue({ ...OWNER, access: 'read' })
+    mockFind.mockResolvedValue('PICTURES: none found')
+
+    const { body } = await rpc('tools/call', {
+      name: 'find',
+      arguments: {},
+    })
+
+    expect(resultOf(body).isError).toBeFalsy()
   })
 })
 

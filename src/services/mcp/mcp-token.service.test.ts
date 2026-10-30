@@ -114,11 +114,20 @@ describe('verifyMcpToken', () => {
     return {
       id: 'tok_1',
       revokedAt: null,
+      access: 'read',
       lastUsedAt: new Date(NOW.getTime() - 1000),
       user: { id: USER.id, clerkId: USER.clerkId, isDeleted: false },
       ...patch,
     }
   }
+
+  it('carries the token’s access level, falling back to view-only on anything unknown', async () => {
+    mockFindUnique.mockResolvedValue(row({ access: 'generate' }))
+    expect((await verifyMcpToken(TOKEN, NOW))?.access).toBe('generate')
+
+    mockFindUnique.mockResolvedValue(row({ access: 'admin' }))
+    expect((await verifyMcpToken(TOKEN, NOW))?.access).toBe('read')
+  })
 
   it('does not touch the database for a foreign-looking token', async () => {
     expect(await verifyMcpToken('sk-ant-xyz', NOW)).toBeNull()
@@ -132,6 +141,7 @@ describe('verifyMcpToken', () => {
       tokenId: 'tok_1',
       userId: USER.id,
       clerkId: USER.clerkId,
+      access: 'read',
     })
     expect(mockFindUnique.mock.calls[0]![0].where).toEqual({
       tokenHash: hashMcpToken(TOKEN),

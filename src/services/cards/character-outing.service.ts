@@ -23,15 +23,20 @@ import {
 } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 import {
+  parseOutingVideoLink,
+  type OutingVideoLink,
+} from '@/lib/outing-video-link'
+import {
   resolveAssistantRoute,
   type AssistantRoute,
 } from '@/services/kernel/assistant-route.service'
 import { createApiUsageEntry } from '@/services/usage.service'
 import { ensureUser } from '@/services/user.service'
-import type {
-  CharacterOutingRun,
-  CharacterOutingState,
-  StartCharacterOutingRequest,
+import {
+  OutingVideoLinkSchema,
+  type CharacterOutingRun,
+  type CharacterOutingState,
+  type StartCharacterOutingRequest,
 } from '@/types/character-growth'
 
 import {
@@ -42,6 +47,7 @@ import {
   OutingBudgetExhausted,
   OutingMeter,
   personaText,
+  watchPinnedVideos,
   type BrowseRoute,
 } from './character-browse.service'
 import { writeJournal } from './character-reflection.service'
@@ -55,6 +61,9 @@ import { writeJournal } from './character-reflection.service'
  * - 连着 `maxEmptyRounds` 轮一条新的都没有、或轮数到顶 → DONE / nothing；
  * - 中途出错（key 被删、模型下架）→ FAILED，已经看到的照样留着、照样写日记。
  *
+ * ⭐ 第 ⑥ 步：开头先看你贴的视频（`pinnedVideos`，看完记 `pinnedDone` 跨段不重看）；
+ *   逛的时候开着「看视频」的来源（`videos`）真看，关着的只看评论区。
+ *
  * ⭐ 一段函数跑不完（Vercel 300 s）：跑满 `chunkMs` 就放掉占位、自己调内部接口接着跑下一段；
  *   那一下没打通，角色页读状态时发现占位过期也会接上（`resumeStaleOuting`）。
  * ⭐ 写日记那一份从一开始就留着（`diaryReserveTokens`），逛的那几轮碰不到它。
@@ -67,6 +76,8 @@ const RUN_SELECT = {
   model: true,
   sources: true,
   sites: true,
+  videos: true,
+  pinnedVideos: true,
   budgetPoints: true,
   usedTokens: true,
   kept: true,
@@ -83,6 +94,8 @@ type RunRow = {
   model: string
   sources: string[]
   sites: string[]
+  videos: string[]
+  pinnedVideos: unknown
   budgetPoints: number
   usedTokens: number
   kept: number
@@ -96,6 +109,39 @@ type RunRow = {
 const STATUSES = new Set<string>(Object.values(CHARACTER_OUTING_STATUS))
 const END_REASONS = new Set<string>(Object.values(CHARACTER_OUTING_END_REASONS))
 
+/** 库里那一列读回来：认不出的条目丢掉。 */
+function readPinned(raw: unknown): OutingVideoLink[] {
+  return Array.isArray(raw)
+    ? raw.flatMap((entry) => {
+        const parsed = OutingVideoLinkSchema.safeParse(entry)
+        return parsed.success ? [parsed.data] : []
+      })
+    : []
+}
+
+/** 弹框传来的指定视频：服务端再认一遍链接，时间段只留说得通的。 */
+function cleanPinned(
+  links: StartCharacterOutingRequest['pinnedVideos'],
+): OutingVideoLink[] {
+  const seen = new Set<string>()
+  return links.flatMap((link) => {
+    const parsed = parseOutingVideoLink(link.url)
+    if (!parsed || seen.has(parsed.url)) return []
+    seen.add(parsed.url)
+    const start = link.start
+    const end =
+      link.end !== undefined && link.end > (start ?? 0) ? link.end : undefined
+    return [
+      {
+        platform: parsed.platform,
+        url: parsed.url,
+        ...(start !== undefined ? { start } : {}),
+        ...(end !== undefined ? { end } : {}),
+      },
+    ]
+  })
+}
+
 function toRun(row: RunRow): CharacterOutingRun {
   return {
     id: row.id,
@@ -105,6 +151,8 @@ function toRun(row: RunRow): CharacterOutingRun {
     model: row.model,
     sources: row.sources,
     sites: row.sites,
+    videos: row.videos,
+    pinnedVideos: readPinned(row.pinnedVideos),
     budgetPoints: row.budgetPoints,
     usedTokens: row.usedTokens,
     kept: row.kept,
@@ -237,6 +285,10 @@ export async function startOutingForClerkId(
       model: route.modelId,
       sources: [...new Set(input.sources)],
       sites,
+      videos: [...new Set(input.videos)],
+      pinnedVideos: cleanPinned(input.pinnedVideos).map((link) => ({
+        ...link,
+      })),
       budgetPoints: input.budgetPoints,
     },
     select: RUN_SELECT,
@@ -334,6 +386,7 @@ export async function runOutingChunk(outingId: string): Promise<void> {
       rounds: true,
       emptyRounds: true,
       stopRequested: true,
+      pinnedDone: true,
       characterCard: {
         select: {
           id: true,
@@ -463,6 +516,37 @@ export async function runOutingChunk(outingId: string): Promise<void> {
       ...(picked.length ? picked : allowed),
       ...outing.sites.map((site) => `site:${site}`),
     ]
+    const watch = new Set<string>(
+      outing.videos.filter((source) =>
+        (allowed as readonly string[]).includes(source),
+      ),
+    )
+    const onNow = async (source: string, query: string) => {
+      const row = await progress({ nowLabel: `${source}\n${query}` })
+      if (row.stopRequested) throw new OutingStopped()
+    }
+
+    // 你贴的视频先看（看完记下，下一段不重看）。
+    const pinned = readPinned(outing.pinnedVideos)
+    if (!outing.pinnedDone && pinned.length) {
+      kept += await watchPinnedVideos({
+        userId: outing.userId,
+        card,
+        route,
+        links: pinned,
+        onNow,
+      })
+      await db.characterOuting.update({
+        where: { id: outing.id },
+        data: {
+          pinnedDone: true,
+          kept,
+          usedTokens: meter.usedTokens,
+          calls: meter.calls,
+        },
+        select: { id: true },
+      })
+    }
 
     while (true) {
       if (rounds >= CHARACTER_OUTING.maxRounds) {
@@ -493,11 +577,9 @@ export async function runOutingChunk(outingId: string): Promise<void> {
         card,
         route,
         sources,
+        watch,
         askInterests: rounds === 0,
-        onNow: async (source, query) => {
-          const row = await progress({ nowLabel: `${source}\n${query}` })
-          if (row.stopRequested) throw new OutingStopped()
-        },
+        onNow,
       })
       rounds += 1
       kept += result.kept

@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
   meteredComplete: vi.fn(),
   writeJournal: vi.fn(),
   usage: vi.fn(),
+  pinned: vi.fn(),
 }))
 
 vi.mock('next/server', () => ({ after: mocks.after }))
@@ -61,6 +62,7 @@ vi.mock('./character-browse.service', async () => {
     availableBrowseSources: () => ['bilibili', 'danbooru', 'civitai', 'web'],
     personaText: () => '',
     browseRound: mocks.browseRound,
+    watchPinnedVideos: mocks.pinned,
     meteredComplete: mocks.meteredComplete,
   }
 })
@@ -84,6 +86,8 @@ function row(patch: object = {}) {
     model: MODEL,
     sources: [],
     sites: ['pixiv.net'],
+    videos: [],
+    pinnedVideos: null,
     budgetPoints: 30,
     usedTokens: 0,
     kept: 0,
@@ -104,6 +108,7 @@ function loaded(patch: object = {}) {
     rounds: 0,
     emptyRounds: 0,
     stopRequested: false,
+    pinnedDone: false,
     characterCard: {
       id: 'card-1',
       name: 'Denia',
@@ -153,6 +158,8 @@ describe('startOutingForClerkId', () => {
       model: MODEL,
       sources: ['bilibili'],
       sites: ['https://www.pixiv.net/ranking', 'pixiv.net', '不是网址'],
+      videos: [],
+      pinnedVideos: [],
       budgetPoints: 30,
     })
     expect(mocks.outingCreate).toHaveBeenCalledWith(
@@ -170,6 +177,40 @@ describe('startOutingForClerkId', () => {
     expect(mocks.after).toHaveBeenCalledTimes(1)
   })
 
+  it('看视频的开关照存；贴的视频服务端再认一遍，认不出的丢掉', async () => {
+    await startOutingForClerkId('clerk', 'card-1', {
+      model: MODEL,
+      sources: [],
+      sites: [],
+      videos: ['bilibili', 'youtube'],
+      pinnedVideos: [
+        {
+          platform: 'youtube',
+          url: 'https://youtu.be/dQw4w9WgXcQ',
+          start: 180,
+          end: 60,
+        },
+        { platform: 'bilibili', url: 'https://example.com/not-a-video' },
+      ],
+      budgetPoints: 30,
+    })
+    expect(mocks.outingCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          videos: ['bilibili', 'youtube'],
+          // 规整成 watch?v=；结束在开始之前的那一截不要。
+          pinnedVideos: [
+            {
+              platform: 'youtube',
+              url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+              start: 180,
+            },
+          ],
+        }),
+      }),
+    )
+  })
+
   it('已经在外面：409；型号不认识 / 没 key：说人话', async () => {
     mocks.outingFindFirst.mockResolvedValueOnce({ id: 'busy' })
     await expect(
@@ -177,6 +218,8 @@ describe('startOutingForClerkId', () => {
         model: MODEL,
         sources: [],
         sites: [],
+        videos: [],
+        pinnedVideos: [],
         budgetPoints: 30,
       }),
     ).rejects.toMatchObject({ i18nKey: 'errors.characterOuting.running' })
@@ -185,6 +228,8 @@ describe('startOutingForClerkId', () => {
         model: 'retired-model',
         sources: [],
         sites: [],
+        videos: [],
+        pinnedVideos: [],
         budgetPoints: 30,
       }),
     ).rejects.toMatchObject({ i18nKey: 'errors.characterOuting.unknownModel' })
@@ -194,6 +239,8 @@ describe('startOutingForClerkId', () => {
         model: MODEL,
         sources: [],
         sites: [],
+        videos: [],
+        pinnedVideos: [],
         budgetPoints: 30,
       }),
     ).rejects.toMatchObject({ i18nKey: 'errors.characterOuting.missingKey' })
@@ -207,6 +254,8 @@ describe('startOutingForClerkId', () => {
         model: MODEL,
         sources: [],
         sites: [],
+        videos: [],
+        pinnedVideos: [],
         budgetPoints: 30,
       }),
     ).resolves.toBeNull()
@@ -297,6 +346,34 @@ describe('runOutingChunk', () => {
         wasSuccessful: true,
       }),
     )
+  })
+
+  it('先看你贴的视频（看完记下不重看），再逛；开着看视频的来源交给每一轮', async () => {
+    const link = {
+      platform: 'bilibili',
+      url: 'https://www.bilibili.com/video/BV1aaaaaaaa1',
+    }
+    mocks.outingFindUnique.mockResolvedValue(
+      loaded({ videos: ['bilibili', 'x'], pinnedVideos: [link] }),
+    )
+    mocks.pinned.mockResolvedValueOnce(1)
+    mocks.browseRound.mockResolvedValue({ queries: 1, seen: 0, kept: 0 })
+
+    await runOutingChunk('o1')
+
+    expect(mocks.pinned).toHaveBeenCalledWith(
+      expect.objectContaining({ links: [link] }),
+    )
+    expect(mocks.outingUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ pinnedDone: true, kept: 1 }),
+      }),
+    )
+    // X 只有 Grok 去得了：这个模型不在名单里，就不看。
+    expect(mocks.browseRound.mock.calls[0]?.[0].watch).toEqual(
+      new Set(['bilibili']),
+    )
+    expect(finished()?.data).toMatchObject({ kept: 1 })
   })
 
   it('你点了「结束」：这一轮的下一步之前停，看到的照样留着', async () => {

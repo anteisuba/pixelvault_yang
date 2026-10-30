@@ -33,6 +33,9 @@ import { OutingCard } from './CharacterOutingCard'
 const grok = NODE_STUDIO_ASSISTANT_ROUTE_MODELS.find(
   (model) => model.adapterType === AI_ADAPTER_TYPES.XAI,
 )!
+const gemini = NODE_STUDIO_ASSISTANT_ROUTE_MODELS.find(
+  (model) => model.adapterType === AI_ADAPTER_TYPES.GEMINI,
+)!
 
 const now = new Date()
 const yesterday = new Date(
@@ -48,6 +51,8 @@ const run = (patch: Partial<CharacterOutingRun> = {}): CharacterOutingRun => ({
   model: grok.modelId,
   sources: ['bilibili'],
   sites: ['pixiv.net'],
+  videos: [],
+  pinnedVideos: [],
   budgetPoints: 60,
   usedTokens: 300_000,
   kept: 3,
@@ -110,6 +115,8 @@ describe('OutingCard', () => {
         model: grok.modelId,
         sources: ['bilibili'],
         sites: ['pixiv.net'],
+        videos: [],
+        pinnedVideos: [],
         budgetPoints: 10,
       }),
     )
@@ -130,6 +137,62 @@ describe('OutingCard', () => {
         expect.objectContaining({ sources: [], sites: [], budgetPoints: 200 }),
       ),
     )
+  })
+
+  it('看视频（第 ⑥ 步）：只列选中且能看视频的来源，开关旁常驻提示；贴视频链接 = 指定视频', async () => {
+    const hook = hookOf({
+      running: null,
+      recent: [run({ model: gemini.modelId, sources: [], sites: [] })],
+      frequentSites: [],
+    })
+    render(<OutingCard growth={hook} />)
+    fireEvent.click(screen.getByText('title'))
+    // 自动 = 全部来源：B 站、YouTube 有开关（Gemini 没有 X）。
+    const switches = screen.getAllByRole('switch')
+    expect(switches).toHaveLength(2)
+    expect(screen.getByText('hint.bilibiliOff')).toBeTruthy()
+    expect(screen.getByText('hint.youtubeOff')).toBeTruthy()
+    fireEvent.click(switches[0]!)
+    expect(screen.getByText('hint.bilibiliWatch')).toBeTruthy()
+
+    fireEvent.click(screen.getByText('addSite'))
+    const input = screen.getByLabelText('addSite')
+    fireEvent.change(input, {
+      target: { value: 'https://youtu.be/dQw4w9WgXcQ 3:00-5:00' },
+    })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(screen.getByTestId('character-outing-pinned').textContent).toContain(
+      '3:00-5:00',
+    )
+    expect(screen.getByText('pinnedHint')).toBeTruthy()
+
+    fireEvent.click(screen.getByText('start'))
+    await waitFor(() =>
+      expect(hook.startOuting).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sources: [],
+          sites: [],
+          videos: ['bilibili'],
+          pinnedVideos: [
+            {
+              platform: 'youtube',
+              url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+              start: 180,
+              end: 300,
+            },
+          ],
+        }),
+      ),
+    )
+  })
+
+  it('别家模型：YouTube 开关灰着（换 Gemini 才能看）', () => {
+    const hook = hookOf({ running: null, recent: [run()], frequentSites: [] })
+    render(<OutingCard growth={hook} />)
+    fireEvent.click(screen.getByText('title'))
+    fireEvent.click(screen.getByText('auto'))
+    expect(screen.getByText('hint.youtubeNeedsGemini')).toBeTruthy()
+    expect(screen.getByText('hint.xOff')).toBeTruthy()
   })
 
   it('调查中：在看什么 · 用了几点 / 共几点 ·「结束」', () => {

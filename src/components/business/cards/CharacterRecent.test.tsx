@@ -57,6 +57,8 @@ const run = (patch: Partial<CharacterOutingRun> = {}): CharacterOutingRun => ({
   model: claude.modelId,
   sources: [],
   sites: [],
+  videos: [],
+  pinnedVideos: [],
   budgetPoints: 30,
   usedTokens: 120_000,
   kept: 2,

@@ -165,6 +165,7 @@
       "today": "今日",
       "yesterday": "昨日",
       "sourceBilibili": "bilibili",
+      "sourceYoutube": "YouTube",
       "sourceDanbooru": "Danbooru",
       "sourceCivitai": "Civitai",
       "sourceX": "X",
@@ -228,8 +229,8 @@
         "sources": "行き先",
         "auto": "おまかせ",
         "addSite": "サイトを追加",
-        "sitePlaceholder": "サイト（例：pixiv.net）",
-        "siteInvalid": "サイトとして認識できません",
+        "sitePlaceholder": "サイトか動画リンク（3:00-5:00 で区間指定）",
+        "siteInvalid": "サイトや動画リンクとして認識できません",
         "budget": "予算（ポイント）",
         "custom": "指定",
         "customLabel": "ポイントを指定",
@@ -250,6 +251,23 @@
           "stopped": "呼び戻しました",
           "nothing": "新しいものが見つかりませんでした",
           "failed": "途中で問題が起きました"
+        },
+        "capVideo": "動画",
+        "capAudio": "音声",
+        "videos": "動画を見る",
+        "pinnedHint": "貼った動画を最初に見ます",
+        "pinnedLabel": "指定動画 {name}",
+        "removePinned": "この動画は見ない",
+        "hint": {
+          "bilibiliWatch": "360P をダウンロードして、最後まで見て音も聞きます",
+          "bilibiliFrames": "24 コマのフレームとコメント・弾幕を見ます",
+          "bilibiliOff": "コメントと弾幕だけ見ます",
+          "youtubeWatch": "リンクから直接見て、音も聞きます",
+          "youtubeOff": "タイトルと説明だけ見ます",
+          "youtubeNeedsGemini": "動画を見るには Gemini に切り替え。今はタイトルと説明だけ",
+          "xWatch": "Grok が投稿の動画を直接見ます（ポイント多め）",
+          "xOff": "投稿の文章と画像だけ見ます",
+          "needsImage": "このモデルは画像を見られません。動画は Gemini で"
         }
       }
     },

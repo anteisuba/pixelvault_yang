@@ -56,6 +56,7 @@ export type CharacterOutingMinAggregateOutputType = {
   characterCardId: string | null
   status: string | null
   model: string | null
+  pinnedDone: boolean | null
   budgetPoints: number | null
   usedTokens: number | null
   calls: number | null
@@ -76,6 +77,7 @@ export type CharacterOutingMaxAggregateOutputType = {
   characterCardId: string | null
   status: string | null
   model: string | null
+  pinnedDone: boolean | null
   budgetPoints: number | null
   usedTokens: number | null
   calls: number | null
@@ -98,6 +100,9 @@ export type CharacterOutingCountAggregateOutputType = {
   model: number
   sources: number
   sites: number
+  videos: number
+  pinnedVideos: number
+  pinnedDone: number
   budgetPoints: number
   usedTokens: number
   calls: number
@@ -138,6 +143,7 @@ export type CharacterOutingMinAggregateInputType = {
   characterCardId?: true
   status?: true
   model?: true
+  pinnedDone?: true
   budgetPoints?: true
   usedTokens?: true
   calls?: true
@@ -158,6 +164,7 @@ export type CharacterOutingMaxAggregateInputType = {
   characterCardId?: true
   status?: true
   model?: true
+  pinnedDone?: true
   budgetPoints?: true
   usedTokens?: true
   calls?: true
@@ -180,6 +187,9 @@ export type CharacterOutingCountAggregateInputType = {
   model?: true
   sources?: true
   sites?: true
+  videos?: true
+  pinnedVideos?: true
+  pinnedDone?: true
   budgetPoints?: true
   usedTokens?: true
   calls?: true
@@ -289,6 +299,9 @@ export type CharacterOutingGroupByOutputType = {
   model: string
   sources: string[]
   sites: string[]
+  videos: string[]
+  pinnedVideos: runtime.JsonValue | null
+  pinnedDone: boolean
   budgetPoints: number
   usedTokens: number
   calls: number
@@ -334,6 +347,9 @@ export type CharacterOutingWhereInput = {
   model?: Prisma.StringFilter<"CharacterOuting"> | string
   sources?: Prisma.StringNullableListFilter<"CharacterOuting">
   sites?: Prisma.StringNullableListFilter<"CharacterOuting">
+  videos?: Prisma.StringNullableListFilter<"CharacterOuting">
+  pinnedVideos?: Prisma.JsonNullableFilter<"CharacterOuting">
+  pinnedDone?: Prisma.BoolFilter<"CharacterOuting"> | boolean
   budgetPoints?: Prisma.IntFilter<"CharacterOuting"> | number
   usedTokens?: Prisma.IntFilter<"CharacterOuting"> | number
   calls?: Prisma.IntFilter<"CharacterOuting"> | number
@@ -358,6 +374,9 @@ export type CharacterOutingOrderByWithRelationInput = {
   model?: Prisma.SortOrder
   sources?: Prisma.SortOrder
   sites?: Prisma.SortOrder
+  videos?: Prisma.SortOrder
+  pinnedVideos?: Prisma.SortOrderInput | Prisma.SortOrder
+  pinnedDone?: Prisma.SortOrder
   budgetPoints?: Prisma.SortOrder
   usedTokens?: Prisma.SortOrder
   calls?: Prisma.SortOrder
@@ -385,6 +404,9 @@ export type CharacterOutingWhereUniqueInput = Prisma.AtLeast<{
   model?: Prisma.StringFilter<"CharacterOuting"> | string
   sources?: Prisma.StringNullableListFilter<"CharacterOuting">
   sites?: Prisma.StringNullableListFilter<"CharacterOuting">
+  videos?: Prisma.StringNullableListFilter<"CharacterOuting">
+  pinnedVideos?: Prisma.JsonNullableFilter<"CharacterOuting">
+  pinnedDone?: Prisma.BoolFilter<"CharacterOuting"> | boolean
   budgetPoints?: Prisma.IntFilter<"CharacterOuting"> | number
   usedTokens?: Prisma.IntFilter<"CharacterOuting"> | number
   calls?: Prisma.IntFilter<"CharacterOuting"> | number
@@ -409,6 +431,9 @@ export type CharacterOutingOrderByWithAggregationInput = {
   model?: Prisma.SortOrder
   sources?: Prisma.SortOrder
   sites?: Prisma.SortOrder
+  videos?: Prisma.SortOrder
+  pinnedVideos?: Prisma.SortOrderInput | Prisma.SortOrder
+  pinnedDone?: Prisma.SortOrder
   budgetPoints?: Prisma.SortOrder
   usedTokens?: Prisma.SortOrder
   calls?: Prisma.SortOrder
@@ -439,6 +464,9 @@ export type CharacterOutingScalarWhereWithAggregatesInput = {
   model?: Prisma.StringWithAggregatesFilter<"CharacterOuting"> | string
   sources?: Prisma.StringNullableListFilter<"CharacterOuting">
   sites?: Prisma.StringNullableListFilter<"CharacterOuting">
+  videos?: Prisma.StringNullableListFilter<"CharacterOuting">
+  pinnedVideos?: Prisma.JsonNullableWithAggregatesFilter<"CharacterOuting">
+  pinnedDone?: Prisma.BoolWithAggregatesFilter<"CharacterOuting"> | boolean
   budgetPoints?: Prisma.IntWithAggregatesFilter<"CharacterOuting"> | number
   usedTokens?: Prisma.IntWithAggregatesFilter<"CharacterOuting"> | number
   calls?: Prisma.IntWithAggregatesFilter<"CharacterOuting"> | number
@@ -459,6 +487,9 @@ export type CharacterOutingCreateInput = {
   model: string
   sources?: Prisma.CharacterOutingCreatesourcesInput | string[]
   sites?: Prisma.CharacterOutingCreatesitesInput | string[]
+  videos?: Prisma.CharacterOutingCreatevideosInput | string[]
+  pinnedVideos?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  pinnedDone?: boolean
   budgetPoints: number
   usedTokens?: number
   calls?: number
@@ -483,6 +514,9 @@ export type CharacterOutingUncheckedCreateInput = {
   model: string
   sources?: Prisma.CharacterOutingCreatesourcesInput | string[]
   sites?: Prisma.CharacterOutingCreatesitesInput | string[]
+  videos?: Prisma.CharacterOutingCreatevideosInput | string[]
+  pinnedVideos?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  pinnedDone?: boolean
   budgetPoints: number
   usedTokens?: number
   calls?: number
@@ -503,6 +537,9 @@ export type CharacterOutingUpdateInput = {
   model?: Prisma.StringFieldUpdateOperationsInput | string
   sources?: Prisma.CharacterOutingUpdatesourcesInput | string[]
   sites?: Prisma.CharacterOutingUpdatesitesInput | string[]
+  videos?: Prisma.CharacterOutingUpdatevideosInput | string[]
+  pinnedVideos?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  pinnedDone?: Prisma.BoolFieldUpdateOperationsInput | boolean
   budgetPoints?: Prisma.IntFieldUpdateOperationsInput | number
   usedTokens?: Prisma.IntFieldUpdateOperationsInput | number
   calls?: Prisma.IntFieldUpdateOperationsInput | number
@@ -527,6 +564,9 @@ export type CharacterOutingUncheckedUpdateInput = {
   model?: Prisma.StringFieldUpdateOperationsInput | string
   sources?: Prisma.CharacterOutingUpdatesourcesInput | string[]
   sites?: Prisma.CharacterOutingUpdatesitesInput | string[]
+  videos?: Prisma.CharacterOutingUpdatevideosInput | string[]
+  pinnedVideos?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  pinnedDone?: Prisma.BoolFieldUpdateOperationsInput | boolean
   budgetPoints?: Prisma.IntFieldUpdateOperationsInput | number
   usedTokens?: Prisma.IntFieldUpdateOperationsInput | number
   calls?: Prisma.IntFieldUpdateOperationsInput | number
@@ -549,6 +589,9 @@ export type CharacterOutingCreateManyInput = {
   model: string
   sources?: Prisma.CharacterOutingCreatesourcesInput | string[]
   sites?: Prisma.CharacterOutingCreatesitesInput | string[]
+  videos?: Prisma.CharacterOutingCreatevideosInput | string[]
+  pinnedVideos?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  pinnedDone?: boolean
   budgetPoints: number
   usedTokens?: number
   calls?: number
@@ -569,6 +612,9 @@ export type CharacterOutingUpdateManyMutationInput = {
   model?: Prisma.StringFieldUpdateOperationsInput | string
   sources?: Prisma.CharacterOutingUpdatesourcesInput | string[]
   sites?: Prisma.CharacterOutingUpdatesitesInput | string[]
+  videos?: Prisma.CharacterOutingUpdatevideosInput | string[]
+  pinnedVideos?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  pinnedDone?: Prisma.BoolFieldUpdateOperationsInput | boolean
   budgetPoints?: Prisma.IntFieldUpdateOperationsInput | number
   usedTokens?: Prisma.IntFieldUpdateOperationsInput | number
   calls?: Prisma.IntFieldUpdateOperationsInput | number
@@ -591,6 +637,9 @@ export type CharacterOutingUncheckedUpdateManyInput = {
   model?: Prisma.StringFieldUpdateOperationsInput | string
   sources?: Prisma.CharacterOutingUpdatesourcesInput | string[]
   sites?: Prisma.CharacterOutingUpdatesitesInput | string[]
+  videos?: Prisma.CharacterOutingUpdatevideosInput | string[]
+  pinnedVideos?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  pinnedDone?: Prisma.BoolFieldUpdateOperationsInput | boolean
   budgetPoints?: Prisma.IntFieldUpdateOperationsInput | number
   usedTokens?: Prisma.IntFieldUpdateOperationsInput | number
   calls?: Prisma.IntFieldUpdateOperationsInput | number
@@ -623,6 +672,9 @@ export type CharacterOutingCountOrderByAggregateInput = {
   model?: Prisma.SortOrder
   sources?: Prisma.SortOrder
   sites?: Prisma.SortOrder
+  videos?: Prisma.SortOrder
+  pinnedVideos?: Prisma.SortOrder
+  pinnedDone?: Prisma.SortOrder
   budgetPoints?: Prisma.SortOrder
   usedTokens?: Prisma.SortOrder
   calls?: Prisma.SortOrder
@@ -652,6 +704,7 @@ export type CharacterOutingMaxOrderByAggregateInput = {
   characterCardId?: Prisma.SortOrder
   status?: Prisma.SortOrder
   model?: Prisma.SortOrder
+  pinnedDone?: Prisma.SortOrder
   budgetPoints?: Prisma.SortOrder
   usedTokens?: Prisma.SortOrder
   calls?: Prisma.SortOrder
@@ -672,6 +725,7 @@ export type CharacterOutingMinOrderByAggregateInput = {
   characterCardId?: Prisma.SortOrder
   status?: Prisma.SortOrder
   model?: Prisma.SortOrder
+  pinnedDone?: Prisma.SortOrder
   budgetPoints?: Prisma.SortOrder
   usedTokens?: Prisma.SortOrder
   calls?: Prisma.SortOrder
@@ -787,6 +841,10 @@ export type CharacterOutingCreatesitesInput = {
   set: string[]
 }
 
+export type CharacterOutingCreatevideosInput = {
+  set: string[]
+}
+
 export type CharacterOutingUpdatesourcesInput = {
   set?: string[]
   push?: string | string[]
@@ -797,12 +855,20 @@ export type CharacterOutingUpdatesitesInput = {
   push?: string | string[]
 }
 
+export type CharacterOutingUpdatevideosInput = {
+  set?: string[]
+  push?: string | string[]
+}
+
 export type CharacterOutingCreateWithoutUserInput = {
   id?: string
   status: string
   model: string
   sources?: Prisma.CharacterOutingCreatesourcesInput | string[]
   sites?: Prisma.CharacterOutingCreatesitesInput | string[]
+  videos?: Prisma.CharacterOutingCreatevideosInput | string[]
+  pinnedVideos?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  pinnedDone?: boolean
   budgetPoints: number
   usedTokens?: number
   calls?: number
@@ -825,6 +891,9 @@ export type CharacterOutingUncheckedCreateWithoutUserInput = {
   model: string
   sources?: Prisma.CharacterOutingCreatesourcesInput | string[]
   sites?: Prisma.CharacterOutingCreatesitesInput | string[]
+  videos?: Prisma.CharacterOutingCreatevideosInput | string[]
+  pinnedVideos?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  pinnedDone?: boolean
   budgetPoints: number
   usedTokens?: number
   calls?: number
@@ -876,6 +945,9 @@ export type CharacterOutingScalarWhereInput = {
   model?: Prisma.StringFilter<"CharacterOuting"> | string
   sources?: Prisma.StringNullableListFilter<"CharacterOuting">
   sites?: Prisma.StringNullableListFilter<"CharacterOuting">
+  videos?: Prisma.StringNullableListFilter<"CharacterOuting">
+  pinnedVideos?: Prisma.JsonNullableFilter<"CharacterOuting">
+  pinnedDone?: Prisma.BoolFilter<"CharacterOuting"> | boolean
   budgetPoints?: Prisma.IntFilter<"CharacterOuting"> | number
   usedTokens?: Prisma.IntFilter<"CharacterOuting"> | number
   calls?: Prisma.IntFilter<"CharacterOuting"> | number
@@ -896,6 +968,9 @@ export type CharacterOutingCreateWithoutCharacterCardInput = {
   model: string
   sources?: Prisma.CharacterOutingCreatesourcesInput | string[]
   sites?: Prisma.CharacterOutingCreatesitesInput | string[]
+  videos?: Prisma.CharacterOutingCreatevideosInput | string[]
+  pinnedVideos?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  pinnedDone?: boolean
   budgetPoints: number
   usedTokens?: number
   calls?: number
@@ -918,6 +993,9 @@ export type CharacterOutingUncheckedCreateWithoutCharacterCardInput = {
   model: string
   sources?: Prisma.CharacterOutingCreatesourcesInput | string[]
   sites?: Prisma.CharacterOutingCreatesitesInput | string[]
+  videos?: Prisma.CharacterOutingCreatevideosInput | string[]
+  pinnedVideos?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  pinnedDone?: boolean
   budgetPoints: number
   usedTokens?: number
   calls?: number
@@ -965,6 +1043,9 @@ export type CharacterOutingCreateManyUserInput = {
   model: string
   sources?: Prisma.CharacterOutingCreatesourcesInput | string[]
   sites?: Prisma.CharacterOutingCreatesitesInput | string[]
+  videos?: Prisma.CharacterOutingCreatevideosInput | string[]
+  pinnedVideos?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  pinnedDone?: boolean
   budgetPoints: number
   usedTokens?: number
   calls?: number
@@ -985,6 +1066,9 @@ export type CharacterOutingUpdateWithoutUserInput = {
   model?: Prisma.StringFieldUpdateOperationsInput | string
   sources?: Prisma.CharacterOutingUpdatesourcesInput | string[]
   sites?: Prisma.CharacterOutingUpdatesitesInput | string[]
+  videos?: Prisma.CharacterOutingUpdatevideosInput | string[]
+  pinnedVideos?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  pinnedDone?: Prisma.BoolFieldUpdateOperationsInput | boolean
   budgetPoints?: Prisma.IntFieldUpdateOperationsInput | number
   usedTokens?: Prisma.IntFieldUpdateOperationsInput | number
   calls?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1007,6 +1091,9 @@ export type CharacterOutingUncheckedUpdateWithoutUserInput = {
   model?: Prisma.StringFieldUpdateOperationsInput | string
   sources?: Prisma.CharacterOutingUpdatesourcesInput | string[]
   sites?: Prisma.CharacterOutingUpdatesitesInput | string[]
+  videos?: Prisma.CharacterOutingUpdatevideosInput | string[]
+  pinnedVideos?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  pinnedDone?: Prisma.BoolFieldUpdateOperationsInput | boolean
   budgetPoints?: Prisma.IntFieldUpdateOperationsInput | number
   usedTokens?: Prisma.IntFieldUpdateOperationsInput | number
   calls?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1028,6 +1115,9 @@ export type CharacterOutingUncheckedUpdateManyWithoutUserInput = {
   model?: Prisma.StringFieldUpdateOperationsInput | string
   sources?: Prisma.CharacterOutingUpdatesourcesInput | string[]
   sites?: Prisma.CharacterOutingUpdatesitesInput | string[]
+  videos?: Prisma.CharacterOutingUpdatevideosInput | string[]
+  pinnedVideos?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  pinnedDone?: Prisma.BoolFieldUpdateOperationsInput | boolean
   budgetPoints?: Prisma.IntFieldUpdateOperationsInput | number
   usedTokens?: Prisma.IntFieldUpdateOperationsInput | number
   calls?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1049,6 +1139,9 @@ export type CharacterOutingCreateManyCharacterCardInput = {
   model: string
   sources?: Prisma.CharacterOutingCreatesourcesInput | string[]
   sites?: Prisma.CharacterOutingCreatesitesInput | string[]
+  videos?: Prisma.CharacterOutingCreatevideosInput | string[]
+  pinnedVideos?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  pinnedDone?: boolean
   budgetPoints: number
   usedTokens?: number
   calls?: number
@@ -1069,6 +1162,9 @@ export type CharacterOutingUpdateWithoutCharacterCardInput = {
   model?: Prisma.StringFieldUpdateOperationsInput | string
   sources?: Prisma.CharacterOutingUpdatesourcesInput | string[]
   sites?: Prisma.CharacterOutingUpdatesitesInput | string[]
+  videos?: Prisma.CharacterOutingUpdatevideosInput | string[]
+  pinnedVideos?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  pinnedDone?: Prisma.BoolFieldUpdateOperationsInput | boolean
   budgetPoints?: Prisma.IntFieldUpdateOperationsInput | number
   usedTokens?: Prisma.IntFieldUpdateOperationsInput | number
   calls?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1091,6 +1187,9 @@ export type CharacterOutingUncheckedUpdateWithoutCharacterCardInput = {
   model?: Prisma.StringFieldUpdateOperationsInput | string
   sources?: Prisma.CharacterOutingUpdatesourcesInput | string[]
   sites?: Prisma.CharacterOutingUpdatesitesInput | string[]
+  videos?: Prisma.CharacterOutingUpdatevideosInput | string[]
+  pinnedVideos?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  pinnedDone?: Prisma.BoolFieldUpdateOperationsInput | boolean
   budgetPoints?: Prisma.IntFieldUpdateOperationsInput | number
   usedTokens?: Prisma.IntFieldUpdateOperationsInput | number
   calls?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1112,6 +1211,9 @@ export type CharacterOutingUncheckedUpdateManyWithoutCharacterCardInput = {
   model?: Prisma.StringFieldUpdateOperationsInput | string
   sources?: Prisma.CharacterOutingUpdatesourcesInput | string[]
   sites?: Prisma.CharacterOutingUpdatesitesInput | string[]
+  videos?: Prisma.CharacterOutingUpdatevideosInput | string[]
+  pinnedVideos?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  pinnedDone?: Prisma.BoolFieldUpdateOperationsInput | boolean
   budgetPoints?: Prisma.IntFieldUpdateOperationsInput | number
   usedTokens?: Prisma.IntFieldUpdateOperationsInput | number
   calls?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1136,6 +1238,9 @@ export type CharacterOutingSelect<ExtArgs extends runtime.Types.Extensions.Inter
   model?: boolean
   sources?: boolean
   sites?: boolean
+  videos?: boolean
+  pinnedVideos?: boolean
+  pinnedDone?: boolean
   budgetPoints?: boolean
   usedTokens?: boolean
   calls?: boolean
@@ -1160,6 +1265,9 @@ export type CharacterOutingSelectCreateManyAndReturn<ExtArgs extends runtime.Typ
   model?: boolean
   sources?: boolean
   sites?: boolean
+  videos?: boolean
+  pinnedVideos?: boolean
+  pinnedDone?: boolean
   budgetPoints?: boolean
   usedTokens?: boolean
   calls?: boolean
@@ -1184,6 +1292,9 @@ export type CharacterOutingSelectUpdateManyAndReturn<ExtArgs extends runtime.Typ
   model?: boolean
   sources?: boolean
   sites?: boolean
+  videos?: boolean
+  pinnedVideos?: boolean
+  pinnedDone?: boolean
   budgetPoints?: boolean
   usedTokens?: boolean
   calls?: boolean
@@ -1208,6 +1319,9 @@ export type CharacterOutingSelectScalar = {
   model?: boolean
   sources?: boolean
   sites?: boolean
+  videos?: boolean
+  pinnedVideos?: boolean
+  pinnedDone?: boolean
   budgetPoints?: boolean
   usedTokens?: boolean
   calls?: boolean
@@ -1222,7 +1336,7 @@ export type CharacterOutingSelectScalar = {
   endedAt?: boolean
 }
 
-export type CharacterOutingOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "characterCardId" | "status" | "model" | "sources" | "sites" | "budgetPoints" | "usedTokens" | "calls" | "kept" | "rounds" | "emptyRounds" | "nowLabel" | "endReason" | "stopRequested" | "leaseUntil" | "startedAt" | "endedAt", ExtArgs["result"]["characterOuting"]>
+export type CharacterOutingOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "characterCardId" | "status" | "model" | "sources" | "sites" | "videos" | "pinnedVideos" | "pinnedDone" | "budgetPoints" | "usedTokens" | "calls" | "kept" | "rounds" | "emptyRounds" | "nowLabel" | "endReason" | "stopRequested" | "leaseUntil" | "startedAt" | "endedAt", ExtArgs["result"]["characterOuting"]>
 export type CharacterOutingInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   characterCard?: boolean | Prisma.CharacterCardDefaultArgs<ExtArgs>
@@ -1262,6 +1376,18 @@ export type $CharacterOutingPayload<ExtArgs extends runtime.Types.Extensions.Int
      * 你添加的网址（域名），用模型自带的网搜 `site:` 去找。
      */
     sites: string[]
+    /**
+     * 开着「看视频」的来源（`CHARACTER_VIDEO_SOURCES`，第 ⑥ 步）；关着的只看评论区。
+     */
+    videos: string[]
+    /**
+     * 你贴的视频链接 [{platform,url,start?,end?}]（`OutingVideoLinkSchema`），她先看。
+     */
+    pinnedVideos: runtime.JsonValue | null
+    /**
+     * 指定视频看完了（跨段不重看）。
+     */
+    pinnedDone: boolean
     budgetPoints: number
     usedTokens: number
     calls: number
@@ -1721,6 +1847,9 @@ export interface CharacterOutingFieldRefs {
   readonly model: Prisma.FieldRef<"CharacterOuting", 'String'>
   readonly sources: Prisma.FieldRef<"CharacterOuting", 'String[]'>
   readonly sites: Prisma.FieldRef<"CharacterOuting", 'String[]'>
+  readonly videos: Prisma.FieldRef<"CharacterOuting", 'String[]'>
+  readonly pinnedVideos: Prisma.FieldRef<"CharacterOuting", 'Json'>
+  readonly pinnedDone: Prisma.FieldRef<"CharacterOuting", 'Boolean'>
   readonly budgetPoints: Prisma.FieldRef<"CharacterOuting", 'Int'>
   readonly usedTokens: Prisma.FieldRef<"CharacterOuting", 'Int'>
   readonly calls: Prisma.FieldRef<"CharacterOuting", 'Int'>

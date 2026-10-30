@@ -121,6 +121,11 @@ export interface StudioOperatorModelChipProps {
    * 按模型名或厂商名筛，搜的时候「自动」那一行让位。
    */
   searchable?: boolean
+  /**
+   * 放在弹框里（角色出门调查）：选单自己挡滚动、自己能滚（⛔ 被外层弹框的滚动锁吃掉滚轮），
+   * 按钮换成一颗看得清的药丸（owner 10-30「按钮太小、点开滑不动」）。
+   */
+  inDialog?: boolean
 }
 
 export function StudioOperatorModelChip({
@@ -129,6 +134,7 @@ export function StudioOperatorModelChip({
   open: openProp,
   onOpenChange,
   searchable = false,
+  inDialog = false,
 }: StudioOperatorModelChipProps) {
   const t = useTranslations('StudioOperator.modelChip')
   const [localOpen, setLocalOpen] = useState(false)
@@ -256,7 +262,7 @@ export function StudioOperatorModelChip({
 
   return (
     <>
-      <ResponsivePopover open={open} onOpenChange={setOpen}>
+      <ResponsivePopover open={open} onOpenChange={setOpen} modal={inDialog}>
         <ResponsivePopoverTrigger asChild>
           <button
             type="button"
@@ -266,8 +272,15 @@ export function StudioOperatorModelChip({
             /* D12 T-A：一行**灰字**，不穿框（输入区整块只有一个边框）；hover /
                展开才垫一层浅底。⛔ 不翻成近黑信号位：那一档只给发送键。 */
             className={cn(
-              'flex h-8 min-w-0 shrink items-center gap-1 rounded-md px-1.5 text-xs transition-colors duration-fast ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
-              open ? 'bg-accent text-foreground' : 'text-muted-foreground',
+              'flex min-w-0 shrink items-center gap-1 transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
+              inDialog
+                ? 'h-9 rounded-full bg-muted px-3.5 text-2sm text-foreground hover:tint-hover'
+                : cn(
+                    'h-8 rounded-md px-1.5 text-xs hover:bg-accent hover:text-foreground',
+                    open
+                      ? 'bg-accent text-foreground'
+                      : 'text-muted-foreground',
+                  ),
             )}
           >
             <span className="max-w-48 truncate">{selectedLabel}</span>
@@ -276,12 +289,18 @@ export function StudioOperatorModelChip({
             {/* 输入条窄时箭头让位给字（思考 chip 同一道门槛）。 */}
             {open ? (
               <ChevronUp
-                className="hidden size-3 shrink-0 @assistant-bar:block"
+                className={cn(
+                  'size-3 shrink-0',
+                  !inDialog && 'hidden @assistant-bar:block',
+                )}
                 aria-hidden
               />
             ) : (
               <ChevronDown
-                className="hidden size-3 shrink-0 @assistant-bar:block"
+                className={cn(
+                  'size-3 shrink-0',
+                  !inDialog && 'hidden @assistant-bar:block',
+                )}
                 aria-hidden
               />
             )}
@@ -289,7 +308,7 @@ export function StudioOperatorModelChip({
         </ResponsivePopoverTrigger>
         {/* 固定高度 + 自己滚（画板：列表区 320px 可滚动）——⛔ 不让它顶着面板长高。 */}
         <ResponsivePopoverContent
-          side="top"
+          side={inDialog ? 'bottom' : 'top'}
           align="start"
           label={t('label')}
           /* 三层玻璃③：**浮层**（§12.1）。 */

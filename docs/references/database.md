@@ -88,7 +88,7 @@ owner 在卡上选的原话就是规格：「每轮存画布、过程和模型�
 
 ## 角色出门 `CharacterOuting`（2026-10-30 · 角色大项目第 ⑤ 步）
 
-一趟出门一行（`src/services/cards/character-outing.service.ts`）：`status`（RUNNING / DONE / STOPPED / FAILED）· `model`（具体型号，⛔ `auto`）· `sources` / `sites`（空 = 自动）· `budgetPoints` · `usedTokens` / `calls` / `kept` / `rounds` / `emptyRounds`（跨段接着数）· `nowLabel`（「来源\n搜索词」）· `endReason` · `stopRequested` · `leaseUntil`（哪个函数正占着）· `startedAt` / `endedAt`。两条索引 `(characterCardId, startedAt DESC)` · `(userId, startedAt DESC)`，两头 `ON DELETE CASCADE`。同一迁移给 `CharacterSticker` 加 `contentHash`（sha256，+ `(characterCardId, contentHash)` 索引）：同一张图不再收，旧行没指纹的列表时后台补上并每样只留最早那张。`CharacterCard.browse*` 五列代码已停读停写（`RETIRED_COLUMNS`），下一次部署删列。迁移 `20261030120000_character_outing` 在 PGlite 上整套回放、`migrate diff` 无差异；随生产构建执行。
+一趟出门一行（`src/services/cards/character-outing.service.ts`）：`status`（RUNNING / DONE / STOPPED / FAILED）· `model`（具体型号，⛔ `auto`）· `sources` / `sites`（空 = 自动）· `budgetPoints` · `usedTokens` / `calls` / `kept` / `rounds` / `emptyRounds`（跨段接着数）· `nowLabel`（「来源\n搜索词」）· `endReason` · `stopRequested` · `leaseUntil`（哪个函数正占着）· `startedAt` / `endedAt`。两条索引 `(characterCardId, startedAt DESC)` · `(userId, startedAt DESC)`，两头 `ON DELETE CASCADE`。同一迁移给 `CharacterSticker` 加 `contentHash`（sha256，+ `(characterCardId, contentHash)` 索引）：同一张图不再收，旧行没指纹的列表时后台补上并每样只留最早那张。`CharacterCard.browse*` 五列代码已停读停写（`RETIRED_COLUMNS`），下一次部署删列。迁移 `20261030120000_character_outing` 在 PGlite 上整套回放、`migrate diff` 无差异；随生产构建执行。第 ⑥ 步（迁移 `20261030140000_character_outing_videos`，同样 PGlite 回放无差异）加三列：`videos`（开着「看视频」的来源）· `pinnedVideos`（JSON，你贴的视频 `[{platform,url,start?,end?}]`，读回过 `OutingVideoLinkSchema`）· `pinnedDone`（指定视频看完了，跨段不重看）。
 
 ## 迁移纪律
 

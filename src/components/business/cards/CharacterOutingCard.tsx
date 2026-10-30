@@ -4,7 +4,7 @@ import { useState, type ReactNode } from 'react'
 import { useFormatter, useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
-import { Plus } from '@/components/icons'
+import { Play, Plus, X } from '@/components/icons'
 import { assistantAdapterSupportsImage } from '@/constants/assistant'
 import {
   ASSISTANT_ROUTE_MODEL_AUTO,
@@ -14,7 +14,10 @@ import {
 import {
   CHARACTER_BROWSE_SOURCE_IDS,
   CHARACTER_OUTING,
+  CHARACTER_OUTING_VIDEO,
+  CHARACTER_VIDEO_SOURCES,
   type CharacterBrowseSource,
+  type CharacterVideoSource,
 } from '@/constants/character-browse'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type { CharacterOutingRun } from '@/types/character-growth'
@@ -26,8 +29,14 @@ import {
   ResponsiveDialogTitle,
 } from '@/components/ui/responsive-dialog'
 import { Progress } from '@/components/ui/progress'
+import { Switch } from '@/components/ui/switch'
 import type { useCharacterGrowth } from '@/hooks/cards'
 import { getApiErrorMessage } from '@/lib/api-error-message'
+import {
+  formatVideoRange,
+  parseOutingVideoLink,
+  type OutingVideoLink,
+} from '@/lib/outing-video-link'
 import { cn } from '@/lib/utils'
 
 /**
@@ -36,13 +45,17 @@ import { cn } from '@/lib/utils'
  * ⭐ 没出门：「上次调查：…」+「出门调查」（白钮：「和她聊」才是这块板唯一的黑钮）。
  * ⭐ 调查中：在看什么 · 用了几点 / 共几点 · 进度条 ·「结束」（看到的照样留着）。
  * ⭐ 弹框一次性：模型（记住上次，下面挂能看什么的小签）· 来源（自动 + 内置站 + 她常去的网址 + ＋添加网址）·
- *   额度 10 / 30 / 60 / 自定。⛔ 开关、⛔ 每天自动。
+ *   额度 10 / 30 / 60 / 自定。⛔ 每天自动。
+ * ⭐ 第 ⑥ 步（owner 10-30 选 C）：来源下面单独一块「看视频」，只列选中（自动 = 全部）且能看视频的来源，
+ *   每个一个开关，提示常驻在第二行（开 = 真看，关 = 只看评论区）。「＋添加网址」里贴视频链接 =
+ *   指定视频（▶ 小块，可带 3:00-5:00），她先看。
  */
 
 type Growth = ReturnType<typeof useCharacterGrowth>
 
 export const SOURCE_KEYS: Record<CharacterBrowseSource, string> = {
   bilibili: 'sourceBilibili',
+  youtube: 'sourceYoutube',
   danbooru: 'sourceDanbooru',
   civitai: 'sourceCivitai',
   x: 'sourceX',
@@ -76,6 +89,31 @@ function siteOf(raw: string): string | null {
     return /^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(host) ? host : null
   } catch {
     return null
+  }
+}
+
+type VideoHint = { key: string; disabled: boolean }
+
+/** 「看视频」那一行第二行写什么、开关能不能开（只认这个模型能做到的）。 */
+function videoHint(
+  source: CharacterVideoSource,
+  on: boolean,
+  model: { gemini: boolean; sees: boolean },
+): VideoHint {
+  if (source === CHARACTER_BROWSE_SOURCE_IDS.youtube) {
+    if (!model.gemini) return { key: 'youtubeNeedsGemini', disabled: true }
+    return { key: on ? 'youtubeWatch' : 'youtubeOff', disabled: false }
+  }
+  if (source === CHARACTER_BROWSE_SOURCE_IDS.x)
+    return { key: on ? 'xWatch' : 'xOff', disabled: false }
+  if (!model.gemini && !model.sees) return { key: 'needsImage', disabled: true }
+  return {
+    key: on
+      ? model.gemini
+        ? 'bilibiliWatch'
+        : 'bilibiliFrames'
+      : 'bilibiliOff',
+    disabled: false,
   }
 }
 
@@ -132,6 +170,13 @@ function OutingDialog({
     (last?.sources ?? []) as CharacterBrowseSource[],
   )
   const [sites, setSites] = useState<string[]>(last?.sites ?? [])
+  const [videos, setVideos] = useState<CharacterVideoSource[]>(
+    (last?.videos ?? []).filter((source): source is CharacterVideoSource =>
+      (CHARACTER_VIDEO_SOURCES as readonly string[]).includes(source),
+    ),
+  )
+  // 指定视频是一次性的：⛔ 记住上次贴的。
+  const [pinned, setPinned] = useState<OutingVideoLink[]>([])
   const [extraSites, setExtraSites] = useState<string[]>([])
   const [adding, setAdding] = useState(false)
   const [siteText, setSiteText] = useState('')
@@ -148,6 +193,7 @@ function OutingDialog({
   const adapter = entry?.adapterType
   const builtIn = [
     CHARACTER_BROWSE_SOURCE_IDS.bilibili,
+    CHARACTER_BROWSE_SOURCE_IDS.youtube,
     CHARACTER_BROWSE_SOURCE_IDS.danbooru,
     CHARACTER_BROWSE_SOURCE_IDS.civitai,
     // X 只有 Grok 搜得到（Grok 自带 X 搜索），别家不出这一颗。
@@ -160,14 +206,34 @@ function OutingDialog({
     ...new Set([...(outing?.frequentSites ?? []), ...sites, ...extraSites]),
   ]
   const auto = sources.length === 0 && sites.length === 0
+  const sees = entry
+    ? assistantAdapterSupportsImage(entry.adapterType, entry.modelId)
+    : false
+  const gemini = adapter === AI_ADAPTER_TYPES.GEMINI
   const capabilities = entry
     ? [
         tOuting('capText'),
-        ...(assistantAdapterSupportsImage(entry.adapterType, entry.modelId)
-          ? [tOuting('capImage')]
-          : []),
+        ...(sees ? [tOuting('capImage')] : []),
+        // 只让 Gemini 听（owner 10-30「先只让 gemini 能听」）。
+        ...(gemini ? [tOuting('capVideo'), tOuting('capAudio')] : []),
       ]
     : []
+  const videoRows = (auto ? builtIn : sources)
+    .filter((source): source is CharacterVideoSource =>
+      (CHARACTER_VIDEO_SOURCES as readonly string[]).includes(source),
+    )
+    .filter((source) => builtIn.includes(source))
+    .map((source) => {
+      const hint = videoHint(source, videos.includes(source), {
+        gemini,
+        sees,
+      })
+      return {
+        source,
+        hint,
+        on: videos.includes(source) && !hint.disabled,
+      }
+    })
   const customBudget = Number.parseInt(customText, 10)
   const points = custom
     ? Number.isFinite(customBudget)
@@ -181,11 +247,23 @@ function OutingDialog({
     list.includes(item) ? list.filter((x) => x !== item) : [...list, item]
 
   const addSite = () => {
-    const site = siteOf(siteText)
     if (!siteText.trim()) {
       setAdding(false)
       return
     }
+    // 视频链接 = 指定视频（第 ⑥ 步），⛔ 当成网站。
+    const video = parseOutingVideoLink(siteText)
+    if (video) {
+      setPinned((list) =>
+        [...list.filter((link) => link.url !== video.url), video].slice(
+          -CHARACTER_OUTING_VIDEO.maxPinned,
+        ),
+      )
+      setSiteText('')
+      setAdding(false)
+      return
+    }
+    const site = siteOf(siteText)
     if (!site) {
       toast.error(tOuting('siteInvalid'))
       return
@@ -207,6 +285,8 @@ function OutingDialog({
       model,
       sources: sources.filter((source) => builtIn.includes(source)),
       sites,
+      videos: videoRows.filter((row) => row.on).map((row) => row.source),
+      pinnedVideos: pinned,
       budgetPoints: points,
     })
     setStarting(false)
@@ -243,6 +323,7 @@ function OutingDialog({
               open={modelOpen}
               onOpenChange={setModelOpen}
               onChange={setModel}
+              inDialog
             />
           </div>
           {capabilities.length ? (
@@ -291,6 +372,32 @@ function OutingDialog({
                 {site}
               </Chip>
             ))}
+            {pinned.map((link) => {
+              const range = formatVideoRange(link)
+              const name = `${t(SOURCE_KEYS[link.platform])} ${link.url.split('/').pop()?.replace('watch?v=', '') ?? ''}${range ? ` · ${range}` : ''}`
+              return (
+                <span
+                  key={link.url}
+                  className="flex h-8 items-center gap-1.5 rounded-full bg-primary pr-1.5 pl-3 text-2sm text-primary-foreground"
+                  data-testid="character-outing-pinned"
+                >
+                  <Play className="size-3" aria-hidden />
+                  <span className="max-w-48 truncate">{name}</span>
+                  <button
+                    type="button"
+                    aria-label={tOuting('removePinned')}
+                    onClick={() =>
+                      setPinned((list) =>
+                        list.filter((item) => item.url !== link.url),
+                      )
+                    }
+                    className="flex size-5 items-center justify-center rounded-full hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus"
+                  >
+                    <X className="size-3" aria-hidden />
+                  </button>
+                </span>
+              )
+            })}
             {adding ? (
               <input
                 autoFocus
@@ -315,9 +422,10 @@ function OutingDialog({
                 onBlur={() => {
                   if (!siteText.trim()) setAdding(false)
                 }}
-                className="h-8 w-44 rounded-full bg-muted px-3.5 text-base outline-none focus-visible:shadow-focus lg:text-2sm"
+                className="h-8 w-64 max-w-full rounded-full bg-muted px-3.5 text-base outline-none focus-visible:shadow-focus lg:text-2sm"
               />
-            ) : sites.length < CHARACTER_OUTING.maxSites ? (
+            ) : sites.length < CHARACTER_OUTING.maxSites ||
+              pinned.length < CHARACTER_OUTING_VIDEO.maxPinned ? (
               <button
                 type="button"
                 onClick={() => setAdding(true)}
@@ -328,7 +436,51 @@ function OutingDialog({
               </button>
             ) : null}
           </div>
+          {pinned.length ? (
+            <p className="text-xs text-muted-foreground">
+              {tOuting('pinnedHint')}
+            </p>
+          ) : null}
         </section>
+
+        {videoRows.length ? (
+          <section className="flex flex-col gap-2">
+            <h3 className="text-xs text-muted-foreground">
+              {tOuting('videos')}
+            </h3>
+            <ul className="flex flex-col gap-1.5">
+              {videoRows.map(({ source, hint, on }) => (
+                <li key={source}>
+                  <label
+                    className={cn(
+                      'flex items-center gap-3 rounded-xl bg-muted px-3.5 py-2.5',
+                      hint.disabled ? 'cursor-not-allowed' : 'cursor-pointer',
+                    )}
+                  >
+                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <span className="text-2sm">{t(SOURCE_KEYS[source])}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {tOuting(`hint.${hint.key}`)}
+                      </span>
+                    </span>
+                    <Switch
+                      checked={on}
+                      disabled={hint.disabled}
+                      aria-label={`${tOuting('videos')} · ${t(SOURCE_KEYS[source])}`}
+                      onCheckedChange={(checked) =>
+                        setVideos((list) =>
+                          checked
+                            ? [...new Set([...list, source])]
+                            : list.filter((item) => item !== source),
+                        )
+                      }
+                    />
+                  </label>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
 
         <section className="flex flex-col gap-2">
           <h3 className="text-xs text-muted-foreground">{tOuting('budget')}</h3>

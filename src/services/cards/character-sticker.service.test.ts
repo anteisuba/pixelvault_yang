@@ -12,9 +12,12 @@ const mocks = vi.hoisted(() => ({
   detect: vi.fn(),
   upload: vi.fn(),
   deleteR2: vi.fn(),
+  fetch: vi.fn(),
+  after: vi.fn(),
 }))
 
 vi.mock('server-only', () => ({}))
+vi.mock('next/server', () => ({ after: mocks.after }))
 vi.mock('@/services/user.service', () => ({ ensureUser: mocks.ensureUser }))
 vi.mock('@/lib/db', () => ({
   db: {
@@ -33,11 +36,13 @@ vi.mock('@/services/storage/r2', () => ({
   detectTrustedImageMime: mocks.detect,
   uploadToR2: mocks.upload,
   deleteFromR2: mocks.deleteR2,
+  fetchAsBuffer: mocks.fetch,
 }))
 
 import {
   addCharacterStickerFromFile,
   CharacterStickerUploadError,
+  dedupeCharacterStickers,
   deleteCharacterSticker,
   listCharacterStickers,
   loadChatStickers,
@@ -177,5 +182,82 @@ describe('聊天里发（4d）', () => {
       where: { id: 'ab12cd-0000' },
       data: { sentAt: expect.any(Date) },
     })
+  })
+})
+
+describe('表情包去重（10-30「找了好多次重复的」）', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.ensureUser.mockResolvedValue({ id: 'u' })
+    mocks.cardFindFirst.mockResolvedValue({ id: 'c' })
+    mocks.deleteR2.mockResolvedValue(undefined)
+  })
+
+  it('补上指纹，同一张图只留最早那张；后来那张拉黑过就把拉黑带过去', async () => {
+    mocks.stickerFindMany.mockResolvedValue([
+      {
+        id: 'a',
+        url: 'https://cdn/a',
+        storageKey: 'ka',
+        contentHash: null,
+        isBlocked: false,
+      },
+      {
+        id: 'b',
+        url: 'https://cdn/b',
+        storageKey: 'kb',
+        contentHash: null,
+        isBlocked: true,
+      },
+      {
+        id: 'c',
+        url: 'https://cdn/c',
+        storageKey: 'kc',
+        contentHash: null,
+        isBlocked: false,
+      },
+    ])
+    mocks.fetch.mockImplementation(async (url: string) => ({
+      buffer: Buffer.from(url.endsWith('/c') ? 'other' : 'same'),
+      mimeType: 'image/png',
+    }))
+
+    await dedupeCharacterStickers('c')
+
+    expect(mocks.stickerUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'a' },
+        data: { isBlocked: true },
+      }),
+    )
+    expect(mocks.stickerDeleteMany).toHaveBeenCalledWith({
+      where: { id: { in: ['b'] } },
+    })
+    expect(mocks.deleteR2).toHaveBeenCalledWith('kb')
+  })
+
+  it('你喂的那张已经有了：⛔ 再存一张，回已有的那张', async () => {
+    mocks.detect.mockResolvedValue({
+      format: 'png',
+      mimeType: 'image/png',
+      width: 200,
+      height: 200,
+    })
+    mocks.stickerFindFirst.mockResolvedValueOnce(row)
+
+    const sticker = await addCharacterStickerFromFile('clerk', 'c', {
+      fileBuffer: Buffer.from('png'),
+      whenToUse: '',
+    })
+
+    expect(mocks.upload).not.toHaveBeenCalled()
+    expect(mocks.stickerCreate).not.toHaveBeenCalled()
+    expect(sticker?.id).toBe('s1')
+  })
+
+  it('列表里还有没指纹的旧行：回完这次在后台去重', async () => {
+    mocks.stickerFindMany.mockResolvedValue([{ ...row, contentHash: null }])
+    await listCharacterStickers('clerk', 'c')
+    expect(mocks.after).toHaveBeenCalledTimes(1)
   })
 })

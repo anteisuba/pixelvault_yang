@@ -77,7 +77,11 @@ describe('proxy internal execution routes', () => {
     expect(authChecks()).toBe(0)
   })
 
-  it.each(['/api/internal/execution/sweep', '/api/internal/characters/browse'])(
+  it.each([
+    '/api/internal/execution/sweep',
+    // 出门接力（角色大项目第 ⑤ 步）：自己调自己，同样验 CRON_SECRET。
+    '/api/internal/characters/outing',
+  ])(
     'lets the %s cron reach its CRON_SECRET authentication',
     async (pathname) => {
       // 每加一条 vercel.json 的 cron，这里必须同步放行。漏了不是"偶尔失败"

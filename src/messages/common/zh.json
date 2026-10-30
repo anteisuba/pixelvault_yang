@@ -446,9 +446,10 @@
     "promptTags": {
       "unusable": "助手没翻出标签，整句先留着。"
     },
-    "characterBrowse": {
-      "noModel": "还没选她出门用的型号",
-      "unknownModel": "这个型号用不了，换一个"
+    "characterOuting": {
+      "unknownModel": "这个模型用不了，换一个",
+      "missingKey": "这个模型还没有 key",
+      "running": "她已经在外面了"
     },
     "tavernCard": {
       "notACard": "这个文件不是酒馆角色卡（PNG 或 JSON）",

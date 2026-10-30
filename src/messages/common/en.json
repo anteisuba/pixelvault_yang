@@ -446,9 +446,10 @@
     "promptTags": {
       "unusable": "The assistant couldn't turn that into tags."
     },
-    "characterBrowse": {
-      "noModel": "Pick a model for her to go out with.",
-      "unknownModel": "That model isn't available. Pick another one."
+    "characterOuting": {
+      "unknownModel": "That model isn't available. Pick another.",
+      "missingKey": "That model has no API key yet",
+      "running": "She's already out"
     },
     "tavernCard": {
       "notACard": "That file isn't a SillyTavern character card (PNG or JSON).",

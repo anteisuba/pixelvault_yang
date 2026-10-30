@@ -45,6 +45,8 @@ interface CompleteAssistantTextOptions {
   jsonSchema?: LlmTextInput['jsonSchema']
   /** 进 `assistant llm call` 那行日志：这次调用是干什么的、第几步。 */
   callLog?: AssistantLlmCallLog
+  /** provider 自报的 token（每次请求含重发各报一次）：角色出门按它扣额度。 */
+  onUsage?(usage: LlmTextUsage): void
   /*
    * ⛔ 没有「换一家再试」（owner 2026-10-15：「会自动扣其他模型的token，用户还不知道」）。
    * 出不来时只在**同一家、同一把 key、同一个型号**上重发一次（见 `promptForRetry`），
@@ -226,6 +228,7 @@ export async function completeAssistantTextWithContextRetry({
   responseFormat,
   jsonSchema,
   callLog,
+  onUsage,
 }: CompleteAssistantTextOptions): Promise<string> {
   signal?.throwIfAborted()
   let attempt = 0
@@ -255,7 +258,10 @@ export async function completeAssistantTextWithContextRetry({
         promptGuardMaxLength: null,
         responseFormat,
         jsonSchema,
-        onUsage: call.onUsage,
+        onUsage: (usage) => {
+          call.onUsage(usage)
+          onUsage?.(usage)
+        },
       })
       call.finish('ok')
       return result

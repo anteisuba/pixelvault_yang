@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 
 import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
-import { ApiKeyError } from '@/lib/errors'
 
 const mocks = vi.hoisted(() => ({
   cardFind: vi.fn(),
@@ -18,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   upload: vi.fn(),
   deleteR2: vi.fn(),
   stickerCreate: vi.fn(),
+  stickerFindFirst: vi.fn(),
   stickerFindMany: vi.fn(),
   stickerDeleteMany: vi.fn(),
   comments: vi.fn(),
@@ -48,6 +48,7 @@ vi.mock('@/lib/db', () => ({
     },
     characterSticker: {
       create: mocks.stickerCreate,
+      findFirst: mocks.stickerFindFirst,
       findMany: mocks.stickerFindMany,
       deleteMany: mocks.stickerDeleteMany,
     },
@@ -94,9 +95,12 @@ vi.mock('@/services/llm-text.service', () => ({
 }))
 
 import {
-  browseCharacter,
+  browseRound,
+  estimateCallTokens,
   nextInterests,
-  runDailyCharacterBrowse,
+  normalizeOutingSite,
+  OutingBudgetExhausted,
+  OutingMeter,
 } from './character-browse.service'
 
 const updatedAt = new Date('2026-10-01T00:00:00.000Z')
@@ -120,7 +124,28 @@ function video(n: number) {
   }
 }
 
-describe('browseCharacter（她出门逛一次）', () => {
+/** 按卡（`mocks.cardFind`）和型号（`mocks.route`）逛一轮；额度默认够用。 */
+async function browseCharacter(
+  input: { userId: string; cardId: string },
+  meter = new OutingMeter(10_000_000),
+  sources: string[] = ['bilibili', 'danbooru', 'civitai', 'web'],
+) {
+  const card = await mocks.cardFind()
+  const route = await mocks.route(input.userId, {
+    routeModel: card.browseModel,
+  })
+  const result = await browseRound({
+    userId: input.userId,
+    card: { extensions: null, ...card },
+    route: { ...route, meter },
+    sources,
+    askInterests: true,
+    onNow: async () => {},
+  })
+  return { seen: result.seen, kept: result.kept }
+}
+
+describe('browseRound（她出门逛一轮）', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.cardFind.mockResolvedValue({
@@ -128,7 +153,6 @@ describe('browseCharacter（她出门逛一次）', () => {
       name: 'Denia',
       tags: ['猫娘'],
       persona: { identity: '喜欢水彩和猫的画师' },
-      browseDailyLimit: 3,
       browseModel: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
       updatedAt,
     })
@@ -188,7 +212,6 @@ describe('browseCharacter（她出门逛一次）', () => {
       tags: [],
       persona: { identity: '画师', interests: ['水彩'] },
       extensions: null,
-      browseDailyLimit: 3,
       browseModel: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
       updatedAt,
     })
@@ -227,7 +250,6 @@ describe('browseCharacter（她出门逛一次）', () => {
       tags: [],
       persona: { interests: ['水彩'] },
       extensions: { 'pv.pinnedFields': ['interests'] },
-      browseDailyLimit: 3,
       browseModel: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
       updatedAt,
     })
@@ -254,23 +276,16 @@ describe('browseCharacter（她出门逛一次）', () => {
     ).toBe(false)
   })
 
-  it('先记时间（不顶到列表最前），按额度看没看过的，没意思的不记', async () => {
-    const result = await browseCharacter({ userId: 'u', cardId: 'card-1' })
-
-    expect(mocks.cardUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: {
-          browsedAt: expect.any(Date),
-          browsePausedReason: null,
-          updatedAt,
-        },
-      }),
+  it('看没看过的，没意思的不记；每次调模型都记进额度表', async () => {
+    const meter = new OutingMeter(10_000_000)
+    const result = await browseCharacter(
+      { userId: 'u', cardId: 'card-1' },
+      meter,
     )
-    // 用她自己选的型号，⛔ 跟着助手变。
-    expect(mocks.route).toHaveBeenCalledWith('u', {
-      routeModel: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
-    })
-    // 看过的 BV1 去掉，额度 3 → 看 BV2、BV3、BV4
+
+    expect(meter.calls).toBe(2)
+    expect(meter.usedTokens).toBeGreaterThan(0)
+    // 看过的 BV1、搜索结果页去掉 → 看 BV2、BV3、BV4
     const viewed = mocks.complete.mock.calls[1]?.[0] as {
       buildUserPrompt: () => string
       imageData: string[]
@@ -357,56 +372,25 @@ describe('browseCharacter（她出门逛一次）', () => {
     )
   })
 
-  it.each([
-    ['没选型号', { browseModel: null }, 'no_model'],
-    ['型号已下架', { browseModel: 'retired-model-1' }, 'model_unavailable'],
-  ])('%s：不出门，记下原因', async (_, patch, reason) => {
-    mocks.cardFind.mockResolvedValue({
-      ...(await mocks.cardFind()),
-      ...patch,
-    })
-    expect(await browseCharacter({ userId: 'u', cardId: 'card-1' })).toEqual({
-      seen: 0,
-      kept: 0,
-    })
-    expect(mocks.cardUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ browsePausedReason: reason }),
-      }),
-    )
-    expect(mocks.route).not.toHaveBeenCalled()
-  })
-
-  it('那一家的 key 没了：不出门、⛔ 换别家，记下 missing_key', async () => {
-    mocks.route.mockRejectedValue(new ApiKeyError('missing'))
-    expect(await browseCharacter({ userId: 'u', cardId: 'card-1' })).toEqual({
-      seen: 0,
-      kept: 0,
-    })
-    expect(mocks.cardUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ browsePausedReason: 'missing_key' }),
-      }),
-    )
+  it('额度不够再调一次：一次都不调，直接收工（⛔ 超）', async () => {
+    await expect(
+      browseCharacter({ userId: 'u', cardId: 'card-1' }, new OutingMeter(100)),
+    ).rejects.toBeInstanceOf(OutingBudgetExhausted)
     expect(mocks.complete).not.toHaveBeenCalled()
   })
 
-  it('今天的额度用完就不出门', async () => {
-    mocks.findingCount.mockResolvedValue(3)
-    expect(await browseCharacter({ userId: 'u', cardId: 'card-1' })).toEqual({
-      seen: 0,
-      kept: 0,
-    })
-    expect(mocks.complete).not.toHaveBeenCalled()
-  })
-
-  it('不是自己的卡、删了的卡什么都不做', async () => {
-    mocks.cardFind.mockResolvedValue(null)
-    expect(await browseCharacter({ userId: 'u', cardId: 'x' })).toEqual({
-      seen: 0,
-      kept: 0,
-    })
-    expect(mocks.cardUpdate).not.toHaveBeenCalled()
+  it('provider 报了 token 就按报的扣', async () => {
+    mocks.complete.mockReset()
+    mocks.complete.mockImplementation(
+      async (options: { onUsage?(usage: object): void }) => {
+        options.onUsage?.({ inputTokens: 1000, outputTokens: 200 })
+        return JSON.stringify({ queries: [] })
+      },
+    )
+    const meter = new OutingMeter(10_000_000)
+    await browseCharacter({ userId: 'u', cardId: 'card-1' }, meter)
+    expect(meter.usedTokens).toBe(1200)
+    expect(meter.calls).toBe(1)
   })
 
   it('一个来源挂了不拖垮整趟', async () => {
@@ -428,7 +412,6 @@ describe('三级漏斗', () => {
       name: 'Denia',
       tags: [],
       persona: {},
-      browseDailyLimit: 20,
       browseModel: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
       updatedAt,
     })
@@ -504,7 +487,6 @@ describe('表情包（4d）', () => {
       name: 'Denia',
       tags: [],
       persona: {},
-      browseDailyLimit: 20,
       browseModel: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
       updatedAt,
     })
@@ -523,6 +505,7 @@ describe('表情包（4d）', () => {
       sizeBytes: 100,
     })
     mocks.stickerFindMany.mockResolvedValue([])
+    mocks.stickerFindFirst.mockResolvedValue(null)
     mocks.imageSearch.mockResolvedValue([
       {
         imageUrl: 'https://img.example/haoye.png',
@@ -572,6 +555,34 @@ describe('表情包（4d）', () => {
     })
   })
 
+  it('同一张图换个地址也认得出：已经有了就不收，刚传上去的删掉', async () => {
+    setup()
+    mocks.stickerFindFirst.mockResolvedValue({ id: 'old' })
+    mocks.complete
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          queries: [{ source: 'bilibili', query: '猫' }],
+          sticker: '猫猫',
+        }),
+      )
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          notes: [
+            { n: 1, note: null, sticker: null },
+            { n: 2, note: null, sticker: '被夸的时候发' },
+          ],
+        }),
+      )
+
+    await browseCharacter({ userId: 'u', cardId: 'card-1' })
+
+    expect(mocks.upload).toHaveBeenCalledTimes(1)
+    expect(mocks.stickerCreate).not.toHaveBeenCalled()
+    expect(mocks.deleteR2).toHaveBeenCalledWith(
+      (mocks.upload.mock.calls[0]?.[0] as { key: string }).key,
+    )
+  })
+
   it('普通的图（视频封面）就算她标了也不收；表情包候选不写成见闻', async () => {
     setup()
     mocks.complete
@@ -606,67 +617,6 @@ describe('表情包（4d）', () => {
   })
 })
 
-describe('runDailyCharacterBrowse（每天那一趟）', () => {
-  it('出门超过 7 天、7 天里一条见闻都没被想起：隔天才出门', async () => {
-    vi.clearAllMocks()
-    mocks.findingFindMany.mockReset().mockResolvedValue([])
-    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000)
-    mocks.cardFindMany.mockResolvedValue([
-      { id: 'idle', userId: 'u1', browsedAt: yesterday },
-      { id: 'liked', userId: 'u1', browsedAt: yesterday },
-      { id: 'new', userId: 'u1', browsedAt: yesterday },
-    ])
-    mocks.findingFindMany
-      .mockResolvedValueOnce([
-        { characterCardId: 'idle' },
-        { characterCardId: 'liked' },
-      ])
-      .mockResolvedValueOnce([{ characterCardId: 'liked' }])
-    mocks.cardFind.mockResolvedValue(null)
-
-    expect(await runDailyCharacterBrowse()).toEqual({
-      cards: 2,
-      kept: 0,
-      left: 0,
-    })
-  })
-
-  it('一个人最多带 3 张卡出门', async () => {
-    vi.clearAllMocks()
-    mocks.cardFindMany.mockResolvedValue([
-      { id: 'a1', userId: 'u1' },
-      { id: 'a2', userId: 'u1' },
-      { id: 'b1', userId: 'u2' },
-      { id: 'a3', userId: 'u1' },
-      { id: 'a4', userId: 'u1' },
-    ])
-    mocks.cardFind.mockResolvedValue(null)
-    expect(await runDailyCharacterBrowse()).toEqual({
-      cards: 4,
-      kept: 0,
-      left: 0,
-    })
-  })
-
-  it('只挑开着开关、今天没逛过、最近有来往的卡；一张出错照样往下走', async () => {
-    vi.clearAllMocks()
-    mocks.cardFindMany.mockResolvedValue([
-      { id: 'a', userId: 'u1' },
-      { id: 'b', userId: 'u2' },
-    ])
-    mocks.cardFind.mockRejectedValueOnce(new Error('boom'))
-    mocks.cardFind.mockResolvedValueOnce(null)
-
-    expect(await runDailyCharacterBrowse()).toEqual({
-      cards: 2,
-      kept: 0,
-      left: 0,
-    })
-    const where = mocks.cardFindMany.mock.calls[0]?.[0]?.where
-    expect(where).toMatchObject({ browseEnabled: true, isDeleted: false })
-  })
-})
-
 describe('nextInterests（她在意的东西加减一次）', () => {
   it('去掉只认原样的、加的去重截短、封顶', () => {
     expect(
@@ -680,5 +630,31 @@ describe('nextInterests（她在意的东西加减一次）', () => {
     )
     expect(nextInterests(['水彩'], { add: [], drop: ['不在单上'] })).toBeNull()
     expect(nextInterests(['水彩'], null)).toBeNull()
+  })
+})
+
+describe('额度表与网址', () => {
+  it('估一次调用按字数 + 每张图 + 回答那份', () => {
+    expect(
+      estimateCallTokens({ systemPrompt: 'abc', userPrompt: 'de', images: 2 }),
+    ).toBe(5 + 2 * 1600 + 1500)
+  })
+
+  it('估得超了就抛，实扣累加', () => {
+    const meter = new OutingMeter(10_000, 9_000)
+    expect(() => meter.ensure(1_001)).toThrow(OutingBudgetExhausted)
+    meter.ensure(1_000)
+    meter.charge(400)
+    expect(meter.remaining()).toBe(600)
+    expect(meter.calls).toBe(1)
+  })
+
+  it('你添加的网址规整成域名，认不出的丢掉', () => {
+    expect(normalizeOutingSite('https://www.pixiv.net/ranking')).toBe(
+      'pixiv.net',
+    )
+    expect(normalizeOutingSite('zhihu.com')).toBe('zhihu.com')
+    expect(normalizeOutingSite('不是网址')).toBeNull()
+    expect(normalizeOutingSite('')).toBeNull()
   })
 })

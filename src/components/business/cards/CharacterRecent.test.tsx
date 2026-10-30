@@ -1,7 +1,10 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
-import type { CharacterGrowth } from '@/types/character-growth'
+import type {
+  CharacterGrowth,
+  CharacterOutingRun,
+} from '@/types/character-growth'
 import type { CharacterStickerRecord } from '@/types/character-sticker'
 
 vi.mock('next-intl', () => {
@@ -44,12 +47,25 @@ const daysBack = (days: number) =>
     9,
   ).toISOString()
 
-const grok = NODE_STUDIO_ASSISTANT_ROUTE_MODELS.find(
-  (model) => model.adapterType === AI_ADAPTER_TYPES.XAI,
-)!
 const claude = NODE_STUDIO_ASSISTANT_ROUTE_MODELS.find(
   (model) => model.adapterType === AI_ADAPTER_TYPES.ANTHROPIC,
 )!
+
+const run = (patch: Partial<CharacterOutingRun> = {}): CharacterOutingRun => ({
+  id: 'r1',
+  status: 'DONE',
+  model: claude.modelId,
+  sources: [],
+  sites: [],
+  budgetPoints: 30,
+  usedTokens: 120_000,
+  kept: 2,
+  nowLabel: null,
+  endReason: 'budget',
+  startedAt: today(8),
+  endedAt: today(10),
+  ...patch,
+})
 
 function growthOf(patch: Partial<CharacterGrowth> = {}): CharacterGrowth {
   return {
@@ -82,12 +98,7 @@ function growthOf(patch: Partial<CharacterGrowth> = {}): CharacterGrowth {
       },
     ],
     opinions: [{ id: 'o1', text: '厚涂更适合画雨天。', createdAt: today(10) }],
-    browse: {
-      enabled: true,
-      model: claude.modelId,
-      pausedReason: null,
-      browsedAt: today(9),
-    },
+    outing: { running: null, recent: [], frequentSites: [] },
     ...patch,
   }
 }
@@ -100,9 +111,8 @@ function hookOf(growth: CharacterGrowth) {
     revertingId: null,
     revert: vi.fn(),
     reload: vi.fn(),
-    setBrowse: vi.fn(async () => ({ ok: true as const })),
-    goingOut: false,
-    goOutNow: vi.fn(async () => {}),
+    startOuting: vi.fn(async () => ({ ok: true as const })),
+    stopOuting: vi.fn(async () => ({ ok: true as const })),
     removeFinding: vi.fn(async () => ({ ok: true as const })),
     editOpinion: vi.fn(async () => ({ ok: true as const })),
     removeOpinion: vi.fn(async () => ({ ok: true as const })),
@@ -153,32 +163,41 @@ describe('CharacterRecent', () => {
     expect(screen.getByText('数他叹了七口气。')).toBeTruthy()
   })
 
-  it('状态行写「今天几点出门 · 带回几条」，一条没带回就直说', () => {
-    const { unmount } = render(
-      <CharacterRecent
-        stickers={stickersOf()}
-        growth={hookOf(growthOf())}
-        reducedMotion
-      />,
-    )
-    expect(
-      screen.getByText('daily · outToday|09:10 · broughtBack|2'),
-    ).toBeTruthy()
-    unmount()
+  it('收了工的一趟一条：挂它起止之间的见闻，写用了几点；一条没带回也有一条', () => {
     render(
       <CharacterRecent
         stickers={stickersOf()}
         growth={hookOf(
           growthOf({
-            browse: { ...growthOf().browse, browsedAt: today(11) },
+            outing: {
+              running: null,
+              recent: [
+                run({ startedAt: today(8), endedAt: today(10) }),
+                run({
+                  id: 'r0',
+                  startedAt: daysBack(1),
+                  endedAt: daysBack(1),
+                  usedTokens: 20_000,
+                  kept: 0,
+                  endReason: 'nothing',
+                }),
+              ],
+              frequentSites: [],
+            },
           }),
         )}
         reducedMotion
       />,
     )
     expect(
-      screen.getByText('daily · outToday|09:10 · broughtNothing'),
+      screen.getByText('runSummary|sourceBilibili · sourceDanbooru'),
     ).toBeTruthy()
+    expect(screen.getByText('· findingCount|2 · runPoints|12')).toBeTruthy()
+    expect(
+      screen.getByText('· findingCount|0 · runPoints|2 · end.nothing'),
+    ).toBeTruthy()
+    // 出门表之前的那条照旧按天折。
+    expect(screen.getByText('wentOut|sourceCivitai')).toBeTruthy()
   })
 
   it('删见闻先弹确认，确认了才删', () => {
@@ -191,97 +210,16 @@ describe('CharacterRecent', () => {
     expect(screen.getByText('deleteFindingTitle')).toBeTruthy()
   })
 
-  it('X 只在出门用 Grok 时出现；出不了门写原因 + 换一个型号', () => {
-    const { unmount } = render(
-      <CharacterRecent
-        stickers={stickersOf()}
-        growth={hookOf(growthOf())}
-        reducedMotion
-      />,
-    )
-    expect(screen.queryByText('sourceX')).toBeNull()
-    unmount()
+  it('没出过门又没见闻：空态卡 +「还没出过门」', () => {
     render(
       <CharacterRecent
         stickers={stickersOf()}
-        growth={hookOf(
-          growthOf({
-            browse: {
-              enabled: true,
-              model: grok.modelId,
-              pausedReason: 'missing_key',
-              browsedAt: today(9),
-            },
-          }),
-        )}
-        reducedMotion
-      />,
-    )
-    expect(screen.getByText('sourceX')).toBeTruthy()
-    expect(screen.getByText(`paused.missing_key|${grok.label}`)).toBeTruthy()
-    expect(screen.getByText('changeModel')).toBeTruthy()
-  })
-
-  it('打开出门开关就马上出门一趟；出门中状态行写「正在出门」', async () => {
-    const hook = hookOf(
-      growthOf({
-        browse: {
-          enabled: false,
-          model: null,
-          pausedReason: null,
-          browsedAt: null,
-        },
-      }),
-    )
-    const { unmount } = render(
-      <CharacterRecent stickers={stickersOf()} growth={hook} reducedMotion />,
-    )
-    fireEvent.click(screen.getByRole('switch', { name: 'goOut' }))
-    await waitFor(() => expect(hook.goOutNow).toHaveBeenCalledTimes(1))
-    expect(hook.setBrowse).toHaveBeenCalledWith({ enabled: true })
-    unmount()
-    render(
-      <CharacterRecent
-        stickers={stickersOf()}
-        growth={{
-          ...hookOf(
-            growthOf({
-              browse: {
-                enabled: true,
-                model: claude.modelId,
-                pausedReason: null,
-                browsedAt: null,
-              },
-            }),
-          ),
-          goingOut: true,
-        }}
-        reducedMotion
-      />,
-    )
-    expect(screen.getByText('daily · goingOut')).toBeTruthy()
-  })
-
-  it('出门关着又没见闻：空态卡；型号行不出', () => {
-    render(
-      <CharacterRecent
-        stickers={stickersOf()}
-        growth={hookOf(
-          growthOf({
-            findings: [],
-            browse: {
-              enabled: false,
-              model: null,
-              pausedReason: null,
-              browsedAt: null,
-            },
-          }),
-        )}
+        growth={hookOf(growthOf({ findings: [] }))}
         reducedMotion
       />,
     )
     expect(screen.getByText('neverOutTitle')).toBeTruthy()
-    expect(screen.queryByTestId('model-chip')).toBeNull()
+    expect(screen.getByText('never')).toBeTruthy()
   })
 
   it('她逛来的表情在「全部」里按天一条，点一张拉黑；你上传的不进河', () => {

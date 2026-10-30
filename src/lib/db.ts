@@ -23,6 +23,14 @@ function createPrismaClient() {
 const RETIRED_COLUMNS = {
   // 模板「发布到共享库」已拿掉（共享提示词搬到画廊）。
   recipe: { visibility: true },
+  // 角色出门改成一次一趟（`CharacterOuting`，角色大项目第 ⑤ 步）：开关、每天上限、型号、原因都不用了。
+  characterCard: {
+    browseEnabled: true,
+    browseDailyLimit: true,
+    browsedAt: true,
+    browseModel: true,
+    browsePausedReason: true,
+  },
 } as const
 
 const globalForPrisma = globalThis as typeof globalThis & {

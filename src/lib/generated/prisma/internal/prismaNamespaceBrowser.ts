@@ -87,6 +87,7 @@ export const ModelName = {
   ContextCard: 'ContextCard',
   AssistantMemory: 'AssistantMemory',
   CharacterCardRevision: 'CharacterCardRevision',
+  CharacterOuting: 'CharacterOuting',
   CharacterFinding: 'CharacterFinding',
   CharacterSticker: 'CharacterSticker',
   CharacterJournal: 'CharacterJournal',
@@ -785,6 +786,31 @@ export const CharacterCardRevisionScalarFieldEnum = {
 export type CharacterCardRevisionScalarFieldEnum = (typeof CharacterCardRevisionScalarFieldEnum)[keyof typeof CharacterCardRevisionScalarFieldEnum]
 
 
+export const CharacterOutingScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  characterCardId: 'characterCardId',
+  status: 'status',
+  model: 'model',
+  sources: 'sources',
+  sites: 'sites',
+  budgetPoints: 'budgetPoints',
+  usedTokens: 'usedTokens',
+  calls: 'calls',
+  kept: 'kept',
+  rounds: 'rounds',
+  emptyRounds: 'emptyRounds',
+  nowLabel: 'nowLabel',
+  endReason: 'endReason',
+  stopRequested: 'stopRequested',
+  leaseUntil: 'leaseUntil',
+  startedAt: 'startedAt',
+  endedAt: 'endedAt'
+} as const
+
+export type CharacterOutingScalarFieldEnum = (typeof CharacterOutingScalarFieldEnum)[keyof typeof CharacterOutingScalarFieldEnum]
+
+
 export const CharacterFindingScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
@@ -810,6 +836,7 @@ export const CharacterStickerScalarFieldEnum = {
   whenToUse: 'whenToUse',
   isBlocked: 'isBlocked',
   sentAt: 'sentAt',
+  contentHash: 'contentHash',
   createdAt: 'createdAt'
 } as const
 

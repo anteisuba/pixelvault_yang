@@ -10,9 +10,7 @@ const mocks = vi.hoisted(() => ({
   findingDelete: vi.fn(),
   revert: vi.fn(),
   forget: vi.fn(),
-  routeModel: vi.fn(),
-  resolveRoute: vi.fn(),
-  browse: vi.fn(),
+  outingState: vi.fn(),
   journals: vi.fn(),
   revisions: vi.fn(),
   findings: vi.fn(),
@@ -48,25 +46,16 @@ vi.mock('./character-revision.service', () => ({
 vi.mock('./character-findings.service', () => ({
   forgetFindings: mocks.forget,
 }))
-vi.mock('./character-browse.service', () => ({
-  browseCharacter: mocks.browse,
-}))
-vi.mock('@/services/assistant-persona.service', () => ({
-  getAssistantRouteModelByUserId: mocks.routeModel,
-}))
-vi.mock('@/services/kernel/assistant-route.service', () => ({
-  resolveAssistantRoute: mocks.resolveRoute,
+vi.mock('./character-outing.service', () => ({
+  getCharacterOutingState: mocks.outingState,
 }))
 
-import { NODE_STUDIO_ASSISTANT_ROUTE_MODELS } from '@/constants/node-studio'
 import {
   deleteCharacterFindingForClerkId,
   deleteCharacterJournalForClerkId,
   getCharacterGrowthForClerkId,
-  goOutNowForClerkId,
   listCharacterRecentActivityForClerkId,
   revertCharacterRevisionForClerkId,
-  updateCharacterBrowseForClerkId,
   updateCharacterJournalForClerkId,
 } from './character-growth.service'
 
@@ -110,27 +99,17 @@ describe('日记能改能删（第 ③ 步）', () => {
 })
 
 const AT = new Date('2026-10-26T10:00:00Z')
-const MODEL = NODE_STUDIO_ASSISTANT_ROUTE_MODELS[0].modelId
-const BROWSE_OFF = {
-  browseEnabled: false,
-  browseModel: null,
-  browsePausedReason: null,
-  browsedAt: null,
-}
+const OUTING = { running: null, recent: [], frequentSites: ['pixiv.net'] }
 
 beforeEach(() => {
   vi.clearAllMocks()
   mocks.memories.mockResolvedValue([])
+  mocks.outingState.mockResolvedValue(OUTING)
 })
 
 describe('getCharacterGrowthForClerkId', () => {
-  it('只读自己的卡，日期转成字符串；见闻、观点（去掉前缀）、出门设置一起回', async () => {
+  it('只读自己的卡，日期转成字符串；见闻、观点（去掉前缀）、出门状态一起回', async () => {
     mocks.findFirst.mockResolvedValue({
-      ...BROWSE_OFF,
-      browseEnabled: true,
-      browseModel: MODEL,
-      browsePausedReason: 'missing_key',
-      browsedAt: AT,
       journals: [{ id: 'j1', text: '今天他画崩了', createdAt: AT }],
       revisions: [
         {
@@ -193,12 +172,8 @@ describe('getCharacterGrowthForClerkId', () => {
     expect(growth?.opinions).toEqual([
       { id: 'm1', text: '厚涂更适合画雨天。', createdAt: AT.toISOString() },
     ])
-    expect(growth?.browse).toEqual({
-      enabled: true,
-      model: MODEL,
-      pausedReason: 'missing_key',
-      browsedAt: AT.toISOString(),
-    })
+    expect(growth?.outing).toEqual(OUTING)
+    expect(mocks.outingState).toHaveBeenCalledWith('user-1', 'card-1')
   })
 
   it('不是你的卡回 null', async () => {
@@ -206,123 +181,6 @@ describe('getCharacterGrowthForClerkId', () => {
     await expect(
       getCharacterGrowthForClerkId('clerk', 'card-x'),
     ).resolves.toBeNull()
-  })
-})
-
-describe('updateCharacterBrowseForClerkId', () => {
-  beforeEach(() => {
-    mocks.findFirst.mockResolvedValue({ id: 'card-1', updatedAt: AT })
-    mocks.update.mockImplementation(async ({ data }) => ({
-      ...BROWSE_OFF,
-      browseEnabled: data.browseEnabled,
-      browseModel: data.browseModel,
-    }))
-  })
-
-  it('打开没给型号：填助手当时点名的那个；清掉出不了门的原因；不顶到列表最前', async () => {
-    mocks.routeModel.mockResolvedValue(MODEL)
-    const state = await updateCharacterBrowseForClerkId('clerk', 'card-1', {
-      enabled: true,
-    })
-    expect(state).toMatchObject({ enabled: true, model: MODEL })
-    expect(mocks.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: {
-          browseEnabled: true,
-          browseModel: MODEL,
-          browsePausedReason: null,
-          updatedAt: AT,
-        },
-      }),
-    )
-    expect(mocks.resolveRoute).not.toHaveBeenCalled()
-  })
-
-  it('助手是「自动」：换成自动此刻挑中的那一个；一把 key 都没有 → noModel，⛔ 开着却没型号', async () => {
-    mocks.routeModel.mockResolvedValue('auto')
-    mocks.resolveRoute.mockResolvedValueOnce({ modelId: MODEL })
-    await expect(
-      updateCharacterBrowseForClerkId('clerk', 'card-1', { enabled: true }),
-    ).resolves.toMatchObject({ model: MODEL })
-
-    mocks.resolveRoute.mockRejectedValueOnce(new Error('no keys'))
-    mocks.update.mockClear()
-    await expect(
-      updateCharacterBrowseForClerkId('clerk', 'card-1', { enabled: true }),
-    ).rejects.toMatchObject({ i18nKey: 'errors.characterBrowse.noModel' })
-    expect(mocks.update).not.toHaveBeenCalled()
-  })
-
-  it('关上留着型号，再打开接着用上次那个，⛔ 换成助手此刻的', async () => {
-    const grok = NODE_STUDIO_ASSISTANT_ROUTE_MODELS.at(-1)!.modelId
-    mocks.findFirst.mockResolvedValue({
-      id: 'card-1',
-      updatedAt: AT,
-      browseModel: grok,
-    })
-    mocks.routeModel.mockResolvedValue(MODEL)
-    await expect(
-      updateCharacterBrowseForClerkId('clerk', 'card-1', { enabled: false }),
-    ).resolves.toMatchObject({ enabled: false, model: grok })
-    await expect(
-      updateCharacterBrowseForClerkId('clerk', 'card-1', { enabled: true }),
-    ).resolves.toMatchObject({ enabled: true, model: grok })
-    expect(mocks.routeModel).not.toHaveBeenCalled()
-  })
-
-  it('点名一个型号就固定用它；不认识的型号拒', async () => {
-    await expect(
-      updateCharacterBrowseForClerkId('clerk', 'card-1', {
-        enabled: true,
-        model: MODEL,
-      }),
-    ).resolves.toMatchObject({ model: MODEL })
-    expect(mocks.routeModel).not.toHaveBeenCalled()
-
-    await expect(
-      updateCharacterBrowseForClerkId('clerk', 'card-1', {
-        enabled: true,
-        model: 'gone-model',
-      }),
-    ).rejects.toMatchObject({ i18nKey: 'errors.characterBrowse.unknownModel' })
-  })
-
-  it('不是你的卡回 null', async () => {
-    mocks.findFirst.mockResolvedValue(null)
-    await expect(
-      updateCharacterBrowseForClerkId('clerk', 'card-x', { enabled: false }),
-    ).resolves.toBeNull()
-    expect(mocks.update).not.toHaveBeenCalled()
-  })
-})
-
-describe('goOutNowForClerkId', () => {
-  it('开着就马上出门一趟，昨天刚出过也照去', async () => {
-    mocks.findFirst.mockResolvedValue({ id: 'card-1', browseEnabled: true })
-    mocks.browse.mockResolvedValue({ seen: 6, kept: 3 })
-
-    await expect(goOutNowForClerkId('clerk-1', 'card-1')).resolves.toEqual({
-      went: true,
-      kept: 3,
-    })
-    expect(mocks.browse).toHaveBeenCalledWith({
-      userId: 'user-1',
-      cardId: 'card-1',
-    })
-  })
-
-  it('开关关着：不去', async () => {
-    mocks.findFirst.mockResolvedValue({ id: 'card-1', browseEnabled: false })
-    await expect(goOutNowForClerkId('clerk-1', 'card-1')).resolves.toEqual({
-      went: false,
-      kept: 0,
-    })
-    expect(mocks.browse).not.toHaveBeenCalled()
-  })
-
-  it('不是你的卡回 null', async () => {
-    mocks.findFirst.mockResolvedValue(null)
-    await expect(goOutNowForClerkId('clerk-1', 'card-x')).resolves.toBeNull()
   })
 })
 

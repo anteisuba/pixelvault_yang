@@ -1,40 +1,31 @@
 import 'server-only'
 
-import { getAssistantRouteModelEntry } from '@/constants/assistant-persona'
 import {
   CHARACTER_GROWTH_PAGE,
   CHARACTER_RECENT_ACTIVITY,
 } from '@/constants/cards'
 import {
-  CHARACTER_BROWSE_PAUSE_REASONS,
-  CHARACTER_BROWSE_SETTING_ERRORS,
   CHARACTER_BROWSE_SOURCES,
   CHARACTER_OPINION_PREFIX,
-  type CharacterBrowsePauseReason,
   type CharacterBrowseSource,
 } from '@/constants/character-browse'
 import { db } from '@/lib/db'
-import { ApiRequestError } from '@/lib/errors'
-import { getAssistantRouteModelByUserId } from '@/services/assistant-persona.service'
-import { resolveAssistantRoute } from '@/services/kernel/assistant-route.service'
 import { ensureUser } from '@/services/user.service'
 import type {
-  CharacterBrowseState,
   CharacterGrowth,
-  CharacterGoOutResult,
   CharacterJournalEntry,
   CharacterRecentActivity,
-  UpdateCharacterBrowseRequest,
   UpdateCharacterJournalRequest,
 } from '@/types/character-growth'
 
-import { browseCharacter } from './character-browse.service'
 import { forgetFindings } from './character-findings.service'
+import { getCharacterOutingState } from './character-outing.service'
 import { revertCharacterRevision } from './character-revision.service'
 
 /**
  * **她的成长**（10-26「更像真人」C 第 3 步；2026-10-28 角色页改版 B 起是角色页右栏「最近」）：
- * 日记、她改了什么、她出门看到的、她的观点、出门逛的开关与型号；撤回、删见闻、改开关。
+ * 日记、她改了什么、她出门看到的、她的观点、出门的状态（第 ⑤ 步起见 `character-outing.service.ts`）；
+ * 撤回、删见闻。
  *
  * ⚠ ownership：卡不是你的 / 已删 → `null`（路由出 404），⛔ 不回空列表装作没有。
  */
@@ -44,46 +35,7 @@ const asRecord = (value: unknown): Record<string, unknown> =>
     ? (value as Record<string, unknown>)
     : {}
 
-const PAUSE_REASONS = new Set<string>(
-  Object.values(CHARACTER_BROWSE_PAUSE_REASONS),
-)
 const SOURCES = new Set<string>(CHARACTER_BROWSE_SOURCES)
-
-function browseState(card: {
-  browseEnabled: boolean
-  browseModel: string | null
-  browsePausedReason: string | null
-  browsedAt: Date | null
-}): CharacterBrowseState {
-  return {
-    enabled: card.browseEnabled,
-    model: card.browseModel,
-    pausedReason:
-      card.browsePausedReason && PAUSE_REASONS.has(card.browsePausedReason)
-        ? (card.browsePausedReason as CharacterBrowsePauseReason)
-        : null,
-    browsedAt: card.browsedAt?.toISOString() ?? null,
-  }
-}
-
-const BROWSE_SELECT = {
-  browseEnabled: true,
-  browseModel: true,
-  browsePausedReason: true,
-  browsedAt: true,
-} as const
-
-function settingError(
-  kind: keyof typeof CHARACTER_BROWSE_SETTING_ERRORS,
-): ApiRequestError {
-  const error = CHARACTER_BROWSE_SETTING_ERRORS[kind]
-  return new ApiRequestError(
-    error.code,
-    error.httpStatus,
-    error.i18nKey,
-    error.message,
-  )
-}
 
 /**
  * 角色总览「最近」（角色大项目第 ① 步）：每位只留她最近一件事（日记 / 没撤回的改动 /
@@ -157,7 +109,6 @@ export async function getCharacterGrowthForClerkId(
   const card = await db.characterCard.findFirst({
     where: { id: cardId, userId: user.id, isDeleted: false },
     select: {
-      ...BROWSE_SELECT,
       journals: {
         orderBy: { createdAt: 'desc' },
         take: CHARACTER_GROWTH_PAGE.journals,
@@ -203,7 +154,7 @@ export async function getCharacterGrowthForClerkId(
     select: { id: true, text: true, createdAt: true },
   })
   return {
-    browse: browseState(card),
+    outing: await getCharacterOutingState(user.id, cardId),
     findings: card.findings
       .filter((row) => SOURCES.has(row.source))
       .map((row) => ({
@@ -239,83 +190,6 @@ export async function revertCharacterRevisionForClerkId(
   return (await revertCharacterRevision(user.id, revisionId))
     ? { reverted: true }
     : null
-}
-
-/**
- * 「自动」或没给 → 助手此刻那个型号（`auto` 换成「自动」此刻挑中的那一个，与助手同一个函数）。
- * 挑不出来（一把 key 都没有）→ `noModel`；⛔ 开着却没型号。
- */
-async function pickBrowseModel(
-  userId: string,
-  requested: string | undefined,
-): Promise<string> {
-  const pinned = getAssistantRouteModelEntry(requested)
-  if (pinned) return pinned.modelId
-  if (requested && requested !== 'auto') throw settingError('unknownModel')
-  const routeModel = requested ?? (await getAssistantRouteModelByUserId(userId))
-  const direct = getAssistantRouteModelEntry(routeModel)
-  if (direct) return direct.modelId
-  try {
-    return (await resolveAssistantRoute(userId, { routeModel })).modelId
-  } catch {
-    throw settingError('noModel')
-  }
-}
-
-/**
- * 开关与型号（owner 2026-10-28）：第一次打开时型号默认填助手当时那个，之后固定用它。
- * 关上 ⛔ 清型号（owner 2026-10-29：关了再开变成别的模型，就再也用不上 Grok 去搜），再打开接着用
- * 上次那个。改了就清掉「出不了门」的原因 —— 下一趟出门会重新判。
- * 卡不是你的 / 已删 → `null`（404）。
- */
-export async function updateCharacterBrowseForClerkId(
-  clerkId: string,
-  cardId: string,
-  input: UpdateCharacterBrowseRequest,
-): Promise<CharacterBrowseState | null> {
-  const user = await ensureUser(clerkId)
-  const card = await db.characterCard.findFirst({
-    where: { id: cardId, userId: user.id, isDeleted: false },
-    select: { id: true, updatedAt: true, browseModel: true },
-  })
-  if (!card) return null
-  const model =
-    input.enabled && (input.model || !card.browseModel)
-      ? await pickBrowseModel(user.id, input.model)
-      : card.browseModel
-  const updated = await db.characterCard.update({
-    where: { id: card.id },
-    // ⚠ `updatedAt` 写回原值：改开关不该把她顶到角色列表最前面。
-    data: {
-      browseEnabled: input.enabled,
-      browseModel: model,
-      browsePausedReason: null,
-      updatedAt: card.updatedAt,
-    },
-    select: BROWSE_SELECT,
-  })
-  return browseState(updated)
-}
-
-/**
- * 打开开关就出门（owner 2026-10-29：「这个开关就是现在出门的意思」）：拨开就去，⛔ 等第二天定时那一趟、
- * ⛔ 看「最近有没有来往」、⛔ 看上次什么时候出过门。花费由 `browseCharacter` 里的每天见闻上限
- * （`browseDailyLimit`）兜住：今天记满了就在调模型之前停。开关关着 → 不去（`went: false`）。
- * 卡不是你的 / 已删 → `null`（404）。
- */
-export async function goOutNowForClerkId(
-  clerkId: string,
-  cardId: string,
-): Promise<CharacterGoOutResult | null> {
-  const user = await ensureUser(clerkId)
-  const card = await db.characterCard.findFirst({
-    where: { id: cardId, userId: user.id, isDeleted: false },
-    select: { id: true, browseEnabled: true },
-  })
-  if (!card) return null
-  if (!card.browseEnabled) return { went: false, kept: 0 }
-  const result = await browseCharacter({ userId: user.id, cardId: card.id })
-  return { went: true, kept: result.kept }
 }
 
 /** 改一篇她的日记（第 ③ 步）。不是你的 → `null`（404）。 */

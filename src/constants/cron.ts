@@ -12,8 +12,6 @@ export const CRON_JOBS = {
    * Vercel Cron、心跳也不在 Upstash：健康端点直接问索引的 `/status`。
    */
   CIVITAI_INDEX_SYNC: 'civitai-index-sync',
-  /** 角色每天出门逛一次（第 4 批「人味」，`/api/internal/characters/browse`）。 */
-  CHARACTER_BROWSE: 'character-browse',
 } as const
 
 export type CronJobName = (typeof CRON_JOBS)[keyof typeof CRON_JOBS]
@@ -27,7 +25,6 @@ export type CronJobName = (typeof CRON_JOBS)[keyof typeof CRON_JOBS]
  */
 export const CRON_JOB_NAMES: readonly CronJobName[] = [
   CRON_JOBS.EXECUTION_SWEEP,
-  CRON_JOBS.CHARACTER_BROWSE,
 ]
 
 export const CRON_HEARTBEAT = {

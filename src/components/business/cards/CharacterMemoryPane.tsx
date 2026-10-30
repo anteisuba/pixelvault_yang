@@ -149,7 +149,7 @@ export function CharacterMemoryPane({ memories }: { memories: Memories }) {
   return (
     <section
       aria-label={t('title')}
-      className="flex h-full max-w-3xl flex-col gap-3.5 overflow-y-auto pb-12"
+      className="flex h-full min-w-0 flex-col gap-3.5 overflow-y-auto overflow-x-hidden pb-12"
       data-testid="character-memory-pane"
     >
       <div className="flex flex-wrap items-center gap-2">
@@ -457,7 +457,7 @@ function FindingRow({
         target="_blank"
         rel="noreferrer noopener"
         title={finding.title}
-        className="inline-flex min-w-0 items-center gap-1 self-start text-xs text-muted-foreground hover:text-foreground"
+        className="inline-flex min-w-0 max-w-full items-center gap-1 self-start text-xs text-muted-foreground hover:text-foreground"
       >
         <span className="truncate">
           {shortDate(finding.seenAt)} · {recent(SOURCE_KEYS[finding.source])} ·{' '}

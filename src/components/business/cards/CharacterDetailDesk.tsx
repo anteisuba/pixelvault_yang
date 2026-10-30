@@ -65,7 +65,8 @@ export function CharacterDetailDesk({
 
   return (
     <div className="flex h-full gap-10 pt-3">
-      <aside className="flex w-58 shrink-0 flex-col gap-5 overflow-y-auto pb-12">
+      {/* 左右各让出 12 给「现在」卡的投影：滚动容器会把投影裁成一道竖边。 */}
+      <aside className="-mx-3 flex w-64 shrink-0 flex-col gap-5 overflow-y-auto px-3 pb-12">
         <HerHead
           card={card}
           locale={locale}

@@ -16,7 +16,8 @@ import { useStudioOperatorYield } from '@/hooks/use-studio-operator-yield'
  *   （motion 的 style 从 motion 值换成静态值时不解绑，同图片台那条）。
  * ⚠ 只剩角色：画风卡、背景卡两个页签下线（owner 09-25）。
  * ⭐ 手机没有地台（iOS 稿 v16）：`workbench-ground-flush-phone` 把内边距与灰底拿掉。
- * ⭐ 桌面在库整页里（ui-spec §9「库」）：就画在白板上，⛔ 地台灰底；边距与素材库同一套。
+ * ⭐ 桌面在库整页里（ui-spec §9「库」）：就画在白板上，⛔ 地台灰底。角色页没有库左栏，左右
+ *   各留同一截内边距（owner 10-30「布局和间距还有问题」：内容贴着白板左边）。
  */
 export function CardsPageContent() {
   const isMobile = useIsMobile()
@@ -28,7 +29,7 @@ export function CardsPageContent() {
   )
   if (!isMobile) {
     return (
-      <main className="flex h-page flex-col bg-background pt-3 pr-5.5 text-foreground">
+      <main className="flex h-page flex-col bg-background px-5.5 pt-3 text-foreground">
         <CharacterRoster />
       </main>
     )

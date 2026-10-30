@@ -112,6 +112,7 @@
     "alternateGreetingHint": "Clear this one to delete it.",
     "alternateGreetingAdd": "Add an alternate greeting…",
     "settingPerson": "Person",
+    "settingLook": "Appearance",
     "settingDialogue": "Dialogue",
     "fieldLorebook": "Lorebook",
     "editField": "Edit {field}",

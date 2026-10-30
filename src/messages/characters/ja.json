@@ -112,6 +112,7 @@
     "alternateGreetingHint": "空にするとこの挨拶を削除します。",
     "alternateGreetingAdd": "別の挨拶を追加…",
     "settingPerson": "人物",
+    "settingLook": "外見",
     "settingDialogue": "会話",
     "fieldLorebook": "ワールドブック",
     "editField": "{field}を編集",

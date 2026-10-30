@@ -90,6 +90,7 @@ import {
   STUDIO_OPERATOR_HISTORY_OPEN_ROUNDS,
   STUDIO_OPERATOR_LIBRARY_PAGE_SIZE,
   STUDIO_OPERATOR_SHELL,
+  STUDIO_OPERATOR_STREAMING,
   STUDIO_OPERATOR_SKIPPED_REJECT_REASONS,
   STUDIO_OPERATOR_UPLOAD_ACCEPT,
 } from '@/constants/studio-assistant-operator'
@@ -167,7 +168,10 @@ import {
   type StudioOperatorCardKind,
 } from '@/components/business/studio/assistant-operator/StudioOperatorTimelineRow'
 import { StudioOperatorResumeChip } from '@/components/business/studio/assistant-operator/StudioOperatorResumeChip'
-import { StudioOperatorToolGroup } from '@/components/business/studio/assistant-operator/StudioOperatorToolGroup'
+import {
+  StudioOperatorToolGroup,
+  type StudioOperatorAbsorbedThought,
+} from '@/components/business/studio/assistant-operator/StudioOperatorToolGroup'
 import { StudioOperatorPromptNote } from '@/components/business/studio/assistant-operator/StudioOperatorPromptNote'
 import { StudioOperatorMentionMenu } from '@/components/business/studio/assistant-operator/StudioOperatorMentionMenu'
 import { StudioOperatorSkillMenu } from '@/components/business/studio/assistant-operator/StudioOperatorSkillMenu'
@@ -243,6 +247,7 @@ import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
 import type {
   StudioOperatorAttachment,
   StudioOperatorResultItem,
+  StudioOperatorMessageEntry,
   StudioOperatorStepEntry,
   StudioOperatorThreadEntry,
 } from '@/types/studio-assistant-operator'
@@ -1395,6 +1400,60 @@ export function StudioOperatorPanel({
   }, [blocks])
 
   /**
+   * 思考并进过程那一行（owner 10-30「这三个重复了，只留『想了 N 秒』」）：每个工具块收下
+   * 紧挨在它前面那段只想没说的、和紧跟在它后面那一跳的「想」；被收下的那段话⛔ 再画回执 /
+   * 「正在想…」。查资料那几块有自己的一行（调查行），⛔ 收。
+   */
+  const absorbedThoughts = useMemo(() => {
+    const byBlock = new Map<
+      string,
+      {
+        before: StudioOperatorAbsorbedThought[]
+        after: StudioOperatorAbsorbedThought[]
+      }
+    >()
+    const messages = new Set<string>()
+    const thoughtOf = (
+      entry: StudioOperatorMessageEntry,
+    ): StudioOperatorAbsorbedThought => ({
+      ...(entry.thinking ? { thinking: entry.thinking } : {}),
+      ...(entry.thoughtMs === undefined ? {} : { thoughtMs: entry.thoughtMs }),
+      ...(entry.streaming && !entry.text && entry.pendingSince !== undefined
+        ? { pendingSince: entry.pendingSince }
+        : {}),
+    })
+    blocks.forEach((block, index) => {
+      if (block.kind !== 'tools') return
+      const research = block.steps.every(
+        ({ step }) =>
+          step.status !== ASSISTANT_OPERATOR_STEP_STATUS_IDS.error &&
+          isOperatorResearchTool(step.tool),
+      )
+      if (research) return
+      const prev = blocks[index - 1]
+      const next = blocks[index + 1]
+      const before =
+        prev?.kind === 'entry' &&
+        prev.entry.kind === 'message' &&
+        !prev.entry.text &&
+        !messages.has(prev.entry.id)
+          ? prev.entry
+          : null
+      const after =
+        next?.kind === 'entry' && next.entry.kind === 'message'
+          ? next.entry
+          : null
+      if (before) messages.add(before.id)
+      if (after) messages.add(after.id)
+      byBlock.set(block.steps[0]?.id ?? '', {
+        before: before ? [thoughtOf(before)] : [],
+        after: after ? [thoughtOf(after)] : [],
+      })
+    })
+    return { byBlock, messages }
+  }, [blocks])
+
+  /**
    * 载回来的历史按**轮**切开，只摊开最近几轮（第 5 件）。
    *
    * ⚠ 切点取的是「最近 N 轮里第一条的下标」：更早的那些整块折进一颗
@@ -1831,6 +1890,62 @@ export function StudioOperatorPanel({
               : {})}
           />
         ) : null
+      /** 并进这一行的「想」（owner 10-30 合并成一行）。 */
+      const absorbed = absorbedThoughts.byBlock.get(block.steps[0]?.id ?? '')
+      const toolGroup = (
+        <StudioOperatorToolGroup
+          {...(absorbed
+            ? { thoughtsBefore: absorbed.before, thoughtsAfter: absorbed.after }
+            : {})}
+          total={block.steps.length}
+          failed={failed}
+          skipped={skipped}
+          running={running}
+          trailing={checkpoint}
+          runningTitle={(() => {
+            /* §9.1 人话动词：按这一步的动词取，⛔ 不读模型起的标题。 */
+            const current = block.steps.findLast(
+              (item) => item.step.status === 'running',
+            )?.step
+            return current
+              ? t(`running.${operatorRunningPhrase(current)}`)
+              : undefined
+          })()}
+          /* ⚠ 只在**本轮收尾后**说（D12 C11）：跑着的时候被退回的那一步
+                       多半下一刻就换条路成了，中途亮一条红字是假警报。 */
+          failure={
+            roundDone &&
+            lastToolsBlock === block.steps[0]?.id &&
+            blocker?.status === 'error' ? (
+              <p>
+                <span className="text-status-risk">
+                  {blocker.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt
+                    ? t('toolGroup.promptUnchanged')
+                    : t('toolGroup.blocked')}
+                </span>
+                <span className="text-muted-foreground">
+                  {'：'}
+                  {t(`reject.${blocker.error.reason}`)}
+                </span>
+              </p>
+            ) : null
+          }
+        >
+          {logItems}
+        </StudioOperatorToolGroup>
+      )
+      /** 跑完过程行不画，但并进来的「想了 N 秒」那一行要留（owner 10-30「只留这个」）。 */
+      const keepThoughtRow =
+        processHidden &&
+        Boolean(
+          absorbed &&
+          [...absorbed.before, ...absorbed.after].some(
+            (item) =>
+              item.thinking ||
+              (item.thoughtMs ?? 0) >=
+                STUDIO_OPERATOR_STREAMING.thinkingRevealMs,
+          ),
+        )
       return (
         <div
           key={`tools:${block.runKey}:${block.steps[0]?.id}`}
@@ -1839,6 +1954,13 @@ export function StudioOperatorPanel({
         >
           {processHidden ? (
             <>
+              {keepThoughtRow ? (
+                <StudioOperatorTimelineRow
+                  card={STUDIO_OPERATOR_CARD_KINDS.evidence}
+                >
+                  {toolGroup}
+                </StudioOperatorTimelineRow>
+              ) : null}
               {orphanWebFindList ? (
                 <StudioOperatorTimelineRow
                   card={STUDIO_OPERATOR_CARD_KINDS.evidence}
@@ -1892,44 +2014,7 @@ export function StudioOperatorPanel({
                     {checkpoint}
                   </>
                 ) : (
-                  <StudioOperatorToolGroup
-                    total={block.steps.length}
-                    failed={failed}
-                    skipped={skipped}
-                    running={running}
-                    trailing={checkpoint}
-                    runningTitle={(() => {
-                      /* §9.1 人话动词：按这一步的动词取，⛔ 不读模型起的标题。 */
-                      const current = block.steps.findLast(
-                        (item) => item.step.status === 'running',
-                      )?.step
-                      return current
-                        ? t(`running.${operatorRunningPhrase(current)}`)
-                        : undefined
-                    })()}
-                    /* ⚠ 只在**本轮收尾后**说（D12 C11）：跑着的时候被退回的那一步
-                       多半下一刻就换条路成了，中途亮一条红字是假警报。 */
-                    failure={
-                      roundDone &&
-                      lastToolsBlock === block.steps[0]?.id &&
-                      blocker?.status === 'error' ? (
-                        <p>
-                          <span className="text-status-risk">
-                            {blocker.tool ===
-                            ASSISTANT_OPERATOR_TOOL_IDS.setPrompt
-                              ? t('toolGroup.promptUnchanged')
-                              : t('toolGroup.blocked')}
-                          </span>
-                          <span className="text-muted-foreground">
-                            {'：'}
-                            {t(`reject.${blocker.error.reason}`)}
-                          </span>
-                        </p>
-                      ) : null
-                    }
-                  >
-                    {logItems}
-                  </StudioOperatorToolGroup>
+                  toolGroup
                 )
               }
               {orphanWebFindList}
@@ -1993,6 +2078,9 @@ export function StudioOperatorPanel({
          * 图的网格在上、视频那一排在下（`orderOperatorWebFinds`）。
          */
         const found = answerWebFinds.byMessage.get(entry.id)
+        const thoughtAbsorbed = absorbedThoughts.messages.has(entry.id)
+        // 只想没说、「想」又并进了过程那一行：这一段整条不画（⛔ 留一个空头像行）。
+        if (thoughtAbsorbed && !entry.text) return null
         return (
           <StudioOperatorTimelineRow
             key={entry.id}
@@ -2001,6 +2089,7 @@ export function StudioOperatorPanel({
           >
             <StudioOperatorMessageBody
               entry={entry}
+              thoughtAbsorbed={thoughtAbsorbed}
               references={messageImageReferences.get(entry.id)}
               findRefs={findRefs.byMessage.get(entry.id)}
               {...(found

@@ -33,7 +33,7 @@ describe('StudioOperatorToolGroup', () => {
     expect(screen.getByRole('button', { name: '执行详情' })).toBeVisible()
   })
 
-  it('shows the current action, opens itself while running, and is not a live region', () => {
+  it('shows the current action in the one row, stays collapsed while running, and is not a live region', () => {
     render(
       <StudioOperatorToolGroup
         total={2}
@@ -49,39 +49,47 @@ describe('StudioOperatorToolGroup', () => {
     )
     // 播报只走面板那颗隐藏的 role=status —— 这一行⛔ 不再是 live region。
     expect(screen.queryByRole('status')).toBeNull()
-    // 跑着时标题前有那三颗起伏的小点，跑完的步骤没有。
-    expect(
-      screen
-        .getByTestId('operator-tool-group-toggle')
-        .querySelectorAll('.animate-thinking-dot'),
-    ).toHaveLength(3)
-    // §9.1：运行中自动展开。
+    // owner 10-30「只留『想了 N 秒』这一行」：跑着也不自动展开。
     expect(screen.getByTestId('operator-tool-group-toggle')).toHaveAttribute(
       'aria-expanded',
-      'true',
+      'false',
     )
-    expect(screen.getByText('内部记录')).toBeVisible()
-    expect(screen.queryByTestId('operator-tool-group-succeeded')).toBeNull()
+    expect(screen.getByText('内部记录')).not.toBeVisible()
   })
 
-  it('collapses itself when the run finishes if the user never touched it', () => {
-    const { rerender } = render(
-      <StudioOperatorToolGroup total={1} failed={0} running>
+  it('folds the thoughts around it into one row: 想了 N 秒, steps and thoughts inside', () => {
+    render(
+      <StudioOperatorToolGroup
+        total={1}
+        failed={0}
+        running={false}
+        thoughtsBefore={[{ thinking: '**看设定**\n先读她', thoughtMs: 13_000 }]}
+        thoughtsAfter={[{ thoughtMs: 3_000 }]}
+      >
+        <p>内部记录</p>
+      </StudioOperatorToolGroup>,
+    )
+    expect(screen.getByTestId('operator-tool-group-title')).toHaveTextContent(
+      'streaming.thought:16',
+    )
+    fireEvent.click(screen.getByTestId('operator-tool-group-toggle'))
+    expect(screen.getByText('看设定')).toBeVisible()
+    expect(screen.getByText('内部记录')).toBeVisible()
+  })
+
+  it('writes 正在想… on the same row while the next hop is thinking', () => {
+    render(
+      <StudioOperatorToolGroup
+        total={1}
+        failed={0}
+        running={false}
+        thoughtsAfter={[{ pendingSince: Date.now() }]}
+      >
         <p>详情</p>
       </StudioOperatorToolGroup>,
     )
-    expect(screen.getByTestId('operator-tool-group')).toHaveAttribute(
-      'data-open',
-      'true',
-    )
-    rerender(
-      <StudioOperatorToolGroup total={1} failed={0} running={false}>
-        <p>详情</p>
-      </StudioOperatorToolGroup>,
-    )
-    expect(screen.getByTestId('operator-tool-group')).toHaveAttribute(
-      'data-open',
-      'false',
+    expect(screen.getByTestId('operator-tool-group-running')).toHaveTextContent(
+      'streaming.thinking',
     )
   })
 
@@ -104,12 +112,7 @@ describe('StudioOperatorToolGroup', () => {
         <p>详情</p>
       </StudioOperatorToolGroup>,
     )
-    // 跑着时自动开着；用户点一下 = 收起，并且从此以用户为准。
-    fireEvent.click(screen.getByTestId('operator-tool-group-toggle'))
-    expect(screen.getByTestId('operator-tool-group-toggle')).toHaveAttribute(
-      'aria-expanded',
-      'false',
-    )
+    // 跑着时收着；用户点开，从此以用户为准。
     fireEvent.click(screen.getByTestId('operator-tool-group-toggle'))
     rerender(
       <StudioOperatorToolGroup total={2} failed={1} running={false}>

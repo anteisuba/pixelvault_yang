@@ -9,6 +9,7 @@ import { z } from 'zod'
 
 import { logger } from '@/lib/logger'
 import { rateLimit } from '@/lib/rate-limit'
+import { findForMcp, lookForMcp } from '@/services/mcp/mcp-library.service'
 import {
   verifyMcpToken,
   type McpTokenOwner,
@@ -22,12 +23,15 @@ import {
   readProjectForMcp,
   renderForMcp,
 } from '@/services/mcp/mcp-tools.service'
+import type { EdgeFrame } from '@/services/video-frames/edge-frame.service'
 import { MCP_RATE_LIMIT, MCP_TOOL_IDS } from '@/constants/mcp'
 import {
   McpApplyOpsInputSchema,
+  McpFindInputSchema,
   McpGetRenderInputSchema,
   McpListProjectsInputSchema,
   McpLookAtInputSchema,
+  McpLookInputSchema,
   McpReadProjectInputSchema,
   McpRenderInputSchema,
 } from '@/types/mcp'
@@ -65,6 +69,16 @@ function textResult(text: string, isError = false): CallToolResult {
 
 function jsonResult(value: unknown): CallToolResult {
   return textResult(JSON.stringify(value))
+}
+
+/** 一帧 / 一张图 → 一行标签 + 那张图；取不到的只回原因。 */
+function frameContent(frame: EdgeFrame): CallToolResult['content'] {
+  return frame.ok
+    ? [
+        { type: 'text', text: frame.label },
+        { type: 'image', data: frame.base64, mimeType: frame.mimeType },
+      ]
+    : [{ type: 'text', text: `${frame.label}: ${frame.reason}` }]
 }
 
 async function guard(
@@ -148,25 +162,7 @@ export function registerMcpTools(server: McpServer): void {
     async (input, ctx) =>
       guard(MCP_TOOL_IDS.lookAt, ctx.http?.authInfo, async (owner) => {
         const frames = await lookAtForMcp(owner, input)
-        return {
-          content: frames.flatMap((frame) =>
-            frame.ok
-              ? [
-                  { type: 'text' as const, text: frame.label },
-                  {
-                    type: 'image' as const,
-                    data: frame.base64,
-                    mimeType: frame.mimeType,
-                  },
-                ]
-              : [
-                  {
-                    type: 'text' as const,
-                    text: `${frame.label}: ${frame.reason}`,
-                  },
-                ],
-          ),
-        }
+        return { content: frames.flatMap(frameContent) }
       }),
   )
 
@@ -221,5 +217,41 @@ export function registerMcpTools(server: McpServer): void {
       guard(MCP_TOOL_IDS.getRender, ctx.http?.authInfo, async (owner) =>
         jsonResult(await getRenderForMcp(owner, input)),
       ),
+  )
+
+  server.registerTool(
+    MCP_TOOL_IDS.find,
+    {
+      title: 'Search their ANTEI library',
+      description:
+        'Searches their pictures, characters, LoRAs, saved prompts, earlier assistant conversations and voices, and when named the Danbooru tag library and the Civitai LoRA library. Each line starts with a number or name to open with look.',
+      inputSchema: McpFindInputSchema,
+      annotations: { readOnlyHint: true },
+    },
+    async (input, ctx) =>
+      guard(MCP_TOOL_IDS.find, ctx.http?.authInfo, async (owner) =>
+        textResult(await findForMcp(owner, input)),
+      ),
+  )
+
+  server.registerTool(
+    MCP_TOOL_IDS.look,
+    {
+      title: 'Open items from their library',
+      description:
+        'Opens what find listed, by number or name: a picture with its full recipe (prompt, model, LoRAs, settings) and the picture itself, a character with every look and setting, a LoRA, a Danbooru tag (wiki, related tags, samples), a voice, a saved prompt, a gallery picture, an earlier conversation, an assistant skill, or their assistant settings.',
+      inputSchema: McpLookInputSchema,
+      annotations: { readOnlyHint: true },
+    },
+    async (input, ctx) =>
+      guard(MCP_TOOL_IDS.look, ctx.http?.authInfo, async (owner) => {
+        const parts = await lookForMcp(owner, input)
+        return {
+          content: parts.flatMap((part) => [
+            { type: 'text' as const, text: part.text },
+            ...part.frames.flatMap(frameContent),
+          ]),
+        }
+      }),
   )
 }

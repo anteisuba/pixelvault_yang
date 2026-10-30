@@ -10,7 +10,9 @@ import { z } from 'zod'
 import { EDIT_RESOLUTIONS } from '@/constants/edit-desk'
 import {
   MCP_APPLY_OPS_MAX,
+  MCP_FIND_KINDS,
   MCP_LOOK_AT_MAX_TIMES,
+  MCP_LOOK_MAX_NAMES,
   MCP_RENDER_KINDS,
   MCP_TOKEN_NAME_MAX_LENGTH,
 } from '@/constants/mcp'
@@ -201,6 +203,39 @@ export const McpGetRenderInputSchema = z.object({
 })
 
 export type McpGetRenderInput = z.infer<typeof McpGetRenderInputSchema>
+
+/* ─── 全站的查与看（库、角色、提示词…，站内助手 find / look 同一套）──────── */
+
+export const McpFindInputSchema = z.object({
+  query: z
+    .string()
+    .max(500)
+    .optional()
+    .describe(
+      'Words to look for (in prompts, names, tags, past messages), or a picture number like "图_1624". A line matches when ANY word matches; lines matching more words come first. For tags, separate ideas with commas ("watercolor, thick lineart"). Empty = the most recent ones.',
+    ),
+  kinds: z
+    .array(z.enum(MCP_FIND_KINDS))
+    .min(1)
+    .optional()
+    .describe(
+      'Which kinds to search. Their own: pictures (generations and uploads), characters (with their looks), loras (LoRAs they saved), prompts (saved prompts), conversations (earlier conversations with the in-app assistant), voices (their voice library). Shared libraries, searched only when named: tags (Danbooru tags plus the ones they favourited), lora_library (the Civitai LoRA library). Omit = all of their own.',
+    ),
+})
+
+export type McpFindInput = z.infer<typeof McpFindInputSchema>
+
+export const McpLookInputSchema = z.object({
+  names: z
+    .array(z.string().trim().min(1).max(200))
+    .min(1)
+    .max(MCP_LOOK_MAX_NAMES)
+    .describe(
+      'What to open, by the number or name find printed: a picture ("图_1624"), "角色·<name>" (optionally "角色·<name>/<look>"), "LoRA·<name>" (theirs, or one from the Civitai library), "标签·<danbooru_tag>", "音色·<name>", "提示词·<name>", "画廊·<id>" (a public gallery picture), "对话·<id>", "技能·<name>", or "设置". Pictures come back as images together with their full recipe.',
+    ),
+})
+
+export type McpLookInput = z.infer<typeof McpLookInputSchema>
 
 /* ─── 浏览器实时跟随（§6）─────────────────────────────────────────────── */
 

@@ -58,6 +58,8 @@ claude mcp add --transport http --scope user antei https://www.anteisuba.com/api
 | `apply_ops`     | 一批改动（`baseVersion` + ops）：op 形状与准入表同站内 `canvas_apply`，一批一个撤销条目。回：新版本 · 落了几条 · 跳过哪几条及原因 · 改到的节点与段                                                                                                                            | S3   |
 | `render`        | 出片：`draft`（480p 小样，不落画布、不进素材库）或 `final`（同剪辑台导出：落回画布成视频卡连回各段）；范围 = 整条 / 区间（`fromSec`/`toSec`，时间线秒）/ 单段（`clipId`，折成那一段的区间）；`final` 可带清晰度与界面语言（卡上「来源」那行）。不扣积分，与剪辑台共用在飞上限 | S4   |
 | `get_render`    | 查渲染（`projectId` + `jobId`）：状态 · 步骤 · 进度；完成后给地址、封面，以及落回画布的那张卡（按成片那一版的 generationId 在项目里找）                                                                                                                                       | S4   |
+| `find`          | 查全站的库（2026-10-30）：她的图片 · 角色 · LoRA · 提示词 · 助手对话 · 音色，点名才查 Danbooru 标签库与 Civitai LoRA 库。直接调站内助手的 `findInWorkspace`，⛔ 不另写查库；没有记忆与联网找图（那两样走站内那一轮）                                                          | 全站 |
+| `look`          | 打开 `find` 列出的编号 / 名字（最多 8 样）：图带全配方并附 512 宽缩略（一次最多 6 张）、角色全部造型与设定、LoRA、标签、音色、提示词、画廊图、对话、技能、设置。调 `openWorkspaceHandle`；台上的名字（ref-1、result-1、屏幕）认不出                                           | 全站 |
 
 ### 4.1 读到的形状
 
@@ -72,6 +74,12 @@ claude mcp add --transport http --scope user antei https://www.anteisuba.com/api
 - 源限制：MP4 · 小于 100MB · 10 分钟内 · 源站支持 HEAD 与 range（R2 自定义域满足）。不满足的那一帧单独回失败原因，⛔ 不连累同批其它帧。
 - 计费：一帧 = 一次转换，同一 (源, 参数) 每个自然月只计一次，每月免费 5000 次，之后 $0.50 / 千次。
 - 服务端取回图片、转 base64 作为 image 内容返回。Claude Code 单次工具结果默认上限约 25k token，8 张 512 宽 JPEG 远在上限内。
+
+### 4.3 全站的查与看（2026-10-30）
+
+- owner 2026-10-30：外部 AI 不只剪片，全站（工作台 · 角色 · 素材 · 提示词 · 库）都要能查、看、操作；生成要用户亲自确认（服务器发起确认，客户端不支持就去网站确认）；OAuth 一起做。分块：① 查和看 `find` / `look` ② 库改法 ③ 令牌权限（只读 / 可改 / 可出图）④ 出图确认 ⑤ OAuth。
+- ① 直接用站内助手工作区那一层（`src/features/assistant/workspace.service.ts`），MCP 这边只做「令牌主人 → 工作区主人」与缩略图取回（`src/services/mcp/mcp-library.service.ts`），**同一套查法**，站内修好的查库问题这里一起好。
+- 不隐身（`incognito: false`）：令牌就是她本人授权的整个账号。
 
 ## 5. 服务端怎么写
 

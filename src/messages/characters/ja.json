@@ -4,32 +4,13 @@
   },
   "CharacterRoster": {
     "title": "キャラクター",
-    "useCharacter": "使う",
     "draftHint": "まず名前を決めてから、画像と設定を追加します",
-    "chatWith": "このキャラと話す",
-    "chatWithHint": "アシスタントを彼女に切り替え",
-    "useInStudio": "画像スタジオで使う",
-    "useInStudioHint": "メイン画像とタグを持っていきます",
-    "useAsPersona": "アシスタントの人格にする",
-    "useAsPersonaActive": "アシスタントの人格に設定中",
-    "useAsPersonaHint": "アイコン・名前・話し方をこのキャラクターから",
-    "useAsPersonaDone": "アシスタントが {name} になりました",
-    "useAsPersonaFailed": "設定できませんでした。もう一度お試しください。",
-    "placeOnCanvas": "キャンバスに置く",
-    "placeOnCanvasHint": "キャンバスを開いて中央に置く",
-    "trainLora": "LoRA を学習",
-    "trainLoraHint": "参考画像から専用の LoRA を学習",
-    "canvasMeta": "{count} ノード · {time}",
-    "newCanvas": "＋ 新しいキャンバス",
-    "canvasesLoading": "キャンバスを探しています…",
-    "canvasesFailed": "キャンバスを読み込めません。もう一度お試しください",
     "searchPlaceholder": "キャラや作品を検索（名前・タグ・作品）",
     "worksLabel": "作品",
-    "overviewAll": "総覧",
+    "overviewAll": "すべて",
     "searchResults": "{count} 人見つかりました",
     "workSummary": "{characters} 人 · {images} 枚",
     "mostUsed": "よく使うキャラ",
-    "overviewCount": "{characters} 人のキャラ · {works} 作品",
     "byImages": "枚数順",
     "allCharactersHint": "{count} 人 · 名前順",
     "mostUsedHint": "枚数順 · カードの画像 + そのキャラで作った画像",
@@ -255,7 +236,22 @@
       "uploadNotImage": "このファイルは画像ではありません",
       "uploadFailed": "アップロードできませんでした。もう一度お試しください",
       "stickersEmpty": "まだスタンプがありません。お出かけで集めてくるほか、アップロードもできます。"
-    }
+    },
+    "recentCards": {
+      "wentOut": "おでかけ調査",
+      "changedSelf": "自分を変えた",
+      "sawFinding": "「{title}」を見た"
+    },
+    "detailTabs": {
+      "label": "彼女のページ",
+      "recent": "最近",
+      "person": "人物",
+      "images": "画像",
+      "lora": "LoRA",
+      "stickers": "スタンプ"
+    },
+    "detailNow": "いま",
+    "detailMore": "その他"
   },
   "CharacterImagePick": {
     "primary": "メイン",

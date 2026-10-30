@@ -98,27 +98,33 @@ describe('CharacterOverview · 作品书架（owner 09-28：不放一样的图�
   })
 })
 
-describe('CharacterOverview · 全部角色（owner 09-28）', () => {
-  it('人比「用得最多」多：最底下按名字列全员', () => {
-    renderOverview(
-      ['f', 'b', 'e', 'a', 'd', 'c'].map((id) =>
-        card(id, id < 'd' ? '鸣潮' : '无限大', [`https://cdn.test/${id}.png`]),
-      ),
-    )
+describe('CharacterOverview · 桌面（角色大项目 ①，样件 O4）', () => {
+  const cards = () => [
+    card('denia', '鸣潮', ['https://cdn.test/denia.png']),
+    card('carlotta', '鸣潮', ['https://cdn.test/carlotta.png']),
+    card('shiye', '无限大', ['https://cdn.test/shiye.png']),
+  ]
+
+  it('⛔「用得最多」：作品扇形下面就是全部角色，每位都在', () => {
+    renderOverview(cards())
+    expect(screen.queryByRole('heading', { name: '用得最多' })).toBeNull()
+    expect(screen.getByRole('heading', { name: '作品' })).toBeTruthy()
     const section = screen.getByRole('heading', { name: '全部角色' })
       .parentElement!.parentElement!
-    const names = [
-      ...section.querySelectorAll('[data-testid="roster-tile"]'),
-    ].map((tile) => tile.textContent?.charAt(0))
-    expect(names).toEqual(['a', 'b', 'c', 'd', 'e', 'f'])
+    expect(
+      section.querySelectorAll('[data-testid="roster-tile"]'),
+    ).toHaveLength(3)
   })
 
-  it('人不多（都已在「用得最多」里）：不再摆一遍', () => {
-    renderOverview([
-      card('denia', '鸣潮', ['https://cdn.test/denia.png']),
-      card('shiye', '无限大', ['https://cdn.test/shiye.png']),
-    ])
+  it('作品是切换条：切到一部作品只留它的角色格', () => {
+    renderOverview(cards())
+    fireEvent.click(screen.getByRole('tab', { name: /无限大/ }))
     expect(screen.queryByRole('heading', { name: '全部角色' })).toBeNull()
+    const tiles = screen.getAllByTestId('roster-tile')
+    expect(tiles).toHaveLength(1)
+    expect(tiles[0]).toHaveTextContent('shiye')
+    fireEvent.click(screen.getByRole('tab', { name: '全部' }))
+    expect(screen.getByRole('heading', { name: '全部角色' })).toBeTruthy()
   })
 })
 

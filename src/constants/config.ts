@@ -291,6 +291,8 @@ export const API_ENDPOINTS = {
 
   /** Character Cards */
   CHARACTER_CARDS: '/api/character-cards',
+  /** 角色总览「最近」：每位最近一件事（日记 / 改了自己 / 出门看到的），最多三位。 */
+  CHARACTER_CARDS_RECENT: '/api/character-cards/recent',
   /** 角色的一套造型（角色④）：PUT 改 · DELETE 删；新建走 `CHARACTER_CARDS/<id>/looks`。 */
   CHARACTER_LOOKS: '/api/character-looks',
   /** 每个角色收的 LoRA（角色③）。 */

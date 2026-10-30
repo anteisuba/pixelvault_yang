@@ -42,6 +42,19 @@ vi.mock('@/hooks/use-assistant-persona', () => ({
   }),
 }))
 
+const mockRecent = vi.hoisted(() => ({
+  rows: [] as {
+    cardId: string
+    kind: 'journal' | 'revision' | 'finding'
+    text: string
+    fields: string[]
+    at: string
+  }[],
+}))
+vi.mock('@/hooks/cards/use-character-recent-activity', () => ({
+  useCharacterRecentActivity: () => mockRecent.rows,
+}))
+
 vi.mock('@/hooks/cards/use-character-card-usage', () => ({
   useCharacterCardUsage: () => ({
     generations: [],
@@ -209,7 +222,13 @@ function renderRoster() {
 describe('CharacterRoster（角色页 · 方向 A）', () => {
   beforeEach(() => {
     mockSearch.value = ''
+    mockRecent.rows = []
   })
+
+  const openDenia = (tab?: string) => {
+    fireEvent.click(screen.getAllByTestId('roster-tile')[0]!)
+    if (tab) fireEvent.click(screen.getByRole('tab', { name: tab }))
+  }
 
   it('画布「在角色页打开」带 ?character= 进来：直接打开那一位', () => {
     mockSearch.value = 'character=rixi'
@@ -217,21 +236,30 @@ describe('CharacterRoster（角色页 · 方向 A）', () => {
     expect(screen.getByRole('region', { name: '里希' })).toBeTruthy()
   })
 
-  it('总览一位角色一张卡；造型在详情顶上切换（角色④）', () => {
+  it('总览一位角色一张卡；造型在「图片」页签顶上切换（角色④）', () => {
     renderRoster()
     expect(screen.getAllByTestId('roster-tile')).toHaveLength(2)
-    fireEvent.click(screen.getAllByTestId('roster-tile')[0]!)
+    openDenia('图片')
     const looks = screen.getByRole('group', { name: '造型' })
     expect(looks).toHaveTextContent('默认')
     expect(looks).toHaveTextContent('Q版')
   })
 
-  it('点一个角色进整页详情：图片在上、设定在下；「‹ 角色」回总览', () => {
+  it('点一个角色进整页详情：左栏她 + 右边页签（最近 · 人物 · 图片 · LoRA · 表情包）；「‹ 角色」回总览', () => {
     renderRoster()
-    fireEvent.click(screen.getAllByTestId('roster-tile')[0]!)
+    openDenia()
     const detail = screen.getByRole('region', { name: 'Denia' })
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
+      '最近',
+      '人物',
+      '图片',
+      'LoRA',
+      '表情包',
+    ])
+    expect(screen.getByRole('button', { name: '和她聊' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /用她/ })).toBeNull()
+    fireEvent.click(screen.getByRole('tab', { name: '人物' }))
     expect(detail).toHaveTextContent('先替别人撑好伞')
-    expect(detail).toHaveTextContent('图片')
     fireEvent.click(screen.getByRole('button', { name: '角色' }))
     expect(screen.queryByRole('region', { name: 'Denia' })).toBeNull()
   })
@@ -239,7 +267,7 @@ describe('CharacterRoster（角色页 · 方向 A）', () => {
   it('设定里含酒馆字段：备选开场白弹框加一条；更多折起来，世界书只读', async () => {
     mockUpdate.mockClear()
     renderRoster()
-    fireEvent.click(screen.getAllByTestId('roster-tile')[0]!)
+    openDenia('人物')
     const detail = screen.getByRole('region', { name: 'Denia' })
     expect(detail).toHaveTextContent('雨停了。')
     expect(detail).not.toHaveTextContent('系统提示词')
@@ -356,7 +384,7 @@ describe('CharacterRoster（角色页 · 方向 A）', () => {
   it('点正文弹大编辑框：改性格点保存，整份设定带回（没改的格不丢）', async () => {
     mockUpdate.mockClear()
     renderRoster()
-    fireEvent.click(screen.getAllByTestId('roster-tile')[0]!)
+    openDenia('人物')
     fireEvent.click(screen.getByRole('button', { name: '编辑性格' }))
     fireEvent.change(screen.getByRole('textbox', { name: '性格' }), {
       target: { value: '会先把伞递给别人' },
@@ -375,7 +403,7 @@ describe('CharacterRoster（角色页 · 方向 A）', () => {
   it('编辑框没改就保存不存；取消放弃这次改动，也不收起详情', async () => {
     mockUpdate.mockClear()
     renderRoster()
-    fireEvent.click(screen.getAllByTestId('roster-tile')[0]!)
+    openDenia('人物')
     fireEvent.click(screen.getByRole('button', { name: '编辑身份' }))
     fireEvent.click(screen.getByRole('button', { name: '保存' }))
     await vi.waitFor(() =>
@@ -388,5 +416,23 @@ describe('CharacterRoster（角色页 · 方向 A）', () => {
     fireEvent.click(screen.getByRole('button', { name: '取消' }))
     expect(screen.getByRole('region', { name: 'Denia' })).toBeTruthy()
     expect(mockUpdate).not.toHaveBeenCalled()
+  })
+
+  it('桌面总览「最近」：每位最近一件事一张卡，点一张打开她', () => {
+    mockRecent.rows = [
+      {
+        cardId: 'rixi',
+        kind: 'journal',
+        text: '今天学了一首新歌',
+        fields: [],
+        at: new Date().toISOString(),
+      },
+    ]
+    renderRoster()
+    const recent = screen.getByTestId('character-recent-card')
+    expect(recent).toHaveTextContent('里希 · 写了日记 · 今天')
+    expect(recent).toHaveTextContent('今天学了一首新歌')
+    fireEvent.click(recent)
+    expect(screen.getByRole('region', { name: '里希' })).toBeTruthy()
   })
 })

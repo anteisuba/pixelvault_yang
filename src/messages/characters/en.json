@@ -4,32 +4,13 @@
   },
   "CharacterRoster": {
     "title": "Characters",
-    "useCharacter": "Use",
     "draftHint": "Give them a name first, then add images and a profile",
-    "chatWith": "Chat with this character",
-    "chatWithHint": "Switch the assistant to her",
-    "useInStudio": "Use in the image studio",
-    "useInStudioHint": "Brings the main image and tags",
-    "useAsPersona": "Set as assistant persona",
-    "useAsPersonaActive": "Current assistant persona",
-    "useAsPersonaHint": "Avatar, name and way of speaking come from this character",
-    "useAsPersonaDone": "The assistant is now {name}",
-    "useAsPersonaFailed": "Couldn't set it. Try again.",
-    "placeOnCanvas": "Put on a canvas",
-    "placeOnCanvasHint": "Opens a canvas with this character in the middle",
-    "trainLora": "Train a LoRA",
-    "trainLoraHint": "Train a LoRA from her reference images",
-    "canvasMeta": "{count} nodes · {time}",
-    "newCanvas": "＋ New canvas",
-    "canvasesLoading": "Finding canvases…",
-    "canvasesFailed": "Couldn't load canvases — try again",
     "searchPlaceholder": "Search characters or series (name, tag, series)",
     "worksLabel": "Series",
-    "overviewAll": "Overview",
+    "overviewAll": "All",
     "searchResults": "{count, plural, one {# match} other {# matches}}",
     "workSummary": "{characters, plural, one {# character} other {# characters}} · {images, plural, one {# image} other {# images}}",
     "mostUsed": "Most used",
-    "overviewCount": "{characters, plural, one {# character} other {# characters}} · {works, plural, one {# series} other {# series}}",
     "byImages": "By image count",
     "allCharactersHint": "{count} · by name",
     "mostUsedHint": "By image count · card images + images made with them",
@@ -255,7 +236,22 @@
       "uploadNotImage": "That file isn't an image.",
       "uploadFailed": "Didn't upload. Try again.",
       "stickersEmpty": "No stickers yet. She collects them when she goes out, or you can upload one."
-    }
+    },
+    "recentCards": {
+      "wentOut": "Went out",
+      "changedSelf": "Changed herself",
+      "sawFinding": "Read “{title}”"
+    },
+    "detailTabs": {
+      "label": "Her pages",
+      "recent": "Recent",
+      "person": "Person",
+      "images": "Images",
+      "lora": "LoRA",
+      "stickers": "Stickers"
+    },
+    "detailNow": "Now",
+    "detailMore": "More"
   },
   "CharacterImagePick": {
     "primary": "Main",

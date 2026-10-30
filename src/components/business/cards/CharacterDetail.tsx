@@ -30,7 +30,6 @@ import {
   CharacterTextField,
 } from '@/components/business/cards/CharacterTextField'
 import { CharacterLookStrip } from '@/components/business/cards/CharacterLookStrip'
-import { UseCharacterMenu } from '@/components/business/cards/UseCharacterMenu'
 import {
   appendSlotImages,
   type CharacterCardDraft,
@@ -77,19 +76,17 @@ type Save = (patch: Partial<CharacterCardDraft>) => Promise<boolean>
 type SaveLook = (patch: Partial<CharacterLookDraft>) => Promise<boolean>
 
 export function CharacterDetailHeader({
-  card,
-  lookId = null,
+  lead,
   onBack,
 }: {
-  /** `null` = 「新角色」草稿：还没建，没有「用她 ▾」。 */
-  card: CharacterCardRecord | null
-  /** 详情里正看着的那套造型（`null` = 默认）。 */
-  lookId?: string | null
+  /** 最左边那颗助手头像（库整页里才有，角色大项目 ①）。 */
+  lead?: ReactNode
   onBack(): void
 }) {
   const t = useTranslations('CharacterRoster')
   return (
     <>
+      {lead}
       <button
         type="button"
         onClick={onBack}
@@ -98,11 +95,6 @@ export function CharacterDetailHeader({
         <ChevronLeft className="size-4" aria-hidden />
         {t('title')}
       </button>
-      {card ? (
-        <div className="ml-auto flex items-center gap-2">
-          <UseCharacterMenu card={card} look={findLook(card, lookId)} />
-        </div>
-      ) : null}
     </>
   )
 }
@@ -236,6 +228,113 @@ export function CharacterDetailBody({
       <DeleteCharacter name={card.name} onDelete={onDelete} />
     </div>
   )
+}
+
+/** 电脑详情各页签共用的那几样（角色大项目 ①）：手里这套造型 + 存一格 / 存造型一格。 */
+interface CharacterPaneProps {
+  card: CharacterCardRecord
+  lookId: string | null
+  onLookChange(lookId: string | null): void
+  onUpdate(data: UpdateCharacterCardRequest): Promise<boolean>
+  onCreateLook(data: CreateCharacterLookRequest): Promise<string | null>
+  onUpdateLook(
+    lookId: string,
+    data: UpdateCharacterLookRequest,
+  ): Promise<boolean>
+  onDeleteLook(lookId: string): Promise<boolean>
+}
+
+function usePaneSave({
+  card,
+  lookId,
+  onUpdate,
+  onUpdateLook,
+}: Pick<CharacterPaneProps, 'card' | 'lookId' | 'onUpdate' | 'onUpdateLook'>) {
+  const look = findLook(card, lookId)
+  const save: Save = (patch) =>
+    onUpdate(updateFromDraft(card, { ...draftFromCard(card), ...patch }))
+  const saveLook: SaveLook = (patch) =>
+    look.id
+      ? onUpdateLook(look.id, lookUpdateFromDraft(look, patch))
+      : Promise.resolve(false)
+  return { look, save, saveLook }
+}
+
+/**
+ * 电脑详情「人物」页签：名字 + 设定（人物 / 对话 / 更多），原样搬过来（第 ② 步再改）。
+ */
+export function CharacterPersonPane(props: CharacterPaneProps) {
+  const t = useTranslations('CharacterRoster')
+  const { card } = props
+  const { save } = usePaneSave(props)
+  return (
+    <div className="max-w-3xl">
+      <div className="mb-6 flex flex-col gap-1">
+        <p className="text-xs text-muted-foreground">{t('fieldName')}</p>
+        <CharacterInlineField
+          value={card.name}
+          label={t('fieldName')}
+          placeholder={t('fieldName')}
+          onCommit={(name) => save({ name })}
+          className="text-base lg:text-sm"
+        />
+      </div>
+      <CharacterSettingModule card={card} save={save} />
+    </div>
+  )
+}
+
+/**
+ * 电脑详情「图片」页签：造型切换 · 图片带 · 一句外观 · 标签与作品，原样搬过来（第 ⑧ 步再改）。
+ * ⚠ 图片带的高度是滚动容器的百分比：这一页本身就是滚动容器。
+ */
+export function CharacterImagesPane(props: CharacterPaneProps) {
+  const t = useTranslations('CharacterRoster')
+  const { card, onLookChange, onCreateLook, onUpdateLook, onDeleteLook } = props
+  const { look, save, saveLook } = usePaneSave(props)
+  return (
+    <div className="h-full overflow-y-auto pb-12">
+      <CharacterLookStrip
+        card={card}
+        lookId={look.id}
+        onSelect={onLookChange}
+        onCreate={onCreateLook}
+        onRename={(id, label) => onUpdateLook(id, { label })}
+        onMakeDefault={(id) => onUpdateLook(id, { isDefault: true })}
+        onDelete={async (id) => {
+          const ok = await onDeleteLook(id)
+          if (ok) onLookChange(null)
+          return ok
+        }}
+      />
+      <ImageBand card={card} look={look} save={saveLook} />
+      <div className="mb-8 flex max-w-3xl flex-col gap-1">
+        <p className="text-xs text-muted-foreground">{t('fieldLooks')}</p>
+        <CharacterTextField
+          label={t('fieldLooks')}
+          value={look.description ?? ''}
+          placeholder={t('fieldLooks')}
+          limit={CHARACTER_CARD.DESCRIPTION_MAX_LENGTH}
+          showLabel={false}
+          clamp={false}
+          onSave={(description) => saveLook({ description })}
+          textClassName="lg:text-md"
+        />
+      </div>
+      <TagsModule
+        card={card}
+        look={look}
+        save={save}
+        saveLook={saveLook}
+        bare
+      />
+    </div>
+  )
+}
+
+/** 电脑详情「LoRA」页签：她收的 LoRA，原样搬过来（第 ⑧ 步换成库的格子）。 */
+export function CharacterLorasPane({ card }: { card: CharacterCardRecord }) {
+  return <LorasModule card={card} bare />
 }
 
 function ImageBand({
@@ -786,11 +885,14 @@ function TagsModule({
   look,
   save,
   saveLook,
+  bare = false,
 }: {
   card: CharacterCardRecord
   look: CharacterLookRecord
   save: Save
   saveLook: SaveLook
+  /** 电脑详情页签里：⛔ 顶上那道分隔线。 */
+  bare?: boolean
 }) {
   const t = useTranslations('CharacterRoster')
   const locale = useLocale()
@@ -798,7 +900,12 @@ function TagsModule({
   const tagWorkLabel = tagWork ? workLabelFromTag(tagWork, locale) : null
 
   return (
-    <section className="mb-8 flex flex-col gap-4 border-t border-border pt-6">
+    <section
+      className={cn(
+        'mb-8 flex flex-col gap-4',
+        !bare && 'border-t border-border pt-6',
+      )}
+    >
       <div className="flex flex-col gap-1.5">
         <p className="text-xs text-muted-foreground">{t('fieldTags')}</p>
         {/* 标签是一段逗号隔开的字（owner 2026-10-24 ㉘），与标签台同一个写法。 */}
@@ -836,7 +943,14 @@ function TagsModule({
  * 「加到角色…」或从「用她 ▾」训练，挂在 LoRA 台「从角色选」。挂在某套造型下的
  * 标出造型名（角色④）。
  */
-function LorasModule({ card }: { card: CharacterCardRecord }) {
+function LorasModule({
+  card,
+  bare = false,
+}: {
+  card: CharacterCardRecord
+  /** 电脑详情页签里：⛔ 顶上那道分隔线和小标题。 */
+  bare?: boolean
+}) {
   const t = useTranslations('CharacterRoster')
   const tLooks = useTranslations('CharacterLooks')
   const { groups, isLoading } = useCharacterLoras(card.id)
@@ -848,8 +962,15 @@ function LorasModule({ card }: { card: CharacterCardRecord }) {
     return look ? lookLabel(look, card.looks, tLooks) : null
   }
   return (
-    <section className="mb-8 flex flex-col gap-3 border-t border-border pt-6">
-      <p className="text-xs text-muted-foreground">{t('fieldLoras')}</p>
+    <section
+      className={cn(
+        'mb-8 flex flex-col gap-3',
+        !bare && 'border-t border-border pt-6',
+      )}
+    >
+      {bare ? null : (
+        <p className="text-xs text-muted-foreground">{t('fieldLoras')}</p>
+      )}
       {isLoading && loras.length === 0 ? (
         <Spinner />
       ) : loras.length === 0 ? (

@@ -13,6 +13,9 @@ const mocks = vi.hoisted(() => ({
   routeModel: vi.fn(),
   resolveRoute: vi.fn(),
   browse: vi.fn(),
+  journals: vi.fn(),
+  revisions: vi.fn(),
+  findings: vi.fn(),
 }))
 
 vi.mock('@/lib/db', () => ({
@@ -22,7 +25,10 @@ vi.mock('@/lib/db', () => ({
     characterFinding: {
       findFirst: mocks.findingFirst,
       delete: mocks.findingDelete,
+      findMany: mocks.findings,
     },
+    characterJournal: { findMany: mocks.journals },
+    characterCardRevision: { findMany: mocks.revisions },
   },
 }))
 vi.mock('@/services/user.service', () => ({
@@ -49,6 +55,7 @@ import {
   deleteCharacterFindingForClerkId,
   getCharacterGrowthForClerkId,
   goOutNowForClerkId,
+  listCharacterRecentActivityForClerkId,
   revertCharacterRevisionForClerkId,
   updateCharacterBrowseForClerkId,
 } from './character-growth.service'
@@ -303,5 +310,63 @@ describe('revertCharacterRevisionForClerkId', () => {
     await expect(
       revertCharacterRevisionForClerkId('clerk', 'r1'),
     ).resolves.toBeNull()
+  })
+})
+
+describe('listCharacterRecentActivityForClerkId', () => {
+  it('每位只留最近一件事，按时间排，最多三位；只看没删的卡、没撤回的改动', async () => {
+    const at = (h: number) =>
+      new Date(`2026-10-29T${String(h).padStart(2, '0')}:00:00Z`)
+    mocks.journals.mockResolvedValue([
+      { characterCardId: 'a', text: '下雨天', createdAt: at(9) },
+      { characterCardId: 'b', text: '学了新歌', createdAt: at(5) },
+    ])
+    mocks.revisions.mockResolvedValue([
+      { characterCardId: 'a', fields: ['speech'], createdAt: at(10) },
+      { characterCardId: 'c', fields: ['behavior'], createdAt: at(7) },
+    ])
+    mocks.findings.mockResolvedValue([
+      { characterCardId: 'd', title: '新版本 PV', seenAt: at(3) },
+    ])
+
+    const rows = await listCharacterRecentActivityForClerkId('clerk-1')
+
+    expect(rows).toEqual([
+      {
+        cardId: 'a',
+        kind: 'revision',
+        text: '',
+        fields: ['speech'],
+        at: at(10).toISOString(),
+      },
+      {
+        cardId: 'c',
+        kind: 'revision',
+        text: '',
+        fields: ['behavior'],
+        at: at(7).toISOString(),
+      },
+      {
+        cardId: 'b',
+        kind: 'journal',
+        text: '学了新歌',
+        fields: [],
+        at: at(5).toISOString(),
+      },
+    ])
+    expect(mocks.journals).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: 'user-1', characterCard: { isDeleted: false } },
+      }),
+    )
+    expect(mocks.revisions).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          userId: 'user-1',
+          characterCard: { isDeleted: false },
+          revertedAt: null,
+        },
+      }),
+    )
   })
 })

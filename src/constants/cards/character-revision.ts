@@ -34,3 +34,12 @@ export const CHARACTER_GROWTH_PAGE = {
   findings: 60,
   opinions: 30,
 } as const
+
+/**
+ * 角色总览「最近」那几张卡（角色大项目第 ① 步）：每位只取她最近一件事，最多几位；
+ * 每类往回看多少条再按人去重（人多时够挑出几位不同的人）。
+ */
+export const CHARACTER_RECENT_ACTIVITY = {
+  cards: 3,
+  scanPerKind: 30,
+} as const

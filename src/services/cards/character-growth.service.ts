@@ -1,7 +1,10 @@
 import 'server-only'
 
 import { getAssistantRouteModelEntry } from '@/constants/assistant-persona'
-import { CHARACTER_GROWTH_PAGE } from '@/constants/cards'
+import {
+  CHARACTER_GROWTH_PAGE,
+  CHARACTER_RECENT_ACTIVITY,
+} from '@/constants/cards'
 import {
   CHARACTER_BROWSE_PAUSE_REASONS,
   CHARACTER_BROWSE_SETTING_ERRORS,
@@ -19,6 +22,7 @@ import type {
   CharacterBrowseState,
   CharacterGrowth,
   CharacterGoOutResult,
+  CharacterRecentActivity,
   UpdateCharacterBrowseRequest,
 } from '@/types/character-growth'
 
@@ -77,6 +81,70 @@ function settingError(
     error.i18nKey,
     error.message,
   )
+}
+
+/**
+ * 角色总览「最近」（角色大项目第 ① 步）：每位只留她最近一件事（日记 / 没撤回的改动 /
+ * 出门看到的），按时间排、最多 `CHARACTER_RECENT_ACTIVITY.cards` 位。已删的卡不算。
+ */
+export async function listCharacterRecentActivityForClerkId(
+  clerkId: string,
+): Promise<CharacterRecentActivity[]> {
+  const user = await ensureUser(clerkId)
+  const live = { userId: user.id, characterCard: { isDeleted: false } }
+  const take = CHARACTER_RECENT_ACTIVITY.scanPerKind
+  const [journals, revisions, findings] = await Promise.all([
+    db.characterJournal.findMany({
+      where: live,
+      orderBy: { createdAt: 'desc' },
+      take,
+      select: { characterCardId: true, text: true, createdAt: true },
+    }),
+    db.characterCardRevision.findMany({
+      where: { ...live, revertedAt: null },
+      orderBy: { createdAt: 'desc' },
+      take,
+      select: { characterCardId: true, fields: true, createdAt: true },
+    }),
+    db.characterFinding.findMany({
+      where: live,
+      orderBy: { seenAt: 'desc' },
+      take,
+      select: { characterCardId: true, title: true, seenAt: true },
+    }),
+  ])
+  const all: CharacterRecentActivity[] = [
+    ...journals.map((row) => ({
+      cardId: row.characterCardId,
+      kind: 'journal' as const,
+      text: row.text,
+      fields: [],
+      at: row.createdAt.toISOString(),
+    })),
+    ...revisions.map((row) => ({
+      cardId: row.characterCardId,
+      kind: 'revision' as const,
+      text: '',
+      fields: row.fields,
+      at: row.createdAt.toISOString(),
+    })),
+    ...findings.map((row) => ({
+      cardId: row.characterCardId,
+      kind: 'finding' as const,
+      text: row.title,
+      fields: [],
+      at: row.seenAt.toISOString(),
+    })),
+  ].sort((a, b) => b.at.localeCompare(a.at))
+  const seen = new Set<string>()
+  const picked: CharacterRecentActivity[] = []
+  for (const row of all) {
+    if (seen.has(row.cardId)) continue
+    seen.add(row.cardId)
+    picked.push(row)
+    if (picked.length === CHARACTER_RECENT_ACTIVITY.cards) break
+  }
+  return picked
 }
 
 export async function getCharacterGrowthForClerkId(

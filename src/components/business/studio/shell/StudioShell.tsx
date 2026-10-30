@@ -23,6 +23,7 @@ import {
 } from '@/constants/motion'
 import { ROUTES, STUDIO_CONVERSATION_QUERY } from '@/constants/routes'
 import {
+  LIBRARY_ASSISTANT_LEFT_CATEGORIES,
   STUDIO_SHELL_SPLIT,
   type StudioShellOverlayId,
   type StudioShellRouteKind,
@@ -241,7 +242,7 @@ export function StudioShell({
     <div
       ref={setLibraryTarget}
       data-testid="studio-library-target"
-      className="fixed inset-0 z-40 empty:hidden lg:absolute lg:overflow-hidden lg:inset-y-0 lg:right-auto lg:left-0 lg:z-10 lg:w-(--library-width)"
+      className="fixed inset-0 z-40 empty:hidden lg:absolute lg:overflow-hidden lg:inset-y-0 lg:right-auto lg:left-(--library-left) lg:z-10 lg:w-(--library-width)"
     />
   )
 
@@ -274,6 +275,12 @@ export function StudioShell({
                       shellDock={placement.owner === 'shell'}
                       libraryOpen={libraryOpen}
                       libraryAssistantOpen={libraryAssistantOpen}
+                      libraryAssistantLeft={
+                        libraryCategory !== null &&
+                        (
+                          LIBRARY_ASSISTANT_LEFT_CATEGORIES as readonly string[]
+                        ).includes(libraryCategory)
+                      }
                       libraryLayer={libraryLayer}
                       historyOpen={historyOpen}
                       onCloseHistory={() => setHistoryOpen(false)}
@@ -317,9 +324,12 @@ function StudioConversationUrlSync() {
   return null
 }
 
-/** 叠层落点的宽（≥768）：写进 `--library-width`，⛔ 直接写 width（手机上落点是整屏）。 */
-function libraryWidth(width: string): CSSProperties {
-  return { '--library-width': width } as CSSProperties
+/**
+ * 叠层落点的宽与左边距（≥768）：写进 `--library-width` / `--library-left`，⛔ 直接写
+ * width / left（手机上落点是整屏）。助手贴左的那几页，库往右让出对话那一栏。
+ */
+function libraryWidth(width: string, left = '0px'): CSSProperties {
+  return { '--library-width': width, '--library-left': left } as CSSProperties
 }
 
 function StudioShellStage({
@@ -328,6 +338,7 @@ function StudioShellStage({
   shellDock,
   libraryOpen,
   libraryAssistantOpen,
+  libraryAssistantLeft,
   libraryLayer,
   historyOpen,
   onCloseHistory,
@@ -340,6 +351,8 @@ function StudioShellStage({
   libraryOpen: boolean
   /** 库里叫出了助手：对话贴到白板右边，库让出那一块。 */
   libraryAssistantOpen: boolean
+  /** 这一页的助手贴左边（`LIBRARY_ASSISTANT_LEFT_CATEGORIES`），库往右让。 */
+  libraryAssistantLeft: boolean
   libraryLayer: ReactNode
   historyOpen: boolean
   onCloseHistory(): void
@@ -490,6 +503,7 @@ function StudioShellStage({
       )}
       style={libraryWidth(
         libraryChat ? `calc(100% - ${conversationWidth})` : '100%',
+        libraryChat && libraryAssistantLeft ? conversationWidth : '0px',
       )}
     >
       <StudioShellHistoryColumn
@@ -509,7 +523,11 @@ function StudioShellStage({
           conversationHidden && 'lg:hidden',
           libraryOpen && !libraryAssistantOpen && 'lg:hidden',
           libraryChat &&
-            'lg:absolute lg:inset-y-0 lg:right-0 lg:z-20 lg:flex lg:border-l lg:border-border',
+            'lg:absolute lg:inset-y-0 lg:z-20 lg:flex lg:border-border',
+          libraryChat &&
+            (libraryAssistantLeft
+              ? 'lg:left-0 lg:border-r'
+              : 'lg:right-0 lg:border-l'),
         )}
         style={
           libraryChat

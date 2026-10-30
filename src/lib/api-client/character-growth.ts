@@ -4,6 +4,7 @@ import type {
   CharacterBrowseState,
   CharacterGoOutResult,
   CharacterGrowth,
+  CharacterRecentActivity,
   UpdateCharacterBrowseRequest,
 } from '@/types/character-growth'
 import { apiFetch } from '@/lib/api-client/api-fetch'
@@ -53,6 +54,21 @@ export async function getCharacterGrowthAPI(
     return await parseJsonResult(response, 'Failed to load her growth')
   } catch (error) {
     return toFailure(error, 'Failed to load her growth')
+  }
+}
+
+/** 角色总览「最近」：每位最近一件事，最多三位。 */
+export async function getCharacterRecentActivityAPI(): Promise<
+  ApiResult<CharacterRecentActivity[]>
+> {
+  try {
+    const response = await apiFetch(API_ENDPOINTS.CHARACTER_CARDS_RECENT, {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+    })
+    return await parseJsonResult(response, 'Failed to load recent activity')
+  } catch (error) {
+    return toFailure(error, 'Failed to load recent activity')
   }
 }
 

@@ -17,6 +17,8 @@ export interface LiquidSegmentedItem<T extends string> {
   readonly icon?: ReactNode
   /** 只当悬停提示（不支持这一档的原因）；⛔ 不当读屏名字，名字仍是 `label`。 */
   readonly hint?: string
+  /** 字后面的计数（等宽灰字，角色总览作品条的张数）。 */
+  readonly count?: number
 }
 
 /** 字后面的小点用正文色（⛔ 跟着灰字走就看不出）。 */
@@ -233,6 +235,11 @@ export function LiquidSegmented<T extends string>({
           >
             {item.icon}
             {item.label}
+            {item.count !== undefined ? (
+              <span className="ml-1.5 font-mono text-2xs tabular-nums text-muted-foreground">
+                {item.count}
+              </span>
+            ) : null}
             {item.indicator ? <Indicator /> : null}
           </button>
         ))}

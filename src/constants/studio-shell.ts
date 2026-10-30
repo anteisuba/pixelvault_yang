@@ -90,6 +90,14 @@ export type StudioLibraryCategoryId =
   (typeof STUDIO_LIBRARY_CATEGORY_IDS)[number]
 
 /**
+ * 叫出助手时对话贴在**左边**的几页（角色大项目 ①，owner 2026-10-29：和工作台对齐）：
+ * 这几页顶上自己画那一行（最左一颗助手头像），库框顶上那一行在桌面上不画。
+ * 其余库照旧从右边出（统一放左还是右，轮到库再定）。
+ */
+export const LIBRARY_ASSISTANT_LEFT_CATEGORIES: readonly StudioLibraryCategoryId[] =
+  ['cards']
+
+/**
  * 叠在中间那一栏上的东西（第 9f 步）：库的各类，外加「我的主页」（9f-2e，从外壳里点开
  * `/u/me` 时叠上来；直接打开仍是整页）。
  */

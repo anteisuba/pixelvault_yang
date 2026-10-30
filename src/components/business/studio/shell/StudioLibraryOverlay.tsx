@@ -15,6 +15,7 @@ import { useTranslations } from 'next-intl'
 import { SHELL_MOTION } from '@/constants/motion'
 import { STUDIO_LIBRARY_ITEMS } from '@/constants/navigation'
 import {
+  LIBRARY_ASSISTANT_LEFT_CATEGORIES,
   STUDIO_LIBRARY_CATEGORY_IDS,
   STUDIO_LIBRARY_TAB_IDS,
   studioLibraryPath,
@@ -199,6 +200,9 @@ function StudioLibraryFrame({
   const { frameRef, bodyRef } = useLibraryFrameMotion(category)
   const [railOpen, toggleRail] = useLibraryRailOpen()
   const hasRail = !NO_RAIL_CATEGORIES.includes(category)
+  const ownHeader = (
+    LIBRARY_ASSISTANT_LEFT_CATEGORIES as readonly string[]
+  ).includes(category)
   const pageItem = isLibraryTab(category)
     ? undefined
     : STUDIO_LIBRARY_ITEMS.find((item) => item.id === category)
@@ -211,7 +215,13 @@ function StudioLibraryFrame({
       data-category={category}
       className="flex size-full min-h-0 flex-col bg-background"
     >
-      <div className="flex h-13 shrink-0 items-center gap-1 px-3">
+      <div
+        className={cn(
+          'flex h-13 shrink-0 items-center gap-1 px-3',
+          // 助手贴左的那几页（角色）顶上那一行自己画（最左一颗助手头像），桌面上这一行让掉。
+          ownHeader && 'lg:hidden',
+        )}
+      >
         {hasRail ? (
           // 左栏收起 / 展开（用户 10-25）：≥768 才有左栏，手机上各库用抽屉。
           <button
@@ -331,5 +341,46 @@ export function StudioLibraryLoading({
     <StudioLibraryOverlay category={category}>
       <div aria-busy="true" className="h-full" />
     </StudioLibraryOverlay>
+  )
+}
+
+/**
+ * 助手贴左那几页（`LIBRARY_ASSISTANT_LEFT_CATEGORIES`）顶上最左那颗助手头像（角色大项目 ①）：
+ * 点一下叫出 / 收回助手（对话从左边出来，和工作台对齐）。`dot` = 有事要叫你（缺东西时）。
+ * 不在外壳里、或手机上不画。
+ */
+export function StudioLibraryAssistantAvatar({
+  dot = false,
+}: {
+  dot?: boolean
+}) {
+  const t = useTranslations('StudioShell')
+  const slot = useContext(StudioLibraryTargetContext)
+  const { persona } = useAssistantPersona()
+  if (!slot) return null
+  const open = slot.assistantOpen
+  return (
+    <button
+      type="button"
+      aria-pressed={open}
+      aria-label={t('libraryAssistant')}
+      title={t('libraryAssistant')}
+      data-testid="studio-library-assistant-avatar"
+      onClick={() => slot.setAssistantOpen(!open)}
+      className={cn(
+        'relative hidden size-8 shrink-0 place-items-center rounded-full transition-transform duration-fast ease-standard active:scale-[.98] focus-visible:outline-none focus-visible:shadow-focus lg:grid',
+        open ? 'bg-fill-strong' : 'bg-raise shadow-soft',
+      )}
+    >
+      <span className="grid size-7 place-items-center overflow-hidden rounded-full">
+        <AssistantAvatarGlyph presetId={persona.avatarPreset ?? null} />
+      </span>
+      {dot && !open ? (
+        <span
+          aria-hidden
+          className="absolute top-0 right-0 size-2 rounded-full bg-highlight ring-2 ring-background"
+        />
+      ) : null}
+    </button>
   )
 }

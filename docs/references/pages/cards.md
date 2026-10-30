@@ -9,15 +9,15 @@
 
 角色页是**她的档案 + 她的生活记录**：她是谁（设定）、长什么样（造型 · 图 · LoRA · 声音）、最近做了什么（出门带回的见闻 / 观点 / 表情包、日记、和你的关系、她改了自己的什么）。
 
-不负责：聊天本身（只给「和她聊」入口）、出图 / 训练（「用她 ▾」带去对应的台）、LoRA 挂载（只读她收了哪些）、工作助手的记忆（设置 › 助手）。表情包 ⛔ 进素材库，素材库也 ⛔ 看到它们。
+不负责：聊天本身（只给「和她聊」入口）、出图 / 训练（2026-10-30 起 ⛔「用她 ▾」，「和她聊」= 换成她）、LoRA 挂载（只读她收了哪些）、工作助手的记忆（设置 › 助手）。表情包 ⛔ 进素材库，素材库也 ⛔ 看到它们。
 
-最高频任务：① 看她最近带回什么、删掉不想要的；② 改设定、撤回她自己改坏的；③ 换造型 / 加图；④ 和她聊 / 用她出图。
+最高频任务：① 看她最近带回什么、删掉不想要的；② 改设定、撤回她自己改坏的；③ 换造型 / 加图；④ 和她聊。
 
 ## 2. 骨架（电脑 ≥1024）
 
 外壳照 ui-spec §1（64 图标栏 + 白板）。白板左右两栏，中间一道 `line` 分隔，两栏各自滚：
 
-- **左栏「她」**（380 宽）：栏头 52 = ← 返回书架 · 名字 · 「用她 ▾」（白药丸）。下面依次：立绘（当前造型主图，4:5，左下「图\_N」）→ 造型药丸一排（当前那套黑底，末尾「＋」）→ 这套的图一行 5 格（最后一格「+N」，点开走查看器）→ 声音 / LoRA 药丸（声音点了试听，LoRA 只读）→ 设定行。
+- **左栏「她」**（380 宽）：栏头 52 = ← 返回书架 · 名字 （「用她 ▾」2026-10-30 已删）。下面依次：立绘（当前造型主图，4:5，左下「图\_N」）→ 造型药丸一排（当前那套黑底，末尾「＋」）→ 这套的图一行 5 格（最后一格「+N」，点开走查看器）→ 声音 / LoRA 药丸（声音点了试听，LoRA 只读）→ 设定行。
 - **右栏「最近」**（余下宽，内容最宽 760 居中）：栏头 52 = 「最近」 · 「和她聊」（本板唯一黑色主按钮）。下面依次：出门卡 → 筛选切换条 → 按天分组的时间河。
 
 ### 2.1 设定行（左栏）
@@ -126,7 +126,7 @@
 4. 筛选条、加载 / 出错 / 空态、动效补齐。
 5. 平板、手机。
 
-现有代码对应：详情宿主 `cards/CharacterRoster.tsx`；头 / 正文 / 设定 `cards/CharacterDetail.tsx`（`CharacterDetailHeader` · `CharacterDetailBody` · `CharacterSettingModule` · `SettingTavernGroups`）；造型 `cards/CharacterLookStrip.tsx`；「用她 ▾」`cards/UseCharacterMenu.tsx`；手机顶栏 `cards/CharacterPhoneBar.tsx`。组件 ⛔ 自造：开关 / 切换条 / 删除确认 / 空态 / 查看器 / 抽屉照 ui-spec §9。
+现有代码对应：详情宿主 `cards/CharacterRoster.tsx`；头 / 正文 / 设定 `cards/CharacterDetail.tsx`（`CharacterDetailHeader` · `CharacterDetailBody` · `CharacterSettingModule` · `SettingTavernGroups`）；造型 `cards/CharacterLookStrip.tsx`；电脑 / 平板详情外壳 `cards/CharacterDetailDesk.tsx`（左栏 + 页签）；总览「最近」卡 `cards/CharacterRecentCards.tsx`；手机顶栏 `cards/CharacterPhoneBar.tsx`。组件 ⛔ 自造：开关 / 切换条 / 删除确认 / 空态 / 查看器 / 抽屉照 ui-spec §9。
 
 ## Last Verified
 

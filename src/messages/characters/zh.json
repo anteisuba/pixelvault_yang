@@ -4,32 +4,13 @@
   },
   "CharacterRoster": {
     "title": "角色",
-    "useCharacter": "用她",
     "draftHint": "先起个名字，再加图、写设定",
-    "chatWith": "和她聊",
-    "chatWithHint": "助手换成她",
-    "useInStudio": "在图片工作台用她",
-    "useInStudioHint": "带上主图与标签",
-    "useAsPersona": "设为助手人设",
-    "useAsPersonaActive": "正在当助手人设",
-    "useAsPersonaHint": "头像、名字和说话方式都用她的",
-    "useAsPersonaDone": "助手现在是 {name} 了",
-    "useAsPersonaFailed": "没设成，再试一次",
-    "placeOnCanvas": "放进画布",
-    "placeOnCanvasHint": "打开一块画布，她落在中间",
-    "trainLora": "训练 LoRA",
-    "trainLoraHint": "用她的参考图训练一个专属 LoRA",
-    "canvasMeta": "{count} 个节点 · {time}",
-    "newCanvas": "＋ 新画布",
-    "canvasesLoading": "正在找画布…",
-    "canvasesFailed": "读不到画布列表，再点一次",
     "searchPlaceholder": "搜角色或作品（名字、标签、作品都行）",
     "worksLabel": "作品",
-    "overviewAll": "总览",
+    "overviewAll": "全部",
     "searchResults": "找到 {count} 位",
     "workSummary": "{characters} 位 · {images} 张",
     "mostUsed": "用得最多",
-    "overviewCount": "{characters} 位角色 · {works} 部作品",
     "byImages": "按张数",
     "allCharactersHint": "{count} 位 · 按名字",
     "mostUsedHint": "按张数 · 卡上的图 + 用她出过的图",
@@ -255,7 +236,22 @@
       "uploadNotImage": "这个文件不是图",
       "uploadFailed": "没传上去，再试一次",
       "stickersEmpty": "还没有表情包。她出门会自己收，你也可以上传一张。"
-    }
+    },
+    "recentCards": {
+      "wentOut": "出门调查",
+      "changedSelf": "改了自己",
+      "sawFinding": "看了「{title}」"
+    },
+    "detailTabs": {
+      "label": "她的页",
+      "recent": "最近",
+      "person": "人物",
+      "images": "图片",
+      "lora": "LoRA",
+      "stickers": "表情包"
+    },
+    "detailNow": "现在",
+    "detailMore": "更多"
   },
   "CharacterImagePick": {
     "primary": "主图",

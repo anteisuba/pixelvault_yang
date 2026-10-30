@@ -8,7 +8,10 @@ import { useLocale, useTranslations } from 'next-intl'
 import { LIQUID_SPRING } from '@/constants/motion'
 import type { CharacterCardRecord } from '@/types'
 import { ASSISTANT_LIBRARY_SCREEN_LIMIT } from '@/types/assistant-operator'
+import type { CharacterRecentActivity } from '@/types/character-growth'
 import { Search } from '@/components/icons'
+import { LiquidSegmented } from '@/components/ui/liquid-segmented'
+import { CharacterRecentCards } from '@/components/business/cards/CharacterRecentCards'
 import { useReportLibraryScreen } from '@/hooks/use-library-view'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useSearchExpansion } from '@/hooks/use-search-expansion'
@@ -59,9 +62,13 @@ interface CharacterOverviewProps {
   query: string
   /** 触屏长按一张（手机）：调用方出「编辑 / 复制 / 删除」。 */
   onLongPress?(id: string): void
+  /** 桌面「最近」那几张卡（每位最近一件事）；手机不传。 */
+  recent?: readonly CharacterRecentActivity[]
 }
 
 const ORIGINAL_KEY = '\u0000original'
+/** 作品切换条上「全部」那一格的值（⛔ 与作品名撞上）。 */
+const ALL_KEY = '\u0000all'
 
 export function CharacterOverview({
   cards,
@@ -69,6 +76,7 @@ export function CharacterOverview({
   onOpen,
   query,
   onLongPress,
+  recent,
 }: CharacterOverviewProps) {
   const t = useTranslations('CharacterRoster')
   const locale = useLocale()
@@ -171,7 +179,7 @@ export function CharacterOverview({
       entry={entry}
       rank={rank}
       reducedMotion={reducedMotion}
-      captionBelow={isMobile}
+      captionBelow
       pressProps={pressProps(entry.card.id)}
       onOpen={(id) => {
         if (longPress.swallow()) return
@@ -182,7 +190,28 @@ export function CharacterOverview({
 
   return (
     <div className="flex flex-col">
-      {groups.length > 1 || workKey ? (
+      {/* 桌面（角色大项目 ①，样件 O4）：最近 → 作品切换条 → 作品扇形 → 全部角色；切到一部作品只留它的格子。 */}
+      {!isMobile && !matches && !activeGroup && recent ? (
+        <CharacterRecentCards rows={recent} cards={cards} onOpen={onOpen} />
+      ) : null}
+      {(groups.length > 1 || workKey) && !isMobile ? (
+        <LiquidSegmented
+          items={[
+            { value: ALL_KEY, label: t('overviewAll') },
+            ...groups.map((group) => ({
+              value: group.key,
+              label: group.label,
+              count: group.images,
+            })),
+          ]}
+          value={workKey ?? ALL_KEY}
+          onChange={(key) => setWorkKey(key === ALL_KEY ? null : key)}
+          ariaLabel={t('worksLabel')}
+          size="md"
+          className="mt-7 max-w-full self-start overflow-x-auto scrollbar-none"
+        />
+      ) : null}
+      {(groups.length > 1 || workKey) && isMobile ? (
         <div
           role="group"
           aria-label={t('worksLabel')}
@@ -222,6 +251,32 @@ export function CharacterOverview({
             {activeGroup.entries.map((entry) => tile(entry, null))}
           </CellGrid>
         </Section>
+      ) : !isMobile ? (
+        <>
+          {groups.length > 1 ? (
+            <Section title={t('works')}>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
+                {groups.map((group) => (
+                  <WorkShelf
+                    key={group.key}
+                    group={group}
+                    compact={false}
+                    onOpen={() => setWorkKey(group.key)}
+                    summary={t('workSummary', {
+                      characters: group.entries.length,
+                      images: group.images,
+                    })}
+                  />
+                ))}
+              </div>
+            </Section>
+          ) : null}
+          <Section title={t('allCharacters')}>
+            <CellGrid>
+              {[...entries].sort(byImages).map((entry) => tile(entry, null))}
+            </CellGrid>
+          </Section>
+        </>
       ) : entries.length === 1 ? (
         <Section title={t('mostUsed')} hint={t('mostUsedHint')}>
           <div className="flex flex-col gap-5 sm:flex-row sm:items-end">
@@ -634,32 +689,18 @@ function WorkShelf({
   )
 }
 
-/** 这页有几部作品（地台那一行的计数用，判据与总览分组同一套）。 */
-export function countCharacterWorks(
-  cards: readonly CharacterCardRecord[],
-  locale: string,
-): number {
-  return new Set(
-    cards.map((card) => characterWork(card, locale).label ?? ORIGINAL_KEY),
-  ).size
-}
-
 /**
- * 总览那一行（住在地台上、白卡外面，布局 A）：页签（我的角色 / 卡库）+ 计数 · 搜索 ·
- * 新角色。桌面专用，手机是 `CharacterPhoneBar`。
- * ⚠ 右边留出助手头像那一格（头像是 Dock 的 fixed 元素，恒在这一行最右）。
+ * 总览顶上那一行（桌面，角色大项目 ① 样件 O4）：助手头像 ·「角色」· 搜索 · 导入 · 新角色。
+ * ⛔ 计数（让布局说话）。手机是 `CharacterPhoneBar`。
  */
 export function CharacterOverviewHeader({
-  tabs,
-  characters,
-  works,
+  lead,
   query,
   onQueryChange,
   actions,
 }: {
-  tabs: React.ReactNode
-  characters: number
-  works: number
+  /** 最左边那颗助手头像（库整页里才有）。 */
+  lead: React.ReactNode
   query: string
   onQueryChange(query: string): void
   actions: React.ReactNode
@@ -667,11 +708,9 @@ export function CharacterOverviewHeader({
   const t = useTranslations('CharacterRoster')
   return (
     <>
-      {tabs}
-      <span className="text-2sm text-muted-foreground">
-        {t('overviewCount', { characters, works })}
-      </span>
-      <label className="ml-auto flex h-9 w-72 min-w-0 items-center gap-2 rounded-full bg-background px-3.5 text-2sm text-muted-foreground">
+      {lead}
+      <h1 className="text-sm font-semibold">{t('title')}</h1>
+      <label className="ml-auto flex h-9 w-72 min-w-0 items-center gap-2 rounded-full bg-muted px-3.5 text-2sm text-muted-foreground focus-within:shadow-focus">
         <Search className="size-4 shrink-0" aria-hidden />
         <input
           id="character-search"

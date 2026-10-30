@@ -66,7 +66,7 @@ function dayKey(iso: string): string {
   return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`
 }
 
-function daysAgo(iso: string): number {
+export function daysAgo(iso: string): number {
   const startOfDay = (value: Date) =>
     new Date(value.getFullYear(), value.getMonth(), value.getDate()).getTime()
   return Math.round(
@@ -174,7 +174,7 @@ function Clock({ iso }: { iso: string }) {
 }
 
 /** 格名 → 人话（与设置「她」那一页同一份词）。 */
-function useFieldLabel() {
+export function useFieldLabel() {
   const t = useTranslations('AssistantSettings')
   return (field: string) =>
     t.has(`her.fields.${field}`) ? t(`her.fields.${field}`) : field
@@ -211,7 +211,7 @@ function hostOf(url: string): string {
 
 /* ── 出门卡 ─────────────────────────────────────────────────────────── */
 
-function OutingCard({ growth: data }: { growth: Growth }) {
+export function OutingCard({ growth: data }: { growth: Growth }) {
   const t = useTranslations('CharacterRoster.recent')
   const tErrors = useTranslations('Errors')
   const format = useFormatter()
@@ -736,6 +736,7 @@ export function CharacterRecent({
   header,
   reducedMotion,
   showTitle = true,
+  tabbed = false,
 }: {
   growth: Growth
   stickers: Stickers
@@ -744,6 +745,11 @@ export function CharacterRecent({
   reducedMotion: boolean
   /** 手机顶上的切换条已经写着「最近」，⛔ 再来一行栏头。 */
   showTitle?: boolean
+  /**
+   * 电脑详情的「最近」页签（角色大项目 ①）：出门卡挪到左栏「现在」、表情包有自己的页签，
+   * 这里只留日记和那几条事；⛔ 栏头。
+   */
+  tabbed?: boolean
 }) {
   const t = useTranslations('CharacterRoster.recent')
   const [filter, setFilter] = useState<Filter>('all')
@@ -790,20 +796,30 @@ export function CharacterRecent({
     { value: 'journal', label: t('filterJournal') },
     { value: 'revision', label: t('filterRevisions') },
   ] as const
+  const shownFilters = tabbed
+    ? filters.filter((item) => item.value !== 'sticker')
+    : filters
 
   const neverOut =
     growth !== null && !growth.browse.enabled && growth.findings.length === 0
 
   return (
     <section aria-label={t('title')} className="flex min-h-0 flex-1 flex-col">
-      {showTitle ? (
+      {showTitle && !tabbed ? (
         <header className="flex h-13 shrink-0 items-center gap-2 px-6">
           <h2 className="text-sm font-semibold">{t('title')}</h2>
           <div className="ml-auto flex items-center gap-2">{header}</div>
         </header>
       ) : null}
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-12 md:px-6 desk:px-10">
-        <div className="mx-auto flex max-w-190 flex-col gap-4">
+      <div
+        className={cn(
+          'min-h-0 flex-1 overflow-y-auto pb-12',
+          !tabbed && 'px-4 md:px-6 desk:px-10',
+        )}
+      >
+        <div
+          className={cn('flex max-w-190 flex-col gap-4', !tabbed && 'mx-auto')}
+        >
           {data.isLoading && !growth ? (
             <div className="flex justify-center py-16">
               <Spinner className="text-muted-foreground" />
@@ -825,8 +841,8 @@ export function CharacterRecent({
             />
           ) : (
             <>
-              <OutingCard growth={data} />
-              {neverOut ? (
+              {tabbed ? null : <OutingCard growth={data} />}
+              {neverOut && !tabbed ? (
                 <EmptyState
                   icon={<Home aria-hidden />}
                   title={t('neverOutTitle')}
@@ -835,7 +851,7 @@ export function CharacterRecent({
                 />
               ) : null}
               <LiquidSegmented
-                items={filters}
+                items={shownFilters}
                 value={filter}
                 onChange={setFilter}
                 ariaLabel={t('filterLabel')}
@@ -988,6 +1004,47 @@ export function CharacterRecent({
         onConfirm={() => void confirmDelete()}
       />
     </section>
+  )
+}
+
+/**
+ * 电脑详情的「表情包」页签（角色大项目 ①）：格子原样（上传 · 拉黑 / 恢复 · 删除），删前确认。
+ */
+export function CharacterStickersPane({ stickers }: { stickers: Stickers }) {
+  const t = useTranslations('CharacterRoster.recent')
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  return (
+    <div className="max-w-190">
+      <StickerGrid
+        stickers={stickers}
+        onToggle={(sticker) =>
+          void stickers
+            .setBlocked(sticker.id, !sticker.isBlocked)
+            .then((ok) => {
+              if (!ok) toast.error(t('saveFailed'))
+            })
+        }
+        onDelete={(sticker) => setDeletingId(sticker.id)}
+      />
+      <ConfirmDialog
+        open={deletingId !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeletingId(null)
+        }}
+        title={t('deleteStickerTitle')}
+        description={t('deleteStickerBody')}
+        cancelLabel={t('cancel')}
+        confirmLabel={t('delete')}
+        onConfirm={() => {
+          const id = deletingId
+          setDeletingId(null)
+          if (id)
+            void stickers.remove(id).then((ok) => {
+              if (!ok) toast.error(t('deleteFailed'))
+            })
+        }}
+      />
+    </div>
   )
 }
 

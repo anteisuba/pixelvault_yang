@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion, useReducedMotion } from 'motion/react'
 import { useSearchParams } from 'next/navigation'
-import { useLocale, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
 
 import {
   CHARACTER_PAGE_TABS,
@@ -24,18 +24,19 @@ import {
 } from '@/components/ui/responsive-menu'
 import { Spinner } from '@/components/ui/spinner'
 import { StudioOperatorBenchDock } from '@/components/business/studio/assistant-operator'
+import { StudioLibraryAssistantAvatar } from '@/components/business/studio/shell/StudioLibraryOverlay'
 import {
   CharacterDetailBody,
   CharacterDetailHeader,
   CharacterDraftBody,
 } from '@/components/business/cards/CharacterDetail'
+import { CharacterDetailDesk } from '@/components/business/cards/CharacterDetailDesk'
 import { CharacterDetailSplit } from '@/components/business/cards/CharacterRecent'
 import { CharacterLibrary } from '@/components/business/cards/CharacterLibrary'
 import { CharacterPhoneBar } from '@/components/business/cards/CharacterPhoneBar'
 import {
   CharacterOverview,
   CharacterOverviewHeader,
-  countCharacterWorks,
 } from '@/components/business/cards/CharacterOverview'
 import { StudioOperatorHostProvider } from '@/contexts/studio-operator-host'
 import { useCardsOperatorHost } from '@/hooks/cards/use-cards-operator-host'
@@ -47,6 +48,7 @@ import {
 import { appendSlotSources } from '@/hooks/cards/use-character-card-editor'
 import { defaultLook } from '@/lib/card-bus'
 import { useCharacterCards } from '@/hooks/cards/use-character-cards'
+import { useCharacterRecentActivity } from '@/hooks/cards/use-character-recent-activity'
 import { useChubLibrary } from '@/hooks/cards/use-chub-library'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { cn } from '@/lib/utils'
@@ -77,11 +79,14 @@ const ROW_AVATAR_GAP_CLASS = 'pr-12'
 export function CharacterRoster() {
   const t = useTranslations('CharacterRoster')
   const tDrop = useTranslations('DropZone')
-  const locale = useLocale()
   const characters = useCharacterCards()
   const reducedMotion = useReducedMotion() ?? false
   const isMobile = useIsMobile()
   const flatCards = characters.cards
+  /** 桌面总览「最近」那几张卡（手机总览没有这一段）。 */
+  const recentActivity = useCharacterRecentActivity(isMobile === false)
+  /** 最左那颗助手头像（库整页里点它叫出 / 收回助手，对话从左边出来）。 */
+  const assistantAvatar = <StudioLibraryAssistantAvatar />
 
   // 画布「在角色页打开」带 `?character=<id>` 进来：直接打开那一位（找不到就是总览）。
   const searchParams = useSearchParams()
@@ -306,6 +311,23 @@ export function CharacterRoster() {
   const pressedCard = flatCards.find((card) => card.id === pressedId) ?? null
   const deletingCard = flatCards.find((card) => card.id === deletingId) ?? null
 
+  /** 详情要的那一份（手机两栏与电脑页签同一份）。 */
+  const detailProps = (card: (typeof flatCards)[number]) => ({
+    card,
+    lookId: detailLookId,
+    onLookChange: setDetailLookId,
+    onUpdate: (data: Parameters<typeof characters.update>[1]) =>
+      characters.update(card.id, data),
+    onCreateLook: (data: Parameters<typeof characters.createLook>[1]) =>
+      characters.createLook(card.id, data),
+    onUpdateLook: (
+      lookId: string,
+      data: Parameters<typeof characters.updateLook>[2],
+    ) => characters.updateLook(card.id, lookId, data),
+    onDeleteLook: (lookId: string) => characters.removeLook(card.id, lookId),
+    onDelete: () => deleteCharacter(card.id),
+  })
+
   /** 新的一层淡入并上移 8px；旧的一层淡出（原型「动画 2」）。 */
   const enter = reducedMotion ? false : { opacity: 0, y: 8 }
   const enterTransition = reducedMotion
@@ -359,7 +381,7 @@ export function CharacterRoster() {
         {/* ⚠ 不等旧的一行退场（AnimatePresence mode="wait" 的退场完成靠 rAF，后台标签页
           冻结时整行卡在旧内容上）：换 key 即换，新的一行淡入上移。 */}
         {/* 手机总览不要这一行（顶上是滚动区里的胶囊），详情 / 草稿才有。 */}
-        <h1 className="sr-only">{t('title')}</h1>
+        {isMobile ? <h1 className="sr-only">{t('title')}</h1> : null}
         {/* 总览不要这一行（手机顶上是滚动区里的胶囊，桌面是库骨架），详情 / 草稿才有。 */}
         {!selected && !drafting ? null : (
           <motion.div
@@ -386,13 +408,12 @@ export function CharacterRoster() {
           >
             {drafting ? (
               <CharacterDetailHeader
-                card={null}
+                lead={assistantAvatar}
                 onBack={() => setDrafting(false)}
               />
             ) : selected ? (
               <CharacterDetailHeader
-                card={selected}
-                lookId={detailLookId}
+                lead={assistantAvatar}
                 onBack={closeDetail}
               />
             ) : null}
@@ -401,10 +422,8 @@ export function CharacterRoster() {
 
         <div
           className={cn(
+            // 总览和详情都直接画在库的白板上，⛔ 再套一张描边白卡（角色大项目 ①）。
             'relative min-h-0 flex-1 overflow-hidden bg-background',
-            // 桌面总览就在库的白板上，⛔ 再套一张描边白卡；详情 / 草稿照旧是一张卡。
-            (selected || drafting) &&
-              'md:rounded-2xl md:border md:border-border',
           )}
           // 酒馆卡 PNG / JSON 拖进总览即导入（详情、草稿开着时不接）。
           onDragOver={(event) => {
@@ -449,9 +468,7 @@ export function CharacterRoster() {
             {deskOverview ? (
               <div className="flex shrink-0 items-center gap-3 pb-5">
                 <CharacterOverviewHeader
-                  tabs={null}
-                  characters={flatCards.length}
-                  works={countCharacterWorks(flatCards, locale)}
+                  lead={assistantAvatar}
                   query={query}
                   onQueryChange={setQuery}
                   actions={
@@ -512,7 +529,9 @@ export function CharacterRoster() {
                 reducedMotion={reducedMotion}
                 onOpen={openCharacter}
                 query={query}
-                {...(isMobile ? { onLongPress: setPressedId } : {})}
+                {...(isMobile
+                  ? { onLongPress: setPressedId }
+                  : { recent: recentActivity })}
               />
             )}
           </motion.div>
@@ -554,28 +573,18 @@ export function CharacterRoster() {
                 !selected && 'pointer-events-none',
               )}
             >
-              <CharacterDetailSplit
-                key={detailCard.id}
-                cardId={detailCard.id}
-                body={
-                  <CharacterDetailBody
-                    card={detailCard}
-                    lookId={detailLookId}
-                    onLookChange={setDetailLookId}
-                    onUpdate={(data) => characters.update(detailCard.id, data)}
-                    onCreateLook={(data) =>
-                      characters.createLook(detailCard.id, data)
-                    }
-                    onUpdateLook={(lookId, data) =>
-                      characters.updateLook(detailCard.id, lookId, data)
-                    }
-                    onDeleteLook={(lookId) =>
-                      characters.removeLook(detailCard.id, lookId)
-                    }
-                    onDelete={() => deleteCharacter(detailCard.id)}
-                  />
-                }
-              />
+              {isMobile ? (
+                <CharacterDetailSplit
+                  key={detailCard.id}
+                  cardId={detailCard.id}
+                  body={<CharacterDetailBody {...detailProps(detailCard)} />}
+                />
+              ) : (
+                <CharacterDetailDesk
+                  key={detailCard.id}
+                  {...detailProps(detailCard)}
+                />
+              )}
             </motion.div>
           ) : null}
         </div>

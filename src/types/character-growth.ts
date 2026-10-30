@@ -93,6 +93,20 @@ export const CharacterGoOutResultSchema = z.object({
 
 export const GoOutNowSchema = z.object({})
 
+/** 角色总览「最近」一张卡：她最近一件事（第 ① 步）。`text` 是日记全文 / 出门看到的标题；改动给改到的格名。 */
+export const CharacterRecentActivitySchema = z.object({
+  cardId: z.string(),
+  kind: z.enum(['journal', 'revision', 'finding']),
+  text: z.string(),
+  fields: z.array(z.string()),
+  at: z.string(),
+})
+
+export const ListCharacterRecentActivityQuerySchema = z.object({})
+
+export type CharacterRecentActivity = z.infer<
+  typeof CharacterRecentActivitySchema
+>
 export type CharacterJournalEntry = z.infer<typeof CharacterJournalEntrySchema>
 export type CharacterRevisionEntry = z.infer<
   typeof CharacterRevisionEntrySchema

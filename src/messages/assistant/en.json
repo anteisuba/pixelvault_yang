@@ -549,7 +549,14 @@
           "identity": "Identity",
           "behavior": "Personality",
           "speech": "Way of speaking",
-          "backstory": "History"
+          "backstory": "History",
+          "boundaries": "Won't do",
+          "catchphrases": "Catchphrases",
+          "moods": "Moods",
+          "interests": "What she cares about",
+          "scenario": "Scenario",
+          "opening": "Opening",
+          "examples": "Example dialogue"
         },
         "ownWordsOnly": "Keep only my words",
         "keepAdded": "Keep the additions too",

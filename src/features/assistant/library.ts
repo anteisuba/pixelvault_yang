@@ -2,13 +2,20 @@ import 'server-only'
 
 import {
   ASSISTANT_ASSET_WRITE_LIMITS,
+  ASSISTANT_OPERATOR_CARDS_LIMITS,
   ASSISTANT_OPERATOR_TOOL_IDS as TOOL,
   ASSISTANT_SETTINGS_WRITE_KEYS,
   PROJECT_RULE_KIND_IDS,
 } from '@/constants/assistant-operator'
 import { ASSISTANT_V3_FACE_IDS } from '@/constants/assistant-v3'
 import type { PromptAssistantResponseLanguage } from '@/types'
-import type { AssistantOperatorEvent } from '@/types/assistant-operator'
+import {
+  AssistantOperatorCharacterImagesProposalSchema,
+  AssistantOperatorCharacterProfileFieldSchema,
+  type AssistantOperatorCharacterImageCandidate,
+  type AssistantOperatorCharacterProfileFieldDraft,
+  type AssistantOperatorEvent,
+} from '@/types/assistant-operator'
 import { AssistantMemoryUntilSchema } from '@/types/assistant-memory'
 import {
   addSearchSource,
@@ -38,8 +45,12 @@ import {
   runOldTool,
 } from '@/services/kernel/assistant-v3-bench.service'
 import { requestProjectId } from '@/services/kernel/assistant-operator.service'
+import { readPinnedFields } from '@/services/cards/character-card.mapper'
+import { pickV3WebImage } from '@/services/kernel/assistant-v3-finds.service'
 import {
+  sayAboveCard,
   settlePlan,
+  TITLE_TEXT,
   type V3Context,
   type V3Outcome,
 } from '@/services/kernel/assistant-v3-steps.service'
@@ -88,6 +99,31 @@ export const LIBRARY_OPS: readonly AssistantNextEditOp[] = [
 
 export function isLibraryOp(op: string): boolean {
   return LIBRARY_OPS.includes(op as AssistantNextEditOp)
+}
+
+/**
+ * 角色库开着（角色大项目第 ⑩ 步，owner 10-30）：改角色设定一律先出提议卡（每格一个勾），
+ * 你点「收下」才写进她；别的页照旧直接写 + 撤销。两种提议（设定 / 候选图）这时也能用。
+ * ⚠ 卡片台本身（`cards` 脸）有自己那一套提议，⛔ 走这里。
+ */
+export function proposesOnCharacterPage(context: V3Context): boolean {
+  return (
+    context.request.libraryView?.library === 'cards' &&
+    context.face !== ASSISTANT_V3_FACE_IDS.cards
+  )
+}
+
+const CHARACTER_PAGE_PROPOSALS: readonly string[] = [
+  OP.proposeProfile,
+  OP.proposeImages,
+]
+
+/** 这一条在这儿算不算改库那一类（角色库开着时两种提议也算，交给 `runLibraryChange`）。 */
+export function isLibraryChange(context: V3Context, op: string): boolean {
+  return (
+    isLibraryOp(op) ||
+    (proposesOnCharacterPage(context) && CHARACTER_PAGE_PROPOSALS.includes(op))
+  )
 }
 
 const TITLES: Record<
@@ -376,6 +412,174 @@ async function* runRemember(
   )
 }
 
+/** 创作者自己口述的改动在提议卡上的来源那一行。 */
+const AS_YOU_SAID: Record<PromptAssistantResponseLanguage, string> = {
+  chinese: '按你说的',
+  japanese: '指示どおり',
+  english: 'As you said',
+}
+
+/**
+ * 设定提议卡（角色库开着时）：钉住的格照旧拦下；一格一个勾，服务端一行都不写，
+ * 收不收由创作者在卡上点（`apply.cards.applyProfile`）。`source` = 口述那种没有来源时的那一行。
+ */
+async function* proposeProfileCard(
+  context: V3Context,
+  change: EditChange,
+  source: string | null,
+): AsyncGenerator<AssistantOperatorEvent, V3Outcome> {
+  const tool = TOOL.proposeCharacterProfile
+  const name = nameOf(change.character ?? '')
+  const title = `${TITLE_TEXT[context.language].profile}「${name}」`
+  const card = await findOwnCharacter(context.prepared.user.id, name)
+  if (!card)
+    return yield* refused(
+      context,
+      tool,
+      title,
+      `${name}: no such character of theirs.`,
+    )
+  const pinned: readonly string[] = readPinnedFields(card.extensions)
+  const seen = new Set<string>()
+  const blocked: string[] = []
+  const fields: AssistantOperatorCharacterProfileFieldDraft[] = []
+  for (const item of change.fields ?? []) {
+    if (seen.has(item.field)) continue
+    seen.add(item.field)
+    if (pinned.includes(item.field)) {
+      blocked.push(item.field)
+      continue
+    }
+    const added = item.added?.filter((span) => item.text.includes(span))
+    const parsed = AssistantOperatorCharacterProfileFieldSchema.safeParse({
+      field: item.field,
+      text: item.text,
+      source: item.source?.trim() || source || '',
+      ...(item.sourceUrl ? { sourceUrl: item.sourceUrl } : {}),
+      ...(added?.length ? { added } : {}),
+    })
+    if (!parsed.success)
+      return yield* refused(
+        context,
+        tool,
+        title,
+        `${item.field}: ${parsed.error.issues[0]?.path.join('.') ?? ''} ${parsed.error.issues[0]?.message ?? ''} (every part needs its text and a short source).`,
+      )
+    fields.push(parsed.data)
+  }
+  if (blocked.length)
+    return yield* refused(
+      context,
+      tool,
+      title,
+      `${blocked.join(', ')} of 角色·${card.name} is pinned by the creator, so it cannot be changed. Tell them to unpin it on the character page first.`,
+    )
+  if (fields.length === 0)
+    return yield* refused(context, tool, title, need(change.op, 'fields'))
+  yield* sayAboveCard(context, change.say ?? '')
+  return yield* settlePlan(context, tool, title, {
+    kind: 'confirmCharacterProfile',
+    profile: { characterId: card.id, fields },
+  })
+}
+
+/**
+ * 候选图卡（角色库开着时，「找立绘」）：她的图按编号（`图_N`），网上的按 `#n`；
+ * 只能看的网图、看过不是她的那张不收。挂上由创作者在卡上点（`apply.cards.attachImages`）。
+ */
+async function* proposeImagesCard(
+  context: V3Context,
+  change: EditChange,
+): AsyncGenerator<AssistantOperatorEvent, V3Outcome> {
+  const tool = TOOL.proposeCharacterImages
+  const name = nameOf(change.character ?? '')
+  const title = `${TITLE_TEXT[context.language].pickImages}「${name}」`
+  const card = await findOwnCharacter(context.prepared.user.id, name)
+  if (!card)
+    return yield* refused(
+      context,
+      tool,
+      title,
+      `${name}: no such character of theirs.`,
+    )
+  const run = context.prepared.run
+  const images: AssistantOperatorCharacterImageCandidate[] = []
+  const dropped: string[] = []
+  const seen = new Set<string>()
+  for (const image of change.images ?? []) {
+    const reason = image.reason?.trim() || name
+    if (image.picture) {
+      const resolved = await picturesOf(context, [image.picture])
+      if (!resolved.ok) {
+        dropped.push(resolved.error)
+        continue
+      }
+      const picture = resolved.pictures[0]!
+      if (seen.has(picture.url)) continue
+      seen.add(picture.url)
+      images.push({
+        key: `asset:${picture.generationId}`,
+        source: 'library',
+        url: picture.url,
+        reason,
+        assetId: picture.generationId,
+        displayName: picture.label,
+      })
+      continue
+    }
+    if (!image.find) continue
+    const found = pickV3WebImage(context.transcript, image.find)
+    if (!found || !found.ok) {
+      dropped.push(
+        found?.ok === false
+          ? found.error
+          : `"${image.find}" is not a web find number: write it like "#3".`,
+      )
+      continue
+    }
+    const web = found.find
+    if (run.webImageIndex.get(web.imageUrl)?.usableAsInput === false) {
+      dropped.push(`#${web.n} (marked view only — that site cannot be used)`)
+      continue
+    }
+    if (run.webImageVision.get(web.imageUrl)?.isCharacter === 'no') {
+      dropped.push(`#${web.n} (you looked at it and it is NOT this character)`)
+      continue
+    }
+    if (seen.has(web.imageUrl)) continue
+    seen.add(web.imageUrl)
+    images.push({
+      key: `web:${web.imageUrl}`,
+      source: 'web',
+      url: web.imageUrl,
+      ...(web.thumbnailUrl ? { thumbnailUrl: web.thumbnailUrl } : {}),
+      reason,
+      ...(web.pageUrl ? { pageUrl: web.pageUrl } : {}),
+      ...(web.domain ? { domain: web.domain } : {}),
+      ...(web.publisher ? { publisher: web.publisher } : {}),
+      ...(web.title ? { title: web.title } : {}),
+    })
+  }
+  const proposal = AssistantOperatorCharacterImagesProposalSchema.safeParse({
+    characterId: card.id,
+    images,
+  })
+  if (!proposal.success)
+    return yield* refused(
+      context,
+      tool,
+      title,
+      images.length === 0
+        ? `none of the pictures can be offered${dropped.length ? ` — ${dropped.join('; ')}` : ''}. Offer their picture numbers ("图_1624") or web find numbers ("#3") from this turn or last turn.`
+        : `too many pictures: offer at most ${ASSISTANT_OPERATOR_CARDS_LIMITS.maxProposedImages}.`,
+    )
+  yield* sayAboveCard(context, change.say ?? '')
+  return yield* settlePlan(context, tool, title, {
+    kind: 'confirmCharacterImages',
+    proposal: proposal.data,
+  })
+}
+
 /** 一条改库改动。不在单子上的回 `null`（交回台上那一套）。 */
 export async function* runLibraryChange(
   context: V3Context,
@@ -468,9 +672,37 @@ export async function* runLibraryChange(
         }),
       )
     }
+    case OP.proposeProfile:
+    case OP.proposeImages:
+      if (!change.character)
+        return yield* fail(TOOL.libraryWrite, need(change.op, 'character'))
+      return change.op === OP.proposeProfile
+        ? yield* proposeProfileCard(context, change, null)
+        : yield* proposeImagesCard(context, change)
     case OP.characterProfile:
       if (!change.character)
         return yield* fail(TOOL.libraryWrite, need(change.op, 'character'))
+      if (proposesOnCharacterPage(context) && change.fields?.length) {
+        // 名字 / 标签不上卡：照旧直接改（带撤销），设定那几格出卡。
+        if (change.name || change.tags) {
+          const renamed = yield* settleWrite(
+            context,
+            title,
+            await writeCharacterProfile(owner, {
+              character: nameOf(change.character),
+              name: change.name ?? null,
+              tags: change.tags ?? null,
+              fields: null,
+            }),
+          )
+          if (renamed.kind === 'result' && renamed.error) return renamed
+        }
+        return yield* proposeProfileCard(
+          context,
+          { ...change, character: change.name ?? change.character },
+          AS_YOU_SAID[context.language],
+        )
+      }
       return yield* settleWrite(
         context,
         title,

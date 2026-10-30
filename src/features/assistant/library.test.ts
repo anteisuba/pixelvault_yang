@@ -17,6 +17,8 @@ const calls = vi.hoisted(() => ({
   resolvePicture: vi.fn(),
   writeAssistantSetting: vi.fn(),
   removeSearchSource: vi.fn(),
+  writeCharacterProfile: vi.fn(),
+  pickV3WebImage: vi.fn(),
 }))
 
 vi.mock('server-only', () => ({}))
@@ -35,6 +37,15 @@ vi.mock('@/services/kernel/assistant-v3-steps.service', () => ({
     calls.settlePlan(...args)
     return { kind: 'result', output: 'done' }
   },
+  sayAboveCard: function* () {},
+  TITLE_TEXT: { chinese: { profile: '提议设定', pickImages: '挑图' } },
+}))
+vi.mock('@/services/cards/character-card.mapper', () => ({
+  readPinnedFields: (extensions: { pinned?: string[] } | null) =>
+    extensions?.pinned ?? [],
+}))
+vi.mock('@/services/kernel/assistant-v3-finds.service', () => ({
+  pickV3WebImage: calls.pickV3WebImage,
 }))
 vi.mock('@/services/assistant-library-write.service', () => ({
   addSearchSource: vi.fn(),
@@ -49,7 +60,7 @@ vi.mock('@/services/assistant-library-write.service', () => ({
   savePrompt: vi.fn(),
   setLoraCover: vi.fn(),
   updatePrompt: vi.fn(),
-  writeCharacterProfile: vi.fn(),
+  writeCharacterProfile: calls.writeCharacterProfile,
   writeLook: vi.fn(),
   rememberMemory: calls.rememberMemory,
   editMemory: calls.editMemory,
@@ -320,5 +331,116 @@ describe('记忆（第 6 步）', () => {
     expect(calls.rememberMemory).not.toHaveBeenCalled()
     await run({ op: 'remember', memory: '记忆·3f9a1c2b', value: false }, paused)
     expect(calls.forgetMemory).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('角色库开着：改设定先出卡（第 ⑩ 步）', () => {
+  const onCharacterPage = {
+    ...context,
+    face: 'image',
+    transcript: [],
+    request: {
+      snapshot: {},
+      mentionedAssets: [],
+      libraryView: { library: 'cards' },
+    },
+    prepared: {
+      ...(context.prepared as object),
+      run: { webImageIndex: new Map(), webImageVision: new Map() },
+    },
+  } as unknown as V3Context
+
+  beforeEach(() => {
+    calls.findOwnCharacter.mockResolvedValue({
+      id: 'card-1',
+      name: 'Denia',
+      extensions: { pinned: ['backstory'] },
+    })
+  })
+
+  it('character_profile 不直接写：出一张勾选卡，来源写「按你说的」', async () => {
+    await run(
+      {
+        op: 'character_profile',
+        character: '角色·Denia',
+        fields: [
+          { field: 'speech', text: '叫你「前辈」' },
+          { field: 'interests', text: '雨天\n旧书店' },
+        ],
+      },
+      onCharacterPage,
+    )
+    expect(calls.writeCharacterProfile).not.toHaveBeenCalled()
+    expect(calls.settlePlan).toHaveBeenCalledWith(
+      onCharacterPage,
+      'propose_character_profile',
+      '提议设定「Denia」',
+      {
+        kind: 'confirmCharacterProfile',
+        profile: {
+          characterId: 'card-1',
+          fields: [
+            { field: 'speech', text: '叫你「前辈」', source: '按你说的' },
+            { field: 'interests', text: '雨天\n旧书店', source: '按你说的' },
+          ],
+        },
+      },
+    )
+  })
+
+  it('钉住的格照旧拦下，什么都不出', async () => {
+    await run(
+      {
+        op: 'character_profile',
+        character: '角色·Denia',
+        fields: [{ field: 'backstory', text: '改掉' }],
+      },
+      onCharacterPage,
+    )
+    expect(calls.settlePlan).not.toHaveBeenCalled()
+    expect(String(calls.refused.mock.calls[0]?.[3])).toContain('pinned')
+  })
+
+  it('别的页照旧直接写', async () => {
+    calls.writeCharacterProfile.mockResolvedValue({ ok: false, error: 'x' })
+    await run({
+      op: 'character_profile',
+      character: '角色·Denia',
+      fields: [{ field: 'speech', text: '叫你「前辈」' }],
+    })
+    expect(calls.writeCharacterProfile).toHaveBeenCalled()
+  })
+
+  it('找立绘：她的图按编号、网上的按 #n 出候选图卡', async () => {
+    calls.pickV3WebImage.mockReturnValue({
+      ok: true,
+      find: {
+        kind: 'image',
+        n: 3,
+        imageUrl: 'https://img.test/denia.png',
+        pageUrl: 'https://wiki.test/denia',
+      },
+    })
+    await run(
+      {
+        op: 'propose_images',
+        character: '角色·Denia',
+        images: [
+          { picture: '图_12', reason: '正脸' },
+          { find: '#3', reason: '全身' },
+        ],
+      },
+      onCharacterPage,
+    )
+    const plan = calls.settlePlan.mock.calls[0]?.[3]
+    expect(plan.kind).toBe('confirmCharacterImages')
+    expect(plan.proposal.images).toEqual([
+      expect.objectContaining({ source: 'library', assetId: 'gen-12' }),
+      expect.objectContaining({
+        source: 'web',
+        url: 'https://img.test/denia.png',
+        reason: '全身',
+      }),
+    ])
   })
 })

@@ -43,6 +43,7 @@ import {
 } from '@/types/assistant-conversation'
 import type {
   AssistantLoraParameters,
+  AssistantOperatorCharacterProfileField,
   AssistantOperatorMessage,
   AssistantOperatorPriorStep,
   AssistantOperatorStep,
@@ -440,7 +441,14 @@ export const CHARACTER_PROFILE_FIELD_NAMES = {
   behavior: '性格',
   speech: '说话方式',
   backstory: '经历',
-} as const
+  boundaries: '不会做的事',
+  catchphrases: '口头禅',
+  moods: '几种口吻',
+  interests: '她在意的东西',
+  scenario: '场景',
+  opening: '开场白',
+  examples: '对话示例',
+} as const satisfies Record<AssistantOperatorCharacterProfileField, string>
 
 /**
  * 卡片助手设定提议卡那一下的**题面**（C2）—— 角色名写在句子里：这句话要去的地方是

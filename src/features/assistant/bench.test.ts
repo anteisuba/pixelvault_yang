@@ -305,7 +305,9 @@ describe('库开着、在看哪一样（10-26）', () => {
       [],
       '这个角色的设定怎么完善',
     )
-    expect(board.endsWith('look 角色·Denia before you answer.')).toBe(true)
+    expect(board).toContain('look 角色·Denia before you answer.')
+    // 角色库开着（第 ⑩ 步）：改设定、找图都先出卡。
+    expect(board.endsWith('say in one line what is on it.')).toBe(true)
   })
 })
 

@@ -138,6 +138,7 @@ import {
 import { getCachedAssistantCharacter } from '@/hooks/use-assistant-persona'
 import {
   libraryShowSettled,
+  readLibraryCardHands,
   readLibraryView,
   requestLibraryShow,
 } from '@/hooks/use-library-view'
@@ -3418,7 +3419,9 @@ export function useAssistantOperator(
       const name =
         buildSnapshot().cards?.characters.find(
           (item) => item.id === characterId,
-        )?.name ?? characterId
+        )?.name ??
+        readLibraryCardHands()?.nameOf(characterId) ??
+        characterId
       const keptFields = kept.map((item) => item.field)
       const label = describeCharacterProfileDecisionText(name, keptFields)
       return {
@@ -3447,7 +3450,9 @@ export function useAssistantOperator(
       ) {
         return
       }
-      const applyProfile = applyContext.cards?.applyProfile
+      // 角色库开着时外壳那份面板没有角色页那只手：借库里角色页报上来的（第 ⑩ 步）。
+      const applyProfile = (applyContext.cards ?? readLibraryCardHands())
+        ?.applyProfile
       resolveOperatorConfirm(STUDIO_OPERATOR_CONFIRM_STATUS_IDS.submitting)
       const ok = applyProfile
         ? await applyProfile(
@@ -3520,7 +3525,9 @@ export function useAssistantOperator(
   const characterName = useCallback(
     (characterId: string) =>
       buildSnapshot().cards?.characters.find((item) => item.id === characterId)
-        ?.name ?? characterId,
+        ?.name ??
+      readLibraryCardHands()?.nameOf(characterId) ??
+      characterId,
     [buildSnapshot],
   )
 
@@ -3594,9 +3601,10 @@ export function useAssistantOperator(
         )
       ).filter((image) => image !== null)
       if (!isCurrentThread()) return
+      const hands = applyContext.cards ?? readLibraryCardHands()
       const attached =
-        ready.length && applyContext.cards
-          ? await applyContext.cards.attachImages(characterId, ready)
+        ready.length && hands
+          ? await hands.attachImages(characterId, ready)
           : null
       if (!isCurrentThread()) return
       if (!attached) {

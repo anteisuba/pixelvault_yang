@@ -549,7 +549,14 @@
           "identity": "身份",
           "behavior": "性格",
           "speech": "说话方式",
-          "backstory": "经历"
+          "backstory": "经历",
+          "boundaries": "不会做的事",
+          "catchphrases": "口头禅",
+          "moods": "几种口吻",
+          "interests": "她在意的东西",
+          "scenario": "场景",
+          "opening": "开场白",
+          "examples": "对话示例"
         },
         "ownWordsOnly": "只留我写的",
         "keepAdded": "连补充一起收",

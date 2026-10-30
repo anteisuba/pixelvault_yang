@@ -351,6 +351,12 @@
       "deleteBody": "删了她就不记得了。",
       "deleteFindingTitle": "删除这条见闻？",
       "deleteFindingBody": "她聊天时不会再想起它。"
+    },
+    "assistantPills": {
+      "tidyImport": "整理导入的卡",
+      "fillProfile": "补全她的设定",
+      "findImages": "给她找立绘",
+      "interests": "帮她想几个兴趣"
     }
   },
   "CharacterImagePick": {

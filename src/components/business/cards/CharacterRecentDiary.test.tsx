@@ -29,8 +29,6 @@ vi.mock('@/hooks/cards', () => ({
 vi.mock('@/hooks/use-chat-persona', () => ({ usePersonaSwitch: vi.fn() }))
 vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => false }))
 
-import { NODE_STUDIO_ASSISTANT_ROUTE_MODELS } from '@/constants/node-studio'
-import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { CharacterRecentDiary, buildDiary } from './CharacterRecentDiary'
 
 const now = new Date()
@@ -43,10 +41,6 @@ const daysBack = (days: number) =>
     now.getDate() - days,
     9,
   ).toISOString()
-
-const claude = NODE_STUDIO_ASSISTANT_ROUTE_MODELS.find(
-  (model) => model.adapterType === AI_ADAPTER_TYPES.ANTHROPIC,
-)!
 
 function growthOf(patch: Partial<CharacterGrowth> = {}): CharacterGrowth {
   return {
@@ -79,12 +73,7 @@ function growthOf(patch: Partial<CharacterGrowth> = {}): CharacterGrowth {
       },
     ],
     opinions: [{ id: 'o1', text: '厚涂更适合画雨天。', createdAt: today(10) }],
-    browse: {
-      enabled: true,
-      model: claude.modelId,
-      pausedReason: null,
-      browsedAt: today(9),
-    },
+    outing: { running: null, recent: [], frequentSites: [] },
     ...patch,
   }
 }
@@ -97,9 +86,8 @@ function hookOf(growth: CharacterGrowth) {
     revertingId: null,
     revert: vi.fn(),
     reload: vi.fn(),
-    setBrowse: vi.fn(async () => ({ ok: true as const })),
-    goingOut: false,
-    goOutNow: vi.fn(async () => {}),
+    startOuting: vi.fn(async () => ({ ok: true as const })),
+    stopOuting: vi.fn(async () => ({ ok: true as const })),
     removeFinding: vi.fn(async () => ({ ok: true as const })),
     editOpinion: vi.fn(async () => ({ ok: true as const })),
     removeOpinion: vi.fn(async () => ({ ok: true as const })),

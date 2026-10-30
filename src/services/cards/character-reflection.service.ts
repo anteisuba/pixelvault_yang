@@ -198,7 +198,12 @@ export function applyReflectionToPersona(
     : { persona: checked.data, reasons }
 }
 
-async function writeJournal(userId: string, cardId: string, text: string) {
+/** 写一篇日记，超了每张卡的上限就删最旧的（出门回来那篇也走这里）。 */
+export async function writeJournal(
+  userId: string,
+  cardId: string,
+  text: string,
+) {
   const entry = text.trim().slice(0, CHARACTER_REFLECTION.journalChars)
   if (!entry) return
   await db.characterJournal.create({

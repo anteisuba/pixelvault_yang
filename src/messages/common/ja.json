@@ -446,9 +446,10 @@
     "promptTags": {
       "unusable": "アシスタントがタグに変換できませんでした。"
     },
-    "characterBrowse": {
-      "noModel": "お出かけに使うモデルを選んでください",
-      "unknownModel": "このモデルは使えません。別のモデルを選んでください"
+    "characterOuting": {
+      "unknownModel": "このモデルは使えません。別のを選んでください",
+      "missingKey": "このモデルにはまだキーがありません",
+      "running": "もう出かけています"
     },
     "tavernCard": {
       "notACard": "SillyTavern のキャラクターカード（PNG または JSON）ではありません。",

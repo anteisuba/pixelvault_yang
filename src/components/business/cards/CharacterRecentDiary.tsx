@@ -11,6 +11,7 @@ import type {
   CharacterGrowth,
   CharacterJournalEntry,
   CharacterOpinionEntry,
+  CharacterOutingRun,
   CharacterRevisionEntry,
 } from '@/types/character-growth'
 import type { CharacterStickerRecord } from '@/types/character-sticker'
@@ -26,6 +27,7 @@ import {
   RevisionDiff,
   StickerTile,
   dayKey,
+  groupOutings,
   useFieldLabel,
 } from '@/components/business/cards/CharacterRecent'
 import type { useCharacterGrowth, useCharacterStickers } from '@/hooks/cards'
@@ -43,7 +45,12 @@ type Growth = ReturnType<typeof useCharacterGrowth>
 type Stickers = ReturnType<typeof useCharacterStickers>
 
 type DiaryEvent =
-  | { kind: 'outing'; at: string; findings: CharacterFindingEntry[] }
+  | {
+      kind: 'outing'
+      at: string
+      findings: CharacterFindingEntry[]
+      run: CharacterOutingRun | null
+    }
   | { kind: 'revision'; at: string; revision: CharacterRevisionEntry }
   | { kind: 'opinion'; at: string; opinion: CharacterOpinionEntry }
   | { kind: 'stickers'; at: string; stickers: CharacterStickerRecord[] }
@@ -58,7 +65,7 @@ interface DiaryDay {
 const newestFirst = (a: { at: string }, b: { at: string }) =>
   a.at < b.at ? 1 : a.at > b.at ? -1 : 0
 
-/** 按天分好：日记新的在上；同一天的见闻折成一趟出门、她逛来的表情折成一条（⛔ 你上传的）。 */
+/** 按天分好：日记新的在上；见闻一趟一条（`groupOutings`）、她逛来的表情一天折成一条（⛔ 你上传的）。 */
 export function buildDiary(
   growth: CharacterGrowth,
   stickers: readonly CharacterStickerRecord[],
@@ -81,13 +88,8 @@ export function buildDiary(
     }
     return [...groups.values()]
   }
-  for (const findings of grouped(growth.findings, (row) => row.seenAt)) {
-    const at = findings.reduce(
-      (latest, row) => (row.seenAt > latest ? row.seenAt : latest),
-      findings[0].seenAt,
-    )
-    dayOf(at).events.push({ kind: 'outing', at, findings })
-  }
+  for (const outing of groupOutings(growth))
+    dayOf(outing.at).events.push({ kind: 'outing', ...outing })
   for (const revision of growth.revisions)
     dayOf(revision.createdAt).events.push({
       kind: 'revision',
@@ -232,7 +234,7 @@ export function CharacterRecentDiary({
                 <ul className="flex flex-col">
                   {day.events.map((event) => (
                     <li
-                      key={`${event.kind}:${event.at}`}
+                      key={`${event.kind}:${event.at}:${event.kind === 'outing' ? (event.run?.id ?? '') : ''}`}
                       className="border-b border-border py-2.5 last:border-b-0"
                     >
                       <DiaryEventRow
@@ -352,6 +354,7 @@ function DiaryEventRow({
     return (
       <OutingEvent
         findings={event.findings}
+        run={event.run}
         open={outingOpen}
         onToggle={() => setOutingOpen((open) => !open)}
         onDelete={(finding) => onDelete({ kind: 'finding', id: finding.id })}

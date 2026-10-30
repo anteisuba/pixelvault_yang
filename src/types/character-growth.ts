@@ -13,8 +13,10 @@ import {
   CHARACTER_REVISION_SOURCE_IDS,
 } from '@/constants/cards'
 import {
-  CHARACTER_BROWSE_PAUSE_REASONS,
   CHARACTER_BROWSE_SOURCES,
+  CHARACTER_OUTING,
+  CHARACTER_OUTING_END_REASONS,
+  CHARACTER_OUTING_STATUS,
 } from '@/constants/character-browse'
 
 export const CharacterJournalEntrySchema = z.object({
@@ -65,45 +67,73 @@ export const CharacterOpinionEntrySchema = z.object({
   createdAt: z.string(),
 })
 
-/** 出门逛的设置与状态（`CharacterCard.browse*`）。 */
-export const CharacterBrowseStateSchema = z.object({
-  enabled: z.boolean(),
-  /** 助手路由表的 modelId；关上也留着，再打开接着用。从没打开过时是空。 */
-  model: z.string().nullable(),
-  pausedReason: z
+/**
+ * 一趟出门（角色大项目第 ⑤ 步）。`nowLabel` = 「来源\n搜索词」（来源是内置站 id 或 `site:域名`）；
+ * `usedTokens` 按 `CHARACTER_OUTING.tokensPerPoint` 折点给人看。
+ */
+export const CharacterOutingRunSchema = z.object({
+  id: z.string(),
+  status: z.enum([
+    CHARACTER_OUTING_STATUS.running,
+    CHARACTER_OUTING_STATUS.done,
+    CHARACTER_OUTING_STATUS.stopped,
+    CHARACTER_OUTING_STATUS.failed,
+  ]),
+  model: z.string(),
+  sources: z.array(z.string()),
+  sites: z.array(z.string()),
+  budgetPoints: z.number().int(),
+  usedTokens: z.number().int(),
+  kept: z.number().int(),
+  nowLabel: z.string().nullable(),
+  endReason: z
     .enum([
-      CHARACTER_BROWSE_PAUSE_REASONS.noModel,
-      CHARACTER_BROWSE_PAUSE_REASONS.modelUnavailable,
-      CHARACTER_BROWSE_PAUSE_REASONS.missingKey,
+      CHARACTER_OUTING_END_REASONS.budget,
+      CHARACTER_OUTING_END_REASONS.stopped,
+      CHARACTER_OUTING_END_REASONS.nothing,
+      CHARACTER_OUTING_END_REASONS.failed,
     ])
     .nullable(),
-  browsedAt: z.string().nullable(),
+  startedAt: z.string(),
+  endedAt: z.string().nullable(),
 })
+
+/** 出门卡要的：正在跑的那一趟、最近几趟（河里每趟一条；弹框记住上次的选法）、你常加的网址。 */
+export const CharacterOutingStateSchema = z.object({
+  running: CharacterOutingRunSchema.nullable(),
+  recent: z.array(CharacterOutingRunSchema),
+  frequentSites: z.array(z.string()),
+})
+
+/**
+ * POST `/api/character-cards/[id]/outing`：弹框里的选法。`sources` 空 = 自动（这个模型去得了的都去）；
+ * `model` 可以是 `auto`（服务端换成「自动」此刻挑中的那一个）。
+ */
+export const StartCharacterOutingSchema = z.object({
+  model: z.string().trim().min(1).max(120),
+  sources: z
+    .array(z.enum(CHARACTER_BROWSE_SOURCES))
+    .max(CHARACTER_BROWSE_SOURCES.length),
+  sites: z
+    .array(z.string().trim().min(1).max(CHARACTER_OUTING.siteChars))
+    .max(CHARACTER_OUTING.maxSites),
+  budgetPoints: z
+    .number()
+    .int()
+    .min(CHARACTER_OUTING.minBudget)
+    .max(CHARACTER_OUTING.maxBudget),
+})
+
+/** POST `/api/character-cards/[id]/outing/stop`：「结束」。 */
+export const StopCharacterOutingSchema = z.object({})
 
 export const CharacterGrowthSchema = z.object({
   journals: z.array(CharacterJournalEntrySchema),
   revisions: z.array(CharacterRevisionEntrySchema),
   findings: z.array(CharacterFindingEntrySchema),
   opinions: z.array(CharacterOpinionEntrySchema),
-  browse: CharacterBrowseStateSchema,
+  outing: CharacterOutingStateSchema,
 })
-
-/**
- * PUT `/api/character-cards/[id]/browse`：开关与型号。打开时不给型号 = 用助手当时那个
- * （`auto` 也行：服务端换成「自动」此刻挑中的那一个）；⛔ 开着却没型号。
- */
-export const UpdateCharacterBrowseSchema = z.object({
-  enabled: z.boolean(),
-  model: z.string().trim().min(1).max(120).optional(),
-})
-
-/** POST `/api/character-cards/[id]/browse/now`：打开开关就出门一趟。`went: false` = 关着或刚出过门。 */
-export const CharacterGoOutResultSchema = z.object({
-  went: z.boolean(),
-  kept: z.number().int().nonnegative(),
-})
-
-export const GoOutNowSchema = z.object({})
 
 /** 角色总览「最近」一张卡：她最近一件事（第 ① 步）。`text` 是日记全文 / 出门看到的标题；改动给改到的格名。 */
 export const CharacterRecentActivitySchema = z.object({
@@ -125,9 +155,9 @@ export type CharacterRevisionEntry = z.infer<
 >
 export type CharacterFindingEntry = z.infer<typeof CharacterFindingEntrySchema>
 export type CharacterOpinionEntry = z.infer<typeof CharacterOpinionEntrySchema>
-export type CharacterBrowseState = z.infer<typeof CharacterBrowseStateSchema>
-export type CharacterGrowth = z.infer<typeof CharacterGrowthSchema>
-export type CharacterGoOutResult = z.infer<typeof CharacterGoOutResultSchema>
-export type UpdateCharacterBrowseRequest = z.infer<
-  typeof UpdateCharacterBrowseSchema
+export type CharacterOutingRun = z.infer<typeof CharacterOutingRunSchema>
+export type CharacterOutingState = z.infer<typeof CharacterOutingStateSchema>
+export type StartCharacterOutingRequest = z.infer<
+  typeof StartCharacterOutingSchema
 >
+export type CharacterGrowth = z.infer<typeof CharacterGrowthSchema>

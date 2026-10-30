@@ -1,12 +1,16 @@
 import 'server-only'
 
-import { randomBytes } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
+
+import { after } from 'next/server'
 
 import { CHARACTER_STICKERS } from '@/constants/character-browse'
 import { db } from '@/lib/db'
+import { logger } from '@/lib/logger'
 import {
   detectTrustedImageMime,
   deleteFromR2,
+  fetchAsBuffer,
   uploadToR2,
 } from '@/services/storage/r2'
 import { ensureUser } from '@/services/user.service'
@@ -63,6 +67,72 @@ const SELECT = {
   sentAt: true,
 } as const
 
+/** 图片内容指纹：同一张图换个地址也认得出来。 */
+export function stickerContentHash(data: Buffer): string {
+  return createHash('sha256').update(data).digest('hex')
+}
+
+/**
+ * 同一张图只留一张（10-30 owner「表情包找了好多次重复的」）：先给还没指纹的补上（从 R2 取回来算），
+ * 指纹一样的留最早那张，拉黑过的算拉黑（她不会再发），其余删掉。
+ * ⚠ 只认一模一样的图；裁了边、换了尺寸的「长得像」留给表情包那一步。
+ */
+export async function dedupeCharacterStickers(cardId: string): Promise<void> {
+  const rows = await db.characterSticker.findMany({
+    where: { characterCardId: cardId },
+    orderBy: { createdAt: 'asc' },
+    select: {
+      id: true,
+      url: true,
+      storageKey: true,
+      contentHash: true,
+      isBlocked: true,
+    },
+  })
+  for (const row of rows) {
+    if (row.contentHash) continue
+    try {
+      const { buffer } = await fetchAsBuffer(row.url)
+      row.contentHash = stickerContentHash(buffer)
+      await db.characterSticker.update({
+        where: { id: row.id },
+        data: { contentHash: row.contentHash },
+        select: { id: true },
+      })
+    } catch (error) {
+      logger.info('character sticker hash failed', {
+        cardId,
+        error: error instanceof Error ? error.message : String(error),
+      })
+    }
+  }
+  const keep = new Map<string, (typeof rows)[number]>()
+  const extra: (typeof rows)[number][] = []
+  for (const row of rows) {
+    if (!row.contentHash) continue
+    const first = keep.get(row.contentHash)
+    if (!first) {
+      keep.set(row.contentHash, row)
+      continue
+    }
+    extra.push(row)
+    if (row.isBlocked && !first.isBlocked) {
+      first.isBlocked = true
+      await db.characterSticker.update({
+        where: { id: first.id },
+        data: { isBlocked: true },
+        select: { id: true },
+      })
+    }
+  }
+  if (extra.length === 0) return
+  await db.characterSticker.deleteMany({
+    where: { id: { in: extra.map((row) => row.id) } },
+  })
+  for (const row of extra)
+    await deleteFromR2(row.storageKey).catch(() => undefined)
+}
+
 async function ownedCardId(clerkId: string, cardId: string) {
   const user = await ensureUser(clerkId)
   const card = await db.characterCard.findFirst({
@@ -94,8 +164,18 @@ export async function listCharacterStickers(
   const rows = await db.characterSticker.findMany({
     where: { characterCardId: owned.cardId },
     orderBy: { createdAt: 'desc' },
-    select: SELECT,
+    select: { ...SELECT, contentHash: true },
   })
+  // 还有没指纹的旧行：回完这次在后台去一遍重，下次打开就干净了。
+  if (rows.some((row) => !row.contentHash))
+    after(() =>
+      dedupeCharacterStickers(owned.cardId).catch((error: unknown) => {
+        logger.warn('character sticker dedupe failed', {
+          cardId: owned.cardId,
+          error: error instanceof Error ? error.message : String(error),
+        })
+      }),
+    )
   return rows.map(toRecord)
 }
 
@@ -117,6 +197,13 @@ export async function addCharacterStickerFromFile(
     throw new CharacterStickerUploadError('TOO_LARGE')
   const image = await detectTrustedImageMime(input.fileBuffer).catch(() => null)
   if (!image) throw new CharacterStickerUploadError('NOT_AN_IMAGE')
+  // 已经有这张了：⛔ 再收一遍，回那一张。
+  const contentHash = stickerContentHash(input.fileBuffer)
+  const existing = await db.characterSticker.findFirst({
+    where: { characterCardId: owned.cardId, contentHash },
+    select: SELECT,
+  })
+  if (existing) return toRecord(existing)
   const key = stickerKey(
     owned.userId,
     owned.cardId,
@@ -134,6 +221,7 @@ export async function addCharacterStickerFromFile(
       characterCardId: owned.cardId,
       storageKey: key,
       url,
+      contentHash,
       whenToUse: input.whenToUse || CHARACTER_STICKERS.defaultWhen,
     },
     select: SELECT,

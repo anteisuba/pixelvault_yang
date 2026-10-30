@@ -86,6 +86,10 @@ owner 在卡上选的原话就是规格：「每轮存画布、过程和模型�
 - **不进分享 / 导出**：没有任何读路由；整个 `src/`（生成的 client 除外）只有上面那个服务与 sweep 碰 `db.assistantTurnRecord`，会话分享（`AssistantConversationShare`、`assistant-conversation.service.ts`）与下载 / 导出路径都不读它。回放要用时由人导出一行，交给 `src/test/assistant-replay/from-turn-record.ts`（纯函数，⛔ 不连库）。
 - **迁移** `20261015120000_assistant_turn_record`：只新建这一张表 + 三个索引（`(userId, turnId)` 唯一、`(userId, createdAt DESC)`、`createdAt`）+ 指向 `User` 的外键，⛔ 不动任何已有表的列、约束与数据。SQL 由 `prisma migrate diff` 对着 PGlite 上的整套迁移回放生成。**未对共用库执行，随下一次生产构建的 `prisma migrate deploy` 执行**（push main 即生产构建）；Preview 构建不跑迁移，Preview 上写记录会失败，只记警告、助手照常。
 
+## 角色出门 `CharacterOuting`（2026-10-30 · 角色大项目第 ⑤ 步）
+
+一趟出门一行（`src/services/cards/character-outing.service.ts`）：`status`（RUNNING / DONE / STOPPED / FAILED）· `model`（具体型号，⛔ `auto`）· `sources` / `sites`（空 = 自动）· `budgetPoints` · `usedTokens` / `calls` / `kept` / `rounds` / `emptyRounds`（跨段接着数）· `nowLabel`（「来源\n搜索词」）· `endReason` · `stopRequested` · `leaseUntil`（哪个函数正占着）· `startedAt` / `endedAt`。两条索引 `(characterCardId, startedAt DESC)` · `(userId, startedAt DESC)`，两头 `ON DELETE CASCADE`。同一迁移给 `CharacterSticker` 加 `contentHash`（sha256，+ `(characterCardId, contentHash)` 索引）：同一张图不再收，旧行没指纹的列表时后台补上并每样只留最早那张。`CharacterCard.browse*` 五列代码已停读停写（`RETIRED_COLUMNS`），下一次部署删列。迁移 `20261030120000_character_outing` 在 PGlite 上整套回放、`migrate diff` 无差异；随生产构建执行。
+
 ## 迁移纪律
 
 1. 操作流程与授权统一见 `docs/scenes/db-migration.md`；不在生产或未确认隔离的连接运行 `migrate dev`（含 create-only）。已有环境记录不是本轮连接核验；不自动生成迁移或套用兼容期方案。

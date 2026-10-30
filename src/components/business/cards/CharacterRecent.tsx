@@ -14,36 +14,30 @@ import {
   X,
 } from '@/components/icons'
 import { CHARACTER_REVISION_SOURCE_IDS } from '@/constants/cards'
-import {
-  CHARACTER_BROWSE_SOURCE_IDS,
-  CHARACTER_STICKERS,
-  type CharacterBrowseSource,
-} from '@/constants/character-browse'
-import { assistantAdapterSupportsImage } from '@/constants/assistant'
-import {
-  ASSISTANT_ROUTE_MODEL_AUTO,
-  getAssistantRouteModelEntry,
-} from '@/constants/assistant-persona'
-import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { CHARACTER_STICKERS } from '@/constants/character-browse'
 import { DURATION, EASE_STANDARD } from '@/constants/motion'
 import type {
   CharacterFindingEntry,
   CharacterGrowth,
   CharacterJournalEntry,
   CharacterOpinionEntry,
+  CharacterOutingRun,
   CharacterRevisionEntry,
 } from '@/types/character-growth'
 import type { CharacterStickerRecord } from '@/types/character-sticker'
-import { StudioOperatorModelChip } from '@/components/business/studio/assistant-operator/StudioOperatorModelChip'
+import {
+  OutingCard,
+  SOURCE_KEYS,
+  tokensToPoints,
+  useOutingSourceLabel,
+} from '@/components/business/cards/CharacterOutingCard'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
 import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import { Spinner } from '@/components/ui/spinner'
-import { Switch } from '@/components/ui/switch'
 import { useCharacterGrowth, useCharacterStickers } from '@/hooks/cards'
 import { usePersonaSwitch } from '@/hooks/use-chat-persona'
 import { useIsMobile } from '@/hooks/use-mobile'
-import { getApiErrorMessage } from '@/lib/api-error-message'
 import { cn } from '@/lib/utils'
 
 /**
@@ -51,8 +45,8 @@ import { cn } from '@/lib/utils'
  * 筛选切换条 → 按天分组的时间河。河里五种事件：出门（同一天带回的见闻折成一条）· 收了表情 ·
  * 观点 · 改动（能撤回）· 日记。筛到「表情」时整栏换成她的表情包格子（能上传一张）。
  *
- * ⚠ 后台没有「一次出门」这张表、也不记哪一站失败：同一天看到的见闻就是那天那一趟（每天只出门
- * 一次）；单站失败不画（`pages/cards.md` §2.3 那一行等后台记下了再加）。
+ * ⭐ 一趟出门一条（第 ⑤ 步起有 `CharacterOuting`）：那一趟起止之间看到的见闻挂在它下面，一条没带回也
+ *   照样有一条；有这张表之前的见闻按天折成一趟。单站失败不画（后台不记）。
  */
 
 type Growth = ReturnType<typeof useCharacterGrowth>
@@ -75,7 +69,12 @@ export function daysAgo(iso: string): number {
 }
 
 type RiverEvent =
-  | { kind: 'outing'; at: string; findings: CharacterFindingEntry[] }
+  | {
+      kind: 'outing'
+      at: string
+      findings: CharacterFindingEntry[]
+      run: CharacterOutingRun | null
+    }
   | { kind: 'stickers'; at: string; stickers: CharacterStickerRecord[] }
   | { kind: 'opinion'; at: string; opinion: CharacterOpinionEntry }
   | { kind: 'journal'; at: string; journal: CharacterJournalEntry }
@@ -98,7 +97,30 @@ function byDay<T>(rows: readonly T[], at: (row: T) => string) {
 }
 
 /**
- * 一天一组，组内新的在上；同一天看到的见闻折成一趟出门。她逛来的表情（⛔ 你上传的）只在「全部」
+ * 见闻按趟分：收了工的每一趟拿走它起止之间看到的（时间 = 收工那一刻）；剩下的（有出门表之前、
+ * 或正在外面这一趟的）按天折成一趟，时间 = 那天最早的一样。
+ */
+export function groupOutings(growth: CharacterGrowth) {
+  const left = new Set(growth.findings)
+  const outings: {
+    at: string
+    findings: CharacterFindingEntry[]
+    run: CharacterOutingRun | null
+  }[] = growth.outing.recent.map((run) => {
+    const end = run.endedAt ?? run.startedAt
+    const findings = growth.findings.filter(
+      (row) => row.seenAt >= run.startedAt && row.seenAt <= end,
+    )
+    for (const row of findings) left.delete(row)
+    return { at: end, findings, run }
+  })
+  for (const { items, at } of byDay([...left], (row) => row.seenAt))
+    outings.push({ at, findings: items, run: null })
+  return outings
+}
+
+/**
+ * 一天一组，组内新的在上；见闻一趟一条（`groupOutings`）。她逛来的表情（⛔ 你上传的）只在「全部」
  * 里按天出一条「收了 N 张表情」。
  */
 function buildRiver(
@@ -110,9 +132,8 @@ function buildRiver(
     filter === 'all' || filter === kind
   const events: RiverEvent[] = []
   if (show('finding')) {
-    for (const { items, at } of byDay(growth.findings, (row) => row.seenAt)) {
-      events.push({ kind: 'outing', at, findings: items })
-    }
+    for (const outing of groupOutings(growth))
+      events.push({ kind: 'outing', ...outing })
   }
   if (filter === 'all') {
     const found = stickers.filter((row) => !row.fromCreator)
@@ -193,174 +214,12 @@ function formatValue(value: unknown): string {
   return ''
 }
 
-const SOURCE_KEYS: Record<CharacterBrowseSource, string> = {
-  bilibili: 'sourceBilibili',
-  danbooru: 'sourceDanbooru',
-  civitai: 'sourceCivitai',
-  x: 'sourceX',
-  web: 'sourceWeb',
-}
-
 function hostOf(url: string): string {
   try {
     return new URL(url).hostname.replace(/^www\./, '')
   } catch {
     return url
   }
-}
-
-/* ── 出门卡 ─────────────────────────────────────────────────────────── */
-
-export function OutingCard({ growth: data }: { growth: Growth }) {
-  const t = useTranslations('CharacterRoster.recent')
-  const tErrors = useTranslations('Errors')
-  const format = useFormatter()
-  const [saving, setSaving] = useState(false)
-  const [pickerOpen, setPickerOpen] = useState(false)
-  /** 开关先拨过去，存回来再以服务端为准（没存上就弹回）。 */
-  const [flipped, setFlipped] = useState<boolean | null>(null)
-  const browse = data.growth?.browse
-  if (!browse) return null
-  const entry = getAssistantRouteModelEntry(browse.model)
-  const adapter = entry?.adapterType
-  const sources = [
-    CHARACTER_BROWSE_SOURCE_IDS.bilibili,
-    CHARACTER_BROWSE_SOURCE_IDS.danbooru,
-    CHARACTER_BROWSE_SOURCE_IDS.civitai,
-    // X 只有 Grok 搜得到（Grok 自带 X 搜索），别家不出这一颗。
-    ...(adapter === AI_ADAPTER_TYPES.XAI
-      ? [CHARACTER_BROWSE_SOURCE_IDS.x]
-      : []),
-    CHARACTER_BROWSE_SOURCE_IDS.web,
-  ] as const
-  const blind =
-    adapter !== undefined &&
-    !assistantAdapterSupportsImage(adapter, entry?.modelId)
-
-  const save = async (input: { enabled: boolean; model?: string }) => {
-    setSaving(true)
-    const result = await data.setBrowse(input)
-    setSaving(false)
-    if (result.ok) {
-      // 打开就出门（owner 2026-10-29），⛔ 等第二天定时那一趟；刚出过门服务端会跳过。
-      if (input.enabled && !browse.enabled) void data.goOutNow()
-      return true
-    }
-    // 只认翻译过的原因，⛔ 把英文原话递给用户。
-    toast.error(
-      getApiErrorMessage(tErrors, { i18nKey: result.i18nKey }, t('saveFailed')),
-    )
-    // 打开时助手那边挑不出型号：直接把选型号的那张单子打开。
-    if (input.enabled && !browse.enabled) setPickerOpen(true)
-    return false
-  }
-
-  // 出门时先记的时间，这趟写下的见闻都在它之后（一趟最多 `keepMax` 条，列表里一定有）。
-  const broughtBack = browse.browsedAt
-    ? (data.growth?.findings ?? []).filter(
-        (finding) => finding.seenAt >= (browse.browsedAt as string),
-      ).length
-    : 0
-  const status = !browse.enabled
-    ? t('off')
-    : data.goingOut
-      ? t('goingOut')
-      : browse.pausedReason
-        ? t('cannotGoOut')
-        : browse.browsedAt
-          ? `${
-              daysAgo(browse.browsedAt) <= 0
-                ? t('outToday', {
-                    time: format.dateTime(new Date(browse.browsedAt), {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    }),
-                  })
-                : t('lastOut', {
-                    date: format.dateTime(new Date(browse.browsedAt), {
-                      month: 'long',
-                      day: 'numeric',
-                    }),
-                  })
-            } · ${
-              broughtBack > 0
-                ? t('broughtBack', { count: broughtBack })
-                : t('broughtNothing')
-            }`
-          : t('notYet')
-
-  return (
-    <section
-      aria-label={t('goOut')}
-      className="flex flex-col gap-2.5 rounded-20 bg-card px-4.5 py-3.5 shadow-card"
-    >
-      <div className="flex flex-wrap items-center gap-x-3.5 gap-y-2">
-        <Switch
-          checked={flipped ?? browse.enabled}
-          disabled={saving}
-          onCheckedChange={(enabled) => {
-            setFlipped(enabled)
-            void save({ enabled }).then(() => setFlipped(null))
-          }}
-          aria-label={t('goOut')}
-        />
-        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="text-2sm font-medium">{t('goOut')}</span>
-          <span className="text-xs text-muted-foreground">
-            {browse.enabled ? `${t('daily')} · ${status}` : status}
-          </span>
-        </div>
-        {browse.enabled ? (
-          <ul className="flex flex-wrap gap-1.5" aria-label={t('sources')}>
-            {sources.map((source) => (
-              <li
-                key={source}
-                className="flex h-6 items-center rounded-full bg-muted px-2.5 text-xs text-ink-2"
-              >
-                {t(SOURCE_KEYS[source])}
-              </li>
-            ))}
-          </ul>
-        ) : null}
-      </div>
-      {browse.enabled ? (
-        <div className="flex flex-col gap-2 pl-11.5">
-          <div className="flex flex-wrap items-center gap-1 text-xs text-ink-2">
-            <span>{t('model')}</span>
-            <StudioOperatorModelChip
-              value={entry?.modelId ?? ASSISTANT_ROUTE_MODEL_AUTO}
-              open={pickerOpen}
-              onOpenChange={setPickerOpen}
-              onChange={(model) => save({ enabled: true, model })}
-            />
-            {blind ? (
-              <span className="text-muted-foreground">{t('blindModel')}</span>
-            ) : null}
-          </div>
-          {browse.pausedReason ? (
-            <div className="flex items-center gap-2 rounded-12 bg-status-risk-surface px-3 py-2 text-2sm">
-              <span
-                aria-hidden
-                className="size-1.5 shrink-0 rounded-full bg-status-risk"
-              />
-              <span className="flex-1">
-                {t(`paused.${browse.pausedReason}`, {
-                  model: entry?.label ?? browse.model ?? '',
-                })}
-              </span>
-              <button
-                type="button"
-                onClick={() => setPickerOpen(true)}
-                className="h-7 rounded-full px-2 font-medium hover:tint-hover"
-              >
-                {t('changeModel')}
-              </button>
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-    </section>
-  )
 }
 
 /* ── 河里的四种事件 ───────────────────────────────────────────────────── */
@@ -388,31 +247,107 @@ function Ghost({
 
 export function OutingEvent({
   findings,
+  run,
   open,
   onToggle,
   onDelete,
 }: {
+  findings: CharacterFindingEntry[]
+  run: CharacterOutingRun | null
+  open: boolean
+  onToggle(): void
+  onDelete(finding: CharacterFindingEntry): void
+}) {
+  const t = useTranslations('CharacterRoster.recent')
+  const tOuting = useTranslations('CharacterRoster.recent.outing')
+  const sourceLabel = useOutingSourceLabel()
+  const where = run
+    ? [
+        ...(run.sources.length
+          ? run.sources
+          : findings.map((row) => row.source)),
+        ...run.sites.map((site) => `site:${site}`),
+      ]
+    : findings.map((row) => row.source)
+  const whereText = [...new Set(where)].map(sourceLabel).join(' · ')
+  if (run) {
+    const detail = [
+      t('findingCount', { count: findings.length }),
+      tOuting('runPoints', {
+        count: Math.min(run.budgetPoints, tokensToPoints(run.usedTokens)),
+      }),
+      ...(run.endReason && run.endReason !== 'budget'
+        ? [tOuting(`end.${run.endReason}`)]
+        : []),
+    ].join(' · ')
+    const summary = (
+      <>
+        <span>
+          {tOuting('runSummary', { where: whereText || tOuting('auto') })}
+        </span>
+        <span className="font-normal text-muted-foreground">· {detail}</span>
+      </>
+    )
+    if (findings.length === 0)
+      return (
+        <p
+          className="flex w-full flex-wrap items-center gap-x-2 py-0.5 text-2sm font-medium"
+          data-testid="character-outing-run"
+        >
+          {summary}
+        </p>
+      )
+    return (
+      <OutingFindings
+        summary={summary}
+        findings={findings}
+        open={open}
+        onToggle={onToggle}
+        onDelete={onDelete}
+      />
+    )
+  }
+  return (
+    <OutingFindings
+      summary={
+        <>
+          <span>{t('wentOut', { where: whereText })}</span>
+          <span className="font-normal text-muted-foreground">
+            · {t('findingCount', { count: findings.length })}
+          </span>
+        </>
+      }
+      findings={findings}
+      open={open}
+      onToggle={onToggle}
+      onDelete={onDelete}
+    />
+  )
+}
+
+function OutingFindings({
+  summary,
+  findings,
+  open,
+  onToggle,
+  onDelete,
+}: {
+  summary: ReactNode
   findings: CharacterFindingEntry[]
   open: boolean
   onToggle(): void
   onDelete(finding: CharacterFindingEntry): void
 }) {
   const t = useTranslations('CharacterRoster.recent')
-  const where = [...new Set(findings.map((row) => row.source))]
-    .map((source) => t(SOURCE_KEYS[source]))
-    .join(' · ')
   return (
     <>
       <button
         type="button"
         aria-expanded={open}
         onClick={onToggle}
-        className="flex w-full items-center gap-2 py-0.5 text-left text-2sm font-medium"
+        className="flex w-full flex-wrap items-center gap-x-2 py-0.5 text-left text-2sm font-medium"
       >
-        <span>{t('wentOut', { where })}</span>
-        <span className="font-normal text-muted-foreground">
-          · {t('findingCount', { count: findings.length })}
-        </span>
+        {summary}
         <ChevronRight
           aria-hidden
           className={cn(
@@ -805,7 +740,10 @@ export function CharacterRecent({
   ] as const
 
   const neverOut =
-    growth !== null && !growth.browse.enabled && growth.findings.length === 0
+    growth !== null &&
+    !growth.outing.running &&
+    growth.outing.recent.length === 0 &&
+    growth.findings.length === 0
 
   return (
     <section aria-label={t('title')} className="flex min-h-0 flex-1 flex-col">
@@ -896,6 +834,7 @@ export function CharacterRecent({
                             {event.kind === 'outing' ? (
                               <OutingEvent
                                 findings={event.findings}
+                                run={event.run}
                                 open={open}
                                 onToggle={() =>
                                   setOpened((prev) => ({

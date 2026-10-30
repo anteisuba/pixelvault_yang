@@ -1,6 +1,7 @@
 /**
- * 角色出门逛（第 4 批「人味」，owner 2026-10-28）：每张开了开关的角色卡每天按自己的人设逛一次，
- * 看到的东西用她的口吻写成见闻（`CharacterFinding`）。⛔ 不进素材库；花的是 owner 自己的 key。
+ * 角色出门调查（第 4 批「人味」，owner 2026-10-28；角色大项目第 ⑤ 步起你点一次去一次）：按她的人设
+ * 和在意的东西去逛，看到的东西用她的口吻写成见闻（`CharacterFinding`）。⛔ 不进素材库；花的是 owner
+ * 自己的 key。
  */
 export const CHARACTER_BROWSE_SOURCE_IDS = {
   bilibili: 'bilibili',
@@ -22,10 +23,6 @@ export const CHARACTER_BROWSE_SOURCES = [
 export type CharacterBrowseSource = (typeof CHARACTER_BROWSE_SOURCES)[number]
 
 export const CHARACTER_BROWSE = {
-  /** 最近这么多天和她聊过（或她是现在的助手人设）才去逛。 */
-  recentDays: 7,
-  /** 同一张卡两次逛至少隔这么久（Hobby 的定时任务落点会漂一小时）。 */
-  minIntervalMs: 20 * 60 * 60 * 1000,
   /** 一次逛最多想几个搜索词。 */
   maxQueries: 5,
   /**
@@ -44,8 +41,6 @@ export const CHARACTER_BROWSE = {
   commentsTop: 8,
   /** 每张卡最多留几条见闻，超了删最旧的。 */
   keepFindings: 200,
-  /** 每天那一趟，一个人最多带几张卡出门（卡多了轮着来，最久没出门的先）。 */
-  cardsPerUserPerDay: 3,
   /** 见闻那句笔记的长度上限。 */
   noteChars: 200,
   /** 人设交给模型时截到多少字。 */
@@ -65,45 +60,102 @@ export const CHARACTER_BROWSE = {
   callTimeoutMs: 60_000,
   /** B 站只留具体的视频页（`/video/BV…` 或 `/video/av…`）；网搜退路偶尔回搜索结果页。 */
   bilibiliVideoUrl: /bilibili\.com\/video\/(?:BV|av)\w+/i,
-  /** 定时任务一趟最多跑多久：Vercel 函数 300 s 的上限前留出收尾。 */
-  cronBudgetMs: 240_000,
 } as const
 
 /**
- * 她出不了门的原因（存在 `CharacterCard.browsePausedReason`，角色页照着说）。⛔ 出了问题悄悄换别家。
+ * 一趟出门（角色大项目第 ⑤ 步，owner 10-29/10-30）：弹框选模型 · 来源 · 额度，你点一次去一次。
+ *
+ * ⭐ 额度按真实 token 折点：1 点 ≈ 1 万 token，跟用哪个模型无关。**一点都不超**（owner 10-30）：每次
+ *   调模型前按上限估一把（字数当 token、每张图 `imageTokens`、回答留 `outputReserveTokens`），估得
+ *   超了就收工；provider 报回来的才是实扣。
+ * ⭐ 回来写一篇日记，那一篇的花费从一开始就留着（`diaryReserveTokens`）。
+ * ⭐ 一段函数跑不完（Vercel 300 s）就接着下一段：占着 `leaseUntil`，过了没人续就由读状态的那一下接着跑。
  */
-export const CHARACTER_BROWSE_PAUSE_REASONS = {
-  /** 开着开关却没选型号（打开时本该默认填上当时助手那个）。 */
-  noModel: 'no_model',
-  /** 选的型号已经不在助手路由表里（下架 / 改名）。 */
-  modelUnavailable: 'model_unavailable',
-  /** 那一家的 key 没了。 */
-  missingKey: 'missing_key',
+export const CHARACTER_OUTING = {
+  tokensPerPoint: 10_000,
+  budgetChoices: [10, 30, 60] as const,
+  defaultBudget: 30,
+  minBudget: 5,
+  maxBudget: 200,
+  /** 你添加的网址最多几个、每个多长。 */
+  maxSites: 8,
+  siteChars: 120,
+  /** 一段最多跑多久（函数上限 300 s，留收尾）；占位比它稍长。 */
+  chunkMs: 230_000,
+  leaseMs: 280_000,
+  /** 跑着却这么久没动静 = 卡死了，记失败。 */
+  staleMs: 30 * 60 * 1000,
+  /** 一趟最多几轮（想搜什么 → 找 → 挑 → 细看），连着几轮一条新的都没有就收工。 */
+  maxRounds: 15,
+  maxEmptyRounds: 2,
+  diaryReserveTokens: 8_000,
+  imageTokens: 1_600,
+  outputReserveTokens: 1_500,
+  /** 模型自带网搜不报 token：一次按这么多算。 */
+  nativeSearchTokens: 8_000,
+  /** 弹框里「约 N 篇文章」的折算。 */
+  tokensPerArticle: 15_000,
+  /** 跑着时角色页多久问一次进度。 */
+  pollMs: 3_000,
+  /** 角色页读回最近几趟（河里每趟一条、弹框记住上次的选法）；常加的网址列几个。 */
+  recentRuns: 20,
+  frequentSites: 6,
+  /** 写日记时每条见闻带多少字。 */
+  diaryFindingChars: 240,
 } as const
 
-export type CharacterBrowsePauseReason =
-  (typeof CHARACTER_BROWSE_PAUSE_REASONS)[keyof typeof CHARACTER_BROWSE_PAUSE_REASONS]
+/** 一段跑完接着跑下一段：自己调自己这条内部接口（`Authorization: Bearer CRON_SECRET`）。 */
+export const CHARACTER_OUTING_CONTINUE_PATH = '/api/internal/characters/outing'
+
+export const CHARACTER_OUTING_STATUS = {
+  running: 'RUNNING',
+  done: 'DONE',
+  stopped: 'STOPPED',
+  failed: 'FAILED',
+} as const
+
+export type CharacterOutingStatus =
+  (typeof CHARACTER_OUTING_STATUS)[keyof typeof CHARACTER_OUTING_STATUS]
+
+/** 怎么收的工（`CharacterOuting.endReason`）。 */
+export const CHARACTER_OUTING_END_REASONS = {
+  /** 额度花到再调一次就会超。 */
+  budget: 'budget',
+  /** 你点了「结束」。 */
+  stopped: 'stopped',
+  /** 连着几轮一条新的都没找到 / 轮数到顶。 */
+  nothing: 'nothing',
+  /** 中途出错（key 没了、模型下架……）。 */
+  failed: 'failed',
+} as const
+
+export type CharacterOutingEndReason =
+  (typeof CHARACTER_OUTING_END_REASONS)[keyof typeof CHARACTER_OUTING_END_REASONS]
+
+/** 出不了门（点「开始」时就拦下，前端按 `i18nKey` 说人话）。 */
+export const CHARACTER_OUTING_ERRORS = {
+  unknownModel: {
+    code: 'CHARACTER_OUTING_UNKNOWN_MODEL',
+    httpStatus: 422,
+    i18nKey: 'errors.characterOuting.unknownModel',
+    message: 'That model is not available.',
+  },
+  missingKey: {
+    code: 'CHARACTER_OUTING_MISSING_KEY',
+    httpStatus: 409,
+    i18nKey: 'errors.characterOuting.missingKey',
+    message: 'That model has no API key.',
+  },
+  running: {
+    code: 'CHARACTER_OUTING_RUNNING',
+    httpStatus: 409,
+    i18nKey: 'errors.characterOuting.running',
+    message: 'She is already out.',
+  },
+} as const
 
 /** 她的观点存在她自己那份记忆里（`AssistantMemory.characterCardId`），正文以它开头。 */
 export const CHARACTER_OPINION_PREFIX = '观点：'
-
-/** 角色页改「出门逛」开关 / 型号失败的几种原因（前端按 `i18nKey` 说人话）。 */
-export const CHARACTER_BROWSE_SETTING_ERRORS = {
-  /** 打开时既没给型号、助手「自动」也挑不出一个（一把 key 都没有）。 */
-  noModel: {
-    code: 'CHARACTER_BROWSE_NO_MODEL',
-    httpStatus: 409,
-    i18nKey: 'errors.characterBrowse.noModel',
-    message: 'Pick a model for her to go out with.',
-  },
-  /** 给的型号不在助手路由表里。 */
-  unknownModel: {
-    code: 'CHARACTER_BROWSE_UNKNOWN_MODEL',
-    httpStatus: 422,
-    i18nKey: 'errors.characterBrowse.unknownModel',
-    message: 'That model is not available.',
-  },
-} as const
 
 /** 聊天时想起她的见闻（4c）。 */
 export const CHARACTER_FINDINGS_RECALL = {
@@ -133,11 +185,4 @@ export const CHARACTER_STICKERS = {
   handleChars: 6,
   /** 你上传时没写「什么时候发」就用这一句。 */
   defaultWhen: '你喂给她的，觉得合适时发',
-} as const
-
-/** 「你不看就少出门」：她的见闻这么久没在聊天里被想起，就隔天出门。 */
-export const CHARACTER_BROWSE_THROTTLE = {
-  idleDays: 7,
-  /** 隔天出门：距上次出门至少这么久（Hobby 定时任务落点会漂一小时）。 */
-  slowIntervalMs: 44 * 60 * 60 * 1000,
 } as const

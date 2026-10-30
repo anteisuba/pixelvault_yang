@@ -167,6 +167,7 @@ model User {
   characterCardRevisions CharacterCardRevision[]
   characterJournals      CharacterJournal[]
   characterFindings      CharacterFinding[]
+  characterOutings       CharacterOuting[]
   characterStickers      CharacterSticker[]
   assistantSkills        AssistantSkill[]
   mcpTokens              McpToken[]
@@ -874,9 +875,12 @@ model CharacterCard {
   /// 她的日记（C）。
   journals          CharacterJournal[]
   findings          CharacterFinding[]
+  outings           CharacterOuting[]
   stickers          CharacterSticker[]
 
   // ── 出门逛（第 4 批「人味」，owner 2026-10-28）──
+  // ⚠ 角色大项目第 ⑤ 步起停读停写（改成一次一趟的 `CharacterOuting`），`lib/db.ts` 的 RETIRED_COLUMNS
+  //   先拿掉，下一次部署删列。
   /// 让她每天按人设出门逛一次（B 站 / Danbooru / Civitai / X / 网页）。默认关。
   browseEnabled      Boolean   @default(false)
   /// 每天最多看几样（图、视频、页面），到了就停 —— 每样都是一次看图 / 读页调用，花 owner 的 key。
@@ -1360,6 +1364,46 @@ model CharacterCardRevision {
 /// **她的见闻**（第 4 批「人味」，owner 2026-10-28）：她出门逛时看到的一样东西 + 她用自己的口吻写的一句笔记。
 /// ⛔ 不进素材库（素材库读 `Generation`）；按 userId + characterCardId 隔离，卡或账号删了一起删。
 /// 检索向量在语义索引里这张卡自己的命名空间（`card-<id>`），这里只存原文。
+/// 她出门调查一趟（角色大项目第 ⑤ 步，owner 10-29/10-30）：你点一次去一次，弹框里选模型 · 来源 · 额度。
+/// 额度按真实 token 折点（1 点 ≈ 1 万 token），一点都不超：下一次调用估得超了就收工。
+model CharacterOuting {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  characterCardId String
+  characterCard   CharacterCard @relation(fields: [characterCardId], references: [id], onDelete: Cascade)
+
+  /// RUNNING / DONE / STOPPED / FAILED（`CHARACTER_OUTING_STATUS`）。
+  status        String
+  /// 助手路由表的 modelId。
+  model         String
+  /// 选的站（`CHARACTER_BROWSE_SOURCE_IDS`）；空 = 自动。
+  sources       String[]
+  /// 你添加的网址（域名），用模型自带的网搜 `site:` 去找。
+  sites         String[]
+  budgetPoints  Int
+  usedTokens    Int       @default(0)
+  calls         Int       @default(0)
+  kept          Int       @default(0)
+  /// 跑了几轮、连着几轮一条新的都没有（跨段接着数）。
+  rounds        Int       @default(0)
+  emptyRounds   Int       @default(0)
+  /// 现在在看什么（「在 B 站看『古籍修复』」那一行）。
+  nowLabel      String?   @db.Text
+  /// 怎么收的工：budget / stopped / nothing / failed:<原因>（`CHARACTER_OUTING_END_REASONS`）。
+  endReason     String?
+  /// 你点了「结束」：跑着的那一段在下一步之前停。
+  stopRequested Boolean   @default(false)
+  /// 正在跑这一趟的那个函数占到什么时候；过了没人续就由下一次读状态接着跑。
+  leaseUntil    DateTime?
+  startedAt     DateTime  @default(now())
+  endedAt       DateTime?
+
+  @@index([characterCardId, startedAt(sort: Desc)])
+  @@index([userId, startedAt(sort: Desc)])
+}
+
 model CharacterFinding {
   id     String @id @default(uuid())
   userId String
@@ -1397,18 +1441,21 @@ model CharacterSticker {
   characterCardId String
   characterCard   CharacterCard @relation(fields: [characterCardId], references: [id], onDelete: Cascade)
 
-  storageKey String
-  url        String    @db.Text
-  sourceUrl  String?   @db.Text
+  storageKey  String
+  url         String    @db.Text
+  sourceUrl   String?   @db.Text
   /// 什么情境下用它（她自己写的一句）。
-  whenToUse  String    @db.Text
-  isBlocked  Boolean   @default(false)
+  whenToUse   String    @db.Text
+  isBlocked   Boolean   @default(false)
   /// 上次在聊天里发出的时间；超过 30 张时先删最旧、没发过的。
-  sentAt     DateTime?
+  sentAt      DateTime?
+  /// 图片内容的 sha256（10-30 owner「表情包找了好多次重复的」）：同一张图只收一次。旧行为空，读到时补上。
+  contentHash String?
 
   createdAt DateTime @default(now())
 
   @@index([characterCardId, isBlocked, createdAt(sort: Desc)])
+  @@index([characterCardId, contentHash])
   @@index([userId])
 }
 

@@ -1,19 +1,18 @@
 import { API_ENDPOINTS } from '@/constants/config'
 import { getErrorPayload } from '@/lib/api-client/shared'
 import type {
-  CharacterBrowseState,
-  CharacterGoOutResult,
   CharacterGrowth,
   CharacterJournalEntry,
+  CharacterOutingRun,
   CharacterRecentActivity,
-  UpdateCharacterBrowseRequest,
+  StartCharacterOutingRequest,
   UpdateCharacterJournalRequest,
 } from '@/types/character-growth'
 import { apiFetch } from '@/lib/api-client/api-fetch'
 
 /**
  * **她的成长**的客户端封装（C 第 3 步；角色页右栏「最近」）：读日记、她改了什么、见闻、观点与
- * 出门设置；撤回一条、改出门开关与型号、删一条见闻。观点的改删走记忆那两个接口。
+ * 出门状态；撤回一条、出门 / 结束、删一条见闻。观点的改删走记忆那两个接口。
  * 形状照抄 `api-client/assistant-memories.ts`。
  */
 
@@ -92,41 +91,42 @@ export async function revertCharacterRevisionAPI(
   }
 }
 
-export async function updateCharacterBrowseAPI(
+/** 出门调查「开始」（第 ⑤ 步）：马上回这一趟，她在后台逛。 */
+export async function startCharacterOutingAPI(
   cardId: string,
-  input: UpdateCharacterBrowseRequest,
-): Promise<ApiResult<CharacterBrowseState>> {
+  input: StartCharacterOutingRequest,
+): Promise<ApiResult<CharacterOutingRun>> {
   try {
     const response = await apiFetch(
-      `${API_ENDPOINTS.CHARACTER_CARDS}/${encodeURIComponent(cardId)}/browse`,
+      `${API_ENDPOINTS.CHARACTER_CARDS}/${encodeURIComponent(cardId)}/outing`,
       {
-        method: 'PUT',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(input),
       },
     )
-    return await parseJsonResult(response, 'Failed to save going out')
+    return await parseJsonResult(response, 'Failed to go out')
   } catch (error) {
-    return toFailure(error, 'Failed to save going out')
+    return toFailure(error, 'Failed to go out')
   }
 }
 
-/** 打开开关就出门一趟；要等她逛完才回（可能一两分钟）。 */
-export async function goOutNowAPI(
+/** 「结束」：看到的照样留着。 */
+export async function stopCharacterOutingAPI(
   cardId: string,
-): Promise<ApiResult<CharacterGoOutResult>> {
+): Promise<ApiResult<CharacterOutingRun>> {
   try {
     const response = await apiFetch(
-      `${API_ENDPOINTS.CHARACTER_CARDS}/${encodeURIComponent(cardId)}/browse/now`,
+      `${API_ENDPOINTS.CHARACTER_CARDS}/${encodeURIComponent(cardId)}/outing/stop`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
       },
     )
-    return await parseJsonResult(response, 'Failed to go out')
+    return await parseJsonResult(response, 'Failed to stop')
   } catch (error) {
-    return toFailure(error, 'Failed to go out')
+    return toFailure(error, 'Failed to stop')
   }
 }
 

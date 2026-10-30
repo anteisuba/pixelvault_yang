@@ -2,22 +2,25 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { CHARACTER_OPINION_PREFIX } from '@/constants/character-browse'
+import {
+  CHARACTER_OPINION_PREFIX,
+  CHARACTER_OUTING,
+} from '@/constants/character-browse'
 import {
   deleteAssistantMemoryAPI,
   deleteCharacterFindingAPI,
   deleteCharacterJournalAPI,
   getCharacterGrowthAPI,
-  goOutNowAPI,
   revertCharacterRevisionAPI,
+  startCharacterOutingAPI,
+  stopCharacterOutingAPI,
   updateAssistantMemoryAPI,
-  updateCharacterBrowseAPI,
   updateCharacterJournalAPI,
 } from '@/lib/api-client'
 import { deferEffectTask } from '@/lib/defer-effect-task'
 import type {
   CharacterGrowth,
-  UpdateCharacterBrowseRequest,
+  StartCharacterOutingRequest,
 } from '@/types/character-growth'
 
 /** 写操作的结果：失败带 `i18nKey` 时调用方说人话。 */
@@ -27,7 +30,7 @@ export type GrowthWriteResult =
 
 /**
  * 角色页右栏「最近」（C 第 3 步起；2026-10-28 改版 B）：她的日记、她改了什么、见闻、观点、
- * 出门设置；撤回一条、改出门开关与型号、删见闻、改 / 删观点。`cardId` 为空 = 什么都不读；
+ * 出门状态；撤回一条、出门 / 结束（第 ⑤ 步：在外面时每 `pollMs` 悄悄重读一次）、删见闻、改 / 删观点。`cardId` 为空 = 什么都不读；
  * 换角色时调用方用 key 重置。撤回成功后整份重读（左栏那几格也跟着变），其余就地改手里那份。
  */
 export function useCharacterGrowth(cardId: string | null) {
@@ -35,8 +38,6 @@ export function useCharacterGrowth(cardId: string | null) {
   const [isLoading, setIsLoading] = useState(Boolean(cardId))
   const [error, setError] = useState<string | null>(null)
   const [revertingId, setRevertingId] = useState<string | null>(null)
-  /** 打开开关后她正在外面逛（等这一趟回来再整份重读）。 */
-  const [goingOut, setGoingOut] = useState(false)
   const aliveRef = useRef(true)
 
   useEffect(() => {
@@ -46,19 +47,32 @@ export function useCharacterGrowth(cardId: string | null) {
     }
   }, [])
 
-  const reload = useCallback(async () => {
-    if (!cardId) return
-    setIsLoading(true)
-    const result = await getCharacterGrowthAPI(cardId)
-    if (!aliveRef.current) return
-    setIsLoading(false)
-    if (result.success) {
-      setGrowth(result.data)
-      setError(null)
-    } else {
-      setError(result.error)
-    }
-  }, [cardId])
+  /** `quiet` = 在外面时的轮询：不亮加载、读不到也不报错。 */
+  const reload = useCallback(
+    async (quiet = false) => {
+      if (!cardId) return
+      if (!quiet) setIsLoading(true)
+      const result = await getCharacterGrowthAPI(cardId)
+      if (!aliveRef.current) return
+      setIsLoading(false)
+      if (result.success) {
+        setGrowth(result.data)
+        setError(null)
+      } else if (!quiet) {
+        setError(result.error)
+      }
+    },
+    [cardId],
+  )
+
+  const outingRunning = Boolean(growth?.outing.running)
+  useEffect(() => {
+    if (!outingRunning) return
+    const timer = window.setInterval(() => {
+      void reload(true)
+    }, CHARACTER_OUTING.pollMs)
+    return () => window.clearInterval(timer)
+  }, [outingRunning, reload])
 
   useEffect(() => {
     if (!cardId) return
@@ -101,30 +115,35 @@ export function useCharacterGrowth(cardId: string | null) {
     [],
   )
 
-  const setBrowse = useCallback(
-    async (input: UpdateCharacterBrowseRequest): Promise<GrowthWriteResult> => {
+  /** 出门调查「开始」：回来的那一趟马上当成「正在外面」，之后轮询接手。 */
+  const startOuting = useCallback(
+    async (input: StartCharacterOutingRequest): Promise<GrowthWriteResult> => {
       if (!cardId) return { ok: false, error: 'No character' }
-      const result = await updateCharacterBrowseAPI(cardId, input)
+      const result = await startCharacterOutingAPI(cardId, input)
       if (!aliveRef.current) return { ok: result.success } as GrowthWriteResult
       if (!result.success) {
         return { ok: false, error: result.error, i18nKey: result.i18nKey }
       }
       setGrowth((current) =>
-        current ? { ...current, browse: result.data } : current,
+        current
+          ? { ...current, outing: { ...current.outing, running: result.data } }
+          : current,
       )
       return { ok: true }
     },
     [cardId],
   )
 
-  /** 打开就出门（owner 2026-10-29）：逛完整份重读，河里接上这一趟；失败只在状态行体现，不弹错。 */
-  const goOutNow = useCallback(async (): Promise<void> => {
-    if (!cardId) return
-    setGoingOut(true)
-    const result = await goOutNowAPI(cardId)
-    if (!aliveRef.current) return
-    setGoingOut(false)
-    if (result.success && result.data.went) await reload()
+  /** 「结束」：看到的照样留着；收完工轮询会读到这一趟。 */
+  const stopOuting = useCallback(async (): Promise<GrowthWriteResult> => {
+    if (!cardId) return { ok: false, error: 'No character' }
+    const result = await stopCharacterOutingAPI(cardId)
+    if (!aliveRef.current) return { ok: result.success } as GrowthWriteResult
+    if (!result.success) {
+      return { ok: false, error: result.error, i18nKey: result.i18nKey }
+    }
+    await reload(true)
+    return { ok: true }
   }, [cardId, reload])
 
   const removeFinding = useCallback(
@@ -202,9 +221,8 @@ export function useCharacterGrowth(cardId: string | null) {
     revertingId,
     revert,
     reload,
-    setBrowse,
-    goingOut,
-    goOutNow,
+    startOuting,
+    stopOuting,
     removeFinding,
     editOpinion,
     removeOpinion,

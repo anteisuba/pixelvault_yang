@@ -420,6 +420,7 @@ export const ModelName = {
   ContextCard: 'ContextCard',
   AssistantMemory: 'AssistantMemory',
   CharacterCardRevision: 'CharacterCardRevision',
+  CharacterOuting: 'CharacterOuting',
   CharacterFinding: 'CharacterFinding',
   CharacterSticker: 'CharacterSticker',
   CharacterJournal: 'CharacterJournal',
@@ -440,7 +441,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "mcpToken" | "danbooruFavorite" | "danbooruTagName" | "promptTagStack" | "assistantConversation" | "assistantConversationShare" | "researchRun" | "nodeWorkflowProject" | "project" | "projectItem" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "userCreativePreference" | "assistantPersona" | "projectRule" | "modelConfig" | "characterCard" | "characterLook" | "generationCharacterCard" | "userLike" | "userFollow" | "characterCardLora" | "loraTrainingJob" | "loraAsset" | "extractedElement" | "generationLayer" | "contextCard" | "assistantMemory" | "characterCardRevision" | "characterFinding" | "characterSticker" | "characterJournal" | "assistantSkill" | "assistantTurnRecord"
+    modelProps: "user" | "mcpToken" | "danbooruFavorite" | "danbooruTagName" | "promptTagStack" | "assistantConversation" | "assistantConversationShare" | "researchRun" | "nodeWorkflowProject" | "project" | "projectItem" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "userCreativePreference" | "assistantPersona" | "projectRule" | "modelConfig" | "characterCard" | "characterLook" | "generationCharacterCard" | "userLike" | "userFollow" | "characterCardLora" | "loraTrainingJob" | "loraAsset" | "extractedElement" | "generationLayer" | "contextCard" | "assistantMemory" | "characterCardRevision" | "characterOuting" | "characterFinding" | "characterSticker" | "characterJournal" | "assistantSkill" | "assistantTurnRecord"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -3108,6 +3109,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    CharacterOuting: {
+      payload: Prisma.$CharacterOutingPayload<ExtArgs>
+      fields: Prisma.CharacterOutingFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.CharacterOutingFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterOutingPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.CharacterOutingFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterOutingPayload>
+        }
+        findFirst: {
+          args: Prisma.CharacterOutingFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterOutingPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.CharacterOutingFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterOutingPayload>
+        }
+        findMany: {
+          args: Prisma.CharacterOutingFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterOutingPayload>[]
+        }
+        create: {
+          args: Prisma.CharacterOutingCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterOutingPayload>
+        }
+        createMany: {
+          args: Prisma.CharacterOutingCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.CharacterOutingCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterOutingPayload>[]
+        }
+        delete: {
+          args: Prisma.CharacterOutingDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterOutingPayload>
+        }
+        update: {
+          args: Prisma.CharacterOutingUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterOutingPayload>
+        }
+        deleteMany: {
+          args: Prisma.CharacterOutingDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.CharacterOutingUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.CharacterOutingUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterOutingPayload>[]
+        }
+        upsert: {
+          args: Prisma.CharacterOutingUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterOutingPayload>
+        }
+        aggregate: {
+          args: Prisma.CharacterOutingAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateCharacterOuting>
+        }
+        groupBy: {
+          args: Prisma.CharacterOutingGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CharacterOutingGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.CharacterOutingCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CharacterOutingCountAggregateOutputType> | number
+        }
+      }
+    }
     CharacterFinding: {
       payload: Prisma.$CharacterFindingPayload<ExtArgs>
       fields: Prisma.CharacterFindingFieldRefs
@@ -4192,6 +4267,31 @@ export const CharacterCardRevisionScalarFieldEnum = {
 export type CharacterCardRevisionScalarFieldEnum = (typeof CharacterCardRevisionScalarFieldEnum)[keyof typeof CharacterCardRevisionScalarFieldEnum]
 
 
+export const CharacterOutingScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  characterCardId: 'characterCardId',
+  status: 'status',
+  model: 'model',
+  sources: 'sources',
+  sites: 'sites',
+  budgetPoints: 'budgetPoints',
+  usedTokens: 'usedTokens',
+  calls: 'calls',
+  kept: 'kept',
+  rounds: 'rounds',
+  emptyRounds: 'emptyRounds',
+  nowLabel: 'nowLabel',
+  endReason: 'endReason',
+  stopRequested: 'stopRequested',
+  leaseUntil: 'leaseUntil',
+  startedAt: 'startedAt',
+  endedAt: 'endedAt'
+} as const
+
+export type CharacterOutingScalarFieldEnum = (typeof CharacterOutingScalarFieldEnum)[keyof typeof CharacterOutingScalarFieldEnum]
+
+
 export const CharacterFindingScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
@@ -4217,6 +4317,7 @@ export const CharacterStickerScalarFieldEnum = {
   whenToUse: 'whenToUse',
   isBlocked: 'isBlocked',
   sentAt: 'sentAt',
+  contentHash: 'contentHash',
   createdAt: 'createdAt'
 } as const
 
@@ -4765,6 +4866,7 @@ export type GlobalOmitConfig = {
   contextCard?: Prisma.ContextCardOmit
   assistantMemory?: Prisma.AssistantMemoryOmit
   characterCardRevision?: Prisma.CharacterCardRevisionOmit
+  characterOuting?: Prisma.CharacterOutingOmit
   characterFinding?: Prisma.CharacterFindingOmit
   characterSticker?: Prisma.CharacterStickerOmit
   characterJournal?: Prisma.CharacterJournalOmit

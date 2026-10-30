@@ -64,7 +64,7 @@ const isPublicRoute = createRouteMatcher([
   // Vercel Cron authenticates with Authorization: Bearer CRON_SECRET inside
   // the route; it has no Clerk session and must reach that verifier first.
   '/api/internal/execution/sweep',
-  '/api/internal/characters/browse',
+  '/api/internal/characters/outing',
   '/api/internal/fal/webhook',
 ])
 

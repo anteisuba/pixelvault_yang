@@ -19,6 +19,7 @@ import {
   CharacterLorasPane,
   CharacterPersonPane,
 } from '@/components/business/cards/CharacterDetail'
+import { CharacterInterests } from '@/components/business/cards/CharacterInterests'
 import {
   CharacterStickersPane,
   OutingCard,
@@ -37,7 +38,7 @@ type PaneProps = Parameters<typeof CharacterPersonPane>[0]
  * **电脑 / 平板的角色详情**（角色大项目第 ①步，样件 v4，owner 2026-10-29 定稿）。
  *
  * ⭐ 左栏只放她：头像 · 名字（⋯ 里删除）· 一句介绍 · 「和她聊」（这块板唯一的黑钮）·
- *   「现在」（出门卡，第 ⑤ 步换成「出门调查」弹框）。⛔ 分割线、⛔「用她 ▾」。
+ *   「她在意的东西」（第 ④ 步）·「现在」（出门卡，第 ⑤ 步换成「出门调查」弹框）。⛔ 分割线、⛔「用她 ▾」。
  * ⭐ 右边页签：最近 · 人物 · 图片 · LoRA · 表情包（记忆第 ⑦ 步再加）。各页内容先原样搬过来，
  *   后面几步一页一页改。
  * ⚠ 手机照旧走 `CharacterDetailSplit`（手机归整体重设计）。
@@ -83,6 +84,7 @@ export function CharacterDetailDesk({
             {t('recent.chatWith')}
           </button>
         </div>
+        <CharacterInterests card={card} onUpdate={paneProps.onUpdate} />
         <section className="flex flex-col gap-2">
           <h2 className="text-xs text-muted-foreground">{t('detailNow')}</h2>
           <OutingCard growth={growth} />

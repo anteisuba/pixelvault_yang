@@ -52,6 +52,12 @@ export const CHARACTER_BROWSE = {
   personaChars: 1200,
   /** 告诉模型最近已经看过什么（免得天天搜同一样），带几条标题。 */
   recentTitles: 20,
+  /**
+   * 她在意的东西（第 ④ 步，owner 10-30「不完全按清单找」「可以自己加」）：搜索词大半照清单，
+   * 留一个给别的；每趟回来最多自己加几样、去几样。
+   */
+  interestAddsPerOuting: 2,
+  interestDropsPerOuting: 1,
   /** 细看时每张图最多多大、取多久；取不到的那张只看标题。 */
   pictureMaxBytes: 3 * 1024 * 1024,
   pictureTimeoutMs: 15_000,

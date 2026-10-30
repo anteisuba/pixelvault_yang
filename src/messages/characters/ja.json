@@ -254,6 +254,11 @@
       "stickers": "スタンプ"
     },
     "detailNow": "いま",
+    "interestsTitle": "気にしていること",
+    "interestsEmpty": "まだありません。空のあいだは設定から自分で探します。",
+    "interestsAdd": "追加",
+    "interestsPlaceholder": "例：水彩",
+    "interestsRemove": "「{item}」を外す",
     "detailMore": "その他",
     "settingTavern": "SillyTavern",
     "editAction": "編集",

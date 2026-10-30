@@ -254,6 +254,11 @@
       "stickers": "表情包"
     },
     "detailNow": "现在",
+    "interestsTitle": "她在意的东西",
+    "interestsEmpty": "还没写。空着时她按设定自己找。",
+    "interestsAdd": "加一样",
+    "interestsPlaceholder": "比如：水彩",
+    "interestsRemove": "去掉「{item}」",
     "detailMore": "更多",
     "settingTavern": "酒馆",
     "editAction": "编辑",

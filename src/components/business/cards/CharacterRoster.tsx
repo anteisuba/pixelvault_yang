@@ -156,6 +156,7 @@ export function CharacterRoster() {
         moods: [],
         learnedPhrases: [],
         relationship: '',
+        interests: [],
         scenario: '',
         opening: '',
         examples: [],

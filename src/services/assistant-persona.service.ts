@@ -538,6 +538,8 @@ export function sanitizePromptCharacter(
         character.relationship ?? '',
         CHARACTER_PERSONA_LIMITS.relationship,
       ),
+      // 她在意的东西只管出门找什么（第 ④ 步），⛔ 进聊天提示词。
+      interests: [],
       scenario: '',
       opening: '',
       examples: [],

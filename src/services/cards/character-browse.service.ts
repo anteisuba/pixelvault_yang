@@ -14,16 +14,22 @@ import {
   type CharacterBrowsePauseReason,
   type CharacterBrowseSource,
 } from '@/constants/character-browse'
+import {
+  CHARACTER_PERSONA_LIMITS,
+  CHARACTER_REVISION_SOURCE_IDS,
+} from '@/constants/cards'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { BILIBILI_REQUEST } from '@/constants/research'
 import { WEB_VIDEO_SEARCH } from '@/constants/web-search'
 import { db } from '@/lib/db'
 import { ApiKeyError, AssistantModelKeyMissingError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
+import { readPinnedFields } from '@/services/cards/character-card.mapper'
 import {
   forgetFindings,
   indexFindings,
 } from '@/services/cards/character-findings.service'
+import { recordCharacterRevision } from '@/services/cards/character-revision.service'
 import {
   pruneCharacterStickers,
   stickerKey,
@@ -52,13 +58,14 @@ import {
   fetchDanbooruComments,
   fetchDanbooruEvidence,
 } from '@/services/research/danbooru.connector'
-import { CharacterPersonaSchema } from '@/types'
+import { CharacterPersonaSchema, type CharacterPersona } from '@/types'
 import type { EvidenceItem } from '@/types/research'
 
 /**
  * **她出门逛一次**（第 4 批「人味」，owner 2026-10-28）。
  *
- * ① 按她的人设和最近看过的，让模型定今天想搜什么（一次调用，只出 JSON）；
+ * ① 按她的人设、她在意的东西和最近看过的，让模型定今天想搜什么（一次调用，只出 JSON）；
+ *   同一次顺手决定她在意的东西要不要加减（第 ④ 步：钉住了就不问）；
  * ② 去 B 站 / Danbooru / Civitai / X（只有 Grok 搜得到）/ 网页 找候选，和她看过的链接去重；
  * ③ 几样一批交给模型看（看得了图就带图），用她的口吻写一句见闻，没意思的跳过；
  * ④ 写进 `CharacterFinding`，记下 `browsedAt`。
@@ -100,7 +107,21 @@ const PlanSchema = z.object({
     .max(CHARACTER_BROWSE.maxQueries),
   /** 4d：专门找表情包的那一个搜索词。 */
   sticker: z.string().trim().min(1).max(60).nullable().optional(),
+  /** 第 ④ 步：她在意的东西加几样、去几样。写坏了就当没改，⛔ 连累整趟的搜索词。 */
+  interests: z
+    .object({
+      add: z.array(z.string()).default([]),
+      drop: z.array(z.string()).default([]),
+    })
+    .nullable()
+    .optional()
+    .catch(null),
 })
+
+export interface CharacterInterestChange {
+  add: string[]
+  drop: string[]
+}
 
 function availableSources(route: BrowseRoute): CharacterBrowseSource[] {
   const native = supportsNativeWebSearch(route.route.adapterType)
@@ -122,12 +143,22 @@ function readJson(raw: string): unknown {
 
 async function planQueries(
   route: BrowseRoute,
-  card: { name: string; tags: string[]; persona: string },
+  card: {
+    name: string
+    tags: string[]
+    persona: string
+    interests: readonly string[]
+    /** 钉住了：她这次只照着找，⛔ 问她要不要加减。 */
+    interestsPinned: boolean
+  },
   recentTitles: readonly string[],
   sources: readonly CharacterBrowseSource[],
 ) {
   const material = `YOU ARE: ${card.name}${card.tags.length ? ` (${card.tags.join(', ')})` : ''}
 ${card.persona}
+
+THINGS YOU CARE ABOUT:
+${card.interests.length ? card.interests.map((item) => `- ${item}`).join('\n') : '(none written down yet — go by who you are)'}
 
 WHAT YOU LOOKED AT RECENTLY (do not look for the same things again):
 ${recentTitles.length ? recentTitles.map((title) => `- ${title}`).join('\n') : '(nothing yet)'}`
@@ -135,11 +166,17 @@ ${recentTitles.length ? recentTitles.map((title) => `- ${title}`).join('\n') : '
     signal: AbortSignal.timeout(CHARACTER_BROWSE.callTimeoutMs),
     systemPrompt: `You are a character with your own tastes. Today you have some free time online. Decide what you feel like looking at, the way this person would — their hobbies, the shows, art and games they would care about, things that fit their mood.
 
-Return ONE JSON object and nothing else: {"queries":[{"source":"…","query":"…"}],"sticker":"…"}
+Return ONE JSON object and nothing else: {"queries":[{"source":"…","query":"…"}],"sticker":"…"${card.interestsPinned ? '' : ',"interests":{"add":[],"drop":[]}'}}
 - At most ${CHARACTER_BROWSE.maxQueries} queries, each a short search (a few words).
+- Most queries follow the things you care about; keep one for something else you happen to feel like today.
 - "sticker": one image search for reaction stickers (表情包) you would like to send in chats — built on a character, an animal or a mood you like, ending with 表情包 ("猫猫 表情包", "芙宁娜 表情包"); null if you do not want any today.
 - source is one of: ${sources.join(', ')}. bilibili = videos; danbooru = anime art, searched by a character or tag name; civitai = AI art styles and characters; x = posts on X; web = anything else.
-- Mix sources. Pick things this person would really enjoy, not generic ones.`,
+- Mix sources. Pick things this person would really enjoy, not generic ones.${
+      card.interestsPinned
+        ? ''
+        : `
+- "interests": your own list of things you care about. Add at most ${CHARACTER_BROWSE.interestAddsPerOuting} (a few words each) only if you have clearly gotten into something lately — judge by what you looked at recently; drop at most ${CHARACTER_BROWSE.interestDropsPerOuting} you have lost interest in, written exactly as in the list. Usually leave both empty.`
+    }`,
     buildUserPrompt: () => material,
     route: route.route,
     contextCompactionTargetLength: material.length,
@@ -153,7 +190,42 @@ Return ONE JSON object and nothing else: {"queries":[{"source":"…","query":"�
       ? plan.data.queries.filter((query) => sources.includes(query.source))
       : [],
     sticker: plan.success ? (plan.data.sticker ?? null) : null,
+    interests:
+      plan.success && !card.interestsPinned
+        ? (plan.data.interests ?? null)
+        : null,
   }
+}
+
+/**
+ * 她在意的东西加减一次（第 ④ 步）：去掉的只认清单里原样的那几样，加的截短、去重、封顶，
+ * 满了先不加。什么都没变 → `null`。
+ */
+export function nextInterests(
+  current: readonly string[],
+  change: CharacterInterestChange | null,
+): string[] | null {
+  if (!change) return null
+  const drop = new Set(
+    change.drop
+      .map((item) => item.trim())
+      .slice(0, CHARACTER_BROWSE.interestDropsPerOuting),
+  )
+  const kept = current.filter((item) => !drop.has(item))
+  const seen = new Set(kept.map((item) => item.toLowerCase()))
+  const added: string[] = []
+  for (const raw of change.add) {
+    if (added.length >= CHARACTER_BROWSE.interestAddsPerOuting) break
+    const item = raw.trim().slice(0, CHARACTER_PERSONA_LIMITS.interestChars)
+    if (!item || seen.has(item.toLowerCase())) continue
+    seen.add(item.toLowerCase())
+    added.push(item)
+  }
+  const next = [...kept, ...added].slice(0, CHARACTER_PERSONA_LIMITS.interests)
+  return next.length === current.length &&
+    next.every((item, index) => item === current[index])
+    ? null
+    : next
 }
 
 /**
@@ -579,6 +651,7 @@ export async function browseCharacter(input: {
       name: true,
       tags: true,
       persona: true,
+      extensions: true,
       browseDailyLimit: true,
       browseModel: true,
       updatedAt: true,
@@ -616,18 +689,34 @@ export async function browseCharacter(input: {
   }
 
   const persona = personaText(card.persona)
+  const parsedPersona = CharacterPersonaSchema.safeParse(card.persona ?? {})
+  const interests = parsedPersona.success ? parsedPersona.data.interests : []
+  const interestsPinned = readPinnedFields(card.extensions).includes(
+    'interests',
+  )
   const recent = await db.characterFinding.findMany({
     where: { characterCardId: card.id },
     orderBy: { seenAt: 'desc' },
     take: CHARACTER_BROWSE.recentTitles,
     select: { title: true },
   })
-  const { queries, sticker } = await planQueries(
+  const plan = await planQueries(
     route,
-    { name: card.name, tags: card.tags, persona },
+    { name: card.name, tags: card.tags, persona, interests, interestsPinned },
     recent.map((row) => row.title),
     availableSources(route),
   )
+  const { queries, sticker } = plan
+  const changedInterests = parsedPersona.success
+    ? nextInterests(interests, plan.interests)
+    : null
+  if (parsedPersona.success && changedInterests)
+    await saveInterests(
+      input.userId,
+      card,
+      parsedPersona.data,
+      changedInterests,
+    )
 
   // ① 广撒网：只调搜索接口。
   const candidates: Candidate[] = []
@@ -724,6 +813,41 @@ export async function browseCharacter(input: {
       : { why: rows.length ? 'all_duplicates' : 'nothing_worth_noting' }),
   })
   return { seen: chosen.length - stickerCandidates.length, kept }
+}
+
+/** 她自己改了在意的东西：写回人设、记一笔「她改了什么」（最近里能撤回）。 */
+async function saveInterests(
+  userId: string,
+  card: { id: string; name: string; tags: string[]; updatedAt: Date },
+  persona: CharacterPersona,
+  interests: string[],
+) {
+  const next = { ...persona, interests }
+  try {
+    await db.characterCard.update({
+      where: { id: card.id },
+      data: {
+        persona: next,
+        version: { increment: 1 },
+        updatedAt: card.updatedAt,
+      },
+      select: { id: true },
+    })
+  } catch (error) {
+    logger.warn('Saving character interests failed', {
+      cardId: card.id,
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return
+  }
+  const side = { name: card.name, tags: card.tags, look: null }
+  await recordCharacterRevision({
+    userId,
+    cardId: card.id,
+    source: CHARACTER_REVISION_SOURCE_IDS.reflection,
+    before: { ...side, persona },
+    after: { ...side, persona: next },
+  })
 }
 
 /** 每趟一行：看了多少、留了几条、一条没留时为什么（10-29：出门回来一条没有，查不出卡在哪）。 */

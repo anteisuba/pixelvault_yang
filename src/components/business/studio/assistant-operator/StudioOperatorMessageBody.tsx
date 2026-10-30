@@ -77,6 +77,11 @@ import type {
 } from '@/types/studio-assistant-operator'
 
 interface StudioOperatorMessageBodyProps {
+  /**
+   * 这一段的「想」并进了旁边那行过程（owner 10-30 合并成一行）：⛔ 再画「想了 N 秒」，
+   * 等第一个字时也⛔ 画「正在想…」—— 那一行已经在写了。
+   */
+  thoughtAbsorbed?: boolean
   references?: readonly NamedImageReference[]
   entry: StudioOperatorMessageEntry
   /**
@@ -520,6 +525,7 @@ export function StudioOperatorMessageBody({
   webFinds,
   references = NO_REFERENCES,
   findRefs,
+  thoughtAbsorbed = false,
 }: StudioOperatorMessageBodyProps) {
   const t = useTranslations('StudioOperator')
   /**
@@ -537,7 +543,7 @@ export function StudioOperatorMessageBody({
   return (
     <div className="flex min-w-0 flex-col gap-2">
       {/* 想完的回执：正文上方；工具步之前那一段只想没说的，这一条就只有它（10-27）。 */}
-      {entry.text || !entry.streaming ? (
+      {!thoughtAbsorbed && (entry.text || !entry.streaming) ? (
         <StudioOperatorThoughtReceipt
           {...(entry.thoughtMs === undefined
             ? {}
@@ -545,7 +551,9 @@ export function StudioOperatorMessageBody({
           {...(entry.thinking ? { thinking: entry.thinking } : {})}
         />
       ) : null}
-      {!entry.text && !entry.streaming ? null : entry.chat && entry.text ? (
+      {!entry.text &&
+      (!entry.streaming || thoughtAbsorbed) ? null : entry.chat &&
+        entry.text ? (
         <StudioOperatorChatText
           text={entry.text}
           streaming={entry.streaming ?? false}

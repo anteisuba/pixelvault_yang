@@ -1425,7 +1425,8 @@ describe('StudioOperatorPanel · 空调查卡与重复 checkpoint', () => {
     expect(running).toHaveTextContent('running.library')
     expect(running).not.toHaveTextContent('模型自己起的')
     // 运行中自动展开。
-    expect(screen.getByTestId('operator-tool-group').dataset.open).toBe('true')
+    // owner 10-30：合成一行，跑着也收着。
+    expect(screen.getByTestId('operator-tool-group').dataset.open).toBe('false')
   })
 
   it('⭐ 跳过的重复步不进过程：展开也读不到「刚才做过了」（2026-09-24）', () => {

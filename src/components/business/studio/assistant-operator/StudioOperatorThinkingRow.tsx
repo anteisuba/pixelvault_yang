@@ -41,7 +41,13 @@ const MAX_TRAIL_TICKS = 8
  * 足迹那一排短线（10-27 ② 足迹）。`live` = 还在想：最后一道在呼吸，新的一道从左往右长出来；
  * 想完全部定灰。⚠ 减少动效：不长、不呼吸，直接是一排实线。
  */
-function ThoughtTrail({ count, live }: { count: number; live: boolean }) {
+export function ThoughtTrail({
+  count,
+  live,
+}: {
+  count: number
+  live: boolean
+}) {
   const reduceMotion = useReducedMotion()
   const shown = Math.min(count, MAX_TRAIL_TICKS)
   const offset = count - shown
@@ -68,6 +74,23 @@ function ThoughtTrail({ count, live }: { count: number; live: boolean }) {
   )
 }
 
+/**
+ * 从 `since` 起已等多少 ms（本地计时，同 `StudioOperatorThinkingRow` 头注）；`since` 缺席 = `null`。
+ * ⚠ 合并那一行（`StudioOperatorToolGroup`）也用它：工具步之后那一跳在想时，秒数写在同一行上。
+ */
+export function useElapsedSince(since: number | undefined): number | null {
+  const [now, setNow] = useState(since ?? 0)
+  useEffect(() => {
+    if (since === undefined) return
+    const timer = setInterval(
+      () => setNow(Date.now()),
+      STUDIO_OPERATOR_STREAMING.thinkingTickMs,
+    )
+    return () => clearInterval(timer)
+  }, [since])
+  return since === undefined ? null : Math.max(0, now - since)
+}
+
 export function StudioOperatorThinkingRow({
   since,
   landing = false,
@@ -85,18 +108,7 @@ export function StudioOperatorThinkingRow({
    * ⚠ 初值取 `since` 而不是 `Date.now()`：渲染期⛔ 不读时钟（同一份输入要画出同一行）。
    * 代价是重新挂载后最多晚半秒才露字 —— 比一次闪烁便宜。
    */
-  const [now, setNow] = useState(since ?? 0)
-
-  useEffect(() => {
-    if (since === undefined) return
-    const timer = setInterval(
-      () => setNow(Date.now()),
-      STUDIO_OPERATOR_STREAMING.thinkingTickMs,
-    )
-    return () => clearInterval(timer)
-  }, [since])
-
-  const elapsed = since === undefined ? null : Math.max(0, now - since)
+  const elapsed = useElapsedSince(since)
   const revealed =
     elapsed === null || elapsed >= STUDIO_OPERATOR_STREAMING.thinkingRevealMs
   const slow =
@@ -256,7 +268,7 @@ export function StudioOperatorThoughtReceipt({
 }
 
 /** 展开后的一步：左边一道短线，小标题（深一档）+ 一句（灰）。 */
-function ThoughtStepRow({ step }: { step: OperatorThoughtStep }) {
+export function ThoughtStepRow({ step }: { step: OperatorThoughtStep }) {
   return (
     <li className="flex gap-2 py-1 text-2sm leading-reading first:pt-1.5">
       <span

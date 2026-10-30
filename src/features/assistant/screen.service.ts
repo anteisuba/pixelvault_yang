@@ -43,7 +43,7 @@ const SHEET = {
   badge: 34,
   margin: 12,
   /** 一张缩略图最多多少字节。 */
-  maxThumbBytes: 8 * 1024 * 1024,
+  maxThumbBytes: 20 * 1024 * 1024,
   quality: 80,
   background: { r: 24, g: 24, b: 27 },
   keyPrefix: 'assistant-screens',
@@ -199,6 +199,200 @@ async function loadThumb(
   }
 }
 
+interface SheetCell {
+  readonly index: number
+  readonly left: number
+  readonly top: number
+  readonly width: number
+  readonly height: number
+  readonly buffer: Buffer
+  readonly badge: string
+  /** 库格子照屏上裁（`cover`）；台上的图要看全貌（`contain`）。 */
+  readonly fit: 'cover' | 'contain'
+  /** 台上选中的那张：描一圈白边。 */
+  readonly highlight?: boolean
+}
+
+/** 把摆好的格子画成一张 JPEG 存 R2：回地址与真画上去的那几格（解不开的跳过）。 */
+async function renderSheet(input: {
+  userId: string
+  width: number
+  height: number
+  cells: readonly SheetCell[]
+  seed: unknown
+}): Promise<{ url: string | null; drawn: number[] }> {
+  const { width, height } = input
+  const composites: OverlayOptions[] = []
+  const drawn: number[] = []
+  for (const cell of input.cells) {
+    try {
+      const tile = await sharp(cell.buffer, { animated: false })
+        .resize(cell.width, cell.height, {
+          fit: cell.fit,
+          background: { ...SHEET.background, alpha: 1 },
+        })
+        .flatten({ background: SHEET.background })
+        .jpeg({ quality: 90 })
+        .toBuffer()
+      composites.push({ input: tile, left: cell.left, top: cell.top })
+      if (cell.highlight)
+        composites.push({
+          input: Buffer.from(
+            `<svg xmlns="http://www.w3.org/2000/svg" width="${cell.width}" height="${cell.height}"><rect x="2" y="2" width="${cell.width - 4}" height="${cell.height - 4}" fill="none" stroke="#fff" stroke-width="4"/></svg>`,
+          ),
+          left: cell.left,
+          top: cell.top,
+        })
+      composites.push({
+        input: badgeSvg(cell.badge),
+        left: Math.min(cell.left + 6, width - SHEET.badge),
+        top: Math.min(cell.top + 6, height - SHEET.badge),
+      })
+      drawn.push(cell.index)
+    } catch {
+      // 格式解不开（视频、坏图）：这一格不画，号照样在文字那行里。
+    }
+  }
+  if (drawn.length === 0) return { url: null, drawn }
+  try {
+    const sheet = await sharp({
+      create: { width, height, channels: 3, background: SHEET.background },
+    })
+      .composite(composites)
+      .jpeg({ quality: SHEET.quality })
+      .toBuffer()
+    const key = `${SHEET.keyPrefix}/${input.userId}/${createHash('sha256')
+      .update(
+        JSON.stringify({
+          width,
+          height,
+          cells: input.cells.map((cell) => [
+            cell.index,
+            cell.left,
+            cell.top,
+            cell.width,
+            cell.height,
+            cell.fit,
+            cell.highlight ?? false,
+          ]),
+          seed: input.seed,
+        }),
+      )
+      .digest('hex')
+      .slice(0, 32)}.jpg`
+    return {
+      url: await uploadToR2({ data: sheet, key, mimeType: 'image/jpeg' }),
+      drawn,
+    }
+  } catch (error) {
+    logger.warn('Assistant screen sheet failed', {
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return { url: null, drawn: [] }
+  }
+}
+
+/** 台上的一张图：编号（`ref-1` / `result-2`）、地址、选中没有。 */
+export interface BenchScreenPicture {
+  readonly name: string
+  readonly url: string
+  readonly label?: string
+  readonly selected?: boolean
+}
+
+/**
+ * 台上的「看屏」（owner 10-30「把整个台（参考图 + 结果）一起拼」）：上面一排参考图、下面结果，
+ * 每张看全貌（不裁）、角上标号，选中的那张描白边 —— 一眼看完台上所有图，要细看再 look 单张。
+ * ⚠ 地址来自台上的快照（与 `look ref-N / result-N` 同一份），由 `fetchAsBuffer` 防 SSRF 去取。
+ */
+export async function buildBenchScreenSheet(input: {
+  userId: string
+  references: readonly BenchScreenPicture[]
+  results: readonly BenchScreenPicture[]
+  signal?: AbortSignal
+}): Promise<ScreenSheet> {
+  const all = [...input.references, ...input.results]
+  if (all.length === 0)
+    return {
+      text: `${PREFIX.screen}: there are no pictures on the bench — no references mounted and no results yet. Read the form with look (no names).`,
+      picture: null,
+    }
+  const describe = (picture: BenchScreenPicture, index: number) =>
+    `${index + 1} = ${picture.name}${picture.label ? ` ${picture.label}` : ''}${picture.selected ? ' (selected — "this one")' : ''}`
+  const legend = `${all.map(describe).join(' · ')}.`
+  const buffers = await Promise.all(
+    all.map((picture) => loadThumb(picture.url, input.signal)),
+  )
+  const step = SHEET.gridCell + SHEET.gridGap
+  const sectionGap = SHEET.gridGap * 4
+  const rowsOf = (count: number) => Math.ceil(count / SHEET.gridColumns)
+  const referenceRows = rowsOf(input.references.length)
+  const resultTop =
+    referenceRows * step +
+    (referenceRows && input.results.length ? sectionGap : 0)
+  const columns = Math.min(
+    SHEET.gridColumns,
+    Math.max(input.references.length, input.results.length),
+  )
+  const width = columns * step - SHEET.gridGap
+  const height = Math.max(
+    1,
+    resultTop + rowsOf(input.results.length) * step - SHEET.gridGap,
+  )
+  const cells: SheetCell[] = all.flatMap((picture, index) => {
+    const buffer = buffers[index]
+    if (!buffer) return []
+    const isResult = index >= input.references.length
+    const order = isResult ? index - input.references.length : index
+    return [
+      {
+        index,
+        left: (order % SHEET.gridColumns) * step,
+        top:
+          (isResult ? resultTop : 0) +
+          Math.floor(order / SHEET.gridColumns) * step,
+        width: SHEET.gridCell,
+        height: SHEET.gridCell,
+        buffer,
+        badge: String(index + 1),
+        fit: 'contain',
+        highlight: picture.selected,
+      },
+    ]
+  })
+  const rendered = await renderSheet({
+    userId: input.userId,
+    width,
+    height,
+    cells,
+    seed: all.map((picture) => picture.url),
+  })
+  const missing = all
+    .map((_, index) => index)
+    .filter((index) => !rendered.drawn.includes(index))
+    .map((index) => String(index + 1))
+  const noteMissing = missing.length
+    ? ` Not drawn (could not load): ${missing.join(', ')}.`
+    : ''
+  const rows = [
+    input.references.length ? 'the top row is their reference pictures' : '',
+    input.results.length
+      ? `${input.references.length ? 'below it' : 'the rows'} are the latest results`
+      : '',
+  ]
+    .filter(Boolean)
+    .join(', ')
+  if (!rendered.url)
+    return {
+      text: `${PREFIX.screen}: the picture of the bench could not be made this time. On the bench: ${legend} Look them by name instead.`,
+      picture: null,
+    }
+  return {
+    text: `${PREFIX.screen} — the bench as one picture: ${rows}; each shown whole with its number in the corner${input.results.some((picture) => picture.selected) ? ', the selected result framed in white' : ''}. ${legend}${noteMissing} Talk about them the way they see them (by position or by what is in them). To see one big, look it by its name (ref-N / result-N).`,
+    picture: { url: rendered.url, label: PREFIX.screen },
+  }
+}
+
 export interface ScreenSheet {
   readonly text: string
   readonly picture: AssistantV3PictureRef | null
@@ -244,27 +438,20 @@ export async function buildScreenSheet(input: {
   )
   const loaded = withThumb.filter((_, order) => thumbs[order])
   const { width, height, placed } = layout(screen, loaded)
-  const composites: OverlayOptions[] = []
-  const drawn: number[] = []
-  for (const place of placed) {
+  const cells: SheetCell[] = placed.flatMap((place) => {
     const buffer = thumbs[withThumb.indexOf(place.index)]
-    if (!buffer) continue
-    try {
-      const tile = await sharp(buffer, { animated: false })
-        .resize(place.width, place.height, { fit: 'cover' })
-        .jpeg({ quality: 90 })
-        .toBuffer()
-      composites.push({ input: tile, left: place.left, top: place.top })
-      composites.push({
-        input: badgeSvg(String(place.index + 1)),
-        left: Math.min(place.left + 6, width - SHEET.badge),
-        top: Math.min(place.top + 6, height - SHEET.badge),
-      })
-      drawn.push(place.index)
-    } catch {
-      // 格式解不开（视频、坏图）：这一格不画，号照样在下面那行里。
-    }
-  }
+    return buffer
+      ? [{ ...place, buffer, badge: String(place.index + 1), fit: 'cover' }]
+      : []
+  })
+  const rendered = await renderSheet({
+    userId: input.userId,
+    width,
+    height,
+    cells,
+    seed: loaded.map((index) => screen.tiles![index]!.thumb),
+  })
+  const drawn = rendered.drawn
   const missing = screen.visible
     .map((_, index) => index)
     .filter((index) => !drawn.includes(index))
@@ -278,36 +465,13 @@ export async function buildScreenSheet(input: {
       picture: null,
     }
 
-  try {
-    const sheet = await sharp({
-      create: { width, height, channels: 3, background: SHEET.background },
-    })
-      .composite(composites)
-      .jpeg({ quality: SHEET.quality })
-      .toBuffer()
-    const key = `${SHEET.keyPrefix}/${input.userId}/${createHash('sha256')
-      .update(
-        JSON.stringify({
-          width,
-          height,
-          placed,
-          thumbs: loaded.map((index) => screen.tiles![index]!.thumb),
-        }),
-      )
-      .digest('hex')
-      .slice(0, 32)}.jpg`
-    const url = await uploadToR2({ data: sheet, key, mimeType: 'image/jpeg' })
-    return {
-      text: `${PREFIX.screen} — their ${LIBRARY_VIEW_LABELS[view.library]} as they see it right now: the picture shows each tile where it sits on their screen, with its number in the corner. ${legend}${noteMissing} Talk about them the way they see them (by position or by what is in them), not by these numbers or names.${openHint}`,
-      picture: { url, label: PREFIX.screen },
-    }
-  } catch (error) {
-    logger.warn('Assistant screen sheet failed', {
-      error: error instanceof Error ? error.message : String(error),
-    })
+  if (!rendered.url)
     return {
       text: `${PREFIX.screen}: the picture of their screen could not be made this time. Top-left first: ${legend}${openHint}`,
       picture: null,
     }
+  return {
+    text: `${PREFIX.screen} — their ${LIBRARY_VIEW_LABELS[view.library]} as they see it right now: the picture shows each tile where it sits on their screen, with its number in the corner. ${legend}${noteMissing} Talk about them the way they see them (by position or by what is in them), not by these numbers or names.${openHint}`,
+    picture: { url: rendered.url, label: PREFIX.screen },
   }
 }

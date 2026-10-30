@@ -18,6 +18,7 @@ import {
   ASSISTANT_V3_LORA_EDIT_OP_IDS,
   ASSISTANT_V3_LORA_WRITE_FIELD_IDS,
   ASSISTANT_V3_TOOL_IDS,
+  ASSISTANT_V3_RESULT_PREFIX,
   ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS,
   ASSISTANT_V3_WEB_IMAGES_SEARCH_KIND,
   ASSISTANT_V3_WEB_VIDEOS_SEARCH_KIND,
@@ -104,7 +105,11 @@ import {
 import { isLibraryOp, runLibraryChange } from '@/features/assistant/library'
 import { readTaggerFor } from '@/features/assistant/tagger'
 import { renderLibraryView } from '@/features/assistant/library-view'
-import { buildScreenSheet } from '@/features/assistant/screen.service'
+import {
+  buildBenchScreenSheet,
+  buildScreenSheet,
+  type BenchScreenPicture,
+} from '@/features/assistant/screen.service'
 import type { BenchOpening } from '@/features/assistant/open'
 import type {
   AskInput,
@@ -325,15 +330,50 @@ export function renderBench(
   latestUserText: string,
   aliases = '',
 ): string {
-  return renderBenchBody(
-    context,
-    attachedNames,
-    latestUserText,
-    aliases,
-  ).concat(renderLibraryView(context.request.libraryView))
+  return renderBenchBody(context, attachedNames, latestUserText, aliases)
+    .concat(benchScreenHint(context))
+    .concat(renderLibraryView(context.request.libraryView))
 }
 
 export { renderLibraryView }
+
+/** 台上此刻的参考图（按现在台上那几张，与 `look ref-N` 同一份）与最新一批结果。 */
+function benchScreenPictures(context: V3Context): {
+  references: BenchScreenPicture[]
+  results: BenchScreenPicture[]
+} {
+  const opening = context.request.snapshot.references?.items ?? []
+  const references = (context.prepared.run.state?.referenceUrls ?? []).flatMap(
+    (url, index) => {
+      if (!url) return []
+      const label =
+        opening[index]?.url === url ? opening[index]?.label : undefined
+      return [{ name: `ref-${index + 1}`, url, ...(label ? { label } : {}) }]
+    },
+  )
+  const results = (context.request.snapshot.results ?? []).map(
+    (result, index) => ({
+      name: `${ASSISTANT_V3_RESULT_PREFIX}${index + 1}`,
+      url: result.url,
+      ...(result.label ? { label: result.label } : {}),
+      ...(result.selected ? { selected: true } : {}),
+    }),
+  )
+  return { references, results }
+}
+
+/** 板子底下那一句：台上有两张以上的图时，提醒它能一眼看完。 */
+function benchScreenHint(context: V3Context): string {
+  if (
+    context.request.libraryView ||
+    context.face === ASSISTANT_V3_FACE_IDS.canvas
+  )
+    return ''
+  const { references, results } = benchScreenPictures(context)
+  return references.length + results.length >= 2
+    ? `\nTo see every picture on the bench at once (references on top, results below, numbered), look ${ASSISTANT_NEXT_HANDLE_PREFIXES.screen}. When they point at the bench without naming one ("左边那张 / 这几张 / which one"), look ${ASSISTANT_NEXT_HANDLE_PREFIXES.screen} first.`
+    : ''
+}
 
 function isScreenName(name: string): boolean {
   const key = name.trim().toLowerCase()
@@ -1103,11 +1143,23 @@ export async function* runLook(
   for (const name of names) {
     // 看屏（10-30）：你眼前那一屏拼成的一张带编号小样图，先看个大概。
     if (isScreenName(name)) {
-      const sheet = await buildScreenSheet({
-        userId: context.prepared.user.id,
-        view: context.request.libraryView,
-        signal: context.prepared.run.signal,
-      })
+      // 库开着 = 看库那一屏；没开 = 看台（参考图 + 结果，10-30 owner「整个台一起拼」）。
+      const sheet = context.request.libraryView
+        ? await buildScreenSheet({
+            userId: context.prepared.user.id,
+            view: context.request.libraryView,
+            signal: context.prepared.run.signal,
+          })
+        : context.face === ASSISTANT_V3_FACE_IDS.canvas
+          ? {
+              text: `${ASSISTANT_NEXT_HANDLE_PREFIXES.screen}: on the canvas, look the cards by name (their pictures and clips come with them).`,
+              picture: null,
+            }
+          : await buildBenchScreenSheet({
+              userId: context.prepared.user.id,
+              ...benchScreenPictures(context),
+              signal: context.prepared.run.signal,
+            })
       parts.push(sheet.text)
       if (sheet.picture) pictures.push(sheet.picture)
       else failed += 1

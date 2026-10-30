@@ -138,3 +138,51 @@ describe('看屏：拼小样图（10-30）', () => {
     expect(first.text).toContain('1 = 图_001')
   })
 })
+
+describe('看屏：台上（10-30「整个台一起拼」）', () => {
+  it('台上没图：说读表单', async () => {
+    const { buildBenchScreenSheet } = await import('./screen.service')
+    const sheet = await buildBenchScreenSheet({
+      userId: 'u1',
+      references: [],
+      results: [],
+    })
+    expect(sheet.picture).toBeNull()
+    expect(sheet.text).toContain('no pictures on the bench')
+  })
+
+  it('参考图一排在上、结果在下，按号对上 ref-N / result-N，选中的那张点名', async () => {
+    fetchAsBuffer.mockResolvedValue({ buffer: red, mimeType: 'image/png' })
+    const { buildBenchScreenSheet } = await import('./screen.service')
+    const sheet = await buildBenchScreenSheet({
+      userId: 'u1',
+      references: [
+        {
+          name: 'ref-1',
+          url: 'https://cdn.example.com/r1.png',
+          label: '图_012',
+        },
+      ],
+      results: [
+        { name: 'result-1', url: 'https://cdn.example.com/a.png' },
+        {
+          name: 'result-2',
+          url: 'https://cdn.example.com/b.png',
+          selected: true,
+        },
+      ],
+    })
+    expect(sheet.picture?.label).toBe('屏幕')
+    expect(sheet.text).toContain(
+      '1 = ref-1 图_012 · 2 = result-1 · 3 = result-2 (selected — "this one")',
+    )
+    expect(sheet.text).toContain('the top row is their reference pictures')
+    const { data } = uploadToR2.mock.calls.at(-1)![0] as unknown as {
+      data: Buffer
+    }
+    const meta = await sharp(data).metadata()
+    // 两格宽、两排高（参考一排 + 结果一排，中间隔开）。
+    expect(meta.width).toBe(2 * 248 - 8)
+    expect(meta.height).toBe(248 + 32 + 240)
+  })
+})

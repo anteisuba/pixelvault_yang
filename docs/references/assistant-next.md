@@ -147,6 +147,7 @@ v3 的问题不在某一条规矩，而在外壳替模型做了太多事（审�
 - 报屏改为**发请求那一刻扫你眼前那一屏**（`lib/assistant-screen-scan.ts`）：库里每一格挂 `screenItemProps(kind, 名字, 缩略图)` 那几个 data 属性，`readLibraryView` 现扫视口里露出 ≥40% 的格子，按排从上到下、从左到右排号，带缩略图地址与在视口里的位置（`screen.tiles` / `screen.viewport`）。页面报的范围 / 搜索 / 多选照留，屏上那几样以扫到的为准（滚到哪儿就是哪儿）；没扫到才退回页面报的前 20 样。已接：画廊（格子与提示词卡）、素材、角色、LoRA（收藏 / 自训 / Civitai）、提示词、标签（列表行，角色类带样图）、音色、酒馆。
 - 板子那一句按号列出（`features/assistant/library-view.ts`，与小样图共用写法）；带图时提醒「指着屏上说（这边 / 屏上 / 哪张）先 `look 屏幕`」。
 - `look 屏幕`（`features/assistant/screen.service.ts`）：服务端照报上来的地址取缩略图（⚠ 只认白名单图床：自家 R2、Civitai 及代理、chub、Danbooru），按屏上位置拼成一张 1280 宽、每格角上标号的 JPEG（裁到格子占的那一段；没报位置退回 5 列网格），存 R2 `assistant-screens/<userId>/<hash>.jpg`（同一屏同一个键），当一张 look 图摆给模型 —— 先看大概，要细看再 look 单张。⛔ 不在浏览器里截网页：别的域上的图常截成空白。下不来 / 解不开的格子点名不画。
+- 台上也能看屏（owner 10-30「把整个台（参考图 + 结果）一起拼」）：库没开时 `look 屏幕` 拼台上此刻的参考图（上面一排，`ref-N`，按 `run.state.referenceUrls` 现读）与最新一批结果（下面，`result-N`），每张看全貌不裁、选中那张描白边（`buildBenchScreenSheet`）；台上有两张以上的图时板子底下提醒先看屏。画布不拼（卡按名字 look）。
 - 画廊里的图编号 `画廊·<generationId>`：`look` 打得开公开的（谁的都行，写作者）和自己的（自己的照常带完整配方与 generationId）；别人的只读，⛔ 不给 generationId（挂参考图 / 改库认的是自己的 `图_N`）。酒馆卡编号 `酒馆卡·<名字>` 只认得名字，look 打不开。
 - 挂上 LoRA / 填进台照旧走开台再摆（`open` 台 + `edit`）。
 - 没做：手机；LoRA 收藏那一格里的搜索框与详情抽屉（另一会话在改那几个文件）；角色页的卡库（Chub）那一格。

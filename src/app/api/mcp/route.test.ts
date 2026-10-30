@@ -30,6 +30,10 @@ vi.mock('@/services/mcp/mcp-tools.service', () => ({
 
 const mockFind = vi.fn()
 const mockLook = vi.fn()
+vi.mock('@/services/mcp/mcp-edit.service', () => ({
+  editForMcp: vi.fn(),
+  undoForMcp: vi.fn(),
+}))
 vi.mock('@/services/mcp/mcp-library.service', () => ({
   findForMcp: (...args: unknown[]) => mockFind(...args),
   lookForMcp: (...args: unknown[]) => mockLook(...args),
@@ -115,6 +119,7 @@ describe('/api/mcp', () => {
         .sort(),
     ).toEqual([
       'apply_ops',
+      'edit',
       'find',
       'get_render',
       'list_projects',
@@ -122,6 +127,7 @@ describe('/api/mcp', () => {
       'look_at',
       'read_project',
       'render',
+      'undo',
     ])
   })
 

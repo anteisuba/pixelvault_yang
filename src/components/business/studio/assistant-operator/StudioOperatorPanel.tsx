@@ -1968,11 +1968,12 @@ export function StudioOperatorPanel({
                   {orphanWebFindList}
                 </StudioOperatorTimelineRow>
               ) : null}
-              {checkpoint || changedCardList ? (
+              {/* 留着「想了 N 秒」那一行时撤销已经跟在它后面（`trailing`），⛔ 再画一条。 */}
+              {(checkpoint && !keepThoughtRow) || changedCardList ? (
                 <StudioOperatorTimelineRow
                   card={STUDIO_OPERATOR_CARD_KINDS.system}
                 >
-                  {checkpoint}
+                  {keepThoughtRow ? null : checkpoint}
                   {changedCardList}
                 </StudioOperatorTimelineRow>
               ) : null}

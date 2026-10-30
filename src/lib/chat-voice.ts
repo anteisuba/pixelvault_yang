@@ -1,4 +1,4 @@
-import { DRAMA_PAIRED_TAGS } from '@/constants/chat-voice'
+import { DRAMA_PAIRED_TAGS, VOICE_CUE_GROUPS } from '@/constants/chat-voice'
 import {
   GENERATION_NAME,
   GENERATION_NAME_PREFIX_BY_OUTPUT_TYPE,
@@ -8,16 +8,85 @@ import {
  * 她在对话里说的话怎么摆、怎么念（②c，聊天并回对话）——纯函数，前后端共用。
  */
 
+/** 官方标记表里的词（配音台「语气」菜单同一张表）：念法提示与发送前清洗都按它。 */
+const cueWords = (ids: readonly string[]) =>
+  VOICE_CUE_GROUPS.filter((group) => ids.includes(group.id))
+    .flatMap((group) => group.cues.map((cue) => `[${cue.tag}]`))
+    .join(' ')
+
 /**
  * 念出来的语气（方括号提示 / Drama 3 的中文提示与成对标签）：助手内核聊天（`chatVoice`）时拼进提示词。
  * 没有这段她不写方括号，念出来就没了情绪（用户 10-26「语音念出来的情绪」）。
+ * ⚠ 10-30：只教 Fish 官方表里的词（以前教的 `[pause]` `[softly]` 表里没有），情绪句首一句一个、一条最多三个，
+ * 声音后面只跟那声 —— 认不出的标记、标记后接一长句，都更容易让 Fish 收不住（念完后面全是语气声）。
  */
 export function voiceCueRules(expressive: boolean): string {
-  return `- Everything you write is spoken aloud in your voice, and the voice can act out short cues in square brackets (only square brackets — never *asterisks* or narration of what you do), at the start of a sentence or in the middle of it: [laughing], [whispering], [sighs], [pause], [excited], [softly]. Use them where a real person's voice would change — that is how your feelings come through. A sound needs its words after the cue — [laughing] Ha ha, you got me.${
+  return `- Everything you write is read aloud in your voice. You can steer the voice with a short cue in square brackets — only square brackets, never *asterisks* or narration of what you do. Use only these cues:
+  emotions ${cueWords(['emotion'])}
+  tones ${cueWords(['tone'])}
+  sounds ${cueWords(['sound'])}
+  pauses ${cueWords(['pause'])}
+- An emotion or tone cue goes at the very start of the sentence it colours. At most one cue per sentence and three in a reply; most sentences need none.
+- A sound cue is followed only by that sound, then the sentence ends: [chuckling] Heh heh. / [sighing] 唉。 Carry on in a new sentence.${
     expressive
-      ? `\n- Your voice also understands cues written in your own language ([压低声音，带着笑意]) and paired tags that change only the words inside them: ${DRAMA_PAIRED_TAGS.map((tag) => `<${tag}>…</${tag}>`).join(' ')}.`
+      ? `
+- Your voice also understands cues written in your own language at the start of a sentence ([压低声音，带着笑意]) and paired tags that change only the words inside them, always closed on the same line: ${DRAMA_PAIRED_TAGS.map((tag) => `<${tag}>…</${tag}>`).join(' ')}.`
       : ''
   }`
+}
+
+/** 模型常写的近义写法 → 官方表里的词（10-30 那条 `[pause]` `[softly]`）。 */
+const CUE_ALIASES: Readonly<Record<string, string>> = {
+  pause: 'break',
+  'short pause': 'break',
+  'long pause': 'long-break',
+  softly: 'soft tone',
+  soft: 'soft tone',
+  gently: 'soft tone',
+  whispers: 'whispering',
+  whisper: 'whispering',
+  sighs: 'sighing',
+  sigh: 'sighing',
+  laughs: 'laughing',
+  laugh: 'laughing',
+  chuckles: 'chuckling',
+  chuckle: 'chuckling',
+  giggles: 'chuckling',
+  giggling: 'chuckling',
+  gasps: 'gasping',
+  gasp: 'gasping',
+  yawns: 'yawning',
+  shouts: 'shouting',
+}
+
+/**
+ * 发给 Fish 之前把语气提示理一遍（10-30）：近义写法换成官方词；不是 Drama 3 时中文提示和成对标签拿掉
+ * （那几档不认）；Drama 3 的成对标签没合上的在那一行末尾合上 —— 没合上，后面整段都按那个语气念。
+ */
+export function normalizeVoiceCues(text: string, expressive: boolean): string {
+  const cued = text.replace(
+    /\[([^\]\n]{1,40})\](?!\()/g,
+    (cue, inner: string) => {
+      const word = inner.trim().toLowerCase()
+      const alias = CUE_ALIASES[word]
+      if (alias) return `[${alias}]`
+      if (!expressive && CJK.test(inner)) return ''
+      return cue
+    },
+  )
+  if (!expressive) return cued.replace(DRAMA_TAG, '')
+  return cued
+    .split('\n')
+    .map((line) => {
+      let closed = line
+      for (const tag of DRAMA_PAIRED_TAGS) {
+        const opens = line.split(`<${tag}>`).length - 1
+        const closes = line.split(`</${tag}>`).length - 1
+        if (opens > closes) closed += `</${tag}>`.repeat(opens - closes)
+      }
+      return closed
+    })
+    .join('\n')
 }
 
 const VOICE_CUE = /[ \t]*\[[^\]\n]{1,40}\](?!\()[ \t]*/g
@@ -121,13 +190,17 @@ export function withoutPictureHandles(text: string): string {
  * 念出来的那段字（内核的回复会带作品号和 markdown）：作品号去掉、链接只念字、强调符号去掉。
  * 什么都不剩就照原文念（总比发一条空请求好）。
  */
-export function spokenVoiceText(text: string): string {
-  const spoken = withoutPictureHandles(withoutStageDirections(text))
+export function spokenVoiceText(text: string, expressive = false): string {
+  const spoken = withoutPictureHandles(
+    normalizeVoiceCues(withoutStageDirections(text), expressive),
+  )
     // 表情包那一行不念（4d）。
     .replace(/!\[表情\]\([^)]*\)/g, '')
     .replace(/\[([^\]]*)\]\((?:[^)]*)\)/g, '$1')
     .replace(/https?:\/\/\S+/g, '')
-    .replace(/[*_`#>]+/g, '')
+    // ⚠ `>` 只去行首引用记号：`<whisper>…</whisper>` 里的 `>` 删了标签就合不上（10-30）。
+    .replace(/[*_`#]+/g, '')
+    .replace(/^[ \t]*>[ \t]?/gm, '')
     .replace(/[ \t]{2,}/g, ' ')
     .trim()
   return spoken || text

@@ -4,7 +4,7 @@ import { db } from '@/lib/db'
 import { ApiRequestError } from '@/lib/errors'
 import { AUDIO_KIND, type AudioKind } from '@/constants/audio-options'
 import { VOICE_BENCH } from '@/constants/studio-operator-voice'
-import { getAvailableAudioModels } from '@/constants/models'
+import { AI_MODELS, getAvailableAudioModels } from '@/constants/models'
 import { resolveAudioKind } from '@/constants/models/audio'
 import { characterCoverUrl } from '@/lib/card-bus'
 import { spokenVoiceText } from '@/lib/chat-voice'
@@ -83,11 +83,15 @@ export async function speakWithVoiceCard(params: {
     )
   }
 
+  // 选过就用它，没选过退回目录里第一个可用的。
+  const resolvedModelId = modelId ?? resolveAudioModelId(AUDIO_KIND.SPEECH)
   const { jobId } = await submitAudioGeneration(clerkId, {
-    // 新内核的回复会带作品号、链接：念的时候只念说的话。
-    prompt: spokenVoiceText(text),
-    // 选过就用它，没选过退回目录里第一个可用的。
-    modelId: modelId ?? resolveAudioModelId(AUDIO_KIND.SPEECH),
+    // 新内核的回复会带作品号、链接：念的时候只念说的话；语气提示按这一档认得的理一遍（10-30）。
+    prompt: spokenVoiceText(
+      text,
+      resolvedModelId === AI_MODELS.FISH_AUDIO_DRAMA_3,
+    ),
+    modelId: resolvedModelId,
     voiceId: card.voiceId,
     // 素材库靠这两个把音频卡画成「头像 + 名字」。
     voiceName: character?.name ?? card.name,

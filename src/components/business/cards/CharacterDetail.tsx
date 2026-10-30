@@ -316,25 +316,23 @@ export function CharacterImagesPane(props: CharacterPaneProps) {
           return ok
         }}
       />
-      {/* 外观两格套一块灰框，与人物页同一种分组（样件 v4）。 */}
-      <div className="max-w-180">
-        <SettingGroup title={t('settingLook')}>
-          <CharacterTextField
-            label={t('fieldLooks')}
-            value={look.description ?? ''}
-            limit={CHARACTER_CARD.DESCRIPTION_MAX_LENGTH}
-            clamp={false}
-            onSave={(description) => saveLook({ description })}
-          />
-          <TagsModule
-            card={card}
-            look={look}
-            save={save}
-            saveLook={saveLook}
-            bare
-          />
-        </SettingGroup>
-      </div>
+      {/* 外观两格套一块灰框，与人物页同一种分组（样件 v4）；铺满整行（owner 10-30 嫌右边空）。 */}
+      <SettingGroup title={t('settingLook')}>
+        <CharacterTextField
+          label={t('fieldLooks')}
+          value={look.description ?? ''}
+          limit={CHARACTER_CARD.DESCRIPTION_MAX_LENGTH}
+          clamp={false}
+          onSave={(description) => saveLook({ description })}
+        />
+        <TagsModule
+          card={card}
+          look={look}
+          save={save}
+          saveLook={saveLook}
+          bare
+        />
+      </SettingGroup>
       <CharacterImageShelves card={card} look={look} save={saveLook} />
     </div>
   )

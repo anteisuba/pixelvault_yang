@@ -120,7 +120,7 @@ export function CharacterImageShelves({
 
       {made.length > 0 ? (
         <Shelf title={t('imagesMadeTitle')} count={madeTotal}>
-          <div className="grid max-w-240 grid-cols-3 gap-2.5 sm:grid-cols-5 xl:grid-cols-8">
+          <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-5 lg:grid-cols-8 2xl:grid-cols-10">
             {made.map((generation) => {
               const onCard = slots.some((slot) => slot.url === generation.url)
               return (

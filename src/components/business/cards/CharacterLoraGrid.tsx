@@ -91,7 +91,7 @@ export function CharacterLoraGrid({ card }: { card: CharacterCardRecord }) {
 
   return (
     <>
-      <ul className="grid max-w-240 grid-cols-2 gap-x-3 gap-y-4 sm:grid-cols-4 xl:grid-cols-6">
+      <ul className="grid grid-cols-2 gap-x-3 gap-y-4 sm:grid-cols-4 lg:grid-cols-6 2xl:grid-cols-8">
         <li>
           <button
             type="button"

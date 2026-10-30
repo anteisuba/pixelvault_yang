@@ -2962,7 +2962,8 @@ export function StudioOperatorPanel({
           ⭐ 空态放起手 chip（点即发送，拍板 15；诱饵只在空态出现，D7c ④），
             线程一开始就换成规格行 —— 两样**占同一个位置**，⛔ 不叠两排。
           ⚠ 入场错开：`fill-mode-backwards` 让它们在各自的延迟走完之前保持起始帧。 */}
-            {threadEmpty && starterPills.length > 0 ? (
+            {/* 库页报的药丸（她缺什么）不等空线程：库里打开助手多半接着上一段聊，缺的照样要看得见。 */}
+            {(threadEmpty || libraryPills) && starterPills.length > 0 ? (
               <div
                 data-testid="operator-suggestion-row"
                 className="flex shrink-0 flex-wrap gap-1.5 px-3 pb-2"

@@ -9,12 +9,23 @@ import { z } from 'zod'
 
 import { EDIT_RESOLUTIONS } from '@/constants/edit-desk'
 import {
+  MCP_ACCESS_LEVELS,
   MCP_APPLY_OPS_MAX,
+  MCP_EDIT_MAX_CHANGES,
+  MCP_EDIT_OPS,
+  MCP_FIND_KINDS,
+  MCP_GENERATE_MAX_COUNT,
+  MCP_GENERATE_MAX_REFERENCES,
+  MCP_GENERATION_DECISIONS,
+  MCP_GENERATION_REQUEST_STATUSES,
   MCP_LOOK_AT_MAX_TIMES,
+  MCP_LOOK_MAX_NAMES,
   MCP_RENDER_KINDS,
   MCP_TOKEN_NAME_MAX_LENGTH,
 } from '@/constants/mcp'
+import { ASSISTANT_V3_CHARACTER_WRITE_PARTS } from '@/constants/assistant-v3'
 import { LOCALES } from '@/i18n/routing'
+import { GenerateRequestSchema } from '@/types'
 import { CANVAS_APPLY_OP_IDS } from '@/types/assistant-operator'
 import { NodeAssistantOpV4Schema } from '@/types/node-assistant-ops'
 
@@ -26,10 +37,19 @@ export const CreateMcpTokenRequestSchema = z.object({
 
 export type CreateMcpTokenRequest = z.infer<typeof CreateMcpTokenRequestSchema>
 
+export const McpAccessLevelSchema = z.enum(MCP_ACCESS_LEVELS)
+
+export const UpdateMcpTokenRequestSchema = z.object({
+  access: McpAccessLevelSchema,
+})
+
+export type UpdateMcpTokenRequest = z.infer<typeof UpdateMcpTokenRequestSchema>
+
 export const McpTokenRecordSchema = z.object({
   id: z.string(),
   name: z.string(),
   last4: z.string(),
+  access: McpAccessLevelSchema,
   createdAt: z.string(),
   lastUsedAt: z.string().nullable(),
 })
@@ -202,6 +222,113 @@ export const McpGetRenderInputSchema = z.object({
 
 export type McpGetRenderInput = z.infer<typeof McpGetRenderInputSchema>
 
+/* ─── 全站的查与看（库、角色、提示词…，站内助手 find / look 同一套）──────── */
+
+export const McpFindInputSchema = z.object({
+  query: z
+    .string()
+    .max(500)
+    .optional()
+    .describe(
+      'Words to look for (in prompts, names, tags, past messages), or a picture number like "图_1624". A line matches when ANY word matches; lines matching more words come first. For tags, separate ideas with commas ("watercolor, thick lineart"). Empty = the most recent ones.',
+    ),
+  kinds: z
+    .array(z.enum(MCP_FIND_KINDS))
+    .min(1)
+    .optional()
+    .describe(
+      'Which kinds to search. Their own: pictures (generations and uploads), characters (with their looks), loras (LoRAs they saved), prompts (saved prompts), conversations (earlier conversations with the in-app assistant), voices (their voice library). Shared libraries, searched only when named: tags (Danbooru tags plus the ones they favourited), lora_library (the Civitai LoRA library). Omit = all of their own.',
+    ),
+})
+
+export type McpFindInput = z.infer<typeof McpFindInputSchema>
+
+export const McpLookInputSchema = z.object({
+  names: z
+    .array(z.string().trim().min(1).max(200))
+    .min(1)
+    .max(MCP_LOOK_MAX_NAMES)
+    .describe(
+      'What to open, by the number or name find printed: a picture ("图_1624"), "角色·<name>" (optionally "角色·<name>/<look>"), "LoRA·<name>" (theirs, or one from the Civitai library), "标签·<danbooru_tag>", "音色·<name>", "提示词·<name>", "画廊·<id>" (a public gallery picture), "对话·<id>", "技能·<name>", or "设置". Pictures come back as images together with their full recipe.',
+    ),
+})
+
+export type McpLookInput = z.infer<typeof McpLookInputSchema>
+
+const NameSchema = z.string().trim().min(1).max(200)
+
+export const McpEditChangeSchema = z.object({
+  op: z
+    .enum(MCP_EDIT_OPS)
+    .describe(
+      'tag_pictures (pictures, tags) · favorite_pictures (pictures, value) · new_folder (name, folder = parent) · put_in_folder (pictures, folder) · character_profile (character, and name / tags / fields) · new_character (name, tags, fields) · character_look (character "角色·<name>/<look>", label / text / tags / pictures to add) · new_character_look (character, label, text, tags, pictures) · lora_to_character (lora, character, optionally "/<look>") · favorite_lora (lora, value) · lora_cover (lora, picture) · save_prompt (name, text, negativeText, model) · update_prompt (saved, and name / text / negativeText).',
+    ),
+  pictures: z
+    .array(NameSchema)
+    .max(20)
+    .optional()
+    .describe('Picture numbers ("图_1624").'),
+  picture: NameSchema.optional().describe('One picture number ("图_1624").'),
+  tags: z.array(z.string().trim().min(1).max(40)).max(20).optional(),
+  value: z
+    .boolean()
+    .optional()
+    .describe('favorite_*: true to favourite (default), false to take it out.'),
+  name: NameSchema.optional().describe(
+    'new_folder / new_character / save_prompt: the name. character_profile / update_prompt: a new name.',
+  ),
+  folder: NameSchema.optional().describe('A folder of theirs, by name.'),
+  character: NameSchema.optional().describe(
+    '"角色·<name>", or "角色·<name>/<look>" for one look.',
+  ),
+  fields: z
+    .array(
+      z.object({
+        field: z.enum(ASSISTANT_V3_CHARACTER_WRITE_PARTS),
+        text: z.string().max(8000),
+      }),
+    )
+    .max(ASSISTANT_V3_CHARACTER_WRITE_PARTS.length)
+    .optional()
+    .describe(
+      'character_profile / new_character: setting parts to write, each replacing that part. Pinned parts are refused.',
+    ),
+  label: NameSchema.optional().describe('A look: its name.'),
+  text: z
+    .string()
+    .max(8000)
+    .optional()
+    .describe(
+      'A look: its one-line appearance. save_prompt / update_prompt: the prompt.',
+    ),
+  negativeText: z.string().max(8000).optional(),
+  lora: NameSchema.optional().describe(
+    '"LoRA·<name>" (theirs, or one from the Civitai library for favorite_lora).',
+  ),
+  saved: NameSchema.optional().describe('update_prompt: "提示词·<name>".'),
+  model: NameSchema.optional().describe(
+    'save_prompt: the model id the prompt is for (a saved prompt keeps its model).',
+  ),
+})
+
+export type McpEditChange = z.infer<typeof McpEditChangeSchema>
+
+export const McpEditInputSchema = z.object({
+  changes: z.array(McpEditChangeSchema).min(1).max(MCP_EDIT_MAX_CHANGES),
+})
+
+export type McpEditInput = z.infer<typeof McpEditInputSchema>
+
+export const McpUndoInputSchema = z.object({
+  undo: z
+    .string()
+    .min(1)
+    .max(20_000)
+    .describe('The undo code edit gave back for that change.'),
+})
+
+export type McpUndoInput = z.infer<typeof McpUndoInputSchema>
+
 /* ─── 浏览器实时跟随（§6）─────────────────────────────────────────────── */
 
 export const ProjectFollowStatusSchema = z.object({
@@ -212,3 +339,74 @@ export const ProjectFollowStatusSchema = z.object({
 })
 
 export type ProjectFollowStatus = z.infer<typeof ProjectFollowStatusSchema>
+
+/* ─── 出图（§4.4）：她亲自确认后才出 ─────────────────────────────────── */
+
+export const McpListModelsInputSchema = z.object({})
+
+export const McpGenerateInputSchema = z.object({
+  prompt: z.string().trim().min(1).max(8000),
+  negativePrompt: z.string().max(8000).optional(),
+  model: z
+    .string()
+    .trim()
+    .min(1)
+    .max(160)
+    .describe('A model id from list_models.'),
+  aspectRatio: GenerateRequestSchema.shape.aspectRatio.optional(),
+  count: z
+    .number()
+    .int()
+    .min(1)
+    .max(MCP_GENERATE_MAX_COUNT)
+    .optional()
+    .describe(
+      `How many pictures (default 1, at most ${MCP_GENERATE_MAX_COUNT}).`,
+    ),
+  references: z
+    .array(z.string().trim().min(1).max(200))
+    .max(MCP_GENERATE_MAX_REFERENCES)
+    .optional()
+    .describe('Reference pictures from their library, by number ("图_1624").'),
+})
+
+export type McpGenerateInput = z.infer<typeof McpGenerateInputSchema>
+
+export const McpGetGenerationInputSchema = z.object({
+  requestId: z
+    .string()
+    .trim()
+    .min(1)
+    .max(160)
+    .describe('The requestId generate gave back.'),
+})
+
+export type McpGetGenerationInput = z.infer<typeof McpGetGenerationInputSchema>
+
+/** 网站上「等你确认」那一条。 */
+export const McpGenerationRequestRecordSchema = z.object({
+  id: z.string(),
+  summary: z.string(),
+  status: z.enum(MCP_GENERATION_REQUEST_STATUSES),
+  tokenName: z.string().nullable(),
+  createdAt: z.string(),
+  expiresAt: z.string(),
+})
+
+export type McpGenerationRequestRecord = z.infer<
+  typeof McpGenerationRequestRecordSchema
+>
+
+export const DecideMcpGenerationRequestSchema = z.object({
+  decision: z.enum(MCP_GENERATION_DECISIONS),
+})
+
+export type DecideMcpGenerationRequest = z.infer<
+  typeof DecideMcpGenerationRequestSchema
+>
+
+export interface McpDecisionResult {
+  readonly status: (typeof MCP_GENERATION_REQUEST_STATUSES)[number]
+  readonly jobIds: readonly string[]
+  readonly error: string | null
+}

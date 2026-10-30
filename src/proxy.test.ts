@@ -151,6 +151,34 @@ describe('proxy internal execution routes', () => {
     expect(authChecks()).toBe(0)
   })
 
+  it('lets an OAuth client read the MCP resource metadata before signing in', async () => {
+    await middleware(
+      {
+        nextUrl: {
+          pathname: '/api/mcp/oauth-protected-resource',
+          origin: 'https://antei.example.com',
+        },
+      } as never,
+      {} as never,
+    )
+
+    expect(authChecks()).toBe(0)
+  })
+
+  it('keeps generation confirmations behind a Clerk session', async () => {
+    await middleware(
+      {
+        nextUrl: {
+          pathname: '/api/mcp/generation-requests',
+          origin: 'https://antei.example.com',
+        },
+      } as never,
+      {} as never,
+    )
+
+    expect(authChecks()).toBe(1)
+  })
+
   it('keeps MCP token management behind a Clerk session', async () => {
     await middleware(
       {

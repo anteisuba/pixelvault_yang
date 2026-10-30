@@ -28,13 +28,47 @@ vi.mock('@/services/mcp/mcp-tools.service', () => ({
   getRenderForMcp: vi.fn(),
 }))
 
+const mockVerifyOAuth = vi.fn()
+vi.mock('@/services/mcp/mcp-oauth.service', () => ({
+  verifyMcpOAuthToken: (...args: unknown[]) => mockVerifyOAuth(...args),
+}))
+
+const mockCreateRequest = vi.fn()
+const mockReadPending = vi.fn()
+const mockDecide = vi.fn()
+const mockGetGeneration = vi.fn()
+vi.mock('@/services/mcp/mcp-generate.service', () => ({
+  createGenerationRequest: (...args: unknown[]) => mockCreateRequest(...args),
+  readPendingSummary: (...args: unknown[]) => mockReadPending(...args),
+  decideGenerationRequest: (...args: unknown[]) => mockDecide(...args),
+  getGenerationForMcp: (...args: unknown[]) => mockGetGeneration(...args),
+  listModelsForMcp: vi.fn(),
+}))
+
+const mockFind = vi.fn()
+const mockLook = vi.fn()
+const mockEdit = vi.fn()
+vi.mock('@/services/mcp/mcp-edit.service', () => ({
+  editForMcp: (...args: unknown[]) => mockEdit(...args),
+  undoForMcp: vi.fn(),
+}))
+vi.mock('@/services/mcp/mcp-library.service', () => ({
+  findForMcp: (...args: unknown[]) => mockFind(...args),
+  lookForMcp: (...args: unknown[]) => mockLook(...args),
+}))
+
 import { McpToolError } from '@/services/mcp/mcp-tools.service'
 import { MCP_TOKEN_PREFIX } from '@/constants/mcp'
 
 import { POST } from './route'
 
 const TOKEN = `${MCP_TOKEN_PREFIX}test`
-const OWNER = { tokenId: 'tok_1', userId: 'db_user_1', clerkId: 'clerk_1' }
+const OWNER = {
+  tokenId: 'tok_1',
+  userId: 'db_user_1',
+  clerkId: 'clerk_1',
+  access: 'generate' as const,
+}
 
 let nextId = 1
 
@@ -98,7 +132,7 @@ describe('/api/mcp', () => {
     expect((await rpc('tools/list')).status).toBe(401)
   })
 
-  it('lists the read tools, the write tool and the two render tools', async () => {
+  it('lists the read tools, the write tool, the two render tools and the library tools', async () => {
     const { status, body } = await rpc('tools/list')
 
     expect(status).toBe(200)
@@ -108,11 +142,18 @@ describe('/api/mcp', () => {
         .sort(),
     ).toEqual([
       'apply_ops',
+      'edit',
+      'find',
+      'generate',
+      'get_generation',
       'get_render',
+      'list_models',
       'list_projects',
+      'look',
       'look_at',
       'read_project',
       'render',
+      'undo',
     ])
   })
 
@@ -191,6 +232,247 @@ describe('/api/mcp', () => {
 
     expect(resultOf(body).isError).toBe(true)
     expect(mockList).not.toHaveBeenCalled()
+  })
+})
+
+/** 2026-07-28 那一代（Claude Code 2.1 起）：每个请求自带信封，弹框走多轮往返。 */
+async function rpc2026(
+  name: string,
+  args: Record<string, unknown>,
+  extra: Record<string, unknown> = {},
+  capabilities: Record<string, unknown> = { elicitation: { form: {} } },
+): Promise<Record<string, unknown> | null> {
+  const response = await POST(
+    new Request('https://www.anteisuba.com/api/mcp', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        accept: 'application/json, text/event-stream',
+        'mcp-protocol-version': '2026-07-28',
+        'mcp-method': 'tools/call',
+        'mcp-name': name,
+        authorization: `Bearer ${TOKEN}`,
+      },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: nextId++,
+        method: 'tools/call',
+        params: {
+          name,
+          arguments: args,
+          ...extra,
+          _meta: {
+            'io.modelcontextprotocol/protocolVersion': '2026-07-28',
+            'io.modelcontextprotocol/clientInfo': {
+              name: 'test',
+              version: '1',
+            },
+            'io.modelcontextprotocol/clientCapabilities': capabilities,
+          },
+        },
+      }),
+    }),
+  )
+  const text = await response.text()
+  const line = text.includes('data:')
+    ? text
+        .split('\n')
+        .filter((entry) => entry.startsWith('data:'))
+        .map((entry) => entry.slice(5).trim())
+        .pop()
+    : text
+  return line ? (JSON.parse(line) as Record<string, unknown>) : null
+}
+
+describe('/api/mcp generate (the user confirms)', () => {
+  const ARGS = { prompt: 'rainy street', model: 'gemini-image' }
+  const PENDING = { requestId: 'req_1', summary: '1 × gemini-image · 1:1' }
+
+  it('asks the client to confirm before anything is generated', async () => {
+    mockCreateRequest.mockResolvedValue(PENDING)
+
+    const body = await rpc2026('generate', ARGS)
+    const result = body?.result as Record<string, unknown>
+
+    expect(result.resultType).toBe('input_required')
+    expect(result.requestState).toBe('req_1')
+    expect(JSON.stringify(result.inputRequests)).toContain('elicitation/create')
+    expect(mockDecide).not.toHaveBeenCalled()
+  })
+
+  it('generates once the user accepts in the client', async () => {
+    mockReadPending.mockResolvedValue(PENDING)
+    mockDecide.mockResolvedValue({
+      status: 'confirmed',
+      jobIds: ['j1'],
+      error: null,
+    })
+    mockGetGeneration.mockResolvedValue('Confirmed. in queue…')
+
+    const body = await rpc2026('generate', ARGS, {
+      requestState: 'req_1',
+      inputResponses: {
+        confirm: { action: 'accept', content: { confirm: true } },
+      },
+    })
+
+    expect(mockDecide).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: 'db_user_1' }),
+      'req_1',
+      'confirm',
+    )
+    expect(JSON.stringify(body?.result)).toContain('Confirmed')
+  })
+
+  it('records a decline and generates nothing', async () => {
+    mockReadPending.mockResolvedValue(PENDING)
+    mockDecide.mockResolvedValue({
+      status: 'declined',
+      jobIds: [],
+      error: null,
+    })
+
+    const body = await rpc2026('generate', ARGS, {
+      requestState: 'req_1',
+      inputResponses: { confirm: { action: 'decline' } },
+    })
+
+    expect(mockDecide).toHaveBeenCalledWith(
+      expect.anything(),
+      'req_1',
+      'decline',
+    )
+    expect(JSON.stringify(body?.result)).toContain('declined')
+  })
+
+  it('sends the user to the website when the client cannot show a confirmation', async () => {
+    mockCreateRequest.mockResolvedValue(PENDING)
+
+    const body = await rpc2026('generate', ARGS, {}, {})
+
+    const text = JSON.stringify(body?.result)
+    expect(text).toContain('/settings/connections')
+    expect(text).toContain('req_1')
+    expect(mockDecide).not.toHaveBeenCalled()
+  })
+
+  it('needs a token that may generate', async () => {
+    mockVerify.mockResolvedValue({ ...OWNER, access: 'edit' })
+
+    const body = await rpc2026('generate', ARGS)
+
+    expect(JSON.stringify(body?.result)).toContain('Settings → Connections')
+    expect(mockCreateRequest).not.toHaveBeenCalled()
+  })
+})
+
+describe('/api/mcp OAuth (Claude.ai / ChatGPT connectors)', () => {
+  it('points an unsigned client at the resource metadata', async () => {
+    const response = await POST(
+      new Request('https://www.anteisuba.com/api/mcp', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          accept: 'application/json, text/event-stream',
+        },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
+      }),
+    )
+
+    expect(response.status).toBe(401)
+    expect(response.headers.get('www-authenticate')).toContain(
+      'resource_metadata="https://www.anteisuba.com/api/mcp/oauth-protected-resource"',
+    )
+  })
+
+  it('treats a token without the ANTEI prefix as a Clerk OAuth access token', async () => {
+    mockVerifyOAuth.mockResolvedValue({ ...OWNER, access: 'read' })
+    mockFind.mockResolvedValue('PICTURES: none found')
+
+    const { body } = await rpc(
+      'tools/call',
+      { name: 'find', arguments: {} },
+      'oat_abc',
+    )
+
+    expect(mockVerifyOAuth).toHaveBeenCalledWith('oat_abc')
+    expect(mockVerify).not.toHaveBeenCalled()
+    expect(resultOf(body).isError).toBeFalsy()
+  })
+})
+
+describe('/api/mcp access levels', () => {
+  it('refuses a change from a view-only connection and says where to raise it', async () => {
+    mockVerify.mockResolvedValue({ ...OWNER, access: 'read' })
+
+    const { body } = await rpc('tools/call', {
+      name: 'edit',
+      arguments: { changes: [{ op: 'favorite_lora', lora: 'LoRA·x' }] },
+    })
+
+    expect(resultOf(body).isError).toBe(true)
+    expect(resultOf(body).content?.[0]?.text).toMatch(/Settings → Connections/)
+    expect(mockEdit).not.toHaveBeenCalled()
+  })
+
+  it('lets a view-only connection look', async () => {
+    mockVerify.mockResolvedValue({ ...OWNER, access: 'read' })
+    mockFind.mockResolvedValue('PICTURES: none found')
+
+    const { body } = await rpc('tools/call', {
+      name: 'find',
+      arguments: {},
+    })
+
+    expect(resultOf(body).isError).toBeFalsy()
+  })
+})
+
+describe('/api/mcp find / look', () => {
+  it('searches the library as the token’s owner', async () => {
+    mockFind.mockResolvedValue('CHARACTERS\n角色·Mio')
+
+    const { body } = await rpc('tools/call', {
+      name: 'find',
+      arguments: { query: 'Mio', kinds: ['characters'] },
+    })
+
+    expect(mockFind).toHaveBeenCalledWith(OWNER, {
+      query: 'Mio',
+      kinds: ['characters'],
+    })
+    expect(resultOf(body).content?.[0]).toMatchObject({
+      type: 'text',
+      text: 'CHARACTERS\n角色·Mio',
+    })
+  })
+
+  it('returns what look opened as text followed by its pictures', async () => {
+    mockLook.mockResolvedValue([
+      {
+        text: '图_12 · recipe',
+        frames: [
+          { label: '图_12', ok: true, mimeType: 'image/jpeg', base64: 'AAA' },
+          {
+            label: '图_13',
+            ok: false,
+            reason: 'timed out fetching this frame',
+          },
+        ],
+      },
+    ])
+
+    const { body } = await rpc('tools/call', {
+      name: 'look',
+      arguments: { names: ['图_12'] },
+    })
+
+    expect(resultOf(body).content).toEqual([
+      { type: 'text', text: '图_12 · recipe' },
+      { type: 'text', text: '图_12' },
+      { type: 'image', data: 'AAA', mimeType: 'image/jpeg' },
+      { type: 'text', text: '图_13: timed out fetching this frame' },
+    ])
   })
 })
 

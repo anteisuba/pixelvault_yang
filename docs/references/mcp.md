@@ -1,10 +1,11 @@
 # MCP 参考 — 外部 Claude 剪片接入契约
 
-> 状态：**施工基准**（进度表 37）。S2–S4 已上线（2026-09-28，令牌表迁移与 render worker 均已在生产）；令牌管理界面 2026-10-07 落在 `/settings/connections`（未推）；S5 的「快照加时间线 · 教 op」与站内看片 `canvas_look_at` 2026-10-07 施工完（未推），S7 未开工。owner 2026-09-28 设计门 ①–③ 定案：「用 Claude 控制我的项目剪片，它需要什么功能就做什么」。外部 Claude 经 MCP 读写画布项目，站内助手用**同一套工具**。剪辑台界面的改版（第 ④ 步画板）另行出稿，本文只管工具、数据与同步。
+> 状态：**施工基准**（进度表 37）。2026-10-30 扩到全站（§4.3–4.5）并写完 S7 OAuth（§3.2），施工单 `p-mcp-everywhere`。S2–S4 已上线（2026-09-28，令牌表迁移与 render worker 均已在生产）；令牌管理界面 2026-10-07 落在 `/settings/connections`（未推）；S5 的「快照加时间线 · 教 op」与站内看片 `canvas_look_at` 2026-10-07 施工完（未推），S7 未开工。owner 2026-09-28 设计门 ①–③ 定案：「用 Claude 控制我的项目剪片，它需要什么功能就做什么」。外部 Claude 经 MCP 读写画布项目，站内助手用**同一套工具**。剪辑台界面的改版（第 ④ 步画板）另行出稿，本文只管工具、数据与同步。
 
 ## 1. 定位
 
-- 一条线：读项目 → 看片段 → 改（时间线 / 提示词 / 打回）→ 出小样回看 → 导出落回画布。**花钱的生成永远是用户在浏览器里点**。
+- 一条线：读项目 → 看片段 → 改（时间线 / 提示词 / 打回）→ 出小样回看 → 导出落回画布。**花钱的生成永远要用户亲自确认**（2026-10-30 起：客户端弹框或网站上点，见 4.4）。
+- 2026-10-30 起不只剪片：全站的库都能查、看、改（4.3），也能发起出图（4.4）；接哪家 AI 都行（MCP 是通用标准，能填 HTTP 地址 + 请求头的客户端都能接）。
 - 客户端：先 Claude Code（令牌），后 Claude.ai / 桌面聊天（OAuth 连接器）；两条认证落到同一个用户、同一套工具。
 - 用户在浏览器里看着它剪：开着的画布与剪辑台跟着变，改到的地方闪一下，⌘Z 能撤掉 Claude 的一批改动。
 
@@ -42,7 +43,11 @@ claude mcp add --transport http --scope user antei https://www.anteisuba.com/api
 - 授权服务器 = **Clerk 的 OAuth 应用**（Dashboard 打开，发布 CIMD 与 DCR 支持；DCR 在 MCP 规范里已标弃用，CIMD 优先，Claude 两种都支持）。同意页由 Clerk 出。
 - 受保护资源元数据（RFC 9728）我们自己出：`resource` 必须与用户粘贴的地址**逐字相同**（含 `/api/mcp`），`authorization_servers` 只写 Clerk 的 issuer（Claude 只读第一项）。
 - 未认证请求回 **401** 并带 `WWW-Authenticate: Bearer resource_metadata="…"`（Claude 不认 200 上的这个头）。
-- 验令牌用 `@clerk/nextjs` 6.39 自带的 `auth({ acceptsToken: 'oauth_token' })`。⛔ 不引 `@clerk/mcp-tools`：它要求 `@clerk/nextjs` ^7.2.3 且还依赖 v1 SDK，为它升整站登录的大版本不值得。
+- 2026-10-30 已写（`src/services/mcp/mcp-oauth.service.ts`）：不带 `pvmcp_` 前缀的 Bearer 一律当 Clerk OAuth 访问令牌，用 `clerkClient().idPOAuthAccessToken.verify` 验（`/api/mcp` 在 proxy 公开表里，`auth()` 拿不到中间件上下文，所以不用 `auth({ acceptsToken })`）。issuer 从 publishable key 解出（生产 = `https://clerk.anteisuba.com`）。
+- 元数据挂在 `/api/mcp/oauth-protected-resource`（`MCP_OAUTH_METADATA_PATH`，proxy 公开 + 测试），⛔ 不放 `/.well-known/…`：页面路径会被 i18n 中间件加语言前缀；客户端照 401 的 `WWW-Authenticate` 去取。
+- **每一家一行**：她 × clientId 在 `McpToken` 里占一行（`oauthClientId`，`tokenHash` = 那一对的哈希），和自己生成的令牌在设置页同一张单子上，权限同样三档、默认只看。吊销那一行 = 断开那一家；她重新同意后 Clerk 签的令牌晚于吊销时间 → 重新连上（回到只看），早于吊销的一律拒。
+- ⚠ **owner 要做**：Clerk Dashboard → OAuth applications 打开 Dynamic client registration（截至 10-30 `clerk.anteisuba.com/.well-known/oauth-authorization-server` 还没有 `registration_endpoint`），不开 Claude.ai / ChatGPT 加不上连接器。
+- 原计划：验令牌用 `@clerk/nextjs` 6.39 自带的 `auth({ acceptsToken: 'oauth_token' })`。⛔ 不引 `@clerk/mcp-tools`：它要求 `@clerk/nextjs` ^7.2.3 且还依赖 v1 SDK，为它升整站登录的大版本不值得。
 - 受众：Clerk 这个实例只服务本站一个资源，它签出的访问令牌天然就是给本站的；将来若挂第二个资源服务器，受众校验要改成显式比对。
 - 回调地址由 Clerk 按 CIMD / DCR 处理：托管端 `https://claude.ai/api/mcp/auth_callback`，Claude Code 是任意端口的 localhost / 127.0.0.1 回环。
 
@@ -50,14 +55,21 @@ claude mcp add --transport http --scope user antei https://www.anteisuba.com/api
 
 一律只收 id、不收地址；时间单位一律**秒**；出错时返回一句能照着做的话（`isError`）。服务端附一段 instructions，只写原则：时间是秒、写入带版本、不能生成（重拍怎么标）、先看再剪、改完出小样回看。
 
-| 工具            | 做什么                                                                                                                                                                                                                                                                        | 切片 |
-| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| `list_projects` | 列画布项目：id · 名 · 最近改动 · 节点数 · 时间线段数与时长。按最近活跃，最多 50 个                                                                                                                                                                                            | S2   |
-| `read_project`  | 一个项目：版本号 · 画布快照 · 时间线（见 4.1）。可带 `focusShot` 把焦点挪到别的镜                                                                                                                                                                                             | S2   |
-| `look_at`       | 看画面：目标三选一（节点 / 时间线段 / 渲染 job）+ 最多 8 个时间点 → 每点一张 512 宽 JPEG 带时间标注。段的时间点用时间线秒，服务端换算成素材秒（裁剪与倍速都算进去）；渲染 job 用成片秒（S4）；图片卡直接给缩略                                                                | S2   |
-| `apply_ops`     | 一批改动（`baseVersion` + ops）：op 形状与准入表同站内 `canvas_apply`，一批一个撤销条目。回：新版本 · 落了几条 · 跳过哪几条及原因 · 改到的节点与段                                                                                                                            | S3   |
-| `render`        | 出片：`draft`（480p 小样，不落画布、不进素材库）或 `final`（同剪辑台导出：落回画布成视频卡连回各段）；范围 = 整条 / 区间（`fromSec`/`toSec`，时间线秒）/ 单段（`clipId`，折成那一段的区间）；`final` 可带清晰度与界面语言（卡上「来源」那行）。不扣积分，与剪辑台共用在飞上限 | S4   |
-| `get_render`    | 查渲染（`projectId` + `jobId`）：状态 · 步骤 · 进度；完成后给地址、封面，以及落回画布的那张卡（按成片那一版的 generationId 在项目里找）                                                                                                                                       | S4   |
+| 工具             | 做什么                                                                                                                                                                                                                                                                                            | 切片 |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| `list_projects`  | 列画布项目：id · 名 · 最近改动 · 节点数 · 时间线段数与时长。按最近活跃，最多 50 个                                                                                                                                                                                                                | S2   |
+| `read_project`   | 一个项目：版本号 · 画布快照 · 时间线（见 4.1）。可带 `focusShot` 把焦点挪到别的镜                                                                                                                                                                                                                 | S2   |
+| `look_at`        | 看画面：目标三选一（节点 / 时间线段 / 渲染 job）+ 最多 8 个时间点 → 每点一张 512 宽 JPEG 带时间标注。段的时间点用时间线秒，服务端换算成素材秒（裁剪与倍速都算进去）；渲染 job 用成片秒（S4）；图片卡直接给缩略                                                                                    | S2   |
+| `apply_ops`      | 一批改动（`baseVersion` + ops）：op 形状与准入表同站内 `canvas_apply`，一批一个撤销条目。回：新版本 · 落了几条 · 跳过哪几条及原因 · 改到的节点与段                                                                                                                                                | S3   |
+| `render`         | 出片：`draft`（480p 小样，不落画布、不进素材库）或 `final`（同剪辑台导出：落回画布成视频卡连回各段）；范围 = 整条 / 区间（`fromSec`/`toSec`，时间线秒）/ 单段（`clipId`，折成那一段的区间）；`final` 可带清晰度与界面语言（卡上「来源」那行）。不扣积分，与剪辑台共用在飞上限                     | S4   |
+| `get_render`     | 查渲染（`projectId` + `jobId`）：状态 · 步骤 · 进度；完成后给地址、封面，以及落回画布的那张卡（按成片那一版的 generationId 在项目里找）                                                                                                                                                           | S4   |
+| `find`           | 查全站的库（2026-10-30）：她的图片 · 角色 · LoRA · 提示词 · 助手对话 · 音色，点名才查 Danbooru 标签库与 Civitai LoRA 库。直接调站内助手的 `findInWorkspace`，⛔ 不另写查库；没有记忆与联网找图（那两样走站内那一轮）                                                                              | 全站 |
+| `look`           | 打开 `find` 列出的编号 / 名字（最多 8 样）：图带全配方并附 512 宽缩略（一次最多 6 张）、角色全部造型与设定、LoRA、标签、音色、提示词、画廊图、对话、技能、设置。调 `openWorkspaceHandle`；台上的名字（ref-1、result-1、屏幕）认不出                                                               | 全站 |
+| `edit`           | 改库（2026-10-30）：给图打标签 / 收藏 / 建夹 / 放进夹，改角色设定与造型、新建角色与造型，LoRA 加到角色 / 收藏 / 换封面，存 / 改提示词。一批最多 10 条、各自成败；与站内 edit 同一批写函数（`assistant-library-write` / `asset-library-write`）。⛔ 删除、公开、改渠道 / 助手设置 / 搜图来源、记忆 | 全站 |
+| `undo`           | 撤销 `edit` 做成的一条：撤销码 = 站内撤销那份 `inverse` 的 base64url，原样交回 `revertAssistantAssetWrite`（按 userId 收敛，码被改过也只碰得到她自己的）                                                                                                                                          | 全站 |
+| `list_models`    | 出图能用的图片模型：id · provider · 她有没有那家的 key（2026-10-30）                                                                                                                                                                                                                              | 全站 |
+| `generate`       | 发起出图（2026-10-30，令牌要「可出图」档）：提示词 · 模型 · 比例 · 张数（≤4）· 参考图（她库里的图编号，≤4）。**只发起不出**：她亲自确认才调 `submitImageGeneration`（见 4.4）                                                                                                                     | 全站 |
+| `get_generation` | 查一次出图：等确认 / 拒了 / 过期 / 已确认（逐张进度，出好的给图编号再用 `look` 看）                                                                                                                                                                                                               | 全站 |
 
 ### 4.1 读到的形状
 
@@ -72,6 +84,26 @@ claude mcp add --transport http --scope user antei https://www.anteisuba.com/api
 - 源限制：MP4 · 小于 100MB · 10 分钟内 · 源站支持 HEAD 与 range（R2 自定义域满足）。不满足的那一帧单独回失败原因，⛔ 不连累同批其它帧。
 - 计费：一帧 = 一次转换，同一 (源, 参数) 每个自然月只计一次，每月免费 5000 次，之后 $0.50 / 千次。
 - 服务端取回图片、转 base64 作为 image 内容返回。Claude Code 单次工具结果默认上限约 25k token，8 张 512 宽 JPEG 远在上限内。
+
+### 4.3 全站的查与看（2026-10-30）
+
+- owner 2026-10-30：外部 AI 不只剪片，全站（工作台 · 角色 · 素材 · 提示词 · 库）都要能查、看、操作；生成要用户亲自确认（服务器发起确认，客户端不支持就去网站确认）；OAuth 一起做。分块：① 查和看 `find` / `look` ② 库改法 ③ 令牌权限（只读 / 可改 / 可出图）④ 出图确认 ⑤ OAuth。
+- ① 直接用站内助手工作区那一层（`src/features/assistant/workspace.service.ts`），MCP 这边只做「令牌主人 → 工作区主人」与缩略图取回（`src/services/mcp/mcp-library.service.ts`），**同一套查法**，站内修好的查库问题这里一起好。
+- 不隐身（`incognito: false`）：令牌就是她本人授权的整个账号。
+
+### 4.4 出图要她亲自确认（2026-10-30）
+
+- owner 定：外部 AI 能出图，但每次要她亲自点；能弹框的客户端就地点，不能就去网站点（选择卡 10-30）。**AI 自己点不了**：客户端自带的「允许调用」可被设成总是允许、别家 AI 也未必问，服务器认不出那是真人，所以确认由服务器发起。
+- 流程：`generate` 先落一行 `McpGenerationRequest`（pending，30 分钟过期）→
+  - 客户端在 2026-07-28 每请求信封里声明了 `elicitation.form`（Claude Code 2.1 起会）：回 `input_required`（MRTR，`inputRequired.elicit`，`requestState` = 那一行的 id），客户端弹「出图吗」；带着答复重发同一个调用 → 同意才出、拒绝记 declined。
+  - 声明不了（2025 那一代在无状态部署上没有会话，服务器→客户端的请求回不来，一律当不会）：回一句「去 设置 → 连接 点确认」+ requestId，网站那一列「等你确认的出图」每 30 秒问一次。
+- 确认 = 一条 `updateMany(pending → confirmed)`，客户端与网站同时点也只出一次；之后按张数调 `submitImageGeneration`（她自己的 key、同一条出图路），jobId 记回那一行。`requestState` 走一趟客户端回来不可信，所以每一步都按 userId 收敛，碰不到别人的行（SDK 要求的完整性保护由此满足，⛔ 不另做 HMAC）。
+- ⚠ Claude Code 的 `Elicitation` hook 能自动应答，那是她自己的设置，不算 AI 绕过。
+
+### 4.5 令牌权限（2026-10-30）
+
+- `McpToken.access` 三档逐级包含：`read` 只看（list / read / look / find / get\_\*）· `edit` 还能改（`apply_ops` / `render` / `edit` / `undo`）· `generate` 还能发起出图。新令牌默认 `read`，设置页每个令牌一条分段选择改，立即生效。认不出的值按 `read`。
+- 工具照样全列出来，调用时才拦（`MCP_TOOL_ACCESS`），回一句「去设置 → 连接调高」。
 
 ## 5. 服务端怎么写
 
@@ -126,7 +158,7 @@ claude mcp add --transport http --scope user antei https://www.anteisuba.com/api
 
 ## 10. 不做
 
-- MCP 触发任何生成或花钱的动作。
+- 不经她亲自确认的生成或花钱动作（2026-10-30 起出图走 4.4 的确认；画布卡上的生成仍是她在浏览器里点）。
 - 上传媒体；建 / 删 / 改名项目这类项目管理。
 - MCP 的 resources / prompts / sampling（只用 tools + instructions）；有状态会话。
 - 让 Claude 自己多轮试剪或给成片打分——由用户判断（同 D12 助手的规矩）。

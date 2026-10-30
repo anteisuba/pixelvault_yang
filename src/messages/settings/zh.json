@@ -73,10 +73,10 @@
       }
     },
     "connections": {
-      "caption": "让 Claude 直接读写你的画布项目 · 不能花积分",
+      "caption": "让 AI 读写你的图片、角色、库和画布 · 出图要你亲自确认",
       "claudeCode": {
         "title": "Claude Code",
-        "description": "贴一个令牌，Claude 就能读你的画布项目、剪片、出小样。要花积分的生成仍然由你在浏览器里点。"
+        "description": "贴一个令牌，Claude Code、Cursor 这类工具就能查看和整理你的库、剪画布。每个令牌单独选能做到哪一步。"
       },
       "create": "生成令牌",
       "limit": "最多 {count} 个，先吊销一个不用的",
@@ -112,7 +112,26 @@
         "load": "没读到令牌：网络连不上。",
         "create": "没生成出来，再试一次。",
         "limit": "最多 {count} 个有效令牌，先吊销一个不用的。",
-        "revoke": "没吊销成功，再试一次。"
+        "revoke": "没吊销成功，再试一次。",
+        "access": "权限没改成，再试一次。"
+      },
+      "access": {
+        "label": "「{name}」能做什么",
+        "read": "只看",
+        "edit": "可改",
+        "generate": "可出图"
+      },
+      "pending": {
+        "title": "等你确认的出图",
+        "confirm": "出图",
+        "decline": "不出",
+        "failed": "没能完成，再试一次。"
+      },
+      "connector": {
+        "title": "Claude.ai · ChatGPT",
+        "description": "在它们的「连接器」里添加自定义连接器，填这个地址，登录 ANTEI 同意一次就连上了。连上后会出现在上面的列表里，默认只看。",
+        "urlLabel": "连接器地址",
+        "copy": "复制地址"
       }
     }
   }

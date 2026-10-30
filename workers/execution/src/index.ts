@@ -66,6 +66,12 @@ import {
   createProviderResponseError,
 } from './lib/provider-error'
 import { guardWorkflowStep } from './lib/step-failure'
+import {
+  FISH_SEGMENTS,
+  fishSegmentMaxTokens,
+  fishSegmentRanAway,
+  splitFishSegments,
+} from '../../../src/lib/fish-segments'
 import { suffixStepNames } from './lib/step-rounds'
 import {
   buildIdeogramImageRequest,
@@ -2698,6 +2704,85 @@ function buildR2PublicUrl(env: ExecutionEnv, key: string): string {
   return `${env.R2_PUBLIC_URL.replace(/\/$/, '')}/${key}`
 }
 
+/** 念一段（分段里的一段）：按字数给 `max_new_tokens`，回来的 mp3 按码率算时长。 */
+async function synthesizeFishSegment(
+  context: WorkerAudioRunContext,
+  url: string,
+  apiKey: string,
+  segment: string,
+): Promise<{ audioBytes: Uint8Array; seconds: number }> {
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': JSON_CONTENT_TYPE,
+      model: context.providerInput.externalModelId,
+    },
+    body: JSON.stringify({
+      ...buildFishAudioRequestBody(context),
+      text: segment,
+      max_new_tokens: fishSegmentMaxTokens(segment),
+    }),
+  })
+  if (!response.ok) {
+    throw await createProviderResponseError(response, {
+      provider: 'fish_audio',
+      phase: 'tts',
+      fallbackMessage: `Fish Audio TTS failed with status ${response.status}`,
+      providerMetadata: {
+        endpointPath: '/v1/tts',
+        model: context.providerInput.externalModelId,
+      },
+    })
+  }
+  const audioBytes = new Uint8Array(await response.arrayBuffer())
+  // 码率（kbps）× 125 = 每秒字节数；Fish 默认 128。
+  const bytesPerSecond = (context.providerInput.mp3Bitrate ?? 128) * 125
+  return { audioBytes, seconds: audioBytes.byteLength / bytesPerSecond }
+}
+
+/**
+ * 按行分段念、再首尾拼成一条（owner 10-30「一口气说不完就分段说」）：每段按字数给上限，撞上限（没收住、
+ * 后面全是语气声）的那段重念一次，取短的那版。几段一起念，顺序不变。
+ */
+async function synthesizeFishSegments(
+  context: WorkerAudioRunContext,
+  url: string,
+  apiKey: string,
+): Promise<{
+  audioBytes: Uint8Array
+  duration: undefined
+  chunkCount: number
+}> {
+  const segments = splitFishSegments(context.providerInput.prompt)
+  const parts: Uint8Array[] = new Array(segments.length)
+  let next = 0
+  const worker = async () => {
+    while (next < segments.length) {
+      const index = next
+      next += 1
+      const segment = segments[index]!
+      let take = await synthesizeFishSegment(context, url, apiKey, segment)
+      if (fishSegmentRanAway(segment, take.seconds)) {
+        const again = await synthesizeFishSegment(context, url, apiKey, segment)
+        if (again.seconds < take.seconds) take = again
+      }
+      parts[index] = take.audioBytes
+    }
+  }
+  await Promise.all(
+    Array.from(
+      { length: Math.min(FISH_SEGMENTS.concurrency, segments.length) },
+      worker,
+    ),
+  )
+  return {
+    audioBytes: concatUint8Arrays(parts),
+    duration: undefined,
+    chunkCount: segments.length,
+  }
+}
+
 async function submitFishAudio(
   env: ExecutionEnv,
   context: WorkerAudioRunContext,
@@ -2713,17 +2798,25 @@ async function submitFishAudio(
     providerInput.providerBaseUrl ?? 'https://api.fish.audio'
   ).replace(/\/$/, '')
 
-  const response = await fetch(`${baseUrl}${endpointPath}`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': JSON_CONTENT_TYPE,
-      model: providerInput.externalModelId,
-    },
-    body: JSON.stringify(buildFishAudioRequestBody(context)),
-  })
+  // 一段话按行分段生成再拼（owner 10-30）：mp3 能直接首尾相接；多人合成、带时间戳的流照旧一次念完。
+  const segmented =
+    !providerInput.withTimestamps &&
+    outputFormat === 'mp3' &&
+    !providerInput.speakerVoiceIds?.length
 
-  if (!response.ok) {
+  const response = segmented
+    ? null
+    : await fetch(`${baseUrl}${endpointPath}`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': JSON_CONTENT_TYPE,
+          model: providerInput.externalModelId,
+        },
+        body: JSON.stringify(buildFishAudioRequestBody(context)),
+      })
+
+  if (response && !response.ok) {
     throw await createProviderResponseError(response, {
       provider: 'fish_audio',
       phase: 'tts',
@@ -2735,13 +2828,15 @@ async function submitFishAudio(
     })
   }
 
-  const parsed = providerInput.withTimestamps
-    ? await parseFishTimestampStream(response)
-    : {
-        audioBytes: new Uint8Array(await response.arrayBuffer()),
-        duration: undefined,
-        chunkCount: undefined,
-      }
+  const parsed = !response
+    ? await synthesizeFishSegments(context, `${baseUrl}${endpointPath}`, apiKey)
+    : providerInput.withTimestamps
+      ? await parseFishTimestampStream(response)
+      : {
+          audioBytes: new Uint8Array(await response.arrayBuffer()),
+          duration: undefined,
+          chunkCount: undefined,
+        }
 
   if (parsed.audioBytes.byteLength === 0) {
     throw createProviderNoOutputError({

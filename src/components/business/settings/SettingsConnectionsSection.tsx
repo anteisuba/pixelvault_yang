@@ -15,10 +15,12 @@ import { Copy, Plus } from '@/components/icons'
 import { API_ENDPOINTS, getAppOrigin } from '@/constants/config'
 import {
   buildClaudeCodeMcpCommand,
+  MCP_ACCESS_LEVELS,
   MCP_ACTIVE_WINDOW_MS,
   MCP_MAX_ACTIVE_TOKENS,
   MCP_TOKEN_DEFAULT_NAME,
   MCP_TOKEN_NAME_MAX_LENGTH,
+  type McpAccessLevel,
 } from '@/constants/mcp'
 import {
   COPIED_ACK_MS,
@@ -28,6 +30,7 @@ import {
   springTransition,
 } from '@/constants/motion'
 import type { CreatedMcpToken, McpTokenRecord } from '@/types/mcp'
+import { useMcpGenerationRequests } from '@/hooks/use-mcp-generation-requests'
 import { useMcpTokens } from '@/hooks/use-mcp-tokens'
 import { toastSuccess } from '@/lib/toast'
 import { cn } from '@/lib/utils'
@@ -40,6 +43,7 @@ import {
   useButtonFeedback,
 } from '@/components/ui/feedback-button'
 import { Input } from '@/components/ui/input'
+import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import { Spinner } from '@/components/ui/spinner'
 
 /**
@@ -49,7 +53,7 @@ import { Spinner } from '@/components/ui/spinner'
  * 与 API key 方向相反：那边是你去用别家的模型，这边是让 Claude 进来用你的项目。
  * 一块「Claude Code」：生成键 → 列表顶上一行填名字 → 刚生成那张卡给明文与
  * 填好令牌的接入命令（**只此一次**）→「我复制好了」收成普通一行。
- * ⛔ 不放 Claude.ai 连接器的占位：那一块做出来（mcp.md S7）才出现在这一页。
+ * 底下一块给网页版 Claude / ChatGPT 的连接器地址（S7 OAuth，2026-10-30）。
  *
  * 动效（owner 2026-10-08 设置页原型 v1）：虚线那一行**长高**出来；回车后同一格长成
  * 黑框卡（糊一下换进来）；「我复制好了」同一格收回普通一行；吊销过正中弹窗，那一行
@@ -58,7 +62,8 @@ import { Spinner } from '@/components/ui/spinner'
  */
 export function SettingsConnectionsSection() {
   const t = useTranslations('Settings')
-  const { tokens, isLoading, failure, create, revoke, reload } = useMcpTokens()
+  const { tokens, isLoading, failure, create, setAccess, revoke, reload } =
+    useMcpTokens()
   const reduceMotion = useReducedMotion()
   const [naming, setNaming] = useState<{ focus: boolean } | null>(null)
   const [creating, setCreating] = useState(false)
@@ -145,6 +150,8 @@ export function SettingsConnectionsSection() {
           {t('connections.caption')}
         </p>
       </header>
+
+      <PendingGenerations />
 
       <div className="mt-5 flex flex-col gap-3 @md:flex-row @md:items-start">
         <div className="min-w-0 flex-1">
@@ -233,6 +240,7 @@ export function SettingsConnectionsSection() {
                       <TokenRow
                         token={token}
                         now={now}
+                        onAccess={(access) => void setAccess(token.id, access)}
                         onRevoke={() => void revokeToken(token)}
                       />
                     )}
@@ -243,7 +251,93 @@ export function SettingsConnectionsSection() {
           </AnimatePresence>
         </ul>
       ) : null}
+
+      <ConnectorBlock />
     </section>
+  )
+}
+
+/**
+ * 网页版 Claude / ChatGPT（§3.2 OAuth）：它们只认「自定义连接器 + 地址」，登录与同意页由 Clerk 出。
+ * 连上之后那一家会自己出现在上面的单子里（默认只看），在那一行调权限、吊销。
+ */
+function ConnectorBlock() {
+  const t = useTranslations('Settings')
+  return (
+    <div className="mt-6 grid gap-2.5">
+      <div>
+        <h3 className="text-sm font-medium">
+          {t('connections.connector.title')}
+        </h3>
+        <p className="mt-0.5 text-2sm leading-relaxed text-muted-foreground">
+          {t('connections.connector.description')}
+        </p>
+      </div>
+      <CodeLine
+        label={t('connections.connector.urlLabel')}
+        value={`${getAppOrigin()}${API_ENDPOINTS.MCP}`}
+        copyLabel={t('connections.connector.copy')}
+      />
+    </div>
+  )
+}
+
+/**
+ * 「等你确认」（§4.4）：外部 AI 的客户端弹不了确认框时，出图在这里由她亲自点。
+ * 没有在等的就整块不出现。「出图」这一下就真的出图、用她自己的 key。
+ */
+function PendingGenerations() {
+  const t = useTranslations('Settings')
+  const { requests, deciding, failed, decide } = useMcpGenerationRequests()
+  if (requests.length === 0 && !failed) return null
+
+  return (
+    <div className="mt-5 grid gap-2">
+      <h3 className="text-sm font-medium">{t('connections.pending.title')}</h3>
+      {failed ? (
+        <p role="alert" className="text-xs text-status-risk">
+          {t('connections.pending.failed')}
+        </p>
+      ) : null}
+      <ul className="grid gap-2">
+        {requests.map((request) => {
+          const busy = deciding === request.id
+          return (
+            <li
+              key={request.id}
+              className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-foreground bg-card px-3.5 py-3 text-sm"
+            >
+              <span className="min-w-0 flex-1 basis-60 break-words">
+                {request.summary}
+                {request.tokenName ? (
+                  <span className="ml-2 text-xs text-muted-foreground">
+                    {request.tokenName}
+                  </span>
+                ) : null}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={deciding !== null}
+                onClick={() => void decide(request.id, 'decline')}
+                className="coarse:h-11"
+              >
+                {t('connections.pending.decline')}
+              </Button>
+              <Button
+                size="sm"
+                disabled={deciding !== null}
+                onClick={() => void decide(request.id, 'confirm')}
+                className="coarse:h-11"
+              >
+                {busy ? <Spinner size="sm" /> : null}
+                {t('connections.pending.confirm')}
+              </Button>
+            </li>
+          )
+        })}
+      </ul>
+    </div>
   )
 }
 
@@ -458,10 +552,12 @@ function CodeLine({
 function TokenRow({
   token,
   now,
+  onAccess,
   onRevoke,
 }: {
   token: McpTokenRecord
   now: number
+  onAccess: (access: McpAccessLevel) => void
   onRevoke: () => void
 }) {
   const t = useTranslations('Settings')
@@ -507,6 +603,17 @@ function TokenRow({
         {usage} · {createdOn}
       </span>
       <span className="flex-1 @md:hidden" aria-hidden />
+      <LiquidSegmented
+        size="xs"
+        semantics="radio"
+        ariaLabel={t('connections.access.label', { name: token.name })}
+        value={token.access}
+        onChange={onAccess}
+        items={MCP_ACCESS_LEVELS.map((level) => ({
+          value: level,
+          label: t(`connections.access.${level}`),
+        }))}
+      />
       <ConfirmDialog
         trigger={
           <Button

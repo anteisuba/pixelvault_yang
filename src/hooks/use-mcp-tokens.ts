@@ -6,8 +6,10 @@ import {
   createMcpTokenAPI,
   listMcpTokensAPI,
   revokeMcpTokenAPI,
+  updateMcpTokenAPI,
 } from '@/lib/api-client'
 import { deferEffectTask } from '@/lib/defer-effect-task'
+import type { McpAccessLevel } from '@/constants/mcp'
 import type { CreatedMcpToken, McpTokenRecord } from '@/types/mcp'
 
 /**
@@ -19,7 +21,7 @@ import type { CreatedMcpToken, McpTokenRecord } from '@/types/mcp'
  */
 
 /** 最近一次失败落在哪一步；`limit` = 有效令牌已满（服务端 409）。 */
-export type McpTokensFailure = 'load' | 'create' | 'limit' | 'revoke'
+export type McpTokensFailure = 'load' | 'create' | 'limit' | 'revoke' | 'access'
 
 const HTTP_CONFLICT = 409
 
@@ -29,6 +31,8 @@ export interface UseMcpTokensValue {
   failure: McpTokensFailure | null
   /** 生成一个；成功后列表最前多一行（不带明文），明文只在返回值里。 */
   create(name: string): Promise<CreatedMcpToken | null>
+  /** 改权限，立即生效；先改列表（乐观），失败退回原档。 */
+  setAccess(tokenId: string, access: McpAccessLevel): Promise<boolean>
   /** 吊销，立即生效。 */
   revoke(tokenId: string): Promise<boolean>
   reload(): Promise<void>
@@ -74,9 +78,16 @@ export function useMcpTokens(): UseMcpTokensValue {
     const result = await createMcpTokenAPI({ name })
     if (!aliveRef.current) return result.success ? (result.data ?? null) : null
     if (result.success && result.data) {
-      const { id, name: savedName, last4, createdAt, lastUsedAt } = result.data
+      const {
+        id,
+        name: savedName,
+        last4,
+        access,
+        createdAt,
+        lastUsedAt,
+      } = result.data
       setTokens((current) => [
-        { id, name: savedName, last4, createdAt, lastUsedAt },
+        { id, name: savedName, last4, access, createdAt, lastUsedAt },
         ...current,
       ])
       setFailure(null)
@@ -85,6 +96,35 @@ export function useMcpTokens(): UseMcpTokensValue {
     setFailure(result.status === HTTP_CONFLICT ? 'limit' : 'create')
     return null
   }, [])
+
+  const setAccess = useCallback(
+    async (tokenId: string, access: McpAccessLevel) => {
+      let previous: McpAccessLevel | null = null
+      setTokens((current) =>
+        current.map((token) => {
+          if (token.id !== tokenId) return token
+          previous = token.access
+          return { ...token, access }
+        }),
+      )
+      const result = await updateMcpTokenAPI(tokenId, { access })
+      if (!aliveRef.current) return result.success
+      if (result.success) {
+        setFailure(null)
+        return true
+      }
+      const restore = previous
+      if (restore)
+        setTokens((current) =>
+          current.map((token) =>
+            token.id === tokenId ? { ...token, access: restore } : token,
+          ),
+        )
+      setFailure('access')
+      return false
+    },
+    [],
+  )
 
   const revoke = useCallback(async (tokenId: string) => {
     const result = await revokeMcpTokenAPI(tokenId)
@@ -98,5 +138,5 @@ export function useMcpTokens(): UseMcpTokensValue {
     return false
   }, [])
 
-  return { tokens, isLoading, failure, create, revoke, reload }
+  return { tokens, isLoading, failure, create, setAccess, revoke, reload }
 }

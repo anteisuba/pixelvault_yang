@@ -73,10 +73,10 @@
       }
     },
     "connections": {
-      "caption": "Let Claude read and edit your canvas projects · it can't spend credits",
+      "caption": "Let AI tools read and edit your pictures, characters, libraries and canvas · generating always needs your confirmation",
       "claudeCode": {
         "title": "Claude Code",
-        "description": "Paste a token into Claude Code and Claude can read your canvas projects, cut edits and render drafts. Anything that spends credits is still your own click in the browser."
+        "description": "Paste a token into Claude Code, Cursor or similar tools and they can browse and organise your library and cut your canvas. Choose how far each token can go."
       },
       "create": "Create token",
       "limit": "Up to {count} tokens. Revoke one you no longer use.",
@@ -112,7 +112,26 @@
         "load": "Couldn't load tokens: the network didn't respond.",
         "create": "Couldn't create the token. Try again.",
         "limit": "You can have up to {count} active tokens. Revoke one you no longer use.",
-        "revoke": "Couldn't revoke the token. Try again."
+        "revoke": "Couldn't revoke the token. Try again.",
+        "access": "Couldn't change the access. Try again."
+      },
+      "access": {
+        "label": "What “{name}” can do",
+        "read": "View",
+        "edit": "Edit",
+        "generate": "Generate"
+      },
+      "pending": {
+        "title": "Waiting for your OK to generate",
+        "confirm": "Generate",
+        "decline": "Skip",
+        "failed": "Couldn't do that. Try again."
+      },
+      "connector": {
+        "title": "Claude.ai · ChatGPT",
+        "description": "Add a custom connector in their Connectors settings with this address, then sign in to ANTEI and approve once. It then shows up in the list above, view-only to start.",
+        "urlLabel": "Connector address",
+        "copy": "Copy address"
       }
     }
   }

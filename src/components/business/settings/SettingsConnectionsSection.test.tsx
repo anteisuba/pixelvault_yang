@@ -22,6 +22,9 @@ const api = vi.hoisted(() => ({
   listMcpTokensAPI: vi.fn(),
   createMcpTokenAPI: vi.fn(),
   revokeMcpTokenAPI: vi.fn(),
+  updateMcpTokenAPI: vi.fn(),
+  listMcpGenerationRequestsAPI: vi.fn(),
+  decideMcpGenerationRequestAPI: vi.fn(),
 }))
 vi.mock('@/lib/api-client', () => api)
 
@@ -35,6 +38,7 @@ function record(overrides: Partial<McpTokenRecord> = {}): McpTokenRecord {
     id: 't1',
     name: 'Claude Code',
     last4: 'a3f9',
+    access: 'read',
     createdAt: '2026-10-04T00:00:00.000Z',
     lastUsedAt: null,
     ...overrides,
@@ -43,6 +47,10 @@ function record(overrides: Partial<McpTokenRecord> = {}): McpTokenRecord {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  api.listMcpGenerationRequestsAPI.mockResolvedValue({
+    success: true,
+    data: [],
+  })
   window.matchMedia = vi.fn().mockReturnValue({
     matches: true,
     addEventListener: vi.fn(),
@@ -190,5 +198,63 @@ describe('SettingsConnectionsSection', () => {
       await screen.findByRole('button', { name: 'Settings:connections.retry' }),
     )
     expect(await screen.findByText('…a3f9')).toBeInTheDocument()
+  })
+
+  it('changes a token’s access from its row', async () => {
+    api.listMcpTokensAPI.mockResolvedValue({ success: true, data: [record()] })
+    api.updateMcpTokenAPI.mockResolvedValue({
+      success: true,
+      data: record({ access: 'edit' }),
+    })
+    render(<SettingsConnectionsSection />)
+
+    fireEvent.click(
+      await screen.findByRole('radio', {
+        name: 'Settings:connections.access.edit',
+      }),
+    )
+
+    await waitFor(() =>
+      expect(api.updateMcpTokenAPI).toHaveBeenCalledWith('t1', {
+        access: 'edit',
+      }),
+    )
+  })
+
+  it('lets her confirm a generation an AI asked for, and only then', async () => {
+    api.listMcpTokensAPI.mockResolvedValue({ success: true, data: [] })
+    api.listMcpGenerationRequestsAPI.mockResolvedValue({
+      success: true,
+      data: [
+        {
+          id: 'req_1',
+          summary: '1 × m1 · 1:1 · “rain”',
+          status: 'pending',
+          tokenName: 'Claude Code',
+          createdAt: '2026-10-30T09:00:00.000Z',
+          expiresAt: '2026-10-30T09:30:00.000Z',
+        },
+      ],
+    })
+    api.decideMcpGenerationRequestAPI.mockResolvedValue({
+      success: true,
+      data: { status: 'confirmed', jobIds: ['j1'], error: null },
+    })
+    render(<SettingsConnectionsSection />)
+
+    expect(await screen.findByText(/rain/)).toBeTruthy()
+    expect(api.decideMcpGenerationRequestAPI).not.toHaveBeenCalled()
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Settings:connections.pending.confirm',
+      }),
+    )
+
+    await waitFor(() =>
+      expect(api.decideMcpGenerationRequestAPI).toHaveBeenCalledWith('req_1', {
+        decision: 'confirm',
+      }),
+    )
+    await waitFor(() => expect(screen.queryByText(/rain/)).toBeNull())
   })
 })

@@ -3,7 +3,11 @@ import 'server-only'
 import { createMcpHandler, withMcpAuth } from 'mcp-handler'
 
 import { registerMcpTools, verifyMcpBearer } from '@/services/mcp/mcp-server'
-import { MCP_SERVER_INFO, MCP_SERVER_INSTRUCTIONS } from '@/constants/mcp'
+import {
+  MCP_OAUTH_METADATA_PATH,
+  MCP_SERVER_INFO,
+  MCP_SERVER_INSTRUCTIONS,
+} from '@/constants/mcp'
 
 export const runtime = 'nodejs'
 
@@ -20,6 +24,10 @@ const handler = createMcpHandler(registerMcpTools, {
   instructions: MCP_SERVER_INSTRUCTIONS,
 })
 
-const authed = withMcpAuth(handler, verifyMcpBearer, { required: true })
+// 没带 / 认不出 → 401 + `WWW-Authenticate: Bearer resource_metadata=…`，OAuth 客户端照着去登录（§3.2）。
+const authed = withMcpAuth(handler, verifyMcpBearer, {
+  required: true,
+  resourceMetadataPath: MCP_OAUTH_METADATA_PATH,
+})
 
 export { authed as GET, authed as POST, authed as DELETE }

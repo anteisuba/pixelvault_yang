@@ -386,6 +386,7 @@ type FieldRefInputType<Model, FieldType> = Model extends never ? never : FieldRe
 export const ModelName = {
   User: 'User',
   McpToken: 'McpToken',
+  McpGenerationRequest: 'McpGenerationRequest',
   DanbooruFavorite: 'DanbooruFavorite',
   DanbooruTagName: 'DanbooruTagName',
   PromptTagStack: 'PromptTagStack',
@@ -441,7 +442,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "mcpToken" | "danbooruFavorite" | "danbooruTagName" | "promptTagStack" | "assistantConversation" | "assistantConversationShare" | "researchRun" | "nodeWorkflowProject" | "project" | "projectItem" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "userCreativePreference" | "assistantPersona" | "projectRule" | "modelConfig" | "characterCard" | "characterLook" | "generationCharacterCard" | "userLike" | "userFollow" | "characterCardLora" | "loraTrainingJob" | "loraAsset" | "extractedElement" | "generationLayer" | "contextCard" | "assistantMemory" | "characterCardRevision" | "characterOuting" | "characterFinding" | "characterSticker" | "characterJournal" | "assistantSkill" | "assistantTurnRecord"
+    modelProps: "user" | "mcpToken" | "mcpGenerationRequest" | "danbooruFavorite" | "danbooruTagName" | "promptTagStack" | "assistantConversation" | "assistantConversationShare" | "researchRun" | "nodeWorkflowProject" | "project" | "projectItem" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "userCreativePreference" | "assistantPersona" | "projectRule" | "modelConfig" | "characterCard" | "characterLook" | "generationCharacterCard" | "userLike" | "userFollow" | "characterCardLora" | "loraTrainingJob" | "loraAsset" | "extractedElement" | "generationLayer" | "contextCard" | "assistantMemory" | "characterCardRevision" | "characterOuting" | "characterFinding" | "characterSticker" | "characterJournal" | "assistantSkill" | "assistantTurnRecord"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -590,6 +591,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.McpTokenCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.McpTokenCountAggregateOutputType> | number
+        }
+      }
+    }
+    McpGenerationRequest: {
+      payload: Prisma.$McpGenerationRequestPayload<ExtArgs>
+      fields: Prisma.McpGenerationRequestFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.McpGenerationRequestFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$McpGenerationRequestPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.McpGenerationRequestFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$McpGenerationRequestPayload>
+        }
+        findFirst: {
+          args: Prisma.McpGenerationRequestFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$McpGenerationRequestPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.McpGenerationRequestFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$McpGenerationRequestPayload>
+        }
+        findMany: {
+          args: Prisma.McpGenerationRequestFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$McpGenerationRequestPayload>[]
+        }
+        create: {
+          args: Prisma.McpGenerationRequestCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$McpGenerationRequestPayload>
+        }
+        createMany: {
+          args: Prisma.McpGenerationRequestCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.McpGenerationRequestCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$McpGenerationRequestPayload>[]
+        }
+        delete: {
+          args: Prisma.McpGenerationRequestDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$McpGenerationRequestPayload>
+        }
+        update: {
+          args: Prisma.McpGenerationRequestUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$McpGenerationRequestPayload>
+        }
+        deleteMany: {
+          args: Prisma.McpGenerationRequestDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.McpGenerationRequestUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.McpGenerationRequestUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$McpGenerationRequestPayload>[]
+        }
+        upsert: {
+          args: Prisma.McpGenerationRequestUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$McpGenerationRequestPayload>
+        }
+        aggregate: {
+          args: Prisma.McpGenerationRequestAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateMcpGenerationRequest>
+        }
+        groupBy: {
+          args: Prisma.McpGenerationRequestGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.McpGenerationRequestGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.McpGenerationRequestCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.McpGenerationRequestCountAggregateOutputType> | number
         }
       }
     }
@@ -3619,12 +3694,32 @@ export const McpTokenScalarFieldEnum = {
   name: 'name',
   tokenHash: 'tokenHash',
   last4: 'last4',
+  access: 'access',
+  oauthClientId: 'oauthClientId',
   lastUsedAt: 'lastUsedAt',
   revokedAt: 'revokedAt',
   createdAt: 'createdAt'
 } as const
 
 export type McpTokenScalarFieldEnum = (typeof McpTokenScalarFieldEnum)[keyof typeof McpTokenScalarFieldEnum]
+
+
+export const McpGenerationRequestScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  tokenId: 'tokenId',
+  kind: 'kind',
+  request: 'request',
+  summary: 'summary',
+  status: 'status',
+  jobIds: 'jobIds',
+  error: 'error',
+  createdAt: 'createdAt',
+  expiresAt: 'expiresAt',
+  decidedAt: 'decidedAt'
+} as const
+
+export type McpGenerationRequestScalarFieldEnum = (typeof McpGenerationRequestScalarFieldEnum)[keyof typeof McpGenerationRequestScalarFieldEnum]
 
 
 export const DanbooruFavoriteScalarFieldEnum = {
@@ -4480,20 +4575,6 @@ export type ListDateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaM
 
 
 /**
- * Reference to a field of type 'Int'
- */
-export type IntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int'>
-    
-
-
-/**
- * Reference to a field of type 'Int[]'
- */
-export type ListIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int[]'>
-    
-
-
-/**
  * Reference to a field of type 'Json'
  */
 export type JsonFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Json'>
@@ -4504,6 +4585,20 @@ export type JsonFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'J
  * Reference to a field of type 'QueryMode'
  */
 export type EnumQueryModeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'QueryMode'>
+    
+
+
+/**
+ * Reference to a field of type 'Int'
+ */
+export type IntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int'>
+    
+
+
+/**
+ * Reference to a field of type 'Int[]'
+ */
+export type ListIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int[]'>
     
 
 
@@ -4841,6 +4936,7 @@ export type PrismaClientOptions = ({
 export type GlobalOmitConfig = {
   user?: Prisma.UserOmit
   mcpToken?: Prisma.McpTokenOmit
+  mcpGenerationRequest?: Prisma.McpGenerationRequestOmit
   danbooruFavorite?: Prisma.DanbooruFavoriteOmit
   danbooruTagName?: Prisma.DanbooruTagNameOmit
   promptTagStack?: Prisma.PromptTagStackOmit

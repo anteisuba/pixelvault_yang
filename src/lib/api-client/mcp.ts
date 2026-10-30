@@ -1,8 +1,12 @@
 import { API_ENDPOINTS } from '@/constants/config'
 import type {
   CreateMcpTokenRequest,
+  DecideMcpGenerationRequest,
+  McpDecisionResult,
+  McpGenerationRequestRecord,
   CreatedMcpToken,
   McpTokenRecord,
+  UpdateMcpTokenRequest,
 } from '@/types/mcp'
 
 import { getErrorMessage } from '@/lib/api-client/shared'
@@ -69,6 +73,26 @@ export async function createMcpTokenAPI(
   }
 }
 
+export async function updateMcpTokenAPI(
+  tokenId: string,
+  body: UpdateMcpTokenRequest,
+): Promise<McpApiResponse<McpTokenRecord>> {
+  try {
+    return await readJson(
+      await apiFetch(
+        `${API_ENDPOINTS.MCP_TOKENS}/${encodeURIComponent(tokenId)}`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        },
+      ),
+    )
+  } catch (error) {
+    return { success: false, error: unexpected(error) }
+  }
+}
+
 export async function revokeMcpTokenAPI(
   tokenId: string,
 ): Promise<McpApiResponse<null>> {
@@ -77,6 +101,38 @@ export async function revokeMcpTokenAPI(
       await apiFetch(
         `${API_ENDPOINTS.MCP_TOKENS}/${encodeURIComponent(tokenId)}`,
         { method: 'DELETE' },
+      ),
+    )
+  } catch (error) {
+    return { success: false, error: unexpected(error) }
+  }
+}
+
+/** 外部 AI 发起、等她在网站上确认的出图（§4.4）。 */
+export async function listMcpGenerationRequestsAPI(): Promise<
+  McpApiResponse<McpGenerationRequestRecord[]>
+> {
+  try {
+    return await readJson(await apiFetch(API_ENDPOINTS.MCP_GENERATION_REQUESTS))
+  } catch (error) {
+    return { success: false, error: unexpected(error) }
+  }
+}
+
+/** ⚠ 「出图」这一下就真的出图、花她的额度。 */
+export async function decideMcpGenerationRequestAPI(
+  requestId: string,
+  body: DecideMcpGenerationRequest,
+): Promise<McpApiResponse<McpDecisionResult>> {
+  try {
+    return await readJson(
+      await apiFetch(
+        `${API_ENDPOINTS.MCP_GENERATION_REQUESTS}/${encodeURIComponent(requestId)}`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        },
       ),
     )
   } catch (error) {

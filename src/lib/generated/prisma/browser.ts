@@ -29,6 +29,12 @@ export type User = Prisma.UserModel
  */
 export type McpToken = Prisma.McpTokenModel
 /**
+ * Model McpGenerationRequest
+ * 外部 AI 发起、等她亲自确认的一次出图（2026-10-30，`docs/references/mcp.md` §4.4）。
+ * 客户端能弹框就在客户端点；不能就在网站上点这一条。确认后才调出图服务、才花钱。
+ */
+export type McpGenerationRequest = Prisma.McpGenerationRequestModel
+/**
  * Model DanbooruFavorite
  * 标签台查资料的收藏（owner 2026-09-28）：角色 / 画师 / 作品 / 特征整条收藏，
  * 每页没搜时置顶。存的是收藏那一刻的快照（张数、作品、缩略图），列表直接画，

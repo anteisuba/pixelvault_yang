@@ -28,6 +28,13 @@ vi.mock('@/services/mcp/mcp-tools.service', () => ({
   getRenderForMcp: vi.fn(),
 }))
 
+const mockFind = vi.fn()
+const mockLook = vi.fn()
+vi.mock('@/services/mcp/mcp-library.service', () => ({
+  findForMcp: (...args: unknown[]) => mockFind(...args),
+  lookForMcp: (...args: unknown[]) => mockLook(...args),
+}))
+
 import { McpToolError } from '@/services/mcp/mcp-tools.service'
 import { MCP_TOKEN_PREFIX } from '@/constants/mcp'
 
@@ -98,7 +105,7 @@ describe('/api/mcp', () => {
     expect((await rpc('tools/list')).status).toBe(401)
   })
 
-  it('lists the read tools, the write tool and the two render tools', async () => {
+  it('lists the read tools, the write tool, the two render tools and the library tools', async () => {
     const { status, body } = await rpc('tools/list')
 
     expect(status).toBe(200)
@@ -108,8 +115,10 @@ describe('/api/mcp', () => {
         .sort(),
     ).toEqual([
       'apply_ops',
+      'find',
       'get_render',
       'list_projects',
+      'look',
       'look_at',
       'read_project',
       'render',
@@ -191,6 +200,54 @@ describe('/api/mcp', () => {
 
     expect(resultOf(body).isError).toBe(true)
     expect(mockList).not.toHaveBeenCalled()
+  })
+})
+
+describe('/api/mcp find / look', () => {
+  it('searches the library as the token’s owner', async () => {
+    mockFind.mockResolvedValue('CHARACTERS\n角色·Mio')
+
+    const { body } = await rpc('tools/call', {
+      name: 'find',
+      arguments: { query: 'Mio', kinds: ['characters'] },
+    })
+
+    expect(mockFind).toHaveBeenCalledWith(OWNER, {
+      query: 'Mio',
+      kinds: ['characters'],
+    })
+    expect(resultOf(body).content?.[0]).toMatchObject({
+      type: 'text',
+      text: 'CHARACTERS\n角色·Mio',
+    })
+  })
+
+  it('returns what look opened as text followed by its pictures', async () => {
+    mockLook.mockResolvedValue([
+      {
+        text: '图_12 · recipe',
+        frames: [
+          { label: '图_12', ok: true, mimeType: 'image/jpeg', base64: 'AAA' },
+          {
+            label: '图_13',
+            ok: false,
+            reason: 'timed out fetching this frame',
+          },
+        ],
+      },
+    ])
+
+    const { body } = await rpc('tools/call', {
+      name: 'look',
+      arguments: { names: ['图_12'] },
+    })
+
+    expect(resultOf(body).content).toEqual([
+      { type: 'text', text: '图_12 · recipe' },
+      { type: 'text', text: '图_12' },
+      { type: 'image', data: 'AAA', mimeType: 'image/jpeg' },
+      { type: 'text', text: '图_13: timed out fetching this frame' },
+    ])
   })
 })
 

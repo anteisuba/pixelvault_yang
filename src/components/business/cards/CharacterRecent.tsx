@@ -818,7 +818,7 @@ export function CharacterRecent({
         )}
       >
         <div
-          className={cn('flex max-w-190 flex-col gap-4', !tabbed && 'mx-auto')}
+          className={cn('flex flex-col gap-4', !tabbed && 'mx-auto max-w-190')}
         >
           {data.isLoading && !growth ? (
             <div className="flex justify-center py-16">
@@ -1014,7 +1014,7 @@ export function CharacterStickersPane({ stickers }: { stickers: Stickers }) {
   const t = useTranslations('CharacterRoster.recent')
   const [deletingId, setDeletingId] = useState<string | null>(null)
   return (
-    <div className="max-w-190">
+    <div>
       <StickerGrid
         stickers={stickers}
         onToggle={(sticker) =>

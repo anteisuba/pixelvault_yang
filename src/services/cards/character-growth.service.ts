@@ -10,10 +10,18 @@ import {
   type CharacterBrowseSource,
 } from '@/constants/character-browse'
 import { db } from '@/lib/db'
+import {
+  AssistantMemoryLimitError,
+  createCharacterMemory,
+  listCharacterMemories,
+} from '@/services/assistant-memory.service'
 import { ensureUser } from '@/services/user.service'
+import { ApiRequestError } from '@/lib/errors'
+import type { AssistantMemory } from '@/types/assistant-memory'
 import type {
   CharacterGrowth,
   CharacterJournalEntry,
+  CharacterMemoryList,
   CharacterRecentActivity,
   UpdateCharacterJournalRequest,
 } from '@/types/character-growth'
@@ -238,4 +246,69 @@ export async function deleteCharacterFindingForClerkId(
   await db.characterFinding.delete({ where: { id: finding.id } })
   await forgetFindings(finding.characterCardId, [finding.id])
   return true
+}
+
+async function ownedCardId(userId: string, cardId: string) {
+  const card = await db.characterCard.findFirst({
+    where: { id: cardId, userId, isDeleted: false },
+    select: { id: true },
+  })
+  return card?.id ?? null
+}
+
+/** 她页「记忆」栏（第 ⑦ 步）：记得的 · 沉睡的 · 见闻。卡不是你的 → `null`（404）。 */
+export async function getCharacterMemoriesForClerkId(
+  clerkId: string,
+  cardId: string,
+): Promise<CharacterMemoryList | null> {
+  const user = await ensureUser(clerkId)
+  if (!(await ownedCardId(user.id, cardId))) return null
+  const [memories, findings] = await Promise.all([
+    listCharacterMemories(user.id, cardId),
+    db.characterFinding.findMany({
+      where: { userId: user.id, characterCardId: cardId },
+      orderBy: { seenAt: 'desc' },
+      take: CHARACTER_GROWTH_PAGE.memoryFindings,
+      select: {
+        id: true,
+        source: true,
+        url: true,
+        title: true,
+        note: true,
+        seenAt: true,
+      },
+    }),
+  ])
+  return {
+    ...memories,
+    findings: findings
+      .filter((row) => SOURCES.has(row.source))
+      .map((row) => ({
+        ...row,
+        source: row.source as CharacterBrowseSource,
+        seenAt: row.seenAt.toISOString(),
+      })),
+  }
+}
+
+/** 她页上「记一条」（第 ⑦ 步）。卡不是你的 → `null`（404）；你写给她的满了 → 409。 */
+export async function createCharacterMemoryForClerkId(
+  clerkId: string,
+  cardId: string,
+  input: { text: string },
+): Promise<AssistantMemory | null> {
+  const user = await ensureUser(clerkId)
+  if (!(await ownedCardId(user.id, cardId))) return null
+  try {
+    return await createCharacterMemory(user.id, cardId, input.text)
+  } catch (error) {
+    if (error instanceof AssistantMemoryLimitError)
+      throw new ApiRequestError(
+        'ASSISTANT_MEMORY_LIMIT_REACHED',
+        409,
+        'errors.assistantMemory.limitReached',
+        error.message,
+      )
+    throw error
+  }
 }

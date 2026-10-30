@@ -9,6 +9,7 @@ import {
 import { ASSISTANT_V3_FACE_IDS } from '@/constants/assistant-v3'
 import type { PromptAssistantResponseLanguage } from '@/types'
 import type { AssistantOperatorEvent } from '@/types/assistant-operator'
+import { AssistantMemoryUntilSchema } from '@/types/assistant-memory'
 import {
   addSearchSource,
   createCharacter,
@@ -306,6 +307,13 @@ async function memoryTargetOf(
   return { ok: true, target: { characterCardId: card.id, label: card.name } }
 }
 
+/** 模型给的「到哪天为止」：认得的日子才收，写坏了当没给（⛔ 为它拒掉这一条）。 */
+function validUntil(until: string | null | undefined): string | null {
+  return until && AssistantMemoryUntilSchema.safeParse(until).success
+    ? until
+    : null
+}
+
 /**
  * 记忆（第 6 步）：记下 / 改 / 忘掉一条，带撤销。隐身时一条都不碰；「让助手记住」关着就不记新的、不改，
  * 忘掉照样能做（那是创作者要她少记一点）。
@@ -345,7 +353,14 @@ async function* runRemember(
     return yield* settleWrite(
       context,
       title,
-      await editMemory(owner, { ref, text: change.text, handle: memoryHandle }),
+      await editMemory(owner, {
+        ref,
+        text: change.text,
+        handle: memoryHandle,
+        ...(change.until !== undefined
+          ? { until: validUntil(change.until) }
+          : {}),
+      }),
     )
   const target = await memoryTargetOf(context, change.character)
   if (!target.ok) return yield* fail(target.error)
@@ -356,6 +371,7 @@ async function* runRemember(
       text: change.text,
       target: target.target,
       handle: memoryHandle,
+      until: validUntil(change.until),
     }),
   )
 }

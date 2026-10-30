@@ -66,6 +66,16 @@ import {
 
 const NOW = new Date('2026-09-20T02:00:00.000Z')
 
+/** 第 ⑦ 步：注入 / 翻 / 给模型看都只读没沉睡、没过期的。 */
+const LIVE = {
+  dormantAt: null,
+  OR: [
+    { expiresAt: null },
+    { expiresAt: { gt: expect.any(Date) } },
+    { pinned: true },
+  ],
+}
+
 function row(overrides: Partial<Record<string, unknown>> = {}) {
   return {
     id: 'mem-1',
@@ -113,8 +123,8 @@ describe('listAssistantMemories', () => {
   it('缺 scope = 全部（chip 默认那一档）', async () => {
     await listAssistantMemories('db_user_1')
     expect(mockFindMany.mock.calls.map(([args]) => args.where)).toEqual([
-      { userId: 'db_user_1', source: 'CREATOR' },
-      { userId: 'db_user_1', source: 'ASSISTANT' },
+      { userId: 'db_user_1', characterCardId: null, source: 'CREATOR' },
+      { userId: 'db_user_1', characterCardId: null, source: 'ASSISTANT' },
     ])
   })
 
@@ -164,7 +174,8 @@ describe('listAssistantMemoriesForPrompt', () => {
       5,
     )
     const args = mockFindMany.mock.calls[0][0]
-    expect(args.where.scope.in).toEqual(['VIDEO', 'GLOBAL'])
+    expect(args.where.AND[0].scope.in).toEqual(['VIDEO', 'GLOBAL'])
+    expect(args.where.AND[1]).toEqual(LIVE)
     expect(args.orderBy).toEqual([{ updatedAt: 'desc' }, { id: 'asc' }])
     expect(args.take).toBe(5)
   })
@@ -189,7 +200,7 @@ describe('listAssistantMemoriesForPrompt', () => {
     )
     const { where } = mockFindMany.mock.calls[0][0]
     expect(where).not.toHaveProperty('scope')
-    expect(where.OR).toEqual([
+    expect(where.AND[0].OR).toEqual([
       { scope: 'GLOBAL' },
       { scope: 'CANVAS', projectId: null },
       { scope: 'CANVAS', projectId: 'proj-1' },
@@ -202,7 +213,7 @@ describe('listAssistantMemoriesForPrompt', () => {
       ASSISTANT_MEMORY_SCOPE_IDS.canvas,
       5,
     )
-    expect(mockFindMany.mock.calls[0][0].where.OR).toEqual([
+    expect(mockFindMany.mock.calls[0][0].where.AND[0].OR).toEqual([
       { scope: 'GLOBAL' },
       { scope: 'CANVAS', projectId: null },
     ])
@@ -245,7 +256,7 @@ describe('listCreatorMemoriesForPrompt', () => {
     expect(args.where).toMatchObject({
       userId: 'db_user_1',
       source: 'CREATOR',
-      scope: { in: ['VIDEO', 'GLOBAL'] },
+      AND: [{ scope: { in: ['VIDEO', 'GLOBAL'] } }, LIVE],
     })
     expect(args.orderBy).toEqual([{ updatedAt: 'desc' }, { id: 'asc' }])
     expect(args.take).toBe(12)
@@ -274,6 +285,7 @@ describe('listStandingRuleMemories', () => {
       userId: 'db_user_1',
       AND: [
         { OR: [{ source: 'CREATOR' }, { kind: 'RULE' }] },
+        LIVE,
         { scope: { in: ['LORA', 'GLOBAL'] }, characterCardId: null },
       ],
     })
@@ -287,7 +299,7 @@ describe('listStandingRuleMemories', () => {
     })
     const { where } = mockFindMany.mock.calls[0][0]
     expect(where).not.toHaveProperty('scope')
-    expect(where.AND[1]).toEqual({
+    expect(where.AND[2]).toEqual({
       characterCardId: null,
       OR: [{ projectId: null }, { projectId: 'proj-1' }],
     })
@@ -701,6 +713,14 @@ describe('addAssistantRuleMemory（add_project_rule 的普通规矩）', () => {
         text: '以后查资料只信官方站',
       }),
     ])
+    mockUpdate.mockResolvedValueOnce(
+      row({
+        id: 'mine',
+        source: 'CREATOR',
+        kind: 'RULE',
+        text: '以后查资料只信官方站',
+      }),
+    )
     const { memory, created } = await addAssistantRuleMemory('db_user_1', {
       text: '以后查资料只信官方站。',
       scope: ASSISTANT_MEMORY_SCOPE_IDS.image,
@@ -708,6 +728,11 @@ describe('addAssistantRuleMemory（add_project_rule 的普通规矩）', () => {
     expect(created).toBe(false)
     expect(memory.id).toBe('mine')
     expect(mockCreate).not.toHaveBeenCalled()
+    // 又提到一次（第 ⑦ 步）：+1，⛔ 改原文。
+    expect(mockUpdate.mock.calls[0][0].data).toEqual({
+      lastUsedAt: expect.any(Date),
+      mentions: { increment: 1 },
+    })
   })
 
   it('画布上记的归当前项目，回来的那条带项目名', async () => {
@@ -792,7 +817,7 @@ describe('clearAssistantMemories', () => {
     mockDeleteMany.mockResolvedValue({ count: 38 })
     expect(await clearAssistantMemories('db_user_1')).toBe(38)
     expect(mockDeleteMany).toHaveBeenCalledWith({
-      where: { userId: 'db_user_1' },
+      where: { userId: 'db_user_1', characterCardId: null },
     })
   })
 
@@ -803,7 +828,11 @@ describe('clearAssistantMemories', () => {
       ASSISTANT_MEMORY_SOURCE_IDS.assistant,
     )
     expect(mockDeleteMany).toHaveBeenCalledWith({
-      where: { userId: 'db_user_1', source: 'ASSISTANT' },
+      where: {
+        userId: 'db_user_1',
+        characterCardId: null,
+        source: 'ASSISTANT',
+      },
     })
   })
 })
@@ -822,7 +851,8 @@ describe('searchAssistantMemories', () => {
       scope: { in: ['IMAGE', 'GLOBAL'] },
       characterCardId: null,
     })
-    expect(args.where.AND[1]).toEqual({
+    expect(args.where.AND[1]).toEqual(LIVE)
+    expect(args.where.AND[2]).toEqual({
       OR: [
         { text: { contains: '横构图', mode: 'insensitive' } },
         { text: { contains: '16:9', mode: 'insensitive' } },
@@ -837,7 +867,7 @@ describe('searchAssistantMemories', () => {
       scope: ASSISTANT_MEMORY_SCOPE_IDS.image,
       query: '  ',
     })
-    expect(mockFindMany.mock.calls[0][0].where.AND).toHaveLength(1)
+    expect(mockFindMany.mock.calls[0][0].where.AND).toHaveLength(2)
   })
 
   it('⭐ 翻到的助手记的刷 lastUsedAt（真被用到才算），你写的不刷', async () => {
@@ -852,7 +882,7 @@ describe('searchAssistantMemories', () => {
     expect(found.map((memory) => memory.id)).toEqual(['mem-a', 'mem-c'])
     expect(mockUpdateMany).toHaveBeenCalledWith({
       where: { userId: 'db_user_1', id: { in: ['mem-a'] } },
-      data: { lastUsedAt: expect.any(Date) },
+      data: { lastUsedAt: expect.any(Date), mentions: { increment: 1 } },
     })
   })
 
@@ -884,7 +914,7 @@ describe('和角色聊天：记忆按角色分开（附录L 第二片）', () =>
     expect(mockFindMany.mock.calls[0][0].where).toEqual({
       userId: 'db_user_1',
       source: 'ASSISTANT',
-      ...CHAT_ONLY,
+      AND: [CHAT_ONLY, LIVE],
     })
   })
 
@@ -894,7 +924,9 @@ describe('和角色聊天：记忆按角色分开（附录L 第二片）', () =>
       ASSISTANT_MEMORY_SCOPE_IDS.cards,
       8,
     )
-    expect(mockFindMany.mock.calls[0][0].where.characterCardId).toBeNull()
+    expect(
+      mockFindMany.mock.calls[0][0].where.AND[0].characterCardId,
+    ).toBeNull()
   })
 
   it('翻记忆同样只翻这个角色的 + 你写的全局规矩', async () => {
@@ -931,9 +963,11 @@ describe('和角色聊天：记忆按角色分开（附录L 第二片）', () =>
       scope: 'CARDS',
       characterCardId: 'card-1',
     })
-    expect(mockCount.mock.calls[0][0].where).toMatchObject({
+    // 角色那份满了去睡（第 ⑦ 步）：数的是这个角色还活着的。
+    expect(mockFindMany.mock.calls.at(-1)![0].where).toMatchObject({
       scope: 'CARDS',
       characterCardId: 'card-1',
+      dormantAt: null,
     })
   })
 
@@ -985,12 +1019,27 @@ describe('新内核（第 6 步）', () => {
     expect(memories).toHaveLength(1)
     expect(mockFindMany.mock.calls[0]![0].where).toEqual({
       userId: 'db_user_1',
-      source: 'ASSISTANT',
-      OR: [
-        { scope: 'GLOBAL', projectId: null, characterCardId: null },
-        { characterCardId: 'card-7' },
+      AND: [
+        {
+          OR: [
+            {
+              source: 'ASSISTANT',
+              scope: 'GLOBAL',
+              projectId: null,
+              characterCardId: null,
+            },
+            // 她那份：她记的 + 你在她页上写给她的。
+            { characterCardId: 'card-7' },
+          ],
+        },
+        LIVE,
       ],
     })
+    expect(mockFindMany.mock.calls[0]![0].orderBy).toEqual([
+      { pinned: 'desc' },
+      { updatedAt: 'desc' },
+      { id: 'asc' },
+    ])
     expect(mockFindMany.mock.calls[0]![0].take).toBe(12)
   })
 

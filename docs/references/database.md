@@ -41,11 +41,16 @@
 | `source`                       | `AssistantMemorySource`：ASSISTANT · CREATOR（记忆页「助手记的 / 你写的」，2026-09-26 加列，默认 ASSISTANT）             |
 | `projectId`                    | 可空，FK → `NodeWorkflowProject`（`onDelete: Cascade`）。只属于一个画布项目的那条；空 = 不归项目（2026-10-09）           |
 | `characterCardId`              | 可空，FK → `CharacterCard`（`onDelete: Cascade`）。和这个角色聊天时记下的（范围一律 CARDS）；空 = 不归角色（2026-10-16） |
+| `expiresAt`                    | 可空。带日子的事由 AI 给「到哪天为止」，存那天 0 点 UTC + 2 天；过了就不注入、翻不到，现算（2026-10-30 第 ⑦ 步）         |
+| `mentions`                     | 默认 0。同一句又记一次 / 被翻到 +1；角色那份满了挤谁时提得多的让后                                                       |
+| `dormantAt`                    | 可空。角色那份满 200 时被挤出去的时刻（⛔ 删）；她页「沉睡」里能唤醒                                                     |
+| `pinned`                       | 默认 false。她页上钉住：永不过期、永不被挤、注入排最前                                                                   |
 
 - 四条索引：`(userId, scope, updatedAt desc)` 总览列表按域筛 · `(userId, updatedAt desc)` 总览「全部」· `(userId, scope, lastUsedAt desc)` 注入取前 N / 淘汰取最旧 · `(userId, projectId, lastUsedAt desc)` 画布按项目注入 · `(userId, characterCardId, updatedAt desc)` 聊天按角色注入。
 - **一个项目一份记忆**（owner 2026-10-09）：画布上结账记下的（和 `add_project_rule` 记在画布范围的）一律带当前项目；画布注入 = 全局 + 不归项目的画布条（记忆页「所有画布」）+ 本项目，⛔ 别的项目一条都不带。项目号对不上这个用户时画布那条**不写**，⛔ 不退成所有画布。记忆页里换范围（含选「所有画布」）就清掉 `projectId`。迁移 `20261009150000_assistant_memory_project` 加列 + 把历史上助手在画布会话里记的那几条按会话的项目回填，2026-10-09 经 owner 授权已对共用库执行（回填 1 行）。
 - **一个角色一份记忆**（附录L 第二片，owner 2026-10-16「现在上」）：和角色聊天时记下的带 `characterCardId`；聊天里只读这个角色的 + 你写的全局规矩，工作里的所有读取都排除带角色的行。角色卡对不上这个用户（或删了）就不写。迁移 `20261016100000_assistant_memory_character` 只加列 + 索引 + FK，⛔ 无回填，合 main 时由生产构建执行（owner 同意）。
 - **每域上限 200（只数助手记的）**，超了按 `lastUsedAt` 最旧的静默删（服务端 `evictOldestAssistantMemories`）；**你写的**最多 50 条、⛔ 不淘汰，满了拒。
+- **角色那份的生命周期**（2026-10-30 角色大项目第 ⑦ 步，owner「交给 AI，不可以提及」；迁移 `20261030170000_assistant_memory_lifecycle` 只加四列）：满 200 ⛔ 删，转沉睡（`putCharacterMemoriesToSleep`：只数活着的，钉住的不挤，按 `lastUsedAt` + 每次提及 14 天、最多算 10 次排）；沉睡 / 过期的 ⛔ 注入、⛔ 翻到、⛔ 给模型当已有记忆看（`liveWhere`），⛔ 自动删。你在她页上「记一条」= CREATOR + 归她，跟她记的一起进「记得的事」，⛔ 当规矩重复印。设置页的记忆列表与清空都排除带角色的行（她们的在她页「记忆」栏）。
 - 旧「项目规则」的普通规则（`ProjectRule.kind = NOTE`）由 `20260926210000_rules_into_memory` 搬进这张表（原 id / 原时间，类别 RULE，来源照搬，`scope` 为空或不在词表里的进 GLOBAL，超 200 字截断），随下一次生产构建执行。之后 `ProjectRule` 只装来源白 / 黑名单（`SOURCE_ALLOW` / `SOURCE_DENY`）；`NOTE` 这一枚举值暂留、无读写方。
 - 删除即真删，⛔ 无软删。`onDelete: Cascade` 挂在 `User` 上。
 - ⚠ 迁移 `20260920120000_assistant_memory` 只写了文件，**owner 自己跑**——仓里另有两条未应用的迁移，一并留给 push。

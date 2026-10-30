@@ -7,6 +7,7 @@ import type {
 import type {
   AssistantMemory,
   CreateAssistantMemoryRequest,
+  UpdateAssistantMemoryRequest,
 } from '@/types/assistant-memory'
 import { apiFetch } from '@/lib/api-client/api-fetch'
 
@@ -95,7 +96,7 @@ export async function createAssistantMemoryAPI(
 
 export async function updateAssistantMemoryAPI(
   memoryId: string,
-  input: { text?: string; scope?: AssistantMemoryScopeId },
+  input: UpdateAssistantMemoryRequest,
 ): Promise<ApiResult<AssistantMemory>> {
   try {
     const response = await apiFetch(memoryUrl(memoryId), {

@@ -144,6 +144,12 @@ export const EditChangeSchema = z.object({
     .describe(
       'remember: the memory to change or forget, by its number ("记忆·3f9a1c2b"); null = remember a new one.',
     ),
+  until: z
+    .string()
+    .nullish()
+    .describe(
+      'remember: the last day this line still matters, as YYYY-MM-DD (TODAY is in the system prompt) — for plans, appointments and other dated things ("exam on Friday" → that Friday). After it the line drops out on its own and never comes up again. null = it stays true.',
+    ),
   edits: z
     .array(FindReplaceSchema)
     .max(ASSISTANT_NEXT_LIMITS.maxFindReplace)

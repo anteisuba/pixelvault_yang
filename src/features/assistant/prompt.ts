@@ -30,6 +30,7 @@ import {
 } from '@/services/kernel/assistant-operator.service'
 import { buildAssistantV3CanvasGuideSection } from '@/services/kernel/assistant-v3-guides.service'
 import { renderAssistantV3HistorySummary } from '@/lib/assistant-v3-history'
+import { todayFor, untilFromExpiresAt } from '@/lib/memory-until'
 import type { AssistantV3HistorySummary } from '@/types/assistant-v3'
 import type { BenchFace } from '@/features/assistant/bench'
 import { inNextToolWords } from '@/features/assistant/canvas'
@@ -164,8 +165,9 @@ function memorySection(
   character: { id: string; name: string } | null,
 ): string {
   if (memories.length === 0) return ''
+  // 带日子的那几条写上到哪天为止（第 ⑦ 步）：过了它们自己会退出，⛔ 在这里出现。
   const line = (memory: AssistantMemory) =>
-    `  - [${memoryHandle(memory.id)}] ${memory.text}`
+    `  - [${memoryHandle(memory.id)}] ${memory.text}${memory.expiresAt ? ` (until ${untilFromExpiresAt(memory.expiresAt)})` : ''}`
   const ordered = stableMemoryOrder(memories)
   const aboutCreator = ordered.filter(
     (memory) => !memory.characterCardId && !memory.projectId,
@@ -499,7 +501,9 @@ export function buildNextSystemPrompt(input: {
     style ? `\n\nHOW YOU TALK${style}` : ''
   }${buildCreatorSection(persona, input.accountName, [], null)}${rulesSection(
     input.rules,
-  )}${memorySection(input.memories, chat ?? openCharacterOf(input.request))}${input.lastTime ?? ''}${input.findings ?? ''}${input.stickers ?? ''}${renderAssistantV3HistorySummary(
+  )}
+
+TODAY: ${todayFor(input.request.timeZone)}${memorySection(input.memories, chat ?? openCharacterOf(input.request))}${input.lastTime ?? ''}${input.findings ?? ''}${input.stickers ?? ''}${renderAssistantV3HistorySummary(
     input.historySummary ?? null,
     chat ? 'story' : 'work',
   )}${dialect}`

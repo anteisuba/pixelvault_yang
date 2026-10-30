@@ -763,6 +763,10 @@ export const AssistantMemoryScalarFieldEnum = {
   projectId: 'projectId',
   characterCardId: 'characterCardId',
   lastUsedAt: 'lastUsedAt',
+  expiresAt: 'expiresAt',
+  mentions: 'mentions',
+  dormantAt: 'dormantAt',
+  pinned: 'pinned',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const

@@ -544,6 +544,7 @@ import {
 } from '@/constants/assistant-memory'
 import {
   AssistantMemoryCandidateSchema,
+  AssistantMemoryUntilSchema,
   type AssistantMemory,
   type AssistantMemoryCandidate,
 } from '@/types/assistant-memory'
@@ -11888,9 +11889,15 @@ function parseMemoryCandidates(
   if (!raw) return []
   const candidates: AssistantMemoryCandidate[] = []
   for (const entry of raw) {
+    const until =
+      'until' in entry &&
+      AssistantMemoryUntilSchema.safeParse(entry.until).success
+        ? entry.until
+        : undefined
     const parsed = AssistantMemoryCandidateSchema.safeParse({
       kind: entry.kind,
       text: clamp(entry.text.trim(), ASSISTANT_MEMORY_LIMITS.maxTextChars),
+      ...(until ? { until } : {}),
     })
     if (parsed.success) candidates.push(parsed.data)
     if (candidates.length >= ASSISTANT_MEMORY_LIMITS.maxPerRound) break

@@ -55,6 +55,8 @@ export const CHARACTER_GROWTH_PAGE = {
   revisions: 50,
   findings: 60,
   opinions: 30,
+  /** 她页「记忆」栏的「见闻」最多列几条（第 ⑦ 步）。 */
+  memoryFindings: 200,
 } as const
 
 /**

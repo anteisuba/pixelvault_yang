@@ -120,6 +120,28 @@ export const ASSISTANT_MEMORY_LIMITS = {
 } as const
 
 /**
+ * **记忆的生命周期**（角色大项目第 ⑦ 步，owner 10-30「交给 AI，不可以提及」；思路参考 LivingMemory）。
+ *
+ * ⭐ 带日子的事由 AI 记下时给一个「到哪天为止」（`until`），过了就不注入、翻不到（她不会再提起），
+ *   在她页上进「沉睡」；过没过期在读的时候现算。
+ * ⭐ 角色那份满 `maxPerScope` 时被挤出去的 ⛔ 删，改进「沉睡」，你能唤醒；⛔ 不自动删（owner 10-30）。
+ * ⭐ 挤谁：按「最近用过」排，每被提到一次往后让 `mentionBonusDays` 天（最多算 `maxMentionsCounted` 次）。
+ */
+export const ASSISTANT_MEMORY_LIFECYCLE = {
+  /**
+   * 「到哪天为止」那天过完后再留几天：考试那天过去了，第二天她还能问一句「考得怎么样」。
+   * 存的是 `until` 当天 0 点（UTC）+ 这么多天。
+   */
+  graceDays: 2,
+  /** 被提到一次，挤的时候当它「新」这么多天。 */
+  mentionBonusDays: 14,
+  /** 提及次数最多算几次（再多就永远挤不掉了）。 */
+  maxMentionsCounted: 10,
+  /** 她页上「沉睡」一栏最多列几条（最近沉的在前）。 */
+  maxDormantListed: 200,
+} as const
+
+/**
  * **上下文卡与记忆共用的那一份预算**（owner 2026-09-20：「N 与上下文卡共用一份
  * token 预算、卡优先」）。
  *

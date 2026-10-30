@@ -247,7 +247,7 @@ describe('CharacterRoster（角色页 · 方向 A）', () => {
     expect(looks).toHaveTextContent('Q版')
   })
 
-  it('点一个角色进整页详情：左栏她 + 右边页签（最近 · 人物 · 图片 · LoRA · 表情包）；「‹ 角色」回总览', () => {
+  it('点一个角色进整页详情：左栏她 + 右边页签（最近 · 人物 · 图片 · LoRA · 记忆 · 表情包）；「‹ 角色」回总览', () => {
     renderRoster()
     openDenia()
     const detail = screen.getByRole('region', { name: 'Denia' })
@@ -256,6 +256,7 @@ describe('CharacterRoster（角色页 · 方向 A）', () => {
       '人物',
       '图片',
       'LoRA',
+      '记忆',
       '表情包',
     ])
     expect(screen.getByRole('button', { name: '和她聊' })).toBeTruthy()

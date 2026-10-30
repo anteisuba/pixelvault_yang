@@ -20,15 +20,20 @@ import {
   CharacterPersonPane,
 } from '@/components/business/cards/CharacterDetail'
 import { CharacterInterests } from '@/components/business/cards/CharacterInterests'
+import { CharacterMemoryPane } from '@/components/business/cards/CharacterMemoryPane'
 import { OutingCard } from '@/components/business/cards/CharacterOutingCard'
 import { CharacterStickersPane } from '@/components/business/cards/CharacterRecent'
 import { CharacterRecentDiary } from '@/components/business/cards/CharacterRecentDiary'
-import { useCharacterGrowth, useCharacterStickers } from '@/hooks/cards'
+import {
+  useCharacterGrowth,
+  useCharacterMemories,
+  useCharacterStickers,
+} from '@/hooks/cards'
 import { usePersonaSwitch } from '@/hooks/use-chat-persona'
 import { characterCoverUrl } from '@/lib/card-bus'
 import { characterImageCount, characterWork } from '@/lib/character-works'
 
-type DetailTab = 'recent' | 'person' | 'images' | 'lora' | 'stickers'
+type DetailTab = 'recent' | 'person' | 'images' | 'lora' | 'memory' | 'stickers'
 
 type PaneProps = Parameters<typeof CharacterPersonPane>[0]
 
@@ -37,7 +42,7 @@ type PaneProps = Parameters<typeof CharacterPersonPane>[0]
  *
  * ⭐ 左栏只放她：头像 · 名字（⋯ 里删除）· 一句介绍 · 「和她聊」（这块板唯一的黑钮）·
  *   「她在意的东西」（第 ④ 步）·「现在」（出门调查，第 ⑤ 步）。⛔ 分割线、⛔「用她 ▾」。
- * ⭐ 右边页签：最近 · 人物 · 图片 · LoRA · 表情包（记忆第 ⑦ 步再加）。各页内容先原样搬过来，
+ * ⭐ 右边页签：最近 · 人物 · 图片 · LoRA · 记忆（第 ⑦ 步）· 表情包。各页内容先原样搬过来，
  *   后面几步一页一页改。
  * ⚠ 手机照旧走 `CharacterDetailSplit`（手机归整体重设计）。
  */
@@ -50,6 +55,7 @@ export function CharacterDetailDesk({
   const { card } = paneProps
   const growth = useCharacterGrowth(card.id)
   const stickers = useCharacterStickers(card.id)
+  const memories = useCharacterMemories(card.id)
   const personaSwitch = usePersonaSwitch()
   const [tab, setTab] = useState<DetailTab>('recent')
   const [confirmingDelete, setConfirmingDelete] = useState(false)
@@ -59,6 +65,7 @@ export function CharacterDetailDesk({
     { value: 'person', label: t('detailTabs.person') },
     { value: 'images', label: t('detailTabs.images') },
     { value: 'lora', label: t('detailTabs.lora') },
+    { value: 'memory', label: t('detailTabs.memory') },
     { value: 'stickers', label: t('detailTabs.stickers') },
   ] as const
 
@@ -111,6 +118,8 @@ export function CharacterDetailDesk({
             <div className="h-full overflow-y-auto pb-12">
               <CharacterLorasPane card={card} />
             </div>
+          ) : tab === 'memory' ? (
+            <CharacterMemoryPane memories={memories} />
           ) : (
             <div className="h-full overflow-y-auto pb-12">
               <CharacterStickersPane stickers={stickers} />

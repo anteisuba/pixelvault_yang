@@ -87,7 +87,7 @@ export function SettingsShell({ section, children }: SettingsShellProps) {
             key={section}
             {...swap}
             data-testid="settings-section-content"
-            className="w-full max-w-settings"
+            className="w-full"
           >
             {children}
           </motion.div>

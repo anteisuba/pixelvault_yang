@@ -1299,7 +1299,6 @@
       "chooseScope": "Choose where it applies",
       "unassigned": "Unassigned history",
       "canvasProject": "Canvas · {name}",
-      "chatCharacter": "Chat with {name}",
       "savedProject": "Saved project",
       "projectsLoading": "Loading canvas projects…",
       "projectsEmpty": "Create a canvas project first.",

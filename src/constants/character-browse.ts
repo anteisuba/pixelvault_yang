@@ -65,6 +65,9 @@ export const CHARACTER_BROWSE = {
    */
   interestAddsPerOuting: 2,
   interestDropsPerOuting: 1,
+  /** 清单空着时头一趟自己想几样（owner 10-30「全围着人设那几个字」）。 */
+  interestSeedMin: 3,
+  interestSeed: 5,
   /** 细看时每张图最多多大、取多久；取不到的那张只看标题。 */
   pictureMaxBytes: 3 * 1024 * 1024,
   pictureTimeoutMs: 15_000,

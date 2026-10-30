@@ -313,13 +313,16 @@ ${recentTitles.length ? recentTitles.map((title) => `- ${title}`).join('\n') : '
 
 Return ONE JSON object and nothing else: {"queries":[{"source":"…","query":"…"}],"sticker":"…"${card.interestsPinned ? '' : ',"interests":{"add":[],"drop":[]}'}}
 - At most ${CHARACTER_BROWSE.maxQueries} queries, each a short search (a few words).
-- Most queries follow the things you care about; keep one for something else you happen to feel like today.
+- About half the queries follow the things you care about. The rest go somewhere new: things this person could enjoy that are NOT in the profile above or the list (another hobby, a show, a game, music, a place, an art style). Do not reuse the profile's own words (their job, school, catchphrases) as searches.
 - "sticker": one image search for reaction stickers (表情包) you would like to send in chats — built on a character, an animal or a mood you like, ending with 表情包 ("猫猫 表情包", "芙宁娜 表情包"); null if you do not want any today.
 - source is one of: ${sources.join(', ')}. bilibili = videos on Bilibili; youtube = videos on YouTube; danbooru = anime art, searched by a character or tag name; civitai = AI art styles and characters; x = posts on X; web = anything else; site:<domain> = pages on that site only.
 - Mix sources. Pick things this person would really enjoy, not generic ones.${
       card.interestsPinned
         ? ''
-        : `
+        : card.interests.length === 0
+          ? `
+- "interests": you have no list yet. Add ${CHARACTER_BROWSE.interestSeedMin} to ${CHARACTER_BROWSE.interestSeed} things you would plausibly care about (a few words each) — a broad mix such as hobbies, shows or games, music, food, places — not only what the profile mentions. "drop" stays empty.`
+          : `
 - "interests": your own list of things you care about. Add at most ${CHARACTER_BROWSE.interestAddsPerOuting} (a few words each) only if you have clearly gotten into something lately — judge by what you looked at recently; drop at most ${CHARACTER_BROWSE.interestDropsPerOuting} you have lost interest in, written exactly as in the list. Usually leave both empty.`
     }`,
     buildUserPrompt: () => material,
@@ -351,6 +354,11 @@ export function nextInterests(
   change: CharacterInterestChange | null,
 ): string[] | null {
   if (!change) return null
+  // 清单还空着（第 ⑩ 步后修补，owner 10-30「全围着人设那几个字」）：头一趟让她一次想好几样。
+  const adds =
+    current.length === 0
+      ? CHARACTER_BROWSE.interestSeed
+      : CHARACTER_BROWSE.interestAddsPerOuting
   const drop = new Set(
     change.drop
       .map((item) => item.trim())
@@ -360,7 +368,7 @@ export function nextInterests(
   const seen = new Set(kept.map((item) => item.toLowerCase()))
   const added: string[] = []
   for (const raw of change.add) {
-    if (added.length >= CHARACTER_BROWSE.interestAddsPerOuting) break
+    if (added.length >= adds) break
     const item = raw.trim().slice(0, CHARACTER_PERSONA_LIMITS.interestChars)
     if (!item || seen.has(item.toLowerCase())) continue
     seen.add(item.toLowerCase())
@@ -712,7 +720,7 @@ ${batch
       options.mustNote
         ? 'You are this character. Someone asked you to look at this video; write one short line about it'
         : `You are this character, browsing online in your free time. Keep only what you would actually remember: write one short line for at most ${CHARACTER_BROWSE.keepMax} of the things you came across — the ones you like or react to most —`
-    } in your own voice and in the language you usually speak, like a note to yourself or a message to a friend, not a review. React to what people say about it too (comments, bullet chat) when it is there. A picture marked (video frames) is frames from the video in time order, left to right, top to bottom.${options.mustNote ? '' : ' Give every other item a null note.'}
+    } in your own voice and in the language you usually speak, like a note to yourself or a message to a friend, not a review. React to the thing itself and to what people say about it (comments, bullet chat) when it is there. Sound like yourself through how you talk, not by bringing up your own setting: do not tie lines back to your job, school, catchphrases or running jokes — at most one line may mention your own life, and no two lines end the same way. A picture marked (video frames) is frames from the video in time order, left to right, top to bottom.${options.mustNote ? '' : ' Give every other item a null note.'}
 
 ${
   withImages.length
@@ -939,7 +947,7 @@ async function watchVideo(
     duration ?? Infinity,
   )
 
-  const systemPrompt = `You are this character. ${pinned ? 'Someone asked you to watch this video, so you did' : 'You just watched this video in your free time'} — you saw it and heard it. Write one short line in your own voice and in the language you usually speak: what you saw or heard that you liked or reacted to, like a note to yourself or a message to a friend, not a review.${pinned ? ' Always write the line.' : ' If it did not interest you at all, set note to null.'}
+  const systemPrompt = `You are this character. ${pinned ? 'Someone asked you to watch this video, so you did' : 'You just watched this video in your free time'} — you saw it and heard it. Write one short line in your own voice and in the language you usually speak: what you saw or heard that you liked or reacted to, like a note to yourself or a message to a friend, not a review. Sound like yourself through how you talk; do not tie it back to your job, school or catchphrases.${pinned ? ' Always write the line.' : ' If it did not interest you at all, set note to null.'}
 
 Return ONE JSON object and nothing else: {"note":"…"}
 - Within ${CHARACTER_BROWSE.noteChars} characters.

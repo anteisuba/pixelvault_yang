@@ -2,6 +2,7 @@ import 'server-only'
 
 import {
   ASSISTANT_MEMORY_KIND_IDS,
+  ASSISTANT_MEMORY_LIFECYCLE,
   ASSISTANT_MEMORY_LIMITS,
   ASSISTANT_MEMORY_SCOPE_IDS,
   ASSISTANT_MEMORY_SENSITIVE_PATTERNS,
@@ -12,6 +13,7 @@ import {
   type AssistantMemorySourceId,
 } from '@/constants/assistant-memory'
 import { db } from '@/lib/db'
+import { expiresAtFromUntil } from '@/lib/memory-until'
 import { ensureUser } from '@/services/user.service'
 import type {
   AssistantMemoryKind,
@@ -22,6 +24,7 @@ import {
   AssistantMemorySchema,
   type AssistantMemory,
   type AssistantMemoryCandidate,
+  type UpdateAssistantMemoryRequest,
 } from '@/types/assistant-memory'
 
 /**
@@ -93,6 +96,9 @@ const MEMORY_SELECT = {
   project: { select: { name: true } },
   characterCardId: true,
   characterCard: { select: { name: true } },
+  pinned: true,
+  expiresAt: true,
+  dormantAt: true,
   createdAt: true,
   updatedAt: true,
 } as const
@@ -107,8 +113,30 @@ interface MemoryRow {
   project: { name: string } | null
   characterCardId: string | null
   characterCard: { name: string } | null
+  pinned: boolean
+  expiresAt: Date | null
+  dormantAt: Date | null
   createdAt: Date
   updatedAt: Date
+}
+
+/** 过期了吗（钉住的永不过期）：读的时候现算（第 ⑦ 步）。 */
+function isExpired(
+  row: { pinned: boolean; expiresAt: Date | null },
+  now = new Date(),
+): boolean {
+  return !row.pinned && Boolean(row.expiresAt) && row.expiresAt! <= now
+}
+
+/**
+ * **还活着的那几条**（第 ⑦ 步）：没沉睡、没过期（钉住的不算过期）。注入、翻记忆、给模型看的已有记忆都只读它们 ——
+ * 沉睡和过期的她不会再提起（owner 10-30「不可以提及」），只在她页上「沉睡」一栏里。
+ */
+function liveWhere(now = new Date()) {
+  return {
+    dormantAt: null,
+    OR: [{ expiresAt: null }, { expiresAt: { gt: now } }, { pinned: true }],
+  }
 }
 
 /**
@@ -128,6 +156,9 @@ function toMemory(row: MemoryRow): AssistantMemory | null {
     projectName: row.project?.name ?? null,
     characterCardId: row.characterCardId,
     characterName: row.characterCard?.name ?? null,
+    pinned: row.pinned,
+    expiresAt: row.expiresAt?.toISOString() ?? null,
+    dormant: Boolean(row.dormantAt) || isExpired(row),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   })
@@ -155,6 +186,8 @@ export async function listAssistantMemories(
 ): Promise<AssistantMemory[]> {
   const where = {
     userId,
+    // 角色的记忆在她页上「记忆」栏（第 ⑦ 步），设置页只管工作台的。
+    characterCardId: null,
     ...(options.scope ? { scope: DB_SCOPE_BY_ID[options.scope] } : {}),
   }
   const [creatorRows, assistantRows] = await Promise.all([
@@ -288,7 +321,7 @@ export async function listAssistantMemoriesForPrompt(
     where: {
       userId,
       source: DB_SOURCE_BY_ID[ASSISTANT_MEMORY_SOURCE_IDS.assistant],
-      ...promptWhere(scope, projectId, characterCardId),
+      AND: [promptWhere(scope, projectId, characterCardId), liveWhere()],
     },
     /**
      * ⭐ 固定的一组（P3）：最近记下 / 改过的那几条，⛔ 不按 `lastUsedAt` —— 原来注入一次就刷一次，
@@ -322,7 +355,19 @@ export async function listCreatorMemoriesForPrompt(
     where: {
       userId,
       source: DB_SOURCE_BY_ID[ASSISTANT_MEMORY_SOURCE_IDS.creator],
-      ...promptWhere(scope, projectId, characterCardId),
+      AND: [
+        /**
+         * 和角色聊天：只要你写的全局规矩。你在她页上「记一条」写给她的那几行是她记得的事（第 ⑦ 步），
+         * 跟她自己记的一起进「记得的事」那一段，⛔ 不当规矩重复印一遍。
+         */
+        characterCardId
+          ? {
+              scope: DB_SCOPE_BY_ID[ASSISTANT_MEMORY_SCOPE_IDS.global],
+              characterCardId: null,
+            }
+          : promptWhere(scope, projectId),
+        liveWhere(),
+      ],
     },
     orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }],
     take: Math.min(limit, ASSISTANT_MEMORY_LIMITS.maxCreatorEntries),
@@ -356,6 +401,7 @@ export async function listStandingRuleMemories(
             { kind: DB_KIND_BY_ID[ASSISTANT_MEMORY_KIND_IDS.rule] },
           ],
         },
+        liveWhere(),
         options.scope || options.characterCardId
           ? promptWhere(
               options.scope ?? ASSISTANT_MEMORY_SCOPE_IDS.global,
@@ -398,7 +444,7 @@ export async function touchAssistantMemories(
   if (ids.length === 0) return
   await db.assistantMemory.updateMany({
     where: { userId, id: { in: [...ids] } },
-    data: { lastUsedAt: new Date() },
+    data: { lastUsedAt: new Date(), mentions: { increment: 1 } },
   })
 }
 
@@ -515,6 +561,8 @@ export async function addAssistantRuleMemory(
     characterCardId?: string | null
     /** 新内核记的偏好 / 事实（第 6 步）；缺席 = 规矩。 */
     kind?: AssistantMemoryKindId
+    /** 带日子的事到哪天为止（`YYYY-MM-DD`，第 ⑦ 步）。 */
+    until?: string | null
   },
 ): Promise<{ memory: AssistantMemory; created: boolean }> {
   const text = input.text.trim()
@@ -536,8 +584,21 @@ export async function addAssistantRuleMemory(
     projectId,
     characterCardId,
   )
+  const expiresAt = input.until ? expiresAtFromUntil(input.until) : null
   if (same) {
-    const memory = toMemory(same)
+    // 又提到一次（第 ⑦ 步）：+1；沉睡 / 过期了的醒过来（这回没给日子 = 一直成立）。
+    const row = await db.assistantMemory.update({
+      where: { id: same.id },
+      data: {
+        lastUsedAt: new Date(),
+        mentions: { increment: 1 },
+        ...(same.dormantAt || isExpired(same) || expiresAt
+          ? { dormantAt: null, expiresAt }
+          : {}),
+      },
+      select: MEMORY_SELECT,
+    })
+    const memory = toMemory(row)
     if (!memory) throw new Error('ASSISTANT_MEMORY_UNREADABLE_AFTER_WRITE')
     return { memory, created: false }
   }
@@ -548,6 +609,7 @@ export async function addAssistantRuleMemory(
       kind: DB_KIND_BY_ID[input.kind ?? ASSISTANT_MEMORY_KIND_IDS.rule],
       source: DB_SOURCE_BY_ID[ASSISTANT_MEMORY_SOURCE_IDS.assistant],
       text,
+      expiresAt,
       projectId,
       characterCardId,
     },
@@ -569,11 +631,11 @@ export async function addAssistantRuleMemory(
 export async function updateAssistantMemory(
   userId: string,
   memoryId: string,
-  input: { text?: string; scope?: AssistantMemoryScopeId },
+  input: UpdateAssistantMemoryRequest & { until?: string | null },
 ): Promise<AssistantMemory | null> {
   const existing = await db.assistantMemory.findFirst({
     where: { id: memoryId, userId },
-    select: { id: true },
+    select: { id: true, characterCardId: true },
   })
   if (!existing) return null
 
@@ -581,6 +643,16 @@ export async function updateAssistantMemory(
     where: { id: existing.id },
     data: {
       ...(input.text !== undefined ? { text: input.text } : {}),
+      ...(input.until !== undefined
+        ? {
+            expiresAt: input.until ? expiresAtFromUntil(input.until) : null,
+          }
+        : {}),
+      ...(input.pinned !== undefined ? { pinned: input.pinned } : {}),
+      // 唤醒（第 ⑦ 步）：回到记得的里，过期的日子去掉，算刚用过（不会马上又被挤走）。
+      ...(input.wake
+        ? { dormantAt: null, expiresAt: null, lastUsedAt: new Date() }
+        : {}),
       // 在设置里换了范围（含「画布」= 所有画布）就不再只属于那个项目 / 那个角色。
       ...(input.scope !== undefined
         ? {
@@ -592,13 +664,20 @@ export async function updateAssistantMemory(
     },
     select: MEMORY_SELECT,
   })
+  // 唤醒的那条回来占了一个位子：满了就让最该睡的那条去睡。
+  if (input.wake && existing.characterCardId && !input.scope)
+    await evictOldestAssistantMemories(
+      userId,
+      ASSISTANT_MEMORY_SCOPE_IDS.cards,
+      existing.characterCardId,
+    )
   return toMemory(row)
 }
 
 export async function updateAssistantMemoryForClerkId(
   clerkId: string,
   memoryId: string,
-  input: { text?: string; scope?: AssistantMemoryScopeId },
+  input: UpdateAssistantMemoryRequest,
 ): Promise<AssistantMemory | null> {
   const user = await ensureUser(clerkId)
   return updateAssistantMemory(user.id, memoryId, input)
@@ -635,7 +714,12 @@ export async function clearAssistantMemories(
   source?: AssistantMemorySourceId,
 ): Promise<number> {
   const { count } = await db.assistantMemory.deleteMany({
-    where: { userId, ...(source ? { source: DB_SOURCE_BY_ID[source] } : {}) },
+    where: {
+      userId,
+      // 设置页只管工作台的记忆，⛔ 一键清掉角色们记得的事（第 ⑦ 步起它们在她页上）。
+      characterCardId: null,
+      ...(source ? { source: DB_SOURCE_BY_ID[source] } : {}),
+    },
   })
   return count
 }
@@ -695,7 +779,7 @@ export async function listAssistantMemoriesForReview(
     where: {
       userId,
       source: DB_SOURCE_BY_ID[ASSISTANT_MEMORY_SOURCE_IDS.assistant],
-      ...promptWhere(scope, projectId, characterCardId),
+      AND: [promptWhere(scope, projectId, characterCardId), liveWhere()],
     },
     orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }],
     take: ASSISTANT_MEMORY_LIMITS.maxShownForReview,
@@ -733,6 +817,7 @@ export async function searchAssistantMemories(
       userId,
       AND: [
         promptWhere(options.scope, options.projectId, options.characterCardId),
+        liveWhere(),
         ...(words.length
           ? [
               {
@@ -759,14 +844,27 @@ export async function searchAssistantMemories(
 }
 
 /** 一条候选 → 能落库的那一份：去空、过敏感闸（命中回 `null`，⛔ 不记明文）。 */
+interface AcceptedCandidate {
+  kind: AssistantMemoryKindId
+  text: string
+  normalized: string
+  /** 带日子的事到这一刻为止（第 ⑦ 步）；空 = 一直成立。 */
+  expiresAt: Date | null
+}
+
 function acceptableCandidate(
   candidate: AssistantMemoryCandidate,
-): { kind: AssistantMemoryKindId; text: string; normalized: string } | null {
+): AcceptedCandidate | null {
   const text = candidate.text.trim()
   if (text.length === 0 || isSensitiveMemoryText(text)) return null
   const normalized = normalizeAssistantMemoryText(text)
   if (normalized.length === 0) return null
-  return { kind: candidate.kind, text, normalized }
+  return {
+    kind: candidate.kind,
+    text,
+    normalized,
+    expiresAt: candidate.until ? expiresAtFromUntil(candidate.until) : null,
+  }
 }
 
 /**
@@ -791,10 +889,7 @@ export async function recordAssistantMemories(
     userId: args.userId,
     source: DB_SOURCE_BY_ID[ASSISTANT_MEMORY_SOURCE_IDS.assistant],
   }
-  const replacements = new Map<
-    string,
-    { kind: AssistantMemoryKindId; text: string }
-  >()
+  const replacements = new Map<string, AcceptedCandidate>()
   for (const replacement of args.replacements ?? []) {
     if (replacements.has(replacement.id)) continue
     const accepted = acceptableCandidate(replacement.candidate)
@@ -818,17 +913,15 @@ export async function recordAssistantMemories(
         text: entry.text,
         kind: DB_KIND_BY_ID[entry.kind],
         lastUsedAt: now,
+        // 新说法自己带不带日子由它定（计划改成了长期的事 → 去掉日子）。
+        expiresAt: entry.expiresAt,
       },
     })
     written += result.count
   }
 
   const seen = new Set<string>()
-  const accepted: {
-    kind: AssistantMemoryKindId
-    text: string
-    normalized: string
-  }[] = []
+  const accepted: AcceptedCandidate[] = []
   for (const candidate of args.candidates) {
     if (
       accepted.length + replacements.size >=
@@ -887,9 +980,15 @@ export async function recordAssistantMemories(
       (row) => normalizeAssistantMemoryText(row.text) === entry.normalized,
     )
     if (hit) {
+      // 又提到一次（第 ⑦ 步）：+1、醒过来；这回带了日子就换成新的日子。
       await db.assistantMemory.update({
         where: { id: hit.id },
-        data: { lastUsedAt: new Date() },
+        data: {
+          lastUsedAt: new Date(),
+          mentions: { increment: 1 },
+          dormantAt: null,
+          ...(entry.expiresAt ? { expiresAt: entry.expiresAt } : {}),
+        },
       })
       written += 1
       continue
@@ -901,6 +1000,7 @@ export async function recordAssistantMemories(
         scope: DB_SCOPE_BY_ID[scope],
         kind: DB_KIND_BY_ID[entry.kind],
         text: entry.text,
+        expiresAt: entry.expiresAt,
         projectId,
         characterCardId,
         conversationId: args.conversationId ?? null,
@@ -939,6 +1039,8 @@ async function evictOldestAssistantMemories(
     characterCardId,
     source: DB_SOURCE_BY_ID[ASSISTANT_MEMORY_SOURCE_IDS.assistant],
   }
+  if (characterCardId)
+    return putCharacterMemoriesToSleep({ ...where, characterCardId })
   const count = await db.assistantMemory.count({ where })
   const excess = count - ASSISTANT_MEMORY_LIMITS.maxPerScope
   if (excess <= 0) return
@@ -953,6 +1055,135 @@ async function evictOldestAssistantMemories(
   await db.assistantMemory.deleteMany({
     where: { userId, id: { in: doomed.map((row) => row.id) } },
   })
+}
+
+/**
+ * **角色那份满了就去睡**（角色大项目第 ⑦ 步，owner 10-30）：⛔ 删，挤出去的进「沉睡」，她页上能唤醒、⛔ 自动删。
+ *
+ * - 只数还活着的（沉睡 / 过期的不占位子）；钉住的占位子但永远不挤。
+ * - 挤谁：最近用过的时间 + 每被提到一次让 `mentionBonusDays` 天，最小的先睡 —— 常被提到的更难挤掉，
+ *   但很久以前提得多、后来再没用过的照样会睡（⛔ 提一次就永远不睡）。
+ */
+async function putCharacterMemoriesToSleep(where: {
+  userId: string
+  scope: AssistantMemoryScope
+  characterCardId: string
+  source: AssistantMemorySource
+}): Promise<void> {
+  const now = new Date()
+  const live = await db.assistantMemory.findMany({
+    where: { ...where, ...liveWhere(now) },
+    select: { id: true, pinned: true, lastUsedAt: true, mentions: true },
+  })
+  const excess = live.length - ASSISTANT_MEMORY_LIMITS.maxPerScope
+  if (excess <= 0) return
+  const bonus =
+    ASSISTANT_MEMORY_LIFECYCLE.mentionBonusDays * 24 * 60 * 60 * 1000
+  const keepScore = (row: (typeof live)[number]) =>
+    row.lastUsedAt.getTime() +
+    Math.min(row.mentions, ASSISTANT_MEMORY_LIFECYCLE.maxMentionsCounted) *
+      bonus
+  const sleepy = live
+    .filter((row) => !row.pinned)
+    .sort((a, b) => keepScore(a) - keepScore(b) || a.id.localeCompare(b.id))
+    .slice(0, excess)
+  if (sleepy.length === 0) return
+  await db.assistantMemory.updateMany({
+    where: { userId: where.userId, id: { in: sleepy.map((row) => row.id) } },
+    data: { dormantAt: now },
+  })
+}
+
+// ---------------------------------------------------------------- 她页「记忆」栏（第 ⑦ 步）
+
+/**
+ * 她那份记忆，分成「记得的」和「沉睡的」（挤出去的 + 过期的）。记得的：钉住的在前、再按最近改过；
+ * 沉睡的按什么时候睡的（过期的按过期那一刻）倒序。卡不是你的不在这里查 —— 调用方先查卡。
+ */
+export async function listCharacterMemories(
+  userId: string,
+  characterCardId: string,
+): Promise<{ remembered: AssistantMemory[]; dormant: AssistantMemory[] }> {
+  const now = new Date()
+  const [live, sleeping] = await Promise.all([
+    db.assistantMemory.findMany({
+      where: { userId, characterCardId, ...liveWhere(now) },
+      orderBy: [{ pinned: 'desc' }, { updatedAt: 'desc' }, { id: 'asc' }],
+      take:
+        ASSISTANT_MEMORY_LIMITS.maxPerScope +
+        ASSISTANT_MEMORY_LIMITS.maxCreatorEntries,
+      select: MEMORY_SELECT,
+    }),
+    db.assistantMemory.findMany({
+      where: {
+        userId,
+        characterCardId,
+        OR: [
+          { dormantAt: { not: null } },
+          { pinned: false, expiresAt: { lte: now } },
+        ],
+      },
+      take: ASSISTANT_MEMORY_LIFECYCLE.maxDormantListed,
+      orderBy: [{ dormantAt: 'desc' }, { expiresAt: 'desc' }, { id: 'asc' }],
+      select: MEMORY_SELECT,
+    }),
+  ])
+  const read = (rows: MemoryRow[]) =>
+    rows
+      .map(toMemory)
+      .filter((memory): memory is AssistantMemory => memory !== null)
+  return { remembered: read(live), dormant: read(sleeping) }
+}
+
+/**
+ * 她页上「记一条」（第 ⑦ 步）：你写的、只归她、跟她自己记的一起进「记得的事」。同一句已经在了就把那条叫醒、
+ * 算成你写的，⛔ 不存第二行。你写给她的最多 `maxCreatorEntries` 条（满了拒）。
+ */
+export async function createCharacterMemory(
+  userId: string,
+  characterCardId: string,
+  text: string,
+): Promise<AssistantMemory> {
+  const line = text.trim()
+  const scope = ASSISTANT_MEMORY_SCOPE_IDS.cards
+  const creator = DB_SOURCE_BY_ID[ASSISTANT_MEMORY_SOURCE_IDS.creator]
+  const same = await findSameText(userId, scope, line, null, characterCardId)
+  if (same) {
+    const row = await db.assistantMemory.update({
+      where: { id: same.id },
+      data: {
+        source: creator,
+        dormantAt: null,
+        expiresAt: null,
+        lastUsedAt: new Date(),
+      },
+      select: MEMORY_SELECT,
+    })
+    const memory = toMemory(row)
+    if (!memory) throw new Error('ASSISTANT_MEMORY_UNREADABLE_AFTER_WRITE')
+    return memory
+  }
+  const count = await db.assistantMemory.count({
+    where: { userId, characterCardId, source: creator },
+  })
+  if (count >= ASSISTANT_MEMORY_LIMITS.maxCreatorEntries)
+    throw new AssistantMemoryLimitError(
+      ASSISTANT_MEMORY_LIMITS.maxCreatorEntries,
+    )
+  const row = await db.assistantMemory.create({
+    data: {
+      userId,
+      scope: DB_SCOPE_BY_ID[scope],
+      kind: DB_KIND_BY_ID[ASSISTANT_MEMORY_KIND_IDS.fact],
+      source: creator,
+      text: line,
+      characterCardId,
+    },
+    select: MEMORY_SELECT,
+  })
+  const memory = toMemory(row)
+  if (!memory) throw new Error('ASSISTANT_MEMORY_UNREADABLE_AFTER_WRITE')
+  return memory
 }
 
 // ---------------------------------------------------------------- 新内核（第 6 步）
@@ -972,31 +1203,40 @@ export async function listNextAssistantMemoriesForPrompt(
   },
 ): Promise<AssistantMemory[]> {
   if (options.limit <= 0) return []
+  const assistant = DB_SOURCE_BY_ID[ASSISTANT_MEMORY_SOURCE_IDS.assistant]
   const rows = await db.assistantMemory.findMany({
     where: {
       userId,
-      source: DB_SOURCE_BY_ID[ASSISTANT_MEMORY_SOURCE_IDS.assistant],
-      OR: [
+      AND: [
         {
-          scope: DB_SCOPE_BY_ID[ASSISTANT_MEMORY_SCOPE_IDS.global],
-          projectId: null,
-          characterCardId: null,
+          OR: [
+            {
+              source: assistant,
+              scope: DB_SCOPE_BY_ID[ASSISTANT_MEMORY_SCOPE_IDS.global],
+              projectId: null,
+              characterCardId: null,
+            },
+            // 她那份：她记的 + 你在她页上「记一条」写给她的（第 ⑦ 步）。
+            ...(options.characterCardId
+              ? [{ characterCardId: options.characterCardId }]
+              : []),
+            ...(options.projectId
+              ? [
+                  {
+                    source: assistant,
+                    scope: DB_SCOPE_BY_ID[ASSISTANT_MEMORY_SCOPE_IDS.canvas],
+                    projectId: options.projectId,
+                    characterCardId: null,
+                  },
+                ]
+              : []),
+          ],
         },
-        ...(options.characterCardId
-          ? [{ characterCardId: options.characterCardId }]
-          : []),
-        ...(options.projectId
-          ? [
-              {
-                scope: DB_SCOPE_BY_ID[ASSISTANT_MEMORY_SCOPE_IDS.canvas],
-                projectId: options.projectId,
-                characterCardId: null,
-              },
-            ]
-          : []),
+        liveWhere(),
       ],
     },
-    orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }],
+    // 钉住的先进（第 ⑦ 步），其余最近记下 / 改过的在前。
+    orderBy: [{ pinned: 'desc' }, { updatedAt: 'desc' }, { id: 'asc' }],
     take: options.limit,
     select: MEMORY_SELECT,
   })

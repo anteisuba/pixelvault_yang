@@ -1799,6 +1799,8 @@ export const AssistantRoundMemoriesDraftSchema = z.object({
         kind: z.string(),
         text: z.string(),
         replaces: z.number().int().optional(),
+        /** 带日子的事到哪天为止（`YYYY-MM-DD`，第 ⑦ 步）；写坏了服务端当没给。 */
+        until: z.string().optional(),
       }),
     )
     .optional(),

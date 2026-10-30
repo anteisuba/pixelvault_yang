@@ -34,6 +34,12 @@ export const AssistantMemoryTextSchema = z
   .min(1)
   .max(ASSISTANT_MEMORY_LIMITS.maxTextChars)
 
+/** 「到哪天为止」：一个日子（`2026-11-02`）。 */
+export const AssistantMemoryUntilSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .refine((value) => !Number.isNaN(Date.parse(`${value}T00:00:00Z`)))
+
 /** 一条记忆读回来的样子。 */
 export const AssistantMemorySchema = z.object({
   id: z.string().min(1),
@@ -53,8 +59,14 @@ export const AssistantMemorySchema = z.object({
    * ⚠ 有它时范围一定是 `cards`。
    */
   characterCardId: z.string().min(1).nullable().optional(),
-  /** 那个角色现在叫什么（设置页范围那一格写它）。 */
+  /** 那个角色现在叫什么。 */
   characterName: z.string().nullable().optional(),
+  /** 钉住：永不过期、永不被挤掉（第 ⑦ 步）。 */
+  pinned: z.boolean().optional(),
+  /** 到这个时刻就不再注入（ISO；AI 记带日子的事时定的）。空 = 一直成立。 */
+  expiresAt: z.string().nullable().optional(),
+  /** 沉睡了：被挤出去或过期了（她页上「沉睡」那一栏，能唤醒）。 */
+  dormant: z.boolean().optional(),
   /** ISO 串。列表上那枚时间读 `updatedAt`（画板：今天 HH:mm · 昨天 · M/D）。 */
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -73,6 +85,8 @@ export type AssistantMemory = z.infer<typeof AssistantMemorySchema>
 export const AssistantMemoryCandidateSchema = z.object({
   kind: AssistantMemoryKindSchema,
   text: AssistantMemoryTextSchema,
+  /** 带日子的事到哪天为止（`YYYY-MM-DD`，第 ⑦ 步）：模型给，过完再留几天就不再注入。缺席 = 一直成立。 */
+  until: AssistantMemoryUntilSchema.optional(),
 })
 
 export type AssistantMemoryCandidate = z.infer<
@@ -119,11 +133,20 @@ export const UpdateAssistantMemorySchema = z
   .object({
     text: AssistantMemoryTextSchema.optional(),
     scope: AssistantMemoryScopeSchema.optional(),
+    /** 她页上「钉住 / 取消钉住」（第 ⑦ 步）。 */
+    pinned: z.boolean().optional(),
+    /** 她页上「唤醒」一条沉睡的：回到记得的里，过期的那个日子也一起去掉。 */
+    wake: z.literal(true).optional(),
   })
   .strict()
-  .refine((input) => input.text !== undefined || input.scope !== undefined, {
-    message: 'Nothing to update',
-  })
+  .refine(
+    (input) =>
+      input.text !== undefined ||
+      input.scope !== undefined ||
+      input.pinned !== undefined ||
+      input.wake !== undefined,
+    { message: 'Nothing to update' },
+  )
 
 export type UpdateAssistantMemoryRequest = z.infer<
   typeof UpdateAssistantMemorySchema
@@ -145,4 +168,13 @@ export const ClearAssistantMemoriesSchema = z
 
 export type ClearAssistantMemoriesRequest = z.infer<
   typeof ClearAssistantMemoriesSchema
+>
+
+/** 她页「记忆」栏上「记一条」（第 ⑦ 步）：你写的，只归她。 */
+export const CreateCharacterMemorySchema = z
+  .object({ text: AssistantMemoryTextSchema })
+  .strict()
+
+export type CreateCharacterMemoryRequest = z.infer<
+  typeof CreateCharacterMemorySchema
 >

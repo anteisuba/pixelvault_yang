@@ -142,10 +142,9 @@
      价格一栏占掉一半，两条渠道分不清）。 */
   --width-model-picker: 20rem;
   --width-model-channel-panel: 13.75rem;
-  /* /settings 整页（D3 ④ 画板）：卡 1000px = 左 200px 分区导航 + 右内容 720px。 */
+  /* /settings 整页（D3 ④ 画板；owner 10-30 嫌两边黑边太宽放到 1280）：左 200px 分区导航 + 右内容（左右各 32px 内边距，铺满）。 */
   --width-settings-nav: 12.5rem;
-  --max-width-settings: 45rem;
-  --max-width-settings-shell: 62.5rem;
+  --max-width-settings-shell: 80rem;
   --min-height-settings-shell: 38.75rem;
   --width-studio-left: 20rem;
   --width-studio-right: 28rem;

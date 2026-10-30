@@ -133,7 +133,7 @@ export function AssistantSettings({
 
   if (variant === 'page') {
     return (
-      <section className="flex max-w-2xl flex-col gap-5">
+      <section className="flex flex-col gap-5">
         <div className="flex flex-col gap-1.5">
           <h2 className="text-xl font-semibold">
             {tSettings('sections.assistant')}

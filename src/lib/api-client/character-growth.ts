@@ -3,11 +3,13 @@ import { getErrorPayload } from '@/lib/api-client/shared'
 import type {
   CharacterGrowth,
   CharacterJournalEntry,
+  CharacterMemoryList,
   CharacterOutingRun,
   CharacterRecentActivity,
   StartCharacterOutingRequest,
   UpdateCharacterJournalRequest,
 } from '@/types/character-growth'
+import type { AssistantMemory } from '@/types/assistant-memory'
 import { apiFetch } from '@/lib/api-client/api-fetch'
 
 /**
@@ -178,5 +180,40 @@ export async function deleteCharacterFindingAPI(
     return { success: true, data: null }
   } catch (error) {
     return toFailure(error, 'Failed to delete')
+  }
+}
+
+const memoriesUrl = (cardId: string) =>
+  `${API_ENDPOINTS.CHARACTER_CARDS}/${encodeURIComponent(cardId)}/memories`
+
+/** 她页「记忆」栏（第 ⑦ 步）：记得的 · 沉睡的 · 见闻。改 / 钉住 / 唤醒 / 删走记忆那两个接口。 */
+export async function getCharacterMemoriesAPI(
+  cardId: string,
+): Promise<ApiResult<CharacterMemoryList>> {
+  try {
+    const response = await apiFetch(memoriesUrl(cardId), {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+    })
+    return await parseJsonResult(response, 'Failed to load her memories')
+  } catch (error) {
+    return toFailure(error, 'Failed to load her memories')
+  }
+}
+
+/** 「记一条」。 */
+export async function createCharacterMemoryAPI(
+  cardId: string,
+  text: string,
+): Promise<ApiResult<AssistantMemory>> {
+  try {
+    const response = await apiFetch(memoriesUrl(cardId), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    })
+    return await parseJsonResult(response, 'Failed to save memory')
+  } catch (error) {
+    return toFailure(error, 'Failed to save memory')
   }
 }

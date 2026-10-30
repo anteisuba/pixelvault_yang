@@ -20,6 +20,7 @@ import {
   CHARACTER_OUTING_VIDEO,
   CHARACTER_VIDEO_SOURCES,
 } from '@/constants/character-browse'
+import { AssistantMemorySchema } from '@/types/assistant-memory'
 
 export const CharacterJournalEntrySchema = z.object({
   id: z.string(),
@@ -158,6 +159,16 @@ export const CharacterGrowthSchema = z.object({
   outing: CharacterOutingStateSchema,
 })
 
+/**
+ * 她页「记忆」栏（第 ⑦ 步）：记得的（含观点，你写的与她记的）· 沉睡的（挤出去 / 过期了）· 见闻。
+ * 观点就是「观点：」开头的那几行，`text` 原样带前缀（客户端认前缀分类）。
+ */
+export const CharacterMemoryListSchema = z.object({
+  remembered: z.array(AssistantMemorySchema),
+  dormant: z.array(AssistantMemorySchema),
+  findings: z.array(CharacterFindingEntrySchema),
+})
+
 /** 角色总览「最近」一张卡：她最近一件事（第 ① 步）。`text` 是日记全文 / 出门看到的标题；改动给改到的格名。 */
 export const CharacterRecentActivitySchema = z.object({
   cardId: z.string(),
@@ -184,3 +195,4 @@ export type StartCharacterOutingRequest = z.infer<
   typeof StartCharacterOutingSchema
 >
 export type CharacterGrowth = z.infer<typeof CharacterGrowthSchema>
+export type CharacterMemoryList = z.infer<typeof CharacterMemoryListSchema>

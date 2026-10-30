@@ -1299,7 +1299,6 @@
       "chooseScope": "选择用在哪",
       "unassigned": "未归属的历史记忆",
       "canvasProject": "画布 · {name}",
-      "chatCharacter": "和 {name} 聊天",
       "savedProject": "已保存项目",
       "projectsLoading": "正在读取画布项目…",
       "projectsEmpty": "请先创建一个画布项目。",

@@ -20,8 +20,18 @@ export type AssistantMemoryModel = runtime.Types.Result.DefaultSelection<Prisma.
 
 export type AggregateAssistantMemory = {
   _count: AssistantMemoryCountAggregateOutputType | null
+  _avg: AssistantMemoryAvgAggregateOutputType | null
+  _sum: AssistantMemorySumAggregateOutputType | null
   _min: AssistantMemoryMinAggregateOutputType | null
   _max: AssistantMemoryMaxAggregateOutputType | null
+}
+
+export type AssistantMemoryAvgAggregateOutputType = {
+  mentions: number | null
+}
+
+export type AssistantMemorySumAggregateOutputType = {
+  mentions: number | null
 }
 
 export type AssistantMemoryMinAggregateOutputType = {
@@ -36,6 +46,10 @@ export type AssistantMemoryMinAggregateOutputType = {
   projectId: string | null
   characterCardId: string | null
   lastUsedAt: Date | null
+  expiresAt: Date | null
+  mentions: number | null
+  dormantAt: Date | null
+  pinned: boolean | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -52,6 +66,10 @@ export type AssistantMemoryMaxAggregateOutputType = {
   projectId: string | null
   characterCardId: string | null
   lastUsedAt: Date | null
+  expiresAt: Date | null
+  mentions: number | null
+  dormantAt: Date | null
+  pinned: boolean | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -68,11 +86,23 @@ export type AssistantMemoryCountAggregateOutputType = {
   projectId: number
   characterCardId: number
   lastUsedAt: number
+  expiresAt: number
+  mentions: number
+  dormantAt: number
+  pinned: number
   createdAt: number
   updatedAt: number
   _all: number
 }
 
+
+export type AssistantMemoryAvgAggregateInputType = {
+  mentions?: true
+}
+
+export type AssistantMemorySumAggregateInputType = {
+  mentions?: true
+}
 
 export type AssistantMemoryMinAggregateInputType = {
   id?: true
@@ -86,6 +116,10 @@ export type AssistantMemoryMinAggregateInputType = {
   projectId?: true
   characterCardId?: true
   lastUsedAt?: true
+  expiresAt?: true
+  mentions?: true
+  dormantAt?: true
+  pinned?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -102,6 +136,10 @@ export type AssistantMemoryMaxAggregateInputType = {
   projectId?: true
   characterCardId?: true
   lastUsedAt?: true
+  expiresAt?: true
+  mentions?: true
+  dormantAt?: true
+  pinned?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -118,6 +156,10 @@ export type AssistantMemoryCountAggregateInputType = {
   projectId?: true
   characterCardId?: true
   lastUsedAt?: true
+  expiresAt?: true
+  mentions?: true
+  dormantAt?: true
+  pinned?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -161,6 +203,18 @@ export type AssistantMemoryAggregateArgs<ExtArgs extends runtime.Types.Extension
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
    * 
+   * Select which fields to average
+  **/
+  _avg?: AssistantMemoryAvgAggregateInputType
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   * 
+   * Select which fields to sum
+  **/
+  _sum?: AssistantMemorySumAggregateInputType
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   * 
    * Select which fields to find the minimum value
   **/
   _min?: AssistantMemoryMinAggregateInputType
@@ -191,6 +245,8 @@ export type AssistantMemoryGroupByArgs<ExtArgs extends runtime.Types.Extensions.
   take?: number
   skip?: number
   _count?: AssistantMemoryCountAggregateInputType | true
+  _avg?: AssistantMemoryAvgAggregateInputType
+  _sum?: AssistantMemorySumAggregateInputType
   _min?: AssistantMemoryMinAggregateInputType
   _max?: AssistantMemoryMaxAggregateInputType
 }
@@ -207,9 +263,15 @@ export type AssistantMemoryGroupByOutputType = {
   projectId: string | null
   characterCardId: string | null
   lastUsedAt: Date
+  expiresAt: Date | null
+  mentions: number
+  dormantAt: Date | null
+  pinned: boolean
   createdAt: Date
   updatedAt: Date
   _count: AssistantMemoryCountAggregateOutputType | null
+  _avg: AssistantMemoryAvgAggregateOutputType | null
+  _sum: AssistantMemorySumAggregateOutputType | null
   _min: AssistantMemoryMinAggregateOutputType | null
   _max: AssistantMemoryMaxAggregateOutputType | null
 }
@@ -244,6 +306,10 @@ export type AssistantMemoryWhereInput = {
   projectId?: Prisma.StringNullableFilter<"AssistantMemory"> | string | null
   characterCardId?: Prisma.StringNullableFilter<"AssistantMemory"> | string | null
   lastUsedAt?: Prisma.DateTimeFilter<"AssistantMemory"> | Date | string
+  expiresAt?: Prisma.DateTimeNullableFilter<"AssistantMemory"> | Date | string | null
+  mentions?: Prisma.IntFilter<"AssistantMemory"> | number
+  dormantAt?: Prisma.DateTimeNullableFilter<"AssistantMemory"> | Date | string | null
+  pinned?: Prisma.BoolFilter<"AssistantMemory"> | boolean
   createdAt?: Prisma.DateTimeFilter<"AssistantMemory"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"AssistantMemory"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
@@ -263,6 +329,10 @@ export type AssistantMemoryOrderByWithRelationInput = {
   projectId?: Prisma.SortOrderInput | Prisma.SortOrder
   characterCardId?: Prisma.SortOrderInput | Prisma.SortOrder
   lastUsedAt?: Prisma.SortOrder
+  expiresAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  mentions?: Prisma.SortOrder
+  dormantAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  pinned?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   user?: Prisma.UserOrderByWithRelationInput
@@ -285,6 +355,10 @@ export type AssistantMemoryWhereUniqueInput = Prisma.AtLeast<{
   projectId?: Prisma.StringNullableFilter<"AssistantMemory"> | string | null
   characterCardId?: Prisma.StringNullableFilter<"AssistantMemory"> | string | null
   lastUsedAt?: Prisma.DateTimeFilter<"AssistantMemory"> | Date | string
+  expiresAt?: Prisma.DateTimeNullableFilter<"AssistantMemory"> | Date | string | null
+  mentions?: Prisma.IntFilter<"AssistantMemory"> | number
+  dormantAt?: Prisma.DateTimeNullableFilter<"AssistantMemory"> | Date | string | null
+  pinned?: Prisma.BoolFilter<"AssistantMemory"> | boolean
   createdAt?: Prisma.DateTimeFilter<"AssistantMemory"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"AssistantMemory"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
@@ -304,11 +378,17 @@ export type AssistantMemoryOrderByWithAggregationInput = {
   projectId?: Prisma.SortOrderInput | Prisma.SortOrder
   characterCardId?: Prisma.SortOrderInput | Prisma.SortOrder
   lastUsedAt?: Prisma.SortOrder
+  expiresAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  mentions?: Prisma.SortOrder
+  dormantAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  pinned?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.AssistantMemoryCountOrderByAggregateInput
+  _avg?: Prisma.AssistantMemoryAvgOrderByAggregateInput
   _max?: Prisma.AssistantMemoryMaxOrderByAggregateInput
   _min?: Prisma.AssistantMemoryMinOrderByAggregateInput
+  _sum?: Prisma.AssistantMemorySumOrderByAggregateInput
 }
 
 export type AssistantMemoryScalarWhereWithAggregatesInput = {
@@ -326,6 +406,10 @@ export type AssistantMemoryScalarWhereWithAggregatesInput = {
   projectId?: Prisma.StringNullableWithAggregatesFilter<"AssistantMemory"> | string | null
   characterCardId?: Prisma.StringNullableWithAggregatesFilter<"AssistantMemory"> | string | null
   lastUsedAt?: Prisma.DateTimeWithAggregatesFilter<"AssistantMemory"> | Date | string
+  expiresAt?: Prisma.DateTimeNullableWithAggregatesFilter<"AssistantMemory"> | Date | string | null
+  mentions?: Prisma.IntWithAggregatesFilter<"AssistantMemory"> | number
+  dormantAt?: Prisma.DateTimeNullableWithAggregatesFilter<"AssistantMemory"> | Date | string | null
+  pinned?: Prisma.BoolWithAggregatesFilter<"AssistantMemory"> | boolean
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"AssistantMemory"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"AssistantMemory"> | Date | string
 }
@@ -339,6 +423,10 @@ export type AssistantMemoryCreateInput = {
   conversationId?: string | null
   messageId?: string | null
   lastUsedAt?: Date | string
+  expiresAt?: Date | string | null
+  mentions?: number
+  dormantAt?: Date | string | null
+  pinned?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutAssistantMemoriesInput
@@ -358,6 +446,10 @@ export type AssistantMemoryUncheckedCreateInput = {
   projectId?: string | null
   characterCardId?: string | null
   lastUsedAt?: Date | string
+  expiresAt?: Date | string | null
+  mentions?: number
+  dormantAt?: Date | string | null
+  pinned?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -371,6 +463,10 @@ export type AssistantMemoryUpdateInput = {
   conversationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastUsedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  expiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  mentions?: Prisma.IntFieldUpdateOperationsInput | number
+  dormantAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  pinned?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutAssistantMemoriesNestedInput
@@ -390,6 +486,10 @@ export type AssistantMemoryUncheckedUpdateInput = {
   projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastUsedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  expiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  mentions?: Prisma.IntFieldUpdateOperationsInput | number
+  dormantAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  pinned?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -406,6 +506,10 @@ export type AssistantMemoryCreateManyInput = {
   projectId?: string | null
   characterCardId?: string | null
   lastUsedAt?: Date | string
+  expiresAt?: Date | string | null
+  mentions?: number
+  dormantAt?: Date | string | null
+  pinned?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -419,6 +523,10 @@ export type AssistantMemoryUpdateManyMutationInput = {
   conversationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastUsedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  expiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  mentions?: Prisma.IntFieldUpdateOperationsInput | number
+  dormantAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  pinned?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -435,6 +543,10 @@ export type AssistantMemoryUncheckedUpdateManyInput = {
   projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastUsedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  expiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  mentions?: Prisma.IntFieldUpdateOperationsInput | number
+  dormantAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  pinned?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -461,8 +573,16 @@ export type AssistantMemoryCountOrderByAggregateInput = {
   projectId?: Prisma.SortOrder
   characterCardId?: Prisma.SortOrder
   lastUsedAt?: Prisma.SortOrder
+  expiresAt?: Prisma.SortOrder
+  mentions?: Prisma.SortOrder
+  dormantAt?: Prisma.SortOrder
+  pinned?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+}
+
+export type AssistantMemoryAvgOrderByAggregateInput = {
+  mentions?: Prisma.SortOrder
 }
 
 export type AssistantMemoryMaxOrderByAggregateInput = {
@@ -477,6 +597,10 @@ export type AssistantMemoryMaxOrderByAggregateInput = {
   projectId?: Prisma.SortOrder
   characterCardId?: Prisma.SortOrder
   lastUsedAt?: Prisma.SortOrder
+  expiresAt?: Prisma.SortOrder
+  mentions?: Prisma.SortOrder
+  dormantAt?: Prisma.SortOrder
+  pinned?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -493,8 +617,16 @@ export type AssistantMemoryMinOrderByAggregateInput = {
   projectId?: Prisma.SortOrder
   characterCardId?: Prisma.SortOrder
   lastUsedAt?: Prisma.SortOrder
+  expiresAt?: Prisma.SortOrder
+  mentions?: Prisma.SortOrder
+  dormantAt?: Prisma.SortOrder
+  pinned?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+}
+
+export type AssistantMemorySumOrderByAggregateInput = {
+  mentions?: Prisma.SortOrder
 }
 
 export type AssistantMemoryCreateNestedManyWithoutUserInput = {
@@ -644,6 +776,10 @@ export type AssistantMemoryCreateWithoutUserInput = {
   conversationId?: string | null
   messageId?: string | null
   lastUsedAt?: Date | string
+  expiresAt?: Date | string | null
+  mentions?: number
+  dormantAt?: Date | string | null
+  pinned?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   project?: Prisma.NodeWorkflowProjectCreateNestedOneWithoutAssistantMemoriesInput
@@ -661,6 +797,10 @@ export type AssistantMemoryUncheckedCreateWithoutUserInput = {
   projectId?: string | null
   characterCardId?: string | null
   lastUsedAt?: Date | string
+  expiresAt?: Date | string | null
+  mentions?: number
+  dormantAt?: Date | string | null
+  pinned?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -706,6 +846,10 @@ export type AssistantMemoryScalarWhereInput = {
   projectId?: Prisma.StringNullableFilter<"AssistantMemory"> | string | null
   characterCardId?: Prisma.StringNullableFilter<"AssistantMemory"> | string | null
   lastUsedAt?: Prisma.DateTimeFilter<"AssistantMemory"> | Date | string
+  expiresAt?: Prisma.DateTimeNullableFilter<"AssistantMemory"> | Date | string | null
+  mentions?: Prisma.IntFilter<"AssistantMemory"> | number
+  dormantAt?: Prisma.DateTimeNullableFilter<"AssistantMemory"> | Date | string | null
+  pinned?: Prisma.BoolFilter<"AssistantMemory"> | boolean
   createdAt?: Prisma.DateTimeFilter<"AssistantMemory"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"AssistantMemory"> | Date | string
 }
@@ -719,6 +863,10 @@ export type AssistantMemoryCreateWithoutProjectInput = {
   conversationId?: string | null
   messageId?: string | null
   lastUsedAt?: Date | string
+  expiresAt?: Date | string | null
+  mentions?: number
+  dormantAt?: Date | string | null
+  pinned?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutAssistantMemoriesInput
@@ -736,6 +884,10 @@ export type AssistantMemoryUncheckedCreateWithoutProjectInput = {
   messageId?: string | null
   characterCardId?: string | null
   lastUsedAt?: Date | string
+  expiresAt?: Date | string | null
+  mentions?: number
+  dormantAt?: Date | string | null
+  pinned?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -775,6 +927,10 @@ export type AssistantMemoryCreateWithoutCharacterCardInput = {
   conversationId?: string | null
   messageId?: string | null
   lastUsedAt?: Date | string
+  expiresAt?: Date | string | null
+  mentions?: number
+  dormantAt?: Date | string | null
+  pinned?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutAssistantMemoriesInput
@@ -792,6 +948,10 @@ export type AssistantMemoryUncheckedCreateWithoutCharacterCardInput = {
   messageId?: string | null
   projectId?: string | null
   lastUsedAt?: Date | string
+  expiresAt?: Date | string | null
+  mentions?: number
+  dormantAt?: Date | string | null
+  pinned?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -833,6 +993,10 @@ export type AssistantMemoryCreateManyUserInput = {
   projectId?: string | null
   characterCardId?: string | null
   lastUsedAt?: Date | string
+  expiresAt?: Date | string | null
+  mentions?: number
+  dormantAt?: Date | string | null
+  pinned?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -846,6 +1010,10 @@ export type AssistantMemoryUpdateWithoutUserInput = {
   conversationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastUsedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  expiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  mentions?: Prisma.IntFieldUpdateOperationsInput | number
+  dormantAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  pinned?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   project?: Prisma.NodeWorkflowProjectUpdateOneWithoutAssistantMemoriesNestedInput
@@ -863,6 +1031,10 @@ export type AssistantMemoryUncheckedUpdateWithoutUserInput = {
   projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastUsedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  expiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  mentions?: Prisma.IntFieldUpdateOperationsInput | number
+  dormantAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  pinned?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -878,6 +1050,10 @@ export type AssistantMemoryUncheckedUpdateManyWithoutUserInput = {
   projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastUsedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  expiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  mentions?: Prisma.IntFieldUpdateOperationsInput | number
+  dormantAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  pinned?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -893,6 +1069,10 @@ export type AssistantMemoryCreateManyProjectInput = {
   messageId?: string | null
   characterCardId?: string | null
   lastUsedAt?: Date | string
+  expiresAt?: Date | string | null
+  mentions?: number
+  dormantAt?: Date | string | null
+  pinned?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -906,6 +1086,10 @@ export type AssistantMemoryUpdateWithoutProjectInput = {
   conversationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastUsedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  expiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  mentions?: Prisma.IntFieldUpdateOperationsInput | number
+  dormantAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  pinned?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutAssistantMemoriesNestedInput
@@ -923,6 +1107,10 @@ export type AssistantMemoryUncheckedUpdateWithoutProjectInput = {
   messageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastUsedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  expiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  mentions?: Prisma.IntFieldUpdateOperationsInput | number
+  dormantAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  pinned?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -938,6 +1126,10 @@ export type AssistantMemoryUncheckedUpdateManyWithoutProjectInput = {
   messageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastUsedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  expiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  mentions?: Prisma.IntFieldUpdateOperationsInput | number
+  dormantAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  pinned?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -953,6 +1145,10 @@ export type AssistantMemoryCreateManyCharacterCardInput = {
   messageId?: string | null
   projectId?: string | null
   lastUsedAt?: Date | string
+  expiresAt?: Date | string | null
+  mentions?: number
+  dormantAt?: Date | string | null
+  pinned?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -966,6 +1162,10 @@ export type AssistantMemoryUpdateWithoutCharacterCardInput = {
   conversationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastUsedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  expiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  mentions?: Prisma.IntFieldUpdateOperationsInput | number
+  dormantAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  pinned?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutAssistantMemoriesNestedInput
@@ -983,6 +1183,10 @@ export type AssistantMemoryUncheckedUpdateWithoutCharacterCardInput = {
   messageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastUsedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  expiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  mentions?: Prisma.IntFieldUpdateOperationsInput | number
+  dormantAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  pinned?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -998,6 +1202,10 @@ export type AssistantMemoryUncheckedUpdateManyWithoutCharacterCardInput = {
   messageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastUsedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  expiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  mentions?: Prisma.IntFieldUpdateOperationsInput | number
+  dormantAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  pinned?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1016,6 +1224,10 @@ export type AssistantMemorySelect<ExtArgs extends runtime.Types.Extensions.Inter
   projectId?: boolean
   characterCardId?: boolean
   lastUsedAt?: boolean
+  expiresAt?: boolean
+  mentions?: boolean
+  dormantAt?: boolean
+  pinned?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -1035,6 +1247,10 @@ export type AssistantMemorySelectCreateManyAndReturn<ExtArgs extends runtime.Typ
   projectId?: boolean
   characterCardId?: boolean
   lastUsedAt?: boolean
+  expiresAt?: boolean
+  mentions?: boolean
+  dormantAt?: boolean
+  pinned?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -1054,6 +1270,10 @@ export type AssistantMemorySelectUpdateManyAndReturn<ExtArgs extends runtime.Typ
   projectId?: boolean
   characterCardId?: boolean
   lastUsedAt?: boolean
+  expiresAt?: boolean
+  mentions?: boolean
+  dormantAt?: boolean
+  pinned?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -1073,11 +1293,15 @@ export type AssistantMemorySelectScalar = {
   projectId?: boolean
   characterCardId?: boolean
   lastUsedAt?: boolean
+  expiresAt?: boolean
+  mentions?: boolean
+  dormantAt?: boolean
+  pinned?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type AssistantMemoryOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "scope" | "kind" | "source" | "text" | "conversationId" | "messageId" | "projectId" | "characterCardId" | "lastUsedAt" | "createdAt" | "updatedAt", ExtArgs["result"]["assistantMemory"]>
+export type AssistantMemoryOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "scope" | "kind" | "source" | "text" | "conversationId" | "messageId" | "projectId" | "characterCardId" | "lastUsedAt" | "expiresAt" | "mentions" | "dormantAt" | "pinned" | "createdAt" | "updatedAt", ExtArgs["result"]["assistantMemory"]>
 export type AssistantMemoryInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   project?: boolean | Prisma.AssistantMemory$projectArgs<ExtArgs>
@@ -1137,6 +1361,18 @@ export type $AssistantMemoryPayload<ExtArgs extends runtime.Types.Extensions.Int
      * **被注入过就更新** —— 注入优先级与淘汰顺序都读它（每域上限 200，超了淘汰最旧的）。
      */
     lastUsedAt: Date
+    /**
+     * 记忆的生命周期（角色大项目第 ⑦ 步，owner 10-30；思路参考 LivingMemory）：
+     * - `expiresAt`：带日子的事（计划、约定）由 AI 记下时定到哪天为止；过了就不再注入、也翻不到，
+     * 在她页上进「沉睡」。过没过期在读的时候现算，⛔ 不跑定时任务。空 = 一直成立。
+     * - `mentions`：同一件事又被提到 / 被翻到一次就 +1；角色那份满 200 条时，提得多的更难被挤掉。
+     * - `dormantAt`：角色那份满 200 条时被挤出去的那一刻（⛔ 删）：不注入、翻不到，她页上能「唤醒」。
+     * - `pinned`：你钉住的那条永不过期、永不被挤掉。
+     */
+    expiresAt: Date | null
+    mentions: number
+    dormantAt: Date | null
+    pinned: boolean
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["assistantMemory"]>
@@ -1576,6 +1812,10 @@ export interface AssistantMemoryFieldRefs {
   readonly projectId: Prisma.FieldRef<"AssistantMemory", 'String'>
   readonly characterCardId: Prisma.FieldRef<"AssistantMemory", 'String'>
   readonly lastUsedAt: Prisma.FieldRef<"AssistantMemory", 'DateTime'>
+  readonly expiresAt: Prisma.FieldRef<"AssistantMemory", 'DateTime'>
+  readonly mentions: Prisma.FieldRef<"AssistantMemory", 'Int'>
+  readonly dormantAt: Prisma.FieldRef<"AssistantMemory", 'DateTime'>
+  readonly pinned: Prisma.FieldRef<"AssistantMemory", 'Boolean'>
   readonly createdAt: Prisma.FieldRef<"AssistantMemory", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"AssistantMemory", 'DateTime'>
 }

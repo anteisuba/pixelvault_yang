@@ -1169,7 +1169,13 @@ function memoryRefused(text: string): string | null {
 /** 记下一条新的（同一句已经在了就不记第二行，回一句「已经记着」）。 */
 export async function rememberMemory(
   owner: LibraryWriteOwner,
-  input: { text: string; target: MemoryTarget; handle: (id: string) => string },
+  input: {
+    text: string
+    target: MemoryTarget
+    handle: (id: string) => string
+    /** 带日子的事到哪天为止（`YYYY-MM-DD`，第 ⑦ 步）；缺席 = 一直成立。 */
+    until?: string | null
+  },
 ): Promise<LibraryWriteOutcome> {
   const text = memoryText(input.text)
   const refusedWhy = memoryRefused(text)
@@ -1184,6 +1190,7 @@ export async function rememberMemory(
     characterCardId: input.target.characterCardId,
     projectId: input.target.projectId ?? null,
     kind: MEMORY_KIND.preference,
+    until: input.until ?? null,
   })
   if (!created)
     return fail(
@@ -1210,8 +1217,9 @@ async function ownMemory(
     if (found.memory.source === MEMORY_SOURCE.creator)
       return {
         ok: false,
-        error:
-          'The creator wrote that one themselves. Do not change it; tell them to edit it in Settings → Assistant → Memory.',
+        error: found.memory.characterCardId
+          ? "The creator wrote that one themselves. Do not change it; tell them to edit it on the character's page, under Memory."
+          : 'The creator wrote that one themselves. Do not change it; tell them to edit it in Settings → Assistant → Memory.',
       }
     return found
   }
@@ -1227,7 +1235,13 @@ async function ownMemory(
 /** 按编号改一条（换成新的一句）。 */
 export async function editMemory(
   owner: LibraryWriteOwner,
-  input: { ref: MemoryRef; text: string; handle: (id: string) => string },
+  input: {
+    ref: MemoryRef
+    text: string
+    handle: (id: string) => string
+    /** 换一个「到哪天为止」；`null` = 去掉日子；缺席 = 不动。 */
+    until?: string | null
+  },
 ): Promise<LibraryWriteOutcome> {
   const text = memoryText(input.text)
   const refusedWhy = memoryRefused(text)
@@ -1235,9 +1249,12 @@ export async function editMemory(
   const found = await ownMemory(owner, input.ref)
   if (!found.ok) return fail(found.error)
   const before = { id: found.memory.id, text: found.memory.text }
-  if (before.text === text)
+  if (before.text === text && input.until === undefined)
     return fail('That memory already says exactly this.')
-  const updated = await updateAssistantMemory(owner.userId, before.id, { text })
+  const updated = await updateAssistantMemory(owner.userId, before.id, {
+    text,
+    ...(input.until !== undefined ? { until: input.until } : {}),
+  })
   if (!updated) return fail('That memory is gone.')
   return done(
     KIND.memory,

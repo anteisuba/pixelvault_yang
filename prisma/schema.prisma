@@ -1307,6 +1307,17 @@ model AssistantMemory {
   /// **被注入过就更新** —— 注入优先级与淘汰顺序都读它（每域上限 200，超了淘汰最旧的）。
   lastUsedAt DateTime @default(now())
 
+  /// 记忆的生命周期（角色大项目第 ⑦ 步，owner 10-30；思路参考 LivingMemory）：
+  /// - `expiresAt`：带日子的事（计划、约定）由 AI 记下时定到哪天为止；过了就不再注入、也翻不到，
+  ///   在她页上进「沉睡」。过没过期在读的时候现算，⛔ 不跑定时任务。空 = 一直成立。
+  /// - `mentions`：同一件事又被提到 / 被翻到一次就 +1；角色那份满 200 条时，提得多的更难被挤掉。
+  /// - `dormantAt`：角色那份满 200 条时被挤出去的那一刻（⛔ 删）：不注入、翻不到，她页上能「唤醒」。
+  /// - `pinned`：你钉住的那条永不过期、永不被挤掉。
+  expiresAt DateTime?
+  mentions  Int       @default(0)
+  dormantAt DateTime?
+  pinned    Boolean   @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

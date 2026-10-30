@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
+  normalizeVoiceCues,
   withoutVoiceCuesInProse,
   withoutStageDirections,
   chatBubbles,
@@ -16,6 +17,41 @@ describe('voiceCueRules', () => {
     expect(voiceCueRules(false)).toContain('[laughing]')
     expect(voiceCueRules(false)).not.toContain('<whisper>')
     expect(voiceCueRules(true)).toContain('<whisper>…</whisper>')
+  })
+
+  it('teaches only cues from the official table (10-30: [pause] / [softly] are not in it)', () => {
+    const rules = voiceCueRules(false)
+    expect(rules).toContain('[break]')
+    expect(rules).toContain('[soft tone]')
+    expect(rules).not.toContain('[pause]')
+    expect(rules).not.toContain('[softly]')
+  })
+})
+
+describe('normalizeVoiceCues (10-30)', () => {
+  it('maps near-miss cues to the official words', () => {
+    expect(
+      normalizeVoiceCues('[softly] 诶……可爱又不能当饭吃……[pause] 要是', false),
+    ).toBe('[soft tone] 诶……可爱又不能当饭吃……[break] 要是')
+  })
+
+  it('drops cues and tags the cheaper voices do not understand', () => {
+    expect(
+      normalizeVoiceCues('[压低声音]别说<whisper>嘘</whisper>', false),
+    ).toBe('别说嘘')
+    expect(normalizeVoiceCues('[压低声音]别说', true)).toBe('[压低声音]别说')
+  })
+
+  it('closes a Drama 3 paired tag left open on its line', () => {
+    expect(normalizeVoiceCues('<whisper>别说\n好了', true)).toBe(
+      '<whisper>别说</whisper>\n好了',
+    )
+  })
+
+  it('keeps the paired tag whole when read aloud', () => {
+    expect(spokenVoiceText('> 引用\n<whisper>嘘</whisper>', true)).toBe(
+      '引用\n<whisper>嘘</whisper>',
+    )
   })
 })
 

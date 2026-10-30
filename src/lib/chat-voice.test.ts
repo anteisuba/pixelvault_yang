@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
+  withoutStageDirections,
   chatBubbles,
   leadingVoiceCues,
   spokenVoiceText,
@@ -14,6 +15,28 @@ describe('voiceCueRules', () => {
     expect(voiceCueRules(false)).toContain('[laughing]')
     expect(voiceCueRules(false)).not.toContain('<whisper>')
     expect(voiceCueRules(true)).toContain('<whisper>…</whisper>')
+  })
+})
+
+describe('withoutStageDirections (owner 10-30)', () => {
+  it('drops *actions* and short (动作) asides, keeps bold, lists and real parentheses', () => {
+    expect(
+      withoutStageDirections('呢……头发是粉的。*光翼暗了一点* 我才没有介意呢。'),
+    ).toBe('呢……头发是粉的。我才没有介意呢。')
+    expect(withoutStageDirections('（笑）你又来了')).toBe('你又来了')
+    expect(withoutStageDirections('**这张**最好')).toBe('**这张**最好')
+    expect(withoutStageDirections('* 第一张\n* 第二张')).toBe(
+      '* 第一张\n* 第二张',
+    )
+    expect(withoutStageDirections('LoRA（权重 0.8）挂上了')).toBe(
+      'LoRA（权重 0.8）挂上了',
+    )
+    expect(withoutStageDirections('a*b*c')).toBe('a*b*c')
+  })
+
+  it('bubbles and the spoken text skip the action too', () => {
+    expect(chatBubbles('*歪头*\n真的吗？')).toEqual(['真的吗？'])
+    expect(spokenVoiceText('好啊 *笑着点头* 走吧')).toBe('好啊走吧')
   })
 })
 

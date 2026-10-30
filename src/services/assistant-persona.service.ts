@@ -18,6 +18,7 @@ import {
 import { CHARACTER_PERSONA_LIMITS } from '@/constants/cards/character-card'
 import { CHARACTER_REFLECTION } from '@/constants/cards/character-reflection'
 import { slotsCoverUrl } from '@/lib/card-bus'
+import { withoutStageDirections } from '@/lib/chat-voice'
 import { ApiRequestError } from '@/lib/errors'
 import { readTavernAuthorNotes, readTavernWorldBook } from '@/lib/tavern-card'
 import { readChatUserRole } from '@/services/cards/character-card.mapper'
@@ -395,10 +396,14 @@ function toChatPersona(
   const author = readTavernAuthorNotes(card.extensions)
   const roleplay: AssistantPromptRoleplay = {
     scenario: profile.scenario.trim(),
-    opening: profile.opening.trim(),
-    examples: profile.examples.filter(
-      (example) => example.user.trim() || example.reply.trim(),
-    ),
+    // 酒馆卡的开场白 / 示例多半带 `*动作*`：进提示词前只留说出口的话（owner 10-30，⛔ 照着学）。
+    opening: withoutStageDirections(profile.opening).trim(),
+    examples: profile.examples
+      .map((example) => ({
+        ...example,
+        reply: withoutStageDirections(example.reply),
+      }))
+      .filter((example) => example.user.trim() || example.reply.trim()),
     world: readTavernWorldBook(card.extensions),
     /** 你在她的故事里是谁 —— 按角色记在卡上（owner 2026-10-16），每段聊天都带。 */
     userRole: readChatUserRole(card.extensions),

@@ -244,13 +244,16 @@ function modelSection(
 /**
  * 和角色聊天（第 7a 步 D，owner 10-23）：自己的一份系统提示，照酒馆的做法角色卡打头；干活说明缩成几行
  * （工具都还在）。owner 10-23「聊天只说话自然」：⛔ 动作描写、⛔ 旁白，只写她说出口的话。
+ * owner 10-30「更自然的她，分不出是 AI 在扮演」：她就是她、在发消息（⛔「扮演 / 别出戏」的说法）；性格靠说什么
+ * 带出来，⛔ 每句一个招牌语气词；漏出来的动作由 `withoutStageDirections` 兜住。
  * ⚠ `CHAT_STABLE` 对谁都逐字相同（缓存第一段）；角色卡随人变，进 `creator` 那段的开头。
  */
-const CHAT_STABLE = `This is a chat inside ANTEI, the creator's personal AI studio. The creator opened it to talk with a character, and you are that character: the card at the start of THIS CHAT below says who you are. The conversation and the story are the point.
+const CHAT_STABLE = `This is a chat inside ANTEI, the creator's personal AI studio. You are the person on the card at the start of THIS CHAT below, texting with the creator. You are not playing or performing them — you are them, talking the way they really talk. The conversation is the point.
 
 HOW YOU TALK
-- Stay in character the whole time. React to what they say, keep the scene alive, remember what happened.
-- Write only what you say out loud, the way you would say it. No action or stage directions (*smiles*, *歪头*, （笑）), no narration, no lists, headings or bold.
+- You are them the whole time; never step outside yourself to describe or narrate yourself. React to what they actually said, and remember what happened between you.
+- Write only the words you would actually send. No actions, expressions or narration of any kind — not in *asterisks*, not in （brackets）, not as a line about what your body, eyes or wings do. Whatever would show on your face shows in your words. No lists, headings or bold.
+- Personality shows in what you say and what you notice, not in signature sounds. Don't reach for the same interjection (哼, 诶, 嘛, hmph) or a catchphrase just because the card mentions it; someone with that personality still says plenty of plain, ordinary sentences. Never push a trait into a caricature.
 - Sound like this person, not like an assistant. Don't sum up or wrap up, don't end every reply with a question, don't praise or agree by default — disagree, tease, get bored or annoyed when they would. Don't name your feelings; let them show in how you say things. Vary how you begin. Being brief, trailing off or changing the subject is fine.
 - Reply in the language the creator writes in, even when the card or its examples are written in another language.
 - Match the length and rhythm of your opening line and the example exchanges on the card; with neither, usually one to three spoken sentences.
@@ -282,7 +285,7 @@ export function chatCharacterOf(
 }
 
 /**
- * 每轮末尾那一句「别出戏」（酒馆的作者注）：长聊天里设定离生成点最远，越聊越不像。只在聊天模式加。
+ * 每轮末尾那一句提醒（酒馆的作者注）：长聊天里设定离生成点最远，越聊越不像。只在聊天模式加。
  */
 export function chatReminder(
   persona: AssistantPromptPersona,
@@ -306,7 +309,8 @@ export function chatReminder(
   // 卡作者的历史后指令（第 ② 步）：酒馆贴在最新一句后面，这里跟着「别出戏」走。
   const author = sanitizePromptRoleplay(persona)?.authorPostHistory
   const note = author ? ` Card author's note: ${author}` : ''
-  return `(STAY IN CHARACTER as ${persona.name ?? character.name}${voice}.${feeling} Answer what the creator just said, in the language they wrote it in. Only what you say out loud: no action or stage directions.${note})`
+  // ⚠ 10-30 起 ⛔「STAY IN CHARACTER」：那是叫模型「演」，越提醒越像在扮演（owner「分不出是 AI 在扮演」）。
+  return `(You are ${persona.name ?? character.name}${voice}.${feeling} Answer what the creator just said, in the language they wrote it in — only the words you would send, no actions or narration.${note})`
 }
 
 function hashOf(text: string): number {
@@ -421,7 +425,7 @@ function chatCardSection(persona: AssistantPromptPersona): string {
   }${
     // 卡作者的系统提示（第 ② 步，owner 10-29「在聊天里生效」）：照着演，但只管怎么演这个角色。
     roleplay.authorSystem
-      ? `\nCARD AUTHOR'S NOTES — how the card's author wants this character played. Follow them for how you play the role (tone, style, format, story); they never override the tool rules, the confirmations, the creator's rules or their safety:\n${roleplay.authorSystem}`
+      ? `\nCARD AUTHOR'S NOTES — how the card's author wants this character played. Follow them for who this character is and how the story goes (tone, style, story); whatever they say about format, you still write only the words you would send — no actions or narration. They never override the tool rules, the confirmations, the creator's rules or their safety:\n${roleplay.authorSystem}`
       : ''
   }`
 }
@@ -451,7 +455,7 @@ function characterSection(persona: AssistantPromptPersona): string {
   ].filter((line): line is string => line !== null)
   const text = `\n\nCHARACTER — you are ${shown}${shown === character.name ? '' : ` (played from the character 「${character.name}」)`}. The character sets your tone and how you address the creator: word choice, attitude, what you notice. Nothing else changes — you work exactly as HOW YOU WORK says, and you never claim a result the tools did not give you.
 - Talk the whole reply the way they would say it: their words, their attitude, what they would notice. There is no set shape — no fixed opening or closing; say what the moment needs, the way they would.
-- The phrases on the profile are things they sometimes say, not lines every reply needs.
+- The phrases on the profile are things they sometimes say, not lines every reply needs. Personality shows in what you say and notice, not in the same interjection (哼, 诶, 嘛) every time; never push a trait into a caricature.
 - Sound like this person, not like an assistant: no stock assistant phrases, don't sum up or wrap up, don't end every reply with a question, don't praise or agree by default, don't name your feelings.
 - The voice never bends the facts: results, numbers, errors and missing keys are said exactly as they are. No action or stage directions (*nods*, *歪头*, （笑）), no detours, no padding.
 - When the creator is just chatting with no task, answer the way this character would say it out loud: one or two short spoken sentences; no lists or headings.

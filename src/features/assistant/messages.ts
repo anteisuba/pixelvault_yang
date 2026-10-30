@@ -10,6 +10,7 @@ import type {
 import { ASSISTANT_NEXT_LIMITS } from '@/features/assistant/constants'
 import { skillBlocksIn } from '@/features/assistant/skills'
 import type { AssistantV3PictureRef } from '@/types/assistant-v3'
+import { withoutStageDirections } from '@/lib/chat-voice'
 
 /**
  * 发给模型的那一串消息怎么拼、怎么存（纯函数，循环与测试共用）。
@@ -245,9 +246,14 @@ export function historyMessages(lines: readonly HistoryLine[]): ModelMessage[] {
   const kept = lines.filter((line) => line.content.trim())
   const first = kept.findIndex((line) => line.role === 'user')
   if (first < 0) return []
-  return kept
-    .slice(first)
-    .map((line) => ({ role: line.role, content: line.content }))
+  // 她以前漏出来的动作（`*光翼暗了一点*`）不进历史：留着下一轮会照着学（owner 10-30）。
+  return kept.slice(first).map((line) => ({
+    role: line.role,
+    content:
+      line.role === 'assistant'
+        ? withoutStageDirections(line.content)
+        : line.content,
+  }))
 }
 
 /** 读过的技能全文原样留下（第 7a 步「读过的这一轮一直在」），其余换成一行。 */

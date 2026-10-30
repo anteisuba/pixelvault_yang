@@ -1145,7 +1145,8 @@ describe('记忆与之前几轮（第 6 步）', () => {
       ),
     ).toBe(true)
     const prompt = promptOf(main.doStreamCalls[0]!)
-    expect(prompt).toContain('you are that character')
+    expect(prompt).toContain('you are them, talking the way they really talk')
+    expect(prompt).not.toContain('STAY IN CHARACTER')
     expect(prompt).not.toContain("You are ANTEI's creative assistant")
     expect(prompt.indexOf('THIS CHAT — you are 马尔福')).toBeLessThan(
       prompt.indexOf("THIS CREATOR'S SETTINGS"),
@@ -1154,11 +1155,11 @@ describe('记忆与之前几轮（第 6 步）', () => {
     // C：她自己写的关系和最近一篇日记跟着聊天走。
     expect(prompt).toContain('叫你「波特」，嘴上嫌弃其实很在意')
     expect(prompt).toContain('「今天他又来借书，我假装没看见。」')
-    expect(prompt).toContain('STAY IN CHARACTER as 马尔福 — 说话带点傲慢。')
+    expect(prompt).toContain('(You are 马尔福 — 说话带点傲慢。')
     // 示例对白不再跟着提醒走（10-26：英文示例把中文聊天带成英文、照着示例说）。
     expect(prompt).not.toContain('You sound like')
     expect(prompt).toContain(
-      'Answer what the creator just said, in the language they wrote it in.',
+      'Answer what the creator just said, in the language they wrote it in — only the words you would send, no actions or narration.',
     )
     expect(prompt).toContain(
       "What you won't do, and your flaws: 不会当着别人面道谢",

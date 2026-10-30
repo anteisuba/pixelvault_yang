@@ -23,6 +23,9 @@ import { cn } from '@/lib/utils'
  * 宽 232 ↔ 0 走一段过渡，里面那一层同时往左滑、淡出（样件 v5），⛔ 内容跟着宽一起挤。
  * 行和手机上那颗下拉是同一套（`StudioOperatorSessionRow` 的 `compact`，摆在框里 `inMenu={false}`）。
  */
+/** 这一列开着时的宽（= 下面的 `w-58`）：库在角色页贴着它右边排，要按它让位。 */
+export const SHELL_HISTORY_COLUMN_WIDTH = '14.5rem'
+
 export function StudioShellHistoryColumn({
   open,
   onClose,

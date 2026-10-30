@@ -59,7 +59,10 @@ import {
   useStudioBenchMotion,
   useStudioBenchSwipe,
 } from '@/components/business/studio/shell/StudioShellBench'
-import { StudioShellHistoryColumn } from '@/components/business/studio/shell/StudioShellHistoryColumn'
+import {
+  SHELL_HISTORY_COLUMN_WIDTH,
+  StudioShellHistoryColumn,
+} from '@/components/business/studio/shell/StudioShellHistoryColumn'
 import {
   StudioShellHistoryExpandKey,
   StudioShellHistoryKey,
@@ -242,7 +245,7 @@ export function StudioShell({
     <div
       ref={setLibraryTarget}
       data-testid="studio-library-target"
-      className="fixed inset-0 z-40 empty:hidden lg:absolute lg:overflow-hidden lg:inset-y-0 lg:right-auto lg:left-(--library-left) lg:z-10 lg:w-(--library-width)"
+      className="fixed inset-0 z-40 empty:hidden lg:absolute lg:overflow-hidden lg:inset-y-0 lg:right-auto lg:left-(--library-left) lg:z-10 lg:w-(--library-width) lg:transition-[left,width] lg:duration-slow lg:ease-standard motion-reduce:transition-none"
     />
   )
 
@@ -284,6 +287,9 @@ export function StudioShell({
                       libraryLayer={libraryLayer}
                       historyOpen={historyOpen}
                       onCloseHistory={() => setHistoryOpen(false)}
+                      onCloseLibraryAssistant={() =>
+                        setLibraryAssistantOpen(false)
+                      }
                     >
                       {children}
                     </StudioShellStage>
@@ -342,6 +348,7 @@ function StudioShellStage({
   libraryLayer,
   historyOpen,
   onCloseHistory,
+  onCloseLibraryAssistant,
   children,
 }: {
   kind: 'home' | 'bench'
@@ -356,6 +363,8 @@ function StudioShellStage({
   libraryLayer: ReactNode
   historyOpen: boolean
   onCloseHistory(): void
+  /** 库里叫出的助手收回去（对话头的「收起」在库里就是它）。 */
+  onCloseLibraryAssistant(): void
   children: ReactNode
 }) {
   const t = useTranslations('StudioShell')
@@ -487,6 +496,18 @@ function StudioShellStage({
   )
   const conversationWidth = `${split.conversationPx}px`
   const libraryChat = libraryOpen && libraryAssistantOpen
+  /**
+   * 助手贴左的那几页（角色，第 ① 步）：记录列 + 对话照首页那样从左排开（⛔ 浮在库上），
+   * 库从它们右边开始；记录列能开合，库跟着让。
+   */
+  const libraryChatLeft = libraryChat && libraryAssistantLeft
+  const historyShown =
+    historyOpen && !conversationHidden && (!libraryOpen || libraryChatLeft)
+  const libraryLeft = libraryChatLeft
+    ? historyShown
+      ? `calc(${conversationWidth} + ${SHELL_HISTORY_COLUMN_WIDTH})`
+      : conversationWidth
+    : '0px'
   const pullTransition =
     dragging || reduceMotion
       ? undefined
@@ -502,14 +523,15 @@ function StudioShellStage({
         flight && 'studio-shell-avatar-flying',
       )}
       style={libraryWidth(
-        libraryChat ? `calc(100% - ${conversationWidth})` : '100%',
-        libraryChat && libraryAssistantLeft ? conversationWidth : '0px',
+        libraryChatLeft
+          ? `calc(100% - ${libraryLeft})`
+          : libraryChat
+            ? `calc(100% - ${conversationWidth})`
+            : '100%',
+        libraryLeft,
       )}
     >
-      <StudioShellHistoryColumn
-        open={historyOpen && !conversationHidden && !libraryOpen}
-        onClose={onCloseHistory}
-      />
+      <StudioShellHistoryColumn open={historyShown} onClose={onCloseHistory} />
 
       <section
         ref={conversationRef}
@@ -523,11 +545,9 @@ function StudioShellStage({
           conversationHidden && 'lg:hidden',
           libraryOpen && !libraryAssistantOpen && 'lg:hidden',
           libraryChat &&
-            'lg:absolute lg:inset-y-0 lg:z-20 lg:flex lg:border-border',
-          libraryChat &&
-            (libraryAssistantLeft
-              ? 'lg:left-0 lg:border-r'
-              : 'lg:right-0 lg:border-l'),
+            (libraryChatLeft
+              ? 'lg:flex lg:shrink-0 lg:border-r lg:border-border'
+              : 'lg:absolute lg:inset-y-0 lg:right-0 lg:z-20 lg:flex lg:border-l lg:border-border'),
         )}
         style={
           libraryChat
@@ -557,7 +577,13 @@ function StudioShellStage({
           >
             <StudioOperatorDock
               variant="column"
-              onCollapseColumn={bench ? collapseConversation : undefined}
+              onCollapseColumn={
+                libraryChat
+                  ? onCloseLibraryAssistant
+                  : bench
+                    ? collapseConversation
+                    : undefined
+              }
             />
           </div>
         ) : null}

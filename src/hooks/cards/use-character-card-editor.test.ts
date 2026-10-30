@@ -54,6 +54,8 @@ const CARD = {
   workOverride: null,
   summary: null,
   tavern: null,
+  voiceCardId: null,
+  pinnedFields: [],
 } as unknown as CharacterCardRecord
 
 describe('makePrimary / removeSlot', () => {
@@ -158,7 +160,10 @@ describe('updateFromDraft', () => {
       examples: [{ user: 'hi', reply: 'yo' }],
     })
     // 作品没填 = 删键，回到从角色标签取。
-    expect(update.extensions).toEqual({ 'pv.work': null })
+    expect(update.extensions).toEqual({
+      'pv.work': null,
+      'pv.pinnedFields': null,
+    })
     // 外观 / 标签 / 图在造型上，⛔ 不再随卡一起写。
     expect(update).not.toHaveProperty('description')
     expect(update).not.toHaveProperty('referenceSlots')
@@ -257,5 +262,23 @@ describe('lookUpdateFromDraft（角色④）', () => {
     expect(
       lookUpdateFromDraft(LOOK, { slots: [slot('c', { isPrimary: true })] }),
     ).toHaveProperty('referenceSlots')
+  })
+})
+
+describe('钉住与声音（角色大项目第 ② 步）', () => {
+  it('钉住的格写进 pv.pinnedFields（去重），全取消 = 删键；声音照草稿发', () => {
+    const update = updateFromDraft(CARD, {
+      ...draftFromCard(CARD),
+      pinnedFields: ['speech', 'speech', 'moods'],
+      voiceCardId: 'voice-1',
+    })
+    expect(update.extensions?.['pv.pinnedFields']).toEqual(['speech', 'moods'])
+    expect(update.voiceCardId).toBe('voice-1')
+    const cleared = updateFromDraft(CARD, {
+      ...draftFromCard(CARD),
+      pinnedFields: [],
+    })
+    expect(cleared.extensions?.['pv.pinnedFields']).toBeNull()
+    expect(cleared.voiceCardId).toBeNull()
   })
 })

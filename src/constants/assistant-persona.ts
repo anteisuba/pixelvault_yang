@@ -478,6 +478,9 @@ export const ASSISTANT_PERSONA_LIMITS = {
   maxWorldNotesTotalChars: 3000,
   /** 和这个角色聊天时你在故事里是谁（存在卡上，附录L 第二片 C）。 */
   maxChatUserRoleChars: 300,
+  /** 酒馆卡作者的系统提示 / 历史后指令（角色大项目第 ② 步，只在聊天里）。 */
+  maxAuthorSystemChars: 2000,
+  maxAuthorPostHistoryChars: 400,
   /** 每轮末尾那句「别出戏」里带的说话方式摘要（附录J ③）。 */
   maxCharacterReminderChars: 120,
   /**

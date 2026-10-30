@@ -27,6 +27,27 @@ export const CHARACTER_REVISION_CARD_FIELDS = {
   look: 'look',
 } as const
 
+/**
+ * 能「钉住」的设定格（角色大项目第 ② 步，owner 10-29）：钉住的格子她改不了——她整理聊天时
+ * 跳过、自动攒的说法不再加、你叫助手改也拦下（要改先取消钉住，owner 10-30）。
+ */
+export const CHARACTER_PINNABLE_FIELDS = [
+  'identity',
+  'behavior',
+  'speech',
+  'boundaries',
+  'backstory',
+  'catchphrases',
+  'moods',
+  'learnedPhrases',
+  'relationship',
+  'scenario',
+  'opening',
+  'examples',
+] as const
+
+export type CharacterPinnableField = (typeof CHARACTER_PINNABLE_FIELDS)[number]
+
 /** 角色页右栏「最近」一次读多少（日记、她改了什么、见闻、观点各自最新的这么多条）。 */
 export const CHARACTER_GROWTH_PAGE = {
   journals: 30,

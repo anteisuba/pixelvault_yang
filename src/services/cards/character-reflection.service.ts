@@ -20,6 +20,7 @@ import {
 import { resolveMemoryChanges } from '@/services/kernel/assistant-operator.service'
 import type { AssistantRoute } from '@/services/kernel/assistant-route.service'
 import { llmTextCompletion } from '@/services/llm-text.service'
+import { readPinnedFields } from '@/services/cards/character-card.mapper'
 import { CharacterPersonaSchema, type CharacterPersona } from '@/types'
 import type { AssistantMemory } from '@/types/assistant-memory'
 import { AssistantRoundMemoriesDraftSchema } from '@/types/assistant-operator'
@@ -32,13 +33,19 @@ import { recordCharacterRevision } from './character-revision.service'
  *
  * ⭐ 改卡不用你确认（owner 10-26），但每一笔都记进「她改了什么」，设置里能撤回。
  * ⛔ 名字和身份她不能改；「学到的说法」有自己那条学法，这里不碰。
+ * ⛔ 你钉住的格（第 ② 步）她也不改：提示里不列、草稿里给了也丢掉；钉住「和你的关系」就不更新它。
  * ⚠ 不碰卡的 `updatedAt`（同学说法）：她整理一次不该把她顶到角色列表最前面。
  * ⚠ 锦上添花：哪一步失败都只记日志，⛔ 影响聊天。
  */
 
-const EDITABLE: ReadonlySet<string> = new Set(
-  CHARACTER_REFLECTION_EDITABLE_FIELDS,
-)
+/** 这次她能改哪几格：能改的减去钉住的。 */
+function editableFields(
+  pinned: readonly string[],
+): CharacterReflectionEditableField[] {
+  return CHARACTER_REFLECTION_EDITABLE_FIELDS.filter(
+    (field) => !pinned.includes(field),
+  )
+}
 
 const ReflectionDraftSchema = z.object({
   journal: z.string().optional(),
@@ -71,16 +78,20 @@ export function shouldReflect(userLineCount: number): boolean {
   )
 }
 
-function systemPrompt(name: string): string {
+function systemPrompt(
+  name: string,
+  editable: readonly CharacterReflectionEditableField[],
+  relationshipPinned: boolean,
+): string {
   return `You are ${name}, a character who chats with the person who created you ("the creator"). Every so often you look back over your recent chats with them, the way a person thinks over their day. Write in the language the creator chats in.
 
 Output ONLY JSON:
 {"journal": "...", "relationship": "...", "memories": [{"kind": "preference|fact|rule", "text": "...", "replaces": 2}], "forget": [3], "persona": [{"field": "...", "text": "...", "reason": "..."}]}
 
 - journal: your diary entry, first person, 2–5 sentences, at most ${CHARACTER_REFLECTION.journalChars} characters: what happened between you two lately and how you feel about it. A diary, not a report.
-- relationship: one or two sentences, at most ${CHARACTER_PERSONA_LIMITS.relationship} characters: what you call the creator, what they call you, how close you are now. Relationships move slowly; if nothing changed, repeat the current one.
+- relationship: ${relationshipPinned ? 'the creator fixed this one; leave it out.' : `one or two sentences, at most ${CHARACTER_PERSONA_LIMITS.relationship} characters: what you call the creator, what they call you, how close you are now. Relationships move slowly; if nothing changed, repeat the current one.`}
 - memories: things worth remembering about the creator from these chats, one line each (at most 200 characters). "replaces": N merges it into numbered memory N. "forget" lists numbers that are outdated or duplicated. Never invent anything they did not say.
-- persona: change your own card only when the chats really settled something new about you (a habit, something you like, a phrase you keep using, how you treat them now). At most ${CHARACTER_REFLECTION.maxPersonaChanges} fields, usually none. Fields you may change: ${CHARACTER_REFLECTION_EDITABLE_FIELDS.join(', ')}. Never your name or who you are. "text" replaces the whole field, so keep what still holds; catchphrases and moods are one per line. "reason" is one short sentence in your own words.`
+- persona: ${editable.length ? `change your own card only when the chats really settled something new about you (a habit, something you like, a phrase you keep using, how you treat them now). At most ${CHARACTER_REFLECTION.maxPersonaChanges} fields, usually none. Fields you may change: ${editable.join(', ')}. Never your name, who you are, or any other field.` : 'leave it empty; the creator fixed every field you could change.'} "text" replaces the whole field, so keep what still holds; catchphrases and moods are one per line. "reason" is one short sentence in your own words.`
 }
 
 function describeCard(name: string, persona: CharacterPersona): string {
@@ -162,11 +173,13 @@ function fieldValue(
 export function applyReflectionToPersona(
   persona: CharacterPersona,
   draft: CharacterReflectionDraft,
+  pinned: readonly string[] = [],
 ): { persona: CharacterPersona; reasons: string[] } | null {
   const next: CharacterPersona = { ...persona }
   const reasons: string[] = []
+  const editable: ReadonlySet<string> = new Set(editableFields(pinned))
   const changes = (draft.persona ?? [])
-    .filter((change) => EDITABLE.has(change.field))
+    .filter((change) => editable.has(change.field))
     .slice(0, CHARACTER_REFLECTION.maxPersonaChanges)
   for (const change of changes) {
     const field = change.field as CharacterReflectionEditableField
@@ -176,7 +189,8 @@ export function applyReflectionToPersona(
   const relationship = draft.relationship
     ?.trim()
     .slice(0, CHARACTER_PERSONA_LIMITS.relationship)
-  if (relationship) next.relationship = relationship
+  if (relationship && !pinned.includes('relationship'))
+    next.relationship = relationship
   const checked = CharacterPersonaSchema.safeParse(next)
   if (!checked.success) return null
   return JSON.stringify(checked.data) === JSON.stringify(persona)
@@ -217,10 +231,12 @@ export async function reflectOnChat(input: {
         name: true,
         tags: true,
         persona: true,
+        extensions: true,
         updatedAt: true,
       },
     })
     if (!card) return false
+    const pinned = readPinnedFields(card.extensions)
     const persona = CharacterPersonaSchema.safeParse(card.persona ?? {})
     if (!persona.success) return false
     const shown = await listAssistantMemoriesForReview(
@@ -237,7 +253,11 @@ export async function reflectOnChat(input: {
       .join('\n\n')
       .slice(-CHARACTER_REFLECTION.promptChars)
     const raw = await llmTextCompletion({
-      systemPrompt: systemPrompt(card.name),
+      systemPrompt: systemPrompt(
+        card.name,
+        editableFields(pinned),
+        pinned.includes('relationship'),
+      ),
       userPrompt,
       promptGuardMaxLength: CHARACTER_REFLECTION.promptChars,
       responseFormat: 'json_object',
@@ -267,7 +287,7 @@ export async function reflectOnChat(input: {
           : {}),
       })
 
-    const changed = applyReflectionToPersona(persona.data, draft)
+    const changed = applyReflectionToPersona(persona.data, draft, pinned)
     if (changed) {
       await db.characterCard.update({
         where: { id: card.id },

@@ -218,6 +218,29 @@ export function tavernCardMime(file: {
 }
 
 /**
+ * 卡作者写给 AI 的那两句（酒馆 `system_prompt` / `post_history_instructions`，角色大项目第 ② 步）：
+ * 只在和她聊天时用（owner 10-29 ⛔ 进工作台）。酒馆的 `{{original}}`（「接上默认提示」）这里没有默认提示可接，去掉。
+ */
+export function readTavernAuthorNotes(extensions: unknown): {
+  system: string
+  postHistory: string
+} {
+  const kept =
+    extensions && typeof extensions === 'object'
+      ? (extensions as Record<string, unknown>)[TAVERN_CARD.EXTENSION_KEY]
+      : undefined
+  const parsed = TavernCardKeptSchema.safeParse(kept ?? {})
+  const clean = (text: string | undefined) =>
+    (text ?? '').replace(/\{\{original\}\}/gi, '').trim()
+  return parsed.success
+    ? {
+        system: clean(parsed.data.systemPrompt),
+        postHistory: clean(parsed.data.postHistoryInstructions),
+      }
+    : { system: '', postHistory: '' }
+}
+
+/**
  * 卡上原样存着的世界书（`extensions['st.card'].characterBook`）→ 聊天时能用的几条（附录L 第二片 C）。
  * 关了的、没正文的、既没关键词又不常驻的丢掉；按酒馆的插入顺序排；最多 `maxWorldEntries` 条。
  * ⚠ 只取「关键词 → 正文」与常驻：酒馆的次关键词 / 概率 / 递归 / 插入位置这些 ⛔ 不照搬 ——

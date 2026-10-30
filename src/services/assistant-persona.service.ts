@@ -19,7 +19,7 @@ import { CHARACTER_PERSONA_LIMITS } from '@/constants/cards/character-card'
 import { CHARACTER_REFLECTION } from '@/constants/cards/character-reflection'
 import { slotsCoverUrl } from '@/lib/card-bus'
 import { ApiRequestError } from '@/lib/errors'
-import { readTavernWorldBook } from '@/lib/tavern-card'
+import { readTavernAuthorNotes, readTavernWorldBook } from '@/lib/tavern-card'
 import { readChatUserRole } from '@/services/cards/character-card.mapper'
 import { sanitizePrompt } from '@/services/kernel/prompt-guard'
 import { ensureUser } from '@/services/user.service'
@@ -392,6 +392,7 @@ function toChatPersona(
   const speech = profile.speech.trim()
   const promptCharacter = toPromptCharacter(card.name, profile, speech)
   if (!promptCharacter) return null
+  const author = readTavernAuthorNotes(card.extensions)
   const roleplay: AssistantPromptRoleplay = {
     scenario: profile.scenario.trim(),
     opening: profile.opening.trim(),
@@ -403,6 +404,8 @@ function toChatPersona(
     userRole: readChatUserRole(card.extensions),
     /** 她最近一篇日记（C）：她偶尔会提起。 */
     journal: card.journals[0]?.text ?? '',
+    authorSystem: author.system,
+    authorPostHistory: author.postHistory,
   }
   return {
     ...persona,
@@ -598,6 +601,14 @@ export function sanitizePromptRoleplay(
       ASSISTANT_PERSONA_LIMITS.maxChatUserRoleChars,
     ),
     journal: clean(roleplay.journal ?? '', CHARACTER_REFLECTION.journalChars),
+    authorSystem: clean(
+      roleplay.authorSystem ?? '',
+      ASSISTANT_PERSONA_LIMITS.maxAuthorSystemChars,
+    ),
+    authorPostHistory: clean(
+      roleplay.authorPostHistory ?? '',
+      ASSISTANT_PERSONA_LIMITS.maxAuthorPostHistoryChars,
+    ),
   }
   return cleaned
 }

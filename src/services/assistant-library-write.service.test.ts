@@ -328,6 +328,19 @@ describe('新内核改库：做 → 撤 → 回到原状', () => {
     expect(snapshot()).toEqual(before)
   })
 
+  it('钉住的格你叫助手改也拦下，什么都不写（第 ② 步）', async () => {
+    const persona = store.cards[0]!.persona
+    Object.assign(store.cards[0]!, {
+      extensions: { 'pv.pinnedFields': ['speech'] },
+    })
+    const outcome = await writeCharacterProfile(owner, {
+      character: '马尔福',
+      fields: [{ field: 'speech', text: 'sneers a lot' }],
+    })
+    expect(outcome.ok).toBe(false)
+    expect(store.cards[0]!.persona).toEqual(persona)
+  })
+
   it('改设定记进「她改了什么」，对话里撤销时那一行一起标成撤回过（C）', async () => {
     const outcome = await writeCharacterProfile(owner, {
       character: '马尔福',

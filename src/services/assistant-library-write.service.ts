@@ -47,6 +47,7 @@ import {
   createCharacterCard,
   updateCharacterCard,
 } from '@/services/cards/character-card.service'
+import { readPinnedFields } from '@/services/cards/character-card.mapper'
 import {
   createCharacterLook,
   updateCharacterLook,
@@ -288,6 +289,15 @@ export async function writeCharacterProfile(
   const fields = input.fields ?? []
   if (!input.name && !input.tags && fields.length === 0)
     return fail('character needs fields, name or tags.')
+  // 钉住的格（第 ② 步，owner 10-30）：你叫助手改也拦下，要改先在角色页取消钉住。
+  const pinned = readPinnedFields(card.extensions)
+  const blocked = fields
+    .map(({ field }) => field)
+    .filter((field) => (pinned as readonly string[]).includes(field))
+  if (blocked.length)
+    return fail(
+      `${blocked.join(', ')} of 角色·${card.name} is pinned by the creator, so it cannot be changed. Tell them to unpin it on the character page first.`,
+    )
 
   const before = personaOf(card.persona)
   const persona = { ...before }

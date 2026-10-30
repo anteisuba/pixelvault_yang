@@ -44,6 +44,7 @@ import {
   sanitizeToneCustom,
   upsertAssistantPersona,
 } from '@/services/assistant-persona.service'
+import { chatReminder } from '@/features/assistant/prompt'
 
 const STORED_ROW = {
   name: 'Mika',
@@ -898,6 +899,25 @@ describe('聊天模式按会话那张卡', () => {
     })
     const persona = await getAssistantPersonaByUserId('db_user_1', CHAT_CARD.id)
     expect(persona.roleplay?.userRole).toBe('常来的熟客，怕猫')
+  })
+
+  it('⭐ 酒馆卡作者的系统提示 / 历史后指令：聊天时读进来，去掉 {{original}}、填宏、截断（第 ② 步）', async () => {
+    mockCardFindFirst.mockResolvedValue({
+      ...CHAT_CARD,
+      extensions: {
+        'st.card': {
+          systemPrompt: '{{original}} 你就是 {{char}}，用第三人称描写动作。',
+          postHistoryInstructions: '回复不超过三段。',
+        },
+      },
+    })
+    const persona = await getAssistantPersonaByUserId('db_user_1', CHAT_CARD.id)
+    const roleplay = sanitizePromptRoleplay(persona)
+    expect(roleplay?.authorSystem).toBe('你就是 Rin，用第三人称描写动作。')
+    expect(roleplay?.authorPostHistory).toBe('回复不超过三段。')
+    expect(chatReminder(persona, 1)).toContain(
+      "Card author's note: 回复不超过三段。",
+    )
   })
 
   it('卡不是你的 / 删了 → 照工作模式答（设置里那一份）', async () => {

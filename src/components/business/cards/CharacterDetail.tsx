@@ -8,6 +8,7 @@ import {
   CHARACTER_CARD,
   CHARACTER_PERSONA_LIMITS,
 } from '@/constants/cards/character-card'
+import type { CharacterPinnableField } from '@/constants/cards/character-revision'
 import { TAVERN_CARD } from '@/constants/cards/tavern-card'
 import type {
   CharacterCardRecord,
@@ -17,7 +18,7 @@ import type {
   UpdateCharacterCardRequest,
   UpdateCharacterLookRequest,
 } from '@/types'
-import { ChevronDown, ChevronLeft, Plus } from '@/components/icons'
+import { ChevronLeft, Mic, Play, Plus, Square } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
@@ -30,6 +31,7 @@ import {
   CharacterTextField,
 } from '@/components/business/cards/CharacterTextField'
 import { CharacterLookStrip } from '@/components/business/cards/CharacterLookStrip'
+import { VoicePickerDialog } from '@/components/business/voices/VoicePickerDialog'
 import {
   appendSlotImages,
   type CharacterCardDraft,
@@ -46,6 +48,11 @@ import { useCharacterCardUsage } from '@/hooks/cards/use-character-card-usage'
 import { useCharacterDialogueDraft } from '@/hooks/cards/use-character-dialogue-draft'
 import { useCharacterLoras } from '@/hooks/cards/use-character-loras'
 import { useCharacterSampleLines } from '@/hooks/cards/use-character-sample-lines'
+import { useVoiceCardDetail } from '@/hooks/cards/use-voice-card-detail'
+import {
+  canPreviewVoiceSample,
+  useVoiceSamplePreview,
+} from '@/hooks/use-voice-sample-preview'
 import {
   characterImageCount,
   characterWork,
@@ -261,7 +268,7 @@ function usePaneSave({
 }
 
 /**
- * 电脑详情「人物」页签：名字 + 设定（人物 / 对话 / 更多），原样搬过来（第 ② 步再改）。
+ * 电脑详情「人物」页签：名字 + 设定（人物含声音 / 对话 / 酒馆三组，每格编辑 + 图钉，第 ② 步）。
  */
 export function CharacterPersonPane(props: CharacterPaneProps) {
   const t = useTranslations('CharacterRoster')
@@ -529,7 +536,7 @@ const PERSON_FIELDS = [
   ['backstory', 'fieldBackstory'],
 ] as const
 
-/** 设定里的一组（人物 / 对话 / 更多）：一块浅灰底，owner 2026-10-15 选原型 A。 */
+/** 设定里的一组（人物 / 对话 / 酒馆）：一块浅灰底，owner 2026-10-15 选原型 A、10-29 定三组。 */
 function SettingGroup({
   title,
   children,
@@ -550,7 +557,113 @@ function SettingGroup({
   )
 }
 
-/** 设定四格 + 对话/更多。配音间顶栏「人设 ▾ → 改设定」也就地开这一块（用户 10-25）。 */
+/**
+ * 一格的图钉（角色大项目第 ② 步）：钉住的格她整理聊天时不改、你叫助手改也拦下。
+ */
+function usePin(card: CharacterCardRecord, save: Save) {
+  return (field: CharacterPinnableField) => ({
+    pinned: card.pinnedFields.includes(field),
+    onPinnedChange: (on: boolean) =>
+      void save({
+        pinnedFields: on
+          ? [...card.pinnedFields, field]
+          : card.pinnedFields.filter((item) => item !== field),
+      }),
+  })
+}
+
+/**
+ * 人物组的「声音」格（第 ② 步，owner 10-30「从声音库拿」）：绑的那副嗓子 · 试听 · 换。
+ * 挑选框就是声音库那一个（`VoicePickerDialog`），公开库的先收藏成音色卡再绑。
+ */
+function CharacterVoiceField({
+  card,
+  save,
+}: {
+  card: CharacterCardRecord
+  save: Save
+}) {
+  const t = useTranslations('CharacterRoster')
+  const voice = useVoiceCardDetail(card.voiceCardId)
+  const preview = useVoiceSamplePreview()
+  const [picking, setPicking] = useState(false)
+  const target = voice
+    ? {
+        id: voice.id,
+        url: voice.sampleAudioUrl ?? voice.referenceAudioUrl,
+        voiceId: voice.voiceId,
+      }
+    : null
+  const playing = target !== null && preview.playingId === target.id
+
+  return (
+    <div className="flex min-w-0 flex-col gap-1">
+      <div className="flex min-h-7 items-center gap-1.5 text-xs text-muted-foreground">
+        <p>{t('fieldVoice')}</p>
+        <span className="flex-1" />
+        <button
+          type="button"
+          data-testid="character-voice-pick"
+          onClick={() => setPicking(true)}
+          className="h-7 rounded-full px-2 transition-colors duration-fast ease-standard hover:bg-background/70 hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none"
+        >
+          {card.voiceCardId ? t('voiceChange') : t('voicePick')}
+        </button>
+      </div>
+      {card.voiceCardId ? (
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span className="relative grid size-8 shrink-0 place-items-center overflow-hidden rounded-full bg-background text-muted-foreground">
+            {voice?.coverImage ? (
+              <Image
+                src={voice.coverImage}
+                alt=""
+                fill
+                sizes="32px"
+                className="object-cover"
+              />
+            ) : (
+              <Mic className="size-4" aria-hidden />
+            )}
+          </span>
+          <span className="min-w-0 truncate text-base lg:text-sm">
+            {voice?.name ?? t('voiceLoading')}
+          </span>
+          {target && canPreviewVoiceSample(target) ? (
+            <button
+              type="button"
+              aria-pressed={playing}
+              onClick={() => preview.toggle(target)}
+              className="flex h-7 shrink-0 items-center gap-1 rounded-full bg-background px-2.5 text-xs text-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none"
+            >
+              {preview.loadingId === target.id ? (
+                <Spinner size="sm" />
+              ) : playing ? (
+                <Square className="size-3" aria-hidden />
+              ) : (
+                <Play className="size-3" aria-hidden />
+              )}
+              {playing ? t('voiceStop') : t('voicePreview')}
+            </button>
+          ) : null}
+        </div>
+      ) : (
+        <p className="text-base leading-relaxed text-muted-foreground lg:text-sm">
+          {t('voiceEmpty')}
+        </p>
+      )}
+      <VoicePickerDialog
+        open={picking}
+        onOpenChange={setPicking}
+        onPick={(picked) => {
+          preview.stop()
+          void save({ voiceCardId: picked.id })
+        }}
+      />
+    </div>
+  )
+}
+
+/** 设定（人物 / 对话 / 酒馆三组）。配音间顶栏「人设 ▾ → 改设定」也就地开这一块（用户 10-25）。 */
 export function CharacterSettingModule({
   card,
   save,
@@ -562,6 +675,7 @@ export function CharacterSettingModule({
   const reading = useCharacterSampleLines(card.id)
   const tErrors = useTranslations('Errors')
   const [speechEditing, setSpeechEditing] = useState(false)
+  const pin = usePin(card, save)
   const persona = card.persona
   const written = PERSON_FIELDS.some(([key]) => persona?.[key]?.trim())
 
@@ -580,11 +694,13 @@ export function CharacterSettingModule({
               // 经历最长，单独占一整行（五格排两列不留孤格）。
               className={key === 'backstory' ? 'lg:col-span-2' : undefined}
               onSave={(text) => save({ [key]: text })}
+              {...pin(key)}
               {...(key === 'speech'
                 ? { editing: speechEditing, onEditingChange: setSpeechEditing }
                 : {})}
             />
           ))}
+          <CharacterVoiceField card={card} save={save} />
         </div>
 
         {written ? (
@@ -672,9 +788,8 @@ function lorebookEntryCount(book: unknown): number {
 }
 
 /**
- * 「设定」的对话一组 + 折起来的「更多」（owner 10-15：我们的字段包含酒馆字段，⛔ 另列
- * 一块「酒馆卡字段」）。格名只用我们的叫法；作者备注以外的「更多」只保存不生效，
- * 每格写一句它是干什么的；世界书只读。
+ * 「设定」的对话一组 + 酒馆一组（第 ② 步 owner 10-29 定三组；⛔ 再折起来）。格名只用我们的叫法，
+ * 每格写一句它是干什么的：系统提示 / 历史后指令只在和她聊天时生效（⛔ 进工作台），世界书已生效、只读。
  */
 function SettingTavernGroups({
   card,
@@ -685,8 +800,8 @@ function SettingTavernGroups({
 }) {
   const t = useTranslations('CharacterRoster')
   const tErrors = useTranslations('Errors')
-  const [moreOpen, setMoreOpen] = useState(false)
   const [adding, setAdding] = useState(false)
+  const pin = usePin(card, save)
   const drafting = useCharacterDialogueDraft(card.id)
   const draft = draftFromCard(card)
   const draftButton = (kind: CharacterDialogueDraftKind) => (
@@ -718,11 +833,6 @@ function SettingTavernGroups({
   )
   const greetings = draft.alternateGreetings
   const lorebook = lorebookEntryCount(card.tavern?.characterBook)
-  const savedOnly = (
-    <span className="rounded-full bg-background px-2 text-2xs">
-      {t('savedOnlyBadge')}
-    </span>
-  )
 
   return (
     <>
@@ -733,6 +843,7 @@ function SettingTavernGroups({
             value={draft.scenario}
             limit={CHARACTER_PERSONA_LIMITS.scenario}
             onSave={(text) => save({ scenario: text })}
+            {...pin('scenario')}
           />
           <div className="flex min-w-0 flex-col gap-2">
             <CharacterTextField
@@ -740,6 +851,7 @@ function SettingTavernGroups({
               value={draft.opening}
               limit={CHARACTER_PERSONA_LIMITS.opening}
               onSave={(text) => save({ opening: text })}
+              {...pin('opening')}
             />
             {draft.opening.trim() ? null : draftButton('opening')}
           </div>
@@ -749,6 +861,7 @@ function SettingTavernGroups({
               value={draft.examples}
               hint={t('examplesHint')}
               onSave={(text) => save({ examples: text })}
+              {...pin('examples')}
             />
             {draft.examples.trim() ? null : draftButton('examples')}
           </div>
@@ -758,12 +871,14 @@ function SettingTavernGroups({
             value={draft.moods}
             hint={t('moodsHint')}
             onSave={(text) => save({ moods: text })}
+            {...pin('moods')}
           />
           <CharacterTextField
             label={t('fieldLearnedPhrases')}
             value={draft.learnedPhrases}
             hint={t('learnedPhrasesHint')}
             onSave={(text) => save({ learnedPhrases: text })}
+            {...pin('learnedPhrases')}
           />
           {/* 和你的关系（10-26「更像真人」C）：她整理聊天时自己写，称呼跟着它。 */}
           <CharacterTextField
@@ -772,6 +887,7 @@ function SettingTavernGroups({
             limit={CHARACTER_PERSONA_LIMITS.relationship}
             hint={t('relationshipHint')}
             onSave={(text) => save({ relationship: text })}
+            {...pin('relationship')}
           />
           <div className="flex min-w-0 flex-col gap-3">
             {greetings.map((greeting, index) => (
@@ -816,65 +932,39 @@ function SettingTavernGroups({
         </div>
       </SettingGroup>
 
-      <SettingGroup
-        title={t('settingMore')}
-        action={
-          <button
-            type="button"
-            aria-expanded={moreOpen}
-            onClick={() => setMoreOpen((open) => !open)}
-            className="flex items-center gap-1 text-xs text-muted-foreground transition-colors duration-fast hover:text-foreground"
-          >
-            {moreOpen ? t('collapseText') : t('expandText')}
-            <ChevronDown
-              aria-hidden
-              className={cn(
-                'size-3.5 transition-transform duration-fast ease-standard motion-reduce:transition-none',
-                moreOpen && 'rotate-180',
-              )}
-            />
-          </button>
-        }
-      >
-        {moreOpen ? (
-          <div className="grid gap-x-10 gap-y-5 lg:grid-cols-2">
-            <CharacterTextField
-              label={t('fieldSummary')}
-              value={draft.summary}
-              limit={CHARACTER_CARD.SUMMARY_MAX_LENGTH}
-              hint={t('summaryWhat')}
-              onSave={(text) => save({ summary: text })}
-            />
-            <CharacterTextField
-              label={t('fieldSystemPrompt')}
-              value={draft.systemPrompt}
-              hint={t('systemPromptWhat')}
-              badge={savedOnly}
-              onSave={(text) => save({ systemPrompt: text })}
-            />
-            <CharacterTextField
-              label={t('fieldPostHistory')}
-              value={draft.postHistoryInstructions}
-              hint={t('postHistoryWhat')}
-              badge={savedOnly}
-              onSave={(text) => save({ postHistoryInstructions: text })}
-            />
-            <div className="flex min-w-0 flex-col gap-1">
-              <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                {t('fieldLorebook')}
-                {savedOnly}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {t('lorebookWhat')}
-              </p>
-              <p className="text-base leading-relaxed lg:text-sm">
-                {lorebook
-                  ? t('lorebookCount', { count: lorebook })
-                  : t('emptyField')}
-              </p>
-            </div>
+      <SettingGroup title={t('settingTavern')}>
+        <div className="grid gap-x-10 gap-y-5 lg:grid-cols-2">
+          <CharacterTextField
+            label={t('fieldSummary')}
+            value={draft.summary}
+            limit={CHARACTER_CARD.SUMMARY_MAX_LENGTH}
+            hint={t('summaryWhat')}
+            onSave={(text) => save({ summary: text })}
+          />
+          <CharacterTextField
+            label={t('fieldSystemPrompt')}
+            value={draft.systemPrompt}
+            hint={t('systemPromptWhat')}
+            onSave={(text) => save({ systemPrompt: text })}
+          />
+          <CharacterTextField
+            label={t('fieldPostHistory')}
+            value={draft.postHistoryInstructions}
+            hint={t('postHistoryWhat')}
+            onSave={(text) => save({ postHistoryInstructions: text })}
+          />
+          <div className="flex min-w-0 flex-col gap-1">
+            <p className="flex min-h-7 items-center text-xs text-muted-foreground">
+              {t('fieldLorebook')}
+            </p>
+            <p className="text-xs text-muted-foreground">{t('lorebookWhat')}</p>
+            <p className="text-base leading-relaxed lg:text-sm">
+              {lorebook
+                ? t('lorebookCount', { count: lorebook })
+                : t('emptyField')}
+            </p>
           </div>
-        ) : null}
+        </div>
       </SettingGroup>
     </>
   )

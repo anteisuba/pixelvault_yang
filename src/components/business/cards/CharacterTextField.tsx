@@ -3,6 +3,7 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 
+import { Pin } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import {
   ResponsiveDialog,
@@ -17,8 +18,10 @@ import { cn } from '@/lib/utils'
 /**
  * 角色详情的长文格（owner 2026-10-15 选「乙 · 长文弹大编辑框」，并说所有多行的格都这样）。
  *
- * ⭐ 常态是正文：只露 3 行，「展开 / 收起」顺滑长开收回；点正文在正中弹出大编辑框
+ * ⭐ 常态是正文：只露 3 行，「展开 / 收起」顺滑长开收回；点格名右边的「编辑」在正中弹出大编辑框
  *   （手机是底部抽屉），带字数，「保存」或 ⌘/Ctrl + 回车 存，Esc / 取消 放弃。
+ *   （角色大项目第 ② 步，owner 10-30：每格右上一个「编辑」，替掉点正文就改。）
+ * ⭐ 给了 `onPinnedChange` 就在「编辑」左边多一颗图钉：钉住的格她和助手都改不了。
  * ⭐ 页面本身不因为编辑变高 —— ⛔ 不在原地把输入框撑到全文那么长。
  * ⚠ 名字、标签这类一行的格照旧走 `CharacterInlineField` 原地改。
  */
@@ -41,6 +44,8 @@ export function CharacterTextField({
   textClassName,
   editing: editingProp,
   onEditingChange,
+  pinned = false,
+  onPinnedChange,
 }: {
   label: string
   value: string
@@ -49,7 +54,7 @@ export function CharacterTextField({
   limit?: number
   /** 编辑框标题下的一行说明。 */
   hint?: ReactNode
-  /** 格名右边的小标（如「只保存」）。 */
+  /** 格名右边的小标（如「必填」）。 */
   badge?: ReactNode
   showLabel?: boolean
   /** 只露 3 行 + 展开；关掉就整段显示（一句外观）。 */
@@ -60,6 +65,9 @@ export function CharacterTextField({
   /** 外面要替它打开编辑框时（试读「不像」→ 直接去改说话方式）传这一对。 */
   editing?: boolean
   onEditingChange?(open: boolean): void
+  /** 钉住了吗（第 ② 步）；和 `onPinnedChange` 一起给才有图钉。 */
+  pinned?: boolean
+  onPinnedChange?(pinned: boolean): void
 }) {
   const t = useTranslations('CharacterRoster')
   const [editingState, setEditingState] = useState(false)
@@ -106,26 +114,50 @@ export function CharacterTextField({
 
   return (
     <div className={cn('flex min-w-0 flex-col gap-1', className)}>
-      {showLabel ? (
-        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          {label}
-          {badge}
-        </p>
-      ) : null}
+      <div className="flex min-h-7 items-center gap-1.5 text-xs text-muted-foreground">
+        {showLabel ? (
+          <p className="flex min-w-0 items-center gap-1.5">
+            <span className="truncate">{label}</span>
+            {badge}
+          </p>
+        ) : null}
+        <span className="flex-1" />
+        {onPinnedChange ? (
+          <button
+            type="button"
+            aria-pressed={pinned}
+            aria-label={
+              pinned
+                ? t('unpinField', { field: label })
+                : t('pinField', { field: label })
+            }
+            title={pinned ? t('pinnedHint') : t('pinHint')}
+            onClick={() => onPinnedChange(!pinned)}
+            className={cn(
+              'grid size-7 place-items-center rounded-full transition-colors duration-fast ease-standard hover:bg-background/70 hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none',
+              pinned && 'text-foreground',
+            )}
+          >
+            <Pin
+              weight={pinned ? 'fill' : 'regular'}
+              className="size-3.5"
+              aria-hidden
+            />
+          </button>
+        ) : null}
+        <button
+          type="button"
+          aria-label={t('editField', { field: label })}
+          onClick={() => setEditing(true)}
+          className="h-7 rounded-full px-2 transition-colors duration-fast ease-standard hover:bg-background/70 hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none"
+        >
+          {t('editAction')}
+        </button>
+      </div>
       <div
         ref={textRef}
-        role="button"
-        tabIndex={0}
-        aria-label={t('editField', { field: label })}
-        onClick={() => setEditing(true)}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault()
-            setEditing(true)
-          }
-        }}
         className={cn(
-          '-mx-2 -my-1 cursor-text whitespace-pre-wrap break-words rounded-lg px-2 py-1 text-base leading-relaxed transition-colors duration-fast hover:bg-background/70 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground lg:text-sm',
+          'whitespace-pre-wrap break-words text-base leading-relaxed lg:text-sm',
           clamp && !expanded && 'line-clamp-3',
           empty && 'text-muted-foreground',
           textClassName,

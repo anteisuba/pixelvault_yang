@@ -105,6 +105,8 @@ export const CARD_EXTENSIONS = {
     backstorySummary: 'pv.backstorySummary',
     /** 和这个角色聊天时你在故事里是谁（附录L 第二片 C，owner 10-16「按角色记住」）。 */
     chatUserRole: 'pv.chatUserRole',
+    /** 钉住的设定格（角色大项目第 ② 步）：她整理聊天、助手改设定都 ⛔ 动这几格。 */
+    pinnedFields: 'pv.pinnedFields',
   },
   /** 作品名最长多少字符。 */
   WORK_MAX_LENGTH: 60,

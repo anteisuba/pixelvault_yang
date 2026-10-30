@@ -1,6 +1,10 @@
 import 'server-only'
 
 import { CARD_EXTENSIONS } from '@/constants/cards/character-card'
+import {
+  CHARACTER_PINNABLE_FIELDS,
+  type CharacterPinnableField,
+} from '@/constants/cards/character-revision'
 import { TAVERN_CARD } from '@/constants/cards/tavern-card'
 import type { Prisma } from '@/lib/generated/prisma/client'
 import {
@@ -122,6 +126,20 @@ export function readChatUserRole(extensions: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
 }
 
+/** 钉住的设定格；认不出的名字丢掉。 */
+export function readPinnedFields(
+  extensions: unknown,
+): CharacterPinnableField[] {
+  const value =
+    extensions && typeof extensions === 'object'
+      ? (extensions as Record<string, unknown>)[
+          CARD_EXTENSIONS.KEYS.pinnedFields
+        ]
+      : undefined
+  if (!Array.isArray(value)) return []
+  return CHARACTER_PINNABLE_FIELDS.filter((field) => value.includes(field))
+}
+
 function readWorkOverride(extensions: unknown): string | null {
   const value =
     extensions && typeof extensions === 'object'
@@ -149,6 +167,7 @@ export function mapCharacterCardRow(
     tavern: readTavernKept(row.extensions),
     chatUserRole: readChatUserRole(row.extensions),
     voiceCardId: row.voiceCardId ?? null,
+    pinnedFields: readPinnedFields(row.extensions),
     generationCount: row._count?.generationLinks ?? 0,
     isFavorite: row.isFavorite ?? false,
     createdAt: row.createdAt,

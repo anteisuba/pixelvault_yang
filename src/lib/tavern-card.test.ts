@@ -5,6 +5,7 @@ import {
   mapTavernCard,
   parseTavernCard,
   parseTavernExamples,
+  readTavernAuthorNotes,
   readTavernWorldBook,
   tavernCardMime,
 } from '@/lib/tavern-card'
@@ -203,5 +204,19 @@ describe('readTavernWorldBook', () => {
     expect(readTavernWorldBook(null)).toEqual([])
     expect(readTavernWorldBook({ 'st.card': { spec: 'v2' } })).toEqual([])
     expect(readTavernWorldBook(card('乱写的'))).toEqual([])
+  })
+})
+
+describe('readTavernAuthorNotes', () => {
+  it('读系统提示与历史后指令，去掉 {{original}}；没有就是空串', () => {
+    expect(
+      readTavernAuthorNotes({
+        'st.card': {
+          systemPrompt: ' {{original}}\n演好她 ',
+          postHistoryInstructions: '别写旁白',
+        },
+      }),
+    ).toEqual({ system: '演好她', postHistory: '别写旁白' })
+    expect(readTavernAuthorNotes(null)).toEqual({ system: '', postHistory: '' })
   })
 })

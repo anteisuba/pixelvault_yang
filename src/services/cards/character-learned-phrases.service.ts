@@ -8,6 +8,7 @@ import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import type { AssistantRoute } from '@/services/kernel/assistant-route.service'
 import { llmTextCompletion } from '@/services/llm-text.service'
+import { readPinnedFields } from '@/services/cards/character-card.mapper'
 import { CharacterPersonaSchema } from '@/types'
 
 /**
@@ -98,11 +99,14 @@ export async function learnCreatorPhrases(input: {
     if (!said) return null
     const card = await db.characterCard.findFirst({
       where: { id: input.cardId, userId: input.userId, isDeleted: false },
-      select: { id: true, persona: true, updatedAt: true },
+      select: { id: true, persona: true, extensions: true, updatedAt: true },
     })
     if (!card) return null
     const persona = CharacterPersonaSchema.safeParse(card.persona ?? {})
     if (!persona.success) return null
+    // 钉住了（第 ② 步）就不再往里加：省一次模型调用，照旧用卡上那几条。
+    if (readPinnedFields(card.extensions).includes('learnedPhrases'))
+      return persona.data.learnedPhrases
 
     const raw = await llmTextCompletion({
       systemPrompt: LEARN_SYSTEM_PROMPT,

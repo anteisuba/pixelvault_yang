@@ -3,6 +3,7 @@ import {
   CHARACTER_CARD,
   CHARACTER_PERSONA_LIMITS,
 } from '@/constants/cards/character-card'
+import type { CharacterPinnableField } from '@/constants/cards/character-revision'
 import { TAVERN_CARD } from '@/constants/cards/tavern-card'
 import { USER_UPLOAD_PROVIDER } from '@/constants/uploads'
 import type {
@@ -55,6 +56,10 @@ export interface CharacterCardDraft {
   alternateGreetings: string[]
   systemPrompt: string
   postHistoryInstructions: string
+  /** 钉住的格（第 ② 步）：她和助手都改不了。 */
+  pinnedFields: CharacterPinnableField[]
+  /** 她的嗓子（音色卡 id，第 ② 步人物组的「声音」格）；没绑 = `null`。 */
+  voiceCardId: string | null
 }
 
 const clip = (text: string, max: number): string => text.trim().slice(0, max)
@@ -148,6 +153,8 @@ export function draftFromCard(card: CharacterCardRecord): CharacterCardDraft {
     alternateGreetings: card.tavern?.alternateGreetings ?? [],
     systemPrompt: card.tavern?.systemPrompt ?? '',
     postHistoryInstructions: card.tavern?.postHistoryInstructions ?? '',
+    pinnedFields: card.pinnedFields,
+    voiceCardId: card.voiceCardId,
   }
 }
 
@@ -165,6 +172,7 @@ export function updateFromDraft(
   const tavern = tavernFromDraft(card.tavern, draft)
   return {
     name: draft.name.trim() || card.name,
+    voiceCardId: draft.voiceCardId,
     summary: clip(draft.summary, CHARACTER_CARD.SUMMARY_MAX_LENGTH) || null,
     persona: {
       catchphrases: [],
@@ -196,6 +204,9 @@ export function updateFromDraft(
       // 清空 = 删键（回到从标签取）。
       [CARD_EXTENSIONS.KEYS.work]:
         draft.work.trim().slice(0, CARD_EXTENSIONS.WORK_MAX_LENGTH) || null,
+      [CARD_EXTENSIONS.KEYS.pinnedFields]: draft.pinnedFields.length
+        ? [...new Set(draft.pinnedFields)]
+        : null,
     },
   }
 }

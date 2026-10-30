@@ -116,6 +116,25 @@ describe('applyReflectionToPersona', () => {
     expect(result?.reasons).toEqual(['跟他熟了'])
   })
 
+  it('钉住的格她不改；钉住「和你的关系」就不更新它（第 ② 步）', () => {
+    const result = applyReflectionToPersona(
+      persona(),
+      {
+        relationship: '熟了',
+        persona: [
+          { field: 'speech', text: '变了' },
+          { field: 'moods', text: '慵懒' },
+        ],
+      },
+      ['speech', 'relationship'],
+    )
+    expect(result?.persona).toMatchObject({
+      speech: '慢吞吞',
+      moods: ['慵懒'],
+      relationship: '',
+    })
+  })
+
   it('什么都没变回 null', () => {
     expect(applyReflectionToPersona(persona(), { persona: [] })).toBeNull()
   })

@@ -269,6 +269,10 @@ export const AssistantPromptRoleplaySchema = z.object({
   userRole: z.string().optional(),
   /** 她最近一篇日记（C）：聊天时带上，她偶尔会提起；缺席 = 还没写过。 */
   journal: z.string().optional(),
+  /** 酒馆卡作者的系统提示（第 ② 步）：只在聊天里，进系统提示的角色段后面。 */
+  authorSystem: z.string().optional(),
+  /** 酒馆卡作者的历史后指令（第 ② 步）：每轮贴在最新一句后面的提醒里。 */
+  authorPostHistory: z.string().optional(),
 })
 
 export type AssistantPromptRoleplay = z.infer<

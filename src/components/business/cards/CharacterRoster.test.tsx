@@ -96,6 +96,7 @@ function card(
     tavern: null,
     chatUserRole: '',
     voiceCardId: null,
+    pinnedFields: [],
     generationCount: 0,
     isFavorite: false,
     createdAt: new Date(0),
@@ -264,15 +265,15 @@ describe('CharacterRoster（角色页 · 方向 A）', () => {
     expect(screen.queryByRole('region', { name: 'Denia' })).toBeNull()
   })
 
-  it('设定里含酒馆字段：备选开场白弹框加一条；更多折起来，世界书只读', async () => {
+  it('设定里含酒馆字段：备选开场白弹框加一条；酒馆一组常开，世界书只读、不再写「只保存」', async () => {
     mockUpdate.mockClear()
     renderRoster()
     openDenia('人物')
     const detail = screen.getByRole('region', { name: 'Denia' })
     expect(detail).toHaveTextContent('雨停了。')
-    expect(detail).not.toHaveTextContent('系统提示词')
-    fireEvent.click(screen.getByRole('button', { name: '展开' }))
+    expect(detail).toHaveTextContent('系统提示词')
     expect(detail).toHaveTextContent('2 条')
+    expect(detail).not.toHaveTextContent('只保存')
     fireEvent.click(screen.getByRole('button', { name: /加一条备选开场白/ }))
     fireEvent.change(screen.getByRole('textbox', { name: '备选开场白 2' }), {
       target: { value: '早上好。' },
@@ -286,6 +287,25 @@ describe('CharacterRoster（角色页 · 方向 A）', () => {
             'st.card': expect.objectContaining({
               alternateGreetings: ['雨停了。', '早上好。'],
             }),
+          }),
+        }),
+      ),
+    )
+  })
+
+  it('人物页每格有图钉：钉住写进 pv.pinnedFields，再点取消；人物组有「声音」格', async () => {
+    mockUpdate.mockClear()
+    renderRoster()
+    openDenia('人物')
+    const detail = screen.getByRole('region', { name: 'Denia' })
+    expect(detail).toHaveTextContent('还没挑声音')
+    fireEvent.click(screen.getByRole('button', { name: '钉住说话方式' }))
+    await vi.waitFor(() =>
+      expect(mockUpdate).toHaveBeenCalledWith(
+        'denia',
+        expect.objectContaining({
+          extensions: expect.objectContaining({
+            'pv.pinnedFields': ['speech'],
           }),
         }),
       ),

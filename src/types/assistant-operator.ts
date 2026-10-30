@@ -44,7 +44,10 @@ import {
   ASSISTANT_MEMORY_SOURCES,
 } from '@/constants/assistant-memory'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
-import { ASSISTANT_V3_CLIP_LIMITS } from '@/constants/assistant-v3'
+import {
+  ASSISTANT_V3_CHARACTER_EDIT_PARTS,
+  ASSISTANT_V3_CLIP_LIMITS,
+} from '@/constants/assistant-v3'
 import { STUDIO_LIBRARY_CATEGORY_IDS } from '@/constants/studio-shell'
 import { AssistantV3TranscriptSchema } from '@/types/assistant-v3'
 import { AssistantWebFindSchema } from '@/types/assistant-web-finds'
@@ -2366,13 +2369,11 @@ export type AssistantOperatorContextCardDraft = z.infer<
  * 角色设定里助手能提议的几格：四格与 `CharacterPersona` 的同名字段一一对应；
  * `look` 是「一句外观」（角色卡的 `description`，S14 对出外观矛盾后改的就是它）。
  */
-export const ASSISTANT_OPERATOR_CHARACTER_PROFILE_FIELDS = [
-  'look',
-  'identity',
-  'behavior',
-  'speech',
-  'backstory',
-] as const
+/**
+ * 提议卡上能出现的格（第 ⑩ 步起与助手直接改的那份同一张表：角色库开着时，改设定一律先出卡）。
+ */
+export const ASSISTANT_OPERATOR_CHARACTER_PROFILE_FIELDS =
+  ASSISTANT_V3_CHARACTER_EDIT_PARTS
 
 export type AssistantOperatorCharacterProfileField =
   (typeof ASSISTANT_OPERATOR_CHARACTER_PROFILE_FIELDS)[number]

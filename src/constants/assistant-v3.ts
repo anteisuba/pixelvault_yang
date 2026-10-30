@@ -211,6 +211,15 @@ export const ASSISTANT_V3_CHARACTER_WRITE_PARTS = [
   'examples',
 ] as const
 
+/**
+ * 改设定（`character_profile`）与角色页提议卡能落的格：上面那些 + 她在意的东西（角色大项目第 ⑩ 步
+ * 「帮她想兴趣」，一行一个）。⚠ 卡片台板子仍按上面那份画（兴趣是数组，板子只摆文字格）。
+ */
+export const ASSISTANT_V3_CHARACTER_EDIT_PARTS = [
+  ...ASSISTANT_V3_CHARACTER_WRITE_PARTS,
+  'interests',
+] as const
+
 /** 卡片台板子上的叫法：角色句柄前缀、打开那位的图。 */
 export const ASSISTANT_V3_CARDS_ITEM_IDS = {
   characterPrefix: 'char',

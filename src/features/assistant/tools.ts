@@ -8,7 +8,7 @@ import {
 import { NOVELAI_SCENE_TEXT_KINDS } from '@/constants/novelai'
 import {
   ASSISTANT_V3_CARD_TYPES,
-  ASSISTANT_V3_CHARACTER_WRITE_PARTS,
+  ASSISTANT_V3_CHARACTER_EDIT_PARTS,
   ASSISTANT_V3_VIDEO_REFERENCE_SLOTS,
 } from '@/constants/assistant-v3'
 import { ASSISTANT_LIBRARY_SHOW_LORA_SECTIONS } from '@/types/assistant-operator'
@@ -331,7 +331,7 @@ export const EditChangeSchema = z.object({
   fields: z
     .array(
       z.object({
-        field: z.enum(ASSISTANT_V3_CHARACTER_WRITE_PARTS),
+        field: z.enum(ASSISTANT_V3_CHARACTER_EDIT_PARTS),
         text: z.string(),
         source: z
           .string()
@@ -346,7 +346,7 @@ export const EditChangeSchema = z.object({
     )
     .nullish()
     .describe(
-      'propose_profile: the profile parts you drafted (look / identity / behavior / speech / backstory only). character_profile / new_character: the parts to write ("look" is the appearance of the default look; "boundaries" = what they won\'t do and their flaws; "catchphrases" one per line; "moods" = the moods they switch between in chat, one per line (e.g. "Stubborn: denies it first, then softens"); "examples" = example exchanges as <START> blocks of "{{user}}: …" / "{{char}}: …" lines, replacing the old ones).',
+      'propose_profile: the profile parts you drafted, each with its source (look / identity / behavior / speech / backstory; on the character library page every part below too). character_profile / new_character: the parts to write ("look" is the appearance of the default look; "boundaries" = what they won\'t do and their flaws; "catchphrases" one per line; "moods" = the moods they switch between in chat, one per line (e.g. "Stubborn: denies it first, then softens"); "interests" = what they care about, a few words each, one per line (the full new list); "examples" = example exchanges as <START> blocks of "{{user}}: …" / "{{char}}: …" lines, replacing the old ones).',
     ),
   images: z
     .array(

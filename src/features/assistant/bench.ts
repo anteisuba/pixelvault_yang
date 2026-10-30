@@ -102,7 +102,7 @@ import {
   translateCanvasPieces,
   type CanvasBatch,
 } from '@/features/assistant/canvas'
-import { isLibraryOp, runLibraryChange } from '@/features/assistant/library'
+import { isLibraryChange, runLibraryChange } from '@/features/assistant/library'
 import { readTaggerFor } from '@/features/assistant/tagger'
 import { renderLibraryView } from '@/features/assistant/library-view'
 import {
@@ -963,7 +963,7 @@ async function* applyChange(
       }
     return outcomeOf(yield* mountLoraByName(context, given))
   }
-  if (isLibraryOp(given.op))
+  if (isLibraryChange(context, given.op))
     return outcomeOf(yield* runLibraryChange(context, given))
   const change = await withResolvedNames(context, given)
   const mutation = toV3Mutation(
@@ -1059,12 +1059,15 @@ async function* runCanvasEdit(
   for (const [index, change] of changes.entries()) {
     const label = `${index + 1}. ${change.op}`
     total += 1
-    if (isLibraryOp(change.op)) {
+    if (isLibraryChange(context, change.op)) {
       const result = outcomeOf(yield* runLibraryChange(context, change))
       if (result.error) failed += 1
       lines.push(
         `${label} — ${result.error ? 'not done: ' : ''}${result.output}`,
       )
+      // 角色库开着时的提议卡：停在卡上等创作者（同 `runEdit`）。
+      if (result.stop)
+        return { output: lines.join('\n'), error: false, stop: true }
       continue
     }
     const piece = toCanvasPiece(context, change)

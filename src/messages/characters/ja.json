@@ -351,6 +351,12 @@
       "deleteBody": "削除すると彼女はもう覚えていません。",
       "deleteFindingTitle": "この見聞を削除しますか？",
       "deleteFindingBody": "チャットで思い出さなくなります。"
+    },
+    "assistantPills": {
+      "tidyImport": "取り込んだカードを整理",
+      "fillProfile": "設定の空きを埋める",
+      "findImages": "立ち絵を探す",
+      "interests": "好きなことを考える"
     }
   },
   "CharacterImagePick": {

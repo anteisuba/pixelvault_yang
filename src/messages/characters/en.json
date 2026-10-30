@@ -351,6 +351,12 @@
       "deleteBody": "She won’t remember it anymore.",
       "deleteFindingTitle": "Delete this find?",
       "deleteFindingBody": "She won’t bring it up in chats anymore."
+    },
+    "assistantPills": {
+      "tidyImport": "Tidy the imported card",
+      "fillProfile": "Fill in her profile",
+      "findImages": "Find pictures of her",
+      "interests": "Think up her interests"
     }
   },
   "CharacterImagePick": {

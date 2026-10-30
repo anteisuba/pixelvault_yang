@@ -54,6 +54,13 @@ export function libraryKindOpens(
 }
 
 /**
+ * 角色库开着时（角色大项目第 ⑩ 步）：改设定一律先出卡，图也用候选卡（`library.ts` 的
+ * `proposesOnCharacterPage`）—— 说给模型听，免得它以为已经写进去了。
+ */
+const CHARACTER_PAGE_PROPOSALS =
+  '\nOn the character library, nothing about a character is written straight away: character_profile shows the parts as a card the creator ticks (name and tags still change at once), propose_profile offers parts you researched or drafted (each with its source), propose_images offers pictures to put on the card (their picture numbers, or web finds "#3"). The turn ends on the card; say in one line what is on it.'
+
+/**
  * 库开着时板子底下那一句（10-26）：助手仍是台的身份，看不见库 —— 用户说「这个角色」时
  * 指的就是库里点开的那一样，先 `look` 它再答。
  */
@@ -62,7 +69,9 @@ export function renderLibraryView(
 ): string {
   if (!view) return ''
   const where = `\nLIBRARY ON SCREEN: the creator has their ${LIBRARY_VIEW_LABELS[view.library]} open next to this chat`
-  const screen = renderLibraryScreen(view.screen)
+  const screen =
+    renderLibraryScreen(view.screen) +
+    (view.library === 'cards' ? CHARACTER_PAGE_PROPOSALS : '')
   if (!view.item) return `${where}.${screen}`
   const handle = libraryHandle(view.item.kind, view.item.name)
   return `${where}, looking at ${handle}. When they say "this one", "her", "it" without naming it, they mean ${handle}: look ${handle} before you answer.${screen}`

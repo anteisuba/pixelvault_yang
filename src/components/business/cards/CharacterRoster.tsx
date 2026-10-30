@@ -43,10 +43,14 @@ import { useCardsOperatorHost } from '@/hooks/cards/use-cards-operator-host'
 import {
   useLibraryChanged,
   useLibraryShowRequest,
+  useReportLibraryCardHands,
   useReportLibraryItem,
+  useReportLibraryPills,
 } from '@/hooks/use-library-view'
 import { appendSlotSources } from '@/hooks/cards/use-character-card-editor'
 import { defaultLook } from '@/lib/card-bus'
+import { characterGaps } from '@/lib/character-gaps'
+import { applyPersonaField } from '@/lib/character-persona-fields'
 import { useCharacterCards } from '@/hooks/cards/use-character-cards'
 import { useCharacterRecentActivity } from '@/hooks/cards/use-character-recent-activity'
 import { useChubLibrary } from '@/hooks/cards/use-chub-library'
@@ -85,8 +89,6 @@ export function CharacterRoster() {
   const flatCards = characters.cards
   /** 桌面总览「最近」那几张卡（手机总览没有这一段）。 */
   const recentActivity = useCharacterRecentActivity(isMobile === false)
-  /** 最左那颗助手头像（库整页里点它叫出 / 收回助手，对话从左边出来）。 */
-  const assistantAvatar = <StudioLibraryAssistantAvatar />
 
   // 画布「在角色页打开」带 `?character=<id>` 进来：直接打开那一位（找不到就是总览）。
   const searchParams = useSearchParams()
@@ -166,7 +168,7 @@ export function CharacterRoster() {
       let description: string | undefined
       for (const { field, text } of fields) {
         if (field === 'look') description = text
-        else persona[field] = text
+        else applyPersonaField(persona, field, text, card.name)
       }
       const look = defaultLook(card)
       const personaChanged = fields.some(({ field }) => field !== 'look')
@@ -205,6 +207,25 @@ export function CharacterRoster() {
       return ok ? added : null
     },
     [flatCards, updateLook],
+  )
+  // 角色库开着时助手先出提议卡：外壳那份面板收下时借这两只手（第 ⑩ 步）。
+  useReportLibraryCardHands({
+    applyProfile,
+    attachImages,
+    nameOf: (id) => flatCards.find((card) => card.id === id)?.name ?? null,
+  })
+  /** 打开着的她缺什么（第 ⑩ 步）：助手只出缺的那几颗药丸，头像亮小点。 */
+  const gaps = useMemo(
+    () =>
+      selected && !drafting && !onLibrary ? characterGaps(selected) : null,
+    [drafting, onLibrary, selected],
+  )
+  useReportLibraryPills(
+    gaps ? gaps.map((gap) => t(`assistantPills.${gap}`)) : null,
+  )
+  /** 最左那颗助手头像（库整页里点它叫出 / 收回助手，对话从左边出来）；她缺东西时亮小点。 */
+  const assistantAvatar = (
+    <StudioLibraryAssistantAvatar dot={Boolean(gaps?.length)} />
   )
   /** 卡片助手（第五张脸）：读这页上有谁 + 打开着的那一位。 */
   const operatorHost = useCardsOperatorHost({

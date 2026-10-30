@@ -24,8 +24,7 @@ import {
   ASSISTANT_ROUTE_MODEL_AUTO,
 } from '@/constants/assistant-persona'
 import { NODE_STUDIO_ASSISTANT_ROUTE_MODELS } from '@/constants/node-studio'
-import { ASSISTANT_V3_CHARACTER_WRITE_PARTS } from '@/constants/assistant-v3'
-import { CHARACTER_PERSONA_LIMITS } from '@/constants/cards/character-card'
+import { ASSISTANT_V3_CHARACTER_EDIT_PARTS } from '@/constants/assistant-v3'
 import { CHARACTER_REVISION_SOURCE_IDS } from '@/constants/cards/character-revision'
 import {
   ASSISTANT_MEMORY_KIND_IDS as MEMORY_KIND,
@@ -37,7 +36,7 @@ import { resolveAdapterType } from '@/constants/models'
 import { db } from '@/lib/db'
 import { Prisma } from '@/lib/generated/prisma/client'
 import { appendSlotSources } from '@/hooks/cards/use-character-card-editor'
-import { parseTavernExamples } from '@/lib/tavern-card'
+import { applyPersonaField } from '@/lib/character-persona-fields'
 import {
   markCharacterRevisionReverted,
   recordCharacterRevision,
@@ -112,7 +111,7 @@ export type LibraryWriteOutcome =
     }
   | { ok: false; error: string }
 
-export type ProfilePart = (typeof ASSISTANT_V3_CHARACTER_WRITE_PARTS)[number]
+export type ProfilePart = (typeof ASSISTANT_V3_CHARACTER_EDIT_PARTS)[number]
 
 export interface LibraryWriteOwner {
   readonly userId: string
@@ -232,38 +231,6 @@ async function findOwnPrompt(userId: string, name: string) {
 export interface ProfileFieldInput {
   readonly field: ProfilePart
   readonly text: string
-}
-
-/**
- * 一格文字落进设定：口头禅一行一句（也认「、」「/」分隔），对话示例按酒馆写法切块（整组替换），
- * 其余原样。「look」不在设定里，调用方另落到默认造型。
- */
-function applyPersonaField(
-  persona: Partial<CharacterPersona>,
-  field: Exclude<ProfilePart, 'look'>,
-  text: string,
-  name: string,
-): void {
-  if (field === 'catchphrases') {
-    persona.catchphrases = text
-      .split(/\n|、|\s\/\s/)
-      .map((phrase) => phrase.trim().replace(/^[「『"]|[」』"]$/g, ''))
-      .filter(Boolean)
-    return
-  }
-  if (field === 'moods') {
-    persona.moods = text
-      .split('\n')
-      .map((mood) => mood.trim().slice(0, CHARACTER_PERSONA_LIMITS.moodChars))
-      .filter(Boolean)
-      .slice(0, CHARACTER_PERSONA_LIMITS.moods)
-    return
-  }
-  if (field === 'examples') {
-    persona.examples = parseTavernExamples(text, name)
-    return
-  }
-  persona[field] = text
 }
 
 function personaOf(raw: unknown): CharacterPersona {

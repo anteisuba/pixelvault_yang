@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useSyncExternalStore } from 'react'
 
 import {
   STUDIO_LIBRARY_CATEGORY_IDS,
@@ -14,6 +14,7 @@ import {
   type AssistantLibraryViewScreen,
 } from '@/types/assistant-operator'
 import { libraryItemShown } from '@/lib/assistant-workspace'
+import type { StudioOperatorApplyContext } from '@/lib/studio-operator-apply'
 import { scanScreen } from '@/lib/assistant-screen-scan'
 
 /**
@@ -257,4 +258,77 @@ export function useLibraryShowRequest(
       showListeners.delete(target)
     }
   }, [target])
+}
+
+type CardsHands = NonNullable<StudioOperatorApplyContext['cards']>
+
+/**
+ * 角色库里那两只落笔的手（角色大项目第 ⑩ 步）：角色库开着时助手改设定先出提议卡 / 候选图卡，
+ * 可外壳那份面板的宿主是底下的台、没有角色页那只手 —— 点「收下」时到这里借（`readLibraryCardHands`）。
+ * ⚠ 模块级，同 `item`：角色页挂着时报、卸掉时收回；`nameOf` 给卡上写她叫什么。
+ */
+export interface LibraryCardHands extends CardsHands {
+  nameOf(characterId: string): string | null
+}
+
+let cardHands: LibraryCardHands | null = null
+
+export function useReportLibraryCardHands(hands: LibraryCardHands): void {
+  const latest = useRef(hands)
+  useEffect(() => {
+    latest.current = hands
+  })
+  useEffect(() => {
+    const mine: LibraryCardHands = {
+      applyProfile: (...args) => latest.current.applyProfile(...args),
+      attachImages: (...args) => latest.current.attachImages(...args),
+      nameOf: (id) => latest.current.nameOf(id),
+    }
+    cardHands = mine
+    return () => {
+      if (cardHands === mine) cardHands = null
+    }
+  }, [])
+}
+
+/** 收下提议卡时现读：角色页没挂着 = `null`。 */
+export function readLibraryCardHands(): LibraryCardHands | null {
+  return cardHands
+}
+
+/**
+ * 库页给助手的起手药丸（第 ⑩ 步「缺什么出什么」）：报了就顶掉台上那几颗，`null` = 不管。
+ * ⚠ 面板要跟着重画（打开另一位、补齐了一格），所以这一份带订阅。
+ */
+let libraryPills: readonly string[] | null = null
+const pillListeners = new Set<() => void>()
+
+function subscribePills(listener: () => void): () => void {
+  pillListeners.add(listener)
+  return () => pillListeners.delete(listener)
+}
+
+function setLibraryPills(next: readonly string[] | null): void {
+  libraryPills = next
+  for (const listener of pillListeners) listener()
+}
+
+export function useReportLibraryPills(next: readonly string[] | null): void {
+  const key = next ? JSON.stringify(next) : null
+  useEffect(() => {
+    if (key === null) return
+    const mine = JSON.parse(key) as string[]
+    setLibraryPills(mine)
+    return () => {
+      if (libraryPills === mine) setLibraryPills(null)
+    }
+  }, [key])
+}
+
+export function useLibraryPills(): readonly string[] | null {
+  return useSyncExternalStore(
+    subscribePills,
+    () => libraryPills,
+    () => null,
+  )
 }

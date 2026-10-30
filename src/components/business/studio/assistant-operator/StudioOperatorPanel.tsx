@@ -179,6 +179,7 @@ import { Spinner } from '@/components/ui/spinner'
 import { Switch } from '@/components/ui/switch'
 import { ResponsivePopoverPhoneCard } from '@/components/ui/responsive-popover'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { readLibraryCardHands, useLibraryPills } from '@/hooks/use-library-view'
 import { StudioOperatorPhoneAddCard } from '@/components/business/studio/assistant-operator/StudioOperatorPhoneAddCard'
 import { useStudioOperatorHost } from '@/contexts/studio-operator-host'
 import type { UseAssistantOperatorResult } from '@/hooks/use-assistant-operator'
@@ -527,6 +528,9 @@ export function StudioOperatorPanel({
    * 要读它，而依赖列是**渲染期**求值的 —— 定义在下面会撞 TDZ。
    */
   const threadEmpty = entries.length === 0 && historyEntries.length === 0
+  // 库页报了起手药丸（角色库「缺什么出什么」，第 ⑩ 步）就用它的，否则台上那几颗。
+  const libraryPills = useLibraryPills()
+  const starterPills = libraryPills ?? operatorHost.face.starterPills
   const {
     domain,
     send,
@@ -1523,6 +1527,7 @@ export function StudioOperatorPanel({
     operatorHost
       .buildSnapshot()
       .cards?.characters.find((item) => item.id === characterId)?.name ??
+    readLibraryCardHands()?.nameOf(characterId) ??
     characterId
   const assistantName = persona?.name?.trim() || t('timeline.assistantFallback')
   const renderConfirm = () =>
@@ -1536,13 +1541,7 @@ export function StudioOperatorPanel({
           /* ── 设定提议卡（卡片助手 C2）：同一个槽位，每格一个勾 ── */
           <StudioOperatorCharacterProfileCard
             prompt={confirm}
-            characterName={
-              operatorHost
-                .buildSnapshot()
-                .cards?.characters.find(
-                  (item) => item.id === confirm.profile.characterId,
-                )?.name ?? confirm.profile.characterId
-            }
+            characterName={characterNameOf(confirm.profile.characterId)}
             assistantName={
               persona?.name?.trim() || t('timeline.assistantFallback')
             }
@@ -2963,12 +2962,12 @@ export function StudioOperatorPanel({
           ⭐ 空态放起手 chip（点即发送，拍板 15；诱饵只在空态出现，D7c ④），
             线程一开始就换成规格行 —— 两样**占同一个位置**，⛔ 不叠两排。
           ⚠ 入场错开：`fill-mode-backwards` 让它们在各自的延迟走完之前保持起始帧。 */}
-            {threadEmpty && operatorHost.face.starterPills.length > 0 ? (
+            {threadEmpty && starterPills.length > 0 ? (
               <div
                 data-testid="operator-suggestion-row"
                 className="flex shrink-0 flex-wrap gap-1.5 px-3 pb-2"
               >
-                {operatorHost.face.starterPills.map((text, index) => (
+                {starterPills.map((text, index) => (
                   <button
                     key={text}
                     type="button"

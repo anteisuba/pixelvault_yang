@@ -549,7 +549,14 @@
           "identity": "身分",
           "behavior": "性格",
           "speech": "話し方",
-          "backstory": "経歴"
+          "backstory": "経歴",
+          "boundaries": "しないこと",
+          "catchphrases": "口ぐせ",
+          "moods": "口調",
+          "interests": "気にしていること",
+          "scenario": "シーン",
+          "opening": "最初のひとこと",
+          "examples": "会話例"
         },
         "ownWordsOnly": "自分の文だけ残す",
         "keepAdded": "補足も含める",

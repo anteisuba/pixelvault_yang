@@ -118,6 +118,8 @@ export function CharacterInterests({
                   void add()
                 }
                 if (event.key === 'Escape') {
+                  // 只收起输入框：⛔ 冒到库那一层把详情关掉。
+                  event.stopPropagation()
                   setText('')
                   setAdding(false)
                 }

@@ -5,6 +5,7 @@ import { ThirdPartyImage } from '@/components/business/ThirdPartyImage'
 import { Check, ChevronRight, ExternalLink } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { screenItemProps } from '@/lib/assistant-screen-scan'
 
 /**
  * 查资料左栏（owner 2026-09-27 查资料 B）：一行一个候选；角色行头上一张小样图，
@@ -82,6 +83,12 @@ export function LookupRowButton({
       type="button"
       aria-current={row.selected ? 'true' : undefined}
       onClick={() => onPick(row.name)}
+      // 助手「看屏」认得出这一行（标签库开着时报给它，`assistant-screen-scan`）。
+      {...screenItemProps(
+        'tag',
+        row.name,
+        kind === 'character' ? row.previews[0] : null,
+      )}
       className={cn(
         'flex w-full items-center gap-3 rounded-xl p-1.5 text-left transition-colors duration-fast ease-linear focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
         phone && 'min-h-14',

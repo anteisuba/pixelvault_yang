@@ -14,6 +14,7 @@ import { FeedTail } from '@/components/business/FeedTail'
 import { GalleryGrid } from '@/components/business/GalleryGrid'
 import { PageLoadError } from '@/components/business/PageLoadError'
 import { useGallery, type GalleryFilters } from '@/hooks/use-gallery'
+import { useReportLibraryItem } from '@/hooks/use-library-view'
 import { useIsMobile, useIsTablet } from '@/hooks/use-mobile'
 import { useSamePromptWorks } from '@/hooks/use-same-prompt-works'
 import { useSlowLoadingNotice } from '@/hooks/use-slow-loading-notice'
@@ -83,6 +84,8 @@ export function GalleryFeed({
         generations.find((generation) => generation.id === viewerId) ??
         null)
       : null
+  // 助手认得出「这张」：画廊开着时把查看器里那一张报给它（`use-library-view`）。
+  useReportLibraryItem(viewing ? { kind: 'gallery', name: viewing.id } : null)
   const images = useMemo(
     () =>
       (promptAnchorId ? promptWorks : generations).filter(

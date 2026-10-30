@@ -14,6 +14,7 @@ import {
   type AssistantLibraryViewScreen,
 } from '@/types/assistant-operator'
 import { libraryItemShown } from '@/lib/assistant-workspace'
+import { scanScreen } from '@/lib/assistant-screen-scan'
 
 /**
  * 库开着、在看哪一样（10-26 用户在角色库开着 Denia 问「这个角色」，助手认不出）。
@@ -48,12 +49,29 @@ const SCREEN_KIND_OF: Partial<
   cards: 'character',
   prompts: 'prompt',
   lora: 'lora',
+  gallery: 'gallery',
+  tags: 'tag',
+  voices: 'voice',
+  tavern: 'tavern',
 }
 
+/**
+ * 页面报的那一页（范围 / 搜索 / 多选）叠上发请求这一刻扫到的屏上那几格（`scanScreen`）：
+ * ⭐ 屏上有哪几样、在哪儿、长什么样以扫到的为准（你滚到哪儿就是哪儿）；没扫到格子才退回页面报的前几样。
+ */
 function currentScreen(): AssistantLibraryViewScreen | null {
-  return library && screen && SCREEN_KIND_OF[library] === screen.kind
-    ? screen
-    : null
+  if (!library) return null
+  const kind = SCREEN_KIND_OF[library] ?? null
+  const reported = screen && kind === screen.kind ? screen : null
+  const scanned = kind ? scanScreen(kind) : null
+  if (!scanned) return reported
+  return {
+    ...(reported ?? {}),
+    kind: scanned.kind,
+    visible: scanned.visible,
+    tiles: scanned.tiles,
+    viewport: scanned.viewport,
+  }
 }
 
 /** 发请求时现读：库没开 = `null`。 */

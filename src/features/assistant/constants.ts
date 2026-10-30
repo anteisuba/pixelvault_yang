@@ -199,7 +199,7 @@ export const ASSISTANT_NEXT_LORA_PARAM_KEYS: Readonly<Record<string, string>> =
   }
 
 /** 过程记录里标「这一轮是新内核跑的」（`AssistantTurnRecord.promptVersion`）。改系统提示时一起换。 */
-export const ASSISTANT_NEXT_PROMPT_VERSION = 'next-2026-10-29'
+export const ASSISTANT_NEXT_PROMPT_VERSION = 'next-2026-10-30-screen'
 
 export const ASSISTANT_NEXT_LIMITS = {
   /**
@@ -284,7 +284,13 @@ export const ASSISTANT_NEXT_HANDLE_PREFIXES = {
   voice: '音色·',
   /** 内置技能（第 7a 步）：`look 技能·名字` 读全文。 */
   skill: '技能·',
+  /** 画廊里的公开图（10-30，谁的都算）：`画廊·<generationId>`，看图连同配方。 */
+  gallery: '画廊·',
+  /** 酒馆库里的 chub 公开卡（10-30）：只认得名字，⛔ look 打不开。 */
+  tavern: '酒馆卡·',
   settings: '设置',
+  /** 「看屏」（10-30）：`look 屏幕` = 你眼前那一屏拼成的一张带编号小样图。 */
+  screen: '屏幕',
 } as const
 
 export const ASSISTANT_NEXT_FIND_LIMITS = {

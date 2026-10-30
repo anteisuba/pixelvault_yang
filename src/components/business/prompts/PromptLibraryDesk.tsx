@@ -55,6 +55,7 @@ import type { AppLocale } from '@/i18n/routing'
 import { setRecipeFavoriteAPI } from '@/lib/api-client/recipes'
 import { withWordMatches } from '@/lib/search-words'
 import { parseTagChips } from '@/lib/tag-composer'
+import { screenItemProps } from '@/lib/assistant-screen-scan'
 
 import {
   PromptTemplateCreatePanel,
@@ -402,7 +403,7 @@ function PromptLibraryTile({
   }
 
   return (
-    <div className="min-w-0">
+    <div className="min-w-0" {...screenItemProps('prompt', recipe.name, cover)}>
       <div className={`${MEDIA_TILE_CLASS} aspect-3/4`}>
         <button
           type="button"

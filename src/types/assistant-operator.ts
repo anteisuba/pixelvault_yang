@@ -1981,7 +1981,20 @@ export const ASSISTANT_LIBRARY_VIEW_ITEM_KINDS = [
   'prompt',
   'tag',
   'picture',
+  /** 画廊里的公开图（谁的都算）：编号 `画廊·<generationId>`。 */
+  'gallery',
+  'voice',
+  /** 酒馆库里的 chub 公开卡：只报卡名，⛔ 没有编号可 look。 */
+  'tavern',
 ] as const
+
+/** 屏上一格的位置：占视口的比例 `[左, 上, 宽, 高]`（0–1）。「看屏」按它把缩略图摆回原处。 */
+const ScreenBoxSchema = z.tuple([
+  z.number().min(0).max(1),
+  z.number().min(0).max(1),
+  z.number().min(0).max(1),
+  z.number().min(0).max(1),
+])
 
 /** LoRA 库左栏那四格（`LoraLibraryView`）。 */
 export const ASSISTANT_LIBRARY_SHOW_LORA_SECTIONS = [
@@ -2020,6 +2033,26 @@ export const AssistantLibraryViewSchema = z.object({
       selected: z
         .array(z.string().trim().min(1).max(200))
         .max(ASSISTANT_LIBRARY_SCREEN_LIMIT)
+        .optional(),
+      /**
+       * 「看屏」用（owner 10-30「像 Claude in Chrome 那样看见页面」）：与 `visible` 一一对应的
+       * 缩略图地址与在视口里的位置。地址服务端只认白名单里的图床（`assistant-screen.service`）。
+       */
+      tiles: z
+        .array(
+          z.object({
+            thumb: z.string().url().max(2_000).optional(),
+            box: ScreenBoxSchema.optional(),
+          }),
+        )
+        .max(ASSISTANT_LIBRARY_SCREEN_LIMIT)
+        .optional(),
+      /** 报屏那一刻的视口宽高（像素）：拼小样图时照这个比例。 */
+      viewport: z
+        .object({
+          width: z.number().int().min(1).max(10_000),
+          height: z.number().int().min(1).max(10_000),
+        })
         .optional(),
     })
     .optional(),

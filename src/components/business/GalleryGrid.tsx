@@ -18,6 +18,8 @@ import { ImageCard } from '@/components/business/ImageCard'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { revealStep, useRevealBatchStart } from '@/components/ui/load-reveal'
+import { screenItemProps } from '@/lib/assistant-screen-scan'
+import { getGenerationThumbnailUrl } from '@/lib/generation-media'
 import type { GenerationRecord } from '@/types'
 
 interface GalleryGridProps {
@@ -358,6 +360,12 @@ const GalleryGridItem = memo(function GalleryGridItem({
       aria-setsize={total}
       aria-label={generation.prompt?.slice(0, 80) || itemFallbackLabel}
       data-gallery-index={index}
+      // 助手「看屏」认得出这一格（画廊开着时报给它，`assistant-screen-scan`）。
+      {...screenItemProps(
+        'gallery',
+        generation.id,
+        getGenerationThumbnailUrl(generation),
+      )}
       className="rounded-xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface-workbench focus-visible:outline-none"
     >
       <ImageCard

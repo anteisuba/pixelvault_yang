@@ -115,6 +115,7 @@ describe('编号认法', () => {
     ['技能·参考图分工', { kind: 'skill', name: '参考图分工' }],
     ['标签·watercolor_(medium)', { kind: 'tag', name: 'watercolor_(medium)' }],
     ['音色·少女音', { kind: 'voice', name: '少女音' }],
+    ['画廊·cmh3k2x9a0001', { kind: 'gallery', id: 'cmh3k2x9a0001' }],
     ['设置', { kind: 'settings' }],
   ])('%s', (raw, expected) => {
     expect(parseWorkspaceHandle(raw)).toEqual(expected)
@@ -124,6 +125,8 @@ describe('编号认法', () => {
     expect(parseWorkspaceHandle('ref-1')).toBeNull()
     expect(parseWorkspaceHandle('result-2')).toBeNull()
     expect(parseWorkspaceHandle('sample')).toBeNull()
+    // 画廊编号只收 id 的样子，⛔ 随便一句话不当编号去查库。
+    expect(parseWorkspaceHandle('画廊·那张粉头发的')).toBeNull()
   })
 })
 
@@ -154,6 +157,31 @@ describe('按编号打开', () => {
     expect(opened?.text).toContain('CFG scale: 4.5')
     expect(opened?.text).toContain('LoRA·malfoid @ 0.8')
     expect(opened?.text).toContain('@Image1 = 图_1588')
+  })
+
+  it('画廊里别人的公开图：只读，写作者，⛔ 不给 generationId（不能当自己的图挂）', async () => {
+    queryRaw.mockResolvedValueOnce([
+      { ...pictureRow, id: 'pub-0001', userId: 'someone-else', author: 'Mika' },
+    ])
+    const opened = await openWorkspaceHandle(
+      owner,
+      parseWorkspaceHandle('画廊·pub-0001')!,
+    )
+    expect(opened?.pictures).toEqual([
+      { url: 'https://cdn.test/1624-thumb.png', label: '画廊·pub-0001' },
+    ])
+    expect(opened?.text).toContain('画廊·pub-0001 · by Mika')
+    expect(opened?.text).toContain('1girl, malfoid')
+  })
+
+  it('画廊里不公开、也不是她的：打不开', async () => {
+    queryRaw.mockResolvedValueOnce([])
+    expect(
+      await openWorkspaceHandle(
+        owner,
+        parseWorkspaceHandle('画廊·secret-0001')!,
+      ),
+    ).toBeNull()
   })
 
   it('她传上来的图：明说没有配方，⛔ 不让模型再翻', async () => {

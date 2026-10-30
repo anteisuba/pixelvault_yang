@@ -49,3 +49,38 @@ describe('库开着、在看哪一样（10-26）', () => {
     })
   })
 })
+
+describe('看屏：报屏以扫到的那一屏为准（10-30）', () => {
+  it('页面报的范围留着，屏上那几样换成视口里真看得见的', () => {
+    window.innerWidth = 1000
+    window.innerHeight = 800
+    const element = document.createElement('div')
+    element.setAttribute('data-screen-kind', 'gallery')
+    element.setAttribute('data-screen-name', 'g9')
+    element.setAttribute('data-screen-thumb', 'https://cdn/9.jpg')
+    element.getBoundingClientRect = () =>
+      ({
+        left: 0,
+        top: 0,
+        right: 200,
+        bottom: 200,
+        width: 200,
+        height: 200,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      }) as DOMRect
+    document.body.appendChild(element)
+    setLibraryViewCategory('gallery')
+    expect(readLibraryView()?.screen).toEqual({
+      kind: 'gallery',
+      visible: ['g9'],
+      tiles: [{ thumb: 'https://cdn/9.jpg', box: [0, 0, 0.2, 0.25] }],
+      viewport: { width: 1000, height: 800 },
+    })
+    // 换到别的库：画廊那几格对不上，不报。
+    setLibraryViewCategory('voices')
+    expect(readLibraryView()?.screen).toBeUndefined()
+    element.remove()
+  })
+})

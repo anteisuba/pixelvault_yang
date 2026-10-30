@@ -546,7 +546,7 @@ function StudioShellStage({
           libraryOpen && !libraryAssistantOpen && 'lg:hidden',
           libraryChat &&
             (libraryChatLeft
-              ? 'lg:flex lg:shrink-0 lg:border-r lg:border-border'
+              ? 'lg:flex lg:flex-none lg:border-r lg:border-border'
               : 'lg:absolute lg:inset-y-0 lg:right-0 lg:z-20 lg:flex lg:border-l lg:border-border'),
         )}
         style={

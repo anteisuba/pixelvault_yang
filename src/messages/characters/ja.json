@@ -233,7 +233,11 @@
       "uploadTooLarge": "画像が 5 MB を超えています",
       "uploadNotImage": "このファイルは画像ではありません",
       "uploadFailed": "アップロードできませんでした。もう一度お試しください",
-      "stickersEmpty": "まだスタンプがありません。お出かけで集めてくるほか、アップロードもできます。"
+      "stickersEmpty": "まだスタンプがありません。お出かけで集めてくるほか、アップロードもできます。",
+      "editJournal": "編集",
+      "deleteJournalTitle": "この日記を削除しますか？",
+      "deleteJournalBody": "削除すると元に戻せません。",
+      "diaryEmpty": "まだ日記も外出もありません。"
     },
     "recentCards": {
       "wentOut": "おでかけ調査",

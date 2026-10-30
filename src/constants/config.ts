@@ -301,6 +301,7 @@ export const API_ENDPOINTS = {
   CHARACTER_CARDS_IMPORT: '/api/character-cards/import',
   /** 她出门看到的一条（角色页右栏删见闻） */
   CHARACTER_FINDINGS: '/api/character-findings',
+  CHARACTER_JOURNALS: '/api/character-journals',
   /** 她的一张表情包（拉黑 / 删） */
   CHARACTER_STICKERS: '/api/character-stickers',
   /** 导入酒馆卡第一步：签直传 R2 的地址 */

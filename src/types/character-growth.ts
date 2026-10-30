@@ -2,13 +2,16 @@
  * **她的成长**（10-26「更像真人」C 第 3 步）：设置「她」那一页读回来的样子 ——
  * 她的日记、她改了什么（每条能撤回）。
  *
- * ⚠ 只读回来的形状：写日记、记改动都在服务端（后台整理 / 对话里改卡），
- * 客户端能做的只有「撤回一条」。
+ * ⚠ 写日记、记改动都在服务端（后台整理 / 对话里改卡）；客户端能撤回一条改动，
+ * 日记能改、能删（角色大项目第 ③ 步）。
  */
 
 import { z } from 'zod'
 
-import { CHARACTER_REVISION_SOURCE_IDS } from '@/constants/cards'
+import {
+  CHARACTER_REFLECTION,
+  CHARACTER_REVISION_SOURCE_IDS,
+} from '@/constants/cards'
 import {
   CHARACTER_BROWSE_PAUSE_REASONS,
   CHARACTER_BROWSE_SOURCES,
@@ -19,6 +22,15 @@ export const CharacterJournalEntrySchema = z.object({
   text: z.string(),
   createdAt: z.string(),
 })
+
+/** 改一篇她的日记（角色大项目第 ③ 步：日记你能改能删）。 */
+export const UpdateCharacterJournalSchema = z.object({
+  text: z.string().trim().min(1).max(CHARACTER_REFLECTION.journalChars),
+})
+
+export type UpdateCharacterJournalRequest = z.infer<
+  typeof UpdateCharacterJournalSchema
+>
 
 export const CharacterRevisionEntrySchema = z.object({
   id: z.string(),

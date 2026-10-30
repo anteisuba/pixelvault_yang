@@ -61,7 +61,7 @@ type Filter = 'all' | 'finding' | 'sticker' | 'opinion' | 'journal' | 'revision'
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000
 
-function dayKey(iso: string): string {
+export function dayKey(iso: string): string {
   const date = new Date(iso)
   return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`
 }
@@ -146,7 +146,7 @@ function buildRiver(
   return days
 }
 
-function DayLabel({ iso }: { iso: string }) {
+export function DayLabel({ iso }: { iso: string }) {
   const t = useTranslations('CharacterRoster.recent')
   const format = useFormatter()
   const ago = daysAgo(iso)
@@ -161,7 +161,7 @@ function DayLabel({ iso }: { iso: string }) {
   )
 }
 
-function Clock({ iso }: { iso: string }) {
+export function Clock({ iso }: { iso: string }) {
   const format = useFormatter()
   return (
     <time
@@ -386,7 +386,7 @@ function Ghost({
   )
 }
 
-function OutingEvent({
+export function OutingEvent({
   findings,
   open,
   onToggle,
@@ -451,7 +451,7 @@ function OutingEvent({
   )
 }
 
-function OpinionEvent({
+export function OpinionEvent({
   opinion,
   onSave,
   onDelete,
@@ -509,7 +509,7 @@ function OpinionEvent({
   )
 }
 
-function RevisionEvent({
+export function RevisionEvent({
   revision,
   reverting,
   onRevert,
@@ -549,37 +549,50 @@ function RevisionEvent({
           )}
         </span>
       </div>
-      <div className="flex flex-col gap-1.5">
-        {revision.fields.map((field) => (
-          <div
-            key={field}
-            className="flex flex-col gap-0.5 text-md leading-reading"
-          >
-            <span
-              className={cn(
-                'whitespace-pre-wrap',
-                reverted ? '' : 'text-muted-foreground line-through',
-              )}
-            >
-              {formatValue(revision.before[field]) || t('emptyValue')}
-            </span>
-            <span
-              className={cn(
-                'whitespace-pre-wrap',
-                reverted && 'text-muted-foreground line-through',
-              )}
-            >
-              {formatValue(revision.after[field]) || t('emptyValue')}
-            </span>
-          </div>
-        ))}
-      </div>
+      <RevisionDiff revision={revision} />
     </>
   )
 }
 
+/** 一条改动的改前 / 改后（撤回过的反着划）。 */
+export function RevisionDiff({
+  revision,
+}: {
+  revision: CharacterRevisionEntry
+}) {
+  const t = useTranslations('CharacterRoster.recent')
+  const reverted = revision.revertedAt !== null
+  return (
+    <div className="flex flex-col gap-1.5">
+      {revision.fields.map((field) => (
+        <div
+          key={field}
+          className="flex flex-col gap-0.5 text-md leading-reading"
+        >
+          <span
+            className={cn(
+              'whitespace-pre-wrap',
+              reverted ? '' : 'text-muted-foreground line-through',
+            )}
+          >
+            {formatValue(revision.before[field]) || t('emptyValue')}
+          </span>
+          <span
+            className={cn(
+              'whitespace-pre-wrap',
+              reverted && 'text-muted-foreground line-through',
+            )}
+          >
+            {formatValue(revision.after[field]) || t('emptyValue')}
+          </span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 /** 一格表情：点一下拉黑 / 恢复；悬停（触屏常显）右上角 × 删掉。 */
-function StickerTile({
+export function StickerTile({
   sticker,
   size,
   onToggle,
@@ -736,7 +749,6 @@ export function CharacterRecent({
   header,
   reducedMotion,
   showTitle = true,
-  tabbed = false,
 }: {
   growth: Growth
   stickers: Stickers
@@ -745,11 +757,6 @@ export function CharacterRecent({
   reducedMotion: boolean
   /** 手机顶上的切换条已经写着「最近」，⛔ 再来一行栏头。 */
   showTitle?: boolean
-  /**
-   * 电脑详情的「最近」页签（角色大项目 ①）：出门卡挪到左栏「现在」、表情包有自己的页签，
-   * 这里只留日记和那几条事；⛔ 栏头。
-   */
-  tabbed?: boolean
 }) {
   const t = useTranslations('CharacterRoster.recent')
   const [filter, setFilter] = useState<Filter>('all')
@@ -796,16 +803,13 @@ export function CharacterRecent({
     { value: 'journal', label: t('filterJournal') },
     { value: 'revision', label: t('filterRevisions') },
   ] as const
-  const shownFilters = tabbed
-    ? filters.filter((item) => item.value !== 'sticker')
-    : filters
 
   const neverOut =
     growth !== null && !growth.browse.enabled && growth.findings.length === 0
 
   return (
     <section aria-label={t('title')} className="flex min-h-0 flex-1 flex-col">
-      {showTitle && !tabbed ? (
+      {showTitle ? (
         <header className="flex h-13 shrink-0 items-center gap-2 px-6">
           <h2 className="text-sm font-semibold">{t('title')}</h2>
           <div className="ml-auto flex items-center gap-2">{header}</div>
@@ -813,13 +817,10 @@ export function CharacterRecent({
       ) : null}
       <div
         className={cn(
-          'min-h-0 flex-1 overflow-y-auto pb-12',
-          !tabbed && 'px-4 md:px-6 desk:px-10',
+          'min-h-0 flex-1 overflow-y-auto px-4 pb-12 md:px-6 desk:px-10',
         )}
       >
-        <div
-          className={cn('flex flex-col gap-4', !tabbed && 'mx-auto max-w-190')}
-        >
+        <div className="mx-auto flex max-w-190 flex-col gap-4">
           {data.isLoading && !growth ? (
             <div className="flex justify-center py-16">
               <Spinner className="text-muted-foreground" />
@@ -841,8 +842,8 @@ export function CharacterRecent({
             />
           ) : (
             <>
-              {tabbed ? null : <OutingCard growth={data} />}
-              {neverOut && !tabbed ? (
+              <OutingCard growth={data} />
+              {neverOut ? (
                 <EmptyState
                   icon={<Home aria-hidden />}
                   title={t('neverOutTitle')}
@@ -851,7 +852,7 @@ export function CharacterRecent({
                 />
               ) : null}
               <LiquidSegmented
-                items={shownFilters}
+                items={filters}
                 value={filter}
                 onChange={setFilter}
                 ariaLabel={t('filterLabel')}

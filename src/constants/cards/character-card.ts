@@ -47,6 +47,18 @@ export const CHARACTER_CARD = {
 } as const
 
 /**
+ * 导入后自动整理（角色大项目 ⑪）：描述最多读多少字、带几句示例对白看口吻、口头禅最多几句、
+ * 提示上限与时限（超时卡照原样导进来）。
+ */
+export const CHARACTER_TIDY = {
+  descriptionChars: 12_000,
+  exampleLines: 6,
+  maxCatchphrases: 6,
+  promptChars: 20_000,
+  timeoutMs: 45_000,
+} as const
+
+/**
  * 角色设定（`persona`）各格上限 —— `CharacterPersonaSchema` 与酒馆卡导入的截断读同一份
  * （导入时先截到这里再过 schema，⛔ 超长整卡拒收）。
  */

@@ -311,9 +311,9 @@ Names and ids:
     expect(renderAssistantV3HistorySummary(null)).toBe('')
     // 和角色聊天：同一副四栏，按故事的标题摆。
     const story = renderAssistantV3HistorySummary(one, 'story')
-    expect(story).toContain('these notes are the story so far.')
-    expect(story).toContain('What happened:\n  - whole film in 16:9')
-    expect(story).toContain('People and things in the story:')
+    expect(story).toContain('these notes are what you remember of it.')
+    expect(story).toContain('What happened between you, and how you felt:\n  - whole film in 16:9')
+    expect(story).toContain('People and things that came up:')
     expect(story).not.toContain('Decided:')
   })
 

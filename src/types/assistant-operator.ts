@@ -1001,7 +1001,6 @@ export const AssistantOperatorCardsOpenCharacterSchema =
     /** 10-26 起助手也能直接写的几格（口头禅一行一句、示例为酒馆写法）；旧快照没有 = 空。 */
     boundaries: CardsFieldSchema.default(''),
     catchphrases: CardsFieldSchema.default(''),
-    moods: CardsFieldSchema.default(''),
     scenario: CardsFieldSchema.default(''),
     opening: CardsFieldSchema.default(''),
     examples: CardsFieldSchema.default(''),

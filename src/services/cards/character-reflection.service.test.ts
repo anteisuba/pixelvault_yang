@@ -101,7 +101,7 @@ describe('applyReflectionToPersona', () => {
         { field: 'identity', text: '女王', reason: 'x' },
         { field: 'name', text: 'Queen' },
         { field: 'speech', text: '慢吞吞，熟了会拖长音', reason: '跟他熟了' },
-        { field: 'moods', text: '慵懒\n嘴硬\n\n' },
+        { field: 'catchphrases', text: '懒得动\n随便\n\n' },
         { field: 'boundaries', text: '不在他面前哭' },
         { field: 'scenario', text: '第四格被丢掉' },
       ],
@@ -109,7 +109,7 @@ describe('applyReflectionToPersona', () => {
     expect(result?.persona).toMatchObject({
       identity: '图书馆管理员',
       speech: '慢吞吞，熟了会拖长音',
-      moods: ['慵懒', '嘴硬'],
+      catchphrases: ['懒得动', '随便'],
       relationship: '叫他「笨蛋画师」，熟得能互损',
       scenario: '',
     })
@@ -123,14 +123,14 @@ describe('applyReflectionToPersona', () => {
         relationship: '熟了',
         persona: [
           { field: 'speech', text: '变了' },
-          { field: 'moods', text: '慵懒' },
+          { field: 'catchphrases', text: '懒得动' },
         ],
       },
       ['speech', 'relationship'],
     )
     expect(result?.persona).toMatchObject({
       speech: '慢吞吞',
-      moods: ['慵懒'],
+      catchphrases: ['懒得动'],
       relationship: '',
     })
   })

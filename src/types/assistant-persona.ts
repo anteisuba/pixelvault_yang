@@ -228,8 +228,6 @@ export const AssistantPromptCharacterSchema = z.object({
   backstory: z.string(),
   /** 她不会做的事 / 小缺点（10-26）。 */
   boundaries: z.string(),
-  /** 几种口吻（10-26「更像真人」F）：聊天和工作台每轮挑一种；缺席 = 没写。 */
-  moods: z.array(z.string()).optional(),
   /** 从你的话里学来的说法（F）：偶尔用一个；缺席 = 还没学到。 */
   learnedPhrases: z.array(z.string()).optional(),
   /** 和你的关系（10-26「更像真人」C）：她整理时写的那一句；称呼和亲近程度跟着它。 */

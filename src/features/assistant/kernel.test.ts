@@ -60,6 +60,12 @@ vi.mock('@/services/assistant-memory.service', () => ({
 }))
 const skillStore = vi.hoisted(() => ({ rows: [] as unknown[] }))
 const homeChat = vi.hoisted(() => ({ id: null as string | null }))
+const chatMood = vi.hoisted(() => ({
+  plan: vi.fn(async (): Promise<unknown> => null),
+}))
+vi.mock('@/services/cards/character-chat-mood.service', () => ({
+  planChatTurn: (input: unknown) => chatMood.plan(input),
+}))
 vi.mock('@/services/assistant-persona.service', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   getHomeChatCharacterId: vi.fn(async () => homeChat.id),
@@ -204,7 +210,7 @@ import { prepareOperatorTurn } from '@/services/kernel/assistant-operator.servic
 import { assistantV3TurnFingerprint } from '@/lib/assistant-v3-history'
 
 import { runAssistantNext } from './kernel'
-import { pickChatMood, workMoodReminder } from './prompt'
+import { chatReminder } from './prompt'
 
 const usage = {
   inputTokens: {
@@ -1108,7 +1114,6 @@ describe('记忆与之前几轮（第 6 步）', () => {
             boundaries: '不会当着别人面道谢',
             catchphrases: [],
             backstory: '',
-            moods: ['嘴硬：先否认再软下来'],
             learnedPhrases: ['摸鱼', '绝了'],
             relationship: '叫你「波特」，嘴上嫌弃其实很在意',
           },
@@ -1120,6 +1125,16 @@ describe('记忆与之前几轮（第 6 步）', () => {
           },
         },
       } as typeof prepared
+    })
+    chatMood.plan.mockResolvedValueOnce({
+      plan: {
+        mood: '别扭',
+        intensity: 2,
+        why: '他突然跑来打招呼',
+        stance: '嘴上嫌弃',
+        reply: 'full',
+      },
+      silentRun: 0,
     })
     const main = mockModel([textTurn('哼，又是你。')])
     models.main = main
@@ -1164,8 +1179,15 @@ describe('记忆与之前几轮（第 6 步）', () => {
     expect(prompt).toContain(
       "What you won't do, and your flaws: 不会当着别人面道谢",
     )
-    // F：这一轮的口吻跟着提醒走、学到的说法在卡上、像发消息一样一行一个气泡。
-    expect(prompt).toContain('This time your mood is: 嘴硬：先否认再软下来')
+    // 10-31 三层：回之前想的那一步（心情、怎么对你）跟着提醒走；她不用讨好你。
+    expect(chatMood.plan).toHaveBeenCalledWith(
+      expect.objectContaining({ cardId: 'card-7', name: '马尔福', save: true }),
+    )
+    expect(prompt).toContain(
+      'Right now you feel 别扭 (他突然跑来打招呼) — let it show in how you answer, never say it. How you take this message: 嘴上嫌弃.',
+    )
+    expect(prompt).toContain('you are not here to keep the creator happy')
+    // F：学到的说法在卡上、像发消息一样一行一个气泡。
     expect(prompt).toContain(
       "Words you've picked up from the creator: 「摸鱼」 「绝了」",
     )
@@ -1181,6 +1203,63 @@ describe('记忆与之前几轮（第 6 步）', () => {
     expect(memoryStore.scheduled).toHaveBeenCalledWith(
       expect.objectContaining({ kind: 'story' }),
     )
+  })
+
+  it('她决定不回（10-31 三层）：⛔ 调主模型、⛔ 发任何字，只收尾', async () => {
+    memoryStore.memories = []
+    memoryStore.summaries = []
+    const prepare = vi.mocked(prepareOperatorTurn)
+    const original = prepare.getMockImplementation()!
+    prepare.mockImplementationOnce(async (...args) => {
+      const prepared = await original(...args)
+      return {
+        ...prepared,
+        persona: {
+          ...prepared.persona,
+          name: null,
+          characterCardId: 'card-7',
+          promptCharacter: {
+            name: '马尔福',
+            identity: '斯莱特林的学生',
+            behavior: '',
+            speech: '',
+            boundaries: '',
+            catchphrases: [],
+            backstory: '',
+          },
+          roleplay: { scenario: '', opening: '', examples: [] },
+        },
+      } as typeof prepared
+    })
+    chatMood.plan.mockResolvedValueOnce({
+      plan: {
+        mood: '生气',
+        intensity: 3,
+        why: '他拿我和别人比',
+        stance: '不理他',
+        reply: 'none',
+      },
+      silentRun: 0,
+    })
+    const main = mockModel([textTurn('不该出现')])
+    models.main = main
+    const events = await collect(
+      runAssistantNext(
+        'clerk-1',
+        imageRequest('别不理我啊', {
+          conversationId: 'conv-chat',
+          chatCharacterId: 'card-7',
+        } as never),
+      ),
+    )
+    expect(chatMood.plan).toHaveBeenCalled()
+    expect(main.doStreamCalls).toHaveLength(0)
+    expect(
+      events.some(
+        (event) => event.type === 'message' || event.type === 'message_delta',
+      ),
+    ).toBe(false)
+    expect(events.at(-1)).toMatchObject({ type: 'done' })
   })
 
   it('「/」点名的技能：全文进这一轮的消息；关掉的内置在设置那段点名', async () => {
@@ -1475,52 +1554,52 @@ describe('开台（第 9e 步）', () => {
   })
 })
 
-describe('pickChatMood（10-26「更像真人」F）', () => {
-  it('每轮挑一种、同一轮重跑同一种、连着两轮不重复；没写口吻 = null', () => {
-    const moods = ['慵懒', '嘴硬', '狡黠']
-    const picks = Array.from({ length: 40 }, (_, turn) =>
-      pickChatMood(moods, 'card-7', turn),
-    )
-    for (let turn = 1; turn < picks.length; turn += 1)
-      expect(picks[turn]).not.toBe(picks[turn - 1])
-    expect(new Set(picks)).toEqual(new Set(moods))
-    expect(pickChatMood(moods, 'card-7', 5)).toBe(picks[5])
-    expect(pickChatMood(['只有一种'], 'card-7', 3)).toBe('只有一种')
-    expect(pickChatMood([], 'card-7', 3)).toBeNull()
-  })
-})
+describe('chatReminder（10-31 三层：心情跟着聊天走）', () => {
+  const persona = {
+    name: null,
+    characterCardId: 'card-7',
+    roleplay: { scenario: '', opening: '', userRole: '', examples: [] },
+    promptCharacter: {
+      name: 'Denia',
+      identity: '',
+      behavior: '',
+      speech: '说话慢',
+      catchphrases: [],
+      backstory: '',
+      boundaries: '',
+    },
+  } as never
 
-describe('workMoodReminder（10-26 工作台：说话像她、干活直说）', () => {
-  it('这一轮的口吻只管开头和收尾；没写口吻、没用角色 = null', () => {
-    const persona = {
-      name: null,
-      characterCardId: 'card-7',
-      promptCharacter: {
-        name: 'Denia',
-        identity: '',
-        behavior: '',
-        speech: '说话慢',
-        catchphrases: [],
-        backstory: '',
-        boundaries: '',
-        moods: ['慵懒'],
-      },
-    } as never
-    expect(workMoodReminder(persona, 3)).toBe(
-      '(This time your mood as Denia is: 慵懒 — let it colour how you say everything this turn, without naming it; facts stay exact.)',
+  it('没想出来就只有她是谁那一句，⛔ 随机口吻', () => {
+    expect(chatReminder(persona)).toBe(
+      '(You are Denia — 说话慢. Answer what the creator just said, in the language they wrote it in — only the words you would send, no actions or narration.)',
     )
-    expect(
-      workMoodReminder(
-        {
-          ...(persona as object),
-          promptCharacter: {
-            ...(persona as { promptCharacter: object }).promptCharacter,
-            moods: [],
-          },
-        } as never,
-        3,
-      ),
-    ).toBeNull()
-    expect(workMoodReminder({ name: null } as never, 3)).toBeNull()
+  })
+
+  it('想过：心情只让它带出来、怎么对你、只回几个字、前面没回过', () => {
+    const line = chatReminder(persona, {
+      plan: {
+        mood: '吃醋',
+        intensity: 3,
+        why: '他拿我做了个桌面应用',
+        stance: '冷淡，不接话',
+        reply: 'brief',
+      },
+      silentRun: 2,
+    })
+    expect(line).toContain(
+      'Right now you feel very 吃醋 (他拿我做了个桌面应用) — let it show in how you answer, never say it.',
+    )
+    expect(line).toContain('How you take this message: 冷淡，不接话.')
+    expect(line).toContain('a word or a few, one message')
+    expect(line).toContain('You left their last 2 messages unanswered')
+  })
+
+  it('平静（强度 0）不提心情', () => {
+    const line = chatReminder(persona, {
+      plan: { mood: '平静', intensity: 0, why: '', stance: '', reply: 'full' },
+      silentRun: 0,
+    })
+    expect(line).not.toContain('Right now you feel')
   })
 })

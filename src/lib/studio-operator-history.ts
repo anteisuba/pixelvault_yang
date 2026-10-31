@@ -443,7 +443,6 @@ export const CHARACTER_PROFILE_FIELD_NAMES = {
   backstory: '经历',
   boundaries: '不会做的事',
   catchphrases: '口头禅',
-  moods: '几种口吻',
   interests: '她在意的东西',
   scenario: '场景',
   opening: '开场白',

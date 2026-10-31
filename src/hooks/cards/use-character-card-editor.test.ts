@@ -269,10 +269,10 @@ describe('钉住与声音（角色大项目第 ② 步）', () => {
   it('钉住的格写进 pv.pinnedFields（去重），全取消 = 删键；声音照草稿发', () => {
     const update = updateFromDraft(CARD, {
       ...draftFromCard(CARD),
-      pinnedFields: ['speech', 'speech', 'moods'],
+      pinnedFields: ['speech', 'speech', 'catchphrases'],
       voiceCardId: 'voice-1',
     })
-    expect(update.extensions?.['pv.pinnedFields']).toEqual(['speech', 'moods'])
+    expect(update.extensions?.['pv.pinnedFields']).toEqual(['speech', 'catchphrases'])
     expect(update.voiceCardId).toBe('voice-1')
     const cleared = updateFromDraft(CARD, {
       ...draftFromCard(CARD),

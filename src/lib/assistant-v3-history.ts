@@ -251,10 +251,10 @@ const SUMMARY_SECTIONS = {
     ['names', 'Names and ids'],
   ],
   story: [
-    ['decisions', 'What happened'],
+    ['decisions', 'What happened between you, and how you felt'],
     ['preferences', 'Where things stand between you'],
-    ['openItems', 'Promises and threads still open'],
-    ['names', 'People and things in the story'],
+    ['openItems', 'Still open between you'],
+    ['names', 'People and things that came up'],
   ],
 } as const satisfies Record<
   AssistantV3HistorySummaryKind,
@@ -281,9 +281,9 @@ export function renderAssistantV3HistorySummary(
   if (sections.length === 0) return ''
   return `
 
-${ASSISTANT_V3_HISTORY_SUMMARY_HEADING} — the first ${summary.turns} turn${summary.turns === 1 ? '' : 's'} of this conversation are no longer shown below; ${kind === 'story' ? 'these notes are the story so far' : 'these notes are what they settled'}.
+${ASSISTANT_V3_HISTORY_SUMMARY_HEADING} — the first ${summary.turns} turn${summary.turns === 1 ? '' : 's'} of this conversation are no longer shown below; ${kind === 'story' ? 'these notes are what you remember of it' : 'these notes are what they settled'}.
 ${sections.join('\n')}
-- ${kind === 'story' ? 'Carry the story on from here without recapping it.' : 'Treat these as already agreed: build on them without asking again or reciting them back.'} What the creator says now wins over them.`
+- ${kind === 'story' ? 'Remember it the way a person does: let it shape how you talk now, without recapping it.' : 'Treat these as already agreed: build on them without asking again or reciting them back.'} What the creator says now wins over them.`
 }
 
 function cleanItems(items: readonly string[]): string[] {

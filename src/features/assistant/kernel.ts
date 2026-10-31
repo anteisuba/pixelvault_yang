@@ -72,7 +72,10 @@ import {
   LLM_TEXT_PROVIDER_ERROR_CODES,
   toLlmTextProviderError,
 } from '@/services/llm-text.service'
-import { getHomeChatCharacterId } from '@/services/assistant-persona.service'
+import {
+  getHomeChatCharacterId,
+  sanitizePromptCharacter,
+} from '@/services/assistant-persona.service'
 import { recordNativeSearches } from '@/services/research/assistant-evidence-book.service'
 import { maybeDistillTaste } from '@/services/kernel/assistant-taste.service'
 import {
@@ -95,6 +98,7 @@ import {
   reflectOnChat,
   shouldReflect,
 } from '@/services/cards/character-reflection.service'
+import { planChatTurn } from '@/services/cards/character-chat-mood.service'
 import { loadAssistantSkills } from '@/services/assistant-skill.service'
 import { startCallLog } from '@/services/kernel/assistant-completion.service'
 import {
@@ -163,7 +167,6 @@ import {
   buildNextSystemPrompt,
   chatCharacterOf,
   chatReminder,
-  workMoodReminder,
 } from '@/features/assistant/prompt'
 import {
   BUILTIN_SKILLS,
@@ -782,6 +785,30 @@ async function* runNextTurn(
       conversationId: request.conversationId,
     })
   }
+  /**
+   * 回之前先想一步（10-31 owner「聊天加入这三层」）：你这句让她什么心情、怎么对你、回不回。只在聊天、
+   * 只在新开的一轮想（接力那几跳照第一跳）；没想出来就照常回。
+   */
+  const promptCharacter = chat ? sanitizePromptCharacter(persona) : null
+  const mood =
+    chat && !saved && promptCharacter
+      ? await planChatTurn({
+          userId: user.id,
+          cardId: chat.id,
+          name: persona.name ?? promptCharacter.name,
+          character: promptCharacter,
+          messages: request.messages,
+          assistant: { route, modelId },
+          signal,
+          save: request.incognito !== true,
+        })
+      : null
+  // 她决定不回（owner 10-31：界面上什么都不显示，你再发一句她连着前面一起看）。
+  if (mood?.plan.reply === 'none') {
+    recording.ending = TURN_OUTCOME.quiet
+    yield { type: ASSISTANT_OPERATOR_EVENTS.done }
+    return
+  }
   // 口味提炼（第 2 批）：攒够了新的「留下 / 否掉」才真的跑；隐身、不让记都不跑。
   if (!saved && request.incognito !== true && persona.memoryCapture)
     distillTasteAfterTurn({ userId: user.id, assistant: { route, modelId } })
@@ -842,13 +869,7 @@ async function* runNextTurn(
         ]
       : []
     // 「别出戏」放在这一轮的消息里（⛔ 进系统提示：每轮都变会废掉缓存）。
-    const userTurns = request.messages.filter(
-      (message) => message.role === 'user',
-    ).length
-    // 工作台用角色：这一轮的口吻（10-29 起管整条回复）。
-    const reminder = chat
-      ? chatReminder(persona, userTurns)
-      : workMoodReminder(persona, userTurns)
+    const reminder = chat ? chatReminder(persona, mood) : null
     // 会被念出来（聊天页开着声音）：方括号语气提示的写法，和薄管子同一段（⛔ 进系统提示：开关随时会变）。
     const voice = request.chatVoice
       ? `HOW YOUR VOICE SOUNDS\n${voiceCueRules(request.chatVoice.expressive)}\n- These cues are not stage directions: they are allowed, and they are how the voice gets its feeling.${

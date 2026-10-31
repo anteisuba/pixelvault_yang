@@ -865,14 +865,7 @@ function SettingTavernGroups({
             />
             {draft.examples.trim() ? null : draftButton('examples')}
           </div>
-          {/* 几种口吻 / 学到的说法（10-26「更像真人」F）：聊天每轮挑一种口吻；说法是聊天里从你的话学来的。 */}
-          <CharacterTextField
-            label={t('fieldMoods')}
-            value={draft.moods}
-            hint={t('moodsHint')}
-            onSave={(text) => save({ moods: text })}
-            {...pin('moods')}
-          />
+          {/* 学到的说法（10-26「更像真人」F）：聊天里从你的话学来的。心情不在卡上（10-31 三层：跟着聊天走）。 */}
           <CharacterTextField
             label={t('fieldLearnedPhrases')}
             value={draft.learnedPhrases}

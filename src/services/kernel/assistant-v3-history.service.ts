@@ -72,15 +72,18 @@ You get PREVIOUS NOTES (or "(none)") and the TURNS LEAVING VIEW. Merge them into
 - names: names and ids the rest of the conversation may refer to — cards and their handles (img-1a2b3c), characters, model ids, files — each with a few words on what it is.
 Keep what still holds, drop what was reversed or finished, never add anything that is not in the material. At most ${maxItems} items per list, one short line each (under ${maxItemChars} characters). Write in the language the creator writes in; copy names, ids and handles exactly.`
 
-/** 和角色聊天那段会话的摘要（第 7a 步 D）：同一副四栏，按故事来写。 */
-export const ASSISTANT_V3_STORY_SUMMARY_SYSTEM_PROMPT = `You keep the story notes for an older stretch of a roleplay chat in ANTEI between a creator and a character. These turns are leaving the character's view; your notes are all it will keep of them.
+/**
+ * 和角色聊天那段会话的摘要（第 7a 步 D）：同一副四栏，记成「发生过的事 + 她当时什么感觉」
+ * （10-31 owner：聊天像跟一个人聊——⛔ 会议纪要，⛔ 当成在演故事）。
+ */
+export const ASSISTANT_V3_STORY_SUMMARY_SYSTEM_PROMPT = `You keep the memory of an older stretch of a private chat in ANTEI between the creator and a character who texts with them as herself. These messages are leaving her view; your notes are all she will keep of them, so write them the way she would remember them.
 
 You get PREVIOUS NOTES (or "(none)") and the TURNS LEAVING VIEW. Merge them into one set of notes and reply with ONE JSON object:
 {"decisions": [], "preferences": [], "openItems": [], "names": []}
-- decisions: what happened — the events of the story so far, in order.
-- preferences: where things stand between the character and the creator — feelings, closeness, trust, how they treat each other now.
-- openItems: promises, plans and threads still open — what one of them said they would do, secrets, foreshadowing.
-- names: the people, places and things in the story, each with a few words on who or what they are; pictures and ids by their exact number.
+- decisions: what happened between them, in order — what was said or done and how she felt about it ("he showed off an app built around me; I got jealous, he talked me round").
+- preferences: where things stand between them now — closeness, trust, running jokes, what still stings, how they treat each other.
+- openItems: what is still open — promises, plans, questions left hanging, things one of them said they would do.
+- names: the people, places and things that came up, each with a few words on who or what they are; pictures and ids by their exact number.
 Keep what still holds, drop what was resolved or reversed, never add anything that is not in the material. At most ${maxItems} items per list, one short line each (under ${maxItemChars} characters). Write in the language the creator writes in; copy names and numbers exactly.`
 
 /** 同一段会话、管到同一轮的那一份正在补：⛔ 再起一次（同一个进程里两个标签页同时开轮）。 */

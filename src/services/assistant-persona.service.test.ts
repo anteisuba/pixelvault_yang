@@ -915,7 +915,7 @@ describe('聊天模式按会话那张卡', () => {
     const roleplay = sanitizePromptRoleplay(persona)
     expect(roleplay?.authorSystem).toBe('你就是 Rin，用第三人称描写动作。')
     expect(roleplay?.authorPostHistory).toBe('回复不超过三段。')
-    expect(chatReminder(persona, 1)).toContain(
+    expect(chatReminder(persona)).toContain(
       "Card author's note: 回复不超过三段。",
     )
   })

@@ -38,7 +38,6 @@ export const CHARACTER_PINNABLE_FIELDS = [
   'boundaries',
   'backstory',
   'catchphrases',
-  'moods',
   'learnedPhrases',
   'relationship',
   'interests',

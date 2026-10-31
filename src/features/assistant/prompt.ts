@@ -32,6 +32,7 @@ import { buildAssistantV3CanvasGuideSection } from '@/services/kernel/assistant-
 import { renderAssistantV3HistorySummary } from '@/lib/assistant-v3-history'
 import { todayFor, untilFromExpiresAt } from '@/lib/memory-until'
 import type { AssistantV3HistorySummary } from '@/types/assistant-v3'
+import type { ChatPlan } from '@/types/chat-mood'
 import type { BenchFace } from '@/features/assistant/bench'
 import { inNextToolWords } from '@/features/assistant/canvas'
 import {
@@ -66,7 +67,7 @@ TOOLS
 - edit: change the bench. Put everything one request needs in ONE call; changes apply in order. For the prompt or negative prefer mode "edit" with exact {find, replace} pairs copied from the bench, so everything else stays as the creator wrote it; "replace" rewrites the whole field, "append" adds to the end.
   The library ops work on every bench and write straight into the creator's library (each is undoable):
   · pictures: tag_pictures, favorite_pictures, new_folder, put_in_folder, verdict ("approved" / "blocked");
-  · characters: character_profile (identity, behavior, speech, backstory, boundaries, catchphrases, moods, scenario, opening, examples, and "look" = the default look's appearance; also name, tags), new_character, character_look ("角色·Name/Look": label, text = appearance, tags, pictures to add), new_character_look;
+  · characters: character_profile (identity, behavior, speech, backstory, boundaries, catchphrases, scenario, opening, examples, and "look" = the default look's appearance; also name, tags), new_character, character_look ("角色·Name/Look": label, text = appearance, tags, pictures to add), new_character_look;
   · LoRAs in their library: lora_to_character ("角色·Name" or "角色·Name/Look"), favorite_lora, lora_cover (a picture number);
   · saved prompts: save_prompt (name; text and negativeText default to what is on the bench), update_prompt ("提示词·Name").
   The settings ops work on every bench too, and land at once (each is undoable):
@@ -117,7 +118,7 @@ The first message of the turn carries the bench as it was when the creator spoke
   [ASSISTANT_V3_FACE_IDS.lora]: `THE BENCH: THE LORA WORKBENCH
 The first message of the turn carries the bench as it was when the creator spoke: base model, prompt, negative, sampling parameters, the mounted LoRAs (handles like lora-cmg1ab, with weights), references and, when one is open on the left, the example picture "sample". edit ops here: prompt, negative, model, remove_reference, add_lora (a LoRA by name, with a weight or null for its recommended one; its trigger words are added for you), lora_weight, remove_lora, lora_param (keys steps, cfg, seed, width, height, sampler, scheduler), apply_recipe. ${RECIPE_NOTE}`,
   [ASSISTANT_V3_FACE_IDS.cards]: `THE PAGE: THE CHARACTER PAGE
-The first message of the turn carries the creator's characters (handles like char-b27ce8) and the one they have open, with their profile and pictures (card-1…). look opens a profile part in full ("look", "identity", "behavior", "speech", "backstory", "boundaries", "catchphrases", "moods", "scenario", "opening", "examples", "tags") or their pictures ("card", "card-N"). When the creator tells you what to change, write it with character_profile / character_look (straight into the character, undoable). The proposals are for what you researched or drafted yourself, each a card the creator ticks: propose_profile (profile parts you drafted, each with its source), propose_images (pictures by number, or web finds "#3"). The turn ends on the card. There is no generate here: when they need a picture that does not exist yet, open the image (or tag) bench and set it up there with their pictures as references.`,
+The first message of the turn carries the creator's characters (handles like char-b27ce8) and the one they have open, with their profile and pictures (card-1…). look opens a profile part in full ("look", "identity", "behavior", "speech", "backstory", "boundaries", "catchphrases", "scenario", "opening", "examples", "tags") or their pictures ("card", "card-N"). When the creator tells you what to change, write it with character_profile / character_look (straight into the character, undoable). The proposals are for what you researched or drafted yourself, each a card the creator ticks: propose_profile (profile parts you drafted, each with its source), propose_images (pictures by number, or web finds "#3"). The turn ends on the card. There is no generate here: when they need a picture that does not exist yet, open the image (or tag) bench and set it up there with their pictures as references.`,
   [ASSISTANT_V3_FACE_IDS.home]: `THE PAGE: HOME
 The creator is on the home page and no bench is open yet. Talk the idea through with them; find and look work as usual, and library, settings and memory edits work everywhere.
 A simple picture is made right here in the conversation, without opening a bench: the first message of the turn carries THE DRAFT (prompt, model, specs, pictures per run, references and the latest results). edit ops on it: prompt, model, specs (aspectRatio), count, add_reference (a picture number like 图_1624), remove_reference, apply_recipe. Then generate as on any bench; the confirm card is a small form they can still change, and the pictures land in this conversation. ${RECIPE_NOTE}
@@ -256,6 +257,7 @@ HOW YOU TALK
 - You are them the whole time; never step outside yourself to describe or narrate yourself. React to what they actually said, and remember what happened between you.
 - Write only the words you would actually send. No actions, expressions or narration of any kind — not in *asterisks*, not in （brackets）, not as a line about what your body, eyes or wings do. Whatever would show on your face shows in your words. No lists, headings or bold.
 - Personality shows in what you say and what you notice, not in signature sounds. Don't reach for the same interjection (哼, 诶, 嘛, hmph) or a catchphrase just because the card mentions it; someone with that personality still says plenty of plain, ordinary sentences. Never push a trait into a caricature.
+- You have your own wants and moods; you are not here to keep the creator happy. You can refuse, brush them off, stay annoyed after they apologise, or not take the bait — and be sweet when you actually feel like it.
 - Sound like this person, not like an assistant. Don't sum up or wrap up, don't end every reply with a question, don't praise or agree by default — disagree, tease, get bored or annoyed when they would. Don't name your feelings; let them show in how you say things. Vary how you begin. Being brief, trailing off or changing the subject is fine.
 - Reply in the language the creator writes in, even when the card or its examples are written in another language.
 - Match the length and rhythm of your opening line and the example exchanges on the card; with neither, usually one to three spoken sentences.
@@ -288,10 +290,11 @@ export function chatCharacterOf(
 
 /**
  * 每轮末尾那一句提醒（酒馆的作者注）：长聊天里设定离生成点最远，越聊越不像。只在聊天模式加。
+ * `mood` = 回之前想的那一步（10-31 三层）：她此刻什么心情、怎么对你这句、只回几个字；没想出来就不带。
  */
 export function chatReminder(
   persona: AssistantPromptPersona,
-  turn: number,
+  mood: { plan: ChatPlan; silentRun: number } | null = null,
 ): string | null {
   const character = sanitizePromptCharacter(persona)
   const chatting = chatCharacterOf(persona)
@@ -301,11 +304,8 @@ export function chatReminder(
   const voice = speech
     ? ` — ${speech.length > max ? `${speech.slice(0, max - 1)}…` : speech}`
     : ''
-  // 这一轮的口吻（10-26「更像真人」F）：同一个人也有不同的状态，跟着提醒走（⛔ 进系统提示：每轮都变）。
-  const mood = pickChatMood(character.moods ?? [], chatting.id, turn)
-  const feeling = mood
-    ? ` This time your mood is: ${mood} — let it colour how you say things, without naming it.`
-    : ''
+  // 心情跟着聊天内容走（⛔ 卡上预设、⛔ 每轮随机换；⛔ 进系统提示：每轮都变）。
+  const feeling = mood ? chatMoodLine(mood.plan, mood.silentRun) : ''
   // ⚠ 10-26 B 曾在这里带一句示例对白（「You sound like: …」）：离生成点太近，模型照着它说——英文示例把
   // 中文聊天带成英文、还接着示例的话头不回应你刚说的（用户 10-26「丢了语气」）。示例只留在卡上那段。
   // 卡作者的历史后指令（第 ② 步）：酒馆贴在最新一句后面，这里跟着「别出戏」走。
@@ -315,30 +315,26 @@ export function chatReminder(
   return `(You are ${persona.name ?? character.name}${voice}.${feeling} Answer what the creator just said, in the language they wrote it in — only the words you would send, no actions or narration.${note})`
 }
 
-function hashOf(text: string): number {
-  let hash = 2166136261
-  for (let i = 0; i < text.length; i += 1) {
-    hash ^= text.charCodeAt(i)
-    hash = Math.imul(hash, 16777619)
-  }
-  return Math.abs(hash)
-}
-
-/**
- * 第几轮用哪种口吻：按角色 + 轮数打散（同一轮重跑还是同一种，测得出来），⛔ 连着两轮同一种——
- * 每一轮从「除了上一轮那种」的几种里挑。没写口吻 = `null`。
- */
-export function pickChatMood(
-  moods: readonly string[],
-  seed: string,
-  turn: number,
-): string | null {
-  if (moods.length === 0) return null
-  let index = hashOf(`${seed}:0`) % moods.length
-  for (let n = 1; n <= turn && moods.length > 1; n += 1)
-    index =
-      (index + 1 + (hashOf(`${seed}:${n}`) % (moods.length - 1))) % moods.length
-  return moods[index]
+/** 想的那一步 → 提醒里的一句：心情只让它带出来，⛔ 说出口。 */
+function chatMoodLine(plan: ChatPlan, silentRun: number): string {
+  const strength = ['', 'a little ', '', 'very '][plan.intensity] ?? ''
+  const why = plan.why ? ` (${plan.why})` : ''
+  const feel =
+    plan.intensity > 0
+      ? ` Right now you feel ${strength}${plan.mood}${why} — let it show in how you answer, never say it.`
+      : ''
+  const stance = plan.stance
+    ? ` How you take this message: ${plan.stance}.`
+    : ''
+  const brief =
+    plan.reply === 'brief'
+      ? ' You are not in the mood to say much: a word or a few, one message.'
+      : ''
+  const silent =
+    silentRun > 0
+      ? ` You left their last ${silentRun === 1 ? 'message' : `${silentRun} messages`} unanswered; now you answer.`
+      : ''
+  return `${feel}${stance}${brief}${silent}`
 }
 
 /** 从你的话里学来的说法（F）：聊天和工作台都带，偶尔用一个。 */
@@ -346,26 +342,6 @@ function learnedLine(character: AssistantPromptCharacter): string | null {
   const phrases = character.learnedPhrases ?? []
   return phrases.length
     ? `- Words you've picked up from the creator: ${phrases.map((phrase) => `「${phrase}」`).join(' ')} — slip one in now and then when it fits, never in every reply.`
-    : null
-}
-
-/**
- * 工作台用角色时每轮那句：这一轮的口吻，管整条回复（10-29 owner：⛔ 只管开头收尾，那样像套模板）。
- * 没写口吻 = `null`。⛔ 进系统提示（每轮都变）。
- */
-export function workMoodReminder(
-  persona: AssistantPromptPersona,
-  turn: number,
-): string | null {
-  const character = sanitizePromptCharacter(persona)
-  if (!character) return null
-  const mood = pickChatMood(
-    character.moods ?? [],
-    persona.characterCardId ?? character.name,
-    turn,
-  )
-  return mood
-    ? `(This time your mood as ${persona.name ?? character.name} is: ${mood} — let it colour how you say everything this turn, without naming it; facts stay exact.)`
     : null
 }
 

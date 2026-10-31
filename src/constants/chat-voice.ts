@@ -142,3 +142,28 @@ export const VOICE_CUE_GROUPS = [
   id: string
   cues: readonly { id: string; tag: string }[]
 }[]
+
+/**
+ * 她此刻的心情（10-31 owner「聊天加入这三层」）：回之前先想一步——这句话让她什么心情、怎么对你、回不回。
+ * - 心情 ⛔ 给你看（owner「心情不能让用户看见」），存在卡的 `extensions` 里；
+ * - 强度 0–3，按真实时间消：每 `fadeHours` 小时降一档（吵完马上回来还冷着，隔一晚基本好了）；
+ * - 「不回」只在真不高兴（强度 ≥ `silentMinIntensity`）时作数，最多连着 `maxSilentRun` 次，再下一句至少回一两个字；
+ * - 想这一步只看最近 `recentLines` 句、每句截 `lineChars` 字；超过 `timeoutMs` 就当没想，照常回。
+ */
+export const CHAT_MOOD = {
+  extensionKey: 'pv.chatMood',
+  maxIntensity: 3,
+  fadeHours: 3,
+  silentMinIntensity: 2,
+  maxSilentRun: 2,
+  recentLines: 12,
+  lineChars: 300,
+  traitChars: 300,
+  moodChars: 20,
+  noteChars: 120,
+  promptChars: 12_000,
+  timeoutMs: 8_000,
+} as const
+
+/** 回不回：正常回 / 只回一两个字 / 不回。 */
+export const CHAT_REPLY_MODES = ['full', 'brief', 'none'] as const

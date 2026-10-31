@@ -15,6 +15,7 @@ import { deriveCardHandleBase } from '@/lib/card-bus'
 import { ApiRequestError } from '@/lib/errors'
 import type { TavernCardImport } from '@/lib/tavern-card'
 import { allocateHandleForNewCard } from '@/services/cards/card-handle.service'
+import { tidyImportedCard } from '@/services/cards/character-tidy.service'
 import {
   CHARACTER_LOOKS_INCLUDE,
   mapCharacterCardRow,
@@ -151,7 +152,14 @@ export async function createImportedCharacterCard(
     }),
   )
 
-  return mapCharacterCardRow(card)
+  // ⑪ 导入后当场整理一次（描述拆回各格）；没整理成就照原样回。
+  if (!(await tidyImportedCard({ userId: dbUser.id, cardId: card.id })))
+    return mapCharacterCardRow(card)
+  const tidied = await db.characterCard.findFirst({
+    where: { id: card.id },
+    include: CHARACTER_LOOKS_INCLUDE,
+  })
+  return mapCharacterCardRow(tidied ?? card)
 }
 
 /** 一个用户全部没删的角色（连同造型）。 */

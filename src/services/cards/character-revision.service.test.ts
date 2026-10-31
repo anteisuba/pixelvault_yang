@@ -56,17 +56,20 @@ describe('diffCharacterSides', () => {
     const diff = diffCharacterSides(
       side(),
       side({
-        persona: persona({ speech: '爱拖长音', moods: ['慵懒'] }),
+        persona: persona({ speech: '爱拖长音', catchphrases: ['懒得动'] }),
         look: { lookId: 'look-1', description: '黑发' },
       }),
     )
-    expect(diff.fields).toEqual(['speech', 'moods', 'look'])
+    expect(diff.fields).toEqual(['speech', 'catchphrases', 'look'])
     expect(diff.before).toEqual({
       speech: '慢吞吞',
-      moods: [],
+      catchphrases: [],
       look: { lookId: 'look-1', description: '银发' },
     })
-    expect(diff.after).toMatchObject({ speech: '爱拖长音', moods: ['慵懒'] })
+    expect(diff.after).toMatchObject({
+      speech: '爱拖长音',
+      catchphrases: ['懒得动'],
+    })
   })
 
   it('什么都没变就是空的', () => {

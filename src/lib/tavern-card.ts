@@ -189,7 +189,6 @@ export function mapTavernCard(card: {
       speech: '',
       boundaries: '',
       catchphrases: [],
-      moods: [],
       learnedPhrases: [],
       relationship: '',
       interests: [],

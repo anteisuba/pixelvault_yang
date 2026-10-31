@@ -34,7 +34,6 @@ export const CHARACTER_REFLECTION_EDITABLE_FIELDS = [
   'speech',
   'boundaries',
   'catchphrases',
-  'moods',
   'backstory',
   'scenario',
   'opening',

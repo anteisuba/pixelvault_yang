@@ -176,7 +176,6 @@ const CARDS = [
       speech: '叫对方「指挥官」',
       boundaries: '',
       catchphrases: [],
-      moods: [],
       learnedPhrases: [],
       relationship: '',
       interests: [],

@@ -45,8 +45,6 @@ export interface CharacterCardDraft {
   opening: string
   /** 对话示例，酒馆 `mes_example` 的写法（`<START>` / `{{user}}:` / `{{char}}:`）。 */
   examples: string
-  /** 几种口吻（10-26「更像真人」F），一行一种。 */
-  moods: string
   /** 学到的说法（F），一行一个；聊天里自动攒，这里能删能改。 */
   learnedPhrases: string
   /** 和你的关系（C）：她整理聊天时自己写，这里能改。 */
@@ -148,7 +146,6 @@ export function draftFromCard(card: CharacterCardRecord): CharacterCardDraft {
     scenario: card.persona?.scenario ?? '',
     opening: card.persona?.opening ?? '',
     examples: examplesToTavernText(card.persona?.examples ?? []),
-    moods: (card.persona?.moods ?? []).join('\n'),
     learnedPhrases: (card.persona?.learnedPhrases ?? []).join('\n'),
     relationship: card.persona?.relationship ?? '',
     interests: card.persona?.interests ?? [],
@@ -188,10 +185,6 @@ export function updateFromDraft(
       scenario: clip(draft.scenario, CHARACTER_PERSONA_LIMITS.scenario),
       opening: clip(draft.opening, CHARACTER_PERSONA_LIMITS.opening),
       examples,
-      moods: linesOf(draft.moods, {
-        max: CHARACTER_PERSONA_LIMITS.moods,
-        chars: CHARACTER_PERSONA_LIMITS.moodChars,
-      }),
       learnedPhrases: linesOf(draft.learnedPhrases, {
         max: CHARACTER_PERSONA_LIMITS.learnedPhrases,
         chars: CHARACTER_PERSONA_LIMITS.learnedPhraseChars,

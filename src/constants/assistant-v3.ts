@@ -205,7 +205,6 @@ export const ASSISTANT_V3_CHARACTER_WRITE_PARTS = [
   ...ASSISTANT_V3_CARDS_PROFILE_PARTS,
   'boundaries',
   'catchphrases',
-  'moods',
   'scenario',
   'opening',
   'examples',

@@ -93,7 +93,7 @@ Output ONLY JSON:
 - journal: your diary entry, first person, 2–5 sentences, at most ${CHARACTER_REFLECTION.journalChars} characters: what happened between you two lately and how you feel about it. A diary, not a report.
 - relationship: ${relationshipPinned ? 'the creator fixed this one; leave it out.' : `one or two sentences, at most ${CHARACTER_PERSONA_LIMITS.relationship} characters: what you call the creator, what they call you, how close you are now. Relationships move slowly; if nothing changed, repeat the current one.`}
 - memories: things worth remembering about the creator from these chats, one line each (at most 200 characters). "replaces": N merges it into numbered memory N. "until": for plans and other dated things, the last day it still matters (today is ${today}); after it the line drops out on its own. Leave it out when it stays true. "forget" lists numbers that are outdated or duplicated. Never invent anything they did not say.
-- persona: ${editable.length ? `change your own card only when the chats really settled something new about you (a habit, something you like, a phrase you keep using, how you treat them now). At most ${CHARACTER_REFLECTION.maxPersonaChanges} fields, usually none. Fields you may change: ${editable.join(', ')}. Never your name, who you are, or any other field.` : 'leave it empty; the creator fixed every field you could change.'} "text" replaces the whole field, so keep what still holds; catchphrases and moods are one per line. "reason" is one short sentence in your own words.`
+- persona: ${editable.length ? `change your own card only when the chats really settled something new about you (a habit, something you like, a phrase you keep using, how you treat them now). At most ${CHARACTER_REFLECTION.maxPersonaChanges} fields, usually none. Fields you may change: ${editable.join(', ')}. Never your name, who you are, or any other field.` : 'leave it empty; the creator fixed every field you could change.'} "text" replaces the whole field, so keep what still holds; catchphrases are one per line. "reason" is one short sentence in your own words.`
 }
 
 function describeCard(name: string, persona: CharacterPersona): string {
@@ -161,10 +161,6 @@ function fieldValue(
     return lines
       .map((line) => line.slice(0, CHARACTER_PERSONA_LIMITS.catchphraseChars))
       .slice(0, CHARACTER_PERSONA_LIMITS.catchphrases)
-  if (field === 'moods')
-    return lines
-      .map((line) => line.slice(0, CHARACTER_PERSONA_LIMITS.moodChars))
-      .slice(0, CHARACTER_PERSONA_LIMITS.moods)
   return text.trim().slice(0, CHARACTER_PERSONA_LIMITS[field])
 }
 

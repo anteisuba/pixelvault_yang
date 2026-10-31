@@ -19,7 +19,7 @@ function lines(text: string, chars: number, max: number): string[] {
 }
 
 /**
- * 一格文字落进设定：口头禅一行一句（也认「、」「/」分隔），几种口吻、她在意的东西一行一个，
+ * 一格文字落进设定：口头禅一行一句（也认「、」「/」分隔），她在意的东西一行一个，
  * 对话示例按酒馆写法切块（整组替换），其余原样。
  * ⭐ 助手直接改（`writeCharacterProfile`）与角色页提议卡点「收下」（`applyProfile`）共用这一份：
  *   两处落法不一样，同一句话收进去就成了两个样子。
@@ -35,14 +35,6 @@ export function applyPersonaField(
       .split(/\n|、|\s\/\s/)
       .map((phrase) => phrase.trim().replace(/^[「『"]|[」』"]$/g, ''))
       .filter(Boolean)
-    return
-  }
-  if (field === 'moods') {
-    persona.moods = lines(
-      text,
-      CHARACTER_PERSONA_LIMITS.moodChars,
-      CHARACTER_PERSONA_LIMITS.moods,
-    )
     return
   }
   if (field === 'interests') {

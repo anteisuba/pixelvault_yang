@@ -1199,13 +1199,12 @@ async function pinnedCandidate(
 export function personaText(raw: unknown): string {
   const persona = CharacterPersonaSchema.safeParse(raw ?? {})
   if (!persona.success) return ''
-  const { identity, behavior, scenario, catchphrases, moods } = persona.data
+  const { identity, behavior, scenario, catchphrases } = persona.data
   return [
     identity && `Who you are: ${identity}`,
     behavior && `How you are: ${behavior}`,
     scenario && `Your world: ${scenario}`,
     catchphrases.length && `You say things like: ${catchphrases.join(' / ')}`,
-    moods.length && `Your moods: ${moods.join(', ')}`,
   ]
     .filter(Boolean)
     .join('\n')

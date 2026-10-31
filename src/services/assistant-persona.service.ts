@@ -124,7 +124,6 @@ function toPromptCharacter(
       .filter(Boolean),
     backstory: profile.backstory.trim(),
     boundaries: profile.boundaries.trim(),
-    moods: profile.moods.map((mood) => mood.trim()).filter(Boolean),
     learnedPhrases: profile.learnedPhrases
       .map((phrase) => phrase.trim())
       .filter(Boolean),
@@ -529,10 +528,6 @@ export function sanitizePromptCharacter(
       catchphrases: character.catchphrases
         .slice(0, ASSISTANT_PERSONA_LIMITS.maxCharacterCatchphrases)
         .map((phrase) => clean(phrase, 120)),
-      moods: (character.moods ?? [])
-        .map((mood) => clean(mood, CHARACTER_PERSONA_LIMITS.moodChars))
-        .filter(Boolean)
-        .slice(0, CHARACTER_PERSONA_LIMITS.moods),
       learnedPhrases: (character.learnedPhrases ?? [])
         .map((phrase) =>
           clean(phrase, CHARACTER_PERSONA_LIMITS.learnedPhraseChars),

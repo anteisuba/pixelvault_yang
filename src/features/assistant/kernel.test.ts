@@ -61,7 +61,7 @@ vi.mock('@/services/assistant-memory.service', () => ({
 const skillStore = vi.hoisted(() => ({ rows: [] as unknown[] }))
 const homeChat = vi.hoisted(() => ({ id: null as string | null }))
 const chatMood = vi.hoisted(() => ({
-  plan: vi.fn(async (): Promise<unknown> => null),
+  plan: vi.fn<(input: unknown) => Promise<unknown>>(async () => null),
 }))
 vi.mock('@/services/cards/character-chat-mood.service', () => ({
   planChatTurn: (input: unknown) => chatMood.plan(input),

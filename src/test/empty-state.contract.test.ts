@@ -34,12 +34,12 @@ const LANDING_POINTS = [
   'src/features/assets/components/KreaAssetBrowser.tsx',
   'src/features/assets/components/AssetStateBlocks.tsx',
   // 角色页卡库：chub 没回时整块出错（owner 2026-10-14 卡库）。
-  'src/components/business/cards/CharacterLibrary.tsx',
-  'src/components/business/cards/CharacterMemoryPane.tsx',
-  'src/components/business/cards/CharacterRoster.tsx',
+  'src/features/cards/components/CharacterLibrary.tsx',
+  'src/features/cards/components/CharacterMemoryPane.tsx',
+  'src/features/cards/components/CharacterRoster.tsx',
   // 角色页右栏「最近」：她还没出过门 / 没读出来（方向 B，owner 2026-10-28）。
-  'src/components/business/cards/CharacterRecent.tsx',
-  'src/components/business/cards/CharacterRecentDiary.tsx',
+  'src/features/cards/components/CharacterRecent.tsx',
+  'src/features/cards/components/CharacterRecentDiary.tsx',
   'src/components/business/node/NodeCanvasEmptyGuide.tsx',
   'src/components/business/assistant-settings/AssistantHerPane.tsx',
   'src/components/business/assistant-settings/AssistantMemoryPane.tsx',

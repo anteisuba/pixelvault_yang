@@ -49,7 +49,7 @@ vi.mock('../../CastDock', () => ({
 const mockLibrary = vi.hoisted(() => ({
   value: { cards: [] as unknown[], loaded: true },
 }))
-vi.mock('@/hooks/cards/use-character-library', () => ({
+vi.mock('@/features/cards/hooks/use-character-library', () => ({
   useCharacterLibrary: () => mockLibrary.value,
 }))
 /**

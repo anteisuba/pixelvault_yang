@@ -2,7 +2,7 @@ import 'server-only'
 
 import { StartCharacterOutingSchema } from '@/types/character-growth'
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
-import { startOutingForClerkId } from '@/services/cards/character-outing.service'
+import { startOutingForClerkId } from '@/features/cards/server'
 import { createApiPostByIdRoute } from '@/lib/api-route-factory'
 
 /** 第一段在回完这一下之后接着跑（`after`），给足函数时限。 */

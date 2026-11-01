@@ -46,7 +46,7 @@ vi.mock('next-intl', () => ({
 const refreshMock = vi.fn(async () => {})
 const cardsRef: { cards: VoiceCardRecord[] } = { cards: [] }
 
-vi.mock('@/hooks/cards/use-voice-cards', () => ({
+vi.mock('@/features/cards/hooks/use-voice-cards', () => ({
   useVoiceCards: () => ({
     cards: cardsRef.cards,
     isLoading: false,

@@ -102,7 +102,7 @@ vi.mock('@/hooks/use-video-model-options', () => ({
   useVideoModelOptions: () => ({ selectedModel: null, modelOptions: [] }),
 }))
 
-vi.mock('@/hooks/cards/use-voice-cards', () => ({
+vi.mock('@/features/cards/hooks/use-voice-cards', () => ({
   useVoiceCards: () => ({ findCard: () => null }),
 }))
 

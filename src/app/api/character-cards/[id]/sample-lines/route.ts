@@ -4,7 +4,7 @@ import { z } from 'zod'
 
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import { createApiPostByIdRoute } from '@/lib/api-route-factory'
-import { sampleCharacterLines } from '@/services/cards/character-sample-lines.service'
+import { sampleCharacterLines } from '@/features/cards/server'
 
 export const POST = createApiPostByIdRoute({
   schema: z.object({}),

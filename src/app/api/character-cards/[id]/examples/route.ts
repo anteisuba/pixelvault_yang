@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { createApiPostByIdRoute } from '@/lib/api-route-factory'
-import { addCharacterExample } from '@/services/cards/character-example.service'
+import { addCharacterExample } from '@/features/cards/server'
 import { CharacterExampleAddSchema } from '@/types'
 
 export const POST = createApiPostByIdRoute({

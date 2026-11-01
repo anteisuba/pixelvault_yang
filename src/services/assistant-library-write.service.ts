@@ -35,22 +35,22 @@ import {
 import { resolveAdapterType } from '@/constants/models'
 import { db } from '@/lib/db'
 import { Prisma } from '@/lib/generated/prisma/client'
-import { appendSlotSources } from '@/hooks/cards/use-character-card-editor'
+import { appendSlotSources } from '@/features/cards'
 import { applyPersonaField } from '@/lib/character-persona-fields'
 import {
   markCharacterRevisionReverted,
   recordCharacterRevision,
   type CharacterRevisionSide,
-} from '@/services/cards/character-revision.service'
+} from '@/features/cards/server'
 import {
   createCharacterCard,
   updateCharacterCard,
-} from '@/services/cards/character-card.service'
-import { readPinnedFields } from '@/services/cards/character-card.mapper'
+} from '@/features/cards/server'
+import { readPinnedFields } from '@/features/cards/server'
 import {
   createCharacterLook,
   updateCharacterLook,
-} from '@/services/cards/character-look.service'
+} from '@/features/cards/server'
 import {
   addAssistantRuleMemory,
   deleteAssistantMemory,

@@ -9,7 +9,7 @@ import {
 import {
   deleteCharacterLook,
   updateCharacterLook,
-} from '@/services/cards/character-look.service'
+} from '@/features/cards/server'
 
 export const PUT = createApiPutRoute({
   schema: UpdateCharacterLookSchema,

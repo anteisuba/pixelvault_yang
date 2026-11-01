@@ -11,7 +11,7 @@ import { spokenVoiceText } from '@/lib/chat-voice'
 import {
   CHARACTER_LOOKS_INCLUDE,
   mapCharacterLookRow,
-} from '@/services/cards/character-card.mapper'
+} from '@/features/cards/server'
 import { submitAudioGeneration } from '@/services/generate-audio.service'
 import { ensureUser } from '@/services/user.service'
 import type {

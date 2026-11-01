@@ -26,10 +26,10 @@ vi.mock('@/services/assistant-skill.service', async () => {
   const { BUILTIN_SKILLS } = await import('@/features/assistant/skills')
   return { loadAssistantSkills: async () => BUILTIN_SKILLS }
 })
-vi.mock('@/services/cards/character-card.service', () => ({
+vi.mock('@/features/cards/services/character-card.service', () => ({
   listCharacterCards: cards,
 }))
-vi.mock('@/services/cards/character-lora.service', () => ({
+vi.mock('@/features/cards/services/character-lora.service', () => ({
   listCharacterLoraGroups: loraGroups,
 }))
 vi.mock('@/services/lora-asset.service', () => ({

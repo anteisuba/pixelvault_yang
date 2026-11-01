@@ -16,8 +16,8 @@ import { matchesAnyWord } from '@/lib/search-words'
 import type { AssistantOperatorSnapshot } from '@/types/assistant-operator'
 import type { AssistantV3PictureRef } from '@/types/assistant-v3'
 import { getAssistantPersona } from '@/services/assistant-persona.service'
-import { listCharacterCards } from '@/services/cards/character-card.service'
-import { listCharacterLoraGroups } from '@/services/cards/character-lora.service'
+import { listCharacterCards } from '@/features/cards/server'
+import { listCharacterLoraGroups } from '@/features/cards/server'
 import {
   findLoraAssetsByUrls,
   listLoraAssetsForUser,

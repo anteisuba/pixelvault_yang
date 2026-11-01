@@ -63,7 +63,7 @@ const homeChat = vi.hoisted(() => ({ id: null as string | null }))
 const chatMood = vi.hoisted(() => ({
   plan: vi.fn<(input: unknown) => Promise<unknown>>(async () => null),
 }))
-vi.mock('@/services/cards/character-chat-mood.service', () => ({
+vi.mock('@/features/cards/services/character-chat-mood.service', () => ({
   planChatTurn: (input: unknown) => chatMood.plan(input),
 }))
 vi.mock('@/services/assistant-persona.service', async (importOriginal) => ({

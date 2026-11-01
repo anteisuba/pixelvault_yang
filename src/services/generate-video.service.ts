@@ -34,7 +34,7 @@ import {
   parseWorkerJobMetadata,
 } from '@/services/execution-callback.service'
 import { ensureUser } from '@/services/user.service'
-import { withCharacterVideoReferences } from '@/services/cards/card-bus-video.service'
+import { withCharacterVideoReferences } from '@/features/cards/server'
 import {
   GenerateImageServiceError,
   resolveGenerationRoute,

@@ -35,7 +35,7 @@ vi.mock('motion/react', async (importOriginal) => ({
 const mockLibrary = vi.hoisted(() => ({
   value: { cards: [] as unknown[], loaded: true },
 }))
-vi.mock('@/hooks/cards/use-character-library', () => ({
+vi.mock('@/features/cards/hooks/use-character-library', () => ({
   useCharacterLibrary: () => ({
     ...mockLibrary.value,
     find: (id: string) =>
@@ -50,7 +50,7 @@ vi.mock('@/hooks/use-studio-operator-store', () => ({
   requestOperatorDraft,
 }))
 
-vi.mock('@/hooks/cards/use-character-card-usage', () => ({
+vi.mock('@/features/cards/hooks/use-character-card-usage', () => ({
   useCharacterCardUsage: () => ({
     generations: [
       {

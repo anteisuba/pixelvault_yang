@@ -21,7 +21,7 @@ import { slotsCoverUrl } from '@/lib/card-bus'
 import { withoutStageDirections } from '@/lib/chat-voice'
 import { ApiRequestError } from '@/lib/errors'
 import { readTavernAuthorNotes, readTavernWorldBook } from '@/lib/tavern-card'
-import { readChatUserRole } from '@/services/cards/character-card.mapper'
+import { readChatUserRole } from '@/features/cards/server'
 import { sanitizePrompt } from '@/services/kernel/prompt-guard'
 import { ensureUser } from '@/services/user.service'
 import {

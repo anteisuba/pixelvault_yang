@@ -10,7 +10,7 @@ import {
   addCharacterStickerFromFile,
   CharacterStickerUploadError,
   listCharacterStickers,
-} from '@/services/cards/character-sticker.service'
+} from '@/features/cards/server'
 import { CharacterStickerWhenSchema } from '@/types/character-sticker'
 
 export const maxDuration = 60

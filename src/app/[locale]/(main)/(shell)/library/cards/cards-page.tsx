@@ -6,7 +6,7 @@ import { ROUTES } from '@/constants/routes'
 import { Button } from '@/components/ui/button'
 import { Link } from '@/i18n/navigation'
 import type { AppLocale } from '@/i18n/routing'
-import { CardsPageContent } from '@/components/business/cards/CardsPageContent'
+import { CardsPageContent } from '@/features/cards'
 
 interface CardsPageProps {
   params: Promise<{ locale: AppLocale }>

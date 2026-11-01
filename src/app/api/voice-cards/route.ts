@@ -3,10 +3,7 @@ import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
 
 import { createApiGetRoute, createApiRoute } from '@/lib/api-route-factory'
-import {
-  createVoiceCard,
-  listVoiceCards,
-} from '@/services/cards/voice-card.service'
+import { createVoiceCard, listVoiceCards } from '@/features/cards/server'
 import {
   CreateVoiceCardRequestSchema,
   ListVoiceCardsQuerySchema,

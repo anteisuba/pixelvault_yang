@@ -13,7 +13,7 @@ import {
   LORA_WORKBENCH_SECTIONS,
 } from '@/constants/lora'
 import { useStudioLibraryPick } from '@/contexts/studio-library-pick'
-import { useCharacterLoras } from '@/hooks/cards/use-character-loras'
+import { useCharacterLoras } from '@/features/cards'
 import {
   useLibraryChanged,
   useLibraryShowRequest,

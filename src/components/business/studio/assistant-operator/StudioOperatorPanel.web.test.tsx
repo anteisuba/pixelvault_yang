@@ -115,7 +115,7 @@ vi.mock('@/lib/api-client/assistant-mentions', () => ({
 
 /** 角色库：菜单打开时才拉（`useCharacterLibraryCards`）。 */
 const refreshCharacters = vi.hoisted(() => vi.fn(async () => undefined))
-vi.mock('@/hooks/cards/use-character-library', () => ({
+vi.mock('@/features/cards', () => ({
   useCharacterLibraryCards: () => ({ cards: [], refresh: refreshCharacters }),
 }))
 

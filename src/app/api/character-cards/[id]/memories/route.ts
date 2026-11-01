@@ -8,7 +8,7 @@ import {
 import {
   createCharacterMemoryForClerkId,
   getCharacterMemoriesForClerkId,
-} from '@/services/cards/character-growth.service'
+} from '@/features/cards/server'
 import { CreateCharacterMemorySchema } from '@/types/assistant-memory'
 
 /**

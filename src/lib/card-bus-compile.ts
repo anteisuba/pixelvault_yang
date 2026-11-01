@@ -3,7 +3,7 @@
  *
  * ⭐ 中间形态是「每个角色一组」：视觉文字 · 角色负面 · 排好序的参考槽。
  *   ⛔ 这一层不合并文本 —— 压平是各出口的事（图片在这里，视频是第 ⑦ 片）。
- * ⭐ 从库里读卡只有 `services/cards/card-bus.service.ts` 一处；本文件不碰库。
+ * ⭐ 从库里读卡只有 `features/cards/services/card-bus.service.ts` 一处；本文件不碰库。
  * ⛔ `summary` · `tags` 不进任何出口（给人看的）。
  * 契约见 `docs/references/domains/cards.md`「编译层」。
  */

@@ -4,7 +4,7 @@ import { z } from 'zod'
 
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import { createApiPostByIdRoute } from '@/lib/api-route-factory'
-import { revertCharacterRevisionForClerkId } from '@/services/cards/character-growth.service'
+import { revertCharacterRevisionForClerkId } from '@/features/cards/server'
 
 /** 「她改了什么」里撤回一条：只把那一条改过的几格写回旧值（C 第 3 步）。 */
 export const POST = createApiPostByIdRoute({

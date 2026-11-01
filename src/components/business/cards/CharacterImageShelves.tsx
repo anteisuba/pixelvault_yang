@@ -25,86 +25,113 @@ import {
   replaceSlotImage,
 } from '@/hooks/cards/use-character-card-editor'
 import { useCharacterCardUsage } from '@/hooks/cards/use-character-card-usage'
+import { defaultLook } from '@/lib/card-bus'
+import { lookLabel } from '@/lib/character-looks'
 import { cn } from '@/lib/utils'
 
-type SaveLook = (patch: Partial<CharacterLookDraft>) => Promise<boolean>
+type SaveLook = (
+  look: CharacterLookRecord,
+  patch: Partial<CharacterLookDraft>,
+) => Promise<boolean>
 
 /**
  * 电脑详情「图片」页签的两块（角色大项目第 ⑧ 步，样件 v4 方案 B）：
  * 「卡上的图」（主图 · 设成主图 / 换一张 / 移除 · 虚线加图）在上，「用她出过的」在下，
  * 出过的每张能「设成卡上的图」，已经在卡上的标「卡上」。
  * ⛔「找立绘」键（owner 10-30：没图就自己配或叫助手找）—— 一张都没有时只剩那格虚线加图。
+ * ⭐ 不分造型（owner 11-01：造型只在「模板」页签管）：全部造型的图摆一起，有几套时每张
+ *   角上标是哪一套；新加的图进默认造型。
  */
 export function CharacterImageShelves({
   card,
-  look,
   save,
 }: {
   card: CharacterCardRecord
-  look: CharacterLookRecord
   save: SaveLook
 }) {
   const t = useTranslations('CharacterRoster')
-  /** 素材库选择器开着时在做什么：加几张，或换掉某一格。 */
+  const tLooks = useTranslations('CharacterLooks')
+  /** 素材库选择器开着时在做什么：加几张，或换掉哪一套的某一格。 */
   const [picking, setPicking] = useState<
-    { kind: 'add' } | { kind: 'replace'; slotId: string } | null
+    | { kind: 'add' }
+    | { kind: 'replace'; look: CharacterLookRecord; slotId: string }
+    | null
   >(null)
   const usage = useCharacterCardUsage(card.id, true)
-  const slots = look.referenceSlots
-  const remaining = CHARACTER_CARD.MAX_REFERENCE_SLOTS - slots.length
+  const home = defaultLook(card)
+  const several = card.looks.length > 1
+  const tiles = card.looks.flatMap((look) =>
+    look.referenceSlots.map((slot) => ({ look, slot })),
+  )
+  const remaining =
+    CHARACTER_CARD.MAX_REFERENCE_SLOTS - home.referenceSlots.length
   const made = usage.generations
   const madeTotal = usage.total ?? made.length
 
   const putOnCard = (generation: GenerationRecord) =>
-    void save({ slots: appendSlotImages(slots, [generation]) })
+    void save(home, {
+      slots: appendSlotImages(home.referenceSlots, [generation]),
+    })
 
   return (
     <>
-      <Shelf title={t('imagesCardTitle')} count={slots.length}>
+      <Shelf title={t('imagesCardTitle')} count={tiles.length}>
         <div className="flex flex-wrap gap-2.5">
-          {slots.map((slot) => (
-            <figure
-              key={slot.id}
-              className={cn(MEDIA_TILE_CLASS, 'h-40 w-30 shrink-0')}
-            >
-              <Image
-                src={slot.url}
-                alt=""
-                fill
-                sizes="120px"
-                className="object-cover"
-              />
-              <MediaTileShade />
-              {slot.isPrimary ? <TileChip>{t('primary')}</TileChip> : null}
-              <TileActions>
-                {slot.isPrimary ? null : (
-                  <TileAction
-                    onClick={() =>
-                      void save({ slots: makePrimary(slots, slot.id) })
-                    }
-                  >
-                    {t('makePrimary')}
-                  </TileAction>
-                )}
-                <TileAction
-                  onClick={() =>
-                    setPicking({ kind: 'replace', slotId: slot.id })
-                  }
-                >
-                  {t('replaceImage')}
-                </TileAction>
-                {slots.length > 1 ? (
-                  <TileAction
-                    onClick={() =>
-                      void save({ slots: removeSlot(slots, slot.id) })
-                    }
-                  >
-                    {t('removeImage')}
-                  </TileAction>
+          {tiles.map(({ look, slot }) => {
+            const slots = look.referenceSlots
+            return (
+              <figure
+                key={slot.id}
+                className={cn(MEDIA_TILE_CLASS, 'h-40 w-30 shrink-0')}
+              >
+                <Image
+                  src={slot.url}
+                  alt=""
+                  fill
+                  sizes="120px"
+                  className="object-cover"
+                />
+                <MediaTileShade />
+                {slot.isPrimary || several ? (
+                  <TileChip>
+                    {[
+                      several ? lookLabel(look, card.looks, tLooks) : null,
+                      slot.isPrimary ? t('primary') : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </TileChip>
                 ) : null}
-              </TileActions>
-            </figure>
-          ))}
+                <TileActions>
+                  {slot.isPrimary ? null : (
+                    <TileAction
+                      onClick={() =>
+                        void save(look, { slots: makePrimary(slots, slot.id) })
+                      }
+                    >
+                      {t('makePrimary')}
+                    </TileAction>
+                  )}
+                  <TileAction
+                    onClick={() =>
+                      setPicking({ kind: 'replace', look, slotId: slot.id })
+                    }
+                  >
+                    {t('replaceImage')}
+                  </TileAction>
+                  {slots.length > 1 ? (
+                    <TileAction
+                      onClick={() =>
+                        void save(look, { slots: removeSlot(slots, slot.id) })
+                      }
+                    >
+                      {t('removeImage')}
+                    </TileAction>
+                  ) : null}
+                </TileActions>
+              </figure>
+            )
+          })}
           {remaining > 0 ? (
             <button
               type="button"
@@ -122,7 +149,9 @@ export function CharacterImageShelves({
         <Shelf title={t('imagesMadeTitle')} count={madeTotal}>
           <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-5 lg:grid-cols-8 2xl:grid-cols-10">
             {made.map((generation) => {
-              const onCard = slots.some((slot) => slot.url === generation.url)
+              const onCard = tiles.some(
+                ({ slot }) => slot.url === generation.url,
+              )
               return (
                 <figure
                   key={generation.id}
@@ -168,12 +197,18 @@ export function CharacterImageShelves({
         multiSelect={picking?.kind === 'add'}
         maxSelection={remaining}
         onConfirmMany={(generations) =>
-          void save({ slots: appendSlotImages(slots, generations) })
+          void save(home, {
+            slots: appendSlotImages(home.referenceSlots, generations),
+          })
         }
         onSelect={(generation) => {
           if (picking?.kind === 'replace')
-            void save({
-              slots: replaceSlotImage(slots, picking.slotId, generation),
+            void save(picking.look, {
+              slots: replaceSlotImage(
+                picking.look.referenceSlots,
+                picking.slotId,
+                generation,
+              ),
             })
         }}
       />

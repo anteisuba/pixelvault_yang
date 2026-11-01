@@ -631,7 +631,7 @@ export async function getUserMonthlyUsageByModel(
   const grouped = await db.apiUsageLedger.groupBy({
     by: ['adapterType', 'modelId'],
     where: { userId, createdAt: { gte: monthStart } },
-    _sum: { requestCount: true },
+    _sum: { requestCount: true, points: true },
   })
 
   return {
@@ -640,6 +640,8 @@ export async function getUserMonthlyUsageByModel(
       adapterType: row.adapterType,
       modelId: row.modelId,
       requests: row._sum.requestCount ?? 0,
+      points:
+        row._sum.points === null ? null : Number(row._sum.points.toString()),
     })),
   }
 }

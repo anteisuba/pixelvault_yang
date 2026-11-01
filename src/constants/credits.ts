@@ -29,3 +29,9 @@ export const USAGE_FUNDING = {
 } as const
 
 export type UsageFunding = (typeof USAGE_FUNDING)[keyof typeof USAGE_FUNDING]
+
+/**
+ * Modal Runner 每秒 GPU 价（USD）。按 L40S 记（`workers/runner-modal/app.py` 先用 L40S，排不上才退
+ * A100-40GB $0.000583/s，差 7%）。出处 modal.com/pricing，核于 2026-11-01。
+ */
+export const RUNNER_GPU_USD_PER_SECOND = 0.000542

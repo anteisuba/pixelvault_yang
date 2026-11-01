@@ -118,6 +118,8 @@ LLM 每一轮写一行（现在只进日志的那个 `onUsage` 改成也入账�
 1. **账本 + LLM 入账**：`ApiUsageLedger` 加列；LLM 每轮入账；Modal 回报 GPU 秒；只记不拦。（先把数看清楚，后面才定得准额度。）
    - ✅ 2026-11-01 已做：迁移 `20261101230000_platform_credits_ledger`（账本加 `kind / funding / points / *Tokens / gpuSeconds`，`GenerationJob.funding`）。LLM：`resolveLlmTextRoute` 给路由带上 `meter`，`llmTextCompletion / llmTextStream / llmNativeWebSearch` 每次调用记一行（`services/llm-usage.service.ts`，⛔ 不等不抛），助手主循环（`features/assistant/kernel.ts`）另记；角色出门不再记总数，改由每次调用各记一行。生成：建任务时记出资方，回调结算时抄进账本；Runner 记 `kind = gpu`，`gpuSeconds` = 建任务到回调的秒数（Modal 不回报计费秒数，这是上限估计，冷启动算在内）。`points` 先空着，第 2 片填。
 2. **估价函数 + LLM 单价表**：`estimatePoints`；工作台 / 画布 / 用量页改读它。
+   - ✅ 2026-11-01 前半已做：LLM 单价表 `constants/models/llm-prices.ts`（助手路由表 15 个型号全覆盖，有测试锁；DeepSeek 按高峰价；推出价按日期分段）；`lib/credits/points.ts`（`usdToPoints` · `pointsOfLlmUsage`）；LLM 每行入账时现算 `points`（Gemini 思考加回输出），Runner 按 L40S $0.000542/s × 占卡秒数；用量页按账本点数优先、没结算的照旧次数 × 单价。
+   - 后半等「助手自主度」的钱闸上 main 再做：它已把工作台估价抽成 `lib/generation-cost.ts`、闸在 `lib/assistant-spend-gate.ts`，届时连同 `lib/canvas-generation-cost.ts` 并进 `lib/credits/estimatePoints`，替换宿主 `generationPoints()` 与 `generationPointsOf`。
 3. **额度 + 先占后结**：`CreditGrant`、注册送点、admin 加点；Modal 从「每人 100 次」换成点数；全站 $ 总闸。
 4. **助手钱闸接点数**（跟自主度一起做）。
 5. **出门换成新点**。

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAuth } from '@clerk/nextjs'
 
+import { CREDIT_POINT_USD } from '@/constants/credits'
 import { getModelUnitPriceByStringId } from '@/constants/models/unit-prices'
 import {
   getDefaultProviderConfig,
@@ -56,6 +57,13 @@ function toProviderRows(summary: MonthlyUsageSummary): MonthlyProviderUsage[] {
       priced: false,
     }
     bucket.requests += row.requests
+    // 账本已结算的点数（LLM token / Runner GPU 秒）优先；没结算的照旧次数 × 单价估。
+    if (row.points !== null) {
+      bucket.cost += row.points * CREDIT_POINT_USD
+      bucket.priced = true
+      byAdapter.set(row.adapterType, bucket)
+      continue
+    }
     const price = getModelUnitPriceByStringId(row.modelId)
     if (price) {
       bucket.cost += price.amount * row.requests

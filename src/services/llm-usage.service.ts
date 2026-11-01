@@ -3,6 +3,7 @@ import 'server-only'
 import { after } from 'next/server'
 
 import { USAGE_KINDS, type UsageFunding } from '@/constants/credits'
+import { pointsOfLlmUsage } from '@/lib/credits/points'
 import { logger } from '@/lib/logger'
 import { createApiUsageEntry } from '@/services/usage.service'
 
@@ -16,7 +17,10 @@ export interface LlmUsageMeter {
   funding: UsageFunding
 }
 
-/** provider 自报的 token，口径同 `LlmTextUsage`（在 llm-text.service）。 */
+/**
+ * provider 自报的 token，**账本口径**：`inputTokens` 含命中缓存的部分，`outputTokens` 含思考
+ * （Gemini 原生把思考另报，llm-text 入账前已加回去）。`reasoningTokens` 只是其中的明细。
+ */
 export interface LlmUsageTokens {
   inputTokens?: number
   outputTokens?: number
@@ -37,7 +41,7 @@ export interface RecordLlmUsageInput {
 
 /**
  * 每次 LLM 请求记一行账（kind = llm）。⛔ 不等、不抛：账本写不进去绝不能拖慢或弄坏这次回答，
- * 失败只留一行日志。点数（`points`）等 LLM 单价表上线（第 2 片）再填，这里先记 token。
+ * 失败只留一行日志。点数按 `constants/models/llm-prices.ts` 现算；缺价或没报 token 时留空。
  */
 export function recordLlmUsage(input: RecordLlmUsageInput): void {
   const meter = input.meter
@@ -58,6 +62,7 @@ export function recordLlmUsage(input: RecordLlmUsageInput): void {
     cachedInputTokens: input.usage?.cachedInputTokens,
     outputTokens: input.usage?.outputTokens,
     reasoningTokens: input.usage?.reasoningTokens,
+    ...pointsField(pointsOfLlmUsage(input.modelId, input.usage)),
   }).catch((error: unknown) => {
     logger.warn('llm usage entry not recorded', {
       adapterType: input.adapterType,
@@ -71,4 +76,8 @@ export function recordLlmUsage(input: RecordLlmUsageInput): void {
   } catch {
     // 不在请求作用域里（cron 接力 / 脚本 / 测试）：已经发出去了。
   }
+}
+
+function pointsField(points: number | null): { points?: number } {
+  return points === null ? {} : { points }
 }

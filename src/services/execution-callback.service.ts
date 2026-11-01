@@ -2,7 +2,11 @@ import 'server-only'
 
 import { z } from 'zod'
 
-import { USAGE_KINDS, type UsageKind } from '@/constants/credits'
+import {
+  RUNNER_GPU_USD_PER_SECOND,
+  USAGE_KINDS,
+  type UsageKind,
+} from '@/constants/credits'
 import { GENERATION_ERROR_CODES } from '@/constants/generation-errors'
 import { EXECUTION_PROGRESS_STAGE_VALUES } from '@/constants/generation-progress'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
@@ -14,6 +18,7 @@ import {
   GenerationSourceSurfaceSchema,
   SearchGroundingResultSchema,
 } from '@/types'
+import { usdToPoints } from '@/lib/credits/points'
 import { db } from '@/lib/db'
 import type { Prisma } from '@/lib/generated/prisma/client'
 import { ApiRequestError, GenerationValidationError } from '@/lib/errors'
@@ -507,14 +512,18 @@ interface CallbackJob {
 function ledgerUsageForJob(
   job: CallbackJob,
   kind: UsageKind,
-): Pick<CreateApiUsageEntryInput, 'kind' | 'funding' | 'gpuSeconds'> {
-  const isRunner = job.adapterType === AI_ADAPTER_TYPES.RUNNER
+): Pick<
+  CreateApiUsageEntryInput,
+  'kind' | 'funding' | 'gpuSeconds' | 'points'
+> {
+  const funding = generationJobFunding(job)
+  if (job.adapterType !== AI_ADAPTER_TYPES.RUNNER) return { kind, funding }
+  const gpuSeconds = (Date.now() - job.createdAt.getTime()) / 1000
   return {
-    kind: isRunner ? USAGE_KINDS.gpu : kind,
-    funding: generationJobFunding(job),
-    ...(isRunner
-      ? { gpuSeconds: (Date.now() - job.createdAt.getTime()) / 1000 }
-      : {}),
+    kind: USAGE_KINDS.gpu,
+    funding,
+    gpuSeconds,
+    points: usdToPoints(gpuSeconds * RUNNER_GPU_USD_PER_SECOND),
   }
 }
 

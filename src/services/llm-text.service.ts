@@ -1134,6 +1134,26 @@ export async function resolveLlmTextRoute(
 // ─── Usage metering（平台点数）────────────────────────────────────
 
 /**
+ * 账本口径：`outputTokens` 含思考。Gemini 原生的 `candidatesTokenCount` 不含思考（另在
+ * `thoughtsTokenCount`，而思考照输出价收），这里加回去；其余几家的输出数本来就含。
+ */
+function toLedgerTokens(
+  adapterType: AI_ADAPTER_TYPES,
+  usage: LlmTextUsage | null,
+): LlmTextUsage | null {
+  if (
+    !usage ||
+    adapterType !== AI_ADAPTER_TYPES.GEMINI ||
+    usage.reasoningTokens === undefined
+  )
+    return usage
+  return {
+    ...usage,
+    outputTokens: (usage.outputTokens ?? 0) + usage.reasoningTokens,
+  }
+}
+
+/**
  * 一次调用一行账：包一层 `onUsage` 记下最后一次 usage，调用结束（成功、失败、被掐）时写进
  * `ApiUsageLedger`。`meter` 为 `null` 时原样放行。
  */
@@ -1167,7 +1187,7 @@ function startLlmUsage<T extends { meter?: LlmUsageMeter | null }>(
           (isLlmTextAdapter(input.adapterType)
             ? LLM_TEXT_MODELS[input.adapterType]
             : input.adapterType),
-        usage,
+        usage: toLedgerTokens(input.adapterType, usage),
         ok: error === undefined,
         durationMs: Date.now() - startedAt,
         ...(error === undefined

@@ -79,6 +79,7 @@ describe('POST /api/character-cards/chub/import', () => {
     expect(body).toEqual({ success: true, data: { id: 'card_new' } })
     expect(mockImportChubCard).toHaveBeenCalledWith('clerk_test_user', {
       fullPath: 'maker/rei',
+      locale: 'en',
       node: { ...NODE, definition: { ...definition, scenario: '' } },
     })
   })

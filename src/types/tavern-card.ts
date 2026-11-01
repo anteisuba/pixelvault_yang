@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import { TAVERN_CARD } from '@/constants/cards/tavern-card'
+import { DEFAULT_LOCALE, LOCALES } from '@/i18n/routing'
 
 /**
  * 酒馆卡上的字段（V1 平铺 / V2、V3 的 `data`）。别人做的卡缺格、类型不对是常态 ——
@@ -100,6 +101,8 @@ export interface TavernCardUploadTarget {
 export const ImportTavernCardSchema = z.object({
   fileName: z.string().trim().max(TAVERN_CARD.FILE_NAME_MAX_LENGTH),
   storageKey: z.string().trim().min(1).max(300),
+  /** 界面语言：导入后自动整理按它写（⑪）。旧客户端没带 = 英文。 */
+  locale: z.enum(LOCALES).default(DEFAULT_LOCALE),
 })
 
 export type ImportTavernCardRequest = z.infer<typeof ImportTavernCardSchema>

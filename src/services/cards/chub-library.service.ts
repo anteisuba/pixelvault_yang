@@ -116,5 +116,6 @@ export async function importChubCard(
     clerkId,
     withSource,
     await fetchCardImage(node.max_res_url),
+    input.locale,
   )
 }

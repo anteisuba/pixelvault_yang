@@ -16,7 +16,10 @@ import {
   type ChubSearchResult,
   type ImportChubCardRequest,
 } from '@/types/chub-library'
-import type { TavernCardUploadTarget } from '@/types/tavern-card'
+import type {
+  ImportTavernCardRequest,
+  TavernCardUploadTarget,
+} from '@/types/tavern-card'
 import {
   CHUB_LIBRARY,
   CHUB_LIBRARY_ERRORS,
@@ -91,6 +94,7 @@ export async function importTavernCardAPI(
   file: File,
   mimeType: 'image/png' | 'application/json',
   fileName: string,
+  locale: ImportTavernCardRequest['locale'],
 ): Promise<CharacterCardResponse & { i18nKey?: string }> {
   try {
     const prepareResponse = await apiFetch(
@@ -129,7 +133,11 @@ export async function importTavernCardAPI(
     const response = await apiFetch(API_ENDPOINTS.CHARACTER_CARDS_IMPORT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fileName, storageKey: prepare.data.storageKey }),
+      body: JSON.stringify({
+        fileName,
+        storageKey: prepare.data.storageKey,
+        locale,
+      } satisfies ImportTavernCardRequest),
     })
     if (!response.ok) {
       const payload = await getErrorPayload(
@@ -248,7 +256,8 @@ export async function getChubCardAPI(
  */
 export async function importChubCardAPI({
   fullPath,
-}: Pick<ImportChubCardRequest, 'fullPath'>): Promise<
+  locale,
+}: Pick<ImportChubCardRequest, 'fullPath' | 'locale'>): Promise<
   CharacterCardResponse & { i18nKey?: string }
 > {
   const path = ChubFullPathSchema.safeParse(fullPath)
@@ -258,7 +267,11 @@ export async function importChubCardAPI({
   const card = parseChubCharacter(fetched.json)
   if (!card.success) return chubFailure(card.reason)
 
-  const body: ImportChubCardRequest = { fullPath: path.data, node: card.node }
+  const body: ImportChubCardRequest = {
+    fullPath: path.data,
+    node: card.node,
+    locale,
+  }
   try {
     const response = await apiFetch(API_ENDPOINTS.CHARACTER_CARDS_CHUB_IMPORT, {
       method: 'POST',

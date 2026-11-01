@@ -77,7 +77,7 @@ describe('importTavernCard', () => {
 
   it('PNG 卡：从 R2 读回来，解析落格，图去掉文本块后交给建卡，读完删掉', async () => {
     stored(cardPng({ name: 'Rei', personality: 'calm' }))
-    await importTavernCard('clerk_1', { fileName: 'rei.png', storageKey: KEY })
+    await importTavernCard('clerk_1', { fileName: 'rei.png', storageKey: KEY, locale: 'zh' })
 
     expect(mockGetObject).toHaveBeenCalledWith({
       key: KEY,
@@ -100,11 +100,12 @@ describe('importTavernCard', () => {
         JSON.stringify({ spec: 'chara_card_v2', data: { name: 'Rei' } }),
       ),
     )
-    await importTavernCard('clerk_1', { fileName: 'rei.json', storageKey: KEY })
+    await importTavernCard('clerk_1', { fileName: 'rei.json', storageKey: KEY, locale: 'zh' })
     expect(mockCreateImported).toHaveBeenCalledWith(
       'clerk_1',
       expect.objectContaining({ name: 'Rei' }),
       null,
+      'zh',
     )
   })
 
@@ -117,7 +118,7 @@ describe('importTavernCard', () => {
     async (_label, buffer) => {
       stored(buffer)
       await expect(
-        importTavernCard('clerk_1', { fileName: 'x', storageKey: KEY }),
+        importTavernCard('clerk_1', { fileName: 'x', storageKey: KEY, locale: 'zh' }),
       ).rejects.toMatchObject({ i18nKey: 'errors.tavernCard.notACard' })
       expect(mockCreateImported).not.toHaveBeenCalled()
       expect(mockDelete).toHaveBeenCalledWith(KEY)
@@ -131,7 +132,7 @@ describe('importTavernCard', () => {
       'generations/user_1/image/x.png',
     ]) {
       await expect(
-        importTavernCard('clerk_1', { fileName: 'x', storageKey }),
+        importTavernCard('clerk_1', { fileName: 'x', storageKey, locale: 'zh' }),
       ).rejects.toMatchObject({ i18nKey: 'errors.tavernCard.uploadMissing' })
     }
     expect(mockGetObject).not.toHaveBeenCalled()
@@ -142,12 +143,12 @@ describe('importTavernCard', () => {
       new Error('R2 object exceeds maximum size of 1 bytes (declared 2).'),
     )
     await expect(
-      importTavernCard('clerk_1', { fileName: 'big.png', storageKey: KEY }),
+      importTavernCard('clerk_1', { fileName: 'big.png', storageKey: KEY, locale: 'zh' }),
     ).rejects.toMatchObject({ i18nKey: 'errors.tavernCard.tooLarge' })
 
     mockGetObject.mockRejectedValueOnce(new Error('NoSuchKey'))
     await expect(
-      importTavernCard('clerk_1', { fileName: 'gone.png', storageKey: KEY }),
+      importTavernCard('clerk_1', { fileName: 'gone.png', storageKey: KEY, locale: 'zh' }),
     ).rejects.toMatchObject({ i18nKey: 'errors.tavernCard.uploadMissing' })
     expect(mockDelete).toHaveBeenCalledTimes(2)
   })

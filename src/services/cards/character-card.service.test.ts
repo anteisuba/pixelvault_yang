@@ -257,10 +257,12 @@ describe('createImportedCharacterCard（导入的酒馆卡，附录J ⑥）', ()
   }
 
   it('有图：上 R2 当第一张参考图（主图）；设定、标签、扩展原样落库', async () => {
-    const card = await createImportedCharacterCard('clerk_1', imported, {
-      data: Buffer.from([1, 2, 3]),
-      mimeType: 'image/webp',
-    })
+    const card = await createImportedCharacterCard(
+      'clerk_1',
+      imported,
+      { data: Buffer.from([1, 2, 3]), mimeType: 'image/webp' },
+      'zh',
+    )
 
     expect(uploadToR2).toHaveBeenCalledWith(
       expect.objectContaining({ mimeType: 'image/webp' }),
@@ -291,7 +293,12 @@ describe('createImportedCharacterCard（导入的酒馆卡，附录J ⑥）', ()
   })
 
   it('JSON 卡没有图：不上传，建一张没有主图的角色', async () => {
-    const card = await createImportedCharacterCard('clerk_1', imported, null)
+    const card = await createImportedCharacterCard(
+      'clerk_1',
+      imported,
+      null,
+      'zh',
+    )
 
     expect(uploadToR2).not.toHaveBeenCalled()
     expect(card.looks[0]!.referenceSlots).toEqual([])
@@ -301,7 +308,7 @@ describe('createImportedCharacterCard（导入的酒馆卡，附录J ⑥）', ()
     mockCount.mockResolvedValue(10_000)
 
     await expect(
-      createImportedCharacterCard('clerk_1', imported, null),
+      createImportedCharacterCard('clerk_1', imported, null, 'zh'),
     ).rejects.toMatchObject({ i18nKey: 'errors.tavernCard.limitReached' })
     expect(mockCardCreate).not.toHaveBeenCalled()
   })

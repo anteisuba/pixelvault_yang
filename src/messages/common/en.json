@@ -284,7 +284,9 @@
     },
     "common": {
       "unexpected": "An unexpected error occurred. Please try again.",
-      "databaseUnavailable": "Database service is temporarily unavailable. Please try again later."
+      "databaseUnavailable": "Database service is temporarily unavailable. Please try again later.",
+      "withDetail": "{message} ({detail})",
+      "network": "Could not reach the network. Check your connection and try again."
     },
     "webImageImport": {
       "unreachable": "The site hosting that image refused the download. Try another candidate.",
@@ -381,7 +383,8 @@
       "publish_blocked": "This work can't be made public: its prompt contains both minor-related and sexual terms. It stays in your library.",
       "publish_blocked_search": "This image used Google Search while it was made, so under Google's terms only you can see it — it can't be published.",
       "unknown": "Generation failed for an undetermined reason. Try again later. If it keeps failing, share the error details with the administrator.",
-      "unknownWithDetail": "This generation failed. The provider said: {detail}"
+      "unknownWithDetail": "This generation failed. The provider said: {detail}",
+      "execution_request_rejected": "The generation service rejected this request: {detail}"
     },
     "validation": {
       "invalidInput": "Invalid input. Please check your parameters.",

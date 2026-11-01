@@ -204,6 +204,7 @@ import {
   type ProjectRecord,
 } from '@/types'
 import { ASSISTANT_LIBRARY_SCREEN_LIMIT } from '@/types/assistant-operator'
+import { useErrorText } from '@/hooks/use-error-text'
 
 type LockedMediaType = 'image' | 'video' | 'audio' | 'model_3d'
 
@@ -370,6 +371,7 @@ export function KreaAssetBrowser({
   const tErrors = useTranslations('Errors')
   const tSearch = useTranslations('SearchGrounding')
   const tFeedback = useTranslations('Feedback')
+  const errText = useErrorText()
   const router = useRouter()
   const reducedMotion = useReducedMotion()
   const [isToolbarStuck, setIsToolbarStuck] = useState(false)
@@ -695,7 +697,7 @@ export function KreaAssetBrowser({
             void refreshCounts()
             return
           }
-          toast.error(result.error ?? t('bulkDeleteFailed'))
+          toast.error(errText.api(result, t('bulkDeleteFailed')))
         } catch {
           toast.error(t('bulkDeleteFailed'))
         }
@@ -703,6 +705,7 @@ export function KreaAssetBrowser({
       },
     })
   }, [
+    errText,
     generations,
     selectedIds,
     t,
@@ -751,7 +754,7 @@ export function KreaAssetBrowser({
     try {
       const result = await batchUpdateVisibilityAPI(ids, 'isPublic', true)
       if (!result.success) {
-        toast.error(result.error ?? t('bulkPublishFailed'))
+        toast.error(errText.api(result, t('bulkPublishFailed')))
         return
       }
       const updatedCount = result.data?.updatedCount ?? ids.length
@@ -782,6 +785,7 @@ export function KreaAssetBrowser({
       setIsBulkPublishing(false)
     }
   }, [
+    errText,
     selectedIds,
     searchGroundedSelectedIds,
     t,
@@ -808,7 +812,7 @@ export function KreaAssetBrowser({
       // the detail sheet covers it.
       const result = await batchSetLikeAPI(ids, true)
       if (!result.success) {
-        toast.error(result.error ?? t('bulkFavoriteFailed'))
+        toast.error(errText.api(result, t('bulkFavoriteFailed')))
         return
       }
       const updatedCount = result.data?.updatedCount ?? ids.length
@@ -822,7 +826,14 @@ export function KreaAssetBrowser({
     } finally {
       setIsBulkFavoriting(false)
     }
-  }, [selectedIds, t, updateGeneration, refreshCounts, exitSelectionMode])
+  }, [
+    errText,
+    selectedIds,
+    t,
+    updateGeneration,
+    refreshCounts,
+    exitSelectionMode,
+  ])
 
   /** 那几张缩小淡出 200，再从大河里拿掉（动效表「从这个夹拿出」）。 */
   const removeLeaving = useCallback(
@@ -887,7 +898,7 @@ export function KreaAssetBrowser({
         folders.find((folder) => folder.id === folderId)?.name ?? ''
       const response = await updateFolderItemsAPI(folderId, { add: ids })
       if (!response.success || !response.data) {
-        toast.error(response.error ?? t('addToFolderFailed'))
+        toast.error(errText.api(response, t('addToFolderFailed')))
         return
       }
       const added = response.data.added
@@ -915,6 +926,7 @@ export function KreaAssetBrowser({
       })
     },
     [
+      errText,
       folders,
       folderScope,
       t,
@@ -1231,11 +1243,11 @@ export function KreaAssetBrowser({
       } catch (error) {
         return {
           ok: false,
-          error: error instanceof Error ? error.message : t('uploadFailed'),
+          error: errText.thrown(error, t('uploadFailed')),
         }
       }
     },
-    [t, tErrors],
+    [errText, t, tErrors],
   )
 
   const handleUploaded = useCallback(

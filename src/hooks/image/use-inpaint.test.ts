@@ -79,7 +79,7 @@ describe('useInpaint', () => {
       expect(response).toBeNull()
     })
 
-    expect(result.current.error).toBe('bad mask')
+    expect(result.current.error).toBe('inpaintEditor.failed')
     expect(result.current.result).toBeNull()
     expect(result.current.isLoading).toBe(false)
   })

@@ -80,6 +80,7 @@ import {
 import type { PromptTemplateListItem } from './PromptTemplateList'
 import { PromptTemplateTagText } from './PromptTemplateTagText'
 import { PromptTemplateUseMenu } from './PromptTemplateUseMenu'
+import { useErrorText } from '@/hooks/use-error-text'
 
 interface PromptTemplateDetailPageProps {
   recipe: PromptTemplateListItem
@@ -119,6 +120,7 @@ export function PromptTemplateDetailPage({
 }: PromptTemplateDetailPageProps) {
   const t = useTranslations('PromptLibrary')
   const tModels = useTranslations('Models')
+  const errText = useErrorText()
   const router = useRouter()
   const reducedMotion = useReducedMotion()
   const modelLabel = usePromptTemplateModelLabel()
@@ -301,7 +303,7 @@ export function PromptTemplateDetailPage({
         router.refresh()
         return
       }
-      setFormError(response.error ?? t('updateTemplateFailed'))
+      setFormError(errText.api(response, t('updateTemplateFailed')))
     } catch {
       setFormError(t('updateTemplateFailed'))
     } finally {
@@ -318,7 +320,7 @@ export function PromptTemplateDetailPage({
         onDeleted(recipe.id)
         return
       }
-      toast.error(result.error ?? t('deleteFailed'))
+      toast.error(errText.api(result, t('deleteFailed')))
     } finally {
       setDeleting(false)
       setConfirmDelete(false)

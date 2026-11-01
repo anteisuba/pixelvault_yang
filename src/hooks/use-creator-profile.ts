@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import type { CreatorProfilePageData } from '@/types'
 import { getCreatorProfileAPI } from '@/lib/api-client'
 import { deferEffectTask } from '@/lib/defer-effect-task'
+import { useErrorText } from '@/hooks/use-error-text'
 
 export interface UseCreatorProfileReturn {
   profile: CreatorProfilePageData | null
@@ -19,6 +20,7 @@ export interface UseCreatorProfileReturn {
 
 export function useCreatorProfile(username: string): UseCreatorProfileReturn {
   const t = useTranslations('CreatorProfile')
+  const errText = useErrorText()
   const [profile, setProfile] = useState<CreatorProfilePageData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -36,10 +38,10 @@ export function useCreatorProfile(username: string): UseCreatorProfileReturn {
       setNextCursor(response.data.nextCursor)
     } else {
       setNextCursor(null)
-      setError(response.error ?? t('loadFailed'))
+      setError(errText.api(response, t('loadFailed')))
     }
     setIsLoading(false)
-  }, [username, t])
+  }, [errText, username, t])
 
   const loadMore = useCallback(async () => {
     if (!profile || !profile.hasMore || !nextCursor || isLoadingMore) return

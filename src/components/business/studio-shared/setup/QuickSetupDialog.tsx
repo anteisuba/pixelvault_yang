@@ -22,6 +22,7 @@ import {
 import { BlurSwap } from '@/components/ui/blur-swap'
 import { Spinner } from '@/components/ui/spinner'
 import { cn } from '@/lib/utils'
+import { useErrorText } from '@/hooks/use-error-text'
 
 /** 同一个型号可以配哪几家的 key（弹窗顶上那一排）。 */
 export interface QuickSetupChannelChoice {
@@ -184,6 +185,7 @@ export function QuickSetupDialog({
   // auto-picked anyway.
   const studioForm = useStudioFormOptional()
   const t = useTranslations('QuickSetup')
+  const errText = useErrorText()
 
   const guide = getAdapterApiGuide(adapterType)
   const providerConfig = getDefaultProviderConfig(adapterType)
@@ -229,7 +231,7 @@ export function QuickSetupDialog({
 
     if (!created.success || !created.data?.id) {
       setStep('error')
-      setErrorMsg(created.error ?? t('verifyFailed'))
+      setErrorMsg(errText.api(created, t('verifyFailed')))
       return
     }
 
@@ -270,6 +272,7 @@ export function QuickSetupDialog({
       setLabelValue('')
     }, 1500)
   }, [
+    errText,
     keyValue,
     anthropicWorkspaceId,
     labelValue,

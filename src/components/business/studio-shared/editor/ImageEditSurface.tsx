@@ -67,6 +67,7 @@ import type {
   CanvasDerivedImageOutput,
   ReadyCanvasImageEditCapabilityId,
 } from '@/types/canvas-image-edit'
+import { useErrorText } from '@/hooks/use-error-text'
 
 /**
  * 图片编辑的**共用躯干** —— 画布的弹窗和工作台的舞台共用这一份。
@@ -181,6 +182,7 @@ export function ImageEditSurface({
 }: ImageEditSurfaceProps) {
   const t = useTranslations('StudioImageEdit')
   const tAdvanced = useTranslations('AdvancedSettings')
+  const errText = useErrorText()
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
   useEffect(() => () => abortRef.current?.abort(), [])
@@ -416,7 +418,7 @@ export function ImageEditSurface({
       )
         return false
       if (!response.success || response.outputs.length === 0) {
-        toast.error(response.error || t('extractFailed'))
+        toast.error(errText.api(response, t('extractFailed')))
         return false
       }
       if (!onApplied(response.outputs, prompt)) {
@@ -436,6 +438,7 @@ export function ImageEditSurface({
       return true
     })
   }, [
+    errText,
     extractInvert,
     extractPrompt,
     onApplied,

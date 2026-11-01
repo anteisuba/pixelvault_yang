@@ -35,6 +35,7 @@ import {
   writeCardCache,
 } from '@/features/cards/lib/card-cache'
 import { deferEffectTask } from '@/lib/defer-effect-task'
+import { useErrorText } from '@/hooks/use-error-text'
 
 const CHARACTER_CARDS_CACHE_KEY = makeCardCacheKey('character')
 
@@ -134,6 +135,7 @@ export function useCharacterCards(): UseCharacterCardsReturn {
   const [error, setError] = useState<string | null>(null)
   const t = useTranslations('Toasts')
   const tErrors = useTranslations('Errors')
+  const errText = useErrorText()
   const locale = useLocale() as AppLocale
 
   const findCard = useCallback(
@@ -221,11 +223,11 @@ export function useCharacterCards(): UseCharacterCardsReturn {
         setCards(response.data)
         writeCardCache(CHARACTER_CARDS_CACHE_KEY, response.data)
       } else {
-        setError(response.error ?? t('characterCardLoadFailed'))
+        setError(errText.api(response, t('characterCardLoadFailed')))
       }
       if (!opts?.silent) setIsLoading(false)
     },
-    [t],
+    [errText, t],
   )
 
   useEffect(() => {
@@ -254,12 +256,12 @@ export function useCharacterCards(): UseCharacterCardsReturn {
         toast.success(t('characterCardCreated'))
         return newCard
       }
-      const msg = response.error ?? t('characterCardCreateFailed')
+      const msg = errText.api(response, t('characterCardCreateFailed'))
       setError(msg)
       toast.error(msg)
       return null
     },
-    [t],
+    [errText, t],
   )
 
   /** 导入那两条（文件 / 卡库）收尾同一套：插到最前、toast 名字；失败说人话。 */
@@ -337,12 +339,12 @@ export function useCharacterCards(): UseCharacterCardsReturn {
         toast.success(t('characterCardUpdated'))
         return true
       }
-      const msg = response.error ?? t('characterCardUpdateFailed')
+      const msg = errText.api(response, t('characterCardUpdateFailed'))
       setError(msg)
       toast.error(msg)
       return false
     },
-    [replaceCard, t],
+    [errText, replaceCard, t],
   )
 
   const setFavorite = useCallback((id: string, isFavorite: boolean) => {
@@ -367,10 +369,10 @@ export function useCharacterCards(): UseCharacterCardsReturn {
       const response = await updateCharacterCardAPI(id, { isFavorite: next })
       if (response.success) return true
       setFavorite(id, !next)
-      toast.error(response.error ?? t('characterCardUpdateFailed'))
+      toast.error(errText.api(response, t('characterCardUpdateFailed')))
       return false
     },
-    [cards, setFavorite, t],
+    [errText, cards, setFavorite, t],
   )
 
   const remove = useCallback(
@@ -390,12 +392,12 @@ export function useCharacterCards(): UseCharacterCardsReturn {
         toast.success(t('characterCardDeleted'))
         return true
       }
-      const msg = response.error ?? t('characterCardDeleteFailed')
+      const msg = errText.api(response, t('characterCardDeleteFailed'))
       setError(msg)
       toast.error(msg)
       return false
     },
-    [t],
+    [errText, t],
   )
 
   const duplicate = useCallback(
@@ -405,7 +407,7 @@ export function useCharacterCards(): UseCharacterCardsReturn {
     ): Promise<CharacterCardRecord | null> => {
       const response = await duplicateCharacterCardAPI(card.id, name)
       if (!response.success || !response.data) {
-        toast.error(response.error ?? t('characterCardCreateFailed'))
+        toast.error(errText.api(response, t('characterCardCreateFailed')))
         return null
       }
       const copy = response.data
@@ -417,7 +419,7 @@ export function useCharacterCards(): UseCharacterCardsReturn {
       toast.success(t('characterCardDuplicated', { name }))
       return copy
     },
-    [t],
+    [errText, t],
   )
 
   // ─── 造型（角色④）───────────────────────────────────────────

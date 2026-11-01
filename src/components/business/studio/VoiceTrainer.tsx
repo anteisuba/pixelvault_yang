@@ -22,6 +22,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
+import { useErrorText } from '@/hooks/use-error-text'
 
 interface UploadedFile {
   file: File
@@ -59,6 +60,7 @@ export const VoiceTrainer = memo(function VoiceTrainer({
   onCreated,
 }: VoiceTrainerProps) {
   const t = useTranslations('StudioPage')
+  const errText = useErrorText()
   const voiceCards = useVoiceCards()
 
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -169,7 +171,7 @@ export const VoiceTrainer = memo(function VoiceTrainer({
       toast.error(
         result.errorCode === VOICE_API_ERROR_CODES.MISSING_API_KEY
           ? t('voiceApiKeyRequired')
-          : (result.error ?? t('voiceTrainFailed')),
+          : errText.api(result, t('voiceTrainFailed')),
       )
     }
   }
@@ -194,7 +196,7 @@ export const VoiceTrainer = memo(function VoiceTrainer({
       toast.error(
         result.errorCode === VOICE_API_ERROR_CODES.MISSING_API_KEY
           ? t('voiceApiKeyRequired')
-          : (result.error ?? t('voiceTranscribeFailed')),
+          : errText.api(result, t('voiceTranscribeFailed')),
       )
     }
   }

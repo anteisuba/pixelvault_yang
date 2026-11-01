@@ -46,7 +46,6 @@
 
 | id                   | 事项                                                   |
 | -------------------- | ------------------------------------------------------ |
-| `f-small`            | 小域先搬（提示词、画廊、素材、设置等）                 |
 | `f-cards-lora`       | 角色卡与 LoRA 域                                       |
 | `f-studio`           | 工作台域                                               |
 | `f-assistant-canvas` | 助手与画布（助手新内核已在 `src/features/assistant/`） |
@@ -124,6 +123,10 @@
 - `u-css-split` 域样式搬出 globals.css（11-01，eae86e8）：3906 → 1574 行，九个域文件进 `src/styles/`，由 globals.css 原位 `@import`（编译出的规则逐条比对一致）；顺手删 60 条没人引用的死样式。说明见 `references/frontend.md`「CSS 与 token 现状」
 - `u-resize` 核过不换（11-01 owner 选）：全站真正的两栏拖宽只有外壳那一根线，吸默认宽 / 拖过头先变淡松手才收 / 往右拖过头收台这几样 react-resizable-panels 给不了；浮动助手边、时间线修剪、文字框高都不是分栏。以后出现新的多栏布局再用这个库
 - 手机端点击区补到 44（11-01，8248195）：预览页手机扫 8 页实际有约 40 处（不止 10-21 记的 6 个）。新增 `.touch-target`（两向补到 44，只在触屏、看不见的外扩），`.touch-target-y` 改成「至少 44」；从底层 Button / Switch / Tabs / Select / 参数药丸 / 模型药丸一起补，再补十几个自写小键。复扫只剩宽 36–40 的紧挨着的（再宽会压邻居）。待 owner 真机试手感
+
+### 按域搬家（11-01 起）
+
+- `f-small` 四个小域搬进 `src/features/<域>/`（11-01）：提示词库 f623e53、画廊 5d43604、素材 0019dac、设置 4cdc1f8。每域一个提交，`index.ts`（客户端）/ `server.ts`（服务端）两个入口，调用方同提交改完不留垫片。规矩与清单见 [`design/features-migration.md`](design/features-migration.md)；API key、拖拽 MIME、网格排版这些跨域的留在共享层
 
 ### 角色大项目（`p-character-redesign`，10-30 → 11-01 直推 main）
 

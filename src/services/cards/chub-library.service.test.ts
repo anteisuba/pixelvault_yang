@@ -52,7 +52,11 @@ afterEach(() => {
 
 describe('importChubCard', () => {
   it('字段照酒馆落点：chub 的 personality 才是经历，description 是简介；带上来源；⛔ 去问 chub', async () => {
-    await importChubCard('clerk_1', { fullPath: 'maker/rei', locale: 'zh', node: node() })
+    await importChubCard('clerk_1', {
+      fullPath: 'maker/rei',
+      locale: 'zh',
+      node: node(),
+    })
 
     expect(fetchMock).not.toHaveBeenCalled()
     const [clerkId, imported, image] = mockCreateImported.mock.calls[0]

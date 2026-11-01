@@ -1093,3 +1093,92 @@ describe('隐身', () => {
     })
   })
 })
+
+describe('聊天里重说 / 改写她最新那句（⑪ B）', () => {
+  function chatThread(reply = '才不是呢。') {
+    store.claimOperatorThreadScope('account-a:assistant', 'image')
+    store.appendOperatorEntry({
+      kind: 'user',
+      id: 'u1',
+      text: '你是不是在想我',
+      attachments: [],
+    })
+    store.appendOperatorEntry({
+      kind: 'message',
+      id: 'm1',
+      text: reply,
+      chat: true,
+    })
+  }
+
+  it('只认你最后那句之后、聊天口吻的那一段', () => {
+    chatThread()
+    expect(
+      store.operatorLatestChatReply(store.getOperatorState().entries)?.id,
+    ).toBe('m1')
+    store.appendOperatorEntry({
+      kind: 'user',
+      id: 'u2',
+      text: '嗯？',
+      attachments: [],
+    })
+    expect(
+      store.operatorLatestChatReply(store.getOperatorState().entries),
+    ).toBeNull()
+  })
+
+  it('重说：拿掉那句，新回复接成第 2 版，能左右切', () => {
+    chatThread()
+    expect(store.beginOperatorRegenerate()).toBe(true)
+    store.setOperatorStatus('working')
+    expect(store.getOperatorState().entries.map((e) => e.id)).toEqual(['u1'])
+    store.appendOperatorEntry({
+      kind: 'message',
+      id: 'm2',
+      text: '……有一点点吧。',
+      chat: true,
+    })
+    store.setOperatorStatus('idle')
+    const reply = store.operatorLatestChatReply(
+      store.getOperatorState().entries,
+    )
+    expect(reply).toMatchObject({
+      id: 'm2',
+      text: '……有一点点吧。',
+      versions: ['才不是呢。', '……有一点点吧。'],
+      versionIndex: 1,
+    })
+    store.selectOperatorReplyVersion('m2', 0)
+    expect(
+      store.operatorLatestChatReply(store.getOperatorState().entries),
+    ).toMatchObject({
+      text: '才不是呢。',
+      versionIndex: 0,
+    })
+  })
+
+  it('重说没写出来：原来那句放回去', () => {
+    chatThread()
+    store.beginOperatorRegenerate()
+    store.setOperatorStatus('working')
+    store.setOperatorStatus('error', '断了')
+    const entries = store.getOperatorState().entries
+    expect(entries.at(-1)).toMatchObject({
+      kind: 'message',
+      text: '才不是呢。',
+      chat: true,
+    })
+  })
+
+  it('改写：换掉显示的那一版，返回你那句', () => {
+    chatThread()
+    expect(store.rewriteOperatorReply('m1', '  想你干嘛。  ')).toEqual({
+      user: '你是不是在想我',
+    })
+    expect(store.getOperatorState().entries.at(-1)).toMatchObject({
+      text: '想你干嘛。',
+    })
+    expect(store.rewriteOperatorReply('m1', '想你干嘛。')).toBeNull()
+    expect(store.rewriteOperatorReply('nope', '别的')).toBeNull()
+  })
+})

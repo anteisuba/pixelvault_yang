@@ -140,6 +140,7 @@ import {
   StudioOperatorMessageBody,
   StudioOperatorUserText,
 } from '@/components/business/studio/assistant-operator/StudioOperatorMessageBody'
+import { StudioOperatorReplyActions } from '@/components/business/studio/assistant-operator/StudioOperatorReplyActions'
 import {
   toOperatorAnswerSources,
   type StudioOperatorResearchSummary,
@@ -200,6 +201,7 @@ import { toOperatorAttachment } from '@/hooks/use-studio-operator-upload'
 import { useStudioOperatorRevert } from '@/hooks/use-studio-operator-revert'
 import {
   getOperatorState,
+  operatorLatestChatReply,
   setOperatorAutoGenerate,
   setOperatorAutoReviewRounds,
   setOperatorOutOfSteps,
@@ -542,6 +544,9 @@ export function StudioOperatorPanel({
     stop,
     cancelQueued,
     newThread,
+    regenerate,
+    selectReplyVersion,
+    rewriteReply,
     answerQuestion,
     acceptRecommendedQuestions,
     goBackQuestion,
@@ -1065,6 +1070,9 @@ export function StudioOperatorPanel({
   )
 
   const working = status === 'working'
+  /** 聊天里她最新那句（⑪ B）：底下挂「重说 / 改写」。 */
+  const latestChatReplyId = operatorLatestChatReply(entries)?.id ?? null
+  const characterCardId = persona?.characterCardId ?? null
   /** ⭐ 跑着且输入框是空的 → 发送键就是**停止**（S2）；跑着但你打了字 → 仍是发送，这一句排队（§3.1 ㉒）。 */
   const showStop = working && !draft.trim()
   const reducedMotion = useReducedMotion()
@@ -2082,50 +2090,67 @@ export function StudioOperatorPanel({
         const thoughtAbsorbed = absorbedThoughts.messages.has(entry.id)
         // 只想没说、「想」又并进了过程那一行：这一段整条不画（⛔ 留一个空头像行）。
         if (thoughtAbsorbed && !entry.text) return null
+        const body = (
+          <StudioOperatorMessageBody
+            entry={entry}
+            thoughtAbsorbed={thoughtAbsorbed}
+            references={messageImageReferences.get(entry.id)}
+            findRefs={findRefs.byMessage.get(entry.id)}
+            {...(found
+              ? {
+                  webFinds: (
+                    <div
+                      data-testid="operator-answer-web-finds"
+                      className="flex min-w-0 flex-col gap-3"
+                    >
+                      {orderOperatorWebFinds(found).map(renderWebFind)}
+                    </div>
+                  ),
+                }
+              : {})}
+            {...(answer
+              ? {
+                  sources: answer.sources,
+                  pinned: isPinned(runKey, answer.summary.evidenceRefs),
+                  onTogglePin: () => togglePin(runKey, answer.summary),
+                  /* 「深入调查」= 再跑一轮并加源（§9.1 ③）。⚠ 走的是**普通
+                       一轮**（发一句话），⛔ 不另开一条绕过工具环的检索路径。 */
+                  onDeepResearch: () => submit(t('research.expandPrompt')),
+                }
+              : {})}
+            /* 「用 Grok 搜这一次」：只这一轮用创作者自己的 Grok key（owner
+                 2026-10-14）。跑着时不给：排队那一句带不上这一次的授权。 */
+            {...(answer?.offerGrokForX && !working
+              ? {
+                  onSearchXWithGrok: () =>
+                    send(t('research.xWithGrokPrompt'), [], {
+                      searchWithGrok: true,
+                    }),
+                }
+              : {})}
+          />
+        )
         return (
           <StudioOperatorTimelineRow
             key={entry.id}
             card={STUDIO_OPERATOR_CARD_KINDS.message}
             {...(persona ? { persona } : {})}
           >
-            <StudioOperatorMessageBody
-              entry={entry}
-              thoughtAbsorbed={thoughtAbsorbed}
-              references={messageImageReferences.get(entry.id)}
-              findRefs={findRefs.byMessage.get(entry.id)}
-              {...(found
-                ? {
-                    webFinds: (
-                      <div
-                        data-testid="operator-answer-web-finds"
-                        className="flex min-w-0 flex-col gap-3"
-                      >
-                        {orderOperatorWebFinds(found).map(renderWebFind)}
-                      </div>
-                    ),
-                  }
-                : {})}
-              {...(answer
-                ? {
-                    sources: answer.sources,
-                    pinned: isPinned(runKey, answer.summary.evidenceRefs),
-                    onTogglePin: () => togglePin(runKey, answer.summary),
-                    /* 「深入调查」= 再跑一轮并加源（§9.1 ③）。⚠ 走的是**普通
-                       一轮**（发一句话），⛔ 不另开一条绕过工具环的检索路径。 */
-                    onDeepResearch: () => submit(t('research.expandPrompt')),
-                  }
-                : {})}
-              /* 「用 Grok 搜这一次」：只这一轮用创作者自己的 Grok key（owner
-                 2026-10-14）。跑着时不给：排队那一句带不上这一次的授权。 */
-              {...(answer?.offerGrokForX && !working
-                ? {
-                    onSearchXWithGrok: () =>
-                      send(t('research.xWithGrokPrompt'), [], {
-                        searchWithGrok: true,
-                      }),
-                  }
-                : {})}
-            />
+            {entry.id === latestChatReplyId ? (
+              <StudioOperatorReplyActions
+                entry={entry}
+                busy={working}
+                onRegenerate={regenerate}
+                onSelectVersion={(index) => selectReplyVersion(entry.id, index)}
+                onRewrite={(text) =>
+                  rewriteReply(entry.id, text, characterCardId)
+                }
+              >
+                {body}
+              </StudioOperatorReplyActions>
+            ) : (
+              body
+            )}
           </StudioOperatorTimelineRow>
         )
       }

@@ -1087,7 +1087,15 @@
       "group": "With {name}",
       "workGroup": "Work",
       "oldChat": "An earlier chat with {name} — read only",
-      "continueChat": "Chat with her"
+      "continueChat": "Chat with her",
+      "regenerate": "Say it again",
+      "rewrite": "Rewrite",
+      "rewriteLabel": "How she should have said it",
+      "rewriteSave": "Use this",
+      "rewriteCancel": "Cancel",
+      "previousVersion": "Previous version",
+      "nextVersion": "Next version",
+      "versionOf": "{index} / {total}"
     },
     "mode": {
       "pickCharacter": "Switch assistant persona",

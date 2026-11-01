@@ -3072,6 +3072,27 @@ export type CharacterDialogueDraft =
   | { opening: string }
 
 /**
+ * 聊天里「改写」她那句（⑪ B，owner 10-31）：你那句 + 改成的样子存成一段对话示例，
+ * 卡上只留最近 `CHARACTER_PERSONA_LIMITS.examples` 段。
+ */
+export const CharacterExampleAddSchema = z.object({
+  user: z
+    .string()
+    .trim()
+    .transform((text) =>
+      text.slice(0, CHARACTER_PERSONA_LIMITS.exampleUserChars),
+    ),
+  reply: z
+    .string()
+    .trim()
+    .min(1)
+    .transform((text) =>
+      text.slice(0, CHARACTER_PERSONA_LIMITS.exampleReplyChars),
+    ),
+})
+export type CharacterExampleAdd = z.infer<typeof CharacterExampleAddSchema>
+
+/**
  * 一套造型的标签（角色④ 2026-10-22，不再分角色 / 外观两组）：给 NovelAI 这类只认标签的
  * 模型认人，如 `denia_(wuthering_waves)`、`red_hair`。LoRA 触发词不在这里，读她收的 LoRA 本身。
  */

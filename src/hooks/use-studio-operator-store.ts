@@ -36,6 +36,7 @@ import {
 } from '@/constants/assistant-operator'
 import type { GenerationReviewState } from '@/constants/assistant-operator'
 import {
+  STUDIO_OPERATOR_CHAT,
   STUDIO_OPERATOR_CONFIRM_STATUS_IDS,
   STUDIO_OPERATOR_STREAMING,
   type StudioOperatorConfirmStatus,
@@ -256,6 +257,11 @@ export interface StudioOperatorState {
    */
   chatMode: AssistantChatMode | null
   /**
+   * 聊天里正在「重说」她最新那句（⑪ B，owner 10-31）：被拿掉的那条已有的各版。这一轮停下时
+   * 新回复接成最后一版；没写出来就把原来那条放回去（⛔ 一次失败的重说吞掉她说过的话）。
+   */
+  regeneration: { versions: readonly string[] } | null
+  /**
    * 上一轮是**步数用完**停下的（D12 S12）—— 面板据此在末尾给「继续 / 先到这里」。
    * ⚠ 用户一开口（或新对话 / 换会话）就清掉。
    */
@@ -370,6 +376,7 @@ const INITIAL_STATE: StudioOperatorState = {
   offTheRecord: false,
   chatCharacter: null,
   chatMode: null,
+  regeneration: null,
   outOfSteps: false,
   capturingFrames: false,
   reviewStates: {},
@@ -980,12 +987,152 @@ export function setOperatorStatus(
 ): void {
   emit({
     ...state,
+    ...(status === 'working' ? {} : settleRegeneration()),
     status,
     errorText,
     errorTrace,
     errorCode,
     errorMissingKey,
   })
+}
+
+/**
+ * 聊天里她最新那句（⑪ B）：你最后一句话之后她说的最后一段，只看这一次打开的对话
+ * （载回来的历史只读）。`null` = 最后不是她在回话 / 不是聊天口吻。
+ */
+export function operatorLatestChatReply(
+  entries: readonly StudioOperatorThreadEntry[],
+): StudioOperatorMessageEntry | null {
+  const lastUser = entries.findLastIndex((item) => item.kind === 'user')
+  if (lastUser < 0) return null
+  const reply = entries
+    .slice(lastUser + 1)
+    .findLast((item) => item.kind === 'message' && item.text.trim() !== '')
+  return reply?.kind === 'message' && reply.chat && !reply.streaming
+    ? reply
+    : null
+}
+
+/** 一条回复已有的各版：没重说过就是它自己这一版。 */
+function versionsOfReply(reply: StudioOperatorMessageEntry): readonly string[] {
+  return reply.versions && reply.versions.length > 0
+    ? reply.versions
+    : [reply.text]
+}
+
+/**
+ * 这一轮停下时收「重说」：最后一句话之后她写出来的最后一段接成新一版；
+ * 一个字都没写出来（出错 / 停掉 / 她这次不回）就把原来那条原样放回去。
+ */
+function settleRegeneration(): Pick<
+  StudioOperatorState,
+  'entries' | 'regeneration'
+> | null {
+  const pending = state.regeneration
+  if (!pending) return null
+  const lastUser = state.entries.findLastIndex((item) => item.kind === 'user')
+  const replyIndex = state.entries.findLastIndex(
+    (item, index) =>
+      index > lastUser && item.kind === 'message' && item.text.trim() !== '',
+  )
+  const reply = replyIndex >= 0 ? state.entries[replyIndex] : undefined
+  if (reply && reply.kind === 'message') {
+    const versions = [...pending.versions, reply.text].slice(
+      -STUDIO_OPERATOR_CHAT.maxVersions,
+    )
+    const settled: StudioOperatorMessageEntry = {
+      ...reply,
+      versions,
+      versionIndex: versions.length - 1,
+    }
+    return {
+      entries: state.entries.map((item, index) =>
+        index === replyIndex ? settled : item,
+      ),
+      regeneration: null,
+    }
+  }
+  const versions = pending.versions
+  const restored: StudioOperatorMessageEntry = {
+    kind: 'message',
+    id: nextOperatorEntryId('message'),
+    text: versions.at(-1) ?? '',
+    chat: true,
+    ...(versions.length > 1
+      ? { versions, versionIndex: versions.length - 1 }
+      : {}),
+  }
+  return { entries: [...state.entries, restored], regeneration: null }
+}
+
+/**
+ * 「重说」第一步：拿掉你最后一句话之后她说的那些（含她最新那句），记下那句已有的各版。
+ * `false` = 没有能重说的。⚠ 只拿掉、不发：那一轮由驱动 hook 接着跑。
+ */
+export function beginOperatorRegenerate(): boolean {
+  if (state.status === 'working') return false
+  const reply = operatorLatestChatReply(state.entries)
+  if (!reply) return false
+  const lastUser = state.entries.findLastIndex((item) => item.kind === 'user')
+  emit({
+    ...state,
+    entries: state.entries.slice(0, lastUser + 1),
+    regeneration: { versions: versionsOfReply(reply) },
+  })
+  return true
+}
+
+/** 左右切她最新那句：切到哪版，下一轮她就接着哪版说。 */
+export function selectOperatorReplyVersion(
+  entryId: string,
+  index: number,
+): void {
+  emit({
+    ...state,
+    entries: state.entries.map((item) => {
+      if (item.kind !== 'message' || item.id !== entryId) return item
+      const version = item.versions?.[index]
+      return version === undefined
+        ? item
+        : { ...item, text: version, versionIndex: index }
+    }),
+  })
+}
+
+/**
+ * 「改写」她最新那句：换掉此刻显示的那一版（下一轮她接着改过的说）。
+ * 返回你那句话（存成对话示例用）；没改成 = `null`。
+ */
+export function rewriteOperatorReply(
+  entryId: string,
+  text: string,
+): { user: string } | null {
+  const next = text.trim()
+  const reply = operatorLatestChatReply(state.entries)
+  if (!next || !reply || reply.id !== entryId || next === reply.text.trim())
+    return null
+  const lastUser = state.entries.findLast((item) => item.kind === 'user')
+  const shown = reply.versionIndex ?? (reply.versions?.length ?? 1) - 1
+  emit({
+    ...state,
+    entries: state.entries.map((item) =>
+      item === reply
+        ? {
+            ...reply,
+            text: next,
+            ...(reply.versions && reply.versions.length > 1
+              ? {
+                  versions: reply.versions.map((version, index) =>
+                    index === shown ? next : version,
+                  ),
+                  versionIndex: shown,
+                }
+              : {}),
+          }
+        : item,
+    ),
+  })
+  return { user: lastUser?.kind === 'user' ? lastUser.text : '' }
 }
 
 /** 抽帧那一段的开关（第二期）—— 见 `capturingFrames` 头注。 */
@@ -1629,6 +1776,7 @@ export function loadOperatorThread(args: {
     offTheRecord: false,
     chatCharacter: args.chatCharacter ?? null,
     chatMode: chatModeFromHistory(args.history),
+    regeneration: null,
   })
   hydrateOperatorResume()
 }
@@ -1819,6 +1967,7 @@ export function resetOperatorThread(
     historyRounds: EMPTY_ROUNDS,
     chatCharacter: null,
     chatMode: null,
+    regeneration: null,
     sessionId: null,
     sessionSurface: null,
     entries: [],

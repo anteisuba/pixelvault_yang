@@ -4,6 +4,7 @@ import type {
   CharacterCardsResponse,
   CharacterDialogueDraft,
   CharacterDialogueDraftKind,
+  CharacterExampleAdd,
   CreateCharacterCardRequest,
   CreateCharacterLookRequest,
   UpdateCharacterCardRequest,
@@ -479,6 +480,30 @@ export async function sampleCharacterLinesAPI(id: string): Promise<{
       }
     }
     return await response.json()
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occurred'
+    return { success: false, error: message }
+  }
+}
+
+/** 聊天里「改写」她那句：存成卡上一段对话示例（只留最近 10 段）。 */
+export async function addCharacterExampleAPI(
+  id: string,
+  example: CharacterExampleAdd,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const response = await apiFetch(
+      `${API_ENDPOINTS.CHARACTER_CARDS}/${id}/examples`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(example),
+      },
+    )
+    if (response.ok) return { success: true }
+    const payload = await getErrorPayload(response, 'Saving example failed')
+    return { success: false, error: payload.error }
   } catch (error) {
     const message =
       error instanceof Error ? error.message : 'An unexpected error occurred'

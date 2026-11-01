@@ -1087,7 +1087,15 @@
       "group": "和 {name} 聊",
       "workGroup": "工作",
       "oldChat": "和{name}以前的聊天，只能看",
-      "continueChat": "和她聊天"
+      "continueChat": "和她聊天",
+      "regenerate": "重说",
+      "rewrite": "改写",
+      "rewriteLabel": "改成她该说的样子",
+      "rewriteSave": "就这样说",
+      "rewriteCancel": "算了",
+      "previousVersion": "上一版",
+      "nextVersion": "下一版",
+      "versionOf": "{index} / {total}"
     },
     "mode": {
       "pickCharacter": "换助手人设",

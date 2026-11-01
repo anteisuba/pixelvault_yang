@@ -24,7 +24,7 @@ import { llmTextCompletion } from '@/services/llm-text.service'
  * 「经历」里，身份、说话方式那几格是空的；卡多半是英文、开场白是一大段旁白、没有对话示例。
  * 导完当场跑一次助手那一家，一次做完：
  * - 把描述拆回各格，**写成你的界面语言**（owner 10-31「可以」：英文卡按你的语言整理）；
- * - 名字换成这个角色在你的语言里通行的叫法（Aemeath → 爱弥斯），没有就不动；
+ * - 名字换成这个角色在你的语言里的官方叫法（确定有才换；拿不准留原名，⛔ 自己音译——实测把 Aemeath 写成「艾梅丝」）；
  * - 开场白改成她会发的一两句话，原来那段挪进备选开场白；
  * - 对话示例：卡上有就译成只剩说的话，没有就照设定写 5 段（口吻最靠它）。
  *
@@ -44,7 +44,7 @@ export function tidySystemPrompt(locale: AppLocale): string {
   return `You tidy a character card imported from SillyTavern for a chat app where the character texts with the user as herself. The author wrote most of it into one long description; rebuild the card's fields from the material, written in ${language}.
 
 Fields (leave a field "" or [] when the material says nothing about it — never invent facts):
-- name: the name this character is commonly known by in ${language} (an official localisation when one exists); otherwise the original name unchanged.
+- name: the character's official name in ${language} only when you are sure it exists (e.g. the localisation the game or anime itself uses); when unsure, keep the original name exactly — never transliterate it yourself.
 - identity: who they are — age, occupation, affiliation, world. One or two sentences.
 - behavior: personality as concrete behaviour — what they do, how they treat people, habits. Not a list of adjectives.
 - speech: how they talk — tone, sentence length, verbal tics, how they address others.

@@ -103,7 +103,10 @@ import {
   appendOperatorPendingResult,
   appendOperatorPending,
   appendOperatorRoundSummary,
+  beginOperatorRegenerate,
   clearOperatorPrompts,
+  rewriteOperatorReply,
+  selectOperatorReplyVersion,
   clearOperatorQueue,
   dropOperatorPending,
   settleOperatorStreaming,
@@ -170,6 +173,7 @@ import {
   resolveTurnClips,
 } from '@/lib/assistant-pointed-clips'
 import { streamAssistantOperatorAPI } from '@/lib/api-client/assistant-operator'
+import { addCharacterExampleAPI } from '@/lib/api-client/cards'
 import { importWebImageAPI } from '@/lib/api-client/web-image-import'
 /** ⚠ Hard Rule 3：写库走 api-client，⛔ 组件与 hook 里不 `fetch`。 */
 import {
@@ -919,6 +923,18 @@ export interface UseAssistantOperatorResult {
    *   住在 `use-studio-operator-revert.ts` 里，两边各自取用同一份。
    */
   newThread(): void
+  /** 聊天里「重说」她最新那句（⑪ B）：按你最后那句再跑一轮，新回复接成下一版。 */
+  regenerate(): void
+  /** 左右切她最新那句的各版。 */
+  selectReplyVersion(entryId: string, index: number): void
+  /**
+   * 「改写」她最新那句：下一轮她接着改过的说；有角色时存成那张卡的一段对话示例（只留最近 10 段）。
+   */
+  rewriteReply(
+    entryId: string,
+    text: string,
+    characterCardId: string | null,
+  ): void
 }
 
 export function useAssistantOperator(
@@ -4112,6 +4128,36 @@ export function useAssistantOperator(
     resetOperatorThread()
   }, [scope, localThreadId])
 
+  const regenerate = useCallback(() => {
+    if (!isCurrentThread()) return
+    if (!beginOperatorRegenerate()) return
+    clearOperatorPrompts()
+    setOperatorOutOfSteps(false)
+    void run()
+  }, [isCurrentThread, run])
+
+  const selectReplyVersion = useCallback(
+    (entryId: string, index: number) => {
+      if (!isCurrentThread() || getOperatorState().status === 'working') return
+      selectOperatorReplyVersion(entryId, index)
+    },
+    [isCurrentThread],
+  )
+
+  const rewriteReply = useCallback(
+    (entryId: string, text: string, characterCardId: string | null) => {
+      if (!isCurrentThread() || getOperatorState().status === 'working') return
+      const rewritten = rewriteOperatorReply(entryId, text)
+      if (!rewritten || !characterCardId) return
+      // 存示例是锦上添花：失败不打扰（这一句已经改好了）。
+      void addCharacterExampleAPI(characterCardId, {
+        user: rewritten.user,
+        reply: text.trim(),
+      })
+    },
+    [isCurrentThread],
+  )
+
   return {
     domain,
     send,
@@ -4141,5 +4187,8 @@ export function useAssistantOperator(
     retryGeneration,
     rerunGeneration,
     newThread,
+    regenerate,
+    selectReplyVersion,
+    rewriteReply,
   }
 }

@@ -25,6 +25,10 @@ const VALID_ASPECT_RATIOS: readonly AspectRatio[] = [
  *
  * Permission rules:
  *   - Generation must be public OR owned by the viewer.
+ *   - Prompt text (prompt / negative / NovelAI character layout) only goes to
+ *     the owner, or to anyone when `isPromptPublic` — the same rule the gallery
+ *     list and detail reads apply (`redactPrompts`). Without it, 「用这张」on a
+ *     public image with a hidden prompt handed the hidden prompt to any viewer.
  *   - LoRA assets must be public OR owned by the viewer. Anything else
  *     contributes to `hasHiddenLoras` but is not surfaced individually.
  *
@@ -42,6 +46,7 @@ export async function getReplayPayload(
       id: true,
       userId: true,
       isPublic: true,
+      isPromptPublic: true,
       snapshot: true,
     },
   })
@@ -81,8 +86,11 @@ export async function getReplayPayload(
   // actually sent to the provider. We prefer freePrompt because it's
   // what the user typed and what they'd want to keep editing; falls back
   // to compiledPrompt for older snapshots that didn't separate them.
-  const prompt =
-    pickString(snapshot, 'freePrompt') ?? pickString(snapshot, 'compiledPrompt')
+  const canSeePrompt = isOwner || generation.isPromptPublic
+  const prompt = canSeePrompt
+    ? (pickString(snapshot, 'freePrompt') ??
+      pickString(snapshot, 'compiledPrompt'))
+    : null
   // Seed lives at snapshot top level (duplicated for quick access) and
   // also inside advancedParams. Take whichever exists; treat -1 as null
   // because -1 means "random" and isn't reproducible anyway.
@@ -92,7 +100,9 @@ export async function getReplayPayload(
   const layout = NovelAiCharacterLayoutSchema.safeParse(
     advancedParams?.novelAiLayout,
   )
-  const negativePrompt = pickString(advancedParams, 'negativePrompt')
+  const negativePrompt = canSeePrompt
+    ? pickString(advancedParams, 'negativePrompt')
+    : null
   const rawAspectRatio = pickString(snapshot, 'aspectRatio')
   const aspectRatio =
     rawAspectRatio &&
@@ -116,7 +126,7 @@ export async function getReplayPayload(
     prompt,
     seed,
     negativePrompt,
-    ...(layout.success ? { novelAiLayout: layout.data } : {}),
+    ...(canSeePrompt && layout.success ? { novelAiLayout: layout.data } : {}),
     aspectRatio,
   }
 }

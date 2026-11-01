@@ -5,6 +5,8 @@ import {
   mockUnauthenticated,
   createGET,
   createDELETE,
+  mockRateLimitAllowed,
+  mockRateLimitExceeded,
   parseJSON,
   FAKE_DB_USER,
 } from '@/test/api-helpers'
@@ -76,9 +78,31 @@ beforeEach(() => {
   mockGetFishAudioVoiceLibraryApiKey.mockReturnValue('public-fish-key')
   mockGetVoice.mockResolvedValue(FAKE_VOICE)
   mockDeleteVoice.mockResolvedValue(undefined)
+  mockRateLimitAllowed()
 })
 
 describe('GET /api/voices/[id]', () => {
+  it('rejects an id that is not a voice id before touching the platform key', async () => {
+    mockUnauthenticated()
+    const res = await GET(createGET('/api/voices/x'), {
+      params: Promise.resolve({ id: '../wallet' }),
+    })
+    const body = await parseJSON<{ errorCode: string }>(res)
+
+    expect(res.status).toBe(400)
+    expect(body.errorCode).toBe(VOICE_API_ERROR_CODES.INVALID_VOICE_ID)
+    expect(mockGetVoice).not.toHaveBeenCalled()
+  })
+
+  it('rate limits anonymous reads of the platform voice library', async () => {
+    mockUnauthenticated()
+    mockRateLimitExceeded()
+    const res = await GET(createGET(`/api/voices/${VOICE_ID}`), routeParams)
+
+    expect(res.status).toBe(429)
+    expect(mockGetVoice).not.toHaveBeenCalled()
+  })
+
   it('returns public voice detail without requiring user auth or user key', async () => {
     mockUnauthenticated()
 

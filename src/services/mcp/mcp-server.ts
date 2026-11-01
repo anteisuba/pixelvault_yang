@@ -124,7 +124,7 @@ async function guard<R extends CallToolResult | InputRequiredResult>(
   const owner = parsed.data
 
   // 权限闸（§3.3）：工具照样列出来，调用时才拦，回一句她能照着做的话。
-  const needed = MCP_TOOL_ACCESS[tool] ?? 'read'
+  const needed = MCP_TOOL_ACCESS[tool]
   if (!mcpAccessAllows(owner.access, needed)) {
     return textResult(
       `This connection can only ${owner.access === 'read' ? 'look' : 'look and change things'}; ${tool} needs "${needed}". Ask the user to raise it for this connection in ANTEI Settings → Connections.`,

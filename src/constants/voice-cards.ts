@@ -40,7 +40,16 @@ export const VOICE_API_ERROR_CODES = {
   PUBLIC_LIBRARY_UNAVAILABLE: 'PUBLIC_LIBRARY_UNAVAILABLE',
   /** 「用这段」取示例时，这副音色在 Fish 上一段示例都没有。 */
   SAMPLE_MISSING: 'VOICE_SAMPLE_MISSING',
+  INVALID_VOICE_ID: 'INVALID_VOICE_ID',
+  RATE_LIMITED: 'RATE_LIMITED',
 } as const
+
+/**
+ * Fish Audio 音色 id 的形状（32 位十六进制；放宽到常见 id 字符）。
+ * ⚠ 这个 id 会拼进 `${FISH_AUDIO_API}/model/${id}` —— 不校验的话 `../` 能把带着
+ * 平台 key 的请求引到 Fish 的别的接口上，所以凡是从客户端来的音色 id 一律先过它。
+ */
+export const FISH_AUDIO_VOICE_ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/
 
 export const VOICE_TRAIN_MAX_FILES = 8
 /** 单段样本的上限，MB。字节数由它推出来，别两处各写一个数。 */

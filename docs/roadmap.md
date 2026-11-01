@@ -45,12 +45,6 @@
 | `d-nova-sample`     | Nova 效果样件（只看，不采用） | 同一页现在的密度和 Nova 并排对比                                                                                                                                                               |
 | `d-danbooru-page`   | Danbooru 标签库单独成页       | 10-24 规范 ㊴ 已定长相：照「查资料」左列表 + 右详情，标签库整页已上（#402）。剩：确认是否还要独立路由                                                                                          |
 
-### UI 地基（剩下的）
-
-| id  | 事项                                       | 备注                        |
-| --- | ------------------------------------------ | --------------------------- |
-| —   | 删死代码 `card-tile-base`、`MediaCardTile` | #396 后已无调用方，测试还在 |
-
 ### 按域搬进 `src/features/`（第 3 批）
 
 | id                   | 事项                                                   |
@@ -123,13 +117,11 @@
 ### 收尾待确认的零碎
 
 - 评测：助手全部改完后统一跑一轮 68 题（花 owner 的 API 额度，跑前先问）。
-- `Recipe.visibility` 列在 `RETIRED_COLUMNS`，下次动数据库时删。
 - LoRA「使用次数」owner 要保留，等保存提示词让作品记下 LoRA 后再定怎么数。
 - 「从图读串」：owner 反馈导入后三个角色没了，代码未复现，等 owner 给步骤。
 - 标签台负向页签的数字：现在只数当前这一位，是否改回加总待 owner 答。
 - 助手反推画风（#427）、SDXL 系来源图底模（#409）线上端到端待 owner 实测。
 - owner 手动：删 Vercel / Worker 里的 `RUNPOD_KEY` 和 RunPod 端点、Volume。
-- 偶发测试报错：`HuggingFaceLoraLibrary.test.tsx` 结束后 Radix `react-focus-scope` 定时器在 jsdom 里 `dispatchEvent` 报错，让「Unit Tests」整片变红（10-29 #483 遇到一次），要修测试的清理。
 - NAI「Concurrent generation is locked」：5a 排队上线后线上是否归零，下次看日志时确认。
 
 ## 已完成
@@ -142,6 +134,12 @@
 - `u-css-split` 域样式搬出 globals.css（11-01，eae86e8）：3906 → 1574 行，九个域文件进 `src/styles/`，由 globals.css 原位 `@import`（编译出的规则逐条比对一致）；顺手删 60 条没人引用的死样式。说明见 `references/frontend.md`「CSS 与 token 现状」
 - `u-resize` 核过不换（11-01 owner 选）：全站真正的两栏拖宽只有外壳那一根线，吸默认宽 / 拖过头先变淡松手才收 / 往右拖过头收台这几样 react-resizable-panels 给不了；浮动助手边、时间线修剪、文字框高都不是分栏。以后出现新的多栏布局再用这个库
 - 手机端点击区补到 44（11-01，8248195）：预览页手机扫 8 页实际有约 40 处（不止 10-21 记的 6 个）。新增 `.touch-target`（两向补到 44，只在触屏、看不见的外扩），`.touch-target-y` 改成「至少 44」；从底层 Button / Switch / Tabs / Select / 参数药丸 / 模型药丸一起补，再补十几个自写小键。复扫只剩宽 36–40 的紧挨着的（再宽会压邻居）。待 owner 真机试手感
+
+### 小清理（11-01 直推 main，ea0e301）
+
+- 删死代码 `card-tile-base`、`MediaCardTile`（含测试）
+- 删停用旧列 `Recipe.visibility`、`CharacterCard.browse*` 五列（迁移 `20261101170000_drop_retired_columns`）
+- 偶发红测试：`vitest.setup.ts` 每例结束等 Radix FocusScope 卸载定时器跑完（原 `HuggingFaceLoraLibrary.test.tsx` 偶发红）
 
 ### 角色大项目（`p-character-redesign`，10-30 → 11-01 直推 main）
 

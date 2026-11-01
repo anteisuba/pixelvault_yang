@@ -24,6 +24,13 @@ interface CharacterLookStripProps {
   onRename(lookId: string, label: string | null): Promise<boolean>
   onMakeDefault(lookId: string): Promise<boolean>
   onDelete(lookId: string): Promise<boolean>
+  /**
+   * `column` = 角色页「模板」页签左列（owner 11-01 定 C）：竖排一套一行、末尾「＋ 新造型」，
+   * 改名 / 设为默认 / 删除排在下面。默认 `row` = 原来那条横的。
+   */
+  orientation?: 'row' | 'column'
+  /** 竖排时每一行右边的灰字（比如这一套有几张模板）。 */
+  meta?(lookId: string): string | null
 }
 
 /**
@@ -41,6 +48,8 @@ export function CharacterLookStrip({
   onRename,
   onMakeDefault,
   onDelete,
+  orientation = 'row',
+  meta,
 }: CharacterLookStripProps) {
   const t = useTranslations('CharacterLooks')
   const active = findLook(card, lookId)
@@ -49,48 +58,111 @@ export function CharacterLookStrip({
   const label = (look: (typeof card.looks)[number]) =>
     lookLabel(look, card.looks, t)
   const canAdd = card.looks.length < CHARACTER_CARD.MAX_LOOKS_PER_CARD
+  const column = orientation === 'column'
 
   return (
-    <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
-      <div
-        role="group"
-        aria-label={t('title')}
-        className="flex min-w-0 gap-1 overflow-x-auto rounded-full bg-muted p-0.5"
-      >
-        {card.looks.map((look) => (
-          <button
-            key={look.id}
-            type="button"
-            aria-pressed={look.id === active.id}
-            onClick={() => onSelect(look.id)}
-            className={cn(
-              'shrink-0 rounded-full px-3 py-0.5 text-xs transition-colors duration-fast coarse:min-h-11',
-              look.id === active.id
-                ? 'bg-background text-foreground shadow-xs'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            {label(look)}
-            {look.isDefault && look.label ? (
-              <span className="ml-1 text-muted-foreground">
-                · {t('default')}
-              </span>
-            ) : null}
-          </button>
-        ))}
-        {canAdd ? (
-          <button
-            type="button"
-            aria-label={t('add')}
-            onClick={() => setNaming('create')}
-            className="grid shrink-0 place-items-center rounded-full px-2 text-muted-foreground transition-colors duration-fast hover:text-foreground coarse:min-h-11 coarse:min-w-11"
-          >
-            <Plus className="size-3.5" aria-hidden />
-          </button>
-        ) : null}
-      </div>
+    <div
+      className={cn(
+        column
+          ? 'flex flex-col gap-3'
+          : 'mb-4 flex flex-wrap items-center gap-x-3 gap-y-2',
+      )}
+    >
+      {column ? (
+        <div
+          role="group"
+          aria-label={t('title')}
+          className="flex flex-col gap-0.5"
+        >
+          {card.looks.map((look) => {
+            const on = look.id === active.id
+            const note = meta?.(look.id)
+            return (
+              <button
+                key={look.id}
+                type="button"
+                aria-pressed={on}
+                onClick={() => onSelect(look.id)}
+                className={cn(
+                  'flex h-9 items-center justify-between gap-2 rounded-lg px-3 text-left text-sm transition-colors duration-fast focus-visible:outline-none focus-visible:shadow-focus coarse:min-h-11',
+                  on
+                    ? 'bg-muted font-medium text-foreground'
+                    : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
+                )}
+              >
+                <span className="truncate">
+                  {label(look)}
+                  {look.isDefault && look.label ? (
+                    <span className="ml-1 text-xs font-normal text-muted-foreground">
+                      · {t('default')}
+                    </span>
+                  ) : null}
+                </span>
+                {note ? (
+                  <span className="font-mono text-xs font-normal tabular-nums text-muted-foreground">
+                    {note}
+                  </span>
+                ) : null}
+              </button>
+            )
+          })}
+          {canAdd ? (
+            <button
+              type="button"
+              onClick={() => setNaming('create')}
+              className="flex h-9 items-center gap-1.5 rounded-lg border border-dashed border-border px-3 text-sm text-muted-foreground transition-colors duration-fast hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus coarse:min-h-11"
+            >
+              <Plus className="size-3.5" aria-hidden />
+              {t('add')}
+            </button>
+          ) : null}
+        </div>
+      ) : (
+        <div
+          role="group"
+          aria-label={t('title')}
+          className="flex min-w-0 gap-1 overflow-x-auto rounded-full bg-muted p-0.5"
+        >
+          {card.looks.map((look) => (
+            <button
+              key={look.id}
+              type="button"
+              aria-pressed={look.id === active.id}
+              onClick={() => onSelect(look.id)}
+              className={cn(
+                'shrink-0 rounded-full px-3 py-0.5 text-xs transition-colors duration-fast coarse:min-h-11',
+                look.id === active.id
+                  ? 'bg-background text-foreground shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {label(look)}
+              {look.isDefault && look.label ? (
+                <span className="ml-1 text-muted-foreground">
+                  · {t('default')}
+                </span>
+              ) : null}
+            </button>
+          ))}
+          {canAdd ? (
+            <button
+              type="button"
+              aria-label={t('add')}
+              onClick={() => setNaming('create')}
+              className="grid shrink-0 place-items-center rounded-full px-2 text-muted-foreground transition-colors duration-fast hover:text-foreground coarse:min-h-11 coarse:min-w-11"
+            >
+              <Plus className="size-3.5" aria-hidden />
+            </button>
+          ) : null}
+        </div>
+      )}
       {active.id ? (
-        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+        <div
+          className={cn(
+            'flex items-center gap-3 text-xs text-muted-foreground',
+            column && 'flex-wrap px-3',
+          )}
+        >
           <StripAction onClick={() => setNaming('rename')}>
             {t('rename')}
           </StripAction>

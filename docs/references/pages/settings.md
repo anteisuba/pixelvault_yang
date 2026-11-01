@@ -25,7 +25,7 @@
 | `/settings`           | 自身**没有内容**。桌面（`≥1024`）重定向到 `/settings/keys`；手机停在一级列表 = 底栏「我的」页（主页卡 · 提示词 · 各分区 · 偏好就地摊开 · 退出登录，iOS 稿 2026-10-16），点行进二级页 |
 | `/settings/[section]` | 五个分区：`keys` · `usage` · `preferences` · `assistant` · `connections`；其余 section **404**，不是空页                                                                             |
 
-- 分区词表与次序住 `src/constants/settings.ts`；**次序就是导航次序**，默认落点 = 第一项，⛔ 不另写一个字面量。
+- 分区词表与次序住 `src/features/settings/constants.ts`；**次序就是导航次序**，默认落点 = 第一项，⛔ 不另写一个字面量。
 - 桌面的重定向判据是**挂载时读一次 `window.innerWidth`**，不是 `useIsMobile()`——后者首帧恒为 false，手机会被弹去 keys 再也回不到列表。读一次也意味着窗口后来被拉宽不该把人从列表里弹走。
 - `?from=` 记的是「点设置之前站在哪儿」，让返回键回工作台而不是丢进历史栈。**只收站内绝对路径**：`//host` 会被浏览器当成协议相对的外链，一并拒掉。进出两侧共用 `settingsPath()` / `safeReturnPath()`（`src/constants/routes.ts`），⛔ 别在组件里各写一遍判据。
 - 形态：桌面是灰底地台上一张白卡 = 左 200px 分区导航（最底一行「退出登录」）+ 右 720px 内容；手机没有导航列，二级页顶部一行「← 分区名」。
@@ -81,7 +81,7 @@ provider · 本月请求次数 · 估算花费，末行合计；runner 另有一
 | 完成通知   | 本地偏好                                           |
 | 减少动效   | 本地偏好，与系统 `prefers-reduced-motion` 是**或** |
 
-后三项没有服务端形状，骑在既有的 `useLocalPreference` 上；键住 `src/constants/settings.ts`。⛔ 不为它们新开一张表，⛔ 不做第二张 id → 路由的映射。
+后三项没有服务端形状，骑在既有的 `useLocalPreference` 上；键住 `src/features/settings/constants.ts`。⛔ 不为它们新开一张表，⛔ 不做第二张 id → 路由的映射。
 
 ---
 
@@ -147,12 +147,12 @@ provider · 本月请求次数 · 估算花费，末行合计；runner 另有一
 
 ## Source of Truth
 
-- 路由 `src/app/[locale]/(main)/settings/{layout.tsx,page.tsx,[section]/page.tsx}` · 组件 `src/components/business/settings/`
-- 词表与本地偏好键 `src/constants/settings.ts` · 深链 `src/constants/routes.ts`（`settingsPath` / `safeReturnPath`）
+- 路由 `src/app/[locale]/(main)/settings/{layout.tsx,page.tsx,[section]/page.tsx}` · 组件 `src/features/settings/components/`
+- 词表与本地偏好键 `src/features/settings/constants.ts` · 深链 `src/constants/routes.ts`（`settingsPath` / `safeReturnPath`）
 - 记忆 `src/services/assistant-memory.service.ts` · `src/constants/assistant-memory.ts` · `src/hooks/use-assistant-memories.ts` · `src/app/api/assistant-memories/**`
-- key 行数据 `src/hooks/use-provider-key-rows.ts` · 用量 `src/hooks/use-monthly-usage.ts` + `src/services/usage.service.ts`
+- key 行数据 `src/features/settings/hooks/use-provider-key-rows.ts` · 用量 `src/features/settings/hooks/use-monthly-usage.ts` + `src/services/usage.service.ts`
 - 入口收口 `src/hooks/use-open-key-settings.ts` · 画布侧 `shell/ShellKeySettings.tsx`
-- 连接 `SettingsConnectionsSection.tsx` · `src/hooks/use-mcp-tokens.ts` · 命令与上限 `src/constants/mcp.ts` · 接口 `src/app/api/mcp/tokens/**`
+- 连接 `SettingsConnectionsSection.tsx` · `src/features/settings/hooks/use-mcp-tokens.ts` · 命令与上限 `src/constants/mcp.ts` · 接口 `src/app/api/mcp/tokens/**`
 
 ## Last Verified
 

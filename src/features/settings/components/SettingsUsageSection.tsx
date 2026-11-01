@@ -3,7 +3,7 @@
 import { useFormatter, useTranslations } from 'next-intl'
 
 import { formatUnitPriceAmount } from '@/constants/models/unit-prices'
-import { useMonthlyUsage } from '@/hooks/use-monthly-usage'
+import { useMonthlyUsage } from '@/features/settings/hooks/use-monthly-usage'
 import { CountUp } from '@/components/ui/count-up'
 import { Spinner } from '@/components/ui/spinner'
 

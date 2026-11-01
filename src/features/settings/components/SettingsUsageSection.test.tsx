@@ -10,7 +10,7 @@ vi.mock('next-intl', () => ({
 }))
 
 const mockUseMonthlyUsage = vi.hoisted(() => vi.fn())
-vi.mock('@/hooks/use-monthly-usage', () => ({
+vi.mock('@/features/settings/hooks/use-monthly-usage', () => ({
   useMonthlyUsage: mockUseMonthlyUsage,
 }))
 

@@ -2,7 +2,7 @@ import 'server-only'
 
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import { createApiPostByIdRoute } from '@/lib/api-route-factory'
-import { draftCharacterDialogue } from '@/services/cards/character-sample-lines.service'
+import { draftCharacterDialogue } from '@/features/cards/server'
 import { CharacterDialogueDraftRequestSchema } from '@/types'
 
 export const POST = createApiPostByIdRoute({

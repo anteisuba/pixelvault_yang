@@ -15,7 +15,7 @@ import { useTranslations } from 'next-intl'
 
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import type { CharacterImagePick } from '@/types'
-import { CharacterImagePickGrid } from '@/components/business/cards/CharacterImagePickGrid'
+import { CharacterImagePickGrid } from '@/features/cards'
 import { characterCoverUrl, defaultLook } from '@/lib/card-bus'
 import type { NodeCharacterMention } from '@/lib/node-character-mentions'
 import { cn } from '@/lib/utils'

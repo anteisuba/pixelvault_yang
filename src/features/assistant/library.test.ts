@@ -40,7 +40,7 @@ vi.mock('@/services/kernel/assistant-v3-steps.service', () => ({
   sayAboveCard: function* () {},
   TITLE_TEXT: { chinese: { profile: '提议设定', pickImages: '挑图' } },
 }))
-vi.mock('@/services/cards/character-card.mapper', () => ({
+vi.mock('@/features/cards/services/character-card.mapper', () => ({
   readPinnedFields: (extensions: { pinned?: string[] } | null) =>
     extensions?.pinned ?? [],
 }))

@@ -15,7 +15,7 @@ vi.mock('@/hooks/node/use-node-media-generation', () => ({
     reset: vi.fn(),
   }),
 }))
-vi.mock('@/hooks/cards/use-character-library', () => ({
+vi.mock('@/features/cards/hooks/use-character-library', () => ({
   useCharacterLibrary: () => ({ cards: [] }),
 }))
 

@@ -66,7 +66,7 @@ const DENIA = {
   ],
   persona: { speech: '' },
 }
-vi.mock('@/hooks/cards', () => ({
+vi.mock('@/features/cards/hooks', () => ({
   useCharacterCards: () => ({ cards: [DENIA] }),
 }))
 

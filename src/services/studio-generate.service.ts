@@ -7,7 +7,7 @@ import {
   compileImageOutlet,
   type CardBusCharacter,
 } from '@/lib/card-bus-compile'
-import { loadCardBusCharacters } from '@/services/cards/card-bus.service'
+import { loadCardBusCharacters } from '@/features/cards/server'
 import { submitImageGeneration } from '@/services/image/submit-image.service'
 import { ensureUser } from '@/services/user.service'
 import { GenerationValidationError } from '@/lib/errors'

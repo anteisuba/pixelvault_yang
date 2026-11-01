@@ -26,7 +26,7 @@ vi.mock('@/i18n/navigation', () => ({
 vi.mock('@/lib/api-client/assistant-operator', () => ({
   revertAssistantAssetWriteAPI,
 }))
-vi.mock('@/hooks/cards/use-character-library', () => ({
+vi.mock('@/features/cards/hooks/use-character-library', () => ({
   useCharacterLibrary: () => ({
     cards: mockLibraryCards.value,
     loaded: true,

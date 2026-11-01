@@ -10,7 +10,7 @@ import type {
 } from '@/types/assistant-operator'
 import { characterCoverUrl, defaultLook } from '@/lib/card-bus'
 import { characterImageCount, characterWork } from '@/lib/character-works'
-import { examplesToTavernText } from '@/hooks/cards/use-character-card-editor'
+import { examplesToTavernText } from '@/features/cards'
 
 /**
  * 卡片助手（第五张脸）的 `read_state` 快照 —— 角色页上**有谁**，以及**打开着的那一位**

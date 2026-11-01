@@ -14,7 +14,7 @@ import {
   UserRound,
 } from '@/components/icons'
 import { Spinner } from '@/components/ui/spinner'
-import { CharacterImagePickGrid } from '@/components/business/cards/CharacterImagePickGrid'
+import { CharacterImagePickGrid } from '@/features/cards'
 import { useStudioData } from '@/contexts/studio-context'
 import { Link } from '@/i18n/navigation'
 import { findLook, slotsCoverUrl } from '@/lib/card-bus'

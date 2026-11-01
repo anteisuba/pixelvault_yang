@@ -4,7 +4,7 @@ import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import {
   listCharacterLoraGroups,
   setLoraCharacters,
-} from '@/services/cards/character-lora.service'
+} from '@/features/cards/server'
 import { createApiGetRoute, createApiRoute } from '@/lib/api-route-factory'
 import { ListCharacterLorasQuerySchema, SetLoraCharactersSchema } from '@/types'
 

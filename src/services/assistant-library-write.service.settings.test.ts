@@ -164,11 +164,11 @@ vi.mock('@/services/project-rule.service', () => ({
     },
   ),
 }))
-vi.mock('@/services/cards/character-card.service', () => ({
+vi.mock('@/features/cards/services/character-card.service', () => ({
   createCharacterCard: vi.fn(),
   updateCharacterCard: vi.fn(),
 }))
-vi.mock('@/services/cards/character-look.service', () => ({
+vi.mock('@/features/cards/services/character-look.service', () => ({
   createCharacterLook: vi.fn(),
   updateCharacterLook: vi.fn(),
 }))

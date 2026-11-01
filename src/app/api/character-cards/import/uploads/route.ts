@@ -2,7 +2,7 @@ import 'server-only'
 
 import { PrepareTavernCardUploadSchema } from '@/types/tavern-card'
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
-import { prepareTavernCardUpload } from '@/services/cards/tavern-card-import.service'
+import { prepareTavernCardUpload } from '@/features/cards/server'
 import { createApiRoute } from '@/lib/api-route-factory'
 
 /** 导入酒馆卡第一步：签一个直传 R2 的 PUT 地址（文件 ⛔ 经过这里）。 */

@@ -6,7 +6,7 @@ import {
   getCharacterCard,
   updateCharacterCard,
   deleteCharacterCard,
-} from '@/services/cards/character-card.service'
+} from '@/features/cards/server'
 import {
   createApiGetByIdRoute,
   createApiPutRoute,

@@ -4715,11 +4715,30 @@ export const RecipeLoraSetupSchema = z.object({
 
 export type RecipeLoraSetup = z.infer<typeof RecipeLoraSetupSchema>
 
+/**
+ * 模板挂在哪位角色的哪套造型下（owner 11-01：通用「存成模板」框的「挂到」）。
+ * 存在 `params.characterLink`，角色页「模板」页签按它找。
+ */
+export const RecipeCharacterLinkSchema = z.object({
+  cardId: z.string().trim().min(1).max(64),
+  lookId: z.string().trim().min(1).max(64),
+})
+export type RecipeCharacterLink = z.infer<typeof RecipeCharacterLinkSchema>
+
+/** 存成模板框里「存哪些」没勾的那几样（不写 = 都存）。 */
+export const RecipeIncludeSchema = z.object({
+  negative: z.boolean().optional(),
+  params: z.boolean().optional(),
+  references: z.boolean().optional(),
+})
+
 export const CreateRecipeFromGenerationSchema = z.object({
   generationId: z.string().trim().min(1),
   name: z.string().trim().max(200).optional(),
   /** LoRA 台「存成模板」带上这一张出图那一刻的整套；别处存的不带。 */
   loraSetup: RecipeLoraSetupSchema.optional(),
+  characterLink: RecipeCharacterLinkSchema.optional(),
+  include: RecipeIncludeSchema.optional(),
 })
 
 /** 「使用」记一次最近使用时间 —— 没有要带的字段。 */

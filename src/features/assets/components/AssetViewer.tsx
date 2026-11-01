@@ -388,12 +388,7 @@ function AssetViewerAside({
               {t('detailCopyLink')}
             </ResponsiveMenuItem>
             <ResponsiveMenuItem
-              onSelect={() =>
-                void actions.saveRecipe().then((saved) => {
-                  if (saved) toast.success(tPrompts('saveTemplateSuccess'))
-                })
-              }
-              disabled={actions.isSavingRecipe}
+              onSelect={actions.saveRecipe}
               className="rounded-xl"
             >
               <FileText aria-hidden />

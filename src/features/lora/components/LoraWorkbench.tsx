@@ -78,7 +78,6 @@ import {
 } from '@/constants/runner-checkpoints'
 import { RUNNER_SAMPLERS, RUNNER_SCHEDULERS } from '@/constants/runner-sampling'
 import { STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR } from '@/constants/studio-assistant-operator'
-import { ROUTES } from '@/constants/routes'
 import { studioLibraryPath } from '@/constants/studio-shell'
 import { usePathname, useRouter } from '@/i18n/navigation'
 import type { AspectRatio } from '@/constants/config'
@@ -160,10 +159,8 @@ import {
   isDistilledRecipeSampling,
 } from '@/features/lora/lib/civitai-recipe-to-generation'
 import { resolveCivitaiLoraAPI } from '@/lib/api-client/lora-assets'
-import {
-  createRecipeFromGenerationAPI,
-  getRecipeAPI,
-} from '@/lib/api-client/recipes'
+import { getRecipeAPI } from '@/lib/api-client/recipes'
+import { SaveGenerationTemplateDialog } from '@/components/business/save-template/SaveGenerationTemplateDialog'
 import {
   buildRecipeLoraSetup,
   readRecipeAspectRatio,
@@ -2455,34 +2452,19 @@ function GenerateBranch({
   const [templateSaves, setTemplateSaves] = useState<
     Record<string, 'saving' | 'saved'>
   >({})
+  // 点了先弹通用「存成模板」框（owner 11-01：所有入口统一弹框，存哪些默认全勾）。
+  const [templateDialogItem, setTemplateDialogItem] =
+    useState<LoraResultHistoryItem | null>(null)
   const handleSaveTemplate = useCallback(
-    async (item: LoraResultHistoryItem) => {
+    (item: LoraResultHistoryItem) => {
       if (templateSaves[item.id]) return
-      setTemplateSaves((prev) => ({ ...prev, [item.id]: 'saving' }))
-      const setup = RecipeLoraSetupSchema.safeParse(item.setup)
-      const response = await createRecipeFromGenerationAPI({
-        generationId: item.id,
-        ...(setup.success ? { loraSetup: setup.data } : {}),
-      })
-      if (response.success) {
-        setTemplateSaves((prev) => ({ ...prev, [item.id]: 'saved' }))
-        toast.success(t('generate.templateSaved'), {
-          action: {
-            label: t('generate.templateSavedOpen'),
-            onClick: () => router.push(ROUTES.PROMPTS),
-          },
-        })
-        return
-      }
-      setTemplateSaves((prev) => {
-        const next = { ...prev }
-        delete next[item.id]
-        return next
-      })
-      toast.error(errText.api(response, t('generate.templateSaveFailed')))
+      setTemplateDialogItem(item)
     },
-    [errText, router, t, templateSaves],
+    [templateSaves],
   )
+  const templateDialogSetup = templateDialogItem
+    ? RecipeLoraSetupSchema.safeParse(templateDialogItem.setup)
+    : null
 
   // 「模板」药丸（模板 C，与图片台同一块面板）：台面换上模板面板，左上「当前标签」把
   // 这一刻的整套存下（提示词 · 负面 · 开着的 LoRA 与权重 · 底模 · 比例 · 参数），点一张
@@ -4703,6 +4685,28 @@ function GenerateBranch({
         onOpenChange={setLoraPickerOpen}
         stage={stageContext}
       />
+      {templateDialogItem ? (
+        <SaveGenerationTemplateDialog
+          generation={{
+            id: templateDialogItem.id,
+            url: templateDialogItem.url,
+            name: templateDialogItem.loraName ?? undefined,
+          }}
+          loraSetup={
+            templateDialogSetup?.success ? templateDialogSetup.data : undefined
+          }
+          open
+          onOpenChange={(next) => {
+            if (!next) setTemplateDialogItem(null)
+          }}
+          onSaved={() =>
+            setTemplateSaves((prev) => ({
+              ...prev,
+              [templateDialogItem.id]: 'saved',
+            }))
+          }
+        />
+      ) : null}
     </StudioOperatorHostProvider>
   )
 }

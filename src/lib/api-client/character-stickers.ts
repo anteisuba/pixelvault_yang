@@ -92,3 +92,20 @@ export async function deleteCharacterStickerAPI(
     return toApiFailure(error)
   }
 }
+
+/** 素材库里你出的一张也放进她的表情包（存成模板框的勾）。 */
+export async function addCharacterStickerFromGenerationAPI(
+  cardId: string,
+  generationId: string,
+): Promise<ApiResult<CharacterStickerRecord>> {
+  try {
+    const response = await apiFetch(`${cardStickers(cardId)}/from-generation`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ generationId }),
+    })
+    return await parse(response, 'Failed to add sticker')
+  } catch (error) {
+    return toFailure(error, 'Failed to add sticker')
+  }
+}

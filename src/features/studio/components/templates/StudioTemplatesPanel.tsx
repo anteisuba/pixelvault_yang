@@ -32,8 +32,15 @@ import {
   matchesRecipeTemplateScope,
 } from '@/lib/recipe-template-kind'
 import { getDefaultTemplateName } from '@/lib/recipe-template-name'
+import { parseTagChips, serializeTagChips } from '@/lib/tag-composer'
+import { pickTemplateParams, styleChipsOf } from '@/lib/template-save-include'
 import { cn } from '@/lib/utils'
-import type { CreateRecipeRequest, OutputType, RecipeRecord } from '@/types'
+import type {
+  CreateRecipeRequest,
+  OutputType,
+  RecipeCharacterLink,
+  RecipeRecord,
+} from '@/types'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import {
@@ -45,6 +52,12 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { getChipZoomMotion } from '@/components/business/studio-shared/primitives/tool-surface'
 import { useErrorText } from '@/hooks/use-error-text'
+import {
+  SaveTemplateDialog,
+  type SaveTemplateOption,
+  type SaveTemplateResult,
+} from '@/components/business/save-template/SaveTemplateDialog'
+import { useTemplateSaveExtras } from '@/hooks/use-template-save-extras'
 
 /** 首次加载那一屏的占位卡数（≈ 两行）。 */
 const SKELETON_COUNT = 9
@@ -109,6 +122,8 @@ export interface StudioTemplateSaveContext {
    * StudioProvider，自己给）。
    */
   lastGeneration?: TemplateCoverSource | null
+  /** 「挂到」默认挂谁：标签台正在编辑的那一位是从「我的角色」拷进来的就挂她。 */
+  defaultLink?: RecipeCharacterLink | null
 }
 
 interface TemplateCoverSource {
@@ -171,6 +186,9 @@ export function StudioTemplatesPanel({
   const t = useTranslations('StudioTemplates')
   const tFeedback = useTranslations('Feedback')
   const errText = useErrorText()
+  const tSave = useTranslations('SaveTemplate')
+  const tOption = useTranslations('SaveTemplate.options')
+  const applyExtras = useTemplateSaveExtras()
   const router = useRouter()
   const reducedMotion = useReducedMotion()
   const studioGen = useStudioGenOptional()
@@ -210,7 +228,7 @@ export function StudioTemplatesPanel({
     prompt: string
     name: string
   } | null>(null)
-  const [savingNow, setSavingNow] = useState(false)
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false)
   const [menuFor, setMenuFor] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<RecipeRecord | null>(null)
   const [renaming, setRenaming] = useState<string | null>(null)
@@ -310,26 +328,113 @@ export function StudioTemplatesPanel({
     ...(parentGenerationId ? { parentGenerationId } : {}),
   })
 
-  const saveNow = async () => {
-    if (!canSave) return
-    const name = getDefaultTemplateName(currentPrompt)
-    setSavingNow(true)
-    try {
-      const result = await createRecipeAPI(
-        buildPayload(name, currentPrompt, lastOwn?.id),
-      )
-      if (result.success && result.data) {
-        addRecipe({
-          ...result.data,
-          coverThumbnailUrl: result.data.coverThumbnailUrl ?? lastCover,
-        })
-        setSavedFor({ prompt: currentPrompt, name })
-        return
-      }
-      toast.error(errText.api(result, t('saveFailed')))
-    } finally {
-      setSavingNow(false)
+  /** 「存下」= 弹通用「存成模板」框（owner 11-01：所有入口一个框，存哪些按台变）。 */
+  const saveNow = () => {
+    if (canSave) setSaveDialogOpen(true)
+  }
+
+  const advanced = (save.params.advancedParams ?? {}) as Record<string, unknown>
+  const castCount =
+    (advanced.novelAiLayout as { characters?: unknown[] } | undefined)
+      ?.characters?.length ?? 0
+  const loraCount = Array.isArray(advanced.loras) ? advanced.loras.length : 0
+  const hasNegative =
+    typeof advanced.negativePrompt === 'string' &&
+    advanced.negativePrompt.trim().length > 0
+  const stylePrompt =
+    kind === 'tags'
+      ? serializeTagChips(styleChipsOf(parseTagChips(currentPrompt)))
+      : ''
+  const saveOptions: SaveTemplateOption[] = [
+    ...(kind === 'lora' && loraCount > 0
+      ? [
+          {
+            key: 'lora',
+            label: tOption('lora'),
+            detail: tOption('loraDetail', { count: loraCount }),
+          },
+        ]
+      : []),
+    {
+      key: 'prompt',
+      label: tOption(kind === 'tags' ? 'whole' : 'prompt'),
+      locked: true,
+    },
+    ...(kind === 'tags' && castCount > 0
+      ? [
+          {
+            key: 'characters',
+            label: tOption('characters'),
+            detail: String(castCount),
+          },
+        ]
+      : []),
+    ...(hasNegative ? [{ key: 'negative', label: tOption('negative') }] : []),
+    {
+      key: 'params',
+      label: tOption('params'),
+      detail: tOption('paramsDetail'),
+    },
+    ...(stylePrompt
+      ? [
+          {
+            key: 'style',
+            label: tOption('style'),
+            detail: tOption('styleDetail'),
+          },
+        ]
+      : []),
+  ]
+  const lastOwnUrl = lastOwn
+    ? (lastOwn.url ?? lastOwn.previewUrl ?? lastCover)
+    : null
+
+  const submitSave = async (result: SaveTemplateResult) => {
+    const params = pickTemplateParams(save.params, result.include)
+    const response = await createRecipeAPI({
+      ...buildPayload(result.name, currentPrompt, lastOwn?.id),
+      params: {
+        ...params,
+        ...(result.link ? { characterLink: result.link } : {}),
+      },
+    })
+    if (!response.success || !response.data) {
+      toast.error(errText.api(response, t('saveFailed')))
+      return false
     }
+    addRecipe({
+      ...response.data,
+      coverThumbnailUrl: response.data.coverThumbnailUrl ?? lastCover,
+    })
+    setSavedFor({ prompt: currentPrompt, name: result.name })
+    // 画风另存一张（只带画风那几格，不挂角色：画风谁都能套）。
+    if (stylePrompt && result.include.style !== false) {
+      const style = await createRecipeAPI({
+        ...buildPayload(
+          tSave('styleName', { name: result.name }),
+          stylePrompt,
+          lastOwn?.id,
+        ),
+        params: { promptDialect: 'tags' },
+      })
+      if (style.success && style.data)
+        addRecipe({
+          ...style.data,
+          coverThumbnailUrl: style.data.coverThumbnailUrl ?? lastCover,
+        })
+      else toast.error(style.error ?? t('saveFailed'))
+    }
+    toast.success(tSave('saved'))
+    await applyExtras({
+      link: result.link,
+      image:
+        lastOwn && lastOwnUrl && lastOwn.outputType === 'IMAGE'
+          ? { url: lastOwnUrl, generationId: lastOwn.id }
+          : null,
+      images: result.alsoImages,
+      stickers: result.alsoStickers,
+    })
+    return true
   }
 
   const openForm = () => {
@@ -596,15 +701,15 @@ export function StudioTemplatesPanel({
                 {saved ? null : (
                   <button
                     type="button"
-                    disabled={!canSave || savingNow}
-                    onClick={() => void saveNow()}
+                    disabled={!canSave}
+                    onClick={saveNow}
                     className={cn(
                       'rounded-lg bg-foreground px-3 text-2sm font-medium text-background transition-opacity duration-fast ease-linear hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-40',
                       // 手机：整宽 36px（画板「模板 C · 手机」）。
                       phone ? 'h-9 w-full' : 'ml-0.5 h-7.5 self-start',
                     )}
                   >
-                    {savingNow ? t('saving') : t('save')}
+                    {t('save')}
                   </button>
                 )}
               </div>
@@ -946,6 +1051,18 @@ export function StudioTemplatesPanel({
           </div>
         ) : null}
       </div>
+      <SaveTemplateDialog
+        open={saveDialogOpen}
+        onOpenChange={setSaveDialogOpen}
+        coverUrl={lastCover}
+        defaultName={getDefaultTemplateName(currentPrompt)}
+        options={saveOptions}
+        defaultLink={save.defaultLink ?? null}
+        canAttachImage={Boolean(
+          lastOwn && lastOwnUrl && lastOwn.outputType === 'IMAGE',
+        )}
+        onSave={submitSave}
+      />
       <ConfirmDialog
         open={deleteTarget !== null}
         onOpenChange={(open) => {

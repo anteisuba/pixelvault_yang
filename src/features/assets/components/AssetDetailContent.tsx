@@ -119,7 +119,6 @@ export function AssetDetailContent({
     isDeleting,
     isPublishing,
     isFavoriting,
-    isSavingRecipe,
     isDownloading,
     isSettingCover,
   } = actions
@@ -316,23 +315,11 @@ export function AssetDetailContent({
         <FeedbackButton
           feedback={recipeFeedback.feedback}
           className={buttonVariants({ variant: 'ghost', size: 'icon' })}
-          onClick={() =>
-            void actions.saveRecipe().then((saved) => {
-              if (saved)
-                recipeFeedback.show({
-                  label: tPrompts('saveTemplateSuccess'),
-                })
-            })
-          }
+          onClick={actions.saveRecipe}
           aria-label={tPrompts('saveAsTemplate')}
           title={tPrompts('saveAsTemplate')}
-          disabled={isSavingRecipe}
         >
-          {isSavingRecipe ? (
-            <Spinner size="md" />
-          ) : (
-            <FileText className="size-4" />
-          )}
+          <FileText className="size-4" />
         </FeedbackButton>
         {isAudioAsset && (
           <Button

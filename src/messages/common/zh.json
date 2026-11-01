@@ -424,9 +424,6 @@
       "storageUnreachable": "无法上传到图片存储，通常是网络或存储跨域（CORS）配置问题。请重试，若持续请联系管理员。",
       "storageRejected": "图片存储拒绝了本次上传。请重试，若持续请联系管理员。"
     },
-    "scriptDoc": {
-      "promptTooLong": "剧本加上这条消息太长，一次改不完。请缩短这条消息、精简镜头描述，或拆成更少的镜头。"
-    },
     "vision": {
       "invalidOutput": "看图结果没能整理成结构化结论（已重试一次）。换一张图或稍后再试。",
       "insufficientMedia": "对比至少需要两张图片。",

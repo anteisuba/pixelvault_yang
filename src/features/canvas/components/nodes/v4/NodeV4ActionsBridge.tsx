@@ -39,29 +39,6 @@ import type {
   NodeWorkflowMediaKind,
   NodeWorkflowNodeType,
 } from '@/constants/node-types'
-import type { ScriptDocDepth, ScriptDocStage } from '@/constants/script-doc'
-import type { ScriptDoc } from '@/types/script-doc'
-
-/**
- * 一次剧本投影的账。
- *
- * ⚠ ③d-4 从 `use-node-workflow`（已删）搬来。它描述的是**投影的结果**，与 v3 的
- * `updateNodeData` 无关，翻转后要继续活着 —— 剧本工作区那句「新建 N / 保留 M」
- * 读的就是它。
- */
-export interface ApplyScriptDocResult {
-  /** 这次投影新建的节点数。 */
-  created: number
-  /** 已存在、且被剧本改写了字段的节点数。 */
-  updated: number
-  /** 已经有对应节点、原样保留的（幂等复用）。 */
-  skipped: number
-  /** 因为大纲里删掉了对应条目而移除的节点数。 */
-  removed: number
-  /** 因为大纲变了而移除的剧本托管边数。 */
-  removedEdges: number
-  refusal: 'noScriptDoc' | 'emptyScriptDoc' | null
-}
 
 /** 一批 op 实际执行完的账：给用户一句可信的回执，而不是「已应用」四个字。 */
 export interface NodeAssistantOpRunResult {
@@ -128,24 +105,6 @@ export const NODE_CANVAS_RUN_STATES = ['running', 'success', 'error'] as const
 
 export type NodeCanvasRunState = (typeof NODE_CANVAS_RUN_STATES)[number]
 
-/** 剧本笺工作区的状态与三个动作（右栏 workspace 独有，不属于图的 op）。 */
-export interface NodeCanvasScriptDocActions {
-  readonly stage: ScriptDocStage | undefined
-  readonly depth: ScriptDocDepth | undefined
-  readonly locks: string[] | undefined
-  /** 分镜静帧开关。`undefined` = 默认开。 */
-  readonly shotStills: boolean | undefined
-  setStage(value: ScriptDocStage): void
-  setDepth(value: ScriptDocDepth): void
-  setLocks(value: string[]): void
-  setShotStills(value: boolean): void
-  setDoc(scriptDoc: ScriptDoc | undefined): void
-  /** 投影进图。 */
-  applyToGraph(): ApplyScriptDocResult
-  /** 同一套计算但不提交 —— 「确认镜头」之前看得见将建/将更新/将移除。 */
-  previewProjection(): ApplyScriptDocResult
-}
-
 export interface NodeCanvasActions {
   /**
    * **唯一的状态写入口**：把一条 v4 op 交给实现方的同一条路径
@@ -202,7 +161,6 @@ export interface NodeCanvasActions {
    * ⚠ 它**不是**普通生成的别名：这一次按**助手发起**算，结果重新回到待审队列。
    */
   regenerateForReview(nodeId: string, promptAppend?: string): Promise<void>
-  readonly scriptDoc: NodeCanvasScriptDocActions
 }
 
 const NodeCanvasActionsContext = createContext<NodeCanvasActions | null>(null)

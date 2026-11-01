@@ -632,7 +632,6 @@
       "title": "Assistant dock",
       "expand": "Expand to outline workspace",
       "restore": "Back to dock",
-      "scriptDocApply": "Generate nodes",
       "clarify": {
         "title": "A few quick questions",
         "customPlaceholder": "Or type your own…",
@@ -641,13 +640,6 @@
         "skipped": "skipped",
         "answerPrefix": "My answers:"
       },
-      "scriptDocDepthSimple": "Lean",
-      "scriptDocDepthStandard": "Standard",
-      "scriptDocDepthCinematic": "Full",
-      "scriptDocDepthSimpleHint": "Roles + dialogue only",
-      "scriptDocDepthStandardHint": "+ emotion, length, style",
-      "scriptDocDepthCinematicHint": "+ world, psychology, cinematic shots",
-      "scriptDocViewEdit": "Edit",
       "leanOpener": "Your canvas is still empty. Shall we start with the story outline?",
       "leanOpenerActive": "Your canvas already has nodes — want me to shape them into a story outline?",
       "starters": {

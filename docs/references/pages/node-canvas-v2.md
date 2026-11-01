@@ -414,15 +414,11 @@ Canvas 是 ANTEI 的北极星能力之一（与 LoRA 并列双核，见 [`../pro
 
 ## 12. 剧本投影
 
-`projectScriptDocToGraphV4` 是**唯一**的生产投影，**单向**：剧本文档投影出图，图上改文本**不回写文档**。
-
-三条纪律：① **纯函数**（`now` / `makeId` 注入，不碰 DOM）；② **每条边都带槽**，槽由端口表决定，⛔ 不在投影里现推；③ 创建顺序固定（角色 → 每镜的 文本/静帧/镜头/音色 → 成片），同一个 doc 两次投影产出同一批 id。
-
-⚠ **角色投影成 `image.character` 而不是文本节点**：角色卡是生成落点（它自己出图），降成一段文字会让「先出角色图再进镜头」整条路径消失。镜头文本走**单一 Markdown 正文**（`text.shotNote`，`defaultRole: script`），四栏合并成带小标题的正文，拆合在投影层。
+⛔ **旧剧本笺的 ScriptDoc 投影（`projectScriptDocToGraphV4`）已删**（入口剧本笺 10-22 删，投影、起草接口 `/api/studio/node-script-doc`、拆解接口 `/api/script-breakdown` 与 v4 状态上的 `scriptDoc*` 2026-11-01 删，`p-canvas-shotlist`）。ScriptDoc schema 只剩 v3 读端用来定迁移镜号，随 v3 读端一起删（§14.4）。剧本进图现在只有下面 §12.1 这一条；镜头信息往后住在镜头卡上，见 [`design/canvas-shotlist.md`](../../design/canvas-shotlist.md)。
 
 ### 12.1 剧本节点与 `project_script`（进度表 24，2026-09-19 落地）
 
-与上面那条 ScriptDoc 投影**并列、不互相取代**：那一条的入口是剧本笺（`ScriptDocWorkspace`，2026-10-22 已删），这一条的入口是**画布上的一张卡**——`text.script`，卡面自己带分镜列表和一颗「确认 · 投影 N 镜」。设计真值是画板 `DesignD7Script.dc.html`（owner D7 ④ 通过）。
+这一条的入口是**画布上的一张卡**——`text.script`，卡面自己带分镜列表和一颗「确认 · 投影 N 镜」。设计真值是画板 `DesignD7Script.dc.html`（owner D7 ④ 通过）。
 
 **卡面三段**（`text/ScriptCardBody.tsx`）：卡头一行元信息（`N 幕 · N 镜`）· 大纲（第一个分段标记之前的正文）· 分镜列表（每行 `S01 · 一句话 · 4s`，变了的那一行虚线 + 「已变」）· 底部一颗按钮。按钮三态 = 投影状态：`确认 · 投影 N 镜`（近黑主动作）/ `已投影 · N 镜`（停用）/ `重投影 · N 镜变`。
 
@@ -680,7 +676,6 @@ v3 读端（服务端透传 + 客户端惰性升级 + `legacy` 节点空壳 + v3
 - 发送前校验（§1.15）：`src/features/canvas/hooks/use-node-media-generation-v4.ts`（`preflightV4Plan`）· `src/constants/video-model-send-plan.ts`（上限与参考时长）· `src/lib/media-probe.ts`（`probeMediaDuration`）
 - 图引擎与存储：`src/features/canvas/hooks/use-node-graph-v4.ts` · `use-node-workflow-store.ts` · `use-cast-ingest-engine-v4.ts` · `use-node-generation-reconcile-v4.ts` · `src/lib/node-workflow-adopt-merge.ts` · `src/features/canvas/services/node-workflow.service.ts` · `prisma/schema.prisma`（`NodeWorkflowProject.state`）
 - 迁移：`src/lib/node-workflow-migrate-v4.ts`（含 `migrateRetireVideoMergeV4`）· `src/lib/node-workflow-v4-upgrade.ts` · `src/lib/node-v4-merge.ts` · `scripts/migrate-node-workflow-v4.ts`
-- 投影：`src/lib/node-workflow-script-doc-v4.ts`
 - 九宫格分镜（§3）：`src/constants/storyboard-grid.ts` · `src/lib/storyboard-grid.ts`（模板 / 找缝 / 切块）· `src/features/canvas/hooks/use-storyboard-grid-split.ts`（自动 / 手动切、落卡）· `src/features/canvas/components/nodes/v4/image/use-storyboard-landing.ts`（落位动画）· `src/features/canvas/components/workbench-v4/StoryboardBrackets.tsx`（括号）
 - 开合（§1 第 12 条 A）：`nodes/v4/chrome/chrome-motion.ts`（三套形态）· `chrome/NodeChromeLayer.tsx`（工具条 / 提示词栏）· `chrome/use-grow-from-origin.ts`（快速看 / 画中框从卡长出、缩回卡）· `studio-shared/primitives/tool-surface.tsx` 的 `StudioChipZoomProvider`（画布 chip 弹层）
 - 视觉：`docs/references/ui-defaults.md` §3.1 / §4.1 · `src/app/globals.css` · `src/app/canvas.css`（§15 收尾中）

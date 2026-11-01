@@ -220,7 +220,7 @@ export const VISION_LIMITS = {
    */
   videoTimeoutMs: 120_000,
   /**
-   * 结构化输出的重试次数。照 `node-script-doc.service.ts` 的形态：
+   * 结构化输出的重试次数：
    * **打回重试一次就够** —— 同一个模型同一份提示词连错两次，第三次不会变对。
    */
   maxAttempts: 2,

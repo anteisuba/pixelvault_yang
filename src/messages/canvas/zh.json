@@ -632,7 +632,6 @@
       "title": "助手面板",
       "expand": "展开剧本工作区",
       "restore": "收回 dock",
-      "scriptDocApply": "生成到画布",
       "clarify": {
         "title": "先确认几个问题",
         "customPlaceholder": "或自己填…",
@@ -641,13 +640,6 @@
         "skipped": "跳过",
         "answerPrefix": "我的回答："
       },
-      "scriptDocDepthSimple": "精简",
-      "scriptDocDepthStandard": "标准",
-      "scriptDocDepthCinematic": "完整",
-      "scriptDocDepthSimpleHint": "只要角色 + 台词",
-      "scriptDocDepthStandardHint": "+ 情感 · 时长 · 风格",
-      "scriptDocDepthCinematicHint": "+ 背景 · 性格 · 电影级镜头",
-      "scriptDocViewEdit": "编辑",
       "leanOpener": "看了你的画布，还空着。先聊聊故事大纲？",
       "leanOpenerActive": "画布上已经有节点了——要我帮你把它们捋成故事大纲吗？",
       "starters": {

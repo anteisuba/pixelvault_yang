@@ -129,7 +129,7 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
   - 3D 预检（`image-3d-prep.service.ts`）：看不了图就安静跳过语义预检。
   - 角色试读（`character-sample-lines.service.ts`）：缺 key 照实报，角色页那一格写原因。
   - 旧助手（音频台 / LoRA 台，`prompt-assistant.service.ts` 的 `resolvePromptAssistantRoute`）：面板点名了 key 就用那把；没点名时对话与查证都用助手那一家、那个型号。
-  - 自己有 key 选择器的几样（提示词润色 `prompt-enhance`、角色卡搜索与合并 `character-card`、生成反馈、提示词反馈、剧本文档 `node-script-doc`）：点名了 key 照旧用那把（那一家的默认型号）；没点名 = `resolveKeyOrAssistantRoute`（`assistant-route.service.ts`）→ 助手那一家、那个型号，要看图的传 `seesImages`，看不了照实抛。角色一致性评分（`character-scoring`）本就没有 key 选择器，`apiKeyId` 参数删了，一律走助手那一家，看不了图照实抛。
+  - 自己有 key 选择器的几样（提示词润色 `prompt-enhance`、角色卡搜索与合并 `character-card`、生成反馈、提示词反馈）：点名了 key 照旧用那把（那一家的默认型号）；没点名 = `resolveKeyOrAssistantRoute`（`assistant-route.service.ts`）→ 助手那一家、那个型号，要看图的传 `seesImages`，看不了照实抛。角色一致性评分（`character-scoring`）本就没有 key 选择器，`apiKeyId` 参数删了，一律走助手那一家，看不了图照实抛。
   - 画布规划器（`node-planner-route.service.ts`）选「自动」= `resolveAssistantRoute`（五家都做得了，规划只要一段 JSON）；那一家没 key / key 解不开照实抛。点名了 Gemini / DeepSeek / OpenAI 的照旧。
   - `resolveLlmTextRoute(userId, apiKeyId)` 只认**点名的**那把 key（`apiKeyId` 必填），解不开照实抛；不点名就按顺序挑一家的那一圈已删 —— 没点名时由 `resolveAssistantRoute` / `resolveKeyOrAssistantRoute` 挑出助手那把 key 再递进来。
 - **看图**：v3 只由主模型看（look）；看不了就直说（上「看图」「角色页」）。v2 那几条看图腿（`analyze_references` · 看结果 / 看片 · `inspect_asset_folder` · `canvas_look_at` · `check_character_look` · 搜图后的看缩略图）一律用这一轮那把 key、那个型号；看不了 → `visionUnavailable` 拒绝并附一句实话（「这一轮的模型看不了图，没有换别家」），搜图那一步只跳过看缩略图。`resolveVisionRoute`（`/api/vision/analyze`、视频分析）：调用方递了 key 就用它，没递就是助手那一家；看不了 → `AssistantModelCannotSeeError`（`ASSISTANT_MODEL_CANNOT_SEE`）。旧的 `findVisionCapableRoute`、`VISION_ADAPTER_PREFERENCE` / `VISION_CAPABLE_ADAPTERS` / `VISION_NO_CAPABLE_ROUTE` 与结果里的 `borrowedRoute` / `borrowedVisionRoute` 都删了。

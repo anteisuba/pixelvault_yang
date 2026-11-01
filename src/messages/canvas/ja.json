@@ -632,7 +632,6 @@
       "title": "アシスタントドック",
       "expand": "構成ワークスペースを展開",
       "restore": "ドックに戻す",
-      "scriptDocApply": "ノードを生成",
       "clarify": {
         "title": "いくつか確認させてください",
         "customPlaceholder": "自由に入力…",
@@ -641,13 +640,6 @@
         "skipped": "スキップ",
         "answerPrefix": "回答:"
       },
-      "scriptDocDepthSimple": "簡易",
-      "scriptDocDepthStandard": "標準",
-      "scriptDocDepthCinematic": "フル",
-      "scriptDocDepthSimpleHint": "キャラと台詞のみ",
-      "scriptDocDepthStandardHint": "+ 感情・尺・スタイル",
-      "scriptDocDepthCinematicHint": "+ 世界観・心理描写・映画のようなカット",
-      "scriptDocViewEdit": "編集",
       "leanOpener": "キャンバスはまだ空です。まず物語の構成から相談しましょうか？",
       "leanOpenerActive": "キャンバスにすでにノードがあります——ストーリー構成にまとめましょうか？",
       "starters": {

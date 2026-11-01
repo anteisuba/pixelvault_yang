@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { NODE_STATUS_IDS, NODE_TYPE_IDS } from '@/constants/node-types'
-import { NodeScriptDocRequestSchema, ScriptDocSchema } from '@/types/script-doc'
+import { ScriptDocSchema } from '@/types/script-doc'
 import { NodeWorkflowStateDataSchema } from '@/types/node-workflow'
 
 const VALID_DOC = {
@@ -194,45 +194,5 @@ describe('NodeWorkflowStateDataSchema scriptDoc field', () => {
     expect(parsed.scriptDocDepth).toBeUndefined()
     expect(parsed.scriptDocLocks).toBeUndefined()
     expect(parsed.nodes).toEqual([])
-  })
-})
-
-describe('NodeScriptDocRequestSchema stage', () => {
-  const BASE = {
-    messages: [{ role: 'user' as const, content: 'A signal in a garden.' }],
-    locale: 'en' as const,
-  }
-
-  it('accepts a request without a stage (back-compat default)', () => {
-    const parsed = NodeScriptDocRequestSchema.safeParse(BASE)
-    expect(parsed.success).toBe(true)
-    if (parsed.success) expect(parsed.data.stage).toBeUndefined()
-  })
-
-  it('accepts the outline and shots stages', () => {
-    expect(
-      NodeScriptDocRequestSchema.safeParse({ ...BASE, stage: 'outline' })
-        .success,
-    ).toBe(true)
-    expect(
-      NodeScriptDocRequestSchema.safeParse({ ...BASE, stage: 'shots' }).success,
-    ).toBe(true)
-  })
-
-  it('rejects an unknown stage', () => {
-    expect(
-      NodeScriptDocRequestSchema.safeParse({ ...BASE, stage: 'final' }).success,
-    ).toBe(false)
-  })
-
-  it('accepts the simple / standard / cinematic depths and rejects others', () => {
-    for (const depth of ['simple', 'standard', 'cinematic']) {
-      expect(
-        NodeScriptDocRequestSchema.safeParse({ ...BASE, depth }).success,
-      ).toBe(true)
-    }
-    expect(
-      NodeScriptDocRequestSchema.safeParse({ ...BASE, depth: 'epic' }).success,
-    ).toBe(false)
   })
 })

@@ -128,7 +128,6 @@ import { canvasCapabilityRuntime } from '@/lib/canvas-capability-runtime'
 import type { StudioOperatorCanvasUpscaleOutcome } from '@/lib/studio-operator-apply'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
 import type { NodeV4, NodeWorkflowStateV4 } from '@/types/node-workflow'
-import type { ScriptDoc } from '@/types/script-doc'
 
 import {
   AlertDialog,
@@ -1460,78 +1459,6 @@ function NodeWorkbenchV4Inner() {
           promptAppend ? { prompt: promptAppend } : {},
         )
       },
-      scriptDoc: {
-        stage: store.state.scriptDocStage,
-        depth: store.state.scriptDocDepth,
-        locks: store.state.scriptDocLocks,
-        shotStills: store.state.scriptDocShotStills,
-        setStage: (value) =>
-          commitState({ ...store.state, scriptDocStage: value }),
-        setDepth: (value) =>
-          commitState({ ...store.state, scriptDocDepth: value }),
-        setLocks: (value) =>
-          commitState({ ...store.state, scriptDocLocks: value }),
-        setShotStills: (value) =>
-          commitState({ ...store.state, scriptDocShotStills: value }),
-        setDoc: (scriptDoc: ScriptDoc | undefined) =>
-          commitState({ ...store.state, scriptDoc }),
-        applyToGraph: () => {
-          const doc = store.state.scriptDoc
-          if (!doc) {
-            return {
-              created: 0,
-              updated: 0,
-              skipped: 0,
-              removed: 0,
-              removedEdges: 0,
-              refusal: 'noScriptDoc' as const,
-            }
-          }
-          const result = graph.projectScriptDoc(
-            doc,
-            store.state.scriptDocShotStills,
-          )
-          lastCreatedRef.current = result.created
-          return {
-            created: result.created.length,
-            updated: 0,
-            skipped: result.kept.length,
-            removed: result.removed.length,
-            removedEdges: 0,
-            refusal: null,
-          }
-        },
-        /**
-         * 「确认镜头」之前的预览 —— **只算不提交**。⚠ 与 `applyToGraph` 走同一条
-         * 投影（⛔ 不另写一份算法），差别只在这里不调 `onStateChange`。
-         */
-        previewProjection: () => {
-          const doc = store.state.scriptDoc
-          if (!doc) {
-            return {
-              created: 0,
-              updated: 0,
-              skipped: 0,
-              removed: 0,
-              removedEdges: 0,
-              refusal: 'noScriptDoc' as const,
-            }
-          }
-          const projectedShots = doc.shots?.length ?? 0
-          return {
-            created: projectedShots,
-            updated: 0,
-            skipped: graph.nodes.filter(
-              (node) => node.data.shotNo === undefined,
-            ).length,
-            removed: graph.nodes.filter(
-              (node) => node.data.shotNo !== undefined,
-            ).length,
-            removedEdges: 0,
-            refusal: projectedShots === 0 ? ('emptyScriptDoc' as const) : null,
-          }
-        },
-      },
     }),
     [
       graph,
@@ -1540,8 +1467,6 @@ function NodeWorkbenchV4Inner() {
       openEditDesk,
       reviewMode,
       generation,
-      store.state,
-      commitState,
     ],
   )
 

@@ -1522,12 +1522,12 @@ export const NodeWorkflowStateV4Schema = z.object({
   version: z.literal(4),
   nodes: z.array(NodeV4Schema),
   edges: z.array(NodeWorkflowEdgeV4Schema),
-  scriptDoc: ScriptDocSchema.optional().catch(undefined),
+  /*
+   * ⛔ 没有 `scriptDoc*`：旧剧本笺的事实模型与它的四个 UI 状态 2026-11-01 删
+   * （`p-canvas-shotlist`）。存量 v4 项目里那几个键读时被 zod 剥掉、下次保存即消失
+   * —— 入口 10-22 已删，它们早就是没人读的副本。
+   */
   canvasAppearance: CanvasAppearanceSchema.optional().catch(undefined),
-  scriptDocStage: z.enum(SCRIPT_DOC_STAGES).optional().catch(undefined),
-  scriptDocDepth: z.enum(SCRIPT_DOC_DEPTHS).optional().catch(undefined),
-  scriptDocLocks: z.array(z.string()).optional().catch(undefined),
-  scriptDocShotStills: z.boolean().optional().catch(undefined),
   /**
    * 剪辑台的时间线（S8）。缺席 = 这个项目还没进过剪辑台。
    *

@@ -424,9 +424,6 @@
       "storageUnreachable": "Couldn't upload the image. Check your connection and try again. If it still fails, contact the administrator.",
       "storageRejected": "Image storage rejected the upload. Please retry; if it persists, contact the administrator."
     },
-    "scriptDoc": {
-      "promptTooLong": "The script plus this message is too long to revise in one request. Shorten the message or the shot summaries, or split it into fewer shots."
-    },
     "vision": {
       "invalidOutput": "Couldn't read the analysis results. Try another image or try again later.",
       "insufficientMedia": "Comparing needs at least two images.",

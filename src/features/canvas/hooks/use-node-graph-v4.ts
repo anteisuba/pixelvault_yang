@@ -63,10 +63,8 @@ import {
   placeRowBeside,
   tidyByFlow,
 } from '@/lib/node-flow-layout'
-import { projectScriptDocToGraphV4 } from '@/lib/node-workflow-script-doc-v4'
 import { readVideoRail, remapVideoRailMentions } from '@/lib/video-node-rail'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
-import type { ScriptDoc } from '@/types/script-doc'
 import type {
   NodeV4,
   NodeV4Data,
@@ -140,13 +138,6 @@ export interface NodeGraphV4LayoutSlide {
   readonly from: ReadonlyMap<string, NodeGraphV4Offset>
   /** 这一次是**新长出来**的卡（派生卡从来源边上滑出）：滑的同时从透明淡入。 */
   readonly appear?: ReadonlySet<string>
-}
-
-/** 一次重投影的账。`kept` = 用户手工建的散节点（无 `shotNo`），原样留着。 */
-export interface NodeGraphV4Projection {
-  readonly created: readonly string[]
-  readonly removed: readonly string[]
-  readonly kept: readonly string[]
 }
 
 /** 一张还没建出来的卡：落位只需要知道它是哪一类（估尺寸用）。 */
@@ -304,9 +295,6 @@ export interface NodeGraphV4 {
     before: NodeWorkflowStateV4,
     after: NodeWorkflowStateV4,
   ): void
-
-  /* ── 剧本投影（单向）──────────────────────────────────────────────── */
-  projectScriptDoc(doc: ScriptDoc, shotStills?: boolean): NodeGraphV4Projection
 }
 
 function mintId(prefix: string): string {
@@ -1204,53 +1192,6 @@ export function useNodeGraphV4({
     return ok ? lastCreatedRef.current : null
   }, [dispatch])
 
-  /* ── 剧本投影（单向）──────────────────────────────────────────────── */
-  const projectScriptDoc = useCallback(
-    (doc: ScriptDoc, shotStills?: boolean): NodeGraphV4Projection => {
-      const projected = projectScriptDocToGraphV4(doc, {
-        makeId: (prefix) => mintId(prefix),
-        ...(shotStills === undefined ? {} : { shotStills }),
-      })
-
-      /**
-       * 重投影的孤儿判据（§8e-5「剧本文档改单向投影」）：
-       *   · **有 `shotNo`** 的节点属于剧本管辖 → 整批换成新投影；
-       *   · **没有 `shotNo`** 的散节点是用户手工建的 → 原样留着；
-       *   · 留下来的边只有**两端都还在**的才留（槽合法性由下面那次 reconcile
-       *     复核：端口表变了/槽满了的边会在 binding 里落空而不是悄悄生效）。
-       * ⛔ 不按 `scriptRef` 反查 —— v4 节点上没有这个字段（C3b 已删）。
-       */
-      const kept = state.nodes.filter((node) => node.data.shotNo === undefined)
-      const keptIds = new Set(kept.map((node) => node.id))
-      const removed = state.nodes
-        .filter((node) => node.data.shotNo !== undefined)
-        .map((node) => node.id)
-      const keptEdges = state.edges.filter(
-        (edge) => keptIds.has(edge.source) && keptIds.has(edge.target),
-      )
-
-      const merged: NodeWorkflowStateV4 = {
-        version: 4,
-        nodes: [...kept, ...projected.nodes],
-        edges: [...keptEdges, ...projected.edges],
-      }
-      const next = reconcileStateSlots(merged)
-      // 投影是「把剧本这一版铺上去」，一次 = 一个撤销条目。
-      setUndoStack((stack) => [
-        ...stack,
-        { undo: { kind: 'state', state }, redoState: next },
-      ])
-      setRedoStack([])
-      onStateChange(next)
-      return {
-        created: projected.nodes.map((node) => node.id),
-        removed,
-        kept: kept.map((node) => node.id),
-      }
-    },
-    [state, onStateChange, setUndoStack, setRedoStack],
-  )
-
   return {
     state,
     nodes: state.nodes,
@@ -1286,6 +1227,5 @@ export function useNodeGraphV4({
     undo,
     redo,
     recordExternalChange,
-    projectScriptDoc,
   }
 }

@@ -960,6 +960,11 @@ export const RATE_LIMIT_CONFIGS = {
   sensitiveWrite: { limit: 10, windowSeconds: 60 },
   /** Outbound verification / proxy / download endpoints */
   outboundProbe: { limit: 6, windowSeconds: 60 },
+  /**
+   * 匿名可达、却花平台 key 的读口（公共声音库），按 IP 限。CDN 缓存挡住了同一
+   * 查询的重复请求，这道闸挡的是换着参数绕缓存刷平台 key 的。
+   */
+  anonymousPlatformRead: { limit: 60, windowSeconds: 60 },
 } as const
 
 /** Centralized maxDuration configs for serverless functions */

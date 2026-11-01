@@ -247,6 +247,28 @@ describe('proxy internal execution routes', () => {
     expect(authChecks()).toBe(0)
   })
 
+  it.each([
+    ['GET', '/api/voices', 0],
+    ['GET', '/api/voices/0123abcd', 0],
+    ['DELETE', '/api/voices/0123abcd', 1],
+    ['POST', '/api/voices/sample', 1],
+    ['POST', '/api/voices/transcribe', 1],
+    ['GET', '/api/voices/sample/extra', 1],
+  ])(
+    'only lets public voice-library reads through: %s %s',
+    async (method, pathname, checks) => {
+      await middleware(
+        {
+          method,
+          nextUrl: { pathname, origin: 'https://antei.example.com' },
+        } as never,
+        {} as never,
+      )
+
+      expect(authChecks()).toBe(checks)
+    },
+  )
+
   it('protects nested /api/users routes that are not public profiles', async () => {
     await middleware(
       {

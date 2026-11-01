@@ -36,6 +36,7 @@ function buildGeneration(overrides: Record<string, unknown> = {}) {
     id: 'gen_1',
     userId: OWNER.id,
     isPublic: true,
+    isPromptPublic: true,
     snapshot: {
       advancedParams: { loras: [{ url: URL_A, scale: 0.9 }] },
     },
@@ -115,6 +116,32 @@ describe('getReplayPayload', () => {
     expect(result?.seed).toBe(12345)
     expect(result?.negativePrompt).toBe('worst quality, lowres')
     expect(result?.aspectRatio).toBe('9:16')
+  })
+
+  it('hides the prompt of a public image whose prompt is private from other viewers', async () => {
+    const snapshot = {
+      freePrompt: 'secret prompt',
+      advancedParams: {
+        negativePrompt: 'secret negative',
+        novelAiLayout: { characters: [] },
+      },
+    }
+    mockFindUnique.mockResolvedValue(
+      buildGeneration({ isPromptPublic: false, snapshot }),
+    )
+    mockEnsureUser.mockResolvedValue(STRANGER)
+    const result = await getReplayPayload('gen_1', STRANGER.clerkId)
+    expect(result?.prompt).toBeNull()
+    expect(result?.negativePrompt).toBeNull()
+    expect(result).not.toHaveProperty('novelAiLayout')
+
+    const anonymous = await getReplayPayload('gen_1', null)
+    expect(anonymous?.prompt).toBeNull()
+
+    mockEnsureUser.mockResolvedValue(OWNER)
+    const own = await getReplayPayload('gen_1', OWNER.clerkId)
+    expect(own?.prompt).toBe('secret prompt')
+    expect(own?.negativePrompt).toBe('secret negative')
   })
 
   it('treats seed=-1 (random) as null so the client lets the provider re-pick', async () => {

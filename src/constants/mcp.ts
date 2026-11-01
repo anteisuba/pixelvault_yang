@@ -90,15 +90,27 @@ export const MCP_TOOL_IDS = {
   getGeneration: 'get_generation',
 } as const
 
-/** 每个工具要哪一档；没列的工具（只读）read 就够。 */
-export const MCP_TOOL_ACCESS: Partial<
-  Record<(typeof MCP_TOOL_IDS)[keyof typeof MCP_TOOL_IDS], McpAccessLevel>
+/**
+ * 每个工具要哪一档。⚠ 完整的 Record，⛔ 不用 Partial + 「没列就 read」：新加一个会写的
+ * 工具时忘了登记，类型检查就会拦下，而不是默默落到只读权限也能调。
+ */
+export const MCP_TOOL_ACCESS: Record<
+  (typeof MCP_TOOL_IDS)[keyof typeof MCP_TOOL_IDS],
+  McpAccessLevel
 > = {
+  list_projects: 'read',
+  read_project: 'read',
+  look_at: 'read',
   apply_ops: 'edit',
   render: 'edit',
+  get_render: 'read',
+  find: 'read',
+  look: 'read',
   edit: 'edit',
   undo: 'edit',
+  list_models: 'read',
   generate: 'generate',
+  get_generation: 'read',
 }
 
 /**

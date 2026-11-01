@@ -74,7 +74,7 @@ import { useSpringSortableTransition } from '@/hooks/use-spring-sortable-transit
 import {
   AssetFolderMenu,
   type AssetFolderMenuActions,
-} from '@/components/business/assets/AssetFolderMenu'
+} from '@/features/assets/components/AssetFolderMenu'
 
 export type AssetFolderScope =
   | { kind: 'all' }

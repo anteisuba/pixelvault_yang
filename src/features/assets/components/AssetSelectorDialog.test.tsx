@@ -14,7 +14,7 @@ vi.mock('@/hooks/use-mobile', () => ({
 }))
 
 // picker 现在是自己的任务型 shell（page §8），不再复用整个素材页组件。
-vi.mock('@/components/business/assets/AssetPickerBrowser', () => ({
+vi.mock('@/features/assets/components/AssetPickerBrowser', () => ({
   AssetPickerBrowser: ({
     mediaType,
     mode,

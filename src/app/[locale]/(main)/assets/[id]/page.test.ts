@@ -28,7 +28,7 @@ vi.mock('@/services/user.service', () => ({
   ensureUser: vi.fn(async () => ({ id: 'db-user-1' })),
 }))
 
-vi.mock('@/components/business/AssetDetailContent', () => ({
+vi.mock('@/features/assets', () => ({
   AssetDetailContent: () => null,
 }))
 

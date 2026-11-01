@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { AssetTile } from '@/components/business/assets/AssetTile'
+import { AssetTile } from '@/features/assets/components/AssetTile'
 import { Play } from '@/components/icons'
 import { FAKE_GENERATION } from '@/test/api-helpers'
 import type { GenerationRecord } from '@/types'

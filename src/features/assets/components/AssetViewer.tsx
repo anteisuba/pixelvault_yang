@@ -20,8 +20,8 @@ import {
 import { COPIED_ACK_MS } from '@/constants/motion'
 import { USER_UPLOAD_PROVIDER } from '@/constants/uploads'
 import type { GenerationRecord, ProjectRecord } from '@/types'
-import { AssetAddToFolderPanel } from '@/components/business/assets/AssetAddToFolderPanel'
-import { AssetDetailOverlays } from '@/components/business/assets/AssetDetailOverlays'
+import { AssetAddToFolderPanel } from '@/features/assets/components/AssetAddToFolderPanel'
+import { AssetDetailOverlays } from '@/features/assets/components/AssetDetailOverlays'
 import { getChipZoomMotion } from '@/components/business/studio-shared/primitives/tool-surface'
 import { SearchGroundingPublishNote } from '@/components/business/studio-shared/search-grounding/SearchGroundingPublishNote'
 import {
@@ -55,7 +55,7 @@ import {
 } from '@/components/ui/feedback-button'
 import { FavoriteBookmark } from '@/components/ui/favorite-bookmark'
 import { Spinner } from '@/components/ui/spinner'
-import { useAssetDetailActions } from '@/hooks/use-asset-detail-actions'
+import { useAssetDetailActions } from '@/features/assets/hooks/use-asset-detail-actions'
 import { getFolderMembershipsAPI } from '@/lib/api-client/projects'
 import {
   buildAssetRecipeText,

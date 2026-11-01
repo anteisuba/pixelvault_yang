@@ -18,7 +18,7 @@ vi.mock('@/components/business/studio-shared/ImagePickerPopoverBody', () => ({
 vi.mock('@/i18n/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
 }))
-vi.mock('@/components/business/AssetSelectorDialog', () => ({
+vi.mock('@/features/assets', () => ({
   AssetSelectorDialog: () => null,
 }))
 

@@ -402,7 +402,7 @@ import {
   revertAssistantAssetWrite,
   setAssetFavorites,
   tagAssets,
-} from '@/services/asset-library-write.service'
+} from '@/features/assets/services/asset-library-write.service'
 
 const USER = 'user-1'
 const OTHER = 'user-2'

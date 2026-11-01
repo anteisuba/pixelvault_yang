@@ -2,7 +2,7 @@ import 'server-only'
 
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import { createApiRoute } from '@/lib/api-route-factory'
-import { revertAssistantAssetWriteForClerkId } from '@/services/asset-library-write.service'
+import { revertAssistantAssetWriteForClerkId } from '@/features/assets/server'
 import { AssistantAssetWriteRevertSchema } from '@/types/assistant-operator'
 
 /**

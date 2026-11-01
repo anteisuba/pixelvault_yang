@@ -6,7 +6,7 @@ import {
   ResponsiveDialogDescription,
   ResponsiveDialogTitle,
 } from '@/components/ui/responsive-dialog'
-import { AssetPickerBrowser } from '@/components/business/assets/AssetPickerBrowser'
+import { AssetPickerBrowser } from '@/features/assets/components/AssetPickerBrowser'
 import { LIBRARY_PICKER_DIALOG_CLASS } from '@/components/ui/library-picker'
 import { useIsMobile } from '@/hooks/use-mobile'
 import type { GenerationRecord, OutputTypeValue } from '@/types'

@@ -5,7 +5,7 @@ import * as Toolbar from '@radix-ui/react-toolbar'
 import { useTranslations } from 'next-intl'
 
 import { Paperclip } from '@/components/icons'
-import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
+import { AssetSelectorDialog } from '@/features/assets'
 import {
   StudioToolPopoverContent,
   StudioToolSurface,

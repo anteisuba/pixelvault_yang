@@ -8,7 +8,7 @@ import {
   revertAssistantAssetWrite,
   setAssetFavorites,
   tagAssets,
-} from '@/services/asset-library-write.service'
+} from '@/features/assets/server'
 import {
   createCharacter,
   createLook,

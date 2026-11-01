@@ -10,7 +10,7 @@ import {
   addGenerationsToFolder,
   removeGenerationsFromFolder,
   topSortOrder,
-} from '@/services/asset-folder.service'
+} from '@/features/assets/services/asset-folder.service'
 import { revertLibraryWrite } from '@/services/assistant-library-write.service'
 import { batchSetLike, getUserLikes } from '@/services/like.service'
 import { ensureUser } from '@/services/user.service'

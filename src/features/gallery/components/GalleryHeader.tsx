@@ -11,7 +11,7 @@ import {
   getAvailableVideoModels,
 } from '@/constants/models'
 import { DURATION, EASE_STANDARD, SPRING } from '@/constants/motion'
-import { AssetFacetBar } from '@/components/business/assets/AssetFacetBar'
+import { AssetFacetBar } from '@/features/assets'
 import { BlurSwap } from '@/components/ui/blur-swap'
 import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import type { GalleryFilters } from '@/hooks/use-gallery'

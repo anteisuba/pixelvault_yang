@@ -16,7 +16,7 @@ import {
   MEDIA_TILE_PILL_CLASS,
   MediaTileShade,
 } from '@/components/ui/media-tile'
-import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
+import { AssetSelectorDialog } from '@/features/assets'
 import {
   appendSlotImages,
   type CharacterLookDraft,

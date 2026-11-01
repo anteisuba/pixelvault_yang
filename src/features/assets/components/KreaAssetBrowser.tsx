@@ -33,33 +33,33 @@ import {
 } from 'motion/react'
 import { toast } from 'sonner'
 
-import { AssetAddToFolderPanel } from '@/components/business/assets/AssetAddToFolderPanel'
-import { AssetFolderMenu } from '@/components/business/assets/AssetFolderMenu'
-import { AssetMobileActionBar } from '@/components/business/assets/AssetMobileActionBar'
+import { AssetAddToFolderPanel } from '@/features/assets/components/AssetAddToFolderPanel'
+import { AssetFolderMenu } from '@/features/assets/components/AssetFolderMenu'
+import { AssetMobileActionBar } from '@/features/assets/components/AssetMobileActionBar'
 import {
   AssetSelectionMorph,
   SelectionArmButton,
   SelectionLink,
-} from '@/components/business/assets/AssetSelectionMorph'
+} from '@/features/assets/components/AssetSelectionMorph'
 import {
   AssetFolderSidebar,
   type AssetFolderScope,
-} from '@/components/business/assets/AssetFolderSidebar'
-import { AssetTile } from '@/components/business/assets/AssetTile'
+} from '@/features/assets/components/AssetFolderSidebar'
+import { AssetTile } from '@/features/assets/components/AssetTile'
 import {
   AssetEmptyFolder,
   AssetEmptyLibrary,
   AssetEmptySearch,
-} from '@/components/business/assets/AssetStateBlocks'
+} from '@/features/assets/components/AssetStateBlocks'
 import { FeedTail } from '@/components/business/FeedTail'
 import { PageLoadError } from '@/components/business/PageLoadError'
 import { revealStep, useRevealBatchStart } from '@/components/ui/load-reveal'
 import { Skeleton } from '@/components/ui/skeleton'
 import { DropOverlay } from '@/components/ui/drop-overlay'
 import { useSlowLoadingNotice } from '@/hooks/use-slow-loading-notice'
-import { AssetUploadQueuePanel } from '@/components/business/assets/AssetUploadQueuePanel'
-import { AssetUploadTile } from '@/components/business/assets/AssetUploadTile'
-import { AssetViewer } from '@/components/business/assets/AssetViewer'
+import { AssetUploadQueuePanel } from '@/features/assets/components/AssetUploadQueuePanel'
+import { AssetUploadTile } from '@/features/assets/components/AssetUploadTile'
+import { AssetViewer } from '@/features/assets/components/AssetViewer'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -96,7 +96,7 @@ import {
 import { LibraryPillSelect, LibrarySearch } from '@/components/ui/library-kit'
 import { MediaTileMoreTrigger } from '@/components/ui/media-tile'
 import { useHandToAssistant } from '@/hooks/use-hand-to-assistant'
-import { useAssetFolders } from '@/hooks/use-asset-folders'
+import { useAssetFolders } from '@/features/assets/hooks/use-asset-folders'
 import { useGallery, type GalleryFilters } from '@/hooks/use-gallery'
 import { useLocalPreference } from '@/hooks/use-local-preference'
 import { useLibraryRailOpen } from '@/hooks/use-library-rail'
@@ -108,7 +108,7 @@ import {
   useAssetUploadQueue,
   type UploadQueueItem,
   type UploadResult,
-} from '@/hooks/use-asset-upload-queue'
+} from '@/features/assets/hooks/use-asset-upload-queue'
 import {
   useAssetGridViewport,
   useJustifiedGrid,
@@ -133,7 +133,7 @@ import { LIBRARY_GRID } from '@/constants/library-grid'
 import {
   DEFAULT_AUDIO_ASSET_PREVIEW_IMAGE,
   getAudioAssetPreviewImage,
-} from '@/constants/asset-previews'
+} from '@/features/assets/constants'
 import {
   ASSET_BROWSER_PAGE_SIZE,
   ASSET_FOLDER_RAIL_GAP,

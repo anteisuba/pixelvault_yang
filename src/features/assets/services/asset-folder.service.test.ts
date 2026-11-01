@@ -14,7 +14,7 @@ import {
   countFolderItems,
   folderScopeWhere,
   topSortOrder,
-} from '@/services/asset-folder.service'
+} from '@/features/assets/services/asset-folder.service'
 
 beforeEach(() => {
   vi.clearAllMocks()

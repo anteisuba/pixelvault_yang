@@ -55,7 +55,7 @@ const WEB_VIDEO_SEARCH_SOURCE = readFileSync(
 )
 const ASSET_WRITE_SERVICE_PATH = join(
   process.cwd(),
-  'src/services/asset-library-write.service.ts',
+  'src/features/assets/services/asset-library-write.service.ts',
 )
 const ASSET_WRITE_SOURCE = readFileSync(ASSET_WRITE_SERVICE_PATH, 'utf8')
 
@@ -295,7 +295,7 @@ const ALLOWED_SERVICE_IMPORTS = new Set([
    * ⛔ 哪天有人想在这个模块上挂一条「顺路生成一张封面」或者「顺路删掉重复的」，
    * 那就是这条判据破的那一天 —— 这份名单就是那个看得见的动作。
    */
-  '@/services/asset-library-write.service',
+  '@/features/assets/server',
 ])
 
 /** 出现即失败的标识符 —— 每一条都是一条能花掉用户钱的路。 */
@@ -586,7 +586,7 @@ describe('⛔ 助手工具环的钱闸', () => {
     expect(SOURCE).toContain('planFavoriteAsset')
     expect(SOURCE).toContain('planCreateFolder')
     expect(SOURCE).toContain('planAddToFolder')
-    expect(SOURCE).toContain('@/services/asset-library-write.service')
+    expect(SOURCE).toContain('@/features/assets/server')
     // ……而那个模块里没有任何一条能花钱 / 毁数据的路。
     for (const identifier of [
       'createGeneration',

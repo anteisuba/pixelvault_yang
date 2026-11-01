@@ -3,7 +3,7 @@
 import { AlertCircle, Music2, RotateCcw, X } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
-import type { UploadQueueItem } from '@/hooks/use-asset-upload-queue'
+import type { UploadQueueItem } from '@/features/assets/hooks/use-asset-upload-queue'
 import { cn } from '@/lib/utils'
 
 /**

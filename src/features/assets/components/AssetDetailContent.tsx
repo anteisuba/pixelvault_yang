@@ -33,10 +33,10 @@ import { COPIED_ACK_MS } from '@/constants/motion'
 import { ROUTES } from '@/constants/routes'
 import { Link, useRouter } from '@/i18n/navigation'
 import { createProjectAPI } from '@/lib/api-client'
-import { AssetAddToFolderPanel } from '@/components/business/assets/AssetAddToFolderPanel'
-import { AssetDetailOverlays } from '@/components/business/assets/AssetDetailOverlays'
+import { AssetAddToFolderPanel } from '@/features/assets/components/AssetAddToFolderPanel'
+import { AssetDetailOverlays } from '@/features/assets/components/AssetDetailOverlays'
 import { SearchGroundingPublishNote } from '@/components/business/studio-shared/search-grounding/SearchGroundingPublishNote'
-import { useAssetDetailActions } from '@/hooks/use-asset-detail-actions'
+import { useAssetDetailActions } from '@/features/assets/hooks/use-asset-detail-actions'
 import {
   getGenerationModel3DVisualUrl,
   getGenerationPreviewUrl,

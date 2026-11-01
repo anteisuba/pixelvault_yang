@@ -401,10 +401,10 @@ const mockTagAssets = vi.fn()
 const mockSetAssetFavorites = vi.fn()
 const mockCreateAssetFolder = vi.fn()
 const mockAddAssetsToFolder = vi.fn()
-vi.mock('@/services/asset-library-write.service', async () => {
+vi.mock('@/features/assets/server', async () => {
   const actual = await vi.importActual<
-    typeof import('@/services/asset-library-write.service')
-  >('@/services/asset-library-write.service')
+    typeof import('@/features/assets/server')
+  >('@/features/assets/server')
   return {
     AssetFolderLimitError: actual.AssetFolderLimitError,
     tagAssets: (...args: unknown[]) => mockTagAssets(...args),

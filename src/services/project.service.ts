@@ -16,7 +16,7 @@ import {
   folderScopeWhere,
   removeGenerationsFromFolder,
   topSortOrder,
-} from '@/services/asset-folder.service'
+} from '@/features/assets/server'
 import { ensureUser } from '@/services/user.service'
 
 /**

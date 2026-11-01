@@ -12,7 +12,7 @@ import {
 import { useAuth } from '@clerk/nextjs'
 import { useTranslations } from 'next-intl'
 
-import { AssetTile } from '@/components/business/assets/AssetTile'
+import { AssetTile } from '@/features/assets/components/AssetTile'
 import { LibrarySearch } from '@/components/ui/library-kit'
 import {
   LIBRARY_PICKER_MAX_COLUMNS,
@@ -22,7 +22,7 @@ import {
 import {
   AssetPickerFolderNav,
   type PickerScope,
-} from '@/components/business/assets/AssetPickerFolderNav'
+} from '@/features/assets/components/AssetPickerFolderNav'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import { BlurSwap } from '@/components/ui/blur-swap'
 import { Spinner } from '@/components/ui/spinner'
@@ -36,7 +36,7 @@ import {
 import {
   DEFAULT_AUDIO_ASSET_PREVIEW_IMAGE,
   getAudioAssetPreviewImage,
-} from '@/constants/asset-previews'
+} from '@/features/assets/constants'
 import { LIBRARY_GRID } from '@/constants/library-grid'
 import {
   CLIENT_UPLOAD_MAX_BYTES,
@@ -48,7 +48,7 @@ import {
   useAssetGridViewport,
   useJustifiedGrid,
 } from '@/hooks/use-justified-grid'
-import { useAssetPickerNavigation } from '@/hooks/use-asset-picker-navigation'
+import { useAssetPickerNavigation } from '@/features/assets/hooks/use-asset-picker-navigation'
 import { uploadImageFileAPI } from '@/lib/api-client/generation'
 import { getApiErrorMessage } from '@/lib/api-error-message'
 import { prepareImageUpload } from '@/lib/prepare-image-upload'

@@ -3,7 +3,7 @@
 import { useTranslations } from 'next-intl'
 
 import { Check } from '@/components/icons'
-import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
+import { AssetSelectorDialog } from '@/features/assets/components/AssetSelectorDialog'
 import { Button } from '@/components/ui/button'
 import {
   Sheet,
@@ -13,7 +13,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import type { AssetDetailActions } from '@/hooks/use-asset-detail-actions'
+import type { AssetDetailActions } from '@/features/assets/hooks/use-asset-detail-actions'
 import { cn } from '@/lib/utils'
 import type { GenerationRecord } from '@/types'
 

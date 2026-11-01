@@ -121,7 +121,7 @@ vi.mock('../../../studio-shared/setup/QuickSetupDialog', () => ({
   ),
 }))
 
-vi.mock('@/components/business/AssetSelectorDialog', () => ({
+vi.mock('@/features/assets', () => ({
   AssetSelectorDialog: () => <div data-testid="asset-picker" />,
 }))
 

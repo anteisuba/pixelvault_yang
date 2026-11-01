@@ -5,7 +5,7 @@ import type { Prisma } from '@/lib/generated/prisma/client'
 import { ASSISTANT_MENTION_LIMITS } from '@/constants/assistant-mention'
 import { resolveGenerationDisplayName } from '@/lib/generation-name'
 import { splitMentionQuery } from '@/lib/assistant-mention'
-import { folderScopeWhere } from '@/services/asset-folder.service'
+import { folderScopeWhere } from '@/features/assets/server'
 import { ensureUser } from '@/services/user.service'
 import type {
   AssistantMentionKind,

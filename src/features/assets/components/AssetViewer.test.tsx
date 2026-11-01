@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { AssetViewer } from '@/components/business/assets/AssetViewer'
+import { AssetViewer } from '@/features/assets/components/AssetViewer'
 import { FAKE_GENERATION } from '@/test/api-helpers'
 import type { GenerationRecord } from '@/types'
 
@@ -29,7 +29,7 @@ vi.mock('@/lib/api-client/projects', () => ({
   getFolderMembershipsAPI: vi.fn(async () => ({ success: true, data: {} })),
 }))
 
-vi.mock('@/components/business/assets/AssetAddToFolderPanel', () => ({
+vi.mock('@/features/assets/components/AssetAddToFolderPanel', () => ({
   AssetAddToFolderPanel: ({ trigger }: { trigger: React.ReactNode }) => trigger,
 }))
 

@@ -11,6 +11,27 @@ export {
   isImageResolutionTier,
   tieredOpenAISize,
 } from '../../../src/lib/image-output-size'
+import {
+  createSignedRequestHeaders,
+  emitRunResultCallback,
+  hexToBytes,
+  postSignedJson,
+  resolveRunApiKey,
+  resolveRunCivitaiToken,
+  signBody,
+  timingSafeEqualHex,
+  toHex,
+  verifySignedBody,
+} from './lib/app-bridge'
+
+export {
+  createSignedRequestHeaders,
+  hexToBytes,
+  signBody,
+  timingSafeEqualHex,
+  toHex,
+  verifySignedBody,
+}
 import { WorkflowEntrypoint } from 'cloudflare:workers'
 import { readOpenAIImageStream } from '../../../src/lib/openai-image-stream'
 import { GENERATION_ERROR_CODES } from '../../../src/constants/generation-errors'
@@ -125,14 +146,6 @@ const CINEMATIC_SHORT_VIDEO_PATH = '/workflows/cinematic-short-video'
 const FAL_QUEUE_PATH = '/workflows/fal-queue'
 const HYPER3D_RODIN_PATH = '/workflows/hyper3d-rodin'
 const HUNYUAN3D_PATH = '/workflows/hunyuan3d'
-const EXECUTION_SIGNATURE_VERSION = 'v1'
-const EXECUTION_SIGNATURE_HEADER = 'X-Execution-Signature'
-const EXECUTION_SIGNATURE_VERSION_HEADER = 'X-Execution-Signature-Version'
-const EXECUTION_TIMESTAMP_HEADER = 'X-Execution-Timestamp'
-const EXECUTION_NONCE_HEADER = 'X-Execution-Nonce'
-const EXECUTION_SIGNATURE_ALGORITHM = 'HMAC'
-const EXECUTION_SIGNATURE_HASH = 'SHA-256'
-const EXECUTION_MAX_CLOCK_SKEW_MS = 5 * 60 * 1000
 const JSON_CONTENT_TYPE = 'application/json'
 const CALLBACK_KINDS = ['ping', 'status', 'result'] as const
 const QUEUE_WORKFLOW_IDS = ['CINEMATIC_SHORT_VIDEO', 'FAL_QUEUE'] as const
@@ -501,14 +514,6 @@ async function readJson(request: Request): Promise<unknown> {
   }
 }
 
-async function readText(request: Request): Promise<string | null> {
-  try {
-    return await request.text()
-  } catch {
-    return null
-  }
-}
-
 export function isCallbackKind(value: unknown): value is CallbackKind {
   return CALLBACK_KINDS.some((candidate) => candidate === value)
 }
@@ -525,151 +530,6 @@ function isFalQueueFailureStatus(status: string): boolean {
     normalized === 'CANCELED' ||
     normalized === 'CANCELLED'
   )
-}
-
-export function toHex(buffer: ArrayBuffer): string {
-  return [...new Uint8Array(buffer)]
-    .map((byte) => byte.toString(16).padStart(2, '0'))
-    .join('')
-}
-
-export function hexToBytes(value: string): Uint8Array | null {
-  const normalized = value.trim().toLowerCase()
-  if (normalized.length % 2 !== 0 || !/^[0-9a-f]+$/.test(normalized)) {
-    return null
-  }
-
-  const bytes = new Uint8Array(normalized.length / 2)
-  for (let index = 0; index < normalized.length; index += 2) {
-    bytes[index / 2] = Number.parseInt(normalized.slice(index, index + 2), 16)
-  }
-  return bytes
-}
-
-export function timingSafeEqualHex(left: string, right: string): boolean {
-  const leftBytes = hexToBytes(left)
-  const rightBytes = hexToBytes(right)
-
-  if (!leftBytes || !rightBytes || leftBytes.length !== rightBytes.length) {
-    return false
-  }
-
-  let diff = 0
-  for (let index = 0; index < leftBytes.length; index += 1) {
-    diff |= leftBytes[index] ^ rightBytes[index]
-  }
-  return diff === 0
-}
-
-export async function signBody(secret: string, body: string): Promise<string> {
-  const encoder = new TextEncoder()
-  const key = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(secret),
-    { name: EXECUTION_SIGNATURE_ALGORITHM, hash: EXECUTION_SIGNATURE_HASH },
-    false,
-    ['sign'],
-  )
-  const signature = await crypto.subtle.sign(
-    EXECUTION_SIGNATURE_ALGORITHM,
-    key,
-    encoder.encode(body),
-  )
-
-  return toHex(signature)
-}
-
-async function hashBody(body: string): Promise<string> {
-  const digest = await crypto.subtle.digest(
-    'SHA-256',
-    new TextEncoder().encode(body),
-  )
-  return toHex(digest)
-}
-
-async function buildCanonicalSignedRequest(input: {
-  body: string
-  method: string
-  pathname: string
-  timestamp: string
-  nonce: string
-}): Promise<string> {
-  return [
-    EXECUTION_SIGNATURE_VERSION,
-    input.timestamp,
-    input.nonce,
-    input.method.toUpperCase(),
-    input.pathname,
-    await hashBody(input.body),
-  ].join('\n')
-}
-
-export async function createSignedRequestHeaders(input: {
-  secret: string
-  body: string
-  url: string
-  method?: string
-  timestamp?: number
-  nonce?: string
-}): Promise<Record<string, string>> {
-  const method = input.method ?? 'POST'
-  const timestamp = String(input.timestamp ?? Date.now())
-  const nonce = input.nonce ?? crypto.randomUUID()
-  const canonical = await buildCanonicalSignedRequest({
-    body: input.body,
-    method,
-    pathname: new URL(input.url).pathname,
-    timestamp,
-    nonce,
-  })
-
-  return {
-    [EXECUTION_SIGNATURE_VERSION_HEADER]: EXECUTION_SIGNATURE_VERSION,
-    [EXECUTION_TIMESTAMP_HEADER]: timestamp,
-    [EXECUTION_NONCE_HEADER]: nonce,
-    [EXECUTION_SIGNATURE_HEADER]: await signBody(input.secret, canonical),
-  }
-}
-
-export async function verifySignedBody(
-  request: Request,
-  secret: string,
-): Promise<string | null> {
-  const rawBody = await readText(request)
-  const signature = request.headers.get(EXECUTION_SIGNATURE_HEADER)
-  const version = request.headers.get(EXECUTION_SIGNATURE_VERSION_HEADER)
-  const timestamp = request.headers.get(EXECUTION_TIMESTAMP_HEADER)
-  const nonce = request.headers.get(EXECUTION_NONCE_HEADER)
-
-  if (
-    !rawBody ||
-    !signature ||
-    version !== EXECUTION_SIGNATURE_VERSION ||
-    !timestamp ||
-    !/^\d{13}$/.test(timestamp) ||
-    !nonce ||
-    !/^[a-zA-Z0-9_-]{16,128}$/.test(nonce)
-  ) {
-    return null
-  }
-
-  const timestampMs = Number(timestamp)
-  if (
-    !Number.isSafeInteger(timestampMs) ||
-    Math.abs(Date.now() - timestampMs) > EXECUTION_MAX_CLOCK_SKEW_MS
-  ) {
-    return null
-  }
-
-  const canonical = await buildCanonicalSignedRequest({
-    body: rawBody,
-    method: request.method,
-    pathname: new URL(request.url).pathname,
-    timestamp,
-    nonce,
-  })
-  const expectedSignature = await signBody(secret, canonical)
-  return timingSafeEqualHex(signature, expectedSignature) ? rawBody : null
 }
 
 function buildCallbackPayload(input: unknown): ExecutionCallbackPayload {
@@ -703,28 +563,6 @@ function readRequiredCallbackEnv(env: ExecutionEnv) {
 
 function readRequiredSecret(env: ExecutionEnv): string | null {
   return env.INTERNAL_CALLBACK_SECRET ?? null
-}
-
-async function postSignedJson(
-  url: string,
-  secret: string,
-  payload: unknown,
-): Promise<Response> {
-  const body = JSON.stringify(payload)
-  const signatureHeaders = await createSignedRequestHeaders({
-    secret,
-    body,
-    url,
-  })
-
-  return fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': JSON_CONTENT_TYPE,
-      ...signatureHeaders,
-    },
-    body,
-  })
 }
 
 async function handleHealth(): Promise<Response> {
@@ -1162,66 +1000,6 @@ export async function decryptStateString(
     cipher,
   )
   return new TextDecoder().decode(plaintext)
-}
-
-async function resolveApiKeyModel3D(
-  env: ExecutionEnv,
-  context: WorkerModel3DRunContext,
-): Promise<string> {
-  if (!env.INTERNAL_CALLBACK_SECRET) {
-    throw new Error('Internal callback secret is not configured.')
-  }
-
-  const response = await postSignedJson(
-    context.resolveKeyUrl,
-    env.INTERNAL_CALLBACK_SECRET,
-    {
-      runId: context.runId,
-      apiKeyId: context.apiKeyId,
-      adapterType: context.providerId,
-      useSystemKey: context.useSystemKey,
-    },
-  )
-
-  if (!response.ok) {
-    throw new Error(`Resolve key failed with status ${response.status}`)
-  }
-
-  const payload = (await response.json()) as {
-    success?: boolean
-    data?: { apiKey?: unknown }
-  }
-
-  if (payload.success !== true || typeof payload.data?.apiKey !== 'string') {
-    throw new Error('Resolve key returned an invalid response.')
-  }
-
-  return payload.data.apiKey
-}
-
-async function emitModel3DCallback(
-  env: ExecutionEnv,
-  context: WorkerModel3DRunContext,
-  data: unknown,
-): Promise<void> {
-  if (!env.INTERNAL_CALLBACK_SECRET) {
-    throw new Error('Internal callback secret is not configured.')
-  }
-
-  const callbackResponse = await postSignedJson(
-    context.callbackUrl,
-    env.INTERNAL_CALLBACK_SECRET,
-    {
-      runId: context.runId,
-      kind: 'result',
-      ts: new Date().toISOString(),
-      data,
-    },
-  )
-
-  if (!callbackResponse.ok) {
-    throw new Error(`Callback failed with status ${callbackResponse.status}`)
-  }
 }
 
 // ─── Hyper3D Rodin API ────────────────────────────────────────────────────────
@@ -1950,41 +1728,6 @@ async function handleFalQueueDispatch(
   )
 
   return jsonResponse({ workflowInstanceId: instance.id })
-}
-
-async function resolveApiKey(
-  env: ExecutionEnv,
-  context: WorkerRunContext,
-): Promise<string> {
-  if (!env.INTERNAL_CALLBACK_SECRET) {
-    throw new Error('Internal callback secret is not configured.')
-  }
-
-  const response = await postSignedJson(
-    context.resolveKeyUrl,
-    env.INTERNAL_CALLBACK_SECRET,
-    {
-      runId: context.runId,
-      apiKeyId: context.apiKeyId,
-      adapterType: context.providerId,
-      useSystemKey: context.useSystemKey,
-    },
-  )
-
-  if (!response.ok) {
-    throw new Error(`Resolve key failed with status ${response.status}`)
-  }
-
-  const payload = (await response.json()) as {
-    success?: boolean
-    data?: { apiKey?: unknown }
-  }
-
-  if (payload.success !== true || typeof payload.data?.apiKey !== 'string') {
-    throw new Error('Resolve key returned an invalid response.')
-  }
-
-  return payload.data.apiKey
 }
 
 function buildFalWorkerAudioQueueRequest(context: WorkerAudioRunContext): {
@@ -3145,31 +2888,6 @@ async function pollFalQueue(
   }
 }
 
-async function emitCallback(
-  env: ExecutionEnv,
-  context: WorkerRunContext,
-  data: unknown,
-): Promise<void> {
-  if (!env.INTERNAL_CALLBACK_SECRET) {
-    throw new Error('Internal callback secret is not configured.')
-  }
-
-  const callbackResponse = await postSignedJson(
-    context.callbackUrl,
-    env.INTERNAL_CALLBACK_SECRET,
-    {
-      runId: context.runId,
-      kind: 'result',
-      ts: new Date().toISOString(),
-      data,
-    },
-  )
-
-  if (!callbackResponse.ok) {
-    throw new Error(`Callback failed with status ${callbackResponse.status}`)
-  }
-}
-
 /**
  * Best-effort upstream-id report: fired right after a provider submit
  * returns an id, before the workflow starts polling, so the app can persist
@@ -3282,7 +3000,7 @@ export class CinematicShortVideoWorkflow extends WorkflowEntrypoint<
           timeout: '30 seconds',
         },
         async () => {
-          const plaintext = await resolveApiKey(this.env, context)
+          const plaintext = await resolveRunApiKey(this.env, context)
           return encryptStateString(plaintext, this.env)
         },
       )
@@ -3304,7 +3022,7 @@ export class CinematicShortVideoWorkflow extends WorkflowEntrypoint<
         )
 
         await step.do('callback-result', async () =>
-          emitCallback(this.env, context, {
+          emitRunResultCallback(this.env, context, {
             artifactUrl: audioResult.artifactUrl,
             audioR2Key: audioResult.audioR2Key,
             providerMetadata: audioResult.providerMetadata,
@@ -3419,7 +3137,7 @@ export class CinematicShortVideoWorkflow extends WorkflowEntrypoint<
           }
 
           await step.do('callback-result', async () =>
-            emitCallback(this.env, context, {
+            emitRunResultCallback(this.env, context, {
               artifactUrl: workerArtifactUrl ?? artifactUrl,
               audioR2Key,
               videoR2Key,
@@ -3463,7 +3181,7 @@ export class CinematicShortVideoWorkflow extends WorkflowEntrypoint<
       })
 
       await step.do('callback-failure', async () =>
-        emitCallback(this.env, context, failureData),
+        emitRunResultCallback(this.env, context, failureData),
       )
 
       return { status: 'FAILED', runId: context.runId }
@@ -3497,7 +3215,7 @@ export class Hyper3DRodinWorkflow extends WorkflowEntrypoint<
           timeout: '30 seconds',
         },
         async () => {
-          const plaintext = await resolveApiKeyModel3D(this.env, context)
+          const plaintext = await resolveRunApiKey(this.env, context)
           return encryptStateString(plaintext, this.env)
         },
       )
@@ -3561,7 +3279,7 @@ export class Hyper3DRodinWorkflow extends WorkflowEntrypoint<
           )
 
           await step.do('callback-result', async () =>
-            emitModel3DCallback(this.env, context, {
+            emitRunResultCallback(this.env, context, {
               artifactUrl: glbResult.artifactUrl,
               glbR2Key: glbResult.glbR2Key,
               mimeType: 'model/gltf-binary',
@@ -3582,7 +3300,7 @@ export class Hyper3DRodinWorkflow extends WorkflowEntrypoint<
       })
 
       await step.do('callback-failure', async () =>
-        emitModel3DCallback(this.env, context, failureData),
+        emitRunResultCallback(this.env, context, failureData),
       )
 
       return { status: 'FAILED', runId: context.runId }
@@ -3612,7 +3330,7 @@ export class Hunyuan3DWorkflow extends WorkflowEntrypoint<
           timeout: '30 seconds',
         },
         async () => {
-          const plaintext = await resolveApiKeyModel3D(this.env, context)
+          const plaintext = await resolveRunApiKey(this.env, context)
           return encryptStateString(plaintext, this.env)
         },
       )
@@ -3786,7 +3504,7 @@ export class Hunyuan3DWorkflow extends WorkflowEntrypoint<
           )
 
           await step.do('callback-result', async () =>
-            emitModel3DCallback(this.env, context, {
+            emitRunResultCallback(this.env, context, {
               artifactUrl: uploaded.artifactUrl,
               glbR2Key: uploaded.glbR2Key,
               mimeType: pollResult.mimeType ?? 'model/gltf-binary',
@@ -3811,7 +3529,7 @@ export class Hunyuan3DWorkflow extends WorkflowEntrypoint<
       })
 
       await step.do('callback-failure', async () =>
-        emitModel3DCallback(this.env, context, failureData),
+        emitRunResultCallback(this.env, context, failureData),
       )
 
       return { status: 'FAILED', runId: context.runId }
@@ -3914,95 +3632,6 @@ export function parseImageRunContext(
       outputStorageKey:
         readStringField(providerInput, 'outputStorageKey') ?? undefined,
     },
-  }
-}
-
-async function resolveApiKeyImage(
-  env: ExecutionEnv,
-  context: WorkerImageRunContext,
-): Promise<string> {
-  if (!env.INTERNAL_CALLBACK_SECRET) {
-    throw new Error('Internal callback secret is not configured.')
-  }
-
-  const response = await postSignedJson(
-    context.resolveKeyUrl,
-    env.INTERNAL_CALLBACK_SECRET,
-    {
-      runId: context.runId,
-      apiKeyId: context.apiKeyId,
-      adapterType: context.providerId,
-      useSystemKey: context.useSystemKey,
-    },
-  )
-
-  if (!response.ok) {
-    throw new Error(`Resolve key failed with status ${response.status}`)
-  }
-
-  const payload = (await response.json()) as {
-    success?: boolean
-    data?: { apiKey?: unknown }
-  }
-
-  if (payload.success !== true || typeof payload.data?.apiKey !== 'string') {
-    throw new Error('Resolve key returned an invalid response.')
-  }
-
-  return payload.data.apiKey
-}
-
-async function resolveCivitaiTokenImage(
-  env: ExecutionEnv,
-  context: WorkerImageRunContext,
-): Promise<string | null> {
-  if (!env.INTERNAL_CALLBACK_SECRET) {
-    throw new Error('Internal callback secret is not configured.')
-  }
-
-  const response = await postSignedJson(
-    context.resolveKeyUrl,
-    env.INTERNAL_CALLBACK_SECRET,
-    {
-      runId: context.runId,
-      keyKind: 'civitai',
-    },
-  )
-
-  if (!response.ok) return null
-
-  const payload = (await response.json()) as {
-    success?: boolean
-    data?: { apiKey?: unknown }
-  }
-
-  return payload.success === true && typeof payload.data?.apiKey === 'string'
-    ? payload.data.apiKey
-    : null
-}
-
-async function emitImageCallback(
-  env: ExecutionEnv,
-  context: WorkerImageRunContext,
-  data: unknown,
-): Promise<void> {
-  if (!env.INTERNAL_CALLBACK_SECRET) {
-    throw new Error('Internal callback secret is not configured.')
-  }
-
-  const callbackResponse = await postSignedJson(
-    context.callbackUrl,
-    env.INTERNAL_CALLBACK_SECRET,
-    {
-      runId: context.runId,
-      kind: 'result',
-      ts: new Date().toISOString(),
-      data,
-    },
-  )
-
-  if (!callbackResponse.ok) {
-    throw new Error(`Callback failed with status ${callbackResponse.status}`)
   }
 }
 
@@ -7447,7 +7076,7 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
                 timeout: '30 seconds',
               },
               async () => {
-                const plaintext = await resolveApiKeyImage(this.env, context)
+                const plaintext = await resolveRunApiKey(this.env, context)
                 return encryptStateString(plaintext, this.env)
               },
             )
@@ -7485,7 +7114,7 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
       }
 
       await step.do('callback-result', async () =>
-        emitImageCallback(this.env, context, {
+        emitRunResultCallback(this.env, context, {
           artifactUrl: result.artifactUrl,
           imageR2Key: result.imageR2Key,
           width: result.width,
@@ -7505,7 +7134,7 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
       })
 
       await step.do('callback-failure', async () =>
-        emitImageCallback(this.env, context, failureData),
+        emitRunResultCallback(this.env, context, failureData),
       )
 
       return { status: 'FAILED', runId: context.runId }
@@ -7530,7 +7159,7 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
         async () => {
           const apiKey = await decryptStateString(encryptedApiKey, this.env)
           const civitaiToken = hasCivitaiLora(context)
-            ? await resolveCivitaiTokenImage(this.env, context)
+            ? await resolveRunCivitaiToken(this.env, context)
             : null
           return submitFalImageQueue(context, apiKey, this.env, civitaiToken)
         },
@@ -7676,7 +7305,7 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
         async () => {
           const apiKey = await decryptStateString(encryptedApiKey, this.env)
           const civitaiToken = hasCivitaiLora(context)
-            ? await resolveCivitaiTokenImage(this.env, context)
+            ? await resolveRunCivitaiToken(this.env, context)
             : null
           return submitReplicateImagePrediction(
             context,

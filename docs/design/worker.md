@@ -6,6 +6,7 @@
 
 - 10-21 owner：按这个方向做；第 1–3 步提前到 bug 之后做。
 - 第 1 步（删 RunPod）#312 已完成。
+- 第 2 步（抽公共层）11-01 已完成，index.ts 8547 → 约 8180 行。
 - 「按账号排队」10-23 由助手第 5a 步 #351 先做掉了，做法和原稿不同：不是 Durable Object，而是 Worker 解析完 key 后问应用侧 `POST /api/internal/execution/slot`（`execution-slot.service`，占位存在 `GenerationJob.slotKey / slotAcquiredAt`，并发表 `IMAGE_ACCOUNT_CONCURRENCY`）。现行做法见 `references/backend.md`「按账号排队」。第 3 步剩「驱动接口 + 共用契约」。
 
 ## 一句话结论
@@ -58,7 +59,7 @@ ComfyUI：Modal 上的 ComfyUI 只是一个驱动（runner）。`workflow-builde
 ## 分步
 
 1. ~~删 RunPod 旧分支~~（#312）
-2. 抽公共层：取 key、上传、回调、签名合成一份。只搬代码，不改行为。
+2. ~~抽公共层：取 key、回调、签名合成一份~~（11-01，`workers/execution/src/lib/app-bridge.ts`：签名 / 验签、`postSignedJson`、`resolveRunApiKey`、`resolveRunCivitaiToken`、`emitRunResultCallback`，原 7 份重复函数删掉，只搬不改行为）。「上传」没合：图 / 视频 / 音频 / 3D 四份下载存 R2 的写法各有差别（视频要手动跟跳转防 key 外泄、返回结构不同），合并会改行为，放到第 4、5 步通用流程时一起收。
 3. 定驱动接口和共用契约，先把 NAI 迁成驱动。
 4. 其余图片供应商逐家迁移，图片流程变成通用流程。
 5. 视频、音频、3D 迁入通用流程；旧流程等在跑的实例结束后再下线（Cloudflare Workflow 实例跑完才能删类）。

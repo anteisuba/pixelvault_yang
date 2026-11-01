@@ -174,11 +174,15 @@ export function StudioTagsDesktopEditor({
       <div className="flex min-w-0 items-center gap-2">
         {referenceStrip}
         <StudioTagPageTabs
-          whole={{ count: state.tagChips.length }}
+          whole={{
+            count: state.tagChips.length,
+            preview: serializeTagChips(state.tagChips),
+          }}
           characters={people.map((person, index) => ({
             count: parseTagChips(person.prompt).length,
             enabled: person.enabled !== false,
             flashing: flashing === index,
+            preview: person.prompt,
           }))}
           activeIndex={activeIndex}
           negative={negativeView}

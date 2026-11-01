@@ -416,7 +416,7 @@ export const StudioMobileComposer = memo(function StudioMobileComposer({
             aria-disabled={Boolean(blockedReason) || hardDisabled}
             data-testid="studio-mobile-generate"
             className={cn(
-              'touch-target-y relative flex h-9 shrink-0 items-center justify-center gap-1 rounded-full bg-primary text-primary-foreground',
+              'touch-target relative flex h-9 shrink-0 items-center justify-center gap-1 rounded-full bg-primary text-primary-foreground',
               // 图片是 36 圆键；视频那颗要装下时长，所以按内容伸缩。
               isVideo ? 'px-3 text-sm font-medium tabular-nums' : 'w-9',
               'transition-[background-color,transform] duration-fast ease-standard active:scale-[0.98]',

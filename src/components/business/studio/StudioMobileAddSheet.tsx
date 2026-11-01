@@ -174,7 +174,7 @@ export function StudioMobileAddSheet({
             data-testid="studio-mobile-add"
             data-set={hasHiddenSetting ? '' : undefined}
             className={cn(
-              'grid size-8 shrink-0 place-items-center rounded-full border border-border bg-background text-foreground',
+              'touch-target grid size-8 shrink-0 place-items-center rounded-full border border-border bg-background text-foreground',
               'transition-[background-color,border-color] duration-fast ease-standard active:bg-muted',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
               'disabled:pointer-events-none disabled:opacity-50',

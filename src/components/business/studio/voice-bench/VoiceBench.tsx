@@ -325,7 +325,7 @@ export function VoiceBench() {
                 aria-label={t('speak')}
                 title={t('speak')}
                 data-testid="voice-bench-speak"
-                className="grid size-8 shrink-0 place-items-center rounded-full bg-foreground text-background transition-[background-color,color,transform] duration-fast ease-standard hover:bg-foreground/90 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none disabled:cursor-not-allowed disabled:bg-surface-fill-track disabled:text-muted-foreground"
+                className="touch-target grid size-8 shrink-0 place-items-center rounded-full bg-foreground text-background transition-[background-color,color,transform] duration-fast ease-standard hover:bg-foreground/90 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none disabled:cursor-not-allowed disabled:bg-surface-fill-track disabled:text-muted-foreground"
               >
                 <ArrowUp className="size-4" aria-hidden />
               </button>

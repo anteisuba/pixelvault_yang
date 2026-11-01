@@ -36,7 +36,7 @@ export const MEDIA_TILE_PILL_CLASS =
   'inline-flex h-7 shrink-0 items-center rounded-full bg-media-chip px-3 text-xs font-medium text-on-media-chip shadow-media-action transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none disabled:opacity-50'
 
 export const MEDIA_TILE_ROUND_CLASS =
-  'grid size-7 shrink-0 place-items-center rounded-full bg-media-chip text-on-media-chip shadow-media-action transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-3.5'
+  'touch-target grid size-7 shrink-0 place-items-center rounded-full bg-media-chip text-on-media-chip shadow-media-action transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-3.5'
 
 interface MediaTileActionsProps {
   /** 「交给助手」那颗；缺席 = 这一格交不了（没有助手在场）。 */

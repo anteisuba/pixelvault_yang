@@ -86,7 +86,7 @@ export function CharacterPhoneBar({
                   onTabChange(item.id)
                 }}
                 className={cn(
-                  'relative h-9 rounded-full px-3.5 text-base transition-colors duration-fast ease-standard',
+                  'touch-target-y relative h-9 rounded-full px-3.5 text-base transition-colors duration-fast ease-standard',
                   active
                     ? 'font-semibold text-foreground'
                     : 'font-medium text-muted-foreground',
@@ -110,7 +110,7 @@ export function CharacterPhoneBar({
           aria-label={t('phone.search')}
           data-testid="roster-phone-search"
           onClick={() => setSearching(true)}
-          className="grid size-9 shrink-0 place-items-center rounded-full text-foreground transition-colors duration-fast ease-standard active:bg-muted"
+          className="touch-target grid size-9 shrink-0 place-items-center rounded-full text-foreground transition-colors duration-fast ease-standard active:bg-muted"
         >
           <Search className="size-5" aria-hidden />
         </button>
@@ -121,7 +121,7 @@ export function CharacterPhoneBar({
               aria-label={t('phone.add')}
               data-testid="roster-phone-add"
               disabled={importing}
-              className="grid size-9 shrink-0 place-items-center rounded-full text-foreground transition-colors duration-fast ease-standard active:bg-muted"
+              className="touch-target grid size-9 shrink-0 place-items-center rounded-full text-foreground transition-colors duration-fast ease-standard active:bg-muted"
             >
               {importing ? (
                 <Spinner size="sm" />

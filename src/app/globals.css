@@ -1251,8 +1251,27 @@ html:lang(ja) {
       left: 0;
       right: 0;
       top: 50%;
-      height: 44px;
+      height: max(100%, 44px);
       transform: translateY(-50%);
+    }
+  }
+
+  /* 小图标键（32 / 36 方、开关）：两个方向都补到 44，居中外扩、⛔ 不改长相。
+     横向相邻的图标键间距 < 外扩量时，后一个盖住前一个那一小条——点中的是靠近的
+     那颗，比点不中强；成排的 chip 仍用 `.touch-target-y`。 */
+  .touch-target {
+    position: relative;
+  }
+
+  @media (pointer: coarse) {
+    .touch-target::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: max(100%, 44px);
+      height: max(100%, 44px);
+      transform: translate(-50%, -50%);
     }
   }
 }

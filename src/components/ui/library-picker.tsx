@@ -58,7 +58,7 @@ export function LibraryPickerHeader({
         type="button"
         onClick={onClose}
         aria-label={closeLabel}
-        className="grid size-8 shrink-0 place-items-center rounded-full text-ink-2 transition-colors duration-fast ease-standard hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus [&_svg]:size-4"
+        className="touch-target grid size-8 shrink-0 place-items-center rounded-full text-ink-2 transition-colors duration-fast ease-standard hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus [&_svg]:size-4"
       >
         <X />
       </button>

@@ -3739,7 +3739,7 @@ function GenerateBranch({
                   type="button"
                   onClick={() => setAssemblySheetOpen(true)}
                   aria-label={t('spine.openAssembly')}
-                  className="flex min-w-0 shrink items-center gap-2 rounded-xl py-0.5 pr-1.5 text-left transition-colors duration-fast ease-standard active:bg-muted"
+                  className="touch-target-y flex min-w-0 shrink items-center gap-2 rounded-xl py-0.5 pr-1.5 text-left transition-colors duration-fast ease-standard active:bg-muted"
                 >
                   <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
                     <Boxes className="size-4" aria-hidden />
@@ -3792,7 +3792,7 @@ function GenerateBranch({
                     type="button"
                     onClick={addLora}
                     aria-label={t('spine.addLoraFull')}
-                    className="grid size-8 shrink-0 place-items-center rounded-lg border border-dashed border-border text-muted-foreground transition-colors duration-fast ease-standard active:bg-muted"
+                    className="touch-target grid size-8 shrink-0 place-items-center rounded-lg border border-dashed border-border text-muted-foreground transition-colors duration-fast ease-standard active:bg-muted"
                   >
                     <Plus className="size-4" aria-hidden />
                   </button>

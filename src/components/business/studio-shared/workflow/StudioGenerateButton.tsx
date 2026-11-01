@@ -121,7 +121,7 @@ export function StudioGenerateButton({
         aria-busy={isGenerating}
         aria-disabled={stoppable ? undefined : !canGenerate}
         className={cn(
-          'relative grid size-9 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground',
+          'touch-target relative grid size-9 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground',
           'transition-[background-color,color,transform] duration-fast ease-standard',
           'active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
           // ⚠ 被挡住仍然可点（同 block 那档的 Krea 式规则），只是退成灰底。

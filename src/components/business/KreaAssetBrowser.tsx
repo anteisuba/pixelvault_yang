@@ -1980,7 +1980,7 @@ export function KreaAssetBrowser({
             inert={selectionMode}
             onClick={() => setPhoneSearch(filters.search)}
             className={cn(
-              'grid size-9 place-items-center rounded-full text-foreground transition-colors duration-fast ease-standard active:bg-muted md:hidden',
+              'touch-target grid size-9 place-items-center rounded-full text-foreground transition-colors duration-fast ease-standard active:bg-muted md:hidden',
               SELECTION_YIELD_CLASS,
               selectionMode && SELECTION_YIELD_HIDDEN_CLASS,
             )}
@@ -2160,7 +2160,7 @@ export function KreaAssetBrowser({
                   onClick={() =>
                     setFilters({ ...filters, types: [...tab.types] })
                   }
-                  className="relative text-xs font-medium text-foreground"
+                  className="touch-target-y relative text-xs font-medium text-foreground"
                 >
                   {active ? (
                     <motion.span

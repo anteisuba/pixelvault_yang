@@ -188,7 +188,7 @@ export function StudioOperatorAvatarToggle({
            「收起之后再也打不开」。
            ⚠ `z-50` 高于面板那层 `z-40`：展开态它要坐在头部**上面**。
            ⚠ 布局 A 用画布节点打磨 ② 的浮层影；其余宿主沿用白底细边。 */
-        'pointer-events-auto fixed z-50 grid place-items-center overflow-visible rounded-full bg-card text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+        'touch-target pointer-events-auto fixed z-50 grid place-items-center overflow-visible rounded-full bg-card text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
         anchor.avatarStays
           ? 'shadow-node-chrome'
           : 'border border-border shadow-assistant-overlay',

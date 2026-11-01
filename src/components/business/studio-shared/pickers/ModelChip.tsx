@@ -85,6 +85,7 @@ export function ModelChip({
         .filter(Boolean)
         .join(' · ')}
       className={cn(
+        'touch-target-y',
         compact
           ? 'inline-flex h-7 min-w-0 max-w-60 items-center gap-1 rounded-full bg-surface-fill px-2.5 text-xs text-foreground hover:bg-surface-fill-hover data-[active=true]:bg-surface-fill-track'
           : 'inline-flex h-8 min-w-0 max-w-60 items-center gap-1 rounded-full pl-3 pr-2.5 text-2sm font-medium',

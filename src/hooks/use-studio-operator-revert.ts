@@ -46,7 +46,7 @@ import type {
  *
  * ⭐ 实现搬到了两个宿主各自的文件里：工作台在
  * `hooks/use-studio-workbench-operator-host.ts`，LoRA 装配台在
- * `hooks/use-lora-operator-host.ts`。这里只保留取用口，理由见
+ * `features/lora/hooks/use-lora-operator-host.ts`。这里只保留取用口，理由见
  * `contexts/studio-operator-host.tsx` 的头注 —— 撤销这条链原本 `useStudioForm()`，
  * 而 `/studio/lora` 故意不挂 `<StudioProvider>`，那条路上它会直接抛。
  *

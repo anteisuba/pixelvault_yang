@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
 import { logger } from '@/lib/logger'
-import { mineCivitaiUserPrompts } from '@/services/civitai-lora.service'
+import { mineCivitaiUserPrompts } from '@/features/lora/server'
 import type { CivitaiMinedPromptsResult } from '@/types'
 
 // Mined activation prompts are stable on the timescale of an hour (new

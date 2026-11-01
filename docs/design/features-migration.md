@@ -11,13 +11,15 @@ src/features/<域>/
   services/     这个域自己的服务端逻辑（仍是唯一碰 DB / 外部 API 的层）
   lib/          这个域自己的纯函数
   constants.ts  这个域自己的常量（多了再拆 constants/）
-  index.ts      对外入口：客户端能用的（组件、hook、常量、纯函数）
+  index.ts      对外入口：客户端的组件、hook
   server.ts     对外入口：只给服务端（services），首行 `import 'server-only'` 的照旧
+  core.ts       对外入口（按需）：纯函数与常量，两边都能引
 ```
 
 - 层次规矩不变：constants/types → services → hooks → components；域内照 `CLAUDE.md` 的 Hard Rules 写。
 - **留在原处的共享层**（不归任何一个域）：`components/ui/`、`lib/api-client/`（Hard Rule 3：API 调用都走它）、`types/index.ts` 的 Zod schema、`constants/` 里跨域的（模型、路由、config）、`services/` 里跨域的（storage、providers、user、credit）、`messages/`（已按模块分文件夹）。
-- 两个入口分开，是为了客户端组件 import 域入口时不把服务端代码一起打进浏览器包。
+- 入口分开，是为了客户端组件 import 域入口时不把服务端代码一起打进浏览器包。
+- `core.ts`（11-01 LoRA 搬家时加）：别的域只要一个纯函数时，走 `index.ts` 会把整个域的组件一起加载（测试慢一倍、服务端还会引到客户端组件）。所以 `lib/`、`constants` 里被域外用到的，统一从 `core.ts` 出。
 - 域内互相引用写完整路径 `@/features/<域>/...`；域外只走 `@/features/<域>` 或 `@/features/<域>/server`（`f-boundary` 用 eslint 拦）。
 - `app/` 路由文件也走入口。测试文件跟着被测文件一起搬（`git mv`，保留历史）。
 
@@ -44,3 +46,18 @@ src/features/<域>/
 - `constants/prompt-library.ts` → `features/prompts/constants.ts`
 - `services/prompts/recipe.service.ts` → `features/prompts/services/`
 - 留着：`hooks/prompts/use-civitai-*`、`use-runner-usage`（LoRA 域，随 `f-cards-lora`）；`services/prompts/prompt-tag-stack`（标签）、`seedance-prompt-plan`、`prompt-feedback`（工作台，随 `f-studio`）；`constants/image-prompt-templates`、`lib/image-prompt-templates`（画布与助手共用）
+
+### gallery / assets / settings（11-01 已搬）
+
+- 留着的共享层：`use-gallery`、`gallery-cache`、`api-client/gallery`；`constants/asset-dnd`（拖拽 MIME 跨域）、`constants/assets-grid`（共用的排版 hook 在用）、`constants/asset-folder-tree`、`lib/asset-links`、`lib/asset-recipe-text`；API key 那一套（`apiKey.service`、`constants/api-keys`、`use-api-keys`、`use-open-key-settings`）跨域，不归设置
+
+### cards（角色卡，11-01 已搬）
+
+- `components/business/cards/*`、`hooks/cards/*`（域内 `hooks/index.ts` 汇总保留）、`services/cards/*`、`lib/character-gaps`、`lib/card-cache` → `features/cards/`
+- 留着：`constants/cards/*`（`types/` 在引，类型层不能反过来引域）、`lib/card-bus*`、`lib/character-works`、`lib/character-looks`、`lib/tavern-card` 等画布 / 工作台 / 助手都在用的
+
+### lora（11-01 已搬）
+
+- `components/business/studio/lora/**`、`LoraTrainingDialog`、名字带 lora / civitai / huggingface 的 hooks / services / lib / constants、`services/lora/*`、`hooks/prompts/use-civitai-*`、`use-runner-usage` → `features/lora/`
+- 留着：`constants/lora.ts`、`constants/lora-candidate.ts`（`types/` 在引）、`lib/civitai-lora-reference`（`api-client` 在引）、`lib/assistant-v3-lora-board`（助手）、`services/runner/*`（执行层）
+- 测试里 `vi.mock` 仍按域内完整路径 mock（入口是转出口，mock 底下那个文件对入口同样生效）；要 mock 入口本身时，用到的名字得全给

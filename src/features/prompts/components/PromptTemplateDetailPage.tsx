@@ -36,7 +36,7 @@ import {
   readRecipeNovelAiCharacters,
   readRecipeRunnerParameters,
   withRecipeNegativePrompt,
-} from '@/lib/recipe-lora-setup'
+} from '@/features/lora/core'
 import { parseTagChips, serializeTagChips } from '@/lib/tag-composer'
 import { cn } from '@/lib/utils'
 import type {

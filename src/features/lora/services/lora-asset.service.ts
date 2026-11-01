@@ -1,0 +1,733 @@
+import 'server-only'
+
+import { randomBytes } from 'node:crypto'
+
+import { LORA_CIVITAI_BACKFILL_MAX_PER_REQUEST } from '@/constants/lora'
+import { canonicalLoraBaseModelLabel } from '@/features/lora/constants/lora-base-models'
+import { parseCivitaiVersionIdFromDownloadUrl } from '@/features/lora/lib/civitai-lora-url'
+import { db, isUniqueConstraintError } from '@/lib/db'
+import { logger } from '@/lib/logger'
+import {
+  fetchCivitaiVersionIdentifiers,
+  normalizeLoraNameKey,
+} from '@/features/lora/services/civitai-lora.service'
+import { isOwnedStorageUrl } from '@/services/storage/r2'
+import { ensureUser } from '@/services/user.service'
+import { LoraSourceSnapshotSchema } from '@/types'
+import type {
+  FavoriteLoraRequest,
+  LoraAssetRecord,
+  LoraAssetSource,
+  LoraAssetType,
+  LoraAssetBaseFamily,
+  LoraSourceSnapshot,
+} from '@/types'
+
+interface LoraAssetRow {
+  id: string
+  userId: string | null
+  styleCode: string
+  name: string
+  source: string
+  type: string
+  baseModelFamily: string
+  provider: string
+  triggerWord: string
+  loraUrl: string
+  coverImageUrl: string | null
+  previewImageUrls: unknown
+  defaultScale: number
+  isPublic: boolean
+  /** 在不在「我的库」里；false = 只被角色收着（角色③）。 */
+  inLibrary: boolean
+  createdAt: Date
+  civitaiModelId: number | null
+  civitaiModelVersionId: number | null
+  civitaiFileHashAutoV3: string | null
+  recommendedPrompt: string | null
+  /** Json 列 —— 读出来必须过一次 schema，见 `toSourceSnapshot`。 */
+  sourceSnapshot: unknown
+}
+
+/**
+ * Json 列 → 强类型快照。**读不出来就当没有**，不抛。
+ *
+ * 理由与 `previewImageUrls` 的 `Array.isArray` 兜底同源：这是一个 2026-08-21
+ * 才加的列，此前所有行都是 null，而 Json 列本身没有任何类型保证。让一行脏数据
+ * 把整份 LoRA 列表打成 500，代价远大于那一行少显示一段来源信息。
+ */
+function toSourceSnapshot(value: unknown): LoraSourceSnapshot | null {
+  if (value === null || value === undefined) return null
+  const parsed = LoraSourceSnapshotSchema.safeParse(value)
+  return parsed.success ? parsed.data : null
+}
+
+export function toLoraAssetRecord(
+  row: LoraAssetRow,
+  viewerUserId: string | null,
+): LoraAssetRecord {
+  const previews = Array.isArray(row.previewImageUrls)
+    ? (row.previewImageUrls.filter((u) => typeof u === 'string') as string[])
+    : []
+  return {
+    id: row.id,
+    styleCode: row.styleCode,
+    name: row.name,
+    source: row.source as LoraAssetSource,
+    type: row.type as LoraAssetType,
+    baseModelFamily: row.baseModelFamily as LoraAssetBaseFamily,
+    provider: row.provider,
+    triggerWord: row.triggerWord,
+    loraUrl: row.loraUrl,
+    coverImageUrl: row.coverImageUrl,
+    previewImageUrls: previews,
+    defaultScale: row.defaultScale,
+    isPublic: row.isPublic,
+    isOwn: viewerUserId !== null && row.userId === viewerUserId,
+    createdAt: row.createdAt.toISOString(),
+    recommendedPrompt: row.recommendedPrompt,
+    modelId: row.civitaiModelId ?? undefined,
+    modelVersionId: row.civitaiModelVersionId ?? undefined,
+    fileHashAutoV3: row.civitaiFileHashAutoV3,
+    sourceSnapshot: toSourceSnapshot(row.sourceSnapshot),
+  }
+}
+
+/**
+ * Generate a URL-safe style code: `<kind>-<slug>-<4 random chars>`.
+ * The random suffix prevents enumeration of private LoRA codes.
+ */
+export function generateStyleCode(name: string, type: LoraAssetType): string {
+  const slug =
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 24) || 'lora'
+  const suffix = randomBytes(2).toString('hex')
+  const kind = type === 'style' ? 's' : 'c'
+  return `pv-${kind}-${slug}-${suffix}`
+}
+
+/**
+ * Look up a LoRA asset by its style code. Returns null if:
+ *   - the code does not exist, OR
+ *   - the asset is private and the viewer is not the owner.
+ *
+ * Used for both share-link reconstruction (?style=<code>) and
+ * cross-tool injection. Curated and public assets are visible to
+ * everyone, including signed-out visitors (viewerClerkId = null).
+ */
+export async function getLoraAssetByStyleCode(
+  styleCode: string,
+  viewerClerkId: string | null,
+): Promise<LoraAssetRecord | null> {
+  const row = await db.loraAsset.findUnique({
+    where: { styleCode },
+  })
+  if (!row) return null
+
+  const viewerUserId = viewerClerkId
+    ? (await ensureUser(viewerClerkId)).id
+    : null
+
+  const isOwn = viewerUserId !== null && row.userId === viewerUserId
+  if (!row.isPublic && !isOwn) {
+    // Don't leak existence of private codes
+    return null
+  }
+
+  return toLoraAssetRecord(row, viewerUserId)
+}
+
+/**
+ * Reverse-lookup LoraAssets by their stored loraUrl, ordered to match
+ * the input URL list. Skips rows the viewer can't see (private + not
+ * owned). Used by generation-replay to translate a snapshot's
+ * `advancedParams.loras[].url` array back into shareable style codes.
+ */
+export async function findLoraAssetsByUrls(
+  urls: string[],
+  viewerUserId: string | null,
+): Promise<LoraAssetRecord[]> {
+  if (urls.length === 0) return []
+
+  const rows = await db.loraAsset.findMany({
+    where: { loraUrl: { in: urls } },
+  })
+
+  // Index by url for stable input-order output. If the same URL maps to
+  // multiple assets (curated + user copy, say), prefer the viewer's own
+  // copy, then any public asset.
+  const byUrl = new Map<string, typeof rows>()
+  for (const row of rows) {
+    const existing = byUrl.get(row.loraUrl) ?? []
+    existing.push(row)
+    byUrl.set(row.loraUrl, existing)
+  }
+
+  const pickVisible = (
+    candidates: typeof rows,
+  ): (typeof rows)[number] | null => {
+    const owned = candidates.find((r) => r.userId === viewerUserId)
+    if (owned) return owned
+    const publicAsset = candidates.find((r) => r.isPublic)
+    if (publicAsset) return publicAsset
+    return null
+  }
+
+  const out: LoraAssetRecord[] = []
+  for (const url of urls) {
+    const candidates = byUrl.get(url)
+    if (!candidates || candidates.length === 0) continue
+    const picked = pickVisible(candidates)
+    if (picked) out.push(toLoraAssetRecord(picked, viewerUserId))
+  }
+  return out
+}
+
+/**
+ * 本地库优先匹配（一键补挂第 0 层）：配方 extras 先对照自己的库（收藏/
+ * 自训练/精选/公开），命中直接挂 — 毫秒级、不依赖 Civitai、覆盖
+ * Civitai 上不存在的自训练 LoRA。匹配键按可靠度：文件 hash →
+ * versionId → 名字归一键（与 Civitai 文件名词干同一把尺子）。
+ */
+export async function findLoraAssetByExtraReference(
+  clerkId: string | null,
+  ref: {
+    hash?: string | null
+    modelVersionId?: number | null
+    name?: string | null
+  },
+): Promise<LoraAssetRecord | null> {
+  const viewerUserId = clerkId ? (await ensureUser(clerkId)).id : null
+  const visibility = viewerUserId
+    ? { OR: [{ userId: viewerUserId }, { isPublic: true }] }
+    : { isPublic: true }
+
+  if (ref.hash) {
+    const row = await db.loraAsset.findFirst({
+      where: { civitaiFileHashAutoV3: ref.hash.toLowerCase(), ...visibility },
+    })
+    if (row) return toLoraAssetRecord(row, viewerUserId)
+  }
+  if (ref.modelVersionId) {
+    const row = await db.loraAsset.findFirst({
+      where: { civitaiModelVersionId: ref.modelVersionId, ...visibility },
+    })
+    if (row) return toLoraAssetRecord(row, viewerUserId)
+  }
+  if (ref.name) {
+    // 名字归一比对需要 JS 侧进行 — 候选集是可见行的小集合（库有上限）。
+    const key = normalizeLoraNameKey(ref.name)
+    const rows = await db.loraAsset.findMany({
+      where: visibility,
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+    })
+    const hit = rows.find((row) => normalizeLoraNameKey(row.name) === key)
+    if (hit) return toLoraAssetRecord(hit, viewerUserId)
+  }
+  return null
+}
+
+/**
+ * 旧收藏自愈回填（解法一）：civitai 来源但缺 modelId/fileHash 标识的行，
+ * 从 loraUrl 恢复 versionId → 拉一次 model-versions 详情 → 回填标识 +
+ * （缺失时）封面。来源图挖掘与缩略图从此对旧收藏也能工作。
+ *
+ * 每次请求限量 LORA_CIVITAI_BACKFILL_MAX_PER_REQUEST 行（每行一次外部
+ * 请求），其余行下次请求继续愈合；单行失败不影响列表返回（原样返回）。
+ */
+async function healCivitaiIdentifiers(
+  rows: LoraAssetRow[],
+): Promise<LoraAssetRow[]> {
+  const candidates = rows
+    .filter(
+      (row) =>
+        row.provider === 'civitai' &&
+        (row.civitaiModelId === null ||
+          row.civitaiModelVersionId === null ||
+          row.civitaiFileHashAutoV3 === null),
+    )
+    .map((row) => ({
+      row,
+      versionId:
+        row.civitaiModelVersionId ??
+        parseCivitaiVersionIdFromDownloadUrl(row.loraUrl),
+    }))
+    .filter(
+      (entry): entry is { row: LoraAssetRow; versionId: number } =>
+        entry.versionId !== null,
+    )
+    .slice(0, LORA_CIVITAI_BACKFILL_MAX_PER_REQUEST)
+
+  if (candidates.length === 0) return rows
+
+  const healed = new Map<string, LoraAssetRow>()
+  await Promise.allSettled(
+    candidates.map(async ({ row, versionId }) => {
+      const identifiers = await fetchCivitaiVersionIdentifiers(versionId)
+      if (!identifiers) return
+      const updated = await db.loraAsset.update({
+        where: { id: row.id },
+        data: {
+          civitaiModelVersionId: versionId,
+          ...(identifiers.modelId !== null
+            ? { civitaiModelId: identifiers.modelId }
+            : {}),
+          ...(identifiers.fileHashAutoV3 !== null
+            ? { civitaiFileHashAutoV3: identifiers.fileHashAutoV3 }
+            : {}),
+          // 只补缺：用户自定义过的封面不动。
+          ...(row.coverImageUrl === null && identifiers.coverImageUrl !== null
+            ? { coverImageUrl: identifiers.coverImageUrl }
+            : {}),
+        },
+      })
+      healed.set(row.id, updated as LoraAssetRow)
+      logger.info('Healed legacy Civitai LoRA favorite', {
+        loraAssetId: row.id,
+        versionId,
+        gotModelId: identifiers.modelId !== null,
+        gotFileHash: identifiers.fileHashAutoV3 !== null,
+        gotCover: identifiers.coverImageUrl !== null,
+      })
+    }),
+  )
+
+  if (healed.size === 0) return rows
+  return rows.map((row) => healed.get(row.id) ?? row)
+}
+
+/**
+ * List LoRA assets the viewer can use: their own + all curated.
+ * Ordered: owned (newest first) → curated (newest first).
+ */
+export async function listLoraAssetsForUser(
+  clerkId: string,
+  /** 她自己的取多少把。助手查库要全量（10-25：172 把只看得到最新 100 把）。 */
+  ownedLimit = 100,
+): Promise<LoraAssetRecord[]> {
+  const user = await ensureUser(clerkId)
+
+  const [owned, curated] = await Promise.all([
+    db.loraAsset.findMany({
+      // 只被角色收着、没收藏的外部 LoRA 不在库里（角色③「加到角色≠收藏」）。
+      where: { userId: user.id, inLibrary: true },
+      orderBy: { createdAt: 'desc' },
+      take: ownedLimit,
+    }),
+    db.loraAsset.findMany({
+      where: { source: 'curated', isPublic: true },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    }),
+  ])
+
+  const healedOwned = await healCivitaiIdentifiers(owned)
+
+  return [...healedOwned, ...curated].map((row) =>
+    toLoraAssetRecord(row, user.id),
+  )
+}
+
+/**
+ * "Discover" feed — public LoRAs trained by other users. Excludes:
+ *   - the viewer's own assets (those live in My LoRAs)
+ *   - curated assets (already mixed into My LoRAs)
+ *   - private assets
+ */
+export async function listDiscoverLoraAssets(
+  clerkId: string | null,
+): Promise<LoraAssetRecord[]> {
+  const viewerUserId = clerkId ? (await ensureUser(clerkId)).id : null
+
+  const rows = await db.loraAsset.findMany({
+    where: {
+      isPublic: true,
+      source: 'trained',
+      ...(viewerUserId ? { userId: { not: viewerUserId } } : {}),
+    },
+    orderBy: [{ usageCount: 'desc' }, { createdAt: 'desc' }],
+    take: 60,
+  })
+
+  return rows.map((row) => toLoraAssetRecord(row, viewerUserId))
+}
+
+/**
+ * Flip a LoraAsset's `isPublic` flag. Only the owner can do this;
+ * curated platform LoRAs (no userId) can't be toggled by anyone here.
+ * Returns the updated record so the client can swap optimistic state
+ * for the canonical row in one round-trip.
+ */
+export async function setLoraAssetVisibility(
+  clerkId: string,
+  loraAssetId: string,
+  isPublic: boolean,
+): Promise<LoraAssetRecord | null> {
+  const user = await ensureUser(clerkId)
+  const row = await db.loraAsset.findUnique({ where: { id: loraAssetId } })
+  if (!row) return null
+  if (row.userId !== user.id) {
+    throw new Error('Not authorized to modify this LoRA')
+  }
+
+  const updated = await db.loraAsset.update({
+    where: { id: loraAssetId },
+    data: { isPublic },
+  })
+
+  logger.info('LoraAsset visibility changed', {
+    loraAssetId,
+    userId: user.id,
+    isPublic,
+  })
+
+  return toLoraAssetRecord(updated, user.id)
+}
+
+/**
+ * Replace a LoraAsset's `coverImageUrl` — typically swapping the default
+ * (first training image) for a generated sample or a different training
+ * image. Only the owner can do this. The cover must be hosted on our own
+ * R2 bucket (training images, generation outputs, uploaded assets) so we
+ * don't display attacker-controlled URLs in LoRA cards.
+ */
+export async function updateLoraAssetCover(
+  clerkId: string,
+  loraAssetId: string,
+  coverImageUrl: string,
+): Promise<LoraAssetRecord | null> {
+  const user = await ensureUser(clerkId)
+  const row = await db.loraAsset.findUnique({ where: { id: loraAssetId } })
+  if (!row) return null
+  if (row.userId !== user.id) {
+    throw new Error('Not authorized to modify this LoRA')
+  }
+  if (!isOwnedStorageUrl(coverImageUrl)) {
+    throw new Error('Cover image must be hosted on our storage bucket')
+  }
+
+  const updated = await db.loraAsset.update({
+    where: { id: loraAssetId },
+    data: { coverImageUrl },
+  })
+
+  logger.info('LoraAsset cover updated', {
+    loraAssetId,
+    userId: user.id,
+    coverImageUrl,
+  })
+
+  return toLoraAssetRecord(updated, user.id)
+}
+
+/**
+ * Import an external LoRA (Civitai, Hugging Face, or another supported source)
+ * into the viewer's "Favorites" (source = 'imported').
+ * Idempotent on (userId, loraUrl): returns the existing row if present.
+ * Visible only to the owner — favorites are personal, not republished.
+ *
+ * **幂等是两层的**（2026-08-21 补齐，owner「收藏不能收藏同一个 LoRA 两次」）：
+ *
+ * 1. 先 `findFirst` —— 命中直接返回，省掉一次白写；
+ * 2. `create` 撞 `@@unique([userId, loraUrl])`（P2002）时**再查一次并返回既有行**。
+ *
+ * ⚠ **只有第 1 层挡不住并发**：两个请求同时查、都发现没有、就都写了。实测两组
+ * 重复分别相差 **5ms** 与 **184ms**，正是双击。所以约束是必需的，而第 2 层的作用
+ * 是让撞上约束的那个请求**表现得像幂等**，而不是把一个 500 甩给用户 —— 他只是
+ * 手快点了两下，不是做错了什么。
+ */
+export async function favoriteExternalLora(
+  clerkId: string,
+  input: FavoriteLoraRequest,
+): Promise<LoraAssetRecord> {
+  const user = await ensureUser(clerkId)
+  const row = await upsertImportedLora(user.id, input, { inLibrary: true })
+  return toLoraAssetRecord(row, user.id)
+}
+
+/**
+ * 你名下的那一行（按 `(userId, loraUrl)`，没有就建）。收藏与「加到角色」共用。
+ *
+ * - `inLibrary: true` = 收藏：已有的、只被角色收着的行顺带收进库。
+ * - `inLibrary: false` = 只为了被角色收（角色③，owner 2026-10-22「加到角色≠收藏」）：
+ *   新建的行不进「我的收藏」；已有的行原样返回。
+ */
+export async function upsertImportedLora(
+  userId: string,
+  input: FavoriteLoraRequest,
+  { inLibrary }: { inLibrary: boolean },
+): Promise<LoraAssetRow> {
+  const existing = await db.loraAsset.findFirst({
+    where: { userId, loraUrl: input.loraUrl },
+  })
+  if (existing) {
+    if (!inLibrary || existing.inLibrary) return existing
+    logger.info('LoraAsset moved into library', {
+      userId,
+      loraAssetId: existing.id,
+    })
+    return db.loraAsset.update({
+      where: { id: existing.id },
+      data: { inLibrary: true },
+    })
+  }
+
+  const styleCode = await reserveUniqueStyleCode(input.name, input.type)
+  let created: LoraAssetRow
+  try {
+    created = await db.loraAsset.create({
+      data: {
+        userId,
+        name: input.name,
+        styleCode,
+        source: 'imported',
+        type: input.type,
+        baseModelFamily: canonicalLoraBaseModelLabel(input.baseModelFamily),
+        provider: input.provider,
+        triggerWord: input.triggerWord,
+        loraUrl: input.loraUrl,
+        coverImageUrl: input.coverImageUrl ?? null,
+        defaultScale: 1.0,
+        isPublic: false,
+        inLibrary,
+        recommendedPrompt: input.recommendedPrompt ?? null,
+        civitaiModelId: input.modelId ?? null,
+        civitaiModelVersionId: input.modelVersionId ?? null,
+        civitaiFileHashAutoV3: input.fileHashAutoV3 ?? null,
+        // ⚠ 条件展开而不是 `?? null`：Prisma 的 Json 输入类型不收顶层 `null`
+        // （要 `Prisma.JsonNull` 那一套）。列本身可空、无默认值，省略即 null，
+        // 两者落库结果逐字一致。
+        ...(input.sourceSnapshot
+          ? { sourceSnapshot: input.sourceSnapshot }
+          : {}),
+      },
+    })
+  } catch (error) {
+    // 撞上 `@@unique([userId, loraUrl])` = 另一个并发请求刚写进去了。
+    // 对用户来说这就是「已经收藏过了」，不是错误 —— 回查那一行返回即可。
+    if (!isUniqueConstraintError(error)) throw error
+
+    const raced = await db.loraAsset.findFirst({
+      where: { userId, loraUrl: input.loraUrl },
+    })
+    // 查不到只可能是约束因别的列冲突（styleCode），那是真错，照抛。
+    if (!raced) throw error
+
+    logger.info('LoraAsset favorite raced; returning existing row', {
+      userId,
+      loraUrl: input.loraUrl,
+      styleCode: raced.styleCode,
+    })
+    return raced
+  }
+
+  logger.info('LoraAsset favorited (imported)', {
+    userId,
+    inLibrary,
+    styleCode,
+    loraUrl: input.loraUrl,
+    // 快照缺失要在日志里看得见：手机库那几条老路（CivitaiLibraryPane /
+    // HuggingFaceLoraLibrary）至今不传，补它是手机那一批的活，别让它悄悄一直缺着。
+    hasSourceSnapshot: Boolean(input.sourceSnapshot),
+  })
+
+  return created
+}
+
+/**
+ * Remove a user's favorite (only imported assets — trained/curated stay put).
+ * A row some character still collects is kept and only leaves the library.
+ * Returns true when the favorite was removed.
+ */
+export async function unfavoriteLora(
+  clerkId: string,
+  loraAssetId: string,
+): Promise<boolean> {
+  const user = await ensureUser(clerkId)
+  const row = await db.loraAsset.findUnique({ where: { id: loraAssetId } })
+  if (!row || row.userId !== user.id) return false
+  if (row.source !== 'imported') {
+    throw new Error('Only imported favorites can be removed this way')
+  }
+  // 还被角色收着：只移出库，角色那边照旧（owner 2026-10-22「加到角色≠收藏」）。
+  const characterLinks = await db.characterCardLora.count({
+    where: { loraAssetId },
+  })
+  if (characterLinks > 0) {
+    await db.loraAsset.update({
+      where: { id: loraAssetId },
+      data: { inLibrary: false },
+    })
+  } else {
+    await db.loraAsset.delete({ where: { id: loraAssetId } })
+  }
+  logger.info('LoraAsset unfavorited', {
+    userId: user.id,
+    loraAssetId,
+    keptForCharacters: characterLinks > 0,
+  })
+  return true
+}
+
+/**
+ * Permanently delete a user's owned, self-trained LoRA asset.
+ *
+ * Authorization:
+ *   - Caller must own the row (userId match).
+ *   - Only `source === 'trained'` is deletable here. `curated` is a system
+ *     seed (no DELETE path), `imported` flows through `unfavoriteLora`.
+ *
+ * Side effects (intentional / not):
+ *   - DB row removed.
+ *   - LoraTrainingJob.loraAssetId is set to NULL by Prisma's onDelete:
+ *     SetNull rule — the training job history stays intact.
+ *   - R2 storage (the .safetensors weights at `storageKey`) is NOT removed
+ *     here. Storage GC is a separate concern — punting until we have a
+ *     scheduled cleanup job. Worst case: orphan R2 objects, no user impact.
+ *   - Past Generation rows reference LoRAs by `styleCode` / `loraUrl` in
+ *     embedded JSON, not by FK, so previously generated images are
+ *     unaffected.
+ *
+ * Return: true on success, false when the row is missing or not owned.
+ * Throws when the caller tries to delete a non-trained source (programmer
+ * error — the UI should never offer the menu item for those).
+ */
+export async function deleteOwnedLoraAsset(
+  clerkId: string,
+  loraAssetId: string,
+): Promise<boolean> {
+  const user = await ensureUser(clerkId)
+  const row = await db.loraAsset.findUnique({ where: { id: loraAssetId } })
+  if (!row || row.userId !== user.id) return false
+  if (row.source !== 'trained') {
+    throw new Error('Only self-trained LoRA assets can be deleted this way')
+  }
+  await db.loraAsset.delete({ where: { id: loraAssetId } })
+  logger.info('LoraAsset deleted', {
+    userId: user.id,
+    loraAssetId,
+    name: row.name,
+  })
+  return true
+}
+
+/**
+ * Map the LoraTrainingJob.baseModel column (a provider-routed string like
+ * 'flux-dev', 'flux-dev-fal', 'sdxl', 'illustrious') onto the
+ * baseModelFamily bucket used by the Studio LoRA chip + capability matching.
+ * Trainers we support today land in flux or sdxl families; this helper is the
+ * single place to extend when new trainer base options come online.
+ */
+function inferBaseModelFamily(jobBaseModel: string): LoraAssetBaseFamily {
+  const v = jobBaseModel.toLowerCase()
+  if (v.includes('flux')) return 'flux'
+  // Illustrious and Pony are both SDXL-architecture finetunes — Studio's
+  // SDXL family bucket already groups them with NoobAI / delta-lock.
+  if (
+    v.includes('sdxl') ||
+    v.includes('illustrious') ||
+    v.includes('pony') ||
+    v.includes('noobai')
+  ) {
+    return 'sdxl'
+  }
+  return 'flux'
+}
+
+/** Resolve an R2 storage key (e.g. `lora-training/{userId}/{ts}-0.png`) to
+ *  the public CDN URL. Mirrors the join used in `uploadToR2`'s return value
+ *  so cover / preview URLs stay in sync with where the bytes actually live. */
+function storageKeyToPublicUrl(key: string): string {
+  return `${process.env.NEXT_PUBLIC_STORAGE_BASE_URL}/${key}`
+}
+
+/**
+ * Idempotently create a LoraAsset from a completed LoraTrainingJob.
+ * Called by lora-training.service when a job reaches COMPLETED.
+ */
+export async function ensureLoraAssetFromTrainingJob(
+  jobId: string,
+): Promise<void> {
+  const job = await db.loraTrainingJob.findUnique({
+    where: { id: jobId },
+    include: { loraAsset: true },
+  })
+  if (!job) return
+  if (job.status !== 'COMPLETED' || !job.loraUrl) return
+  if (job.loraAsset) return // already created
+
+  const type: LoraAssetType = job.loraType === 'style' ? 'style' : 'subject'
+  const styleCode = await reserveUniqueStyleCode(job.name, type)
+
+  // First training image is the default cover; the full list seeds the LoRA
+  // card's preview gallery. Both fields are nullable in the DB so older jobs
+  // without trainingImageKeys still get a valid (no-cover) asset record.
+  const imageUrls = (job.trainingImageKeys ?? []).map(storageKeyToPublicUrl)
+  const coverImageUrl = imageUrls[0] ?? null
+
+  await db.loraAsset.create({
+    data: {
+      userId: job.userId,
+      name: job.name,
+      styleCode,
+      source: 'trained',
+      type,
+      baseModelFamily: canonicalLoraBaseModelLabel(
+        inferBaseModelFamily(job.baseModel),
+      ),
+      provider: job.baseModel.endsWith('-fal') ? 'fal' : 'replicate',
+      triggerWord: job.triggerWord,
+      loraUrl: job.loraUrl,
+      storageKey: job.loraStorageKey,
+      coverImageUrl,
+      previewImageUrls: imageUrls,
+      defaultScale: 1.0,
+      isPublic: false,
+      trainingJobId: job.id,
+      // 从角色发起的训练：训完自动收进她的 LoRA（角色③），从哪套造型发起就挂在哪套下（角色④）。
+      ...(job.characterCardId
+        ? {
+            characterLinks: {
+              create: {
+                characterCardId: job.characterCardId,
+                lookId: job.lookId,
+              },
+            },
+          }
+        : {}),
+    },
+  })
+
+  logger.info('LoraAsset created from training job', {
+    jobId,
+    styleCode,
+    userId: job.userId,
+    characterCardId: job.characterCardId,
+    coverImageUrl,
+    previewCount: imageUrls.length,
+  })
+}
+
+/**
+ * Try up to 5 times to mint a unique style code. Collisions on the
+ * 4-char suffix are vanishingly rare (~6M codes per slug), but we
+ * loop defensively to keep the @unique constraint happy.
+ */
+async function reserveUniqueStyleCode(
+  name: string,
+  type: LoraAssetType,
+): Promise<string> {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const code = generateStyleCode(name, type)
+    const existing = await db.loraAsset.findUnique({
+      where: { styleCode: code },
+      select: { id: true },
+    })
+    if (!existing) return code
+  }
+  throw new Error('Failed to mint unique style code after 5 attempts')
+}

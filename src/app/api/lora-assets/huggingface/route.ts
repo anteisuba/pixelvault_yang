@@ -5,7 +5,7 @@ import {
   HuggingFaceLoraSearchQuerySchema,
   type HuggingFaceLoraSearchResult,
 } from '@/types'
-import { searchHuggingFaceLoras } from '@/services/huggingface-lora.service'
+import { searchHuggingFaceLoras } from '@/features/lora/server'
 
 const PUBLIC_CACHE = 'public, s-maxage=300, stale-while-revalidate=1800'
 

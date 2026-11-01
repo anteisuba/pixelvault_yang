@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import type { CivitaiCheckpointResolution } from '@/services/civitai-lora.service'
+import type { CivitaiCheckpointResolution } from '@/features/lora/server'
 
 import { determineRunnerCheckpointFidelity } from './runner-checkpoint-fidelity'
 

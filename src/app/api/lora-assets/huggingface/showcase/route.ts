@@ -5,7 +5,7 @@ import {
   HuggingFaceRepoShowcaseQuerySchema,
   type HuggingFaceRepoShowcase,
 } from '@/types'
-import { getHuggingFaceRepoShowcase } from '@/services/huggingface-lora.service'
+import { getHuggingFaceRepoShowcase } from '@/features/lora/server'
 
 // README 单抓实测 ~0.28s；给出宽裕但不夸张的上限，避免个别慢仓库拖到平台
 // 默认超时。

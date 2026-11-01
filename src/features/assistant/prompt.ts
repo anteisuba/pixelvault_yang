@@ -10,7 +10,7 @@ import {
 import { getSeedanceControlRules } from '@/constants/model-strengths.media'
 import { resolveAdapterType } from '@/constants/models'
 import { assistantV3CanvasNodes } from '@/lib/assistant-v3-board'
-import { buildLoraDialectSection } from '@/lib/lora-dialect-section'
+import { buildLoraDialectSection } from '@/features/lora/core'
 import type { AssistantOperatorRequest } from '@/types/assistant-operator'
 import type { AssistantMemory } from '@/types/assistant-memory'
 import type {

@@ -76,7 +76,7 @@ vi.mock('@/hooks/use-video-model-options', () => ({
   })),
 }))
 
-vi.mock('@/components/business/LoraTrainingDialog', () => ({
+vi.mock('@/features/lora/components/LoraTrainingDialog', () => ({
   LoraTrainingDialog: () => null,
 }))
 

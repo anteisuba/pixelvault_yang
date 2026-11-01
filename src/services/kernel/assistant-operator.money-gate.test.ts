@@ -174,7 +174,7 @@ const ALLOWED_SERVICE_IMPORTS = new Set([
    * 客户端（走既有 `favoriteLoraAPI`），与拍板 22 的 `import_user_url` 同一个形状。
    * 哪天有人想把它加进来「省一次往返」，那就是这道闸破的那一天。
    */
-  '@/services/lora/lora-candidates.service',
+  '@/features/lora/server',
   /**
    * 助手人设（§8.5）。⭐ 判据：它读写的是**一张只有文本列的 1:1 侧表**——
    * 不创建 generation、不扣 credit、不调任何 provider。

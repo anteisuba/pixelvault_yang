@@ -43,9 +43,9 @@ const LANDING_POINTS = [
   'src/components/business/node/NodeCanvasEmptyGuide.tsx',
   'src/components/business/assistant-settings/AssistantHerPane.tsx',
   'src/components/business/assistant-settings/AssistantMemoryPane.tsx',
-  'src/components/business/studio/lora/LoraWorkbench.tsx',
-  'src/components/business/studio/lora/library/LoraLibraryTypeStates.tsx',
-  'src/components/business/studio/lora/training/EmptyState.tsx',
+  'src/features/lora/components/LoraWorkbench.tsx',
+  'src/features/lora/components/library/LoraLibraryTypeStates.tsx',
+  'src/features/lora/components/training/EmptyState.tsx',
   // 音色库页：还没收藏 / 还没克隆（「声音」模块，owner 10-23）。
   'src/components/business/voices/VoicesPage.tsx',
   // 声音库桌面：还没收藏（库骨架，ui-spec §9）。

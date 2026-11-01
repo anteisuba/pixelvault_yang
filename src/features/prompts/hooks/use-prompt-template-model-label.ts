@@ -3,7 +3,7 @@
 import { useCallback } from 'react'
 import { useTranslations } from 'next-intl'
 
-import { LORA_BASE_MODELS } from '@/constants/lora-base-models'
+import { LORA_BASE_MODELS } from '@/features/lora/core'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import type { TagTemplateSource } from '@/lib/recipe-template-kind'
 

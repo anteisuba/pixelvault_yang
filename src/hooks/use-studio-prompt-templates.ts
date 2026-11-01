@@ -3,7 +3,7 @@
 import { useCallback, useMemo } from 'react'
 import { WORKFLOW_IDS } from '@/constants/workflows'
 import { useStudioForm } from '@/contexts/studio-context'
-import { readRecipeNegativePrompt } from '@/lib/recipe-lora-setup'
+import { readRecipeNegativePrompt } from '@/features/lora/core'
 import { getTagTemplateSource } from '@/lib/recipe-template-kind'
 import { parseTagChips, serializeTagChips } from '@/lib/tag-composer'
 import type { StudioModelOption } from '@/types/model-option'

@@ -21,7 +21,7 @@ import { listCharacterLoraGroups } from '@/features/cards/server'
 import {
   findLoraAssetsByUrls,
   listLoraAssetsForUser,
-} from '@/services/lora-asset.service'
+} from '@/features/lora/server'
 import { listProjectSourceRules } from '@/services/project-rule.service'
 import { listRecipeSummaries } from '@/features/prompts/server'
 import { expandSearchQuery } from '@/services/search-expansion.service'

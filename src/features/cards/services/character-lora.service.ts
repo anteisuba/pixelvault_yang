@@ -8,10 +8,7 @@ import {
   CHARACTER_LOOKS_INCLUDE,
   readReferenceSlots,
 } from '@/features/cards/services/character-card.mapper'
-import {
-  toLoraAssetRecord,
-  upsertImportedLora,
-} from '@/services/lora-asset.service'
+import { toLoraAssetRecord, upsertImportedLora } from '@/features/lora/server'
 import { ensureUser } from '@/services/user.service'
 import type {
   CharacterLoraGroup,

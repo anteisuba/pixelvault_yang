@@ -1,5 +1,5 @@
 import { StudioShell } from '@/components/business/studio/shell/StudioShell'
-import { LoraStackProvider } from '@/hooks/use-active-lora-stack'
+import { LoraStackProvider } from '@/features/lora'
 
 /**
  * `/studio` 与 `/library` 共用的外壳（第 9f 步方向 E）：左 = 对话列表 · 中 = 对话（助手面板

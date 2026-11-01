@@ -9,11 +9,11 @@ import {
 
 vi.mock('server-only', () => ({}))
 
-vi.mock('@/services/lora-training.service', () => ({
+vi.mock('@/features/lora/services/lora-training.service', () => ({
   completeTrainingImageDirectUpload: vi.fn(),
 }))
 
-import { completeTrainingImageDirectUpload } from '@/services/lora-training.service'
+import { completeTrainingImageDirectUpload } from '@/features/lora/server'
 
 import { POST } from './route'
 

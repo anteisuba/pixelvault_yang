@@ -12,14 +12,11 @@ import {
   MediaTileShade,
 } from '@/components/ui/media-tile'
 import { Spinner } from '@/components/ui/spinner'
-import {
-  LoraPickerDialog,
-  type LoraPickCollect,
-} from '@/components/business/studio/lora/library/LoraPickerDialog'
+import { LoraPickerDialog, type LoraPickCollect } from '@/features/lora'
 import { useCharacterLoras } from '@/features/cards/hooks/use-character-loras'
 import { lookLabel } from '@/lib/character-looks'
-import { proxyCivitaiImageUrl } from '@/lib/civitai-image-url'
-import { buildLibraryFavoriteRequest } from '@/lib/lora-source-snapshot'
+import { proxyCivitaiImageUrl } from '@/features/lora/core'
+import { buildLibraryFavoriteRequest } from '@/features/lora/core'
 import { cn } from '@/lib/utils'
 
 /** 她页的挑选框不在 LoRA 台上：没有台上底模，格子上不判「装不上」。 */

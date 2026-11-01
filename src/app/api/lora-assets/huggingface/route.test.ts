@@ -8,11 +8,11 @@ vi.mock('@/lib/logger', () => ({
   logger: { error: vi.fn(), info: vi.fn(), warn: vi.fn() },
 }))
 
-vi.mock('@/services/huggingface-lora.service', () => ({
+vi.mock('@/features/lora/services/huggingface-lora.service', () => ({
   searchHuggingFaceLoras: vi.fn(),
 }))
 
-import { searchHuggingFaceLoras } from '@/services/huggingface-lora.service'
+import { searchHuggingFaceLoras } from '@/features/lora/server'
 
 import { GET } from './route'
 

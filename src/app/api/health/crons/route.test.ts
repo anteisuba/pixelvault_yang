@@ -10,7 +10,7 @@ vi.mock('@/lib/cron-heartbeat', () => ({
 }))
 
 const mockReadIndex = vi.fn()
-vi.mock('@/services/civitai-lora-library.service', () => ({
+vi.mock('@/features/lora/services/civitai-lora-library.service', () => ({
   readCivitaiIndexHeartbeat: (...args: unknown[]) => mockReadIndex(...args),
 }))
 

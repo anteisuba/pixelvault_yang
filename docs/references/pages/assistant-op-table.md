@@ -190,7 +190,7 @@ LoRA 装配台的 op = **通用件里的那些**（与工作台同表，见 §2 
 - 落点词表：`src/constants/studio-assistant-operator.ts`（`STUDIO_OPERATOR_FIELD_IDS`）
 - 回执与闪：`src/components/business/studio/assistant-operator/StudioOperatorCheckpointCard.tsx` · `src/constants/motion.ts`（`ASSISTANT_TOUCH_FLASH_MOTION`）· `src/app/canvas.css`（`.node-assistant-touched`）· `src/hooks/node/node-ingest-dom.ts` · `src/app/globals.css`（`.assistant-field-touched`）· `src/lib/studio-operator-flash.ts`
 - 专属 chip 与渠道的派生源：`src/lib/model-capability-chips.ts`（11 那行 chip，`set_capability` 的键白名单）· `src/lib/group-models-for-picker.ts`（`foldChannels`，渠道身份）· `src/lib/resolve-model-channel.ts` + `src/lib/model-picker-gate.ts`（「先选渠道」那道闸）· `src/lib/studio-operator-snapshot.ts`（两节快照的构造）
-- 宿主：`src/hooks/use-studio-workbench-operator-host.ts` · `src/hooks/use-lora-operator-host.ts` · `src/hooks/node/use-canvas-operator-host.ts` · `src/hooks/node/use-canvas-operator-requests.ts`
+- 宿主：`src/hooks/use-studio-workbench-operator-host.ts` · `src/features/lora/hooks/use-lora-operator-host.ts` · `src/hooks/node/use-canvas-operator-host.ts` · `src/hooks/node/use-canvas-operator-requests.ts`
 - 协议与页面基准：[`assistant-shell-v2.md`](assistant-shell-v2.md) · [`node-canvas-v2.md`](node-canvas-v2.md) §13 · [`lora-assistant.md`](lora-assistant.md)
 
 ## Last Verified

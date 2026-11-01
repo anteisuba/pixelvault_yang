@@ -21,7 +21,10 @@ import type { z } from 'zod'
 
 import type { AspectRatio } from '@/constants/config'
 import { supportsSearchGrounding } from '@/constants/models'
-import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
+import {
+  NODE_MEDIA_KIND_IDS,
+  NODE_V4_VIDEO_SUBTYPE_IDS,
+} from '@/constants/node-types'
 import type { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   getVideoModelCapabilities,
@@ -59,6 +62,7 @@ import {
 } from '@/lib/image-prompt-templates'
 import { type NodeGenerationShot } from '@/lib/node-media-patch'
 import { shotSeed } from '@/lib/node-image-seed'
+import { composeShotSpecPrompt } from '@/lib/shot-spec-prompt'
 import {
   AdvancedParamsSchema,
   type CharacterCardRecord,
@@ -70,11 +74,17 @@ import {
   stripCharacterMentionMarks,
   type NodeCharacterMention,
 } from '@/lib/node-character-mentions'
-import type { NodeV4, NodeWorkflowEdgeV4 } from '@/types/node-workflow'
+import type {
+  NodeV4,
+  NodeWorkflowEdgeV4,
+  NodeWorkflowShotlist,
+} from '@/types/node-workflow'
 
 export interface V4GenerateGraph {
   readonly nodes: readonly NodeV4[]
   readonly edges: readonly NodeWorkflowEdgeV4[]
+  /** 镜头表的项目级设置：镜头卡发送时要拼全片风格（`lib/shot-spec-prompt.ts`）。 */
+  readonly shotlist?: NodeWorkflowShotlist
 }
 
 /** 装配好的载荷 + 这一次的前置校验结论。 */
@@ -313,7 +323,15 @@ export function planV4Generation(
       // 到别的端点 —— 回退意味着用户以为在用全能参考、实际发的是首帧请求。
       modelId: sendModelId,
       kind: 'video',
-      prompt: toModelPrompt(payload.prompt),
+      // 镜头表的景别 / 运镜 / 风格只在发送这一刻拼上（⛔ 不写回正文）。
+      prompt:
+        data.subtype === NODE_V4_VIDEO_SUBTYPE_IDS.shot
+          ? composeShotSpecPrompt(
+              toModelPrompt(payload.prompt),
+              data.shot,
+              graph.shotlist,
+            )
+          : toModelPrompt(payload.prompt),
       ...(data.negativePrompt ? { negativePrompt: data.negativePrompt } : {}),
       ...(aspectRatio ? { aspectRatio } : {}),
       ...(resolution ? { resolution } : {}),

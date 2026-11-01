@@ -188,6 +188,41 @@ describe('planV4Generation · 视频', () => {
 })
 
 describe('planV4Generation · 其余分支', () => {
+  it('镜头表：景别 / 运镜 / 风格发送时接在正文后面，单镜风格盖过全片风格', () => {
+    const shot = node('s', {
+      kind: 'video',
+      subtype: 'shot',
+      prompt: '她在雨里回头',
+      model: MODEL,
+      shot: { size: 'close_up', move: '缓慢推近' },
+    })
+    const plan = planV4Generation('s', {
+      nodes: [shot],
+      edges: [],
+      shotlist: { look: '冷蓝夜色' },
+    })!
+    expect(plan.prompt).toBe(
+      '她在雨里回头\n\nShot size: close-up.\nCamera movement: 缓慢推近.\nLook: 冷蓝夜色.',
+    )
+    // 卡上的正文一个字不动。
+    expect(shot.data.kind === 'video' && shot.data.prompt).toBe('她在雨里回头')
+  })
+
+  it('镜头表：素材视频（clip）不拼全片风格', () => {
+    const clip = node('c', {
+      kind: 'video',
+      subtype: 'clip',
+      prompt: '参考',
+      model: MODEL,
+    })
+    const plan = planV4Generation('c', {
+      nodes: [clip],
+      edges: [],
+      shotlist: { look: '冷蓝夜色' },
+    })!
+    expect(plan.prompt).toBe('参考')
+  })
+
   it('文本节点没有生成落点 → null', () => {
     expect(planV4Generation('t1', graph)).toBeNull()
   })

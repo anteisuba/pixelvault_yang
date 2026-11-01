@@ -521,7 +521,7 @@ export function useVideoComposer({
     return generation
       .generateNode(
         id,
-        { nodes, edges: graph.edges },
+        { nodes, edges: graph.edges, shotlist: graph.shotlist },
         {
           prompt: draft,
           onJobCreated: (jobId) => {

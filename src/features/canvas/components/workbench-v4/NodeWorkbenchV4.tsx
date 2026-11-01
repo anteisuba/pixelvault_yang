@@ -822,7 +822,11 @@ function NodeWorkbenchV4Inner() {
         void generation
           .generateNode(
             nodeId,
-            { nodes: graph.nodes, edges: graph.edges },
+            {
+              nodes: graph.nodes,
+              edges: graph.edges,
+              shotlist: graph.state.shotlist,
+            },
             {
               // 落 job id = **持久化**「有一单在飞」。刷新 / 轮询窗口关掉之后，
               // `useNodeGenerationReconcileV4` 就是靠它把结果取回来的。一张卡
@@ -1455,7 +1459,11 @@ function NodeWorkbenchV4Inner() {
       regenerateForReview: async (nodeId, promptAppend) => {
         await generation.generateNode(
           nodeId,
-          { nodes: graph.nodes, edges: graph.edges },
+          {
+            nodes: graph.nodes,
+            edges: graph.edges,
+            shotlist: graph.state.shotlist,
+          },
           promptAppend ? { prompt: promptAppend } : {},
         )
       },

@@ -95,6 +95,8 @@ const OP_ICONS: Record<NodeAssistantOpV4Id, LucideIcon> = {
   [NODE_ASSISTANT_OP_V4_IDS.setModel]: Cpu,
   [NODE_ASSISTANT_OP_V4_IDS.setParams]: SlidersHorizontal,
   [NODE_ASSISTANT_OP_V4_IDS.setVoiceProfile]: Mic,
+  [NODE_ASSISTANT_OP_V4_IDS.setShotSpec]: Clapperboard,
+  [NODE_ASSISTANT_OP_V4_IDS.setShotlist]: SlidersHorizontal,
   [NODE_ASSISTANT_OP_V4_IDS.setReviewState]: Undo2,
   // 剪辑台五条（S8）：整表用「时间线」，四条单段手势各按动作取图标。
   [NODE_ASSISTANT_OP_V4_IDS.editSetTimeline]: ListOrdered,
@@ -283,6 +285,12 @@ export function CanvasOpProposalCard({
           return t('describe.setVoiceProfile', {
             target: describeTarget(op.target),
           })
+        case NODE_ASSISTANT_OP_V4_IDS.setShotSpec:
+          return t('describe.setShotSpec', {
+            target: describeTarget(op.target),
+          })
+        case NODE_ASSISTANT_OP_V4_IDS.setShotlist:
+          return t('describe.setShotlist')
         case NODE_ASSISTANT_OP_V4_IDS.setReviewState:
           // 三个态各说各的。`approved` 永远会被拒，但**说的必须是它真的想干什么**
           // ——写成「标为待审」会让「助手不能替你放行」那句理由读起来莫名其妙。

@@ -923,6 +923,8 @@
         "unblockVersion": "解除「{target}」{slot}这一版的不用标记",
         "setParamsV4": "改「{target}」的生成档位",
         "setVoiceProfile": "改「{target}」的音色档",
+        "setShotSpec": "改「{target}」的景别 / 运镜 / 风格",
+        "setShotlist": "改镜头表的全片设置",
         "setCharacterPicks": "改了「{target}」里角色带的图"
       },
       "params": {

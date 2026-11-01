@@ -21,6 +21,7 @@ import type {
   NodeV4,
   NodeV4GenerationParams,
   NodeWorkflowEdgeV4,
+  NodeWorkflowShotlist,
   NodeWorkflowModelOption,
   NodeWorkflowModelSelection,
 } from '@/types/node-workflow'
@@ -134,6 +135,8 @@ export interface NodeV4CanvasContextValue {
   readGraph(): {
     readonly nodes: readonly NodeV4[]
     readonly edges: readonly NodeWorkflowEdgeV4[]
+    /** 镜头表的项目级设置（发送镜头卡时拼全片风格）。 */
+    readonly shotlist?: NodeWorkflowShotlist
   }
   onSetModel(nodeId: string, model: NodeWorkflowModelSelection): void
   onSetParams(nodeId: string, params: NodeV4GenerationParams): void

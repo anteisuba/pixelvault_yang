@@ -95,3 +95,13 @@
 5. 旧剧本笺（ScriptDoc 数据模型 / 投影 / `node-script-doc` 与 `script-breakdown` 接口）**直接删**。
 
 施工顺序：roadmap「下一个」第 3 项，排在点数地基、助手自主度之后。第 3 步「助手填表」要等自主度定稿（整表覆盖时先问的规矩跟它走）；第 4 步花钱要走点数地基。
+
+## 施工记录
+
+- **第 1 步（11-01，分支 `claude/project-thread-4x7hdi`）**
+  - 删旧剧本笺：起草 / 拆解接口、两个 service、v4 投影、`actions.scriptDoc`、v4 状态上的 `scriptDoc*`。ScriptDoc 与拆解 schema 只留给 v3 读端（迁移定镜号），随 v3 读端一起删（node-canvas-v2 §14.4）。
+  - 镜头卡加 `shot`（`size` 景别词表 / `move` 运镜 / `look` 单镜风格 / `durationLocked`），项目加 `shotlist`（`look` 全片风格 / `totalDurationSec` / `hiddenColumns`）。常量 `constants/shot-spec.ts`。
+  - 发送时拼：`lib/shot-spec-prompt.ts`，只对 `video.shot`；正文不动。
+  - 两条可撤销 op：`set_shot_spec`（补丁，`null` 清一格，撤销只退那几格）、`set_shotlist`（整份替换，撤销能退回「没设过」）。
+  - 与上文的两处收窄：**「说明」= 卡的提示词正文**（不另存 `note`，两份文字迟早对不上）；**不加 `sceneId`**，「角色 · 场景」列从参考轨现读（`@角色` + 挂着的背景卡），表格视图那一步再定显示。
+  - 助手**看得见**这几格（快照）留到第 3 步「助手填表」一起做，那一步动助手内核、要跑评测。

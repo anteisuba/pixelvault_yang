@@ -22,7 +22,8 @@ describe('v4 op 表（spec §5）', () => {
     // +1 = `project_script`（进度表 24）：剧本卡按分镜投影成一排镜头节点。
     // +1 = `set_character_picks`（画布用角色 ④）：@ 的角色这一镜带哪几张。
     // +1 = `remove_output_version`（owner 2026-09-29）：原图删了的那一版单独拿掉。
-    expect(NODE_ASSISTANT_OPS_V4).toHaveLength(34)
+    // +2 = `set_shot_spec` / `set_shotlist`（镜头表，p-canvas-shotlist）。
+    expect(NODE_ASSISTANT_OPS_V4).toHaveLength(36)
     expect(Object.keys(NODE_ASSISTANT_OP_V4_SPECS).sort()).toEqual(
       [...NODE_ASSISTANT_OPS_V4].sort(),
     )

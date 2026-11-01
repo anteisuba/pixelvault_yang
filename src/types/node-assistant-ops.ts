@@ -27,6 +27,7 @@ import {
 import { NODE_V4_OUTPUT_VERSION } from '@/constants/node-studio'
 import { CHARACTER_CARD } from '@/constants/cards/character-card'
 import { IMAGE_PROMPT_TEMPLATE_CHOICES } from '@/constants/image-prompt-templates'
+import { SHOT_SIZES, SHOT_SPEC_LIMITS } from '@/constants/shot-spec'
 import { CharacterImagePickSchema } from '@/types/character-image-pick'
 import {
   EDIT_CLIP_GAIN_MAX,
@@ -48,6 +49,7 @@ import {
   EditClipSchema,
   EditProjectSchema,
   EditTextClipSchema,
+  NodeWorkflowShotlistSchema,
 } from '@/types/node-workflow'
 
 /**
@@ -681,6 +683,45 @@ export const NodeAssistantSetVoiceProfileOpSchema = z.object({
   }),
 })
 
+/**
+ * 镜头表一行的景别 / 运镜 / 风格 / 时长锁（`video.shot` 的 `shot`，`p-canvas-shotlist`）。
+ *
+ * 补丁语义：带来的格覆盖，`null` = 清空这一格，没带的留着 —— 表里改一格就是一条 op，
+ * 「把第 3 镜改成特写」不该把它的运镜一起清掉。
+ * ⚠ 不并进 `set_field`：理由同 `set_voice_profile`（嵌套对象，一次改几格是一个撤销步）。
+ */
+export const NodeAssistantSetShotSpecOpSchema = z.object({
+  op: z.literal(NODE_ASSISTANT_OP_V4_IDS.setShotSpec),
+  target: NodeAssistantOpTargetSchema,
+  spec: z.object({
+    size: z.enum(SHOT_SIZES).nullable().optional(),
+    move: z
+      .string()
+      .trim()
+      .min(1)
+      .max(SHOT_SPEC_LIMITS.moveMaxLength)
+      .nullable()
+      .optional(),
+    look: z
+      .string()
+      .trim()
+      .min(1)
+      .max(SHOT_SPEC_LIMITS.lookMaxLength)
+      .nullable()
+      .optional(),
+    durationLocked: z.boolean().nullable().optional(),
+  }),
+})
+
+/**
+ * 镜头表的项目级设置（全片风格 / 总时长 / 关掉的列），整份替换。`shotlist` 省略 =
+ * 清空（与 `edit_set_timeline` 同一条理由：撤销第一次设置要能退回「不存在」）。
+ */
+export const NodeAssistantSetShotlistOpSchema = z.object({
+  op: z.literal(NODE_ASSISTANT_OP_V4_IDS.setShotlist),
+  shotlist: NodeWorkflowShotlistSchema.optional(),
+})
+
 export const NodeAssistantSetReviewStateV4OpSchema = z.object({
   op: z.literal(NODE_ASSISTANT_OP_V4_IDS.setReviewState),
   target: NodeAssistantOpTargetSchema,
@@ -846,6 +887,8 @@ export const NodeAssistantOpV4Schema = z.discriminatedUnion('op', [
   NodeAssistantSetModelV4OpSchema,
   NodeAssistantSetParamsV4OpSchema,
   NodeAssistantSetVoiceProfileOpSchema,
+  NodeAssistantSetShotSpecOpSchema,
+  NodeAssistantSetShotlistOpSchema,
   NodeAssistantSetReviewStateV4OpSchema,
   NodeAssistantEditSetTimelineOpSchema,
   NodeAssistantEditAddClipOpSchema,

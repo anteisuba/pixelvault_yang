@@ -188,8 +188,8 @@ export function NodeV4Provider({
 
   const readState = engine.readState
   const readGraph = useCallback(() => {
-    const { nodes, edges } = readState()
-    return { nodes, edges }
+    const { nodes, edges, shotlist } = readState()
+    return { nodes, edges, ...(shotlist ? { shotlist } : {}) }
   }, [readState])
 
   const onSetModel = engine.setModel

@@ -923,6 +923,8 @@
         "unblockVersion": "「{target}」の{slot}のこのバージョンの不採用を解除する",
         "setParamsV4": "「{target}」の生成設定を変更する",
         "setVoiceProfile": "「{target}」の音声設定を変更する",
+        "setShotSpec": "「{target}」のショット設定を変更する",
+        "setShotlist": "ショットリストの設定を変更する",
         "setCharacterPicks": "「{target}」でキャラクターが使う画像を変更"
       },
       "params": {

@@ -1,91 +1,103 @@
 # ANTEI 施工单
 
-做事顺序与完成记录的**唯一来源**（2026-10-29 从云端施工单 artifact 搬进仓库，artifact 从此停更）。
+做事顺序与完成记录的**唯一来源**（2026-10-29 从云端 artifact 搬进仓库，artifact 停更；2026-11-01 按新定位重排：按模块分，不再按阶段）。
 
 ## 怎么用
 
 - 开工前先看「正在做 / 下一个」，只做排到的那一项；讨论里定下的改动记到对应条目，轮到再做（不插队，见 [AGENTS.md](../AGENTS.md)「owner 工作规矩」）。
+- 每条待做带「状态」：**已定** = 方向 owner 定了，可以出设计稿 / 开工；**稿已出** = 设计稿写好等 owner 看；**待调查** = 只有方向，先由线程只读调查一页，owner 看完再定做不做。
 - 新模块开工前先和 owner 对齐：做什么、改什么、改完什么样、为什么。
-- 每合一个 PR、每定一项：当场改这份文件——条目挪到「已完成」并写日期和 PR 号，顶部「正在做 / 下一个」同步。
-- 条目带 `id`（与旧 artifact 一致），提交信息和讨论里可以直接引用。
-- 设计细节不写在这里：待做模块的设计稿在 [`design/`](design/)，已上线功能的现行做法在 `references/` 对应文档。
+- 每合一个 PR、每定一项：当场改这份文件——条目挪到「已完成」并写日期、PR 号 / 提交号、当时的讨论文档，顶部「正在做 / 下一个」同步。
+- 条目带 `id`，提交信息和讨论里可以直接引用。
+- 设计细节不写在这里：待做模块的设计稿在 [`design/`](design/)，已上线功能的现行做法在 `references/` 对应文档；对齐稿在项目文件夹 `/mnt/project-files/<模块>/`。
 - 本地直推 main（无 PR 号）的改动也要记；核对时看 `git log origin/main --first-parent`，别只看 PR 列表。
+
+## 定位（2026-11-01 owner 定，详见 [`references/product.md`](references/product.md)）
+
+ANTEI = 一个有灵魂的 AI 助手，替你做创作，你随时能改。默认助手 + 角色是可换的灵魂；文字 / 图 / 视频 / 声音是她的手；画布是作品汇合、出视频的地方。排优先级看「助手能不能接管这件事、用户能不能改」。
 
 ## 正在做
 
-| id                   | 事项                                      | 现状                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| -------------------- | ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `p-character-outing` | 角色会「出门」+ 角色页方向 B「她 + 最近」 | 后台、切片 1–3、表情包已上（#478 #480 #481 + 10-28 直推）。10-29 owner 定：切片 4（筛选 / 空态 / 动效）、5（平板手机）并进 `p-character-redesign`，这里只修出门本身的功能问题                                                                                                                                                                                                                                                                   |
-| `p-mcp-everywhere`   | MCP 扩展到全站 + 通用接入                 | 10-30 owner 定：外部 AI（Claude Code / Cursor / 网页版 Claude / ChatGPT…）能查、看、改全站的库，出图要她亲自确认（服务器弹框，不支持就去网站点），OAuth 一起做，与角色大项目并行。① find / look ② edit / undo ③ 令牌权限三档 ④ generate 确认 ⑤ OAuth 代码已写完（分支 `claude/project-thread-jt3jkf`，一条迁移），等 owner 在 Clerk 打开 OAuth 动态注册、点头后一起推 main。现行做法见 [`references/mcp.md`](references/mcp.md) §3.2 / §4.3–4.5 |
-| `u-tag-studio-ui`    | 标签台交互与排版                          | ④ 纯文本已合 #436。剩 ① 切换条上滚轮切整体 / 角色 N ② 加角色按钮做大（＋女 / ＋男 / ＋其他 / 从词库）③ 负面紧挨正面                                                                                                                                                                                                                                                                                                                             |
+| id                 | 事项                         | 现状                                                                                                                                                                        |
+| ------------------ | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `f-small`          | 小域搬进 `src/features/`     | 提示词库 / 画廊 / 素材 / 设置四个域搬完、测试全过，11-01 owner「推」，上 main 中                                                                                            |
+| `u-tag-studio-ui`  | 标签台交互与排版             | ④ 纯文本已合 #436；存模板 / ＋加角色在预览上做好，11-01 owner「推」。剩 ① 切换条滚轮切整体 / 角色 N ② 加角色按钮做大 ③ 负面紧挨正面                                         |
+| `p-mcp-everywhere` | MCP 扩展到全站 + 通用接入    | 代码 10-30 已上 main（cc56396）。差 owner 去 Clerk 打开 OAuth Dynamic client registration，11-01 owner：不急，最后再做。现行做法见 [`references/mcp.md`](references/mcp.md) |
+| 闸门三件           | 安全审计 / outbox / 错误显示 | 11-01 owner 定「朋友圈扩大前必须完成」，放手给 Opus 线程并行做；安全审计 owner 定全部做完再推                                                                               |
 
 ## 下一个
 
-2026-11-01 owner 定方向（见 [`references/product.md`](references/product.md) 北极星）：核心是助手，台和画布是她的工具。顺序 owner 交给 Claude 定，11-01 晚 owner 点头如下：
+11-01 owner 定顺序：
 
-1. **`p-platform-credits` 点数地基**：所有调用（LLM token / 图 / 视频 / 声音 / Modal GPU 秒）折成点数、每人额度、用量可见。Modal 免费给所有用户跑、朋友试用先给额度玩、助手「花钱多先问」、角色出门额度，四件都踩在这套上。先出设计稿 `design/platform-credits.md`，owner 看稿后做。
-2. **`p-assistant-autonomy` 助手自主度（含 `p-assistant-undo` 撤回）**：像讨论一样——拿得准直接做完，拿不准先问一句「这样可以吗」，不行换方案；三种先问（改坏已有东西 / 花钱明显多 / 意思有两种读法）；所有助手动作可撤回是底线。先出设计稿 `design/assistant-autonomy.md`（现状：助手现在哪些地方停下来问、哪些直接做；改法；改完什么样），owner 看稿后做。`p-assistant-modes`（反问模式）并入。
-3. **`p-canvas-shotlist` 画布镜头表框架**：先框架后逐镜生成；表能从参考视频拆（原 `p-canvas-breakdown` 拉片）也能由助手填；默认先低清草稿看剧情、满意再精修。先出设计稿 `design/canvas-shotlist.md`，owner 看稿后做。`p-canvas-polish` 里已记的两项轮到时一起。
-4. **UI：各台按样件 E 细修**——标签台 → 视频 / 3D → 配音间 → 画布，每台开工前对齐。规范见 `references/ui-spec.md`。
-5. 其余按下面「待做」的阶段顺序往下排；手机端重设计（`d-mobile-redesign`）等用的人再多些再排；要插队先问 owner。
+1. **`p-platform-credits` 点数地基**（稿已出）——所有调用折点数、每人额度、用量可见。Modal 免费给所有人跑、朋友试用先给额度、助手「花钱多先问」、角色出门额度，四件都踩在这套上。
+2. **`p-assistant-autonomy` 助手自主度（含 `p-assistant-undo`）**（稿已出）——像讨论一样：拿得准直接做完，拿不准先问一句「这样可以吗」；所有动作可撤回。
+3. **`p-canvas-shotlist` 画布镜头表**（稿已出）——先框架后逐镜生成，先出图挑再出视频。
+4. **各台按样件 E 细修**——标签台 → 视频 / 3D → 配音间 → 画布，每台开工前对齐。
+5. 其余按下面各模块的条目往下排；手机端重设计等用的人再多些再排；要插队先问 owner。
 
-**朋友圈扩大前的闸门（与上面并行，放手给 Opus 线程做）**：安全审计一轮（越权 / ownership / 扣点）、`o-worker` 结果不丢（outbox）、`o-errors` 错误显示。三件没完成不扩大试用范围。
+**朋友圈扩大前的闸门**：安全审计一轮（越权 / ownership / 扣点）、`o-worker` 结果不丢（outbox）、`o-errors` 错误显示。三件没完成不扩大试用范围。
 
-**固定规矩（11-01 owner 定）**：每次动助手内核，跑一遍 68 题评测（约 $5，花 owner 额度），结果记 `/mnt/project-files/assistant-eval/`。
+**固定规矩**：每次动助手内核，跑一遍 68 题评测（约 $5，花 owner 额度），结果记 `/mnt/project-files/assistant-eval/`。
 
-## 待做
+## 待做（按模块）
 
-### 设计先行（UI）
+### 助手
 
-| id                  | 事项                          | 已定 / 备注                                                                                                                                                                                    |
-| ------------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `d-mobile-redesign` | 手机端整体重设计              | 10-22 owner：要大改。接上整体助手（对话为主、台做抽屉）和底栏（素材·画廊·角色·我的 + ＋）；和 Telegram 对照表一起做，先出几个方向。助手工作台的手机端（`p-assistant-bench-ux` 留下的）也并进来 |
-| `d-telegram-map`    | Telegram 移动端习惯对照表     | 操作习惯、动效、UI、布局逐项对照我们的页面                                                                                                                                                     |
-| `d-motion-samples`  | 新动效对比样件                | 旧样片只作参考                                                                                                                                                                                 |
-| `d-nova-sample`     | Nova 效果样件（只看，不采用） | 同一页现在的密度和 Nova 并排对比                                                                                                                                                               |
-| `d-danbooru-page`   | Danbooru 标签库单独成页       | 10-24 规范 ㊴ 已定长相：照「查资料」左列表 + 右详情，标签库整页已上（#402）。剩：确认是否还要独立路由                                                                                          |
+| id                       | 事项                                          | 状态   | 已定 / 备注                                                                                                                                                                                                                                    |
+| ------------------------ | --------------------------------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `p-assistant-autonomy`   | 自主度（原 `p-assistant-modes` 反问模式并入） | 稿已出 | 稿 [`/mnt/project-files/assistant-autonomy/design.md`]。11-01 owner 定：门槛先 $1（点数上线后换成 100 点）；去掉「交给 AI 出图」开关；去掉出图后「按这个方向继续吗」，改成她看完图自己说。三种先问：改坏已有东西 / 花钱明显多 / 意思有两种读法 |
+| `p-assistant-undo`       | 所有助手动作可撤回（底线）                    | 已定   | MCP 已有 edit / undo，站内助手改东西没有统一撤回；随自主度一起设计                                                                                                                                                                             |
+| `p-user-profile`         | 「你」的档案                                  | 已定   | 11-01 owner 定两层：「关于你的事实」（名字 / 语言 / 禁忌 / 常用模型）一份共享；「她对你的印象、相处方式」各记各的                                                                                                                              |
+| `p-reverse-image-search` | 以图搜图：拿图去网上找出处 / 同款             | 待调查 | SauceNAO（用户自己的 key）+ IQDB 兜底；入口设想查看器「找出处」+ 助手。要 owner 的 SauceNAO key、定入口放哪                                                                                                                                    |
+| `p-character-chat`       | 聊天里「画这一幕」                            | 已定   | 原「一个 bot」清单只剩这一项（「分支」11-01 删）；= 和角色聊天时让她直接出这一幕的图。排在自主度之后                                                                                                                                           |
+| —                        | 助手主动提议 / 电子宠物感                     | 未排期 | 自主度做完后的下一步：她看完结果自己说「这张手有问题，我重出一版？」、库里有更合适的 LoRA 主动推。10-23 / 11-01 owner 提，未排期                                                                                                               |
+| `r-nai5-skill`           | 参考 NAI5-SKILL 补助手内置 NAI 技能           | 待调查 | 仓库无许可证，只借思路不抄文本；和内置 NAI 技能（#354 #359）逐条比，补漫画右→左、复杂构图、多人站位、版权角色不写外观等                                                                                                                        |
 
-### UI 地基（剩下的）
+### 画布
 
-| id  | 事项                                       | 备注                        |
-| --- | ------------------------------------------ | --------------------------- |
-| —   | 删死代码 `card-tile-base`、`MediaCardTile` | #396 后已无调用方，测试还在 |
+| id                     | 事项                                          | 状态   | 已定 / 备注                                                                                                                                                                                                                                                                                                   |
+| ---------------------- | --------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `p-canvas-shotlist`    | 镜头表框架（含拉片，原 `p-canvas-breakdown`） | 稿已出 | 稿 [`/mnt/project-files/design/canvas-shotlist.md`]。11-01 owner 定：画布第三个视图；六列 + 时长 / 角色·场景两列可关（给总时长让 AI 分节奏，不每段限死）；每镜先出图挑、挑好再出视频（草稿模式）；先做助手填表、拉片放后；旧「剧本笺」代码删。原 `p-canvas-polish` 两小项（切换角色造型、参考语音）轮到时一起 |
+| `p-shotlist-character` | 角色进镜头表：「角色·场景」列直接拉角色卡     | 已定   | 立绘 / LoRA / 声音都按她来；角色大项目与画布之间的线。排在镜头表之后                                                                                                                                                                                                                                          |
+| `p-video-export`       | 成片出口：下载、字幕、分享链接、发到平台      | 待调查 | 11-01 owner 定加。终点是视频，终点后面要有出口；先查现在视频结果能导出什么                                                                                                                                                                                                                                    |
 
-### 按域搬进 `src/features/`（第 3 批）
+### 角色
 
-| id                   | 事项                                                   |
-| -------------------- | ------------------------------------------------------ |
-| `f-small`            | 小域先搬（提示词、画廊、素材、设置等）                 |
-| `f-cards-lora`       | 角色卡与 LoRA 域                                       |
-| `f-studio`           | 工作台域                                               |
-| `f-assistant-canvas` | 助手与画布（助手新内核已在 `src/features/assistant/`） |
-| `f-boundary`         | 加 eslint 边界规则，禁止跨域直引                       |
+| id                   | 事项                                                          | 状态   | 已定 / 备注                                                                                                                                        |
+| -------------------- | ------------------------------------------------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `p-lora-training`    | LoRA 训练一条路：角色图选成数据集 → Modal 训 → 自动挂到她身上 | 待调查 | 11-01 owner 定加（NAI 出的图拿去训 LoRA 也走这条，原 `p-nai-lora` 删）。角色页「用她的图训练」是入口；先查 Modal 训练脚本和 LoraTrainingJob 表现状 |
+| `p-character-outing` | 出门本身的功能问题                                            | 已定   | 后台、切片 1–3、表情包已上；切片 4、5 已并进角色大项目做完。这里只剩出门功能的 bug 修                                                              |
 
-### 产品功能
+### 各台
 
-| id                           | 事项                                                            | 已定 / 备注                                                                                                                                                                         |
-| ---------------------------- | --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `p-prompt-save-impl`         | 保存提示词：作品配方列 + 一颗保存键 + 复刻                      | 设计已定，见 [design/prompt-save.md](design/prompt-save.md)。5 步                                                                                                                   |
-| `p-library-followups`        | 库：「谁在用」、统一 @、「我最近用的」排序                      | 库骨架已上，体检稿里剩的三件，见 [design/libraries.md](design/libraries.md)                                                                                                         |
-| `p-gallery-recipe`           | 画廊展示作品自带配方（做同款）                                  | 11-01 owner：公开展示这一支保持现状、不让助手帮忙发。依赖上一项；公开提示词 / 模型 / 参数 / LoRA 清洗后展示                                                                         |
-| `p-tag-studio-opt`           | 标签台优化 + 补齐 NAI 缺的功能                                  | 13 小项，见 [design/tag-studio-nai.md](design/tag-studio-nai.md)                                                                                                                    |
-| `p-custom-relay`             | Key 支持自定义中转接口（Base URL + key，所有用户都能填）        | 见下方「自定义中转」                                                                                                                                                                |
-| `p-reverse-image-search`     | 以图搜图：拿图去网上找出处 / 同款                               | SauceNAO（用户自己的 key）+ IQDB 兜底；入口设想查看器「找出处」+ 助手。开工前对齐用哪家、入口放哪                                                                                   |
-| `p-voice-drama-multispeaker` | 念台词：Drama 3 多人对白一次合成整段                            | 10-23 owner 定以后做。Fish `<\|speaker:N\|>` + reference_id 数组                                                                                                                    |
-| `p-personal-ai`              | 个性化 AI                                                       | 未展开；助手已有口味学习（`p-assistant-taste`），开工前先对齐边界                                                                                                                   |
-| `p-canvas-shotlist`          | 画布镜头表框架（含拉片，原 `p-canvas-breakdown`）               | 11-01 owner 定，见「下一个」第 2 项                                                                                                                                                 |
-| `p-assistant-autonomy`       | 助手自主度（原 `p-assistant-modes` 并入）                       | 11-01 owner 定，见「下一个」第 1 项                                                                                                                                                 |
-| `p-platform-credits`         | 平台额度：所有调用折点数、每人额度、用量可见                    | 11-01 owner 定：Modal 免费给所有用户跑、朋友试用先给额度玩。现状 ApiUsageLedger 只记出图次数、LLM token 不入账；出门额度按 token 折点（角色大项目已定 1 点≈1 万 token）。先出设计稿 |
-| `p-assistant-undo`           | 助手所有动作可撤回（底线）                                      | 11-01 owner 定。MCP 已有 edit / undo，站内助手改东西没有统一撤回；随 `p-assistant-autonomy` 设计                                                                                    |
-| `p-user-profile`             | 「你」的档案（偏好 / 禁忌 / 常用角色）                          | 11-01 owner 定做；11-01 owner 定两层：「关于你的事实」（名字 / 语言 / 禁忌 / 常用模型）一份共享；「她对你的印象、相处方式」各记各的                                                 |
-| `p-lora-training`            | LoRA 训练一条路：角色图选成数据集 → Modal 训 → 自动挂到她身上   | 11-01 owner 定加。角色一致性闭环；角色页「用她的图训练」就是入口                                                                                                                    |
-| `p-comfy-workflows`          | Comfy 工作流当资产：存、改版、助手能选能调                      | 11-01 owner 定加。随 owner 自部署 ComfyUI 一起；`o-comfy` 的「怎么存怎么测怎么加模型」落到这里                                                                                      |
-| `p-shotlist-character`       | 角色进镜头表：「角色·场景」列直接拉角色卡（立绘 / LoRA / 声音） | 11-01 owner 定加。角色大项目与画布之间的线；排在 `p-canvas-shotlist` 之后                                                                                                           |
-| `p-auto-recipe`              | 每次生成自动留配方，保存键只是收藏                              | 11-01 owner 定加。让助手「看得见你做过的一切」真正可用；`p-prompt-save-impl` 的保存键改成收藏                                                                                       |
-| `p-video-export`             | 成片出口：下载、字幕、分享链接、发到平台                        | 11-01 owner 定加。画布终点是视频，终点后面要有出口                                                                                                                                  |
-| `p-canvas-polish`            | 画布持续优化                                                    | 已记：画布里切换角色造型；画布参考语音（声音模块留下的）                                                                                                                            |
-| `p-character-chat`           | 一个 bot：聊天 + 助手 + 语音合一                                | 大部分已被后续模块做掉或改定（聊天 = 配音间合并、人设切换、去聊天模式、「你在故事里是谁」已删）。原清单剩「画这一幕 / 继续·代我说·分支」，要不要做开工前重新对齐                    |
-| —                            | 电子宠物感（表情包、语音、上网找资料）                          | 10-23 owner 提，未排期；表情包与上网已随角色出门做了一部分                                                                                                                          |
+| id                           | 事项                                                | 状态   | 已定 / 备注                                                                                                                                                                                       |
+| ---------------------------- | --------------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `p-tag-studio-opt`           | 标签台：补齐 NAI 缺的功能 + 交互排版（13 + 3 小项） | 待调查 | 和 `u-tag-studio-ui` 剩的三项并成一个模块；清单见 [design/tag-studio-nai.md](design/tag-studio-nai.md)、W.O.F 对照 https://claude.ai/artifact/T5EpXEmM67SsZsb5cDVDC5 。轮到时先把 16 项核一遍再排 |
+| —                            | 视频 / 3D、配音间、画布按样件 E 细修                | 已定   | 规范见 `references/ui-spec.md`；每台开工前对齐                                                                                                                                                    |
+| `p-voice-drama-multispeaker` | 念台词：Drama 3 多人对白一次合成整段                | 已定   | 10-23 owner 定以后做。Fish `<\|speaker:N\|>` + reference_id 数组                                                                                                                                  |
+| `p-comfy-workflows`          | Comfy 工作流当资产：存、改版、助手能选能调          | 待调查 | 11-01 owner 定加（原 `o-comfy`、`r-comfyui` 并入）。随 owner 自部署 ComfyUI 一起；先定怎么存、怎么测、怎么加新模型，再接 Qwen 2.1 等                                                              |
+
+### 库与作品
+
+| id                    | 事项                                       | 状态   | 已定 / 备注                                                                                                                                                          |
+| --------------------- | ------------------------------------------ | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `p-auto-recipe`       | 每次生成自动留配方；保存键只是收藏         | 已定   | 11-01 owner 定加，吸收 `p-prompt-save-impl`（设计见 [design/prompt-save.md](design/prompt-save.md)，保存键改成收藏，复刻照旧）。让助手「看得见你做过的一切」真正可用 |
+| `p-library-followups` | 库：「谁在用」、统一 @、「我最近用的」排序 | 待调查 | 见 [design/libraries.md](design/libraries.md)。「谁在用」依赖自动留配方，排在它后面；LoRA「使用次数」owner 要保留，也等它                                            |
+| `p-gallery-recipe`    | 画廊作品自带配方（做同款）                 | 已定   | 11-01 owner：公开展示这一支保持现状、不让助手帮忙发。依赖自动留配方；公开提示词 / 模型 / 参数 / LoRA 清洗后展示                                                      |
+
+### 地基与平台
+
+| id                                                                | 事项                                        | 状态   | 已定 / 备注                                                                                                                                                                                                                                 |
+| ----------------------------------------------------------------- | ------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `p-platform-credits`                                              | 点数：所有调用折点、每人额度、用量可见      | 稿已出 | 稿 [design/platform-credits.md](design/platform-credits.md)（分支待合）。11-01 owner 定：1 点 = 1 美分（出门额度同一套）；朋友赠额可用 DeepSeek 走 owner key 扣点；用自己 key 的花费也折点只显示不拦；新用户送 100 点；Modal 免费给所有用户 |
+| `p-custom-relay`                                                  | Key 支持自定义中转接口（所有用户都能填）    | 已定   | 见下方「自定义中转」。异步出图的几家要一个真中转站账号实测                                                                                                                                                                                  |
+| `o-worker`                                                        | Worker 剩余步骤（含 outbox，原 `g-outbox`） | 已定   | 方向 10-21 owner 同意，见 [design/worker.md](design/worker.md)。已做：删 RunPod #312、按账号排队 #351。剩：抽公共层 → 驱动接口 + 共用契约 → 逐家迁移 → 视频音频 3D 并入 → outbox → 可观测。outbox 是扩大试用闸门                            |
+| `o-errors`                                                        | 错误显示                                    | 待调查 | 73 个文件各自弹 toast。先定：错误分类 → 三语文案 → 显示方式 → 能否重试。已并入：3D 台弹英文原始报错、Runner 400 被说成「连不上」、中转站报错。扩大试用闸门                                                                                  |
+| —                                                                 | 安全审计一轮（越权 / ownership / 扣点）     | 已定   | 扩大试用闸门；Opus 线程做中，查出问题直接修                                                                                                                                                                                                 |
+| `o-llm`                                                           | LLM 层拆分                                  | 待调查 | `llm-text.service` 很大；先定统一路由、重试与降级、输出校验、费用记录（费用记录和点数共用）                                                                                                                                                 |
+| `f-cards-lora` → `f-studio` → `f-assistant-canvas` → `f-boundary` | 按域搬进 `src/features/`（第 3 批剩余）     | 已定   | 串行做，最后加 eslint 边界规则禁止跨域直引                                                                                                                                                                                                  |
+| `d-mobile-redesign`                                               | 手机端整体重设计（含 Telegram 对照）        | 已定   | 10-22 owner：要大改。接上整体助手（对话为主、台做抽屉）和底栏；原 `d-telegram-map` 并入；11-01 owner：等用的人再多些再排                                                                                                                    |
+| `r-modal-llm`                                                     | Modal 跑开源 LLM 给赠额用户                 | 待调查 | 11-01 owner 提。默认仍走 DeepSeek API（更便宜、不用热机）；只在角色聊天不受审查 / 批量标注才值得，点数上线后实测成本再定                                                                                                                    |
 
 #### 自定义中转（`p-custom-relay`）
 
@@ -97,145 +109,150 @@
 4. 安全提示：key 和提示词会经过第三方；保持 https-only 与 SSRF 防护，拦内网地址。
 5. 扣不扣点数和用自己的 key 时一样。
 
-### 生成管线与长期优化（先出系统设计再动手）
-
-| id         | 事项               | 已定 / 备注                                                                                                                                                                                                                                                                      |
-| ---------- | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `o-worker` | Worker 设计优化    | 方向 10-21 owner 已同意，第 1–3 步要求提前做。第 1 步（删 RunPod）#312 完成；「按账号排队」已由助手 5a #351 用数据库占位实现（不是 Durable Object）。剩：抽公共层 → 驱动接口 + 共用契约 → 逐家迁移 → 视频音频 3D 并入 → outbox → 可观测。见 [design/worker.md](design/worker.md) |
-| `g-outbox` | 派发统一走 outbox  | 并入 `o-worker` 第 6 步                                                                                                                                                                                                                                                          |
-| `o-comfy`  | ComfyUI 工作流优化 | 工作流现在是 `workflow-builder` 代码拼的；先定怎么存、怎么测、怎么加新模型，再接 Qwen 2.1 等。Worker 设计里它是 runner 驱动的一个目录                                                                                                                                            |
-| `o-llm`    | LLM 层优化         | `llm-text.service` 很大；先定统一路由、重试与降级、输出校验、费用记录，再拆                                                                                                                                                                                                      |
-| `o-errors` | 错误显示优化       | 73 个文件各自弹 toast。先定：错误分类 → 三语文案 → 显示方式（行内 / toast / 整页）→ 能否重试。已并入：3D 台直接弹英文原始报错（`bug-3d-raw-error`）、Runner 400 被说成「连不上」、中转站报错                                                                                     |
-
 ### 调研（随时可插）
 
-| id                  | 事项                                      | 备注                                                                                                                                                                                                 |
-| ------------------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `r-comfyui`         | ComfyUI 开源工作流                        | Qwen-Image 2.1、DeepSeek、Fish Audio、MiniMax / Qwen 视频                                                                                                                                            |
-| `r-moss-hires-lora` | MOSS-Image 底模 + 高分辨率 LoHa           | 10-25 口头结论：不替代 NAI / Illustrious；走 Runner（Modal ComfyUI）配 8 步蒸馏；独有价值是带字海报 / JSON 版式。轮到时和 Illustrious 并排出几张。挂在 `r-comfyui` 下                                |
-| `r-model-coverage`  | 模型与功能对应核对                        | NAI 部分完成。11-01 全量新版本盘点（[文档](https://claude.ai/artifact/9t4pjjNMdkXWqTbuod3itx)）：LLM 两档已加（Gemini 4 Argon、GPT-6.1 Terra，11-01 直推）；剩 Kling 4.0、FLUX 3 及可选项待 owner 定 |
-| `r-modal-llm`       | Modal 跑开源 LLM 给赠额用户               | 11-01 owner 提。默认仍走 DeepSeek API（更便宜、不用热机）；只在角色聊天不受审查 / 批量标注这类场景才值得，点数上线后实测成本再定                                                                     |
-| —                   | Suno 生成音乐                             | 11-01 owner：Suno 还没开放 API，暂定；开放了再排                                                                                                                                                     |
-| `r-minimax-swap`    | MiniMax-H3 换角 LoRA                      | 视频转视频，许可证要核能否商用                                                                                                                                                                       |
-| `r-nai5-skill`      | 参考 NAI5-SKILL 补助手内置 NAI 技能       | 仓库无许可证，只借思路不抄文本；和内置 NAI 技能（#354 #359）逐条比，补漫画右→左、复杂构图、多人站位、版权角色不写外观等                                                                              |
-| —                   | 安全审计一轮（越权 / ownership / credit） | 10-26 涨星榜评估建议用 cloudflare/security-audit-skill 手动跑一次                                                                                                                                    |
+| id                  | 事项                            | 状态   | 备注                                                                                                                                                                                         |
+| ------------------- | ------------------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `r-model-coverage`  | 模型与功能对应核对 + 新版本升级 | 进行中 | 11-01 全量盘点 https://claude.ai/artifact/9t4pjjNMdkXWqTbuod3itx ：Gemini 4 Argon、GPT-6.1 Terra 已加（11-01 直推）；剩 Kling 4.0、FLUX 3 及可选项待 owner 定；NAI 部分完成，Qwen 2.1 等未核 |
+| `r-moss-hires-lora` | MOSS-Image 底模 + 高分辨率 LoHa | 待调查 | 10-25 口头结论：不替代 NAI / Illustrious；走 Runner 配 8 步蒸馏；独有价值是带字海报 / JSON 版式。轮到时和 Illustrious 并排出几张                                                             |
+| `r-minimax-swap`    | MiniMax-H3 换角 LoRA            | 待调查 | 视频转视频，许可证要核能否商用                                                                                                                                                               |
+| —                   | Suno 生成音乐                   | 暂定   | 11-01 owner：Suno 还没开放 API；开放了再排                                                                                                                                                   |
 
-### 收尾待确认的零碎
+### 等 owner 的小事
 
-- 评测：助手全部改完后统一跑一轮 68 题（花 owner 的 API 额度，跑前先问）。
-- `Recipe.visibility` 列在 `RETIRED_COLUMNS`，下次动数据库时删。
-- LoRA「使用次数」owner 要保留，等保存提示词让作品记下 LoRA 后再定怎么数。
-- 「从图读串」：owner 反馈导入后三个角色没了，代码未复现，等 owner 给步骤。
-- 标签台负向页签的数字：现在只数当前这一位，是否改回加总待 owner 答。
+- 「从图读串」导入后三个角色没了：代码未复现，等 owner 给复现步骤。
+- 标签台负向页签的数字：现在只数当前这一位，要不要改回加总。
+- owner 手动：删 Vercel / Worker 里的 `RUNPOD_KEY` 和 RunPod 端点、Volume；Clerk 打开 OAuth 动态注册（不急）。
 - 助手反推画风（#427）、SDXL 系来源图底模（#409）线上端到端待 owner 实测。
-- owner 手动：删 Vercel / Worker 里的 `RUNPOD_KEY` 和 RunPod 端点、Volume。
-- 偶发测试报错：`HuggingFaceLoraLibrary.test.tsx` 结束后 Radix `react-focus-scope` 定时器在 jsdom 里 `dispatchEvent` 报错，让「Unit Tests」整片变红（10-29 #483 遇到一次），要修测试的清理。
-- NAI「Concurrent generation is locked」：5a 排队上线后线上是否归零，下次看日志时确认。
+- NAI「Concurrent generation is locked」：5a 排队上线后线上是否归零，Opus 看 Vercel 报错聚合即可（放手清单 A14）。
 
 ## 已完成
 
-按阶段列，一行一项；细节看 PR 和 `docs/status.md`。
+按模块列；每行：事项（日期，PR / 提交）→ 当时的讨论文档。细节看 PR 和 `docs/status.md`。
 
-### UI 地基（11-01 起，直推 main）
+### 方向与规范
 
-- `u-dnd` 拖拽统一（11-01，c56e2c7）：删 `@atlaskit/pragmatic-drag-and-drop`。分工定为：页面里排序 / 挪位置用 dnd-kit；跨区域、带文件的拖放用原生 HTML5 + `src/constants` 里的 MIME（dnd-kit 走指针事件，接不到桌面拖进来的文件，全站其余十几处拖放本来就是原生）。行为不变
-- `u-css-split` 域样式搬出 globals.css（11-01，eae86e8）：3906 → 1574 行，九个域文件进 `src/styles/`，由 globals.css 原位 `@import`（编译出的规则逐条比对一致）；顺手删 60 条没人引用的死样式。说明见 `references/frontend.md`「CSS 与 token 现状」
-- `u-resize` 核过不换（11-01 owner 选）：全站真正的两栏拖宽只有外壳那一根线，吸默认宽 / 拖过头先变淡松手才收 / 往右拖过头收台这几样 react-resizable-panels 给不了；浮动助手边、时间线修剪、文字框高都不是分栏。以后出现新的多栏布局再用这个库
-- 手机端点击区补到 44（11-01，8248195）：预览页手机扫 8 页实际有约 40 处（不止 10-21 记的 6 个）。新增 `.touch-target`（两向补到 44，只在触屏、看不见的外扩），`.touch-target-y` 改成「至少 44」；从底层 Button / Switch / Tabs / Select / 参数药丸 / 模型药丸一起补，再补十几个自写小键。复扫只剩宽 36–40 的紧挨着的（再宽会压邻居）。待 owner 真机试手感
+- 全仓体检与 5 批路线图（10-21）→ 报告 https://claude.ai/artifact/1xgHtxrsYJYVHAhgGtpMws
+- 产品定位重定为「助手为核」，施工单按模块重排（11-01，b6a3a88 / 4037a48）→ [`references/product.md`](references/product.md) 决策登记
+- UI 规范文档 + 样件 E 定稿（10-25，#387）→ [`references/ui-spec.md`](references/ui-spec.md)、规范页 https://claude.ai/artifact/JwpTLS2kmP69GA5piJPwW1 、样件 E https://claude.ai/artifact/9Y9G5i7XueWrKiiDGTo1Di 、39 问答页 https://claude.ai/artifact/KeFJZVQT5dCDwkboNv8ZQV 、`/mnt/project-files/ui-spec/plan.md`
+- 共享组件清点（10-24）→ https://claude.ai/artifact/Rkkkb7R3o83jCrH6yGhx5U 、现状截图 https://claude.ai/artifact/Vu43zVM6g12dEfkTbJYQQ5
+- 保存提示词设计定稿 `d-prompt-save`（10-21）→ [design/prompt-save.md](design/prompt-save.md)、https://claude.ai/artifact/7NzJhCcGHjX6kWGCDKekeW
+- 三个库与数据库体检（10-21）→ https://claude.ai/artifact/HyA2qGMCS95EapfzEUQHyX 、[design/libraries.md](design/libraries.md)
+- Worker 整体设计（10-21，方向已同意）→ [design/worker.md](design/worker.md)、https://claude.ai/artifact/1mifXpHSb2GK7Cj8jemoNW
+- 放手范围（11-01，A / B / C 三类 + Watchdog）→ `/mnt/project-files/autonomy/handoff-scope.md`
 
-### 角色大项目（`p-character-redesign`，10-30 → 11-01 直推 main）
+### 助手
 
-- ① 页面骨架 ② 人物页 ③ 最近（日记）④ 她在意的东西 ⑤ 出门调查弹框 + 按 token 记点 ⑥ 出门多模态 ⑦ 记忆页签 + 有效期 / 沉睡 ⑧ 图片 + LoRA 页签 ⑨ 表情包 + 相似图去重 ⑩ 角色页助手（10-30）；10-31 插聊天三层（心情 / 先想一步 / 立场，ffd0815）；⑪ 酒馆：导入自动整理 + 聊天重说 / 改写（11-01，f15c7ef）。设计见 [`design/character-redesign.md`](design/character-redesign.md)
+| id                                                                    | 事项                                                         | 完成         | PR / 提交                          | 讨论文档                                                                                                                                                                                                                    |
+| --------------------------------------------------------------------- | ------------------------------------------------------------ | ------------ | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `a-redesign`                                                          | 助手整体重设计：定位 → 新内核 → 一次切换（第 1–7 步、9a–9g） | 10-22～10-24 | #340 #344–#357 #360–#366 #373–#384 | `/mnt/project-files/assistant-reliability/`（positioning / design / research / step1–9g 各对齐稿）、方案 https://claude.ai/artifact/VK4ikjhWUib5rth3cHxBUw 、[`references/assistant-next.md`](references/assistant-next.md) |
+| `a-v2-remove`                                                         | 删 v2 / v3 旧内核                                            | 10-23        | #363                               | 同上 step9e2-plan.md                                                                                                                                                                                                        |
+| `bug-assistant-fail` / `bug-assistant-images` / `bug-assistant-steps` | 助手失败、跨轮丢图、步数用完                                 | 并入上面     | —                                  | —                                                                                                                                                                                                                           |
+| `p-global-assistant`                                                  | 整体助手外壳（方向 E 分层、开台、首页大输入框、动效）        | 10-24        | #373–#382                          | 设计 https://claude.ai/artifact/4ZWqsN62NkbvB5waynamZk 、样件 https://claude.ai/artifact/MQfB4LiSXGCK2qheCZqE9y 、`/mnt/project-files/assistant-reliability/step9f-e.md`                                                    |
+| `d-dark-theme`                                                        | 白 / 黑背景切换（素 / 暗房）                                 | 10-24        | #383                               | `/mnt/project-files/dark-theme/plan.md`                                                                                                                                                                                     |
+| `bug-assistant-stage-results`                                         | 助手看不到台上的结果图                                       | 10-25        | #421                               | —                                                                                                                                                                                                                           |
+| `bug-assistant-library-access`                                        | 助手读不到各个库（统一查库）                                 | 10-25        | #422 #426                          | `/mnt/project-files/assistant-style-reverse/library-access-plan.md`                                                                                                                                                         |
+| `p-assistant-style-reverse`                                           | 助手反推画风（PixAI Tagger）                                 | 10-25        | #422 #427                          | `/mnt/project-files/assistant-style-reverse/plan.md`、PixAI 调研 https://claude.ai/artifact/D3PQyuPax7gnT4Js5DryvN                                                                                                          |
+| `p-semantic-search`                                                   | 语义检索（标签 / LoRA / 自己的库 / 网上找出处）              | 10-26        | #429 #434 #439 #443 #445 #447      | `/mnt/project-files/rag/`（plan、step2–4、cost）、[`references/semantic-search.md`](references/semantic-search.md)                                                                                                          |
+| `p-shell-ops`                                                         | 理顺聊天与工作台：提速、外壳、配音台、动效                   | 10-27        | #449–#462 #467–#470                | 样件 https://claude.ai/artifact/P2KuKDdQxTLap5xrBbwCK3 、`/mnt/project-files/shell-ops/`                                                                                                                                    |
+| `p-assistant-polish-1028`                                             | 助手打磨：思考足迹、AI 起标题、历史右键菜单、报错点名        | 10-28        | 直推 main                          | —                                                                                                                                                                                                                           |
+| `p-assistant-taste`                                                   | 助手学口味、记住搜到的、先想再画、接着上次                   | 10-28        | 直推 main                          | —                                                                                                                                                                                                                           |
+| `p-assistant-bench-ux`                                                | 助手工作台体验：联网 400、出完图自动看图再改                 | 10-29        | #479 #480                          | —                                                                                                                                                                                                                           |
+| `p-workbench-persona-voice`                                           | 工作台带角色：去掉固定三段式，只要求口吻像她                 | 10-29        | #485                               | https://claude.ai/artifact/KvNR2xjrK4GMwRTuFrV6kv                                                                                                                                                                           |
+| `p-persona-natural`                                                   | 带角色去扮演味：动作描写兜底不显示不念不进历史               | 10-30        | 直推 main                          | —                                                                                                                                                                                                                           |
+| `p-assistant-see-screen`                                              | 助手看见当前页面：库页报屏 + 「看屏」小样图 + 画廊·编号      | 10-30        | 直推 main                          | —                                                                                                                                                                                                                           |
+| —                                                                     | 助手过程三行合成一行「想了 N 秒」                            | 10-31        | 4d401d7                            | `/mnt/project-files/assistant-one-row/`                                                                                                                                                                                     |
+| `p-mcp-everywhere`（代码部分）                                        | MCP 全站 find / look / edit / undo / generate 确认 / OAuth   | 10-30        | cc56396                            | [`references/mcp.md`](references/mcp.md)                                                                                                                                                                                    |
+
+### 角色与聊天
+
+| id                               | 事项                                                                                                                                                              | 完成         | PR / 提交                          | 讨论文档                                                                                                                                                                                                                                                                                                                                                         |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ch-1-cleanup` ～ `ch-4-looks`   | 角色①–④：删卡片模式与旧抽屉、外观收口、角色连 LoRA、变体改「造型」                                                                                                | 10-22        | #326 #328 #329 #330 #332 #333      | 拆分设计 https://claude.ai/artifact/XAj3L24ygYDGN2vQH8h5xU 、拆分地图 https://claude.ai/artifact/RKtX2Eh3ThjEpdYV7cFzU1 、③ 对齐稿 https://claude.ai/artifact/FTTAHbuCwHmnMcProcJ2WL 、④ 对齐稿 https://claude.ai/artifact/JwhJdzReiFh8VHRhLLR32K                                                                                                                |
+| `p-voice-upgrade`                | 「声音」模块：音色库、配音间聊天、Drama 3                                                                                                                         | 10-23        | #367 #368 #369 #371                | 设计 https://claude.ai/artifact/EzE8UDhuj4kWzHmQwwb9eg                                                                                                                                                                                                                                                                                                           |
+| `p-chat-voiceroom-merge`         | 和角色聊 = 配音间（去聊天模式、对话列表重设计）                                                                                                                   | 10-25        | #415 #417 #418 #420 #424           | https://claude.ai/artifact/AVmu298SjxhRXQwa9nBw1K 、`/mnt/project-files/chat-list/`                                                                                                                                                                                                                                                                              |
+| `p-persona-chat-split`           | 分开工作台对话与「聊天」（头像 = 切换人设）                                                                                                                       | 10-25        | #428                               | `/mnt/project-files/persona-chat-split/`                                                                                                                                                                                                                                                                                                                         |
+| `p-persona-humanlike`            | 角色更像真人（A+B → F → E → C；G 不做）                                                                                                                           | 10-27        | #446 #448 #453 #456 #458 #460 #471 | 调研 https://claude.ai/artifact/T5A4x1iB6SvAgB3apuSWBq 、F 设计 https://claude.ai/artifact/242A7RMRL916QotBje8jgC 、C 对齐稿 https://claude.ai/artifact/5TfWj8VTYaVGviRea1bQWr 、`/mnt/project-files/persona-c/`                                                                                                                                                 |
+| `p-voice-tone-menu`              | 配音台「语气」菜单（68 个 Fish 标记）                                                                                                                             | 10-29        | #473                               | —                                                                                                                                                                                                                                                                                                                                                                |
+| `p-character-outing`（切片 1–3） | 角色会「出门」+ 角色页方向 B + 表情包                                                                                                                             | 10-28～10-29 | #478 #480 #481 + 直推              | 并入下面角色大项目的稿                                                                                                                                                                                                                                                                                                                                           |
+| `p-character-redesign`           | 角色大项目 ①–⑪：骨架、人物页、最近、在意的东西、出门弹框 + 记点、出门多模态、记忆 + 有效期 / 沉睡、图片 + LoRA、表情包 + 去重、角色页助手、酒馆导入 + 重说 / 改写 | 10-30～11-01 | 直推 main（末 f15c7ef）            | [design/character-redesign.md](design/character-redesign.md)、盘点 https://claude.ai/artifact/EWX1quhnSghWLaWS3qtS1B 、方案稿 https://claude.ai/artifact/DHYiacSBZCYQA91rPHoyHe 、可点样件 https://claude.ai/artifact/QRhLcqAzUpnBicYAXrLdjE 、AstrBot 六件工具评估 https://claude.ai/artifact/D515jfVCtJA4wFgtgApyx2 、`/mnt/project-files/character-redesign/` |
+| —                                | 聊天三层（心情 / 先想一步 / 立场）                                                                                                                                | 10-31        | ffd0815                            | `/mnt/project-files/chat-three-layers/plan.md`、对比 `compare/compare.md`                                                                                                                                                                                                                                                                                        |
+| —                                | 出门只绕人设词修复                                                                                                                                                | 10-30        | 7b69d22                            | —                                                                                                                                                                                                                                                                                                                                                                |
+
+### 各台
+
+| id                           | 事项                                      | 完成  | PR / 提交      | 讨论文档                                                                                                                                                      |
+| ---------------------------- | ----------------------------------------- | ----- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `f-runner-source-checkpoint` | SDXL 系底模跟随示例图 + RIN Flanime v5.0  | 10-25 | #409           | —                                                                                                                                                             |
+| `p-image-recipe-import`      | 台上「从图读串」                          | 10-25 | #435 #438      | `/mnt/project-files/img-recipe-import/`                                                                                                                       |
+| `bug-lora-name-search`       | LoRA 搜索优化（写法规整、结果分段、纠错） | 10-27 | #318 #472 #474 | 原因与方案 https://claude.ai/artifact/Hj52Rw8DbgaESzcXqjWGLf 、整体设计 https://claude.ai/artifact/5aRpvHts54pNERXUXoU4Uu 、`/mnt/project-files/lora-search/` |
+| `p-library-assistant-link`   | 库与助手互通、LoRA 台存模板               | 10-28 | 直推 main      | —                                                                                                                                                             |
+| `u-tag-studio-ui` ④          | 标签台纯文本                              | 10-30 | #436           | `/mnt/project-files/tag-studio-ui/`                                                                                                                           |
+| `p-tablet-shell`             | 平板（768–1023）也用电脑外壳              | 10-28 | 直推 main      | —                                                                                                                                                             |
+
+### 库
+
+| id                                               | 事项                                                                            | 完成  | PR             | 讨论文档                                                                                                    |
+| ------------------------------------------------ | ------------------------------------------------------------------------------- | ----- | -------------- | ----------------------------------------------------------------------------------------------------------- |
+| `c-inspiration-delete`                           | 共享提示词搬到画廊、删灵感数据                                                  | 10-22 | #336           | `/mnt/project-files/gallery-prompts/`                                                                       |
+| `d-library-shell` / `u-library` / `u-media-tile` | 库整页 + 共用骨架 + 媒体格 + 各库（素材、角色、声音、提示词、LoRA、标签、画廊） | 10-25 | #395–#402      | 三个库方向稿 https://claude.ai/artifact/HyA2qGMCS95EapfzEUQHyX 、[design/libraries.md](design/libraries.md) |
+| —                                                | 挑选框（参考图、LoRA、音色）                                                    | 10-25 | #403 #404 #405 | 规范页 ㊱ ㊳                                                                                                |
+| `bug-library-speed`                              | 库页切换卡 + LoRA 加载失败（缓存 + TanStack Query）                             | 10-27 | #461 #463      | —                                                                                                           |
+| —                                                | 库里助手看不到你正在看的那一样（9f-2a detach）                                  | 10-26 | #440 #441 #444 | —                                                                                                           |
+
+### UI 地基与外壳
+
+| id            | 事项                                                                                                     | 完成  | PR / 提交                     | 讨论文档                                      |
+| ------------- | -------------------------------------------------------------------------------------------------------- | ----- | ----------------------------- | --------------------------------------------- |
+| `u-menu`      | 菜单 / 弹层统一                                                                                          | 10-25 | #389                          | 规范页 + `/mnt/project-files/ui-spec/plan.md` |
+| `u-composer`  | 统一输入框 + 药丸                                                                                        | 10-25 | #390                          | 同上                                          |
+| —             | 拖放浮层                                                                                                 | 10-25 | #391                          | 同上                                          |
+| `u-viewer`    | 统一查看器                                                                                               | 10-25 | #392                          | 同上                                          |
+| —             | 外壳（白板合一、64 图标左栏、竖台条）+ 板头 + 外壳修正                                                   | 10-25 | #393 #394 #401                | 同上                                          |
+| —             | LoRA 台、库与外壳补丁、生成中摆法 B、头像换人、图片台台面                                                | 10-25 | #406 #408 #410 #411 #412 #416 | 同上                                          |
+| `u-dnd`       | 拖拽统一（页面内排序 dnd-kit；跨区域带文件用原生），删 atlaskit                                          | 11-01 | c56e2c7                       | 说明见 `references/frontend.md`               |
+| `u-css-split` | 域样式搬出 globals.css（3906 → 1574 行，九个域文件）+ 删 60 条死样式                                     | 11-01 | eae86e8                       | `references/frontend.md`「CSS 与 token 现状」 |
+| `u-resize`    | 面板拉伸：核过不换（外壳那根线的吸附 / 过头收台库给不了），owner 定                                      | 11-01 | —                             | —                                             |
+| —             | 手机端点击区补到 44（约 40 处，从底层组件一起补）                                                        | 11-01 | 8248195                       | 待 owner 真机试手感                           |
+| —             | 删死代码 `card-tile-base` / `MediaCardTile`、修偶发红测试、删 `Recipe.visibility` 与角色卡 browse\* 五列 | 11-01 | 直推 main                     | `/mnt/project-files/dead-code/plan.md`        |
+
+### 清场与数据库（第 1 批）
+
+| id                | 事项                                                  | 完成  | PR             | 讨论文档                                                                                                          |
+| ----------------- | ----------------------------------------------------- | ----- | -------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `c-runpod-remove` | 删掉 RunPod 旧分支                                    | 10-21 | #312           | Worker 设计第 1 步                                                                                                |
+| `c-rename-antei`  | 产品名统一成 ANTEI                                    | 10-22 | #316           | —                                                                                                                 |
+| `c-db-cleanup`    | 数据库清场（base64 转 R2、3D 大字段、死列、底模写法） | 10-22 | #313 #326 #334 | 数据库体检 https://claude.ai/artifact/HyA2qGMCS95EapfzEUQHyX 、[`references/database.md`](references/database.md) |
+| `c-lib-refs`      | 库的引用修正（标签堆进账号、删 loraLineage）          | 10-22 | #313 #330 #335 | 同上                                                                                                              |
+| `c-civitai-auth`  | LoRA 公开接口必须登录（查实本来就拦着）               | 10-22 | —              | —                                                                                                                 |
+| `c-dead-code`     | 删死代码（53 文件 + 2 依赖，-7000 行）                | 10-22 | #337           | `/mnt/project-files/dead-code/plan.md`                                                                            |
+| `c-i18n-split`    | 三语文案按模块拆文件                                  | 10-22 | #339           | `/mnt/project-files/i18n-split/plan.md`                                                                           |
 
 ### 插队修 bug
 
-| id                             | 事项                                                                                             | 完成  | PR             |
-| ------------------------------ | ------------------------------------------------------------------------------------------------ | ----- | -------------- |
-| `bug-lora-refresh`             | LoRA 库经常刷新不出来（冷查询数总数慢）                                                          | 10-22 | #318           |
-| `bug-asset-picker-scroll`      | 助手里打开素材库滑不下去                                                                         | 10-22 | #320           |
-| `bug-tag-seed`                 | 助手在标签台锁不了种子                                                                           | 10-22 | #321           |
-| `bug-style-tab`                | 画风页搜不到 blender\_(medium)（分「画师 + 画法」两段）                                          | 10-22 | #323           |
-| `bug-generate-oom`             | 出图接口内存爆掉 / 60 秒超时（LoRA 边下边传）                                                    | 10-22 | #324           |
-| `bug-runner-worker-400`        | Runner 出图全部被 Worker 拒收                                                                    | 10-23 | #348           |
-| `bug-nai-small-fixes`          | NAI 请求体对齐网页端 + 助手 NAI 写法                                                             | 10-23 | #358 #359      |
-| `f-runner-source-checkpoint`   | SDXL 系底模跟随示例图 + RIN Flanime v5.0                                                         | 10-25 | #409           |
-| `bug-assistant-stage-results`  | 助手看不到台上的结果图                                                                           | 10-25 | #421           |
-| `bug-assistant-library-access` | 助手读不到各个库（统一查库）                                                                     | 10-25 | #422 #426      |
-| `bug-library-speed`            | 库页切换卡 + LoRA 加载失败（缓存 + TanStack Query）                                              | 10-27 | #461 #463      |
-| `bug-lora-name-search`         | LoRA 搜索优化（写法规整、结果分段、纠错）                                                        | 10-27 | #318 #472 #474 |
-| `bug-build-fonts`              | 构建挂在拉 Google 字体 → 本地字体                                                                | 10-27 | #475           |
-| `bug-nai-concurrency`          | NAI 同时发多张被拒 → 按账号排队                                                                  | 10-23 | #351           |
-| `bug-session-expired-404`      | 出图报「Failed with status 404」= 会话过期被门口拦（401 + apiFetch 续会话重发，api-client 全迁） | 10-29 | #486           |
-
-### 第 1 批 清场
-
-| id                     | 事项                                                  | 完成  | PR             |
-| ---------------------- | ----------------------------------------------------- | ----- | -------------- |
-| `c-runpod-remove`      | 删掉 RunPod 旧分支                                    | 10-21 | #312           |
-| `c-rename-antei`       | 产品名统一成 ANTEI                                    | 10-22 | #316           |
-| `ch-1-cleanup`         | 角色①：删工作台卡片模式与旧管理抽屉                   | 10-22 | #326           |
-| `ch-2-look`            | 角色②：外观收口                                       | 10-22 | #328 #329      |
-| `ch-3-lora`            | 角色③：角色连 LoRA                                    | 10-22 | #330 #332      |
-| `ch-4-looks`           | 角色④：变体改成「造型」                               | 10-22 | #333           |
-| `c-db-cleanup`         | 数据库清场（base64 转 R2、3D 大字段、死列、底模写法） | 10-22 | #313 #326 #334 |
-| `c-lib-refs`           | 库的引用修正（标签堆进账号、删 loraLineage）          | 10-22 | #313 #330 #335 |
-| `c-civitai-auth`       | LoRA 公开接口必须登录（查实登录门本来就拦着，不用改） | 10-22 | —              |
-| `c-inspiration-delete` | 共享提示词搬到画廊、删灵感数据                        | 10-22 | #336           |
-| `c-dead-code`          | 删死代码（53 文件 + 2 依赖，-7000 行）                | 10-22 | #337           |
-| `c-i18n-split`         | 三语文案按模块拆文件                                  | 10-22 | #339           |
-
-### 第 2 批 助手重设计
-
-| id                                                                    | 事项                                                         | 完成              | PR                                 |
-| --------------------------------------------------------------------- | ------------------------------------------------------------ | ----------------- | ---------------------------------- |
-| `a-redesign`                                                          | 助手整体重设计：定位 → 新内核 → 一次切换（第 1–7 步、9a–9g） | 10-22～10-24      | #340 #344–#357 #360–#366 #373–#384 |
-| `a-v2-remove`                                                         | 删 v2 / v3 旧内核（9c 一起删）                               | 10-23             | #363                               |
-| `bug-assistant-fail` / `bug-assistant-images` / `bug-assistant-steps` | 助手失败、跨轮丢图、步数用完                                 | 并入 `a-redesign` | —                                  |
-| `p-global-assistant`                                                  | 整体助手外壳（方向 E 分层、开台、首页大输入框、动效）        | 10-24             | #373–#382                          |
-| `p-voice-upgrade`                                                     | 「声音」模块：音色库、配音间聊天、Drama 3                    | 10-23             | #367 #368 #369 #371                |
-| `d-dark-theme`                                                        | 白 / 黑背景切换（素 / 暗房）                                 | 10-24             | #383                               |
-
-### UI 规范与地基
-
-| id                                               | 事项                                                                            | 完成  | PR                            |
-| ------------------------------------------------ | ------------------------------------------------------------------------------- | ----- | ----------------------------- |
-| `d-prompt-save`                                  | 保存提示词设计定稿                                                              | 10-21 | —                             |
-| —                                                | UI 规范文档 + 样件 E 定稿                                                       | 10-25 | #387                          |
-| `u-menu`                                         | 菜单 / 弹层统一                                                                 | 10-25 | #389                          |
-| `u-composer`                                     | 统一输入框 + 药丸                                                               | 10-25 | #390                          |
-| —                                                | 拖放浮层                                                                        | 10-25 | #391                          |
-| `u-viewer`                                       | 统一查看器                                                                      | 10-25 | #392                          |
-| —                                                | 外壳（白板合一、64 图标左栏、竖台条）+ 板头                                     | 10-25 | #393 #394                     |
-| `d-library-shell` / `u-library` / `u-media-tile` | 库整页 + 共用骨架 + 媒体格 + 各库（素材、角色、声音、提示词、LoRA、标签、画廊） | 10-25 | #395–#402                     |
-| —                                                | 挑选框（参考图、LoRA、音色）                                                    | 10-25 | #403 #404 #405                |
-| —                                                | LoRA 台、库与外壳补丁、生成中摆法 B、头像换人、图片台台面                       | 10-25 | #406 #408 #410 #411 #412 #416 |
-| —                                                | 外壳修正（工作台弹台竖排等）                                                    | 10-25 | #401                          |
-| `p-tablet-shell`                                 | 平板（768–1023）也用电脑外壳                                                    | 10-28 | 直推 main                     |
-
-### 产品功能
-
-| id                          | 事项                                                             | 完成  | PR                                 |
-| --------------------------- | ---------------------------------------------------------------- | ----- | ---------------------------------- |
-| `p-chat-voiceroom-merge`    | 和角色聊 = 配音间（去聊天模式、对话列表重设计）                  | 10-25 | #415 #417 #418 #420 #424           |
-| `p-assistant-style-reverse` | 助手反推画风（PixAI Tagger）                                     | 10-25 | #422 #427                          |
-| `p-persona-chat-split`      | 分开工作台对话与「聊天」（头像 = 切换人设）                      | 10-25 | #428                               |
-| `p-image-recipe-import`     | 台上「从图读串」                                                 | 10-25 | #435 #438                          |
-| `p-semantic-search`         | 语义检索（标签 / LoRA / 自己的库 / 网上找出处）                  | 10-26 | #429 #434 #439 #443 #445 #447      |
-| `p-shell-ops`               | 理顺聊天与工作台：提速、外壳、配音台、动效                       | 10-27 | #449–#462 #467–#470                |
-| `p-persona-humanlike`       | 角色更像真人（A+B → F → E → C；G 不做）                          | 10-27 | #446 #448 #453 #456 #458 #460 #471 |
-| `p-assistant-polish-1028`   | 助手打磨：思考足迹、AI 起标题、历史右键菜单、报错点名            | 10-28 | 直推 main                          |
-| `p-assistant-taste`         | 助手学口味、记住搜到的、先想再画、接着上次                       | 10-28 | 直推 main                          |
-| `p-library-assistant-link`  | 库与助手互通、LoRA 台存模板                                      | 10-28 | 直推 main                          |
-| `p-assistant-bench-ux`      | 助手工作台体验：联网 400、出完图自动看图再改（评测延后）         | 10-29 | #479 #480                          |
-| `p-voice-tone-menu`         | 配音台「语气」菜单（68 个 Fish 标记，插到光标处）                | 10-29 | #473                               |
-| `p-workbench-persona-voice` | 工作台带角色：去掉固定三段式，只要求口吻像她                     | 10-29 | #485                               |
-| `p-persona-natural`         | 带角色去扮演味：她就是她、动作描写兜底不显示不念不进历史         | 10-30 | 直推 main                          |
-| `p-assistant-see-screen`    | 助手看见当前页面：库页报屏 + 台上/库页「看屏」小样图 + 画廊·编号 | 10-30 | 直推 main                          |
+| id                        | 事项                                                                                             | 完成  | PR        |
+| ------------------------- | ------------------------------------------------------------------------------------------------ | ----- | --------- |
+| `bug-lora-refresh`        | LoRA 库经常刷新不出来（冷查询数总数慢）                                                          | 10-22 | #318      |
+| `bug-asset-picker-scroll` | 助手里打开素材库滑不下去                                                                         | 10-22 | #320      |
+| `bug-tag-seed`            | 助手在标签台锁不了种子                                                                           | 10-22 | #321      |
+| `bug-style-tab`           | 画风页搜不到 blender\_(medium)                                                                   | 10-22 | #323      |
+| `bug-generate-oom`        | 出图接口内存爆掉 / 60 秒超时                                                                     | 10-22 | #324      |
+| `bug-runner-worker-400`   | Runner 出图全部被 Worker 拒收                                                                    | 10-23 | #348      |
+| `bug-nai-concurrency`     | NAI 同时发多张被拒 → 按账号排队                                                                  | 10-23 | #351      |
+| `bug-nai-small-fixes`     | NAI 请求体对齐网页端 + 助手 NAI 写法                                                             | 10-23 | #358 #359 |
+| `bug-build-fonts`         | 构建挂在拉 Google 字体 → 本地字体                                                                | 10-27 | #475      |
+| `bug-session-expired-404` | 出图报「Failed with status 404」= 会话过期被门口拦（401 + apiFetch 续会话重发，api-client 全迁） | 10-29 | #486      |
 
 ### 调研
 
-| id                    | 事项                                | 完成  | 结论在哪                                             |
-| --------------------- | ----------------------------------- | ----- | ---------------------------------------------------- |
-| `r-nai5-prompting`    | NAI5 提示词、图片反推、自然语言作图 | 10-22 | [design/tag-studio-nai.md](design/tag-studio-nai.md) |
-| `r-pixai-tagger`      | PixAI Tagger 任意图反推             | 10-25 | `references/assistant-next.md`、#427                 |
-| `r-persona-humanlike` | AI 人设卡怎么更像真人               | 10-26 | 已落进 `p-persona-humanlike`                         |
+| id                    | 事项                                | 完成  | 结论在哪                                                                                                                                                               |
+| --------------------- | ----------------------------------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `r-nai5-prompting`    | NAI5 提示词、图片反推、自然语言作图 | 10-22 | [design/tag-studio-nai.md](design/tag-studio-nai.md)、https://claude.ai/artifact/UmxGU2pkiCrZ7RkWY6KSR4 、请求体对齐 https://claude.ai/artifact/F2EdTFRkhevoVwzBCgDGpz |
+| `r-pixai-tagger`      | PixAI Tagger 任意图反推             | 10-25 | https://claude.ai/artifact/D3PQyuPax7gnT4Js5DryvN 、`references/assistant-next.md`、#427                                                                               |
+| `r-persona-humanlike` | AI 人设卡怎么更像真人               | 10-26 | https://claude.ai/artifact/T5A4x1iB6SvAgB3apuSWBq ，已落进 `p-persona-humanlike`                                                                                       |
+| —                     | AstrBot 六件工具评估                | 10-29 | https://claude.ai/artifact/D515jfVCtJA4wFgtgApyx2 ，可用的归进角色大项目                                                                                               |
+| —                     | 库页切换卡 + LoRA 加载失败原因      | 10-27 | 已落进 `bug-library-speed`                                                                                                                                             |
+
+### 删掉的条目（11-01 owner 同意）
+
+`d-nova-sample`、`d-motion-samples`（动效已按 ui-spec 做）、`d-telegram-map`（并入手机端）、`d-danbooru-page`（标签库整页已上）、`p-personal-ai`（被「你」的档案 + 口味学习覆盖）、`p-nai-lora`（NAI 挂不了 LoRA，并进 LoRA 训练）、`p-canvas-polish`（并进镜头表）、`g-outbox`（= `o-worker` 第 6 步）、`o-comfy` / `r-comfyui`（并进 Comfy 工作流资产）、`p-character-chat` 里的「分支」。

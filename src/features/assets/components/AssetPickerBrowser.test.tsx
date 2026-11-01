@@ -32,7 +32,7 @@ vi.mock('@/hooks/use-gallery', () => ({
   })),
 }))
 
-vi.mock('@/hooks/use-asset-picker-navigation', () => ({
+vi.mock('@/features/assets/hooks/use-asset-picker-navigation', () => ({
   useAssetPickerNavigation: () => ({
     projects: [],
     counts: null,
@@ -45,7 +45,7 @@ vi.mock('@/hooks/use-justified-grid', () => ({
   useJustifiedGrid: () => ({ containerRef: { current: null }, rows: [] }),
 }))
 
-vi.mock('@/components/business/assets/AssetPickerFolderNav', () => ({
+vi.mock('@/features/assets/components/AssetPickerFolderNav', () => ({
   AssetPickerFolderNav: () => null,
 }))
 

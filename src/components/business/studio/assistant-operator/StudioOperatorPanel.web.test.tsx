@@ -123,7 +123,7 @@ vi.mock('@/hooks/cards/use-character-library', () => ({
  * 素材库弹层（切片 #7c）—— 桩成「一颗按钮 = 挑完两张」，⛔ 不把整个 picker
  * 拉进面板用例：它自己有一份闸（`AssetPickerBrowser.test.tsx`）。
  */
-vi.mock('@/components/business/AssetSelectorDialog', () => ({
+vi.mock('@/features/assets', () => ({
   AssetSelectorDialog: ({
     mediaType,
     multiSelect,

@@ -21,7 +21,7 @@ import type {
 import { ChevronLeft, Mic, Play, Plus, Square } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
-import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
+import { AssetSelectorDialog } from '@/features/assets'
 import {
   CharacterInlineField,
   splitCharacterTags,

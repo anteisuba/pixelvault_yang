@@ -47,7 +47,7 @@ vi.mock('@/hooks/use-studio-video-assets', () => ({
   }),
 }))
 
-vi.mock('@/components/business/AssetSelectorDialog', () => ({
+vi.mock('@/features/assets', () => ({
   AssetSelectorDialog: () => null,
 }))
 

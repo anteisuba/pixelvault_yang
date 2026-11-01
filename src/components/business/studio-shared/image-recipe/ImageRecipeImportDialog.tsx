@@ -33,7 +33,7 @@ import {
   ResponsiveDialogTitle,
 } from '@/components/ui/responsive-dialog'
 import { Spinner } from '@/components/ui/spinner'
-import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
+import { AssetSelectorDialog } from '@/features/assets'
 import { ImagePickerPopoverBody } from '@/components/business/studio-shared/ImagePickerPopoverBody'
 
 /**

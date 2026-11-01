@@ -286,7 +286,7 @@ import {
   createAssetFolder,
   setAssetFavorites,
   tagAssets,
-} from '@/services/asset-library-write.service'
+} from '@/features/assets/server'
 import {
   ProjectRuleLimitError,
   addProjectRule,

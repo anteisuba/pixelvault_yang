@@ -31,10 +31,7 @@ import {
   type GenerationReviewState,
 } from '@/constants/assistant-operator'
 import { USER_UPLOAD_PROVIDER } from '@/constants/uploads'
-import {
-  countFolderItems,
-  folderScopeWhere,
-} from '@/services/asset-folder.service'
+import { countFolderItems, folderScopeWhere } from '@/features/assets/server'
 import { updatePreferenceOnDeleted } from '@/services/user-preference.service'
 import { expandSearchQuery } from '@/services/search-expansion.service'
 

@@ -17,7 +17,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import type { UploadQueueItem } from '@/hooks/use-asset-upload-queue'
+import type { UploadQueueItem } from '@/features/assets/hooks/use-asset-upload-queue'
 import { flattenFolderTree, folderIndentPx } from '@/lib/folder-tree'
 import { cn } from '@/lib/utils'
 import type { ProjectRecord } from '@/types'

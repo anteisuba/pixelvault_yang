@@ -27,7 +27,7 @@ vi.mock('./StudioImageEditStage', () => ({
     <input data-testid="edit-draft" data-active={active} defaultValue="" />
   ),
 }))
-vi.mock('@/components/business/AssetSelectorDialog', () => ({
+vi.mock('@/features/assets', () => ({
   AssetSelectorDialog: ({
     open,
     mediaType,

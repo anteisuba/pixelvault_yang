@@ -64,7 +64,7 @@ vi.mock('@/components/business/ModelViewer', () => ({
 vi.mock('@/components/business/WireframeModelPreview', () => ({
   WireframeModelPreview: () => null,
 }))
-vi.mock('@/components/business/AssetSelectorDialog', () => ({
+vi.mock('@/features/assets', () => ({
   AssetSelectorDialog: () => null,
 }))
 vi.mock('@/components/business/studio-shared/pickers', () => ({

@@ -10,7 +10,7 @@ import { getGenerationByIdForUser } from '@/services/generation.service'
 import { listProjects } from '@/services/project.service'
 import { ensureUser } from '@/services/user.service'
 
-import { AssetDetailContent } from '@/components/business/AssetDetailContent'
+import { AssetDetailContent } from '@/features/assets'
 
 /**
  * `/assets/[id]` — standalone detail page for one owned asset

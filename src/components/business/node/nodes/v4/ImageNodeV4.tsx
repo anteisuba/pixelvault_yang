@@ -50,7 +50,7 @@ import {
   X,
 } from '@/components/icons'
 
-import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
+import { AssetSelectorDialog } from '@/features/assets'
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import { NODE_SLOT_IDS } from '@/constants/node-slots'
 import { PROGRESS_TICK_MS } from '@/constants/generation-progress'

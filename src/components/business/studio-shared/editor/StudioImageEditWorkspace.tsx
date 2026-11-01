@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useState, type ReactNode } from 'react'
 import { ImagePlus, Upload } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
-import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
+import { AssetSelectorDialog } from '@/features/assets'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { useImageUpload } from '@/hooks/use-image-upload'

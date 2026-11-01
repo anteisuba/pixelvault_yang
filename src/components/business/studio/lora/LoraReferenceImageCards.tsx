@@ -4,7 +4,7 @@ import { useRef, useState, type ChangeEvent } from 'react'
 import { Image as ImageIcon, Plus, X } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
-import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
+import { AssetSelectorDialog } from '@/features/assets'
 import { ImagePickerPopoverBody } from '@/components/business/studio-shared/ImagePickerPopoverBody'
 import {
   StudioToolPopoverContent,

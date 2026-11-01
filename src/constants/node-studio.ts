@@ -290,6 +290,11 @@ export const NODE_STUDIO_ASSISTANT_ROUTE_MODELS = [
   },
   {
     adapterType: AI_ADAPTER_TYPES.OPENAI,
+    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_1_TERRA,
+    label: 'OpenAI GPT-6.1 Terra',
+  },
+  {
+    adapterType: AI_ADAPTER_TYPES.OPENAI,
     modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_ASTRA,
     label: 'OpenAI GPT-6 Astra',
   },
@@ -302,6 +307,11 @@ export const NODE_STUDIO_ASSISTANT_ROUTE_MODELS = [
     adapterType: AI_ADAPTER_TYPES.GEMINI,
     modelId: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
     label: 'Gemini 3.8 Flash',
+  },
+  {
+    adapterType: AI_ADAPTER_TYPES.GEMINI,
+    modelId: LLM_TEXT_MODEL_IDS.GEMINI_4_ARGON,
+    label: 'Gemini 4 Argon',
   },
   {
     adapterType: AI_ADAPTER_TYPES.DEEPSEEK,

@@ -49,11 +49,13 @@ describe('useLLMRoutePicker', () => {
         makeKey({ id: 'k3', adapterType: AI_ADAPTER_TYPES.VOLCENGINE }),
       ])
       const { result } = renderHook(() => useLLMRoutePicker('enhance'))
-      // One key × N registry tiers → N options (OpenAI 4, Gemini 2).
+      // One key × N registry tiers → N options (OpenAI 4, Gemini 3).
       expect(result.current.savedRoutes.map((r) => r.apiKeyId)).toEqual([
         'k1',
         'k1',
         'k1',
+        'k1',
+        'k2',
         'k2',
         'k2',
       ])
@@ -66,6 +68,7 @@ describe('useLLMRoutePicker', () => {
       ])
       const { result } = renderHook(() => useLLMRoutePicker('enhance'))
       expect(result.current.savedRoutes.map((r) => r.apiKeyId)).toEqual([
+        'k1',
         'k1',
         'k1',
         'k1',
@@ -100,9 +103,11 @@ describe('useLLMRoutePicker', () => {
         [
           'OpenAI GPT-6 Luna',
           'OpenAI GPT-6.1 Sol',
+          'OpenAI GPT-6.1 Terra',
           'OpenAI GPT-6 Astra',
           'Gemini 3.5 Flash Lite',
           'Gemini 3.8 Flash',
+          'Gemini 4 Argon',
           'Grok 4.7',
         ].sort(),
       )
@@ -148,9 +153,12 @@ describe('useLLMRoutePicker', () => {
         makeKey({ id: 'k5', adapterType: AI_ADAPTER_TYPES.ANTHROPIC }),
       ])
       const { result } = renderHook(() => useLLMRoutePicker('assistant'))
-      // OpenAI exposes three tiers, Claude four (Haiku 5.5 since 10-10); DeepSeek two.
+      // Gemini two tiers (4 Argon since 11-01), OpenAI four (6.1 Terra since
+      // 11-01), Claude four (Haiku 5.5 since 10-10); DeepSeek two.
       expect(result.current.savedRoutes.map((r) => r.apiKeyId)).toEqual([
         'k1',
+        'k1',
+        'k2',
         'k2',
         'k2',
         'k2',
@@ -179,6 +187,8 @@ describe('useLLMRoutePicker', () => {
         AI_ADAPTER_TYPES.OPENAI,
         AI_ADAPTER_TYPES.OPENAI,
         AI_ADAPTER_TYPES.OPENAI,
+        AI_ADAPTER_TYPES.OPENAI,
+        AI_ADAPTER_TYPES.GEMINI,
         AI_ADAPTER_TYPES.GEMINI,
         AI_ADAPTER_TYPES.DEEPSEEK,
         AI_ADAPTER_TYPES.DEEPSEEK,

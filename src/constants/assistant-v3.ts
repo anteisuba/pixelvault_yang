@@ -450,8 +450,12 @@ export const ASSISTANT_V3_MAX_OUTPUT_TOKENS = {
     [LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_1_SOL]: 128_000,
     [LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_ASTRA]: 128_000,
     [LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_LUNA]: 128_000,
+    // https://developers.openai.com/api/docs/models/gpt-6.1-terra —「128,000 max output tokens」（2026-11-01 读取）
+    [LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_1_TERRA]: 128_000,
     // https://ai.google.dev/gemini-api/docs/models/gemini-3.8-flash —「Output token limit 65,536」
     [LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH]: 65_536,
+    // https://ai.google.dev/gemini-api/docs/models/gemini-4-argon —「65,536 by default」（long decode 另算，2026-11-01 读取）
+    [LLM_TEXT_MODEL_IDS.GEMINI_4_ARGON]: 65_536,
     // https://api-docs.deepseek.com/quick_start/pricing —「MAX OUTPUT MAXIMUM: 384K」（两个型号同一栏；
     // deepseek-flash 的 384K 仓库里也有：`LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH` 注释、providers.md）
     [LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH]: 384_000,

@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { db } from '@/lib/db'
-import { Prisma, type Recipe as RecipeRow } from '@/lib/generated/prisma/client'
+import { Prisma, type Recipe } from '@/lib/generated/prisma/client'
 import { ApiRequestError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 import { ensureUser } from '@/services/user.service'
@@ -24,9 +24,6 @@ import {
   type RecipeLoraSetup,
   type RecipeUsage,
 } from '@/types'
-
-/** `visibility` 已停读（`lib/db.ts` 的 RETIRED_COLUMNS），删列时连这里一起收。 */
-type Recipe = Omit<RecipeRow, 'visibility'>
 
 export interface ListRecipesResult {
   recipes: RecipeWithCover[]

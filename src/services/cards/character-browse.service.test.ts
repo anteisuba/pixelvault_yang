@@ -154,7 +154,7 @@ async function browseCharacter(
 ) {
   const card = await mocks.cardFind()
   const route = await mocks.route(input.userId, {
-    routeModel: card.browseModel,
+    routeModel: card.model,
   })
   const result = await browseRound({
     userId: input.userId,
@@ -185,7 +185,7 @@ describe('browseRound（她出门逛一轮）', () => {
       name: 'Denia',
       tags: ['猫娘'],
       persona: { identity: '喜欢水彩和猫的画师' },
-      browseModel: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
+      model: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
       updatedAt,
     })
     mocks.findingCount.mockResolvedValue(0)
@@ -256,7 +256,7 @@ describe('browseRound（她出门逛一轮）', () => {
       tags: [],
       persona: { identity: '画师', interests: ['水彩'] },
       extensions: null,
-      browseModel: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
+      model: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
       updatedAt,
     })
     mocks.complete.mockReset()
@@ -294,7 +294,7 @@ describe('browseRound（她出门逛一轮）', () => {
       tags: [],
       persona: { interests: ['水彩'] },
       extensions: { 'pv.pinnedFields': ['interests'] },
-      browseModel: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
+      model: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
       updatedAt,
     })
     mocks.complete.mockReset()
@@ -605,7 +605,7 @@ describe('三级漏斗', () => {
       name: 'Denia',
       tags: [],
       persona: {},
-      browseModel: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
+      model: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
       updatedAt,
     })
     mocks.findingCount.mockResolvedValue(0)
@@ -680,7 +680,7 @@ describe('表情包（4d）', () => {
       name: 'Denia',
       tags: [],
       persona: {},
-      browseModel: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
+      model: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
       updatedAt,
     })
     mocks.findingCount.mockResolvedValue(0)

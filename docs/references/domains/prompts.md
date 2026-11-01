@@ -12,7 +12,7 @@
 ## 数据模型（注意与 cards 域区分）
 
 - `Recipe`：owner-scoped 模板（compiledPrompt / negativePrompt / modelId / provider / outputType / version / parentGenerationId）。（cards 域的 `CardRecipe` 表 2026-10-21 已删。）
-- 模板不再「发布」：`Recipe.visibility` 已停读停写（`lib/db.ts` 的 `RETIRED_COLUMNS`），下一次数据库改动删列。`usageCount` 是旧共享库的复制计数，不再增长。
+- 模板不再「发布」：`Recipe.visibility` 列已删（11-01，迁移 `20261101170000_drop_retired_columns`）。`usageCount` 是旧共享库的复制计数，不再增长。
 - 列表封面：首张用该模板出的图 → 来源作品 → 模板自存的 `coverImageUrl` → 文字兜底。
 
 ## Service / API

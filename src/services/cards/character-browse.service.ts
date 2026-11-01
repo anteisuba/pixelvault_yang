@@ -83,7 +83,7 @@ import {
  * ③ 几样一批交给模型看（看得了图就带图），用她的口吻写一句见闻，没意思的跳过；
  *   第 ⑥ 步：开着「看视频」的来源真看（Gemini 整段看+听；别家看 B 站分帧；X 由 Grok 看），
  *   关着的只看评论区；你贴的视频她先看（`watchPinnedVideos`）。
- * ④ 写进 `CharacterFinding`，记下 `browsedAt`。
+ * ④ 写进 `CharacterFinding`。
  *
  * ⭐ 用的是弹框里选的那一家、那个型号、那把 key（⛔ 借别家）；每次调模型都过 `OutingMeter`，
  *   估得会超额度就不调（owner 10-30「额度不能超」）。

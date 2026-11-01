@@ -4014,7 +4014,6 @@ export const RecipeScalarFieldEnum = {
   remixSourceRecipeId: 'remixSourceRecipeId',
   tags: 'tags',
   usageCount: 'usageCount',
-  visibility: 'visibility',
   isFavorite: 'isFavorite'
 } as const
 
@@ -4144,11 +4143,6 @@ export const CharacterCardScalarFieldEnum = {
   handle: 'handle',
   summary: 'summary',
   extensions: 'extensions',
-  browseEnabled: 'browseEnabled',
-  browseDailyLimit: 'browseDailyLimit',
-  browsedAt: 'browsedAt',
-  browseModel: 'browseModel',
-  browsePausedReason: 'browsePausedReason',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const

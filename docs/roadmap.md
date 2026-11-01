@@ -21,12 +21,17 @@
 
 ## 下一个
 
-2026-11-01 owner 定方向（见 [`references/product.md`](references/product.md) 北极星）：核心是助手，台和画布是她的工具。顺序 owner 交给 Claude 定：
+2026-11-01 owner 定方向（见 [`references/product.md`](references/product.md) 北极星）：核心是助手，台和画布是她的工具。顺序 owner 交给 Claude 定，11-01 晚 owner 点头如下：
 
-1. **`p-assistant-autonomy` 助手自主度**：像讨论一样——拿得准直接做完，拿不准先问一句「这样可以吗」，不行换方案；三种先问（改坏已有东西 / 花钱明显多 / 意思有两种读法）。先出设计稿到 `design/assistant-autonomy.md`（现状：助手现在哪些地方停下来问、哪些直接做；改法；改完什么样），owner 看稿后做。`p-assistant-modes`（反问模式）并入。
-2. **`p-canvas-shotlist` 画布镜头表框架**：先框架后逐镜生成；表能从参考视频拆（原 `p-canvas-breakdown` 拉片）也能由助手填；默认先低清草稿看剧情、满意再精修（11-01 owner 定）。先出设计稿到 `design/canvas-shotlist.md`，owner 看稿后做。`p-canvas-polish` 里已记的两项轮到时一起。
-3. **UI：各台按样件 E 细修**——标签台 → 视频 / 3D → 配音间 → 画布，每台开工前对齐。规范见 `references/ui-spec.md`。
-4. 其余按下面「待做」的阶段顺序往下排；手机端重设计（`d-mobile-redesign`）等用的人再多些再排；要插队先问 owner。
+1. **`p-platform-credits` 点数地基**：所有调用（LLM token / 图 / 视频 / 声音 / Modal GPU 秒）折成点数、每人额度、用量可见。Modal 免费给所有用户跑、朋友试用先给额度玩、助手「花钱多先问」、角色出门额度，四件都踩在这套上。先出设计稿 `design/platform-credits.md`，owner 看稿后做。
+2. **`p-assistant-autonomy` 助手自主度（含 `p-assistant-undo` 撤回）**：像讨论一样——拿得准直接做完，拿不准先问一句「这样可以吗」，不行换方案；三种先问（改坏已有东西 / 花钱明显多 / 意思有两种读法）；所有助手动作可撤回是底线。先出设计稿 `design/assistant-autonomy.md`（现状：助手现在哪些地方停下来问、哪些直接做；改法；改完什么样），owner 看稿后做。`p-assistant-modes`（反问模式）并入。
+3. **`p-canvas-shotlist` 画布镜头表框架**：先框架后逐镜生成；表能从参考视频拆（原 `p-canvas-breakdown` 拉片）也能由助手填；默认先低清草稿看剧情、满意再精修。先出设计稿 `design/canvas-shotlist.md`，owner 看稿后做。`p-canvas-polish` 里已记的两项轮到时一起。
+4. **UI：各台按样件 E 细修**——标签台 → 视频 / 3D → 配音间 → 画布，每台开工前对齐。规范见 `references/ui-spec.md`。
+5. 其余按下面「待做」的阶段顺序往下排；手机端重设计（`d-mobile-redesign`）等用的人再多些再排；要插队先问 owner。
+
+**朋友圈扩大前的闸门（与上面并行，放手给 Opus 线程做）**：安全审计一轮（越权 / ownership / 扣点）、`o-worker` 结果不丢（outbox）、`o-errors` 错误显示。三件没完成不扩大试用范围。
+
+**固定规矩（11-01 owner 定）**：每次动助手内核，跑一遍 68 题评测（约 $5，花 owner 额度），结果记 `/mnt/project-files/assistant-eval/`。
 
 ## 待做
 
@@ -73,7 +78,7 @@
 | `p-assistant-autonomy`       | 助手自主度（原 `p-assistant-modes` 并入）                | 11-01 owner 定，见「下一个」第 1 项                                                                                                                                                 |
 | `p-platform-credits`         | 平台额度：所有调用折点数、每人额度、用量可见             | 11-01 owner 定：Modal 免费给所有用户跑、朋友试用先给额度玩。现状 ApiUsageLedger 只记出图次数、LLM token 不入账；出门额度按 token 折点（角色大项目已定 1 点≈1 万 token）。先出设计稿 |
 | `p-assistant-undo`           | 助手所有动作可撤回（底线）                               | 11-01 owner 定。MCP 已有 edit / undo，站内助手改东西没有统一撤回；随 `p-assistant-autonomy` 设计                                                                                    |
-| `p-user-profile`             | 「你」的档案（偏好 / 禁忌 / 常用角色）                   | 11-01 owner 定做；owner 倾向各记各的，Claude 提议两层（关于你的事实共享、她对你的印象各记各的）待答                                                                                 |
+| `p-user-profile`             | 「你」的档案（偏好 / 禁忌 / 常用角色）                   | 11-01 owner 定做；11-01 owner 定两层：「关于你的事实」（名字 / 语言 / 禁忌 / 常用模型）一份共享；「她对你的印象、相处方式」各记各的                                                 |
 | `p-canvas-polish`            | 画布持续优化                                             | 已记：画布里切换角色造型；画布参考语音（声音模块留下的）                                                                                                                            |
 | `p-character-chat`           | 一个 bot：聊天 + 助手 + 语音合一                         | 大部分已被后续模块做掉或改定（聊天 = 配音间合并、人设切换、去聊天模式、「你在故事里是谁」已删）。原清单剩「画这一幕 / 继续·代我说·分支」，要不要做开工前重新对齐                    |
 | —                            | 电子宠物感（表情包、语音、上网找资料）                   | 10-23 owner 提，未排期；表情包与上网已随角色出门做了一部分                                                                                                                          |

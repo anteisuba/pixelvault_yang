@@ -31,7 +31,7 @@ type SwapPhase = 'idle' | 'resultsOut' | 'panelOut' | 'resultsIn'
  *
  * ⚠ 结果那一层**不卸载**，只是藏起来（`hidden` ↔ `contents`）：`StudioCanvas` 手上
  *   有正在跑的那一批与放大图的状态，卸掉等于把它们丢了。`contents` 不产生盒子，
- *   舞台空态那条高度链（globals.css `.studio-workbench-stage:has(...)`）因此不断；
+ *   舞台空态那条高度链（src/styles/studio.css `.studio-workbench-stage:has(...)`）因此不断；
  *   也因为没有盒子，淡入淡出的类由 `renderResults` 挂到结果自己的根上。
  * ⚠ 每一拍靠定时器落定，⛔ 不等 `animationend`：后台标签页里动画不跑，等它的
  *   下场是一块摘不掉、吃着点击的面板。

@@ -14,7 +14,7 @@
  * ⛔ 不下载、不转存、不解码任何一帧 —— 播放全在对方的播放器里。
  *
  * ⭐ **放大**（owner 2026-10-16「播放暂停，放大画中框，不跳转」，卡上选「页面中间大窗口」）：
- *   整张卡是 `popover="auto"`（样式 `operator-video-stage`，见 globals.css），「放大」=
+ *   整张卡是 `popover="auto"`（样式 `operator-video-stage`，见 src/styles/assistant.css），「放大」=
  *   `showPopover()` 把**同一个元素**提到顶层、浮在页面中间，⛔ 不搬 DOM、iframe 不重载，
  *   接着播。点旁边 / Esc 由浏览器收回（light dismiss），面板里留一块占位写「在大窗口里播」。
  *   放大时 Esc 在 window 捕获阶段拦下（不 preventDefault，浏览器照常收回）——

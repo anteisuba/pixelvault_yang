@@ -112,7 +112,7 @@ function extractSeedFromGeneration(gen: GenerationRecord): number | null {
   return null
 }
 
-/** The proportions (width / height) a `studio-fit-box` keeps; see globals.css. */
+/** The proportions (width / height) a `studio-fit-box` keeps; see src/styles/studio.css. */
 function fitRatioStyle(ratio: number): CSSProperties {
   return { '--studio-fit-ratio': ratio } as CSSProperties
 }

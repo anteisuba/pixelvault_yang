@@ -1,0 +1,547 @@
+/* studio.css — 工作台（/studio）域样式：舞台、结果图墙、编辑台、输入框、手机端形态。
+ * 由 globals.css 在原位置 @import，全站生效；令牌与工作台脊柱（.workbench-*）在 globals.css。
+ * 前半段在 @layer components 里，后半段有意放在 @layer 之外（各段注释写了原因）。 */
+
+@layer components {
+  /* ── Studio layout V2: canvas-centric vertical layout ───────────────── */
+
+  /* ⚠ 灰底地台的颜色/padding/gap 由 `.workbench-ground`（上方，工作台脊柱）
+     提供 —— 组件侧同时挂 `studio-layout-v2 workbench-ground` 两个类名，这里
+     不重复声明 background/padding，只留这一层自己的高度契约与定位。 */
+  .studio-layout-v2 {
+    --studio-generation-media-max-height: 45vh;
+    /* 初始预留值；挂载后按 composer 的实际高度同步。 */
+    --studio-mobile-composer-height: 7rem;
+
+    min-height: calc(var(--screen-h, 100svh) - 3.5rem);
+    flex-direction: column;
+    position: relative;
+  }
+
+  /* Desktop (≥lg = MOBILE_BREAKPOINT): SidebarInset drops all chrome
+     padding (lg:pt-0 lg:pb-0 lg:pl-0) and there is no top navbar — only
+     the left sidebar. The mobile-header reservation above would otherwise
+     leave the layout 3.5rem short of the viewport and dump that band as
+     dead space below the dock, so reclaim the full height here. */
+  @media (min-width: 768px) {
+    .studio-layout-v2 {
+      --studio-generation-media-max-height: 72vh;
+
+      min-height: var(--screen-h, 100svh);
+    }
+  }
+
+  /* `StudioWorkbenchLayout` 根行的显式高度（替代 Tailwind `h-svh`，见组件里的
+     `lg:flex-basis` 坑注释）。地台加了 18px padding 之后单纯的 100svh 会把
+     `.workbench-ground` 撑穿、多出一条整页滚动条 —— 两侧 padding 各 18px，这里
+     扣掉 2.25rem 对账。 */
+  @media (min-width: 768px) {
+    .studio-workbench-shell {
+      height: calc(var(--screen-h, 100svh) - 2.25rem);
+    }
+  }
+
+  /* Studio 的竖屏视频按可用高度缩放，不再按结果栏全宽放大。
+     外框跟随媒体宽度，播放器控件始终与实际视频边缘对齐。 */
+  .video-player--contain {
+    width: fit-content;
+    max-width: 100%;
+    margin-inline: auto;
+  }
+
+  .video-player-media--contain {
+    display: block;
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: var(--studio-generation-media-max-height);
+    object-fit: contain;
+  }
+
+  /* Canvas — natural height based on content */
+  .studio-canvas {
+    min-height: 0;
+  }
+
+  /* ── Studio 移动端画布优先形态（<768，图片档）─────────────────────
+     施工基准 `docs/references/pages/studio-image-mobile-request.md`
+     （owner 2026-09-03 拍板方向 A）。几何写在这里而不是 Tailwind 任意值：
+     composer 预留高度、92svh 抽屉、drill 行的触屏高度都不在间距刻度上。 */
+
+  /* 视频档的 composer 在 chip 行与提示词之间多一行 mono 费用（≈18px + gap 8）。
+     ⚠ 变量必须落在 `.studio-layout-v2` 上：舞台是它的子元素、composer 是舞台的
+     兄弟，写在 composer 自己身上舞台读不到。 */
+  .studio-layout-v2:has(.studio-mobile-composer--video) {
+    --studio-mobile-composer-height: 8.75rem;
+  }
+
+  /* 舞台给底部 composer 让位（含 iOS 安全区）—— 用**外**边距：舞台卡在输入框那一条
+     上方结束，上下是两张卡（owner 2026-10-04「像 PC 一样」），⛔ 不再让卡伸到输入条
+     后面。减掉的那一截是地台下内边距（输入条自己带着上方那道灰缝）。
+     有输入条时整台定高、只让舞台卡自己滚 —— 否则内容一长整页在滚，舞台卡照样从
+     灰条后面穿过去。 */
+  .studio-layout-v2:has(.studio-mobile-composer) {
+    height: calc(var(--screen-h, 100svh) - 3.5rem);
+  }
+
+  .studio-mobile-stage {
+    padding-bottom: 0.75rem;
+    margin-bottom: calc(
+      var(--studio-mobile-composer-height, 7rem) - var(--workbench-pad)
+    );
+  }
+
+  .studio-tags-mobile-composer {
+    bottom: var(--keyboard-inset, 0px);
+    max-height: calc(
+      (var(--screen-h, 100svh) - var(--keyboard-inset, 0px) - 3.5rem) / 2
+    );
+    padding-bottom: max(var(--keyboard-safe-area-bottom, 0px), 0.75rem);
+  }
+
+  /* 键盘升起 / 展开写标签时图不缩：键盘只把输入条抬起来盖在舞台上（手机稿 v10
+     「覆盖」，owner 2026-10-09），⛔ 把键盘高度算进舞台下边距。输入条高度由
+     `useStudioMobileComposerHeight` 按收起时量。 */
+
+  .studio-layout-v2:has(.studio-tags-mobile-composer)
+    .studio-mobile-stage-panel {
+    height: max(
+      10rem,
+      calc(
+        var(--screen-h, 100svh) - 7.5rem -
+          var(--studio-mobile-composer-height) - var(--keyboard-inset, 0px)
+      )
+    );
+  }
+
+  /* 模板面板（手机，画板「模板 C · 手机」）：高度钉在舞台看得见的那一段 ——
+     顶栏 3.5rem、舞台上下各留 0.75rem、底部输入条（没有输入条的那两台按预留值）。
+     头部与搜索不跟着页面滚走，只有卡片网格在里面滚。 */
+  .studio-mobile-stage-panel {
+    height: calc(
+      var(--screen-h, 100svh) - 3.5rem - 1.5rem -
+        var(--studio-mobile-composer-height, 7rem)
+    );
+  }
+
+  /* 手机图片台的舞台卡顶上多一行写法切换（`.studio-mobile-stage-header`：32 高 +
+     12 下距），面板再扣掉这一行，否则整块舞台会多滚出一截。 */
+  .studio-layout-v2:has(.studio-mobile-stage-header)
+    .studio-mobile-stage-panel {
+    height: calc(
+      var(--screen-h, 100svh) - 3.5rem - 1.5rem - 2.75rem -
+        var(--studio-mobile-composer-height, 7rem)
+    );
+  }
+
+  /* chip 行：32px 丸 + 44px 触屏命中区（同 .touch-target-y 的手法）。
+     ⚠ 直接写在行上而不是逐颗 chip 上 —— 参考图 / 优化两颗是既有组件
+     （`studioToolTriggerClass` 在窄屏是 h-11），它们的桌面外观不能动，
+     只在这个宿主里压成 32px。 */
+  /* ── 结果图墙（CompareGrid）的格子高度 ────────────────────────────
+     对照台的规矩：**一行等高**，宽度由每张图自己的长宽比推出来。这样
+     竖图与方图并排时上下沿对齐，扫一行就是在比同一件事。
+
+     为什么是一个 CSS 变量而不是 Tailwind 工具类：需要 clamp() 随视口
+     伸缩，而 Tailwind 4 里那是 arbitrary value（Hard Rule 5 禁用）。
+     ⚠ 上限 300px 是量出来的 —— 旧版单格 767px 占 84% 视口高，一屏放不下
+     一行；300px 让 9:16 的四张同时进首屏还留得下动作栏。 */
+  .studio-result-row {
+    --studio-tile-h: clamp(9rem, 30vh, 18.75rem);
+  }
+
+  .studio-result-tile {
+    height: var(--studio-tile-h);
+  }
+
+  /* 还没有图的格子（生成中 / 失败）没有长宽比可用，给一个竖构图占位，
+     免得它们在行里塌成一条缝。 */
+  .studio-result-tile--pending {
+    aspect-ratio: 3 / 4;
+  }
+
+  /* 图片编辑舞台的「大图 + 右侧控件」两栏。
+     ⚠ 行必须显式写成 `minmax(0, 1fr)`：栅格默认的 `auto` 行会**按内容取高**，
+     于是即便这个盒子自己是 `flex-1 min-h-0`，行也能顶破它 —— 2026-08-23 真机
+     实测 `grid-template-rows` 解析成 `1798px`（视口 911），图片被原样铺开。
+     列也一并搬进来：`lg:grid-cols-[minmax(0,1fr)_320px]` 是 Tailwind arbitrary
+     value（Hard Rule 5 禁用），行列写在一处也少一个漂移点。 */
+  .studio-edit-body {
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  @media (min-width: 64rem) {
+    .studio-edit-body {
+      grid-template-columns: minmax(0, 1fr) 20rem;
+    }
+  }
+
+  /* 物体替换（框选标注）的源图。
+     它的容器必须逐像素等于图片渲染框（标注框按容器百分比定位、指针坐标按容器
+     rect 换算），所以高度约束只能加在图片自己身上，不能靠容器 stretch +
+     object-contain —— 那会多出留白并让所有标注框整体偏移。
+     ⚠ 14rem 是量出来的：真机 chrome（舞台上边距 + 返回条 + 工具条）= 154px，
+     舞台下边距 24px，再给「编辑历史」那一行留 ~46px 余量。 */
+  .studio-annotate-image {
+    max-height: var(
+      --studio-edit-media-max-h,
+      calc(var(--screen-h, 100svh) - 14rem)
+    );
+    max-width: 100%;
+    width: auto;
+  }
+
+  /* 编辑台三档（整图修改 / 局部重绘 / 物体替换）的源图共用一个高度上限 —— 换任务时
+     图不忽大忽小，也不被舞台下沿裁掉（owner 2026-10-03）。上限只在工作台里给
+     （`.studio-layout-v2`）：桌面扣掉 头部行 + 舞台内距 + 输入框卡 + 工具条；手机扣掉
+     顶栏 + 写法切换 + 底部输入条（实测高度）。画布的编辑弹窗不在这里面，沿用各自的旧值。 */
+  .studio-layout-v2 {
+    --studio-edit-media-max-h: calc(var(--screen-h, 100svh) - 24rem);
+  }
+
+  @media (max-width: 767.98px) {
+    .studio-layout-v2 {
+      --studio-edit-media-max-h: calc(
+        var(--screen-h, 100svh) - 11rem -
+          var(--studio-mobile-composer-height, 10rem)
+      );
+      /* 局部重绘的图下还有一条工具条（36 + 上下留白）—— 桌面那 24rem 里已算进去，
+         手机只在这一档再让出这一条，否则工具条落在输入条后面。 */
+      --studio-edit-toolbar-reserve: 3.5rem;
+    }
+  }
+
+  .studio-edit-media {
+    max-height: var(--studio-edit-media-max-h, 24rem);
+  }
+
+  /* 结果动作栏与参考轨的按钮：桌面沿用全站 32px 的紧凑密度，**触屏抬到
+     44px**。这片界面在手机上照样渲染，而纯触屏没有 hover —— 按 pointer 分档
+     比一刀切成 44px 更诚实：后者会让桌面端这一条凭空胖一圈。 */
+  @media (pointer: coarse) {
+    .studio-touch-actions button {
+      min-height: 2.75rem;
+    }
+  }
+
+  /* 参考图等比占据参考轨下方的可用舞台，不裁切原图。 */
+  .studio-reference-stage-image {
+    width: 100%;
+    height: calc(var(--screen-h, 100svh) - 12rem);
+    max-height: none;
+    max-width: 100%;
+  }
+
+  /* Scroll area for canvas + gallery */
+  .studio-scroll-area {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklab, var(--border) 60%, transparent)
+      transparent;
+  }
+
+  .studio-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(
+        in oklab,
+        var(--muted-foreground) 45%,
+        transparent
+      )
+      transparent;
+  }
+
+  .studio-scrollbar::-webkit-scrollbar {
+    width: 0.375rem;
+    height: 0.375rem;
+  }
+
+  .studio-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .studio-scrollbar::-webkit-scrollbar-thumb {
+    border: 1px solid transparent;
+    border-radius: 9999px;
+    background: color-mix(in oklab, var(--muted-foreground) 45%, transparent)
+      padding-box;
+  }
+
+  .studio-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in oklab, var(--muted-foreground) 65%, transparent)
+      padding-box;
+  }
+
+  /* /assets justified 网格的滚动容器 —— 滚动条出现会让容器缩水，把已经按旧
+     宽度排好的行挤出横向溢出（docs/references/pages/assets.md §5.7）。
+     常留 gutter，容器宽从头到尾是同一个数。 */
+  .assets-scroll-gutter {
+    scrollbar-gutter: stable;
+  }
+
+  /* 次级数字（分面下拉行右侧的计数）——⚠ `text-muted-foreground` 压在
+     `bg-muted` 上只有 **4.35:1**，不到 4.5（同一个坑见 memory
+     `reference-muted-foreground-fails-on-secondary`）。改用父级墨色降调：
+     74% foreground 实测 —— 白底 **8.86:1**、`bg-muted` hover 底 **8.52:1**、
+     `bg-muted/40` chip 底 **8.70:1**。
+     ⚠ 降调只放子元素，别放在同时用 currentColor 推边框的元素上（会复利）。 */
+  .text-soft-count {
+    color: color-mix(in oklab, currentColor 74%, transparent);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* /assets 瓦片的媒体表达（docs/references/pages/assets.md §6）。
+     ⚠ 这两层压的是**任意作品图**，不是可主题化的表面，所以对比度必须按
+     「最坏底 = 纯白图」算：`rgba(12,12,12,.72)` 合成后是 rgb(81,81,81)，
+     其上白字 **7.9:1**、次级 `#e8e8e6` **6.4:1**，都过 4.5。 */
+  .asset-tile-veil {
+    background: linear-gradient(to top, rgba(12, 12, 12, 0.72), transparent);
+  }
+
+  .asset-tile-veil-sub {
+    color: #e8e8e6;
+  }
+
+  .asset-tile-badge {
+    background: rgba(12, 12, 12, 0.72);
+    color: #fff;
+    backdrop-filter: blur(4px);
+  }
+
+  /* Composer 壳体 — 象牙工作台（docs/references/domains/studio.md）。
+     用语义类而非 @theme 生成的工具类：跑着的 dev server 对新增
+     theme key 不重启不生成工具类，语义类热更新立即生效。
+     文字色靠继承（preflight 已让 textarea/button color: inherit）。 */
+  .studio-composer {
+    background: var(--surface-composer);
+    color: var(--surface-composer-foreground);
+    /* 局部重映射：在料的作用域内把语义色板换成料上的那一套，让
+       text-foreground / text-muted-foreground / border-* 等工具类在象牙面
+       （素）和深灰面（暗房）上都解析对。 */
+    --foreground: var(--surface-composer-foreground);
+    --muted-foreground: var(--surface-composer-muted);
+    --border: var(--surface-composer-line);
+    --input: var(--surface-composer-line);
+    /* primary 在料上 = 料的字色（textarea 的 text-primary、任何 bg-primary
+       子元素：素档是「象牙上的黑丸」，暗房是深灰上的米白丸 —— 与反相 CTA 规则一致）。 */
+    --primary: var(--surface-composer-foreground);
+    --primary-foreground: var(--surface-composer);
+  }
+
+  /* 后代规则压过组件内部的主题文字工具类（(0,1,1) > (0,1,0)）。 */
+  .studio-composer textarea {
+    color: var(--surface-composer-foreground);
+    caret-color: var(--surface-composer-foreground);
+  }
+}
+
+/* ── Studio result image ─────────────────────────────────────── */
+.studio-generation-image {
+  animation: studio-generation-image-in 360ms ease-out both;
+}
+
+@keyframes studio-generation-image-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.992);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ── Studio generating — 加载态 A「边即进度」──────────────────────────
+   docs/references/loading.md · owner 2026-09-27（设计画布「加载态 A · 全部状态」）。
+   只有一条线：卡片自己的边在生成时退成浅灰轨道，黑线从上沿正中顺时针走，走满
+   就是卡片原来的边（画布选中环同一处、同一粗细）。路径由
+   `buildGenerationEdgePath` 按盒子实测尺寸算，配 `pathLength=100`。
+   ⛔ 不再有第二个框、内圈或 45 秒后的呼吸 —— 等太久只让线继续慢慢爬。 */
+.studio-generation-edge-track,
+.studio-generation-edge {
+  fill: none;
+  stroke-width: 1.5;
+}
+
+.studio-generation-edge-track {
+  stroke: var(--surface-fill-track);
+}
+
+.studio-generation-edge {
+  stroke: var(--foreground);
+  stroke-linecap: round;
+}
+
+/* 失败：线停在原处变灰（⛔ 红框）。 */
+.studio-generation-edge--stopped {
+  stroke: color-mix(in oklab, var(--foreground) 36%, transparent);
+}
+
+/* 舞台上的图框（底部输入框布局）：按舞台剩下的地方等比放到最大，框的比例就是图的
+   比例 —— 线跑在图自己的边上（⛔ 一块比图宽的框），整圈都在舞台里（⛔ 按视口算，
+   矮屏会切掉下沿）。`--studio-fit-ratio` = 宽 / 高。 */
+/* 「先搜再画」的资料位让出来时，图按剩下的宽度算（`--studio-fit-inset` = 那一列的
+   宽），而且跟资料位同一根弹簧走 —— 注册成 <length> 才能过渡。 */
+@property --studio-fit-inset {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 0px;
+}
+
+.studio-fit-area {
+  container-type: size;
+  transition: --studio-fit-inset var(--duration-base) var(--ease-standard);
+}
+
+.studio-fit-area:has(> .search-sources-slot[data-open='true']) {
+  --studio-fit-inset: 18.25rem;
+  transition: --studio-fit-inset var(--spring-expand-duration)
+    var(--spring-expand-ease);
+}
+
+.studio-fit-box {
+  width: min(
+    100cqw - var(--studio-fit-inset),
+    100cqh * var(--studio-fit-ratio, 1)
+  );
+  height: min(
+    100cqh,
+    (100cqw - var(--studio-fit-inset)) / var(--studio-fit-ratio, 1)
+  );
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .studio-generation-edge {
+    transition:
+      stroke-dasharray 600ms linear,
+      stroke var(--duration-fast) linear;
+  }
+
+  .studio-generation-edge--closing {
+    transition: stroke-dasharray 240ms linear;
+  }
+
+  .studio-generation-stage-in {
+    animation: studio-generation-stage-in 200ms var(--ease-standard) both;
+  }
+
+  .studio-generation-stage-out {
+    animation: studio-generation-stage-out 120ms ease-out both;
+  }
+}
+
+@keyframes studio-generation-stage-in {
+  0% {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes studio-generation-stage-out {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* ── Studio 空态高度链（有意放在 @layer 之外）─────────────────────
+   .studio-empty-state 在树里时：结果区 → StudioCanvas → 内容层整条链改为
+   可伸展的 flex 列，让起手势内容垂直居中于结果区的全部剩余高度。
+   ⚠ 必须是未分层样式：`.studio-workbench-stage` 上的 flex 工具类在
+   utilities layer，layered 规则不论 specificity 都压不过它。
+   ⚠ flex-basis 用 auto 而不是 0%：移动端外层容器是内容高度，0% 会把整条链
+   坍缩成 0。
+   ⚠ 2026-08-23 切片 A：`.studio-canvas-slot` 那一份已删 —— 那个槽位属于退役的
+   `StudioFlowLayout`，三个模态统一走横向工作台后 DOM 里不再有这个类。 */
+/* ── 图墙在移动壳里换成真栅格（<768，有意放在 @layer 之外）────────
+   桌面那套是「一行等高、宽度由各自长宽比推」，扫一行就是在比同一件事。
+   那套在 375 宽上会退化成一行一张：竖构图按 30vh 高推出来就有 ~180px 宽，
+   两张加间距 376 > 351 可用宽。所以移动壳换成列数固定的栅格，高度交回给每格
+   自己的 `aspect-ratio`（完成态是内联的真实长宽比，未完成态是 3/4）。
+   ⚠ **必须未分层**：格子容器上挂着 Tailwind 的 `flex`（utilities layer），
+   写在 @layer components 里的 `display: grid` 压不过它 —— 真机实测过一版，
+   375 宽照旧一行一张。
+   ⚠ 上界写死 767.98：桌面壳 ≥768 必须逐像素不变。 */
+@media (max-width: 767.98px) {
+  .studio-result-tiles {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .studio-result-tiles > .studio-result-tile {
+    height: auto;
+    width: 100%;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 767.98px) {
+  .studio-result-tiles {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* ── Studio 移动端 composer 的 chip 行（有意放在 @layer 之外）──────
+   32px 丸 + 44px 触屏命中区。**必须是未分层样式**：参考图与优化两颗是既有
+   组件，它们的 `h-11`（窄屏）是 utilities layer 的工具类，layered 规则不论
+   specificity 都压不过它 —— 真机实测过一版写在 @layer components 里，chip
+   行照旧量到 44px，composer 高度 135 而不是 108。
+   ⚠ 只在这个宿主里压成 32px，不动那两颗组件自身的桌面外观。
+   ⚠ 横向滚动条不占高度：触屏没有常驻滚动条，桌面型滚动条会再顶高 15px。 */
+/**
+ * 透明通道底纹。图层拆分产出的每个图层都是带 alpha 的 PNG —— 放在任何纯色底
+ * 上，「已经抠干净」和「根本没抠」看起来一模一样，棋盘格是唯一能一眼分辨的
+ * 底。用 token 而不是写死灰阶，深浅色主题下都要站得住。
+ */
+.studio-alpha-checkerboard {
+  background-color: var(--color-background);
+  background-image:
+    linear-gradient(45deg, var(--color-muted) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--color-muted) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--color-muted) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--color-muted) 75%);
+  background-size: 12px 12px;
+  background-position:
+    0 0,
+    0 6px,
+    6px -6px,
+    -6px 0;
+}
+
+.studio-mobile-chip-row {
+  scrollbar-width: none;
+}
+
+.studio-mobile-chip-row::-webkit-scrollbar {
+  display: none;
+}
+
+.studio-mobile-chip-row > button {
+  height: 2rem;
+  min-height: 2rem;
+  flex-shrink: 0;
+  position: relative;
+}
+
+@media (pointer: coarse) {
+  .studio-mobile-chip-row > button::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 44px;
+    transform: translateY(-50%);
+  }
+}
+
+.studio-workbench-stage:has(.studio-empty-state) .studio-canvas,
+.studio-workbench-stage:has(.studio-empty-state) .studio-canvas > div {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}

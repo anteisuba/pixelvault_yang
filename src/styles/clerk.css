@@ -1,0 +1,111 @@
+/* clerk.css — Clerk 登录组件覆盖。由 globals.css 在原位置 @import。 */
+
+@layer components {
+  /* ── Clerk overrides ───────────────────────────────────────────────────── */
+
+  .cl-rootBox,
+  .cl-cardBox,
+  .cl-card {
+    width: 100%;
+  }
+
+  .cl-card {
+    border: 1px solid var(--page-border);
+    border-radius: var(--radius-3xl);
+    background: color-mix(in oklab, var(--background) 78%, var(--card));
+    box-shadow:
+      0 1px 2px color-mix(in oklab, var(--foreground) 3%, transparent),
+      0 4px 16px color-mix(in oklab, var(--foreground) 2%, transparent);
+    padding: clamp(1.2rem, 2vw, 1.6rem);
+  }
+
+  .cl-headerTitle {
+    font-family: var(--font-sans);
+    font-size: clamp(1.6rem, 3.2vw, 2.15rem);
+    font-weight: 500;
+    letter-spacing: -0.04em;
+    color: var(--foreground);
+  }
+
+  .cl-headerSubtitle,
+  .cl-footer,
+  .cl-dividerText,
+  .cl-footerActionText,
+  .cl-formResendCodeLink {
+    font-family: var(--font-sans);
+    line-height: 1.7;
+    color: var(--muted-foreground);
+  }
+
+  .cl-socialButtonsBlockButton,
+  .cl-formButtonPrimary {
+    min-height: 2.9rem;
+    border-radius: 999px;
+    box-shadow: none;
+    font-weight: 600;
+  }
+
+  .cl-socialButtonsBlockButton {
+    border: 1px solid var(--page-border);
+    background: color-mix(in oklab, var(--background) 72%, var(--card));
+    color: var(--foreground);
+  }
+
+  .cl-socialButtonsBlockButton:hover {
+    background: var(--surface-soft);
+  }
+
+  .cl-formButtonPrimary {
+    background: var(--primary);
+    color: var(--primary-foreground);
+  }
+
+  .cl-formButtonPrimary:hover {
+    background: color-mix(in oklab, var(--primary) 88%, black);
+  }
+
+  .cl-formFieldLabel,
+  .cl-identityPreviewText,
+  .cl-formFieldHintText {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: color-mix(in oklab, var(--muted-foreground) 92%, var(--background));
+  }
+
+  .cl-formFieldInput,
+  .cl-formFieldInputShowPasswordButton,
+  .cl-otpCodeFieldInput {
+    border-color: var(--page-border);
+    background: color-mix(in oklab, var(--background) 76%, var(--card));
+    box-shadow: none;
+    color: var(--foreground);
+  }
+
+  .cl-formFieldInput,
+  .cl-otpCodeFieldInput {
+    min-height: 2.95rem;
+    border-radius: calc(var(--radius-2xl) - 2px);
+  }
+
+  .cl-formFieldInput::placeholder {
+    color: var(--muted-foreground);
+  }
+
+  .cl-formFieldAction,
+  .cl-footerActionLink,
+  .cl-navbarButton {
+    color: color-mix(in oklab, var(--primary) 85%, var(--foreground));
+  }
+
+  .cl-dividerLine {
+    background: var(--page-border);
+  }
+
+  .cl-badge {
+    background: var(--surface-soft);
+    color: var(--foreground);
+    border: 1px solid var(--page-border);
+  }
+}

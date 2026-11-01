@@ -132,7 +132,7 @@ function DetailShell({
 }) {
   const t = useTranslations('LoraWorkbench')
   return (
-    // 平滑高度揭示由外层 `.lora-detail-reveal`（globals.css）负责——这里只
+    // 平滑高度揭示由外层 `.lora-detail-reveal`（src/styles/lora-shared.css）负责——这里只
     // 管卡片本身的视觉。
     <div className="rounded-2xl border border-primary/40 bg-muted/10 p-3 ring-1 ring-primary/20 sm:p-4">
       {/* ⚠ 封面是 4:5 定比，`w-full` 在窄视口下等于「容器多宽它就多高」：

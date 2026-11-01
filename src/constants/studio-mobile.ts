@@ -21,12 +21,12 @@
  */
 export const STUDIO_PROMPT_SCROLL_ANCHOR_ID = 'studio-prompt' as const
 
-/** composer 根元素的类名锚点（几何写在 globals.css，避免 Tailwind 任意值）。 */
+/** composer 根元素的类名锚点（几何写在 src/styles/studio.css，避免 Tailwind 任意值）。 */
 export const STUDIO_MOBILE_COMPOSER_CLASS = 'studio-mobile-composer' as const
 
 /**
  * 视频档 composer 的附加类名 —— 它比图片档多一行 mono 费用，舞台要多让出那点
- * 高度。globals.css 里靠 `.studio-layout-v2:has(.studio-mobile-composer--video)`
+ * 高度。src/styles/studio.css 里靠 `.studio-layout-v2:has(.studio-mobile-composer--video)`
  * 把 `--studio-mobile-composer-height` 调高。
  *
  * ⚠ 变量必须定义在 `.studio-layout-v2` 上（舞台是它的**子元素**，composer 是
@@ -36,13 +36,13 @@ export const STUDIO_MOBILE_COMPOSER_VIDEO_CLASS =
   'studio-mobile-composer--video' as const
 
 /**
- * 舞台底部给 composer 让出的高度所对应的类名。globals.css 里按
+ * 舞台底部给 composer 让出的高度所对应的类名。src/styles/studio.css 里按
  * `--studio-mobile-composer-height` + 键盘安全区算 padding。
  */
 export const STUDIO_MOBILE_STAGE_CLASS = 'studio-mobile-stage' as const
 
 /**
- * 手机舞台卡顶上那一行（图片台的写法切换）—— globals.css 按它把模板面板的高度
+ * 手机舞台卡顶上那一行（图片台的写法切换）—— src/styles/studio.css 按它把模板面板的高度
  * 再扣掉一行。
  */
 export const STUDIO_MOBILE_STAGE_HEADER_CLASS =

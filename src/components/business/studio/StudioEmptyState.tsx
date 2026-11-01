@@ -50,7 +50,7 @@ const EXPECTED_OUTPUT_TYPE: Record<StudioEmptyMode, string> = {
  * 教程「?」入口（Dialog 复用 XiaoheiGuideCarousel；首次访问自动弹一次，
  * localStorage 记忆，之后只能手动打开）。
  *
- * 布局注意：根元素的 `.studio-empty-state` 类是 globals.css 里
+ * 布局注意：根元素的 `.studio-empty-state` 类是 src/styles/studio.css 里
  * `.studio-workbench-stage:has(...)` 规则的锚点 —— 空态时结果区吃满剩余
  * 高度、内容垂直居中。（`.studio-canvas-slot` 那一份随 dock 于 2026-08-23 退役。）
  */

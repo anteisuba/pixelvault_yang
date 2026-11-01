@@ -91,7 +91,7 @@ export const PROGRESS_TICK_MS = 500
 
 /**
  * Stage-word crossfade: outgoing label unmount delay. Must match the
- * `studio-generation-stage-out` animation duration in globals.css (120ms).
+ * `studio-generation-stage-out` animation duration in src/styles/studio.css (120ms).
  */
 export const STAGE_LABEL_CROSSFADE_OUT_MS = 120
 

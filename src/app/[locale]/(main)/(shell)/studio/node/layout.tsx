@@ -15,9 +15,8 @@ import '@/app/canvas.css'
  * 和它们原来在 globals.css / 根 layout 里的先后一致。两份都排在根 layout 的
  * `globals.css` 之后，`.node-*` 规则仍在级联最后一位（零 cascade 变化）。
  *
- * ⚠ 画布皮肤里有一小部分留在 `globals.css` 的脊柱上（8 个 `--node-*` 定值 +
- * `.node-canvas-panel-motion`）—— 它们有画布域外的消费者，两处文件头注都记着
- * 原因，别搬回来。
+ * ⚠ 画布皮肤里有一小部分留在 `globals.css` 的脊柱上（8 个 `--node-*` 定值）——
+ * 它们有画布域外的消费者，两处文件头注都记着原因，别搬回来。
  */
 export default function StudioNodeLayout({
   children,

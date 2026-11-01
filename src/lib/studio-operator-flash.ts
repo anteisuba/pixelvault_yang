@@ -13,7 +13,7 @@
  * ② **先摘再挂 + 强制重排**：一轮里同一格被改两次时，不重启动画就只闪第一次
  *    （CSS 动画对「class 已经在了」不做任何事）。⛔ `void offsetWidth` 别删。
  * ③ **只动 `outline` 与 `opacity`**（⛔ 不动 transform / 尺寸）：被改的东西常在
- *    视线里，动尺寸会让整栏重排。时长与 reduced-motion 降级写在 `globals.css`。
+ *    视线里，动尺寸会让整栏重排。时长与 reduced-motion 降级写在 `src/styles/assistant.css`。
  *
  * ⚠ 摘掉那一下走**定时器**而不是 `animationend`：工作台上有几格住在折叠的浮层里
  * （张数在规格 chip 的「更多」下面），元素 `display: none` 时动画根本不会开始，
@@ -33,7 +33,7 @@ import {
   guideAssistantCursor,
 } from '@/lib/studio-operator-cursor'
 
-/** 被闪的那一格挂的 class；真值（时长 / 曲线 / 降级）在 `globals.css`。 */
+/** 被闪的那一格挂的 class；真值（时长 / 曲线 / 降级）在 `src/styles/assistant.css`。 */
 export const ASSISTANT_FIELD_TOUCH_CLASS = 'assistant-field-touched'
 
 /** 界面上那一格自报家门用的属性 —— 组件里写 `data-assistant-field="prompt"`。 */

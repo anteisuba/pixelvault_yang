@@ -452,7 +452,7 @@ export function StudioTagCastStage({
     const resize = new ResizeObserver(measure)
     resize.observe(host)
     // 结果换了一张、放大缩小、图片刚加载完 —— 都要重新量。⚠ 新图落地带一段
-    // `scale(.992) → 1` 的进场（globals.css `.studio-generation-image`），量到的是
+    // `scale(.992) → 1` 的进场（src/styles/studio.css `.studio-generation-image`），量到的是
     // 动画第一帧的尺寸，所以动画 / 过渡结束时再量一次。
     const mutations = new MutationObserver(measure)
     mutations.observe(results, {

@@ -30,7 +30,7 @@ import {
   type StudioOperatorField,
 } from '@/constants/studio-assistant-operator'
 
-/** 光标外观在 `globals.css`（`.assistant-cursor`），⛔ 这里不写颜色。 */
+/** 光标外观在 `src/styles/assistant.css`（`.assistant-cursor`），⛔ 这里不写颜色。 */
 const CURSOR_CLASS = 'assistant-cursor'
 const ARROW_SVG =
   '<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 1.5l11 6.2-4.6 1.1L6.6 13z"/></svg>'

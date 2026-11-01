@@ -25,7 +25,7 @@ interface StudioWorkbenchLayoutProps {
   stage: React.ReactNode
   /**
    * 固定在视口底部的移动端 composer。非空时舞台按 composer 高度 + 键盘安全区
-   * 留出底部内边距（`.studio-mobile-stage`，几何在 globals.css）。
+   * 留出底部内边距（`.studio-mobile-stage`，几何在 src/styles/studio.css）。
    */
   composer?: React.ReactNode
   /**
@@ -140,7 +140,7 @@ export const StudioWorkbenchLayout = memo(function StudioWorkbenchLayout({
     // 2026-08-23 真机实测：编辑态下这一层量到 1976px（视口 911）。
     // ⚠ 2026-09-03 工作台脊柱接入后地台四边各带 18px padding
     // （`.workbench-ground`）——桌面端显式高度改成 `.studio-workbench-shell`
-    // （globals.css，`calc(100svh - 36px)`），不能再用 `h-svh` 原样撑满，
+    // （src/styles/studio.css，`calc(100svh - 36px)`），不能再用 `h-svh` 原样撑满，
     // 否则子级仍按整屏高度算，会把卡片顶出地台的下边距，出现整页滚动条。
     <div className="studio-workbench-shell flex min-h-0 flex-1 flex-col lg:flex-none lg:flex-row lg:gap-3">
       {params ? (
@@ -155,7 +155,7 @@ export const StudioWorkbenchLayout = memo(function StudioWorkbenchLayout({
       ) : null}
       {/* 结果区 = 白卡（`.workbench-card`，工作台脊柱，owner 2026-09-03）。
           ⚠ 结果区要把高度传给 StudioCanvas，否则空态的 `grow + justify-center`
-          没有可撑的高度就贴顶。globals.css 里
+          没有可撑的高度就贴顶。src/styles/studio.css 里
           `.studio-workbench-stage:has(.studio-empty-state)` 负责把
           `.studio-canvas` 撑成满高的 flex 列。 */}
       {/* ⚠ 包裹层不带 `relative`：结果区里绝对定位的东西参照物不能变；浮层自己住
@@ -165,7 +165,7 @@ export const StudioWorkbenchLayout = memo(function StudioWorkbenchLayout({
           className={cn(
             // ⚠ 2026-09-03 owner 报「查看操作教程」被底部固定 composer 压住：底边距
             // 在此拆成 px/pt + 条件 pb，不再用一把 `p-3 lg:p-6` 兜到底——`.studio-mobile-stage`
-            // 在 globals.css `@layer components` 里给 padding-bottom 算的
+            // 在 src/styles/studio.css `@layer components` 里给 padding-bottom 算的
             // `--studio-mobile-composer-height` 预留值，被 Tailwind `p-3`/`lg:p-6`
             // 在 `@layer utilities`（永远压过 components，与写法先后/特异度无关）
             // 整条覆盖成了字面 12px，composer 越高盖得越多。没有 composer 的场景

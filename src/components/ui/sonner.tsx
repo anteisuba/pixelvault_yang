@@ -24,14 +24,14 @@ const TOAST_BAR_MAX_WIDTH_PX = 440
  *
  * · 只给**后台跑完**的事（出图完成 / 失败、上传完成、删完可撤销）；点按钮得到的结果
  *   在键上说（`FeedbackButton`），⛔ 不弹条。
- * · 最多叠 3 条：新的在最前，旧的往上推、缩小、变淡（sonner 的折叠堆叠 + globals.css
+ * · 最多叠 3 条：新的在最前，旧的往上推、缩小、变淡（sonner 的折叠堆叠 + src/styles/toast.css
  *   `.toast-bar` 那段补的透明度）。每条最多带一个动作（查看 / 撤销 / 重试）。
  * · 失败 = 红点，成功 = 对勾，进行中 = 转圈。
  * · 浮在底部输入框之上：位置读 `--toast-offset-bottom`，工作台 / 画布的底部输入框用
  *   `useToastLift` 把它抬高。
  *
  * ⚠ `unstyled`：sonner 自带的皮肤是写在页面里的不分层 CSS，Tailwind 工具类（分层）
- *   压不过它。所以整条的长相写在 globals.css `.toast-bar`（也不分层）。
+ *   压不过它。所以整条的长相写在 src/styles/toast.css `.toast-bar`（也不分层）。
  * ⚠ 业务代码照旧 `toast.success / toast.error(...)`，⛔ 不为换皮改调用方。
  */
 export function Toaster() {

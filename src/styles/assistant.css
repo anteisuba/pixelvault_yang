@@ -1,0 +1,564 @@
+/* assistant.css — 助手域样式：语音条与聊天气泡、消息 Markdown、玻璃材质、扫光 / 回执闪、
+ * 助手光标与 @ 候选浮层。由 globals.css 在原位置 @import，全站生效。
+ * 减弱动效由 globals.css 末尾全局块统一降级。 */
+
+/* ── 对话头下面的语音条（②c-2，样件 v5）：开着语音往下展开、关了收回 ──
+   和上面同一招（grid-template-rows 0fr↔1fr），条本身同时往上缩一点、淡掉。 */
+.operator-voice-strip {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows var(--duration-slow) var(--ease-standard),
+    opacity var(--duration-base) var(--ease-standard);
+}
+
+.operator-voice-strip[data-open='true'] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.operator-voice-strip > * {
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ── 她在聊天时的气泡（②c-2，用户 10-26 定样件 F）：先三点「正在输入」，
+   再整条一次弹出（往上 6px、淡入），⛔ 一个字一个字打。减少动效时不动。 */
+.operator-chat-bubble-in {
+  animation: operator-chat-bubble-in 220ms ease-out both;
+}
+
+@keyframes operator-chat-bubble-in {
+  from {
+    opacity: 0.3;
+    transform: translateY(6px);
+  }
+}
+
+/* 她发的表情包（4d，owner 10-29 定 A）：裸图，弹一下出现（略转、回弹）。减少动效时不动。 */
+.operator-chat-sticker-in {
+  animation: operator-chat-sticker-in 450ms cubic-bezier(0.3, 1.4, 0.5, 1) both;
+}
+
+@keyframes operator-chat-sticker-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6) rotate(-6deg);
+  }
+}
+
+.operator-chat-typing > i {
+  animation: operator-chat-typing 1s infinite both;
+}
+
+.operator-chat-typing > i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.operator-chat-typing > i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes operator-chat-typing {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .operator-chat-bubble-in,
+  .operator-chat-sticker-in,
+  .operator-chat-typing > i {
+    animation: none;
+  }
+}
+
+/* ── 消息 Markdown 排版配方（.message-md）─────────────────────────
+   `MessageContent` 的 markdown 分支专用。替换 prompt-kit 随组件带进来的
+   死类 `prose`：`@tailwindcss/typography` 从未装（package.json /
+   package-lock.json / node_modules 三处都没有），`.prose` 在全部样式表里
+   没有任何定义（2026-08-01 真机遍历 document.styleSheets 返回空），而
+   Tailwind v4 preflight 又把 h1–h6 重置成 font-size/font-weight: inherit、
+   把 ol/ul 的 list-style 和缩进清零 —— 两件事叠起来的结果是 markdown
+   渲染出来的标题、列表、引用与正文完全同形。
+
+   两条刻意的架构选择（都不是风格偏好，是为了这份配方能当共享原语用）：
+
+   1. 尺度全部用 em 而非 rem。同一份配方要同时服务 text-sm 的窄 dock
+      气泡和默认字号的容器，跟随调用方基准字号自适应，调用处不必再调。
+
+   2. 颜色全部从 currentColor 派生，不引 --muted-foreground / --border。
+      气泡底色是调用方用 bg-* 决定的（现存三种：bg-secondary、
+      bg-secondary/60、bg-primary/10），任何固定令牌都会在某张床上失效
+      —— 实测（contrast-check，sRGB 合成后算 WCAG）：
+      · --muted-foreground 作正文：light 的 bg-secondary 上 4.35、
+        bg-primary/10 上 3.80，两处都不到 4.5 门槛 → 弃用。
+      · --border 作发丝线：light 的 bg-primary/10 上只有 1.01
+        （#e5e5e5 压 #e6e6e6），等于看不见 → 弃用。
+      currentColor 派生值与底色无关，一次算准所有床位：
+      · 引用正文 currentColor 74%：最差 7.93（light bg-primary/10），
+        dark 最差 8.59 —— 全部过 4.5。
+      · 发丝线 currentColor 30%：2.00–2.66，**按装饰计**（引用靠「降调
+        正文 + 缩进」表意，线不是唯一线索；表格靠对齐表意）。故意不用
+        --border 的原因见上：装饰也不能是隐形的。
+
+   ⚠ 画布域助手气泡不复用本配方（域皮肤纪律）。那边是 §8 G3 的活，要在
+     canvas.css 里另写一份作用域内的，不要把本配方扩到 .domain-canvas。 */
+@layer components {
+  .message-md {
+    line-height: 1.6;
+  }
+
+  .message-md > :first-child {
+    margin-top: 0;
+  }
+
+  .message-md > :last-child {
+    margin-bottom: 0;
+  }
+
+  .message-md p {
+    margin-block: 0.65em;
+  }
+
+  /* preflight 把 h1–h6 抹成和正文同形，这里按窄栏重建三档层级：
+     标题只有 1.3 / 1.15 / 1.05 三级，h4–h6 并到 1em 只留字重差
+     —— 窄气泡里再多档只会互相打架。 */
+  .message-md h1,
+  .message-md h2,
+  .message-md h3,
+  .message-md h4,
+  .message-md h5,
+  .message-md h6 {
+    margin-block: 1.2em 0.45em;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+
+  .message-md h1 {
+    font-size: 1.3em;
+    letter-spacing: -0.01em;
+  }
+
+  .message-md h2 {
+    font-size: 1.15em;
+    letter-spacing: -0.005em;
+  }
+
+  .message-md h3 {
+    font-size: 1.05em;
+  }
+
+  .message-md h4,
+  .message-md h5,
+  .message-md h6 {
+    font-size: 1em;
+  }
+
+  /* 中日文没有西文的紧排余量，字距归零（与 .legal-title 同一处理）。 */
+  html:lang(zh) .message-md h1,
+  html:lang(zh) .message-md h2,
+  html:lang(ja) .message-md h1,
+  html:lang(ja) .message-md h2 {
+    letter-spacing: 0;
+  }
+
+  /* preflight 清掉了 list-style 与缩进，两样都要还。 */
+  .message-md ul,
+  .message-md ol {
+    margin-block: 0.6em;
+    padding-inline-start: 1.35em;
+  }
+
+  .message-md ul {
+    list-style: disc;
+  }
+
+  .message-md ol {
+    list-style: decimal;
+  }
+
+  .message-md li {
+    margin-block: 0.25em;
+  }
+
+  .message-md li::marker {
+    color: color-mix(in oklab, currentColor 55%, transparent);
+  }
+
+  /* 嵌套列表：换记号形状而不是加缩进级差，窄栏里省横向空间。 */
+  .message-md li ul {
+    list-style: circle;
+  }
+
+  .message-md li ul ul {
+    list-style: square;
+  }
+
+  .message-md li > ul,
+  .message-md li > ol {
+    margin-block: 0.25em;
+  }
+
+  /* GFM 任务列表：li 自带 checkbox 时收掉记号，否则记号 + 方框双标记。 */
+  .message-md li:has(> input[type='checkbox']) {
+    list-style: none;
+  }
+
+  /* 不做「把方框拉出缩进」的负 margin：em 在 input 上按 UA 自己的字号解析、
+     不继承列表字号，那个位移算不准。方框跟着文字缩进即可。 */
+  .message-md li > input[type='checkbox'] {
+    margin-inline-end: 0.4em;
+    vertical-align: baseline;
+  }
+
+  /* ⚠ 降调放在**子元素**上，不放在 blockquote 自己的 color 上。放自己身上会
+     复利：border-color 的 currentColor 取的是本元素已经降过的 color，30%
+     会变成 0.74 × 0.30 = 0.222（实测过，比设计值弱一档）。markdown 的引用
+     内容 CommonMark 一定包在 <p>（或列表/标题）里，子选择器盖得住。 */
+  .message-md blockquote {
+    margin-block: 0.7em;
+    border-inline-start: 2px solid
+      color-mix(in oklab, currentColor 30%, transparent);
+    padding-inline-start: 0.85em;
+  }
+
+  .message-md blockquote > * {
+    color: color-mix(in oklab, currentColor 74%, transparent);
+  }
+
+  .message-md hr {
+    margin-block: 1.1em;
+    border-top-color: color-mix(in oklab, currentColor 30%, transparent);
+  }
+
+  /* preflight 把 a 的 color/text-decoration 都设成 inherit —— 下划线是
+     这里唯一的链接线索（不靠颜色，色觉无障碍同时也免掉一次取色）。 */
+  .message-md a {
+    text-decoration: underline;
+    text-decoration-thickness: from-font;
+    text-underline-offset: 0.15em;
+  }
+
+  .message-md strong {
+    font-weight: 600;
+  }
+
+  /* 窄气泡里宽表格必须能横滑，否则整个气泡被撑破。display: block 让
+     table 自己成为滚动容器，内部行列仍走 table 布局。 */
+  .message-md table {
+    display: block;
+    max-width: 100%;
+    margin-block: 0.7em;
+    overflow-x: auto;
+    border-collapse: collapse;
+  }
+
+  .message-md th,
+  .message-md td {
+    border: 1px solid color-mix(in oklab, currentColor 30%, transparent);
+    padding: 0.3em 0.55em;
+    text-align: start;
+  }
+
+  .message-md th {
+    font-weight: 600;
+  }
+
+  .message-md img {
+    max-width: 100%;
+    height: auto;
+    border-radius: var(--radius-sm);
+  }
+
+  /* 围栏代码块：markdown.tsx 把 pre 映射成 Fragment、code 映射成
+     <CodeBlock>，所以它落下来是一个直接子 div，自身不带外边距 ——
+     不补这条，两个连续代码块会贴在一起。 */
+  .message-md > div {
+    margin-block: 0.7em;
+  }
+}
+
+/* ── 助手面板玻璃仪表的两个材质工具类（pages/assistant-shell-v2.md §12.1）──
+   `assistant-glass-panel`：面板本体，86% 白 + 轻模糊（18px，比浮层的 24px 浅
+   一档 —— 它铺的面积最大，模糊越重滚动时越贵）。
+   `assistant-glass-overlay`：临时浮层，92% 白 + 24px 模糊 + 饱和提升。
+   ⚠ **低端机回落**：`backdrop-filter` 不支持时两者都退回**不透明**面 ——
+   半透明而不模糊的结果是底下的字直接透上来，那比没有玻璃更糟。
+   ⛔ 卡片层不在这里：它是 `bg-card` + `border-border`，不带模糊。 */
+@utility assistant-glass-panel {
+  background-color: var(--card);
+
+  @supports (
+    (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
+  ) {
+    background-color: var(--assistant-panel);
+    -webkit-backdrop-filter: saturate(180%) blur(18px);
+    backdrop-filter: saturate(180%) blur(18px);
+  }
+}
+
+/* 助手面板的中文先用系统字（P4 第 9 项，owner 2026-10-16：苹方 / 雅黑比 Noto Sans SC
+   粗细更齐）。⚠ 只改中文那一位，拉丁仍是 Geist 打头（ui-defaults §1 规则 1）；
+   日文照旧（`html:lang(ja)` 的栈不动）。面板根挂 `assistant-type`，里面的 `font-sans` 都跟着走。 */
+@layer components {
+  html:lang(zh) .assistant-type {
+    --font-stack-sans:
+      var(--font-geist), 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei',
+      var(--font-noto-sans-sc), ui-sans-serif, system-ui, sans-serif;
+    font-family: var(--font-stack-sans);
+  }
+}
+
+@utility assistant-glass-overlay {
+  background-color: var(--popover);
+
+  @supports (
+    (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
+  ) {
+    background-color: var(--assistant-overlay);
+    -webkit-backdrop-filter: saturate(180%) blur(24px);
+    backdrop-filter: saturate(180%) blur(24px);
+  }
+}
+
+/* 助手面板里的视频播放器能「放大」（owner 2026-10-16 选「页面中间大窗口」）。
+   播放器那张卡本身就是一个 `popover`：收着时是面板里普通的一张卡（盖掉 UA 给
+   `[popover]` 的隐藏、居中与内边距），`showPopover()` 后**同一个元素**进顶层、浮到页面中间。
+   ⭐ 用 popover 而不是另开一个弹层：iframe 一直在原处的 DOM 里，⛔ 不重新加载、接着播；
+   顶层也不受面板玻璃的 `backdrop-filter` 约束（它会让 `fixed` 只相对面板）。
+   宽 = 视口宽 92%，或按 16:9 塞进 88% 视口高（扣掉底下那一行 2.25rem），取小的。
+   ⚠ 不认 `:popover-open` 的旧浏览器整条规则作废，元素就是一张普通的卡（放大键也不画）。 */
+@utility operator-video-stage {
+  padding: 0;
+  color: inherit;
+
+  &:not(:popover-open) {
+    display: block;
+    position: static;
+    inset: auto;
+    margin: 0;
+    width: 100%;
+    height: auto;
+  }
+
+  /* ⚠ 居中要自己写：preflight 的 `* { margin: 0 }` 是作者样式，压过 UA 给 popover 的
+     `margin: auto`，不写就钉在左上角（真机截图踩过）。 */
+  &:popover-open {
+    position: fixed;
+    inset: 0;
+    margin: auto;
+    width: min(92vw, calc((88dvh - 2.25rem) * 16 / 9));
+    height: fit-content;
+  }
+}
+
+/* ── 助手「正在想…」那一行字的扫光（2026-10-14 加载态 §9.1 · 附录 F）──────
+   1.5s 扫过 + 0.5s 停（一轮 2s），只动 background-position（`shiny-text` 的先例）。
+   文字底色就是 muted-foreground，扫过的那一道是 foreground —— 两个都是现成 token。
+   ⚠ 减少动效：整段换回静态灰字（⛔ 不靠文件末尾那条全局降级：它把动画压到最后一帧，
+   而最后一帧上扫光那一道可能正停在字中间）。 */
+.assistant-shimmer-text {
+  background-image: linear-gradient(
+    90deg,
+    var(--muted-foreground) 0%,
+    var(--muted-foreground) 40%,
+    var(--foreground) 50%,
+    var(--muted-foreground) 60%,
+    var(--muted-foreground) 100%
+  );
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  animation: assistant-shimmer 2s linear infinite;
+}
+
+@keyframes assistant-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  75%,
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .assistant-shimmer-text {
+    animation: none;
+    background-image: none;
+    color: var(--muted-foreground);
+  }
+}
+
+/* ── 助手回执：被改的那一格闪一次（进度表 21 · D7 Q4）─────────────
+   与画布那一档（`canvas.css` 的 `.node-assistant-touched`）**同一条动效**：
+   320ms、只动 outline 与 opacity（⛔ 不动 transform / 尺寸 —— 被改的东西常在
+   视线里，动尺寸会让整栏重排）。时长走脊柱里现成的 `--duration-slow`，
+   ⛔ 不新造一档。`prefers-reduced-motion` 由文件末尾那条全局降级接住（动画被
+   压到 0.01ms，也就是「直接不闪」），所以这里不再写第二条降级。 */
+@keyframes assistant-field-touch-flash {
+  0% {
+    outline-color: transparent;
+    opacity: 1;
+  }
+  40% {
+    outline-color: var(--foreground);
+    opacity: 0.85;
+  }
+  100% {
+    outline-color: transparent;
+    opacity: 1;
+  }
+}
+.assistant-field-touched {
+  outline: 2px solid transparent;
+  outline-offset: 4px;
+  border-radius: inherit;
+  animation: assistant-field-touch-flash var(--duration-slow)
+    var(--ease-standard);
+}
+
+/* ── 助手的光标（owner 2026-10-07 动效第 2 批「改工作台」）──────────
+   `lib/studio-operator-cursor.ts` 命令式挂在 body 上的那颗：近黑箭头 + 助手名字
+   小牌。只用前景 / 背景两色（动效不加颜色），位移由脚本写 transform。
+   ⛔ 不接指针事件：它只是看的，挡住下面那一格就成 bug 了。 */
+.assistant-cursor {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: flex-start;
+  gap: 2px;
+  pointer-events: none;
+  opacity: 0;
+}
+.assistant-cursor svg path {
+  fill: var(--foreground);
+  stroke: var(--background);
+  stroke-width: 1;
+}
+.assistant-cursor span {
+  margin-top: 12px;
+  border-radius: 4px;
+  background: var(--foreground);
+  color: var(--background);
+  padding: 1px 5px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 14px;
+  white-space: nowrap;
+}
+.assistant-cursor span:empty {
+  display: none;
+}
+
+/* ── @ 候选浮层从打字处长出来（owner 2026-10-07 动效第 3 批）─────────
+   浮层一打开就是一次挂载，所以只要一条进场动画：由糊变清、从 0.96 放大，原点在
+   左边（`@` 的位置）。只有进场，关上直接卸下。减少动效由文件末尾的全局降级接住。 */
+@keyframes mention-popover-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+  }
+}
+.mention-popover-in {
+  transform-origin: left center;
+  animation: mention-popover-in var(--duration-base) var(--ease-standard);
+}
+/* 助手输入框的 `@` 菜单（设计方案 §10b）：贴在输入框上方、从 `@` 那一侧长出来；
+   高度跟着可视区收（手机键盘弹起时 `dvh` 变矮，菜单不被顶出屏幕）。
+   胶囊上点出来的小卡片同一个进场。 */
+.assistant-mention-menu {
+  max-height: min(22rem, 45dvh);
+  transform-origin: bottom left;
+  animation: mention-popover-in var(--duration-base) var(--ease-standard);
+}
+.assistant-mention-card {
+  transform-origin: bottom left;
+  animation: mention-popover-in var(--duration-base) var(--ease-standard);
+}
+
+/* 工作台出图（owner 2026-10-07 工作台原型）：结果图由糊变清、略大落到原尺寸
+   （与助手结果卡 `RESULT_REVEAL` 同一组数：blur 10px · scale 1.04）。 */
+@keyframes studio-result-reveal-in {
+  from {
+    opacity: 0;
+    transform: scale(1.04);
+    filter: blur(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+  }
+}
+.studio-result-reveal-in {
+  animation: studio-result-reveal-in var(--duration-slow) var(--ease-standard);
+}
+/* 「定为最佳」的勾从小顶出来：一点点过冲，⛔ 不弹跳。 */
+@keyframes studio-winner-badge-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.studio-winner-badge-in {
+  animation: studio-winner-badge-in var(--duration-slow) var(--ease-standard);
+}
+
+/* 模型选择器（owner 2026-10-07 选择器原型）：打开时一行行由糊变清地进来（延迟由
+   组件按行序给），渠道面板换到另一行时同一下糊进来。只有进场，⛔ 退场。 */
+@keyframes picker-row-in {
+  from {
+    opacity: 0;
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+.picker-row-in {
+  animation: picker-row-in var(--duration-base) var(--ease-standard) both;
+}
+
+/* 数字滚（动效样片 K · `RollingNumber`）：每一位是一根 0–9 的竖轴，窗口只露一行。 */
+.number-roll {
+  display: inline-flex;
+  font-variant-numeric: tabular-nums;
+}
+.number-roll-track {
+  display: inline-flex;
+}
+.number-roll-cell {
+  display: inline-block;
+  height: 1lh;
+  overflow: hidden;
+}
+.number-roll-column {
+  display: flex;
+  flex-direction: column;
+}

@@ -455,7 +455,7 @@ export function StudioTemplatesPanel({
       aria-labelledby={`${STUDIO_TEMPLATES_PANEL_ID}-title`}
       className={cn(
         '@container/templates flex min-h-0 flex-col',
-        // 手机：高度钉在舞台看得见的那一段，只有网格在里面滚（globals.css）。
+        // 手机：高度钉在舞台看得见的那一段，只有网格在里面滚（src/styles/studio.css）。
         // ⚠ `flex-none`：`flex-1` 的 basis 是 0%，会让那个高度失效。
         phone
           ? 'studio-mobile-stage-panel flex-none scroll-mt-16 gap-3'

@@ -1,0 +1,91 @@
+/* app-shell-nav.css — 应用壳导航的两块滑片（docs/references/pages/app-shell.md）。
+ * 由 globals.css 在原位置 @import，全站生效；令牌在 globals.css 脊柱。 */
+
+@layer components {
+  /* ── 应用壳导航的两块滑片 —— docs/references/pages/app-shell.md §4.1 / §5.1 ──
+     几何写在这里而不是 Tailwind 类里：3px 竖条不在间距刻度上，而这两块是壳
+     独占的构件，没有第二个消费者。位置由 use-nav-indicator 量出来后经内联
+     custom property 传进来，只动 transform。 */
+  .shell-nav-slider {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: var(--slider-w);
+    height: var(--slider-h);
+    transform: translate3d(var(--slider-x), var(--slider-y), 0);
+    border-radius: calc(var(--radius) - 2px);
+    pointer-events: none;
+    /* 换行走弹簧（owner 2026-10-08 侧栏原型 v1）：白片连同竖条、悬停灰块都
+       `--spring-slot` 滑过去，一丝过冲；淡入淡出仍走脊柱线性档 —— ⛔ 透明度不走弹簧。 */
+    transition:
+      transform var(--spring-slot-duration) var(--spring-slot-ease),
+      width var(--spring-slot-duration) var(--spring-slot-ease),
+      height var(--spring-slot-duration) var(--spring-slot-ease),
+      opacity var(--duration-fast) var(--ease-standard);
+  }
+
+  /* 激活浮片：白面只是材质。承重的是下面那条 15.60:1 的墨竖条，
+     以及标签自身的字重与墨色跃迁 —— 白面对壳底只有 1.24:1，撑不住状态语义。 */
+  .shell-nav-slider--active {
+    z-index: 0;
+    background: var(--sidebar-active-surface);
+    box-shadow: var(--shadow-sidebar-chip);
+  }
+
+  /* 竖条是白片的伪元素 —— 片子滑，竖条跟着一起滑，⛔ 不各走各的。
+     内沟展开 / 收起同一档（4px），收展时图标与竖条都不横跳。 */
+  .shell-nav-slider--active::before {
+    content: '';
+    position: absolute;
+    left: calc(var(--sidebar-rail-gutter) * -1);
+    top: 50%;
+    width: 3px;
+    height: 18px;
+    margin-top: -9px;
+    border-radius: 0 999px 999px 0;
+    background: var(--sidebar-primary);
+  }
+
+  /* hover 幽灵块：往「暗」走。和白浮片反极性才分得开。 */
+  .shell-nav-slider--hover {
+    z-index: 0;
+    background: var(--sidebar-accent);
+  }
+
+  /* 菜单 `grow` 档往哪边长（keyframes 见 @theme 的 `menu-grow`）。四边各多放
+     1.5rem 给投影；起点把远离触发器的那条边压到触发器那一侧。 */
+  [data-menu-motion='grow'] {
+    --menu-grow-to: inset(-1.5rem);
+    --menu-grow-from: inset(100% -1.5rem -1.5rem -1.5rem);
+  }
+  [data-menu-motion='grow'][data-side='bottom'] {
+    --menu-grow-from: inset(-1.5rem -1.5rem 100% -1.5rem);
+  }
+  [data-menu-motion='grow'][data-side='right'] {
+    --menu-grow-from: inset(-1.5rem 100% -1.5rem -1.5rem);
+  }
+  [data-menu-motion='grow'][data-side='left'] {
+    --menu-grow-from: inset(-1.5rem -1.5rem -1.5rem 100%);
+  }
+
+  /* 刚进入列表时不该从上一个位置滑过来 —— 先就位再淡入。 */
+  .shell-nav-slider--jumped {
+    transition:
+      opacity var(--duration-fast) var(--ease-standard),
+      width var(--duration-base) var(--ease-standard),
+      height var(--duration-base) var(--ease-standard);
+  }
+
+  /* 轨在收展：宽度每帧都在变，片子逐帧贴着按钮走（ResizeObserver 量），
+     ⛔ 再叠一层弹簧只会让白片落后按钮半拍、露出一截。 */
+  .shell-nav-slider--tracking {
+    transition: opacity var(--duration-fast) var(--ease-standard);
+  }
+
+  .keyboard-aware-bottom-padding {
+    padding-bottom: calc(
+      max(var(--keyboard-safe-area-bottom, 0px), 1rem) +
+        var(--keyboard-inset, 0px)
+    );
+  }
+}

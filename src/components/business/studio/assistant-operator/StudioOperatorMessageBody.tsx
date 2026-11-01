@@ -12,7 +12,7 @@
  *  · **`detail` 折成「为什么」**：正文只写结论 + 下一步，理由点开才看。
  *
  * ⚠ 正文走 **markdown**（v2 §13.2）：复用仓里的 `ui/markdown.tsx` + 共享排版配方
- * `.message-md`（globals.css），⛔ 不为助手另写渲染器、⛔ 不另起一份 CSS 配方。
+ * `.message-md`（src/styles/assistant.css），⛔ 不为助手另写渲染器、⛔ 不另起一份 CSS 配方。
  * ⚠ 折叠**先按纯文本切，切完再各自渲染**：首句是在原文上取的（`firstOperatorSentence`
  * 认句号，见其头注），⛔ 不在渲染后的 DOM 上截 —— 那样切到一半的加粗会漏出星号。
  *

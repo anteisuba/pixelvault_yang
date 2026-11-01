@@ -12,7 +12,7 @@ import { useTranslations } from 'next-intl'
 
 import { springTransition } from '@/constants/motion'
 import { cn } from '@/lib/utils'
-import { MoreHorizontal, Plus } from '@/components/icons'
+import { MoreHorizontal } from '@/components/icons'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { ResponsivePopoverContent } from '@/components/ui/responsive-popover'
 import { Switch } from '@/components/ui/switch'
@@ -39,6 +39,12 @@ export interface StudioTagPageTab {
   readonly flashing?: boolean
   /** 这一页的标签原文：悬停没选中的页签时浮出来看（owner 11-01：不切过去也能看别人写了什么）。 */
   readonly preview?: string
+  /** 页签上叫什么（挑了角色是「爱弥斯 · 泳装」，可改名）；空 = 「角色 N」。 */
+  readonly label?: string
+  /** 和拷进来时那套造型比改过：名字旁亮一个淡点。 */
+  readonly dirty?: boolean
+  /** ⋯ 里排在「这次出场」前面的几项（改名 / 换造型 / 更新到造型…，宿主画）。 */
+  readonly menuExtra?: ReactNode
 }
 
 /** 滚轮攒够这么多才切一格（触控板一次滑动会连发很多小 delta）。 */
@@ -71,11 +77,10 @@ export function StudioTagPageTabs({
   activeIndex,
   negative,
   negativeCount,
-  canAdd,
+  addControl,
   disabled,
   onSelect,
   onNegative,
-  onAdd,
   onEnabledChange,
   onRemove,
 }: {
@@ -86,12 +91,11 @@ export function StudioTagPageTabs({
   negative: boolean
   /** 当前这一位（整体 / 角色 N）的负向有几个。 */
   negativeCount: number
-  /** null = 不能加人（模型没有角色）；false = 满了。 */
-  canAdd: boolean | null
+  /** 「＋ 加角色 ▾」（宿主画）；null = 这个模型不能加人。 */
+  addControl: ReactNode
   disabled: boolean
   onSelect: (index: number | null) => void
   onNegative: () => void
-  onAdd: () => void
   onEnabledChange: (index: number, enabled: boolean) => void
   onRemove: (index: number) => void
 }) {
@@ -172,7 +176,9 @@ export function StudioTagPageTabs({
         </TabPreview>
         {characters.map((character, index) => {
           const on = !negative && activeIndex === index
-          const who = t('workbench.characterNumber', { number: index + 1 })
+          const who =
+            character.label ||
+            t('workbench.characterNumber', { number: index + 1 })
           return (
             <span key={index} className="relative inline-flex shrink-0">
               <TabPreview text={character.preview} show={!on}>
@@ -220,21 +226,7 @@ export function StudioTagPageTabs({
             </span>
           )
         })}
-        {canAdd !== null ? (
-          <button
-            type="button"
-            aria-label={t('addCharacter')}
-            title={t('addCharacter')}
-            disabled={disabled || !canAdd}
-            onClick={onAdd}
-            className={cn(
-              tabClass,
-              'w-7 justify-center px-0 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40',
-            )}
-          >
-            <Plus className="size-4" aria-hidden />
-          </button>
-        ) : null}
+        {addControl}
         <span className="min-w-2 flex-1" />
         <button
           type="button"
@@ -248,7 +240,11 @@ export function StudioTagPageTabs({
           <span className="relative">
             {activeIndex === null
               ? t('tabs.negative')
-              : t('tabs.characterNegative', { number: activeIndex + 1 })}
+              : characters[activeIndex]?.label
+                ? t('tabs.whoNegative', {
+                    who: characters[activeIndex]?.label ?? '',
+                  })
+                : t('tabs.characterNegative', { number: activeIndex + 1 })}
           </span>
           <Count value={negativeCount} />
         </button>
@@ -296,6 +292,7 @@ function CharacterMenu({
   index,
   enabled,
   disabled,
+  extra,
   onEnabledChange,
   onRemove,
 }: {
@@ -303,6 +300,7 @@ function CharacterMenu({
   index: number
   enabled: boolean
   disabled: boolean
+  extra?: ReactNode
   onEnabledChange: (index: number, enabled: boolean) => void
   onRemove: (index: number) => void
 }) {
@@ -346,6 +344,18 @@ function CharacterMenu({
             <span className="px-2 pt-1 pb-1.5 text-2xs font-semibold">
               {who}
             </span>
+            {extra ? (
+              <div
+                className="flex flex-col gap-0.5"
+                onClickCapture={(event) => {
+                  // 点了里面的按钮（不是输入框）就收起弹层。
+                  const target = event.target as HTMLElement
+                  if (target.closest('button[data-close-menu]')) setOpen(false)
+                }}
+              >
+                {extra}
+              </div>
+            ) : null}
             <label className="flex h-9 items-center justify-between gap-3 rounded-md px-2 text-2xs">
               {t('tabs.appear')}
               <Switch
@@ -361,7 +371,7 @@ function CharacterMenu({
               }}
               className="flex h-9 items-center justify-start rounded-md px-2 text-2xs text-status-risk hover:bg-status-risk-surface focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
             >
-              {t('removeCharacter', { number: index + 1 })}
+              {t('tabs.remove', { who })}
             </button>
           </div>
         </ResponsivePopoverContent>
@@ -369,7 +379,7 @@ function CharacterMenu({
       <ConfirmDialog
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
-        title={t('tabs.removeTitle', { number: index + 1 })}
+        title={t('tabs.removeTitleWho', { who })}
         description={t('tabs.removeDescription')}
         cancelLabel={tFeedback('deleteDialog.cancel')}
         confirmLabel={tFeedback('deleteDialog.confirm')}

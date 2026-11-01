@@ -42,6 +42,19 @@ const characterShape = {
     .optional(),
   /** 这个人说的一句话（台词）。发送时按站位称呼写进整体，再进 `Text:`。 */
   dialogue: z.string().max(NOVELAI_TEXT_MAX_CHARS).optional(),
+  /** 页签上叫什么（owner 11-01：挑了角色写「爱弥斯 · 泳装」，可改名）；空 = 「角色 N」。⛔ 不进 prompt。 */
+  label: z.string().trim().max(60).optional(),
+  /**
+   * 从哪位角色的哪套造型拷进来的（owner 11-01：填进来是**拷贝**，台上改不动角色卡）。
+   * `tags` = 拷进来时那份标签原文：和当前 prompt 不一样就是「改过」，页签亮小点。
+   */
+  origin: z
+    .object({
+      cardId: z.string().min(1).max(64),
+      lookId: z.string().min(1).max(64),
+      tags: z.string().max(4000),
+    })
+    .optional(),
 }
 
 /** 互动只能指向同一名单里的**另一个人**。 */

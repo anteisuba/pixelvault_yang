@@ -14,18 +14,14 @@ function renderTabs(activeIndex: number | null, negative = false) {
   render(
     <StudioTagPageTabs
       whole={{ count: 2, preview: '1girl, solo' }}
-      characters={[
-        { count: 1, preview: 'aemeath' },
-        { count: 0 },
-      ]}
+      characters={[{ count: 1, preview: 'aemeath' }, { count: 0 }]}
       activeIndex={activeIndex}
       negative={negative}
       negativeCount={0}
-      canAdd
+      addControl={null}
       disabled={false}
       onSelect={onSelect}
       onNegative={vi.fn()}
-      onAdd={vi.fn()}
       onEnabledChange={vi.fn()}
       onRemove={vi.fn()}
     />,

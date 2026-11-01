@@ -41,8 +41,12 @@ export function useNovelAiCharacters() {
         ),
       })
   }
+  type Character = NovelAiCharacterLayout['characters'][number]
   /** 在末尾加一位角色；返回它的下标（加不了时 `null`）。 */
-  const append = (prompt: string): number | null => {
+  const append = (
+    prompt: string,
+    extra?: Pick<Character, 'label' | 'origin'>,
+  ): number | null => {
     if (!mode || characters.length >= max) return null
     const x = (characters.length + 1) / (characters.length + 3)
     setLayout({
@@ -53,13 +57,18 @@ export function useNovelAiCharacters() {
           prompt,
           negativePrompt: '',
           position: { x: mode === 'grid' ? snapToNovelAiGrid(x) : x, y: 0.5 },
+          ...extra,
         },
       ],
     })
     return characters.length
   }
-  const add = () => {
-    const index = append('')
+  /**
+   * 「＋ 加角色 ▾」（owner 11-01）：空白女 / 男 / 其他、我的角色的一套造型（带名字 +
+   * 来源，拷贝）、标签库的一个角色标签。加完切过去。
+   */
+  const add = (prompt = '', extra?: Pick<Character, 'label' | 'origin'>) => {
+    const index = append(prompt, extra)
     if (index !== null) select(index)
   }
   /**

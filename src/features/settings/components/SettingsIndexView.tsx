@@ -20,15 +20,15 @@ import {
   SETTINGS_SECTION_IDS,
   SETTINGS_SECTION_ROUTES,
   type SettingsSection,
-} from '@/constants/settings'
+} from '@/features/settings/constants'
 import { DESK_BREAKPOINT } from '@/hooks/use-mobile'
 import { useMyProfile } from '@/hooks/use-my-profile'
-import { useProviderKeyRows } from '@/hooks/use-provider-key-rows'
+import { useProviderKeyRows } from '@/features/settings/hooks/use-provider-key-rows'
 import { Link, useRouter } from '@/i18n/navigation'
 
 import { ProfileAvatar } from '@/components/layout/ProfileAvatar'
-import { SettingsPreferenceRows } from '@/components/business/settings/SettingsPreferencesSection'
-import { SettingsSignOutButton } from '@/components/business/settings/SettingsShell'
+import { SettingsPreferenceRows } from '@/features/settings/components/SettingsPreferencesSection'
+import { SettingsSignOutButton } from '@/features/settings/components/SettingsShell'
 
 const GROUP_CLASS =
   'mt-4 divide-y divide-border overflow-hidden rounded-xl border border-border bg-card'

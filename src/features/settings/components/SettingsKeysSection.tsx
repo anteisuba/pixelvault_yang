@@ -16,8 +16,8 @@ import {
   useProviderKeyRows,
   type ProviderKeyRow,
   type ProviderKeyState,
-} from '@/hooks/use-provider-key-rows'
-import { useMonthlyUsage } from '@/hooks/use-monthly-usage'
+} from '@/features/settings/hooks/use-provider-key-rows'
+import { useMonthlyUsage } from '@/features/settings/hooks/use-monthly-usage'
 import { useSlowLoadingNotice } from '@/hooks/use-slow-loading-notice'
 import { usePathname, useRouter } from '@/i18n/navigation'
 import type { ApiKeyHealthStatus } from '@/types'

@@ -39,12 +39,12 @@ vi.mock('@/hooks/use-my-profile', () => ({
   }),
 }))
 
-vi.mock('@/components/business/settings/SettingsPreferencesSection', () => ({
+vi.mock('@/features/settings/components/SettingsPreferencesSection', () => ({
   SettingsPreferenceRows: () => <div data-testid="preference-rows" />,
 }))
 
 const mockUseProviderKeyRows = vi.hoisted(() => vi.fn())
-vi.mock('@/hooks/use-provider-key-rows', () => ({
+vi.mock('@/features/settings/hooks/use-provider-key-rows', () => ({
   useProviderKeyRows: mockUseProviderKeyRows,
 }))
 

@@ -30,8 +30,8 @@ import {
   springTransition,
 } from '@/constants/motion'
 import type { CreatedMcpToken, McpTokenRecord } from '@/types/mcp'
-import { useMcpGenerationRequests } from '@/hooks/use-mcp-generation-requests'
-import { useMcpTokens } from '@/hooks/use-mcp-tokens'
+import { useMcpGenerationRequests } from '@/features/settings/hooks/use-mcp-generation-requests'
+import { useMcpTokens } from '@/features/settings/hooks/use-mcp-tokens'
 import { toastSuccess } from '@/lib/toast'
 import { cn } from '@/lib/utils'
 

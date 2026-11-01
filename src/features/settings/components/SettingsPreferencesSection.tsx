@@ -10,7 +10,7 @@ import {
   SETTINGS_DEFAULT_WORKBENCH_OPTIONS,
   SETTINGS_PREFERENCE_KEYS,
   isSettingsDefaultWorkbench,
-} from '@/constants/settings'
+} from '@/features/settings/constants'
 import { ROUTES } from '@/constants/routes'
 import { useLocalPreference } from '@/hooks/use-local-preference'
 import { useMyProfile } from '@/hooks/use-my-profile'

@@ -1,4 +1,4 @@
-import { SettingsLayoutFrame } from '@/components/business/settings/SettingsShell'
+import { SettingsLayoutFrame } from '@/features/settings'
 
 /**
  * `/settings` 的外壳挂在**布局**上，不在分区页里（owner 2026-10-08 设置页原型 v1）：

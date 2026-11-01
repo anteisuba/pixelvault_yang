@@ -24,7 +24,7 @@ import {
   SETTINGS_SECTION_ROUTES,
   isSettingsSection,
   type SettingsSection,
-} from '@/constants/settings'
+} from '@/features/settings/constants'
 import { useSignOut } from '@/hooks/use-sign-out'
 import { Link, useRouter } from '@/i18n/navigation'
 import { cn } from '@/lib/utils'

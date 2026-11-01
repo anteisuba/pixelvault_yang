@@ -3,13 +3,13 @@
 import {
   SETTINGS_SECTION_IDS,
   type SettingsSection,
-} from '@/constants/settings'
+} from '@/features/settings/constants'
 
-import { SettingsAssistantSection } from '@/components/business/settings/SettingsAssistantSection'
-import { SettingsConnectionsSection } from '@/components/business/settings/SettingsConnectionsSection'
-import { SettingsKeysSection } from '@/components/business/settings/SettingsKeysSection'
-import { SettingsPreferencesSection } from '@/components/business/settings/SettingsPreferencesSection'
-import { SettingsUsageSection } from '@/components/business/settings/SettingsUsageSection'
+import { SettingsAssistantSection } from '@/features/settings/components/SettingsAssistantSection'
+import { SettingsConnectionsSection } from '@/features/settings/components/SettingsConnectionsSection'
+import { SettingsKeysSection } from '@/features/settings/components/SettingsKeysSection'
+import { SettingsPreferencesSection } from '@/features/settings/components/SettingsPreferencesSection'
+import { SettingsUsageSection } from '@/features/settings/components/SettingsUsageSection'
 
 /**
  * 五个分区的内容。外壳（导航 + 白卡）挂在 `settings/layout.tsx` 上，换分区时它不重挂，

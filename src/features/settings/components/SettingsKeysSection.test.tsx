@@ -48,7 +48,7 @@ vi.mock('@/contexts/api-keys-context', () => ({
   useApiKeysContext: mockUseApiKeysContext,
 }))
 
-vi.mock('@/hooks/use-monthly-usage', () => ({
+vi.mock('@/features/settings/hooks/use-monthly-usage', () => ({
   useMonthlyUsage: () => ({
     month: '2026-09',
     providers: [

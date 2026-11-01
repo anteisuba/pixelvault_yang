@@ -39,6 +39,7 @@ export async function translatePromptToTags(
   const user = await ensureUser(clerkId)
   const { route, modelId } = await resolveAssistantRoute(user.id)
   const raw = await llmTextCompletion({
+    purpose: 'prompt-to-tags',
     systemPrompt: PROMPT_TO_TAGS_SYSTEM_PROMPT,
     userPrompt: input.prompt,
     adapterType: route.adapterType,

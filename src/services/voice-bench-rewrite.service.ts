@@ -93,6 +93,7 @@ export async function rewriteAsPersona(
 
   const { route, modelId } = await resolveAssistantRoute(user.id)
   const raw = await llmTextCompletion({
+    purpose: 'voice-bench-rewrite',
     systemPrompt: `${REWRITE_SYSTEM_PROMPT}\n\n${buildProfile(card.name, profile.data)}`,
     userPrompt: request.text,
     promptGuardMaxLength: VOICE_BENCH.rewriteMaxChars + 1,

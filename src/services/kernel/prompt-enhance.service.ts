@@ -139,6 +139,7 @@ export async function enhancePrompt(
   }
 
   const rawEnhanced = await llmTextCompletion({
+    purpose: 'prompt-enhance',
     systemPrompt,
     userPrompt: prompt,
     adapterType: route.adapterType,

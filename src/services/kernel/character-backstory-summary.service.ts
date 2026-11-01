@@ -84,6 +84,7 @@ async function summarize(
 ): Promise<string> {
   const { route, modelId } = await resolveAssistantRoute(userId)
   const raw = await llmTextCompletion({
+    purpose: 'character-backstory-summary',
     systemPrompt: buildSystemPrompt(maxChars),
     userPrompt: sanitizePrompt(backstory.slice(0, SUMMARY_INPUT_MAX_CHARS)),
     adapterType: route.adapterType,

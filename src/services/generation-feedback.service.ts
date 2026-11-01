@@ -97,6 +97,7 @@ export async function conversationalRefine(
   }
 
   const raw = await llmTextCompletion({
+    purpose: 'generation-feedback',
     systemPrompt: buildSystemPrompt(locale),
     userPrompt,
     imageData: imageUrl,

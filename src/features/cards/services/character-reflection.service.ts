@@ -256,6 +256,7 @@ export async function reflectOnChat(input: {
       .join('\n\n')
       .slice(-CHARACTER_REFLECTION.promptChars)
     const raw = await llmTextCompletion({
+      purpose: 'character-reflection',
       systemPrompt: systemPrompt(
         card.name,
         editableFields(pinned),

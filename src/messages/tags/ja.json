@@ -288,7 +288,11 @@
       "characterPlaceholder": "キャラ {number} のタグ…",
       "negativePlaceholder": "入れたくないもの（例：lowres、bad hands）…",
       "writeFor": "対象",
-      "count": "{count} 件"
+      "count": "{count} 件",
+      "edited": "変更あり",
+      "remove": "{who}を削除",
+      "removeTitleWho": "{who}を削除しますか？",
+      "whoNegative": "{who} ネガティブ"
     },
     "library": {
       "all": "すべて",
@@ -296,6 +300,28 @@
       "viewLabel": "ライブラリかお気に入りか",
       "back": "戻る",
       "notATag": "Danbooru にこのタグはありません。自分で書いた言葉か、綴りが違うのかもしれません。"
+    },
+    "addMenu": {
+      "trigger": "キャラを追加",
+      "searchPlaceholder": "検索：マイキャラ + タグライブラリ",
+      "mine": "マイキャラ",
+      "mineEmpty": "一致するキャラがいません",
+      "looks": "衣装 {count} 件",
+      "tagCount": "タグ {count} 個",
+      "library": "タグライブラリ",
+      "libraryEmpty": "タグライブラリに見つかりません",
+      "blank": {
+        "girl": "女性",
+        "boy": "男性",
+        "other": "その他"
+      }
+    },
+    "characterMenu": {
+      "rename": "名前",
+      "swapLook": "衣装を切り替え",
+      "updateLook": "「{look}」に反映",
+      "edited": "変更あり",
+      "saveAsLook": "新しい衣装として保存…"
     }
   }
 }

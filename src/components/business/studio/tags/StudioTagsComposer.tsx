@@ -365,7 +365,7 @@ export function StudioTagsComposer({
                     isGenerating ||
                     characters.characters.length >= characters.max
                   }
-                  onClick={characters.add}
+                  onClick={() => characters.add()}
                   // 与 PC 同一档（owner 2026-10-04：手机上那颗 44 高的黑丸太重）；触屏命中区
                   // 由 `touch-target-y` 补到 44，⛔ 不把丸画大。
                   className={cn(

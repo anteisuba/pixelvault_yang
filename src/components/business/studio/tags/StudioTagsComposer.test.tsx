@@ -130,6 +130,21 @@ vi.mock('@/components/business/ImageAttachmentPreviewStrip', () => ({
 vi.mock('./StudioDialectJumpHint', () => ({
   StudioDialectJumpHint: () => null,
 }))
+vi.mock('./StudioTagAddCharacter', () => ({
+  StudioTagAddCharacter: ({
+    onAdd,
+  }: {
+    onAdd: (seed: { prompt: string }) => void
+  }) => (
+    <button type="button" onClick={() => onAdd({ prompt: '' })}>
+      addCharacter
+    </button>
+  ),
+}))
+vi.mock('./StudioTagCharacterMenuExtra', () => ({
+  StudioTagCharacterMenuExtra: () => null,
+  sameTags: (a: string, b: string) => a === b,
+}))
 vi.mock('./StudioTagTextField', () => ({
   StudioTagTextField: ({
     label,

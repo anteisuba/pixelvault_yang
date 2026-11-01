@@ -6,7 +6,7 @@ import { ROUTES } from '@/constants/routes'
 import { GallerySearchSchema } from '@/types'
 import { getPublicGenerationPage } from '@/services/generation.service'
 
-import { GalleryFeed } from '@/components/business/GalleryFeed'
+import { GalleryFeed } from '@/features/gallery'
 import type { AppLocale } from '@/i18n/routing'
 import { pageAddress } from '@/lib/page-address'
 
@@ -90,7 +90,7 @@ export default async function GalleryPage({ searchParams }: GalleryPageProps) {
       {/* ⚠ 这里以前是 `mx-auto max-w-gallery`（80rem = 1280px）。1900 宽的窗口
           减掉侧边栏还有 ~1740 可用，被卡在 1280 就等于两边各丢 230px 白边，而
           画廊是内容浏览页，白边换不来任何东西（owner 2026-08-24 实拍）。
-          列数按宽取档 2–6（owner 2026-10-08 画廊换皮，`constants/gallery-grid.ts`），
+          列数按宽取档 2–6（owner 2026-10-08 画廊换皮，`features/gallery/constants.ts`），
           容器一宽就多一列，卡片尺寸大致不变。
           与素材页同构：那边本来就没有 max-width（C+F 那轮的结论）。 */}
       <div className="px-4 pt-6 pb-12 sm:px-6 lg:px-8">

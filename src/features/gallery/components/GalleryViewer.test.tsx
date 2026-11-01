@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { GalleryViewer } from '@/components/business/gallery/GalleryViewer'
+import { GalleryViewer } from '@/features/gallery/components/GalleryViewer'
 import { STUDIO_PREFILL_PROMPT_STORAGE_KEY } from '@/constants/studio'
 import { FAKE_GENERATION } from '@/test/api-helpers'
 import type { GenerationRecord } from '@/types'

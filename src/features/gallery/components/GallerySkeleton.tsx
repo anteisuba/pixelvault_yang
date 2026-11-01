@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
  * 几种比例轮着摆；知道比例（`ratios`）就按真比例占位。
  *
  * ⚠ 列数与间距要和 `GalleryGrid` SSR 分支那串 `grid-cols-*` 逐档对齐
- *   （`constants/gallery-grid.ts`）。
+ *   （`features/gallery/constants.ts`）。
  * 服务端可用（路由级 `loading.tsx` 也摆它）：⛔ 不加 hook、不读 i18n。
  */
 

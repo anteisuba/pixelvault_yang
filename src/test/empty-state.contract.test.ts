@@ -29,8 +29,8 @@ const LANDING_POINTS = [
   // 整页加载失败（画廊 / 素材库共用，owner 2026-10-08 加载中）。
   'src/components/business/PageLoadError.tsx',
   'src/components/business/studio-shared/chrome/StudioErrorBoundary.tsx',
-  'src/components/business/GalleryGrid.tsx',
-  'src/components/business/gallery/GalleryPromptList.tsx',
+  'src/features/gallery/components/GalleryGrid.tsx',
+  'src/features/gallery/components/GalleryPromptList.tsx',
   'src/components/business/KreaAssetBrowser.tsx',
   'src/components/business/assets/AssetStateBlocks.tsx',
   // 角色页卡库：chub 没回时整块出错（owner 2026-10-14 卡库）。

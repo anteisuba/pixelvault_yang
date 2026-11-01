@@ -1,8 +1,7 @@
 'use client'
 
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
-import { draggable } from '@atlaskit/pragmatic-drag-and-drop/element/adapter'
 import { Image as ImageIcon, X } from '@/components/icons'
 
 import type { ReferenceImageEntry } from '@/hooks/use-image-upload'
@@ -30,57 +29,44 @@ interface ImageAttachmentPreviewStripProps {
    */
   variant?: 'composer' | 'panel' | 'tabs'
   /**
-   * Opt-in Pragmatic DnD drag source. When set, each thumbnail can be
-   * dragged out with payload `{ type: dragType, url }` — used by the studio
-   * composer strip so thumbnails can be dropped onto the assistant dock
-   * (STUDIO_REFERENCE_DRAG_TYPE). Deliberately NOT 'studio-generation', so
-   * the canvas drop target ignores strip drags instead of re-adding the
-   * same reference.
+   * 可选：缩略图可拖出去（原生 HTML5 拖拽），`dataTransfer` 里以这个 MIME 放图的 url。
+   * 输入框参考图条传 `STUDIO_REFERENCE_DRAG_MIME`——故意不是画廊那个 MIME，
+   * 舞台和输入框就不会把同一张参考图再加一遍。
    */
-  dragType?: string
+  dragMime?: string
   /** 宿主输入框的内边距不同时，用它对齐这一排（接在变体内边距后面）。 */
   className?: string
 }
 
-/** Per-thumbnail wrapper that registers a Pragmatic DnD drag source. */
+/** 每张缩略图的外壳；给了 `dragMime` 就能拖出去。 */
 function StripEntryShell({
-  dragType,
+  dragMime,
   url,
   className,
   title,
   children,
 }: {
-  dragType?: string
+  dragMime?: string
   url: string
   className: string
   title?: string
   children: ReactNode
 }) {
-  const ref = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const el = ref.current
-    if (!el || !dragType) return
-
-    // Prevent child <img> from intercepting the drag (images are natively
-    // draggable, which would bypass the registered element).
-    el.querySelectorAll('img').forEach((img) => {
-      img.setAttribute('draggable', 'false')
-    })
-
-    return draggable({
-      element: el,
-      getInitialData: () => ({ type: dragType, url }),
-    })
-  }, [dragType, url])
-
   return (
     <div
-      ref={ref}
       title={title}
+      draggable={dragMime ? true : undefined}
+      onDragStart={
+        dragMime
+          ? (event) => {
+              event.dataTransfer.effectAllowed = 'copy'
+              event.dataTransfer.setData(dragMime, url)
+            }
+          : undefined
+      }
       className={cn(
         className,
-        dragType && 'cursor-grab active:cursor-grabbing',
+        dragMime && 'cursor-grab active:cursor-grabbing',
       )}
     >
       {children}
@@ -99,7 +85,7 @@ export function ImageAttachmentPreviewStrip({
   overLimitTooltip,
   unsupportedTooltip,
   variant = 'panel',
-  dragType,
+  dragMime,
   className,
 }: ImageAttachmentPreviewStripProps) {
   const t = useTranslations('ImageChip')
@@ -146,7 +132,7 @@ export function ImageAttachmentPreviewStrip({
           return (
             <StripEntryShell
               key={`${index}-${entry.url.slice(0, 32)}`}
-              dragType={dragType}
+              dragMime={dragMime}
               url={entry.url}
               title={tooltip}
               className={cn(
@@ -173,6 +159,8 @@ export function ImageAttachmentPreviewStrip({
                   <img
                     src={entry.url}
                     alt=""
+                    // 图天生可拖，会抢走外壳的拖拽（拖出去的就成了裸图）。
+                    draggable={dragMime ? false : undefined}
                     className={cn(
                       'size-full object-cover transition-transform duration-200 group-hover:scale-105',
                       variant === 'composer' &&
@@ -186,6 +174,7 @@ export function ImageAttachmentPreviewStrip({
                 <img
                   src={entry.url}
                   alt={imageAlt}
+                  draggable={dragMime ? false : undefined}
                   className={cn(
                     'size-full object-cover transition-transform duration-200 group-hover:scale-105',
                     variant === 'composer' &&

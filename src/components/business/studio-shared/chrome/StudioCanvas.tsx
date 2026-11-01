@@ -7,18 +7,9 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type DragEvent as ReactDragEvent,
 } from 'react'
 
-import { dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter'
-import {
-  dropTargetForExternal,
-  monitorForExternal,
-} from '@atlaskit/pragmatic-drag-and-drop/external/adapter'
-import {
-  containsFiles,
-  getFiles,
-} from '@atlaskit/pragmatic-drag-and-drop/external/file'
-import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine'
 import { useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
@@ -36,6 +27,7 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import { startImageRecipeImport } from '@/hooks/use-image-recipe-import'
 import { ASSISTANT_ROUTE_ERROR_CODES } from '@/constants/assistant-operator'
 import { promptCreatePath } from '@/constants/routes'
+import { STUDIO_GENERATION_DRAG_MIME } from '@/constants/studio'
 import { usePathname, useRouter } from '@/i18n/navigation'
 import { landRecipeInComposer } from '@/lib/studio-workbench-motion'
 import { fetchGenerationByIdAPI } from '@/lib/api-client'
@@ -76,6 +68,28 @@ import { type StudioImageEditTarget } from '@/components/business/studio-shared/
  * Delegates rendering to GenerationPreview (empty / loading / image / error).
  * Accepts gallery image drops — adds as reference and opens the ref panel.
  */
+/** 舞台正在被拖什么：画廊的图（加参考图）/ 电脑里的图（从图读串）。 */
+type CanvasDropKind = 'reference' | 'recipe' | null
+
+/** `STUDIO_GENERATION_DRAG_MIME` 的内容是 `{ url, id }` 的 JSON；坏数据当没拖。 */
+function parseGenerationDragUrl(raw: string): string | null {
+  if (!raw) return null
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    if (
+      parsed &&
+      typeof parsed === 'object' &&
+      'url' in parsed &&
+      typeof parsed.url === 'string'
+    ) {
+      return parsed.url
+    }
+  } catch {
+    // 坏数据
+  }
+  return null
+}
+
 interface StudioCanvasProps {
   /**
    * 舞台顶部那条参考轨。底部输入框布局（owner 2026-09-26）传 `false`：参考图
@@ -203,54 +217,94 @@ export const StudioCanvas = memo(function StudioCanvas({
     [dispatch, evaluateSatisfied, lastEvaluation, lastGeneration],
   )
 
-  // ── Drop target: gallery images → open reference panel (Pragmatic DnD) ──
-  const canvasRef = useRef<HTMLDivElement>(null)
-  const [isDragOver, setIsDragOver] = useState(false)
+  // ── 舞台接两种拖放（原生 HTML5）──
+  // · 画廊 / 舞台上的图（`STUDIO_GENERATION_DRAG_MIME`）→ 加参考图。
+  // · 电脑里的图 → 「从图读串」勾选框（owner 2026-10-25 C）；只图片台接，视频台不接。
+  //   ⚠ 拖到输入框照旧是加参考图（那边自己接）。
+  const [dropKind, setDropKind] = useState<CanvasDropKind>(null)
+  const dragDepthRef = useRef(0)
+  const readsRecipeOnDrop = state.outputType === 'image'
 
+  const dropKindFor = useCallback(
+    (data: DataTransfer | null): CanvasDropKind => {
+      const types = Array.from(data?.types ?? [])
+      if (types.includes(STUDIO_GENERATION_DRAG_MIME)) return 'reference'
+      if (readsRecipeOnDrop && types.includes('Files')) return 'recipe'
+      return null
+    },
+    [readsRecipeOnDrop],
+  )
+
+  const resetDrop = useCallback(() => {
+    dragDepthRef.current = 0
+    setDropKind(null)
+  }, [])
+
+  // 拖到别处松手 / 按 Esc 取消时舞台收不到 dragleave 的兜底。
   useEffect(() => {
-    const el = canvasRef.current
-    if (!el) return
-    return dropTargetForElements({
-      element: el,
-      canDrop: ({ source }) => source.data.type === 'studio-generation',
-      onDragEnter: () => setIsDragOver(true),
-      onDragLeave: () => setIsDragOver(false),
-      onDrop: ({ source }) => {
-        setIsDragOver(false)
-        const url = source.data.url as string
+    if (!dropKind) return
+    window.addEventListener('drop', resetDrop)
+    window.addEventListener('dragend', resetDrop)
+    return () => {
+      window.removeEventListener('drop', resetDrop)
+      window.removeEventListener('dragend', resetDrop)
+    }
+  }, [dropKind, resetDrop])
+
+  const handleCanvasDragEnter = useCallback(
+    (event: ReactDragEvent<HTMLDivElement>) => {
+      const kind = dropKindFor(event.dataTransfer)
+      if (!kind) return
+      event.preventDefault()
+      dragDepthRef.current += 1
+      setDropKind(kind)
+    },
+    [dropKindFor],
+  )
+
+  const handleCanvasDragOver = useCallback(
+    (event: ReactDragEvent<HTMLDivElement>) => {
+      if (!dropKindFor(event.dataTransfer)) return
+      event.preventDefault()
+      event.dataTransfer.dropEffect = 'copy'
+    },
+    [dropKindFor],
+  )
+
+  const handleCanvasDragLeave = useCallback(
+    (event: ReactDragEvent<HTMLDivElement>) => {
+      if (!dropKindFor(event.dataTransfer)) return
+      dragDepthRef.current = Math.max(0, dragDepthRef.current - 1)
+      if (dragDepthRef.current === 0) setDropKind(null)
+    },
+    [dropKindFor],
+  )
+
+  const handleCanvasDrop = useCallback(
+    (event: ReactDragEvent<HTMLDivElement>) => {
+      const kind = dropKindFor(event.dataTransfer)
+      resetDrop()
+      // 里面的格子自己接住了（preventDefault 过）就不再处理一遍。
+      if (!kind || event.defaultPrevented) return
+      event.preventDefault()
+      if (kind === 'reference') {
+        const url = parseGenerationDragUrl(
+          event.dataTransfer.getData(STUDIO_GENERATION_DRAG_MIME),
+        )
         if (url) {
           void imageUpload.addFromUrl(url).then(() => {
             focusStudioPrompt()
           })
         }
-      },
-    })
-  }, [imageUpload])
-
-  // ── Drop target: 电脑里的图拖到舞台上 → 「从图读串」勾选框（owner 2026-10-25 C）。
-  // ⚠ 拖到输入框照旧是加参考图（那边自己接）；视频台不接。
-  const [isFileDragOver, setIsFileDragOver] = useState(false)
-  const readsRecipeOnDrop = state.outputType === 'image'
-  useEffect(() => {
-    const el = canvasRef.current
-    if (!el || !readsRecipeOnDrop) return
-    return combine(
-      dropTargetForExternal({
-        element: el,
-        canDrop: containsFiles,
-        onDragEnter: () => setIsFileDragOver(true),
-        onDragLeave: () => setIsFileDragOver(false),
-        onDrop: ({ source }) => {
-          setIsFileDragOver(false)
-          const file = getFiles({ source }).find((item) =>
-            item.type.startsWith('image/'),
-          )
-          if (file) startImageRecipeImport(file)
-        },
-      }),
-      monitorForExternal({ onDrop: () => setIsFileDragOver(false) }),
-    )
-  }, [readsRecipeOnDrop])
+        return
+      }
+      const file = Array.from(event.dataTransfer.files).find((item) =>
+        item.type.startsWith('image/'),
+      )
+      if (file) startImageRecipeImport(file)
+    },
+    [dropKindFor, imageUpload, resetDrop],
+  )
 
   const handleUseAsReference = useCallback(
     async (url: string) => {
@@ -524,7 +578,10 @@ export const StudioCanvas = memo(function StudioCanvas({
 
   return (
     <div
-      ref={canvasRef}
+      onDragEnter={handleCanvasDragEnter}
+      onDragOver={handleCanvasDragOver}
+      onDragLeave={handleCanvasDragLeave}
+      onDrop={handleCanvasDrop}
       className={cn(
         'studio-canvas transition-all',
         (referenceFillsStage || videoPoster || stageBoxFillsStage) &&
@@ -533,8 +590,11 @@ export const StudioCanvas = memo(function StudioCanvas({
         className,
       )}
     >
-      <DropOverlay active={isDragOver} label={tDrop('toReferences')} />
-      <DropOverlay active={isFileDragOver} label={tDrop('readRecipe')} />
+      <DropOverlay
+        active={dropKind === 'reference'}
+        label={tDrop('toReferences')}
+      />
+      <DropOverlay active={dropKind === 'recipe'} label={tDrop('readRecipe')} />
       <ImageRecipeImportDialog />
       {/* 参考轨 —— 与结果并存，不再被结果挤掉。编辑态下不画：编辑舞台自带
           返回条与「正在编辑 · 参考图 N / M」，两条一起出现就是一屏两遍。 */}

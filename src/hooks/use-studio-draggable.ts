@@ -1,18 +1,24 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { draggable } from '@atlaskit/pragmatic-drag-and-drop/element/adapter'
-import { setCustomNativeDragPreview } from '@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview'
+
+import { STUDIO_GENERATION_DRAG_MIME } from '@/constants/studio'
+
+/** 拖影：72px 圆角缩略图。 */
+const DRAG_PREVIEW_SIZE = 72
 
 /**
- * Wraps Pragmatic DnD `draggable()` for studio gallery images.
+ * 画廊 / 舞台上的图做成可拖的源（原生 HTML5 拖拽，跟全站其它跨区拖放同一套）。
  *
- * - Sets internal data (`type: 'studio-generation'`) for Pragmatic DnD drop targets.
- * - Sets external data (`application/x-studio-ref`) for backward-compat HTML5 drop targets
- *   (StudioCanvas, use-image-upload).
- * - Renders a 72px thumbnail as the drag ghost.
+ * - `application/x-studio-ref`：舞台（StudioCanvas）与输入框（use-image-upload）认它，
+ *   落下 = 加参考图。
+ * - `text/uri-list`：拖到别的应用 / 桌面时就是一张图的地址。
+ * - 拖影是 72px 缩略图。
  *
- * Attach the returned ref to the draggable DOM element.
+ * ⚠ 拖拽分工：页面里的排序 / 挪位置用 dnd-kit；跨区域、跨窗口、带文件的拖放用原生
+ * HTML5 + `src/constants` 里的 MIME（dnd-kit 走指针事件，接不到桌面拖进来的文件）。
+ *
+ * 把返回的 ref 挂到要拖的那个 DOM 上。
  */
 export function useStudioDraggable<
   T extends HTMLElement = HTMLDivElement,
@@ -26,46 +32,53 @@ export function useStudioDraggable<
     const url = opts.url
     const generationId = opts.generationId
 
-    // Prevent child <img> from intercepting drag (images are natively draggable).
-    // Without this, event.target is the <img> (not our registered <div>),
-    // so Pragmatic DnD ignores the drag.
+    // 子级 <img> 天生可拖，会抢走拖拽（拖出去的是图片本身而不是这块）。
     el.querySelectorAll('img').forEach((img) => {
       img.setAttribute('draggable', 'false')
     })
+    el.setAttribute('draggable', 'true')
 
-    return draggable({
-      element: el,
-      getInitialData: () => ({
-        type: 'studio-generation',
-        generationId,
-        url,
-      }),
-      getInitialDataForExternal: () => ({
-        'application/x-studio-ref': JSON.stringify({
-          url,
-          id: generationId,
-        }),
-        'text/uri-list': url,
-      }),
-      onGenerateDragPreview: ({ nativeSetDragImage }) => {
-        setCustomNativeDragPreview({
-          nativeSetDragImage,
-          render({ container }) {
-            const img = document.createElement('img')
-            img.src = url
-            Object.assign(img.style, {
-              width: '72px',
-              height: '72px',
-              objectFit: 'cover',
-              borderRadius: '8px',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
-            })
-            container.appendChild(img)
-          },
-        })
-      },
-    })
+    const onDragStart = (event: DragEvent) => {
+      const data = event.dataTransfer
+      if (!data) return
+      data.effectAllowed = 'copy'
+      data.setData(
+        STUDIO_GENERATION_DRAG_MIME,
+        JSON.stringify({ url, id: generationId }),
+      )
+      data.setData('text/uri-list', url)
+      setThumbnailDragImage(data, url)
+    }
+
+    el.addEventListener('dragstart', onDragStart)
+    return () => {
+      el.removeEventListener('dragstart', onDragStart)
+      el.removeAttribute('draggable')
+    }
   }, [opts.generationId, opts.url, opts.outputType])
 
   return ref
+}
+
+/**
+ * 拖影换成缩略图：先挂到屏幕外让浏览器截下来，下一帧再拿掉。
+ * 图还没进缓存时浏览器会退回默认拖影，不报错。
+ */
+function setThumbnailDragImage(data: DataTransfer, url: string) {
+  const img = document.createElement('img')
+  img.src = url
+  Object.assign(img.style, {
+    position: 'fixed',
+    top: '-1000px',
+    left: '-1000px',
+    width: `${DRAG_PREVIEW_SIZE}px`,
+    height: `${DRAG_PREVIEW_SIZE}px`,
+    objectFit: 'cover',
+    borderRadius: '8px',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
+    pointerEvents: 'none',
+  })
+  document.body.appendChild(img)
+  data.setDragImage(img, DRAG_PREVIEW_SIZE / 2, DRAG_PREVIEW_SIZE / 2)
+  window.requestAnimationFrame(() => img.remove())
 }

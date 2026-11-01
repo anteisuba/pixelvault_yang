@@ -7,6 +7,10 @@ import {
   ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE,
 } from '@/constants/assistant-operator'
 import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
+import {
+  STUDIO_GENERATION_DRAG_MIME,
+  STUDIO_REFERENCE_DRAG_MIME,
+} from '@/constants/studio'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { evaluateGenerationAPI } from '@/lib/api-client/generation'
 import type { GenerationRecord } from '@/types'
@@ -46,10 +50,6 @@ vi.mock('@/i18n/navigation', () => ({
 
 vi.mock('sonner', () => ({
   toast: { info: vi.fn(), success: vi.fn(), error: vi.fn() },
-}))
-
-vi.mock('@atlaskit/pragmatic-drag-and-drop/element/adapter', () => ({
-  dropTargetForElements: () => () => {},
 }))
 
 vi.mock('@/hooks/use-studio-run-models', () => ({
@@ -171,6 +171,12 @@ vi.mock(
 
 const mockUseStudioForm = vi.hoisted(() => vi.fn())
 const mockUseStudioGen = vi.hoisted(() => vi.fn())
+const mockAddFromUrl = vi.hoisted(() => vi.fn(() => Promise.resolve()))
+const mockStartRecipeImport = vi.hoisted(() => vi.fn())
+vi.mock('@/hooks/use-image-recipe-import', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/hooks/use-image-recipe-import')>()),
+  startImageRecipeImport: mockStartRecipeImport,
+}))
 const referenceState = vi.hoisted(() => ({
   entries: [] as { url: string; disabledReason: null }[],
 }))
@@ -181,7 +187,7 @@ vi.mock('@/contexts/studio-context', () => ({
     imageUpload: {
       referenceEntries: referenceState.entries,
       referenceImages: [],
-      addFromUrl: vi.fn(),
+      addFromUrl: mockAddFromUrl,
       removeReferenceImage: vi.fn(),
     },
   }),
@@ -547,5 +553,78 @@ describe('StudioCanvas — 视频台桌面（没有参考轨）', () => {
     expect(screen.getByTestId('generation-preview')).toBeInTheDocument()
     expect(screen.queryByAltText('sourceAlt')).not.toBeInTheDocument()
     expect(screen.queryByAltText('firstFrame')).not.toBeInTheDocument()
+  })
+})
+
+describe('StudioCanvas — 拖放（原生 HTML5）', () => {
+  function dragData(entries: Record<string, string>, files: File[] = []) {
+    const types = Object.keys(entries)
+    if (files.length > 0) types.push('Files')
+    return { types, files, getData: (type: string) => entries[type] ?? '' }
+  }
+
+  beforeEach(() => {
+    referenceState.entries = []
+    mockAddFromUrl.mockClear()
+    mockStartRecipeImport.mockClear()
+    mockUseStudioGen.mockReturnValue({
+      lastGeneration: null,
+      activeRun: null,
+      error: null,
+      isGenerating: false,
+      elapsedSeconds: 0,
+      setLastEvaluation: vi.fn(),
+    })
+    mockUseStudioForm.mockReturnValue({
+      state: { outputType: 'image', promptDialect: 'natural' },
+      dispatch: vi.fn(),
+    })
+  })
+
+  it('画廊的图拖到舞台：加参考图', () => {
+    const { container } = render(<StudioCanvas />)
+    const stage = container.firstElementChild as HTMLElement
+    const dataTransfer = dragData({
+      [STUDIO_GENERATION_DRAG_MIME]: JSON.stringify({
+        url: 'https://cdn.example.com/a.png',
+        id: 'gen-a',
+      }),
+    })
+    fireEvent.dragEnter(stage, { dataTransfer })
+    fireEvent.drop(stage, { dataTransfer })
+    expect(mockAddFromUrl).toHaveBeenCalledWith('https://cdn.example.com/a.png')
+  })
+
+  it('输入框参考图条里的缩略图拖到舞台：⛔ 不再加一遍', () => {
+    const { container } = render(<StudioCanvas />)
+    const stage = container.firstElementChild as HTMLElement
+    const dataTransfer = dragData({
+      [STUDIO_REFERENCE_DRAG_MIME]: 'https://cdn.example.com/a.png',
+    })
+    fireEvent.drop(stage, { dataTransfer })
+    expect(mockAddFromUrl).not.toHaveBeenCalled()
+    expect(mockStartRecipeImport).not.toHaveBeenCalled()
+  })
+
+  it('电脑里的图拖到图片台舞台：从图读串；视频台不接', () => {
+    const file = new File(['x'], 'a.png', { type: 'image/png' })
+    const view = render(<StudioCanvas />)
+    const stage = view.container.firstElementChild as HTMLElement
+    fireEvent.drop(stage, { dataTransfer: dragData({}, [file]) })
+    expect(mockStartRecipeImport).toHaveBeenCalledWith(file)
+
+    mockStartRecipeImport.mockClear()
+    mockUseStudioForm.mockReturnValue({
+      state: {
+        outputType: 'video',
+        videoFrameSlots: { first: null, last: null },
+      },
+      dispatch: vi.fn(),
+    })
+    view.rerender(<StudioCanvas referenceRail={false} />)
+    fireEvent.drop(view.container.firstElementChild as HTMLElement, {
+      dataTransfer: dragData({}, [file]),
+    })
+    expect(mockStartRecipeImport).not.toHaveBeenCalled()
   })
 })

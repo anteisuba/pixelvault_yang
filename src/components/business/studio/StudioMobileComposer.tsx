@@ -13,7 +13,7 @@ import { useTranslations } from 'next-intl'
 
 import {
   STUDIO_PROMPT_TEXTAREA_ID,
-  STUDIO_REFERENCE_DRAG_TYPE,
+  STUDIO_REFERENCE_DRAG_MIME,
 } from '@/constants/studio'
 import {
   STUDIO_MOBILE_COMPOSER_CLASS,
@@ -280,7 +280,7 @@ export const StudioMobileComposer = memo(function StudioMobileComposer({
               overLimitTooltip={tImageChip('disabledOverLimit')}
               unsupportedTooltip={tImageChip('disabledUnsupported')}
               variant="composer"
-              dragType={STUDIO_REFERENCE_DRAG_TYPE}
+              dragMime={STUDIO_REFERENCE_DRAG_MIME}
             />
             {imageUpload.isUploading ? (
               <div

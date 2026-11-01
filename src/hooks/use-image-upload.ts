@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
 import { CLIENT_UPLOAD_MAX_BYTES } from '@/constants/uploads'
+import { STUDIO_GENERATION_DRAG_MIME } from '@/constants/studio'
 import { uploadImageFileAPI } from '@/lib/api-client'
 import { getApiErrorMessage } from '@/lib/api-error-message'
 import { prepareImageUpload } from '@/lib/prepare-image-upload'
@@ -356,8 +357,8 @@ export function useImageUpload(options?: {
       resetDragging()
 
       // Handle studio gallery image drops (drag from gallery → reference)
-      if (e.dataTransfer.types.includes('application/x-studio-ref')) {
-        const studioRef = e.dataTransfer.getData('application/x-studio-ref')
+      if (e.dataTransfer.types.includes(STUDIO_GENERATION_DRAG_MIME)) {
+        const studioRef = e.dataTransfer.getData(STUDIO_GENERATION_DRAG_MIME)
         if (studioRef) {
           try {
             const { url } = JSON.parse(studioRef) as { url: string }

@@ -51,11 +51,14 @@ export const STUDIO_EMPTY_RECENT_COUNT = 6
 /** 空态示例 prompt chips 的 i18n 键位（每个模态各一组）。 */
 export const STUDIO_EMPTY_EXAMPLE_KEYS = ['e1', 'e2', 'e3'] as const
 
-/** Pragmatic DnD payload type for prompt-area reference strip thumbnails.
- *  Distinct from 'studio-generation' so the canvas drop target (which would
- *  re-add the same reference) ignores strip drags; only the assistant dock
- *  accepts both. */
-export const STUDIO_REFERENCE_DRAG_TYPE = 'studio-reference-image' as const
+/** 原生拖拽 MIME：画廊 / 舞台上的图（`useStudioDraggable`）。舞台与输入框认它，
+ *  落下 = 加参考图；内容是 `{ url, id }` 的 JSON。 */
+export const STUDIO_GENERATION_DRAG_MIME = 'application/x-studio-ref' as const
+/** 原生拖拽 MIME：输入框参考图条里的缩略图，内容是图的 url。
+ *  ⚠ 故意跟 `STUDIO_GENERATION_DRAG_MIME` 分开：舞台和输入框不认它，免得把同一张
+ *  参考图再加一遍。 */
+export const STUDIO_REFERENCE_DRAG_MIME =
+  'application/x-antei-reference-image' as const
 /** 桌面底部输入框：圆键被挡住时左边那行灰字停留多久（ms）。 */
 export const STUDIO_BLOCKED_HINT_MS = 2600
 

@@ -12,7 +12,7 @@ import {
   isWithinNovelAiOpusFreeTier,
 } from '@/constants/novelai'
 import { getCapabilityConfig } from '@/constants/provider-capabilities'
-import { STUDIO_REFERENCE_DRAG_TYPE } from '@/constants/studio'
+import { STUDIO_REFERENCE_DRAG_MIME } from '@/constants/studio'
 import { useRegisterTagsLibraryPick } from '@/contexts/studio-library-pick'
 import {
   useStudioData,
@@ -236,7 +236,7 @@ export function StudioTagsComposer({
     onRemove: imageUpload.removeReferenceImage,
     overLimitTooltip: tImageChip('disabledOverLimit'),
     unsupportedTooltip: tImageChip('disabledUnsupported'),
-    dragType: STUDIO_REFERENCE_DRAG_TYPE,
+    dragMime: STUDIO_REFERENCE_DRAG_MIME,
   }
   const referenceStatus = (
     <>

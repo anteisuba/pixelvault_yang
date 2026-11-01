@@ -15,7 +15,7 @@ import { useTranslations } from 'next-intl'
 
 import {
   STUDIO_PROMPT_TEXTAREA_ID,
-  STUDIO_REFERENCE_DRAG_TYPE,
+  STUDIO_REFERENCE_DRAG_MIME,
 } from '@/constants/studio'
 import {
   SAMPLE_PROMPT_KEYS,
@@ -448,7 +448,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
                 overLimitTooltip={tImageChip('disabledOverLimit')}
                 unsupportedTooltip={tImageChip('disabledUnsupported')}
                 variant="composer"
-                dragType={STUDIO_REFERENCE_DRAG_TYPE}
+                dragMime={STUDIO_REFERENCE_DRAG_MIME}
               />
               {referenceNotice ? (
                 <p className="text-2xs text-muted-foreground">
@@ -792,7 +792,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
               overLimitTooltip={tImageChip('disabledOverLimit')}
               unsupportedTooltip={tImageChip('disabledUnsupported')}
               variant="composer"
-              dragType={STUDIO_REFERENCE_DRAG_TYPE}
+              dragMime={STUDIO_REFERENCE_DRAG_MIME}
             />
             {imageUpload.isUploading && (
               <div

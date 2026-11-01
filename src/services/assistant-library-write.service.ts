@@ -68,7 +68,7 @@ import {
   listProjectSourceRules,
   ProjectRuleLimitError,
 } from '@/services/project-rule.service'
-import { createRecipe, updateRecipe } from '@/services/prompts/recipe.service'
+import { createRecipe, updateRecipe } from '@/features/prompts/server'
 import { isOwnedStorageUrl } from '@/services/storage/r2'
 import {
   CharacterPersonaSchema,

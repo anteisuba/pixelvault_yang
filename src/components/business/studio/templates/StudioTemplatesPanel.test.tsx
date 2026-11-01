@@ -38,7 +38,7 @@ vi.mock('@/i18n/navigation', () => ({
 vi.mock('@/contexts/studio-context', () => ({
   useStudioGenOptional: () => ({ lastGeneration: mocks.lastGeneration }),
 }))
-vi.mock('@/hooks/prompts/use-recipes', () => ({
+vi.mock('@/features/prompts', () => ({
   useRecipes: () => ({
     recipes: mocks.recipes,
     isLoading: mocks.isLoading,

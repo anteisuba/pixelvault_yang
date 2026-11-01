@@ -3,7 +3,7 @@
 import { useTranslations } from 'next-intl'
 
 import { Layers, Tag } from '@/components/icons'
-import type { PromptTemplateDestination } from '@/hooks/use-prompt-template-use'
+import type { PromptTemplateDestination } from '@/features/prompts/hooks/use-prompt-template-use'
 import type { TagTemplateSource } from '@/lib/recipe-template-kind'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'

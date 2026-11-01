@@ -281,7 +281,7 @@ vi.mock('@/services/cards/character-look.service', () => ({
     },
   ),
 }))
-vi.mock('@/services/prompts/recipe.service', () => ({
+vi.mock('@/features/prompts/server', () => ({
   createRecipe: vi.fn(),
   updateRecipe: vi.fn(),
 }))

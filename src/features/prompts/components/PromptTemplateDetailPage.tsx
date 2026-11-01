@@ -16,8 +16,8 @@ import {
 import { MODEL_OPTIONS } from '@/constants/models'
 import { DURATION, EASE_STANDARD } from '@/constants/motion'
 import { getDefaultProviderConfig } from '@/constants/providers'
-import { usePromptTemplateModelLabel } from '@/hooks/use-prompt-template-model-label'
-import { usePromptTemplateUse } from '@/hooks/use-prompt-template-use'
+import { usePromptTemplateModelLabel } from '@/features/prompts/hooks/use-prompt-template-model-label'
+import { usePromptTemplateUse } from '@/features/prompts/hooks/use-prompt-template-use'
 import { useRouter } from '@/i18n/navigation'
 import type { AppLocale } from '@/i18n/routing'
 import {

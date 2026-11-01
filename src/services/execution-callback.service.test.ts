@@ -66,7 +66,7 @@ vi.mock('@/services/usage.service', () => ({
     mockFailActiveGenerationJob(...args),
 }))
 
-vi.mock('@/services/prompts/recipe.service', () => ({
+vi.mock('@/features/prompts/server', () => ({
   buildRecipeSnapshotForUser: (...args: unknown[]) =>
     mockBuildRecipeSnapshot(...args),
 }))

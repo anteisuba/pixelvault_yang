@@ -58,7 +58,7 @@ import {
   getRecipe,
   deleteRecipe,
   markRecipeUsed,
-} from '@/services/prompts/recipe.service'
+} from '@/features/prompts/services/recipe.service'
 
 const FAKE_USER = { id: 'db_user_123', clerkId: 'clerk_test_user' }
 

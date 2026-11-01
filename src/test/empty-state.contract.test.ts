@@ -51,7 +51,7 @@ const LANDING_POINTS = [
   // 声音库桌面：还没收藏（库骨架，ui-spec §9）。
   'src/components/business/voices/VoicesLibraryDesk.tsx',
   // 提示词库桌面：还没收藏（库骨架，ui-spec §9）。
-  'src/components/business/prompts/PromptLibraryDesk.tsx',
+  'src/features/prompts/components/PromptLibraryDesk.tsx',
   // 配音台：默认助手没有嗓子（先换个角色）/ 台词没读出来（③，10-26）。
   'src/components/business/studio/voice-bench/VoiceBench.tsx',
 ]

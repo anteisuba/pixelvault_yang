@@ -131,7 +131,7 @@ const { markRecipeUsedAPI } = vi.hoisted(() => ({
   markRecipeUsedAPI: vi.fn(),
 }))
 vi.mock('@/lib/api-client/recipes', () => ({ markRecipeUsedAPI }))
-vi.mock('@/hooks/prompts/use-recipes', () => ({
+vi.mock('@/features/prompts', () => ({
   prefetchRecipes: () => () => {},
   useRecipes: () => ({
     recipes: [

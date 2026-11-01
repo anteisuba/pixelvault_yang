@@ -11,7 +11,7 @@ import {
   GALLERY_GRID_GAP_Y,
   GALLERY_GRID_OVERSCAN,
   GALLERY_GRID_SSR_ITEM_COUNT,
-} from '@/constants/gallery-grid'
+} from '@/features/gallery/constants'
 import { Link } from '@/i18n/navigation'
 
 import { ImageCard } from '@/components/business/ImageCard'

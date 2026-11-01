@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 
-import { GalleryFeed } from '@/components/business/GalleryFeed'
+import { GalleryFeed } from '@/features/gallery/components/GalleryFeed'
 import { useGallery, type GalleryFilters } from '@/hooks/use-gallery'
 import { FAKE_GENERATION } from '@/test/api-helpers'
 import type { GenerationRecord } from '@/types'

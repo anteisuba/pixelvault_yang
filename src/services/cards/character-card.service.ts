@@ -16,6 +16,7 @@ import { ApiRequestError } from '@/lib/errors'
 import type { TavernCardImport } from '@/lib/tavern-card'
 import { allocateHandleForNewCard } from '@/services/cards/card-handle.service'
 import { tidyImportedCard } from '@/services/cards/character-tidy.service'
+import type { AppLocale } from '@/i18n/routing'
 import {
   CHARACTER_LOOKS_INCLUDE,
   mapCharacterCardRow,
@@ -90,6 +91,7 @@ export async function createImportedCharacterCard(
   clerkId: string,
   imported: TavernCardImport,
   image: { data: Buffer; mimeType: string } | null,
+  locale: AppLocale,
 ): Promise<CharacterCardRecord> {
   const dbUser = await ensureUser(clerkId)
 
@@ -153,7 +155,7 @@ export async function createImportedCharacterCard(
   )
 
   // ⑪ 导入后当场整理一次（描述拆回各格）；没整理成就照原样回。
-  if (!(await tidyImportedCard({ userId: dbUser.id, cardId: card.id })))
+  if (!(await tidyImportedCard({ userId: dbUser.id, cardId: card.id, locale })))
     return mapCharacterCardRow(card)
   const tidied = await db.characterCard.findFirst({
     where: { id: card.id },

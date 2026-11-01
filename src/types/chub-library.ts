@@ -5,6 +5,7 @@ import {
   CHUB_LIBRARY_SORT_KEYS,
 } from '@/constants/cards/chub-library'
 import { TAVERN_CARD } from '@/constants/cards/tavern-card'
+import { DEFAULT_LOCALE, LOCALES } from '@/i18n/routing'
 
 /** 卡库搜索的查询（浏览器问 chub 之前过一遍：太长的词、越界的页码回到默认）。 */
 export const ChubSearchQuerySchema = z.object({
@@ -128,6 +129,8 @@ export function isChubNodeWithinLimit(node: ChubCharacterNode): boolean {
  */
 export const ImportChubCardSchema = z.object({
   fullPath: ChubFullPathSchema,
+  /** 界面语言：导入后自动整理按它写（⑪）。旧客户端没带 = 英文。 */
+  locale: z.enum(LOCALES).default(DEFAULT_LOCALE),
   node: ChubCharacterNodeSchema.refine(isChubNodeWithinLimit, {
     message: 'Card is larger than the import limit',
   }),

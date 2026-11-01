@@ -151,7 +151,10 @@ describe('importChubCardAPI（浏览器取定义 → 我们的服务端建卡）
       )
       .mockResolvedValueOnce(json({ success: true, data: { id: 'card_new' } }))
 
-    const result = await importChubCardAPI({ fullPath: 'maker/rei' })
+    const result = await importChubCardAPI({
+      fullPath: 'maker/rei',
+      locale: 'zh',
+    })
 
     expect(fetchMock.mock.calls[0][0]).toBe(
       `${CHUB_LIBRARY.CHARACTER_URL}/maker/rei?full=true`,
@@ -164,6 +167,7 @@ describe('importChubCardAPI（浏览器取定义 → 我们的服务端建卡）
     expect(init.method).toBe('POST')
     expect(JSON.parse(init.body)).toEqual({
       fullPath: 'maker/rei',
+      locale: 'zh',
       node: {
         name: 'Rei',
         topics: ['ROOT', 'Original'],
@@ -179,13 +183,19 @@ describe('importChubCardAPI（浏览器取定义 → 我们的服务端建卡）
     fetchMock.mockResolvedValueOnce(countryBlock())
     fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'))
 
-    expect(await importChubCardAPI({ fullPath: 'maker/gone' })).toMatchObject({
+    expect(
+      await importChubCardAPI({ fullPath: 'maker/gone', locale: 'zh' }),
+    ).toMatchObject({
       i18nKey: 'errors.chubLibrary.notFound',
     })
-    expect(await importChubCardAPI({ fullPath: 'maker/rei' })).toMatchObject({
+    expect(
+      await importChubCardAPI({ fullPath: 'maker/rei', locale: 'zh' }),
+    ).toMatchObject({
       i18nKey: 'errors.chubLibrary.countryBlocked',
     })
-    expect(await importChubCardAPI({ fullPath: 'maker/rei' })).toMatchObject({
+    expect(
+      await importChubCardAPI({ fullPath: 'maker/rei', locale: 'zh' }),
+    ).toMatchObject({
       i18nKey: 'errors.chubLibrary.unavailable',
     })
     expect(fetchMock).toHaveBeenCalledTimes(3)
@@ -204,14 +214,20 @@ describe('importChubCardAPI（浏览器取定义 → 我们的服务端建卡）
       }),
     )
 
-    const result = await importChubCardAPI({ fullPath: 'maker/rei' })
+    const result = await importChubCardAPI({
+      fullPath: 'maker/rei',
+      locale: 'zh',
+    })
 
     expect(result).toMatchObject({ i18nKey: 'errors.chubLibrary.tooLarge' })
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
   it('路径不是「作者/卡名」：不去问 chub', async () => {
-    const result = await importChubCardAPI({ fullPath: '../../x/y' })
+    const result = await importChubCardAPI({
+      fullPath: '../../x/y',
+      locale: 'zh',
+    })
 
     expect(result).toMatchObject({ i18nKey: 'errors.chubLibrary.notFound' })
     expect(fetchMock).not.toHaveBeenCalled()
@@ -231,7 +247,10 @@ describe('importChubCardAPI（浏览器取定义 → 我们的服务端建卡）
         ),
       )
 
-    const result = await importChubCardAPI({ fullPath: 'maker/rei' })
+    const result = await importChubCardAPI({
+      fullPath: 'maker/rei',
+      locale: 'zh',
+    })
 
     expect(result).toEqual({
       success: false,

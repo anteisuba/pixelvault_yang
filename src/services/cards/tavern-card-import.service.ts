@@ -124,5 +124,6 @@ export async function importTavernCard(
           mimeType: 'image/png',
         }
       : null,
+    input.locale,
   )
 }

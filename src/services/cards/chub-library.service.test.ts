@@ -52,7 +52,7 @@ afterEach(() => {
 
 describe('importChubCard', () => {
   it('字段照酒馆落点：chub 的 personality 才是经历，description 是简介；带上来源；⛔ 去问 chub', async () => {
-    await importChubCard('clerk_1', { fullPath: 'maker/rei', node: node() })
+    await importChubCard('clerk_1', { fullPath: 'maker/rei', locale: 'zh', node: node() })
 
     expect(fetchMock).not.toHaveBeenCalled()
     const [clerkId, imported, image] = mockCreateImported.mock.calls[0]
@@ -85,6 +85,7 @@ describe('importChubCard', () => {
   it('定义里没写名字时用卡名', async () => {
     await importChubCard('clerk_1', {
       fullPath: 'maker/rei',
+      locale: 'zh',
       node: node({ definition: { ...definition, name: '  ' } }),
     })
 
@@ -108,6 +109,7 @@ describe('importChubCard', () => {
 
     await importChubCard('clerk_1', {
       fullPath: 'maker/rei',
+      locale: 'zh',
       node: node({
         max_res_url: 'https://avatars.charhub.io/avatars/maker/rei/full.png',
       }),
@@ -124,6 +126,7 @@ describe('importChubCard', () => {
   it('图床以外的图片地址：不去取，照样建卡（没有图）', async () => {
     await importChubCard('clerk_1', {
       fullPath: 'maker/rei',
+      locale: 'zh',
       node: node({ max_res_url: 'http://169.254.169.254/latest/meta-data' }),
     })
 
@@ -136,6 +139,7 @@ describe('importChubCard', () => {
 
     await importChubCard('clerk_1', {
       fullPath: 'maker/rei',
+      locale: 'zh',
       node: node({
         max_res_url: 'https://avatars.charhub.io/avatars/maker/rei/full.png',
       }),
@@ -148,6 +152,7 @@ describe('importChubCard', () => {
     await expect(
       importChubCard('clerk_1', {
         fullPath: 'maker/gone',
+        locale: 'zh',
         node: node({ name: '', definition: { ...definition, name: '' } }),
       }),
     ).rejects.toMatchObject({ i18nKey: 'errors.chubLibrary.notFound' })

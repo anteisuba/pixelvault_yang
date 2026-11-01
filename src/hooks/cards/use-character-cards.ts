@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
 import type {
@@ -13,6 +13,7 @@ import type {
   UpdateCharacterLookRequest,
 } from '@/types'
 import { CHARACTER_CARD } from '@/constants/cards/character-card'
+import type { AppLocale } from '@/i18n/routing'
 import { TAVERN_CARD } from '@/constants/cards/tavern-card'
 import {
   listCharacterCardsAPI,
@@ -133,6 +134,7 @@ export function useCharacterCards(): UseCharacterCardsReturn {
   const [error, setError] = useState<string | null>(null)
   const t = useTranslations('Toasts')
   const tErrors = useTranslations('Errors')
+  const locale = useLocale() as AppLocale
 
   const findCard = useCallback(
     (id: string): CharacterCardRecord | null =>
@@ -304,16 +306,17 @@ export function useCharacterCards(): UseCharacterCardsReturn {
           file,
           mime,
           file.name.slice(0, TAVERN_CARD.FILE_NAME_MAX_LENGTH),
+          locale,
         ),
       )
     },
-    [settleImport, tErrors],
+    [settleImport, tErrors, locale],
   )
 
   const importChub = useCallback(
     async (fullPath: string): Promise<CharacterCardRecord | null> =>
-      settleImport(await importChubCardAPI({ fullPath })),
-    [settleImport],
+      settleImport(await importChubCardAPI({ fullPath, locale })),
+    [settleImport, locale],
   )
 
   /** 写请求回来的整个角色换进手里那份。 */

@@ -24,7 +24,7 @@
 2026-11-01 owner 定方向（见 [`references/product.md`](references/product.md) 北极星）：核心是助手，台和画布是她的工具。顺序 owner 交给 Claude 定：
 
 1. **`p-assistant-autonomy` 助手自主度**：像讨论一样——拿得准直接做完，拿不准先问一句「这样可以吗」，不行换方案；三种先问（改坏已有东西 / 花钱明显多 / 意思有两种读法）。先出设计稿到 `design/assistant-autonomy.md`（现状：助手现在哪些地方停下来问、哪些直接做；改法；改完什么样），owner 看稿后做。`p-assistant-modes`（反问模式）并入。
-2. **`p-canvas-shotlist` 画布镜头表框架**：先框架后逐镜生成；表能从参考视频拆（原 `p-canvas-breakdown` 拉片）也能由助手填。先出设计稿到 `design/canvas-shotlist.md`，owner 看稿后做。`p-canvas-polish` 里已记的两项轮到时一起。
+2. **`p-canvas-shotlist` 画布镜头表框架**：先框架后逐镜生成；表能从参考视频拆（原 `p-canvas-breakdown` 拉片）也能由助手填；默认先低清草稿看剧情、满意再精修（11-01 owner 定）。先出设计稿到 `design/canvas-shotlist.md`，owner 看稿后做。`p-canvas-polish` 里已记的两项轮到时一起。
 3. **UI：各台按样件 E 细修**——标签台 → 视频 / 3D → 配音间 → 画布，每台开工前对齐。规范见 `references/ui-spec.md`。
 4. 其余按下面「待做」的阶段顺序往下排；手机端重设计（`d-mobile-redesign`）等用的人再多些再排；要插队先问 owner。
 
@@ -62,22 +62,25 @@
 
 ### 产品功能
 
-| id                           | 事项                                                     | 已定 / 备注                                                                                                                                                      |
-| ---------------------------- | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `p-prompt-save-impl`         | 保存提示词：作品配方列 + 一颗保存键 + 复刻               | 设计已定，见 [design/prompt-save.md](design/prompt-save.md)。5 步                                                                                                |
-| `p-library-followups`        | 库：「谁在用」、统一 @、「我最近用的」排序               | 库骨架已上，体检稿里剩的三件，见 [design/libraries.md](design/libraries.md)                                                                                      |
-| `p-gallery-recipe`           | 画廊展示作品自带配方（做同款）                           | 依赖上一项；公开提示词 / 模型 / 参数 / LoRA 清洗后展示                                                                                                           |
-| `p-tag-studio-opt`           | 标签台优化 + 补齐 NAI 缺的功能                           | 13 小项，见 [design/tag-studio-nai.md](design/tag-studio-nai.md)                                                                                                 |
-| `p-custom-relay`             | Key 支持自定义中转接口（Base URL + key，所有用户都能填） | 见下方「自定义中转」                                                                                                                                             |
-| `p-reverse-image-search`     | 以图搜图：拿图去网上找出处 / 同款                        | SauceNAO（用户自己的 key）+ IQDB 兜底；入口设想查看器「找出处」+ 助手。开工前对齐用哪家、入口放哪                                                                |
-| `p-voice-drama-multispeaker` | 念台词：Drama 3 多人对白一次合成整段                     | 10-23 owner 定以后做。Fish `<\|speaker:N\|>` + reference_id 数组                                                                                                 |
-| `p-nai-lora`                 | NAI 与 LoRA 的设计关系                                   | 未展开                                                                                                                                                           |
-| `p-personal-ai`              | 个性化 AI                                                | 未展开；助手已有口味学习（`p-assistant-taste`），开工前先对齐边界                                                                                                |
-| `p-canvas-shotlist`          | 画布镜头表框架（含拉片，原 `p-canvas-breakdown`）        | 11-01 owner 定，见「下一个」第 2 项                                                                                                                              |
-| `p-assistant-autonomy`       | 助手自主度（原 `p-assistant-modes` 并入）                | 11-01 owner 定，见「下一个」第 1 项                                                                                                                              |
-| `p-canvas-polish`            | 画布持续优化                                             | 已记：画布里切换角色造型；画布参考语音（声音模块留下的）                                                                                                         |
-| `p-character-chat`           | 一个 bot：聊天 + 助手 + 语音合一                         | 大部分已被后续模块做掉或改定（聊天 = 配音间合并、人设切换、去聊天模式、「你在故事里是谁」已删）。原清单剩「画这一幕 / 继续·代我说·分支」，要不要做开工前重新对齐 |
-| —                            | 电子宠物感（表情包、语音、上网找资料）                   | 10-23 owner 提，未排期；表情包与上网已随角色出门做了一部分                                                                                                       |
+| id                           | 事项                                                     | 已定 / 备注                                                                                                                                                                         |
+| ---------------------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `p-prompt-save-impl`         | 保存提示词：作品配方列 + 一颗保存键 + 复刻               | 设计已定，见 [design/prompt-save.md](design/prompt-save.md)。5 步                                                                                                                   |
+| `p-library-followups`        | 库：「谁在用」、统一 @、「我最近用的」排序               | 库骨架已上，体检稿里剩的三件，见 [design/libraries.md](design/libraries.md)                                                                                                         |
+| `p-gallery-recipe`           | 画廊展示作品自带配方（做同款）                           | 11-01 owner：公开展示这一支保持现状、不让助手帮忙发。依赖上一项；公开提示词 / 模型 / 参数 / LoRA 清洗后展示                                                                         |
+| `p-tag-studio-opt`           | 标签台优化 + 补齐 NAI 缺的功能                           | 13 小项，见 [design/tag-studio-nai.md](design/tag-studio-nai.md)                                                                                                                    |
+| `p-custom-relay`             | Key 支持自定义中转接口（Base URL + key，所有用户都能填） | 见下方「自定义中转」                                                                                                                                                                |
+| `p-reverse-image-search`     | 以图搜图：拿图去网上找出处 / 同款                        | SauceNAO（用户自己的 key）+ IQDB 兜底；入口设想查看器「找出处」+ 助手。开工前对齐用哪家、入口放哪                                                                                   |
+| `p-voice-drama-multispeaker` | 念台词：Drama 3 多人对白一次合成整段                     | 10-23 owner 定以后做。Fish `<\|speaker:N\|>` + reference_id 数组                                                                                                                    |
+| `p-nai-lora`                 | NAI 与 LoRA 的设计关系                                   | 未展开                                                                                                                                                                              |
+| `p-personal-ai`              | 个性化 AI                                                | 未展开；助手已有口味学习（`p-assistant-taste`），开工前先对齐边界                                                                                                                   |
+| `p-canvas-shotlist`          | 画布镜头表框架（含拉片，原 `p-canvas-breakdown`）        | 11-01 owner 定，见「下一个」第 2 项                                                                                                                                                 |
+| `p-assistant-autonomy`       | 助手自主度（原 `p-assistant-modes` 并入）                | 11-01 owner 定，见「下一个」第 1 项                                                                                                                                                 |
+| `p-platform-credits`         | 平台额度：所有调用折点数、每人额度、用量可见             | 11-01 owner 定：Modal 免费给所有用户跑、朋友试用先给额度玩。现状 ApiUsageLedger 只记出图次数、LLM token 不入账；出门额度按 token 折点（角色大项目已定 1 点≈1 万 token）。先出设计稿 |
+| `p-assistant-undo`           | 助手所有动作可撤回（底线）                               | 11-01 owner 定。MCP 已有 edit / undo，站内助手改东西没有统一撤回；随 `p-assistant-autonomy` 设计                                                                                    |
+| `p-user-profile`             | 「你」的档案（偏好 / 禁忌 / 常用角色）                   | 11-01 owner 定做；owner 倾向各记各的，Claude 提议两层（关于你的事实共享、她对你的印象各记各的）待答                                                                                 |
+| `p-canvas-polish`            | 画布持续优化                                             | 已记：画布里切换角色造型；画布参考语音（声音模块留下的）                                                                                                                            |
+| `p-character-chat`           | 一个 bot：聊天 + 助手 + 语音合一                         | 大部分已被后续模块做掉或改定（聊天 = 配音间合并、人设切换、去聊天模式、「你在故事里是谁」已删）。原清单剩「画这一幕 / 继续·代我说·分支」，要不要做开工前重新对齐                    |
+| —                            | 电子宠物感（表情包、语音、上网找资料）                   | 10-23 owner 提，未排期；表情包与上网已随角色出门做了一部分                                                                                                                          |
 
 #### 自定义中转（`p-custom-relay`）
 

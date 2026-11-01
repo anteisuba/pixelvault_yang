@@ -59,7 +59,6 @@ export const AssistantTurnRecordInputSchema =
     planAnswers: true,
     planApproved: true,
     authoredByAssistant: true,
-    autoGenerate: true,
     searchWithGrok: true,
     stepBudget: true,
     priorFinds: true,

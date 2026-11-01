@@ -173,18 +173,8 @@ export interface StudioOperatorState {
    */
   mentionInbox: readonly string[]
   /**
-   * **自动生成开关**（D12 S-C）—— 开着时助手改完出图相关的卡就直接摆生成，
-   * 确认卡一到由客户端替你按下（单轮张数上限见 `ASSISTANT_AUTO_GENERATE_LIMITS`）。
-   *
-   * ⭐ 跟着**工作台**走（owner 2026-10-14 改定，替掉 09-23 的「只管当前会话」）：
-   * 新对话、换一段会话、刷新都保留；按 `threadScope` 记在本机（`readAutoGenerate`）。
-   * ⚠ 钱闸不变：扳机仍是客户端这一下，服务端没有任何工具能建 generation。
-   */
-  autoGenerate: boolean
-  /**
-   * **出完图自己看、再改几轮**（owner 2026-10-29）：「交给 AI 出图」开着时，一批落地后助手
-   * 自己看图、对着要求改一次再出，最多这么多轮；0 = 出完就停、照旧问。和 `autoGenerate`
-   * 一样按 `threadScope` 记在本机。
+   * **出完图自己看、再改几轮**（owner 2026-10-29）：一批落地后助手自己看图、对着要求改一次再出，
+   * 最多这么多轮；0 = 出完就停。按 `threadScope` 记在本机。再出照样过钱闸（`lib/assistant-spend-gate.ts`）。
    */
   autoReviewRounds: number
   /** 用户、工作区和项目共同决定的作用域；null 时不得持久化。 */
@@ -364,7 +354,6 @@ const INITIAL_STATE: StudioOperatorState = {
   queue: [],
   mentions: [],
   mentionInbox: [],
-  autoGenerate: false,
   autoReviewRounds: ASSISTANT_AUTO_REVIEW_ROUNDS.default,
   threadScope: null,
   selectedResultId: null,
@@ -1282,36 +1271,6 @@ export function clearOperatorMentions(): void {
   emit({ ...state, mentions: [], mentionInbox: [] })
 }
 
-/** 自动生成开关在本机的那一格（按工作台作用域）。读写失败一律当「关」。 */
-const AUTO_GENERATE_STORAGE_PREFIX = 'antei:assistant-auto-generate:'
-
-function readAutoGenerate(scope: string | null): boolean {
-  if (!scope) return false
-  try {
-    return (
-      globalThis.localStorage?.getItem(AUTO_GENERATE_STORAGE_PREFIX + scope) ===
-      '1'
-    )
-  } catch {
-    return false
-  }
-}
-
-function writeAutoGenerate(scope: string | null, on: boolean): void {
-  if (!scope) return
-  try {
-    if (on)
-      globalThis.localStorage?.setItem(
-        AUTO_GENERATE_STORAGE_PREFIX + scope,
-        '1',
-      )
-    else
-      globalThis.localStorage?.removeItem(AUTO_GENERATE_STORAGE_PREFIX + scope)
-  } catch {
-    // 存不下（隐私模式 / 配额）：开关只在这次打开期间有效。
-  }
-}
-
 const AUTO_REVIEW_STORAGE_PREFIX = 'antei:assistant-auto-review:'
 
 function readAutoReviewRounds(scope: string | null): number {
@@ -1345,7 +1304,6 @@ export function claimOperatorThreadScope(
     ...INITIAL_STATE,
     localThreadId: crypto.randomUUID(),
     planMode: scope ? state.planMode : INITIAL_STATE.planMode,
-    autoGenerate: readAutoGenerate(scope),
     autoReviewRounds: readAutoReviewRounds(scope),
   }
   pendingAttachment = null
@@ -1388,13 +1346,6 @@ function withDomainMark(
     ...kept,
     { kind: 'domainMark', id: nextOperatorEntryId('domain'), domain },
   ]
-}
-
-/** 自动生成开关（D12 S-C）—— 跟着工作台走，见 `autoGenerate` 头注。 */
-export function setOperatorAutoGenerate(autoGenerate: boolean): void {
-  if (state.autoGenerate === autoGenerate) return
-  writeAutoGenerate(state.threadScope, autoGenerate)
-  emit({ ...state, autoGenerate })
 }
 
 /** 出完图自己再改几轮 —— 跟着工作台走，见 `autoReviewRounds` 头注。 */

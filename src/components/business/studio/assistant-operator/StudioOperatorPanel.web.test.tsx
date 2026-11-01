@@ -2175,7 +2175,7 @@ describe('StudioOperatorPanel · v2 §4.4 输入区两行', () => {
     )
   })
 
-  it('S-C：有生成键时发送键左边有自动生成开关，拨一下只改会话里那一格', () => {
+  it('有生成键时发送键左边是「自看几轮」，没有「交给 AI 出图」开关（owner 11-01 去掉）', () => {
     HOST_SPEC.controls = {
       model: null,
       models: [],
@@ -2186,28 +2186,29 @@ describe('StudioOperatorPanel · v2 §4.4 输入区两行', () => {
     }
     HOST_SPEC.trigger = 'workbench'
     renderPanel()
-    const toggle = screen.getByTestId('operator-auto-generate')
+    expect(screen.queryByTestId('operator-auto-generate')).toBeNull()
+    const review = screen.getByTestId('operator-auto-review')
     expect(
-      toggle.compareDocumentPosition(screen.getByTestId('operator-send')) &
+      review.compareDocumentPosition(screen.getByTestId('operator-send')) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy()
-    expect(store.getOperatorState().autoGenerate).toBe(false)
-    fireEvent.click(toggle)
-    expect(store.getOperatorState().autoGenerate).toBe(true)
+    const before = store.getOperatorState().autoReviewRounds
+    fireEvent.click(review)
+    expect(store.getOperatorState().autoReviewRounds).not.toBe(before)
     HOST_SPEC.controls = null
     HOST_SPEC.trigger = null
   })
 
-  it('S-C：画布没有生成旋钮，但画布卡有自己的生成键 → 同样画自动生成开关', () => {
+  it('画布卡有自己的生成键 → 同样画「自看几轮」', () => {
     HOST_SPEC.trigger = 'canvas'
     renderPanel()
-    expect(screen.getByTestId('operator-auto-generate')).toBeInTheDocument()
+    expect(screen.getByTestId('operator-auto-review')).toBeInTheDocument()
     HOST_SPEC.trigger = null
   })
 
-  it('没有生成键的宿主（装配台 / 角色页）不画自动生成开关', () => {
+  it('没有生成键的宿主（装配台 / 角色页）不画「自看几轮」', () => {
     renderPanel()
-    expect(screen.queryByTestId('operator-auto-generate')).toBeNull()
+    expect(screen.queryByTestId('operator-auto-review')).toBeNull()
   })
 
   it('上传按钮 = 开文件选择器，选完交回上传通道（⛔ 不是装饰）', () => {

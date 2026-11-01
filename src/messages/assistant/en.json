@@ -629,7 +629,8 @@
       "moveWorkAccepted": "{subject}",
       "moveWorkDeclined": "{subject}",
       "moveWorkDroppedReferences": "{subject} reference image(s) were left behind (over the limit or not uploaded yet).",
-      "autoGenerateHeld": "This card would make {subject} pictures, over the Let AI generate limit of 4 per message. It was not pressed for you; confirm it to run.",
+      "spendHeld": "This batch is about {subject}, which takes this message over $1. Confirm it to run.",
+      "spendUnknownHeld": "The price of this batch is unknown. Confirm it to run.",
       "autoReview": "Reviewing the pictures and trying again · round {subject}"
     },
     "attach": {
@@ -1062,19 +1063,10 @@
         "context": "Home"
       }
     },
-    "autoGenerate": {
-      "label": "Let AI generate",
-      "review": "Review ×{count}",
-      "reviewOff": "Stop after generating",
-      "reviewHint": "How many times she reviews the pictures and tries again on her own. Click to change"
-    },
-    "continueAsk": {
-      "header": "Next",
-      "question": "Keep going in this direction?",
-      "continue": "Continue",
-      "continueDescription": "Look at this batch, refine it and generate again",
-      "change": "Change direction",
-      "changeDescription": "Stop here and tell me what you want instead"
+    "autoReview": {
+      "rounds": "Review ×{count}",
+      "off": "Stop after generating",
+      "hint": "How many times she reviews the pictures and tries again on her own. Click to change"
     },
     "outOfSteps": {
       "note": "This turn ran out of steps. Everything that already landed is kept.",

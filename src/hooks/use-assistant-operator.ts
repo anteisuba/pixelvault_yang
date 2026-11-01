@@ -46,7 +46,6 @@ import {
   ASSISTANT_OPERATOR_EVENTS,
   ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE,
   ASSISTANT_PROVIDER_ERROR_MESSAGE_KEYS,
-  ASSISTANT_AUTO_GENERATE_LIMITS,
   ASSISTANT_AUTO_REVIEW_MARK,
   ASSISTANT_OPERATOR_LIMITS,
   ASSISTANT_OPERATOR_TOOL_VERBS,
@@ -96,7 +95,9 @@ import {
 import {
   useStudioOperatorBenchKey,
   useStudioOperatorHost,
+  type StudioOperatorHost,
 } from '@/contexts/studio-operator-host'
+import { formatUnitPriceAmount } from '@/constants/models/unit-prices'
 import {
   addOperatorMention,
   appendOperatorEntry,
@@ -166,6 +167,13 @@ import {
   toMentionRef,
 } from '@/lib/assistant-mention'
 import { buildCanvasGenerationRequest } from '@/lib/studio-operator-canvas-snapshot'
+import {
+  isFreeGenerationModel,
+  spendDecision,
+  sumPoints,
+  usdToPoints,
+} from '@/lib/assistant-spend-gate'
+import { estimateCanvasNodeCost } from '@/lib/canvas-generation-cost'
 import { collectStepArtifacts } from '@/lib/studio-operator-artifacts'
 import { collectOperatorPriorFinds } from '@/lib/studio-operator-timeline'
 import {
@@ -963,7 +971,6 @@ export function useAssistantOperator(
   const tError = useTranslations('StudioOperator.error')
   /** 卡上就地改参数那几条 step 的文案（§5.2 第二行）—— i18n 只能在 React 层拿。 */
   const tConfirm = useTranslations('StudioOperator.confirm')
-  const tContinueAsk = useTranslations('StudioOperator.continueAsk')
   /** 问题卡答复那一句（给模型与库读，2026-10-14 起走词表）。 */
   const tQuestion = useTranslations('StudioOperator.question')
   const tErrors = useTranslations('Errors')
@@ -1028,10 +1035,8 @@ export function useAssistantOperator(
    */
   const reviseRef = useRef(false)
   /**
-   * ⭐ 新内核（第 5b 步，owner 2026-10-23）：⛔ 不自动看图。不管是不是自动按的，
-   * 出完都停下问一句「按这个方向继续吗？」；创作者点了或开口了，
-   * 助手才去看这批图、接着改。图落地那一刻（画布：那张卡的产出图换了；工作台：那张
-   * 结果卡收齐了）钉出这张问题卡；⚠ 用户在那之前开口了就作废。
+   * 出完图等着落地的那一枪：落地那一刻（画布：那张卡的产出图换了；工作台：那张结果卡收齐了）
+   * 助手自己看一轮（`autoReviewRounds`）。⚠ 用户在那之前开口了就作废。
    */
   const autoReviewRef = useRef<
     | { kind: 'canvas'; nodeId: string; before: string | undefined }
@@ -1043,6 +1048,8 @@ export function useAssistantOperator(
    * `autoReviewRounds` 就照旧停下问；创作者一开口就从 0 重新数。
    */
   const autoReviewDoneRef = useRef(0)
+  /** 这句话里助手已经出掉多少点（钱闸的账，`lib/assistant-spend-gate.ts`）：创作者一开口就清零。 */
+  const spentPointsRef = useRef(0)
 
   useEffect(
     () => () => {
@@ -1060,10 +1067,7 @@ export function useAssistantOperator(
    * 而那一刻正在 `run` 的 `for await` 里。
    */
   const runRef = useRef<((options?: RunOptions) => void) | null>(null)
-  /** `confirmGeneration` 的自引用口 —— 流收尾时按自动生成开关替你按下（D12 S-C）。 */
-  const decideUpscaleRef = useRef<
-    ((accepted: boolean, options?: { auto?: boolean }) => void) | null
-  >(null)
+  /** `confirmGeneration` 的自引用口 —— 流收尾时过钱闸替你按下。 */
   const confirmGenerationRef = useRef<
     ((options?: { auto?: boolean }) => void) | null
   >(null)
@@ -1421,9 +1425,6 @@ export function useAssistantOperator(
                   .slice(0, ASSISTANT_MENTION_LIMITS.maxPerMessage)
                   .map(toMentionRef),
               }
-            : {}),
-          ...(getOperatorState().autoGenerate
-            ? { autoGenerate: true as const }
             : {}),
           /** 库开着时报一句开着哪个库、点开了谁（`readLibraryView`）：「这个角色」才认得出。 */
           ...(libraryView ? { libraryView } : {}),
@@ -2273,29 +2274,20 @@ export function useAssistantOperator(
       // `done` 之后没有别的收尾 —— 状态没被 `stopped` / `error` 改过就是跑完了。
       if (getOperatorState().status === 'working') setOperatorStatus('idle')
       /**
-       * ⭐ **自动生成开关开着**（D12 S-C）—— 这一轮停在生成确认卡上，就由客户端
-       * 替你按下。⚠ 放在流收尾**之后**：卡到货那一帧后面还跟着一帧 `stopped`，
+       * ⭐ **钱闸**（`p-assistant-autonomy`，owner 11-01）—— 这一轮停在生成确认卡上，就由客户端
+       * 试着替你按：这句话里加起来不超过门槛就出，超了或估不出价，卡留着等你（`confirmGeneration`
+       * 里判）。⚠ 放在流收尾**之后**：卡到货那一帧后面还跟着一帧 `stopped`，
        * 在那之前按下去，状态会被它改回「等你确认」。
        * ⚠ 钱闸不变：扳机仍是客户端这一下，⛔ 服务端没有任何工具能建 generation。
        */
       const waiting = getOperatorState()
       if (
         waiting.status === 'awaitingConfirm' &&
-        waiting.autoGenerate &&
         waiting.confirm?.kind ===
           ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate &&
         waiting.confirm.status === STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle
       ) {
         confirmGenerationRef.current?.({ auto: true })
-      }
-      // 放大同一个开关（owner 2026-10-14「自动生成直接出」）：不扣积分，⛔ 也不过张数上限那道闸。
-      if (
-        waiting.status === 'awaitingConfirm' &&
-        waiting.autoGenerate &&
-        waiting.confirm?.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.upscale &&
-        waiting.confirm.status === STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle
-      ) {
-        decideUpscaleRef.current?.(true, { auto: true })
       }
       /**
        * ⭐ **跑完了就把续跑记录清掉**（第三期）。
@@ -2479,6 +2471,7 @@ export function useAssistantOperator(
       // 用户自己开口了：这一枪的「出图后看一眼」作废（他要说的比这件事优先）。
       autoReviewRef.current = null
       autoReviewDoneRef.current = 0
+      spentPointsRef.current = 0
       appendOperatorEntry({
         kind: 'user',
         id: nextOperatorEntryId('user'),
@@ -2501,8 +2494,9 @@ export function useAssistantOperator(
   )
 
   /**
-   * 出图落地 → 钉出「按这个方向继续吗？」。画布：那张卡的产出图换了；工作台：那张结果卡
-   * 收齐了。⚠ 只在助手闲着时问（还在干活就等下一次渲染再看）。
+   * 出图落地 → 助手自己看一轮（owner 2026-10-29「出完图自动迭代」；11-01 去掉了那句
+   * 「按这个方向继续吗？」）。画布：那张卡的产出图换了；工作台：那张结果卡收齐了。
+   * ⚠ 只在助手闲着时看（还在干活就等下一次渲染再看）。
    */
   const operatorState = useStudioOperatorState()
   const canvasTargets = host.canvasTargets
@@ -2521,53 +2515,23 @@ export function useAssistantOperator(
     }
     autoReviewRef.current = null
     /**
-     * ⭐ 出完图自己看、再改（owner 2026-10-29）：「交给 AI 出图」开着、这一串还没用完
-     * `autoReviewRounds` 轮，就不问了，替你说一句「看看这批」—— 时间线上只留一行
-     * 「自己看图再改 · 第 1/1 轮」。她觉得都对上了就停下说一句、不再出图。
+     * ⭐ 这一串还没用完 `autoReviewRounds` 轮，就替你说一句「看看这批」—— 时间线上只留一行
+     * 「自己看图再改 · 第 1/1 轮」。她看完说中了哪些、没中哪些、下一步打算；都对上了就停下，
+     * 没对上就改了再出（再出照样过钱闸）。用完了 / 设成 0 = 出完就停，什么都不问。
      */
-    const { autoGenerate, autoReviewRounds } = getOperatorState()
-    if (autoGenerate && autoReviewDoneRef.current < autoReviewRounds) {
-      autoReviewDoneRef.current += 1
-      const round = `${autoReviewDoneRef.current}/${autoReviewRounds}`
-      appendOperatorEntry({
-        kind: 'system',
-        id: nextOperatorEntryId('sys'),
-        code: 'autoReview',
-        subject: round,
-        userText: `${ASSISTANT_AUTO_REVIEW_MARK} ${round}`,
-      })
-      void run()
-      return
-    }
-    autoReviewDoneRef.current = 0
-    // 出完就停（第 5b 步）：问一句，卡钉在输入框上方；直接打字 = 用一句话回答。
-    setOperatorQuestion({
-      id: nextOperatorEntryId('question'),
-      questions: [
-        {
-          id: nextOperatorEntryId('continue'),
-          header: tContinueAsk('header'),
-          question: tContinueAsk('question'),
-          multiSelect: false,
-          allowOther: true,
-          options: [
-            {
-              id: 'continue',
-              label: tContinueAsk('continue'),
-              description: tContinueAsk('continueDescription'),
-              recommended: true,
-            },
-            {
-              id: 'change',
-              label: tContinueAsk('change'),
-              description: tContinueAsk('changeDescription'),
-            },
-          ],
-        },
-      ],
-      answers: [],
+    const { autoReviewRounds } = getOperatorState()
+    if (autoReviewDoneRef.current >= autoReviewRounds) return
+    autoReviewDoneRef.current += 1
+    const round = `${autoReviewDoneRef.current}/${autoReviewRounds}`
+    appendOperatorEntry({
+      kind: 'system',
+      id: nextOperatorEntryId('sys'),
+      code: 'autoReview',
+      subject: round,
+      userText: `${ASSISTANT_AUTO_REVIEW_MARK} ${round}`,
     })
-  }, [operatorState, canvasTargets, tContinueAsk, run])
+    void run()
+  }, [operatorState, canvasTargets, run])
 
   /**
    * 撤回一条还没轮到的排队消息（§3.1 ㉔）。
@@ -3147,31 +3111,27 @@ export function useAssistantOperator(
         return
       }
       /**
-       * ⭐ **自动生成单轮上限**（owner 2026-10-14）：这张卡加起来要出的张数（每张画布
-       * 卡按它自己的张数，工作台按此刻的张数）超过上限，就不替你按 —— 卡照常摆着等你。
-       * ⚠ 新内核的画布不设上限（owner 10-23「一句话出完所有选中的卡」）。
+       * ⭐ **钱闸**（`p-assistant-autonomy`，owner 11-01 门槛 $1）：这一批要多少点（画布按每张卡
+       *   自己的参数，工作台按此刻的表单），加上这句话里已经出过的，超过门槛或估不出价就不替你按 ——
+       *   卡照常摆着，时间线上写一句多少钱。⚠ 你自己按下去的也记进这句话的账。
        */
-      if (options.auto && domain !== 'canvas') {
-        const nodes =
-          confirm.request.canvasNodes ??
-          (confirm.request.canvasNode ? [confirm.request.canvasNode] : [])
-        const outputs = nodes.length
-          ? nodes.reduce((sum, node) => {
-              const state = host.canvasTargets?.generationStateOf?.(node.id)
-              const request = state ? buildCanvasGenerationRequest(state) : null
-              return sum + (request?.count ?? confirm.request.count)
-            }, 0)
-          : (host.generationControls?.count ?? confirm.request.count)
-        if (outputs > ASSISTANT_AUTO_GENERATE_LIMITS.maxOutputsPerRound) {
+      const points = generationPointsOf(confirm.request, host)
+      if (options.auto) {
+        const decision = spendDecision(points, spentPointsRef.current)
+        if (decision.kind === 'ask') {
           appendOperatorEntry({
             kind: 'system',
             id: nextOperatorEntryId('sys'),
-            code: 'autoGenerateHeld',
-            subject: String(outputs),
+            code: decision.points === null ? 'spendUnknownHeld' : 'spendHeld',
+            subject:
+              decision.points === null
+                ? ''
+                : formatUnitPriceAmount(decision.points / 100),
           })
           return
         }
       }
+      spentPointsRef.current += points ?? 0
       /**
        * ⭐ **几张卡一张确认卡**（v3 S2 · 方向 C 队列条）：用户在条上去掉的不跑，留下的
        *   各按自己那张卡的生成键跑。确认之后 `canvasNodes` 收成真跑的那几张 —— 条上
@@ -3305,15 +3265,7 @@ export function useAssistantOperator(
         pendingResultId,
       })
     },
-    [
-      applyContext,
-      domain,
-      host.generationControls,
-      host.canvasTargets,
-      host.searchGrounding,
-      isCurrentThread,
-      localThreadId,
-    ],
+    [applyContext, host, isCurrentThread, localThreadId],
   )
 
   /**
@@ -3774,12 +3726,6 @@ export function useAssistantOperator(
     () => decideUpscale(false),
     [decideUpscale],
   )
-  useEffect(() => {
-    decideUpscaleRef.current = decideUpscale
-    return () => {
-      decideUpscaleRef.current = null
-    }
-  }, [decideUpscale])
 
   /**
    * **搭配卡「应用这套搭配」**（lora-assistant §12，owner 2026-09-28「一张卡全包」）。
@@ -4191,4 +4137,29 @@ export function useAssistantOperator(
     selectReplyVersion,
     rewriteReply,
   }
+}
+
+/**
+ * 确认卡上这一批要多少点（钱闸，`lib/assistant-spend-gate.ts`）。画布按每张卡自己的参数估；
+ * 工作台 / 首页读宿主的 `generationPoints`；首页那个型号还没配 key、或估不出 = `null`。
+ */
+function generationPointsOf(
+  request: AssistantOperatorGenerationRequest,
+  host: StudioOperatorHost,
+): number | null {
+  const nodes =
+    request.canvasNodes ?? (request.canvasNode ? [request.canvasNode] : [])
+  if (nodes.length) {
+    return sumPoints(
+      nodes.map((node) => {
+        const state = host.canvasTargets?.generationStateOf?.(node.id)
+        if (!state?.model) return null
+        if (isFreeGenerationModel(state.model)) return 0
+        const usd = estimateCanvasNodeCost(state)
+        return usd === null ? null : usdToPoints(usd)
+      }),
+    )
+  }
+  if (host.generationDraft?.keySetup) return null
+  return host.generationPoints?.() ?? null
 }

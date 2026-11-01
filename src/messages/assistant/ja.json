@@ -629,7 +629,8 @@
       "moveWorkAccepted": "{subject}",
       "moveWorkDeclined": "{subject}",
       "moveWorkDroppedReferences": "参照画像 {subject} 枚は持っていけませんでした（上限超過、またはアップロード未完了）。",
-      "autoGenerateHeld": "このカードは {subject} 枚を生成します。「AI に生成を任せる」の上限（1 メッセージ 4 枚）を超えるため自動では押していません。確認すると生成します。",
+      "spendHeld": "このバッチは約 {subject}。このメッセージ内の合計が $1 を超えるため、確認してから実行します。",
+      "spendUnknownHeld": "このバッチの料金が見積もれません。確認してから実行します。",
       "autoReview": "自分で見直して再生成 · {subject} 回目"
     },
     "attach": {
@@ -1062,19 +1063,10 @@
         "context": "ホーム"
       }
     },
-    "autoGenerate": {
-      "label": "AI に生成を任せる",
-      "review": "見直し {count} 回",
-      "reviewOff": "生成したら止める",
-      "reviewHint": "生成後に自分で見直して、指示に合わせて何回作り直すか。クリックで切り替え"
-    },
-    "continueAsk": {
-      "header": "次は",
-      "question": "この方向で続けますか？",
-      "continue": "続ける",
-      "continueDescription": "この結果を見て、同じ方向で直してもう一度生成します",
-      "change": "方向を変える",
-      "changeDescription": "ここで止めて、どう変えたいか教えてください"
+    "autoReview": {
+      "rounds": "見直し {count} 回",
+      "off": "生成したら止める",
+      "hint": "生成後に自分で見直して、指示に合わせて何回作り直すか。クリックで切り替え"
     },
     "outOfSteps": {
       "note": "このターンのステップ数が上限に達しました。反映済みの変更はそのまま残っています。",

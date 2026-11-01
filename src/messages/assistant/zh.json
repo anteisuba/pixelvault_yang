@@ -629,7 +629,8 @@
       "moveWorkAccepted": "{subject}",
       "moveWorkDeclined": "{subject}",
       "moveWorkDroppedReferences": "有 {subject} 张参考图没带过去（超过上限或还没传完）。",
-      "autoGenerateHeld": "这次要出 {subject} 张，超过「交给 AI 出图」每句话 4 张的上限 —— 没替你按，确认后再出。",
+      "spendHeld": "这批大约 {subject}，这句话里加起来超过 $1，等你确认再出。",
+      "spendUnknownHeld": "这批估不出价钱，等你确认再出。",
       "autoReview": "自己看图再改 · 第 {subject} 轮"
     },
     "attach": {
@@ -1062,19 +1063,10 @@
         "context": "首页"
       }
     },
-    "autoGenerate": {
-      "label": "交给 AI 出图",
-      "review": "看图再改 {count} 轮",
-      "reviewOff": "出完就停",
-      "reviewHint": "出完图她自己看、对着你的要求再改几轮；点一下换档"
-    },
-    "continueAsk": {
-      "header": "接下来",
-      "question": "按这个方向继续吗？",
-      "continue": "继续",
-      "continueDescription": "看看这批图，按这个方向改着再出",
-      "change": "换个方向",
-      "changeDescription": "先停在这里，告诉我想换成什么样"
+    "autoReview": {
+      "rounds": "看图再改 {count} 轮",
+      "off": "出完就停",
+      "hint": "出完图她自己看、对着你的要求再改几轮；点一下换档"
     },
     "outOfSteps": {
       "note": "这一轮的步数用完了，已经落下的改动都保留着。",

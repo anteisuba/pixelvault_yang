@@ -12,6 +12,7 @@ import {
   detectTrustedImageMime,
   deleteFromR2,
   fetchAsBuffer,
+  getR2ObjectBuffer,
   uploadToR2,
 } from '@/services/storage/r2'
 import { ensureUser } from '@/services/user.service'
@@ -380,6 +381,32 @@ export async function addCharacterStickerFromFile(
   })
   if (created) await pruneCharacterStickers(owned.cardId)
   return toRecord(row)
+}
+
+/**
+ * 素材库里你出的一张也放进她的表情包（存成模板框的「也放进她的表情包」，owner 11-01）。
+ * 卡或图不是你的 = null；之后走和上传同一条路（去重、上限、挤掉最旧）。
+ */
+export async function addCharacterStickerFromGeneration(
+  clerkId: string,
+  cardId: string,
+  generationId: string,
+): Promise<CharacterStickerRecord | null> {
+  const owned = await ownedCardId(clerkId, cardId)
+  if (!owned) return null
+  const generation = await db.generation.findFirst({
+    where: { id: generationId, userId: owned.userId, outputType: 'IMAGE' },
+    select: { storageKey: true },
+  })
+  if (!generation) return null
+  const { buffer } = await getR2ObjectBuffer({
+    key: generation.storageKey,
+    maxBytes: CHARACTER_STICKERS.maxBytes,
+  })
+  return addCharacterStickerFromFile(clerkId, cardId, {
+    fileBuffer: buffer,
+    whenToUse: '',
+  })
 }
 
 /** 拉黑 / 取消拉黑。不是你的 = null。 */

@@ -56,6 +56,38 @@ vi.mock('@/lib/api-client/recipes', () => ({
   deleteRecipeAPI: mocks.remove,
 }))
 
+// 通用「存成模板」框单独测；这里只要「点存 = 用默认（全勾、不挂角色）存」。
+vi.mock('@/components/business/save-template/SaveTemplateDialog', () => ({
+  SaveTemplateDialog: ({
+    open,
+    defaultName,
+    onSave,
+  }: {
+    open: boolean
+    defaultName: string
+    onSave: (result: unknown) => Promise<boolean>
+  }) =>
+    open ? (
+      <button
+        type="button"
+        onClick={() =>
+          void onSave({
+            name: defaultName,
+            include: {},
+            link: null,
+            alsoImages: false,
+            alsoStickers: false,
+          })
+        }
+      >
+        dialogSave
+      </button>
+    ) : null,
+}))
+vi.mock('@/hooks/use-template-save-extras', () => ({
+  useTemplateSaveExtras: () => vi.fn(),
+}))
+
 import { StudioTemplatesPanel } from './StudioTemplatesPanel'
 
 function recipe(overrides: Partial<RecipeRecord>): RecipeRecord {
@@ -226,6 +258,7 @@ describe('模板面板（模板 C）', () => {
       screen.getByRole('button', { name: 'apply:LoRA one' }),
     ).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'save' }))
+    fireEvent.click(screen.getByRole('button', { name: 'dialogSave' }))
     await waitFor(() =>
       expect(mocks.create).toHaveBeenCalledWith(
         expect.objectContaining({ params, parentGenerationId: 'lora-gen' }),
@@ -245,6 +278,7 @@ describe('模板面板（模板 C）', () => {
     })
     renderPanel()
     fireEvent.click(screen.getByRole('button', { name: 'save' }))
+    fireEvent.click(screen.getByRole('button', { name: 'dialogSave' }))
     await waitFor(() =>
       expect(
         screen.getByText('savedTitle:雨夜霓虹街头的少女'),
@@ -382,6 +416,7 @@ describe('模板面板（模板 C）', () => {
       screen.getByRole('button', { name: 'apply:Video one' }),
     ).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'save' }))
+    fireEvent.click(screen.getByRole('button', { name: 'dialogSave' }))
     await waitFor(() => expect(mocks.addRecipe).toHaveBeenCalled())
     // 最近那一件是图片 —— 不是这一台的，⛔ 当成视频模板的出处和封面。
     expect(mocks.create).toHaveBeenCalledWith(

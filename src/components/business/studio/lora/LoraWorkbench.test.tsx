@@ -153,6 +153,35 @@ vi.mock('@/constants/prompt-tags', async (importOriginal) => {
 const translationMocks = vi.hoisted(
   () => new Map<string, (key: string) => string>(),
 )
+// 通用「存成模板」框单独测；这里「点存 = 用默认（全勾、不挂角色）存」。
+vi.mock('@/components/business/save-template/SaveTemplateDialog', () => ({
+  SaveTemplateDialog: ({
+    open,
+    defaultName,
+    onSave,
+  }: {
+    open: boolean
+    defaultName: string
+    onSave: (result: unknown) => Promise<boolean>
+  }) =>
+    open ? (
+      <button
+        type="button"
+        onClick={() =>
+          void onSave({
+            name: defaultName,
+            include: {},
+            link: null,
+            alsoImages: false,
+            alsoStickers: false,
+          })
+        }
+      >
+        dialogSave
+      </button>
+    ) : null,
+}))
+
 vi.mock('next-intl', () => ({
   useTranslations: (namespace: string) => {
     if (!translationMocks.has(namespace))
@@ -1510,10 +1539,13 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
         screen.getByRole('button', { name: /LoraWorkbench:generate\.run/ }),
       )
       fireEvent.click(await screen.findByTestId('lora-save-template'))
+      fireEvent.click(await screen.findByRole('button', { name: 'dialogSave' }))
 
       await waitFor(() =>
         expect(mockCreateRecipeFromGeneration).toHaveBeenCalledWith({
           generationId: 'gen-1',
+          name: expect.any(String),
+          include: { negative: true, params: true, references: true },
           loraSetup: {
             baseId: expect.any(String),
             items: [
@@ -1549,10 +1581,13 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
         screen.getByRole('button', { name: /LoraWorkbench:generate\.run/ }),
       )
       fireEvent.click(await screen.findByTestId('lora-save-template'))
+      fireEvent.click(await screen.findByRole('button', { name: 'dialogSave' }))
 
       await waitFor(() =>
         expect(mockCreateRecipeFromGeneration).toHaveBeenCalledWith({
           generationId: 'gen-1',
+          name: expect.any(String),
+          include: { negative: true, params: true, references: true },
         }),
       )
     })

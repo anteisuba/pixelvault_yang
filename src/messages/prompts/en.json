@@ -180,5 +180,33 @@
     "title": "AI Prompt Coach",
     "improvedPrompt": "Improved Version",
     "applyImproved": "Use this prompt"
+  },
+  "SaveTemplate": {
+    "title": "Save as template",
+    "name": "Name",
+    "hangTo": "Attach to",
+    "noCharacter": "No character",
+    "include": "What to save",
+    "alsoImages": "Also add to her images",
+    "alsoStickers": "Also add to her stickers",
+    "cancel": "Cancel",
+    "save": "Save",
+    "saved": "Saved as template",
+    "alsoImagesFailed": "Template saved, but adding it to her images failed",
+    "alsoStickersFailed": "Template saved, but adding it to her stickers failed",
+    "options": {
+      "prompt": "Prompt",
+      "negative": "Negative",
+      "params": "Parameters",
+      "paramsDetail": "Ratio · steps",
+      "references": "References",
+      "lora": "LoRA stack",
+      "loraDetail": "{count}",
+      "whole": "Scene tags",
+      "characters": "Character tags",
+      "style": "Style",
+      "styleDetail": "Saved as its own style card"
+    },
+    "styleName": "{name} · style"
   }
 }

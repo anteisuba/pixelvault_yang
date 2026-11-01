@@ -16,6 +16,7 @@ import {
 import type { AssetDetailActions } from '@/hooks/use-asset-detail-actions'
 import { cn } from '@/lib/utils'
 import type { GenerationRecord } from '@/types'
+import { SaveGenerationTemplateDialog } from '@/components/business/save-template/SaveGenerationTemplateDialog'
 
 /**
  * 一张素材详情的两层弹出：公开范围（底部抽屉）与音频封面挑图。全屏详情、
@@ -38,10 +39,17 @@ export function AssetDetailOverlays({
     coverPickerOpen,
     setCoverPickerOpen,
     applyCover,
+    recipeDialogOpen,
+    setRecipeDialogOpen,
   } = actions
 
   return (
     <>
+      <SaveGenerationTemplateDialog
+        generation={generation}
+        open={recipeDialogOpen}
+        onOpenChange={setRecipeDialogOpen}
+      />
       {generation.outputType === 'AUDIO' && (
         <AssetSelectorDialog
           open={coverPickerOpen}

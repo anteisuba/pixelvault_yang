@@ -7,7 +7,6 @@ import { toast } from 'sonner'
 import { assetDetailPath } from '@/constants/routes'
 import { useRouter } from '@/i18n/navigation'
 import {
-  createRecipeFromGenerationAPI,
   deleteGenerationAPI,
   downloadRemoteAsset,
   setAudioCoverAPI,
@@ -71,14 +70,12 @@ export function useAssetDetailActions({
 }: UseAssetDetailActionsOptions) {
   const t = useTranslations('AssetsPage')
   const tFeedback = useTranslations('Feedback')
-  const tPrompts = useTranslations('PromptLibrary')
   const tErrors = useTranslations('Errors')
   const locale = useLocale()
   const router = useRouter()
   const [isDeleting, setIsDeleting] = useState(false)
   const [isPublishing, setIsPublishing] = useState(false)
   const [isFavoriting, setIsFavoriting] = useState(false)
-  const [isSavingRecipe, setIsSavingRecipe] = useState(false)
   const [isDownloading, setIsDownloading] = useState(false)
   const [isPublishScopeOpen, setIsPublishScopeOpen] = useState(false)
   const [isSettingCover, setIsSettingCover] = useState(false)
@@ -216,23 +213,10 @@ export function useAssetDetailActions({
     }
   }
 
-  /** 存成模板。成功返回 `true`（结果由调用方说：键上或菜单关了之后的黑条）。 */
-  const saveRecipe = async (): Promise<boolean> => {
-    if (!generation || isSavingRecipe) return false
-    setIsSavingRecipe(true)
-    try {
-      const response = await createRecipeFromGenerationAPI({
-        generationId: generation.id,
-      })
-      if (response.success) return true
-      toast.error(response.error ?? tPrompts('saveTemplateFailed'))
-      return false
-    } catch {
-      toast.error(tPrompts('saveTemplateFailed'))
-      return false
-    } finally {
-      setIsSavingRecipe(false)
-    }
+  /** 存成模板：弹通用「存成模板」框（owner 11-01：所有入口都弹框，默认全勾）。 */
+  const [recipeDialogOpen, setRecipeDialogOpen] = useState(false)
+  const saveRecipe = () => {
+    if (generation) setRecipeDialogOpen(true)
   }
 
   /** 开始下载了返回 `true`（调用方在键上写「✓ 已开始下载」）。 */
@@ -307,7 +291,8 @@ export function useAssetDetailActions({
     toggleFavorite,
     isFavoriting,
     saveRecipe,
-    isSavingRecipe,
+    recipeDialogOpen,
+    setRecipeDialogOpen,
     download,
     isDownloading,
     copyLink,

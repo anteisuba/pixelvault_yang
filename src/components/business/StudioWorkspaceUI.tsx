@@ -206,6 +206,15 @@ export function StudioWorkspaceUI() {
   const templateApply = useStudioTemplateApply(modeModelOptions)
   /** 模板 / 角色都在舞台出图那块打开（10-25 用户定：桌面也一样，⛔ 跳去库），收起回到结果。 */
   const closeStagePanel = useCallback(() => setStagePanel(null), [])
+  // 「挂到」默认 = 正在编辑的那一位（没选就第一位）从「我的角色」拷进来的那套造型。
+  const cast = state.advancedParams.novelAiLayout?.characters ?? []
+  const castOrigin = (
+    cast[state.activeTagCharacterIndex ?? -1] ??
+    cast.find((character) => character.origin)
+  )?.origin
+  const templateDefaultLink = castOrigin
+    ? { cardId: castOrigin.cardId, lookId: castOrigin.lookId }
+    : null
   const templatesPanel = (
     <StudioTemplatesPanel
       // 手机（<1024）走画板「模板 C · 手机」那一版：‹ 标题 ＋、搜索独占一行。
@@ -221,6 +230,7 @@ export function StudioWorkspaceUI() {
         provider: modeModel
           ? getProviderLabel(modeModel.providerConfig)
           : undefined,
+        defaultLink: templateDefaultLink,
       }}
       onApply={(recipe) => {
         templateApply.apply(recipe)

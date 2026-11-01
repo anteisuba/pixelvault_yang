@@ -3,7 +3,7 @@ import 'server-only'
 import { z } from 'zod'
 
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
-import { listLoraAssetsForUser } from '@/services/lora-asset.service'
+import { listLoraAssetsForUser } from '@/features/lora/server'
 import { createApiGetRoute } from '@/lib/api-route-factory'
 
 export const GET = createApiGetRoute({

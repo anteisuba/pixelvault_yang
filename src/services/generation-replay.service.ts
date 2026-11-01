@@ -5,7 +5,7 @@ import { NovelAiCharacterLayoutSchema } from '@/types/novelai'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import { ensureUser } from '@/services/user.service'
-import { findLoraAssetsByUrls } from '@/services/lora-asset.service'
+import { findLoraAssetsByUrls } from '@/features/lora/server'
 import type { ReplayPayload } from '@/types'
 
 type AspectRatio = NonNullable<ReplayPayload['aspectRatio']>

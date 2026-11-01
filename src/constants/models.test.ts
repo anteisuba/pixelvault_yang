@@ -20,7 +20,7 @@ import {
   resolveImageKind,
   RETIRED_MODEL_IDS,
 } from '@/constants/models'
-import { LORA_BASE_MODELS } from '@/constants/lora-base-models'
+import { LORA_BASE_MODELS } from '@/features/lora/core'
 import { getWorkflowStudioDefaults, WORKFLOWS } from '@/constants/workflows'
 import { FEATURE_FLAGS } from '@/constants/feature-flags'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'

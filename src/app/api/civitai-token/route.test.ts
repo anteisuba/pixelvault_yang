@@ -10,7 +10,7 @@ import {
 
 vi.mock('server-only', () => ({}))
 
-vi.mock('@/services/civitai-token.service', () => ({
+vi.mock('@/features/lora/services/civitai-token.service', () => ({
   setCivitaiToken: vi.fn(),
   hasCivitaiToken: vi.fn(),
   deleteCivitaiToken: vi.fn(),
@@ -21,7 +21,7 @@ import {
   setCivitaiToken,
   hasCivitaiToken,
   deleteCivitaiToken,
-} from '@/services/civitai-token.service'
+} from '@/features/lora/server'
 
 const mockSetCivitaiToken = vi.mocked(setCivitaiToken)
 const mockHasCivitaiToken = vi.mocked(hasCivitaiToken)

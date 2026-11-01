@@ -6,10 +6,7 @@ import { ApiRequestError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 import { ensureUser } from '@/services/user.service'
 import { updatePreferenceOnRecipeSaved } from '@/services/user-preference.service'
-import {
-  readRecipeLoraSetup,
-  type RecipeLoraRead,
-} from '@/lib/recipe-lora-setup'
+import { readRecipeLoraSetup, type RecipeLoraRead } from '@/features/lora/core'
 import {
   getRecipeTemplateKind,
   getTagTemplateSource,

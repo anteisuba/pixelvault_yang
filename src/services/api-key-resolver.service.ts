@@ -7,7 +7,7 @@ import { ApiRequestError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 import { getSystemApiKey, getSystemCivitaiToken } from '@/lib/platform-keys'
 import { getApiKeyValueById } from '@/services/apiKey.service'
-import { getCivitaiTokenByInternalUserId } from '@/services/civitai-token.service'
+import { getCivitaiTokenByInternalUserId } from '@/features/lora/server'
 
 const TERMINAL_GENERATION_JOB_STATUSES = new Set([
   'COMPLETED',

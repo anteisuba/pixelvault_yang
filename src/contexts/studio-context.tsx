@@ -53,7 +53,7 @@ import {
 } from '@/constants/studio'
 import { useCharacterCards } from '@/features/cards'
 import { useProjects } from '@/hooks/use-projects'
-import { useCivitaiToken } from '@/hooks/use-civitai-token'
+import { useCivitaiToken } from '@/features/lora'
 import { usePromptEnhance } from '@/hooks/kernel/use-prompt-enhance'
 import { useImageUpload } from '@/hooks/use-image-upload'
 import { removeReferenceMentions } from '@/lib/studio-reference-mentions'

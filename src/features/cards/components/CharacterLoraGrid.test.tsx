@@ -6,7 +6,7 @@ import type {
   CharacterLoraGroup,
   LoraAssetRecord,
 } from '@/types'
-import type { LoraPickCollect } from '@/components/business/studio/lora/library/LoraPickerDialog'
+import type { LoraPickCollect } from '@/features/lora'
 
 vi.mock('next-intl', () => {
   const t = (key: string) => key
@@ -20,7 +20,7 @@ vi.mock('@/features/cards/hooks/use-character-loras', () => ({
 }))
 
 let collect: LoraPickCollect | undefined
-vi.mock('@/components/business/studio/lora/library/LoraPickerDialog', () => ({
+vi.mock('@/features/lora/components/library/LoraPickerDialog', () => ({
   LoraPickerDialog: (props: { collect?: LoraPickCollect }) => {
     collect = props.collect
     return null

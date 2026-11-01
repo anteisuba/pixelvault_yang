@@ -32,7 +32,7 @@ vi.mock('@/lib/platform-keys', () => ({
     mockGetSystemCivitaiToken(...args),
 }))
 
-vi.mock('@/services/civitai-token.service', () => ({
+vi.mock('@/features/lora/services/civitai-token.service', () => ({
   getCivitaiTokenByInternalUserId: (...args: unknown[]) =>
     mockGetCivitaiTokenByInternalUserId(...args),
 }))

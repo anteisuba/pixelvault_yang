@@ -9,7 +9,7 @@ import {
   deleteOwnedLoraAsset,
   setLoraAssetVisibility,
   updateLoraAssetCover,
-} from '@/services/lora-asset.service'
+} from '@/features/lora/server'
 import type { LoraAssetRecord } from '@/types'
 
 // PATCH currently supports two independent mutations on a LoraAsset:

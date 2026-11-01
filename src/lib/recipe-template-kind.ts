@@ -1,6 +1,6 @@
 import { getModelById, IMAGE_KIND, resolveImageKind } from '@/constants/models'
 import type { PromptDialect } from '@/constants/prompt-dialects'
-import { readRecipeLoraSetup } from '@/lib/recipe-lora-setup'
+import { readRecipeLoraSetup } from '@/features/lora/core'
 import type { OutputType, RecipeRecord } from '@/types'
 import { TagTemplateParamsSchema } from '@/types/tag-composer'
 

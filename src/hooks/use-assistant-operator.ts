@@ -214,7 +214,7 @@ import {
   hasUnfinishedSteps,
   toResumeFrom,
 } from '@/lib/studio-operator-resume'
-import { mergeNegativePrompt } from '@/lib/lora-source-match-prompt'
+import { mergeNegativePrompt } from '@/features/lora/core'
 import type { PromptAssistantResponseLanguage } from '@/types'
 import { AssistantLoraParametersSchema } from '@/types/assistant-operator'
 import type {

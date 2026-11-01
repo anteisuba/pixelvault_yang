@@ -23,7 +23,7 @@ vi.mock('@/hooks/use-projects', () => ({
   useProjects: () => ({ activeProjectId: null }),
 }))
 
-vi.mock('@/hooks/use-civitai-token', () => ({
+vi.mock('@/features/lora/hooks/use-civitai-token', () => ({
   useCivitaiToken: () => ({}),
 }))
 

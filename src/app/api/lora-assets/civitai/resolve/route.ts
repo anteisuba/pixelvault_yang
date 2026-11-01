@@ -9,8 +9,8 @@ import {
   stripLoraFolderPath,
 } from '@/lib/civitai-lora-reference'
 import { logger } from '@/lib/logger'
-import { resolveCivitaiLoraByReference } from '@/services/civitai-lora.service'
-import { findLoraAssetByExtraReference } from '@/services/lora-asset.service'
+import { resolveCivitaiLoraByReference } from '@/features/lora/server'
+import { findLoraAssetByExtraReference } from '@/features/lora/server'
 import type { LoraAssetRecord } from '@/types'
 
 // Civitai 解析结果对所有人相同 — 长 CDN 缓存。本地库命中是用户相关

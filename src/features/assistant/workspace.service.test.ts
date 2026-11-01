@@ -32,7 +32,7 @@ vi.mock('@/features/cards/services/character-card.service', () => ({
 vi.mock('@/features/cards/services/character-lora.service', () => ({
   listCharacterLoraGroups: loraGroups,
 }))
-vi.mock('@/services/lora-asset.service', () => ({
+vi.mock('@/features/lora/services/lora-asset.service', () => ({
   listLoraAssetsForUser: loras,
   findLoraAssetsByUrls: vi.fn(async () => [
     { loraUrl: 'https://lora.test/malfoid.safetensors', name: 'malfoid' },

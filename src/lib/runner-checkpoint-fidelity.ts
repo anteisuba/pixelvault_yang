@@ -1,8 +1,8 @@
 import {
   normalizeToLoraBaseFamily,
   type LoraBaseFamily,
-} from '@/constants/lora-base-models'
-import type { CivitaiCheckpointResolution } from '@/services/civitai-lora.service'
+} from '@/features/lora/core'
+import type { CivitaiCheckpointResolution } from '@/features/lora/server'
 
 /**
  * Runner v3 — 保真度分级（T1/T2/T3）。给定配方的底模引用，判定 runner 能多忠实

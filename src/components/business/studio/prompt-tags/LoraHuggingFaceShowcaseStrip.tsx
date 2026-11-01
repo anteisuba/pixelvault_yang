@@ -4,8 +4,8 @@ import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 
 import { cn } from '@/lib/utils'
-import { LoraCoverPreviewDialog } from '@/components/business/studio/lora/library/LoraCoverPreviewDialog'
-import type { LoraCoverPreviewState } from '@/components/business/studio/lora/library/LoraCoverPreviewDialog'
+import { LoraCoverPreviewDialog } from '@/features/lora'
+import type { LoraCoverPreviewState } from '@/features/lora'
 
 interface LoraHuggingFaceShowcaseStripProps {
   assetName: string

@@ -34,10 +34,15 @@ vi.mock('@/lib/db', () => ({
   },
 }))
 
-vi.mock('@/services/lora-asset.service', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/services/lora-asset.service')>()),
-  upsertImportedLora: (...a: unknown[]) => mockUpsertImportedLora(...a),
-}))
+vi.mock(
+  '@/features/lora/services/lora-asset.service',
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import('@/features/lora/services/lora-asset.service')
+    >()),
+    upsertImportedLora: (...a: unknown[]) => mockUpsertImportedLora(...a),
+  }),
+)
 
 import {
   listCharacterLoraGroups,

@@ -36,7 +36,7 @@ import {
   pruneCharacterStickers,
   stickerKey,
 } from '@/features/cards/services/character-sticker.service'
-import { listCivitaiLoras } from '@/services/civitai-lora-library.service'
+import { listCivitaiLoras } from '@/features/lora/server'
 import { webImageSearch } from '@/services/web-research.service'
 import {
   deleteFromR2,

@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
 import { logger } from '@/lib/logger'
-import { fetchCivitaiLoraDownloadPolicy } from '@/services/civitai-lora.service'
+import { fetchCivitaiLoraDownloadPolicy } from '@/features/lora/server'
 
 // Creator Controls 对所有人相同、几乎不变，且这是公开的 Civitai 元数据
 // （与同目录的 `source` 路由同性质）——长 CDN 缓存，无用户相关数据。

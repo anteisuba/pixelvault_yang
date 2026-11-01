@@ -106,7 +106,7 @@ vi.mock('@/services/research/danbooru.connector', () => ({
   fetchDanbooruEvidence: mocks.danbooru,
   fetchDanbooruComments: mocks.comments,
 }))
-vi.mock('@/services/civitai-lora-library.service', () => ({
+vi.mock('@/features/lora/services/civitai-lora-library.service', () => ({
   listCivitaiLoras: mocks.civitai,
 }))
 vi.mock('@/services/llm-text.service', () => ({

@@ -1,6 +1,6 @@
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import { createApiRoute } from '@/lib/api-route-factory'
-import { completeTrainingImageDirectUpload } from '@/services/lora-training.service'
+import { completeTrainingImageDirectUpload } from '@/features/lora/server'
 import { CompleteLoraTrainingUploadRequestSchema } from '@/types'
 
 export const maxDuration = 30

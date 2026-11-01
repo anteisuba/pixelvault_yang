@@ -5,7 +5,7 @@ import { z } from 'zod'
 
 import { LORA_NSFW_FILTER_VALUES } from '@/constants/lora'
 import { logger } from '@/lib/logger'
-import { getCivitaiModelDescription } from '@/services/civitai-lora.service'
+import { getCivitaiModelDescription } from '@/features/lora/server'
 import type { CivitaiModelDescriptionResult } from '@/types'
 
 // Author descriptions barely change hour-to-hour; the underlying Civitai fetch

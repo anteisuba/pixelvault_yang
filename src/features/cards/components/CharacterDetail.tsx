@@ -63,7 +63,7 @@ import {
 import { getApiErrorMessage } from '@/lib/api-error-message'
 import { findLook } from '@/lib/card-bus'
 import { lookLabel } from '@/lib/character-looks'
-import { proxyCivitaiImageUrl } from '@/lib/civitai-image-url'
+import { proxyCivitaiImageUrl } from '@/features/lora/core'
 import { cn } from '@/lib/utils'
 
 /**

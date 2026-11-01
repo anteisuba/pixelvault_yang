@@ -8,7 +8,7 @@ A file enters `studio-shared/` only if **all** are true:
 
 1. Imported by **2+ different Studio modules** (verified via grep, not by intuition)
 2. Contains **no** tool-specific business logic (no `if (mode === 'image')` branches — split into per-tool components instead)
-3. Does not depend on any L2 tool module (`studio/edit/`, `studio/lora/`, `studio/node/`)
+3. Does not depend on any L2 tool module (`studio/edit/`, `features/lora/`, `studio/node/`)
 4. Has no obvious single-owner answer (a "shared between Audio and Video" file that's really just an Audio detail belongs in Audio)
 
 If a file fails any test, it goes back to its owning module's L2 directory or stays flat until its owning module's spec relocates it.
@@ -55,7 +55,7 @@ getAvailable{Image,Video,Audio,3D}Models()
 
 例外（**不是**本选择器的变体，各有 owner 记录的理由）：
 `studio/assistant-operator/StudioOperatorModelChip`（助手人设级路由，「自动」是真选
-项；2026-08-19 生产事故后明确不与画布共用）与 `studio/lora/LoraBaseModelModal`
+项；2026-08-19 生产事故后明确不与画布共用）与 `features/lora/components/LoraBaseModelModal`
 （LoRA 底模，走 `LoraBaseModel` 兼容性模型，没有渠道这一层）。
 
 Route type (native API vs fal/Replicate aggregation vs self-hosted Runner) is an
@@ -86,7 +86,7 @@ Deep imports (`@/components/business/studio-shared/setup/QuickSetupDialog`) work
 Files under `studio-shared/` cannot import from:
 
 - `src/components/business/studio/edit/**` (L2 Edit)
-- `src/components/business/studio/lora/**` (L2 LoRA)
+- `src/features/lora/components/**` (L2 LoRA)
 - `src/components/business/studio/node/**` (L3 Node)
 - `src/app/**` (Next.js routes)
 

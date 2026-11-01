@@ -2,7 +2,7 @@ import { ASSISTANT_V3_LORA_ITEM_IDS } from '@/constants/assistant-v3'
 import {
   LORA_BASE_MODELS,
   resolveLoraStackWeightBudget,
-} from '@/constants/lora-base-models'
+} from '@/features/lora/core'
 import { RUNNER_SAMPLERS, RUNNER_SCHEDULERS } from '@/constants/runner-sampling'
 import {
   buildAssistantV3Handles,

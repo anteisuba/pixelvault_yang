@@ -3931,6 +3931,7 @@ export const GenerationJobScalarFieldEnum = {
   slotKey: 'slotKey',
   slotAcquiredAt: 'slotAcquiredAt',
   conversationId: 'conversationId',
+  funding: 'funding',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -3972,6 +3973,14 @@ export const ApiUsageLedgerScalarFieldEnum = {
   durationMs: 'durationMs',
   wasSuccessful: 'wasSuccessful',
   errorMessage: 'errorMessage',
+  kind: 'kind',
+  funding: 'funding',
+  points: 'points',
+  inputTokens: 'inputTokens',
+  cachedInputTokens: 'cachedInputTokens',
+  outputTokens: 'outputTokens',
+  reasoningTokens: 'reasoningTokens',
+  gpuSeconds: 'gpuSeconds',
   createdAt: 'createdAt'
 } as const
 
@@ -4711,6 +4720,20 @@ export type EnumExecutionOutboxStatusFieldRefInput<$PrismaModel> = FieldRefInput
  * Reference to a field of type 'ExecutionOutboxStatus[]'
  */
 export type ListEnumExecutionOutboxStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ExecutionOutboxStatus[]'>
+    
+
+
+/**
+ * Reference to a field of type 'Decimal'
+ */
+export type DecimalFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Decimal'>
+    
+
+
+/**
+ * Reference to a field of type 'Decimal[]'
+ */
+export type ListDecimalFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Decimal[]'>
     
 
 

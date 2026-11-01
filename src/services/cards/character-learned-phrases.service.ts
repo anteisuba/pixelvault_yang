@@ -115,6 +115,7 @@ export async function learnCreatorPhrases(input: {
         CHAT_LEARN_PHRASES.lineMaxChars * CHAT_LEARN_PHRASES.readUserLines,
       adapterType: input.assistant.route.adapterType,
       apiKey: input.assistant.route.apiKey,
+      meter: input.assistant.route.meter,
       providerConfig: input.assistant.route.providerConfig,
       modelId: input.assistant.modelId,
     })

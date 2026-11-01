@@ -376,6 +376,7 @@ export const GenerationJobScalarFieldEnum = {
   slotKey: 'slotKey',
   slotAcquiredAt: 'slotAcquiredAt',
   conversationId: 'conversationId',
+  funding: 'funding',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -417,6 +418,14 @@ export const ApiUsageLedgerScalarFieldEnum = {
   durationMs: 'durationMs',
   wasSuccessful: 'wasSuccessful',
   errorMessage: 'errorMessage',
+  kind: 'kind',
+  funding: 'funding',
+  points: 'points',
+  inputTokens: 'inputTokens',
+  cachedInputTokens: 'cachedInputTokens',
+  outputTokens: 'outputTokens',
+  reasoningTokens: 'reasoningTokens',
+  gpuSeconds: 'gpuSeconds',
   createdAt: 'createdAt'
 } as const
 

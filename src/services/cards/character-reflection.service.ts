@@ -267,6 +267,7 @@ export async function reflectOnChat(input: {
       responseFormat: 'json_object',
       adapterType: input.assistant.route.adapterType,
       apiKey: input.assistant.route.apiKey,
+      meter: input.assistant.route.meter,
       providerConfig: input.assistant.route.providerConfig,
       modelId: input.assistant.modelId,
     })

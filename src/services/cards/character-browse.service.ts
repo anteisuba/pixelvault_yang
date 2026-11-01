@@ -472,6 +472,7 @@ async function nativeSearch(
       adapterType: route.route.adapterType,
       providerConfig: route.route.providerConfig,
       apiKey: route.route.apiKey,
+      meter: route.route.meter,
       modelId: route.modelId,
       systemPrompt,
       query,

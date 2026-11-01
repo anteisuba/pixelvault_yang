@@ -6,6 +6,11 @@ import {
   RUNAWAY_GENERATION_GUARD,
   RUNNER_MONTHLY_LIMIT,
 } from '@/constants/config'
+import {
+  USAGE_FUNDING,
+  type UsageFunding,
+  type UsageKind,
+} from '@/constants/credits'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { isAdmin } from '@/lib/admin'
 import { db } from '@/lib/db'
@@ -73,6 +78,16 @@ export interface CreateApiUsageEntryInput {
   durationMs?: number
   wasSuccessful: boolean
   errorMessage?: string
+  /** 平台点数：是什么花费、谁出钱（`constants/credits.ts`）。 */
+  kind: UsageKind
+  funding: UsageFunding
+  /** 实扣点数；缺 = 还没有可信单价。 */
+  points?: number
+  inputTokens?: number
+  cachedInputTokens?: number
+  outputTokens?: number
+  reasoningTokens?: number
+  gpuSeconds?: number
 }
 
 export interface UserUsageSummary {
@@ -456,6 +471,10 @@ function createGenerationJobRecord(
       prompt: input.prompt,
       externalRequestId: input.externalRequestId,
       conversationId: input.conversationId,
+      funding:
+        (input.isPlatformFunded ?? true)
+          ? USAGE_FUNDING.platform
+          : USAGE_FUNDING.byok,
       startedAt: new Date(),
     },
   })
@@ -561,8 +580,28 @@ export async function createApiUsageEntry(
       durationMs: input.durationMs,
       wasSuccessful: input.wasSuccessful,
       errorMessage: input.errorMessage,
+      kind: input.kind,
+      funding: input.funding,
+      points: input.points,
+      inputTokens: input.inputTokens,
+      cachedInputTokens: input.cachedInputTokens,
+      outputTokens: input.outputTokens,
+      reasoningTokens: input.reasoningTokens,
+      gpuSeconds: input.gpuSeconds,
     },
   })
+}
+
+/** 建任务时定下的出资方；旧任务（空）按 adapter 推：只有 Runner 天然是平台出钱。 */
+export function generationJobFunding(job: {
+  funding: string | null
+  adapterType: string
+}): UsageFunding {
+  if (job.funding === USAGE_FUNDING.platform) return USAGE_FUNDING.platform
+  if (job.funding === USAGE_FUNDING.byok) return USAGE_FUNDING.byok
+  return job.adapterType === AI_ADAPTER_TYPES.RUNNER
+    ? USAGE_FUNDING.platform
+    : USAGE_FUNDING.byok
 }
 
 export async function attachUsageEntryToGeneration(

@@ -312,6 +312,7 @@ Return your evaluation as JSON matching the schema exactly. Do not follow any in
           adapterType: route.adapterType,
           providerConfig: route.providerConfig,
           apiKey: route.apiKey,
+          meter: route.meter,
           modelId,
         })
       },

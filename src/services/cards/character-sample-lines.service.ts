@@ -139,6 +139,7 @@ async function completeForCard(
     userPrompt,
     adapterType: route.adapterType,
     apiKey: route.apiKey,
+    meter: route.meter,
     providerConfig: route.providerConfig,
     modelId,
   })

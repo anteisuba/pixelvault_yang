@@ -585,6 +585,9 @@ model GenerationJob {
   /// 哪段助手对话里出的（第 9f 步 9f-3：左边列表的封面 / 进度圈 / 小点）。弱引用、无外键
   /// （与 `AssistantConversation.projectId` 同一个口径）：对话删了任务照旧在；null = 不在对话里出的。
   conversationId    String?
+  /// 谁出钱：platform | byok（`USAGE_FUNDING`，建任务时按有没有用户自己的 key 定）。
+  /// 结算时原样抄进 `ApiUsageLedger.funding`。空 = 第 1 片之前的旧任务。
+  funding           String?
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
 
@@ -616,27 +619,42 @@ model ExecutionOutbox {
 }
 
 model ApiUsageLedger {
-  id               String         @id @default(uuid())
-  userId           String
-  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  generationId     String?
-  generation       Generation?    @relation("GenerationToUsage", fields: [generationId], references: [id], onDelete: SetNull)
-  generationJobId  String?
-  generationJob    GenerationJob? @relation("GenerationJobToUsage", fields: [generationJobId], references: [id], onDelete: SetNull)
-  adapterType      String
-  provider         String
-  modelId          String
-  requestCount     Int            @default(1)
-  inputImageCount  Int            @default(0)
-  outputImageCount Int            @default(1)
-  width            Int?
-  height           Int?
-  durationMs       Int?
-  wasSuccessful    Boolean        @default(true)
-  errorMessage     String?        @db.Text
-  createdAt        DateTime       @default(now())
+  id                String         @id @default(uuid())
+  userId            String
+  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  generationId      String?
+  generation        Generation?    @relation("GenerationToUsage", fields: [generationId], references: [id], onDelete: SetNull)
+  generationJobId   String?
+  generationJob     GenerationJob? @relation("GenerationJobToUsage", fields: [generationJobId], references: [id], onDelete: SetNull)
+  adapterType       String
+  provider          String
+  modelId           String
+  requestCount      Int            @default(1)
+  inputImageCount   Int            @default(0)
+  outputImageCount  Int            @default(1)
+  width             Int?
+  height            Int?
+  durationMs        Int?
+  wasSuccessful     Boolean        @default(true)
+  errorMessage      String?        @db.Text
+  /// 平台点数（docs/design/platform-credits.md）：llm / image / video / audio / 3d / gpu / search
+  /// （`USAGE_KINDS`）。空 = 第 1 片之前的旧行，都是一次生成。
+  kind              String?
+  /// platform | byok（`USAGE_FUNDING`）。空 = 旧行。
+  funding           String?
+  /// 实扣点数（1 点 = 1 美分）。空 = 还没有可信单价。
+  points            Decimal?       @db.Decimal(12, 3)
+  /// provider 自报的 token（llm 行）。缺 = 这家这次没报，⛔ 不当 0。
+  inputTokens       Int?
+  cachedInputTokens Int?
+  outputTokens      Int?
+  reasoningTokens   Int?
+  /// Modal Runner 一次占卡的秒数（gpu 行）。
+  gpuSeconds        Float?
+  createdAt         DateTime       @default(now())
 
   @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, funding, createdAt(sort: Desc)])
   @@index([adapterType, modelId, createdAt(sort: Desc)])
   @@index([wasSuccessful, createdAt(sort: Desc)])
 }

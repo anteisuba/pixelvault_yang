@@ -88,6 +88,7 @@ async function summarize(
     userPrompt: sanitizePrompt(backstory.slice(0, SUMMARY_INPUT_MAX_CHARS)),
     adapterType: route.adapterType,
     apiKey: route.apiKey,
+    meter: route.meter,
     providerConfig: route.providerConfig,
     modelId: SUMMARY_MODEL_IDS[route.adapterType] ?? modelId,
     maxTokens: SUMMARY_MAX_TOKENS,

@@ -7,6 +7,9 @@ vi.mock('@/lib/crypto', () => ({
 }))
 
 const mockFindFirst = vi.fn()
+const recordLlmUsage = vi.hoisted(() => vi.fn())
+vi.mock('@/services/llm-usage.service', () => ({ recordLlmUsage }))
+
 vi.mock('@/lib/db', () => ({
   db: {
     userApiKey: {
@@ -1432,6 +1435,82 @@ describe('llmTextCompletion - DeepSeek', () => {
       inputTokens: 7700,
       outputTokens: 6000,
     })
+  })
+
+  it('writes one ledger row per call to the meter it was given (platform credits)', async () => {
+    recordLlmUsage.mockClear()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(
+        async () =>
+          new Response(
+            JSON.stringify({
+              choices: [{ message: { content: 'ok' }, finish_reason: 'stop' }],
+              usage: { prompt_tokens: 120, completion_tokens: 30 },
+            }),
+            { status: 200 },
+          ),
+      ),
+    )
+    const deepseek = {
+      systemPrompt: 'sys',
+      userPrompt: 'user',
+      adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+      providerConfig: {
+        label: 'DeepSeek',
+        baseUrl: 'https://api.deepseek.com',
+      },
+      apiKey: 'sk-deepseek',
+    }
+
+    await llmTextCompletion({
+      ...deepseek,
+      modelId: 'deepseek-flash',
+      meter: { userId: 'user-1', funding: 'byok' },
+    })
+    expect(recordLlmUsage).toHaveBeenCalledTimes(1)
+    expect(recordLlmUsage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        meter: { userId: 'user-1', funding: 'byok' },
+        adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+        modelId: 'deepseek-flash',
+        usage: { inputTokens: 120, outputTokens: 30 },
+        ok: true,
+      }),
+    )
+
+    // 没有 meter（健康检查 / 评测）就不入账。
+    await llmTextCompletion(deepseek)
+    expect(recordLlmUsage).toHaveBeenCalledTimes(1)
+  })
+
+  it('still records a failed call against the meter', async () => {
+    recordLlmUsage.mockClear()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ error: { message: 'bad key' } }), {
+          status: 401,
+        }),
+      ),
+    )
+
+    await expect(
+      llmTextCompletion({
+        systemPrompt: 'sys',
+        userPrompt: 'user',
+        adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+        providerConfig: {
+          label: 'DeepSeek',
+          baseUrl: 'https://api.deepseek.com',
+        },
+        apiKey: 'sk-deepseek',
+        meter: { userId: 'user-1', funding: 'byok' },
+      }),
+    ).rejects.toThrow()
+    expect(recordLlmUsage).toHaveBeenCalledWith(
+      expect.objectContaining({ ok: false, usage: null }),
+    )
   })
 
   it('omits the app output cap when the provider manages the budget', async () => {

@@ -62,7 +62,7 @@
 - `funding`：`platform` · `byok`
 - `points`（Decimal，实扣）· `estimatedPoints`（调之前估的）
 - `inputTokens` · `outputTokens` · `gpuSeconds` · `mediaSeconds`（按 kind 填）
-- `surface`：`studio` · `canvas` · `assistant` · `outing` · `mcp`…（看是哪里花的）
+- ~~`surface`~~：第 1 片没加——眼下没有读它的地方，等用量页要按「哪里花的」分时再加（不预埋）。
 
 LLM 每一轮写一行（现在只进日志的那个 `onUsage` 改成也入账）。`FreeTierSlot` 已经没人用，一并删。
 
@@ -116,6 +116,7 @@ LLM 每一轮写一行（现在只进日志的那个 `onUsage` 改成也入账�
 ## 3. 施工切片（看稿后按这个顺序做，每片能单独上线）
 
 1. **账本 + LLM 入账**：`ApiUsageLedger` 加列；LLM 每轮入账；Modal 回报 GPU 秒；只记不拦。（先把数看清楚，后面才定得准额度。）
+   - ✅ 2026-11-01 已做：迁移 `20261101230000_platform_credits_ledger`（账本加 `kind / funding / points / *Tokens / gpuSeconds`，`GenerationJob.funding`）。LLM：`resolveLlmTextRoute` 给路由带上 `meter`，`llmTextCompletion / llmTextStream / llmNativeWebSearch` 每次调用记一行（`services/llm-usage.service.ts`，⛔ 不等不抛），助手主循环（`features/assistant/kernel.ts`）另记；角色出门不再记总数，改由每次调用各记一行。生成：建任务时记出资方，回调结算时抄进账本；Runner 记 `kind = gpu`，`gpuSeconds` = 建任务到回调的秒数（Modal 不回报计费秒数，这是上限估计，冷启动算在内）。`points` 先空着，第 2 片填。
 2. **估价函数 + LLM 单价表**：`estimatePoints`；工作台 / 画布 / 用量页改读它。
 3. **额度 + 先占后结**：`CreditGrant`、注册送点、admin 加点；Modal 从「每人 100 次」换成点数；全站 $ 总闸。
 4. **助手钱闸接点数**（跟自主度一起做）。

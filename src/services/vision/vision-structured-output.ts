@@ -172,6 +172,7 @@ export async function completeVisionStructured<TSchema extends z.ZodType>(
           adapterType: params.route.adapterType,
           providerConfig: params.route.providerConfig,
           apiKey: params.route.apiKey,
+          meter: params.route.meter,
           ...(params.modelId ? { modelId: params.modelId } : {}),
         }),
         hasVideo ? VISION_LIMITS.videoTimeoutMs : VISION_LIMITS.timeoutMs,

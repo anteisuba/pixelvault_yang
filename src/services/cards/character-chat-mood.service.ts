@@ -173,6 +173,7 @@ export async function planChatTurn(input: {
       reasoningEffort: ASSISTANT_REASONING_EFFORT_IDS.low,
       adapterType: input.assistant.route.adapterType,
       apiKey: input.assistant.route.apiKey,
+      meter: input.assistant.route.meter,
       providerConfig: input.assistant.route.providerConfig,
       modelId: input.assistant.modelId,
       signal: AbortSignal.any([

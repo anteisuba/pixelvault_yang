@@ -144,6 +144,7 @@ export async function enhancePrompt(
     adapterType: route.adapterType,
     providerConfig: route.providerConfig,
     apiKey: route.apiKey,
+    meter: route.meter,
     ...(llmModelId ? { modelId: llmModelId } : {}),
   })
 

@@ -33,6 +33,12 @@ export type ApiUsageLedgerAvgAggregateOutputType = {
   width: number | null
   height: number | null
   durationMs: number | null
+  points: runtime.Decimal | null
+  inputTokens: number | null
+  cachedInputTokens: number | null
+  outputTokens: number | null
+  reasoningTokens: number | null
+  gpuSeconds: number | null
 }
 
 export type ApiUsageLedgerSumAggregateOutputType = {
@@ -42,6 +48,12 @@ export type ApiUsageLedgerSumAggregateOutputType = {
   width: number | null
   height: number | null
   durationMs: number | null
+  points: runtime.Decimal | null
+  inputTokens: number | null
+  cachedInputTokens: number | null
+  outputTokens: number | null
+  reasoningTokens: number | null
+  gpuSeconds: number | null
 }
 
 export type ApiUsageLedgerMinAggregateOutputType = {
@@ -60,6 +72,14 @@ export type ApiUsageLedgerMinAggregateOutputType = {
   durationMs: number | null
   wasSuccessful: boolean | null
   errorMessage: string | null
+  kind: string | null
+  funding: string | null
+  points: runtime.Decimal | null
+  inputTokens: number | null
+  cachedInputTokens: number | null
+  outputTokens: number | null
+  reasoningTokens: number | null
+  gpuSeconds: number | null
   createdAt: Date | null
 }
 
@@ -79,6 +99,14 @@ export type ApiUsageLedgerMaxAggregateOutputType = {
   durationMs: number | null
   wasSuccessful: boolean | null
   errorMessage: string | null
+  kind: string | null
+  funding: string | null
+  points: runtime.Decimal | null
+  inputTokens: number | null
+  cachedInputTokens: number | null
+  outputTokens: number | null
+  reasoningTokens: number | null
+  gpuSeconds: number | null
   createdAt: Date | null
 }
 
@@ -98,6 +126,14 @@ export type ApiUsageLedgerCountAggregateOutputType = {
   durationMs: number
   wasSuccessful: number
   errorMessage: number
+  kind: number
+  funding: number
+  points: number
+  inputTokens: number
+  cachedInputTokens: number
+  outputTokens: number
+  reasoningTokens: number
+  gpuSeconds: number
   createdAt: number
   _all: number
 }
@@ -110,6 +146,12 @@ export type ApiUsageLedgerAvgAggregateInputType = {
   width?: true
   height?: true
   durationMs?: true
+  points?: true
+  inputTokens?: true
+  cachedInputTokens?: true
+  outputTokens?: true
+  reasoningTokens?: true
+  gpuSeconds?: true
 }
 
 export type ApiUsageLedgerSumAggregateInputType = {
@@ -119,6 +161,12 @@ export type ApiUsageLedgerSumAggregateInputType = {
   width?: true
   height?: true
   durationMs?: true
+  points?: true
+  inputTokens?: true
+  cachedInputTokens?: true
+  outputTokens?: true
+  reasoningTokens?: true
+  gpuSeconds?: true
 }
 
 export type ApiUsageLedgerMinAggregateInputType = {
@@ -137,6 +185,14 @@ export type ApiUsageLedgerMinAggregateInputType = {
   durationMs?: true
   wasSuccessful?: true
   errorMessage?: true
+  kind?: true
+  funding?: true
+  points?: true
+  inputTokens?: true
+  cachedInputTokens?: true
+  outputTokens?: true
+  reasoningTokens?: true
+  gpuSeconds?: true
   createdAt?: true
 }
 
@@ -156,6 +212,14 @@ export type ApiUsageLedgerMaxAggregateInputType = {
   durationMs?: true
   wasSuccessful?: true
   errorMessage?: true
+  kind?: true
+  funding?: true
+  points?: true
+  inputTokens?: true
+  cachedInputTokens?: true
+  outputTokens?: true
+  reasoningTokens?: true
+  gpuSeconds?: true
   createdAt?: true
 }
 
@@ -175,6 +239,14 @@ export type ApiUsageLedgerCountAggregateInputType = {
   durationMs?: true
   wasSuccessful?: true
   errorMessage?: true
+  kind?: true
+  funding?: true
+  points?: true
+  inputTokens?: true
+  cachedInputTokens?: true
+  outputTokens?: true
+  reasoningTokens?: true
+  gpuSeconds?: true
   createdAt?: true
   _all?: true
 }
@@ -281,6 +353,14 @@ export type ApiUsageLedgerGroupByOutputType = {
   durationMs: number | null
   wasSuccessful: boolean
   errorMessage: string | null
+  kind: string | null
+  funding: string | null
+  points: runtime.Decimal | null
+  inputTokens: number | null
+  cachedInputTokens: number | null
+  outputTokens: number | null
+  reasoningTokens: number | null
+  gpuSeconds: number | null
   createdAt: Date
   _count: ApiUsageLedgerCountAggregateOutputType | null
   _avg: ApiUsageLedgerAvgAggregateOutputType | null
@@ -323,6 +403,14 @@ export type ApiUsageLedgerWhereInput = {
   durationMs?: Prisma.IntNullableFilter<"ApiUsageLedger"> | number | null
   wasSuccessful?: Prisma.BoolFilter<"ApiUsageLedger"> | boolean
   errorMessage?: Prisma.StringNullableFilter<"ApiUsageLedger"> | string | null
+  kind?: Prisma.StringNullableFilter<"ApiUsageLedger"> | string | null
+  funding?: Prisma.StringNullableFilter<"ApiUsageLedger"> | string | null
+  points?: Prisma.DecimalNullableFilter<"ApiUsageLedger"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  inputTokens?: Prisma.IntNullableFilter<"ApiUsageLedger"> | number | null
+  cachedInputTokens?: Prisma.IntNullableFilter<"ApiUsageLedger"> | number | null
+  outputTokens?: Prisma.IntNullableFilter<"ApiUsageLedger"> | number | null
+  reasoningTokens?: Prisma.IntNullableFilter<"ApiUsageLedger"> | number | null
+  gpuSeconds?: Prisma.FloatNullableFilter<"ApiUsageLedger"> | number | null
   createdAt?: Prisma.DateTimeFilter<"ApiUsageLedger"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
   generation?: Prisma.XOR<Prisma.GenerationNullableScalarRelationFilter, Prisma.GenerationWhereInput> | null
@@ -345,6 +433,14 @@ export type ApiUsageLedgerOrderByWithRelationInput = {
   durationMs?: Prisma.SortOrderInput | Prisma.SortOrder
   wasSuccessful?: Prisma.SortOrder
   errorMessage?: Prisma.SortOrderInput | Prisma.SortOrder
+  kind?: Prisma.SortOrderInput | Prisma.SortOrder
+  funding?: Prisma.SortOrderInput | Prisma.SortOrder
+  points?: Prisma.SortOrderInput | Prisma.SortOrder
+  inputTokens?: Prisma.SortOrderInput | Prisma.SortOrder
+  cachedInputTokens?: Prisma.SortOrderInput | Prisma.SortOrder
+  outputTokens?: Prisma.SortOrderInput | Prisma.SortOrder
+  reasoningTokens?: Prisma.SortOrderInput | Prisma.SortOrder
+  gpuSeconds?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   user?: Prisma.UserOrderByWithRelationInput
   generation?: Prisma.GenerationOrderByWithRelationInput
@@ -370,6 +466,14 @@ export type ApiUsageLedgerWhereUniqueInput = Prisma.AtLeast<{
   durationMs?: Prisma.IntNullableFilter<"ApiUsageLedger"> | number | null
   wasSuccessful?: Prisma.BoolFilter<"ApiUsageLedger"> | boolean
   errorMessage?: Prisma.StringNullableFilter<"ApiUsageLedger"> | string | null
+  kind?: Prisma.StringNullableFilter<"ApiUsageLedger"> | string | null
+  funding?: Prisma.StringNullableFilter<"ApiUsageLedger"> | string | null
+  points?: Prisma.DecimalNullableFilter<"ApiUsageLedger"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  inputTokens?: Prisma.IntNullableFilter<"ApiUsageLedger"> | number | null
+  cachedInputTokens?: Prisma.IntNullableFilter<"ApiUsageLedger"> | number | null
+  outputTokens?: Prisma.IntNullableFilter<"ApiUsageLedger"> | number | null
+  reasoningTokens?: Prisma.IntNullableFilter<"ApiUsageLedger"> | number | null
+  gpuSeconds?: Prisma.FloatNullableFilter<"ApiUsageLedger"> | number | null
   createdAt?: Prisma.DateTimeFilter<"ApiUsageLedger"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
   generation?: Prisma.XOR<Prisma.GenerationNullableScalarRelationFilter, Prisma.GenerationWhereInput> | null
@@ -392,6 +496,14 @@ export type ApiUsageLedgerOrderByWithAggregationInput = {
   durationMs?: Prisma.SortOrderInput | Prisma.SortOrder
   wasSuccessful?: Prisma.SortOrder
   errorMessage?: Prisma.SortOrderInput | Prisma.SortOrder
+  kind?: Prisma.SortOrderInput | Prisma.SortOrder
+  funding?: Prisma.SortOrderInput | Prisma.SortOrder
+  points?: Prisma.SortOrderInput | Prisma.SortOrder
+  inputTokens?: Prisma.SortOrderInput | Prisma.SortOrder
+  cachedInputTokens?: Prisma.SortOrderInput | Prisma.SortOrder
+  outputTokens?: Prisma.SortOrderInput | Prisma.SortOrder
+  reasoningTokens?: Prisma.SortOrderInput | Prisma.SortOrder
+  gpuSeconds?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   _count?: Prisma.ApiUsageLedgerCountOrderByAggregateInput
   _avg?: Prisma.ApiUsageLedgerAvgOrderByAggregateInput
@@ -419,6 +531,14 @@ export type ApiUsageLedgerScalarWhereWithAggregatesInput = {
   durationMs?: Prisma.IntNullableWithAggregatesFilter<"ApiUsageLedger"> | number | null
   wasSuccessful?: Prisma.BoolWithAggregatesFilter<"ApiUsageLedger"> | boolean
   errorMessage?: Prisma.StringNullableWithAggregatesFilter<"ApiUsageLedger"> | string | null
+  kind?: Prisma.StringNullableWithAggregatesFilter<"ApiUsageLedger"> | string | null
+  funding?: Prisma.StringNullableWithAggregatesFilter<"ApiUsageLedger"> | string | null
+  points?: Prisma.DecimalNullableWithAggregatesFilter<"ApiUsageLedger"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  inputTokens?: Prisma.IntNullableWithAggregatesFilter<"ApiUsageLedger"> | number | null
+  cachedInputTokens?: Prisma.IntNullableWithAggregatesFilter<"ApiUsageLedger"> | number | null
+  outputTokens?: Prisma.IntNullableWithAggregatesFilter<"ApiUsageLedger"> | number | null
+  reasoningTokens?: Prisma.IntNullableWithAggregatesFilter<"ApiUsageLedger"> | number | null
+  gpuSeconds?: Prisma.FloatNullableWithAggregatesFilter<"ApiUsageLedger"> | number | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"ApiUsageLedger"> | Date | string
 }
 
@@ -435,6 +555,14 @@ export type ApiUsageLedgerCreateInput = {
   durationMs?: number | null
   wasSuccessful?: boolean
   errorMessage?: string | null
+  kind?: string | null
+  funding?: string | null
+  points?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  inputTokens?: number | null
+  cachedInputTokens?: number | null
+  outputTokens?: number | null
+  reasoningTokens?: number | null
+  gpuSeconds?: number | null
   createdAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutApiUsageLedgerInput
   generation?: Prisma.GenerationCreateNestedOneWithoutApiUsageLedgerInput
@@ -457,6 +585,14 @@ export type ApiUsageLedgerUncheckedCreateInput = {
   durationMs?: number | null
   wasSuccessful?: boolean
   errorMessage?: string | null
+  kind?: string | null
+  funding?: string | null
+  points?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  inputTokens?: number | null
+  cachedInputTokens?: number | null
+  outputTokens?: number | null
+  reasoningTokens?: number | null
+  gpuSeconds?: number | null
   createdAt?: Date | string
 }
 
@@ -473,6 +609,14 @@ export type ApiUsageLedgerUpdateInput = {
   durationMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   wasSuccessful?: Prisma.BoolFieldUpdateOperationsInput | boolean
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  kind?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  funding?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  points?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  inputTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  cachedInputTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  outputTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  reasoningTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  gpuSeconds?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutApiUsageLedgerNestedInput
   generation?: Prisma.GenerationUpdateOneWithoutApiUsageLedgerNestedInput
@@ -495,6 +639,14 @@ export type ApiUsageLedgerUncheckedUpdateInput = {
   durationMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   wasSuccessful?: Prisma.BoolFieldUpdateOperationsInput | boolean
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  kind?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  funding?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  points?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  inputTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  cachedInputTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  outputTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  reasoningTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  gpuSeconds?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -514,6 +666,14 @@ export type ApiUsageLedgerCreateManyInput = {
   durationMs?: number | null
   wasSuccessful?: boolean
   errorMessage?: string | null
+  kind?: string | null
+  funding?: string | null
+  points?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  inputTokens?: number | null
+  cachedInputTokens?: number | null
+  outputTokens?: number | null
+  reasoningTokens?: number | null
+  gpuSeconds?: number | null
   createdAt?: Date | string
 }
 
@@ -530,6 +690,14 @@ export type ApiUsageLedgerUpdateManyMutationInput = {
   durationMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   wasSuccessful?: Prisma.BoolFieldUpdateOperationsInput | boolean
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  kind?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  funding?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  points?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  inputTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  cachedInputTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  outputTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  reasoningTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  gpuSeconds?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -549,6 +717,14 @@ export type ApiUsageLedgerUncheckedUpdateManyInput = {
   durationMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   wasSuccessful?: Prisma.BoolFieldUpdateOperationsInput | boolean
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  kind?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  funding?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  points?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  inputTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  cachedInputTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  outputTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  reasoningTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  gpuSeconds?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -578,6 +754,14 @@ export type ApiUsageLedgerCountOrderByAggregateInput = {
   durationMs?: Prisma.SortOrder
   wasSuccessful?: Prisma.SortOrder
   errorMessage?: Prisma.SortOrder
+  kind?: Prisma.SortOrder
+  funding?: Prisma.SortOrder
+  points?: Prisma.SortOrder
+  inputTokens?: Prisma.SortOrder
+  cachedInputTokens?: Prisma.SortOrder
+  outputTokens?: Prisma.SortOrder
+  reasoningTokens?: Prisma.SortOrder
+  gpuSeconds?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -588,6 +772,12 @@ export type ApiUsageLedgerAvgOrderByAggregateInput = {
   width?: Prisma.SortOrder
   height?: Prisma.SortOrder
   durationMs?: Prisma.SortOrder
+  points?: Prisma.SortOrder
+  inputTokens?: Prisma.SortOrder
+  cachedInputTokens?: Prisma.SortOrder
+  outputTokens?: Prisma.SortOrder
+  reasoningTokens?: Prisma.SortOrder
+  gpuSeconds?: Prisma.SortOrder
 }
 
 export type ApiUsageLedgerMaxOrderByAggregateInput = {
@@ -606,6 +796,14 @@ export type ApiUsageLedgerMaxOrderByAggregateInput = {
   durationMs?: Prisma.SortOrder
   wasSuccessful?: Prisma.SortOrder
   errorMessage?: Prisma.SortOrder
+  kind?: Prisma.SortOrder
+  funding?: Prisma.SortOrder
+  points?: Prisma.SortOrder
+  inputTokens?: Prisma.SortOrder
+  cachedInputTokens?: Prisma.SortOrder
+  outputTokens?: Prisma.SortOrder
+  reasoningTokens?: Prisma.SortOrder
+  gpuSeconds?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -625,6 +823,14 @@ export type ApiUsageLedgerMinOrderByAggregateInput = {
   durationMs?: Prisma.SortOrder
   wasSuccessful?: Prisma.SortOrder
   errorMessage?: Prisma.SortOrder
+  kind?: Prisma.SortOrder
+  funding?: Prisma.SortOrder
+  points?: Prisma.SortOrder
+  inputTokens?: Prisma.SortOrder
+  cachedInputTokens?: Prisma.SortOrder
+  outputTokens?: Prisma.SortOrder
+  reasoningTokens?: Prisma.SortOrder
+  gpuSeconds?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -635,6 +841,12 @@ export type ApiUsageLedgerSumOrderByAggregateInput = {
   width?: Prisma.SortOrder
   height?: Prisma.SortOrder
   durationMs?: Prisma.SortOrder
+  points?: Prisma.SortOrder
+  inputTokens?: Prisma.SortOrder
+  cachedInputTokens?: Prisma.SortOrder
+  outputTokens?: Prisma.SortOrder
+  reasoningTokens?: Prisma.SortOrder
+  gpuSeconds?: Prisma.SortOrder
 }
 
 export type ApiUsageLedgerCreateNestedManyWithoutUserInput = {
@@ -763,6 +975,14 @@ export type ApiUsageLedgerUncheckedUpdateManyWithoutGenerationJobNestedInput = {
   deleteMany?: Prisma.ApiUsageLedgerScalarWhereInput | Prisma.ApiUsageLedgerScalarWhereInput[]
 }
 
+export type NullableDecimalFieldUpdateOperationsInput = {
+  set?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  increment?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  decrement?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  multiply?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  divide?: runtime.Decimal | runtime.DecimalJsLike | number | string
+}
+
 export type ApiUsageLedgerCreateWithoutUserInput = {
   id?: string
   adapterType: string
@@ -776,6 +996,14 @@ export type ApiUsageLedgerCreateWithoutUserInput = {
   durationMs?: number | null
   wasSuccessful?: boolean
   errorMessage?: string | null
+  kind?: string | null
+  funding?: string | null
+  points?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  inputTokens?: number | null
+  cachedInputTokens?: number | null
+  outputTokens?: number | null
+  reasoningTokens?: number | null
+  gpuSeconds?: number | null
   createdAt?: Date | string
   generation?: Prisma.GenerationCreateNestedOneWithoutApiUsageLedgerInput
   generationJob?: Prisma.GenerationJobCreateNestedOneWithoutApiUsageLedgerInput
@@ -796,6 +1024,14 @@ export type ApiUsageLedgerUncheckedCreateWithoutUserInput = {
   durationMs?: number | null
   wasSuccessful?: boolean
   errorMessage?: string | null
+  kind?: string | null
+  funding?: string | null
+  points?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  inputTokens?: number | null
+  cachedInputTokens?: number | null
+  outputTokens?: number | null
+  reasoningTokens?: number | null
+  gpuSeconds?: number | null
   createdAt?: Date | string
 }
 
@@ -844,6 +1080,14 @@ export type ApiUsageLedgerScalarWhereInput = {
   durationMs?: Prisma.IntNullableFilter<"ApiUsageLedger"> | number | null
   wasSuccessful?: Prisma.BoolFilter<"ApiUsageLedger"> | boolean
   errorMessage?: Prisma.StringNullableFilter<"ApiUsageLedger"> | string | null
+  kind?: Prisma.StringNullableFilter<"ApiUsageLedger"> | string | null
+  funding?: Prisma.StringNullableFilter<"ApiUsageLedger"> | string | null
+  points?: Prisma.DecimalNullableFilter<"ApiUsageLedger"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  inputTokens?: Prisma.IntNullableFilter<"ApiUsageLedger"> | number | null
+  cachedInputTokens?: Prisma.IntNullableFilter<"ApiUsageLedger"> | number | null
+  outputTokens?: Prisma.IntNullableFilter<"ApiUsageLedger"> | number | null
+  reasoningTokens?: Prisma.IntNullableFilter<"ApiUsageLedger"> | number | null
+  gpuSeconds?: Prisma.FloatNullableFilter<"ApiUsageLedger"> | number | null
   createdAt?: Prisma.DateTimeFilter<"ApiUsageLedger"> | Date | string
 }
 
@@ -860,6 +1104,14 @@ export type ApiUsageLedgerCreateWithoutGenerationInput = {
   durationMs?: number | null
   wasSuccessful?: boolean
   errorMessage?: string | null
+  kind?: string | null
+  funding?: string | null
+  points?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  inputTokens?: number | null
+  cachedInputTokens?: number | null
+  outputTokens?: number | null
+  reasoningTokens?: number | null
+  gpuSeconds?: number | null
   createdAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutApiUsageLedgerInput
   generationJob?: Prisma.GenerationJobCreateNestedOneWithoutApiUsageLedgerInput
@@ -880,6 +1132,14 @@ export type ApiUsageLedgerUncheckedCreateWithoutGenerationInput = {
   durationMs?: number | null
   wasSuccessful?: boolean
   errorMessage?: string | null
+  kind?: string | null
+  funding?: string | null
+  points?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  inputTokens?: number | null
+  cachedInputTokens?: number | null
+  outputTokens?: number | null
+  reasoningTokens?: number | null
+  gpuSeconds?: number | null
   createdAt?: Date | string
 }
 
@@ -922,6 +1182,14 @@ export type ApiUsageLedgerCreateWithoutGenerationJobInput = {
   durationMs?: number | null
   wasSuccessful?: boolean
   errorMessage?: string | null
+  kind?: string | null
+  funding?: string | null
+  points?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  inputTokens?: number | null
+  cachedInputTokens?: number | null
+  outputTokens?: number | null
+  reasoningTokens?: number | null
+  gpuSeconds?: number | null
   createdAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutApiUsageLedgerInput
   generation?: Prisma.GenerationCreateNestedOneWithoutApiUsageLedgerInput
@@ -942,6 +1210,14 @@ export type ApiUsageLedgerUncheckedCreateWithoutGenerationJobInput = {
   durationMs?: number | null
   wasSuccessful?: boolean
   errorMessage?: string | null
+  kind?: string | null
+  funding?: string | null
+  points?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  inputTokens?: number | null
+  cachedInputTokens?: number | null
+  outputTokens?: number | null
+  reasoningTokens?: number | null
+  gpuSeconds?: number | null
   createdAt?: Date | string
 }
 
@@ -986,6 +1262,14 @@ export type ApiUsageLedgerCreateManyUserInput = {
   durationMs?: number | null
   wasSuccessful?: boolean
   errorMessage?: string | null
+  kind?: string | null
+  funding?: string | null
+  points?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  inputTokens?: number | null
+  cachedInputTokens?: number | null
+  outputTokens?: number | null
+  reasoningTokens?: number | null
+  gpuSeconds?: number | null
   createdAt?: Date | string
 }
 
@@ -1002,6 +1286,14 @@ export type ApiUsageLedgerUpdateWithoutUserInput = {
   durationMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   wasSuccessful?: Prisma.BoolFieldUpdateOperationsInput | boolean
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  kind?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  funding?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  points?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  inputTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  cachedInputTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  outputTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  reasoningTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  gpuSeconds?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   generation?: Prisma.GenerationUpdateOneWithoutApiUsageLedgerNestedInput
   generationJob?: Prisma.GenerationJobUpdateOneWithoutApiUsageLedgerNestedInput
@@ -1022,6 +1314,14 @@ export type ApiUsageLedgerUncheckedUpdateWithoutUserInput = {
   durationMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   wasSuccessful?: Prisma.BoolFieldUpdateOperationsInput | boolean
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  kind?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  funding?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  points?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  inputTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  cachedInputTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  outputTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  reasoningTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  gpuSeconds?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -1040,6 +1340,14 @@ export type ApiUsageLedgerUncheckedUpdateManyWithoutUserInput = {
   durationMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   wasSuccessful?: Prisma.BoolFieldUpdateOperationsInput | boolean
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  kind?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  funding?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  points?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  inputTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  cachedInputTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  outputTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  reasoningTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  gpuSeconds?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -1058,6 +1366,14 @@ export type ApiUsageLedgerCreateManyGenerationInput = {
   durationMs?: number | null
   wasSuccessful?: boolean
   errorMessage?: string | null
+  kind?: string | null
+  funding?: string | null
+  points?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  inputTokens?: number | null
+  cachedInputTokens?: number | null
+  outputTokens?: number | null
+  reasoningTokens?: number | null
+  gpuSeconds?: number | null
   createdAt?: Date | string
 }
 
@@ -1074,6 +1390,14 @@ export type ApiUsageLedgerUpdateWithoutGenerationInput = {
   durationMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   wasSuccessful?: Prisma.BoolFieldUpdateOperationsInput | boolean
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  kind?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  funding?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  points?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  inputTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  cachedInputTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  outputTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  reasoningTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  gpuSeconds?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutApiUsageLedgerNestedInput
   generationJob?: Prisma.GenerationJobUpdateOneWithoutApiUsageLedgerNestedInput
@@ -1094,6 +1418,14 @@ export type ApiUsageLedgerUncheckedUpdateWithoutGenerationInput = {
   durationMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   wasSuccessful?: Prisma.BoolFieldUpdateOperationsInput | boolean
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  kind?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  funding?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  points?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  inputTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  cachedInputTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  outputTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  reasoningTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  gpuSeconds?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -1112,6 +1444,14 @@ export type ApiUsageLedgerUncheckedUpdateManyWithoutGenerationInput = {
   durationMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   wasSuccessful?: Prisma.BoolFieldUpdateOperationsInput | boolean
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  kind?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  funding?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  points?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  inputTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  cachedInputTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  outputTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  reasoningTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  gpuSeconds?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -1130,6 +1470,14 @@ export type ApiUsageLedgerCreateManyGenerationJobInput = {
   durationMs?: number | null
   wasSuccessful?: boolean
   errorMessage?: string | null
+  kind?: string | null
+  funding?: string | null
+  points?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  inputTokens?: number | null
+  cachedInputTokens?: number | null
+  outputTokens?: number | null
+  reasoningTokens?: number | null
+  gpuSeconds?: number | null
   createdAt?: Date | string
 }
 
@@ -1146,6 +1494,14 @@ export type ApiUsageLedgerUpdateWithoutGenerationJobInput = {
   durationMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   wasSuccessful?: Prisma.BoolFieldUpdateOperationsInput | boolean
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  kind?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  funding?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  points?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  inputTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  cachedInputTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  outputTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  reasoningTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  gpuSeconds?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutApiUsageLedgerNestedInput
   generation?: Prisma.GenerationUpdateOneWithoutApiUsageLedgerNestedInput
@@ -1166,6 +1522,14 @@ export type ApiUsageLedgerUncheckedUpdateWithoutGenerationJobInput = {
   durationMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   wasSuccessful?: Prisma.BoolFieldUpdateOperationsInput | boolean
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  kind?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  funding?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  points?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  inputTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  cachedInputTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  outputTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  reasoningTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  gpuSeconds?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -1184,6 +1548,14 @@ export type ApiUsageLedgerUncheckedUpdateManyWithoutGenerationJobInput = {
   durationMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   wasSuccessful?: Prisma.BoolFieldUpdateOperationsInput | boolean
   errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  kind?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  funding?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  points?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  inputTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  cachedInputTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  outputTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  reasoningTokens?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  gpuSeconds?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -1205,6 +1577,14 @@ export type ApiUsageLedgerSelect<ExtArgs extends runtime.Types.Extensions.Intern
   durationMs?: boolean
   wasSuccessful?: boolean
   errorMessage?: boolean
+  kind?: boolean
+  funding?: boolean
+  points?: boolean
+  inputTokens?: boolean
+  cachedInputTokens?: boolean
+  outputTokens?: boolean
+  reasoningTokens?: boolean
+  gpuSeconds?: boolean
   createdAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   generation?: boolean | Prisma.ApiUsageLedger$generationArgs<ExtArgs>
@@ -1227,6 +1607,14 @@ export type ApiUsageLedgerSelectCreateManyAndReturn<ExtArgs extends runtime.Type
   durationMs?: boolean
   wasSuccessful?: boolean
   errorMessage?: boolean
+  kind?: boolean
+  funding?: boolean
+  points?: boolean
+  inputTokens?: boolean
+  cachedInputTokens?: boolean
+  outputTokens?: boolean
+  reasoningTokens?: boolean
+  gpuSeconds?: boolean
   createdAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   generation?: boolean | Prisma.ApiUsageLedger$generationArgs<ExtArgs>
@@ -1249,6 +1637,14 @@ export type ApiUsageLedgerSelectUpdateManyAndReturn<ExtArgs extends runtime.Type
   durationMs?: boolean
   wasSuccessful?: boolean
   errorMessage?: boolean
+  kind?: boolean
+  funding?: boolean
+  points?: boolean
+  inputTokens?: boolean
+  cachedInputTokens?: boolean
+  outputTokens?: boolean
+  reasoningTokens?: boolean
+  gpuSeconds?: boolean
   createdAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   generation?: boolean | Prisma.ApiUsageLedger$generationArgs<ExtArgs>
@@ -1271,10 +1667,18 @@ export type ApiUsageLedgerSelectScalar = {
   durationMs?: boolean
   wasSuccessful?: boolean
   errorMessage?: boolean
+  kind?: boolean
+  funding?: boolean
+  points?: boolean
+  inputTokens?: boolean
+  cachedInputTokens?: boolean
+  outputTokens?: boolean
+  reasoningTokens?: boolean
+  gpuSeconds?: boolean
   createdAt?: boolean
 }
 
-export type ApiUsageLedgerOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "generationId" | "generationJobId" | "adapterType" | "provider" | "modelId" | "requestCount" | "inputImageCount" | "outputImageCount" | "width" | "height" | "durationMs" | "wasSuccessful" | "errorMessage" | "createdAt", ExtArgs["result"]["apiUsageLedger"]>
+export type ApiUsageLedgerOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "generationId" | "generationJobId" | "adapterType" | "provider" | "modelId" | "requestCount" | "inputImageCount" | "outputImageCount" | "width" | "height" | "durationMs" | "wasSuccessful" | "errorMessage" | "kind" | "funding" | "points" | "inputTokens" | "cachedInputTokens" | "outputTokens" | "reasoningTokens" | "gpuSeconds" | "createdAt", ExtArgs["result"]["apiUsageLedger"]>
 export type ApiUsageLedgerInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   generation?: boolean | Prisma.ApiUsageLedger$generationArgs<ExtArgs>
@@ -1314,6 +1718,30 @@ export type $ApiUsageLedgerPayload<ExtArgs extends runtime.Types.Extensions.Inte
     durationMs: number | null
     wasSuccessful: boolean
     errorMessage: string | null
+    /**
+     * 平台点数（docs/design/platform-credits.md）：llm / image / video / audio / 3d / gpu / search
+     * （`USAGE_KINDS`）。空 = 第 1 片之前的旧行，都是一次生成。
+     */
+    kind: string | null
+    /**
+     * platform | byok（`USAGE_FUNDING`）。空 = 旧行。
+     */
+    funding: string | null
+    /**
+     * 实扣点数（1 点 = 1 美分）。空 = 还没有可信单价。
+     */
+    points: runtime.Decimal | null
+    /**
+     * provider 自报的 token（llm 行）。缺 = 这家这次没报，⛔ 不当 0。
+     */
+    inputTokens: number | null
+    cachedInputTokens: number | null
+    outputTokens: number | null
+    reasoningTokens: number | null
+    /**
+     * Modal Runner 一次占卡的秒数（gpu 行）。
+     */
+    gpuSeconds: number | null
     createdAt: Date
   }, ExtArgs["result"]["apiUsageLedger"]>
   composites: {}
@@ -1756,6 +2184,14 @@ export interface ApiUsageLedgerFieldRefs {
   readonly durationMs: Prisma.FieldRef<"ApiUsageLedger", 'Int'>
   readonly wasSuccessful: Prisma.FieldRef<"ApiUsageLedger", 'Boolean'>
   readonly errorMessage: Prisma.FieldRef<"ApiUsageLedger", 'String'>
+  readonly kind: Prisma.FieldRef<"ApiUsageLedger", 'String'>
+  readonly funding: Prisma.FieldRef<"ApiUsageLedger", 'String'>
+  readonly points: Prisma.FieldRef<"ApiUsageLedger", 'Decimal'>
+  readonly inputTokens: Prisma.FieldRef<"ApiUsageLedger", 'Int'>
+  readonly cachedInputTokens: Prisma.FieldRef<"ApiUsageLedger", 'Int'>
+  readonly outputTokens: Prisma.FieldRef<"ApiUsageLedger", 'Int'>
+  readonly reasoningTokens: Prisma.FieldRef<"ApiUsageLedger", 'Int'>
+  readonly gpuSeconds: Prisma.FieldRef<"ApiUsageLedger", 'Float'>
   readonly createdAt: Prisma.FieldRef<"ApiUsageLedger", 'DateTime'>
 }
     

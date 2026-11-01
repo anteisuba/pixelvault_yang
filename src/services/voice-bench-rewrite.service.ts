@@ -98,6 +98,7 @@ export async function rewriteAsPersona(
     promptGuardMaxLength: VOICE_BENCH.rewriteMaxChars + 1,
     adapterType: route.adapterType,
     apiKey: route.apiKey,
+    meter: route.meter,
     providerConfig: route.providerConfig,
     modelId,
   })

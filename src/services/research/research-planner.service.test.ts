@@ -47,6 +47,7 @@ function routeOf(adapterType: AI_ADAPTER_TYPES): ResolvedLlmTextRoute {
     adapterType,
     providerConfig: getDefaultProviderConfig(adapterType),
     apiKey: `${adapterType}-user-key`,
+    meter: { userId: 'user-1', funding: 'byok' },
   }
 }
 

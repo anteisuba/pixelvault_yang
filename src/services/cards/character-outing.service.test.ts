@@ -287,7 +287,7 @@ describe('runOutingChunk', () => {
     expect(mocks.outingFindUnique).not.toHaveBeenCalled()
   })
 
-  it('额度花到顶：收工（budget），看到的写成日记，记一笔用量', async () => {
+  it('额度花到顶：收工（budget），看到的写成日记，不另记总账', async () => {
     let roundLimit = 0
     mocks.outingFindUnique.mockResolvedValue(loaded())
     mocks.browseRound
@@ -337,15 +337,8 @@ describe('runOutingChunk', () => {
       calls: 2,
       kept: 2,
     })
-    expect(mocks.usage).toHaveBeenCalledWith(
-      expect.objectContaining({
-        userId: 'user-1',
-        modelId: MODEL,
-        requestCount: 2,
-        outputImageCount: 0,
-        wasSuccessful: true,
-      }),
-    )
+    // 每次模型调用已在 llm 层各记一行账（平台点数第 1 片），收工时 ⛔ 不再记总数。
+    expect(mocks.usage).not.toHaveBeenCalled()
   })
 
   it('先看你贴的视频（看完记下不重看），再逛；开着看视频的来源交给每一轮', async () => {

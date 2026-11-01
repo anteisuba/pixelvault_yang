@@ -25,6 +25,7 @@ import {
   GENERATION_ERROR_CODES,
   parseGenerationErrorCode,
 } from '@/constants/generation-errors'
+import { USAGE_FUNDING } from '@/constants/credits'
 import { AI_ADAPTER_TYPES, type ProviderConfig } from '@/constants/providers'
 import {
   nativeSearchRulesOutX,
@@ -45,6 +46,10 @@ import { logger } from '@/lib/logger'
 import { buildYoutubeWatchUrl, classifyVideoLink } from '@/lib/video-link'
 import { readSseData } from '@/lib/sse'
 import { validatePrompt } from '@/services/kernel/prompt-guard'
+import {
+  recordLlmUsage,
+  type LlmUsageMeter,
+} from '@/services/llm-usage.service'
 import { fetchAsBuffer } from '@/services/storage/r2'
 
 // ─── Types ───────────────────────────────────────────────────────
@@ -149,12 +154,19 @@ export interface LlmTextInput {
    * ⚠ 只给日志用：回调里不许抛、不许影响这次调用。
    */
   onUsage?: (usage: LlmTextUsage) => void
+  /**
+   * 这次调用记到谁的账上（平台点数）。⭐ 原样递路由带的 `route.meter`；缺 / `null` = 不属于
+   * 任何用户（健康检查、离线评测、单测），不入账。⚠ 生产调用方漏传就是漏账。
+   */
+  meter?: LlmUsageMeter | null
 }
 
 export interface ResolvedLlmTextRoute {
   adapterType: AI_ADAPTER_TYPES
   providerConfig: ProviderConfig
   apiKey: string
+  /** 这把 key 的花费记到谁的账上；调用方原样放进 `LlmTextInput.meter`。 */
+  meter: LlmUsageMeter
 }
 
 // ─── Response Schemas ────────────────────────────────────────────
@@ -1115,6 +1127,57 @@ export async function resolveLlmTextRoute(
       baseUrl: getBaseUrlForAdapter(adapterType),
     },
     apiKey: decryptApiKey(specificKey.encryptedKey),
+    meter: { userId, funding: USAGE_FUNDING.byok },
+  }
+}
+
+// ─── Usage metering（平台点数）────────────────────────────────────
+
+/**
+ * 一次调用一行账：包一层 `onUsage` 记下最后一次 usage，调用结束（成功、失败、被掐）时写进
+ * `ApiUsageLedger`。`meter` 为 `null` 时原样放行。
+ */
+function startLlmUsage<T extends { meter?: LlmUsageMeter | null }>(
+  input: T & {
+    adapterType: AI_ADAPTER_TYPES
+    modelId?: string
+    onUsage?: (usage: LlmTextUsage) => void
+  },
+) {
+  const startedAt = Date.now()
+  let usage: LlmTextUsage | null = null
+  const meter = input.meter ?? null
+  return {
+    input: meter
+      ? {
+          ...input,
+          onUsage: (next: LlmTextUsage) => {
+            usage = next
+            input.onUsage?.(next)
+          },
+        }
+      : input,
+    settle(error?: unknown) {
+      if (!meter) return
+      recordLlmUsage({
+        meter,
+        adapterType: input.adapterType,
+        modelId:
+          input.modelId ??
+          (isLlmTextAdapter(input.adapterType)
+            ? LLM_TEXT_MODELS[input.adapterType]
+            : input.adapterType),
+        usage,
+        ok: error === undefined,
+        durationMs: Date.now() - startedAt,
+        ...(error === undefined
+          ? {}
+          : {
+              errorMessage:
+                error instanceof Error ? error.message : String(error),
+            }),
+      })
+    },
   }
 }
 
@@ -2725,9 +2788,13 @@ export async function* llmTextStream(
     )
   }
   guardUserPrompt(input.userPrompt, input.promptGuardMaxLength)
+  const metered = startLlmUsage(input)
+  // 结账放 finally：调用方中途 break 出去（拿够了）也照样记一行。
+  let failure: { error: unknown } | null = null
   try {
-    yield* LLM_TEXT_STREAMS[input.adapterType](input)
+    yield* LLM_TEXT_STREAMS[input.adapterType](metered.input)
   } catch (error) {
+    failure = { error }
     input.signal?.throwIfAborted()
     if (isAbortError(error)) {
       throw toLlmTextTimeoutError({
@@ -2737,6 +2804,27 @@ export async function* llmTextStream(
       })
     }
     throw error
+  } finally {
+    metered.settle(failure ? failure.error : undefined)
+  }
+}
+
+function completeWithAdapter(input: LlmTextInput): Promise<string> {
+  switch (input.adapterType) {
+    case AI_ADAPTER_TYPES.GEMINI:
+      return geminiTextCompletion(input)
+    case AI_ADAPTER_TYPES.OPENAI:
+      return openAiTextCompletion(input)
+    case AI_ADAPTER_TYPES.DEEPSEEK:
+      return deepseekTextCompletion(input)
+    case AI_ADAPTER_TYPES.ANTHROPIC:
+      return anthropicTextCompletion(input)
+    case AI_ADAPTER_TYPES.XAI:
+      return xaiTextCompletion(input)
+    default:
+      throw new Error(
+        `LLM text completion not supported for adapter: ${input.adapterType}`,
+      )
   }
 }
 
@@ -2755,24 +2843,13 @@ export async function llmTextCompletion(input: LlmTextInput): Promise<string> {
     )
   }
   guardUserPrompt(input.userPrompt, input.promptGuardMaxLength)
+  const metered = startLlmUsage(input)
   try {
-    switch (input.adapterType) {
-      case AI_ADAPTER_TYPES.GEMINI:
-        return await geminiTextCompletion(input)
-      case AI_ADAPTER_TYPES.OPENAI:
-        return await openAiTextCompletion(input)
-      case AI_ADAPTER_TYPES.DEEPSEEK:
-        return await deepseekTextCompletion(input)
-      case AI_ADAPTER_TYPES.ANTHROPIC:
-        return await anthropicTextCompletion(input)
-      case AI_ADAPTER_TYPES.XAI:
-        return await xaiTextCompletion(input)
-      default:
-        throw new Error(
-          `LLM text completion not supported for adapter: ${input.adapterType}`,
-        )
-    }
+    const text = await completeWithAdapter(metered.input)
+    metered.settle()
+    return text
   } catch (error) {
+    metered.settle(error)
     input.signal?.throwIfAborted()
     if (isAbortError(error) && isLlmTextAdapter(input.adapterType)) {
       throw toLlmTextTimeoutError({
@@ -2848,6 +2925,8 @@ export interface LlmNativeSearchInput {
    * 这一次开 `enable_video_understanding`。缺席 = 只看封面。⚠ 只对 Grok 有意义。
    */
   xVideos?: boolean
+  /** 同 `LlmTextInput.meter`：原样递 `route.meter`。各家联网搜不回报 token，只记一次调用。 */
+  meter?: LlmUsageMeter | null
 }
 
 const NATIVE_SEARCH_MAX_USES = 3
@@ -3659,6 +3738,20 @@ export async function llmNativeWebSearch(
   input: LlmNativeSearchInput,
 ): Promise<LlmNativeSearchResult> {
   input.signal?.throwIfAborted()
+  const metered = startLlmUsage(input)
+  try {
+    const result = await nativeWebSearchWithAdapter(input)
+    metered.settle(result.status === 'failed' ? result.error : undefined)
+    return result
+  } catch (error) {
+    metered.settle(error)
+    throw error
+  }
+}
+
+function nativeWebSearchWithAdapter(
+  input: LlmNativeSearchInput,
+): Promise<LlmNativeSearchResult> {
   switch (input.adapterType) {
     case AI_ADAPTER_TYPES.GEMINI:
       return geminiNativeWebSearch(input)

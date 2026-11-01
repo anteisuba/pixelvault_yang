@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { USAGE_FUNDING } from '@/constants/credits'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { findActiveKeyForAdapter } from '@/services/apiKey.service'
 import { resolveAssistantModelId } from '@/constants/node-studio'
@@ -32,6 +33,7 @@ export async function findXSearchRoute(
       adapterType: key.adapterType,
       providerConfig: key.providerConfig,
       apiKey: key.keyValue,
+      meter: { userId, funding: USAGE_FUNDING.byok },
     },
     ...(modelId ? { modelId } : {}),
   }

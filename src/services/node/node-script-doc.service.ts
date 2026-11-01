@@ -398,6 +398,7 @@ export async function createNodeScriptDoc(
           adapterType: route.adapterType,
           providerConfig: route.providerConfig,
           apiKey: route.apiKey,
+          meter: route.meter,
           ...(modelId ? { modelId } : {}),
         }),
       )

@@ -8,6 +8,7 @@ import {
   EXECUTION_WORKER,
   EXECUTION_WORKFLOW_IDS,
 } from '@/constants/execution'
+import { USAGE_FUNDING, USAGE_KINDS } from '@/constants/credits'
 import { GENERATION_ERROR_CODES } from '@/constants/generation-errors'
 import { getExecutionModelId, getModelById } from '@/constants/models'
 import {
@@ -649,6 +650,10 @@ export async function generateAudioForUser(
           requestCount: result.requestCount,
           durationMs: timer.elapsedMs(),
           wasSuccessful: true,
+          kind: USAGE_KINDS.audio,
+          funding: route.resolvedApiKeyId
+            ? USAGE_FUNDING.byok
+            : USAGE_FUNDING.platform,
         })
 
         return createdGeneration
@@ -809,6 +814,10 @@ export async function generateSoundEffectForUser(
         requestCount: result.requestCount,
         durationMs: timer.elapsedMs(),
         wasSuccessful: true,
+        kind: USAGE_KINDS.audio,
+        funding: route.resolvedApiKeyId
+          ? USAGE_FUNDING.byok
+          : USAGE_FUNDING.platform,
       })
     })
 
@@ -960,6 +969,10 @@ export async function generateMusicForUser(
         requestCount: result.requestCount,
         durationMs: timer.elapsedMs(),
         wasSuccessful: true,
+        kind: USAGE_KINDS.audio,
+        funding: route.resolvedApiKeyId
+          ? USAGE_FUNDING.byok
+          : USAGE_FUNDING.platform,
       })
     })
 
@@ -1618,6 +1631,10 @@ export async function checkAudioGenerationStatus(
             outputImageCount: 0,
             durationMs: Date.now() - job.createdAt.getTime(),
             wasSuccessful: true,
+            kind: USAGE_KINDS.audio,
+            funding: executionRoute.isFreeGeneration
+              ? USAGE_FUNDING.platform
+              : USAGE_FUNDING.byok,
           },
           tx,
         )

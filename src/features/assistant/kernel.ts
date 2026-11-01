@@ -71,7 +71,9 @@ import { listNextAssistantMemoriesForPrompt } from '@/services/assistant-memory.
 import {
   LLM_TEXT_PROVIDER_ERROR_CODES,
   toLlmTextProviderError,
+  type LlmTextUsage,
 } from '@/services/llm-text.service'
+import { recordLlmUsage } from '@/services/llm-usage.service'
 import {
   getHomeChatCharacterId,
   sanitizePromptCharacter,
@@ -1066,6 +1068,8 @@ async function* runNextTurn(
       return
     }
 
+    const llmStartedAt = Date.now()
+    let llmUsage: LlmTextUsage | null = null
     const callLog = startCallLog(
       {
         callLog: {
@@ -1234,7 +1238,7 @@ async function* runNextTurn(
         })
       response = await result.response
       const usage = await result.usage
-      callLog.onUsage({
+      llmUsage = {
         ...(usage.inputTokens === undefined
           ? {}
           : { inputTokens: usage.inputTokens }),
@@ -1250,10 +1254,28 @@ async function* runNextTurn(
         ...(usage.inputTokenDetails.cacheWriteTokens === undefined
           ? {}
           : { cacheWriteTokens: usage.inputTokenDetails.cacheWriteTokens }),
-      })
+      }
+      callLog.onUsage(llmUsage)
       callLog.finish('ok')
+      recordLlmUsage({
+        meter: route.meter,
+        adapterType: route.adapterType,
+        modelId,
+        usage: llmUsage,
+        ok: true,
+        durationMs: Date.now() - llmStartedAt,
+      })
     } catch (error) {
       callLog.finish(signal.aborted ? 'aborted' : 'error')
+      recordLlmUsage({
+        meter: route.meter,
+        adapterType: route.adapterType,
+        modelId,
+        usage: llmUsage,
+        ok: false,
+        durationMs: Date.now() - llmStartedAt,
+        errorMessage: error instanceof Error ? error.message : String(error),
+      })
       watch.dispose()
       if (signal.aborted) {
         yield {

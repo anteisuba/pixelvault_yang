@@ -37,6 +37,7 @@ const options = {
     adapterType: AI_ADAPTER_TYPES.OPENAI,
     providerConfig: { label: 'OpenAI', baseUrl: 'https://api.openai.com/v1' },
     apiKey: 'test-key',
+    meter: { userId: 'user-1', funding: 'byok' as const },
   },
   contextCompactionTargetLength: 20,
 }

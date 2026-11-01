@@ -3220,6 +3220,7 @@ async function planResearch(
               adapterType: nativeAdapter,
               providerConfig: native!.route.providerConfig,
               apiKey: native!.route.apiKey,
+              meter: native!.route.meter,
               ...(native!.modelId ? { modelId: native!.modelId } : {}),
               systemPrompt: NATIVE_SEARCH_SYSTEM_PROMPT,
               query: [...entities, args.goal].join(' '),

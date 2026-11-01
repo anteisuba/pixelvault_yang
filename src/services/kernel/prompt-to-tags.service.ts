@@ -44,6 +44,7 @@ export async function translatePromptToTags(
     adapterType: route.adapterType,
     providerConfig: route.providerConfig,
     apiKey: route.apiKey,
+    meter: route.meter,
     modelId,
   })
 

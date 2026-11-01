@@ -30,7 +30,6 @@ import {
   resolveAssistantRoute,
   type AssistantRoute,
 } from '@/services/kernel/assistant-route.service'
-import { createApiUsageEntry } from '@/services/usage.service'
 import { ensureUser } from '@/services/user.service'
 import {
   OutingVideoLinkSchema,
@@ -444,23 +443,7 @@ export async function runOutingChunk(outingId: string): Promise<void> {
       },
       select: { id: true },
     })
-    if (routeInfo && meter.calls > 0) {
-      await createApiUsageEntry({
-        userId: outing.userId,
-        adapterType: routeInfo.route.adapterType,
-        provider: routeInfo.route.adapterType,
-        modelId: routeInfo.modelId,
-        requestCount: meter.calls,
-        outputImageCount: 0,
-        durationMs: Date.now() - outing.startedAt.getTime(),
-        wasSuccessful: status !== CHARACTER_OUTING_STATUS.failed,
-      }).catch((error: unknown) =>
-        logger.warn('character outing usage entry failed', {
-          outingId: outing.id,
-          error: error instanceof Error ? error.message : String(error),
-        }),
-      )
-    }
+    // 账本不在这里记总数：这一趟的每次模型调用已经各记一行（kind = llm，平台点数第 1 片）。
     logger.info('character outing finished', {
       outingId: outing.id,
       cardId: card.id,

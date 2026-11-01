@@ -2,8 +2,10 @@ import 'server-only'
 
 import { z } from 'zod'
 
+import { USAGE_KINDS, type UsageKind } from '@/constants/credits'
 import { GENERATION_ERROR_CODES } from '@/constants/generation-errors'
 import { EXECUTION_PROGRESS_STAGE_VALUES } from '@/constants/generation-progress'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { CharacterLookIdsSchema, type ExecutionCallbackPayload } from '@/types'
 import {
   executionCallbackStatusDataSchema,
@@ -36,6 +38,8 @@ import {
   completeGenerationJob,
   createApiUsageEntry,
   failActiveGenerationJob,
+  generationJobFunding,
+  type CreateApiUsageEntryInput,
 } from '@/services/usage.service'
 
 const GENERATION_JOB_STATUSES = [
@@ -326,6 +330,7 @@ export async function handleExecutionCallback(
       prompt: true,
       externalRequestId: true,
       createdAt: true,
+      funding: true,
     },
   })
 
@@ -482,19 +487,40 @@ function moderationNote(
   return parts.length ? `[moderation: ${parts.join(' · ')}]` : null
 }
 
+interface CallbackJob {
+  id: string
+  userId: string
+  status: string
+  adapterType: string
+  provider: string
+  modelId: string
+  prompt: string | null
+  externalRequestId: string | null
+  createdAt: Date
+  funding: string | null
+}
+
+/**
+ * 平台点数第 1 片：这一行账是什么花费、谁出钱。Modal Runner 记成 `gpu`，并把这次任务从建到
+ * 回调的秒数记成占卡秒数（含冷启动；Modal 自己不回报计费秒数，这是上限估计）。
+ */
+function ledgerUsageForJob(
+  job: CallbackJob,
+  kind: UsageKind,
+): Pick<CreateApiUsageEntryInput, 'kind' | 'funding' | 'gpuSeconds'> {
+  const isRunner = job.adapterType === AI_ADAPTER_TYPES.RUNNER
+  return {
+    kind: isRunner ? USAGE_KINDS.gpu : kind,
+    funding: generationJobFunding(job),
+    ...(isRunner
+      ? { gpuSeconds: (Date.now() - job.createdAt.getTime()) / 1000 }
+      : {}),
+  }
+}
+
 async function finalizeExecutionResult(
   payload: ExecutionCallbackPayload,
-  job: {
-    id: string
-    userId: string
-    status: string
-    adapterType: string
-    provider: string
-    modelId: string
-    prompt: string | null
-    externalRequestId: string | null
-    createdAt: Date
-  },
+  job: CallbackJob,
   jobStatus: ExecutionCallbackJobStatus,
   options: ExecutionCallbackOptions,
 ): Promise<CallbackResult> {
@@ -721,6 +747,10 @@ async function finalizeExecutionResult(
             height: outputType === 'VIDEO' ? resultData.height : undefined,
             durationMs: Date.now() - job.createdAt.getTime(),
             wasSuccessful: true,
+            ...ledgerUsageForJob(
+              job,
+              outputType === 'AUDIO' ? USAGE_KINDS.audio : USAGE_KINDS.video,
+            ),
           },
           tx,
         )
@@ -780,17 +810,7 @@ async function finalizeExecutionResult(
 async function finalizeModel3DResult(
   payload: ExecutionCallbackPayload,
   resultData: ReturnType<typeof parseResultData>,
-  job: {
-    id: string
-    userId: string
-    status: string
-    adapterType: string
-    provider: string
-    modelId: string
-    prompt: string | null
-    externalRequestId: string | null
-    createdAt: Date
-  },
+  job: CallbackJob,
   metadata: ReturnType<typeof parseWorkerJobMetadata>,
 ): Promise<CallbackResult> {
   if (!resultData.glbR2Key) {
@@ -898,6 +918,7 @@ async function finalizeModel3DResult(
             outputImageCount: 0,
             durationMs: Date.now() - job.createdAt.getTime(),
             wasSuccessful: true,
+            ...ledgerUsageForJob(job, USAGE_KINDS.model3d),
           },
           tx,
         )
@@ -956,17 +977,7 @@ async function finalizeModel3DResult(
 async function finalizeImageResult(
   payload: ExecutionCallbackPayload,
   resultData: ReturnType<typeof parseResultData>,
-  job: {
-    id: string
-    userId: string
-    status: string
-    adapterType: string
-    provider: string
-    modelId: string
-    prompt: string | null
-    externalRequestId: string | null
-    createdAt: Date
-  },
+  job: CallbackJob,
   metadata: ReturnType<typeof parseWorkerJobMetadata>,
   options: ExecutionCallbackOptions,
 ): Promise<CallbackResult> {
@@ -1143,6 +1154,7 @@ async function finalizeImageResult(
             height: resultData.height,
             durationMs: Date.now() - job.createdAt.getTime(),
             wasSuccessful: true,
+            ...ledgerUsageForJob(job, USAGE_KINDS.image),
           },
           tx,
         )

@@ -243,6 +243,7 @@ export async function tidyImportedCard(input: {
       responseFormat: 'json_object',
       adapterType: route.adapterType,
       apiKey: route.apiKey,
+      meter: route.meter,
       providerConfig: route.providerConfig,
       modelId,
       signal: AbortSignal.timeout(CHARACTER_TIDY.timeoutMs),

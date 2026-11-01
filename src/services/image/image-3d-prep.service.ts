@@ -112,6 +112,7 @@ async function inspect3DSourceSemanticIssues(params: {
       adapterType: route.adapterType,
       providerConfig: route.providerConfig,
       apiKey: route.apiKey,
+      meter: route.meter,
       modelId,
     })
     const cleaned = raw

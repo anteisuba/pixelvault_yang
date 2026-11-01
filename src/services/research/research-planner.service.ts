@@ -152,6 +152,7 @@ export async function planResearchWithLlm(params: {
         adapterType: route.adapterType,
         providerConfig: route.providerConfig,
         apiKey: route.apiKey,
+        meter: route.meter,
         maxTokens: RESEARCH_LIMITS.plannerMaxTokens,
         /**
          * ⭐ 显式 `low`（P2 §2.6「子调用显式传档位」）：这一跳只把一句话磨成几条搜索词、判个

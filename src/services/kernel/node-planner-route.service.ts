@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { USAGE_FUNDING } from '@/constants/credits'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   SCRIPT_PLANNER_PROVIDER_IDS,
@@ -55,6 +56,7 @@ async function resolveSpecificNodePlannerRoute(
       adapterType: userKey.adapterType,
       providerConfig: userKey.providerConfig,
       apiKey: userKey.keyValue,
+      meter: { userId, funding: USAGE_FUNDING.byok },
       modelId: SCRIPT_PLANNER_MODELS[provider].modelId,
       label: userKey.providerConfig.label,
     }

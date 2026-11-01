@@ -64,6 +64,7 @@ vi.mock('@/services/usage.service', () => ({
   failGenerationJob: (...args: unknown[]) => mockFailGenerationJob(...args),
   failActiveGenerationJob: (...args: unknown[]) =>
     mockFailActiveGenerationJob(...args),
+  generationJobFunding: () => 'byok',
 }))
 
 vi.mock('@/services/prompts/recipe.service', () => ({
@@ -192,6 +193,7 @@ describe('execution-callback.service', () => {
         prompt: true,
         externalRequestId: true,
         createdAt: true,
+        funding: true,
       },
     })
     expect(mockFailGenerationJob).not.toHaveBeenCalled()
@@ -1104,7 +1106,11 @@ describe('execution-callback.service', () => {
       expect.anything(),
     )
     expect(mockCreateApiUsageEntry).toHaveBeenCalledWith(
-      expect.objectContaining({ outputImageCount: 1 }),
+      expect.objectContaining({
+        outputImageCount: 1,
+        kind: 'image',
+        funding: 'byok',
+      }),
       expect.anything(),
     )
   })

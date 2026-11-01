@@ -83,6 +83,7 @@ import {
   failGenerationJob,
   failActiveGenerationJob,
   createApiUsageEntry,
+  generationJobFunding,
   attachUsageEntryToGeneration,
   getRunnerUsage,
   assertRunnerMonthlyLimitNotExceeded,
@@ -479,6 +480,32 @@ describe('usage.service', () => {
     })
   })
 
+  describe('generationJobFunding', () => {
+    it('trusts the funding recorded on the job', () => {
+      expect(
+        generationJobFunding({ funding: 'byok', adapterType: 'runner' }),
+      ).toBe('byok')
+      expect(
+        generationJobFunding({ funding: 'platform', adapterType: 'fal' }),
+      ).toBe('platform')
+    })
+
+    it('infers old jobs from the adapter: only the Runner is platform-funded', () => {
+      expect(
+        generationJobFunding({
+          funding: null,
+          adapterType: AI_ADAPTER_TYPES.RUNNER,
+        }),
+      ).toBe('platform')
+      expect(
+        generationJobFunding({
+          funding: null,
+          adapterType: AI_ADAPTER_TYPES.FAL,
+        }),
+      ).toBe('byok')
+    })
+  })
+
   describe('createApiUsageEntry', () => {
     it('applies defaults: requestCount=1, outputImageCount=1, inputImageCount=0', async () => {
       const mockEntry = { id: 'entry-1' }
@@ -490,6 +517,8 @@ describe('usage.service', () => {
         provider: 'fal.ai',
         modelId: 'fal-ai/flux-2-pro',
         wasSuccessful: true,
+        kind: 'image',
+        funding: 'byok',
       })
 
       expect(mockCreate).toHaveBeenCalledWith(
@@ -515,6 +544,8 @@ describe('usage.service', () => {
         modelId: 'fal-ai/flux-2-pro',
         requestCount: 3,
         wasSuccessful: true,
+        kind: 'image',
+        funding: 'byok',
       })
 
       expect(mockCreate).toHaveBeenCalledWith(

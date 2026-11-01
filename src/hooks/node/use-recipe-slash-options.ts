@@ -4,7 +4,7 @@ import { useEffect, useMemo } from 'react'
 import { useTranslations } from 'next-intl'
 
 import type { MentionPickerOption } from '@/components/business/node/nodes/v4/chrome/MentionPicker'
-import { prefetchRecipes, useRecipes } from '@/hooks/prompts/use-recipes'
+import { prefetchRecipes, useRecipes } from '@/features/prompts'
 import { markRecipeUsedAPI } from '@/lib/api-client/recipes'
 import type { RecipeRecord } from '@/types'
 

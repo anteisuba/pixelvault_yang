@@ -8,7 +8,7 @@ import {
   Tag,
 } from '@/components/icons'
 import type { LucideIcon } from '@/components/icons'
-import { PROMPT_OUTPUT_TYPE_LABEL_KEYS } from '@/constants/prompt-library'
+import { PROMPT_OUTPUT_TYPE_LABEL_KEYS } from '@/features/prompts/constants'
 import type {
   RecipeTemplateKind,
   TagTemplateSource,

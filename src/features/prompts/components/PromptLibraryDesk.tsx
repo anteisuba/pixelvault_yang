@@ -6,7 +6,7 @@ import { AnimatePresence } from 'motion/react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
-import { PROMPT_OUTPUT_TYPE_LABEL_KEYS } from '@/constants/prompt-library'
+import { PROMPT_OUTPUT_TYPE_LABEL_KEYS } from '@/features/prompts/constants'
 import { ASSISTANT_LIBRARY_SCREEN_LIMIT } from '@/types/assistant-operator'
 import {
   Bookmark,
@@ -41,14 +41,14 @@ import {
   MediaTileMoreTrigger,
   MediaTileShade,
 } from '@/components/ui/media-tile'
-import { usePromptTemplateModelLabel } from '@/hooks/use-prompt-template-model-label'
+import { usePromptTemplateModelLabel } from '@/features/prompts/hooks/use-prompt-template-model-label'
 import {
   useLibraryChanged,
   useLibraryShowRequest,
   useReportLibraryItem,
   useReportLibraryScreen,
 } from '@/hooks/use-library-view'
-import { usePromptTemplateUse } from '@/hooks/use-prompt-template-use'
+import { usePromptTemplateUse } from '@/features/prompts/hooks/use-prompt-template-use'
 import { useSearchExpansion } from '@/hooks/use-search-expansion'
 import { useRouter } from '@/i18n/navigation'
 import type { AppLocale } from '@/i18n/routing'

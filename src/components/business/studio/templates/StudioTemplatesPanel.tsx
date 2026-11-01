@@ -20,7 +20,7 @@ import type { PromptDialect } from '@/constants/prompt-dialects'
 import { ROUTES } from '@/constants/routes'
 import { STUDIO_TEMPLATES_PANEL_ID } from '@/constants/studio'
 import { useStudioGenOptional } from '@/contexts/studio-context'
-import { useRecipes } from '@/hooks/prompts/use-recipes'
+import { useRecipes } from '@/features/prompts'
 import { useRouter } from '@/i18n/navigation'
 import {
   createRecipeAPI,

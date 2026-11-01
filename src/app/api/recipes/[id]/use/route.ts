@@ -2,7 +2,7 @@ import 'server-only'
 
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import { createApiPutRoute } from '@/lib/api-route-factory'
-import { markRecipeUsed } from '@/services/prompts/recipe.service'
+import { markRecipeUsed } from '@/features/prompts/server'
 import { MarkRecipeUsedRequestSchema } from '@/types'
 
 export const POST = createApiPutRoute({

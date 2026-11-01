@@ -50,7 +50,7 @@ vi.mock('@/services/project-rule.service', () => ({
     { id: 'r1', text: 'pinterest.com', kind: 'sourceDeny', scope: null },
   ]),
 }))
-vi.mock('@/services/prompts/recipe.service', () => ({
+vi.mock('@/features/prompts/server', () => ({
   listRecipeSummaries: recipes,
 }))
 vi.mock('@/services/search-expansion.service', () => ({

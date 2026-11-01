@@ -23,7 +23,7 @@ import {
   listLoraAssetsForUser,
 } from '@/services/lora-asset.service'
 import { listProjectSourceRules } from '@/services/project-rule.service'
-import { listRecipeSummaries } from '@/services/prompts/recipe.service'
+import { listRecipeSummaries } from '@/features/prompts/server'
 import { expandSearchQuery } from '@/services/search-expansion.service'
 import {
   ASSISTANT_NEXT_FIND_KIND_IDS as KIND,

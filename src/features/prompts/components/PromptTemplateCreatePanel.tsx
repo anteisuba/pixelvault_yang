@@ -15,7 +15,7 @@ import {
   TAG_TEMPLATE_PLACEHOLDER_MODEL_ID,
   toPromptTemplateOutputType,
   type PromptTemplateCreateKind,
-} from '@/constants/prompt-library'
+} from '@/features/prompts/constants'
 import {
   AI_ADAPTER_TYPES,
   getDefaultProviderConfig,

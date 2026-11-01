@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { TAG_TEMPLATE_PLACEHOLDER_MODEL_ID } from '@/constants/prompt-library'
+import { TAG_TEMPLATE_PLACEHOLDER_MODEL_ID } from '@/features/prompts/constants'
 
 /**
  * 新建弹窗（pages/prompts.md「新建」，画板 `TgA_New`）：类型三格分段；选「标签」后

@@ -49,7 +49,6 @@
 
 | id                   | 事项                                                   |
 | -------------------- | ------------------------------------------------------ |
-| `f-small`            | 小域先搬（提示词、画廊、素材、设置等）                 |
 | `f-cards-lora`       | 角色卡与 LoRA 域                                       |
 | `f-studio`           | 工作台域                                               |
 | `f-assistant-canvas` | 助手与画布（助手新内核已在 `src/features/assistant/`） |
@@ -140,6 +139,10 @@
 - 删死代码 `card-tile-base`、`MediaCardTile`（含测试）
 - 删停用旧列 `Recipe.visibility`、`CharacterCard.browse*` 五列（迁移 `20261101170000_drop_retired_columns`）
 - 偶发红测试：`vitest.setup.ts` 每例结束等 Radix FocusScope 卸载定时器跑完（原 `HuggingFaceLoraLibrary.test.tsx` 偶发红）
+
+### 按域搬家（11-01 起）
+
+- `f-small` 四个小域搬进 `src/features/<域>/`（11-01）：提示词库 f623e53、画廊 5d43604、素材 0019dac、设置 4cdc1f8。每域一个提交，`index.ts`（客户端）/ `server.ts`（服务端）两个入口，调用方同提交改完不留垫片。规矩与清单见 [`design/features-migration.md`](design/features-migration.md)；API key、拖拽 MIME、网格排版这些跨域的留在共享层
 
 ### 角色大项目（`p-character-redesign`，10-30 → 11-01 直推 main）
 

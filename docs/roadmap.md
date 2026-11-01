@@ -23,7 +23,7 @@
 
 2026-11-01 owner 定方向（见 [`references/product.md`](references/product.md) 北极星）：核心是助手，台和画布是她的工具。顺序 owner 交给 Claude 定，11-01 晚 owner 点头如下：
 
-1. **`p-platform-credits` 点数地基**：所有调用（LLM token / 图 / 视频 / 声音 / Modal GPU 秒）折成点数、每人额度、用量可见。Modal 免费给所有用户跑、朋友试用先给额度玩、助手「花钱多先问」、角色出门额度，四件都踩在这套上。先出设计稿 `design/platform-credits.md`，owner 看稿后做。
+1. **`p-platform-credits` 点数地基**：所有调用（LLM token / 图 / 视频 / 声音 / Modal GPU 秒）折成点数、每人额度、用量可见。Modal 免费给所有用户跑、朋友试用先给额度玩、助手「花钱多先问」、角色出门额度，四件都踩在这套上。设计稿 `design/platform-credits.md` 11-01 owner 定稿（1 点 = 1 美分；朋友额度可用 DeepSeek 走 owner key；自带 key 只显示不拦；新用户送 100 点）。按稿五片做：① 账本 + LLM 入账（11-01 744b71c）→ ② 估价函数 + LLM 单价表 → ③ 额度 → ④ 助手钱闸接点数 → ⑤ 出门换新点。
 2. **`p-assistant-autonomy` 助手自主度（含 `p-assistant-undo` 撤回）**：像讨论一样——拿得准直接做完，拿不准先问一句「这样可以吗」，不行换方案；三种先问（改坏已有东西 / 花钱明显多 / 意思有两种读法）；所有助手动作可撤回是底线。先出设计稿 `design/assistant-autonomy.md`（现状：助手现在哪些地方停下来问、哪些直接做；改法；改完什么样），owner 看稿后做。`p-assistant-modes`（反问模式）并入。
 3. **`p-canvas-shotlist` 画布镜头表框架**：先框架后逐镜生成；表能从参考视频拆（原 `p-canvas-breakdown` 拉片）也能由助手填；默认先低清草稿看剧情、满意再精修。先出设计稿 `design/canvas-shotlist.md`，owner 看稿后做。`p-canvas-polish` 里已记的两项轮到时一起。
 4. **UI：各台按样件 E 细修**——标签台 → 视频 / 3D → 配音间 → 画布，每台开工前对齐。规范见 `references/ui-spec.md`。

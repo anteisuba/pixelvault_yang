@@ -16,7 +16,7 @@ import type {
   MentionCandidate,
   MentionToken,
 } from '@/components/ui/mention-input'
-import { useCharacterLibrary } from '@/features/cards'
+import { useCharacterLibrary } from '@/features/cards/hooks'
 import { characterCoverUrl } from '@/lib/card-bus'
 import { mentionedCharacters } from '@/lib/node-character-mentions'
 

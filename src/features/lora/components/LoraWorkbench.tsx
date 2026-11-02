@@ -110,7 +110,7 @@ import {
   CharacterLorasProvider,
   useCharacterLorasContext,
 } from '@/features/lora/components/character-loras-context'
-import { useCharacterLoras } from '@/features/cards'
+import { useCharacterLoras } from '@/features/cards/hooks'
 import { LoraNegativeInertHint } from '@/features/lora/components/LoraNegativeInertHint'
 import { LoraBasePill } from '@/features/lora/components/LoraBasePill'
 import { LoraMountPills } from '@/features/lora/components/LoraMountPills'

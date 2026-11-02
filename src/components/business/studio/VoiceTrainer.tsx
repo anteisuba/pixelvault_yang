@@ -10,7 +10,7 @@ import {
   VOICE_TRAIN_MAX_FILES,
   VOICE_TRAIN_MAX_FILE_BYTES,
 } from '@/constants/voice-cards'
-import { useVoiceCards } from '@/features/cards'
+import { useVoiceCards } from '@/features/cards/hooks'
 import { createVoiceAPI, transcribeVoiceAPI } from '@/lib/api-client'
 import { cn } from '@/lib/utils'
 

@@ -21,7 +21,8 @@ import { isMissingKeyModelOption } from '@/hooks/use-split-model-options'
 import { useVideoModelOptions } from '@/hooks/use-video-model-options'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { getProviderLabel } from '@/constants/providers'
-import { LoraTrainingDialog } from '@/features/lora'
+// 共享层直引域内文件（不走域入口）：入口会把整个域的组件一起加载。见 docs/design/features-migration.md「共享层引域」
+import { LoraTrainingDialog } from '@/features/lora/components/LoraTrainingDialog'
 import { DialogTitle } from '@/components/ui/dialog'
 
 /**

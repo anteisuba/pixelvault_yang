@@ -11,7 +11,8 @@ src/features/<域>/
   services/     这个域自己的服务端逻辑（仍是唯一碰 DB / 外部 API 的层）
   lib/          这个域自己的纯函数
   constants.ts  这个域自己的常量（多了再拆 constants/）
-  index.ts      对外入口：客户端的组件、hook
+  index.ts      对外入口：客户端组件
+  hooks/index.ts 对外入口（按需）：客户端 hook——只要 hook 时走 `@/features/<域>/hooks`，不会把整个域的组件一起加载
   server.ts     对外入口：只给服务端（services），首行 `import 'server-only'` 的照旧
   core.ts       对外入口（按需）：纯函数与常量，两边都能引
 ```
@@ -19,6 +20,7 @@ src/features/<域>/
 - 层次规矩不变：constants/types → services → hooks → components；域内照 `CLAUDE.md` 的 Hard Rules 写。
 - **留在原处的共享层**（不归任何一个域）：`components/ui/`、`lib/api-client/`（Hard Rule 3：API 调用都走它）、`types/index.ts` 的 Zod schema、`constants/` 里跨域的（模型、路由、config）、`services/` 里跨域的（storage、providers、user、credit）、`messages/`（已按模块分文件夹）。
 - 入口分开，是为了客户端组件 import 域入口时不把服务端代码一起打进浏览器包。
+- `hooks` 入口（11-02 加）：`studio-context` 只要一个 `useCharacterCards`，走 `index.ts` 就把整个角色卡页面连带助手面板一起加载进来（main 上的 CI 因此红过一次）。共享层（`contexts/` `lib/` `hooks/`）只许引 `hooks` / `core` / `server` 这种轻入口
 - `core.ts`（11-01 LoRA 搬家时加）：别的域只要一个纯函数时，走 `index.ts` 会把整个域的组件一起加载（测试慢一倍、服务端还会引到客户端组件）。所以 `lib/`、`constants` 里被域外用到的，统一从 `core.ts` 出。
 - 域内互相引用写完整路径 `@/features/<域>/...`；域外只走 `@/features/<域>` 或 `@/features/<域>/server`（`f-boundary` 用 eslint 拦）。
 - `app/` 路由文件也走入口。测试文件跟着被测文件一起搬（`git mv`，保留历史）。

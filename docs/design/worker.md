@@ -61,7 +61,7 @@ ComfyUI：Modal 上的 ComfyUI 只是一个驱动（runner）。`workflow-builde
 1. ~~删 RunPod 旧分支~~（#312）
 2. ~~抽公共层：取 key、回调、签名合成一份~~（11-01，`workers/execution/src/lib/app-bridge.ts`：签名 / 验签、`postSignedJson`、`resolveRunApiKey`、`resolveRunCivitaiToken`、`emitRunResultCallback`，原 7 份重复函数删掉，只搬不改行为）。「上传」没合：图 / 视频 / 音频 / 3D 四份下载存 R2 的写法各有差别（视频要手动跟跳转防 key 外泄、返回结构不同），合并会改行为，放到第 4、5 步通用流程时一起收。
 3. ~~定驱动接口和共用契约，先把 NAI 迁成驱动~~（11-02）：共用契约 `src/constants/worker-image-providers.ts`（零 import，Worker 也读；每家标 `single-step` / `multi-step`），Next 的 `WORKER_MIGRATED_IMAGE_ADAPTERS` 从它派生，Worker 的 `SINGLE_STEP_IMAGE_DRIVERS` 按它穷举——少写一家驱动类型检查就报错。同步出图的 7 家（OpenAI / Gemini / HF / 火山 / BytePlus / NAI / PixAI）走一个通用步骤分支，驱动接口 `providers/types.ts` 的 `SingleStepImageDriver { stepName, generate }`，步骤名全部沿用。NAI 搬进 `providers/novelai/`（`image.ts` + `zip.ts` + 测试）；公共小件拆到 `lib/fields.ts`、`lib/bytes.ts`、`lib/image-io.ts`。接口先只有同步出图这一种，`poll` / `cancel` / `classifyError` / `concurrency` 等第 4 步搬异步那几家时按实际需要加。
-4. 其余图片供应商逐家迁移，图片流程变成通用流程。
+4. 其余图片供应商逐家迁移，图片流程变成通用流程。11-02 先做了流程这一半：先提交再轮询的 4 家（fal / Ideogram / Replicate / Runner）收成一个通用流程 `providers/multi-step-image.ts` 的 `runMultiStepImageDriver`，驱动接口 `MultiStepImageDriver`（`submit` / `poll` / `readPoll` / 可选 `doneOnSubmit`、`runningStage`、`cancelOnTimeout`、`upload` / `toResult`），步骤名按 `stepKey` 拼、和上线时一字不差；`generateImage` 只剩「查同步驱动表 → 查异步驱动表」两行。剩：除 NAI 外 10 家的实现代码搬进各自 `providers/<名字>/` 目录（纯搬文件）。
 5. 视频、音频、3D 迁入通用流程；旧流程等在跑的实例结束后再下线（Cloudflare Workflow 实例跑完才能删类）。
 6. 派发统一走 outbox（11-02 提前做完：`worker-dispatch-outbox.service`，现行做法见 `references/backend.md`「派发 outbox」；扩大试用的闸门之一，所以没等第 3–5 步），参考图改直传（未做）。
 7. 补可观测和契约测试（每家录一份真实响应）。

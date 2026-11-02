@@ -38,6 +38,7 @@ import { GENERATION_ERROR_CODES } from '../../../src/constants/generation-errors
 import {
   isWorkerImageProviderId,
   WORKER_IMAGE_PROVIDER_MODES,
+  type WorkerMultiStepImageProviderId,
   type WorkerSingleStepImageProviderId,
 } from '../../../src/constants/worker-image-providers'
 import { bytesToBase64, randomUint32 } from './lib/bytes'
@@ -63,7 +64,15 @@ import {
   generateNovelAiImage,
   novelAiImageDriver,
 } from './providers/novelai/image'
-import type { SingleStepImageDriver } from './providers/types'
+import {
+  runMultiStepImageDriver,
+  type ReportImageStage,
+} from './providers/multi-step-image'
+import type {
+  ImageDriverRuntime,
+  MultiStepImageDriver,
+  SingleStepImageDriver,
+} from './providers/types'
 
 export {
   bytesToBase64,
@@ -6521,6 +6530,290 @@ export function getSingleStepImageDriver(
   ]
 }
 
+const RETRY_TWICE = {
+  limit: 2,
+  delay: '5 seconds',
+  backoff: 'exponential',
+} as const
+
+const falImageDriver: MultiStepImageDriver<
+  FalQueueSubmitResult,
+  FalImageResult,
+  FalImageResult & { imageUrl: string }
+> = {
+  stepKey: 'fal',
+  submitStep: { retries: RETRY_TWICE, timeout: '30 seconds' },
+  pollStep: { retries: RETRY_TWICE, timeout: '120 seconds' },
+  async submit({ env, context, readApiKey }) {
+    const apiKey = await readApiKey()
+    const civitaiToken = hasCivitaiLora(context)
+      ? await resolveRunCivitaiToken(env, context)
+      : null
+    return submitFalImageQueue(context, apiKey, env, civitaiToken)
+  },
+  async poll({ readApiKey }, queue) {
+    return pollFalImageQueue(queue, await readApiKey())
+  },
+  readPoll(polled, _queue, context) {
+    if (polled.status === 'FAILED') {
+      throw new WorkerProviderError({
+        message: polled.error ?? 'fal.ai image generation failed.',
+        provider: context.providerId,
+        phase: 'image_poll',
+        errorCode: polled.errorCode,
+        providerMetadata: polled.providerMetadata,
+      })
+    }
+    if (polled.status === 'COMPLETED' && polled.imageUrl) {
+      return { state: 'done', value: { ...polled, imageUrl: polled.imageUrl } }
+    }
+    return { state: 'pending' }
+  },
+  timeoutError: () => new Error('fal.ai image generation timed out.'),
+  upload: {
+    step: { retries: RETRY_TWICE, timeout: '120 seconds' },
+    run: ({ env, context }, _queue, done) =>
+      downloadAndUploadImageArtifactToKey(
+        env,
+        done.imageUrl,
+        done.mimeType ?? 'image/png',
+        context.providerInput.outputStorageKey ?? `image/${context.runId}.png`,
+      ),
+  },
+  toResult(_queue, done, uploaded, context) {
+    if (!uploaded) throw new Error('fal.ai image upload result is missing.')
+    const dimensions = FAL_IMAGE_DIMENSIONS[
+      context.providerInput.aspectRatio
+    ] ?? { width: 1024, height: 1024 }
+    return {
+      artifactUrl: uploaded.artifactUrl,
+      imageR2Key: uploaded.imageR2Key,
+      width: done.width ?? dimensions.width,
+      height: done.height ?? dimensions.height,
+      mimeType: uploaded.mimeType,
+      providerMetadata: done.providerMetadata,
+    }
+  },
+}
+
+const ideogramImageDriver: MultiStepImageDriver<
+  string,
+  IdeogramPollResult,
+  Extract<IdeogramPollResult, { status: 'completed' }>
+> = {
+  stepKey: 'ideogram',
+  submitStep: {
+    retries: { limit: 0, delay: '1 second', backoff: 'constant' },
+    timeout: '150 seconds',
+  },
+  pollStep: { retries: RETRY_TWICE, timeout: '40 seconds' },
+  async submit({ env, context, readApiKey }) {
+    return submitIdeogramImageQueue(env, context, await readApiKey())
+  },
+  async poll({ readApiKey }, generationId) {
+    return pollIdeogramImageQueue(generationId, await readApiKey())
+  },
+  readPoll: (polled) =>
+    polled.status === 'completed'
+      ? { state: 'done', value: polled }
+      : { state: 'pending', nextDelayMs: polled.retryAfterMs },
+  timeoutError: (generationId) =>
+    new WorkerProviderError({
+      provider: 'ideogram',
+      phase: 'image_poll',
+      requestId: generationId,
+      errorCode: 'provider_timeout',
+      message: 'Ideogram image generation timed out.',
+    }),
+  upload: {
+    step: { retries: RETRY_TWICE, timeout: '120 seconds' },
+    run: ({ env, context }, _generationId, image) =>
+      downloadAndUploadImageArtifactToKey(
+        env,
+        image.imageUrl,
+        'image/png',
+        getWorkerImageOutputKey(context),
+      ),
+  },
+  toResult(_generationId, image, uploaded) {
+    if (!uploaded) throw new Error('Ideogram image upload result is missing.')
+    return {
+      ...uploaded,
+      width: image.width,
+      height: image.height,
+      providerMetadata: image.providerMetadata,
+    }
+  },
+}
+
+/** 出完的预测带上出图地址：地址在步骤外读，读不出来直接判失败、不进上传步骤重试。 */
+type CompletedReplicatePrediction = ReplicatePrediction & { imageUrl: string }
+
+function completeReplicatePrediction(
+  prediction: ReplicatePrediction,
+): CompletedReplicatePrediction {
+  return {
+    ...prediction,
+    imageUrl: extractReplicateImageUrl(prediction.output),
+  }
+}
+
+const replicateImageDriver: MultiStepImageDriver<
+  ReplicatePrediction,
+  ReplicatePrediction,
+  CompletedReplicatePrediction
+> = {
+  stepKey: 'replicate',
+  submitStep: { retries: RETRY_TWICE, timeout: '30 seconds' },
+  pollStep: { retries: RETRY_TWICE, timeout: '30 seconds' },
+  async submit({ env, context, readApiKey }) {
+    const apiKey = await readApiKey()
+    const civitaiToken = hasCivitaiLora(context)
+      ? await resolveRunCivitaiToken(env, context)
+      : null
+    return submitReplicateImagePrediction(context, env, apiKey, civitaiToken)
+  },
+  doneOnSubmit: (prediction) =>
+    prediction.status === 'succeeded'
+      ? completeReplicatePrediction(prediction)
+      : undefined,
+  async poll({ readApiKey }, prediction) {
+    return pollReplicateImagePrediction(prediction.id, await readApiKey())
+  },
+  readPoll(polled, _prediction, context) {
+    if (polled.status === 'failed' || polled.status === 'canceled') {
+      throw new WorkerProviderError({
+        message: `Replicate image generation failed: ${String(
+          polled.error ?? 'unknown',
+        )}`,
+        provider: context.providerId,
+        phase: 'prediction_poll',
+        requestId: polled.id,
+        providerMetadata: {
+          predictionId: polled.id,
+          status: polled.status,
+          providerError: polled.error,
+        },
+      })
+    }
+    return polled.status === 'succeeded'
+      ? { state: 'done', value: completeReplicatePrediction(polled) }
+      : { state: 'pending' }
+  },
+  timeoutError: () => new Error('Replicate image generation timed out.'),
+  upload: {
+    step: { retries: RETRY_TWICE, timeout: '120 seconds' },
+    async run({ env, context, readApiKey }, _prediction, completed) {
+      const apiKey = await readApiKey()
+      return downloadAndUploadImageArtifactToKey(
+        env,
+        completed.imageUrl,
+        'image/png',
+        getWorkerImageOutputKey(context),
+        { Authorization: `Bearer ${apiKey}` },
+      )
+    },
+  },
+  toResult(_prediction, completed, uploaded, context) {
+    if (!uploaded) throw new Error('Replicate image upload result is missing.')
+    return {
+      ...uploaded,
+      ...getStandardImageDimensions(context.providerInput.aspectRatio),
+      providerMetadata: { predictionId: completed.id },
+    }
+  },
+}
+
+const runnerImageDriver: MultiStepImageDriver<
+  RunnerSubmitResult,
+  PersistedRunnerPollResult,
+  CompletedPersistedRunnerPollResult
+> = {
+  stepKey: 'runner',
+  submitStep: {
+    retries: { limit: 1, delay: '5 seconds', backoff: 'exponential' },
+    timeout: '30 seconds',
+  },
+  pollStep: { retries: RETRY_TWICE, timeout: '30 seconds' },
+  // Runner 用平台自己的 Modal 入口，不解密用户 key。
+  submit: ({ env, context }) => submitRunnerImageJob(context, env),
+  // A completed runner response contains the full image as base64.
+  // Persist it before this step returns so Workflow state only stores
+  // the compact R2 reference (non-stream step results are capped at 1 MiB).
+  poll: ({ env, context }, submitted) =>
+    pollAndPersistRunnerImageJob(
+      submitted.id,
+      env,
+      getWorkerImageOutputKey(context),
+      isQwenRunnerContext(context),
+    ),
+  readPoll(polled, submitted, context) {
+    if (polled.status === 'FAILED') {
+      throw new WorkerProviderError({
+        message: `Runner image generation failed: ${polled.error ?? 'unknown'}`,
+        provider: context.providerId,
+        phase: 'status_poll',
+        requestId: submitted.id,
+      })
+    }
+    if (polled.status === 'COMPLETED') return { state: 'done', value: polled }
+    return { state: 'pending', running: polled.status === 'IN_PROGRESS' }
+  },
+  runningStage: EXECUTION_PROGRESS_STAGES.RUNNER_RUNNING,
+  cancelOnTimeout: async (env, submitted) => {
+    await cancelRunnerImageJob(submitted.id, env)
+  },
+  timeoutError: () =>
+    new Error(
+      'Runner image generation timed out (cold start can take 150s+ on the first request after idle — try again).',
+    ),
+  toResult: (submitted, completed) => ({
+    artifactUrl: completed.artifactUrl,
+    imageR2Key: completed.imageR2Key,
+    mimeType: completed.mimeType,
+    width: completed.width ?? submitted.width,
+    height: completed.height ?? submitted.height,
+    providerMetadata: {
+      runnerJobId: submitted.id,
+      ...(completed.runnerExecution
+        ? { runnerExecution: completed.runnerExecution }
+        : {}),
+    },
+  }),
+}
+
+type RunMultiStepImageDriver = (
+  step: WorkflowStep,
+  runtime: ImageDriverRuntime,
+  reportStage: ReportImageStage,
+) => Promise<WorkerImageGenerationResult>
+
+function bindMultiStepImageDriver<TJob, TPoll, TDone>(
+  driver: MultiStepImageDriver<TJob, TPoll, TDone>,
+): RunMultiStepImageDriver {
+  return (step, runtime, reportStage) =>
+    runMultiStepImageDriver(step, runtime, driver, reportStage)
+}
+
+/** 先提交再轮询的驱动表，同样按共享契约穷举。 */
+const MULTI_STEP_IMAGE_DRIVERS: Record<
+  WorkerMultiStepImageProviderId,
+  RunMultiStepImageDriver
+> = {
+  fal: bindMultiStepImageDriver(falImageDriver),
+  ideogram: bindMultiStepImageDriver(ideogramImageDriver),
+  replicate: bindMultiStepImageDriver(replicateImageDriver),
+  runner: bindMultiStepImageDriver(runnerImageDriver),
+}
+
+export function getMultiStepImageDriver(
+  providerId: string,
+): RunMultiStepImageDriver | null {
+  if (!isWorkerImageProviderId(providerId)) return null
+  if (WORKER_IMAGE_PROVIDER_MODES[providerId] !== 'multi-step') return null
+  return MULTI_STEP_IMAGE_DRIVERS[providerId as WorkerMultiStepImageProviderId]
+}
+
 export class ImageQueueWorkflow extends WorkflowEntrypoint<
   ExecutionEnv,
   WorkerImageRunContext
@@ -6639,357 +6932,19 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
       )
     }
 
-    let result: WorkerImageGenerationResult
-
-    if (context.providerId === 'fal') {
-      const queue = await step.do(
-        'submit-fal-image',
-        {
-          retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
-          timeout: '30 seconds',
-        },
-        async () => {
-          const apiKey = await decryptStateString(encryptedApiKey, this.env)
-          const civitaiToken = hasCivitaiLora(context)
-            ? await resolveRunCivitaiToken(this.env, context)
-            : null
-          return submitFalImageQueue(context, apiKey, this.env, civitaiToken)
-        },
-      )
-
-      let falResult: FalImageResult | undefined
-      for (let attempt = 1; attempt <= context.maxAttempts; attempt += 1) {
-        await step.sleep(`wait-fal-image-${attempt}`, context.pollIntervalMs)
-
-        const pollResult = await step.do(
-          `poll-fal-image-${attempt}`,
-          {
-            retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
-            timeout: '120 seconds',
-          },
-          async () => {
-            const apiKey = await decryptStateString(encryptedApiKey, this.env)
-            return pollFalImageQueue(queue, apiKey)
-          },
-        )
-
-        if (pollResult.status === 'FAILED') {
-          throw new WorkerProviderError({
-            message: pollResult.error ?? 'fal.ai image generation failed.',
-            provider: context.providerId,
-            phase: 'image_poll',
-            errorCode: pollResult.errorCode,
-            providerMetadata: pollResult.providerMetadata,
-          })
-        }
-
-        if (pollResult.status === 'COMPLETED' && pollResult.imageUrl) {
-          falResult = pollResult
-          break
-        }
-      }
-
-      if (!falResult?.imageUrl) {
-        throw new Error('fal.ai image generation timed out.')
-      }
-
-      const dimensions = FAL_IMAGE_DIMENSIONS[
-        context.providerInput.aspectRatio
-      ] ?? { width: 1024, height: 1024 }
-      const uploaded = await step.do(
-        'upload-fal-image',
-        {
-          retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
-          timeout: '120 seconds',
-        },
-        () =>
-          downloadAndUploadImageArtifactToKey(
-            this.env,
-            falResult.imageUrl!,
-            falResult.mimeType ?? 'image/png',
-            context.providerInput.outputStorageKey ??
-              `image/${context.runId}.png`,
-          ),
-      )
-
-      result = {
-        artifactUrl: uploaded.artifactUrl,
-        imageR2Key: uploaded.imageR2Key,
-        width: falResult.width ?? dimensions.width,
-        height: falResult.height ?? dimensions.height,
-        mimeType: uploaded.mimeType,
-        providerMetadata: falResult.providerMetadata,
-      }
-    } else if (context.providerId === 'ideogram') {
-      const generationId = await step.do(
-        'submit-ideogram-image',
-        {
-          retries: { limit: 0, delay: '1 second', backoff: 'constant' },
-          timeout: '150 seconds',
-        },
-        async () =>
-          submitIdeogramImageQueue(
-            this.env,
-            context,
-            await decryptStateString(encryptedApiKey, this.env),
-          ),
-      )
-      let completed:
-        | Extract<IdeogramPollResult, { status: 'completed' }>
-        | undefined
-      let delayMs = context.pollIntervalMs
-      for (let attempt = 1; attempt <= context.maxAttempts; attempt += 1) {
-        await step.sleep(`wait-ideogram-image-${attempt}`, delayMs)
-        const polled = await step.do(
-          `poll-ideogram-image-${attempt}`,
-          {
-            retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
-            timeout: '40 seconds',
-          },
-          async () =>
-            pollIdeogramImageQueue(
-              generationId,
-              await decryptStateString(encryptedApiKey, this.env),
-            ),
-        )
-        if (polled.status === 'completed') {
-          completed = polled
-          break
-        }
-        delayMs = polled.retryAfterMs ?? context.pollIntervalMs
-      }
-      if (!completed)
-        throw new WorkerProviderError({
-          provider: 'ideogram',
-          phase: 'image_poll',
-          requestId: generationId,
-          errorCode: 'provider_timeout',
-          message: 'Ideogram image generation timed out.',
-        })
-      const image = completed
-      const uploaded = await step.do(
-        'upload-ideogram-image',
-        {
-          retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
-          timeout: '120 seconds',
-        },
-        () =>
-          downloadAndUploadImageArtifactToKey(
-            this.env,
-            image.imageUrl,
-            'image/png',
-            getWorkerImageOutputKey(context),
-          ),
-      )
-      result = {
-        ...uploaded,
-        width: image.width,
-        height: image.height,
-        providerMetadata: image.providerMetadata,
-      }
-    } else if (context.providerId === 'replicate') {
-      const prediction = await step.do(
-        'submit-replicate-image',
-        {
-          retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
-          timeout: '30 seconds',
-        },
-        async () => {
-          const apiKey = await decryptStateString(encryptedApiKey, this.env)
-          const civitaiToken = hasCivitaiLora(context)
-            ? await resolveRunCivitaiToken(this.env, context)
-            : null
-          return submitReplicateImagePrediction(
-            context,
-            this.env,
-            apiKey,
-            civitaiToken,
-          )
-        },
-      )
-
-      let completedPrediction =
-        prediction.status === 'succeeded' ? prediction : undefined
-      for (
-        let attempt = 1;
-        !completedPrediction && attempt <= context.maxAttempts;
-        attempt += 1
-      ) {
-        await step.sleep(
-          `wait-replicate-image-${attempt}`,
-          context.pollIntervalMs,
-        )
-        const pollResult = await step.do(
-          `poll-replicate-image-${attempt}`,
-          {
-            retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
-            timeout: '30 seconds',
-          },
-          async () => {
-            const apiKey = await decryptStateString(encryptedApiKey, this.env)
-            return pollReplicateImagePrediction(prediction.id, apiKey)
-          },
-        )
-
-        if (
-          pollResult.status === 'failed' ||
-          pollResult.status === 'canceled'
-        ) {
-          throw new WorkerProviderError({
-            message: `Replicate image generation failed: ${String(
-              pollResult.error ?? 'unknown',
-            )}`,
-            provider: context.providerId,
-            phase: 'prediction_poll',
-            requestId: pollResult.id,
-            providerMetadata: {
-              predictionId: pollResult.id,
-              status: pollResult.status,
-              providerError: pollResult.error,
-            },
-          })
-        }
-        if (pollResult.status === 'succeeded') {
-          completedPrediction = pollResult
-        }
-      }
-
-      if (!completedPrediction) {
-        throw new Error('Replicate image generation timed out.')
-      }
-
-      const imageUrl = extractReplicateImageUrl(completedPrediction.output)
-      const dimensions = getStandardImageDimensions(
-        context.providerInput.aspectRatio,
-      )
-      const uploaded = await step.do(
-        'upload-replicate-image',
-        {
-          retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
-          timeout: '120 seconds',
-        },
-        async () => {
-          const apiKey = await decryptStateString(encryptedApiKey, this.env)
-          return downloadAndUploadImageArtifactToKey(
-            this.env,
-            imageUrl,
-            'image/png',
-            getWorkerImageOutputKey(context),
-            { Authorization: `Bearer ${apiKey}` },
-          )
-        },
-      )
-      result = {
-        ...uploaded,
-        ...dimensions,
-        providerMetadata: { predictionId: completedPrediction.id },
-      }
-    } else if (context.providerId === 'runner') {
-      const qwen = isQwenRunnerContext(context)
-      const submitted = await step.do(
-        'submit-runner-image',
-        {
-          retries: { limit: 1, delay: '5 seconds', backoff: 'exponential' },
-          timeout: '30 seconds',
-        },
-        () => submitRunnerImageJob(context, this.env),
-      )
-
-      let completed: CompletedPersistedRunnerPollResult | undefined
-      let leftQueue = false
-      for (
-        let attempt = 1;
-        !completed && attempt <= context.maxAttempts;
-        attempt += 1
-      ) {
-        await step.sleep(`wait-runner-image-${attempt}`, context.pollIntervalMs)
-
-        const pollResult = await step.do(
-          `poll-runner-image-${attempt}`,
-          {
-            retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
-            timeout: '30 seconds',
-          },
-          // A completed runner response contains the full image as base64.
-          // Persist it before this step returns so Workflow state only stores
-          // the compact R2 reference (non-stream step results are capped at 1 MiB).
-          () =>
-            pollAndPersistRunnerImageJob(
-              submitted.id,
-              this.env,
-              getWorkerImageOutputKey(context),
-              qwen,
-            ),
-        )
-
-        if (pollResult.status === 'FAILED') {
-          throw new WorkerProviderError({
-            message: `Runner image generation failed: ${pollResult.error ?? 'unknown'}`,
-            provider: context.providerId,
-            phase: 'status_poll',
-            requestId: submitted.id,
-          })
-        }
-
-        if (pollResult.status === 'COMPLETED') {
-          completed = pollResult
-        } else if (pollResult.status === 'IN_PROGRESS') {
-          // 首次离开队列才回报一次：之后的每一轮都还是 IN_PROGRESS，
-          // 重复回报只会刷同一个阶段。纯回报，不参与任何判据。
-          if (!leftQueue) {
-            await step.do(
-              'mark-runner-image-running',
-              {
-                retries: {
-                  limit: 2,
-                  delay: '5 seconds',
-                  backoff: 'exponential',
-                },
-                timeout: '30 seconds',
-              },
-              () =>
-                reportExecutionStage(
-                  this.env,
-                  context,
-                  EXECUTION_PROGRESS_STAGES.RUNNER_RUNNING,
-                ),
-            )
-          }
-          leftQueue = true
-        }
-      }
-
-      if (!completed) {
-        await step.do(
-          'cancel-runner-image-timeout',
-          { timeout: '30 seconds' },
-          async () => {
-            await cancelRunnerImageJob(submitted.id, this.env)
-          },
-        )
-        throw new Error(
-          'Runner image generation timed out (cold start can take 150s+ on the first request after idle — try again).',
-        )
-      }
-
-      result = {
-        artifactUrl: completed.artifactUrl,
-        imageR2Key: completed.imageR2Key,
-        mimeType: completed.mimeType,
-        width: completed.width ?? submitted.width,
-        height: completed.height ?? submitted.height,
-        providerMetadata: {
-          runnerJobId: submitted.id,
-          ...(completed.runnerExecution
-            ? { runnerExecution: completed.runnerExecution }
-            : {}),
-        },
-      }
-    } else {
+    const runMultiStep = getMultiStepImageDriver(context.providerId)
+    if (!runMultiStep) {
       throw new Error(`Image provider ${context.providerId} is not migrated.`)
     }
-
-    return result
+    return runMultiStep(
+      step,
+      {
+        env: this.env,
+        context,
+        readApiKey: () => decryptStateString(encryptedApiKey, this.env),
+      },
+      (stage) => reportExecutionStage(this.env, context, stage),
+    )
   }
 }
 

@@ -32,9 +32,10 @@ describe('图留在眼前', () => {
     const [hydrated] = await hydratePictures(messages, load)
     const content = hydrated!.content as { type: string; text?: string }[]
     expect(content.filter((part) => part.type === 'image')).toHaveLength(1)
-    expect(
-      content.some((part) => part.text?.includes('could not be loaded')),
-    ).toBe(true)
+    // 点名是哪一张，并写死「你没看到、别照名字猜」（r-eval-fabrication）。
+    const unloaded = content.find((part) => part.text?.includes('did NOT load'))
+    expect(unloaded?.text).toContain('「图2」')
+    expect(unloaded?.text).toContain('you have not seen it')
     expect(content.some((part) => part.text === '[picture: 图1]')).toBe(true)
   })
 

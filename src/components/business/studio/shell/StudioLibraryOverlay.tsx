@@ -23,7 +23,7 @@ import {
 } from '@/constants/studio-shell'
 import { StudioOperatorDetachedScope } from '@/contexts/studio-operator-host'
 import { PanelLeft } from '@/components/icons'
-import { AssistantAvatarGlyph } from '@/components/business/studio/assistant-operator/AssistantAvatarGlyph'
+import { AssistantAvatarGlyph } from '@/features/assistant'
 import { useAssistantPersona } from '@/hooks/use-assistant-persona'
 import { useLibraryRailOpen } from '@/hooks/use-library-rail'
 import {

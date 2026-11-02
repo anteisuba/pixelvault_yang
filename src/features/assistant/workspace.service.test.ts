@@ -22,7 +22,7 @@ vi.mock('@/lib/db', () => ({
     userApiKey: { findMany: keys },
   },
 }))
-vi.mock('@/services/assistant-skill.service', async () => {
+vi.mock('@/features/assistant/services/assistant-skill.service', async () => {
   const { BUILTIN_SKILLS } = await import('@/features/assistant/skills')
   return { loadAssistantSkills: async () => BUILTIN_SKILLS }
 })
@@ -38,7 +38,7 @@ vi.mock('@/features/lora/services/lora-asset.service', () => ({
     { loraUrl: 'https://lora.test/malfoid.safetensors', name: 'malfoid' },
   ]),
 }))
-vi.mock('@/services/assistant-persona.service', () => ({
+vi.mock('@/features/assistant/services/assistant-persona.service', () => ({
   getAssistantPersona: vi.fn(async () => ({
     ...ASSISTANT_PERSONA_DEFAULTS,
     verbosity: 'concise',

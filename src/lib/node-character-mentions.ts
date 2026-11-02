@@ -7,7 +7,7 @@
  * 同一份，⛔ 不各自认一遍。
  */
 
-import { parseMentions } from '@/components/business/node/nodes/v4/chrome/parse-mentions'
+import { parseMentions } from '@/lib/node-parse-mentions'
 import type { CharacterCardRecord, CharacterImagePick } from '@/types'
 import { defaultLook } from '@/lib/card-bus'
 

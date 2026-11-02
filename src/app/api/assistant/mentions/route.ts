@@ -2,7 +2,7 @@ import 'server-only'
 
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import { createApiGetRoute } from '@/lib/api-route-factory'
-import { searchMentionLibraryForClerkId } from '@/services/assistant-mention.service'
+import { searchMentionLibraryForClerkId } from '@/features/assistant/server'
 import { AssistantMentionLibrarySearchSchema } from '@/types/assistant-mention'
 
 /**

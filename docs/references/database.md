@@ -80,7 +80,7 @@
 
 ## 助手每轮的过程记录 `AssistantTurnRecord`（2026-10-15 · owner「建表」）
 
-owner 在卡上选的原话就是规格：「每轮存画布、过程和模型，每行不超过 256KB，留 30 天或每人最近 200 条，不进分享和导出；先过迁移检查再上线」。读写全在 `src/services/assistant-turn-record.service.ts`；数与词表在 `src/constants/assistant-turn-record.ts`，JSON 形状在 `src/types/assistant-turn-record.ts`。
+owner 在卡上选的原话就是规格：「每轮存画布、过程和模型，每行不超过 256KB，留 30 天或每人最近 200 条，不进分享和导出；先过迁移检查再上线」。读写全在 `src/features/assistant/services/assistant-turn-record.service.ts`；数与词表在 `src/constants/assistant-turn-record.ts`，JSON 形状在 `src/types/assistant-turn-record.ts`。
 
 - **一轮一行**：`(userId, turnId)` 唯一。号与第几跳随 v3 本轮记录的板子那一条（`turn: { id, hop }`）往返：开轮那一跳服务端发号、建行并存**开轮时的快照**；画布接力的后几跳按号找到同一行，只更新 `transcript` / `hops` / `outcome` / `errorCode`（`hops` 只增不减，同一跳再来一次照写），⛔ 不拿后几跳手上已落了改动的快照覆盖。第一跳没写成、由后面一跳建行时快照不存，`truncated` 带 `no_opening_snapshot`。
 - **写**：新内核每一跳收尾（`src/features/assistant/kernel.ts`）服务端记一笔，`after()` 托住、⛔ 不等、不抛，写不进只记一行警告。隐身那一轮、开跑前就失败的（缺 key 等）不记。

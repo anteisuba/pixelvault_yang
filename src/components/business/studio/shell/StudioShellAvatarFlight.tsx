@@ -6,7 +6,7 @@ import { cubicBezier } from 'motion/react'
 
 import { EASE_STANDARD, SHELL_MOTION } from '@/constants/motion'
 
-import { StudioOperatorCurrentAvatar } from '@/components/business/studio/assistant-operator/StudioOperatorAvatarSwitcher'
+import { StudioOperatorCurrentAvatar } from '@/features/assistant'
 
 /** 头像的两个落点：对话头那一颗、台左上角那一颗（`data-shell-avatar`）。 */
 export type StudioShellAvatarSpot = 'header' | 'bench'

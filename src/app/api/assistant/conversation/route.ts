@@ -10,7 +10,7 @@ import {
   listAssistantConversations,
   updateAssistantConversationRound,
   upsertAssistantConversation,
-} from '@/services/assistant-conversation.service'
+} from '@/features/assistant/server'
 import {
   UpdateAssistantConversationRoundRequestSchema,
   UpsertAssistantConversationRequestSchema,

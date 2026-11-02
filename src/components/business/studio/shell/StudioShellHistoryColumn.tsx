@@ -7,7 +7,7 @@ import { PanelLeftClose, Plus } from '@/components/icons'
 import {
   StudioOperatorSessionDeleteDialog,
   StudioOperatorSessionRow,
-} from '@/components/business/studio/assistant-operator/StudioOperatorSessionRow'
+} from '@/features/assistant'
 import {
   SHELL_HISTORY_SKELETON_WIDTHS,
   useShellHistoryBuckets,

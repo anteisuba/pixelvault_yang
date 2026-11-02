@@ -501,6 +501,13 @@ export const NODE_ASSISTANT_OP_V4_IDS = {
    * （改一次档位要发六条 op，撤销粒度也跟着碎成六步）。
    */
   setVoiceProfile: 'set_voice_profile',
+  /**
+   * 镜头表一行的景别 / 运镜 / 风格 / 时长锁（`p-canvas-shotlist`）。⚠ 不并进
+   * `set_field`：理由同上（嵌套对象，一次改几格是一个撤销步）。
+   */
+  setShotSpec: 'set_shot_spec',
+  /** 镜头表的项目级设置（全片风格 / 总时长 / 关掉的列），整份替换。 */
+  setShotlist: 'set_shotlist',
   setReviewState: 'set_review_state',
   /* ── 剪辑台（S8 · spec §6 / §8.5）───────────────────────────────────── */
   /**
@@ -558,6 +565,8 @@ export const NODE_ASSISTANT_OPS_V4 = [
   NODE_ASSISTANT_OP_V4_IDS.setModel,
   NODE_ASSISTANT_OP_V4_IDS.setParams,
   NODE_ASSISTANT_OP_V4_IDS.setVoiceProfile,
+  NODE_ASSISTANT_OP_V4_IDS.setShotSpec,
+  NODE_ASSISTANT_OP_V4_IDS.setShotlist,
   NODE_ASSISTANT_OP_V4_IDS.setReviewState,
   NODE_ASSISTANT_OP_V4_IDS.editSetTimeline,
   NODE_ASSISTANT_OP_V4_IDS.editAddClip,
@@ -768,6 +777,18 @@ export const NODE_ASSISTANT_OP_V4_SPECS = {
     group: content,
     tier: free,
     inverse: NODE_ASSISTANT_OP_V4_IDS.setVoiceProfile,
+    autoApply: true,
+  },
+  [NODE_ASSISTANT_OP_V4_IDS.setShotSpec]: {
+    group: content,
+    tier: free,
+    inverse: NODE_ASSISTANT_OP_V4_IDS.setShotSpec,
+    autoApply: true,
+  },
+  [NODE_ASSISTANT_OP_V4_IDS.setShotlist]: {
+    group: content,
+    tier: free,
+    inverse: NODE_ASSISTANT_OP_V4_IDS.setShotlist,
     autoApply: true,
   },
   [NODE_ASSISTANT_OP_V4_IDS.setReviewState]: {

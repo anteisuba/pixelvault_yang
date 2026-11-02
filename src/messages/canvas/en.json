@@ -632,7 +632,6 @@
       "title": "Assistant dock",
       "expand": "Expand to outline workspace",
       "restore": "Back to dock",
-      "scriptDocApply": "Generate nodes",
       "clarify": {
         "title": "A few quick questions",
         "customPlaceholder": "Or type your own…",
@@ -641,13 +640,6 @@
         "skipped": "skipped",
         "answerPrefix": "My answers:"
       },
-      "scriptDocDepthSimple": "Lean",
-      "scriptDocDepthStandard": "Standard",
-      "scriptDocDepthCinematic": "Full",
-      "scriptDocDepthSimpleHint": "Roles + dialogue only",
-      "scriptDocDepthStandardHint": "+ emotion, length, style",
-      "scriptDocDepthCinematicHint": "+ world, psychology, cinematic shots",
-      "scriptDocViewEdit": "Edit",
       "leanOpener": "Your canvas is still empty. Shall we start with the story outline?",
       "leanOpenerActive": "Your canvas already has nodes — want me to shape them into a story outline?",
       "starters": {
@@ -931,6 +923,8 @@
         "unblockVersion": "Clear the rejection for “{target}” · {slot}",
         "setParamsV4": "Change the generation dials of “{target}”",
         "setVoiceProfile": "Change the voice settings of “{target}”",
+        "setShotSpec": "Change the shot columns of “{target}”",
+        "setShotlist": "Change the shot list settings",
         "setCharacterPicks": "Changed which character images “{target}” uses"
       },
       "params": {
@@ -1807,7 +1801,8 @@
         "openEditDesk": "Open the edit desk",
         "switchTo": "Switch to “{name}”",
         "empty": "No matches",
-        "upload": "Upload media…"
+        "upload": "Upload media…",
+        "openShotTable": "Open shot list"
       },
       "bottom": {
         "select": "Select",
@@ -1828,7 +1823,8 @@
       "minimap": {
         "collapse": "Collapse minimap",
         "expand": "Expand minimap"
-      }
+      },
+      "shotTable": "Shot list"
     },
     "editDesk": {
       "title": "Edit desk",
@@ -2080,6 +2076,48 @@
           "back": "Back to canvas"
         },
         "finalCutHint": "Final Cut preset: split ⌘B · everything else the same. S always works."
+      }
+    },
+    "shotTable": {
+      "title": "Shot list",
+      "back": "Back to canvas",
+      "undo": "Undo",
+      "empty": "No shots yet",
+      "emptyHint": "Add a shot on the canvas shot rail, or ask the assistant to break a script into shots. They will show up here row by row.",
+      "filmLook": "Film look",
+      "filmLookEmpty": "Not set",
+      "totalDuration": "Total",
+      "totalDurationEmpty": "Not set",
+      "summary": "{shots} shots · {withVideo} with video · {seconds}s total",
+      "columnsMenu": "Columns",
+      "followFilm": "Same as film",
+      "followFilmWith": "Same as film: {look}",
+      "sizeClear": "Clear",
+      "movePlaceholder": "Camera move…",
+      "notePlaceholder": "What happens in this shot…",
+      "durationLock": "Lock duration (kept when splitting the total)",
+      "durationUnlock": "Unlock duration",
+      "locate": "Show this card",
+      "generating": "Generating",
+      "columns": {
+        "shotNo": "Shot",
+        "frame": "Frame",
+        "size": "Size",
+        "move": "Move",
+        "note": "Description",
+        "look": "Look",
+        "duration": "Duration",
+        "cast": "Cast · Scene"
+      },
+      "sizes": {
+        "extreme_wide": "Extreme wide",
+        "wide": "Wide",
+        "full": "Full",
+        "medium": "Medium",
+        "medium_close": "Medium close-up",
+        "close": "Close",
+        "close_up": "Close-up",
+        "extreme_close_up": "Extreme close-up"
       }
     }
   }

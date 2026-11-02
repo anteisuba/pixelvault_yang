@@ -8,7 +8,7 @@ import {
 import {
   deleteAssistantConversation,
   renameAssistantConversation,
-} from '@/services/assistant-conversation.service'
+} from '@/features/assistant/server'
 
 export const DELETE = createApiDeleteRoute({
   routeName: 'DELETE /api/assistant/conversation/[id]',

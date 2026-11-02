@@ -14,7 +14,7 @@ import {
   ResponsiveDialogTitle,
 } from '@/components/ui/responsive-dialog'
 import { Spinner } from '@/components/ui/spinner'
-import { VoiceTrainer } from '@/components/business/studio/VoiceTrainer'
+import { VoiceTrainer } from '@/components/business/voices/VoiceTrainer'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useVoicesPage } from '@/hooks/use-voices-page'
 import { canPreviewVoiceSample } from '@/hooks/use-voice-sample-preview'

@@ -18,7 +18,7 @@ const mockUpdateProject = vi.fn()
 const { ConflictError } = vi.hoisted(() => ({
   ConflictError: class extends Error {},
 }))
-vi.mock('@/services/node/node-workflow.service', () => ({
+vi.mock('@/features/canvas/services/node-workflow.service', () => ({
   getNodeWorkflowProject: (...args: unknown[]) => mockGetProject(...args),
   updateNodeWorkflowProject: (...args: unknown[]) => mockUpdateProject(...args),
   NodeWorkflowProjectConflictError: ConflictError,

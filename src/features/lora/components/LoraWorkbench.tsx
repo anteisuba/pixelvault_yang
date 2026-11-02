@@ -110,7 +110,7 @@ import {
   CharacterLorasProvider,
   useCharacterLorasContext,
 } from '@/features/lora/components/character-loras-context'
-import { useCharacterLoras } from '@/features/cards'
+import { useCharacterLoras } from '@/features/cards/hooks'
 import { LoraNegativeInertHint } from '@/features/lora/components/LoraNegativeInertHint'
 import { LoraBasePill } from '@/features/lora/components/LoraBasePill'
 import { LoraMountPills } from '@/features/lora/components/LoraMountPills'
@@ -120,9 +120,11 @@ import {
   type LoraRecipeViewerOrigin,
 } from '@/features/lora/components/LoraRecipeViewer'
 import { LoraResultStage } from '@/features/lora/components/LoraResultStage'
-import { StudioTemplatesChip } from '@/components/business/studio/templates/StudioTemplatesChip'
-import { StudioTemplatesPanel } from '@/components/business/studio/templates/StudioTemplatesPanel'
-import { StudioTemplateUndoToast } from '@/components/business/studio/templates/StudioTemplateUndoToast'
+import {
+  StudioTemplatesChip,
+  StudioTemplatesPanel,
+  StudioTemplateUndoToast,
+} from '@/features/studio'
 import {
   LoraSourceBand,
   type LoraSourceBandMode,
@@ -192,18 +194,18 @@ import {
 } from '@/features/lora/lib/lora-model-compatibility'
 import { toCivitaiModelSearchQuery } from '@/lib/civitai-lora-reference'
 import { parseHuggingFaceLoraSourceUrl } from '@/features/lora/lib/huggingface-lora-source'
-import { LoraHuggingFaceShowcaseStrip } from '@/components/business/studio/prompt-tags/LoraHuggingFaceShowcaseStrip'
-import { LoraSourceImagePreviewStrip } from '@/components/business/studio/prompt-tags/LoraSourceImagePreviewStrip'
+import { LoraHuggingFaceShowcaseStrip } from '@/features/lora/components/prompt-tags/LoraHuggingFaceShowcaseStrip'
+import { LoraSourceImagePreviewStrip } from '@/features/lora/components/prompt-tags/LoraSourceImagePreviewStrip'
 import {
   LoraSourceRecipeStrip,
   type ApplyRecipeOptions,
-} from '@/components/business/studio/prompt-tags/LoraSourceRecipeStrip'
-import { PromptTagAutocomplete } from '@/components/business/studio/prompt-tags/PromptTagAutocomplete'
+} from '@/features/lora/components/prompt-tags/LoraSourceRecipeStrip'
+import { PromptTagAutocomplete } from '@/features/lora/components/prompt-tags/PromptTagAutocomplete'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 import { StudioGeneratingProgress } from '@/components/business/studio-shared'
 import { SpecChip } from '@/components/business/studio-shared/spec'
 import { StudioGenerateButton } from '@/components/business/studio-shared/workflow/StudioGenerateButton'
-import { StudioMobileAddSheet } from '@/components/business/studio/StudioMobileAddSheet'
+import { StudioMobileAddSheet } from '@/features/studio'
 import { ResponsivePopoverPhoneCard } from '@/components/ui/responsive-popover'
 import { AI_ADAPTER_TYPES, getProviderLabel } from '@/constants/providers'
 import {
@@ -225,10 +227,10 @@ import {
 } from '@/features/lora/hooks/use-lora-operator-host'
 import { useLoraLibraryFilterSnapshot } from '@/features/lora/hooks/use-civitai-lora-library-url'
 import { usePromptTagStack } from '@/hooks/use-prompt-tag-stack'
-import { useStudioOperatorYield } from '@/hooks/use-studio-operator-yield'
+import { useStudioOperatorYield } from '@/features/assistant/hooks'
 import { requestOperatorAttachment } from '@/hooks/use-studio-operator-store'
 import type { StudioOperatorResultOwner } from '@/types/studio-assistant-operator'
-import { StudioOperatorBenchDock } from '@/components/business/studio/assistant-operator'
+import { StudioOperatorBenchDock } from '@/features/assistant'
 import {
   LoraAspectRatioChip,
   isLoraAspectRatio,

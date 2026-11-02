@@ -29,7 +29,7 @@ import {
   NodeWorkflowProjectConflictError,
   NodeWorkflowStateCorruptError,
   updateNodeWorkflowProject,
-} from '@/services/node/node-workflow.service'
+} from '@/features/canvas/server'
 import type { McpTokenOwner } from '@/services/mcp/mcp-token.service'
 import {
   EDGE_FRAME_NOT_ON_CDN,

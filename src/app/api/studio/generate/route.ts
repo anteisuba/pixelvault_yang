@@ -1,5 +1,5 @@
 import { StudioGenerateSchema } from '@/types'
-import { compileAndGenerate } from '@/services/studio-generate.service'
+import { compileAndGenerate } from '@/features/studio/server'
 import { createApiRoute } from '@/lib/api-route-factory'
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 

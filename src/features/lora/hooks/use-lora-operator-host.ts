@@ -43,8 +43,8 @@ import {
 } from '@/features/lora/hooks/use-civitai-mined-prompts'
 import { useCivitaiDownloadGate } from '@/features/lora/hooks/use-civitai-download-gate'
 import { useLoraCandidateConfirm } from '@/features/lora/hooks/use-lora-candidate-confirm'
-import { useOperatorUserUrlMount } from '@/hooks/use-operator-user-url-mount'
-import { useStudioOperatorFace } from '@/hooks/use-studio-operator-face'
+import { useOperatorUserUrlMount } from '@/features/assistant/hooks'
+import { useStudioOperatorFace } from '@/features/assistant/hooks'
 import { useTranslations } from 'next-intl'
 import {
   appendOperatorEntry,

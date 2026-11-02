@@ -28,7 +28,7 @@ import {
   type StudioLibraryCategoryId,
   type StudioShellBenchId,
 } from '@/constants/studio-shell'
-import { StudioOperatorCurrentAvatar } from '@/components/business/studio/assistant-operator/StudioOperatorAvatarSwitcher'
+import { StudioOperatorCurrentAvatar } from '@/features/assistant'
 import { STUDIO_SHELL_AVATAR_ATTR } from '@/components/business/studio/shell/StudioShellAvatarFlight'
 import {
   Tooltip,

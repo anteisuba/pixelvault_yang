@@ -2,7 +2,7 @@
 
 import { createContext, useContext } from 'react'
 
-import type { UseCharacterLorasReturn } from '@/features/cards'
+import type { UseCharacterLorasReturn } from '@/features/cards/hooks'
 
 const CharacterLorasContext = createContext<UseCharacterLorasReturn | null>(
   null,

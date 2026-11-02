@@ -52,34 +52,34 @@ import type { AssistantWebFind } from '@/types/assistant-web-finds'
 import {
   normalizePlanQuestions,
   type PreparedOperatorTurn,
-} from '@/services/kernel/assistant-operator.service'
+} from '@/features/assistant/services/assistant-operator.service'
 import {
   refused,
   runOldTool,
   runWebFind,
-} from '@/services/kernel/assistant-v3-bench.service'
+} from '@/features/assistant/services/assistant-v3-bench.service'
 import {
   executeAssistantV3CardsCall,
   executeAssistantV3CardsMutation,
-} from '@/services/kernel/assistant-v3-cards.service'
+} from '@/features/assistant/services/assistant-v3-cards.service'
 import {
   executeAssistantV3ImageCall,
   executeAssistantV3ImageMutation,
-} from '@/services/kernel/assistant-v3-image.service'
+} from '@/features/assistant/services/assistant-v3-image.service'
 import {
   executeAssistantV3LoraCall,
   executeAssistantV3LoraMutation,
-} from '@/services/kernel/assistant-v3-lora.service'
-import { createPictureCache } from '@/services/kernel/assistant-v3-look.service'
+} from '@/features/assistant/services/assistant-v3-lora.service'
+import { createPictureCache } from '@/features/assistant/services/assistant-v3-look.service'
 import {
   planSafely,
   TITLE_TEXT,
   type V3Context,
   type V3Outcome,
-} from '@/services/kernel/assistant-v3-steps.service'
-import { createClipCache } from '@/services/kernel/assistant-v3-watch.service'
-import { executeCall as executeAssistantV3CanvasCall } from '@/services/kernel/assistant-v3.service'
-import { searchMemoriesStep } from '@/services/kernel/assistant-v3-memories.service'
+} from '@/features/assistant/services/assistant-v3-steps.service'
+import { createClipCache } from '@/features/assistant/services/assistant-v3-watch.service'
+import { executeCall as executeAssistantV3CanvasCall } from '@/features/assistant/services/assistant-v3.service'
+import { searchMemoriesStep } from '@/features/assistant/services/assistant-v3-memories.service'
 import {
   ASSISTANT_NEXT_EDIT_OP_IDS as OP,
   ASSISTANT_NEXT_FIND_KIND_IDS,
@@ -232,6 +232,13 @@ export interface BenchResult {
   readonly canvas?: CanvasBatch
   /** 开台（第 9e 步）：去哪。循环存好这一跳、停在 `bench_open`，到了新台再补结果。 */
   readonly opening?: BenchOpening
+}
+
+/** 附图全名（`图_1553·masterpi`）和模型写的名字是不是同一张：全名一样，或只写了「·」前的编号。 */
+export function isAttachedName(attachedName: string, name: string): boolean {
+  const full = attachedName.trim().toLowerCase()
+  const asked = name.trim().toLowerCase()
+  return full === asked || (asked.length > 0 && full.startsWith(`${asked}·`))
 }
 
 export function benchFaceOf(domain: string): BenchFace | null {
@@ -1178,9 +1185,9 @@ export async function* runLook(
     }
     const handle = parseWorkspaceHandle(name)
     // 附图的名字本身就长得像编号（`图_1588·摘要`）：台上认得的先给台上。
-    const attached = attachedNames.some(
-      (attachedName) =>
-        attachedName.trim().toLowerCase() === name.trim().toLowerCase(),
+    // ⭐ 只写编号（`图_1553`）也认：附图全名带摘要（`图_1553·masterpi`），模型常只抄前半段。
+    const attached = attachedNames.some((attachedName) =>
+      isAttachedName(attachedName, name),
     )
     if (!handle || attached) {
       benchNames.push(name)
@@ -1195,10 +1202,8 @@ export async function* runLook(
           toTag.push(...recipe.pictures)
         }
       } else if (attached && input.tagger) {
-        const asset = context.request.mentionedAssets?.find(
-          (item) =>
-            (item.label ?? item.id).trim().toLowerCase() ===
-            name.trim().toLowerCase(),
+        const asset = context.request.mentionedAssets?.find((item) =>
+          isAttachedName(item.label ?? item.id, name),
         )
         if (asset) toTag.push({ url: asset.url, label: name })
       }

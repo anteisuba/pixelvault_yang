@@ -1048,7 +1048,7 @@ Owner 已选择三方向原型中的 A 并授权修复。关键切片为四张�
 
 ## 11. 助手设置
 
-**现行 = 助手设置 B（owner 2026-09-26 拍板，画布「助手设置 B · 全部状态」）。** 一份内容、两个入口：工作台右上角头像 ⋯ 的「助手设置」弹出它（桌面 720 宽、上沿钉在 `top-16`；手机走底部抽屉），`/settings/assistant` 整页打开同一份（`components/business/assistant-settings/AssistantSettings`）。顶部「人设 / 记忆」两页；**改了就存**——点选类当场存，输入框失焦 / 回车再存，右上角一小行「保存中 · 已保存 · 没保存上 · 重试」；⛔ 没有「取消 / 保存」。请求排队合并（同一时刻只有一个 `PUT`，途中改的只记最新那份），⛔ 不并发。
+**现行 = 助手设置 B（owner 2026-09-26 拍板，画布「助手设置 B · 全部状态」）。** 一份内容、两个入口：工作台右上角头像 ⋯ 的「助手设置」弹出它（桌面 720 宽、上沿钉在 `top-16`；手机走底部抽屉），`/settings/assistant` 整页打开同一份（`features/assistant/components/settings/AssistantSettings`）。顶部「人设 / 记忆」两页；**改了就存**——点选类当场存，输入框失焦 / 回车再存，右上角一小行「保存中 · 已保存 · 没保存上 · 重试」；⛔ 没有「取消 / 保存」。请求排队合并（同一时刻只有一个 `PUT`，途中改的只记最新那份），⛔ 不并发。
 
 ### 11.1 三档人设（只管四格，⛔ 不管语气）
 
@@ -1284,7 +1284,7 @@ Owner 已选择三方向原型中的 A 并授权修复。关键切片为四张�
 - **讨论稿**：`assistant-review.html`（八议题）· `assistant-search-settings.html`（搜索与设置）· `assistant-context.html`（跨轮记忆三方案）
 - **设计画板**：`Main.dc.html` · `BEmpty` · `BCollapsed` · `BMobile` · `BSettings` · `BCards.dc.html`；线上 <https://claude.ai/code/artifact/7003a63a-b804-4937-8c65-18235f886843>
 - **现状记录与未重抄的细节**：[`assistant-shell.md`](assistant-shell.md)（§6 钱闸三档与 `request_generation` 契约 · §7.1 检索链入出参与证据六字段 · §12.1 20 条代码拍板落点表）
-- **代码**：`src/constants/assistant-operator.ts`（工具表 / 事件表 / 域表 —— 条目数一律以逐键点数为准，见 §2.1）· `src/lib/studio-operator-canvas-snapshot.ts`（画布分层快照）· `src/components/business/studio/assistant-operator/StudioOperatorCollapsedButton.tsx`（收起态）· `src/features/lora/hooks/use-lora-operator-host.ts` · `src/hooks/node/use-canvas-operator-host.ts` · `src/hooks/node/use-canvas-operator-requests.ts`· `src/types/assistant-operator.ts` · `src/services/kernel/assistant-operator.service.ts` · `src/lib/studio-operator-memory.ts` · `src/hooks/use-assistant-operator.ts` · `src/components/business/studio/assistant-operator/**` · `src/constants/node-studio.ts`（`NODE_STUDIO_ASSISTANT_ROUTE_MODELS`，9 条）· `prisma/schema.prisma`（`AssistantConversation` / `ResearchRun` / `AssistantPersona` / `ContextCard` / `ProjectRule`）
+- **代码**：`src/constants/assistant-operator.ts`（工具表 / 事件表 / 域表 —— 条目数一律以逐键点数为准，见 §2.1）· `src/lib/studio-operator-canvas-snapshot.ts`（画布分层快照）· `src/components/business/studio/assistant-operator/StudioOperatorCollapsedButton.tsx`（收起态）· `src/features/lora/hooks/use-lora-operator-host.ts` · `src/features/canvas/hooks/use-canvas-operator-host.ts` · `src/features/canvas/hooks/use-canvas-operator-requests.ts`· `src/types/assistant-operator.ts` · `src/features/assistant/services/assistant-operator.service.ts` · `src/lib/studio-operator-memory.ts` · `src/features/assistant/hooks/use-assistant-operator.ts` · `src/features/assistant/components/operator/**` · `src/constants/node-studio.ts`（`NODE_STUDIO_ASSISTANT_ROUTE_MODELS`，9 条）· `prisma/schema.prisma`（`AssistantConversation` / `ResearchRun` / `AssistantPersona` / `ContextCard` / `ProjectRule`）
 - **规范**：[`ui-defaults.md`](../ui-defaults.md) · [`testing.md`](../testing.md) · [`WORKFLOW.md`](../../WORKFLOW.md) · [`AGENTS.md`](../../../AGENTS.md)
 
 ### Last Verified

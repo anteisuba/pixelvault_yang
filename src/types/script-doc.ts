@@ -1,15 +1,14 @@
 import { z } from 'zod'
 
-import {
-  SCRIPT_DOC_DEPTHS,
-  SCRIPT_DOC_FOCUS_KINDS,
-  SCRIPT_DOC_LIMITS,
-  SCRIPT_DOC_REF_KINDS,
-  SCRIPT_DOC_STAGES,
-} from '@/constants/script-doc'
-import { NODE_STUDIO_ASSISTANT_MESSAGE_ROLES } from '@/constants/node-studio'
-import { AssistantClarifyingQuestionSchema } from '@/types/assistant-protocol'
-import { LOCALES } from '@/i18n/routing'
+import { SCRIPT_DOC_LIMITS, SCRIPT_DOC_REF_KINDS } from '@/constants/script-doc'
+
+/**
+ * 旧剧本笺的事实模型 —— **只剩 v3 读端在用**（v3 状态里的 `scriptDoc` 决定迁移时的
+ * 镜号，见 `node-workflow-migrate-v4.ts`；`node-workflow-migrate-planner.ts` 往里折
+ * 旧拆解）。剧本笺入口 10-22 删，起草接口与 v4 投影 11-01 删（`p-canvas-shotlist`：
+ * 镜头信息改住在镜头卡上，见 `docs/design/canvas-shotlist.md`）。
+ * ⛔ 不要在 v4 里重新用它；随 v3 读端一起删（node-canvas-v2 §14.4）。
+ */
 
 const ScriptDocIdSchema = z
   .string()
@@ -127,113 +126,8 @@ export const ScriptDocSchema = z.object({
     .default([]),
 })
 
-// ─── Structured draft API contract ───────────────────────────────────────
-
-// Local message schema (role + content) so this module depends only on
-// constants + i18n — importing `@/types/node-assistant` here would create a
-// cycle (node-workflow → script-doc → node-assistant → node-workflow).
-const ScriptDocMessageSchema = z.object({
-  role: z.enum(NODE_STUDIO_ASSISTANT_MESSAGE_ROLES),
-  content: z.string().trim().min(1).max(SCRIPT_DOC_LIMITS.maxMessageLength),
-})
-
-/** A targeted-edit scope: the whole cast (`roles`) or a single shot (`shot` + id). */
-export const ScriptDocFocusSchema = z.object({
-  kind: z.enum(SCRIPT_DOC_FOCUS_KINDS),
-  id: z.string().trim().min(1).max(SCRIPT_DOC_LIMITS.idMaxLength).optional(),
-})
-
-export const NodeScriptDocRequestSchema = z.object({
-  messages: z
-    .array(ScriptDocMessageSchema)
-    .min(1)
-    .max(SCRIPT_DOC_LIMITS.maxMessages),
-  /** Current doc, passed on "update outline" so the LLM preserves ids. */
-  scriptDoc: ScriptDocSchema.optional(),
-  /**
-   * Drafting stage. `outline` locks the story (default, back-compat); `shots`
-   * enriches the confirmed doc with camera language. Optional so existing
-   * callers keep working without passing it.
-   */
-  stage: z.enum(SCRIPT_DOC_STAGES).optional(),
-  /**
-   * Adaptive depth — how much optional content the script brain fills. Optional
-   * so existing callers default to standard server-side.
-   */
-  depth: z.enum(SCRIPT_DOC_DEPTHS).optional(),
-  /**
-   * Targeted edit — restrict the change to one module (the cast, or a single
-   * shot by id). The instruction rides as the latest user message. Omitted for
-   * whole-doc drafts.
-   */
-  focus: ScriptDocFocusSchema.optional(),
-  locale: z.enum(LOCALES),
-  apiKeyId: z.string().trim().min(1).max(160).optional(),
-})
-
-// ─── Clarifying questions (反问澄清卡) ────────────────────────────────────
-// The drafting step may return structured questions instead of an outline when
-// it needs creative direction. Chips backfill the next draft; never hue-coded.
-//
-// ⚠ 形状定义已上收到 `types/assistant-protocol.ts`（A2：反问从「只有 ScriptDoc
-// 起草时才有」推广到四个域，`[[ask]]` 块用的是同一个 schema）。这里只保留剧本线
-// 自己的用法，**不再有第二份定义** —— 两份迟早分叉成两种问题卡。
-
-/**
- * What the server had to leave out of the prompt envelope to stay inside
- * `SCRIPT_DOC_PROMPT_BUDGET`. Attached only when something was actually
- * trimmed, so the workspace can say so rather than degrade silently — the
- * previous behaviour (a hard 4000-character ceiling, swallowed into a generic
- * 500) is precisely what made this failure so hard to attribute.
- */
-export const ScriptDocTrimNoticeSchema = z.object({
-  /** Conversation turns that made it into the envelope. */
-  keptMessages: z.number().int().min(0),
-  /** Turns dropped, oldest first, to fit. */
-  droppedMessages: z.number().int().min(0),
-  /**
-   * Optional doc fields withheld from the model. Their values are restored on
-   * the result, so they are preserved but were not available to revise.
-   */
-  heldBackFields: z.number().int().min(0),
-})
-
-// Drafting returns EITHER the outline OR clarifying questions (discriminated by
-// `kind`). Keeps a single round-trip; the workspace renders the question card
-// and folds answers back into the next draft. `trim` is server-attached (never
-// model-authored) and optional, so existing consumers are unaffected.
-export const NodeScriptDocResponseDataSchema = z.discriminatedUnion('kind', [
-  z.object({
-    kind: z.literal('scriptDoc'),
-    scriptDoc: ScriptDocSchema,
-    trim: ScriptDocTrimNoticeSchema.optional(),
-  }),
-  z.object({
-    kind: z.literal('questions'),
-    questions: z
-      .array(AssistantClarifyingQuestionSchema)
-      .min(1)
-      .max(SCRIPT_DOC_LIMITS.maxClarifyQuestions),
-    trim: ScriptDocTrimNoticeSchema.optional(),
-  }),
-])
-
-export const NodeScriptDocApiSuccessResponseSchema = z.object({
-  success: z.literal(true),
-  data: NodeScriptDocResponseDataSchema,
-})
-
 export type ScriptRef = z.infer<typeof ScriptRefSchema>
 export type ScriptDocRole = z.infer<typeof ScriptDocRoleSchema>
 export type ScriptDocDialogueLine = z.infer<typeof ScriptDocDialogueLineSchema>
 export type ScriptDocShot = z.infer<typeof ScriptDocShotSchema>
 export type ScriptDoc = z.infer<typeof ScriptDocSchema>
-export type ScriptDocFocus = z.infer<typeof ScriptDocFocusSchema>
-export type ScriptDocTrimNotice = z.infer<typeof ScriptDocTrimNoticeSchema>
-export type NodeScriptDocRequest = z.infer<typeof NodeScriptDocRequestSchema>
-export type NodeScriptDocResponseData = z.infer<
-  typeof NodeScriptDocResponseDataSchema
->
-export type NodeScriptDocApiSuccessResponse = z.infer<
-  typeof NodeScriptDocApiSuccessResponseSchema
->

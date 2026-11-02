@@ -76,6 +76,15 @@ function isStoredPicture(part: unknown): part is ImagePart & { image: string } {
   )
 }
 
+/**
+ * 图没下载下来时放在原位的那行字。⭐ 写死「你没看到」：只写「could not be loaded」时，模型
+ * 常照着图名或前文把画风、画师串、外观编出来（评测 r-eval-fabrication 11-02 的主要一类编造）。
+ */
+export function unloadedPictureText(label: string): string {
+  const which = label ? `「${label}」` : 'this picture'
+  return `(${which} did NOT load — you have not seen it. Do not describe it or guess its look, style, artists or tags from its name; tell the creator you could not see it and ask them to @ it again.)`
+}
+
 /** 留在眼前的图：从最后往前数 `max` 张；更早的换成一行字。 */
 export async function hydratePictures(
   messages: readonly ModelMessage[],
@@ -97,8 +106,12 @@ export async function hydratePictures(
       continue
     }
     const content: Exclude<UserContent, string> = []
+    /** 图前面那行称呼（`[picture: 图_1553·…]`）：没加载出来时点名是哪一张。 */
+    let label = ''
     for (const part of message.content) {
       if (!isStoredPicture(part)) {
+        if (part.type === 'text')
+          label = part.text.match(/^\[picture: (.+)\]$/)?.[1] ?? ''
         content.push(part)
         continue
       }
@@ -115,7 +128,7 @@ export async function hydratePictures(
       content.push(
         bytes
           ? { type: 'image', image: bytes.data, mediaType: bytes.mediaType }
-          : { type: 'text', text: '(this picture could not be loaded)' },
+          : { type: 'text', text: unloadedPictureText(label) },
       )
     }
     out.push({ ...message, content })

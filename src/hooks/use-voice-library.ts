@@ -13,7 +13,7 @@ import {
   type VoiceLibraryLanguage,
   type VoiceLibrarySortBy,
 } from '@/constants/voice-cards'
-import { useVoiceCards } from '@/features/cards'
+import { useVoiceCards } from '@/features/cards/hooks'
 import { rememberVoiceCovers } from '@/hooks/use-voice-cover'
 /*
  * ⚠ 三个都走 barrel，别改成深导入 `@/lib/api-client/voices`。

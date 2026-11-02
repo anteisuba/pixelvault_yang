@@ -3,7 +3,7 @@
  *
  * ⚠ 文件原名 `studio-operator-memory.ts`，2026-09-20（56a）改名：那时仓里只有
  * 这一份「memory」，而 56a 落地了**真的**跨轮记忆（`AssistantMemory` 表 +
- * `services/assistant-memory.service.ts`）。⛔ 两个「memory」并存必然被读错 ——
+ * `features/assistant/services/assistant-memory.service.ts`）。⛔ 两个「memory」并存必然被读错 ——
  * 这一份从头到尾只做一件事：**把这一轮见过的东西收成一份名字索引**，它活一轮、
  * 不落库，与用户能在设置里改删的那份记忆没有任何关系。
  *

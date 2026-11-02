@@ -39,21 +39,21 @@ import {
   type LibraryWriteOutcome,
   type LibraryWriteOwner,
   type MemoryTarget,
-} from '@/services/assistant-library-write.service'
+} from '@/features/assistant/services/assistant-library-write.service'
 import {
   refused,
   runOldTool,
-} from '@/services/kernel/assistant-v3-bench.service'
-import { requestProjectId } from '@/services/kernel/assistant-operator.service'
+} from '@/features/assistant/services/assistant-v3-bench.service'
+import { requestProjectId } from '@/features/assistant/services/assistant-operator.service'
 import { readPinnedFields } from '@/features/cards/server'
-import { pickV3WebImage } from '@/services/kernel/assistant-v3-finds.service'
+import { pickV3WebImage } from '@/features/assistant/services/assistant-v3-finds.service'
 import {
   sayAboveCard,
   settlePlan,
   TITLE_TEXT,
   type V3Context,
   type V3Outcome,
-} from '@/services/kernel/assistant-v3-steps.service'
+} from '@/features/assistant/services/assistant-v3-steps.service'
 import {
   ASSISTANT_NEXT_EDIT_OP_IDS as OP,
   type AssistantNextEditOp,

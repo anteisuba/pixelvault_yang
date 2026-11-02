@@ -54,7 +54,7 @@ Personal AI Gallery — multi-model AI 生成（图/视频/音频/3D）+ 永久�
 - `src/constants/models.ts`（see `src/constants/CLAUDE.md`）
 - `src/services/storage/r2.ts`
 
-Per-directory CLAUDE.md 存在于：`types/`、`contexts/`、`components/business/studio/`、`components/business/node/`、`hooks/`、`constants/`、`services/`、`app/api/`、`prisma/`（以 `find src prisma -name CLAUDE.md` 为准）。
+Per-directory CLAUDE.md 存在于：`types/`、`contexts/`、`components/business/studio/`、`features/canvas/components/`、`hooks/`、`constants/`、`services/`、`app/api/`、`prisma/`（以 `find src prisma -name CLAUDE.md` 为准）。
 
 ## Security
 

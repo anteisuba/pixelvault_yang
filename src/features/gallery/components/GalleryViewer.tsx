@@ -27,7 +27,7 @@ import {
 } from '@/constants/routes'
 import { STUDIO_PREFILL_PROMPT_STORAGE_KEY } from '@/constants/studio'
 import type { GenerationRecord, OutputType } from '@/types'
-import { GenerationLayerStrip } from '@/components/business/image/GenerationLayerStrip'
+import { GenerationLayerStrip } from '@/components/business/GenerationLayerStrip'
 import { LikeCount } from '@/components/business/image-card/ImageCardActions'
 import { getChipZoomMotion } from '@/components/business/studio-shared/primitives/tool-surface'
 import {

@@ -12,7 +12,7 @@ import {
   StudioOperatorAvatarSwitcher,
   StudioOperatorChatModeChip,
   StudioOperatorCurrentAvatar,
-} from '@/components/business/studio/assistant-operator/StudioOperatorAvatarSwitcher'
+} from '@/features/assistant'
 import { STUDIO_SHELL_AVATAR_ATTR } from '@/components/business/studio/shell/StudioShellAvatarFlight'
 import {
   ShellHistoryMenu,
@@ -24,7 +24,7 @@ import {
   renameAssistantConversationAPI,
 } from '@/lib/api-client'
 import { useChatPersona } from '@/hooks/use-chat-persona'
-import { useStudioOperatorActions } from '@/hooks/use-studio-operator-actions'
+import { useStudioOperatorActions } from '@/features/assistant/hooks'
 import { useStudioOperatorHistoryView } from '@/hooks/use-studio-operator-history'
 import { useStudioOperatorState } from '@/hooks/use-studio-operator-store'
 import { usePathname, useRouter } from '@/i18n/navigation'

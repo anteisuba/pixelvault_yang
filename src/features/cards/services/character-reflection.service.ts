@@ -16,8 +16,8 @@ import { logger } from '@/lib/logger'
 import {
   listAssistantMemoriesForReview,
   recordAssistantMemories,
-} from '@/services/assistant-memory.service'
-import { resolveMemoryChanges } from '@/services/kernel/assistant-operator.service'
+} from '@/features/assistant/server'
+import { resolveMemoryChanges } from '@/features/assistant/server'
 import { todayFor } from '@/lib/memory-until'
 import type { AssistantRoute } from '@/services/kernel/assistant-route.service'
 import { llmTextCompletion } from '@/services/llm-text.service'

@@ -92,8 +92,8 @@
 现状（第 0 片之前）：
 
 - 路由 `src/app/api/studio/assistant-operator/route.ts`（`maxDuration = 300`）· 成帧器 `src/lib/assistant-operator-stream.ts`
-- 内核 `src/services/kernel/assistant-operator.service.ts`（主循环与 `canvas_sync` 收尾）· 单次调用 `src/services/kernel/assistant-completion.service.ts`
-- 前端 `src/hooks/use-assistant-operator.ts`（断流 `streamInterrupted`、画布接力、`resumePlan`）
+- 内核 `src/features/assistant/services/assistant-operator.service.ts`（主循环与 `canvas_sync` 收尾）· 单次调用 `src/services/kernel/assistant-completion.service.ts`
+- 前端 `src/features/assistant/hooks/use-assistant-operator.ts`（断流 `streamInterrupted`、画布接力、`resumePlan`）
 - 服务端落画布 `src/services/mcp/mcp-tools.service.ts`（`applyOpsForMcp`）· `src/lib/node-canvas-batch-v4.ts` · 快照 `src/lib/studio-operator-canvas-snapshot.ts`
 - 内部签名 `src/lib/signature-verifiers/internal-execution.ts`
 

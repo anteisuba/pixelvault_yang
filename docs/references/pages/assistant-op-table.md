@@ -186,11 +186,11 @@ LoRA 装配台的 op = **通用件里的那些**（与工作台同表，见 §2 
 - 工具词表与分组：`src/constants/assistant-operator.ts`（`ASSISTANT_OPERATOR_TOOL_IDS` · `ASSISTANT_OPERATOR_TOOLS` · `_READ_TOOLS` / `_MUTATING_TOOLS` / `_SPEND_TOOLS` · `ASSISTANT_OPERATOR_VERB_IDS` · `ASSISTANT_OPERATOR_TOOL_VERBS` · `ASSISTANT_OPERATOR_ENTRY_ACTIONS` · `ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN` · `ASSISTANT_OPERATOR_ENTRY_ACTIONS_BY_DOMAIN` · `ASSISTANT_OPERATOR_WRITE_MODES` · `ASSISTANT_OPERATOR_CANVAS_LIMITS`）
 - 参数 / payload / inverse 的形状：`src/types/assistant-operator.ts`（`ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS` · `readStep` / `mutatingStep` / `spendStep` · `CANVAS_APPLY_OP_IDS`）
 - 画布 op 真值表：`src/constants/node-assistant-ops.ts`（`NODE_ASSISTANT_OP_V4_IDS` · `NODE_ASSISTANT_OPS_V4` · `NODE_ASSISTANT_OP_V4_SPECS` · `NODE_ASSISTANT_OP_V4_GROUP_IDS` / `_TIER_IDS` · `NODE_ASSISTANT_SETTABLE_FIELDS`）
-- 落地与撤销：`src/lib/studio-operator-apply.ts`（`applyOperatorStep` / `revertOperatorStep`）· `src/lib/node-assistant-op-apply-v4.ts`（画布执行器就地算 inverse）· `src/hooks/use-studio-operator-revert.ts`
+- 落地与撤销：`src/lib/studio-operator-apply.ts`（`applyOperatorStep` / `revertOperatorStep`）· `src/lib/node-assistant-op-apply-v4.ts`（画布执行器就地算 inverse）· `src/features/assistant/hooks/use-studio-operator-revert.ts`
 - 落点词表：`src/constants/studio-assistant-operator.ts`（`STUDIO_OPERATOR_FIELD_IDS`）
-- 回执与闪：`src/components/business/studio/assistant-operator/StudioOperatorCheckpointCard.tsx` · `src/constants/motion.ts`（`ASSISTANT_TOUCH_FLASH_MOTION`）· `src/app/canvas.css`（`.node-assistant-touched`）· `src/hooks/node/node-ingest-dom.ts` · `src/app/globals.css`（`.assistant-field-touched`）· `src/lib/studio-operator-flash.ts`
+- 回执与闪：`src/features/assistant/components/operator/StudioOperatorCheckpointCard.tsx` · `src/constants/motion.ts`（`ASSISTANT_TOUCH_FLASH_MOTION`）· `src/app/canvas.css`（`.node-assistant-touched`）· `src/features/canvas/hooks/node-ingest-dom.ts` · `src/app/globals.css`（`.assistant-field-touched`）· `src/lib/studio-operator-flash.ts`
 - 专属 chip 与渠道的派生源：`src/lib/model-capability-chips.ts`（11 那行 chip，`set_capability` 的键白名单）· `src/lib/group-models-for-picker.ts`（`foldChannels`，渠道身份）· `src/lib/resolve-model-channel.ts` + `src/lib/model-picker-gate.ts`（「先选渠道」那道闸）· `src/lib/studio-operator-snapshot.ts`（两节快照的构造）
-- 宿主：`src/hooks/use-studio-workbench-operator-host.ts` · `src/features/lora/hooks/use-lora-operator-host.ts` · `src/hooks/node/use-canvas-operator-host.ts` · `src/hooks/node/use-canvas-operator-requests.ts`
+- 宿主：`src/features/assistant/hooks/use-studio-workbench-operator-host.ts` · `src/features/lora/hooks/use-lora-operator-host.ts` · `src/features/canvas/hooks/use-canvas-operator-host.ts` · `src/features/canvas/hooks/use-canvas-operator-requests.ts`
 - 协议与页面基准：[`assistant-shell-v2.md`](assistant-shell-v2.md) · [`node-canvas-v2.md`](node-canvas-v2.md) §13 · [`lora-assistant.md`](lora-assistant.md)
 
 ## Last Verified

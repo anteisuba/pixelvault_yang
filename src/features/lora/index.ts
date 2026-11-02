@@ -1,6 +1,6 @@
 /**
  * LoRA 域的对外入口（客户端）。域外只从这里引，⛔ 直引域内文件
- *（见 docs/design/features-migration.md）。
+ *（见 docs/design/features-migration.md）。hook 走 `@/features/lora/hooks`。
  */
 export { LoraSourceRecipeModal } from './components/LoraSourceRecipeModal'
 export { LoraTrainingDialog } from './components/LoraTrainingDialog'
@@ -15,8 +15,3 @@ export {
   LoraPickerDialog,
 } from './components/library/LoraPickerDialog'
 export { type LoraStageContextValue } from './components/lora-stage-context'
-export {
-  LoraStackProvider,
-  LoraStackStyleParamSync,
-} from './hooks/use-active-lora-stack'
-export { useCivitaiToken } from './hooks/use-civitai-token'

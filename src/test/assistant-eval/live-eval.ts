@@ -19,9 +19,16 @@ import {
   type AssistantTurnRecord,
 } from '@/types/assistant-turn-record'
 import type { AssistantOperatorRequest } from '@/types/assistant-operator'
-import type { AssistantV3Transcript } from '@/types/assistant-v3'
+import type {
+  AssistantV3Transcript,
+  AssistantV3TranscriptEntry,
+} from '@/types/assistant-v3'
 
 const ENTRY = ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS
+type BoardEntry = Extract<
+  AssistantV3TranscriptEntry,
+  { type: typeof ENTRY.board }
+>
 const ANTHROPIC_HOST = 'api.anthropic.com'
 
 /** 每百万 token 的美元价（Sonnet 5.5；缓存写按 1.25 倍）。只用来报花费，不进判分。 */
@@ -195,7 +202,18 @@ export interface TurnMetrics {
   asked: number
   toolsUsed: string[]
   errorSamples: string[]
+  /**
+   * 这一轮碰上回放缺的素材：按名字查库查不到、附图下载不下来。回放用的假库没有创作者的库，
+   * 线上不会这样；报告里把编造另算一份「排除这些题」的。
+   */
+  missingAsset?: boolean
 }
+
+const MISSING_ASSET_MARKERS = [
+  'not found. Use find',
+  'none found',
+  'Could not load',
+] as const
 
 function parseInput(input: unknown): Record<string, unknown> {
   if (typeof input === 'string') {
@@ -233,11 +251,19 @@ export function measureTranscript(
     asked: 0,
     toolsUsed: [],
     errorSamples: [],
+    missingAsset: false,
   }
   const tools = new Set<string>()
   const errorCalls = new Set<string>()
   const callStep = new Map<string, number>()
   for (const entry of transcript) {
+    if (
+      entry.type === ENTRY.result &&
+      MISSING_ASSET_MARKERS.some((marker) =>
+        String(entry.output).includes(marker),
+      )
+    )
+      metrics.missingAsset = true
     if (entry.type === ENTRY.result && entry.error) {
       metrics.toolErrors += 1
       errorCalls.add(entry.id)
@@ -286,6 +312,55 @@ export function measureTranscript(
   return metrics
 }
 
+// ---------------------------------------------------------------- 机器核对
+
+/**
+ * 不花钱的编造核对（r-eval-fabrication 11-02）：助手回话里点到的编号、权重 / 参数数值、标签，
+ * 逐个到它看得到的材料里找（开轮台面、整段对话、工具结果、它自己写进去的改动）。找不到的列为
+ * 「可疑」。⭐ 比评委稳（同一份输入永远同一个答案），评委只拿来复核可疑的那几条。
+ * ⛔ 提议的新值不算（「降到 0.7」「CFG 调到 4.5」）：只核「说台面上现在是什么」的那种。
+ */
+export function groundingCheck(input: {
+  history: readonly { content: unknown }[]
+  transcript: AssistantV3Transcript
+  finalText: string
+}): { claims: number; unsupported: string[] } {
+  const material = [
+    ...input.history.map((message) => String(message.content)),
+    ...input.transcript.flatMap((entry) => {
+      if (entry.type === ENTRY.board) return [entry.text]
+      if (entry.type === ENTRY.result) return [String(entry.output)]
+      if (entry.type === ENTRY.assistant)
+        return (entry.calls ?? []).map((call) => JSON.stringify(call.input))
+      return []
+    }),
+  ]
+    .join('\n')
+    .toLowerCase()
+  const said = [
+    ...input.transcript.flatMap((entry) =>
+      entry.type === ENTRY.assistant && entry.text ? [entry.text] : [],
+    ),
+    input.finalText,
+  ].join('\n')
+  const claims = new Set<string>()
+  const proposal = /(到|成|为|→|->|改|换|试|加|设)\s*$/
+  for (const match of said.matchAll(GROUNDING_PATTERN)) {
+    const before = said.slice(Math.max(0, match.index - 4), match.index)
+    if (proposal.test(before)) continue
+    claims.add(match[0])
+  }
+  const unsupported = [...claims].filter((claim) => {
+    const value = claim.toLowerCase().replace(/^(cfg|weight)\s*/, '')
+    return !material.includes(value)
+  })
+  return { claims: claims.size, unsupported }
+}
+
+/** 核哪些：库编号、搜索结果编号、带小数的数值、CFG 值、下划线标签、画师名。 */
+const GROUNDING_PATTERN =
+  /图_\d+|#\d+|\b\d+\.\d+\b|\bcfg\s*\d+(?:\.\d+)?|\b[a-z][a-z0-9]*(?:_[a-z0-9()]+)+\b|artist:[a-z0-9_()]+/gi
+
 // ---------------------------------------------------------------- 判分
 
 export interface JudgeVerdict {
@@ -297,6 +372,10 @@ export interface JudgeVerdict {
   unnecessaryStop: boolean
   /** 编了不存在的东西（编号、标签、事实）。 */
   madeThingsUp: boolean
+  /** 编的是哪一句（评委原话引出来；没编为 null）。 */
+  madeUpWhat?: string | null
+  /** 每次判的「编造」票（判两次，不一致再判第三次，取多数）。 */
+  madeUpVotes?: boolean[]
   note: string
 }
 
@@ -304,22 +383,45 @@ function clip(text: string, max: number) {
   return text.length > max ? `${text.slice(0, max)}…[cut]` : text
 }
 
-/** 判分用的那一份：创作者这句、开轮时的台面、模型做了什么、最后说了什么。 */
-function describeRun(
+/**
+ * 判分用的那一份：创作者这句、助手开轮时看到的台面、模型做了什么、最后说了什么。
+ *
+ * ⭐ 台面给助手真看到的那段文字（transcript 第一条 board），不给原始快照：快照多半超过
+ *   4000 字，参数和 LoRA 权重在后半段，截短后评委看不到，助手照实说也会被判成编造。
+ * ⭐ 附图另外作为图片给评委（助手开轮时也看得到它们）。
+ */
+export function describeRun(
   request: AssistantOperatorRequest,
   transcript: AssistantV3Transcript,
   finalText: string,
   end: string,
-) {
-  const history = request.messages
-    .slice(-6)
-    .map((message) => `${message.role}: ${clip(String(message.content), 600)}`)
-    .join('\n')
+): { text: string; pictures: { url: string; label: string }[] } {
+  // ⭐ 助手看得到整段对话：评委也给够（只给最后 6 条时，助手引用前面说过的话会被判编造）。
+  const history = clip(
+    request.messages
+      .slice(-JUDGE_CLIP.historyMessages)
+      .map(
+        (message) =>
+          `${message.role}: ${clip(String(message.content), JUDGE_CLIP.historyLine)}`,
+      )
+      .join('\n'),
+    JUDGE_CLIP.history,
+  )
+  const board = transcript.find(
+    (entry): entry is BoardEntry => entry.type === ENTRY.board,
+  )
+  const workbench = clip(
+    board?.text || JSON.stringify(request.snapshot),
+    JUDGE_CLIP.workbench,
+  )
+  const pictures = board?.images ?? []
   const actions = transcript
     .flatMap((entry) => {
       if (entry.type === ENTRY.assistant)
         return [
-          ...(entry.text ? [`assistant says: ${clip(entry.text, 400)}`] : []),
+          ...(entry.text
+            ? [`assistant says: ${clip(entry.text, JUDGE_CLIP.say)}`]
+            : []),
           ...(entry.calls ?? []).map(
             (call) =>
               `call ${call.tool}(${clip(JSON.stringify(call.input), 700)})`,
@@ -327,30 +429,48 @@ function describeRun(
         ]
       if (entry.type === ENTRY.result)
         return [
-          `${entry.error ? 'ERROR ' : ''}result ${entry.tool}: ${clip(String(entry.output), 400)}`,
+          `${entry.error ? 'ERROR ' : ''}result ${entry.tool}: ${clip(String(entry.output), JUDGE_CLIP.result)}`,
         ]
       return []
     })
     .join('\n')
-  return [
-    `## Conversation (last messages; the last user line is the request)\n${history}`,
-    `## Workbench before the turn (${request.domain})\n${clip(JSON.stringify(request.snapshot), 3000)}`,
+  const text = [
+    `## Conversation (the whole conversation the assistant had; the last user line is the request)\n${history}`,
+    `## Workbench as the assistant saw it at the start of the turn (${request.domain})\n${workbench}`,
     `## What the assistant did\n${actions || '(no tool calls)'}`,
     `## Final reply\n${clip(finalText, 1500) || '(none)'}`,
     `## Turn ended with: ${end}`,
   ].join('\n\n')
+  return {
+    text,
+    pictures: pictures.map((picture) => ({
+      url: picture.url,
+      label: picture.label,
+    })),
+  }
 }
+
+/** 给评委的材料各截多长（字）。 */
+const JUDGE_CLIP = {
+  workbench: 16_000,
+  say: 1200,
+  result: 1500,
+  historyMessages: 50,
+  historyLine: 800,
+  history: 24_000,
+} as const
 
 const JUDGE_SYSTEM = `You grade one turn of an AI assistant inside an image-generation studio. The creator talks to the assistant; the assistant edits the workbench (prompt, model, parameters, LoRAs, references), looks things up, asks questions, or proposes a generation (a confirm card the creator clicks; that counts as doing the job when generating is what was asked).
 
 Judge only against what the creator asked in their last message, read in the context of the conversation. Asking a question is correct when the request is genuinely ambiguous, and wrong when the answer was obvious from context.
 
 Reply with one JSON object and nothing else:
-{"completed": 0|1|2, "minimalChange": true|false|null, "unnecessaryStop": true|false, "madeThingsUp": true|false, "note": "<one short sentence in Chinese>"}
+{"completed": 0|1|2, "minimalChange": true|false|null, "unnecessaryStop": true|false, "madeThingsUp": true|false, "madeUpWhat": "<quote>"|null, "note": "<one short sentence in Chinese>"}
 - completed: 2 = did what was asked (or asked a needed question), 1 = partly, 0 = no.
 - minimalChange: when the request was a targeted change, did it keep everything else (style, tags, subject) intact? null if nothing was changed.
 - unnecessaryStop: stopped or asked when it should have just done it.
-- madeThingsUp: invented ids, tags, facts or results that are not in the material shown.`
+- madeThingsUp: invented ids, tags, facts or results that are not in the material shown. The workbench text is exactly what the assistant saw; pictures shown to you were in front of the assistant too (unless a result says they could not load). General know-how given as advice ("this base model usually likes CFG 4–5") is not made up; stating something about THIS workbench, picture, search result or conversation that the material does not support is. The assistant also has a system prompt you do not see, describing how this studio works; a claim about the studio's own behaviour (what a field does, what gets sent to a model) is made up only if the material contradicts it.
+- madeUpWhat: when madeThingsUp is true, quote the invented claim (a few words). null otherwise.`
 
 export async function judgeTurn(options: {
   apiKey: string
@@ -365,20 +485,71 @@ export async function judgeTurn(options: {
     baseURL: `https://${ANTHROPIC_HOST}/v1`,
     fetch: options.fetch,
   })
-  try {
+  const material = describeRun(
+    options.request,
+    options.transcript,
+    options.finalText,
+    options.end,
+  )
+  const once = async (withPictures: boolean): Promise<JudgeVerdict> => {
+    const pictures = withPictures ? material.pictures : []
     const { text } = await generateText({
       model: anthropic('claude-sonnet-5-5'),
       system: JUDGE_SYSTEM,
-      prompt: describeRun(
-        options.request,
-        options.transcript,
-        options.finalText,
-        options.end,
-      ),
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: material.text },
+            ...(pictures.length
+              ? [
+                  {
+                    type: 'text' as const,
+                    text: '## Pictures attached to the turn',
+                  },
+                  ...pictures.flatMap((picture) => [
+                    {
+                      type: 'text' as const,
+                      text: `[picture: ${picture.label}]`,
+                    },
+                    { type: 'image' as const, image: new URL(picture.url) },
+                  ]),
+                ]
+              : material.pictures.length
+                ? [
+                    {
+                      type: 'text' as const,
+                      text: `## Pictures attached to the turn (could not be shown to you: ${material.pictures.map((picture) => picture.label).join(', ')}) — do not count describing them as made up unless a result says they failed to load.`,
+                    },
+                  ]
+                : []),
+          ],
+        },
+      ],
       providerOptions: { anthropic: { effort: 'low' } },
     })
     const json = text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)
     return JSON.parse(json) as JudgeVerdict
+  }
+  const judgeOnce = () => once(true).catch(() => once(false))
+  try {
+    // ⭐ 「编造」一次判分抖得厉害：判两次，不一致再判第三次，取多数；其余字段用第一次的。
+    const first = await judgeOnce()
+    const votes = [first.madeThingsUp, (await judgeOnce()).madeThingsUp]
+    let madeUpWhat = first.madeThingsUp ? (first.madeUpWhat ?? null) : null
+    if (votes[0] !== votes[1]) {
+      const third = await judgeOnce()
+      votes.push(third.madeThingsUp)
+      if (!madeUpWhat && third.madeThingsUp)
+        madeUpWhat = third.madeUpWhat ?? null
+    }
+    const madeThingsUp = votes.filter(Boolean).length * 2 > votes.length
+    return {
+      ...first,
+      madeThingsUp,
+      madeUpWhat: madeThingsUp ? madeUpWhat : null,
+      madeUpVotes: votes,
+    }
   } catch (error) {
     return { error: String(error).slice(0, 300) }
   }
@@ -396,6 +567,7 @@ export interface CaseResult {
     outcome: string
     metrics: TurnMetrics
     judge: JudgeVerdict | { error: string }
+    grounding?: { claims: number; unsupported: string[] }
   }
   rerun: {
     end: string
@@ -405,6 +577,7 @@ export interface CaseResult {
     finalText: string
     metrics: TurnMetrics
     judge: JudgeVerdict | { error: string }
+    grounding?: { claims: number; unsupported: string[] }
     usage: TokenUsage
     cost: number
     /** 这次重跑的整轮记录（查原因用；结果目录在仓库外）。 */
@@ -441,8 +614,13 @@ function rate(part: number, whole: number) {
 }
 
 function summarize(
-  rows: { metrics: TurnMetrics; judge: JudgeVerdict | { error: string } }[],
+  rows: {
+    metrics: TurnMetrics
+    judge: JudgeVerdict | { error: string }
+    grounding?: { claims: number; unsupported: string[] }
+  }[],
 ) {
+  const grounded = rows.filter((row) => row.grounding)
   const judged = rows.flatMap((row) =>
     'error' in row.judge ? [] : [row.judge],
   )
@@ -466,6 +644,24 @@ function summarize(
       judged.length,
     ),
     编造: rate(judged.filter((j) => j.madeThingsUp).length, judged.length),
+    '编造（排除缺素材题）': (() => {
+      const clean = rows.filter(
+        (row) => !('error' in row.judge) && !row.metrics.missingAsset,
+      )
+      return `${rate(
+        clean.filter(
+          (row) => 'madeThingsUp' in row.judge && row.judge.madeThingsUp,
+        ).length,
+        clean.length,
+      )}（${clean.length} 题）`
+    })(),
+    机器核对可疑: grounded.length
+      ? rate(
+          grounded.filter((row) => row.grounding!.unsupported.length > 0)
+            .length,
+          grounded.length,
+        )
+      : '—',
     工具错误率: rate(
       sum((m) => m.toolErrors),
       calls,
@@ -527,8 +723,16 @@ export function writeReport(out: string, results: CaseResult[]) {
     ...results.map((r) => {
       const judge = r.rerun.judge
       const verdict = 'error' in judge ? '判分失败' : String(judge.completed)
-      const note = 'error' in judge ? judge.error : judge.note
-      return `| ${r.id.slice(0, 8)} | ${r.category} | ${clip(r.text, 40).replace(/\|/g, '/')} | ${r.rerun.end} | ${verdict} | ${clip(note, 80).replace(/\|/g, '/')} |`
+      const note =
+        'error' in judge
+          ? judge.error
+          : judge.madeUpWhat
+            ? `${judge.note}【编造：${judge.madeUpWhat}】`
+            : judge.note
+      const suspect = r.rerun.grounding?.unsupported.length
+        ? `【核对找不到：${r.rerun.grounding.unsupported.slice(0, 4).join('、')}】`
+        : ''
+      return `| ${r.id.slice(0, 8)} | ${r.category} | ${clip(r.text, 40).replace(/\|/g, '/')} | ${r.rerun.end} | ${verdict} | ${clip(`${suspect}${note}`, 180).replace(/\|/g, '/')} |`
     }),
   ]
   writeFileSync(join(out, 'summary.md'), lines.join('\n'))

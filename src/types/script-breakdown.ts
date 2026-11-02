@@ -1,13 +1,17 @@
 import { z } from 'zod'
 
 import {
-  DEFAULT_SCRIPT_PLANNER_PROVIDER,
   SCRIPT_BREAKDOWN_COPY_RISKS,
   SCRIPT_BREAKDOWN_LIMITS,
-  SCRIPT_PLANNER_PROVIDERS,
 } from '@/constants/script-breakdown'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
-import { LOCALES } from '@/i18n/routing'
+
+/**
+ * 旧 Agent 节点的拆解结果 —— 只活在 v3 存量数据里（`node-workflow.ts` v3 节点的
+ * `breakdown` / `planner`）与 `node-workflow-migrate-planner.ts`。生成接口
+ * `/api/script-breakdown` 已于 2026-11-01 删除（镜头表 `p-canvas-shotlist`）；
+ * 这份 schema 随 v3 读端一起删（node-canvas-v2 §14.4）。
+ */
 
 const BreakdownIdSchema = z.string().trim().min(1).max(80)
 const BreakdownTextSchema = z
@@ -70,15 +74,6 @@ export const ShotDraftSchema = z.object({
   maxReferences: z.number().int().min(0).max(9).optional(),
 })
 
-export const ScriptBreakdownRequestSchema = z.object({
-  idea: z.string().trim().min(1).max(SCRIPT_BREAKDOWN_LIMITS.ideaMaxLength),
-  plannerProvider: z
-    .enum(SCRIPT_PLANNER_PROVIDERS)
-    .default(DEFAULT_SCRIPT_PLANNER_PROVIDER),
-  apiKeyId: z.string().trim().min(1).max(160).optional(),
-  locale: z.enum(LOCALES),
-})
-
 export const ScriptBreakdownResultSchema = z.object({
   title: z.string().trim().min(1).max(SCRIPT_BREAKDOWN_LIMITS.titleMaxLength),
   logline: z
@@ -107,31 +102,12 @@ export const ScriptBreakdownPlannerSchema = z.object({
   label: z.string().trim().min(1),
 })
 
-export const ScriptBreakdownResponseDataSchema = z.object({
-  breakdown: ScriptBreakdownResultSchema,
-  planner: ScriptBreakdownPlannerSchema,
-})
-
-export const ScriptBreakdownApiSuccessResponseSchema = z.object({
-  success: z.literal(true),
-  data: ScriptBreakdownResponseDataSchema,
-})
-
 export type CharacterDraft = z.infer<typeof CharacterDraftSchema>
 export type SceneDraft = z.infer<typeof SceneDraftSchema>
 export type ActionDraft = z.infer<typeof ActionDraftSchema>
 export type BeatDraft = z.infer<typeof BeatDraftSchema>
 export type ShotDraft = z.infer<typeof ShotDraftSchema>
-export type ScriptBreakdownRequest = z.infer<
-  typeof ScriptBreakdownRequestSchema
->
 export type ScriptBreakdownResult = z.infer<typeof ScriptBreakdownResultSchema>
 export type ScriptBreakdownPlanner = z.infer<
   typeof ScriptBreakdownPlannerSchema
->
-export type ScriptBreakdownResponseData = z.infer<
-  typeof ScriptBreakdownResponseDataSchema
->
-export type ScriptBreakdownApiSuccessResponse = z.infer<
-  typeof ScriptBreakdownApiSuccessResponseSchema
 >

@@ -28,7 +28,7 @@ vi.mock('@/features/lora/hooks/use-active-lora-stack', () => ({
 vi.mock('@/features/lora/hooks/use-civitai-download-gate', () => ({
   useCivitaiDownloadGate: () => ({ ensureMountable: async () => true }),
 }))
-vi.mock('@/hooks/use-hand-to-assistant', () => ({
+vi.mock('@/features/assistant/hooks/use-hand-to-assistant', () => ({
   useHandMentionToAssistant: () => null,
 }))
 vi.mock('@/hooks/use-local-preference', () => ({

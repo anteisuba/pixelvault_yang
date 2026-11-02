@@ -17,10 +17,10 @@ vi.mock('@/lib/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }))
 
-vi.mock('@/services/assistant-memory.service', async () => {
+vi.mock('@/features/assistant/services/assistant-memory.service', async () => {
   const actual = await vi.importActual<
-    typeof import('@/services/assistant-memory.service')
-  >('@/services/assistant-memory.service')
+    typeof import('@/features/assistant/services/assistant-memory.service')
+  >('@/features/assistant/services/assistant-memory.service')
   return {
     AssistantMemoryLimitError: actual.AssistantMemoryLimitError,
     listAssistantMemoriesForClerkId: vi.fn(),
@@ -35,7 +35,7 @@ import {
   AssistantMemoryLimitError,
   createCreatorMemoryForClerkId,
   listAssistantMemoriesForClerkId,
-} from '@/services/assistant-memory.service'
+} from '@/features/assistant/server'
 
 const mockList = vi.mocked(listAssistantMemoriesForClerkId)
 const mockCreate = vi.mocked(createCreatorMemoryForClerkId)

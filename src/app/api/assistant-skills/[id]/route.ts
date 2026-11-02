@@ -8,7 +8,7 @@ import {
 import {
   deleteAssistantSkillForClerkId,
   updateAssistantSkillForClerkId,
-} from '@/services/assistant-skill.service'
+} from '@/features/assistant/server'
 import { UpdateAssistantSkillSchema } from '@/types/assistant-skill'
 import { assistantSkillErrors } from '../errors'
 

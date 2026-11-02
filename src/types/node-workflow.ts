@@ -79,6 +79,11 @@ import { VIDEO_NODE_MODES } from '@/constants/video-node-modes'
 import { SCRIPT_PLANNER_PROVIDERS } from '@/constants/script-breakdown'
 import { SCRIPT_DOC_DEPTHS, SCRIPT_DOC_STAGES } from '@/constants/script-doc'
 import {
+  SHOT_SIZES,
+  SHOT_SPEC_LIMITS,
+  SHOTLIST_OPTIONAL_COLUMNS,
+} from '@/constants/shot-spec'
+import {
   ScriptBreakdownPlannerSchema,
   ScriptBreakdownResultSchema,
 } from '@/types/script-breakdown'
@@ -1282,6 +1287,44 @@ export const NodeV4ScriptShotSchema = z.object({
     .catch(undefined),
 })
 
+/**
+ * 镜头表的一行在镜头卡上的那几格（`p-canvas-shotlist`，`docs/design/canvas-shotlist.md`）。
+ *
+ * 「说明」列 = 卡的 `prompt`、「时长」列 = `params.duration`、「画面」列现读产物 ——
+ * ⛔ 这里不再存第二份。景别 / 运镜 / 风格**发送时**才拼进提示词
+ * （`lib/shot-spec-prompt.ts`），⛔ 不写进正文：正文仍是用户和助手写的那段话。
+ * ⚠ 每格都 `.optional()`、整块 `.catch(undefined)`：存量镜头卡没有它，一格坏值也
+ * 不能让整份项目读不出来。
+ */
+export const NodeV4ShotSpecSchema = z.object({
+  size: z.enum(SHOT_SIZES).optional(),
+  move: z.string().trim().min(1).max(SHOT_SPEC_LIMITS.moveMaxLength).optional(),
+  /** 这一镜单独的风格；空 = 用全片风格（`state.shotlist.look`）。 */
+  look: z.string().trim().min(1).max(SHOT_SPEC_LIMITS.lookMaxLength).optional(),
+  /**
+   * 时长是用户亲手定的（owner 11-01：给总时长让助手分配节奏，比每镜限死效果好）。
+   * `true` = 助手重新分配时不动这一镜；缺席 = 可以分。
+   */
+  durationLocked: z.boolean().optional(),
+})
+
+/**
+ * 项目级的镜头表设置。缺席 = 没设过，表照常能用。
+ * ⚠ 与 `edit` 同理 `.catch(undefined)`：坏掉的设置不该让整份项目打不开。
+ */
+export const NodeWorkflowShotlistSchema = z.object({
+  /** 全片风格：哪一镜的 `shot.look` 空着就用它。 */
+  look: z.string().trim().min(1).max(SHOT_SPEC_LIMITS.lookMaxLength).optional(),
+  /** 全片总时长（秒）：助手按剧情把它分给没锁时长的镜。 */
+  totalDurationSec: z
+    .number()
+    .positive()
+    .max(SHOT_SPEC_LIMITS.totalDurationMaxSeconds)
+    .optional(),
+  /** 用户关掉的可选列（owner 11-01：时长、角色 · 场景两列要能关）。 */
+  hiddenColumns: z.array(z.enum(SHOTLIST_OPTIONAL_COLUMNS)).max(8).optional(),
+})
+
 const NodeV4VideoShape = {
   characterPicks: NodeV4CharacterPicksSchema,
   ...NodeV4BaseShape,
@@ -1332,6 +1375,8 @@ export const NodeV4VideoShotDataSchema = z.object({
   label: NodeV4ShotLabelSchema,
   /** 这一镜是哪张剧本卡投出来的（进度表 24）。缺席 = 手建的镜，重投影不碰它。 */
   scriptShot: NodeV4ScriptShotSchema.optional().catch(undefined),
+  /** 镜头表的景别 / 运镜 / 风格（见 `NodeV4ShotSpecSchema`）。 */
+  shot: NodeV4ShotSpecSchema.optional().catch(undefined),
 })
 
 /** 参考片段 / 成片。标签可选：它们不进镜头带，`@` 指的是节点名。 */
@@ -1522,12 +1567,14 @@ export const NodeWorkflowStateV4Schema = z.object({
   version: z.literal(4),
   nodes: z.array(NodeV4Schema),
   edges: z.array(NodeWorkflowEdgeV4Schema),
-  scriptDoc: ScriptDocSchema.optional().catch(undefined),
+  /*
+   * ⛔ 没有 `scriptDoc*`：旧剧本笺的事实模型与它的四个 UI 状态 2026-11-01 删
+   * （`p-canvas-shotlist`）。存量 v4 项目里那几个键读时被 zod 剥掉、下次保存即消失
+   * —— 入口 10-22 已删，它们早就是没人读的副本。
+   */
   canvasAppearance: CanvasAppearanceSchema.optional().catch(undefined),
-  scriptDocStage: z.enum(SCRIPT_DOC_STAGES).optional().catch(undefined),
-  scriptDocDepth: z.enum(SCRIPT_DOC_DEPTHS).optional().catch(undefined),
-  scriptDocLocks: z.array(z.string()).optional().catch(undefined),
-  scriptDocShotStills: z.boolean().optional().catch(undefined),
+  /** 镜头表的项目级设置（全片风格 / 总时长 / 关掉的列）。 */
+  shotlist: NodeWorkflowShotlistSchema.optional().catch(undefined),
   /**
    * 剪辑台的时间线（S8）。缺席 = 这个项目还没进过剪辑台。
    *
@@ -1549,6 +1596,8 @@ export type NodeV4TextData = z.infer<typeof NodeV4TextDataSchema>
 export type NodeV4ImageData = z.infer<typeof NodeV4ImageDataSchema>
 export type NodeV4AudioData = z.infer<typeof NodeV4AudioDataSchema>
 export type NodeV4ScriptShot = z.infer<typeof NodeV4ScriptShotSchema>
+export type NodeV4ShotSpec = z.infer<typeof NodeV4ShotSpecSchema>
+export type NodeWorkflowShotlist = z.infer<typeof NodeWorkflowShotlistSchema>
 export type NodeV4VideoShotData = z.infer<typeof NodeV4VideoShotDataSchema>
 export type NodeV4VideoAuxData = z.infer<typeof NodeV4VideoAuxDataSchema>
 export type NodeV4VideoData = z.infer<typeof NodeV4VideoDataSchema>

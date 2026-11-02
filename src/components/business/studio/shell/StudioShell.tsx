@@ -39,7 +39,7 @@ import {
   type StudioOperatorDockPlacement,
   type StudioOperatorHost,
 } from '@/contexts/studio-operator-host'
-import { StudioOperatorDock } from '@/components/business/studio/assistant-operator'
+import { StudioOperatorDock } from '@/features/assistant'
 import { HomeDraftBench } from '@/components/business/studio/shell/HomeDraftBench'
 import { StudioConversationList } from '@/components/business/studio/shell/StudioConversationList'
 import {
@@ -68,11 +68,11 @@ import {
   StudioShellHistoryKey,
   StudioShellPersonaKey,
 } from '@/components/business/studio/shell/StudioShellHistoryKeys'
-import { useHomeOperatorHost } from '@/hooks/use-home-operator-host'
+import { useHomeOperatorHost } from '@/features/assistant/hooks'
 import { useIsDesktopShell } from '@/hooks/use-mobile'
 import { useStudioConversationBenchSync } from '@/hooks/use-studio-conversation-bench'
 import { useStudioConversationUrl } from '@/hooks/use-studio-conversation-url'
-import { useStudioOperatorActions } from '@/hooks/use-studio-operator-actions'
+import { useStudioOperatorActions } from '@/features/assistant/hooks'
 import {
   useStudioOperatorHistoryView,
   type StudioOperatorHistoryRestore,
@@ -152,12 +152,13 @@ export function StudioShell({
     setBase({ kind: routeKind, pathname })
   const isDesk = useIsDesktopShell()
   /**
-   * 手机（<768）直接打开库（旧地址 308 过来、底栏点「素材」…）：没有台可留，
-   * 就地当一整页画，⛔ 盖满屏的叠层 —— 与搬进库之前那一页长得一样，底栏照旧（9f-2e）。
-   * 从台上点开（`base` 有值）照旧叠上来，关掉回到台。
+   * 手机（<768）上库一律就地当一整页画，⛔ 盖满屏的叠层 —— 与搬进库之前那一页长得一样，
+   * 底栏照旧（9f-2e）。直接打开（旧地址 308 过来、底栏点「素材」…）库就是 `children`；
+   * 从台上软跳转过来（工作台顶栏 ←、台上的库链接）库在 `@library` 那一格，台不画。
+   * ⚠ 手机上叠层既没有关闭键、又盖住底栏（z-40 同层、后挂在上）：工作台 ← 回素材页
+   *   底栏整条不见（bug-mobile-tabbar，2026-11-02）。后退照旧回到台。
    */
-  const libraryInPlace =
-    isDesk === false && routeKind === 'library' && base === null
+  const libraryInPlace = isDesk === false && routeKind === 'library'
   const kind = libraryInPlace ? 'page' : (base?.kind ?? 'home')
   const plainHomeHost = useHomeOperatorHost()
   /** 首页那份小配方（第 9g 步）挂好之前 / 台开着时，面板拿只能聊天的那张脸。 */
@@ -268,7 +269,8 @@ export function StudioShell({
                       className={cn(SHELL_BOARD_CLASS, 'lg:overflow-y-auto')}
                       style={libraryWidth('100%')}
                     >
-                      {children}
+                      {/* 从台上过来的：`children` 还是那张台，库在 `@library` 那一格就地画。 */}
+                      {base === null ? children : null}
                       {libraryLayer}
                     </div>
                   ) : (

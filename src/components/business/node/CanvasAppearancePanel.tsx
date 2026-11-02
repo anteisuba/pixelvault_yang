@@ -14,7 +14,7 @@ import {
   NODE_STUDIO_CANVAS_APPEARANCE_DEFAULT,
   NODE_STUDIO_CANVAS_APPEARANCE_PRESETS,
 } from '@/constants/node-studio'
-import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
+import { AssetSelectorDialog } from '@/features/assets'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import {

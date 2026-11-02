@@ -5,10 +5,10 @@ import { Wand2 } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { LORA_CARD_SOURCE_IMAGE_WIDTH } from '@/constants/lora'
-import { civitaiDisplayImageUrl } from '@/lib/civitai-image-url'
+import { civitaiDisplayImageUrl } from '@/features/lora/core'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { LoraSourceRecipeModal } from '@/components/business/studio/lora/LoraSourceRecipeModal'
+import { LoraSourceRecipeModal } from '@/features/lora'
 import type { CivitaiImageRecipe, CivitaiRecipeExtraLora } from '@/types'
 
 /**

@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto'
 import { HUGGINGFACE_LORA_ALLOWED_EXTENSION } from '@/constants/lora'
 import { logger } from '@/lib/logger'
 import { getSystemCivitaiToken } from '@/lib/platform-keys'
-import { fetchCivitaiModelFileSha256s } from '@/services/civitai-lora.service'
+import { fetchCivitaiModelFileSha256s } from '@/features/lora/server'
 import {
   createPresignedR2GetUrl,
   R2SourceChecksumMismatchError,

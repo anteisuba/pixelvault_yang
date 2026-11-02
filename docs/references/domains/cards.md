@@ -10,9 +10,9 @@
 
 ## Service / API
 
-- `src/services/cards/character-card.service.ts`（CRUD + 复制）· `character-look.service.ts`（造型增改删、设默认）· `character-sample-lines.service.ts`（试读：按设定写两句台词；起草：对话示例空着写 5 段、开场白空着写一句）· `character-card.mapper.ts`（行 → `CharacterCardRecord`）。风格卡、背景卡与三卡融合编译 `card-recipe-compiler` 2026-10-21 下线（卡片模式只留角色，出图走选中的模型 + 卡片总线）。工作台卡片模式本身、旧管理抽屉（`CharacterCardManager` 等 5 个组件）、一致性打分接口与组合作品接口 2026-10-22 删除（角色①）：工作台只剩一种模式，选了角色就带上；「训练 LoRA」曾搬进角色详情「用她 ▾」，2026-10-30 角色大项目第 ① 步连菜单一起删（训练先放着）。
+- `src/features/cards/services/character-card.service.ts`（CRUD + 复制）· `character-look.service.ts`（造型增改删、设默认）· `character-sample-lines.service.ts`（试读：按设定写两句台词；起草：对话示例空着写 5 段、开场白空着写一句）· `character-card.mapper.ts`（行 → `CharacterCardRecord`）。风格卡、背景卡与三卡融合编译 `card-recipe-compiler` 2026-10-21 下线（卡片模式只留角色，出图走选中的模型 + 卡片总线）。工作台卡片模式本身、旧管理抽屉（`CharacterCardManager` 等 5 个组件）、一致性打分接口与组合作品接口 2026-10-22 删除（角色①）：工作台只剩一种模式，选了角色就带上；「训练 LoRA」曾搬进角色详情「用她 ▾」，2026-10-30 角色大项目第 ① 步连菜单一起删（训练先放着）。
 - API：`/api/character-cards`（GET/POST）· `/api/character-cards/import`（POST，酒馆卡导入）· `/api/character-cards/chub/import`（POST，卡库建卡；卡库搜索由浏览器直接问 chub，没有我们的路由）· `/api/character-cards/[id]`（GET/PATCH/DELETE）· `/api/character-cards/[id]/duplicate`（POST，服务端复制整个角色含造型与 LoRA）· `/api/character-cards/[id]/looks`（POST，加造型）· `/api/character-looks/[id]`（PUT/DELETE）· `/api/character-cards/[id]/sample-lines`。
-- Hooks：`src/hooks/cards/`。
+- Hooks：`src/features/cards/hooks/`（组件在 `components/`，域外走 `@/features/cards` / `@/features/cards/server`）。
 
 ## 酒馆卡导入（2026-10-14，owner「进提示词加导入」）
 
@@ -46,7 +46,7 @@
 - **成人内容照出**（owner 2026-10-15「不排除成人内容」）：搜索带 `nsfw=true`，只挡 NSFL（`nsfl=false` + 标签兜底）。**有搜索词时按相关度排**（`rankChubCards`）：名字就是它 > 名字里有 > 标签里有 > 只在正文里，同一档保持 chub 的热门 / 最新顺序；⚠ 只在一页里排。
 
 - **⚠ 浏览器直接问 api.chub.ai**（2026-10-15 改）：chub 的 Cloudflare 拒云厂商 / 机房 IP（2026-10-15 从 Vercel 东京 hnd1、弗吉尼亚 iad1 实测都是 403 `This service is not available in your country.`，与 `x-src-country`、UA、Origin 无关），而它对任何来源（含错误响应）都回 `access-control-allow-origin: *`，所以搜索与取卡定义都由用户浏览器去问，⛔ 回到服务端代问。浏览器只带 `Accept: application/json`（CORS 安全名单，不触发预检）。
-- **接口**：搜索 `searchChubCardsAPI`（`src/lib/api-client/cards.ts`）直接打 `https://api.chub.ai/search`；读结果的规则（卡片字段、NSFL 标签兜底、相关度排序、图床判断、去 `ROOT`、`hasMore` / `MAX_PAGE`）在共用纯函数 `src/lib/chub-library.ts`。建卡 `importChubCardAPI` 先在浏览器取 `/api/characters/<作者>/<卡名>?full=true`，再 `POST /api/character-cards/chub/import { fullPath, node }` → `importChubCard`（`src/services/cards/chub-library.service.ts`），服务端 ⛔ 再问 api.chub.ai。chub 没有公开文档，地址与字段照酒馆 `downloadChubCharacter`（常量头注写了出处，改前先对）。
+- **接口**：搜索 `searchChubCardsAPI`（`src/lib/api-client/cards.ts`）直接打 `https://api.chub.ai/search`；读结果的规则（卡片字段、NSFL 标签兜底、相关度排序、图床判断、去 `ROOT`、`hasMore` / `MAX_PAGE`）在共用纯函数 `src/lib/chub-library.ts`。建卡 `importChubCardAPI` 先在浏览器取 `/api/characters/<作者>/<卡名>?full=true`，再 `POST /api/character-cards/chub/import { fullPath, node }` → `importChubCard`（`src/features/cards/services/chub-library.service.ts`），服务端 ⛔ 再问 api.chub.ai。chub 没有公开文档，地址与字段照酒馆 `downloadChubCharacter`（常量头注写了出处，改前先对）。
 - **递上来的 `node` 当用户输入看**（与拖进来的卡文件同级）：`ImportChubCardSchema`（`src/types/chub-library.ts`）只留落格要的几格（多余的键丢掉）、类型不对的格当空、超长一律拒——长文各格与整张卡（序列化后）用 `TAVERN_CARD.MAX_FILE_BYTES`（3 MB，这一条走 JSON 请求体，Vercel 4.5 MB 封顶），名字 / 标签 / 图片地址另有 `CHUB_LIBRARY.NODE_LIMITS`；`fullPath` 仍过 `ChubFullPathSchema`。浏览器先按同一份 schema 判一遍，太大就直接说，⛔ 递上去。
 - **落格**：`node.definition` 按酒馆的映射拼成 V2 卡（chub 的 `personality` → 酒馆 description → 我们的经历；`tavern_personality` → 性格；`description` → 简介），再走文件导入那条 `mapTavernCard` → `createImportedCharacterCard`；`st.card` 另记 `source: 'chub'` 与 `fullPath`。
 - **⛔ 成人内容**：搜索固定 `nsfw=false&nsfl=false`，再按 `NSFW` / `NSFL` 标签兜一层。没有开关（要开再问 owner）。
@@ -181,7 +181,7 @@ owner 逐项定的口径（对齐稿 https://claude.ai/artifact/FTTAHbuCwHmnMcPr
 
 ④ 已写：`scripts/backfill-card-bus.ts` 只回填 `handle` 与 `referenceSlots`（persona 等文字侧推后，不改写）；映射全取 `card-bus.ts` 与 mapper，写库用 `IS NULL` 条件兜并发。09-25 只读报告：14 张（6 张软删）、1 个用户、全部缺两列、加后缀 1、参考槽跳过 0。 09-26 owner 授权 `--apply`：写入 28 格，重跑报告两列缺失均为 0。
 
-⑤ 已写：读卡入口 `services/cards/card-bus.service.ts`（`loadCardBusCharacters`，按传入顺序、第一个 = 焦点角色；参考槽坏了或空着就用 mapper 从旧四列现算）+ 纯编译 `lib/card-bus-compile.ts`（中间形态 `toCardBusCharacter` · 图片出口 `compileImageOutlet`）。工作台快速出图改为送 `characterCardIds`（`StudioGenerateSchema` 新增，上限 `MAX_ACTIVE_CARDS`），服务端编译：卡图排在用户参考图**之后**、图例编号顺延；负面按「用户 / 预设 → 角色」拼；快照记 `studioSnapshot.characterCards: {id, version}[]`；`characterCardIds` 随请求进 join 表。⚠ 行为变化：① 删掉客户端 `character-card-injection.ts`（原先只送第一张卡的一张图、只在用户没挂图时送）；② NovelAI 不再送卡图（原先会被当成图生图底图），V4.5 / V5 改走原生多角色、用户手摆了就退回文字。卡片配方 `compileRecipe` 未接（风格卡与配方另立项下线）。
+⑤ 已写：读卡入口 `features/cards/services/card-bus.service.ts`（`loadCardBusCharacters`，按传入顺序、第一个 = 焦点角色；参考槽坏了或空着就用 mapper 从旧四列现算）+ 纯编译 `lib/card-bus-compile.ts`（中间形态 `toCardBusCharacter` · 图片出口 `compileImageOutlet`）。工作台快速出图改为送 `characterCardIds`（`StudioGenerateSchema` 新增，上限 `MAX_ACTIVE_CARDS`），服务端编译：卡图排在用户参考图**之后**、图例编号顺延；负面按「用户 / 预设 → 角色」拼；快照记 `studioSnapshot.characterCards: {id, version}[]`；`characterCardIds` 随请求进 join 表。⚠ 行为变化：① 删掉客户端 `character-card-injection.ts`（原先只送第一张卡的一张图、只在用户没挂图时送）；② NovelAI 不再送卡图（原先会被当成图生图底图），V4.5 / V5 改走原生多角色、用户手摆了就退回文字。卡片配方 `compileRecipe` 未接（风格卡与配方另立项下线）。
 
 ⑥ 已写：图片出口多给一份与卡图逐位对齐的图例 `referenceLabels`，快速出图拼成与整串参考图对齐的 `referenceImageLabels`（用户挂的图为 `null`）送进 worker；worker 的 Gemini 在每张图前面插一段文字说明（`buildGeminiImageParts`）。长度对不上的整串丢弃 = 旧行为。⚠ worker 要随发布单独部署才生效。
 

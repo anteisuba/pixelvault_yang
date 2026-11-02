@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { getSystemCivitaiToken } from '@/lib/platform-keys'
-import { fetchCivitaiModelFileSha256s } from '@/services/civitai-lora.service'
+import { fetchCivitaiModelFileSha256s } from '@/features/lora/server'
 import {
   createPresignedR2GetUrl,
   R2SourceChecksumMismatchError,
@@ -33,7 +33,7 @@ vi.mock('@/services/storage/r2', () => ({
     }
   },
 }))
-vi.mock('@/services/civitai-lora.service', () => ({
+vi.mock('@/features/lora/services/civitai-lora.service', () => ({
   fetchCivitaiModelFileSha256s: vi.fn(),
 }))
 vi.mock('@/lib/platform-keys', () => ({

@@ -47,7 +47,7 @@ vi.mock('@/lib/model-options', () => ({
 const picked = vi.hoisted(() => ({
   generation: null as GenerationRecord | null,
 }))
-vi.mock('@/components/business/AssetSelectorDialog', () => ({
+vi.mock('@/features/assets', () => ({
   AssetSelectorDialog: ({
     open,
     mediaType,

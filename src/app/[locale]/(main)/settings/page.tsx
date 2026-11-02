@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 
 import { ROUTES } from '@/constants/routes'
-import { SettingsIndexView } from '@/components/business/settings/SettingsIndexView'
+import { SettingsIndexView } from '@/features/settings'
 import { redirect } from '@/i18n/navigation'
 import type { AppLocale } from '@/i18n/routing'
 

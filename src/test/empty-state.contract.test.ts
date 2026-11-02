@@ -29,29 +29,29 @@ const LANDING_POINTS = [
   // 整页加载失败（画廊 / 素材库共用，owner 2026-10-08 加载中）。
   'src/components/business/PageLoadError.tsx',
   'src/components/business/studio-shared/chrome/StudioErrorBoundary.tsx',
-  'src/components/business/GalleryGrid.tsx',
-  'src/components/business/gallery/GalleryPromptList.tsx',
-  'src/components/business/KreaAssetBrowser.tsx',
-  'src/components/business/assets/AssetStateBlocks.tsx',
+  'src/features/gallery/components/GalleryGrid.tsx',
+  'src/features/gallery/components/GalleryPromptList.tsx',
+  'src/features/assets/components/KreaAssetBrowser.tsx',
+  'src/features/assets/components/AssetStateBlocks.tsx',
   // 角色页卡库：chub 没回时整块出错（owner 2026-10-14 卡库）。
-  'src/components/business/cards/CharacterLibrary.tsx',
-  'src/components/business/cards/CharacterMemoryPane.tsx',
-  'src/components/business/cards/CharacterRoster.tsx',
+  'src/features/cards/components/CharacterLibrary.tsx',
+  'src/features/cards/components/CharacterMemoryPane.tsx',
+  'src/features/cards/components/CharacterRoster.tsx',
   // 角色页右栏「最近」：她还没出过门 / 没读出来（方向 B，owner 2026-10-28）。
-  'src/components/business/cards/CharacterRecent.tsx',
-  'src/components/business/cards/CharacterRecentDiary.tsx',
+  'src/features/cards/components/CharacterRecent.tsx',
+  'src/features/cards/components/CharacterRecentDiary.tsx',
   'src/components/business/node/NodeCanvasEmptyGuide.tsx',
   'src/components/business/assistant-settings/AssistantHerPane.tsx',
   'src/components/business/assistant-settings/AssistantMemoryPane.tsx',
-  'src/components/business/studio/lora/LoraWorkbench.tsx',
-  'src/components/business/studio/lora/library/LoraLibraryTypeStates.tsx',
-  'src/components/business/studio/lora/training/EmptyState.tsx',
+  'src/features/lora/components/LoraWorkbench.tsx',
+  'src/features/lora/components/library/LoraLibraryTypeStates.tsx',
+  'src/features/lora/components/training/EmptyState.tsx',
   // 音色库页：还没收藏 / 还没克隆（「声音」模块，owner 10-23）。
   'src/components/business/voices/VoicesPage.tsx',
   // 声音库桌面：还没收藏（库骨架，ui-spec §9）。
   'src/components/business/voices/VoicesLibraryDesk.tsx',
   // 提示词库桌面：还没收藏（库骨架，ui-spec §9）。
-  'src/components/business/prompts/PromptLibraryDesk.tsx',
+  'src/features/prompts/components/PromptLibraryDesk.tsx',
   // 配音台：默认助手没有嗓子（先换个角色）/ 台词没读出来（③，10-26）。
   'src/components/business/studio/voice-bench/VoiceBench.tsx',
 ]

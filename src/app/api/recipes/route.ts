@@ -3,7 +3,7 @@ import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
 
 import { createApiGetRoute, createApiRoute } from '@/lib/api-route-factory'
-import { createRecipe, listRecipes } from '@/services/prompts/recipe.service'
+import { createRecipe, listRecipes } from '@/features/prompts/server'
 import { CreateRecipeRequestSchema, ListRecipesQuerySchema } from '@/types'
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 

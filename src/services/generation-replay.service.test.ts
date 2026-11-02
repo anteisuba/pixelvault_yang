@@ -10,7 +10,7 @@ vi.mock('@/services/user.service', () => ({
 }))
 
 const mockFindLoraAssetsByUrls = vi.fn()
-vi.mock('@/services/lora-asset.service', () => ({
+vi.mock('@/features/lora/services/lora-asset.service', () => ({
   findLoraAssetsByUrls: (...a: unknown[]) => mockFindLoraAssetsByUrls(...a),
 }))
 

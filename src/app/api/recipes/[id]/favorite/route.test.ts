@@ -8,7 +8,7 @@ vi.mock('@/lib/logger', () => ({
 
 const mockSetFavorite = vi.fn()
 
-vi.mock('@/services/prompts/recipe.service', () => ({
+vi.mock('@/features/prompts/server', () => ({
   setRecipeFavorite: (...args: unknown[]) => mockSetFavorite(...args),
 }))
 

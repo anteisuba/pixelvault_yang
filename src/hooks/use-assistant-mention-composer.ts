@@ -37,7 +37,7 @@ import {
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import type { StudioOperatorHost } from '@/contexts/studio-operator-host'
 import type { MentionToken } from '@/components/ui/mention-input'
-import { useCharacterLibraryCards } from '@/hooks/cards/use-character-library'
+import { useCharacterLibraryCards } from '@/features/cards'
 import {
   addOperatorMention,
   registerOperatorMentions,

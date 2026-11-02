@@ -278,7 +278,7 @@ adapter / Worker 抛错
 - `src/constants/{providers,config,generation-errors,provider-capabilities}.ts` · `src/constants/models/`
 - `src/services/providers/`（registry / types / adapter 实现——**adapter 名册与个数一律以 `registry.ts` 的 `PROVIDER_ADAPTERS` 为准**）· `src/services/{api-key-resolver,apiKey}.service.ts` · `src/services/image/generate-image.service.ts` · `src/services/llm-text.service.ts`
 - `src/lib/{errors,api-error-message,platform-keys}.ts`
-- HF LoRA discovery: `src/services/huggingface-lora.service.ts` · `src/app/api/lora-assets/huggingface/route.ts` · `src/hooks/use-huggingface-lora-library.ts` · `src/constants/lora.ts`
+- HF LoRA discovery: `src/features/lora/services/huggingface-lora.service.ts` · `src/app/api/lora-assets/huggingface/route.ts` · `src/features/lora/hooks/use-huggingface-lora-library.ts` · `src/constants/lora.ts`
 - 历史详版（含 worker 迁移逐条清单）：`git show cddc4384:docs/integrations/providers.md`
 
 ## Last Verified

@@ -1,4 +1,4 @@
-import { GallerySkeletonGrid } from '@/components/business/gallery/GallerySkeleton'
+import { GallerySkeletonGrid } from '@/features/gallery'
 import { Skeleton } from '@/components/ui/skeleton'
 
 /**

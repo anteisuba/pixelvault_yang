@@ -4,10 +4,7 @@ import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 
 import { logger } from '@/lib/logger'
-import {
-  favoriteExternalLora,
-  unfavoriteLora,
-} from '@/services/lora-asset.service'
+import { favoriteExternalLora, unfavoriteLora } from '@/features/lora/server'
 import { FavoriteLoraRequestSchema } from '@/types'
 import type { LoraAssetRecord } from '@/types'
 

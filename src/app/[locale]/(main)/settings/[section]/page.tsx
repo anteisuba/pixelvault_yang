@@ -4,8 +4,8 @@ import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 
 import { ROUTES } from '@/constants/routes'
-import { isSettingsSection } from '@/constants/settings'
-import { SettingsSectionView } from '@/components/business/settings/SettingsSectionView'
+import { isSettingsSection } from '@/features/settings'
+import { SettingsSectionView } from '@/features/settings'
 import { redirect } from '@/i18n/navigation'
 import type { AppLocale } from '@/i18n/routing'
 

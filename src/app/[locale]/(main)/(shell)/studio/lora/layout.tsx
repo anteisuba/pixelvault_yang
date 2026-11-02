@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 
-import { LoraStackStyleParamSync } from '@/hooks/use-active-lora-stack'
+import { LoraStackStyleParamSync } from '@/features/lora'
 import { PromptTagProvider } from '@/hooks/use-prompt-tag-stack'
 
 /**

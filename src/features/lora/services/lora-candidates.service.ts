@@ -1,0 +1,478 @@
+import 'server-only'
+
+/**
+ * LoRA 推荐候选的检索与归一（切片 3「一次确认链」，任务包 §B）。
+ *
+ * ── 这一层存在的唯一理由 ───────────────────────────────────────────
+ * ⭐ **模型绝不自己写 LoRA 的 id / URL / 任何元数据。** 它只能从这里返回的候选里
+ * 挑，并说出为什么。卡上显示的每一条事实都来自这个函数的返回值。
+ *
+ * ── 三条设计规矩 ───────────────────────────────────────────────────
+ * 1. **不知道就写 null，不猜、不省略。** 省略等于让用户以为「没有限制」——
+ *    许可字段上这一条尤其致命（策略 C：不阻断，但必须如实展示）。
+ * 2. **单源失败不拖垮另一源。** 形态照抄 `services/research/connector-runtime.ts`
+ *    的 `runConnector`：重试 + 熔断 + 兜底翻成回执，**永不向上抛**。
+ * 3. **导入门槛写在数据上，不写在 UI 上。** `importable:false` 的候选照样返回、
+ *    照样展示，只是带一个原因码 —— 「只推荐不导入」是产品行为，不是错误。
+ *
+ * ⚠ **搜索来的 Civitai 候选没有文件大小。** 2026-08-21 实测：meilisearch 的版本
+ * 对象根本没有 `files` 字段。这不是接漏了，是上游就没有 —— 卡上那一栏对搜索来的
+ * 条目就是「未知」，⛔ 别为了填满它给每条候选补一次 REST 详情请求（6 条候选 =
+ * 6 次外部往返，挂在用户等待的那条路上）。
+ */
+
+import {
+  LORA_CANDIDATE_BREAKER_OPTIONS,
+  LORA_CANDIDATE_BREAKER_PREFIX,
+  LORA_CANDIDATE_LIMITS,
+  LORA_CANDIDATE_NOT_IMPORTABLE_REASONS,
+  LORA_CANDIDATE_SOURCE_IDS,
+  LORA_CANDIDATE_SOURCE_STATUSES,
+} from '@/constants/lora-candidate'
+import {
+  familySlugToCivitaiBaseModel,
+  familySlugToHuggingFaceFamily,
+  parseLoraLibraryFamilyParam,
+  HUGGINGFACE_LORA_DEFAULT_FAMILY,
+  LORA_LIBRARY_BROWSE_PAGE_SIZE,
+  type CivitaiLoraBaseModel,
+  type CivitaiLoraSort,
+  type HuggingFaceLoraFamily,
+  type LoraContentType,
+  type LoraNsfwFilter,
+} from '@/constants/lora'
+import { normalizeToLoraBaseFamily } from '@/features/lora/constants/lora-base-models'
+import { CircuitOpenError, getCircuitBreaker } from '@/lib/circuit-breaker'
+import { db } from '@/lib/db'
+import { logger } from '@/lib/logger'
+import {
+  buildLoraSourceSnapshot,
+  dedupeLoraStrings,
+  gradeLoraMetadataCompleteness,
+  resolveLoraFamily,
+} from '@/features/lora/lib/lora-source-snapshot'
+import { withRetry } from '@/lib/with-retry'
+import { listCivitaiLoras } from '@/features/lora/services/civitai-lora-library.service'
+import { normalizeLoraNameKey } from '@/features/lora/services/civitai-lora.service'
+import { type CivitaiLoraLibraryItem, type LoraCandidateLicense } from '@/types'
+import type {
+  LoraCandidate,
+  LoraCandidateImportPayload,
+  LoraCandidateSearchResult,
+  LoraCandidateSourceReceipt,
+} from '@/types/lora-candidate'
+
+type LoraCandidateSource = LoraCandidate['source']
+
+export interface SearchLoraCandidatesInput {
+  /** 内部 `User.id`（不是 clerkId）—— 用来比对「他库里已经有了」。 */
+  userId: string
+  query: string
+  /**
+   * 工作台当前底模家族。**软偏好，不是过滤**：匹配的候选排前面，不匹配的照样
+   * 返回（卡上写着家族，用户自己判断）。硬过滤会把「你该换个底模」这种真实建议
+   * 提前掐掉，而那正是助手该说的话。
+   */
+  baseModelFamily?: string
+  limit?: number
+  /** 工作台挂载栈上的 LoRA 名字 —— 用来标「你已经挂着这一把了」。 */
+  mountedNames?: readonly string[]
+}
+
+// ─── 单源跑法（照 connector-runtime 的形态） ─────────────────────────
+
+interface SourceOutcome {
+  items: LoraCandidate[]
+  receipt: LoraCandidateSourceReceipt
+}
+
+/**
+ * 单源预算闸。
+ *
+ * ⚠ **两个上游各自的超时加起来管不住这一轮**：HF 那条路是「每次请求 15s ×
+ * 最多 N 次游标扫描」，最坏能自己吃掉整轮的 `maxDuration`，表现是「助手转圈
+ * 然后 504」—— 这条路上已经有过一次同形状的事故（检索与元数据必须并行的那条
+ * 注释）。所以这里再压一道**整源**预算。
+ *
+ * 超时不中断底层请求（拿不到它的 AbortSignal），只是把结果丢掉 —— 代价是一次
+ * 白花的请求，换的是这一轮准时回话。推荐卡缺一源，好过整轮 504。
+ */
+async function withSourceBudget<T>(
+  source: LoraCandidateSource,
+  fn: () => Promise<T>,
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    return await Promise.race([
+      fn(),
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(
+          () =>
+            reject(
+              new Error(
+                `${source} exceeded the ${LORA_CANDIDATE_LIMITS.sourceTimeoutMs}ms candidate budget`,
+              ),
+            ),
+          LORA_CANDIDATE_LIMITS.sourceTimeoutMs,
+        )
+      }),
+    ])
+  } finally {
+    if (timer) clearTimeout(timer)
+  }
+}
+
+/**
+ * 跑一个源，**任何情况下都不抛**。空结果与失败是两件事，回执里分开表达 ——
+ * 卡面要能说出「Civitai 没搜到」和「Civitai 挂了」的区别。
+ */
+async function runCandidateSource(
+  source: LoraCandidateSource,
+  fn: () => Promise<LoraCandidate[]>,
+): Promise<SourceOutcome> {
+  const startedAt = Date.now()
+  const breaker = getCircuitBreaker(
+    `${LORA_CANDIDATE_BREAKER_PREFIX}:${source}`,
+    LORA_CANDIDATE_BREAKER_OPTIONS,
+  )
+  try {
+    const items = await breaker.call(() =>
+      withRetry(() => withSourceBudget(source, fn), {
+        maxAttempts: LORA_CANDIDATE_LIMITS.maxAttempts,
+        label: `lora-candidates.${source}`,
+      }),
+    )
+    return {
+      items,
+      receipt: {
+        source,
+        status: items.length
+          ? LORA_CANDIDATE_SOURCE_STATUSES.ok
+          : LORA_CANDIDATE_SOURCE_STATUSES.empty,
+        count: items.length,
+        tookMs: Date.now() - startedAt,
+      },
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    logger.warn('LoRA candidate source failed', { source, error: message })
+    return {
+      items: [],
+      receipt: {
+        source,
+        status:
+          error instanceof CircuitOpenError
+            ? LORA_CANDIDATE_SOURCE_STATUSES.circuitOpen
+            : LORA_CANDIDATE_SOURCE_STATUSES.failed,
+        count: 0,
+        tookMs: Date.now() - startedAt,
+        error: message.slice(0, 400),
+      },
+    }
+  }
+}
+
+// ─── 归一 helpers ───────────────────────────────────────────────────
+
+function clampName(value: string): string {
+  const trimmed = value.trim()
+  return trimmed.length > LORA_CANDIDATE_LIMITS.nameMaxLength
+    ? trimmed.slice(0, LORA_CANDIDATE_LIMITS.nameMaxLength)
+    : trimmed
+}
+
+/**
+ * ⚠ 归一里的**纯计算**部分（家族哨兵值、触发词去重、完整度分级、快照构造）已经
+ * 搬去 `features/lora/lib/lora-source-snapshot.ts`：库 modal 的「使用」按钮是同一份快照的第二个
+ * 构造点，而它跑在浏览器里，`import 'server-only'` 的这个文件它进不来。
+ * 抄一份的下场是同一把 LoRA 从两个入口导入得到两份不同的出处记录。
+ */
+
+// ─── Civitai → LoraCandidate ────────────────────────────────────────
+
+function civitaiToCandidate(
+  item: CivitaiLoraLibraryItem,
+  retrievedAt: string,
+): LoraCandidate {
+  const author = item.creatorName?.trim() || null
+  /**
+   * ⚠ **Civitai 没有许可字段**，只有作者勾的权限位。压成一个 `license: string`
+   * 只有两条路：一律 null（把已知的商用声明丢掉），或者由我们编一个许可名（猜）。
+   * 两条都违反「不许猜、不许省略」，所以许可是一个结构，不是一个字符串。
+   *
+   * ⚠ 已知偏差：Civitai 省略 `allowCommercialUse` 时上游映射写的是 `[]`，与
+   * 「作者明确不允许任何商用」同形。偏差方向是**更保守**（多一条限制），且与
+   * 现有库 UI 的许可徽章逐字一致，本批不改 —— 改它要动搜索侧映射，那是并行
+   * 会话的地盘。
+   */
+  const license: LoraCandidateLicense = {
+    label: null,
+    commercialUse: item.allowCommercialUse,
+    allowDerivatives: item.allowDerivatives,
+    allowNoCredit: item.allowNoCredit ?? null,
+    known: true,
+  }
+  const baseModelFamily = resolveLoraFamily(item.baseModelFamily)
+  const triggerWords = dedupeLoraStrings([
+    item.triggerWord,
+    ...item.triggerAlternates,
+  ])
+  const sampleImageUrls = item.previewImageUrls.slice(
+    0,
+    LORA_CANDIDATE_LIMITS.maxSampleImages,
+  )
+  const fileSizeBytes = item.fileSizeBytes ?? null
+  const metadataCompleteness = gradeLoraMetadataCompleteness({
+    author,
+    license,
+    baseModelFamily,
+    triggerWords,
+    fileSizeBytes,
+    sampleImageUrls,
+  })
+
+  const importable = baseModelFamily !== null && Boolean(item.loraUrl)
+  const snapshot = buildLoraSourceSnapshot({
+    source: LORA_CANDIDATE_SOURCE_IDS.civitai,
+    triggerSource: item.triggerSource,
+    author,
+    license,
+    pageUrl: item.modelPageUrl,
+    // Civitai 的版本 id 已经把「哪一版权重」钉死了，没有第二个 revision 概念。
+    revision: null,
+    fileSizeBytes,
+    metadataCompleteness,
+    retrievedAt,
+  })
+
+  const importPayload: LoraCandidateImportPayload | null =
+    importable && baseModelFamily
+      ? {
+          name: clampName(item.name),
+          triggerWord: item.triggerWord,
+          loraUrl: item.loraUrl,
+          type: item.type,
+          baseModelFamily,
+          provider: item.provider,
+          coverImageUrl: item.coverImageUrl,
+          recommendedPrompt: item.recommendedPrompt,
+          ...(item.modelId ? { modelId: item.modelId } : {}),
+          ...(item.modelVersionId
+            ? { modelVersionId: item.modelVersionId }
+            : {}),
+          fileHashAutoV3: item.fileHashAutoV3,
+          sourceSnapshot: snapshot,
+        }
+      : null
+
+  return {
+    candidateId: item.id,
+    source: LORA_CANDIDATE_SOURCE_IDS.civitai,
+    name: item.name,
+    author,
+    license,
+    baseModelFamily,
+    type: item.type,
+    triggerWords,
+    sampleImageUrls,
+    fileSizeBytes,
+    pageUrl: item.modelPageUrl,
+    downloads: item.downloadCount,
+    metadataCompleteness,
+    importable,
+    ...(importable
+      ? {}
+      : {
+          notImportableReason: item.loraUrl
+            ? LORA_CANDIDATE_NOT_IMPORTABLE_REASONS.unknownBaseModel
+            : LORA_CANDIDATE_NOT_IMPORTABLE_REASONS.noWeightFile,
+        }),
+    // 两个标注在 `annotateOwnership` 里统一打 —— 这里先给确定的默认值。
+    alreadyMounted: false,
+    alreadyImported: false,
+    importPayload,
+  }
+}
+
+/**
+ * 工作台底模家族 → 上游可用的筛选值。
+ *
+ * ⚠ **2026-09-12 真机 bug 的根因就在这里缺了一环**：底模是 Anima（`anima-dit`）
+ * 时 `search_loras("Wuthering Waves")` 全是 Illustrious/Pony ——
+ * Civitai 侧根本没传 `baseModel`，`preferFamily` 只能在那一页里排序，而同族的
+ * 12 条鸣潮 LoRA 压根不在那一页上。对照实测：`&baseModel=Anima` 有 12 条。
+ *
+ * ⛔ 不新写第二张映射表：`normalizeToLoraBaseFamily` →
+ * `parseLoraLibraryFamilyParam` → `familySlugToCivitaiBaseModel` 全是现成的。
+ *
+ * 回环校验（下推值再归一回来必须还是同一个家族）保证**下推用的尺子与
+ * `preferFamily` 排序用的是同一把**：`'other'` / `'all'` 这类没有真实家族语义的
+ * slug 会在这里被挡掉 —— 宁可只发不带筛选的那一次，也不下推一个排序端认不出
+ * 的值。
+ */
+function resolveUpstreamFamilyFilters(rawFamily: string | undefined): {
+  civitaiBaseModel: CivitaiLoraBaseModel | null
+  huggingFaceFamily: HuggingFaceLoraFamily | null
+} {
+  const none = { civitaiBaseModel: null, huggingFaceFamily: null }
+  if (!rawFamily) return none
+  const family = normalizeToLoraBaseFamily(rawFamily)
+  if (!family) return none
+  const slug = parseLoraLibraryFamilyParam(family)
+  if (slug === 'all') return none
+  const civitaiBaseModel = familySlugToCivitaiBaseModel(slug)
+  if (normalizeToLoraBaseFamily(civitaiBaseModel) !== family) return none
+  const huggingFaceFamily = familySlugToHuggingFaceFamily(slug)
+  return {
+    civitaiBaseModel,
+    huggingFaceFamily:
+      huggingFaceFamily === HUGGINGFACE_LORA_DEFAULT_FAMILY
+        ? null
+        : huggingFaceFamily,
+  }
+}
+
+/**
+ * 当前底模家族 → 库页底模筛选用的 Civitai 值（lora-assistant §13.1）。与上面的同族
+ * 下推同一张映射；`null` = 这个家族在库页上没有对应的筛选值，不限底模。
+ */
+export function resolveLibraryBaseModel(
+  rawFamily: string | null | undefined,
+): CivitaiLoraBaseModel | null {
+  return resolveUpstreamFamilyFilters(rawFamily ?? undefined).civitaiBaseModel
+}
+
+/**
+ * 打上「已挂载 / 已收藏」两个标注。
+ *
+ * ⚠ 两条比对用的是**不同精度的键**，故意的：
+ *  - 已挂载：挂载栈上只有名字（`AssistantWorkbenchLoraMount` 没有 url），
+ *    所以按 `normalizeLoraNameKey` 归一名比对 —— 与「一键补挂」的第 0 层
+ *    用的是同一把尺子。
+ *  - 已收藏：库里有精确键（loraUrl / civitaiModelVersionId），就用精确的。
+ *    名字比对在这一侧会误判（同名不同版本）。
+ */
+async function annotateOwnership(
+  candidates: LoraCandidate[],
+  input: { userId: string; mountedNames?: readonly string[] },
+): Promise<LoraCandidate[]> {
+  if (candidates.length === 0) return candidates
+
+  const mountedKeys = new Set(
+    (input.mountedNames ?? [])
+      .map((name) => normalizeLoraNameKey(name))
+      .filter(Boolean),
+  )
+
+  const loraUrls = candidates
+    .map((candidate) => candidate.importPayload?.loraUrl)
+    .filter((url): url is string => Boolean(url))
+  const versionIds = candidates
+    .map((candidate) => candidate.importPayload?.modelVersionId)
+    .filter((id): id is number => typeof id === 'number')
+
+  const ownedRows =
+    loraUrls.length > 0 || versionIds.length > 0
+      ? await db.loraAsset.findMany({
+          where: {
+            userId: input.userId,
+            // 只被角色收着的不算「已在库里」（角色③）。
+            inLibrary: true,
+            OR: [
+              ...(loraUrls.length ? [{ loraUrl: { in: loraUrls } }] : []),
+              ...(versionIds.length
+                ? [{ civitaiModelVersionId: { in: versionIds } }]
+                : []),
+            ],
+          },
+          select: { loraUrl: true, civitaiModelVersionId: true },
+          take: LORA_CANDIDATE_LIMITS.maxOwnedAssetsScanned,
+        })
+      : []
+
+  const ownedUrls = new Set(ownedRows.map((row) => row.loraUrl))
+  const ownedVersionIds = new Set(
+    ownedRows
+      .map((row) => row.civitaiModelVersionId)
+      .filter((id): id is number => id !== null),
+  )
+
+  return candidates.map((candidate) => ({
+    ...candidate,
+    alreadyMounted: mountedKeys.has(normalizeLoraNameKey(candidate.name)),
+    alreadyImported:
+      (candidate.importPayload?.loraUrl !== undefined &&
+        ownedUrls.has(candidate.importPayload.loraUrl)) ||
+      (typeof candidate.importPayload?.modelVersionId === 'number' &&
+        ownedVersionIds.has(candidate.importPayload.modelVersionId)),
+  }))
+}
+
+/**
+ * **照库页的条件搜**（lora-assistant §13.1，owner 2026-09-29「切到库页当面搜」）。
+ *
+ * ⭐ 参数与库页那一次请求**逐字相同**：词 · 底模（当前底模家族下推成 Civitai 值，
+ * 与上面的同族下推同一张映射）· 排序 / 分级 / 类型（库页网址上现在的那几个）· 每页
+ * 24。同一组条件查同一份索引 —— 网格第一段就是助手挑选时看到的那一组，圈才圈得到卡上。
+ * ⚠ 只搜 Civitai：owner 定「只搜库」，⛔ Hugging Face、⛔ 收藏。
+ * ⚠ 返回这次用的 Civitai 底模值：客户端照它设库页的底模筛选，⛔ 自己再算一遍。
+ */
+export async function searchLoraLibraryCandidates(
+  input: Omit<SearchLoraCandidatesInput, 'limit'> & {
+    limit?: number
+    filters?: {
+      sort: CivitaiLoraSort
+      nsfwFilter: LoraNsfwFilter
+      contentType: LoraContentType
+    }
+  },
+): Promise<
+  LoraCandidateSearchResult & { baseModel: CivitaiLoraBaseModel | null }
+> {
+  const query = input.query
+    .trim()
+    .slice(0, LORA_CANDIDATE_LIMITS.maxQueryLength)
+  const limit = Math.min(
+    input.limit ?? LORA_CANDIDATE_LIMITS.maxCandidates,
+    LORA_CANDIDATE_LIMITS.maxCandidates,
+  )
+  if (!query) return { candidates: [], query: '', sources: [], baseModel: null }
+
+  const retrievedAt = new Date().toISOString()
+  const { civitaiBaseModel } = resolveUpstreamFamilyFilters(
+    input.baseModelFamily,
+  )
+  const civitai = await runCandidateSource(
+    LORA_CANDIDATE_SOURCE_IDS.civitai,
+    async () => {
+      const page = await listCivitaiLoras({
+        search: query,
+        pageSize: LORA_LIBRARY_BROWSE_PAGE_SIZE,
+        ...(civitaiBaseModel ? { baseModel: civitaiBaseModel } : {}),
+        ...(input.filters ?? {}),
+        // ⚠ 库页一搜词就把排序换回「Highest Rated」（`useCivitaiLoraLibrary` 的
+        //   `commitSearch`），当面搜也是搜词 —— 这里跟着换，⛔ 用网址上的排序。
+        sort: 'Highest Rated',
+      })
+      return page.items.map((item) => civitaiToCandidate(item, retrievedAt))
+    },
+  )
+  const candidates = await annotateOwnership(
+    civitai.items.slice(0, limit),
+    input,
+  )
+
+  logger.info('LoRA library candidates resolved', {
+    query,
+    total: candidates.length,
+    baseModel: civitaiBaseModel,
+    civitai: civitai.receipt.status,
+  })
+
+  return {
+    candidates,
+    query,
+    sources: [civitai.receipt],
+    baseModel: civitaiBaseModel,
+  }
+}

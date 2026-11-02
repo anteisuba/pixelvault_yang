@@ -232,7 +232,7 @@
 | ---------------------- | ---------------------------------------------------------------------------------------------- |
 | 画布空项目             | `node/NodeCanvasEmptyGuide.tsx`（画布皮肤覆盖）                                                |
 | 画廊为空               | `GalleryGrid.tsx`                                                                              |
-| 素材库空库             | `assets/AssetStateBlocks.tsx` · `KreaAssetBrowser.tsx`                                         |
+| 素材库空库             | `features/assets/components/AssetStateBlocks.tsx` · `KreaAssetBrowser.tsx`                     |
 | 角色卡为空             | `cards/CharacterRoster.tsx`                                                                    |
 | 画廊提示词为空         | `gallery/GalleryPromptList.tsx`                                                                |
 | 设置页记忆为空         | `settings/SettingsAssistantSection.tsx`                                                        |

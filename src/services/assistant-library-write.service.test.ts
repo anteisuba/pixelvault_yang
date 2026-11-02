@@ -258,7 +258,7 @@ vi.mock('@/lib/db', () => ({
     },
   },
 }))
-vi.mock('@/services/cards/character-card.service', () => ({
+vi.mock('@/features/cards/services/character-card.service', () => ({
   createCharacterCard: vi.fn(),
   updateCharacterCard: vi.fn(
     async (
@@ -273,7 +273,7 @@ vi.mock('@/services/cards/character-card.service', () => ({
     },
   ),
 }))
-vi.mock('@/services/cards/character-look.service', () => ({
+vi.mock('@/features/cards/services/character-look.service', () => ({
   createCharacterLook: vi.fn(),
   updateCharacterLook: vi.fn(
     async (_clerkId: string, lookId: string, data: Partial<FakeLook>) => {
@@ -281,7 +281,7 @@ vi.mock('@/services/cards/character-look.service', () => ({
     },
   ),
 }))
-vi.mock('@/services/prompts/recipe.service', () => ({
+vi.mock('@/features/prompts/server', () => ({
   createRecipe: vi.fn(),
   updateRecipe: vi.fn(),
 }))
@@ -290,7 +290,7 @@ const revisions = vi.hoisted(() => ({
   record: vi.fn(async () => 'rev-1'),
   markReverted: vi.fn(async () => undefined),
 }))
-vi.mock('@/services/cards/character-revision.service', () => ({
+vi.mock('@/features/cards/services/character-revision.service', () => ({
   recordCharacterRevision: revisions.record,
   markCharacterRevisionReverted: revisions.markReverted,
 }))

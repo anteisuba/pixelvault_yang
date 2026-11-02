@@ -54,8 +54,8 @@ import {
 } from '@/services/usage.service'
 import { ensureUser } from '@/services/user.service'
 import { isWaitingForSlot } from '@/services/execution-slot.service'
-import { getCivitaiTokenByInternalUserId } from '@/services/civitai-token.service'
-import { findCivitaiLorasWithDownloadDisabled } from '@/services/civitai-lora.service'
+import { getCivitaiTokenByInternalUserId } from '@/features/lora/server'
+import { findCivitaiLorasWithDownloadDisabled } from '@/features/lora/server'
 import { generateStorageKey } from '@/services/storage/r2'
 import { prepareRunnerLoras } from '@/services/runner/civitai-lora-to-r2.service'
 import {

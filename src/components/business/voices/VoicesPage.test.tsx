@@ -21,7 +21,7 @@ vi.mock('@/hooks/use-voices-page', () => ({
 vi.mock('@/components/business/studio/VoiceTrainer', () => ({
   VoiceTrainer: () => null,
 }))
-vi.mock('@/components/business/AssetSelectorDialog', () => ({
+vi.mock('@/features/assets', () => ({
   AssetSelectorDialog: () => null,
 }))
 

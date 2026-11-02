@@ -18,20 +18,10 @@ function createPrismaClient() {
 
 /**
  * 已停读停写、下一次部署删掉的列：先从默认查询里拿掉，删列那次迁移跑起来时
- * 还在线的这一版就不会去查一个已经没有的列。删列后连同这里一起删。
+ * 还在线的这一版就不会去查一个已经没有的列。删列那次把对应条目一起删，平时为空。
+ * 形如 `{ recipe: { visibility: true } }`。
  */
-const RETIRED_COLUMNS = {
-  // 模板「发布到共享库」已拿掉（共享提示词搬到画廊）。
-  recipe: { visibility: true },
-  // 角色出门改成一次一趟（`CharacterOuting`，角色大项目第 ⑤ 步）：开关、每天上限、型号、原因都不用了。
-  characterCard: {
-    browseEnabled: true,
-    browseDailyLimit: true,
-    browsedAt: true,
-    browseModel: true,
-    browsePausedReason: true,
-  },
-} as const
+const RETIRED_COLUMNS = {} as const
 
 const globalForPrisma = globalThis as typeof globalThis & {
   prisma?: ReturnType<typeof createPrismaClient>

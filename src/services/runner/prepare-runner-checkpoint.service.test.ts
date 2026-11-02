@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('@/services/civitai-lora.service', () => ({
+vi.mock('@/features/lora/services/civitai-lora.service', () => ({
   resolveCivitaiCheckpointByReference: vi.fn(),
 }))
 
-import { resolveCivitaiCheckpointByReference } from '@/services/civitai-lora.service'
+import { resolveCivitaiCheckpointByReference } from '@/features/lora/server'
 
 import {
   deriveRunnerCheckpointFilename,

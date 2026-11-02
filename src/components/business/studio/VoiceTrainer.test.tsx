@@ -20,7 +20,7 @@ vi.mock('next-intl', () => ({
 const onCreatedMock = vi.fn()
 
 const refreshMock = vi.fn(async () => {})
-vi.mock('@/hooks/cards/use-voice-cards', () => ({
+vi.mock('@/features/cards/hooks/use-voice-cards', () => ({
   useVoiceCards: () => ({
     cards: [],
     isLoading: false,

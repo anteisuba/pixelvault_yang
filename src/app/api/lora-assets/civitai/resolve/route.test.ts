@@ -8,16 +8,16 @@ vi.mock('@/lib/logger', () => ({
   logger: { error: vi.fn(), info: vi.fn(), warn: vi.fn() },
 }))
 
-vi.mock('@/services/civitai-lora.service', () => ({
+vi.mock('@/features/lora/services/civitai-lora.service', () => ({
   resolveCivitaiLoraByReference: vi.fn(),
 }))
 
-vi.mock('@/services/lora-asset.service', () => ({
+vi.mock('@/features/lora/services/lora-asset.service', () => ({
   findLoraAssetByExtraReference: vi.fn(),
 }))
 
-import { resolveCivitaiLoraByReference } from '@/services/civitai-lora.service'
-import { findLoraAssetByExtraReference } from '@/services/lora-asset.service'
+import { resolveCivitaiLoraByReference } from '@/features/lora/server'
+import { findLoraAssetByExtraReference } from '@/features/lora/server'
 
 import { GET } from './route'
 

@@ -121,7 +121,7 @@ vi.mock('../../../studio-shared/setup/QuickSetupDialog', () => ({
   ),
 }))
 
-vi.mock('@/components/business/AssetSelectorDialog', () => ({
+vi.mock('@/features/assets', () => ({
   AssetSelectorDialog: () => <div data-testid="asset-picker" />,
 }))
 
@@ -131,7 +131,7 @@ const { markRecipeUsedAPI } = vi.hoisted(() => ({
   markRecipeUsedAPI: vi.fn(),
 }))
 vi.mock('@/lib/api-client/recipes', () => ({ markRecipeUsedAPI }))
-vi.mock('@/hooks/prompts/use-recipes', () => ({
+vi.mock('@/features/prompts', () => ({
   prefetchRecipes: () => () => {},
   useRecipes: () => ({
     recipes: [

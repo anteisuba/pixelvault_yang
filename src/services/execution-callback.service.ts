@@ -22,7 +22,7 @@ import {
   withGenerationObservability,
 } from '@/lib/generation-observability'
 import { createGeneration } from '@/services/generation.service'
-import { buildRecipeSnapshotForUser } from '@/services/prompts/recipe.service'
+import { buildRecipeSnapshotForUser } from '@/features/prompts/server'
 import {
   enqueueImagePreviewDerivatives,
   processImagePreviewDerivativeOutbox,

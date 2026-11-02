@@ -12,7 +12,7 @@ vi.mock('@/lib/logger', () => ({
 
 const mockMarkUsed = vi.fn()
 
-vi.mock('@/services/prompts/recipe.service', () => ({
+vi.mock('@/features/prompts/server', () => ({
   markRecipeUsed: (...args: unknown[]) => mockMarkUsed(...args),
 }))
 

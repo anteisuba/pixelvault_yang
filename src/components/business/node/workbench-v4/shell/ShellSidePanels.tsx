@@ -84,14 +84,11 @@ import {
   endMediaDragGhost,
   liftMediaDragGhost,
 } from '@/hooks/node/node-media-drag-ghost'
-import { useCharacterLibrary } from '@/hooks/cards/use-character-library'
+import { useCharacterLibrary } from '@/features/cards'
 import { allLookSlots, characterCoverUrl } from '@/lib/card-bus'
 import { characterWork } from '@/lib/character-works'
 import { useProjects } from '@/hooks/use-projects'
-import {
-  AssetPickerFolderNav,
-  type PickerScope,
-} from '@/components/business/assets/AssetPickerFolderNav'
+import { AssetPickerFolderNav, type PickerScope } from '@/features/assets'
 import {
   Popover,
   PopoverContent,

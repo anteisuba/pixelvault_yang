@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server'
 import { isValidBearerToken } from '@/lib/bearer-token'
 import { logger } from '@/lib/logger'
 import { readCronHeartbeats, type CronHeartbeat } from '@/lib/cron-heartbeat'
-import { readCivitaiIndexHeartbeat } from '@/services/civitai-lora-library.service'
+import { readCivitaiIndexHeartbeat } from '@/features/lora/server'
 
 export const dynamic = 'force-dynamic'
 

@@ -13,7 +13,7 @@ import {
   isLoraNsfwFilter,
 } from '@/constants/lora'
 import { logger } from '@/lib/logger'
-import { listCivitaiLoras } from '@/services/civitai-lora-library.service'
+import { listCivitaiLoras } from '@/features/lora/server'
 import type { CivitaiLoraLibraryResult } from '@/types'
 
 // 索引每天只同步一次，结果在小时尺度上都不变：边缘缓存 1 小时 + 一天的

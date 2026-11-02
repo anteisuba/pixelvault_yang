@@ -10,11 +10,11 @@ import { LORA_TRAINING_IMAGE_MAX_BYTES } from '@/constants/uploads'
 
 vi.mock('server-only', () => ({}))
 
-vi.mock('@/services/lora-training.service', () => ({
+vi.mock('@/features/lora/services/lora-training.service', () => ({
   createTrainingImageDirectUpload: vi.fn(),
 }))
 
-import { createTrainingImageDirectUpload } from '@/services/lora-training.service'
+import { createTrainingImageDirectUpload } from '@/features/lora/server'
 
 import { POST } from './route'
 

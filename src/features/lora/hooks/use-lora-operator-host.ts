@@ -1,0 +1,783 @@
+'use client'
+
+/**
+ * 操作员面板在 **LoRA 装配台**（`/studio/lora`）这个宿主上的实现（P4-C）。
+ *
+ * ── 它与工作台那份的关系 ───────────────────────────────────────────
+ * 同一个契约（`contexts/studio-operator-host.tsx`）的第二份实现。工作台那份读写
+ * `studio-context` 的 reducer；这一份读写 `GenerateBranch` 的**局部 state** ——
+ * `/studio/lora` 故意不挂 `<StudioProvider>`（那条路由的 layout 顶部写着），
+ * 所以宿主抽象存在的全部理由就在这里。
+ *
+ * ── 三条硬规矩 ─────────────────────────────────────────────────────
+ * ① **不设挂载数量上限**：本仓三个后端全不限，服务端不读 maxLoras 是故意的。
+ *    这份宿主里因此没有任何一处数 `items.length` 然后拒绝。
+ * ② **导入走既有那条一次确认链**（`useLoraCandidateConfirm.confirmPayload`），
+ *    ⛔ 不新造第二条：那条链的第一步是把权重文件收进用户的库，两份实现迟早
+ *    说两句不一样的话。
+ * ③ **失败往线程里插一行，⛔ 不静默、⛔ 不只弹 toast**：助手做的事就该在助手的
+ *    线程里交代（与 `urlImportFailed` 同一条）。
+ */
+
+import { flushSync } from 'react-dom'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+
+import {
+  ASSISTANT_OPERATOR_LIMITS,
+  PROJECT_RULE_KIND_IDS,
+} from '@/constants/assistant-operator'
+import { ASSISTANT_LORA_PICK_LIMITS } from '@/constants/assistant-protocol'
+import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
+import {
+  ASSISTANT_MENTION_GROUP_IDS,
+  ASSISTANT_MENTION_KIND_IDS,
+  ASSISTANT_MENTION_SCOPE_IDS,
+} from '@/constants/assistant-mention'
+import type {
+  StudioOperatorHost,
+  StudioOperatorMentionSources,
+} from '@/contexts/studio-operator-host'
+import {
+  primeMinedPrompts,
+  readCachedMinedPrompts,
+} from '@/features/lora/hooks/use-civitai-mined-prompts'
+import { useCivitaiDownloadGate } from '@/features/lora/hooks/use-civitai-download-gate'
+import { useLoraCandidateConfirm } from '@/features/lora/hooks/use-lora-candidate-confirm'
+import { useOperatorUserUrlMount } from '@/hooks/use-operator-user-url-mount'
+import { useStudioOperatorFace } from '@/hooks/use-studio-operator-face'
+import { useTranslations } from 'next-intl'
+import {
+  appendOperatorEntry,
+  dropOperatorPendingResult,
+  getOperatorState,
+  nextOperatorEntryId,
+  setOperatorPrimed,
+  setOperatorReviewState,
+  useStudioOperatorState,
+} from '@/hooks/use-studio-operator-store'
+import {
+  LORA_BASE_MODELS,
+  resolveLoraStackWeightBudget,
+} from '@/features/lora/constants/lora-base-models'
+import { isLoraBaseModelMountCompatible } from '@/features/lora/lib/lora-model-compatibility'
+import { revertAssistantAssetWriteAPI } from '@/lib/api-client/assistant-operator'
+import { deleteAssistantMemoryAPI } from '@/lib/api-client/assistant-memories'
+import { deleteProjectRuleAPI } from '@/lib/api-client/assistant-persona'
+import type { StudioOperatorApplyContext } from '@/lib/studio-operator-apply'
+import { buildLoraOperatorSnapshot } from '@/lib/studio-operator-snapshot'
+import { clampLabel } from '@/lib/assistant-mention'
+import {
+  toOperatorResultRun,
+  matchesOperatorResultOwner,
+  toOperatorRunResults,
+  toOperatorSnapshotResults,
+} from '@/lib/studio-operator-result-run'
+import { readStudioStageFocus } from '@/lib/studio-stage-focus'
+import {
+  clearLoraLibraryPicks,
+  requestLoraLibrarySearch,
+  showLoraLibraryPicks,
+} from '@/features/lora/hooks/use-lora-library-agent'
+import type { AssistantOperatorSnapshot } from '@/types/assistant-operator'
+import type {
+  StudioOperatorResultItem,
+  StudioOperatorResultOwner,
+} from '@/types/studio-assistant-operator'
+import type { ActiveRun, LoraAssetRecord } from '@/types'
+
+/** ⚠ 常量化：空数组字面量每次 render 换引用，会把下面那个 `useMemo` 打穿。 */
+const NO_RESULTS: readonly StudioOperatorResultItem[] = []
+
+/**
+ * 装配台上一条挂载的**最小形状** —— ⚠ 有意不写成 `StoredEntry`：这个 hook 只用到
+ * 四样东西，把整个挂载栈条目拖进签名只会让它看起来依赖更多（同
+ * `removeReferenceByUrl` 那条论据）。
+ */
+export interface LoraOperatorHostMount {
+  asset: LoraAssetRecord
+  scale?: number
+  enabled?: boolean
+  /**
+   * 它的触发词在不在正文里。**缺省 `true`**（与 `enabled?` 同构）。
+   *
+   * ⚠ 真值只在 `LoraWorkbench` 按正文算的 `disabledTriggerIds` 手里，由它透传进来
+   * —— ⛔ 不在这个 hook 里重算：重算等于第二份真相。
+   */
+  triggerEnabled?: boolean
+}
+
+export interface UseLoraOperatorHostInput {
+  loraParameters?: AssistantOperatorSnapshot['loraParameters']
+  sourceRecipe?: AssistantOperatorSnapshot['sourceRecipe']
+  /** 左边打开着的那张示例（没打开 = 缺席）。 */
+  viewingRecipe?: AssistantOperatorSnapshot['viewingRecipe']
+  setLoraParameters?(
+    parameters: NonNullable<AssistantOperatorSnapshot['loraParameters']>,
+  ): void
+  prompt: string
+  setPrompt(value: string): void
+  /** 触发词落提示词 —— **装配台既有的那条追加路径**（会去重、规范逗号）。 */
+  appendPrompt(text: string): void
+  negativePrompt: string
+  setNegativePrompt(value: string): void
+  /** 当前底模。`null` = 还没定出来（装配台上那颗选择器仍然在）。 */
+  base: { id: string; label: string; family: string | null } | null
+  /** 能切到哪些底模 —— 就是 `LoraBaseModelModal` 里列的那些。 */
+  availableBases: readonly { id: string; label: string }[]
+  selectBase(id: string): void
+  /** 挂载栈。⚠ `null` = 缺 `LoraStackProvider`（不该发生，但不该因此整页崩）。 */
+  stack: {
+    items: readonly LoraOperatorHostMount[]
+    push(asset: LoraAssetRecord, scale?: number): void
+    setScale(assetId: string, scale: number): void
+    remove(assetId: string): void
+  } | null
+  /** 参考图卡那一路（逐底模按能力开关；`maxImages` 为 0 = 这个底模不吃参考图）。 */
+  imageUpload: {
+    referenceEntries: readonly { url: string }[]
+    maxImages: number
+    addReferenceImage(url: string): void
+    removeReferenceImage(index: number): void
+  }
+  /**
+   * 装配台自己那条结果列（`resultHistory`）—— 映射成结果行卡的形状（§2.11）。
+   *
+   * ⚠ **可选，缺省空数组**：宿主契约上这一格是必填（两个宿主形状一致才叫契约），
+   * 但装配台把 `resultHistory` 接上来是 `LoraWorkbench` 那一侧的事。缺席时结果
+   * 行卡整块不渲染 —— 与「装配台还没出过图」是同一种表现，⛔ 不做空占位。
+   */
+  results?: readonly StudioOperatorResultItem[]
+  /**
+   * 出图那一枪（§6 花钱档）：生成确认卡上按「生成」、或自动生成开关替你按。
+   * `blockedReason` = 出图键这会儿按不下去的原因（`''` = 说不出原因），`null` = 能按。
+   */
+  generate?: {
+    run(owner?: StudioOperatorResultOwner): void
+    blockedReason: string | null
+  }
+  /** 装配台那条在飞的出图（`useUnifiedGenerate().activeRun`）—— 结果卡的生成中态读它。 */
+  activeRun?: ActiveRun | null
+  /**
+   * 库页现在的筛选（网址上那几个参数）—— 进快照，`search_loras` 照它搜
+   * （lora-assistant §13.1）。缺席 = 按库页默认。
+   */
+  libraryFilters?: NonNullable<
+    AssistantOperatorSnapshot['loras']
+  >['libraryFilters']
+  /** 切到「库」（助手当面搜，§13.2）。 */
+  openLibrary?(): void
+  open: boolean
+  setOpen(open: boolean): void
+}
+
+/**
+ * 装配台结果列的**最小形状**——只要这三样。
+ *
+ * ⚠ 有意不 import `LoraWorkbench` 里那个 `LoraResultHistoryItem`：那是一条带着
+ * seed / steps / 底模名的生成台账，结果行卡一样都用不上。按结构对齐而不是按类型
+ * 绑定，装配台那边给那条台账加字段时这个 hook 一行都不用动。
+ */
+export interface LoraOperatorResultSource {
+  id: string
+  url: string
+  /** 灯箱标题与 @chip 上写的那句；装配台这边给的是 LoRA 名。 */
+  loraName?: string | null
+}
+
+/**
+ * 装配台 `resultHistory` → 结果行卡（§2.11，切片 3b）。
+ *
+ * ⭐ 映射住在这里而不是 `LoraWorkbench` 里：那个文件已经三千行，而这条映射是
+ * **宿主契约的一部分**（「结果行卡吃什么形状」）。写在调用点的表现是下一次改契约
+ * 要去两个文件里找。
+ * ⚠ **只收跑完且真有地址的那些**：`url` 为空的条目在装配台上是「这一格还在跑」，
+ * 画进结果行卡就是一格永远加载不出来的灰块。⛔ 不拿占位图凑数。
+ */
+export function toLoraOperatorResults(
+  history: readonly LoraOperatorResultSource[],
+): readonly StudioOperatorResultItem[] {
+  return history
+    .filter((item) => Boolean(item.id) && Boolean(item.url.trim()))
+    .map((item) => ({
+      id: item.id,
+      url: item.url,
+      ...(item.loraName ? { label: item.loraName } : {}),
+    }))
+}
+
+/**
+ * ⚠ 摘除按**索引**（`removeReferenceImage` 的契约），所以要先按 URL 找位。
+ * 与工作台那份宿主里的同名函数逐字同源 —— 两个宿主的参考图 API 本来就是同一个
+ * （`useImageUpload`），只是拿到它的路不同。
+ */
+function removeReferenceByUrl(
+  imageUpload: UseLoraOperatorHostInput['imageUpload'],
+  url: string,
+): void {
+  const index = imageUpload.referenceEntries.findIndex(
+    (entry) => entry.url === url,
+  )
+  if (index >= 0) imageUpload.removeReferenceImage(index)
+}
+
+export function useLoraOperatorHost(
+  input: UseLoraOperatorHostInput,
+): StudioOperatorHost {
+  /**
+   * ⚠ 与工作台那份同一条：事件循环是异步的、跨很多次 render，所以每一样东西都从
+   * ref 里读。直接闭包捕获的话，应用第 5 步用的还是发消息那一刻的装配台。
+   * ⚠ 同步写在 effect 里（本仓 latest-ref 的既有写法）。
+   */
+  const latest = useRef(input)
+  useEffect(() => {
+    latest.current = input
+  }, [input])
+
+  /**
+   * 挂上去之后**它在库里是谁** —— `candidateId → LoraAssetRecord`。
+   *
+   * ⭐ 这张表是 `mount_lora` 的 `inverse` 能成立的全部本钱：撤销时服务端只给得出
+   * candidateId（库记录 id 是客户端导入那一跳才产生的），要摘哪一把只能在这里查。
+   * 形态与工作台那份的 `userUrlMounts`（源地址 → 落地地址）逐字同构。
+   * ⚠ 摘除时也往这里存：撤销「摘掉」= 把那条记录挂回去，而服务端同样没有它。
+   */
+  const mountedByCandidate = useRef(new Map<string, LoraAssetRecord>())
+  const detachedById = useRef(new Map<string, LoraAssetRecord>())
+
+  /**
+   * **同一批挂载只念一次超预算**（lora-assistant §10.2.3 客户端那一半）。
+   *
+   * 🔬 bug 的形状：推荐卡确认回来的那一轮，服务端在模型开口之前一口气发三条
+   * `mount_lora` step，客户端逐条交给导入链 —— 三次导入**并发**在飞，各自落地时
+   * 各报一次。于是线程里冒出三行「总权重超了」，而且每一行算的都是「我这一把 +
+   * 界面上已经有的」：前两行的数比真相小（第三把还没落地），只有最后一行是对的。
+   * 一条日志说谎比没日志坏（同 `loraMountFailed` 的那条）。
+   *
+   * ⭐ **批的判据 = 这一刻还有没有在飞的挂载**：`inFlight > 0` 时新来的那一把并进
+   * 同一批，归零时整批一起算一遍、只插一行。⛔ 不去认 SSE 的轮次 —— 宿主手上没有
+   * 轮次这个东西（它只收得到一只只手），而「同一轮那一批」在时间上的表现正是
+   * 「前一把还没落地下一把就交进来了」：服务端那几条 step 是同步连着发的，导入却
+   * 隔着网络。单独挂一把时它自然退化成一批一条，与从前逐把报一模一样。
+   * ⚠ 只收**真的挂上去**的那几把：被下载闸挡掉 / 导入失败的那几把自己会落一行
+   *   `loraMountFailed`，⛔ 不该再把一个没发生的权重算进总数。
+   */
+  const mountBatch = useRef<{
+    inFlight: number
+    landed: { id: string; weight: number }[]
+  }>({ inFlight: 0, landed: [] })
+
+  const appendPrompt = useCallback((text: string) => {
+    flushSync(() => latest.current.appendPrompt(text))
+  }, [])
+  const pushMount = useCallback((asset: LoraAssetRecord, scale?: number) => {
+    flushSync(() => latest.current.stack?.push(asset, scale))
+  }, [])
+
+  /**
+   * ⭐ **既有的一次确认链**（导入 → 进挂载栈 → 触发词落提示词）。⛔ 不新造第二条。
+   * `mount` 缺席时那条链自己会退化成「只导入不挂载」并如实回报 —— 与图片/视频
+   * 工作台上那张推荐卡的行为一致。
+   */
+  const confirmChain = useLoraCandidateConfirm({
+    mount: pushMount,
+    applyTriggerWords: appendPrompt,
+  })
+  /**
+   * ⭐ Civitai 下载闸（既有件）：作者在 Creator Controls 里关掉下载的版本，任何
+   * token 都取不到权重，而 401 会被一路翻成「你的 API Key 无效」—— 一句把人送去
+   * 查一把没坏的 key 的假话。助手挂之前先问一句，省掉那一轮。
+   * ⚠ 它**判不了时放行**（那是它自己的契约），权威闸在服务端派发前。
+   */
+  const downloadGate = useCivitaiDownloadGate()
+  /** 拍板 22 的落地那一跳 —— 两个宿主共用的那一份。 */
+  const userUrl = useOperatorUserUrlMount(input.imageUpload)
+
+  const buildSnapshot = useCallback((): AssistantOperatorSnapshot => {
+    const current = latest.current
+    const baseFamily = current.base?.family ?? null
+    // 舞台上的图（新的在前）交给助手：`result-N`，放大的那张标选中（与图片台同一份）。
+    const results = toOperatorSnapshotResults(
+      current.results ?? NO_RESULTS,
+      readStudioStageFocus(),
+    )
+    const snapshot = buildLoraOperatorSnapshot({
+      loraParameters: current.loraParameters,
+      sourceRecipe: current.sourceRecipe,
+      viewingRecipe: current.viewingRecipe,
+      prompt: current.prompt,
+      negativePrompt: current.negativePrompt,
+      base: current.base
+        ? { id: current.base.id, label: current.base.label }
+        : null,
+      availableBases: current.availableBases,
+      baseFamily,
+      loras: (current.stack?.items ?? []).map((item) => {
+        const family = item.asset.baseModelFamily ?? null
+        return {
+          id: item.asset.id,
+          name: item.asset.name,
+          // 条目没写 scale = 沿用资产默认值 —— 与 `handleGenerate` 的取值口径
+          // 逐字一致。两处不一致的话助手说的权重与真正发出去的对不上。
+          weight: item.scale ?? item.asset.defaultScale,
+          // 缺省视为启用（见 `use-active-lora-stack` 的 `StoredEntry.enabled`）。
+          enabled: item.enabled !== false,
+          family,
+          // ⭐ 与界面上那条橙色警示行**同一个谓词**，⛔ 不另算一份。
+          compatible: baseFamily
+            ? isLoraBaseModelMountCompatible(family ?? '', baseFamily)
+            : true,
+          // 空白触发词 = 这把没有触发词；归一成 null 那一步在快照构造里。
+          triggerWord: item.asset.triggerWord ?? null,
+          // 缺省视为在正文里（没有触发词的那些也落在这一档）。
+          triggerEnabled: item.triggerEnabled !== false,
+          recommendedPrompt: item.asset.recommendedPrompt ?? null,
+          /**
+           * 来源图提示词 —— **同步读装配台那份缓存**（`readCachedMinedPrompts`）。
+           *
+           * ⭐ 与「来源配方」strip 是同一条通道同一份缓存：用户看过哪把的源图，
+           * 助手这一刻就取得到；面板打开时下面那只 effect 已经把没取过的补上了。
+           * ⚠ 读不到就是**空数组**（没 provenance / 还在飞 / 取失败）—— 取材阶梯
+           * 会如实落回家族骨架，⛔ 不在这里等、⛔ 不拿作者推荐冒充来源配方。
+           */
+          sourcePrompts: (
+            readCachedMinedPrompts(item.asset)?.outfits ?? []
+          ).map((outfit) => outfit.prompt),
+        }
+      }),
+      references: {
+        items: current.imageUpload.referenceEntries,
+        limit: Number.isFinite(current.imageUpload.maxImages)
+          ? current.imageUpload.maxImages
+          : ASSISTANT_OPERATOR_LIMITS.maxSnapshotReferences,
+      },
+      minWeight: ASSISTANT_LORA_PICK_LIMITS.minWeight,
+      maxWeight: ASSISTANT_LORA_PICK_LIMITS.maxWeight,
+      ...(current.libraryFilters
+        ? { libraryFilters: current.libraryFilters }
+        : {}),
+    })
+    return results.length ? { ...snapshot, results } : snapshot
+  }, [])
+
+  /**
+   * 面板一开就把挂载栈上**没取过**的来源图配方各取一次（§7.1 第二档的料）。
+   *
+   * ⚠ 闸是 `open`：快照只有面板开着才建得起来，而没开面板的用户不该为助手多付
+   * 几条 Civitai 请求。⛔ 不在 `buildSnapshot` 里发请求 —— 那是个同步函数，发了
+   * 也赶不上这一次发送，用户看到的是「第一句没料、第二句才有」。
+   * ⚠ `primeMinedPrompts` 自己认缓存与在飞，所以这只 effect 重跑多少次都只取一次。
+   */
+  const stackItems = input.stack?.items
+  const assistantOpen = input.open
+  useEffect(() => {
+    if (!assistantOpen) return
+    for (const item of stackItems ?? []) primeMinedPrompts(item.asset)
+  }, [assistantOpen, stackItems])
+
+  /**
+   * 出图那一枪（§6 花钱档）—— 与工作台的 `REQUEST_GENERATE` 同一个形状：扣扳机
+   * 只记一个请求号，等这次渲染提交之后再按。助手同一轮刚写进来的提示词、挂载与
+   * 参数这时才都在表单上；当场就按，读到的是改之前的那一份。
+   */
+  const [generateRequest, setGenerateRequest] = useState<{
+    id: number
+    owner?: StudioOperatorResultOwner
+  }>({ id: 0 })
+  const handledGenerateRequest = useRef(0)
+  const generate = input.generate
+  useEffect(() => {
+    if (!generate || generateRequest.id === handledGenerateRequest.current)
+      return
+    handledGenerateRequest.current = generateRequest.id
+    const current = getOperatorState()
+    if (
+      generateRequest.owner &&
+      !matchesOperatorResultOwner(generateRequest.owner, current)
+    )
+      return
+    if (generate.blockedReason === null) {
+      generate.run(generateRequest.owner)
+      return
+    }
+    // 按不下去：撤掉那张「生成中」的卡、在线程里说清楚 —— ⛔ 不让它转满认领
+    // 时限再报一句没有原因的「没生成出来」。
+    const pendingId = getOperatorState().pendingResultId
+    if (pendingId) dropOperatorPendingResult(pendingId)
+    appendOperatorEntry({
+      kind: 'system',
+      id: nextOperatorEntryId('sys'),
+      ...(generate.blockedReason
+        ? {
+            code: 'generationFailedWithReason',
+            subject: generate.blockedReason,
+          }
+        : { code: 'generationFailed' }),
+    })
+  }, [generate, generateRequest])
+  const hasGenerate = Boolean(input.generate)
+
+  const apply = useMemo<StudioOperatorApplyContext>(() => {
+    /** ⛔ 不静默：装配台上助手做砸的事，也在助手的线程里交代。 */
+    const reportFailure = (subject: string) => {
+      appendOperatorEntry({
+        kind: 'system',
+        id: nextOperatorEntryId('sys'),
+        code: 'loraMountFailed',
+        subject,
+      })
+    }
+
+    /**
+     * 栈总权重护栏（§5.2）：**只提醒，不动手**。口径与服务端逐字一致 ——
+     * 启用中（`enabled !== false`）的权重之和（含这一次操作后的值），阈值取当前
+     * 底模那一条的 `distilled` 档；底模未定时不判。
+     *
+     * ⚠ 算的是**这一手落下之后**的栈：`stack.setScale` / `push` 是 setState，
+     * 这一拍 `items` 还是旧的 —— 所以那一条按 `pending` 顶替 / 追加，⛔ 不读回
+     * 界面再算一次（读回来的是上一拍，那句话会晚一步）。
+     */
+    const reportOverBudget = (
+      pending: readonly { id: string; weight: number }[],
+    ) => {
+      if (pending.length === 0) return
+      const current = latest.current
+      const base = current.base
+      const entry = base
+        ? (LORA_BASE_MODELS.find((model) => model.id === base.id) ?? null)
+        : null
+      const budget = resolveLoraStackWeightBudget(entry)
+      if (budget === null) return
+
+      const items = current.stack?.items ?? []
+      const pendingIds = new Set(pending.map((one) => one.id))
+      let total = pending.reduce((sum, one) => sum + one.weight, 0)
+      for (const item of items) {
+        if (item.enabled === false) continue
+        // ⚠ 这一批里的那几把按 `pending` 的值算：界面上那一份可能是上一拍的
+        //   （`push` / `setScale` 是 setState），也可能已经追上了 —— 按 id 排掉
+        //   之后两种情形都只算一次。
+        if (pendingIds.has(item.asset.id)) continue
+        total += item.scale ?? item.asset.defaultScale
+      }
+      const rounded = Math.round(total * 100) / 100
+      if (rounded <= budget) return
+
+      appendOperatorEntry({
+        kind: 'system',
+        id: nextOperatorEntryId('sys'),
+        code: 'loraWeightOverBudget',
+        subject: `${rounded} / ${budget}`,
+      })
+    }
+
+    return {
+      /**
+       * ⚠ 只有这两格：`applyOperatorStep` 在 LoRA 域用得到的就是提示词与负面框的
+       * 当前值（append 模式要接在旧值后面）。装配台没有 `advancedParams` 那套，
+       * 负面提示词是自己的一格 state —— 这里做的是形状对齐，不是伪造一份表单。
+       */
+      getState: () => ({
+        prompt: latest.current.prompt,
+        advancedParams: { negativePrompt: latest.current.negativePrompt },
+      }),
+      /**
+       * ⚠ 装配台没有 studio reducer，所以这只手把 op 翻成局部 setState。
+       * ⛔ **穷举而不是 default no-op**：漏一支的表现是「日志说改了、界面没动」。
+       * 到得了这里的动作只有 LoRA 域工具表允许的那些（域闸 + 服务端硬闸两道）。
+       */
+      dispatch: (action) => {
+        switch (action.type) {
+          case 'SET_PROMPT':
+            latest.current.setPrompt(action.payload)
+            return
+          case 'SET_ADVANCED_PARAMS':
+            latest.current.setNegativePrompt(
+              action.payload.negativePrompt ?? '',
+            )
+            return
+          case 'SET_OPTION_ID':
+            if (action.payload) latest.current.selectBase(action.payload)
+            return
+          default:
+            /**
+             * ⚠ 这里是**真的到不了**，不是兜底：比例 / 清晰度 / 张数 / 视频那几条
+             * 的工具都不在 LoRA 域的工具表里（`ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN`），
+             * 服务端还会按 `noSuchControl` 再拒一道。留一句注释而不是抛，是因为
+             * 抛会把「协议多了一条我们没接的动作」变成用户面前的一次崩溃。
+             */
+            return
+        }
+      },
+      /** 装配台的「模型」就是底模，id 直接就是底模 id —— 不需要 optionId 那层。 */
+      resolveOptionId: (modelId) =>
+        latest.current.availableBases.some((base) => base.id === modelId)
+          ? modelId
+          : null,
+      addReference: (url) => latest.current.imageUpload.addReferenceImage(url),
+      removeReference: (url) =>
+        removeReferenceByUrl(latest.current.imageUpload, url),
+      /**
+       * ⛔ 装配台**没有音频参考槽、没有出声开关**（那是视频域的东西）。
+       * 到不了这里，理由同 `dispatch` 的 default 那一支。
+       */
+      addAudioReference: () => {},
+      removeAudioReference: () => {},
+      setSound: () => {},
+      /**
+       * 拍板 22 的落地那一跳 —— **与工作台共用同一份实现**：装配台的参考图卡走的
+       * 也是 `useImageUpload`，导入路由也只有一条，所以两边做的是同一件事。
+       */
+      mountUserUrl: userUrl.mountUserUrl,
+      unmountUserUrl: userUrl.unmountUserUrl,
+      setPrimed: setOperatorPrimed,
+      /**
+       * 助手标审核态（切片 Y）—— 与工作台共用同一份 store 写入。
+       * ⛔ **没有 `setGenerationLabel`**：装配台的出图不走 `REQUEST_GENERATE`，
+       *   没有写产物名的那一格，接一只取不到的手就是那种「点了没反应、三绿」的失败。
+       */
+      setReviewState: setOperatorReviewState,
+      ...(hasGenerate
+        ? {
+            triggerGeneration: (_request, owner) => {
+              setGenerateRequest((request) => ({ id: request.id + 1, owner }))
+            },
+          }
+        : {}),
+      /**
+       * 撤销一条素材库写操作（v2 §10）—— 与工作台宿主逐字同源（素材库只有一个，
+       * 换台工作台它还是同一个库）。⛔ 别只给工作台接：域工具表把这四条写进了
+       * `COMMON_DOMAIN_TOOLS`，装配台上照样调得到，少接这只手的表现是那里点撤销
+       * 没反应。
+       */
+      deleteProjectRule: async ({ ruleId, kind }) => {
+        const result = await (kind === PROJECT_RULE_KIND_IDS.note
+          ? deleteAssistantMemoryAPI(ruleId)
+          : deleteProjectRuleAPI(ruleId))
+        return result.success
+      },
+      revertAssetWrite: async (input) => {
+        const result = await revertAssistantAssetWriteAPI(input)
+        return result !== null && result.skipped === 0
+      },
+      lora: {
+        ...(input.setLoraParameters
+          ? {
+              setParameters: (
+                parameters: NonNullable<
+                  AssistantOperatorSnapshot['loraParameters']
+                >,
+              ) => {
+                latest.current.setLoraParameters?.(parameters)
+              },
+            }
+          : {}),
+        /**
+         * 挂一把：**先过下载闸，再走既有的一次确认链**。
+         */
+        mount: async ({
+          candidateId,
+          name,
+          weight,
+          triggerWords,
+          importPayload,
+        }) => {
+          mountBatch.current.inFlight += 1
+          try {
+            const versionId = importPayload.modelVersionId
+            if (
+              versionId !== undefined &&
+              !(await downloadGate.ensureMountable({
+                modelVersionId: versionId,
+                name,
+              }))
+            ) {
+              reportFailure(name)
+              return {
+                status: 'failed',
+                imported: false,
+                mounted: false,
+                triggerWordsApplied: false,
+                error: 'Model download is unavailable',
+              }
+            }
+            const outcome = await confirmChain.confirmPayload({
+              importPayload,
+              triggerWords,
+              suggestedWeight: weight,
+            })
+            if (outcome.mounted && outcome.asset) {
+              mountedByCandidate.current.set(candidateId, outcome.asset)
+              mountBatch.current.landed.push({
+                id: outcome.asset.id,
+                weight: weight ?? outcome.asset.defaultScale,
+              })
+            }
+            if (outcome.status !== 'ok') reportFailure(name)
+            return outcome
+          } catch (error) {
+            reportFailure(name)
+            return {
+              status: 'failed',
+              imported: false,
+              mounted: false,
+              triggerWordsApplied: false,
+              error: error instanceof Error ? error.message : 'Mount failed',
+            }
+          } finally {
+            const batch = mountBatch.current
+            batch.inFlight -= 1
+            if (batch.inFlight === 0) {
+              const landed = batch.landed
+              batch.landed = []
+              reportOverBudget(landed)
+            }
+          }
+        },
+        unmountByCandidateId: (candidateId) => {
+          const asset = mountedByCandidate.current.get(candidateId)
+          // 还在路上（导入没回来）就撤销 = 表里还没有它。多一套取消语义会让
+          // 「挂上了没有」变成两个真相 —— 与 `unmountUserUrl` 选的是同一侧。
+          if (!asset) return
+          latest.current.stack?.remove(asset.id)
+          mountedByCandidate.current.delete(candidateId)
+        },
+        unmount: (loraId) => {
+          const item = latest.current.stack?.items.find(
+            (entry) => entry.asset.id === loraId,
+          )
+          if (!item) return
+          // ⭐ 扣下那条库记录 —— 撤销「摘掉」要靠它把 LoRA 挂回去，而服务端没有它。
+          detachedById.current.set(loraId, item.asset)
+          latest.current.stack?.remove(loraId)
+        },
+        remount: (loraId, weight) => {
+          const asset = detachedById.current.get(loraId)
+          if (!asset) return
+          latest.current.stack?.push(asset, weight)
+          detachedById.current.delete(loraId)
+        },
+        setWeight: (loraId, weight) => {
+          latest.current.stack?.setScale(loraId, weight)
+          // ⚠ 调权重是**一手一次**（模型一步只改一把），⛔ 不进批：攒着它只会
+          //   让那句提醒晚一步说出口。
+          reportOverBudget([{ id: loraId, weight }])
+        },
+        /**
+         * 助手在库页当面搜（lora-assistant §13.2）：发一次搜索请求给库页（它照
+         * 「点一条搜索历史」那条路设词、再设底模），再切到「库」。
+         */
+        showLibrarySearch: (input) => {
+          requestLoraLibrarySearch(input)
+          latest.current.openLibrary?.()
+        },
+        /** 圈几把：库页若被切走了，切回去让他看见圈。 */
+        showPicks: (input) => {
+          showLoraLibraryPicks(input)
+          latest.current.openLibrary?.()
+        },
+        clearPicks: clearLoraLibraryPicks,
+      },
+    }
+  }, [
+    confirmChain,
+    downloadGate,
+    userUrl,
+    input.setLoraParameters,
+    hasGenerate,
+  ])
+
+  const results = input.results ?? NO_RESULTS
+  const activeRun = input.activeRun
+  const { threadScope, localThreadId, pendingResultId } =
+    useStudioOperatorState()
+  const resultRun = useMemo(
+    () =>
+      threadScope && pendingResultId
+        ? toOperatorResultRun(
+            activeRun?.items,
+            toOperatorRunResults(activeRun?.items ?? []),
+            { threadScope, localThreadId, pendingResultId },
+          )
+        : undefined,
+    [activeRun, threadScope, localThreadId, pendingResultId],
+  )
+
+  /**
+   * **装配台那张脸的那一句**（D7b ③）——「{底模} · 挂了 {n} 个」。
+   *
+   * ⚠ 现读 `latest.current`：底模与挂载栈在这个宿主上是 `GenerateBranch` 的局部
+   * state，而 `face` 的依赖列里已经有这两格（见下面的 `useMemo`），所以胶囊跟着刷。
+   * ⚠ 底模还没定出来时说「未选模型」，⛔ 不留一个空的 `· 挂了 3 个`。
+   */
+  const baseLabel = input.base?.label ?? null
+  const mountedCount = input.stack?.items.length ?? 0
+  const t = useTranslations('StudioOperator')
+  const contextLine = useCallback(
+    () =>
+      t('face.lora.context', {
+        base: baseLabel ?? t('face.noModel'),
+        count: mountedCount,
+      }),
+    [baseLabel, mountedCount, t],
+  )
+  const face = useStudioOperatorFace(
+    ASSISTANT_PROTOCOL_DOMAIN_IDS.lora,
+    contextLine,
+  )
+
+  /**
+   * 装配台在 `@` 菜单里自己带的那一组（§10b）：**挂着的 LoRA**（名字、封面、权重、
+   * 触发词可搜）。角色那一组不出：装配台不用角色卡。
+   */
+  const mentions = useMemo(
+    (): StudioOperatorMentionSources => ({
+      groups: [
+        {
+          id: ASSISTANT_MENTION_GROUP_IDS.loras,
+          items: (stackItems ?? []).map((item) => ({
+            kind: ASSISTANT_MENTION_KIND_IDS.lora,
+            id: item.asset.id,
+            label: clampLabel(item.asset.name),
+            scope: ASSISTANT_MENTION_SCOPE_IDS.lora,
+            ...(item.asset.coverImageUrl
+              ? { thumb: item.asset.coverImageUrl }
+              : {}),
+            subtitle: `${t('mention.kinds.lora')} · ×${item.scale ?? item.asset.defaultScale}`,
+            keywords: [item.asset.triggerWord, item.asset.styleCode].filter(
+              Boolean,
+            ),
+          })),
+        },
+      ],
+      omit: [ASSISTANT_MENTION_GROUP_IDS.characters],
+    }),
+    [stackItems, t],
+  )
+
+  return useMemo(
+    () => ({
+      domain: ASSISTANT_PROTOCOL_DOMAIN_IDS.lora,
+      workspace: 'lora' as const,
+      face,
+      buildSnapshot,
+      apply,
+      results,
+      ...(resultRun ? { resultRun } : {}),
+      referenceImages: input.imageUpload.referenceEntries,
+      mentions,
+      open: input.open,
+      setOpen: input.setOpen,
+    }),
+    [
+      mentions,
+      apply,
+      buildSnapshot,
+      face,
+      input.open,
+      input.setOpen,
+      input.imageUpload.referenceEntries,
+      results,
+      resultRun,
+    ],
+  )
+}

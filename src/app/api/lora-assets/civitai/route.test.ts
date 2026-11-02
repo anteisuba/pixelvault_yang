@@ -8,11 +8,11 @@ vi.mock('@/lib/logger', () => ({
   logger: { error: vi.fn(), info: vi.fn(), warn: vi.fn() },
 }))
 
-vi.mock('@/services/civitai-lora-library.service', () => ({
+vi.mock('@/features/lora/services/civitai-lora-library.service', () => ({
   listCivitaiLoras: vi.fn(),
 }))
 
-import { listCivitaiLoras } from '@/services/civitai-lora-library.service'
+import { listCivitaiLoras } from '@/features/lora/server'
 
 import { GET } from './route'
 

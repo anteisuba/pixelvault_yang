@@ -4,7 +4,7 @@ import { after, NextResponse } from 'next/server'
 import { z } from 'zod'
 
 import { isValidBearerToken } from '@/lib/bearer-token'
-import { runOutingChunk } from '@/services/cards/character-outing.service'
+import { runOutingChunk } from '@/features/cards/server'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300

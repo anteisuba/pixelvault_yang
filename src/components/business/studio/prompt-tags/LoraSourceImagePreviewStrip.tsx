@@ -10,7 +10,7 @@ import {
   LORA_DETAIL_IMAGE_WIDTH,
 } from '@/constants/lora'
 import { COPIED_ACK_MS } from '@/constants/motion'
-import { civitaiDisplayImageUrl } from '@/lib/civitai-image-url'
+import { civitaiDisplayImageUrl } from '@/features/lora/core'
 import { cn } from '@/lib/utils'
 import { buttonVariants } from '@/components/ui/button'
 import {

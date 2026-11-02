@@ -90,7 +90,7 @@ LoRA 的核心承诺是：
 - 稳定结论已升格进下方 §7.1.1；调研全文《LoRA底模与工作流调研-2026-07》已随任务包清理，git 历史可取
 - 目录对账摘要：[`../model-catalog.md`](../model-catalog.md) §④
 
-实现侧底模表：`src/constants/lora-base-models.ts`。云端大模型（Seedream/GPT Image 等）**不是** Civitai LoRA 插槽，不得与底模族混谈。
+实现侧底模表：`src/features/lora/constants/lora-base-models.ts`。云端大模型（Seedream/GPT Image 等）**不是** Civitai LoRA 插槽，不得与底模族混谈。
 
 ### 7.1.1 Family 方言（2026-07-31 从调研升格 · 稳定事实）
 
@@ -186,11 +186,11 @@ Claude 或其他 AI 收到“重构 LoRA UI”时，必须先读本文并执行 
 - **Civitai LoRA 库的全量索引与上游实测事实**（改列表 / 搜索前必读）：[`../backend.md`](../backend.md#civitai-lora-库全量索引2026-10-07-起)
 - 当前业务施工：[`../pages/lora-workbench.md`](../pages/lora-workbench.md)
 - 底模/工作流社区调研：《LoRA底模与工作流调研-2026-07》（已随任务包清理，git 历史可取）；对账摘要见 [`../model-catalog.md`](../model-catalog.md) §④
-- 底模目录实现：`src/constants/lora-base-models.ts`
+- 底模目录实现：`src/features/lora/constants/lora-base-models.ts`
 - 路由与页面：`src/app/[locale]/(main)/studio/lora/`
-- LoRA 工作台组件：`src/components/business/studio/lora/`
+- LoRA 工作台组件：`src/features/lora/components/`
 - section 与来源常量：`src/constants/lora.ts`
-- 当前挂载状态：`src/hooks/use-active-lora-stack.tsx`
+- 当前挂载状态：`src/features/lora/hooks/use-active-lora-stack.tsx`
 - 生成来源与 LoRA 数据结构：`prisma/schema.prisma`
 
 ## 移动端等级（owner 2026-09-03 拍板，配方见 `../ui-defaults.md §6`）

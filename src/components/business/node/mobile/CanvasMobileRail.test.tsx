@@ -11,7 +11,7 @@ vi.mock('next-intl', () => ({
 const push = vi.fn()
 vi.mock('@/i18n/navigation', () => ({ useRouter: () => ({ push }) }))
 
-vi.mock('@/hooks/cards/use-character-library', () => ({
+vi.mock('@/features/cards/hooks/use-character-library', () => ({
   useCharacterLibrary: () => ({
     cards: [],
     loaded: true,

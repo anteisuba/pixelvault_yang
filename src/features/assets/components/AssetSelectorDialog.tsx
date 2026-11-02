@@ -1,0 +1,123 @@
+'use client'
+
+import {
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogDescription,
+  ResponsiveDialogTitle,
+} from '@/components/ui/responsive-dialog'
+import { AssetPickerBrowser } from '@/features/assets/components/AssetPickerBrowser'
+import { LIBRARY_PICKER_DIALOG_CLASS } from '@/components/ui/library-picker'
+import { useIsMobile } from '@/hooks/use-mobile'
+import type { GenerationRecord, OutputTypeValue } from '@/types'
+
+interface AssetSelectorDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  /** Single-select callback. Required unless `multiSelect` is true (in which
+   *  case `onConfirmMany` takes over). Keep both behaviours mutually
+   *  exclusive at the call site so the dialog has one resolution path. */
+  onSelect?: (generation: GenerationRecord) => void
+  initialGenerations?: GenerationRecord[]
+  initialTotal?: number
+  initialHasMore?: boolean
+  initialNextCursor?: string | null
+  /** Visually-hidden title required by Radix Dialog for screen readers. */
+  title: string
+  /** Visually-hidden description for screen readers. */
+  description: string
+  /**
+   * 把 picker 锁到单一媒体类型。⚠ **锁 = 不渲染，不是灰掉**（page §8.2）——
+   * 灰掉等于承诺「可选」，会误导。
+   */
+  mediaType?: OutputTypeValue
+  /**
+   * 多选模式。判据是**消费端是槽还是集合**（page §8.3）：填一个槽（替换）用
+   * 单选，往集合里加（追加 + 有容量）才用多选。⛔ 不要为了「统一」把所有入口
+   * 改成多选 —— 17 个高频入口会从 1 击变 2 击。
+   */
+  multiSelect?: boolean
+  /** Fires when the user clicks "Add N" in multi-select mode. The dialog
+   *  closes itself afterwards. */
+  onConfirmMany?: (generations: GenerationRecord[]) => void
+  /** 多选容量。传**剩余容量**（`上限 - 已有`），picker 据此就地红字拒绝。 */
+  maxSelection?: number
+  /** 首屏 / 每页取几条（透传给 picker）。不给就是整页素材库那一档（24）。 */
+  pageSize?: number
+}
+
+/**
+ * AssetSelectorDialog —— 任务型素材选择器的外壳（响应式 Dialog / Drawer）。
+ *
+ * ⭐ 内部是 `AssetPickerBrowser`（page §8 的任务型 shell），**不再**把整个
+ * `/assets` 页缩进弹窗：没有文件夹门牌墙、没有密度控制、没有批量管理动作。
+ * 单选/多选**只差 checkbox 与底部条**，所以这里只渲染一次，用 `mode` 区分
+ * （以前是两整棵 `<KreaAssetBrowser>`，两套 props 两条路径）。
+ */
+export function AssetSelectorDialog({
+  open,
+  onOpenChange,
+  onSelect,
+  initialGenerations,
+  initialTotal,
+  initialHasMore,
+  initialNextCursor,
+  title,
+  description,
+  mediaType,
+  multiSelect = false,
+  onConfirmMany,
+  maxSelection,
+  pageSize,
+}: AssetSelectorDialogProps) {
+  const isMobile = useIsMobile()
+  return (
+    <ResponsiveDialog open={open} onOpenChange={onOpenChange}>
+      <ResponsiveDialogContent
+        showCloseButton={false}
+        // 桌面 = 挑选框（ui-spec ㉔）：正中 1000 × 680、圆角 24、`float` + `pop`；手机照旧抽屉。
+        className={
+          isMobile
+            ? 'h-[min(88svh,760px)] !max-w-none !gap-0 overflow-hidden !border-0 !bg-transparent !p-0 !shadow-2xl'
+            : LIBRARY_PICKER_DIALOG_CLASS
+        }
+        mobileBodyClassName="px-0 pt-0"
+      >
+        <ResponsiveDialogTitle className="sr-only">
+          {title}
+        </ResponsiveDialogTitle>
+        <ResponsiveDialogDescription className="sr-only">
+          {description}
+        </ResponsiveDialogDescription>
+        <div
+          className={
+            isMobile
+              ? 'flex size-full flex-col overflow-hidden rounded-xl border border-border bg-background'
+              : 'flex size-full flex-col overflow-hidden'
+          }
+        >
+          <AssetPickerBrowser
+            mode={multiSelect ? 'multi' : 'single'}
+            mediaType={mediaType}
+            maxSelection={maxSelection}
+            {...(pageSize != null ? { pageSize } : {})}
+            initialGenerations={initialGenerations}
+            initialTotal={initialTotal}
+            initialHasMore={initialHasMore}
+            initialNextCursor={initialNextCursor}
+            title={title}
+            onSelect={(generation) => {
+              onSelect?.(generation)
+              onOpenChange(false)
+            }}
+            onConfirmMany={(generations) => {
+              onConfirmMany?.(generations)
+              onOpenChange(false)
+            }}
+            onCancel={() => onOpenChange(false)}
+          />
+        </div>
+      </ResponsiveDialogContent>
+    </ResponsiveDialog>
+  )
+}

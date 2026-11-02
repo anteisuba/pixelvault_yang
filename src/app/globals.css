@@ -158,7 +158,7 @@
      收成脑图标、两颗 chip 都去掉箭头 —— `@assistant-bar:`。 */
   --container-assistant-bar: 22rem;
   /* 画廊瀑布流第 6 列的门槛（owner 2026-10-08 画廊换皮：2–6 列按宽取档）——
-     `3xl:grid-cols-6`，与 `constants/gallery-grid.ts` 同一档。 */
+     `3xl:grid-cols-6`，与 `features/gallery/constants.ts` 同一档。 */
   --breakpoint-3xl: 120rem;
   /* 「桌面壳」从 768 起（owner 2026-10-09 平板 v10：平板 = 缩小版电脑，左图标栏 + 中间内容
      + 右侧助手）。`lg:` 在本仓库只表示「桌面壳」，所以整档挪到 48rem，与 `use-mobile.ts`

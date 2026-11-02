@@ -1050,7 +1050,7 @@ When the choice is "which reference image", put the asset URL in "assetUrl" inst
 
 ### 第四期 · LoRA 收编与旧路径删除
 
-**状态：未开工。** 宿主契约已就绪。`LoraAssistantDock` → 统一面板（LoRA 工作台今天已经在挂 operator 两颗入口，`src/components/business/studio/lora/LoraWorkbench.tsx:176-177`）。
+**状态：未开工。** 宿主契约已就绪。`LoraAssistantDock` → 统一面板（LoRA 工作台今天已经在挂 operator 两颗入口，`src/features/lora/components/LoraWorkbench.tsx:176-177`）。
 **删掉什么**：`src/components/business/prompts/PromptAssistantPanel.tsx`（+ 导出 + 测试 + `PromptAssistantLoraResultCard.tsx`）· `src/app/api/prompt/assistant/stream` · `src/services/kernel/prompt-assistant.service.ts` · **⬜ `[[canvas-ops]]` 标记协议仍在用**（`constants/node-assistant-ops.ts` 的 `open` / `close` · `lib/node-assistant-ops.ts` · `lib/assistant-protocol-blocks.ts` · `lib/assistant-marker-block.ts` · `services/node/node-assistant.service.ts`）——画布助手今天仍靠它吐 op，删它的前提是画布收编进 operator 工具环· 旧 `LoraAssistantDock` / `StudioAssistantDock`。⚠ 删前 `grep -r` 把调用方在同一改动里改完，不留垫片。
 
 ---

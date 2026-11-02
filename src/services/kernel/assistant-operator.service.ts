@@ -286,7 +286,7 @@ import {
   createAssetFolder,
   setAssetFavorites,
   tagAssets,
-} from '@/services/asset-library-write.service'
+} from '@/features/assets/server'
 import {
   ProjectRuleLimitError,
   addProjectRule,
@@ -352,7 +352,7 @@ import { persistVideoFrameSet } from '@/services/video-frames/video-frame-set.se
 import {
   resolveLibraryBaseModel,
   searchLoraLibraryCandidates,
-} from '@/services/lora/lora-candidates.service'
+} from '@/features/lora/server'
 import {
   extractFocusedExcerpt,
   isWebImageSearchConfigured,
@@ -442,7 +442,7 @@ import {
 } from '@/lib/assistant-workspace'
 import { getPromptDialect } from '@/constants/prompt-dialects'
 import { ASSISTANT_SURFACE_BY_DOMAIN } from '@/types/assistant-conversation'
-import { isLoraBaseModelMountCompatible } from '@/lib/lora-model-compatibility'
+import { isLoraBaseModelMountCompatible } from '@/features/lora/core'
 import {
   LORA_BASE_MODELS,
   getBaseOnlyGenerationBases,
@@ -450,17 +450,17 @@ import {
   getDefaultBase,
   normalizeToLoraBaseFamily,
   resolveLoraStackWeightBudget,
-} from '@/constants/lora-base-models'
+} from '@/features/lora/core'
 import {
   findForbiddenDialectHits,
   LORA_PROMPT_DIALECTS,
-} from '@/constants/lora-prompt-dialects'
-import { mergeNegativePrompt } from '@/lib/lora-source-match-prompt'
+} from '@/features/lora/core'
+import { mergeNegativePrompt } from '@/features/lora/core'
 import {
   buildLoraDialectRule,
   isLoraNegativeInert,
   resolveLoraDialect,
-} from '@/lib/lora-dialect-section'
+} from '@/features/lora/core'
 /**
  * ⭐ **产物提取的三个纯函数**（v2 §7.6：「原样搬到服务端复用，不重写」）。
  *

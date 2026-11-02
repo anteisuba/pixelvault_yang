@@ -5,7 +5,7 @@ import {
   MODEL_KEYWORD_LORA_KEYWORD_RAW_URL,
   MODEL_KEYWORD_LORA_RESULT_LIMIT,
 } from '@/constants/lora'
-import { cleanTriggerToken } from '@/lib/lora-trigger-clean'
+import { cleanTriggerToken } from '@/features/lora/core'
 import { normalizePromptTagSearchText } from '@/lib/prompt-tag-search'
 import { withRetry } from '@/lib/with-retry'
 import type { PromptTagDefinition } from '@/types/prompt-tags'

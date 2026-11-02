@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 
-import { LoraLibraryOverlayView } from '@/components/business/studio/lora/library/LoraLibraryOverlayView'
+import { LoraLibraryOverlayView } from '@/features/lora'
 import { StudioLibraryOverlay } from '@/components/business/studio/shell/StudioLibraryOverlay'
 
 /**

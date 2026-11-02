@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildQwenImage21Workflow,
+  QWEN_IMAGE_21_TURBO_SIGMAS,
+  QWEN_IMAGE_21_TURBO_UNET,
   readQwenPngDimensions,
 } from './qwen-workflow-builder'
 
@@ -21,13 +23,15 @@ describe('Qwen-Image-2.1 workflow', () => {
       height: 1024,
       batch_size: 1,
     })
-    expect(graph.sampler.inputs).toMatchObject({
-      cfg: 1,
-      steps: 25,
-      sampler_name: 'euler',
-      scheduler: 'simple',
-      denoise: 1,
-    })
+    // Turbo：官方 Comfy 模板的 8 步日程 + euler + CFG 1，模型过缓存节点。
+    expect(graph.model.inputs.unet_name).toBe(QWEN_IMAGE_21_TURBO_UNET)
+    expect(graph.sampler.class_type).toBe('SamplerCustomAdvanced')
+    expect(graph.sigmas.inputs.sigmas).toBe(QWEN_IMAGE_21_TURBO_SIGMAS)
+    expect(QWEN_IMAGE_21_TURBO_SIGMAS.split(',')).toHaveLength(9)
+    expect(graph.samplerSelect.inputs.sampler_name).toBe('euler')
+    expect(graph.guider.inputs).toMatchObject({ model: ['cache', 0], cfg: 1 })
+    expect(graph.noise.inputs.noise_seed).toBe(42)
+    expect(graph.sampler.inputs.latent_image).toEqual(['latent', 0])
     expect(
       Object.values(graph).some(
         (node) => node.class_type === 'CheckpointLoaderSimple',

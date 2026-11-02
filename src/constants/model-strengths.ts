@@ -526,9 +526,9 @@ export const MODEL_STRENGTHS: Partial<Record<AI_MODELS, ModelStrength>> = {
   [AI_MODELS.QWEN_IMAGE_21_RUNNER]: {
     bestFor: ['general', 'detailed', 'illustration'],
     promptStyle: 'natural-language',
-    negativePrompt: 'supported',
+    negativePrompt: 'unsupported',
     enhanceHint:
-      'Qwen-Image-2.1 on the Comfy runner. Use clear Chinese or English descriptions of subjects, composition, lighting and exact text to render. For image editing, explicitly describe what to change and what to preserve in the supplied reference images. Do not add SDXL or Pony quality prefixes.',
+      'Qwen-Image-2.1 Turbo on the Comfy runner (8 steps, CFG 1, so a negative prompt has no effect — say what to avoid in the prompt itself). Use clear Chinese or English descriptions of subjects, composition, lighting and exact text to render. For image editing, explicitly describe what to change and what to preserve in the supplied reference images. Do not add SDXL or Pony quality prefixes.',
   },
   // ─── Comfy Runner 上的自托管 checkpoint ───────────────────────────
   // 它们与上面那些托管模型共享同一条 tag 方言，但每个底模有**自己的必带前缀** ——

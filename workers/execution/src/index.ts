@@ -5600,8 +5600,7 @@ export async function submitRunnerImageJob(
             readStringField(advancedParams, 'negativePrompt') ?? undefined,
           ...dimensions,
           seed: readRunnerSeed(advancedParams) ?? randomUint32(),
-          steps: readPositiveNumberField(advancedParams, 'steps') ?? undefined,
-          cfg: readNumberField(advancedParams, 'guidanceScale') ?? undefined,
+          // Turbo 固定 CFG 1：旧草稿里残留的 guidanceScale / steps 不再传，免得烧色。
           referenceImageNames:
             referenceImagesToFetch?.map((image) => image.name) ?? [],
         })

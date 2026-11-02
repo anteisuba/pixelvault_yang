@@ -454,10 +454,9 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
 export const MODEL_CAPABILITY_OVERRIDES: Partial<
   Record<string, Partial<CapabilityConfig>>
 > = {
+  // Turbo（owner 11-02）：固定 8 步日程、CFG 1 —— 步数 / CFG / 负面词都不起作用，不摆出来。
   [AI_MODELS.QWEN_IMAGE_21_RUNNER]: {
-    capabilities: ['negativePrompt', 'guidanceScale', 'steps', 'seed'],
-    guidanceScale: { min: 1, max: 10, step: 0.1, default: 1 },
-    steps: { min: 1, max: 100, step: 1, default: 25 },
+    capabilities: ['seed'],
     maxLoras: 0,
     maxReferenceImages: 10,
     referenceImageMode: 'native',

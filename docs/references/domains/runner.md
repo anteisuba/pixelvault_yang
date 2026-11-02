@@ -43,7 +43,7 @@ RunPod 时期的端点（`dt0wyuid7lywic`、Qwen 评估 `ok6riemrmpdiic`）、�
 - `workers/runner-comfyui-fork/qwen_workflow.py` 生成 API 工作流：文生图用 `TextEncodeQwenImage21` + Euler/simple；编辑通过同节点接入图片与 VAE 参考条件，最多 10 张，latent 随首图缩放尺寸。不是 SDXL 低 denoise 图生图。
 - 基础镜像构建已通过 CPU 启动检查，实际 PyTorch 为 `2.12.0+cu130`；GPU 部署需选择 CUDA 13.0 驱动兼容机器。CPU 启动不能替代显存和真实出图验收。
 - 已创建独立端点 `ok6riemrmpdiic`（`pixelvault-qwen21-internal-eval`），模板 `sw8qiqhsa9`，RTX 4090，Min 0 / Max 1 / Idle 5s。（RunPod 时期）现由 Modal 的 `qwen` target 承接，任务 ID 不再带端点前缀。
-- 工作台默认 CFG 1、25 步，支持负面提示词、seed 与最多 10 张原生参考图；使用服务端 Runner 凭证，不弹用户 key 配置。编辑结果按 PNG 实际尺寸归档。当前未核实每图金额，界面不显示估算美元价；实际由 Modal 计费。
+- **2026-11-02 换成 Turbo**（owner 定）：UNet 用 `qwen_image_2.1_turbo_int8_convrot.safetensors`（Modal `app.py` 构建时补层，钉 HF revision + sha256；ghcr 镜像不用重打），采样照 Comfy 官方 Turbo 模板：`ManualSigmas` 固定 8 步日程 + euler + `CFGGuider(1)` + `QwenImage21Cache`。工作台只留 seed 与最多 10 张原生参考图；步数 / CFG / 负面词不再摆出也不再传（CFG 1 下负面词无效）。使用服务端 Runner 凭证，不弹用户 key 配置；编辑结果按 PNG 实际尺寸归档。不收费（owner 11-02）。⚠ 换 Turbo 后的首张真实出图在 main 部署后才验证。
 - GPU 实际验收与 Worker 部署状态见 `docs/status.md`；端点创建和代码测试不替代真实成图。
 
 核验来源：[官方模型仓](https://github.com/QwenLM/Qwen-Image-2.1)、[ComfyUI v0.37.0](https://github.com/Comfy-Org/ComfyUI/releases/tag/v0.37.0)、[官方工作流](https://github.com/Comfy-Org/workflow_templates/blob/main/templates/image_qwen_image_2_1_image_edit.json)、[研究许可证](https://github.com/QwenLM/Qwen-Image-2.1/blob/main/LICENSE)。

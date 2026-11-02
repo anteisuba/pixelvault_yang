@@ -2962,8 +2962,10 @@ describe('provider submit reports providerJobId', () => {
               class_type: 'TextEncodeQwenImage21',
               inputs: { 'images.image_2': ['reference-2', 0] },
             },
+            guider: { inputs: { cfg: 1 } },
             sampler: {
-              inputs: { cfg: 1, steps: 25, latent_image: ['encode', 2] },
+              class_type: 'SamplerCustomAdvanced',
+              inputs: { latent_image: ['encode', 2] },
             },
           },
         },

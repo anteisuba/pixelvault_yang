@@ -47,7 +47,34 @@ token_secret = modal.Secret.from_name(TOKEN_SECRET_NAME)
 main_image = modal.Image.from_registry(MAIN_IMAGE).env(
     {"RUNNER_VOLUME_QUOTA_BYTES": "300000000000"}
 )
-qwen_image = modal.Image.from_registry(QWEN_IMAGE)
+# Turbo（owner 11-02 换上）：8 步出图。ghcr 评估镜像里只烤了原版 UNet，Turbo 的 int8 UNet
+# 在 Modal 构建时补一层（钉 HF revision + sha256），Worker 侧工作流见
+# workers/execution/src/models/runner/qwen-workflow-builder.ts。编码器与 VAE 与原版共用。
+QWEN_TURBO_REVISION = "aacf31a6d48e707f352ecba714cee0680da3479b"
+QWEN_TURBO_FILE = "qwen_image_2.1_turbo_int8_convrot.safetensors"
+QWEN_TURBO_SHA256 = "8144a0182964aa8403ad6dbc011db837304167d235161b9aabaa8532e967314c"
+
+
+def _fetch_qwen_turbo():
+    """Modal 构建层：下载 Turbo UNet 并校验 sha256（基础镜像不保证有 curl）。"""
+    import hashlib
+    import urllib.request
+
+    target = f"/comfyui/models/diffusion_models/{QWEN_TURBO_FILE}"
+    url = (
+        "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/"
+        f"{QWEN_TURBO_REVISION}/diffusion_models/{QWEN_TURBO_FILE}"
+    )
+    digest = hashlib.sha256()
+    with urllib.request.urlopen(url, timeout=120) as response, open(target, "wb") as out:
+        while chunk := response.read(8 * 1024 * 1024):
+            out.write(chunk)
+            digest.update(chunk)
+    if digest.hexdigest() != QWEN_TURBO_SHA256:
+        raise ValueError(f"Qwen Turbo checksum mismatch: {digest.hexdigest()}")
+
+
+qwen_image = modal.Image.from_registry(QWEN_IMAGE).run_function(_fetch_qwen_turbo)
 web_image = modal.Image.debian_slim().pip_install("fastapi[standard]")
 
 # PixAI Tagger v1.0（Apache-2.0）：认图出 Danbooru 标签，style 一类多为画师。权重 1.9 GB

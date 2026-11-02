@@ -2,6 +2,17 @@ import type { ComfyWorkflow } from './workflow-builder'
 
 export const QWEN_IMAGE_21_MODEL = 'qwen-image-2.1'
 
+/**
+ * Turbo（2026-10-09 发布）：同一 7B 结构，8 步出图、CFG 1。owner 11-02 定整条换成 Turbo。
+ * 采样照 Comfy 官方模板 image_qwen_image_2_1_turbo_{t2i,image_edit}.json：
+ * ManualSigmas 固定 8 步日程 + euler + CFGGuider(1)，模型过 QwenImage21Cache。
+ * CFG 1 时负面词不起作用（官方同样如此），仍原样传给编码器。
+ */
+export const QWEN_IMAGE_21_TURBO_UNET =
+  'qwen_image_2.1_turbo_int8_convrot.safetensors'
+export const QWEN_IMAGE_21_TURBO_SIGMAS =
+  '1.0, 0.978453, 0.95418, 0.926626, 0.89508, 0.845148, 0.704534, 0.414568, 0'
+
 export function readQwenPngDimensions(bytes: Uint8Array) {
   const signature = [137, 80, 78, 71, 13, 10, 26, 10]
   if (
@@ -22,14 +33,10 @@ export function buildQwenImage21Workflow(input: {
   width: number
   height: number
   seed: number | string
-  steps?: number
   cfg?: number
   referenceImageNames: readonly string[]
 }): ComfyWorkflow {
-  const steps = input.steps ?? 25
   const cfg = input.cfg ?? 1
-  if (!Number.isInteger(steps) || steps < 1 || steps > 100)
-    throw new Error('Qwen steps must be between 1 and 100.')
   if (!Number.isFinite(cfg) || cfg < 1 || cfg > 10)
     throw new Error('Qwen CFG must be between 1 and 10.')
   if (input.referenceImageNames.length > 10)
@@ -38,7 +45,7 @@ export function buildQwenImage21Workflow(input: {
     model: {
       class_type: 'UNETLoader',
       inputs: {
-        unet_name: 'qwen_image_2.1_int8_convrot.safetensors',
+        unet_name: QWEN_IMAGE_21_TURBO_UNET,
         weight_dtype: 'default',
       },
     },
@@ -63,19 +70,36 @@ export function buildQwenImage21Workflow(input: {
         resolution: 1024,
       },
     },
-    sampler: {
-      class_type: 'KSampler',
+    cache: {
+      class_type: 'QwenImage21Cache',
+      inputs: { model: ['model', 0], device: 'auto', dtype: 'default' },
+    },
+    guider: {
+      class_type: 'CFGGuider',
       inputs: {
-        model: ['model', 0],
+        model: ['cache', 0],
         positive: ['encode', 0],
         negative: ['encode', 1],
-        latent_image: ['latent', 0],
-        seed: input.seed,
-        steps,
         cfg,
-        sampler_name: 'euler',
-        scheduler: 'simple',
-        denoise: 1,
+      },
+    },
+    noise: { class_type: 'RandomNoise', inputs: { noise_seed: input.seed } },
+    samplerSelect: {
+      class_type: 'KSamplerSelect',
+      inputs: { sampler_name: 'euler' },
+    },
+    sigmas: {
+      class_type: 'ManualSigmas',
+      inputs: { sigmas: QWEN_IMAGE_21_TURBO_SIGMAS },
+    },
+    sampler: {
+      class_type: 'SamplerCustomAdvanced',
+      inputs: {
+        noise: ['noise', 0],
+        guider: ['guider', 0],
+        sampler: ['samplerSelect', 0],
+        sigmas: ['sigmas', 0],
+        latent_image: ['latent', 0],
       },
     },
     decode: {
@@ -94,15 +118,6 @@ export function buildQwenImage21Workflow(input: {
       workflow[id] = { class_type: 'LoadImage', inputs: { image: name } }
       workflow.encode.inputs[`images.image_${index + 1}`] = [id, 0]
     })
-    workflow.cache = {
-      class_type: 'QwenImage21Cache',
-      inputs: {
-        model: ['model', 0],
-        device: 'auto',
-        dtype: 'default',
-      },
-    }
-    workflow.sampler.inputs.model = ['cache', 0]
     workflow.sampler.inputs.latent_image = ['encode', 2]
   } else {
     workflow.latent = {

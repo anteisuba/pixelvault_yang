@@ -14,7 +14,7 @@ import {
   type NodeV4MediaData,
 } from '@/lib/node-output-versions'
 
-import type { NodeV4MediaPatch } from '@/components/business/node/nodes/v4/NodeV4Context'
+import type { NodeV4MediaPatch } from '@/features/canvas'
 
 /** 一次发送里的哪一枪（`generateNode` 交给 `onJobCreated` / `onEach`）。 */
 export interface NodeGenerationShot {

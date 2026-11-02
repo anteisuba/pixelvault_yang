@@ -169,7 +169,7 @@ claude mcp add --transport http --scope user antei https://www.anteisuba.com/api
 
 - 路由：`src/app/api/mcp/route.ts` · 令牌接口 `src/app/api/mcp/tokens/**` · 版本接口 `src/app/api/node-workflow/projects/[id]/version/route.ts` · 元数据 `src/app/.well-known/oauth-protected-resource/**`（S7）
 - 服务：`src/services/mcp/`（令牌 · 工具 · 截帧）
-- 纯函数：批量执行（从 `src/hooks/node/use-node-graph-v4.ts` 抽出）· 时间线快照构建 · `src/lib/studio-operator-canvas-snapshot.ts`
+- 纯函数：批量执行（从 `src/features/canvas/hooks/use-node-graph-v4.ts` 抽出）· 时间线快照构建 · `src/lib/studio-operator-canvas-snapshot.ts`
 - 常量：`src/constants/mcp.ts`（前缀 · 上限 · 轮询间隔）
 - 数据：`prisma/schema.prisma` 的令牌表 `McpToken`
 - 已有、复用：`CANVAS_APPLY_OP_IDS`（`src/types/assistant-operator.ts`）· `node-workflow.service.ts` 的版本号条件写 · `use-node-workflow-store.ts` 的保存与冲突 · `src/constants/media-transformations.ts` · `render-video.service.ts`

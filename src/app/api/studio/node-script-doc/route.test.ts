@@ -8,11 +8,11 @@ import {
   parseJSON,
 } from '@/test/api-helpers'
 
-vi.mock('@/services/node/node-script-doc.service', () => ({
+vi.mock('@/features/canvas/services/node-script-doc.service', () => ({
   createNodeScriptDoc: vi.fn(),
 }))
 
-import { createNodeScriptDoc } from '@/services/node/node-script-doc.service'
+import { createNodeScriptDoc } from '@/features/canvas/server'
 import type { NodeScriptDocResponseData } from '@/types/script-doc'
 
 import { POST } from './route'

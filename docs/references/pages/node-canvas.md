@@ -311,7 +311,7 @@ L4 片盒 videoMerge（巨鱼）：吞成片，盒内保序胶片条可重排 �
 - 拍板：本文件 §0（2026-07-10 会话，概念稿三张图存会话记录）
 - 当前模块与施工顺序：`canvas-modular-redesign-2026-07.md`（已随 plans 清理，git 历史可取）
 - 图片编辑纵向子计划：`canvas-image-edit-convergence-2026-07.md`（已随 plans 清理，git 历史可取）
-- 现状代码：`src/app/globals.css`（`--node-*` L286+ / `@theme` L24+）· `src/constants/node-tokens.ts` · `src/components/business/node/**`
+- 现状代码：`src/app/globals.css`（`--node-*` L286+ / `@theme` L24+）· `src/constants/node-tokens.ts` · `src/features/canvas/components/**`
 - v1 基准（未迁移组件仍守）：`canvas-baseline.md`（已随 plans 清理，git 历史可取）——**仍成立的结论已抢救进本文件 §10.1，先看那里，别直接翻旧文施工**
 - 关联 memory：`project-canvas-cast-card-2026-07` · `project-canvas-ui-baseline`
 

@@ -39,7 +39,7 @@ const mockGet = vi.fn()
 const mockUpdate = vi.fn()
 const mockDelete = vi.fn()
 
-vi.mock('@/services/node/node-workflow.service', () => ({
+vi.mock('@/features/canvas/services/node-workflow.service', () => ({
   getNodeWorkflowProject: (...args: unknown[]) => mockGet(...args),
   updateNodeWorkflowProject: (...args: unknown[]) => mockUpdate(...args),
   deleteNodeWorkflowProject: (...args: unknown[]) => mockDelete(...args),

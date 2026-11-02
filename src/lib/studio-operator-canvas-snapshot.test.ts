@@ -12,7 +12,7 @@ import {
 import { NODE_V4_PROMPT_MAX_LENGTH } from '@/constants/node-studio'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { ASSISTANT_TURN_RECORD_LIMITS } from '@/constants/assistant-turn-record'
-import { planV4Generation } from '@/hooks/node/use-node-media-generation-v4'
+import { planV4Generation } from '@/features/canvas/hooks'
 import {
   fitAssistantTurnRecord,
   turnRecordInput,

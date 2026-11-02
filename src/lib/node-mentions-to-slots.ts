@@ -31,7 +31,7 @@ import {
 import {
   parseMentions,
   type MentionSegmentMention,
-} from '@/components/business/node/nodes/v4/chrome/parse-mentions'
+} from '@/lib/node-parse-mentions'
 import {
   canConnect,
   NODE_CONNECT_REJECT_REASON_IDS,

@@ -19,7 +19,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Spinner } from '@/components/ui/spinner'
-import { VoiceAvatarButton } from '@/components/business/node/voice-library/VoiceAvatar'
+import { VoiceAvatarButton } from '@/components/business/voices/VoiceAvatar'
 import { cn } from '@/lib/utils'
 
 /**

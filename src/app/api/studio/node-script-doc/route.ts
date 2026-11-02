@@ -2,7 +2,7 @@ import 'server-only'
 
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import { createApiRoute } from '@/lib/api-route-factory'
-import { createNodeScriptDoc } from '@/services/node/node-script-doc.service'
+import { createNodeScriptDoc } from '@/features/canvas/server'
 import {
   NodeScriptDocRequestSchema,
   type NodeScriptDocResponseData,

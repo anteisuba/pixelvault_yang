@@ -51,7 +51,7 @@ import {
   type NodeWorkflowMediaKind,
   type NodeWorkflowNodeType,
 } from '@/constants/node-types'
-import { parseMentions } from '@/components/business/node/nodes/v4/chrome/parse-mentions'
+import { parseMentions } from '@/lib/node-parse-mentions'
 import type { NodeWorkflowNodeData } from '@/types/node-workflow'
 
 function trimmed(value: unknown): string | undefined {

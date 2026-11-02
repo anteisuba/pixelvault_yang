@@ -7,7 +7,7 @@ vi.mock('server-only', () => ({}))
 const { recent } = vi.hoisted(() => ({
   recent: [] as { id: string; name: string }[],
 }))
-vi.mock('@/services/node/node-workflow.service', () => ({
+vi.mock('@/features/canvas/services/node-workflow.service', () => ({
   listRecentNodeWorkflowProjectsForUser: async () => recent,
 }))
 vi.mock('@/features/assistant/workspace.service', async (importOriginal) => ({

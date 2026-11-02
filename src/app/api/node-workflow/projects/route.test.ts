@@ -31,7 +31,7 @@ const FakeStateCorruptError = vi.hoisted(
     },
 )
 
-vi.mock('@/services/node/node-workflow.service', () => ({
+vi.mock('@/features/canvas/services/node-workflow.service', () => ({
   createNodeWorkflowProject: (...args: unknown[]) => mockCreate(...args),
   listNodeWorkflowProjectsForUser: (...args: unknown[]) => mockList(...args),
   listRecentNodeWorkflowProjectsForUser: (...args: unknown[]) =>

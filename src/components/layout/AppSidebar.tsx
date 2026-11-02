@@ -38,7 +38,7 @@ import {
 import {
   toggleCanvasShellPanel,
   useCanvasShellPanel,
-} from '@/hooks/node/use-canvas-shell-panel'
+} from '@/features/canvas/hooks'
 import { useHasHydrated } from '@/hooks/use-has-hydrated'
 import { useNavIndicator } from '@/hooks/use-nav-indicator'
 import { useMyProfile } from '@/hooks/use-my-profile'

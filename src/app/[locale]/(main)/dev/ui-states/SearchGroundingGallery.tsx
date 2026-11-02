@@ -10,12 +10,12 @@ import { StudioOperatorConfirmCard } from '@/features/assistant'
 import { StudioOperatorResultRow } from '@/features/assistant'
 import { ASSISTANT_OPERATOR_CONFIRM_KIND_IDS } from '@/constants/assistant-operator'
 import { STUDIO_OPERATOR_CONFIRM_STATUS_IDS } from '@/constants/studio-assistant-operator'
-import { ImageSearchGroundingSide } from '@/components/business/node/nodes/v4/image/ImageSearchGroundingSide'
+import { ImageSearchGroundingSide } from '@/features/canvas'
 import {
   addNodeSearchGroundingResult,
   finishNodeSearchGrounding,
   startNodeSearchGrounding,
-} from '@/hooks/node/use-node-search-grounding'
+} from '@/features/canvas/hooks'
 import {
   SearchGroundingRail,
   type SearchGroundingRailState,

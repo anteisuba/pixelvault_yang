@@ -10,7 +10,7 @@ import {
   deleteNodeWorkflowProject,
   getNodeWorkflowProject,
   updateNodeWorkflowProject,
-} from '@/services/node/node-workflow.service'
+} from '@/features/canvas/server'
 import { UpdateNodeWorkflowProjectRequestSchema } from '@/types/node-workflow'
 
 import { rethrowNodeWorkflowStateError } from '../state-error'

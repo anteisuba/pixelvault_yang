@@ -21,7 +21,6 @@ vi.mock('next-intl', () => ({
       values ? `${key} ${JSON.stringify(values)}` : key,
 }))
 
-// 只替换用到的那几样，其余（motionValue 等）照用真的，免得被间接引入的组件撞上缺导出。
 vi.mock('motion/react', async (importOriginal) => ({
   ...(await importOriginal<typeof import('motion/react')>()),
   motion: { button: 'button' },

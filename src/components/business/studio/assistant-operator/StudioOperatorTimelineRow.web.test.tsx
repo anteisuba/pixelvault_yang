@@ -210,7 +210,6 @@ describe('StudioOperatorTimelineRow', () => {
           name: '小满',
           tone: 'professional',
           nextStepHint: false,
-          archetype: null,
         }}
       >
         <span />

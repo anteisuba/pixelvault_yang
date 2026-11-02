@@ -2136,12 +2136,6 @@ export const AssistantOperatorRequestSchema = z.object({
    */
   chatVoice: z.object({ expressive: z.boolean() }).optional(),
   /**
-   * **自动生成开着**（owner 2026-10-14）：这一轮改了会影响产出的东西，就由助手自己
-   * 把对应那几张卡放上生成确认卡，客户端替你按下（单轮上限见
-   * `ASSISTANT_AUTO_GENERATE_LIMITS`）。⚠ 缺席 = 关。
-   */
-  autoGenerate: z.literal(true).optional(),
-  /**
    * **这一轮用创作者自己的 Grok key 搜一次 X**（owner 2026-10-14）：只由回答底下那颗
    * 「用 Grok 搜这一次」按钮发出，只管这一轮。⛔ 没有它就不碰别家的 key。
    */

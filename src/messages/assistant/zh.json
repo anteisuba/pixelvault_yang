@@ -619,6 +619,8 @@
       "characterImagesAttached": "{subject}",
       "characterImagesDeclined": "没挂这几张图：{subject}",
       "characterImagesAttachFailed": "没能挂到「{subject}」上 —— 再试一次？",
+      "characterWriteUndone": "已撤销：「{subject}」刚收下的改动退回原样了。",
+      "characterWriteUndoFailed": "没能撤回「{subject}」的改动 —— 再试一次也不行的话，去角色页手动改回来。",
       "imageHandoffAccepted": "已交给图片助手：{subject}",
       "imageHandoffDeclined": "先不交给图片助手：{subject}",
       "workbenchHandoffAccepted": "已换台：{subject}",
@@ -629,7 +631,8 @@
       "moveWorkAccepted": "{subject}",
       "moveWorkDeclined": "{subject}",
       "moveWorkDroppedReferences": "有 {subject} 张参考图没带过去（超过上限或还没传完）。",
-      "autoGenerateHeld": "这次要出 {subject} 张，超过「交给 AI 出图」每句话 4 张的上限 —— 没替你按，确认后再出。",
+      "spendHeld": "这批大约 {subject}，这句话里加起来超过你设的出图上限，等你确认再出。",
+      "spendUnknownHeld": "这批估不出价钱，等你确认再出。",
       "autoReview": "自己看图再改 · 第 {subject} 轮"
     },
     "attach": {
@@ -1062,19 +1065,10 @@
         "context": "首页"
       }
     },
-    "autoGenerate": {
-      "label": "交给 AI 出图",
-      "review": "看图再改 {count} 轮",
-      "reviewOff": "出完就停",
-      "reviewHint": "出完图她自己看、对着你的要求再改几轮；点一下换档"
-    },
-    "continueAsk": {
-      "header": "接下来",
-      "question": "按这个方向继续吗？",
-      "continue": "继续",
-      "continueDescription": "看看这批图，按这个方向改着再出",
-      "change": "换个方向",
-      "changeDescription": "先停在这里，告诉我想换成什么样"
+    "autoReview": {
+      "rounds": "看图再改 {count} 轮",
+      "off": "出完就停",
+      "hint": "出完图她自己看、对着你的要求再改几轮；点一下换档"
     },
     "outOfSteps": {
       "note": "这一轮的步数用完了，已经落下的改动都保留着。",
@@ -1197,24 +1191,6 @@
     "style": {
       "title": "说话方式"
     },
-    "archetype": {
-      "cautious": {
-        "name": "谨慎",
-        "line": "动手前多问两句 · 两步以上先给你看计划 · 回复偏短，只说结论"
-      },
-      "balanced": {
-        "name": "平衡",
-        "line": "拿不准才问，一次一个 · 多步和生成才确认 · 正常长度，附一条下一步"
-      },
-      "handsOff": {
-        "name": "放手",
-        "line": "基本不问，直接做 · 只在多步之前打个招呼 · 回复很短，只报结果"
-      },
-      "custom": {
-        "name": "自定义",
-        "line": "你在高级里改过，这份设置不再对上任何一档。"
-      }
-    },
     "preview": {
       "label": "示例回复",
       "address": "{name}，",
@@ -1236,7 +1212,8 @@
         "length": "长度 {value}",
         "language": "语言 {value}",
         "nextStep": "下一步建议 {value}",
-        "myWords": "用我的词 {value}"
+        "myWords": "用我的词 {value}",
+        "spendLimit": "出图上限 {value}"
       }
     },
     "tone": {
@@ -1272,6 +1249,16 @@
     "myWords": {
       "label": "用我的词",
       "hint": "沿用我在提示词里的说法"
+    },
+    "spendLimit": {
+      "label": "出图上限",
+      "hint": "一句话里助手出的图加起来不超过这个数就直接出，超了先给你看价钱。NovelAI 和免费线路不算钱。",
+      "option": {
+        "0": "每次都问",
+        "50": "$0.5",
+        "100": "$1",
+        "300": "$3"
+      }
     },
     "memory": {
       "caption": "助手记忆按工作台分别保存。需要在所有工作台共用的记忆，可以在这里明确共享。",

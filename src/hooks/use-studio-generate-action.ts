@@ -11,7 +11,6 @@ import {
   getModelFamily,
   supportsSearchGrounding,
 } from '@/constants/models'
-import { VIDEO_UNIT_PRICE_BASE_RESOLUTION } from '@/constants/models/unit-prices'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   getReferenceCapability,
@@ -45,7 +44,7 @@ import { getOperatorState } from '@/hooks/use-studio-operator-store'
 import { getReferenceMentionIndices } from '@/lib/studio-reference-mentions'
 import type { StudioModelOption } from '@/types/model-option'
 import type { StudioOperatorResultOwner } from '@/types/studio-assistant-operator'
-import type { CostPreviewBasis } from '@/components/business/studio/StudioCostPreview'
+import { videoCostBasisOf, type CostPreviewBasis } from '@/lib/generation-cost'
 
 export interface StudioBlockedReason {
   message: string
@@ -375,38 +374,17 @@ export function useStudioGenerateAction() {
    * 视频档的成本预览基准 —— 按**真正会发出去的那两个值**算（见 `buildVideoInput`
    * 的同名夹取），否则报的是一个用户不会被收的数。
    */
-  const videoCostBasis = useMemo<CostPreviewBasis | null>(() => {
-    if (!isVideoMode || !selectedModel) return null
-
-    const { durations, resolutions } = getVideoModelParameterOptions(
-      selectedModel.modelId,
-      selectedModel.adapterType,
-    )
-    if (durations.length === 0) return null
-
-    const durationSeconds = durations.includes(state.videoDuration)
-      ? state.videoDuration
-      : durations.reduce((closest, candidate) =>
-          Math.abs(candidate - state.videoDuration) <
-          Math.abs(closest - state.videoDuration)
-            ? candidate
-            : closest,
-        )
-
-    const picked =
-      state.videoResolution && resolutions.includes(state.videoResolution)
-        ? state.videoResolution
-        : (getModelById(selectedModel.modelId)?.videoDefaults?.resolution ??
-          VIDEO_UNIT_PRICE_BASE_RESOLUTION)
-
-    return {
-      kind: 'video',
-      durationSeconds,
-      resolution: isVideoResolution(picked)
-        ? picked
-        : VIDEO_UNIT_PRICE_BASE_RESOLUTION,
-    }
-  }, [isVideoMode, selectedModel, state.videoDuration, state.videoResolution])
+  const videoCostBasis = useMemo<CostPreviewBasis | null>(
+    () =>
+      isVideoMode && selectedModel
+        ? videoCostBasisOf(
+            selectedModel,
+            state.videoDuration,
+            state.videoResolution,
+          )
+        : null,
+    [isVideoMode, selectedModel, state.videoDuration, state.videoResolution],
+  )
 
   /**
    * 视频 / 音频的单选换型号（图片移动端的单选抽屉也走它）。除了 `SET_OPTION_ID`，

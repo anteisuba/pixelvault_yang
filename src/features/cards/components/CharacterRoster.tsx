@@ -147,7 +147,7 @@ export function CharacterRoster() {
       }[],
     ) => {
       const card = flatCards.find((item) => item.id === characterId)
-      if (!card) return false
+      if (!card) return null
       const persona = {
         identity: '',
         behavior: '',
@@ -171,11 +171,30 @@ export function CharacterRoster() {
       }
       const look = defaultLook(card)
       const personaChanged = fields.some(({ field }) => field !== 'look')
+      const lookChanged = description !== undefined && Boolean(look.id)
+      // 撤销把收下前那一份原样写回（`p-assistant-undo`：收下的也能退）。
+      const beforePersona = card.persona
+      const beforeDescription = look.description
+      const undo = async () => {
+        const personaBack =
+          personaChanged && beforePersona
+            ? await update(characterId, { persona: beforePersona })
+            : true
+        const lookBack = lookChanged
+          ? await updateLook(characterId, look.id!, {
+              description: beforeDescription,
+            })
+          : true
+        return personaBack && lookBack
+      }
       const personaOk = personaChanged
         ? await update(characterId, { persona })
         : true
-      if (!personaOk || description === undefined || !look.id) return personaOk
-      return updateLook(characterId, look.id, { description })
+      if (!personaOk) return null
+      if (!lookChanged) return undo
+      return (await updateLook(characterId, look.id!, { description }))
+        ? undo
+        : null
     },
     [flatCards, update, updateLook],
   )
@@ -200,10 +219,18 @@ export function CharacterRoster() {
       const slots = appendSlotSources(look.referenceSlots, images)
       const added = slots.length - look.referenceSlots.length
       if (added === 0) return null
-      const ok = await updateLook(characterId, look.id, {
+      const before = look.referenceSlots
+      const lookId = look.id
+      const ok = await updateLook(characterId, lookId, {
         referenceSlots: slots,
       })
-      return ok ? added : null
+      return ok
+        ? {
+            added,
+            undo: () =>
+              updateLook(characterId, lookId, { referenceSlots: before }),
+          }
+        : null
     },
     [flatCards, updateLook],
   )

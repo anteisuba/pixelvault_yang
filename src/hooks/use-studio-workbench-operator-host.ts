@@ -27,6 +27,8 @@ import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { useStudioRunModels } from '@/hooks/use-studio-run-models'
 import { useStudioSearchGrounding } from '@/hooks/use-studio-search-grounding'
 import { searchGroundingForRun } from '@/lib/search-grounding'
+import { isFreeGenerationModel, pointsOfCost } from '@/lib/assistant-spend-gate'
+import { estimateGenerationCost, videoCostBasisOf } from '@/lib/generation-cost'
 import { useVideoModelOptions } from '@/hooks/use-video-model-options'
 import { useOperatorUserUrlMount } from '@/hooks/use-operator-user-url-mount'
 import { useStudioOperatorFace } from '@/hooks/use-studio-operator-face'
@@ -733,6 +735,53 @@ export function useStudioWorkbenchOperatorHost({
   )
 
   /**
+   * 此刻按一下出图要多少点（助手钱闸读它，`lib/assistant-spend-gate.ts`）—— 与参数栏底下那行
+   * 成本预览同一个算式（`estimateGenerationCost`）。NAI / Modal 记 0；估不出 = `null`。
+   */
+  const generationPoints = useCallback((): number | null => {
+    if (domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.video) {
+      const model = videoModels.selectedModel
+      if (!model) return null
+      if (isFreeGenerationModel(model.modelId, model.adapterType)) return 0
+      const basis = videoCostBasisOf(
+        model,
+        state.videoDuration,
+        state.videoResolution,
+      )
+      if (!basis) return null
+      return pointsOfCost(estimateGenerationCost([model], basis), 1)
+    }
+    const paid = runModels.filter(
+      (model) => !isFreeGenerationModel(model.modelId, model.adapterType),
+    )
+    if (runModels.length === 0) return null
+    return pointsOfCost(
+      estimateGenerationCost(paid, {
+        kind: 'image',
+        perModelCount: state.imageBatchCount,
+        aspectRatio: state.aspectRatio,
+        resolution: state.advancedParams.resolution,
+        quality: state.advancedParams.quality,
+        hasReferenceImage: imageUpload.referenceEntries.length > 0,
+        preview: state.advancedParams.preview,
+      }),
+      paid.length,
+    )
+  }, [
+    domain,
+    imageUpload.referenceEntries.length,
+    runModels,
+    state.advancedParams.preview,
+    state.advancedParams.quality,
+    state.advancedParams.resolution,
+    state.aspectRatio,
+    state.imageBatchCount,
+    state.videoDuration,
+    state.videoResolution,
+    videoModels.selectedModel,
+  ])
+
+  /**
    * **这台工作台那张脸的那一句**（D7b ③ · 画板 `DesignD7bFaces`）——
    * 图片「{模型} · {比例} · {张数} 张」/ 视频「{模型} · {比例} · {时长}s」。
    *
@@ -783,6 +832,7 @@ export function useStudioWorkbenchOperatorHost({
       results,
       ...(resultRun ? { resultRun } : {}),
       generationControls,
+      generationPoints,
       ...(searchGrounding ? { searchGrounding } : {}),
       searchGroundingForResult,
       referenceImages: imageUpload.referenceEntries,
@@ -802,6 +852,7 @@ export function useStudioWorkbenchOperatorHost({
       workspace,
       face,
       generationControls,
+      generationPoints,
       open,
       imageUpload.referenceEntries,
       resultRun,

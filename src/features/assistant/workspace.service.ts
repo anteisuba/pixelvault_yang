@@ -848,7 +848,6 @@ async function readSettings(owner: WorkspaceOwner): Promise<WorkspaceRead> {
     `${KEY.callMe}: ${persona.addressUserAs ?? '(account name)'}`,
     `${KEY.tone}: ${persona.tone === 'custom' ? `"${persona.toneCustom ?? ''}"` : persona.tone}`,
     `${KEY.verbosity}: ${persona.verbosity}`,
-    `${KEY.planMode}: ${persona.planMode}`,
     `${KEY.language}: ${persona.language}`,
     `${KEY.model}: ${persona.routeModel}`,
     `${KEY.thinking}: ${persona.reasoningEffort}`,
@@ -859,7 +858,6 @@ async function readSettings(owner: WorkspaceOwner): Promise<WorkspaceRead> {
     `${KEY.nameFromCharacter}: ${persona.nameFromCharacter}`,
     `${KEY.toneFromCharacter}: ${persona.toneFromCharacter}`,
     `${KEY.avatar}: ${persona.avatarChoice ?? '(default)'}`,
-    `${KEY.archetype}: ${persona.archetype ?? '(custom)'}`,
   ]
   const list = (kind: string) =>
     sources

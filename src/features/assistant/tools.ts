@@ -648,7 +648,7 @@ const DESCRIPTIONS = {
   edit: 'Change the bench, the creator\'s library (pictures, folders, characters and looks, LoRAs, saved prompts), their settings (model channels, assistant settings, search source lists), or what you remember (remember). All changes for one request go in ONE call, applied in order; each lands at once and can be undone. For the prompt prefer mode "edit" with exact {find, replace} pairs so everything else stays as it is.',
   ask: 'Ask the creator when you cannot go on without their choice. Puts a card with options in front of them and ends this turn until they answer.',
   generate:
-    'Generate one batch of what is on the bench now (on the canvas: the cards you list): starts at once when LET AI GENERATE is on, otherwise a confirm card the creator presses. Ends this turn.',
+    'Generate one batch of what is on the bench now (on the canvas: the cards you list): starts at once within the SPENDING limit on the bench, otherwise a confirm card with the price that the creator presses. Ends this turn.',
   open: 'Open another bench when the work belongs there. The conversation comes along; the result is the new bench as it is, and you carry on there with edit / generate. With bench "library" it stays on this bench and shows something in a library next to the chat (open one item, search, switch section); the result is their screen afterwards. Opening spends nothing. Call it on its own, as the last call of a step.',
 } as const
 

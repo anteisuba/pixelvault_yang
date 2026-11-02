@@ -5,7 +5,6 @@ import {
   assistantAdapterVideoTier,
 } from '@/constants/assistant'
 import {
-  ASSISTANT_AUTO_GENERATE_LIMITS,
   ASSISTANT_OPERATOR_EVENTS,
   ASSISTANT_OPERATOR_LIMITS,
   ASSISTANT_OPERATOR_TOOL_IDS,
@@ -386,11 +385,11 @@ function renderBenchBody(
   latestUserText: string,
   aliases: string,
 ): string {
-  const autoGenerate = context.request.autoGenerate
-    ? context.face === ASSISTANT_V3_FACE_IDS.canvas
-      ? '\nLET AI GENERATE: on — generate starts at once, every card you list (no picture limit on the canvas).'
-      : `\nLET AI GENERATE: on — generate starts at once, at most ${ASSISTANT_AUTO_GENERATE_LIMITS.maxOutputsPerRound} pictures in this message.`
-    : ''
+  const limitPoints = context.prepared.persona.spendLimitPoints
+  const autoGenerate =
+    limitPoints > 0
+      ? `\nSPENDING: generate starts at once while this message's batches add up to at most ${limitPoints / 100} USD (NovelAI and the platform's own runner are free); a batch over that, or one with no known price, waits on a confirm card that shows the price.`
+      : "\nSPENDING: they asked to confirm every paid batch — generate puts a confirm card with the price in front of them (NovelAI and the platform's own runner are free and start at once)."
   if (context.face === ASSISTANT_V3_FACE_IDS.home)
     return HOME_BOARD.concat(aliases ? `\n${aliases}` : '')
   if (isHomeDraft(context))

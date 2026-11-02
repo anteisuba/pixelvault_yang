@@ -4174,6 +4174,7 @@ export const AssistantPersonaScalarFieldEnum = {
   toneFromCharacter: 'toneFromCharacter',
   avatarChoice: 'avatarChoice',
   memoryCapture: 'memoryCapture',
+  spendLimitPoints: 'spendLimitPoints',
   planMode: 'planMode',
   language: 'language',
   nextStepHint: 'nextStepHint',

@@ -79,7 +79,7 @@ import {
 import { publishStudioOperatorActions } from '@/hooks/use-studio-operator-actions'
 import {
   getOperatorState,
-  setOperatorPlanMode,
+  setOperatorSpendLimit,
   subscribeOperatorAttachment,
   takeOperatorAttachment,
   takeOperatorDraft,
@@ -603,14 +603,10 @@ export function StudioOperatorDock({
   const panelPresent = phase !== 'closed'
   const [settingsSection, setSettingsSection] =
     useState<AssistantSettingsSection | null>(null)
-  /**
-   * persona 的「默认行为」落进 store（§8.2）—— 驱动 hook 要在事件处理器里同步
-   * 读它（`always` 时「先问我」发完不复位）。
-   * ⚠ 走 effect 而不是 render 阶段调用：那是一次 store 写入（会触发订阅者重渲染）。
-   */
+  /** 助手自己出图的上限落进 store：驱动 hook 扣扳机时同步读（钱闸）。 */
   useEffect(() => {
-    setOperatorPlanMode(persona.planMode)
-  }, [persona.planMode])
+    setOperatorSpendLimit(persona.spendLimitPoints)
+  }, [persona.spendLimitPoints])
   /** 助手光标上写的名字（改工作台时那颗黑箭头，`lib/studio-operator-cursor.ts`）。 */
   useEffect(() => {
     setAssistantCursorLabel(persona.name ?? '')

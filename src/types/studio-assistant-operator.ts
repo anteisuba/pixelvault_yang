@@ -185,6 +185,11 @@ export interface StudioOperatorSystemEntry {
    *   这一行就只剩一句话。
    */
   retry?: AssistantOperatorGenerationRequest
+  /**
+   * 「已写进 / 已挂上」那一行行尾挂着一颗「撤销」（`p-assistant-undo`）。撤销手本身在
+   * 驱动 hook 的内存表里；⚠ 同 `retry` 只在内存里，不进库。
+   */
+  cardUndo?: boolean
 }
 
 /**

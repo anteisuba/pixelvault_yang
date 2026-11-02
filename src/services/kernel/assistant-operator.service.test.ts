@@ -471,6 +471,8 @@ import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { logger } from '@/lib/logger'
 import {
+  buildCreatorSection,
+  buildPersonaStyleSection,
   closeRoundV3,
   closeRoundV3BeforeStop,
   planTool,
@@ -1994,5 +1996,45 @@ describe('同一轮先挂参考图再设要图的专属项（10-27 标签台真�
     )
     expect(result).toMatchObject({ kind: 'rejected', reason: 'notOnBench' })
     expect(JSON.stringify(result)).toContain('set_model')
+  })
+})
+
+/** 助手设置那四格接在新内核上（owner 11-02「接上」）：语气、回复长短、附一条下一步、用我的词。 */
+describe('助手设置 → 新内核提示词', () => {
+  const persona = { ...ASSISTANT_PERSONA_DEFAULTS }
+
+  it('语气三档各给一句；长度只有简短 / 详细才写', () => {
+    expect(
+      buildPersonaStyleSection({ ...persona, tone: 'terse' }, 'v3'),
+    ).toMatch(/terse/i)
+    expect(
+      buildPersonaStyleSection({ ...persona, verbosity: 'concise' }, 'v3'),
+    ).toMatch(/Keep it short/)
+    expect(
+      buildPersonaStyleSection({ ...persona, verbosity: 'standard' }, 'v3'),
+    ).not.toMatch(/Keep it short|in depth/)
+  })
+
+  it('附一条下一步：开 = 要一条；关 = 明说别写（压过自看图那句）', () => {
+    expect(buildCreatorSection(persona, null, [], null)).toMatch(
+      /ONE concrete next step/,
+    )
+    const off = buildCreatorSection(
+      { ...persona, nextStepHint: false },
+      null,
+      [],
+      null,
+    )
+    expect(off).toMatch(/Do not suggest a next step/)
+    expect(off).not.toMatch(/ONE concrete next step/)
+  })
+
+  it('用我的词：开才写那一句', () => {
+    expect(buildCreatorSection(persona, null, [], null)).toMatch(
+      /Use THEIR words/,
+    )
+    expect(
+      buildCreatorSection({ ...persona, useMyWords: false }, null, [], null),
+    ).not.toMatch(/Use THEIR words/)
   })
 })

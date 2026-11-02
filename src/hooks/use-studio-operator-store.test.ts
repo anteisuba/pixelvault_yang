@@ -369,32 +369,6 @@ describe('工作区作用域', () => {
     expect(store.getOperatorState().autoReviewRounds).toBe(1)
   })
 
-  it('自动生成偏好跟着工作台走：新对话、换会话、刷新都保留，另一工作区和账号不继承', () => {
-    localStorage.clear()
-    act(() => store.claimOperatorThreadScope('user:image-natural', 'image'))
-    act(() => store.setOperatorAutoGenerate(true))
-    act(() => store.claimOperatorThreadScope('user:lora', 'lora'))
-    expect(store.getOperatorState().autoGenerate).toBe(false)
-    act(() => store.claimOperatorThreadScope('user:image-natural', 'image'))
-    expect(store.getOperatorState().autoGenerate).toBe(true)
-    // 新对话不复位。
-    act(() => store.resetOperatorThread())
-    expect(store.getOperatorState().autoGenerate).toBe(true)
-    // 内存里的线程清空（相当于刷新）后，从本机记下的那一格读回来。
-    act(() => store.claimOperatorThreadScope(null, 'image'))
-    act(() => store.claimOperatorThreadScope('user:image-natural', 'image'))
-    expect(store.getOperatorState().autoGenerate).toBe(true)
-    // 另一个账号的同一工作台不继承。
-    act(() => store.claimOperatorThreadScope('other:image-natural', 'image'))
-    expect(store.getOperatorState().autoGenerate).toBe(false)
-    // 关掉也记住。
-    act(() => store.claimOperatorThreadScope('user:image-natural', 'image'))
-    act(() => store.setOperatorAutoGenerate(false))
-    act(() => store.claimOperatorThreadScope(null, 'image'))
-    act(() => store.claimOperatorThreadScope('user:image-natural', 'image'))
-    expect(store.getOperatorState().autoGenerate).toBe(false)
-  })
-
   it('两个未落库会话也有不同身份，旧保存回包不能回填新会话', () => {
     act(() => store.claimOperatorThreadScope('user:image-natural', 'image'))
     const previous = store.getOperatorState()

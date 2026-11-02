@@ -17,10 +17,9 @@ import {
   ASSISTANT_AVATAR_CHOICE_IDS,
   ASSISTANT_AVATAR_CHOICES,
   ASSISTANT_AVATAR_PRESET_IDS,
-  ASSISTANT_PERSONA_ARCHETYPES,
   ASSISTANT_PERSONA_LANGUAGES,
   ASSISTANT_PERSONA_LIMITS,
-  ASSISTANT_PERSONA_PLAN_MODES,
+  ASSISTANT_PERSONA_SPEND_LIMIT_POINTS,
   ASSISTANT_PERSONA_TONE_IDS,
   ASSISTANT_PERSONA_TONES,
   ASSISTANT_PERSONA_VERBOSITIES,
@@ -46,25 +45,9 @@ export const AssistantPersonaToneSchema = z.enum(ASSISTANT_PERSONA_TONES)
 export const AssistantPersonaVerbositySchema = z.enum(
   ASSISTANT_PERSONA_VERBOSITIES,
 )
-export const AssistantPersonaPlanModeSchema = z.enum(
-  ASSISTANT_PERSONA_PLAN_MODES,
-)
 export const AssistantPersonaLanguageSchema = z.enum(
   ASSISTANT_PERSONA_LANGUAGES,
 )
-/**
- * 三档人设（§11.1）。⚠ **可空**：`null` 是「自定义」这一档真正的值 ——
- * 用户改过某个高级项，这一份不再完全对上任何一档。⛔ 不补一个 `custom`
- * 字面量：那样「没存过」「存了 custom」「对不上任何一档」会变成三个值，
- * 而它们是同一件事。
- */
-export const AssistantPersonaArchetypeSchema = z.enum(
-  ASSISTANT_PERSONA_ARCHETYPES,
-)
-
-export type AssistantPersonaArchetype = z.infer<
-  typeof AssistantPersonaArchetypeSchema
->
 /**
  * 文本模型 chip 选的那一档（§4.5）。词表 = 「自动」+ 路由表的九条 ——
  * ⚠ 名单从 `NODE_STUDIO_ASSISTANT_ROUTE_MODELS` 摊出来，⛔ 不在这里复制一份：
@@ -141,7 +124,6 @@ const AssistantPersonaShapeSchema = z.object({
     .max(ASSISTANT_PERSONA_LIMITS.maxToneCustomChars)
     .nullable(),
   verbosity: AssistantPersonaVerbositySchema,
-  planMode: AssistantPersonaPlanModeSchema,
   language: AssistantPersonaLanguageSchema,
   /** `auto` = 服务端自己挑（库里存 null）。⛔ 不做成可空：读回来永远是个词。 */
   routeModel: AssistantRouteModelSchema,
@@ -163,14 +145,17 @@ const AssistantPersonaShapeSchema = z.object({
    */
   memoryCapture: z.boolean(),
   /**
-   * 选的是哪一张人设卡（§11.1）。`null` = 自定义。
-   *
-   * ⚠ 它**不是**又一个独立偏好：服务端只在它与四格（verbosity / planMode /
-   * nextStepHint / useMyWords）逐格对得上时才落库，对不上就落 `null` —— ⛔ 不信
-   * 客户端递来的那个名字，否则那一档写的三行副文案随时可能是假话。语气不在判据里
-   * （owner 2026-09-26：三档不管语气）。
+   * 助手自己出图的上限（点，1 点 = $0.01）。⚠ 只收设置页那几档
+   * （`ASSISTANT_PERSONA_SPEND_LIMIT_POINTS`）。
    */
-  archetype: AssistantPersonaArchetypeSchema.nullable(),
+  spendLimitPoints: z
+    .number()
+    .int()
+    .refine((value) =>
+      (ASSISTANT_PERSONA_SPEND_LIMIT_POINTS as readonly number[]).includes(
+        value,
+      ),
+    ),
   /** null = 用账号名。⚠ 它原样拼进系统提示，所以上限是硬的。 */
   addressUserAs: z
     .string()

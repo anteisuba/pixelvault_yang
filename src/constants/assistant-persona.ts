@@ -216,129 +216,6 @@ export type AssistantPersonaVerbosity =
   (typeof ASSISTANT_PERSONA_VERBOSITIES)[number]
 
 /**
- * 默认行为三档 —— 「先问我」开关的**初始态**。
- *
- * ⚠ 单轮的「先问我」永远压过它（§8.5）：用户这一轮勾了，persona 是 `direct`
- * 也照样出计划卡。
- */
-export const ASSISTANT_PERSONA_PLAN_MODE_IDS = {
-  always: 'always',
-  auto: 'auto',
-  direct: 'direct',
-} as const
-
-export const ASSISTANT_PERSONA_PLAN_MODES = [
-  ASSISTANT_PERSONA_PLAN_MODE_IDS.always,
-  ASSISTANT_PERSONA_PLAN_MODE_IDS.auto,
-  ASSISTANT_PERSONA_PLAN_MODE_IDS.direct,
-] as const
-
-export type AssistantPersonaPlanMode =
-  (typeof ASSISTANT_PERSONA_PLAN_MODES)[number]
-
-/**
- * 三档人设（v2 §11.1）—— 设置里「说话方式」那一列单选。
- *
- * ⭐ 它是**一整份设置的名字**，不是又一个偏好档：选一档 = 把下面
- * `ASSISTANT_PERSONA_ARCHETYPE_PRESETS` 那四个值整份填进去。用户随后改动其中
- * 任一格，这一份就不再对上任何一档，`archetype` 变成 `null`（= 自定义）。
- * ⭐ **三档不管语气**（owner 2026-09-26 定）：档只管「问你多少、回多长、带不带
- * 下一步、用不用你的词」。语气归身份那一层 —— 选了角色、换了语气，档位都不该
- * 跳成「自定义」。
- *
- * ⚠ id 逐字存在 `AssistantPersona.archetype` 列里，⛔ 不能改名。
- */
-export const ASSISTANT_PERSONA_ARCHETYPE_IDS = {
-  cautious: 'cautious',
-  balanced: 'balanced',
-  handsOff: 'handsOff',
-} as const
-
-/** 卡的显示次序 = 谨慎 → 平衡 → 放手（从「问得最多」到「问得最少」）。 */
-export const ASSISTANT_PERSONA_ARCHETYPES = [
-  ASSISTANT_PERSONA_ARCHETYPE_IDS.cautious,
-  ASSISTANT_PERSONA_ARCHETYPE_IDS.balanced,
-  ASSISTANT_PERSONA_ARCHETYPE_IDS.handsOff,
-] as const
-
-export type AssistantPersonaArchetype =
-  (typeof ASSISTANT_PERSONA_ARCHETYPES)[number]
-
-/** 一档人设整份填的那几格 —— ⛔ 与那一档的三行副文案逐条对得上，别各说各的。 */
-export interface AssistantPersonaArchetypePreset {
-  verbosity: AssistantPersonaVerbosity
-  planMode: AssistantPersonaPlanMode
-  nextStepHint: boolean
-  useMyWords: boolean
-}
-
-/**
- * 三档 → 四个值的**唯一一张映射表**（§11.1）。⛔ 没有语气（见上面三档的头注）。
- *
- * ⚠ 「谨慎」的「每一步都要你点头」= `planMode: always`（每轮先出计划确认），
- * **不是**恢复花钱确认 —— 决策 8 已把花钱确认整条删掉，⛔ 别从这里绕回来。
- * ⚠ `nextStepHint` 逐档取自卡上第三行：谨慎「只说结论」/ 平衡「附一条下一步」/
- * 放手「只报结果」—— 三档里只有平衡那一档要末尾那行。
- * ⚠ `useMyWords` 三档**都是开**：它说的是「用谁的词」，与「问多少 / 确不确认 /
- * 说多长」这三条轴无关，⛔ 不为了让三档看起来不一样而把它掰开。
- */
-export const ASSISTANT_PERSONA_ARCHETYPE_PRESETS: Record<
-  AssistantPersonaArchetype,
-  AssistantPersonaArchetypePreset
-> = {
-  [ASSISTANT_PERSONA_ARCHETYPE_IDS.cautious]: {
-    verbosity: ASSISTANT_PERSONA_VERBOSITY_IDS.concise,
-    planMode: ASSISTANT_PERSONA_PLAN_MODE_IDS.always,
-    nextStepHint: false,
-    useMyWords: true,
-  },
-  [ASSISTANT_PERSONA_ARCHETYPE_IDS.balanced]: {
-    verbosity: ASSISTANT_PERSONA_VERBOSITY_IDS.standard,
-    planMode: ASSISTANT_PERSONA_PLAN_MODE_IDS.auto,
-    nextStepHint: true,
-    useMyWords: true,
-  },
-  [ASSISTANT_PERSONA_ARCHETYPE_IDS.handsOff]: {
-    verbosity: ASSISTANT_PERSONA_VERBOSITY_IDS.concise,
-    planMode: ASSISTANT_PERSONA_PLAN_MODE_IDS.direct,
-    nextStepHint: false,
-    useMyWords: true,
-  },
-}
-
-/**
- * 一份设置**正好**对上哪一档（对不上就是 `null` = 自定义）。
- *
- * ⭐ 两处共用这一跳：客户端拿它画「哪一档亮着」，服务端拿它给**存量行**回推
- * （那一列是后加的，老行里是 NULL），⛔ 不写一条迁移去改存量数据。
- * ⚠ 判据是**四格全中**：差一格就已经不是那一档了 —— 那一档写的三行副文案是承诺，
- * 只对上两行的那一份不该顶着「平衡」的名字。⛔ 语气不在判据里（三档不管语气）。
- */
-export function matchAssistantPersonaArchetype(values: {
-  /**
-   * ⚠ 入参**收宽的 `string`** 而不是词表类型：调用方之一是服务端读库那一跳，
-   * 而库里那几列就是 `String`（词表住这里，⛔ 不做第二份 Prisma 枚举）。
-   * 词表外的值自然对不上任何一档 → `null` = 自定义，正是该有的答案。
-   */
-  verbosity: string
-  planMode: string
-  nextStepHint: boolean
-  useMyWords: boolean
-}): AssistantPersonaArchetype | null {
-  return (
-    ASSISTANT_PERSONA_ARCHETYPES.find((archetype) => {
-      const preset = ASSISTANT_PERSONA_ARCHETYPE_PRESETS[archetype]
-      return (
-        preset.verbosity === values.verbosity &&
-        preset.planMode === values.planMode &&
-        preset.nextStepHint === values.nextStepHint &&
-        preset.useMyWords === values.useMyWords
-      )
-    }) ?? null
-  )
-}
-
-/**
  * 回复语言三档。`ui` = 跟界面语言走（即请求里带上来的 `responseLanguage`），
  * 另外两档**覆盖**它。
  *
@@ -361,6 +238,13 @@ export type AssistantPersonaLanguage =
   (typeof ASSISTANT_PERSONA_LANGUAGES)[number]
 
 /**
+ * 助手自己出图的上限可选的几档（点，1 点 = $0.01；`p-assistant-autonomy`，owner 11-02）。
+ * 一句话里这几批加起来不超过它就直接出，超了 / 估不出价停在确认卡上写价钱。
+ * 0 = 每次都问（NovelAI 订阅、平台免费线路记 0 点，照样直接出）。
+ */
+export const ASSISTANT_PERSONA_SPEND_LIMIT_POINTS = [0, 50, 100, 300] as const
+
+/**
  * 缺行时用的默认值（§8.4 第 4 条：**不做首次访问自动建行**）。
  *
  * ⚠ 与 `prisma/schema.prisma` 上那几个 `@default(...)` 必须逐字一致 ——
@@ -379,20 +263,15 @@ export const ASSISTANT_PERSONA_DEFAULTS = {
   nameFromCharacter: false,
   toneFromCharacter: false,
   /**
-   * ⭐ **默认整份就是「平衡」这一档**（owner 2026-09-11 定，取代 2026-09-06 的
-   * 「简短直接 · 简洁」）：新用户打开设置就看到一档亮着，⛔ 不是三档都灰、
-   * 顶上写着「自定义」。
-   *
-   * 🔬 长度 / 行为 / 两个开关逐字抄自 `ASSISTANT_PERSONA_ARCHETYPE_PRESETS.balanced`
-   * ——⛔ 不在这里手写第二份：漂了就是亮着「平衡」而助手按别的档说话。
-   * 语气不在档里（owner 2026-09-26），默认 `friendly`（亲和）单独写。
-   * ⚠ 这几个值同时必须与 `prisma/schema.prisma` 上 `AssistantPersona` 的
-   * `@default` 逐字一致 —— 漂了，「没存过」和「存了默认值」就是两个不同的助手。
+   * ⭐ 语气默认 `friendly`（亲和）、长度默认「标准」、带一条下一步、用你的词。
+   * ⚠ 这几个值必须与 `prisma/schema.prisma` 上 `AssistantPersona` 的 `@default`
+   * 逐字一致 —— 漂了，「没存过」和「存了默认值」就是两个不同的助手。
+   * （谨慎 / 平衡 / 放手三档与「先出计划」11-02 删掉，owner 定：助手按讨论的方式
+   * 自己拿主意，见 `docs/design/assistant-autonomy.md`。）
    */
   tone: ASSISTANT_PERSONA_TONE_IDS.friendly,
   toneCustom: null,
-  verbosity: ASSISTANT_PERSONA_ARCHETYPE_PRESETS.balanced.verbosity,
-  planMode: ASSISTANT_PERSONA_ARCHETYPE_PRESETS.balanced.planMode,
+  verbosity: ASSISTANT_PERSONA_VERBOSITY_IDS.standard,
   language: ASSISTANT_PERSONA_LANGUAGE_IDS.ui,
   /** §4.5：默认「自动」= 库里 `routeModel` 为 null 时的语义，两处必须一致。 */
   routeModel: ASSISTANT_ROUTE_MODEL_AUTO,
@@ -401,27 +280,18 @@ export const ASSISTANT_PERSONA_DEFAULTS = {
   /**
    * v2 §11.3 的三项。⚠ 与 `prisma/schema.prisma` 上的 `@default` 逐字一致。
    *
-   * ⭐ 两个开关同样取自「平衡」那一档：`nextStepHint` **默认开** —— 卡上第三行
-   * 写的就是「附一条下一步」，默认值不兑现它这张卡就是假话。
+   * ⭐ `nextStepHint` **默认开**：回复末尾附一条下一步。
    * ⭐ `useMyWords` **默认开**：用户在提示词和卡上用过的说法就是这段对话的词表，
    * 助手把「黄昏光」换个词转述，成本落在用户身上。
    */
-  nextStepHint: ASSISTANT_PERSONA_ARCHETYPE_PRESETS.balanced.nextStepHint,
-  useMyWords: ASSISTANT_PERSONA_ARCHETYPE_PRESETS.balanced.useMyWords,
+  nextStepHint: true,
+  useMyWords: true,
   /** 「让助手记住」默认开（与库上的 `@default(true)` 一致）。 */
   memoryCapture: true,
+  /** 助手自己出图的上限默认 $1（与库上的 `@default(100)` 一致）。 */
+  spendLimitPoints: 100,
   /** null = 用账号名（§8.3）。 */
   addressUserAs: null,
-  /**
-   * ⭐ **默认是「平衡」**（owner 2026-09-11 定）——⛔ 不再是 `null`（自定义）。
-   *
-   * 🔬 它不是一个独立的格：上面那四格逐字等于
-   * `ASSISTANT_PERSONA_ARCHETYPE_PRESETS.balanced`，所以
-   * `matchAssistantPersonaArchetype(ASSISTANT_PERSONA_DEFAULTS)` 本来就回
-   * `balanced` —— 这里写死同一个答案只是为了让「缺行」那一跳不必先算一遍。
-   * ⚠ 存量行照旧留 NULL，读的那一跳按四格回推，⛔ 不写迁移回填历史数据。
-   */
-  archetype: ASSISTANT_PERSONA_ARCHETYPE_IDS.balanced,
 } as const
 
 export const ASSISTANT_PERSONA_LIMITS = {

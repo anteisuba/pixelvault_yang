@@ -619,6 +619,8 @@
       "characterImagesAttached": "{subject}",
       "characterImagesDeclined": "この画像は付けませんでした：{subject}",
       "characterImagesAttachFailed": "「{subject}」に付けられませんでした —— もう一度？",
+      "characterWriteUndone": "元に戻しました：「{subject}」はさっきの状態に戻りました。",
+      "characterWriteUndoFailed": "「{subject}」の変更を元に戻せませんでした —— キャラクターページで直してください。",
       "imageHandoffAccepted": "画像アシスタントに渡しました：{subject}",
       "imageHandoffDeclined": "画像アシスタントには渡しませんでした：{subject}",
       "workbenchHandoffAccepted": "切り替えました：{subject}",
@@ -629,7 +631,8 @@
       "moveWorkAccepted": "{subject}",
       "moveWorkDeclined": "{subject}",
       "moveWorkDroppedReferences": "参照画像 {subject} 枚は持っていけませんでした（上限超過、またはアップロード未完了）。",
-      "autoGenerateHeld": "このカードは {subject} 枚を生成します。「AI に生成を任せる」の上限（1 メッセージ 4 枚）を超えるため自動では押していません。確認すると生成します。",
+      "spendHeld": "このバッチは約 {subject}。この依頼の合計が生成の上限を超えるので、確認を待ちます。",
+      "spendUnknownHeld": "このバッチの料金が見積もれません。確認してから実行します。",
       "autoReview": "自分で見直して再生成 · {subject} 回目"
     },
     "attach": {
@@ -1062,19 +1065,10 @@
         "context": "ホーム"
       }
     },
-    "autoGenerate": {
-      "label": "AI に生成を任せる",
-      "review": "見直し {count} 回",
-      "reviewOff": "生成したら止める",
-      "reviewHint": "生成後に自分で見直して、指示に合わせて何回作り直すか。クリックで切り替え"
-    },
-    "continueAsk": {
-      "header": "次は",
-      "question": "この方向で続けますか？",
-      "continue": "続ける",
-      "continueDescription": "この結果を見て、同じ方向で直してもう一度生成します",
-      "change": "方向を変える",
-      "changeDescription": "ここで止めて、どう変えたいか教えてください"
+    "autoReview": {
+      "rounds": "見直し {count} 回",
+      "off": "生成したら止める",
+      "hint": "生成後に自分で見直して、指示に合わせて何回作り直すか。クリックで切り替え"
     },
     "outOfSteps": {
       "note": "このターンのステップ数が上限に達しました。反映済みの変更はそのまま残っています。",
@@ -1197,24 +1191,6 @@
     "style": {
       "title": "進め方"
     },
-    "archetype": {
-      "cautious": {
-        "name": "慎重",
-        "line": "始める前に、いくつか質問する · 2手順以上は先に計画を見せる · 返信は短め、結論だけ"
-      },
-      "balanced": {
-        "name": "バランス",
-        "line": "迷ったときだけ、一度に一つ聞く · 複数手順と生成のときだけ確認 · 普通の長さ＋次の一手を一つ"
-      },
-      "handsOff": {
-        "name": "おまかせ",
-        "line": "ほとんど聞かずに進める · 複数手順の前に一声かけるだけ · とても短く、結果だけ"
-      },
-      "custom": {
-        "name": "カスタム",
-        "line": "詳細設定を変更したため、どの設定にも当てはまらなくなりました。"
-      }
-    },
     "preview": {
       "label": "返答の例",
       "address": "{name}さん、",
@@ -1236,7 +1212,8 @@
         "length": "長さ {value}",
         "language": "言語 {value}",
         "nextStep": "次の一手 {value}",
-        "myWords": "自分の言葉 {value}"
+        "myWords": "自分の言葉 {value}",
+        "spendLimit": "生成の上限 {value}"
       }
     },
     "tone": {
@@ -1272,6 +1249,16 @@
     "myWords": {
       "label": "自分の言葉を使う",
       "hint": "プロンプトで使った言い方をそのまま使う"
+    },
+    "spendLimit": {
+      "label": "生成の上限",
+      "hint": "ひとつの依頼でアシスタントが生成する分がこの額までなら、そのまま生成します。超えるときは先に金額を見せます。NovelAI と無料ルートは数えません。",
+      "option": {
+        "0": "毎回聞く",
+        "50": "$0.5",
+        "100": "$1",
+        "300": "$3"
+      }
     },
     "memory": {
       "caption": "アシスタントの記憶はワークベンチごとに分かれています。すべてのワークベンチで使う記憶は、ここで明示的に共有できます。",

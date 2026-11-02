@@ -184,6 +184,12 @@ export interface StudioOperatorHost {
    */
   generationControls?: StudioOperatorGenerationControls
   /**
+   * 此刻按一下出图要多少点（1 点 = $0.01；助手钱闸读它，`lib/assistant-spend-gate.ts`）。
+   * NAI / Modal 记 0；估不出 = `null`（钱闸按超门槛先问）。
+   * ⚠ **可选**：缺席 = 估不出（画布另算，见 `canvasTargets.generationStateOf`）。
+   */
+  generationPoints?(): number | null
+  /**
    * 首页那份小配方（第 9g 步）：卡上直接改提示词与参考图、「去图片台接着改」。
    * ⚠ 只有首页给（台开着时那两格就在台上）；缺席 = 卡上只有旋钮。
    */

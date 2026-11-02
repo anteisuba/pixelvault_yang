@@ -12,11 +12,8 @@ import {
 import {
   ASSISTANT_AVATAR_CHOICE_IDS,
   ASSISTANT_AVATAR_CHOICES,
-  ASSISTANT_PERSONA_ARCHETYPE_PRESETS,
-  ASSISTANT_PERSONA_ARCHETYPES,
   ASSISTANT_PERSONA_LANGUAGES,
   ASSISTANT_PERSONA_LIMITS as PERSONA_LIMITS,
-  ASSISTANT_PERSONA_PLAN_MODES,
   ASSISTANT_PERSONA_TONE_IDS,
   ASSISTANT_PERSONA_TONES,
   ASSISTANT_PERSONA_VERBOSITIES,
@@ -861,11 +858,6 @@ async function applySetting(
         return bad(`one of ${choices(ASSISTANT_PERSONA_VERBOSITIES)}`)
       return { ok: true, next: { ...base, verbosity: picked }, shown: picked }
     }
-    case SETTING.planMode: {
-      const picked = word(ASSISTANT_PERSONA_PLAN_MODES)
-      if (!picked) return bad(`one of ${choices(ASSISTANT_PERSONA_PLAN_MODES)}`)
-      return { ok: true, next: { ...base, planMode: picked }, shown: picked }
-    }
     case SETTING.language: {
       const picked = word(ASSISTANT_PERSONA_LANGUAGES)
       if (!picked) return bad(`one of ${choices(ASSISTANT_PERSONA_LANGUAGES)}`)
@@ -986,23 +978,10 @@ async function applySetting(
         shown: picked,
       }
     }
-    case SETTING.archetype: {
-      const picked = word(ASSISTANT_PERSONA_ARCHETYPES)
-      if (!picked) return bad(`one of ${choices(ASSISTANT_PERSONA_ARCHETYPES)}`)
-      return {
-        ok: true,
-        next: {
-          ...base,
-          ...ASSISTANT_PERSONA_ARCHETYPE_PRESETS[picked],
-          archetype: picked,
-        },
-        shown: picked,
-      }
-    }
   }
 }
 
-/** 助手设置改一格。写走 `upsertAssistantPersona`（三档、语气、角色那几条不变量都在那里）。 */
+/** 助手设置改一格。写走 `upsertAssistantPersona`（语气、角色那几条不变量都在那里）。 */
 export async function writeAssistantSetting(
   owner: LibraryWriteOwner,
   input: {

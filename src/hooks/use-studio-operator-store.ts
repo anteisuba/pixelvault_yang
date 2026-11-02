@@ -18,17 +18,16 @@
 
 import { useSyncExternalStore } from 'react'
 
+import { ASSISTANT_PERSONA_DEFAULTS } from '@/constants/assistant-persona'
 import {
   ASSISTANT_MENTION_LIMITS,
   ASSISTANT_MENTION_SCOPE_IDS,
 } from '@/constants/assistant-mention'
-import { ASSISTANT_PERSONA_DEFAULTS } from '@/constants/assistant-persona'
 import {
   ASSISTANT_CHAT_MODE_IDS,
   ASSISTANT_PROTOCOL_DOMAIN_IDS,
   type AssistantChatMode,
 } from '@/constants/assistant-protocol'
-import type { AssistantPersonaPlanMode } from '@/constants/assistant-persona'
 import type { AssistantOperatorDomain } from '@/constants/assistant-operator'
 import {
   ASSISTANT_AUTO_REVIEW_ROUNDS,
@@ -173,18 +172,8 @@ export interface StudioOperatorState {
    */
   mentionInbox: readonly string[]
   /**
-   * **自动生成开关**（D12 S-C）—— 开着时助手改完出图相关的卡就直接摆生成，
-   * 确认卡一到由客户端替你按下（单轮张数上限见 `ASSISTANT_AUTO_GENERATE_LIMITS`）。
-   *
-   * ⭐ 跟着**工作台**走（owner 2026-10-14 改定，替掉 09-23 的「只管当前会话」）：
-   * 新对话、换一段会话、刷新都保留；按 `threadScope` 记在本机（`readAutoGenerate`）。
-   * ⚠ 钱闸不变：扳机仍是客户端这一下，服务端没有任何工具能建 generation。
-   */
-  autoGenerate: boolean
-  /**
-   * **出完图自己看、再改几轮**（owner 2026-10-29）：「交给 AI 出图」开着时，一批落地后助手
-   * 自己看图、对着要求改一次再出，最多这么多轮；0 = 出完就停、照旧问。和 `autoGenerate`
-   * 一样按 `threadScope` 记在本机。
+   * **出完图自己看、再改几轮**（owner 2026-10-29）：一批落地后助手自己看图、对着要求改一次再出，
+   * 最多这么多轮；0 = 出完就停。按 `threadScope` 记在本机。再出照样过钱闸（`lib/assistant-spend-gate.ts`）。
    */
   autoReviewRounds: number
   /** 用户、工作区和项目共同决定的作用域；null 时不得持久化。 */
@@ -207,16 +196,6 @@ export interface StudioOperatorState {
    * 张卡里。
    */
   pendingResultId: string | null
-  /**
-   * persona 的「默认行为」（§8.2 `planMode`）—— **store 里存一份的唯一理由**是
-   * 驱动 hook 要在事件处理器里同步读它（`getOperatorState()`），而 persona 是
-   * 一次异步拉取的结果。
-   *
-   * ⚠ ⛔ 别在驱动 hook 里再调一次 `useAssistantPersona()`：那会在同一棵树上开出
-   * 第二个 `GET /api/assistant/persona`，两份数据还会各说各话。外壳拉一次、
-   * 写进来一次，读的人都读这一个。
-   */
-  planMode: AssistantPersonaPlanMode
   /**
    * 钉在流末尾的三张「等你定」的卡（§4.1）。
    *
@@ -364,12 +343,10 @@ const INITIAL_STATE: StudioOperatorState = {
   queue: [],
   mentions: [],
   mentionInbox: [],
-  autoGenerate: false,
   autoReviewRounds: ASSISTANT_AUTO_REVIEW_ROUNDS.default,
   threadScope: null,
   selectedResultId: null,
   pendingResultId: null,
-  planMode: ASSISTANT_PERSONA_DEFAULTS.planMode,
   question: null,
   confirm: null,
   incognito: false,
@@ -563,6 +540,18 @@ export function nextOperatorEntryId(prefix: string): string {
 
 export function appendOperatorEntry(entry: StudioOperatorThreadEntry): void {
   emit({ ...state, entries: [...state.entries, entry] })
+}
+
+/** 「已写进 / 已挂上」那一行的撤销钮用过了：摘掉它（`p-assistant-undo`）。 */
+export function clearOperatorCardUndo(entryId: string): void {
+  emit({
+    ...state,
+    entries: state.entries.map((entry) =>
+      entry.kind === 'system' && entry.id === entryId && entry.cardUndo
+        ? { ...entry, cardUndo: false }
+        : entry,
+    ),
+  })
 }
 
 /**
@@ -1282,36 +1271,6 @@ export function clearOperatorMentions(): void {
   emit({ ...state, mentions: [], mentionInbox: [] })
 }
 
-/** 自动生成开关在本机的那一格（按工作台作用域）。读写失败一律当「关」。 */
-const AUTO_GENERATE_STORAGE_PREFIX = 'antei:assistant-auto-generate:'
-
-function readAutoGenerate(scope: string | null): boolean {
-  if (!scope) return false
-  try {
-    return (
-      globalThis.localStorage?.getItem(AUTO_GENERATE_STORAGE_PREFIX + scope) ===
-      '1'
-    )
-  } catch {
-    return false
-  }
-}
-
-function writeAutoGenerate(scope: string | null, on: boolean): void {
-  if (!scope) return
-  try {
-    if (on)
-      globalThis.localStorage?.setItem(
-        AUTO_GENERATE_STORAGE_PREFIX + scope,
-        '1',
-      )
-    else
-      globalThis.localStorage?.removeItem(AUTO_GENERATE_STORAGE_PREFIX + scope)
-  } catch {
-    // 存不下（隐私模式 / 配额）：开关只在这次打开期间有效。
-  }
-}
-
 const AUTO_REVIEW_STORAGE_PREFIX = 'antei:assistant-auto-review:'
 
 function readAutoReviewRounds(scope: string | null): number {
@@ -1344,8 +1303,6 @@ export function claimOperatorThreadScope(
   const next: StudioOperatorState = cached ?? {
     ...INITIAL_STATE,
     localThreadId: crypto.randomUUID(),
-    planMode: scope ? state.planMode : INITIAL_STATE.planMode,
-    autoGenerate: readAutoGenerate(scope),
     autoReviewRounds: readAutoReviewRounds(scope),
   }
   pendingAttachment = null
@@ -1390,11 +1347,19 @@ function withDomainMark(
   ]
 }
 
-/** 自动生成开关（D12 S-C）—— 跟着工作台走，见 `autoGenerate` 头注。 */
-export function setOperatorAutoGenerate(autoGenerate: boolean): void {
-  if (state.autoGenerate === autoGenerate) return
-  writeAutoGenerate(state.threadScope, autoGenerate)
-  emit({ ...state, autoGenerate })
+/**
+ * 助手自己出图的上限（点，助手设置里那一格；`lib/assistant-spend-gate.ts`）。
+ * ⭐ 外壳拉 persona 一次、写进来一次，驱动 hook 在扣扳机时同步读 —— ⛔ 别在驱动 hook
+ *   里再调一次 `useAssistantPersona()`（那会多开一个 GET）。不跟线程走：换线程照旧。
+ */
+let spendLimitPoints: number = ASSISTANT_PERSONA_DEFAULTS.spendLimitPoints
+
+export function setOperatorSpendLimit(points: number): void {
+  spendLimitPoints = points
+}
+
+export function getOperatorSpendLimit(): number {
+  return spendLimitPoints
 }
 
 /** 出完图自己再改几轮 —— 跟着工作台走，见 `autoReviewRounds` 头注。 */
@@ -1489,14 +1454,6 @@ export function dropOperatorPendingResult(id: string): void {
   })
 }
 
-/**
- * persona 的「默认行为」落进 store（§8.2）。
- *
- * ⚠ 「先问我」开关已随 v2 决策 6 删掉，`planMode` 就是它的**唯一**语义来源：
- * `always` 让服务端每轮先摆一张计划确认卡（`assistant-operator.service.ts` 的
- * 多步确认闸 + 系统提示 `PLAN_MODE_DIRECTIVES`）。⛔ 别在输入区再造一个跟它
- * 打架的单轮开关（v2 §11.1）。
- */
 /**
  * 隐身开关（56a）—— ⋯ 菜单那一颗按的就是它。
  *
@@ -1598,11 +1555,6 @@ export function switchOperatorChatMode(
 export function setOperatorIncognito(incognito: boolean): void {
   if (state.incognito === incognito) return
   emit({ ...state, incognito, offTheRecord: state.offTheRecord || incognito })
-}
-
-export function setOperatorPlanMode(planMode: AssistantPersonaPlanMode): void {
-  if (state.planMode === planMode) return
-  emit({ ...state, planMode })
 }
 
 // ─── 两张「等你定」的卡（v2 §3.2：问题 / 确认）────────────────────

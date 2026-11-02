@@ -109,6 +109,8 @@ const generationEnabled = vi.hoisted(() => ({
   canvas: true,
 }))
 const dispatch = vi.hoisted(() => vi.fn())
+const applyProfile = vi.hoisted(() => vi.fn())
+const attachImages = vi.hoisted(() => vi.fn())
 const mountLora = vi.hoisted(() => vi.fn())
 const unmountLora = vi.hoisted(() => vi.fn())
 const setLoraWeight = vi.hoisted(() => vi.fn())
@@ -171,6 +173,8 @@ const hostDomain = vi.hoisted(() => ({
   current: 'image' as AssistantOperatorDomain,
 }))
 const hostWorkspace = vi.hoisted(() => ({ current: 'image-natural' }))
+/** 工作台此刻按一下要多少点（钱闸，`generationPoints`）：默认 `null` = 估不出 → 卡留着等你按。 */
+const benchPoints = vi.hoisted(() => ({ current: null as number | null }))
 
 vi.mock('@/contexts/studio-operator-host', () => ({
   useStudioOperatorBenchKey: () => undefined,
@@ -182,6 +186,7 @@ vi.mock('@/contexts/studio-operator-host', () => ({
         : hostDomain.current,
     projectId: hostDomain.current === 'canvas' ? 'project-1' : undefined,
     buildSnapshot: () => hostSnapshot.current,
+    generationPoints: () => benchPoints.current,
     results: [],
     open: true,
     setOpen: () => {},
@@ -221,6 +226,7 @@ vi.mock('@/contexts/studio-operator-host', () => ({
       mountUserUrl: () => {},
       unmountUserUrl: () => {},
       setPrimed: () => {},
+      cards: { applyProfile, attachImages },
       lora: {
         mount: mountLora,
         unmountByCandidateId: vi.fn(),
@@ -331,6 +337,7 @@ beforeEach(async () => {
   vi.clearAllMocks()
   localStorage.clear()
   generationControls.current = null
+  benchPoints.current = null
   generationEnabled.workbench = true
   generationEnabled.canvas = true
   canvasUpscale.mockReset().mockResolvedValue({ status: 'done' })
@@ -546,7 +553,6 @@ describe('useAssistantOperator 的四条收尾路径', () => {
           scope,
           workspace.startsWith('canvas:') ? 'canvas' : 'image',
         )
-        store.setOperatorAutoGenerate(true)
       })
       rerender({ scope })
       streams[0].emit({ type: 'message', text: '迟到的旧回复' })
@@ -577,7 +583,6 @@ describe('useAssistantOperator 的四条收尾路径', () => {
       hostDomain.current = domain
       const { result } = render()
       act(() => {
-        store.setOperatorAutoGenerate(true)
         result.current.send('准备生成')
       })
       await settle()
@@ -602,7 +607,6 @@ describe('useAssistantOperator 的四条收尾路径', () => {
   it('生成确认后缺少终态的断流保留操作并阻止自动生成', async () => {
     const { result } = render()
     act(() => {
-      store.setOperatorAutoGenerate(true)
       result.current.send('准备生成')
     })
     await settle()
@@ -1638,14 +1642,9 @@ describe('计划卡（v2 §3.3 多步确认）', () => {
     expect(store.getOperatorState().status).toBe('working')
   })
 
-  /**
-   * ⭐ **「先问我」开关已删（v2 决策 6 / §4.4）**：请求里不再有 `forcePlan`，
-   * 「每轮先出计划」整条语义搬到人设的 `planMode: always`（v2 §11.1），由服务端
-   * 判。⛔ 输入区不许再出现一个跟它打架的单轮开关。
-   */
-  it('⛔ 请求体不再带 forcePlan —— 哪怕 persona 是「总是先出计划」', async () => {
+  /** ⭐ 「先问我」开关与人设的「先出计划」都已删（11-02）：请求里不再有 `forcePlan`。 */
+  it('⛔ 请求体不再带 forcePlan', async () => {
     const { result } = render()
-    act(() => store.setOperatorPlanMode('always'))
     act(() => {
       result.current.send('随便改一个字')
     })
@@ -2281,10 +2280,15 @@ describe('生成确认卡（v2 §3.3 / §5）', () => {
       canvasNode: { id: 'shot-1', name: '主角正面' },
     } as const
 
-    async function proposeOnCanvas(autoGenerate = false) {
+    /** `withinLimit`：那张卡用 NAI（不另花钱）→ 钱闸替你按；否则估不出价，卡留着。 */
+    async function proposeOnCanvas(withinLimit = false) {
       hostDomain.current = 'canvas'
+      if (withinLimit && canvasGenerationState.current)
+        canvasGenerationState.current = {
+          ...canvasGenerationState.current,
+          model: 'nai-diffusion-4-5-full',
+        }
       const hook = render()
-      if (autoGenerate) act(() => store.setOperatorAutoGenerate(true))
       act(() => {
         hook.result.current.send('跑一下主角正面')
       })
@@ -2412,7 +2416,7 @@ describe('生成确认卡（v2 §3.3 / §5）', () => {
       expect(store.getOperatorState().confirm?.status).toBe('cancelled')
     })
 
-    it('⭐ 自己再改 0 轮：卡上的图换了就钉出「继续吗」，⛔ 不自己发一轮', async () => {
+    it('⭐ 自己再改 0 轮：卡上的图换了也什么都不问、⛔ 不自己发一轮', async () => {
       canvasGenerationState.enabled = true
       canvasGenerationState.current = {
         id: 'shot-1',
@@ -2428,24 +2432,20 @@ describe('生成确认卡（v2 §3.3 / §5）', () => {
       const { rerender } = await proposeOnCanvas(true)
       act(() => store.setOperatorAutoReviewRounds(0))
       expect(canvasGenerate).toHaveBeenCalledWith('shot-1')
-      // 图还没换：不问。
-      rerender()
-      await settle()
-      expect(store.getOperatorState().question).toBeNull()
       canvasOutput.current = {
         url: 'https://cdn.test/new.png',
         name: '主角正面',
       }
       rerender()
       await settle()
-      expect(store.getOperatorState().question?.questions).toHaveLength(1)
+      expect(store.getOperatorState().question).toBeNull()
       expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(1)
       canvasOutput.current = undefined
       canvasGenerationState.enabled = false
       act(() => store.setOperatorAutoReviewRounds(1))
     })
 
-    it('自动生成后用户先开口了：这一枪出完不再问', async () => {
+    it('替你按下之后用户先开口了：这一枪出完不再自己看', async () => {
       canvasGenerationState.enabled = true
       canvasGenerationState.current = {
         id: 'shot-1',
@@ -2473,7 +2473,15 @@ describe('生成确认卡（v2 §3.3 / §5）', () => {
       canvasGenerationState.enabled = false
     })
 
-    it('⭐ 自动生成开关开着 → 画布那张卡也由客户端替你按下', async () => {
+    it('⭐ 门槛内 → 画布那张卡由客户端替你按下', async () => {
+      canvasGenerationState.enabled = true
+      canvasGenerationState.current = {
+        id: 'shot-1',
+        name: '主角正面',
+        kind: 'image',
+        model: 'seedream-4',
+        parameters: { values: { count: 1 }, options: {} },
+      }
       await proposeOnCanvas(true)
       expect(canvasGenerate).toHaveBeenCalledTimes(1)
       expect(canvasGenerate).toHaveBeenCalledWith('shot-1')
@@ -2481,35 +2489,43 @@ describe('生成确认卡（v2 §3.3 / §5）', () => {
         status: 'confirmed',
         auto: true,
       })
+      canvasGenerationState.enabled = false
     })
 
-    it.each([true, false])(
-      '自动生成开关 = %s：这一轮请求带不带 autoGenerate 跟着它',
-      async (on) => {
-        await proposeOnCanvas(on)
-        expect(streamAssistantOperatorAPI.mock.calls[0][0].autoGenerate).toBe(
-          on ? true : undefined,
-        )
-      },
-    )
+    it('请求里不再带 autoGenerate（开关已去掉）', async () => {
+      await proposeOnCanvas()
+      expect(streamAssistantOperatorAPI.mock.calls[0][0]).not.toHaveProperty(
+        'autoGenerate',
+      )
+    })
 
     it.each([
-      [2, 2, true],
-      [3, 2, true],
+      // flux-2-pro $0.03/张 = 3 点：4 张卡 × 4 张 = 48 点，在 100 点以内。
+      ['flux-2-pro', 4, 4, true, null, 100],
+      // 10 张卡 × 4 张 = 120 点，超门槛：卡留着，时间线写多少钱。
+      ['flux-2-pro', 10, 4, false, 'spendHeld', 100],
+      // 设置里上限调到 $3：同样 120 点直接出。
+      ['flux-2-pro', 10, 4, true, null, 300],
+      // 设置里选「每次都问」：48 点也先问。
+      ['flux-2-pro', 4, 4, false, 'spendHeld', 0],
+      // NAI 不另花钱：再多也直接出（「每次都问」也一样）。
+      ['nai-diffusion-4-5-full', 10, 4, true, null, 0],
+      // 没标价：估不出，先问。
+      ['seedream-4', 1, 1, false, 'spendUnknownHeld', 100],
     ] as const)(
-      '⭐ 画布自动生成不设单轮上限：%i 张卡 × 每张 %i 张 → 替你按下 = %s',
-      async (cards, perCard, pressed) => {
+      '⭐ 画布钱闸：%s × %i 张卡 × 每张 %i 张 → 替你按下 = %s（上限 %s 点）',
+      async (model, cards, perCard, pressed, held, limit) => {
+        store.setOperatorSpendLimit(limit)
         hostDomain.current = 'canvas'
         canvasGenerationState.enabled = true
         canvasGenerationState.current = {
           id: 'shot-1',
           name: '主角正面',
           kind: 'image',
-          model: 'seedream-4',
+          model,
           parameters: { values: { count: perCard }, options: {} },
         }
         const { result } = render()
-        act(() => store.setOperatorAutoGenerate(true))
         act(() => result.current.send('这几张都跑一下'))
         await settle()
         const nodes = Array.from({ length: cards }, (_, index) => ({
@@ -2533,16 +2549,21 @@ describe('生成确认卡（v2 §3.3 / §5）', () => {
         expect(store.getOperatorState().confirm?.status).toBe(
           pressed ? 'confirmed' : 'idle',
         )
-        // 没替你按要说一声：开关开着却没出图，⛔ 不能静默。
-        expect(
-          store
-            .getOperatorState()
-            .entries.some(
-              (entry) =>
-                entry.kind === 'system' && entry.code === 'autoGenerateHeld',
-            ),
-        ).toBe(!pressed)
+        // 没替你按要说一声（写多少钱），⛔ 不能静默。
+        const line = store
+          .getOperatorState()
+          .entries.find(
+            (entry) =>
+              entry.kind === 'system' &&
+              (entry.code === 'spendHeld' || entry.code === 'spendUnknownHeld'),
+          )
+        expect(line && line.kind === 'system' ? line.code : null).toBe(held)
+        if (held === 'spendHeld')
+          expect(line && line.kind === 'system' && line.subject).toBe(
+            limit === 0 ? '$0.48' : '$1.20',
+          )
         canvasGenerationState.enabled = false
+        store.setOperatorSpendLimit(100)
       },
     )
   })
@@ -4329,13 +4350,13 @@ describe('「用 Grok 搜这一次」', () => {
 })
 
 /**
- * 新内核「交给 AI 出图」（第 5b 步）：⛔ 不自动看图；出完都停下问「按这个方向继续吗？」。
+ * 钱闸 + 出完图自己看（owner 11-01）：门槛内直接出；图落地后她自己看一轮；⛔ 不再问「按这个方向继续吗？」。
  */
-describe('新内核：出完就停，问要不要继续', () => {
-  async function generateOnNext(autoGenerate: boolean) {
+describe('钱闸与出完图自己看', () => {
+  async function generateOnNext(points: number | null) {
     generationControls.current = null
+    benchPoints.current = points
     const hook = render()
-    if (autoGenerate) act(() => store.setOperatorAutoGenerate(true))
     act(() => hook.result.current.send('出一张看看'))
     await settle()
     streams[0].emit(generateConfirmEvent())
@@ -4361,34 +4382,57 @@ describe('新内核：出完就停，问要不要继续', () => {
     )
   }
 
-  it.each([true, false])(
-    '交给 AI 出图 = %s：图落地后挂一张「继续 / 换个方向」，⛔ 不自己发一轮去看',
-    async (autoGenerate) => {
-      act(() => store.setOperatorAutoReviewRounds(0))
-      const { result, rerender } = await generateOnNext(autoGenerate)
-      if (!autoGenerate) act(() => result.current.confirmGeneration())
-      expect(triggerGeneration).toHaveBeenCalledTimes(1)
-      expect(store.getOperatorState().question).toBeNull()
+  it.each([
+    [12, true, null],
+    [100, true, null],
+    [101, false, 'spendHeld'],
+    [null, false, 'spendUnknownHeld'],
+  ] as const)('这一批 %s 点 → 替你按下 = %s', async (points, pressed, held) => {
+    await generateOnNext(points)
+    expect(triggerGeneration).toHaveBeenCalledTimes(pressed ? 1 : 0)
+    const line = store
+      .getOperatorState()
+      .entries.find(
+        (entry) =>
+          entry.kind === 'system' &&
+          (entry.code === 'spendHeld' || entry.code === 'spendUnknownHeld'),
+      )
+    expect(line && line.kind === 'system' ? line.code : null).toBe(held)
+  })
 
-      landResult()
-      rerender()
-      await settle()
-
-      expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(1)
-      const question = store.getOperatorState().question?.questions[0]
-      expect(question).toMatchObject({
-        question: 'i18n:question',
-        options: [
-          expect.objectContaining({ label: 'i18n:continue' }),
-          expect.objectContaining({ label: 'i18n:change' }),
-        ],
-      })
-    },
-  )
-
-  it('交给 AI 出图开着、默认再改 1 轮：图落地后她自己看一轮再出，用完了才问', async () => {
+  it('一句话里累计：第一批 60 点出了，自己看完再出的 60 点超门槛 → 留着等你', async () => {
     act(() => store.setOperatorAutoReviewRounds(1))
-    const { rerender } = await generateOnNext(true)
+    const { rerender } = await generateOnNext(60)
+    expect(triggerGeneration).toHaveBeenCalledTimes(1)
+    landResult()
+    rerender()
+    await settle()
+    expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(2)
+    streams[1].emit(generateConfirmEvent())
+    streams[1].emit({
+      type: ASSISTANT_OPERATOR_EVENTS.stopped,
+      reason: 'awaiting_confirm',
+    })
+    streams[1].close()
+    await settle()
+    expect(triggerGeneration).toHaveBeenCalledTimes(1)
+    expect(store.getOperatorState().confirm?.status).toBe('idle')
+  })
+
+  it('自己再改 0 轮：图落地后什么都不问、⛔ 不自己发一轮', async () => {
+    act(() => store.setOperatorAutoReviewRounds(0))
+    const { rerender } = await generateOnNext(4)
+    expect(triggerGeneration).toHaveBeenCalledTimes(1)
+    landResult()
+    rerender()
+    await settle()
+    expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(1)
+    expect(store.getOperatorState().question).toBeNull()
+  })
+
+  it('默认再改 1 轮：图落地后她自己看一轮再出，用完了就停、不问', async () => {
+    act(() => store.setOperatorAutoReviewRounds(1))
+    const { rerender } = await generateOnNext(4)
     landResult()
     rerender()
     await settle()
@@ -4410,7 +4454,7 @@ describe('新内核：出完就停，问要不要继续', () => {
       JSON.stringify(streamAssistantOperatorAPI.mock.calls[1][0]),
     ).toContain('[auto review] 1/1')
 
-    // 她改了再出一批；这批落地后轮数用完 → 照旧问。
+    // 她改了再出一批；这批落地后轮数用完 → 停下，什么都不问。
     streams[1].emit(generateConfirmEvent())
     streams[1].emit({
       type: ASSISTANT_OPERATOR_EVENTS.stopped,
@@ -4423,11 +4467,11 @@ describe('新内核：出完就停，问要不要继续', () => {
     rerender()
     await settle()
     expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(2)
-    expect(store.getOperatorState().question?.questions).toHaveLength(1)
+    expect(store.getOperatorState().question).toBeNull()
   })
 
-  it('用户先开口了：这一批不再问', async () => {
-    const { result, rerender } = await generateOnNext(true)
+  it('用户先开口了：这一批不再自己看', async () => {
+    const { result, rerender } = await generateOnNext(4)
     act(() => result.current.send('先别管这张'))
     await settle()
     streams[1].emit({ type: 'done' })
@@ -4437,5 +4481,77 @@ describe('新内核：出完就停，问要不要继续', () => {
     rerender()
     await settle()
     expect(store.getOperatorState().question).toBeNull()
+  })
+})
+
+/** `p-assistant-undo`：角色页提议卡「收下」之后，那一行行尾能撤回原样。 */
+describe('收下设定之后能撤销', () => {
+  async function keepProfile(undo: () => Promise<boolean>) {
+    applyProfile.mockResolvedValueOnce(undo)
+    const hook = render()
+    act(() =>
+      store.setOperatorConfirm({
+        kind: 'characterProfile',
+        status: 'idle',
+        profile: {
+          characterId: 'char-1',
+          fields: [{ field: 'identity', text: '高中生', source: '对话' }],
+        },
+      } as never),
+    )
+    await act(async () => {
+      await hook.result.current.keepCharacterProfile([
+        { field: 'identity', text: '高中生', source: '对话' },
+      ])
+    })
+    return hook
+  }
+
+  it('收下的那一行挂着撤销；点了把原样写回、落一行账、撤销钮摘掉', async () => {
+    const undo = vi.fn(async () => true)
+    const hook = await keepProfile(undo)
+    const saved = store
+      .getOperatorState()
+      .entries.find(
+        (entry) =>
+          entry.kind === 'system' && entry.code === 'characterProfileSaved',
+      )
+    expect(saved).toMatchObject({ cardUndo: true })
+
+    await act(async () => {
+      await hook.result.current.undoCardWrite(saved!.id)
+    })
+    expect(undo).toHaveBeenCalledTimes(1)
+    const entries = store.getOperatorState().entries
+    expect(entries.find((entry) => entry.id === saved!.id)).toMatchObject({
+      cardUndo: false,
+    })
+    expect(entries.at(-1)).toMatchObject({
+      kind: 'system',
+      code: 'characterWriteUndone',
+      userText: expect.stringContaining('已撤销'),
+    })
+
+    // 撤一次就没了：再点不再调。
+    await act(async () => {
+      await hook.result.current.undoCardWrite(saved!.id)
+    })
+    expect(undo).toHaveBeenCalledTimes(1)
+  })
+
+  it('撤不回 ⛔ 不静默：落一行失败', async () => {
+    const hook = await keepProfile(async () => false)
+    const saved = store
+      .getOperatorState()
+      .entries.find(
+        (entry) =>
+          entry.kind === 'system' && entry.code === 'characterProfileSaved',
+      )
+    await act(async () => {
+      await hook.result.current.undoCardWrite(saved!.id)
+    })
+    expect(store.getOperatorState().entries.at(-1)).toMatchObject({
+      code: 'characterWriteUndoFailed',
+    })
   })
 })

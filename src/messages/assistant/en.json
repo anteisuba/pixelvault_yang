@@ -619,6 +619,8 @@
       "characterImagesAttached": "{subject}",
       "characterImagesDeclined": "Didn't attach these images: {subject}",
       "characterImagesAttachFailed": "Couldn't attach them to {subject} — try again?",
+      "characterWriteUndone": "Undone: {subject} is back as it was.",
+      "characterWriteUndoFailed": "Couldn't undo the change to {subject} — change it back on the character page.",
       "imageHandoffAccepted": "Handed to the image assistant: {subject}",
       "imageHandoffDeclined": "Not handed to the image assistant: {subject}",
       "workbenchHandoffAccepted": "Switched workbench: {subject}",
@@ -629,7 +631,8 @@
       "moveWorkAccepted": "{subject}",
       "moveWorkDeclined": "{subject}",
       "moveWorkDroppedReferences": "{subject} reference image(s) were left behind (over the limit or not uploaded yet).",
-      "autoGenerateHeld": "This card would make {subject} pictures, over the Let AI generate limit of 4 per message. It was not pressed for you; confirm it to run.",
+      "spendHeld": "This batch is about {subject} — together with this message's earlier ones it's over your spend limit, so it waits for you to confirm.",
+      "spendUnknownHeld": "The price of this batch is unknown. Confirm it to run.",
       "autoReview": "Reviewing the pictures and trying again · round {subject}"
     },
     "attach": {
@@ -1062,19 +1065,10 @@
         "context": "Home"
       }
     },
-    "autoGenerate": {
-      "label": "Let AI generate",
-      "review": "Review ×{count}",
-      "reviewOff": "Stop after generating",
-      "reviewHint": "How many times she reviews the pictures and tries again on her own. Click to change"
-    },
-    "continueAsk": {
-      "header": "Next",
-      "question": "Keep going in this direction?",
-      "continue": "Continue",
-      "continueDescription": "Look at this batch, refine it and generate again",
-      "change": "Change direction",
-      "changeDescription": "Stop here and tell me what you want instead"
+    "autoReview": {
+      "rounds": "Review ×{count}",
+      "off": "Stop after generating",
+      "hint": "How many times she reviews the pictures and tries again on her own. Click to change"
     },
     "outOfSteps": {
       "note": "This turn ran out of steps. Everything that already landed is kept.",
@@ -1197,24 +1191,6 @@
     "style": {
       "title": "Working style"
     },
-    "archetype": {
-      "cautious": {
-        "name": "Cautious",
-        "line": "Asks a couple of questions first · Shows you the plan before two or more steps · Short replies, conclusions only"
-      },
-      "balanced": {
-        "name": "Balanced",
-        "line": "Asks only when unsure, one at a time · Confirms multi-step work and generations · Normal length, plus one next step"
-      },
-      "handsOff": {
-        "name": "Hands off",
-        "line": "Barely asks, just does it · Only flags multi-step work up front · Very short, results only"
-      },
-      "custom": {
-        "name": "Custom",
-        "line": "You changed something under Advanced, so this no longer matches any preset."
-      }
-    },
     "preview": {
       "label": "Sample reply",
       "address": "{name}, ",
@@ -1236,7 +1212,8 @@
         "length": "Length {value}",
         "language": "Language {value}",
         "nextStep": "Next step {value}",
-        "myWords": "My words {value}"
+        "myWords": "My words {value}",
+        "spendLimit": "Spend limit {value}"
       }
     },
     "tone": {
@@ -1272,6 +1249,16 @@
     "myWords": {
       "label": "Use my words",
       "hint": "Keep the wording I use in my prompts"
+    },
+    "spendLimit": {
+      "label": "Spend limit",
+      "hint": "Within one message the assistant generates on its own up to this amount; past it, it shows you the price first. NovelAI and free routes don't count.",
+      "option": {
+        "0": "Always ask",
+        "50": "$0.5",
+        "100": "$1",
+        "300": "$3"
+      }
     },
     "memory": {
       "caption": "Assistant memories stay in their own workspace. You can explicitly share a memory across all workbenches.",

@@ -1444,14 +1444,6 @@ export const ASSISTANT_PLAN_CARD_LIMITS = {
    * 200 上限，整轮请求 400、红字「服务端没认下来」。按一条正常发言的长度给。
    */
   maxOtherTextChars: 4_000,
-  /**
-   * 人设「谨慎」档**从几步起**先摆计划卡（owner 2026-10-04）。
-   *
-   * ⭐ 一步改动落地后有「撤销」兜底，点头换不来任何安全，只多一次点击；两步起才是
-   * 一条要先过目的「一轮」。三档因此是一条梯度：放手 = 超过三步或要花钱 · 平衡 =
-   * 模型判 · 谨慎 = 两步起。⚠ 调回 `1` 就是此前「每轮都先问」的行为。
-   */
-  cautiousMinPlanSteps: 2,
 } as const
 
 /**
@@ -1567,17 +1559,8 @@ export const ASSISTANT_OPERATOR_TIME_BUDGET = {
 export const ASSISTANT_OPERATOR_HEARTBEAT_MS = 15_000
 
 /**
- * **自动生成开着时一轮最多替你按下几张**（owner 2026-10-14：4 张）。
- * 确认卡上加起来超过它，卡就留给你自己按 —— 开关开着也不替你花这笔。
- * ⚠ 按出图（视频按条）计，⛔ 不按卡数：一张卡出 4 张图也是 4。
- */
-export const ASSISTANT_AUTO_GENERATE_LIMITS = {
-  maxOutputsPerRound: 4,
-} as const
-
-/**
  * **出完图自己看、再改几轮**（owner 2026-10-29：「默认一轮，不想太浪费 token，看到不对的我还能纠正」）。
- * 只在「交给 AI 出图」开着时生效；0 = 出完就停、照旧问「按这个方向继续吗？」。
+ * 0 = 出完就停，助手不再自己看（owner 11-01 去掉了出完图那句「按这个方向继续吗？」）。
  */
 export const ASSISTANT_AUTO_REVIEW_ROUNDS = {
   default: 1,
@@ -3467,7 +3450,6 @@ export const ASSISTANT_SETTINGS_WRITE_KEY_IDS = {
   callMe: 'call_me',
   tone: 'tone',
   verbosity: 'verbosity',
-  planMode: 'plan_mode',
   language: 'language',
   model: 'model',
   thinking: 'thinking',
@@ -3478,7 +3460,6 @@ export const ASSISTANT_SETTINGS_WRITE_KEY_IDS = {
   nameFromCharacter: 'name_from_character',
   toneFromCharacter: 'tone_from_character',
   avatar: 'avatar',
-  archetype: 'archetype',
 } as const
 
 export const ASSISTANT_SETTINGS_WRITE_KEYS = Object.values(

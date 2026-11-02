@@ -2,10 +2,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import {
-  ASSISTANT_PERSONA_ARCHETYPE_PRESETS,
-  ASSISTANT_PERSONA_DEFAULTS,
-} from '@/constants/assistant-persona'
+import { ASSISTANT_PERSONA_DEFAULTS } from '@/constants/assistant-persona'
 import type { AssistantPersona } from '@/types/assistant-persona'
 
 /**
@@ -104,7 +101,6 @@ import { AssistantSettings } from './AssistantSettings'
 // jsdom 没有 scrollIntoView（展开「高级」时会平滑滚一下）。
 Element.prototype.scrollIntoView = vi.fn()
 
-const BALANCED = ASSISTANT_PERSONA_ARCHETYPE_PRESETS.balanced
 const PERSONA: AssistantPersona = {
   ...ASSISTANT_PERSONA_DEFAULTS,
   name: '达妮娅',
@@ -143,24 +139,13 @@ describe('AssistantSettings · 人设', () => {
     )
   })
 
-  it('选一档当场存，只填四格，⛔ 不动语气', async () => {
+  it('三档人设已删：设置页上没有那一排', async () => {
     renderSettings()
     await screen.findByDisplayValue('达妮娅')
-
-    fireEvent.click(
-      screen.getByRole('radio', { name: /archetype\.cautious\.name/ }),
-    )
-
-    await waitFor(() =>
-      expect(api.updateAssistantPersonaAPI).toHaveBeenCalled(),
-    )
-    expect(lastSaved()).toMatchObject({
-      ...ASSISTANT_PERSONA_ARCHETYPE_PRESETS.cautious,
-      tone: 'terse',
-    })
+    expect(screen.queryByTestId('assistant-archetypes')).toBeNull()
   })
 
-  it('换语气不会让档位跳成「自定义」', async () => {
+  it('换语气当场存', async () => {
     renderSettings()
     await screen.findByDisplayValue('达妮娅')
     openAdvanced()
@@ -171,16 +156,11 @@ describe('AssistantSettings · 人设', () => {
       expect(lastSaved()).toMatchObject({
         tone: 'professional',
         toneFromCharacter: false,
-        verbosity: BALANCED.verbosity,
       }),
     )
-    expect(screen.queryByTestId('assistant-archetype-custom')).toBeNull()
-    expect(
-      screen.getByRole('radio', { name: /archetype\.balanced\.name/ }),
-    ).toBeChecked()
   })
 
-  it('改回复长度 → 多出「自定义」那一档并选中', async () => {
+  it('改回复长度当场存', async () => {
     renderSettings()
     await screen.findByDisplayValue('达妮娅')
     openAdvanced()
@@ -190,9 +170,18 @@ describe('AssistantSettings · 人设', () => {
     await waitFor(() =>
       expect(lastSaved()).toMatchObject({ verbosity: 'detailed' }),
     )
-    expect(
-      screen.getByRole('radio', { name: /archetype\.custom\.name/ }),
-    ).toBeChecked()
+  })
+
+  it('出图上限：选「每次都问」当场存 0 点', async () => {
+    renderSettings()
+    await screen.findByDisplayValue('达妮娅')
+    openAdvanced()
+
+    fireEvent.click(screen.getByRole('radio', { name: 'spendLimit.option.0' }))
+
+    await waitFor(() =>
+      expect(lastSaved()).toMatchObject({ spendLimitPoints: 0 }),
+    )
   })
 
   it('名字：打字不存，失焦才存', async () => {
@@ -338,9 +327,8 @@ describe('AssistantSettings · 人设', () => {
     renderSettings()
     await screen.findByDisplayValue('达妮娅')
 
-    fireEvent.click(
-      screen.getByRole('radio', { name: /archetype\.handsOff\.name/ }),
-    )
+    openAdvanced()
+    fireEvent.click(screen.getByRole('radio', { name: 'length.concise' }))
     const retry = await screen.findByRole('button', { name: 'status.retry' })
     expect(screen.getByTestId('assistant-save-status')).toHaveAttribute(
       'data-status',
@@ -354,9 +342,7 @@ describe('AssistantSettings · 人设', () => {
         'saved',
       ),
     )
-    expect(lastSaved()).toMatchObject(
-      ASSISTANT_PERSONA_ARCHETYPE_PRESETS.handsOff,
-    )
+    expect(lastSaved()).toMatchObject({ verbosity: 'concise' })
   })
 })
 

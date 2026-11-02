@@ -491,6 +491,11 @@ export function describeCharacterImagesDecisionText(
     : `已给「${named}」挂上 ${kept} 张图`
 }
 
+/** 「已写进 / 已挂上」那一行撤成之后的**自包含正文**：模型下一轮才知道那几格退回去了。 */
+export function describeCardWriteUndoneText(name: string): string {
+  return `已撤销：「${name.trim()}」刚收下的改动退回原样`
+}
+
 /**
  * 发送前把结构化答复裁进 schema 尺寸（题面 / 标签 / 条数）—— 历史里不管躺着
  * 什么旧值，都不能再让一整条请求被拒。⛔ 只裁不改语义。

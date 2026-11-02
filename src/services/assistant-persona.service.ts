@@ -10,7 +10,6 @@ import {
   ASSISTANT_ROUTE_MODEL_AUTO,
   type AssistantReasoningEffort,
   isAvatarPresetChoice,
-  matchAssistantPersonaArchetype,
   normalizeAvatarPreset,
   normalizeRouteModel,
   type AssistantAvatarChoice,
@@ -77,14 +76,13 @@ interface PersonaRow {
   tone: string
   toneCustom: string | null
   verbosity: string
-  planMode: string
   language: string
   routeModel: string | null
   reasoningEffort: string
   nextStepHint: boolean
   useMyWords: boolean
   memoryCapture: boolean
-  archetype: string | null
+  spendLimitPoints: number
   addressUserAs: string | null
 }
 
@@ -229,11 +227,11 @@ function toPersona(row: PersonaRow | null): AssistantPersona {
     tone: row.tone,
     toneCustom: row.toneCustom,
     verbosity: row.verbosity,
-    planMode: row.planMode,
     language: row.language,
     nextStepHint: row.nextStepHint,
     useMyWords: row.useMyWords,
     memoryCapture: row.memoryCapture,
+    spendLimitPoints: row.spendLimitPoints,
     addressUserAs: row.addressUserAs,
     /**
      * 预设字形：选的是预设就是那一款；选的是图时它是图加载不出来时的回落。
@@ -255,14 +253,6 @@ function toPersona(row: PersonaRow | null): AssistantPersona {
     ).includes(row.reasoningEffort)
       ? (row.reasoningEffort as AssistantReasoningEffort)
       : ASSISTANT_PERSONA_DEFAULTS.reasoningEffort,
-    /**
-     * ⚠ 人设那一档**按值回推，⛔ 不信库里那个名字**（§11.1）：
-     *  · 存量行里它是 NULL（列是后加的），回推让老用户一打开就看到自己那张卡；
-     *  · 映射表将来改一格时，库里那个名字会指向一份已经不是它的设置 ——
-     *    回推让「卡上写的三行」永远是这份设置真正的行为。
-     * 对不上任何一档就是 `null` = 自定义，这正是那一档真正的值。
-     */
-    archetype: matchAssistantPersonaArchetype(row),
   })
   return parsed.success ? parsed.data : { ...ASSISTANT_PERSONA_DEFAULTS }
 }
@@ -287,14 +277,13 @@ const PERSONA_SELECT = {
   tone: true,
   toneCustom: true,
   verbosity: true,
-  planMode: true,
   language: true,
   routeModel: true,
   reasoningEffort: true,
   nextStepHint: true,
   useMyWords: true,
   memoryCapture: true,
-  archetype: true,
+  spendLimitPoints: true,
   addressUserAs: true,
 } as const
 
@@ -717,7 +706,6 @@ export async function upsertAssistantPersona(
         ? input.toneCustom
         : null,
     verbosity: input.verbosity,
-    planMode: input.planMode,
     language: input.language,
     /**
      * 「自动」在库里就是 **null**（§4.5）——⛔ 不存字符串 `'auto'`：那样
@@ -732,13 +720,7 @@ export async function upsertAssistantPersona(
     nextStepHint: input.nextStepHint,
     useMyWords: input.useMyWords,
     memoryCapture: input.memoryCapture,
-    /**
-     * 三档人设（§11.1）——⚠ **服务端自己算，⛔ 不落客户端递来的那个名字**。
-     * 递上来的 `archetype` 只是界面上亮着哪一档，而库里这一列要为「那一档的三行
-     * 副文案」背书：只有四格逐格对得上时它才是那一档，对不上就落 `null`
-     * （= 自定义）。这样客户端漏清一次也不会让用户看到一句假承诺。
-     */
-    archetype: matchAssistantPersonaArchetype(input),
+    spendLimitPoints: input.spendLimitPoints,
     addressUserAs: input.addressUserAs,
   }
 

@@ -41,7 +41,6 @@ const VALID_BODY = {
   tone: ASSISTANT_PERSONA_TONE_IDS.professional,
   toneCustom: null,
   verbosity: 'standard',
-  planMode: 'auto',
   language: 'ui',
   routeModel: ASSISTANT_ROUTE_MODEL_AUTO,
   /** v2 §11.3 的三项 —— `PUT` 收的是完整形状，少递一列就是 400。 */
@@ -50,7 +49,6 @@ const VALID_BODY = {
   /** 助手设置 B 的「让助手记住」。 */
   memoryCapture: true,
   /** v2 §11.1 的人设档 —— null = 自定义，同样是完整形状的一格。 */
-  archetype: null,
   addressUserAs: null,
 }
 

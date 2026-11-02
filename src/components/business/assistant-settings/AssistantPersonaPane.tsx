@@ -8,16 +8,12 @@ import { ChevronDown, ChevronRight, Plus, Upload } from '@/components/icons'
 
 import {
   ASSISTANT_AVATAR_CHOICE_IDS,
-  ASSISTANT_PERSONA_ARCHETYPE_PRESETS,
-  ASSISTANT_PERSONA_ARCHETYPES,
   ASSISTANT_PERSONA_LANGUAGES,
   ASSISTANT_PERSONA_LIMITS,
   ASSISTANT_PERSONA_TONE_IDS,
   ASSISTANT_PERSONA_TONES,
   ASSISTANT_PERSONA_VERBOSITIES,
-  matchAssistantPersonaArchetype,
   type AssistantAvatarChoice,
-  type AssistantPersonaArchetype,
   type AssistantPersonaLanguage,
   type AssistantPersonaTone,
   type AssistantPersonaVerbosity,
@@ -225,12 +221,6 @@ export function AssistantPersonaPane({
     setCustomToneOpen(false)
     replace(withAssistantCharacter({ ...persona, ...draft }, characterCardId))
   }
-
-  const archetype = matchAssistantPersonaArchetype(draft)
-  const archetypeRows: (AssistantPersonaArchetype | 'custom')[] = [
-    ...ASSISTANT_PERSONA_ARCHETYPES,
-    ...(archetype === null ? (['custom'] as const) : []),
-  ]
 
   const characterTone =
     activeCharacter !== null &&
@@ -567,59 +557,12 @@ export function AssistantPersonaPane({
 
       {/* ── 说话方式 ─────────────────────────────────────────────── */}
       <section className="flex flex-col gap-2">
-        <fieldset className="flex flex-col gap-2">
-          <legend className="mb-1.5 text-2sm font-semibold text-muted-foreground">
-            {t('style.title')}
-          </legend>
-          <div
-            data-testid="assistant-archetypes"
-            className="-mx-3.5 flex flex-col gap-0.5"
-          >
-            {archetypeRows.map((row) => {
-              const checked =
-                row === 'custom' ? archetype === null : archetype === row
-              return (
-                <label
-                  key={row}
-                  data-testid={`assistant-archetype-${row}`}
-                  className={cn(
-                    'flex cursor-pointer items-start gap-3 rounded-xl px-3.5 py-2.5 transition-colors duration-fast ease-linear has-focus-visible:ring-2 has-focus-visible:ring-ring',
-                    checked ? 'bg-muted' : 'hover:bg-muted/60',
-                    row === 'custom' &&
-                      'cursor-default motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1',
-                  )}
-                >
-                  <input
-                    type="radio"
-                    name="assistant-archetype"
-                    value={row}
-                    checked={checked}
-                    onChange={() => {
-                      if (row === 'custom') return
-                      apply(ASSISTANT_PERSONA_ARCHETYPE_PRESETS[row])
-                    }}
-                    className="peer sr-only"
-                  />
-                  <span
-                    aria-hidden
-                    className="mt-0.5 size-4.5 shrink-0 rounded-full border-2 border-input transition-[border-width,border-color] duration-base ease-standard peer-checked:border-5 peer-checked:border-foreground motion-reduce:transition-none"
-                  />
-                  <span className="flex min-w-0 flex-col">
-                    <span className="text-md font-semibold">
-                      {t(`archetype.${row}.name`)}
-                    </span>
-                    <span className="text-2sm leading-5 text-muted-foreground">
-                      {t(`archetype.${row}.line`)}
-                    </span>
-                  </span>
-                </label>
-              )
-            })}
-          </div>
-        </fieldset>
+        <h2 className="text-2sm font-semibold text-muted-foreground">
+          {t('style.title')}
+        </h2>
 
-        {/* 一句示例（由右栏缩来）：换档、改名、改称呼、换语气时跟着变。本地模板，⛔ 不调 LLM。 */}
-        <div className="mt-2 flex items-start gap-2.5">
+        {/* 一句示例（由右栏缩来）：改名、改称呼、换语气、改长度时跟着变。本地模板，⛔ 不调 LLM。 */}
+        <div className="mt-1 flex items-start gap-2.5">
           <PersonaFace
             url={currentFace.url}
             preset={currentFace.preset}

@@ -1189,24 +1189,6 @@
     "style": {
       "title": "Working style"
     },
-    "archetype": {
-      "cautious": {
-        "name": "Cautious",
-        "line": "Asks a couple of questions first · Shows you the plan before two or more steps · Short replies, conclusions only"
-      },
-      "balanced": {
-        "name": "Balanced",
-        "line": "Asks only when unsure, one at a time · Confirms multi-step work and generations · Normal length, plus one next step"
-      },
-      "handsOff": {
-        "name": "Hands off",
-        "line": "Barely asks, just does it · Only flags multi-step work up front · Very short, results only"
-      },
-      "custom": {
-        "name": "Custom",
-        "line": "You changed something under Advanced, so this no longer matches any preset."
-      }
-    },
     "preview": {
       "label": "Sample reply",
       "address": "{name}, ",

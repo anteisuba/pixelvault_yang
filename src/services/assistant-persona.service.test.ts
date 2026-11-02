@@ -3,8 +3,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
   ASSISTANT_AVATAR_CHOICE_IDS,
   ASSISTANT_AVATAR_PRESET_IDS,
-  ASSISTANT_PERSONA_ARCHETYPE_IDS,
-  ASSISTANT_PERSONA_ARCHETYPE_PRESETS,
   ASSISTANT_PERSONA_DEFAULTS,
   ASSISTANT_PERSONA_LIMITS,
   ASSISTANT_PERSONA_TONE_IDS,
@@ -64,7 +62,6 @@ const STORED_ROW = {
   tone: ASSISTANT_PERSONA_TONE_IDS.friendly,
   toneCustom: null,
   verbosity: 'detailed',
-  planMode: 'always',
   language: 'chinese',
   routeModel: null,
   reasoningEffort: 'medium',
@@ -72,7 +69,6 @@ const STORED_ROW = {
   useMyWords: false,
   memoryCapture: true,
   /** ⚠ 这一行五格对不上任何一档（§11.1）→ 读回来是 `null` = 自定义。 */
-  archetype: null,
   addressUserAs: '阿羊',
 }
 
@@ -93,14 +89,12 @@ const STORED_PERSONA = {
   tone: STORED_ROW.tone,
   toneCustom: null,
   verbosity: STORED_ROW.verbosity,
-  planMode: STORED_ROW.planMode,
   language: STORED_ROW.language,
   routeModel: ASSISTANT_ROUTE_MODEL_AUTO,
   reasoningEffort: 'medium',
   nextStepHint: STORED_ROW.nextStepHint,
   useMyWords: STORED_ROW.useMyWords,
   memoryCapture: STORED_ROW.memoryCapture,
-  archetype: null,
   addressUserAs: STORED_ROW.addressUserAs,
 }
 
@@ -115,14 +109,12 @@ const BASE_UPDATE: UpdateAssistantPersonaRequest = {
   tone: ASSISTANT_PERSONA_TONE_IDS.terse,
   toneCustom: null,
   verbosity: 'standard',
-  planMode: 'auto',
   language: 'ui',
   routeModel: ASSISTANT_ROUTE_MODEL_AUTO,
   reasoningEffort: 'medium',
   nextStepHint: false,
   useMyWords: true,
   memoryCapture: true,
-  archetype: null,
   addressUserAs: null,
 }
 
@@ -201,7 +193,6 @@ describe('assistant persona service', () => {
       avatarChoice: ASSISTANT_AVATAR_CHOICE_IDS.mark,
       tone: ASSISTANT_PERSONA_TONE_IDS.friendly,
       verbosity: 'detailed',
-      planMode: 'always',
       language: 'chinese',
       nextStepHint: true,
       useMyWords: false,
@@ -276,89 +267,6 @@ describe('assistant persona service', () => {
       update: { toneCustom: string | null }
     }
     expect(call.update.toneCustom).toBeNull()
-  })
-
-  /**
-   * 三档人设（v2 §11.1）——⚠ 这一列是**算出来的**，两头都不信现成的字符串：
-   * 读回来按四格回推（存量行里它是 NULL），写进去按四格重算（⛔ 不落客户端
-   * 递来的那个名字）。两头共用 `matchAssistantPersonaArchetype` 一个函数。
-   * ⭐ 语气不在判据里（owner 2026-09-26：三档不管语气）。
-   */
-  describe('archetype（三档人设）', () => {
-    const CAUTIOUS =
-      ASSISTANT_PERSONA_ARCHETYPE_PRESETS[
-        ASSISTANT_PERSONA_ARCHETYPE_IDS.cautious
-      ]
-
-    it('存量行里这一列是 NULL 时按四格回推出那一档', async () => {
-      mockFindUnique.mockResolvedValue({
-        ...STORED_ROW,
-        ...CAUTIOUS,
-        archetype: null,
-      })
-
-      const persona = await getAssistantPersona('clerk_1')
-
-      expect(persona.archetype).toBe(ASSISTANT_PERSONA_ARCHETYPE_IDS.cautious)
-    })
-
-    it('四格对不上任何一档时读回 null（= 自定义）', async () => {
-      mockFindUnique.mockResolvedValue({
-        ...STORED_ROW,
-        ...CAUTIOUS,
-        // 只差一格 —— 卡上那三行就已经不成立了。
-        nextStepHint: !CAUTIOUS.nextStepHint,
-        archetype: ASSISTANT_PERSONA_ARCHETYPE_IDS.cautious,
-      })
-
-      const persona = await getAssistantPersona('clerk_1')
-
-      expect(persona.archetype).toBeNull()
-    })
-
-    it('换语气不会让档位变成自定义', async () => {
-      mockFindUnique.mockResolvedValue({
-        ...STORED_ROW,
-        ...CAUTIOUS,
-        tone: ASSISTANT_PERSONA_TONE_IDS.friendly,
-      })
-
-      const persona = await getAssistantPersona('clerk_1')
-
-      expect(persona.archetype).toBe(ASSISTANT_PERSONA_ARCHETYPE_IDS.cautious)
-    })
-
-    it('写入按四格重算，⛔ 不信客户端递来的那个名字', async () => {
-      mockUpsert.mockResolvedValue({ ...STORED_ROW, ...CAUTIOUS })
-
-      await upsertAssistantPersona('clerk_1', {
-        ...BASE_UPDATE,
-        ...CAUTIOUS,
-        // 客户端谎报成「平衡」——落库的必须还是「谨慎」。
-        archetype: ASSISTANT_PERSONA_ARCHETYPE_IDS.balanced,
-      })
-
-      expect(
-        (mockUpsert.mock.calls[0][0] as { update: { archetype: unknown } })
-          .update.archetype,
-      ).toBe(ASSISTANT_PERSONA_ARCHETYPE_IDS.cautious)
-    })
-
-    it('四格对不上时落 null，哪怕客户端递了一个档名', async () => {
-      mockUpsert.mockResolvedValue(STORED_ROW)
-
-      await upsertAssistantPersona('clerk_1', {
-        ...BASE_UPDATE,
-        ...CAUTIOUS,
-        useMyWords: !CAUTIOUS.useMyWords,
-        archetype: ASSISTANT_PERSONA_ARCHETYPE_IDS.cautious,
-      })
-
-      expect(
-        (mockUpsert.mock.calls[0][0] as { update: { archetype: unknown } })
-          .update.archetype,
-      ).toBeNull()
-    })
   })
 
   describe('sanitizeToneCustom（拼进系统提示之前的那一道）', () => {
@@ -744,7 +652,6 @@ describe('persona 的三项用户偏好', () => {
     await expect(getAssistantPersona('clerk_1')).resolves.toMatchObject({
       nextStepHint: true,
       useMyWords: false,
-      archetype: null,
       addressUserAs: '阿羊',
     })
   })
@@ -777,7 +684,6 @@ describe('persona 的三项用户偏好', () => {
       nextStepHint: true,
       useMyWords: false,
       memoryCapture: false,
-      archetype: null,
       addressUserAs: '阿羊',
     })
   })

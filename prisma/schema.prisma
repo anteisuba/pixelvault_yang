@@ -780,13 +780,12 @@ model AssistantPersona {
   /// 「让助手记住」（记忆页右上那颗开关）。关 = 每轮结账不再自己记新的；清单里
   /// 已有的照样注入，不想要就删。
   memoryCapture     Boolean        @default(true)
-  /// always / auto / direct —— 「先问我」开关的初始态 + 出卡判据。
+  /// ⚠ 已停用（11-02 删掉「先出计划」）：代码不再读写，列留着免一次删列迁移。
   planMode          String         @default("auto")
   /// ui / chinese / english —— 覆盖请求里的 responseLanguage。
   language          String         @default("ui")
 
-  /// 每条回复末尾给一条「下一步建议」（v2 §11.3）。默认开：默认档就是「平衡」，
-  /// 而那张卡第三行写的正是「附一条下一步」。
+  /// 每条回复末尾给一条「下一步建议」（v2 §11.3）。默认开。
   nextStepHint  Boolean @default(true)
   /// 优先使用创作者自己用过的说法与角色名（v2 §11.3）。默认开：用户的词本来就
   /// 是这段对话的词表，助手把「黄昏光」改叫「暖色调逆光」是在制造翻译成本。
@@ -794,12 +793,7 @@ model AssistantPersona {
   /// 怎么称呼这位创作者，≤24 字。null = 用账号名。
   addressUserAs String?
 
-  /// 三档人设（v2 §11.1）：cautious / balanced / handsOff。默认 balanced ——
-  /// 上面那几列的默认值逐格等于「平衡」档（owner 2026-09-11）。
-  /// NULL = 自定义 —— 用户改过某个高级项，这一份不再完全对上任何一档；
-  /// 存量行同样是 NULL，读的那一跳按 `matchAssistantPersonaArchetype` 回推，
-  /// ⛔ 不写迁移去改存量数据。
-  /// ⛔ 不做成 Prisma 枚举：词表住 constants（同 tone / verbosity），边界校验交给 Zod。
+  /// ⚠ 已停用（11-02 删掉谨慎 / 平衡 / 放手三档）：代码不再读写，列留着免一次删列迁移。
   archetype String? @default("balanced")
 
   /// 输入区文本模型 chip 选的那一档（`NODE_STUDIO_ASSISTANT_ROUTE_MODELS` 的

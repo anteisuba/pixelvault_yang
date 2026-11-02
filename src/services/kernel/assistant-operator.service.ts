@@ -87,7 +87,6 @@ import {
 import {
   ASSISTANT_PERSONA_DEFAULTS,
   ASSISTANT_PERSONA_LANGUAGE_IDS,
-  ASSISTANT_PERSONA_PLAN_MODE_IDS,
   ASSISTANT_PERSONA_TONE_IDS,
   ASSISTANT_PERSONA_VERBOSITY_IDS,
   ASSISTANT_PERSONA_LIMITS as PERSONA_LIMITS,
@@ -10142,23 +10141,6 @@ const VERBOSITY_DIRECTIVES: Record<AssistantPersona['verbosity'], string> = {
 }
 
 /**
- * 默认行为（v2 §11.1 的 `planMode` 一列）。
- * ⚠ `auto` **什么都不写** —— 那就是今天的行为，写一句反而是在改它。
- * ⚠ `always` 除了这句提示词，还有一道**硬闸**在多步确认那里（计划两步起先摆计划卡）：
- *   提示词是请求，闸才是保证。被删掉的「先问我」开关的语义全在这两处。
- */
-const PLAN_MODE_DIRECTIVES: Record<
-  AssistantPersona['planMode'],
-  string | null
-> = {
-  [ASSISTANT_PERSONA_PLAN_MODE_IDS.always]:
-    'Open with a plan card whenever the run takes two or more moves. A single reversible change needs none — the undo covers it.',
-  [ASSISTANT_PERSONA_PLAN_MODE_IDS.auto]: null,
-  [ASSISTANT_PERSONA_PLAN_MODE_IDS.direct]:
-    'Skip the plan unless the request spends credits or needs more than three steps.',
-}
-
-/**
  * v3 的长度三档（P3 人设重写）。v3 自己的规矩是「正文不复述改动、一两句」（`HOW_YOU_WORK`），
  * 上面那张表的「做了什么一句」「动手后 2–4 句」正好跟它打架，计划卡 v3 也没有 —— 所以 v3
  * 只拿这张：平衡档什么都不写（就是 v3 的默认），另外两档只往短 / 往深挪，⛔ 不叫它复述做了什么。
@@ -10194,12 +10176,7 @@ export function buildPersonaStyleSection(
             ? `- ${V3_VERBOSITY_DIRECTIVES[persona.verbosity]}`
             : null,
         ]
-      : [
-          `- ${VERBOSITY_DIRECTIVES[persona.verbosity]}`,
-          PLAN_MODE_DIRECTIVES[persona.planMode]
-            ? `- ${PLAN_MODE_DIRECTIVES[persona.planMode]}`
-            : null,
-        ]),
+      : [`- ${VERBOSITY_DIRECTIVES[persona.verbosity]}`]),
   ].filter((line): line is string => line !== null)
 
   if (lines.length === 0) return ''

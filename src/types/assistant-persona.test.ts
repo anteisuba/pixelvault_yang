@@ -1,14 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  ASSISTANT_PERSONA_ARCHETYPES,
-  ASSISTANT_PERSONA_ARCHETYPE_IDS,
-  ASSISTANT_PERSONA_ARCHETYPE_PRESETS,
   ASSISTANT_PERSONA_DEFAULTS,
   ASSISTANT_PERSONA_LIMITS,
   ASSISTANT_ROUTE_MODEL_AUTO,
   getAssistantRouteModelEntry,
-  matchAssistantPersonaArchetype,
 } from '@/constants/assistant-persona'
 import { NODE_STUDIO_ASSISTANT_ROUTE_MODELS } from '@/constants/node-studio'
 import {
@@ -40,14 +36,11 @@ const BASE = {
   tone: ASSISTANT_PERSONA_DEFAULTS.tone,
   toneCustom: null,
   verbosity: ASSISTANT_PERSONA_DEFAULTS.verbosity,
-  planMode: ASSISTANT_PERSONA_DEFAULTS.planMode,
   language: ASSISTANT_PERSONA_DEFAULTS.language,
   reasoningEffort: ASSISTANT_PERSONA_DEFAULTS.reasoningEffort,
   nextStepHint: ASSISTANT_PERSONA_DEFAULTS.nextStepHint,
   useMyWords: ASSISTANT_PERSONA_DEFAULTS.useMyWords,
   memoryCapture: ASSISTANT_PERSONA_DEFAULTS.memoryCapture,
-  /** v2 §11.1 的人设档 —— null = 自定义。 */
-  archetype: ASSISTANT_PERSONA_DEFAULTS.archetype,
   addressUserAs: ASSISTANT_PERSONA_DEFAULTS.addressUserAs,
 }
 
@@ -154,27 +147,14 @@ describe('AssistantPersona 的三项用户偏好', () => {
     expect(ASSISTANT_PERSONA_DEFAULTS.addressUserAs).toBeNull()
   })
 
-  /**
-   * ⭐ 新用户 / 从没动过设置的人**默认就是「平衡」档**（owner 2026-09-11）：
-   * 打开设置该看到一档亮着，⛔ 不是三档都灰、顶上写「自定义」。
-   * 语气不在档里（owner 2026-09-26），默认亲和。
-   */
-  it('默认整份 = 「平衡」档四格 + 亲和语气，且回推得到 balanced', () => {
-    const preset =
-      ASSISTANT_PERSONA_ARCHETYPE_PRESETS[
-        ASSISTANT_PERSONA_ARCHETYPE_IDS.balanced
-      ]
+  /** 默认：亲和语气、标准长度、带一条下一步、用你的词（三档 11-02 删掉）。 */
+  it('默认值', () => {
     expect(ASSISTANT_PERSONA_DEFAULTS.tone).toBe('friendly')
-    expect(ASSISTANT_PERSONA_DEFAULTS.verbosity).toBe(preset.verbosity)
-    expect(ASSISTANT_PERSONA_DEFAULTS.planMode).toBe(preset.planMode)
-    expect(ASSISTANT_PERSONA_DEFAULTS.nextStepHint).toBe(preset.nextStepHint)
-    expect(ASSISTANT_PERSONA_DEFAULTS.useMyWords).toBe(preset.useMyWords)
-    expect(ASSISTANT_PERSONA_DEFAULTS.archetype).toBe(
-      ASSISTANT_PERSONA_ARCHETYPE_IDS.balanced,
-    )
-    expect(matchAssistantPersonaArchetype(ASSISTANT_PERSONA_DEFAULTS)).toBe(
-      ASSISTANT_PERSONA_ARCHETYPE_IDS.balanced,
-    )
+    expect(ASSISTANT_PERSONA_DEFAULTS.verbosity).toBe('standard')
+    expect(ASSISTANT_PERSONA_DEFAULTS.nextStepHint).toBe(true)
+    expect(ASSISTANT_PERSONA_DEFAULTS.useMyWords).toBe(true)
+    expect(ASSISTANT_PERSONA_DEFAULTS).not.toHaveProperty('planMode')
+    expect(ASSISTANT_PERSONA_DEFAULTS).not.toHaveProperty('archetype')
   })
 })
 
@@ -184,55 +164,6 @@ describe('AssistantPersona 的三项用户偏好', () => {
  * ⚠ 钉的是「来源类规则收的是来源 id 或域名，⛔ 不是一句话」——收下一句话的表现
  * 是名单里永远有一条匹配不到任何东西，而用户以为自己设了闸。
  */
-/**
- * 三档人设那一格（v2 §11.1）—— 词表内的三档与 `null` 都收，其余一律拒。
- * ⛔ 不给它一个 `custom` 字面量：`null` 就是那一档。
- */
-describe('AssistantPersona.archetype', () => {
-  /** ⚠ `BASE` 少一格 `routeModel`（上面几组用例各自补）——这里统一补齐。 */
-  const FULL = { ...BASE, routeModel: ASSISTANT_ROUTE_MODEL_AUTO }
-
-  it('三档与 null 都收', () => {
-    for (const archetype of [...ASSISTANT_PERSONA_ARCHETYPES, null]) {
-      expect(
-        UpdateAssistantPersonaSchema.safeParse({ ...FULL, archetype }).success,
-      ).toBe(true)
-    }
-  })
-
-  it('词表外的档名拒，缺这一格也拒', () => {
-    expect(
-      UpdateAssistantPersonaSchema.safeParse({ ...FULL, archetype: 'custom' })
-        .success,
-    ).toBe(false)
-    const { archetype: _archetype, ...withoutArchetype } = FULL
-    expect(
-      UpdateAssistantPersonaSchema.safeParse(withoutArchetype).success,
-    ).toBe(false)
-  })
-
-  /** 映射表是承诺：三档里每一档的五格都齐，且彼此不重复。 */
-  it('三档映射表：每档五格齐，且三档互不相同', () => {
-    const seen = new Set<string>()
-    for (const archetype of ASSISTANT_PERSONA_ARCHETYPES) {
-      const preset = ASSISTANT_PERSONA_ARCHETYPE_PRESETS[archetype]
-      expect(matchAssistantPersonaArchetype(preset)).toBe(archetype)
-      seen.add(JSON.stringify(preset))
-    }
-    expect(seen.size).toBe(ASSISTANT_PERSONA_ARCHETYPES.length)
-  })
-
-  it('差一格就不再是那一档', () => {
-    const preset = ASSISTANT_PERSONA_ARCHETYPE_PRESETS.balanced
-    expect(
-      matchAssistantPersonaArchetype({
-        ...preset,
-        nextStepHint: !preset.nextStepHint,
-      }),
-    ).toBeNull()
-  })
-})
-
 describe('项目规则 · kind 与来源 token（v2 §9.3）', () => {
   /** 普通规则已并进记忆（助手设置 B）—— 这张表的写入只收来源名单。 */
   it('普通规则写不进来：缺 kind 或 note 都不收', () => {

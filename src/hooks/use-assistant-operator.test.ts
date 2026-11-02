@@ -1639,14 +1639,9 @@ describe('计划卡（v2 §3.3 多步确认）', () => {
     expect(store.getOperatorState().status).toBe('working')
   })
 
-  /**
-   * ⭐ **「先问我」开关已删（v2 决策 6 / §4.4）**：请求里不再有 `forcePlan`，
-   * 「每轮先出计划」整条语义搬到人设的 `planMode: always`（v2 §11.1），由服务端
-   * 判。⛔ 输入区不许再出现一个跟它打架的单轮开关。
-   */
-  it('⛔ 请求体不再带 forcePlan —— 哪怕 persona 是「总是先出计划」', async () => {
+  /** ⭐ 「先问我」开关与人设的「先出计划」都已删（11-02）：请求里不再有 `forcePlan`。 */
+  it('⛔ 请求体不再带 forcePlan', async () => {
     const { result } = render()
-    act(() => store.setOperatorPlanMode('always'))
     act(() => {
       result.current.send('随便改一个字')
     })

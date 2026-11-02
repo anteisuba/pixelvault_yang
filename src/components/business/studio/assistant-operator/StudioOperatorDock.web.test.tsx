@@ -140,7 +140,6 @@ vi.mock('@/hooks/use-assistant-persona', () => ({
       tone: 'professional',
       toneCustom: null,
       verbosity: 'standard',
-      planMode: 'auto',
       language: 'ui',
     },
     isLoading: false,

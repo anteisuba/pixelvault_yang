@@ -22,13 +22,11 @@ import {
   ASSISTANT_MENTION_LIMITS,
   ASSISTANT_MENTION_SCOPE_IDS,
 } from '@/constants/assistant-mention'
-import { ASSISTANT_PERSONA_DEFAULTS } from '@/constants/assistant-persona'
 import {
   ASSISTANT_CHAT_MODE_IDS,
   ASSISTANT_PROTOCOL_DOMAIN_IDS,
   type AssistantChatMode,
 } from '@/constants/assistant-protocol'
-import type { AssistantPersonaPlanMode } from '@/constants/assistant-persona'
 import type { AssistantOperatorDomain } from '@/constants/assistant-operator'
 import {
   ASSISTANT_AUTO_REVIEW_ROUNDS,
@@ -198,16 +196,6 @@ export interface StudioOperatorState {
    */
   pendingResultId: string | null
   /**
-   * persona 的「默认行为」（§8.2 `planMode`）—— **store 里存一份的唯一理由**是
-   * 驱动 hook 要在事件处理器里同步读它（`getOperatorState()`），而 persona 是
-   * 一次异步拉取的结果。
-   *
-   * ⚠ ⛔ 别在驱动 hook 里再调一次 `useAssistantPersona()`：那会在同一棵树上开出
-   * 第二个 `GET /api/assistant/persona`，两份数据还会各说各话。外壳拉一次、
-   * 写进来一次，读的人都读这一个。
-   */
-  planMode: AssistantPersonaPlanMode
-  /**
    * 钉在流末尾的三张「等你定」的卡（§4.1）。
    *
    * ⚠ 三张各自最多一张，且**跨域不分槽**：它们属于「此刻这条流停在哪儿」，而流
@@ -358,7 +346,6 @@ const INITIAL_STATE: StudioOperatorState = {
   threadScope: null,
   selectedResultId: null,
   pendingResultId: null,
-  planMode: ASSISTANT_PERSONA_DEFAULTS.planMode,
   question: null,
   confirm: null,
   incognito: false,
@@ -1303,7 +1290,6 @@ export function claimOperatorThreadScope(
   const next: StudioOperatorState = cached ?? {
     ...INITIAL_STATE,
     localThreadId: crypto.randomUUID(),
-    planMode: scope ? state.planMode : INITIAL_STATE.planMode,
     autoReviewRounds: readAutoReviewRounds(scope),
   }
   pendingAttachment = null
@@ -1441,14 +1427,6 @@ export function dropOperatorPendingResult(id: string): void {
 }
 
 /**
- * persona 的「默认行为」落进 store（§8.2）。
- *
- * ⚠ 「先问我」开关已随 v2 决策 6 删掉，`planMode` 就是它的**唯一**语义来源：
- * `always` 让服务端每轮先摆一张计划确认卡（`assistant-operator.service.ts` 的
- * 多步确认闸 + 系统提示 `PLAN_MODE_DIRECTIVES`）。⛔ 别在输入区再造一个跟它
- * 打架的单轮开关（v2 §11.1）。
- */
-/**
  * 隐身开关（56a）—— ⋯ 菜单那一颗按的就是它。
  *
  * ⚠ ⛔ 不在这里清任何东西：隐身**不撤销**已经记下的那些（那是设置页上的
@@ -1549,11 +1527,6 @@ export function switchOperatorChatMode(
 export function setOperatorIncognito(incognito: boolean): void {
   if (state.incognito === incognito) return
   emit({ ...state, incognito, offTheRecord: state.offTheRecord || incognito })
-}
-
-export function setOperatorPlanMode(planMode: AssistantPersonaPlanMode): void {
-  if (state.planMode === planMode) return
-  emit({ ...state, planMode })
 }
 
 // ─── 两张「等你定」的卡（v2 §3.2：问题 / 确认）────────────────────

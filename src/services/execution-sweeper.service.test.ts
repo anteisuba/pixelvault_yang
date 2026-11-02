@@ -6,6 +6,15 @@ const mockJobUpdateMany = vi.fn()
 const mockJobFindMany = vi.fn()
 const mockOutboxUpdateMany = vi.fn()
 const mockLoggerWarn = vi.fn()
+const mockReconcileWorkerDispatch = vi.fn()
+const mockSweepWorkerDispatchOutboxes = vi.fn()
+
+vi.mock('@/services/worker-dispatch-outbox.service', () => ({
+  reconcileWorkerDispatch: (...args: unknown[]) =>
+    mockReconcileWorkerDispatch(...args),
+  sweepWorkerDispatchOutboxes: (...args: unknown[]) =>
+    mockSweepWorkerDispatchOutboxes(...args),
+}))
 
 vi.mock('@/lib/logger', () => ({
   logger: {
@@ -29,7 +38,9 @@ vi.mock('@/lib/db', () => ({
 }))
 
 import {
+  reconcileActiveGenerationJob,
   reconcileStaleGenerationJob,
+  STALE_EXECUTION_FAILURE_MESSAGE,
   sweepStaleExecutions,
 } from './execution-sweeper.service'
 
@@ -48,6 +59,62 @@ describe('execution-sweeper.service', () => {
     mockJobUpdateMany.mockResolvedValue({ count: 0 })
     mockJobFindMany.mockResolvedValue([])
     mockOutboxUpdateMany.mockResolvedValue({ count: 0 })
+    mockReconcileWorkerDispatch.mockResolvedValue(null)
+    mockSweepWorkerDispatchOutboxes.mockResolvedValue({
+      redelivered: 0,
+      failed: 0,
+      closed: 0,
+    })
+  })
+
+  describe('reconcileActiveGenerationJob', () => {
+    const now = new Date('2026-11-02T08:00:00.000Z')
+
+    it('returns the dispatch failure without consulting the stale threshold', async () => {
+      mockReconcileWorkerDispatch.mockResolvedValue({
+        errorMessage: 'unreachable',
+        errorCode: 'execution_worker_unavailable',
+      })
+
+      const result = await reconcileActiveGenerationJob(
+        { id: 'job-1', status: 'RUNNING', startedAt: now },
+        now,
+      )
+
+      expect(result).toEqual({
+        error: 'unreachable',
+        errorCode: 'execution_worker_unavailable',
+      })
+      expect(mockJobUpdateMany).not.toHaveBeenCalled()
+    })
+
+    it('falls back to the stale reap when dispatch is fine', async () => {
+      mockJobUpdateMany.mockResolvedValue({ count: 1 })
+
+      const result = await reconcileActiveGenerationJob(
+        {
+          id: 'job-1',
+          status: 'RUNNING',
+          startedAt: new Date(
+            now.getTime() - EXECUTION_SWEEPER.STALE_JOB_THRESHOLD_MS - 1,
+          ),
+        },
+        now,
+      )
+
+      expect(result).toEqual({
+        error: STALE_EXECUTION_FAILURE_MESSAGE,
+        errorCode: 'callback_timeout',
+      })
+    })
+
+    it('returns null for a healthy running job', async () => {
+      const result = await reconcileActiveGenerationJob(
+        { id: 'job-1', status: 'RUNNING', startedAt: now },
+        now,
+      )
+      expect(result).toBeNull()
+    })
   })
 
   it('reaps stale RUNNING jobs via a status CAS and a now-threshold cutoff', async () => {
@@ -99,6 +166,7 @@ describe('execution-sweeper.service', () => {
     expect(result).toEqual({
       staleJobsReaped: 0,
       expiredOutboxesReaped: 0,
+      dispatchOutboxes: { redelivered: 0, failed: 0, closed: 0 },
       undeliveredSearchGroundingCleared: 0,
     })
     expect(mockLoggerWarn).not.toHaveBeenCalled()

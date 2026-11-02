@@ -4,6 +4,25 @@ export const EXECUTION_OUTBOX = {
   LEASE_MS: 60_000,
 } as const
 
+/**
+ * 派发 outbox（o-worker 第 6 步「派发只走一条路」）：建任务时同一事务里记下一行，
+ * 派发不知道送没送到时，由状态轮询 / 每日 sweep 补发。Worker 按任务 id 幂等建
+ * Workflow 实例，补发不会重复跑、不会重复扣费。现行做法见 docs/references/backend.md「派发 outbox」。
+ */
+export const WORKER_DISPATCH_OUTBOX = {
+  /** 一次派发（含 dispatch 内部那 2 次重试）最多试几轮，之后判「执行服务连不上」。 */
+  MAX_DELIVERY_ATTEMPTS: 5,
+  /** 两轮补发之间至少隔多久；状态轮询每 2–3 秒一次，不能每次都去敲 Worker。 */
+  REDELIVERY_DELAY_MS: 20_000,
+  /**
+   * 建了任务、还没写完派发参数（参考图上传、底模准备）就没下文的，过这么久判失败。
+   * 远大于出图路由的 maxDuration，正常在途的不会被误判。
+   */
+  PREPARE_TIMEOUT_MS: 10 * 60 * 1000,
+  /** 每次 sweep 最多补发多少条。 */
+  SWEEP_LIMIT: 50,
+} as const
+
 export const EXECUTION_SWEEPER = {
   /**
    * RUNNING jobs whose `startedAt` is older than this are treated as orphaned
@@ -124,6 +143,8 @@ export const EXECUTION_WORKFLOW_IDS = {
 
 export const EXECUTION_OUTBOX_KINDS = {
   AUDIO_QUEUE_SUBMIT: 'AUDIO_QUEUE_SUBMIT',
+  /** 图 / 视频 / 音频 / 3D 派发给执行 Worker。 */
+  WORKER_DISPATCH: 'WORKER_DISPATCH',
   IMAGE_PREVIEW_DERIVATIVES: 'IMAGE_PREVIEW_DERIVATIVES',
 } as const
 

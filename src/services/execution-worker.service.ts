@@ -1,6 +1,10 @@
 import 'server-only'
 
-import { EXECUTION_WORKER, LOOPBACK_HOSTNAMES } from '@/constants/execution'
+import {
+  EXECUTION_WORKER,
+  EXECUTION_WORKFLOW_IDS,
+  LOOPBACK_HOSTNAMES,
+} from '@/constants/execution'
 import { createInternalExecutionHeaders } from '@/lib/signature-verifiers/internal-execution'
 import type {
   WorkerCancelRequest,
@@ -130,31 +134,29 @@ export function buildInternalUrl(path: string): string {
   return url.toString()
 }
 
-export async function dispatchWorkerRun(
-  runContext: WorkerRunContext,
-): Promise<WorkerDispatchResult> {
-  return dispatchSignedWorkerRun(runContext, EXECUTION_WORKER.FAL_QUEUE_PATH)
+const WORKFLOW_DISPATCH_PATHS: Record<
+  (typeof EXECUTION_WORKFLOW_IDS)[keyof typeof EXECUTION_WORKFLOW_IDS],
+  string
+> = {
+  [EXECUTION_WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO]:
+    EXECUTION_WORKER.CINEMATIC_SHORT_VIDEO_PATH,
+  [EXECUTION_WORKFLOW_IDS.FAL_QUEUE]: EXECUTION_WORKER.FAL_QUEUE_PATH,
+  [EXECUTION_WORKFLOW_IDS.HYPER3D_RODIN]: EXECUTION_WORKER.HYPER3D_RODIN_PATH,
+  [EXECUTION_WORKFLOW_IDS.HUNYUAN3D]: EXECUTION_WORKER.HUNYUAN3D_PATH,
+  [EXECUTION_WORKFLOW_IDS.IMAGE_QUEUE]: EXECUTION_WORKER.IMAGE_QUEUE_PATH,
 }
 
-export async function dispatchImageWorkerRun(
-  runContext: WorkerRunContext,
-): Promise<WorkerDispatchResult> {
-  return dispatchSignedWorkerRun(runContext, EXECUTION_WORKER.IMAGE_QUEUE_PATH)
-}
-
-export async function dispatchHyper3DRodinWorkerRun(
-  runContext: WorkerModel3DRunContext,
+/**
+ * 只发一次（含内部重试），不落库。业务代码走
+ * `worker-dispatch-outbox.service` 的 `dispatchWorkerRunDurably`，派发不明时由 outbox 补发。
+ */
+export async function dispatchExecutionWorkerRun(
+  runContext: WorkerRunContext | WorkerModel3DRunContext,
 ): Promise<WorkerDispatchResult> {
   return dispatchSignedWorkerRun(
     runContext,
-    EXECUTION_WORKER.HYPER3D_RODIN_PATH,
+    WORKFLOW_DISPATCH_PATHS[runContext.workflowId],
   )
-}
-
-export async function dispatchHunyuan3DWorkerRun(
-  runContext: WorkerModel3DRunContext,
-): Promise<WorkerDispatchResult> {
-  return dispatchSignedWorkerRun(runContext, EXECUTION_WORKER.HUNYUAN3D_PATH)
 }
 
 async function dispatchSignedWorkerRun(

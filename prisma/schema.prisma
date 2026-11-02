@@ -589,7 +589,7 @@ model GenerationJob {
   updatedAt         DateTime            @updatedAt
 
   apiUsageLedger  ApiUsageLedger[] @relation("GenerationJobToUsage")
-  executionOutbox ExecutionOutbox?
+  executionOutboxes ExecutionOutbox[]
 
   @@index([userId, createdAt(sort: Desc)])
   @@index([status, createdAt(sort: Desc)])
@@ -599,7 +599,7 @@ model GenerationJob {
 
 model ExecutionOutbox {
   id              String                @id @default(uuid())
-  generationJobId String                @unique
+  generationJobId String
   generationJob   GenerationJob         @relation(fields: [generationJobId], references: [id], onDelete: Cascade)
   kind            String
   status          ExecutionOutboxStatus @default(PENDING)
@@ -612,7 +612,10 @@ model ExecutionOutbox {
   createdAt       DateTime              @default(now())
   updatedAt       DateTime              @updatedAt
 
+  /// 一个任务每种 kind 最多一条：派发（WORKER_DISPATCH）、预览图（IMAGE_PREVIEW_DERIVATIVES）可以并存。
+  @@unique([generationJobId, kind])
   @@index([status, leaseExpiresAt, createdAt(sort: Desc)])
+  @@index([kind, status, updatedAt])
 }
 
 model ApiUsageLedger {

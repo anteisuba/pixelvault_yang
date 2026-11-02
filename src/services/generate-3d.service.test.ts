@@ -49,14 +49,44 @@ vi.mock('@/services/execution-worker.service', () => ({
     }
   },
   buildInternalUrl: vi.fn((path: string) => `https://app.test${path}`),
-  dispatchHyper3DRodinWorkerRun: vi.fn().mockResolvedValue({
-    workflowInstanceId: 'wf-rodin-1',
-  }),
-  dispatchHunyuan3DWorkerRun: vi.fn().mockResolvedValue({
+  dispatchExecutionWorkerRun: vi.fn().mockResolvedValue({
     workflowInstanceId: 'wf-hunyuan-1',
   }),
   notifyWorkerCancel: vi.fn().mockResolvedValue(undefined),
 }))
+
+// 派发 outbox：测试里直接转给上面 mock 掉的 dispatchExecutionWorkerRun / createGenerationJob，
+// 「送没送到不知道」翻成 delivered: false（真实逻辑见 worker-dispatch-outbox.service.test.ts）。
+vi.mock('@/services/worker-dispatch-outbox.service', async () => {
+  const worker = await import('@/services/execution-worker.service')
+  const usage = await import('@/services/usage.service')
+  return {
+    reconcileWorkerDispatch: async () => null,
+    sweepWorkerDispatchOutboxes: async () => ({
+      redelivered: 0,
+      failed: 0,
+      closed: 0,
+    }),
+    createWorkerGenerationJob: (input: unknown) =>
+      usage.createGenerationJob(input as never),
+    dispatchWorkerRunDurably: async (runContext: unknown) => {
+      try {
+        const result = await worker.dispatchExecutionWorkerRun(
+          runContext as never,
+        )
+        return {
+          delivered: true,
+          workflowInstanceId: result.workflowInstanceId,
+        }
+      } catch (error) {
+        if ((error as { outcome?: string }).outcome === 'unknown') {
+          return { delivered: false }
+        }
+        throw error
+      }
+    },
+  }
+})
 
 vi.mock('@/services/user.service', () => ({
   ensureUser: vi.fn(),
@@ -94,7 +124,7 @@ import {
   failGenerationJob,
 } from '@/services/usage.service'
 import {
-  dispatchHunyuan3DWorkerRun,
+  dispatchExecutionWorkerRun as dispatchHunyuan3DWorkerRun,
   ExecutionWorkerDispatchError,
   notifyWorkerCancel,
 } from '@/services/execution-worker.service'
@@ -221,7 +251,7 @@ describe('submit3DGenerationForUserId', () => {
         modelId: AI_MODELS.HUNYUAN3D_V31_PRO,
         apiKeyId: 'fal-key-id',
       }),
-    ).rejects.toThrow('worker acknowledgement was lost')
+    ).resolves.toMatchObject({ jobId: expect.any(String) })
 
     expect(mockFailJob).not.toHaveBeenCalled()
   })

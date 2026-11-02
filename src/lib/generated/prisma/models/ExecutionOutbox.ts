@@ -285,10 +285,11 @@ export type ExecutionOutboxOrderByWithRelationInput = {
 
 export type ExecutionOutboxWhereUniqueInput = Prisma.AtLeast<{
   id?: string
-  generationJobId?: string
+  generationJobId_kind?: Prisma.ExecutionOutboxGenerationJobIdKindCompoundUniqueInput
   AND?: Prisma.ExecutionOutboxWhereInput | Prisma.ExecutionOutboxWhereInput[]
   OR?: Prisma.ExecutionOutboxWhereInput[]
   NOT?: Prisma.ExecutionOutboxWhereInput | Prisma.ExecutionOutboxWhereInput[]
+  generationJobId?: Prisma.StringFilter<"ExecutionOutbox"> | string
   kind?: Prisma.StringFilter<"ExecutionOutbox"> | string
   status?: Prisma.EnumExecutionOutboxStatusFilter<"ExecutionOutbox"> | $Enums.ExecutionOutboxStatus
   payload?: Prisma.JsonFilter<"ExecutionOutbox">
@@ -300,7 +301,7 @@ export type ExecutionOutboxWhereUniqueInput = Prisma.AtLeast<{
   createdAt?: Prisma.DateTimeFilter<"ExecutionOutbox"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"ExecutionOutbox"> | Date | string
   generationJob?: Prisma.XOR<Prisma.GenerationJobScalarRelationFilter, Prisma.GenerationJobWhereInput>
-}, "id" | "generationJobId">
+}, "id" | "generationJobId_kind">
 
 export type ExecutionOutboxOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
@@ -352,7 +353,7 @@ export type ExecutionOutboxCreateInput = {
   processedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
-  generationJob: Prisma.GenerationJobCreateNestedOneWithoutExecutionOutboxInput
+  generationJob: Prisma.GenerationJobCreateNestedOneWithoutExecutionOutboxesInput
 }
 
 export type ExecutionOutboxUncheckedCreateInput = {
@@ -382,7 +383,7 @@ export type ExecutionOutboxUpdateInput = {
   processedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  generationJob?: Prisma.GenerationJobUpdateOneRequiredWithoutExecutionOutboxNestedInput
+  generationJob?: Prisma.GenerationJobUpdateOneRequiredWithoutExecutionOutboxesNestedInput
 }
 
 export type ExecutionOutboxUncheckedUpdateInput = {
@@ -444,9 +445,19 @@ export type ExecutionOutboxUncheckedUpdateManyInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
-export type ExecutionOutboxNullableScalarRelationFilter = {
-  is?: Prisma.ExecutionOutboxWhereInput | null
-  isNot?: Prisma.ExecutionOutboxWhereInput | null
+export type ExecutionOutboxListRelationFilter = {
+  every?: Prisma.ExecutionOutboxWhereInput
+  some?: Prisma.ExecutionOutboxWhereInput
+  none?: Prisma.ExecutionOutboxWhereInput
+}
+
+export type ExecutionOutboxOrderByRelationAggregateInput = {
+  _count?: Prisma.SortOrder
+}
+
+export type ExecutionOutboxGenerationJobIdKindCompoundUniqueInput = {
+  generationJobId: string
+  kind: string
 }
 
 export type ExecutionOutboxCountOrderByAggregateInput = {
@@ -498,36 +509,46 @@ export type ExecutionOutboxSumOrderByAggregateInput = {
   attemptCount?: Prisma.SortOrder
 }
 
-export type ExecutionOutboxCreateNestedOneWithoutGenerationJobInput = {
-  create?: Prisma.XOR<Prisma.ExecutionOutboxCreateWithoutGenerationJobInput, Prisma.ExecutionOutboxUncheckedCreateWithoutGenerationJobInput>
-  connectOrCreate?: Prisma.ExecutionOutboxCreateOrConnectWithoutGenerationJobInput
-  connect?: Prisma.ExecutionOutboxWhereUniqueInput
+export type ExecutionOutboxCreateNestedManyWithoutGenerationJobInput = {
+  create?: Prisma.XOR<Prisma.ExecutionOutboxCreateWithoutGenerationJobInput, Prisma.ExecutionOutboxUncheckedCreateWithoutGenerationJobInput> | Prisma.ExecutionOutboxCreateWithoutGenerationJobInput[] | Prisma.ExecutionOutboxUncheckedCreateWithoutGenerationJobInput[]
+  connectOrCreate?: Prisma.ExecutionOutboxCreateOrConnectWithoutGenerationJobInput | Prisma.ExecutionOutboxCreateOrConnectWithoutGenerationJobInput[]
+  createMany?: Prisma.ExecutionOutboxCreateManyGenerationJobInputEnvelope
+  connect?: Prisma.ExecutionOutboxWhereUniqueInput | Prisma.ExecutionOutboxWhereUniqueInput[]
 }
 
-export type ExecutionOutboxUncheckedCreateNestedOneWithoutGenerationJobInput = {
-  create?: Prisma.XOR<Prisma.ExecutionOutboxCreateWithoutGenerationJobInput, Prisma.ExecutionOutboxUncheckedCreateWithoutGenerationJobInput>
-  connectOrCreate?: Prisma.ExecutionOutboxCreateOrConnectWithoutGenerationJobInput
-  connect?: Prisma.ExecutionOutboxWhereUniqueInput
+export type ExecutionOutboxUncheckedCreateNestedManyWithoutGenerationJobInput = {
+  create?: Prisma.XOR<Prisma.ExecutionOutboxCreateWithoutGenerationJobInput, Prisma.ExecutionOutboxUncheckedCreateWithoutGenerationJobInput> | Prisma.ExecutionOutboxCreateWithoutGenerationJobInput[] | Prisma.ExecutionOutboxUncheckedCreateWithoutGenerationJobInput[]
+  connectOrCreate?: Prisma.ExecutionOutboxCreateOrConnectWithoutGenerationJobInput | Prisma.ExecutionOutboxCreateOrConnectWithoutGenerationJobInput[]
+  createMany?: Prisma.ExecutionOutboxCreateManyGenerationJobInputEnvelope
+  connect?: Prisma.ExecutionOutboxWhereUniqueInput | Prisma.ExecutionOutboxWhereUniqueInput[]
 }
 
-export type ExecutionOutboxUpdateOneWithoutGenerationJobNestedInput = {
-  create?: Prisma.XOR<Prisma.ExecutionOutboxCreateWithoutGenerationJobInput, Prisma.ExecutionOutboxUncheckedCreateWithoutGenerationJobInput>
-  connectOrCreate?: Prisma.ExecutionOutboxCreateOrConnectWithoutGenerationJobInput
-  upsert?: Prisma.ExecutionOutboxUpsertWithoutGenerationJobInput
-  disconnect?: Prisma.ExecutionOutboxWhereInput | boolean
-  delete?: Prisma.ExecutionOutboxWhereInput | boolean
-  connect?: Prisma.ExecutionOutboxWhereUniqueInput
-  update?: Prisma.XOR<Prisma.XOR<Prisma.ExecutionOutboxUpdateToOneWithWhereWithoutGenerationJobInput, Prisma.ExecutionOutboxUpdateWithoutGenerationJobInput>, Prisma.ExecutionOutboxUncheckedUpdateWithoutGenerationJobInput>
+export type ExecutionOutboxUpdateManyWithoutGenerationJobNestedInput = {
+  create?: Prisma.XOR<Prisma.ExecutionOutboxCreateWithoutGenerationJobInput, Prisma.ExecutionOutboxUncheckedCreateWithoutGenerationJobInput> | Prisma.ExecutionOutboxCreateWithoutGenerationJobInput[] | Prisma.ExecutionOutboxUncheckedCreateWithoutGenerationJobInput[]
+  connectOrCreate?: Prisma.ExecutionOutboxCreateOrConnectWithoutGenerationJobInput | Prisma.ExecutionOutboxCreateOrConnectWithoutGenerationJobInput[]
+  upsert?: Prisma.ExecutionOutboxUpsertWithWhereUniqueWithoutGenerationJobInput | Prisma.ExecutionOutboxUpsertWithWhereUniqueWithoutGenerationJobInput[]
+  createMany?: Prisma.ExecutionOutboxCreateManyGenerationJobInputEnvelope
+  set?: Prisma.ExecutionOutboxWhereUniqueInput | Prisma.ExecutionOutboxWhereUniqueInput[]
+  disconnect?: Prisma.ExecutionOutboxWhereUniqueInput | Prisma.ExecutionOutboxWhereUniqueInput[]
+  delete?: Prisma.ExecutionOutboxWhereUniqueInput | Prisma.ExecutionOutboxWhereUniqueInput[]
+  connect?: Prisma.ExecutionOutboxWhereUniqueInput | Prisma.ExecutionOutboxWhereUniqueInput[]
+  update?: Prisma.ExecutionOutboxUpdateWithWhereUniqueWithoutGenerationJobInput | Prisma.ExecutionOutboxUpdateWithWhereUniqueWithoutGenerationJobInput[]
+  updateMany?: Prisma.ExecutionOutboxUpdateManyWithWhereWithoutGenerationJobInput | Prisma.ExecutionOutboxUpdateManyWithWhereWithoutGenerationJobInput[]
+  deleteMany?: Prisma.ExecutionOutboxScalarWhereInput | Prisma.ExecutionOutboxScalarWhereInput[]
 }
 
-export type ExecutionOutboxUncheckedUpdateOneWithoutGenerationJobNestedInput = {
-  create?: Prisma.XOR<Prisma.ExecutionOutboxCreateWithoutGenerationJobInput, Prisma.ExecutionOutboxUncheckedCreateWithoutGenerationJobInput>
-  connectOrCreate?: Prisma.ExecutionOutboxCreateOrConnectWithoutGenerationJobInput
-  upsert?: Prisma.ExecutionOutboxUpsertWithoutGenerationJobInput
-  disconnect?: Prisma.ExecutionOutboxWhereInput | boolean
-  delete?: Prisma.ExecutionOutboxWhereInput | boolean
-  connect?: Prisma.ExecutionOutboxWhereUniqueInput
-  update?: Prisma.XOR<Prisma.XOR<Prisma.ExecutionOutboxUpdateToOneWithWhereWithoutGenerationJobInput, Prisma.ExecutionOutboxUpdateWithoutGenerationJobInput>, Prisma.ExecutionOutboxUncheckedUpdateWithoutGenerationJobInput>
+export type ExecutionOutboxUncheckedUpdateManyWithoutGenerationJobNestedInput = {
+  create?: Prisma.XOR<Prisma.ExecutionOutboxCreateWithoutGenerationJobInput, Prisma.ExecutionOutboxUncheckedCreateWithoutGenerationJobInput> | Prisma.ExecutionOutboxCreateWithoutGenerationJobInput[] | Prisma.ExecutionOutboxUncheckedCreateWithoutGenerationJobInput[]
+  connectOrCreate?: Prisma.ExecutionOutboxCreateOrConnectWithoutGenerationJobInput | Prisma.ExecutionOutboxCreateOrConnectWithoutGenerationJobInput[]
+  upsert?: Prisma.ExecutionOutboxUpsertWithWhereUniqueWithoutGenerationJobInput | Prisma.ExecutionOutboxUpsertWithWhereUniqueWithoutGenerationJobInput[]
+  createMany?: Prisma.ExecutionOutboxCreateManyGenerationJobInputEnvelope
+  set?: Prisma.ExecutionOutboxWhereUniqueInput | Prisma.ExecutionOutboxWhereUniqueInput[]
+  disconnect?: Prisma.ExecutionOutboxWhereUniqueInput | Prisma.ExecutionOutboxWhereUniqueInput[]
+  delete?: Prisma.ExecutionOutboxWhereUniqueInput | Prisma.ExecutionOutboxWhereUniqueInput[]
+  connect?: Prisma.ExecutionOutboxWhereUniqueInput | Prisma.ExecutionOutboxWhereUniqueInput[]
+  update?: Prisma.ExecutionOutboxUpdateWithWhereUniqueWithoutGenerationJobInput | Prisma.ExecutionOutboxUpdateWithWhereUniqueWithoutGenerationJobInput[]
+  updateMany?: Prisma.ExecutionOutboxUpdateManyWithWhereWithoutGenerationJobInput | Prisma.ExecutionOutboxUpdateManyWithWhereWithoutGenerationJobInput[]
+  deleteMany?: Prisma.ExecutionOutboxScalarWhereInput | Prisma.ExecutionOutboxScalarWhereInput[]
 }
 
 export type EnumExecutionOutboxStatusFieldUpdateOperationsInput = {
@@ -567,15 +588,57 @@ export type ExecutionOutboxCreateOrConnectWithoutGenerationJobInput = {
   create: Prisma.XOR<Prisma.ExecutionOutboxCreateWithoutGenerationJobInput, Prisma.ExecutionOutboxUncheckedCreateWithoutGenerationJobInput>
 }
 
-export type ExecutionOutboxUpsertWithoutGenerationJobInput = {
-  update: Prisma.XOR<Prisma.ExecutionOutboxUpdateWithoutGenerationJobInput, Prisma.ExecutionOutboxUncheckedUpdateWithoutGenerationJobInput>
-  create: Prisma.XOR<Prisma.ExecutionOutboxCreateWithoutGenerationJobInput, Prisma.ExecutionOutboxUncheckedCreateWithoutGenerationJobInput>
-  where?: Prisma.ExecutionOutboxWhereInput
+export type ExecutionOutboxCreateManyGenerationJobInputEnvelope = {
+  data: Prisma.ExecutionOutboxCreateManyGenerationJobInput | Prisma.ExecutionOutboxCreateManyGenerationJobInput[]
+  skipDuplicates?: boolean
 }
 
-export type ExecutionOutboxUpdateToOneWithWhereWithoutGenerationJobInput = {
-  where?: Prisma.ExecutionOutboxWhereInput
+export type ExecutionOutboxUpsertWithWhereUniqueWithoutGenerationJobInput = {
+  where: Prisma.ExecutionOutboxWhereUniqueInput
+  update: Prisma.XOR<Prisma.ExecutionOutboxUpdateWithoutGenerationJobInput, Prisma.ExecutionOutboxUncheckedUpdateWithoutGenerationJobInput>
+  create: Prisma.XOR<Prisma.ExecutionOutboxCreateWithoutGenerationJobInput, Prisma.ExecutionOutboxUncheckedCreateWithoutGenerationJobInput>
+}
+
+export type ExecutionOutboxUpdateWithWhereUniqueWithoutGenerationJobInput = {
+  where: Prisma.ExecutionOutboxWhereUniqueInput
   data: Prisma.XOR<Prisma.ExecutionOutboxUpdateWithoutGenerationJobInput, Prisma.ExecutionOutboxUncheckedUpdateWithoutGenerationJobInput>
+}
+
+export type ExecutionOutboxUpdateManyWithWhereWithoutGenerationJobInput = {
+  where: Prisma.ExecutionOutboxScalarWhereInput
+  data: Prisma.XOR<Prisma.ExecutionOutboxUpdateManyMutationInput, Prisma.ExecutionOutboxUncheckedUpdateManyWithoutGenerationJobInput>
+}
+
+export type ExecutionOutboxScalarWhereInput = {
+  AND?: Prisma.ExecutionOutboxScalarWhereInput | Prisma.ExecutionOutboxScalarWhereInput[]
+  OR?: Prisma.ExecutionOutboxScalarWhereInput[]
+  NOT?: Prisma.ExecutionOutboxScalarWhereInput | Prisma.ExecutionOutboxScalarWhereInput[]
+  id?: Prisma.StringFilter<"ExecutionOutbox"> | string
+  generationJobId?: Prisma.StringFilter<"ExecutionOutbox"> | string
+  kind?: Prisma.StringFilter<"ExecutionOutbox"> | string
+  status?: Prisma.EnumExecutionOutboxStatusFilter<"ExecutionOutbox"> | $Enums.ExecutionOutboxStatus
+  payload?: Prisma.JsonFilter<"ExecutionOutbox">
+  result?: Prisma.JsonNullableFilter<"ExecutionOutbox">
+  attemptCount?: Prisma.IntFilter<"ExecutionOutbox"> | number
+  lastError?: Prisma.StringNullableFilter<"ExecutionOutbox"> | string | null
+  leaseExpiresAt?: Prisma.DateTimeNullableFilter<"ExecutionOutbox"> | Date | string | null
+  processedAt?: Prisma.DateTimeNullableFilter<"ExecutionOutbox"> | Date | string | null
+  createdAt?: Prisma.DateTimeFilter<"ExecutionOutbox"> | Date | string
+  updatedAt?: Prisma.DateTimeFilter<"ExecutionOutbox"> | Date | string
+}
+
+export type ExecutionOutboxCreateManyGenerationJobInput = {
+  id?: string
+  kind: string
+  status?: $Enums.ExecutionOutboxStatus
+  payload: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  result?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  attemptCount?: number
+  lastError?: string | null
+  leaseExpiresAt?: Date | string | null
+  processedAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
 }
 
 export type ExecutionOutboxUpdateWithoutGenerationJobInput = {
@@ -593,6 +656,20 @@ export type ExecutionOutboxUpdateWithoutGenerationJobInput = {
 }
 
 export type ExecutionOutboxUncheckedUpdateWithoutGenerationJobInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  kind?: Prisma.StringFieldUpdateOperationsInput | string
+  status?: Prisma.EnumExecutionOutboxStatusFieldUpdateOperationsInput | $Enums.ExecutionOutboxStatus
+  payload?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  result?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  attemptCount?: Prisma.IntFieldUpdateOperationsInput | number
+  lastError?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  leaseExpiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  processedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+}
+
+export type ExecutionOutboxUncheckedUpdateManyWithoutGenerationJobInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   kind?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumExecutionOutboxStatusFieldUpdateOperationsInput | $Enums.ExecutionOutboxStatus

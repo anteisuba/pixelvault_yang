@@ -66,8 +66,6 @@ import {
 } from '@/services/image/generate-image.service'
 import {
   buildInternalUrl,
-  dispatchWorkerRun,
-  ExecutionWorkerDispatchError,
   shouldUseInlineExecutionFallback,
 } from '@/services/execution-worker.service'
 import {
@@ -78,12 +76,13 @@ import {
   failExpiredExecutionOutbox,
   tryClaimExecutionOutbox,
 } from '@/services/execution-outbox.service'
+import {
+  createWorkerGenerationJob,
+  dispatchWorkerRunDurably,
+} from '@/services/worker-dispatch-outbox.service'
 import { getApiKeyValueById } from '@/services/apiKey.service'
 import { ensureUser } from '@/services/user.service'
-import {
-  reconcileStaleGenerationJob,
-  STALE_EXECUTION_FAILURE_MESSAGE,
-} from '@/services/execution-sweeper.service'
+import { reconcileActiveGenerationJob } from '@/services/execution-sweeper.service'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import { withRetry } from '@/lib/with-retry'
@@ -1200,7 +1199,7 @@ async function submitAudioWorkerRun(params: {
   )
 
   const job = await timer.measure(GENERATION_STAGE.JOB_CREATE, () =>
-    createGenerationJob({
+    createWorkerGenerationJob({
       userId,
       adapterType: route.adapterType,
       provider: providerLabel,
@@ -1257,10 +1256,18 @@ async function submitAudioWorkerRun(params: {
   }
 
   try {
-    const dispatchResult = await timer.measure(
-      GENERATION_STAGE.WORKER_DISPATCH,
-      () => dispatchWorkerRun(runContext),
+    const dispatch = await timer.measure(GENERATION_STAGE.WORKER_DISPATCH, () =>
+      dispatchWorkerRunDurably(runContext),
     )
+    if (!dispatch.delivered) {
+      /*
+       * 送到了没有不知道：**照常把 jobId 交回去**（配音间收到失败就不记这条台词，2026-10-23 线上）。
+       * outbox 留着，状态轮询隔 20 秒补发；Worker 按 job.id 幂等建实例，送到过的不会跑第二遍。
+       * 补几轮都不通，轮询会把任务判成「执行服务连不上」，界面照常给重试。
+       */
+      timer.log({ workflowInstanceId: job.id })
+      return { jobId: job.id, requestId: job.id }
+    }
 
     try {
       await timer.measure(GENERATION_STAGE.DB_FINALIZE, () =>
@@ -1269,7 +1276,7 @@ async function submitAudioWorkerRun(params: {
           data: {
             externalRequestId: serializeAudioQueueMetadata({
               ...metadata,
-              workflowInstanceId: dispatchResult.workflowInstanceId,
+              workflowInstanceId: dispatch.workflowInstanceId,
             }),
           },
         }),
@@ -1279,7 +1286,7 @@ async function submitAudioWorkerRun(params: {
         'Audio workflow accepted but workflow metadata persistence failed',
         {
           jobId: job.id,
-          workflowInstanceId: dispatchResult.workflowInstanceId,
+          workflowInstanceId: dispatch.workflowInstanceId,
           error: error instanceof Error ? error.message : String(error),
         },
       )
@@ -1287,42 +1294,17 @@ async function submitAudioWorkerRun(params: {
 
     logger.info('Audio dispatched to execution worker', {
       jobId: job.id,
-      workflowInstanceId: dispatchResult.workflowInstanceId,
+      workflowInstanceId: dispatch.workflowInstanceId,
       model: route.modelId,
       adapterType: route.adapterType,
     })
-    timer.log({ workflowInstanceId: dispatchResult.workflowInstanceId })
+    timer.log({ workflowInstanceId: dispatch.workflowInstanceId })
 
     return {
       jobId: job.id,
-      requestId: dispatchResult.workflowInstanceId,
+      requestId: dispatch.workflowInstanceId,
     }
   } catch (error) {
-    if (
-      error instanceof ExecutionWorkerDispatchError &&
-      error.outcome === 'unknown'
-    ) {
-      /*
-       * 送到了没有不知道（多半是 Worker 建 Workflow 那一下超过了 10 秒）：任务留着等回调，
-       * **照常把 jobId 交回去**。Workflow 的 id 就是 `job.id`（Worker 端按它幂等建实例），
-       * 晚到的回调会把这条任务写完。
-       *
-       * ⚠ 以前这里是抛错：调用方（配音间）收到失败就不记这条台词，任务却还在跑——声音晚点
-       * 出来了也没处落，用户只看到「生成失败」（2026-10-23 线上）。真没送到的那种，由 sweeper /
-       * 状态轮询按 stale 阈值收成 FAILED，界面照常给重试。
-       */
-      logger.warn(
-        'Audio worker dispatch outcome is unknown; preserving active job for a late callback',
-        {
-          jobId: job.id,
-          error: error.message,
-          upstreamStatus: error.upstreamStatus,
-        },
-      )
-      timer.log({ workflowInstanceId: job.id })
-      return { jobId: job.id, requestId: job.id }
-    }
-
     const message =
       error instanceof Error
         ? error.message
@@ -1348,7 +1330,14 @@ export async function checkAudioGenerationStatus(
   const dbUser = await ensureUser(clerkId)
   const job = await db.generationJob.findUnique({
     where: { id: jobId },
-    include: { generation: true, executionOutbox: true },
+    include: {
+      generation: true,
+      // 只取这条老队列路自己的 submit outbox；派发 outbox（WORKER_DISPATCH）另有 reconcile 管。
+      executionOutboxes: {
+        where: { kind: EXECUTION_OUTBOX_KINDS.AUDIO_QUEUE_SUBMIT },
+        take: 1,
+      },
+    },
   })
 
   if (!job || job.userId !== dbUser.id) {
@@ -1359,13 +1348,9 @@ export async function checkAudioGenerationStatus(
     )
   }
 
-  if (await reconcileStaleGenerationJob(job)) {
-    return {
-      jobId: job.id,
-      status: 'FAILED',
-      error: STALE_EXECUTION_FAILURE_MESSAGE,
-      errorCode: GENERATION_ERROR_CODES.CALLBACK_TIMEOUT,
-    }
+  const reconciled = await reconcileActiveGenerationJob(job)
+  if (reconciled) {
+    return { jobId: job.id, status: 'FAILED', ...reconciled }
   }
 
   if (job.status === 'COMPLETED' && job.generation) {
@@ -1689,7 +1674,7 @@ function toAudioJobState(job: {
   externalRequestId: string | null
   createdAt: Date
   generation: AudioJobState['generation']
-  executionOutbox: AudioExecutionOutboxState | null
+  executionOutboxes: AudioExecutionOutboxState[]
 }): AudioJobState {
   return {
     id: job.id,
@@ -1702,7 +1687,7 @@ function toAudioJobState(job: {
     externalRequestId: job.externalRequestId,
     createdAt: job.createdAt,
     generation: job.generation,
-    executionOutbox: job.executionOutbox,
+    executionOutbox: job.executionOutboxes[0] ?? null,
   }
 }
 

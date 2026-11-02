@@ -30,10 +30,12 @@ import { GenerationStageTimer } from '@/lib/generation-observability'
 import { withoutSearchGrounding } from '@/lib/search-grounding'
 import {
   buildInternalUrl,
-  dispatchImageWorkerRun,
-  ExecutionWorkerDispatchError,
   isExecutionWorkerDispatchConfigured,
 } from '@/services/execution-worker.service'
+import {
+  createWorkerGenerationJob,
+  dispatchWorkerRunDurably,
+} from '@/services/worker-dispatch-outbox.service'
 import {
   GenerateImageServiceError,
   resolveImageRouteAndValidate,
@@ -48,10 +50,7 @@ import {
   getImageInputCount,
   parseWorkerJobMetadata,
 } from '@/services/execution-callback.service'
-import {
-  createGenerationJob,
-  failGenerationJob,
-} from '@/services/usage.service'
+import { failGenerationJob } from '@/services/usage.service'
 import { ensureUser } from '@/services/user.service'
 import { isWaitingForSlot } from '@/services/execution-slot.service'
 import { getCivitaiTokenByInternalUserId } from '@/features/lora/server'
@@ -62,11 +61,7 @@ import {
   prepareOnDemandRunnerCheckpoint,
   prepareRunnerCheckpoint,
 } from '@/services/runner/prepare-runner-checkpoint.service'
-import {
-  reconcileStaleGenerationJob,
-  STALE_EXECUTION_FAILURE_MESSAGE,
-} from '@/services/execution-sweeper.service'
-import { GENERATION_ERROR_CODES } from '@/constants/generation-errors'
+import { reconcileActiveGenerationJob } from '@/services/execution-sweeper.service'
 import { EXECUTION_PROGRESS_STAGES } from '@/constants/generation-progress'
 
 /**
@@ -181,7 +176,8 @@ export async function submitImageGeneration(
     conversationId?: string
   } = {},
 ): Promise<ImageSubmitResponseData> {
-  const createGenerationJobFn = deps.createGenerationJob ?? createGenerationJob
+  const createGenerationJobFn =
+    deps.createGenerationJob ?? createWorkerGenerationJob
 
   const { dbUser, route, provider } = await resolveImageRouteAndValidate(
     clerkId,
@@ -478,7 +474,11 @@ export async function submitImageGeneration(
       },
     }
 
-    const dispatchResult = await dispatchImageWorkerRun(runContext)
+    const dispatch = await dispatchWorkerRunDurably(runContext)
+    if (!dispatch.delivered) {
+      // 送没送到不知道：任务照常交回，状态轮询会从 outbox 补发（Worker 按 job.id 去重）。
+      return { jobId: job.id, requestId: job.id }
+    }
 
     try {
       await db.generationJob.update({
@@ -486,7 +486,7 @@ export async function submitImageGeneration(
         data: {
           externalRequestId: JSON.stringify({
             ...metadata,
-            workflowInstanceId: dispatchResult.workflowInstanceId,
+            workflowInstanceId: dispatch.workflowInstanceId,
           }),
         },
       })
@@ -499,7 +499,7 @@ export async function submitImageGeneration(
         'Image workflow accepted but workflow metadata persistence failed',
         {
           jobId: job.id,
-          workflowInstanceId: dispatchResult.workflowInstanceId,
+          workflowInstanceId: dispatch.workflowInstanceId,
           error: error instanceof Error ? error.message : String(error),
         },
       )
@@ -507,28 +507,13 @@ export async function submitImageGeneration(
 
     logger.info('Image generation dispatched to execution worker', {
       jobId: job.id,
-      workflowInstanceId: dispatchResult.workflowInstanceId,
+      workflowInstanceId: dispatch.workflowInstanceId,
       model: route.modelId,
       routeKind: route.isFreeGeneration ? 'free-tier' : 'user-key',
     })
 
-    return { jobId: job.id, requestId: dispatchResult.workflowInstanceId }
+    return { jobId: job.id, requestId: dispatch.workflowInstanceId }
   } catch (error) {
-    if (
-      error instanceof ExecutionWorkerDispatchError &&
-      error.outcome === 'unknown'
-    ) {
-      logger.warn(
-        'Image worker dispatch outcome is unknown; preserving active job for a late callback',
-        {
-          jobId: job.id,
-          error: error.message,
-          upstreamStatus: error.upstreamStatus,
-        },
-      )
-      throw error
-    }
-
     const message =
       error instanceof Error
         ? error.message
@@ -571,13 +556,9 @@ export async function checkImageGenerationStatus(
     )
   }
 
-  if (await reconcileStaleGenerationJob(job)) {
-    return {
-      jobId: job.id,
-      status: 'FAILED',
-      error: STALE_EXECUTION_FAILURE_MESSAGE,
-      errorCode: GENERATION_ERROR_CODES.CALLBACK_TIMEOUT,
-    }
+  const reconciled = await reconcileActiveGenerationJob(job)
+  if (reconciled) {
+    return { jobId: job.id, status: 'FAILED', ...reconciled }
   }
 
   if (job.status === 'COMPLETED' && job.generationId) {

@@ -24,7 +24,7 @@ vi.mock('@/services/execution-worker.service', () => ({
     }
   },
   isExecutionWorkerDispatchConfigured: vi.fn(),
-  dispatchImageWorkerRun: vi.fn(),
+  dispatchExecutionWorkerRun: vi.fn(),
   buildInternalUrl: (path: string) => `https://app.example.com${path}`,
 }))
 // Provide a real-enough error class without importing the full module (and its
@@ -57,6 +57,38 @@ vi.mock('@/services/image/generate-image.service', () => {
 vi.mock('@/services/generation.service', () => ({
   getGenerationByIdForUser: vi.fn(),
 }))
+// 派发 outbox：测试里直接转给上面 mock 掉的 dispatchExecutionWorkerRun / createGenerationJob，
+// 「送没送到不知道」翻成 delivered: false（真实逻辑见 worker-dispatch-outbox.service.test.ts）。
+vi.mock('@/services/worker-dispatch-outbox.service', async () => {
+  const worker = await import('@/services/execution-worker.service')
+  const usage = await import('@/services/usage.service')
+  return {
+    reconcileWorkerDispatch: async () => null,
+    sweepWorkerDispatchOutboxes: async () => ({
+      redelivered: 0,
+      failed: 0,
+      closed: 0,
+    }),
+    createWorkerGenerationJob: (input: unknown) =>
+      usage.createGenerationJob(input as never),
+    dispatchWorkerRunDurably: async (runContext: unknown) => {
+      try {
+        const result = await worker.dispatchExecutionWorkerRun(
+          runContext as never,
+        )
+        return {
+          delivered: true,
+          workflowInstanceId: result.workflowInstanceId,
+        }
+      } catch (error) {
+        if ((error as { outcome?: string }).outcome === 'unknown') {
+          return { delivered: false }
+        }
+        throw error
+      }
+    },
+  }
+})
 vi.mock('@/services/usage.service', () => ({
   createGenerationJob: vi.fn(),
   failGenerationJob: vi.fn(),
@@ -82,7 +114,7 @@ vi.mock('@/lib/logger', () => ({
 
 import { db } from '@/lib/db'
 import {
-  dispatchImageWorkerRun,
+  dispatchExecutionWorkerRun as dispatchImageWorkerRun,
   ExecutionWorkerDispatchError,
   isExecutionWorkerDispatchConfigured,
 } from '@/services/execution-worker.service'
@@ -602,7 +634,7 @@ describe('submitImageGeneration', () => {
     })
   })
 
-  it('keeps the job active when dispatch may already have been accepted', async () => {
+  it('keeps the job active and hands its id back when dispatch may already have been accepted', async () => {
     setupResolve(AI_ADAPTER_TYPES.OPENAI)
     vi.mocked(isExecutionWorkerDispatchConfigured).mockReturnValue(true)
     vi.mocked(dispatchImageWorkerRun).mockRejectedValue(
@@ -612,9 +644,11 @@ describe('submitImageGeneration', () => {
       ),
     )
 
-    await expect(submitImageGeneration('clerk-1', INPUT)).rejects.toThrow(
-      'worker acknowledgement was lost',
-    )
+    // outbox 留着，状态轮询补发；前端照常拿 jobId 去轮询。
+    await expect(submitImageGeneration('clerk-1', INPUT)).resolves.toEqual({
+      jobId: 'job-1',
+      requestId: 'job-1',
+    })
     expect(failGenerationJob).not.toHaveBeenCalled()
   })
 

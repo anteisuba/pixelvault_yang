@@ -63,7 +63,7 @@ ComfyUI：Modal 上的 ComfyUI 只是一个驱动（runner）。`workflow-builde
 3. 定驱动接口和共用契约，先把 NAI 迁成驱动。
 4. 其余图片供应商逐家迁移，图片流程变成通用流程。
 5. 视频、音频、3D 迁入通用流程；旧流程等在跑的实例结束后再下线（Cloudflare Workflow 实例跑完才能删类）。
-6. 派发统一走 outbox，参考图改直传。
+6. 派发统一走 outbox（11-02 提前做完：`worker-dispatch-outbox.service`，现行做法见 `references/backend.md`「派发 outbox」；扩大试用的闸门之一，所以没等第 3–5 步），参考图改直传（未做）。
 7. 补可观测和契约测试（每家录一份真实响应）。
 
 ## 做完的好处

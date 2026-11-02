@@ -8,6 +8,10 @@ import { GENERATION_ERROR_CODES } from '@/constants/generation-errors'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import { withoutSearchGrounding } from '@/lib/search-grounding'
+import {
+  reconcileWorkerDispatch,
+  sweepWorkerDispatchOutboxes,
+} from '@/services/worker-dispatch-outbox.service'
 
 export const STALE_EXECUTION_FAILURE_MESSAGE =
   'Reaped by execution sweeper: no worker callback within the stale threshold'
@@ -22,6 +26,7 @@ const staleFailureData = (now: Date) => ({
 export interface SweepResult {
   staleJobsReaped: number
   expiredOutboxesReaped: number
+  dispatchOutboxes: { redelivered: number; failed: number; closed: number }
   undeliveredSearchGroundingCleared: number
 }
 
@@ -29,6 +34,35 @@ export interface ReconcileGenerationJobInput {
   id: string
   status: string
   startedAt: Date | null
+}
+
+export interface ReconciledFailure {
+  error: string
+  errorCode: string
+}
+
+/**
+ * 状态轮询的统一兜底：先看派发 outbox（没送到就补发，补不通 / 准备中断就尽快判失败），
+ * 再看 1 小时 stale。返回非空 = 这次把任务判成了 FAILED，调用方直接按失败回给前端。
+ */
+export async function reconcileActiveGenerationJob(
+  job: ReconcileGenerationJobInput,
+  now = new Date(),
+): Promise<ReconciledFailure | null> {
+  const dispatchFailure = await reconcileWorkerDispatch(job, now)
+  if (dispatchFailure) {
+    return {
+      error: dispatchFailure.errorMessage,
+      errorCode: dispatchFailure.errorCode,
+    }
+  }
+  if (await reconcileStaleGenerationJob(job, now)) {
+    return {
+      error: STALE_EXECUTION_FAILURE_MESSAGE,
+      errorCode: GENERATION_ERROR_CODES.CALLBACK_TIMEOUT,
+    }
+  }
+  return null
 }
 
 /**
@@ -113,9 +147,15 @@ export async function sweepStaleExecutions(): Promise<SweepResult> {
     },
   })
 
+  // Worker 派发可以放心补发（Worker 按任务 id 去重），单独走 sweepWorkerDispatchOutboxes。
   const failedAmbiguousOutboxes = await db.executionOutbox.updateMany({
     where: {
-      kind: { not: EXECUTION_OUTBOX_KINDS.IMAGE_PREVIEW_DERIVATIVES },
+      kind: {
+        notIn: [
+          EXECUTION_OUTBOX_KINDS.IMAGE_PREVIEW_DERIVATIVES,
+          EXECUTION_OUTBOX_KINDS.WORKER_DISPATCH,
+        ],
+      },
       status: 'PROCESSING',
       leaseExpiresAt: { lt: now },
     },
@@ -127,18 +167,26 @@ export async function sweepStaleExecutions(): Promise<SweepResult> {
     },
   })
 
+  const dispatchOutboxes = await sweepWorkerDispatchOutboxes(now)
+
   const result: SweepResult = {
     staleJobsReaped: reapedJobs.count,
+    dispatchOutboxes,
     expiredOutboxesReaped:
       requeuedPreviewOutboxes.count + failedAmbiguousOutboxes.count,
     undeliveredSearchGroundingCleared:
       await clearUndeliveredSearchGrounding(now),
   }
 
-  if (result.staleJobsReaped > 0 || result.expiredOutboxesReaped > 0) {
+  if (
+    result.staleJobsReaped > 0 ||
+    result.expiredOutboxesReaped > 0 ||
+    dispatchOutboxes.redelivered + dispatchOutboxes.failed > 0
+  ) {
     logger.warn('Execution sweeper reaped orphaned executions', {
       staleJobsReaped: result.staleJobsReaped,
       expiredOutboxesReaped: result.expiredOutboxesReaped,
+      dispatchOutboxes,
     })
   }
 

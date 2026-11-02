@@ -32,10 +32,12 @@ import {
   inspect3DSourceImageQuality,
   prepare3DSourceImage,
 } from '@/services/image/image-3d-prep.service'
+import { failGenerationJob } from '@/services/usage.service'
 import {
-  createGenerationJob,
-  failGenerationJob,
-} from '@/services/usage.service'
+  createWorkerGenerationJob,
+  dispatchWorkerRunDurably,
+} from '@/services/worker-dispatch-outbox.service'
+import { reconcileActiveGenerationJob } from '@/services/execution-sweeper.service'
 import { buildGenerationFailureResponseFields } from '@/services/generation-failure-response.service'
 import { notifyWorkerCancelBestEffort } from '@/services/generation-cancel.service'
 import { ensureUser } from '@/services/user.service'
@@ -43,12 +45,7 @@ import {
   GenerateImageServiceError,
   resolveGenerationRoute,
 } from '@/services/image/generate-image.service'
-import {
-  buildInternalUrl,
-  dispatchHyper3DRodinWorkerRun,
-  dispatchHunyuan3DWorkerRun,
-  ExecutionWorkerDispatchError,
-} from '@/services/execution-worker.service'
+import { buildInternalUrl } from '@/services/execution-worker.service'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
 
@@ -278,6 +275,11 @@ export async function check3DGenerationStatusForUserId(
       '3D generation job not found',
       404,
     )
+  }
+
+  const reconciled = await reconcileActiveGenerationJob(job)
+  if (reconciled) {
+    return { jobId: job.id, status: 'FAILED', ...reconciled }
   }
 
   if (job.status === 'COMPLETED' && job.generation) {
@@ -675,7 +677,7 @@ async function submitWorker3DGeneration({
           })
   }
 
-  const generationJob = await createGenerationJob({
+  const generationJob = await createWorkerGenerationJob({
     userId,
     adapterType: executionRoute.adapterType,
     provider,
@@ -697,11 +699,6 @@ async function submitWorker3DGeneration({
     rodinTextureOnly: isRodinTextureOnly,
     parentMeshUrl,
   })
-
-  const dispatch =
-    executionRoute.adapterType === AI_ADAPTER_TYPES.HYPER3D_RODIN
-      ? dispatchHyper3DRodinWorkerRun
-      : dispatchHunyuan3DWorkerRun
 
   // Persist callback-critical context before dispatch. Unlike the workflow id
   // (which is always the job id), these source/lineage fields cannot be
@@ -733,23 +730,9 @@ async function submitWorker3DGeneration({
       },
     })
 
-    await dispatch(workerContext)
+    // 送没送到不知道时返回 delivered: false，任务照常交回，状态轮询从 outbox 补发。
+    await dispatchWorkerRunDurably(workerContext)
   } catch (error) {
-    if (
-      error instanceof ExecutionWorkerDispatchError &&
-      error.outcome === 'unknown'
-    ) {
-      logger.warn(
-        '3D worker dispatch outcome is unknown; preserving active job for a late callback',
-        {
-          jobId: generationJob.id,
-          error: error.message,
-          upstreamStatus: error.upstreamStatus,
-        },
-      )
-      throw error
-    }
-
     await failGenerationJob(generationJob.id, {
       errorMessage:
         error instanceof Error ? error.message : 'Worker dispatch failed',

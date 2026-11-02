@@ -24,10 +24,11 @@ import {
   generateStorageKey,
   uploadToR2,
 } from '@/services/storage/r2'
+import { failGenerationJob } from '@/services/usage.service'
 import {
-  createGenerationJob,
-  failGenerationJob,
-} from '@/services/usage.service'
+  createWorkerGenerationJob,
+  dispatchWorkerRunDurably,
+} from '@/services/worker-dispatch-outbox.service'
 import { buildGenerationFailureResponseFields } from '@/services/generation-failure-response.service'
 import {
   getImageInputCount,
@@ -42,8 +43,6 @@ import {
 } from '@/services/image/generate-image.service'
 import {
   buildInternalUrl,
-  dispatchWorkerRun,
-  ExecutionWorkerDispatchError,
   isExecutionWorkerDispatchConfigured,
 } from '@/services/execution-worker.service'
 import { db } from '@/lib/db'
@@ -55,11 +54,7 @@ import {
   GenerationStageTimer,
 } from '@/lib/generation-observability'
 import { validateVideoGenerationInput } from '@/services/video-generation-validation.service'
-import {
-  reconcileStaleGenerationJob,
-  STALE_EXECUTION_FAILURE_MESSAGE,
-} from '@/services/execution-sweeper.service'
-import { GENERATION_ERROR_CODES } from '@/constants/generation-errors'
+import { reconcileActiveGenerationJob } from '@/services/execution-sweeper.service'
 
 /**
  * Video adapters the execution worker knows how to submit and poll. Adding an
@@ -282,7 +277,7 @@ async function submitFalVideoWorkerRun(params: {
   }
 
   const generationJob = await timer.measure(GENERATION_STAGE.JOB_CREATE, () =>
-    createGenerationJob({
+    createWorkerGenerationJob({
       userId,
       adapterType,
       provider,
@@ -341,10 +336,14 @@ async function submitFalVideoWorkerRun(params: {
   }
 
   try {
-    const dispatchResult = await timer.measure(
-      GENERATION_STAGE.WORKER_DISPATCH,
-      () => dispatchWorkerRun(runContext),
+    const dispatch = await timer.measure(GENERATION_STAGE.WORKER_DISPATCH, () =>
+      dispatchWorkerRunDurably(runContext),
     )
+    if (!dispatch.delivered) {
+      // 送没送到不知道：任务照常交回，状态轮询会从 outbox 补发（Worker 按 job.id 去重）。
+      timer.log({ workflowInstanceId: generationJob.id })
+      return { jobId: generationJob.id, requestId: generationJob.id }
+    }
 
     try {
       await timer.measure(GENERATION_STAGE.DB_FINALIZE, () =>
@@ -353,7 +352,7 @@ async function submitFalVideoWorkerRun(params: {
           data: {
             externalRequestId: JSON.stringify({
               ...metadata,
-              workflowInstanceId: dispatchResult.workflowInstanceId,
+              workflowInstanceId: dispatch.workflowInstanceId,
             }),
           },
         }),
@@ -363,7 +362,7 @@ async function submitFalVideoWorkerRun(params: {
         'Video workflow accepted but workflow metadata persistence failed',
         {
           jobId: generationJob.id,
-          workflowInstanceId: dispatchResult.workflowInstanceId,
+          workflowInstanceId: dispatch.workflowInstanceId,
           error: error instanceof Error ? error.message : String(error),
         },
       )
@@ -371,30 +370,15 @@ async function submitFalVideoWorkerRun(params: {
 
     logger.info('FAL video dispatched to execution worker', {
       jobId: generationJob.id,
-      workflowInstanceId: dispatchResult.workflowInstanceId,
+      workflowInstanceId: dispatch.workflowInstanceId,
     })
-    timer.log({ workflowInstanceId: dispatchResult.workflowInstanceId })
+    timer.log({ workflowInstanceId: dispatch.workflowInstanceId })
 
     return {
       jobId: generationJob.id,
-      requestId: dispatchResult.workflowInstanceId,
+      requestId: dispatch.workflowInstanceId,
     }
   } catch (error) {
-    if (
-      error instanceof ExecutionWorkerDispatchError &&
-      error.outcome === 'unknown'
-    ) {
-      logger.warn(
-        'Video worker dispatch outcome is unknown; preserving active job for a late callback',
-        {
-          jobId: generationJob.id,
-          error: error.message,
-          upstreamStatus: error.upstreamStatus,
-        },
-      )
-      throw error
-    }
-
     const message =
       error instanceof Error
         ? error.message
@@ -436,13 +420,9 @@ export async function checkVideoGenerationStatusForUserId(
     )
   }
 
-  if (await reconcileStaleGenerationJob(job)) {
-    return {
-      jobId: job.id,
-      status: 'FAILED',
-      error: STALE_EXECUTION_FAILURE_MESSAGE,
-      errorCode: GENERATION_ERROR_CODES.CALLBACK_TIMEOUT,
-    }
+  const reconciled = await reconcileActiveGenerationJob(job)
+  if (reconciled) {
+    return { jobId: job.id, status: 'FAILED', ...reconciled }
   }
 
   // Already completed — return cached result

@@ -5,7 +5,7 @@ import type { WorkerRunContext } from '@/types'
 
 import {
   buildInternalUrl,
-  dispatchImageWorkerRun,
+  dispatchExecutionWorkerRun,
   ExecutionWorkerDispatchError,
   sendLlmCallLogToWorker,
 } from './execution-worker.service'
@@ -53,7 +53,7 @@ describe('execution-worker.service', () => {
       )
     vi.stubGlobal('fetch', fetchMock)
 
-    const pending = dispatchImageWorkerRun(runContext)
+    const pending = dispatchExecutionWorkerRun(runContext)
     await vi.runAllTimersAsync()
 
     await expect(pending).resolves.toEqual({ workflowInstanceId: 'job-1' })
@@ -90,7 +90,7 @@ describe('execution-worker.service', () => {
       )
     vi.stubGlobal('fetch', fetchMock)
 
-    const error = await dispatchImageWorkerRun(runContext).catch(
+    const error = await dispatchExecutionWorkerRun(runContext).catch(
       (caught: unknown) => caught,
     )
 

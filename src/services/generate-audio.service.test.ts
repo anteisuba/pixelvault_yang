@@ -49,10 +49,43 @@ vi.mock('@/services/execution-worker.service', () => ({
     }
   },
   buildInternalUrl: (path: string) => `http://localhost:3000${path}`,
-  dispatchWorkerRun: (...args: unknown[]) => mockDispatchWorkerRun(...args),
+  dispatchExecutionWorkerRun: (...args: unknown[]) =>
+    mockDispatchWorkerRun(...args),
   shouldUseInlineExecutionFallback: () =>
     mockShouldUseInlineExecutionFallback(),
 }))
+// 派发 outbox：测试里直接转给上面 mock 掉的 dispatchExecutionWorkerRun / createGenerationJob，
+// 「送没送到不知道」翻成 delivered: false（真实逻辑见 worker-dispatch-outbox.service.test.ts）。
+vi.mock('@/services/worker-dispatch-outbox.service', async () => {
+  const worker = await import('@/services/execution-worker.service')
+  const usage = await import('@/services/usage.service')
+  return {
+    reconcileWorkerDispatch: async () => null,
+    sweepWorkerDispatchOutboxes: async () => ({
+      redelivered: 0,
+      failed: 0,
+      closed: 0,
+    }),
+    createWorkerGenerationJob: (input: unknown) =>
+      usage.createGenerationJob(input as never),
+    dispatchWorkerRunDurably: async (runContext: unknown) => {
+      try {
+        const result = await worker.dispatchExecutionWorkerRun(
+          runContext as never,
+        )
+        return {
+          delivered: true,
+          workflowInstanceId: result.workflowInstanceId,
+        }
+      } catch (error) {
+        if ((error as { outcome?: string }).outcome === 'unknown') {
+          return { delivered: false }
+        }
+        throw error
+      }
+    },
+  }
+})
 vi.mock('@/services/providers/registry', () => ({
   getProviderAdapter: vi.fn(),
 }))
@@ -176,20 +209,22 @@ const FAKE_ASYNC_JOB = {
   }),
   createdAt: new Date('2026-04-23T00:00:00.000Z'),
   generation: null,
-  executionOutbox: {
-    id: 'outbox-audio-1',
-    status: 'PENDING' as const,
-    payload: {
-      prompt: 'Hello world',
-      voiceId: undefined,
-      speed: undefined,
-      format: undefined,
-      sampleRate: undefined,
+  executionOutboxes: [
+    {
+      id: 'outbox-audio-1',
+      status: 'PENDING' as const,
+      payload: {
+        prompt: 'Hello world',
+        voiceId: undefined,
+        speed: undefined,
+        format: undefined,
+        sampleRate: undefined,
+      },
+      result: null,
+      leaseExpiresAt: null,
+      lastError: null,
     },
-    result: null,
-    leaseExpiresAt: null,
-    lastError: null,
-  },
+  ],
 }
 const FAKE_USAGE = { id: 'usage-1' }
 const FAKE_GENERATION = {
@@ -1573,11 +1608,13 @@ describe('checkAudioGenerationStatus', () => {
           isFreeGeneration: false,
         },
       }),
-      executionOutbox: {
-        ...FAKE_ASYNC_JOB.executionOutbox,
-        status: 'PROCESSING' as const,
-        leaseExpiresAt: new Date('2026-04-22T23:00:00.000Z'),
-      },
+      executionOutboxes: [
+        {
+          ...FAKE_ASYNC_JOB.executionOutboxes[0],
+          status: 'PROCESSING' as const,
+          leaseExpiresAt: new Date('2026-04-22T23:00:00.000Z'),
+        },
+      ],
     }
     mockGenerationJobFindUnique
       .mockResolvedValueOnce(staleJob)
@@ -1615,7 +1652,7 @@ describe('checkAudioGenerationStatus', () => {
           isFreeGeneration: false,
         },
       }),
-      executionOutbox: null,
+      executionOutboxes: [],
     }
     mockGenerationJobFindUnique
       .mockResolvedValueOnce(incompleteJob)

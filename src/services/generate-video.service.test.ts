@@ -42,6 +42,38 @@ vi.mock('@/services/providers/registry', () => ({
   getProviderAdapter: (...args: unknown[]) => mockGetProviderAdapter(...args),
 }))
 
+// 派发 outbox：测试里直接转给上面 mock 掉的 dispatchExecutionWorkerRun / createGenerationJob，
+// 「送没送到不知道」翻成 delivered: false（真实逻辑见 worker-dispatch-outbox.service.test.ts）。
+vi.mock('@/services/worker-dispatch-outbox.service', async () => {
+  const worker = await import('@/services/execution-worker.service')
+  const usage = await import('@/services/usage.service')
+  return {
+    reconcileWorkerDispatch: async () => null,
+    sweepWorkerDispatchOutboxes: async () => ({
+      redelivered: 0,
+      failed: 0,
+      closed: 0,
+    }),
+    createWorkerGenerationJob: (input: unknown) =>
+      usage.createGenerationJob(input as never),
+    dispatchWorkerRunDurably: async (runContext: unknown) => {
+      try {
+        const result = await worker.dispatchExecutionWorkerRun(
+          runContext as never,
+        )
+        return {
+          delivered: true,
+          workflowInstanceId: result.workflowInstanceId,
+        }
+      } catch (error) {
+        if ((error as { outcome?: string }).outcome === 'unknown') {
+          return { delivered: false }
+        }
+        throw error
+      }
+    },
+  }
+})
 vi.mock('@/services/usage.service', () => ({
   createGenerationJob: (...args: unknown[]) => mockCreateGenerationJob(...args),
   failGenerationJob: (...args: unknown[]) => mockFailGenerationJob(...args),
@@ -443,9 +475,10 @@ describe('generate-video.service worker dispatch', () => {
       vi.fn().mockRejectedValue(new TypeError('fetch failed')),
     )
 
+    // outbox 留着补发，前端照常拿 jobId 去轮询。
     await expect(
       submitVideoGeneration('clerk-1', buildVideoRequest()),
-    ).rejects.toMatchObject({ outcome: 'unknown' })
+    ).resolves.toEqual({ jobId: 'job-1', requestId: 'job-1' })
 
     expect(mockFailGenerationJob).not.toHaveBeenCalled()
   })

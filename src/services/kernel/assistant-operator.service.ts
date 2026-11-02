@@ -10515,7 +10515,8 @@ export function buildCreatorSection(
       : null,
     persona.nextStepHint
       ? '- End every reply after an action with ONE concrete next step, on its own last line. One, never a menu, and never a question they already answered. When an ask card follows your message, the card is the next step — do not also write one.'
-      : null,
+      : // 关掉「附一条下一步」：STABLE 里自看图那一句也会带下一步，这里压过它（后写的赢）。
+        '- Do not suggest a next step at the end of a reply — not after an action, not after reviewing your own pictures. Say what happened and stop; they will tell you what comes next.',
     preference && preference.favoriteStyles.length > 0
       ? `- They usually like: ${preference.favoriteStyles.join(' · ')}`
       : null,

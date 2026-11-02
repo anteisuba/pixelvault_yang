@@ -31,7 +31,7 @@ import { randomImageSeed } from '@/lib/node-image-seed'
 import { cn } from '@/lib/utils'
 import type { AdvancedParams } from '@/types'
 import type { NodeV4GenerationParams } from '@/types/node-workflow'
-import { ModelCapabilityControlPanel } from '@/components/business/studio/StudioModelCapabilityChips'
+import { ModelCapabilityControlPanel } from '@/features/studio'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 

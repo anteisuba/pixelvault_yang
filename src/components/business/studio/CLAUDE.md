@@ -1,5 +1,7 @@
 # src/components/business/studio/ — Studio Workspace Components
 
+> 2026-11-01 起：工作台组件（除 `shell/`、`assistant-operator/` 外）已搬到 `src/features/studio/components/`，`image/` 在 `src/features/studio/components/image/`，LoRA 在 `src/features/lora/`。下面树里写的 `studio/` 指 `features/studio/components/`；`studio-shared/` 仍在原处（多个域共用）。
+
 ## Risk Level: HIGH (`studio/` + `studio-shared/` 全部组件共享 3 个 context)
 
 现行方向 A「连续对话与结果优先」：工具记录默认折叠，失败摘要独立显示，没有五动词常驻条和「参考依据」折叠。现行增量契约见 `docs/references/pages/assistant-shell-v2.md` 的 A 方向节。
@@ -23,7 +25,7 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
         │   │   │    首 / 尾帧是角标、点一格换角色或移除；最右一行只读灰字说这一枪怎么发)
         │   │   ├── StudioVideoAssetChip (studio/ — 视频台工具行「素材」：唯一的「＋」，挂满 / 这个型号不收的那一项灰着写原因)
         │   │   └── StudioVideoPromptInput (studio/ — 视频档提示词框：按模型写法把素材编号渲染成缩略图胶囊，存储仍是原文)
-        │   └── stage: StudioCanvas (studio-shared/chrome/；外面套一层 `StudioStageSwap`（同目录）在结果与一块舞台面板之间换场 —— 模板面板 `templates/StudioTemplatesPanel`（每一台都有，模板 C：点一张直接套用；手机走 `variant="phone"`；撤销条 `templates/StudioTemplateUndoToast` 挂在输入框卡 / 手机输入条 / 标签台底栏上沿，竖排参数栏那一台（音频）挂在舞台底部（`StudioWorkbenchLayout.stageOverlay`）；开合与套用 / 撤销快照住在 `StudioWorkspaceUI` + `hooks/use-studio-template-apply.ts`，模型清单按档取 `hooks/use-studio-mode-model-options.ts`），标签台另有查资料 / 构图；结果层不卸载只藏)
+        │   └── stage: StudioCanvas (studio-shared/chrome/；外面套一层 `StudioStageSwap`（同目录）在结果与一块舞台面板之间换场 —— 模板面板 `templates/StudioTemplatesPanel`（每一台都有，模板 C：点一张直接套用；手机走 `variant="phone"`；撤销条 `templates/StudioTemplateUndoToast` 挂在输入框卡 / 手机输入条 / 标签台底栏上沿，竖排参数栏那一台（音频）挂在舞台底部（`StudioWorkbenchLayout.stageOverlay`）；开合与套用 / 撤销快照住在 `StudioWorkspaceUI` + `features/studio/hooks/use-studio-template-apply.ts`，模型清单按档取 `features/studio/hooks/use-studio-mode-model-options.ts`），标签台另有查资料 / 构图；结果层不卸载只藏)
         │       ├── StudioReferenceRail (studio-shared/chrome/ — 参考轨，与结果并存；`bottom` 布局不画（`referenceRail={false}`），附件在输入框里)
         │       ├── GenerationPreview (studio/ — current result)
         │       ├── CompareGrid (image/ — 共享图墙：多模型 / 多张 / 矩阵)

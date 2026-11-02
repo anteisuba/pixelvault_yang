@@ -947,7 +947,7 @@ When the choice is "which reference image", put the asset URL in "assetUrl" inst
 | --- | -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | 2   | `prime_generate` 不是生成：服务端只吐 op，点的人永远是用户；它仍算「写」类，照样带 `inverse` | `src/constants/assistant-operator.ts` 的 `ASSISTANT_OPERATOR_TOOL_IDS.primeGenerate`（钱闸总纲在同文件顶部的文件头注） |
 | 3   | 目标字段已有用户手写内容时先走确认通道                                                       | `assistant-operator.ts` 的 `ASSISTANT_OPERATOR_EVENTS.confirmRequest` · `StudioOperatorChangeRail`                     |
-| 4   | 归属追踪的「领票口」：自动只看它自己备的那次，用户自己发的不打扰                             | `src/components/business/studio/StudioPromptArea.test.tsx`（判据钉在测试里）                                           |
+| 4   | 归属追踪的「领票口」：自动只看它自己备的那次，用户自己发的不打扰                             | `src/features/studio/components/StudioPromptArea.test.tsx`（判据钉在测试里）                                           |
 | 6   | 证据长在结论里——评价卡内嵌它评的那张图                                                       | `StudioOperatorCritiqueCard` 文件头注 · `StudioOperatorLogItem` 的 `critique_result` 分支                              |
 | 7   | 收起不掐在飞的那一轮：驱动 hook 调在**外壳**层，不在面板里                                   | `StudioOperatorDock`（`useAssistantOperator` 的调用点）                                                                |
 | 8   | 一个助手跨域，域是头部一枚 chip；切域换工具、不断会话（音频档有意不挂）                      | `StudioWorkspaceUI` 的 `isOperatorSurface` · `assistant-operator.ts` 的 `ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN`           |
@@ -1136,7 +1136,7 @@ When the choice is "which reference image", put the asset URL in "assetUrl" inst
 
 ## Source of Truth
 
-- 面板与常量：`src/constants/studio-assistant-operator.ts` · `src/constants/assistant-operator.ts` · `src/components/business/studio/assistant-operator/**` · `src/components/business/StudioWorkspaceUI.tsx`
+- 面板与常量：`src/constants/studio-assistant-operator.ts` · `src/constants/assistant-operator.ts` · `src/components/business/studio/assistant-operator/**` · `src/features/studio/components/StudioWorkspaceUI.tsx`
 - 产物名与 `@` 解析：`src/constants/generation-naming.ts` · `src/lib/generation-name.ts`
 - 断点续跑：`src/types/studio-operator-resume.ts` · `src/lib/studio-operator-resume.ts` · `src/constants/studio-assistant-operator.ts`（`STUDIO_OPERATOR_RESUME` / TTL）
 - 只重跑下游：`src/lib/node-rerun-downstream.ts` · `src/lib/node-downstream.ts` · `src/lib/canvas-rerun-request.ts`

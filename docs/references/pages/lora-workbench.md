@@ -228,7 +228,7 @@ owner 的「推荐搭配」诉求，用**已有数据**落地——当前分组 
 
 ## 5. 生成页 · tag 补全（G4）
 
-新组件 `PromptTagAutocomplete`（`components/business/studio/prompt-tags/`，通用件，首发挂 LoRA 生成页正/负两个 textarea；Studio 图像页复用列 non-goal）：
+新组件 `PromptTagAutocomplete`（`features/lora/components/prompt-tags/`，通用件，首发挂 LoRA 生成页正/负两个 textarea；Studio 图像页复用列 non-goal）：
 
 - **触发**：光标所在词段（最近 `,` 或换行之后的文本 trim）长度 ≥2 触发；IME composition 期间不触发（compositionstart/end 守卫——中文输入法拼音阶段不弹）；debounce 150ms。
 - **引擎**：`searchPromptTags({ query: 词段, polarity: 所在框极性, limit: 8 })`——零新检索代码。

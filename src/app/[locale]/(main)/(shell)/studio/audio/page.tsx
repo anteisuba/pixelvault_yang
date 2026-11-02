@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 
-import { VoiceBench } from '@/components/business/studio/voice-bench/VoiceBench'
+import { VoiceBench } from '@/features/studio'
 import type { AppLocale } from '@/i18n/routing'
 
 interface StudioAudioPageProps {

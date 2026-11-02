@@ -49,7 +49,6 @@
 
 | id                   | 事项                                                   |
 | -------------------- | ------------------------------------------------------ |
-| `f-cards-lora`       | 角色卡与 LoRA 域                                       |
 | `f-studio`           | 工作台域                                               |
 | `f-assistant-canvas` | 助手与画布（助手新内核已在 `src/features/assistant/`） |
 | `f-boundary`         | 加 eslint 边界规则，禁止跨域直引                       |
@@ -142,7 +141,8 @@
 
 ### 按域搬家（11-01 起）
 
-- `f-small` 四个小域搬进 `src/features/<域>/`（11-01）：提示词库 f623e53、画廊 5d43604、素材 0019dac、设置 4cdc1f8。每域一个提交，`index.ts`（客户端）/ `server.ts`（服务端）两个入口，调用方同提交改完不留垫片。规矩与清单见 [`design/features-migration.md`](design/features-migration.md)；API key、拖拽 MIME、网格排版这些跨域的留在共享层
+- `f-small` 四个小域搬进 `src/features/<域>/`（11-01）：提示词库 c6c3d7e、画廊 19b7d27、素材 b01be1d、设置 f5b6ffd。每域一个提交，`index.ts`（客户端）/ `server.ts`（服务端）两个入口，调用方同提交改完不留垫片。规矩与清单见 [`design/features-migration.md`](design/features-migration.md)；API key、拖拽 MIME、网格排版这些跨域的留在共享层
+- `f-cards-lora` 角色卡 a665a53、LoRA edb93fe（11-01）：角色卡的 hooks / services / 组件进 `features/cards/`；LoRA 工作台、库、训练、civitai / huggingface 那一套进 `features/lora/`。新加第三个入口 `core.ts`（纯函数与常量）：域外只要一个小函数时不用把整个域的组件一起加载
 
 ### 角色大项目（`p-character-redesign`，10-30 → 11-01 直推 main）
 

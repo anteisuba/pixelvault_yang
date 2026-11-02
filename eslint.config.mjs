@@ -3,123 +3,42 @@ import nextVitals from 'eslint-config-next/core-web-vitals'
 import nextTs from 'eslint-config-next/typescript'
 import prettier from 'eslint-config-prettier'
 
-// Boundary rules — scoped per spec. Other modules opt in once their
-// respective specs land. See:
-//   docs/spark/2026-05-28-architecture-contract-design.md (Spec 1)
-//   docs/spark/2026-05-28-spec-2-studio-shared-layer.md (Spec 2)
-//   docs/spark/2026-05-28-spec-3-cards-module.md (Spec 3)
-//   docs/spark/2026-05-28-spec-4-image-module.md (Spec 4)
-//   docs/spark/roadmap.md
-
-/** L1+ paths that L0 Shared Kernel must NEVER import from. */
-const KERNEL_FORBIDDEN_PATTERNS = [
-  {
-    group: [
-      '@/services/prompts/**',
-      '@/services/gallery/**',
-      '@/services/assets/**',
-      '@/services/cards/**',
-      '@/services/image/**',
-      '@/hooks/prompts/**',
-      '@/hooks/gallery/**',
-      '@/hooks/assets/**',
-      '@/hooks/cards/**',
-      '@/hooks/image/**',
-      '@/components/business/prompts/**',
-      '@/components/business/gallery/**',
-      '@/components/business/assets/**',
-      '@/components/business/cards/**',
-      '@/components/business/image/**',
-      '@/services/node/**',
-      '@/hooks/node/**',
-      '@/components/business/node/**',
-    ],
-    message:
-      'L0 Shared Kernel must not import from L1+ modules. See docs/spark/2026-05-28-architecture-contract-design.md §3.2.',
-  },
-  {
-    group: ['@/app/**', '@/contexts/**'],
-    message:
-      'L0 Shared Kernel must not import from app routes or React contexts (those are L1+).',
-  },
+// 域边界（f-boundary，2026-11-02）。规矩见 docs/design/features-migration.md：
+// 业务按域住在 src/features/<域>/，域外只走四个入口——
+//   @/features/<域>         客户端组件
+//   @/features/<域>/hooks   客户端 hook（不会把组件一起加载）
+//   @/features/<域>/core    纯函数与常量
+//   @/features/<域>/server  服务端
+// 域内互相引用随便写完整路径。测试文件不拦（vi.mock 要按真实文件 mock）。
+const FEATURE_DOMAINS = [
+  'assets',
+  'assistant',
+  'canvas',
+  'cards',
+  'gallery',
+  'lora',
+  'prompts',
+  'settings',
+  'studio',
 ]
-
-/** Sibling L1 modules that L1 Prompts must NEVER import from. */
-const PROMPTS_FORBIDDEN_SIBLINGS = [
-  {
-    group: [
-      '@/services/gallery/**',
-      '@/services/assets/**',
-      '@/services/cards/**',
-      '@/hooks/gallery/**',
-      '@/hooks/assets/**',
-      '@/hooks/cards/**',
-      '@/components/business/gallery/**',
-      '@/components/business/assets/**',
-      '@/components/business/cards/**',
-    ],
-    message:
-      'L1 content domains must not import from sibling L1 modules. Route through L0 Shared Kernel or use a cross-cutting capability there.',
-  },
+const FEATURE_ENTRY_ALLOW = [
+  '!@/features/*/hooks',
+  '!@/features/*/core',
+  '!@/features/*/server',
 ]
-
-/** Sibling L1 modules that L1 Cards must NEVER import from. */
-const CARDS_FORBIDDEN_SIBLINGS = [
-  {
-    group: [
-      '@/services/gallery/**',
-      '@/services/assets/**',
-      '@/services/prompts/**',
-      '@/hooks/gallery/**',
-      '@/hooks/assets/**',
-      '@/hooks/prompts/**',
-      '@/components/business/gallery/**',
-      '@/components/business/assets/**',
-      '@/components/business/prompts/**',
-    ],
-    message:
-      'L1 content domains must not import from sibling L1 modules. Route through L0 Shared Kernel or use a cross-cutting capability there.',
-  },
-]
-
-/** L2 tools / L3 orchestrator paths that L1.5 Studio Shared must NEVER import from.
- *
- * Note: @/components/business/image/** is intentionally NOT in this list yet.
- * Spec 4 surfaced that StudioCanvas / StudioBottomDock (relocated by Spec 2)
- * still import 5 Image-owned components (CompareGrid, StudioGenerationErrorDialog,
- * StudioResultFeedback, VariantGrid, StudioKeepChangePanel). These are real
- * pre-existing L1.5 → L2 upward dependencies that need StudioCanvas/BottomDock
- * to be split or relocated before they can be enforced. Spec 6 owns that work.
- */
-const STUDIO_SHARED_FORBIDDEN_PATTERNS = [
-  {
-    group: [
-      '@/components/business/studio/edit/**',
-      '@/components/business/studio/lora/**',
-      '@/components/business/studio/node/**',
-    ],
-    message:
-      'L1.5 Studio Shared must not import from L2 tools (edit/lora) or L3 orchestrator (node). Tools call into shared, not the other way around.',
-  },
-  {
-    group: ['@/app/**'],
-    message:
-      'L1.5 Studio Shared must not import from app routes — keep components pure UI.',
-  },
-]
-
-/** L3 Node and app paths that L2 Image must NEVER import from. */
-const IMAGE_FORBIDDEN_PATTERNS = [
-  {
-    group: ['@/components/business/studio/node/**'],
-    message: 'L2 Image must not import from L3 orchestrator (Node).',
-  },
-  {
-    group: ['@/app/**'],
-    message:
-      'L2 Image must not import from app routes — services/hooks are pure logic.',
-  },
-]
+const featureDeepImportPattern = (ownDomain) => ({
+  group: [
+    '@/features/*/**',
+    ...FEATURE_ENTRY_ALLOW,
+    ...(ownDomain ? [`!@/features/${ownDomain}/**`] : []),
+  ],
+  message:
+    '跨域只走入口：@/features/<域>（组件）· /hooks · /core · /server。见 docs/design/features-migration.md。',
+})
+const NO_APP_ROUTES_PATTERN = {
+  group: ['@/app/**', '!@/app/**/*.css'],
+  message: '组件 / hook / service 不引 app 路由文件（样式表除外）。',
+}
 
 /** Icons come from `@/components/icons` (Phosphor base). `lucide-react` is no
  * longer a dependency, so the gate exists to keep it from coming back.
@@ -179,92 +98,43 @@ const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
   prettier,
-  // ─── Spec 1 boundary rules ─────────────────────────────────────
+  // ─── 域边界（f-boundary）───────────────────────────────────────
+  // flat config 里同一条规则后一个块会整块替换前一个块的 options，所以每个
+  // 文件只落进下面其中一个块：共享层一块、每个域各一块。
   {
-    files: [
-      'src/services/kernel/**/*.{ts,tsx}',
-      'src/hooks/kernel/**/*.{ts,tsx}',
-    ],
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/features/**', '**/*.test.{ts,tsx}'],
     rules: {
       'no-restricted-imports': [
         'error',
-        { patterns: KERNEL_FORBIDDEN_PATTERNS },
+        { patterns: [featureDeepImportPattern(null)] },
       ],
     },
   },
-  {
-    files: [
-      'src/services/prompts/**/*.{ts,tsx}',
-      'src/hooks/prompts/**/*.{ts,tsx}',
-      'src/components/business/prompts/**/*.{ts,tsx}',
-    ],
-    rules: {
-      'no-restricted-imports': [
-        'error',
-        { patterns: PROMPTS_FORBIDDEN_SIBLINGS },
-      ],
-    },
-  },
-  // ─── Spec 2 boundary rules ─────────────────────────────────────
   {
     files: ['src/components/business/studio-shared/**/*.{ts,tsx}'],
-    rules: {
-      'no-restricted-imports': [
-        'error',
-        { patterns: STUDIO_SHARED_FORBIDDEN_PATTERNS },
-      ],
-    },
-  },
-  // ─── Spec 3 boundary rules ─────────────────────────────────────
-  {
-    files: [
-      'src/services/cards/**/*.{ts,tsx}',
-      'src/hooks/cards/**/*.{ts,tsx}',
-      'src/components/business/cards/**/*.{ts,tsx}',
-    ],
-    rules: {
-      'no-restricted-imports': [
-        'error',
-        { patterns: CARDS_FORBIDDEN_SIBLINGS },
-      ],
-    },
-  },
-  // ─── Spec 4 boundary rules ─────────────────────────────────────
-  {
-    files: [
-      'src/services/image/**/*.{ts,tsx}',
-      'src/hooks/image/**/*.{ts,tsx}',
-      'src/components/business/image/**/*.{ts,tsx}',
-    ],
-    rules: {
-      'no-restricted-imports': [
-        'error',
-        { patterns: IMAGE_FORBIDDEN_PATTERNS },
-      ],
-    },
-  },
-  // ─── Spec 5a boundary rules ────────────────────────────────────
-  {
-    files: [
-      'src/services/node/**/*.{ts,tsx}',
-      'src/hooks/node/**/*.{ts,tsx}',
-      'src/components/business/node/**/*.{ts,tsx}',
-    ],
+    ignores: ['**/*.test.{ts,tsx}'],
     rules: {
       'no-restricted-imports': [
         'error',
         {
-          patterns: [
-            {
-              group: ['@/app/**'],
-              message:
-                'L3 Node must not import from app routes — components/hooks/services are pure logic.',
-            },
-          ],
+          patterns: [featureDeepImportPattern(null), NO_APP_ROUTES_PATTERN],
         },
       ],
     },
   },
+  ...FEATURE_DOMAINS.map((domain) => ({
+    files: [`src/features/${domain}/**/*.{ts,tsx}`],
+    ignores: ['**/*.test.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [featureDeepImportPattern(domain), NO_APP_ROUTES_PATTERN],
+        },
+      ],
+    },
+  })),
   // ─── E1-b · Phosphor icon gate ─────────────────────────────────
   // Every icon in `src/**` resolves through `@/components/icons`. The whole
   // tree is migrated and `lucide-react` is uninstalled, so this is one entry,
@@ -318,6 +188,8 @@ const eslintConfig = defineConfig([
       'src/hooks/**/*.{ts,tsx}',
       'src/components/**/*.{ts,tsx}',
       'src/contexts/**/*.{ts,tsx}',
+      'src/features/*/components/**/*.{ts,tsx}',
+      'src/features/*/hooks/**/*.{ts,tsx}',
     ],
     ignores: ['src/lib/api-client/api-fetch.ts', '**/*.test.{ts,tsx}'],
     rules: {

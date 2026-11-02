@@ -63,3 +63,24 @@ src/features/<域>/
 - `components/business/studio/lora/**`、`LoraTrainingDialog`、名字带 lora / civitai / huggingface 的 hooks / services / lib / constants、`services/lora/*`、`hooks/prompts/use-civitai-*`、`use-runner-usage` → `features/lora/`
 - 留着：`constants/lora.ts`、`constants/lora-candidate.ts`（`types/` 在引）、`lib/civitai-lora-reference`（`api-client` 在引）、`lib/assistant-v3-lora-board`（助手）、`services/runner/*`（执行层）
 - 测试里 `vi.mock` 仍按域内完整路径 mock（入口是转出口，mock 底下那个文件对入口同样生效）；要 mock 入口本身时，用到的名字得全给
+
+### studio（工作台，11-02 已搬）
+
+- `components/business/studio/**`（除 `shell/`、`assistant-operator/`）、`components/business/image/*`、`StudioWorkspaceUI` / `Studio3DWorkspace` / `StudioModeSync`、只给工作台用的 `use-studio-*` hook、`studio-generate` / `studio-conversation-activity` 服务 → `features/studio/`
+- `prompt-tags/` 只有 LoRA 台在用 → `features/lora/components/prompt-tags/`；`GenerationLayerStrip`（画廊和大图弹窗用）、`VoiceTrainer`（声音用）不归工作台，回到 `components/business/`
+- 留着：`studio-shared/`（九个域都在用，是共享层）、`studio/shell/`（外壳）、`contexts/studio-context`、`use-image-*` / `use-studio-run-models` / `use-studio-video-assets` 等共享层在用的 hook
+
+### assistant（助手，11-02 已搬）
+
+- `studio/assistant-operator/**` → `features/assistant/components/operator/`，`assistant-settings/*` → `components/settings/`；`use-studio-operator-*` / `use-assistant-*` / 各宿主 hook → `hooks/`；`services/assistant-*`、`services/kernel/assistant-*` → `services/`
+- 留着：`services/kernel/assistant-route` / `assistant-completion`（大模型调用层，人人在用）、`use-assistant-persona` / `use-studio-operator-history` / `use-studio-operator-store`（共享层在用）、`lib/` 与 `constants/` 里的助手纯函数（类型层在引）
+
+### canvas（画布，11-02 已搬）
+
+- `components/business/node/**` → `features/canvas/components/`（含目录 `CLAUDE.md`）、`hooks/node/*`、`services/node/*`、`lib/node-assistant-op-plan` → `features/canvas/`
+- `parse-mentions` 是共享层纯函数 → `src/lib/node-parse-mentions.ts`；`VoiceAvatar` 归声音 → `components/business/voices/`
+- 留着：`lib/node-*` 其余纯函数（剪辑台、助手快照等共享代码在用）、`constants/node-*`
+
+## 边界（`f-boundary`，11-02）
+
+`eslint.config.mjs` 的 `no-restricted-imports`：域外引 `@/features/<域>/…` 深路径一律报错，只放行 `@/features/<域>`、`/hooks`、`/core`、`/server`；域内随便。测试文件不拦。组件 / hook / service 不引 `@/app/**`（样式表除外）。前台请求门（组件 / hook 不裸 `fetch`）同样管到 `features/*/components`、`features/*/hooks`。

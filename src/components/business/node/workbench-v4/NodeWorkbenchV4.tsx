@@ -96,7 +96,7 @@ import {
   CANVAS_NEW_PROJECT_QUERY_VALUE,
   STUDIO_CHARACTER_QUERY,
 } from '@/constants/routes'
-import { useCharacterLibrary } from '@/features/cards'
+import { useCharacterLibrary } from '@/features/cards/hooks'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useThemePreference } from '@/hooks/use-theme-preference'
 import { useCanvasShellPanelHost } from '@/hooks/node/use-canvas-shell-panel'

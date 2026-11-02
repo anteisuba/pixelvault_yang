@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
-import type { UseCharacterLorasReturn } from '@/features/cards'
+import type { UseCharacterLorasReturn } from '@/features/cards/hooks'
 import type { CharacterLoraGroup, FavoriteLoraRequest } from '@/types'
 import { CharacterLorasProvider } from '@/features/lora/components/character-loras-context'
 

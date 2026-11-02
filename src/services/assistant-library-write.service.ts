@@ -32,7 +32,7 @@ import {
 import { resolveAdapterType } from '@/constants/models'
 import { db } from '@/lib/db'
 import { Prisma } from '@/lib/generated/prisma/client'
-import { appendSlotSources } from '@/features/cards'
+import { appendSlotSources } from '@/features/cards/hooks'
 import { applyPersonaField } from '@/lib/character-persona-fields'
 import {
   markCharacterRevisionReverted,

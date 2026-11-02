@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
 import { PROFILE } from '@/constants/config'
-import { useCharacterLibrary } from '@/features/cards'
+import { useCharacterLibrary } from '@/features/cards/hooks'
 import { useVoiceLibrary } from '@/hooks/use-voice-library'
 import { useVoiceSamplePreview } from '@/hooks/use-voice-sample-preview'
 import {

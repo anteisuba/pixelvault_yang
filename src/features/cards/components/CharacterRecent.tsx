@@ -28,7 +28,7 @@ import type { CharacterStickerRecord } from '@/types/character-sticker'
 import {
   OutingCard,
   SOURCE_KEYS,
-  tokensToPoints,
+  shownOutingPoints,
   useOutingSourceLabel,
 } from '@/features/cards/components/CharacterOutingCard'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -277,7 +277,7 @@ export function OutingEvent({
     const detail = [
       t('findingCount', { count: findings.length }),
       tOuting('runPoints', {
-        count: Math.min(run.budgetPoints, tokensToPoints(run.usedTokens)),
+        count: shownOutingPoints(run),
       }),
       ...(run.endReason && run.endReason !== 'budget'
         ? [tOuting(`end.${run.endReason}`)]

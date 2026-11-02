@@ -65,7 +65,7 @@ import { writeJournal } from './character-reflection.service'
  *
  * ⭐ 一段函数跑不完（Vercel 300 s）：跑满 `chunkMs` 就放掉占位、自己调内部接口接着跑下一段；
  *   那一下没打通，角色页读状态时发现占位过期也会接上（`resumeStaleOuting`）。
- * ⭐ 写日记那一份从一开始就留着（`diaryReserveTokens`），逛的那几轮碰不到它。
+ * ⭐ 写日记那一份从一开始就留着（`diaryReserveTokens` 按型号单价折点），逛的那几轮碰不到它。
  * ⚠ 卡不是你的 / 已删 → `null`（路由出 404）。
  */
 
@@ -79,6 +79,7 @@ const RUN_SELECT = {
   pinnedVideos: true,
   budgetPoints: true,
   usedTokens: true,
+  usedPoints: true,
   kept: true,
   nowLabel: true,
   endReason: true,
@@ -97,6 +98,7 @@ type RunRow = {
   pinnedVideos: unknown
   budgetPoints: number
   usedTokens: number
+  usedPoints: number
   kept: number
   nowLabel: string | null
   endReason: string | null
@@ -153,7 +155,9 @@ function toRun(row: RunRow): CharacterOutingRun {
     videos: row.videos,
     pinnedVideos: readPinned(row.pinnedVideos),
     budgetPoints: row.budgetPoints,
-    usedTokens: row.usedTokens,
+    usedPoints:
+      row.usedPoints ||
+      row.usedTokens / CHARACTER_OUTING.fallbackTokensPerPoint,
     kept: row.kept,
     nowLabel: row.nowLabel,
     endReason:
@@ -401,12 +405,19 @@ export async function runOutingChunk(outingId: string): Promise<void> {
   })
   if (!outing) return
   const card = outing.characterCard
-  const total = outing.budgetPoints * CHARACTER_OUTING.tokensPerPoint
-  // 逛的那几轮碰不到写日记那一份。
+  const total = outing.budgetPoints
+  // 逛的那几轮碰不到写日记那一份。第 5 片之前开跑的那几趟只记了 token，按旧口径接上。
   const meter = new OutingMeter(
-    total - CHARACTER_OUTING.diaryReserveTokens,
-    outing.usedTokens,
-  )
+    total,
+    outing.usedPoints ||
+      outing.usedTokens / CHARACTER_OUTING.fallbackTokensPerPoint,
+  ).reserve({
+    input:
+      CHARACTER_OUTING.diaryReserveTokens -
+      CHARACTER_OUTING.outputReserveTokens,
+    output: CHARACTER_OUTING.outputReserveTokens,
+  })
+  meter.usedTokens = outing.usedTokens
   meter.calls = outing.calls
   let { kept, rounds, emptyRounds } = outing
   let routeInfo: AssistantRoute | null = null
@@ -416,7 +427,10 @@ export async function runOutingChunk(outingId: string): Promise<void> {
     endReason: CharacterOutingEndReason,
   ) => {
     if (routeInfo && kept > 0 && !card.isDeleted) {
-      const diaryMeter = new OutingMeter(total, meter.usedTokens)
+      const diaryMeter = new OutingMeter(total, meter.usedPoints).useModel(
+        routeInfo.modelId,
+      )
+      diaryMeter.usedTokens = meter.usedTokens
       diaryMeter.calls = meter.calls
       await writeOutingDiary({
         userId: outing.userId,
@@ -425,6 +439,7 @@ export async function runOutingChunk(outingId: string): Promise<void> {
         route: { ...routeInfo, meter: diaryMeter },
       })
       meter.usedTokens = diaryMeter.usedTokens
+      meter.usedPoints = diaryMeter.usedPoints
       meter.calls = diaryMeter.calls
     }
     await db.characterOuting.update({
@@ -433,6 +448,7 @@ export async function runOutingChunk(outingId: string): Promise<void> {
         status,
         endReason,
         usedTokens: meter.usedTokens,
+        usedPoints: meter.usedPoints,
         calls: meter.calls,
         kept,
         rounds,
@@ -452,6 +468,7 @@ export async function runOutingChunk(outingId: string): Promise<void> {
       rounds,
       kept,
       usedTokens: meter.usedTokens,
+      usedPoints: meter.usedPoints,
     })
   }
 
@@ -460,6 +477,7 @@ export async function runOutingChunk(outingId: string): Promise<void> {
       where: { id: outing.id },
       data: {
         usedTokens: meter.usedTokens,
+        usedPoints: meter.usedPoints,
         calls: meter.calls,
         kept,
         rounds,
@@ -490,6 +508,7 @@ export async function runOutingChunk(outingId: string): Promise<void> {
     routeInfo = await resolveAssistantRoute(outing.userId, {
       routeModel: outing.model,
     })
+    meter.useModel(routeInfo.modelId)
     const route: BrowseRoute = { ...routeInfo, meter }
     const allowed = availableBrowseSources(routeInfo.route.adapterType)
     const picked = outing.sources.length
@@ -525,6 +544,7 @@ export async function runOutingChunk(outingId: string): Promise<void> {
           pinnedDone: true,
           kept,
           usedTokens: meter.usedTokens,
+          usedPoints: meter.usedPoints,
           calls: meter.calls,
         },
         select: { id: true },
@@ -544,6 +564,7 @@ export async function runOutingChunk(outingId: string): Promise<void> {
           where: { id: outing.id },
           data: {
             usedTokens: meter.usedTokens,
+            usedPoints: meter.usedPoints,
             calls: meter.calls,
             kept,
             rounds,

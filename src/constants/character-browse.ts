@@ -80,14 +80,16 @@ export const CHARACTER_BROWSE = {
 /**
  * 一趟出门（角色大项目第 ⑤ 步，owner 10-29/10-30）：弹框选模型 · 来源 · 额度，你点一次去一次。
  *
- * ⭐ 额度按真实 token 折点：1 点 ≈ 1 万 token，跟用哪个模型无关。**一点都不超**（owner 10-30）：每次
- *   调模型前按上限估一把（字数当 token、每张图 `imageTokens`、回答留 `outputReserveTokens`），估得
- *   超了就收工；provider 报回来的才是实扣。
+ * ⭐ 额度按钱算（平台点数第 5 片，owner 11-01：1 点 = 1 美分，跟全站一套）：每次调用的 token 按
+ *   所选型号的单价（`constants/models/llm-prices.ts`）折点，所以贵的型号逛得短、便宜的逛得长。
+ *   **一点都不超**（owner 10-30）：每次调模型前按上限估一把（字数当 token、每张图 `imageTokens`、
+ *   回答留 `outputReserveTokens`），估得超了就收工；provider 报回来的才是实扣。
  * ⭐ 回来写一篇日记，那一篇的花费从一开始就留着（`diaryReserveTokens`）。
  * ⭐ 一段函数跑不完（Vercel 300 s）就接着下一段：占着 `leaseUntil`，过了没人续就由读状态的那一下接着跑。
  */
 export const CHARACTER_OUTING = {
-  tokensPerPoint: 10_000,
+  /** 型号没有可信单价时的旧口径（1 点 ≈ 1 万 token）。 */
+  fallbackTokensPerPoint: 10_000,
   budgetChoices: [10, 30, 60] as const,
   defaultBudget: 30,
   minBudget: 5,
@@ -108,7 +110,7 @@ export const CHARACTER_OUTING = {
   outputReserveTokens: 1_500,
   /** 模型自带网搜不报 token：一次按这么多算。 */
   nativeSearchTokens: 8_000,
-  /** 弹框里「约 N 篇文章」的折算。 */
+  /** 弹框里「约 N 篇文章」的折算：一篇约这么多 token（输入为主，回答那一份按 `outputReserveTokens`）。 */
   tokensPerArticle: 15_000,
   /** 跑着时角色页多久问一次进度。 */
   pollMs: 3_000,

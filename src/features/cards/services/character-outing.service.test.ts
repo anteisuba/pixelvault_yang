@@ -69,7 +69,7 @@ vi.mock('./character-browse.service', async () => {
 
 import { NODE_STUDIO_ASSISTANT_ROUTE_MODELS } from '@/constants/node-studio'
 import { ApiKeyError } from '@/lib/errors'
-import { OutingBudgetExhausted } from './character-browse.service'
+import { OutingBudgetExhausted, OutingMeter } from './character-browse.service'
 import {
   runOutingChunk,
   startOutingForClerkId,
@@ -293,7 +293,7 @@ describe('runOutingChunk', () => {
     mocks.browseRound
       .mockImplementationOnce(async (input) => {
         roundLimit = input.route.meter.remaining()
-        input.route.meter.charge(50_000)
+        input.route.meter.charge({ input: 50_000, output: 0 })
         await input.onNow('bilibili', '古籍修复')
         return { queries: 1, seen: 3, kept: 2 }
       })
@@ -302,7 +302,7 @@ describe('runOutingChunk', () => {
       })
     mocks.findingCount.mockResolvedValue(2)
     mocks.meteredComplete.mockImplementation(async (meter) => {
-      meter.charge(3_000)
+      meter.charge({ input: 3_000, output: 0 })
       return '今天看到古籍修复，好想学。'
     })
 
@@ -317,8 +317,13 @@ describe('runOutingChunk', () => {
       'web',
       'site:pixiv.net',
     ])
-    // 逛的那几轮碰不到写日记那一份。
-    expect(roundLimit).toBe(300_000 - 8_000)
+    // 逛的那几轮碰不到写日记那一份（按这个型号的单价折点，1 点 = 1 美分）。
+    const diaryPoints = new OutingMeter(0).useModel(MODEL).pointsOf({
+      input: 8_000 - 1_500,
+      output: 1_500,
+    })
+    expect(diaryPoints).toBeGreaterThan(0)
+    expect(roundLimit).toBeCloseTo(30 - diaryPoints, 3)
     expect(mocks.browseRound.mock.calls[1]?.[0].askInterests).toBe(false)
     expect(mocks.outingUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -334,6 +339,9 @@ describe('runOutingChunk', () => {
       status: 'DONE',
       endReason: 'budget',
       usedTokens: 53_000,
+      usedPoints: new OutingMeter(0)
+        .useModel(MODEL)
+        .pointsOf({ input: 53_000, output: 0 }),
       calls: 2,
       kept: 2,
     })

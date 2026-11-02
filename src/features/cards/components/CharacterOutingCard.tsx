@@ -37,6 +37,7 @@ import {
   parseOutingVideoLink,
   type OutingVideoLink,
 } from '@/lib/outing-video-link'
+import { pointsOfLlmUsage } from '@/lib/credits/points'
 import { cn } from '@/lib/utils'
 
 /**
@@ -75,8 +76,24 @@ export function useOutingSourceLabel() {
         : source
 }
 
-export const tokensToPoints = (tokens: number) =>
-  Math.round(tokens / CHARACTER_OUTING.tokensPerPoint)
+/** 花了几点给人看：留一位小数，⛔ 超过预算（最后一问可能估得略高于实扣）。 */
+export const shownOutingPoints = (run: CharacterOutingRun) =>
+  Math.min(run.budgetPoints, Math.round(run.usedPoints * 10) / 10)
+
+/** 这些点按所选型号大概够看几篇（1 点 = 1 美分；没有单价的型号按旧口径 1 点 ≈ 1 万 token）。 */
+function articlesFor(points: number, modelId: string | undefined): number {
+  const perArticle =
+    (modelId
+      ? pointsOfLlmUsage(modelId, {
+          inputTokens:
+            CHARACTER_OUTING.tokensPerArticle -
+            CHARACTER_OUTING.outputReserveTokens,
+          outputTokens: CHARACTER_OUTING.outputReserveTokens,
+        })
+      : null) ??
+    CHARACTER_OUTING.tokensPerArticle / CHARACTER_OUTING.fallbackTokensPerPoint
+  return Math.max(1, Math.floor(points / Math.max(perArticle, 0.001)))
+}
 
 /** 你添加的网址规整成域名（服务端还会再规整一遍）；认不出 → `null`。 */
 function siteOf(raw: string): string | null {
@@ -524,13 +541,7 @@ function OutingDialog({
           {points !== null ? (
             <p className="text-xs text-muted-foreground">
               {tOuting('articles', {
-                count: Math.max(
-                  1,
-                  Math.floor(
-                    (points * CHARACTER_OUTING.tokensPerPoint) /
-                      CHARACTER_OUTING.tokensPerArticle,
-                  ),
-                ),
+                count: articlesFor(points, entry?.modelId),
               })}
             </p>
           ) : null}
@@ -583,8 +594,7 @@ function RunningNow({
   const sourceLabel = useOutingSourceLabel()
   const [stopping, setStopping] = useState(false)
   const [source, query] = run.nowLabel?.split('\n') ?? []
-  const used = Math.min(run.budgetPoints, tokensToPoints(run.usedTokens))
-  const budgetTokens = run.budgetPoints * CHARACTER_OUTING.tokensPerPoint
+  const used = shownOutingPoints(run)
   return (
     <div
       className="flex flex-col gap-2.5"
@@ -602,8 +612,8 @@ function RunningNow({
         </span>
       </p>
       <Progress
-        value={Math.min(run.usedTokens, budgetTokens)}
-        max={budgetTokens}
+        value={used}
+        max={run.budgetPoints}
         aria-label={tOuting('points', { used, total: run.budgetPoints })}
         className="h-1 bg-muted"
       />

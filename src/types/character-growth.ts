@@ -80,7 +80,7 @@ export const OutingVideoLinkSchema = z.object({
 
 /**
  * 一趟出门（角色大项目第 ⑤ 步）。`nowLabel` = 「来源\n搜索词」（来源是内置站 id 或 `site:域名`）；
- * `usedTokens` 按 `CHARACTER_OUTING.tokensPerPoint` 折点给人看。
+ * `usedPoints`：花了多少点（1 点 = 1 美分，按所选型号的单价折）。
  */
 export const CharacterOutingRunSchema = z.object({
   id: z.string(),
@@ -97,7 +97,7 @@ export const CharacterOutingRunSchema = z.object({
   videos: z.array(z.string()),
   pinnedVideos: z.array(OutingVideoLinkSchema),
   budgetPoints: z.number().int(),
-  usedTokens: z.number().int(),
+  usedPoints: z.number(),
   kept: z.number().int(),
   nowLabel: z.string().nullable(),
   endReason: z

@@ -54,7 +54,7 @@ const run = (patch: Partial<CharacterOutingRun> = {}): CharacterOutingRun => ({
   videos: [],
   pinnedVideos: [],
   budgetPoints: 60,
-  usedTokens: 300_000,
+  usedPoints: 30,
   kept: 3,
   nowLabel: null,
   endReason: 'budget',
@@ -107,7 +107,8 @@ describe('OutingCard', () => {
         .closest('button')
         ?.getAttribute('aria-pressed'),
     ).toBe('true')
-    expect(screen.getByText('articles|40')).toBeTruthy()
+    // 按 Grok 的单价折（$2 / $6 每百万）：一篇约 3.6 点，60 点约 16 篇。
+    expect(screen.getByText('articles|16')).toBeTruthy()
     fireEvent.click(screen.getByText('10'))
     fireEvent.click(screen.getByText('start'))
     await waitFor(() =>
@@ -202,7 +203,7 @@ describe('OutingCard', () => {
         endedAt: null,
         endReason: null,
         budgetPoints: 30,
-        usedTokens: 120_000,
+        usedPoints: 12,
         nowLabel: 'bilibili\n古籍修复',
       }),
       recent: [],

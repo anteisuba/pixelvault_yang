@@ -35,6 +35,7 @@ export type AggregateCharacterOuting = {
 export type CharacterOutingAvgAggregateOutputType = {
   budgetPoints: number | null
   usedTokens: number | null
+  usedPoints: number | null
   calls: number | null
   kept: number | null
   rounds: number | null
@@ -44,6 +45,7 @@ export type CharacterOutingAvgAggregateOutputType = {
 export type CharacterOutingSumAggregateOutputType = {
   budgetPoints: number | null
   usedTokens: number | null
+  usedPoints: number | null
   calls: number | null
   kept: number | null
   rounds: number | null
@@ -59,6 +61,7 @@ export type CharacterOutingMinAggregateOutputType = {
   pinnedDone: boolean | null
   budgetPoints: number | null
   usedTokens: number | null
+  usedPoints: number | null
   calls: number | null
   kept: number | null
   rounds: number | null
@@ -80,6 +83,7 @@ export type CharacterOutingMaxAggregateOutputType = {
   pinnedDone: boolean | null
   budgetPoints: number | null
   usedTokens: number | null
+  usedPoints: number | null
   calls: number | null
   kept: number | null
   rounds: number | null
@@ -105,6 +109,7 @@ export type CharacterOutingCountAggregateOutputType = {
   pinnedDone: number
   budgetPoints: number
   usedTokens: number
+  usedPoints: number
   calls: number
   kept: number
   rounds: number
@@ -122,6 +127,7 @@ export type CharacterOutingCountAggregateOutputType = {
 export type CharacterOutingAvgAggregateInputType = {
   budgetPoints?: true
   usedTokens?: true
+  usedPoints?: true
   calls?: true
   kept?: true
   rounds?: true
@@ -131,6 +137,7 @@ export type CharacterOutingAvgAggregateInputType = {
 export type CharacterOutingSumAggregateInputType = {
   budgetPoints?: true
   usedTokens?: true
+  usedPoints?: true
   calls?: true
   kept?: true
   rounds?: true
@@ -146,6 +153,7 @@ export type CharacterOutingMinAggregateInputType = {
   pinnedDone?: true
   budgetPoints?: true
   usedTokens?: true
+  usedPoints?: true
   calls?: true
   kept?: true
   rounds?: true
@@ -167,6 +175,7 @@ export type CharacterOutingMaxAggregateInputType = {
   pinnedDone?: true
   budgetPoints?: true
   usedTokens?: true
+  usedPoints?: true
   calls?: true
   kept?: true
   rounds?: true
@@ -192,6 +201,7 @@ export type CharacterOutingCountAggregateInputType = {
   pinnedDone?: true
   budgetPoints?: true
   usedTokens?: true
+  usedPoints?: true
   calls?: true
   kept?: true
   rounds?: true
@@ -304,6 +314,7 @@ export type CharacterOutingGroupByOutputType = {
   pinnedDone: boolean
   budgetPoints: number
   usedTokens: number
+  usedPoints: number
   calls: number
   kept: number
   rounds: number
@@ -352,6 +363,7 @@ export type CharacterOutingWhereInput = {
   pinnedDone?: Prisma.BoolFilter<"CharacterOuting"> | boolean
   budgetPoints?: Prisma.IntFilter<"CharacterOuting"> | number
   usedTokens?: Prisma.IntFilter<"CharacterOuting"> | number
+  usedPoints?: Prisma.FloatFilter<"CharacterOuting"> | number
   calls?: Prisma.IntFilter<"CharacterOuting"> | number
   kept?: Prisma.IntFilter<"CharacterOuting"> | number
   rounds?: Prisma.IntFilter<"CharacterOuting"> | number
@@ -379,6 +391,7 @@ export type CharacterOutingOrderByWithRelationInput = {
   pinnedDone?: Prisma.SortOrder
   budgetPoints?: Prisma.SortOrder
   usedTokens?: Prisma.SortOrder
+  usedPoints?: Prisma.SortOrder
   calls?: Prisma.SortOrder
   kept?: Prisma.SortOrder
   rounds?: Prisma.SortOrder
@@ -409,6 +422,7 @@ export type CharacterOutingWhereUniqueInput = Prisma.AtLeast<{
   pinnedDone?: Prisma.BoolFilter<"CharacterOuting"> | boolean
   budgetPoints?: Prisma.IntFilter<"CharacterOuting"> | number
   usedTokens?: Prisma.IntFilter<"CharacterOuting"> | number
+  usedPoints?: Prisma.FloatFilter<"CharacterOuting"> | number
   calls?: Prisma.IntFilter<"CharacterOuting"> | number
   kept?: Prisma.IntFilter<"CharacterOuting"> | number
   rounds?: Prisma.IntFilter<"CharacterOuting"> | number
@@ -436,6 +450,7 @@ export type CharacterOutingOrderByWithAggregationInput = {
   pinnedDone?: Prisma.SortOrder
   budgetPoints?: Prisma.SortOrder
   usedTokens?: Prisma.SortOrder
+  usedPoints?: Prisma.SortOrder
   calls?: Prisma.SortOrder
   kept?: Prisma.SortOrder
   rounds?: Prisma.SortOrder
@@ -469,6 +484,7 @@ export type CharacterOutingScalarWhereWithAggregatesInput = {
   pinnedDone?: Prisma.BoolWithAggregatesFilter<"CharacterOuting"> | boolean
   budgetPoints?: Prisma.IntWithAggregatesFilter<"CharacterOuting"> | number
   usedTokens?: Prisma.IntWithAggregatesFilter<"CharacterOuting"> | number
+  usedPoints?: Prisma.FloatWithAggregatesFilter<"CharacterOuting"> | number
   calls?: Prisma.IntWithAggregatesFilter<"CharacterOuting"> | number
   kept?: Prisma.IntWithAggregatesFilter<"CharacterOuting"> | number
   rounds?: Prisma.IntWithAggregatesFilter<"CharacterOuting"> | number
@@ -492,6 +508,7 @@ export type CharacterOutingCreateInput = {
   pinnedDone?: boolean
   budgetPoints: number
   usedTokens?: number
+  usedPoints?: number
   calls?: number
   kept?: number
   rounds?: number
@@ -519,6 +536,7 @@ export type CharacterOutingUncheckedCreateInput = {
   pinnedDone?: boolean
   budgetPoints: number
   usedTokens?: number
+  usedPoints?: number
   calls?: number
   kept?: number
   rounds?: number
@@ -542,6 +560,7 @@ export type CharacterOutingUpdateInput = {
   pinnedDone?: Prisma.BoolFieldUpdateOperationsInput | boolean
   budgetPoints?: Prisma.IntFieldUpdateOperationsInput | number
   usedTokens?: Prisma.IntFieldUpdateOperationsInput | number
+  usedPoints?: Prisma.FloatFieldUpdateOperationsInput | number
   calls?: Prisma.IntFieldUpdateOperationsInput | number
   kept?: Prisma.IntFieldUpdateOperationsInput | number
   rounds?: Prisma.IntFieldUpdateOperationsInput | number
@@ -569,6 +588,7 @@ export type CharacterOutingUncheckedUpdateInput = {
   pinnedDone?: Prisma.BoolFieldUpdateOperationsInput | boolean
   budgetPoints?: Prisma.IntFieldUpdateOperationsInput | number
   usedTokens?: Prisma.IntFieldUpdateOperationsInput | number
+  usedPoints?: Prisma.FloatFieldUpdateOperationsInput | number
   calls?: Prisma.IntFieldUpdateOperationsInput | number
   kept?: Prisma.IntFieldUpdateOperationsInput | number
   rounds?: Prisma.IntFieldUpdateOperationsInput | number
@@ -594,6 +614,7 @@ export type CharacterOutingCreateManyInput = {
   pinnedDone?: boolean
   budgetPoints: number
   usedTokens?: number
+  usedPoints?: number
   calls?: number
   kept?: number
   rounds?: number
@@ -617,6 +638,7 @@ export type CharacterOutingUpdateManyMutationInput = {
   pinnedDone?: Prisma.BoolFieldUpdateOperationsInput | boolean
   budgetPoints?: Prisma.IntFieldUpdateOperationsInput | number
   usedTokens?: Prisma.IntFieldUpdateOperationsInput | number
+  usedPoints?: Prisma.FloatFieldUpdateOperationsInput | number
   calls?: Prisma.IntFieldUpdateOperationsInput | number
   kept?: Prisma.IntFieldUpdateOperationsInput | number
   rounds?: Prisma.IntFieldUpdateOperationsInput | number
@@ -642,6 +664,7 @@ export type CharacterOutingUncheckedUpdateManyInput = {
   pinnedDone?: Prisma.BoolFieldUpdateOperationsInput | boolean
   budgetPoints?: Prisma.IntFieldUpdateOperationsInput | number
   usedTokens?: Prisma.IntFieldUpdateOperationsInput | number
+  usedPoints?: Prisma.FloatFieldUpdateOperationsInput | number
   calls?: Prisma.IntFieldUpdateOperationsInput | number
   kept?: Prisma.IntFieldUpdateOperationsInput | number
   rounds?: Prisma.IntFieldUpdateOperationsInput | number
@@ -677,6 +700,7 @@ export type CharacterOutingCountOrderByAggregateInput = {
   pinnedDone?: Prisma.SortOrder
   budgetPoints?: Prisma.SortOrder
   usedTokens?: Prisma.SortOrder
+  usedPoints?: Prisma.SortOrder
   calls?: Prisma.SortOrder
   kept?: Prisma.SortOrder
   rounds?: Prisma.SortOrder
@@ -692,6 +716,7 @@ export type CharacterOutingCountOrderByAggregateInput = {
 export type CharacterOutingAvgOrderByAggregateInput = {
   budgetPoints?: Prisma.SortOrder
   usedTokens?: Prisma.SortOrder
+  usedPoints?: Prisma.SortOrder
   calls?: Prisma.SortOrder
   kept?: Prisma.SortOrder
   rounds?: Prisma.SortOrder
@@ -707,6 +732,7 @@ export type CharacterOutingMaxOrderByAggregateInput = {
   pinnedDone?: Prisma.SortOrder
   budgetPoints?: Prisma.SortOrder
   usedTokens?: Prisma.SortOrder
+  usedPoints?: Prisma.SortOrder
   calls?: Prisma.SortOrder
   kept?: Prisma.SortOrder
   rounds?: Prisma.SortOrder
@@ -728,6 +754,7 @@ export type CharacterOutingMinOrderByAggregateInput = {
   pinnedDone?: Prisma.SortOrder
   budgetPoints?: Prisma.SortOrder
   usedTokens?: Prisma.SortOrder
+  usedPoints?: Prisma.SortOrder
   calls?: Prisma.SortOrder
   kept?: Prisma.SortOrder
   rounds?: Prisma.SortOrder
@@ -743,6 +770,7 @@ export type CharacterOutingMinOrderByAggregateInput = {
 export type CharacterOutingSumOrderByAggregateInput = {
   budgetPoints?: Prisma.SortOrder
   usedTokens?: Prisma.SortOrder
+  usedPoints?: Prisma.SortOrder
   calls?: Prisma.SortOrder
   kept?: Prisma.SortOrder
   rounds?: Prisma.SortOrder
@@ -871,6 +899,7 @@ export type CharacterOutingCreateWithoutUserInput = {
   pinnedDone?: boolean
   budgetPoints: number
   usedTokens?: number
+  usedPoints?: number
   calls?: number
   kept?: number
   rounds?: number
@@ -896,6 +925,7 @@ export type CharacterOutingUncheckedCreateWithoutUserInput = {
   pinnedDone?: boolean
   budgetPoints: number
   usedTokens?: number
+  usedPoints?: number
   calls?: number
   kept?: number
   rounds?: number
@@ -950,6 +980,7 @@ export type CharacterOutingScalarWhereInput = {
   pinnedDone?: Prisma.BoolFilter<"CharacterOuting"> | boolean
   budgetPoints?: Prisma.IntFilter<"CharacterOuting"> | number
   usedTokens?: Prisma.IntFilter<"CharacterOuting"> | number
+  usedPoints?: Prisma.FloatFilter<"CharacterOuting"> | number
   calls?: Prisma.IntFilter<"CharacterOuting"> | number
   kept?: Prisma.IntFilter<"CharacterOuting"> | number
   rounds?: Prisma.IntFilter<"CharacterOuting"> | number
@@ -973,6 +1004,7 @@ export type CharacterOutingCreateWithoutCharacterCardInput = {
   pinnedDone?: boolean
   budgetPoints: number
   usedTokens?: number
+  usedPoints?: number
   calls?: number
   kept?: number
   rounds?: number
@@ -998,6 +1030,7 @@ export type CharacterOutingUncheckedCreateWithoutCharacterCardInput = {
   pinnedDone?: boolean
   budgetPoints: number
   usedTokens?: number
+  usedPoints?: number
   calls?: number
   kept?: number
   rounds?: number
@@ -1048,6 +1081,7 @@ export type CharacterOutingCreateManyUserInput = {
   pinnedDone?: boolean
   budgetPoints: number
   usedTokens?: number
+  usedPoints?: number
   calls?: number
   kept?: number
   rounds?: number
@@ -1071,6 +1105,7 @@ export type CharacterOutingUpdateWithoutUserInput = {
   pinnedDone?: Prisma.BoolFieldUpdateOperationsInput | boolean
   budgetPoints?: Prisma.IntFieldUpdateOperationsInput | number
   usedTokens?: Prisma.IntFieldUpdateOperationsInput | number
+  usedPoints?: Prisma.FloatFieldUpdateOperationsInput | number
   calls?: Prisma.IntFieldUpdateOperationsInput | number
   kept?: Prisma.IntFieldUpdateOperationsInput | number
   rounds?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1096,6 +1131,7 @@ export type CharacterOutingUncheckedUpdateWithoutUserInput = {
   pinnedDone?: Prisma.BoolFieldUpdateOperationsInput | boolean
   budgetPoints?: Prisma.IntFieldUpdateOperationsInput | number
   usedTokens?: Prisma.IntFieldUpdateOperationsInput | number
+  usedPoints?: Prisma.FloatFieldUpdateOperationsInput | number
   calls?: Prisma.IntFieldUpdateOperationsInput | number
   kept?: Prisma.IntFieldUpdateOperationsInput | number
   rounds?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1120,6 +1156,7 @@ export type CharacterOutingUncheckedUpdateManyWithoutUserInput = {
   pinnedDone?: Prisma.BoolFieldUpdateOperationsInput | boolean
   budgetPoints?: Prisma.IntFieldUpdateOperationsInput | number
   usedTokens?: Prisma.IntFieldUpdateOperationsInput | number
+  usedPoints?: Prisma.FloatFieldUpdateOperationsInput | number
   calls?: Prisma.IntFieldUpdateOperationsInput | number
   kept?: Prisma.IntFieldUpdateOperationsInput | number
   rounds?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1144,6 +1181,7 @@ export type CharacterOutingCreateManyCharacterCardInput = {
   pinnedDone?: boolean
   budgetPoints: number
   usedTokens?: number
+  usedPoints?: number
   calls?: number
   kept?: number
   rounds?: number
@@ -1167,6 +1205,7 @@ export type CharacterOutingUpdateWithoutCharacterCardInput = {
   pinnedDone?: Prisma.BoolFieldUpdateOperationsInput | boolean
   budgetPoints?: Prisma.IntFieldUpdateOperationsInput | number
   usedTokens?: Prisma.IntFieldUpdateOperationsInput | number
+  usedPoints?: Prisma.FloatFieldUpdateOperationsInput | number
   calls?: Prisma.IntFieldUpdateOperationsInput | number
   kept?: Prisma.IntFieldUpdateOperationsInput | number
   rounds?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1192,6 +1231,7 @@ export type CharacterOutingUncheckedUpdateWithoutCharacterCardInput = {
   pinnedDone?: Prisma.BoolFieldUpdateOperationsInput | boolean
   budgetPoints?: Prisma.IntFieldUpdateOperationsInput | number
   usedTokens?: Prisma.IntFieldUpdateOperationsInput | number
+  usedPoints?: Prisma.FloatFieldUpdateOperationsInput | number
   calls?: Prisma.IntFieldUpdateOperationsInput | number
   kept?: Prisma.IntFieldUpdateOperationsInput | number
   rounds?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1216,6 +1256,7 @@ export type CharacterOutingUncheckedUpdateManyWithoutCharacterCardInput = {
   pinnedDone?: Prisma.BoolFieldUpdateOperationsInput | boolean
   budgetPoints?: Prisma.IntFieldUpdateOperationsInput | number
   usedTokens?: Prisma.IntFieldUpdateOperationsInput | number
+  usedPoints?: Prisma.FloatFieldUpdateOperationsInput | number
   calls?: Prisma.IntFieldUpdateOperationsInput | number
   kept?: Prisma.IntFieldUpdateOperationsInput | number
   rounds?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1243,6 +1284,7 @@ export type CharacterOutingSelect<ExtArgs extends runtime.Types.Extensions.Inter
   pinnedDone?: boolean
   budgetPoints?: boolean
   usedTokens?: boolean
+  usedPoints?: boolean
   calls?: boolean
   kept?: boolean
   rounds?: boolean
@@ -1270,6 +1312,7 @@ export type CharacterOutingSelectCreateManyAndReturn<ExtArgs extends runtime.Typ
   pinnedDone?: boolean
   budgetPoints?: boolean
   usedTokens?: boolean
+  usedPoints?: boolean
   calls?: boolean
   kept?: boolean
   rounds?: boolean
@@ -1297,6 +1340,7 @@ export type CharacterOutingSelectUpdateManyAndReturn<ExtArgs extends runtime.Typ
   pinnedDone?: boolean
   budgetPoints?: boolean
   usedTokens?: boolean
+  usedPoints?: boolean
   calls?: boolean
   kept?: boolean
   rounds?: boolean
@@ -1324,6 +1368,7 @@ export type CharacterOutingSelectScalar = {
   pinnedDone?: boolean
   budgetPoints?: boolean
   usedTokens?: boolean
+  usedPoints?: boolean
   calls?: boolean
   kept?: boolean
   rounds?: boolean
@@ -1336,7 +1381,7 @@ export type CharacterOutingSelectScalar = {
   endedAt?: boolean
 }
 
-export type CharacterOutingOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "characterCardId" | "status" | "model" | "sources" | "sites" | "videos" | "pinnedVideos" | "pinnedDone" | "budgetPoints" | "usedTokens" | "calls" | "kept" | "rounds" | "emptyRounds" | "nowLabel" | "endReason" | "stopRequested" | "leaseUntil" | "startedAt" | "endedAt", ExtArgs["result"]["characterOuting"]>
+export type CharacterOutingOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "characterCardId" | "status" | "model" | "sources" | "sites" | "videos" | "pinnedVideos" | "pinnedDone" | "budgetPoints" | "usedTokens" | "usedPoints" | "calls" | "kept" | "rounds" | "emptyRounds" | "nowLabel" | "endReason" | "stopRequested" | "leaseUntil" | "startedAt" | "endedAt", ExtArgs["result"]["characterOuting"]>
 export type CharacterOutingInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   characterCard?: boolean | Prisma.CharacterCardDefaultArgs<ExtArgs>
@@ -1390,6 +1435,10 @@ export type $CharacterOutingPayload<ExtArgs extends runtime.Types.Extensions.Int
     pinnedDone: boolean
     budgetPoints: number
     usedTokens: number
+    /**
+     * 花了多少点（1 点 = 1 美分，按型号单价折；平台点数第 5 片起）。
+     */
+    usedPoints: number
     calls: number
     kept: number
     /**
@@ -1852,6 +1901,7 @@ export interface CharacterOutingFieldRefs {
   readonly pinnedDone: Prisma.FieldRef<"CharacterOuting", 'Boolean'>
   readonly budgetPoints: Prisma.FieldRef<"CharacterOuting", 'Int'>
   readonly usedTokens: Prisma.FieldRef<"CharacterOuting", 'Int'>
+  readonly usedPoints: Prisma.FieldRef<"CharacterOuting", 'Float'>
   readonly calls: Prisma.FieldRef<"CharacterOuting", 'Int'>
   readonly kept: Prisma.FieldRef<"CharacterOuting", 'Int'>
   readonly rounds: Prisma.FieldRef<"CharacterOuting", 'Int'>

@@ -1455,6 +1455,8 @@ model CharacterOuting {
   pinnedDone    Boolean   @default(false)
   budgetPoints  Int
   usedTokens    Int       @default(0)
+  /// 花了多少点（1 点 = 1 美分，按型号单价折；平台点数第 5 片起）。
+  usedPoints    Float     @default(0)
   calls         Int       @default(0)
   kept          Int       @default(0)
   /// 跑了几轮、连着几轮一条新的都没有（跨段接着数）。

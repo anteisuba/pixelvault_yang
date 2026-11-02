@@ -21,6 +21,7 @@ import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { BILIBILI_REQUEST } from '@/constants/research'
 import { VIDEO_LINK_KINDS } from '@/constants/video-link'
 import { WEB_VIDEO_SEARCH } from '@/constants/web-search'
+import { pointsOfLlmUsage } from '@/lib/credits/points'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import type { OutingVideoLink } from '@/lib/outing-video-link'
@@ -131,27 +132,84 @@ export class OutingBudgetExhausted extends Error {
   }
 }
 
+/** 一次调用的 token：输入（含命中缓存的）、命中缓存的、输出（含思考）。 */
+export interface OutingTokens {
+  input: number
+  cached?: number
+  output: number
+}
+
 /**
- * 一趟的额度表（owner 10-30「额度不能超」）：调之前 `ensure` 按上限估，估得超了就抛；
- * 调完 `charge` 记实扣（provider 报的 token，没报就按估的）。
+ * 一趟的额度表（owner 10-30「额度不能超」；平台点数第 5 片起**按钱算**，owner 11-01：
+ * 1 点 = 1 美分，出门跟全站一套）：调之前 `ensure` 按上限估，估得超了就抛；调完 `charge`
+ * 记实扣（provider 报的 token，没报就按估的），按那个型号的单价折成点。
+ *
+ * 型号要等路由解析完才知道（`useModel`）；没有可信单价的型号退回旧口径 1 点 ≈ 1 万 token。
+ * `usedTokens` 照记，只给日志与旧行看。
  */
 export class OutingMeter {
   calls = 0
+  usedTokens = 0
+  private modelId: string | null = null
+  private reserved: OutingTokens | null = null
+
   constructor(
-    private readonly limitTokens: number,
-    public usedTokens = 0,
+    private readonly limitPoints: number,
+    public usedPoints = 0,
   ) {}
 
+  useModel(modelId: string): this {
+    this.modelId = modelId
+    return this
+  }
+
+  pointsOf(tokens: OutingTokens): number {
+    const priced = this.modelId
+      ? pointsOfLlmUsage(this.modelId, {
+          inputTokens: tokens.input,
+          cachedInputTokens: tokens.cached,
+          outputTokens: tokens.output,
+        })
+      : null
+    return (
+      priced ??
+      (tokens.input + tokens.output) / CHARACTER_OUTING.fallbackTokensPerPoint
+    )
+  }
+
+  /** 留一份碰不到的（写日记那一份）；按型号单价折点，所以跟着 `useModel` 变。 */
+  reserve(tokens: OutingTokens): this {
+    this.reserved = tokens
+    return this
+  }
+
   remaining(): number {
-    return this.limitTokens - this.usedTokens
+    const reserved = this.reserved ? this.pointsOf(this.reserved) : 0
+    return this.limitPoints - reserved - this.usedPoints
   }
 
-  ensure(estimate: number): void {
-    if (estimate > this.remaining()) throw new OutingBudgetExhausted()
+  /** 这么多点够多少输入 token（看视频按秒估时用）。 */
+  inputTokensFor(points: number): number {
+    const perMillion = this.pointsOf({ input: 1_000_000, output: 0 })
+    if (points <= 0 || perMillion <= 0) return 0
+    return Math.floor((points / perMillion) * 1_000_000)
   }
 
-  charge(tokens: number): void {
-    this.usedTokens += Math.max(0, Math.round(tokens))
+  ensure(estimate: OutingTokens): void {
+    if (this.pointsOf(estimate) > this.remaining())
+      throw new OutingBudgetExhausted()
+  }
+
+  charge(tokens: OutingTokens): void {
+    const input = Math.max(0, Math.round(tokens.input))
+    const output = Math.max(0, Math.round(tokens.output))
+    this.usedTokens += input + output
+    this.usedPoints =
+      Math.round(
+        (this.usedPoints +
+          this.pointsOf({ input, cached: tokens.cached, output })) *
+          1000,
+      ) / 1000
     this.calls += 1
   }
 }
@@ -169,43 +227,51 @@ export function estimateCallTokens(options: {
   systemPrompt: string
   userPrompt: string
   images?: number
-}): number {
-  return (
-    options.systemPrompt.length +
-    options.userPrompt.length +
-    (options.images ?? 0) * CHARACTER_OUTING.imageTokens +
-    CHARACTER_OUTING.outputReserveTokens
-  )
+}): OutingTokens {
+  return {
+    input:
+      options.systemPrompt.length +
+      options.userPrompt.length +
+      (options.images ?? 0) * CHARACTER_OUTING.imageTokens,
+    output: CHARACTER_OUTING.outputReserveTokens,
+  }
 }
 
-function usageTokens(usage: LlmTextUsage): number {
+function usageTokens(usage: LlmTextUsage): OutingTokens {
   // 思考的那部分有的家算在输出里、有的另报：都加上宁多勿少。
-  return (
-    (usage.inputTokens ?? 0) +
-    (usage.outputTokens ?? 0) +
-    (usage.reasoningTokens ?? 0)
-  )
+  return {
+    input: usage.inputTokens ?? 0,
+    cached: usage.cachedInputTokens,
+    output: (usage.outputTokens ?? 0) + (usage.reasoningTokens ?? 0),
+  }
 }
 
-/** 过额度表的一次模型调用。`extraTokens`：视频那一份（按秒估，第 ⑥ 步）。 */
+/** 过额度表的一次模型调用。`extraTokens`：视频那一份（按秒估，第 ⑥ 步；算输入）。 */
 export async function meteredComplete(
   meter: OutingMeter,
   options: CompleteOptions,
   extraTokens = 0,
 ): Promise<string> {
-  const estimate =
-    estimateCallTokens({
-      systemPrompt: options.systemPrompt,
-      userPrompt: options.buildUserPrompt(),
-      images: options.imageData?.length ?? 0,
-    }) + extraTokens
+  const base = estimateCallTokens({
+    systemPrompt: options.systemPrompt,
+    userPrompt: options.buildUserPrompt(),
+    images: options.imageData?.length ?? 0,
+  })
+  const estimate = { ...base, input: base.input + extraTokens }
   meter.ensure(estimate)
-  let reported: number | null = null
+  let reported: OutingTokens | null = null
   try {
     return await completeAssistantTextWithContextRetry({
       ...options,
       onUsage: (usage) => {
-        reported = (reported ?? 0) + usageTokens(usage)
+        const next = usageTokens(usage)
+        reported = reported
+          ? {
+              input: reported.input + next.input,
+              cached: (reported.cached ?? 0) + (next.cached ?? 0),
+              output: reported.output + next.output,
+            }
+          : next
       },
     })
   } finally {
@@ -465,7 +531,7 @@ async function nativeSearch(
       ? CHARACTER_OUTING_VIDEO.xVideosPerSearch *
         CHARACTER_OUTING_VIDEO.xVideoTokens
       : 0)
-  route.meter.ensure(estimate)
+  route.meter.ensure({ input: estimate, output: 0 })
   let charged = estimate
   try {
     const found = await llmNativeWebSearch({
@@ -503,7 +569,7 @@ async function nativeSearch(
       excerpt: [item.excerpt, watched].filter(Boolean).join(' — ') || null,
     }))
   } finally {
-    route.meter.charge(charged)
+    route.meter.charge({ input: charged, output: 0 })
   }
 }
 
@@ -957,9 +1023,11 @@ Return ONE JSON object and nothing else: {"note":"…"}
 ${card.persona}
 
 THE VIDEO: [${item.source}] ${item.title}${item.excerpt ? ` — ${item.excerpt.slice(0, 240)}` : ''}${item.chatter?.length ? `\nWhat people say: ${item.chatter.join(' / ')}` : ''}`
-  const room =
-    route.meter.remaining() -
-    estimateCallTokens({ systemPrompt, userPrompt: material })
+  const call = estimateCallTokens({ systemPrompt, userPrompt: material })
+  // 剩下的钱扣掉这一问本身，余下的按输入价折成能看几秒（视频帧 / 声音算输入）。
+  const room = route.meter.inputTokensFor(
+    route.meter.remaining() - route.meter.pointsOf(call),
+  )
   const affordable = affordableSeconds(room, fps)
   if (affordable < end - start) {
     if (!pinned || affordable === 0) return null

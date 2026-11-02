@@ -148,7 +148,7 @@ function video(n: number) {
 /** 按卡（`mocks.cardFind`）和型号（`mocks.route`）逛一轮；额度默认够用。 */
 async function browseCharacter(
   input: { userId: string; cardId: string },
-  meter = new OutingMeter(10_000_000),
+  meter = new OutingMeter(1000),
   sources: string[] = ['bilibili', 'danbooru', 'civitai', 'web'],
   watch: string[] = [],
 ) {
@@ -321,7 +321,7 @@ describe('browseRound（她出门逛一轮）', () => {
   })
 
   it('看没看过的，没意思的不记；每次调模型都记进额度表', async () => {
-    const meter = new OutingMeter(10_000_000)
+    const meter = new OutingMeter(1000)
     const result = await browseCharacter(
       { userId: 'u', cardId: 'card-1' },
       meter,
@@ -423,7 +423,7 @@ describe('browseRound（她出门逛一轮）', () => {
 
   it('额度不够再调一次：一次都不调，直接收工（⛔ 超）', async () => {
     await expect(
-      browseCharacter({ userId: 'u', cardId: 'card-1' }, new OutingMeter(100)),
+      browseCharacter({ userId: 'u', cardId: 'card-1' }, new OutingMeter(0.01)),
     ).rejects.toBeInstanceOf(OutingBudgetExhausted)
     expect(mocks.complete).not.toHaveBeenCalled()
   })
@@ -436,7 +436,7 @@ describe('browseRound（她出门逛一轮）', () => {
         return JSON.stringify({ queries: [] })
       },
     )
-    const meter = new OutingMeter(10_000_000)
+    const meter = new OutingMeter(1000)
     await browseCharacter({ userId: 'u', cardId: 'card-1' }, meter)
     expect(meter.usedTokens).toBe(1200)
     expect(meter.calls).toBe(1)
@@ -462,7 +462,7 @@ describe('browseRound（她出门逛一轮）', () => {
       .mockResolvedValueOnce(
         JSON.stringify({ notes: [{ n: 1, note: '配色好甜' }] }),
       )
-    const meter = new OutingMeter(10_000_000)
+    const meter = new OutingMeter(1000)
 
     await browseCharacter(
       { userId: 'u', cardId: 'card-1' },
@@ -518,7 +518,7 @@ describe('browseRound（她出门逛一轮）', () => {
 
     await browseCharacter(
       { userId: 'u', cardId: 'card-1' },
-      new OutingMeter(15_000),
+      new OutingMeter(1.5),
       ['bilibili'],
       ['bilibili'],
     )
@@ -555,7 +555,7 @@ describe('browseRound（她出门逛一轮）', () => {
 
     await browseCharacter(
       { userId: 'u', cardId: 'card-1' },
-      new OutingMeter(10_000_000),
+      new OutingMeter(1000),
       ['web'],
       ['youtube'],
     )
@@ -581,7 +581,7 @@ describe('browseRound（她出门逛一轮）', () => {
 
     await browseCharacter(
       { userId: 'u', cardId: 'card-1' },
-      new OutingMeter(10_000_000),
+      new OutingMeter(1000),
       ['bilibili'],
       ['bilibili'],
     )
@@ -839,7 +839,7 @@ describe('watchPinnedVideos（你贴的视频，第 ⑥ 步）', () => {
           providerConfig: {},
         } as never,
         modelId: 'gemini-3.8-flash',
-        meter: new OutingMeter(10_000_000),
+        meter: new OutingMeter(1000),
       },
       links: [
         {
@@ -889,7 +889,7 @@ describe('watchPinnedVideos（你贴的视频，第 ⑥ 步）', () => {
           providerConfig: {},
         } as never,
         modelId: 'gemini-3.8-flash',
-        meter: new OutingMeter(30_000),
+        meter: new OutingMeter(3),
       },
       links: [
         {
@@ -929,16 +929,41 @@ describe('额度表与网址', () => {
   it('估一次调用按字数 + 每张图 + 回答那份', () => {
     expect(
       estimateCallTokens({ systemPrompt: 'abc', userPrompt: 'de', images: 2 }),
-    ).toBe(5 + 2 * 1600 + 1500)
+    ).toEqual({ input: 5 + 2 * 1600, output: 1500 })
   })
 
-  it('估得超了就抛，实扣累加', () => {
-    const meter = new OutingMeter(10_000, 9_000)
-    expect(() => meter.ensure(1_001)).toThrow(OutingBudgetExhausted)
-    meter.ensure(1_000)
-    meter.charge(400)
-    expect(meter.remaining()).toBe(600)
+  it('估得超了就抛，实扣累加（没单价的型号按旧口径 1 点 ≈ 1 万 token）', () => {
+    const meter = new OutingMeter(1, 0.5)
+    expect(() => meter.ensure({ input: 5_001, output: 0 })).toThrow(
+      OutingBudgetExhausted,
+    )
+    meter.ensure({ input: 5_000, output: 0 })
+    meter.charge({ input: 300, output: 100 })
+    expect(meter.remaining()).toBeCloseTo(0.46)
+    expect(meter.usedTokens).toBe(400)
     expect(meter.calls).toBe(1)
+  })
+
+  it('按所选型号的单价折点：1 点 = 1 美分，输出比输入贵', () => {
+    // DeepSeek Flash 高峰价：输入 $0.3 / 输出 $1.2 每百万 token。
+    const meter = new OutingMeter(30).useModel('deepseek-flash')
+    meter.charge({ input: 1_000_000, output: 0 })
+    expect(meter.usedPoints).toBe(30)
+    expect(() => meter.ensure({ input: 0, output: 10 })).toThrow(
+      OutingBudgetExhausted,
+    )
+
+    const opus = new OutingMeter(30).useModel('claude-opus-5-5')
+    // $4 / 百万输入 → 30 点够 75 000 token。
+    expect(opus.inputTokensFor(opus.remaining())).toBe(75_000)
+  })
+
+  it('写日记那一份留着碰不到，按型号单价折', () => {
+    const meter = new OutingMeter(10)
+      .useModel('deepseek-flash')
+      .reserve({ input: 0, output: 1_000_000 })
+    // 留的那份 = $1.2 = 120 点 > 10 点：一问都不让问。
+    expect(meter.remaining()).toBeLessThan(0)
   })
 
   it('你添加的网址规整成域名，认不出的丢掉', () => {

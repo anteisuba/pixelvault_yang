@@ -49,10 +49,14 @@
       "columnRequests": "リクエスト数",
       "columnCost": "推定費用",
       "runnerLabel": "Runner · セルフホスト",
-      "runnerQuota": "{used} / {limit}",
-      "runnerCost": "$0 · {date} にリセット",
       "total": "合計",
-      "footnote": "リクエスト数は利用履歴から、費用は「リクエスト数 × そのモデルの単価」で算出しています。単価が公開されていないモデルはリクエスト数のみ表示します。"
+      "footnote": "回数はあなた自身の利用履歴から集計しています。費用：チャットと Runner は実際の使用量から計算したポイント（1 ポイント = 1 米セント）、その他は回数 × モデル単価の見積もりです。公開単価のないモデルは回数のみ表示します。プラットフォーム負担の利用（Runner、自分のキーがないときのチャット）はポイントから差し引き、自分のキーの利用は記録のみで差し引きません。",
+      "balance": "残り {points} ポイント",
+      "balanceExempt": "残り {points} ポイント · ポイント制限なし",
+      "giftRecipient": "メールアドレスまたはユーザー名",
+      "giftPoints": "ポイント",
+      "giftSubmit": "追加",
+      "giftDone": "{name} に {points} ポイント追加しました（残り {balance}）"
     },
     "preferences": {
       "language": "言語",

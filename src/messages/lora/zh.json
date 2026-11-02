@@ -174,15 +174,15 @@
       },
       "promptPlaceholder": "描述你想要的画面…",
       "restore": "忠实还原",
-      "runnerBudgetRemaining": "本月 Runner 剩余 {remaining}/{limit} 次",
+      "runnerBudgetRemaining": "剩 {points} 点（一张约 3–7 点）",
       "runnerBudgetSite": "全站本月 Runner 剩余 {remaining}/{limit} 次（你不受限）",
-      "runnerBudgetExhausted": "本月 Runner 生成额度已用完，下月重置或改用托管底模",
+      "runnerBudgetExhausted": "点数不够了，找管理员加点，或改用托管底模",
       "runnerUnavailable": "Runner 生成当前已关闭（平台生成未启用），出图会失败——改用托管底模，或联系站点管理员开启",
       "resultEmptyHint": "输入提示词后点「出图」",
       "eta": "Runner 出图通常需要 {min}–{max} 秒",
       "etaColdStart": "首次运行要先加载底模，通常 {min}–{max} 分钟",
       "resultFailedRetry": "重试",
-      "resultFailedQuotaNote": "额度按已发起的任务计，失败不返还",
+      "resultFailedQuotaNote": "失败的不扣点",
       "resultPreviewLabel": "放大查看生成结果",
       "promptModeLabel": "提示词来源",
       "promptModeRecommend": "推荐",
@@ -281,7 +281,8 @@
       "paramsCfg": "CFG {cfg}",
       "runShort": "生成",
       "handToAssistant": "交给助手",
-      "upscaleNone": "不放大"
+      "upscaleNone": "不放大",
+      "runnerSiteExhausted": "全站本月 Runner 额度已用完，下月重置或改用托管底模"
     },
     "spine": {
       "sourceCheckpointAuto": "来源图底模（自动）",

@@ -344,7 +344,8 @@
       "loraIncompatibleHosted": "这个 LoRA 的层格式托管模型不支持。如果有 ANTEI Runner 模型（忠实复刻）可用，试试切换过去。",
       "runnerMonthlyLimitExceeded": "ANTEI Runner 本月生成额度已用完。请下月再试，或改用托管模型。",
       "runnerLoraUnavailable": "当前生成服务还不能使用这个 LoRA。请更换 LoRA，或选择支持它的模型。",
-      "loraDownloadDisabled": "这把 LoRA 的作者在 Civitai 关掉了下载，任何后端都取不到它的权重。请换一把 LoRA。"
+      "loraDownloadDisabled": "这把 LoRA 的作者在 Civitai 关掉了下载，任何后端都取不到它的权重。请换一把 LoRA。",
+      "creditsExhausted": "点数用完了。可以找管理员加点，或绑自己的 key 再出。"
     },
     "generation": {
       "provider_timeout": "这次生成等待时间过长。请稍后重试，或换一个模型。",
@@ -381,7 +382,8 @@
       "publish_blocked": "提示词里同时有未成年相关词和性相关词，这件作品不能公开。它仍留在你的素材库里。",
       "publish_blocked_search": "出图时用了 Google 搜索，按条款只能自己看，不能发布。",
       "unknown": "这次生成没有成功，暂时无法确定原因。请稍后重试；如果仍然失败，可将错误详情提供给管理员。",
-      "unknownWithDetail": "这次生成没有成功，服务商返回：{detail}"
+      "unknownWithDetail": "这次生成没有成功，服务商返回：{detail}",
+      "credits_exhausted": "点数用完了。可以找管理员加点，或绑自己的 key 再出。"
     },
     "validation": {
       "invalidInput": "输入无效，请检查参数。",
@@ -484,7 +486,9 @@
     "voiceBench": {
       "noPersona": "先换成一个角色，再按她的说法改",
       "rewriteEmpty": "没改出来，再试一次"
-    }
+    },
+    "creditsExhausted": "点数不够了。可以找管理员加点，或绑自己的 key。",
+    "creditRecipientNotFound": "没找到这个邮箱或用户名。"
   },
   "DropZone": {
     "toReferences": "松手加到参考图",

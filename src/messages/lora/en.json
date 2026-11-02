@@ -174,15 +174,15 @@
       },
       "promptPlaceholder": "Describe the image you want…",
       "restore": "Faithful restore",
-      "runnerBudgetRemaining": "Runner: {remaining}/{limit} left this month",
+      "runnerBudgetRemaining": "{points} credits left (about 3–7 per image)",
       "runnerBudgetSite": "Site Runner budget: {remaining}/{limit} left this month (no limit for you)",
-      "runnerBudgetExhausted": "Runner's monthly budget is used up — resets next month, or use a hosted base model",
+      "runnerBudgetExhausted": "Not enough credits. Ask the admin for more, or switch to a hosted base model",
       "runnerUnavailable": "Runner generation is currently turned off. Choose a hosted base model, or ask the site admin to enable Runner.",
       "resultEmptyHint": "Enter a prompt, then hit Generate",
       "eta": "Runner usually takes {min}–{max}s per image",
       "etaColdStart": "First run loads the base model — usually {min}–{max} minutes",
       "resultFailedRetry": "Retry",
-      "resultFailedQuotaNote": "Each dispatched job uses one quota unit, even if it fails.",
+      "resultFailedQuotaNote": "Failed runs cost no credits",
       "resultPreviewLabel": "Enlarge generation result",
       "promptModeLabel": "Prompt source",
       "promptModeRecommend": "Recommended",
@@ -281,7 +281,8 @@
       "paramsCfg": "CFG {cfg}",
       "runShort": "Generate",
       "handToAssistant": "Hand to assistant",
-      "upscaleNone": "No upscale"
+      "upscaleNone": "No upscale",
+      "runnerSiteExhausted": "Runner's site-wide budget for this month is used up. It resets next month, or switch to a hosted base model"
     },
     "spine": {
       "sourceCheckpointAuto": "Source image checkpoint (Auto)",

@@ -40,6 +40,8 @@ export const GENERATION_ERROR_CODES = {
   LORA_DOWNLOAD_DISABLED: 'lora_download_disabled',
   /** RUNNER's monthly generation budget cap (RUNNER_MONTHLY_LIMIT) was hit. */
   RUNNER_MONTHLY_LIMIT_EXCEEDED: 'runner_monthly_limit_exceeded',
+  /** 平台点数不够（平台出钱的那几条路：Runner、朋友用的 DeepSeek）。 */
+  CREDITS_EXHAUSTED: 'credits_exhausted',
   /** A requested LoRA isn't pre-baked on the runner's Network Volume yet. */
   RUNNER_LORA_UNAVAILABLE: 'runner_lora_unavailable',
   /**
@@ -377,6 +379,7 @@ const BACKEND_ERROR_CODE_MAP: Record<string, GenerationErrorCode> = {
   PROVIDER_NO_OUTPUT: GENERATION_ERROR_CODES.PROVIDER_NO_OUTPUT,
   RUNNER_MONTHLY_LIMIT_EXCEEDED:
     GENERATION_ERROR_CODES.RUNNER_MONTHLY_LIMIT_EXCEEDED,
+  CREDITS_EXHAUSTED: GENERATION_ERROR_CODES.CREDITS_EXHAUSTED,
   RUNNER_LORA_UNAVAILABLE: GENERATION_ERROR_CODES.RUNNER_LORA_UNAVAILABLE,
   LORA_DOWNLOAD_DISABLED: GENERATION_ERROR_CODES.LORA_DOWNLOAD_DISABLED,
   // Provider 原样的错误码（worker 把火山 / BytePlus 的 `error.code` 直接存进
@@ -423,6 +426,7 @@ const RETRY_FUTILE_ERROR_CODES: ReadonlySet<GenerationErrorCode> = new Set([
   GENERATION_ERROR_CODES.PROVIDER_MODEL_NOT_ACTIVATED,
   GENERATION_ERROR_CODES.LORA_DOWNLOAD_DISABLED,
   GENERATION_ERROR_CODES.RUNNER_MONTHLY_LIMIT_EXCEEDED,
+  GENERATION_ERROR_CODES.CREDITS_EXHAUSTED,
 ])
 
 export function isGenerationRetryFutile(
@@ -497,6 +501,9 @@ export function getGenerationErrorI18nKeyForCode(
   }
   if (errorCode === GENERATION_ERROR_CODES.RUNNER_MONTHLY_LIMIT_EXCEEDED) {
     return 'errors.provider.runnerMonthlyLimitExceeded'
+  }
+  if (errorCode === GENERATION_ERROR_CODES.CREDITS_EXHAUSTED) {
+    return 'errors.provider.creditsExhausted'
   }
   if (errorCode === GENERATION_ERROR_CODES.RUNNER_LORA_UNAVAILABLE) {
     return 'errors.provider.runnerLoraUnavailable'

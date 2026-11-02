@@ -6,7 +6,10 @@ import { SettingsUsageSection } from './SettingsUsageSection'
 vi.mock('next-intl', () => ({
   useTranslations: (namespace: string) => (key: string) =>
     `${namespace}:${key}`,
-  useFormatter: () => ({ dateTime: () => '10-01' }),
+  useFormatter: () => ({
+    dateTime: () => '10-01',
+    number: (value: number) => String(value),
+  }),
 }))
 
 const mockUseMonthlyUsage = vi.hoisted(() => vi.fn())
@@ -49,8 +52,10 @@ describe('SettingsUsageSection', () => {
       runner: {
         enabled: true,
         used: 42,
-        limit: 100,
-        remaining: 58,
+        balancePoints: 58,
+        reservePoints: 10,
+        siteRemaining: 500,
+        siteLimit: 600,
         exempt: false,
         platformEnabled: true,
       },
@@ -61,10 +66,9 @@ describe('SettingsUsageSection', () => {
     render(<SettingsUsageSection />)
 
     expect(cellsOf('fal.ai')).toEqual(['fal.ai', '128', '$61.10'])
-    // runner 的次数格是额度读数，花费格是重置日期（平台出资，用户付 $0）。
-    expect(cellsOf('Settings:usage.runnerLabel')[1]).toBe(
-      'Settings:usage.runnerQuota',
-    )
+    // runner 一行只报本月次数；点数余额单独一行（平台出资，花的是点数不是钱）。
+    expect(cellsOf('Settings:usage.runnerLabel')[1]).toBe('42')
+    expect(screen.getByText('Settings:usage.balance')).toBeInTheDocument()
     // 合计的次数把 runner 那 42 次也算进来（168 + 42）。
     expect(cellsOf('Settings:usage.total')).toEqual([
       'Settings:usage.total',

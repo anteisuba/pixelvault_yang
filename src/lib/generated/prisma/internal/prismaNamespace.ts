@@ -401,6 +401,7 @@ export const ModelName = {
   GenerationJob: 'GenerationJob',
   ExecutionOutbox: 'ExecutionOutbox',
   ApiUsageLedger: 'ApiUsageLedger',
+  CreditGrant: 'CreditGrant',
   FreeTierSlot: 'FreeTierSlot',
   Recipe: 'Recipe',
   VoiceCard: 'VoiceCard',
@@ -442,7 +443,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "mcpToken" | "mcpGenerationRequest" | "danbooruFavorite" | "danbooruTagName" | "promptTagStack" | "assistantConversation" | "assistantConversationShare" | "researchRun" | "nodeWorkflowProject" | "project" | "projectItem" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "userCreativePreference" | "assistantPersona" | "projectRule" | "modelConfig" | "characterCard" | "characterLook" | "generationCharacterCard" | "userLike" | "userFollow" | "characterCardLora" | "loraTrainingJob" | "loraAsset" | "extractedElement" | "generationLayer" | "contextCard" | "assistantMemory" | "characterCardRevision" | "characterOuting" | "characterFinding" | "characterSticker" | "characterJournal" | "assistantSkill" | "assistantTurnRecord"
+    modelProps: "user" | "mcpToken" | "mcpGenerationRequest" | "danbooruFavorite" | "danbooruTagName" | "promptTagStack" | "assistantConversation" | "assistantConversationShare" | "researchRun" | "nodeWorkflowProject" | "project" | "projectItem" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "creditGrant" | "freeTierSlot" | "recipe" | "voiceCard" | "userCreativePreference" | "assistantPersona" | "projectRule" | "modelConfig" | "characterCard" | "characterLook" | "generationCharacterCard" | "userLike" | "userFollow" | "characterCardLora" | "loraTrainingJob" | "loraAsset" | "extractedElement" | "generationLayer" | "contextCard" | "assistantMemory" | "characterCardRevision" | "characterOuting" | "characterFinding" | "characterSticker" | "characterJournal" | "assistantSkill" | "assistantTurnRecord"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1701,6 +1702,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.ApiUsageLedgerCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.ApiUsageLedgerCountAggregateOutputType> | number
+        }
+      }
+    }
+    CreditGrant: {
+      payload: Prisma.$CreditGrantPayload<ExtArgs>
+      fields: Prisma.CreditGrantFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.CreditGrantFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CreditGrantPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.CreditGrantFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CreditGrantPayload>
+        }
+        findFirst: {
+          args: Prisma.CreditGrantFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CreditGrantPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.CreditGrantFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CreditGrantPayload>
+        }
+        findMany: {
+          args: Prisma.CreditGrantFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CreditGrantPayload>[]
+        }
+        create: {
+          args: Prisma.CreditGrantCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CreditGrantPayload>
+        }
+        createMany: {
+          args: Prisma.CreditGrantCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.CreditGrantCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CreditGrantPayload>[]
+        }
+        delete: {
+          args: Prisma.CreditGrantDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CreditGrantPayload>
+        }
+        update: {
+          args: Prisma.CreditGrantUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CreditGrantPayload>
+        }
+        deleteMany: {
+          args: Prisma.CreditGrantDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.CreditGrantUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.CreditGrantUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CreditGrantPayload>[]
+        }
+        upsert: {
+          args: Prisma.CreditGrantUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CreditGrantPayload>
+        }
+        aggregate: {
+          args: Prisma.CreditGrantAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateCreditGrant>
+        }
+        groupBy: {
+          args: Prisma.CreditGrantGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CreditGrantGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.CreditGrantCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CreditGrantCountAggregateOutputType> | number
         }
       }
     }
@@ -3987,6 +4062,20 @@ export const ApiUsageLedgerScalarFieldEnum = {
 export type ApiUsageLedgerScalarFieldEnum = (typeof ApiUsageLedgerScalarFieldEnum)[keyof typeof ApiUsageLedgerScalarFieldEnum]
 
 
+export const CreditGrantScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  points: 'points',
+  reason: 'reason',
+  dedupeKey: 'dedupeKey',
+  note: 'note',
+  grantedBy: 'grantedBy',
+  createdAt: 'createdAt'
+} as const
+
+export type CreditGrantScalarFieldEnum = (typeof CreditGrantScalarFieldEnum)[keyof typeof CreditGrantScalarFieldEnum]
+
+
 export const FreeTierSlotScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
@@ -4974,6 +5063,7 @@ export type GlobalOmitConfig = {
   generationJob?: Prisma.GenerationJobOmit
   executionOutbox?: Prisma.ExecutionOutboxOmit
   apiUsageLedger?: Prisma.ApiUsageLedgerOmit
+  creditGrant?: Prisma.CreditGrantOmit
   freeTierSlot?: Prisma.FreeTierSlotOmit
   recipe?: Prisma.RecipeOmit
   voiceCard?: Prisma.VoiceCardOmit

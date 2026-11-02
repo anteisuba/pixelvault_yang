@@ -344,7 +344,8 @@
       "loraIncompatibleHosted": "This LoRA's layer format isn't supported by the hosted model. Try an ANTEI Runner model (faithful recipe clone) instead, if available.",
       "runnerMonthlyLimitExceeded": "ANTEI Runner's monthly generation limit has been reached. Try again next month, or use a hosted model instead.",
       "runnerLoraUnavailable": "This LoRA is not available on the current generation service. Choose another LoRA or a model that supports it.",
-      "loraDownloadDisabled": "The creator has disabled downloads for this LoRA on Civitai, so it can't be loaded here. Choose another LoRA."
+      "loraDownloadDisabled": "The creator has disabled downloads for this LoRA on Civitai, so it can't be loaded here. Choose another LoRA.",
+      "creditsExhausted": "You're out of credits. Ask the admin for more, or add your own key."
     },
     "generation": {
       "provider_timeout": "Generation took too long. Try again later or choose another model.",
@@ -381,7 +382,8 @@
       "publish_blocked": "This work can't be made public: its prompt contains both minor-related and sexual terms. It stays in your library.",
       "publish_blocked_search": "This image used Google Search while it was made, so under Google's terms only you can see it — it can't be published.",
       "unknown": "Generation failed for an undetermined reason. Try again later. If it keeps failing, share the error details with the administrator.",
-      "unknownWithDetail": "This generation failed. The provider said: {detail}"
+      "unknownWithDetail": "This generation failed. The provider said: {detail}",
+      "credits_exhausted": "You're out of credits. Ask the admin for more, or add your own key."
     },
     "validation": {
       "invalidInput": "Invalid input. Please check your parameters.",
@@ -484,7 +486,9 @@
     "voiceBench": {
       "noPersona": "Switch to a character first, then rewrite in her words",
       "rewriteEmpty": "The rewrite came back empty. Try again"
-    }
+    },
+    "creditsExhausted": "Not enough credits. Ask the admin for more, or add your own key.",
+    "creditRecipientNotFound": "No user with that email or username."
   },
   "DropZone": {
     "toReferences": "Drop to add as reference",

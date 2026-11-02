@@ -146,6 +146,7 @@ model User {
   userApiKeys            UserApiKey[]
   generationJobs         GenerationJob[]
   apiUsageLedger         ApiUsageLedger[]
+  creditGrants           CreditGrant[]
   projects               Project[]
   characterCards         CharacterCard[]
   likesGiven             UserLike[]              @relation("LikesGiven")
@@ -657,6 +658,26 @@ model ApiUsageLedger {
   @@index([userId, funding, createdAt(sort: Desc)])
   @@index([adapterType, modelId, createdAt(sort: Desc)])
   @@index([wasSuccessful, createdAt(sort: Desc)])
+}
+
+/// 平台点数的「进账」（docs/design/platform-credits.md §2.4）：一行 = 送一次点。
+/// 余额 = 送的总数 − 账本里平台出钱（funding = platform）的 points 总数，⛔ 不另存余额字段。
+model CreditGrant {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// 1 点 = 1 美分。
+  points    Decimal  @db.Decimal(12, 3)
+  /// signup | owner_gift（`CREDIT_GRANT_REASONS`）
+  reason    String
+  /// 同一件事只送一次（注册礼 = `signup:<userId>`）；手动送的为空。
+  dedupeKey String?  @unique
+  note      String?  @db.Text
+  /// 谁送的（admin 的 User.id）；系统送的为空。
+  grantedBy String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt(sort: Desc)])
 }
 
 model FreeTierSlot {

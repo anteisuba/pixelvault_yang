@@ -49,10 +49,14 @@
       "columnRequests": "本月次数",
       "columnCost": "估算花费",
       "runnerLabel": "Runner · 自托管",
-      "runnerQuota": "{used} / {limit}",
-      "runnerCost": "$0 · {date} 重置",
       "total": "合计",
-      "footnote": "次数来自你自己的用量流水；花费 = 次数 × 该模型单价累加。没有公开单价的模型只显次数。"
+      "footnote": "次数来自你自己的用量流水。花费：对话和 Runner 按实际用量算好的点数（1 点 = 1 美分），其余按次数 × 该模型单价估；没有公开单价的模型只显次数。平台出钱的（Runner、没绑 key 时的对话）从点数扣，自己 key 的只记不扣。",
+      "balance": "剩 {points} 点",
+      "balanceExempt": "剩 {points} 点 · 你不受点数限制",
+      "giftRecipient": "邮箱或用户名",
+      "giftPoints": "点数",
+      "giftSubmit": "加点",
+      "giftDone": "给 {name} 加了 {points} 点，现在剩 {balance} 点"
     },
     "preferences": {
       "language": "语言",

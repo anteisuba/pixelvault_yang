@@ -68,6 +68,7 @@ export const ModelName = {
   GenerationJob: 'GenerationJob',
   ExecutionOutbox: 'ExecutionOutbox',
   ApiUsageLedger: 'ApiUsageLedger',
+  CreditGrant: 'CreditGrant',
   FreeTierSlot: 'FreeTierSlot',
   Recipe: 'Recipe',
   VoiceCard: 'VoiceCard',
@@ -430,6 +431,20 @@ export const ApiUsageLedgerScalarFieldEnum = {
 } as const
 
 export type ApiUsageLedgerScalarFieldEnum = (typeof ApiUsageLedgerScalarFieldEnum)[keyof typeof ApiUsageLedgerScalarFieldEnum]
+
+
+export const CreditGrantScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  points: 'points',
+  reason: 'reason',
+  dedupeKey: 'dedupeKey',
+  note: 'note',
+  grantedBy: 'grantedBy',
+  createdAt: 'createdAt'
+} as const
+
+export type CreditGrantScalarFieldEnum = (typeof CreditGrantScalarFieldEnum)[keyof typeof CreditGrantScalarFieldEnum]
 
 
 export const FreeTierSlotScalarFieldEnum = {

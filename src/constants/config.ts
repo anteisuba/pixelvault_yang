@@ -394,6 +394,7 @@ export const API_ENDPOINTS = {
   LORA_ASSETS_CIVITAI_DOWNLOAD_POLICY:
     '/api/lora-assets/civitai/download-policy',
   RUNNER_USAGE: '/api/runner/usage',
+  ADMIN_CREDITS: '/api/admin/credits',
   /** Resolve a recipe's extra-LoRA reference (hash / versionId) to a mountable item */
   LORA_ASSETS_CIVITAI_RESOLVE: '/api/lora-assets/civitai/resolve',
   /** Resolve a style-code share-link → LoraAsset */
@@ -884,22 +885,21 @@ export const RUNAWAY_GENERATION_GUARD = {
 } as const
 
 /**
- * Comfy Runner (Modal ComfyUI) budget guardrail — monthly only, no daily cap
- * (owner 2026-10-07).
+ * Comfy Runner (Modal ComfyUI) site-wide budget guardrail — monthly only, no daily
+ * cap (owner 2026-10-07).
  *
- * Modal can't cap "N generations per month", so it lives
- * here. Modal bills ~$0.03–0.05 per image on average (L40S $0.000542/s, plus
- * cold start and the 60s scaledown tail — an isolated image is ~$0.09), so the
- * site cap of 600 stays near the Starter plan's $30/month free credit.
- * The per-user cap keeps one account from draining it. ADMIN_USER_IDS are
- * never blocked by either cap, but their jobs still count toward the site
- * total. See docs/references/domains/runner.md.
+ * Modal can't cap "N generations per month", so it lives here. Modal bills
+ * ~$0.03–0.05 per image on average (L40S $0.000542/s, plus cold start and the
+ * 60s scaledown tail — an isolated image is ~$0.09), so the site cap of 600
+ * stays near the Starter plan's $30/month free credit.
+ *
+ * ⚠ 个人那一道（原来的每人每月 100 次）2026-11-01 起换成了平台点数（`CREDIT_LIMITS`，
+ * `services/credits.service.ts`）。ADMIN_USER_IDS are never blocked, but their jobs
+ * still count toward the site total. See docs/references/domains/runner.md.
  */
 export const RUNNER_MONTHLY_LIMIT = {
   /** Site-wide RUNNER generation attempts per calendar month (UTC). */
   SITE_LIMIT: 600,
-  /** RUNNER generation attempts per user per calendar month (UTC). */
-  PER_USER_LIMIT: 100,
   /** Whether the runner is enabled at all — see FEATURE_FLAGS.comfyRunner. */
   ENABLED: true,
 } as const

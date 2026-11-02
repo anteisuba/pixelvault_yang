@@ -7,6 +7,7 @@ import {
   RUNNER_MONTHLY_LIMIT,
 } from '@/constants/config'
 import {
+  CREDIT_LIMITS,
   USAGE_FUNDING,
   type UsageFunding,
   type UsageKind,
@@ -22,14 +23,24 @@ import type {
   GenerationJobStatus,
 } from '@/lib/generated/prisma/client'
 import type { RunnerUsageResult } from '@/types'
+import {
+  CreditsExhaustedError,
+  ensureSignupGrant,
+  getCreditBalance,
+  readCreditBalance,
+} from '@/services/credits.service'
 import type { MonthlyUsageSummary } from '@/types/usage'
 
 type UsageMutationClient = Pick<typeof db, 'generationJob' | 'apiUsageLedger'>
 type GenerationJobCreateClient = Pick<
   typeof db,
-  'generationJob' | 'user' | '$executeRaw'
+  'generationJob' | 'user' | '$executeRaw' | 'creditGrant' | 'apiUsageLedger'
 >
 type RunnerQuotaClient = Pick<typeof db, 'generationJob' | 'user'>
+type RunnerCreditClient = Pick<
+  typeof db,
+  'generationJob' | 'creditGrant' | 'apiUsageLedger'
+>
 
 export interface CreateGenerationJobInput {
   userId: string
@@ -236,16 +247,45 @@ async function readRunnerMonthlyQuota(
 
 function assertRunnerQuotaLeft(quota: RunnerMonthlyQuota): void {
   if (quota.exempt) return
-  if (quota.userUsed >= RUNNER_MONTHLY_LIMIT.PER_USER_LIMIT) {
-    throw new RunnerMonthlyLimitExceededError(
-      'user',
-      RUNNER_MONTHLY_LIMIT.PER_USER_LIMIT,
-    )
-  }
   if (quota.siteUsed >= RUNNER_MONTHLY_LIMIT.SITE_LIMIT) {
     throw new RunnerMonthlyLimitExceededError(
       'site',
       RUNNER_MONTHLY_LIMIT.SITE_LIMIT,
+    )
+  }
+}
+
+/**
+ * 个人这一道换成点数（平台点数第 3 片，2026-11-01 owner 定，取代「每人每月 100 次」）：
+ * 余额减去在跑的 Runner 任务各占的一份，还够再占一份才放行（先占后结；结算按实际占卡秒数，
+ * 失败的不扣）。admin 不拦。
+ */
+async function assertRunnerCreditsLeft(
+  userId: string,
+  exempt: boolean,
+  client: RunnerCreditClient,
+): Promise<void> {
+  if (exempt) return
+  const [{ balancePoints }, inFlight] = await Promise.all([
+    readCreditBalance(userId, client),
+    client.generationJob.count({
+      where: {
+        userId,
+        adapterType: AI_ADAPTER_TYPES.RUNNER,
+        status: { in: [...PLATFORM_GENERATION_GUARD.ACTIVE_JOB_STATUSES] },
+        createdAt: {
+          gte: new Date(
+            Date.now() - PLATFORM_GENERATION_GUARD.ACTIVE_JOB_MAX_AGE_MS,
+          ),
+        },
+      },
+    }),
+  ])
+  const available = balancePoints - inFlight * CREDIT_LIMITS.runnerReservePoints
+  if (available < CREDIT_LIMITS.runnerReservePoints) {
+    throw new CreditsExhaustedError(
+      Math.max(0, available),
+      CREDIT_LIMITS.runnerReservePoints,
     )
   }
 }
@@ -261,15 +301,16 @@ export async function assertRunnerMonthlyLimitNotExceeded(
   if (!RUNNER_MONTHLY_LIMIT.ENABLED) return
   assertPlatformGenerationEnabled()
 
-  assertRunnerQuotaLeft(await readRunnerMonthlyQuota(userId, db))
+  await ensureSignupGrant(userId)
+  const quota = await readRunnerMonthlyQuota(userId, db)
+  assertRunnerQuotaLeft(quota)
+  await assertRunnerCreditsLeft(userId, quota.exempt, db)
 }
 
 /**
- * 这个人的 runner 月度额度快照，给 LoRA 工作台「本月剩余 N/100」与设置页用量用。
- * `remaining` 取个人余量与全站余量的较小者——全站先见底时个人余量花不出去。
- * ADMIN（`exempt`）不受任何一道限制：`limit` / `remaining` 报的是全站预算，
- * 让 owner 看得到别人还能用多少，但前端不能把它说成「你的额度用完了」。
- * ENABLED=false 时 used/limit=0、remaining=0，前端据此不显示。
+ * 这个人能不能用 Runner 出图的快照，给 LoRA 工作台与设置页用。个人这一道是平台点数
+ * （`balancePoints` / `reservePoints`），全站还有月度次数闸（`siteRemaining`）。
+ * ADMIN（`exempt`）不受这两道限制。ENABLED=false 时 enabled=false，前端据此不显示。
  *
  * `platformEnabled` 必须跟着一起报：额度和总闸是两道独立的闸，只报额度会让工作台
  * 承诺一个根本花不出去的余额。2026-07-31 生产上就是这么演的——面板写着「本月
@@ -281,40 +322,21 @@ export async function getRunnerUsage(
   userId: string,
 ): Promise<RunnerUsageResult> {
   const platformEnabled = isPlatformGenerationEnabled()
-  if (!RUNNER_MONTHLY_LIMIT.ENABLED) {
-    return {
-      enabled: false,
-      used: 0,
-      limit: 0,
-      remaining: 0,
-      exempt: false,
-      platformEnabled,
-    }
-  }
-  const { siteUsed, userUsed, exempt } = await readRunnerMonthlyQuota(
-    userId,
-    db,
-  )
-  const siteRemaining = Math.max(0, RUNNER_MONTHLY_LIMIT.SITE_LIMIT - siteUsed)
-  if (exempt) {
-    return {
-      enabled: true,
-      used: userUsed,
-      limit: RUNNER_MONTHLY_LIMIT.SITE_LIMIT,
-      remaining: siteRemaining,
-      exempt: true,
-      platformEnabled,
-    }
-  }
+  const [quota, credits] = await Promise.all([
+    readRunnerMonthlyQuota(userId, db),
+    getCreditBalance(userId),
+  ])
   return {
-    enabled: true,
-    used: userUsed,
-    limit: RUNNER_MONTHLY_LIMIT.PER_USER_LIMIT,
-    remaining: Math.min(
-      Math.max(0, RUNNER_MONTHLY_LIMIT.PER_USER_LIMIT - userUsed),
-      siteRemaining,
+    enabled: RUNNER_MONTHLY_LIMIT.ENABLED,
+    used: quota.userUsed,
+    balancePoints: credits.balancePoints,
+    reservePoints: CREDIT_LIMITS.runnerReservePoints,
+    siteRemaining: Math.max(
+      0,
+      RUNNER_MONTHLY_LIMIT.SITE_LIMIT - quota.siteUsed,
     ),
-    exempt: false,
+    siteLimit: RUNNER_MONTHLY_LIMIT.SITE_LIMIT,
+    exempt: quota.exempt,
     platformEnabled,
   }
 }
@@ -424,7 +446,9 @@ async function createGenerationJobWithinLimits(
 
     await client.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`
 
-    assertRunnerQuotaLeft(await readRunnerMonthlyQuota(input.userId, client))
+    const quota = await readRunnerMonthlyQuota(input.userId, client)
+    assertRunnerQuotaLeft(quota)
+    await assertRunnerCreditsLeft(input.userId, quota.exempt, client)
   }
 
   // 并发闸只管平台掏钱的那条路（platform key / 免费额度）。调用方自带 key 时

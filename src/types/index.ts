@@ -38,6 +38,7 @@ import {
   CHARACTER_CARD,
   CHARACTER_PERSONA_LIMITS,
 } from '@/constants/cards/character-card'
+import { CREDIT_LIMITS } from '@/constants/credits'
 import { API_KEY_ADAPTER_OPTIONS } from '@/constants/api-keys'
 import {
   EXECUTION_PROGRESS_STAGE_VALUES,
@@ -4363,14 +4364,21 @@ export type CivitaiModelDescriptionResult = z.infer<
   typeof CivitaiModelDescriptionResultSchema
 >
 
-// 当前用户的 runner 月度额度，给 LoRA 工作台主动提示「本月剩余 N/100」用。
-// enabled=false 时前端不显示。见 `getRunnerUsage`。
+// 当前用户能不能用 Runner（Modal）出图，给 LoRA 工作台与设置页用。enabled=false 时前端不显示。
+// 个人这一道是平台点数（2026-11-01 起取代「每人每月 100 次」），全站还有一道月度次数闸
+// 保护 owner 的 Modal 预算。见 `getRunnerUsage`。
 export const RunnerUsageResultSchema = z.object({
   enabled: z.boolean(),
+  /** 这个人本月发起的 Runner 任务数（只是给看的次数，⛔ 不再是额度）。 */
   used: z.number().int().nonnegative(),
-  limit: z.number().int().nonnegative(),
-  remaining: z.number().int().nonnegative(),
-  /** ADMIN 不受限：此时 `limit` / `remaining` 是全站预算，不是这个人的额度。 */
+  /** 这个人的平台点数余额（1 点 = 1 美分）。 */
+  balancePoints: z.number(),
+  /** 发起一次要先占住的点数；余额减去在跑的各一份，够这个数才能出。 */
+  reservePoints: z.number().nonnegative(),
+  /** 全站本月还剩几次（owner 的 Modal 预算闸）。 */
+  siteRemaining: z.number().int().nonnegative(),
+  siteLimit: z.number().int().nonnegative(),
+  /** ADMIN 不受点数与全站次数限制。 */
   exempt: z.boolean(),
   /**
    * 平台出资生成的总闸（`PLATFORM_GENERATION_ENABLED`）是否开着。runner 没有 BYOK
@@ -4380,6 +4388,20 @@ export const RunnerUsageResultSchema = z.object({
   platformEnabled: z.boolean(),
 })
 export type RunnerUsageResult = z.infer<typeof RunnerUsageResultSchema>
+
+/** admin 给某人送点（owner 给朋友加额度，平台点数第 3 片）。 */
+export const GrantCreditsRequestSchema = z.object({
+  /** 收点的人：邮箱或用户名。 */
+  recipient: z.string().trim().min(1).max(320),
+  points: z.number().positive().max(CREDIT_LIMITS.maxGiftPoints),
+  note: z.string().trim().max(200).optional(),
+})
+export type GrantCreditsRequest = z.infer<typeof GrantCreditsRequestSchema>
+
+export interface GrantCreditsResult {
+  displayName: string | null
+  balancePoints: number
+}
 
 export type CivitaiLoraLibraryItem = z.infer<
   typeof CivitaiLoraLibraryItemSchema

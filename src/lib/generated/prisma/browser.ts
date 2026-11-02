@@ -118,6 +118,12 @@ export type ExecutionOutbox = Prisma.ExecutionOutboxModel
  */
 export type ApiUsageLedger = Prisma.ApiUsageLedgerModel
 /**
+ * Model CreditGrant
+ * 平台点数的「进账」（docs/design/platform-credits.md §2.4）：一行 = 送一次点。
+ * 余额 = 送的总数 − 账本里平台出钱（funding = platform）的 points 总数，⛔ 不另存余额字段。
+ */
+export type CreditGrant = Prisma.CreditGrantModel
+/**
  * Model FreeTierSlot
  * 
  */

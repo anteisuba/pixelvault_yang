@@ -18,6 +18,20 @@ vi.mock('@/lib/db', () => ({
   },
 }))
 
+const credits = vi.hoisted(() => ({
+  balance: { balancePoints: 100, exempt: false },
+  assertCreditsLeft: vi.fn(),
+}))
+
+vi.mock('@/services/credits.service', () => ({
+  getCreditBalance: vi.fn(async () => ({
+    grantedPoints: 100,
+    spentPoints: 100 - credits.balance.balancePoints,
+    ...credits.balance,
+  })),
+  assertCreditsLeft: credits.assertCreditsLeft,
+}))
+
 vi.mock('@/lib/crypto', () => ({
   decryptApiKey: (encrypted: string) => {
     // 坏掉的那把 key：解不开就抛（真 `decryptApiKey` 的行为）。
@@ -36,6 +50,7 @@ import {
   ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE,
 } from '@/constants/assistant-operator'
 import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
+import { PLATFORM_LLM_ROUTE, USAGE_FUNDING } from '@/constants/credits'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   ApiKeyError,
@@ -63,6 +78,10 @@ import {
 describe('resolveAssistantRoute', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.unstubAllEnvs()
+    // 默认平台没配 DeepSeek：一把 key 都没有就照旧弹配 key。
+    vi.stubEnv('DEEPSEEK_API_KEY', '')
+    credits.balance = { balancePoints: 100, exempt: false }
   })
 
   function usesOf(route: { adapterType: string; apiKey: string }) {
@@ -236,6 +255,47 @@ describe('resolveAssistantRoute', () => {
       errorCode: 'MISSING_API_KEY',
     })
     expect(keyStore.findFirst).not.toHaveBeenCalled()
+  })
+
+  it('「自动」一把 key 都没有、平台配了 DeepSeek、还有点数 → 用平台的 DeepSeek，花费记平台', async () => {
+    vi.stubEnv('DEEPSEEK_API_KEY', 'sk-platform')
+    seedAssistantRoute(keyStore, { keys: [] })
+
+    const picked = await resolveAssistantRoute('db_user_1')
+
+    expect(picked).toMatchObject({
+      apiKeyId: PLATFORM_LLM_ROUTE.apiKeyId,
+      modelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH,
+      auto: true,
+    })
+    expect(picked.route).toMatchObject({
+      adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+      apiKey: 'sk-platform',
+      meter: { userId: 'db_user_1', funding: USAGE_FUNDING.platform },
+    })
+    expect(credits.assertCreditsLeft).toHaveBeenCalledWith('db_user_1')
+  })
+
+  it('点数花光 → 照旧 MISSING_API_KEY（就地弹配 key），⛔ 不透支平台的钱', async () => {
+    vi.stubEnv('DEEPSEEK_API_KEY', 'sk-platform')
+    credits.balance = { balancePoints: 0, exempt: false }
+    seedAssistantRoute(keyStore, { keys: [] })
+
+    await expect(resolveAssistantRoute('db_user_1')).rejects.toMatchObject({
+      errorCode: 'MISSING_API_KEY',
+    })
+  })
+
+  it('自己有 key 就用自己的，⛔ 不花平台点数', async () => {
+    vi.stubEnv('DEEPSEEK_API_KEY', 'sk-platform')
+    seedAssistantRoute(keyStore, {
+      keys: [assistantKey(AI_ADAPTER_TYPES.OPENAI)],
+    })
+
+    const picked = await resolveAssistantRoute('db_user_1')
+
+    expect(picked.apiKeyId).toBe(`key_${AI_ADAPTER_TYPES.OPENAI}`)
+    expect(picked.route.meter.funding).toBe(USAGE_FUNDING.byok)
   })
 
   it('persona 已经读过就不再读那一列（prepareOperatorTurn 传进来的）', async () => {

@@ -174,15 +174,15 @@
       },
       "promptPlaceholder": "生成したい画像を入力…",
       "restore": "忠実再現",
-      "runnerBudgetRemaining": "今月の Runner 残り {remaining}/{limit} 回",
+      "runnerBudgetRemaining": "残り {points} ポイント（1 枚あたり約 3〜7）",
       "runnerBudgetSite": "サイト全体の今月の Runner 残り {remaining}/{limit} 回（あなたは無制限）",
-      "runnerBudgetExhausted": "今月の Runner 生成枠を使い切りました。翌月リセット、またはホスト型モデルをご利用ください",
+      "runnerBudgetExhausted": "ポイントが足りません。管理者に追加してもらうか、ホスト型のベースモデルに切り替えてください",
       "runnerUnavailable": "Runner は現在利用できません。クラウドのベースモデルを選ぶか、サイト管理者に有効化を依頼してください。",
       "resultEmptyHint": "プロンプトを入力して「生成」を押してください",
       "eta": "Runner での生成は通常 {min}〜{max} 秒かかります",
       "etaColdStart": "初回は基盤モデルの読み込みから始まるため、通常 {min}〜{max} 分かかります",
       "resultFailedRetry": "再試行",
-      "resultFailedQuotaNote": "送信されたジョブごとに1回分を使用します。失敗した場合も、使用した枠は戻りません。",
+      "resultFailedQuotaNote": "失敗した生成はポイントを消費しません",
       "resultPreviewLabel": "生成結果を拡大表示",
       "promptModeLabel": "プロンプトの出所",
       "promptModeRecommend": "おすすめ",
@@ -281,7 +281,8 @@
       "paramsCfg": "CFG {cfg}",
       "runShort": "生成",
       "handToAssistant": "アシスタントに渡す",
-      "upscaleNone": "拡大しない"
+      "upscaleNone": "拡大しない",
+      "runnerSiteExhausted": "今月のサイト全体の Runner 枠を使い切りました。来月リセットされます。ホスト型のベースモデルもご利用いただけます"
     },
     "spine": {
       "sourceCheckpointAuto": "ソース画像のチェックポイント（自動）",

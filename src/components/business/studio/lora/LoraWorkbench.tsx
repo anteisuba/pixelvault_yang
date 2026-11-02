@@ -42,7 +42,7 @@ import {
   Wand2,
   X,
 } from '@/components/icons'
-import { useTranslations } from 'next-intl'
+import { useFormatter, useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
 import {
@@ -731,6 +731,7 @@ function GenerateBranch({
   const { user } = useUser()
   const t = useTranslations('LoraWorkbench')
   const tModels = useTranslations('Models')
+  const format = useFormatter()
   const router = useRouter()
   const pathname = usePathname()
   // 做同款 / 补挂额外 LoRA 的结果 toast（文案与旧 inline 配方面板共用）。
@@ -2975,35 +2976,42 @@ function GenerateBranch({
   // 额度提示：平台总闸（platformEnabled）优先于余额。桌面落在底模列表最底下一行，手机
   // 落在装配抽屉底 —— ⛔ 不挤进手机输入框（窄屏会把出图键顶出视口）。出不了图的那两档
   // （总闸关 / 次数用完）桌面另在输入框里说一句，⛔ 只藏在列表底。
+  const runnerOutOfCredits =
+    runnerUsage !== null &&
+    !runnerUsage.exempt &&
+    runnerUsage.balancePoints < runnerUsage.reservePoints
+  const runnerSiteExhausted =
+    runnerUsage !== null &&
+    !runnerUsage.exempt &&
+    runnerUsage.siteRemaining <= 0
   const runnerBudgetBlocked =
     isRunnerBase &&
     runnerUsage?.enabled === true &&
-    (!runnerUsage.platformEnabled ||
-      (!runnerUsage.exempt && runnerUsage.remaining <= 0))
+    (!runnerUsage.platformEnabled || runnerOutOfCredits || runnerSiteExhausted)
   const runnerBudgetNote =
     isRunnerBase && runnerUsage?.enabled ? (
       <p
         className={cn(
           'text-2xs',
-          !runnerUsage.platformEnabled ||
-            (!runnerUsage.exempt && runnerUsage.remaining <= 0)
-            ? 'text-status-warning'
-            : 'text-muted-foreground',
+          runnerBudgetBlocked ? 'text-status-warning' : 'text-muted-foreground',
         )}
       >
         {!runnerUsage.platformEnabled
           ? t('generate.runnerUnavailable')
           : runnerUsage.exempt
             ? t('generate.runnerBudgetSite', {
-                remaining: runnerUsage.remaining,
-                limit: runnerUsage.limit,
+                remaining: runnerUsage.siteRemaining,
+                limit: runnerUsage.siteLimit,
               })
-            : runnerUsage.remaining <= 0
-              ? t('generate.runnerBudgetExhausted')
-              : t('generate.runnerBudgetRemaining', {
-                  remaining: runnerUsage.remaining,
-                  limit: runnerUsage.limit,
-                })}
+            : runnerSiteExhausted
+              ? t('generate.runnerSiteExhausted')
+              : runnerOutOfCredits
+                ? t('generate.runnerBudgetExhausted')
+                : t('generate.runnerBudgetRemaining', {
+                    points: format.number(runnerUsage.balancePoints, {
+                      maximumFractionDigits: 1,
+                    }),
+                  })}
       </p>
     ) : null
 

@@ -161,7 +161,10 @@ vi.mock('next-intl', () => ({
   },
   // CivitaiCommunityBranch 用它渲染降级横幅里的「X 分钟前」。手写镜像 mock
   // 漏一个导出不是漏一条断言——组件渲染直接抛，整个文件集体红。
-  useFormatter: () => ({ relativeTime: () => 'relative-time' }),
+  useFormatter: () => ({
+    relativeTime: () => 'relative-time',
+    number: (value: number) => String(value),
+  }),
   // P4-C：装配台换成操作员面板之后，驱动 hook 要用 locale 决定助手说哪种语言。
   // ⚠ 与上面两条同理——手写镜像 mock 漏一个导出 = 整个文件集体红。
   useLocale: () => 'zh',
@@ -1810,8 +1813,10 @@ describe('LoraWorkbench GenerateBranch — pure base and Runner controls', () =>
     mockRunnerUsage = {
       enabled: true,
       used: 40,
-      limit: 100,
-      remaining: 60,
+      balancePoints: 60,
+      reservePoints: 10,
+      siteRemaining: 500,
+      siteLimit: 600,
       exempt: false,
       platformEnabled: false,
     }

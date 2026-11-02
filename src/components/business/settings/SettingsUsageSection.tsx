@@ -6,6 +6,7 @@ import { formatUnitPriceAmount } from '@/constants/models/unit-prices'
 import { useMonthlyUsage } from '@/hooks/use-monthly-usage'
 import { CountUp } from '@/components/ui/count-up'
 import { Spinner } from '@/components/ui/spinner'
+import { SettingsCreditGiftForm } from '@/components/business/settings/SettingsCreditGiftForm'
 
 /**
  * `/settings/usage`（D3 ④ usage 画板）——**只显数字**：provider · 本月次数 ·
@@ -27,10 +28,10 @@ export function SettingsUsageSection() {
     totalEstimatedCostUsd,
     runner,
     isLoading,
+    refresh,
   } = useMonthlyUsage()
 
   const showRunner = runner?.enabled === true
-  const resetDate = startOfNextMonthUTC()
 
   return (
     <section>
@@ -41,6 +42,16 @@ export function SettingsUsageSection() {
           {t('usage.estimateNote')}
         </p>
       </header>
+
+      {runner ? (
+        <p className="mt-3 text-sm">
+          {t(runner.exempt ? 'usage.balanceExempt' : 'usage.balance', {
+            points: format.number(runner.balancePoints, {
+              maximumFractionDigits: 1,
+            }),
+          })}
+        </p>
+      ) : null}
 
       {isLoading ? (
         <div className="mt-4 flex items-center gap-2 rounded-lg border border-border px-4 py-6 text-sm text-muted-foreground">
@@ -91,21 +102,9 @@ export function SettingsUsageSection() {
                 <tr className="border-t border-border">
                   <td className="px-3.5 py-2.5">{t('usage.runnerLabel')}</td>
                   <td className="px-3.5 py-2.5 text-right font-mono text-xs">
-                    {runner.exempt
-                      ? runner.used
-                      : t('usage.runnerQuota', {
-                          used: runner.used,
-                          limit: runner.limit,
-                        })}
+                    {runner.used}
                   </td>
-                  <td className="px-3.5 py-2.5 text-right font-mono text-xs">
-                    {t('usage.runnerCost', {
-                      date: format.dateTime(resetDate, {
-                        month: '2-digit',
-                        day: '2-digit',
-                      }),
-                    })}
-                  </td>
+                  <td className="px-3.5 py-2.5 text-right font-mono text-xs" />
                 </tr>
               ) : null}
               <tr className="border-t border-border font-medium">
@@ -133,6 +132,8 @@ export function SettingsUsageSection() {
       <p className="mt-2.5 text-xs leading-relaxed text-muted-foreground">
         {t('usage.footnote')}
       </p>
+
+      {runner?.exempt ? <SettingsCreditGiftForm onGranted={refresh} /> : null}
     </section>
   )
 }
@@ -140,10 +141,4 @@ export function SettingsUsageSection() {
 /** 次数滚动途中也只显整数。 */
 function formatCount(value: number): string {
   return String(Math.round(value))
-}
-
-/** Runner 额度按 UTC 自然月重置，与 `getRunnerUsage` 的月界同源。 */
-function startOfNextMonthUTC(): Date {
-  const now = new Date()
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1))
 }

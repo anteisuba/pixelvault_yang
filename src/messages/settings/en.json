@@ -49,10 +49,14 @@
       "columnRequests": "requests",
       "columnCost": "estimated cost",
       "runnerLabel": "Runner · self-hosted",
-      "runnerQuota": "{used} / {limit}",
-      "runnerCost": "$0 · resets {date}",
       "total": "Total",
-      "footnote": "Requests come from your own usage ledger; cost is requests × that model's unit price. Models with no published unit price show a request count only."
+      "footnote": "Counts come from your own usage log. Cost: chat and Runner use credits computed from actual usage (1 credit = 1 US cent); everything else is count × the model’s unit price. Models without a public price show counts only. Platform-paid usage (Runner, chat without your own key) is taken from credits; your own keys are recorded but never deducted.",
+      "balance": "{points} credits left",
+      "balanceExempt": "{points} credits left · no credit limit for you",
+      "giftRecipient": "Email or username",
+      "giftPoints": "Credits",
+      "giftSubmit": "Add credits",
+      "giftDone": "Added {points} credits for {name}; they now have {balance}"
     },
     "preferences": {
       "language": "Language",

@@ -12,6 +12,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { CREDIT_LIMITS } from '@/constants/credits'
 import {
   PLATFORM_GENERATION_GUARD,
   RUNAWAY_GENERATION_GUARD,
@@ -46,6 +47,27 @@ const mockDbTransaction = vi.fn(async (fn: (tx: unknown) => Promise<unknown>) =>
     $executeRaw: (...args: unknown[]) => mockExecuteRaw(...args),
   }),
 )
+
+const mockReadCreditBalance = vi.fn()
+const mockGetCreditBalance = vi.fn()
+
+vi.mock('@/services/credits.service', () => {
+  class CreditsExhaustedError extends Error {
+    readonly code = 'CREDITS_EXHAUSTED'
+    constructor(
+      readonly balancePoints: number,
+      readonly neededPoints: number,
+    ) {
+      super('Not enough credits')
+    }
+  }
+  return {
+    CreditsExhaustedError,
+    ensureSignupGrant: vi.fn().mockResolvedValue(undefined),
+    readCreditBalance: (...args: unknown[]) => mockReadCreditBalance(...args),
+    getCreditBalance: (...args: unknown[]) => mockGetCreditBalance(...args),
+  }
+})
 
 vi.mock('@/lib/admin', () => ({
   isAdmin: (clerkId: string) => mockIsAdmin(clerkId),
@@ -101,6 +123,17 @@ describe('usage.service', () => {
     mockJobCount.mockReset().mockResolvedValue(0)
     mockUserFindUnique.mockReset().mockResolvedValue({ clerkId: 'clerk-1' })
     mockIsAdmin.mockReset().mockReturnValue(false)
+    mockReadCreditBalance.mockReset().mockResolvedValue({
+      grantedPoints: 100,
+      spentPoints: 0,
+      balancePoints: 100,
+    })
+    mockGetCreditBalance.mockReset().mockResolvedValue({
+      grantedPoints: 100,
+      spentPoints: 20,
+      balancePoints: 80,
+      exempt: false,
+    })
   })
 
   afterEach(() => {
@@ -143,7 +176,8 @@ describe('usage.service', () => {
         .mockResolvedValueOnce(0) // runaway hour window
         .mockResolvedValueOnce(0) // runaway day window
         .mockResolvedValueOnce(RUNNER_MONTHLY_LIMIT.SITE_LIMIT - 1) // runner site month
-        .mockResolvedValueOnce(RUNNER_MONTHLY_LIMIT.PER_USER_LIMIT - 1) // runner user month
+        .mockResolvedValueOnce(50) // runner user month (display only)
+        .mockResolvedValueOnce(0) // runner in-flight (credit reserve)
         .mockResolvedValueOnce(0) // active jobs (RUNNER is always platform-funded)
       mockCreate.mockResolvedValue({ id: 'runner-job-1', status: 'RUNNING' })
 
@@ -156,7 +190,8 @@ describe('usage.service', () => {
 
       expect(mockDbTransaction).toHaveBeenCalledOnce()
       expect(mockExecuteRaw).toHaveBeenCalledTimes(3)
-      expect(mockJobCount).toHaveBeenCalledTimes(5)
+      expect(mockJobCount).toHaveBeenCalledTimes(6)
+      expect(mockReadCreditBalance).toHaveBeenCalledOnce()
       expect(mockCreate).toHaveBeenCalledOnce()
       expect(Math.min(...mockExecuteRaw.mock.invocationCallOrder)).toBeLessThan(
         Math.min(...mockJobCount.mock.invocationCallOrder),
@@ -173,22 +208,41 @@ describe('usage.service', () => {
       modelId: 'anima-pencil-xl-runner',
     }
 
-    it('does not create a RUNNER job once this user hit the monthly per-user cap', async () => {
+    it('does not create a RUNNER job once this user cannot reserve another job worth of credits', async () => {
+      mockReadCreditBalance.mockResolvedValue({
+        grantedPoints: 100,
+        spentPoints: 85,
+        balancePoints: 15,
+      })
       mockJobCount
-        .mockResolvedValueOnce(0) // runaway hour window — under limit
-        .mockResolvedValueOnce(0) // runaway day window — under limit
+        .mockResolvedValueOnce(0) // runaway hour window
+        .mockResolvedValueOnce(0) // runaway day window
         .mockResolvedValueOnce(10) // runner site month — plenty left
-        .mockResolvedValueOnce(RUNNER_MONTHLY_LIMIT.PER_USER_LIMIT) // user month — at cap
+        .mockResolvedValueOnce(3) // user month — no longer a cap
+        .mockResolvedValueOnce(1) // one in flight holds 10 → 5 left < 10
 
-      await expect(createGenerationJob(runnerJob)).rejects.toThrow(
-        RunnerMonthlyLimitExceededError,
-      )
-
-      expect(mockExecuteRaw).toHaveBeenCalledTimes(2) // runaway lock + runner lock
-      expect(mockJobCount.mock.calls[3]?.[0]).toMatchObject({
+      await expect(createGenerationJob(runnerJob)).rejects.toMatchObject({
+        code: 'CREDITS_EXHAUSTED',
+      })
+      expect(mockJobCount.mock.calls[4]?.[0]).toMatchObject({
         where: { userId: 'user-1', adapterType: AI_ADAPTER_TYPES.RUNNER },
       })
       expect(mockCreate).not.toHaveBeenCalled()
+    })
+
+    it('lets a RUNNER job through on credits alone, however many were made this month', async () => {
+      mockJobCount
+        .mockResolvedValueOnce(0)
+        .mockResolvedValueOnce(0)
+        .mockResolvedValueOnce(10)
+        .mockResolvedValueOnce(500) // far past the old 100/month cap
+        .mockResolvedValueOnce(0)
+        .mockResolvedValueOnce(0)
+      mockCreate.mockResolvedValue({ id: 'runner-job-3', status: 'RUNNING' })
+
+      await createGenerationJob(runnerJob)
+
+      expect(mockCreate).toHaveBeenCalledOnce()
     })
 
     it('does not create a RUNNER job once the site-wide monthly cap is hit', async () => {
@@ -204,14 +258,19 @@ describe('usage.service', () => {
       expect(mockCreate).not.toHaveBeenCalled()
     })
 
-    it('never blocks an ADMIN account on either monthly cap', async () => {
+    it('never blocks an ADMIN account on the site cap or on credits', async () => {
       mockIsAdmin.mockReturnValue(true)
+      mockReadCreditBalance.mockResolvedValue({
+        grantedPoints: 0,
+        spentPoints: 50,
+        balancePoints: -50,
+      })
       mockJobCount
         .mockResolvedValueOnce(0)
         .mockResolvedValueOnce(0)
         .mockResolvedValueOnce(RUNNER_MONTHLY_LIMIT.SITE_LIMIT + 5)
-        .mockResolvedValueOnce(RUNNER_MONTHLY_LIMIT.PER_USER_LIMIT + 5)
-        .mockResolvedValueOnce(0) // active jobs
+        .mockResolvedValueOnce(500)
+        .mockResolvedValueOnce(0) // active jobs (no credit check for admin)
       mockCreate.mockResolvedValue({ id: 'runner-job-2', status: 'RUNNING' })
 
       await createGenerationJob(runnerJob)
@@ -575,7 +634,7 @@ describe('usage.service', () => {
   })
 
   describe('getRunnerUsage', () => {
-    it("reports this user's monthly count against the per-user cap", async () => {
+    it("reports this user's credit balance and the site budget", async () => {
       mockJobCount
         .mockResolvedValueOnce(40) // site month
         .mockResolvedValueOnce(10) // user month
@@ -585,8 +644,10 @@ describe('usage.service', () => {
       expect(result).toEqual({
         enabled: true,
         used: 10,
-        limit: RUNNER_MONTHLY_LIMIT.PER_USER_LIMIT,
-        remaining: RUNNER_MONTHLY_LIMIT.PER_USER_LIMIT - 10,
+        balancePoints: 80,
+        reservePoints: CREDIT_LIMITS.runnerReservePoints,
+        siteRemaining: RUNNER_MONTHLY_LIMIT.SITE_LIMIT - 40,
+        siteLimit: RUNNER_MONTHLY_LIMIT.SITE_LIMIT,
         exempt: false,
         platformEnabled: true,
       })
@@ -597,38 +658,23 @@ describe('usage.service', () => {
       expect(siteCall.where.createdAt.gte.getUTCHours()).toBe(0)
     })
 
-    it('caps remaining at what is left of the site budget', async () => {
+    it('clamps siteRemaining at 0 when the site is over budget', async () => {
       mockJobCount
-        .mockResolvedValueOnce(RUNNER_MONTHLY_LIMIT.SITE_LIMIT - 3)
+        .mockResolvedValueOnce(RUNNER_MONTHLY_LIMIT.SITE_LIMIT + 3)
         .mockResolvedValueOnce(10)
 
       const result = await getRunnerUsage('user-1')
 
-      expect(result.remaining).toBe(3)
+      expect(result.siteRemaining).toBe(0)
     })
 
-    it('clamps remaining at 0 when already over the limit', async () => {
-      mockJobCount
-        .mockResolvedValueOnce(40)
-        .mockResolvedValueOnce(RUNNER_MONTHLY_LIMIT.PER_USER_LIMIT + 20)
-
-      const result = await getRunnerUsage('user-1')
-
-      expect(result.remaining).toBe(0)
-    })
-
-    it('reports the site budget for an exempt ADMIN account', async () => {
+    it('marks an ADMIN account exempt', async () => {
       mockIsAdmin.mockReturnValue(true)
       mockJobCount.mockResolvedValueOnce(40).mockResolvedValueOnce(30)
 
       const result = await getRunnerUsage('user-1')
 
-      expect(result).toMatchObject({
-        used: 30,
-        limit: RUNNER_MONTHLY_LIMIT.SITE_LIMIT,
-        remaining: RUNNER_MONTHLY_LIMIT.SITE_LIMIT - 40,
-        exempt: true,
-      })
+      expect(result).toMatchObject({ used: 30, exempt: true })
     })
 
     // 回归：额度快照和派发路径必须查同一个总闸。曾经只有派发查，快照不查，于是
@@ -641,29 +687,36 @@ describe('usage.service', () => {
       const result = await getRunnerUsage('user-1')
 
       expect(result.platformEnabled).toBe(false)
-      expect(result.remaining).toBe(RUNNER_MONTHLY_LIMIT.PER_USER_LIMIT - 10)
+      expect(result.balancePoints).toBe(80)
     })
   })
 
   describe('assertRunnerMonthlyLimitNotExceeded', () => {
-    it('resolves while both the user and the site are under their caps', async () => {
+    it('resolves while the site is under its cap and credits cover a reserve', async () => {
       mockJobCount
         .mockResolvedValueOnce(RUNNER_MONTHLY_LIMIT.SITE_LIMIT - 1)
-        .mockResolvedValueOnce(RUNNER_MONTHLY_LIMIT.PER_USER_LIMIT - 1)
+        .mockResolvedValueOnce(300)
+        .mockResolvedValueOnce(0)
 
       await expect(
         assertRunnerMonthlyLimitNotExceeded('user-1'),
       ).resolves.toBeUndefined()
     })
 
-    it('throws RUNNER_MONTHLY_LIMIT_EXCEEDED when the user is at the cap', async () => {
+    it('throws CREDITS_EXHAUSTED when the balance cannot cover a reserve', async () => {
+      mockReadCreditBalance.mockResolvedValue({
+        grantedPoints: 100,
+        spentPoints: 95,
+        balancePoints: 5,
+      })
       mockJobCount
         .mockResolvedValueOnce(0)
-        .mockResolvedValueOnce(RUNNER_MONTHLY_LIMIT.PER_USER_LIMIT)
+        .mockResolvedValueOnce(0)
+        .mockResolvedValueOnce(0)
 
       await expect(
         assertRunnerMonthlyLimitNotExceeded('user-1'),
-      ).rejects.toMatchObject({ code: 'RUNNER_MONTHLY_LIMIT_EXCEEDED' })
+      ).rejects.toMatchObject({ code: 'CREDITS_EXHAUSTED' })
     })
 
     it('throws when the site is over its cap', async () => {

@@ -25,7 +25,7 @@ import {
   GENERATION_ERROR_CODES,
   parseGenerationErrorCode,
 } from '@/constants/generation-errors'
-import { USAGE_FUNDING } from '@/constants/credits'
+import { PLATFORM_LLM_ROUTE, USAGE_FUNDING } from '@/constants/credits'
 import { AI_ADAPTER_TYPES, type ProviderConfig } from '@/constants/providers'
 import {
   nativeSearchRulesOutX,
@@ -45,6 +45,8 @@ import { ApiRequestError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 import { buildYoutubeWatchUrl, classifyVideoLink } from '@/lib/video-link'
 import { readSseData } from '@/lib/sse'
+import { getSystemApiKey } from '@/lib/platform-keys'
+import { assertCreditsLeft } from '@/services/credits.service'
 import { validatePrompt } from '@/services/kernel/prompt-guard'
 import {
   recordLlmUsage,
@@ -1103,6 +1105,9 @@ export async function resolveLlmTextRoute(
   userId: string,
   apiKeyId: string,
 ): Promise<ResolvedLlmTextRoute> {
+  if (apiKeyId === PLATFORM_LLM_ROUTE.apiKeyId) {
+    return resolvePlatformLlmTextRoute(userId)
+  }
   const specificKey = await db.userApiKey.findFirst({
     where: { id: apiKeyId, userId, isActive: true },
   })
@@ -1128,6 +1133,30 @@ export async function resolveLlmTextRoute(
     },
     apiKey: decryptApiKey(specificKey.encryptedKey),
     meter: { userId, funding: USAGE_FUNDING.byok },
+  }
+}
+
+/**
+ * 平台出钱的对话（owner 2026-11-01：朋友的点数能用 DeepSeek 走 owner 的 key）。只由
+ * `resolveAssistantRoute` 在「一把助手 key 都没有、但还有点数」时选中；看图那几条腿把占位
+ * id 原样递回来，也落到这里。每次都重新查一次余额（花光了就停），花费按 token 从点数扣。
+ */
+async function resolvePlatformLlmTextRoute(
+  userId: string,
+): Promise<ResolvedLlmTextRoute> {
+  const apiKey = getSystemApiKey(AI_ADAPTER_TYPES.DEEPSEEK)
+  if (!apiKey) {
+    throw new Error('The platform chat model is not configured.')
+  }
+  await assertCreditsLeft(userId)
+  return {
+    adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+    providerConfig: {
+      label: LLM_TEXT_LABELS[AI_ADAPTER_TYPES.DEEPSEEK],
+      baseUrl: getBaseUrlForAdapter(AI_ADAPTER_TYPES.DEEPSEEK),
+    },
+    apiKey,
+    meter: { userId, funding: USAGE_FUNDING.platform },
   }
 }
 

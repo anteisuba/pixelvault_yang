@@ -10,6 +10,7 @@ import {
   getAssistantRouteModelEntry,
   pickAutoAssistantRouteModel,
 } from '@/constants/assistant-persona'
+import { PLATFORM_LLM_ROUTE } from '@/constants/credits'
 import type { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { db } from '@/lib/db'
 import {
@@ -17,7 +18,9 @@ import {
   AssistantModelCannotSeeError,
   AssistantModelKeyMissingError,
 } from '@/lib/errors'
+import { getSystemApiKey } from '@/lib/platform-keys'
 import { getAssistantRouteModelByUserId } from '@/services/assistant-persona.service'
+import { getCreditBalance } from '@/services/credits.service'
 import {
   resolveLlmTextRoute,
   type ResolvedLlmTextRoute,
@@ -97,6 +100,8 @@ export async function resolveAssistantRoute(
   const keys = await newestKeyByProvider(userId)
   const picked = pinned ?? pickAutoAssistantRouteModel(keys.keys())
   if (!picked) {
+    const platform = await platformAssistantRoute(userId)
+    if (platform) return platform
     throw new ApiKeyError(
       'missing',
       'No assistant model has a key yet (Gemini, DeepSeek, OpenAI, Claude or Grok). Nothing ran.',
@@ -120,6 +125,27 @@ export async function resolveAssistantRoute(
     modelId: model.modelId,
     modelLabel: model.label,
     auto: !pinned,
+  }
+}
+
+/**
+ * 「自动」又一把助手 key 都没有：还有平台点数、平台配了 DeepSeek，就用 owner 的 DeepSeek
+ * （owner 2026-11-01：朋友的点数能用便宜的对话模型）。点数花光 / 平台没配 → `null`，照旧
+ * 就地弹配 key。⛔ 点名了某个模型的不走这里：那是创作者自己选的那一家。
+ */
+async function platformAssistantRoute(
+  userId: string,
+): Promise<AssistantRoute | null> {
+  const model = getAssistantRouteModelEntry(PLATFORM_LLM_ROUTE.modelId)
+  if (!model || !getSystemApiKey(model.adapterType)) return null
+  const balance = await getCreditBalance(userId)
+  if (!balance.exempt && balance.balancePoints <= 0) return null
+  return {
+    route: await resolveLlmTextRoute(userId, PLATFORM_LLM_ROUTE.apiKeyId),
+    apiKeyId: PLATFORM_LLM_ROUTE.apiKeyId,
+    modelId: model.modelId,
+    modelLabel: model.label,
+    auto: true,
   }
 }
 

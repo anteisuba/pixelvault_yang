@@ -7,6 +7,7 @@ import type {
 
 import { getErrorPayload } from '@/lib/api-client/shared'
 import { apiFetch } from '@/lib/api-client/api-fetch'
+import { getThrownErrorFields } from '@/lib/api-client/error-fields'
 
 export interface VoiceCardApiResponse<TData> {
   success: boolean
@@ -21,10 +22,6 @@ export type VoiceCardsApiResponse = VoiceCardApiResponse<{
 
 function getVoiceCardUrl(id: string): string {
   return `${API_ENDPOINTS.VOICE_CARDS}/${encodeURIComponent(id)}`
-}
-
-function getUnexpectedErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'An unexpected error occurred'
 }
 
 export async function createVoiceCardAPI(
@@ -46,7 +43,7 @@ export async function createVoiceCardAPI(
 
     return await response.json()
   } catch (error) {
-    return { success: false, error: getUnexpectedErrorMessage(error) }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -70,7 +67,7 @@ export async function listVoiceCardsAPI(
 
     return await response.json()
   } catch (error) {
-    return { success: false, error: getUnexpectedErrorMessage(error) }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -89,7 +86,7 @@ export async function getVoiceCardAPI(
 
     return await response.json()
   } catch (error) {
-    return { success: false, error: getUnexpectedErrorMessage(error) }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -113,7 +110,7 @@ export async function updateVoiceCardAPI(
 
     return await response.json()
   } catch (error) {
-    return { success: false, error: getUnexpectedErrorMessage(error) }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -134,7 +131,7 @@ export async function deleteVoiceCardAPI(
 
     return { success: true }
   } catch (error) {
-    return { success: false, error: getUnexpectedErrorMessage(error) }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -159,6 +156,6 @@ export async function uploadVoiceCardCoverAPI(
 
     return await response.json()
   } catch (error) {
-    return { success: false, error: getUnexpectedErrorMessage(error) }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }

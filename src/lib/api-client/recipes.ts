@@ -8,6 +8,7 @@ import type {
 
 import { getErrorPayload } from '@/lib/api-client/shared'
 import { apiFetch } from '@/lib/api-client/api-fetch'
+import { getThrownErrorFields } from '@/lib/api-client/error-fields'
 
 export interface RecipeApiResponse<TData> {
   success: boolean
@@ -31,10 +32,6 @@ function getRecipeUrl(id: string): string {
   return `${API_ENDPOINTS.RECIPES}/${encodeURIComponent(id)}`
 }
 
-function getUnexpectedErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'An unexpected error occurred'
-}
-
 export async function createRecipeAPI(
   data: CreateRecipeRequest,
 ): Promise<RecipeApiResponse<RecipeRecord>> {
@@ -54,7 +51,7 @@ export async function createRecipeAPI(
 
     return await response.json()
   } catch (error) {
-    return { success: false, error: getUnexpectedErrorMessage(error) }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -80,7 +77,7 @@ export async function createRecipeFromGenerationAPI(
 
     return await response.json()
   } catch (error) {
-    return { success: false, error: getUnexpectedErrorMessage(error) }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -104,7 +101,7 @@ export async function listRecipesAPI(
 
     return await response.json()
   } catch (error) {
-    return { success: false, error: getUnexpectedErrorMessage(error) }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -123,7 +120,7 @@ export async function getRecipeAPI(
 
     return await response.json()
   } catch (error) {
-    return { success: false, error: getUnexpectedErrorMessage(error) }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -147,7 +144,7 @@ export async function updateRecipeAPI(
 
     return await response.json()
   } catch (error) {
-    return { success: false, error: getUnexpectedErrorMessage(error) }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -171,7 +168,7 @@ export async function markRecipeUsedAPI(
 
     return await response.json()
   } catch (error) {
-    return { success: false, error: getUnexpectedErrorMessage(error) }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -196,7 +193,7 @@ export async function setRecipeFavoriteAPI(
 
     return await response.json()
   } catch (error) {
-    return { success: false, error: getUnexpectedErrorMessage(error) }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -215,7 +212,7 @@ export async function listRecipeGenerationsAPI(
 
     return await response.json()
   } catch (error) {
-    return { success: false, error: getUnexpectedErrorMessage(error) }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -236,6 +233,6 @@ export async function deleteRecipeAPI(
 
     return { success: true }
   } catch (error) {
-    return { success: false, error: getUnexpectedErrorMessage(error) }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }

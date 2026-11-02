@@ -10,6 +10,7 @@ import type {
 
 import { getErrorPayload } from '@/lib/api-client/shared'
 import { apiFetch } from '@/lib/api-client/api-fetch'
+import { getThrownErrorFields } from '@/lib/api-client/error-fields'
 
 export interface NodeWorkflowApiResponse<TData> {
   success: boolean
@@ -33,10 +34,6 @@ function endpointWithId(id: string): string {
   return `${API_ENDPOINTS.NODE_WORKFLOW_PROJECTS}/${encodeURIComponent(id)}`
 }
 
-function unexpectedError(error: unknown): string {
-  return error instanceof Error ? error.message : 'An unexpected error occurred'
-}
-
 export async function listNodeWorkflowProjectsAPI(): Promise<
   NodeWorkflowApiResponse<NodeWorkflowProjectRecord[]>
 > {
@@ -51,7 +48,7 @@ export async function listNodeWorkflowProjectsAPI(): Promise<
     }
     return await response.json()
   } catch (error) {
-    return { success: false, error: unexpectedError(error) }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -72,7 +69,7 @@ export async function listRecentNodeWorkflowProjectsAPI(): Promise<
     }
     return await response.json()
   } catch (error) {
-    return { success: false, error: unexpectedError(error) }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -94,7 +91,7 @@ export async function createNodeWorkflowProjectAPI(
     }
     return await response.json()
   } catch (error) {
-    return { success: false, error: unexpectedError(error) }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -117,7 +114,7 @@ export async function updateNodeWorkflowProjectAPI(
     }
     return await response.json()
   } catch (error) {
-    return { success: false, error: unexpectedError(error) }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -136,7 +133,7 @@ export async function getNodeWorkflowProjectAPI(
     }
     return await response.json()
   } catch (error) {
-    return { success: false, error: unexpectedError(error) }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -160,7 +157,7 @@ export async function getNodeWorkflowProjectVersionAPI(
     }
     return await response.json()
   } catch (error) {
-    return { success: false, error: unexpectedError(error) }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -178,7 +175,7 @@ export async function deleteNodeWorkflowProjectAPI(
     }
     return await response.json()
   } catch (error) {
-    return { success: false, error: unexpectedError(error) }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -198,7 +195,7 @@ export async function activateNodeWorkflowProjectAPI(
     }
     return await response.json()
   } catch (error) {
-    return { success: false, error: unexpectedError(error) }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -250,7 +247,7 @@ export async function uploadReferenceVideoAPI(
     }
     return await response.json()
   } catch (error) {
-    return { success: false, error: unexpectedError(error) }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -292,6 +289,6 @@ export async function backupNodeWorkflowV3StateAPI(
     }
     return { ...payload, status: response.status }
   } catch (error) {
-    return { success: false, error: unexpectedError(error) }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }

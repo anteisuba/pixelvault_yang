@@ -8,6 +8,7 @@ import {
 
 import { getErrorPayload } from '@/lib/api-client/shared'
 import { apiFetch } from '@/lib/api-client/api-fetch'
+import { getThrownErrorFields } from '@/lib/api-client/error-fields'
 
 /**
  * 剪辑台渲染层的客户端出口（S9）。
@@ -38,10 +39,6 @@ export interface RenderApiResponse<TData> {
   status?: number
 }
 
-function unexpected(error: unknown): string {
-  return error instanceof Error ? error.message : 'An unexpected error occurred'
-}
-
 async function readJson<TData>(
   response: Response,
 ): Promise<RenderApiResponse<TData>> {
@@ -70,7 +67,7 @@ export async function submitRenderAPI(body: {
     })
     return await readJson<RenderJobResponse>(response)
   } catch (error) {
-    return { success: false, error: unexpected(error) }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -82,7 +79,7 @@ export async function getRenderJobAPI(
       await apiFetch(renderJobEndpoint(jobId)),
     )
   } catch (error) {
-    return { success: false, error: unexpected(error) }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -94,6 +91,6 @@ export async function cancelRenderJobAPI(
       await apiFetch(renderCancelEndpoint(jobId), { method: 'POST' }),
     )
   } catch (error) {
-    return { success: false, error: unexpected(error) }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }

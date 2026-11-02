@@ -11,6 +11,7 @@ import type {
 
 import { getErrorPayload } from '@/lib/api-client/shared'
 import { apiFetch } from '@/lib/api-client/api-fetch'
+import { getThrownErrorFields } from '@/lib/api-client/error-fields'
 
 /**
  * 外部 Claude 连接令牌的客户端出口（`docs/references/mcp.md` §3.1）。
@@ -24,10 +25,6 @@ export interface McpApiResponse<TData> {
   errorCode?: string
   /** 有值 = 服务端真的回了一个响应；没有 = `fetch` 自己抛了（请求没到）。 */
   status?: number
-}
-
-function unexpected(error: unknown): string {
-  return error instanceof Error ? error.message : 'An unexpected error occurred'
 }
 
 async function readJson<TData>(
@@ -49,7 +46,7 @@ export async function listMcpTokensAPI(): Promise<
   try {
     return await readJson(await apiFetch(API_ENDPOINTS.MCP_TOKENS))
   } catch (error) {
-    return { success: false, error: unexpected(error) }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -66,7 +63,7 @@ export async function createMcpTokenAPI(
       }),
     )
   } catch (error) {
-    return { success: false, error: unexpected(error) }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -86,7 +83,7 @@ export async function updateMcpTokenAPI(
       ),
     )
   } catch (error) {
-    return { success: false, error: unexpected(error) }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -101,7 +98,7 @@ export async function revokeMcpTokenAPI(
       ),
     )
   } catch (error) {
-    return { success: false, error: unexpected(error) }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -112,7 +109,7 @@ export async function listMcpGenerationRequestsAPI(): Promise<
   try {
     return await readJson(await apiFetch(API_ENDPOINTS.MCP_GENERATION_REQUESTS))
   } catch (error) {
-    return { success: false, error: unexpected(error) }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -133,6 +130,6 @@ export async function decideMcpGenerationRequestAPI(
       ),
     )
   } catch (error) {
-    return { success: false, error: unexpected(error) }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }

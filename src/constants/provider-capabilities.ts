@@ -438,7 +438,7 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
       // pre-baked, allowlisted LoRAs are mountable (see runner-checkpoints.ts).
       maxLoras: 3,
       // img2img: one reference image, scaled to the target dimensions and
-      // VAE-encoded into the KSampler latent (see workers/execution/src/models/
+      // VAE-encoded into the KSampler latent (see workers/execution/src/providers/
       // runner/workflow-builder.ts). referenceStrength inverts to denoise.
       referenceStrength: { min: 0.01, max: 0.99, step: 0.01, default: 0.7 },
       referenceImageMode: 'img2img',

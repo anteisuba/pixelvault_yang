@@ -49,7 +49,7 @@
 
 ## 5 · 执行链 —— ⚠ 生产在 worker，不在 `src/services/providers`
 
-**视频/图片的生产请求构造住在 `workers/execution/src/models/<provider>/` 下。** `src/services/providers/` 只有 adapter 与 registry，别在那里另写一份 builder——写错边的表现是测试全绿、线上毫无变化。
+**视频/图片的生产请求构造住在 `workers/execution/src/providers/<provider>/` 下。** `src/services/providers/` 只有 adapter 与 registry，别在那里另写一份 builder——写错边的表现是测试全绿、线上毫无变化。
 
 - 加 builder 分支 + 对应的 id 常量表（如 `FAL_VIDEO_MODEL_IDS`）+ `buildBody` 的 switch 分支。
 - 契约测试写在 `src/test/worker-contracts/`（worker 自己的 vitest 不解析 `@/` 别名，测不了依赖 `MODEL_OPTIONS` 的用例）。

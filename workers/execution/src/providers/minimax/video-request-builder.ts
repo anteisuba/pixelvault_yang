@@ -3,7 +3,7 @@
  *
  * Mirrors `src/services/providers/minimax.adapter.ts`. The duplication is the
  * house convention — the worker is a separate bundle and cannot import from
- * `src/`, exactly like `models/fal/video-request-builders.ts` duplicates
+ * `src/`, exactly like `providers/fal/video-request-builders.ts` duplicates
  * `services/providers/fal/video-request-builders.ts`. Keep the two in sync.
  *
  * Wire shape:

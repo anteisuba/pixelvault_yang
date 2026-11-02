@@ -18,7 +18,7 @@
 - **Replicate 2026-09-17 起没有任何在售模型**：`ILLUSTRIOUS_XL` 退役后它的两条目录条目（另一条是 `ANIMA_PENCIL_XL`）全是 `available: false`。`ACTIVE_API_KEY_ADAPTER_OPTIONS` 由「可用模型 ∪ LLM 能力域」推导，所以 key 选择器**自动**把 Replicate 排除掉了（与 HuggingFace / Runway 同处境，无需改代码）。⚠ **adapter 保留在 registry，不照 Runway 先例整删**——Runway 目录里从来没有过条目，Replicate 有两条归档条目、历史 Generation 记录引用着它，且 HuggingFace 就是「registry 在册、key 选择器不在册」的既有形状。`PROVIDER_ADAPTERS` 2026-09-20 起是 **14 个**（进度表 26 加入 pixai）。
 - `runway`（Runway gen4.5）2026-08-24 随死执行链清理**整删**：`runway.adapter.ts` 文件、registry 条目、`ADAPTER_PROMPT_HINTS`/`provider-capabilities.ts` 里的死细节全部移除。目录里从来没有过一个可选的 Runway 模型，adapter 本身在 registry 里存在的全部意义只剩 `healthCheck`——删除前已确认 `AI_ADAPTER_TYPES.RUNWAY` 枚举保留（退役≠删除）且 `apiKey.service.ts` 的 key 校验是自包含 switch（不依赖 registry），已有 Runway key 的用户仍能查看/校验/删除该 key，只是不能再新建。
 - **同一份实现挂多个 adapter type** 是既有形状，不是漏写：`byteplus` = `{ ...volcengineAdapter, adapterType: BYTEPLUS }`（BytePlus ModelArk 国际站 vs 火山 Ark 国内站）；`minimax` / `minimax_cn` 同理（`api.minimax.io` vs `api.minimaxi.com`）。分成两个 type 而不是一个 config flag 的原因只有一个——**两站账号独立、key 不可互换**，而 key 存储按 adapterType 分槽。
-- `runner` 是 BYOK 六步之外的特例：无 API key 可配（`AI_ADAPTER_TYPE_OPTIONS` 故意不含它），`resolveGenerationRoute()` 命中它就走独立分支——不需要任何 key（Worker 自带 `RUNNER_MODAL_TOKEN` 调 Modal，跳过 resolve-key）+ 月度限额（`RUNNER_MONTHLY_LIMIT`）。真正的 provider 调用（Modal submit/poll + recipe→ComfyUI workflow 映射）在 Worker（`workers/execution/src/models/runner/`），adapter 侧 `generateImage()` 只是契约占位（同步路径不支持，冷启动太长）。
+- `runner` 是 BYOK 六步之外的特例：无 API key 可配（`AI_ADAPTER_TYPE_OPTIONS` 故意不含它），`resolveGenerationRoute()` 命中它就走独立分支——不需要任何 key（Worker 自带 `RUNNER_MODAL_TOKEN` 调 Modal，跳过 resolve-key）+ 月度限额（`RUNNER_MONTHLY_LIMIT`）。真正的 provider 调用（Modal submit/poll + recipe→ComfyUI workflow 映射）在 Worker（`workers/execution/src/providers/runner/`），adapter 侧 `generateImage()` 只是契约占位（同步路径不支持，冷启动太长）。
 - `HYPER3D_RODIN` **故意不进 registry**——3D 走 `generate-3d.service.ts` 直发 Worker。
 - `deepseek` 不是 media adapter——用于 text / planner / assistant 路径（`llm-text.service.ts`）。
 - 文本响应异常（2026-09-09）：`llm-text.service.ts` 为 OpenAI / DeepSeek / Grok / Gemini / Claude 保留空回复、拒绝、输出截断及上游错误分类。流式完成须有正文和结束事件（OpenAI 兼容线路 `[DONE]`、Gemini `finishReason=STOP`、Claude `message_stop`）；损坏事件、提前 EOF 或读流失败不能视为完整回复。已输出部分正文后发生拒绝或截断也会抛错；助手保留错误码，不进入 JSON 格式纠错重试，不执行该轮工具。非流式也检查异常停止原因，GPT 推理耗尽但无正文的既有专用错误保留。核验：[OpenAI Chat Completions](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create)、[DeepSeek 返回契约](https://api-docs.deepseek.com/api/create-chat-completion/)、[JSON 模式空回复说明](https://api-docs.deepseek.com/guides/json_mode/)、[Claude 流式错误](https://platform.claude.com/docs/en/build-with-claude/streaming)。
@@ -225,7 +225,7 @@ adapter / Worker 抛错
 不是 O3 Pro 那条生成线的第三个 mode：输入必须带一段参考视频，产出是被改写的同一段
 镜头。
 
-- worker builder `buildKlingO3VideoEdit`（`workers/execution/src/models/fal/video-request-builders.ts`）：
+- worker builder `buildKlingO3VideoEdit`（`workers/execution/src/providers/fal/video-request-builders.ts`）：
   body = `{ prompt, video_url, image_urls?, keep_audio? }`，其余字段 schema 里不存在
 - 输入视频复用既有的 `videoUrls` 通道（不新造字段），只取第一条；prompt 若未出现
   `@VideoN` 自动前置 `Edit @Video1: `
@@ -285,7 +285,7 @@ adapter / Worker 抛错
 
 ## Last Verified
 
-- Date: 2026-08-24 · Method: `registry.ts` 的 `PROVIDER_ADAPTERS` 逐条清点——**实到 13 个**（此前本文件写的 14 / 11 / 10 都已过期；14→13 是同日晚些时候死执行链清理整删 `runway` 造成的）；byteplus / minimax / minimax_cn 三行的通道、key 槽与错误处理读 `volcengine.adapter.ts`、`minimax.adapter.ts`、`src/lib/platform-keys.ts`、`src/constants/{providers,config}.ts` 核验，Worker 落点对照 `workers/execution/src/models/`。仅核 adapter 名册与这三条的接入形状，**payload 字段级未重验**。
+- Date: 2026-08-24 · Method: `registry.ts` 的 `PROVIDER_ADAPTERS` 逐条清点——**实到 13 个**（此前本文件写的 14 / 11 / 10 都已过期；14→13 是同日晚些时候死执行链清理整删 `runway` 造成的）；byteplus / minimax / minimax_cn 三行的通道、key 槽与错误处理读 `volcengine.adapter.ts`、`minimax.adapter.ts`、`src/lib/platform-keys.ts`、`src/constants/{providers,config}.ts` 核验，Worker 落点对照 `workers/execution/src/providers/`。仅核 adapter 名册与这三条的接入形状，**payload 字段级未重验**。
 - Date: 2026-07-14 · Method: official Hub cursor response plus live local API page 1/page 2 and Anima-family requests; focused service/hook/component tests verify modality filtering, file-size hydration, cursor continuity, family switching, exact file import, and overflow containment.
 
 - Date: 2026-07-10 · Method: registry（**当时** 10 adapter，名册已被上面 2026-08-24 条目取代）/ types 契约 / 错误码表与参考图分类正则读源码核验；BYOK 六步与 worker 边界沿用 2026-06-03 审计口径（当时对照过官方文档）。

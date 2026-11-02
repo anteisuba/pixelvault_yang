@@ -1,3 +1,6 @@
+import type { ExecutionProgressStage } from '../../../../src/constants/generation-progress'
+import type { ExecutionEnv } from '../index'
+
 /**
  * Worker ↔ 应用的那座桥（o-worker 第 2 步，2026-11-01；docs/design/worker.md）：
  * 签名、取 key、回调各只剩一份。此前取 key 抄了 3 份、结果回调 3 份，修一处漏一处。
@@ -293,5 +296,90 @@ export async function emitRunResultCallback(
 
   if (!callbackResponse.ok) {
     throw new Error(`Callback failed with status ${callbackResponse.status}`)
+  }
+}
+
+/**
+ * Best-effort upstream-id report: fired right after a provider submit
+ * returns an id, before the workflow starts polling, so the app can persist
+ * `GenerationJob.providerJobId` in time for a user-initiated cancel to find
+ * it. Mirrors `cancelRunnerImageJob`'s best-effort shape — swallow every
+ * failure (missing secret, network error, non-2xx) and just log a warning.
+ * Never throw: a failed report must not take down the provider submission
+ * that already succeeded.
+ */
+export async function reportProviderJobId(
+  env: ExecutionEnv,
+  context: { runId: string; callbackUrl: string },
+  providerJobId: string,
+): Promise<void> {
+  if (!env.INTERNAL_CALLBACK_SECRET) return
+
+  try {
+    const response = await postSignedJson(
+      context.callbackUrl,
+      env.INTERNAL_CALLBACK_SECRET,
+      {
+        runId: context.runId,
+        kind: 'status',
+        ts: new Date().toISOString(),
+        data: { providerJobId },
+      },
+    )
+    if (!response.ok) {
+      console.warn('reportProviderJobId: callback responded non-2xx', {
+        runId: context.runId,
+        status: response.status,
+      })
+    }
+  } catch (error) {
+    console.warn('reportProviderJobId: callback request failed', {
+      runId: context.runId,
+      error: error instanceof Error ? error.message : String(error),
+    })
+  }
+}
+
+/**
+ * Best-effort progress report: tells the app which execution stage a run is
+ * in, so the UI can tell "queued behind a cold GPU" apart from "the GPU is
+ * drawing". Runner-only today — every other image provider leaves the stage
+ * unset and the UI keeps its elapsed-time estimate.
+ *
+ * Reporting only. It never changes polling or timeouts, and
+ * — like `reportProviderJobId` — swallows every failure so a lost progress
+ * ping can never take down a healthy generation.
+ */
+export async function reportExecutionStage(
+  env: ExecutionEnv,
+  context: { runId: string; callbackUrl: string },
+  executionStage: ExecutionProgressStage,
+): Promise<void> {
+  if (!env.INTERNAL_CALLBACK_SECRET) return
+
+  try {
+    const response = await postSignedJson(
+      context.callbackUrl,
+      env.INTERNAL_CALLBACK_SECRET,
+      {
+        runId: context.runId,
+        kind: 'status',
+        ts: new Date().toISOString(),
+        data: { executionStage },
+      },
+    )
+    if (!response.ok) {
+      console.warn('reportExecutionStage: callback responded non-2xx', {
+        runId: context.runId,
+        executionStage,
+        status: response.status,
+      })
+    }
+  } catch (error) {
+    console.warn('reportExecutionStage: callback request failed', {
+      runId: context.runId,
+      executionStage,
+      error: error instanceof Error ? error.message : String(error),
+    })
   }
 }

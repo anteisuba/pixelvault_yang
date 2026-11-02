@@ -89,3 +89,9 @@ export async function runMultiStepImageDriver<TJob, TPoll, TDone>(
   }
   return driver.toResult(job, finished, uploaded, context)
 }
+
+export const RETRY_TWICE = {
+  limit: 2,
+  delay: '5 seconds',
+  backoff: 'exponential',
+} as const

@@ -1,7 +1,7 @@
 /**
  * worker-contracts —— 死执行链清理 Step 1（只加不删）。
  *
- * 生产的视频请求构造逻辑住在 `workers/execution/src/models/**`（execution
+ * 生产的视频请求构造逻辑住在 `workers/execution/src/providers/**`（execution
  * worker 是真实发请求给 provider 的那一路）；`src/services/providers/
  * volcengine.adapter.ts` 里的 `buildVolcEngineVideoQueueBody` 是已经漂移的死
  * fork，不再被生产调用（volcengine video 走的是 worker-only 路径）。
@@ -12,7 +12,7 @@
  * import worker 的源文件（根 `vitest.config.ts` 的 `exclude: ['workers/**']`
  * 只排除该目录下的**测试文件**，不阻止 import）。
  *
- * 本文件断言的是 `workers/execution/src/models/volcengine/video-request-builder.ts`
+ * 本文件断言的是 `workers/execution/src/providers/volcengine/video-request-builder.ts`
  * 的真实导出 `buildVolcEngineVideoRequest`，不再调用 src 侧的死 fork。
  *
  * worker 里 `REFERENCE_ENDPOINT_MODEL_IDS` / `ADAPTIVE_RATIO_MODEL_IDS` 是私有
@@ -31,7 +31,7 @@ import type { VideoDefaults } from '@/constants/models'
 import {
   buildVolcEngineVideoRequest,
   type VolcEngineVideoBuilderInput,
-} from '../../../workers/execution/src/models/volcengine/video-request-builder'
+} from '../../../workers/execution/src/providers/volcengine/video-request-builder'
 
 const PROMPT = 'A precise cinematic prompt'
 const REF = 'https://example.com/reference.png'

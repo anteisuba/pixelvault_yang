@@ -21,7 +21,7 @@ RunPod 网络卷（属性有客户端缓存）——我们写完文件那一刻�
 """
 
 # class_type → 那个「引用模型文件名、由 ComfyUI 按目录清单校验」的输入字段。
-# 名册与 workers/execution/src/models/runner/{workflow,anima-workflow}-builder.ts
+# 名册与 workers/execution/src/providers/runner/{workflow,anima-workflow}-builder.ts
 # 造的节点一一对应：漏一个 = 那类权重回到「首次使用必失败一次」。
 MODEL_FILE_FIELDS = {
     "PixelVaultCheckpointLoader": "ckpt_name",

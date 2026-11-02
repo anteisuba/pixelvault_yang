@@ -14,7 +14,7 @@ Change ANTEI's media generation stack through the project layers instead of scat
 1. Confirm the source of truth:
    - Read `AGENTS.md`.
    - Read `src/constants/models.ts`, `src/constants/providers.ts`, `src/constants/config.ts`, and relevant message files before changing model-facing behavior.
-   - Inspect `src/services/providers/registry.ts`, generation services and the matching handlers under `workers/execution/src/models/` before changing execution behavior.
+   - Inspect `src/services/providers/registry.ts`, generation services and the matching handlers under `workers/execution/src/providers/` before changing execution behavior.
 
 2. Read primary API docs for media/provider changes:
    - Use official provider documentation for image, video, audio, browser media APIs, and parameter semantics.

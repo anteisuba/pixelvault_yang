@@ -13,7 +13,7 @@ import type { ProviderAdapter } from '@/services/providers/types'
  * constants/execution.ts) because runner cold starts can run minutes —
  * there's no acceptable synchronous path. `submitImageGeneration()` always
  * dispatches RUNNER to the Cloudflare Worker, which does the real Modal
- * submit/poll/decode (workers/execution/src/index.ts + models/runner/*).
+ * submit/poll/decode (workers/execution/src/providers/runner/*).
  * This adapter carries no methods of its own — it exists purely so
  * `getProviderAdapter(AI_ADAPTER_TYPES.RUNNER)` resolves to a real object
  * instead of throwing "Provider adapter not available".

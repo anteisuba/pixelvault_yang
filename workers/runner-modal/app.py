@@ -49,7 +49,7 @@ main_image = modal.Image.from_registry(MAIN_IMAGE).env(
 )
 # Turbo（owner 11-02 换上）：8 步出图。ghcr 评估镜像里只烤了原版 UNet，Turbo 的 int8 UNet
 # 在 Modal 构建时补一层（钉 HF revision + sha256），Worker 侧工作流见
-# workers/execution/src/models/runner/qwen-workflow-builder.ts。编码器与 VAE 与原版共用。
+# workers/execution/src/providers/runner/qwen-workflow-builder.ts。编码器与 VAE 与原版共用。
 QWEN_TURBO_REVISION = "aacf31a6d48e707f352ecba714cee0680da3479b"
 QWEN_TURBO_FILE = "qwen_image_2.1_turbo_int8_convrot.safetensors"
 QWEN_TURBO_SHA256 = "8144a0182964aa8403ad6dbc011db837304167d235161b9aabaa8532e967314c"

@@ -24,3 +24,15 @@ export function randomUint32(): number {
   crypto.getRandomValues(bytes)
   return bytes[0]
 }
+
+// ─── API-key state encryption ──────────────────────────────────────────
+// Resolved BYOK API keys flow through `step.do` results, which Cloudflare
+// persists in workflow state. We AES-GCM encrypt them with a Worker secret
+// so a Cloudflare-state dump alone is not enough to recover the plaintext.
+
+export function base64ToBytes(b64: string): Uint8Array {
+  const binary = atob(b64)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i)
+  return bytes
+}

@@ -1,7 +1,7 @@
 import type { WorkflowStep } from 'cloudflare:workers'
 import { describe, expect, it, vi } from 'vitest'
 
-import { getMultiStepImageDriver } from '../index'
+import { getMultiStepImageDriver } from './image-drivers'
 import { runMultiStepImageDriver } from './multi-step-image'
 import type { ImageDriverRuntime, MultiStepImageDriver } from './types'
 

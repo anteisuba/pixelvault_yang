@@ -5,7 +5,7 @@
  * checkpoint and its own sampling defaults. LoRAs are not listed: any Civitai /
  * Hugging Face LoRA is fetched at request time (R2 → Volume).
  *
- * The Cloudflare Worker (`workers/execution/src/models/runner/checkpoints.ts`)
+ * The Cloudflare Worker (`workers/execution/src/providers/runner/checkpoints.ts`)
  * keeps an equivalent manifest — it's a separate package/build target and
  * can't import from `src/constants`, so the two are kept in sync by hand.
  * If you add/remove a checkpoint here, mirror the change there too.

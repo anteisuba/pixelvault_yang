@@ -255,7 +255,8 @@ export function buildVolcEngineVideoRequest(
   const generateAudio =
     input.generateAudio ??
     (readVideoDefault(input.videoDefaults, 'generateAudio') as
-      boolean | undefined)
+      | boolean
+      | undefined)
   if (generateAudio != null) {
     body.generate_audio = generateAudio
   }

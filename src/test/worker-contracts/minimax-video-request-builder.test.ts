@@ -1,10 +1,10 @@
 /**
  * worker-contracts —— 死执行链清理 Step 1（只加不删）。
  *
- * 生产的视频请求构造逻辑住在 `workers/execution/src/models/**`（execution
+ * 生产的视频请求构造逻辑住在 `workers/execution/src/providers/**`（execution
  * worker 是真实发请求给 provider 的那一路）；`src/services/providers/
  * minimax.adapter.ts` 里的 `buildMiniMaxVideoQueueBody` 是已经漂移的死 fork，
- * 不再被生产调用。`workers/execution/src/models/minimax/video-request-builder.ts`
+ * 不再被生产调用。`workers/execution/src/providers/minimax/video-request-builder.ts`
  * 在本次迁移前**零测试**——这是 Step 1 里价值最高的一笔新增覆盖。
  *
  * 但 worker 自己的 vitest（`workers/execution/vitest.config.ts`）不解析 `@/`
@@ -13,7 +13,7 @@
  * `vitest.config.ts` 的 `exclude: ['workers/**']` 只排除该目录下的**测试
  * 文件**，不阻止 import）。
  *
- * 本文件断言的是 `workers/execution/src/models/minimax/video-request-builder.ts`
+ * 本文件断言的是 `workers/execution/src/providers/minimax/video-request-builder.ts`
  * 的真实导出（`buildMiniMaxVideoRequest` / `isMiniMaxReferenceModel`），不再
  * 调用 src 侧的死 fork。
  *
@@ -31,7 +31,7 @@ import {
   buildMiniMaxVideoRequest,
   isMiniMaxReferenceModel,
   type MiniMaxVideoBuilderInput,
-} from '../../../workers/execution/src/models/minimax/video-request-builder'
+} from '../../../workers/execution/src/providers/minimax/video-request-builder'
 
 const PROMPT = 'Image 1 is the protagonist walking through a sunlit garden'
 const IMG = (n: number) => `https://example.com/image-${n}.png`
@@ -258,7 +258,7 @@ describe('buildMiniMaxVideoRequest', () => {
     // 'MiniMax-H3'. That was exercisable because MiniMaxQueueBodyInput declares
     // externalModelId as optional.
     //
-    // The worker's buildMiniMaxVideoRequest (workers/execution/src/models/
+    // The worker's buildMiniMaxVideoRequest (workers/execution/src/providers/
     // minimax/video-request-builder.ts:147) does `model: input.externalModelId`
     // with NO fallback, and MiniMaxVideoBuilderInput declares the field
     // `externalModelId: string` (required, not optional) — the worker fork

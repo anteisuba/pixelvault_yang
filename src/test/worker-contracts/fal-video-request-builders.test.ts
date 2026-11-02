@@ -1,7 +1,7 @@
 /**
  * worker-contracts —— 死执行链清理 Step 1（只加不删）。
  *
- * 生产的视频请求构造逻辑住在 `workers/execution/src/models/**`（execution
+ * 生产的视频请求构造逻辑住在 `workers/execution/src/providers/**`（execution
  * worker 是真实发请求给 provider 的那一路）；`src/services/providers/**` 下
  * 同名的 builder（这里是 `fal/video-request-builders.ts` 的
  * `buildFalVideoQueueRequest`）是已经漂移的死 fork，不再被生产调用。
@@ -13,7 +13,7 @@
  * 不阻止 import，`src/services/providers/fal/video-request-builders.test.ts`
  * 已经这么做了）。
  *
- * 本文件断言的是 `workers/execution/src/models/fal/video-request-builders.ts`
+ * 本文件断言的是 `workers/execution/src/providers/fal/video-request-builders.ts`
  * 的真实导出 `buildFalWorkerQueueRequest`，不再调用 src 侧的死 fork——
  * `falBodyCases` 里的期望值就是业务真相（两侧此前逐条 `.toEqual` 比对全绿，
  * 详见被这份文件取代的差分测试）。
@@ -26,7 +26,7 @@ import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   buildFalWorkerQueueRequest,
   type FalWorkerVideoRequestContext,
-} from '../../../workers/execution/src/models/fal/video-request-builders'
+} from '../../../workers/execution/src/providers/fal/video-request-builders'
 
 const PROMPT = 'A precise cinematic prompt'
 const REF = 'https://example.com/reference.png'

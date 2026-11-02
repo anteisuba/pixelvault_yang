@@ -341,7 +341,7 @@ curl -s "https://fal.ai/api/models?keywords=seedance&total=100&page=1" | python 
 
 实际落地：
 
-- **worker 新增 provider 派发缝**：`submitProviderQueue` / `pollProviderQueue` 两个包装函数，fal 保持 fallthrough；`CinematicShortVideoWorkflow` 的两个调用点改指向它们。请求构建器抽到 `workers/execution/src/models/minimax/video-request-builder.ts`（照 `models/fal/video-request-builders.ts` 的分工——builder 抽模块、submit/poll 留 index.ts）
+- **worker 新增 provider 派发缝**：`submitProviderQueue` / `pollProviderQueue` 两个包装函数，fal 保持 fallthrough；`CinematicShortVideoWorkflow` 的两个调用点改指向它们。请求构建器抽到 `workers/execution/src/providers/minimax/video-request-builder.ts`（照 `models/fal/video-request-builders.ts` 的分工——builder 抽模块、submit/poll 留 index.ts）
 - **两处白名单必须同步**：`generate-video.service.ts` 的 `WORKER_CAPABLE_VIDEO_ADAPTERS`（服务端受不受）与 `video-model-send-plan.ts` 的 `WORKER_READY_VIDEO_ADAPTERS`（UI 给不给发）。只加一处 = 要么 UI 藏着能跑的模型，要么点了发在 workflow 里 500
 - ~~**Next.js adapter 仍要写**（`minimax.adapter.ts`）：`submitVideoToQueue` 是服务端的存在性守卫，缺了直接 400；同时它是 worker 逻辑的可测镜像~~ —— **2026-08-24 起不再成立**：这份「可测镜像」当时就已经和 worker 活版漂移（见 backend.md 的 fal/volcengine/minimax 三对 fork 记录），死执行链清理把 `minimax.adapter.ts` 的 `buildMiniMaxContent`/`isMiniMaxReferenceModel`/`buildMiniMaxVideoQueueBody`/`generateVideo`/`submitVideoToQueue`/`checkVideoQueueStatus` 全部删除。服务端存在性守卫也已删（见上一条注记）。`minimax.adapter.ts` 现在只剩 `healthCheck`（`minimaxAdapter`/`minimaxCnAdapter` 两个 adapterType 共用同一份实现，形态不变）。
 - **一个实现两个 adapterType**：`minimaxAdapter` / `minimaxCnAdapter` 共享同一份实现，只换 `adapterType` 标签 —— 两站线材格式相同，差的只是 baseUrl 与 key 槽
@@ -416,7 +416,7 @@ curl -s "https://fal.ai/api/models?keywords=seedance&total=100&page=1" | python 
 
 ~~⚠ 还有第二道闸：即便火山开了 API，**Seedance 2.5 仍跑不了** —— VolcEngine 至今没有 execution worker 分支（见 §⑩ 的更正）。要让它真能出片，得照 MiniMax 这次的做法给火山加 worker 分支 + 两处白名单。测试里 `execution` 断言为 `execution-not-migrated` 就是钉住这个事实。~~
 
-> **↑ 这条已作废（2026-08-01 被 `b4ecf638` 推翻，2026-08-08 复核时发现文档没跟上）。** 该 commit「接 MiniMax H3 原生双线 + 火山 Seedance 迁进 worker」把 VolcEngine 加进了 `generate-video.service.ts` 的 `WORKER_CAPABLE_VIDEO_ADAPTERS`，`workers/execution/src/models/volcengine/video-request-builder.ts` 一并落地；同日 `seedance-25-reservation.test.ts` 的断言从 `execution-not-migrated` 翻成 `execution: 'ready'`。**第二道闸已经不存在，2.5 现在只剩 model id 一道闸。** 详见 §⑬。
+> **↑ 这条已作废（2026-08-01 被 `b4ecf638` 推翻，2026-08-08 复核时发现文档没跟上）。** 该 commit「接 MiniMax H3 原生双线 + 火山 Seedance 迁进 worker」把 VolcEngine 加进了 `generate-video.service.ts` 的 `WORKER_CAPABLE_VIDEO_ADAPTERS`，`workers/execution/src/providers/volcengine/video-request-builder.ts` 一并落地；同日 `seedance-25-reservation.test.ts` 的断言从 `execution-not-migrated` 翻成 `execution: 'ready'`。**第二道闸已经不存在，2.5 现在只剩 model id 一道闸。** 详见 §⑬。
 
 已知的 2.5 计费与规格（火山口径）：
 

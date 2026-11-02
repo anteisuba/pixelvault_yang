@@ -1,6 +1,6 @@
 /**
  * ComfyUI core sampler/scheduler values accepted by the managed Runner.
- * Keep this list aligned with `workers/execution/src/models/runner/sampling.ts`.
+ * Keep this list aligned with `workers/execution/src/providers/runner/sampling.ts`.
  */
 export const RUNNER_SAMPLERS = [
   'euler',

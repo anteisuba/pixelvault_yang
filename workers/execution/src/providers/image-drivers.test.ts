@@ -4,7 +4,7 @@ import {
   WORKER_IMAGE_PROVIDER_IDS,
   WORKER_IMAGE_PROVIDER_MODES,
 } from '../../../../src/constants/worker-image-providers'
-import { getSingleStepImageDriver } from '../index'
+import { getSingleStepImageDriver } from './image-drivers'
 
 describe('出图驱动表（共享契约）', () => {
   it('契约里每家 single-step 服务商都有驱动，multi-step 的不走通用分支', () => {

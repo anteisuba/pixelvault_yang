@@ -160,6 +160,7 @@ export async function planChatTurn(input: {
     const before = fadeChatMood(readChatMood(card.extensions), now)
     const silentRun = silentRunOf(input.messages)
     const raw = await llmTextCompletion({
+      purpose: 'character-chat-mood',
       systemPrompt: CHAT_PLAN_SYSTEM_PROMPT,
       userPrompt: chatPlanPrompt({
         character: input.character,

@@ -296,6 +296,7 @@ export async function evaluateGeneration(
     const raw = await withRetry(
       () => {
         return llmTextCompletion({
+          purpose: 'generation-evaluator',
           systemPrompt: EVALUATION_SYSTEM_PROMPT,
           userPrompt: `Evaluate this generated image against the original intent.
 

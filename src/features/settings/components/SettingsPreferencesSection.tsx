@@ -29,6 +29,7 @@ import {
 } from '@/components/ui/select'
 import { Spinner } from '@/components/ui/spinner'
 import { Switch } from '@/components/ui/switch'
+import { useErrorText } from '@/hooks/use-error-text'
 
 /**
  * `/settings/preferences`（D3 ④）——语言 · 显示名 · 默认打开的工作台 ·
@@ -149,6 +150,7 @@ type SaveMark = 'saving' | 'saved' | null
 
 function DisplayNameField() {
   const t = useTranslations('Settings')
+  const errText = useErrorText()
   const { profile, refresh } = useMyProfile()
   const [draft, setDraft] = useState<string | null>(null)
   const [mark, setMark] = useState<SaveMark>(null)
@@ -179,8 +181,8 @@ function DisplayNameField() {
       return
     }
     setMark(null)
-    toastError(result.error ?? t('preferences.displayNameFailed'))
-  }, [profile?.displayName, refresh, t, value])
+    toastError(errText.api(result, t('preferences.displayNameFailed')))
+  }, [errText, profile?.displayName, refresh, t, value])
 
   return (
     <span className="flex items-center gap-2">

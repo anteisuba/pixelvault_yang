@@ -13,6 +13,7 @@ import {
   deleteCivitaiTokenAPI,
 } from '@/lib/api-client'
 import { queryClient } from '@/lib/query-client'
+import { useErrorText } from '@/hooks/use-error-text'
 
 export interface UseCivitaiTokenReturn {
   hasToken: boolean
@@ -36,6 +37,7 @@ function setHasToken(hasToken: boolean) {
 
 export function useCivitaiToken(): UseCivitaiTokenReturn {
   const t = useTranslations('CivitaiToken')
+  const errText = useErrorText()
   const query = useQuery(
     { queryKey: QUERY_KEYS.civitaiToken, queryFn: fetchHasCivitaiToken },
     queryClient,
@@ -53,10 +55,10 @@ export function useCivitaiToken(): UseCivitaiTokenReturn {
         setHasToken(true)
         return true
       }
-      toast.error(result.error ?? t('saveFailed'))
+      toast.error(errText.api(result, t('saveFailed')))
       return false
     },
-    [t],
+    [errText, t],
   )
 
   const remove = useCallback(async (): Promise<boolean> => {
@@ -66,9 +68,9 @@ export function useCivitaiToken(): UseCivitaiTokenReturn {
       toast.success(t('removeSuccess'))
       return true
     }
-    toast.error(result.error ?? t('removeFailed'))
+    toast.error(errText.api(result, t('removeFailed')))
     return false
-  }, [t])
+  }, [errText, t])
 
   return {
     hasToken: query.data ?? false,

@@ -44,6 +44,7 @@ import {
   writeReport,
   type CaseResult,
 } from './live-eval'
+import { fetchEncryptedKey } from './eval-key'
 
 vi.mock('@/lib/db', async () => {
   const fake = await import('../assistant-replay/fake-db')
@@ -68,25 +69,6 @@ const ROUTE_MODEL = 'claude-sonnet-5-5'
 const MAX_HOPS = 4
 const dir = process.env.ASSISTANT_EVAL_DIR ?? ''
 const realFetch = globalThis.fetch
-
-/** 只读：这位创作者那把 Anthropic key 的密文（Neon 的 SQL over HTTP）。 */
-async function fetchEncryptedKey(userId: string): Promise<string> {
-  const url = process.env.DATABASE_URL
-  if (!url) throw new Error('DATABASE_URL is required')
-  const response = await realFetch(`https://${new URL(url).host}/sql`, {
-    method: 'POST',
-    headers: { 'Neon-Connection-String': url },
-    body: JSON.stringify({
-      query: `select "encryptedKey" from "UserApiKey" where "userId" = $1 and "adapterType" = 'anthropic' and "isActive" order by "createdAt" desc limit 1`,
-      params: [userId],
-    }),
-  })
-  const { rows } = (await response.json()) as {
-    rows: { encryptedKey: string }[]
-  }
-  if (!rows[0]) throw new Error('no active anthropic key for this creator')
-  return rows[0].encryptedKey
-}
 
 describe.skipIf(!dir)('assistant live eval', () => {
   const cases = dir ? loadEvalCases(dir) : []

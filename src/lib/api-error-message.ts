@@ -40,7 +40,8 @@ function normalizeI18nKey(i18nKey?: string): string | null {
 /**
  * Resolve a generic API error payload into a human-readable message.
  *
- * Priority: backend `i18nKey` → raw `error` → caller fallback.
+ * Priority: backend `i18nKey` → caller's localized fallback, with the raw
+ * `error` appended as detail when there is one (never the raw English alone).
  *
  * For AI generation failures use {@link getGenerationErrorMessage} instead —
  * it adds error-code classification. Do NOT add that classification here:
@@ -58,7 +59,70 @@ export function getApiErrorMessage(
     return tErrors(normalizedKey)
   }
 
-  return payload.error ?? fallbackMessage
+  return withRawDetail(tErrors, fallbackMessage, payload.error)
+}
+
+/** 浏览器自己的网络失败（断网 / CORS / DNS）在各家浏览器里的原话。 */
+const BROWSER_NETWORK_FAILURE_RE =
+  /^(?:Failed to fetch|NetworkError when attempting to fetch resource\.?|Load failed|Network request failed)$/i
+
+/** 替身 / 旧调用方的翻译函数可能没有 `has`：当作没翻译。 */
+function canTranslate(tErrors: ErrorTranslator, key: string): boolean {
+  return typeof tErrors.has === 'function' && tErrors.has(key)
+}
+
+/** 我们自己的程序异常（`TypeError: …`）不是给人看的原因。 */
+function isProgramErrorText(detail: string): boolean {
+  return /^(?:TypeError|ReferenceError|SyntaxError|RangeError|Error)\b/.test(
+    detail,
+  )
+}
+
+/**
+ * 本地化的那句（调用方的 fallback）打头，没翻译过的原话放在括号里补充。
+ *
+ * ⚠ 不再把服务端英文原话**单独**当提示：中文 / 日文界面上整句英文是这一类 bug 的
+ *   根（o-errors，2026-11-01）。原话仍然带上 —— owner 09-24「失败原因要具体」。
+ */
+function withRawDetail(
+  tErrors: ErrorTranslator,
+  message: string,
+  rawDetail: string | undefined,
+): string {
+  const detail = rawDetail?.trim()
+  if (!detail || detail === message || isProgramErrorText(detail)) {
+    return message
+  }
+  if (
+    BROWSER_NETWORK_FAILURE_RE.test(detail) &&
+    canTranslate(tErrors, 'common.network')
+  ) {
+    return tErrors('common.network')
+  }
+  if (!canTranslate(tErrors, 'common.withDetail')) return message
+  return tErrors('common.withDetail', {
+    message,
+    detail:
+      detail.length > GENERATION_ERROR_DETAIL_MAX_CHARS
+        ? `${detail.slice(0, GENERATION_ERROR_DETAIL_MAX_CHARS)}…`
+        : detail,
+  })
+}
+
+/**
+ * 一个被 `throw` 出来的东西 → 给人看的一句话（`catch (err)` 用）。
+ * 与 {@link getApiErrorMessage} 同一条规则：本地化 fallback 打头，原话补充。
+ */
+export function getThrownErrorMessage(
+  tErrors: ErrorTranslator,
+  error: unknown,
+  fallbackMessage: string,
+): string {
+  return withRawDetail(
+    tErrors,
+    fallbackMessage,
+    error instanceof Error ? error.message : undefined,
+  )
 }
 
 /**
@@ -128,6 +192,20 @@ export function getGenerationErrorMessage(
     })
   }
 
+  if (
+    code === GENERATION_ERROR_CODES.EXECUTION_REQUEST_REJECTED &&
+    tErrors.has('generation.execution_request_rejected')
+  ) {
+    // `Execution worker dispatch failed (400): <worker 原话>` → 只留原话。
+    const rejection = (payload.error ?? '').replace(/^[^:]*\(\d{3}\):\s*/, '')
+    return tErrors('generation.execution_request_rejected', {
+      detail:
+        rejection.length > GENERATION_ERROR_DETAIL_MAX_CHARS
+          ? `${rejection.slice(0, GENERATION_ERROR_DETAIL_MAX_CHARS)}…`
+          : rejection,
+    })
+  }
+
   if (code !== GENERATION_ERROR_CODES.UNKNOWN) {
     const generationKey = `generation.${code}`
     if (tErrors.has(generationKey)) {
@@ -141,11 +219,7 @@ export function getGenerationErrorMessage(
    */
   const detail = payload.error?.trim()
   // ⚠ 我们自己的程序异常（`TypeError: …`）不是「服务商返回」—— 那种照旧走通用那句。
-  const isProgramError = detail
-    ? /^(?:TypeError|ReferenceError|SyntaxError|RangeError|Error)\b/.test(
-        detail,
-      )
-    : false
+  const isProgramError = detail ? isProgramErrorText(detail) : false
   if (
     detail &&
     !isProgramError &&

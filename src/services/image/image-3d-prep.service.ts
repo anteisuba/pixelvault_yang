@@ -105,6 +105,7 @@ async function inspect3DSourceSemanticIssues(params: {
     const { route, modelId } = assistant
     const imageData = `data:${params.mimeType};base64,${params.imageBuffer.toString('base64')}`
     const raw = await llmTextCompletion({
+      purpose: 'image-3d-prep',
       systemPrompt: SOURCE_3D_READY_SYSTEM_PROMPT,
       userPrompt:
         'Check whether this image is suitable as a source for image-to-3D reconstruction. Return JSON exactly like {"issues":["multi_subject"]} or {"issues":[]}.',

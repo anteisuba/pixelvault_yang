@@ -216,7 +216,7 @@ describe('useStudioOperatorUpload · 失败不静默', () => {
     await waitFor(() =>
       expect(view.result.current.uploads[0]?.status).toBe('error'),
     )
-    expect(view.result.current.uploads[0]?.error).toBe('R2 rejected the upload')
+    expect(view.result.current.uploads[0]?.error).toBe('attach.upload.failed')
     expect(onUploaded).not.toHaveBeenCalled()
 
     uploadImageFileAPI.mockResolvedValueOnce({

@@ -284,7 +284,9 @@
     },
     "common": {
       "unexpected": "予期しないエラーが発生しました。もう一度お試しください。",
-      "databaseUnavailable": "データベースサービスを一時的に利用できません。しばらくしてから再度お試しください。"
+      "databaseUnavailable": "データベースサービスを一時的に利用できません。しばらくしてから再度お試しください。",
+      "withDetail": "{message}（{detail}）",
+      "network": "ネットワークに接続できません。接続を確認して再試行してください。"
     },
     "webImageImport": {
       "unreachable": "この画像を配信しているサイトがダウンロードを拒否しました。別の候補をお試しください。",
@@ -383,7 +385,8 @@
       "publish_blocked_search": "生成時に Google 検索を使ったため、規約上あなただけが見られます。公開はできません。",
       "unknown": "原因を特定できないエラーで生成に失敗しました。しばらくして再試行し、解消しない場合はエラー詳細を管理者にお伝えください。",
       "unknownWithDetail": "生成に失敗しました。プロバイダーからの応答：{detail}",
-      "credits_exhausted": "ポイントを使い切りました。管理者に追加してもらうか、自分の API キーを登録してください。"
+      "credits_exhausted": "ポイントを使い切りました。管理者に追加してもらうか、自分の API キーを登録してください。",
+      "execution_request_rejected": "生成サービスがこのリクエストを受け付けませんでした：{detail}"
     },
     "validation": {
       "invalidInput": "入力が無効です。パラメータを確認してください。",

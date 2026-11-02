@@ -84,7 +84,11 @@ describe('SettingsPreferencesSection · 显示名', () => {
     render(<SettingsPreferencesSection />)
     fireEvent.change(nameField(), { target: { value: '小黑' } })
     fireEvent.blur(nameField())
-    await waitFor(() => expect(toast.toastError).toHaveBeenCalledWith('nope'))
+    await waitFor(() =>
+      expect(toast.toastError).toHaveBeenCalledWith(
+        'Settings:preferences.displayNameFailed',
+      ),
+    )
     expect(screen.getByTestId('display-name-mark')).toHaveTextContent('')
   })
 })

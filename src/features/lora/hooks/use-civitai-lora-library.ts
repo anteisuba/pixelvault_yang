@@ -19,6 +19,7 @@ import { deferEffectTask } from '@/lib/defer-effect-task'
 import type { CivitaiLoraLibraryItem, CivitaiLoraLibraryResult } from '@/types'
 
 import { useLocalPreference } from '@/hooks/use-local-preference'
+import { useErrorText } from '@/hooks/use-error-text'
 
 export interface UseCivitaiLoraLibraryOptions {
   /**
@@ -190,6 +191,7 @@ export function useCivitaiLoraLibrary(
   options: UseCivitaiLoraLibraryOptions = {},
 ): UseCivitaiLoraLibraryReturn {
   const t = useTranslations('LoraWorkbench')
+  const errText = useErrorText()
   const [accumulate] = useState(options.accumulate ?? false)
   const [pageSize] = useState(options.pageSize ?? CIVITAI_LORA_PAGE_SIZE)
   const [items, setItems] = useState<CivitaiLoraLibraryItem[]>([])
@@ -354,12 +356,13 @@ export function useCivitaiLoraLibrary(
       // Keep whatever items we had on screen so a failed request does not
       // turn into a blank wall. Just surface the error so the caller can
       // render a toast/banner.
-      setError(response.error ?? t('communityLoadFailed'))
+      setError(errText.api(response, t('communityLoadFailed')))
     }
     paginationPendingRef.current = false
     setIsRevalidating(false)
     setHasResolvedOnce(true)
   }, [
+    errText,
     applyResult,
     baseModel,
     contentType,

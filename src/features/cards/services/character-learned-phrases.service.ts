@@ -109,6 +109,7 @@ export async function learnCreatorPhrases(input: {
       return persona.data.learnedPhrases
 
     const raw = await llmTextCompletion({
+      purpose: 'character-learned-phrases',
       systemPrompt: LEARN_SYSTEM_PROMPT,
       userPrompt: said,
       promptGuardMaxLength:

@@ -18,6 +18,7 @@ import {
   getProjectHistoryAPI,
 } from '@/lib/api-client'
 import { deferEffectTask } from '@/lib/defer-effect-task'
+import { useErrorText } from '@/hooks/use-error-text'
 
 export interface UseProjectsReturn {
   projects: ProjectRecord[]
@@ -60,6 +61,7 @@ export function useProjects(
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const t = useTranslations('Toasts')
+  const errText = useErrorText()
 
   // History state
   const [history, setHistory] = useState<GenerationRecord[]>([])
@@ -81,10 +83,10 @@ export function useProjects(
     if (response.success && response.data) {
       setProjects(response.data)
     } else {
-      setError(response.error ?? t('projectLoadFailed'))
+      setError(errText.api(response, t('projectLoadFailed')))
     }
     setIsLoading(false)
-  }, [t])
+  }, [errText, t])
 
   useEffect(() => {
     return deferEffectTask(() => {
@@ -102,12 +104,12 @@ export function useProjects(
         toast.success(t('projectCreated'))
         return newProject
       }
-      const msg = response.error ?? t('projectCreateFailed')
+      const msg = errText.api(response, t('projectCreateFailed'))
       setError(msg)
       toast.error(msg)
       return null
     },
-    [t],
+    [errText, t],
   )
 
   const update = useCallback(
@@ -121,12 +123,12 @@ export function useProjects(
         toast.success(t('projectUpdated'))
         return true
       }
-      const msg = response.error ?? t('projectUpdateFailed')
+      const msg = errText.api(response, t('projectUpdateFailed'))
       setError(msg)
       toast.error(msg)
       return false
     },
-    [t],
+    [errText, t],
   )
 
   const remove = useCallback(
@@ -141,12 +143,12 @@ export function useProjects(
         toast.success(t('projectDeleted'))
         return true
       }
-      const msg = response.error ?? t('projectDeleteFailed')
+      const msg = errText.api(response, t('projectDeleteFailed'))
       setError(msg)
       toast.error(msg)
       return false
     },
-    [activeProjectId, t],
+    [errText, activeProjectId, t],
   )
 
   // ─── History ────────────────────────────────────────────────────

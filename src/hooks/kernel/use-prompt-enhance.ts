@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl'
 
 import type { PromptEnhanceStyle } from '@/constants/config'
 import { enhancePromptAPI } from '@/lib/api-client'
+import { useErrorText } from '@/hooks/use-error-text'
 
 interface PromptEnhanceState {
   isEnhancing: boolean
@@ -16,6 +17,7 @@ interface PromptEnhanceState {
 
 export function usePromptEnhance() {
   const t = useTranslations('PromptEnhance')
+  const errText = useErrorText()
   const [state, setState] = useState<PromptEnhanceState>({
     isEnhancing: false,
     enhanced: null,
@@ -50,13 +52,13 @@ export function usePromptEnhance() {
         setState((prev) => ({
           ...prev,
           isEnhancing: false,
-          error: result.error ?? t('failed'),
+          error: errText.api(result, t('failed')),
         }))
       }
 
       return result
     },
-    [t],
+    [errText, t],
   )
 
   const clearEnhancement = useCallback(() => {

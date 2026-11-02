@@ -8,9 +8,11 @@ import {
   type ImageEditApiResult,
 } from '@/lib/api-client/image-edit'
 import type { InpaintRequest } from '@/types'
+import { useErrorText } from '@/hooks/use-error-text'
 
 export function useInpaint() {
   const t = useTranslations('StudioV3')
+  const errText = useErrorText()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<ImageEditApiResult | null>(null)
@@ -23,7 +25,7 @@ export function useInpaint() {
       try {
         const response = await inpaintImageAPI(params)
         if (!response.success || !response.data) {
-          setError(response.error ?? t('inpaintEditor.failed'))
+          setError(errText.api(response, t('inpaintEditor.failed')))
           return null
         }
 
@@ -40,7 +42,7 @@ export function useInpaint() {
         setIsLoading(false)
       }
     },
-    [t],
+    [errText, t],
   )
 
   return {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { z } from 'zod'
 
+import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   VOICE_API_ERROR_CODES,
@@ -15,7 +16,9 @@ import { listVoices, createVoice } from '@/services/fish-audio-voice.service'
 import { createClonedVoiceCard } from '@/features/cards/server'
 import { isSupportedAudioMime } from '@/services/audio-reference.service'
 import { getFishAudioVoiceLibraryApiKey } from '@/lib/platform-keys'
+import { getClientIp } from '@/lib/client-ip'
 import { logger } from '@/lib/logger'
+import { rateLimit } from '@/lib/rate-limit'
 
 export const maxDuration = 60
 const PUBLIC_VOICE_LIBRARY_CACHE_CONTROL =
@@ -86,6 +89,22 @@ export async function GET(request: NextRequest) {
 
     const { self, page, pageSize, search, language, sortBy } = parsed.data
     if (!self) {
+      // 匿名可达 + 平台 key：按 IP 限，挡换参数绕 CDN 缓存刷平台 key。
+      const limited = await rateLimit(
+        `voices:public:${getClientIp(request.headers)}`,
+        RATE_LIMIT_CONFIGS.anonymousPlatformRead,
+      )
+      if (!limited.success) {
+        return NextResponse.json(
+          {
+            success: false,
+            errorCode: VOICE_API_ERROR_CODES.RATE_LIMITED,
+            error: 'Too many requests.',
+          },
+          { status: 429 },
+        )
+      }
+
       const publicLibraryApiKey = getFishAudioVoiceLibraryApiKey()
       if (!publicLibraryApiKey) {
         return NextResponse.json(PUBLIC_VOICE_LIBRARY_UNAVAILABLE_ERROR, {

@@ -284,7 +284,9 @@
     },
     "common": {
       "unexpected": "发生了意外错误，请重试。",
-      "databaseUnavailable": "数据库服务暂时不可用，请稍后再试。"
+      "databaseUnavailable": "数据库服务暂时不可用，请稍后再试。",
+      "withDetail": "{message}（{detail}）",
+      "network": "网络连不上，检查网络后再试。"
     },
     "webImageImport": {
       "unreachable": "这张图所在的站点不让我们下载它。换一张候选试试。",
@@ -383,7 +385,8 @@
       "publish_blocked_search": "出图时用了 Google 搜索，按条款只能自己看，不能发布。",
       "unknown": "这次生成没有成功，暂时无法确定原因。请稍后重试；如果仍然失败，可将错误详情提供给管理员。",
       "unknownWithDetail": "这次生成没有成功，服务商返回：{detail}",
-      "credits_exhausted": "点数用完了。可以找管理员加点，或绑自己的 key 再出。"
+      "credits_exhausted": "点数用完了。可以找管理员加点，或绑自己的 key 再出。",
+      "execution_request_rejected": "生成服务没有接受这次请求：{detail}"
     },
     "validation": {
       "invalidInput": "输入无效，请检查参数。",

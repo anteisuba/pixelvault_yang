@@ -239,6 +239,7 @@ export async function completeAssistantTextWithContextRetry({
     )
     try {
       const result = await llmTextCompletion({
+        purpose: 'assistant',
         systemPrompt,
         signal,
         userPrompt,
@@ -371,6 +372,7 @@ export async function* streamAssistantTextWithContextRetry({
     let outcome: CallOutcome = 'closed'
     try {
       yield* llmTextStream({
+        purpose: 'assistant',
         systemPrompt,
         signal,
         userPrompt,

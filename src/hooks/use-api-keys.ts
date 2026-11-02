@@ -19,6 +19,7 @@ import {
   verifyApiKey,
 } from '@/lib/api-client'
 import { deferToIdle } from '@/lib/defer-to-idle'
+import { useErrorText } from '@/hooks/use-error-text'
 
 // ─── Health Cache (localStorage, 5-min TTL) ───────────────────────
 
@@ -277,6 +278,7 @@ export function useApiKeys({
     getVerifiedAtServerSnapshot,
   )
   const t = useTranslations('Toasts')
+  const errText = useErrorText()
 
   const verifyOne = useCallback(
     async (id: string): Promise<ApiKeyHealthStatus> => {
@@ -417,11 +419,11 @@ export function useApiKeys({
         toast.success(t('apiKeyCreated'))
         return true
       }
-      setError(response.error ?? t('apiKeyCreateFailed'))
+      setError(errText.api(response, t('apiKeyCreateFailed')))
       toast.error(t('apiKeyCreateFailed'))
       return false
     },
-    [verifyOne, t, userId],
+    [errText, verifyOne, t, userId],
   )
 
   const update = useCallback(
@@ -443,11 +445,11 @@ export function useApiKeys({
         toast.success(t('apiKeyUpdated'))
         return true
       }
-      setError(response.error ?? t('apiKeyUpdateFailed'))
+      setError(errText.api(response, t('apiKeyUpdateFailed')))
       toast.error(t('apiKeyUpdateFailed'))
       return false
     },
-    [verifyOne, t, userId],
+    [errText, verifyOne, t, userId],
   )
 
   const remove = useCallback(
@@ -479,11 +481,11 @@ export function useApiKeys({
         toast.success(t('apiKeyDeleted'))
         return true
       }
-      setError(response.error ?? t('apiKeyDeleteFailed'))
+      setError(errText.api(response, t('apiKeyDeleteFailed')))
       toast.error(t('apiKeyDeleteFailed'))
       return false
     },
-    [t, userId],
+    [errText, t, userId],
   )
 
   return {

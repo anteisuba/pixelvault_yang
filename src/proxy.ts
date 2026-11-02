@@ -42,8 +42,6 @@ const isPublicRoute = createRouteMatcher([
   // generation/profile before rendering, so exposing it here is safe.
   '/api/og',
   '/api/assistant/share',
-  '/api/voices',
-  '/api/voices/(.*)',
   '/api/webhooks/clerk',
   '/api/health',
   '/api/health/providers',
@@ -85,6 +83,16 @@ function isPublicUserProfileApi(pathname: string) {
   return Boolean(match && match[1] !== 'me')
 }
 
+/**
+ * 公共声音库只放行**读**：`GET /api/voices`（列表）与 `GET /api/voices/<音色 id>`（详情）。
+ * ⛔ 不再用 `/api/voices/(.*)` 前缀放行 —— 那会让 sample / transcribe / upload-reference
+ * 以及以后挂在下面的任何新路由在门口就是公开的，只剩路由自己那道 `auth()`。
+ */
+function isPublicVoiceLibraryApi(pathname: string, method: string | undefined) {
+  if (method !== 'GET' && method !== 'HEAD') return false
+  return /^\/api\/voices(?:\/[A-Za-z0-9_-]{1,64})?\/?$/.test(pathname)
+}
+
 function resolveLocale(pathname: string) {
   return (
     LOCALES.find(
@@ -107,7 +115,8 @@ export default clerkMiddleware(
       if (
         !isAuthBypassEnabled() &&
         !isPublicRoute(request) &&
-        !isPublicUserApi
+        !isPublicUserApi &&
+        !isPublicVoiceLibraryApi(pathname, request.method)
       ) {
         // ⚠ 不用 `auth.protect()`：它对非页面请求回一个**空的 404**，前台只能显示
         // 「Failed with status 404」，也认不出是会话过期（2026-10-29 助手出图）。

@@ -62,6 +62,7 @@ import type {
   StudioOperatorAttachment,
   StudioOperatorUpload,
 } from '@/types/studio-assistant-operator'
+import { useErrorText } from '@/hooks/use-error-text'
 
 /**
  * 素材记录 → 附件。
@@ -158,6 +159,7 @@ export function useStudioOperatorUpload({
 }: UseStudioOperatorUploadOptions): UseStudioOperatorUploadResult {
   const t = useTranslations('StudioOperator')
   const tErrors = useTranslations('Errors')
+  const errText = useErrorText()
   const [uploads, setUploads] = useState<StudioOperatorUpload[]>([])
 
   // 文件对象不进 state（它不参与渲染，只在重试时要用）；
@@ -315,12 +317,11 @@ export function useStudioOperatorUpload({
             }
       } catch (error) {
         return {
-          error:
-            error instanceof Error ? error.message : tr('attach.upload.failed'),
+          error: errText.thrown(error, tr('attach.upload.failed')),
         }
       }
     },
-    [patch],
+    [errText, patch],
   )
 
   const start = useCallback(

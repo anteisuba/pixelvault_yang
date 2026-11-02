@@ -58,6 +58,7 @@ import {
   generateAudioAPI,
   cancelGenerationsAPI,
 } from '@/lib/api-client'
+import { useErrorText } from '@/hooks/use-error-text'
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -370,6 +371,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
   const tVideo = useTranslations('VideoGenerate')
   const tErrors = useTranslations('Errors')
   const tCancel = useTranslations('GenerationCancel')
+  const errText = useErrorText()
 
   // 审查 D1：完成提示必须给"去向"——附"查看作品"直达动作，用户不再
   // 以为结果丢了。以 generation.id 作 toast id，多次完成时去重。
@@ -1167,10 +1169,10 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
         generationId,
       })
       if (!result.success) {
-        toast.error(result.error ?? tStudio('generateFailed'))
+        toast.error(errText.generation(result, tStudio('generateFailed')))
       }
     },
-    [activeRun, tStudio],
+    [errText, activeRun, tStudio],
   )
 
   // ── B4: Compare generation (parallel models) ──────────────────
@@ -1994,7 +1996,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
         const chunk = jobIds.slice(i, i + GENERATION_CANCEL_MAX_BATCH)
         void cancelGenerationsAPI(chunk).then((res) => {
           if (!res.success) {
-            toast.error(res.error ?? tCancel('cancelFailed'))
+            toast.error(errText.api(res, tCancel('cancelFailed')))
             return
           }
           if (!res.data || !outputType) return
@@ -2016,7 +2018,14 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
         })
       }
     },
-    [activeRun, stopPolling, stopTimer, tCancel, restoreAlreadyFinishedItem],
+    [
+      errText,
+      activeRun,
+      stopPolling,
+      stopTimer,
+      tCancel,
+      restoreAlreadyFinishedItem,
+    ],
   )
 
   const cancelRunItem = useCallback(

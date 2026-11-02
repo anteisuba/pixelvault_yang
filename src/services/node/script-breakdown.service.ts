@@ -123,6 +123,7 @@ export async function createScriptBreakdown(
     async () => {
       const rawOutput = await withScriptBreakdownTimeout(
         llmTextCompletion({
+          purpose: 'script-breakdown',
           systemPrompt: SCRIPT_BREAKDOWN_SYSTEM_PROMPT,
           userPrompt: buildUserPrompt(params.idea, params.locale),
           modelId: route.modelId,

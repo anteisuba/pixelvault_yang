@@ -19,6 +19,7 @@ import {
 } from '@/lib/api-client'
 import { LORA_TRAINING } from '@/constants/config'
 import { LORA_TOAST_DURATION_MS } from '@/constants/lora'
+import { useErrorText } from '@/hooks/use-error-text'
 
 export interface SubmitOutcome {
   job: LoraTrainingRecord | null
@@ -87,6 +88,7 @@ export function useLoraTraining(): UseLoraTrainingReturn {
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const t = useTranslations('Toasts')
   const tErr = useTranslations('LoraTraining')
+  const errText = useErrorText()
 
   // ─── Load jobs ──────────────────────────────────────────────────
 
@@ -217,7 +219,7 @@ export function useLoraTraining(): UseLoraTrainingReturn {
           newFailed.push({
             id: nextFailedId(),
             filename: file.name,
-            error: result.error ?? tErr('uploadFailed'),
+            error: errText.api(result, tErr('uploadFailed')),
             file,
           })
         }
@@ -235,7 +237,7 @@ export function useLoraTraining(): UseLoraTrainingReturn {
         setFailed((prev) => [...prev, ...newFailed])
       }
     },
-    [uploaded.length, uploadsInFlight, tErr],
+    [errText, uploaded.length, uploadsInFlight, tErr],
   )
 
   /**
@@ -270,13 +272,13 @@ export function useLoraTraining(): UseLoraTrainingReturn {
         setFailed((prev) =>
           prev.map((f) =>
             f.id === id
-              ? { ...f, error: result.error ?? tErr('uploadFailed') }
+              ? { ...f, error: errText.api(result, tErr('uploadFailed')) }
               : f,
           ),
         )
       }
     },
-    [failed, tErr],
+    [errText, failed, tErr],
   )
 
   const removeUploaded = useCallback((url: string) => {
@@ -374,7 +376,7 @@ export function useLoraTraining(): UseLoraTrainingReturn {
       const failure = response as LoraTrainingSubmitFailure
       const friendly = failure.messageKey
         ? tErr(failure.messageKey)
-        : (failure.error ?? t('loraTrainingSubmitFailed'))
+        : errText.api(failure, t('loraTrainingSubmitFailed'))
       toast.error(friendly, { duration: LORA_TOAST_DURATION_MS })
       return {
         job: null,
@@ -383,7 +385,7 @@ export function useLoraTraining(): UseLoraTrainingReturn {
         errorMessage: friendly,
       }
     },
-    [startPolling, t, tErr],
+    [errText, startPolling, t, tErr],
   )
 
   return {

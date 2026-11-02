@@ -70,6 +70,7 @@ export async function getPromptFeedback(
     : `Prompt to review:\n"${prompt}"`
 
   const raw = await llmTextCompletion({
+    purpose: 'prompt-feedback',
     systemPrompt: FEEDBACK_SYSTEM_PROMPT,
     userPrompt,
     adapterType: route.adapterType,

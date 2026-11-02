@@ -103,7 +103,7 @@
 平台掏钱的只剩 `runner`（见上方 `RUNNER_MONTHLY_LIMIT`），它本来就没有 BYOK 通道。
 `model-health.service.ts` 仍读平台 key 做免费的元数据探测，env 清空后对应厂商报「无系统 key」降级，不影响用户。
 
-**Cloudflare AI Gateway（2026-10-07 接入，env 开关）**：配了 `CLOUDFLARE_AI_GATEWAY_URL`（`https://gateway.ai.cloudflare.com/v1/<account>/<gateway>`）后，`llm-text.service.ts` 的 `fetchLlmText`（补全 / 流式 / 原生联网搜索的唯一出口）把官方默认地址改道网关（`AI_GATEWAY_PROVIDER_ROUTES`：Gemini → `google-ai-studio`、OpenAI → `openai`、Claude → `anthropic`、DeepSeek → `deepseek`、Grok → `grok`），用户 key 照常透传；用户自配的 baseUrl 不改道。网关开了鉴权时再配 `CLOUDFLARE_AI_GATEWAY_TOKEN`（`cf-aig-authorization`）。Worker 里的出图请求暂未改道。
+**Cloudflare AI Gateway（2026-10-07 接入，env 开关）**：配了 `CLOUDFLARE_AI_GATEWAY_URL`（`https://gateway.ai.cloudflare.com/v1/<account>/<gateway>`）后，`llm/llm-core.ts` 的 `fetchLlmText`（补全 / 流式 / 原生联网搜索的唯一出口）把官方默认地址改道网关（`AI_GATEWAY_PROVIDER_ROUTES`：Gemini → `google-ai-studio`、OpenAI → `openai`、Claude → `anthropic`、DeepSeek → `deepseek`、Grok → `grok`），用户 key 照常透传；用户自配的 baseUrl 不改道。网关开了鉴权时再配 `CLOUDFLARE_AI_GATEWAY_TOKEN`（`cf-aig-authorization`）。Worker 里的出图请求暂未改道。
 
 ## Ideogram 4.5（verified 2026-10-01）
 
@@ -276,7 +276,7 @@ adapter / Worker 抛错
 ## Source of Truth
 
 - `src/constants/{providers,config,generation-errors,provider-capabilities}.ts` · `src/constants/models/`
-- `src/services/providers/`（registry / types / adapter 实现——**adapter 名册与个数一律以 `registry.ts` 的 `PROVIDER_ADAPTERS` 为准**）· `src/services/{api-key-resolver,apiKey}.service.ts` · `src/services/image/generate-image.service.ts` · `src/services/llm-text.service.ts`
+- `src/services/providers/`（registry / types / adapter 实现——**adapter 名册与个数一律以 `registry.ts` 的 `PROVIDER_ADAPTERS` 为准**）· `src/services/{api-key-resolver,apiKey}.service.ts` · `src/services/image/generate-image.service.ts` · `src/services/llm-text.service.ts`（入口）+ `src/services/llm/`（各家实现，见 `docs/design/llm.md`）
 - `src/lib/{errors,api-error-message,platform-keys}.ts`
 - HF LoRA discovery: `src/features/lora/services/huggingface-lora.service.ts` · `src/app/api/lora-assets/huggingface/route.ts` · `src/features/lora/hooks/use-huggingface-lora-library.ts` · `src/constants/lora.ts`
 - 历史详版（含 worker 迁移逐条清单）：`git show cddc4384:docs/integrations/providers.md`

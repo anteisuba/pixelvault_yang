@@ -7,7 +7,7 @@ vi.mock('@/features/assistant/workspace.service', () => ({
 
 const mockTag = vi.fn()
 const mockRevert = vi.fn()
-vi.mock('@/services/asset-library-write.service', () => ({
+vi.mock('@/features/assets/server', () => ({
   AssetFolderLimitError: class AssetFolderLimitError extends Error {},
   addAssetsToFolder: vi.fn(),
   createAssetFolder: vi.fn(),

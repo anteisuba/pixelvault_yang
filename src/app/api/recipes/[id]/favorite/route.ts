@@ -2,7 +2,7 @@ import 'server-only'
 
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import { createApiPutRoute } from '@/lib/api-route-factory'
-import { setRecipeFavorite } from '@/services/prompts/recipe.service'
+import { setRecipeFavorite } from '@/features/prompts/server'
 import { SetRecipeFavoriteRequestSchema } from '@/types'
 
 export const PUT = createApiPutRoute({

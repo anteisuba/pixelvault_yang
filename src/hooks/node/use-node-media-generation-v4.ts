@@ -64,7 +64,7 @@ import {
   type CharacterCardRecord,
   type CharacterImagePick,
 } from '@/types'
-import { useCharacterLibrary } from '@/hooks/cards/use-character-library'
+import { useCharacterLibrary } from '@/features/cards'
 import {
   mentionedCharacters,
   stripCharacterMentionMarks,

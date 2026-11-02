@@ -134,7 +134,7 @@ import {
   MentionInput,
   type MentionInputHandle,
 } from '@/components/ui/mention-input'
-import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
+import { AssetSelectorDialog } from '@/features/assets'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 import {
   StudioOperatorMessageBody,

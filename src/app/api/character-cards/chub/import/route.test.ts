@@ -9,12 +9,12 @@ import {
 
 vi.mock('server-only', () => ({}))
 
-vi.mock('@/services/cards/chub-library.service', () => ({
+vi.mock('@/features/cards/services/chub-library.service', () => ({
   importChubCard: vi.fn(),
 }))
 
 import { TAVERN_CARD } from '@/constants/cards/tavern-card'
-import { importChubCard } from '@/services/cards/chub-library.service'
+import { importChubCard } from '@/features/cards/server'
 import { POST } from './route'
 
 const mockImportChubCard = vi.mocked(importChubCard)

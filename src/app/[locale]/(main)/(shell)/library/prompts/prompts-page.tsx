@@ -5,16 +5,16 @@ import { FileText } from '@/components/icons'
 import { z } from 'zod'
 
 import { ROUTES } from '@/constants/routes'
-import { PromptLibraryShell } from '@/components/business/prompts/PromptLibraryShell'
-import { PromptTemplateCreatePanel } from '@/components/business/prompts/PromptTemplateCreatePanel'
 import {
+  PromptLibraryShell,
+  PromptTemplateCreatePanel,
   PromptTemplateList,
   type PromptTemplateListItem,
-} from '@/components/business/prompts/PromptTemplateList'
+} from '@/features/prompts'
+import { listRecipeSummaries } from '@/features/prompts/server'
 import { Button } from '@/components/ui/button'
 import { Link } from '@/i18n/navigation'
 import type { AppLocale } from '@/i18n/routing'
-import { listRecipeSummaries } from '@/services/prompts/recipe.service'
 
 const PromptCreateQuerySchema = z.object({
   create: z.enum(['1']).optional(),

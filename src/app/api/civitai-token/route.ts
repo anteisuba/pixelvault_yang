@@ -11,7 +11,7 @@ import {
   setCivitaiToken,
   hasCivitaiToken,
   deleteCivitaiToken,
-} from '@/services/civitai-token.service'
+} from '@/features/lora/server'
 import { createApiGetRoute, createApiRoute } from '@/lib/api-route-factory'
 
 export const GET = createApiGetRoute({

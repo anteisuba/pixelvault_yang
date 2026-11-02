@@ -3,7 +3,7 @@ import 'server-only'
 import { CreateRecipeFromGenerationSchema } from '@/types'
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import { createApiRoute } from '@/lib/api-route-factory'
-import { createRecipeFromGeneration } from '@/services/prompts/recipe.service'
+import { createRecipeFromGeneration } from '@/features/prompts/server'
 
 export const POST = createApiRoute({
   schema: CreateRecipeFromGenerationSchema,

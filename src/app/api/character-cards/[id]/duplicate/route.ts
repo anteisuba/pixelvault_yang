@@ -3,7 +3,7 @@ import 'server-only'
 import { DuplicateCharacterCardSchema } from '@/types'
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import { createApiPostByIdRoute } from '@/lib/api-route-factory'
-import { duplicateCharacterCard } from '@/services/cards/character-card.service'
+import { duplicateCharacterCard } from '@/features/cards/server'
 
 export const POST = createApiPostByIdRoute({
   schema: DuplicateCharacterCardSchema,

@@ -154,7 +154,7 @@ grep 的目的是**把所有调用方收进同一个 diff**——不留旧签名
 
 ## Civitai LoRA 库：全量索引（2026-10-07 起）
 
-**列表与搜索只查我们自己的索引**：Cloudflare D1 上的 `civitai-index`（`workers/civitai-index`），应用侧入口 `src/services/civitai-lora-library.service.ts`（`CIVITAI_INDEX_URL` / `CIVITAI_INDEX_TOKEN`）。条目、总数、翻页都以索引为准；上游 meilisearch 只在同步时碰，按名字 / 哈希反查单个 LoRA 的路径（`civitai-lora.service.ts`）不变。
+**列表与搜索只查我们自己的索引**：Cloudflare D1 上的 `civitai-index`（`workers/civitai-index`），应用侧入口 `src/features/lora/services/civitai-lora-library.service.ts`（`CIVITAI_INDEX_URL` / `CIVITAI_INDEX_TOKEN`）。条目、总数、翻页都以索引为准；上游 meilisearch 只在同步时碰，按名字 / 哈希反查单个 LoRA 的路径（`civitai-lora.service.ts`）不变。
 
 **为什么重做，而不是在旧链上再打补丁**：2026-10-07 实测上游 meilisearch 把 offset 翻页**和总数**都封顶在 1000（9-27 还能拿到 1065）。旧的「上游 → L2 快照 → L3 镜像（Neon 里只装得下下载量前 5 万）→ REST 回落」四层，每一层都在补上一层的缺口：总数不准、深页翻不到、镜像同步按下载量 offset 扫，扫到 1000 就「完成」，于是把 4.9 万行判成过期、被比例闸挡住。owner 要「条目全、搜得快、准」——只能把目录整份搬到自己手里。
 

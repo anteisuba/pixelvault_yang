@@ -1,0 +1,97 @@
+import { fireEvent, render, screen, within } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
+
+import { ASSET_BROWSER_PAGE_SIZE } from '@/constants/assets-grid'
+import { useGallery } from '@/hooks/use-gallery'
+import { AssetPickerBrowser } from './AssetPickerBrowser'
+
+/**
+ * `pageSize` 是**页大小**，不是上限 —— 助手那颗弹层（切片 #7c）传 10，整页素材库
+ * 仍是 24。⚠ 这条闸盯的是「传下去了没有」：漏传的表现是助手弹层首屏照旧拉 24 条，
+ * 而界面上什么都不会报错。
+ */
+
+vi.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => key,
+}))
+
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({ userId: 'user-1' }),
+}))
+
+vi.mock('@/hooks/use-gallery', () => ({
+  useGallery: vi.fn(() => ({
+    generations: [],
+    isLoading: false,
+    hasLoaded: true,
+    hasMore: false,
+    sentinelRef: { current: null },
+    filters: { search: '' },
+    setFilters: vi.fn(),
+    prependGeneration: vi.fn(),
+  })),
+}))
+
+vi.mock('@/features/assets/hooks/use-asset-picker-navigation', () => ({
+  useAssetPickerNavigation: () => ({
+    projects: [],
+    counts: null,
+    refreshCounts: vi.fn(),
+  }),
+}))
+
+vi.mock('@/hooks/use-justified-grid', () => ({
+  useAssetGridViewport: () => 'desktop',
+  useJustifiedGrid: () => ({ containerRef: { current: null }, rows: [] }),
+}))
+
+vi.mock('@/features/assets/components/AssetPickerFolderNav', () => ({
+  AssetPickerFolderNav: () => null,
+}))
+
+const mockUseGallery = vi.mocked(useGallery)
+
+function renderPicker(pageSize?: number) {
+  render(
+    <AssetPickerBrowser
+      mode="multi"
+      mediaType="image"
+      title="Pick asset"
+      onCancel={vi.fn()}
+      {...(pageSize != null ? { pageSize } : {})}
+    />,
+  )
+  return mockUseGallery.mock.calls.at(-1)?.[0]
+}
+
+describe('AssetPickerBrowser 的页大小', () => {
+  it('默认仍是整页素材库那一档', () => {
+    expect(renderPicker()?.limit).toBe(ASSET_BROWSER_PAGE_SIZE)
+  })
+
+  it('调用方给了就透传给 useGallery', () => {
+    expect(renderPicker(10)?.limit).toBe(10)
+  })
+})
+
+describe('AssetPickerBrowser 的标题栏', () => {
+  it('关闭钮与锁徽标同排（不是盖在标题栏上的浮层），点了走 onCancel', () => {
+    const onCancel = vi.fn()
+    render(
+      <AssetPickerBrowser
+        mode="single"
+        mediaType="video"
+        title="Pick asset"
+        onCancel={onCancel}
+      />,
+    )
+
+    const header = screen.getByRole('banner')
+    const badge = within(header).getByText('pickerLocked')
+    const close = within(header).getByRole('button', { name: 'close' })
+    expect(close.parentElement).toBe(badge.parentElement)
+
+    fireEvent.click(close)
+    expect(onCancel).toHaveBeenCalledOnce()
+  })
+})

@@ -18,15 +18,12 @@ vi.mock('@/lib/logger', () => ({
   logger: { error: vi.fn(), info: vi.fn(), warn: vi.fn() },
 }))
 
-vi.mock('@/services/lora-asset.service', () => ({
+vi.mock('@/features/lora/services/lora-asset.service', () => ({
   favoriteExternalLora: vi.fn(),
   unfavoriteLora: vi.fn(),
 }))
 
-import {
-  favoriteExternalLora,
-  unfavoriteLora,
-} from '@/services/lora-asset.service'
+import { favoriteExternalLora, unfavoriteLora } from '@/features/lora/server'
 
 import { DELETE, POST } from './route'
 

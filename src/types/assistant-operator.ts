@@ -610,7 +610,7 @@ export const AssistantOperatorSnapshotLoraSchema = z.object({
    * ⭐ 判据来自既有的 `isLoraBaseModelMountCompatible` —— ⛔ 别在提示词里让模型
    * 自己按名字猜：Civitai 的 DiT 枚举值就叫 `"Anima"`，而 "Anima Pencil XL" /
    * "Animagine" 报的是 `"SDXL 1.0"`，按子串猜必错（那条判据在
-   * `constants/lora-base-models.ts` 里是**精确相等**而不是 includes）。
+   * `features/lora/constants/lora-base-models.ts` 里是**精确相等**而不是 includes）。
    */
   compatible: z.boolean(),
   /**

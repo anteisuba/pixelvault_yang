@@ -30,7 +30,7 @@ vi.mock('next-intl', () => ({
       key,
 }))
 
-vi.mock('@/hooks/cards/use-voice-cards', () => ({
+vi.mock('@/features/cards/hooks/use-voice-cards', () => ({
   useVoiceCards: () => ({
     cards: voiceCardsRef.cards,
     isLoading: false,

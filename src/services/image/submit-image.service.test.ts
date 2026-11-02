@@ -64,7 +64,7 @@ vi.mock('@/services/usage.service', () => ({
 vi.mock('@/services/user.service', () => ({
   ensureUser: vi.fn(),
 }))
-vi.mock('@/services/civitai-token.service', () => ({
+vi.mock('@/features/lora/services/civitai-token.service', () => ({
   getCivitaiTokenByInternalUserId: vi.fn(),
 }))
 vi.mock('@/services/storage/r2', () => ({
@@ -73,7 +73,7 @@ vi.mock('@/services/storage/r2', () => ({
 vi.mock('@/services/runner/civitai-lora-to-r2.service', () => ({
   prepareRunnerLoras: vi.fn(),
 }))
-vi.mock('@/services/civitai-lora.service', () => ({
+vi.mock('@/features/lora/services/civitai-lora.service', () => ({
   findCivitaiLorasWithDownloadDisabled: vi.fn(),
 }))
 vi.mock('@/lib/logger', () => ({
@@ -99,9 +99,9 @@ import {
   failGenerationJob,
 } from '@/services/usage.service'
 import { ensureUser } from '@/services/user.service'
-import { getCivitaiTokenByInternalUserId } from '@/services/civitai-token.service'
+import { getCivitaiTokenByInternalUserId } from '@/features/lora/server'
 import { prepareRunnerLoras } from '@/services/runner/civitai-lora-to-r2.service'
-import { findCivitaiLorasWithDownloadDisabled } from '@/services/civitai-lora.service'
+import { findCivitaiLorasWithDownloadDisabled } from '@/features/lora/server'
 import {
   checkImageGenerationStatus,
   submitImageGeneration,

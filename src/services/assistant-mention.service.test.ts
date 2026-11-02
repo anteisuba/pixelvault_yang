@@ -20,7 +20,7 @@ vi.mock('@/lib/db', () => ({
   },
 }))
 
-vi.mock('@/services/asset-folder.service', () => ({
+vi.mock('@/features/assets/server', () => ({
   folderScopeWhere: (...args: unknown[]) => mockFolderScopeWhere(...args),
 }))
 

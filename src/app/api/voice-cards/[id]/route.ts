@@ -9,7 +9,7 @@ import {
   deleteVoiceCard,
   getVoiceCard,
   updateVoiceCard,
-} from '@/services/cards/voice-card.service'
+} from '@/features/cards/server'
 import { UpdateVoiceCardRequestSchema } from '@/types'
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 

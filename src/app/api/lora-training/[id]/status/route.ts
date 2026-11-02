@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { checkLoraTrainingStatus } from '@/services/lora-training.service'
+import { checkLoraTrainingStatus } from '@/features/lora/server'
 import { createApiGetByIdRoute } from '@/lib/api-route-factory'
 
 export const GET = createApiGetByIdRoute({

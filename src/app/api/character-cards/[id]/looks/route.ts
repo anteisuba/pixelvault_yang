@@ -3,7 +3,7 @@ import 'server-only'
 import { CreateCharacterLookSchema } from '@/types'
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import { createApiPostByIdRoute } from '@/lib/api-route-factory'
-import { createCharacterLook } from '@/services/cards/character-look.service'
+import { createCharacterLook } from '@/features/cards/server'
 
 export const POST = createApiPostByIdRoute({
   schema: CreateCharacterLookSchema,

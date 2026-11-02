@@ -10,8 +10,14 @@ notifyManager.setScheduler((callback) => callback())
 queryClient.setDefaultOptions({
   queries: { ...queryClient.getDefaultOptions().queries, retry: false },
 })
-afterEach(() => {
+afterEach(async () => {
   queryClient.clear()
+  // Radix 的 FocusScope（Dialog / Sheet / Popover…）卸载时 `setTimeout(0)` 再派发
+  // 一次事件。等这一拍，让它在本例里跑完：否则文件最后一例的定时器会在 jsdom
+  // 拆掉之后才响，`dispatchEvent` 报错让整片测试变红（10-29 #483）。
+  // hooks 默认 `stack` 倒序：本 afterEach 先注册，跑在 RTL 自动 cleanup（卸载）之后。
+  // 还开着假定时器的用例跳过（假的 setTimeout 永远等不到）。
+  if (!vi.isFakeTimers()) await new Promise((r) => setTimeout(r, 0))
 })
 
 // Mock server-only module so API route tests can import factory functions

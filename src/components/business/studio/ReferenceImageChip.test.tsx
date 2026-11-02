@@ -30,7 +30,7 @@ vi.mock('@/contexts/studio-context', () => ({
   }),
 }))
 
-vi.mock('@/components/business/AssetSelectorDialog', () => ({
+vi.mock('@/features/assets', () => ({
   AssetSelectorDialog: ({
     open,
     maxSelection,

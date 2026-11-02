@@ -26,13 +26,13 @@ vi.mock('@/services/assistant-skill.service', async () => {
   const { BUILTIN_SKILLS } = await import('@/features/assistant/skills')
   return { loadAssistantSkills: async () => BUILTIN_SKILLS }
 })
-vi.mock('@/services/cards/character-card.service', () => ({
+vi.mock('@/features/cards/services/character-card.service', () => ({
   listCharacterCards: cards,
 }))
-vi.mock('@/services/cards/character-lora.service', () => ({
+vi.mock('@/features/cards/services/character-lora.service', () => ({
   listCharacterLoraGroups: loraGroups,
 }))
-vi.mock('@/services/lora-asset.service', () => ({
+vi.mock('@/features/lora/services/lora-asset.service', () => ({
   listLoraAssetsForUser: loras,
   findLoraAssetsByUrls: vi.fn(async () => [
     { loraUrl: 'https://lora.test/malfoid.safetensors', name: 'malfoid' },
@@ -50,7 +50,7 @@ vi.mock('@/services/project-rule.service', () => ({
     { id: 'r1', text: 'pinterest.com', kind: 'sourceDeny', scope: null },
   ]),
 }))
-vi.mock('@/services/prompts/recipe.service', () => ({
+vi.mock('@/features/prompts/server', () => ({
   listRecipeSummaries: recipes,
 }))
 vi.mock('@/services/search-expansion.service', () => ({

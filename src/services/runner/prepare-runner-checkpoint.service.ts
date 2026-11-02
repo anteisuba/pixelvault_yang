@@ -9,7 +9,7 @@ import { determineRunnerCheckpointFidelity } from '@/lib/runner-checkpoint-fidel
 import {
   resolveCivitaiCheckpointByReference,
   type CivitaiCheckpointResolution,
-} from '@/services/civitai-lora.service'
+} from '@/features/lora/server'
 import type { RunnerCheckpointSpec } from '@/types'
 
 /**

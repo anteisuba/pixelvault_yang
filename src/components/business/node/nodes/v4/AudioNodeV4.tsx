@@ -49,7 +49,7 @@ import {
 } from '@/components/icons'
 import { toast } from 'sonner'
 
-import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
+import { AssetSelectorDialog } from '@/features/assets'
 import { VoiceAvatarButton } from '@/components/business/node/voice-library/VoiceAvatar'
 import { AUDIO_CLIP_SOURCE, AUDIO_KIND } from '@/constants/audio-options'
 import { PROGRESS_TICK_MS } from '@/constants/generation-progress'

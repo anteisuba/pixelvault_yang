@@ -28,7 +28,7 @@ interface AssetDialogMockProps {
   onSelect?(generation: GenerationRecord): void
 }
 
-vi.mock('@/components/business/AssetSelectorDialog', () => ({
+vi.mock('@/features/assets', () => ({
   AssetSelectorDialog: ({ open, onSelect }: AssetDialogMockProps) =>
     open ? (
       <button

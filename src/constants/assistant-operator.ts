@@ -418,7 +418,7 @@ export const ASSISTANT_OPERATOR_TOOL_IDS = {
   /**
    * 找 LoRA（P4-C，**LoRA 域专属**）。
    *
-   * ⭐ **复用既有检索**：`services/lora/lora-candidates.service` 那条已经在跑的双源
+   * ⭐ **复用既有检索**：`features/lora/services/lora-candidates.service` 那条已经在跑的双源
    * 检索（Civitai + HF，单源失败不拖垮另一源，归一成一张 `LoraCandidate`）。
    * ⛔ 别在工具环里新写一套 —— 那条链上「许可如实展示、不知道就写 null」
    * 「导入门槛写在数据上不写在 UI 上」「已挂载的要标出来」三条规矩都是实证换来的，

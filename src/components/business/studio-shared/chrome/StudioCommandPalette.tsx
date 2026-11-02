@@ -21,7 +21,7 @@ import { isMissingKeyModelOption } from '@/hooks/use-split-model-options'
 import { useVideoModelOptions } from '@/hooks/use-video-model-options'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { getProviderLabel } from '@/constants/providers'
-import { LoraTrainingDialog } from '@/components/business/LoraTrainingDialog'
+import { LoraTrainingDialog } from '@/features/lora'
 import { DialogTitle } from '@/components/ui/dialog'
 
 /**

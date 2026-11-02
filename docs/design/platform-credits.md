@@ -121,6 +121,7 @@ LLM 每一轮写一行（现在只进日志的那个 `onUsage` 改成也入账�
    - ✅ 2026-11-01 前半已做：LLM 单价表 `constants/models/llm-prices.ts`（助手路由表 15 个型号全覆盖，有测试锁；DeepSeek 按高峰价；推出价按日期分段）；`lib/credits/points.ts`（`usdToPoints` · `pointsOfLlmUsage`）；LLM 每行入账时现算 `points`（Gemini 思考加回输出），Runner 按 L40S $0.000542/s × 占卡秒数；用量页按账本点数优先、没结算的照旧次数 × 单价。
    - 后半等「助手自主度」的钱闸上 main 再做：它已把工作台估价抽成 `lib/generation-cost.ts`、闸在 `lib/assistant-spend-gate.ts`，届时连同 `lib/canvas-generation-cost.ts` 并进 `lib/credits/estimatePoints`，替换宿主 `generationPoints()` 与 `generationPointsOf`。
 3. **额度 + 先占后结**：`CreditGrant`、注册送点、admin 加点；Modal 从「每人 100 次」换成点数；全站 $ 总闸。
+   - ✅ 2026-11-02 已做：迁移 `20261102010000_credit_grants`；`services/credits.service.ts`（余额 = 送的 − 账本平台行 `points`，不另存；注册礼读余额时按 `dedupeKey = signup:<userId>` 补，存量用户也有；admin 不拦但照记）。Runner 个人闸换点数：余额 − 在跑任务 × 10 ≥ 10 才放行，锁内复查；全站月 600 次闸先保留（$ 总闸等跑出真实数再定）。助手「自动」一把 key 都没有、平台配了 `DEEPSEEK_API_KEY`、还有点数 → 走平台 DeepSeek Flash（占位 key id `platform:deepseek`），按 token 扣点；点数花光照旧就地弹配 key。设置页用量节显示余额，admin 多一个「加点」表单（邮箱或用户名，`POST /api/admin/credits`）。LoRA 台改读点数。
 4. **助手钱闸接点数**（跟自主度一起做）。
 5. **出门换成新点**。
 

@@ -16,14 +16,14 @@ import { matchesAnyWord } from '@/lib/search-words'
 import type { AssistantOperatorSnapshot } from '@/types/assistant-operator'
 import type { AssistantV3PictureRef } from '@/types/assistant-v3'
 import { getAssistantPersona } from '@/services/assistant-persona.service'
-import { listCharacterCards } from '@/services/cards/character-card.service'
-import { listCharacterLoraGroups } from '@/services/cards/character-lora.service'
+import { listCharacterCards } from '@/features/cards/server'
+import { listCharacterLoraGroups } from '@/features/cards/server'
 import {
   findLoraAssetsByUrls,
   listLoraAssetsForUser,
-} from '@/services/lora-asset.service'
+} from '@/features/lora/server'
 import { listProjectSourceRules } from '@/services/project-rule.service'
-import { listRecipeSummaries } from '@/services/prompts/recipe.service'
+import { listRecipeSummaries } from '@/features/prompts/server'
 import { expandSearchQuery } from '@/services/search-expansion.service'
 import {
   ASSISTANT_NEXT_FIND_KIND_IDS as KIND,

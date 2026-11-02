@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { createApiGetByIdRoute } from '@/lib/api-route-factory'
-import { getCharacterGrowthForClerkId } from '@/services/cards/character-growth.service'
+import { getCharacterGrowthForClerkId } from '@/features/cards/server'
 
 /** 出门那一趟没人接力时，读状态这一下接着跑一段（`after`），给足函数时限。 */
 export const maxDuration = 300

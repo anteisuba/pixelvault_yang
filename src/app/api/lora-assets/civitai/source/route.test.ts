@@ -8,11 +8,11 @@ vi.mock('@/lib/logger', () => ({
   logger: { error: vi.fn(), info: vi.fn(), warn: vi.fn() },
 }))
 
-vi.mock('@/services/civitai-lora.service', () => ({
+vi.mock('@/features/lora/services/civitai-lora.service', () => ({
   resolveCivitaiModelPageUrlByVersion: vi.fn(),
 }))
 
-import { resolveCivitaiModelPageUrlByVersion } from '@/services/civitai-lora.service'
+import { resolveCivitaiModelPageUrlByVersion } from '@/features/lora/server'
 
 import { GET } from './route'
 

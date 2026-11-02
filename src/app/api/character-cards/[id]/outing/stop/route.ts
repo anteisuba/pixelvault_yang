@@ -2,7 +2,7 @@ import 'server-only'
 
 import { StopCharacterOutingSchema } from '@/types/character-growth'
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
-import { stopOutingForClerkId } from '@/services/cards/character-outing.service'
+import { stopOutingForClerkId } from '@/features/cards/server'
 import { createApiPostByIdRoute } from '@/lib/api-route-factory'
 
 /** 那一段已经不在了就当场收工（写日记要调一次模型）。 */

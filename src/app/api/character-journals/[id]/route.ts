@@ -4,7 +4,7 @@ import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import {
   deleteCharacterJournalForClerkId,
   updateCharacterJournalForClerkId,
-} from '@/services/cards/character-growth.service'
+} from '@/features/cards/server'
 import {
   createApiDeleteRoute,
   createApiPutRoute,

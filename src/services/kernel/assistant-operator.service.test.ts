@@ -317,7 +317,7 @@ vi.mock('@/services/video-frames/video-frame-set.service', () => ({
  * 「候选怎么投影、装不上的怎么说」，不是上游返回什么。
  */
 const mockSearchLoraCandidates = vi.fn()
-vi.mock('@/services/lora/lora-candidates.service', () => ({
+vi.mock('@/features/lora/services/lora-candidates.service', () => ({
   // lora-assistant §13：LoRA 域照库页条件搜 —— 沿用同一个 mock，断言照旧读它。
   searchLoraLibraryCandidates: (...args: unknown[]) =>
     mockSearchLoraCandidates(...args),
@@ -401,10 +401,10 @@ const mockTagAssets = vi.fn()
 const mockSetAssetFavorites = vi.fn()
 const mockCreateAssetFolder = vi.fn()
 const mockAddAssetsToFolder = vi.fn()
-vi.mock('@/services/asset-library-write.service', async () => {
+vi.mock('@/features/assets/server', async () => {
   const actual = await vi.importActual<
-    typeof import('@/services/asset-library-write.service')
-  >('@/services/asset-library-write.service')
+    typeof import('@/features/assets/server')
+  >('@/features/assets/server')
   return {
     AssetFolderLimitError: actual.AssetFolderLimitError,
     tagAssets: (...args: unknown[]) => mockTagAssets(...args),

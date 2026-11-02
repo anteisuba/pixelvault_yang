@@ -12,7 +12,7 @@ vi.mock('@/services/image/submit-image.service', () => ({
   submitImageGeneration: vi.fn(),
 }))
 
-vi.mock('@/services/cards/card-bus.service', () => ({
+vi.mock('@/features/cards/services/card-bus.service', () => ({
   loadCardBusCharacters: vi.fn(),
 }))
 
@@ -20,7 +20,7 @@ vi.mock('@/lib/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }))
 
-import { loadCardBusCharacters } from '@/services/cards/card-bus.service'
+import { loadCardBusCharacters } from '@/features/cards/server'
 import { submitImageGeneration } from '@/services/image/submit-image.service'
 import { ensureUser } from '@/services/user.service'
 import { compileAndGenerate } from '@/services/studio-generate.service'

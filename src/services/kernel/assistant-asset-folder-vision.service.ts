@@ -10,10 +10,7 @@ import { PROJECT } from '@/constants/config'
 import { ApiRequestError } from '@/lib/errors'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
-import {
-  countFolderItems,
-  folderScopeWhere,
-} from '@/services/asset-folder.service'
+import { countFolderItems, folderScopeWhere } from '@/features/assets/server'
 import { validatePrompt } from '@/services/kernel/prompt-guard'
 import {
   resolveVisionRoute,

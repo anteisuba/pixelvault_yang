@@ -2,7 +2,7 @@ import 'server-only'
 
 import { db } from '@/lib/db'
 import type { DanbooruCatalogKind } from '@/types/danbooru-catalog'
-import { listCivitaiLoras } from '@/services/civitai-lora-library.service'
+import { listCivitaiLoras } from '@/features/lora/server'
 import { listDanbooruFavorites } from '@/services/research/danbooru-favorite.service'
 import {
   fetchDanbooruCatalog,

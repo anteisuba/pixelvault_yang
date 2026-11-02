@@ -6,7 +6,7 @@ import { z } from 'zod'
 import { PAGINATION } from '@/constants/config'
 import { ROUTES } from '@/constants/routes'
 
-import { KreaAssetBrowser } from '@/components/business/KreaAssetBrowser'
+import { KreaAssetBrowser } from '@/features/assets'
 import { Button } from '@/components/ui/button'
 import { Link } from '@/i18n/navigation'
 import type { AppLocale } from '@/i18n/routing'

@@ -17,7 +17,7 @@ const mockGet = vi.fn()
 const mockUpdate = vi.fn()
 const mockDelete = vi.fn()
 
-vi.mock('@/services/prompts/recipe.service', () => ({
+vi.mock('@/features/prompts/server', () => ({
   getRecipe: (...args: unknown[]) => mockGet(...args),
   updateRecipe: (...args: unknown[]) => mockUpdate(...args),
   deleteRecipe: (...args: unknown[]) => mockDelete(...args),

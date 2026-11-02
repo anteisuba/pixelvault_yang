@@ -7,7 +7,7 @@ import Link from 'next/link'
 
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
-import { GalleryViewer } from '@/components/business/gallery/GalleryViewer'
+import { GalleryViewer } from '@/features/gallery'
 import { PolaroidCard } from '@/components/business/PolaroidCard'
 import { useIsMobile } from '@/hooks/use-mobile'
 import type { CreatorProfileWithImages } from '@/types'

@@ -51,15 +51,15 @@ import {
   DEFAULT_IMAGE_BATCH_COUNT,
   type ImageBatchCount,
 } from '@/constants/studio'
-import { useCharacterCards } from '@/hooks/cards/use-character-cards'
+import { useCharacterCards } from '@/features/cards'
 import { useProjects } from '@/hooks/use-projects'
-import { useCivitaiToken } from '@/hooks/use-civitai-token'
+import { useCivitaiToken } from '@/features/lora'
 import { usePromptEnhance } from '@/hooks/kernel/use-prompt-enhance'
 import { useImageUpload } from '@/hooks/use-image-upload'
 import { removeReferenceMentions } from '@/lib/studio-reference-mentions'
 import { useUnifiedGenerate } from '@/hooks/use-unified-generate'
 import { useUsageSummary } from '@/hooks/use-usage-summary'
-import type { UseCharacterCardsReturn } from '@/hooks/cards/use-character-cards'
+import type { UseCharacterCardsReturn } from '@/features/cards'
 import type { UseUnifiedGenerateReturn } from '@/hooks/use-unified-generate'
 
 // ═══════════════════════════════════════════════════════════════════

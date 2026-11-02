@@ -45,7 +45,7 @@ import {
   runOldTool,
 } from '@/services/kernel/assistant-v3-bench.service'
 import { requestProjectId } from '@/services/kernel/assistant-operator.service'
-import { readPinnedFields } from '@/services/cards/character-card.mapper'
+import { readPinnedFields } from '@/features/cards/server'
 import { pickV3WebImage } from '@/services/kernel/assistant-v3-finds.service'
 import {
   sayAboveCard,

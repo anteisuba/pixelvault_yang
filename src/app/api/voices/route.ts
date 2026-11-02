@@ -12,7 +12,7 @@ import {
 import { ensureUser } from '@/services/user.service'
 import { findActiveKeyForAdapter } from '@/services/apiKey.service'
 import { listVoices, createVoice } from '@/services/fish-audio-voice.service'
-import { createClonedVoiceCard } from '@/services/cards/voice-card.service'
+import { createClonedVoiceCard } from '@/features/cards/server'
 import { isSupportedAudioMime } from '@/services/audio-reference.service'
 import { getFishAudioVoiceLibraryApiKey } from '@/lib/platform-keys'
 import { logger } from '@/lib/logger'

@@ -12,7 +12,7 @@ import {
 
 import { ROUTES } from '@/constants/routes'
 import { useRouter } from '@/i18n/navigation'
-import type { LoraStageContextValue } from '@/components/business/studio/lora/lora-stage-context'
+import type { LoraStageContextValue } from '@/features/lora'
 
 /**
  * 「选给 XX 台」（第 9f 步方向 E 规矩 1）：台上「参考图 / 角色 / 模板 / 添加 LoRA」打开的都是

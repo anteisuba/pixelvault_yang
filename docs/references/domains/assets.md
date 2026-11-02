@@ -50,7 +50,7 @@
 
 ## Source of Truth
 
-`src/components/business/KreaAssetBrowser.tsx` · `AssetSelectorDialog.tsx` · `assets/AssetViewer.tsx` · `viewer/PhoneViewer.tsx` · `assets/AssetFolderSidebar.tsx` · `assets/AssetAddToFolderPanel.tsx` · `src/services/asset-folder.service.ts` · `src/hooks/use-gallery.ts` · `src/hooks/use-asset-folders.ts`；方向调研 素材优化方向调研（已删，见 git 历史）（含 P0–P2 路线图）。
+`src/features/assets/`（`components/KreaAssetBrowser.tsx` · `AssetSelectorDialog.tsx` · `AssetViewer.tsx` · `AssetFolderSidebar.tsx` · `AssetAddToFolderPanel.tsx` · `services/asset-folder.service.ts` · `hooks/use-asset-folders.ts`）· `src/components/business/viewer/PhoneViewer.tsx` · `src/hooks/use-gallery.ts`；方向调研 素材优化方向调研（已删，见 git 历史）（含 P0–P2 路线图）。
 
 ## 移动端等级（owner 2026-09-03 拍板，配方见 `../ui-defaults.md §6`）
 

@@ -8,7 +8,7 @@ import {
 import {
   deleteCharacterSticker,
   setCharacterStickerBlocked,
-} from '@/services/cards/character-sticker.service'
+} from '@/features/cards/server'
 import { UpdateCharacterStickerSchema } from '@/types/character-sticker'
 
 /** 拉黑 / 取消拉黑她的一张表情包（拉黑了她不再发）。 */

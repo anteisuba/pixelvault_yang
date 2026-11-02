@@ -24,7 +24,7 @@ import {
 } from '@/constants/assistant-persona'
 import { PROFILE } from '@/constants/config'
 import { ROUTES } from '@/constants/routes'
-import { useCharacterCards } from '@/hooks/cards'
+import { useCharacterCards } from '@/features/cards'
 import type { UseAssistantPersonaAutosaveValue } from '@/hooks/use-assistant-persona'
 import { Link } from '@/i18n/navigation'
 import { characterCoverUrl } from '@/lib/card-bus'

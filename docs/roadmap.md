@@ -23,7 +23,7 @@
 
 2026-11-01 owner 定方向（见 [`references/product.md`](references/product.md) 北极星）：核心是助手，台和画布是她的工具。顺序 owner 交给 Claude 定，11-01 晚 owner 点头如下：
 
-1. **`p-platform-credits` 点数地基**：所有调用（LLM token / 图 / 视频 / 声音 / Modal GPU 秒）折成点数、每人额度、用量可见。Modal 免费给所有用户跑、朋友试用先给额度玩、助手「花钱多先问」、角色出门额度，四件都踩在这套上。设计稿 `design/platform-credits.md` 11-01 owner 定稿（1 点 = 1 美分；朋友额度可用 DeepSeek 走 owner key；自带 key 只显示不拦；新用户送 100 点）。按稿五片做：① 账本 + LLM 入账（11-01 744b71c）→ ② 估价函数 + LLM 单价表 → ③ 额度 → ④ 助手钱闸接点数 → ⑤ 出门换新点。
+1. **`p-platform-credits` 点数地基**：所有调用（LLM token / 图 / 视频 / 声音 / Modal GPU 秒）折成点数、每人额度、用量可见。Modal 免费给所有用户跑、朋友试用先给额度玩、助手「花钱多先问」、角色出门额度，四件都踩在这套上。设计稿 `design/platform-credits.md` 11-01 owner 定稿（1 点 = 1 美分；朋友额度可用 DeepSeek 走 owner key；自带 key 只显示不拦；新用户送 100 点）。按稿五片做：① 账本 + LLM 入账（11-01 744b71c）→ ② 估价函数 + LLM 单价表（前半单价表 11-01 420d784；后半合并三套估价，等助手钱闸上 main）→ ③ 额度（11-02 完：CreditGrant 余额、注册礼 100 点、Runner 个人闸换点数、设置页 admin 加点、无 key 朋友走平台 DeepSeek）→ ④ 助手钱闸接点数 → ⑤ 出门换新点。
 2. **`p-assistant-autonomy` 助手自主度（含 `p-assistant-undo` 撤回）**：像讨论一样——拿得准直接做完，拿不准先问一句「这样可以吗」，不行换方案；三种先问（改坏已有东西 / 花钱明显多 / 意思有两种读法）；所有助手动作可撤回是底线。先出设计稿 `design/assistant-autonomy.md`（现状：助手现在哪些地方停下来问、哪些直接做；改法；改完什么样），owner 看稿后做。`p-assistant-modes`（反问模式）并入。
 3. **`p-canvas-shotlist` 画布镜头表框架**：先框架后逐镜生成；表能从参考视频拆（原 `p-canvas-breakdown` 拉片）也能由助手填；默认先低清草稿看剧情、满意再精修。先出设计稿 `design/canvas-shotlist.md`，owner 看稿后做。`p-canvas-polish` 里已记的两项轮到时一起。
 4. **UI：各台按样件 E 细修**——标签台 → 视频 / 3D → 配音间 → 画布，每台开工前对齐。规范见 `references/ui-spec.md`。
@@ -45,18 +45,10 @@
 | `d-nova-sample`     | Nova 效果样件（只看，不采用） | 同一页现在的密度和 Nova 并排对比                                                                                                                                                               |
 | `d-danbooru-page`   | Danbooru 标签库单独成页       | 10-24 规范 ㊴ 已定长相：照「查资料」左列表 + 右详情，标签库整页已上（#402）。剩：确认是否还要独立路由                                                                                          |
 
-### UI 地基（剩下的）
-
-| id  | 事项                                       | 备注                        |
-| --- | ------------------------------------------ | --------------------------- |
-| —   | 删死代码 `card-tile-base`、`MediaCardTile` | #396 后已无调用方，测试还在 |
-
 ### 按域搬进 `src/features/`（第 3 批）
 
 | id                   | 事项                                                   |
 | -------------------- | ------------------------------------------------------ |
-| `f-small`            | 小域先搬（提示词、画廊、素材、设置等）                 |
-| `f-cards-lora`       | 角色卡与 LoRA 域                                       |
 | `f-studio`           | 工作台域                                               |
 | `f-assistant-canvas` | 助手与画布（助手新内核已在 `src/features/assistant/`） |
 | `f-boundary`         | 加 eslint 边界规则，禁止跨域直引                       |
@@ -123,13 +115,11 @@
 ### 收尾待确认的零碎
 
 - 评测：助手全部改完后统一跑一轮 68 题（花 owner 的 API 额度，跑前先问）。
-- `Recipe.visibility` 列在 `RETIRED_COLUMNS`，下次动数据库时删。
 - LoRA「使用次数」owner 要保留，等保存提示词让作品记下 LoRA 后再定怎么数。
 - 「从图读串」：owner 反馈导入后三个角色没了，代码未复现，等 owner 给步骤。
 - 标签台负向页签的数字：现在只数当前这一位，是否改回加总待 owner 答。
 - 助手反推画风（#427）、SDXL 系来源图底模（#409）线上端到端待 owner 实测。
 - owner 手动：删 Vercel / Worker 里的 `RUNPOD_KEY` 和 RunPod 端点、Volume。
-- 偶发测试报错：`HuggingFaceLoraLibrary.test.tsx` 结束后 Radix `react-focus-scope` 定时器在 jsdom 里 `dispatchEvent` 报错，让「Unit Tests」整片变红（10-29 #483 遇到一次），要修测试的清理。
 - NAI「Concurrent generation is locked」：5a 排队上线后线上是否归零，下次看日志时确认。
 
 ## 已完成
@@ -142,6 +132,17 @@
 - `u-css-split` 域样式搬出 globals.css（11-01，eae86e8）：3906 → 1574 行，九个域文件进 `src/styles/`，由 globals.css 原位 `@import`（编译出的规则逐条比对一致）；顺手删 60 条没人引用的死样式。说明见 `references/frontend.md`「CSS 与 token 现状」
 - `u-resize` 核过不换（11-01 owner 选）：全站真正的两栏拖宽只有外壳那一根线，吸默认宽 / 拖过头先变淡松手才收 / 往右拖过头收台这几样 react-resizable-panels 给不了；浮动助手边、时间线修剪、文字框高都不是分栏。以后出现新的多栏布局再用这个库
 - 手机端点击区补到 44（11-01，8248195）：预览页手机扫 8 页实际有约 40 处（不止 10-21 记的 6 个）。新增 `.touch-target`（两向补到 44，只在触屏、看不见的外扩），`.touch-target-y` 改成「至少 44」；从底层 Button / Switch / Tabs / Select / 参数药丸 / 模型药丸一起补，再补十几个自写小键。复扫只剩宽 36–40 的紧挨着的（再宽会压邻居）。待 owner 真机试手感
+
+### 小清理（11-01 直推 main，ea0e301）
+
+- 删死代码 `card-tile-base`、`MediaCardTile`（含测试）
+- 删停用旧列 `Recipe.visibility`、`CharacterCard.browse*` 五列（迁移 `20261101170000_drop_retired_columns`）
+- 偶发红测试：`vitest.setup.ts` 每例结束等 Radix FocusScope 卸载定时器跑完（原 `HuggingFaceLoraLibrary.test.tsx` 偶发红）
+
+### 按域搬家（11-01 起）
+
+- `f-small` 四个小域搬进 `src/features/<域>/`（11-01）：提示词库 c6c3d7e、画廊 19b7d27、素材 b01be1d、设置 f5b6ffd。每域一个提交，`index.ts`（客户端）/ `server.ts`（服务端）两个入口，调用方同提交改完不留垫片。规矩与清单见 [`design/features-migration.md`](design/features-migration.md)；API key、拖拽 MIME、网格排版这些跨域的留在共享层
+- `f-cards-lora` 角色卡 a665a53、LoRA edb93fe（11-01）：角色卡的 hooks / services / 组件进 `features/cards/`；LoRA 工作台、库、训练、civitai / huggingface 那一套进 `features/lora/`。新加第三个入口 `core.ts`（纯函数与常量）：域外只要一个小函数时不用把整个域的组件一起加载
 
 ### 角色大项目（`p-character-redesign`，10-30 → 11-01 直推 main）
 

@@ -6,7 +6,7 @@ import { ROUTES } from '@/constants/routes'
 import { Button } from '@/components/ui/button'
 import { Link } from '@/i18n/navigation'
 import type { AppLocale } from '@/i18n/routing'
-import { TavernLibraryDesk } from '@/components/business/cards/TavernLibraryDesk'
+import { TavernLibraryDesk } from '@/features/cards'
 import { StudioLibraryOverlay } from '@/components/business/studio/shell/StudioLibraryOverlay'
 
 interface LibraryTavernPageProps {

@@ -67,7 +67,7 @@ vi.mock('@/services/usage.service', () => ({
   generationJobFunding: () => 'byok',
 }))
 
-vi.mock('@/services/prompts/recipe.service', () => ({
+vi.mock('@/features/prompts/server', () => ({
   buildRecipeSnapshotForUser: (...args: unknown[]) =>
     mockBuildRecipeSnapshot(...args),
 }))

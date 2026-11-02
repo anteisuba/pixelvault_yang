@@ -120,7 +120,7 @@ vi.mock('./NodeV4ActionsBridge', async (importOriginal) => ({
   useNodeCanvasActions: () => ({ openEditDesk }),
 }))
 
-vi.mock('@/components/business/AssetSelectorDialog', () => ({
+vi.mock('@/features/assets', () => ({
   AssetSelectorDialog: () => <div data-testid="asset-picker" />,
 }))
 

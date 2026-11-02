@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
 import { logger } from '@/lib/logger'
-import { resolveCivitaiModelPageUrlByVersion } from '@/services/civitai-lora.service'
+import { resolveCivitaiModelPageUrlByVersion } from '@/features/lora/server'
 
 const CACHE_CONTROL = 'public, s-maxage=86400, stale-while-revalidate=604800'
 

@@ -13,7 +13,7 @@ vi.mock('next/image', () => ({
   ),
 }))
 
-vi.mock('@/hooks/cards/use-character-card-usage', () => ({
+vi.mock('@/features/cards/hooks/use-character-card-usage', () => ({
   useCharacterCardUsage: () => ({
     generations: [{ id: 'g_1', url: 'https://cdn/made.png' }],
     total: 1,

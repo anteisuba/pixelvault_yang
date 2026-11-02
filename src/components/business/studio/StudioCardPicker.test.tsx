@@ -16,7 +16,7 @@ vi.mock('next/image', () => ({
 vi.mock('@/i18n/navigation', () => ({
   Link: ({ children }: { children: React.ReactNode }) => <a>{children}</a>,
 }))
-vi.mock('@/hooks/cards/use-character-card-usage', () => ({
+vi.mock('@/features/cards/hooks/use-character-card-usage', () => ({
   useCharacterCardUsage: () => ({
     generations: [
       { id: 'gen-9', url: 'https://cdn.test/made.png', thumbnailUrl: null },

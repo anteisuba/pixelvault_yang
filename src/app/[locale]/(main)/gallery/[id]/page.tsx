@@ -33,7 +33,7 @@ import { cn } from '@/lib/utils'
 import { getPublicGenerationById } from '@/services/generation.service'
 import type { GenerationRecord } from '@/types'
 
-import { GalleryDetailVideoPlayer } from '@/components/business/GalleryDetailVideoPlayer'
+import { GalleryDetailVideoPlayer } from '@/features/gallery'
 import { Button } from '@/components/ui/button'
 
 // React.cache dedupes the fetch so generateMetadata + the page body share

@@ -80,14 +80,8 @@ import {
 } from '@/services/assistant-persona.service'
 import { recordNativeSearches } from '@/services/research/assistant-evidence-book.service'
 import { maybeDistillTaste } from '@/services/kernel/assistant-taste.service'
-import {
-  recallFindings,
-  renderFindingsRecall,
-} from '@/services/cards/character-findings.service'
-import {
-  loadChatStickers,
-  resolveStickerTokens,
-} from '@/services/cards/character-sticker.service'
+import { recallFindings, renderFindingsRecall } from '@/features/cards/server'
+import { loadChatStickers, resolveStickerTokens } from '@/features/cards/server'
 import {
   loadAssistantLastTime,
   renderAssistantLastTime,
@@ -95,12 +89,9 @@ import {
 import {
   learnCreatorPhrases,
   shouldLearnPhrases,
-} from '@/services/cards/character-learned-phrases.service'
-import {
-  reflectOnChat,
-  shouldReflect,
-} from '@/services/cards/character-reflection.service'
-import { planChatTurn } from '@/services/cards/character-chat-mood.service'
+} from '@/features/cards/server'
+import { reflectOnChat, shouldReflect } from '@/features/cards/server'
+import { planChatTurn } from '@/features/cards/server'
 import { loadAssistantSkills } from '@/services/assistant-skill.service'
 import { startCallLog } from '@/services/kernel/assistant-completion.service'
 import {

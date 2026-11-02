@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 
 import { logger } from '@/lib/logger'
-import { getLoraAssetByStyleCode } from '@/services/lora-asset.service'
+import { getLoraAssetByStyleCode } from '@/features/lora/server'
 import type { LoraAssetRecord } from '@/types'
 
 interface SuccessBody {

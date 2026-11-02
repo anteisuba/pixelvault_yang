@@ -2501,16 +2501,21 @@ describe('生成确认卡（v2 §3.3 / §5）', () => {
 
     it.each([
       // flux-2-pro $0.03/张 = 3 点：4 张卡 × 4 张 = 48 点，在 100 点以内。
-      ['flux-2-pro', 4, 4, true, null],
+      ['flux-2-pro', 4, 4, true, null, 100],
       // 10 张卡 × 4 张 = 120 点，超门槛：卡留着，时间线写多少钱。
-      ['flux-2-pro', 10, 4, false, 'spendHeld'],
-      // NAI 不另花钱：再多也直接出。
-      ['nai-diffusion-4-5-full', 10, 4, true, null],
+      ['flux-2-pro', 10, 4, false, 'spendHeld', 100],
+      // 设置里上限调到 $3：同样 120 点直接出。
+      ['flux-2-pro', 10, 4, true, null, 300],
+      // 设置里选「每次都问」：48 点也先问。
+      ['flux-2-pro', 4, 4, false, 'spendHeld', 0],
+      // NAI 不另花钱：再多也直接出（「每次都问」也一样）。
+      ['nai-diffusion-4-5-full', 10, 4, true, null, 0],
       // 没标价：估不出，先问。
-      ['seedream-4', 1, 1, false, 'spendUnknownHeld'],
+      ['seedream-4', 1, 1, false, 'spendUnknownHeld', 100],
     ] as const)(
-      '⭐ 画布钱闸：%s × %i 张卡 × 每张 %i 张 → 替你按下 = %s',
-      async (model, cards, perCard, pressed, held) => {
+      '⭐ 画布钱闸：%s × %i 张卡 × 每张 %i 张 → 替你按下 = %s（上限 %s 点）',
+      async (model, cards, perCard, pressed, held, limit) => {
+        store.setOperatorSpendLimit(limit)
         hostDomain.current = 'canvas'
         canvasGenerationState.enabled = true
         canvasGenerationState.current = {
@@ -2554,8 +2559,11 @@ describe('生成确认卡（v2 §3.3 / §5）', () => {
           )
         expect(line && line.kind === 'system' ? line.code : null).toBe(held)
         if (held === 'spendHeld')
-          expect(line && line.kind === 'system' && line.subject).toBe('$1.20')
+          expect(line && line.kind === 'system' && line.subject).toBe(
+            limit === 0 ? '$0.48' : '$1.20',
+          )
         canvasGenerationState.enabled = false
+        store.setOperatorSpendLimit(100)
       },
     )
   })

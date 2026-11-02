@@ -18,6 +18,7 @@
 
 import { useSyncExternalStore } from 'react'
 
+import { ASSISTANT_PERSONA_DEFAULTS } from '@/constants/assistant-persona'
 import {
   ASSISTANT_MENTION_LIMITS,
   ASSISTANT_MENTION_SCOPE_IDS,
@@ -1344,6 +1345,21 @@ function withDomainMark(
     ...kept,
     { kind: 'domainMark', id: nextOperatorEntryId('domain'), domain },
   ]
+}
+
+/**
+ * 助手自己出图的上限（点，助手设置里那一格；`lib/assistant-spend-gate.ts`）。
+ * ⭐ 外壳拉 persona 一次、写进来一次，驱动 hook 在扣扳机时同步读 —— ⛔ 别在驱动 hook
+ *   里再调一次 `useAssistantPersona()`（那会多开一个 GET）。不跟线程走：换线程照旧。
+ */
+let spendLimitPoints: number = ASSISTANT_PERSONA_DEFAULTS.spendLimitPoints
+
+export function setOperatorSpendLimit(points: number): void {
+  spendLimitPoints = points
+}
+
+export function getOperatorSpendLimit(): number {
+  return spendLimitPoints
 }
 
 /** 出完图自己再改几轮 —— 跟着工作台走，见 `autoReviewRounds` 头注。 */

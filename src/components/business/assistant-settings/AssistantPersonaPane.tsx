@@ -10,6 +10,7 @@ import {
   ASSISTANT_AVATAR_CHOICE_IDS,
   ASSISTANT_PERSONA_LANGUAGES,
   ASSISTANT_PERSONA_LIMITS,
+  ASSISTANT_PERSONA_SPEND_LIMIT_POINTS,
   ASSISTANT_PERSONA_TONE_IDS,
   ASSISTANT_PERSONA_TONES,
   ASSISTANT_PERSONA_VERBOSITIES,
@@ -289,6 +290,9 @@ export function AssistantPersonaPane({
     t('advanced.summary.language', { value: t(`language.${draft.language}`) }),
     t('advanced.summary.nextStep', { value: onOff(draft.nextStepHint) }),
     t('advanced.summary.myWords', { value: onOff(draft.useMyWords) }),
+    t('advanced.summary.spendLimit', {
+      value: t(`spendLimit.option.${draft.spendLimitPoints}`),
+    }),
   ].join(' · ')
 
   const opener =
@@ -703,6 +707,29 @@ export function AssistantPersonaPane({
                 semantics="radio"
                 className="self-start"
               />
+            </AdvancedRow>
+
+            {/* 助手自己出图的上限（钱闸，`lib/assistant-spend-gate.ts`）。⛔ 助手自己改不了这一格。 */}
+            <AdvancedRow label={t('spendLimit.label')}>
+              <div className="flex flex-col gap-1.5">
+                <LiquidSegmented
+                  items={ASSISTANT_PERSONA_SPEND_LIMIT_POINTS.map((points) => ({
+                    value: String(points),
+                    label: t(`spendLimit.option.${points}`),
+                  }))}
+                  value={String(draft.spendLimitPoints)}
+                  onChange={(value: string) =>
+                    apply({ spendLimitPoints: Number(value) })
+                  }
+                  ariaLabel={t('spendLimit.label')}
+                  size="md"
+                  semantics="radio"
+                  className="self-start"
+                />
+                <p className="text-2sm leading-5 text-muted-foreground">
+                  {t('spendLimit.hint')}
+                </p>
+              </div>
             </AdvancedRow>
 
             <AdvancedSwitchRow

@@ -79,6 +79,7 @@ import {
 import { publishStudioOperatorActions } from '@/hooks/use-studio-operator-actions'
 import {
   getOperatorState,
+  setOperatorSpendLimit,
   subscribeOperatorAttachment,
   takeOperatorAttachment,
   takeOperatorDraft,
@@ -602,6 +603,10 @@ export function StudioOperatorDock({
   const panelPresent = phase !== 'closed'
   const [settingsSection, setSettingsSection] =
     useState<AssistantSettingsSection | null>(null)
+  /** 助手自己出图的上限落进 store：驱动 hook 扣扳机时同步读（钱闸）。 */
+  useEffect(() => {
+    setOperatorSpendLimit(persona.spendLimitPoints)
+  }, [persona.spendLimitPoints])
   /** 助手光标上写的名字（改工作台时那颗黑箭头，`lib/studio-operator-cursor.ts`）。 */
   useEffect(() => {
     setAssistantCursorLabel(persona.name ?? '')

@@ -172,6 +172,18 @@ describe('AssistantSettings · 人设', () => {
     )
   })
 
+  it('出图上限：选「每次都问」当场存 0 点', async () => {
+    renderSettings()
+    await screen.findByDisplayValue('达妮娅')
+    openAdvanced()
+
+    fireEvent.click(screen.getByRole('radio', { name: 'spendLimit.option.0' }))
+
+    await waitFor(() =>
+      expect(lastSaved()).toMatchObject({ spendLimitPoints: 0 }),
+    )
+  })
+
   it('名字：打字不存，失焦才存', async () => {
     renderSettings()
     const input = await screen.findByDisplayValue('达妮娅')

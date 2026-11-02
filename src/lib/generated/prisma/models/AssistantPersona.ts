@@ -27,8 +27,18 @@ export type AssistantPersonaModel = runtime.Types.Result.DefaultSelection<Prisma
 
 export type AggregateAssistantPersona = {
   _count: AssistantPersonaCountAggregateOutputType | null
+  _avg: AssistantPersonaAvgAggregateOutputType | null
+  _sum: AssistantPersonaSumAggregateOutputType | null
   _min: AssistantPersonaMinAggregateOutputType | null
   _max: AssistantPersonaMaxAggregateOutputType | null
+}
+
+export type AssistantPersonaAvgAggregateOutputType = {
+  spendLimitPoints: number | null
+}
+
+export type AssistantPersonaSumAggregateOutputType = {
+  spendLimitPoints: number | null
 }
 
 export type AssistantPersonaMinAggregateOutputType = {
@@ -46,6 +56,7 @@ export type AssistantPersonaMinAggregateOutputType = {
   toneFromCharacter: boolean | null
   avatarChoice: string | null
   memoryCapture: boolean | null
+  spendLimitPoints: number | null
   planMode: string | null
   language: string | null
   nextStepHint: boolean | null
@@ -74,6 +85,7 @@ export type AssistantPersonaMaxAggregateOutputType = {
   toneFromCharacter: boolean | null
   avatarChoice: string | null
   memoryCapture: boolean | null
+  spendLimitPoints: number | null
   planMode: string | null
   language: string | null
   nextStepHint: boolean | null
@@ -102,6 +114,7 @@ export type AssistantPersonaCountAggregateOutputType = {
   toneFromCharacter: number
   avatarChoice: number
   memoryCapture: number
+  spendLimitPoints: number
   planMode: number
   language: number
   nextStepHint: number
@@ -116,6 +129,14 @@ export type AssistantPersonaCountAggregateOutputType = {
   _all: number
 }
 
+
+export type AssistantPersonaAvgAggregateInputType = {
+  spendLimitPoints?: true
+}
+
+export type AssistantPersonaSumAggregateInputType = {
+  spendLimitPoints?: true
+}
 
 export type AssistantPersonaMinAggregateInputType = {
   id?: true
@@ -132,6 +153,7 @@ export type AssistantPersonaMinAggregateInputType = {
   toneFromCharacter?: true
   avatarChoice?: true
   memoryCapture?: true
+  spendLimitPoints?: true
   planMode?: true
   language?: true
   nextStepHint?: true
@@ -160,6 +182,7 @@ export type AssistantPersonaMaxAggregateInputType = {
   toneFromCharacter?: true
   avatarChoice?: true
   memoryCapture?: true
+  spendLimitPoints?: true
   planMode?: true
   language?: true
   nextStepHint?: true
@@ -188,6 +211,7 @@ export type AssistantPersonaCountAggregateInputType = {
   toneFromCharacter?: true
   avatarChoice?: true
   memoryCapture?: true
+  spendLimitPoints?: true
   planMode?: true
   language?: true
   nextStepHint?: true
@@ -240,6 +264,18 @@ export type AssistantPersonaAggregateArgs<ExtArgs extends runtime.Types.Extensio
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
    * 
+   * Select which fields to average
+  **/
+  _avg?: AssistantPersonaAvgAggregateInputType
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   * 
+   * Select which fields to sum
+  **/
+  _sum?: AssistantPersonaSumAggregateInputType
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   * 
    * Select which fields to find the minimum value
   **/
   _min?: AssistantPersonaMinAggregateInputType
@@ -270,6 +306,8 @@ export type AssistantPersonaGroupByArgs<ExtArgs extends runtime.Types.Extensions
   take?: number
   skip?: number
   _count?: AssistantPersonaCountAggregateInputType | true
+  _avg?: AssistantPersonaAvgAggregateInputType
+  _sum?: AssistantPersonaSumAggregateInputType
   _min?: AssistantPersonaMinAggregateInputType
   _max?: AssistantPersonaMaxAggregateInputType
 }
@@ -289,6 +327,7 @@ export type AssistantPersonaGroupByOutputType = {
   toneFromCharacter: boolean
   avatarChoice: string | null
   memoryCapture: boolean
+  spendLimitPoints: number
   planMode: string
   language: string
   nextStepHint: boolean
@@ -301,6 +340,8 @@ export type AssistantPersonaGroupByOutputType = {
   createdAt: Date
   updatedAt: Date
   _count: AssistantPersonaCountAggregateOutputType | null
+  _avg: AssistantPersonaAvgAggregateOutputType | null
+  _sum: AssistantPersonaSumAggregateOutputType | null
   _min: AssistantPersonaMinAggregateOutputType | null
   _max: AssistantPersonaMaxAggregateOutputType | null
 }
@@ -338,6 +379,7 @@ export type AssistantPersonaWhereInput = {
   toneFromCharacter?: Prisma.BoolFilter<"AssistantPersona"> | boolean
   avatarChoice?: Prisma.StringNullableFilter<"AssistantPersona"> | string | null
   memoryCapture?: Prisma.BoolFilter<"AssistantPersona"> | boolean
+  spendLimitPoints?: Prisma.IntFilter<"AssistantPersona"> | number
   planMode?: Prisma.StringFilter<"AssistantPersona"> | string
   language?: Prisma.StringFilter<"AssistantPersona"> | string
   nextStepHint?: Prisma.BoolFilter<"AssistantPersona"> | boolean
@@ -368,6 +410,7 @@ export type AssistantPersonaOrderByWithRelationInput = {
   toneFromCharacter?: Prisma.SortOrder
   avatarChoice?: Prisma.SortOrderInput | Prisma.SortOrder
   memoryCapture?: Prisma.SortOrder
+  spendLimitPoints?: Prisma.SortOrder
   planMode?: Prisma.SortOrder
   language?: Prisma.SortOrder
   nextStepHint?: Prisma.SortOrder
@@ -401,6 +444,7 @@ export type AssistantPersonaWhereUniqueInput = Prisma.AtLeast<{
   toneFromCharacter?: Prisma.BoolFilter<"AssistantPersona"> | boolean
   avatarChoice?: Prisma.StringNullableFilter<"AssistantPersona"> | string | null
   memoryCapture?: Prisma.BoolFilter<"AssistantPersona"> | boolean
+  spendLimitPoints?: Prisma.IntFilter<"AssistantPersona"> | number
   planMode?: Prisma.StringFilter<"AssistantPersona"> | string
   language?: Prisma.StringFilter<"AssistantPersona"> | string
   nextStepHint?: Prisma.BoolFilter<"AssistantPersona"> | boolean
@@ -431,6 +475,7 @@ export type AssistantPersonaOrderByWithAggregationInput = {
   toneFromCharacter?: Prisma.SortOrder
   avatarChoice?: Prisma.SortOrderInput | Prisma.SortOrder
   memoryCapture?: Prisma.SortOrder
+  spendLimitPoints?: Prisma.SortOrder
   planMode?: Prisma.SortOrder
   language?: Prisma.SortOrder
   nextStepHint?: Prisma.SortOrder
@@ -443,8 +488,10 @@ export type AssistantPersonaOrderByWithAggregationInput = {
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.AssistantPersonaCountOrderByAggregateInput
+  _avg?: Prisma.AssistantPersonaAvgOrderByAggregateInput
   _max?: Prisma.AssistantPersonaMaxOrderByAggregateInput
   _min?: Prisma.AssistantPersonaMinOrderByAggregateInput
+  _sum?: Prisma.AssistantPersonaSumOrderByAggregateInput
 }
 
 export type AssistantPersonaScalarWhereWithAggregatesInput = {
@@ -465,6 +512,7 @@ export type AssistantPersonaScalarWhereWithAggregatesInput = {
   toneFromCharacter?: Prisma.BoolWithAggregatesFilter<"AssistantPersona"> | boolean
   avatarChoice?: Prisma.StringNullableWithAggregatesFilter<"AssistantPersona"> | string | null
   memoryCapture?: Prisma.BoolWithAggregatesFilter<"AssistantPersona"> | boolean
+  spendLimitPoints?: Prisma.IntWithAggregatesFilter<"AssistantPersona"> | number
   planMode?: Prisma.StringWithAggregatesFilter<"AssistantPersona"> | string
   language?: Prisma.StringWithAggregatesFilter<"AssistantPersona"> | string
   nextStepHint?: Prisma.BoolWithAggregatesFilter<"AssistantPersona"> | boolean
@@ -491,6 +539,7 @@ export type AssistantPersonaCreateInput = {
   toneFromCharacter?: boolean
   avatarChoice?: string | null
   memoryCapture?: boolean
+  spendLimitPoints?: number
   planMode?: string
   language?: string
   nextStepHint?: boolean
@@ -521,6 +570,7 @@ export type AssistantPersonaUncheckedCreateInput = {
   toneFromCharacter?: boolean
   avatarChoice?: string | null
   memoryCapture?: boolean
+  spendLimitPoints?: number
   planMode?: string
   language?: string
   nextStepHint?: boolean
@@ -547,6 +597,7 @@ export type AssistantPersonaUpdateInput = {
   toneFromCharacter?: Prisma.BoolFieldUpdateOperationsInput | boolean
   avatarChoice?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   memoryCapture?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  spendLimitPoints?: Prisma.IntFieldUpdateOperationsInput | number
   planMode?: Prisma.StringFieldUpdateOperationsInput | string
   language?: Prisma.StringFieldUpdateOperationsInput | string
   nextStepHint?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -577,6 +628,7 @@ export type AssistantPersonaUncheckedUpdateInput = {
   toneFromCharacter?: Prisma.BoolFieldUpdateOperationsInput | boolean
   avatarChoice?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   memoryCapture?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  spendLimitPoints?: Prisma.IntFieldUpdateOperationsInput | number
   planMode?: Prisma.StringFieldUpdateOperationsInput | string
   language?: Prisma.StringFieldUpdateOperationsInput | string
   nextStepHint?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -605,6 +657,7 @@ export type AssistantPersonaCreateManyInput = {
   toneFromCharacter?: boolean
   avatarChoice?: string | null
   memoryCapture?: boolean
+  spendLimitPoints?: number
   planMode?: string
   language?: string
   nextStepHint?: boolean
@@ -631,6 +684,7 @@ export type AssistantPersonaUpdateManyMutationInput = {
   toneFromCharacter?: Prisma.BoolFieldUpdateOperationsInput | boolean
   avatarChoice?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   memoryCapture?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  spendLimitPoints?: Prisma.IntFieldUpdateOperationsInput | number
   planMode?: Prisma.StringFieldUpdateOperationsInput | string
   language?: Prisma.StringFieldUpdateOperationsInput | string
   nextStepHint?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -659,6 +713,7 @@ export type AssistantPersonaUncheckedUpdateManyInput = {
   toneFromCharacter?: Prisma.BoolFieldUpdateOperationsInput | boolean
   avatarChoice?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   memoryCapture?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  spendLimitPoints?: Prisma.IntFieldUpdateOperationsInput | number
   planMode?: Prisma.StringFieldUpdateOperationsInput | string
   language?: Prisma.StringFieldUpdateOperationsInput | string
   nextStepHint?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -692,6 +747,7 @@ export type AssistantPersonaCountOrderByAggregateInput = {
   toneFromCharacter?: Prisma.SortOrder
   avatarChoice?: Prisma.SortOrder
   memoryCapture?: Prisma.SortOrder
+  spendLimitPoints?: Prisma.SortOrder
   planMode?: Prisma.SortOrder
   language?: Prisma.SortOrder
   nextStepHint?: Prisma.SortOrder
@@ -703,6 +759,10 @@ export type AssistantPersonaCountOrderByAggregateInput = {
   tasteDistilledAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+}
+
+export type AssistantPersonaAvgOrderByAggregateInput = {
+  spendLimitPoints?: Prisma.SortOrder
 }
 
 export type AssistantPersonaMaxOrderByAggregateInput = {
@@ -720,6 +780,7 @@ export type AssistantPersonaMaxOrderByAggregateInput = {
   toneFromCharacter?: Prisma.SortOrder
   avatarChoice?: Prisma.SortOrder
   memoryCapture?: Prisma.SortOrder
+  spendLimitPoints?: Prisma.SortOrder
   planMode?: Prisma.SortOrder
   language?: Prisma.SortOrder
   nextStepHint?: Prisma.SortOrder
@@ -748,6 +809,7 @@ export type AssistantPersonaMinOrderByAggregateInput = {
   toneFromCharacter?: Prisma.SortOrder
   avatarChoice?: Prisma.SortOrder
   memoryCapture?: Prisma.SortOrder
+  spendLimitPoints?: Prisma.SortOrder
   planMode?: Prisma.SortOrder
   language?: Prisma.SortOrder
   nextStepHint?: Prisma.SortOrder
@@ -759,6 +821,10 @@ export type AssistantPersonaMinOrderByAggregateInput = {
   tasteDistilledAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+}
+
+export type AssistantPersonaSumOrderByAggregateInput = {
+  spendLimitPoints?: Prisma.SortOrder
 }
 
 export type AssistantPersonaListRelationFilter = {
@@ -858,6 +924,7 @@ export type AssistantPersonaCreateWithoutUserInput = {
   toneFromCharacter?: boolean
   avatarChoice?: string | null
   memoryCapture?: boolean
+  spendLimitPoints?: number
   planMode?: string
   language?: string
   nextStepHint?: boolean
@@ -886,6 +953,7 @@ export type AssistantPersonaUncheckedCreateWithoutUserInput = {
   toneFromCharacter?: boolean
   avatarChoice?: string | null
   memoryCapture?: boolean
+  spendLimitPoints?: number
   planMode?: string
   language?: string
   nextStepHint?: boolean
@@ -928,6 +996,7 @@ export type AssistantPersonaUpdateWithoutUserInput = {
   toneFromCharacter?: Prisma.BoolFieldUpdateOperationsInput | boolean
   avatarChoice?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   memoryCapture?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  spendLimitPoints?: Prisma.IntFieldUpdateOperationsInput | number
   planMode?: Prisma.StringFieldUpdateOperationsInput | string
   language?: Prisma.StringFieldUpdateOperationsInput | string
   nextStepHint?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -956,6 +1025,7 @@ export type AssistantPersonaUncheckedUpdateWithoutUserInput = {
   toneFromCharacter?: Prisma.BoolFieldUpdateOperationsInput | boolean
   avatarChoice?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   memoryCapture?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  spendLimitPoints?: Prisma.IntFieldUpdateOperationsInput | number
   planMode?: Prisma.StringFieldUpdateOperationsInput | string
   language?: Prisma.StringFieldUpdateOperationsInput | string
   nextStepHint?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -982,6 +1052,7 @@ export type AssistantPersonaCreateWithoutCharacterCardInput = {
   toneFromCharacter?: boolean
   avatarChoice?: string | null
   memoryCapture?: boolean
+  spendLimitPoints?: number
   planMode?: string
   language?: string
   nextStepHint?: boolean
@@ -1010,6 +1081,7 @@ export type AssistantPersonaUncheckedCreateWithoutCharacterCardInput = {
   toneFromCharacter?: boolean
   avatarChoice?: string | null
   memoryCapture?: boolean
+  spendLimitPoints?: number
   planMode?: string
   language?: string
   nextStepHint?: boolean
@@ -1067,6 +1139,7 @@ export type AssistantPersonaScalarWhereInput = {
   toneFromCharacter?: Prisma.BoolFilter<"AssistantPersona"> | boolean
   avatarChoice?: Prisma.StringNullableFilter<"AssistantPersona"> | string | null
   memoryCapture?: Prisma.BoolFilter<"AssistantPersona"> | boolean
+  spendLimitPoints?: Prisma.IntFilter<"AssistantPersona"> | number
   planMode?: Prisma.StringFilter<"AssistantPersona"> | string
   language?: Prisma.StringFilter<"AssistantPersona"> | string
   nextStepHint?: Prisma.BoolFilter<"AssistantPersona"> | boolean
@@ -1094,6 +1167,7 @@ export type AssistantPersonaCreateManyCharacterCardInput = {
   toneFromCharacter?: boolean
   avatarChoice?: string | null
   memoryCapture?: boolean
+  spendLimitPoints?: number
   planMode?: string
   language?: string
   nextStepHint?: boolean
@@ -1120,6 +1194,7 @@ export type AssistantPersonaUpdateWithoutCharacterCardInput = {
   toneFromCharacter?: Prisma.BoolFieldUpdateOperationsInput | boolean
   avatarChoice?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   memoryCapture?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  spendLimitPoints?: Prisma.IntFieldUpdateOperationsInput | number
   planMode?: Prisma.StringFieldUpdateOperationsInput | string
   language?: Prisma.StringFieldUpdateOperationsInput | string
   nextStepHint?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -1148,6 +1223,7 @@ export type AssistantPersonaUncheckedUpdateWithoutCharacterCardInput = {
   toneFromCharacter?: Prisma.BoolFieldUpdateOperationsInput | boolean
   avatarChoice?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   memoryCapture?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  spendLimitPoints?: Prisma.IntFieldUpdateOperationsInput | number
   planMode?: Prisma.StringFieldUpdateOperationsInput | string
   language?: Prisma.StringFieldUpdateOperationsInput | string
   nextStepHint?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -1175,6 +1251,7 @@ export type AssistantPersonaUncheckedUpdateManyWithoutCharacterCardInput = {
   toneFromCharacter?: Prisma.BoolFieldUpdateOperationsInput | boolean
   avatarChoice?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   memoryCapture?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  spendLimitPoints?: Prisma.IntFieldUpdateOperationsInput | number
   planMode?: Prisma.StringFieldUpdateOperationsInput | string
   language?: Prisma.StringFieldUpdateOperationsInput | string
   nextStepHint?: Prisma.BoolFieldUpdateOperationsInput | boolean
@@ -1205,6 +1282,7 @@ export type AssistantPersonaSelect<ExtArgs extends runtime.Types.Extensions.Inte
   toneFromCharacter?: boolean
   avatarChoice?: boolean
   memoryCapture?: boolean
+  spendLimitPoints?: boolean
   planMode?: boolean
   language?: boolean
   nextStepHint?: boolean
@@ -1235,6 +1313,7 @@ export type AssistantPersonaSelectCreateManyAndReturn<ExtArgs extends runtime.Ty
   toneFromCharacter?: boolean
   avatarChoice?: boolean
   memoryCapture?: boolean
+  spendLimitPoints?: boolean
   planMode?: boolean
   language?: boolean
   nextStepHint?: boolean
@@ -1265,6 +1344,7 @@ export type AssistantPersonaSelectUpdateManyAndReturn<ExtArgs extends runtime.Ty
   toneFromCharacter?: boolean
   avatarChoice?: boolean
   memoryCapture?: boolean
+  spendLimitPoints?: boolean
   planMode?: boolean
   language?: boolean
   nextStepHint?: boolean
@@ -1295,6 +1375,7 @@ export type AssistantPersonaSelectScalar = {
   toneFromCharacter?: boolean
   avatarChoice?: boolean
   memoryCapture?: boolean
+  spendLimitPoints?: boolean
   planMode?: boolean
   language?: boolean
   nextStepHint?: boolean
@@ -1308,7 +1389,7 @@ export type AssistantPersonaSelectScalar = {
   updatedAt?: boolean
 }
 
-export type AssistantPersonaOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "name" | "avatarPreset" | "avatarUrl" | "avatarStorageKey" | "tone" | "toneCustom" | "verbosity" | "characterCardId" | "nameFromCharacter" | "toneFromCharacter" | "avatarChoice" | "memoryCapture" | "planMode" | "language" | "nextStepHint" | "useMyWords" | "addressUserAs" | "archetype" | "routeModel" | "reasoningEffort" | "tasteDistilledAt" | "createdAt" | "updatedAt", ExtArgs["result"]["assistantPersona"]>
+export type AssistantPersonaOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "name" | "avatarPreset" | "avatarUrl" | "avatarStorageKey" | "tone" | "toneCustom" | "verbosity" | "characterCardId" | "nameFromCharacter" | "toneFromCharacter" | "avatarChoice" | "memoryCapture" | "spendLimitPoints" | "planMode" | "language" | "nextStepHint" | "useMyWords" | "addressUserAs" | "archetype" | "routeModel" | "reasoningEffort" | "tasteDistilledAt" | "createdAt" | "updatedAt", ExtArgs["result"]["assistantPersona"]>
 export type AssistantPersonaInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   characterCard?: boolean | Prisma.AssistantPersona$characterCardArgs<ExtArgs>
@@ -1384,7 +1465,12 @@ export type $AssistantPersonaPayload<ExtArgs extends runtime.Types.Extensions.In
      */
     memoryCapture: boolean
     /**
-     * always / auto / direct —— 「先问我」开关的初始态 + 出卡判据。
+     * 助手自己出图的上限（点，1 点 = $0.01）：一句话里加起来不超过它就直接出，超了停在确认卡上。
+     * 0 = 每次都问（不花钱的线路照样直接出）。默认 100 = $1（owner 11-02）。
+     */
+    spendLimitPoints: number
+    /**
+     * ⚠ 已停用（11-02 删掉「先出计划」）：代码不再读写，列留着免一次删列迁移。
      */
     planMode: string
     /**
@@ -1392,8 +1478,7 @@ export type $AssistantPersonaPayload<ExtArgs extends runtime.Types.Extensions.In
      */
     language: string
     /**
-     * 每条回复末尾给一条「下一步建议」（v2 §11.3）。默认开：默认档就是「平衡」，
-     * 而那张卡第三行写的正是「附一条下一步」。
+     * 每条回复末尾给一条「下一步建议」（v2 §11.3）。默认开。
      */
     nextStepHint: boolean
     /**
@@ -1406,12 +1491,7 @@ export type $AssistantPersonaPayload<ExtArgs extends runtime.Types.Extensions.In
      */
     addressUserAs: string | null
     /**
-     * 三档人设（v2 §11.1）：cautious / balanced / handsOff。默认 balanced ——
-     * 上面那几列的默认值逐格等于「平衡」档（owner 2026-09-11）。
-     * NULL = 自定义 —— 用户改过某个高级项，这一份不再完全对上任何一档；
-     * 存量行同样是 NULL，读的那一跳按 `matchAssistantPersonaArchetype` 回推，
-     * ⛔ 不写迁移去改存量数据。
-     * ⛔ 不做成 Prisma 枚举：词表住 constants（同 tone / verbosity），边界校验交给 Zod。
+     * ⚠ 已停用（11-02 删掉谨慎 / 平衡 / 放手三档）：代码不再读写，列留着免一次删列迁移。
      */
     archetype: string | null
     /**
@@ -1870,6 +1950,7 @@ export interface AssistantPersonaFieldRefs {
   readonly toneFromCharacter: Prisma.FieldRef<"AssistantPersona", 'Boolean'>
   readonly avatarChoice: Prisma.FieldRef<"AssistantPersona", 'String'>
   readonly memoryCapture: Prisma.FieldRef<"AssistantPersona", 'Boolean'>
+  readonly spendLimitPoints: Prisma.FieldRef<"AssistantPersona", 'Int'>
   readonly planMode: Prisma.FieldRef<"AssistantPersona", 'String'>
   readonly language: Prisma.FieldRef<"AssistantPersona", 'String'>
   readonly nextStepHint: Prisma.FieldRef<"AssistantPersona", 'Boolean'>

@@ -631,7 +631,7 @@
       "moveWorkAccepted": "{subject}",
       "moveWorkDeclined": "{subject}",
       "moveWorkDroppedReferences": "有 {subject} 张参考图没带过去（超过上限或还没传完）。",
-      "spendHeld": "这批大约 {subject}，这句话里加起来超过 $1，等你确认再出。",
+      "spendHeld": "这批大约 {subject}，这句话里加起来超过你设的出图上限，等你确认再出。",
       "spendUnknownHeld": "这批估不出价钱，等你确认再出。",
       "autoReview": "自己看图再改 · 第 {subject} 轮"
     },
@@ -1212,7 +1212,8 @@
         "length": "长度 {value}",
         "language": "语言 {value}",
         "nextStep": "下一步建议 {value}",
-        "myWords": "用我的词 {value}"
+        "myWords": "用我的词 {value}",
+        "spendLimit": "出图上限 {value}"
       }
     },
     "tone": {
@@ -1248,6 +1249,16 @@
     "myWords": {
       "label": "用我的词",
       "hint": "沿用我在提示词里的说法"
+    },
+    "spendLimit": {
+      "label": "出图上限",
+      "hint": "一句话里助手出的图加起来不超过这个数就直接出，超了先给你看价钱。NovelAI 和免费线路不算钱。",
+      "option": {
+        "0": "每次都问",
+        "50": "$0.5",
+        "100": "$1",
+        "300": "$3"
+      }
     },
     "memory": {
       "caption": "助手记忆按工作台分别保存。需要在所有工作台共用的记忆，可以在这里明确共享。",

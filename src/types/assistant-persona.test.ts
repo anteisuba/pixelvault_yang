@@ -41,6 +41,7 @@ const BASE = {
   nextStepHint: ASSISTANT_PERSONA_DEFAULTS.nextStepHint,
   useMyWords: ASSISTANT_PERSONA_DEFAULTS.useMyWords,
   memoryCapture: ASSISTANT_PERSONA_DEFAULTS.memoryCapture,
+  spendLimitPoints: ASSISTANT_PERSONA_DEFAULTS.spendLimitPoints,
   addressUserAs: ASSISTANT_PERSONA_DEFAULTS.addressUserAs,
 }
 

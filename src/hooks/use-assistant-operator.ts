@@ -119,6 +119,7 @@ import {
   appendOperatorStreamingMessage,
   appendOperatorThinking,
   getOperatorReviewState,
+  getOperatorSpendLimit,
   getOperatorState,
   nextOperatorEntryId,
   operatorStepEntryId,
@@ -3125,7 +3126,11 @@ export function useAssistantOperator(
        */
       const points = generationPointsOf(confirm.request, host)
       if (options.auto) {
-        const decision = spendDecision(points, spentPointsRef.current)
+        const decision = spendDecision(
+          points,
+          spentPointsRef.current,
+          getOperatorSpendLimit(),
+        )
         if (decision.kind === 'ask') {
           appendOperatorEntry({
             kind: 'system',

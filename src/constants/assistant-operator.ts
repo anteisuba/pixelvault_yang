@@ -1559,19 +1559,6 @@ export const ASSISTANT_OPERATOR_TIME_BUDGET = {
 export const ASSISTANT_OPERATOR_HEARTBEAT_MS = 15_000
 
 /**
- * **助手钱闸**（`p-assistant-autonomy`，owner 2026-11-01：门槛 $1、去掉「交给 AI 出图」开关）。
- *
- * 创作者一句话里，助手出图 / 出视频加起来不超过 `limitPoints` 就直接出；超了、或估不出价，
- * 才停在确认卡上（卡上写价钱）。1 点 = $0.01（与 `p-platform-credits` 同一单位）。
- * ⚠ 累计从创作者开口那一刻算起，助手自己看图再出的那几轮也算在这句话里。
- * ⚠ 不另花钱的线路（NAI 订阅、平台 Modal）记 0 点。
- * ⚠ 扳机仍在客户端（服务端没有任何工具能直接建 generation），钱闸不变。
- */
-export const ASSISTANT_SPEND_LIMITS = {
-  limitPoints: 100,
-} as const
-
-/**
  * **出完图自己看、再改几轮**（owner 2026-10-29：「默认一轮，不想太浪费 token，看到不对的我还能纠正」）。
  * 0 = 出完就停，助手不再自己看（owner 11-01 去掉了出完图那句「按这个方向继续吗？」）。
  */

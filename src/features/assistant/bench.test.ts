@@ -23,7 +23,7 @@ import {
 } from './bench'
 
 /** 首页那份小配方（第 9g 步）：会话在首页、这一轮照图片台跑。 */
-function homeDraftContext(): V3Context {
+function homeDraftContext(spendLimitPoints = 100): V3Context {
   return {
     face: 'image',
     request: {
@@ -49,6 +49,7 @@ function homeDraftContext(): V3Context {
     },
     prepared: {
       run: { state: { prompt: 'a cat at sunset', negativePrompt: '' } },
+      persona: { spendLimitPoints },
     },
   } as unknown as V3Context
 }
@@ -59,6 +60,20 @@ async function drain<T>(run: AsyncGenerator<unknown, T>): Promise<T> {
     if (next.done) return next.value
   }
 }
+
+describe('SPENDING 那一行跟着设置里的出图上限走（p-assistant-autonomy）', () => {
+  it('默认 $1；调成 $3 写 3 USD；「每次都问」写每批都先摆卡', () => {
+    expect(renderBench(homeDraftContext(), [], '来张猫')).toContain(
+      'add up to at most 1 USD',
+    )
+    expect(renderBench(homeDraftContext(300), [], '来张猫')).toContain(
+      'add up to at most 3 USD',
+    )
+    const always = renderBench(homeDraftContext(0), [], '来张猫')
+    expect(always).toContain('confirm every paid batch')
+    expect(always).not.toContain('add up to at most')
+  })
+})
 
 describe('首页那份小配方（第 9g 步）', () => {
   it('快照带规格与张数才算有配方', () => {

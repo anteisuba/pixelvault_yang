@@ -58,6 +58,7 @@ describe('助手钱闸', () => {
     expect(spendDecision(40, 60, 100)).toEqual({ kind: 'go', points: 40 })
     expect(spendDecision(41, 60, 100)).toEqual({ kind: 'ask', points: 41 })
     expect(spendDecision(null, 0, 100)).toEqual({ kind: 'ask', points: null })
-    expect(spendDecision(100, 0)).toEqual({ kind: 'go', points: 100 })
+    expect(spendDecision(5, 0, 0)).toEqual({ kind: 'ask', points: 5 })
+    expect(spendDecision(0, 0, 0)).toEqual({ kind: 'go', points: 0 })
   })
 })

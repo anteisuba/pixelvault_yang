@@ -48,6 +48,7 @@ const VALID_BODY = {
   useMyWords: true,
   /** 助手设置 B 的「让助手记住」。 */
   memoryCapture: true,
+  spendLimitPoints: 100,
   /** v2 §11.1 的人设档 —— null = 自定义，同样是完整形状的一格。 */
   addressUserAs: null,
 }

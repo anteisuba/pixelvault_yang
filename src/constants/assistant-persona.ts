@@ -238,6 +238,13 @@ export type AssistantPersonaLanguage =
   (typeof ASSISTANT_PERSONA_LANGUAGES)[number]
 
 /**
+ * 助手自己出图的上限可选的几档（点，1 点 = $0.01；`p-assistant-autonomy`，owner 11-02）。
+ * 一句话里这几批加起来不超过它就直接出，超了 / 估不出价停在确认卡上写价钱。
+ * 0 = 每次都问（NovelAI 订阅、平台免费线路记 0 点，照样直接出）。
+ */
+export const ASSISTANT_PERSONA_SPEND_LIMIT_POINTS = [0, 50, 100, 300] as const
+
+/**
  * 缺行时用的默认值（§8.4 第 4 条：**不做首次访问自动建行**）。
  *
  * ⚠ 与 `prisma/schema.prisma` 上那几个 `@default(...)` 必须逐字一致 ——
@@ -281,6 +288,8 @@ export const ASSISTANT_PERSONA_DEFAULTS = {
   useMyWords: true,
   /** 「让助手记住」默认开（与库上的 `@default(true)` 一致）。 */
   memoryCapture: true,
+  /** 助手自己出图的上限默认 $1（与库上的 `@default(100)` 一致）。 */
+  spendLimitPoints: 100,
   /** null = 用账号名（§8.3）。 */
   addressUserAs: null,
 } as const

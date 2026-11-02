@@ -19,6 +19,7 @@ import {
   ASSISTANT_AVATAR_PRESET_IDS,
   ASSISTANT_PERSONA_LANGUAGES,
   ASSISTANT_PERSONA_LIMITS,
+  ASSISTANT_PERSONA_SPEND_LIMIT_POINTS,
   ASSISTANT_PERSONA_TONE_IDS,
   ASSISTANT_PERSONA_TONES,
   ASSISTANT_PERSONA_VERBOSITIES,
@@ -143,6 +144,18 @@ const AssistantPersonaShapeSchema = z.object({
    * 清单里已有的照样注入，你写的照样生效。
    */
   memoryCapture: z.boolean(),
+  /**
+   * 助手自己出图的上限（点，1 点 = $0.01）。⚠ 只收设置页那几档
+   * （`ASSISTANT_PERSONA_SPEND_LIMIT_POINTS`）。
+   */
+  spendLimitPoints: z
+    .number()
+    .int()
+    .refine((value) =>
+      (ASSISTANT_PERSONA_SPEND_LIMIT_POINTS as readonly number[]).includes(
+        value,
+      ),
+    ),
   /** null = 用账号名。⚠ 它原样拼进系统提示，所以上限是硬的。 */
   addressUserAs: z
     .string()

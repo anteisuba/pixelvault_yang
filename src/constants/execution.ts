@@ -1,4 +1,5 @@
 import { AI_ADAPTER_TYPES } from './providers'
+import { WORKER_IMAGE_PROVIDER_IDS } from './worker-image-providers'
 
 export const EXECUTION_OUTBOX = {
   LEASE_MS: 60_000,
@@ -152,23 +153,12 @@ export type ExecutionOutboxKind =
   (typeof EXECUTION_OUTBOX_KINDS)[keyof typeof EXECUTION_OUTBOX_KINDS]
 
 /**
- * Image adapters whose worker handler is live and may be dispatched async.
- * Adapters not listed fail loudly until their worker handlers ship.
+ * 图片服务商里 Worker 已有驱动、可以异步派发的那些。名单本身在
+ * `worker-image-providers.ts`（和 Worker 共用一份）；不在名单里的直接报错，⛔ 不悄悄回退同步。
  */
-export const WORKER_MIGRATED_IMAGE_ADAPTERS: readonly AI_ADAPTER_TYPES[] = [
-  AI_ADAPTER_TYPES.OPENAI,
-  AI_ADAPTER_TYPES.IDEOGRAM,
-  AI_ADAPTER_TYPES.FAL,
-  AI_ADAPTER_TYPES.GEMINI,
-  AI_ADAPTER_TYPES.REPLICATE,
-  AI_ADAPTER_TYPES.NOVELAI,
-  AI_ADAPTER_TYPES.PIXAI,
-  AI_ADAPTER_TYPES.VOLCENGINE,
-  // BytePlus ModelArk = the same Ark image API on the international station;
-  // the worker serves both from one branch, keyed on providerBaseUrl.
-  AI_ADAPTER_TYPES.BYTEPLUS,
-  AI_ADAPTER_TYPES.HUGGINGFACE,
-  // Runner cold starts (minutes) make async-only mandatory — there is no sync
-  // fallback path for RUNNER.
-  AI_ADAPTER_TYPES.RUNNER,
-]
+// 赋值这一步就是编译期检查：共享名单里每一家都得是真实存在的 adapter 类型。
+const WORKER_IMAGE_ADAPTER_IDS: readonly `${AI_ADAPTER_TYPES}`[] =
+  WORKER_IMAGE_PROVIDER_IDS
+
+export const WORKER_MIGRATED_IMAGE_ADAPTERS =
+  WORKER_IMAGE_ADAPTER_IDS as readonly AI_ADAPTER_TYPES[]

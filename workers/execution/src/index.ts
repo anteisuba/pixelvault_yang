@@ -36,25 +36,46 @@ import { WorkflowEntrypoint } from 'cloudflare:workers'
 import { readOpenAIImageStream } from '../../../src/lib/openai-image-stream'
 import { GENERATION_ERROR_CODES } from '../../../src/constants/generation-errors'
 import {
-  NovelAiCharacterLayoutSchema,
-  NovelAiSceneTextsSchema,
-} from '../../../src/types/novelai'
+  isWorkerImageProviderId,
+  WORKER_IMAGE_PROVIDER_MODES,
+  type WorkerSingleStepImageProviderId,
+} from '../../../src/constants/worker-image-providers'
+import { bytesToBase64, randomUint32 } from './lib/bytes'
 import {
-  composeNovelAiCharacterCaption,
-  composeNovelAiCharacterCaptions,
-  composeNovelAiPrompt,
-  composeNovelAiUndesiredContent,
-  novelAiPresetFields,
-  planNovelAiText,
-} from '../../../src/lib/novelai-compose'
+  isRecord,
+  readBooleanField,
+  readNumberField,
+  readPositiveNumberField,
+  readStringArrayField,
+  readStringField,
+} from './lib/fields'
 import {
-  NOVELAI_SAMPLER_OPTIONS,
-  getNovelAiImageDimensions,
-  getNovelAiMaxCharacters,
-  resolveNovelAiInpaintModelId,
-  supportsNovelAiCharacters,
-  supportsNovelAiPreciseReference,
-} from '../../../src/constants/novelai'
+  buildR2PublicUrl,
+  getImageReferenceInputs,
+  getWorkerImageOutputKey,
+  invertReferenceStrength,
+  R2_OBJECT_CACHE_CONTROL,
+  readAdvancedRecord,
+  readReferenceImageAsBase64,
+  uploadImageBytesToKey,
+} from './lib/image-io'
+import {
+  generateNovelAiImage,
+  novelAiImageDriver,
+} from './providers/novelai/image'
+import type { SingleStepImageDriver } from './providers/types'
+
+export {
+  bytesToBase64,
+  generateNovelAiImage,
+  getImageReferenceInputs,
+  isRecord,
+  readBooleanField,
+  readNumberField,
+  readPositiveNumberField,
+  readStringArrayField,
+  readStringField,
+}
 import {
   PIXAI_ASPECT_RATIOS,
   PIXAI_BATCH_SIZE,
@@ -176,14 +197,9 @@ const GEMINI_VIDEO_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta'
 const HUGGINGFACE_IMAGE_BASE_URL =
   'https://router.huggingface.co/hf-inference/models'
 const REPLICATE_BASE_URL = 'https://api.replicate.com/v1'
-const NOVELAI_IMAGE_BASE_URL = 'https://image.novelai.net'
 const VOLCENGINE_BASE_URL = 'https://ark.cn-beijing.volces.com/api/v3'
 const OLD_R2_DEV_PATTERN = /^https:\/\/pub-[a-f0-9]+\.r2\.dev\//
 const R2_WORKER_BASE = 'https://r2.anteisuba.com'
-// Same header as the app's `uploadToR2`. Without it the CDN falls back to
-// Cloudflare's defaults (edge ~2 h, browser 4 h), so every edge keeps
-// re-pulling multi-MB originals from R2. Keys written here are unique per run.
-const R2_OBJECT_CACHE_CONTROL = 'public, max-age=31536000, immutable'
 
 type CallbackKind = (typeof CALLBACK_KINDS)[number]
 type WorkerWorkflowId = (typeof QUEUE_WORKFLOW_IDS)[number]
@@ -203,7 +219,7 @@ interface R2Bucket {
   ): Promise<{ key: string }>
 }
 
-interface ExecutionEnv {
+export interface ExecutionEnv {
   INTERNAL_CALLBACK_URL?: string
   INTERNAL_CALLBACK_SECRET?: string
   /**
@@ -314,7 +330,7 @@ interface WorkerAudioRunContext extends WorkerRunContextBase {
 
 type WorkerRunContext = WorkerVideoRunContext | WorkerAudioRunContext
 
-interface WorkerImageRunContext {
+export interface WorkerImageRunContext {
   runId: string
   workflowId: typeof IMAGE_QUEUE_WORKFLOW_ID
   outputType: 'IMAGE'
@@ -447,58 +463,6 @@ function jsonResponse(body: unknown, init?: ResponseInit): Response {
     ...init,
     headers,
   })
-}
-
-export function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-export function readStringField(
-  value: Record<string, unknown>,
-  key: string,
-): string | null {
-  const fieldValue = value[key]
-  return typeof fieldValue === 'string' && fieldValue.trim() ? fieldValue : null
-}
-
-export function readPositiveNumberField(
-  value: Record<string, unknown>,
-  key: string,
-): number | null {
-  const fieldValue = value[key]
-  return typeof fieldValue === 'number' && fieldValue > 0 ? fieldValue : null
-}
-
-export function readNumberField(
-  value: Record<string, unknown>,
-  key: string,
-): number | null {
-  const fieldValue = value[key]
-  return typeof fieldValue === 'number' && Number.isFinite(fieldValue)
-    ? fieldValue
-    : null
-}
-
-export function readBooleanField(
-  value: Record<string, unknown>,
-  key: string,
-): boolean | null {
-  const fieldValue = value[key]
-  return typeof fieldValue === 'boolean' ? fieldValue : null
-}
-
-export function readStringArrayField(
-  value: Record<string, unknown>,
-  key: string,
-): string[] | undefined {
-  const fieldValue = value[key]
-  if (!Array.isArray(fieldValue)) return undefined
-
-  const strings = fieldValue.filter(
-    (item): item is string =>
-      typeof item === 'string' && item.trim().length > 0,
-  )
-  return strings.length > 0 ? strings : undefined
 }
 
 function readCallbackKind(value: Record<string, unknown>): CallbackKind {
@@ -924,26 +888,6 @@ function base64ToBytes(b64: string): Uint8Array {
   const bytes = new Uint8Array(binary.length)
   for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i)
   return bytes
-}
-
-/**
- * Base64-encode a byte array in chunks.
- *
- * ⚠ 别改回逐字节 `binary += String.fromCharCode(bytes[i])`。那个写法是给 32 字节的
- * API key 写的（见上方注释），但 `readReferenceImageAsBase64` 拿它编码整张参考图：
- * 一张 8MB 的图会逐字节堆出上百万个中间字符串节点，128MB 的 Worker 直接 OOM——
- * 2026-08-24 生产上真炸过（`Worker exceeded memory limit.`）。
- *
- * 32766 = 3 × 10922：既是 3 的倍数（base64 每 3 字节编码成 4 字符，只有按 3 对齐
- * 分块才能把各块结果直接拼接），又低于 `String.fromCharCode` 的实参数量上限。
- */
-export function bytesToBase64(bytes: Uint8Array): string {
-  const CHUNK_BYTES = 32766
-  let base64 = ''
-  for (let i = 0; i < bytes.length; i += CHUNK_BYTES) {
-    base64 += btoa(String.fromCharCode(...bytes.subarray(i, i + CHUNK_BYTES)))
-  }
-  return base64
 }
 
 async function importStateKey(secret: string): Promise<CryptoKey> {
@@ -2443,10 +2387,6 @@ async function parseFishTimestampStream(response: Response): Promise<{
   }
 }
 
-function buildR2PublicUrl(env: ExecutionEnv, key: string): string {
-  return `${env.R2_PUBLIC_URL.replace(/\/$/, '')}/${key}`
-}
-
 /** 念一段（分段里的一段）：按字数给 `max_new_tokens`，回来的 mp3 按码率算时长。 */
 async function synthesizeFishSegment(
   context: WorkerAudioRunContext,
@@ -3813,35 +3753,6 @@ interface FalImageResult {
   providerMetadata?: Record<string, unknown>
 }
 
-function invertReferenceStrength(value: number): number {
-  return Math.max(0.01, Math.min(0.99, 1 - value))
-}
-
-function readAdvancedRecord(
-  context: WorkerImageRunContext,
-): Record<string, unknown> {
-  return context.providerInput.advancedParams ?? {}
-}
-
-/**
- * 这一次要发给 provider 的参考图 —— **有几张发几张**。
- *
- * ⚠ 复数字段优先，单数 `referenceImage` 只是向后兼容的回退。别在这里或调用方
- * 取 `[0]`：OpenAI 的 `/v1/images/edits` 收到 16 张，Vercel 侧一路（
- * `submit-image.service.ts` 的 providerInput）传的也是完整数组，这里截一刀就
- * 等于用户放了两张只有一张生效，而 UI 上两张都亮着 —— 那类静默失效最难归因。
- */
-export function getImageReferenceInputs(
-  context: WorkerImageRunContext,
-): string[] {
-  if (context.providerInput.referenceImages?.length) {
-    return context.providerInput.referenceImages
-  }
-  return context.providerInput.referenceImage
-    ? [context.providerInput.referenceImage]
-    : []
-}
-
 interface ImageLoraInput {
   url: string
   scale?: number | null
@@ -4448,52 +4359,6 @@ async function readReferenceImageAsInlinePart(
   }
 }
 
-async function readReferenceImageAsBase64(
-  referenceImage: string,
-): Promise<string> {
-  const dataUrlMatch = referenceImage.match(/^data:[^;]+;base64,(.+)$/)
-  if (dataUrlMatch) return dataUrlMatch[1]
-
-  const response = await fetch(referenceImage)
-  if (!response.ok) {
-    throw new Error(
-      `Reference image download failed with status ${response.status}`,
-    )
-  }
-
-  return bytesToBase64(new Uint8Array(await response.arrayBuffer()))
-}
-
-async function uploadImageBytesToKey(
-  env: ExecutionEnv,
-  bytes: ArrayBuffer | Uint8Array,
-  mimeType: string,
-  imageR2Key: string,
-): Promise<{ artifactUrl: string; imageR2Key: string; mimeType: string }> {
-  await env.GENERATION_BUCKET.put(imageR2Key, bytes, {
-    httpMetadata: {
-      contentType: mimeType,
-      cacheControl: R2_OBJECT_CACHE_CONTROL,
-    },
-  })
-
-  return {
-    artifactUrl: buildR2PublicUrl(env, imageR2Key),
-    imageR2Key,
-    mimeType,
-  }
-}
-
-function getWorkerImageOutputKey(
-  context: WorkerImageRunContext,
-  extension = 'png',
-): string {
-  return (
-    context.providerInput.outputStorageKey ??
-    `image/${context.runId}.${extension}`
-  )
-}
-
 function getStandardImageDimensions(aspectRatio: string): {
   width: number
   height: number
@@ -4552,7 +4417,7 @@ interface WorkerImageLayerResult {
   boundingBox?: { absolute?: number[]; normalized?: number[] }
 }
 
-interface WorkerImageGenerationResult {
+export interface WorkerImageGenerationResult {
   artifactUrl: string
   imageR2Key: string
   width: number
@@ -5914,433 +5779,6 @@ export async function pollAndPersistRunnerImageJob(
   }
 }
 
-function isNovelAiStructuredPromptModel(externalModelId: string): boolean {
-  return (
-    externalModelId === 'nai-diffusion-4-full' ||
-    externalModelId === 'nai-diffusion-4-curated-preview' ||
-    externalModelId === 'nai-diffusion-4-5-full' ||
-    externalModelId === 'nai-diffusion-4-5-curated' ||
-    externalModelId === 'nai-diffusion-5-full' ||
-    externalModelId === 'nai-diffusion-5-curated'
-  )
-}
-
-/**
- * 采样器白名单。客户端送来表外的值（旧客户端、改过的请求）退回官方缺省档，
- * 与 D10 ⑤ 之前那句硬编逐字等价。
- * https://docs.novelai.net/en/image/sampling/
- */
-function resolveNovelAiSampler(value: string | null | undefined): string {
-  return value && (NOVELAI_SAMPLER_OPTIONS as readonly string[]).includes(value)
-    ? value
-    : NOVELAI_SAMPLER_OPTIONS[0]
-}
-
-function isNovelAiV5Model(externalModelId: string): boolean {
-  return (
-    externalModelId === 'nai-diffusion-5-full' ||
-    externalModelId === 'nai-diffusion-5-curated'
-  )
-}
-
-function randomUint32(): number {
-  const bytes = new Uint32Array(1)
-  crypto.getRandomValues(bytes)
-  return bytes[0]
-}
-
-async function inflateRawZipEntry(bytes: Uint8Array): Promise<Uint8Array> {
-  const chunkBuffer = new ArrayBuffer(bytes.byteLength)
-  new Uint8Array(chunkBuffer).set(bytes)
-  const stream = new Blob([chunkBuffer])
-    .stream()
-    .pipeThrough(new DecompressionStream('deflate-raw' as CompressionFormat))
-  return new Uint8Array(await new Response(stream).arrayBuffer())
-}
-
-const ZIP_EOCD_SIGNATURE = 0x06054b50
-const ZIP_EOCD_MIN_SIZE = 22
-const ZIP_MAX_COMMENT_LENGTH = 0xffff
-
-/**
- * Locate the End Of Central Directory record by scanning backward from the
- * tail of the archive (it's the only fixed-signature record whose position
- * isn't knowable in advance, since it sits after an optional comment).
- */
-function findZipEndOfCentralDirectory(zipBytes: Uint8Array): number {
-  const minIndex = Math.max(
-    0,
-    zipBytes.length - ZIP_EOCD_MIN_SIZE - ZIP_MAX_COMMENT_LENGTH,
-  )
-  for (
-    let index = zipBytes.length - ZIP_EOCD_MIN_SIZE;
-    index >= minIndex;
-    index -= 1
-  ) {
-    if (
-      zipBytes[index] === 0x50 &&
-      zipBytes[index + 1] === 0x4b &&
-      zipBytes[index + 2] === 0x05 &&
-      zipBytes[index + 3] === 0x06
-    ) {
-      return index
-    }
-  }
-  throw new Error(
-    'NovelAI ZIP response is missing its end-of-central-directory record.',
-  )
-}
-
-/**
- * Extracts the sole image entry from NovelAI's ZIP response.
- *
- * ⚠ NovelAI writes the local file header in streamed form — general-purpose
- * bit 3 set, compressed/uncompressed size zeroed there — so those sizes
- * can't be trusted. An earlier version of this function guessed the
- * compressed length by scanning forward for the next `PK\x01`/`PK\x03`
- * signature; that's unsound against arbitrary compressed bytes, which can
- * coincidentally contain that 3-byte pattern (truncating the stream and
- * throwing "incomplete data" on close()) or miss it and swallow the trailing
- * data-descriptor bytes into the stream (throwing "trailing bytes after end
- * of compressed data"). The central directory — always present, always
- * fully populated — carries the authoritative compressed size regardless of
- * the local header's streaming flag, so read from there instead.
- */
-async function extractNovelAiZipImage(
-  zipBytes: Uint8Array,
-): Promise<Uint8Array> {
-  if (
-    zipBytes[0] !== 0x50 ||
-    zipBytes[1] !== 0x4b ||
-    zipBytes[2] !== 0x03 ||
-    zipBytes[3] !== 0x04
-  ) {
-    throw new Error('NovelAI returned an invalid ZIP image response.')
-  }
-
-  const localView = new DataView(
-    zipBytes.buffer,
-    zipBytes.byteOffset,
-    zipBytes.byteLength,
-  )
-  const localFilenameLength = localView.getUint16(26, true)
-  const localExtraFieldLength = localView.getUint16(28, true)
-  const dataOffset = 30 + localFilenameLength + localExtraFieldLength
-
-  const eocdOffset = findZipEndOfCentralDirectory(zipBytes)
-  const eocdView = new DataView(
-    zipBytes.buffer,
-    zipBytes.byteOffset + eocdOffset,
-    ZIP_EOCD_MIN_SIZE,
-  )
-  const centralDirOffset = eocdView.getUint32(16, true)
-
-  const centralDirView = new DataView(
-    zipBytes.buffer,
-    zipBytes.byteOffset + centralDirOffset,
-    zipBytes.byteLength - centralDirOffset,
-  )
-  if (centralDirView.getUint32(0, true) !== 0x02014b50) {
-    throw new Error(
-      'NovelAI ZIP central directory entry has an unexpected signature.',
-    )
-  }
-  const compressionMethod = centralDirView.getUint16(10, true)
-  const compressedSize = centralDirView.getUint32(20, true)
-
-  const compressed = zipBytes.subarray(dataOffset, dataOffset + compressedSize)
-  if (compressionMethod === 0) return compressed
-  if (compressionMethod === 8) return inflateRawZipEntry(compressed)
-  throw new Error(
-    `NovelAI ZIP compression is unsupported: ${compressionMethod}`,
-  )
-}
-
-export async function generateNovelAiImage(
-  env: ExecutionEnv,
-  context: WorkerImageRunContext,
-  apiKey: string,
-): Promise<WorkerImageGenerationResult> {
-  const referenceImages = getImageReferenceInputs(context)
-  if (referenceImages.length > 1) {
-    throw new Error(
-      'NovelAI multi-reference Director generation is not worker-migrated yet.',
-    )
-  }
-
-  const dimensions = getNovelAiImageDimensions(
-    context.providerInput.aspectRatio,
-  )
-  const advancedParams = readAdvancedRecord(context)
-  const externalModelId = context.providerInput.externalModelId
-  const referenceImage = referenceImages[0]
-  const isPrecise =
-    readStringField(advancedParams, 'novelAiReferenceMode') === 'precise'
-  if (
-    isPrecise &&
-    (!supportsNovelAiPreciseReference(externalModelId) ||
-      !referenceImage ||
-      advancedParams.inpaintMask)
-  ) {
-    throw new Error(
-      'Precise character reference requires V4.5 and one image without an inpainting mask.',
-    )
-  }
-  const isImg2Img = Boolean(referenceImage) && !isPrecise
-  /**
-   * 遮罩重绘。⚠ NovelAI 的 infill 是**换模型 + 换 action**，不是在原模型上加
-   * 一个参数：`model` 变成 `…-inpainting`，`action` 变成 `infill`，`mask` 是一张
-   * 与底图同规格的黑白图（白 = 重画）。V5 Curated 没有自己的 inpaint 模型，掉到
-   * V4.5 Curated 上（`resolveNovelAiInpaintModelId`）。
-   * https://docs.novelai.net/en/image/inpaint/
-   */
-  const maskImage = readStringField(advancedParams, 'inpaintMask')
-  const inpaintModelId = maskImage
-    ? resolveNovelAiInpaintModelId(externalModelId)
-    : undefined
-  const isInpaint = Boolean(maskImage && referenceImage && inpaintModelId)
-  if (maskImage && !isInpaint) {
-    throw new Error(
-      'NovelAI inpainting needs one source image and a model with an inpainting counterpart.',
-    )
-  }
-  const negative = composeNovelAiUndesiredContent(
-    readStringField(advancedParams, 'negativePrompt') ??
-      'lowres, bad anatomy, bad hands, missing fingers, extra digit',
-    readStringField(advancedParams, 'ucPreset'),
-    externalModelId,
-  )
-  const configuredSeed = readNumberField(advancedParams, 'seed')
-  const seed =
-    configuredSeed != null && configuredSeed >= 0
-      ? Math.round(configuredSeed)
-      : randomUint32()
-  const useStructuredPrompt = isNovelAiStructuredPromptModel(externalModelId)
-  const useV5 = isNovelAiV5Model(externalModelId)
-  const layoutResult = NovelAiCharacterLayoutSchema.optional().safeParse(
-    advancedParams.novelAiLayout,
-  )
-  if (
-    !layoutResult.success ||
-    (layoutResult.data && !supportsNovelAiCharacters(externalModelId)) ||
-    // ⚠ 人数上限**逐模型**不同（V5 22 / V4.5 6），schema 卡的是名册里最大的
-    // 那个数，所以真上限只能在这里按型号判。
-    (layoutResult.data &&
-      layoutResult.data.characters.length >
-        getNovelAiMaxCharacters(externalModelId))
-  ) {
-    throw new Error('Invalid NovelAI character layout.')
-  }
-  const layout = layoutResult.data
-  const sceneTexts = NovelAiSceneTextsSchema.optional().safeParse(
-    advancedParams.novelAiSceneTexts,
-  )
-  if (!sceneTexts.success) {
-    throw new Error('Invalid NovelAI scene texts.')
-  }
-  /**
-   * 台词、互动与画面文字的翻译（`src/lib/novelai-compose.ts`，服务端校验读同一份）：
-   * 互动写成两边的 `source#` / `target#` / `mutual#`；台词在整体里按站位称呼 +
-   * 最末 `Text:`，4 人以上说话时改写进各自的角色栏；有字时质量标签去掉 `no text`。
-   */
-  const textPlan = planNovelAiText({
-    characters: layout?.characters ?? [],
-    positioning: layout?.positioning ?? 'auto',
-    sceneTexts: sceneTexts.data,
-  })
-  const composedPrompt = composeNovelAiPrompt(
-    context.providerInput.prompt,
-    readStringField(advancedParams, 'qualityToggle'),
-    textPlan,
-    externalModelId,
-  )
-  const captions = composeNovelAiCharacterCaptions(layout?.characters ?? [])
-  const characterPrompts = (layout?.characters ?? []).map(
-    (character, index) => ({
-      prompt: composeNovelAiCharacterCaption(
-        captions[index] ?? character.prompt,
-        textPlan.characterText[index],
-      ),
-      uc: character.negativePrompt,
-      center: character.position,
-      enabled: true,
-    }),
-  )
-  const useCoords = layout?.positioning === 'manual'
-  // 采样器：D10 ⑤ 起是真控件。⚠ 白名单之外的值一律退回官方缺省档，
-  // ⛔ 不把客户端送来的任意串原样发给 provider。
-  const sampler = resolveNovelAiSampler(
-    readStringField(advancedParams, 'sampler'),
-  )
-  /**
-   * 字段对齐网页端（NAI Launcher `nai_image_request_builder.dart`，2026-10-23
-   * 核对）：所有模型 `params_version` 4；预设发名字 + 编号（标签串已由我们拼好）；
-   * V4+ 关 `autoSmea`、不发 `sm` / `sm_dyn`；Euler A 配 karras 时带 brownian 两项；
-   * 一律要 PNG。V5 缺省 CFG 4、28 步。
-   */
-  const parameters: Record<string, unknown> = {
-    params_version: 4,
-    width: dimensions.width,
-    height: dimensions.height,
-    scale: readNumberField(advancedParams, 'guidanceScale') ?? (useV5 ? 4 : 5),
-    sampler,
-    steps: readPositiveNumberField(advancedParams, 'steps') ?? 28,
-    n_samples: 1,
-    ...novelAiPresetFields(
-      readStringField(advancedParams, 'ucPreset'),
-      readStringField(advancedParams, 'qualityToggle'),
-      externalModelId,
-    ),
-    ...(useStructuredPrompt
-      ? { autoSmea: false }
-      : { sm: false, sm_dyn: false }),
-    dynamic_thresholding: false,
-    controlnet_strength: 1,
-    legacy: false,
-    add_original_image: isImg2Img && useStructuredPrompt,
-    cfg_rescale: Math.min(
-      1,
-      Math.max(0, readNumberField(advancedParams, 'cfgRescale') ?? 0),
-    ),
-    noise_schedule: 'karras',
-    seed,
-    negative_prompt: negative,
-    ...(sampler === 'k_euler_ancestral'
-      ? { deliberate_euler_ancestral_bug: false, prefer_brownian: true }
-      : {}),
-    image_format: 'png',
-    legacy_v3_extend: false,
-    legacy_uc: false,
-    use_coords: useCoords,
-    characterPrompts,
-    prompt: composedPrompt,
-    reference_image_multiple: [],
-    reference_information_extracted_multiple: [],
-    reference_strength_multiple: [],
-  }
-  if (!useV5) {
-    parameters.skip_cfg_above_sigma = null
-  }
-
-  if (referenceImage && isImg2Img) {
-    parameters.image = await readReferenceImageAsBase64(referenceImage)
-    parameters.strength = invertReferenceStrength(
-      readNumberField(advancedParams, 'referenceStrength') ?? 0.7,
-    )
-    parameters.noise = Math.min(
-      1,
-      Math.max(0, readNumberField(advancedParams, 'img2imgNoise') ?? 0),
-    )
-    parameters.color_correct = false
-    // 网页端带底图时固定 seed - 1；不发的话服务端自己挑，同种子复现不出来。
-    parameters.extra_noise_seed = seed > 0 ? seed - 1 : 0
-  }
-
-  if (isPrecise && referenceImage) {
-    parameters.director_reference_images = [
-      await readReferenceImageAsBase64(referenceImage),
-    ]
-    parameters.normalize_reference_strength_multiple = true
-    parameters.director_reference_descriptions = [
-      {
-        caption: { base_caption: 'character', char_captions: [] },
-        legacy_uc: false,
-      },
-    ]
-    parameters.director_reference_information_extracted = [1]
-    parameters.director_reference_strength_values = [
-      Math.min(
-        1,
-        Math.max(
-          0,
-          readNumberField(advancedParams, 'preciseReferenceStrength') ?? 1,
-        ),
-      ),
-    ]
-    // 网页端发的是 1 − 保真度（保真度 1 = 0）；之前原样发，滑块是反的。
-    parameters.director_reference_secondary_strength_values = [
-      1 -
-        Math.min(
-          1,
-          Math.max(
-            0,
-            readNumberField(advancedParams, 'preciseReferenceFidelity') ?? 1,
-          ),
-        ),
-    ]
-  }
-
-  if (isInpaint && maskImage) {
-    parameters.mask = await readReferenceImageAsBase64(maskImage)
-    // 遮罩外的像素原样贴回去 —— 不设它就等于整张重画一遍，遮罩白等于没画。
-    parameters.add_original_image = true
-    // 重绘强度：我们没有这颗滑块，按网页端缺省 1（= 不另带 img2img 块）。
-    parameters.inpaintImg2ImgStrength = 1
-  }
-
-  if (useStructuredPrompt) {
-    parameters.v4_prompt = {
-      caption: {
-        base_caption: composedPrompt,
-        char_captions: characterPrompts.map((character) => ({
-          char_caption: character.prompt,
-          centers: [character.center],
-        })),
-      },
-      use_coords: useCoords,
-      use_order: true,
-    }
-    parameters.v4_negative_prompt = {
-      caption: {
-        base_caption: negative,
-        char_captions: characterPrompts.map((character) => ({
-          char_caption: character.uc,
-          centers: [character.center],
-        })),
-      },
-      legacy_uc: false,
-    }
-  }
-
-  const response = await fetch(`${NOVELAI_IMAGE_BASE_URL}/ai/generate-image`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': JSON_CONTENT_TYPE,
-    },
-    body: JSON.stringify({
-      input: composedPrompt,
-      model: isInpaint ? inpaintModelId : externalModelId,
-      action: isInpaint ? 'infill' : isImg2Img ? 'img2img' : 'generate',
-      parameters,
-      use_new_shared_trial: true,
-    }),
-  })
-
-  if (!response.ok) {
-    // 走带状态码的 provider 错误：402（Anlas 不足）归到余额不足、当场判死不重试，
-    // 原话（「Required: 20, Available: 7」）留在 message 里给前端拼说明。
-    throw await createProviderResponseError(response, {
-      provider: 'novelai',
-      phase: 'generate',
-      fallbackMessage: `NovelAI image generation failed (${response.status})`,
-    })
-  }
-
-  const imageBytes = await extractNovelAiZipImage(
-    new Uint8Array(await response.arrayBuffer()),
-  )
-  const uploaded = await uploadImageBytesToKey(
-    env,
-    imageBytes,
-    'image/png',
-    getWorkerImageOutputKey(context),
-  )
-
-  // 没填种子时这颗是这里随机挑的：带回去记进作品配方，才能原样复刻（p-auto-recipe）。
-  return { ...uploaded, ...dimensions, providerMetadata: { seed } }
-}
-
 const PIXAI_API_BASE_URL = 'https://api.pixai.art'
 
 function isPixAiAspectRatio(value: string): boolean {
@@ -7044,6 +6482,45 @@ function isRateLimitFailure(error: unknown): boolean {
   return errorCode === WORKER_GENERATION_ERROR_CODES.PROVIDER_RATE_LIMIT
 }
 
+/**
+ * 一次请求出图的驱动表（o-worker 第 3 步）。键就是共享契约
+ * `src/constants/worker-image-providers.ts` 里标 `single-step` 的服务商：契约里多一家、
+ * 这里没写驱动，类型检查直接报错。NovelAI 已搬进 `providers/novelai/`，其余几家
+ * 第 4 步逐个搬；步骤名一律沿用上线时的名字。
+ */
+const SINGLE_STEP_IMAGE_DRIVERS: Record<
+  WorkerSingleStepImageProviderId,
+  SingleStepImageDriver
+> = {
+  gemini: { stepName: 'generate-gemini-image', generate: generateGeminiImage },
+  huggingface: {
+    stepName: 'generate-huggingface-image',
+    generate: generateHuggingFaceImage,
+  },
+  // 火山国内站和 BytePlus 国际站同一套 Ark 出图 API，站点按 providerBaseUrl 区分，共用一个步骤名。
+  volcengine: {
+    stepName: 'generate-volcengine-image',
+    generate: generateVolcEngineImage,
+  },
+  byteplus: {
+    stepName: 'generate-volcengine-image',
+    generate: generateVolcEngineImage,
+  },
+  novelai: novelAiImageDriver,
+  pixai: { stepName: 'generate-pixai-image', generate: generatePixAiImage },
+  openai: { stepName: 'generate-openai-image', generate: generateOpenAIImage },
+}
+
+export function getSingleStepImageDriver(
+  providerId: string,
+): SingleStepImageDriver | null {
+  if (!isWorkerImageProviderId(providerId)) return null
+  if (WORKER_IMAGE_PROVIDER_MODES[providerId] !== 'single-step') return null
+  return SINGLE_STEP_IMAGE_DRIVERS[
+    providerId as WorkerSingleStepImageProviderId
+  ]
+}
+
 export class ImageQueueWorkflow extends WorkflowEntrypoint<
   ExecutionEnv,
   WorkerImageRunContext
@@ -7147,6 +6624,21 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
     context: WorkerImageRunContext,
     encryptedApiKey: string,
   ): Promise<WorkerImageGenerationResult> {
+    const singleStepDriver = getSingleStepImageDriver(context.providerId)
+    if (singleStepDriver) {
+      return step.do(
+        singleStepDriver.stepName,
+        {
+          retries: { limit: 1, delay: '5 seconds', backoff: 'exponential' },
+          timeout: Math.min(context.timeoutMs, 600_000),
+        },
+        async () => {
+          const apiKey = await decryptStateString(encryptedApiKey, this.env)
+          return singleStepDriver.generate(this.env, context, apiKey)
+        },
+      )
+    }
+
     let result: WorkerImageGenerationResult
 
     if (context.providerId === 'fal') {
@@ -7493,84 +6985,6 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
             : {}),
         },
       }
-    } else if (context.providerId === 'gemini') {
-      result = await step.do(
-        'generate-gemini-image',
-        {
-          retries: { limit: 1, delay: '5 seconds', backoff: 'exponential' },
-          timeout: Math.min(context.timeoutMs, 600_000),
-        },
-        async () => {
-          const apiKey = await decryptStateString(encryptedApiKey, this.env)
-          return generateGeminiImage(this.env, context, apiKey)
-        },
-      )
-    } else if (context.providerId === 'huggingface') {
-      result = await step.do(
-        'generate-huggingface-image',
-        {
-          retries: { limit: 1, delay: '5 seconds', backoff: 'exponential' },
-          timeout: Math.min(context.timeoutMs, 600_000),
-        },
-        async () => {
-          const apiKey = await decryptStateString(encryptedApiKey, this.env)
-          return generateHuggingFaceImage(this.env, context, apiKey)
-        },
-      )
-    } else if (
-      context.providerId === 'volcengine' ||
-      // Same Ark image API, international station. The station is selected
-      // by providerInput.providerBaseUrl, not by this id — the two share
-      // one implementation exactly like the video path does.
-      context.providerId === 'byteplus'
-    ) {
-      result = await step.do(
-        'generate-volcengine-image',
-        {
-          retries: { limit: 1, delay: '5 seconds', backoff: 'exponential' },
-          timeout: Math.min(context.timeoutMs, 600_000),
-        },
-        async () => {
-          const apiKey = await decryptStateString(encryptedApiKey, this.env)
-          return generateVolcEngineImage(this.env, context, apiKey)
-        },
-      )
-    } else if (context.providerId === 'novelai') {
-      result = await step.do(
-        'generate-novelai-image',
-        {
-          retries: { limit: 1, delay: '5 seconds', backoff: 'exponential' },
-          timeout: Math.min(context.timeoutMs, 600_000),
-        },
-        async () => {
-          const apiKey = await decryptStateString(encryptedApiKey, this.env)
-          return generateNovelAiImage(this.env, context, apiKey)
-        },
-      )
-    } else if (context.providerId === 'pixai') {
-      result = await step.do(
-        'generate-pixai-image',
-        {
-          retries: { limit: 1, delay: '5 seconds', backoff: 'exponential' },
-          timeout: Math.min(context.timeoutMs, 600_000),
-        },
-        async () => {
-          const apiKey = await decryptStateString(encryptedApiKey, this.env)
-          return generatePixAiImage(this.env, context, apiKey)
-        },
-      )
-    } else if (context.providerId === 'openai') {
-      result = await step.do(
-        'generate-openai-image',
-        {
-          retries: { limit: 1, delay: '5 seconds', backoff: 'exponential' },
-          timeout: Math.min(context.timeoutMs, 600_000),
-        },
-        async () => {
-          const apiKey = await decryptStateString(encryptedApiKey, this.env)
-          return generateOpenAIImage(this.env, context, apiKey)
-        },
-      )
     } else {
       throw new Error(`Image provider ${context.providerId} is not migrated.`)
     }

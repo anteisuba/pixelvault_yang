@@ -15,10 +15,10 @@ vi.mock('@/lib/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }))
 vi.mock('@/lib/db', () => ({ db: {} }))
-vi.mock('@/services/assistant-skill.service', async () => {
+vi.mock('@/features/assistant/services/assistant-skill.service', async () => {
   const actual = await vi.importActual<
-    typeof import('@/services/assistant-skill.service')
-  >('@/services/assistant-skill.service')
+    typeof import('@/features/assistant/services/assistant-skill.service')
+  >('@/features/assistant/services/assistant-skill.service')
   return {
     AssistantSkillError: actual.AssistantSkillError,
     listAssistantSkillsForClerkId: vi.fn(),
@@ -39,7 +39,7 @@ import {
   listAssistantSkillsForClerkId,
   updateAssistantSkillForClerkId,
   updateBuiltinSkillForClerkId,
-} from '@/services/assistant-skill.service'
+} from '@/features/assistant/server'
 
 const PATH = '/api/assistant-skills'
 const SKILL = {

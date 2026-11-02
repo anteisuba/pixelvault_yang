@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { CANVAS_SHELL_LAYOUT } from '@/constants/canvas-shell'
 import { STUDIO_OPERATOR_SHELL } from '@/constants/studio-assistant-operator'
-import { studioOperatorYield } from '@/hooks/use-studio-operator-yield'
+import { studioOperatorYield } from '@/features/assistant/hooks'
 
 import { ShellTopBar } from './ShellTopBar'
 

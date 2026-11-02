@@ -1,0 +1,543 @@
+import 'server-only'
+
+import {
+  ASSISTANT_OPERATOR_CONFIRM_KIND_IDS,
+  ASSISTANT_OPERATOR_EVENTS,
+  ASSISTANT_OPERATOR_LIMITS,
+  ASSISTANT_OPERATOR_REJECT_REASON_IDS as REJECT,
+  ASSISTANT_OPERATOR_STEP_STATUS_IDS as STATUS,
+  ASSISTANT_OPERATOR_TOOL_VERBS,
+  type AssistantOperatorRejectReason,
+  type AssistantOperatorTool,
+} from '@/constants/assistant-operator'
+import type { AssistantVideoTier } from '@/constants/assistant'
+import {
+  ASSISTANT_V3_FACE_IDS,
+  type AssistantV3Face,
+} from '@/constants/assistant-v3'
+import { logger } from '@/lib/logger'
+import type { AssistantV3Handles } from '@/lib/assistant-v3-board'
+import type { PromptAssistantResponseLanguage } from '@/types'
+import type {
+  AssistantOperatorCanvasNode,
+  AssistantOperatorEvent,
+  AssistantOperatorRequest,
+} from '@/types/assistant-operator'
+import type {
+  AssistantV3ClipRef,
+  AssistantV3PictureRef,
+  AssistantV3Transcript,
+} from '@/types/assistant-v3'
+import type {
+  AssistantResearchSourceRef,
+  AssistantWebFind,
+} from '@/types/assistant-web-finds'
+import {
+  isFatalOperatorToolError,
+  planTool,
+  recordLedgerStep,
+  rememberStepArtifacts,
+  TOOL_FAILED_DETAIL,
+  toStepEvent,
+  type PreparedOperatorTurn,
+  type ToolPlan,
+} from '@/features/assistant/services/assistant-operator.service'
+import {
+  findsOfStepResult,
+  sourcesOfStepResult,
+} from '@/features/assistant/services/assistant-v3-finds.service'
+import type { V3PictureCache } from '@/features/assistant/services/assistant-v3-look.service'
+import type { V3ClipCache } from '@/features/assistant/services/assistant-v3-watch.service'
+
+/**
+ * v3 两张脸共用的那一层（S6）：过程行、调旧执行器、把执行器的计划变成步与工具结果。
+ * ⚠ 画布与工作台只差一处 —— 改动型那一步：画布要前端落完再接力（`pending`），
+ *   工作台随步落、当场就有结果。
+ */
+
+export const TITLE_TEXT: Record<
+  PromptAssistantResponseLanguage,
+  {
+    read: string
+    look: string
+    add: string
+    set: string
+    connect: string
+    disconnect: string
+    delete: string
+    move: string
+    reorder: string
+    project: string
+    write: string
+    edit: string
+    generate: string
+    searchWeb: string
+    /** 创作者按了「用 Grok 搜这一次」的那一步：写清楚花的是谁的额度。 */
+    searchXWithGrok: string
+    searchLibrary: string
+    /** 翻记忆（P3 `search_library kind "memories"`）。 */
+    searchMemories: string
+    searchLora: string
+    model: string
+    params: string
+    weight: string
+    unmount: string
+    setup: string
+    picks: string
+    prompt: string
+    negative: string
+    imageModel: string
+    specs: string
+    count: string
+    option: string
+    mountReference: string
+    /** 新内核直接挂 LoRA（`mount_lora`）。 */
+    mountLora: string
+    importUrl: string
+    searchImages: string
+    searchVideos: string
+    people: string
+    sceneTexts: string
+    profile: string
+    pickImages: string
+    readPage: string
+    /** 角色页联网找图的一张候选（看图那一行上的称呼；`#n` = 卡片上那个号）。 */
+    candidate: (n: number) => string
+    more: (count: number) => string
+  }
+> = {
+  chinese: {
+    read: '读取',
+    look: '查看',
+    add: '新建',
+    set: '设置',
+    connect: '连接',
+    disconnect: '断开',
+    delete: '删除',
+    move: '移动',
+    reorder: '调整镜头顺序',
+    project: '投影剧本',
+    write: '改写',
+    edit: '修改',
+    generate: '准备生成',
+    searchWeb: '联网查',
+    searchXWithGrok: '用 Grok 搜 X（花你的 Grok 额度）',
+    searchLibrary: '素材库找',
+    searchMemories: '翻记忆',
+    searchLora: '找 LoRA',
+    model: '换底模',
+    params: '调参数',
+    weight: '调权重',
+    unmount: '卸下',
+    setup: '摆搭配卡',
+    picks: '在库页圈出',
+    prompt: '提示词',
+    negative: '负面',
+    imageModel: '换模型',
+    specs: '设画幅',
+    count: '设张数',
+    option: '设选项',
+    mountReference: '挂参考图',
+    mountLora: '挂 LoRA',
+    importUrl: '导入链接',
+    searchImages: '联网找图',
+    searchVideos: '联网找视频',
+    people: '设角色',
+    sceneTexts: '设画面文字',
+    profile: '提议设定',
+    pickImages: '挑图',
+    readPage: '读网页',
+    candidate: (n) => `候选 #${n}`,
+    more: (count) => `等 ${count} 项`,
+  },
+  japanese: {
+    read: '読み込み',
+    look: '確認',
+    add: '作成',
+    set: '設定',
+    connect: '接続',
+    disconnect: '切断',
+    delete: '削除',
+    move: '移動',
+    reorder: 'ショット順を変更',
+    project: '脚本を展開',
+    write: '書き換え',
+    edit: '修正',
+    generate: '生成を準備',
+    searchWeb: 'Web 検索',
+    searchXWithGrok: 'Grok で X を検索（Grok の利用枠を使用）',
+    searchLibrary: '素材検索',
+    searchMemories: '記憶を探す',
+    searchLora: 'LoRA を検索',
+    model: 'ベースモデルを変更',
+    params: 'パラメータを調整',
+    weight: '重みを調整',
+    unmount: '外す',
+    setup: '組み合わせカードを出す',
+    picks: 'ライブラリで囲む',
+    prompt: 'プロンプト',
+    negative: 'ネガティブ',
+    imageModel: 'モデルを変更',
+    specs: 'サイズを設定',
+    count: '枚数を設定',
+    option: 'オプションを設定',
+    mountReference: '参照画像を追加',
+    mountLora: 'LoRA を追加',
+    importUrl: 'リンクを取り込む',
+    searchImages: 'Web で画像検索',
+    searchVideos: 'Web で動画検索',
+    people: 'キャラクターを設定',
+    sceneTexts: '画面の文字を設定',
+    profile: '設定を提案',
+    pickImages: '画像を選ぶ',
+    readPage: 'ページを読む',
+    candidate: (n) => `候補 #${n}`,
+    more: (count) => `ほか ${count} 件`,
+  },
+  english: {
+    read: 'Read',
+    look: 'Look at',
+    add: 'Add',
+    set: 'Set',
+    connect: 'Connect',
+    disconnect: 'Disconnect',
+    delete: 'Delete',
+    move: 'Move',
+    reorder: 'Reorder shots',
+    project: 'Project script',
+    write: 'Rewrite',
+    edit: 'Edit',
+    generate: 'Prepare',
+    searchWeb: 'Search the web for',
+    searchXWithGrok: 'Search X with Grok (your Grok quota) for',
+    searchLibrary: 'Search the library for',
+    searchMemories: 'Look through memories for',
+    searchLora: 'Search LoRAs for',
+    model: 'Switch base model',
+    params: 'Adjust parameters',
+    weight: 'Set weight of',
+    unmount: 'Unmount',
+    setup: 'Propose a setup',
+    picks: 'Ring in the library',
+    prompt: 'prompt',
+    negative: 'negative',
+    imageModel: 'Switch model',
+    specs: 'Set size',
+    count: 'Set count',
+    option: 'Set option',
+    mountReference: 'Mount reference',
+    mountLora: 'Mount LoRA',
+    importUrl: 'Import link',
+    searchImages: 'Search web images for',
+    searchVideos: 'Search web videos for',
+    people: 'Set people',
+    sceneTexts: 'Set scene text',
+    profile: 'Propose profile',
+    pickImages: 'Pick pictures',
+    readPage: 'Read page',
+    candidate: (n) => `candidate #${n}`,
+    more: (count) => `+${count} more`,
+  },
+}
+
+function clampTitle(value: string): string {
+  const max = ASSISTANT_OPERATOR_LIMITS.maxTitleChars
+  return value.length > max ? `${value.slice(0, max - 1)}…` : value
+}
+
+export type V3Outcome =
+  | {
+      kind: 'result'
+      output: string
+      error: boolean
+      failureKey?: string
+      /** `look` 交到模型眼前的图 —— 进本轮记录，只附给紧跟着的那一次调用。 */
+      images?: readonly AssistantV3PictureRef[]
+      /** `look` 交到模型眼前的片子本体（只有 Gemini）—— 规矩同 `images`。 */
+      clips?: readonly AssistantV3ClipRef[]
+      /** 这一步找到的图与视频（`#n`）—— 进本轮记录，换号用，⛔ 不进模型看的东西。 */
+      finds?: readonly AssistantWebFind[]
+      /** 再往后几步给模型的短版（查证）—— 紧跟着的那一次读 `output`。 */
+      compact?: string
+      /** 查证的资料号 → 那一页（`read "[n]"`）。 */
+      sources?: readonly AssistantResearchSourceRef[]
+    }
+  /** 交给前端落了，结果等接力那一跳再补。 */
+  | { kind: 'pending' }
+  /** 停在问题卡 / 确认卡上，等创作者。 */
+  | { kind: 'stop'; todo: string }
+
+export interface V3Context {
+  /** 哪张脸：画布的改动要前端落完再接力，工作台的改动随步落、当场就有结果。 */
+  readonly face: AssistantV3Face
+  readonly clerkId: string
+  readonly prepared: PreparedOperatorTurn
+  readonly request: AssistantOperatorRequest
+  /** 画布上的卡（别的脸是空的）。 */
+  readonly nodes: readonly AssistantOperatorCanvasNode[]
+  /** 板子上的句柄：画布是卡，LoRA 台是挂着的那几把。 */
+  readonly handles: AssistantV3Handles
+  readonly language: PromptAssistantResponseLanguage
+  readonly stepPrefix: string
+  /** 本轮记录（同一个数组，回合循环往里追加）—— 出片前核对过没有，从这里看。 */
+  readonly transcript: AssistantV3Transcript
+  /** 这一条回复模型自己写了的正文（停在卡上时，没写才替它说 `say`）。 */
+  readonly replyText: { current: string }
+  /**
+   * 这一轮选的模型看不看得见图（`assistantAdapterSupportsImage`）。看不见时 `look` 只回
+   * 一句「这个模型看不了图、换一个」，⛔ 不借别家的 key（owner 2026-10-14 / 10-15）。
+   */
+  readonly seesImages: boolean
+  /** 这次请求里下过的图（按地址）。⚠ 字节只活在这次请求里，⛔ 不进本轮记录。 */
+  readonly pictures: V3PictureCache
+  /**
+   * 这一轮选的模型能把片子看到哪一档（`assistantAdapterVideoTier`）：`native` = 片子本体
+   * 进模型（Gemini），`frames` = 只看浏览器抽好的帧，`false` = 看不了图也就看不了片。
+   */
+  readonly clipTier: AssistantVideoTier | false
+  /** 这次请求里下过的片子（只有 `native` 档会下）。规矩同 `pictures`。 */
+  readonly clips: V3ClipCache
+}
+
+/** 停在卡上的那一轮：模型这条回复没写正文，就把卡上的 `say` 说出来。 */
+export function* sayAboveCard(
+  context: V3Context,
+  say: string,
+): Generator<AssistantOperatorEvent> {
+  const text = say.trim()
+  if (!text || context.replyText.current.trim()) return
+  context.replyText.current = text
+  yield { type: ASSISTANT_OPERATOR_EVENTS.message, text }
+}
+
+export function joinPhrases(
+  context: V3Context,
+  phrases: readonly string[],
+): string {
+  const text = TITLE_TEXT[context.language]
+  const head = phrases.slice(0, 2).join('；')
+  return clampTitle(
+    phrases.length > 2 ? `${head} ${text.more(phrases.length - 2)}` : head,
+  )
+}
+
+export function nextStep(
+  context: V3Context,
+  tool: AssistantOperatorTool,
+  title: string,
+) {
+  const run = context.prepared.run
+  run.stepSeq += 1
+  return {
+    id: `${context.stepPrefix}-${run.stepSeq}`,
+    tool,
+    verb: ASSISTANT_OPERATOR_TOOL_VERBS[tool],
+    title: clampTitle(title || tool),
+  }
+}
+
+export function planSafely(
+  context: V3Context,
+  tool: AssistantOperatorTool,
+  args: unknown,
+): Promise<ToolPlan> {
+  return planGuarded(context, tool, () =>
+    planTool(context.prepared.run, tool, args, context.prepared.user.id),
+  )
+}
+
+async function planGuarded(
+  context: V3Context,
+  tool: AssistantOperatorTool,
+  plan: () => Promise<ToolPlan>,
+): Promise<ToolPlan> {
+  const run = context.prepared.run
+  try {
+    const planned = await plan()
+    run.signal?.throwIfAborted()
+    return planned
+  } catch (error) {
+    run.signal?.throwIfAborted()
+    if (isFatalOperatorToolError(error)) throw error
+    logger.warn('assistant v3 tool failed while planning', {
+      userId: context.clerkId,
+      tool,
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return {
+      kind: 'rejected',
+      reason: REJECT.toolFailed,
+      detail: TOOL_FAILED_DETAIL,
+    }
+  }
+}
+
+export function* rejectedStep(
+  context: V3Context,
+  tool: AssistantOperatorTool,
+  title: string,
+  reason: AssistantOperatorRejectReason,
+  detail: string,
+  draft: boolean,
+): Generator<AssistantOperatorEvent, V3Outcome> {
+  yield toStepEvent({
+    ...nextStep(context, tool, title),
+    status: STATUS.error,
+    error: {
+      reason,
+      detail: detail.slice(0, ASSISTANT_OPERATOR_LIMITS.maxReasonChars),
+    },
+    ...(draft ? { draft: true } : {}),
+  })
+  return {
+    kind: 'result',
+    output: detail,
+    error: true,
+    failureKey: `${tool}:${reason}`,
+  }
+}
+
+/** 旧执行器给回来的那份计划 → 时间线上的步 + 给模型的结果。 */
+export async function* settlePlan(
+  context: V3Context,
+  tool: AssistantOperatorTool,
+  title: string,
+  plan: ToolPlan,
+): AsyncGenerator<AssistantOperatorEvent, V3Outcome> {
+  const run = context.prepared.run
+  switch (plan.kind) {
+    case 'rejected':
+      // 一改什么都没变（要的值卡上本来就是）：不算一步，⛔ 在时间线上留一条红行。
+      if (plan.reason === REJECT.repeatedStep)
+        return {
+          kind: 'result',
+          output: plan.detail ?? 'Nothing changed: the board already had that.',
+          error: false,
+        }
+      return yield* rejectedStep(
+        context,
+        tool,
+        title,
+        plan.reason,
+        plan.detail ?? plan.reason,
+        plan.quiet === true,
+      )
+    case 'read': {
+      const step = nextStep(context, tool, title)
+      yield toStepEvent({
+        ...step,
+        status: STATUS.running,
+        payload: plan.payload,
+        result: null,
+      })
+      let outcome: Awaited<ReturnType<typeof plan.run>>
+      try {
+        outcome = await plan.run()
+      } catch (error) {
+        run.signal?.throwIfAborted()
+        if (isFatalOperatorToolError(error)) throw error
+        yield toStepEvent({
+          ...step,
+          status: STATUS.error,
+          error: { reason: REJECT.toolFailed },
+        })
+        return {
+          kind: 'result',
+          output: TOOL_FAILED_DETAIL,
+          error: true,
+          failureKey: `${tool}:${REJECT.toolFailed}`,
+        }
+      }
+      const done = {
+        ...step,
+        status: STATUS.done,
+        payload: plan.payload,
+        result: outcome.result,
+      }
+      yield toStepEvent(done)
+      rememberStepArtifacts(run, done)
+      recordLedgerStep(run, step.verb, step.title, outcome.observation)
+      /**
+       * ⭐ 找到的图 / 视频（`#n`）与查证的资料号（`[n]`）从步骤结果里抄进本轮记录（搜索期
+       *   第三片）：接力那一跳、下一步、下一轮都按它换号。模型只读 `output` / `compact`。
+       */
+      const finds = findsOfStepResult(outcome.result)
+      const sources = sourcesOfStepResult(outcome.result, run.researchSnippets)
+      return {
+        kind: 'result',
+        output: outcome.observation,
+        error: false,
+        ...(finds.length ? { finds } : {}),
+        ...(outcome.compact ? { compact: outcome.compact } : {}),
+        ...(sources.length ? { sources } : {}),
+      }
+    }
+    case 'mutate': {
+      const step = nextStep(context, tool, title)
+      const applied = { ...step, payload: plan.payload, inverse: plan.inverse }
+      yield toStepEvent({ ...applied, status: STATUS.running })
+      plan.apply()
+      yield toStepEvent({ ...applied, status: STATUS.done })
+      recordLedgerStep(run, step.verb, step.title, plan.observation)
+      // 画布的改动要等前端落完再接力；工作台的改动随这一步落下，当场就算数。
+      return context.face === ASSISTANT_V3_FACE_IDS.canvas
+        ? { kind: 'pending' }
+        : { kind: 'result', output: plan.observation, error: false }
+    }
+    case 'ask':
+      yield { type: ASSISTANT_OPERATOR_EVENTS.ask, questions: [plan.question] }
+      return { kind: 'stop', todo: plan.todo }
+    case 'confirmGenerate':
+      yield {
+        type: ASSISTANT_OPERATOR_EVENTS.confirm,
+        confirm: {
+          kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate,
+          request: plan.request,
+        },
+      }
+      return {
+        kind: 'stop',
+        todo: plan.request.canvasNode
+          ? `等你确认生成「${plan.request.canvasNode.name}」`
+          : `等你确认生成 ${plan.request.count} 张`,
+      }
+    case 'confirmCharacterProfile':
+      // 卡片台三种提议：吐一帧、停下；⛔ 一行库都没写，收不收由创作者在卡上勾。
+      yield {
+        type: ASSISTANT_OPERATOR_EVENTS.confirm,
+        confirm: {
+          kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.characterProfile,
+          profile: plan.profile,
+        },
+      }
+      return { kind: 'stop', todo: '等你决定要不要收下这份设定' }
+    case 'confirmCharacterImages':
+      yield {
+        type: ASSISTANT_OPERATOR_EVENTS.confirm,
+        confirm: {
+          kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.characterImages,
+          proposal: plan.proposal,
+        },
+      }
+      return { kind: 'stop', todo: '等你挑要挂哪几张' }
+    case 'confirmLoraSetup':
+      // 搭配卡：一把都没挂、一格都没改，创作者点「应用」时客户端逐行落。
+      yield {
+        type: ASSISTANT_OPERATOR_EVENTS.confirm,
+        confirm: {
+          kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.loraSetup,
+          setup: plan.setup,
+        },
+      }
+      return { kind: 'stop', todo: '等你决定要不要应用这套搭配' }
+    default:
+      return yield* rejectedStep(
+        context,
+        tool,
+        title,
+        REJECT.noSuchControl,
+        'This step is not available in this assistant yet.',
+        false,
+      )
+  }
+}

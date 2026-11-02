@@ -6,7 +6,7 @@ import { z } from 'zod'
 import {
   createAssistantSkillForClerkId,
   listAssistantSkillsForClerkId,
-} from '@/services/assistant-skill.service'
+} from '@/features/assistant/server'
 import { CreateAssistantSkillSchema } from '@/types/assistant-skill'
 import { assistantSkillErrors } from './errors'
 

@@ -6,7 +6,7 @@ import { CRON_JOBS } from '@/constants/cron'
 import { isValidBearerToken } from '@/lib/bearer-token'
 import { recordCronRun } from '@/lib/cron-heartbeat'
 import { logger } from '@/lib/logger'
-import { pruneExpiredAssistantTurnRecords } from '@/services/assistant-turn-record.service'
+import { pruneExpiredAssistantTurnRecords } from '@/features/assistant/server'
 import { sweepStaleExecutions } from '@/services/execution-sweeper.service'
 import { processPendingImagePreviewDerivativeOutboxes } from '@/services/image/image-preview-derivative.service'
 

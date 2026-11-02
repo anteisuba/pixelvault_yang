@@ -81,7 +81,7 @@ vi.mock('@/hooks/use-mobile', () => ({
 // §3.0b 第 4 条的注入口。真实实现要 StudioProvider —— 这里要验的是
 // 「按钮按下去带的是这张图的 URL」，不是 reducer。
 const askAssistantMock = vi.fn()
-vi.mock('@/hooks/use-ask-assistant-about-image', () => ({
+vi.mock('@/features/assistant/hooks/use-ask-assistant-about-image', () => ({
   useAskAssistantAboutImage: () => askAssistantMock,
 }))
 

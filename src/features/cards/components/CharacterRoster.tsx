@@ -23,7 +23,7 @@ import {
   ResponsiveMenuItem,
 } from '@/components/ui/responsive-menu'
 import { Spinner } from '@/components/ui/spinner'
-import { StudioOperatorBenchDock } from '@/components/business/studio/assistant-operator'
+import { StudioOperatorBenchDock } from '@/features/assistant'
 import { StudioLibraryAssistantAvatar } from '@/components/business/studio/shell/StudioLibraryOverlay'
 import {
   CharacterDetailBody,

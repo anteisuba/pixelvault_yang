@@ -32,7 +32,7 @@ import { StudioStageSwap } from '@/components/business/studio-shared/chrome/Stud
 import { StudioDialectHeader } from '@/features/studio/components/tags/StudioDialectHeader'
 import { StudioImageEditWorkspace } from '@/components/business/studio-shared/editor/StudioImageEditWorkspace'
 import type { StudioImageEditTarget } from '@/components/business/studio-shared/editor/StudioImageEditStage'
-import { StudioOperatorBenchDock } from '@/components/business/studio/assistant-operator'
+import { StudioOperatorBenchDock } from '@/features/assistant'
 import { StudioKeepChangePanel } from '@/features/studio/components/image/StudioKeepChangePanel'
 
 import {
@@ -44,8 +44,8 @@ import { StudioOperatorHostProvider } from '@/contexts/studio-operator-host'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useStudioModeModelOptions } from '@/features/studio/hooks/use-studio-mode-model-options'
 import { useStudioTemplateApply } from '@/features/studio/hooks/use-studio-template-apply'
-import { useStudioOperatorYield } from '@/hooks/use-studio-operator-yield'
-import { useStudioWorkbenchOperatorHost } from '@/hooks/use-studio-workbench-operator-host'
+import { useStudioOperatorYield } from '@/features/assistant/hooks'
+import { useStudioWorkbenchOperatorHost } from '@/features/assistant/hooks'
 import { useStudioReplayFromUrl } from '@/features/studio/hooks/use-studio-replay-from-url'
 import {
   buildStudioDraft,

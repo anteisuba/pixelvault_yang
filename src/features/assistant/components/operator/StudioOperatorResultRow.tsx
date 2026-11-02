@@ -1,0 +1,336 @@
+'use client'
+
+/**
+ * **结果卡**（v2 §6 / 画板 BCards「结果」三态）。
+ *
+ * 一张卡三个形态，分岔只看载荷：
+ *  · **生成中**（`items` 为空）—— 灰底占位格 × `total` + 「正在出图 · 1 / 3」（视频档
+ *    「正在生成视频」）；
+ *  · **单张**（`items.length === 1`）—— 左缩略图 + 右「已入库 · 摘要 · 时间」+ 两颗轻操作；
+ *  · **多张** —— 一排等宽缩略图 + 同一行读数 + 同两颗轻操作。
+ *
+ * ── ⛔ 没有审核态（§6.1 / 决策 12）────────────────────────────────
+ * 生成一律**自动入库**，卡上写的是结果（`已入库 3 张`）而不是一道要人点的题。
+ * ✓/✕ 两颗记号、标审核态的那条工具在面板里的入口、以及「未选定 / 已选 ②」
+ * 那一行全部删掉。由来：审核态要求用户在「刚看到图」这个最没耐心的时刻做一次
+ * 二元判断，而实测里绝大多数人直接跳过 —— 留着一个没人点的控件，只会让「这张
+ * 我否过」这条语义看上去存在、实际不可靠。⚠ **工具本身留在服务端「改」组**
+ * （画布侧还在用它），⛔ 别顺手把它也删了。
+ *
+ * ── 两个轻操作（§6.2）──────────────────────────────────────────────
+ * 「再来一组」→ 参数原样出一张**新的生成确认卡**（⛔ 不直接扣扳机，钱闸只有
+ * 确认卡一个入口）；「用它当参考」→ 走 `@` chip 那条唯一的管线挂进工作台参考位
+ * （与下行「素材库」按钮同一条路）。⛔ 没有第三颗：放大与「问助手」随 §6 一起
+ * 删了 —— 放大去灯箱、指认去 `@` 选择器，两条路本来就在。
+ *
+ * ── ⚠ 这颗组件**不知道结果从哪来** ────────────────────────────────
+ * 它只画传进来的那几样。回流在 `use-studio-operator-results.ts`，卡的落地在
+ * `confirmGeneration`。组件里去 context 摸一把的下场是它在 `/studio/lora` 上
+ * 直接抛 —— 那条路由故意不挂 `<StudioProvider>`。
+ */
+
+import { useRef } from 'react'
+import { motion, useReducedMotion } from 'motion/react'
+import Image from 'next/image'
+import { useFormatter, useTranslations } from 'next-intl'
+
+import {
+  EASE_STANDARD,
+  DURATION,
+  GENERATING_RING,
+  RESULT_REVEAL,
+} from '@/constants/motion'
+import { STUDIO_OPERATOR_RESULT_STAGGER } from '@/constants/studio-assistant-operator'
+import { BlurSwap } from '@/components/ui/blur-swap'
+import { openOperatorLightbox } from '@/features/assistant/components/operator/StudioOperatorLightbox'
+import {
+  SearchGroundingRail,
+  type SearchGroundingRailState,
+} from '@/components/business/studio-shared/search-grounding/SearchGroundingRail'
+import type {
+  StudioOperatorResultEntry,
+  StudioOperatorResultItem,
+} from '@/types/studio-assistant-operator'
+
+interface StudioOperatorResultRowProps {
+  entry: StudioOperatorResultEntry
+  /**
+   * 「先搜再画」交回的资料（只在出图当下、只在内存里）。出完图才画：资料条在图
+   * 上方，卡逐张滑入，一条短竖线指向图（B 定稿）。
+   */
+  searchGrounding?: SearchGroundingRailState | null
+  /** 「再来一组」—— 缺席时那颗不画（载荷丢了的历史条目）。 */
+  onRerun?(entry: StudioOperatorResultEntry): void
+  /** 「用它当参考」—— 多张时挂的是第一张（画板上那两颗按钮没有分格）。 */
+  /** `from` = 被挂上去的那一格（给「飞进输入框」那一下当起点），可缺。 */
+  onUseAsReference(item: StudioOperatorResultItem, from?: HTMLElement): void
+}
+
+/**
+ * 比例串（「3:4」）→ CSS `aspect-ratio`。读不出来就按 3:2（D12 P3：单张按输入区
+ * 宽度出，约 3:2）。⚠ 走 style：比例来自生成参数，是数据不是设计值。
+ */
+function toAspect(ratio: string | null | undefined): {
+  css: string
+  value: number
+} {
+  const match = ratio?.match(/^(\d+(?:\.\d+)?):(\d+(?:\.\d+)?)$/)
+  return match
+    ? {
+        css: `${match[1]} / ${match[2]}`,
+        value: Number(match[1]) / Number(match[2]),
+      }
+    : { css: '3 / 2', value: 3 / 2 }
+}
+
+/**
+ * 格子高度封顶 = `h-60` 那一档（09-24 真机：9:16 按整宽出有 680 高，空白态占掉
+ * 大半个面板）。按比例反推宽度，占位格与结果格同一个尺寸，落地时不跳。
+ */
+function tileStyle(aspect: { css: string; value: number }) {
+  return {
+    aspectRatio: aspect.css,
+    width: `min(100%, calc(var(--spacing) * 60 * ${aspect.value}))`,
+  }
+}
+
+function ResultThumb({
+  item,
+  index,
+  aspect,
+}: {
+  item: StudioOperatorResultItem
+  index: number
+  aspect: { css: string; value: number }
+}) {
+  const reduceMotion = useReducedMotion()
+  /**
+   * 占位格 → 结果图（owner 2026-10-07 PC 动效方向）：图**由糊变清**、从微放大落到
+   * 原尺寸。尺寸与占位格一致，⛔ 不跳动（scale 只动画面，不动格子）。
+   */
+  const fade = {
+    initial: reduceMotion
+      ? false
+      : {
+          opacity: 0,
+          filter: `blur(${RESULT_REVEAL.blurPx}px)`,
+          scale: RESULT_REVEAL.fromScale,
+        },
+    animate: { opacity: 1, filter: 'blur(0px)', scale: 1 },
+    transition: {
+      duration: reduceMotion ? 0 : DURATION.slow,
+      ease: EASE_STANDARD,
+      delay: reduceMotion
+        ? 0
+        : Math.min(index, STUDIO_OPERATOR_RESULT_STAGGER.maxItems) *
+          STUDIO_OPERATOR_RESULT_STAGGER.stepSeconds,
+    },
+  } as const
+  // 视频就地可播 —— 灯箱只认图，next/Image 也画不出一段 mp4。
+  if (item.outputType === 'VIDEO')
+    return (
+      <motion.video
+        data-testid="operator-result-tile"
+        {...fade}
+        src={item.url}
+        poster={item.thumbnailUrl}
+        controls
+        playsInline
+        preload="metadata"
+        style={tileStyle(aspect)}
+        className="rounded-lg bg-muted object-cover"
+      />
+    )
+  return (
+    <motion.button
+      type="button"
+      data-testid="operator-result-tile"
+      onClick={() => openOperatorLightbox(item.url, item.label ?? '')}
+      {...fade}
+      style={tileStyle(aspect)}
+      className="relative cursor-zoom-in overflow-hidden rounded-lg bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <Image
+        src={item.thumbnailUrl ?? item.url}
+        alt={item.label ?? ''}
+        fill
+        sizes="(max-width: 640px) 100vw, 420px"
+        unoptimized
+        /**
+         * ⚠ `object-top`（2026-09-12 实测第 5 步）：按中心裁一张人物图正好剩两条
+         * 腿。取顶部之后缩略图里至少有脸。
+         */
+        className="object-cover object-top"
+      />
+    </motion.button>
+  )
+}
+
+/**
+ * 生成中的占位格（P4 第 8 项，样张 AG）：一根细线沿着格子边**慢慢描一圈**，
+ * 落图时整格由糊变清（`ResultThumb`）。
+ *
+ * ⚠ 服务商不报进度，这根线是**时间感**不是百分比：先快后慢、停在九成，
+ *   ⛔ 不画到头 —— 画满了图还没来，比不画更像卡住了。
+ * ⚠ 线宽不随格子缩放（`vectorEffect`），圆角跟格子的 `rounded-lg` 对齐。
+ */
+function GeneratingTile({
+  index,
+  aspect,
+}: {
+  index: number
+  aspect: { css: string; value: number }
+}) {
+  const reduceMotion = useReducedMotion()
+  return (
+    <span
+      data-testid="operator-result-placeholder"
+      style={tileStyle(aspect)}
+      className="relative overflow-hidden rounded-lg bg-muted"
+    >
+      {/* 内缩 1px 再让描边溢出 0.75px：整根线落在格子里面，⛔ 被 overflow 切掉一半。 */}
+      <span aria-hidden className="pointer-events-none absolute inset-px">
+        <svg className="size-full overflow-visible text-foreground/50">
+          <motion.rect
+            width="100%"
+            height="100%"
+            rx="7"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.5}
+            strokeLinecap="round"
+            vectorEffect="non-scaling-stroke"
+            initial={reduceMotion ? false : { pathLength: 0 }}
+            animate={{ pathLength: GENERATING_RING.maxLength }}
+            transition={
+              reduceMotion
+                ? { duration: 0 }
+                : {
+                    duration: GENERATING_RING.seconds,
+                    ease: GENERATING_RING.ease,
+                    delay: index * GENERATING_RING.staggerSeconds,
+                  }
+            }
+          />
+        </svg>
+      </span>
+    </span>
+  )
+}
+
+export function StudioOperatorResultRow({
+  entry,
+  searchGrounding,
+  onRerun,
+  onUseAsReference,
+}: StudioOperatorResultRowProps) {
+  const t = useTranslations('StudioOperator.result')
+  const format = useFormatter()
+  const gridRef = useRef<HTMLDivElement>(null)
+  const { items, total, completed } = entry
+  const generating = items.length === 0
+  const aspect = toAspect(entry.request?.specs.aspectRatio)
+  const isVideo = entry.request?.specs.durationSeconds != null
+  /**
+   * ⚠ 占位格数 = 本次张数（§6.3），⛔ 不画一个固定的三格。
+   */
+  const count = generating ? Math.max(total, 1) : items.length
+  /**
+   * 单张封顶 `max-w-sm`（D12 真机：1:1 的图按整宽出有 600 多高，一张图顶掉半个
+   * 面板）；多张两列铺满。
+   */
+  const grid = count > 1 ? 'grid grid-cols-2 gap-1.5' : 'flex max-w-sm'
+  const ghost =
+    'inline-flex h-7 items-center rounded-md border border-border bg-card px-2.5 text-xs text-foreground transition-colors duration-fast ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none'
+
+  return (
+    <div
+      data-testid="operator-result-row"
+      data-generating={generating}
+      /* D12 S6 / S7：白底细边卡，图按卡宽出（单张整宽、多张两列）。 */
+      className="flex flex-col gap-2 rounded-xl bg-card p-2.5"
+    >
+      {generating ? (
+        <>
+          <p
+            data-testid="operator-result-progress"
+            className="text-xs text-muted-foreground"
+          >
+            {/* 数到几张换一次字，糊着换（owner 2026-10-07）。 */}
+            <BlurSwap swapKey={String(completed)}>
+              {isVideo
+                ? t('generatingVideo')
+                : t('generating', { done: completed, total })}
+            </BlurSwap>
+          </p>
+          <div className={grid}>
+            {Array.from({ length: count }, (_, index) => (
+              <GeneratingTile key={index} index={index} aspect={aspect} />
+            ))}
+          </div>
+        </>
+      ) : (
+        <>
+          <SearchGroundingRail
+            state={searchGrounding?.phase === 'done' ? searchGrounding : null}
+            layout="strip"
+          />
+          <div ref={gridRef} className={grid}>
+            {items.map((item, index) => (
+              <ResultThumb
+                key={item.id}
+                item={item}
+                index={index}
+                aspect={aspect}
+              />
+            ))}
+          </div>
+          <p
+            data-testid="operator-result-stored"
+            className="min-w-0 truncate text-xs text-muted-foreground"
+          >
+            {items.length === 1
+              ? t('stored')
+              : t('storedCount', { count: items.length })}
+            {entry.storedAt
+              ? ` · ${format.dateTime(new Date(entry.storedAt), {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}`
+              : ''}
+            {entry.summary ? ` · ${entry.summary}` : ''}
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {/* ⚠ 载荷缺席时**不渲染**，⛔ 不做禁用占位。 */}
+            {entry.request && onRerun ? (
+              <button
+                type="button"
+                data-testid="operator-result-rerun"
+                onClick={() => onRerun(entry)}
+                className={ghost}
+              >
+                {t('rerun')}
+              </button>
+            ) : null}
+            {items[0] ? (
+              <button
+                type="button"
+                data-testid="operator-result-reference"
+                onClick={() =>
+                  onUseAsReference(
+                    items[0]!,
+                    (gridRef.current
+                      ?.firstElementChild as HTMLElement | null) ?? undefined,
+                  )
+                }
+                className={ghost}
+              >
+                {t('useAsReference')}
+              </button>
+            ) : null}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}

@@ -19,7 +19,7 @@ import { useTranslations } from 'next-intl'
 
 import { CANVAS_SHELL_LAYOUT } from '@/constants/canvas-shell'
 import { STUDIO_OPERATOR_SHELL } from '@/constants/studio-assistant-operator'
-import { useStudioOperatorYield } from '@/hooks/use-studio-operator-yield'
+import { useStudioOperatorYield } from '@/features/assistant/hooks'
 import type { NodeWorkflowProjectSummary } from '@/types/node-workflow'
 
 import { ShellProjectPill } from './ShellProjectPill'

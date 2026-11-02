@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { V3Context } from '@/services/kernel/assistant-v3-steps.service'
+import type { V3Context } from '@/features/assistant/services/assistant-v3-steps.service'
 
 vi.mock('server-only', () => ({}))
 

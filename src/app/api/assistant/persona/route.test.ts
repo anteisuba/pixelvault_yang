@@ -21,7 +21,7 @@ vi.mock('@/lib/logger', () => ({
 const mockGet = vi.fn()
 const mockUpsert = vi.fn()
 
-vi.mock('@/services/assistant-persona.service', () => ({
+vi.mock('@/features/assistant/services/assistant-persona.service', () => ({
   getAssistantPersona: (...args: unknown[]) => mockGet(...args),
   upsertAssistantPersona: (...args: unknown[]) => mockUpsert(...args),
 }))

@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { resolvePicture } from '@/features/assistant/workspace.service'
+import { resolvePicture } from '@/features/assistant/server'
 import {
   AssetFolderLimitError,
   addAssetsToFolder,
@@ -22,7 +22,7 @@ import {
   writeLook,
   type LibraryWriteOutcome,
   type LibraryWriteOwner,
-} from '@/services/assistant-library-write.service'
+} from '@/features/assistant/server'
 import type { McpTokenOwner } from '@/services/mcp/mcp-token.service'
 import {
   ASSISTANT_ASSET_WRITE_LIMITS,

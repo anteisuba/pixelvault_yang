@@ -4,7 +4,7 @@ import { motion, useTransform } from 'motion/react'
 
 import { CharacterRoster } from '@/features/cards/components/CharacterRoster'
 import { useIsMobile } from '@/hooks/use-mobile'
-import { useStudioOperatorYield } from '@/hooks/use-studio-operator-yield'
+import { useStudioOperatorYield } from '@/features/assistant/hooks'
 
 /**
  * /cards 页面内容：角色页（方向 A）。

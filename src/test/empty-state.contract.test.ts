@@ -41,8 +41,8 @@ const LANDING_POINTS = [
   'src/features/cards/components/CharacterRecent.tsx',
   'src/features/cards/components/CharacterRecentDiary.tsx',
   'src/components/business/node/NodeCanvasEmptyGuide.tsx',
-  'src/components/business/assistant-settings/AssistantHerPane.tsx',
-  'src/components/business/assistant-settings/AssistantMemoryPane.tsx',
+  'src/features/assistant/components/settings/AssistantHerPane.tsx',
+  'src/features/assistant/components/settings/AssistantMemoryPane.tsx',
   'src/features/lora/components/LoraWorkbench.tsx',
   'src/features/lora/components/library/LoraLibraryTypeStates.tsx',
   'src/features/lora/components/training/EmptyState.tsx',
@@ -70,7 +70,7 @@ const LANDING_POINTS = [
  */
 const EXCEPTIONS = [
   'src/features/studio/components/StudioEmptyState.tsx',
-  'src/components/business/studio/assistant-operator/StudioOperatorEmptyState.tsx',
+  'src/features/assistant/components/operator/StudioOperatorEmptyState.tsx',
 ]
 
 function collectTsx(dir: string, out: string[] = []): string[] {

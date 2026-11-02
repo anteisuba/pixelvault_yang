@@ -12,12 +12,12 @@ vi.mock('@/lib/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }))
 
-vi.mock('@/services/assistant-memory.service', () => ({
+vi.mock('@/features/assistant/services/assistant-memory.service', () => ({
   clearAssistantMemoriesForClerkId: vi.fn(),
 }))
 
 import { POST } from './route'
-import { clearAssistantMemoriesForClerkId } from '@/services/assistant-memory.service'
+import { clearAssistantMemoriesForClerkId } from '@/features/assistant/server'
 
 const mockClear = vi.mocked(clearAssistantMemoriesForClerkId)
 const PATH = '/api/assistant-memories/clear'

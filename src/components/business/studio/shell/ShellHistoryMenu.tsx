@@ -8,7 +8,7 @@ import {
   SESSION_ROW_MENU_ATTR,
   StudioOperatorSessionDeleteDialog,
   StudioOperatorSessionRow,
-} from '@/components/business/studio/assistant-operator/StudioOperatorSessionRow'
+} from '@/features/assistant'
 import {
   DropdownMenu,
   DropdownMenuContent,

@@ -11,7 +11,7 @@ import {
   removeGenerationsFromFolder,
   topSortOrder,
 } from '@/features/assets/services/asset-folder.service'
-import { revertLibraryWrite } from '@/services/assistant-library-write.service'
+import { revertLibraryWrite } from '@/features/assistant/server'
 import { batchSetLike, getUserLikes } from '@/services/like.service'
 import { ensureUser } from '@/services/user.service'
 import type {
@@ -26,7 +26,7 @@ import type {
  *
  * ── 这个文件为什么存在，以及它**不做**什么 ────────────────────────
  * 助手的工具环不许 import 任何能花钱的东西（钱闸，见
- * `services/kernel/assistant-operator.money-gate.test.ts`）。这四条改的全是
+ * `features/assistant/services/assistant-operator.money-gate.test.ts`）。这四条改的全是
  * **用户自己库里已有的东西**：一个标签、一颗星、一个文件夹、一次归档。
  * ⛔ 不创建 generation、⛔ 不扣 credit、⛔ 不调 provider、⛔ 不碰 R2、
  * ⛔ 不删任何素材。判据与 `project-rule.service` / `context-cards.service`

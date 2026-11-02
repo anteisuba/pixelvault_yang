@@ -2,7 +2,7 @@ import 'server-only'
 
 import { db } from '@/lib/db'
 import { buildGenerationTag } from '@/lib/generation-name'
-import { resolvePicture } from '@/features/assistant/workspace.service'
+import { resolvePicture } from '@/features/assistant/server'
 import {
   checkImageGenerationStatus,
   submitImageGeneration,

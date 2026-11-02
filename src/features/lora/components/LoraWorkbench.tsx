@@ -227,10 +227,10 @@ import {
 } from '@/features/lora/hooks/use-lora-operator-host'
 import { useLoraLibraryFilterSnapshot } from '@/features/lora/hooks/use-civitai-lora-library-url'
 import { usePromptTagStack } from '@/hooks/use-prompt-tag-stack'
-import { useStudioOperatorYield } from '@/hooks/use-studio-operator-yield'
+import { useStudioOperatorYield } from '@/features/assistant/hooks'
 import { requestOperatorAttachment } from '@/hooks/use-studio-operator-store'
 import type { StudioOperatorResultOwner } from '@/types/studio-assistant-operator'
-import { StudioOperatorBenchDock } from '@/components/business/studio/assistant-operator'
+import { StudioOperatorBenchDock } from '@/features/assistant'
 import {
   LoraAspectRatioChip,
   isLoraAspectRatio,

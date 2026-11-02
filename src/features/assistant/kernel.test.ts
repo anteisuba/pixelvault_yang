@@ -52,7 +52,7 @@ const memoryStore = vi.hoisted(() => ({
   listed: vi.fn(),
   scheduled: vi.fn(),
 }))
-vi.mock('@/services/assistant-memory.service', () => ({
+vi.mock('@/features/assistant/services/assistant-memory.service', () => ({
   listNextAssistantMemoriesForPrompt: async (...args: unknown[]) => {
     memoryStore.listed(...args)
     return memoryStore.memories
@@ -66,17 +66,20 @@ const chatMood = vi.hoisted(() => ({
 vi.mock('@/features/cards/services/character-chat-mood.service', () => ({
   planChatTurn: (input: unknown) => chatMood.plan(input),
 }))
-vi.mock('@/services/assistant-persona.service', async (importOriginal) => ({
-  ...(await importOriginal<object>()),
-  getHomeChatCharacterId: vi.fn(async () => homeChat.id),
-}))
-vi.mock('@/services/assistant-skill.service', async () => {
+vi.mock(
+  '@/features/assistant/services/assistant-persona.service',
+  async (importOriginal) => ({
+    ...(await importOriginal<object>()),
+    getHomeChatCharacterId: vi.fn(async () => homeChat.id),
+  }),
+)
+vi.mock('@/features/assistant/services/assistant-skill.service', async () => {
   const { resolveSkills } = await import('@/features/assistant/skills')
   return {
     loadAssistantSkills: async () => resolveSkills(skillStore.rows as never),
   }
 })
-vi.mock('@/services/kernel/assistant-v3-history.service', () => ({
+vi.mock('@/features/assistant/services/assistant-v3-history.service', () => ({
   loadAssistantV3HistorySummaries: async () => ({
     summaries: memoryStore.summaries,
     canSummarize: true,
@@ -100,10 +103,10 @@ vi.mock('@/services/storage/r2', () => ({
 vi.mock('@/services/kernel/assistant-completion.service', () => ({
   startCallLog: () => ({ onUsage: vi.fn(), finish: vi.fn() }),
 }))
-vi.mock('@/services/assistant-turn-record.service', () => ({
+vi.mock('@/features/assistant/services/assistant-turn-record.service', () => ({
   recordAssistantTurn: recordTurn,
 }))
-vi.mock('@/services/kernel/assistant-operator.service', () => ({
+vi.mock('@/features/assistant/services/assistant-operator.service', () => ({
   prepareOperatorTurn: vi.fn(
     async (_clerkId: string, request: AssistantOperatorRequest) => ({
       request,
@@ -205,7 +208,7 @@ vi.mock('@/features/assistant/models', () => ({
   },
 }))
 
-import { prepareOperatorTurn } from '@/services/kernel/assistant-operator.service'
+import { prepareOperatorTurn } from '@/features/assistant/services/assistant-operator.service'
 
 import { assistantV3TurnFingerprint } from '@/lib/assistant-v3-history'
 

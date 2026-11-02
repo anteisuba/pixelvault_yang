@@ -349,11 +349,11 @@ flowchart LR
 
 它既不是「读」也不是「改动型」，而是 `ASSISTANT_OPERATOR_SPEND_TOOLS`（`src/constants/assistant-operator.ts`）。改动型那张表的全部意义是「每条都必须带 `inverse`」（拍板 18），而这一档带不出来——生成出来的东西删不掉、钱退不回。硬给一个空 `inverse` 的下场很具体：日志条上出现一颗撤销钮，点了什么都不会发生。**撤销的位置由结果卡顶上**（§11.4「结果行卡」）。判据函数：`isRevertibleAssistantOperatorTool` 从「不是读类」改成「是改动型」。
 
-⚠ 名字是 `request_generation` 而不是 `start_generate`：钱闸那份结构性证明逐字扫工具名（`src/services/kernel/assistant-operator.money-gate.test.ts`），`generation` 里没有 `generate` 这个词。⛔ 下一个人「顺手统一命名」会当场把钱闸弄红——那时该改的是名字，不是钱闸。
+⚠ 名字是 `request_generation` 而不是 `start_generate`：钱闸那份结构性证明逐字扫工具名（`src/features/assistant/services/assistant-operator.money-gate.test.ts`），`generation` 里没有 `generate` 这个词。⛔ 下一个人「顺手统一命名」会当场把钱闸弄红——那时该改的是名字，不是钱闸。
 
 ### 6.3 `estimate.credits`：**现算，查不到就缺席**
 
-口径只有一条：`AI_MODELS[].cost × 张数`（`estimateGenerationCredits`，`src/services/kernel/assistant-operator.service.ts`）。目录里查不到那个 `cost` 就返回 `null`，卡上那一行**不画**——⛔ 不回落成 1、⛔ 不画「约 0」（一个错的数比没有数更糟，论据与 `StudioCostPreview`「缺价不折进合计」逐字同源）。⚠ 它是**估算不是账单**：真正的扣费口径在服务端 credit policy（自带 key / 免费额度那几条支线在这里一概看不见），所以卡上永远带「约」。⛔ 这条路径读的是常量目录，不碰任何服务——一分钱都花不掉。张数取自快照（没有张数控件的域恒 1，`currentGenerationCount`）。
+口径只有一条：`AI_MODELS[].cost × 张数`（`estimateGenerationCredits`，`src/features/assistant/services/assistant-operator.service.ts`）。目录里查不到那个 `cost` 就返回 `null`，卡上那一行**不画**——⛔ 不回落成 1、⛔ 不画「约 0」（一个错的数比没有数更糟，论据与 `StudioCostPreview`「缺价不折进合计」逐字同源）。⚠ 它是**估算不是账单**：真正的扣费口径在服务端 credit policy（自带 key / 免费额度那几条支线在这里一概看不见），所以卡上永远带「约」。⛔ 这条路径读的是常量目录，不碰任何服务——一分钱都花不掉。张数取自快照（没有张数控件的域恒 1，`currentGenerationCount`）。
 
 ### 6.4 「不再问」= 请求里的一张条子，服务端不存记忆
 
@@ -624,9 +624,9 @@ flowchart LR
 
 现成链路：`uploadAvatarAPI()`（`src/lib/api-client/profile.ts:115`）→ `POST /api/users/me/avatar` → `uploadAvatar()`（`src/services/user.service.ts:422`）→ `uploadToR2()`（`src/services/storage/r2.ts`）。
 
-⚠ 它写死 `User.avatarUrl`——那是**账户头像**不是 AI 头像。**已落地（`31a8d78a`）**：并行函数 `uploadAssistantAvatar(userId, imageData)` / `removeAssistantAvatar(userId)` 住**独立文件** `src/services/assistant-persona-avatar.service.ts`（`uploadAssistantAvatar` / `removeAssistantAvatar`）。形状与账户头像逐字一致（同 `PROFILE.SUPPORTED_IMAGE_TYPES` 白名单与 5MB 上限、同「先删旧 storageKey 再传」顺序），两处不同：key 前缀 `profiles/<userId>/assistant-avatar/`（`ASSISTANT_AVATAR_STORAGE_TYPE`），写回 `AssistantPersona.avatarUrl` / `avatarStorageKey`；persona 行不存在时 `upsert`——传头像**就是**用户第一次表态，这一刻建行有理由（与 §8.4「不做首次访问自动建行」不冲突）。
+⚠ 它写死 `User.avatarUrl`——那是**账户头像**不是 AI 头像。**已落地（`31a8d78a`）**：并行函数 `uploadAssistantAvatar(userId, imageData)` / `removeAssistantAvatar(userId)` 住**独立文件** `src/features/assistant/services/assistant-persona-avatar.service.ts`（`uploadAssistantAvatar` / `removeAssistantAvatar`）。形状与账户头像逐字一致（同 `PROFILE.SUPPORTED_IMAGE_TYPES` 白名单与 5MB 上限、同「先删旧 storageKey 再传」顺序），两处不同：key 前缀 `profiles/<userId>/assistant-avatar/`（`ASSISTANT_AVATAR_STORAGE_TYPE`），写回 `AssistantPersona.avatarUrl` / `avatarStorageKey`；persona 行不存在时 `upsert`——传头像**就是**用户第一次表态，这一刻建行有理由（与 §8.4「不做首次访问自动建行」不冲突）。
 
-⚠ 它**不住** `assistant-persona.service.ts`：那个文件在钱闸的 import 白名单里（`src/services/kernel/assistant-operator.money-gate.test.ts`），而这条会写 R2——分开之后「工具环够不着上传」写在 import 表上，不需要谁去论证。⛔ 也不给 `uploadAvatar` 加 `target` 分支：它被账户头像与 Clerk 同步共用（`user.service.ts:283` / `:327`）。
+⚠ 它**不住** `assistant-persona.service.ts`：那个文件在钱闸的 import 白名单里（`src/features/assistant/services/assistant-operator.money-gate.test.ts`），而这条会写 R2——分开之后「工具环够不着上传」写在 import 表上，不需要谁去论证。⛔ 也不给 `uploadAvatar` 加 `target` 分支：它被账户头像与 Clerk 同步共用（`user.service.ts:283` / `:327`）。
 
 **路由（实际落点，⛔ 不是设计稿里的 `/api/users/me/assistant-avatar`）**：
 
@@ -676,7 +676,7 @@ export const UpdateAssistantPersonaSchema = AssistantPersonaShapeSchema.omit({ a
 
 ### 8.5 服务端注入
 
-落点 `src/services/kernel/assistant-operator.service.ts:2019` 的 `buildOperatorSystemPrompt`。现在的拼接顺序：域人设（`src/constants/assistant-protocol.ts:172` 的 `ASSISTANT_DOMAIN_BRIEFS`）→ 域槽位 → 域规矩 → HOW YOU TALK → TOOLS → OUTPUT。**风格段插在 HOW YOU TALK 末尾，`TOOLS:` 之前。**
+落点 `src/features/assistant/services/assistant-operator.service.ts:2019` 的 `buildOperatorSystemPrompt`。现在的拼接顺序：域人设（`src/constants/assistant-protocol.ts:172` 的 `ASSISTANT_DOMAIN_BRIEFS`）→ 域槽位 → 域规矩 → HOW YOU TALK → TOOLS → OUTPUT。**风格段插在 HOW YOU TALK 末尾，`TOOLS:` 之前。**
 
 - 请求侧：`AssistantOperatorRequest` 加可选 `persona`，**服务端自己按 `clerkId` 读**。⛔ 不从客户端收——它直连系统提示。
 - **名字**非空时首句改 `You are ${name}, ANTEI's workbench operator.`，⛔ 不覆盖域人设。
@@ -979,7 +979,7 @@ When the choice is "which reference image", put the asset URL in "assetUrl" inst
 | **a** | `src/constants/model-strengths.ts:129`                                                                                     | NovelAI 的 `enhanceHint` 写着 SD WebUI 语法 `(feature:1.3)`；NovelAI 吃的是 `{tag}` / `[tag]` / `1.3::tag ::`。`:179` 那条是 NoobAI/Illustrious 家族（跑 SD 生态），**它是对的，别顺手改**                                                                                                                                                                                                                                                | `grep "feature:1.3"` 只剩 `:179`；vitest 断言 NovelAI 四个 id 含 `1.3::` 且不含 `(`+`:1.`                                                                            |
 | **b** | `model-strengths.ts:297-299`                                                                                               | `isTagBasedPromptModel` 只查 `MODEL_STRENGTHS`（`:76` 起，14 键），漏 6 个 tag 系 id（`ANIMA_PENCIL_XL` / `ILLUSTRIOUS_RECIPE_CLONE` / `ANIMA_PENCIL_XL_RUNNER` / `PONY_DIFFUSION_V6` / `SDXL_10_RUNNER` / `ANIMA_DIT_RUNNER`），Pony 的 score 串一个字都没有                                                                                                                                                                             | 遍历 `IMAGE_MODEL_OPTIONS` 断言六个 id `promptStyle === 'tag-based'`；Pony 单独断言 score 串                                                                         |
 | **c** | `src/constants/models/video.ts`（30 个模型）· `models/audio.ts`（4 个）· `model-strengths.ts:54` 的 `ADAPTER_PROMPT_HINTS` | ✅ **hints 已完成**（commit `ec0b25e2`）：口径定为「只补媒体 adapter」，补齐 6 条（byteplus / fish_audio / elevenlabs / minimax / minimax_cn / runner）；纯文本线路 ANTHROPIC / XAI **有意不补**——它们不出图不出声，方言由各自任务系统提示词管，理由写在 `model-strengths.ts:86-91` 的注释里。因此**不改穷举 `Record<AI_ADAPTER_TYPES, string>`**，保持 `Record<string, string>`。⬜ 仍未做：视频/音频模型在 `MODEL_STRENGTHS` 里一条没有 | 已完成部分：媒体 adapter 六条各有 hint，两条纯文本路由的缺席在代码注释里写明。剩余：视频/音频至少按 adapter 兜底                                                     |
-| **d** | `src/services/kernel/assistant-operator.service.ts:2019-2090`                                                              | `buildOperatorSystemPrompt` 整个文件不 import `model-strengths`——收编 Operator 反而丢了方言（「提示词不准」的根因）。旧 Prompt 助手做了这件事                                                                                                                                                                                                                                                                                             | 注入 `getModelEnhanceHint()` + 必要时 tag 系规则；断言 NovelAI 档含 `1.3::`、GPT 图像档不含。⚠ 注意 `OPERATOR_CONTEXT_COMPACTION_TARGET_LENGTH`（`:2153`）的截断顺序 |
+| **d** | `src/features/assistant/services/assistant-operator.service.ts:2019-2090`                                                  | `buildOperatorSystemPrompt` 整个文件不 import `model-strengths`——收编 Operator 反而丢了方言（「提示词不准」的根因）。旧 Prompt 助手做了这件事                                                                                                                                                                                                                                                                                             | 注入 `getModelEnhanceHint()` + 必要时 tag 系规则；断言 NovelAI 档含 `1.3::`、GPT 图像档不含。⚠ 注意 `OPERATOR_CONTEXT_COMPACTION_TARGET_LENGTH`（`:2153`）的截断顺序 |
 | **e** | `workers/execution/src/index.ts:6424-6455`                                                                                 | `use_coords: false` + `char_captions: []` 全硬编码空：即使助手写出多角色分镜也没有通道传下去。规则侧同样零覆盖（多角色 caption / quality 前置 / UC 预设 / `Text:` 语法）                                                                                                                                                                                                                                                                  | 分两片：① 规则片（constants + system prompt）② 通道片（worker 载荷 + schema）。**只做 ① 会让助手承诺一个不存在的能力**，两片齐了才能声称支持                         |
 
 视频域的 Seedance 规则是好消息：`src/constants/seedance-prompt-plan.ts:47` 的 `SEEDANCE_25_CONTROL_RULES` 与 owner 手写的控制手册高度同构，差三块——素材分工契约、硬否定串、以及它跑在独立路由而不是工具环里。第二期一起收。
@@ -1136,12 +1136,12 @@ When the choice is "which reference image", put the asset URL in "assetUrl" inst
 
 ## Source of Truth
 
-- 面板与常量：`src/constants/studio-assistant-operator.ts` · `src/constants/assistant-operator.ts` · `src/components/business/studio/assistant-operator/**` · `src/features/studio/components/StudioWorkspaceUI.tsx`
+- 面板与常量：`src/constants/studio-assistant-operator.ts` · `src/constants/assistant-operator.ts` · `src/features/assistant/components/operator/**` · `src/features/studio/components/StudioWorkspaceUI.tsx`
 - 产物名与 `@` 解析：`src/constants/generation-naming.ts` · `src/lib/generation-name.ts`
 - 断点续跑：`src/types/studio-operator-resume.ts` · `src/lib/studio-operator-resume.ts` · `src/constants/studio-assistant-operator.ts`（`STUDIO_OPERATOR_RESUME` / TTL）
 - 只重跑下游：`src/lib/node-rerun-downstream.ts` · `src/lib/node-downstream.ts` · `src/lib/canvas-rerun-request.ts`
 - 上下文卡：`src/constants/context-cards.ts` · `src/hooks/use-context-cards.ts`
-- 服务端：`src/services/kernel/assistant-operator.service.ts`（系统提示 `:2019`、上下文压缩 `:2153`）
+- 服务端：`src/features/assistant/services/assistant-operator.service.ts`（系统提示 `:2019`、上下文压缩 `:2153`）
 - 视觉 token：`src/app/globals.css`（动效 `:198-202`、三层浅底 `:355-365`）· `docs/references/ui-defaults.md`
 - 画布：[`node-canvas-v2.md`](node-canvas-v2.md)（目标态）· [`node-canvas.md`](node-canvas.md)（现状）
 - 域：`docs/references/domains/studio.md` · 画布域定义见 [`node-canvas-v2.md`](node-canvas-v2.md) §0.1

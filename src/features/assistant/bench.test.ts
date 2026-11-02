@@ -1,17 +1,19 @@
 import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('server-only', () => ({}))
-vi.mock('@/services/kernel/assistant-operator.service', () => ({}))
-vi.mock('@/services/kernel/assistant-v3-image.service', () => ({}))
-vi.mock('@/services/kernel/assistant-v3-lora.service', () => ({}))
-vi.mock('@/services/kernel/assistant-v3-cards.service', () => ({}))
+vi.mock('@/features/assistant/services/assistant-operator.service', () => ({}))
+vi.mock('@/features/assistant/services/assistant-v3-image.service', () => ({}))
+vi.mock('@/features/assistant/services/assistant-v3-lora.service', () => ({}))
+vi.mock('@/features/assistant/services/assistant-v3-cards.service', () => ({}))
 const runWebFind = vi.hoisted(() => vi.fn())
-vi.mock('@/services/kernel/assistant-v3-bench.service', () => ({ runWebFind }))
-vi.mock('@/services/kernel/assistant-v3-steps.service', () => ({}))
-vi.mock('@/services/kernel/assistant-v3-look.service', () => ({}))
-vi.mock('@/services/kernel/assistant-v3-watch.service', () => ({}))
+vi.mock('@/features/assistant/services/assistant-v3-bench.service', () => ({
+  runWebFind,
+}))
+vi.mock('@/features/assistant/services/assistant-v3-steps.service', () => ({}))
+vi.mock('@/features/assistant/services/assistant-v3-look.service', () => ({}))
+vi.mock('@/features/assistant/services/assistant-v3-watch.service', () => ({}))
 
-import type { V3Context } from '@/services/kernel/assistant-v3-steps.service'
+import type { V3Context } from '@/features/assistant/services/assistant-v3-steps.service'
 
 import {
   isHomeDraftSnapshot,

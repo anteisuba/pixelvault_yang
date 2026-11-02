@@ -42,7 +42,7 @@ import {
   resetLoraLibraryAgent,
   useLoraLibraryAgent,
 } from '@/features/lora/hooks/use-lora-library-agent'
-import { useHandMentionToAssistant } from '@/hooks/use-hand-to-assistant'
+import { useHandMentionToAssistant } from '@/features/assistant/hooks'
 import { useLoraSearchHistory } from '@/features/lora/hooks/use-lora-search-history'
 import { listCivitaiLoraAssetsAPI } from '@/lib/api-client/lora-assets'
 import { proxyCivitaiImageUrl } from '@/features/lora/lib/civitai-image-url'

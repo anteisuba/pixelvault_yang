@@ -12,7 +12,7 @@ vi.mock('@/lib/api-client', () => ({
   getVoiceBenchAPI: mocks.getVoiceBenchAPI,
   speakAssistantReplyAPI: mocks.speakAssistantReplyAPI,
 }))
-vi.mock('@/hooks/use-operator-voice', () => ({
+vi.mock('@/features/assistant/hooks/use-operator-voice', () => ({
   getOperatorVoicePrefs: () => ({ on: false, modelId: 'fish-free' }),
   playOperatorVoice: mocks.playOperatorVoice,
   waitForAudioJob: mocks.waitForAudioJob,

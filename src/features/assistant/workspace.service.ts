@@ -15,7 +15,7 @@ import { buildGenerationTag } from '@/lib/generation-name'
 import { matchesAnyWord } from '@/lib/search-words'
 import type { AssistantOperatorSnapshot } from '@/types/assistant-operator'
 import type { AssistantV3PictureRef } from '@/types/assistant-v3'
-import { getAssistantPersona } from '@/services/assistant-persona.service'
+import { getAssistantPersona } from '@/features/assistant/services/assistant-persona.service'
 import { listCharacterCards } from '@/features/cards/server'
 import { listCharacterLoraGroups } from '@/features/cards/server'
 import {
@@ -41,7 +41,7 @@ import {
 } from '@/features/assistant/library-sources.service'
 import { queryWords, ranked } from '@/features/assistant/rank'
 import { BUILTIN_SKILLS, renderSkill } from '@/features/assistant/skills'
-import { loadAssistantSkills } from '@/services/assistant-skill.service'
+import { loadAssistantSkills } from '@/features/assistant/services/assistant-skill.service'
 
 /**
  * 工作区编号与「查 / 看」（第 3 步，方案 /mnt/project-files/assistant-reliability/step3-plan.md）。

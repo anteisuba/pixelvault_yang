@@ -20,10 +20,7 @@ import {
   Sparkles,
   Square,
 } from '@/components/icons'
-import {
-  AvatarDisc,
-  StudioOperatorAvatarSwitcher,
-} from '@/components/business/studio/assistant-operator/StudioOperatorAvatarSwitcher'
+import { AvatarDisc, StudioOperatorAvatarSwitcher } from '@/features/assistant'
 import { studioOutlineChipClass } from '@/components/business/studio-shared/primitives/tool-surface'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 import { VoicePickerDialog } from '@/components/business/voices/VoicePickerDialog'
@@ -48,7 +45,7 @@ import {
   stopOperatorVoice,
   useOperatorVoice,
   usePlayingOperatorVoice,
-} from '@/hooks/use-operator-voice'
+} from '@/features/assistant/hooks'
 import { usePersonaVoice } from '@/hooks/use-persona-voice'
 import { useVoiceBench, type VoiceBenchPending } from '@/hooks/use-voice-bench'
 import { rewriteVoiceBenchTextAPI } from '@/lib/api-client'

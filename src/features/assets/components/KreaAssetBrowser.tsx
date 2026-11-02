@@ -95,7 +95,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { LibraryPillSelect, LibrarySearch } from '@/components/ui/library-kit'
 import { MediaTileMoreTrigger } from '@/components/ui/media-tile'
-import { useHandToAssistant } from '@/hooks/use-hand-to-assistant'
+import { useHandToAssistant } from '@/features/assistant/hooks'
 import { useAssetFolders } from '@/features/assets/hooks/use-asset-folders'
 import { useGallery, type GalleryFilters } from '@/hooks/use-gallery'
 import { useLocalPreference } from '@/hooks/use-local-preference'

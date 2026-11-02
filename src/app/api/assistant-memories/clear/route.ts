@@ -2,7 +2,7 @@ import 'server-only'
 
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import { createApiRoute } from '@/lib/api-route-factory'
-import { clearAssistantMemoriesForClerkId } from '@/services/assistant-memory.service'
+import { clearAssistantMemoriesForClerkId } from '@/features/assistant/server'
 import { ClearAssistantMemoriesSchema } from '@/types/assistant-memory'
 
 /**

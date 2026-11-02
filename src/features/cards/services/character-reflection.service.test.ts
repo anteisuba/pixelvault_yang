@@ -22,11 +22,11 @@ vi.mock('@/lib/logger', () => ({ logger: { warn: vi.fn() } }))
 vi.mock('@/services/llm-text.service', () => ({
   llmTextCompletion: mocks.llmTextCompletion,
 }))
-vi.mock('@/services/assistant-memory.service', () => ({
+vi.mock('@/features/assistant/services/assistant-memory.service', () => ({
   listAssistantMemoriesForReview: mocks.listMemories,
   recordAssistantMemories: mocks.recordMemories,
 }))
-vi.mock('@/services/kernel/assistant-operator.service', () => ({
+vi.mock('@/features/assistant/services/assistant-operator.service', () => ({
   resolveMemoryChanges: (draft: {
     memories?: { kind: string; text: string }[]
   }) => ({

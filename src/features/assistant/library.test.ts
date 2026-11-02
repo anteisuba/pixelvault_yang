@@ -22,7 +22,7 @@ const calls = vi.hoisted(() => ({
 }))
 
 vi.mock('server-only', () => ({}))
-vi.mock('@/services/kernel/assistant-v3-bench.service', () => ({
+vi.mock('@/features/assistant/services/assistant-v3-bench.service', () => ({
   runOldTool: async function* (...args: unknown[]) {
     calls.runOldTool(...args)
     return { kind: 'result', output: 'Tagged via search_assets.' }
@@ -32,7 +32,7 @@ vi.mock('@/services/kernel/assistant-v3-bench.service', () => ({
     return { kind: 'result', output: String(args[3]) }
   },
 }))
-vi.mock('@/services/kernel/assistant-v3-steps.service', () => ({
+vi.mock('@/features/assistant/services/assistant-v3-steps.service', () => ({
   settlePlan: async function* (...args: unknown[]) {
     calls.settlePlan(...args)
     return { kind: 'result', output: 'done' }
@@ -44,29 +44,32 @@ vi.mock('@/features/cards/services/character-card.mapper', () => ({
   readPinnedFields: (extensions: { pinned?: string[] } | null) =>
     extensions?.pinned ?? [],
 }))
-vi.mock('@/services/kernel/assistant-v3-finds.service', () => ({
+vi.mock('@/features/assistant/services/assistant-v3-finds.service', () => ({
   pickV3WebImage: calls.pickV3WebImage,
 }))
-vi.mock('@/services/assistant-library-write.service', () => ({
-  addSearchSource: vi.fn(),
-  removeSearchSource: calls.removeSearchSource,
-  setChannel: vi.fn(),
-  writeAssistantSetting: calls.writeAssistantSetting,
-  createCharacter: vi.fn(),
-  createLook: vi.fn(),
-  favoriteLora: vi.fn(),
-  findOwnFolder: calls.findOwnFolder,
-  linkLoraToCharacter: calls.linkLoraToCharacter,
-  savePrompt: vi.fn(),
-  setLoraCover: vi.fn(),
-  updatePrompt: vi.fn(),
-  writeCharacterProfile: calls.writeCharacterProfile,
-  writeLook: vi.fn(),
-  rememberMemory: calls.rememberMemory,
-  editMemory: calls.editMemory,
-  forgetMemory: calls.forgetMemory,
-  findOwnCharacter: calls.findOwnCharacter,
-}))
+vi.mock(
+  '@/features/assistant/services/assistant-library-write.service',
+  () => ({
+    addSearchSource: vi.fn(),
+    removeSearchSource: calls.removeSearchSource,
+    setChannel: vi.fn(),
+    writeAssistantSetting: calls.writeAssistantSetting,
+    createCharacter: vi.fn(),
+    createLook: vi.fn(),
+    favoriteLora: vi.fn(),
+    findOwnFolder: calls.findOwnFolder,
+    linkLoraToCharacter: calls.linkLoraToCharacter,
+    savePrompt: vi.fn(),
+    setLoraCover: vi.fn(),
+    updatePrompt: vi.fn(),
+    writeCharacterProfile: calls.writeCharacterProfile,
+    writeLook: vi.fn(),
+    rememberMemory: calls.rememberMemory,
+    editMemory: calls.editMemory,
+    forgetMemory: calls.forgetMemory,
+    findOwnCharacter: calls.findOwnCharacter,
+  }),
+)
 vi.mock('@/features/assistant/workspace.service', () => ({
   parseWorkspaceHandle: (raw: string) => {
     const lora = /^LoRA·(.+)$/.exec(raw)
@@ -86,7 +89,7 @@ vi.mock('@/features/assistant/workspace.service', () => ({
     raw.startsWith('记忆·') ? raw.slice(3) : null,
 }))
 
-import type { V3Context } from '@/services/kernel/assistant-v3-steps.service'
+import type { V3Context } from '@/features/assistant/services/assistant-v3-steps.service'
 
 import { runLibraryChange } from './library'
 

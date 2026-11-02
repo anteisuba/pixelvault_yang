@@ -21,7 +21,7 @@ import {
 } from '@/constants/character-browse'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type { CharacterOutingRun } from '@/types/character-growth'
-import { StudioOperatorModelChip } from '@/components/business/studio/assistant-operator/StudioOperatorModelChip'
+import { StudioOperatorModelChip } from '@/features/assistant'
 import {
   ResponsiveDialog,
   ResponsiveDialogContent,

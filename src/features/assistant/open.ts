@@ -7,7 +7,7 @@ import type {
 } from '@/types/assistant-operator'
 import type { AssistantWorkspace } from '@/types/assistant-workspace'
 import { assistantWorkspaceFromKey } from '@/lib/assistant-workspace'
-import type { V3Context } from '@/services/kernel/assistant-v3-steps.service'
+import type { V3Context } from '@/features/assistant/services/assistant-v3-steps.service'
 import { listRecentNodeWorkflowProjectsForUser } from '@/services/node/node-workflow.service'
 import { renderLibraryView } from '@/features/assistant/bench'
 import {

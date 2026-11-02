@@ -17,7 +17,7 @@ import {
   AssistantModelCannotSeeError,
   AssistantModelKeyMissingError,
 } from '@/lib/errors'
-import { getAssistantRouteModelByUserId } from '@/services/assistant-persona.service'
+import { getAssistantRouteModelByUserId } from '@/features/assistant/server'
 import {
   resolveLlmTextRoute,
   type ResolvedLlmTextRoute,

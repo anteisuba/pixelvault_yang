@@ -85,7 +85,7 @@ import {
 import { useEditDesk } from '@/hooks/node/use-edit-desk'
 import type { NodeWorkflowRemoteChange } from '@/hooks/node/use-node-workflow-store'
 import { useEditShortcutPreset } from '@/hooks/node/use-edit-shortcut-preset'
-import { useStudioOperatorYield } from '@/hooks/use-studio-operator-yield'
+import { useStudioOperatorYield } from '@/features/assistant/hooks'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
 import type { NodeV4Data, NodeWorkflowStateV4 } from '@/types/node-workflow'
 import type { NodeV4MediaPatch } from '../nodes/v4/NodeV4Context'

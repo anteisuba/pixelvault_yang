@@ -66,8 +66,8 @@ import type {
 import {
   recordAssistantTurn,
   type AssistantTurnDraft,
-} from '@/services/assistant-turn-record.service'
-import { listNextAssistantMemoriesForPrompt } from '@/services/assistant-memory.service'
+} from '@/features/assistant/services/assistant-turn-record.service'
+import { listNextAssistantMemoriesForPrompt } from '@/features/assistant/services/assistant-memory.service'
 import {
   LLM_TEXT_PROVIDER_ERROR_CODES,
   toLlmTextProviderError,
@@ -75,27 +75,27 @@ import {
 import {
   getHomeChatCharacterId,
   sanitizePromptCharacter,
-} from '@/services/assistant-persona.service'
+} from '@/features/assistant/services/assistant-persona.service'
 import { recordNativeSearches } from '@/services/research/assistant-evidence-book.service'
-import { maybeDistillTaste } from '@/services/kernel/assistant-taste.service'
+import { maybeDistillTaste } from '@/features/assistant/services/assistant-taste.service'
 import { recallFindings, renderFindingsRecall } from '@/features/cards/server'
 import { loadChatStickers, resolveStickerTokens } from '@/features/cards/server'
 import {
   loadAssistantLastTime,
   renderAssistantLastTime,
-} from '@/services/kernel/assistant-last-time.service'
+} from '@/features/assistant/services/assistant-last-time.service'
 import {
   learnCreatorPhrases,
   shouldLearnPhrases,
 } from '@/features/cards/server'
 import { reflectOnChat, shouldReflect } from '@/features/cards/server'
 import { planChatTurn } from '@/features/cards/server'
-import { loadAssistantSkills } from '@/services/assistant-skill.service'
+import { loadAssistantSkills } from '@/features/assistant/services/assistant-skill.service'
 import { startCallLog } from '@/services/kernel/assistant-completion.service'
 import {
   loadAssistantV3HistorySummaries,
   scheduleAssistantV3HistorySummary,
-} from '@/services/kernel/assistant-v3-history.service'
+} from '@/features/assistant/services/assistant-v3-history.service'
 import {
   closeRoundV3,
   closeRoundV3BeforeStop,
@@ -108,16 +108,16 @@ import {
   toStepEvent,
   type AssistantOperatorRunOptions,
   type OperatorTurnOptions,
-} from '@/services/kernel/assistant-operator.service'
-import { loadPicture } from '@/services/kernel/assistant-v3-look.service'
-import { refused } from '@/services/kernel/assistant-v3-bench.service'
+} from '@/features/assistant/services/assistant-operator.service'
+import { loadPicture } from '@/features/assistant/services/assistant-v3-look.service'
+import { refused } from '@/features/assistant/services/assistant-v3-bench.service'
 import {
   joinPhrases,
   planSafely,
   settlePlan,
   TITLE_TEXT,
   type V3Context,
-} from '@/services/kernel/assistant-v3-steps.service'
+} from '@/features/assistant/services/assistant-v3-steps.service'
 import {
   landedCanvasResult,
   type CanvasBatch,

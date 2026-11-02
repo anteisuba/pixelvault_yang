@@ -16,7 +16,7 @@ vi.mock('@/lib/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }))
 
-vi.mock('@/services/assistant-memory.service', () => ({
+vi.mock('@/features/assistant/services/assistant-memory.service', () => ({
   updateAssistantMemoryForClerkId: vi.fn(),
   deleteAssistantMemoryForClerkId: vi.fn(),
 }))
@@ -25,7 +25,7 @@ import { PATCH, DELETE } from './route'
 import {
   deleteAssistantMemoryForClerkId,
   updateAssistantMemoryForClerkId,
-} from '@/services/assistant-memory.service'
+} from '@/features/assistant/server'
 
 const mockUpdate = vi.mocked(updateAssistantMemoryForClerkId)
 const mockDelete = vi.mocked(deleteAssistantMemoryForClerkId)

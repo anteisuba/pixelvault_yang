@@ -100,7 +100,7 @@ import { useCharacterLibrary } from '@/features/cards/hooks'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useThemePreference } from '@/hooks/use-theme-preference'
 import { useCanvasShellPanelHost } from '@/hooks/node/use-canvas-shell-panel'
-import { useStudioOperatorYield } from '@/hooks/use-studio-operator-yield'
+import { useStudioOperatorYield } from '@/features/assistant/hooks'
 import { useWorkflowModelOptions } from '@/hooks/use-workflow-model-options'
 import { useCanvasImageEditHandoffV4 } from '@/hooks/node/use-canvas-image-edit-handoff-v4'
 import { useCanvasOpenProjectV4 } from '@/hooks/node/use-canvas-open-project-v4'
@@ -178,7 +178,7 @@ import { useWorkbenchShortcutsV4 } from './WorkbenchShortcutsV4'
 import { useWorkbenchRosterDropV4 } from './WorkbenchRosterDropV4'
 import { useOpenKeySettings } from '@/hooks/use-open-key-settings'
 import { KeySettingsContext } from './shell/ShellKeySettings'
-import { StudioOperatorDock } from '@/components/business/studio/assistant-operator'
+import { StudioOperatorDock } from '@/features/assistant'
 import {
   StudioOperatorHostProvider,
   useStudioOperatorDockPlacement,

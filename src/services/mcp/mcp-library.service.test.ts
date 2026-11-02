@@ -24,7 +24,7 @@ vi.mock('@/lib/video-poster', () => ({
 
 import { findForMcp, lookForMcp } from '@/services/mcp/mcp-library.service'
 import { MCP_FIND_KINDS, MCP_LOOK_MAX_PICTURES } from '@/constants/mcp'
-import { ASSISTANT_NEXT_FIND_KINDS } from '@/features/assistant/constants'
+import { ASSISTANT_NEXT_FIND_KINDS } from '@/features/assistant/server'
 
 const OWNER = {
   tokenId: 'tok_1',

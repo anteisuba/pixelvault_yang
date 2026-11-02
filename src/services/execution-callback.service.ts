@@ -24,6 +24,10 @@ import {
 import { createGeneration } from '@/services/generation.service'
 import { buildRecipeSnapshotForUser } from '@/features/prompts/server'
 import {
+  buildImageRecipeDraft,
+  finalizeGenerationRecipe,
+} from '@/services/generation-recipe.service'
+import {
   enqueueImagePreviewDerivatives,
   processImagePreviewDerivativeOutbox,
 } from '@/services/image/image-preview-derivative.service'
@@ -102,6 +106,22 @@ function toExecutionCallbackJobStatus(
   return parsedStatus
 }
 
+/**
+ * 服务商这次实际用的种子：视频走 `resultData.seed`，图片走 `providerMetadata.seed`
+ * （Ideogram 回传、NovelAI 由 Worker 随机挑后带回）。只认非负安全整数。
+ */
+function readProviderSeed(resultData: {
+  seed?: number
+  providerMetadata?: Record<string, unknown>
+}): number | undefined {
+  const candidate = resultData.seed ?? resultData.providerMetadata?.seed
+  return typeof candidate === 'number' &&
+    Number.isSafeInteger(candidate) &&
+    candidate >= 0
+    ? candidate
+    : undefined
+}
+
 const WorkerJobMetadataSchema = ExecutionCallbackResultDataSchema.pick({
   providerMetadata: true,
 })
@@ -124,6 +144,8 @@ const WorkerJobMetadataSchema = ExecutionCallbackResultDataSchema.pick({
     originalModelId: z.string().min(1).optional(),
     advancedParams: z.unknown().optional(),
     recipeUsage: z.unknown().optional(),
+    /** 视频提交时起草的生成配方（p-auto-recipe），回调定稿后写进 Generation.recipe。 */
+    recipe: z.unknown().optional(),
     runGroupId: z.string().min(1).optional(),
     runGroupType: z.enum(['single', 'compare', 'variant']).optional(),
     runGroupIndex: z.number().int().min(0).optional(),
@@ -670,6 +692,13 @@ async function finalizeExecutionResult(
             provider: job.provider,
             requestCount: resultData.requestCount ?? 1,
             seed: resultData.seed != null ? BigInt(resultData.seed) : undefined,
+            recipe:
+              outputType === 'VIDEO'
+                ? finalizeGenerationRecipe(
+                    metadata.recipe,
+                    readProviderSeed(resultData),
+                  )
+                : undefined,
             outputType,
             userId: job.userId,
             characterCardIds:
@@ -989,15 +1018,10 @@ async function finalizeImageResult(
   // Billing units are sealed by the server before dispatch. The worker's
   // requestCount describes provider attempts and must not override pricing.
   const requestCount = metadata.creditCost ?? resultData.requestCount ?? 1
-  const returnedSeed = resultData.providerMetadata?.seed
+  // 服务商回传的真实种子（Ideogram、NovelAI 随机挑的那颗）优先；没回传就记用户填的。
   const seedValue =
-    job.adapterType === 'ideogram' &&
-    typeof returnedSeed === 'number' &&
-    Number.isInteger(returnedSeed) &&
-    returnedSeed >= 0 &&
-    returnedSeed <= 2147483647
-      ? returnedSeed
-      : (metadata.advancedParams as { seed?: number } | undefined)?.seed
+    readProviderSeed(resultData) ??
+    (metadata.advancedParams as { seed?: number } | undefined)?.seed
 
   try {
     const uploadResult = workerUploadedKey
@@ -1014,6 +1038,20 @@ async function finalizeImageResult(
       workerUploadedKey
         ? 'image_result_uploaded_by_worker'
         : 'image_result_download_streamed_with_r2_upload',
+    )
+
+    const recipe = finalizeGenerationRecipe(
+      await buildImageRecipeDraft({
+        userId: job.userId,
+        modelId: job.modelId,
+        prompt: job.prompt ?? '',
+        aspectRatio: metadata.aspectRatio,
+        advancedParams: metadata.advancedParams,
+        referenceImages: metadata.referenceImages,
+        characterCardIds: metadata.characterCardIds,
+        imageOperation: metadata.imageOperation,
+      }),
+      readProviderSeed(resultData),
     )
 
     const recipeSnapshot = metadata.recipeUsage
@@ -1055,6 +1093,7 @@ async function finalizeImageResult(
             characterLookIds: metadata.characterLookIds,
             projectId: metadata.projectId,
             recipeSnapshot,
+            recipe,
             seed: seedValue != null ? BigInt(seedValue) : undefined,
             runGroupId: metadata.runGroupId,
             runGroupType: metadata.runGroupType,

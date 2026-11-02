@@ -111,6 +111,8 @@ export interface CreateGenerationInput {
   snapshot?: Prisma.InputJsonValue
   /** Prompt template / card recipe lineage snapshot (JSON) */
   recipeSnapshot?: Prisma.InputJsonValue
+  /** 生成配方（p-auto-recipe），形状见 `@/types/generation-recipe`。 */
+  recipe?: Prisma.InputJsonValue
   /** B0: Seed for reproducibility */
   seed?: bigint
   /** B0: Run group ID for compare/variant */
@@ -679,6 +681,7 @@ async function createGenerationWithin(
       searchGrounded: input.searchGrounded ?? false,
       userId: input.userId,
       recipeSnapshot: input.recipeSnapshot,
+      recipe: input.recipe,
       seed: input.seed,
       runGroupId: input.runGroupId,
       runGroupType: input.runGroupType ?? 'single',

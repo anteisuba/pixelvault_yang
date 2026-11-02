@@ -6337,7 +6337,8 @@ export async function generateNovelAiImage(
     getWorkerImageOutputKey(context),
   )
 
-  return { ...uploaded, ...dimensions }
+  // 没填种子时这颗是这里随机挑的：带回去记进作品配方，才能原样复刻（p-auto-recipe）。
+  return { ...uploaded, ...dimensions, providerMetadata: { seed } }
 }
 
 const PIXAI_API_BASE_URL = 'https://api.pixai.art'

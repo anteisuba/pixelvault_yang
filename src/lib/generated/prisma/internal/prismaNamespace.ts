@@ -3897,6 +3897,7 @@ export const GenerationScalarFieldEnum = {
   userId: 'userId',
   projectId: 'projectId',
   recipeSnapshot: 'recipeSnapshot',
+  recipe: 'recipe',
   sourceSurface: 'sourceSurface',
   seq: 'seq',
   snapshot: 'snapshot',

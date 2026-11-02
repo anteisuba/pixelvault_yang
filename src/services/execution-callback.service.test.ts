@@ -509,6 +509,49 @@ describe('execution-callback.service', () => {
     )
   })
 
+  it('finalizes the video recipe drafted at submit with the provider seed', async () => {
+    mockFindUnique.mockResolvedValue({
+      ...buildJob('RUNNING'),
+      externalRequestId: JSON.stringify({
+        outputType: 'VIDEO',
+        recipe: {
+          version: 1,
+          kind: 'video',
+          modelId: 'kling-video',
+          prompt: 'cinematic prompt',
+          duration: 5,
+          seedSource: 'unknown',
+        },
+      }),
+    })
+    mockCreateGeneration.mockResolvedValue({
+      id: 'generation-video-2',
+      outputType: 'VIDEO',
+    })
+
+    await handleExecutionCallback({
+      ...buildPayload('result'),
+      data: {
+        artifactUrl: 'https://cdn.example.com/video.mp4',
+        videoR2Key: 'generations/user-1/video/v.mp4',
+        mimeType: 'video/mp4',
+        duration: 5,
+        requestCount: 1,
+        seed: 555,
+      },
+    })
+
+    expect(mockCreateGeneration.mock.calls[0][0].recipe).toEqual({
+      version: 1,
+      kind: 'video',
+      modelId: 'kling-video',
+      prompt: 'cinematic prompt',
+      duration: 5,
+      seed: 555,
+      seedSource: 'provider',
+    })
+  })
+
   it('finalizes worker-managed audio result callbacks as AUDIO generations', async () => {
     mockFindUnique.mockResolvedValue({
       ...buildJob('RUNNING'),
@@ -850,6 +893,18 @@ describe('execution-callback.service', () => {
       },
     })
     expect(saved.snapshot.aspectRatio).toBeUndefined()
+    // 生成配方：服务商回传的种子记成 provider，精修不带比例。
+    expect(saved.recipe).toMatchObject({
+      version: 1,
+      kind: 'image',
+      modelId: 'ideogram-4.5',
+      prompt: 'Make the mug blue',
+      imageOperation: 'precise-edit',
+      referenceImages: ['https://cdn.example.com/source.png'],
+      seed: 123,
+      seedSource: 'provider',
+    })
+    expect(saved.recipe.aspectRatio).toBeUndefined()
   })
 
   describe('IMAGE 缩略图 / 预览图（回调落库后立刻做）', () => {

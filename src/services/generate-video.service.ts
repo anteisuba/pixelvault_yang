@@ -25,6 +25,7 @@ import {
   uploadToR2,
 } from '@/services/storage/r2'
 import { failGenerationJob } from '@/services/usage.service'
+import { buildVideoRecipeDraft } from '@/services/generation-recipe.service'
 import {
   createWorkerGenerationJob,
   dispatchWorkerRunDurably,
@@ -274,6 +275,22 @@ async function submitFalVideoWorkerRun(params: {
      * 才写得进 snapshot。⚠ 缺席 = 没人给名字，摘要照旧从提示词里摘一段。
      */
     displayLabel: input.displayLabel,
+    /** 生成配方草稿（p-auto-recipe）：回调落库时补上服务商回传的种子，写进 Generation.recipe。 */
+    recipe: buildVideoRecipeDraft({
+      modelId: routeModelId,
+      prompt: input.prompt,
+      workflowId: input.workflowId,
+      negativePrompt: input.negativePrompt,
+      aspectRatio: input.aspectRatio,
+      duration: input.duration,
+      resolution: input.resolution,
+      seed: input.seed,
+      generateAudio: input.generateAudio,
+      referenceImages: uploadedRefUrls,
+      videoUrls: input.videoUrls,
+      audioUrls: input.audioUrls,
+      characterCardIds: input.characterCardIds,
+    }),
   }
 
   const generationJob = await timer.measure(GENERATION_STAGE.JOB_CREATE, () =>

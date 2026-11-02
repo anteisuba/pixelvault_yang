@@ -515,6 +515,9 @@ model Generation {
   project        Project?                  @relation(fields: [projectId], references: [id], onDelete: SetNull)
   characterCards GenerationCharacterCard[]
   recipeSnapshot Json?
+  /// 生成配方（p-auto-recipe）：出图那一刻服务端记下的整套做法，形状见 src/types/generation-recipe.ts。
+  /// 旧作品为空，读的时候从 snapshot 现补。
+  recipe         Json?
 
   // ── 来源血缘 ──────────────────────────────────────────────────
   // sourceSurface 是顶层可查询列（默认 IMAGE_STUDIO；存量不回填）。

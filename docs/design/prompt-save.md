@@ -37,7 +37,7 @@
 
 ## 分步
 
-1. 定配方 schema，出图时服务端写进作品（加一列）。
+1. 定配方 schema，出图时服务端写进作品（加一列）。**11-02 已做（只做图和视频，owner 定）**：形状 `src/types/generation-recipe.ts`，写入 `generation-recipe.service` + `execution-callback`，读 `GET /api/generations/[id]/recipe`（`source: stored / derived / none` + `gaps: recipe / seed / loraDetails`）。种子：用户填的记 `user`；NovelAI、Ideogram、fal 视频回传的记 `provider`；其余服务商自己随机、没回传的记 `unknown`（只能复刻参数）。
 2. 统一保存接口与保存键，先替换 LoRA 和素材查看器两处。
 3. 「复刻」接到四个台。
 4. 提示词页详情补齐。

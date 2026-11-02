@@ -21,6 +21,7 @@ import {
   triggerDirectAssetDownload,
 } from '@/lib/asset-links'
 import type { GenerationRecord } from '@/types'
+import { useErrorText } from '@/hooks/use-error-text'
 
 export type AssetPublishScope = 'private' | 'asset' | 'assetAndPrompt'
 
@@ -73,6 +74,7 @@ export function useAssetDetailActions({
   const tFeedback = useTranslations('Feedback')
   const tPrompts = useTranslations('PromptLibrary')
   const tErrors = useTranslations('Errors')
+  const errText = useErrorText()
   const locale = useLocale()
   const router = useRouter()
   const [isDeleting, setIsDeleting] = useState(false)
@@ -122,7 +124,7 @@ export function useAssetDetailActions({
           try {
             const response = await deleteGenerationAPI(generationId)
             if (response.success) return
-            toast.error(response.error ?? t('detailDeleteFailed'))
+            toast.error(errText.api(response, t('detailDeleteFailed')))
           } catch {
             toast.error(t('detailDeleteFailed'))
           }
@@ -139,7 +141,7 @@ export function useAssetDetailActions({
         toast.success(t('detailDeleted'))
         onDeleted?.(generationId)
       } else {
-        toast.error(response.error ?? t('detailDeleteFailed'))
+        toast.error(errText.api(response, t('detailDeleteFailed')))
       }
     } catch {
       toast.error(t('detailDeleteFailed'))
@@ -225,7 +227,7 @@ export function useAssetDetailActions({
         generationId: generation.id,
       })
       if (response.success) return true
-      toast.error(response.error ?? tPrompts('saveTemplateFailed'))
+      toast.error(errText.api(response, tPrompts('saveTemplateFailed')))
       return false
     } catch {
       toast.error(tPrompts('saveTemplateFailed'))
@@ -286,7 +288,7 @@ export function useAssetDetailActions({
         onUpdated?.(generation.id, { previewUrl: coverImageUrl })
         toast.success(t('detailCoverSet'))
       } else {
-        toast.error(response.error ?? t('detailCoverSetFailed'))
+        toast.error(errText.api(response, t('detailCoverSetFailed')))
       }
     } catch {
       toast.error(t('detailCoverSetFailed'))

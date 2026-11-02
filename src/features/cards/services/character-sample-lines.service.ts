@@ -135,6 +135,7 @@ async function completeForCard(
 
   const { route, modelId } = await resolveAssistantRoute(dbUser.id)
   return llmTextCompletion({
+    purpose: 'character-sample-lines',
     systemPrompt,
     userPrompt,
     adapterType: route.adapterType,

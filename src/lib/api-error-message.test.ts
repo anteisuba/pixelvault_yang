@@ -7,6 +7,7 @@ import { ja as jaMessages } from '@/messages'
 import {
   getApiErrorMessage,
   getGenerationErrorMessage,
+  getThrownErrorMessage,
 } from './api-error-message'
 
 type Translator = ((key: string) => string) & { has: (key: string) => boolean }
@@ -37,15 +38,36 @@ describe('getApiErrorMessage', () => {
     ).toBe('Provider timed out (i18n)')
   })
 
-  it('returns the raw error and does NOT classify by message', () => {
-    // A download "502" must stay verbatim, not become "Model unavailable".
+  it('leads with the localized fallback and keeps the raw error as detail, without classifying it', () => {
+    // A download "502" must not become "Model unavailable", and must not be
+    // shown as bare English either.
+    const t = makeTranslator({ 'common.withDetail': '{message} ({detail})' })
+    const withValues = ((key: string, values?: Record<string, string>) =>
+      Object.entries(values ?? {}).reduce(
+        (text, [k, v]) => text.replace(`{${k}}`, v),
+        t(key),
+      )) as typeof t
+    withValues.has = t.has
     expect(
       getApiErrorMessage(
-        translator,
+        withValues,
         { error: 'Upstream returned 502' },
         'fallback',
       ),
-    ).toBe('Upstream returned 502')
+    ).toBe('fallback (Upstream returned 502)')
+  })
+
+  it('does not repeat the fallback or surface program exceptions', () => {
+    expect(
+      getApiErrorMessage(translator, { error: 'fallback' }, 'fallback'),
+    ).toBe('fallback')
+    expect(
+      getApiErrorMessage(
+        translator,
+        { error: 'TypeError: x is undefined' },
+        'fallback',
+      ),
+    ).toBe('fallback')
   })
 
   it('falls back to fallbackMessage for an empty payload', () => {
@@ -320,5 +342,47 @@ describe('generation errors · 失败原因要具体（owner 09-24）', () => {
         expect(message).not.toContain('statusCode')
       }
     }
+  })
+})
+
+describe('o-errors: real messages', () => {
+  const zh = createTranslator({
+    locale: 'zh',
+    messages: zhMessages,
+    namespace: 'Errors',
+  }) as unknown as Translator
+
+  it('says a Runner 400 was rejected, not that the service is unreachable', () => {
+    const text = getGenerationErrorMessage(
+      zh,
+      {
+        error:
+          'Execution worker dispatch failed (400): unknown workflow "qwen-x"',
+      },
+      'fallback',
+    )
+    expect(text).toBe('生成服务没有接受这次请求：unknown workflow "qwen-x"')
+  })
+
+  it('still says unreachable when the worker could not be reached', () => {
+    expect(
+      getGenerationErrorMessage(
+        zh,
+        { error: 'Execution worker dispatch failed: fetch failed' },
+        'fallback',
+      ),
+    ).toBe(zh('generation.execution_worker_unavailable'))
+  })
+
+  it('turns a browser network failure into the localized network sentence', () => {
+    expect(
+      getThrownErrorMessage(zh, new TypeError('Failed to fetch'), '上传失败'),
+    ).toBe(zh('common.network'))
+    expect(
+      getApiErrorMessage(zh, { error: 'Failed to fetch' }, '上传失败'),
+    ).toBe(zh('common.network'))
+    expect(
+      getApiErrorMessage(zh, { error: 'Bucket is full' }, '上传失败'),
+    ).toBe('上传失败（Bucket is full）')
   })
 })

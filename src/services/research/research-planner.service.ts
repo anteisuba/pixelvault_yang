@@ -146,6 +146,7 @@ export async function planResearchWithLlm(params: {
   try {
     raw = await withTimeout(
       llmTextCompletion({
+        purpose: 'research-planner',
         systemPrompt: PLANNER_SYSTEM_PROMPT,
         userPrompt: buildPlannerUserPrompt(params.text, heuristic),
         ...(params.modelId ? { modelId: params.modelId } : {}),

@@ -48,6 +48,7 @@ import {
 } from '@/components/ui/responsive-dialog'
 import { StudioTagTextField } from '@/components/business/studio/tags/StudioTagTextField'
 import { isTagSuggestionsTarget } from '@/components/business/studio/tags/StudioTagSuggestions'
+import { useErrorText } from '@/hooks/use-error-text'
 
 export interface PromptTemplateCreateInitialValues {
   name?: string
@@ -133,6 +134,7 @@ export function PromptTemplateCreatePanel({
 }: PromptTemplateCreatePanelProps) {
   const t = useTranslations('PromptLibrary')
   const tModels = useTranslations('Models')
+  const errText = useErrorText()
   const router = useRouter()
   const reducedMotion = useReducedMotion()
   const normalizedInitialValues = useMemo(
@@ -260,7 +262,7 @@ export function PromptTemplateCreatePanel({
         router.refresh()
         return
       }
-      setFormError(response.error ?? t('saveTemplateFailed'))
+      setFormError(errText.api(response, t('saveTemplateFailed')))
     } catch {
       setFormError(t('saveTemplateFailed'))
     } finally {

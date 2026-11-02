@@ -61,6 +61,7 @@ import { GenerationPreview } from '@/components/business/studio/GenerationPrevie
 import { StudioResultFeedback } from '@/components/business/image/StudioResultFeedback'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 import { type StudioImageEditTarget } from '@/components/business/studio-shared/editor/StudioImageEditStage'
+import { useErrorText } from '@/hooks/use-error-text'
 
 /**
  * StudioCanvas — central hero area for the canvas-centric layout.
@@ -130,6 +131,7 @@ export const StudioCanvas = memo(function StudioCanvas({
   const tSlots = useTranslations('StudioVideoSlots')
   const tImageChip = useTranslations('ImageChip')
   const tDrop = useTranslations('DropZone')
+  const errText = useErrorText()
   const { modelOptions } = useImageModelOptions()
   // ⚠ **纯读**那颗（`useStudioGenerateAction` 带执行端副作用，结果区不能挂它）。
   const { runModels } = useStudioRunModels()
@@ -191,13 +193,13 @@ export const StudioCanvas = memo(function StudioCanvas({
             getApiErrorMessage(
               tErrors,
               result,
-              result.error ?? tErrors('assistant.modelKeyMissing'),
+              errText.api(result, tErrors('assistant.modelKeyMissing')),
             ),
           )
         }
       })
     },
-    [setEvaluationKeySetup, setLastEvaluation, tErrors],
+    [errText, setEvaluationKeySetup, setLastEvaluation, tErrors],
   )
 
   const handleFeedback = useCallback(

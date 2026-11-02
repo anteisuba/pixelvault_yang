@@ -119,6 +119,7 @@ import type {
   MultiViewGenerateRequest,
   MultiViewImageRecord,
 } from '@/types'
+import { useErrorText } from '@/hooks/use-error-text'
 
 interface Studio3DWorkspaceProps {
   initialGenerations: GenerationRecord[]
@@ -283,6 +284,7 @@ export function Studio3DWorkspace({
     revision: number
   }>({ view: 'reset', revision: 0 })
   const tForm = useTranslations('StudioForm')
+  const errText = useErrorText()
   const models = useMemo(() => getAvailableModel3DModels(), [])
   // P6: surface Hunyuan's credit cost on the Refine button so the user knows
   // what they're about to spend. Pulled from the registry instead of being
@@ -1009,7 +1011,7 @@ export function Studio3DWorkspace({
         note: t('manualViewUploadNote', { view: getViewLabel(view) }),
       })
       if (!response.success || !response.data) {
-        toast.error(response.error ?? t('errorFallback'))
+        toast.error(errText.api(response, t('errorFallback')))
         return
       }
 
@@ -1029,7 +1031,7 @@ export function Studio3DWorkspace({
       }))
       toast.success(t('manualViewUploadSuccess', { view: getViewLabel(view) }))
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('errorUnexpected'))
+      toast.error(errText.thrown(err, t('errorUnexpected')))
     } finally {
       setUploadingManualView(null)
     }
@@ -1079,7 +1081,7 @@ export function Studio3DWorkspace({
         note: t('manualViewUploadNote', { view: getRodinAngleLabel(angle) }),
       })
       if (!response.success || !response.data) {
-        toast.error(response.error ?? t('errorFallback'))
+        toast.error(errText.api(response, t('errorFallback')))
         return
       }
 
@@ -1093,7 +1095,7 @@ export function Studio3DWorkspace({
         return next.filter(Boolean)
       })
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('errorUnexpected'))
+      toast.error(errText.thrown(err, t('errorUnexpected')))
     } finally {
       setUploadingRodinAngle(null)
     }
@@ -1120,13 +1122,13 @@ export function Studio3DWorkspace({
       if (!uploadFile) return
       const response = await uploadImageFileAPI(uploadFile)
       if (!response.success || !response.data) {
-        toast.error(response.error ?? t('errorFallback'))
+        toast.error(errText.api(response, t('errorFallback')))
         return
       }
       handleSelectSourceImage(response.data.generation)
       toast.success(t('uploadSuccess'))
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('errorUnexpected'))
+      toast.error(errText.thrown(err, t('errorUnexpected')))
     } finally {
       setUploading(false)
     }

@@ -13,6 +13,7 @@ import type {
   FavoriteLoraRequest,
   SetLoraCharactersRequest,
 } from '@/types'
+import { useErrorText } from '@/hooks/use-error-text'
 
 export interface UseCharacterLorasReturn {
   groups: CharacterLoraGroup[]
@@ -38,6 +39,7 @@ export function useCharacterLoras(
   characterCardId?: string,
 ): UseCharacterLorasReturn {
   const t = useTranslations('LoraWorkbench.characterLoras')
+  const errText = useErrorText()
   const queryKey = QUERY_KEYS.characterLoras(characterCardId ?? null)
   const query = useQuery(
     {
@@ -45,7 +47,7 @@ export function useCharacterLoras(
       queryFn: async () => {
         const result = await listCharacterLorasAPI(characterCardId)
         if (!result.success || !result.data) {
-          throw new Error(result.error ?? t('loadFailed'))
+          throw new Error(errText.api(result, t('loadFailed')))
         }
         return result.data
       },
@@ -80,7 +82,7 @@ export function useCharacterLoras(
     ) => {
       const result = await setLoraCharactersAPI(lora, characters)
       if (!result.success || !result.data) {
-        toast.error(result.error ?? t('saveFailed'))
+        toast.error(errText.api(result, t('saveFailed')))
         return false
       }
       // 回来的是整份分组；只看某一位的那几份（带 id 的键）也跟着重拉。
@@ -91,7 +93,7 @@ export function useCharacterLoras(
       })
       return true
     },
-    [t],
+    [errText, t],
   )
 
   return {

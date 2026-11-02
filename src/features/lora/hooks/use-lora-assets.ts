@@ -18,6 +18,7 @@ import { QUERY_KEYS } from '@/constants/query'
 import { buildLibraryFavoriteRequest } from '@/features/lora/lib/lora-source-snapshot'
 import { queryClient } from '@/lib/query-client'
 import type { FavoriteLoraRequest, LoraAssetRecord } from '@/types'
+import { useErrorText } from '@/hooks/use-error-text'
 
 export interface UseLoraAssetsReturn {
   myAssets: LoraAssetRecord[]
@@ -90,6 +91,7 @@ function writeMine(
  */
 export function useLoraAssets(): UseLoraAssetsReturn {
   const t = useTranslations('LoraWorkbench')
+  const errText = useErrorText()
   const mine = useQuery(
     { queryKey: QUERY_KEYS.loraAssets, queryFn: fetchMyLoraAssets },
     queryClient,
@@ -121,7 +123,7 @@ export function useLoraAssets(): UseLoraAssetsReturn {
       const result = await setLoraAssetVisibilityAPI(assetId, isPublic)
       if (!result.success || !result.data) {
         writeMine(() => previous)
-        toast.error(result.error ?? t('visibilityUpdateFailed'), {
+        toast.error(errText.api(result, t('visibilityUpdateFailed')), {
           duration: LORA_TOAST_DURATION_MS,
         })
         return false
@@ -134,7 +136,7 @@ export function useLoraAssets(): UseLoraAssetsReturn {
       })
       return true
     },
-    [t],
+    [errText, t],
   )
 
   const trainedAssets = useMemo(
@@ -186,7 +188,7 @@ export function useLoraAssets(): UseLoraAssetsReturn {
       const result = await unfavoriteLoraAPI(assetId)
       if (!result.success) {
         writeMine(() => previous)
-        toast.error(result.error ?? t('favoriteFailed'), {
+        toast.error(errText.api(result, t('favoriteFailed')), {
           duration: LORA_TOAST_DURATION_MS,
         })
         return false
@@ -194,7 +196,7 @@ export function useLoraAssets(): UseLoraAssetsReturn {
       toast.success(t('favoriteRemoved'), { duration: LORA_TOAST_DURATION_MS })
       return true
     },
-    [t],
+    [errText, t],
   )
 
   // 永久删除自训 LoRA — 乐观从 myAssets 移除，失败回滚。
@@ -210,7 +212,7 @@ export function useLoraAssets(): UseLoraAssetsReturn {
       const result = await deleteLoraAssetAPI(assetId)
       if (!result.success) {
         writeMine(() => previous)
-        toast.error(result.error ?? t('assetDeleteFailed'), {
+        toast.error(errText.api(result, t('assetDeleteFailed')), {
           duration: LORA_TOAST_DURATION_MS,
         })
         return false
@@ -223,7 +225,7 @@ export function useLoraAssets(): UseLoraAssetsReturn {
       )
       return true
     },
-    [t],
+    [errText, t],
   )
 
   const isFavorited = useCallback(

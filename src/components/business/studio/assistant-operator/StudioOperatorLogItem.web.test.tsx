@@ -21,7 +21,8 @@ vi.mock('next-intl', () => ({
       values ? `${key} ${JSON.stringify(values)}` : key,
 }))
 
-vi.mock('motion/react', () => ({
+vi.mock('motion/react', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('motion/react')>()),
   motion: { button: 'button' },
   useReducedMotion: () => true,
 }))

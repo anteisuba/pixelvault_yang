@@ -237,6 +237,7 @@ export async function tidyImportedCard(input: {
       .join('\n\n')
     const { route, modelId } = await resolveAssistantRoute(input.userId)
     const raw = await llmTextCompletion({
+      purpose: 'character-tidy',
       systemPrompt: tidySystemPrompt(input.locale),
       userPrompt: material,
       promptGuardMaxLength: CHARACTER_TIDY.promptChars,

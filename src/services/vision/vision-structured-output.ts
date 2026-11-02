@@ -160,6 +160,7 @@ export async function completeVisionStructured<TSchema extends z.ZodType>(
       const hasVideo = Boolean(params.videoData?.length)
       const raw = await withVisionTimeout(
         llmTextCompletion({
+          purpose: 'vision-structured-output',
           systemPrompt: params.systemPrompt,
           userPrompt: params.userPrompt,
           imageData: params.imageData,

@@ -18,6 +18,7 @@ import {
   submit3DAPI,
 } from '@/lib/api-client'
 import { getGenerationErrorMessage } from '@/lib/api-error-message'
+import { useErrorText } from '@/hooks/use-error-text'
 
 type Model3DStage =
   | 'idle'
@@ -99,6 +100,7 @@ export function useGenerate3D(): UseGenerate3DReturn {
   const inFlightRef = useRef(false)
   const t = useTranslations('Model3DGenerate')
   const tErrors = useTranslations('Errors')
+  const errText = useErrorText()
 
   // Hunyuan3D and TripoSR routinely take 60–180s end-to-end. A 6s cadence
   // keeps the UI responsive without overlapping the typical 5–15s status
@@ -292,12 +294,11 @@ export function useGenerate3D(): UseGenerate3DReturn {
         setStage('generating')
         startPolling(newJobId)
       } catch (err) {
-        const message =
-          err instanceof Error ? err.message : t('errorUnexpected')
+        const message = errText.thrown(err, t('errorUnexpected'))
         finish(message)
       }
     },
-    [t, tErrors, startTimer, finish, startPolling],
+    [errText, t, tErrors, startTimer, finish, startPolling],
   )
 
   // PR3-α: dispatch Stage 2 against the active staged job. The server

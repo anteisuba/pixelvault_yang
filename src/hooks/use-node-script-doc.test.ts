@@ -80,7 +80,7 @@ describe('useNodeScriptDoc', () => {
     })
 
     expect(returned).toBeNull()
-    expect(result.current.error).toBe('route unavailable')
+    expect(result.current.error).toBe('t:common.unexpected')
     expect(result.current.isDrafting).toBe(false)
   })
 

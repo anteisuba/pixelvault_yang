@@ -61,6 +61,13 @@ export const GENERATION_ERROR_CODES = {
    */
   EXECUTION_WORKER_UNAVAILABLE: 'execution_worker_unavailable',
   /**
+   * 执行 worker **收到了**请求但拒收（HTTP 4xx：参数不合法、工作流不认识等）。
+   * 和 EXECUTION_WORKER_UNAVAILABLE 是两回事：那个是没连上、可以等会儿再试；
+   * 这个是连上了被拒，重试一模一样会再被拒，界面要把 worker 的原话说出来。
+   * 此前两者共用一条 `/execution worker/` 规则，Runner 400 被说成「连不上」。
+   */
+  EXECUTION_REQUEST_REJECTED: 'execution_request_rejected',
+  /**
    * Provider 侧**账号自己设的**用量闸被触到，模型服务已被暂停（火山方舟
    * `SetLimitExceeded`：「Your account [...] has reached the set inference
    * limit for the [...] model, and the model service has been paused」）。
@@ -196,6 +203,12 @@ const ERROR_PATTERNS: Array<{
   // （owner 2026-08-14 真机撞上；此前已在 memory 里记过一次「文案是假线索」）。
   // `requiresReferenceImage` below generalizes this same fix to the other
   // four reference-image patterns instead of relying solely on ordering.
+  // ⚠ 拒收（4xx）必须排在下面「连不上」之前：两条原文都以
+  // `Execution worker dispatch failed` 开头，只差状态码（execution-worker.service）。
+  {
+    pattern: /execution worker dispatch failed \(4\d\d\)/i,
+    code: GENERATION_ERROR_CODES.EXECUTION_REQUEST_REJECTED,
+  },
   {
     pattern: /execution worker|worker dispatch/i,
     code: GENERATION_ERROR_CODES.EXECUTION_WORKER_UNAVAILABLE,
@@ -423,6 +436,7 @@ const RETRY_FUTILE_ERROR_CODES: ReadonlySet<GenerationErrorCode> = new Set([
   GENERATION_ERROR_CODES.PROVIDER_MODEL_NOT_ACTIVATED,
   GENERATION_ERROR_CODES.LORA_DOWNLOAD_DISABLED,
   GENERATION_ERROR_CODES.RUNNER_MONTHLY_LIMIT_EXCEEDED,
+  GENERATION_ERROR_CODES.EXECUTION_REQUEST_REJECTED,
 ])
 
 export function isGenerationRetryFutile(

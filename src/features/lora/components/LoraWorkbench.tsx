@@ -272,6 +272,7 @@ import { getImageFileFromDataTransfer } from '@/lib/image-input'
 import { hasVerifiedLoraTrigger } from '@/features/lora/lib/lora-trigger-clean'
 import { compilePromptTags } from '@/lib/prompt-tag-compiler'
 import { cn } from '@/lib/utils'
+import { useErrorText } from '@/hooks/use-error-text'
 
 import '@/app/lora.css'
 
@@ -1988,6 +1989,7 @@ function GenerateBranch({
   // 标签就在提示里问一句要不要加进正文（默认不加，⛔ 自动写）。
   const characterLorasContext = useCharacterLorasContext()
   const tCharacterLoras = useTranslations('LoraWorkbench.characterLoras')
+  const errText = useErrorText()
   // 只有手机还有这一颗（弹窗）：桌面并进「挑 LoRA」框左栏的「角色」（ui-spec ㊲，owner 10-25）。
   const [characterPickOpen, setCharacterPickOpen] = useState(false)
   const openCharacterPick = useCallback(() => {
@@ -2475,9 +2477,9 @@ function GenerateBranch({
         delete next[item.id]
         return next
       })
-      toast.error(response.error ?? t('generate.templateSaveFailed'))
+      toast.error(errText.api(response, t('generate.templateSaveFailed')))
     },
-    [router, t, templateSaves],
+    [errText, router, t, templateSaves],
   )
 
   // 「模板」药丸（模板 C，与图片台同一块面板）：台面换上模板面板，左上「当前标签」把

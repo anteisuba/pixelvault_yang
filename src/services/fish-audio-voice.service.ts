@@ -180,9 +180,12 @@ export async function getVoice(
   apiKey: string,
   voiceId: string,
 ): Promise<FishAudioVoice> {
-  const response = await fetch(`${FISH_AUDIO_API}/model/${voiceId}`, {
-    headers: { Authorization: `Bearer ${apiKey}` },
-  })
+  const response = await fetch(
+    `${FISH_AUDIO_API}/model/${encodeURIComponent(voiceId)}`,
+    {
+      headers: { Authorization: `Bearer ${apiKey}` },
+    },
+  )
 
   if (!response.ok) {
     const detail = await response.text().catch(() => 'Unknown error')
@@ -257,10 +260,13 @@ export async function deleteVoice(
   apiKey: string,
   voiceId: string,
 ): Promise<void> {
-  const response = await fetch(`${FISH_AUDIO_API}/model/${voiceId}`, {
-    method: 'DELETE',
-    headers: { Authorization: `Bearer ${apiKey}` },
-  })
+  const response = await fetch(
+    `${FISH_AUDIO_API}/model/${encodeURIComponent(voiceId)}`,
+    {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${apiKey}` },
+    },
+  )
 
   if (!response.ok) {
     const detail = await response.text().catch(() => 'Unknown error')

@@ -44,6 +44,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getChipZoomMotion } from '@/components/business/studio-shared/primitives/tool-surface'
+import { useErrorText } from '@/hooks/use-error-text'
 
 /** 首次加载那一屏的占位卡数（≈ 两行）。 */
 const SKELETON_COUNT = 9
@@ -169,6 +170,7 @@ export function StudioTemplatesPanel({
 }: StudioTemplatesPanelProps) {
   const t = useTranslations('StudioTemplates')
   const tFeedback = useTranslations('Feedback')
+  const errText = useErrorText()
   const router = useRouter()
   const reducedMotion = useReducedMotion()
   const studioGen = useStudioGenOptional()
@@ -324,7 +326,7 @@ export function StudioTemplatesPanel({
         setSavedFor({ prompt: currentPrompt, name })
         return
       }
-      toast.error(result.error ?? t('saveFailed'))
+      toast.error(errText.api(result, t('saveFailed')))
     } finally {
       setSavingNow(false)
     }
@@ -357,7 +359,7 @@ export function StudioTemplatesPanel({
         leaveForm(applySelector(result.data.id))
         return
       }
-      toast.error(result.error ?? t('saveFailed'))
+      toast.error(errText.api(result, t('saveFailed')))
     } finally {
       setFormSaving(false)
     }

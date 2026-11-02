@@ -113,6 +113,7 @@ import {
   AUDIO_EMOTIONS,
   AUDIO_PAUSE_MARKERS,
   AUDIO_PACES,
+  FISH_AUDIO_VOICE_ID_PATTERN,
   VOICE_CARD_AGES,
   VOICE_CARD_DEFAULT_PACE,
   VOICE_CARD_DEFAULT_PROVIDER,
@@ -4835,10 +4836,7 @@ export type ListVoiceCardsQuery = z.infer<typeof ListVoiceCardsQuerySchema>
  * 过期的签名链接）。只收 `voiceId`，⛔ 不收 URL：取哪一段由服务端向 Fish 现问。
  */
 export const ImportVoiceSampleRequestSchema = z.object({
-  voiceId: z
-    .string()
-    .trim()
-    .regex(/^[A-Za-z0-9_-]{1,64}$/),
+  voiceId: z.string().trim().regex(FISH_AUDIO_VOICE_ID_PATTERN),
 })
 
 export type ImportVoiceSampleRequest = z.infer<

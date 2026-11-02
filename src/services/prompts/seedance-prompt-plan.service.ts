@@ -208,6 +208,7 @@ export async function createSeedancePromptPlan(
     async () => {
       const rawOutput = await withSeedancePromptPlanTimeout(
         llmTextCompletion({
+          purpose: 'seedance-prompt-plan',
           systemPrompt: SEEDANCE_PROMPT_PLAN_SYSTEM_PROMPT,
           userPrompt: buildUserPrompt(
             params.idea,

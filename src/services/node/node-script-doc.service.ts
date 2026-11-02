@@ -387,6 +387,7 @@ export async function createNodeScriptDoc(
     async () => {
       const rawOutput = await withScriptDocTimeout(
         llmTextCompletion({
+          purpose: 'node-script-doc',
           systemPrompt: SCRIPT_DOC_STAGE_SYSTEM_PROMPTS[stage],
           userPrompt: envelope.prompt,
           // The envelope is platform-assembled, not user-typed — measure it

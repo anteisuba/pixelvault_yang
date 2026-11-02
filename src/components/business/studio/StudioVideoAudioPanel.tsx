@@ -21,6 +21,7 @@ import { AudioPlayer } from '@/components/ui/audio-player'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import type { GenerationRecord } from '@/types'
+import { useErrorText } from '@/hooks/use-error-text'
 
 /**
  * 视频工作台的**音频参考**面板（台账 A，owner 2026-08-29 拍板）。
@@ -47,6 +48,7 @@ import type { GenerationRecord } from '@/types'
  */
 export function StudioVideoAudioPanel() {
   const t = useTranslations('StudioVideoAudio')
+  const errText = useErrorText()
   const { state, dispatch } = useStudioForm()
   const { characters } = useStudioData()
   const { selectedModel } = useVideoModelOptions(state.selectedOptionId ?? '')
@@ -111,7 +113,7 @@ export function StudioVideoAudioPanel() {
       setIsUploading(false)
 
       if (!result.success || !result.data) {
-        toast.error(result.error ?? t('errorUploadFailed'))
+        toast.error(errText.api(result, t('errorUploadFailed')))
         return
       }
       addRef({
@@ -120,7 +122,7 @@ export function StudioVideoAudioPanel() {
       })
       toast.success(t('uploadSuccess'))
     },
-    [addRef, t],
+    [errText, addRef, t],
   )
 
   const handlePickAsset = useCallback(

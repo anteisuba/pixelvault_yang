@@ -9,6 +9,7 @@ import {
   readCardCache,
   writeCardCache,
 } from '@/features/cards/lib/card-cache'
+import { useErrorText } from '@/hooks/use-error-text'
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -83,6 +84,7 @@ export function useCardManager<
   const [activeCardId, setActiveCardId] = useState<string | null>(null)
   const [activeCardIds, setActiveCardIds] = useState<string[]>([])
   const t = useTranslations('Toasts')
+  const errText = useErrorText()
 
   const refresh = useCallback(
     async (opts?: { silent?: boolean }) => {
@@ -135,10 +137,10 @@ export function useCardManager<
         toast.success(t('createSuccess'))
         return result.data
       }
-      toast.error(result.error ?? t('createFailed'))
+      toast.error(errText.api(result, t('createFailed')))
       return null
     },
-    [config.api, t, cacheKey],
+    [errText, config.api, t, cacheKey],
   )
 
   const update = useCallback(
@@ -153,10 +155,10 @@ export function useCardManager<
         toast.success(t('updateSuccess'))
         return true
       }
-      toast.error(result.error ?? t('updateFailed'))
+      toast.error(errText.api(result, t('updateFailed')))
       return false
     },
-    [config.api, t, cacheKey],
+    [errText, config.api, t, cacheKey],
   )
 
   const remove = useCallback(
@@ -174,10 +176,10 @@ export function useCardManager<
         toast.success(t('deleteSuccess'))
         return true
       }
-      toast.error(result.error ?? t('deleteFailed'))
+      toast.error(errText.api(result, t('deleteFailed')))
       return false
     },
-    [activeCardId, t, config.api, cacheKey],
+    [errText, activeCardId, t, config.api, cacheKey],
   )
 
   const activeCard = useMemo(

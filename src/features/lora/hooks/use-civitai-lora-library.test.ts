@@ -177,7 +177,7 @@ describe('useCivitaiLoraLibrary', () => {
       resolveSearch({ success: false, error: 'Search unavailable' }),
     )
     expect(result.current.items).toEqual([])
-    expect(result.current.error).toBe('Search unavailable')
+    expect(result.current.error).toBe('communityLoadFailed')
     expect(result.current.isLoading).toBe(false)
   })
 
@@ -302,7 +302,9 @@ describe('useCivitaiLoraLibrary', () => {
       result.current.submitSearch()
     })
 
-    await waitFor(() => expect(result.current.error).toBe('upstream blip'))
+    await waitFor(() =>
+      expect(result.current.error).toBe('communityLoadFailed'),
+    )
     expect(result.current.items).toEqual([])
     expect(result.current.isRevalidating).toBe(false)
   })

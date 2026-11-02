@@ -4,7 +4,7 @@ import { useRef } from 'react'
 import { useMotionValueEvent } from 'motion/react'
 import { useReactFlow } from '@xyflow/react'
 
-import { useStudioOperatorYield } from '@/hooks/use-studio-operator-yield'
+import { useStudioOperatorYield } from '@/features/assistant/hooks'
 
 /**
  * 助手打开把画布推窄时，**视口中心不动**（node-canvas-v2 §1 第 4 条 · 方向 B「助手推开

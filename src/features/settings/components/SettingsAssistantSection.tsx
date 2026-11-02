@@ -6,7 +6,7 @@ import {
   ASSISTANT_SETTINGS_SECTIONS,
   AssistantSettings,
   type AssistantSettingsSection,
-} from '@/components/business/assistant-settings/AssistantSettings'
+} from '@/features/assistant'
 
 /**
  * `/settings/assistant` —— 与工作台 ⋯「助手设置」弹窗**同一份内容**

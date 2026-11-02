@@ -20,7 +20,7 @@ import { z } from 'zod'
 
 import { GENERATION_REVIEW_STATE_IDS } from '@/constants/assistant-operator'
 import { db } from '@/lib/db'
-import { listNextAssistantMemoriesForPrompt } from '@/services/assistant-memory.service'
+import { listNextAssistantMemoriesForPrompt } from '@/features/assistant/server'
 import { completeAssistantTextWithContextRetry } from '@/services/kernel/assistant-completion.service'
 import { resolveAssistantRoute } from '@/services/kernel/assistant-route.service'
 

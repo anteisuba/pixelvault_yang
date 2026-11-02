@@ -32,7 +32,7 @@ import {
 } from '@/components/ui/responsive-dialog'
 import { Spinner } from '@/components/ui/spinner'
 import { Mic } from '@/components/icons'
-import { VoiceTrainer } from '@/features/studio'
+import { VoiceTrainer } from '@/components/business/voices/VoiceTrainer'
 
 import {
   VoiceLibraryFilters,

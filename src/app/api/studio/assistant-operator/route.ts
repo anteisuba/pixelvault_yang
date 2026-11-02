@@ -4,7 +4,7 @@ import { randomBytes } from 'node:crypto'
 
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import { AssistantOperatorRequestSchema } from '@/types/assistant-operator'
-import { runAssistantNext } from '@/features/assistant/kernel'
+import { runAssistantNext } from '@/features/assistant/server'
 import { toAssistantOperatorSseResponse } from '@/lib/assistant-operator-stream'
 import { isGenerationError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
@@ -19,7 +19,7 @@ export const maxDuration = 300
  * 不走 `api-route-factory` —— 工厂产的是 JSON 信封，而这里的载荷是流本身。
  *
  * ⛔ 这条路由**不创建任何 generation**，也没有任何一条工具能。钱闸是结构性的
- * （见 `services/kernel/assistant-operator.service.ts` 头注与 money-gate 测试）。
+ * （见 `features/assistant/services/assistant-operator.service.ts` 头注与 money-gate 测试）。
  */
 export async function POST(request: NextRequest): Promise<Response> {
   const startedAt = Date.now()

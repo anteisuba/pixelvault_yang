@@ -8,7 +8,7 @@ import {
 import {
   deleteAssistantMemoryForClerkId,
   updateAssistantMemoryForClerkId,
-} from '@/services/assistant-memory.service'
+} from '@/features/assistant/server'
 import { UpdateAssistantMemorySchema } from '@/types/assistant-memory'
 
 /**

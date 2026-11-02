@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import { createApiRoute } from '@/lib/api-route-factory'
 import { ApiRequestError } from '@/lib/errors'
-import { createAssistantConversationShare } from '@/services/assistant-conversation.service'
+import { createAssistantConversationShare } from '@/features/assistant/server'
 
 const ShareRequestSchema = z.object({
   conversationId: z.string().uuid(),

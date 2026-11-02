@@ -167,7 +167,7 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
 
 ### 每轮的过程记录（owner 2026-10-15「建表」）
 
-- **记什么**：每一跳收尾（`runAssistantV3` 的 `finally`）交一份草稿给 `recordAssistantTurn`（`services/assistant-turn-record.service.ts`），写进 `AssistantTurnRecord`：开轮时的快照、本轮记录、请求里回放要用的那几样、这一轮那一家 / 型号 / key 的 id、系统提示的 sha256 与 `ASSISTANT_V3_PROMPT_VERSION`（改了系统提示的固定段落就把它往前拨）。⛔ 不等、不抛：写不进只记一行警告。表、上限、保留见 `database.md`「助手每轮的过程记录」。
+- **记什么**：每一跳收尾（`runAssistantV3` 的 `finally`）交一份草稿给 `recordAssistantTurn`（`features/assistant/services/assistant-turn-record.service.ts`），写进 `AssistantTurnRecord`：开轮时的快照、本轮记录、请求里回放要用的那几样、这一轮那一家 / 型号 / key 的 id、系统提示的 sha256 与 `ASSISTANT_V3_PROMPT_VERSION`（改了系统提示的固定段落就把它往前拨）。⛔ 不等、不抛：写不进只记一行警告。表、上限、保留见 `database.md`「助手每轮的过程记录」。
 - **一轮一行**：板子那一条带 `turn: { id, hop }`（`AssistantV3TranscriptBoardEntrySchema`）。开轮服务端发号，接力时前端原样带回、服务端加一跳；号 ⛔ 不进模型看的东西（板子给模型的只有 `text` / `images` / `clips`，回放「接力前缀逐字不变」照样过）。老客户端带回来的记录没有号：另起一个号、跳数记 2，这一行就不会把已落了改动的快照当开轮的存。
 - **怎么收的**（`outcome`）：`done` 那一帧分不出来的几种由 `runV3Turn` 当场写下 —— `quiet`（改动已落、收尾空回复，回放末尾补一条空回复）、`empty`（连着两次空回复，补两条）、`content_filter`、`same_failure`；停下的按原因记 `awaiting_confirm` / `max_steps` / `relay`（画布接力、时间预算）/ `aborted`；抛错记 `error` 与错误码。
 - **不记**：隐身那一轮（与结账不写记忆同一颗开关）；交回旧内核的、开跑前就失败的（缺 key、没有画布 —— 没造出模型、没冻板子）。
@@ -323,16 +323,16 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
 
 ## Source of Truth
 
-- `src/services/kernel/assistant-v3.service.ts`（回合循环）· `assistant-v3-model.service.ts`（按用户的 key 造模型）· `assistant-v3-prompt.service.ts`（系统提示）
-- `src/services/kernel/assistant-v3-look.service.ts`（看图）· `assistant-v3-cards.service.ts`（角色页，含联网找图交给主模型看）· `src/services/kernel/assistant-route.service.ts` 的 `resolveAssistantRoute`（助手那一家：选定的或「自动」挑的，缺 key 就抛；小功能共用）
+- `src/features/assistant/services/assistant-v3.service.ts`（回合循环）· `assistant-v3-model.service.ts`（按用户的 key 造模型）· `assistant-v3-prompt.service.ts`（系统提示）
+- `src/features/assistant/services/assistant-v3-look.service.ts`（看图）· `assistant-v3-cards.service.ts`（角色页，含联网找图交给主模型看）· `src/services/kernel/assistant-route.service.ts` 的 `resolveAssistantRoute`（助手那一家：选定的或「自动」挑的，缺 key 就抛；小功能共用）
 - `src/lib/assistant-v3-board.ts`（句柄与板子）· `src/lib/assistant-v3-ops.ts`（edit / write → v4 op）
 - `src/types/assistant-v3.ts`（工具入参与本轮记录）· `src/constants/assistant-v3.ts`
-- 找到的东西的编号与查证短版：`src/lib/assistant-web-finds.ts`（一行一条、`#n` 的认法、短版）· `src/types/assistant-web-finds.ts`（本轮记录里的那一条）· `src/services/kernel/assistant-v3-finds.service.ts`（续号、`#n` / `[n]` 换回）· `src/constants/assistant-operator.ts` 的 `ASSISTANT_WEB_FIND_LIMITS` 与 `ASSISTANT_RESEARCH_LIMITS.maxCompactGistChars`
+- 找到的东西的编号与查证短版：`src/lib/assistant-web-finds.ts`（一行一条、`#n` 的认法、短版）· `src/types/assistant-web-finds.ts`（本轮记录里的那一条）· `src/features/assistant/services/assistant-v3-finds.service.ts`（续号、`#n` / `[n]` 换回）· `src/constants/assistant-operator.ts` 的 `ASSISTANT_WEB_FIND_LIMITS` 与 `ASSISTANT_RESEARCH_LIMITS.maxCompactGistChars`
 - 读页被挡与退路：`src/lib/read-url-blocks.ts`（判据、按站记一阵、HTML 转文字）· `src/constants/web-search.ts` 的 `URL_READER` / `URL_READER_BLOCK_SIGNALS` · `src/services/web-research.service.ts` 的 `readUrlDetailed` · `src/constants/research.ts` 的 `MEDIAWIKI_READ_HOSTS` + `mediawiki.connector` 的 `resolveMediaWikiReadTarget` / `readMediaWikiPage`
-- 路由与接力：`src/app/api/studio/assistant-operator/route.ts` · `src/hooks/use-assistant-operator.ts`
+- 路由与接力：`src/app/api/studio/assistant-operator/route.ts` · `src/features/assistant/hooks/use-assistant-operator.ts`
 - 上下文预算（P2 第二片）：`assistant-v3-guides.service.ts`（板上型号的整份写法、`read "guide:"`）· `src/lib/assistant-v3-transcript-view.ts`（本轮记录瘦身与 `maxTranscriptChars`）· `assistant-v3-board.ts` 的 `viewLaneNumbers` / `renderOffscreenLane` 与 `assistant-v3.service.ts` 的 `readLanes`（板子分级）· `assistant-v3-model.service.ts` 的 `maxOutputTokens` · `src/constants/assistant-v3.ts` 的 `ASSISTANT_V3_TRANSCRIPT_SLIM` / `ASSISTANT_V3_MAX_OUTPUT_TOKENS` / `ASSISTANT_V3_BOARD_TIERS`
 - 上下文预算（P2）：`assistant-v3-prompt.service.ts`（分界线、记忆排序）· `assistant-v3-model.service.ts`（Claude 断点、`effortPerStep`、`assistantV3StepEffort`）· `assistant-v3.service.ts` 的 `isLandingStep` · `assistant-operator.service.ts` 的 `closeRoundV3` / `closeRoundV3BeforeStop` / `scheduleRoundMemories` / `prepareOperatorTurn({ skipPriorRounds })` · 量法 `src/test/assistant-replay/context-budget.ts` + `fixtures/context-budget.json`
-- 每轮的过程记录：`src/services/assistant-turn-record.service.ts`（写与删）· `src/lib/assistant-turn-record.ts`（摘 data: 地址、挑请求字段、按上限截）· `src/constants/assistant-turn-record.ts` · `src/types/assistant-turn-record.ts`；一行转回回放题：`src/test/assistant-replay/from-turn-record.ts`
+- 每轮的过程记录：`src/features/assistant/services/assistant-turn-record.service.ts`（写与删）· `src/lib/assistant-turn-record.ts`（摘 data: 地址、挑请求字段、按上限截）· `src/constants/assistant-turn-record.ts` · `src/types/assistant-turn-record.ts`；一行转回回放题：`src/test/assistant-replay/from-turn-record.ts`
 
 ### 项目笔记（S4，2026-10-09）
 

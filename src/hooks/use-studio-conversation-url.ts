@@ -6,7 +6,7 @@ import { useSearchParams } from 'next/navigation'
 import { STUDIO_CONVERSATION_QUERY } from '@/constants/routes'
 import { usePathname, useRouter } from '@/i18n/navigation'
 import type { UseStudioOperatorHistoryResult } from '@/hooks/use-studio-operator-history'
-import type { StudioOperatorActions } from '@/hooks/use-studio-operator-actions'
+import type { StudioOperatorActions } from '@/features/assistant/hooks'
 import { useStudioOperatorState } from '@/hooks/use-studio-operator-store'
 import {
   conversationIdFromPath,

@@ -39,7 +39,7 @@ import {
   SHELL_CANVAS_BOTTOM_ENTRIES,
   SHELL_CANVAS_DESK_BOTTOM_ENTRIES,
 } from '@/constants/navigation'
-import { useStudioOperatorYield } from '@/hooks/use-studio-operator-yield'
+import { useStudioOperatorYield } from '@/features/assistant/hooks'
 import { useToastLift } from '@/hooks/use-toast-lift'
 import {
   NODE_STUDIO_CANVAS,

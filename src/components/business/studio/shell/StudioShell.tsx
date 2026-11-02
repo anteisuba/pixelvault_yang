@@ -39,7 +39,7 @@ import {
   type StudioOperatorDockPlacement,
   type StudioOperatorHost,
 } from '@/contexts/studio-operator-host'
-import { StudioOperatorDock } from '@/components/business/studio/assistant-operator'
+import { StudioOperatorDock } from '@/features/assistant'
 import { HomeDraftBench } from '@/components/business/studio/shell/HomeDraftBench'
 import { StudioConversationList } from '@/components/business/studio/shell/StudioConversationList'
 import {
@@ -68,11 +68,11 @@ import {
   StudioShellHistoryKey,
   StudioShellPersonaKey,
 } from '@/components/business/studio/shell/StudioShellHistoryKeys'
-import { useHomeOperatorHost } from '@/hooks/use-home-operator-host'
+import { useHomeOperatorHost } from '@/features/assistant/hooks'
 import { useIsDesktopShell } from '@/hooks/use-mobile'
 import { useStudioConversationBenchSync } from '@/hooks/use-studio-conversation-bench'
 import { useStudioConversationUrl } from '@/hooks/use-studio-conversation-url'
-import { useStudioOperatorActions } from '@/hooks/use-studio-operator-actions'
+import { useStudioOperatorActions } from '@/features/assistant/hooks'
 import {
   useStudioOperatorHistoryView,
   type StudioOperatorHistoryRestore,

@@ -58,7 +58,7 @@ import type {
   StudioOperatorCanvasUpscaleOutcome,
 } from '@/lib/studio-operator-apply'
 import { useCharacterLibrary } from '@/features/cards/hooks'
-import { useStudioOperatorFace } from '@/hooks/use-studio-operator-face'
+import { useStudioOperatorFace } from '@/features/assistant/hooks'
 import { buildCanvasCharacters } from '@/lib/cards-operator-snapshot'
 import { revertAssistantAssetWriteAPI } from '@/lib/api-client/assistant-operator'
 import { deleteAssistantMemoryAPI } from '@/lib/api-client/assistant-memories'

@@ -21,7 +21,7 @@ vi.mock('@/lib/logger', () => ({
   },
 }))
 
-vi.mock('@/services/assistant-turn-record.service', () => ({
+vi.mock('@/features/assistant/services/assistant-turn-record.service', () => ({
   pruneExpiredAssistantTurnRecords: (...args: unknown[]) =>
     mockPruneTurnRecords(...args),
 }))

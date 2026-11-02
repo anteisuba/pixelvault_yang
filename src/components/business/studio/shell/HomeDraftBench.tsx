@@ -4,7 +4,7 @@ import { memo, useLayoutEffect } from 'react'
 
 import { StudioProvider } from '@/contexts/studio-context'
 import type { StudioOperatorHost } from '@/contexts/studio-operator-host'
-import { useHomeDraftOperatorHost } from '@/hooks/use-home-draft-operator-host'
+import { useHomeDraftOperatorHost } from '@/features/assistant/hooks'
 import { useStudioGenerateAction } from '@/hooks/use-studio-generate-action'
 
 /**

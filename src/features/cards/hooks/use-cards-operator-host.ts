@@ -8,7 +8,7 @@ import { STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR } from '@/constants/studio-assi
 import type { StudioOperatorHost } from '@/contexts/studio-operator-host'
 import type { CharacterCardRecord } from '@/types'
 import type { StudioOperatorResultItem } from '@/types/studio-assistant-operator'
-import { useStudioOperatorFace } from '@/hooks/use-studio-operator-face'
+import { useStudioOperatorFace } from '@/features/assistant/hooks'
 import { useRouter } from '@/i18n/navigation'
 import { revertAssistantAssetWriteAPI } from '@/lib/api-client/assistant-operator'
 import { buildCardsOperatorSnapshot } from '@/lib/cards-operator-snapshot'

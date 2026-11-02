@@ -18,7 +18,7 @@ vi.mock('@/hooks/use-studio-generate-action', () => ({
   useStudioGenerateAction: () => undefined,
 }))
 const hostRenders = vi.fn()
-vi.mock('@/hooks/use-home-draft-operator-host', () => ({
+vi.mock('@/features/assistant/hooks/use-home-draft-operator-host', () => ({
   useHomeDraftOperatorHost: () => {
     hostRenders()
     // 每次都是新对象：最坏情况。

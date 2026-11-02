@@ -44,8 +44,13 @@ vi.mock('@/lib/api-client', () => ({
 // §3.0b 第 4 条的注入口。用桩件断言「动作栏带的是被聚焦那格的 URL」——
 // 真实实现要 StudioProvider，而这里要验的是接线不是 reducer。
 const askAssistantMock = vi.fn()
-vi.mock('@/hooks/use-ask-assistant-about-image', () => ({
+vi.mock('@/features/assistant/hooks/use-ask-assistant-about-image', () => ({
   useAskAssistantAboutImage: () => askAssistantMock,
+}))
+
+// 大图弹窗按需加载（next/dynamic），这里只验网格接线；桩掉免得加载时机决定它渲不渲。
+vi.mock('@/components/business/ImageDetailModal', () => ({
+  ImageDetailModal: () => null,
 }))
 
 import { CompareGrid } from './CompareGrid'

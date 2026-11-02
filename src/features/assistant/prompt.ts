@@ -22,13 +22,13 @@ import type { PromptAssistantResponseLanguage } from '@/types'
 import {
   sanitizePromptCharacter,
   sanitizePromptRoleplay,
-} from '@/services/assistant-persona.service'
+} from '@/features/assistant/services/assistant-persona.service'
 import {
   buildCreatorSection,
   buildPersonaStyleSection,
   RESPONSE_LANGUAGE_LABELS,
-} from '@/services/kernel/assistant-operator.service'
-import { buildAssistantV3CanvasGuideSection } from '@/services/kernel/assistant-v3-guides.service'
+} from '@/features/assistant/services/assistant-operator.service'
+import { buildAssistantV3CanvasGuideSection } from '@/features/assistant/services/assistant-v3-guides.service'
 import { renderAssistantV3HistorySummary } from '@/lib/assistant-v3-history'
 import { todayFor, untilFromExpiresAt } from '@/lib/memory-until'
 import type { AssistantV3HistorySummary } from '@/types/assistant-v3'

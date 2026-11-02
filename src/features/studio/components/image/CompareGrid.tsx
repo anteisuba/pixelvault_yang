@@ -38,7 +38,7 @@ import {
   type StudioGenerationFailure,
 } from '@/components/business/studio-shared'
 import { Button } from '@/components/ui/button'
-import { useAskAssistantAboutImage } from '@/hooks/use-ask-assistant-about-image'
+import { useAskAssistantAboutImage } from '@/features/assistant/hooks'
 import { downloadRemoteAsset } from '@/lib/api-client'
 import {
   getApiErrorMessage,

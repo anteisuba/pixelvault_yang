@@ -26,8 +26,8 @@ import {
   mentionHandleOf,
   thisTurnCanvasSteps,
   translateMutation,
-} from '@/services/kernel/assistant-v3.service'
-import type { V3Context } from '@/services/kernel/assistant-v3-steps.service'
+} from '@/features/assistant/services/assistant-v3.service'
+import type { V3Context } from '@/features/assistant/services/assistant-v3-steps.service'
 import {
   ASSISTANT_NEXT_EDIT_OP_IDS as OP,
   type AssistantNextEditOp,

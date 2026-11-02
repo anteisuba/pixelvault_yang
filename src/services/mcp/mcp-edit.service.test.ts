@@ -17,21 +17,24 @@ vi.mock('@/features/assets/server', () => ({
 }))
 
 const mockProfile = vi.fn()
-vi.mock('@/services/assistant-library-write.service', () => ({
-  createCharacter: vi.fn(),
-  createLook: vi.fn(),
-  favoriteLora: vi.fn(),
-  findOwnFolder: vi.fn(),
-  linkLoraToCharacter: vi.fn(),
-  savePrompt: vi.fn(),
-  setLoraCover: vi.fn(),
-  updatePrompt: vi.fn(),
-  writeCharacterProfile: (...args: unknown[]) => mockProfile(...args),
-  writeLook: vi.fn(),
-}))
+vi.mock(
+  '@/features/assistant/services/assistant-library-write.service',
+  () => ({
+    createCharacter: vi.fn(),
+    createLook: vi.fn(),
+    favoriteLora: vi.fn(),
+    findOwnFolder: vi.fn(),
+    linkLoraToCharacter: vi.fn(),
+    savePrompt: vi.fn(),
+    setLoraCover: vi.fn(),
+    updatePrompt: vi.fn(),
+    writeCharacterProfile: (...args: unknown[]) => mockProfile(...args),
+    writeLook: vi.fn(),
+  }),
+)
 
 import { editForMcp, undoForMcp } from '@/services/mcp/mcp-edit.service'
-import { ASSISTANT_NEXT_EDIT_OPS } from '@/features/assistant/constants'
+import { ASSISTANT_NEXT_EDIT_OPS } from '@/features/assistant/server'
 import { MCP_EDIT_OPS } from '@/constants/mcp'
 
 const OWNER = {

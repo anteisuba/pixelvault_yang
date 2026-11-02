@@ -7,7 +7,7 @@ import {
   AssistantMemoryLimitError,
   createCreatorMemoryForClerkId,
   listAssistantMemoriesForClerkId,
-} from '@/services/assistant-memory.service'
+} from '@/features/assistant/server'
 import {
   CreateAssistantMemorySchema,
   ListAssistantMemoriesQuerySchema,

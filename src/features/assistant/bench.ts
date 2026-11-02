@@ -52,34 +52,34 @@ import type { AssistantWebFind } from '@/types/assistant-web-finds'
 import {
   normalizePlanQuestions,
   type PreparedOperatorTurn,
-} from '@/services/kernel/assistant-operator.service'
+} from '@/features/assistant/services/assistant-operator.service'
 import {
   refused,
   runOldTool,
   runWebFind,
-} from '@/services/kernel/assistant-v3-bench.service'
+} from '@/features/assistant/services/assistant-v3-bench.service'
 import {
   executeAssistantV3CardsCall,
   executeAssistantV3CardsMutation,
-} from '@/services/kernel/assistant-v3-cards.service'
+} from '@/features/assistant/services/assistant-v3-cards.service'
 import {
   executeAssistantV3ImageCall,
   executeAssistantV3ImageMutation,
-} from '@/services/kernel/assistant-v3-image.service'
+} from '@/features/assistant/services/assistant-v3-image.service'
 import {
   executeAssistantV3LoraCall,
   executeAssistantV3LoraMutation,
-} from '@/services/kernel/assistant-v3-lora.service'
-import { createPictureCache } from '@/services/kernel/assistant-v3-look.service'
+} from '@/features/assistant/services/assistant-v3-lora.service'
+import { createPictureCache } from '@/features/assistant/services/assistant-v3-look.service'
 import {
   planSafely,
   TITLE_TEXT,
   type V3Context,
   type V3Outcome,
-} from '@/services/kernel/assistant-v3-steps.service'
-import { createClipCache } from '@/services/kernel/assistant-v3-watch.service'
-import { executeCall as executeAssistantV3CanvasCall } from '@/services/kernel/assistant-v3.service'
-import { searchMemoriesStep } from '@/services/kernel/assistant-v3-memories.service'
+} from '@/features/assistant/services/assistant-v3-steps.service'
+import { createClipCache } from '@/features/assistant/services/assistant-v3-watch.service'
+import { executeCall as executeAssistantV3CanvasCall } from '@/features/assistant/services/assistant-v3.service'
+import { searchMemoriesStep } from '@/features/assistant/services/assistant-v3-memories.service'
 import {
   ASSISTANT_NEXT_EDIT_OP_IDS as OP,
   ASSISTANT_NEXT_FIND_KIND_IDS,

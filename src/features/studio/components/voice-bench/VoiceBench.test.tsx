@@ -40,7 +40,7 @@ vi.mock('@/hooks/use-persona-voice', () => ({
 vi.mock('@/hooks/use-assistant-persona', () => ({
   useAssistantPersona: () => ({ persona: { avatarUrl: null } }),
 }))
-vi.mock('@/hooks/use-operator-voice', () => ({
+vi.mock('@/features/assistant/hooks/use-operator-voice', () => ({
   useOperatorVoice: () => ({
     modelId: 'fish-audio-s2-pro-free',
     setModel: vi.fn(),
@@ -50,7 +50,7 @@ vi.mock('@/hooks/use-operator-voice', () => ({
   stopOperatorVoice: vi.fn(),
 }))
 vi.mock(
-  '@/components/business/studio/assistant-operator/StudioOperatorAvatarSwitcher',
+  '@/features/assistant/components/operator/StudioOperatorAvatarSwitcher',
   () => ({
     AvatarDisc: ({ name }: { name: string }) => <span>{name}</span>,
     StudioOperatorAvatarSwitcher: ({ children }: { children: unknown }) =>

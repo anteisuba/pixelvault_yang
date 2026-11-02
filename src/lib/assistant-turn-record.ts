@@ -1,6 +1,6 @@
 /**
  * 每轮的过程记录（`AssistantTurnRecord`）落库前的那几步纯函数：摘 data: 地址与帧、挑出回放要用的
- * 请求字段、按 256 KB 的上限一样一样截。写库在 `services/assistant-turn-record.service.ts`。
+ * 请求字段、按 256 KB 的上限一样一样截。写库在 `features/assistant/services/assistant-turn-record.service.ts`。
  *
  * ⚠ 字节按 `JSON.stringify` 的 UTF-8 算（三段 JSON 加起来），与 Postgres jsonb 落盘的字节不是一回事
  *   —— 上限管的是「我们交给库的东西」，⛔ 别拿 `pg_column_size` 来对账。

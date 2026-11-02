@@ -312,6 +312,55 @@ export function measureTranscript(
   return metrics
 }
 
+// ---------------------------------------------------------------- 机器核对
+
+/**
+ * 不花钱的编造核对（r-eval-fabrication 11-02）：助手回话里点到的编号、权重 / 参数数值、标签，
+ * 逐个到它看得到的材料里找（开轮台面、整段对话、工具结果、它自己写进去的改动）。找不到的列为
+ * 「可疑」。⭐ 比评委稳（同一份输入永远同一个答案），评委只拿来复核可疑的那几条。
+ * ⛔ 提议的新值不算（「降到 0.7」「CFG 调到 4.5」）：只核「说台面上现在是什么」的那种。
+ */
+export function groundingCheck(input: {
+  history: readonly { content: unknown }[]
+  transcript: AssistantV3Transcript
+  finalText: string
+}): { claims: number; unsupported: string[] } {
+  const material = [
+    ...input.history.map((message) => String(message.content)),
+    ...input.transcript.flatMap((entry) => {
+      if (entry.type === ENTRY.board) return [entry.text]
+      if (entry.type === ENTRY.result) return [String(entry.output)]
+      if (entry.type === ENTRY.assistant)
+        return (entry.calls ?? []).map((call) => JSON.stringify(call.input))
+      return []
+    }),
+  ]
+    .join('\n')
+    .toLowerCase()
+  const said = [
+    ...input.transcript.flatMap((entry) =>
+      entry.type === ENTRY.assistant && entry.text ? [entry.text] : [],
+    ),
+    input.finalText,
+  ].join('\n')
+  const claims = new Set<string>()
+  const proposal = /(到|成|为|→|->|改|换|试|加|设)\s*$/
+  for (const match of said.matchAll(GROUNDING_PATTERN)) {
+    const before = said.slice(Math.max(0, match.index - 4), match.index)
+    if (proposal.test(before)) continue
+    claims.add(match[0])
+  }
+  const unsupported = [...claims].filter((claim) => {
+    const value = claim.toLowerCase().replace(/^(cfg|weight)\s*/, '')
+    return !material.includes(value)
+  })
+  return { claims: claims.size, unsupported }
+}
+
+/** 核哪些：库编号、搜索结果编号、带小数的数值、CFG 值、下划线标签、画师名。 */
+const GROUNDING_PATTERN =
+  /图_\d+|#\d+|\b\d+\.\d+\b|\bcfg\s*\d+(?:\.\d+)?|\b[a-z][a-z0-9]*(?:_[a-z0-9()]+)+\b|artist:[a-z0-9_()]+/gi
+
 // ---------------------------------------------------------------- 判分
 
 export interface JudgeVerdict {
@@ -518,6 +567,7 @@ export interface CaseResult {
     outcome: string
     metrics: TurnMetrics
     judge: JudgeVerdict | { error: string }
+    grounding?: { claims: number; unsupported: string[] }
   }
   rerun: {
     end: string
@@ -527,6 +577,7 @@ export interface CaseResult {
     finalText: string
     metrics: TurnMetrics
     judge: JudgeVerdict | { error: string }
+    grounding?: { claims: number; unsupported: string[] }
     usage: TokenUsage
     cost: number
     /** 这次重跑的整轮记录（查原因用；结果目录在仓库外）。 */
@@ -563,8 +614,13 @@ function rate(part: number, whole: number) {
 }
 
 function summarize(
-  rows: { metrics: TurnMetrics; judge: JudgeVerdict | { error: string } }[],
+  rows: {
+    metrics: TurnMetrics
+    judge: JudgeVerdict | { error: string }
+    grounding?: { claims: number; unsupported: string[] }
+  }[],
 ) {
+  const grounded = rows.filter((row) => row.grounding)
   const judged = rows.flatMap((row) =>
     'error' in row.judge ? [] : [row.judge],
   )
@@ -599,6 +655,13 @@ function summarize(
         clean.length,
       )}（${clean.length} 题）`
     })(),
+    机器核对可疑: grounded.length
+      ? rate(
+          grounded.filter((row) => row.grounding!.unsupported.length > 0)
+            .length,
+          grounded.length,
+        )
+      : '—',
     工具错误率: rate(
       sum((m) => m.toolErrors),
       calls,
@@ -666,7 +729,10 @@ export function writeReport(out: string, results: CaseResult[]) {
           : judge.madeUpWhat
             ? `${judge.note}【编造：${judge.madeUpWhat}】`
             : judge.note
-      return `| ${r.id.slice(0, 8)} | ${r.category} | ${clip(r.text, 40).replace(/\|/g, '/')} | ${r.rerun.end} | ${verdict} | ${clip(note, 140).replace(/\|/g, '/')} |`
+      const suspect = r.rerun.grounding?.unsupported.length
+        ? `【核对找不到：${r.rerun.grounding.unsupported.slice(0, 4).join('、')}】`
+        : ''
+      return `| ${r.id.slice(0, 8)} | ${r.category} | ${clip(r.text, 40).replace(/\|/g, '/')} | ${r.rerun.end} | ${verdict} | ${clip(`${suspect}${note}`, 180).replace(/\|/g, '/')} |`
     }),
   ]
   writeFileSync(join(out, 'summary.md'), lines.join('\n'))

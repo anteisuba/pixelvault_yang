@@ -108,5 +108,5 @@
 - **第 2 步（11-02，表格视图，owner 挑方向 A「整张表」）**
   - `?mode=table` 全屏模式，做法同剪辑台（本地 state + history 改参、portal 到 body、`z-canvas-workspace`），与 `?mode=edit` 互斥。入口：外壳右上「镜头表」、⌘K「打开镜头表」。
   - 行数据 `lib/shot-table-rows.ts`（纯函数）：只收有镜号的 `video.shot`；「画面」= 片子海报 / 首帧图；「角色 · 场景」= 正文 `@` 的角色 + 连进来的背景卡。
-  - 组件 `components/business/node/shot-table/ShotTable.tsx`：每格就地改，失焦提交、值没变不发 op；景别弹层、运镜 / 说明 / 风格输入、时长（手改即锁，`set_params` + `set_shot_spec` 一步撤销）、锁头可单独开关；顶栏全片风格 / 总时长两颗胶囊 + 读数 + 列开关 + 撤销；Esc 回画布、⌘Z 撤销；「回到这张卡」关表并定位选中。
+  - 组件 `features/canvas/components/shot-table/ShotTable.tsx`：每格就地改，失焦提交、值没变不发 op；景别弹层、运镜 / 说明 / 风格输入、时长（手改即锁，`set_params` + `set_shot_spec` 一步撤销）、锁头可单独开关；顶栏全片风格 / 总时长两颗胶囊 + 读数 + 列开关 + 撤销；Esc 回画布、⌘Z 撤销；「回到这张卡」关表并定位选中。
   - 本步不做：逐镜生成（第 4 步）、助手按总时长分配（第 3 步）。只读审阅版画布不出表。

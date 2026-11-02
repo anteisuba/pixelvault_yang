@@ -631,7 +631,7 @@
       "moveWorkAccepted": "{subject}",
       "moveWorkDeclined": "{subject}",
       "moveWorkDroppedReferences": "{subject} reference image(s) were left behind (over the limit or not uploaded yet).",
-      "spendHeld": "This batch is about {subject} — together with this message's earlier ones it's over your spend limit, so it waits for you to confirm.",
+      "spendHeld": "This batch is about {subject} points (1 point = 1¢) — together with this message's earlier ones it's over your spend limit, so it waits for you to confirm.",
       "spendUnknownHeld": "The price of this batch is unknown. Confirm it to run.",
       "autoReview": "Reviewing the pictures and trying again · round {subject}"
     },

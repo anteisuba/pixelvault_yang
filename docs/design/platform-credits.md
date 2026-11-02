@@ -119,10 +119,11 @@ LLM 每一轮写一行（现在只进日志的那个 `onUsage` 改成也入账�
    - ✅ 2026-11-01 已做：迁移 `20261101230000_platform_credits_ledger`（账本加 `kind / funding / points / *Tokens / gpuSeconds`，`GenerationJob.funding`）。LLM：`resolveLlmTextRoute` 给路由带上 `meter`，`llmTextCompletion / llmTextStream / llmNativeWebSearch` 每次调用记一行（`services/llm-usage.service.ts`，⛔ 不等不抛），助手主循环（`features/assistant/kernel.ts`）另记；角色出门不再记总数，改由每次调用各记一行。生成：建任务时记出资方，回调结算时抄进账本；Runner 记 `kind = gpu`，`gpuSeconds` = 建任务到回调的秒数（Modal 不回报计费秒数，这是上限估计，冷启动算在内）。`points` 先空着，第 2 片填。
 2. **估价函数 + LLM 单价表**：`estimatePoints`；工作台 / 画布 / 用量页改读它。
    - ✅ 2026-11-01 前半已做：LLM 单价表 `constants/models/llm-prices.ts`（助手路由表 15 个型号全覆盖，有测试锁；DeepSeek 按高峰价；推出价按日期分段）；`lib/credits/points.ts`（`usdToPoints` · `pointsOfLlmUsage`）；LLM 每行入账时现算 `points`（Gemini 思考加回输出），Runner 按 L40S $0.000542/s × 占卡秒数；用量页按账本点数优先、没结算的照旧次数 × 单价。
-   - 后半等「助手自主度」的钱闸上 main 再做：它已把工作台估价抽成 `lib/generation-cost.ts`、闸在 `lib/assistant-spend-gate.ts`，届时连同 `lib/canvas-generation-cost.ts` 并进 `lib/credits/estimatePoints`，替换宿主 `generationPoints()` 与 `generationPointsOf`。
+   - ✅ 2026-11-02 后半已做：美元算式搬进 `lib/credits/`（`generation-cost.ts` · `canvas-generation-cost.ts`），点数入口 `lib/credits/estimate-points.ts`（`estimateGenerationPoints` · `estimateCanvasNodePoints`，事先估向上取整到整点）。工作台宿主 `generationPoints()` 与画布 `generationPointsOf` 改读它；钱闸 `lib/assistant-spend-gate.ts` 只留判据。**改了一处口径**：平台 Modal 不再当免费 —— 花的是朋友的平台点数，每张按 7 点估（实扣按占卡秒数，一般 3–7）；NAI 订阅仍记 0。
 3. **额度 + 先占后结**：`CreditGrant`、注册送点、admin 加点；Modal 从「每人 100 次」换成点数；全站 $ 总闸。
    - ✅ 2026-11-02 已做：迁移 `20261102020000_credit_grants`；`services/credits.service.ts`（余额 = 送的 − 账本平台行 `points`，不另存；注册礼读余额时按 `dedupeKey = signup:<userId>` 补，存量用户也有；admin 不拦但照记）。Runner 个人闸换点数：余额 − 在跑任务 × 10 ≥ 10 才放行，锁内复查；全站月 600 次闸先保留（$ 总闸等跑出真实数再定）。助手「自动」一把 key 都没有、平台配了 `DEEPSEEK_API_KEY`、还有点数 → 走平台 DeepSeek Flash（占位 key id `platform:deepseek`），按 token 扣点；点数花光照旧就地弹配 key。设置页用量节显示余额，admin 多一个「加点」表单（邮箱或用户名，`POST /api/admin/credits`）。LoRA 台改读点数。
 4. **助手钱闸接点数**（跟自主度一起做）。
+   - ✅ 2026-11-02 已做：门槛 100 点与设置项由自主度线程做了（`AssistantPersona.spendLimitPoints`）；这边把时间线「这批大约 …」改成说点数，Runner 按平台点数估进门槛。平台余额不够时不另在客户端拦：服务端 Runner 闸派发前就拒（`CREDITS_EXHAUSTED`，不扣点），错误文案「点数用完了，找管理员加点」。
 5. **出门换成新点**。
    - ✅ 2026-11-02 已做：`OutingMeter` 改记点数（按所选型号单价，输入 / 缓存 / 输出分开算），写日记那一份也按型号折；`CharacterOuting.usedPoints` 新列（迁移 `20261102030000_outing_used_points`，旧行按 `usedTokens / 1 万` 显示）；弹框「约 N 篇」按型号算。档位仍是 10 / 30 / 60 点，意思变成 $0.1 / $0.3 / $0.6 —— DeepSeek 一趟能逛得比以前长，Claude Opus 会短很多。
 

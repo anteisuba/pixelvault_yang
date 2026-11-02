@@ -13,7 +13,7 @@
 
 ## 已做（11-02）
 
-- 估价收成一个算式 `lib/generation-cost.ts`（工作台成本预览与钱闸同读）；钱闸判据 `lib/assistant-spend-gate.ts`：一句话里累计 ≤ 100 点直接出，超了或估不出价，确认卡留着、时间线写「这批大约 $X」。NAI、平台 Modal 记 0。画布同一道门槛（原来开自动没上限）。宿主新增 `generationPoints()`（工作台 / 首页）。
+- 估价收成一个算式 `lib/credits/generation-cost.ts`（点数入口 `lib/credits/estimate-points.ts`）（工作台成本预览与钱闸同读）；钱闸判据 `lib/assistant-spend-gate.ts`：一句话里累计 ≤ 100 点直接出，超了或估不出价，确认卡留着、时间线写「这批大约 $X」。NAI 记 0；平台 Modal 11-02 起按平台点数估（每张 7 点）。画布同一道门槛（原来开自动没上限）。宿主新增 `generationPoints()`（工作台 / 首页）。
 - 「交给 AI 出图」开关、`autoGenerate` 请求字段、4 张上限删掉；放大不再自动按（估不出价）。
 - 出完图：按「自看几轮」（默认 1）自己看图、说中了哪些和下一步；用完 / 设 0 就停，什么都不问。
 - 系统提示（`next-2026-11-02-autonomy`）：HOW YOU WORK 加「像讨论一样」一段，三种先问；参考图改成先借最可能的部分再说；「ALWAYS ASK FIRST」改为「NEVER DO」（删库、公开、key）。

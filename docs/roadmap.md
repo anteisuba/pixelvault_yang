@@ -28,7 +28,7 @@ ANTEI = 一个有灵魂的 AI 助手，替你做创作，你随时能改。默�
 
 11-01 owner 定顺序：
 
-1. **`p-platform-credits` 点数地基**（施工中，五片）——所有调用折点数、每人额度、用量可见。① 账本 + LLM 入账 ✓ ② 估价函数 + LLM 单价表（单价表 ✓，合并三套估价进行中）③ 额度 ✓（余额、注册礼 100 点、Runner 换点数、admin 加点、无 key 朋友走平台 DeepSeek）④ 助手钱闸接点数（进行中）⑤ 出门按钱算 ✓。分支 `claude/project-thread-7qjxt8`，等 owner 说推。
+1. **`p-platform-credits` 点数地基**（施工中，五片）——所有调用折点数、每人额度、用量可见。① 账本 + LLM 入账 ✓ ② 估价函数 + LLM 单价表 ✓（`lib/credits/estimate-points.ts`）③ 额度 ✓（余额、注册礼 100 点、Runner 换点数、admin 加点、无 key 朋友走平台 DeepSeek）④ 助手钱闸接点数 ✓ ⑤ 出门按钱算 ✓。五片 11-02 全做完，在分支 `claude/project-thread-7qjxt8`，等 owner 说推；上线前确认 Vercel 生产有 `DEEPSEEK_API_KEY`。
 2. **`p-canvas-shotlist` 画布镜头表**（稿已出）——先框架后逐镜生成，先出图挑再出视频。
 3. **各台按样件 E 细修**——标签台 → 视频 / 3D → 配音间 → 画布，每台开工前对齐。
 4. 其余按下面各模块的条目往下排；手机端重设计等用的人再多些再排；要插队先问 owner。

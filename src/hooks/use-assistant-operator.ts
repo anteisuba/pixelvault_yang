@@ -97,7 +97,6 @@ import {
   useStudioOperatorHost,
   type StudioOperatorHost,
 } from '@/contexts/studio-operator-host'
-import { formatUnitPriceAmount } from '@/constants/models/unit-prices'
 import {
   addOperatorMention,
   appendOperatorEntry,
@@ -169,13 +168,8 @@ import {
   toMentionRef,
 } from '@/lib/assistant-mention'
 import { buildCanvasGenerationRequest } from '@/lib/studio-operator-canvas-snapshot'
-import {
-  isFreeGenerationModel,
-  spendDecision,
-  sumPoints,
-  usdToPoints,
-} from '@/lib/assistant-spend-gate'
-import { estimateCanvasNodeCost } from '@/lib/canvas-generation-cost'
+import { spendDecision, sumPoints } from '@/lib/assistant-spend-gate'
+import { estimateCanvasNodePoints } from '@/lib/credits/estimate-points'
 import { collectStepArtifacts } from '@/lib/studio-operator-artifacts'
 import { collectOperatorPriorFinds } from '@/lib/studio-operator-timeline'
 import {
@@ -3136,10 +3130,7 @@ export function useAssistantOperator(
             kind: 'system',
             id: nextOperatorEntryId('sys'),
             code: decision.points === null ? 'spendUnknownHeld' : 'spendHeld',
-            subject:
-              decision.points === null
-                ? ''
-                : formatUnitPriceAmount(decision.points / 100),
+            subject: decision.points === null ? '' : String(decision.points),
           })
           return
         }
@@ -4203,10 +4194,7 @@ function generationPointsOf(
     return sumPoints(
       nodes.map((node) => {
         const state = host.canvasTargets?.generationStateOf?.(node.id)
-        if (!state?.model) return null
-        if (isFreeGenerationModel(state.model)) return 0
-        const usd = estimateCanvasNodeCost(state)
-        return usd === null ? null : usdToPoints(usd)
+        return state ? estimateCanvasNodePoints(state) : null
       }),
     )
   }

@@ -2512,6 +2512,8 @@ describe('生成确认卡（v2 §3.3 / §5）', () => {
       ['nai-diffusion-4-5-full', 10, 4, true, null, 0],
       // 没标价：估不出，先问。
       ['seedream-4', 1, 1, false, 'spendUnknownHeld', 100],
+      // 平台 Modal 花的是平台点数（每张按 7 点估）：4 × 4 × 7 = 112 点，超门槛先问。
+      ['qwen-image-2.1-runner', 4, 4, false, 'spendHeld', 100],
     ] as const)(
       '⭐ 画布钱闸：%s × %i 张卡 × 每张 %i 张 → 替你按下 = %s（上限 %s 点）',
       async (model, cards, perCard, pressed, held, limit) => {
@@ -2560,7 +2562,11 @@ describe('生成确认卡（v2 §3.3 / §5）', () => {
         expect(line && line.kind === 'system' ? line.code : null).toBe(held)
         if (held === 'spendHeld')
           expect(line && line.kind === 'system' && line.subject).toBe(
-            limit === 0 ? '$0.48' : '$1.20',
+            model === 'qwen-image-2.1-runner'
+              ? '112'
+              : limit === 0
+                ? '48'
+                : '120',
           )
         canvasGenerationState.enabled = false
         store.setOperatorSpendLimit(100)

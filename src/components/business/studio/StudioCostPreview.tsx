@@ -10,7 +10,7 @@ import {
 import {
   estimateGenerationCost,
   type CostPreviewBasis,
-} from '@/lib/generation-cost'
+} from '@/lib/credits/generation-cost'
 
 export type { CostPreviewBasis }
 
@@ -23,7 +23,7 @@ interface CostPreviewModel {
   modelId: string
 }
 
-/** 计价口径由调用方声明，不由组件猜（形状见 `lib/generation-cost.ts`）。 */
+/** 计价口径由调用方声明，不由组件猜（形状见 `lib/credits/generation-cost.ts`）。 */
 interface StudioCostPreviewProps {
   /** 这一轮要跑的模型名单（主模型 + 额外模型）。 */
   models: readonly CostPreviewModel[]

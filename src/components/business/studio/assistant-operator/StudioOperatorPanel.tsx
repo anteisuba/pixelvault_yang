@@ -219,7 +219,7 @@ import {
 } from '@/lib/assistant-mention'
 import { candidateToMention } from '@/lib/assistant-mention-menu'
 import { assistantWorkspaceKey } from '@/lib/assistant-workspace'
-import { estimateCanvasNodeCost } from '@/lib/canvas-generation-cost'
+import { estimateCanvasNodeCost } from '@/lib/credits/canvas-generation-cost'
 import {
   derivePinnedEvidence,
   isEvidencePinned,

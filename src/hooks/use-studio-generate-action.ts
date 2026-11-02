@@ -44,7 +44,10 @@ import { getOperatorState } from '@/hooks/use-studio-operator-store'
 import { getReferenceMentionIndices } from '@/lib/studio-reference-mentions'
 import type { StudioModelOption } from '@/types/model-option'
 import type { StudioOperatorResultOwner } from '@/types/studio-assistant-operator'
-import { videoCostBasisOf, type CostPreviewBasis } from '@/lib/generation-cost'
+import {
+  videoCostBasisOf,
+  type CostPreviewBasis,
+} from '@/lib/credits/generation-cost'
 
 export interface StudioBlockedReason {
   message: string

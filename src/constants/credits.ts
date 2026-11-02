@@ -56,6 +56,11 @@ export const CREDIT_LIMITS = {
    * 占 10 点是上限，冷启动 + 大图也够）。在跑的任务各占一份，失败的不扣。
    */
   runnerReservePoints: 10,
+  /**
+   * 事先估一张 Runner 图要多少点（助手钱闸、确认卡用）：实扣按占卡秒数，一般 3–7 点，
+   * 估的时候按上沿算（宁可多问一次）。
+   */
+  runnerEstimatePointsPerImage: 7,
   /** admin 一次最多送多少（防手滑多打一个 0）。 */
   maxGiftPoints: 10_000,
 } as const

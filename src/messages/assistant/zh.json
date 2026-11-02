@@ -631,7 +631,7 @@
       "moveWorkAccepted": "{subject}",
       "moveWorkDeclined": "{subject}",
       "moveWorkDroppedReferences": "有 {subject} 张参考图没带过去（超过上限或还没传完）。",
-      "spendHeld": "这批大约 {subject}，这句话里加起来超过你设的出图上限，等你确认再出。",
+      "spendHeld": "这批大约 {subject} 点（1 点 = 1 美分），这句话里加起来超过你设的出图上限，等你确认再出。",
       "spendUnknownHeld": "这批估不出价钱，等你确认再出。",
       "autoReview": "自己看图再改 · 第 {subject} 轮"
     },

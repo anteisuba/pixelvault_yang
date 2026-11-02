@@ -67,3 +67,9 @@ export const SHOT_SPEC_LIMITS = {
   /** 全片总时长上限（秒）。剪辑台成片的段数与时长另有护栏。 */
   totalDurationMaxSeconds: 600,
 } as const
+
+/**
+ * 镜头表视图的 URL 值：与剪辑台共用 `?mode=`（`EDIT_DESK_MODE_PARAM`），两者互斥。
+ * ⚠ 理由同剪辑台：做成画布的全屏模式而不是新页，退出时视口与选择原样还在。
+ */
+export const SHOT_TABLE_MODE_VALUE = 'table'

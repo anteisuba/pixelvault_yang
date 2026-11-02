@@ -1800,7 +1800,8 @@
         "openEditDesk": "編集台を開く",
         "switchTo": "「{name}」に切り替え",
         "empty": "該当なし",
-        "upload": "素材をアップロード…"
+        "upload": "素材をアップロード…",
+        "openShotTable": "ショットリストを開く"
       },
       "bottom": {
         "select": "選択",
@@ -1821,7 +1822,8 @@
       "minimap": {
         "collapse": "ミニマップを閉じる",
         "expand": "ミニマップを開く"
-      }
+      },
+      "shotTable": "ショットリスト"
     },
     "editDesk": {
       "title": "編集台",
@@ -2073,6 +2075,48 @@
           "back": "キャンバスへ戻る"
         },
         "finalCutHint": "Final Cut プリセット：分割 ⌘B · その他は同じ。S は常に有効。"
+      }
+    },
+    "shotTable": {
+      "title": "ショットリスト",
+      "back": "キャンバスに戻る",
+      "undo": "元に戻す",
+      "empty": "まだショットがありません",
+      "emptyHint": "キャンバスのショット列に追加するか、アシスタントに脚本をショットに分けてもらうと、ここに一行ずつ並びます。",
+      "filmLook": "全体のルック",
+      "filmLookEmpty": "未設定",
+      "totalDuration": "総尺",
+      "totalDurationEmpty": "未設定",
+      "summary": "{shots} ショット · 動画あり {withVideo} · 計 {seconds}s",
+      "columnsMenu": "列",
+      "followFilm": "全体に合わせる",
+      "followFilmWith": "全体に合わせる：{look}",
+      "sizeClear": "クリア",
+      "movePlaceholder": "カメラワーク…",
+      "notePlaceholder": "このショットで何を撮るか…",
+      "durationLock": "尺を固定（総尺の配分で変えない）",
+      "durationUnlock": "尺の固定を解除",
+      "locate": "このカードへ",
+      "generating": "生成中",
+      "columns": {
+        "shotNo": "No.",
+        "frame": "画面",
+        "size": "サイズ",
+        "move": "カメラワーク",
+        "note": "説明",
+        "look": "ルック",
+        "duration": "尺",
+        "cast": "キャラ · 背景"
+      },
+      "sizes": {
+        "extreme_wide": "超ロング",
+        "wide": "ロング",
+        "full": "フル",
+        "medium": "ミディアム",
+        "medium_close": "ミディアムクローズ",
+        "close": "バスト",
+        "close_up": "クローズアップ",
+        "extreme_close_up": "超クローズアップ"
       }
     }
   }

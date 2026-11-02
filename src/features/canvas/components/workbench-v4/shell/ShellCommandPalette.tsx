@@ -15,6 +15,7 @@ import {
   ImageIcon,
   Mic2,
   Scissors,
+  Table,
   Settings2,
   Type,
   Upload,
@@ -60,6 +61,7 @@ export interface ShellCommandPaletteProps {
   onUpload(): void
   onAskAssistant(query: string): void
   onOpenEditDesk(): void
+  onOpenShotTable(): void
   onSwitchProject(projectId: string): void
   /** 「配置渠道与 key…」——跳 `/settings/keys`；外壳没挂时为 `null`，那一行不出现。 */
   readonly onManageChannels: (() => void) | null
@@ -76,6 +78,7 @@ export function ShellCommandPalette({
   onUpload,
   onAskAssistant,
   onOpenEditDesk,
+  onOpenShotTable,
   onSwitchProject,
   onManageChannels,
 }: ShellCommandPaletteProps) {
@@ -234,6 +237,17 @@ export function ShellCommandPalette({
               >
                 <Scissors className="size-4 shrink-0" aria-hidden />
                 <span>{t('openEditDesk')}</span>
+              </CommandItem>
+              <CommandItem
+                value={t('openShotTable')}
+                data-testid="shell-command-shot-table"
+                onSelect={() => {
+                  onOpenShotTable()
+                  close()
+                }}
+              >
+                <Table className="size-4 shrink-0" aria-hidden />
+                <span>{t('openShotTable')}</span>
               </CommandItem>
               {onManageChannels ? (
                 <CommandItem

@@ -90,6 +90,7 @@ import {
   EDIT_DESK_MODE_VALUE,
   EDIT_DESK_OPERATOR_ANCHOR,
 } from '@/constants/edit-desk'
+import { SHOT_TABLE_MODE_VALUE } from '@/constants/shot-spec'
 import { NODE_SLOT_IDS } from '@/constants/node-slots'
 import { motionTransition } from '@/constants/motion'
 import {
@@ -145,6 +146,7 @@ import {
   StudioChipZoomProvider,
 } from '@/components/business/studio-shared/primitives/tool-surface'
 import { EditDesk } from '../edit-desk'
+import { ShotTable } from '../shot-table'
 import { flashNodeCard } from '../nodes/v4/chrome/node-card-flash'
 import { useKeepCanvasCenterOnYield } from './use-keep-canvas-center-on-yield'
 import {
@@ -1290,14 +1292,21 @@ function NodeWorkbenchV4Inner() {
   const [editMode, setEditMode] = useState(
     () => searchParams.get(EDIT_DESK_MODE_PARAM) === EDIT_DESK_MODE_VALUE,
   )
+  /**
+   * 镜头表（画布第三个视图，`p-canvas-shotlist` 第 2 步）：与剪辑台共用 `?mode=`、互斥，
+   * 做法也同剪辑台（本地 state + history 改参）。
+   */
+  const [tableMode, setTableMode] = useState(
+    () => searchParams.get(EDIT_DESK_MODE_PARAM) === SHOT_TABLE_MODE_VALUE,
+  )
   /** 「进剪辑台」带进来的那几张卡（台面开起来就先追加进 V 轨）。 */
   const [editDeskSeed, setEditDeskSeed] = useState<readonly string[]>([])
 
-  const writeEditModeParam = useCallback((on: boolean) => {
+  const writeModeParam = useCallback((mode: string | null) => {
     if (typeof window === 'undefined') return
     const url = new URL(window.location.href)
-    if (on) {
-      url.searchParams.set(EDIT_DESK_MODE_PARAM, EDIT_DESK_MODE_VALUE)
+    if (mode) {
+      url.searchParams.set(EDIT_DESK_MODE_PARAM, mode)
     } else {
       url.searchParams.delete(EDIT_DESK_MODE_PARAM)
     }
@@ -1307,10 +1316,33 @@ function NodeWorkbenchV4Inner() {
   const openEditDesk = useCallback(
     (nodeIds?: readonly string[]) => {
       setEditDeskSeed(nodeIds ?? [])
+      setTableMode(false)
       setEditMode(true)
-      writeEditModeParam(true)
+      writeModeParam(EDIT_DESK_MODE_VALUE)
     },
-    [writeEditModeParam],
+    [writeModeParam],
+  )
+
+  const openShotTable = useCallback(() => {
+    setEditMode(false)
+    setEditDeskSeed([])
+    setTableMode(true)
+    writeModeParam(SHOT_TABLE_MODE_VALUE)
+  }, [writeModeParam])
+
+  const exitShotTable = useCallback(() => {
+    setTableMode(false)
+    writeModeParam(null)
+  }, [writeModeParam])
+
+  /** 「回到这张卡」：关表 + 定位并选中那一镜。 */
+  const backToNodeFromShotTable = useCallback(
+    (nodeId: string) => {
+      exitShotTable()
+      focusNode(nodeId)
+      graph.onRfNodesChange([{ id: nodeId, type: 'select', selected: true }])
+    },
+    [exitShotTable, focusNode, graph],
   )
 
   /**
@@ -1326,8 +1358,8 @@ function NodeWorkbenchV4Inner() {
   const exitEditDesk = useCallback(() => {
     setEditMode(false)
     setEditDeskSeed([])
-    writeEditModeParam(false)
-  }, [writeEditModeParam])
+    writeModeParam(null)
+  }, [writeModeParam])
 
   /** 「回节点重生成这段」：关模式 + 定位并选中来源卡。 */
   const backToNodeFromEditDesk = useCallback(
@@ -1920,6 +1952,7 @@ function NodeWorkbenchV4Inner() {
                     onDuplicateProject={() => setProjectDialogMode('duplicate')}
                     onDeleteProject={() => setDeleteConfirmOpen(true)}
                     onOpenEditDesk={openEditDeskWithSelection}
+                    onOpenShotTable={openShotTable}
                     /* ⚠ 「助手」胶囊已从顶栏退场（D7b ④）：同一位置换成 Dock 自己
                        那颗人设头像，顶栏只为它留出右侧那一格（见 ShellTopBar 头注）。 */
                   />
@@ -2013,6 +2046,7 @@ function NodeWorkbenchV4Inner() {
                       setAssistantOpen(true)
                     }}
                     onOpenEditDesk={openEditDeskWithSelection}
+                    onOpenShotTable={openShotTable}
                     onSwitchProject={store.switchProject}
                     onManageChannels={openKeySettings}
                   />
@@ -2062,6 +2096,19 @@ function NodeWorkbenchV4Inner() {
                     assistant={benchDock}
                     subscribeRemoteChange={subscribeDeskRemoteChange}
                     restoreState={restoreDeskState}
+                  />
+                ) : null}
+                {tableMode ? (
+                  <ShotTable
+                    state={graph.state}
+                    characterCards={characterLibrary.cards}
+                    dispatch={graph.dispatch}
+                    dispatchBatch={graph.dispatchBatch}
+                    canUndo={graph.canUndo}
+                    onUndo={graph.undo}
+                    onExit={exitShotTable}
+                    onBackToNode={backToNodeFromShotTable}
+                    assistant={benchDock}
                   />
                 ) : null}
                 {projectDialogs}

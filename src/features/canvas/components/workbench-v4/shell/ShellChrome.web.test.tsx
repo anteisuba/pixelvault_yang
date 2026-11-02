@@ -530,6 +530,7 @@ describe('加节点三条路 · 都落在同一份意图表上', () => {
         onUpload={onUpload}
         onAskAssistant={vi.fn()}
         onOpenEditDesk={onOpenEditDesk}
+        onOpenShotTable={vi.fn()}
         onSwitchProject={vi.fn()}
         onManageChannels={onManageChannels}
       />,

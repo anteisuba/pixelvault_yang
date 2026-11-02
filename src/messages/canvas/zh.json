@@ -1800,7 +1800,8 @@
         "openEditDesk": "打开剪辑台",
         "switchTo": "切到「{name}」",
         "empty": "没有匹配项",
-        "upload": "上传素材…"
+        "upload": "上传素材…",
+        "openShotTable": "打开镜头表"
       },
       "bottom": {
         "select": "选择",
@@ -1821,7 +1822,8 @@
       "minimap": {
         "collapse": "收起小地图",
         "expand": "展开小地图"
-      }
+      },
+      "shotTable": "镜头表"
     },
     "editDesk": {
       "title": "剪辑台",
@@ -2073,6 +2075,48 @@
           "back": "回画布"
         },
         "finalCutHint": "Final Cut 预设：分割 ⌘B · 其余相同。S 一直有效。"
+      }
+    },
+    "shotTable": {
+      "title": "镜头表",
+      "back": "回画布",
+      "undo": "撤销",
+      "empty": "还没有镜头",
+      "emptyHint": "在画布的镜头带上加一镜，或者让助手按剧本拆镜，这里就会一行一行列出来。",
+      "filmLook": "全片风格",
+      "filmLookEmpty": "未设",
+      "totalDuration": "总时长",
+      "totalDurationEmpty": "未设",
+      "summary": "{shots} 镜 · 有片 {withVideo} · 合计 {seconds}s",
+      "columnsMenu": "列",
+      "followFilm": "跟全片",
+      "followFilmWith": "跟全片：{look}",
+      "sizeClear": "清空",
+      "movePlaceholder": "写运镜…",
+      "notePlaceholder": "这一镜拍什么…",
+      "durationLock": "锁定时长（分配总时长时不动它）",
+      "durationUnlock": "解锁时长",
+      "locate": "回到这张卡",
+      "generating": "生成中",
+      "columns": {
+        "shotNo": "镜号",
+        "frame": "画面",
+        "size": "景别",
+        "move": "运镜",
+        "note": "说明",
+        "look": "风格",
+        "duration": "时长",
+        "cast": "角色 · 场景"
+      },
+      "sizes": {
+        "extreme_wide": "大远景",
+        "wide": "远景",
+        "full": "全景",
+        "medium": "中景",
+        "medium_close": "中近景",
+        "close": "近景",
+        "close_up": "特写",
+        "extreme_close_up": "大特写"
       }
     }
   }

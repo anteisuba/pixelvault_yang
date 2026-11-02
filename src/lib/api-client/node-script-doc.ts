@@ -6,6 +6,7 @@ import {
 } from '@/types/script-doc'
 
 import { getErrorPayload } from '@/lib/api-client/shared'
+import { getThrownErrorFields } from '@/lib/api-client/error-fields'
 import { apiFetch } from '@/lib/api-client/api-fetch'
 
 export type NodeScriptDocApiResponse =
@@ -31,10 +32,7 @@ export async function createNodeScriptDocAPI(
     })
 
     if (!response.ok) {
-      const payload = await getErrorPayload(
-        response,
-        `ScriptDoc draft failed with status ${response.status}`,
-      )
+      const payload = await getErrorPayload(response)
       return {
         success: false,
         error: payload.error,
@@ -49,10 +47,7 @@ export async function createNodeScriptDocAPI(
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : 'ScriptDoc draft request failed',
+      ...getThrownErrorFields(error),
     }
   }
 }

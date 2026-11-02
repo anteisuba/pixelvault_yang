@@ -1,5 +1,6 @@
 import { API_ENDPOINTS } from '@/constants/config'
-import { getErrorMessage } from '@/lib/api-client/shared'
+import { getErrorPayload } from '@/lib/api-client/shared'
+import { getThrownErrorFields } from '@/lib/api-client/error-fields'
 import type {
   AssistantMentionLibraryItem,
   AssistantMentionLibraryResult,
@@ -25,18 +26,14 @@ export async function searchAssistantMentionLibraryAPI(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return await response.json()
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -58,18 +55,14 @@ export async function lookupAssistantMentionAssetsAPI(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return await response.json()
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }

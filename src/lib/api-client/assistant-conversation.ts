@@ -9,7 +9,8 @@ import type {
 } from '@/types/assistant-conversation'
 
 import type { StudioConversationActivity } from '@/types/studio-conversation-activity'
-import { getErrorPayload } from '@/lib/api-client/shared'
+import { parseApiResult } from '@/lib/api-client/shared'
+import { getThrownErrorFields } from '@/lib/api-client/error-fields'
 import { apiFetch } from '@/lib/api-client/api-fetch'
 
 type ApiResult<T> =
@@ -20,34 +21,6 @@ type ApiResult<T> =
       errorCode?: string
       i18nKey?: string
     }
-
-async function parseJsonResult<T>(
-  response: Response,
-  fallbackError: string,
-): Promise<ApiResult<T>> {
-  if (!response.ok) {
-    const payload = await getErrorPayload(response, fallbackError)
-    return {
-      success: false,
-      error: payload.error,
-      errorCode: payload.errorCode,
-      i18nKey: payload.i18nKey,
-    }
-  }
-
-  const body = (await response.json()) as {
-    success?: boolean
-    data?: T
-    error?: string
-  }
-  if (!body.success || body.data === undefined) {
-    return {
-      success: false,
-      error: body.error ?? fallbackError,
-    }
-  }
-  return { success: true, data: body.data }
-}
 
 export async function listAssistantConversationsAPI(args: {
   operatorOnly?: boolean
@@ -63,12 +36,11 @@ export async function listAssistantConversationsAPI(args: {
       `${API_ENDPOINTS.ASSISTANT_CONVERSATION}?${params.toString()}`,
       { method: 'GET', headers: { Accept: 'application/json' } },
     )
-    return parseJsonResult(response, 'Failed to list conversations')
+    return parseApiResult(response)
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'Failed to list conversations',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -87,12 +59,11 @@ export async function getAssistantConversationAPI(args: {
       `${API_ENDPOINTS.ASSISTANT_CONVERSATION}?${params.toString()}`,
       { method: 'GET', headers: { Accept: 'application/json' } },
     )
-    return parseJsonResult(response, 'Failed to load conversation')
+    return parseApiResult(response)
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'Failed to load conversation',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -106,12 +77,11 @@ export async function upsertAssistantConversationAPI(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     })
-    return parseJsonResult(response, 'Failed to save conversation')
+    return parseApiResult(response)
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'Failed to save conversation',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -124,14 +94,11 @@ export async function deleteAssistantConversationAPI(
       `${API_ENDPOINTS.ASSISTANT_CONVERSATION}/${encodeURIComponent(id)}`,
       { method: 'DELETE' },
     )
-    return parseJsonResult(response, 'Failed to delete conversation')
+    return parseApiResult(response)
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : 'Failed to delete conversation',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -145,14 +112,11 @@ export async function getSharedAssistantConversationAPI(
       `${API_ENDPOINTS.ASSISTANT_SHARE}?${params.toString()}`,
       { method: 'GET', headers: { Accept: 'application/json' } },
     )
-    return parseJsonResult(response, 'Failed to load assistant share')
+    return parseApiResult(response)
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : 'Failed to load assistant share',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -170,7 +134,7 @@ export async function renameAssistantConversationAPI(
         body: JSON.stringify({ title }),
       },
     )
-    return parseJsonResult(response, 'Failed to rename conversation')
+    return parseApiResult(response)
   } catch {
     return { success: false, error: 'Failed to rename conversation' }
   }
@@ -185,7 +149,7 @@ export async function getStudioConversationActivityAPI(
     const response = await apiFetch(
       `${API_ENDPOINTS.STUDIO_CONVERSATION_ACTIVITY}?${params}`,
     )
-    return parseJsonResult(response, 'Failed to load conversation activity')
+    return parseApiResult(response)
   } catch {
     return { success: false, error: 'Failed to load conversation activity' }
   }
@@ -205,7 +169,7 @@ export async function setAssistantConversationBenchAPI(
         body: JSON.stringify({ bench }),
       },
     )
-    return parseJsonResult(response, 'Failed to save conversation bench')
+    return parseApiResult(response)
   } catch {
     return { success: false, error: 'Failed to save conversation bench' }
   }
@@ -226,12 +190,11 @@ export async function updateAssistantConversationRoundAPI(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     })
-    return parseJsonResult(response, 'Failed to save round summary')
+    return parseApiResult(response)
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'Failed to save round summary',
+      ...getThrownErrorFields(error),
     }
   }
 }

@@ -43,6 +43,7 @@ import {
 } from '@/components/ui/popover'
 import { Spinner } from '@/components/ui/spinner'
 import { useAssistantPersona } from '@/hooks/use-assistant-persona'
+import { useErrorText } from '@/hooks/use-error-text'
 import {
   playOperatorVoice,
   stopOperatorVoice,
@@ -94,6 +95,7 @@ function LineText({ text, muted }: { text: string; muted?: boolean }) {
 export function VoiceBench() {
   const t = useTranslations('VoiceBench')
   const tv = useTranslations('StudioOperator.voice')
+  const errText = useErrorText()
   const voice = usePersonaVoice()
   const { persona } = useAssistantPersona()
   const bench = useVoiceBench(
@@ -168,7 +170,7 @@ export function VoiceBench() {
     const result = await rewriteVoiceBenchTextAPI({ text })
     setRewriting(false)
     if (result.success) fillDraft(result.data.text)
-    else toast.error(result.error)
+    else toast.error(errText.api(result, t('rewriteFailed')))
   }
 
   const noPersona = bench.data !== null && bench.data.characterCardId === null

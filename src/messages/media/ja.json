@@ -579,6 +579,7 @@
       "clearThroat": "咳払い",
       "shortPause": "短い間",
       "longPause": "長い間"
-    }
+    },
+    "rewriteFailed": "セリフを書き直せませんでした。もう一度お試しください。"
   }
 }

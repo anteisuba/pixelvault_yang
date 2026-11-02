@@ -6,7 +6,7 @@ import {
   type RenderStepId,
 } from '@/constants/render-video'
 
-import { getErrorMessage } from '@/lib/api-client/shared'
+import { getErrorPayload } from '@/lib/api-client/shared'
 import { apiFetch } from '@/lib/api-client/api-fetch'
 
 /**
@@ -49,10 +49,7 @@ async function readJson<TData>(
     return {
       success: false,
       status: response.status,
-      error: await getErrorMessage(
-        response,
-        `Failed with status ${response.status}`,
-      ),
+      ...(await getErrorPayload(response)),
     }
   }
   return (await response.json()) as RenderApiResponse<TData>

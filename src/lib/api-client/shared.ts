@@ -3,6 +3,15 @@ import {
   AssistantOperatorMissingKeySchema,
   type AssistantOperatorMissingKey,
 } from '@/types/assistant-operator'
+import {
+  TRANSPORT_ERROR_CODES,
+  transportCodeForStatus,
+} from '@/constants/transport-errors'
+import {
+  getThrownErrorFields,
+  transportFields,
+  type ApiErrorFields,
+} from '@/lib/api-client/error-fields'
 import { apiFetch } from '@/lib/api-client/api-fetch'
 
 interface ApiErrorPayload {
@@ -15,37 +24,100 @@ interface ApiErrorPayload {
   missingKey?: AssistantOperatorMissingKey
 }
 
+/**
+ * 失败响应 → 错误字段（o-errors 第二轮）。
+ *
+ * - 服务端给了 JSON 原因（`error` / `errorCode` / `i18nKey`）：原样带上。
+ * - 没有 JSON 原因（网关 / 平台 / 门口回的空体或 HTML 错页）：按 **HTTP 状态**打标
+ *   `TRANSPORT_*` + 对应 i18nKey。⛔ 不再拼 `Failed with status N` 这种英文句子 ——
+ *   它会被关键词分类猜成别的原因，或被贴上「服务商返回：」（2026-10-29 真机）。
+ */
 export async function getErrorPayload(
   response: Response,
-  fallbackMessage: string,
-): Promise<ApiErrorPayload & { error: string }> {
+): Promise<ApiErrorFields> {
   const errorData = (await response
     .json()
     .catch(() => null)) as ApiErrorPayload | null
+  const hasReason =
+    typeof errorData?.error === 'string' ||
+    typeof errorData?.errorCode === 'string' ||
+    typeof errorData?.i18nKey === 'string'
+  if (!errorData || !hasReason) {
+    return transportFields(
+      transportCodeForStatus(response.status),
+      `HTTP ${response.status}`,
+    )
+  }
   const missingKey = AssistantOperatorMissingKeySchema.safeParse(
-    errorData?.missingKey,
+    errorData.missingKey,
   )
 
   return {
-    error: errorData?.error ?? fallbackMessage,
-    errorCode: errorData?.errorCode,
-    i18nKey: errorData?.i18nKey,
-    ...(typeof errorData?.traceId === 'string'
+    error: errorData.error ?? `HTTP ${response.status}`,
+    ...(typeof errorData.errorCode === 'string'
+      ? { errorCode: errorData.errorCode }
+      : {}),
+    ...(typeof errorData.i18nKey === 'string'
+      ? { i18nKey: errorData.i18nKey }
+      : {}),
+    ...(typeof errorData.traceId === 'string'
       ? { traceId: errorData.traceId }
       : {}),
-    ...(typeof errorData?.detail === 'string'
+    ...(typeof errorData.detail === 'string'
       ? { detail: errorData.detail }
       : {}),
     ...(missingKey.success ? { missingKey: missingKey.data } : {}),
   }
 }
 
-export async function getErrorMessage(
+/** `{ success, data }` 信封的结果：失败一侧只带结构化错误字段。 */
+export type ApiResult<T> =
+  | { success: true; data: T }
+  | ({ success: false } & ApiErrorFields)
+
+/**
+ * 读一个 `{ success, data }` 信封的响应。失败时走 {@link getErrorPayload}；2xx 但信封
+ * 不对（`success: false` / 没 `data` / 不是 JSON）时带上服务端给的码，没给就是
+ * `TRANSPORT_BAD_RESPONSE` —— ⛔ 不再填调用方的英文兜底句。
+ */
+export async function parseApiResult<T>(
   response: Response,
-  fallbackMessage: string,
-): Promise<string> {
-  const payload = await getErrorPayload(response, fallbackMessage)
-  return payload.error
+): Promise<ApiResult<T>> {
+  if (!response.ok) {
+    return { success: false, ...(await getErrorPayload(response)) }
+  }
+  const body = (await response.json().catch(() => null)) as {
+    success?: boolean
+    data?: T
+    error?: string
+    errorCode?: string
+    i18nKey?: string
+  } | null
+  if (body?.success && body.data !== undefined) {
+    return { success: true, data: body.data }
+  }
+  if (body?.errorCode || body?.i18nKey) {
+    return {
+      success: false,
+      error: body.error ?? body.errorCode ?? `HTTP ${response.status}`,
+      ...(body.errorCode ? { errorCode: body.errorCode } : {}),
+      ...(body.i18nKey ? { i18nKey: body.i18nKey } : {}),
+    }
+  }
+  return {
+    success: false,
+    ...transportFields(
+      TRANSPORT_ERROR_CODES.BAD_RESPONSE,
+      body?.error ?? `HTTP ${response.status}`,
+    ),
+  }
+}
+
+/** `catch (error)` → 失败结果（{@link getThrownErrorFields}）。 */
+export function toApiFailure(error: unknown): {
+  success: false
+} & ApiErrorFields {
+  return { success: false, ...getThrownErrorFields(error) }
 }
 
 function triggerBlobDownload(blob: Blob, fileName: string) {
@@ -96,10 +168,7 @@ export async function downloadRemoteAsset(
     )
 
     if (!response.ok) {
-      const payload = await getErrorPayload(
-        response,
-        `Download failed with status ${response.status}`,
-      )
+      const payload = await getErrorPayload(response)
       return {
         success: false,
         error: payload.error,
@@ -127,8 +196,7 @@ export async function downloadRemoteAsset(
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }

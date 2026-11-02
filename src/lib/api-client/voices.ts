@@ -1,5 +1,6 @@
 import { API_ENDPOINTS } from '@/constants/config'
 import { getErrorPayload } from '@/lib/api-client/shared'
+import { getThrownErrorFields } from '@/lib/api-client/error-fields'
 import type {
   FishAudioTranscription,
   FishAudioVoice,
@@ -71,8 +72,7 @@ export async function getVoiceAPI(voiceId: string): Promise<VoiceResponse> {
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -95,10 +95,7 @@ export async function importVoiceSampleAPI(
       body: JSON.stringify({ voiceId }),
     })
     if (!response.ok) {
-      const payload = await getErrorPayload(
-        response,
-        `Failed with status ${response.status}`,
-      )
+      const payload = await getErrorPayload(response)
       return {
         success: false,
         error: payload.error,
@@ -116,8 +113,7 @@ export async function importVoiceSampleAPI(
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -154,8 +150,7 @@ export async function listVoicesAPI(params: {
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -182,8 +177,7 @@ export async function createVoiceAPI(
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -210,8 +204,7 @@ export async function transcribeVoiceAPI(
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -241,8 +234,7 @@ export async function uploadReferenceAudioAPI(
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -267,8 +259,7 @@ export async function deleteVoiceAPI(
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }

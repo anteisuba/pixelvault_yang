@@ -2,6 +2,7 @@ import { API_ENDPOINTS } from '@/constants/config'
 import type { TransformInput, TransformOutput } from '@/types/transform'
 
 import { getErrorPayload } from './shared'
+import { getThrownErrorFields } from './error-fields'
 import { apiFetch } from '@/lib/api-client/api-fetch'
 
 export interface TransformResponse {
@@ -23,10 +24,7 @@ export async function transformImageAPI(
     })
 
     if (!response.ok) {
-      const payload = await getErrorPayload(
-        response,
-        `Transform failed with status ${response.status}`,
-      )
+      const payload = await getErrorPayload(response)
       return {
         success: false,
         error: payload.error,
@@ -39,8 +37,7 @@ export async function transformImageAPI(
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }

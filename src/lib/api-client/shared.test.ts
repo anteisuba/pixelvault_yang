@@ -2,6 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { downloadRemoteAsset, getErrorPayload } from '@/lib/api-client/shared'
+import {
+  ApiClientError,
+  getThrownErrorFields,
+} from '@/lib/api-client/error-fields'
 
 const ASSET_URL = 'https://cdn.test.com/generations/video.mp4'
 const PRESIGNED_URL =
@@ -123,7 +127,6 @@ describe('getErrorPayload', () => {
         }),
         { status: 400 },
       ),
-      'fallback',
     )
     expect(payload.missingKey).toEqual({
       adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
@@ -141,8 +144,79 @@ describe('getErrorPayload', () => {
         }),
         { status: 400 },
       ),
-      'fallback',
     )
     expect(payload).not.toHaveProperty('missingKey')
+  })
+})
+
+describe('getErrorPayload：没有 JSON 原因时按 HTTP 状态打标（o-errors 第二轮）', () => {
+  it.each([
+    [401, 'TRANSPORT_SESSION_EXPIRED', 'errors.transport.sessionExpired'],
+    [404, 'TRANSPORT_NOT_FOUND', 'errors.transport.notFound'],
+    [413, 'TRANSPORT_TOO_LARGE', 'errors.transport.tooLarge'],
+    [502, 'TRANSPORT_UNAVAILABLE', 'errors.transport.unavailable'],
+    [504, 'TRANSPORT_TIMEOUT', 'errors.transport.timeout'],
+  ])('空体 %i → %s', async (status, errorCode, i18nKey) => {
+    const payload = await getErrorPayload(new Response('', { status }))
+    expect(payload).toEqual({ error: `HTTP ${status}`, errorCode, i18nKey })
+  })
+
+  it('HTML 错页（网关）不当成服务商原话', async () => {
+    const payload = await getErrorPayload(
+      new Response('<html>An error occurred</html>', { status: 502 }),
+    )
+    expect(payload.i18nKey).toBe('errors.transport.unavailable')
+  })
+
+  it('服务端给了 JSON 原因就照用，不改写', async () => {
+    const payload = await getErrorPayload(
+      new Response(
+        JSON.stringify({
+          error: 'Please sign in',
+          errorCode: 'UNAUTHORIZED',
+          i18nKey: 'errors.auth.unauthorized',
+        }),
+        { status: 401 },
+      ),
+    )
+    expect(payload).toEqual({
+      error: 'Please sign in',
+      errorCode: 'UNAUTHORIZED',
+      i18nKey: 'errors.auth.unauthorized',
+    })
+  })
+})
+
+describe('getThrownErrorFields', () => {
+  it('浏览器断网 → 网络连不上', () => {
+    expect(getThrownErrorFields(new TypeError('Failed to fetch'))).toEqual({
+      error: 'Failed to fetch',
+      errorCode: 'TRANSPORT_NETWORK',
+      i18nKey: 'errors.transport.network',
+    })
+  })
+
+  it('前台等待上限到了 → 超时，不是「服务商超时」', () => {
+    const err = new DOMException('The operation timed out.', 'TimeoutError')
+    expect(getThrownErrorFields(err).errorCode).toBe('TRANSPORT_TIMEOUT')
+  })
+
+  it('ApiClientError 原样带回字段', () => {
+    const err = new ApiClientError({
+      error: 'HTTP 404',
+      errorCode: 'TRANSPORT_NOT_FOUND',
+      i18nKey: 'errors.transport.notFound',
+    })
+    expect(getThrownErrorFields(err).i18nKey).toBe('errors.transport.notFound')
+  })
+
+  it('我们自己的程序异常 → 意外错误', () => {
+    expect(getThrownErrorFields(new SyntaxError('Unexpected token <'))).toEqual(
+      {
+        error: 'Unexpected token <',
+        errorCode: 'CLIENT_ERROR',
+        i18nKey: 'errors.common.unexpected',
+      },
+    )
   })
 })

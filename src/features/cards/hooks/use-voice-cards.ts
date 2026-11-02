@@ -8,6 +8,8 @@ import { QUERY_KEYS } from '@/constants/query'
 import type { VoiceCardRecord } from '@/types'
 import { listVoiceCardsAPI } from '@/lib/api-client'
 import { queryClient } from '@/lib/query-client'
+import { ApiClientError } from '@/lib/api-client/error-fields'
+import { useErrorText } from '@/hooks/use-error-text'
 
 export interface UseVoiceCardsReturn {
   cards: VoiceCardRecord[]
@@ -23,7 +25,7 @@ const EMPTY: VoiceCardRecord[] = []
 async function fetchVoiceCards(): Promise<VoiceCardRecord[]> {
   const response = await listVoiceCardsAPI(1, 50)
   if (!response.success || !response.data) {
-    throw new Error(response.error ?? '')
+    throw new ApiClientError(response)
   }
   return response.data.items
 }
@@ -32,6 +34,7 @@ export function useVoiceCards(options?: {
   enabled?: boolean
 }): UseVoiceCardsReturn {
   const t = useTranslations('StudioPage')
+  const errText = useErrorText()
   const enabled = options?.enabled ?? true
   const query = useQuery(
     {
@@ -55,7 +58,7 @@ export function useVoiceCards(options?: {
 
   // 译文在这里才生成：数据层只认「失败了没有」，`t` 不进取数那一层。
   const error = query.isError
-    ? query.error.message || t('voiceCardsLoadFailed')
+    ? errText.thrown(query.error, t('voiceCardsLoadFailed'))
     : null
   const isLoading = query.isFetching
 

@@ -1,5 +1,5 @@
 import { API_ENDPOINTS } from '@/constants/config'
-import { getErrorPayload } from '@/lib/api-client/shared'
+import { parseApiResult, toApiFailure } from '@/lib/api-client/shared'
 import type {
   AssistantMemoryScopeId,
   AssistantMemorySourceId,
@@ -24,38 +24,6 @@ type ApiResult<T> =
   | { success: true; data: T }
   | { success: false; error: string; errorCode?: string; i18nKey?: string }
 
-async function parseJsonResult<T>(
-  response: Response,
-  fallbackError: string,
-): Promise<ApiResult<T>> {
-  if (!response.ok) {
-    const payload = await getErrorPayload(response, fallbackError)
-    return {
-      success: false,
-      error: payload.error,
-      errorCode: payload.errorCode,
-      i18nKey: payload.i18nKey,
-    }
-  }
-
-  const body = (await response.json()) as {
-    success?: boolean
-    data?: T
-    error?: string
-  }
-  if (!body.success || body.data === undefined) {
-    return { success: false, error: body.error ?? fallbackError }
-  }
-  return { success: true, data: body.data }
-}
-
-function toFailure(error: unknown, fallback: string): ApiResult<never> {
-  return {
-    success: false,
-    error: error instanceof Error ? error.message : fallback,
-  }
-}
-
 const JSON_HEADERS = { 'Content-Type': 'application/json' } as const
 
 function memoryUrl(memoryId: string): string {
@@ -72,9 +40,9 @@ export async function listAssistantMemoriesAPI(
       `${API_ENDPOINTS.ASSISTANT_MEMORIES}${query}`,
       { method: 'GET', headers: { Accept: 'application/json' } },
     )
-    return await parseJsonResult(response, 'Failed to load memories')
+    return await parseApiResult(response)
   } catch (error) {
-    return toFailure(error, 'Failed to load memories')
+    return toApiFailure(error)
   }
 }
 
@@ -88,9 +56,9 @@ export async function createAssistantMemoryAPI(
       headers: JSON_HEADERS,
       body: JSON.stringify(input),
     })
-    return await parseJsonResult(response, 'Failed to save memory')
+    return await parseApiResult(response)
   } catch (error) {
-    return toFailure(error, 'Failed to save memory')
+    return toApiFailure(error)
   }
 }
 
@@ -104,9 +72,9 @@ export async function updateAssistantMemoryAPI(
       headers: JSON_HEADERS,
       body: JSON.stringify(input),
     })
-    return await parseJsonResult(response, 'Failed to save memory')
+    return await parseApiResult(response)
   } catch (error) {
-    return toFailure(error, 'Failed to save memory')
+    return toApiFailure(error)
   }
 }
 
@@ -115,9 +83,9 @@ export async function deleteAssistantMemoryAPI(
 ): Promise<ApiResult<unknown>> {
   try {
     const response = await apiFetch(memoryUrl(memoryId), { method: 'DELETE' })
-    return await parseJsonResult(response, 'Failed to delete memory')
+    return await parseApiResult(response)
   } catch (error) {
-    return toFailure(error, 'Failed to delete memory')
+    return toApiFailure(error)
   }
 }
 
@@ -139,8 +107,8 @@ export async function clearAssistantMemoriesAPI(
         ),
       },
     )
-    return await parseJsonResult(response, 'Failed to clear memories')
+    return await parseApiResult(response)
   } catch (error) {
-    return toFailure(error, 'Failed to clear memories')
+    return toApiFailure(error)
   }
 }

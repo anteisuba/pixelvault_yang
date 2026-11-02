@@ -7,7 +7,8 @@ import type {
 } from '@/types'
 import { API_ENDPOINTS, CLIENT_API, PAGINATION } from '@/constants/config'
 
-import { getErrorMessage, getErrorPayload } from '@/lib/api-client/shared'
+import { getErrorPayload } from '@/lib/api-client/shared'
+import { getThrownErrorFields } from '@/lib/api-client/error-fields'
 import { apiFetch } from '@/lib/api-client/api-fetch'
 
 export async function fetchGalleryImages(
@@ -64,10 +65,7 @@ export async function fetchGalleryImages(
       `${API_ENDPOINTS.IMAGES}?${params.toString()}`,
     )
     if (!response.ok) {
-      const payload = await getErrorPayload(
-        response,
-        `Failed with status ${response.status}`,
-      )
+      const payload = await getErrorPayload(response)
       return {
         success: false,
         error: payload.error,
@@ -79,8 +77,7 @@ export async function fetchGalleryImages(
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -101,18 +98,14 @@ export async function fetchGenerationByIdAPI(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return await response.json()
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -129,18 +122,14 @@ export async function deleteGenerationAPI(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return await response.json()
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -160,18 +149,14 @@ export async function batchDeleteGenerationsAPI(ids: string[]): Promise<{
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return await response.json()
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -198,18 +183,14 @@ export async function fetchAssetSectionCounts(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return await response.json()
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -234,18 +215,14 @@ export async function batchUpdateVisibilityAPI(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return await response.json()
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -268,18 +245,14 @@ export async function batchSetLikeAPI(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return await response.json()
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }

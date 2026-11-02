@@ -5,7 +5,8 @@ import type {
   SetLoraCharactersRequest,
 } from '@/types'
 
-import { getErrorMessage } from '@/lib/api-client/shared'
+import { getErrorPayload } from '@/lib/api-client/shared'
+import { getThrownErrorFields } from '@/lib/api-client/error-fields'
 import { apiFetch } from '@/lib/api-client/api-fetch'
 
 interface CharacterLoraGroupsResponse {
@@ -22,17 +23,14 @@ async function readGroups(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return (await response.json()) as CharacterLoraGroupsResponse
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Network error',
+      ...getThrownErrorFields(error),
     }
   }
 }

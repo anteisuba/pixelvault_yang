@@ -1,5 +1,5 @@
 import { API_ENDPOINTS } from '@/constants/config'
-import { getErrorPayload } from '@/lib/api-client/shared'
+import { parseApiResult, toApiFailure } from '@/lib/api-client/shared'
 import type {
   CharacterGrowth,
   CharacterJournalEntry,
@@ -22,30 +22,6 @@ type ApiResult<T> =
   | { success: true; data: T }
   | { success: false; error: string; errorCode?: string; i18nKey?: string }
 
-async function parseJsonResult<T>(
-  response: Response,
-  fallbackError: string,
-): Promise<ApiResult<T>> {
-  if (!response.ok) {
-    const payload = await getErrorPayload(response, fallbackError)
-    return {
-      success: false,
-      error: payload.error,
-      errorCode: payload.errorCode,
-      i18nKey: payload.i18nKey,
-    }
-  }
-  const body = (await response.json()) as { success?: boolean; data?: T }
-  if (!body.success || body.data === undefined)
-    return { success: false, error: fallbackError }
-  return { success: true, data: body.data }
-}
-
-const toFailure = (error: unknown, fallback: string): ApiResult<never> => ({
-  success: false,
-  error: error instanceof Error ? error.message : fallback,
-})
-
 export async function getCharacterGrowthAPI(
   cardId: string,
 ): Promise<ApiResult<CharacterGrowth>> {
@@ -54,9 +30,9 @@ export async function getCharacterGrowthAPI(
       `${API_ENDPOINTS.CHARACTER_CARDS}/${encodeURIComponent(cardId)}/growth`,
       { method: 'GET', headers: { Accept: 'application/json' } },
     )
-    return await parseJsonResult(response, 'Failed to load her growth')
+    return await parseApiResult(response)
   } catch (error) {
-    return toFailure(error, 'Failed to load her growth')
+    return toApiFailure(error)
   }
 }
 
@@ -69,9 +45,9 @@ export async function getCharacterRecentActivityAPI(): Promise<
       method: 'GET',
       headers: { Accept: 'application/json' },
     })
-    return await parseJsonResult(response, 'Failed to load recent activity')
+    return await parseApiResult(response)
   } catch (error) {
-    return toFailure(error, 'Failed to load recent activity')
+    return toApiFailure(error)
   }
 }
 
@@ -87,9 +63,9 @@ export async function revertCharacterRevisionAPI(
         body: JSON.stringify({}),
       },
     )
-    return await parseJsonResult(response, 'Failed to revert')
+    return await parseApiResult(response)
   } catch (error) {
-    return toFailure(error, 'Failed to revert')
+    return toApiFailure(error)
   }
 }
 
@@ -107,9 +83,9 @@ export async function startCharacterOutingAPI(
         body: JSON.stringify(input),
       },
     )
-    return await parseJsonResult(response, 'Failed to go out')
+    return await parseApiResult(response)
   } catch (error) {
-    return toFailure(error, 'Failed to go out')
+    return toApiFailure(error)
   }
 }
 
@@ -126,9 +102,9 @@ export async function stopCharacterOutingAPI(
         body: JSON.stringify({}),
       },
     )
-    return await parseJsonResult(response, 'Failed to stop')
+    return await parseApiResult(response)
   } catch (error) {
-    return toFailure(error, 'Failed to stop')
+    return toApiFailure(error)
   }
 }
 
@@ -146,9 +122,9 @@ export async function updateCharacterJournalAPI(
         body: JSON.stringify(input),
       },
     )
-    return await parseJsonResult(response, 'Failed to save')
+    return await parseApiResult(response)
   } catch (error) {
-    return toFailure(error, 'Failed to save')
+    return toApiFailure(error)
   }
 }
 
@@ -161,10 +137,10 @@ export async function deleteCharacterJournalAPI(
       `${API_ENDPOINTS.CHARACTER_JOURNALS}/${encodeURIComponent(journalId)}`,
       { method: 'DELETE' },
     )
-    if (!response.ok) return await parseJsonResult(response, 'Failed to delete')
+    if (!response.ok) return await parseApiResult(response)
     return { success: true, data: null }
   } catch (error) {
-    return toFailure(error, 'Failed to delete')
+    return toApiFailure(error)
   }
 }
 
@@ -176,10 +152,10 @@ export async function deleteCharacterFindingAPI(
       `${API_ENDPOINTS.CHARACTER_FINDINGS}/${encodeURIComponent(findingId)}`,
       { method: 'DELETE' },
     )
-    if (!response.ok) return await parseJsonResult(response, 'Failed to delete')
+    if (!response.ok) return await parseApiResult(response)
     return { success: true, data: null }
   } catch (error) {
-    return toFailure(error, 'Failed to delete')
+    return toApiFailure(error)
   }
 }
 
@@ -195,9 +171,9 @@ export async function getCharacterMemoriesAPI(
       method: 'GET',
       headers: { Accept: 'application/json' },
     })
-    return await parseJsonResult(response, 'Failed to load her memories')
+    return await parseApiResult(response)
   } catch (error) {
-    return toFailure(error, 'Failed to load her memories')
+    return toApiFailure(error)
   }
 }
 
@@ -212,8 +188,8 @@ export async function createCharacterMemoryAPI(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text }),
     })
-    return await parseJsonResult(response, 'Failed to save memory')
+    return await parseApiResult(response)
   } catch (error) {
-    return toFailure(error, 'Failed to save memory')
+    return toApiFailure(error)
   }
 }

@@ -28,7 +28,8 @@ import {
 } from '@/constants/cards/chub-library'
 import { API_ENDPOINTS } from '@/constants/config'
 
-import { getErrorMessage, getErrorPayload } from '@/lib/api-client/shared'
+import { getErrorPayload } from '@/lib/api-client/shared'
+import { getThrownErrorFields } from '@/lib/api-client/error-fields'
 import {
   chubCharacterUrl,
   chubSearchUrl,
@@ -44,17 +45,12 @@ export async function listCharacterCardsAPI(): Promise<CharacterCardsResponse> {
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return await response.json()
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'An unexpected error occurred'
-    return { success: false, error: message }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -70,17 +66,12 @@ export async function createCharacterCardAPI(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return await response.json()
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'An unexpected error occurred'
-    return { success: false, error: message }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -107,10 +98,7 @@ export async function importTavernCardAPI(
       },
     )
     if (!prepareResponse.ok) {
-      const payload = await getErrorPayload(
-        prepareResponse,
-        `Failed with status ${prepareResponse.status}`,
-      )
+      const payload = await getErrorPayload(prepareResponse)
       return { success: false, error: payload.error, i18nKey: payload.i18nKey }
     }
     const prepare = (await prepareResponse.json()) as {
@@ -141,17 +129,12 @@ export async function importTavernCardAPI(
       } satisfies ImportTavernCardRequest),
     })
     if (!response.ok) {
-      const payload = await getErrorPayload(
-        response,
-        `Failed with status ${response.status}`,
-      )
+      const payload = await getErrorPayload(response)
       return { success: false, error: payload.error, i18nKey: payload.i18nKey }
     }
     return await response.json()
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'An unexpected error occurred'
-    return { success: false, error: message }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -280,17 +263,12 @@ export async function importChubCardAPI({
       body: JSON.stringify(body),
     })
     if (!response.ok) {
-      const payload = await getErrorPayload(
-        response,
-        `Failed with status ${response.status}`,
-      )
+      const payload = await getErrorPayload(response)
       return { success: false, error: payload.error, i18nKey: payload.i18nKey }
     }
     return await response.json()
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'An unexpected error occurred'
-    return { success: false, error: message }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -302,17 +280,12 @@ export async function getCharacterCardAPI(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return await response.json()
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'An unexpected error occurred'
-    return { success: false, error: message }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -329,17 +302,12 @@ export async function updateCharacterCardAPI(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return await response.json()
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'An unexpected error occurred'
-    return { success: false, error: message }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -354,17 +322,12 @@ export async function deleteCharacterCardAPI(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return { success: true }
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'An unexpected error occurred'
-    return { success: false, error: message }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -381,17 +344,12 @@ async function sendCharacterCardWrite(
       body: JSON.stringify(body),
     })
     if (!response.ok) {
-      const payload = await getErrorPayload(
-        response,
-        `Failed with status ${response.status}`,
-      )
+      const payload = await getErrorPayload(response)
       return { success: false, error: payload.error, i18nKey: payload.i18nKey }
     }
     return await response.json()
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'An unexpected error occurred'
-    return { success: false, error: message }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -440,15 +398,10 @@ export async function deleteCharacterLookAPI(
       },
     )
     if (response.ok || response.status === 204) return { success: true }
-    const payload = await getErrorPayload(
-      response,
-      `Failed with status ${response.status}`,
-    )
+    const payload = await getErrorPayload(response)
     return { success: false, error: payload.error, i18nKey: payload.i18nKey }
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'An unexpected error occurred'
-    return { success: false, error: message }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -471,7 +424,7 @@ export async function sampleCharacterLinesAPI(id: string): Promise<{
       },
     )
     if (!response.ok) {
-      const payload = await getErrorPayload(response, 'Sample lines failed')
+      const payload = await getErrorPayload(response)
       return {
         success: false,
         error: payload.error,
@@ -481,9 +434,7 @@ export async function sampleCharacterLinesAPI(id: string): Promise<{
     }
     return await response.json()
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'An unexpected error occurred'
-    return { success: false, error: message }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -502,12 +453,10 @@ export async function addCharacterExampleAPI(
       },
     )
     if (response.ok) return { success: true }
-    const payload = await getErrorPayload(response, 'Saving example failed')
+    const payload = await getErrorPayload(response)
     return { success: false, error: payload.error }
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'An unexpected error occurred'
-    return { success: false, error: message }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -532,7 +481,7 @@ export async function draftCharacterDialogueAPI(
       },
     )
     if (!response.ok) {
-      const payload = await getErrorPayload(response, 'Draft failed')
+      const payload = await getErrorPayload(response)
       return {
         success: false,
         error: payload.error,
@@ -542,9 +491,7 @@ export async function draftCharacterDialogueAPI(
     }
     return await response.json()
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'An unexpected error occurred'
-    return { success: false, error: message }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -565,8 +512,6 @@ export async function getCharacterCardGenerationsAPI(
     )
     return await response.json()
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'An unexpected error occurred'
-    return { success: false, error: message }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }

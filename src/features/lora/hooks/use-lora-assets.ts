@@ -19,6 +19,7 @@ import { buildLibraryFavoriteRequest } from '@/features/lora/lib/lora-source-sna
 import { queryClient } from '@/lib/query-client'
 import type { FavoriteLoraRequest, LoraAssetRecord } from '@/types'
 import { useErrorText } from '@/hooks/use-error-text'
+import { ApiClientError } from '@/lib/api-client/error-fields'
 
 export interface UseLoraAssetsReturn {
   myAssets: LoraAssetRecord[]
@@ -47,7 +48,7 @@ const EMPTY: LoraAssetRecord[] = []
 async function fetchMyLoraAssets(): Promise<LoraAssetRecord[]> {
   const result = await listLoraAssetsAPI()
   if (!result.success || !result.data) {
-    throw new Error(result.error ?? 'Failed to load LoRA assets')
+    throw new ApiClientError(result)
   }
   return result.data
 }
@@ -55,7 +56,7 @@ async function fetchMyLoraAssets(): Promise<LoraAssetRecord[]> {
 async function fetchDiscoverLoraAssets(): Promise<LoraAssetRecord[]> {
   const result = await listDiscoverLoraAssetsAPI()
   if (!result.success || !result.data) {
-    throw new Error(result.error ?? 'Failed to load LoRA discover feed')
+    throw new ApiClientError(result)
   }
   return result.data
 }
@@ -104,7 +105,9 @@ export function useLoraAssets(): UseLoraAssetsReturn {
   const discoverAssets = discover.data ?? EMPTY
   // 把 mine 的失败原因暴露给 UI，否则一次网络错误会变成「假阴性空状态」
   // — 用户会以为自己的 LoRA 全没了。错误清晰显示 + 重试入口比静默更诚实。
-  const errorMine = mine.error?.message ?? null
+  const errorMine = mine.error
+    ? errText.thrown(mine.error, t('myLorasErrorDetail'))
+    : null
 
   const { refetch: refetchMine } = mine
   const { refetch: refetchDiscover } = discover

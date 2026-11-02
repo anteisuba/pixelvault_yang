@@ -1,5 +1,5 @@
 import { API_ENDPOINTS } from '@/constants/config'
-import { getErrorPayload } from '@/lib/api-client/shared'
+import { parseApiResult, toApiFailure } from '@/lib/api-client/shared'
 import type {
   AssistantPersona,
   CreateProjectRuleInput,
@@ -28,38 +28,6 @@ type ApiResult<T> =
   | { success: true; data: T }
   | { success: false; error: string; errorCode?: string; i18nKey?: string }
 
-async function parseJsonResult<T>(
-  response: Response,
-  fallbackError: string,
-): Promise<ApiResult<T>> {
-  if (!response.ok) {
-    const payload = await getErrorPayload(response, fallbackError)
-    return {
-      success: false,
-      error: payload.error,
-      errorCode: payload.errorCode,
-      i18nKey: payload.i18nKey,
-    }
-  }
-
-  const body = (await response.json()) as {
-    success?: boolean
-    data?: T
-    error?: string
-  }
-  if (!body.success || body.data === undefined) {
-    return { success: false, error: body.error ?? fallbackError }
-  }
-  return { success: true, data: body.data }
-}
-
-function toFailure(error: unknown, fallback: string): ApiResult<never> {
-  return {
-    success: false,
-    error: error instanceof Error ? error.message : fallback,
-  }
-}
-
 const JSON_HEADERS = { 'Content-Type': 'application/json' } as const
 
 export async function getAssistantPersonaAPI(): Promise<
@@ -70,9 +38,9 @@ export async function getAssistantPersonaAPI(): Promise<
       method: 'GET',
       headers: { Accept: 'application/json' },
     })
-    return await parseJsonResult(response, 'Failed to load assistant settings')
+    return await parseApiResult(response)
   } catch (error) {
-    return toFailure(error, 'Failed to load assistant settings')
+    return toApiFailure(error)
   }
 }
 
@@ -85,9 +53,9 @@ export async function updateAssistantPersonaAPI(
       headers: JSON_HEADERS,
       body: JSON.stringify(persona),
     })
-    return await parseJsonResult(response, 'Failed to save assistant settings')
+    return await parseApiResult(response)
   } catch (error) {
-    return toFailure(error, 'Failed to save assistant settings')
+    return toApiFailure(error)
   }
 }
 
@@ -101,9 +69,9 @@ export async function speakAssistantReplyAPI(
       headers: JSON_HEADERS,
       body: JSON.stringify(request),
     })
-    return await parseJsonResult(response, 'Failed to read the reply aloud')
+    return await parseApiResult(response)
   } catch (error) {
-    return toFailure(error, 'Failed to read the reply aloud')
+    return toApiFailure(error)
   }
 }
 
@@ -113,9 +81,9 @@ export async function getVoiceBenchAPI(): Promise<ApiResult<VoiceBenchData>> {
     const response = await apiFetch(API_ENDPOINTS.VOICE_BENCH, {
       cache: 'no-store',
     })
-    return await parseJsonResult(response, 'Failed to load the voice bench')
+    return await parseApiResult(response)
   } catch (error) {
-    return toFailure(error, 'Failed to load the voice bench')
+    return toApiFailure(error)
   }
 }
 
@@ -129,9 +97,9 @@ export async function rewriteVoiceBenchTextAPI(
       headers: JSON_HEADERS,
       body: JSON.stringify(request),
     })
-    return await parseJsonResult(response, 'Failed to rewrite the lines')
+    return await parseApiResult(response)
   } catch (error) {
-    return toFailure(error, 'Failed to rewrite the lines')
+    return toApiFailure(error)
   }
 }
 
@@ -145,9 +113,9 @@ export async function uploadAssistantAvatarAPI(
       headers: JSON_HEADERS,
       body: JSON.stringify({ imageData }),
     })
-    return await parseJsonResult(response, 'Failed to upload avatar')
+    return await parseApiResult(response)
   } catch (error) {
-    return toFailure(error, 'Failed to upload avatar')
+    return toApiFailure(error)
   }
 }
 
@@ -163,9 +131,9 @@ export async function listProjectRulesAPI(
         headers: { Accept: 'application/json' },
       },
     )
-    return await parseJsonResult(response, 'Failed to load rules')
+    return await parseApiResult(response)
   } catch (error) {
-    return toFailure(error, 'Failed to load rules')
+    return toApiFailure(error)
   }
 }
 
@@ -178,9 +146,9 @@ export async function createProjectRuleAPI(
       headers: JSON_HEADERS,
       body: JSON.stringify(input),
     })
-    return await parseJsonResult(response, 'Failed to save rule')
+    return await parseApiResult(response)
   } catch (error) {
-    return toFailure(error, 'Failed to save rule')
+    return toApiFailure(error)
   }
 }
 
@@ -192,8 +160,8 @@ export async function deleteProjectRuleAPI(
       `${API_ENDPOINTS.ASSISTANT_RULES}/${encodeURIComponent(ruleId)}`,
       { method: 'DELETE' },
     )
-    return await parseJsonResult(response, 'Failed to delete rule')
+    return await parseApiResult(response)
   } catch (error) {
-    return toFailure(error, 'Failed to delete rule')
+    return toApiFailure(error)
   }
 }

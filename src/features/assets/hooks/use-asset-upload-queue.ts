@@ -207,11 +207,9 @@ export function useAssetUploadQueue({
           } else {
             patchItem(id, { status: 'error', error: result.error })
           }
-        } catch (error) {
-          patchItem(id, {
-            status: 'error',
-            error: error instanceof Error ? error.message : undefined,
-          })
+        } catch {
+          // 抛出来的原话（英文 / 程序异常）不进瓦片：组件显示本地化的「上传失败」。
+          patchItem(id, { status: 'error', error: undefined })
         } finally {
           activeIdRef.current = null
         }

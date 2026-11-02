@@ -10,6 +10,7 @@ import type {
   OutputTypeValue,
   ProjectRecord,
 } from '@/types'
+import { ApiClientError } from '@/lib/api-client/error-fields'
 
 interface CacheEntry<T> {
   data?: T
@@ -76,7 +77,7 @@ export function useAssetPickerNavigation(
         async () => {
           const response = await listProjectsAPI()
           if (!response.success || !response.data)
-            throw new Error(response.error ?? 'Failed to load projects')
+            throw new ApiClientError(response)
           return response.data
         },
         false,
@@ -93,8 +94,7 @@ export function useAssetPickerNavigation(
           const response = await fetchAssetSectionCounts(
             mediaType ? [mediaType] : [],
           )
-          if (!response.success)
-            throw new Error(response.error ?? 'Failed to load counts')
+          if (!response.success) throw new ApiClientError(response)
           return response.data
         },
         force,

@@ -284,9 +284,7 @@
     },
     "common": {
       "unexpected": "An unexpected error occurred. Please try again.",
-      "databaseUnavailable": "Database service is temporarily unavailable. Please try again later.",
-      "withDetail": "{message} ({detail})",
-      "network": "Could not reach the network. Check your connection and try again."
+      "databaseUnavailable": "Database service is temporarily unavailable. Please try again later."
     },
     "webImageImport": {
       "unreachable": "The site hosting that image refused the download. Try another candidate.",
@@ -487,6 +485,17 @@
     "voiceBench": {
       "noPersona": "Switch to a character first, then rewrite in her words",
       "rewriteEmpty": "The rewrite came back empty. Try again"
+    },
+    "transport": {
+      "sessionExpired": "Your sign-in has expired. Sign in again to continue.",
+      "notFound": "This feature isn't reachable right now (it may have just been updated). Refresh the page and try again.",
+      "tooLarge": "This request is too large to send. Use a smaller file or fewer images.",
+      "timeout": "The server took too long to respond. Try again in a moment.",
+      "unavailable": "The service is temporarily unavailable. Try again in a moment.",
+      "rateLimited": "Too many requests in a short time. Wait a moment and try again.",
+      "forbidden": "You don't have access to this.",
+      "badResponse": "The server sent back a response we couldn't read. Try again.",
+      "network": "Could not reach the network. Check your connection and try again."
     }
   },
   "DropZone": {

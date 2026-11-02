@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import { mineCivitaiLoraPromptsAPI } from '@/lib/api-client/lora-assets'
 import { deferEffectTask } from '@/lib/defer-effect-task'
 import type { CivitaiMinedPromptsResult } from '@/types'
+import { useErrorText } from '@/hooks/use-error-text'
 
 /**
  * Minimal input shape — anything carrying the Civitai identifiers can
@@ -68,10 +69,11 @@ interface CacheEntry {
   promise: Promise<CivitaiMinedPromptsResult | null>
   result?: CivitaiMinedPromptsResult
   /**
-   * 取失败了。`message` 为 `null` = 服务端没给理由 —— 翻译成哪句话由调用方按
-   * 自己的语境定（⛔ 别在缓存里存一句译文：助手宿主那条路没有 `useTranslations`）。
+   * 取失败了：存结构化的错误字段，翻译成哪句话由调用方按自己的语境定
+   * （⛔ 别在缓存里存一句译文：助手宿主那条路没有 `useTranslations`；⛔ 也别把
+   * 服务端原话直接显示 —— o-errors 第二轮）。
    */
-  error?: { message: string | null }
+  error?: { error?: string; errorCode?: string; i18nKey?: string }
 }
 const cache = new Map<string, CacheEntry>()
 
@@ -101,7 +103,12 @@ function startMinedPromptsFetch(
       if (entry) entry.result = response.data
       return response.data
     }
-    if (entry) entry.error = { message: response.error ?? null }
+    if (entry)
+      entry.error = {
+        ...(response.error ? { error: response.error } : {}),
+        ...(response.errorCode ? { errorCode: response.errorCode } : {}),
+        ...(response.i18nKey ? { i18nKey: response.i18nKey } : {}),
+      }
     return null
   })
   cache.set(key, { promise })
@@ -217,6 +224,7 @@ export function useCivitaiMinedPrompts(
   item: MinedPromptsInputItem | null,
 ): UseCivitaiMinedPromptsReturn {
   const t = useTranslations('LoraWorkbench')
+  const errText = useErrorText()
   const [state, dispatch] = useReducer(reducer, EMPTY)
   const requestIdRef = useRef(0)
 
@@ -253,7 +261,7 @@ export function useCivitaiMinedPrompts(
     if (cached?.error) {
       dispatch({
         type: 'error',
-        message: cached.error.message ?? t('minedPromptsUnknownError'),
+        message: errText.api(cached.error, t('minedPromptsUnknownError')),
       })
       return
     }
@@ -276,12 +284,15 @@ export function useCivitaiMinedPrompts(
         } else {
           dispatch({
             type: 'error',
-            message: cache.get(key)?.error?.message ?? t('minedPromptsFailed'),
+            message: errText.api(
+              cache.get(key)?.error ?? {},
+              t('minedPromptsFailed'),
+            ),
           })
         }
       })
     })
-  }, [modelId, modelVersionId, fileHashAutoV3, t])
+  }, [modelId, modelVersionId, fileHashAutoV3, t, errText])
 
   return state
 }

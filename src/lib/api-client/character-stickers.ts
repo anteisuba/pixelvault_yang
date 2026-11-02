@@ -1,5 +1,5 @@
 import { API_ENDPOINTS } from '@/constants/config'
-import { getErrorPayload } from '@/lib/api-client/shared'
+import { getErrorPayload, toApiFailure } from '@/lib/api-client/shared'
 import type {
   CharacterStickerRecord,
   UpdateCharacterStickerRequest,
@@ -21,18 +21,13 @@ async function parse<T>(
   fallback: string,
 ): Promise<ApiResult<T>> {
   if (!response.ok) {
-    const payload = await getErrorPayload(response, fallback)
+    const payload = await getErrorPayload(response)
     return { success: false, error: payload.error, status: response.status }
   }
   const body = (await response.json()) as { success?: boolean; data?: T }
   if (!body.success) return { success: false, error: fallback }
   return { success: true, data: body.data as T }
 }
-
-const toFailure = (error: unknown, fallback: string): ApiResult<never> => ({
-  success: false,
-  error: error instanceof Error ? error.message : fallback,
-})
 
 const cardStickers = (cardId: string) =>
   `${API_ENDPOINTS.CHARACTER_CARDS}/${encodeURIComponent(cardId)}/stickers`
@@ -48,7 +43,7 @@ export async function listCharacterStickersAPI(
     })
     return await parse(response, 'Failed to load stickers')
   } catch (error) {
-    return toFailure(error, 'Failed to load stickers')
+    return toApiFailure(error)
   }
 }
 
@@ -67,7 +62,7 @@ export async function uploadCharacterStickerAPI(
     })
     return await parse(response, 'Failed to upload sticker')
   } catch (error) {
-    return toFailure(error, 'Failed to upload sticker')
+    return toApiFailure(error)
   }
 }
 
@@ -83,7 +78,7 @@ export async function updateCharacterStickerAPI(
     })
     return await parse(response, 'Failed to save sticker')
   } catch (error) {
-    return toFailure(error, 'Failed to save sticker')
+    return toApiFailure(error)
   }
 }
 
@@ -94,6 +89,6 @@ export async function deleteCharacterStickerAPI(
     const response = await apiFetch(stickerUrl(stickerId), { method: 'DELETE' })
     return await parse(response, 'Failed to delete sticker')
   } catch (error) {
-    return toFailure(error, 'Failed to delete sticker')
+    return toApiFailure(error)
   }
 }

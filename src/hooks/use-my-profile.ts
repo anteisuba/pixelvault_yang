@@ -8,13 +8,14 @@ import { QUERY_KEYS } from '@/constants/query'
 import { getMyProfileAPI } from '@/lib/api-client'
 import { queryClient } from '@/lib/query-client'
 import type { UpdateProfileResponse } from '@/types'
+import { ApiClientError } from '@/lib/api-client/error-fields'
 
 type MyProfile = NonNullable<UpdateProfileResponse['data']>
 
 async function fetchMyProfile(): Promise<MyProfile | null> {
   const res = await getMyProfileAPI()
   if (res.success && res.data) return res.data
-  throw new Error(res.error ?? 'Failed to load profile')
+  throw new ApiClientError(res)
 }
 
 /**

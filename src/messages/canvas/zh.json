@@ -1537,7 +1537,8 @@
             "today": "今天",
             "yesterday": "昨天",
             "earlier": "更早"
-          }
+          },
+          "loadFailed": "列表没加载出来，稍后再试。"
         },
         "trim": {
           "title": "裁剪",

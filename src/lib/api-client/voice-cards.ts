@@ -5,7 +5,7 @@ import type {
   VoiceCardRecord,
 } from '@/types'
 
-import { getErrorMessage } from '@/lib/api-client/shared'
+import { getErrorPayload } from '@/lib/api-client/shared'
 import { apiFetch } from '@/lib/api-client/api-fetch'
 
 export interface VoiceCardApiResponse<TData> {
@@ -40,10 +40,7 @@ export async function createVoiceCardAPI(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
 
@@ -67,10 +64,7 @@ export async function listVoiceCardsAPI(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
 
@@ -89,10 +83,7 @@ export async function getVoiceCardAPI(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
 
@@ -116,10 +107,7 @@ export async function updateVoiceCardAPI(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
 
@@ -140,10 +128,7 @@ export async function deleteVoiceCardAPI(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
 
@@ -168,10 +153,7 @@ export async function uploadVoiceCardCoverAPI(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
 

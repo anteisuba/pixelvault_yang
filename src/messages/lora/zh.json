@@ -722,7 +722,8 @@
       "sourceImported": "你的收藏",
       "sourceCurated": "精选",
       "incompatible": "装不上"
-    }
+    },
+    "myLorasErrorDetail": "这次没拉下来，点重试再拉一次。"
   },
   "CivitaiToken": {
     "saveSuccess": "Civitai Token 已保存",

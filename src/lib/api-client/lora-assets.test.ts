@@ -50,7 +50,12 @@ describe('fetchHuggingFaceShowcaseAPI', () => {
       revision: 'main',
     })
 
-    expect(result).toEqual({ success: false, error: 'network down' })
+    expect(result).toEqual({
+      success: false,
+      error: 'network down',
+      errorCode: 'CLIENT_ERROR',
+      i18nKey: 'errors.common.unexpected',
+    })
   })
 
   it('surfaces a non-ok HTTP response as a failure', async () => {

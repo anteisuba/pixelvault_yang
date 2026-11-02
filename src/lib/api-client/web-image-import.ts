@@ -12,6 +12,7 @@
 
 import { API_ENDPOINTS } from '@/constants/config'
 import { getErrorPayload } from '@/lib/api-client/shared'
+import { getThrownErrorFields } from '@/lib/api-client/error-fields'
 import type { GenerationRecord } from '@/types'
 import type { WebImageImportRequest } from '@/types/web-image-import'
 import { apiFetch } from '@/lib/api-client/api-fetch'
@@ -38,10 +39,7 @@ export async function importWebImageAPI(
     })
 
     if (!response.ok) {
-      const payload = await getErrorPayload(
-        response,
-        `Import failed with status ${response.status}`,
-      )
+      const payload = await getErrorPayload(response)
       return {
         success: false,
         error: payload.error,
@@ -72,8 +70,7 @@ export async function importWebImageAPI(
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }

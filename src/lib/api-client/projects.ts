@@ -10,7 +10,8 @@ import type {
 } from '@/types'
 import { API_ENDPOINTS, CLIENT_API } from '@/constants/config'
 
-import { getErrorMessage } from '@/lib/api-client/shared'
+import { getErrorPayload } from '@/lib/api-client/shared'
+import { getThrownErrorFields } from '@/lib/api-client/error-fields'
 import { apiFetch } from '@/lib/api-client/api-fetch'
 
 export async function listProjectsAPI(): Promise<ProjectsResponse> {
@@ -19,17 +20,12 @@ export async function listProjectsAPI(): Promise<ProjectsResponse> {
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return await response.json()
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'An unexpected error occurred'
-    return { success: false, error: message }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -46,17 +42,12 @@ export async function createProjectAPI(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return await response.json()
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'An unexpected error occurred'
-    return { success: false, error: message }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -74,17 +65,12 @@ export async function updateProjectAPI(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return await response.json()
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'An unexpected error occurred'
-    return { success: false, error: message }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -100,17 +86,12 @@ export async function deleteProjectAPI(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return { success: true }
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'An unexpected error occurred'
-    return { success: false, error: message }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -131,17 +112,12 @@ export async function getProjectHistoryAPI(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return await response.json()
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'An unexpected error occurred'
-    return { success: false, error: message }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -159,17 +135,12 @@ export async function reorderProjectsAPI(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return { success: true }
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'An unexpected error occurred'
-    return { success: false, error: message }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -191,17 +162,12 @@ export async function updateFolderItemsAPI(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return await response.json()
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'An unexpected error occurred'
-    return { success: false, error: message }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -223,16 +189,11 @@ export async function getFolderMembershipsAPI(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return await response.json()
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'An unexpected error occurred'
-    return { success: false, error: message }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }

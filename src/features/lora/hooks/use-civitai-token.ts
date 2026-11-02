@@ -14,6 +14,7 @@ import {
 } from '@/lib/api-client'
 import { queryClient } from '@/lib/query-client'
 import { useErrorText } from '@/hooks/use-error-text'
+import { ApiClientError } from '@/lib/api-client/error-fields'
 
 export interface UseCivitaiTokenReturn {
   hasToken: boolean
@@ -26,7 +27,7 @@ export interface UseCivitaiTokenReturn {
 async function fetchHasCivitaiToken(): Promise<boolean> {
   const result = await getCivitaiTokenStatusAPI()
   if (!result.success || !result.data) {
-    throw new Error(result.error ?? 'Failed to load Civitai token status')
+    throw new ApiClientError(result)
   }
   return result.data.hasToken
 }

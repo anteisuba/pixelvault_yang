@@ -393,13 +393,11 @@ export function useApiKeys({
       setHealthMap(snapshot.healthMap)
       setLoadedUserId(snapshot.userId)
     } catch (loadError) {
-      setError(
-        loadError instanceof Error ? loadError.message : t('apiKeyLoadFailed'),
-      )
+      setError(errText.thrown(loadError, t('apiKeyLoadFailed')))
     } finally {
       setIsLoading(false)
     }
-  }, [userId, t])
+  }, [errText, userId, t])
 
   const create = useCallback(
     async (data: CreateApiKeyRequest): Promise<boolean> => {

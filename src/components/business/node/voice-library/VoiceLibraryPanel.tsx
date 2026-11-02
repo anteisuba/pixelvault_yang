@@ -298,7 +298,11 @@ export function VoiceLibraryPanel({
                 data-voice-library-empty
                 className="px-2 py-6 text-2xs text-muted-foreground"
               >
-                {isLoading ? t('loading') : (error ?? t('empty'))}
+                {isLoading
+                  ? t('loading')
+                  : error
+                    ? t('loadFailed')
+                    : t('empty')}
               </p>
             ) : datedGroups ? (
               // 「我的历史 / 配音间 / 素材库」= 一条时间轴，按 今天 / 昨天 / 更早

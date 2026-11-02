@@ -6,6 +6,7 @@ import type {
 import { API_ENDPOINTS } from '@/constants/config'
 
 import { getErrorPayload } from '@/lib/api-client/shared'
+import { getThrownErrorFields } from '@/lib/api-client/error-fields'
 import { apiFetch } from '@/lib/api-client/api-fetch'
 
 export async function generateMultiViewAPI(
@@ -19,10 +20,7 @@ export async function generateMultiViewAPI(
     })
 
     if (!response.ok) {
-      const payload = await getErrorPayload(
-        response,
-        `Multi-view generation failed with status ${response.status}`,
-      )
+      const payload = await getErrorPayload(response)
       return {
         success: false,
         error: payload.error,
@@ -35,8 +33,7 @@ export async function generateMultiViewAPI(
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -55,10 +52,7 @@ export async function checkMultiViewStatusAPI(
     )
 
     if (!response.ok) {
-      const payload = await getErrorPayload(
-        response,
-        `Multi-view status failed with status ${response.status}`,
-      )
+      const payload = await getErrorPayload(response)
       return {
         success: false,
         error: payload.error,
@@ -69,8 +63,7 @@ export async function checkMultiViewStatusAPI(
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }

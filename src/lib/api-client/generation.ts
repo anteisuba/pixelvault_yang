@@ -49,11 +49,8 @@ import {
   UPLOAD_RATE_LIMIT_FALLBACK_MS,
 } from '@/constants/uploads'
 
-import {
-  downloadRemoteAsset,
-  getErrorMessage,
-  getErrorPayload,
-} from '@/lib/api-client/shared'
+import { downloadRemoteAsset, getErrorPayload } from '@/lib/api-client/shared'
+import { getThrownErrorFields } from '@/lib/api-client/error-fields'
 import {
   notifyStudioConversationActivity,
   withActiveStudioConversation,
@@ -73,10 +70,7 @@ export async function generateImageAPI(
     })
 
     if (!response.ok) {
-      const payload = await getErrorPayload(
-        response,
-        `Image generation failed with status ${response.status}`,
-      )
+      const payload = await getErrorPayload(response)
       return {
         success: false,
         error: payload.error,
@@ -89,8 +83,7 @@ export async function generateImageAPI(
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -107,10 +100,7 @@ export async function submitVideoAPI(
     notifyStudioConversationActivity()
 
     if (!response.ok) {
-      const payload = await getErrorPayload(
-        response,
-        `Video generation failed with status ${response.status}`,
-      )
+      const payload = await getErrorPayload(response)
       return {
         success: false,
         error: payload.error,
@@ -123,8 +113,7 @@ export async function submitVideoAPI(
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -140,10 +129,7 @@ export async function checkVideoStatusAPI(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Status check failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
 
@@ -151,8 +137,7 @@ export async function checkVideoStatusAPI(
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -183,10 +168,7 @@ export async function uploadGenerationPosterAPI(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Poster upload failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
 
@@ -194,8 +176,7 @@ export async function uploadGenerationPosterAPI(
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -213,10 +194,7 @@ export async function uploadImageAPI(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Upload failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
 
@@ -224,8 +202,7 @@ export async function uploadImageAPI(
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -251,7 +228,6 @@ interface DirectUploadAudioPrepareResponse {
 async function postJson<TResponse>(
   endpoint: string,
   body: Record<string, unknown>,
-  fallbackMessage: string,
 ): Promise<TResponse | { success: false; error: string }> {
   const send = () =>
     apiFetch(endpoint, {
@@ -287,7 +263,7 @@ async function postJson<TResponse>(
   if (!response.ok) {
     return {
       success: false,
-      error: await getErrorMessage(response, fallbackMessage),
+      ...(await getErrorPayload(response)),
     }
   }
 
@@ -378,7 +354,6 @@ export async function uploadImageFileAPI(
         note: options?.note,
         projectId: options?.projectId,
       },
-      'Upload prepare failed',
     )
 
     if (!prepare.success || !prepare.data) {
@@ -435,15 +410,13 @@ export async function uploadImageFileAPI(
         note: options?.note,
         projectId: options?.projectId,
       },
-      'Upload finalize failed',
     )
 
     return complete
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -472,7 +445,6 @@ export async function uploadVideoFileAPI(
         note: options.note,
         projectId: options.projectId,
       },
-      'Video upload prepare failed',
     )
 
     if (!prepare.success || !prepare.data) {
@@ -527,7 +499,6 @@ export async function uploadVideoFileAPI(
         note: options.note,
         projectId: options.projectId,
       },
-      'Video upload finalize failed',
     )
 
     if (!complete.success || !complete.data || !options.poster) {
@@ -547,8 +518,7 @@ export async function uploadVideoFileAPI(
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -574,7 +544,6 @@ export async function uploadAudioFileAPI(
         note: options.note,
         projectId: options.projectId,
       },
-      'Audio upload prepare failed',
     )
 
     if (!prepare.success || !prepare.data) {
@@ -627,13 +596,11 @@ export async function uploadAudioFileAPI(
         note: options.note,
         projectId: options.projectId,
       },
-      'Audio upload finalize failed',
     )
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -650,10 +617,7 @@ export async function submit3DAPI(
     notifyStudioConversationActivity()
 
     if (!response.ok) {
-      const payload = await getErrorPayload(
-        response,
-        `3D generation failed with status ${response.status}`,
-      )
+      const payload = await getErrorPayload(response)
       return {
         success: false,
         error: payload.error,
@@ -666,8 +630,7 @@ export async function submit3DAPI(
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -683,10 +646,7 @@ export async function check3DStatusAPI(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `3D status check failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
 
@@ -694,8 +654,7 @@ export async function check3DStatusAPI(
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -713,10 +672,7 @@ export async function continue3DAPI(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `3D continuation failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
 
@@ -724,8 +680,7 @@ export async function continue3DAPI(
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -743,10 +698,7 @@ export async function retryMesh3DAPI(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `3D mesh retry failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
 
@@ -754,8 +706,7 @@ export async function retryMesh3DAPI(
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -773,10 +724,7 @@ export async function cancel3DAPI(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `3D cancellation failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
 
@@ -784,8 +732,7 @@ export async function cancel3DAPI(
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -807,10 +754,7 @@ export async function cancelGenerationsAPI(
     })
 
     if (!response.ok) {
-      const payload = await getErrorPayload(
-        response,
-        `Generation cancellation failed with status ${response.status}`,
-      )
+      const payload = await getErrorPayload(response)
       return {
         success: false,
         error: payload.error,
@@ -823,8 +767,7 @@ export async function cancelGenerationsAPI(
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -840,10 +783,7 @@ export async function generateAudioAPI(
     })
 
     if (!response.ok) {
-      const payload = await getErrorPayload(
-        response,
-        `Audio generation failed with status ${response.status}`,
-      )
+      const payload = await getErrorPayload(response)
       return {
         success: false,
         error: payload.error,
@@ -856,8 +796,7 @@ export async function generateAudioAPI(
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -873,10 +812,7 @@ export async function checkAudioStatusAPI(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Audio status check failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
 
@@ -884,8 +820,7 @@ export async function checkAudioStatusAPI(
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -906,10 +841,7 @@ export async function toggleGenerationVisibility(
       },
     )
     if (!response.ok) {
-      const payload = await getErrorPayload(
-        response,
-        `Failed with status ${response.status}`,
-      )
+      const payload = await getErrorPayload(response)
       return {
         success: false,
         error: payload.error,
@@ -921,8 +853,7 @@ export async function toggleGenerationVisibility(
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -944,10 +875,7 @@ export async function setGenerationVisibility(
       },
     )
     if (!response.ok) {
-      const payload = await getErrorPayload(
-        response,
-        `Failed with status ${response.status}`,
-      )
+      const payload = await getErrorPayload(response)
       return {
         success: false,
         error: payload.error,
@@ -959,8 +887,7 @@ export async function setGenerationVisibility(
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -996,18 +923,14 @@ export async function setGenerationReviewStateAPI(
       },
     )
     if (!response.ok) {
-      const payload = await getErrorPayload(
-        response,
-        `Failed with status ${response.status}`,
-      )
+      const payload = await getErrorPayload(response)
       return { success: false, error: payload.error }
     }
     return await response.json()
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -1031,18 +954,14 @@ export async function setAudioCoverAPI(
       },
     )
     if (!response.ok) {
-      const payload = await getErrorPayload(
-        response,
-        `Failed with status ${response.status}`,
-      )
+      const payload = await getErrorPayload(response)
       return { success: false, error: payload.error }
     }
     return await response.json()
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -1060,10 +979,7 @@ export async function enhancePromptAPI(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Enhancement failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
 
@@ -1071,8 +987,7 @@ export async function enhancePromptAPI(
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -1091,10 +1006,7 @@ export async function translatePromptToTagsAPI(
       body: JSON.stringify(params),
     })
     if (!response.ok) {
-      const payload = await getErrorPayload(
-        response,
-        `Tag translation failed with status ${response.status}`,
-      )
+      const payload = await getErrorPayload(response)
       return {
         success: false,
         error: payload.error,
@@ -1113,8 +1025,7 @@ export async function translatePromptToTagsAPI(
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -1132,10 +1043,7 @@ export async function promptFeedbackAPI(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Feedback failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
 
@@ -1143,8 +1051,7 @@ export async function promptFeedbackAPI(
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -1162,10 +1069,7 @@ export async function generationFeedbackAPI(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Generation feedback failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
 
@@ -1173,8 +1077,7 @@ export async function generationFeedbackAPI(
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -1219,10 +1122,7 @@ export async function editImageAPI(
       }),
     })
     if (!response.ok) {
-      const payload = await getErrorPayload(
-        response,
-        `Failed with status ${response.status}`,
-      )
+      const payload = await getErrorPayload(response)
       return {
         success: false,
         error: payload.error,
@@ -1234,8 +1134,7 @@ export async function editImageAPI(
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -1266,10 +1165,7 @@ export async function extractElementAPI(params: {
       body: JSON.stringify(params),
     })
     if (!response.ok) {
-      const payload = await getErrorPayload(
-        response,
-        `Extract failed with status ${response.status}`,
-      )
+      const payload = await getErrorPayload(response)
       return {
         success: false,
         error: payload.error,
@@ -1281,8 +1177,7 @@ export async function extractElementAPI(params: {
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -1303,10 +1198,7 @@ export async function checkImageGenerationStatusAPI(
     )
 
     if (!response.ok) {
-      const payload = await getErrorPayload(
-        response,
-        `Status check failed with status ${response.status}`,
-      )
+      const payload = await getErrorPayload(response)
       return {
         success: false,
         httpStatus: response.status,
@@ -1318,8 +1210,7 @@ export async function checkImageGenerationStatusAPI(
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -1335,10 +1226,7 @@ export async function studioGenerateAPI(
     })
     notifyStudioConversationActivity()
     if (!response.ok) {
-      const payload = await getErrorPayload(
-        response,
-        `Failed with status ${response.status}`,
-      )
+      const payload = await getErrorPayload(response)
       return {
         success: false,
         error: payload.error,
@@ -1350,8 +1238,7 @@ export async function studioGenerateAPI(
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -1367,18 +1254,14 @@ export async function studioSelectWinnerAPI(data: {
       body: JSON.stringify(data),
     })
     if (!response.ok) {
-      const payload = await getErrorPayload(
-        response,
-        `Failed with status ${response.status}`,
-      )
+      const payload = await getErrorPayload(response)
       return { success: false, error: payload.error }
     }
     return await response.json()
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -1389,15 +1272,14 @@ export async function getCivitaiTokenStatusAPI(): Promise<CivitaiTokenStatusResp
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(response, 'Failed to get token status'),
+        ...(await getErrorPayload(response)),
       }
     }
     return await response.json()
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -1414,15 +1296,14 @@ export async function setCivitaiTokenAPI(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(response, 'Failed to save token'),
+        ...(await getErrorPayload(response)),
       }
     }
     return await response.json()
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -1438,15 +1319,14 @@ export async function deleteCivitaiTokenAPI(): Promise<{
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(response, 'Failed to delete token'),
+        ...(await getErrorPayload(response)),
       }
     }
     return await response.json()
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -1469,18 +1349,14 @@ export async function fetchGenerationPlanAPI(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Plan failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return await response.json()
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -1502,10 +1378,7 @@ export async function evaluateGenerationAPI(generationId: string): Promise<{
       body: JSON.stringify({ generationId }),
     })
     if (!response.ok) {
-      const payload = await getErrorPayload(
-        response,
-        `Evaluate failed with status ${response.status}`,
-      )
+      const payload = await getErrorPayload(response)
       return {
         success: false,
         error: payload.error,
@@ -1525,8 +1398,7 @@ export async function evaluateGenerationAPI(generationId: string): Promise<{
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }

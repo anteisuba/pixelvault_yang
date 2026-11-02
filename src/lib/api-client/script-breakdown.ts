@@ -6,6 +6,7 @@ import {
 } from '@/types/script-breakdown'
 
 import { getErrorPayload } from '@/lib/api-client/shared'
+import { getThrownErrorFields } from '@/lib/api-client/error-fields'
 import { apiFetch } from '@/lib/api-client/api-fetch'
 
 export type ScriptBreakdownApiResponse =
@@ -31,10 +32,7 @@ export async function createScriptBreakdownAPI(
     })
 
     if (!response.ok) {
-      const payload = await getErrorPayload(
-        response,
-        `Script breakdown failed with status ${response.status}`,
-      )
+      const payload = await getErrorPayload(response)
       return {
         success: false,
         error: payload.error,
@@ -49,10 +47,7 @@ export async function createScriptBreakdownAPI(
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : 'Script breakdown request failed',
+      ...getThrownErrorFields(error),
     }
   }
 }

@@ -16,6 +16,7 @@ import { API_ENDPOINTS } from '@/constants/config'
 import { ASSISTANT_OPERATOR_EVENTS } from '@/constants/assistant-operator'
 import { STUDIO_OPERATOR_STREAMING } from '@/constants/studio-assistant-operator'
 import { getErrorPayload } from '@/lib/api-client/shared'
+import { getThrownErrorFields } from '@/lib/api-client/error-fields'
 import { parseSseStream } from '@/lib/sse'
 import {
   AssistantOperatorEventSchema,
@@ -143,10 +144,7 @@ export async function streamAssistantOperatorAPI(
     })
 
     if (!response.ok) {
-      const payload = await getErrorPayload(
-        response,
-        `Assistant operator failed with status ${response.status}`,
-      )
+      const payload = await getErrorPayload(response)
       return {
         success: false,
         error: payload.error,
@@ -174,8 +172,7 @@ export async function streamAssistantOperatorAPI(
     }
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }

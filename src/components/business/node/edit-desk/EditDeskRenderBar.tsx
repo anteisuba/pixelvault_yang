@@ -48,6 +48,7 @@ export function EditDeskRenderStatus({
     >
       <span
         data-testid="edit-desk-render-status"
+        title={failed ? (job.error ?? undefined) : undefined}
         className={cn(
           'truncate tabular-nums',
           failed ? 'font-medium text-foreground' : 'text-muted-foreground',
@@ -56,7 +57,8 @@ export function EditDeskRenderStatus({
         {done
           ? t('done')
           : failed
-            ? (job.error ?? t(`status.${job.status}`))
+            ? // 渲染服务的原话（英文）只放悬停提示，主句用本地化的状态。
+              t(`status.${job.status}`)
             : t('exporting', {
                 step: job.step ? t(`steps.${job.step}`) : t('steps.download'),
                 percent,

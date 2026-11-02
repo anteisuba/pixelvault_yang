@@ -722,7 +722,8 @@
       "sourceImported": "お気に入り",
       "sourceCurated": "厳選",
       "incompatible": "載らない"
-    }
+    },
+    "myLorasErrorDetail": "読み込みに失敗しました。再試行を押してもう一度読み込んでください。"
   },
   "CivitaiToken": {
     "saveSuccess": "Civitai トークンを保存しました",

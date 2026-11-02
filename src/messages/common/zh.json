@@ -284,9 +284,7 @@
     },
     "common": {
       "unexpected": "发生了意外错误，请重试。",
-      "databaseUnavailable": "数据库服务暂时不可用，请稍后再试。",
-      "withDetail": "{message}（{detail}）",
-      "network": "网络连不上，检查网络后再试。"
+      "databaseUnavailable": "数据库服务暂时不可用，请稍后再试。"
     },
     "webImageImport": {
       "unreachable": "这张图所在的站点不让我们下载它。换一张候选试试。",
@@ -487,6 +485,17 @@
     "voiceBench": {
       "noPersona": "先换成一个角色，再按她的说法改",
       "rewriteEmpty": "没改出来，再试一次"
+    },
+    "transport": {
+      "sessionExpired": "登录已过期，请重新登录后继续。",
+      "notFound": "这个功能暂时访问不到（可能刚更新过），刷新页面后再试。",
+      "tooLarge": "这次发送的内容太大了，换小一点的文件或少放几张图。",
+      "timeout": "服务器太久没有回应，稍后再试。",
+      "unavailable": "服务暂时不可用，稍后再试。",
+      "rateLimited": "短时间内请求太多了，等一会儿再试。",
+      "forbidden": "你没有权限做这个操作。",
+      "badResponse": "服务器的回应读不懂，再试一次。",
+      "network": "网络连不上，检查网络后再试。"
     }
   },
   "DropZone": {

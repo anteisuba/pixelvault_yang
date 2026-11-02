@@ -8,7 +8,7 @@ import type {
   UpdateNodeWorkflowProjectRequest,
 } from '@/types/node-workflow'
 
-import { getErrorMessage } from '@/lib/api-client/shared'
+import { getErrorPayload } from '@/lib/api-client/shared'
 import { apiFetch } from '@/lib/api-client/api-fetch'
 
 export interface NodeWorkflowApiResponse<TData> {
@@ -46,10 +46,7 @@ export async function listNodeWorkflowProjectsAPI(): Promise<
       return {
         success: false,
         status: response.status,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return await response.json()
@@ -70,10 +67,7 @@ export async function listRecentNodeWorkflowProjectsAPI(): Promise<
       return {
         success: false,
         status: response.status,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return await response.json()
@@ -95,10 +89,7 @@ export async function createNodeWorkflowProjectAPI(
       return {
         success: false,
         status: response.status,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return await response.json()
@@ -121,10 +112,7 @@ export async function updateNodeWorkflowProjectAPI(
       return {
         success: false,
         status: response.status,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return await response.json()
@@ -143,10 +131,7 @@ export async function getNodeWorkflowProjectAPI(
       return {
         success: false,
         status: response.status,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return await response.json()
@@ -170,10 +155,7 @@ export async function getNodeWorkflowProjectVersionAPI(
       return {
         success: false,
         status: response.status,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return await response.json()
@@ -191,10 +173,7 @@ export async function deleteNodeWorkflowProjectAPI(
       return {
         success: false,
         status: response.status,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return await response.json()
@@ -214,10 +193,7 @@ export async function activateNodeWorkflowProjectAPI(
       return {
         success: false,
         status: response.status,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return await response.json()
@@ -298,7 +274,7 @@ export async function backupNodeWorkflowV3StateAPI(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(response, 'Backup failed'),
+        ...(await getErrorPayload(response)),
         status: response.status,
       }
     }

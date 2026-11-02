@@ -1,5 +1,5 @@
 import { API_ENDPOINTS } from '@/constants/config'
-import { getErrorPayload } from '@/lib/api-client/shared'
+import { parseApiResult, toApiFailure } from '@/lib/api-client/shared'
 import type {
   ContextCardKindId,
   ContextCardStatusId,
@@ -22,38 +22,6 @@ import { apiFetch } from '@/lib/api-client/api-fetch'
 type ApiResult<T> =
   | { success: true; data: T }
   | { success: false; error: string; errorCode?: string; i18nKey?: string }
-
-async function parseJsonResult<T>(
-  response: Response,
-  fallbackError: string,
-): Promise<ApiResult<T>> {
-  if (!response.ok) {
-    const payload = await getErrorPayload(response, fallbackError)
-    return {
-      success: false,
-      error: payload.error,
-      errorCode: payload.errorCode,
-      i18nKey: payload.i18nKey,
-    }
-  }
-
-  const body = (await response.json()) as {
-    success?: boolean
-    data?: T
-    error?: string
-  }
-  if (!body.success || body.data === undefined) {
-    return { success: false, error: body.error ?? fallbackError }
-  }
-  return { success: true, data: body.data }
-}
-
-function toFailure(error: unknown, fallback: string): ApiResult<never> {
-  return {
-    success: false,
-    error: error instanceof Error ? error.message : fallback,
-  }
-}
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' } as const
 
@@ -82,9 +50,9 @@ export async function listContextCardsAPI(
       `${API_ENDPOINTS.CONTEXT_CARDS}${query ? `?${query}` : ''}`,
       { method: 'GET', headers: { Accept: 'application/json' } },
     )
-    return await parseJsonResult(response, 'Failed to load context cards')
+    return await parseApiResult(response)
   } catch (error) {
-    return toFailure(error, 'Failed to load context cards')
+    return toApiFailure(error)
   }
 }
 
@@ -97,9 +65,9 @@ export async function createContextCardAPI(
       headers: JSON_HEADERS,
       body: JSON.stringify(input),
     })
-    return await parseJsonResult(response, 'Failed to save context card')
+    return await parseApiResult(response)
   } catch (error) {
-    return toFailure(error, 'Failed to save context card')
+    return toApiFailure(error)
   }
 }
 
@@ -113,9 +81,9 @@ export async function updateContextCardAPI(
       headers: JSON_HEADERS,
       body: JSON.stringify(input),
     })
-    return await parseJsonResult(response, 'Failed to save context card')
+    return await parseApiResult(response)
   } catch (error) {
-    return toFailure(error, 'Failed to save context card')
+    return toApiFailure(error)
   }
 }
 
@@ -124,9 +92,9 @@ export async function deleteContextCardAPI(
 ): Promise<ApiResult<unknown>> {
   try {
     const response = await apiFetch(cardUrl(cardId), { method: 'DELETE' })
-    return await parseJsonResult(response, 'Failed to delete context card')
+    return await parseApiResult(response)
   } catch (error) {
-    return toFailure(error, 'Failed to delete context card')
+    return toApiFailure(error)
   }
 }
 
@@ -141,9 +109,9 @@ export async function addContextCardImageAPI(
       headers: JSON_HEADERS,
       body: JSON.stringify(input),
     })
-    return await parseJsonResult(response, 'Failed to upload image')
+    return await parseApiResult(response)
   } catch (error) {
-    return toFailure(error, 'Failed to upload image')
+    return toApiFailure(error)
   }
 }
 
@@ -158,8 +126,8 @@ export async function removeContextCardImageAPI(
       headers: JSON_HEADERS,
       body: JSON.stringify({ url }),
     })
-    return await parseJsonResult(response, 'Failed to remove image')
+    return await parseApiResult(response)
   } catch (error) {
-    return toFailure(error, 'Failed to remove image')
+    return toApiFailure(error)
   }
 }

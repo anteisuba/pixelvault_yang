@@ -6,7 +6,8 @@ import type {
 } from '@/types'
 import { API_ENDPOINTS } from '@/constants/config'
 
-import { getErrorMessage } from '@/lib/api-client/shared'
+import { getErrorPayload } from '@/lib/api-client/shared'
+import { getThrownErrorFields } from '@/lib/api-client/error-fields'
 import { apiFetch } from '@/lib/api-client/api-fetch'
 
 /**
@@ -80,10 +81,7 @@ export async function uploadLoraTrainingImageAPI(
     if (!prepareResponse.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          prepareResponse,
-          `Upload prepare failed with status ${prepareResponse.status}`,
-        ),
+        ...(await getErrorPayload(prepareResponse)),
       }
     }
     const prepare =
@@ -131,10 +129,7 @@ export async function uploadLoraTrainingImageAPI(
     if (!completeResponse.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          completeResponse,
-          `Upload finalize failed with status ${completeResponse.status}`,
-        ),
+        ...(await getErrorPayload(completeResponse)),
       }
     }
     return (await completeResponse.json()) as UploadLoraTrainingImageResult
@@ -178,9 +173,7 @@ export async function submitLoraTrainingAPI(
     }
     return (await response.json()) as LoraTrainingResponse
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'An unexpected error occurred'
-    return { success: false, error: message }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -190,17 +183,12 @@ export async function listLoraTrainingJobsAPI(): Promise<LoraTrainingListRespons
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return await response.json()
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'An unexpected error occurred'
-    return { success: false, error: message }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -214,16 +202,11 @@ export async function getLoraTrainingStatusAPI(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return await response.json()
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'An unexpected error occurred'
-    return { success: false, error: message }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }

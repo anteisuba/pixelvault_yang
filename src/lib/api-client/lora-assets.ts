@@ -21,7 +21,8 @@ import type {
 } from '@/types'
 
 import { normalizeOptionalCivitaiHash } from '@/lib/civitai-lora-reference'
-import { getErrorMessage } from '@/lib/api-client/shared'
+import { getErrorPayload } from '@/lib/api-client/shared'
+import { getThrownErrorFields } from '@/lib/api-client/error-fields'
 import { apiFetch } from '@/lib/api-client/api-fetch'
 
 interface ListResponse {
@@ -61,17 +62,14 @@ export async function listLoraAssetsAPI(): Promise<ListResponse> {
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return (await response.json()) as ListResponse
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Network error',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -82,17 +80,14 @@ export async function listDiscoverLoraAssetsAPI(): Promise<ListResponse> {
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return (await response.json()) as ListResponse
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Network error',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -133,17 +128,14 @@ export async function listCivitaiLoraAssetsAPI(params: {
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return (await response.json()) as CivitaiListResponse
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Network error',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -189,17 +181,14 @@ export async function listHuggingFaceLoraAssetsAPI(params: {
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return (await response.json()) as HuggingFaceListResponse
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Network error',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -224,17 +213,14 @@ export async function fetchHuggingFaceShowcaseAPI(params: {
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return (await response.json()) as HuggingFaceShowcaseResponse
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Network error',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -243,6 +229,8 @@ interface CivitaiMinedPromptsResponse {
   success: boolean
   data?: CivitaiMinedPromptsResult
   error?: string
+  errorCode?: string
+  i18nKey?: string
 }
 
 export async function mineCivitaiLoraPromptsAPI(params: {
@@ -267,17 +255,14 @@ export async function mineCivitaiLoraPromptsAPI(params: {
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return (await response.json()) as CivitaiMinedPromptsResponse
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Network error',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -303,17 +288,14 @@ export async function fetchCivitaiModelDescriptionAPI(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return (await response.json()) as CivitaiModelDescriptionResponse
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Network error',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -345,17 +327,14 @@ export async function fetchCivitaiLoraDownloadPolicyAPI(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return (await response.json()) as CivitaiDownloadPolicyResponse
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Network error',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -373,17 +352,14 @@ export async function fetchRunnerUsageAPI(): Promise<RunnerUsageResponse> {
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return (await response.json()) as RunnerUsageResponse
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Network error',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -428,17 +404,14 @@ export async function resolveCivitaiLoraAPI(params: {
       return {
         success: false,
         notFound: response.status === 404,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return (await response.json()) as ResolveCivitaiLoraResponse
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Network error',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -466,17 +439,14 @@ export async function setLoraAssetVisibilityAPI(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return (await response.json()) as SingleAssetResponse
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Network error',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -497,17 +467,14 @@ export async function updateLoraAssetCoverAPI(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return (await response.json()) as SingleAssetResponse
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Network error',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -524,17 +491,14 @@ export async function favoriteLoraAPI(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return (await response.json()) as SingleAssetResponse
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Network error',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -550,17 +514,14 @@ export async function unfavoriteLoraAPI(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return { success: true }
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Network error',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -581,17 +542,14 @@ export async function deleteLoraAssetAPI(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return { success: true }
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Network error',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -609,17 +567,14 @@ export async function getLoraAssetByCodeAPI(
       }
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return (await response.json()) as SingleResponse
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Network error',
+      ...getThrownErrorFields(error),
     }
   }
 }

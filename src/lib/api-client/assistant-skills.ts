@@ -1,5 +1,6 @@
 import { API_ENDPOINTS } from '@/constants/config'
 import { getErrorPayload } from '@/lib/api-client/shared'
+import { getThrownErrorFields } from '@/lib/api-client/error-fields'
 import type {
   AssistantSkillView,
   CreateAssistantSkillRequest,
@@ -25,7 +26,7 @@ async function call<T>(
   try {
     const response = await apiFetch(url, init)
     if (!response.ok) {
-      const payload = await getErrorPayload(response, fallback)
+      const payload = await getErrorPayload(response)
       return {
         success: false,
         error: payload.error,
@@ -44,7 +45,7 @@ async function call<T>(
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : fallback,
+      ...getThrownErrorFields(error),
     }
   }
 }

@@ -8,7 +8,8 @@ import type {
 } from '@/types'
 import { API_ENDPOINTS, CLIENT_API } from '@/constants/config'
 
-import { getErrorMessage, getErrorPayload } from '@/lib/api-client/shared'
+import { getErrorPayload } from '@/lib/api-client/shared'
+import { getThrownErrorFields } from '@/lib/api-client/error-fields'
 import { apiFetch } from '@/lib/api-client/api-fetch'
 
 export async function getCreatorProfileAPI(
@@ -27,15 +28,14 @@ export async function getCreatorProfileAPI(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(response, 'Failed to fetch profile'),
+        ...(await getErrorPayload(response)),
       }
     }
     return await response.json()
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -46,15 +46,14 @@ export async function getMyProfileAPI(): Promise<UpdateProfileResponse> {
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(response, 'Failed to fetch profile'),
+        ...(await getErrorPayload(response)),
       }
     }
     return await response.json()
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -69,10 +68,7 @@ export async function updateProfileAPI(
       body: JSON.stringify(data),
     })
     if (!response.ok) {
-      const payload = await getErrorPayload(
-        response,
-        'Failed to update profile',
-      )
+      const payload = await getErrorPayload(response)
       return {
         success: false,
         error: payload.error,
@@ -84,8 +80,7 @@ export async function updateProfileAPI(
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -102,15 +97,14 @@ export async function syncAvatarAPI(): Promise<{
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(response, 'Failed to sync avatar'),
+        ...(await getErrorPayload(response)),
       }
     }
     return await response.json()
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -125,7 +119,7 @@ export async function uploadAvatarAPI(
       body: JSON.stringify({ imageData }),
     })
     if (!response.ok) {
-      const payload = await getErrorPayload(response, 'Failed to upload avatar')
+      const payload = await getErrorPayload(response)
       return {
         success: false,
         error: payload.error,
@@ -137,8 +131,7 @@ export async function uploadAvatarAPI(
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -153,7 +146,7 @@ export async function uploadBannerAPI(
       body: JSON.stringify({ imageData }),
     })
     if (!response.ok) {
-      const payload = await getErrorPayload(response, 'Failed to upload banner')
+      const payload = await getErrorPayload(response)
       return {
         success: false,
         error: payload.error,
@@ -165,8 +158,7 @@ export async function uploadBannerAPI(
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -184,15 +176,14 @@ export async function toggleLikeAPI(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(response, 'Failed to toggle like'),
+        ...(await getErrorPayload(response)),
       }
     }
     return await response.json()
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -214,8 +205,7 @@ export async function batchGetLikesAPI(generationIds: string[]): Promise<{
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -232,15 +222,14 @@ export async function toggleFollowAPI(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(response, 'Failed to toggle follow'),
+        ...(await getErrorPayload(response)),
       }
     }
     return await response.json()
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }

@@ -38,23 +38,16 @@ describe('getApiErrorMessage', () => {
     ).toBe('Provider timed out (i18n)')
   })
 
-  it('leads with the localized fallback and keeps the raw error as detail, without classifying it', () => {
+  it('shows only the localized fallback — raw text never enters the sentence (owner 11-02)', () => {
     // A download "502" must not become "Model unavailable", and must not be
     // shown as bare English either.
-    const t = makeTranslator({ 'common.withDetail': '{message} ({detail})' })
-    const withValues = ((key: string, values?: Record<string, string>) =>
-      Object.entries(values ?? {}).reduce(
-        (text, [k, v]) => text.replace(`{${k}}`, v),
-        t(key),
-      )) as typeof t
-    withValues.has = t.has
     expect(
       getApiErrorMessage(
-        withValues,
+        translator,
         { error: 'Upstream returned 502' },
         'fallback',
       ),
-    ).toBe('fallback (Upstream returned 502)')
+    ).toBe('fallback')
   })
 
   it('does not repeat the fallback or surface program exceptions', () => {
@@ -377,12 +370,34 @@ describe('o-errors: real messages', () => {
   it('turns a browser network failure into the localized network sentence', () => {
     expect(
       getThrownErrorMessage(zh, new TypeError('Failed to fetch'), '上传失败'),
-    ).toBe(zh('common.network'))
+    ).toBe(zh('transport.network'))
     expect(
       getApiErrorMessage(zh, { error: 'Failed to fetch' }, '上传失败'),
-    ).toBe(zh('common.network'))
+    ).toBe(zh('transport.network'))
     expect(
       getApiErrorMessage(zh, { error: 'Bucket is full' }, '上传失败'),
-    ).toBe('上传失败（Bucket is full）')
+    ).toBe('上传失败')
+  })
+
+  it('transport codes are never classified or labelled as the provider (11-02)', () => {
+    // 10-29：会话过期 → 「服务商返回：Failed with status 404」；`\b401\b` → key 无效。
+    expect(
+      getGenerationErrorMessage(
+        zh,
+        {
+          error: 'HTTP 401',
+          errorCode: 'TRANSPORT_SESSION_EXPIRED',
+          i18nKey: 'errors.transport.sessionExpired',
+        },
+        '生成失败',
+      ),
+    ).toBe(zh('transport.sessionExpired'))
+    expect(
+      getGenerationErrorMessage(
+        zh,
+        { error: 'The operation timed out.', errorCode: 'CLIENT_ERROR' },
+        '生成失败',
+      ),
+    ).toBe('生成失败')
   })
 })

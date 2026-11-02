@@ -722,7 +722,8 @@
       "sourceImported": "Your favorites",
       "sourceCurated": "Curated",
       "incompatible": "Won't fit"
-    }
+    },
+    "myLorasErrorDetail": "Something went wrong while loading. Tap retry to load again."
   },
   "CivitaiToken": {
     "saveSuccess": "Civitai token saved",

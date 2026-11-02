@@ -3,6 +3,8 @@ import {
   normalizeErrorCode,
   parseGenerationErrorCode,
 } from '@/constants/generation-errors'
+import { BROWSER_NETWORK_FAILURE_RE } from '@/constants/transport-errors'
+import { getThrownErrorFields } from '@/lib/api-client/error-fields'
 
 /** 原话附在提示里时最多带多少字（整段 JSON 糊一屏读不下去）。 */
 const GENERATION_ERROR_DETAIL_MAX_CHARS = 240
@@ -38,33 +40,18 @@ function normalizeI18nKey(i18nKey?: string): string | null {
 }
 
 /**
- * Resolve a generic API error payload into a human-readable message.
- *
- * Priority: backend `i18nKey` → caller's localized fallback, with the raw
- * `error` appended as detail when there is one (never the raw English alone).
- *
- * For AI generation failures use {@link getGenerationErrorMessage} instead —
- * it adds error-code classification. Do NOT add that classification here:
- * generic payloads (downloads, profile updates) carry raw messages like
- * "Upstream returned 502" that would be misclassified as generation errors.
+ * 这些码说的是**请求本身**出了什么事（断网、登录过期、网关、我们自己的程序），
+ * 不是服务商的原因：⛔ 不拿它们的原话去跑 `ERROR_PATTERNS`，也不贴「服务商返回：」。
  */
-export function getApiErrorMessage(
-  tErrors: ErrorTranslator,
-  payload: ApiErrorLike,
-  fallbackMessage: string,
-): string {
-  const normalizedKey = normalizeI18nKey(payload.i18nKey)
-
-  if (normalizedKey && tErrors.has(normalizedKey)) {
-    return tErrors(normalizedKey)
-  }
-
-  return withRawDetail(tErrors, fallbackMessage, payload.error)
+function isNonProviderCode(errorCode: string | undefined): boolean {
+  if (!errorCode) return false
+  return (
+    errorCode.startsWith('TRANSPORT_') ||
+    errorCode === 'CLIENT_ERROR' ||
+    errorCode === 'ABORTED' ||
+    errorCode === 'UNAUTHORIZED'
+  )
 }
-
-/** 浏览器自己的网络失败（断网 / CORS / DNS）在各家浏览器里的原话。 */
-const BROWSER_NETWORK_FAILURE_RE =
-  /^(?:Failed to fetch|NetworkError when attempting to fetch resource\.?|Load failed|Network request failed)$/i
 
 /** 替身 / 旧调用方的翻译函数可能没有 `has`：当作没翻译。 */
 function canTranslate(tErrors: ErrorTranslator, key: string): boolean {
@@ -79,50 +66,49 @@ function isProgramErrorText(detail: string): boolean {
 }
 
 /**
- * 本地化的那句（调用方的 fallback）打头，没翻译过的原话放在括号里补充。
+ * 一般接口的失败结果 → 一句话。
  *
- * ⚠ 不再把服务端英文原话**单独**当提示：中文 / 日文界面上整句英文是这一类 bug 的
- *   根（o-errors，2026-11-01）。原话仍然带上 —— owner 09-24「失败原因要具体」。
+ * 只认结构化字段：后端 / api-client 给的 `i18nKey`，否则调用方那句本地化的 fallback。
+ * ⛔ 服务端或浏览器的原话（`error`）不进主句（owner 11-02：原话只进「查看详情」）——
+ *   中文 / 日文界面上的英文、以及「原话被猜成别的原因」都从这里来。
+ *
+ * For AI generation failures use {@link getGenerationErrorMessage} instead.
  */
-function withRawDetail(
+export function getApiErrorMessage(
   tErrors: ErrorTranslator,
-  message: string,
-  rawDetail: string | undefined,
+  payload: ApiErrorLike,
+  fallbackMessage: string,
 ): string {
-  const detail = rawDetail?.trim()
-  if (!detail || detail === message || isProgramErrorText(detail)) {
-    return message
+  const normalizedKey = normalizeI18nKey(payload.i18nKey)
+
+  if (normalizedKey && canTranslate(tErrors, normalizedKey)) {
+    return tErrors(normalizedKey)
   }
+
+  // 还没迁到结构化字段的调用方可能把浏览器原话直接塞进 `error`。
   if (
-    BROWSER_NETWORK_FAILURE_RE.test(detail) &&
-    canTranslate(tErrors, 'common.network')
+    payload.error &&
+    BROWSER_NETWORK_FAILURE_RE.test(payload.error.trim()) &&
+    canTranslate(tErrors, 'transport.network')
   ) {
-    return tErrors('common.network')
+    return tErrors('transport.network')
   }
-  if (!canTranslate(tErrors, 'common.withDetail')) return message
-  return tErrors('common.withDetail', {
-    message,
-    detail:
-      detail.length > GENERATION_ERROR_DETAIL_MAX_CHARS
-        ? `${detail.slice(0, GENERATION_ERROR_DETAIL_MAX_CHARS)}…`
-        : detail,
-  })
+
+  return fallbackMessage
 }
 
 /**
  * 一个被 `throw` 出来的东西 → 给人看的一句话（`catch (err)` 用）。
- * 与 {@link getApiErrorMessage} 同一条规则：本地化 fallback 打头，原话补充。
+ * 断网 / 前台超时 / 带字段的 `ApiClientError` 按事实说；其余用调用方那句。
  */
 export function getThrownErrorMessage(
   tErrors: ErrorTranslator,
   error: unknown,
   fallbackMessage: string,
 ): string {
-  return withRawDetail(
-    tErrors,
-    fallbackMessage,
-    error instanceof Error ? error.message : undefined,
-  )
+  const fields = getThrownErrorFields(error)
+  if (fields.errorCode === 'CLIENT_ERROR') return fallbackMessage
+  return getApiErrorMessage(tErrors, fields, fallbackMessage)
 }
 
 /**
@@ -170,6 +156,10 @@ export function getGenerationErrorMessage(
         return payload.error
       }
     }
+  }
+
+  if (isNonProviderCode(payload.errorCode)) {
+    return fallbackMessage
   }
 
   const code =

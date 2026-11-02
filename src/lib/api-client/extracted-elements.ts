@@ -4,7 +4,8 @@ import type {
   ExtractedElementRecord,
 } from '@/types'
 
-import { getErrorMessage } from '@/lib/api-client/shared'
+import { getErrorPayload } from '@/lib/api-client/shared'
+import { getThrownErrorFields } from '@/lib/api-client/error-fields'
 import { apiFetch } from '@/lib/api-client/api-fetch'
 
 interface ListResponse {
@@ -40,17 +41,14 @@ export async function listExtractedElementsAPI(params?: {
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return (await response.json()) as ListResponse
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Network error',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -67,17 +65,14 @@ export async function createExtractedElementAPI(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return (await response.json()) as SingleResponse
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Network error',
+      ...getThrownErrorFields(error),
     }
   }
 }
@@ -93,17 +88,14 @@ export async function deleteExtractedElementAPI(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return { success: true }
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Network error',
+      ...getThrownErrorFields(error),
     }
   }
 }

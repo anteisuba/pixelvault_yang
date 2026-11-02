@@ -99,7 +99,7 @@ export function useCharacterLoras(
   return {
     groups,
     isLoading: query.isPending,
-    error: query.error?.message ?? null,
+    error: query.error ? errText.thrown(query.error, t('loadFailed')) : null,
     refresh,
     charactersOf,
     setLoraCharacters,

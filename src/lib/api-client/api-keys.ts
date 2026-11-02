@@ -9,7 +9,11 @@ import type {
 import { UsageSummarySchema } from '@/types'
 import { API_ENDPOINTS } from '@/constants/config'
 
-import { getErrorMessage } from '@/lib/api-client/shared'
+import { getErrorPayload } from '@/lib/api-client/shared'
+import {
+  getThrownErrorFields,
+  ApiClientError,
+} from '@/lib/api-client/error-fields'
 import { apiFetch } from '@/lib/api-client/api-fetch'
 
 export async function listApiKeys(): Promise<ApiKeysResponse> {
@@ -18,17 +22,12 @@ export async function listApiKeys(): Promise<ApiKeysResponse> {
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return await response.json()
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'An unexpected error occurred'
-    return { success: false, error: message }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -44,17 +43,12 @@ export async function createApiKey(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return await response.json()
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'An unexpected error occurred'
-    return { success: false, error: message }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -71,17 +65,12 @@ export async function updateApiKey(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return await response.json()
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'An unexpected error occurred'
-    return { success: false, error: message }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -96,17 +85,12 @@ export async function deleteApiKey(
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return { success: true }
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'An unexpected error occurred'
-    return { success: false, error: message }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -120,17 +104,12 @@ export async function verifyApiKey(id: string): Promise<ApiKeyVerifyResponse> {
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Failed with status ${response.status}`,
-        ),
+        ...(await getErrorPayload(response)),
       }
     }
     return await response.json()
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'An unexpected error occurred'
-    return { success: false, error: message }
+    return { success: false, ...getThrownErrorFields(error) }
   }
 }
 
@@ -138,9 +117,7 @@ export async function fetchUsageSummary(): Promise<UsageSummary> {
   const response = await apiFetch(API_ENDPOINTS.USAGE_SUMMARY)
 
   if (!response.ok) {
-    throw new Error(
-      await getErrorMessage(response, `Failed with status ${response.status}`),
-    )
+    throw new ApiClientError(await getErrorPayload(response))
   }
 
   return UsageSummarySchema.parse(await response.json())

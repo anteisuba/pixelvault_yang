@@ -5,6 +5,7 @@
 
 import { API_ENDPOINTS } from '@/constants/config'
 import { getErrorPayload } from '@/lib/api-client/shared'
+import { getThrownErrorFields } from '@/lib/api-client/error-fields'
 import {
   ImageRecipeReadingSchema,
   type ImageRecipePrepare,
@@ -26,10 +27,7 @@ async function post(
     body: JSON.stringify(body),
   })
   if (!response.ok) {
-    const payload = await getErrorPayload(
-      response,
-      `Request failed with status ${response.status}`,
-    )
+    const payload = await getErrorPayload(response)
     return {
       success: false,
       error: payload.error,
@@ -58,7 +56,7 @@ export async function readImageRecipeAPI(
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'network error',
+        ...getThrownErrorFields(error),
         i18nKey: 'errors.upload.storageUnreachable',
       }
     }
@@ -100,7 +98,6 @@ async function readBy(
 function failed(error: unknown): ImageRecipeReadResponse {
   return {
     success: false,
-    error:
-      error instanceof Error ? error.message : 'An unexpected error occurred',
+    ...getThrownErrorFields(error),
   }
 }

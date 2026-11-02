@@ -29,6 +29,7 @@ import { USER_UPLOAD_PROVIDER } from '@/constants/uploads'
 import { useVoiceLibrary } from '@/hooks/use-voice-library'
 import { fetchGalleryImages, importVoiceSampleAPI } from '@/lib/api-client'
 import type { GenerationRecord } from '@/types'
+import { ApiClientError } from '@/lib/api-client/error-fields'
 
 /**
  * 面板那一行需要的全部事实。
@@ -267,7 +268,7 @@ export function useVoiceLibraryClips({
         ...(upload ? { provider: USER_UPLOAD_PROVIDER } : {}),
       })
       if (!response.success || !response.data) {
-        throw new Error(response.error ?? 'gallery failed')
+        throw new ApiClientError(response)
       }
       const kind = upload
         ? AUDIO_CLIP_SOURCE.library

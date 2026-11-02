@@ -4,6 +4,7 @@ import {
   VISION_ANALYZE_VIDEO_ENDPOINT,
 } from '@/constants/vision'
 import { getErrorPayload } from '@/lib/api-client/shared'
+import { getThrownErrorFields } from '@/lib/api-client/error-fields'
 import type { VideoAnalyzeRequest } from '@/lib/video-frame-request'
 import type { VisionAnalysisResult, VisionAnalyzeRequest } from '@/types/vision'
 import { apiFetch } from '@/lib/api-client/api-fetch'
@@ -32,10 +33,7 @@ async function postVisionJson<TRequest, TResult>(
     })
 
     if (!response.ok) {
-      const payload = await getErrorPayload(
-        response,
-        `${failureMessage} (${response.status})`,
-      )
+      const payload = await getErrorPayload(response)
       return {
         success: false,
         error: payload.error,
@@ -56,7 +54,7 @@ async function postVisionJson<TRequest, TResult>(
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : failureMessage,
+      ...getThrownErrorFields(error),
     }
   }
 }

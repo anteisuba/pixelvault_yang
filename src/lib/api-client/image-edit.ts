@@ -12,6 +12,7 @@ import type {
 } from '@/types'
 
 import { getErrorPayload } from './shared'
+import { getThrownErrorFields } from './error-fields'
 import {
   cancelGenerationsAPI,
   checkImageGenerationStatusAPI,
@@ -163,10 +164,7 @@ async function postImageEdit(
     )
 
     if (!response.ok) {
-      const payload = await getErrorPayload(
-        response,
-        `Image edit failed with status ${response.status}`,
-      )
+      const payload = await getErrorPayload(response)
       return {
         success: false,
         error: payload.error,
@@ -208,8 +206,7 @@ async function postImageEdit(
   } catch (error) {
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      ...getThrownErrorFields(error),
     }
   }
 }

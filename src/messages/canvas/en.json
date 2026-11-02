@@ -1537,7 +1537,8 @@
             "today": "Today",
             "yesterday": "Yesterday",
             "earlier": "Earlier"
-          }
+          },
+          "loadFailed": "Couldn't load the list. Try again later."
         },
         "trim": {
           "title": "Trim",

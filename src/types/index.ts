@@ -3539,7 +3539,7 @@ export interface UpdateProfileResponse {
   data?: Pick<
     CreatorProfileRecord,
     'username' | 'displayName' | 'avatarUrl' | 'bio' | 'isPublic'
-  > & { qwenEvaluationAllowed?: boolean }
+  >
   error?: string
   errorCode?: string
   i18nKey?: string

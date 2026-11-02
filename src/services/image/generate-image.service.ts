@@ -13,7 +13,7 @@ import {
 } from '@/constants/provider-capabilities'
 
 import { API_USAGE } from '@/constants/config'
-import { AI_MODELS, getModelById, type ModelOption } from '@/constants/models'
+import { getModelById, type ModelOption } from '@/constants/models'
 import {
   getImageReferenceCapability,
   getReferenceCapabilityMax,
@@ -43,7 +43,6 @@ import {
 } from '@/services/usage.service'
 import { ensureUser } from '@/services/user.service'
 import { checkNovelAiText, planNovelAiText } from '@/lib/novelai-compose'
-import { canUseQwenEvaluation } from '@/lib/qwen-evaluation-access'
 import { logger } from '@/lib/logger'
 import { validatePrompt } from '@/services/kernel/prompt-guard'
 import { getResolvedModelOption } from '@/services/model-config.service'
@@ -109,16 +108,6 @@ export async function resolveGenerationRoute(
   userId: string,
   { modelId, apiKeyId }: Pick<GenerateRequest, 'modelId' | 'apiKeyId'>,
 ): Promise<ResolvedGenerationRoute> {
-  if (
-    modelId === AI_MODELS.QWEN_IMAGE_21_RUNNER &&
-    !canUseQwenEvaluation(userId)
-  ) {
-    throw new GenerateImageServiceError(
-      'UNSUPPORTED_MODEL',
-      'Qwen-Image-2.1 is restricted to authorized internal evaluation accounts.',
-      403,
-    )
-  }
   const builtInModel = await getResolvedModelOption(modelId)
 
   if (

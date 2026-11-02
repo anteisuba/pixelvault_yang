@@ -181,21 +181,6 @@ describe('Ideogram input validation and mask preparation', () => {
 // ─── Tests ─────────────────────────────────────────────────────
 
 describe('resolveGenerationRoute', () => {
-  it('rejects Qwen generation for an unauthorized production account even with a supplied key', async () => {
-    vi.stubEnv('NODE_ENV', 'production')
-    vi.stubEnv('QWEN_EVALUATION_USER_IDS', 'authorized-user')
-    try {
-      await expect(
-        resolveGenerationRoute('user-1', {
-          modelId: 'qwen-image-2.1-runner',
-          apiKeyId: 'key-1',
-        }),
-      ).rejects.toMatchObject({ code: 'UNSUPPORTED_MODEL', status: 403 })
-      expect(getApiKeyValueById).not.toHaveBeenCalled()
-    } finally {
-      vi.unstubAllEnvs()
-    }
-  })
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(getResolvedModelOption).mockImplementation(async (modelId) =>
@@ -413,9 +398,8 @@ describe('resolveGenerationRoute', () => {
       expect(findActiveKeyForAdapter).not.toHaveBeenCalled()
     })
 
-    it('allows authorized production Qwen requests through the existing Runner budget', async () => {
+    it('routes Qwen for any account through the existing Runner budget', async () => {
       vi.stubEnv('NODE_ENV', 'production')
-      vi.stubEnv('QWEN_EVALUATION_USER_IDS', 'user-1')
       try {
         vi.mocked(getResolvedModelOption).mockResolvedValue({
           ...RUNNER_MODEL,

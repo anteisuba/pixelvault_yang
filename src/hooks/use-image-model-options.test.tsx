@@ -3,10 +3,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
-vi.mock('@/hooks/use-my-profile', () => ({
-  useMyProfile: vi.fn(() => ({ profile: null })),
-}))
-
 vi.mock('@/constants/models', async () => {
   const { IMAGE_KIND } = await import('@/constants/models/image')
   const models = [
@@ -75,15 +71,11 @@ import {
 } from '@/constants/models'
 import { useStudioForm } from '@/contexts/studio-context'
 import { findSelectedModel } from '@/lib/model-options'
-import { useMyProfile } from '@/hooks/use-my-profile'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 
 describe('useImageModelOptions', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(useMyProfile).mockReturnValue({ profile: null } as ReturnType<
-      typeof useMyProfile
-    >)
     vi.mocked(findSelectedModel).mockReset()
     vi.mocked(useStudioForm).mockReturnValue({
       state: { selectedOptionId: null, outputType: 'image' },
@@ -119,24 +111,14 @@ describe('useImageModelOptions', () => {
     const { result } = renderHook(() => useImageModelOptions())
 
     expect(getAvailableImageModels).toHaveBeenCalledWith(IMAGE_KIND.GENERATE)
-    expect(result.current.modelOptions).toHaveLength(1)
-    expect(result.current.modelOptions[0]?.modelId).toBe('studio-image-model')
-    expect(result.current.modelOptions[0]?.adapterType).toBe(
-      AI_ADAPTER_TYPES.OPENAI,
-    )
+    expect(result.current.modelOptions.map((m) => m.modelId)).toEqual([
+      'qwen-image-2.1-runner',
+      'studio-image-model',
+    ])
   })
 
-  it('shows Qwen only after the server grants evaluation access', () => {
-    const { result, rerender } = renderHook(() => useImageModelOptions())
-    expect(
-      result.current.modelOptions.some(
-        (model) => model.modelId === AI_MODELS.QWEN_IMAGE_21_RUNNER,
-      ),
-    ).toBe(false)
-    vi.mocked(useMyProfile).mockReturnValue({
-      profile: { qwenEvaluationAllowed: true },
-    } as ReturnType<typeof useMyProfile>)
-    rerender()
+  it('shows Qwen to everyone (owner 2026-11-02 dropped the evaluation allow-list)', () => {
+    const { result } = renderHook(() => useImageModelOptions())
     expect(
       result.current.modelOptions.some(
         (model) => model.modelId === AI_MODELS.QWEN_IMAGE_21_RUNNER,

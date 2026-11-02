@@ -433,7 +433,7 @@ export async function* executeV3Look(
   lines.push(...clips.lines)
   if (failed.length)
     lines.push(
-      `Could not load ${quoted(failed.map((item) => item.target.label))}: it did not download, is too large, or is not a PNG, JPEG or WEBP picture. Say so if it matters.`,
+      `Could not load ${quoted(failed.map((item) => item.target.label))}: it did not download, is too large, or is not a PNG, JPEG or WEBP picture. You have NOT seen it: do not describe it, and do not guess its look, style, artists or tags from its name or from other pictures. Tell the creator you could not see it and ask them to @ it again; write nothing into the prompt that comes from it.`,
     )
   if (skipped.length)
     lines.push(

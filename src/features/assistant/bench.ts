@@ -234,6 +234,13 @@ export interface BenchResult {
   readonly opening?: BenchOpening
 }
 
+/** 附图全名（`图_1553·masterpi`）和模型写的名字是不是同一张：全名一样，或只写了「·」前的编号。 */
+export function isAttachedName(attachedName: string, name: string): boolean {
+  const full = attachedName.trim().toLowerCase()
+  const asked = name.trim().toLowerCase()
+  return full === asked || (asked.length > 0 && full.startsWith(`${asked}·`))
+}
+
 export function benchFaceOf(domain: string): BenchFace | null {
   return BENCH_FACES.includes(domain) ? (domain as BenchFace) : null
 }
@@ -1178,9 +1185,9 @@ export async function* runLook(
     }
     const handle = parseWorkspaceHandle(name)
     // 附图的名字本身就长得像编号（`图_1588·摘要`）：台上认得的先给台上。
-    const attached = attachedNames.some(
-      (attachedName) =>
-        attachedName.trim().toLowerCase() === name.trim().toLowerCase(),
+    // ⭐ 只写编号（`图_1553`）也认：附图全名带摘要（`图_1553·masterpi`），模型常只抄前半段。
+    const attached = attachedNames.some((attachedName) =>
+      isAttachedName(attachedName, name),
     )
     if (!handle || attached) {
       benchNames.push(name)
@@ -1195,10 +1202,8 @@ export async function* runLook(
           toTag.push(...recipe.pictures)
         }
       } else if (attached && input.tagger) {
-        const asset = context.request.mentionedAssets?.find(
-          (item) =>
-            (item.label ?? item.id).trim().toLowerCase() ===
-            name.trim().toLowerCase(),
+        const asset = context.request.mentionedAssets?.find((item) =>
+          isAttachedName(item.label ?? item.id, name),
         )
         if (asset) toTag.push({ url: asset.url, label: name })
       }

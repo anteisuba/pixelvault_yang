@@ -31,6 +31,7 @@ import { settleAfterTasks } from '../assistant-replay/after-tasks'
 import { REPLAY_CLERK_ID, replayDb } from '../assistant-replay/fake-db'
 import {
   createMeteredFetch,
+  groundingCheck,
   judgeTurn,
   loadEvalCases,
   loadTurnRecord,
@@ -188,6 +189,11 @@ describe.skipIf(!dir)('assistant live eval', () => {
           outcome: record.outcome,
           metrics: measureTranscript(record.transcript, priorPrompt),
           judge: productionJudge,
+          grounding: groundingCheck({
+            history: opening.messages,
+            transcript: record.transcript,
+            finalText: '',
+          }),
         },
         rerun: {
           end,
@@ -197,6 +203,11 @@ describe.skipIf(!dir)('assistant live eval', () => {
           finalText,
           metrics: measureTranscript(transcript, priorPrompt),
           judge: rerunJudge,
+          grounding: groundingCheck({
+            history: opening.messages,
+            transcript,
+            finalText,
+          }),
           usage: meter.usage,
           cost: usageCost(meter.usage),
           transcript,

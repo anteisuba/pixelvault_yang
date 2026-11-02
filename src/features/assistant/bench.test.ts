@@ -14,6 +14,7 @@ vi.mock('@/services/kernel/assistant-v3-watch.service', () => ({}))
 import type { V3Context } from '@/services/kernel/assistant-v3-steps.service'
 
 import {
+  isAttachedName,
   isHomeDraftSnapshot,
   renderBench,
   renderLibraryView,
@@ -422,5 +423,15 @@ describe('看屏：屏上那几格按位置编号（10-30）', () => {
     })
     expect(line).toContain('1 音色·Aemeath')
     expect(line).not.toContain('look 屏幕')
+  })
+})
+
+describe('附图认名字（只写编号也认）', () => {
+  it('全名或「·」前的编号都算同一张，别的不算', () => {
+    expect(isAttachedName('图_1553·masterpi', '图_1553·masterpi')).toBe(true)
+    expect(isAttachedName('图_1553·masterpi', '图_1553')).toBe(true)
+    expect(isAttachedName('图_1553·masterpi', ' 图_1553 ')).toBe(true)
+    expect(isAttachedName('图_1553·masterpi', '图_155')).toBe(false)
+    expect(isAttachedName('图_1553·masterpi', '')).toBe(false)
   })
 })

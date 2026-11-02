@@ -8,6 +8,7 @@
  *     npx vitest run src/test/assistant-eval/live-rejudge.test.ts
  *
  * 结果写到 `runs/<那一轮>-rejudged/`（`ASSISTANT_EVAL_LABEL` 可改名）。⛔ 不打印 key。
+ * `ASSISTANT_EVAL_GROUNDING_ONLY=1`：只跑不花钱的机器核对，评委分数沿用原来那轮的。
  */
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -17,6 +18,7 @@ import { afterAll, beforeAll, describe, it } from 'vitest'
 import { decryptApiKey } from '@/lib/crypto'
 
 import {
+  groundingCheck,
   judgeTurn,
   loadEvalCases,
   loadTurnRecord,
@@ -33,6 +35,7 @@ import { fetchEncryptedKey } from './eval-key'
 
 const dir = process.env.ASSISTANT_EVAL_DIR ?? ''
 const source = process.env.ASSISTANT_EVAL_REJUDGE ?? ''
+const groundingOnly = Boolean(process.env.ASSISTANT_EVAL_GROUNDING_ONLY)
 
 describe.skipIf(!dir || !source)('assistant eval rejudge', () => {
   if (!process.env.ASSISTANT_EVAL_LABEL)
@@ -42,6 +45,7 @@ describe.skipIf(!dir || !source)('assistant eval rejudge', () => {
   let apiKey = ''
 
   beforeAll(async () => {
+    if (groundingOnly) return
     apiKey = decryptApiKey(
       await fetchEncryptedKey(recordUserId(dir, cases[0]!.id)),
     )
@@ -61,40 +65,54 @@ describe.skipIf(!dir || !source)('assistant eval rejudge', () => {
       const request = requestFromRecord(record)
       const priorPrompt = record.snapshot?.prompt ?? ''
       const transcript = before.rerun.transcript ?? []
-      const [productionJudge, rerunJudge] = await Promise.all([
-        judgeTurn({
-          apiKey,
-          fetch: globalThis.fetch,
-          request,
-          transcript: record.transcript,
-          finalText:
-            record.transcript
-              .flatMap((entry) =>
-                entry.type === 'assistant' && entry.text ? [entry.text] : [],
-              )
-              .at(-1) ?? '',
-          end: record.outcome,
-        }),
-        judgeTurn({
-          apiKey,
-          fetch: globalThis.fetch,
-          request,
-          transcript,
-          finalText: before.rerun.finalText,
-          end: before.rerun.end,
-        }),
-      ])
+      const [productionJudge, rerunJudge] = groundingOnly
+        ? [before.production.judge, before.rerun.judge]
+        : await Promise.all([
+            judgeTurn({
+              apiKey,
+              fetch: globalThis.fetch,
+              request,
+              transcript: record.transcript,
+              finalText:
+                record.transcript
+                  .flatMap((entry) =>
+                    entry.type === 'assistant' && entry.text
+                      ? [entry.text]
+                      : [],
+                  )
+                  .at(-1) ?? '',
+              end: record.outcome,
+            }),
+            judgeTurn({
+              apiKey,
+              fetch: globalThis.fetch,
+              request,
+              transcript,
+              finalText: before.rerun.finalText,
+              end: before.rerun.end,
+            }),
+          ])
       writeCaseResult(out, {
         ...before,
         production: {
           ...before.production,
           metrics: measureTranscript(record.transcript, priorPrompt),
           judge: productionJudge,
+          grounding: groundingCheck({
+            history: request.messages,
+            transcript: record.transcript,
+            finalText: '',
+          }),
         },
         rerun: {
           ...before.rerun,
           metrics: measureTranscript(transcript, priorPrompt),
           judge: rerunJudge,
+          grounding: groundingCheck({
+            history: request.messages,
+            transcript,
+            finalText: before.rerun.finalText,
+          }),
         },
       })
     }, 300_000)

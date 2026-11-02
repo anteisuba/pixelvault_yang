@@ -930,25 +930,6 @@ const SHOTS = [
       await settle(page, 3000)
     },
   },
-  {
-    id: 'G9',
-    name: 'scriptdoc-workspace',
-    scene: SCENES.imageReady,
-    prepare: steps(clickButton('助手'), clickButton('展开剧本工作区')),
-  },
-  {
-    id: 'G5',
-    name: 'clarifying-questions',
-    scene: SCENES.imageReady,
-    async prepare(page, mock) {
-      mock.scriptDoc = SCRIPT_DOC_QUESTIONS
-      await clickButton('助手')(page)
-      await clickButton('展开剧本工作区')(page)
-      await clickButton('按对话生成大纲')(page)
-      await settle(page, 2000)
-    },
-  },
-
   // ── F2 重编辑工作区（从工具条溢出菜单进）────────────────────────────
   {
     id: 'F2',
@@ -1501,40 +1482,6 @@ const ASSISTANT_REPLIES = {
   ].join('\n'),
 }
 
-/** G5：`/api/studio/node-script-doc` 返回反问澄清题而不是大纲。 */
-const SCRIPT_DOC_QUESTIONS = {
-  success: true,
-  data: {
-    kind: 'questions',
-    questions: [
-      {
-        id: 'q-tone',
-        question: '这支片子的调子更偏哪边？',
-        options: [
-          { id: 'o-warm', label: '温暖治愈' },
-          { id: 'o-cold', label: '冷冽疏离' },
-          { id: 'o-humor', label: '轻喜剧' },
-        ],
-        multiSelect: false,
-        allowCustom: true,
-        allowSkip: true,
-      },
-      {
-        id: 'q-length',
-        question: '成片大概多长？',
-        options: [
-          { id: 'o-15', label: '15 秒' },
-          { id: 'o-30', label: '30 秒' },
-          { id: 'o-60', label: '1 分钟以上' },
-        ],
-        multiSelect: false,
-        allowCustom: true,
-        allowSkip: true,
-      },
-    ],
-  },
-}
-
 async function main() {
   const only = process.argv.slice(2).filter((arg) => !arg.startsWith('--'))
   await mkdir(OUT_DIR, { recursive: true })
@@ -1561,7 +1508,7 @@ async function main() {
 
   // 场景 / 助手回复都通过 holder 换，路由只注册一次。
   const holder = { record: buildProjectRecord(SCENES.imageReady) }
-  const mock = { assistantReply: null, scriptDoc: null }
+  const mock = { assistantReply: null }
 
   // 壁纸夹具图：`CanvasAppearanceImageSchema.url` 只收 http(s)，所以用假域名
   // 再在这里兜成 SVG，不往仓库塞素材。
@@ -1628,14 +1575,6 @@ async function main() {
       body: mock.assistantReply,
     })
   })
-  await page.route('**/api/studio/node-script-doc', async (route) => {
-    if (!mock.scriptDoc) return route.continue()
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify(mock.scriptDoc),
-    })
-  })
   await page.route('**/api/node-workflow/projects**', async (route) => {
     const isRead = route.request().method() === 'GET'
     // 写入延迟 ⇒ 顶栏的 isSaving 停得住，截得到 spinner
@@ -1683,7 +1622,6 @@ async function main() {
       mock.assistantReply = null
       mock.assistantStatus = null
       mock.assistantDelayMs = 0
-      mock.scriptDoc = null
       mock.projectWriteDelayMs = 0
       mock.uploadDelayMs = 0
       mock.uploadFail = false
@@ -1744,7 +1682,7 @@ await main()
  *  - 视频「有片」态需要真实 mp4：data URI 视频在 <video> 里不稳，后续往 route
  *    里塞一个几 KB 的测试片段
  *  - 375 / 768 断点：另开 context 换 viewport 跑同一份清单
- *  - 助手相关（G2 dock / G4 提案卡 / G5 澄清卡）要 mock
+ *  - 助手相关（G2 dock / G4 提案卡）要 mock
  *    `/api/studio/node-assistant` 与 `/api/assistant/conversation`
  *    （后者目前对新测试账号 500：provisionVerifiedClerkUser 撞
  *    「Verified email relinking is only allowed in Production」+ clerkId 唯一约束）

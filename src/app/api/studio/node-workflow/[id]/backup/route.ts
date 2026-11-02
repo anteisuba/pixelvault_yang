@@ -2,7 +2,7 @@ import 'server-only'
 
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import { createApiPostByIdRoute } from '@/lib/api-route-factory'
-import { backupNodeWorkflowV3State } from '@/services/node/node-workflow-v3-backup.service'
+import { backupNodeWorkflowV3State } from '@/features/canvas/server'
 import {
   NodeWorkflowV3BackupRequestSchema,
   type NodeWorkflowV3BackupResult,

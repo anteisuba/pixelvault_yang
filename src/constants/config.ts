@@ -165,8 +165,6 @@ export const API_ENDPOINTS = {
    * 当轮回执走响应头，不走这条 —— 这条只服务历史消息的懒加载。
    */
   RESEARCH_RUN: '/api/research-run',
-  /** Node Studio script breakdown */
-  SCRIPT_BREAKDOWN: '/api/script-breakdown',
   /** Read-only assistant conversation shares */
   ASSISTANT_SHARE: '/api/assistant/share',
   /** Node Studio Seedance prompt planning */
@@ -197,8 +195,6 @@ export const API_ENDPOINTS = {
    */
   ASSISTANT_MEMORIES: '/api/assistant-memories',
   ASSISTANT_SKILLS: '/api/assistant-skills',
-  /** Node Studio structured ScriptDoc draft (assistant → outline) */
-  NODE_SCRIPT_DOC: '/api/studio/node-script-doc',
   /** Generation feedback (iterative refinement) */
   GENERATION_FEEDBACK: '/api/generation/feedback',
 
@@ -949,10 +945,8 @@ export const RATE_LIMIT_CONFIGS = {
   imageAnalyze: { limit: 10, windowSeconds: 60 },
   promptEnhance: { limit: 20, windowSeconds: 60 },
   promptAssistant: { limit: 30, windowSeconds: 60 },
-  scriptBreakdown: { limit: 12, windowSeconds: 60 },
   seedancePromptPlan: { limit: 12, windowSeconds: 60 },
   nodeAssistant: { limit: 30, windowSeconds: 60 },
-  nodeScriptDoc: { limit: 12, windowSeconds: 60 },
   /** v3→v4 惰性升级前的 R2 备份。每个项目一生只该跑一次，限流只防重试风暴。 */
   nodeWorkflowV3Backup: { limit: 10, windowSeconds: 60 },
   imageTransform: { limit: 10, windowSeconds: 60 },

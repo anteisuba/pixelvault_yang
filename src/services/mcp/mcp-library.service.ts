@@ -6,7 +6,7 @@ import {
   parseWorkspaceHandle,
   type WorkspaceOwner,
   type WorkspacePicture,
-} from '@/features/assistant/workspace.service'
+} from '@/features/assistant/server'
 import { getImagePreviewUrl } from '@/lib/video-poster'
 import type { McpTokenOwner } from '@/services/mcp/mcp-token.service'
 import {

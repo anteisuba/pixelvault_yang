@@ -81,7 +81,7 @@ function invalidOutputError(reason: string): ApiRequestError {
  * 只有「输出不合规」和「上游抖了一下」值得再打一次。
  *
  * ⛔ key 无效、模型不支持看图、被安全策略拦 —— 这些重试第二次仍是同一个结果，
- * 只是把用户的等待时间翻倍。照 `node-script-doc.service.ts` 的 `isScriptDocRetryable`。
+ * 只是把用户的等待时间翻倍。
  */
 function isVisionRetryable(error: unknown): boolean {
   if (error instanceof ApiRequestError) {

@@ -3,7 +3,7 @@ import 'server-only'
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import { createApiRoute } from '@/lib/api-route-factory'
 import { ApiRequestError } from '@/lib/errors'
-import { uploadAssistantAvatar } from '@/services/assistant-persona-avatar.service'
+import { uploadAssistantAvatar } from '@/features/assistant/server'
 import { ensureUser } from '@/services/user.service'
 import { UploadAssistantAvatarSchema } from '@/types/assistant-persona'
 

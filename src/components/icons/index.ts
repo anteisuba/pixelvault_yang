@@ -288,6 +288,9 @@ export {
   LightningSlashIcon as ZapOff,
   MagnifyingGlassPlusIcon as ZoomIn,
   MagnifyingGlassMinusIcon as ZoomOut,
+  // 画布的「镜头表」视图（p-canvas-shotlist）。
+  TableIcon as Table,
+  ColumnsIcon as Columns,
 } from '@phosphor-icons/react'
 
 // TODO phosphor — lucide `Loader2` is deliberately NOT re-exported. Spinners go

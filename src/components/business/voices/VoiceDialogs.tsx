@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/responsive-dialog'
 import { Spinner } from '@/components/ui/spinner'
 import { AssetSelectorDialog } from '@/features/assets'
-import { VoiceAvatar } from '@/components/business/node/voice-library/VoiceAvatar'
+import { VoiceAvatar } from '@/components/business/voices/VoiceAvatar'
 import { ImagePickerPopoverBody } from '@/components/business/studio-shared/ImagePickerPopoverBody'
 import { characterCoverUrl } from '@/lib/card-bus'
 import { cn } from '@/lib/utils'

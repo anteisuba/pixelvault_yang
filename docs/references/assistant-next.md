@@ -50,7 +50,7 @@ v3 的问题不在某一条规矩，而在外壳替模型做了太多事（审�
 
 - `edit` 多了一组改库的改法，**任何台上都能用**（`library.ts` 的 `LIBRARY_OPS`，`bench.ts` 先分给它）。
 - 素材五种（`tag_pictures` / `favorite_pictures` / `new_folder` / `put_in_folder` / `verdict`）交给旧执行器现成的那五条；`run.nextKernel` 时任何台都放行（`NEXT_KERNEL_LIBRARY_TOOLS`）。
-- 角色 / 造型 / LoRA / 提示词库走新工具 `library_write`（只由新内核发，旧 `planTool` 拒）：`services/assistant-library-write.service.ts`，每条记原值做 `inverse`（按 `kind` 区分），撤销走同一条 `asset-writes/revert`。
+- 角色 / 造型 / LoRA / 提示词库走新工具 `library_write`（只由新内核发，旧 `planTool` 拒）：`features/assistant/services/assistant-library-write.service.ts`，每条记原值做 `inverse`（按 `kind` 区分），撤销走同一条 `asset-writes/revert`。
   - 新建角色 / 造型的撤销只在它还没被用过（没有出图、LoRA 关联）时删；LoRA 取消收藏只是移出收藏、不删行；LoRA 只认自己库里的。
   - 角色页写完刷新名册（`use-cards-operator-host` 的 `libraryChanged`）。
 - 没有删除、公开的工具：提示里叫助手告诉创作者去哪里点。
@@ -170,7 +170,7 @@ v3 的问题不在某一条规矩，而在外壳替模型做了太多事（审�
 
 ## Source of Truth
 
-- `src/features/assistant/`（全部）· 路由 `src/app/api/studio/assistant-operator/route.ts` · 浏览器接力 `src/hooks/use-assistant-operator.ts`
+- `src/features/assistant/`（全部）· 路由 `src/app/api/studio/assistant-operator/route.ts` · 浏览器接力 `src/features/assistant/hooks/use-assistant-operator.ts`
 - 接口与搜索调研：项目文件 `assistant-reliability/model-interfaces.md`
 
 ## Last Verified

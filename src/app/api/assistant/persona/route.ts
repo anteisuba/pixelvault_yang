@@ -7,7 +7,7 @@ import { createApiGetRoute, createApiRoute } from '@/lib/api-route-factory'
 import {
   getAssistantPersona,
   upsertAssistantPersona,
-} from '@/services/assistant-persona.service'
+} from '@/features/assistant/server'
 import { UpdateAssistantPersonaSchema } from '@/types/assistant-persona'
 
 /**

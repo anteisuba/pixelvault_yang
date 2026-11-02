@@ -46,8 +46,8 @@ import {
   ResponsiveDialogTitle,
   ResponsiveDialogDescription,
 } from '@/components/ui/responsive-dialog'
-import { StudioTagTextField } from '@/components/business/studio/tags/StudioTagTextField'
-import { isTagSuggestionsTarget } from '@/components/business/studio/tags/StudioTagSuggestions'
+import { StudioTagTextField } from '@/features/studio'
+import { isTagSuggestionsTarget } from '@/features/studio'
 import { useErrorText } from '@/hooks/use-error-text'
 
 export interface PromptTemplateCreateInitialValues {

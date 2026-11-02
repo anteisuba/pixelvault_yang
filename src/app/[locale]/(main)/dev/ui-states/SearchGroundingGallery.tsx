@@ -4,18 +4,18 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { AI_MODELS } from '@/constants/models'
 import { useIsMobile } from '@/hooks/use-mobile'
-import { CompareGrid } from '@/components/business/image/CompareGrid'
-import { GenerationPreview } from '@/components/business/studio/GenerationPreview'
-import { StudioOperatorConfirmCard } from '@/components/business/studio/assistant-operator/StudioOperatorConfirmCard'
-import { StudioOperatorResultRow } from '@/components/business/studio/assistant-operator/StudioOperatorResultRow'
+import { CompareGrid } from '@/features/studio'
+import { GenerationPreview } from '@/features/studio'
+import { StudioOperatorConfirmCard } from '@/features/assistant'
+import { StudioOperatorResultRow } from '@/features/assistant'
 import { ASSISTANT_OPERATOR_CONFIRM_KIND_IDS } from '@/constants/assistant-operator'
 import { STUDIO_OPERATOR_CONFIRM_STATUS_IDS } from '@/constants/studio-assistant-operator'
-import { ImageSearchGroundingSide } from '@/components/business/node/nodes/v4/image/ImageSearchGroundingSide'
+import { ImageSearchGroundingSide } from '@/features/canvas'
 import {
   addNodeSearchGroundingResult,
   finishNodeSearchGrounding,
   startNodeSearchGrounding,
-} from '@/hooks/node/use-node-search-grounding'
+} from '@/features/canvas/hooks'
 import {
   SearchGroundingRail,
   type SearchGroundingRailState,

@@ -13,7 +13,7 @@ import {
   getNodeWorkflowProject,
   NodeWorkflowProjectConflictError,
   updateNodeWorkflowProject,
-} from '@/services/node/node-workflow.service'
+} from '@/features/canvas/server'
 import { AUDIO_CLIP_SOURCE } from '@/constants/audio-options'
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import { NODE_SLOT_IDS } from '@/constants/node-slots'

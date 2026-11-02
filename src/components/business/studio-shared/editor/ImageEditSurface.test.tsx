@@ -33,7 +33,7 @@ vi.mock('@/lib/canvas-capability-runtime', () => ({
   canvasCapabilityRuntime: { run: mocks.run },
 }))
 
-vi.mock('@/components/business/studio/StudioInpaintEditor', () => ({
+vi.mock('@/features/studio/components/StudioInpaintEditor', () => ({
   StudioInpaintEditor: () => null,
 }))
 

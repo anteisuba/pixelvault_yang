@@ -7,7 +7,7 @@ import {
   getOperatorVoicePrefs,
   playOperatorVoice,
   waitForAudioJob,
-} from '@/hooks/use-operator-voice'
+} from '@/features/assistant/hooks'
 import { getVoiceBenchAPI, speakAssistantReplyAPI } from '@/lib/api-client'
 import type { VoiceBenchData } from '@/types/voice-bench'
 

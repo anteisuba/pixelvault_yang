@@ -14,7 +14,7 @@ import {
   AssistantMemoryLimitError,
   createCharacterMemory,
   listCharacterMemories,
-} from '@/services/assistant-memory.service'
+} from '@/features/assistant/server'
 import { ensureUser } from '@/services/user.service'
 import { ApiRequestError } from '@/lib/errors'
 import type { AssistantMemory } from '@/types/assistant-memory'

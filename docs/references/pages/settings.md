@@ -149,7 +149,7 @@ provider · 本月请求次数 · 估算花费，末行合计；runner 另有一
 
 - 路由 `src/app/[locale]/(main)/settings/{layout.tsx,page.tsx,[section]/page.tsx}` · 组件 `src/features/settings/components/`
 - 词表与本地偏好键 `src/features/settings/constants.ts` · 深链 `src/constants/routes.ts`（`settingsPath` / `safeReturnPath`）
-- 记忆 `src/services/assistant-memory.service.ts` · `src/constants/assistant-memory.ts` · `src/hooks/use-assistant-memories.ts` · `src/app/api/assistant-memories/**`
+- 记忆 `src/features/assistant/services/assistant-memory.service.ts` · `src/constants/assistant-memory.ts` · `src/features/assistant/hooks/use-assistant-memories.ts` · `src/app/api/assistant-memories/**`
 - key 行数据 `src/features/settings/hooks/use-provider-key-rows.ts` · 用量 `src/features/settings/hooks/use-monthly-usage.ts` + `src/services/usage.service.ts`
 - 入口收口 `src/hooks/use-open-key-settings.ts` · 画布侧 `shell/ShellKeySettings.tsx`
 - 连接 `SettingsConnectionsSection.tsx` · `src/features/settings/hooks/use-mcp-tokens.ts` · 命令与上限 `src/constants/mcp.ts` · 接口 `src/app/api/mcp/tokens/**`

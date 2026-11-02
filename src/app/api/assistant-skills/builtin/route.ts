@@ -2,7 +2,7 @@ import 'server-only'
 
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import { createApiRoute } from '@/lib/api-route-factory'
-import { updateBuiltinSkillForClerkId } from '@/services/assistant-skill.service'
+import { updateBuiltinSkillForClerkId } from '@/features/assistant/server'
 import { UpdateBuiltinSkillSchema } from '@/types/assistant-skill'
 import { assistantSkillErrors } from '../errors'
 

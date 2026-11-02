@@ -15,7 +15,7 @@ vi.mock('next-intl', () => {
 })
 vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
 vi.mock(
-  '@/components/business/studio/assistant-operator/StudioOperatorModelChip',
+  '@/features/assistant/components/operator/StudioOperatorModelChip',
   () => ({
     StudioOperatorModelChip: ({ value }: { value: string }) => (
       <span data-testid="model-chip">{value}</span>

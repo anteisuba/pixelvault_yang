@@ -609,15 +609,8 @@ export function migrateNodeWorkflowStateToV4(
     version: 4,
     nodes,
     edges,
-    ...(input.scriptDoc ? { scriptDoc: input.scriptDoc } : {}),
     ...(input.canvasAppearance
       ? { canvasAppearance: input.canvasAppearance }
-      : {}),
-    ...(input.scriptDocStage ? { scriptDocStage: input.scriptDocStage } : {}),
-    ...(input.scriptDocDepth ? { scriptDocDepth: input.scriptDocDepth } : {}),
-    ...(input.scriptDocLocks ? { scriptDocLocks: input.scriptDocLocks } : {}),
-    ...(typeof input.scriptDocShotStills === 'boolean'
-      ? { scriptDocShotStills: input.scriptDocShotStills }
       : {}),
   })
 

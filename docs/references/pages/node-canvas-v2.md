@@ -414,15 +414,11 @@ Canvas 是 ANTEI 的北极星能力之一（与 LoRA 并列双核，见 [`../pro
 
 ## 12. 剧本投影
 
-`projectScriptDocToGraphV4` 是**唯一**的生产投影，**单向**：剧本文档投影出图，图上改文本**不回写文档**。
-
-三条纪律：① **纯函数**（`now` / `makeId` 注入，不碰 DOM）；② **每条边都带槽**，槽由端口表决定，⛔ 不在投影里现推；③ 创建顺序固定（角色 → 每镜的 文本/静帧/镜头/音色 → 成片），同一个 doc 两次投影产出同一批 id。
-
-⚠ **角色投影成 `image.character` 而不是文本节点**：角色卡是生成落点（它自己出图），降成一段文字会让「先出角色图再进镜头」整条路径消失。镜头文本走**单一 Markdown 正文**（`text.shotNote`，`defaultRole: script`），四栏合并成带小标题的正文，拆合在投影层。
+⛔ **旧剧本笺的 ScriptDoc 投影（`projectScriptDocToGraphV4`）已删**（入口剧本笺 10-22 删，投影、起草接口 `/api/studio/node-script-doc`、拆解接口 `/api/script-breakdown` 与 v4 状态上的 `scriptDoc*` 2026-11-01 删，`p-canvas-shotlist`）。ScriptDoc schema 只剩 v3 读端用来定迁移镜号，随 v3 读端一起删（§14.4）。剧本进图现在只有下面 §12.1 这一条；镜头信息往后住在镜头卡上，见 [`design/canvas-shotlist.md`](../../design/canvas-shotlist.md)。
 
 ### 12.1 剧本节点与 `project_script`（进度表 24，2026-09-19 落地）
 
-与上面那条 ScriptDoc 投影**并列、不互相取代**：那一条的入口是剧本笺（`ScriptDocWorkspace`，2026-10-22 已删），这一条的入口是**画布上的一张卡**——`text.script`，卡面自己带分镜列表和一颗「确认 · 投影 N 镜」。设计真值是画板 `DesignD7Script.dc.html`（owner D7 ④ 通过）。
+这一条的入口是**画布上的一张卡**——`text.script`，卡面自己带分镜列表和一颗「确认 · 投影 N 镜」。设计真值是画板 `DesignD7Script.dc.html`（owner D7 ④ 通过）。
 
 **卡面三段**（`text/ScriptCardBody.tsx`）：卡头一行元信息（`N 幕 · N 镜`）· 大纲（第一个分段标记之前的正文）· 分镜列表（每行 `S01 · 一句话 · 4s`，变了的那一行虚线 + 「已变」）· 底部一颗按钮。按钮三态 = 投影状态：`确认 · 投影 N 镜`（近黑主动作）/ `已投影 · N 镜`（停用）/ `重投影 · N 镜变`。
 
@@ -449,7 +445,7 @@ Canvas 是 ANTEI 的北极星能力之一（与 LoRA 并列双核，见 [`../pro
 
 ## 13. 助手
 
-> **2026-09-19（进度表 22「一张脸」）**：画布不再有自己的助手引擎。板上那只 dock 就是**工作台那一颗**——`StudioOperatorDock` + `StudioOperatorPanel`，`domain = canvas`，宿主实现是 `src/hooks/node/use-canvas-operator-host.ts`。协议、五动词、五类卡、每轮结账、`@` 与 `+` 菜单、会话历史、LLM chip 全部以 [`assistant-shell-v2.md`](assistant-shell-v2.md) 为准，**本节不重抄**，只写画布这一侧多出来的东西。
+> **2026-09-19（进度表 22「一张脸」）**：画布不再有自己的助手引擎。板上那只 dock 就是**工作台那一颗**——`StudioOperatorDock` + `StudioOperatorPanel`，`domain = canvas`，宿主实现是 `src/features/canvas/hooks/use-canvas-operator-host.ts`。协议、五动词、五类卡、每轮结账、`@` 与 `+` 菜单、会话历史、LLM chip 全部以 [`assistant-shell-v2.md`](assistant-shell-v2.md) 为准，**本节不重抄**，只写画布这一侧多出来的东西。
 
 ### 13.0 随之删掉的（⛔ 不要按旧文复原）
 
@@ -660,28 +656,27 @@ v3 读端（服务端透传 + 客户端惰性升级 + `legacy` 节点空壳 + v3
 
 > 可点原型 `https://claude.ai/artifact/P7saLcTs21T4RBrPx5BpMq`。**结构不动**（§1–§7 照旧），只换皮与动效；与素材页 §4.6、画廊这一轮同一套件。
 
-- **图标栏并进全站侧栏**：画布自己那条左侧图标栏收进 `AppSidebar`——停在画布路由、画布挂着时，「画布」那一项下面长出六颗子图标 添加节点 / 节点 / 当前项目 / 历史对话 / 角色 / 素材库（`SHELL_NAV_CANVAS_ENTRIES`；owner 2026-10-08 先拍原型四格，又定角色 / 素材库也进侧栏，见 §7 左侧）；点一颗 = 面板在侧栏旁边（画布左缘 16）打开，再点收起；侧栏展开时是缩进的几行（带名字，一整块浅灰包住，开着的那一个白底）、收起时同一块浅灰包住一列图标 + `aria-pressed`（app-shell.md §6）。开着哪一格是**一份**模块级 store（`hooks/node/use-canvas-shell-panel`，画布登记挂载、卸载即收回），⛔ 侧栏与画布各存一份。面板的液态开合从被点那一颗所在的行长出来（`data-canvas-shell-entry` 量起点，夹进面板高度内）。桌面壳边界下移到 768 后（`MOBILE_BREAKPOINT = 768`），凡是画布桌面视图挂着的宽度全站侧栏都在，原先 768–1023 留在画布里兜底的 44px 图标栏整件删除；安全区左界走 `canvasShellSafeLeftPx({ panelOpen })`，⛔ 再手写 `16 / 294`。旧的 `CanvasLeftPanel`（56 图标轨 + 添加 / 项目 / 历史，早已不挂载）整件删除，它那三格的接线（添加目录 / 项目面板 / 助手历史面板）回到新面板的四格里。
+- **图标栏并进全站侧栏**：画布自己那条左侧图标栏收进 `AppSidebar`——停在画布路由、画布挂着时，「画布」那一项下面长出六颗子图标 添加节点 / 节点 / 当前项目 / 历史对话 / 角色 / 素材库（`SHELL_NAV_CANVAS_ENTRIES`；owner 2026-10-08 先拍原型四格，又定角色 / 素材库也进侧栏，见 §7 左侧）；点一颗 = 面板在侧栏旁边（画布左缘 16）打开，再点收起；侧栏展开时是缩进的几行（带名字，一整块浅灰包住，开着的那一个白底）、收起时同一块浅灰包住一列图标 + `aria-pressed`（app-shell.md §6）。开着哪一格是**一份**模块级 store（`features/canvas/hooks/use-canvas-shell-panel`，画布登记挂载、卸载即收回），⛔ 侧栏与画布各存一份。面板的液态开合从被点那一颗所在的行长出来（`data-canvas-shell-entry` 量起点，夹进面板高度内）。桌面壳边界下移到 768 后（`MOBILE_BREAKPOINT = 768`），凡是画布桌面视图挂着的宽度全站侧栏都在，原先 768–1023 留在画布里兜底的 44px 图标栏整件删除；安全区左界走 `canvasShellSafeLeftPx({ panelOpen })`，⛔ 再手写 `16 / 294`。旧的 `CanvasLeftPanel`（56 图标轨 + 添加 / 项目 / 历史，早已不挂载）整件删除，它那三格的接线（添加目录 / 项目面板 / 助手历史面板）回到新面板的四格里。
 - **材质两分**（§1 第 12 条照旧）：只放图标的浮层是玻璃——工具条、左侧面板、底栏、小地图（毛玻璃不再被关掉）、项目胶囊、右键菜单与**右键空白菜单**（原来是不透明面，改 `canvas-glass`）；写字的浮层是实白——提示词栏、chip 弹层、「+」菜单。卡面照旧不上 `backdrop-filter`。
 - **chip 弹层 = 工作台定稿**：一行一项、选中整行浅灰块 + 对勾（模型 / 音色已是）；参数一律 A1 分段条 `LiquidSegmented`——画布「画面」「视频参数」弹层与图片台同一颗（比例格带小形状、清晰度、张数 `×N`，弹层 360 宽，选完 160 收起），三档以内的时长、音色语速、语气强度、文本角色也换成它（⛔ 再用 `ToggleGroup` 分段）；多档时长是共用 `Slider`，拖过两端会拉长再弹回。
 - **动效**（只用 `SPRING` / `CHIP_POPOVER` / `LIQUID_*` 现成档）：工具条与提示词栏从卡边 0.72 → 1 + 糊变清（`GROW_FROM_EDGE`）；弹层从按钮长出来；生成中边即进度、出完新图由糊变清（§1 第 9 条）；**多出来的那颗版本点从 0 弹到原大**（`spring-slot`，挂载时已有的点不演）；双击从卡的位置放大成纸（`use-grow-from-origin`）；定位先平移、停稳再选中（`focusNode`）。侧栏子项从「画布」那一行底下整块长出来（高度 0 → auto，`SPRING.expand`，由糊变清，⛔ 逐颗错开）；减少动态效果下只淡入。
 - 缺 key 就地弹窗自 #242 起已是，不动。
-- **补动效（owner 2026-10-08 动效样片）**：① 拖线（AB）—— 线头平时死跟指针，进了合法卡用 `SPRING.slot` 吸到那张卡的入口，离开同一根弹簧追回指针；吸附只是画法，落点判定仍是整卡（`onConnectEnd`）。合法卡的反馈收成一圈 2px 黑环、用 `--spring-slot` 长出来，原来那圈 8px 淡晕撤掉（⛔ 发光）。② 素材拖上画布（AF，替掉 2026-09-12「图片移动的时候出现的这个小图删掉」那一版纯透明拖影）：浏览器拖影仍关掉，改放一张跟手的影子 —— 拿起时放大到 1.06 带浮层投影，落进画布后从拿着的样子 `spring-expand` 展开成刚建好的那张卡再淡掉，没落进去就缩回淡掉。落卡照旧 `placeMediaAtFlow` → `graph.addNode`（op 表），影子只管画法（`hooks/node/node-media-drag-ghost.ts`）。点一下落卡不变。⛔ 拖动中的卡与「整理布局」不加弹簧：坐标由 ReactFlow 每帧受控，另加一层弹簧会与它抢位置。
+- **补动效（owner 2026-10-08 动效样片）**：① 拖线（AB）—— 线头平时死跟指针，进了合法卡用 `SPRING.slot` 吸到那张卡的入口，离开同一根弹簧追回指针；吸附只是画法，落点判定仍是整卡（`onConnectEnd`）。合法卡的反馈收成一圈 2px 黑环、用 `--spring-slot` 长出来，原来那圈 8px 淡晕撤掉（⛔ 发光）。② 素材拖上画布（AF，替掉 2026-09-12「图片移动的时候出现的这个小图删掉」那一版纯透明拖影）：浏览器拖影仍关掉，改放一张跟手的影子 —— 拿起时放大到 1.06 带浮层投影，落进画布后从拿着的样子 `spring-expand` 展开成刚建好的那张卡再淡掉，没落进去就缩回淡掉。落卡照旧 `placeMediaAtFlow` → `graph.addNode`（op 表），影子只管画法（`features/canvas/hooks/node-media-drag-ghost.ts`）。点一下落卡不变。⛔ 拖动中的卡与「整理布局」不加弹簧：坐标由 ReactFlow 每帧受控，另加一层弹簧会与它抢位置。
 
 ## Source of Truth
 
 - 分类与端口：`src/constants/node-types.ts` · `src/constants/node-slots.ts` · `src/constants/canvas-add-catalog.ts` · `src/constants/node-studio.ts`（`NODE_V4_CARD` / `NODE_V4_SNAPSHOT` / `NODE_V4_SUBTYPE_LABELS` / `NODE_V4_OUTPUT_VERSION`）
-- 节点卡与共用件：`src/components/business/node/nodes/v4/**`（`chrome/*` = 工具条 / 提示词栏 / chip 弹层 / @ chip / 版本小点 / 边即进度 / 快速看 / 画中框）· 外壳 `src/components/business/node/workbench-v4/**`（见 `src/components/business/node/CLAUDE.md`）
+- 节点卡与共用件：`src/components/business/node/nodes/v4/**`（`chrome/*` = 工具条 / 提示词栏 / chip 弹层 / @ chip / 版本小点 / 边即进度 / 快速看 / 画中框）· 外壳 `src/components/business/node/workbench-v4/**`（见 `src/features/canvas/components/CLAUDE.md`）
 - 模型选择器：`src/components/business/studio-shared/pickers/ModelPickerPopover.tsx` · `ModelChip.tsx` · `src/lib/resolve-model-channel.ts` · `src/lib/group-models-for-picker.ts` · `src/hooks/use-model-picker-memory.ts` · `src/constants/model-picker.ts`
-- 剪辑台：`src/components/business/node/edit-desk/**` · `src/hooks/node/use-edit-desk.ts` · `src/hooks/node/use-edit-shortcut-preset.ts`（PR / FCP 键位预设，住 `localStorage`）· `src/lib/edit-project.ts` · `src/constants/edit-desk.ts` · `src/constants/render-video.ts` · `src/services/video/render-video.service.ts` · `src/app/api/studio/render/**` · `workers/render-video/`
-- 剧本节点与投影（§12.1）：`src/constants/node-script.ts` · `src/lib/node-script-shots.ts`（确定性拆镜）· `src/lib/node-script-projection.ts`（diff）· `src/components/business/node/nodes/v4/text/ScriptCardBody.tsx` · `src/components/business/node/nodes/v4/video/VideoScriptShotChips.tsx` · `NodeV4ScriptShotSchema`（`src/types/node-workflow.ts`）
-- op 与助手：`src/constants/node-assistant-ops.ts` · `src/lib/node-assistant-op-apply-v4.ts` · `src/lib/node-assistant-op-plan.ts` · `src/lib/node-assistant-context.ts` · `src/components/business/node/CanvasOpProposalCard.tsx`（剧本笺转录，§13.3）
-- 画布上的助手（§13）：`src/hooks/node/use-canvas-operator-host.ts` · `src/hooks/node/use-canvas-operator-requests.ts` · `src/lib/studio-operator-canvas-snapshot.ts` · `src/types/assistant-operator.ts`（`CANVAS_APPLY_OP_IDS`）· `src/constants/assistant-operator.ts`（canvas 域）· `src/components/business/studio/assistant-operator/**`（壳与面板，⛔ 画布不另有一套）· 协议 [`assistant-shell-v2.md`](assistant-shell-v2.md)
+- 剪辑台：`src/components/business/node/edit-desk/**` · `src/features/canvas/hooks/use-edit-desk.ts` · `src/features/canvas/hooks/use-edit-shortcut-preset.ts`（PR / FCP 键位预设，住 `localStorage`）· `src/lib/edit-project.ts` · `src/constants/edit-desk.ts` · `src/constants/render-video.ts` · `src/services/video/render-video.service.ts` · `src/app/api/studio/render/**` · `workers/render-video/`
+- 剧本节点与投影（§12.1）：`src/constants/node-script.ts` · `src/lib/node-script-shots.ts`（确定性拆镜）· `src/lib/node-script-projection.ts`（diff）· `src/features/canvas/components/nodes/v4/text/ScriptCardBody.tsx` · `src/features/canvas/components/nodes/v4/video/VideoScriptShotChips.tsx` · `NodeV4ScriptShotSchema`（`src/types/node-workflow.ts`）
+- op 与助手：`src/constants/node-assistant-ops.ts` · `src/lib/node-assistant-op-apply-v4.ts` · `src/features/canvas/lib/node-assistant-op-plan.ts` · `src/lib/node-assistant-context.ts` · `src/features/canvas/components/CanvasOpProposalCard.tsx`（剧本笺转录，§13.3）
+- 画布上的助手（§13）：`src/features/canvas/hooks/use-canvas-operator-host.ts` · `src/features/canvas/hooks/use-canvas-operator-requests.ts` · `src/lib/studio-operator-canvas-snapshot.ts` · `src/types/assistant-operator.ts`（`CANVAS_APPLY_OP_IDS`）· `src/constants/assistant-operator.ts`（canvas 域）· `src/features/assistant/components/operator/**`（壳与面板，⛔ 画布不另有一套）· 协议 [`assistant-shell-v2.md`](assistant-shell-v2.md)
 - 槽与装配：`src/lib/node-slot-binding.ts` · `src/lib/node-slot-payload.ts` · `src/lib/node-connection-rules.ts` · `src/lib/node-mentions-to-slots.ts` · `src/lib/node-shot-layout.ts` · `src/lib/node-output-versions.ts` · `src/lib/video-node-rail.ts`（参考轨与轨号对位）
-- 发送前校验（§1.15）：`src/hooks/node/use-node-media-generation-v4.ts`（`preflightV4Plan`）· `src/constants/video-model-send-plan.ts`（上限与参考时长）· `src/lib/media-probe.ts`（`probeMediaDuration`）
-- 图引擎与存储：`src/hooks/node/use-node-graph-v4.ts` · `use-node-workflow-store.ts` · `use-cast-ingest-engine-v4.ts` · `use-node-generation-reconcile-v4.ts` · `src/lib/node-workflow-adopt-merge.ts` · `src/services/node/node-workflow.service.ts` · `prisma/schema.prisma`（`NodeWorkflowProject.state`）
+- 发送前校验（§1.15）：`src/features/canvas/hooks/use-node-media-generation-v4.ts`（`preflightV4Plan`）· `src/constants/video-model-send-plan.ts`（上限与参考时长）· `src/lib/media-probe.ts`（`probeMediaDuration`）
+- 图引擎与存储：`src/features/canvas/hooks/use-node-graph-v4.ts` · `use-node-workflow-store.ts` · `use-cast-ingest-engine-v4.ts` · `use-node-generation-reconcile-v4.ts` · `src/lib/node-workflow-adopt-merge.ts` · `src/features/canvas/services/node-workflow.service.ts` · `prisma/schema.prisma`（`NodeWorkflowProject.state`）
 - 迁移：`src/lib/node-workflow-migrate-v4.ts`（含 `migrateRetireVideoMergeV4`）· `src/lib/node-workflow-v4-upgrade.ts` · `src/lib/node-v4-merge.ts` · `scripts/migrate-node-workflow-v4.ts`
-- 投影：`src/lib/node-workflow-script-doc-v4.ts`
-- 九宫格分镜（§3）：`src/constants/storyboard-grid.ts` · `src/lib/storyboard-grid.ts`（模板 / 找缝 / 切块）· `src/hooks/node/use-storyboard-grid-split.ts`（自动 / 手动切、落卡）· `src/components/business/node/nodes/v4/image/use-storyboard-landing.ts`（落位动画）· `src/components/business/node/workbench-v4/StoryboardBrackets.tsx`（括号）
+- 九宫格分镜（§3）：`src/constants/storyboard-grid.ts` · `src/lib/storyboard-grid.ts`（模板 / 找缝 / 切块）· `src/features/canvas/hooks/use-storyboard-grid-split.ts`（自动 / 手动切、落卡）· `src/features/canvas/components/nodes/v4/image/use-storyboard-landing.ts`（落位动画）· `src/features/canvas/components/workbench-v4/StoryboardBrackets.tsx`（括号）
 - 开合（§1 第 12 条 A）：`nodes/v4/chrome/chrome-motion.ts`（三套形态）· `chrome/NodeChromeLayer.tsx`（工具条 / 提示词栏）· `chrome/use-grow-from-origin.ts`（快速看 / 画中框从卡长出、缩回卡）· `studio-shared/primitives/tool-surface.tsx` 的 `StudioChipZoomProvider`（画布 chip 弹层）
 - 视觉：`docs/references/ui-defaults.md` §3.1 / §4.1 · `src/app/globals.css` · `src/app/canvas.css`（§15 收尾中）
 - 节点打磨 ② 的设计稿（2026-09-30，施工对照的真值）：`docs/design/node-polish-2/`——`mock.html`（可点原型，「改后」为准）· `shoot.mjs`（出 1440 × 900 参考图）· `README.md`（逐项数值 → token 与动效表）

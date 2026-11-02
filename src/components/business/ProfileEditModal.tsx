@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl'
 import { Camera, Sparkles } from '@/components/icons'
 import { toast } from 'sonner'
 
-import { AssistantSettingsDialog } from '@/components/business/studio/assistant-operator/AssistantSettingsDialog'
+import { AssistantSettingsDialog } from '@/features/assistant'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { Switch } from '@/components/ui/switch'

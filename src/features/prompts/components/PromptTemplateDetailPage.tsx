@@ -71,7 +71,7 @@ import {
 } from '@/components/ui/select'
 import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
-import { StudioTagTextField } from '@/components/business/studio/tags/StudioTagTextField'
+import { StudioTagTextField } from '@/features/studio'
 import { CopyButton } from '@/components/ui/copy-button'
 import {
   PromptTemplateKindBadge,

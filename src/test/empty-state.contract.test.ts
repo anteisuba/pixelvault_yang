@@ -40,9 +40,9 @@ const LANDING_POINTS = [
   // 角色页右栏「最近」：她还没出过门 / 没读出来（方向 B，owner 2026-10-28）。
   'src/features/cards/components/CharacterRecent.tsx',
   'src/features/cards/components/CharacterRecentDiary.tsx',
-  'src/components/business/node/NodeCanvasEmptyGuide.tsx',
-  'src/components/business/assistant-settings/AssistantHerPane.tsx',
-  'src/components/business/assistant-settings/AssistantMemoryPane.tsx',
+  'src/features/canvas/components/NodeCanvasEmptyGuide.tsx',
+  'src/features/assistant/components/settings/AssistantHerPane.tsx',
+  'src/features/assistant/components/settings/AssistantMemoryPane.tsx',
   'src/features/lora/components/LoraWorkbench.tsx',
   'src/features/lora/components/library/LoraLibraryTypeStates.tsx',
   'src/features/lora/components/training/EmptyState.tsx',
@@ -53,7 +53,7 @@ const LANDING_POINTS = [
   // 提示词库桌面：还没收藏（库骨架，ui-spec §9）。
   'src/features/prompts/components/PromptLibraryDesk.tsx',
   // 配音台：默认助手没有嗓子（先换个角色）/ 台词没读出来（③，10-26）。
-  'src/components/business/studio/voice-bench/VoiceBench.tsx',
+  'src/features/studio/components/voice-bench/VoiceBench.tsx',
 ]
 
 /**
@@ -69,8 +69,8 @@ const LANDING_POINTS = [
  * · `LoraLibraryTypeSparseCard` —— 本页有 1–5 条内容，它是结果流尾部的引导行。
  */
 const EXCEPTIONS = [
-  'src/components/business/studio/StudioEmptyState.tsx',
-  'src/components/business/studio/assistant-operator/StudioOperatorEmptyState.tsx',
+  'src/features/studio/components/StudioEmptyState.tsx',
+  'src/features/assistant/components/operator/StudioOperatorEmptyState.tsx',
 ]
 
 function collectTsx(dir: string, out: string[] = []): string[] {

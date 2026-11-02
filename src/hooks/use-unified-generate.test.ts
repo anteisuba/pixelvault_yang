@@ -74,7 +74,7 @@ import {
   toOperatorResultRun,
   toOperatorRunResults,
 } from '@/lib/studio-operator-result-run'
-import { LoraStackProvider } from '@/features/lora'
+import { LoraStackProvider } from '@/features/lora/hooks'
 import {
   checkImageGenerationStatusAPI,
   studioGenerateAPI,

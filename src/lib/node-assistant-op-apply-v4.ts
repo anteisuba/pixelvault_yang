@@ -1400,6 +1400,64 @@ export function applyNodeAssistantOpV4(
       }
     }
 
+    case ids.setShotSpec: {
+      const node = resolveTarget(state, op.target, context.refs)
+      if (!node) return { ok: false, reason: 'unknownNode' }
+      if (
+        node.data.kind !== NODE_MEDIA_KIND_IDS.video ||
+        node.data.subtype !== NODE_V4_VIDEO_SUBTYPE_IDS.shot
+      ) {
+        return { ok: false, reason: 'notAShotNode' }
+      }
+      const previous = node.data.shot ?? {}
+      // 补丁语义：带来的格覆盖，`null` 清空，没带的留着。
+      const merged: Record<string, unknown> = { ...previous }
+      const undoSpec: Record<string, unknown> = {}
+      for (const [key, value] of Object.entries(op.spec)) {
+        if (value === undefined) continue
+        // inverse 精确退回这几格：原来没有的退成 `null`（清空），⛔ 不整卡还原 ——
+        // 整卡还原会把撤销之前到达的产物一起抹掉。
+        undoSpec[key] = (previous as Record<string, unknown>)[key] ?? null
+        if (value === null) delete merged[key]
+        else merged[key] = value
+      }
+      const parsed = NodeV4DataSchema.safeParse({
+        ...node.data,
+        shot: Object.keys(merged).length > 0 ? merged : undefined,
+      })
+      if (!parsed.success) return { ok: false, reason: 'invalidShotSpec' }
+      return {
+        ok: true,
+        state: replaceNodeData(state, node.id, () => parsed.data),
+        inverse: {
+          kind: 'op',
+          op: { op: ids.setShotSpec, target: node.id, spec: undoSpec },
+        },
+        changedNodeIds: [node.id],
+        changedEdgeIds: [],
+      }
+    }
+
+    case ids.setShotlist: {
+      const next: Record<string, unknown> = { ...state }
+      if (op.shotlist) next.shotlist = op.shotlist
+      // 删 key 而不是写 `undefined`：理由同 `withEditProject`。
+      else delete next.shotlist
+      return {
+        ok: true,
+        state: next as NodeWorkflowStateV4,
+        inverse: {
+          kind: 'op',
+          op: {
+            op: ids.setShotlist,
+            ...(state.shotlist ? { shotlist: state.shotlist } : {}),
+          },
+        },
+        changedNodeIds: [],
+        changedEdgeIds: [],
+      }
+    }
+
     case ids.setReviewState: {
       const node = resolveTarget(state, op.target, context.refs)
       if (!node) return { ok: false, reason: 'unknownNode' }

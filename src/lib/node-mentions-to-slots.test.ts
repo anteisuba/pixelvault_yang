@@ -5,7 +5,7 @@ import {
   NODE_SLOT_IDS,
   NODE_SLOT_OUTPUT_IDS,
 } from '@/constants/node-slots'
-import { planV4IngestDrop } from '@/hooks/node/use-cast-ingest-v4'
+import { planV4IngestDrop } from '@/features/canvas/hooks'
 import {
   defaultMentionSlot,
   removeMentionsForSource,

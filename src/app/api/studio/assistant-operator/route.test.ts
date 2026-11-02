@@ -18,7 +18,7 @@ vi.mock('@/lib/assistant-operator-stream', () => ({
   ),
 }))
 
-import { runAssistantNext } from '@/features/assistant/kernel'
+import { runAssistantNext } from '@/features/assistant/server'
 
 import { POST } from './route'
 

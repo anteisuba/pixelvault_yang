@@ -1,5 +1,5 @@
 import { StudioProvider } from '@/contexts/studio-context'
-import { StudioWorkspaceUI } from '@/components/business/StudioWorkspaceUI'
+import { StudioWorkspaceUI } from '@/features/studio'
 
 /**
  * Studio workspace layout — shared by /studio/image, /studio/video and

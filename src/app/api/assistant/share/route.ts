@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 import { createApiGetRoute } from '@/lib/api-route-factory'
 import { ApiRequestError } from '@/lib/errors'
-import { getSharedAssistantConversation } from '@/services/assistant-conversation.service'
+import { getSharedAssistantConversation } from '@/features/assistant/server'
 
 const ShareTokenSchema = z.object({
   token: z.string().trim().min(32).max(200),

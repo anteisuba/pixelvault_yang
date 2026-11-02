@@ -10,7 +10,7 @@ import {
   listNodeWorkflowProjectsForUser,
   listRecentNodeWorkflowProjectsForUser,
   NodeWorkflowProjectLimitError,
-} from '@/services/node/node-workflow.service'
+} from '@/features/canvas/server'
 import { CreateNodeWorkflowProjectRequestSchema } from '@/types/node-workflow'
 
 import { rethrowNodeWorkflowStateError } from './state-error'

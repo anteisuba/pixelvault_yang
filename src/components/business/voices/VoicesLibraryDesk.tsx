@@ -36,7 +36,7 @@ import {
   MediaTileShade,
 } from '@/components/ui/media-tile'
 import { Spinner } from '@/components/ui/spinner'
-import { VoiceAvatarButton } from '@/components/business/node/voice-library/VoiceAvatar'
+import { VoiceAvatarButton } from '@/components/business/voices/VoiceAvatar'
 import type { UseVoiceLibraryReturn } from '@/hooks/use-voice-library'
 import type { UseVoicesPageReturn } from '@/hooks/use-voices-page'
 import { canPreviewVoiceSample } from '@/hooks/use-voice-sample-preview'

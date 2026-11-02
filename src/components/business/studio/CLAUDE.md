@@ -1,5 +1,7 @@
 # src/components/business/studio/ — Studio Workspace Components
 
+> 2026-11-01 起：工作台组件（除 `shell/`、`assistant-operator/` 外）已搬到 `src/features/studio/components/`，`image/` 在 `src/features/studio/components/image/`，LoRA 在 `src/features/lora/`。下面树里写的 `studio/` 指 `features/studio/components/`，`studio/assistant-operator/` 指 `features/assistant/components/operator/`，`business/assistant-settings/` 指 `features/assistant/components/settings/`；`studio-shared/` 仍在原处（多个域共用）。
+
 ## Risk Level: HIGH (`studio/` + `studio-shared/` 全部组件共享 3 个 context)
 
 现行方向 A「连续对话与结果优先」：工具记录默认折叠，失败摘要独立显示，没有五动词常驻条和「参考依据」折叠。现行增量契约见 `docs/references/pages/assistant-shell-v2.md` 的 A 方向节。
@@ -23,7 +25,7 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
         │   │   │    首 / 尾帧是角标、点一格换角色或移除；最右一行只读灰字说这一枪怎么发)
         │   │   ├── StudioVideoAssetChip (studio/ — 视频台工具行「素材」：唯一的「＋」，挂满 / 这个型号不收的那一项灰着写原因)
         │   │   └── StudioVideoPromptInput (studio/ — 视频档提示词框：按模型写法把素材编号渲染成缩略图胶囊，存储仍是原文)
-        │   └── stage: StudioCanvas (studio-shared/chrome/；外面套一层 `StudioStageSwap`（同目录）在结果与一块舞台面板之间换场 —— 模板面板 `templates/StudioTemplatesPanel`（每一台都有，模板 C：点一张直接套用；手机走 `variant="phone"`；撤销条 `templates/StudioTemplateUndoToast` 挂在输入框卡 / 手机输入条 / 标签台底栏上沿，竖排参数栏那一台（音频）挂在舞台底部（`StudioWorkbenchLayout.stageOverlay`）；开合与套用 / 撤销快照住在 `StudioWorkspaceUI` + `hooks/use-studio-template-apply.ts`，模型清单按档取 `hooks/use-studio-mode-model-options.ts`），标签台另有查资料 / 构图；结果层不卸载只藏)
+        │   └── stage: StudioCanvas (studio-shared/chrome/；外面套一层 `StudioStageSwap`（同目录）在结果与一块舞台面板之间换场 —— 模板面板 `templates/StudioTemplatesPanel`（每一台都有，模板 C：点一张直接套用；手机走 `variant="phone"`；撤销条 `templates/StudioTemplateUndoToast` 挂在输入框卡 / 手机输入条 / 标签台底栏上沿，竖排参数栏那一台（音频）挂在舞台底部（`StudioWorkbenchLayout.stageOverlay`）；开合与套用 / 撤销快照住在 `StudioWorkspaceUI` + `features/studio/hooks/use-studio-template-apply.ts`，模型清单按档取 `features/studio/hooks/use-studio-mode-model-options.ts`），标签台另有查资料 / 构图；结果层不卸载只藏)
         │       ├── StudioReferenceRail (studio-shared/chrome/ — 参考轨，与结果并存；`bottom` 布局不画（`referenceRail={false}`），附件在输入框里)
         │       ├── GenerationPreview (studio/ — current result)
         │       ├── CompareGrid (image/ — 共享图墙：多模型 / 多张 / 矩阵)
@@ -79,7 +81,7 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
 
 **手机形态**：Dock 在 `isMobile` 时图片 / 视频 / LoRA 档渲染 `StudioOperatorAvatarToggle`（右上角）+ `StudioOperatorMobileSheet`（单一高度、接近满屏，见上方组件树），装的是与桌面**同一个 `StudioOperatorPanel` 元素**（同一份 props，⛔ 别为手机再写一套面板内容）。判据是**宿主的域**不是路由：LoRA 手机端与桌面共用此 Dock，旧 `LoraAssistantDock` 已删除；音频档没有 operator 宿主，不新增助手入口。
 
-**四张脸**：宿主契约多一格 `face`（`{domainIcon, contextLine(), emptyLine, starterPills[], inputPlaceholder}`，见 `src/contexts/studio-operator-host.tsx`），四份宿主各自实现，Dock / Header / EmptyState 只读它。⛔ 组件里不许按 `domain` 分叉挑文案 / 图标 / 药丸（`StudioOperatorDock.web.test.tsx` 有源码扫描守着）。静态那几样按域查表走 `src/hooks/use-studio-operator-face.ts`，只有 `contextLine` 是宿主自己算的。⛔ `STUDIO_OPERATOR_SUGGESTIONS` · `STUDIO_OPERATOR_EMPTY_SUGGESTION_COUNT` 与三语 `StudioOperator.suggestion.*` 已整块删。
+**四张脸**：宿主契约多一格 `face`（`{domainIcon, contextLine(), emptyLine, starterPills[], inputPlaceholder}`，见 `src/contexts/studio-operator-host.tsx`），四份宿主各自实现，Dock / Header / EmptyState 只读它。⛔ 组件里不许按 `domain` 分叉挑文案 / 图标 / 药丸（`StudioOperatorDock.web.test.tsx` 有源码扫描守着）。静态那几样按域查表走 `src/features/assistant/hooks/use-studio-operator-face.ts`，只有 `contextLine` 是宿主自己算的。⛔ `STUDIO_OPERATOR_SUGGESTIONS` · `STUDIO_OPERATOR_EMPTY_SUGGESTION_COUNT` 与三语 `StudioOperator.suggestion.*` 已整块删。
 
 **收起态**：**右上角 36px 人设头像 + 数字角标，头像即唯一开关**（点开，再点或 Esc 收回；展开时悬停写「收起 · Esc」）。⛔ D7 ④ 的「右下 44px 近黑圆按钮」与画布顶栏那颗「助手」胶囊（`shell-assistant-toggle`）一起退场；⛔ 仍旧没有微状态卡、`N/M` 读数与那句状态词；**运行指示**（2026-10-14 §9.1）：在跑 = 运行环 + 右下呼吸点，收着时跑完 / 出错留一颗完成 / 风险色点，打开即清（外壳 `StudioOperatorDock` 渲染期派生，`activity` 传给头像）。机制与十条动画铁律见 `docs/references/pages/assistant-shell-v2.md §4.3`。
 
@@ -88,7 +90,7 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
 按需挂载、不在主树固定位置的常用单元：StudioWorkflowPicker
 （studio-shared/workflow/）、StudioSpecChip（studio/）、StudioErrorBoundary（studio-shared/chrome/）。
 
-**画布不在这个目录**：`/studio/node` 的全部实现在 `src/components/business/node/`（v4 工作台 `node/workbench-v4/` + 节点卡 `node/nodes/v4/`），分层与禁改见 `src/components/business/node/CLAUDE.md`，基准见 `docs/references/pages/node-canvas-v2.md`。两边**不共用**面板与动作总线——画布走 `useNodeCanvasActions()` 与 v4 op 表，⛔ 别把 studio 的 context 或 operator 组件搬进画布。
+**画布不在这个目录**：`/studio/node` 的全部实现在 `src/features/canvas/components/`（v4 工作台 `node/workbench-v4/` + 节点卡 `node/nodes/v4/`），分层与禁改见 `src/features/canvas/components/CLAUDE.md`，基准见 `docs/references/pages/node-canvas-v2.md`。两边**不共用**面板与动作总线——画布走 `useNodeCanvasActions()` 与 v4 op 表，⛔ 别把 studio 的 context 或 operator 组件搬进画布。
 
 ## Data Flow
 

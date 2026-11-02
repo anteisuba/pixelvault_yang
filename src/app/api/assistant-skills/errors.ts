@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { ApiRequestError } from '@/lib/errors'
-import { AssistantSkillError } from '@/services/assistant-skill.service'
+import { AssistantSkillError } from '@/features/assistant/server'
 
 /** 技能服务那三种拒绝 → 带 i18n 键的 API 错误（界面照键出一句话）。 */
 export async function assistantSkillErrors<T>(run: () => Promise<T>) {

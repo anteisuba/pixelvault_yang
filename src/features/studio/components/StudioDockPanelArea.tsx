@@ -1,0 +1,244 @@
+'use client'
+
+import { memo, useCallback, useEffect } from 'react'
+import { Key } from '@/components/icons'
+import { useTranslations } from 'next-intl'
+import dynamic from 'next/dynamic'
+
+import {
+  useStudioForm,
+  useStudioData,
+  type PanelName,
+} from '@/contexts/studio-context'
+import { useImageModelOptions } from '@/hooks/use-image-model-options'
+import { useVideoModelOptions } from '@/hooks/use-video-model-options'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import {
+  getReferenceCapability,
+  getReferenceCapabilityMax,
+} from '@/constants/reference-image-capabilities'
+import { VIDEO_REFERENCE_LIMITS } from '@/constants/video-reference-limits'
+import {
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogDescription,
+} from '@/components/ui/responsive-dialog'
+import {
+  FeedbackButton,
+  useButtonFeedback,
+} from '@/components/ui/feedback-button'
+import { Spinner } from '@/components/ui/spinner'
+import {
+  StudioPanelHeader,
+  studioDialogBaseClass,
+  studioDialogBodyClass,
+} from '@/components/business/studio-shared/primitives/tool-surface'
+import { useStudioVideoAssets } from '@/hooks/use-studio-video-assets'
+
+/**
+ * Shared spinner for panel bodies that ship as separate chunks. Without
+ * this, the dialog mounts with an empty white box for the ~500ms it takes
+ * to download the chunk (most visible on the largest panels). The fallback
+ * matches the layout — same vertical rhythm as
+ * the dialog body so the dialog doesn't visibly jump when the real panel
+ * arrives.
+ */
+function PanelLoadingFallback() {
+  return (
+    <div className="flex h-40 items-center justify-center">
+      <Spinner size="lg" className="text-muted-foreground" />
+    </div>
+  )
+}
+
+const StudioVideoAudioPanel = dynamic(
+  () =>
+    import('@/features/studio/components/StudioVideoAudioPanel').then(
+      (mod) => mod.StudioVideoAudioPanel,
+    ),
+  { loading: () => <PanelLoadingFallback /> },
+)
+
+// Krea-aligned panel dialog sizing — centred, capped width, vertical scroll
+// inside the content area. Each panel picks the closest fit so the dialog
+// doesn't feel oversized for short controls (civitai = one input) or
+// cramped for longer flows.
+// Chrome 类来自 tool-surface（决议 5 工具面板契约），与助手等 Dialog 型面板共用。
+const DIALOG_BASE = studioDialogBaseClass
+const DIALOG_BODY = studioDialogBodyClass
+
+/**
+ * StudioDockPanelArea — Krea-style centred dialogs for every toolbar pill
+ * that used to dock into the bottom-right 40% column. Each panel is its
+ * own Dialog wired to `state.panels.X` and dispatches CLOSE_PANEL when
+ * dismissed (overlay click, Esc, X button). No grid layout, no drawer —
+ * one consistent floating surface across image / video modes.
+ *
+ * Panels that already had their own popovers/dialogs (enhance, reverse,
+ * transform, aspectRatio, refImage chip, style preset) intentionally
+ * still live in their own files; this component owns only the ones that
+ * used to render inline in the dock.
+ */
+export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
+  const { state, dispatch } = useStudioForm()
+  const { imageUpload, civitai } = useStudioData()
+  const t = useTranslations('StudioV2')
+  const tPanels = useTranslations('StudioPanels')
+  const tCivitai = useTranslations('CivitaiToken')
+  const { feedback: tokenSavedFeedback, show: showTokenSaved } =
+    useButtonFeedback()
+  const { selectedModel: imageModel } = useImageModelOptions()
+  const { selectedModel: videoModel } = useVideoModelOptions(
+    state.selectedOptionId ?? '',
+  )
+  const isVideoMode = state.outputType === 'video'
+  // Surface drives both the capability lookup *and* which model pool we read.
+  // Video models live in useVideoModelOptions; otherwise we stay on the
+  // image pool.
+  const surfaceSelectedModel = isVideoMode ? videoModel : imageModel
+
+  const adapterType = surfaceSelectedModel?.adapterType ?? AI_ADAPTER_TYPES.FAL
+  const modelId = surfaceSelectedModel?.modelId
+  // Route by outputType: video models go through the video surface so
+  // model-specific multi-reference limits override the FAL adapter default.
+  const referenceCapability = getReferenceCapability(
+    isVideoMode ? 'video' : 'image',
+    adapterType,
+    modelId,
+  )
+  const capabilityMaxRefImages = getReferenceCapabilityMax(referenceCapability)
+  /**
+   * ⭐ 视频档的参考图上限按素材轨容量算（owner 09-24 去掉模式）：选中的是关键帧
+   * 端点，按它的能力算会把参考图卡成 1 张。首尾帧在参考档下也作为参考图随行，
+   * 所以要从总数里扣掉已占的帧。
+   */
+  const { capacity: videoCapacity, images: videoImages } =
+    useStudioVideoAssets()
+  const occupiedFrames = videoImages.filter(
+    (image) => image.role !== 'reference',
+  ).length
+  const maxRefImages = isVideoMode
+    ? Math.max(
+        0,
+        Math.min(
+          videoCapacity.references ?? VIDEO_REFERENCE_LIMITS.IMAGES,
+          VIDEO_REFERENCE_LIMITS.IMAGES,
+        ) - occupiedFrames,
+      )
+    : capabilityMaxRefImages
+
+  useEffect(() => {
+    imageUpload.setMaxImages(maxRefImages)
+  }, [maxRefImages, imageUpload])
+
+  const closePanel = useCallback(
+    (panel: PanelName) => {
+      dispatch({ type: 'CLOSE_PANEL', payload: panel })
+    },
+    [dispatch],
+  )
+
+  const handleSaveToken = useCallback(async () => {
+    if (!state.tokenInput.trim()) return
+    const ok = await civitai.save(state.tokenInput.trim())
+    if (ok) {
+      dispatch({ type: 'SET_TOKEN_INPUT', payload: '' })
+      showTokenSaved({ label: tCivitai('saveSuccess') })
+    }
+  }, [state.tokenInput, civitai, dispatch, showTokenSaved, tCivitai])
+
+  return (
+    <>
+      {/* ── Civitai Token ────────────────────────────────────── */}
+      <ResponsiveDialog
+        open={state.panels.civitai}
+        onOpenChange={(open) => {
+          if (!open) closePanel('civitai')
+        }}
+      >
+        <ResponsiveDialogContent className={`${DIALOG_BASE} !max-w-md`}>
+          <StudioPanelHeader icon={<Key className="size-3.5 text-primary" />}>
+            {tPanels('civitai')}
+            {civitai.hasToken && (
+              <span className="ml-1 rounded-full bg-primary/10 px-2 py-0.5 text-3xs text-primary">
+                {t('tokenSaved')}
+              </span>
+            )}
+          </StudioPanelHeader>
+          <ResponsiveDialogDescription className="sr-only">
+            {tPanels('civitai')}
+          </ResponsiveDialogDescription>
+          <div className={DIALOG_BODY}>
+            <div className="flex flex-col gap-2">
+              <input
+                type="password"
+                value={state.tokenInput}
+                onChange={(e) =>
+                  dispatch({
+                    type: 'SET_TOKEN_INPUT',
+                    payload: e.target.value,
+                  })
+                }
+                placeholder={t('tokenPlaceholder')}
+                // ⚠ <768 必须 ≥16px：iOS 对小于 16px 的可聚焦输入框会自动放大整页。
+                className="w-full rounded-md border border-border/60 bg-background px-2.5 py-2 font-mono text-base focus:border-primary/40 focus:outline-none md:text-xs"
+              />
+              <div className="flex gap-2">
+                {/* 存好了写在键上（输入框随即清空，键在结果态下不跟着变灰）。 */}
+                <FeedbackButton
+                  feedback={tokenSavedFeedback}
+                  onClick={handleSaveToken}
+                  disabled={!state.tokenInput.trim() && !tokenSavedFeedback}
+                  className="rounded-md bg-primary px-3 py-1.5 text-xs text-primary-foreground disabled:opacity-40"
+                >
+                  {t('save')}
+                </FeedbackButton>
+                {civitai.hasToken && (
+                  <button
+                    type="button"
+                    onClick={() => civitai.remove()}
+                    className="rounded-md border border-status-risk/40 px-3 py-1.5 text-xs text-status-risk hover:bg-status-risk-surface"
+                  >
+                    {t('removeToken')}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </ResponsiveDialogContent>
+      </ResponsiveDialog>
+
+      {/* ⚠ 「高级设置」对话框（seed 锁定 + 负面提示词）已于 2026-08-23 切片 A
+          整条删除。它自 2026-08-18 图片模态改走横向工作台起就**不可达** ——
+          唯一的宿主是当时的 `StudioBottomDock`，而图片不挂载它；负面提示词
+          已由参数栏的折叠行承担（owner 2026-08-22），seed 则是 owner 同日
+          明确「不介入」。切片 A 把这个宿主挂到了 `StudioWorkspaceUI` 上，
+          不删它就等于凭空复活一个被否掉的 seed 入口 + 第二个负面输入框。
+          ⚠ `advancedParams.seed` 字段与生成管线都还在，删的只是 UI 门。 */}
+
+      {/* ⚠ 「视频设置」对话框已于 2026-08-23 切片 B 退役：时长 / 分辨率 / 宽高比
+          并进参数栏的「规格」浮层（`StudioVideoSpecPopover`，与图片同一形态），
+          反向提示词并进参数栏的折叠行。参数常驻可见，不用点开才知道当前值。 */}
+
+      {/* ── Video audio references (video mode) ─────────────────
+          台账 A（owner 2026-08-29）：工作台此前完全没有挂音频的地方，而后端
+          三层（schema / service / worker）早就通了。面板宿主与「剧本」同款。 */}
+      <ResponsiveDialog
+        open={state.panels.videoAudio}
+        onOpenChange={(open) => {
+          if (!open) closePanel('videoAudio')
+        }}
+      >
+        <ResponsiveDialogContent className={`${DIALOG_BASE} !max-w-lg`}>
+          <StudioPanelHeader>{tPanels('videoAudio')}</StudioPanelHeader>
+          <ResponsiveDialogDescription className="sr-only">
+            {tPanels('videoAudio')}
+          </ResponsiveDialogDescription>
+          <div className={DIALOG_BODY}>
+            <StudioVideoAudioPanel />
+          </div>
+        </ResponsiveDialogContent>
+      </ResponsiveDialog>
+    </>
+  )
+})

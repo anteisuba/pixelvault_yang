@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { V3Context } from '@/services/kernel/assistant-v3-steps.service'
+import type { V3Context } from '@/features/assistant/services/assistant-v3-steps.service'
 
 vi.mock('server-only', () => ({}))
 
 const { recent } = vi.hoisted(() => ({
   recent: [] as { id: string; name: string }[],
 }))
-vi.mock('@/services/node/node-workflow.service', () => ({
+vi.mock('@/features/canvas/services/node-workflow.service', () => ({
   listRecentNodeWorkflowProjectsForUser: async () => recent,
 }))
 vi.mock('@/features/assistant/workspace.service', async (importOriginal) => ({

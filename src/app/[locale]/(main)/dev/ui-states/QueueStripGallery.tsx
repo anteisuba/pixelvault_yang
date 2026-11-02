@@ -11,7 +11,7 @@ import {
   STUDIO_OPERATOR_CONFIRM_STATUS_IDS,
   type StudioOperatorConfirmStatus,
 } from '@/constants/studio-assistant-operator'
-import { StudioOperatorQueueCard } from '@/components/business/studio/assistant-operator/StudioOperatorQueueCard'
+import { StudioOperatorQueueCard } from '@/features/assistant'
 
 /**
  * 助手「多张生成」确认卡（队列条，方向 C）的样板间：确认之后那几格的进度与出图要真花钱

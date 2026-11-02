@@ -1478,3 +1478,92 @@ it('set_params 的 promptTemplate: none = 摘掉模板，⛔ 落进卡', () => {
   const data = result.state.nodes[0]!.data
   expect(data.kind === 'image' && data.params).toEqual({ count: 2 })
 })
+
+describe('set_shot_spec / set_shotlist（镜头表）', () => {
+  it('patches one column without clearing the others, and undoes just that column', () => {
+    const node = shotNode('s1', 1)
+    if (node.data.kind !== 'video' || node.data.subtype !== 'shot')
+      throw new Error('Expected shot')
+    node.data.shot = { size: 'wide', move: '缓慢推近' }
+    const state: NodeWorkflowStateV4 = { version: 4, nodes: [node], edges: [] }
+    const context = makeContext()
+    const result = applyNodeAssistantOpV4(
+      state,
+      { op: 'set_shot_spec', target: 's1', spec: { size: 'close_up' } },
+      context,
+    )
+    if (!result.ok || !result.inverse) throw new Error('Expected inverse')
+    const after = result.state.nodes[0].data
+    expect(
+      after.kind === 'video' && after.subtype === 'shot' && after.shot,
+    ).toEqual({ size: 'close_up', move: '缓慢推近' })
+    // 撤销之前到达的产物不能被撤销抹掉。
+    const completed = {
+      ...result.state,
+      nodes: result.state.nodes.map((entry) => ({
+        ...entry,
+        data: { ...entry.data, url: 'https://example.com/out.mp4' },
+      })),
+    }
+    const restored = applyInverseV4(completed, result.inverse, context)
+    expect(restored.nodes[0].data).toEqual({
+      ...node.data,
+      url: 'https://example.com/out.mp4',
+    })
+  })
+
+  it('null clears a column; undo brings it back, and an emptied spec is dropped', () => {
+    const node = shotNode('s1', 1)
+    if (node.data.kind !== 'video' || node.data.subtype !== 'shot')
+      throw new Error('Expected shot')
+    node.data.shot = { look: '冷蓝' }
+    const state: NodeWorkflowStateV4 = { version: 4, nodes: [node], edges: [] }
+    const context = makeContext()
+    const result = applyNodeAssistantOpV4(
+      state,
+      { op: 'set_shot_spec', target: 's1', spec: { look: null } },
+      context,
+    )
+    if (!result.ok || !result.inverse) throw new Error('Expected inverse')
+    const after = result.state.nodes[0].data
+    expect(
+      after.kind === 'video' && after.subtype === 'shot' && after.shot,
+    ).toBe(undefined)
+    const restored = applyInverseV4(result.state, result.inverse, context)
+    expect(restored.nodes[0].data).toEqual(node.data)
+  })
+
+  it('refuses non-shot cards', () => {
+    const state: NodeWorkflowStateV4 = {
+      version: 4,
+      nodes: [imageNode('i1')],
+      edges: [],
+    }
+    const result = applyNodeAssistantOpV4(
+      state,
+      { op: 'set_shot_spec', target: 'i1', spec: { size: 'wide' } },
+      makeContext(),
+    )
+    expect(result).toMatchObject({ ok: false, reason: 'notAShotNode' })
+  })
+
+  it('set_shotlist replaces the settings and undo returns to “never set”', () => {
+    const state: NodeWorkflowStateV4 = { version: 4, nodes: [], edges: [] }
+    const context = makeContext()
+    const result = applyNodeAssistantOpV4(
+      state,
+      {
+        op: 'set_shotlist',
+        shotlist: { look: '冷蓝夜色', totalDurationSec: 30 },
+      },
+      context,
+    )
+    if (!result.ok || !result.inverse) throw new Error('Expected inverse')
+    expect(result.state.shotlist).toEqual({
+      look: '冷蓝夜色',
+      totalDurationSec: 30,
+    })
+    const restored = applyInverseV4(result.state, result.inverse, context)
+    expect('shotlist' in restored).toBe(false)
+  })
+})

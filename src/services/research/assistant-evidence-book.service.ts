@@ -15,7 +15,7 @@ import {
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import { assistantWorkspaceFromKey } from '@/lib/assistant-workspace'
-import { findOwnConversation } from '@/services/assistant-conversation.service'
+import { findOwnConversation } from '@/features/assistant/server'
 import {
   ASSISTANT_SURFACE_BY_DOMAIN,
   type AssistantSurfaceId,

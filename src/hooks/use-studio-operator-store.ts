@@ -541,6 +541,18 @@ export function appendOperatorEntry(entry: StudioOperatorThreadEntry): void {
   emit({ ...state, entries: [...state.entries, entry] })
 }
 
+/** 「已写进 / 已挂上」那一行的撤销钮用过了：摘掉它（`p-assistant-undo`）。 */
+export function clearOperatorCardUndo(entryId: string): void {
+  emit({
+    ...state,
+    entries: state.entries.map((entry) =>
+      entry.kind === 'system' && entry.id === entryId && entry.cardUndo
+        ? { ...entry, cardUndo: false }
+        : entry,
+    ),
+  })
+}
+
 /**
  * **本轮结账落进时间线**（v2 §7.7，commit #13）—— `done` 帧带着它来。
  *

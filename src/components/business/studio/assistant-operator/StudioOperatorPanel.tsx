@@ -561,6 +561,7 @@ export function StudioOperatorPanel({
     dismissCharacterProfile,
     keepCharacterImages,
     dismissCharacterImages,
+    undoCardWrite,
     acceptUpscale,
     dismissUpscale,
     cancelGeneration,
@@ -2313,6 +2314,17 @@ export function StudioOperatorPanel({
                     {t('error.switchModel')}
                   </button>
                 </span>
+              ) : null}
+              {/* 收下的设定 / 挂上的图也能退（`p-assistant-undo`）：撤一次就摘掉。 */}
+              {entry.cardUndo ? (
+                <button
+                  type="button"
+                  data-testid="operator-card-write-undo"
+                  onClick={() => void undoCardWrite(entry.id)}
+                  className={FAIL_ACTION_CLASS}
+                >
+                  {t('checkpoint.undo')}
+                </button>
               ) : null}
             </div>
           </StudioOperatorTimelineRow>

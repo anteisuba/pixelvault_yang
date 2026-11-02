@@ -389,6 +389,10 @@ export const STUDIO_OPERATOR_SYSTEM_CODES = [
   'characterImagesDeclined',
   /** 存进素材库 / 挂上那一跳没成 —— ⛔ 不静默。 */
   'characterImagesAttachFailed',
+  /** 「已写进 / 已挂上」那一行点了撤销，退回原样了（`p-assistant-undo`）。 */
+  'characterWriteUndone',
+  /** 撤销那一跳没成 —— ⛔ 不静默。 */
+  'characterWriteUndoFailed',
   /**
    * ⚠ 下面这几条（交给图片助手 / 换台 / 交到另一台）第 9e 步换成「开台」后不再写入，
    * 只为旧历史还能载回、照旧画出来而留着。

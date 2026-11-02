@@ -619,6 +619,8 @@
       "characterImagesAttached": "{subject}",
       "characterImagesDeclined": "Didn't attach these images: {subject}",
       "characterImagesAttachFailed": "Couldn't attach them to {subject} — try again?",
+      "characterWriteUndone": "Undone: {subject} is back as it was.",
+      "characterWriteUndoFailed": "Couldn't undo the change to {subject} — change it back on the character page.",
       "imageHandoffAccepted": "Handed to the image assistant: {subject}",
       "imageHandoffDeclined": "Not handed to the image assistant: {subject}",
       "workbenchHandoffAccepted": "Switched workbench: {subject}",

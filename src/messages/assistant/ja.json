@@ -619,6 +619,8 @@
       "characterImagesAttached": "{subject}",
       "characterImagesDeclined": "この画像は付けませんでした：{subject}",
       "characterImagesAttachFailed": "「{subject}」に付けられませんでした —— もう一度？",
+      "characterWriteUndone": "元に戻しました：「{subject}」はさっきの状態に戻りました。",
+      "characterWriteUndoFailed": "「{subject}」の変更を元に戻せませんでした —— キャラクターページで直してください。",
       "imageHandoffAccepted": "画像アシスタントに渡しました：{subject}",
       "imageHandoffDeclined": "画像アシスタントには渡しませんでした：{subject}",
       "workbenchHandoffAccepted": "切り替えました：{subject}",

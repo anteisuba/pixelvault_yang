@@ -109,6 +109,8 @@ const generationEnabled = vi.hoisted(() => ({
   canvas: true,
 }))
 const dispatch = vi.hoisted(() => vi.fn())
+const applyProfile = vi.hoisted(() => vi.fn())
+const attachImages = vi.hoisted(() => vi.fn())
 const mountLora = vi.hoisted(() => vi.fn())
 const unmountLora = vi.hoisted(() => vi.fn())
 const setLoraWeight = vi.hoisted(() => vi.fn())
@@ -224,6 +226,7 @@ vi.mock('@/contexts/studio-operator-host', () => ({
       mountUserUrl: () => {},
       unmountUserUrl: () => {},
       setPrimed: () => {},
+      cards: { applyProfile, attachImages },
       lora: {
         mount: mountLora,
         unmountByCandidateId: vi.fn(),
@@ -4470,5 +4473,77 @@ describe('钱闸与出完图自己看', () => {
     rerender()
     await settle()
     expect(store.getOperatorState().question).toBeNull()
+  })
+})
+
+/** `p-assistant-undo`：角色页提议卡「收下」之后，那一行行尾能撤回原样。 */
+describe('收下设定之后能撤销', () => {
+  async function keepProfile(undo: () => Promise<boolean>) {
+    applyProfile.mockResolvedValueOnce(undo)
+    const hook = render()
+    act(() =>
+      store.setOperatorConfirm({
+        kind: 'characterProfile',
+        status: 'idle',
+        profile: {
+          characterId: 'char-1',
+          fields: [{ field: 'identity', text: '高中生', source: '对话' }],
+        },
+      } as never),
+    )
+    await act(async () => {
+      await hook.result.current.keepCharacterProfile([
+        { field: 'identity', text: '高中生', source: '对话' },
+      ])
+    })
+    return hook
+  }
+
+  it('收下的那一行挂着撤销；点了把原样写回、落一行账、撤销钮摘掉', async () => {
+    const undo = vi.fn(async () => true)
+    const hook = await keepProfile(undo)
+    const saved = store
+      .getOperatorState()
+      .entries.find(
+        (entry) =>
+          entry.kind === 'system' && entry.code === 'characterProfileSaved',
+      )
+    expect(saved).toMatchObject({ cardUndo: true })
+
+    await act(async () => {
+      await hook.result.current.undoCardWrite(saved!.id)
+    })
+    expect(undo).toHaveBeenCalledTimes(1)
+    const entries = store.getOperatorState().entries
+    expect(entries.find((entry) => entry.id === saved!.id)).toMatchObject({
+      cardUndo: false,
+    })
+    expect(entries.at(-1)).toMatchObject({
+      kind: 'system',
+      code: 'characterWriteUndone',
+      userText: expect.stringContaining('已撤销'),
+    })
+
+    // 撤一次就没了：再点不再调。
+    await act(async () => {
+      await hook.result.current.undoCardWrite(saved!.id)
+    })
+    expect(undo).toHaveBeenCalledTimes(1)
+  })
+
+  it('撤不回 ⛔ 不静默：落一行失败', async () => {
+    const hook = await keepProfile(async () => false)
+    const saved = store
+      .getOperatorState()
+      .entries.find(
+        (entry) =>
+          entry.kind === 'system' && entry.code === 'characterProfileSaved',
+      )
+    await act(async () => {
+      await hook.result.current.undoCardWrite(saved!.id)
+    })
+    expect(store.getOperatorState().entries.at(-1)).toMatchObject({
+      code: 'characterWriteUndoFailed',
+    })
   })
 })

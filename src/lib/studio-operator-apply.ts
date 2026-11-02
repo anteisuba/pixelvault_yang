@@ -197,6 +197,9 @@ export interface StudioOperatorFormReadModel {
   advancedParams: StudioFormState['advancedParams']
 }
 
+/** 角色页那两只手写成之后的「撤销」：写回原样，返回撤成没有。 */
+export type StudioOperatorCardUndo = () => Promise<boolean>
+
 export interface StudioOperatorApplyContext {
   /** 读**当前**表单 —— 不是 render 时的快照：append / advancedParams 合并都要最新值。 */
   getState(): StudioOperatorFormReadModel
@@ -272,7 +275,8 @@ export interface StudioOperatorApplyContext {
   setPrimed(primed: boolean): void
   /**
    * 角色页（卡片助手）那只手：把用户在设定提议卡上勾中的几格写进这个角色。
-   * ⚠ 可选：只有角色页有；返回是否写成，⛔ 失败不静默（驱动 hook 落一行系统行）。
+   * ⚠ 可选：只有角色页有；成了返回一只「撤销」的手（把那几格写回原样），失败 `null`，
+   *   ⛔ 失败不静默（驱动 hook 落一行系统行）。撤销是底线（`p-assistant-undo`）。
    */
   cards?: {
     applyProfile(
@@ -281,10 +285,10 @@ export interface StudioOperatorApplyContext {
         field: AssistantOperatorCharacterProfileField
         text: string
       }[],
-    ): Promise<boolean>
+    ): Promise<StudioOperatorCardUndo | null>
     /**
      * 把用户在候选卡上勾中的几张挂到这个角色上（C3）。图已经都在素材库里（网上那几张
-     * 由驱动 hook 先存进去）。返回挂上了几张（槽满了会少），失败返回 `null`。
+     * 由驱动 hook 先存进去）。返回挂上了几张（槽满了会少）和摘回去的那只手，失败返回 `null`。
      */
     attachImages(
       characterId: string,
@@ -293,7 +297,7 @@ export interface StudioOperatorApplyContext {
         generationId: string
         origin: 'upload' | 'generation'
       }[],
-    ): Promise<number | null>
+    ): Promise<{ added: number; undo: StudioOperatorCardUndo } | null>
   }
   /**
    * **扣扳机的那只手**（§6 花钱档，拍板 2 的新形态）。

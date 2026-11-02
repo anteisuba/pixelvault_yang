@@ -619,6 +619,8 @@
       "characterImagesAttached": "{subject}",
       "characterImagesDeclined": "没挂这几张图：{subject}",
       "characterImagesAttachFailed": "没能挂到「{subject}」上 —— 再试一次？",
+      "characterWriteUndone": "已撤销：「{subject}」刚收下的改动退回原样了。",
+      "characterWriteUndoFailed": "没能撤回「{subject}」的改动 —— 再试一次也不行的话，去角色页手动改回来。",
       "imageHandoffAccepted": "已交给图片助手：{subject}",
       "imageHandoffDeclined": "先不交给图片助手：{subject}",
       "workbenchHandoffAccepted": "已换台：{subject}",

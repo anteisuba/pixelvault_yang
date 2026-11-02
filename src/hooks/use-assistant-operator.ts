@@ -101,6 +101,7 @@ import { formatUnitPriceAmount } from '@/constants/models/unit-prices'
 import {
   addOperatorMention,
   appendOperatorEntry,
+  clearOperatorCardUndo,
   appendOperatorPendingResult,
   appendOperatorPending,
   appendOperatorRoundSummary,
@@ -194,12 +195,14 @@ import {
   buildGenerationKnobSteps,
   describeOperatorInverse,
   getOperatorStepField,
+  type StudioOperatorCardUndo,
 } from '@/lib/studio-operator-apply'
 import { bumpAssistantAvatar } from '@/lib/studio-operator-avatar-bump'
 import { flashAssistantTouchedField } from '@/lib/studio-operator-flash'
 import {
   describeCharacterImagesDecisionText,
   describeCharacterImagesProposalText,
+  describeCardWriteUndoneText,
   describeCharacterProfileDecisionText,
   describeCharacterProfileProposalText,
   describeContextCardDecisionText,
@@ -909,6 +912,11 @@ export interface UseAssistantOperatorResult {
   keepCharacterImages(keys: readonly string[]): Promise<void>
   /** **候选图卡「不用」** —— 什么都不存，照样落一行账。 */
   dismissCharacterImages(): void
+  /**
+   * 「已写进 / 已挂上」那一行行尾的**撤销**（`p-assistant-undo`）：把收下的设定 / 挂上的图
+   * 原样退回去，落一行账告诉助手。撤一次就没了；刷新之后那一行只剩一句话。
+   */
+  undoCardWrite(entryId: string): Promise<void>
   /** **「放大」**（画布，P6）—— 那几张卡各自放大成新版本。 */
   acceptUpscale(): void
   /** **「先不要」** —— 什么都不放大，落一行账。 */
@@ -3422,18 +3430,18 @@ export function useAssistantOperator(
       const applyProfile = (applyContext.cards ?? readLibraryCardHands())
         ?.applyProfile
       resolveOperatorConfirm(STUDIO_OPERATOR_CONFIRM_STATUS_IDS.submitting)
-      const ok = applyProfile
+      const undo = applyProfile
         ? await applyProfile(
             confirm.profile.characterId,
             fields.map((item) => ({ field: item.field, text: item.text })),
           )
-        : false
+        : null
       if (!isCurrentThread()) return
       const decision = characterProfileDecision(
         confirm.profile.characterId,
         fields,
       )
-      if (!ok) {
+      if (!undo) {
         // ⛔ 不静默：用户以为已经写进去了。卡回到 idle，可以再点一次。
         setOperatorConfirm({
           ...confirm,
@@ -3454,13 +3462,16 @@ export function useAssistantOperator(
       })
       resolveOperatorConfirm(STUDIO_OPERATOR_CONFIRM_STATUS_IDS.confirmed)
       setOperatorStatus('idle')
+      const entryId = nextOperatorEntryId('sys')
+      cardUndos.set(entryId, { undo, subject: decision.name })
       appendOperatorEntry({
         kind: 'system',
-        id: nextOperatorEntryId('sys'),
+        id: entryId,
         code: 'characterProfileSaved',
         subject: decision.userText,
         userText: decision.userText,
         answered: decision.answered,
+        cardUndo: true,
       })
     },
     [applyContext, characterProfileDecision, isCurrentThread],
@@ -3593,22 +3604,25 @@ export function useAssistantOperator(
         characterId,
         images.length,
         keys,
-        attached,
+        attached.added,
       )
       setOperatorConfirm({
         ...confirm,
-        keptCount: attached,
+        keptCount: attached.added,
         status: STUDIO_OPERATOR_CONFIRM_STATUS_IDS.submitting,
       })
       resolveOperatorConfirm(STUDIO_OPERATOR_CONFIRM_STATUS_IDS.confirmed)
       setOperatorStatus('idle')
+      const entryId = nextOperatorEntryId('sys')
+      cardUndos.set(entryId, { undo: attached.undo, subject: decision.name })
       appendOperatorEntry({
         kind: 'system',
-        id: nextOperatorEntryId('sys'),
+        id: entryId,
         code: 'characterImagesAttached',
         subject: decision.userText,
         userText: decision.userText,
         answered: decision.answered,
+        cardUndo: true,
       })
     },
     [applyContext, characterImagesDecision, characterName, isCurrentThread],
@@ -4104,6 +4118,27 @@ export function useAssistantOperator(
     [isCurrentThread],
   )
 
+  const undoCardWrite = useCallback(
+    async (entryId: string) => {
+      const pending = cardUndos.get(entryId)
+      if (!pending || !isCurrentThread()) return
+      cardUndos.delete(entryId)
+      clearOperatorCardUndo(entryId)
+      const ok = await pending.undo().catch(() => false)
+      if (!isCurrentThread()) return
+      const text = ok ? describeCardWriteUndoneText(pending.subject) : null
+      appendOperatorEntry({
+        kind: 'system',
+        id: nextOperatorEntryId('sys'),
+        code: ok ? 'characterWriteUndone' : 'characterWriteUndoFailed',
+        subject: pending.subject,
+        // 撤成了这一行同时是一条 user 消息：助手下一轮知道那几格已经退回去了。
+        ...(text ? { userText: text } : {}),
+      })
+    },
+    [isCurrentThread],
+  )
+
   return {
     domain,
     send,
@@ -4126,6 +4161,7 @@ export function useAssistantOperator(
     dismissCharacterProfile,
     keepCharacterImages,
     dismissCharacterImages,
+    undoCardWrite,
     acceptUpscale,
     dismissUpscale,
     applyLoraSetup,
@@ -4138,6 +4174,15 @@ export function useAssistantOperator(
     rewriteReply,
   }
 }
+
+/**
+ * 「已写进 / 已挂上」那几行的撤销手（`p-assistant-undo`），按那一行的 id 存。
+ * ⚠ 只在内存里（同 `retry`）：刷新之后那一行只剩一句话，撤销钮也不再出现。
+ */
+const cardUndos = new Map<
+  string,
+  { undo: StudioOperatorCardUndo; subject: string }
+>()
 
 /**
  * 确认卡上这一批要多少点（钱闸，`lib/assistant-spend-gate.ts`）。画布按每张卡自己的参数估；

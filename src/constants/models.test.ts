@@ -302,10 +302,17 @@ describe('models', () => {
     )
   })
 
-  it('registers Kling O3 Pro and FLUX.2 Pro Edit as available', () => {
+  it('registers Kling O3 Pro as available and keeps the retired FLUX line out', () => {
     const available = new Set(getAvailableModels().map((m) => m.id))
     expect(available.has(AI_MODELS.KLING_O3_PRO)).toBe(true)
-    expect(available.has(AI_MODELS.FLUX_2_PRO_EDIT)).toBe(true)
+    for (const id of [
+      AI_MODELS.FLUX_2_PRO,
+      AI_MODELS.FLUX_2_PRO_EDIT,
+      AI_MODELS.FLUX_2_FLASH,
+      AI_MODELS.FLUX_KONTEXT_MAX,
+    ]) {
+      expect(available.has(id)).toBe(false)
+    }
   })
 
   it('keeps NovelAI V4.5 and V5 available as BYOK image models', () => {

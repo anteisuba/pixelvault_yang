@@ -333,12 +333,12 @@ describe('resolveGenerationRoute', () => {
 
   it('rejects a model immediately when the DB catalog marks it unavailable', async () => {
     vi.mocked(getResolvedModelOption).mockResolvedValue({
-      ...modelsMock.realGetModelById!('flux-2-pro')!,
+      ...modelsMock.realGetModelById!('seedream-5.0-pro')!,
       available: false,
     })
 
     await expect(
-      resolveGenerationRoute('user-1', { modelId: 'flux-2-pro' }),
+      resolveGenerationRoute('user-1', { modelId: 'seedream-5.0-pro' }),
     ).rejects.toThrow(expect.objectContaining({ code: 'UNSUPPORTED_MODEL' }))
 
     expect(getApiKeyValueById).not.toHaveBeenCalled()
@@ -347,7 +347,7 @@ describe('resolveGenerationRoute', () => {
 
   it('uses DB catalog adapter, external model id, and cost in the execution route', async () => {
     vi.mocked(getResolvedModelOption).mockResolvedValue({
-      ...modelsMock.realGetModelById!('flux-2-pro')!,
+      ...modelsMock.realGetModelById!('seedream-5.0-pro')!,
       adapterType: AI_ADAPTER_TYPES.REPLICATE,
       externalModelId: 'owner/flux-new-version',
       cost: 7,
@@ -360,11 +360,11 @@ describe('resolveGenerationRoute', () => {
         baseUrl: 'https://api.replicate.com',
       },
       keyValue: 'replicate-key',
-      modelId: 'flux-2-pro',
+      modelId: 'seedream-5.0-pro',
     } as never)
 
     const route = await resolveGenerationRoute('user-1', {
-      modelId: 'flux-2-pro',
+      modelId: 'seedream-5.0-pro',
       apiKeyId: 'replicate-key-1',
     })
 
@@ -380,7 +380,7 @@ describe('resolveGenerationRoute', () => {
 
     await expect(
       resolveGenerationRoute('user-1', {
-        modelId: 'flux-2-pro',
+        modelId: 'seedream-5.0-pro',
       }),
     ).rejects.toThrow(expect.objectContaining({ code: 'MISSING_API_KEY' }))
   })

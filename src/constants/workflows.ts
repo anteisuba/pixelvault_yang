@@ -136,7 +136,10 @@ const WORKFLOW_STUDIO_DEFAULT_OVERRIDES: Partial<
   },
   [WORKFLOW_IDS.CHARACTER_CONSISTENCY_IMAGE]: {
     openPanel: 'refImage',
-    recommendedModelIds: [AI_MODELS.GEMINI_PRO_IMAGE, AI_MODELS.FLUX_2_PRO],
+    recommendedModelIds: [
+      AI_MODELS.GEMINI_PRO_IMAGE,
+      AI_MODELS.GEMINI_NANO_BANANA_21,
+    ],
   },
   [WORKFLOW_IDS.IMAGE_EDIT_REMIX]: {
     openPanel: 'refImage',

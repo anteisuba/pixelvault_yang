@@ -116,7 +116,9 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
     externalModelId: 'fal-ai/flux-2-pro',
     outputType: 'IMAGE',
-    available: true,
+    // Retired 2026-11-02（owner：效果一般）— entry kept so archived generations
+    // still resolve a label. See RETIRED_MODEL_IDS.
+    available: false,
     officialUrl: 'https://fal.ai/models/fal-ai/flux-2-pro',
     qualityTier: 'premium',
     styleTag: 'photorealistic',
@@ -133,7 +135,9 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
     externalModelId: 'fal-ai/flux-2-pro/edit',
     outputType: 'IMAGE',
-    available: true,
+    // Retired 2026-11-02（owner：效果一般）— entry kept so archived generations
+    // still resolve a label. See RETIRED_MODEL_IDS.
+    available: false,
     officialUrl: 'https://fal.ai/models/fal-ai/flux-2-pro/edit',
     qualityTier: 'premium',
     styleTag: 'general',
@@ -452,7 +456,9 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
     externalModelId: 'fal-ai/flux-2/flash',
     outputType: 'IMAGE',
-    available: true,
+    // Retired 2026-11-02（owner：效果一般）— entry kept so archived generations
+    // still resolve a label. See RETIRED_MODEL_IDS.
+    available: false,
     officialUrl: 'https://fal.ai/models/fal-ai/flux-2/flash',
     qualityTier: 'budget',
     styleTag: 'general',
@@ -518,7 +524,9 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
     externalModelId: 'fal-ai/flux-pro/kontext/max/multi',
     outputType: 'IMAGE',
-    available: true,
+    // Retired 2026-11-02（owner：效果一般）— entry kept so archived generations
+    // still resolve a label. See RETIRED_MODEL_IDS.
+    available: false,
     officialUrl: 'https://fal.ai/models/fal-ai/flux-pro/kontext/max/multi',
     timeoutMs: 300_000,
     qualityTier: 'premium',

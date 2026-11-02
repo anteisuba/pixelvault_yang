@@ -39,7 +39,6 @@ export const MODEL_3D_PREVIEW_MODES = [
 export type Model3DPreviewMode = (typeof MODEL_3D_PREVIEW_MODES)[number]
 
 export const MODEL_3D_MULTIVIEW_MODEL_IDS = [
-  AI_MODELS.FLUX_KONTEXT_MAX,
   AI_MODELS.OPENAI_GPT_IMAGE_2,
   AI_MODELS.GEMINI_NANO_BANANA_21,
 ] as const

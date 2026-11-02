@@ -33,7 +33,7 @@ import {
 
 const FAKE_ROW = {
   id: 'mc_1',
-  modelId: 'flux-2-pro',
+  modelId: 'seedream-5.0-pro',
   externalModelId: 'fal-ai/flux-pro/v1.1',
   adapterType: 'fal',
   outputType: 'IMAGE',
@@ -57,7 +57,7 @@ describe('getAllModelConfigs', () => {
     mockFindMany.mockResolvedValue([FAKE_ROW])
     const result = await getAllModelConfigs()
     expect(result).toHaveLength(1)
-    expect(result[0].modelId).toBe('flux-2-pro')
+    expect(result[0].modelId).toBe('seedream-5.0-pro')
   })
 })
 
@@ -70,8 +70,8 @@ describe('getModelConfigById', () => {
 
   it('returns a record when found', async () => {
     mockFindUnique.mockResolvedValue(FAKE_ROW)
-    const result = await getModelConfigById('flux-2-pro')
-    expect(result?.modelId).toBe('flux-2-pro')
+    const result = await getModelConfigById('seedream-5.0-pro')
+    expect(result?.modelId).toBe('seedream-5.0-pro')
   })
 })
 
@@ -135,7 +135,7 @@ describe('getResolvedModelOption', () => {
   it('applies DB execution overrides to the canonical built-in model', async () => {
     mockFindUnique.mockResolvedValue({
       ...FAKE_ROW,
-      modelId: 'flux-2-pro',
+      modelId: 'seedream-5.0-pro',
       externalModelId: 'fal-ai/flux-pro/new-version',
       adapterType: 'replicate',
       cost: 7,
@@ -146,10 +146,10 @@ describe('getResolvedModelOption', () => {
       },
     })
 
-    const result = await getResolvedModelOption('flux-2-pro')
+    const result = await getResolvedModelOption('seedream-5.0-pro')
 
     expect(result).toMatchObject({
-      id: 'flux-2-pro',
+      id: 'seedream-5.0-pro',
       externalModelId: 'fal-ai/flux-pro/new-version',
       adapterType: 'replicate',
       cost: 7,
@@ -166,7 +166,7 @@ describe('model catalog mutation cache invalidation', () => {
   it('invalidates the public catalog after a model update', async () => {
     mockUpdate.mockResolvedValue({ ...FAKE_ROW, available: false })
 
-    await updateModelConfig('flux-2-pro', { available: false })
+    await updateModelConfig('seedream-5.0-pro', { available: false })
 
     expect(mockInvalidateModelsCache).toHaveBeenCalledOnce()
   })
@@ -175,10 +175,10 @@ describe('model catalog mutation cache invalidation', () => {
 describe('updateModelHealthStatus', () => {
   it('updates the health status of a model', async () => {
     mockUpdateMany.mockResolvedValue({ count: 1 })
-    await updateModelHealthStatus('flux-2-pro', 'available')
+    await updateModelHealthStatus('seedream-5.0-pro', 'available')
     expect(mockUpdateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { modelId: 'flux-2-pro' },
+        where: { modelId: 'seedream-5.0-pro' },
         data: expect.objectContaining({ healthStatus: 'available' }),
       }),
     )

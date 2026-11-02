@@ -156,6 +156,11 @@ export const RETIRED_MODEL_IDS = [
   // ─── 2026-10-07 Google deprecated 3.1 Flash Image ─────────────────
   // Nano Banana 2.1 (GEMINI_NANO_BANANA_21) is the successor.
   AI_MODELS.GEMINI_FLASH_IMAGE,
+  // ─── 2026-11-02 owner: FLUX 效果一般，整条线下架 ────────────────────
+  AI_MODELS.FLUX_2_PRO,
+  AI_MODELS.FLUX_2_PRO_EDIT,
+  AI_MODELS.FLUX_2_FLASH,
+  AI_MODELS.FLUX_KONTEXT_MAX,
 ] as const satisfies readonly AI_MODELS[]
 
 const RETIRED_MODEL_ID_SET = new Set<string>(RETIRED_MODEL_IDS)

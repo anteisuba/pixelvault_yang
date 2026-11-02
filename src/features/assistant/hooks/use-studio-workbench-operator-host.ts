@@ -25,7 +25,7 @@ import type {
 } from '@/contexts/studio-operator-host'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { useStudioRunModels } from '@/hooks/use-studio-run-models'
-import { useStudioSearchGrounding } from '@/features/studio'
+import { useStudioSearchGrounding } from '@/features/studio/hooks'
 import { searchGroundingForRun } from '@/lib/search-grounding'
 import { isFreeGenerationModel, pointsOfCost } from '@/lib/assistant-spend-gate'
 import { estimateGenerationCost, videoCostBasisOf } from '@/lib/generation-cost'

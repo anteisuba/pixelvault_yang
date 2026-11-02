@@ -31,7 +31,7 @@ import {
   useStudioForm,
   useStudioGen,
 } from '@/contexts/studio-context'
-import { useStudioModeModelOptions } from '@/features/studio'
+import { useStudioModeModelOptions } from '@/features/studio/hooks'
 import { useStudioRunModels } from '@/hooks/use-studio-run-models'
 import { useModelChannelGate } from '@/hooks/use-model-channel-gate'
 import { clampVideoSpecToModel } from '@/lib/studio/clamp-video-spec'

@@ -23,5 +23,3 @@ export { StudioTemplateUndoToast } from './components/templates/StudioTemplateUn
 export { StudioTemplatesChip } from './components/templates/StudioTemplatesChip'
 export { StudioTemplatesPanel } from './components/templates/StudioTemplatesPanel'
 export { VoiceBench } from './components/voice-bench/VoiceBench'
-export { useStudioModeModelOptions } from './hooks/use-studio-mode-model-options'
-export { useStudioSearchGrounding } from './hooks/use-studio-search-grounding'

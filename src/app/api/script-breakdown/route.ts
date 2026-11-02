@@ -2,7 +2,7 @@ import 'server-only'
 
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import { createApiRoute } from '@/lib/api-route-factory'
-import { createScriptBreakdown } from '@/services/node/script-breakdown.service'
+import { createScriptBreakdown } from '@/features/canvas/server'
 import {
   ScriptBreakdownRequestSchema,
   type ScriptBreakdownResponseData,

@@ -385,8 +385,7 @@ async function main(): Promise<void> {
  */
 async function buildApplyDeps(): Promise<MigrateProjectDeps> {
   const { db } = await import('@/lib/db')
-  const { backupNodeWorkflowV3State } =
-    await import('@/services/node/node-workflow-v3-backup.service')
+  const { backupNodeWorkflowV3State } = await import('@/features/canvas/server')
   return {
     backup: async (row) => {
       const result = await backupNodeWorkflowV3State(row.clerkId, row.id)

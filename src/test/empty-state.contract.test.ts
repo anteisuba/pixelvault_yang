@@ -40,7 +40,7 @@ const LANDING_POINTS = [
   // 角色页右栏「最近」：她还没出过门 / 没读出来（方向 B，owner 2026-10-28）。
   'src/features/cards/components/CharacterRecent.tsx',
   'src/features/cards/components/CharacterRecentDiary.tsx',
-  'src/components/business/node/NodeCanvasEmptyGuide.tsx',
+  'src/features/canvas/components/NodeCanvasEmptyGuide.tsx',
   'src/features/assistant/components/settings/AssistantHerPane.tsx',
   'src/features/assistant/components/settings/AssistantMemoryPane.tsx',
   'src/features/lora/components/LoraWorkbench.tsx',

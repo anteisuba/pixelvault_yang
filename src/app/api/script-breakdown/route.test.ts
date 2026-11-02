@@ -8,12 +8,12 @@ import {
   parseJSON,
 } from '@/test/api-helpers'
 
-vi.mock('@/services/node/script-breakdown.service', () => ({
+vi.mock('@/features/canvas/services/script-breakdown.service', () => ({
   createScriptBreakdown: vi.fn(),
 }))
 
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
-import { createScriptBreakdown } from '@/services/node/script-breakdown.service'
+import { createScriptBreakdown } from '@/features/canvas/server'
 import type { ScriptBreakdownResponseData } from '@/types/script-breakdown'
 
 import { POST } from './route'

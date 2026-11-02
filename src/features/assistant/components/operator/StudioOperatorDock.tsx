@@ -69,7 +69,7 @@ import {
 } from '@/contexts/studio-operator-host'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useAssistantOperator } from '@/features/assistant/hooks/use-assistant-operator'
-import { useCanvasOperatorRequests } from '@/hooks/node/use-canvas-operator-requests'
+import { useCanvasOperatorRequests } from '@/features/canvas/hooks'
 import { useAssistantPersona } from '@/hooks/use-assistant-persona'
 import { useStudioOperatorResults } from '@/features/assistant/hooks/use-studio-operator-results'
 import {

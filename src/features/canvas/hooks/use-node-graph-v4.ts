@@ -1,0 +1,1291 @@
+'use client'
+
+/**
+ * v4 **图引擎**（第三期 · 画布）。③d-4 起是画布**唯一**的图引擎 —— v3 那套
+ * （`use-node-workflow` / `node-workflow-v3-view` / `StudioNodeWorkbench`）已删。
+ *
+ * ── 与两个既有层的分工 ────────────────────────────────────────────────
+ * · `use-node-workflow-store.ts`（**复用**，不重写）：项目从哪来往哪去。
+ * · 这里：那份 `NodeWorkflowStateV4` 上的**图语义** —— 建点 / 连线 / 删 / 复制 /
+ *   排布 / 展开 / 撤销重做 / 剧本投影。
+ * · `applyNodeAssistantOpV4`：唯一的**语义写入口**。
+ *
+ * ── 一条路径纪律（v3 引擎的老账正是死在这条上）───────────────────────
+ * **每一个改图语义的动作都走 `applyNodeAssistantOpV4`**，与助手同一张 op 表、
+ * 同一份 inverse、同一批 `changedNodeIds`。⛔ 不在这里直接 `setSlotVersion` /
+ * `connectIntoSlot`：那会让「用户点的」和「助手做的」变成两条会漂的路径。
+ *
+ * 例外**只有三条**，每条都因为它根本不是「用户的一步意图」：
+ *   ① `moveNodes`（拖动坐标）—— 进撤销栈等于把一次拖拽拆成几十条记录；
+ *   ② `tidyLayout`（`tidyByFlow`，§7 摆放 A）—— 只动坐标不动语义，⛔ 不发 op；
+ *      但**整次是一步 ⌘Z**（owner 2026-09-29 定），进撤销栈的是整份快照；
+ *   ③ `setMedia`（上传/生成回填）—— 助手不许塞 URL（op 表 §5 纪律 1），
+ *      它只可能来自用户自己的上传；
+ *   ④ `setRunState`（生成跑起来的进度信号）—— 进 op 表等于给每一次进度跳变产生
+ *      一条撤销记录，而它本身不是用户的意图（`NodeV4ActionsBridge` 例外 ① 的
+ *      同一条论据）。⛔ 也不为它往 `set_field` 的封闭词表里加 `status`：那会让
+ *      助手也能直接改运行态。
+ * 四条都**不发 op**；除了 ② 都**不进撤销栈**，理由都在下面各自的注释里。
+ *
+ * ── 撤销栈只有一份 ────────────────────────────────────────────────────
+ * `NodeV4Provider` 从 ③d-3 起消费本 hook 的栈（见该文件头注），⛔ 两处各存一份
+ * 的旧写法已删 —— 两份栈会让「卡里点的」和「工具栏点的」各撤各的。
+ */
+
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { applyNodeChanges, type NodeChange } from '@xyflow/react'
+
+import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
+import { NODE_V4_CARD } from '@/constants/node-studio'
+import type { NodeSlotId } from '@/constants/node-slots'
+import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
+import {
+  applyInverseV4,
+  applyNodeAssistantOpV4,
+  type NodeV4Inverse,
+} from '@/lib/node-assistant-op-apply-v4'
+import {
+  applyCanvasBatchV4,
+  applyRailMentionRemaps,
+  type CanvasBatchFailure,
+} from '@/lib/node-canvas-batch-v4'
+import {
+  listMentionNames,
+  removeMentionsForSource,
+  resolveMentionsToSlots,
+  type MentionCastCardRef,
+} from '@/lib/node-mentions-to-slots'
+import { nameFromGeneratedPrompt } from '@/lib/node-display-name'
+import { applyNodeMediaPatch } from '@/lib/node-media-patch'
+import { reconcileStateSlots } from '@/lib/node-slot-binding'
+import {
+  estimateCardSize,
+  placeRowBeside,
+  tidyByFlow,
+} from '@/lib/node-flow-layout'
+import { projectScriptDocToGraphV4 } from '@/lib/node-workflow-script-doc-v4'
+import { readVideoRail, remapVideoRailMentions } from '@/lib/video-node-rail'
+import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
+import type { ScriptDoc } from '@/types/script-doc'
+import type {
+  NodeV4,
+  NodeV4Data,
+  NodeWorkflowEdgeV4,
+  NodeWorkflowModelSelection,
+  NodeWorkflowNode,
+  NodeWorkflowStateV4,
+} from '@/types/node-workflow'
+
+import type { NodeV4MediaPatch } from '@/features/canvas/components/nodes/v4/NodeV4Context'
+
+/** 一条撤销记录。`state` 档只给「重做之后再撤销」用，理由见 `redo`。 */
+type NodeGraphV4RedoEntry = { readonly redoState: NodeWorkflowStateV4 }
+
+type NodeGraphV4HistoryEntry = {
+  readonly undo:
+    | { readonly kind: 'inverse'; readonly inverse: NodeV4Inverse }
+    | { readonly kind: 'state'; readonly state: NodeWorkflowStateV4 }
+  readonly redoState: NodeWorkflowStateV4
+}
+
+/** 剪贴板记的是**形状**，不是节点本身（⛔ 不复制媒体，见 `copySelection`）。 */
+/** 一批助手 op 落图之后的真实账（回执卡读它）。 */
+export interface NodeGraphV4BatchResult {
+  readonly applied: number
+  readonly skipped: number
+  /** `skipped` 里连线 / 挂载没建成的那一部分（台账 K-2）。 */
+  readonly failedConnects: number
+  readonly createdNodeIds: readonly string[]
+  /** 批内别名 → 真 id（见 `CanvasBatchResult.createdRefs`）。 */
+  readonly createdRefs: Readonly<Record<string, string>>
+  /** 没落的那几条在批里的位置与原因（助手 `canvas_batch` 要逐条回报）。 */
+  readonly failures: readonly CanvasBatchFailure[]
+}
+
+/**
+ * `dispatchBatchWithMedia` 里一张新卡的「落下时就带着的东西」—— 与这批里
+ * `createdNodeIds` 同序。
+ */
+export interface NodeGraphV4CreatedSeed {
+  /** 上传 / 切图的结果，与 `setMedia` 同形。 */
+  readonly media?: NodeV4MediaPatch
+  /** 媒体之外一起写进去的字段（九宫格的组号）。 */
+  decorate?(data: NodeV4Data): NodeV4Data
+}
+
+export interface NodeGraphV4ClipboardShape {
+  readonly kind: NodeV4Data['kind']
+  readonly subtype: NodeV4Data['subtype']
+  readonly shotNo?: number
+}
+
+export interface NodeGraphV4Move {
+  readonly id: string
+  readonly position: { readonly x: number; readonly y: number }
+}
+
+/** 展开时邻居让开的位移（渲染期偏移，⛔ 不写进 state）。 */
+export interface NodeGraphV4Offset {
+  readonly x: number
+  readonly y: number
+}
+
+/**
+ * 一次「整理」留给渲染层的**滑动起点**：state 已经一步写到终点，渲染层拿这份旧坐标
+ * 在 320 里把卡滑过去（§7 摆放 A「卡片滑到新位置」）。`id` 每次整理都换，渲染层
+ * 靠它判断「这是新的一次」。
+ */
+export interface NodeGraphV4LayoutSlide {
+  readonly id: number
+  readonly from: ReadonlyMap<string, NodeGraphV4Offset>
+  /** 这一次是**新长出来**的卡（派生卡从来源边上滑出）：滑的同时从透明淡入。 */
+  readonly appear?: ReadonlySet<string>
+}
+
+/** 一次重投影的账。`kept` = 用户手工建的散节点（无 `shotNo`），原样留着。 */
+export interface NodeGraphV4Projection {
+  readonly created: readonly string[]
+  readonly removed: readonly string[]
+  readonly kept: readonly string[]
+}
+
+/** 一张还没建出来的卡：落位只需要知道它是哪一类（估尺寸用）。 */
+export interface NodeGraphV4CardShape {
+  readonly kind: string
+  readonly subtype: string
+}
+
+export interface NodeGraphV4AddOptions {
+  readonly position?: { readonly x: number; readonly y: number }
+  readonly shotNo?: number
+  readonly name?: string
+  /** 角色库里的哪一位（只对 `image.character` 生效）。 */
+  readonly characterId?: string
+}
+
+/** 算了落点却迟迟没建卡的「出发点」多久作废。 */
+const EMERGE_CLAIM_MS = 10_000
+
+function emergeKey(position: { readonly x: number; readonly y: number }) {
+  return `${Math.round(position.x)},${Math.round(position.y)}`
+}
+
+export interface UseNodeGraphV4Options {
+  readonly state: NodeWorkflowStateV4
+  /** 应用之后的新 state。持久化由调用方（store）负责。 */
+  onStateChange(next: NodeWorkflowStateV4): void
+  /**
+   * `modelId` → 完整选择。⛔ 不给 = 助手 `set_model` **失败可见**，
+   * 不静默半写（与 op 执行器同一条论据）。
+   */
+  resolveModel?(modelId: string): NodeWorkflowModelSelection | undefined
+  /** op 失败的出声口（画布接 toast，测试接断言）。⛔ 不允许静默吞掉。 */
+  onOpFailed?(reason: string): void
+  /**
+   * 外部持有的选中集（预览路径 / 由别的层驱动 RF 时）。
+   *
+   * ⚠ 给了就**盖过**本 hook 从 `rfNodes` 派生的那一份 —— 选中是视图状态，谁在
+   * 驱动 ReactFlow 谁说了算。⛔ 不做「两份取并集」：那会让剪贴板复制到一张用户
+   * 眼里没选中的卡。
+   */
+  selectedNodeIds?: readonly string[]
+  /**
+   * 画布上可被 `@` 的角色卡（spec §8.2）。卡住在库里不在图 state 里，所以名字要
+   * 从外面给；卡绑的图 / 音色仍从图上反查。不给 = 正文里只认节点名。
+   */
+  castCards?: readonly MentionCastCardRef[]
+  /**
+   * 这份 `state` 属于哪一段历史。**换了 = 撤销 / 重做栈清空**：切项目、从服务端
+   * 「载入最新」换进来的内容都不是从上一份改出来的 —— 旧的 inverse 套上去会改到
+   * 别的项目，重做甚至会把上一个项目的整份内容写进这一个。不给 = 一直是同一段。
+   */
+  historyKey?: string
+}
+
+export interface NodeGraphV4 {
+  readonly state: NodeWorkflowStateV4
+  readonly nodes: readonly NodeV4[]
+  readonly edges: readonly NodeWorkflowEdgeV4[]
+
+  /* ── 渲染层（RF 受控）──────────────────────────────────────────────── */
+  /**
+   * ReactFlow 用的节点。⚠ **`measured` 必须活在这一层**：受控模式下尺寸是库
+   * 通过 `onNodesChange` 的 `dimensions` 变更回传的，落不回节点对象就永远
+   * `visibility: hidden` —— 卡在 DOM 里、量得到宽高、屏幕上一个都看不见
+   * （C3c-① 实拍过这一幕）。所以 RF 节点是一份自己的 state：`data` / `position`
+   * 跟着 v4 state 走，`measured` / `selected` 由 `applyNodeChanges` 维护。
+   */
+  readonly rfNodes: readonly NodeWorkflowNode[]
+  onRfNodesChange(changes: NodeChange[]): void
+  readonly selectedNodeIds: readonly string[]
+  clearSelection(): void
+
+  /* ── 展开 ──────────────────────────────────────────────────────────── */
+  /** 同一时刻最多一个（§2.3）。 */
+  readonly expandedNodeId: string | null
+  setExpanded(nodeId: string | null): void
+  toggleExpanded(nodeId: string): void
+  /** 展开卡右侧邻居的让位偏移（渲染期加到 position 上）。 */
+
+  /* ── 图动作 ────────────────────────────────────────────────────────── */
+  /**
+   * 此刻的图（含本次渲染之后刚 `dispatch` 进去的改动）。⚠ 「先发 op 再拿图去做下一步」
+   * 的调用方（发送 = `set_prompt` 建 @ 连线 → 立刻生成）必须读这里，渲染闭包里的
+   * `nodes` / `edges` 还是 op 之前那份。
+   */
+  readState(): NodeWorkflowStateV4
+  dispatch(op: NodeAssistantOpV4): boolean
+  dispatchBatch(ops: readonly NodeAssistantOpV4[]): NodeGraphV4BatchResult
+  /**
+   * 一批建卡、每张**带着媒体一起落下**，收成一个撤销条目 —— 重做回来的也是带图的卡。
+   * ⚠ 与「先 `dispatchBatch` 再逐张 `setMedia`」的区别就在重做：那样撤销栈记的是
+   * 回填之前的那份，重做会拿回一排空卡。`seeds[i]` 对应 `createdNodeIds[i]`。
+   */
+  dispatchBatchWithMedia(
+    ops: readonly NodeAssistantOpV4[],
+    seeds: readonly (NodeGraphV4CreatedSeed | undefined)[],
+  ): NodeGraphV4BatchResult
+  addNode(
+    kind: NodeV4Data['kind'],
+    subtype: NodeV4Data['subtype'],
+    options?: NodeGraphV4AddOptions,
+  ): string | null
+  connect(
+    source: string,
+    target: string,
+    slot: NodeSlotId,
+    options?: { readonly sourceHandle?: 'out' | 'tailFrame' },
+  ): boolean
+  disconnect(edgeId: string): boolean
+  deleteNodes(nodeIds: readonly string[]): number
+  /** 克隆**同类空节点**（保结构清内容），返回新 id。 */
+  duplicate(nodeIds: readonly string[]): string[]
+  /** 位置提交。⛔ 不进撤销栈（见文件头注例外 ①）。 */
+  moveNodes(moves: readonly NodeGraphV4Move[]): void
+  /** 按流向整理（§7 摆放 A）。整次一条撤销；卡片滑过去由渲染层读 `layoutSlide`。 */
+  tidyLayout(): void
+  /**
+   * 派生卡落在哪（§7 摆放 A「让位」）：来源右边（`left` = 左边）第一个空位，放不下
+   * 往下找；几张一起就排成一行。尺寸用 ReactFlow 量到的，新卡按收起态估。来源不在
+   * 图上返回 `undefined`（调用方退回默认落点）。⚠ 只算坐标，⛔ 不改图 —— 坐标由
+   * 调用方塞进 `add_node.position`，op 仍然只认绝对坐标。
+   */
+  placeBeside(
+    anchorId: string,
+    cards: readonly NodeGraphV4CardShape[],
+    side?: 'right' | 'left',
+  ): readonly { readonly x: number; readonly y: number }[] | undefined
+  /** 最近一次整理的滑动起点（没整理过 = `null`）。 */
+  readonly layoutSlide: NodeGraphV4LayoutSlide | null
+  setModel(nodeId: string, model: NodeWorkflowModelSelection): void
+  /** 上传/生成回填（见文件头注例外 ③）。 */
+  setMedia(nodeId: string, patch: NodeV4MediaPatch): void
+  /** 生成/编辑的**运行态**（见文件头注例外 ④）。 */
+  setRunState(nodeId: string, status: NodeV4Data['status']): void
+
+  /* ── 剪贴板 ────────────────────────────────────────────────────────── */
+  readonly clipboard: NodeGraphV4ClipboardShape | null
+  copySelection(): boolean
+  pasteClipboard(): string | null
+
+  /* ── 撤销栈（**唯一**一份）─────────────────────────────────────────── */
+  readonly canUndo: boolean
+  readonly canRedo: boolean
+  /** 撤一步；栈空返回 `false`。同一 tick 里连调也逐条生效（见栈的 ref 镜像）。 */
+  undo(): boolean
+  redo(): void
+  /**
+   * 外部换进来的一份 state（外部 Claude 经 MCP / 同账号的别的标签页，
+   * docs/references/mcp.md §6）记成**一条**撤销：快照档（`kind: 'state'`）。
+   * ⚠ 不调 `onStateChange` —— 那份 state 已经由 store 换进来了；⛔ 也不清栈：
+   * 外部改动是「在当前这份上又改了一步」，与切项目 / 载入最新不是一回事。
+   */
+  recordExternalChange(
+    before: NodeWorkflowStateV4,
+    after: NodeWorkflowStateV4,
+  ): void
+
+  /* ── 剧本投影（单向）──────────────────────────────────────────────── */
+  projectScriptDoc(doc: ScriptDoc, shotStills?: boolean): NodeGraphV4Projection
+}
+
+function mintId(prefix: string): string {
+  const random = globalThis.crypto?.randomUUID?.()
+  return `${prefix}${random ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`}`
+}
+
+/**
+ * 收起态卡宽的估算 —— 让位的位移量。
+ *
+ * ⚠ 用常量表的两个宽度差，⛔ 不读 DOM：让位要在展开的**同一帧**发生，读 DOM 的
+ * 版本会先叠一帧再弹开。镜头卡收起更宽（400），所以按各自的收起宽算。
+ */
+export function useNodeGraphV4({
+  state,
+  onStateChange: reportStateChange,
+  resolveModel,
+  onOpFailed,
+  selectedNodeIds: selectedNodeIdsOverride,
+  castCards,
+  historyKey,
+}: UseNodeGraphV4Options): NodeGraphV4 {
+  const stateRef = useRef(state)
+  const reportStateChangeRef = useRef(reportStateChange)
+  useLayoutEffect(() => {
+    stateRef.current = state
+    reportStateChangeRef.current = reportStateChange
+  }, [state, reportStateChange])
+  const onStateChange = useCallback((next: NodeWorkflowStateV4) => {
+    stateRef.current = next
+    reportStateChangeRef.current(next)
+  }, [])
+  const [expandedNodeId, setExpandedNodeId] = useState<string | null>(null)
+  const [undoStack, setUndoStackState] = useState<
+    readonly NodeGraphV4HistoryEntry[]
+  >([])
+  const [redoStack, setRedoStackState] = useState<
+    readonly NodeGraphV4RedoEntry[]
+  >([])
+  /**
+   * 两份栈各有一份 ref 镜像，`undo` / `redo` **只读 ref**。
+   *
+   * ⚠ 助手「撤销这一轮」会在同一个 tick 里连着调好几次 `undo`（一步一条）。读
+   * 渲染期闭包的写法每次拿到的都是同一个栈顶和同一份 state：只有最后那批真被
+   * 撤掉，其余记录被 `slice(0, -1)` 弹掉丢失、⌘Z 也找不回。ref 由下面两个
+   * setter 同步改写，同一 tick 内的第二次 `undo` 看到的是第一次之后的栈。
+   */
+  const undoStackRef = useRef<readonly NodeGraphV4HistoryEntry[]>([])
+  const redoStackRef = useRef<readonly NodeGraphV4RedoEntry[]>([])
+  useLayoutEffect(() => {
+    undoStackRef.current = undoStack
+    redoStackRef.current = redoStack
+  }, [undoStack, redoStack])
+  const setUndoStack = useCallback(
+    (
+      update: (
+        stack: readonly NodeGraphV4HistoryEntry[],
+      ) => readonly NodeGraphV4HistoryEntry[],
+    ) => {
+      const next = update(undoStackRef.current)
+      undoStackRef.current = next
+      setUndoStackState(next)
+    },
+    [],
+  )
+  const setRedoStack = useCallback(
+    (
+      update:
+        | readonly NodeGraphV4RedoEntry[]
+        | ((
+            stack: readonly NodeGraphV4RedoEntry[],
+          ) => readonly NodeGraphV4RedoEntry[]),
+    ) => {
+      const next =
+        typeof update === 'function' ? update(redoStackRef.current) : update
+      redoStackRef.current = next
+      setRedoStackState(next)
+    },
+    [],
+  )
+  // 换了一段历史（切项目 / 载入最新）：两份栈一起清空 —— 渲染期同步，⛔ 不放 effect
+  // 里（effect 版会留一帧能按的旧撤销）。ref 由上面的 layout effect 跟上。
+  const [historyOf, setHistoryOf] = useState(historyKey)
+  if (historyOf !== historyKey) {
+    setHistoryOf(historyKey)
+    setUndoStackState([])
+    setRedoStackState([])
+  }
+  const clipboardRef = useRef<NodeGraphV4ClipboardShape | null>(null)
+  const [clipboard, setClipboard] = useState<NodeGraphV4ClipboardShape | null>(
+    null,
+  )
+
+  /* ── RF 渲染层（`measured` 的家）──────────────────────────────────── */
+  const [rendered, setRendered] = useState<{
+    source: NodeWorkflowStateV4 | null
+    nodes: NodeWorkflowNode[]
+  }>({ source: null, nodes: [] })
+
+  if (rendered.source !== state) {
+    // 渲染期同步（React 官方的「派生 state」写法），⛔ 不放 effect 里：
+    // effect 版会先画一帧空图再补上。
+    const previous = new Map(rendered.nodes.map((node) => [node.id, node]))
+    setRendered({
+      source: state,
+      nodes: state.nodes.map((node) => {
+        const before = previous.get(node.id)
+        return {
+          ...before,
+          id: node.id,
+          // v4 里节点的 RF `type` 就是它的 `kind`（见 v4 注册表）。
+          type: node.data.kind,
+          // ⚠ 位置以 **state 为准**：`moveNodes` 在拖停时把坐标提交回 state，
+          // 而 `tidyLayout` / 投影只改 state —— 渲染层留旧坐标会让「整理」看上去
+          // 什么都没发生（v3 那版正是如此）。
+          position: node.position,
+          data: node.data,
+          selected: before?.selected ?? false,
+        } as unknown as NodeWorkflowNode
+      }),
+    })
+  }
+
+  /** 助手一批新建的卡找空位时用量到的尺寸（⚠ ref：别让落批回调跟着每次量尺重建）。 */
+  const measuredRef = useRef(rendered.nodes)
+  useLayoutEffect(() => {
+    measuredRef.current = rendered.nodes
+  }, [rendered.nodes])
+  const sizeOf = useCallback((node: NodeV4) => {
+    const size = measuredRef.current.find(
+      (item) => item.id === node.id,
+    )?.measured
+    return size?.width && size.height
+      ? { width: size.width, height: size.height }
+      : undefined
+  }, [])
+
+  const onRfNodesChange = useCallback((changes: NodeChange[]) => {
+    setRendered((current) => ({
+      ...current,
+      nodes: applyNodeChanges(
+        changes,
+        current.nodes,
+      ) as unknown as NodeWorkflowNode[],
+    }))
+  }, [])
+
+  const derivedSelectedNodeIds = useMemo(
+    () => rendered.nodes.filter((node) => node.selected).map((node) => node.id),
+    [rendered.nodes],
+  )
+  const selectedNodeIds = selectedNodeIdsOverride ?? derivedSelectedNodeIds
+
+  const clearSelection = useCallback(() => {
+    setRendered((current) => ({
+      ...current,
+      nodes: current.nodes.map((node) =>
+        node.selected ? { ...node, selected: false } : node,
+      ),
+    }))
+  }, [])
+
+  const [layoutSlide, setLayoutSlide] = useState<NodeGraphV4LayoutSlide | null>(
+    null,
+  )
+
+  /**
+   * 派生卡从来源边上滑出来（§7 摆放 A 动效表：「从来源卡的右边缘滑出到空位 320 +
+   * 淡入」）。`placeBeside` 算落点时顺手记下「落在这个坐标的新卡从哪儿出发」，落图之后
+   * 按新卡的坐标认领。⚠ 按坐标认而不是按 id：算落点时新卡还没有 id。过了
+   * `EMERGE_CLAIM_MS` 没被认领的作废（算了落点却没建卡）。
+   */
+  const emergeRef = useRef(
+    new Map<
+      string,
+      { readonly from: NodeGraphV4Offset; readonly at: number }
+    >(),
+  )
+  const emergeCreated = useCallback(
+    (before: NodeWorkflowStateV4, next: NodeWorkflowStateV4) => {
+      const pending = emergeRef.current
+      if (pending.size === 0) return
+      const now = Date.now()
+      const existed = new Set(before.nodes.map((node) => node.id))
+      const from = new Map<string, NodeGraphV4Offset>()
+      for (const node of next.nodes) {
+        if (existed.has(node.id)) continue
+        const key = emergeKey(node.position)
+        const claim = pending.get(key)
+        if (!claim) continue
+        pending.delete(key)
+        if (now - claim.at <= EMERGE_CLAIM_MS) from.set(node.id, claim.from)
+      }
+      for (const [key, claim] of pending) {
+        if (now - claim.at > EMERGE_CLAIM_MS) pending.delete(key)
+      }
+      if (from.size === 0) return
+      setLayoutSlide((current) => ({
+        id: (current?.id ?? 0) + 1,
+        from,
+        appear: new Set(from.keys()),
+      }))
+    },
+    [],
+  )
+
+  /* ── 唯一写入口 ────────────────────────────────────────────────────── */
+  /**
+   * 上一条 op 铸出来的新节点 id。
+   *
+   * ⚠ 用 ref 而不是从 `state` 里差集算：`state` 是 prop，`dispatch` 之后的同一次
+   * 渲染里它还是旧的那份，差集永远是空。执行器本来就把新 id 放在
+   * `changedNodeIds` 里 —— 顺手记一笔比事后反查便宜也准。
+   */
+  const lastCreatedRef = useRef<string | null>(null)
+
+  const readState = useCallback(() => stateRef.current, [])
+
+  const dispatch = useCallback(
+    (op: NodeAssistantOpV4): boolean => {
+      const result = applyNodeAssistantOpV4(stateRef.current, op, {
+        mintId,
+        ...(resolveModel ? { resolveModel } : {}),
+        ...(castCards ? { castCards } : {}),
+      })
+      if (!result.ok) {
+        onOpFailed?.(result.reason)
+        return false
+      }
+      lastCreatedRef.current =
+        op.op === NODE_ASSISTANT_OP_V4_IDS.addNode
+          ? (result.changedNodeIds[0] ?? null)
+          : null
+      // 整图 reconcile：槽绑定是**边的派生**，每次提交跑一遍才不会让某条路径
+      // 上的 `slots` 与边分家（`reconcileStateSlots` 自己保引用相等）。
+      const reconciled = reconcileStateSlots(result.state)
+      const remap = applyRailMentionRemaps(stateRef.current, reconciled, mintId)
+      const next =
+        remap.inverses.length > 0
+          ? reconcileStateSlots(remap.state)
+          : reconciled
+      const inverse: NodeV4Inverse =
+        remap.inverses.length > 0
+          ? {
+              kind: 'sequence',
+              items: [result.inverse, ...remap.inverses].reverse(),
+            }
+          : result.inverse
+      setUndoStack((stack) => [
+        ...stack,
+        { undo: { kind: 'inverse', inverse }, redoState: next },
+      ])
+      setRedoStack([])
+      emergeCreated(stateRef.current, next)
+      onStateChange(next)
+      return true
+    },
+    [
+      resolveModel,
+      onOpFailed,
+      onStateChange,
+      castCards,
+      emergeCreated,
+      setUndoStack,
+      setRedoStack,
+    ],
+  )
+
+  /**
+   * 一批 op 一次落图（③e，助手提案的执行口）。
+   *
+   * 在本地 `working` 上串行推进，收成**一个**撤销条目
+   * （助手的一轮 = 一步撤销，§7），不通过逐条 dispatch 拆散撤销。
+   *
+   * `refs` 是批内别名表（`add_node.ref`）——执行器自己往里写，后面的 op 因此认得
+   * 出这一批刚建的节点。
+   */
+  const dispatchBatch = useCallback(
+    (ops: readonly NodeAssistantOpV4[]): NodeGraphV4BatchResult => {
+      // ⚠ 执行本身在纯函数里 —— 服务端 MCP `apply_ops` 调的是同一个
+      // （docs/references/mcp.md §2 第 2 条），⛔ 别在这里另写一份。
+      const batch = applyCanvasBatchV4(stateRef.current, ops, {
+        mintId,
+        sizeOf,
+        ...(resolveModel ? { resolveModel } : {}),
+        ...(castCards ? { castCards } : {}),
+      })
+      for (const failure of batch.failures) onOpFailed?.(failure.reason)
+      const result: NodeGraphV4BatchResult = {
+        applied: batch.applied,
+        skipped: batch.skipped,
+        failedConnects: batch.failedConnects,
+        createdNodeIds: batch.createdNodeIds,
+        createdRefs: batch.createdRefs,
+        failures: batch.failures,
+      }
+      if (!batch.inverse) return result
+
+      const inverse = batch.inverse
+      setUndoStack((stack) => [
+        ...stack,
+        { undo: { kind: 'inverse', inverse }, redoState: batch.state },
+      ])
+      setRedoStack([])
+      emergeCreated(stateRef.current, batch.state)
+      onStateChange(batch.state)
+      return result
+    },
+    [
+      resolveModel,
+      onOpFailed,
+      onStateChange,
+      castCards,
+      emergeCreated,
+      sizeOf,
+      setUndoStack,
+      setRedoStack,
+    ],
+  )
+
+  const dispatchBatchWithMedia = useCallback(
+    (
+      ops: readonly NodeAssistantOpV4[],
+      seeds: readonly (NodeGraphV4CreatedSeed | undefined)[],
+    ): NodeGraphV4BatchResult => {
+      const batch = applyCanvasBatchV4(stateRef.current, ops, {
+        mintId,
+        sizeOf,
+        ...(resolveModel ? { resolveModel } : {}),
+        ...(castCards ? { castCards } : {}),
+      })
+      for (const failure of batch.failures) onOpFailed?.(failure.reason)
+      const result: NodeGraphV4BatchResult = {
+        applied: batch.applied,
+        skipped: batch.skipped,
+        failedConnects: batch.failedConnects,
+        createdNodeIds: batch.createdNodeIds,
+        createdRefs: batch.createdRefs,
+        failures: batch.failures,
+      }
+      if (!batch.inverse) return result
+
+      const now = new Date().toISOString()
+      const seedById = new Map<string, NodeGraphV4CreatedSeed>()
+      batch.createdNodeIds.forEach((id, index) => {
+        const seed = seeds[index]
+        if (seed) seedById.set(id, seed)
+      })
+      const seeded: NodeWorkflowStateV4 = {
+        ...batch.state,
+        nodes: batch.state.nodes.map((node) => {
+          const seed = seedById.get(node.id)
+          if (!seed) return node
+          let data = node.data
+          if (seed.media && data.kind !== NODE_MEDIA_KIND_IDS.text) {
+            data = applyNodeMediaPatch(data, seed.media, { now, mintId })
+          }
+          if (seed.decorate) data = seed.decorate(data)
+          return { ...node, data }
+        }),
+      }
+      const inverse = batch.inverse
+      setUndoStack((stack) => [
+        ...stack,
+        { undo: { kind: 'inverse', inverse }, redoState: seeded },
+      ])
+      setRedoStack([])
+      emergeCreated(stateRef.current, seeded)
+      onStateChange(seeded)
+      return result
+    },
+    [
+      resolveModel,
+      onOpFailed,
+      onStateChange,
+      castCards,
+      emergeCreated,
+      sizeOf,
+      setUndoStack,
+      setRedoStack,
+    ],
+  )
+
+  /**
+   * 不进撤销栈的直改（文件头注的三条例外）。⛔ 只有那三条走这里，加第四条之前
+   * 先问它是不是「用户的一步意图」—— 是的话它属于 op 表。
+   */
+  const commitWithoutHistory = useCallback(
+    (next: NodeWorkflowStateV4) => {
+      onStateChange(next)
+    },
+    [onStateChange],
+  )
+
+  const undo = useCallback((): boolean => {
+    const stack = undoStackRef.current
+    const entry = stack[stack.length - 1]
+    if (!entry) return false
+    setUndoStack((current) => current.slice(0, -1))
+    setRedoStack((current) => [...current, { redoState: entry.redoState }])
+    onStateChange(
+      entry.undo.kind === 'inverse'
+        ? reconcileStateSlots(
+            applyInverseV4(stateRef.current, entry.undo.inverse, { mintId }),
+          )
+        : entry.undo.state,
+    )
+    return true
+  }, [setUndoStack, setRedoStack, onStateChange])
+
+  const redo = useCallback(() => {
+    const stack = redoStackRef.current
+    const entry = stack[stack.length - 1]
+    if (!entry) return
+    const state = stateRef.current
+    setRedoStack((current) => current.slice(0, -1))
+    // ⚠ 重做推回撤销栈的那一条**不能**再用原来那份 inverse：它是对着「撤销前那
+    // 份 state」算的。也不能用 `restore`（只把节点/边加回来，删不掉重做刚补上
+    // 的）。所以这一档存整份快照。
+    setUndoStack((stack) => [
+      ...stack,
+      { undo: { kind: 'state', state }, redoState: entry.redoState },
+    ])
+    onStateChange(entry.redoState)
+  }, [setUndoStack, setRedoStack, onStateChange])
+
+  const recordExternalChange = useCallback(
+    (before: NodeWorkflowStateV4, after: NodeWorkflowStateV4) => {
+      // 与 `redo` 同一个理由存整份快照：这一步不是 op 算出来的，没有 inverse。
+      setUndoStack((stack) => [
+        ...stack,
+        { undo: { kind: 'state', state: before }, redoState: after },
+      ])
+      setRedoStack([])
+    },
+    [setUndoStack, setRedoStack],
+  )
+
+  /* ── 图动作 ────────────────────────────────────────────────────────── */
+  const addNode = useCallback(
+    (
+      kind: NodeV4Data['kind'],
+      subtype: NodeV4Data['subtype'],
+      options: NodeGraphV4AddOptions = {},
+    ): string | null => {
+      const position = options.position
+      const ok = dispatch({
+        op: NODE_ASSISTANT_OP_V4_IDS.addNode,
+        kind,
+        subtype,
+        ...(position ? { position } : {}),
+        ...(options.shotNo === undefined ? {} : { shotNo: options.shotNo }),
+        ...(options.name ? { name: options.name } : {}),
+        ...(options.characterId ? { characterId: options.characterId } : {}),
+      })
+      return ok ? lastCreatedRef.current : null
+    },
+    [dispatch],
+  )
+
+  const connect = useCallback(
+    (
+      source: string,
+      target: string,
+      slot: NodeSlotId,
+      options: { readonly sourceHandle?: 'out' | 'tailFrame' } = {},
+    ): boolean =>
+      dispatch({
+        op: NODE_ASSISTANT_OP_V4_IDS.connect,
+        source,
+        target,
+        slot,
+        ...(options.sourceHandle ? { sourceHandle: options.sourceHandle } : {}),
+      }),
+    [dispatch],
+  )
+
+  /**
+   * 拆一条边。
+   *
+   * ⚠ 拆的是 **`@` 建的**边时，正文里那个 chip 要跟着删掉（spec §8.2 的反向）：
+   * 不删的话下一次改正文，同步钩子看见 @ 还在，边立刻长回来 —— 用户眼里就是
+   * 「拆不掉」。⛔ 不做成「只去掉角色前缀」：无角色的 @ 仍会落回 `reference`，
+   * 那是换个槽复活，比不删更难理解。
+   *
+   * 两步走 `dispatchBatch` = **一个**撤销条目：拆边与删 chip 是同一步意图。
+   */
+  const disconnect = useCallback(
+    (edgeId: string): boolean => {
+      const edge = state.edges.find((item) => item.id === edgeId)
+      const target = edge
+        ? state.nodes.find((node) => node.id === edge.target)
+        : undefined
+      const source = edge
+        ? state.nodes.find((node) => node.id === edge.source)
+        : undefined
+      const disconnectOp: NodeAssistantOpV4 = {
+        op: NODE_ASSISTANT_OP_V4_IDS.disconnect,
+        edgeId,
+      }
+      if (!edge || !target || !source || edge.data?.via !== 'mention') {
+        return dispatch(disconnectOp)
+      }
+
+      const data = target.data
+      const isText = data.kind === NODE_MEDIA_KIND_IDS.text
+      const body = isText ? data.body : (data.prompt ?? '')
+      const removed = removeMentionsForSource(body, {
+        sourceName: source.data.name,
+        slot: edge.slot,
+        names: listMentionNames(state, castCards ?? []),
+      })
+      if (removed === null) return dispatch(disconnectOp)
+      // 这一批改了正文，通用的轨号对位会跳过它（见 `planRailMentionRemaps`）——
+      // 所以轨上的 `@图N` 在这里一并对好，⛔ 不留一个指向别人的号。
+      const simulated = isText
+        ? null
+        : applyNodeAssistantOpV4(state, disconnectOp, { mintId })
+      const afterState = simulated?.ok
+        ? reconcileStateSlots(simulated.state)
+        : null
+      const afterTarget = afterState?.nodes.find(
+        (node) => node.id === target.id,
+      )
+      const stripped =
+        afterState && afterTarget
+          ? remapVideoRailMentions(
+              removed,
+              readVideoRail(target, state.edges, state.nodes),
+              readVideoRail(afterTarget, afterState.edges, afterState.nodes),
+            )
+          : removed
+
+      const rewrite: NodeAssistantOpV4 = isText
+        ? {
+            op: NODE_ASSISTANT_OP_V4_IDS.setText,
+            target: target.id,
+            body: stripped || ' ',
+            mode: 'replace',
+          }
+        : {
+            op: NODE_ASSISTANT_OP_V4_IDS.setPrompt,
+            target: target.id,
+            prompt: stripped || ' ',
+            mode: 'replace',
+          }
+      return dispatchBatch([disconnectOp, rewrite]).applied > 0
+    },
+    [state, dispatch, dispatchBatch, castCards],
+  )
+
+  const deleteNodes = useCallback(
+    (nodeIds: readonly string[]): number => {
+      let applied = 0
+      let working = state
+      const inverses: NodeV4Inverse[] = []
+      for (const nodeId of nodeIds) {
+        const result = applyNodeAssistantOpV4(
+          working,
+          { op: NODE_ASSISTANT_OP_V4_IDS.delete, target: nodeId },
+          { mintId },
+        )
+        if (!result.ok) {
+          onOpFailed?.(result.reason)
+          continue
+        }
+        working = result.state
+        inverses.push(result.inverse)
+        applied += 1
+      }
+      if (applied === 0) return 0
+      // 一次多选删除 = **一个**撤销条目（逆序回放）：框选删 8 张卡要按 8 次撤销
+      // 才回得来，那不是用户按下那一次删除时的意图。
+      // 删掉的是某张镜头挂着的参考：那张镜头正文里的号跟着对（同一个撤销条目）。
+      const reconciled = reconcileStateSlots(working)
+      const remap = applyRailMentionRemaps(state, reconciled, mintId)
+      inverses.push(...remap.inverses)
+      const next =
+        remap.inverses.length > 0
+          ? reconcileStateSlots(remap.state)
+          : reconciled
+      setUndoStack((stack) => [
+        ...stack,
+        {
+          undo: {
+            kind: 'inverse',
+            inverse: { kind: 'sequence', items: [...inverses].reverse() },
+          },
+          redoState: next,
+        },
+      ])
+      setRedoStack([])
+      onStateChange(next)
+      return applied
+    },
+    [state, onOpFailed, onStateChange, setUndoStack, setRedoStack],
+  )
+
+  const duplicate = useCallback(
+    (nodeIds: readonly string[]): string[] => {
+      const created: string[] = []
+      let working = state
+      const inverses: NodeV4Inverse[] = []
+      for (const nodeId of nodeIds) {
+        const node = state.nodes.find((candidate) => candidate.id === nodeId)
+        if (!node) continue
+        const result = applyNodeAssistantOpV4(
+          working,
+          {
+            op: NODE_ASSISTANT_OP_V4_IDS.addNode,
+            kind: node.data.kind,
+            subtype: node.data.subtype,
+            ...(node.data.shotNo === undefined
+              ? {}
+              : { shotNo: node.data.shotNo }),
+          },
+          { mintId },
+        )
+        if (!result.ok) {
+          onOpFailed?.(result.reason)
+          continue
+        }
+        working = result.state
+        inverses.push(result.inverse)
+        created.push(...result.changedNodeIds)
+      }
+      if (created.length === 0) return []
+      const next = reconcileStateSlots(working)
+      setUndoStack((stack) => [
+        ...stack,
+        {
+          undo: {
+            kind: 'inverse',
+            inverse: { kind: 'sequence', items: [...inverses].reverse() },
+          },
+          redoState: next,
+        },
+      ])
+      setRedoStack([])
+      onStateChange(next)
+      return created
+    },
+    [state, onOpFailed, onStateChange, setUndoStack, setRedoStack],
+  )
+
+  const moveNodes = useCallback(
+    (moves: readonly NodeGraphV4Move[]) => {
+      if (moves.length === 0) return
+      const byId = new Map(moves.map((move) => [move.id, move.position]))
+      let changed = false
+      const nodes = state.nodes.map((node) => {
+        const position = byId.get(node.id)
+        if (!position) return node
+        if (position.x === node.position.x && position.y === node.position.y) {
+          return node
+        }
+        changed = true
+        return { ...node, position: { x: position.x, y: position.y } }
+      })
+      if (!changed) return
+      // ⛔ 不进撤销栈、不合并进上一条（文件头注例外 ①）。
+      commitWithoutHistory({ ...state, nodes })
+    },
+    [state, commitWithoutHistory],
+  )
+
+  const placeBeside = useCallback(
+    (
+      anchorId: string,
+      cards: readonly NodeGraphV4CardShape[],
+      side: 'right' | 'left' = 'right',
+    ) => {
+      const nodes = stateRef.current.nodes
+      const anchor = nodes.find((node) => node.id === anchorId)
+      if (!anchor) return undefined
+      const measured = new Map(
+        rendered.nodes.map((node) => [node.id, node.measured] as const),
+      )
+      const rectOf = (node: NodeV4) => {
+        const size = measured.get(node.id)
+        return {
+          ...node.position,
+          ...(size?.width && size.height
+            ? { width: size.width, height: size.height }
+            : estimateCardSize(node)),
+        }
+      }
+      const anchorRect = rectOf(anchor)
+      const sizes = cards.map((card) => estimateCardSize({ data: card }))
+      const positions = placeRowBeside(
+        nodes.filter((node) => node.id !== anchorId).map(rectOf),
+        anchorRect,
+        sizes,
+        NODE_V4_CARD.derivedGap,
+        side,
+      )
+      // 出发点：贴着来源那条边（右边落 = 新卡右缘对齐来源右缘，左边落 = 左缘对齐）。
+      const at = Date.now()
+      positions.forEach((position, index) => {
+        const width = sizes[index]?.width ?? 0
+        emergeRef.current.set(emergeKey(position), {
+          at,
+          from: {
+            x:
+              side === 'right'
+                ? anchorRect.x + anchorRect.width - width
+                : anchorRect.x,
+            y: anchorRect.y,
+          },
+        })
+      })
+      return positions
+    },
+    [rendered.nodes],
+  )
+
+  const tidyLayout = useCallback(() => {
+    const before = stateRef.current
+    // 尺寸用 ReactFlow 量到的（卡片高矮不一）；还没量到的按收起态估。
+    const measured = new Map(
+      rendered.nodes.map((node) => [node.id, node.measured] as const),
+    )
+    const next = tidyByFlow(before, (node) => {
+      const size = measured.get(node.id)
+      if (size?.width && size.height)
+        return { width: size.width, height: size.height }
+      return estimateCardSize(node)
+    })
+    if (next === before) return
+    setUndoStack((stack) => [
+      ...stack,
+      { undo: { kind: 'state', state: before }, redoState: next },
+    ])
+    setRedoStack([])
+    setLayoutSlide((current) => ({
+      id: (current?.id ?? 0) + 1,
+      from: new Map(
+        before.nodes.map((node) => [node.id, node.position] as const),
+      ),
+    }))
+    onStateChange(next)
+  }, [rendered.nodes, onStateChange, setUndoStack, setRedoStack])
+
+  const setModel = useCallback(
+    (nodeId: string, model: NodeWorkflowModelSelection) => {
+      const result = applyNodeAssistantOpV4(
+        state,
+        {
+          op: NODE_ASSISTANT_OP_V4_IDS.setModel,
+          target: nodeId,
+          modelId: model.modelId,
+        },
+        { mintId, resolveModel: () => model },
+      )
+      if (!result.ok) {
+        onOpFailed?.(result.reason)
+        return
+      }
+      const next = reconcileStateSlots(result.state)
+      setUndoStack((stack) => [
+        ...stack,
+        { undo: { kind: 'inverse', inverse: result.inverse }, redoState: next },
+      ])
+      setRedoStack([])
+      onStateChange(next)
+    },
+    [state, onOpFailed, onStateChange, setUndoStack, setRedoStack],
+  )
+
+  const setMedia = useCallback(
+    (nodeId: string, patch: NodeV4MediaPatch) => {
+      // ⚠ 补丁**不再直接摊进 data**：产出版本表要在这里长出来（S3b §1.8）。
+      // 顶层 `url` / 尺寸 / 封面从此是 `outputs.versions[cur]` 的派生镜像，
+      // 由 `applyMediaPatchOutputs` 一处写 —— 全仓十几个读 `data.url` 的地方
+      // 因此一个字都不用改。
+      // ⚠ 变换本身在纯函数里 —— 服务端导出落卡调的是同一个（mcp.md §7）。
+      const state = stateRef.current
+      const now = new Date().toISOString()
+      const target = state.nodes.find((node) => node.id === nodeId)
+      const nextName =
+        patch.url &&
+        patch.generationId &&
+        target &&
+        target.data.kind !== NODE_MEDIA_KIND_IDS.text
+          ? nameFromGeneratedPrompt(target.data, target.data.prompt, {
+              mentionNames: listMentionNames(state),
+              taken: new Set(
+                state.nodes
+                  .filter((node) => node.id !== nodeId)
+                  .map((node) => node.data.name),
+              ),
+            })
+          : undefined
+      const mentioned =
+        nextName !== undefined &&
+        state.nodes.some((node) => {
+          if (node.id === nodeId) return false
+          const text =
+            node.data.kind === NODE_MEDIA_KIND_IDS.text
+              ? node.data.body
+              : node.data.prompt
+          if (!text?.includes('@')) return false
+          const diff = resolveMentionsToSlots(state, node.id, text)
+          return (
+            diff.bindings.some((item) => item.sourceNodeId === nodeId) ||
+            diff.rejected.some((item) => item.sourceNodeId === nodeId)
+          )
+        })
+      commitWithoutHistory({
+        ...state,
+        nodes: state.nodes.map((node) =>
+          node.id === nodeId && node.data.kind !== NODE_MEDIA_KIND_IDS.text
+            ? {
+                ...node,
+                data: {
+                  ...applyNodeMediaPatch(node.data, patch, { now, mintId }),
+                  ...(nextName && !mentioned
+                    ? {
+                        name: nextName,
+                        ...(node.data.kind === NODE_MEDIA_KIND_IDS.video &&
+                        node.data.label
+                          ? { label: nextName }
+                          : {}),
+                      }
+                    : {}),
+                },
+              }
+            : node,
+        ),
+      })
+    },
+    [commitWithoutHistory],
+  )
+
+  const setRunState = useCallback(
+    (nodeId: string, status: NodeV4Data['status']) => {
+      const state = stateRef.current
+      commitWithoutHistory({
+        ...state,
+        nodes: state.nodes.map((node) =>
+          node.id === nodeId
+            ? { ...node, data: { ...node.data, status } }
+            : node,
+        ),
+      })
+    },
+    [commitWithoutHistory],
+  )
+
+  /* ── 展开 ──────────────────────────────────────────────────────────── */
+  const setExpanded = useCallback((nodeId: string | null) => {
+    setExpandedNodeId(nodeId)
+  }, [])
+
+  const toggleExpanded = useCallback((nodeId: string) => {
+    // 同一时刻最多一个（§2.3）：再点一次收起，点别的就换过去。
+    setExpandedNodeId((current) => (current === nodeId ? null : nodeId))
+  }, [])
+
+  // 展开的那张卡被删/切项目之后 id 会悬空 —— 派生成 `null`，⛔ 不留一个指向
+  // 不存在节点的展开态（那会让「同时只一个」的判据永远为真而卡片没在展开）。
+  const liveExpandedNodeId =
+    expandedNodeId && state.nodes.some((node) => node.id === expandedNodeId)
+      ? expandedNodeId
+      : null
+
+  /* ── 剪贴板 ────────────────────────────────────────────────────────── */
+  const copySelection = useCallback((): boolean => {
+    const only =
+      selectedNodeIds.length === 1
+        ? state.nodes.find((node) => node.id === selectedNodeIds[0])
+        : undefined
+    if (!only) return false
+    // ⛔ 不复制媒体：一张图两个节点指向同一个 R2 对象，删任一个都会让另一个静默
+    // 变空白。剪贴板只记「形状」，所以它跨项目也说得通。
+    const shape: NodeGraphV4ClipboardShape = {
+      kind: only.data.kind,
+      subtype: only.data.subtype,
+      ...(only.data.shotNo === undefined ? {} : { shotNo: only.data.shotNo }),
+    }
+    clipboardRef.current = shape
+    setClipboard(shape)
+    return true
+  }, [selectedNodeIds, state.nodes])
+
+  const pasteClipboard = useCallback((): string | null => {
+    const shape = clipboardRef.current
+    if (!shape) return null
+    const ok = dispatch({
+      op: NODE_ASSISTANT_OP_V4_IDS.addNode,
+      kind: shape.kind,
+      subtype: shape.subtype,
+      ...(shape.shotNo === undefined ? {} : { shotNo: shape.shotNo }),
+    })
+    return ok ? lastCreatedRef.current : null
+  }, [dispatch])
+
+  /* ── 剧本投影（单向）──────────────────────────────────────────────── */
+  const projectScriptDoc = useCallback(
+    (doc: ScriptDoc, shotStills?: boolean): NodeGraphV4Projection => {
+      const projected = projectScriptDocToGraphV4(doc, {
+        makeId: (prefix) => mintId(prefix),
+        ...(shotStills === undefined ? {} : { shotStills }),
+      })
+
+      /**
+       * 重投影的孤儿判据（§8e-5「剧本文档改单向投影」）：
+       *   · **有 `shotNo`** 的节点属于剧本管辖 → 整批换成新投影；
+       *   · **没有 `shotNo`** 的散节点是用户手工建的 → 原样留着；
+       *   · 留下来的边只有**两端都还在**的才留（槽合法性由下面那次 reconcile
+       *     复核：端口表变了/槽满了的边会在 binding 里落空而不是悄悄生效）。
+       * ⛔ 不按 `scriptRef` 反查 —— v4 节点上没有这个字段（C3b 已删）。
+       */
+      const kept = state.nodes.filter((node) => node.data.shotNo === undefined)
+      const keptIds = new Set(kept.map((node) => node.id))
+      const removed = state.nodes
+        .filter((node) => node.data.shotNo !== undefined)
+        .map((node) => node.id)
+      const keptEdges = state.edges.filter(
+        (edge) => keptIds.has(edge.source) && keptIds.has(edge.target),
+      )
+
+      const merged: NodeWorkflowStateV4 = {
+        version: 4,
+        nodes: [...kept, ...projected.nodes],
+        edges: [...keptEdges, ...projected.edges],
+      }
+      const next = reconcileStateSlots(merged)
+      // 投影是「把剧本这一版铺上去」，一次 = 一个撤销条目。
+      setUndoStack((stack) => [
+        ...stack,
+        { undo: { kind: 'state', state }, redoState: next },
+      ])
+      setRedoStack([])
+      onStateChange(next)
+      return {
+        created: projected.nodes.map((node) => node.id),
+        removed,
+        kept: kept.map((node) => node.id),
+      }
+    },
+    [state, onStateChange, setUndoStack, setRedoStack],
+  )
+
+  return {
+    state,
+    nodes: state.nodes,
+    edges: state.edges,
+    readState,
+    rfNodes: rendered.nodes,
+    onRfNodesChange,
+    selectedNodeIds,
+    clearSelection,
+    expandedNodeId: liveExpandedNodeId,
+    setExpanded,
+    toggleExpanded,
+    dispatch,
+    dispatchBatch,
+    dispatchBatchWithMedia,
+    addNode,
+    connect,
+    disconnect,
+    deleteNodes,
+    duplicate,
+    moveNodes,
+    tidyLayout,
+    placeBeside,
+    layoutSlide,
+    setModel,
+    setMedia,
+    setRunState,
+    clipboard,
+    copySelection,
+    pasteClipboard,
+    canUndo: undoStack.length > 0,
+    canRedo: redoStack.length > 0,
+    undo,
+    redo,
+    recordExternalChange,
+    projectScriptDoc,
+  }
+}

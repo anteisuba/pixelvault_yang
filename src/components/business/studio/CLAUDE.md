@@ -90,7 +90,7 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
 按需挂载、不在主树固定位置的常用单元：StudioWorkflowPicker
 （studio-shared/workflow/）、StudioSpecChip（studio/）、StudioErrorBoundary（studio-shared/chrome/）。
 
-**画布不在这个目录**：`/studio/node` 的全部实现在 `src/components/business/node/`（v4 工作台 `node/workbench-v4/` + 节点卡 `node/nodes/v4/`），分层与禁改见 `src/components/business/node/CLAUDE.md`，基准见 `docs/references/pages/node-canvas-v2.md`。两边**不共用**面板与动作总线——画布走 `useNodeCanvasActions()` 与 v4 op 表，⛔ 别把 studio 的 context 或 operator 组件搬进画布。
+**画布不在这个目录**：`/studio/node` 的全部实现在 `src/features/canvas/components/`（v4 工作台 `node/workbench-v4/` + 节点卡 `node/nodes/v4/`），分层与禁改见 `src/features/canvas/components/CLAUDE.md`，基准见 `docs/references/pages/node-canvas-v2.md`。两边**不共用**面板与动作总线——画布走 `useNodeCanvasActions()` 与 v4 op 表，⛔ 别把 studio 的 context 或 operator 组件搬进画布。
 
 ## Data Flow
 

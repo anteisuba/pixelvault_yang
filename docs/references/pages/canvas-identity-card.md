@@ -267,7 +267,7 @@ role、label、weight、onStage 等信息，所以暂时原样保存；未来多
   尺寸逻辑与 `useUpdateNodeInternals`（新几何全程静态，同 `VoiceNode` 零消费
   这个 hook）；空态按 `legacyType` 分叉图标（角色 `UserRound` / 场景
   `Mountain`），不再共用一个人形；`▦N`（身份卡）与 `📷N`（`CastCard.tsx` 名册
-  rail 卡）新增 `useCountPulse`（`src/hooks/node/use-count-pulse.ts`）驱动的
+  rail 卡）新增 `useCountPulse`（`src/features/canvas/hooks/use-count-pulse.ts`）驱动的
   一次性回执脉冲，只动 `transform`，`prefers-reduced-motion` 下时长归零。
   §0「卡不进 prompt」与「卡→视频出边递参考图」的调解文字见上方新增小节——
   静态读代码确认槽架 `CanvasSlotRack.tsx` 与 `buildVideoSendPreview` 早就

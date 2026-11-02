@@ -69,7 +69,7 @@ All hooks use `'use client'`. Less than half have a `.test` file — check for a
 - `use-assistant-memories.ts` — 记忆一列（`/api/assistant-memories`，助手设置 B）：一次全取、筛选在前端；「写一条」存成你写的；清空带 `source` 跟着筛选走；失败带 `i18nKey`，组件走 `getApiErrorMessage` 说人话，⛔ 不把英文原话递给用户
 - `use-project-rules.ts` — 搜图来源白 / 黑名单 CRUD（`/api/assistant/rules`；项目规则表现在只装这两种，普通规则已并进记忆）。调用方是记忆页下半块「搜图来源」（`assistant-settings/AssistantMemoryPane`）
 
-### Node Canvas v4（`src/hooks/node/` · 基准 `docs/references/pages/node-canvas-v2.md`）
+### Node Canvas v4（`src/features/canvas/hooks/` · 基准 `docs/references/pages/node-canvas-v2.md`）
 
 - `use-node-workflow-store.ts` — **持久化层**：项目列表 / 当前项目 / 本地暂存 / 服务端水化 / 自动保存 / 空覆盖闸 / 账号隔离。⚠ 存储的事实形状是 v4；读到服务端透传的 v3 时顺序**不能反**——先备份成功再升级再写，备份失败则**不升级、不写、只读**。写 state 一律经 `pushProjectState`（带 `baseUpdatedAt`、按项目排队；自动保存内容没变不写）；409 = 停写 + 「载入最新 / 另存为副本」，⛔ 不另开一条直接 PUT 的路（node-canvas-v2 §14.5）
 - `use-node-graph-v4.ts` — **唯一的图引擎**：建点 / 连线 / 删 / 复制 / 排布 / 展开 / 撤销重做 / 剧本投影。⭐ 每一个改图语义的动作都走 `applyNodeAssistantOpV4`（与助手同一张 op 表、同一份 inverse），⛔ 别在这里或组件里直接 `connectIntoSlot` / `setSlotVersion`。撤销栈只有一份；不发 op 的例外只有四类（拖动坐标 / 整理布局 / 媒体回填 / 运行态），其中整理布局整次记一条快照撤销（§7 摆放 A），其余三类不进栈

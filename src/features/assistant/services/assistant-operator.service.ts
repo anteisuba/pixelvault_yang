@@ -7702,7 +7702,7 @@ async function planSetReviewState(
 //
 // ── 为什么服务端这一层只校验 id，不校验「这条线连不连得上」 ──────────
 // 连不连得上要算槽的容量与类型，而那份判据已经存在且只在客户端算得准
-// （`lib/node-assistant-op-plan.ts` 的 `planNodeAssistantOpsV4`，它在一份模拟图
+// （`features/canvas/lib/node-assistant-op-plan.ts` 的 `planNodeAssistantOpsV4`，它在一份模拟图
 // 上逐条推进）。服务端手上只有一份**分层过的**快照 —— 折叠的镜里连节点都没有，
 // 用它去判容量只会得出一个比客户端宽的答案，而两个答案不一致的表现是「助手说
 // 连好了，画布上那条线没出现」。

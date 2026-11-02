@@ -305,7 +305,7 @@ reduced-motion 下不糊、不错开，直接出现。实现与落点见 `loadin
 | W    | 放大 / 修图结果      | 前后对比：分隔线左右拖，拖过两端被拉出去一点、变细，松手弹回（与参数滑块同一根橡皮筋 `RUBBER_BAND`）；←/→/Home/End 可键盘                                | `components/ui/image-compare.tsx` · 编辑舞台有上一步时显示                                                     |
 | Z    | 点进工作台输入框     | 框先长高（`spring-slot`），长完模型 / 规格 chip 从框里浮上来                                                                                             | `floatComposerChips` · `FOCUS_FLOAT`                                                                           |
 | AE   | LoRA 训练进度        | 进度条拆 10 格一格格填（一格 = 10%，⛔ 编步数），百分比逐位滚；训练完整条收拢后顶出一颗 ✓，卡多留 1.2 秒再换完成仪式卡                                   | `TrainingStatusCard` · `TRAINING_CELLS`                                                                        |
-| AF   | 素材拖上画布         | 拿起：跟手影子放大到 1.06 + 浮层投影；落进画布：影子 `spring-expand` 展开成刚建好的那张卡再淡掉；没落进去：缩回淡掉。落卡照旧走 op 表                    | `hooks/node/node-media-drag-ghost.ts`（替掉 2026-09-12 的纯透明拖影）                                          |
+| AF   | 素材拖上画布         | 拿起：跟手影子放大到 1.06 + 浮层投影；落进画布：影子 `spring-expand` 展开成刚建好的那张卡再淡掉；没落进去：缩回淡掉。落卡照旧走 op 表                    | `features/canvas/hooks/node-media-drag-ghost.ts`（替掉 2026-09-12 的纯透明拖影）                               |
 
 ---
 

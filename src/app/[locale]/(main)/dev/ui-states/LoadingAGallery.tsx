@@ -3,10 +3,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { ReactFlowProvider } from '@xyflow/react'
 
-import {
-  NodeCardShell,
-  NodeFrameProgress,
-} from '@/components/business/node/nodes/v4/chrome'
+import { NodeCardShell, NodeFrameProgress } from '@/features/canvas'
 import { StudioGeneratingProgress } from '@/components/business/studio-shared/primitives/StudioGeneratingProgress'
 import { Button } from '@/components/ui/button'
 

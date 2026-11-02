@@ -4,7 +4,7 @@ import { ApiRequestError } from '@/lib/errors'
 import {
   NodeWorkflowProjectConflictError,
   NodeWorkflowStateCorruptError,
-} from '@/services/node/node-workflow.service'
+} from '@/features/canvas/server'
 
 /**
  * 读端坏数据 → 422 带 code。⛔ 不再兜成空图（node-canvas-v2 §14.2）：

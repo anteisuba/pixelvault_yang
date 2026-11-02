@@ -5,7 +5,7 @@ import { CANVAS_SHELL_SIDEBAR_ENTRY_ATTR } from '@/constants/canvas-shell'
 import {
   resetCanvasShellPanelStore,
   useCanvasShellPanelHost,
-} from '@/hooks/node/use-canvas-shell-panel'
+} from '@/features/canvas/hooks'
 
 import { SidebarProvider } from '@/components/ui/sidebar'
 

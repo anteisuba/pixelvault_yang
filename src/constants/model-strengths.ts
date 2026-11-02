@@ -291,16 +291,7 @@ export const MODEL_STRENGTHS: Partial<Record<AI_MODELS, ModelStrength>> = {
   // 同一个模型三个站：fal / 火山方舟 / BytePlus ModelArk。方言同源，逐条只补站点差异。
   // 来源 https://www.volcengine.com/docs/82379/1829186
   [AI_MODELS.SEEDREAM_50_PRO]: {
-    // 'photorealistic' / 'product' 接过 FLUX.2 Pro 下架（11-02）后空出来的商品图路由。
-    bestFor: [
-      'general',
-      'cinematic',
-      'landscape',
-      'portrait',
-      'text-in-image',
-      'photorealistic',
-      'product',
-    ],
+    bestFor: ['general', 'cinematic', 'landscape', 'portrait', 'text-in-image'],
     promptStyle: 'natural-language',
     negativePrompt: 'supported',
     enhanceHint: `Seedream 5.0 Pro on fal — reasoning model that plans a layout before drawing, so dense layout and typography instructions pay off and native text renders in 14 languages. ${SEEDREAM_PROMPT_SYNTAX}`,

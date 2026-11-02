@@ -18,7 +18,7 @@ describe('routeModelsForIntent', () => {
     mockGetUserPreference.mockResolvedValue(null)
   })
 
-  it('uses taskFit to rank product/photo models for product intent', async () => {
+  it('keeps anime models off the top for a product-photo intent', async () => {
     const intent: ImageIntent = {
       subject: 'commercial product photo of a premium watch',
       style: 'photorealistic',
@@ -32,12 +32,8 @@ describe('routeModelsForIntent', () => {
       reason: expect.any(String),
       matchedBestFor: expect.any(Array),
     })
-    expect(
-      results[0].matchedBestFor.some(
-        (bestFor) =>
-          bestFor.includes('product') || bestFor.includes('photorealistic'),
-      ),
-    ).toBe(true)
+    // FLUX.2 Pro 下架（11-02）后没有专攻商品图的托管模型；只钉住不把动漫底模排第一。
+    expect(results[0].matchedBestFor).not.toContain('anime')
   })
 
   it('uses styleFit to rank anime/tag-based models for anime intent', async () => {

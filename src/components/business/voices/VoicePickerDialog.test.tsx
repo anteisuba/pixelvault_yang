@@ -13,7 +13,7 @@ const libraryState = vi.hoisted(() => ({ current: null as unknown }))
 vi.mock('@/hooks/use-voice-library', () => ({
   useVoiceLibrary: () => libraryState.current,
 }))
-vi.mock('@/components/business/studio/VoiceTrainer', () => ({
+vi.mock('@/features/studio/components/VoiceTrainer', () => ({
   VoiceTrainer: () => null,
 }))
 vi.mock('@/hooks/use-voice-sample-preview', () => ({

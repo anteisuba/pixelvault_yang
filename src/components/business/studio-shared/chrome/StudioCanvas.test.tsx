@@ -92,7 +92,7 @@ vi.mock('@/lib/studio-remix', () => ({
   buildStudioRemixPreset: vi.fn(),
 }))
 
-vi.mock('@/components/business/image/CompareGrid', () => ({
+vi.mock('@/features/studio/components/image/CompareGrid', () => ({
   CompareGrid: () => <div data-testid="compare-grid" />,
 }))
 
@@ -110,7 +110,7 @@ vi.mock(
   }),
 )
 
-vi.mock('@/components/business/studio/GenerationPreview', () => ({
+vi.mock('@/features/studio/components/GenerationPreview', () => ({
   GenerationPreview: ({
     generation,
   }: {
@@ -123,7 +123,7 @@ vi.mock('@/components/business/studio/GenerationPreview', () => ({
   ),
 }))
 
-vi.mock('@/components/business/image/StudioResultFeedback', () => ({
+vi.mock('@/features/studio/components/image/StudioResultFeedback', () => ({
   StudioResultFeedback: ({
     generationId,
     onFeedback,

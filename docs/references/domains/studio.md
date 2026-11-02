@@ -35,7 +35,7 @@
 
 ## Source of Truth
 
-`src/app/[locale]/(main)/studio/**` · `src/contexts/studio-context.tsx` · `src/hooks/use-unified-generate.ts` · `src/services/studio-generate.service.ts` · `src/constants/workflows.ts`；历史详版 `git show cddc4384:docs/domains/studio.md`。
+`src/app/[locale]/(main)/studio/**` · `src/contexts/studio-context.tsx` · `src/hooks/use-unified-generate.ts` · `src/features/studio/services/studio-generate.service.ts` · `src/constants/workflows.ts`；历史详版 `git show cddc4384:docs/domains/studio.md`。
 
 ## 移动端等级（owner 2026-09-03 拍板，配方见 `../ui-defaults.md §6`）
 

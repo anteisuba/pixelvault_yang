@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 
-import { StudioModeSync } from '@/components/business/StudioModeSync'
+import { StudioModeSync } from '@/features/studio'
 import type { AppLocale } from '@/i18n/routing'
 
 interface StudioImageTagsPageProps {

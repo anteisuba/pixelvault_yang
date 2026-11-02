@@ -18,7 +18,7 @@ vi.mock('@/hooks/use-mobile', () => ({
 vi.mock('@/hooks/use-voices-page', () => ({
   useVoicesPage: () => pageState.current,
 }))
-vi.mock('@/components/business/studio/VoiceTrainer', () => ({
+vi.mock('@/features/studio/components/VoiceTrainer', () => ({
   VoiceTrainer: () => null,
 }))
 vi.mock('@/features/assets', () => ({

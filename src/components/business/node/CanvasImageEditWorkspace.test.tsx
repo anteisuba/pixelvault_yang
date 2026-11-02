@@ -120,7 +120,7 @@ vi.mock('./nodes/v4/NodeV4ActionsBridge', () => ({
   }),
 }))
 
-vi.mock('@/components/business/studio/StudioInpaintEditor', () => ({
+vi.mock('@/features/studio/components/StudioInpaintEditor', () => ({
   StudioInpaintEditor: ({
     onApply,
     imageWidth,

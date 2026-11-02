@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 
 import { PAGINATION } from '@/constants/config'
-import { Studio3DWorkspace } from '@/components/business/Studio3DWorkspace'
+import { Studio3DWorkspace } from '@/features/studio'
 import { getPublicGenerationPage } from '@/services/generation.service'
 import { ensureUser } from '@/services/user.service'
 import type { AppLocale } from '@/i18n/routing'

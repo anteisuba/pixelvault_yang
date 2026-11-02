@@ -1,7 +1,7 @@
 import { Suspense } from 'react'
 
 import { StudioLibraryOverlay } from '@/components/business/studio/shell/StudioLibraryOverlay'
-import { TagLibraryView } from '@/components/business/studio/tags/library/TagLibraryView'
+import { TagLibraryView } from '@/features/studio'
 
 /**
  * `/library/tags`（第 9f 步 9f-2c）：Danbooru 标签像 LoRA 库那样摊开，叠在外壳中间。

@@ -20,10 +20,7 @@ import {
   ImageAnnotationEditor,
   type DraftAnnotation,
 } from '@/components/business/studio-shared/editor/ImageAnnotationEditor'
-import {
-  StudioInpaintEditor,
-  type InpaintMaskDraft,
-} from '@/components/business/studio/StudioInpaintEditor'
+import { StudioInpaintEditor, type InpaintMaskDraft } from '@/features/studio'
 import { Switch } from '@/components/ui/switch'
 import { ImageCompare } from '@/components/ui/image-compare'
 import { LiquidSegmented } from '@/components/ui/liquid-segmented'

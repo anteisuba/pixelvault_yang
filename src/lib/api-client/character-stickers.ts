@@ -106,6 +106,6 @@ export async function addCharacterStickerFromGenerationAPI(
     })
     return await parse(response, 'Failed to add sticker')
   } catch (error) {
-    return toFailure(error, 'Failed to add sticker')
+    return toApiFailure(error)
   }
 }

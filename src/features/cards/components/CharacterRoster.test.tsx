@@ -7,7 +7,7 @@ import type { CharacterCardRecord, CharacterLookRecord } from '@/types'
 
 import { CharacterRoster } from './CharacterRoster'
 
-vi.mock('@/hooks/use-character-templates', () => ({
+vi.mock('@/features/cards/hooks/use-character-templates', () => ({
   useCharacterTemplates: () => ({ byLook: new Map(), isLoading: false }),
 }))
 vi.mock('@clerk/nextjs', () => ({

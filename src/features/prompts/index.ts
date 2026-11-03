@@ -19,3 +19,4 @@ export {
   refreshRecipes,
   useRecipes,
 } from './hooks/use-recipes'
+export { usePromptTemplateUse } from './hooks/use-prompt-template-use'

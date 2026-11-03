@@ -7,7 +7,7 @@ import { toast } from 'sonner'
 import type { RecipeRecord } from '@/types'
 import { MEDIA_TILE_CLASS, MediaTileShade } from '@/components/ui/media-tile'
 import { Skeleton } from '@/components/ui/skeleton'
-import { usePromptTemplateUse } from '@/hooks/use-prompt-template-use'
+import { usePromptTemplateUse } from '@/features/prompts'
 import {
   getRecipeTemplateKind,
   getTagTemplateSource,

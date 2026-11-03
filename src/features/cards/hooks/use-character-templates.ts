@@ -3,7 +3,7 @@
 import { useMemo } from 'react'
 
 import { RecipeCharacterLinkSchema, type RecipeRecord } from '@/types'
-import { useRecipes } from '@/hooks/prompts/use-recipes'
+import { useRecipes } from '@/features/prompts'
 
 /** 模板挂在哪个角色·造型（存成模板框写进 `params.characterLink`）。 */
 export function recipeCharacterLink(recipe: Pick<RecipeRecord, 'params'>) {

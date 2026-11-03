@@ -271,7 +271,6 @@ import { getImageFileFromDataTransfer } from '@/lib/image-input'
 import { hasVerifiedLoraTrigger } from '@/features/lora/lib/lora-trigger-clean'
 import { compilePromptTags } from '@/lib/prompt-tag-compiler'
 import { cn } from '@/lib/utils'
-import { useErrorText } from '@/hooks/use-error-text'
 
 import '@/app/lora.css'
 
@@ -1988,7 +1987,6 @@ function GenerateBranch({
   // 标签就在提示里问一句要不要加进正文（默认不加，⛔ 自动写）。
   const characterLorasContext = useCharacterLorasContext()
   const tCharacterLoras = useTranslations('LoraWorkbench.characterLoras')
-  const errText = useErrorText()
   // 只有手机还有这一颗（弹窗）：桌面并进「挑 LoRA」框左栏的「角色」（ui-spec ㊲，owner 10-25）。
   const [characterPickOpen, setCharacterPickOpen] = useState(false)
   const openCharacterPick = useCallback(() => {

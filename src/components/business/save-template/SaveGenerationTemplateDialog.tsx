@@ -7,6 +7,7 @@ import type { GenerationRecord, RecipeLoraSetup } from '@/types'
 import { createRecipeFromGenerationAPI } from '@/lib/api-client/recipes'
 import { getDefaultTemplateName } from '@/lib/recipe-template-name'
 import { useTemplateSaveExtras } from '@/hooks/use-template-save-extras'
+import { useErrorText } from '@/hooks/use-error-text'
 import {
   SaveTemplateDialog,
   type SaveTemplateOption,
@@ -44,6 +45,7 @@ export function SaveGenerationTemplateDialog({
   const t = useTranslations('SaveTemplate.options')
   const tSave = useTranslations('SaveTemplate')
   const tPrompts = useTranslations('PromptLibrary')
+  const errText = useErrorText()
   const applyExtras = useTemplateSaveExtras()
   const options: SaveTemplateOption[] = [
     { key: 'prompt', label: t('prompt'), locked: true },
@@ -90,7 +92,7 @@ export function SaveGenerationTemplateDialog({
           },
         })
         if (!response.success) {
-          toast.error(response.error ?? tPrompts('saveTemplateFailed'))
+          toast.error(errText.api(response, tPrompts('saveTemplateFailed')))
           return false
         }
         toast.success(tSave('saved'))

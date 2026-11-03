@@ -41,15 +41,16 @@ jobs:
         run: npm run lint
 
   test:
-    name: Unit Tests (${{ matrix.shard }}/4)
+    name: Unit Tests (${{ matrix.shard }}/8)
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    # 单机全量约 13 分钟（2026-10-06）；拆四片并行（三片时每片 ~6 分钟，2026-10-22
-    # 改四片）。公开仓库 Actions 分钟不计费。
+    # 单机全量约 12 分钟（4 线程，2026-11-03）；拆八片并行（2026-11-03 由四片改八片：
+    # 推 main 不再本机跑全量，CI 是唯一全量闸门，Vercel 等它全绿才上线）。
+    # 公开仓库 Actions 分钟不计费。
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
 
     steps:
       - uses: actions/checkout@v4
@@ -66,7 +67,7 @@ jobs:
         run: npm run prisma:generate
 
       - name: Run tests
-        run: npx vitest run --reporter=verbose --shard=${{ matrix.shard }}/4
+        run: npx vitest run --reporter=verbose --shard=${{ matrix.shard }}/8
         env:
           NODE_ENV: test
 

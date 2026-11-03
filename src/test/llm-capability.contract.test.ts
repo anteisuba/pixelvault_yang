@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * IRON RULE contract test — LLM route list consistency across entry points.
  *

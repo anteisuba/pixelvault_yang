@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * WP-Gallery-06 · Like optimistic update + rapid click guard
  *

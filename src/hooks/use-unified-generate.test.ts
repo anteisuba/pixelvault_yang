@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { AI_MODELS } from '@/constants/models/enum'
 import { createElement, type ReactNode } from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'

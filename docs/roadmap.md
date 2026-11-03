@@ -18,10 +18,10 @@ ANTEI = 一个有灵魂的 AI 助手，替你做创作，你随时能改。默�
 
 ## 正在做
 
-| id                 | 事项                      | 现状                                                                                                                                                                                                                                                     |
-| ------------------ | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `u-tag-studio-ui`  | 标签台交互与排版          | ④ 纯文本已合 #436；存模板 / ＋加角色 / ① 滚轮切整体·角色 N / 角色页「模板」页签 11-01 owner「推」但当时漏推，11-03 重新合到最新 main（分支 `claude/project-thread-lp3fjr`，等「推」）。剩 ② 加角色按钮做大 ③ 负面紧挨正面。⏸ UI 类，owner 11-02 定先放着 |
-| `p-mcp-everywhere` | MCP 扩展到全站 + 通用接入 | 代码 10-30 已上 main（cc56396）。差 owner 去 Clerk 打开 OAuth Dynamic client registration，11-01 owner：不急，最后再做。⏸ 等 owner 操作 Clerk。现行做法见 [`references/mcp.md`](references/mcp.md)                                                       |
+| id                 | 事项                      | 现状                                                                                                                                                                                                           |
+| ------------------ | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `u-tag-studio-ui`  | 标签台交互与排版          | ④ 纯文本已合 #436；存模板 / ＋加角色 / ① 滚轮切整体·角色 N / 角色页「模板」页签 11-01 owner「推」但当时漏推，11-03 重新合进 main（13edf7d）。剩 ② 加角色按钮做大 ③ 负面紧挨正面。⏸ UI 类，owner 11-02 定先放着 |
+| `p-mcp-everywhere` | MCP 扩展到全站 + 通用接入 | 代码 10-30 已上 main（cc56396）。差 owner 去 Clerk 打开 OAuth Dynamic client registration，11-01 owner：不急，最后再做。⏸ 等 owner 操作 Clerk。现行做法见 [`references/mcp.md`](references/mcp.md)             |
 
 ## 下一个
 
@@ -47,7 +47,6 @@ ANTEI = 一个有灵魂的 AI 助手，替你做创作，你随时能改。默�
 | `p-auto-recipe` 助手改读配方、`o-llm` 输出校验、`p-user-profile` 接进助手                                   | 未开工                                         | 动助手内核，要评测                                                                 |
 | `p-mcp-everywhere`                                                                                          | 已上 main（cc56396）                           | owner 在 Clerk 打开 Dynamic client registration（不急）                            |
 | UI 类（`u-tag-studio-ui` 剩三项、`u-thumbnails`、保存键改收藏 / 复刻接四台、各台细修、「UI 调查待改」八组） | —                                              | owner 11-02 定先放着，功能做完再到本地调                                           |
-| 漏推四项（存成模板框、标签台＋加角色、滚轮切页签、角色页「模板」页签）+ 内置技能撞名 500 + 出门分段续跑     | 分支 `claude/project-thread-lp3fjr`            | owner 在线程「检查各模块是否全部打通」说「推」；推前再合一次 main                  |
 | Runner 报错截 500 字                                                                                        | 线程里做完                                     | 排在推 main 队尾，前面的推完再推                                                   |
 
 **云端现在能直接做的**（不用评测、不用 owner）：`p-custom-relay` 后端探活与报错归类、`p-voice-drama-multispeaker` 服务端、`p-gallery-recipe` 清洗后的读接口；以及各「待调查」条目的只读调查（`p-lora-training`、`p-video-export` + `p-canvas-clip-bench`、`p-canvas-nodes`、`p-tag-studio-opt`、`p-library-followups` 等）。
@@ -214,14 +213,15 @@ ANTEI = 一个有灵魂的 AI 助手，替你做创作，你随时能改。默�
 
 ### 各台
 
-| id                           | 事项                                      | 完成  | PR / 提交      | 讨论文档                                                                                                                                                      |
-| ---------------------------- | ----------------------------------------- | ----- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `f-runner-source-checkpoint` | SDXL 系底模跟随示例图 + RIN Flanime v5.0  | 10-25 | #409           | —                                                                                                                                                             |
-| `p-image-recipe-import`      | 台上「从图读串」                          | 10-25 | #435 #438      | `/mnt/project-files/img-recipe-import/`                                                                                                                       |
-| `bug-lora-name-search`       | LoRA 搜索优化（写法规整、结果分段、纠错） | 10-27 | #318 #472 #474 | 原因与方案 https://claude.ai/artifact/Hj52Rw8DbgaESzcXqjWGLf 、整体设计 https://claude.ai/artifact/5aRpvHts54pNERXUXoU4Uu 、`/mnt/project-files/lora-search/` |
-| `p-library-assistant-link`   | 库与助手互通、LoRA 台存模板               | 10-28 | 直推 main      | —                                                                                                                                                             |
-| `u-tag-studio-ui` ④          | 标签台纯文本                              | 10-30 | #436           | `/mnt/project-files/tag-studio-ui/`                                                                                                                           |
-| `p-tablet-shell`             | 平板（768–1023）也用电脑外壳              | 10-28 | 直推 main      | —                                                                                                                                                             |
+| id                           | 事项                                                                         | 完成  | PR / 提交       | 讨论文档                                                                                                                                                      |
+| ---------------------------- | ---------------------------------------------------------------------------- | ----- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `f-runner-source-checkpoint` | SDXL 系底模跟随示例图 + RIN Flanime v5.0                                     | 10-25 | #409            | —                                                                                                                                                             |
+| `p-image-recipe-import`      | 台上「从图读串」                                                             | 10-25 | #435 #438       | `/mnt/project-files/img-recipe-import/`                                                                                                                       |
+| `bug-lora-name-search`       | LoRA 搜索优化（写法规整、结果分段、纠错）                                    | 10-27 | #318 #472 #474  | 原因与方案 https://claude.ai/artifact/Hj52Rw8DbgaESzcXqjWGLf 、整体设计 https://claude.ai/artifact/5aRpvHts54pNERXUXoU4Uu 、`/mnt/project-files/lora-search/` |
+| `p-library-assistant-link`   | 库与助手互通、LoRA 台存模板                                                  | 10-28 | 直推 main       | —                                                                                                                                                             |
+| `u-tag-studio-ui` ④          | 标签台纯文本                                                                 | 10-30 | #436            | `/mnt/project-files/tag-studio-ui/`                                                                                                                           |
+| `u-tag-studio-ui` ①+存模板   | 漏推补上：通用「存成模板」框、标签台＋加角色、滚轮切页签、角色页「模板」页签 | 11-03 | 13edf7d（直推） | 体检页 https://claude.ai/artifact/GbUngQHjarnVSUirvS6QCh                                                                                                      |
+| `p-tablet-shell`             | 平板（768–1023）也用电脑外壳                                                 | 10-28 | 直推 main       | —                                                                                                                                                             |
 
 ### 库
 
@@ -280,19 +280,21 @@ ANTEI = 一个有灵魂的 AI 助手，替你做创作，你随时能改。默�
 
 ### 插队修 bug
 
-| id                        | 事项                                                                                             | 完成  | PR        |
-| ------------------------- | ------------------------------------------------------------------------------------------------ | ----- | --------- |
-| `bug-lora-refresh`        | LoRA 库经常刷新不出来（冷查询数总数慢）                                                          | 10-22 | #318      |
-| `bug-asset-picker-scroll` | 助手里打开素材库滑不下去                                                                         | 10-22 | #320      |
-| `bug-tag-seed`            | 助手在标签台锁不了种子                                                                           | 10-22 | #321      |
-| `bug-style-tab`           | 画风页搜不到 blender\_(medium)                                                                   | 10-22 | #323      |
-| `bug-generate-oom`        | 出图接口内存爆掉 / 60 秒超时                                                                     | 10-22 | #324      |
-| `bug-runner-worker-400`   | Runner 出图全部被 Worker 拒收                                                                    | 10-23 | #348      |
-| `bug-nai-concurrency`     | NAI 同时发多张被拒 → 按账号排队                                                                  | 10-23 | #351      |
-| `bug-nai-small-fixes`     | NAI 请求体对齐网页端 + 助手 NAI 写法                                                             | 10-23 | #358 #359 |
-| `bug-build-fonts`         | 构建挂在拉 Google 字体 → 本地字体                                                                | 10-27 | #475      |
-| `bug-mobile-tabbar`       | 手机端工作台返回后底栏消失（待 owner 真机确认）                                                  | 11-02 | 2836808   |
-| `bug-session-expired-404` | 出图报「Failed with status 404」= 会话过期被门口拦（401 + apiFetch 续会话重发，api-client 全迁） | 10-29 | #486      |
+| id                        | 事项                                                                                             | 完成  | PR              |
+| ------------------------- | ------------------------------------------------------------------------------------------------ | ----- | --------------- |
+| `bug-builtin-skill-name`  | 内置技能「改成我的版本 / 开关」撞名 500（按内置编号 upsert）                                     | 11-03 | 13edf7d（直推） |
+| `bug-outing-timeout`      | 出门 / 成长一段跑满 300 秒被掐 → 按截止时刻分段续跑                                              | 11-03 | 13edf7d（直推） |
+| `bug-lora-refresh`        | LoRA 库经常刷新不出来（冷查询数总数慢）                                                          | 10-22 | #318            |
+| `bug-asset-picker-scroll` | 助手里打开素材库滑不下去                                                                         | 10-22 | #320            |
+| `bug-tag-seed`            | 助手在标签台锁不了种子                                                                           | 10-22 | #321            |
+| `bug-style-tab`           | 画风页搜不到 blender\_(medium)                                                                   | 10-22 | #323            |
+| `bug-generate-oom`        | 出图接口内存爆掉 / 60 秒超时                                                                     | 10-22 | #324            |
+| `bug-runner-worker-400`   | Runner 出图全部被 Worker 拒收                                                                    | 10-23 | #348            |
+| `bug-nai-concurrency`     | NAI 同时发多张被拒 → 按账号排队                                                                  | 10-23 | #351            |
+| `bug-nai-small-fixes`     | NAI 请求体对齐网页端 + 助手 NAI 写法                                                             | 10-23 | #358 #359       |
+| `bug-build-fonts`         | 构建挂在拉 Google 字体 → 本地字体                                                                | 10-27 | #475            |
+| `bug-mobile-tabbar`       | 手机端工作台返回后底栏消失（待 owner 真机确认）                                                  | 11-02 | 2836808         |
+| `bug-session-expired-404` | 出图报「Failed with status 404」= 会话过期被门口拦（401 + apiFetch 续会话重发，api-client 全迁） | 10-29 | #486            |
 
 ### 调研
 

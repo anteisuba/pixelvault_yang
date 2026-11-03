@@ -18,10 +18,10 @@ ANTEI = 一个有灵魂的 AI 助手，替你做创作，你随时能改。默�
 
 ## 正在做
 
-| id                 | 事项                      | 现状                                                                                                                                                                                               |
-| ------------------ | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `u-tag-studio-ui`  | 标签台交互与排版          | ④ 纯文本已合 #436；存模板 / ＋加角色在预览上做好，11-01 owner「推」。剩 ① 切换条滚轮切整体 / 角色 N ② 加角色按钮做大 ③ 负面紧挨正面。⏸ UI 类，owner 11-02 定先放着                                 |
-| `p-mcp-everywhere` | MCP 扩展到全站 + 通用接入 | 代码 10-30 已上 main（cc56396）。差 owner 去 Clerk 打开 OAuth Dynamic client registration，11-01 owner：不急，最后再做。⏸ 等 owner 操作 Clerk。现行做法见 [`references/mcp.md`](references/mcp.md) |
+| id                 | 事项                      | 现状                                                                                                                                                                                                                                                     |
+| ------------------ | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `u-tag-studio-ui`  | 标签台交互与排版          | ④ 纯文本已合 #436；存模板 / ＋加角色 / ① 滚轮切整体·角色 N / 角色页「模板」页签 11-01 owner「推」但当时漏推，11-03 重新合到最新 main（分支 `claude/project-thread-lp3fjr`，等「推」）。剩 ② 加角色按钮做大 ③ 负面紧挨正面。⏸ UI 类，owner 11-02 定先放着 |
+| `p-mcp-everywhere` | MCP 扩展到全站 + 通用接入 | 代码 10-30 已上 main（cc56396）。差 owner 去 Clerk 打开 OAuth Dynamic client registration，11-01 owner：不急，最后再做。⏸ 等 owner 操作 Clerk。现行做法见 [`references/mcp.md`](references/mcp.md)                                                       |
 
 ## 下一个
 
@@ -47,6 +47,7 @@ ANTEI = 一个有灵魂的 AI 助手，替你做创作，你随时能改。默�
 | `p-auto-recipe` 助手改读配方、`o-llm` 输出校验、`p-user-profile` 接进助手                                   | 未开工                                         | 动助手内核，要评测                                                                 |
 | `p-mcp-everywhere`                                                                                          | 已上 main（cc56396）                           | owner 在 Clerk 打开 Dynamic client registration（不急）                            |
 | UI 类（`u-tag-studio-ui` 剩三项、`u-thumbnails`、保存键改收藏 / 复刻接四台、各台细修、「UI 调查待改」八组） | —                                              | owner 11-02 定先放着，功能做完再到本地调                                           |
+| 漏推四项（存成模板框、标签台＋加角色、滚轮切页签、角色页「模板」页签）+ 内置技能撞名 500 + 出门分段续跑     | 分支 `claude/project-thread-lp3fjr`            | owner 在线程「检查各模块是否全部打通」说「推」；推前再合一次 main                  |
 | Runner 报错截 500 字                                                                                        | 线程里做完                                     | 排在推 main 队尾，前面的推完再推                                                   |
 
 **云端现在能直接做的**（不用评测、不用 owner）：`p-custom-relay` 后端探活与报错归类、`p-voice-drama-multispeaker` 服务端、`p-gallery-recipe` 清洗后的读接口；以及各「待调查」条目的只读调查（`p-lora-training`、`p-video-export` + `p-canvas-clip-bench`、`p-canvas-nodes`、`p-tag-studio-opt`、`p-library-followups` 等）。

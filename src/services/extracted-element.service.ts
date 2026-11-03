@@ -85,13 +85,15 @@ export async function createExtractedElement(params: {
   })
 
   const storageKey = generateStorageKey('IMAGE', params.userId)
-  const [permanentUrl, previewAssets] = await Promise.all([
-    uploadToR2({ data: buffer, key: storageKey, mimeType }),
-    createImagePreviewAssets({
-      sourceBuffer: buffer,
-      sourceStorageKey: storageKey,
-    }),
-  ])
+  // 小图由 Worker 从 R2 读原图来做，所以先等原图落进 R2。
+  const permanentUrl = await uploadToR2({
+    data: buffer,
+    key: storageKey,
+    mimeType,
+  })
+  const previewAssets = await createImagePreviewAssets({
+    sourceStorageKey: storageKey,
+  })
 
   // Width/height come back from the preview pipeline's source metadata, but
   // since we already have the buffer it's simpler to re-read here than to

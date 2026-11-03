@@ -76,18 +76,18 @@ async function storeUserUpload(params: {
   }
 
   const storageKey = generateStorageKey('IMAGE', userId)
-  const [publicUrl, thumbnail, embedded] = await Promise.all([
+  // 缩略图由 Worker 从 R2 读原图来做，所以先等原图落进 R2。
+  const [publicUrl, embedded] = await Promise.all([
     uploadToR2({
       data: buffer,
       key: storageKey,
       mimeType: trustedMimeType,
     }),
-    createImageThumbnailAsset({
-      sourceBuffer: buffer,
-      sourceStorageKey: storageKey,
-    }),
     readEmbeddedRecipe(buffer),
   ])
+  const thumbnail = await createImageThumbnailAsset({
+    sourceStorageKey: storageKey,
+  })
 
   return createGeneration({
     url: publicUrl,
@@ -292,10 +292,7 @@ export async function completeUserImageDirectUpload(
   }
 
   const [thumbnail, embedded] = await Promise.all([
-    createImageThumbnailAsset({
-      sourceBuffer: buffer,
-      sourceStorageKey: input.storageKey,
-    }),
+    createImageThumbnailAsset({ sourceStorageKey: input.storageKey }),
     readEmbeddedRecipe(buffer),
   ])
 

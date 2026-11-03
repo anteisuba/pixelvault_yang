@@ -11,7 +11,6 @@ const {
   mockGenerationFindUnique,
   mockGenerationUpdate,
   mockTransaction,
-  mockGetR2ObjectBuffer,
   mockCreateImagePreviewAssets,
 } = vi.hoisted(() => ({
   mockExecutionOutboxCreate: vi.fn(),
@@ -22,7 +21,6 @@ const {
   mockGenerationFindUnique: vi.fn(),
   mockGenerationUpdate: vi.fn(),
   mockTransaction: vi.fn(),
-  mockGetR2ObjectBuffer: vi.fn(),
   mockCreateImagePreviewAssets: vi.fn(),
 }))
 
@@ -44,7 +42,6 @@ vi.mock('@/lib/db', () => ({
 }))
 
 vi.mock('@/services/storage/r2', () => ({
-  getR2ObjectBuffer: mockGetR2ObjectBuffer,
   createImagePreviewAssets: mockCreateImagePreviewAssets,
 }))
 
@@ -87,10 +84,6 @@ describe('image-preview-derivative.service', () => {
         executionOutbox: { update: mockExecutionOutboxUpdate },
       }),
     )
-    mockGetR2ObjectBuffer.mockResolvedValue({
-      buffer: Buffer.from('source-image'),
-      mimeType: 'image/png',
-    })
     mockCreateImagePreviewAssets.mockResolvedValue({
       thumbnailUrl: 'https://cdn.example.com/source.thumbnail.webp',
       thumbnailStorageKey: 'generations/user-1/image/source.thumbnail.webp',
@@ -138,13 +131,8 @@ describe('image-preview-derivative.service', () => {
       status: 'completed',
       generationId: 'gen-1',
     })
-    // Source bytes come straight from the bucket, not through the public CDN.
-    expect(mockGetR2ObjectBuffer).toHaveBeenCalledWith({
-      key: 'generations/user-1/image/source.png',
-      maxBytes: 40 * 1024 * 1024,
-    })
+    // 只传 key：Worker 直接从桶里读原图，网站不再下载大图。
     expect(mockCreateImagePreviewAssets).toHaveBeenCalledWith({
-      sourceBuffer: Buffer.from('source-image'),
       sourceStorageKey: 'generations/user-1/image/source.png',
     })
     expect(mockGenerationUpdate).toHaveBeenCalledWith({
@@ -184,9 +172,8 @@ describe('image-preview-derivative.service', () => {
     const result = await processImagePreviewDerivativeOutbox('outbox-1')
 
     expect(result).toMatchObject({ status: 'completed', generationId: 'gen-1' })
-    expect(mockGetR2ObjectBuffer).toHaveBeenCalledWith({
-      key: 'generations/user-1/image/source.png',
-      maxBytes: 40 * 1024 * 1024,
+    expect(mockCreateImagePreviewAssets).toHaveBeenCalledWith({
+      sourceStorageKey: 'generations/user-1/image/source.png',
     })
   })
 
@@ -199,8 +186,8 @@ describe('image-preview-derivative.service', () => {
       thumbnailUrl: null,
       previewUrl: null,
     })
-    mockGetR2ObjectBuffer.mockRejectedValue(
-      new Error('R2 temporarily unavailable'),
+    mockCreateImagePreviewAssets.mockRejectedValueOnce(
+      new Error('Image derivatives failed (502): R2 temporarily unavailable'),
     )
 
     const result = await processImagePreviewDerivativeOutbox('outbox-1')
@@ -230,7 +217,9 @@ describe('image-preview-derivative.service', () => {
       thumbnailUrl: null,
       previewUrl: null,
     })
-    mockGetR2ObjectBuffer.mockRejectedValue(new Error('R2 unavailable'))
+    mockCreateImagePreviewAssets.mockRejectedValueOnce(
+      new Error('Image derivatives failed (502): R2 unavailable'),
+    )
 
     const result = await processImagePreviewDerivativeOutbox('outbox-1')
 

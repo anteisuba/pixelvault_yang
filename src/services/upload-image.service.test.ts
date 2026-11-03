@@ -94,8 +94,12 @@ describe('uploadUserImageFile (multipart buffer path)', () => {
       expect.objectContaining({ data: fileBuffer, mimeType: 'image/png' }),
     )
     // Only the thumbnail derivative is made — no 1280px preview.
-    expect(mockThumbnail).toHaveBeenCalledWith(
-      expect.objectContaining({ sourceBuffer: fileBuffer }),
+    // 缩略图交给 Worker 从 R2 读原图来做：原图先落进 R2，只传 key。
+    expect(mockThumbnail).toHaveBeenCalledWith({
+      sourceStorageKey: mockUploadToR2.mock.calls[0][0].key,
+    })
+    expect(mockUploadToR2.mock.invocationCallOrder[0]).toBeLessThan(
+      mockThumbnail.mock.invocationCallOrder[0],
     )
 
     const created = mockCreateGeneration.mock.calls[0][0]
@@ -201,7 +205,6 @@ describe('direct R2 user image upload', () => {
     })
     expect(mockUploadToR2).not.toHaveBeenCalled()
     expect(mockThumbnail).toHaveBeenCalledWith({
-      sourceBuffer: buffer,
       sourceStorageKey: 'generations/db_user_123/image/2026-07-07_abc.png',
     })
 

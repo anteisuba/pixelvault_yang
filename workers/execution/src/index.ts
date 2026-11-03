@@ -139,6 +139,7 @@ import {
   submitFalModel3DQueue,
 } from './providers/fal/model-3d'
 import { downloadAndUploadModel3DArtifact } from './lib/media-io'
+import { handleImageDerivatives } from './lib/image-derivatives'
 
 export { submitFalModel3DQueue }
 
@@ -206,6 +207,8 @@ const CANCEL_PATH = '/cancel'
 const LLM_CALL_LOG_PATH = '/logs/llm-call'
 /** 认图（PixAI Tagger）：app → worker → Modal `/tag`。Mirrors `EXECUTION_WORKER.TAG_IMAGE_PATH`. */
 const TAG_IMAGE_PATH = '/tag-image'
+/** 出图后的小图：app → worker（Images 绑定）→ R2。Mirrors `EXECUTION_WORKER.IMAGE_DERIVATIVES_PATH`. */
+const IMAGE_DERIVATIVES_PATH = '/image-derivatives'
 /** 一行日志最多这么多字段；字段值只收原始类型，⛔ 不收对象和长文。 */
 const LLM_CALL_LOG_MAX_FIELDS = 24
 const LLM_CALL_LOG_MAX_STRING = 120
@@ -255,6 +258,8 @@ export interface ExecutionEnv {
   IMAGE_QUEUE_WORKFLOW: Workflow<WorkerImageRunContext>
   GENERATION_BUCKET: R2Bucket
   R2_PUBLIC_URL: string
+  /** Cloudflare Images 绑定（wrangler.jsonc `images`），做缩略图 / 预览图 / 视频海报。 */
+  IMAGES?: ImagesBinding
 }
 
 interface ExecutionCallbackPayload {
@@ -2475,6 +2480,9 @@ const executionWorker = {
 
     if (request.method === 'POST' && url.pathname === TAG_IMAGE_PATH) {
       return handleTagImage(request, env)
+    }
+    if (request.method === 'POST' && url.pathname === IMAGE_DERIVATIVES_PATH) {
+      return handleImageDerivatives(request, env)
     }
 
     return jsonResponse({ ok: false, error: 'Not found.' }, { status: 404 })

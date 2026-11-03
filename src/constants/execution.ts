@@ -121,6 +121,10 @@ export const EXECUTION_WORKER = {
   LLM_CALL_LOG_TIMEOUT_MS: 5_000,
   /** 认图（PixAI Tagger）：app → worker → Modal `/tag`，同步等结果。 */
   TAG_IMAGE_PATH: '/tag-image',
+  /** 出图后的小图：app → worker（Cloudflare Images）→ R2。见 workers/execution/src/lib/image-derivatives.ts。 */
+  IMAGE_DERIVATIVES_PATH: '/image-derivatives',
+  /** 一张 20 MB 以内的图缩两种尺寸，正常 1–3 s；冷路径留够余量。 */
+  IMAGE_DERIVATIVES_TIMEOUT_MS: 30_000,
   DEFAULT_POLL_INTERVAL_MS: 3_000,
   DEFAULT_MAX_ATTEMPTS: 200,
   DEFAULT_TIMEOUT_MS: 600_000,

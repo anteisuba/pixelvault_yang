@@ -45,7 +45,9 @@ import {
   meteredComplete,
   normalizeOutingSite,
   OutingBudgetExhausted,
+  OutingClock,
   OutingMeter,
+  OutingTimeSlice,
   personaText,
   watchPinnedVideos,
   type BrowseRoute,
@@ -376,6 +378,7 @@ export async function runOutingChunk(outingId: string): Promise<void> {
     data: { leaseUntil: new Date(chunkStart + CHARACTER_OUTING.leaseMs) },
   })
   if (claimed.count === 0) return
+  const clock = new OutingClock(chunkStart + CHARACTER_OUTING.chunkMs)
 
   const outing = await db.characterOuting.findUnique({
     where: { id: outingId },
@@ -472,6 +475,23 @@ export async function runOutingChunk(outingId: string): Promise<void> {
     })
   }
 
+  /** 存好进度、放开占位，叫下一段接着跑。 */
+  const handOff = async () => {
+    await db.characterOuting.update({
+      where: { id: outing.id },
+      data: {
+        usedTokens: meter.usedTokens,
+        calls: meter.calls,
+        kept,
+        rounds,
+        emptyRounds,
+        leaseUntil: null,
+      },
+      select: { id: true },
+    })
+    await continueLater(outing.id)
+  }
+
   const progress = (extra: { nowLabel?: string } = {}) =>
     db.characterOuting.update({
       where: { id: outing.id },
@@ -507,7 +527,7 @@ export async function runOutingChunk(outingId: string): Promise<void> {
     routeInfo = await resolveAssistantRoute(outing.userId, {
       routeModel: outing.model,
     })
-    const route: BrowseRoute = { ...routeInfo, meter }
+    const route: BrowseRoute = { ...routeInfo, meter, clock }
     const allowed = availableBrowseSources(routeInfo.route.adapterType)
     const picked = outing.sources.length
       ? allowed.filter((source) => outing.sources.includes(source))
@@ -534,6 +554,7 @@ export async function runOutingChunk(outingId: string): Promise<void> {
         card,
         route,
         links: pinned,
+        since: outing.startedAt,
         onNow,
       })
       await db.characterOuting.update({
@@ -556,20 +577,9 @@ export async function runOutingChunk(outingId: string): Promise<void> {
         )
         return
       }
-      if (Date.now() - chunkStart > CHARACTER_OUTING.chunkMs) {
-        await db.characterOuting.update({
-          where: { id: outing.id },
-          data: {
-            usedTokens: meter.usedTokens,
-            calls: meter.calls,
-            kept,
-            rounds,
-            emptyRounds,
-            leaseUntil: null,
-          },
-          select: { id: true },
-        })
-        await continueLater(outing.id)
+      // 剩的时间不够再开一轮：存好进度交给下一段（一轮里每一步也各自截到截止时刻）。
+      if (clock.left() < CHARACTER_OUTING.minRoundMs) {
+        await handOff()
         return
       }
       const result = await browseRound({
@@ -583,7 +593,10 @@ export async function runOutingChunk(outingId: string): Promise<void> {
       })
       rounds += 1
       kept += result.kept
-      emptyRounds = result.kept > 0 ? 0 : emptyRounds + 1
+      // 这一轮被截止时刻截断（步骤超时被吞成「没找到」）不算空手而归。
+      const cutShort = clock.left() < CHARACTER_OUTING.minStepMs
+      emptyRounds =
+        result.kept > 0 ? 0 : cutShort ? emptyRounds : emptyRounds + 1
       const row = await progress()
       if (row.stopRequested) throw new OutingStopped()
       if (emptyRounds >= CHARACTER_OUTING.maxEmptyRounds) {
@@ -600,6 +613,22 @@ export async function runOutingChunk(outingId: string): Promise<void> {
         CHARACTER_OUTING_STATUS.stopped,
         CHARACTER_OUTING_END_REASONS.stopped,
       ).catch(() => undefined)
+      return
+    }
+    if (error instanceof OutingTimeSlice) {
+      // 半路停下也可能已经记了几条：以库里为准。
+      kept = await db.characterFinding.count({
+        where: { characterCardId: card.id, seenAt: { gte: outing.startedAt } },
+      })
+      await handOff().catch((handOffError: unknown) =>
+        logger.warn('character outing hand-off failed', {
+          outingId: outing.id,
+          error:
+            handOffError instanceof Error
+              ? handOffError.message
+              : String(handOffError),
+        }),
+      )
       return
     }
     if (error instanceof OutingBudgetExhausted) {

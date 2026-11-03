@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 
+import { CHARACTER_OUTING } from '@/constants/character-browse'
 import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
 
 const mocks = vi.hoisted(() => ({
@@ -120,7 +121,9 @@ import {
   nextInterests,
   normalizeOutingSite,
   OutingBudgetExhausted,
+  OutingClock,
   OutingMeter,
+  OutingTimeSlice,
   watchPinnedVideos,
 } from './character-browse.service'
 
@@ -906,6 +909,78 @@ describe('watchPinnedVideos（你贴的视频，第 ⑥ 步）', () => {
     expect(call.videoAnalysis.startOffset).toBe(0)
     expect(call.videoAnalysis.endOffset).toBeGreaterThan(20)
     expect(call.videoAnalysis.endOffset).toBeLessThan(100)
+  })
+
+  it('分段接着看：这一趟已经记过的那条跳过，剩下的照看', async () => {
+    const since = new Date('2026-11-03T00:00:00Z')
+    mocks.findingCount.mockResolvedValueOnce(1)
+    const kept = await watchPinnedVideos({
+      userId: 'u',
+      card: { id: 'card-1', name: 'Denia', persona: {} },
+      route: {
+        route: {
+          adapterType: 'gemini',
+          apiKey: 'k',
+          providerConfig: {},
+        } as never,
+        modelId: 'gemini-3.8-flash',
+        meter: new OutingMeter(10_000_000),
+      },
+      links: [
+        {
+          platform: 'youtube',
+          url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+        },
+      ],
+      since,
+      onNow: async () => {},
+    })
+    expect(kept).toBe(0)
+    expect(mocks.complete).not.toHaveBeenCalled()
+    expect(mocks.findingCount).toHaveBeenCalledWith({
+      where: expect.objectContaining({ seenAt: { gte: since } }),
+    })
+  })
+
+  it('整段没看成（超时）：退回写一句，⛔ 整趟失败', async () => {
+    mocks.complete
+      .mockRejectedValueOnce(
+        new Error('The operation was aborted due to timeout'),
+      )
+      .mockResolvedValueOnce(
+        JSON.stringify({ notes: [{ n: 1, note: '标题看着就好看' }] }),
+      )
+    const kept = await watchPinnedVideos({
+      userId: 'u',
+      card: { id: 'card-1', name: 'Denia', persona: {} },
+      route: {
+        route: {
+          adapterType: 'gemini',
+          apiKey: 'k',
+          providerConfig: {},
+        } as never,
+        modelId: 'gemini-3.8-flash',
+        meter: new OutingMeter(10_000_000),
+      },
+      links: [
+        {
+          platform: 'youtube',
+          url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+        },
+      ],
+      onNow: async () => {},
+    })
+    expect(mocks.complete).toHaveBeenCalledTimes(2)
+    expect(kept).toBe(1)
+  })
+})
+
+describe('OutingClock（一段的截止时刻）', () => {
+  it('每一步的超时截到截止时刻；剩下不到一步的时间就交给下一段', () => {
+    const far = new OutingClock(Date.now() + 10 * 60_000)
+    expect(far.signal(60_000).aborted).toBe(false)
+    const near = new OutingClock(Date.now() + CHARACTER_OUTING.minStepMs - 1)
+    expect(() => near.signal(60_000)).toThrow(OutingTimeSlice)
   })
 })
 

@@ -1,21 +1,10 @@
-import { describe, expect, it, vi } from 'vitest'
-
-vi.mock('server-only', () => ({}))
-vi.mock('@/lib/logger', () => ({
-  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
-}))
-vi.mock('@/lib/signature-verifiers/fal-webhook', () => ({
-  verifyFalWebhookSignature: vi.fn(),
-}))
-vi.mock('@/services/execution-callback.service', () => ({
-  handleExecutionCallback: vi.fn(),
-}))
+import { describe, expect, it } from 'vitest'
 
 import {
   extractFalDetailMessage,
   extractFalErrorMessage,
   isFalErrorBody,
-} from './route'
+} from './fal-webhook-body'
 
 describe('FAL webhook error helpers', () => {
   it('detects documented webhook error bodies', () => {

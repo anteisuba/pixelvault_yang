@@ -8,7 +8,8 @@ const { redirectMock } = vi.hoisted(() => ({
 
 vi.mock('@/i18n/navigation', () => ({ redirect: redirectMock }))
 
-import LegacyStudioEditPage, { buildLegacyStudioEditQuery } from './page'
+import { buildLegacyStudioEditQuery } from './legacy-query'
+import LegacyStudioEditPage from './page'
 
 describe('legacy Studio edit compatibility redirect', () => {
   beforeEach(() => {

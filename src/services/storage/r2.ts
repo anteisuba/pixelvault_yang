@@ -10,7 +10,7 @@ import {
 } from '@aws-sdk/client-s3'
 import { Upload } from '@aws-sdk/lib-storage'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
-import sharp from 'sharp'
+import { readImageHeader } from '@/lib/image-header'
 import { logger } from '@/lib/logger'
 import { withRetry } from '@/lib/with-retry'
 import { EXECUTION_WORKER } from '@/constants/execution'
@@ -77,7 +77,7 @@ export function generateStorageKey(
 
 // ─── Magic-Byte Image Validation ──────────────────────────────────
 
-const SHARP_FORMAT_TO_MIME: Record<string, string> = {
+const FORMAT_TO_MIME: Record<string, string> = {
   jpeg: 'image/jpeg',
   png: 'image/png',
   webp: 'image/webp',
@@ -85,7 +85,7 @@ const SHARP_FORMAT_TO_MIME: Record<string, string> = {
 }
 
 /**
- * Verify the *real* format of an image buffer via libvips magic bytes and
+ * Verify the *real* format of an image buffer via its magic bytes and
  * return a trusted MIME type. Use this on every code path that accepts an
  * image from a client — `fetchAsBuffer` only reads the claimed MIME from a
  * data URL header or HTTP `content-type`, both of which the user controls.
@@ -103,27 +103,19 @@ export async function detectTrustedImageMime(
   width: number
   height: number
 }> {
-  let format: string | undefined
-  let width: number | undefined
-  let height: number | undefined
-  try {
-    const metadata = await sharp(buffer).metadata()
-    format = metadata.format
-    width = metadata.width
-    height = metadata.height
-  } catch {
-    throw new Error('Unsupported or corrupted image file')
-  }
-  if (!format || !allowedFormats.has(format)) {
+  const header = readImageHeader(buffer)
+  if (!header) throw new Error('Unsupported or corrupted image file')
+  const { format, width, height } = header
+  if (!allowedFormats.has(format)) {
     throw new Error(
-      `Unsupported image format: ${format ?? 'unknown'}. Allowed: ${[...allowedFormats].join(', ')}`,
+      `Unsupported image format: ${format}. Allowed: ${[...allowedFormats].join(', ')}`,
     )
   }
   return {
     format,
-    mimeType: SHARP_FORMAT_TO_MIME[format] ?? `image/${format}`,
-    width: width ?? 0,
-    height: height ?? 0,
+    mimeType: FORMAT_TO_MIME[format] ?? `image/${format}`,
+    width,
+    height,
   }
 }
 

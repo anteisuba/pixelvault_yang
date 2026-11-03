@@ -2,9 +2,15 @@ import 'server-only'
 
 import { randomUUID } from 'crypto'
 
-import sharp from 'sharp'
 import { z } from 'zod'
 
+import { readImageHeader } from '@/lib/image-header'
+import {
+  createCanvas,
+  decodeImage,
+  encodePng,
+  pasteImage,
+} from '@/lib/image-pixels'
 import { logger } from '@/lib/logger'
 import { MODEL_3D_SOURCE_QUALITY } from '@/constants/model-3d-generation'
 import { upscaleImage } from '@/services/image/image-edit.service'
@@ -14,6 +20,8 @@ import {
 } from '@/services/kernel/assistant-route.service'
 import { llmTextCompletion } from '@/services/llm-text.service'
 import { fetchAsBuffer, uploadToR2 } from '@/services/storage/r2'
+
+const WHITE = { r: 255, g: 255, b: 255 }
 
 /**
  * Image-to-3D recommends ≥1024px on the long edge. Below that, geometry
@@ -57,9 +65,9 @@ export async function inspect3DSourceImageQuality(
   options: Inspect3DSourceImageQualityOptions = {},
 ): Promise<Source3DQualityReport> {
   const fetched = await fetchAsBuffer(imageUrl)
-  const meta = await sharp(fetched.buffer).metadata()
-  const width = meta.width ?? 0
-  const height = meta.height ?? 0
+  const header = readImageHeader(fetched.buffer)
+  const width = header?.width ?? 0
+  const height = header?.height ?? 0
   const blockingIssues: string[] = []
 
   if (width <= 0 || height <= 0) {
@@ -160,9 +168,9 @@ export async function prepare3DSourceImage(
     let workingUrl: string = imageUrl
     let mutated = false
 
-    const meta = await sharp(workingBuffer).metadata()
-    const w0 = meta.width ?? 0
-    const h0 = meta.height ?? 0
+    const header = readImageHeader(workingBuffer)
+    const w0 = header?.width ?? 0
+    const h0 = header?.height ?? 0
 
     // ── Step 1: upscale small inputs ───────────────────────────────
     if (w0 > 0 && h0 > 0 && Math.max(w0, h0) < MIN_LONG_EDGE_PX) {
@@ -185,23 +193,17 @@ export async function prepare3DSourceImage(
     }
 
     // ── Step 2: white-pad to square ────────────────────────────────
-    const meta2 = await sharp(workingBuffer).metadata()
-    const w = meta2.width ?? 0
-    const h = meta2.height ?? 0
+    const header2 = readImageHeader(workingBuffer)
+    const w = header2?.width ?? 0
+    const h = header2?.height ?? 0
     if (w > 0 && h > 0 && w !== h) {
       const side = Math.max(w, h)
       const padX = Math.floor((side - w) / 2)
       const padY = Math.floor((side - h) / 2)
-      workingBuffer = await sharp(workingBuffer)
-        .extend({
-          top: padY,
-          bottom: side - h - padY,
-          left: padX,
-          right: side - w - padX,
-          background: { r: 255, g: 255, b: 255, alpha: 1 },
-        })
-        .png()
-        .toBuffer()
+      // 原图像素原样贴上（透明的地方仍透明），只有补出来的边是白的。
+      const canvas = createCanvas(side, side, WHITE)
+      pasteImage(canvas, decodeImage(workingBuffer), padX, padY)
+      workingBuffer = encodePng(canvas)
       workingMime = 'image/png'
       mutated = true
       logger.info('3D prep: padded to square', { from: `${w}x${h}`, to: side })

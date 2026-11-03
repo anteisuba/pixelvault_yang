@@ -297,7 +297,7 @@ export async function importWebImage(
     throw importFailed(failure, status, i18nKey, message)
   }
 
-  // ⛔ 不信 content-type：判型走 libvips 的魔数（SVG 有意不在允许集里 —— 它能带脚本）。
+  // ⛔ 不信 content-type：判型走文件头魔数（SVG 有意不在允许集里 —— 它能带脚本）。
   let trustedMimeType: string
   let width: number
   let height: number

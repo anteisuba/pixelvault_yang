@@ -37,7 +37,7 @@ import { GenerateImageServiceError } from '@/services/image/generate-image.servi
  * remote-URL import). The original bytes are stored in R2 *as-is* — no
  * re-encode, no downscale, so a good image keeps its quality — and only a
  * grid-tile thumbnail is derived (the detail view serves the original). The
- * buffer is validated by libvips magic bytes so a client can't smuggle a
+ * buffer is validated by its magic bytes so a client can't smuggle a
  * disallowed or corrupt format past the claimed MIME.
  */
 async function storeUserUpload(params: {

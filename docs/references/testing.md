@@ -51,6 +51,15 @@
 - `fakeServer()` 只替 `fetch`：按「方法 + 路径」登记处理函数，可以直接用 `createApiRoute` 等工厂做真路由；没登记的请求直接报错；`goOffline()` 模拟断网。
 - 样板：`src/test/chains/error-display.test.tsx`（错误显示整链：服务端各类出错 → 技能页 / 出图舞台上是对应语言那句、不是英文原话）。
 
+### L2c 助手改台面工具怎么写
+
+- 清单在 `src/test/assistant-bench/bench-effects.int.test.ts` 的 `BENCH_EFFECTS`：`ASSISTANT_OPERATOR_MUTATING_TOOLS` 里每一条都要声明「改哪几格台面」（`run.state` 的键）或「不在台面上、为什么」。**新加会改东西的工具不声明，清单那一例直接红。**
+- 声明了改台面的逐条真跑（L2a 真库 + 真 `prepareOperatorTurn`，不调模型）：`planTool` 必须是 `mutate` → `apply()` 后这一轮台面真变（⛔ 空操作）、只变声明的格、助手下一步 `read_state` 读得到。
+- 线上出过事的对话把工具调用原样写成一条回放放在同文件（第一条：11-03 摘下 LoRA 挂不回去；它还查出同轮重复挂同一把没拦，已修）。
+- 下一轮对账 `src/test/assistant-bench/next-turn.int.test.ts`（图片 8 / 视频 7 / 标签 3 例）：这一步过客户端 schema → 真 `applyOperatorStep` 落进真表单 reducer → 宿主同一份 `buildWorkbenchOperatorForm` + 快照 → 再开一轮，台面必须和这一轮服务端记下的一样。
+- 画布两条 `src/test/assistant-bench/canvas-next-turn.int.test.ts`：服务端不动台面，这一步经真 `applyOperatorStep` → 宿主同一个 `applyCanvasBatchV4` 落进真图 → `buildCanvasOperatorSnapshot` → 再开一轮，下一轮读到的卡必须变成这一步说的样子（写词 / 改正文 / 一批新建+连线）。
+- 还没覆盖：LoRA 台的下一轮对账（台面在 `LoraStackProvider` 里，放进第 4 步 LoRA 挂卸主流程 E2E 一起测）。
+
 ### 四条硬规矩
 
 1. **只假边界**。可以假：网络请求（api-client / fetch）、AI 服务商、R2、Clerk 登录、时钟、随机数、logger。不许假：自己的 service、hook、store、context、组件；L2a 不许假数据库。

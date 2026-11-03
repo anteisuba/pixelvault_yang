@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { db } from '@/lib/db'
+import { readImageHeader } from '@/lib/image-header'
 import { logger } from '@/lib/logger'
 import type { ExtractedElementRecord } from '@/types'
 
@@ -85,21 +86,22 @@ export async function createExtractedElement(params: {
   })
 
   const storageKey = generateStorageKey('IMAGE', params.userId)
-  const [permanentUrl, previewAssets] = await Promise.all([
-    uploadToR2({ data: buffer, key: storageKey, mimeType }),
-    createImagePreviewAssets({
-      sourceBuffer: buffer,
-      sourceStorageKey: storageKey,
-    }),
-  ])
+  // 小图由 Worker 从 R2 读原图来做，所以先等原图落进 R2。
+  const permanentUrl = await uploadToR2({
+    data: buffer,
+    key: storageKey,
+    mimeType,
+  })
+  const previewAssets = await createImagePreviewAssets({
+    sourceStorageKey: storageKey,
+  })
 
   // Width/height come back from the preview pipeline's source metadata, but
   // since we already have the buffer it's simpler to re-read here than to
   // thread the values out of createImagePreviewAssets.
-  const sharp = (await import('sharp')).default
-  const meta = await sharp(buffer).metadata()
-  const width = meta.width ?? 1024
-  const height = meta.height ?? 1024
+  const header = readImageHeader(buffer)
+  const width = header?.width ?? 1024
+  const height = header?.height ?? 1024
 
   const trimmedName = params.name?.trim() ?? ''
   const fallbackName = params.prompt.trim().slice(0, 80) || 'Extracted element'

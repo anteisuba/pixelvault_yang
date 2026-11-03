@@ -37,7 +37,7 @@ import { GenerateImageServiceError } from '@/services/image/generate-image.servi
  * remote-URL import). The original bytes are stored in R2 *as-is* — no
  * re-encode, no downscale, so a good image keeps its quality — and only a
  * grid-tile thumbnail is derived (the detail view serves the original). The
- * buffer is validated by libvips magic bytes so a client can't smuggle a
+ * buffer is validated by its magic bytes so a client can't smuggle a
  * disallowed or corrupt format past the claimed MIME.
  */
 async function storeUserUpload(params: {
@@ -76,18 +76,18 @@ async function storeUserUpload(params: {
   }
 
   const storageKey = generateStorageKey('IMAGE', userId)
-  const [publicUrl, thumbnail, embedded] = await Promise.all([
+  // 缩略图由 Worker 从 R2 读原图来做，所以先等原图落进 R2。
+  const [publicUrl, embedded] = await Promise.all([
     uploadToR2({
       data: buffer,
       key: storageKey,
       mimeType: trustedMimeType,
     }),
-    createImageThumbnailAsset({
-      sourceBuffer: buffer,
-      sourceStorageKey: storageKey,
-    }),
     readEmbeddedRecipe(buffer),
   ])
+  const thumbnail = await createImageThumbnailAsset({
+    sourceStorageKey: storageKey,
+  })
 
   return createGeneration({
     url: publicUrl,
@@ -292,10 +292,7 @@ export async function completeUserImageDirectUpload(
   }
 
   const [thumbnail, embedded] = await Promise.all([
-    createImageThumbnailAsset({
-      sourceBuffer: buffer,
-      sourceStorageKey: input.storageKey,
-    }),
+    createImageThumbnailAsset({ sourceStorageKey: input.storageKey }),
     readEmbeddedRecipe(buffer),
   ])
 

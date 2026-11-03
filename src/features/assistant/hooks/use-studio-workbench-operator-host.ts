@@ -60,6 +60,7 @@ import { readStudioStageFocus } from '@/lib/studio-stage-focus'
 import {
   buildImageGenerationControls,
   buildImageOperatorSnapshot,
+  buildWorkbenchOperatorForm,
   buildVideoGenerationControls,
   buildVideoOperatorSnapshot,
 } from '@/lib/studio-operator-snapshot'
@@ -259,26 +260,7 @@ export function useStudioWorkbenchOperatorHost({
         ? latest.current.imageUpload.maxImages
         : ASSISTANT_OPERATOR_LIMITS.maxSnapshotReferences,
     }
-    const form = {
-      prompt: current.prompt,
-      negativePrompt: current.advancedParams.negativePrompt,
-      aspectRatio: current.aspectRatio,
-      imageResolution: current.advancedParams.resolution ?? null,
-      imageQuality: current.advancedParams.quality,
-      imagePreview: current.advancedParams.preview,
-      imageBackground: current.advancedParams.background,
-      imageBatchCount: current.imageBatchCount,
-      // 专属 chip 行的现值（进度表 21）—— 整份端上去，键随模型变。
-      advancedParams: current.advancedParams,
-      videoDurationSeconds: current.videoDuration,
-      videoResolution: current.videoResolution,
-      videoAudioRefs: current.videoAudioRefs,
-      // 具名帧槽 / 参考视频（第二期）—— 表单里那两处新状态原样端上去。
-      videoFrameSlots: current.videoFrameSlots,
-      videoReferenceVideos: current.videoReferenceVideos,
-      // ⛔ 三态原样传，别 `?? false`（见词表 `setSound` 头注）。
-      videoSoundEnabled: current.videoGenerateAudio,
-    }
+    const form = buildWorkbenchOperatorForm(current)
 
     /**
      * 舞台上最新一批出好的图（`result-N`）：v3 `look` 直接看，⛔ 不用创作者再 @

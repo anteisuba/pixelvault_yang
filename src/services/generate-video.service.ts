@@ -1,5 +1,4 @@
 import 'server-only'
-import sharp from 'sharp'
 
 import {
   EXECUTION_INTERNAL,
@@ -48,6 +47,7 @@ import {
   isExecutionWorkerDispatchConfigured,
 } from '@/services/execution-worker.service'
 import { db } from '@/lib/db'
+import { orientedSize, readImageHeader } from '@/lib/image-header'
 import { logger } from '@/lib/logger'
 import { getVideoOutputSize } from '@/lib/video-utils'
 import { validatePrompt } from '@/services/kernel/prompt-guard'
@@ -235,8 +235,11 @@ async function submitFalVideoWorkerRun(params: {
                 index === 0 &&
                 modelConfig.id === AI_MODELS.MINIMAX_H3_MAX_TURBO
               ) {
-                const { autoOrient } = await sharp(refBuffer).metadata()
-                firstFrameAspectRatio = `${autoOrient.width}:${autoOrient.height}`
+                const header = readImageHeader(refBuffer)
+                if (header) {
+                  const { width, height } = orientedSize(header)
+                  firstFrameAspectRatio = `${width}:${height}`
+                }
               }
               return uploadToR2({
                 data: refBuffer,

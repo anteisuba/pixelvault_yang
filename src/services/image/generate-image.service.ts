@@ -5,7 +5,6 @@ import {
   supportsNovelAiPreciseReference,
 } from '@/constants/novelai'
 import 'server-only'
-import sharp from 'sharp'
 
 import {
   getCapabilityConfig,
@@ -43,6 +42,14 @@ import {
 } from '@/services/usage.service'
 import { ensureUser } from '@/services/user.service'
 import { checkNovelAiText, planNovelAiText } from '@/lib/novelai-compose'
+import { readImageHeader } from '@/lib/image-header'
+import {
+  decodeImage,
+  encodePng,
+  fitImage,
+  flattenImage,
+  luminance,
+} from '@/lib/image-pixels'
 import { logger } from '@/lib/logger'
 import { validatePrompt } from '@/services/kernel/prompt-guard'
 import { getResolvedModelOption } from '@/services/model-config.service'
@@ -296,6 +303,8 @@ async function uploadSingleReferenceImageIfNeeded(params: {
   return publicUrl
 }
 
+const BLACK = { r: 0, g: 0, b: 0 }
+
 /**
  * 这张图能不能原样发给 NAI：已经是 PNG、尺寸正好、没有 EXIF 转向（有转向的要先摆正）。
  * 读的是文件头，不解码像素。
@@ -305,12 +314,12 @@ async function isReadyNovelAiReference(
   size: { width: number; height: number },
 ): Promise<boolean> {
   try {
-    const meta = await sharp(buffer).metadata()
+    const header = readImageHeader(buffer)
     return (
-      meta.format === 'png' &&
-      meta.width === size.width &&
-      meta.height === size.height &&
-      (meta.orientation === undefined || meta.orientation === 1)
+      header?.format === 'png' &&
+      header.width === size.width &&
+      header.height === size.height &&
+      (header.orientation === undefined || header.orientation === 1)
     )
   } catch {
     return false
@@ -342,15 +351,9 @@ export async function uploadReferenceImagesIfNeeded(params: {
     return Promise.all(
       referenceImages.map(async (referenceImage) => {
         const data = await fetchAsBuffer(referenceImage)
-        const buffer = await sharp(data.buffer)
-          .rotate()
-          .resize(1472, 1472, {
-            fit: 'contain',
-            background: '#000000',
-          })
-          .flatten({ background: '#000000' })
-          .png()
-          .toBuffer()
+        const buffer = encodePng(
+          fitImage(decodeImage(data.buffer), 1472, 1472, 'contain', BLACK),
+        )
         return uploadToR2({
           data: buffer,
           key: generateStorageKey('IMAGE', userId),
@@ -373,13 +376,15 @@ export async function uploadReferenceImagesIfNeeded(params: {
           return referenceImage
         }
         // 铺满再居中裁，⛔ 不拉伸：比例不同时拉伸会把人压扁。
-        const buffer = await sharp(data.buffer)
-          .rotate()
-          .resize(novelAiImg2ImgSize.width, novelAiImg2ImgSize.height, {
-            fit: 'cover',
-          })
-          .png()
-          .toBuffer()
+        const buffer = encodePng(
+          fitImage(
+            decodeImage(data.buffer),
+            novelAiImg2ImgSize.width,
+            novelAiImg2ImgSize.height,
+            'cover',
+            BLACK,
+          ),
+        )
         return uploadToR2({
           data: buffer,
           key: generateStorageKey('IMAGE', userId),
@@ -432,14 +437,11 @@ export async function prepareIdeogramInpaintMask(
     fetchAsBuffer(sourceUrl),
     fetchAsBuffer(maskUrl),
   ])
-  const [sourceSize, maskSize] = await Promise.all([
-    sharp(source.buffer).metadata(),
-    sharp(mask.buffer).metadata(),
-  ])
+  const sourceSize = readImageHeader(source.buffer)
+  const maskSize = readImageHeader(mask.buffer)
   if (
-    !sourceSize.width ||
-    !sourceSize.height ||
-    sourceSize.width !== maskSize.width ||
+    !sourceSize ||
+    sourceSize.width !== maskSize?.width ||
     sourceSize.height !== maskSize.height
   ) {
     throw new GenerateImageServiceError(
@@ -448,13 +450,21 @@ export async function prepareIdeogramInpaintMask(
       400,
     )
   }
-  const normalized = await sharp(mask.buffer)
-    .flatten({ background: '#000000' })
-    .greyscale()
-    .png()
-    .toBuffer()
-  const stats = await sharp(normalized).stats()
-  if (stats.channels[0].min !== 0 || stats.channels[0].max !== 255) {
+  // 铺黑底 → 灰度：白 = 要改、黑 = 保留；Ideogram 要的正好相反（黑 = 要改），下面反过来。
+  const flattened = flattenImage(decodeImage(mask.buffer), BLACK)
+  const pixelCount = flattened.width * flattened.height
+  let min = 255
+  let max = 0
+  for (let i = 0; i < pixelCount; i++) {
+    const grey = luminance(flattened, i)
+    if (grey < min) min = grey
+    if (grey > max) max = grey
+    const inverted = 255 - grey
+    flattened.data[i * 4] = inverted
+    flattened.data[i * 4 + 1] = inverted
+    flattened.data[i * 4 + 2] = inverted
+  }
+  if (min !== 0 || max !== 255) {
     throw new GenerateImageServiceError(
       'VALIDATION_ERROR',
       'The mask must include both an editable region and a preserved region.',
@@ -462,7 +472,7 @@ export async function prepareIdeogramInpaintMask(
     )
   }
   return uploadToR2({
-    data: await sharp(normalized).negate({ alpha: false }).png().toBuffer(),
+    data: encodePng(flattened),
     key: generateStorageKey('IMAGE', userId),
     mimeType: 'image/png',
   })

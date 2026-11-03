@@ -350,6 +350,7 @@ import { persistVideoFrameSet } from '@/services/video-frames/video-frame-set.se
  * 挂载那一跳留在客户端（与拍板 22 同构）。
  */
 import {
+  normalizeLoraNameKey,
   resolveLibraryBaseModel,
   searchLoraLibraryCandidates,
 } from '@/features/lora/server'
@@ -6568,7 +6569,20 @@ function planMountLora(
     baseFamily,
   ) as AssistantOperatorLoraCandidate
   const name = clamp(candidate.name, LIMITS.maxLabelChars)
-  if (projection.alreadyMounted)
+  /**
+   * ⚠ 按**这一轮现在的台面**判（与 `search_loras` 标「已挂」同一把尺子），⛔ 不信候选上缓存的
+   * `alreadyMounted`：那是搜的那一刻的样子 —— 同轮挂上之后再挂一次它仍是 false，台面多一行、
+   * 浏览器那边按版本去重只挂一把，两边对不上（L2c 回放 11-03 发现）；反过来搜完又摘掉的，
+   * 缓存说「已挂」会把挂回去拦住。
+   */
+  const nameKey = normalizeLoraNameKey(candidate.name)
+  const mountedNow = run.state.loras.some(
+    (item) =>
+      item.id ===
+        `${ASSISTANT_OPERATOR_PENDING_LORA_PREFIX}${candidate.candidateId}` ||
+      normalizeLoraNameKey(item.name) === nameKey,
+  )
+  if (mountedNow)
     return reject(
       REJECT.repeatedStep,
       `"${name}" is already on the bench; change its weight with lora_weight instead.`,

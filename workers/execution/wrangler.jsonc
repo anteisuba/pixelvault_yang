@@ -18,6 +18,11 @@
     // `pixelvault-runner-token`）。见 docs/references/domains/runner.md。
     "RUNNER_MODAL_URL": "https://xiuruisu--pixelvault-runner-api.modal.run",
   },
+  // Cloudflare Images（2026-11-03）：出图后的缩略图 / 预览图 / 视频海报在这里做，
+  // 不再在网站函数里用 sharp。见 src/lib/image-derivatives.ts。
+  "images": {
+    "binding": "IMAGES",
+  },
   "r2_buckets": [
     {
       "binding": "GENERATION_BUCKET",

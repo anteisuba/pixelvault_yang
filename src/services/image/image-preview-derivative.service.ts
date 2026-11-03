@@ -6,10 +6,7 @@ import { EXECUTION_OUTBOX, EXECUTION_OUTBOX_KINDS } from '@/constants/execution'
 import { db } from '@/lib/db'
 import type { Prisma } from '@/lib/generated/prisma/client'
 import { logger } from '@/lib/logger'
-import {
-  createImagePreviewAssets,
-  getR2ObjectBuffer,
-} from '@/services/storage/r2'
+import { createImagePreviewAssets } from '@/services/storage/r2'
 import {
   completeExecutionOutbox,
   createExecutionOutbox,
@@ -17,7 +14,6 @@ import {
   requeueExecutionOutbox,
 } from '@/services/execution-outbox.service'
 
-const IMAGE_PREVIEW_SOURCE_MAX_BYTES = 40 * 1024 * 1024
 const DEFAULT_PROCESS_LIMIT = 2
 const MAX_DERIVATIVE_ATTEMPTS = 3
 
@@ -202,15 +198,10 @@ export async function processImagePreviewDerivativeOutbox(
       }
     }
 
-    // Read the original straight from the bucket, not through the public CDN:
-    // this runs seconds after the upload, when the CDN edge may still be
-    // pulling the object in (2026-09-27: one 6 MB fill crawled for ~22 min).
-    const source = await getR2ObjectBuffer({
-      key: payload.sourceStorageKey,
-      maxBytes: IMAGE_PREVIEW_SOURCE_MAX_BYTES,
-    })
+    // Worker reads the original straight from the bucket binding, not through
+    // the public CDN: this runs seconds after the upload, when the CDN edge may
+    // still be pulling the object in (2026-09-27: one 6 MB fill crawled ~22 min).
     const previewAssets = await createImagePreviewAssets({
-      sourceBuffer: source.buffer,
       sourceStorageKey: payload.sourceStorageKey,
     })
 

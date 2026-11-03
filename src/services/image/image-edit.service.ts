@@ -1131,17 +1131,15 @@ export async function persistEditedImage(params: {
 }): Promise<GenerationRecord> {
   const storageKey = generateStorageKey('IMAGE', params.userId)
   const { buffer, mimeType } = await fetchAsBuffer(params.resultUrl)
-  const [permanentUrl, previewAssets] = await Promise.all([
-    uploadToR2({
-      data: buffer,
-      key: storageKey,
-      mimeType,
-    }),
-    createImagePreviewAssets({
-      sourceBuffer: buffer,
-      sourceStorageKey: storageKey,
-    }),
-  ])
+  // 小图由 Worker 从 R2 读原图来做，所以先等原图落进 R2。
+  const permanentUrl = await uploadToR2({
+    data: buffer,
+    key: storageKey,
+    mimeType,
+  })
+  const previewAssets = await createImagePreviewAssets({
+    sourceStorageKey: storageKey,
+  })
 
   return createGeneration({
     url: permanentUrl,

@@ -57,7 +57,8 @@
 - 声明了改台面的逐条真跑（L2a 真库 + 真 `prepareOperatorTurn`，不调模型）：`planTool` 必须是 `mutate` → `apply()` 后这一轮台面真变（⛔ 空操作）、只变声明的格、助手下一步 `read_state` 读得到。
 - 线上出过事的对话把工具调用原样写成一条回放放在同文件（第一条：11-03 摘下 LoRA 挂不回去；它还查出同轮重复挂同一把没拦，已修）。
 - 下一轮对账 `src/test/assistant-bench/next-turn.int.test.ts`（图片 8 / 视频 7 / 标签 3 例）：这一步过客户端 schema → 真 `applyOperatorStep` 落进真表单 reducer → 宿主同一份 `buildWorkbenchOperatorForm` + 快照 → 再开一轮，台面必须和这一轮服务端记下的一样。
-- 还没覆盖：画布两条（浏览器落一批、下一跳带新快照回来）；LoRA 台的下一轮对账（台面在 `LoraStackProvider` 里，放进第 4 步 LoRA 挂卸主流程 E2E 一起测）。
+- 画布两条 `src/test/assistant-bench/canvas-next-turn.int.test.ts`：服务端不动台面，这一步经真 `applyOperatorStep` → 宿主同一个 `applyCanvasBatchV4` 落进真图 → `buildCanvasOperatorSnapshot` → 再开一轮，下一轮读到的卡必须变成这一步说的样子（写词 / 改正文 / 一批新建+连线）。
+- 还没覆盖：LoRA 台的下一轮对账（台面在 `LoraStackProvider` 里，放进第 4 步 LoRA 挂卸主流程 E2E 一起测）。
 
 ### 四条硬规矩
 

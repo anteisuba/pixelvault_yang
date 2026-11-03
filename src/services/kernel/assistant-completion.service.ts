@@ -6,7 +6,6 @@ import { logger } from '@/lib/logger'
 import { sendLlmCallLogToWorker } from '@/services/execution-worker.service'
 import {
   isLlmTextContextLimitError,
-  isLlmTextTransientError,
   llmTextCompletion,
   llmTextStream,
   type LlmTextInput,
@@ -291,14 +290,11 @@ export async function completeAssistantTextWithContextRetry({
   }
 }
 
-/** provider 临时不可用时，同一请求等这么久再发一次。 */
-const TRANSIENT_RETRY_DELAY_MS = 1_500
-
 /**
- * 两类错误各值得**一次**重发，其余原样抛出：
- *  · 上下文超限 → 压缩历史后重发；
- *  · provider 临时不可用（503 / 529）→ 稍等后原样重发（2026-10-07 生产：
- *    Gemini 一次 503 就让整轮失败）。超时不在此列 —— 再等一轮只会翻倍等待。
+ * 只有上下文超限值得在这里重发一次（压缩历史后再发），其余原样抛出。
+ *
+ * provider 临时不可用 / 限流 / 连接断的重发在入口 `llm-text.service` 统一做
+ * （docs/design/llm.md §4），⛔ 这里不再叠一层。
  */
 async function promptForRetry(
   error: unknown,
@@ -314,20 +310,6 @@ async function promptForRetry(
     signal?: AbortSignal
   },
 ): Promise<string> {
-  if (isLlmTextTransientError(error)) {
-    await new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(resolve, TRANSIENT_RETRY_DELAY_MS)
-      signal?.addEventListener(
-        'abort',
-        () => {
-          clearTimeout(timer)
-          reject(signal.reason)
-        },
-        { once: true },
-      )
-    })
-    return fullPrompt
-  }
   if (!isLlmTextContextLimitError(error)) throw error
   const compactedPrompt = buildUserPrompt(contextCompactionTargetLength)
   if (compactedPrompt === fullPrompt) throw error
@@ -336,7 +318,7 @@ async function promptForRetry(
 }
 
 /**
- * 流式版，策略与上面那条一致：先发全量上下文，超限压缩 / 临时不可用稍等，各重发一次。
+ * 流式版，策略与上面那条一致：先发全量上下文，超限压缩后重发一次。
  *
  * ⚠ **已经吐出过字就绝不重试**（照搬画布 gateway 分支用真机换来的规则）：重试会把
  * 同一段开场白再流一遍，用户看到的是重复的半截话。

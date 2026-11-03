@@ -2,15 +2,17 @@ import 'server-only'
 
 /**
  * LLM 文本层的唯一入口（o-llm，docs/design/llm.md）：调用方只 import 这个文件。
- * 各家实现在 `src/services/llm/`，这里只做分派、超时归一与统一调用日志。
+ * 各家实现在 `src/services/llm/`，这里只做分派、超时归一、统一重发与调用日志。
  */
 
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
-import { LLM_TEXT_TIMEOUTS_MS } from '@/constants/config'
+import { LLM_TEXT_RETRY, LLM_TEXT_TIMEOUTS_MS } from '@/constants/config'
 import {
   LLM_TEXT_MODELS,
   type LlmTextAdapterType,
   type LlmTextInput,
+  type LlmTextRetryReason,
+  getLlmTextRetryReason,
   guardUserPrompt,
   isAbortError,
   isLlmTextAdapter,
@@ -44,7 +46,6 @@ export {
   LLM_TEXT_ADAPTERS,
   LLM_TEXT_PROVIDER_ERROR_CODES,
   isLlmTextContextLimitError,
-  isLlmTextTransientError,
   toLlmTextProviderError,
   resolveLlmTextRoute,
 } from '@/services/llm/llm-core'
@@ -97,7 +98,11 @@ type LlmCallOutcome = 'ok' | 'error' | 'aborted'
  * ⛔ 不靠各调用方自己记 —— 之前只有助手记，其余 20 个调用方的花费看不见。
  * 调用方自己的 `onUsage` 照常收到。
  */
-function startLlmCallRecord(input: LlmTextInput, mode: 'complete' | 'stream') {
+function startLlmCallRecord(
+  input: LlmTextInput,
+  mode: 'complete' | 'stream',
+  attempt: number,
+) {
   const startedAt = Date.now()
   let usage: LlmTextUsage | null = null
   const recorded: LlmTextInput = {
@@ -113,6 +118,7 @@ function startLlmCallRecord(input: LlmTextInput, mode: 'complete' | 'stream') {
   }
   return {
     input: recorded,
+    startedAt,
     finish(outcome: LlmCallOutcome) {
       logger.info('llm call', {
         purpose: input.purpose ?? 'unspecified',
@@ -124,6 +130,7 @@ function startLlmCallRecord(input: LlmTextInput, mode: 'complete' | 'stream') {
             ? LLM_TEXT_MODELS[input.adapterType]
             : null),
         outcome,
+        attempt,
         durationMs: Date.now() - startedAt,
         ...(usage ?? {}),
       })
@@ -133,6 +140,55 @@ function startLlmCallRecord(input: LlmTextInput, mode: 'complete' | 'stream') {
 
 function outcomeOf(error: unknown, signal?: AbortSignal): LlmCallOutcome {
   return signal?.aborted || isAbortError(error) ? 'aborted' : 'error'
+}
+
+const RETRY_DELAY_MS: Record<LlmTextRetryReason, number> = {
+  transient: LLM_TEXT_RETRY.TRANSIENT_DELAY_MS,
+  'rate-limited': LLM_TEXT_RETRY.RATE_LIMITED_DELAY_MS,
+  network: LLM_TEXT_RETRY.NETWORK_DELAY_MS,
+}
+
+/**
+ * 这次失败要不要重发（docs/design/llm.md §4）。**一处管全部调用方**：
+ * 同一家、同一把 key、同一型号原样再发一次；失败来得慢（快到路由时限）或
+ * 已经重发过就不再试。返回要等的毫秒数，不重发返回 null。
+ */
+function retryDelayFor(
+  error: unknown,
+  input: LlmTextInput,
+  attempt: number,
+  startedAt: number,
+): number | null {
+  if (attempt >= LLM_TEXT_RETRY.MAX_ATTEMPTS) return null
+  const reason = getLlmTextRetryReason(error)
+  if (!reason) return null
+  const failedAfterMs = Date.now() - startedAt
+  if (failedAfterMs > LLM_TEXT_RETRY.MAX_FAILED_ATTEMPT_MS) return null
+  const delayMs = RETRY_DELAY_MS[reason]
+  logger.warn('llm retry', {
+    purpose: input.purpose ?? 'unspecified',
+    adapterType: input.adapterType,
+    modelId: input.modelId ?? null,
+    reason,
+    attempt,
+    failedAfterMs,
+    delayMs,
+  })
+  return delayMs
+}
+
+function waitBeforeRetry(delayMs: number, signal?: AbortSignal): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    const onAbort = () => {
+      clearTimeout(timer)
+      reject(signal?.reason)
+    }
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort)
+      resolve()
+    }, delayMs)
+    signal?.addEventListener('abort', onAbort, { once: true })
+  })
 }
 
 export async function* llmTextStream(
@@ -155,21 +211,34 @@ export async function* llmTextStream(
     )
   }
   guardUserPrompt(input.userPrompt, input.promptGuardMaxLength)
-  const record = startLlmCallRecord(input, 'stream')
-  try {
-    yield* LLM_TEXT_STREAMS[input.adapterType](record.input)
-    record.finish('ok')
-  } catch (error) {
-    record.finish(outcomeOf(error, input.signal))
-    input.signal?.throwIfAborted()
-    if (isAbortError(error)) {
-      throw toLlmTextTimeoutError({
-        adapterType: input.adapterType,
-        modelId: input.modelId ?? LLM_TEXT_MODELS[input.adapterType],
-        timeoutMs: LLM_TEXT_TIMEOUTS_MS.COMPLETION,
-      })
+  const streamOf = LLM_TEXT_STREAMS[input.adapterType]
+  for (let attempt = 1; ; attempt++) {
+    const record = startLlmCallRecord(input, 'stream', attempt)
+    // ⚠ 已经吐出过字就绝不重发：重发会把同一段开场白再流一遍，用户看到重复的半截话。
+    let emitted = false
+    try {
+      for await (const chunk of streamOf(record.input)) {
+        emitted = true
+        yield chunk
+      }
+      record.finish('ok')
+      return
+    } catch (error) {
+      record.finish(outcomeOf(error, input.signal))
+      input.signal?.throwIfAborted()
+      if (isAbortError(error)) {
+        throw toLlmTextTimeoutError({
+          adapterType: input.adapterType,
+          modelId: input.modelId ?? LLM_TEXT_MODELS[input.adapterType],
+          timeoutMs: LLM_TEXT_TIMEOUTS_MS.COMPLETION,
+        })
+      }
+      const delayMs = emitted
+        ? null
+        : retryDelayFor(error, input, attempt, record.startedAt)
+      if (delayMs === null) throw error
+      await waitBeforeRetry(delayMs, input.signal)
     }
-    throw error
   }
 }
 
@@ -207,21 +276,25 @@ export async function llmTextCompletion(input: LlmTextInput): Promise<string> {
     )
   }
   guardUserPrompt(input.userPrompt, input.promptGuardMaxLength)
-  const record = startLlmCallRecord(input, 'complete')
-  try {
-    const text = await completeWith(record.input)
-    record.finish('ok')
-    return text
-  } catch (error) {
-    record.finish(outcomeOf(error, input.signal))
-    input.signal?.throwIfAborted()
-    if (isAbortError(error) && isLlmTextAdapter(input.adapterType)) {
-      throw toLlmTextTimeoutError({
-        adapterType: input.adapterType,
-        modelId: input.modelId ?? LLM_TEXT_MODELS[input.adapterType],
-        timeoutMs: LLM_TEXT_TIMEOUTS_MS.COMPLETION,
-      })
+  for (let attempt = 1; ; attempt++) {
+    const record = startLlmCallRecord(input, 'complete', attempt)
+    try {
+      const text = await completeWith(record.input)
+      record.finish('ok')
+      return text
+    } catch (error) {
+      record.finish(outcomeOf(error, input.signal))
+      input.signal?.throwIfAborted()
+      if (isAbortError(error) && isLlmTextAdapter(input.adapterType)) {
+        throw toLlmTextTimeoutError({
+          adapterType: input.adapterType,
+          modelId: input.modelId ?? LLM_TEXT_MODELS[input.adapterType],
+          timeoutMs: LLM_TEXT_TIMEOUTS_MS.COMPLETION,
+        })
+      }
+      const delayMs = retryDelayFor(error, input, attempt, record.startedAt)
+      if (delayMs === null) throw error
+      await waitBeforeRetry(delayMs, input.signal)
     }
-    throw error
   }
 }

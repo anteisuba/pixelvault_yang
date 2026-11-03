@@ -377,12 +377,52 @@ export function isLlmTextContextLimitError(error: unknown): boolean {
   return containsContextLimitMessage(getErrorClassificationText(error))
 }
 
-/** provider 临时不可用（503 / 529 / overloaded）—— 同一请求稍后重发值得一试。 */
-export function isLlmTextTransientError(error: unknown): boolean {
-  return (
-    error instanceof ApiRequestError &&
-    error.errorCode === LLM_TEXT_PROVIDER_ERROR_CODES.temporarilyUnavailable
-  )
+const LLM_TEXT_NETWORK_ERROR_CODES = new Set([
+  'ECONNRESET',
+  'ECONNREFUSED',
+  'EPIPE',
+  'ETIMEDOUT',
+  'EAI_AGAIN',
+  'UND_ERR_SOCKET',
+  'UND_ERR_CONNECT_TIMEOUT',
+])
+
+/** 连接层断了（fetch failed / ECONNRESET…）—— 没拿到 provider 的任何答复。 */
+function isLlmTextNetworkError(error: unknown): boolean {
+  if (!(error instanceof Error) || error instanceof ApiRequestError)
+    return false
+  if (isAbortError(error)) return false
+  const cause = (error as Error & { cause?: unknown }).cause
+  const code =
+    (error as Error & { code?: unknown }).code ??
+    (cause && typeof cause === 'object'
+      ? (cause as { code?: unknown }).code
+      : undefined)
+  if (typeof code === 'string' && LLM_TEXT_NETWORK_ERROR_CODES.has(code)) {
+    return true
+  }
+  return error.name === 'TypeError' && /fetch failed/i.test(error.message)
+}
+
+export type LlmTextRetryReason = 'transient' | 'rate-limited' | 'network'
+
+/**
+ * 值得在**同一家、同一型号**上原样重发一次的失败（docs/design/llm.md §4）。
+ * 其余（key 失效、余额、超限、拒答、超时、输出不合规…）重发无益，返回 null。
+ */
+export function getLlmTextRetryReason(
+  error: unknown,
+): LlmTextRetryReason | null {
+  if (error instanceof ApiRequestError) {
+    if (
+      error.errorCode === LLM_TEXT_PROVIDER_ERROR_CODES.temporarilyUnavailable
+    )
+      return 'transient'
+    if (error.errorCode === LLM_TEXT_PROVIDER_ERROR_CODES.rateLimited)
+      return 'rate-limited'
+    return null
+  }
+  return isLlmTextNetworkError(error) ? 'network' : null
 }
 
 function getBaseUrlForAdapter(adapterType: LlmTextAdapterType): string {
@@ -478,7 +518,11 @@ export function parseLlmStreamEvent(
           ? 503
           : kind === 'rate_limit_error'
             ? 429
-            : 502
+            : typeof kind === 'string' &&
+                SSE_SERVER_ERROR_KINDS.has(kind.toLowerCase())
+              ? 500
+              : // 认不出的种类按「请求被拒」处理：落到 `failed`，⛔ 不当成 5xx 去重发。
+                400
     throw toLlmTextProviderError(status, JSON.stringify(error), context)
   }
   return parsed.data
@@ -497,6 +541,14 @@ export async function* readLlmSseData(
     await body.cancel().catch(() => undefined)
   }
 }
+
+/** 流里 `error.type` 这几种是 provider 那头出事（等同 5xx），值得重发。 */
+const SSE_SERVER_ERROR_KINDS = new Set([
+  'server_error',
+  'api_error',
+  'internal_error',
+  'internal',
+])
 
 export function toLlmTextProviderError(
   responseStatus: number,
@@ -610,9 +662,12 @@ export function toLlmTextProviderError(
     )
   }
 
+  // 5xx 一律算「暂时不可用」（o-llm 重试）：500 / 502 / 504 / 529 是 provider 那头
+  // 出事，同一请求稍后重发常常就好；原先落到下面的 `failed` 会叫人「换一把 key」。
+  // 501（不支持）除外 —— 重发无益。
   if (
     parsedCode === GENERATION_ERROR_CODES.PROVIDER_OVERLOADED ||
-    responseStatus === LLM_TEXT_PROVIDER_HTTP_STATUS.temporarilyUnavailable
+    (responseStatus >= 500 && responseStatus !== 501)
   ) {
     return new ApiRequestError(
       LLM_TEXT_PROVIDER_ERROR_CODES.temporarilyUnavailable,

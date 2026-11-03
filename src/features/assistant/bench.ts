@@ -827,17 +827,29 @@ async function* mountLoraByName(
   await search.run()
   const found = [...context.prepared.run.loraIndex.values()]
   const wanted = name.toLowerCase()
+  /**
+   * ⚠ 只挂名字对得上的那一把（11-03 线上：没对上就挑第一把，挂上了一把创作者没要的、还进了收藏）。
+   * 包含匹配只在唯一时算数；对不上 / 有好几把时把名字列回去，让它照抄一个再挂。
+   */
+  const partial = found.filter((entry) =>
+    entry.name.toLowerCase().includes(wanted),
+  )
   const candidate =
     found.find((entry) => entry.name.trim().toLowerCase() === wanted) ??
-    found.find((entry) => entry.name.toLowerCase().includes(wanted)) ??
-    found[0]
-  if (!candidate)
+    (partial.length === 1 ? partial[0] : undefined)
+  if (!candidate) {
+    const names = (partial.length ? partial : found)
+      .slice(0, 6)
+      .map((entry) => `"${entry.name}"`)
     return yield* refused(
       context,
       tool,
       title,
-      `No LoRA called "${name}" was found. Use find (kinds ["loras"]) to see the library.`,
+      names.length
+        ? `No LoRA is named exactly "${name}". Found: ${names.join(', ')}. Pass one of these names verbatim.`
+        : `No LoRA called "${name}" was found. Use find (kinds ["loras"]) to see the library.`,
     )
+  }
   return yield* runOldTool(context, tool, title, {
     candidateId: candidate.candidateId,
     ...(typeof change.weight === 'number' ? { weight: change.weight } : {}),

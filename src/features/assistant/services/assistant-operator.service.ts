@@ -54,6 +54,7 @@ import {
   ASSISTANT_OPERATOR_ENTRY_TOOL_HINTS,
   ASSISTANT_OPERATOR_TOOL_ARG_SHAPE_HINTS,
   ASSISTANT_OPERATOR_TOOL_IDS as TOOL,
+  ASSISTANT_OPERATOR_PENDING_LORA_PREFIX,
   ASSISTANT_OPERATOR_VERDICT_SEVERITIES,
   ASSISTANT_OPERATOR_VERDICT_SEVERITY_IDS as SEVERITY,
   ASSISTANT_EVIDENCE_RECALL_LIMITS as RECALL_LIMITS,
@@ -441,7 +442,11 @@ import {
 } from '@/lib/assistant-workspace'
 import { getPromptDialect } from '@/constants/prompt-dialects'
 import { ASSISTANT_SURFACE_BY_DOMAIN } from '@/types/assistant-conversation'
-import { isLoraBaseModelMountCompatible } from '@/features/lora/core'
+import {
+  hasVerifiedLoraTrigger,
+  isLoraBaseModelMountCompatible,
+} from '@/features/lora/core'
+import { appendPromptFragments } from '@/lib/prompt-text-append'
 import {
   LORA_BASE_MODELS,
   getBaseOnlyGenerationBases,
@@ -6589,6 +6594,11 @@ function planMountLora(
       `Weight must be between ${run.state.loraMinWeight} and ${run.state.loraMaxWeight}.`,
     )
   const rounded = Math.round(weight * 100) / 100
+  const importPayload = candidate.importPayload
+  // ⚠ 与浏览器那条确认链同一个判据（`useLoraCandidateConfirm`）：只有核实过的触发词才写进正文。
+  const triggerText = hasVerifiedLoraTrigger(importPayload)
+    ? projection.triggerWords.join(', ').trim()
+    : ''
   return {
     kind: 'mutate',
     payload: {
@@ -6598,15 +6608,35 @@ function planMountLora(
       triggerWords: projection.triggerWords,
       family: projection.family,
       compatible: true,
-      importPayload: candidate.importPayload,
+      importPayload,
     },
     inverse: { candidateId: candidate.candidateId },
-    observation: `Mounted "${name}" at ${rounded}${
-      projection.triggerWords.length
-        ? `; its trigger words (${projection.triggerWords.join(', ')}) are added to the prompt`
+    observation: `Mounting "${name}" at ${rounded}${
+      triggerText
+        ? `; its trigger words (${triggerText}) are added to the prompt`
         : ''
-    }. It shows on the bench once it has loaded.`,
-    apply: () => {},
+    }. It is on the board now, marked as loading; it lands on the creator's bench in a few seconds. Do not mount it again.`,
+    /**
+     * ⭐ 台面同步（11-03 线上）：导入在浏览器那边，但这一轮后面的 look / 板子读的是
+     * `run.state` —— 不记下来，模型看到的台面就是空的，以为没挂上，接着再挂（每挂一次多导入一条）。
+     * 占位 id 带前缀，权重 / 摘除认得出它还在路上；名字照抄，同轮再搜会标「已挂」。
+     */
+    apply: () => {
+      run.state.loras.push({
+        id: `${ASSISTANT_OPERATOR_PENDING_LORA_PREFIX}${candidate.candidateId}`,
+        name,
+        weight: rounded,
+        enabled: true,
+        family: projection.family,
+        compatible: true,
+        triggerWord: projection.triggerWords.join(', ') || null,
+        triggerEnabled: true,
+        recommendedPrompt: null,
+        sourcePrompts: [],
+      })
+      if (triggerText)
+        run.state.prompt = appendPromptFragments(run.state.prompt, triggerText)
+    },
   }
 }
 
@@ -6668,6 +6698,11 @@ function planShowLoraPicks(
   }
 }
 
+/** 这一轮刚挂、还在导入的那一把：摘 / 调都等它落地（下一轮它有真 id）。 */
+function pendingLoraDetail(name: string): string {
+  return `"${name}" was mounted this turn and is still loading onto the bench — it has no bench id yet. Its weight is the one you mounted it with; change or remove it on the next turn.`
+}
+
 function planUnmountLora(run: OperatorRun, args: { loraId: string }): ToolPlan {
   if (!run.state.hasLoraControl) return reject(REJECT.noSuchControl)
 
@@ -6679,6 +6714,8 @@ function planUnmountLora(run: OperatorRun, args: { loraId: string }): ToolPlan {
       'That LoRA is not on the bench. The ids you can unmount are the mounted-item ids in the state block — search results carry candidateIds, which are a different thing.',
     )
   }
+  if (mounted.id.startsWith(ASSISTANT_OPERATOR_PENDING_LORA_PREFIX))
+    return reject(REJECT.loraNotMounted, pendingLoraDetail(mounted.name))
 
   return {
     kind: 'mutate',
@@ -6706,6 +6743,8 @@ function planSetLoraWeight(
       'That LoRA is not on the bench — the ids you can tune are the mounted-item ids in the state block.',
     )
   }
+  if (mounted.id.startsWith(ASSISTANT_OPERATOR_PENDING_LORA_PREFIX))
+    return reject(REJECT.loraNotMounted, pendingLoraDetail(mounted.name))
   if (
     !Number.isFinite(args.weight) ||
     args.weight < run.state.loraMinWeight ||

@@ -28,7 +28,10 @@ export {
 export { isLoraBaseModelMountCompatible } from './lib/lora-model-compatibility'
 export { mergeNegativePrompt } from './lib/lora-source-match-prompt'
 export { buildLibraryFavoriteRequest } from './lib/lora-source-snapshot'
-export { cleanTriggerToken } from './lib/lora-trigger-clean'
+export {
+  cleanTriggerToken,
+  hasVerifiedLoraTrigger,
+} from './lib/lora-trigger-clean'
 export {
   loraTemplateFallbackName,
   readRecipeAspectRatio,

@@ -45,6 +45,12 @@
 - 文件串行跑（`fileParallelism: false`），共用一个库；用例之间不靠顺序。
 - 样板：`src/features/assistant/services/assistant-skill.service.int.test.ts`（同名旧行 + 开内置技能不撞唯一约束、连点两次只落一行、用户隔离）。
 
+### L2b 界面集成怎么写
+
+- 底座 `src/test/app-harness.tsx`：`renderWithApp` / `renderHookWithApp` 用真 next-intl + 整份三语文案（⛔ 不手写小份 MESSAGES、不替掉 `next-intl` / `api-error-message`）；`message('Errors.x.y', locale)` 取原文做断言。
+- `fakeServer()` 只替 `fetch`：按「方法 + 路径」登记处理函数，可以直接用 `createApiRoute` 等工厂做真路由；没登记的请求直接报错；`goOffline()` 模拟断网。
+- 样板：`src/test/chains/error-display.test.tsx`（错误显示整链：服务端各类出错 → 技能页 / 出图舞台上是对应语言那句、不是英文原话）。
+
 ### 四条硬规矩
 
 1. **只假边界**。可以假：网络请求（api-client / fetch）、AI 服务商、R2、Clerk 登录、时钟、随机数、logger。不许假：自己的 service、hook、store、context、组件；L2a 不许假数据库。

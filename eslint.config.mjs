@@ -3,6 +3,11 @@ import nextVitals from 'eslint-config-next/core-web-vitals'
 import nextTs from 'eslint-config-next/typescript'
 import prettier from 'eslint-config-prettier'
 
+import {
+  MOCK_BASELINE_GLOBS,
+  TEST_STANDARD_SYNTAX_RULES,
+} from './scripts/test-standard/rules.mjs'
+
 // 域边界（f-boundary，2026-11-02）。规矩见 docs/design/features-migration.md：
 // 业务按域住在 src/features/<域>/，域外只走四个入口——
 //   @/features/<域>         客户端组件
@@ -255,6 +260,16 @@ const eslintConfig = defineConfig([
             '界面状态里别存异常原话：用 errText.thrown(err, t(…))。见 docs/design/errors.md §6。',
         },
       ],
+    },
+  },
+  // ─── 测试标准门（o-tests，2026-11-03）──────────────────────────
+  // 只假边界、不真等，见 docs/references/testing.md「测试标准」。规矩上线前已有的
+  // 文件在 scripts/test-standard/mock-baseline.json，名单只减不增。
+  {
+    files: ['**/*.test.{ts,tsx}'],
+    ignores: MOCK_BASELINE_GLOBS,
+    rules: {
+      'no-restricted-syntax': ['error', ...TEST_STANDARD_SYNTAX_RULES],
     },
   },
   // Override default ignores of eslint-config-next.

@@ -99,9 +99,15 @@ describe('usePromptTagStack', () => {
       wrapper,
     })
     await waitFor(() => expect(api.get).toHaveBeenCalled())
-    act(() => result.current.addTag(tag))
-    unmount()
-    await new Promise((resolve) => setTimeout(resolve, 900))
-    expect(api.save).not.toHaveBeenCalled()
+    // 存盘是防抖的：假时钟跳过整个窗口再断言「没存」，不真等。
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    try {
+      act(() => result.current.addTag(tag))
+      unmount()
+      await vi.advanceTimersByTimeAsync(900)
+      expect(api.save).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

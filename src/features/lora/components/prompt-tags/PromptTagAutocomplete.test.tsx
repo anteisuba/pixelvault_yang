@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('next-intl', () => ({
@@ -64,7 +64,16 @@ describe('PromptTagAutocomplete', () => {
 
   afterEach(() => {
     window.requestAnimationFrame = originalRequestAnimationFrame
+    vi.useRealTimers()
   })
+
+  /** 「过了防抖窗口还是没打开」：开头换假时钟，这里跳过窗口，不真等。 */
+  function useFakeDebounce() {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+  }
+  async function passDebounce() {
+    await act(() => vi.advanceTimersByTimeAsync(250))
+  }
 
   it('opens the listbox with a matching tag after the debounce', async () => {
     render(<Harness />)
@@ -80,43 +89,47 @@ describe('PromptTagAutocomplete', () => {
   })
 
   it('does not open when the textarea lost focus before the debounce fired', async () => {
+    useFakeDebounce()
     render(<Harness />)
     const textarea = getPromptTextarea()
     typeInto(textarea, 'long')
     textarea.blur()
 
-    await new Promise((resolve) => setTimeout(resolve, 250))
+    await passDebounce()
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
   })
 
   it('does not open for a query shorter than the minimum length', async () => {
+    useFakeDebounce()
     render(<Harness />)
     const textarea = getPromptTextarea()
     typeInto(textarea, 'l')
 
-    // Give the debounce window time to fire, then assert it stayed closed.
-    await new Promise((resolve) => setTimeout(resolve, 250))
+    await passDebounce()
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
   })
 
   it('does not render a listbox when there are zero matches', async () => {
+    useFakeDebounce()
     render(<Harness />)
     const textarea = getPromptTextarea()
     typeInto(textarea, 'zzqq')
 
-    await new Promise((resolve) => setTimeout(resolve, 250))
+    await passDebounce()
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
   })
 
   it('does not open while an IME composition is in progress, and opens right after it ends', async () => {
+    useFakeDebounce()
     render(<Harness />)
     const textarea = getPromptTextarea()
 
     fireEvent.compositionStart(textarea)
     typeInto(textarea, 'long')
-    await new Promise((resolve) => setTimeout(resolve, 250))
+    await passDebounce()
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
 
+    vi.useRealTimers()
     fireEvent.compositionEnd(textarea)
     await waitFor(() => expect(screen.getByRole('listbox')).toBeInTheDocument())
   })
@@ -171,7 +184,9 @@ describe('PromptTagAutocomplete', () => {
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
 
     // No further typing yet — same segment must stay suppressed.
-    await new Promise((resolve) => setTimeout(resolve, 250))
+    useFakeDebounce()
+    await passDebounce()
+    vi.useRealTimers()
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
 
     // Continue typing → new segment text → suppression lifts.

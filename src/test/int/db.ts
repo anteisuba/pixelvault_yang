@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto'
 
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { encryptApiKey } from '@/lib/crypto'
 import { db } from '@/lib/db'
 
 /**
@@ -26,6 +28,26 @@ export async function createTestUser(overrides: { clerkId?: string } = {}) {
       email: `${tag}@example.test`,
       username: `user_${tag}`,
       displayName: `User ${tag}`,
+    },
+  })
+}
+
+/**
+ * 给用户配一把助手那一家的 key（真加密、真入库）：`resolveAssistantRoute` 走真路径。
+ * 密钥是假的，⛔ 用例里不许真去调模型（LLM 调用照旧在边界上替掉）。
+ */
+export async function seedAssistantKey(
+  userId: string,
+  adapterType: AI_ADAPTER_TYPES = AI_ADAPTER_TYPES.DEEPSEEK,
+) {
+  return db.userApiKey.create({
+    data: {
+      userId,
+      adapterType,
+      modelId: adapterType,
+      providerConfig: {},
+      label: `test ${adapterType}`,
+      encryptedKey: encryptApiKey('sk-test-not-a-real-key'),
     },
   })
 }

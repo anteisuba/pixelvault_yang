@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type {
   WorkflowStep,
@@ -286,5 +286,62 @@ describe('buildWorkerFailureCallbackData', () => {
     expect(data.errorCode).toBeUndefined()
     expect(data.error).toBe('WorkerProviderError: slow down')
     expect(data.providerMetadata).toEqual({ workflowInstanceId: 'wf-1' })
+  })
+})
+
+describe('guardWorkflowStep 结构化日志（第 7 步「看得见」）', () => {
+  const fields = {
+    runId: 'job-1',
+    workflowId: 'IMAGE_QUEUE',
+    providerId: 'fal',
+    modelId: 'flux',
+    outputType: 'IMAGE',
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('每次真正执行都记一条：重试中的记 retry，最后一次记 failed，带错误码和阶段', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const step = guardWorkflowStep(createFakeStep(), fields)
+
+    await step
+      .do('poll-fal-image-1', { retries: { limit: 1, delay: 1 } }, async () => {
+        throw RATE_LIMITED()
+      })
+      .catch(() => undefined)
+
+    const entries = warn.mock.calls.map(([entry]) => entry)
+    expect(entries).toEqual([
+      expect.objectContaining({
+        event: 'workflow_step',
+        runId: 'job-1',
+        step: 'poll-fal-image-1',
+        attempt: 1,
+        outcome: 'retry',
+        errorCode: 'provider_rate_limit',
+        phase: 'status_poll',
+        httpStatus: 429,
+      }),
+      expect.objectContaining({ attempt: 2, outcome: 'failed' }),
+    ])
+  })
+
+  it('成功记 ok 和耗时；没给日志字段就不记', async () => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {})
+    await guardWorkflowStep(createFakeStep(), fields).do(
+      'submit-fal-image',
+      async () => 'queued',
+    )
+    await guardWorkflowStep(createFakeStep()).do('quiet', async () => 'x')
+
+    expect(log).toHaveBeenCalledTimes(1)
+    expect(log.mock.calls[0][0]).toMatchObject({
+      step: 'submit-fal-image',
+      outcome: 'ok',
+      durationMs: expect.any(Number),
+      providerId: 'fal',
+    })
   })
 })

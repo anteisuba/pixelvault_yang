@@ -12,6 +12,12 @@ import {
   WorkerStepFailure,
   type WorkerStepFailurePayload,
 } from './provider-error'
+import {
+  logStep,
+  truncateErrorMessage,
+  type RunLogFields,
+  type StepOutcome,
+} from './log'
 
 /**
  * ─── 为什么要这个文件 ────────────────────────────────────────────────────────
@@ -115,8 +121,50 @@ function isStepFailureEnvelope(value: unknown): value is StepFailureEnvelope {
   )
 }
 
+/** 从失败里挑出能进日志的字段：错误码、阶段、HTTP 状态和截短的原因。 */
+function failureLogFields(error: unknown): {
+  errorCode?: string
+  phase?: string
+  httpStatus?: number
+  error: string
+} {
+  const message = error instanceof Error ? error.message : String(error)
+  if (!(error instanceof WorkerProviderError)) {
+    return { error: truncateErrorMessage(message) }
+  }
+  const { phase, httpStatus } = error.providerMetadata
+  return {
+    errorCode: error.errorCode,
+    phase: typeof phase === 'string' ? phase : undefined,
+    httpStatus: typeof httpStatus === 'number' ? httpStatus : undefined,
+    error: truncateErrorMessage(message),
+  }
+}
+
 class GuardedWorkflowStep implements WorkflowStep {
-  constructor(private readonly step: WorkflowStep) {}
+  constructor(
+    private readonly step: WorkflowStep,
+    private readonly logFields?: RunLogFields,
+  ) {}
+
+  private log(
+    name: string,
+    ctx: WorkflowStepContext,
+    startedAt: number,
+    outcome: StepOutcome,
+    error?: unknown,
+  ): void {
+    if (!this.logFields) return
+    logStep({
+      event: 'workflow_step',
+      ...this.logFields,
+      step: name,
+      attempt: ctx?.attempt ?? 1,
+      durationMs: Date.now() - startedAt,
+      outcome,
+      ...(error === undefined ? {} : failureLogFields(error)),
+    })
+  }
 
   do<T>(name: string, callback: WorkflowStepCallback<T>): Promise<T>
   do<T>(
@@ -140,9 +188,21 @@ class GuardedWorkflowStep implements WorkflowStep {
     const guarded = async (
       ctx: WorkflowStepContext,
     ): Promise<T | StepFailureEnvelope> => {
+      const startedAt = Date.now()
       try {
-        return await callback(ctx)
+        const value = await callback(ctx)
+        this.log(name, ctx, startedAt, 'ok')
+        return value
       } catch (error) {
+        // 测试里的假 step 可能不给 ctx：当成最后一次，只影响日志字段。
+        const willRetry =
+          Boolean(ctx) &&
+          !isFinalAttempt(ctx) &&
+          !(
+            error instanceof WorkerProviderError &&
+            isNonRetryableProviderFailure(error)
+          )
+        this.log(name, ctx, startedAt, willRetry ? 'retry' : 'failed', error)
         if (!(error instanceof WorkerProviderError)) throw error
         // 还有重试机会、而且这个错误值得重试 —— 原样抛回引擎，重试语义一字不改。
         if (!isFinalAttempt(ctx) && !isNonRetryableProviderFailure(error)) {
@@ -176,6 +236,9 @@ class GuardedWorkflowStep implements WorkflowStep {
  * 活着走到顶层 catch。在每个 workflow 的 `run()` 开头调一次即可，`step.do(...)`
  * 的调用点全部不用动 —— 成功路径的返回值原样透传。
  */
-export function guardWorkflowStep(step: WorkflowStep): WorkflowStep {
-  return new GuardedWorkflowStep(step)
+export function guardWorkflowStep(
+  step: WorkflowStep,
+  logFields?: RunLogFields,
+): WorkflowStep {
+  return new GuardedWorkflowStep(step, logFields)
 }

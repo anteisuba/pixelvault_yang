@@ -296,6 +296,27 @@ async function uploadSingleReferenceImageIfNeeded(params: {
   return publicUrl
 }
 
+/**
+ * 这张图能不能原样发给 NAI：已经是 PNG、尺寸正好、没有 EXIF 转向（有转向的要先摆正）。
+ * 读的是文件头，不解码像素。
+ */
+async function isReadyNovelAiReference(
+  buffer: Buffer,
+  size: { width: number; height: number },
+): Promise<boolean> {
+  try {
+    const meta = await sharp(buffer).metadata()
+    return (
+      meta.format === 'png' &&
+      meta.width === size.width &&
+      meta.height === size.height &&
+      (meta.orientation === undefined || meta.orientation === 1)
+    )
+  } catch {
+    return false
+  }
+}
+
 export async function uploadReferenceImagesIfNeeded(params: {
   userId: string
   input: GenerateRequest
@@ -343,6 +364,14 @@ export async function uploadReferenceImagesIfNeeded(params: {
     return Promise.all(
       referenceImages.map(async (referenceImage) => {
         const data = await fetchAsBuffer(referenceImage)
+        // 拿 NAI 出的图接着改（最常见）时尺寸本来就对：直接用原图，省掉重编码和重存一份。
+        if (
+          isOwnedStorageUrl(referenceImage) &&
+          (await isReadyNovelAiReference(data.buffer, novelAiImg2ImgSize))
+        ) {
+          timer.addNote('novelai_reference_already_sized')
+          return referenceImage
+        }
         // 铺满再居中裁，⛔ 不拉伸：比例不同时拉伸会把人压扁。
         const buffer = await sharp(data.buffer)
           .rotate()

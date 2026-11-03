@@ -42,7 +42,7 @@ flowchart LR
 | 6   | 派发有两条路               | 音频和预览图走 outbox，图片和视频直接派发                                                           | 「派发结果未知」要专门处理，两套补救                                  |
 | 7   | ~~RunPod 旧分支~~          | 已由 #312 删除                                                                                      | —                                                                     |
 | 8   | 出图入口在函数里处理参考图 | `/api/studio/generate` 内存不足 / 超时                                                              | 10-22 查实是 LoRA 整个读进内存，#324 已改边下边传；参考图直传仍值得做 |
-| 9   | 看不到 Worker 自己的日志   | 10-23 起有 `CLOUDFLARE_API_TOKEN`，可查 telemetry（读线上日志前先问 owner）                         | 可观测还没进代码                                                      |
+| 9   | 看不到 Worker 自己的日志   | 10-23 起有 `CLOUDFLARE_API_TOKEN`，可查 telemetry（读线上日志前先问 owner）                         | 11-03 每步结构化日志已进代码（`lib/log.ts`，按 runId 查）             |
 
 ## 方案
 
@@ -51,7 +51,7 @@ flowchart LR
 3. **按账号排队**：已做（见上）。
 4. **两边共用一份契约**：新建 `packages/execution-contract`：派发参数 Zod schema、回调结构、错误码、供应商能力清单。Next 和 Worker 都从这里导入；Next 侧「能不能走 Worker」直接读能力清单。
 5. **派发只走一条路**：所有生成任务在建任务的同一事务里写 outbox 再派发，失败由 sweeper 补发，删掉「派发结果未知」分支。
-6. **参考图直传**：浏览器用预签名地址直传 R2，Next 只收地址；要缩图的放到 Worker 做。
+6. **参考图直传**：浏览器用预签名地址直传 R2，Next 只收地址；要缩图的放到 Worker 做。（11-03：工作台/画布早已预签名直传；NAI 参考图是自家 PNG 且尺寸方向都对就直接用、不再下载重传，其余仍在 Next 用 sharp 缩——Worker 跑不了 sharp，photon 要多 1.5MB 且不转 EXIF 方向，暂不挪）
 7. **看得见**：runId 从 Next 贯穿 Worker 和供应商；每步结构化日志。
 
 ComfyUI：Modal 上的 ComfyUI 只是一个驱动（runner）。`workflow-builder` 等收进这个驱动的目录，之后 `o-comfy` 只动这一个目录。
@@ -64,7 +64,7 @@ ComfyUI：Modal 上的 ComfyUI 只是一个驱动（runner）。`workflow-builde
 4. ~~其余图片供应商逐家迁移，图片流程变成通用流程~~（11-02）：先提交再轮询的 4 家（fal / Ideogram / Replicate / Runner）收成通用流程（现 `providers/multi-step.ts` 的 `runMultiStepDriver`），驱动接口 `MultiStepImageDriver`（`submit` / `poll` / `readPoll` / 可选 `doneOnSubmit`、`runningStage`、`cancelOnTimeout`、`upload` / `toResult`），步骤名按 `stepKey` 拼、和上线时一字不差。11 家出图代码全部在 `workers/execution/src/providers/<名字>/`（原 `models/` 目录并进来），驱动表在 `providers/image-drivers.ts`；公共小件在 `lib/`（`fields` / `bytes` / `http` / `image-io` / `app-bridge`），Worker 主文件 8176 → 约 4300 行。剩：视频 / 音频 / 3D 的代码和 `index.test.ts` 里各家的测试还在主文件，第 5 步一起搬。
 5. 视频、音频、3D 迁入通用流程；旧流程等在跑的实例结束后再下线（Cloudflare Workflow 实例跑完才能删类）。11-03 先做了「搬代码 + 契约」这一半：视频 6 家（Gemini / fal / MiniMax 国际+国内 / 火山 / BytePlus）的提交轮询、Fish 音频、Rodin 和 fal 3D 都搬进 `providers/<名字>/`（`video.ts` / `audio.ts` / `model-3d.ts`，fal 的视频音频队列在 `fal/queue.ts`），下载存 R2 收进 `lib/media-io.ts`；视频加共享契约 `src/constants/worker-video-providers.ts`，Next 的 `WORKER_CAPABLE_VIDEO_ADAPTERS` 从它派生，Worker 的 `providers/queue-drivers.ts` 按它穷举（名单外照旧兜底走 fal，音频 fal 队列就是这条）。Worker 主文件 4300 → 约 2600 行。11-03 视频这条也合进了通用流程：出图那份改名 `providers/multi-step.ts` 的 `runMultiStepDriver`，步骤名由驱动给（`MultiStepNames`；出图 `imageStepNames(key)`，视频音频沿用 `submit-provider` / `poll-provider-<n>` / `download-and-upload-<video|audio>`，所以**没换名**），视频 / fal 音频的驱动是 `providers/queue-drivers.ts` 的 `buildQueueMediaDriver`。剩：Rodin / 混元 3D 两个工作流（owner 11-03：3D 以后还要改，先不动）。
 6. 派发统一走 outbox（11-02 提前做完：`worker-dispatch-outbox.service`，现行做法见 `references/backend.md`「派发 outbox」；扩大试用的闸门之一，所以没等第 3–5 步），参考图改直传（未做）。
-7. 补可观测和契约测试（每家录一份真实响应）。
+7. 补可观测和契约测试（每家录一份真实响应）。（11-03 可观测完成：每步一行结构化日志；契约测试未做）
 
 ## 做完的好处
 

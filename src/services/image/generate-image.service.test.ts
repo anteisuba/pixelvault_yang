@@ -917,6 +917,61 @@ describe('precise reference image preparation', () => {
   })
 })
 
+describe('NovelAI img2img reference sizing', () => {
+  async function run(width: number, height: number, owned: boolean) {
+    const sharp = (await import('sharp')).default
+    const { fetchAsBuffer, uploadToR2, isOwnedStorageUrl } =
+      await import('@/services/storage/r2')
+    const source = await sharp({
+      create: { width, height, channels: 3, background: '#ffffff' },
+    })
+      .png()
+      .toBuffer()
+    vi.mocked(fetchAsBuffer).mockResolvedValue({
+      buffer: source,
+      mimeType: 'image/png',
+    })
+    vi.mocked(isOwnedStorageUrl).mockReturnValue(owned)
+    vi.mocked(uploadToR2).mockClear()
+    vi.mocked(uploadToR2).mockResolvedValue(
+      'https://cdn.example.com/resized.png',
+    )
+    const addNote = vi.fn()
+    const result = await uploadReferenceImagesIfNeeded({
+      userId: 'user-1',
+      input: {
+        modelId: AI_MODELS.NOVELAI_V45_FULL,
+        prompt: '1girl',
+        referenceImages: ['https://cdn.example.com/source.png'],
+      } as never,
+      timer: {
+        measure: (_stage: unknown, fn: () => Promise<unknown>) => fn(),
+        addNote,
+      } as never,
+      novelAiImg2ImgSize: { width: 64, height: 48 },
+    })
+    return { result, uploads: vi.mocked(uploadToR2).mock.calls.length, addNote }
+  }
+
+  it('reuses our own PNG as-is when it already has the output size', async () => {
+    const { result, uploads, addNote } = await run(64, 48, true)
+    expect(result).toEqual(['https://cdn.example.com/source.png'])
+    expect(uploads).toBe(0)
+    expect(addNote).toHaveBeenCalledWith('novelai_reference_already_sized')
+  })
+
+  it('still resizes and re-uploads when the size differs', async () => {
+    const { result, uploads } = await run(128, 128, true)
+    expect(result).toEqual(['https://cdn.example.com/resized.png'])
+    expect(uploads).toBe(1)
+  })
+
+  it('re-uploads an external image even at the right size', async () => {
+    const { uploads } = await run(64, 48, false)
+    expect(uploads).toBe(1)
+  })
+})
+
 /**
  * owner 2026-09-27：提示词长度只认模型自己声明的上限（厂商硬上限）；没声明就不拦。
  * 此前这里用 `validatePrompt` 的缺省 4000，所有图片模型都被砍到 4000 ——

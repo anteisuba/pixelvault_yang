@@ -151,6 +151,7 @@ export { submitMiniMaxQueue }
 export { submitFalQueue }
 
 import { buildQueueMediaDriver } from './providers/queue-drivers'
+import { runLogFields } from './lib/log'
 import { runMultiStepDriver } from './providers/multi-step'
 export { getMultiStepImageDriver, getSingleStepImageDriver }
 
@@ -1095,7 +1096,7 @@ export class CinematicShortVideoWorkflow extends WorkflowEntrypoint<
     const context = event.payload
     // provider 失败要带着 errorCode / providerMetadata 活着走出 step 边界，
     // 必须过这一层 —— 原因见 lib/step-failure.ts 顶部。
-    const step = guardWorkflowStep(rawStep)
+    const step = guardWorkflowStep(rawStep, runLogFields(context))
 
     try {
       // Resolve the API key ONCE, AES-GCM encrypt before persisting in
@@ -1189,7 +1190,7 @@ export class Hyper3DRodinWorkflow extends WorkflowEntrypoint<
     const context = event.payload
     // provider 失败要带着 errorCode / providerMetadata 活着走出 step 边界，
     // 必须过这一层 —— 原因见 lib/step-failure.ts 顶部。
-    const step = guardWorkflowStep(rawStep)
+    const step = guardWorkflowStep(rawStep, runLogFields(context))
 
     try {
       // Resolve the API key ONCE, AES-GCM encrypt before persisting in workflow
@@ -1308,7 +1309,7 @@ export class Hunyuan3DWorkflow extends WorkflowEntrypoint<
     const context = event.payload
     // provider 失败要带着 errorCode / providerMetadata 活着走出 step 边界，
     // 必须过这一层 —— 原因见 lib/step-failure.ts 顶部。
-    const step = guardWorkflowStep(rawStep)
+    const step = guardWorkflowStep(rawStep, runLogFields(context))
 
     try {
       // Resolve+encrypt the API key ONCE — see Hyper3DRodinWorkflow for rationale.
@@ -1763,7 +1764,7 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
     const context = event.payload
     // provider 失败要带着 errorCode / providerMetadata 活着走出 step 边界，
     // 必须过这一层 —— 原因见 lib/step-failure.ts 顶部。
-    const step = guardWorkflowStep(rawStep)
+    const step = guardWorkflowStep(rawStep, runLogFields(context))
 
     try {
       // Resolve + AES-GCM encrypt the API key once before persisting in

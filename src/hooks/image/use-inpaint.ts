@@ -32,11 +32,7 @@ export function useInpaint() {
         setResult(response.data)
         return response.data
       } catch (caughtError) {
-        const message =
-          caughtError instanceof Error
-            ? caughtError.message
-            : t('inpaintEditor.failed')
-        setError(message)
+        setError(errText.thrown(caughtError, t('inpaintEditor.failed')))
         return null
       } finally {
         setIsLoading(false)

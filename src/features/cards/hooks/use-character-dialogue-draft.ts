@@ -32,7 +32,7 @@ export function useCharacterDialogueDraft(cardId: string) {
       setRunning(null)
       if (response.success && response.data) return response.data
       setFailed(kind)
-      const message = response.error ?? 'failed'
+      const message = response.error ?? ''
       if (
         response.errorCode &&
         ASSISTANT_ROUTE_ERROR_CODES.includes(response.errorCode)

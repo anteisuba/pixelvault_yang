@@ -98,6 +98,7 @@ import {
   STUDIO_CHARACTER_QUERY,
 } from '@/constants/routes'
 import { useCharacterLibrary } from '@/features/cards/hooks'
+import { useErrorText } from '@/hooks/use-error-text'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useThemePreference } from '@/hooks/use-theme-preference'
 import { useCanvasShellPanelHost } from '@/features/canvas/hooks/use-canvas-shell-panel'
@@ -318,6 +319,8 @@ function NodeWorkbenchV4KeySettings({ children }: { children: ReactNode }) {
 function NodeWorkbenchV4Inner() {
   const t = useTranslations('StudioNode')
   const tV4 = useTranslations('StudioNode.v4')
+  const tErrors = useTranslations('Errors')
+  const errText = useErrorText()
   const tShell = useTranslations('StudioNode.shell')
   const tHistory = useTranslations('StudioNode.history')
   const openKeySettings = useContext(KeySettingsContext)
@@ -880,7 +883,14 @@ function NodeWorkbenchV4Inner() {
               return
             }
             if (result.pending) return
-            toast.error(tV4('generateDesk.failed', { reason: result.error }))
+            toast.error(
+              tV4('generateDesk.failed', {
+                reason: errText.generation(
+                  result,
+                  tErrors('common.unexpected'),
+                ),
+              }),
+            )
             if (shotsBack === 0) {
               graph.setMedia(nodeId, {
                 mediaJobId: undefined,
@@ -895,7 +905,7 @@ function NodeWorkbenchV4Inner() {
           })
       }
     },
-    [graph, generation, tV4],
+    [errText, graph, generation, tErrors, tV4],
   )
 
   /**
@@ -907,7 +917,11 @@ function NodeWorkbenchV4Inner() {
     setMedia: graph.setMedia,
     setRunState: graph.setRunState,
     reportFailure: (_nodeId, payload) => {
-      toast.error(tV4('generateDesk.failed', { reason: payload.error ?? '' }))
+      toast.error(
+        tV4('generateDesk.failed', {
+          reason: errText.generation(payload, tErrors('common.unexpected')),
+        }),
+      )
     },
   })
 
@@ -1576,14 +1590,14 @@ function NodeWorkbenchV4Inner() {
         }
         return {
           status: 'failed',
-          reason: result.error ?? tV4('upscale.failed'),
+          reason: errText.generation(result, tV4('upscale.failed')),
         }
       }
       actions.appendImageVersions(nodeId, result.outputs)
       graph.setRunState(nodeId, NODE_STATUS_IDS.done)
       return { status: 'done' }
     },
-    [actions, graph, tV4],
+    [actions, errText, graph, tV4],
   )
 
   /**

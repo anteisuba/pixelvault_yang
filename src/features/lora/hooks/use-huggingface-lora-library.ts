@@ -172,7 +172,8 @@ export function useHuggingFaceLoraLibrary(
         cursorsByPageRef.current.delete(page + 1)
       }
     } else {
-      setError(response.error ?? 'Hugging Face LoRA search failed')
+      // 只当标记：界面显示自己的 t('huggingFaceLoadFailed')，⛔ 不显示原话。
+      setError('failed')
     }
     setIsRevalidating(false)
     setHasResolvedOnce(true)

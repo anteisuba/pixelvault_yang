@@ -335,7 +335,7 @@ export function ImageEditSurface({
       )
         return false
       if (!response.success || response.outputs.length === 0) {
-        toast.error(response.error || fallbackMessage)
+        toast.error(errText.generation(response, fallbackMessage))
         return false
       }
       const outputs = response.outputs.map((output) => ({
@@ -353,7 +353,7 @@ export function ImageEditSurface({
       }
       return true
     },
-    [onApplied, t],
+    [errText, onApplied, t],
   )
 
   const runUpscale = useCallback(() => {

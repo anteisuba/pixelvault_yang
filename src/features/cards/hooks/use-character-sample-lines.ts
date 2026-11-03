@@ -32,8 +32,9 @@ export function useCharacterSampleLines(cardId: string) {
       setLines(response.data.lines)
       return
     }
-    const message = response.error ?? 'failed'
-    setError(message)
+    const message = response.error ?? ''
+    // 只当「这次没读成」的标记：界面显示自己的 t('readingFailed')，⛔ 不显示原话。
+    setError('failed')
     if (
       response.errorCode &&
       ASSISTANT_ROUTE_ERROR_CODES.includes(response.errorCode)

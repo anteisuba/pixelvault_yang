@@ -203,6 +203,60 @@ const eslintConfig = defineConfig([
       ],
     },
   },
+  // ─── 错误显示门（o-errors 第三轮，2026-11-03）─────────────────────
+  // 界面上的报错一律走 useErrorText（errText.api / generation / thrown），见
+  // docs/design/errors.md §6。下面三种旧写法会把服务端 / 浏览器的英文原话直接摆到界面上：
+  //   1. `response.error ?? t('…')` / `?? 'English'`：原话优先，翻译只是兜底；
+  //   2. toast 里塞 `result.error` / `err.message`（含 `t('x', { reason: result.error })`）；
+  //   3. 组件里 `err instanceof Error ? err.message : …`。
+  // 只是把原话往下传（`payload.error ?? ''` 交给分类器）不拦。服务端 / api-client /
+  // 分类器本身要读原话，不在范围内。
+  {
+    files: [
+      'src/hooks/**/*.{ts,tsx}',
+      'src/components/**/*.{ts,tsx}',
+      'src/contexts/**/*.{ts,tsx}',
+      'src/features/*/components/**/*.{ts,tsx}',
+      'src/features/*/hooks/**/*.{ts,tsx}',
+    ],
+    ignores: ['**/*.test.{ts,tsx}'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            "LogicalExpression[operator=/^(\\?\\?|\\|\\|)$/][left.type='MemberExpression'][left.property.name='error'][left.object.name=/^(response|result|res|payload|json|data|body)$/]:not([right.type='Literal'][right.value=''])",
+          message:
+            '别让原话优先：用 useErrorText 的 errText.api / errText.generation(response, t(…))。见 docs/design/errors.md §6。',
+        },
+        {
+          selector:
+            "CallExpression[callee.object.name='toast'] MemberExpression[property.name='error'][object.name=/^(response|result|res|payload|json|data|body)$/]",
+          message:
+            'toast 里别放服务端原话：用 errText.api / errText.generation 把它变成一句人话。',
+        },
+        {
+          selector:
+            "CallExpression[callee.object.name='toast'] MemberExpression[property.name='message'][object.name=/^(e|err|error|cause)$/]",
+          message: 'toast 里别放异常原话：用 errText.thrown(err, t(…))。',
+        },
+        {
+          // `err instanceof Error ? err.message : t('…')`：翻译只在没有原话时才出现。
+          selector:
+            "ConditionalExpression[test.operator='instanceof'][test.right.name='Error'][consequent.property.name='message'][alternate.type='CallExpression'][alternate.callee.name=/^t([A-Z]\\w*)?$/]",
+          message:
+            '异常原话别压过翻译：用 errText.thrown(err, t(…))。见 docs/design/errors.md §6。',
+        },
+        {
+          // `setError(err instanceof Error ? err.message : …)`：原话直接进界面状态。
+          selector:
+            "CallExpression[callee.name=/^set\\w*Error$/] > ConditionalExpression[test.operator='instanceof'][consequent.property.name='message']",
+          message:
+            '界面状态里别存异常原话：用 errText.thrown(err, t(…))。见 docs/design/errors.md §6。',
+        },
+      ],
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

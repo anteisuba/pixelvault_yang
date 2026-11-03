@@ -764,7 +764,7 @@ export function CharacterSettingModule({
                   {getApiErrorMessage(
                     tErrors,
                     reading.reason,
-                    reading.reason.error,
+                    t('readingFailed'),
                   )}
                 </p>
               ) : null}
@@ -826,7 +826,7 @@ function SettingTavernGroups({
       </button>
       {drafting.failed === kind && drafting.reason ? (
         <p role="status" className="text-xs text-muted-foreground">
-          {getApiErrorMessage(tErrors, drafting.reason, drafting.reason.error)}
+          {getApiErrorMessage(tErrors, drafting.reason, t('draftFailed'))}
         </p>
       ) : null}
     </div>

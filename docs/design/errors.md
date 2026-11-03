@@ -87,3 +87,31 @@ owner 11-02 两类症状：①线上仍弹英文原话 ②报错内容和真实�
 - 各家 `XxxResponse` 类型还没统一声明 `errorCode` / `i18nKey`（字段在运行时都有，靠 spread 带上）；以后统一信封类型时一起改。
 - 自定义中转站（`p-custom-relay`）的报错：做中转时一并接 `errText.generation`。
 - eslint 拦 `X.error ?? t(...)` 与 `toast.error(x.error)`：等下一轮把剩下几处原话展示清完再开。
+
+## 7. 第三轮（11-03，线程「收窄错误分类并拦旧写法」）
+
+### 7.1 eslint 守门
+
+`eslint.config.mjs`「错误显示门」管 hooks / components / contexts / features 的组件与 hook，拦四种旧写法：`response.error ?? t('…')`（或 `?? 'English'`）、toast 里放 `result.error` / `err.message`、`err instanceof Error ? err.message : t('…')`、`setError(err.message …)`。只把原话往下传给分类器的 `payload.error ?? ''` 不拦。现存 33 处一并改走 `useErrorText`。
+
+### 7.2 服务端关键词分类按线上样本收窄
+
+样本：生产 `GenerationJob` 失败记录（只读，owner 11-03 点头），223 种原话。Vercel Hobby 日志只留 1 小时，`get_runtime_errors` 只收未接住的异常，当不了样本源。按样本找出约 120 次分错：
+
+| 原话                                                                                                                                                           | 以前                           | 现在                                |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ | ----------------------------------- |
+| 裸 `fetch failed` / `write EPIPE` / `terminated`（34）                                                                                                         | 参考图下载不到                 | 新码 `provider_unreachable` 连不上  |
+| LoRA 取不到：`LoRA file URL is not accessible`、Civitai 下载、fal `loras` 下载、Replicate `URL responded with status code: 4xx` / `URL not downloadable`（44） | 参考图 / Key 无效 / 模型不可用 | 新码 `lora_unreachable`             |
+| Workflow 步骤输出超 1MiB、Prisma 事务超时、火山输出 `size` 参数、Runner hires 尺寸（7）                                                                        | 参考图过大 / 超时 / 尺寸       | `unknown`（显示原话，不指错方向）   |
+| 裸 404 `Not Found` / `Path … not found`（3）                                                                                                                   | 模型不可用                     | `unknown`                           |
+| fal `content_policy_violation`、BytePlus `PolicyViolation`（码与原话）（12）                                                                                   | 认不出                         | 内容审核                            |
+| NovelAI 订阅只支持 1 张参考图（6）、`API key/token is invalid`（6）、fal LoRA 不兼容（3）                                                                      | 认不出                         | 参考图张数 / Key 无效 / LoRA 不兼容 |
+
+- 去掉的宽规则：参考图 `fetch.*failed`、模型不可用的裸 `not found` 与 `\b502\b`。
+- 回归样本：`src/constants/generation-errors.samples.test.ts`，以后加 / 改规则先往里放真实原话。
+- 只动了 app 侧（`src/constants/generation-errors.ts`）。Worker 自己的 `classifyProviderFailure`（`workers/execution/src/lib/provider-error.ts`）没动，要统一时在 Worker 线一起做。
+
+### 7.3 样本里顺带看到的（不是分类问题）
+
+- `Step poll-runner-image-*-1 output is too large. Maximum allowed size is 1MiB`：Runner 轮询步骤把整包结果塞进 Workflow 步骤输出，撞 Cloudflare 1MiB 上限 → Worker 线。
+- `Maximum call stack size exceeded`（NovelAI / Gemini / OpenAI 共 17）与 NovelAI ZIP 解压错（`unexpected end of file` 等 15）：我们自己的代码问题，待查。

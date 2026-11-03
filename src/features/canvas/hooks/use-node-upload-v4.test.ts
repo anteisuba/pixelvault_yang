@@ -3,6 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS } from '@/constants/node-studio'
 
+vi.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => key,
+}))
+
 const uploadImageFileAPI = vi.hoisted(() => vi.fn())
 const compressImageToLimit = vi.hoisted(() => vi.fn())
 const readImagePixelSize = vi.hoisted(() => vi.fn())
@@ -146,7 +150,7 @@ describe('useNodeUploadV4 · 视频走浏览器直传', () => {
     expect(notifyGalleryChanged).toHaveBeenCalled()
   })
 
-  it('returns null with a retryable error when the upload fails', async () => {
+  it('returns null with a localized retryable error when the upload fails', async () => {
     uploadVideoFileAPI.mockResolvedValue({
       success: false,
       error: 'Video storage rejected the upload (status 403)',
@@ -159,9 +163,8 @@ describe('useNodeUploadV4 · 视频走浏览器直传', () => {
     })
 
     expect(patch).toBeNull()
-    expect(result.current.error).toBe(
-      'Video storage rejected the upload (status 403)',
-    )
+    // 原话 ⛔ 进界面：只给本地化的「上传失败」。
+    expect(result.current.error).toBe('upload.failed')
     expect(result.current.canRetry).toBe(true)
   })
 })

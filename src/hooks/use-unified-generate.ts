@@ -1099,10 +1099,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
           } catch (error) {
             const failure = resolveGenerationError(
               {
-                error:
-                  error instanceof Error
-                    ? error.message
-                    : tStudio('generateFailed'),
+                error: error instanceof Error ? error.message : '',
               },
               tStudio('generateFailed'),
             )
@@ -1288,10 +1285,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
           } catch (error) {
             const failure = resolveGenerationError(
               {
-                error:
-                  error instanceof Error
-                    ? error.message
-                    : tStudio('generateFailed'),
+                error: error instanceof Error ? error.message : '',
               },
               tStudio('generateFailed'),
             )

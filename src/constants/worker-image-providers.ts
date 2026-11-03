@@ -10,7 +10,7 @@
  * - `single-step`：一次请求拿回图（Worker 里就是一个 `generate-<x>-image` 步骤，
  *   通用分支统一处理）。
  * - `multi-step`：先提交再轮询（fal / Ideogram / Replicate / Runner），Worker 里走
- *   通用的「提交 → 轮询 → 落 R2」流程（`runMultiStepImageDriver`）。
+ *   通用的「提交 → 轮询 → 落 R2」流程（`runMultiStepDriver`）。
  */
 export const WORKER_IMAGE_PROVIDER_MODES = {
   openai: 'single-step',

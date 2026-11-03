@@ -210,6 +210,7 @@ describe('Gemini Omni video execution', () => {
         GENERATION_BUCKET: { put },
       } as unknown as Parameters<typeof submitGeminiVideoQueue>[2])
       const stepResults: unknown[] = []
+      const sleepStep = vi.fn<(name: string, ms: number) => Promise<void>>()
       const doStep = vi.fn(async (_name: string, ...args: unknown[]) => {
         const callback = args[args.length - 1] as () => Promise<unknown>
         const result = await callback()
@@ -220,7 +221,7 @@ describe('Gemini Omni video execution', () => {
         { payload: context(), instanceId: 'instance-1' } as Parameters<
           typeof workflow.run
         >[0],
-        { do: doStep, sleep: vi.fn() } as unknown as Parameters<
+        { do: doStep, sleep: sleepStep } as unknown as Parameters<
           typeof workflow.run
         >[1],
       )
@@ -254,6 +255,17 @@ describe('Gemini Omni video execution', () => {
       expect(
         doStep.mock.calls.find(([name]) => name === 'submit-provider')?.[1],
       ).toMatchObject({ retries: { limit: 0 } })
+      // 合进通用流程后步骤名必须和合之前一字不差（在飞实例按名字 replay）。
+      expect(doStep.mock.calls.map(([name]) => name)).toEqual([
+        'resolve-api-key',
+        'submit-provider',
+        'poll-provider-1',
+        'download-and-upload-video',
+        'callback-result',
+      ])
+      expect(sleepStep.mock.calls.map(([name]) => name)).toEqual([
+        'wait-provider-1',
+      ])
     },
   )
 })

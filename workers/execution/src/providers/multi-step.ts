@@ -1,15 +1,10 @@
 import type { WorkflowStep } from 'cloudflare:workers'
 
 import type { ExecutionProgressStage } from '../../../../src/constants/generation-progress'
-import type { WorkerImageGenerationResult } from '../index'
-import type {
-  ImageDriverRuntime,
-  MultiStepImageDriver,
-  UploadedImage,
-} from './types'
+import type { DriverRuntime, MultiStepDriver, PollingContext } from './types'
 
 /** 回报进度阶段只是通知，失败照旧吞掉；由 Workflow 传进来，免得这里反向依赖主文件。 */
-export type ReportImageStage = (stage: ExecutionProgressStage) => Promise<void>
+export type ReportStage = (stage: ExecutionProgressStage) => Promise<void>
 
 const MARK_RUNNING_STEP = {
   retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
@@ -17,19 +12,26 @@ const MARK_RUNNING_STEP = {
 } as const
 
 /**
- * 先提交、再轮询的通用出图流程。逐家原来各写一遍的循环收成这一份；
+ * 先提交、再轮询的通用流程（出图 4 家 + 视频 / fal 音频）。原来各写一遍的循环收成这一份；
  * 步骤名、等待时长、每步的重试 / 超时都由驱动给，和搬之前一字不差。
  */
-export async function runMultiStepImageDriver<TJob, TPoll, TDone>(
+export async function runMultiStepDriver<
+  TContext extends PollingContext,
+  TJob,
+  TPoll,
+  TDone,
+  TUploaded,
+  TResult,
+>(
   step: WorkflowStep,
-  runtime: ImageDriverRuntime,
-  driver: MultiStepImageDriver<TJob, TPoll, TDone>,
-  reportStage: ReportImageStage,
-): Promise<WorkerImageGenerationResult> {
+  runtime: DriverRuntime<TContext>,
+  driver: MultiStepDriver<TContext, TJob, TPoll, TDone, TUploaded, TResult>,
+  reportStage: ReportStage,
+): Promise<TResult> {
   const { context, env } = runtime
-  const key = driver.stepKey
+  const names = driver.stepNames
 
-  const job = await step.do(`submit-${key}-image`, driver.submitStep, () =>
+  const job = await step.do(names.submit, driver.submitStep, () =>
     driver.submit(runtime),
   )
 
@@ -41,11 +43,9 @@ export async function runMultiStepImageDriver<TJob, TPoll, TDone>(
     done === undefined && attempt <= context.maxAttempts;
     attempt += 1
   ) {
-    await step.sleep(`wait-${key}-image-${attempt}`, delayMs)
-    const polled = await step.do(
-      `poll-${key}-image-${attempt}`,
-      driver.pollStep,
-      () => driver.poll(runtime, job),
+    await step.sleep(names.wait(attempt), delayMs)
+    const polled = await step.do(names.poll(attempt), driver.pollStep, () =>
+      driver.poll(runtime, job),
     )
     const outcome = driver.readPoll(polled, job, context)
     if (outcome.state === 'done') {
@@ -57,7 +57,7 @@ export async function runMultiStepImageDriver<TJob, TPoll, TDone>(
       // 首次离开队列才回报一次：之后每一轮都还是「在跑」，重复回报只会刷同一个阶段。
       const stage = driver.runningStage
       if (!leftQueue) {
-        await step.do(`mark-${key}-image-running`, MARK_RUNNING_STEP, () =>
+        await step.do(names.markRunning, MARK_RUNNING_STEP, () =>
           reportStage(stage),
         )
       }
@@ -69,7 +69,7 @@ export async function runMultiStepImageDriver<TJob, TPoll, TDone>(
     const cancel = driver.cancelOnTimeout
     if (cancel) {
       await step.do(
-        `cancel-${key}-image-timeout`,
+        names.cancelTimeout,
         { timeout: '30 seconds' },
         async () => {
           await cancel(env, job)
@@ -80,10 +80,10 @@ export async function runMultiStepImageDriver<TJob, TPoll, TDone>(
   }
 
   const finished = done
-  let uploaded: UploadedImage | undefined
+  let uploaded: TUploaded | undefined
   if (driver.upload) {
     const upload = driver.upload
-    uploaded = await step.do(`upload-${key}-image`, upload.step, () =>
+    uploaded = await step.do(names.upload, upload.step, () =>
       upload.run(runtime, job, finished),
     )
   }

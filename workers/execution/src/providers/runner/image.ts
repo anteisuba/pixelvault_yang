@@ -44,8 +44,8 @@ import {
 import { isRunnerUpscaler, RUNNER_UPSCALER_MANIFEST } from './upscalers'
 import { modalRunnerRequest } from './modal'
 import { getWorkerImageOutputKey } from '../../lib/image-io'
-import { RETRY_TWICE } from '../multi-step-image'
-import type { MultiStepImageDriver } from '../types'
+import { RETRY_TWICE } from '../multi-step'
+import { imageStepNames, type MultiStepImageDriver } from '../types'
 
 export interface RunnerLoraSpecInput {
   filename: string
@@ -777,7 +777,7 @@ export const runnerImageDriver: MultiStepImageDriver<
   PersistedRunnerPollResult,
   CompletedPersistedRunnerPollResult
 > = {
-  stepKey: 'runner',
+  stepNames: imageStepNames('runner'),
   submitStep: {
     retries: { limit: 1, delay: '5 seconds', backoff: 'exponential' },
     timeout: '30 seconds',

@@ -25,8 +25,8 @@ import {
   hasCivitaiLora,
 } from '../../lib/image-io'
 import { WorkerProviderError } from '../../lib/provider-error'
-import { RETRY_TWICE } from '../multi-step-image'
-import type { MultiStepImageDriver } from '../types'
+import { RETRY_TWICE } from '../multi-step'
+import { imageStepNames, type MultiStepImageDriver } from '../types'
 
 export const OLD_R2_DEV_PATTERN = /^https:\/\/pub-[a-f0-9]+\.r2\.dev\//
 
@@ -309,7 +309,7 @@ export const replicateImageDriver: MultiStepImageDriver<
   ReplicatePrediction,
   CompletedReplicatePrediction
 > = {
-  stepKey: 'replicate',
+  stepNames: imageStepNames('replicate'),
   submitStep: { retries: RETRY_TWICE, timeout: '30 seconds' },
   pollStep: { retries: RETRY_TWICE, timeout: '30 seconds' },
   async submit({ env, context, readApiKey }) {

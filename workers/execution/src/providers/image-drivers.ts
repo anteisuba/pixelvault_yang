@@ -9,10 +9,7 @@ import { falImageDriver } from './fal/image'
 import { generateGeminiImage } from './gemini/image'
 import { generateHuggingFaceImage } from './huggingface/image'
 import { ideogramImageDriver } from './ideogram/image'
-import {
-  type ReportImageStage,
-  runMultiStepImageDriver,
-} from './multi-step-image'
+import { type ReportStage, runMultiStepDriver } from './multi-step'
 import { novelAiImageDriver } from './novelai/image'
 import { generateOpenAIImage } from './openai/image'
 import { generatePixAiImage } from './pixai/image'
@@ -69,17 +66,17 @@ export function getSingleStepImageDriver(
 export type RunMultiStepImageDriver = (
   step: WorkflowStep,
   runtime: ImageDriverRuntime,
-  reportStage: ReportImageStage,
+  reportStage: ReportStage,
 ) => Promise<WorkerImageGenerationResult>
 
 export function bindMultiStepImageDriver<TJob, TPoll, TDone>(
   driver: MultiStepImageDriver<TJob, TPoll, TDone>,
 ): RunMultiStepImageDriver {
   return (step, runtime, reportStage) =>
-    runMultiStepImageDriver(step, runtime, driver, reportStage)
+    runMultiStepDriver(step, runtime, driver, reportStage)
 }
 
-/** 先提交再轮询的（`multi-step`），跑通用流程 `runMultiStepImageDriver`： */
+/** 先提交再轮询的（`multi-step`），跑通用流程 `runMultiStepDriver`： */
 export const MULTI_STEP_IMAGE_DRIVERS: Record<
   WorkerMultiStepImageProviderId,
   RunMultiStepImageDriver

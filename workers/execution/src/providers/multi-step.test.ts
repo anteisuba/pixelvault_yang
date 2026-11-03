@@ -2,8 +2,12 @@ import type { WorkflowStep } from 'cloudflare:workers'
 import { describe, expect, it, vi } from 'vitest'
 
 import { getMultiStepImageDriver } from './image-drivers'
-import { runMultiStepImageDriver } from './multi-step-image'
-import type { ImageDriverRuntime, MultiStepImageDriver } from './types'
+import { runMultiStepDriver } from './multi-step'
+import {
+  imageStepNames,
+  type ImageDriverRuntime,
+  type MultiStepImageDriver,
+} from './types'
 
 type Poll = { status: 'queued' | 'running' | 'done'; retryAfterMs?: number }
 
@@ -41,7 +45,7 @@ function driver(
 ): MultiStepImageDriver<string, Poll, Poll> {
   let index = 0
   return {
-    stepKey: 'demo',
+    stepNames: imageStepNames('demo'),
     submitStep: {},
     pollStep: {},
     submit: async () => 'job-1',
@@ -72,10 +76,10 @@ function driver(
   }
 }
 
-describe('runMultiStepImageDriver（先提交再轮询的通用流程）', () => {
+describe('runMultiStepDriver（先提交再轮询的通用流程）', () => {
   it('步骤名和搬之前一字不差：submit → wait/poll 每轮 → upload', async () => {
     const { step, calls } = fakeStep()
-    const result = await runMultiStepImageDriver(
+    const result = await runMultiStepDriver(
       step,
       runtime(),
       driver([{ status: 'queued', retryAfterMs: 2500 }, { status: 'done' }]),
@@ -95,7 +99,7 @@ describe('runMultiStepImageDriver（先提交再轮询的通用流程）', () =>
 
   it('提交就出完的跳过轮询（Replicate）', async () => {
     const { step, calls } = fakeStep()
-    await runMultiStepImageDriver(
+    await runMultiStepDriver(
       step,
       runtime(),
       driver([], { doneOnSubmit: () => ({ status: 'done' }) }),
@@ -107,7 +111,7 @@ describe('runMultiStepImageDriver（先提交再轮询的通用流程）', () =>
   it('第一次离开排队只回报一次阶段（Runner）', async () => {
     const { step, calls } = fakeStep()
     const report = vi.fn(async () => {})
-    await runMultiStepImageDriver(
+    await runMultiStepDriver(
       step,
       runtime(4),
       driver(
@@ -131,7 +135,7 @@ describe('runMultiStepImageDriver（先提交再轮询的通用流程）', () =>
     const { step, calls } = fakeStep()
     const cancel = vi.fn(async () => {})
     await expect(
-      runMultiStepImageDriver(
+      runMultiStepDriver(
         step,
         runtime(2),
         driver([{ status: 'queued' }, { status: 'queued' }], {

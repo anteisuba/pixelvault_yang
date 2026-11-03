@@ -31,8 +31,8 @@ import {
   downloadAndUploadImageArtifactToKey,
   hasCivitaiLora,
 } from '../../lib/image-io'
-import { RETRY_TWICE } from '../multi-step-image'
-import type { MultiStepImageDriver } from '../types'
+import { RETRY_TWICE } from '../multi-step'
+import { imageStepNames, type MultiStepImageDriver } from '../types'
 
 // fal Seedream 4.5's custom `{width, height}` size object requires each
 // edge within [1920, 4096] (per fal's model docs) — there is no 1K tier
@@ -412,7 +412,7 @@ export const falImageDriver: MultiStepImageDriver<
   FalImageResult,
   FalImageResult & { imageUrl: string }
 > = {
-  stepKey: 'fal',
+  stepNames: imageStepNames('fal'),
   submitStep: { retries: RETRY_TWICE, timeout: '30 seconds' },
   pollStep: { retries: RETRY_TWICE, timeout: '120 seconds' },
   async submit({ env, context, readApiKey }) {

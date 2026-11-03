@@ -20,8 +20,8 @@ import {
   getWorkerImageOutputKey,
 } from '../../lib/image-io'
 import { WorkerProviderError } from '../../lib/provider-error'
-import { RETRY_TWICE } from '../multi-step-image'
-import type { MultiStepImageDriver } from '../types'
+import { RETRY_TWICE } from '../multi-step'
+import { imageStepNames, type MultiStepImageDriver } from '../types'
 
 export async function submitIdeogramImageQueue(
   env: ExecutionEnv,
@@ -116,7 +116,7 @@ export const ideogramImageDriver: MultiStepImageDriver<
   IdeogramPollResult,
   Extract<IdeogramPollResult, { status: 'completed' }>
 > = {
-  stepKey: 'ideogram',
+  stepNames: imageStepNames('ideogram'),
   submitStep: {
     retries: { limit: 0, delay: '1 second', backoff: 'constant' },
     timeout: '150 seconds',

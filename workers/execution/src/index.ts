@@ -138,11 +138,7 @@ import {
   readFalModel3DResult,
   submitFalModel3DQueue,
 } from './providers/fal/model-3d'
-import {
-  downloadAndUploadAudioArtifact,
-  downloadAndUploadModel3DArtifact,
-  downloadAndUploadVideoArtifact,
-} from './lib/media-io'
+import { downloadAndUploadModel3DArtifact } from './lib/media-io'
 
 export { submitFalModel3DQueue }
 
@@ -154,7 +150,8 @@ export { submitMiniMaxQueue }
 
 export { submitFalQueue }
 
-import { getQueueDriver } from './providers/queue-drivers'
+import { buildQueueMediaDriver } from './providers/queue-drivers'
+import { runMultiStepDriver } from './providers/multi-step'
 export { getMultiStepImageDriver, getSingleStepImageDriver }
 
 export { type PersistedRunnerPollResult, type RunnerSubmitResult }
@@ -1087,22 +1084,6 @@ async function handleFalQueueDispatch(
   return jsonResponse({ workflowInstanceId: instance.id })
 }
 
-async function submitProviderQueue(
-  context: WorkerRunContext,
-  apiKey: string,
-  env: ExecutionEnv,
-): Promise<FalQueueSubmitResult> {
-  return getQueueDriver(context.providerId).submit(context, apiKey, env)
-}
-
-async function pollProviderQueue(
-  queue: FalQueueSubmitResult,
-  apiKey: string,
-  context: WorkerRunContext,
-): Promise<FalQueueStatusResult> {
-  return getQueueDriver(context.providerId).poll(queue, apiKey, context)
-}
-
 export class CinematicShortVideoWorkflow extends WorkflowEntrypoint<
   ExecutionEnv,
   WorkerRunContext
@@ -1165,145 +1146,23 @@ export class CinematicShortVideoWorkflow extends WorkflowEntrypoint<
         return { status: 'COMPLETED', runId: context.runId }
       }
 
-      const queue = await step.do(
-        'submit-provider',
+      const resultData = await runMultiStepDriver(
+        step,
         {
-          retries: {
-            limit: context.providerId === 'gemini' ? 0 : 2,
-            delay: '5 seconds',
-            backoff: 'exponential',
-          },
-          timeout: Math.min(context.timeoutMs, 1_800_000),
+          env: this.env,
+          context,
+          readApiKey: () => decryptStateString(encryptedApiKey, this.env),
         },
-        async () => {
-          const apiKey = await decryptStateString(encryptedApiKey, this.env)
-          return submitProviderQueue(context, apiKey, this.env)
-        },
+        buildQueueMediaDriver(context),
+        // 视频音频这条没有「离开排队」这一段，不回报阶段。
+        async () => {},
       )
 
-      for (let attempt = 1; attempt <= context.maxAttempts; attempt += 1) {
-        await step.sleep(`wait-provider-${attempt}`, context.pollIntervalMs)
+      await step.do('callback-result', async () =>
+        emitRunResultCallback(this.env, context, resultData),
+      )
 
-        const pollResult = await step.do(
-          `poll-provider-${attempt}`,
-          {
-            retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
-            timeout: '30 seconds',
-          },
-          async () => {
-            const apiKey = await decryptStateString(encryptedApiKey, this.env)
-            return pollProviderQueue(queue, apiKey, context)
-          },
-        )
-
-        if (pollResult.status === 'FAILED') {
-          throw new WorkerProviderError({
-            message: pollResult.error ?? 'Provider reported failed status.',
-            provider: context.providerId,
-            phase: 'provider_poll',
-            errorCode: pollResult.errorCode,
-            providerMetadata: pollResult.providerMetadata,
-          })
-        }
-
-        if (pollResult.status === 'COMPLETED' && pollResult.artifactUrl) {
-          const artifactUrl = pollResult.artifactUrl
-          let workerArtifactUrl: string | undefined
-          let audioR2Key: string | undefined
-          let videoR2Key: string | undefined
-
-          if (context.outputType === 'AUDIO') {
-            const uploaded = await step.do(
-              'download-and-upload-audio',
-              {
-                retries: {
-                  limit: 2,
-                  delay: '5 seconds',
-                  backoff: 'exponential',
-                },
-                timeout: '120 seconds',
-              },
-              () =>
-                downloadAndUploadAudioArtifact(
-                  this.env,
-                  context,
-                  artifactUrl,
-                  pollResult.mimeType ?? 'audio/wav',
-                ),
-            )
-            workerArtifactUrl = uploaded.artifactUrl
-            audioR2Key = uploaded.audioR2Key
-          }
-
-          if (context.outputType === 'VIDEO') {
-            const uploaded = await step.do(
-              'download-and-upload-video',
-              {
-                retries: {
-                  limit: 2,
-                  delay: '5 seconds',
-                  backoff: 'exponential',
-                },
-                timeout: '120 seconds',
-              },
-              async () =>
-                downloadAndUploadVideoArtifact(
-                  this.env,
-                  context,
-                  artifactUrl,
-                  pollResult.mimeType ?? 'video/mp4',
-                  context.providerId === 'gemini'
-                    ? {
-                        'x-goog-api-key': await decryptStateString(
-                          encryptedApiKey,
-                          this.env,
-                        ),
-                      }
-                    : undefined,
-                ),
-            )
-            workerArtifactUrl = uploaded.artifactUrl
-            videoR2Key = uploaded.videoR2Key
-          }
-
-          await step.do('callback-result', async () =>
-            emitRunResultCallback(this.env, context, {
-              artifactUrl: workerArtifactUrl ?? artifactUrl,
-              audioR2Key,
-              videoR2Key,
-              thumbnailUrl: pollResult.thumbnailUrl,
-              providerMetadata: pollResult.providerMetadata,
-              width:
-                context.outputType === 'VIDEO'
-                  ? context.providerInput.width
-                  : undefined,
-              height:
-                context.outputType === 'VIDEO'
-                  ? context.providerInput.height
-                  : undefined,
-              // The 'auto' literal can't satisfy ExecutionCallbackResultDataSchema's
-              // numeric duration field — coerce to undefined and let DB store
-              // null (the real output length comes from fal's response metadata
-              // in future iterations).
-              duration:
-                context.outputType === 'VIDEO' &&
-                context.providerId !== 'gemini' &&
-                typeof context.providerInput.duration === 'number'
-                  ? context.providerInput.duration
-                  : undefined,
-              requestCount: 1,
-              seed: pollResult.seed,
-              mimeType:
-                pollResult.mimeType ??
-                (context.outputType === 'VIDEO' ? 'video/mp4' : 'audio/wav'),
-            }),
-          )
-
-          return { status: 'COMPLETED', runId: context.runId }
-        }
-      }
-
-      throw new Error('Provider polling timed out.')
+      return { status: 'COMPLETED', runId: context.runId }
     } catch (error) {
       const failureData = buildWorkerFailureCallbackData(error, {
         message: 'Workflow execution failed.',

@@ -71,9 +71,11 @@ push 重推不值得。代价：某次部署失败后，后续不碰该目录的
 ## 部署（Vercel）
 
 - push main → Vercel 自动构建部署；构建对比**上一个 deployment**（fix `5552da9a`）。
-- `dependabot/*` 分支在 `scripts/vercel-ignore-build.sh` 里直接跳过（2026-10-06）：
-  CI 的 build job 已经构建它们，而 Hobby 只有一个并发构建位，这些 Preview 会排在
-  生产构建前面。
+- **Preview 部署全关（2026-11-03）**：只有 main 上 Vercel。`vercel.json` 的
+  `git.deploymentEnabled` 让 `claude/**` `codex/**` `dependabot/**` `chore/**` 连部署记录都不建，
+  `scripts/vercel-ignore-build.sh` 再把其余非 production 一律跳过。起因：线程分支一天推几十次，
+  每个 Preview 各存一份函数包，40 小时 49 个 READY 预览，Hobby 的 Function / Deployment Storage
+  超到 2 倍，生产被暂停。CI 的 build job 照样构建每个分支；要看 UI 用本地 `next start` 跑 ui-check。
 - Production 部署成功 → `deploy-check` 自动冒烟；失败开 issue。
 - 环境变量边界：`NEXT_PUBLIC_` 只准 Clerk public key / CDN domain / App URL；其余机密只进服务端。
 

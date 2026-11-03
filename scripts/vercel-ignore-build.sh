@@ -9,10 +9,15 @@
 # production when the tip is docs-only after undeployed app commits.
 set -euo pipefail
 
-# Dependabot branches are fully built by CI (ci.yml `build`). On Hobby the
-# single build slot would queue these previews ahead of production builds.
-if [[ "${VERCEL_GIT_COMMIT_REF:-}" == dependabot/* ]]; then
-  echo "Dependabot branch ${VERCEL_GIT_COMMIT_REF}; CI builds it, skipping Vercel."
+# Only production (main) builds on Vercel. Every preview deployment keeps its
+# own copy of the function bundle (Function + Deployment Storage quota), and
+# thread branches (claude/*) push dozens of times a day: on 2026-11-03 that
+# pushed the Hobby team over its storage limits and production got paused.
+# CI (ci.yml `build`) already builds every branch. vercel.json
+# `git.deploymentEnabled` stops the known prefixes before a deployment record
+# even exists; this catches any other branch.
+if [[ "${VERCEL_ENV:-}" != "production" ]]; then
+  echo "VERCEL_ENV=${VERCEL_ENV:-<unset>} (${VERCEL_GIT_COMMIT_REF:-?}); previews are off, skipping."
   exit 0
 fi
 

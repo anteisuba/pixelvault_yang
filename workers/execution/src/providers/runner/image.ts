@@ -655,13 +655,12 @@ export async function pollRunnerImageJob(
     const errorField = data.error
     return {
       status: 'FAILED',
-      error:
-        typeof errorField === 'string'
-          ? errorField
-          : JSON.stringify(errorField ?? 'Unknown runner failure').slice(
-              0,
-              500,
-            ),
+      // 两种都截到 500 字：这个结果会进 Workflow 步骤输出（上限 1MiB），
+      // ComfyUI 的 traceback 原话可能很长。
+      error: (typeof errorField === 'string'
+        ? errorField
+        : JSON.stringify(errorField ?? 'Unknown runner failure')
+      ).slice(0, 500),
     }
   }
 

@@ -640,6 +640,30 @@ describe('pollAndPersistRunnerImageJob', () => {
     const uploadedBytes = put.mock.calls[0]?.[1] as Uint8Array
     expect(uploadedBytes.byteLength).toBe(1_100_000)
   })
+
+  it('caps a long string Runner failure so the poll step output stays small', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          Response.json({ status: 'FAILED', error: 'x'.repeat(2_000_000) }),
+        ),
+    )
+    const env = {
+      RUNNER_MODAL_URL: 'https://runner.test',
+      RUNNER_MODAL_TOKEN: 'modal-token',
+    } as unknown as Parameters<typeof pollAndPersistRunnerImageJob>[1]
+
+    const result = await pollAndPersistRunnerImageJob(
+      'runner-job-1',
+      env,
+      'image/run-1.png',
+      false,
+    )
+
+    expect(result).toEqual({ status: 'FAILED', error: 'x'.repeat(500) })
+  })
 })
 
 describe('hex helpers', () => {

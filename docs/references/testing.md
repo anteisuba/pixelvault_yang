@@ -56,8 +56,8 @@
 - 清单在 `src/test/assistant-bench/bench-effects.int.test.ts` 的 `BENCH_EFFECTS`：`ASSISTANT_OPERATOR_MUTATING_TOOLS` 里每一条都要声明「改哪几格台面」（`run.state` 的键）或「不在台面上、为什么」。**新加会改东西的工具不声明，清单那一例直接红。**
 - 声明了改台面的逐条真跑（L2a 真库 + 真 `prepareOperatorTurn`，不调模型）：`planTool` 必须是 `mutate` → `apply()` 后这一轮台面真变（⛔ 空操作）、只变声明的格、助手下一步 `read_state` 读得到。
 - 线上出过事的对话把工具调用原样写成一条回放放在同文件（第一条：11-03 摘下 LoRA 挂不回去；它还查出同轮重复挂同一把没拦，已修）。
-- 下一轮对账 `src/test/assistant-bench/next-turn.int.test.ts`（图片台 8 例）：这一步过客户端 schema → 真 `applyOperatorStep` 落进真表单 reducer → 宿主同一份 `buildWorkbenchOperatorForm` + 快照 → 再开一轮，台面必须和这一轮服务端记下的一样。
-- 还没覆盖：画布两条（浏览器落一批、下一跳带新快照回来）；视频 / 标签 / LoRA 台的下一轮对账。
+- 下一轮对账 `src/test/assistant-bench/next-turn.int.test.ts`（图片 8 / 视频 7 / 标签 3 例）：这一步过客户端 schema → 真 `applyOperatorStep` 落进真表单 reducer → 宿主同一份 `buildWorkbenchOperatorForm` + 快照 → 再开一轮，台面必须和这一轮服务端记下的一样。
+- 还没覆盖：画布两条（浏览器落一批、下一跳带新快照回来）；LoRA 台的下一轮对账（台面在 `LoraStackProvider` 里，放进第 4 步 LoRA 挂卸主流程 E2E 一起测）。
 
 ### 四条硬规矩
 

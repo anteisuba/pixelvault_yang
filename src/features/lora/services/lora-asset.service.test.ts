@@ -773,6 +773,37 @@ describe('favoriteExternalLora', () => {
     expect(result.id).toBe('linked')
   })
 
+  it('同一个 Civitai 版本换了种下载地址（带不带 fileId）：认版本号，不另建一条', async () => {
+    mockEnsureUser.mockResolvedValue(OWNER)
+    const row = buildRow({
+      id: 'fav_same_version',
+      source: 'imported',
+      ...civitaiInput,
+      loraUrl: 'https://civitai.com/api/download/models/2?fileId=9',
+      civitaiModelVersionId: 2,
+    })
+    mockAssetFindFirst.mockResolvedValue(row)
+
+    const result = await favoriteExternalLora(OWNER.clerkId, {
+      ...civitaiInput,
+      loraUrl: 'https://civitai.com/api/download/models/2',
+      modelVersionId: 2,
+    })
+
+    expect(mockAssetCreate).not.toHaveBeenCalled()
+    const where = (
+      mockAssetFindFirst.mock.calls[0][0] as { where: Record<string, unknown> }
+    ).where
+    expect(where).toMatchObject({
+      userId: OWNER.id,
+      OR: [
+        { loraUrl: 'https://civitai.com/api/download/models/2' },
+        { civitaiModelVersionId: 2 },
+      ],
+    })
+    expect(result.id).toBe('fav_same_version')
+  })
+
   it('并发双击撞唯一约束时返回既有行，而不是把 500 甩给用户', async () => {
     mockEnsureUser.mockResolvedValue(OWNER)
     // 第一次查：没有（另一个请求还没写完）。第二次查（撞约束后回查）：有了。

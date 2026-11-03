@@ -1,3 +1,4 @@
+import { ASSISTANT_OPERATOR_PENDING_LORA_PREFIX } from '@/constants/assistant-operator'
 import { ASSISTANT_V3_LORA_ITEM_IDS } from '@/constants/assistant-v3'
 import {
   LORA_BASE_MODELS,
@@ -96,6 +97,11 @@ function loraLine(
       item.enabled ? 'on' : 'off'
     }${trigger} · ${item.family ?? 'unknown family'}${
       item.compatible ? '' : ' (does NOT fit this base model)'
+    }${
+      // 这一轮刚挂、浏览器还在导入（`ASSISTANT_OPERATOR_PENDING_LORA_PREFIX`）：在，只是还没落地。
+      item.id.startsWith(ASSISTANT_OPERATOR_PENDING_LORA_PREFIX)
+        ? ' · mounted this turn, still loading onto the bench'
+        : ''
     }`,
   ]
   if (item.recommendedPrompt)

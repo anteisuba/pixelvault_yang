@@ -1106,6 +1106,78 @@ describe('current reference image bindings', () => {
     expect(JSON.stringify(mount)).toContain('not one of the LoRAs found')
   })
 
+  /**
+   * 11-03 线上：摘下两把再挂回去，挂的那一步说「已挂上」，可这一轮后面读到的台面是空的、
+   * 触发词也不在正文里 —— 助手以为没挂上，反复摘挂，每挂一次多导入一条收藏。
+   * 钉住：挂上那一步落进这一轮的台面（标着还在路上），核实过的触发词同步进正文；
+   * 还在路上的那把不许调权重 / 摘（它还没有真 id）。
+   */
+  it('新内核挂 LoRA：这一轮的台面立刻看得到（标在路上），触发词同步进正文', async () => {
+    queueTurns()
+    const prepared = await prepareOperatorTurn(
+      'clerk-1',
+      buildRequest({
+        domain: 'lora',
+        messages: [{ role: 'user', content: '挂回鸣潮画风' }],
+        snapshot: { ...LORA_SNAPSHOT, prompt: '1girl' },
+      }),
+      new AbortController().signal,
+    )
+    prepared.run.nextKernel = true
+    prepared.run.loraIndex.set('civitai:1:2', {
+      candidateId: 'civitai:1:2',
+      source: 'civitai',
+      name: 'Wuwa Style',
+      author: null,
+      license: { known: false, label: null, commercialUse: null },
+      baseModelFamily: 'illustrious',
+      type: 'style',
+      triggerWords: ['wuwaFG'],
+      sampleImageUrls: [],
+      pageUrl: 'https://civitai.com/models/1',
+      downloads: 0,
+      importable: true,
+      alreadyMounted: false,
+      alreadyImported: true,
+      importPayload: {
+        name: 'Wuwa Style',
+        triggerWord: 'wuwaFG',
+        loraUrl: 'https://civitai.com/api/download/models/2',
+        type: 'style',
+        baseModelFamily: 'illustrious',
+        provider: 'civitai',
+        modelVersionId: 2,
+        sourceSnapshot: { triggerSource: 'official' },
+      },
+    } as never)
+
+    const mount = await planTool(
+      prepared.run,
+      ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
+      { candidateId: 'civitai:1:2', weight: 0.6 },
+      prepared.user.id,
+    )
+    if (mount.kind !== 'mutate')
+      throw new Error(`expected mutate, got ${mount.kind}`)
+    mount.apply()
+
+    const pending = prepared.run.state.loras.find(
+      (item) => item.name === 'Wuwa Style',
+    )
+    expect(pending).toMatchObject({ weight: 0.6, enabled: true })
+    expect(pending!.id.startsWith('mounting:')).toBe(true)
+    expect(prepared.run.state.prompt).toBe('1girl, wuwaFG')
+
+    const tune = await planTool(
+      prepared.run,
+      ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight,
+      { loraId: pending!.id, weight: 0.65 },
+      prepared.user.id,
+    )
+    expect(tune.kind).toBe('rejected')
+    expect(JSON.stringify(tune)).toContain('still loading')
+  })
+
   describe('canvas target reference checks', () => {
     const targetUrls = [refs[2]!.url, refs[0]!.url]
     const targetNode: AssistantOperatorCanvasNode = {

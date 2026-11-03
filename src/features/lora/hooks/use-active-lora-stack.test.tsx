@@ -208,6 +208,29 @@ describe('useActiveLoraStack', () => {
     expect(result.current.items).toHaveLength(1)
   })
 
+  it('同一个 Civitai 版本的两条收藏记录（地址带不带 fileId）只挂一把', () => {
+    const { result } = renderHook(() => useActiveLoraStack(), { wrapper })
+
+    act(() => {
+      result.current.push(
+        makeAsset({
+          id: 'old',
+          loraUrl: 'https://civitai.com/api/download/models/2?fileId=9',
+          modelVersionId: 2,
+        }),
+      )
+      result.current.push(
+        makeAsset({
+          id: 'dup',
+          loraUrl: 'https://civitai.com/api/download/models/2',
+          modelVersionId: 2,
+        }),
+      )
+    })
+
+    expect(result.current.items.map((i) => i.asset.id)).toEqual(['old'])
+  })
+
   // owner 2026-08-07：挂载不设上限。旧的 MAX_STACK=3 是「界面清爽」拍的数，
   // 而三个后端（fal / Replicate / runner）都不限 LoRA 数量——见 hook 顶部注释。
   // 这里越过原来的 3 是**断言点**，不是边界试探。
@@ -215,11 +238,41 @@ describe('useActiveLoraStack', () => {
     const { result } = renderHook(() => useActiveLoraStack(), { wrapper })
 
     act(() => {
-      result.current.push(makeAsset({ id: '1', styleCode: 'c1' }))
-      result.current.push(makeAsset({ id: '2', styleCode: 'c2' }))
-      result.current.push(makeAsset({ id: '3', styleCode: 'c3' }))
-      result.current.push(makeAsset({ id: '4', styleCode: 'c4' }))
-      result.current.push(makeAsset({ id: '5', styleCode: 'c5' }))
+      result.current.push(
+        makeAsset({
+          id: '1',
+          styleCode: 'c1',
+          loraUrl: 'https://example.com/1.safetensors',
+        }),
+      )
+      result.current.push(
+        makeAsset({
+          id: '2',
+          styleCode: 'c2',
+          loraUrl: 'https://example.com/2.safetensors',
+        }),
+      )
+      result.current.push(
+        makeAsset({
+          id: '3',
+          styleCode: 'c3',
+          loraUrl: 'https://example.com/3.safetensors',
+        }),
+      )
+      result.current.push(
+        makeAsset({
+          id: '4',
+          styleCode: 'c4',
+          loraUrl: 'https://example.com/4.safetensors',
+        }),
+      )
+      result.current.push(
+        makeAsset({
+          id: '5',
+          styleCode: 'c5',
+          loraUrl: 'https://example.com/5.safetensors',
+        }),
+      )
     })
 
     expect(result.current.items.map((i) => i.asset.id)).toEqual([
@@ -254,7 +307,11 @@ describe('useActiveLoraStack', () => {
 
   it('re-pushing an already mounted asset does not re-fire the mount event', () => {
     const { result } = renderHook(() => useActiveLoraStack(), { wrapper })
-    const asset = makeAsset({ id: '1', styleCode: 'c1' })
+    const asset = makeAsset({
+      id: '1',
+      styleCode: 'c1',
+      loraUrl: 'https://example.com/1.safetensors',
+    })
 
     act(() => {
       result.current.push(asset)
@@ -294,8 +351,20 @@ describe('useActiveLoraStack', () => {
     const { result } = renderHook(() => useActiveLoraStack(), { wrapper })
 
     act(() => {
-      result.current.push(makeAsset({ id: '1', styleCode: 'c1' }))
-      result.current.push(makeAsset({ id: '2', styleCode: 'c2' }))
+      result.current.push(
+        makeAsset({
+          id: '1',
+          styleCode: 'c1',
+          loraUrl: 'https://example.com/1.safetensors',
+        }),
+      )
+      result.current.push(
+        makeAsset({
+          id: '2',
+          styleCode: 'c2',
+          loraUrl: 'https://example.com/2.safetensors',
+        }),
+      )
       result.current.setScale('1', 0.5)
     })
 
@@ -311,8 +380,20 @@ describe('useActiveLoraStack', () => {
     const { result } = renderHook(() => useActiveLoraStack(), { wrapper })
 
     act(() => {
-      result.current.push(makeAsset({ id: '1', styleCode: 'c1' }))
-      result.current.push(makeAsset({ id: '2', styleCode: 'c2' }))
+      result.current.push(
+        makeAsset({
+          id: '1',
+          styleCode: 'c1',
+          loraUrl: 'https://example.com/1.safetensors',
+        }),
+      )
+      result.current.push(
+        makeAsset({
+          id: '2',
+          styleCode: 'c2',
+          loraUrl: 'https://example.com/2.safetensors',
+        }),
+      )
       result.current.remove('1')
     })
     expect(result.current.items.map((i) => i.asset.id)).toEqual(['2'])
@@ -327,8 +408,20 @@ describe('useActiveLoraStack', () => {
     const { result } = renderHook(() => useActiveLoraStack(), { wrapper })
 
     act(() => {
-      result.current.push(makeAsset({ id: '1', styleCode: 'c1' }))
-      result.current.push(makeAsset({ id: '2', styleCode: 'c2' }))
+      result.current.push(
+        makeAsset({
+          id: '1',
+          styleCode: 'c1',
+          loraUrl: 'https://example.com/1.safetensors',
+        }),
+      )
+      result.current.push(
+        makeAsset({
+          id: '2',
+          styleCode: 'c2',
+          loraUrl: 'https://example.com/2.safetensors',
+        }),
+      )
       result.current.setScale('1', 0.5)
       result.current.setEnabled('1', false)
     })
@@ -347,9 +440,27 @@ describe('useActiveLoraStack', () => {
     const { result } = renderHook(() => useActiveLoraStack(), { wrapper })
 
     act(() => {
-      result.current.push(makeAsset({ id: '1', styleCode: 'c1' }))
-      result.current.push(makeAsset({ id: '2', styleCode: 'c2' }))
-      result.current.push(makeAsset({ id: '3', styleCode: 'c3' }))
+      result.current.push(
+        makeAsset({
+          id: '1',
+          styleCode: 'c1',
+          loraUrl: 'https://example.com/1.safetensors',
+        }),
+      )
+      result.current.push(
+        makeAsset({
+          id: '2',
+          styleCode: 'c2',
+          loraUrl: 'https://example.com/2.safetensors',
+        }),
+      )
+      result.current.push(
+        makeAsset({
+          id: '3',
+          styleCode: 'c3',
+          loraUrl: 'https://example.com/3.safetensors',
+        }),
+      )
       result.current.reorder('3', '1') // move 3 into slot 0
     })
     expect(result.current.items.map((i) => i.asset.id)).toEqual(['3', '1', '2'])
@@ -443,7 +554,13 @@ describe('useActiveLoraStack', () => {
       { wrapper },
     )
     act(() => {
-      aResult.current.push(makeAsset({ id: '1', styleCode: 'c1' }))
+      aResult.current.push(
+        makeAsset({
+          id: '1',
+          styleCode: 'c1',
+          loraUrl: 'https://example.com/1.safetensors',
+        }),
+      )
     })
     await waitFor(() => {
       expect(

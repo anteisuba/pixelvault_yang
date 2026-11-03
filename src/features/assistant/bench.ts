@@ -969,9 +969,58 @@ async function recipeChanges(
 }
 
 /** 一条改动交给这台的执行函数（编号先换好）。 */
+/** `lora_param` 的 width / height（它俩只能一起设，见 `checkLoraParameters`）。 */
+function loraSizeKey(change: EditChange): 'width' | 'height' | null {
+  if (change.op !== OP.loraParam || !change.key) return null
+  const field = ASSISTANT_NEXT_LORA_PARAM_KEYS[change.key.trim().toLowerCase()]
+  return field === 'width' || field === 'height' ? field : null
+}
+
+/**
+ * 同一次 edit 里一条 width、一条 height → 并成一步落（11-03 线上：两条各自落，各撞一次
+ * 「宽高必须一起设」，用户看到两行「这个值不在可选档位里」；套配方也是这么拆的，从来没套上过尺寸）。
+ * 返回每一条要落的改法和它的搭档（搭档那一条从列表里拿掉）。
+ */
+function pairLoraSize(
+  changes: readonly EditChange[],
+): { at: number; change: EditChange; partner?: EditChange }[] {
+  const out: { at: number; change: EditChange; partner?: EditChange }[] = []
+  const used = new Set<number>()
+  changes.forEach((change, index) => {
+    if (used.has(index)) return
+    const key = loraSizeKey(change)
+    if (!key) return void out.push({ at: index, change })
+    const other = key === 'width' ? 'height' : 'width'
+    const partnerIndex = changes.findIndex(
+      (candidate, at) =>
+        at > index && !used.has(at) && loraSizeKey(candidate) === other,
+    )
+    if (partnerIndex < 0) return void out.push({ at: index, change })
+    used.add(partnerIndex)
+    out.push({ at: index, change, partner: changes[partnerIndex] })
+  })
+  return out
+}
+
+/** 把搭档那一条的非空字段并进同一个 set_params。 */
+function withPartner(
+  mutation: V3Mutation,
+  partner: V3Mutation | null,
+): V3Mutation {
+  if (!partner || mutation.tool !== 'edit' || partner.tool !== 'edit')
+    return partner?.tool === null ? partner : mutation
+  const [op] = (mutation.input as { ops: Record<string, unknown>[] }).ops
+  const [extra] = (partner.input as { ops: Record<string, unknown>[] }).ops
+  const merged = { ...op }
+  for (const [key, value] of Object.entries(extra ?? {}))
+    if (value !== null && value !== undefined) merged[key] = value
+  return { tool: 'edit', input: { ops: [merged] } }
+}
+
 async function* applyChange(
   context: V3Context,
   given: EditChange,
+  partner?: EditChange,
 ): AsyncGenerator<AssistantOperatorEvent, BenchResult> {
   if (given.op === OP.addLora) {
     if (context.face !== ASSISTANT_V3_FACE_IDS.lora)
@@ -984,10 +1033,11 @@ async function* applyChange(
   if (isLibraryChange(context, given.op))
     return outcomeOf(yield* runLibraryChange(context, given))
   const change = await withResolvedNames(context, given)
-  const mutation = toV3Mutation(
-    context.face as BenchFace,
-    change,
-    opsOf(context),
+  const mutation = withPartner(
+    toV3Mutation(context.face as BenchFace, change, opsOf(context)),
+    partner
+      ? toV3Mutation(context.face as BenchFace, partner, opsOf(context))
+      : null,
   )
   if (mutation.tool === null) return { output: mutation.error, error: true }
   const tool =
@@ -1016,11 +1066,11 @@ export async function* runEdit(
   const lines: string[] = []
   let failed = 0
   let total = 0
-  for (const [index, change] of changes.entries()) {
-    const label = `${index + 1}. ${change.op}`
+  for (const { at, change, partner } of pairLoraSize(changes)) {
+    const label = `${at + 1}. ${change.op}${partner ? ` + ${partner.key ?? ''}` : ''}`
     if (change.op !== OP.applyRecipe) {
       total += 1
-      const result = yield* applyChange(context, change)
+      const result = yield* applyChange(context, change, partner)
       if (result.error) failed += 1
       lines.push(
         `${label} — ${result.error ? 'not done: ' : ''}${result.output}`,
@@ -1045,9 +1095,9 @@ export async function* runEdit(
       continue
     }
     lines.push(`${label} ${recipe.tag}:`)
-    for (const part of recipe.changes) {
+    for (const { change: part, partner } of pairLoraSize(recipe.changes)) {
       total += 1
-      const result = yield* applyChange(context, part)
+      const result = yield* applyChange(context, part, partner)
       if (result.error) failed += 1
       lines.push(
         `   · ${part.op} — ${result.error ? 'not done: ' : ''}${result.output}`,

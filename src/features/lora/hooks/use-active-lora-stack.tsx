@@ -365,9 +365,9 @@ export function LoraStackProvider({ children }: { children: ReactNode }) {
     // against a stale mirror and over-fire the mount event — items
     // themselves stay correct via the dedup guard below.
     const current = itemsRef.current
-    const willAdd = !current.some((entry) => entry.asset.id === asset.id)
+    const willAdd = !current.some((entry) => isSameLora(entry.asset, asset))
     setItems((prev) => {
-      if (prev.some((entry) => entry.asset.id === asset.id)) return prev
+      if (prev.some((entry) => isSameLora(entry.asset, asset))) return prev
       return [...prev, { asset, scale }]
     })
     if (willAdd) {
@@ -527,6 +527,18 @@ export function LoraStackCollector({
     <ActiveLoraStackContext.Provider value={value}>
       {children}
     </ActiveLoraStackContext.Provider>
+  )
+}
+
+/**
+ * 同一把 LoRA：同一条记录，或同一个下载地址 / 同一个 Civitai 版本（11-03 线上：同一版本存出了两条
+ * 收藏记录，两条都挂上了台）。与库页「已挂」的判据同口径（`LoraFavoritesBrowse.isMounted`）。
+ */
+function isSameLora(a: LoraAssetRecord, b: LoraAssetRecord): boolean {
+  return (
+    a.id === b.id ||
+    a.loraUrl === b.loraUrl ||
+    (!!a.modelVersionId && a.modelVersionId === b.modelVersionId)
   )
 }
 

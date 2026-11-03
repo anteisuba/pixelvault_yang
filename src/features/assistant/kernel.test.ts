@@ -957,6 +957,56 @@ describe('第 4 步：各台的改法', () => {
     expect(resultsOf(main)).toContain('鸣潮(Wuthering Waves) Style')
   })
 
+  it('LoRA 台 lora_param：同一次 edit 里的 width 与 height 并成一步落（⛔ 各撞一次「宽高要一起设」）', async () => {
+    plan.mockImplementation(async (_run, _tool: string, args: unknown) => ({
+      kind: 'rejected',
+      reason: 'unknownValue',
+      detail: `stub ${JSON.stringify(args)}`,
+    }))
+    const main = mockModel([
+      toolTurn({
+        id: 'call_1',
+        name: 'edit',
+        input: {
+          changes: [
+            { op: 'lora_param', key: 'steps', value: 30 },
+            { op: 'lora_param', key: 'width', value: 832 },
+            { op: 'lora_param', key: 'height', value: 1216 },
+          ],
+        },
+      }),
+      textTurn('好。'),
+    ])
+    models.main = main
+    await collect(
+      runAssistantNext(
+        'clerk-1',
+        imageRequest('竖图', {
+          domain: 'lora',
+          snapshot: {
+            prompt: '1girl',
+            model: { id: 'illustrious', label: 'Illustrious' },
+            availableModels: [{ id: 'illustrious', label: 'Illustrious' }],
+            loraParameters: {},
+            loras: {
+              items: [],
+              baseFamily: 'illustrious',
+              minWeight: 0,
+              maxWeight: 2,
+            },
+          },
+        } as unknown as Partial<AssistantOperatorRequest>),
+      ),
+    )
+    const params = plan.mock.calls
+      .filter((call) => call[1] === 'set_lora_parameters')
+      .map((call) => call[2])
+    expect(params).toEqual([
+      { steps: 30 },
+      { runnerWidth: 832, runnerHeight: 1216 },
+    ])
+  })
+
   it('套用配方：拆成这台有的那几格逐条落，这台没有的说清楚', async () => {
     recipe.mockResolvedValue({
       tag: '图_12',

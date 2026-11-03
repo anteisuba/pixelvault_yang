@@ -25,7 +25,8 @@ export const GenerationRecipeLoraSchema = z.object({
 export type GenerationRecipeLora = z.infer<typeof GenerationRecipeLoraSchema>
 
 /**
- * 种子从哪来：`user` = 用户自己填的；`provider` = 服务商随机挑、回传给我们的；
+ * 种子从哪来：`user` = 用户自己填的；`provider` = 这次实际发给 / 回自服务商的那颗
+ * （服务商随机挑后回传，或 Runner / fal / Replicate 出图时派发前我们替用户定的）；
  * `unknown` = 服务商自己随机、没回传（这张图换不回原样，只能复刻参数）。
  */
 export const GenerationRecipeSeedSourceSchema = z.enum([

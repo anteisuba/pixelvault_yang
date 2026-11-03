@@ -287,6 +287,52 @@ describe('submitImageGeneration', () => {
     )
   })
 
+  describe('派发前先定种子（p-auto-recipe）', () => {
+    const dispatchedSeed = () =>
+      (
+        vi.mocked(dispatchImageWorkerRun).mock.calls[0][0].providerInput as {
+          advancedParams?: { seed?: number }
+        }
+      ).advancedParams?.seed
+    const queuedMetadata = () =>
+      JSON.parse(
+        vi.mocked(createGenerationJob).mock.calls[0][0].externalRequestId!,
+      )
+
+    it('assigns a seed for fal when the user left it random, outside advancedParams', async () => {
+      setupResolve(AI_ADAPTER_TYPES.FAL)
+      vi.mocked(isExecutionWorkerDispatchConfigured).mockReturnValue(true)
+      await submitImageGeneration('clerk-1', {
+        ...INPUT,
+        advancedParams: { seed: -1 },
+      })
+      const seed = dispatchedSeed()
+      expect(Number.isInteger(seed)).toBe(true)
+      expect(seed).toBeGreaterThanOrEqual(0)
+      expect(queuedMetadata().assignedSeed).toBe(seed)
+      expect(queuedMetadata().advancedParams).toEqual({ seed: -1 })
+    })
+
+    it('keeps the user seed and assigns nothing', async () => {
+      setupResolve(AI_ADAPTER_TYPES.FAL)
+      vi.mocked(isExecutionWorkerDispatchConfigured).mockReturnValue(true)
+      await submitImageGeneration('clerk-1', {
+        ...INPUT,
+        advancedParams: { seed: 42 },
+      })
+      expect(dispatchedSeed()).toBe(42)
+      expect(queuedMetadata().assignedSeed).toBeUndefined()
+    })
+
+    it('does not assign for providers that take no seed', async () => {
+      setupResolve(AI_ADAPTER_TYPES.OPENAI)
+      vi.mocked(isExecutionWorkerDispatchConfigured).mockReturnValue(true)
+      await submitImageGeneration('clerk-1', INPUT)
+      expect(dispatchedSeed()).toBeUndefined()
+      expect(queuedMetadata().assignedSeed).toBeUndefined()
+    })
+  })
+
   // 进度表 26 切片 2：遮罩在这一层换成 R2 的 http URL，⛔ 客户端那串 data URL
   // 既不该进 worker（解不了）也不该进 DB（几十 KB 的 base64）。
   it('sends the uploaded mask URL to the worker, not the client data URL', async () => {

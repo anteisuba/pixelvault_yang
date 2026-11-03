@@ -845,6 +845,39 @@ describe('execution-callback.service', () => {
     expect(JSON.stringify(input)).not.toContain('example.com/a')
   })
 
+  it('records the seed assigned before dispatch when the provider does not echo one', async () => {
+    mockFindUnique.mockResolvedValue({
+      ...buildJob('RUNNING'),
+      adapterType: 'fal',
+      provider: 'fal',
+      modelId: 'flux-2-pro',
+      prompt: 'a cat',
+      externalRequestId: JSON.stringify({
+        outputType: 'IMAGE',
+        creditCost: 1,
+        aspectRatio: '1:1',
+        assignedSeed: 777,
+      }),
+    })
+    mockCreateGeneration.mockResolvedValue({
+      id: 'g-seed',
+      outputType: 'IMAGE',
+    })
+    await handleExecutionCallback({
+      ...buildPayload('result'),
+      data: {
+        artifactUrl: 'https://cdn.example.com/cat.png',
+        imageR2Key: 'image/cat.png',
+        width: 1024,
+        height: 1024,
+        mimeType: 'image/png',
+      },
+    })
+    const saved = mockCreateGeneration.mock.calls[0][0]
+    expect(saved.seed).toBe(BigInt(777))
+    expect(saved.recipe).toMatchObject({ seed: 777, seedSource: 'provider' })
+  })
+
   it('preserves the source prompt and dimensions while storing precise-edit instructions separately', async () => {
     mockFindUnique.mockResolvedValue({
       ...buildJob('RUNNING'),

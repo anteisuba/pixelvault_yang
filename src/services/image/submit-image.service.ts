@@ -1,5 +1,7 @@
 import 'server-only'
 
+import { randomInt } from 'node:crypto'
+
 import {
   EXECUTION_INTERNAL,
   EXECUTION_WORKER,
@@ -12,6 +14,7 @@ import {
   getExecutionModelId,
   supportsSearchGrounding,
 } from '@/constants/models'
+import { hasCapability } from '@/constants/provider-capabilities'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type {
   GenerateRequest,
@@ -65,6 +68,32 @@ import { reconcileActiveGenerationJob } from '@/services/execution-sweeper.servi
 import { EXECUTION_PROGRESS_STAGES } from '@/constants/generation-progress'
 
 /**
+ * 收种子、出完却不回传实际种子的几家（p-auto-recipe）。用户没填种子时由我们先定一颗
+ * 发过去，配方才记得住「这张图用的哪颗种子」，复刻能换回原样。
+ * NovelAI / Ideogram 自己回传，不用定；其它家不收种子。
+ */
+const SEED_ASSIGNED_ADAPTERS: ReadonlySet<AI_ADAPTER_TYPES> = new Set([
+  AI_ADAPTER_TYPES.RUNNER,
+  AI_ADAPTER_TYPES.FAL,
+  AI_ADAPTER_TYPES.REPLICATE,
+])
+
+/** 0 ~ 2^31-1：各家都收（Ideogram / 火山上限就是 int32）。 */
+const ASSIGNED_SEED_MAX = 2_147_483_647
+
+export function assignDispatchSeed(
+  adapterType: AI_ADAPTER_TYPES,
+  modelId: string,
+  advancedParams: { seed?: number } | undefined,
+): number | undefined {
+  if (!SEED_ASSIGNED_ADAPTERS.has(adapterType)) return undefined
+  if (!hasCapability(adapterType, 'seed', modelId)) return undefined
+  const userSeed = advancedParams?.seed
+  if (typeof userSeed === 'number' && userSeed >= 0) return undefined
+  return randomInt(0, ASSIGNED_SEED_MAX + 1)
+}
+
+/**
  * Worker job metadata persisted on `GenerationJob.externalRequestId` at submit
  * time and read back by the execution callback to finalize the generation.
  * Mirrors the IMAGE fields of `WorkerJobMetadataSchema` in
@@ -85,6 +114,12 @@ export interface ImageQueueMetadata {
   originalModelId: string
   recipeUsage?: GenerateRequest['recipeUsage']
   advancedParams?: GenerateRequest['advancedParams']
+  /**
+   * 用户没填种子时，派发前由我们定好、随参数发给服务商的那颗（p-auto-recipe）。
+   * 只给「收种子但出完不回传」的几家定，见 `SEED_ASSIGNED_ADAPTERS`。
+   * ⚠ 不写进 `advancedParams`：那里只放用户自己填的，配方据此区分 user / provider。
+   */
+  assignedSeed?: number
   workflowInstanceId?: string
   runGroupId?: string
   runGroupType?: 'single' | 'compare' | 'variant'
@@ -278,18 +313,27 @@ export async function submitImageGeneration(
       ? { ...uploadedAdvancedParams, searchGrounding: undefined }
       : uploadedAdvancedParams
   const outputStorageKey = generateStorageKey('IMAGE', dbUser.id)
+  const assignedSeed = assignDispatchSeed(
+    route.adapterType,
+    route.modelId,
+    advancedParams,
+  )
+  const seededAdvancedParams =
+    assignedSeed != null
+      ? { ...advancedParams, seed: assignedSeed }
+      : advancedParams
   const workerAdvancedParams =
     route.adapterType === AI_ADAPTER_TYPES.IDEOGRAM &&
-    advancedParams?.inpaintMask
+    seededAdvancedParams?.inpaintMask
       ? {
-          ...advancedParams,
+          ...seededAdvancedParams,
           inpaintMask: await prepareIdeogramInpaintMask(
             dbUser.id,
             referenceImages[0],
-            advancedParams.inpaintMask,
+            seededAdvancedParams.inpaintMask,
           ),
         }
-      : advancedParams
+      : seededAdvancedParams
 
   const metadata: ImageQueueMetadata = {
     outputType: 'IMAGE',
@@ -305,6 +349,7 @@ export async function submitImageGeneration(
     originalModelId: input.modelId,
     recipeUsage: input.recipeUsage,
     advancedParams,
+    assignedSeed,
     runGroupId: queueMetadataInput.runGroupId,
     runGroupType: queueMetadataInput.runGroupType,
     runGroupIndex: queueMetadataInput.runGroupIndex,
@@ -347,7 +392,7 @@ export async function submitImageGeneration(
             dbUser.id,
           ).catch(() => null)
           const runnerLoras = await prepareRunnerLoras(loras, userCivitaiToken)
-          runnerAdvancedParams = { ...advancedParams, runnerLoras }
+          runnerAdvancedParams = { ...workerAdvancedParams, runnerLoras }
         } catch (error) {
           // 大声失败：LoRA 下载/缓存失败 → 明确报错而非静默出一张没挂 LoRA 的图。
           throw new GenerateImageServiceError(

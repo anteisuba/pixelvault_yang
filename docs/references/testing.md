@@ -51,6 +51,13 @@
 - `fakeServer()` 只替 `fetch`：按「方法 + 路径」登记处理函数，可以直接用 `createApiRoute` 等工厂做真路由；没登记的请求直接报错；`goOffline()` 模拟断网。
 - 样板：`src/test/chains/error-display.test.tsx`（错误显示整链：服务端各类出错 → 技能页 / 出图舞台上是对应语言那句、不是英文原话）。
 
+### L2c 助手改台面工具怎么写
+
+- 清单在 `src/test/assistant-bench/bench-effects.int.test.ts` 的 `BENCH_EFFECTS`：`ASSISTANT_OPERATOR_MUTATING_TOOLS` 里每一条都要声明「改哪几格台面」（`run.state` 的键）或「不在台面上、为什么」。**新加会改东西的工具不声明，清单那一例直接红。**
+- 声明了改台面的逐条真跑（L2a 真库 + 真 `prepareOperatorTurn`，不调模型）：`planTool` 必须是 `mutate` → `apply()` 后这一轮台面真变（⛔ 空操作）、只变声明的格、助手下一步 `read_state` 读得到。
+- 线上出过事的对话把工具调用原样写成一条回放放在同文件（第一条：11-03 摘下 LoRA 挂不回去；它还查出同轮重复挂同一把没拦，已修）。
+- 还没覆盖：画布两条（浏览器落一批、下一跳带新快照回来，另测）；浏览器那一侧把同一步落到真表单之后的快照（下一轮）还没对账。
+
 ### 四条硬规矩
 
 1. **只假边界**。可以假：网络请求（api-client / fetch）、AI 服务商、R2、Clerk 登录、时钟、随机数、logger。不许假：自己的 service、hook、store、context、组件；L2a 不许假数据库。

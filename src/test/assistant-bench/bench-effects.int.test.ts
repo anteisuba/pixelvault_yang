@@ -123,6 +123,38 @@ const LORA_CANDIDATE = {
   },
 }
 
+const ASSET = {
+  assetId: 'gen-asset-1',
+  displayName: '图_001·红狐',
+  url: 'https://cdn.example.test/fox.png',
+  kind: 'image',
+}
+
+const AUDIO_ASSET = {
+  assetId: 'gen-audio-1',
+  displayName: '音_001·旁白',
+  url: 'https://cdn.example.test/voice.mp3',
+  kind: 'audio',
+}
+
+const VIDEO: Snapshot = {
+  prompt: 'a cat leaps',
+  negativePrompt: '',
+  model: { id: 'seedance-2.0-fast', label: 'Seedance 2.0 Fast' },
+  availableModels: [{ id: 'seedance-2.0-fast', label: 'Seedance 2.0 Fast' }],
+  videoSpecs: {
+    durationSeconds: 5,
+    aspectRatio: '16:9',
+    resolution: '720p',
+    durationOptions: [5, 10],
+    aspectRatioOptions: ['16:9', '9:16'],
+    resolutionOptions: ['480p', '720p'],
+  },
+  references: { items: [], limit: 4 },
+  audioReferences: { items: [], limit: 3, requiresVisual: false },
+  sound: { value: null, effective: false },
+}
+
 const image = (
   args: Record<string, unknown>,
   fields: readonly StateKey[],
@@ -155,6 +187,46 @@ const lora = (
   ...extra,
 })
 
+const video = (
+  args: Record<string, unknown>,
+  fields: readonly StateKey[],
+  seen: string,
+  extra: Partial<BenchCase> = {},
+): BenchCase => ({
+  on: 'bench',
+  domain: 'video',
+  workspaceKey: 'video',
+  snapshot: VIDEO,
+  args,
+  fields,
+  seen,
+  ...extra,
+})
+
+const TAGS: Snapshot = {
+  prompt: '1girl, solo',
+  negativePrompt: '',
+  model: { id: 'nai-diffusion-4-5-full', label: 'NAI V4.5' },
+  availableModels: [{ id: 'nai-diffusion-4-5-full', label: 'NAI V4.5' }],
+  references: { items: [], limit: 4 },
+  novelAiCharacters: { mode: 'free', max: 6, layout: null },
+  novelAiSceneTexts: { items: [], maxChars: 40, latinOnly: true },
+}
+
+const tags = (
+  args: Record<string, unknown>,
+  fields: readonly StateKey[],
+  seen: string,
+): BenchCase => ({
+  on: 'bench',
+  domain: 'image',
+  workspaceKey: 'image-tags',
+  snapshot: TAGS,
+  args,
+  fields,
+  seen,
+})
+
 const LIBRARY =
   '改的是素材库 / 设置 / 记忆里的行，工作台一格不动；撤销走服务端 inverse（L2a 测）'
 
@@ -182,19 +254,87 @@ const BENCH_EFFECTS: Record<
     '16:9',
   ),
   [T.setCount]: image({ count: 4 }, ['count'], '4'),
-  [T.mountReference]: { on: 'off-bench', why: 'TODO 第 3 步第二片' },
-  [T.unmountReference]: { on: 'off-bench', why: 'TODO 第 3 步第二片' },
-  [T.setVideoSpecs]: { on: 'off-bench', why: 'TODO 第 3 步第二片' },
-  [T.setTagCharacters]: { on: 'off-bench', why: 'TODO 第 3 步第二片' },
-  [T.setSceneTexts]: { on: 'off-bench', why: 'TODO 第 3 步第二片' },
-  [T.setCapability]: { on: 'off-bench', why: 'TODO 第 3 步第二片' },
-  [T.mountAudioReference]: { on: 'off-bench', why: 'TODO 第 3 步第二片' },
-  [T.setSound]: { on: 'off-bench', why: 'TODO 第 3 步第二片' },
-  [T.primeGenerate]: { on: 'off-bench', why: 'TODO 第 3 步第二片' },
-  [T.importUserUrl]: { on: 'off-bench', why: 'TODO 第 3 步第二片' },
+  [T.mountReference]: image(
+    { assetId: ASSET.assetId },
+    ['referenceUrls', 'referenceCount'],
+    'fox.png',
+    { setup: (run) => run.searchIndex.set(ASSET.assetId, ASSET as never) },
+  ),
+  [T.unmountReference]: image(
+    { slotIndex: 1 },
+    ['referenceUrls', 'referenceCount'],
+    '',
+    {
+      snapshot: {
+        ...IMAGE,
+        references: {
+          items: [{ assetId: ASSET.assetId, url: ASSET.url, label: '红狐' }],
+          limit: 4,
+        },
+      },
+    },
+  ),
+  [T.setVideoSpecs]: video(
+    { durationSeconds: 10, aspectRatio: '9:16', resolution: '480p' },
+    ['videoDurationSeconds', 'videoAspectRatio', 'videoResolution'],
+    '9:16',
+  ),
+  [T.setTagCharacters]: tags(
+    { positioning: 'auto', characters: [{ prompt: 'girl, red hair' }] },
+    ['novelAiCharacters'],
+    'red hair',
+  ),
+  [T.setSceneTexts]: tags(
+    { items: [{ kind: 'sign', text: 'OPEN' }] },
+    ['novelAiSceneTexts'],
+    'OPEN',
+  ),
+  [T.setCapability]: image(
+    { key: 'style', value: 'natural' },
+    ['capabilities'],
+    'natural',
+    {
+      snapshot: {
+        ...IMAGE,
+        capabilities: [
+          {
+            key: 'style',
+            kind: 'select',
+            value: 'vivid',
+            options: ['vivid', 'natural'],
+            available: true,
+          },
+        ],
+      },
+    },
+  ),
+  [T.mountAudioReference]: video(
+    { assetId: AUDIO_ASSET.assetId },
+    ['audioReferenceCount'],
+    '1/3',
+    {
+      setup: (run) =>
+        run.searchIndex.set(AUDIO_ASSET.assetId, AUDIO_ASSET as never),
+    },
+  ),
+  [T.setSound]: video(
+    { enabled: true },
+    ['soundValue', 'soundEffective'],
+    'currently ON',
+  ),
+  [T.primeGenerate]: {
+    on: 'off-bench',
+    why: '只把生成键置成待按，不是台面上的一格；服务端不记，下一步靠这一步的观察知道已置位',
+  },
+  [T.importUserUrl]: image(
+    { url: 'https://images.example.org/fox.png' },
+    ['referenceUrls', 'referenceCount'],
+    '',
+    { userText: '用这张当参考 https://images.example.org/fox.png' },
+  ),
   [T.mountLora]: lora(
     { candidateId: LORA_CANDIDATE.candidateId, weight: 0.6 },
-    ['loras', 'prompt', 'availableModels'],
+    ['loras', 'prompt'],
     'Wuwa Style',
     {
       setup: (run) =>
@@ -211,7 +351,22 @@ const BENCH_EFFECTS: Record<
     ['loras'],
     '1.2',
   ),
-  [T.setLoraParameters]: { on: 'off-bench', why: 'TODO 第 3 步第二片' },
+  [T.setLoraParameters]: lora({ steps: 30 }, ['loraParameters'], '"steps":30', {
+    snapshot: {
+      ...LORA,
+      model: { id: 'illustrious-runner', label: 'Illustrious (Runner)' },
+      availableModels: [
+        { id: 'illustrious-runner', label: 'Illustrious (Runner)' },
+      ],
+      loraParameters: {
+        steps: null,
+        guidanceScale: null,
+        runnerSeed: null,
+        runnerWidth: null,
+        runnerHeight: null,
+      },
+    },
+  }),
   [T.showLoraPicks]: {
     on: 'off-bench',
     why: '圈在 LoRA 库页的网格上，不是工作台的一格（applyOperatorStep 返回 null）',
@@ -317,5 +472,95 @@ describe.each(benchCases)('%s：改完之后助手看到的台面', (tool, c) =>
     const seenAfter = await benchSeenBy(run)
     expect(seenAfter, '助手下一步读到的台面没变').not.toBe(seenBefore)
     if (c.seen) expect(seenAfter).toContain(c.seen)
+  })
+})
+
+/**
+ * 11-03 线上那一轮的工具调用原样回放（线程「修助手摘下 LoRA 后挂不回去」）：
+ * 摘下两把 → 再挂回去。以前挂的那步说「已挂上」，这一轮后面读到的台面却是空的，
+ * 助手以为没挂上，反复摘挂（每挂一次多导入一条收藏）。
+ */
+describe('回放：11-03 摘下 LoRA 挂不回去', () => {
+  const WUWA = { ...LORA_CANDIDATE }
+  const MALFOID = {
+    ...LORA_CANDIDATE,
+    candidateId: 'civitai:3:4',
+    name: 'Malfoid',
+    triggerWords: ['malfoid'],
+    importPayload: {
+      ...LORA_CANDIDATE.importPayload,
+      name: 'Malfoid',
+      triggerWord: 'malfoid',
+      loraUrl: 'https://civitai.com/api/download/models/4',
+      modelVersionId: 4,
+    },
+  }
+  const ON_BENCH: Snapshot = {
+    ...LORA,
+    prompt: '1girl, wuwaFG, malfoid',
+    loras: {
+      ...LORA.loras!,
+      items: [
+        {
+          ...LORA.loras!.items[0]!,
+          id: 'lora-wuwa',
+          name: 'Wuwa Style',
+          triggerWord: 'wuwaFG',
+        },
+        {
+          ...LORA.loras!.items[0]!,
+          id: 'lora-malfoid',
+          name: 'Malfoid',
+          triggerWord: 'malfoid',
+        },
+      ],
+    },
+  }
+
+  it('摘两把再挂回：每一步之后台面都对得上，挂回去的看得到、不会挂第二次', async () => {
+    const prepared = await openTurn({
+      ...(BENCH_EFFECTS[T.mountLora] as BenchCase),
+      snapshot: ON_BENCH,
+      userText: '先把两把 LoRA 摘了，再挂回去',
+    })
+    const { run } = prepared
+    run.loraIndex.set(WUWA.candidateId, WUWA as never)
+    run.loraIndex.set(MALFOID.candidateId, MALFOID as never)
+
+    const step = async (
+      tool: AssistantOperatorTool,
+      args: Record<string, unknown>,
+    ) => {
+      const plan = await planTool(run, tool, args, user.id)
+      expect(plan.kind, `${tool} ${JSON.stringify(plan).slice(0, 300)}`).toBe(
+        'mutate',
+      )
+      if (plan.kind === 'mutate') plan.apply()
+      return benchSeenBy(run)
+    }
+
+    await step(T.unmountLora, { loraId: 'lora-wuwa' })
+    const empty = await step(T.unmountLora, { loraId: 'lora-malfoid' })
+    expect(empty).toContain('EMPTY')
+
+    await step(T.mountLora, { candidateId: WUWA.candidateId })
+    const both = await step(T.mountLora, { candidateId: MALFOID.candidateId })
+    expect(both).toContain('Wuwa Style')
+    expect(both).toContain('Malfoid')
+    expect(run.state.loras).toHaveLength(2)
+
+    // 触发词各一次（摘挂不叠写）
+    const words = run.state.prompt.split(',').map((word) => word.trim())
+    expect(words.filter((word) => word === 'wuwaFG')).toHaveLength(1)
+    expect(words.filter((word) => word === 'malfoid')).toHaveLength(1)
+
+    // 同一把再挂一次：台面已经有了，不该再导入一条
+    const again = await planTool(
+      run,
+      T.mountLora,
+      { candidateId: WUWA.candidateId },
+      user.id,
+    )
+    expect(again.kind).not.toBe('mutate')
   })
 })

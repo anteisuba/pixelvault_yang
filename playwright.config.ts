@@ -7,6 +7,8 @@ loadEnvConfig(process.cwd(), true)
 
 const SETUP_FILES = /.*\.setup\.ts/
 const STUDIO_VISUAL = /studio\.visual\.spec\.ts/
+// L4 冒烟与关键链路（登录态，CI 每次跑）。
+const JOURNEYS = /journeys\/.*\.spec\.ts/
 
 export default defineConfig({
   testDir: './e2e',
@@ -39,14 +41,24 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
-      testIgnore: [SETUP_FILES, STUDIO_VISUAL],
+      testIgnore: [SETUP_FILES, STUDIO_VISUAL, JOURNEYS],
       dependencies: ['global setup'],
     },
     {
       name: 'mobile',
       use: { ...devices['iPhone 14'] },
-      testIgnore: [SETUP_FILES, STUDIO_VISUAL],
+      testIgnore: [SETUP_FILES, STUDIO_VISUAL, JOURNEYS],
       dependencies: ['global setup'],
+    },
+    // L4：登录的测试账号跑冒烟与关键链路（e2e/journeys）。
+    {
+      name: 'journeys',
+      testMatch: JOURNEYS,
+      dependencies: ['auth setup'],
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: 'e2e/.auth/user.json',
+      },
     },
     // Authenticated studio visual regression — reuses the saved session.
     {

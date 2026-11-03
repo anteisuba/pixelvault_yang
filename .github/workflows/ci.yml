@@ -112,6 +112,90 @@ jobs:
           NODE_ENV: test
           TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/antei_test
 
+  e2e-smoke:
+    name: E2E Smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    # L4 冒烟（docs/references/testing.md「测试标准」）：一次性 Postgres + 生产构建 + Clerk
+    # 开发实例的测试账号，把每个台、每个库页打开一遍。⛔ 不连线上库、不用线上 key。
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: antei_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d antei_e2e"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/antei_e2e
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/antei_e2e
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+      E2E_CLERK_USER_EMAIL: ${{ secrets.E2E_CLERK_USER_EMAIL }}
+      NEXT_PUBLIC_STORAGE_BASE_URL: "https://stub.example.com"
+      NEXT_PUBLIC_APP_URL: "http://localhost:3000"
+      R2_ACCOUNT_ID: "stub"
+      R2_ACCESS_KEY_ID: "stub"
+      R2_SECRET_ACCESS_KEY: "stub"
+      R2_BUCKET_NAME: "stub"
+      API_KEY_ENCRYPTION_SECRET: "0000000000000000000000000000000000000000000000000000000000000000"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Refuse production Clerk keys
+        run: |
+          case "$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY" in pk_test_*) ;; *) echo "需要 Clerk 开发实例的 pk_test_ key"; exit 1;; esac
+          case "$CLERK_SECRET_KEY" in sk_test_*) ;; *) echo "需要 Clerk 开发实例的 sk_test_ key"; exit 1;; esac
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npm run prisma:generate
+
+      - name: Apply migrations to the throwaway database
+        run: npx prisma migrate deploy
+
+      - name: Build
+        run: npm run build
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Start server
+        run: |
+          npm run start > /tmp/next.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf -o /dev/null http://localhost:3000/en && exit 0; sleep 2; done
+          echo 'server did not start'; tail -100 /tmp/next.log; exit 1
+
+      - name: Smoke
+        run: npx playwright test --project=journeys
+
+      - name: Server log on failure
+        if: failure()
+        run: tail -200 /tmp/next.log
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+
   worker-test:
     name: Execution Worker Tests
     runs-on: ubuntu-latest

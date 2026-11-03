@@ -63,11 +63,25 @@ const nextConfig: NextConfig = {
     ],
   },
   // Same reason for the webpack build (the Cloudflare/OpenNext build uses
-  // webpack): shiki never runs on the server, so swap it for an empty module
-  // there instead of bundling ~20 MB of grammars into the Worker.
+  // webpack): shiki never runs on the server, but Next lists it as a server
+  // external, so every page bundle keeps an `import("shiki")` that OpenNext
+  // then inlines (~9 MB of grammars) into the Worker. Turn it into an empty
+  // object on the server instead; code-block.tsx only loads it in useEffect.
   webpack(config, { isServer }) {
     if (isServer) {
-      config.resolve.alias = { ...config.resolve.alias, shiki: false }
+      const externals = Array.isArray(config.externals)
+        ? config.externals
+        : [config.externals].filter(Boolean)
+      config.externals = [
+        (
+          { request }: { request?: string },
+          callback: (error?: Error | null, result?: string) => void,
+        ) =>
+          request === 'shiki' || request?.startsWith('@shikijs/')
+            ? callback(null, 'var {}')
+            : callback(),
+        ...externals,
+      ]
     }
     return config
   },

@@ -100,8 +100,14 @@ export function readFalModel3DResult(resultData: Record<string, unknown>): {
   artifactUrl: string | null
   mimeType: string
 } {
-  // Hunyuan3D typically returns { model_mesh: { url, content_type } }
-  const mesh = isRecord(resultData.model_mesh) ? resultData.model_mesh : null
+  // 混元 3D v3 / v3.1、Trellis 2 回 { model_glb: { url } }（11-03 契约测试按官方
+  // OpenAPI 查出来的；以前只认 model_mesh，这三个出完会被判「没有产物」）。
+  // 混元 v2 / TripoSR 回 { model_mesh: { url, content_type } }。
+  const mesh = isRecord(resultData.model_glb)
+    ? resultData.model_glb
+    : isRecord(resultData.model_mesh)
+      ? resultData.model_mesh
+      : null
   if (mesh) {
     return {
       artifactUrl: readStringField(mesh, 'url'),

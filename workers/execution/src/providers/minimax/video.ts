@@ -11,6 +11,7 @@ import {
   createProviderNoOutputError,
   createProviderPayloadError,
   createProviderResponseError,
+  WORKER_GENERATION_ERROR_CODES,
 } from '../../lib/provider-error'
 import {
   buildMiniMaxVideoRequest,
@@ -21,6 +22,8 @@ import {
 // ─── MiniMax (H3) video — native direct, both stations ───────────
 // The second video provider on this workflow. fal stays the default; anything
 // routed here goes to MiniMax's own async face instead of queue.fal.run.
+
+const MINIMAX_CONTENT_FILTER_CODES = new Set(['1026', '1027'])
 
 export async function submitMiniMaxQueue(
   context: WorkerRunContext,
@@ -116,10 +119,24 @@ export async function pollMiniMaxQueue(
   }
 
   if (status === 'FAILED') {
+    // v2 的 error 是对象 { code, message }（官方示例：1026 内容不合规）。
+    const error = isRecord(task.error) ? task.error : null
     return {
       status: 'FAILED',
-      error: readStringField(task, 'error') ?? `MiniMax task ${rawStatus}.`,
-      providerMetadata,
+      error:
+        (error ? readStringField(error, 'message') : null) ??
+        readStringField(task, 'error') ??
+        `MiniMax task ${rawStatus}.`,
+      // 1026 = 输入不合规、1027 = 生成的视频不合规（官方错误码表）。
+      errorCode: MINIMAX_CONTENT_FILTER_CODES.has(
+        (error ? readStringField(error, 'code') : null) ?? '',
+      )
+        ? WORKER_GENERATION_ERROR_CODES.CONTENT_FILTERED
+        : undefined,
+      providerMetadata: {
+        ...providerMetadata,
+        ...(error ? { providerErrorCode: readStringField(error, 'code') } : {}),
+      },
     }
   }
 

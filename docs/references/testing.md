@@ -22,6 +22,14 @@
 - Zod schema 用 `.safeParse()` 测有效 / 无效 / 边界（不用 `.parse()`）。
 - i18n 守护测试：`src/i18n/completeness.test.ts`（三语键齐全 + AI_MODELS 标签 + providers 文案）。
 
+## Worker 服务商契约测试（`workers/execution/src/providers/<名字>/contract.test.ts`，2026-11-03）
+
+拿各家**官方**给的返回样本喂 Worker 的解析代码，服务商改了返回长相就红。样本在同目录 `contract-fixtures.json`（fal 是 `contract-fixtures/` 一模型一份），每份写明 `source` / `sourceUrl(s)` / `fetchedAt`，样本里改过的地方写在 `note`。
+
+- 现有：fal（32 个在用模型，出图 / 视频 / 3D）、MiniMax、火山 / BytePlus（出图图层 + 视频）、Replicate、Ideogram、PixAI、OpenAI（普通 + 流式）、Gemini（出图 + 视频文件）。没做：NovelAI（返回是 zip，已有单测）、HuggingFace / Fish Audio（返回是裸字节）、Runner（自家 Modal 服务）、Rodin（3D 先不动）。
+- fal 样本靠脚本刷新：`cd workers/execution && node scripts/refresh-fal-contracts.mjs`（读 Next 模型表里的 fal 端点、拉官方 OpenAPI 的 Output 示例，不要 key）。其它家文档变了手动改样本。
+- 有了真实返回（Worker 日志 / 实测）直接替换 `output` 或对应字段、`source` 改成 `recorded`。⛔ 别把 key、用户提示词、用户图片地址录进样本。
+
 ## 助手回放基线（已删，2026-10-23）
 
 v3 那套录好回复的回放基线（`src/test/assistant-replay/` 的题、判分器、上下文预算、长对话）录的是 v3 环的协议，第 9c 步删旧内核时一起删了；只留实跑评测用的 `fake-db.ts` 与 `after-tasks.ts`。新内核的回归靠下面的实跑评测（等第 9 步全部做完再统一跑，花用户额度）。

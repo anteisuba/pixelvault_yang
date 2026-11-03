@@ -1,0 +1,53 @@
+{
+  "source": "official-docs-example",
+  "sourceUrls": [
+    "https://replicate.com/docs/reference/http",
+    "https://replicate.com/delta-lock/noobai-xl/api/schema"
+  ],
+  "fetchedAt": "2026-11-03",
+  "note": "预测对象照抄 HTTP 文档 predictions.get 的示例；output 按 delta-lock/noobai-xl 的 Output schema（array of uri）换成图片地址。",
+  "predictionStarting": {
+    "id": "gm3qorzdhgbfurvjtvhg6dckhu",
+    "model": "delta-lock/noobai-xl",
+    "version": "5c7d5dc6dd8bf75c1acaa8565735e7986bc5b66206b55cca93cb72c9bf15ccaa",
+    "input": { "prompt": "1girl" },
+    "logs": "",
+    "output": null,
+    "error": null,
+    "status": "starting",
+    "created_at": "2023-09-08T16:19:34.765994Z",
+    "urls": {
+      "web": "https://replicate.com/p/gm3qorzdhgbfurvjtvhg6dckhu",
+      "get": "https://api.replicate.com/v1/predictions/gm3qorzdhgbfurvjtvhg6dckhu",
+      "cancel": "https://api.replicate.com/v1/predictions/gm3qorzdhgbfurvjtvhg6dckhu/cancel"
+    }
+  },
+  "predictionSucceeded": {
+    "id": "gm3qorzdhgbfurvjtvhg6dckhu",
+    "model": "delta-lock/noobai-xl",
+    "version": "5c7d5dc6dd8bf75c1acaa8565735e7986bc5b66206b55cca93cb72c9bf15ccaa",
+    "input": { "prompt": "1girl" },
+    "logs": "",
+    "output": ["https://replicate.delivery/pbxt/example/out-0.png"],
+    "error": null,
+    "status": "succeeded",
+    "created_at": "2023-09-08T16:19:34.765994Z",
+    "source": "api",
+    "data_removed": false,
+    "started_at": "2023-09-08T16:19:34.779176Z",
+    "completed_at": "2023-09-08T16:19:34.791859Z",
+    "metrics": { "predict_time": 0.012683 },
+    "urls": {
+      "web": "https://replicate.com/p/gm3qorzdhgbfurvjtvhg6dckhu",
+      "get": "https://api.replicate.com/v1/predictions/gm3qorzdhgbfurvjtvhg6dckhu",
+      "cancel": "https://api.replicate.com/v1/predictions/gm3qorzdhgbfurvjtvhg6dckhu/cancel"
+    }
+  },
+  "predictionStatuses": [
+    "starting",
+    "processing",
+    "succeeded",
+    "failed",
+    "canceled"
+  ]
+}

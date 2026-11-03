@@ -1,0 +1,75 @@
+{
+  "source": "official-api-reference-schema",
+  "fetchedAt": "2026-11-03",
+  "note": "参考页只给字段表不给整段示例：按 GenerateContentResponse / Candidate / Part / PromptFeedback 的字段和枚举（IMAGE_SAFETY、PROHIBITED_CONTENT）拼；图片数据是一张 1x1 透明 PNG。 视频文件按 Files API 的 File 资源字段拼。",
+  "imageReturned": {
+    "candidates": [
+      {
+        "content": {
+          "role": "model",
+          "parts": [
+            {
+              "text": "Here is the image."
+            },
+            {
+              "inlineData": {
+                "mimeType": "image/png",
+                "data": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR4nGNgAAIAAAUAAXpeqz8AAAAASUVORK5CYII="
+              }
+            }
+          ]
+        },
+        "finishReason": "STOP",
+        "index": 0
+      }
+    ],
+    "usageMetadata": {
+      "promptTokenCount": 10,
+      "candidatesTokenCount": 1290,
+      "totalTokenCount": 1300
+    },
+    "modelVersion": "gemini-3-pro-image-preview"
+  },
+  "outputBlocked": {
+    "candidates": [
+      {
+        "content": {
+          "role": "model",
+          "parts": []
+        },
+        "finishReason": "IMAGE_SAFETY",
+        "finishMessage": "Unable to show the generated image.",
+        "index": 0
+      }
+    ]
+  },
+  "promptBlocked": {
+    "promptFeedback": {
+      "blockReason": "PROHIBITED_CONTENT"
+    }
+  },
+  "sourceUrls": [
+    "https://ai.google.dev/api/generate-content",
+    "https://ai.google.dev/api/files"
+  ],
+  "videoFileActive": {
+    "name": "files/abc123",
+    "mimeType": "video/mp4",
+    "sizeBytes": "4404019",
+    "createTime": "2026-11-03T08:00:00Z",
+    "updateTime": "2026-11-03T08:01:00Z",
+    "uri": "https://generativelanguage.googleapis.com/v1beta/files/abc123",
+    "downloadUri": "https://generativelanguage.googleapis.com/v1beta/files/abc123:download?alt=media",
+    "state": "ACTIVE",
+    "source": "GENERATED"
+  },
+  "videoFileStates": ["STATE_UNSPECIFIED", "PROCESSING", "ACTIVE", "FAILED"],
+  "videoFileFailed": {
+    "name": "files/abc123",
+    "state": "FAILED",
+    "error": {
+      "code": 13,
+      "message": "Internal error while processing video."
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "endpointId": "bytedance/seedream/v5/pro/text-to-image",
+  "source": "official-openapi-example",
+  "sourceUrl": "https://fal.ai/api/openapi/queue/openapi.json?endpoint_id=bytedance/seedream/v5/pro/text-to-image",
+  "fetchedAt": "2026-11-03",
+  "requiredOutputFields": ["images"],
+  "output": {
+    "images": [
+      {
+        "url": "https://v3b.fal.media/files/b/0aa16df4/ktjX_-2KKAw7bCTQgopGV_5b49dc459dfe484fbb1218fce0e24bc7.png"
+      }
+    ]
+  }
+}

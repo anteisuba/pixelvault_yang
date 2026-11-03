@@ -1,0 +1,41 @@
+{
+  "source": "official-docs-example",
+  "sourceUrls": [
+    "https://platform.pixai.art/en/docs/api-v2/image/createImage",
+    "https://platform.pixai.art/en/docs/api-v2/task/getTask"
+  ],
+  "fetchedAt": "2026-11-03",
+  "note": "created 照抄建任务的示例；completed / failed 文档没给示例，按 Get a task 的字段说明拼（seed 是十进制字符串、mediaUrls 可能含 null）。我们轮询用的是快速上手里写的 /v1/task/{id}，参考页写的是 /v2/task/{id}，两条文档目前都在。",
+  "created": {
+    "id": "1943547603237249965",
+    "status": "waiting",
+    "createdAt": "2025-11-07T14:54:35.000Z",
+    "updatedAt": "2025-11-07T14:54:35.000Z",
+    "outputs": { "mediaIds": [], "mediaUrls": [] }
+  },
+  "completed": {
+    "id": "1943547603237249965",
+    "status": "completed",
+    "createdAt": "2025-11-07T14:54:35.000Z",
+    "updatedAt": "2025-11-07T14:55:02.000Z",
+    "startedAt": "2025-11-07T14:54:40.000Z",
+    "endAt": "2025-11-07T14:55:02.000Z",
+    "taskKind": "t2i",
+    "paidQuota": 2000,
+    "outputs": {
+      "seed": "2840367731",
+      "mediaIds": ["598374917358012345"],
+      "mediaUrls": ["https://images-ng.pixai.art/images/orig/example.png"]
+    }
+  },
+  "failed": {
+    "id": "1943547603237249965",
+    "status": "failed",
+    "createdAt": "2025-11-07T14:54:35.000Z",
+    "updatedAt": "2025-11-07T14:55:02.000Z",
+    "taskStatusMsgI18n": {
+      "key": "task.failed",
+      "defaultMessage": "Task failed"
+    }
+  }
+}

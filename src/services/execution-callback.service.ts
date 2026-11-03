@@ -143,6 +143,8 @@ const WorkerJobMetadataSchema = ExecutionCallbackResultDataSchema.pick({
     apiKeyId: z.string().min(1).optional(),
     originalModelId: z.string().min(1).optional(),
     advancedParams: z.unknown().optional(),
+    /** 派发前替用户定的种子（Runner / fal / Replicate 出图），见 `assignDispatchSeed`。 */
+    assignedSeed: z.number().int().nonnegative().optional(),
     recipeUsage: z.unknown().optional(),
     /** 视频提交时起草的生成配方（p-auto-recipe），回调定稿后写进 Generation.recipe。 */
     recipe: z.unknown().optional(),
@@ -1018,9 +1020,10 @@ async function finalizeImageResult(
   // Billing units are sealed by the server before dispatch. The worker's
   // requestCount describes provider attempts and must not override pricing.
   const requestCount = metadata.creditCost ?? resultData.requestCount ?? 1
-  // 服务商回传的真实种子（Ideogram、NovelAI 随机挑的那颗）优先；没回传就记用户填的。
+  // 服务商回传的真实种子（Ideogram、NovelAI 随机挑的那颗）或派发前替用户定的那颗优先；都没有就记用户填的。
+  const providerSeed = readProviderSeed(resultData) ?? metadata.assignedSeed
   const seedValue =
-    readProviderSeed(resultData) ??
+    providerSeed ??
     (metadata.advancedParams as { seed?: number } | undefined)?.seed
 
   try {
@@ -1051,7 +1054,7 @@ async function finalizeImageResult(
         characterCardIds: metadata.characterCardIds,
         imageOperation: metadata.imageOperation,
       }),
-      readProviderSeed(resultData),
+      providerSeed,
     )
 
     const recipeSnapshot = metadata.recipeUsage

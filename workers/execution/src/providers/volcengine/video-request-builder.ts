@@ -282,6 +282,8 @@ export function mapVolcEngineStatus(
       return 'IN_PROGRESS'
     case 'failed':
     case 'expired':
+    // 官方状态表里有 cancelled（只有排队中的能取消）；以前落到 default 一直轮询到超时。
+    case 'cancelled':
       return 'FAILED'
     default:
       // 'queued' and anything undocumented — keep polling rather than abandon a

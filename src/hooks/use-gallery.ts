@@ -12,7 +12,10 @@ import { useTranslations } from 'next-intl'
 
 import { INFINITE_SCROLL_PREFETCH_MARGIN, PAGINATION } from '@/constants/config'
 import { fetchGalleryImages } from '@/lib/api-client'
-import { getApiErrorMessage } from '@/lib/api-error-message'
+import {
+  getApiErrorMessage,
+  getThrownErrorMessage,
+} from '@/lib/api-error-message'
 import {
   makeGalleryCacheKey,
   readGalleryCache,
@@ -342,10 +345,11 @@ export function useGallery({
         }
       } catch (error) {
         if (requestId === requestIdRef.current && !opts?.silent) {
-          const message =
-            error instanceof Error
-              ? error.message
-              : tErrors('gallery.loadFailed')
+          const message = getThrownErrorMessage(
+            tErrors,
+            error,
+            tErrors('gallery.loadFailed'),
+          )
           if (append) setAppendError(message)
           else setError(message)
         }

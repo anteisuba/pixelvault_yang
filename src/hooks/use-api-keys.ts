@@ -18,6 +18,7 @@ import {
   deleteApiKey,
   verifyApiKey,
 } from '@/lib/api-client'
+import { ApiClientError } from '@/lib/api-client/error-fields'
 import { deferToIdle } from '@/lib/defer-to-idle'
 import { useErrorText } from '@/hooks/use-error-text'
 
@@ -188,7 +189,6 @@ function updateCachedHealthMap(
 async function loadApiKeysSnapshot(
   userId: string,
   force: boolean,
-  loadFailedMessage: string,
 ): Promise<ApiKeysSnapshot> {
   if (!force) {
     const cached = getFreshApiKeysSnapshot(userId)
@@ -199,7 +199,8 @@ async function loadApiKeysSnapshot(
   const request = listApiKeys()
     .then((response) => {
       if (!response.success || !response.data) {
-        throw new Error(response.error ?? loadFailedMessage)
+        // 失败结果整个带走（i18nKey / 码），显示处 errText.thrown 认得出。
+        throw new ApiClientError(response)
       }
 
       const cached = loadHealthCache()
@@ -305,11 +306,7 @@ export function useApiKeys({
     async function loadInitialKeys() {
       if (!userId) return
       try {
-        const snapshot = await loadApiKeysSnapshot(
-          userId,
-          false,
-          t('apiKeyLoadFailed'),
-        )
+        const snapshot = await loadApiKeysSnapshot(userId, false)
         if (isCancelled) return
         setKeys(snapshot.keys)
         setHealthMap(snapshot.healthMap)
@@ -317,11 +314,7 @@ export function useApiKeys({
         setError(null)
       } catch (loadError) {
         if (isCancelled) return
-        setError(
-          loadError instanceof Error
-            ? loadError.message
-            : t('apiKeyLoadFailed'),
-        )
+        setError(errText.thrown(loadError, t('apiKeyLoadFailed')))
       } finally {
         if (!isCancelled) setIsLoading(false)
       }
@@ -370,7 +363,7 @@ export function useApiKeys({
       isCancelled = true
       cancelDefer()
     }
-  }, [autoLoad, isLoaded, isSignedIn, userId, t])
+  }, [autoLoad, errText, isLoaded, isSignedIn, userId, t])
 
   const fetchKeys = useCallback(async () => {
     if (!userId) {
@@ -384,11 +377,7 @@ export function useApiKeys({
     setIsLoading(true)
     setError(null)
     try {
-      const snapshot = await loadApiKeysSnapshot(
-        userId,
-        true,
-        t('apiKeyLoadFailed'),
-      )
+      const snapshot = await loadApiKeysSnapshot(userId, true)
       setKeys(snapshot.keys)
       setHealthMap(snapshot.healthMap)
       setLoadedUserId(snapshot.userId)

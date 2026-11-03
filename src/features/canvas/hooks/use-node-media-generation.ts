@@ -192,8 +192,8 @@ export function useNodeMediaGeneration(): UseNodeMediaGenerationValue {
           })
 
           if (!response.success || !response.data) {
-            const message =
-              response.error ?? NODE_MEDIA_GENERATION_FALLBACK_ERROR
+            // 原话只往下传给 errText.generation 分类，⛔ 不拿英文兜底句冒充原话。
+            const message = response.error ?? ''
             setError(message)
             return {
               success: false,
@@ -242,8 +242,8 @@ export function useNodeMediaGeneration(): UseNodeMediaGenerationValue {
           })
 
           if (!response.success || !response.data) {
-            const message =
-              response.error ?? NODE_MEDIA_GENERATION_FALLBACK_ERROR
+            // 原话只往下传给 errText.generation 分类，⛔ 不拿英文兜底句冒充原话。
+            const message = response.error ?? ''
             setError(message)
             return {
               success: false,
@@ -281,8 +281,8 @@ export function useNodeMediaGeneration(): UseNodeMediaGenerationValue {
           })
 
           if (!response.success || !response.data) {
-            const message =
-              response.error ?? NODE_MEDIA_GENERATION_FALLBACK_ERROR
+            // 原话只往下传给 errText.generation 分类，⛔ 不拿英文兜底句冒充原话。
+            const message = response.error ?? ''
             setError(message)
             return {
               success: false,

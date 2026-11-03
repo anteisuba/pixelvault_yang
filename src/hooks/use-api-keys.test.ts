@@ -107,7 +107,8 @@ describe('useApiKeys · hasLoaded（名单到没到）', () => {
       error: 'boom',
     })
     const { result } = renderHook(() => useApiKeys())
-    await waitFor(() => expect(result.current.error).toBe('boom'))
+    // 原话 'boom' ⛔ 进界面：只给本地化的「加载失败」。
+    await waitFor(() => expect(result.current.error).toBe('apiKeyLoadFailed'))
     expect(result.current.hasLoaded).toBe(false)
   })
 

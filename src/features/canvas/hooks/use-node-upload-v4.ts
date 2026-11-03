@@ -19,6 +19,7 @@
  */
 
 import { useCallback, useRef, useState } from 'react'
+import { useTranslations } from 'next-intl'
 
 import { CLIENT_UPLOAD_MAX_BYTES } from '@/constants/uploads'
 import { NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS } from '@/constants/node-studio'
@@ -30,6 +31,7 @@ import {
   captureVideoThumbnail,
   readVideoFileMetadata,
 } from '@/lib/video-thumbnail'
+import { useErrorText } from '@/hooks/use-error-text'
 import type { NodeV4MediaPatch } from '@/features/canvas/components/nodes/v4/NodeV4Context'
 
 export const NODE_V4_UPLOAD_KINDS = ['image', 'audio', 'video'] as const
@@ -48,6 +50,7 @@ export interface UseNodeUploadV4Value {
   readonly isUploading: boolean
   /** 0–100 真实字节进度（图片与视频直传报得出来，音频停在 0）。 */
   readonly progress: number
+  /** 已本地化的一句话（errText），⛔ 不是服务端原话。 */
   readonly error: string | null
   /** 有没有可重试的那一份 —— UI 据此决定要不要摆「重试」。 */
   readonly canRetry: boolean
@@ -68,7 +71,15 @@ export async function uploadImageMediaPatch(
   },
 ): Promise<
   | { readonly ok: true; readonly patch: NodeV4MediaPatch }
-  | { readonly ok: false; readonly error: string }
+  | {
+      readonly ok: false
+      /** 失败结果原样带回，由显示处交给 errText.api 变成一句话。 */
+      readonly failure: {
+        readonly error?: string
+        readonly errorCode?: string
+        readonly i18nKey?: string
+      }
+    }
 > {
   const { file: compressed } = await compressImageToLimit(file, {
     maxBytes: CLIENT_UPLOAD_MAX_BYTES,
@@ -81,7 +92,7 @@ export async function uploadImageMediaPatch(
   })
   const url = response.data?.generation.url
   if (!response.success || !url) {
-    return { ok: false, error: response.error ?? 'upload failed' }
+    return { ok: false, failure: response }
   }
   return {
     ok: true,
@@ -97,6 +108,9 @@ export async function uploadImageMediaPatch(
 }
 
 export function useNodeUploadV4(): UseNodeUploadV4Value {
+  const errText = useErrorText()
+  const tErrors = useTranslations('Errors')
+  const failedText = tErrors('upload.failed')
   const [isUploading, setIsUploading] = useState(false)
   const [progress, setProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
@@ -130,7 +144,7 @@ export function useNodeUploadV4(): UseNodeUploadV4Value {
             signal: controller.signal,
           })
           if (!result.ok) {
-            setError(result.error)
+            setError(errText.api(result.failure, failedText))
             setCanRetry(true)
             return null
           }
@@ -143,7 +157,7 @@ export function useNodeUploadV4(): UseNodeUploadV4Value {
         if (kind === 'audio') {
           const response = await uploadReferenceAudioAPI(file)
           if (!response.success || !response.data) {
-            setError(response.error ?? 'upload failed')
+            setError(errText.api(response, failedText))
             setCanRetry(true)
             return null
           }
@@ -178,7 +192,7 @@ export function useNodeUploadV4(): UseNodeUploadV4Value {
             setCanRetry(false)
             return null
           }
-          setError(response.error ?? 'upload failed')
+          setError(errText.api(response, failedText))
           setCanRetry(true)
           return null
         }
@@ -200,7 +214,7 @@ export function useNodeUploadV4(): UseNodeUploadV4Value {
           setCanRetry(false)
           return null
         }
-        setError(cause instanceof Error ? cause.message : String(cause))
+        setError(errText.thrown(cause, failedText))
         setCanRetry(true)
         return null
       } finally {
@@ -208,7 +222,7 @@ export function useNodeUploadV4(): UseNodeUploadV4Value {
         controllerRef.current = null
       }
     },
-    [],
+    [errText, failedText],
   )
 
   const retry = useCallback(async (): Promise<NodeV4MediaPatch | null> => {

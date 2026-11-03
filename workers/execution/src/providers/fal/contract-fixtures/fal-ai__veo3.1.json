@@ -1,0 +1,12 @@
+{
+  "endpointId": "fal-ai/veo3.1",
+  "source": "official-openapi-example",
+  "sourceUrl": "https://fal.ai/api/openapi/queue/openapi.json?endpoint_id=fal-ai/veo3.1",
+  "fetchedAt": "2026-11-03",
+  "requiredOutputFields": ["video"],
+  "output": {
+    "video": {
+      "url": "https://v3b.fal.media/files/b/kangaroo/oUCiZjQwEy6bIQdPUSLDF_output.mp4"
+    }
+  }
+}

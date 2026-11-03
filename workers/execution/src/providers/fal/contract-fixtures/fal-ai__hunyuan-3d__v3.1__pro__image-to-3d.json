@@ -1,0 +1,35 @@
+{
+  "endpointId": "fal-ai/hunyuan-3d/v3.1/pro/image-to-3d",
+  "source": "official-openapi-example",
+  "sourceUrl": "https://fal.ai/api/openapi/queue/openapi.json?endpoint_id=fal-ai/hunyuan-3d/v3.1/pro/image-to-3d",
+  "fetchedAt": "2026-11-03",
+  "requiredOutputFields": ["model_glb", "model_urls"],
+  "output": {
+    "thumbnail": {
+      "file_name": "preview.png",
+      "url": "https://v3b.fal.media/files/b/0a8c3187/gxidaODj4OvPXruCfrZ-__preview.png",
+      "content_type": "image/png",
+      "file_size": 194908
+    },
+    "model_glb": {
+      "file_name": "model.glb",
+      "url": "https://v3b.fal.media/files/b/0a8c3187/jOeZmtBuhdQMkDu65AkdT_model.glb",
+      "content_type": "model/gltf-binary",
+      "file_size": 38554640
+    },
+    "model_urls": {
+      "glb": {
+        "file_name": "model.glb",
+        "url": "https://v3b.fal.media/files/b/0a8c3187/jOeZmtBuhdQMkDu65AkdT_model.glb",
+        "content_type": "model/gltf-binary",
+        "file_size": 38554640
+      },
+      "obj": {
+        "file_name": "model.obj",
+        "url": "https://v3b.fal.media/files/b/0a8c3186/no-aBFEDnOuthILfv-wzs_model.obj",
+        "content_type": "model/obj",
+        "file_size": 31447160
+      }
+    }
+  }
+}

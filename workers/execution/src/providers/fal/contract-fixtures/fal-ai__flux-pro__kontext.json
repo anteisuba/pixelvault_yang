@@ -1,0 +1,26 @@
+{
+  "endpointId": "fal-ai/flux-pro/kontext",
+  "source": "official-openapi-example",
+  "sourceUrl": "https://fal.ai/api/openapi/queue/openapi.json?endpoint_id=fal-ai/flux-pro/kontext",
+  "fetchedAt": "2026-11-03",
+  "requiredOutputFields": [
+    "images",
+    "timings",
+    "seed",
+    "has_nsfw_concepts",
+    "prompt"
+  ],
+  "output": {
+    "images": [
+      {
+        "url": "https://fal.media/files/tiger/7dSJbIU_Ni-0Zp9eaLsvR_fe56916811d84ac69c6ffc0d32dca151.jpg",
+        "width": 1024,
+        "height": 1024
+      }
+    ],
+    "seed": 1,
+    "timings": {},
+    "has_nsfw_concepts": [false],
+    "prompt": "example"
+  }
+}

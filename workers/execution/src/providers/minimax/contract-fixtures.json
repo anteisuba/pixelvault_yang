@@ -1,0 +1,64 @@
+{
+  "source": "official-openapi-example",
+  "sourceUrls": [
+    "https://platform.minimax.io/docs/api-reference/video-generation-v2-create.md",
+    "https://platform.minimax.io/docs/api-reference/video-generation-v2-query.md"
+  ],
+  "fetchedAt": "2026-11-03",
+  "submit": { "task_id": "424010985738629" },
+  "querySucceeded": {
+    "task": {
+      "id": "424010985738629",
+      "model": "MiniMax-H3",
+      "status": "succeeded",
+      "created_at": 1785125529,
+      "updated_at": 1785125946,
+      "content": {
+        "url": "https://video-product.cdn.minimax.io/inference_output/rollout/2026-07-27/6c68f487-4b33-48cb-8c92-1631f63f6682/output.mp4"
+      },
+      "resolution": "2K",
+      "duration": 5,
+      "usage": {
+        "total_seconds": 5,
+        "input_seconds": 0,
+        "output_seconds": 5,
+        "input_image_count": 1,
+        "input_audio_seconds": 6,
+        "total_tokens": 273890,
+        "prompt_tokens": 13500,
+        "completion_tokens": 260390
+      },
+      "ratio": "16:9",
+      "task_type": "generation"
+    }
+  },
+  "queryFailed": {
+    "task": {
+      "id": "424010985738630",
+      "model": "MiniMax-H3",
+      "status": "failed",
+      "error": {
+        "code": "1026",
+        "message": "video description contains sensitive content"
+      },
+      "created_at": 1785125529,
+      "updated_at": 1785125700,
+      "resolution": "2K",
+      "duration": 5,
+      "usage": {},
+      "ratio": "16:9",
+      "task_type": "generation",
+      "modality": "video"
+    }
+  },
+  "taskStatuses": ["queued", "running", "succeeded", "failed", "cancelled"],
+  "error400": {
+    "type": "error",
+    "error": {
+      "type": "bad_request_error",
+      "message": "invalid params, content must include a non-empty text item (prompt is required) (2013)",
+      "http_code": "400"
+    },
+    "request_id": "021785229015510a2c883cf675b9804d"
+  }
+}

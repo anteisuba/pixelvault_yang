@@ -87,6 +87,13 @@ export type IdeogramPollResult =
       providerMetadata: Record<string, unknown>
     }
 
+/** 文档：不带 object_type 的是图；类型表里图片条目叫 image.generation / image.without-prompt-or-seed。 */
+const IDEOGRAM_IMAGE_OBJECT_TYPES = new Set([
+  'image',
+  'image.generation',
+  'image.without-prompt-or-seed',
+])
+
 export function parseIdeogramGeneration(
   value: unknown,
   generationId: string,
@@ -121,7 +128,8 @@ export function parseIdeogramGeneration(
     (item: unknown) =>
       typeof item === 'object' &&
       item !== null &&
-      (!('object_type' in item) || item.object_type === 'image'),
+      (!('object_type' in item) ||
+        IDEOGRAM_IMAGE_OBJECT_TYPES.has(String(item.object_type))),
   ) as Record<string, unknown> | undefined
   if (output?.is_image_safe === false)
     return fail('Ideogram filtered this image.', 'content_filtered')

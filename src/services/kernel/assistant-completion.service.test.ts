@@ -17,8 +17,6 @@ vi.mock('@/services/llm-text.service', () => ({
   llmTextStream: stream,
   isLlmTextContextLimitError: (error: unknown) =>
     error instanceof Error && error.message === 'context overflow',
-  isLlmTextTransientError: (error: unknown) =>
-    error instanceof Error && error.message === 'overloaded',
 }))
 
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
@@ -140,62 +138,30 @@ describe('assistant completion cancellation and context retry', () => {
     },
   )
 
+  // 临时不可用的重发在入口 llm-text.service 统一做（docs/design/llm.md §4），
+  // 这里再叠一层就成了 2×2 次。
   it.each(['completion', 'stream'] as const)(
-    '%s resends the same prompt once after a transient provider outage',
+    '%s does not stack its own retry on a provider outage',
     async (mode) => {
-      vi.useFakeTimers()
-      try {
-        const buildUserPrompt = vi.fn(() => 'full')
-        if (mode === 'completion') {
-          completion.mockRejectedValueOnce(new Error('overloaded'))
-          completion.mockResolvedValueOnce('answer')
-        } else {
-          stream.mockImplementationOnce(async function* () {
-            throw new Error('overloaded')
-          })
-          stream.mockImplementationOnce(async function* () {
-            yield 'answer'
-          })
-        }
-        const input = { ...options, buildUserPrompt }
-        const pending =
-          mode === 'completion'
-            ? completeAssistantTextWithContextRetry(input)
-            : collect(streamAssistantTextWithContextRetry(input))
-        await vi.runAllTimersAsync()
-        await expect(pending).resolves.toEqual(
-          mode === 'completion' ? 'answer' : ['answer'],
-        )
-        const transport = mode === 'completion' ? completion : stream
-        expect(transport).toHaveBeenCalledTimes(2)
-        expect(transport).toHaveBeenNthCalledWith(
-          2,
-          expect.objectContaining({ userPrompt: 'full' }),
-        )
-        expect(buildUserPrompt).toHaveBeenCalledTimes(1)
-      } finally {
-        vi.useRealTimers()
+      const failure = new Error('overloaded')
+      if (mode === 'completion') {
+        completion.mockRejectedValue(failure)
+      } else {
+        stream.mockImplementation(async function* () {
+          throw failure
+        })
       }
+      const input = { ...options, buildUserPrompt: () => 'full' }
+      await expect(
+        mode === 'completion'
+          ? completeAssistantTextWithContextRetry(input)
+          : collect(streamAssistantTextWithContextRetry(input)),
+      ).rejects.toBe(failure)
+      expect(mode === 'completion' ? completion : stream).toHaveBeenCalledTimes(
+        1,
+      )
     },
   )
-
-  it('gives up after one transient retry', async () => {
-    vi.useFakeTimers()
-    try {
-      const failure = new Error('overloaded')
-      completion.mockRejectedValue(failure)
-      const pending = completeAssistantTextWithContextRetry({
-        ...options,
-        buildUserPrompt: () => 'full',
-      })
-      const assertion = expect(pending).rejects.toBe(failure)
-      await vi.runAllTimersAsync()
-      await assertion
-      expect(completion).toHaveBeenCalledTimes(2)
-    } finally {
-      vi.useRealTimers()
-    }
-  })
 
   /**
    * ⛔ 出不来就不换一家（owner 2026-10-15：「会自动扣其他模型的token，用户还不知道」）。
@@ -227,33 +193,6 @@ describe('assistant completion cancellation and context retry', () => {
         })
       },
     )
-
-    it('overloaded: one retry on the same provider, then the original error', async () => {
-      vi.useFakeTimers()
-      try {
-        const failure = new Error('overloaded')
-        completion.mockRejectedValue(failure)
-        const pending = completeAssistantTextWithContextRetry({
-          ...options,
-          modelId: 'gpt-x',
-          buildUserPrompt: () => 'full',
-        })
-        const assertion = expect(pending).rejects.toBe(failure)
-        await vi.runAllTimersAsync()
-        await assertion
-        expect(completion).toHaveBeenCalledTimes(2)
-        expect(completion).toHaveBeenNthCalledWith(
-          2,
-          expect.objectContaining({ modelId: 'gpt-x', userPrompt: 'full' }),
-        )
-        expectSelectedProviderOnly(providerUsesOf(completion, 'step'), {
-          adapterType: AI_ADAPTER_TYPES.OPENAI,
-          apiKey: 'test-key',
-        })
-      } finally {
-        vi.useRealTimers()
-      }
-    })
   })
 
   it('does not retry a stream after visible text', async () => {

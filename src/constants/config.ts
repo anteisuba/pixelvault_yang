@@ -707,6 +707,28 @@ export const LLM_TEXT_TIMEOUTS_MS = {
   STREAM_HEADERS: 90_000,
 } as const
 
+/**
+ * LLM 文本层的统一重发（o-llm，docs/design/llm.md §4）：入口 `llm-text.service`
+ * 一处管全部 21 个调用方，⛔ 调用方不再各自包传输层重试。
+ *
+ * 只在**同一家、同一把 key、同一型号**上原样重发一次（owner 2026-10-15：不换一家）。
+ */
+export const LLM_TEXT_RETRY = {
+  /** 含第一次。2 = 最多重发一次。 */
+  MAX_ATTEMPTS: 2,
+  /** 503 / 529 / 5xx：provider 自己说忙，稍等就常好。 */
+  TRANSIENT_DELAY_MS: 1_500,
+  /** 429：限流窗口一般按秒算，多等一会儿。 */
+  RATE_LIMITED_DELAY_MS: 3_000,
+  /** 连接被掐（ECONNRESET / fetch failed）：多半是一次性的，马上重发。 */
+  NETWORK_DELAY_MS: 500,
+  /**
+   * 第一次失败来得比这慢就不重发：路由 `maxDuration` 最短 60s，慢失败再来一次
+   * 会被平台直接杀掉，只剩一个不带信息的 504。超时（`PROVIDER_TIMEOUT`）同理不重发。
+   */
+  MAX_FAILED_ATTEMPT_MS: 20_000,
+} as const
+
 export const RUNWAY_API = {
   VERSION: '2024-11-06',
   IMAGE_TO_VIDEO_PATH: '/image_to_video',

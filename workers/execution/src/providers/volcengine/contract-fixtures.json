@@ -1,0 +1,68 @@
+{
+  "source": "official-docs-example",
+  "sourceUrls": [
+    "https://www.volcengine.com/docs/82379/1541523",
+    "https://www.volcengine.com/docs/82379/1521309"
+  ],
+  "fetchedAt": "2026-11-03",
+  "note": "文档示例里的图片地址写的是 https://...，这里换成了能解析的占位地址；图层名换成英文。其余字段照抄。",
+  "imageLayered": {
+    "model": "doubao-seedream-5-0-pro-260628",
+    "created": 1784696685,
+    "data": [
+      {
+        "url": "https://ark-content-generation-cn-beijing.tos-cn-beijing.volces.com/base.jpeg",
+        "size": "2048x2048",
+        "output_format": "jpeg",
+        "z_index": 0
+      },
+      {
+        "url": "https://ark-content-generation-cn-beijing.tos-cn-beijing.volces.com/layer-1.png",
+        "size": "1273x265",
+        "output_format": "png",
+        "z_index": 1,
+        "bounding_box": {
+          "absolute": [383, 120, 1655, 384],
+          "normalized": [187, 59, 808, 188]
+        },
+        "name": "Seedream title",
+        "description": "Seedream title in large black serif type"
+      }
+    ],
+    "usage": {
+      "input_images": 1,
+      "generated_images": 8,
+      "output_tokens": 23107,
+      "total_tokens": 23107
+    }
+  },
+  "videoTaskSucceeded": {
+    "id": "cgt-2026****-****",
+    "model": "doubao-seedance-2-0-260128",
+    "status": "succeeded",
+    "content": {
+      "video_url": "https://ark-content-generation-cn-beijing.tos-cn-beijing.volces.com/xxx"
+    },
+    "usage": { "completion_tokens": 108900, "total_tokens": 108900 },
+    "created_at": 1779348818,
+    "updated_at": 1779348874,
+    "seed": 78674,
+    "resolution": "720p",
+    "ratio": "16:9",
+    "duration": 5,
+    "framespersecond": 24,
+    "service_tier": "default",
+    "execution_expires_after": 172800,
+    "generate_audio": true,
+    "draft": false,
+    "priority": 0
+  },
+  "videoTaskStatuses": [
+    "queued",
+    "running",
+    "cancelled",
+    "succeeded",
+    "failed",
+    "expired"
+  ]
+}

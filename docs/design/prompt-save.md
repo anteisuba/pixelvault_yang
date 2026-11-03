@@ -37,7 +37,7 @@
 
 ## 分步
 
-1. 定配方 schema，出图时服务端写进作品（加一列）。**11-02 已做（只做图和视频，owner 定）**：形状 `src/types/generation-recipe.ts`，写入 `generation-recipe.service` + `execution-callback`，读 `GET /api/generations/[id]/recipe`（`source: stored / derived / none` + `gaps: recipe / seed / loraDetails`）。种子：用户填的记 `user`；NovelAI、Ideogram、fal 视频回传的记 `provider`；其余服务商自己随机、没回传的记 `unknown`（只能复刻参数）。
+1. 定配方 schema，出图时服务端写进作品（加一列）。**11-02 已做（只做图和视频，owner 定）**：形状 `src/types/generation-recipe.ts`，写入 `generation-recipe.service` + `execution-callback`，读 `GET /api/generations/[id]/recipe`（`source: stored / derived / none` + `gaps: recipe / seed / loraDetails`）。种子：用户填的记 `user`；NovelAI、Ideogram、fal 视频回传的记 `provider`；其余服务商自己随机、没回传的记 `unknown`（只能复刻参数）。11-03：Runner / fal / Replicate 出图（模型收种子的）用户没填时，Next 派发前先定一颗随参数发出去（`assignDispatchSeed`，存在队列元数据 `assignedSeed`，不混进用户的 `advancedParams`），回调记成 `provider`。同日契约测试查出 fal 出图、PixAI、火山视频其实回传实际种子，改为读回传值（优先于我们定的那颗）。
 2. 统一保存接口与保存键，先替换 LoRA 和素材查看器两处。
 3. 「复刻」接到四个台。
 4. 提示词页详情补齐。

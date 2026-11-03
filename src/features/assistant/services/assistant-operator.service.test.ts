@@ -113,7 +113,6 @@ vi.mock('@/services/llm-text.service', () => ({
     mockSupportsNativeWebSearch(adapter),
   llmNativeWebSearch: (...args: unknown[]) => mockLlmNativeWebSearch(...args),
   isLlmTextContextLimitError: () => false,
-  isLlmTextTransientError: () => false,
 }))
 
 const mockGetPublicGenerationPage = vi.fn()

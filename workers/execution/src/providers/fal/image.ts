@@ -365,6 +365,7 @@ export async function pollFalImageQueue(
     })
   }
 
+  const seed = readNumberField(resultData, 'seed')
   return {
     status: 'COMPLETED',
     imageUrl,
@@ -378,6 +379,8 @@ export async function pollFalImageQueue(
       (firstImage ? readStringField(firstImage, 'content_type') : null) ??
       undefined,
     providerMetadata: {
+      // 大多数 fal 出图模型回传实际用的种子（官方 OpenAPI 的 Output.seed），带回去记进配方。
+      ...(seed != null && seed >= 0 ? { seed } : {}),
       requestId: queue.requestId,
       statusUrl: queue.statusUrl,
       responseUrl: queue.responseUrl,

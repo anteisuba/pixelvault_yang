@@ -1,0 +1,24 @@
+{
+  "endpointId": "fal-ai/flux-2/flash",
+  "source": "official-openapi-example",
+  "sourceUrl": "https://fal.ai/api/openapi/queue/openapi.json?endpoint_id=fal-ai/flux-2/flash",
+  "fetchedAt": "2026-11-03",
+  "requiredOutputFields": [
+    "images",
+    "timings",
+    "seed",
+    "has_nsfw_concepts",
+    "prompt"
+  ],
+  "output": {
+    "has_nsfw_concepts": [false],
+    "timings": {},
+    "images": [
+      {
+        "url": "https://storage.googleapis.com/falserverless/example_outputs/flux-2-flash-t2i.png"
+      }
+    ],
+    "prompt": "example",
+    "seed": 1
+  }
+}

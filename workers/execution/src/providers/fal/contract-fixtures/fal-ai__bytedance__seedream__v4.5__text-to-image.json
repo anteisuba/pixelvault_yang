@@ -1,0 +1,15 @@
+{
+  "endpointId": "fal-ai/bytedance/seedream/v4.5/text-to-image",
+  "source": "official-openapi-example",
+  "sourceUrl": "https://fal.ai/api/openapi/queue/openapi.json?endpoint_id=fal-ai/bytedance/seedream/v4.5/text-to-image",
+  "fetchedAt": "2026-11-03",
+  "requiredOutputFields": ["images", "seed"],
+  "output": {
+    "seed": 42,
+    "images": [
+      {
+        "url": "https://storage.googleapis.com/falserverless/example_outputs/seedreamv45/seedream_v45_t2i_output.png"
+      }
+    ]
+  }
+}

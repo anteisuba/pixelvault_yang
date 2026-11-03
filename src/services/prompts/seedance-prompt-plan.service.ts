@@ -151,20 +151,19 @@ function validateSeedancePromptPlanOutput(rawOutput: string) {
   return validation.data
 }
 
+/**
+ * 只重打「输出不合规」和这里自己的墙钟超时。provider 临时不可用 / 限流 / 连接断
+ * 的重发在入口 `llm-text.service` 统一做（docs/design/llm.md §4），⛔ 不再叠一层。
+ */
 function isSeedancePromptPlanRetryable(error: unknown): boolean {
   if (error instanceof ApiRequestError) {
     return (
-      error.errorCode ===
-        SEEDANCE_PROMPT_PLAN_ERROR_CODES.invalidPlannerOutput ||
-      error.httpStatus === SEEDANCE_PROMPT_PLAN_HTTP_STATUS.rateLimited ||
-      error.httpStatus ===
-        SEEDANCE_PROMPT_PLAN_HTTP_STATUS.temporarilyUnavailable
+      error.errorCode === SEEDANCE_PROMPT_PLAN_ERROR_CODES.invalidPlannerOutput
     )
   }
 
   if (error instanceof Error) {
-    const message = error.message.toLowerCase()
-    return message.includes('timed out') || message.includes('network')
+    return error.message.toLowerCase().includes('timed out')
   }
 
   return false

@@ -5,7 +5,7 @@ import type {
   WorkerRunContext,
 } from '../../index'
 import { reportProviderJobId } from '../../lib/app-bridge'
-import { isRecord, readStringField } from '../../lib/fields'
+import { isRecord, readNumberField, readStringField } from '../../lib/fields'
 import { JSON_CONTENT_TYPE } from '../../lib/http'
 import {
   createProviderNoOutputError,
@@ -152,5 +152,13 @@ export async function pollVolcEngineQueue(
     ? (readStringField(content, 'last_frame_url') ?? undefined)
     : undefined
 
-  return { status: 'COMPLETED', artifactUrl, thumbnailUrl, providerMetadata }
+  // 官方任务返回带实际种子（没传种子时是服务端随机挑的），带回去记进配方。
+  const seed = readNumberField(data, 'seed')
+  return {
+    status: 'COMPLETED',
+    artifactUrl,
+    thumbnailUrl,
+    ...(seed != null && seed >= 0 ? { seed } : {}),
+    providerMetadata,
+  }
 }

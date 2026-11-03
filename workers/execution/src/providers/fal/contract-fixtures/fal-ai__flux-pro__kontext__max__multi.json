@@ -1,0 +1,26 @@
+{
+  "endpointId": "fal-ai/flux-pro/kontext/max/multi",
+  "source": "official-openapi-example",
+  "sourceUrl": "https://fal.ai/api/openapi/queue/openapi.json?endpoint_id=fal-ai/flux-pro/kontext/max/multi",
+  "fetchedAt": "2026-11-03",
+  "requiredOutputFields": [
+    "images",
+    "timings",
+    "seed",
+    "has_nsfw_concepts",
+    "prompt"
+  ],
+  "output": {
+    "images": [
+      {
+        "url": "example",
+        "width": 1,
+        "height": 1
+      }
+    ],
+    "seed": 1,
+    "timings": {},
+    "has_nsfw_concepts": [false],
+    "prompt": "example"
+  }
+}

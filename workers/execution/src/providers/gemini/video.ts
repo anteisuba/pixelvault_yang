@@ -139,9 +139,23 @@ export async function pollGeminiVideoQueue(
   const data: unknown = await response.json()
   if (!isRecord(data)) throw new Error('Invalid Gemini file response.')
   if (data.state === 'FAILED') {
-    return { status: 'FAILED', error: 'Gemini video file processing failed.' }
+    // 官方 File 资源：失败时 error 是 Status { code, message }。
+    const reason = isRecord(data.error) ? data.error.message : undefined
+    return {
+      status: 'FAILED',
+      error:
+        typeof reason === 'string' && reason
+          ? `Gemini video file processing failed: ${reason}`
+          : 'Gemini video file processing failed.',
+    }
   }
-  if (data.state === 'PROCESSING') return { status: 'IN_PROGRESS' }
+  // 官方：STATE_UNSPECIFIED = 没给状态时的默认值，当成还在处理。
+  if (
+    data.state === 'PROCESSING' ||
+    data.state === 'STATE_UNSPECIFIED' ||
+    data.state === undefined
+  )
+    return { status: 'IN_PROGRESS' }
   if (data.state !== 'ACTIVE')
     throw new Error('Unknown Gemini video file state.')
   return {

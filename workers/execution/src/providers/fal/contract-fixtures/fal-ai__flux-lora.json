@@ -1,0 +1,26 @@
+{
+  "endpointId": "fal-ai/flux-lora",
+  "source": "official-openapi-example",
+  "sourceUrl": "https://fal.ai/api/openapi/queue/openapi.json?endpoint_id=fal-ai/flux-lora",
+  "fetchedAt": "2026-11-03",
+  "requiredOutputFields": [
+    "images",
+    "timings",
+    "seed",
+    "has_nsfw_concepts",
+    "prompt"
+  ],
+  "output": {
+    "prompt": "example",
+    "timings": {},
+    "images": [
+      {
+        "url": "example",
+        "height": 1,
+        "width": 1
+      }
+    ],
+    "has_nsfw_concepts": [false],
+    "seed": 1
+  }
+}

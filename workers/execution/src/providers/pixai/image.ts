@@ -14,6 +14,7 @@ import type {
   WorkerImageRunContext,
 } from '../../index'
 import {
+  isRecord,
   readNumberField,
   readPositiveNumberField,
   readStringField,
@@ -167,7 +168,13 @@ export async function generatePixAiImage(
   }
 
   if (status !== 'completed') {
-    throw new Error(`PixAI task ${taskId} ended as ${status}.`)
+    // 失败原因在 taskStatusMsgI18n.defaultMessage（官方 Get a task 字段说明）。
+    const reason = isRecord(task.taskStatusMsgI18n)
+      ? readStringField(task.taskStatusMsgI18n, 'defaultMessage')
+      : null
+    throw new Error(
+      `PixAI task ${taskId} ended as ${status}${reason ? `: ${reason}` : ''}.`,
+    )
   }
 
   const outputs = task.outputs as Record<string, unknown> | undefined
@@ -191,6 +198,20 @@ export async function generatePixAiImage(
   return {
     ...uploaded,
     ...getStandardImageDimensions(aspectRatio),
-    providerMetadata: { pixaiTaskId: taskId },
+    providerMetadata: {
+      pixaiTaskId: taskId,
+      // 官方：outputs.seed 是这次实际用的种子（十进制字符串），带回去记进配方。
+      ...readPixAiSeed(outputs),
+    },
   }
+}
+
+function readPixAiSeed(outputs: Record<string, unknown> | undefined): {
+  seed?: number
+} {
+  const raw = outputs?.seed
+  const seed = typeof raw === 'string' ? Number(raw) : raw
+  return typeof seed === 'number' && Number.isSafeInteger(seed) && seed >= 0
+    ? { seed }
+    : {}
 }

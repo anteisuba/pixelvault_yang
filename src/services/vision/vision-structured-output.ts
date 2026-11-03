@@ -78,8 +78,10 @@ function invalidOutputError(reason: string): ApiRequestError {
 }
 
 /**
- * 只有「输出不合规」和「上游抖了一下」值得再打一次。
+ * 只有「输出不合规」和这里自己的墙钟超时值得再打一次。
  *
+ * provider 临时不可用 / 限流 / 连接断的重发在入口 `llm-text.service` 统一做
+ * （docs/design/llm.md §4），⛔ 这里不再叠一层。
  * ⛔ key 无效、模型不支持看图、被安全策略拦 —— 这些重试第二次仍是同一个结果，
  * 只是把用户的等待时间翻倍。
  */
@@ -89,12 +91,7 @@ function isVisionRetryable(error: unknown): boolean {
   }
   if (error instanceof Error) {
     const message = error.message.toLowerCase()
-    return (
-      message.includes('timed out') ||
-      message.includes('timeout') ||
-      message.includes('network') ||
-      message.includes('fetch failed')
-    )
+    return message.includes('timed out') || message.includes('timeout')
   }
   return false
 }

@@ -1,0 +1,32 @@
+{
+  "source": "official-docs-example",
+  "sourceUrl": "https://developer.ideogram.ai/v2/api-reference/generations/get-generation.md",
+  "fetchedAt": "2026-11-03",
+  "note": "completed 照抄文档示例；pending / failed 按文档字段说明拼（只有 generation_id / status / created，failed 多 failure_reason，示例值 content_policy_violation）。",
+  "completed": {
+    "generation_id": "bzue-VZtSlSMAneIbfCo2A",
+    "status": "completed",
+    "created": "2024-01-15T09:30:00Z",
+    "response_type": "url",
+    "data": [
+      {
+        "is_image_safe": true,
+        "prompt": "prompt",
+        "resolution": "2048x2048",
+        "seed": 12345,
+        "url": "https://ideogram.ai/api/images/ephemeral/xtdZiqPwRxqY1Y7NExFmzB.png?exp=1743867804&sig=e13e12677633f646d8531a153d20e2d3698dca9ee7661ee5ba4f3b64e7ec3f89"
+      }
+    ]
+  },
+  "pending": {
+    "generation_id": "bzue-VZtSlSMAneIbfCo2A",
+    "status": "pending",
+    "created": "2024-01-15T09:30:00Z"
+  },
+  "failed": {
+    "generation_id": "bzue-VZtSlSMAneIbfCo2A",
+    "status": "failed",
+    "created": "2024-01-15T09:30:00Z",
+    "failure_reason": "content_policy_violation"
+  }
+}

@@ -26,9 +26,15 @@
 
 ## 4. 重试与降级
 
-- ⛔ **不换一家再试**（owner 2026-10-15：「会自动扣其他模型的 token，用户还不知道」）。
-- 助手在同一家、同一把 key、同一型号上重发一次（`assistant-completion.service`）；其余调用方失败直接交回，由错误显示层说清楚（`docs/design/errors.md`）。
-- 超时统一成 `PROVIDER_TIMEOUT`（入口的 `toLlmTextTimeoutError`）；上游错误由 `toLlmTextProviderError` 归类成可翻译的码。
+11-03 起**入口一处管全部调用方**（`llmTextCompletion` / `llmTextStream`，参数在 `LLM_TEXT_RETRY`）：
+
+- 同一家、同一把 key、同一型号、同一请求**原样重发一次**。⛔ **不换一家再试**（owner 2026-10-15：「会自动扣其他模型的 token，用户还不知道」）。⛔ 同家也不换备用型号（owner 2026-11-03 选「不换，只重发一次」）。
+- 重发的只有三种：provider 自己说忙（503 / 529 / 其余 5xx，流里 `server_error` 一类）等 1.5s；限流 429 等 3s；连接断（fetch failed / ECONNRESET…）等 0.5s。判断在 `getLlmTextRetryReason`。
+- 不重发：key 失效、余额不足、上下文超限（助手自己压缩后重发，`assistant-completion.service`）、拒答、空回复 / 截断、**超时**（再等一轮只会翻倍等待，常常撞上路由 `maxDuration`）。
+- 第一次失败来得比 20s 慢也不重发（时限保护）；流式**已经吐出过字就绝不重发**；等待中用户点停止立即收手。
+- 每次尝试各记一行 `llm call`（带 `attempt`），重发另记一行 `llm retry`（原因 / 等多久）。
+- ⛔ 调用方不再各自包传输层重试：视觉结构化输出、Seedance 分镜只重打「输出不合规」和自己的墙钟超时；评审器、助手的 503 重发已拆掉。
+- 超时统一成 `PROVIDER_TIMEOUT`（入口的 `toLlmTextTimeoutError`）；上游错误由 `toLlmTextProviderError` 归类成可翻译的码（11-03 起 5xx 一律算「暂时不可用」，不再叫人换 key）。
 
 ## 5. 输出校验
 

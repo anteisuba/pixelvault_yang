@@ -1,0 +1,15 @@
+{
+  "endpointId": "fal-ai/kling-video/o3/pro/video-to-video/edit",
+  "source": "official-openapi-example",
+  "sourceUrl": "https://fal.ai/api/openapi/queue/openapi.json?endpoint_id=fal-ai/kling-video/o3/pro/video-to-video/edit",
+  "fetchedAt": "2026-11-03",
+  "requiredOutputFields": ["video"],
+  "output": {
+    "video": {
+      "content_type": "video/mp4",
+      "url": "https://storage.googleapis.com/falserverless/example_outputs/kling-o3/pro-v2v-edit/output.mp4",
+      "file_size": 4322769,
+      "file_name": "output.mp4"
+    }
+  }
+}

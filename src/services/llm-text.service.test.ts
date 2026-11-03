@@ -4211,9 +4211,9 @@ describe('LLM provider response regressions', () => {
     respond(
       sse({
         error: {
-          type: 'server_error',
+          type: 'invalid_request_error',
           code: null,
-          message: 'Internal server error',
+          message: 'Bad request',
         },
       }),
       true,
@@ -5735,5 +5735,193 @@ describe('reasoningEffort', () => {
     expect(body.generationConfig.thinkingConfig).toEqual({
       thinkingLevel: 'high',
     })
+  })
+})
+
+/**
+ * 入口统一重发（o-llm，docs/design/llm.md §4）：同一家、同一把 key、同一型号
+ * 原样再发一次；⛔ 不换一家（owner 2026-10-15）。
+ */
+describe('LLM 入口统一重发', () => {
+  const base: LlmTextInput = {
+    adapterType: AI_ADAPTER_TYPES.OPENAI,
+    providerConfig: { label: 'OpenAI', baseUrl: 'https://api.openai.com/v1' },
+    apiKey: 'test-key',
+    modelId: 'gpt-x',
+    systemPrompt: 'sys',
+    userPrompt: 'user',
+  }
+  const ok = () =>
+    new Response(
+      JSON.stringify({
+        choices: [{ message: { content: 'answer' }, finish_reason: 'stop' }],
+      }),
+      { status: 200, headers: { 'content-type': 'application/json' } },
+    )
+  const okStream = () =>
+    new Response(
+      [
+        { choices: [{ delta: { content: 'answer' }, finish_reason: null }] },
+        { choices: [{ delta: {}, finish_reason: 'stop' }] },
+      ]
+        .map((frame) => 'data: ' + JSON.stringify(frame) + '\n\n')
+        .join('') + 'data: [DONE]\n\n',
+      { status: 200, headers: { 'content-type': 'text/event-stream' } },
+    )
+
+  async function collectText(iterable: AsyncIterable<string>) {
+    let text = ''
+    for await (const part of iterable) text += part
+    return text
+  }
+
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+  })
+
+  it.each([
+    ['503', () => new Response('overloaded', { status: 503 })],
+    ['500', () => new Response('oops', { status: 500 })],
+    ['429', () => new Response('slow down', { status: 429 })],
+  ])(
+    'completion: %s → same provider, same key, same model, once',
+    async (_label, failing) => {
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(failing())
+        .mockResolvedValueOnce(ok())
+      vi.stubGlobal('fetch', fetchMock)
+      const pending = llmTextCompletion(base)
+      await vi.runAllTimersAsync()
+      await expect(pending).resolves.toBe('answer')
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+      const [firstUrl, firstInit] = fetchMock.mock.calls[0]
+      const [secondUrl, secondInit] = fetchMock.mock.calls[1]
+      expect(secondUrl).toBe(firstUrl)
+      expect(secondInit.body).toBe(firstInit.body)
+      expect(JSON.parse(secondInit.body).model).toBe('gpt-x')
+      expect(new Headers(secondInit.headers).get('authorization')).toBe(
+        'Bearer test-key',
+      )
+    },
+  )
+
+  it('completion: connection reset is resent once', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(
+        Object.assign(new TypeError('fetch failed'), {
+          cause: { code: 'ECONNRESET' },
+        }),
+      )
+      .mockResolvedValueOnce(ok())
+    vi.stubGlobal('fetch', fetchMock)
+    const pending = llmTextCompletion(base)
+    await vi.runAllTimersAsync()
+    await expect(pending).resolves.toBe('answer')
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('completion: gives up after one resend with the original error', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(async () => new Response('busy', { status: 503 }))
+    vi.stubGlobal('fetch', fetchMock)
+    const pending = llmTextCompletion(base)
+    const assertion = expect(pending).rejects.toMatchObject({
+      errorCode: 'PROVIDER_TRANSIENT',
+    })
+    await vi.runAllTimersAsync()
+    await assertion
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it.each([
+    ['401 key', 401, 'PROVIDER_AUTH_FAILED'],
+    ['402 balance', 402, 'PROVIDER_INSUFFICIENT_BALANCE'],
+    ['400 rejected', 400, 'PROVIDER_ERROR'],
+  ])('completion: %s is not resent', async (_label, status, errorCode) => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(async () => new Response('no', { status }))
+    vi.stubGlobal('fetch', fetchMock)
+    const pending = llmTextCompletion(base)
+    const assertion = expect(pending).rejects.toMatchObject({ errorCode })
+    await vi.runAllTimersAsync()
+    await assertion
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('completion: a slow failure is not resent (route time budget)', async () => {
+    const fetchMock = vi.fn().mockImplementation(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 25_000))
+      return new Response('busy', { status: 503 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const pending = llmTextCompletion(base)
+    const assertion = expect(pending).rejects.toMatchObject({
+      errorCode: 'PROVIDER_TRANSIENT',
+    })
+    await vi.runAllTimersAsync()
+    await assertion
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('completion: stop during the wait cancels the resend', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(async () => new Response('busy', { status: 503 }))
+    vi.stubGlobal('fetch', fetchMock)
+    const controller = new AbortController()
+    const reason = new DOMException('stopped', 'AbortError')
+    const pending = llmTextCompletion({ ...base, signal: controller.signal })
+    const assertion = expect(pending).rejects.toBe(reason)
+    await vi.advanceTimersByTimeAsync(100)
+    controller.abort(reason)
+    await vi.runAllTimersAsync()
+    await assertion
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('stream: 503 before any text → resent once', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response('busy', { status: 503 }))
+      .mockResolvedValueOnce(okStream())
+    vi.stubGlobal('fetch', fetchMock)
+    const pending = collectText(llmTextStream(base))
+    await vi.runAllTimersAsync()
+    await expect(pending).resolves.toBe('answer')
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('stream: never resent after text was shown', async () => {
+    const broken = () =>
+      new Response(
+        'data: ' +
+          JSON.stringify({
+            choices: [{ delta: { content: 'half' }, finish_reason: null }],
+          }) +
+          '\n\n' +
+          'data: ' +
+          JSON.stringify({ error: { type: 'server_error', message: 'x' } }) +
+          '\n\n',
+        { status: 200, headers: { 'content-type': 'text/event-stream' } },
+      )
+    const fetchMock = vi.fn().mockImplementation(async () => broken())
+    vi.stubGlobal('fetch', fetchMock)
+    const seen: string[] = []
+    const pending = (async () => {
+      for await (const part of llmTextStream(base)) seen.push(part)
+    })()
+    const assertion = expect(pending).rejects.toMatchObject({
+      errorCode: 'PROVIDER_TRANSIENT',
+    })
+    await vi.runAllTimersAsync()
+    await assertion
+    expect(seen).toEqual(['half'])
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 })

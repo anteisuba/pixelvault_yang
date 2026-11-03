@@ -78,7 +78,7 @@
 
 - 默认在当前 checkout 工作，原有默认 main 不自动切换；新建分支需 owner 授权。保留无关未提交修改。
 - 完整切片验证后，仅在已授权时 commit；英文 conventional commit，AI 参与时保留 Co-Authored-By。只暂存本任务文件并检查 staged diff。删除文件不构成自动 commit 授权。
-- push main 会触发 CI、Vercel 生产部署与 execution worker 部署。先过 release checklist 的发布前项目，正常执行 pre-push（本机只跑改动相关，全量在 CI），不跳钩子；Vercel Deployment Checks 等 CI 全绿才把新版本切到正式域名，CI 红了就修，别 Force Promote。发布后检查 CI、Production 与冒烟。
+- **push main 只跑 CI，不部署。上线 = 把 main 推到 `release`**（`git push origin main:release`，2026-11-03 起）：release 触发 Vercel 生产部署（生产分支已改为 release）和各 Worker 部署。各线程做完照常推 main，攒一批，owner 说「上线」才推 release，一次只部署一次。推 release 前先过 release checklist 的发布前项目，正常执行 pre-push（本机只跑改动相关，全量在 CI），不跳钩子；Vercel Deployment Checks 等 CI 全绿才把新版本切到正式域名，CI 红了就修，别 Force Promote。发布后检查 CI、Production 与冒烟。
 - 3000 被占时复用 owner 的 dev，禁止 kill 或另起实例；dev 与 build 不共用 `.next` 并发。未知大小输出用工具预算或日志截取，不能截断测试进程。
 
 ## 文档同步与维护依据

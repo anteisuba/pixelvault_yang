@@ -2,11 +2,11 @@ name: CI
 
 on:
   push:
-    branches: [main, feat/*]
+    branches: [main, release, feat/*]
   pull_request:
     branches: [main]
-  # 手动触发：不改代码也能把 main 上的 worker 重新推上去（本机 wrangler 登录态
-  # 失效时的唯一部署入口）。只对 main 生效，见 deploy-worker 的 if。
+  # 手动触发：不改代码也能把 release 上的 worker 重新推上去（本机 wrangler 登录态
+  # 失效时的唯一部署入口）。只对 release 生效，见 deploy-worker 的 if。
   workflow_dispatch:
 
 env:
@@ -294,12 +294,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [worker-test]
-    # 只有 main 部署；feat/* 与 PR 跑到 worker-test 为止。
-    # ⚠ 每次 main push 都重新部署，不按路径过滤——「main 上的 worker 代码 = 线上
+    # 只有 release 部署（2026-11-03 起上线走 release，和 Vercel 生产分支同步）；
+    # main / feat/* / PR 跑到 worker-test 为止。
+    # ⚠ 每次 release push 都重新部署，不按路径过滤——「release 上的 worker 代码 = 线上
     # 代码」要是无条件不变量。2026-08-29 的 NovelAI 解压修复（29bef566）就是因为
     # 部署全靠手动，在 main 上躺了 5 天，线上一直跑旧代码、NovelAI 全数失败。
     if: >-
-      github.ref == 'refs/heads/main' &&
+      github.ref == 'refs/heads/release' &&
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     defaults:
       run:
@@ -337,7 +338,7 @@ jobs:
     timeout-minutes: 40
     needs: [side-worker-test]
     if: >-
-      github.ref == 'refs/heads/main' &&
+      github.ref == 'refs/heads/release' &&
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     strategy:
       fail-fast: false

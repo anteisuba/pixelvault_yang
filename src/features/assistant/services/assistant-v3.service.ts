@@ -197,6 +197,8 @@ function editTitle(context: V3Context, ops: readonly AssistantV3EditOpInput[]) {
         return text.reorder
       case ASSISTANT_V3_EDIT_OP_IDS.projectScript:
         return `${text.project} ${name(op.script)}`
+      case ASSISTANT_V3_EDIT_OP_IDS.shotlist:
+        return text.shotTable
     }
   })
   return joinPhrases(context, phrases)
@@ -429,7 +431,10 @@ export function translateMutation(
   if (name === ASSISTANT_V3_TOOL_IDS.edit) {
     const parsed = AssistantV3EditInputSchema.parse(input)
     const title = editTitle(context, parsed.ops)
-    const translated = translateAssistantV3Edit(parsed.ops, context)
+    const translated = translateAssistantV3Edit(parsed.ops, {
+      ...context,
+      shotlist: context.request.snapshot.canvas?.shotlist,
+    })
     return translated.ok
       ? {
           ok: true,

@@ -223,6 +223,7 @@ export async function readProjectForMcp(
       nodes: project.state.nodes,
       edges: project.state.edges,
       currentShotNo: input.focusShot ?? null,
+      ...(project.state.shotlist ? { shotlist: project.state.shotlist } : {}),
     }),
     timeline: buildTimelineSnapshot(project.state.edit, project.state.nodes),
     takes: project.state.nodes.flatMap((node) => {

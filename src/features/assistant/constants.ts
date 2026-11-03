@@ -115,6 +115,8 @@ export const ASSISTANT_NEXT_EDIT_OP_IDS = {
   moveToShot: 'move_to_shot',
   reorderShot: 'reorder_shot',
   projectScript: 'project_script',
+  /** 镜头表的全片设置：全片风格 / 总时长（`p-canvas-shotlist` 第 3 步）。 */
+  shotTable: 'shot_table',
   /**
    * 改库（第 4b 步，owner 10-23「库改动直接写，过程行带撤销；删和公开不做」）：任何台上都能用。
    * 素材那五种走旧执行器现成的那几条，角色 / 造型 / LoRA / 提示词库走 `library_write`。

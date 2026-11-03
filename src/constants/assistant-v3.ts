@@ -94,6 +94,8 @@ export const ASSISTANT_V3_EDIT_OP_IDS = {
   moveToShot: 'move_to_shot',
   reorderShot: 'reorder_shot',
   projectScript: 'project_script',
+  /** 镜头表的全片设置（`p-canvas-shotlist` 第 3 步）。 */
+  shotlist: 'shotlist',
 } as const
 
 export const ASSISTANT_V3_EDIT_OPS = [
@@ -105,6 +107,7 @@ export const ASSISTANT_V3_EDIT_OPS = [
   ASSISTANT_V3_EDIT_OP_IDS.moveToShot,
   ASSISTANT_V3_EDIT_OP_IDS.reorderShot,
   ASSISTANT_V3_EDIT_OP_IDS.projectScript,
+  ASSISTANT_V3_EDIT_OP_IDS.shotlist,
 ] as const
 
 /**

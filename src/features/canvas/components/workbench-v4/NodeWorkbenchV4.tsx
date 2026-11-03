@@ -1595,6 +1595,7 @@ function NodeWorkbenchV4Inner() {
     nodes: graph.nodes,
     edges: graph.edges,
     ...(graph.state.edit ? { edit: graph.state.edit } : {}),
+    ...(graph.state.shotlist ? { shotlist: graph.state.shotlist } : {}),
     selectedNodeIds: graph.selectedNodeIds,
     projectName: store.currentProject.name,
     availableModelsByNodeId,

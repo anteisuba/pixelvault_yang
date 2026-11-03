@@ -67,6 +67,8 @@ export const TITLE_TEXT: Record<
     delete: string
     move: string
     reorder: string
+    /** 镜头表的全片设置（全片风格 / 总时长）。 */
+    shotTable: string
     project: string
     write: string
     edit: string
@@ -116,6 +118,7 @@ export const TITLE_TEXT: Record<
     delete: '删除',
     move: '移动',
     reorder: '调整镜头顺序',
+    shotTable: '改镜头表的全片设置',
     project: '投影剧本',
     write: '改写',
     edit: '修改',
@@ -160,6 +163,7 @@ export const TITLE_TEXT: Record<
     delete: '削除',
     move: '移動',
     reorder: 'ショット順を変更',
+    shotTable: 'ショットリストの全体設定を変更',
     project: '脚本を展開',
     write: '書き換え',
     edit: '修正',
@@ -204,6 +208,7 @@ export const TITLE_TEXT: Record<
     delete: 'Delete',
     move: 'Move',
     reorder: 'Reorder shots',
+    shotTable: 'Update shot list settings',
     project: 'Project script',
     write: 'Rewrite',
     edit: 'Edit',

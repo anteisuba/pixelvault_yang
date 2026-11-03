@@ -212,6 +212,37 @@ export interface AssistantV3CardRenderOptions {
   readonly selected?: boolean
 }
 
+/**
+ * 镜头卡上镜头表那几格（`p-canvas-shotlist` 第 3 步）：景别 / 运镜 / 单镜风格 / 时长锁。
+ * 没写过的格不印 —— 「跟全片」靠板子顶上那一行。
+ */
+function describeShotSpec(
+  spec: AssistantOperatorCanvasNode['shot'],
+): string | null {
+  if (!spec) return null
+  const parts = [
+    spec.size ? `size ${spec.size}` : null,
+    spec.move ? `move "${spec.move}"` : null,
+    spec.look ? `look "${spec.look}"` : null,
+    spec.durationLocked ? 'duration locked' : null,
+  ].filter((part): part is string => part !== null)
+  return parts.length ? `shot table: ${parts.join(', ')}` : null
+}
+
+/** 板子顶上一行：全片风格与总时长（没设过就不印）。 */
+function describeShotlist(
+  shotlist: AssistantOperatorCanvasSnapshot['shotlist'],
+): string | null {
+  if (!shotlist?.look && !shotlist?.totalDurationSec) return null
+  const parts = [
+    shotlist.look ? `film look "${shotlist.look}"` : null,
+    shotlist.totalDurationSec
+      ? `total ${shotlist.totalDurationSec}s — split it across the shots that are not duration locked`
+      : null,
+  ].filter((part): part is string => part !== null)
+  return `SHOT TABLE: ${parts.join('; ')}`
+}
+
 /** 一张卡的完整写法 —— 板子上展开的卡、`read` 读回来的卡与改完回执里的卡同一份。 */
 export function renderAssistantV3Card(
   node: AssistantOperatorCanvasNode,
@@ -241,6 +272,7 @@ export function renderAssistantV3Card(
         ? `models ${node.availableModels.join(', ')}`
         : null,
     node.hasOutput ? 'has output' : null,
+    describeShotSpec(node.shot),
     node.generating ? 'generating' : null,
     node.referenceImageIndex === undefined
       ? null
@@ -483,6 +515,8 @@ export function renderAssistantV3Board(input: AssistantV3BoardInput): string {
     lines.push('OPTION SETS (allowed values per parameter):')
     for (const [set, name] of tables.options) lines.push(`  ${name}: ${set}`)
   }
+  const shotTable = describeShotlist(canvas.shotlist)
+  if (shotTable) lines.push(shotTable)
   for (const lane of canvas.shots) {
     const header = lane.shotNo === null ? 'LOOSE CARDS' : `LANE ${lane.shotNo}`
     if (!lane.expanded) {

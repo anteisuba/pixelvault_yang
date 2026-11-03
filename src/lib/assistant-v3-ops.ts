@@ -5,14 +5,19 @@ import {
   ASSISTANT_V3_WRITE_MODE_IDS,
 } from '@/constants/assistant-v3'
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
+import { SHOT_SPEC_LIMITS } from '@/constants/shot-spec'
 import {
   NODE_MEDIA_KIND_IDS,
   NODE_V4_VIDEO_SUBTYPE_IDS,
 } from '@/constants/node-types'
-import type { AssistantOperatorCanvasNode } from '@/types/assistant-operator'
+import type {
+  AssistantOperatorCanvasNode,
+  AssistantOperatorCanvasSnapshot,
+} from '@/types/assistant-operator'
 import type {
   AssistantV3EditOpInput,
   AssistantV3ParamsInput,
+  AssistantV3ShotSpecInput,
   AssistantV3WriteEntry,
   AssistantV3WriteInput,
 } from '@/types/assistant-v3'
@@ -38,6 +43,8 @@ export type AssistantV3Translation =
 export interface AssistantV3TranslateContext {
   readonly nodes: readonly AssistantOperatorCanvasNode[]
   readonly handles: AssistantV3Handles
+  /** 镜头表此刻的全片设置（`shotlist` 那条是补丁，要在它上面改）。 */
+  readonly shotlist?: AssistantOperatorCanvasSnapshot['shotlist']
 }
 
 function unknownCard(handle: string, handles: AssistantV3Handles): string {
@@ -52,6 +59,40 @@ function paramsPatch(
     Object.entries(params).filter(([, value]) => value !== null),
   ) as Record<string, string | number | boolean>
 }
+
+/**
+ * 镜头表那几格 → `set_shot_spec` 的补丁。一格都没给 = `null`（不发 op）；只对镜头卡。
+ * ⚠ `lockDuration: false` 是「解锁」，与 `null`（不动）不是一回事。
+ */
+function shotSpecPatch(
+  spec: AssistantV3ShotSpecInput,
+):
+  | { ok: true; patch: Record<string, string | boolean | null> | null }
+  | { ok: false; error: string } {
+  const patch: Record<string, string | boolean | null> = {}
+  if (spec.size !== null) patch.size = spec.size
+  for (const [key, max] of [
+    ['move', SHOT_SPEC_LIMITS.moveMaxLength],
+    ['look', SHOT_SPEC_LIMITS.lookMaxLength],
+  ] as const) {
+    const value = spec[key]
+    if (value === null) continue
+    const trimmed = value.trim()
+    if (trimmed.length > max)
+      return {
+        ok: false,
+        error: `shotSpec.${key} is longer than ${max} characters`,
+      }
+    patch[key] = trimmed || null
+  }
+  if (spec.lockDuration !== null)
+    patch.durationLocked = spec.lockDuration ? true : null
+  return { ok: true, patch: Object.keys(patch).length > 0 ? patch : null }
+}
+
+const isShotCard = (node: AssistantOperatorCanvasNode | null) =>
+  node?.kind === NODE_MEDIA_KIND_IDS.video &&
+  node.subtype === NODE_V4_VIDEO_SUBTYPE_IDS.shot
 
 export function translateAssistantV3Edit(
   ops: readonly AssistantV3EditOpInput[],
@@ -140,13 +181,36 @@ export function translateAssistantV3Edit(
                 },
           )
         }
+        if (op.shotSpec) {
+          if (
+            op.type !==
+            `${NODE_MEDIA_KIND_IDS.video}/${NODE_V4_VIDEO_SUBTYPE_IDS.shot}`
+          )
+            return fail(index, 'shotSpec only goes on a video/shot card')
+          const spec = shotSpecPatch(op.shotSpec)
+          if (!spec.ok) return fail(index, spec.error)
+          if (spec.patch)
+            out.push({
+              op: NODE_ASSISTANT_OP_V4_IDS.setShotSpec,
+              target: ref,
+              spec: spec.patch,
+            })
+        }
         break
       }
       case ASSISTANT_V3_EDIT_OP_IDS.set: {
         const card = resolve(op.card)
         if (!card) return fail(index, unknownCard(op.card, context.handles))
-        if (op.name === null && op.model === null && op.params === null)
-          return fail(index, 'set needs at least one of name, model, params')
+        if (
+          op.name === null &&
+          op.model === null &&
+          op.params === null &&
+          op.shotSpec === null
+        )
+          return fail(
+            index,
+            'set needs at least one of name, model, params, shotSpec',
+          )
         if (op.name !== null) {
           const isShot =
             card.node?.kind === NODE_MEDIA_KIND_IDS.video &&
@@ -176,6 +240,18 @@ export function translateAssistantV3Edit(
             target: card.target,
             params: patch,
           })
+        }
+        if (op.shotSpec !== null) {
+          if (card.node && !isShotCard(card.node))
+            return fail(index, 'shotSpec only goes on a video/shot card')
+          const spec = shotSpecPatch(op.shotSpec)
+          if (!spec.ok) return fail(index, spec.error)
+          if (spec.patch)
+            out.push({
+              op: NODE_ASSISTANT_OP_V4_IDS.setShotSpec,
+              target: card.target,
+              spec: spec.patch,
+            })
         }
         break
       }
@@ -265,6 +341,42 @@ export function translateAssistantV3Edit(
           op: NODE_ASSISTANT_OP_V4_IDS.projectScript,
           scriptNodeId: script.target,
           mode: op.mode,
+        })
+        break
+      }
+      case ASSISTANT_V3_EDIT_OP_IDS.shotlist: {
+        if (op.look === null && op.totalSeconds === null)
+          return fail(index, 'shotlist needs look or totalSeconds')
+        const current = context.shotlist ?? {}
+        const look = op.look === null ? current.look : op.look.trim()
+        if (look && look.length > SHOT_SPEC_LIMITS.lookMaxLength)
+          return fail(
+            index,
+            `look is longer than ${SHOT_SPEC_LIMITS.lookMaxLength} characters`,
+          )
+        const total =
+          op.totalSeconds === null
+            ? current.totalDurationSec
+            : Math.round(op.totalSeconds)
+        if (
+          total !== undefined &&
+          (total < 0 || total > SHOT_SPEC_LIMITS.totalDurationMaxSeconds)
+        )
+          return fail(
+            index,
+            `totalSeconds must be 0–${SHOT_SPEC_LIMITS.totalDurationMaxSeconds}`,
+          )
+        // ⚠ 关掉的列是创作者的，原样带上 —— 这条 op 是整份替换。
+        const next = {
+          ...(look ? { look } : {}),
+          ...(total ? { totalDurationSec: total } : {}),
+          ...(context.shotlist?.hiddenColumns?.length
+            ? { hiddenColumns: context.shotlist.hiddenColumns }
+            : {}),
+        }
+        out.push({
+          op: NODE_ASSISTANT_OP_V4_IDS.setShotlist,
+          ...(Object.keys(next).length > 0 ? { shotlist: next } : {}),
         })
         break
       }

@@ -87,6 +87,7 @@ describe('v3 edit → v4 op', () => {
           params: { ...noParams, aspectRatio: '3:4', resolution: '1K' },
           text: '一年级纯黑校袍全身',
           shot: null,
+          shotSpec: null,
         },
         {
           op: 'connect',
@@ -134,6 +135,7 @@ describe('v3 edit → v4 op', () => {
       params: null,
       text: null,
       shot: null,
+      shotSpec: null,
     }
     expect(
       AssistantV3EditOpInputSchema.safeParse({ ...base, type: 'image/image' })
@@ -157,6 +159,7 @@ describe('v3 edit → v4 op', () => {
           params: null,
           text: null,
           shot: null,
+          shotSpec: null,
         },
       ],
       context,
@@ -220,8 +223,22 @@ describe('v3 edit → v4 op', () => {
   it('镜头卡改名写 label，别的卡写 name', () => {
     const result = translateAssistantV3Edit(
       [
-        { op: 'set', card: h(S01), name: '开场', model: null, params: null },
-        { op: 'set', card: h(HARRY), name: '哈利', model: null, params: null },
+        {
+          op: 'set',
+          card: h(S01),
+          name: '开场',
+          model: null,
+          params: null,
+          shotSpec: null,
+        },
+        {
+          op: 'set',
+          card: h(HARRY),
+          name: '哈利',
+          model: null,
+          params: null,
+          shotSpec: null,
+        },
       ],
       context,
     )
@@ -396,5 +413,111 @@ describe('v3 write → set_prompt / set_text', () => {
       context,
     )
     expect(!result.ok && result.error).toContain('field "text"')
+  })
+})
+
+describe('镜头表（p-canvas-shotlist 第 3 步）', () => {
+  const spec = {
+    size: 'close_up' as const,
+    move: ' 缓慢推近 ',
+    look: null,
+    lockDuration: true,
+  }
+
+  it('set 带 shotSpec → 一条 set_shot_spec 补丁（空串清格、锁 = true）', () => {
+    const result = translateAssistantV3Edit(
+      [
+        {
+          op: 'set',
+          card: h(S01),
+          name: null,
+          model: null,
+          params: null,
+          shotSpec: { ...spec, look: '' },
+        },
+      ],
+      context,
+    )
+    expect(result.ok && result.ops).toEqual([
+      {
+        op: 'set_shot_spec',
+        target: S01,
+        spec: {
+          size: 'close_up',
+          move: '缓慢推近',
+          look: null,
+          durationLocked: true,
+        },
+      },
+    ])
+  })
+
+  it('shotSpec 只上镜头卡', () => {
+    const result = translateAssistantV3Edit(
+      [
+        {
+          op: 'set',
+          card: h(HARRY),
+          name: null,
+          model: null,
+          params: null,
+          shotSpec: spec,
+        },
+      ],
+      context,
+    )
+    expect(!result.ok && result.error).toContain('video/shot')
+  })
+
+  it('add 一张镜头卡时一批带上镜头表那几格', () => {
+    const result = translateAssistantV3Edit(
+      [
+        {
+          op: 'add',
+          ref: 's2',
+          type: 'video/shot',
+          name: '回头',
+          model: null,
+          params: null,
+          text: '她回头',
+          shot: 2,
+          shotSpec: { ...spec, lockDuration: null },
+        },
+      ],
+      context,
+    )
+    expect(result.ok && result.ops.map((op) => op.op)).toEqual([
+      'add_node',
+      'set_prompt',
+      'set_shot_spec',
+    ])
+  })
+
+  it('shotlist 在现值上改，关掉的列原样带上', () => {
+    const result = translateAssistantV3Edit(
+      [{ op: 'shotlist', look: null, totalSeconds: 30.4 }],
+      {
+        ...context,
+        shotlist: { look: '冷蓝夜色', hiddenColumns: ['cast'] },
+      },
+    )
+    expect(result.ok && result.ops).toEqual([
+      {
+        op: 'set_shotlist',
+        shotlist: {
+          look: '冷蓝夜色',
+          totalDurationSec: 30,
+          hiddenColumns: ['cast'],
+        },
+      },
+    ])
+  })
+
+  it('shotlist 清空到什么都没有 = 不带 shotlist（撤销能退回没设过）', () => {
+    const result = translateAssistantV3Edit(
+      [{ op: 'shotlist', look: '', totalSeconds: 0 }],
+      { ...context, shotlist: { look: '冷蓝夜色' } },
+    )
+    expect(result.ok && result.ops).toEqual([{ op: 'set_shotlist' }])
   })
 })

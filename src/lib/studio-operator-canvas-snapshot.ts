@@ -46,6 +46,7 @@ import {
   NODE_STATUS_IDS,
   NODE_V4_IMAGE_SUBTYPE_IDS,
   NODE_V4_TEXT_SUBTYPE_IDS,
+  NODE_V4_VIDEO_SUBTYPE_IDS,
 } from '@/constants/node-types'
 import { clipVersionOf, currentUrlOf } from '@/lib/edit-project'
 import { parseScriptShots } from '@/lib/node-script-shots'
@@ -68,6 +69,7 @@ import type {
   EditProject,
   NodeV4,
   NodeWorkflowEdgeV4,
+  NodeWorkflowShotlist,
 } from '@/types/node-workflow'
 
 /** 未归镜的散节点落在这一档（`shotNo` 缺席）。 */
@@ -348,6 +350,12 @@ function toSnapshotNode(
       : { availableModels: [...new Set(availableModels)] }),
     ...(inputs.length === 0 ? {} : { inputs }),
     ...(nodeHasOutput(node) ? { hasOutput: true } : {}),
+    ...(data.kind === NODE_MEDIA_KIND_IDS.video &&
+    data.subtype === NODE_V4_VIDEO_SUBTYPE_IDS.shot &&
+    data.shot &&
+    Object.keys(data.shot).length > 0
+      ? { shot: data.shot }
+      : {}),
     // v3 `look` 看一张没被 @ 的图片卡时按它取 —— ⛔ 不靠 16 张的参考名单。
     ...(data.kind === NODE_MEDIA_KIND_IDS.image &&
     data.url?.startsWith('http') &&
@@ -469,6 +477,8 @@ export interface BuildCanvasSnapshotInput {
   readonly mentionedNodeIds?: readonly string[]
   /** 这个项目的时间线（剪辑台，v2 第 2 片）；缺席 = 宿主没给 / 还没进过剪辑台。 */
   readonly edit?: EditProject
+  /** 镜头表的全片设置（`p-canvas-shotlist`）；缺席 = 没设过。 */
+  readonly shotlist?: NodeWorkflowShotlist
 }
 
 export function buildCanvasOperatorSnapshot({
@@ -481,6 +491,7 @@ export function buildCanvasOperatorSnapshot({
   characters,
   mentionedNodeIds = [],
   edit,
+  shotlist,
 }: BuildCanvasSnapshotInput): AssistantOperatorCanvasSnapshot {
   const incomingByTarget = new Map<string, NodeWorkflowEdgeV4[]>()
   for (const edge of edges) {
@@ -620,6 +631,7 @@ export function buildCanvasOperatorSnapshot({
       ASSISTANT_OPERATOR_CANVAS_LIMITS.maxNodesPerShot,
     ),
     shots: shots.slice(0, ASSISTANT_OPERATOR_CANVAS_LIMITS.maxShotLines),
+    ...(shotlist ? { shotlist } : {}),
     ...(characters ? { characters } : {}),
     ...buildEditDeskSnapshot(edit, nodes),
   }

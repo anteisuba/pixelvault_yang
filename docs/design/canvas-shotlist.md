@@ -110,3 +110,8 @@
   - 行数据 `lib/shot-table-rows.ts`（纯函数）：只收有镜号的 `video.shot`；「画面」= 片子海报 / 首帧图；「角色 · 场景」= 正文 `@` 的角色 + 连进来的背景卡。
   - 组件 `features/canvas/components/shot-table/ShotTable.tsx`：每格就地改，失焦提交、值没变不发 op；景别弹层、运镜 / 说明 / 风格输入、时长（手改即锁，`set_params` + `set_shot_spec` 一步撤销）、锁头可单独开关；顶栏全片风格 / 总时长两颗胶囊 + 读数 + 列开关 + 撤销；Esc 回画布、⌘Z 撤销；「回到这张卡」关表并定位选中。
   - 本步不做：逐镜生成（第 4 步）、助手按总时长分配（第 3 步）。只读审阅版画布不出表。
+- **第 3 步（11-03，助手填表，分支 `claude/project-thread-4x7hdi`，等评测）**
+  - 助手看得见：快照里镜头卡带 `shot`（景别 / 运镜 / 单镜风格 / 时长锁），项目带 `shotlist`；板子上镜头卡印「shot table: …」，顶上一行印全片风格与总时长（没设过不印）。MCP `read_project` 同一份。
+  - 助手写得进：`add_card` / `set_card` 多了 `size` / `move` / `look` / `lockDuration`（只上镜头卡，→ `set_shot_spec`）；新改法 `shot_table`（`look` / `totalSeconds`，在现值上改、关掉的列原样带上，→ `set_shotlist`）。
+  - 提示词：画布那段加了镜头表一段——要拆镜 / 填表时填这几列；给了总时长就按节奏分到没锁的镜上、用该模型允许的秒数；锁了的镜不动，只有创作者亲口定了某镜多长才锁。
+  - 总时长分配交给模型按节奏定，⛔ 不写死平均分（owner 11-01：总时长分配节奏比每段限时好）。

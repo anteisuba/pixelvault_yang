@@ -78,6 +78,7 @@ import type { AssistantOperatorSnapshot } from '@/types/assistant-operator'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
 import type {
   EditProject,
+  NodeWorkflowShotlist,
   NodeV4,
   NodeWorkflowEdgeV4,
 } from '@/types/node-workflow'
@@ -100,6 +101,8 @@ export interface UseCanvasOperatorHostInput {
   readonly edges: readonly NodeWorkflowEdgeV4[]
   /** 这个项目的时间线（剪辑台）—— 助手读得到它才剪得了片（v2 第 2 片）。 */
   readonly edit?: EditProject
+  /** 镜头表的全片设置（`p-canvas-shotlist`）。 */
+  readonly shotlist?: NodeWorkflowShotlist
   readonly selectedNodeIds: readonly string[]
   /** 当前项目名 —— 只给头部域标记那一句用（「{项目名} · 选中 {n} 个节点」）。 */
   readonly projectName: string
@@ -197,6 +200,7 @@ export function useCanvasOperatorHost({
   nodes,
   edges,
   edit,
+  shotlist,
   selectedNodeIds,
   projectName,
   availableModelsByNodeId,
@@ -293,6 +297,7 @@ export function useCanvasOperatorHost({
     nodes,
     edges,
     edit,
+    shotlist,
     selectedNodeIds,
     currentShotNo: null as number | null,
   })
@@ -305,9 +310,10 @@ export function useCanvasOperatorHost({
       nodes,
       edges,
       edit,
+      shotlist,
       selectedNodeIds,
     }
-  }, [nodes, edges, edit, selectedNodeIds])
+  }, [nodes, edges, edit, shotlist, selectedNodeIds])
 
   /**
    * 本轮落成的那几步，按落地顺序。
@@ -395,6 +401,7 @@ export function useCanvasOperatorHost({
           currentShotNo: graph.currentShotNo,
           selectedNodeIds: graph.selectedNodeIds,
           ...(graph.edit ? { edit: graph.edit } : {}),
+          ...(graph.shotlist ? { shotlist: graph.shotlist } : {}),
           ...(mentionedNodeIds.length ? { mentionedNodeIds } : {}),
           ...(availableModelsByNodeId ? { availableModelsByNodeId } : {}),
           ...(library.cards.length

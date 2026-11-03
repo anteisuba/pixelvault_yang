@@ -17,6 +17,7 @@ import {
   AssistantV3WriteInputSchema,
   type AssistantV3EditOpInput,
   type AssistantV3ParamsInput,
+  type AssistantV3ShotSpecInput,
   type AssistantV3TranscriptCall,
   type AssistantV3WriteEntry,
 } from '@/types/assistant-v3'
@@ -55,6 +56,7 @@ export const CANVAS_OPS: readonly AssistantNextEditOp[] = [
   OP.moveToShot,
   OP.reorderShot,
   OP.projectScript,
+  OP.shotTable,
 ]
 
 /** 一次 edit 里要交给浏览器落的那一份（v3 的 v4 op + 过程行标题 + 接力时认结果用的那一次调用）。 */
@@ -100,6 +102,23 @@ function paramsOf(change: EditChange): AssistantV3ParamsInput | null {
     count: typeof change.count === 'number' ? Math.round(change.count) : null,
     generateAudio: change.generateAudio ?? null,
     promptTemplate: change.template ?? null,
+  }
+}
+
+/** 镜头表那几格：一格都没给 = null（不动）。 */
+function shotSpecOf(change: EditChange): AssistantV3ShotSpecInput | null {
+  const given = [
+    change.size,
+    change.move,
+    change.look,
+    change.lockDuration,
+  ].some((value) => value !== null && value !== undefined)
+  if (!given) return null
+  return {
+    size: change.size ?? null,
+    move: change.move ?? null,
+    look: change.look ?? null,
+    lockDuration: change.lockDuration ?? null,
   }
 }
 
@@ -150,6 +169,7 @@ export function toCanvasPiece(
           params: paramsOf(change),
           text: change.text ?? null,
           shot: shotOf(change.shot),
+          shotSpec: shotSpecOf(change),
         },
       }
     case OP.setCard:
@@ -162,6 +182,7 @@ export function toCanvasPiece(
           name: change.name ?? null,
           model: change.model ?? null,
           params: paramsOf(change),
+          shotSpec: shotSpecOf(change),
         },
       }
     case OP.connect:
@@ -230,6 +251,20 @@ export function toCanvasPiece(
           op: ASSISTANT_V3_EDIT_OP_IDS.projectScript,
           script: change.card,
           mode: change.projection ?? NODE_SCRIPT_PROJECTION_MODE_IDS.create,
+        },
+      }
+    case OP.shotTable:
+      if (
+        (change.look === null || change.look === undefined) &&
+        (change.totalSeconds === null || change.totalSeconds === undefined)
+      )
+        return need(change.op, 'look or totalSeconds')
+      return {
+        kind: 'edit',
+        op: {
+          op: ASSISTANT_V3_EDIT_OP_IDS.shotlist,
+          look: change.look ?? null,
+          totalSeconds: change.totalSeconds ?? null,
         },
       }
     case OP.negative:

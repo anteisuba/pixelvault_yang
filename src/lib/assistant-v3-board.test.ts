@@ -327,3 +327,38 @@ describe('v3 板子 · 分级', () => {
     expect(parseAssistantV3LaneItem('vid-09a1b2')).toBeNull()
   })
 })
+
+describe('镜头表上板子（p-canvas-shotlist 第 3 步）', () => {
+  it('镜头卡印出写过的格，顶上一行印全片风格与总时长', () => {
+    const shot = node({
+      id: S01,
+      name: '回头',
+      kind: 'video',
+      subtype: 'shot',
+      shot: { size: 'close_up', move: '推近', durationLocked: true },
+    })
+    const text = renderAssistantV3Board({
+      canvas: {
+        ...board([], [{ shotNo: 1, nodes: [shot] }]),
+        shotlist: { look: '冷蓝夜色', totalDurationSec: 30 },
+      },
+      handles: buildAssistantV3Handles([S01]),
+      latestUserText: '',
+    })
+    expect(text).toContain(
+      'shot table: size close_up, move "推近", duration locked',
+    )
+    expect(text).toContain('SHOT TABLE: film look "冷蓝夜色"; total 30s')
+  })
+
+  it('没设过就一个字都不印', () => {
+    const text = renderAssistantV3Board({
+      canvas: board([
+        node({ id: S01, name: '空', kind: 'video', subtype: 'shot' }),
+      ]),
+      handles: buildAssistantV3Handles([S01]),
+      latestUserText: '',
+    })
+    expect(text).not.toMatch(/shot table/i)
+  })
+})

@@ -133,6 +133,8 @@ import {
 import {
   NodeV4GenerationParamsSchema,
   NodeV4ImageDataSchema,
+  NodeV4ShotSpecSchema,
+  NodeWorkflowShotlistSchema,
 } from '@/types/node-workflow'
 import { NODE_SCRIPT_SHOT_STATES } from '@/constants/node-script'
 import {
@@ -791,6 +793,8 @@ export const AssistantOperatorCanvasNodeSchema = z.object({
     .optional(),
   /** 有没有产出。⚠ 是布尔不是 URL —— 挂图那一跳认的是节点 id，不是地址。 */
   hasOutput: z.boolean().optional(),
+  /** 镜头卡上镜头表那几格（景别 / 运镜 / 风格 / 时长锁，`p-canvas-shotlist`）。 */
+  shot: NodeV4ShotSpecSchema.optional(),
   /**
    * 视频卡的成片地址（看图期第二段）：只给 v3 的 `look` 看片用 —— Gemini 能直接看片子本体，
    * 服务端按它下载（防 SSRF 的那条）。⚠ 挂图、连线照旧只认节点 id，⛔ 别拿它当句柄。
@@ -924,6 +928,8 @@ export const AssistantOperatorCanvasSnapshotSchema = z.object({
   shots: z
     .array(AssistantOperatorCanvasShotSchema)
     .max(ASSISTANT_OPERATOR_CANVAS_LIMITS.maxShotLines),
+  /** 镜头表的全片设置（全片风格 / 总时长 / 关掉的列）。缺席 = 没设过。 */
+  shotlist: NodeWorkflowShotlistSchema.optional(),
   /** 用户此刻选中的那几个节点（⌘K / 右键「问助手」带过来的就是它们）。 */
   selectedNodeIds: z
     .array(IdSchema)

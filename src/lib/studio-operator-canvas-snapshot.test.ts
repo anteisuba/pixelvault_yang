@@ -1344,3 +1344,40 @@ describe('大画布：每条带的卡都带上，在字节预算之内', () => {
     }
   })
 })
+
+describe('镜头表进快照（p-canvas-shotlist 第 3 步）', () => {
+  it('镜头卡带上写过的格，项目带上全片设置，过得了请求 schema', () => {
+    const shot = {
+      id: 'v1',
+      position: { x: 0, y: 0 },
+      data: {
+        kind: 'video',
+        subtype: 'shot',
+        name: 'v1',
+        label: '回头',
+        status: 'idle',
+        createdAt: '2026-11-03T00:00:00.000Z',
+        shotNo: 1,
+        shot: { size: 'close_up', durationLocked: true },
+      },
+    } as NodeV4
+    const snapshot = buildCanvasOperatorSnapshot({
+      nodes: [shot, imageNode('i1', 1)],
+      edges: [],
+      currentShotNo: 1,
+      shotlist: { look: '冷蓝夜色', totalDurationSec: 30 },
+    })
+    expect(snapshotNode(snapshot, 'v1')?.shot).toEqual({
+      size: 'close_up',
+      durationLocked: true,
+    })
+    expect(snapshotNode(snapshot, 'i1')?.shot).toBeUndefined()
+    expect(snapshot.shotlist).toEqual({
+      look: '冷蓝夜色',
+      totalDurationSec: 30,
+    })
+    expect(
+      AssistantOperatorCanvasSnapshotSchema.safeParse(snapshot).success,
+    ).toBe(true)
+  })
+})

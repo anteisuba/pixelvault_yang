@@ -15,6 +15,7 @@ import { ASSISTANT_LIBRARY_SHOW_LORA_SECTIONS } from '@/types/assistant-operator
 import { IMAGE_PROMPT_TEMPLATE_CHOICES } from '@/constants/image-prompt-templates'
 import { NODE_SCRIPT_PROJECTION_MODES } from '@/constants/node-script'
 import { NODE_SLOT_TEXT_ROLES, NODE_SLOTS } from '@/constants/node-slots'
+import { SHOT_SIZES } from '@/constants/shot-spec'
 import {
   ASSISTANT_NEXT_EDIT_OPS,
   ASSISTANT_NEXT_FIND_KINDS,
@@ -169,6 +170,34 @@ export const EditChangeSchema = z.object({
     .number()
     .nullish()
     .describe('specs / add_card / set_card (video): seconds.'),
+  size: z
+    .enum(SHOT_SIZES)
+    .nullish()
+    .describe('add_card / set_card (video/shot): the shot size column.'),
+  move: z
+    .string()
+    .nullish()
+    .describe(
+      'add_card / set_card (video/shot): the camera-move column, a few words ("slow push in"). "" clears it.',
+    ),
+  look: z
+    .string()
+    .nullish()
+    .describe(
+      'add_card / set_card (video/shot): this shot\'s own look (light, colour, texture) when it differs from the film look; "" = back to the film look. shot_table: the film look for every shot.',
+    ),
+  lockDuration: z
+    .boolean()
+    .nullish()
+    .describe(
+      "set_card (video/shot): true only when the creator fixed this shot's length themselves; false unlocks it.",
+    ),
+  totalSeconds: z
+    .number()
+    .nullish()
+    .describe(
+      'shot_table: the length of the whole film in seconds; 0 clears it.',
+    ),
   aspectRatio: z.string().nullish().describe('specs / add_card / set_card'),
   resolution: z.string().nullish().describe('specs / add_card / set_card'),
   quality: z.string().nullish().describe('specs / add_card / set_card'),

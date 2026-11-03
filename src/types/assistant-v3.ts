@@ -35,6 +35,7 @@ import { NODE_SCRIPT_PROJECTION_MODES } from '@/constants/node-script'
 import { NOVELAI_SCENE_TEXT_KINDS } from '@/constants/novelai'
 import { NODE_SLOT_TEXT_ROLES, NODE_SLOTS } from '@/constants/node-slots'
 import { IMAGE_PROMPT_TEMPLATE_CHOICES } from '@/constants/image-prompt-templates'
+import { SHOT_SIZES } from '@/constants/shot-spec'
 
 /* ─────────────────────────────────────────────────────────────────────────
  * ① 八个工具的入参 —— 给 provider 看的那一份。
@@ -53,6 +54,17 @@ const CardHandleSchema = z
   .describe(
     'A card handle from the board, e.g. "img-6db120", or a "ref" you declared earlier in the same edit batch.',
   )
+
+/**
+ * 镜头卡上镜头表那几格（`p-canvas-shotlist` 第 3 步）。`null` = 不动；`move` / `look` 写空串 =
+ * 清掉那一格。`lockDuration` 只在创作者自己定了这一镜多长时才给 true。
+ */
+export const AssistantV3ShotSpecInputSchema = z.object({
+  size: z.enum(SHOT_SIZES).nullable(),
+  move: z.string().nullable(),
+  look: z.string().nullable(),
+  lockDuration: z.boolean().nullable(),
+})
 
 export const AssistantV3ParamsInputSchema = z.object({
   aspectRatio: z.string().nullable(),
@@ -83,6 +95,7 @@ export const AssistantV3EditOpInputSchema = z.union([
     /** 新卡的提示词（文本卡是正文）—— 建卡与写词一批落，不必等接力。 */
     text: z.string().nullable(),
     shot: z.number().int().nullable(),
+    shotSpec: AssistantV3ShotSpecInputSchema.nullable(),
   }),
   z.object({
     op: one(ASSISTANT_V3_EDIT_OP_IDS.set),
@@ -90,6 +103,7 @@ export const AssistantV3EditOpInputSchema = z.union([
     name: z.string().nullable(),
     model: z.string().nullable(),
     params: AssistantV3ParamsInputSchema.nullable(),
+    shotSpec: AssistantV3ShotSpecInputSchema.nullable(),
   }),
   z.object({
     op: one(ASSISTANT_V3_EDIT_OP_IDS.connect),
@@ -131,10 +145,19 @@ export const AssistantV3EditOpInputSchema = z.union([
     script: CardHandleSchema,
     mode: z.enum(NODE_SCRIPT_PROJECTION_MODES),
   }),
+  /** 镜头表的全片设置：`null` = 不动；`look` 空串 / `totalSeconds` 0 = 清掉。 */
+  z.object({
+    op: one(ASSISTANT_V3_EDIT_OP_IDS.shotlist),
+    look: z.string().nullable(),
+    totalSeconds: z.number().nullable(),
+  }),
 ])
 
 export type AssistantV3EditOpInput = z.infer<
   typeof AssistantV3EditOpInputSchema
+>
+export type AssistantV3ShotSpecInput = z.infer<
+  typeof AssistantV3ShotSpecInputSchema
 >
 export type AssistantV3ParamsInput = z.infer<
   typeof AssistantV3ParamsInputSchema

@@ -39,6 +39,7 @@ import {
   ANTHROPIC_API,
   LLM_TEXT_DEFAULT_MAX_TOKENS,
   LLM_TEXT_MODEL_IDS,
+  LLM_TEXT_RETRY,
   LLM_TEXT_TIMEOUTS_MS,
 } from '@/constants/config'
 import {
@@ -69,6 +70,21 @@ function readFetchJson(
     throw new Error('Expected provider request body to be a JSON string')
   }
   return JSON.parse(body) as Record<string, unknown>
+}
+
+/**
+ * 可重发的失败会先等一下再重发（LLM_TEXT_RETRY）：用假时钟跳过这一下，测试不真等。
+ * ⛔ 只 fake setTimeout/clearTimeout，queueMicrotask 一 fake 流就读不动。
+ */
+async function skipRetryWait(delayMs: number, run: () => Promise<unknown>) {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+  try {
+    const pending = run()
+    await vi.advanceTimersByTimeAsync(delayMs)
+    await pending
+  } finally {
+    vi.useRealTimers()
+  }
 }
 
 describe('structured output requests', () => {
@@ -822,24 +838,26 @@ describe('llmTextCompletion - Gemini', () => {
       vi.fn().mockResolvedValue(new Response('overloaded', { status: 503 })),
     )
 
-    await expect(
-      llmTextCompletion({
-        systemPrompt: 'sys',
-        userPrompt: 'user',
-        adapterType: AI_ADAPTER_TYPES.GEMINI,
-        providerConfig: {
-          label: 'Gemini',
-          baseUrl: 'https://generativelanguage.googleapis.com',
-        },
-        apiKey: 'test-key',
+    await skipRetryWait(LLM_TEXT_RETRY.TRANSIENT_DELAY_MS, () =>
+      expect(
+        llmTextCompletion({
+          systemPrompt: 'sys',
+          userPrompt: 'user',
+          adapterType: AI_ADAPTER_TYPES.GEMINI,
+          providerConfig: {
+            label: 'Gemini',
+            baseUrl: 'https://generativelanguage.googleapis.com',
+          },
+          apiKey: 'test-key',
+        }),
+      ).rejects.toMatchObject({
+        errorCode: 'PROVIDER_TRANSIENT',
+        httpStatus: 503,
+        i18nKey: 'errors.provider.temporarilyUnavailable',
+        message:
+          'The selected planner model is temporarily unavailable. Try again in a moment or choose another Agent Key.',
       }),
-    ).rejects.toMatchObject({
-      errorCode: 'PROVIDER_TRANSIENT',
-      httpStatus: 503,
-      i18nKey: 'errors.provider.temporarilyUnavailable',
-      message:
-        'The selected planner model is temporarily unavailable. Try again in a moment or choose another Agent Key.',
-    })
+    )
   })
 
   it('classifies Gemini input-token failures as context-limit errors', async () => {
@@ -3999,9 +4017,11 @@ describe('LLM provider response regressions', () => {
         }),
         true,
       )
-      await expect(consume(AI_ADAPTER_TYPES.ANTHROPIC)).rejects.toMatchObject({
-        errorCode: 'PROVIDER_TRANSIENT',
-      })
+      await skipRetryWait(LLM_TEXT_RETRY.TRANSIENT_DELAY_MS, () =>
+        expect(consume(AI_ADAPTER_TYPES.ANTHROPIC)).rejects.toMatchObject({
+          errorCode: 'PROVIDER_TRANSIENT',
+        }),
+      )
     })
     it.each([AI_ADAPTER_TYPES.DEEPSEEK, AI_ADAPTER_TYPES.XAI])(
       '%s empty completion must preserve a structured error',
@@ -4110,9 +4130,11 @@ describe('LLM provider response regressions', () => {
       }),
       true,
     )
-    await expect(consume(AI_ADAPTER_TYPES.DEEPSEEK)).rejects.toMatchObject({
-      errorCode: 'PROVIDER_TRANSIENT',
-    })
+    await skipRetryWait(LLM_TEXT_RETRY.TRANSIENT_DELAY_MS, () =>
+      expect(consume(AI_ADAPTER_TYPES.DEEPSEEK)).rejects.toMatchObject({
+        errorCode: 'PROVIDER_TRANSIENT',
+      }),
+    )
   })
   it('Gemini prompt block is preserved in streams', async () => {
     respond(sse({ promptFeedback: { blockReason: 'SAFETY' } }), true)
@@ -5614,12 +5636,14 @@ describe('assistant image size contracts', () => {
             ),
           ),
         )
-        await expect(
-          complete(adapterType, 'data:image/png;base64,aGVsbG8=', stream),
-        ).rejects.toMatchObject({
-          errorCode: 'PROVIDER_RATE_LIMITED',
-          i18nKey: 'errors.provider.rateLimited',
-        })
+        await skipRetryWait(LLM_TEXT_RETRY.RATE_LIMITED_DELAY_MS, () =>
+          expect(
+            complete(adapterType, 'data:image/png;base64,aGVsbG8=', stream),
+          ).rejects.toMatchObject({
+            errorCode: 'PROVIDER_RATE_LIMITED',
+            i18nKey: 'errors.provider.rateLimited',
+          }),
+        )
       }
     },
   )

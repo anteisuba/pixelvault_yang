@@ -7,6 +7,9 @@ import type { CharacterCardRecord, CharacterLookRecord } from '@/types'
 
 import { CharacterRoster } from './CharacterRoster'
 
+vi.mock('@/features/cards/hooks/use-character-templates', () => ({
+  useCharacterTemplates: () => ({ byLook: new Map(), isLoading: false }),
+}))
 vi.mock('@clerk/nextjs', () => ({
   useUser: () => ({ user: null }),
 }))
@@ -237,16 +240,21 @@ describe('CharacterRoster（角色页 · 方向 A）', () => {
     expect(screen.getByRole('region', { name: '里希' })).toBeTruthy()
   })
 
-  it('总览一位角色一张卡；造型在「图片」页签顶上切换（角色④）', () => {
+  it('总览一位角色一张卡；造型只在「模板」页签左列管，图片页签不再有造型条', () => {
     renderRoster()
     expect(screen.getAllByTestId('roster-tile')).toHaveLength(2)
     openDenia('图片')
+    expect(screen.queryByRole('group', { name: '造型' })).toBeNull()
+    fireEvent.click(screen.getByRole('tab', { name: '模板' }))
+    expect(
+      screen.getByText('还没有模板。在台上「存成模板」时挂到这套造型。'),
+    ).toBeTruthy()
     const looks = screen.getByRole('group', { name: '造型' })
     expect(looks).toHaveTextContent('默认')
     expect(looks).toHaveTextContent('Q版')
   })
 
-  it('点一个角色进整页详情：左栏她 + 右边页签（最近 · 人物 · 图片 · LoRA · 记忆 · 表情包）；「‹ 角色」回总览', () => {
+  it('点一个角色进整页详情：左栏她 + 右边页签（最近 · 人物 · 图片 · 模板 · LoRA · 记忆 · 表情包）；「‹ 角色」回总览', () => {
     renderRoster()
     openDenia()
     const detail = screen.getByRole('region', { name: 'Denia' })
@@ -254,6 +262,7 @@ describe('CharacterRoster（角色页 · 方向 A）', () => {
       '最近',
       '人物',
       '图片',
+      '模板',
       'LoRA',
       '记忆',
       '表情包',

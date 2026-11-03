@@ -196,6 +196,11 @@ export async function deleteAssistantSkillForClerkId(
   return deleted.count > 0
 }
 
+/** 内置那一份在表里的名字：只作存储，显示用内置原名（`resolveSkills`）。 */
+function builtinRowName(slug: string): string {
+  return `builtin/${slug}`
+}
+
 /**
  * 内置那一份：开 / 关，或「改成我的版本」（给 body）。表里没有那一行就新建：
  * 只关不改的那一行 `body` 为空（读到的仍是内置原文）。
@@ -219,26 +224,24 @@ export async function updateBuiltinSkillForClerkId(
           references: { ...builtin.references },
         }
       : {}
-  if (existing) {
-    await db.assistantSkill.update({
-      where: { id: existing.id },
-      data: {
-        ...content,
-        ...(input.enabled !== undefined ? { enabled: input.enabled } : {}),
-      },
-    })
-  } else {
-    await assertRoom(user.id)
-    await db.assistantSkill.create({
-      data: {
-        userId: user.id,
-        name: builtin.name,
-        description: builtin.description,
-        builtinSlug: builtin.slug,
-        ...content,
-        enabled: input.enabled ?? true,
-      },
-    })
-  }
+  if (!existing) await assertRoom(user.id)
+  // 按 (userId, builtinSlug) upsert：连点两下也只落一行。名字存成 `builtin/<slug>`：
+  // 用户起的名字不许带 `/`，这一格永远撞不上「你自己写的」（10-28 线上撞过 (userId, name) 唯一约束）。
+  await db.assistantSkill.upsert({
+    where: { userId_builtinSlug: { userId: user.id, builtinSlug: builtin.slug } },
+    update: {
+      name: builtinRowName(builtin.slug),
+      ...content,
+      ...(input.enabled !== undefined ? { enabled: input.enabled } : {}),
+    },
+    create: {
+      userId: user.id,
+      name: builtinRowName(builtin.slug),
+      description: builtin.description,
+      builtinSlug: builtin.slug,
+      ...content,
+      enabled: input.enabled ?? true,
+    },
+  })
   return viewsOf(await rowsOf(user.id))
 }

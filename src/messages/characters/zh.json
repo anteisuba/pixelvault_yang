@@ -290,7 +290,8 @@
       "images": "图片",
       "lora": "LoRA",
       "memory": "记忆",
-      "stickers": "表情包"
+      "stickers": "表情包",
+      "templates": "模板"
     },
     "detailNow": "现在",
     "interestsTitle": "她在意的东西",
@@ -355,6 +356,20 @@
       "fillProfile": "补全她的设定",
       "findImages": "给她找立绘",
       "interests": "帮她想几个兴趣"
+    },
+    "templates": {
+      "title": "这套造型的模板",
+      "empty": "还没有模板。在台上「存成模板」时挂到这套造型。",
+      "use": "用「{name}」",
+      "useFailed": "没能打开这张模板",
+      "kind": {
+        "tags": "标签",
+        "lora": "LoRA",
+        "image": "图片",
+        "video": "视频",
+        "audio": "音频",
+        "model3d": "3D"
+      }
     }
   },
   "CharacterImagePick": {

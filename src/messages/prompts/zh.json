@@ -180,5 +180,33 @@
     "title": "AI 提示词教练",
     "improvedPrompt": "改进版本",
     "applyImproved": "使用此提示词"
+  },
+  "SaveTemplate": {
+    "title": "存成模板",
+    "name": "名字",
+    "hangTo": "挂到",
+    "noCharacter": "不挂角色",
+    "include": "存哪些",
+    "alsoImages": "也放进她的图片",
+    "alsoStickers": "也放进她的表情包",
+    "cancel": "取消",
+    "save": "存",
+    "saved": "已存成模板",
+    "alsoImagesFailed": "模板存好了，但没能放进她的图片",
+    "alsoStickersFailed": "模板存好了，但没能放进她的表情包",
+    "options": {
+      "prompt": "提示词",
+      "negative": "负面",
+      "params": "参数",
+      "paramsDetail": "比例 · 步数",
+      "references": "参考图",
+      "lora": "LoRA 挂载",
+      "loraDetail": "{count} 个",
+      "whole": "整体标签",
+      "characters": "角色标签",
+      "style": "画风",
+      "styleDetail": "另存一张画风卡"
+    },
+    "styleName": "{name} · 画风"
   }
 }

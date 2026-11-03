@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('server-only', () => ({}))
 
@@ -58,6 +58,8 @@ vi.mock('./character-browse.service', async () => {
   return {
     OutingMeter: actual.OutingMeter,
     OutingBudgetExhausted: actual.OutingBudgetExhausted,
+    OutingClock: actual.OutingClock,
+    OutingTimeSlice: actual.OutingTimeSlice,
     normalizeOutingSite: actual.normalizeOutingSite,
     availableBrowseSources: () => ['bilibili', 'danbooru', 'civitai', 'web'],
     personaText: () => '',
@@ -67,9 +69,13 @@ vi.mock('./character-browse.service', async () => {
   }
 })
 
+import { CHARACTER_OUTING } from '@/constants/character-browse'
 import { NODE_STUDIO_ASSISTANT_ROUTE_MODELS } from '@/constants/node-studio'
 import { ApiKeyError } from '@/lib/errors'
-import { OutingBudgetExhausted } from './character-browse.service'
+import {
+  OutingBudgetExhausted,
+  OutingTimeSlice,
+} from './character-browse.service'
 import {
   runOutingChunk,
   startOutingForClerkId,
@@ -404,6 +410,85 @@ describe('runOutingChunk', () => {
       status: 'DONE',
       endReason: 'nothing',
       rounds: 2,
+    })
+  })
+
+  describe('分段续跑（10-30 线上一段跑满 300 秒被掐）', () => {
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    /** 交给下一段的那一下：放开占位、没收工。 */
+    function handedOff() {
+      const call = mocks.outingUpdate.mock.calls.find(
+        ([arg]) =>
+          (arg as { data: Record<string, unknown> }).data.leaseUntil === null &&
+          !(arg as { data: { endedAt?: Date } }).data.endedAt,
+      )
+      return call?.[0] as { data: Record<string, unknown> } | undefined
+    }
+
+    it('每一轮都带上这一段的截止时刻', async () => {
+      mocks.outingFindUnique.mockResolvedValue(loaded())
+      mocks.browseRound.mockResolvedValue({ queries: 1, seen: 0, kept: 0 })
+      const before = Date.now()
+
+      await runOutingChunk('o1')
+
+      const clock = mocks.browseRound.mock.calls[0]?.[0].route.clock
+      expect(clock.deadline).toBeGreaterThanOrEqual(
+        before + CHARACTER_OUTING.chunkMs,
+      )
+      expect(clock.deadline).toBeLessThanOrEqual(
+        Date.now() + CHARACTER_OUTING.chunkMs,
+      )
+    })
+
+    it('一轮半路时间用完：⛔ 收工，存好进度交给下一段（记了几条以库里为准）', async () => {
+      mocks.outingFindUnique.mockResolvedValue(loaded({ rounds: 3 }))
+      mocks.browseRound.mockRejectedValueOnce(new OutingTimeSlice())
+      mocks.findingCount.mockResolvedValue(4)
+
+      await runOutingChunk('o1')
+
+      expect(finished()).toBeUndefined()
+      expect(mocks.writeJournal).not.toHaveBeenCalled()
+      expect(handedOff()?.data).toMatchObject({ kept: 4, rounds: 3 })
+    })
+
+    it('剩的时间不够再开一轮：先交给下一段', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      mocks.outingFindUnique.mockResolvedValue(loaded())
+      mocks.browseRound.mockImplementationOnce(async () => {
+        vi.setSystemTime(
+          Date.now() +
+            CHARACTER_OUTING.chunkMs -
+            CHARACTER_OUTING.minRoundMs +
+            1,
+        )
+        return { queries: 1, seen: 3, kept: 1 }
+      })
+
+      await runOutingChunk('o1')
+
+      expect(mocks.browseRound).toHaveBeenCalledTimes(1)
+      expect(finished()).toBeUndefined()
+      expect(handedOff()?.data).toMatchObject({ kept: 1, rounds: 1 })
+    })
+
+    it('被截止时刻截断的一轮不算空手而归', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      mocks.outingFindUnique.mockResolvedValue(loaded({ emptyRounds: 1 }))
+      mocks.browseRound.mockImplementationOnce(async () => {
+        vi.setSystemTime(Date.now() + CHARACTER_OUTING.chunkMs)
+        return { queries: 1, seen: 0, kept: 0 }
+      })
+
+      await runOutingChunk('o1')
+
+      // 不截断的话连着两轮空手 = 收工（nothing）。
+      expect(finished()).toBeUndefined()
+      expect(handedOff()?.data).toMatchObject({ emptyRounds: 1, rounds: 1 })
     })
   })
 

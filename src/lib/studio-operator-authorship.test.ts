@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { STUDIO_OPERATOR_AUTHORSHIP } from '@/constants/studio-assistant-operator'

@@ -39,6 +39,7 @@ export function affordableSeconds(tokens: number, fps: number): number {
 /** B 站 360P 下到内存，`data:` 交给 Gemini（大于 20MB 的由它那边自己走文件上传）。 */
 export async function downloadBilibiliVideo(
   info: BilibiliVideoInfo,
+  signal: AbortSignal,
 ): Promise<string | null> {
   try {
     const stream = await fetchBilibiliMp4(info.bvid, info.cid)
@@ -48,7 +49,7 @@ export async function downloadBilibiliVideo(
     const { buffer, mimeType } = await fetchAsBuffer(stream.url, {
       headers: bilibiliMediaHeaders(),
       maxBytes: CHARACTER_OUTING_VIDEO.bilibiliMaxBytes,
-      signal: AbortSignal.timeout(CHARACTER_OUTING_VIDEO.downloadTimeoutMs),
+      signal,
     })
     const type = mimeType.startsWith('video/') ? mimeType : 'video/mp4'
     return `data:${type.split(';')[0]};base64,${buffer.toString('base64')}`

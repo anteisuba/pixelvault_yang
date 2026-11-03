@@ -18,6 +18,7 @@ import {
   CharacterImagesPane,
   CharacterLorasPane,
   CharacterPersonPane,
+  CharacterTemplatesPane,
 } from '@/features/cards/components/CharacterDetail'
 import { CharacterInterests } from '@/features/cards/components/CharacterInterests'
 import { CharacterMemoryPane } from '@/features/cards/components/CharacterMemoryPane'
@@ -33,7 +34,14 @@ import { usePersonaSwitch } from '@/hooks/use-chat-persona'
 import { characterCoverUrl } from '@/lib/card-bus'
 import { characterImageCount, characterWork } from '@/lib/character-works'
 
-type DetailTab = 'recent' | 'person' | 'images' | 'lora' | 'memory' | 'stickers'
+type DetailTab =
+  | 'recent'
+  | 'person'
+  | 'images'
+  | 'templates'
+  | 'lora'
+  | 'memory'
+  | 'stickers'
 
 type PaneProps = Parameters<typeof CharacterPersonPane>[0]
 
@@ -42,7 +50,7 @@ type PaneProps = Parameters<typeof CharacterPersonPane>[0]
  *
  * ⭐ 左栏只放她：头像 · 名字（⋯ 里删除）· 一句介绍 · 「和她聊」（这块板唯一的黑钮）·
  *   「她在意的东西」（第 ④ 步）·「现在」（出门调查，第 ⑤ 步）。⛔ 分割线、⛔「用她 ▾」。
- * ⭐ 右边页签：最近 · 人物 · 图片 · LoRA · 记忆（第 ⑦ 步）· 表情包。各页内容先原样搬过来，
+ * ⭐ 右边页签：最近 · 人物 · 图片 · 模板（11-01）· LoRA · 记忆（第 ⑦ 步）· 表情包。各页内容先原样搬过来，
  *   后面几步一页一页改。
  * ⚠ 手机照旧走 `CharacterDetailSplit`（手机归整体重设计）。
  */
@@ -64,6 +72,7 @@ export function CharacterDetailDesk({
     { value: 'recent', label: t('detailTabs.recent') },
     { value: 'person', label: t('detailTabs.person') },
     { value: 'images', label: t('detailTabs.images') },
+    { value: 'templates', label: t('detailTabs.templates') },
     { value: 'lora', label: t('detailTabs.lora') },
     { value: 'memory', label: t('detailTabs.memory') },
     { value: 'stickers', label: t('detailTabs.stickers') },
@@ -114,6 +123,8 @@ export function CharacterDetailDesk({
             </div>
           ) : tab === 'images' ? (
             <CharacterImagesPane {...paneProps} />
+          ) : tab === 'templates' ? (
+            <CharacterTemplatesPane {...paneProps} />
           ) : tab === 'lora' ? (
             <div className="h-full overflow-y-auto pb-12">
               <CharacterLorasPane card={card} />

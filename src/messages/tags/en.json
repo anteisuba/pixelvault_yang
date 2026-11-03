@@ -288,7 +288,11 @@
       "characterPlaceholder": "Tags for character {number}…",
       "negativePlaceholder": "What you don't want, e.g. lowres, bad hands…",
       "writeFor": "For",
-      "count": "{count}"
+      "count": "{count}",
+      "edited": "Edited",
+      "remove": "Remove {who}",
+      "removeTitleWho": "Remove {who}?",
+      "whoNegative": "{who} negative"
     },
     "library": {
       "all": "All",
@@ -296,6 +300,28 @@
       "viewLabel": "Library or favorites",
       "back": "Back",
       "notATag": "Danbooru has no tag by this name — it may be your own wording or a different spelling."
+    },
+    "addMenu": {
+      "trigger": "Add character",
+      "searchPlaceholder": "Search: my characters + tag library",
+      "mine": "My characters",
+      "mineEmpty": "No matching characters",
+      "looks": "{count, plural, one {# look} other {# looks}}",
+      "tagCount": "{count, plural, one {# tag} other {# tags}}",
+      "library": "Tag library",
+      "libraryEmpty": "Nothing in the tag library",
+      "blank": {
+        "girl": "Girl",
+        "boy": "Boy",
+        "other": "Other"
+      }
+    },
+    "characterMenu": {
+      "rename": "Name",
+      "swapLook": "Switch look",
+      "updateLook": "Update “{look}”",
+      "edited": "Edited",
+      "saveAsLook": "Save as new look…"
     }
   }
 }

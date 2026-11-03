@@ -1,22 +1,8 @@
 #!/bin/sh
-# Pre-push：只查本次改动相关的部分，全量交给 CI（ci.yml 的 lint + 3 片 vitest）。
-# 例外：推 main = 生产部署，仍跑全量三关（见 docs/WORKFLOW.md「push main」）。
+# Pre-push：推分支和推 main 一样，只查本次改动相关的部分；全量在 CI。
+# 推 main 不再本机跑全量（owner 2026-11-03）：Vercel 开了 Deployment Checks，
+# 生产部署等 CI 全绿才切到正式域名，红了不上线（docs/references/testing.md「闸门」）。
 # husky 以 `sh -e` 执行：grep 无匹配会直接退出，所以取值处都带 `|| true`。
-
-FULL=0
-# stdin 每行：<local ref> <local sha> <remote ref> <remote sha>
-while read -r _local_ref _local_sha remote_ref _remote_sha; do
-  [ "$remote_ref" = "refs/heads/main" ] && FULL=1
-done
-
-if [ "$FULL" = "1" ]; then
-  echo "🔍 Pre-push (main, full): tsc + lint + vitest..."
-  npx tsc --noEmit || { echo "❌ Type check failed"; exit 1; }
-  npm run lint || { echo "❌ Lint failed"; exit 1; }
-  npx vitest run --reporter=verbose --maxWorkers=2 || { echo "❌ Tests failed"; exit 1; }
-  echo "✅ All checks passed"
-  exit 0
-fi
 
 BASE=$(git merge-base HEAD origin/main 2>/dev/null || true)
 if [ -z "$BASE" ]; then
@@ -51,4 +37,4 @@ else
   npx vitest run --changed "$BASE" --passWithNoTests --maxWorkers=2 || { echo "❌ Tests failed"; exit 1; }
 fi
 
-echo "✅ Related checks passed (full suite runs in CI)"
+echo "✅ Related checks passed (full suite runs in CI; Vercel waits for it)"

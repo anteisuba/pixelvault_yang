@@ -290,7 +290,8 @@
       "images": "Images",
       "lora": "LoRA",
       "memory": "Memory",
-      "stickers": "Stickers"
+      "stickers": "Stickers",
+      "templates": "Templates"
     },
     "detailNow": "Now",
     "interestsTitle": "What she cares about",
@@ -355,6 +356,20 @@
       "fillProfile": "Fill in her profile",
       "findImages": "Find pictures of her",
       "interests": "Think up her interests"
+    },
+    "templates": {
+      "title": "Templates for this look",
+      "empty": "No templates yet. Attach one to this look when you “Save as template” in a studio.",
+      "use": "Use “{name}”",
+      "useFailed": "Couldn’t open this template",
+      "kind": {
+        "tags": "Tags",
+        "lora": "LoRA",
+        "image": "Image",
+        "video": "Video",
+        "audio": "Audio",
+        "model3d": "3D"
+      }
     }
   },
   "CharacterImagePick": {

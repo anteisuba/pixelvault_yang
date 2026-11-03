@@ -584,7 +584,15 @@ export async function createRecipeFromGeneration(
   }
   if (data.loraSetup)
     checkLoraSetupMatchesGeneration(data.loraSetup, generation)
-  const generationParams = getGenerationRecipeParams(generation)
+  const include = data.include ?? {}
+  // 「存哪些」没勾参数：比例、步数、角色构图这些都不带（LoRA 整套另算，见下）。
+  const generationParams =
+    include.params === false ? {} : getGenerationRecipeParams(generation)
+  const params = {
+    ...generationParams,
+    ...(data.loraSetup ? { loraSetup: data.loraSetup } : {}),
+    ...(data.characterLink ? { characterLink: data.characterLink } : {}),
+  }
 
   const recipe = await db.recipe.create({
     data: {
@@ -597,15 +605,15 @@ export async function createRecipeFromGeneration(
           model: generation.model,
         }),
       compiledPrompt: generation.prompt,
-      negativePrompt: generation.negativePrompt,
+      negativePrompt:
+        include.negative === false ? null : generation.negativePrompt,
       modelId: generation.model,
       provider: generation.provider,
-      params: toPrismaJson(
-        data.loraSetup
-          ? { ...generationParams, loraSetup: data.loraSetup }
-          : generationParams,
-      ),
-      referenceAssets: toPrismaJson(getGenerationReferenceAssets(generation)),
+      params: toPrismaJson(params),
+      referenceAssets:
+        include.references === false
+          ? undefined
+          : toPrismaJson(getGenerationReferenceAssets(generation)),
       seed: typeof generation.seed === 'bigint' ? generation.seed : undefined,
       parentGenerationId: generation.id,
     },

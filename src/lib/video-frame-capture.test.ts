@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ASSISTANT_V3_CLIP_LIMITS } from '@/constants/assistant-v3'

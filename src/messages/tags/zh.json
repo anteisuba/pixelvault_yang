@@ -288,7 +288,11 @@
       "characterPlaceholder": "角色 {number} 的标签…",
       "negativePlaceholder": "不想要的，比如 lowres、bad hands…",
       "writeFor": "写给",
-      "count": "{count} 个"
+      "count": "{count} 个",
+      "edited": "改过",
+      "remove": "删除{who}",
+      "removeTitleWho": "删除{who}？",
+      "whoNegative": "{who} 负向"
     },
     "library": {
       "all": "全部",
@@ -296,6 +300,28 @@
       "viewLabel": "看库还是收藏",
       "back": "返回",
       "notATag": "Danbooru 上没有这个标签，可能是自己写的词或者拼法不一样。"
+    },
+    "addMenu": {
+      "trigger": "加角色",
+      "searchPlaceholder": "搜角色：我的角色 + 标签库",
+      "mine": "我的角色",
+      "mineEmpty": "没有对得上的角色",
+      "looks": "{count} 套造型",
+      "tagCount": "{count} 个标签",
+      "library": "标签库",
+      "libraryEmpty": "标签库里没找到",
+      "blank": {
+        "girl": "女",
+        "boy": "男",
+        "other": "其他"
+      }
+    },
+    "characterMenu": {
+      "rename": "名字",
+      "swapLook": "换造型",
+      "updateLook": "更新到「{look}」",
+      "edited": "改过",
+      "saveAsLook": "存成新造型…"
     }
   }
 }

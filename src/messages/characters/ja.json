@@ -290,7 +290,8 @@
       "images": "画像",
       "lora": "LoRA",
       "memory": "記憶",
-      "stickers": "スタンプ"
+      "stickers": "スタンプ",
+      "templates": "テンプレート"
     },
     "detailNow": "いま",
     "interestsTitle": "気にしていること",
@@ -355,6 +356,20 @@
       "fillProfile": "設定の空きを埋める",
       "findImages": "立ち絵を探す",
       "interests": "好きなことを考える"
+    },
+    "templates": {
+      "title": "この衣装のテンプレート",
+      "empty": "まだテンプレートはありません。各スタジオで「テンプレートに保存」するときにこの衣装へ紐づけてください。",
+      "use": "「{name}」を使う",
+      "useFailed": "テンプレートを開けませんでした",
+      "kind": {
+        "tags": "タグ",
+        "lora": "LoRA",
+        "image": "画像",
+        "video": "動画",
+        "audio": "音声",
+        "model3d": "3D"
+      }
     }
   },
   "CharacterImagePick": {

@@ -33,6 +33,7 @@ import {
 import { CharacterImageShelves } from '@/features/cards/components/CharacterImageShelves'
 import { CharacterLoraGrid } from '@/features/cards/components/CharacterLoraGrid'
 import { CharacterLookStrip } from '@/features/cards/components/CharacterLookStrip'
+import { CharacterLookTemplates } from '@/features/cards/components/CharacterLookTemplates'
 import { VoicePickerDialog } from '@/components/business/voices/VoicePickerDialog'
 import {
   appendSlotImages,
@@ -50,6 +51,7 @@ import { useCharacterCardUsage } from '@/features/cards/hooks/use-character-card
 import { useCharacterDialogueDraft } from '@/features/cards/hooks/use-character-dialogue-draft'
 import { useCharacterLoras } from '@/features/cards/hooks/use-character-loras'
 import { useCharacterSampleLines } from '@/features/cards/hooks/use-character-sample-lines'
+import { useCharacterTemplates } from '@/features/cards/hooks/use-character-templates'
 import { useVoiceCardDetail } from '@/features/cards/hooks/use-voice-card-detail'
 import {
   canPreviewVoiceSample,
@@ -294,46 +296,88 @@ export function CharacterPersonPane(props: CharacterPaneProps) {
 }
 
 /**
- * 电脑详情「图片」页签：造型切换 · 图片带 · 一句外观 · 标签与作品，原样搬过来（第 ⑧ 步再改）。
- * ⚠ 图片带的高度是滚动容器的百分比：这一页本身就是滚动容器。
+ * 电脑详情「图片」页签：全部造型的图摆一起（owner 11-01：造型只在「模板」页签管，
+ * 这里去掉造型条和外观两格）。
  */
-export function CharacterImagesPane(props: CharacterPaneProps) {
+export function CharacterImagesPane({
+  card,
+  onUpdateLook,
+}: CharacterPaneProps) {
+  return (
+    <div className="flex h-full flex-col gap-7 overflow-y-auto pb-12">
+      <CharacterImageShelves
+        card={card}
+        save={(look, patch) =>
+          look.id
+            ? onUpdateLook(look.id, lookUpdateFromDraft(look, patch))
+            : Promise.resolve(false)
+        }
+      />
+    </div>
+  )
+}
+
+/**
+ * 电脑详情「模板」页签（owner 11-01 定 C + 甲）：左列造型（＋ 新造型、改名 / 默认 / 删除），
+ * 右边这套造型的外观两格 + 挂在它名下的模板。
+ */
+export function CharacterTemplatesPane(props: CharacterPaneProps) {
   const t = useTranslations('CharacterRoster')
   const { card, onLookChange, onCreateLook, onUpdateLook, onDeleteLook } = props
   const { look, save, saveLook } = usePaneSave(props)
+  const { byLook, isLoading } = useCharacterTemplates(card.id)
   return (
-    <div className="flex h-full flex-col gap-7 overflow-y-auto pb-12">
-      <CharacterLookStrip
-        card={card}
-        lookId={look.id}
-        onSelect={onLookChange}
-        onCreate={onCreateLook}
-        onRename={(id, label) => onUpdateLook(id, { label })}
-        onMakeDefault={(id) => onUpdateLook(id, { isDefault: true })}
-        onDelete={async (id) => {
-          const ok = await onDeleteLook(id)
-          if (ok) onLookChange(null)
-          return ok
-        }}
-      />
-      {/* 外观两格套一块灰框，与人物页同一种分组（样件 v4）；铺满整行（owner 10-30 嫌右边空）。 */}
-      <SettingGroup title={t('settingLook')}>
-        <CharacterTextField
-          label={t('fieldLooks')}
-          value={look.description ?? ''}
-          limit={CHARACTER_CARD.DESCRIPTION_MAX_LENGTH}
-          clamp={false}
-          onSave={(description) => saveLook({ description })}
-        />
-        <TagsModule
+    <div className="flex h-full gap-6">
+      <div className="w-48 shrink-0 overflow-y-auto pb-12">
+        <CharacterLookStrip
+          orientation="column"
           card={card}
-          look={look}
-          save={save}
-          saveLook={saveLook}
-          bare
+          lookId={look.id}
+          meta={(id) => {
+            const count = byLook.get(id)?.length ?? 0
+            return count > 0 ? String(count) : null
+          }}
+          onSelect={onLookChange}
+          onCreate={onCreateLook}
+          onRename={(id, label) => onUpdateLook(id, { label })}
+          onMakeDefault={(id) => onUpdateLook(id, { isDefault: true })}
+          onDelete={async (id) => {
+            const ok = await onDeleteLook(id)
+            if (ok) onLookChange(null)
+            return ok
+          }}
         />
-      </SettingGroup>
-      <CharacterImageShelves card={card} look={look} save={saveLook} />
+      </div>
+      <div className="flex min-w-0 flex-1 flex-col gap-7 overflow-y-auto pb-12">
+        <SettingGroup title={t('settingLook')}>
+          <CharacterTextField
+            label={t('fieldLooks')}
+            value={look.description ?? ''}
+            limit={CHARACTER_CARD.DESCRIPTION_MAX_LENGTH}
+            clamp={false}
+            onSave={(description) => saveLook({ description })}
+          />
+          <TagsModule
+            card={card}
+            look={look}
+            save={save}
+            saveLook={saveLook}
+            bare
+          />
+        </SettingGroup>
+        <section className="flex flex-col gap-2.5">
+          <h3 className="flex items-baseline gap-2 text-sm font-semibold">
+            {t('templates.title')}
+            <span className="font-mono text-xs font-normal tabular-nums text-muted-foreground">
+              {byLook.get(look.id)?.length ?? 0}
+            </span>
+          </h3>
+          <CharacterLookTemplates
+            templates={byLook.get(look.id) ?? []}
+            isLoading={isLoading}
+          />
+        </section>
+      </div>
     </div>
   )
 }

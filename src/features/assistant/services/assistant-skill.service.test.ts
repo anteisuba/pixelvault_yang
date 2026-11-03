@@ -8,6 +8,7 @@ const db = vi.hoisted(() => ({
     count: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
+    upsert: vi.fn(),
     deleteMany: vi.fn(),
   },
 }))
@@ -79,13 +80,23 @@ describe('assistant-skill.service', () => {
       slug: 'video-shots-and-dialogue',
       body: '我的版本',
     })
-    const data = db.assistantSkill.create.mock.calls[0]![0].data
+    const call = db.assistantSkill.upsert.mock.calls[0]![0]
+    expect(call.where).toEqual({
+      userId_builtinSlug: {
+        userId: 'user-of-clerk-a',
+        builtinSlug: 'video-shots-and-dialogue',
+      },
+    })
+    const data = call.create
     expect(data).toMatchObject({
       userId: 'user-of-clerk-a',
       builtinSlug: 'video-shots-and-dialogue',
       body: '我的版本',
       enabled: true,
     })
+    // 名字带 `/`：用户起的名字不许带，撞不上 (userId, name) 唯一约束（10-28 线上 500）。
+    expect(data.name).toBe('builtin/video-shots-and-dialogue')
+    expect(call.update.name).toBe('builtin/video-shots-and-dialogue')
     expect(Object.keys(data.references).length).toBeGreaterThan(0)
     await expect(
       updateBuiltinSkillForClerkId('clerk-a', { slug: 'nope', enabled: false }),

@@ -22,6 +22,11 @@ import {
 } from './StudioTagCast'
 import { StudioTagTextField } from './StudioTagTextField'
 import { StudioTagPageTabs } from './StudioTagPageTabs'
+import { StudioTagAddCharacter } from './StudioTagAddCharacter'
+import {
+  StudioTagCharacterMenuExtra,
+  sameTags,
+} from './StudioTagCharacterMenuExtra'
 
 const WHOLE = 'whole'
 
@@ -109,7 +114,8 @@ export function StudioTagsDesktopEditor({
   const who =
     activeIndex === null
       ? null
-      : t('workbench.characterNumber', { number: activeIndex + 1 })
+      : people[activeIndex]?.label ||
+        t('workbench.characterNumber', { number: activeIndex + 1 })
   const fieldLabel = negativeView
     ? who
       ? `${t('tabs.negative')} · ${who}`
@@ -141,7 +147,7 @@ export function StudioTagsDesktopEditor({
             },
             ...people.map((_, index) => ({
               value: String(index),
-              label: `${t('workbench.characterNumber', { number: index + 1 })} ${negativeOf(index).length}`,
+              label: `${people[index]?.label || t('workbench.characterNumber', { number: index + 1 })} ${negativeOf(index).length}`,
             })),
           ]}
           onChange={(next) =>
@@ -174,19 +180,44 @@ export function StudioTagsDesktopEditor({
       <div className="flex min-w-0 items-center gap-2">
         {referenceStrip}
         <StudioTagPageTabs
-          whole={{ count: state.tagChips.length }}
+          whole={{
+            count: state.tagChips.length,
+            preview: serializeTagChips(state.tagChips),
+          }}
           characters={people.map((person, index) => ({
             count: parseTagChips(person.prompt).length,
             enabled: person.enabled !== false,
             flashing: flashing === index,
+            preview: person.prompt,
+            label: person.label,
+            dirty: person.origin
+              ? !sameTags(person.prompt, person.origin.tags)
+              : false,
+            menuExtra: (
+              <StudioTagCharacterMenuExtra
+                index={index}
+                character={person}
+                fallbackName={t('workbench.characterNumber', {
+                  number: index + 1,
+                })}
+                onUpdate={characters.update}
+              />
+            ),
           }))}
           activeIndex={activeIndex}
           negative={negativeView}
           negativeCount={negativeOf(activeIndex).length}
-          canAdd={
-            characters.mode
-              ? characters.characters.length < characters.max
-              : null
+          addControl={
+            characters.mode ? (
+              <StudioTagAddCharacter
+                disabled={disabled}
+                full={characters.characters.length >= characters.max}
+                onAdd={({ prompt, ...extra }) => {
+                  setNegativeView(false)
+                  characters.add(prompt, extra)
+                }}
+              />
+            ) : null
           }
           disabled={disabled}
           onSelect={(index) => {
@@ -194,10 +225,6 @@ export function StudioTagsDesktopEditor({
             characters.select(index)
           }}
           onNegative={() => setNegativeView(true)}
-          onAdd={() => {
-            setNegativeView(false)
-            characters.add()
-          }}
           onEnabledChange={(index, enabled) =>
             characters.update(index, { enabled })
           }

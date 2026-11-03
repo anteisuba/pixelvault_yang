@@ -123,11 +123,40 @@ export interface CharacterBrowseResult {
   kept: number
 }
 
+/** 这一段要停下的两种原因的共同父类：各处吞错的 `catch` 只认它往上抛。 */
+export class OutingHalt extends Error {}
+
 /** 额度不够再调一次模型了：这一轮到此为止，这一趟收工。 */
-export class OutingBudgetExhausted extends Error {
+export class OutingBudgetExhausted extends OutingHalt {
   constructor() {
     super('Outing budget exhausted')
     this.name = 'OutingBudgetExhausted'
+  }
+}
+
+/** 这一段时间用完了：存好进度，下一段接着跑（⛔ 收工）。 */
+export class OutingTimeSlice extends OutingHalt {
+  constructor() {
+    super('Outing time slice used up')
+    this.name = 'OutingTimeSlice'
+  }
+}
+
+/**
+ * 一段的截止时刻（函数上限 300 s；10-30 前每轮只在开头看表，一轮半路跑过 300 s 被掐）。
+ * 每一步的超时都截到截止时刻；剩下不到 `minStepMs` 就不再开新的一步，抛 `OutingTimeSlice`。
+ */
+export class OutingClock {
+  constructor(readonly deadline: number) {}
+
+  left(): number {
+    return this.deadline - Date.now()
+  }
+
+  signal(capMs: number): AbortSignal {
+    const left = this.left()
+    if (left < CHARACTER_OUTING.minStepMs) throw new OutingTimeSlice()
+    return AbortSignal.timeout(Math.min(capMs, left))
   }
 }
 
@@ -158,6 +187,13 @@ export class OutingMeter {
 
 export type BrowseRoute = Pick<AssistantRoute, 'route' | 'modelId'> & {
   meter: OutingMeter
+  /** 出门那一趟分段跑时给；没给就只按每步自己的超时。 */
+  clock?: OutingClock
+}
+
+/** 这一步的超时：有截止时刻就截到截止时刻。 */
+function stepSignal(route: BrowseRoute, capMs: number): AbortSignal {
+  return route.clock ? route.clock.signal(capMs) : AbortSignal.timeout(capMs)
 }
 
 type CompleteOptions = Parameters<
@@ -308,7 +344,7 @@ ${card.interests.length ? card.interests.map((item) => `- ${item}`).join('\n') :
 WHAT YOU LOOKED AT RECENTLY (do not look for the same things again):
 ${recentTitles.length ? recentTitles.map((title) => `- ${title}`).join('\n') : '(nothing yet)'}`
   const raw = await meteredComplete(route.meter, {
-    signal: AbortSignal.timeout(CHARACTER_BROWSE.callTimeoutMs),
+    signal: stepSignal(route, CHARACTER_BROWSE.callTimeoutMs),
     systemPrompt: `You are a character with your own tastes. Today you have some free time online. Decide what you feel like looking at, the way this person would — their hobbies, the shows, art and games they would care about, things that fit their mood.
 
 Return ONE JSON object and nothing else: {"queries":[{"source":"…","query":"…"}],"sticker":"…"${card.interestsPinned ? '' : ',"interests":{"add":[],"drop":[]}'}}
@@ -475,7 +511,8 @@ async function nativeSearch(
       modelId: route.modelId,
       systemPrompt,
       query,
-      signal: AbortSignal.timeout(
+      signal: stepSignal(
+        route,
         xVideos
           ? CHARACTER_OUTING_VIDEO.watchTimeoutMs
           : CHARACTER_BROWSE.callTimeoutMs,
@@ -715,7 +752,7 @@ ${batch
   )
   .join('\n')}`
   const raw = await meteredComplete(route.meter, {
-    signal: AbortSignal.timeout(CHARACTER_BROWSE.callTimeoutMs),
+    signal: stepSignal(route, CHARACTER_BROWSE.callTimeoutMs),
     systemPrompt: `${
       options.mustNote
         ? 'You are this character. Someone asked you to look at this video; write one short line about it'
@@ -783,7 +820,7 @@ async function notesFor(
   try {
     return await writeNotes(route, card, batch, { images: false })
   } catch (error) {
-    if (error instanceof OutingBudgetExhausted) throw error
+    if (error instanceof OutingHalt) throw error
     logger.warn('character browse batch skipped', {
       error: error instanceof Error ? error.message : String(error),
     })
@@ -819,7 +856,7 @@ ${pool
   let picks: number[] = []
   try {
     const raw = await meteredComplete(route.meter, {
-      signal: AbortSignal.timeout(CHARACTER_BROWSE.callTimeoutMs),
+      signal: stepSignal(route, CHARACTER_BROWSE.callTimeoutMs),
       systemPrompt: `You are this character, scrolling through what turned up. Pick the ${limit} you most want to open and look at properly — what you would really click on, with some variety.
 
 Return ONE JSON object and nothing else: {"pick":[3,7,1]}
@@ -834,7 +871,7 @@ Return ONE JSON object and nothing else: {"pick":[3,7,1]}
     })
     picks = ScreenSchema.safeParse(readJson(raw)).data?.pick ?? []
   } catch (error) {
-    if (error instanceof OutingBudgetExhausted) throw error
+    if (error instanceof OutingHalt) throw error
     logger.info('character browse screen failed, taking the first ones', {
       error: error instanceof Error ? error.message : String(error),
     })
@@ -970,14 +1007,19 @@ THE VIDEO: [${item.source}] ${item.title}${item.excerpt ? ` — ${item.excerpt.s
   else if (video.bvid) {
     const info =
       video.info ?? (await fetchBilibiliVideoInfo(video.bvid).catch(() => null))
-    videoData = info ? await downloadBilibiliVideo(info) : null
+    videoData = info
+      ? await downloadBilibiliVideo(
+          info,
+          stepSignal(route, CHARACTER_OUTING_VIDEO.downloadTimeoutMs),
+        )
+      : null
   }
   if (!videoData) return null
 
   const raw = await meteredComplete(
     route.meter,
     {
-      signal: AbortSignal.timeout(CHARACTER_OUTING_VIDEO.watchTimeoutMs),
+      signal: stepSignal(route, CHARACTER_OUTING_VIDEO.watchTimeoutMs),
       systemPrompt,
       buildUserPrompt: () => material,
       route: route.route,
@@ -1024,7 +1066,7 @@ async function prepareVideos(
     ) {
       const result = await watchVideo(route, card, item).catch(
         (error: unknown) => {
-          if (error instanceof OutingBudgetExhausted) throw error
+          if (error instanceof OutingHalt) throw error
           logger.info('character browse video not watched', {
             url: item.url,
             error: error instanceof Error ? error.message : String(error),
@@ -1056,6 +1098,8 @@ export async function watchPinnedVideos(input: {
   card: { id: string; name: string; persona: unknown }
   route: BrowseRoute
   links: readonly OutingVideoLink[]
+  /** 分段跑时这一趟的出发时刻：这之后已经记过的那条不再看（上一段时间用完、这一段接着看剩下的）。 */
+  since?: Date
   onNow(source: string, query: string): Promise<void>
 }): Promise<number> {
   const { route } = input
@@ -1067,9 +1111,29 @@ export async function watchPinnedVideos(input: {
   for (const link of input.links) {
     const item = await pinnedCandidate(route, link)
     if (!item) continue
+    if (
+      input.since &&
+      (await db.characterFinding.count({
+        where: {
+          characterCardId: input.card.id,
+          url: item.url,
+          seenAt: { gte: input.since },
+        },
+      }))
+    )
+      continue
     await input.onNow(link.platform, item.title)
     let seen: Seen | null = null
-    if (isGemini(route)) seen = await watchVideo(route, profile, item)
+    // 整段看没看成（超时 / 被截到这一段的截止）就退回看评论 / 分帧，⛔ 整趟失败。
+    if (isGemini(route))
+      seen = await watchVideo(route, profile, item).catch((error: unknown) => {
+        if (error instanceof OutingHalt) throw error
+        logger.info('character outing pinned video not watched', {
+          url: item.url,
+          error: error instanceof Error ? error.message : String(error),
+        })
+        return null
+      })
     if (!seen) {
       if (item.video?.bvid) {
         const frames = assistantAdapterSupportsImage(
@@ -1086,7 +1150,7 @@ export async function watchPinnedVideos(input: {
             images: true,
             mustNote: true,
           }).catch(async (error: unknown) => {
-            if (error instanceof OutingBudgetExhausted) throw error
+            if (error instanceof OutingHalt) throw error
             return writeNotes(route, profile, [item], {
               images: false,
               mustNote: true,
@@ -1185,7 +1249,7 @@ async function pinnedCandidate(
       excerpt: post?.excerpt ?? null,
     }
   } catch (error) {
-    if (error instanceof OutingBudgetExhausted) throw error
+    if (error instanceof OutingHalt) throw error
     logger.info('character outing pinned video skipped', {
       url: link.url,
       error: error instanceof Error ? error.message : String(error),
@@ -1288,7 +1352,7 @@ export async function browseRound(input: {
       query.query,
       watch,
     ).catch((error: unknown) => {
-      if (error instanceof OutingBudgetExhausted) throw error
+      if (error instanceof OutingHalt) throw error
       logger.info('character browse source failed', {
         source: query.source,
         error: error instanceof Error ? error.message : String(error),

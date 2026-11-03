@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { STUDIO_LAST_IMAGE_MODEL_STORAGE_KEY } from '@/constants/studio'

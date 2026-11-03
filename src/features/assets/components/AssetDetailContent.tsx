@@ -83,7 +83,6 @@ export function AssetDetailContent({
   const downloadFeedback = useButtonFeedback()
   const linkFeedback = useButtonFeedback(COPIED_ACK_MS)
   const favoriteFeedback = useButtonFeedback()
-  const recipeFeedback = useButtonFeedback()
   const tPrompts = useTranslations('PromptLibrary')
   const router = useRouter()
   /** 整页形态里新建的夹（素材页形态由父级的列表带回来）。 */
@@ -119,7 +118,6 @@ export function AssetDetailContent({
     isDeleting,
     isPublishing,
     isFavoriting,
-    isSavingRecipe,
     isDownloading,
     isSettingCover,
   } = actions
@@ -313,27 +311,15 @@ export function AssetDetailContent({
             />
           )}
         </FeedbackButton>
-        <FeedbackButton
-          feedback={recipeFeedback.feedback}
-          className={buttonVariants({ variant: 'ghost', size: 'icon' })}
-          onClick={() =>
-            void actions.saveRecipe().then((saved) => {
-              if (saved)
-                recipeFeedback.show({
-                  label: tPrompts('saveTemplateSuccess'),
-                })
-            })
-          }
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={actions.saveRecipe}
           aria-label={tPrompts('saveAsTemplate')}
           title={tPrompts('saveAsTemplate')}
-          disabled={isSavingRecipe}
         >
-          {isSavingRecipe ? (
-            <Spinner size="md" />
-          ) : (
-            <FileText className="size-4" />
-          )}
-        </FeedbackButton>
+          <FileText className="size-4" />
+        </Button>
         {isAudioAsset && (
           <Button
             variant="ghost"

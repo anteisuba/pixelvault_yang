@@ -101,3 +101,5 @@ output/playwright/
 # ComfyUI 本地环境的依赖锁定（含本机路径）
 /override.txt
 /requirements.compiled
+.open-next/
+.wrangler/

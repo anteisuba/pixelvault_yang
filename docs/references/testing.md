@@ -38,6 +38,13 @@
 | 纯样式、布局                      | 不写测试      | 截图给 owner 看                                                                                                  |
 | **修线上 bug**                    | 先写复现      | 先写会红的测试再修，放在「不用假的就能复现」的最低层；提交说明写一行「L? 本该拦住」                              |
 
+### L2a 真库测试怎么写
+
+- 命令 `npm run test:int`（= `vitest run --project int`）。本机不用装 Postgres：没设 `TEST_DATABASE_URL` 时自动起内存 PGlite（含 pg_trgm），直接执行 `prisma/migrations/*/migration.sql`；CI 用 Postgres 16 容器（`TEST_DATABASE_URL`）。⛔ 绝不连 Neon：global-setup 见到 `neon.tech` / `pooler` 直接报错；也不跑 `prisma migrate`（`.env.local` 里是生产 `DIRECT_URL`）。
+- 底座在 `src/test/int/`：`resetDatabase()` 每例 `beforeEach` 清空全部表；`createTestUser()` 建一行完整用户（带 email/username，`ensureUser` 不去调 Clerk）。
+- 文件串行跑（`fileParallelism: false`），共用一个库；用例之间不靠顺序。
+- 样板：`src/features/assistant/services/assistant-skill.service.int.test.ts`（同名旧行 + 开内置技能不撞唯一约束、连点两次只落一行、用户隔离）。
+
 ### 四条硬规矩
 
 1. **只假边界**。可以假：网络请求（api-client / fetch）、AI 服务商、R2、Clerk 登录、时钟、随机数、logger。不许假：自己的 service、hook、store、context、组件；L2a 不许假数据库。

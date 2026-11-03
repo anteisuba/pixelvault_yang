@@ -20,6 +20,7 @@
     "pretest:run": "npm run check:node",
     "test:run": "vitest run",
     "test:eval": "vitest run src/test/assistant-eval",
+    "test:int": "vitest run --project int",
     "models:check-docs": "node ./scripts/check-model-docs.mjs --compare-snapshot docs/references/api/model-doc-monitor.snapshot.json --report-json artifacts/model-doc-monitor/report.json --report-md artifacts/model-doc-monitor/report.md --write-current-snapshot artifacts/model-doc-monitor/current.snapshot.json",
     "models:update-doc-snapshot": "node ./scripts/check-model-docs.mjs --write-snapshot docs/references/api/model-doc-monitor.snapshot.json --report-json artifacts/model-doc-monitor/report.json --report-md artifacts/model-doc-monitor/report.md",
     "format": "prettier --write \"src/**/*.{ts,tsx,json,css}\"",
@@ -112,6 +113,8 @@
   },
   "devDependencies": {
     "@clerk/testing": "^2.0.35",
+    "@electric-sql/pglite": "0.5.10",
+    "@electric-sql/pglite-socket": "0.2.13",
     "@next/bundle-analyzer": "^16.4.2",
     "@playwright/test": "^1.59.1",
     "@tailwindcss/postcss": "^4",

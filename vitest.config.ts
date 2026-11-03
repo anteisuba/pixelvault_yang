@@ -23,7 +23,25 @@ export default defineConfig({
     projects: [
       {
         extends: true,
-        test: { name: 'node', environment: 'node', include: ['**/*.test.ts'] },
+        test: {
+          name: 'node',
+          environment: 'node',
+          include: ['**/*.test.ts'],
+          exclude: ['**/*.int.test.ts'],
+        },
+      },
+      // L2a 真库测试（*.int.test.ts）：CI 连 Postgres 容器，本机自动起 PGlite。
+      // 共用一个库，串行跑；每例开头 resetDatabase()。见 src/test/int/。
+      {
+        extends: true,
+        test: {
+          name: 'int',
+          environment: 'node',
+          include: ['**/*.int.test.ts'],
+          globalSetup: ['./src/test/int/global-setup.ts'],
+          setupFiles: ['./src/test/int/setup.ts'],
+          fileParallelism: false,
+        },
       },
       {
         extends: true,

@@ -67,9 +67,50 @@ jobs:
         run: npm run prisma:generate
 
       - name: Run tests
-        run: npx vitest run --reporter=verbose --shard=${{ matrix.shard }}/8
+        run: npx vitest run --project node --project dom --reporter=verbose --shard=${{ matrix.shard }}/8
         env:
           NODE_ENV: test
+
+  integration-test:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # L2a 真库测试（*.int.test.ts，docs/references/testing.md「测试标准」）：一次性
+    # Postgres 16，global-setup 先把 prisma/migrations 全部执行一遍再跑。
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: antei_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d antei_test"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npm run prisma:generate
+
+      - name: Run integration tests
+        run: npx vitest run --project int --reporter=verbose
+        env:
+          NODE_ENV: test
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/antei_test
 
   worker-test:
     name: Execution Worker Tests

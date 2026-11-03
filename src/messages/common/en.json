@@ -382,7 +382,9 @@
       "publish_blocked_search": "This image used Google Search while it was made, so under Google's terms only you can see it — it can't be published.",
       "unknown": "Generation failed for an undetermined reason. Try again later. If it keeps failing, share the error details with the administrator.",
       "unknownWithDetail": "This generation failed. The provider said: {detail}",
-      "execution_request_rejected": "The generation service rejected this request: {detail}"
+      "execution_request_rejected": "The generation service rejected this request: {detail}",
+      "provider_unreachable": "We couldn't reach the provider (the connection dropped). This is usually temporary — try again shortly.",
+      "lora_unreachable": "The provider couldn't download this LoRA's file: the link may have expired, the file may be gone, or the author disabled downloads. Retrying usually won't help — re-import it or pick another LoRA."
     },
     "validation": {
       "invalidInput": "Invalid input. Please check your parameters.",

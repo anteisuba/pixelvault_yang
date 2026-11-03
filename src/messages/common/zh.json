@@ -382,7 +382,9 @@
       "publish_blocked_search": "出图时用了 Google 搜索，按条款只能自己看，不能发布。",
       "unknown": "这次生成没有成功，暂时无法确定原因。请稍后重试；如果仍然失败，可将错误详情提供给管理员。",
       "unknownWithDetail": "这次生成没有成功，服务商返回：{detail}",
-      "execution_request_rejected": "生成服务没有接受这次请求：{detail}"
+      "execution_request_rejected": "生成服务没有接受这次请求：{detail}",
+      "provider_unreachable": "这次没连上服务商（网络中断）。一般是临时的，稍后重试即可。",
+      "lora_unreachable": "服务商下载不到这把 LoRA 的文件：链接可能过期、文件被删，或作者关了下载。重试一般没用，请重新导入或换一把 LoRA。"
     },
     "validation": {
       "invalidInput": "输入无效，请检查参数。",

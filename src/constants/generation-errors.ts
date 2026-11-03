@@ -117,6 +117,21 @@ export const GENERATION_ERROR_CODES = {
    * 以英文直接摆给用户。
    */
   PROMPT_TOO_LONG: 'prompt_too_long',
+  /**
+   * 我们的服务器根本没连上服务商：Node fetch 的裸 `fetch failed`、`write EPIPE`、
+   * `socket hang up`、`ECONNRESET` 这类（11-03 线上样本：Fish Audio / Gemini /
+   * Replicate / OpenAI / Rodin 共 31 次）。此前被参考图规则的 `fetch.*failed` 吃掉，
+   * 说成「服务商无法下载这张参考图」——Fish Audio 配音根本没有参考图也照报。
+   */
+  PROVIDER_UNREACHABLE: 'provider_unreachable',
+  /**
+   * 服务商 / Runner 下载不到这次用的 **LoRA 文件**（链接过期、被删、作者关了下载、
+   * 401/403）。11-03 线上样本共 40 余次，此前分别被说成「参考图下载不到」
+   * （`not accessible` / `failed to download`）、「API Key 无效」（Replicate 的
+   * `URL responded with status code: 401`）、「模型不可用」（Replicate 502 包着的
+   * `URL responded with status code: 403`）。出路都是换 / 重新导入这把 LoRA。
+   */
+  LORA_UNREACHABLE: 'lora_unreachable',
   UNKNOWN: 'unknown',
 } as const
 
@@ -128,10 +143,12 @@ export const REFERENCE_IMAGE_ERROR_PATTERNS = {
     /unsupported_file_mimetype|unsupported\s+(?:mime|mimetype|file|image|format)|unsupported.*image\/|invalid\s+(?:mime|mimetype|file type|image format)|supported file formats|only.*(?:jpeg|jpg|png|webp|gif|heic|heif)|image\/avif|\.avif/i,
   TOO_LARGE:
     /(?:file|image|payload).*?(?:too large|exceeds?|exceeded|maximum|max)|less than \d+\s?mb|no more than \d+\s?mb|size.*limit/i,
+  // ⚠ 11-03 去掉了裸 `fetch.*failed` / `could not fetch`：线上那 31 次「fetch failed」
+  //   全是我们连不上服务商（见 PROVIDER_UNREACHABLE），一张参考图都没有的也照报。
   UNREACHABLE:
-    /failed to download|could not download|unable to download|download.*failed|not accessible|direct download|directly viewable|invalid.*url|url.*invalid|could not fetch|fetch.*failed/i,
+    /failed to download|could not download|unable to download|download.*failed|not accessible|direct download|directly viewable|invalid.*url|url.*invalid|could not fetch (?:the )?(?:reference |input |source )?image/i,
   LIMIT_EXCEEDED:
-    /too many (?:images|files)|up to \d+ images|maximum.*(?:images|files)|must not exceed \d+|input.*output.*(?:exceed|limit)/i,
+    /too many (?:images|files)|up to \d+ images|only supports \d+ reference images?|maximum.*(?:images|files)|must not exceed \d+|input.*output.*(?:exceed|limit)/i,
   INVALID_DIMENSIONS:
     /dimension|width|height|aspect ratio|resolution|pixels|same dimensions|match.*resolution|must match/i,
 } as const
@@ -193,8 +210,40 @@ const ERROR_PATTERNS: Array<{
   // community LoRA's layer format doesn't match its loader.
   {
     pattern:
-      /layer\s+\S*\s*not\s+supported|not in the list of present adapters/i,
+      /layer\s+\S*\s*not\s+supported|not in the list of present adapters|Unsupported or incompatible LoRA checkpoint|isn't supported for LoRA/i,
     code: GENERATION_ERROR_CODES.LORA_INCOMPATIBLE_HOSTED,
+  },
+  // ─── 11-03 按线上样本收窄（GenerationJob 失败记录 223 种原话，见 errors.md §7）───
+  // 下面几条都排在参考图 / 401 / 502 / timeout 这些宽规则之前：先认出「到底是谁的事」。
+  //
+  // 我们自己的程序 / 平台限制，不是服务商的原因：明确落 UNKNOWN（显示原话），
+  // ⛔ 不让 TOO_LARGE 把 Workflow 步骤输出超限说成「参考图过大」、timeout 把
+  // Prisma 事务超时说成「服务商超时」、INVALID_DIMENSIONS 把输出尺寸参数说成参考图尺寸。
+  {
+    pattern:
+      /Step \S+ output is too large|Transaction API error|expired transaction|The parameter `size` specified in the request|hires dimensions exceed/i,
+    code: GENERATION_ERROR_CODES.UNKNOWN,
+  },
+  {
+    // LoRA 文件取不到。⚠ 必须在参考图 UNREACHABLE、`\b401\b`、`\b502\b` 之前。
+    // Replicate 的 `URL responded with status code: 4xx` / `URL not downloadable`
+    // 线上全是 LoRA 权重链接（参考图走 R2 公开地址，不会 401）。
+    pattern:
+      /LoRA file URL is not accessible|Failed to download Civitai LoRA|LoRA model file could not be loaded|LoRA download failed|Failed to upload LoRA|"loc":\s*\[\s*"body",\s*"loras"|URL responded with status code: 4\d\d|URL not downloadable/i,
+    code: GENERATION_ERROR_CODES.LORA_UNREACHABLE,
+  },
+  {
+    // 整句只有一个网络层错误：我们的服务器没连上服务商。
+    pattern:
+      /^(?:\w*Error:\s*)?(?:fetch failed|terminated|socket hang up|write EPIPE|read ECONNRESET|ECONNRESET|ECONNREFUSED|ENOTFOUND|EAI_AGAIN)\.?\s*$/i,
+    code: GENERATION_ERROR_CODES.PROVIDER_UNREACHABLE,
+  },
+  {
+    // fal `content_policy_violation`（肖像 / 输出音视频敏感）、BytePlus
+    // `PolicyViolation`（版权）、Gemini `PROHIBITED_CONTENT`：线上 10 次此前落 UNKNOWN。
+    pattern:
+      /content_policy_violation|PolicyViolation|PROHIBITED_CONTENT|has sensitive content|related to copyright restrictions/i,
+    code: GENERATION_ERROR_CODES.CONTENT_FILTERED,
   },
   // ⚠ 必须排在所有参考图规则**之前**：本地/生产的执行 worker 派发失败原文是
   // `Execution worker dispatch failed: fetch failed`，尾部的 `fetch failed` 会被
@@ -297,7 +346,7 @@ const ERROR_PATTERNS: Array<{
     code: GENERATION_ERROR_CODES.PROVIDER_OVERLOADED,
   },
   {
-    pattern: /rate\s*limit|too many requests|\b429\b/i,
+    pattern: /rate\s*limit|too many requests|concurrent generation is locked|\b429\b/i,
     code: GENERATION_ERROR_CODES.PROVIDER_RATE_LIMIT,
   },
   {
@@ -311,7 +360,7 @@ const ERROR_PATTERNS: Array<{
   },
   {
     pattern:
-      /(?:invalid|expired|missing|not\s+set).*api[\s-]?key|unauthorized|\b401\b/i,
+      /(?:invalid|expired|missing|not\s+set|incorrect).*api[\s-]?(?:key|token)|api[\s-]?(?:key|token)\s+(?:is\s+)?(?:invalid|expired|incorrect)|\binvalid\s+token\b|unauthorized|\b401\b/i,
     code: GENERATION_ERROR_CODES.INVALID_API_KEY,
   },
   {
@@ -329,7 +378,11 @@ const ERROR_PATTERNS: Array<{
     code: GENERATION_ERROR_CODES.PROVIDER_SERVER_ERROR,
   },
   {
-    pattern: /model.*unavailable|not\s*found|\b502\b/i,
+    // ⚠ 11-03 收窄：去掉裸 `not found` 与 `\b502\b`。线上 502 全是 Replicate 包着的
+    //   LoRA 下载失败（已归 LORA_UNREACHABLE），裸 404「Not Found」/「Path … not found」
+    //   是我们自己的路由或别的资源，说成「模型不可用」都不对。只认「模型 / 应用 / 节点」找不到。
+    pattern:
+      /model.*unavailable|\bmodels?\b[^\n]{0,160}?\bnot\s*found|Application '[^']+' not found|Node '[^']+' not found/i,
     code: GENERATION_ERROR_CODES.MODEL_UNAVAILABLE,
   },
   // ⚠ 这里曾有一条 `/credit|limit\s*reached|quota|exceeded/i` 兜底，把任何含
@@ -421,6 +474,11 @@ export function normalizeErrorCode(
   }
   if (GENERATION_ERROR_CODE_VALUES.has(code)) {
     return code as GenerationErrorCode
+  }
+  // BytePlus 把 `OutputVideoSensitiveContentDetected.PolicyViolation` 这类原样存进
+  // errorCode（线上 5 次落 UNKNOWN）。
+  if (/PolicyViolation|SensitiveContent/i.test(code)) {
+    return GENERATION_ERROR_CODES.CONTENT_FILTERED
   }
   return BACKEND_ERROR_CODE_MAP[code] ?? null
 }

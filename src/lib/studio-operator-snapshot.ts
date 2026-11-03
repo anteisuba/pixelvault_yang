@@ -55,7 +55,10 @@ import {
   resolveStudioVideoSend,
 } from '@/lib/studio/video-workbench-slots'
 import type { StudioModelOption } from '@/types/model-option'
-import type { VideoAudioReference } from '@/contexts/studio-context'
+import type {
+  StudioFormState,
+  VideoAudioReference,
+} from '@/contexts/studio-context'
 import type { AdvancedParams } from '@/types'
 import type { AssistantOperatorSnapshot } from '@/types/assistant-operator'
 import type {
@@ -93,6 +96,34 @@ export interface StudioOperatorSnapshotForm {
   videoReferenceVideos: readonly string[]
   /** 三态：`null` = 用户没设过。⛔ 别在调用处 `?? false`。 */
   videoSoundEnabled: boolean | null
+}
+
+/**
+ * 工作台表单 → 快照那一份表单（宿主与 L2c 下一轮对账共用这一份映射，⛔ 各抄一遍）。
+ */
+export function buildWorkbenchOperatorForm(
+  current: StudioFormState,
+): StudioOperatorSnapshotForm {
+  return {
+    prompt: current.prompt,
+    negativePrompt: current.advancedParams.negativePrompt,
+    aspectRatio: current.aspectRatio,
+    imageResolution: current.advancedParams.resolution ?? null,
+    imageQuality: current.advancedParams.quality,
+    imagePreview: current.advancedParams.preview,
+    imageBackground: current.advancedParams.background,
+    imageBatchCount: current.imageBatchCount,
+    // 专属 chip 行的现值（进度表 21）—— 整份端上去，键随模型变。
+    advancedParams: current.advancedParams,
+    videoDurationSeconds: current.videoDuration,
+    videoResolution: current.videoResolution,
+    videoAudioRefs: current.videoAudioRefs,
+    // 具名帧槽 / 参考视频（第二期）—— 表单里那两处新状态原样端上去。
+    videoFrameSlots: current.videoFrameSlots,
+    videoReferenceVideos: current.videoReferenceVideos,
+    // ⛔ 三态原样传，别 `?? false`（见词表 `setSound` 头注）。
+    videoSoundEnabled: current.videoGenerateAudio,
+  }
 }
 
 export interface StudioOperatorSnapshotReferences {

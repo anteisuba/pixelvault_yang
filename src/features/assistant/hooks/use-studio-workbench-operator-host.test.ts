@@ -145,7 +145,9 @@ const EMPTY_CONTROLS = {
 const buildImageOperatorSnapshot = vi.hoisted(() =>
   vi.fn(() => ({ prompt: '', availableModels: [] })),
 )
-vi.mock('@/lib/studio-operator-snapshot', () => ({
+vi.mock('@/lib/studio-operator-snapshot', async (importOriginal) => ({
+  // 表单映射（buildWorkbenchOperatorForm）用真的。
+  ...(await importOriginal<typeof import('@/lib/studio-operator-snapshot')>()),
   buildImageOperatorSnapshot,
   buildVideoOperatorSnapshot: () => ({ prompt: '', availableModels: [] }),
   /**

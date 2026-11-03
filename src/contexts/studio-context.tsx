@@ -343,7 +343,8 @@ function openPanel(
 
 const initialWorkflowDefaults = getWorkflowStudioDefaults(DEFAULT_WORKFLOW_ID)
 
-const initialFormState: StudioFormState = {
+/** 工作台表单的初值（L2c 下一轮对账从这里起一张真表单）。 */
+export const STUDIO_INITIAL_FORM_STATE: StudioFormState = {
   selectedWorkflowId: DEFAULT_WORKFLOW_ID,
   outputType: initialWorkflowDefaults.outputType,
   selectedOptionId: null,
@@ -729,7 +730,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const { userId } = useAuth()
   const pathname = usePathname()
   // HOT — form state
-  const [formState, dispatch] = useReducer(studioFormReducer, initialFormState)
+  const [formState, dispatch] = useReducer(
+    studioFormReducer,
+    STUDIO_INITIAL_FORM_STATE,
+  )
   const setSelectedWorkflowId = useCallback((workflowId: WorkflowId) => {
     dispatch({ type: 'SET_SELECTED_WORKFLOW_ID', payload: workflowId })
   }, [])

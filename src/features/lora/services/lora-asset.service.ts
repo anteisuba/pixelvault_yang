@@ -461,8 +461,21 @@ export async function upsertImportedLora(
   input: FavoriteLoraRequest,
   { inLibrary }: { inLibrary: boolean },
 ): Promise<LoraAssetRow> {
+  /**
+   * ⚠ 同一个 Civitai 版本有两种下载地址（库页导入带 `?fileId=`，候选检索拼的不带），只认地址会
+   * 收出两条（11-03 线上：助手挂回已收藏的 LoRA，收藏里多出重复的）。有版本号就按版本号也认。
+   */
   const existing = await db.loraAsset.findFirst({
-    where: { userId, loraUrl: input.loraUrl },
+    where: {
+      userId,
+      OR: [
+        { loraUrl: input.loraUrl },
+        ...(input.modelVersionId != null
+          ? [{ civitaiModelVersionId: input.modelVersionId }]
+          : []),
+      ],
+    },
+    orderBy: { createdAt: 'asc' },
   })
   if (existing) {
     if (!inLibrary || existing.inLibrary) return existing

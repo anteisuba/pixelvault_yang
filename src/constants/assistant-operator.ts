@@ -134,6 +134,13 @@ export type AssistantOperatorEventName =
  *     应用；服务端**不落任何状态**，所以这条流断在哪里都不会留下半个写入。
  *   · 花钱的 —— 一个都没有，见文件头注。
  */
+/**
+ * 助手这一轮刚挂、浏览器那边还在导入的那一把，在服务端台面（`run.state.loras`）上的占位 id 前缀
+ * （11-03 线上：挂完板子仍显示空，助手以为没挂上，反复摘挂）。后面接 candidateId。
+ * ⚠ 只活在这一轮的服务端状态里；下一轮快照来的是真库记录 id。
+ */
+export const ASSISTANT_OPERATOR_PENDING_LORA_PREFIX = 'mounting:'
+
 export const ASSISTANT_OPERATOR_TOOL_IDS = {
   /**
    * 读当前表单。⚠ 数据源是**请求里带上来的客户端快照**，不查库 —— 库里没有

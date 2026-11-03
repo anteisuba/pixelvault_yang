@@ -905,6 +905,58 @@ describe('第 4 步：各台的改法', () => {
     expect(resultsOf(main)).toContain('stub mount')
   })
 
+  it('LoRA 台 add_lora：名字对不上、有好几把相近的 → 不挂，把名字列回去（⛔ 挑第一把）', async () => {
+    plan.mockImplementation(async (_run, tool: string, args: unknown) => {
+      if (tool === 'search_loras')
+        return {
+          kind: 'read',
+          payload: args,
+          run: async () => {
+            run.loraIndex.set('c-a', {
+              candidateId: 'c-a',
+              name: 'anima-鸣潮-style',
+            })
+            run.loraIndex.set('c-b', {
+              candidateId: 'c-b',
+              name: '鸣潮(Wuthering Waves) Style',
+            })
+            return { result: {}, observation: '' }
+          },
+        }
+      return { kind: 'rejected', reason: 'unknownValue', detail: 'stub' }
+    })
+    const main = mockModel([
+      toolTurn({
+        id: 'call_1',
+        name: 'edit',
+        input: { changes: [{ op: 'add_lora', lora: '鸣潮' }] },
+      }),
+      textTurn('好。'),
+    ])
+    models.main = main
+    await collect(
+      runAssistantNext(
+        'clerk-1',
+        imageRequest('挂回鸣潮', {
+          domain: 'lora',
+          snapshot: {
+            prompt: '1girl',
+            model: { id: 'illustrious', label: 'Illustrious' },
+            availableModels: [{ id: 'illustrious', label: 'Illustrious' }],
+            loras: {
+              items: [],
+              baseFamily: 'illustrious',
+              minWeight: 0,
+              maxWeight: 2,
+            },
+          },
+        } as unknown as Partial<AssistantOperatorRequest>),
+      ),
+    )
+    expect(plan.mock.calls.map((call) => call[1])).toEqual(['search_loras'])
+    expect(resultsOf(main)).toContain('鸣潮(Wuthering Waves) Style')
+  })
+
   it('套用配方：拆成这台有的那几格逐条落，这台没有的说清楚', async () => {
     recipe.mockResolvedValue({
       tag: '图_12',

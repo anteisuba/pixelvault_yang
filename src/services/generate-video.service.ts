@@ -6,6 +6,7 @@ import {
   EXECUTION_WORKER,
   EXECUTION_WORKFLOW_IDS,
 } from '@/constants/execution'
+import { WORKER_VIDEO_PROVIDER_IDS } from '@/constants/worker-video-providers'
 import {
   AI_MODELS,
   getExecutionModelId,
@@ -58,20 +59,15 @@ import { validateVideoGenerationInput } from '@/services/video-generation-valida
 import { reconcileActiveGenerationJob } from '@/services/execution-sweeper.service'
 
 /**
- * Video adapters the execution worker knows how to submit and poll. Adding an
- * entry here is only half the job — the worker needs a matching branch in
- * `submitProviderQueue` / `pollProviderQueue`, or the run 500s inside the
- * workflow instead of failing fast with a 501 here.
+ * 能派给执行 Worker 的视频服务商：名单在共享契约 `worker-video-providers.ts`，
+ * Worker 的提交 / 轮询驱动表按同一份穷举，两边不会再对不上。
  */
-const WORKER_CAPABLE_VIDEO_ADAPTERS: ReadonlySet<string> = new Set([
-  AI_ADAPTER_TYPES.GEMINI,
-  AI_ADAPTER_TYPES.FAL,
-  AI_ADAPTER_TYPES.MINIMAX,
-  AI_ADAPTER_TYPES.MINIMAX_CN,
-  // Ark direct — the same Seedance models fal resells at ~2.2×.
-  AI_ADAPTER_TYPES.VOLCENGINE,
-  AI_ADAPTER_TYPES.BYTEPLUS,
-])
+// 赋值这一步就是编译期检查：名单里每一家都得是真实存在的 adapter 类型。
+const WORKER_VIDEO_ADAPTER_IDS: readonly `${AI_ADAPTER_TYPES}`[] =
+  WORKER_VIDEO_PROVIDER_IDS
+const WORKER_CAPABLE_VIDEO_ADAPTERS: ReadonlySet<string> = new Set(
+  WORKER_VIDEO_ADAPTER_IDS,
+)
 
 function canSubmitVideoViaExecutionWorker(route: {
   adapterType: string

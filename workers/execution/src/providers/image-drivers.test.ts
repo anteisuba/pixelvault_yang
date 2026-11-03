@@ -35,3 +35,19 @@ describe('出图驱动表（共享契约）', () => {
     expect(getSingleStepImageDriver('toString')).toBeNull()
   })
 })
+
+describe('视频提交 / 轮询驱动表（共享契约）', () => {
+  it('契约里每家视频服务商都有自己的驱动，名单外的走 fal', async () => {
+    const { WORKER_VIDEO_PROVIDER_IDS } =
+      await import('../../../../src/constants/worker-video-providers')
+    const { getQueueDriver } = await import('./queue-drivers')
+    const fal = getQueueDriver('fal')
+    for (const id of WORKER_VIDEO_PROVIDER_IDS) {
+      expect(getQueueDriver(id), id).toBeTruthy()
+    }
+    expect(getQueueDriver('minimax')).not.toBe(fal)
+    expect(getQueueDriver('byteplus')).toBe(getQueueDriver('volcengine'))
+    // 音频的 fal 队列走兜底。
+    expect(getQueueDriver('fish_audio')).toBe(fal)
+  })
+})

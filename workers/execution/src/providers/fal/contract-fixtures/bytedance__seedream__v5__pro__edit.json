@@ -1,0 +1,14 @@
+{
+  "endpointId": "bytedance/seedream/v5/pro/edit",
+  "source": "official-openapi-example",
+  "sourceUrl": "https://fal.ai/api/openapi/queue/openapi.json?endpoint_id=bytedance/seedream/v5/pro/edit",
+  "fetchedAt": "2026-11-03",
+  "requiredOutputFields": ["images"],
+  "output": {
+    "images": [
+      {
+        "url": "https://v3b.fal.media/files/b/0aa16df4/L8veDBOTxHhmpO5wQnioS_14c2d9c1736b4803a43796669c6d4fca.png"
+      }
+    ]
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "endpointId": "fal-ai/flux-2-pro",
+  "source": "official-openapi-example",
+  "sourceUrl": "https://fal.ai/api/openapi/queue/openapi.json?endpoint_id=fal-ai/flux-2-pro",
+  "fetchedAt": "2026-11-03",
+  "requiredOutputFields": ["images", "seed"],
+  "output": {
+    "images": [
+      {
+        "url": "https://storage.googleapis.com/falserverless/example_outputs/flux2_pro_t2i_output.png"
+      }
+    ],
+    "seed": 1
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "endpointId": "fal-ai/ltx-2.3/text-to-video",
+  "source": "official-openapi-example",
+  "sourceUrl": "https://fal.ai/api/openapi/queue/openapi.json?endpoint_id=fal-ai/ltx-2.3/text-to-video",
+  "fetchedAt": "2026-11-03",
+  "requiredOutputFields": ["video"],
+  "output": {
+    "video": {
+      "content_type": "video/mp4",
+      "url": "https://v3b.fal.media/files/b/0a90dd3a/EG257tf7j9UfVc-jHF8lI_0MWboc13.mp4",
+      "file_name": "EG257tf7j9UfVc-jHF8lI_0MWboc13.mp4"
+    }
+  }
+}

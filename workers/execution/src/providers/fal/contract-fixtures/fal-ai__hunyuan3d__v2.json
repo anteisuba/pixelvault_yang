@@ -1,0 +1,16 @@
+{
+  "endpointId": "fal-ai/hunyuan3d/v2",
+  "source": "official-openapi-example",
+  "sourceUrl": "https://fal.ai/api/openapi/queue/openapi.json?endpoint_id=fal-ai/hunyuan3d/v2",
+  "fetchedAt": "2026-11-03",
+  "requiredOutputFields": ["model_mesh", "seed"],
+  "output": {
+    "model_mesh": {
+      "content_type": "model/gltf-binary",
+      "file_size": 720696,
+      "file_name": "white_mesh.glb",
+      "url": "https://v3.fal.media/files/lion/WqIhtKPaSoeBtC30qzIGG_white_mesh.glb"
+    },
+    "seed": 1
+  }
+}

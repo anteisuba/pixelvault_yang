@@ -1,0 +1,15 @@
+{
+  "endpointId": "fal-ai/kling-video/v3/pro/text-to-video",
+  "source": "official-openapi-example",
+  "sourceUrl": "https://fal.ai/api/openapi/queue/openapi.json?endpoint_id=fal-ai/kling-video/v3/pro/text-to-video",
+  "fetchedAt": "2026-11-03",
+  "requiredOutputFields": ["video"],
+  "output": {
+    "video": {
+      "content_type": "video/mp4",
+      "url": "https://storage.googleapis.com/falserverless/example_outputs/kling-v3/pro-t2v/out.mp4",
+      "file_size": 8062911,
+      "file_name": "output.mp4"
+    }
+  }
+}

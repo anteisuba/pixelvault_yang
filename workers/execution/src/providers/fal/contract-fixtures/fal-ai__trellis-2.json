@@ -1,0 +1,12 @@
+{
+  "endpointId": "fal-ai/trellis-2",
+  "source": "official-openapi-example",
+  "sourceUrl": "https://fal.ai/api/openapi/queue/openapi.json?endpoint_id=fal-ai/trellis-2",
+  "fetchedAt": "2026-11-03",
+  "requiredOutputFields": ["model_glb"],
+  "output": {
+    "model_glb": {
+      "url": "https://v3b.fal.media/files/b/0a86b61d/DNmTkiWHUQ8k-rG6aussB_trellis2_68d6300f70f34d23b69a912b5fe60487.glb"
+    }
+  }
+}

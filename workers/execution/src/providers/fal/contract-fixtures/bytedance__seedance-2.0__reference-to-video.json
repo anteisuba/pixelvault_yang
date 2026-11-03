@@ -1,0 +1,13 @@
+{
+  "endpointId": "bytedance/seedance-2.0/reference-to-video",
+  "source": "official-openapi-example",
+  "sourceUrl": "https://fal.ai/api/openapi/queue/openapi.json?endpoint_id=bytedance/seedance-2.0/reference-to-video",
+  "fetchedAt": "2026-11-03",
+  "requiredOutputFields": ["video", "seed"],
+  "output": {
+    "seed": 42,
+    "video": {
+      "url": "https://storage.googleapis.com/falserverless/example_outputs/bytedance/seedance_2/output.mp4"
+    }
+  }
+}

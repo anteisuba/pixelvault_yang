@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('server-only', () => ({}))
 
-import { routeThroughAiGateway } from '@/lib/ai-gateway'
+import { aiGatewayFetch, routeThroughAiGateway } from '@/lib/ai-gateway'
 
 const GATEWAY = 'https://gateway.ai.cloudflare.com/v1/acc/gw'
 
@@ -63,5 +63,42 @@ describe('routeThroughAiGateway', () => {
       routeThroughAiGateway('https://api.openai.com.evil.test/v1/x', {})
         .endpoint,
     ).toBe('https://api.openai.com.evil.test/v1/x')
+  })
+})
+
+describe('aiGatewayFetch（给 AI SDK 的 fetch）', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+    vi.unstubAllGlobals()
+  })
+
+  it('官方地址改道网关并带上网关令牌；没配网关原样直连', async () => {
+    const seen: Array<{ url: string; auth: string | null }> = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        seen.push({
+          url,
+          auth: new Headers(init?.headers).get('cf-aig-authorization'),
+        })
+        return new Response('{}')
+      }),
+    )
+    vi.stubEnv('CLOUDFLARE_AI_GATEWAY_URL', GATEWAY)
+    vi.stubEnv('CLOUDFLARE_AI_GATEWAY_TOKEN', 'gw-token')
+    await aiGatewayFetch('https://api.deepseek.com/anthropic/v1/messages', {
+      method: 'POST',
+      headers: { 'x-api-key': 'user-key' },
+    })
+    vi.stubEnv('CLOUDFLARE_AI_GATEWAY_URL', '')
+    await aiGatewayFetch('https://api.deepseek.com/chat/completions')
+
+    expect(seen).toEqual([
+      {
+        url: `${GATEWAY}/deepseek/anthropic/v1/messages`,
+        auth: 'Bearer gw-token',
+      },
+      { url: 'https://api.deepseek.com/chat/completions', auth: null },
+    ])
   })
 })

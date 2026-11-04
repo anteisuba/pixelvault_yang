@@ -15,6 +15,7 @@ const FAKE_LLM = process.env.FAKE_LLM_URL ?? 'https://localhost:4011'
 const FAKE_REPLY = '（假模型）你好，我收到了。'
 
 test('建一个角色 → 和她聊 → 发一句 → 看到她的回答', async ({ page }) => {
+  test.setTimeout(120_000) // 助手主循环真跑（选路 + 拼提示词 + 流式），默认 30 秒不够
   await page.goto('/en/library/cards')
 
   const keys = await api<Array<{ id: string; adapterType: string }>>(

@@ -186,6 +186,8 @@ function humanizeProviderError(
 export interface ProviderAudioInput {
   prompt: string
   modelId: string
+  /** 库里配的执行端点 id（优先于按 modelId 查内置目录）。 */
+  externalModelId?: string
   providerConfig: ProviderConfig
   apiKey: string
   voiceId?: string

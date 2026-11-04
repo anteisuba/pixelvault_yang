@@ -113,7 +113,9 @@ export function CharacterRoster() {
       ? CHARACTER_PAGE_TABS.library
       : CHARACTER_PAGE_TABS.roster,
   )
-  const onLibrary = tab === CHARACTER_PAGE_TABS.library
+  // 卡库页签只在手机上有（桌面卡库搬去酒馆库，用户 10-25）：桌面带 `?tab=library`
+  // 进来也是书架，⛔ 白搜一次 chub。
+  const onLibrary = isMobile && tab === CHARACTER_PAGE_TABS.library
   const library = useChubLibrary(onLibrary)
   /** 卡库里正在建成角色的那一张（一次一张）。 */
   const [libraryImporting, setLibraryImporting] = useState<string | null>(null)

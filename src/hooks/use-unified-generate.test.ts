@@ -635,6 +635,47 @@ describe('useUnifiedGenerate', () => {
     expect(toast.error).not.toHaveBeenCalled()
   })
 
+  it('单张出图轮询把服务端的阶段写进那一格：排队中 → 排上号后消掉', async () => {
+    vi.useFakeTimers()
+    mockStudioGenerate.mockResolvedValue(SUCCESS_IMAGE_SUBMIT_RESPONSE)
+    mockCheckImageStatus.mockResolvedValue({
+      success: true,
+      data: {
+        jobId: 'job-image-123',
+        status: 'IN_QUEUE',
+        executionStage: 'runnerQueued',
+      },
+    })
+
+    const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
+    await act(async () => {
+      void result.current.generate({ mode: 'image', image: IMAGE_INPUT })
+      await Promise.resolve()
+    })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(IMAGE_GENERATION.POLL_INTERVAL_MS)
+    })
+    expect(result.current.activeRun?.items[0]).toMatchObject({
+      status: 'generating',
+      executionStage: 'runnerQueued',
+    })
+
+    mockCheckImageStatus.mockResolvedValue({
+      success: true,
+      data: {
+        jobId: 'job-image-123',
+        status: 'IN_PROGRESS',
+        executionStage: 'runnerRunning',
+      },
+    })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(IMAGE_GENERATION.POLL_INTERVAL_MS)
+    })
+    expect(result.current.activeRun?.items[0]).toMatchObject({
+      executionStage: 'runnerRunning',
+    })
+  })
+
   it('does not report failure when polling times out but the job is still running', async () => {
     vi.useFakeTimers()
     mockStudioGenerate.mockResolvedValue(SUCCESS_IMAGE_SUBMIT_RESPONSE)
@@ -1161,10 +1202,7 @@ describe('useUnifiedGenerate', () => {
       )
     })
 
-    // ⚠ 已知 bug（迁移时真链路查出，见 use-unified-generate.ts「异常原文 ⛔ 不给用户看」那段）：
-    //   词表把这句认成「未知 + 原话」，界面上是「The provider said: Failed to fetch at …」。
-    //   修好后这条会变红 —— 到时把 `it.fails` 改回 `it`。
-    it.fails('⭐ 提交时抛异常：⛔ 不把异常原文写给用户', async () => {
+    it('⭐ 提交时抛异常：⛔ 不把异常原文写给用户', async () => {
       const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
 
       mockSubmitVideo.mockRejectedValueOnce(

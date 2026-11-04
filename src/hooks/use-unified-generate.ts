@@ -319,6 +319,15 @@ type ImageJobPollOutcome =
 
 // ─── Hook ────────────────────────────────────────────────────────
 
+// 前端自己抛的异常（"Failed to fetch"、堆栈里的那句）⛔ 不给用户看：服务端回的
+// 失败才走错误词表（认不出照原话说），抛出来的一律是兜底那一句。
+function thrownGenerationError(fallback: string): {
+  message: string
+  code: GenerationErrorCode
+} {
+  return { message: fallback, code: GENERATION_ERROR_CODES.UNKNOWN }
+}
+
 export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
   const [isGenerating, setIsGenerating] = useState(false)
   const [stage, setStage] = useState<GenerationStage>('idle')
@@ -688,6 +697,20 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
                   return
                 }
 
+                if (
+                  statusData.status === 'IN_PROGRESS' ||
+                  statusData.status === 'IN_QUEUE'
+                ) {
+                  // 阶段照服务端的写进这一格（LoRA 台 / 舞台读它说「排队中」），
+                  // 与批量那条轮询同一口径；排上号后要能消掉。
+                  updateActiveRunItem(itemId, (item) =>
+                    item.status === 'generating' &&
+                    statusData.executionStage !== item.executionStage
+                      ? { ...item, executionStage: statusData.executionStage }
+                      : item,
+                  )
+                }
+
                 if (statusData.status === 'IN_QUEUE') {
                   setStage('queued')
                   return
@@ -727,6 +750,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
       markActiveRunItemFailed,
       resolveGenerationError,
       resolveImageJobFromStatus,
+      updateActiveRunItem,
     ],
   )
 
@@ -979,13 +1003,8 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
         // 不 await：让按钮立刻可用，轮询自己把结果写回那一格。
         void pollVideoJobForRunItem(submitResponse.data.jobId, itemId)
         return null
-      } catch (err) {
-        // ⚠ 异常原文（"Failed to fetch" / 堆栈里的那句）⛔ 不给用户看：过一遍同一张
-        //   错误词表，认不出就是「出了点意外」那一句。
-        const { message } = resolveGenerationError(
-          { error: err instanceof Error ? err.message : '' },
-          tVideo('errorUnexpected'),
-        )
+      } catch {
+        const { message } = thrownGenerationError(tVideo('errorUnexpected'))
         markActiveRunItemFailed(itemId, message)
         setError(message)
         toast.error(message)
@@ -1096,13 +1115,8 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
               anyFailed = true
               firstFailure.current ??= failure
             }
-          } catch (error) {
-            const failure = resolveGenerationError(
-              {
-                error: error instanceof Error ? error.message : '',
-              },
-              tStudio('generateFailed'),
-            )
+          } catch {
+            const failure = thrownGenerationError(tStudio('generateFailed'))
             markActiveRunItemFailed(item.id, failure.message)
             anyFailed = true
             firstFailure.current ??= failure
@@ -1282,13 +1296,8 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
               anyFailed = true
               firstFailure.current ??= failure
             }
-          } catch (error) {
-            const failure = resolveGenerationError(
-              {
-                error: error instanceof Error ? error.message : '',
-              },
-              tStudio('generateFailed'),
-            )
+          } catch {
+            const failure = thrownGenerationError(tStudio('generateFailed'))
             markActiveRunItemFailed(item.id, failure.message)
             anyFailed = true
             firstFailure.current ??= failure
@@ -1768,13 +1777,10 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
           itemId,
           resolveGenerationError(result, tStudio('generateFailed')).message,
         )
-      } catch (error) {
+      } catch {
         markActiveRunItemFailed(
           itemId,
-          resolveGenerationError(
-            { error: error instanceof Error ? error.message : '' },
-            tStudio('generateFailed'),
-          ).message,
+          thrownGenerationError(tStudio('generateFailed')).message,
         )
       }
     },

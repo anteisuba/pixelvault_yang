@@ -55,6 +55,8 @@ export function useProjectRules(
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<ProjectRulesFailure | null>(null)
   const aliveRef = useRef(true)
+  /** 每成功加 / 删一条加一：拉名单的路上变过，那份名单就是旧的。 */
+  const mutationSeqRef = useRef(0)
 
   useEffect(() => {
     aliveRef.current = true
@@ -65,8 +67,14 @@ export function useProjectRules(
 
   const reload = useCallback(async () => {
     setIsLoading(true)
-    const result = await listProjectRulesAPI(scope)
-    if (!aliveRef.current) return
+    let result: Awaited<ReturnType<typeof listProjectRulesAPI>>
+    // 拉的路上用户加 / 删了一条：回来的名单是旧的，⛔ 拿它盖掉刚加的 —— 再拉一次。
+    for (;;) {
+      const seq = mutationSeqRef.current
+      result = await listProjectRulesAPI(scope)
+      if (!aliveRef.current) return
+      if (seq === mutationSeqRef.current) break
+    }
     setIsLoading(false)
     if (result.success) {
       setRules(result.data)
@@ -92,6 +100,7 @@ export function useProjectRules(
     const result = await createProjectRuleAPI(input)
     if (!aliveRef.current) return result.success
     if (result.success) {
+      mutationSeqRef.current += 1
       // 最新的在前 —— 与服务端的排序同一条，⛔ 别让本地列表与刷新后长得不一样。
       setRules((current) => [result.data, ...current])
       setError(null)
@@ -105,6 +114,7 @@ export function useProjectRules(
     const result = await deleteProjectRuleAPI(ruleId)
     if (!aliveRef.current) return result.success
     if (result.success) {
+      mutationSeqRef.current += 1
       setRules((current) => current.filter((rule) => rule.id !== ruleId))
       setError(null)
       return true

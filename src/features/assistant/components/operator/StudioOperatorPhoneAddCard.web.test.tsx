@@ -82,43 +82,30 @@ describe('StudioOperatorPhoneAddCard', () => {
     await waitFor(() => expect(props.onMention).toHaveBeenCalledTimes(1))
   })
 
-  /**
-   * ⚠ 真 bug（迁真 hook 时揭出来的，未修）：`useGallery` 挂上不会自己拉第一页
-   * （别的调用方都在 effect 里 `setFilters` 一下），这一格没拉，最近一排永远停在骨架。
-   * 修好后把 `it.fails` 改回 `it`。
-   */
-  it.fails(
-    'shows the three latest assets plus 全部, and picks one',
-    async () => {
-      gallery.generations = ['a', 'b', 'c', 'd'].map((id) => ({
-        id,
-        url: `https://cdn.example/${id}.png`,
-        prompt: id,
-      }))
-      const props = setup()
-      fireEvent.click(screen.getByTestId('operator-phone-add'))
-      expect(
-        await screen.findByTestId('operator-phone-add-recent-c'),
-      ).toBeTruthy()
-      expect(screen.queryByTestId('operator-phone-add-recent-d')).toBeNull()
-      fireEvent.click(screen.getByTestId('operator-phone-add-recent-b'))
-      await waitFor(() =>
-        expect(props.onPickRecent).toHaveBeenCalledWith(
-          expect.objectContaining({ id: 'b' }),
-        ),
-      )
-      openAndPick('recent-all')
-      await waitFor(() => expect(props.onPickLibrary).toHaveBeenCalledTimes(1))
-      gallery.generations = []
-    },
-  )
+  it('shows the three latest assets plus 全部, and picks one', async () => {
+    gallery.generations = ['a', 'b', 'c', 'd'].map((id) => ({
+      id,
+      url: `https://cdn.example/${id}.png`,
+      prompt: id,
+    }))
+    const props = setup()
+    fireEvent.click(screen.getByTestId('operator-phone-add'))
+    expect(
+      await screen.findByTestId('operator-phone-add-recent-c'),
+    ).toBeTruthy()
+    expect(screen.queryByTestId('operator-phone-add-recent-d')).toBeNull()
+    fireEvent.click(screen.getByTestId('operator-phone-add-recent-b'))
+    await waitFor(() =>
+      expect(props.onPickRecent).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'b' }),
+      ),
+    )
+    openAndPick('recent-all')
+    await waitFor(() => expect(props.onPickLibrary).toHaveBeenCalledTimes(1))
+    gallery.generations = []
+  })
 
-  /**
-   * ⚠ 真 bug（迁真 hook 时揭出来的，未修）：`useGallery` 挂上不会自己拉第一页
-   * （别的调用方都在 effect 里 `setFilters` 一下），这一格没拉，最近一排永远停在骨架。
-   * 修好后把 `it.fails` 改回 `it`。
-   */
-  it.fails('hides the recent row when there are no assets', async () => {
+  it('hides the recent row when there are no assets', async () => {
     setup()
     fireEvent.click(screen.getByTestId('operator-phone-add'))
     await waitFor(() =>

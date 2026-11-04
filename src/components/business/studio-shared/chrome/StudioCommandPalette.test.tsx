@@ -7,7 +7,7 @@ import {
   AI_ADAPTER_TYPES,
   getDefaultProviderConfig,
 } from '@/constants/providers'
-import { keySettingsPath } from '@/constants/routes'
+import { openQuickSetup, submitQuickSetup } from '@/test/api-keys'
 import { text } from '@/test/i18n-text'
 import {
   fakeStudioServer,
@@ -97,16 +97,34 @@ describe('StudioCommandPalette', () => {
     expect(screen.queryByText(label('openaiGptImage2'))).not.toBeInTheDocument()
   })
 
-  it('没配 key 的模型选不上：不改当前模型，直接去配它那一家的 key', async () => {
+  it('没配 key 的模型先不选中：就地弹配 key 弹窗（⛔ 跳设置页），验证通过才选上', async () => {
+    const GEMINI_KEY = {
+      ...FAL_KEY,
+      id: 'key-gemini',
+      modelId: AI_MODELS.GEMINI_OMNI_FLASH,
+      adapterType: AI_ADAPTER_TYPES.GEMINI,
+      providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.GEMINI),
+    }
+    server
+      .on('POST', API_ENDPOINTS.API_KEYS, () => ok(GEMINI_KEY))
+      .on('POST', `${API_ENDPOINTS.API_KEYS}/key-gemini/verify`, () =>
+        ok({ id: 'key-gemini', status: 'available' }),
+      )
     const studio = await openPalette()
     const before = studio.current.state.selectedOptionId
 
     fireEvent.click(screen.getAllByText(MISSING())[0]!)
 
     expect(studio.current.state.selectedOptionId).toBe(before)
-    expect(push).toHaveBeenCalledWith(
-      keySettingsPath('/studio/video', AI_ADAPTER_TYPES.GEMINI),
+    expect(push).not.toHaveBeenCalled()
+    await waitFor(() => expect(openQuickSetup()).not.toBeNull())
+
+    submitQuickSetup(text('QuickSetup.verify'))
+
+    await waitFor(() =>
+      expect(studio.current.state.selectedOptionId).toBe('key:key-gemini'),
     )
+    expect(push).not.toHaveBeenCalled()
   })
 
   it('配好 key 的模型照常选中', async () => {

@@ -30,9 +30,9 @@ import {
 import { fakeBucket } from '@/test/int/fake-r2'
 import { seedGeneration } from '@/test/int/seed-generation'
 
-// ⚠ 型号 id 与执行端点取同一个：老队列提交只认 `getExecutionModelId(modelId)`，
-// 不看库里配的 externalModelId（已报给 owner），id 不同就会打到错的端点。
-const F5 = 'fal-ai/f5-tts'
+// 型号 id 故意与执行端点不同：老队列提交要按库里配的 externalModelId 打端点
+// （11-04 修：原来只认 `getExecutionModelId(modelId)`，id 不同就打错端点）。
+const F5 = 'f5-tts-db'
 const FAL_ROUTE_CONFIG = { label: 'fal.ai', baseUrl: 'https://queue.fal.run' }
 
 let me: Awaited<ReturnType<typeof createTestUser>>

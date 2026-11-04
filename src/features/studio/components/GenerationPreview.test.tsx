@@ -301,15 +301,25 @@ describe('GenerationPreview — 加载态 A', () => {
   })
 
   it('视频的失败由队列那一行说：舞台 ⛔ 再压一层（上一条视频照常看）', async () => {
-    server.on('POST', API_ENDPOINTS.GENERATE_VIDEO, () =>
-      Response.json(
-        {
-          success: false,
-          error: 'Quota exceeded',
-          errorCode: 'provider_rate_limit',
-        },
-        { status: 429 },
-      ),
+    // 提交先挂着：舞台得先看到「在跑」，再看到失败（同一批里落地就测不出收尾那一支）
+    let reject!: () => void
+    server.on(
+      'POST',
+      API_ENDPOINTS.GENERATE_VIDEO,
+      () =>
+        new Promise<Response>((resolve) => {
+          reject = () =>
+            resolve(
+              Response.json(
+                {
+                  success: false,
+                  error: 'Quota exceeded',
+                  errorCode: 'provider_rate_limit',
+                },
+                { status: 429 },
+              ),
+            )
+        }),
     )
     const { studio } = renderWithStudio(
       <GenerationPreview generation={VIDEO} isLatestResult />,
@@ -318,8 +328,9 @@ describe('GenerationPreview — 加载态 A', () => {
     act(() =>
       studio.current.dispatch({ type: 'SET_OUTPUT_TYPE', payload: 'video' }),
     )
-    await act(async () => {
-      await studio.current.generation.generate({
+    let run!: Promise<unknown>
+    act(() => {
+      run = studio.current.generation.generate({
         mode: 'video',
         video: {
           modelId: AI_MODELS.SEEDANCE_20,
@@ -329,12 +340,22 @@ describe('GenerationPreview — 加载态 A', () => {
         },
       })
     })
+    await tick()
+    expect(studio.current.generation.isGenerating).toBe(true)
+    await act(async () => {
+      reject()
+      await run
+    })
     expect(studio.current.generation.error).not.toBeNull()
 
     expect(screen.queryByRole('alert')).toBeNull()
     expect(document.querySelector('video')).toBeInTheDocument()
-    // ⚠ 没断言「没有进度条」：提交失败后舞台会在旧视频上放一遍「出完了」的收尾动画
-    //   （isGenerating true→false、旧 generation 在、视频台 error 被置空 → 走成功收尾那一支），
-    //   这是真路径上的问题，已报，没在测试里改。
+    // 旧视频上 ⛔ 放「出完了」的收尾（11-04 修：收尾只给这一轮新出来的那条）
+    // 出图进度条带 aria-label（播放器自己的进度条不带）
+    expect(
+      screen
+        .queryAllByRole('progressbar')
+        .filter((bar) => bar.hasAttribute('aria-label')),
+    ).toEqual([])
   })
 })

@@ -352,6 +352,7 @@ describe('CharacterRoster（角色页 · 方向 A）', () => {
     await renderLoaded()
     expect(screen.queryAllByTestId('library-tile')).toHaveLength(0)
     expect(screen.getAllByTestId('roster-tile').length).toBeGreaterThan(0)
+    expect(api.searchChub).not.toHaveBeenCalled()
   })
 
   it('新角色草稿没起名就返回 = 什么都没建', async () => {

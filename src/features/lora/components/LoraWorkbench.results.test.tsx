@@ -451,15 +451,10 @@ describe('LoRA 模板（pages/prompts.md）', () => {
     await waitFor(() => expect(promptBox()).toHaveValue('testlora'))
     deliver()
 
-    // 加过权重的标签按 Illustrious 的写法落（括号）。
-    // ⚠ 原用例还锁「正文里原有的触发词留着」（应为 `testlora, 1girl, …`）：真挂载栈从
-    //   localStorage 读回来晚于首帧，取模板那只 effect 用的是首帧的 applyLoraTemplate
-    //   （那时没有挂载、不认得触发词），模板一到触发词就被拿掉——已记为真 bug，这里
-    //   不锁那半句。
+    // 加过权重的标签按 Illustrious 的写法落（括号）；正文里原有的触发词留着
+    // （挂载栈读回来晚于首帧，模板按回来那一刻的挂载套，11-04 修）。
     await waitFor(() =>
-      expect((promptBox() as HTMLTextAreaElement).value).toMatch(
-        /1girl, \(rain:1\.2\), night$/,
-      ),
+      expect(promptBox()).toHaveValue('testlora, 1girl, (rain:1.2), night'),
     )
     expect(negativeBox()).toHaveValue('lowres, bad hands')
     expect(mountedPills().map((pill) => pill.title)).toEqual(['Test LoRA'])

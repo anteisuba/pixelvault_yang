@@ -104,12 +104,7 @@ describe('VoicesPage · desktop library', () => {
 describe('VoicesPage · phone', () => {
   beforeEach(() => setViewportWidth(MOBILE_WIDTH, { touch: true }))
 
-  /**
-   * ⚠ 真 bug（2026-11-04 迁测试时查出，未修）：手机一进来停在「找音色」，不是「我的收藏」。
-   * `useIsMobile` 第一帧回 false → 桌面那份 `VoicesLibraryDesk` 先挂一帧，它的落地 effect
-   * 把页签改成 'public'；下一帧换成手机布局时页签已经被改掉了。修好后把 `.fails` 去掉。
-   */
-  it.fails('lands on 我的收藏 on a phone', async () => {
+  it('lands on 我的收藏 on a phone', async () => {
     await renderPage()
     expect(
       await screen.findByRole('tab', { name: '我的收藏 2' }),

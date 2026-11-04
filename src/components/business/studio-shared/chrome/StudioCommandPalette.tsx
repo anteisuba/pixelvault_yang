@@ -16,13 +16,13 @@ import { useTranslations } from 'next-intl'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { useStudioForm } from '@/contexts/studio-context'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
-import { useOpenKeySettings } from '@/hooks/use-open-key-settings'
 import { isMissingKeyModelOption } from '@/hooks/use-split-model-options'
 import { useVideoModelOptions } from '@/hooks/use-video-model-options'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { getProviderLabel } from '@/constants/providers'
 import { LoraTrainingDialog } from '@/features/lora'
 import { DialogTitle } from '@/components/ui/dialog'
+import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 
 /**
  * StudioCommandPalette — Cmd+K command palette for quick actions.
@@ -37,11 +37,13 @@ export const StudioCommandPalette = memo(function StudioCommandPalette() {
     state.selectedOptionId ?? '',
   )
   const { hasLoaded: keysLoaded } = useApiKeysContext()
-  const openKeySettings = useOpenKeySettings()
   const t = useTranslations('StudioCommandPalette')
   const tModels = useTranslations('Models')
   const modelOptions =
     state.outputType === 'video' ? videoModelOptions : imageModelOptions
+  const [keySetupOption, setKeySetupOption] = useState<
+    (typeof modelOptions)[number] | null
+  >(null)
 
   // Listen for Cmd+K / Ctrl+K
   useEffect(() => {
@@ -57,20 +59,20 @@ export const StudioCommandPalette = memo(function StudioCommandPalette() {
   }, [])
 
   /**
-   * 没配 key 的模型选不上：直接去配它那一家的 key（与模型选择器同一条规矩，
-   * owner 2026-10-06）。⛔ 不先把它设成当前模型再让出图键去报缺 key。
+   * 没配 key 的模型先不选中：就地弹 QuickSetupDialog，验证通过才选上（硬规则 8，
+   * owner 2026-10-07：一律就地弹窗，⛔ 跳 /settings/keys）。
    * key 名单还没回来时不知道缺不缺 —— 照常选（同选择器）。
    */
   const selectModel = useCallback(
     (option: (typeof modelOptions)[number]) => {
       setOpen(false)
       if (isMissingKeyModelOption(option, keysLoaded)) {
-        openKeySettings(option.adapterType)
+        setKeySetupOption(option)
         return
       }
       dispatch({ type: 'SET_OPTION_ID', payload: option.optionId })
     },
-    [dispatch, keysLoaded, openKeySettings],
+    [dispatch, keysLoaded],
   )
 
   const switchMode = useCallback(
@@ -183,6 +185,18 @@ export const StudioCommandPalette = memo(function StudioCommandPalette() {
       {/* LoRA Training Dialog — opened via command palette */}
       {/* LoRA Training Dialog — opened via command palette */}
       <LoraTrainingDialog open={loraOpen} onOpenChange={setLoraOpen} />
+      {keySetupOption ? (
+        <QuickSetupDialog
+          open
+          onOpenChange={(next) => {
+            if (!next) setKeySetupOption(null)
+          }}
+          modelId={keySetupOption.modelId}
+          modelLabel={getTranslatedModelLabel(tModels, keySetupOption.modelId)}
+          adapterType={keySetupOption.adapterType}
+          optionId={keySetupOption.optionId}
+        />
+      ) : null}
     </>
   )
 })

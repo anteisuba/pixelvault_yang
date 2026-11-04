@@ -47,9 +47,8 @@ describe('danbooru-favorite.service（真库）', () => {
     ).toBe(1)
   })
 
-  // ⚠ 已知 bug（迁移时真库揭出，未修）：两个请求都先查到「没有」再各自 create，
-  // 第二个撞 (userId, kind, name) 唯一约束抛 P2002 → 路由 500。修好后把 `.fails` 去掉。
-  it.fails('连点两下（两个请求同时到）只落一行、两下都成功', async () => {
+  // 两个请求都先查到「没有」再各自 create，后到的撞唯一约束 → 接住回先到那一条（11-04 修）。
+  it('连点两下（两个请求同时到）只落一行、两下都成功', async () => {
     const user = await createTestUser()
 
     const results = await Promise.allSettled([

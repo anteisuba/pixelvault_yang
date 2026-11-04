@@ -959,11 +959,6 @@
       "description": "让角色图动起来，同时尽量保留角色辨识度。"
     }
   },
-  "Transform": {
-    "errors": {
-      "allFailed": "所有变体均生成失败，请重试。"
-    }
-  },
   "StudioResultFeedback": {
     "satisfied": "满意",
     "subjectMismatch": "主体偏差",

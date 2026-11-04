@@ -959,11 +959,6 @@
       "description": "キャラクターの見た目をできるだけ保ちながら、画像を動画にできます。"
     }
   },
-  "Transform": {
-    "errors": {
-      "allFailed": "すべてのバリエーションの生成に失敗しました。もう一度お試しください。"
-    }
-  },
   "StudioResultFeedback": {
     "satisfied": "満足",
     "subjectMismatch": "被写体がイメージと違う",

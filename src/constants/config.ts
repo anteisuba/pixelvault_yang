@@ -213,7 +213,6 @@ export const API_ENDPOINTS = {
   EXTRACTED_ELEMENTS: '/api/extracted-elements',
 
   /** Image transform (style / pose / background — Phase 1: style only) */
-  IMAGE_TRANSFORM: '/api/image-transform',
 
   /** Video generation */
   GENERATE_VIDEO: '/api/generate-video',
@@ -971,7 +970,6 @@ export const RATE_LIMIT_CONFIGS = {
   nodeAssistant: { limit: 30, windowSeconds: 60 },
   /** v3→v4 惰性升级前的 R2 备份。每个项目一生只该跑一次，限流只防重试风暴。 */
   nodeWorkflowV3Backup: { limit: 10, windowSeconds: 60 },
-  imageTransform: { limit: 10, windowSeconds: 60 },
   // ─── Generic presets ─────────────────────────────────────────
   /** Authenticated list/read endpoints (cards, recipes, history) */
   authedRead: { limit: 120, windowSeconds: 60 },

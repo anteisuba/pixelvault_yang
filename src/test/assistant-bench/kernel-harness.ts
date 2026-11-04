@@ -86,6 +86,11 @@ export function stepsOf(events: readonly AssistantOperatorEvent[]) {
   return events.flatMap((event) => (event.type === 'step' ? [event.step] : []))
 }
 
+/** 一步的 payload（有的步骤类型没有这一格，统一读成 unknown）。 */
+export function payloadOf(step: ReturnType<typeof stepsOf>[number]): unknown {
+  return 'payload' in step ? step.payload : undefined
+}
+
 type TurnRecordRow = Awaited<
   ReturnType<typeof db.assistantTurnRecord.findMany>
 >[number]

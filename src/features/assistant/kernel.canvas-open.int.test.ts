@@ -35,6 +35,7 @@ import {
   imageRequest,
   kernelUser,
   relayOf,
+  payloadOf,
   stepsOf,
   type KernelUser,
 } from '@/test/assistant-bench/kernel-harness'
@@ -130,7 +131,7 @@ describe('画布（第 9a 步）', () => {
     )
     expect(batch).toHaveLength(1)
     expect(
-      (batch[0]!.payload as { ops: unknown[] }).ops.length,
+      (payloadOf(batch[0]!) as { ops: unknown[] }).ops.length,
     ).toBeGreaterThanOrEqual(2)
     expect(hop1.at(-1)).toMatchObject({
       type: 'stopped',

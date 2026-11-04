@@ -38,6 +38,7 @@ import {
   imageRequest,
   kernelUser,
   LORA_SNAPSHOT,
+  payloadOf,
   stepsOf,
   type KernelUser,
 } from '@/test/assistant-bench/kernel-harness'
@@ -157,7 +158,7 @@ describe('第 4 步：各台的改法', () => {
     // 搜的那一下不出过程行，只有挂上那一行。
     const steps = doneSteps(events)
     expect(steps.map((step) => step.tool)).toEqual(['mount_lora'])
-    const payload = JSON.stringify(steps[0]!.payload)
+    const payload = JSON.stringify(payloadOf(steps[0]!))
     expect(payload).toContain('"Malfoid"')
     expect(payload).not.toContain('malfoid style')
     expect(payload).toContain('0.8')
@@ -210,8 +211,8 @@ describe('第 4 步：各台的改法', () => {
       (step) => step.tool === 'set_lora_parameters',
     )
     expect(params).toHaveLength(2)
-    expect(JSON.stringify(params[1]!.payload)).toContain('832')
-    expect(JSON.stringify(params[1]!.payload)).toContain('1216')
+    expect(JSON.stringify(payloadOf(params[1]!))).toContain('832')
+    expect(JSON.stringify(payloadOf(params[1]!))).toContain('1216')
     expect(resultsSent()).not.toContain('together')
   })
 

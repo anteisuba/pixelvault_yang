@@ -39,6 +39,7 @@ import {
   imageRequest,
   kernelUser,
   relayOf,
+  payloadOf,
   stepsOf,
   turnRecords,
   type KernelUser,
@@ -164,7 +165,7 @@ describe('新内核主循环', () => {
       ['set_prompt', 'running'],
       ['set_prompt', 'done'],
     ])
-    expect(JSON.stringify(steps[1]!.payload)).toContain('a boy in a garden')
+    expect(JSON.stringify(payloadOf(steps[1]!))).toContain('a boy in a garden')
     // 每次调用开口那一刻收一帧思考秒数（10-27）：工具调用前一帧、说话前一帧。
     expect(events.map((event) => event.type)).toEqual([
       'thinking',

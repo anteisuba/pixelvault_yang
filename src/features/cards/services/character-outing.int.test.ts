@@ -45,6 +45,7 @@ import { after } from 'next/server'
 import { CHARACTER_OUTING } from '@/constants/character-browse'
 import { NODE_STUDIO_ASSISTANT_ROUTE_MODELS } from '@/constants/node-studio'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import type { StartCharacterOutingRequest } from '@/types/character-growth'
 import { db } from '@/lib/db'
 import { seedAssistantKeys } from '@/test/int/assistant-keys'
 import { createTestCard } from '@/test/int/cards'
@@ -57,11 +58,11 @@ import {
 } from './character-outing.service'
 
 const MODEL = NODE_STUDIO_ASSISTANT_ROUTE_MODELS[0].modelId
-const START = {
+const START: StartCharacterOutingRequest = {
   model: MODEL,
-  sources: [] as string[],
-  sites: [] as string[],
-  videos: [] as string[],
+  sources: [],
+  sites: [],
+  videos: [],
   pinnedVideos: [],
   budgetPoints: 30,
 }
@@ -167,7 +168,7 @@ describe('startOutingForClerkId', () => {
         },
         { platform: 'bilibili', url: 'https://example.com/not-a-video' },
       ],
-    } as Parameters<typeof startOutingForClerkId>[2])
+    })
     const row = await reload(run!.id)
     expect(row.videos).toEqual(['bilibili', 'youtube'])
     // 规整成 watch?v=；结束在开始之前的那一截不要。
@@ -336,8 +337,9 @@ describe('runOutingChunk', () => {
       for (const n of [1, 2, 3, 4]) await finding(`https://a.test/${n}`)
       fake.plan = { queries: [{ source: 'web', query: '雨天' }] }
       // 想好搜什么时这一段已经快到头：下一步（联网搜）开不了。
-      fake.beforePlan = () =>
+      fake.beforePlan = () => {
         vi.setSystemTime(Date.now() + CHARACTER_OUTING.chunkMs)
+      }
 
       await runOutingChunk(row.id)
 
@@ -354,8 +356,9 @@ describe('runOutingChunk', () => {
     it('被截止时刻截断的一轮不算空手而归；剩的时间不够再开一轮就先交给下一段', async () => {
       vi.useFakeTimers({ toFake: ['Date'] })
       const row = await outing({ emptyRounds: 1 })
-      fake.beforePlan = () =>
+      fake.beforePlan = () => {
         vi.setSystemTime(Date.now() + CHARACTER_OUTING.chunkMs)
+      }
 
       await runOutingChunk(row.id)
 

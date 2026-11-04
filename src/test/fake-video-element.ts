@@ -5,6 +5,8 @@
  * - `{ duration, width, height }`：能读；`frameChars` 是每帧 dataUrl 的长度（量预算用）。
  * - `'loadError'`：读不出来（含 CORS 重试那一次——地址带 `?…=1` 也照样按原地址查）。
  * - `'tainted'`：跨域画布被污染，`toDataURL` 抛 SecurityError。
+ *
+ * 事件两种挂法都认（`addEventListener` 与 `onloadedmetadata = …`）；画布 `toDataURL` / `toBlob` 都能编。
  */
 import { vi } from 'vitest'
 
@@ -51,6 +53,14 @@ export function installFakeVideoDecoding(
 
   function fakeVideo(): HTMLVideoElement {
     const target = new EventTarget()
+    const emit = (type: string) => {
+      const event = new Event(type)
+      target.dispatchEvent(event)
+      const handler = (element as unknown as Record<string, unknown>)[
+        `on${type}`
+      ]
+      if (typeof handler === 'function') handler.call(element, event)
+    }
     let current = 0
     let spec: FakeVideo | undefined
     const element = Object.assign(target, {
@@ -73,14 +83,14 @@ export function installFakeVideoDecoding(
         specOf.set(element, spec)
         queueMicrotask(() => {
           if (!spec || spec === 'loadError') {
-            target.dispatchEvent(new Event('error'))
+            emit('error')
             return
           }
           const shape = spec === 'tainted' ? { duration: 4 } : spec
           element.duration = shape.duration
           element.videoWidth = shape.width ?? 1280
           element.videoHeight = shape.height ?? 720
-          target.dispatchEvent(new Event('loadedmetadata'))
+          emit('loadedmetadata')
         })
       },
     })
@@ -88,7 +98,7 @@ export function installFakeVideoDecoding(
       get: () => current,
       set(time: number) {
         current = time
-        queueMicrotask(() => target.dispatchEvent(new Event('seeked')))
+        queueMicrotask(() => emit('seeked'))
       },
     })
     return element as unknown as HTMLVideoElement
@@ -114,6 +124,11 @@ export function installFakeVideoDecoding(
             ? drawn.frameChars
             : prefix.length + 4
         return prefix + 'A'.repeat(Math.max(0, chars - prefix.length))
+      },
+      toBlob: (callback: (blob: Blob | null) => void, type = 'image/png') => {
+        queueMicrotask(() =>
+          callback(drawn === 'tainted' ? null : new Blob(['frame'], { type })),
+        )
       },
     } as unknown as HTMLCanvasElement
   }

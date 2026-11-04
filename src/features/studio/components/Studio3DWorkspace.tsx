@@ -1,11 +1,12 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import {
   AlertTriangle,
   Box,
   Check,
   ChevronDown,
+  ChevronRight,
   Dices,
   Download,
   FolderOpen,
@@ -278,6 +279,9 @@ export function Studio3DWorkspace({
   const tModels = useTranslations('Models')
   const isMobile = useIsMobile()
   const [settingsOpen, setSettingsOpen] = useState(false)
+  // Rodin「高级设置」收合行（ui-spec §9）：默认收着。
+  const [rodinAdvancedOpen, setRodinAdvancedOpen] = useState(false)
+  const rodinAdvancedId = useId()
   const [modelPickerOpen, setModelPickerOpen] = useState(false)
   const [cameraView, setCameraView] = useState<{
     view: 'front' | 'side' | 'reset'
@@ -1147,11 +1151,12 @@ export function Studio3DWorkspace({
       <div className="flex flex-wrap items-center justify-between gap-1 text-xs text-muted-foreground">
         <span>{t('estimatedCost')}</span>
         <span>
-          {isRodin
-            ? RODIN_TIER_CREDITS[rodinTier] +
-              (rodinHighPack ? RODIN_HIGHPACK_EXTRA_CREDITS : 0)
-            : (selectedModel?.cost ?? 0)}{' '}
-          cr
+          {t('creditAmount', {
+            credits: isRodin
+              ? RODIN_TIER_CREDITS[rodinTier] +
+                (rodinHighPack ? RODIN_HIGHPACK_EXTRA_CREDITS : 0)
+              : (selectedModel?.cost ?? 0),
+          })}
         </span>
       </div>
       {isRodin && (
@@ -1218,18 +1223,21 @@ export function Studio3DWorkspace({
       {isRodin && (
         <div className={styles.field}>
           <Label htmlFor="rodin-input-mode">{t('rodinModeLabel')}</Label>
-          <select
-            id="rodin-input-mode"
-            className={styles.fieldSelect}
+          <Select
             value={rodinMode}
-            onChange={(event) =>
-              setRodinMode(event.target.value as typeof rodinMode)
-            }
+            onValueChange={(value) => setRodinMode(value as typeof rodinMode)}
           >
-            <option value="image">{t('rodinModeImageLabel')}</option>
-            <option value="text">{t('rodinModeTextLabel')}</option>
-            <option value="mesh_first">{t('rodinModeMeshFirstLabel')}</option>
-          </select>
+            <SelectTrigger id="rodin-input-mode" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="image">{t('rodinModeImageLabel')}</SelectItem>
+              <SelectItem value="text">{t('rodinModeTextLabel')}</SelectItem>
+              <SelectItem value="mesh_first">
+                {t('rodinModeMeshFirstLabel')}
+              </SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       )}
 
@@ -1437,11 +1445,11 @@ export function Studio3DWorkspace({
                       </>
                     )}
                   </Button>
-                  <p className="text-2xs leading-4 text-muted-foreground">
-                    {canUseSelectedMultiViewModel
-                      ? t('multiViewHint')
-                      : t('multiViewApiKeyMissing')}
-                  </p>
+                  {!canUseSelectedMultiViewModel && (
+                    <p className="text-2xs leading-4 text-muted-foreground">
+                      {t('multiViewApiKeyMissing')}
+                    </p>
+                  )}
                 </>
               ) : (
                 <>
@@ -1484,9 +1492,6 @@ export function Studio3DWorkspace({
                       )
                     })}
                   </div>
-                  <p className="text-2xs leading-4 text-muted-foreground">
-                    {t('multiViewPickHint')}
-                  </p>
                   <Button
                     type="button"
                     variant="secondary"
@@ -1820,506 +1825,524 @@ export function Studio3DWorkspace({
         <div className="flex flex-col gap-5">
           <div className={styles.field}>
             <Label htmlFor="rodin-tier">{t('rodinTierLabel')}</Label>
-            <select
-              id="rodin-tier"
-              className={styles.fieldSelect}
+            <Select
               value={rodinTier}
-              onChange={(event) =>
-                setRodinTier(event.target.value as RodinTier)
-              }
+              onValueChange={(value) => setRodinTier(value as RodinTier)}
             >
-              {RODIN_TIERS.map((tier) => (
-                <option key={tier} value={tier}>
-                  {tier.replace('Gen-2.5-', '')} · {RODIN_TIER_CREDITS[tier]} cr
-                </option>
-              ))}
-            </select>
+              <SelectTrigger id="rodin-tier" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {RODIN_TIERS.map((tier) => (
+                  <SelectItem key={tier} value={tier}>
+                    {tier.replace('Gen-2.5-', '')} ·{' '}
+                    {t('creditAmount', { credits: RODIN_TIER_CREDITS[tier] })}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className={styles.field}>
             <Label htmlFor="rodin-format">
               {t('rodinGeometryFileFormatLabel')}
             </Label>
-            <select
-              id="rodin-format"
-              className={styles.fieldSelect}
+            <Select
               value={rodinGeometryFileFormat}
-              onChange={(event) =>
-                setRodinGeometryFileFormat(
-                  event.target.value as RodinGeometryFileFormat,
-                )
+              onValueChange={(value) =>
+                setRodinGeometryFileFormat(value as RodinGeometryFileFormat)
               }
             >
-              {RODIN_GEOMETRY_FILE_FORMATS.map((format) => (
-                <option key={format} value={format}>
-                  {format.toUpperCase()}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger id="rodin-format" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {RODIN_GEOMETRY_FILE_FORMATS.map((format) => (
+                  <SelectItem key={format} value={format}>
+                    {format.toUpperCase()}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
-          <details className={styles.advanced}>
-            <summary className="min-h-9 cursor-pointer py-2 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-              {t('rodinAdvancedSectionLabel')}
-            </summary>
-            <div className="mt-3 flex flex-col gap-3">
-              {/* Geometry preset card — unified mesh_mode + quality grid.
+          <div className={styles.advanced}>
+            {/* 收合行照 ui-spec §9（同 AssistantPersonaPane「高级」）：默认收着、
+                ▸ 打开转 90°，内容收着时不挂载。 */}
+            <button
+              type="button"
+              aria-expanded={rodinAdvancedOpen}
+              aria-controls={rodinAdvancedId}
+              onClick={() => setRodinAdvancedOpen((open) => !open)}
+              className="flex min-h-9 w-full items-center gap-2 rounded-md text-left text-sm text-muted-foreground transition-colors duration-fast ease-linear hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none coarse:min-h-11"
+            >
+              <ChevronRight
+                aria-hidden
+                className={cn(
+                  'size-3.5 shrink-0 transition-transform duration-base ease-standard motion-reduce:transition-none',
+                  rodinAdvancedOpen && 'rotate-90',
+                )}
+              />
+              <span className="shrink-0 text-foreground">
+                {t('rodinAdvancedSectionLabel')}
+              </span>
+            </button>
+            {rodinAdvancedOpen && (
+              <div
+                id={rodinAdvancedId}
+                className="mt-3 flex flex-col gap-3 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1 motion-safe:duration-base"
+              >
+                {/* Geometry preset card — unified mesh_mode + quality grid.
                   Drop to 2 columns on very narrow inspector (mobile portrait)
                   so each chip still reads cleanly; 4 columns at md+. */}
-              <div className="rounded-lg border border-border/60 bg-background/60 p-3">
-                <Label className="mb-2 block text-xs uppercase tracking-wider text-muted-foreground">
-                  {t('rodinMeshModeLabel')}
-                </Label>
-                <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
-                  {RODIN_MESH_MODES.flatMap((mode) =>
-                    RODIN_QUALITIES.map((quality) => {
-                      const isActive =
-                        rodinMeshMode === mode && rodinQuality === quality
-                      const faceLabel = RODIN_FACE_COUNT_LABEL[mode][quality]
-                      return (
-                        <button
-                          key={`${mode}-${quality}`}
-                          type="button"
-                          onClick={() => {
-                            setRodinMeshMode(mode)
-                            setRodinQuality(quality)
-                          }}
-                          className={cn(
-                            'flex flex-col items-center gap-0.5 rounded-md border px-1 py-2 text-center transition-colors',
-                            isActive
-                              ? 'border-primary bg-primary/5 text-primary'
-                              : 'border-border/60 text-muted-foreground hover:border-border hover:text-foreground',
-                          )}
-                        >
-                          <span className="text-xs font-semibold leading-tight">
-                            {faceLabel}
-                          </span>
-                          <span className="text-2xs leading-tight opacity-80">
-                            {mode === RODIN_MESH_MODE.QUAD
-                              ? 'Quad'
-                              : 'Triangle'}
-                          </span>
-                        </button>
-                      )
-                    }),
-                  )}
-                </div>
-                <p className="mt-1.5 text-xs italic text-muted-foreground">
-                  {t('rodinMeshModeHint')}
-                </p>
-              </div>
-
-              {/* Material card — segmented + HighPack switch */}
-              <div className="rounded-lg border border-border/60 bg-background/60 p-3">
-                <Label className="mb-2 block text-xs uppercase tracking-wider text-muted-foreground">
-                  {t('rodinMaterialLabel')}
-                </Label>
-                <div className="flex gap-0.5 rounded-md bg-muted/50 p-0.5">
-                  {RODIN_MATERIALS.map((mat) => (
-                    <button
-                      key={mat}
-                      type="button"
-                      onClick={() => setRodinMaterial(mat)}
-                      className={cn(
-                        'flex-1 rounded px-2 py-1 text-xs font-medium transition-colors',
-                        rodinMaterial === mat
-                          ? 'bg-primary text-primary-foreground'
-                          : 'text-muted-foreground hover:text-foreground',
-                      )}
-                    >
-                      {mat}
-                    </button>
-                  ))}
-                </div>
-                <div className="mt-2 flex items-center gap-2 border-t border-border/40 pt-2">
-                  <Switch
-                    id="rodin-highpack"
-                    checked={rodinHighPack}
-                    onCheckedChange={setRodinHighPack}
-                  />
-                  <Label
-                    htmlFor="rodin-highpack"
-                    className="flex-1 cursor-pointer text-xs font-medium"
-                  >
-                    {t('rodinHighPackLabel')}
-                  </Label>
-                </div>
-                {/* Mesh-first preview promoted to the top-of-panel mode
-                    picker — no inline switch here anymore. */}
-              </div>
-
-              {/* T12: Input Images — cross/compass layout */}
-              {sourceImage && (
                 <div className="rounded-lg border border-border/60 bg-background/60 p-3">
                   <Label className="mb-2 block text-xs uppercase tracking-wider text-muted-foreground">
-                    {t('rodinAdditionalImagesLabel')}
+                    {t('rodinMeshModeLabel')}
                   </Label>
-                  {/* 3×3 grid: cross shape — Front center, Back top, Left/Right sides, LFrt bottom-left */}
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {/* Row 1: _ Back _ */}
-                    <div />
-                    <RodinAngleSlot
-                      angle="back"
-                      label={t('viewBack')}
-                      url={(() => {
-                        const idx = RODIN_EXTRA_ANGLES.indexOf('back')
-                        return rodinAdditionalImages[idx] ?? null
-                      })()}
-                      isUploading={uploadingRodinAngle === 'back'}
-                      onUpload={() => handleRodinImageUploadClick('back')}
-                      onRemove={() => handleRemoveRodinImage('back')}
-                    />
-                    <div />
-                    {/* Row 2: Left Front Right */}
-                    <RodinAngleSlot
-                      angle="left"
-                      label={t('viewLeft')}
-                      url={(() => {
-                        const idx = RODIN_EXTRA_ANGLES.indexOf('left')
-                        return rodinAdditionalImages[idx] ?? null
-                      })()}
-                      isUploading={uploadingRodinAngle === 'left'}
-                      onUpload={() => handleRodinImageUploadClick('left')}
-                      onRemove={() => handleRemoveRodinImage('left')}
-                    />
-                    {/* Front = sourceImage (always filled) */}
-                    <div className="relative aspect-square overflow-hidden rounded-md border-2 border-primary/40 bg-muted/30">
-                      <Image
-                        src={sourceImage.url}
-                        alt={t('sourceImageLabel')}
-                        fill
-                        unoptimized
-                        className="object-cover"
-                        sizes="80px"
-                      />
-                      <span className="absolute bottom-0 left-0 right-0 bg-background/80 py-0.5 text-center text-2xs font-medium text-foreground backdrop-blur-sm">
-                        {t('viewFront')}
-                      </span>
-                    </div>
-                    <RodinAngleSlot
-                      angle="right"
-                      label={t('viewRight')}
-                      url={(() => {
-                        const idx = RODIN_EXTRA_ANGLES.indexOf('right')
-                        return rodinAdditionalImages[idx] ?? null
-                      })()}
-                      isUploading={uploadingRodinAngle === 'right'}
-                      onUpload={() => handleRodinImageUploadClick('right')}
-                      onRemove={() => handleRemoveRodinImage('right')}
-                    />
-                    {/* Row 3: LFrt _ _ */}
-                    <RodinAngleSlot
-                      angle="leftFront"
-                      label={t('viewLeftFront')}
-                      url={(() => {
-                        const idx = RODIN_EXTRA_ANGLES.indexOf('leftFront')
-                        return rodinAdditionalImages[idx] ?? null
-                      })()}
-                      isUploading={uploadingRodinAngle === 'leftFront'}
-                      onUpload={() => handleRodinImageUploadClick('leftFront')}
-                      onRemove={() => handleRemoveRodinImage('leftFront')}
-                    />
-                    <div />
-                    <div />
-                  </div>
-                  <p className="mt-1.5 text-2xs text-muted-foreground">
-                    {t('rodinAdditionalImagesHint')}
-                  </p>
-                  {/* Hidden file inputs for each angle */}
-                  {RODIN_EXTRA_ANGLES.map((angle) => (
-                    <input
-                      key={angle}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      ref={(el) => {
-                        rodinImageFileRefs.current[angle] = el
-                      }}
-                      onChange={(e) =>
-                        void handleRodinImageFileChange(angle, e)
-                      }
-                    />
-                  ))}
-                </div>
-              )}
-
-              {/* Geometry instruction card — faithful vs creative */}
-              <div className="rounded-lg border border-border/60 bg-background/60 p-3">
-                <Label className="mb-2 block text-xs uppercase tracking-wider text-muted-foreground">
-                  {t('rodinGeometryInstructModeLabel')}
-                </Label>
-                <div className="flex gap-0.5 rounded-md bg-muted/50 p-0.5">
-                  {RODIN_GEOMETRY_INSTRUCT_MODES.map((mode) => (
-                    <button
-                      key={mode}
-                      type="button"
-                      onClick={() => setRodinGeometryInstructMode(mode)}
-                      className={cn(
-                        'flex-1 rounded px-2 py-1 text-xs font-medium transition-colors',
-                        rodinGeometryInstructMode === mode
-                          ? 'bg-primary text-primary-foreground'
-                          : 'text-muted-foreground hover:text-foreground',
-                      )}
-                    >
-                      {mode === RODIN_GEOMETRY_INSTRUCT_MODE.FAITHFUL
-                        ? t('rodinFaithfulLabel')
-                        : t('rodinCreativeLabel')}
-                    </button>
-                  ))}
-                </div>
-                <p className="mt-1.5 text-xs italic text-muted-foreground">
-                  {t('rodinGeometryInstructModeHint')}
-                </p>
-              </div>
-
-              {/* Texture quality card — 5-way segmented */}
-              <div className="rounded-lg border border-border/60 bg-background/60 p-3">
-                <Label className="mb-2 block text-xs uppercase tracking-wider text-muted-foreground">
-                  {t('rodinTextureModeLabel')}
-                </Label>
-                <div className="flex gap-0.5 rounded-md bg-muted/50 p-0.5">
-                  {RODIN_TEXTURE_MODES.map((mode) => (
-                    <button
-                      key={mode}
-                      type="button"
-                      onClick={() => setRodinTextureMode(mode)}
-                      className={cn(
-                        'flex-1 rounded px-1 py-1 text-2xs font-medium capitalize transition-colors',
-                        rodinTextureMode === mode
-                          ? 'bg-primary text-primary-foreground'
-                          : 'text-muted-foreground hover:text-foreground',
-                      )}
-                    >
-                      {mode}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-3 border-t border-border/40 p-3">
-                {/* Toggle row 1 */}
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      id="rodin-tapose"
-                      checked={rodinTAPose}
-                      onCheckedChange={setRodinTAPose}
-                    />
-                    <Label
-                      htmlFor="rodin-tapose"
-                      className="flex-1 cursor-pointer text-xs"
-                    >
-                      {t('rodinTAPoseLabel')}
-                    </Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      id="rodin-hd-texture"
-                      checked={rodinHdTexture}
-                      onCheckedChange={setRodinHdTexture}
-                    />
-                    <Label
-                      htmlFor="rodin-hd-texture"
-                      className="flex-1 cursor-pointer text-xs"
-                    >
-                      {t('rodinHdTextureLabel')}
-                    </Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      id="rodin-texture-delight"
-                      checked={rodinTextureDelight}
-                      onCheckedChange={setRodinTextureDelight}
-                    />
-                    <Label
-                      htmlFor="rodin-texture-delight"
-                      className="flex-1 cursor-pointer text-xs"
-                    >
-                      {t('rodinTextureDelightLabel')}
-                    </Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      id="rodin-use-original-alpha"
-                      checked={rodinUseOriginalAlpha}
-                      onCheckedChange={setRodinUseOriginalAlpha}
-                    />
-                    <Label
-                      htmlFor="rodin-use-original-alpha"
-                      className="flex-1 cursor-pointer text-xs"
-                    >
-                      {t('rodinUseOriginalAlphaLabel')}
-                    </Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      id="rodin-preview-render"
-                      checked={rodinPreviewRender}
-                      onCheckedChange={setRodinPreviewRender}
-                    />
-                    <Label
-                      htmlFor="rodin-preview-render"
-                      className="flex-1 cursor-pointer text-xs"
-                    >
-                      {t('rodinPreviewRenderLabel')}
-                    </Label>
-                  </div>
-                  <div
-                    className={cn(
-                      'flex items-center gap-2',
-                      rodinTier !== RODIN_IS_MICRO_REQUIRED_TIER &&
-                        'opacity-50',
+                  <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+                    {RODIN_MESH_MODES.flatMap((mode) =>
+                      RODIN_QUALITIES.map((quality) => {
+                        const isActive =
+                          rodinMeshMode === mode && rodinQuality === quality
+                        const faceLabel = RODIN_FACE_COUNT_LABEL[mode][quality]
+                        return (
+                          <button
+                            key={`${mode}-${quality}`}
+                            type="button"
+                            onClick={() => {
+                              setRodinMeshMode(mode)
+                              setRodinQuality(quality)
+                            }}
+                            className={cn(
+                              'flex flex-col items-center gap-0.5 rounded-md border px-1 py-2 text-center transition-colors',
+                              isActive
+                                ? 'border-primary bg-primary/5 text-primary'
+                                : 'border-border/60 text-muted-foreground hover:border-border hover:text-foreground',
+                            )}
+                          >
+                            <span className="text-xs font-semibold leading-tight">
+                              {faceLabel}
+                            </span>
+                            <span className="text-2xs leading-tight opacity-80">
+                              {mode === RODIN_MESH_MODE.QUAD
+                                ? 'Quad'
+                                : 'Triangle'}
+                            </span>
+                          </button>
+                        )
+                      }),
                     )}
-                  >
-                    <Switch
-                      id="rodin-is-micro"
-                      checked={rodinIsMicro}
-                      disabled={rodinTier !== RODIN_IS_MICRO_REQUIRED_TIER}
-                      onCheckedChange={setRodinIsMicro}
-                    />
-                    <Label
-                      htmlFor="rodin-is-micro"
-                      className="flex-1 cursor-pointer text-xs"
-                    >
-                      {t('rodinIsMicroLabel')}
-                    </Label>
                   </div>
                 </div>
 
-                {/* Prompt (image/mesh modes only — text mode promotes
-                        prompt to a top-of-panel input). */}
-                {rodinMode !== 'text' && (
-                  <div className="flex flex-col gap-1">
-                    <Label
-                      htmlFor="rodin-prompt"
-                      className="text-xs uppercase tracking-wider text-muted-foreground"
-                    >
-                      {t('rodinPromptLabel')}
-                    </Label>
-                    <textarea
-                      id="rodin-prompt"
-                      value={rodinPrompt}
-                      onChange={(e) => setRodinPrompt(e.target.value)}
-                      placeholder={t('rodinPromptPlaceholder')}
-                      rows={2}
-                      className="w-full resize-none rounded-md border border-border/60 bg-background px-2 py-1.5 text-base md:text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                {/* Material card — segmented + HighPack switch */}
+                <div className="rounded-lg border border-border/60 bg-background/60 p-3">
+                  <Label className="mb-2 block text-xs uppercase tracking-wider text-muted-foreground">
+                    {t('rodinMaterialLabel')}
+                  </Label>
+                  <div className="flex gap-0.5 rounded-md bg-muted/50 p-0.5">
+                    {RODIN_MATERIALS.map((mat) => (
+                      <button
+                        key={mat}
+                        type="button"
+                        onClick={() => setRodinMaterial(mat)}
+                        className={cn(
+                          'flex-1 rounded px-2 py-1 text-xs font-medium transition-colors',
+                          rodinMaterial === mat
+                            ? 'bg-primary text-primary-foreground'
+                            : 'text-muted-foreground hover:text-foreground',
+                        )}
+                      >
+                        {mat}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="mt-2 flex items-center gap-2 border-t border-border/40 pt-2">
+                    <Switch
+                      id="rodin-highpack"
+                      checked={rodinHighPack}
+                      onCheckedChange={setRodinHighPack}
                     />
+                    <Label
+                      htmlFor="rodin-highpack"
+                      className="flex-1 cursor-pointer text-xs font-medium"
+                    >
+                      {t('rodinHighPackLabel')}
+                    </Label>
+                  </div>
+                  {/* Mesh-first preview promoted to the top-of-panel mode
+                    picker — no inline switch here anymore. */}
+                </div>
+
+                {/* T12: Input Images — cross/compass layout */}
+                {sourceImage && (
+                  <div className="rounded-lg border border-border/60 bg-background/60 p-3">
+                    <Label className="mb-2 block text-xs uppercase tracking-wider text-muted-foreground">
+                      {t('rodinAdditionalImagesLabel')}
+                    </Label>
+                    {/* 3×3 grid: cross shape — Front center, Back top, Left/Right sides, LFrt bottom-left */}
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {/* Row 1: _ Back _ */}
+                      <div />
+                      <RodinAngleSlot
+                        angle="back"
+                        label={t('viewBack')}
+                        url={(() => {
+                          const idx = RODIN_EXTRA_ANGLES.indexOf('back')
+                          return rodinAdditionalImages[idx] ?? null
+                        })()}
+                        isUploading={uploadingRodinAngle === 'back'}
+                        onUpload={() => handleRodinImageUploadClick('back')}
+                        onRemove={() => handleRemoveRodinImage('back')}
+                      />
+                      <div />
+                      {/* Row 2: Left Front Right */}
+                      <RodinAngleSlot
+                        angle="left"
+                        label={t('viewLeft')}
+                        url={(() => {
+                          const idx = RODIN_EXTRA_ANGLES.indexOf('left')
+                          return rodinAdditionalImages[idx] ?? null
+                        })()}
+                        isUploading={uploadingRodinAngle === 'left'}
+                        onUpload={() => handleRodinImageUploadClick('left')}
+                        onRemove={() => handleRemoveRodinImage('left')}
+                      />
+                      {/* Front = sourceImage (always filled) */}
+                      <div className="relative aspect-square overflow-hidden rounded-md border-2 border-primary/40 bg-muted/30">
+                        <Image
+                          src={sourceImage.url}
+                          alt={t('sourceImageLabel')}
+                          fill
+                          unoptimized
+                          className="object-cover"
+                          sizes="80px"
+                        />
+                        <span className="absolute bottom-0 left-0 right-0 bg-background/80 py-0.5 text-center text-2xs font-medium text-foreground backdrop-blur-sm">
+                          {t('viewFront')}
+                        </span>
+                      </div>
+                      <RodinAngleSlot
+                        angle="right"
+                        label={t('viewRight')}
+                        url={(() => {
+                          const idx = RODIN_EXTRA_ANGLES.indexOf('right')
+                          return rodinAdditionalImages[idx] ?? null
+                        })()}
+                        isUploading={uploadingRodinAngle === 'right'}
+                        onUpload={() => handleRodinImageUploadClick('right')}
+                        onRemove={() => handleRemoveRodinImage('right')}
+                      />
+                      {/* Row 3: LFrt _ _ */}
+                      <RodinAngleSlot
+                        angle="leftFront"
+                        label={t('viewLeftFront')}
+                        url={(() => {
+                          const idx = RODIN_EXTRA_ANGLES.indexOf('leftFront')
+                          return rodinAdditionalImages[idx] ?? null
+                        })()}
+                        isUploading={uploadingRodinAngle === 'leftFront'}
+                        onUpload={() =>
+                          handleRodinImageUploadClick('leftFront')
+                        }
+                        onRemove={() => handleRemoveRodinImage('leftFront')}
+                      />
+                      <div />
+                      <div />
+                    </div>
+                    {/* Hidden file inputs for each angle */}
+                    {RODIN_EXTRA_ANGLES.map((angle) => (
+                      <input
+                        key={angle}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        ref={(el) => {
+                          rodinImageFileRefs.current[angle] = el
+                        }}
+                        onChange={(e) =>
+                          void handleRodinImageFileChange(angle, e)
+                        }
+                      />
+                    ))}
                   </div>
                 )}
 
-                {/* Numeric inputs */}
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="flex flex-col gap-1">
-                    <Label
-                      htmlFor="rodin-seed"
-                      className="text-xs uppercase tracking-wider text-muted-foreground"
-                    >
-                      Seed
-                    </Label>
-                    <input
-                      id="rodin-seed"
-                      type="number"
-                      inputMode="numeric"
-                      value={rodinSeedInput}
-                      onChange={(e) => setRodinSeedInput(e.target.value)}
-                      placeholder="-1"
-                      className="h-8 rounded-md border border-border/60 bg-background px-2 text-base md:text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <Label
-                      htmlFor="rodin-quality-override"
-                      className="text-xs uppercase tracking-wider text-muted-foreground"
-                    >
-                      {t('rodinQualityOverrideLabel')}
-                    </Label>
-                    <input
-                      id="rodin-quality-override"
-                      type="number"
-                      inputMode="numeric"
-                      value={rodinQualityOverrideInput}
-                      onChange={(e) =>
-                        setRodinQualityOverrideInput(e.target.value)
-                      }
-                      placeholder="auto"
-                      className="h-8 rounded-md border border-border/60 bg-background px-2 text-base md:text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-                    />
+                {/* Geometry instruction card — faithful vs creative */}
+                <div className="rounded-lg border border-border/60 bg-background/60 p-3">
+                  <Label className="mb-2 block text-xs uppercase tracking-wider text-muted-foreground">
+                    {t('rodinGeometryInstructModeLabel')}
+                  </Label>
+                  <div className="flex gap-0.5 rounded-md bg-muted/50 p-0.5">
+                    {RODIN_GEOMETRY_INSTRUCT_MODES.map((mode) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => setRodinGeometryInstructMode(mode)}
+                        className={cn(
+                          'flex-1 rounded px-2 py-1 text-xs font-medium transition-colors',
+                          rodinGeometryInstructMode === mode
+                            ? 'bg-primary text-primary-foreground'
+                            : 'text-muted-foreground hover:text-foreground',
+                        )}
+                      >
+                        {mode === RODIN_GEOMETRY_INSTRUCT_MODE.FAITHFUL
+                          ? t('rodinFaithfulLabel')
+                          : t('rodinCreativeLabel')}
+                      </button>
+                    ))}
                   </div>
                 </div>
 
-                {/* Bbox condition (W / H / L) */}
-                <div className="flex flex-col gap-1">
-                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-                    Bounding Box
-                  </Label>
-                  <div className="grid grid-cols-3 gap-1.5">
-                    <input
-                      type="number"
-                      inputMode="decimal"
-                      value={rodinBboxWidth}
-                      onChange={(e) => setRodinBboxWidth(e.target.value)}
-                      placeholder="W"
-                      className="h-8 rounded-md border border-border/60 bg-background px-2 text-base md:text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-                    />
-                    <input
-                      type="number"
-                      inputMode="decimal"
-                      value={rodinBboxHeight}
-                      onChange={(e) => setRodinBboxHeight(e.target.value)}
-                      placeholder="H"
-                      className="h-8 rounded-md border border-border/60 bg-background px-2 text-base md:text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-                    />
-                    <input
-                      type="number"
-                      inputMode="decimal"
-                      value={rodinBboxLength}
-                      onChange={(e) => setRodinBboxLength(e.target.value)}
-                      placeholder="L"
-                      className="h-8 rounded-md border border-border/60 bg-background px-2 text-base md:text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-                    />
-                  </div>
-                </div>
-              </div>
-              {/* Rodin BYOK key selector (optional) */}
-              {rodinActiveKeys.length > 1 && (
+                {/* Texture quality card — 5-way segmented */}
                 <div className="rounded-lg border border-border/60 bg-background/60 p-3">
                   <Label className="mb-2 block text-xs uppercase tracking-wider text-muted-foreground">
-                    {t('apiKeyDropdownLabel')}
+                    {t('rodinTextureModeLabel')}
                   </Label>
-                  <Select
-                    value={selectedRodinKeyId}
-                    onValueChange={setSelectedRodinKeyId}
-                  >
-                    <SelectTrigger className="w-full">
-                      {(() => {
-                        const sel = rodinActiveKeys.find(
-                          (k) => k.id === selectedRodinKeyId,
-                        )
-                        return sel ? (
-                          <span className="font-medium">{sel.label}</span>
-                        ) : (
-                          <span className="text-muted-foreground">
-                            {t('apiKeyDropdownPlaceholder')}
-                          </span>
-                        )
-                      })()}
-                    </SelectTrigger>
-                    <SelectContent>
-                      {rodinActiveKeys.map((k) => (
-                        <SelectItem key={k.id} value={k.id}>
-                          <div className="flex flex-col gap-0.5">
-                            <span className="font-medium">{k.label}</span>
-                            <span className="font-mono text-xs text-muted-foreground">
-                              {k.maskedKey}
-                            </span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex gap-0.5 rounded-md bg-muted/50 p-0.5">
+                    {RODIN_TEXTURE_MODES.map((mode) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => setRodinTextureMode(mode)}
+                        className={cn(
+                          'flex-1 rounded px-1 py-1 text-2xs font-medium capitalize transition-colors',
+                          rodinTextureMode === mode
+                            ? 'bg-primary text-primary-foreground'
+                            : 'text-muted-foreground hover:text-foreground',
+                        )}
+                      >
+                        {mode}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              )}
-            </div>
-          </details>
+
+                <div className="flex flex-col gap-3 border-t border-border/40 p-3">
+                  {/* Toggle row 1 */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        id="rodin-tapose"
+                        checked={rodinTAPose}
+                        onCheckedChange={setRodinTAPose}
+                      />
+                      <Label
+                        htmlFor="rodin-tapose"
+                        className="flex-1 cursor-pointer text-xs"
+                      >
+                        {t('rodinTAPoseLabel')}
+                      </Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        id="rodin-hd-texture"
+                        checked={rodinHdTexture}
+                        onCheckedChange={setRodinHdTexture}
+                      />
+                      <Label
+                        htmlFor="rodin-hd-texture"
+                        className="flex-1 cursor-pointer text-xs"
+                      >
+                        {t('rodinHdTextureLabel')}
+                      </Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        id="rodin-texture-delight"
+                        checked={rodinTextureDelight}
+                        onCheckedChange={setRodinTextureDelight}
+                      />
+                      <Label
+                        htmlFor="rodin-texture-delight"
+                        className="flex-1 cursor-pointer text-xs"
+                      >
+                        {t('rodinTextureDelightLabel')}
+                      </Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        id="rodin-use-original-alpha"
+                        checked={rodinUseOriginalAlpha}
+                        onCheckedChange={setRodinUseOriginalAlpha}
+                      />
+                      <Label
+                        htmlFor="rodin-use-original-alpha"
+                        className="flex-1 cursor-pointer text-xs"
+                      >
+                        {t('rodinUseOriginalAlphaLabel')}
+                      </Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        id="rodin-preview-render"
+                        checked={rodinPreviewRender}
+                        onCheckedChange={setRodinPreviewRender}
+                      />
+                      <Label
+                        htmlFor="rodin-preview-render"
+                        className="flex-1 cursor-pointer text-xs"
+                      >
+                        {t('rodinPreviewRenderLabel')}
+                      </Label>
+                    </div>
+                    <div
+                      className={cn(
+                        'flex items-center gap-2',
+                        rodinTier !== RODIN_IS_MICRO_REQUIRED_TIER &&
+                          'opacity-50',
+                      )}
+                    >
+                      <Switch
+                        id="rodin-is-micro"
+                        checked={rodinIsMicro}
+                        disabled={rodinTier !== RODIN_IS_MICRO_REQUIRED_TIER}
+                        onCheckedChange={setRodinIsMicro}
+                      />
+                      <Label
+                        htmlFor="rodin-is-micro"
+                        className="flex-1 cursor-pointer text-xs"
+                      >
+                        {t('rodinIsMicroLabel')}
+                      </Label>
+                    </div>
+                  </div>
+
+                  {/* Prompt (image/mesh modes only — text mode promotes
+                        prompt to a top-of-panel input). */}
+                  {rodinMode !== 'text' && (
+                    <div className="flex flex-col gap-1">
+                      <Label
+                        htmlFor="rodin-prompt"
+                        className="text-xs uppercase tracking-wider text-muted-foreground"
+                      >
+                        {t('rodinPromptLabel')}
+                      </Label>
+                      <textarea
+                        id="rodin-prompt"
+                        value={rodinPrompt}
+                        onChange={(e) => setRodinPrompt(e.target.value)}
+                        placeholder={t('rodinPromptPlaceholder')}
+                        rows={2}
+                        className="w-full resize-none rounded-md border border-border/60 bg-background px-2 py-1.5 text-base md:text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                      />
+                    </div>
+                  )}
+
+                  {/* Numeric inputs */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="flex flex-col gap-1">
+                      <Label
+                        htmlFor="rodin-seed"
+                        className="text-xs uppercase tracking-wider text-muted-foreground"
+                      >
+                        {t('rodinSeedLabel')}
+                      </Label>
+                      <input
+                        id="rodin-seed"
+                        type="number"
+                        inputMode="numeric"
+                        value={rodinSeedInput}
+                        onChange={(e) => setRodinSeedInput(e.target.value)}
+                        placeholder="-1"
+                        className="h-8 rounded-md border border-border/60 bg-background px-2 text-base md:text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <Label
+                        htmlFor="rodin-quality-override"
+                        className="text-xs uppercase tracking-wider text-muted-foreground"
+                      >
+                        {t('rodinQualityOverrideLabel')}
+                      </Label>
+                      <input
+                        id="rodin-quality-override"
+                        type="number"
+                        inputMode="numeric"
+                        value={rodinQualityOverrideInput}
+                        onChange={(e) =>
+                          setRodinQualityOverrideInput(e.target.value)
+                        }
+                        placeholder={t('rodinQualityOverridePlaceholder')}
+                        className="h-8 rounded-md border border-border/60 bg-background px-2 text-base md:text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Bbox condition (W / H / L) */}
+                  <div className="flex flex-col gap-1">
+                    <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                      {t('rodinBboxLabel')}
+                    </Label>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        value={rodinBboxWidth}
+                        onChange={(e) => setRodinBboxWidth(e.target.value)}
+                        placeholder="W"
+                        className="h-8 rounded-md border border-border/60 bg-background px-2 text-base md:text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                      />
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        value={rodinBboxHeight}
+                        onChange={(e) => setRodinBboxHeight(e.target.value)}
+                        placeholder="H"
+                        className="h-8 rounded-md border border-border/60 bg-background px-2 text-base md:text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                      />
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        value={rodinBboxLength}
+                        onChange={(e) => setRodinBboxLength(e.target.value)}
+                        placeholder="L"
+                        className="h-8 rounded-md border border-border/60 bg-background px-2 text-base md:text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+                {/* Rodin BYOK key selector (optional) */}
+                {rodinActiveKeys.length > 1 && (
+                  <div className="rounded-lg border border-border/60 bg-background/60 p-3">
+                    <Label className="mb-2 block text-xs uppercase tracking-wider text-muted-foreground">
+                      {t('apiKeyDropdownLabel')}
+                    </Label>
+                    <Select
+                      value={selectedRodinKeyId}
+                      onValueChange={setSelectedRodinKeyId}
+                    >
+                      <SelectTrigger className="w-full">
+                        {(() => {
+                          const sel = rodinActiveKeys.find(
+                            (k) => k.id === selectedRodinKeyId,
+                          )
+                          return sel ? (
+                            <span className="font-medium">{sel.label}</span>
+                          ) : (
+                            <span className="text-muted-foreground">
+                              {t('apiKeyDropdownPlaceholder')}
+                            </span>
+                          )
+                        })()}
+                      </SelectTrigger>
+                      <SelectContent>
+                        {rodinActiveKeys.map((k) => (
+                          <SelectItem key={k.id} value={k.id}>
+                            <div className="flex flex-col gap-0.5">
+                              <span className="font-medium">{k.label}</span>
+                              <span className="font-mono text-xs text-muted-foreground">
+                                {k.maskedKey}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -2330,10 +2353,8 @@ export function Studio3DWorkspace({
       <h1 className="sr-only">{t('title')}</h1>
       <div className={styles.workspace}>
         <main className={styles.canvas}>
-          <div data-bench-header className={styles.stageHeader}>
-            <span>{t('modelPreview')}</span>
-            <span>{displayGeneration ? 'GLB' : t('shapeIllustration')}</span>
-          </div>
+          {/* 台顶第一行（壳收起对话时头像落在这一行）：⛔ 角标字，留空行。 */}
+          <div data-bench-header className={styles.stageHeader} />
           {displayGeneration ? (
             <div className="relative size-full">
               {previewModelUrl && !finalModelVisible && (
@@ -2450,7 +2471,7 @@ export function Studio3DWorkspace({
                     {t('refineLabel')}
                     {hunyuanCost && (
                       <span className="ml-1.5 text-xs opacity-70">
-                        · {t('refineCreditSuffix', { credits: hunyuanCost })}
+                        · {t('creditAmount', { credits: hunyuanCost })}
                       </span>
                     )}
                   </Button>
@@ -2547,9 +2568,6 @@ export function Studio3DWorkspace({
                 <div className={styles.modelBody} />
                 <div className={styles.modelBase} />
               </div>
-              <p className="text-xs text-muted-foreground">
-                {t('chooseInputShape')}
-              </p>
               <Button
                 type="button"
                 variant="secondary"

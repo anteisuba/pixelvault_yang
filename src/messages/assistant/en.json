@@ -1031,7 +1031,6 @@
   "AssistantSettings": {
     "title": "Assistant settings",
     "description": "Who your assistant is, how it talks and what it remembers. One set of settings for every workspace.",
-    "pageDescription": "Who your assistant is, how it talks and what it remembers. \"Assistant settings\" in the workbench ⋯ menu opens this same page.",
     "close": "Close",
     "tabs": {
       "label": "Assistant settings sections",

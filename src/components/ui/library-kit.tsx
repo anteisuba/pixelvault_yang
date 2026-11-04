@@ -57,7 +57,7 @@ export function LibrarySearch({
   maxLength?: number
 }) {
   return (
-    <label className="flex h-9 min-w-0 items-center gap-2 rounded-full bg-muted px-3.5 text-muted-foreground focus-within:shadow-focus">
+    <label className="flex h-9 min-w-0 items-center gap-2 rounded-full bg-muted px-3.5 text-muted-foreground focus-within:shadow-focus coarse:h-11">
       <Search className="size-3.75 shrink-0" aria-hidden />
       <input
         type="search"
@@ -73,9 +73,9 @@ export function LibrarySearch({
   )
 }
 
-/** 药丸（筛选 / 排序的触发键）：浅灰无边，点开深一档；设了写选中的值，⛔ 换强调色。 */
+/** 药丸（筛选 / 排序的触发键）：浅灰无边，点开深一档；设了写选中的值，⛔ 换强调色。触屏命中区 44（ui-defaults）。 */
 export const LIBRARY_PILL_CLASS =
-  'inline-flex h-8 shrink-0 items-center gap-1 rounded-full bg-muted px-3 text-2sm font-medium text-foreground transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus data-[state=open]:bg-fill-strong [&>svg]:size-3.5 [&>svg]:text-ink-2'
+  'inline-flex h-8 coarse:h-11 shrink-0 items-center gap-1 rounded-full bg-muted px-3 text-2sm font-medium text-foreground transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus data-[state=open]:bg-fill-strong [&>svg]:size-3.5 [&>svg]:text-ink-2'
 
 /** 单选药丸（排序、底模、分级…）：点开是菜单，当前那一项带勾。 */
 export function LibraryPillSelect<T extends string>({
@@ -212,9 +212,7 @@ export function LibraryGrid({
 }) {
   return (
     <div className="@container">
-      <div className={cn(LIBRARY_GRID_CLASS, className)}>
-        {children}
-      </div>
+      <div className={cn(LIBRARY_GRID_CLASS, className)}>{children}</div>
     </div>
   )
 }

@@ -43,7 +43,7 @@ import { cn } from '@/lib/utils'
  *   那一格（拦截路由）；直接打开 / 刷新时库就是 `children` 本身。两种情况页面落在不同的位置，
  *   传送到同一个落点，长得就一样。
  * ⚠ 落点只在客户端有（外壳挂上之后），首帧不画库 —— 服务端画好的那一份等水化后接上。
- * 「我的主页」（`profile`，9f-2e）同一个落点：顶上不列库的各类，换成标题 +「去库里管理」。
+ * 「我的主页」（`profile`，9f-2e）同一个落点：顶上不列库的各类，只写标题。
  */
 interface StudioLibraryTarget {
   target: HTMLElement | null
@@ -242,19 +242,10 @@ function StudioLibraryFrame({
             {tAll(pageItem.labelKey)}
           </h2>
         ) : category === 'profile' ? (
-          <>
-            <h2 className="min-w-0 truncate px-2 text-sm font-semibold text-foreground">
-              {tAll('Navbar.links.profile')}
-            </h2>
-            <Link
-              href={studioLibraryPath('assets')}
-              replace
-              data-testid="studio-profile-manage"
-              className={TAB_CLASS}
-            >
-              {t('manageInLibrary')}
-            </Link>
-          </>
+          // 同素材 / 角色 / 提示词：顶上只写名字（owner 2026-11-05 去掉「去库里管理」）。
+          <h2 className="min-w-0 truncate px-2 text-sm font-semibold text-foreground">
+            {tAll('Navbar.links.profile')}
+          </h2>
         ) : (
           <nav
             aria-label={t('library')}

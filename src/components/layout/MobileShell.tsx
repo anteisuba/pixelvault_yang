@@ -59,6 +59,13 @@ import { cn } from '@/lib/utils'
  * ⛔ 账号菜单不挂在底栏：它在「我的」页封面右上的 ⚙（v10「我的」稿）。
  */
 
+/** `/settings` 与它的分区页（自己画白板，主卡不再浮起）。 */
+function isSettingsPath(pathname: string): boolean {
+  return (
+    pathname === ROUTES.SETTINGS || pathname.startsWith(`${ROUTES.SETTINGS}/`)
+  )
+}
+
 const TAB_CLASS =
   'relative flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-full text-2xs font-medium text-muted-foreground transition-colors duration-fast ease-standard active:bg-muted [&>svg]:relative [&>svg]:size-5.5'
 
@@ -450,8 +457,8 @@ export function MobileShellInset({ children }: { children: React.ReactNode }) {
       id="main-content"
       className={cn(
         isStudioPath(pathname) ? 'mobile-inset-topbar' : 'mobile-inset-tabbar',
-        // ≥768 侧栏让给外壳的左栏（第 9f 步）：主卡不再浮起。
-        isStudioShellPath(pathname) &&
+        // ≥768 侧栏让给外壳的左栏（第 9f 步）：主卡不再浮起。设置页自己画同一副白板（ui-spec §1）。
+        (isStudioShellPath(pathname) || isSettingsPath(pathname)) &&
           'lg:rounded-none lg:border-l-0 lg:shadow-none',
       )}
     >

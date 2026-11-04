@@ -54,8 +54,8 @@ interface SettingsShellProps {
 /**
  * `/settings` 的外壳（D3 ④ 画板；owner 2026-10-08 设置页原型 v1 只换皮加动效）。
  *
- * 桌面：灰底地台上一张白卡 = 左 200px 分区导航（最底一行「退出登录」）+ 右内容
- * 720px。手机：⛔ 没有导航列，只有二级页——顶部一行「← 分区名」，返回键回一级
+ * 桌面：灰底上一整块白板（与 `/studio` 外壳同一副：右上下留 8、圆角 20、`ring`，
+ * ui-spec §1，板里不再套卡）= 左 200px 分区导航（最底一行「退出登录」）+ 右内容。手机：⛔ 没有导航列，只有二级页——顶部一行「← 分区名」，返回键回一级
  * 列表（`/settings`）。
  *
  * 换分区时右边内容糊一下再清（`SETTINGS_SECTION_SWAP`）；首次进来不糊。
@@ -67,8 +67,8 @@ export function SettingsShell({ section, children }: SettingsShellProps) {
   const swap = useBlurSwapIn(section, SETTINGS_SECTION_SWAP)
 
   return (
-    <main className="min-h-full bg-background px-4 py-4 lg:bg-surface-workbench lg:px-6 lg:py-6">
-      <div className="mx-auto flex w-full max-w-settings-shell overflow-hidden rounded-none border-0 bg-transparent lg:min-h-settings-shell lg:rounded-xl lg:border lg:border-border lg:bg-card lg:shadow-md">
+    <main className="min-h-full bg-background px-4 py-4 lg:flex lg:min-h-svh lg:flex-col lg:bg-surface-sunken lg:p-2 lg:pl-0">
+      <div className="flex w-full lg:flex-1 lg:overflow-hidden lg:rounded-20 lg:bg-background lg:shadow-ring">
         <SettingsNav section={section} from={from} />
         <div className="min-w-0 flex-1 lg:px-8 lg:py-6">
           <header className="mb-4 flex items-center gap-2 lg:hidden">

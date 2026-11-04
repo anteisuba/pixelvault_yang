@@ -177,7 +177,6 @@ export function GalleryFeed({
         <GalleryHeader
           filters={filters}
           onFiltersChange={handleFiltersChange}
-          pinnedOpen={Boolean(viewing) && !isPhone}
         />
 
         {/* 换筛选、缓存里没有：静止的灰块（⛔ 先闪一下「空」）；整页没拿到：统一出错模板。 */}

@@ -88,23 +88,20 @@ export function SettingsKeysSection() {
 
   return (
     <section>
-      <header className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-xl font-semibold">{t('sections.keys')}</h2>
-        <p className="text-xs text-muted-foreground">{t('keys.caption')}</p>
-      </header>
+      <h2 className="text-xl font-semibold">{t('sections.keys')}</h2>
 
       {showSkeleton ? (
         <ul
           role="status"
           aria-label={t('keys.loading')}
           data-testid="settings-keys-skeleton"
-          className="mt-4 flex flex-col gap-2"
+          className="mt-3 flex flex-col"
         >
           {rows.map((row) => (
             <li
               key={row.adapterType}
               aria-hidden
-              className="flex items-center gap-3 rounded-lg border border-border bg-card px-3.5 py-3"
+              className="flex items-center gap-3 border-t border-border py-3"
             >
               <Skeleton className="size-2 shrink-0 rounded-full" />
               <Skeleton className="h-3.5 w-28 rounded-sm" />
@@ -115,7 +112,7 @@ export function SettingsKeysSection() {
           ))}
         </ul>
       ) : (
-        <ul className="mt-4 flex flex-col gap-2">
+        <ul className="mt-3 flex flex-col">
           {rows.map((row, index) => (
             <motion.li
               key={row.adapterType}
@@ -227,8 +224,8 @@ function ProviderRow({
           : t(`keys.status.${row.state}`)
 
   return (
-    <div className="rounded-lg border border-border bg-card transition-colors duration-fast hover:border-muted-foreground/40">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-3.5 py-3 text-sm">
+    <div className="border-t border-border">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 py-3 text-sm">
         <span
           data-testid="provider-state-dot"
           data-state={row.state}
@@ -286,7 +283,7 @@ function ProviderRow({
             }}
             className="overflow-hidden"
           >
-            <div className="flex flex-col gap-2 border-t border-dashed border-border bg-muted/50 py-3 pl-9 pr-3.5">
+            <div className="mb-3 flex flex-col gap-2 rounded-12 bg-muted py-3 pl-9 pr-3.5">
               <AnimatePresence initial={false}>
                 {row.keys.map((key) => (
                   <motion.div

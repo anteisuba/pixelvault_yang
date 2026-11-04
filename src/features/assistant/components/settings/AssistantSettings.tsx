@@ -134,14 +134,9 @@ export function AssistantSettings({
   if (variant === 'page') {
     return (
       <section className="flex flex-col gap-5">
-        <div className="flex flex-col gap-1.5">
-          <h2 className="text-xl font-semibold">
-            {tSettings('sections.assistant')}
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            {t('pageDescription')}
-          </p>
-        </div>
+        <h2 className="text-xl font-semibold">
+          {tSettings('sections.assistant')}
+        </h2>
         <div className="flex items-center gap-3">
           {tabs}
           <span className="flex-1" />

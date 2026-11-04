@@ -14,7 +14,6 @@
       "connections": "連携"
     },
     "keys": {
-      "caption": "すべて自分のキーで動きます。プラットフォーム経由は Gemini のテキストのみ。",
       "loading": "キーを読み込み中…",
       "monthlySpend": "今月 {amount}",
       "invalidSummary": "{count, plural, other {# 本が無効}}",
@@ -42,7 +41,6 @@
       }
     },
     "usage": {
-      "estimateNote": "推定値 — 正確な金額は各プロバイダーの請求書をご確認ください",
       "loading": "使用量を読み込み中…",
       "empty": "今月のリクエストはまだありません。",
       "columnProvider": "プロバイダー",
@@ -51,8 +49,7 @@
       "runnerLabel": "Runner · セルフホスト",
       "runnerQuota": "{used} / {limit}",
       "runnerCost": "$0 · {date} にリセット",
-      "total": "合計",
-      "footnote": "リクエスト数は利用履歴から、費用は「リクエスト数 × そのモデルの単価」で算出しています。単価が公開されていないモデルはリクエスト数のみ表示します。"
+      "total": "合計"
     },
     "preferences": {
       "language": "言語",
@@ -73,7 +70,6 @@
       }
     },
     "connections": {
-      "caption": "AI ツールが画像・キャラ・ライブラリ・キャンバスを読み書き · 生成は毎回あなたが確認",
       "claudeCode": {
         "title": "Claude Code",
         "description": "トークンを Claude Code や Cursor などに貼ると、ライブラリの閲覧・整理やキャンバスの編集ができます。トークンごとにできる範囲を選べます。"

@@ -45,9 +45,8 @@ const DEFAULT_FILTERS: GalleryFilters = {
 const MESSAGES = {
   GalleryPage: {
     feedEyebrow: 'Public gallery',
-    feedTitle: 'Recent public works',
-    feedDescription: 'Browse the public archive.',
-    feedCount: '{shown} of {total}',
+    viewLabel: 'Gallery view',
+    viewPrompts: 'Prompts',
     emptyTitle: 'No works yet',
     emptyDescription: 'Nothing matches this view.',
     emptyAction: 'Create',
@@ -56,11 +55,19 @@ const MESSAGES = {
     loadMore: 'Load more',
     filters: {
       tabs: {
+        all: 'All',
         favorites: 'Liked',
       },
+      type: {
+        image: 'Images',
+        video: 'Videos',
+        audio: 'Audio',
+        model_3d: '3D',
+      },
+      sortLabel: 'Sort',
+      sort: { newest: 'Newest first', oldest: 'Oldest first' },
       searchLabel: 'Search',
       searchPlaceholder: 'Search prompts',
-      clearSearch: 'Clear search',
       signInToFavorite: 'Sign in to view favorites',
     },
     viewer: {
@@ -84,31 +91,6 @@ const MESSAGES = {
       references: 'References used',
       referenceAlt: 'Reference {n}',
     },
-  },
-  AssetsPage: {
-    sidebarFavorites: 'Favorites',
-    sidebarPublished: 'Published',
-    sidebarUploads: 'Uploads',
-    sidebarModel3D: '3D',
-    sidebarImages: 'Images',
-    sidebarVideos: 'Videos',
-    sidebarAudio: 'Audio',
-    facetType: 'Type',
-    facetStatus: 'Status',
-    facetModel: 'Model',
-    facetTime: 'Time',
-    facetSort: 'Sort',
-    facetSelectedCount: '{name} {count}',
-    facetClearAll: 'Clear all filters',
-    facetRemove: 'Remove filter “{name}”',
-    facetModelSearch: 'Search models',
-    facetModelEmpty: 'No matching model',
-    facetTimeToday: 'Today',
-    facetTimeWeek: '7 days',
-    facetTimeMonth: '30 days',
-    facetTimeYear: 'This year',
-    facetSortNewest: 'Newest',
-    facetSortOldest: 'Oldest',
   },
   GalleryCard: {
     openImage: 'Open image',
@@ -285,8 +267,7 @@ describe('GalleryFeed', () => {
 
     renderFeed()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Type' }))
-    fireEvent.click(screen.getByRole('checkbox', { name: /Videos/ }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Videos' }))
 
     expect(replaceState).toHaveBeenCalledWith(
       window.history.state,
@@ -295,30 +276,42 @@ describe('GalleryFeed', () => {
     )
     expect(setFilters).toHaveBeenCalledWith({
       ...DEFAULT_FILTERS,
+      view: 'images',
       types: ['video'],
-      models: [],
     })
   })
 
-  it('keeps clear-all available when an active filter has no results', () => {
+  it('switching back to All also drops filters an old link carried in', () => {
     const { setFilters } = mockGalleryState({
       generations: [],
       total: 0,
-      filters: { ...DEFAULT_FILTERS, search: 'cat' },
+      filters: {
+        ...DEFAULT_FILTERS,
+        types: ['video'],
+        models: ['some-model'],
+        timeRange: 'week',
+      },
     })
     const replaceState = vi.spyOn(window.history, 'replaceState')
 
     renderFeed()
 
     expect(screen.getByText('No works yet')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Clear all filters' }))
+    expect(screen.getByRole('tab', { name: 'Videos' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    fireEvent.click(screen.getByRole('tab', { name: 'All' }))
 
     expect(replaceState).toHaveBeenCalledWith(
       window.history.state,
       '',
       '/zh/gallery',
     )
-    expect(setFilters).toHaveBeenCalledWith(DEFAULT_FILTERS)
+    expect(setFilters).toHaveBeenCalledWith({
+      ...DEFAULT_FILTERS,
+      view: 'images',
+    })
   })
 
   it('opens a card in place and holds the page still until it closes', () => {

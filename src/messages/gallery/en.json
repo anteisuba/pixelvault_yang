@@ -7,17 +7,12 @@
     "filters": {
       "searchLabel": "Search the archive",
       "searchPlaceholder": "Search by prompt...",
-      "searchHint1": "anime girl with flowers",
-      "searchHint2": "photorealistic landscape",
-      "searchHint3": "cyberpunk city at night",
-      "clearSearch": "Clear search",
-      "clearFilters": "Clear filters",
+      "sortLabel": "Sort",
       "sort": {
         "newest": "Newest first",
         "oldest": "Oldest first"
       },
       "type": {
-        "all": "All types",
         "image": "Images",
         "video": "Videos",
         "audio": "Audio",
@@ -25,22 +20,17 @@
       },
       "tabs": {
         "all": "All",
-        "favorites": "Favorites",
-        "today": "Today"
+        "favorites": "Favorites"
       },
       "signInToFavorite": "Sign in to view your favorites"
     },
     "feedEyebrow": "Public gallery",
-    "feedTitle": "Recent public work",
-    "feedDescription": "Browse public images, videos, and voice pieces from the community, then reuse what sparks an idea.",
     "feedLabel": "Public gallery feed",
     "itemFallbackLabel": "Gallery item",
-    "feedCount": "Showing {shown} of {total}",
     "emptyTitle": "No public creations yet",
     "emptyDescription": "Creations shared from the studio will appear here.",
     "emptyAction": "Open studio",
     "viewLabel": "Gallery view",
-    "viewImages": "Images",
     "viewPrompts": "Prompts",
     "promptsEmptyTitle": "No public prompts yet",
     "promptsEmptyDescription": "Prompts show up here when creators publish a work together with its prompt.",
@@ -171,8 +161,8 @@
     "privateProfile": "This profile is private",
     "loadFailed": "Couldn't load profile",
     "privateProfileHint": "The creator has chosen to keep their profile hidden",
-    "noPublicImages": "No public images yet",
-    "startCreating": "Start creating in Studio",
+    "noPublicImages": "No public works yet",
+    "startCreating": "Go to Studio",
     "loadMore": "Load more",
     "loading": "Loading...",
     "imageBy": "Image by",

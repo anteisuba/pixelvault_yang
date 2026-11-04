@@ -366,7 +366,7 @@ const GalleryGridItem = memo(function GalleryGridItem({
         generation.id,
         getGenerationThumbnailUrl(generation),
       )}
-      className="rounded-xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface-workbench focus-visible:outline-none"
+      className="rounded-xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
     >
       <ImageCard
         generation={generation}

@@ -1031,7 +1031,6 @@
   "AssistantSettings": {
     "title": "助手设置",
     "description": "这个助手是谁、怎么说话、记得什么。一份设置，四台工作台通用。",
-    "pageDescription": "这个助手是谁、怎么说话、记得什么。工作台右上角头像 ⋯ 里的「助手设置」打开的是同一份。",
     "close": "关闭",
     "tabs": {
       "label": "助手设置分页",

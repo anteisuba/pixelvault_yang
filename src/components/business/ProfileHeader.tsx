@@ -12,11 +12,12 @@ import {
   Users,
   Camera,
   FileText,
+  MoreHorizontal,
 } from '@/components/icons'
 import { toast } from 'sonner'
 
 import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { PROFILE } from '@/constants/config'
 import { ROUTES } from '@/constants/routes'
@@ -25,6 +26,7 @@ import { getApiErrorMessage } from '@/lib/api-error-message'
 import type { CreatorProfilePageData } from '@/types'
 import { ProfileEditModal } from '@/components/business/ProfileEditModal'
 import { AccountMenu } from '@/components/layout/AccountMenu'
+import { ProfileAvatar } from '@/components/layout/ProfileAvatar'
 import { Link } from '@/i18n/navigation'
 
 interface ProfileHeaderProps {
@@ -89,13 +91,12 @@ export function ProfileHeader({
   }
 
   const displayName = profile.displayName ?? profile.username
-  const initial = displayName.charAt(0).toUpperCase()
 
   return (
     <>
-      {/* Banner — compact, warm tones */}
-      <div className="relative w-full h-32 md:h-44 overflow-hidden group">
-        {profile.bannerUrl ? (
+      {/* 封面：只有用户自己传过才画（ui-spec §1：⛔ 渐变横幅）。 */}
+      {profile.bannerUrl ? (
+        <div className="relative mx-4 mt-4 h-32 overflow-hidden rounded-20 sm:mx-6 md:h-44">
           <Image
             src={profile.bannerUrl}
             alt=""
@@ -103,128 +104,101 @@ export function ProfileHeader({
             className="object-cover"
             priority
           />
-        ) : (
-          /* Warm gradient fallback matching design system */
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/8 via-background to-primary/4" />
-        )}
+        </div>
+      ) : null}
 
-        {/* Subtle warm overlay for cohesion when banner exists */}
-        {profile.bannerUrl && (
-          <div className="absolute inset-0 bg-gradient-to-t from-background/60 via-transparent to-transparent" />
-        )}
+      <div className="relative mx-auto max-w-content px-4 pt-6 pb-6 sm:px-6">
+        <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:gap-5">
+          {/* ui-spec §9 Avatar：平圆、没边没影，没图写第一个字（64 档）。 */}
+          <ProfileAvatar
+            avatarUrl={profile.avatarUrl}
+            name={displayName}
+            size={64}
+            className="size-16"
+          />
 
-        {/* Banner edit overlay */}
-        {isOwnProfile && (
-          <>
-            <button
-              type="button"
-              onClick={handleBannerPick}
-              disabled={isUploadingBanner}
-              className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/20 transition-colors cursor-pointer"
-            >
-              <span className="flex items-center gap-2 rounded-full bg-black/40 px-4 py-2 text-sm font-medium text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                {isUploadingBanner ? (
-                  <Spinner size="md" />
-                ) : (
-                  <Camera className="size-4" />
-                )}
-                {t('changeBanner')}
-              </span>
-            </button>
-            <input
-              ref={bannerInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              className="hidden"
-              onChange={handleBannerChange}
-            />
-            {/* 手机（<768）没有侧栏底行那颗账号菜单：v10「我的」稿把它放在封面
-                右上的 ⚙。提示词也收进「我的」（⛔ 不上底栏），「作品 | 提示词」
-                分页做好之前先在 ⚙ 旁边留一个入口。 */}
-            <div className="absolute right-3 top-3 flex gap-2 lg:hidden">
-              <Link
-                href={ROUTES.PROMPTS}
-                aria-label={tNav('links.prompts')}
-                className="flex size-9 items-center justify-center rounded-full bg-background/85 text-foreground shadow-sm backdrop-blur"
-              >
-                <FileText className="size-4.5" />
-              </Link>
-              <AccountMenu side="bottom" align="end">
-                <button
-                  type="button"
-                  aria-label={tNav('settings')}
-                  className="flex size-9 items-center justify-center rounded-full bg-background/85 text-foreground shadow-sm backdrop-blur"
-                >
-                  <Settings className="size-4.5" />
-                </button>
-              </AccountMenu>
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* Profile info card — overlaps banner */}
-      <div className="max-w-content mx-auto px-4 sm:px-6 -mt-16 pb-6 relative z-10">
-        <div className="flex flex-col sm:flex-row items-center sm:items-end gap-4 sm:gap-6">
-          {/* Avatar */}
-          <div className="relative shrink-0">
-            {profile.avatarUrl ? (
-              <Image
-                src={profile.avatarUrl}
-                alt={displayName}
-                width={96}
-                height={96}
-                className="size-24 rounded-full object-cover border-4 border-background shadow-md ring-1 ring-border/40"
-              />
-            ) : (
-              <div className="size-24 rounded-full bg-primary/8 flex items-center justify-center border-4 border-background shadow-md ring-1 ring-border/40">
-                <span className="text-2xl font-bold text-primary/60">
-                  {initial}
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* Name + actions row */}
-          <div className="flex-1 min-w-0 text-center sm:text-left pb-1">
-            <div className="flex flex-col sm:flex-row items-center sm:items-baseline gap-1 sm:gap-3">
-              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground truncate">
+          <div className="min-w-0 flex-1 text-center sm:text-left">
+            <div className="flex flex-col items-center gap-1 sm:flex-row sm:items-baseline sm:gap-3">
+              <h1 className="truncate text-xl font-semibold text-foreground">
                 {displayName}
               </h1>
-              <span className="text-sm text-muted-foreground font-mono">
+              <span className="font-mono text-sm text-muted-foreground">
                 @{profile.username}
               </span>
             </div>
 
             {profile.bio && (
-              <p className="mt-1.5 text-sm text-muted-foreground max-w-md leading-relaxed">
+              <p className="mt-1.5 max-w-md text-sm leading-relaxed text-muted-foreground">
                 {profile.bio}
               </p>
             )}
           </div>
 
-          {/* Action button — right aligned on desktop */}
-          <div className="shrink-0 pb-1">
+          <div className="flex shrink-0 items-center gap-2">
             {isOwnProfile ? (
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setShowEditModal(true)}
-                className="rounded-full border-border/60 hover:border-primary/25 hover:bg-primary/5"
-              >
-                <Settings className="size-4" />
-                {t('editProfile')}
-              </Button>
+              <>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setShowEditModal(true)}
+                  className="coarse:h-11"
+                >
+                  <Settings className="size-4" />
+                  {t('editProfile')}
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="icon-sm"
+                  onClick={handleBannerPick}
+                  disabled={isUploadingBanner}
+                  aria-label={t('changeBanner')}
+                  title={t('changeBanner')}
+                  className="coarse:size-11"
+                >
+                  {isUploadingBanner ? (
+                    <Spinner size="md" />
+                  ) : (
+                    <Camera className="size-4" />
+                  )}
+                </Button>
+                <input
+                  ref={bannerInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  onChange={handleBannerChange}
+                />
+                {/* 手机（<1024）没有左栏底行那颗账号菜单：v10「我的」稿放在这一排。
+                    提示词也收进「我的」（⛔ 不上底栏），「作品 | 提示词」分页做好之前
+                    先在 ⚙ 旁边留一个入口。 */}
+                <Link
+                  href={ROUTES.PROMPTS}
+                  aria-label={tNav('links.prompts')}
+                  className={cn(
+                    buttonVariants({ variant: 'secondary', size: 'icon-sm' }),
+                    'lg:hidden coarse:size-11',
+                  )}
+                >
+                  <FileText className="size-4" />
+                </Link>
+                <AccountMenu side="bottom" align="end">
+                  <Button
+                    variant="secondary"
+                    size="icon-sm"
+                    aria-label={tNav('settings')}
+                    className="lg:hidden coarse:size-11"
+                  >
+                    <MoreHorizontal className="size-4" />
+                  </Button>
+                </AccountMenu>
+              </>
             ) : (
               <Button
                 variant={isFollowing ? 'secondary' : 'default'}
                 size="sm"
                 onClick={onFollow}
                 disabled={isFollowPending}
-                className={cn(
-                  'rounded-full',
-                  isFollowing && 'text-muted-foreground border-border/60',
-                )}
+                className="coarse:h-11"
               >
                 {isFollowing ? (
                   <>
@@ -242,24 +216,23 @@ export function ProfileHeader({
           </div>
         </div>
 
-        {/* Stats bar — warm accent pills */}
-        <div className="flex items-center justify-center sm:justify-start gap-5 mt-4 sm:ml-30">
+        <div className="mt-4 flex items-center justify-center gap-5 sm:justify-start">
           <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-            <ImageIcon className="size-3.5 text-primary/60" />
+            <ImageIcon className="size-3.5" />
             <span className="font-semibold text-foreground">
               {profile.publicImageCount}
             </span>
             <span>{t('works')}</span>
           </div>
           <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-            <Heart className="size-3.5 text-primary/60" />
+            <Heart className="size-3.5" />
             <span className="font-semibold text-foreground">
               {profile.likeCount}
             </span>
             <span>{t('likes')}</span>
           </div>
           <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-            <Users className="size-3.5 text-primary/60" />
+            <Users className="size-3.5" />
             <span className="font-semibold text-foreground">
               {profile.followerCount}
             </span>

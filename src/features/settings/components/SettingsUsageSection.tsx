@@ -20,42 +20,30 @@ import { Spinner } from '@/components/ui/spinner'
 export function SettingsUsageSection() {
   const t = useTranslations('Settings')
   const format = useFormatter()
-  const {
-    month,
-    providers,
-    totalRequests,
-    totalEstimatedCostUsd,
-    runner,
-    isLoading,
-  } = useMonthlyUsage()
+  const { providers, totalRequests, totalEstimatedCostUsd, runner, isLoading } =
+    useMonthlyUsage()
 
   const showRunner = runner?.enabled === true
   const resetDate = startOfNextMonthUTC()
 
   return (
     <section>
-      <header className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-xl font-semibold">{t('sections.usage')}</h2>
-        <p className="text-xs text-muted-foreground">
-          {month ? `${month} · ` : ''}
-          {t('usage.estimateNote')}
-        </p>
-      </header>
+      <h2 className="text-xl font-semibold">{t('sections.usage')}</h2>
 
       {isLoading ? (
-        <div className="mt-4 flex items-center gap-2 rounded-lg border border-border px-4 py-6 text-sm text-muted-foreground">
+        <div className="mt-3 flex items-center gap-2 border-t border-border py-6 text-sm text-muted-foreground">
           <Spinner size="md" />
           {t('usage.loading')}
         </div>
       ) : providers.length === 0 && !showRunner ? (
-        <p className="mt-4 rounded-lg border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
+        <p className="mt-3 border-t border-border py-6 text-sm text-muted-foreground">
           {t('usage.empty')}
         </p>
       ) : (
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full min-w-96 border-collapse overflow-hidden rounded-lg border border-border text-sm">
+        <div className="mt-3 overflow-x-auto">
+          <table className="w-full min-w-96 border-collapse text-sm">
             <thead>
-              <tr className="bg-muted text-2xs text-muted-foreground">
+              <tr className="text-2xs text-muted-foreground">
                 <th scope="col" className="px-3.5 py-2 text-left font-normal">
                   {t('usage.columnProvider')}
                 </th>
@@ -129,10 +117,6 @@ export function SettingsUsageSection() {
           </table>
         </div>
       )}
-
-      <p className="mt-2.5 text-xs leading-relaxed text-muted-foreground">
-        {t('usage.footnote')}
-      </p>
     </section>
   )
 }

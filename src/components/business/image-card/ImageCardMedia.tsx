@@ -143,10 +143,9 @@ export function ImageCardMedia({
         </button>
       )}
       {generation.referenceImageUrl && (
-        // ⚠ 三档模态色已去色（32 ③，ui-defaults §2.3）：模态色只活在 prompts 域，
-        //   这里的角标改走与右上角图层角标同一块中性玻璃 —— 模态本来就写在卡上，
-        //   颜色没在回答第二个问题。
-        <span className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-black/50 px-2 py-1 text-xs text-white shadow-sm backdrop-blur-md">
+        // 中性玻璃角标（与右上角图层角标同一块）。悬停 / 键盘进到这一格才出（owner 2026-11-05：
+        // 静态卡面只有图）；触屏没有悬停，不画。
+        <span className="pointer-events-none absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-black/50 px-2 py-1 text-xs text-white opacity-0 shadow-sm backdrop-blur-md transition-opacity duration-fast ease-standard group-hover:opacity-100 group-focus-within:opacity-100 coarse:hidden">
           <ImageIcon className="size-3" />
           {referenceImageLabel}
         </span>

@@ -112,39 +112,51 @@ const mount = () =>
     />,
   )
 
+/** 输入模式是 Radix 下拉：点开触发器，再点那一项。 */
+const pickRodinMode = (option: string) => {
+  fireEvent.click(screen.getByRole('combobox', { name: 'rodinModeLabel' }))
+  fireEvent.click(screen.getByRole('option', { name: option }))
+}
+
 describe('Studio3DWorkspace approved layout', () => {
+  beforeEach(() => {
+    // jsdom 没有 scrollIntoView；Radix 下拉打开时会调它。
+    Element.prototype.scrollIntoView = vi.fn()
+  })
   it('keeps format accessible while geometry controls are inside advanced settings', () => {
     mount()
-    const advanced = screen
-      .getByText('rodinAdvancedSectionLabel')
-      .closest('details')
-    expect(advanced).not.toHaveAttribute('open')
-    expect(advanced?.querySelector('#rodin-tapose')).not.toBeNull()
+    const advancedToggle = screen.getByRole('button', {
+      name: 'rodinAdvancedSectionLabel',
+    })
+    expect(advancedToggle).toHaveAttribute('aria-expanded', 'false')
+    expect(document.getElementById('rodin-tapose')).toBeNull()
     expect(
-      document.getElementById('rodin-format')?.closest('details'),
-    ).toBeNull()
+      screen.getByRole('combobox', { name: 'rodinGeometryFileFormatLabel' }),
+    ).toHaveAttribute('id', 'rodin-format')
     expect(
       screen.getByRole('button', { name: 'selectImageToGenerate' }),
     ).toBeDisabled()
+
+    fireEvent.click(advancedToggle)
+    expect(advancedToggle).toHaveAttribute('aria-expanded', 'true')
+    const region = document.getElementById(
+      advancedToggle.getAttribute('aria-controls') ?? '',
+    )
+    expect(region?.querySelector('#rodin-tapose')).not.toBeNull()
+    expect(region?.querySelector('#rodin-format')).toBeNull()
   })
   it('retains the text draft when switching input modes without submitting', () => {
     mount()
-    fireEvent.change(screen.getByRole('combobox', { name: 'rodinModeLabel' }), {
-      target: { value: 'text' },
-    })
+    pickRodinMode('rodinModeTextLabel')
     fireEvent.change(screen.getByLabelText(/rodinPromptLabel/), {
       target: { value: 'A ceramic vase' },
     })
     expect(screen.getByRole('button', { name: 'generateButton' })).toBeEnabled()
-    fireEvent.change(screen.getByRole('combobox', { name: 'rodinModeLabel' }), {
-      target: { value: 'image' },
-    })
+    pickRodinMode('rodinModeImageLabel')
     expect(
       screen.getByRole('button', { name: 'selectImageToGenerate' }),
     ).toBeDisabled()
-    fireEvent.change(screen.getByRole('combobox', { name: 'rodinModeLabel' }), {
-      target: { value: 'text' },
-    })
+    pickRodinMode('rodinModeTextLabel')
     expect(screen.getByLabelText(/rodinPromptLabel/)).toHaveValue(
       'A ceramic vase',
     )
@@ -158,9 +170,7 @@ describe('Studio3DWorkspace approved layout', () => {
       screen.queryByRole('button', { name: 'setupApiKeyButton' }),
     ).not.toBeInTheDocument()
 
-    fireEvent.change(screen.getByRole('combobox', { name: 'rodinModeLabel' }), {
-      target: { value: 'text' },
-    })
+    pickRodinMode('rodinModeTextLabel')
     fireEvent.change(screen.getByLabelText(/rodinPromptLabel/), {
       target: { value: 'A ceramic vase' },
     })

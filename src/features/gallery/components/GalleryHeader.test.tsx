@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { GalleryHeader } from './GalleryHeader'
 import type { GalleryFilters } from '@/hooks/use-gallery'
@@ -25,72 +25,90 @@ const FILTERS: GalleryFilters = {
   projectId: '',
 }
 
-function scrollTo(y: number) {
-  act(() => {
-    Object.defineProperty(window, 'scrollY', { value: y, configurable: true })
-    window.dispatchEvent(new Event('scroll'))
-  })
-}
-
 describe('GalleryHeader', () => {
-  beforeEach(() => {
-    Object.defineProperty(window, 'scrollY', { value: 0, configurable: true })
-    globalThis.ResizeObserver = class {
-      observe() {}
-      unobserve() {}
-      disconnect() {}
-    }
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
-  it('keeps only the facets, search and liked toggle, with a hidden heading', () => {
+  it('is the library skeleton: search, bookmark, sort and one switch bar', () => {
     render(<GalleryHeader filters={FILTERS} onFiltersChange={vi.fn()} />)
 
     expect(screen.getByRole('heading', { level: 1 })).toHaveClass('sr-only')
-    expect(
-      screen.getByRole('button', { name: 'facetType' }),
-    ).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'facetStatus' })).toBeNull()
     expect(screen.getByRole('searchbox')).toBeInTheDocument()
     expect(
       screen.getByRole('button', { name: /tabs\.favorites/ }),
     ).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'sortLabel' })).toHaveTextContent(
+      'sort.newest',
+    )
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
+      'tabs.all',
+      'type.image',
+      'type.video',
+      'type.audio',
+      'type.model_3d',
+      'viewPrompts',
+    ])
+    // 模型 / 时间筛选 11-05 删了。
+    expect(screen.queryByRole('button', { name: 'facetModel' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'facetTime' })).toBeNull()
   })
 
-  it('collapses on scroll down and comes back on scroll up or focus', () => {
-    const { container } = render(
-      <GalleryHeader filters={FILTERS} onFiltersChange={vi.fn()} />,
+  it('maps the switch bar onto view + types', () => {
+    const onFiltersChange = vi.fn()
+    const { rerender } = render(
+      <GalleryHeader filters={FILTERS} onFiltersChange={onFiltersChange} />,
     )
-    const bar = container.firstElementChild as HTMLElement
-    expect(bar).not.toHaveAttribute('data-collapsed')
 
-    scrollTo(400)
-    expect(bar).toHaveAttribute('data-collapsed')
+    fireEvent.click(screen.getByRole('tab', { name: 'type.model_3d' }))
+    expect(onFiltersChange).toHaveBeenLastCalledWith({
+      ...FILTERS,
+      view: 'images',
+      types: ['model_3d'],
+    })
 
-    scrollTo(300)
-    expect(bar).not.toHaveAttribute('data-collapsed')
+    fireEvent.click(screen.getByRole('tab', { name: 'viewPrompts' }))
+    expect(onFiltersChange).toHaveBeenLastCalledWith({
+      ...FILTERS,
+      view: 'prompts',
+      types: [],
+    })
 
-    scrollTo(800)
-    expect(bar).toHaveAttribute('data-collapsed')
-    fireEvent.focus(screen.getByRole('searchbox'))
-    expect(bar).not.toHaveAttribute('data-collapsed')
+    rerender(
+      <GalleryHeader
+        filters={{ ...FILTERS, view: 'prompts' }}
+        onFiltersChange={onFiltersChange}
+      />,
+    )
+    expect(screen.getByRole('tab', { name: 'viewPrompts' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
   })
 
-  it('stays open while the viewer is pinned to it', () => {
-    const { container } = render(
-      <GalleryHeader filters={FILTERS} onFiltersChange={vi.fn()} pinnedOpen />,
+  it('toggles favorites and waits for the typing to stop before searching', () => {
+    vi.useFakeTimers()
+    const onFiltersChange = vi.fn()
+    render(
+      <GalleryHeader filters={FILTERS} onFiltersChange={onFiltersChange} />,
     )
-    scrollTo(600)
-    expect(container.firstElementChild).not.toHaveAttribute('data-collapsed')
-  })
 
-  it('reopens when the collapsed line is tapped', () => {
-    const { container } = render(
-      <GalleryHeader filters={FILTERS} onFiltersChange={vi.fn()} />,
-    )
-    const bar = container.firstElementChild as HTMLElement
-    scrollTo(600)
-    expect(bar).toHaveAttribute('data-collapsed')
-    fireEvent.click(bar.firstElementChild as HTMLElement)
-    expect(bar).not.toHaveAttribute('data-collapsed')
+    fireEvent.click(screen.getByRole('button', { name: /tabs\.favorites/ }))
+    expect(onFiltersChange).toHaveBeenLastCalledWith({
+      ...FILTERS,
+      liked: true,
+    })
+
+    fireEvent.change(screen.getByRole('searchbox'), {
+      target: { value: ' cat ' },
+    })
+    expect(onFiltersChange).toHaveBeenCalledTimes(1)
+    act(() => {
+      vi.advanceTimersByTime(400)
+    })
+    expect(onFiltersChange).toHaveBeenLastCalledWith({
+      ...FILTERS,
+      search: 'cat',
+    })
   })
 })

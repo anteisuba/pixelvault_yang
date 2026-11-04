@@ -7,17 +7,12 @@
     "filters": {
       "searchLabel": "アーカイブを検索",
       "searchPlaceholder": "プロンプトで検索...",
-      "searchHint1": "花を持つアニメの女の子",
-      "searchHint2": "フォトリアルな風景",
-      "searchHint3": "夜のサイバーパンク都市",
-      "clearSearch": "検索をクリア",
-      "clearFilters": "フィルターをクリア",
+      "sortLabel": "並べ替え",
       "sort": {
         "newest": "新しい順",
         "oldest": "古い順"
       },
       "type": {
-        "all": "すべて",
         "image": "画像",
         "video": "動画",
         "audio": "オーディオ",
@@ -25,22 +20,17 @@
       },
       "tabs": {
         "all": "すべて",
-        "favorites": "お気に入り",
-        "today": "今日"
+        "favorites": "お気に入り"
       },
       "signInToFavorite": "お気に入りを表示するにはログインしてください"
     },
     "feedEyebrow": "公開ギャラリー",
-    "feedTitle": "最近の公開作品",
-    "feedDescription": "コミュニティの画像、動画、音声作品を眺め、次の制作につながる参考を見つけられます。",
     "feedLabel": "公開ギャラリーフィード",
     "itemFallbackLabel": "ギャラリー項目",
-    "feedCount": "{shown} / {total} 件を表示中",
     "emptyTitle": "公開作品はまだありません",
     "emptyDescription": "スタジオで公開した作品が、ここに並びます。",
     "emptyAction": "スタジオを開く",
     "viewLabel": "ギャラリーの表示",
-    "viewImages": "画像",
     "viewPrompts": "プロンプト",
     "promptsEmptyTitle": "公開プロンプトはまだありません",
     "promptsEmptyDescription": "作品をプロンプトごと公開すると、ここに並びます。",
@@ -171,8 +161,8 @@
     "privateProfile": "このプロフィールは非公開です",
     "loadFailed": "プロフィールを読み込めませんでした",
     "privateProfileHint": "クリエイターがプロフィールを非公開に設定しています",
-    "noPublicImages": "公開画像はまだありません",
-    "startCreating": "スタジオで制作を始める",
+    "noPublicImages": "まだ公開作品はありません",
+    "startCreating": "スタジオへ",
     "loadMore": "もっと見る",
     "loading": "読み込み中...",
     "imageBy": "作成者",

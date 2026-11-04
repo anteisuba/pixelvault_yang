@@ -37,18 +37,15 @@
   flex: none;
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: 1rem;
-  background: var(--card);
+  /* 平铺在白板上（ui-spec §1「板里不再套卡」）：⛔ 自己的底 / 边 / 圆角，只留与预览之间一道细线。 */
+  border-inline-end: 1px solid var(--border);
 }
+/* 台顶第一行：只给壳认位置（收起对话时头像落在这一行），⛔ 角标字。 */
 .stageHeader {
   position: absolute;
   inset: 1.25rem 1.25rem auto;
   z-index: 2;
-  display: flex;
-  justify-content: space-between;
-  color: var(--muted-foreground);
-  font-size: 0.75rem;
+  height: 1.125rem;
   pointer-events: none;
 }
 .emptyStage {
@@ -196,16 +193,6 @@
   flex-direction: column;
   gap: 0.5rem;
 }
-.fieldSelect {
-  width: 100%;
-  min-height: 2.75rem;
-  border: 1px solid var(--border);
-  border-radius: 0.625rem;
-  padding: 0.625rem 0.75rem;
-  background: var(--background);
-  color: var(--foreground);
-  font-size: 0.875rem;
-}
 .referenceButton {
   display: flex;
   width: 100%;
@@ -224,8 +211,7 @@
   background: var(--accent);
 }
 .modelButton:focus-visible,
-.referenceButton:focus-visible,
-.fieldSelect:focus-visible {
+.referenceButton:focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 3px;
 }

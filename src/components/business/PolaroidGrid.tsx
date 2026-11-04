@@ -3,9 +3,11 @@
 import { useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { ImageIcon } from '@/components/icons'
-import Link from 'next/link'
 
+import { ROUTES } from '@/constants/routes'
+import { Link } from '@/i18n/navigation'
 import { Button } from '@/components/ui/button'
+import { EmptyState } from '@/components/ui/empty-state'
 import { Spinner } from '@/components/ui/spinner'
 import { GalleryViewer } from '@/features/gallery'
 import { PolaroidCard } from '@/components/business/PolaroidCard'
@@ -49,21 +51,20 @@ export function PolaroidGrid({
   )
 
   if (isEmpty) {
+    // ui-spec §9 空状态：柔白卡（图标格 + 标题 + 黑色主钮）；只有自己的主页给去出图的那颗。
     return (
-      <div className="flex flex-col items-center justify-center py-24 text-center">
-        <div className="size-16 rounded-full bg-primary/5 flex items-center justify-center mb-5">
-          <ImageIcon className="size-7 text-primary/40" />
-        </div>
-        <p className="text-muted-foreground text-lg">{t('noPublicImages')}</p>
-        <Link href="/studio" className="mt-5">
-          <Button
-            variant="secondary"
-            size="sm"
-            className="rounded-full border-border/60 hover:border-primary/25 hover:bg-primary/5"
-          >
-            {t('startCreating')}
-          </Button>
-        </Link>
+      <div className="mx-auto max-w-content px-4 py-16 sm:px-6">
+        <EmptyState
+          icon={<ImageIcon />}
+          title={t('noPublicImages')}
+          action={
+            isOwnProfile ? (
+              <Button asChild size="sm" className="coarse:h-11">
+                <Link href={ROUTES.STUDIO}>{t('startCreating')}</Link>
+              </Button>
+            ) : undefined
+          }
+        />
       </div>
     )
   }

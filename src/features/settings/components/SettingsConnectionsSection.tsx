@@ -144,12 +144,7 @@ export function SettingsConnectionsSection() {
 
   return (
     <section className="@container">
-      <header className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-xl font-semibold">{t('sections.connections')}</h2>
-        <p className="text-xs text-muted-foreground">
-          {t('connections.caption')}
-        </p>
-      </header>
+      <h2 className="text-xl font-semibold">{t('sections.connections')}</h2>
 
       <PendingGenerations />
 
@@ -184,14 +179,14 @@ export function SettingsConnectionsSection() {
       ) : null}
 
       {isLoading && tokens.length === 0 ? (
-        <div className="mt-3 flex items-center gap-2 rounded-lg border border-border px-4 py-6 text-sm text-muted-foreground">
+        <div className="mt-3 flex items-center gap-2 border-t border-border py-6 text-sm text-muted-foreground">
           <Spinner size="md" />
           {t('connections.loading')}
         </div>
       ) : null}
 
       {failure === 'load' && tokens.length === 0 && !isLoading ? (
-        <div className="mt-3 flex items-center gap-3 rounded-lg border border-border px-4 py-3.5 text-sm">
+        <div className="mt-3 flex items-center gap-3 border-t border-border py-3.5 text-sm">
           <span className="flex-1 text-status-risk">
             {t('connections.failed.load')}
           </span>
@@ -202,7 +197,7 @@ export function SettingsConnectionsSection() {
       ) : null}
 
       {showList && !hasRows ? (
-        <p className="mt-3 rounded-lg border border-dashed border-border px-4 py-6 text-center text-2sm leading-relaxed text-muted-foreground">
+        <p className="mt-3 border-t border-border py-6 text-2sm leading-relaxed text-muted-foreground">
           {t('connections.empty')}
         </p>
       ) : null}
@@ -342,9 +337,9 @@ function PendingGenerations() {
 }
 
 /**
- * 一格里换样子（虚线行 → 黑框卡 → 普通一行）时，高度从旧的弹簧到新的（`SPRING.slot`），
+ * 一格里换样子（命名行 → 黑框卡 → 普通一行）时，高度从旧的弹簧到新的（`SPRING.slot`），
  * 新内容糊一下进来。量的是里面那层的真实高度，⛔ 不用 `layout`（scale 会把字压扁）。
- * 底下留 8px 当行距：放在格子里而不是 `ul` 的 gap 上，收起时行距跟着一起收。
+ * 行与行之间是行顶那道细线（ui-spec §1 板里不再套卡）；只有黑框卡自己上下留 8。
  */
 function GrowingSlot({
   swapKey,
@@ -373,7 +368,7 @@ function GrowingSlot({
       transition={springTransition('slot', reduceMotion)}
       className="overflow-hidden"
     >
-      <div ref={innerRef} className="pb-2">
+      <div ref={innerRef}>
         <motion.div key={swapKey} {...swap}>
           {children}
         </motion.div>
@@ -409,7 +404,7 @@ function NamingRow({
         event.preventDefault()
         if (!busy) onSubmit(name)
       }}
-      className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed border-border bg-card px-3.5 py-3"
+      className="flex flex-wrap items-center gap-2 border-t border-border py-3"
     >
       <span
         className="size-2 shrink-0 rounded-full bg-muted-foreground/25"
@@ -460,7 +455,7 @@ function CreatedCard({
   )
 
   return (
-    <div className="grid gap-2.5 rounded-lg border border-foreground bg-card p-3.5">
+    <div className="my-2 grid gap-2.5 rounded-lg border border-foreground bg-card p-3.5">
       <div className="flex flex-wrap items-baseline gap-2.5">
         <span className="text-sm font-medium">
           {t('connections.created.title', { name: created.name })}
@@ -580,7 +575,7 @@ function TokenRow({
   })
 
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-border bg-card px-3.5 py-3 text-sm transition-colors duration-fast hover:border-muted-foreground/40">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border py-3 text-sm">
       <span
         className={cn(
           'size-2 shrink-0 rounded-full',

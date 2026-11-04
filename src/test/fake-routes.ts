@@ -1,5 +1,11 @@
+import type { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type { fakeServer } from '@/test/app-harness'
-import type { GenerationRecord } from '@/types'
+import type {
+  ApiKeyHealthStatus,
+  GenerationRecord,
+  UserApiKeyRecord,
+} from '@/types'
+import type { MonthlyUsageRow } from '@/types/usage'
 
 /**
  * 常用的几条假接口（L2b）：素材库列表 / 文件夹 / 分面计数。
@@ -57,4 +63,68 @@ export function stubBrowserObservers() {
   globalThis.IntersectionObserver ??= Noop as never
   globalThis.ResizeObserver ??= Noop as never
   Element.prototype.scrollIntoView ??= () => {}
+}
+
+/** 一把 key 的列表行（`GET /api/api-keys` 回的形状）。 */
+export function apiKeyRecord(
+  id: string,
+  adapterType: AI_ADAPTER_TYPES,
+  label: string,
+  providerLabel = label,
+): UserApiKeyRecord {
+  return {
+    id,
+    modelId: 'whatever',
+    adapterType,
+    providerConfig: { label: providerLabel, baseUrl: 'https://example.com' },
+    label,
+    maskedKey: '••••••••',
+    isActive: true,
+    createdAt: new Date('2026-09-01T00:00:00Z'),
+  }
+}
+
+/**
+ * key 名单 + 本月用量那几条接口；`health` 写进真 `useApiKeys` 读的那份
+ * localStorage 体检缓存（等于「上次校验过，结果是…」）。
+ */
+export function fakeApiKeyRoutes(
+  server: ReturnType<typeof fakeServer>,
+  keys: UserApiKeyRecord[],
+  {
+    health = {},
+    usage = [],
+  }: {
+    health?: Record<string, ApiKeyHealthStatus>
+    usage?: MonthlyUsageRow[]
+  } = {},
+) {
+  const now = Date.now()
+  localStorage.setItem(
+    'pixelvault:api-key-health',
+    JSON.stringify(
+      Object.fromEntries(
+        Object.entries(health).map(([id, status]) => [id, { status, ts: now }]),
+      ),
+    ),
+  )
+  return server
+    .on('GET', '/api/api-keys', () =>
+      Response.json({ success: true, data: keys }),
+    )
+    .on('GET', '/api/usage/by-model', () =>
+      Response.json({ success: true, data: { month: '2026-09', rows: usage } }),
+    )
+    .on('GET', '/api/runner/usage', () =>
+      Response.json({ success: false, error: 'off' }, { status: 404 }),
+    )
+}
+
+/** 浏览器空闲回调立刻跑（jsdom 没有，`deferToIdle` 会退回 1 秒的 setTimeout）。 */
+export function runIdleCallbacksNow() {
+  globalThis.requestIdleCallback = ((task: () => void) => {
+    task()
+    return 1
+  }) as never
+  globalThis.cancelIdleCallback = (() => {}) as never
 }

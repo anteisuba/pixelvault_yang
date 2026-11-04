@@ -1,38 +1,53 @@
-import { useState } from 'react'
-import { act, fireEvent, render, screen } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, fireEvent, screen, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { ReferenceImageEntry } from '@/hooks/use-image-upload'
 import { serializeEditor } from '@/components/ui/mention-input'
 import { normalizeReferenceMentions } from '@/lib/studio-reference-mentions'
+import { text } from '@/test/i18n-text'
+import { fakeStudioServer, renderWithStudio } from '@/test/studio-harness'
 import { StudioReferencePromptInput } from './StudioReferencePromptInput'
 
-const fixture = vi.hoisted(() => ({
-  entries: [] as ReferenceImageEntry[],
-  initialPrompt: '',
-  upload: vi.fn(),
-  submit: vi.fn(),
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({ isLoaded: true, isSignedIn: true, userId: 'user-a' }),
+}))
+vi.mock('@/i18n/navigation', () => ({
+  usePathname: () => '/studio/image',
+  useRouter: () => ({ push: vi.fn() }),
+}))
+// 只假上传那一跳（api-client 边界）：真 `useImageUpload` 拿回 URL 后自己加进参考图。
+const uploadImageFileAPI = vi.hoisted(() => vi.fn())
+vi.mock('@/lib/api-client/generation', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api-client/generation')>()),
+  uploadImageFileAPI,
 }))
 
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, values?: { index: number }) =>
-    values ? `图${values.index}` : key,
-}))
-vi.mock('@/contexts/studio-context', () => ({
-  useStudioForm: () => {
-    const [prompt, setPrompt] = useState(fixture.initialPrompt)
-    return {
-      state: { prompt },
-      dispatch: (action: { payload: string }) => setPrompt(action.payload),
-    }
-  },
-  useStudioData: () => ({
-    imageUpload: {
-      referenceEntries: fixture.entries,
-      handleFileChange: fixture.upload,
-    },
-  }),
-}))
+const URLS = [
+  'https://example.com/one.png',
+  'https://example.com/two.png',
+  'https://example.com/disabled.png',
+]
+const imageLabel = (index: number) =>
+  text('StudioPromptArea.referenceMention.image', { index })
+
+const submit = vi.fn()
+
+/** 真工作台里挂输入框，再用真 `imageUpload` 挂参考图：上限 2，第三张超限。 */
+function renderInput(
+  { urls = URLS, prompt = '' }: { urls?: string[]; prompt?: string } = {},
+  wrap: (ui: React.ReactElement) => React.ReactElement = (ui) => ui,
+) {
+  const view = renderWithStudio(
+    wrap(<StudioReferencePromptInput onSubmit={submit} />),
+  )
+  act(() => {
+    const upload = view.studio.current.imageUpload
+    upload.setMaxImages(2)
+    for (const url of urls) upload.addReferenceImage(url)
+    if (prompt)
+      view.studio.current.dispatch({ type: 'SET_PROMPT', payload: prompt })
+  })
+  return view
+}
 
 function typePrompt(value: string) {
   const editor = screen.getByRole('textbox')
@@ -51,48 +66,41 @@ function typePrompt(value: string) {
 }
 
 beforeEach(() => {
-  vi.clearAllMocks()
-  fixture.initialPrompt = ''
-  fixture.entries = [
-    { url: 'https://example.com/one.png', disabledReason: null },
-    { url: 'https://example.com/two.png', disabledReason: null },
-    { url: 'https://example.com/disabled.png', disabledReason: 'over_limit' },
-  ]
+  submit.mockClear()
+  fakeStudioServer()
 })
+afterEach(() => vi.unstubAllGlobals())
 
 describe('StudioReferencePromptInput', () => {
   it('renders assistant-written references as matching inline thumbnails', () => {
-    fixture.initialPrompt =
-      normalizeReferenceMentions('Image1 服装，参考图2 画风')
-    render(<StudioReferencePromptInput onSubmit={fixture.submit} />)
+    renderInput({
+      prompt: normalizeReferenceMentions('Image1 服装，参考图2 画风'),
+    })
     const editor = screen.getByRole('textbox')
     expect(serializeEditor(editor)).toBe('@Image1 服装，@Image2 画风')
-    for (const [index, entry] of fixture.entries.slice(0, 2).entries()) {
+    for (const [index, url] of URLS.slice(0, 2).entries()) {
       expect(
         editor.querySelector(`[data-mention="@Image${index + 1}"] img`),
-      ).toHaveAttribute('src', entry.url)
+      ).toHaveAttribute('src', url)
     }
   })
 
   it('lists only enabled attached images with thumbnails and inserts the selected atomic reference', () => {
-    render(<StudioReferencePromptInput onSubmit={fixture.submit} />)
+    renderInput()
     const editor = typePrompt('采用@')
     expect(screen.getAllByRole('option')).toHaveLength(2)
     expect(
-      screen.getByRole('option', { name: '图2' }).querySelector('img'),
-    ).toHaveAttribute('src', fixture.entries[1].url)
+      screen.getByRole('option', { name: imageLabel(2) }).querySelector('img'),
+    ).toHaveAttribute('src', URLS[1])
     fireEvent.keyDown(editor, { key: 'ArrowDown' })
     fireEvent.keyDown(editor, { key: 'Enter' })
-    expect(fixture.submit).not.toHaveBeenCalled()
+    expect(submit).not.toHaveBeenCalled()
     expect(serializeEditor(editor)).toBe('采用@Image2 ')
     expect(editor.querySelector('[data-mention="@Image2"]')).toHaveAttribute(
       'contenteditable',
       'false',
     )
-    expect(editor.querySelector('img')).toHaveAttribute(
-      'src',
-      fixture.entries[1].url,
-    )
+    expect(editor.querySelector('img')).toHaveAttribute('src', URLS[1])
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
   })
 
@@ -104,11 +112,7 @@ describe('StudioReferencePromptInput', () => {
      * 被裁掉或飞出视口（见 `mention-input.tsx` 那段头注）。
      * ⛔ 别改回 `toContainElement`：那是把已经修掉的裁切 bug 重新钉死。
      */
-    render(
-      <div role="dialog">
-        <StudioReferencePromptInput onSubmit={fixture.submit} />
-      </div>,
-    )
+    renderInput({}, (ui) => <div role="dialog">{ui}</div>)
     typePrompt('@')
     const listbox = screen.getByRole('listbox')
     expect(listbox.parentElement).toBe(document.body)
@@ -116,36 +120,40 @@ describe('StudioReferencePromptInput', () => {
   })
 
   it('supports pointer selection without replacing surrounding text', () => {
-    render(<StudioReferencePromptInput onSubmit={fixture.submit} />)
+    renderInput()
     const editor = typePrompt('角色@')
-    fireEvent.mouseDown(screen.getByRole('option', { name: '图1' }))
-    fireEvent.click(screen.getByRole('option', { name: '图1' }))
+    fireEvent.mouseDown(screen.getByRole('option', { name: imageLabel(1) }))
+    fireEvent.click(screen.getByRole('option', { name: imageLabel(1) }))
     expect(serializeEditor(editor)).toBe('角色@Image1 ')
   })
 
   it('does not open for an email and Escape dismisses without submitting', () => {
-    render(<StudioReferencePromptInput onSubmit={fixture.submit} />)
+    renderInput()
     typePrompt('user@example')
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
     const editor = typePrompt('@')
     fireEvent.keyDown(editor, { key: 'Escape' })
     fireEvent.keyUp(editor, { key: 'Escape' })
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
-    expect(fixture.submit).not.toHaveBeenCalled()
+    expect(submit).not.toHaveBeenCalled()
   })
 
   it('does not select or submit while committing a Chinese composition', () => {
-    render(<StudioReferencePromptInput onSubmit={fixture.submit} />)
+    renderInput()
     const editor = typePrompt('@')
     fireEvent.compositionStart(editor)
     fireEvent.keyDown(editor, { key: 'Enter', isComposing: true })
     fireEvent.compositionEnd(editor)
     expect(serializeEditor(editor)).toBe('@')
-    expect(fixture.submit).not.toHaveBeenCalled()
+    expect(submit).not.toHaveBeenCalled()
   })
 
-  it('keeps the upload flow for pasted images', () => {
-    render(<StudioReferencePromptInput onSubmit={fixture.submit} />)
+  it('keeps the upload flow for pasted images', async () => {
+    uploadImageFileAPI.mockResolvedValue({
+      success: true,
+      data: { generation: { url: 'https://cdn.test/pasted.png' } },
+    })
+    const { studio } = renderInput({ urls: [] })
     const file = new File(['image'], 'reference.png', { type: 'image/png' })
     fireEvent.paste(screen.getByRole('textbox'), {
       clipboardData: {
@@ -153,30 +161,35 @@ describe('StudioReferencePromptInput', () => {
         items: [{ kind: 'file', type: 'image/png', getAsFile: () => file }],
       },
     })
-    expect(fixture.upload).toHaveBeenCalledWith(file)
+    // 真上传流程把传回的地址加成了一张参考图。
+    await waitFor(() =>
+      expect(
+        studio.current.imageUpload.referenceEntries.map((entry) => entry.url),
+      ).toEqual(['https://cdn.test/pasted.png']),
+    )
   })
 
   it('shows an empty state and does not submit on picker Enter without references', () => {
-    fixture.entries = []
-    render(<StudioReferencePromptInput onSubmit={fixture.submit} />)
+    renderInput({ urls: [] })
     const editor = typePrompt('@')
-    expect(screen.getByRole('listbox')).toHaveTextContent('empty')
+    expect(screen.getByRole('listbox')).toHaveTextContent(
+      text('StudioPromptArea.referenceMention.empty'),
+    )
     fireEvent.keyDown(editor, { key: 'Enter' })
-    expect(fixture.submit).not.toHaveBeenCalled()
+    expect(submit).not.toHaveBeenCalled()
   })
 
   it('refreshes a referenced thumbnail after in-place image editing', () => {
-    const { rerender } = render(
-      <StudioReferencePromptInput onSubmit={fixture.submit} />,
-    )
+    const { studio } = renderInput({ urls: [URLS[0]] })
     const editor = typePrompt('@')
     fireEvent.keyDown(editor, { key: 'Enter' })
+    // 就地改图：真 `replaceReferenceImage` 把第 1 张换成改好的那张。
     act(() => {
-      fixture.entries = [
-        { url: 'https://example.com/edited.png', disabledReason: null },
-      ]
+      studio.current.imageUpload.replaceReferenceImage(
+        0,
+        'https://example.com/edited.png',
+      )
     })
-    rerender(<StudioReferencePromptInput onSubmit={fixture.submit} />)
     expect(editor.querySelector('img')).toHaveAttribute(
       'src',
       'https://example.com/edited.png',
@@ -185,14 +198,14 @@ describe('StudioReferencePromptInput', () => {
   })
 
   it('pastes reference tokens as thumbnail chips and copies their portable image indices', () => {
-    render(<StudioReferencePromptInput onSubmit={fixture.submit} />)
+    renderInput()
     const editor = typePrompt('使用')
     fireEvent.paste(editor, {
       clipboardData: { files: [], getData: () => '@Image2' },
     })
     expect(
       editor.querySelector('[data-mention="@Image2"] img'),
-    ).toHaveAttribute('src', fixture.entries[1].url)
+    ).toHaveAttribute('src', URLS[1])
     const range = document.createRange()
     range.selectNodeContents(editor)
     document.getSelection()?.removeAllRanges()

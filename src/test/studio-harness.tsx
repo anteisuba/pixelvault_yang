@@ -12,7 +12,14 @@ import { act } from '@testing-library/react'
 import { API_ENDPOINTS } from '@/constants/config'
 import { ApiKeysProvider } from '@/contexts/api-keys-context'
 import { StudioProvider, useStudioContext } from '@/contexts/studio-context'
+// 测试底座要清角色卡的模块级缓存；这个缓存没从 `@/features/cards` 入口导出。
+// eslint-disable-next-line no-restricted-imports
+import {
+  invalidateCardCache,
+  makeCardCacheKey,
+} from '@/features/cards/lib/card-cache'
 import type { AppLocale } from '@/i18n/routing'
+import type { CharacterCardRecord } from '@/types'
 import {
   fakeServer,
   renderHookWithApp,
@@ -85,4 +92,36 @@ export async function settle() {
   await act(async () => {
     await new Promise((resolve) => setTimeout(resolve, 0))
   })
+}
+
+/** 一张能直接塞进 `GET /api/character-cards` 回包的角色卡；按需覆盖字段。 */
+export function characterCardFixture(
+  overrides: Partial<CharacterCardRecord> & { id: string },
+): CharacterCardRecord {
+  return {
+    name: overrides.id,
+    tags: [],
+    handle: null,
+    looks: [],
+    persona: null,
+    workOverride: null,
+    summary: null,
+    tavern: null,
+    chatUserRole: '',
+    voiceCardId: null,
+    pinnedFields: [],
+    generationCount: 0,
+    isFavorite: false,
+    createdAt: new Date(0),
+    updatedAt: new Date(0),
+    ...overrides,
+  }
+}
+
+/**
+ * 角色卡列表有模块级缓存（`card-cache`），跨用例会留着上一例的卡；
+ * 要「首次加载」语义的用例在 `beforeEach` 里清掉。
+ */
+export function resetCharacterCardsCache() {
+  invalidateCardCache(makeCardCacheKey('character'))
 }

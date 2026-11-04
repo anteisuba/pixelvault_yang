@@ -1,21 +1,23 @@
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { useState } from 'react'
 
-import { useIsMobile } from '@/hooks/use-mobile'
+import { renderWithApp } from '@/test/app-harness'
+import { DESKTOP_WIDTH, MOBILE_WIDTH, setViewportWidth } from '@/test/viewport'
 import {
   ResponsivePopover,
   ResponsivePopoverContent,
   ResponsivePopoverPhoneCard,
   ResponsivePopoverTrigger,
 } from './responsive-popover'
-
-vi.mock('@/hooks/use-mobile', () => ({
-  useIsMobile: vi.fn(() => false),
-  useIsTablet: () => false,
-}))
-
-const mockUseIsMobile = vi.mocked(useIsMobile)
 
 beforeAll(() => {
   // jsdom lacks the observers Radix/floating-ui and vaul rely on.
@@ -30,40 +32,13 @@ beforeAll(() => {
   if (!Element.prototype.scrollIntoView) {
     Element.prototype.scrollIntoView = () => {}
   }
-  if (typeof window.matchMedia !== 'function') {
-    vi.stubGlobal('matchMedia', (query: string) => ({
-      matches: false,
-      media: query,
-      onchange: null,
-      addListener: () => {},
-      removeListener: () => {},
-      addEventListener: () => {},
-      removeEventListener: () => {},
-      dispatchEvent: () => false,
-    }))
-  }
 })
 
-beforeEach(() => {
-  mockUseIsMobile.mockReturnValue(false)
-  mockTouchPrimary(false)
-})
-
-function mockTouchPrimary(isTouch: boolean) {
-  vi.stubGlobal('matchMedia', (query: string) => ({
-    matches: query === '(hover: none)' ? isTouch : false,
-    media: query,
-    onchange: null,
-    addListener: () => {},
-    removeListener: () => {},
-    addEventListener: () => {},
-    removeEventListener: () => {},
-    dispatchEvent: () => false,
-  }))
-}
+beforeEach(() => setViewportWidth(DESKTOP_WIDTH))
+afterEach(() => vi.unstubAllGlobals())
 
 function renderSubject(open?: boolean) {
-  return render(
+  return renderWithApp(
     <ResponsivePopover open={open}>
       <ResponsivePopoverTrigger>打开设置</ResponsivePopoverTrigger>
       <ResponsivePopoverContent label="快速设置">
@@ -101,8 +76,7 @@ describe('ResponsivePopover', () => {
   })
 
   it('renders a Drawer with an accessible title on mobile', async () => {
-    mockUseIsMobile.mockReturnValue(true)
-    mockTouchPrimary(true)
+    setViewportWidth(MOBILE_WIDTH, { touch: true })
     renderSubject(true)
 
     expect(await screen.findByText('面板内容')).toBeInTheDocument()
@@ -113,9 +87,8 @@ describe('ResponsivePopover', () => {
   })
 
   it('keeps a compact fine-pointer viewport on the anchored popover path so the trigger can close it', async () => {
-    mockUseIsMobile.mockReturnValue(true)
-    mockTouchPrimary(false)
-    render(<ToggleSubject />)
+    setViewportWidth(MOBILE_WIDTH, { touch: false })
+    renderWithApp(<ToggleSubject />)
 
     const trigger = screen.getByText('打开设置')
     fireEvent.click(trigger)
@@ -133,9 +106,8 @@ describe('ResponsivePopover', () => {
   })
 
   it('inside a phone-card scope a touch phone still gets the anchored card, capped to the free space', async () => {
-    mockUseIsMobile.mockReturnValue(true)
-    mockTouchPrimary(true)
-    render(
+    setViewportWidth(MOBILE_WIDTH, { touch: true })
+    renderWithApp(
       <ResponsivePopoverPhoneCard>
         <ResponsivePopover open>
           <ResponsivePopoverTrigger>打开设置</ResponsivePopoverTrigger>

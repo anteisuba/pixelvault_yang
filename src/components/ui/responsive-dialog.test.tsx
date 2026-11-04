@@ -1,7 +1,16 @@
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest'
+import { screen } from '@testing-library/react'
 
-import { useIsMobile } from '@/hooks/use-mobile'
+import { renderWithApp } from '@/test/app-harness'
+import { MOBILE_WIDTH, setViewportWidth } from '@/test/viewport'
 import {
   ResponsiveDialog,
   ResponsiveDialogContent,
@@ -9,13 +18,6 @@ import {
   ResponsiveDialogTitle,
   ResponsiveDialogTrigger,
 } from './responsive-dialog'
-
-vi.mock('@/hooks/use-mobile', () => ({
-  useIsMobile: vi.fn(() => true),
-  useIsTablet: () => false,
-}))
-
-const mockUseIsMobile = vi.mocked(useIsMobile)
 
 beforeAll(() => {
   if (!('ResizeObserver' in globalThis)) {
@@ -29,27 +31,17 @@ beforeAll(() => {
   if (!Element.prototype.scrollIntoView) {
     Element.prototype.scrollIntoView = () => {}
   }
-  if (typeof window.matchMedia !== 'function') {
-    vi.stubGlobal('matchMedia', (query: string) => ({
-      matches: false,
-      media: query,
-      onchange: null,
-      addListener: () => {},
-      removeListener: () => {},
-      addEventListener: () => {},
-      removeEventListener: () => {},
-      dispatchEvent: () => false,
-    }))
-  }
 })
 
 beforeEach(() => {
-  mockUseIsMobile.mockReturnValue(true)
+  setViewportWidth(MOBILE_WIDTH, { touch: true })
 })
+
+afterEach(() => vi.unstubAllGlobals())
 
 describe('ResponsiveDialog', () => {
   it('allows mobile drawer body chrome to be overridden for full-bleed surfaces', async () => {
-    render(
+    renderWithApp(
       <ResponsiveDialog open>
         <ResponsiveDialogTrigger>Open</ResponsiveDialogTrigger>
         <ResponsiveDialogContent mobileBodyClassName="px-0 pt-0">

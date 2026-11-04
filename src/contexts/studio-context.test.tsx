@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 
 import { act, renderHook } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   DEFAULT_WORKFLOW_ID,
@@ -11,41 +11,13 @@ import {
 } from '@/constants/workflows'
 import { StudioProvider, useStudioContext } from '@/contexts/studio-context'
 import type { GenerationEvaluation } from '@/types'
+import { AppProviders } from '@/test/app-harness'
+import { fakeStudioServer } from '@/test/studio-harness'
 
-vi.mock('@clerk/nextjs', () => ({ useAuth: () => ({ userId: 'user-a' }) }))
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({ isLoaded: true, isSignedIn: true, userId: 'user-a' }),
+}))
 vi.mock('@/i18n/navigation', () => ({ usePathname: () => '/studio/image' }))
-
-vi.mock('@/features/cards/hooks/use-character-cards', () => ({
-  useCharacterCards: () => ({}),
-}))
-
-vi.mock('@/hooks/use-projects', () => ({
-  useProjects: () => ({ activeProjectId: null }),
-}))
-
-vi.mock('@/features/lora/hooks/use-civitai-token', () => ({
-  useCivitaiToken: () => ({}),
-}))
-
-vi.mock('@/hooks/kernel/use-prompt-enhance', () => ({
-  usePromptEnhance: () => ({}),
-}))
-
-vi.mock('@/hooks/use-image-upload', () => ({
-  useImageUpload: () => ({}),
-}))
-
-vi.mock('@/hooks/use-unified-generate', () => ({
-  useUnifiedGenerate: () => ({ lastGeneration: null }),
-}))
-
-vi.mock('@/hooks/use-onboarding', () => ({
-  useOnboarding: () => ({}),
-}))
-
-vi.mock('@/hooks/use-usage-summary', () => ({
-  useUsageSummary: () => ({ refresh: vi.fn() }),
-}))
 
 const MOCK_EVALUATION: GenerationEvaluation = {
   subjectMatch: 8,
@@ -58,8 +30,18 @@ const MOCK_EVALUATION: GenerationEvaluation = {
   suggestedFixes: [],
 }
 
+// 真工作台里的 hook（角色卡、项目、上传、出图…）全是真的，只假网络：挂载时拉的几条接口回空。
+beforeEach(() => {
+  fakeStudioServer()
+})
+afterEach(() => vi.unstubAllGlobals())
+
 function wrapper({ children }: { children: ReactNode }) {
-  return <StudioProvider>{children}</StudioProvider>
+  return (
+    <AppProviders>
+      <StudioProvider>{children}</StudioProvider>
+    </AppProviders>
+  )
 }
 
 describe('StudioProvider workflow selection', () => {

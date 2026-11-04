@@ -1,6 +1,7 @@
 /**
- * Module-level cache for card-style fetches (character / style /
- * background / voice). The cache lives outside React state on purpose:
+ * Module-level cache for card-style fetches (style / background, via
+ * `useCardManager`). Character cards and voice cards moved to the shared
+ * query cache (`QUERY_KEYS`). The cache lives outside React state on purpose:
  * every time a user opens / closes the CardDrawer, the components
  * (and therefore their hooks) unmount and remount. Without this cache
  * each remount re-fetches the same list, so users see a spinner the

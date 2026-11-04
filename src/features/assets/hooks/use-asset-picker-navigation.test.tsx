@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ASSET_PICKER_CACHE_TTL_MS } from '@/constants/assets-grid'
 import { fetchAssetSectionCounts } from '@/lib/api-client/gallery'
 import { listProjectsAPI } from '@/lib/api-client/projects'
+import { queryClient } from '@/lib/query-client'
 import type { AssetSectionCounts, ProjectRecord } from '@/types'
 import { useAssetPickerNavigation } from './use-asset-picker-navigation'
 
@@ -99,6 +100,9 @@ describe('useAssetPickerNavigation', () => {
     expect(view.result.current.projects).toEqual(projects)
     view.rerender({ user: `${scope}-other`, type: 'image' })
     expect(view.result.current.counts).toBeNull()
+    // 文件夹列表是共用查询：换账号靠 `QueryUserBoundary` 整份 `queryClient.clear()`。
+    act(() => queryClient.clear())
+    view.rerender({ user: `${scope}-other`, type: 'image' })
     expect(view.result.current.projects).toEqual([])
   })
 

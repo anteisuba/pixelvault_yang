@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect, useRef } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
@@ -11,14 +12,21 @@ import type {
   GenerationRecord,
 } from '@/types'
 import {
-  listProjectsAPI,
   createProjectAPI,
   updateProjectAPI,
   deleteProjectAPI,
   getProjectHistoryAPI,
 } from '@/lib/api-client'
 import { deferEffectTask } from '@/lib/defer-effect-task'
+import {
+  projectsQuery,
+  refreshProjects,
+  updateProjectsCache,
+} from '@/lib/projects-query'
+import { queryClient } from '@/lib/query-client'
 import { useErrorText } from '@/hooks/use-error-text'
+
+const NO_PROJECTS: ProjectRecord[] = []
 
 export interface UseProjectsReturn {
   projects: ProjectRecord[]
@@ -56,12 +64,18 @@ export function useProjects(
   options: UseProjectsOptions = {},
 ): UseProjectsReturn {
   const { loadHistoryOnMount = true } = options
-  const [projects, setProjects] = useState<ProjectRecord[]>([])
+  // 项目列表住共用查询（素材页左栏、挑素材弹层读同一份）；当前项目与历史是这一处自己的。
+  const query = useQuery(projectsQuery, queryClient)
+  const projects = query.data ?? NO_PROJECTS
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  /** 写请求失败的那句；列表拉不下来的那句从查询读。 */
+  const [mutationError, setError] = useState<string | null>(null)
   const t = useTranslations('Toasts')
   const errText = useErrorText()
+  const isLoading = query.isPending
+  const error =
+    mutationError ??
+    (query.isError ? errText.thrown(query.error, t('projectLoadFailed')) : null)
 
   // History state
   const [history, setHistory] = useState<GenerationRecord[]>([])
@@ -76,31 +90,13 @@ export function useProjects(
 
   // ─── Project CRUD ───────────────────────────────────────────────
 
-  const fetchProjects = useCallback(async () => {
-    setIsLoading(true)
-    setError(null)
-    const response = await listProjectsAPI()
-    if (response.success && response.data) {
-      setProjects(response.data)
-    } else {
-      setError(errText.api(response, t('projectLoadFailed')))
-    }
-    setIsLoading(false)
-  }, [errText, t])
-
-  useEffect(() => {
-    return deferEffectTask(() => {
-      void fetchProjects()
-    })
-  }, [fetchProjects])
-
   const create = useCallback(
     async (data: CreateProjectRequest): Promise<ProjectRecord | null> => {
       const response = await createProjectAPI(data)
       if (response.success && response.data) {
         setError(null)
         const newProject = response.data
-        setProjects((prev) => [newProject, ...prev])
+        updateProjectsCache((prev) => [newProject, ...prev])
         toast.success(t('projectCreated'))
         return newProject
       }
@@ -117,8 +113,9 @@ export function useProjects(
       const response = await updateProjectAPI(id, data)
       if (response.success && response.data) {
         setError(null)
-        setProjects((prev) =>
-          prev.map((p) => (p.id === id ? response.data! : p)),
+        const updated = response.data
+        updateProjectsCache((prev) =>
+          prev.map((p) => (p.id === id ? updated : p)),
         )
         toast.success(t('projectUpdated'))
         return true
@@ -136,7 +133,7 @@ export function useProjects(
       const response = await deleteProjectAPI(id)
       if (response.success) {
         setError(null)
-        setProjects((prev) => prev.filter((p) => p.id !== id))
+        updateProjectsCache((prev) => prev.filter((p) => p.id !== id))
         if (activeProjectId === id) {
           setActiveProjectId(null)
         }
@@ -229,7 +226,7 @@ export function useProjects(
     create,
     update,
     remove,
-    refresh: fetchProjects,
+    refresh: refreshProjects,
     history,
     historyTotal,
     historyHasMore,

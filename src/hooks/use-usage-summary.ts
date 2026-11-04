@@ -1,10 +1,13 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '@clerk/nextjs'
+import { useQuery } from '@tanstack/react-query'
 
+import { QUERY_KEYS } from '@/constants/query'
 import { fetchUsageSummary } from '@/lib/api-client'
 import { deferToIdle } from '@/lib/defer-to-idle'
+import { queryClient } from '@/lib/query-client'
 import type { UsageSummary } from '@/types'
 
 interface UseUsageSummaryReturn {
@@ -22,123 +25,45 @@ const EMPTY_USAGE_SUMMARY: UsageSummary = {
   lastRequestAt: null,
 }
 
-// 30-second in-memory cache — avoids re-fetching on every page navigation
-const CACHE_TTL_MS = 30_000
-
-interface UsageSummaryCache {
-  userId: string
-  data: UsageSummary
-  fetchedAt: number
-}
-
-let _cache: UsageSummaryCache | null = null
-let _inFlight: { userId: string; request: Promise<UsageSummary> } | null = null
-
-function getFreshCache(userId: string): UsageSummary | null {
-  if (!_cache || _cache.userId !== userId) return null
-  if (Date.now() - _cache.fetchedAt >= CACHE_TTL_MS) return null
-  return _cache.data
-}
-
-async function loadUsageSummary(
-  userId: string,
-  force: boolean,
-): Promise<UsageSummary> {
-  if (!force) {
-    const cached = getFreshCache(userId)
-    if (cached) return cached
-    if (_inFlight?.userId === userId) return _inFlight.request
-  }
-
-  const request = fetchUsageSummary()
-    .then((data) => {
-      _cache = { userId, data, fetchedAt: Date.now() }
-      return data
-    })
-    .finally(() => {
-      if (_inFlight?.request === request) {
-        _inFlight = null
-      }
-    })
-
-  _inFlight = { userId, request }
-  return request
-}
-
+/**
+ * 用量摘要住共用查询（`QUERY_KEYS.usageSummary`）：切页回来先给手里那份，过期才后台
+ * 对一遍。挂载时那一次等浏览器空下来再拉，让图片先占连接；`refresh()` 是用户动作，立刻拉。
+ */
 export function useUsageSummary(): UseUsageSummaryReturn {
   const { isSignedIn, userId } = useAuth()
-  const [summary, setSummary] = useState<UsageSummary>(
-    () => (userId ? getFreshCache(userId) : null) ?? EMPTY_USAGE_SUMMARY,
+  const [idle, setIdle] = useState(false)
+  const queryKey = QUERY_KEYS.usageSummary(userId ?? null)
+
+  useEffect(() => deferToIdle(() => setIdle(true)), [])
+
+  const query = useQuery(
+    {
+      queryKey,
+      queryFn: fetchUsageSummary,
+      enabled: Boolean(isSignedIn && userId) && idle,
+    },
+    queryClient,
   )
-  const [isLoading, setIsLoading] = useState(false)
-  const [refreshKey, setRefreshKey] = useState(0)
-  const isRefreshRef = useRef(false)
 
   const refresh = useCallback(() => {
-    isRefreshRef.current = true
-    setRefreshKey((k) => k + 1)
-  }, [])
+    if (!isSignedIn || !userId) return
+    void queryClient
+      .fetchQuery({
+        queryKey: QUERY_KEYS.usageSummary(userId),
+        queryFn: fetchUsageSummary,
+        staleTime: 0,
+      })
+      .catch(() => {
+        // 拉不到就留着手里那份。
+      })
+  }, [isSignedIn, userId])
 
-  useEffect(() => {
-    let isCancelled = false
-
-    async function loadSummary() {
-      if (!isSignedIn || !userId) {
-        if (!isCancelled) {
-          _cache = null
-          _inFlight = null
-          setSummary(EMPTY_USAGE_SUMMARY)
-          setIsLoading(false)
-        }
-        return
-      }
-
-      const isForced = isRefreshRef.current
-      isRefreshRef.current = false
-
-      const cached = !isForced ? getFreshCache(userId) : null
-      if (cached) {
-        if (!isCancelled) setSummary(cached)
-        return
-      }
-
-      setIsLoading(true)
-
-      try {
-        const data = await loadUsageSummary(userId, isForced)
-
-        if (!isCancelled) {
-          setSummary(data)
-        }
-      } catch {
-        if (!isCancelled) {
-          setSummary(getFreshCache(userId) ?? EMPTY_USAGE_SUMMARY)
-        }
-      } finally {
-        if (!isCancelled) {
-          setIsLoading(false)
-        }
-      }
-    }
-
-    // Force refresh runs immediately (user action). Mount-time loads
-    // wait for browser idle so image requests win the connection pool.
-    if (isRefreshRef.current) {
-      void loadSummary()
-      return () => {
-        isCancelled = true
-      }
-    }
-
-    const cancelDefer = deferToIdle(() => {
-      if (!isCancelled) void loadSummary()
-    })
-
-    return () => {
-      isCancelled = true
-      cancelDefer()
-    }
-  }, [isSignedIn, refreshKey, userId])
-
-  return { summary, isLoading, refresh }
+  return {
+    summary:
+      isSignedIn && userId
+        ? (query.data ?? EMPTY_USAGE_SUMMARY)
+        : EMPTY_USAGE_SUMMARY,
+    isLoading: query.isFetching,
+    refresh,
+  }
 }

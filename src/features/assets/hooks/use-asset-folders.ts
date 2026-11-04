@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
@@ -8,17 +9,23 @@ import type { ProjectRecord, ReorderProjectsRequest } from '@/types'
 import {
   createProjectAPI,
   deleteProjectAPI,
-  listProjectsAPI,
   reorderProjectsAPI,
   updateProjectAPI,
 } from '@/lib/api-client'
-import { deferEffectTask } from '@/lib/defer-effect-task'
 import {
   getChildFolders,
   getPinnedFolders,
   getRootFolders,
   type FolderDropPlan,
 } from '@/lib/folder-tree'
+import {
+  projectsQuery,
+  refreshProjects,
+  updateProjectsCache,
+} from '@/lib/projects-query'
+import { queryClient } from '@/lib/query-client'
+
+const NO_FOLDERS: ProjectRecord[] = []
 
 export interface UseAssetFoldersReturn {
   folders: ProjectRecord[]
@@ -47,24 +54,16 @@ function topOf(orders: number[]): number {
  *
  * 改名 / 置顶 / 排序 / 挪层级 / 删除都**先在本地改好**（栏里当场变，动效才接得上），
  * 再写库；写失败就拉一遍真值回来并提示。⛔ 成功不弹 toast —— 结果就在栏里。
- * ⚠ 与 `useProjects` 分开：那个是工作台的「当前项目 + 历史」，带成功 toast。
+ * ⚠ 与 `useProjects` 分开：那个是工作台的「当前项目 + 历史」，带成功 toast；
+ *   列表本身是同一份共用查询（`projectsQuery`），这里本地先改的那一下别处也跟着变。
  */
 export function useAssetFolders(): UseAssetFoldersReturn {
   const t = useTranslations('AssetsPage')
-  const [folders, setFolders] = useState<ProjectRecord[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-
-  const refresh = useCallback(async () => {
-    const response = await listProjectsAPI()
-    if (response.success && response.data) setFolders(response.data)
-    setIsLoading(false)
-  }, [])
-
-  useEffect(() => {
-    return deferEffectTask(() => {
-      void refresh()
-    })
-  }, [refresh])
+  const query = useQuery(projectsQuery, queryClient)
+  const folders = query.data ?? NO_FOLDERS
+  // 拉失败也不再转圈（左栏照常可用，只是空的）。
+  const isLoading = query.isPending
+  const refresh = refreshProjects
 
   const fail = useCallback(() => {
     toast.error(t('folderSaveFailed'))
@@ -79,7 +78,7 @@ export function useAssetFolders(): UseAssetFoldersReturn {
         return null
       }
       const record = response.data
-      setFolders((prev) => [...prev, record])
+      updateProjectsCache((prev) => [...prev, record])
       return record
     },
     [t],
@@ -87,7 +86,7 @@ export function useAssetFolders(): UseAssetFoldersReturn {
 
   const rename = useCallback(
     async (id: string, name: string) => {
-      setFolders((prev) =>
+      updateProjectsCache((prev) =>
         prev.map((folder) => (folder.id === id ? { ...folder, name } : folder)),
       )
       const response = await updateProjectAPI(id, { name })
@@ -98,7 +97,7 @@ export function useAssetFolders(): UseAssetFoldersReturn {
 
   const setPinned = useCallback(
     async (id: string, pinned: boolean) => {
-      setFolders((prev) => {
+      updateProjectsCache((prev) => {
         const top = topOf(
           getPinnedFolders(prev).map((folder) => folder.pinnedOrder ?? 0),
         )
@@ -116,7 +115,7 @@ export function useAssetFolders(): UseAssetFoldersReturn {
 
   const moveTo = useCallback(
     async (id: string, parentId: string | null) => {
-      setFolders((prev) => {
+      updateProjectsCache((prev) => {
         const siblings = parentId
           ? getChildFolders(prev, parentId)
           : getRootFolders(prev)
@@ -137,7 +136,7 @@ export function useAssetFolders(): UseAssetFoldersReturn {
         folders.find((folder) => folder.id === id)?.parentId !== parentId
       const rank = new Map(ids.map((folderId, index) => [folderId, index]))
       // 一次在本地改好（换层 + 整层顺序），栏里当场落到位，不先跳到层首再跳回来。
-      setFolders((prev) =>
+      updateProjectsCache((prev) =>
         prev.map((folder) => {
           const index = rank.get(folder.id)
           if (index === undefined) return folder
@@ -164,7 +163,7 @@ export function useAssetFolders(): UseAssetFoldersReturn {
     async (id: string) => {
       // 直接子夹往上挪一层（挂到它的父夹下），接在它原来的位置上；更深的子孙
       // 跟着各自的父夹走（与服务端同一条规矩）。
-      setFolders((prev) => {
+      updateProjectsCache((prev) => {
         const removed = prev.find((folder) => folder.id === id)
         const children = getChildFolders(prev, id)
         const rest = prev.filter((folder) => folder.id !== id)
@@ -198,7 +197,7 @@ export function useAssetFolders(): UseAssetFoldersReturn {
   const reorder = useCallback(
     async (input: ReorderProjectsRequest) => {
       const rank = new Map(input.ids.map((id, index) => [id, index]))
-      setFolders((prev) =>
+      updateProjectsCache((prev) =>
         prev.map((folder) => {
           const index = rank.get(folder.id)
           if (index === undefined) return folder

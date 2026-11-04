@@ -1,16 +1,18 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 
 import { ASSET_PICKER_CACHE_TTL_MS } from '@/constants/assets-grid'
 import { fetchAssetSectionCounts } from '@/lib/api-client/gallery'
-import { listProjectsAPI } from '@/lib/api-client/projects'
 import type {
   AssetSectionCounts,
   OutputTypeValue,
   ProjectRecord,
 } from '@/types'
 import { ApiClientError } from '@/lib/api-client/error-fields'
+import { projectsQuery } from '@/lib/projects-query'
+import { queryClient } from '@/lib/query-client'
 
 interface CacheEntry<T> {
   data?: T
@@ -18,8 +20,9 @@ interface CacheEntry<T> {
   pending?: Promise<T>
 }
 
-const projectsCache = new Map<string, CacheEntry<ProjectRecord[]>>()
 const countsCache = new Map<string, CacheEntry<AssetSectionCounts>>()
+
+const NO_PROJECTS: ProjectRecord[] = []
 
 function loadCached<T>(
   cache: Map<string, CacheEntry<T>>,
@@ -60,30 +63,13 @@ export function useAssetPickerNavigation(
   countsEnabled = true,
 ) {
   const countsKey = JSON.stringify([scope, mediaType ?? 'all'])
-  const [projectsState, setProjectsState] = useState(() => ({
-    key: scope,
-    data: projectsCache.get(scope)?.data ?? [],
-  }))
+  // 文件夹列表是共用查询（换账号由 `QueryUserBoundary` 整份清空，不靠 `scope` 隔开）。
+  const projectsResult = useQuery(projectsQuery, queryClient)
+  const projects = projectsResult.data ?? NO_PROJECTS
   const [countsState, setCountsState] = useState(() => ({
     key: countsKey,
     data: countsCache.get(countsKey)?.data ?? null,
   }))
-
-  const loadProjects = useCallback(
-    () =>
-      loadCached(
-        projectsCache,
-        scope,
-        async () => {
-          const response = await listProjectsAPI()
-          if (!response.success || !response.data)
-            throw new ApiClientError(response)
-          return response.data
-        },
-        false,
-      ),
-    [scope],
-  )
 
   const loadCounts = useCallback(
     (force: boolean) =>
@@ -104,11 +90,6 @@ export function useAssetPickerNavigation(
 
   useEffect(() => {
     let active = true
-    void loadProjects()
-      .then((data) => {
-        if (active) setProjectsState({ key: scope, data })
-      })
-      .catch(() => {})
     if (countsEnabled)
       void loadCounts(false)
         .then((data) => {
@@ -118,7 +99,7 @@ export function useAssetPickerNavigation(
     return () => {
       active = false
     }
-  }, [scope, countsKey, countsEnabled, loadProjects, loadCounts])
+  }, [countsKey, countsEnabled, loadCounts])
 
   const refreshCounts = useCallback(async () => {
     try {
@@ -130,10 +111,7 @@ export function useAssetPickerNavigation(
   }, [countsKey, loadCounts])
 
   return {
-    projects:
-      projectsState.key === scope
-        ? projectsState.data
-        : (projectsCache.get(scope)?.data ?? []),
+    projects,
     counts:
       countsState.key === countsKey
         ? countsState.data

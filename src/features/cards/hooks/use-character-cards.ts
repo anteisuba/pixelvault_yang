@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useLocale, useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
@@ -16,7 +17,6 @@ import { CHARACTER_CARD } from '@/constants/cards/character-card'
 import type { AppLocale } from '@/i18n/routing'
 import { TAVERN_CARD } from '@/constants/cards/tavern-card'
 import {
-  listCharacterCardsAPI,
   createCharacterCardAPI,
   createCharacterLookAPI,
   deleteCharacterLookAPI,
@@ -30,14 +30,14 @@ import {
 import { getApiErrorMessage } from '@/lib/api-error-message'
 import { tavernCardMime } from '@/lib/tavern-card'
 import {
-  makeCardCacheKey,
-  readCardCache,
-  writeCardCache,
-} from '@/features/cards/lib/card-cache'
-import { deferEffectTask } from '@/lib/defer-effect-task'
+  characterCardsQuery,
+  refreshCharacterCards,
+  updateCharacterCardsCache,
+} from '@/lib/character-cards-query'
+import { queryClient } from '@/lib/query-client'
 import { useErrorText } from '@/hooks/use-error-text'
 
-const CHARACTER_CARDS_CACHE_KEY = makeCardCacheKey('character')
+const NO_CARDS: CharacterCardRecord[] = []
 
 function withoutKey<T>(
   record: Record<string, T>,
@@ -117,26 +117,28 @@ export interface UseCharacterCardsReturn {
 }
 
 export function useCharacterCards(): UseCharacterCardsReturn {
-  // Seed from the module-level cache so repeated CardDrawer opens render
-  // instantly. Mirrors `useCardManager` for style/background cards.
-  const [cards, setCards] = useState<CharacterCardRecord[]>(
-    () => readCardCache<CharacterCardRecord[]>(CHARACTER_CARDS_CACHE_KEY) ?? [],
-  )
+  // 列表住共用查询（`characterCardsQuery`）：切页回来先给手里那份、过期才后台对一遍，
+  // 七个挂载点只拉一次。在场 / 挑图 / 造型是这一处自己的选择，照旧留本地。
+  const query = useQuery(characterCardsQuery, queryClient)
+  const cards = query.data ?? NO_CARDS
   const [activeCardIds, setActiveIds] = useState<string[]>([])
   const [imagePicks, setImagePicksState] = useState<
     Record<string, readonly CharacterImagePick[]>
   >({})
   const [lookIds, setLookIds] = useState<Record<string, string>>({})
-  const [isLoading, setIsLoading] = useState(
-    () =>
-      readCardCache<CharacterCardRecord[]>(CHARACTER_CARDS_CACHE_KEY) ===
-      undefined,
-  )
-  const [error, setError] = useState<string | null>(null)
+  /** 写请求失败的那句；列表拉不下来的那句从查询读。 */
+  const [mutationError, setError] = useState<string | null>(null)
   const t = useTranslations('Toasts')
   const tErrors = useTranslations('Errors')
   const errText = useErrorText()
   const locale = useLocale() as AppLocale
+  // 只有一张都没拿到过才算「加载中」；有手里那份时后台对一遍不转圈。
+  const isLoading = query.isPending
+  const error =
+    mutationError ??
+    (query.isError
+      ? errText.thrown(query.error, t('characterCardLoadFailed'))
+      : null)
 
   const findCard = useCallback(
     (id: string): CharacterCardRecord | null =>
@@ -214,32 +216,6 @@ export function useCharacterCards(): UseCharacterCardsReturn {
 
   // ─── Card CRUD ────────────────────────────────────────────────
 
-  const fetchCards = useCallback(
-    async (opts?: { silent?: boolean }) => {
-      if (!opts?.silent) setIsLoading(true)
-      setError(null)
-      const response = await listCharacterCardsAPI()
-      if (response.success && response.data) {
-        setCards(response.data)
-        writeCardCache(CHARACTER_CARDS_CACHE_KEY, response.data)
-      } else {
-        setError(errText.api(response, t('characterCardLoadFailed')))
-      }
-      if (!opts?.silent) setIsLoading(false)
-    },
-    [errText, t],
-  )
-
-  useEffect(() => {
-    const hasCached =
-      readCardCache<CharacterCardRecord[]>(CHARACTER_CARDS_CACHE_KEY) !==
-      undefined
-    return deferEffectTask(() => {
-      // Cache hit → silent SWR refresh; cache miss → visible loading.
-      void fetchCards({ silent: hasCached })
-    })
-  }, [fetchCards])
-
   const create = useCallback(
     async (
       data: CreateCharacterCardRequest,
@@ -248,11 +224,7 @@ export function useCharacterCards(): UseCharacterCardsReturn {
       if (response.success && response.data) {
         setError(null)
         const newCard = response.data
-        setCards((prev) => {
-          const next = [newCard, ...prev]
-          writeCardCache(CHARACTER_CARDS_CACHE_KEY, next)
-          return next
-        })
+        updateCharacterCardsCache((prev) => [newCard, ...prev])
         toast.success(t('characterCardCreated'))
         return newCard
       }
@@ -272,11 +244,7 @@ export function useCharacterCards(): UseCharacterCardsReturn {
       if (response.success && response.data) {
         setError(null)
         const newCard = response.data
-        setCards((prev) => {
-          const next = [newCard, ...prev]
-          writeCardCache(CHARACTER_CARDS_CACHE_KEY, next)
-          return next
-        })
+        updateCharacterCardsCache((prev) => [newCard, ...prev])
         toast.success(t('characterCardImported', { name: newCard.name }))
         return newCard
       }
@@ -323,11 +291,9 @@ export function useCharacterCards(): UseCharacterCardsReturn {
 
   /** 写请求回来的整个角色换进手里那份。 */
   const replaceCard = useCallback((updated: CharacterCardRecord) => {
-    setCards((prev) => {
-      const next = prev.map((card) => (card.id === updated.id ? updated : card))
-      writeCardCache(CHARACTER_CARDS_CACHE_KEY, next)
-      return next
-    })
+    updateCharacterCardsCache((prev) =>
+      prev.map((card) => (card.id === updated.id ? updated : card)),
+    )
   }, [])
 
   const update = useCallback(
@@ -348,13 +314,9 @@ export function useCharacterCards(): UseCharacterCardsReturn {
   )
 
   const setFavorite = useCallback((id: string, isFavorite: boolean) => {
-    setCards((prev) => {
-      const next = prev.map((card) =>
-        card.id === id ? { ...card, isFavorite } : card,
-      )
-      writeCardCache(CHARACTER_CARDS_CACHE_KEY, next)
-      return next
-    })
+    updateCharacterCardsCache((prev) =>
+      prev.map((card) => (card.id === id ? { ...card, isFavorite } : card)),
+    )
   }, [])
   /**
    * ⚠ ⛔ 拿回包整张换掉：单张回包的 `generationCount` 恒为 0（只在列表里算），换了
@@ -380,11 +342,7 @@ export function useCharacterCards(): UseCharacterCardsReturn {
       const response = await deleteCharacterCardAPI(id)
       if (response.success) {
         setError(null)
-        setCards((prev) => {
-          const next = prev.filter((c) => c.id !== id)
-          writeCardCache(CHARACTER_CARDS_CACHE_KEY, next)
-          return next
-        })
+        updateCharacterCardsCache((prev) => prev.filter((c) => c.id !== id))
         // Remove from active selection（连同她挑的图、选的造型）
         setActiveIds((prev) => prev.filter((cid) => cid !== id))
         setImagePicksState((prev) => withoutKey(prev, id))
@@ -411,11 +369,7 @@ export function useCharacterCards(): UseCharacterCardsReturn {
         return null
       }
       const copy = response.data
-      setCards((prev) => {
-        const next = [copy, ...prev]
-        writeCardCache(CHARACTER_CARDS_CACHE_KEY, next)
-        return next
-      })
+      updateCharacterCardsCache((prev) => [copy, ...prev])
       toast.success(t('characterCardDuplicated', { name }))
       return copy
     },
@@ -519,6 +473,6 @@ export function useCharacterCards(): UseCharacterCardsReturn {
     updateLook,
     removeLook,
     duplicate,
-    refresh: fetchCards,
+    refresh: refreshCharacterCards,
   }
 }

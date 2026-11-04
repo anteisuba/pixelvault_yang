@@ -15,6 +15,11 @@ export const QUERY_KEYS = {
   voiceCards: ['voice-cards'],
   characterLoras: (characterCardId: string | null) =>
     ['character-loras', characterCardId] as const,
+  /** 你的角色卡列表：角色页、工作台、画布角色库、助手 `@`、换人菜单共用一份。 */
+  characterCards: ['character-cards'],
+  /** 项目 / 素材文件夹列表：工作台项目、素材页左栏、挑素材弹层共用一份。 */
+  projects: ['projects'],
+  usageSummary: (userId: string | null) => ['usage-summary', userId] as const,
 } as const
 
 export const QUERY_TIMING = {

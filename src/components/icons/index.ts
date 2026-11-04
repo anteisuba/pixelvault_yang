@@ -133,6 +133,7 @@ export {
   DotsSixIcon as GripHorizontal,
   DotsSixVerticalIcon as GripVertical,
   HandIcon as Hand,
+  HashIcon as Hash,
   HeartIcon as Heart,
   HeartBreakIcon as HeartOff,
   QuestionIcon as HelpCircle,

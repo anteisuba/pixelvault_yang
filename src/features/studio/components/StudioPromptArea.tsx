@@ -59,7 +59,7 @@ import { StudioTemplatesChip } from '@/features/studio/components/templates/Stud
 // 派生；张数 / 声音在它底部的「更多」折叠区里。
 import { StudioSpecChip } from '@/features/studio/components/StudioSpecChip'
 import { StudioModelCapabilityChips } from '@/features/studio/components/StudioModelCapabilityChips'
-import { StudioDialectHeader } from '@/features/studio/components/tags/StudioDialectHeader'
+import { StudioEditImageChip } from '@/features/studio/components/StudioEditImageChip'
 import { StudioDialectJumpHint } from '@/features/studio/components/tags/StudioDialectJumpHint'
 import { StudioCostPreview } from '@/features/studio/components/StudioCostPreview'
 import { StudioGenerateButton } from '@/components/business/studio-shared/workflow/StudioGenerateButton'
@@ -121,12 +121,15 @@ interface StudioPromptAreaProps {
   templates: { open: boolean; onToggle: () => void; restoring?: boolean }
   /** 「角色」同模板：开合的是舞台上那块面板（10-25 用户定，⛔ 跳去库）。 */
   characterCards: { open: boolean; onToggle: () => void }
+  /** 工具行「改图」（图片档，owner 11-04：台顶切换条撤掉后搬来的「编辑」）。不给 = 不画。 */
+  onEditImage?: () => void
 }
 
 export const StudioPromptArea = memo(function StudioPromptArea({
   layout = 'column',
   templates,
   characterCards,
+  onEditImage,
 }: StudioPromptAreaProps) {
   const { state, dispatch } = useStudioForm()
   const { imageUpload, characters } = useStudioData()
@@ -554,6 +557,12 @@ export const StudioPromptArea = memo(function StudioPromptArea({
                     <ReferenceImageChip disabled={isGenerating} />
                     <StudioSearchGroundingChip disabled={isGenerating} />
                     <ImageRecipeImportChip disabled={isGenerating} />
+                    {onEditImage ? (
+                      <StudioEditImageChip
+                        disabled={isGenerating}
+                        onEdit={onEditImage}
+                      />
+                    ) : null}
                   </>
                 )}
                 <StudioTemplatesChip
@@ -747,11 +756,6 @@ export const StudioPromptArea = memo(function StudioPromptArea({
 
   return (
     <>
-      {/* 两台之间那扇门的**这一侧**。⚠ 与标签台挂的是同一颗组件、同一个位置
-          （参数列的第一行）—— 只装一边它就不是门，是单向阀。
-          ⛔ 只给图片档：视频与音频没有方言这一说。 */}
-      {isImageMode ? <StudioDialectHeader disabled={isGenerating} /> : null}
-
       <PromptInput
         ref={composerContainerRef}
         id="studio-prompt"

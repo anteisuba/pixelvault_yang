@@ -124,16 +124,6 @@
     );
   }
 
-  /* 手机图片台的舞台卡顶上多一行写法切换（`.studio-mobile-stage-header`：32 高 +
-     12 下距），面板再扣掉这一行，否则整块舞台会多滚出一截。 */
-  .studio-layout-v2:has(.studio-mobile-stage-header)
-    .studio-mobile-stage-panel {
-    height: calc(
-      var(--screen-h, 100svh) - 3.5rem - 1.5rem - 2.75rem -
-        var(--studio-mobile-composer-height, 7rem)
-    );
-  }
-
   /* chip 行：32px 丸 + 44px 触屏命中区（同 .touch-target-y 的手法）。
      ⚠ 直接写在行上而不是逐颗 chip 上 —— 参考图 / 优化两颗是既有组件
      （`studioToolTriggerClass` 在窄屏是 h-11），它们的桌面外观不能动，

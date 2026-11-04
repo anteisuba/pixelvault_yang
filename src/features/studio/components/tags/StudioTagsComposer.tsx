@@ -81,6 +81,7 @@ import { useStudioToolRow } from '@/components/business/studio-shared/primitives
 import { StudioGenerateButton } from '@/components/business/studio-shared/workflow/StudioGenerateButton'
 import { StudioTemplatesChip } from '@/features/studio/components/templates/StudioTemplatesChip'
 import { ReferenceImageChip } from '@/features/studio/components/ReferenceImageChip'
+import { StudioEditImageChip } from '@/features/studio/components/StudioEditImageChip'
 import { StudioCostPreview } from '@/features/studio/components/StudioCostPreview'
 import { StudioSpecChip } from '@/features/studio/components/StudioSpecChip'
 import {
@@ -123,6 +124,7 @@ export function StudioTagsComposer({
   mobile = false,
   compact = false,
   onExpand,
+  onEditImage,
 }: {
   onOpenPanel: (panel: TagWorkbenchPanel | null) => void
   /** 舞台上此刻开着哪块面板（模板那颗 chip 要画「开着」、再点一下收起）。 */
@@ -135,6 +137,8 @@ export function StudioTagsComposer({
   compact?: boolean
   /** 点摘要 —— 宿主展开输入框并把焦点交给标签输入。 */
   onExpand?: () => void
+  /** 工具行「改图」（owner 11-04，与图片台同一颗）。不给 = 不画。 */
+  onEditImage?: () => void
 }) {
   const [negativeOpen, setNegativeOpen] = useState(false)
   const negativeId = useId()
@@ -641,6 +645,12 @@ export function StudioTagsComposer({
                   </span>
                 </Toolbar.Button>
                 <ImageRecipeImportChip disabled={isGenerating} />
+                {onEditImage ? (
+                  <StudioEditImageChip
+                    disabled={isGenerating}
+                    onEdit={onEditImage}
+                  />
+                ) : null}
                 {characters.mode ? (
                   <Toolbar.Button
                     type="button"

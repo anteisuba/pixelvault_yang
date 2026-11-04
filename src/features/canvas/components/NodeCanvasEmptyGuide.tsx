@@ -16,8 +16,7 @@ interface NodeCanvasEmptyGuideProps {
 }
 
 /**
- * A2 — empty canvas guide for the Node director board. Replaces the generic
- * XiaoheiGuideCarousel on /studio/node with the assistant-first front door:
+ * A2 — empty canvas guide for the Node director board: the assistant-first front door —
  * the default path is "chat the outline" (assistant = script brain), with a
  * quiet manual "add node" escape.
  *

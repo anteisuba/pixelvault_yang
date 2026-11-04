@@ -13,6 +13,7 @@ import {
   FileText,
   FolderOpen,
   FolderTree,
+  Hash,
   History,
   IdCard,
   ListTree,
@@ -125,7 +126,17 @@ export const SHELL_NAV_TOOLS: readonly ShellNavItem[] = [
     icon: ImageIcon,
     labelKey: 'StudioTools.tools.image.label',
     // ⚠ `/studio` 本身是创作首页（第 9f 步），⛔ 再算进图片台。
-    activePaths: [ROUTES.STUDIO_IMAGE, ROUTES.STUDIO_IMAGE_TAGS],
+  },
+  /**
+   * 标签台单列一格（owner 11-04，ui-spec §1 ⛔ 台顶切换条）：和图片台同一个工作区、换了写法。
+   * ⚠ 地址是 `/studio/image/tags`，前缀落在图片台下面 —— `activeShellTool` 先认精确命中，
+   * 才轮到前缀，⛔ 让它亮成图片台。图标 ⛔ 借库里「标签词库」那颗 `Tag`。
+   */
+  {
+    id: 'tags',
+    href: ROUTES.STUDIO_IMAGE_TAGS,
+    icon: Hash,
+    labelKey: 'StudioTools.tools.tags.label',
   },
   {
     id: 'video',
@@ -255,10 +266,9 @@ export function isStudioPath(pathname: string): boolean {
  * 不在任何工具上 = undefined。
  */
 export function activeShellTool(pathname: string): ShellNavItem | undefined {
-  return SHELL_NAV_TOOLS.find(
-    (item) =>
-      isShellNavItemActive(item, pathname) ||
-      pathname.startsWith(`${item.href}/`),
+  return (
+    SHELL_NAV_TOOLS.find((item) => isShellNavItemActive(item, pathname)) ??
+    SHELL_NAV_TOOLS.find((item) => pathname.startsWith(`${item.href}/`))
   )
 }
 

@@ -24,10 +24,11 @@
 @custom-variant short (@media (max-height: 56rem));
 
 /* `/studio` left rail (owner 2026-11-04): every item is one click while the column
-   fits — 18 keys × 40px + 3 group gaps × 16px + 20 × 2px + 24px padding = 832px =
-   52rem. Shorter than that, only the 库 group folds into one key with a popover.
+   fits — 19 keys × 40px + 3 group gaps × 16px + 21 × 2px + 24px padding = 874px,
+   rounded up to 55rem (880px; 标签台 joined the 工作台 group 11-04). Shorter than
+   that, only the 库 group folds into one key with a popover.
    Change the rail's item count or sizes → recount this. */
-@custom-variant rail-short (@media (max-height: 52rem));
+@custom-variant rail-short (@media (max-height: 55rem));
 
 @theme inline {
   --color-background: var(--background);

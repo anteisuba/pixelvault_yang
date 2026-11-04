@@ -2521,7 +2521,7 @@ describe('LoraWorkbench GenerateBranch — generating state and ETA hint', () =>
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
     expect(resultBox()).toBeNull()
     expect(
-      screen.getByText('LoraWorkbench:generate.hintPure'),
+      screen.getByText('LoraWorkbench:generate.emptyTitle'),
     ).toBeInTheDocument()
     expect(screen.queryByTestId('lora-generating-eta')).not.toBeInTheDocument()
   })

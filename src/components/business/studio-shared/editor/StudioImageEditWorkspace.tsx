@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useLayoutEffect, useState, type ReactNode } from 'react'
-import { ImagePlus, Upload } from '@/components/icons'
+import { ArrowLeft, ImagePlus, Upload } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { AssetSelectorDialog } from '@/features/assets'
@@ -17,9 +17,11 @@ import {
 
 function ImageEditSourcePicker({
   onSelect,
+  onBack,
   references,
 }: {
   onSelect: (target: StudioImageEditTarget) => void
+  onBack: () => void
   references: readonly { url: string }[]
 }) {
   const t = useTranslations('StudioImageEdit')
@@ -107,6 +109,17 @@ function ImageEditSourcePicker({
           ))}
         </div>
       ) : null}
+      {/* 从工具行「改图」进来还没挑图时，这是唯一的出口（owner 11-04 撤掉台顶切换条）。 */}
+      <Button
+        type="button"
+        variant="ghost"
+        onClick={onBack}
+        disabled={isUploading}
+        className="rounded-full text-muted-foreground"
+      >
+        <ArrowLeft className="size-4" />
+        {t('stageBack')}
+      </Button>
       <AssetSelectorDialog
         open={libraryOpen}
         onOpenChange={setLibraryOpen}
@@ -181,7 +194,11 @@ export function StudioImageEditWorkspace({
       active={active}
     />
   ) : (
-    <ImageEditSourcePicker onSelect={onSelect} references={references} />
+    <ImageEditSourcePicker
+      onSelect={onSelect}
+      onBack={onBack}
+      references={references}
+    />
   )
 
   return children({

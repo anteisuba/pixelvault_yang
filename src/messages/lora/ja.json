@@ -246,8 +246,7 @@
         "empty": "この LoRA には公開作例がありません",
         "lineTitle": "{name} の作例"
       },
-      "hintWithLora": "プロンプトを書くと、結果はここに表示されます",
-      "hintPure": "ベースモデルだけでも生成できます。「ライブラリ」で LoRA を装着することもできます",
+      "emptyTitle": "何を描きますか？",
       "busy": "生成中",
       "assistantBusy": "装備台がまだ処理中です（生成中、またはレシピの LoRA を装着中）。終わってからもう一度どうぞ",
       "restoreShort": "復元",

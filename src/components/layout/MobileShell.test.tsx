@@ -77,7 +77,7 @@ describe('MobileShell 底栏（P3 · v10）', () => {
     expect(document.querySelector('a[href="/library/prompts"]')).toBeNull()
   })
 
-  it('点 ＋ 打开新建面板：一句话输入 + 六个工具，上次用的标「上次」', () => {
+  it('点 ＋ 打开新建面板：一句话输入 + 七个台（标签台 11-04 单列），上次用的标「上次」', () => {
     window.localStorage.setItem(MOBILE_NAV_LAST_TOOL_STORAGE_KEY, 'video')
     render(<MobileShell />)
     fireEvent.click(createButton())
@@ -86,7 +86,7 @@ describe('MobileShell 底栏（P3 · v10）', () => {
     expect(
       screen.getByRole('textbox', { name: 'MobileNav:quickPlaceholder' }),
     ).toBeInTheDocument()
-    expect(panel.querySelectorAll('li a')).toHaveLength(6)
+    expect(panel.querySelectorAll('li a')).toHaveLength(7)
     const video = panel.querySelector('a[href="/studio/video"]')
     expect(video?.textContent).toContain('MobileNav:last')
     expect(

@@ -57,12 +57,11 @@ const SETTLE_MS = 2500
 /** 云端容器预装的 chromium（与 node_modules 里的 playwright 版本解耦）。 */
 const CLOUD_CHROMIUM = '/opt/pw-browsers/chromium'
 /**
- * 预置 localStorage：首访教程会盖住 studio（同 studio-image-mobile-check），
+ * 预置 localStorage：
  * 隐私横幅会盖住底部 composer。横幅选「仅必要」，测试流量不进分析/录屏。
  * key 与 `src/constants/privacy-consent.ts` 的 CONSENT_STORAGE_KEY 保持一致。
  */
 const PRESET_STORAGE = {
-  'pixelvault:studio-guide-seen': '1',
   'pixelvault:privacy-consent:v1': 'rejected',
 }
 /** 动画录制窗口：入场动画通常在首屏 1s 内跑完，等页面稳定再采就全错过了。 */

@@ -64,7 +64,6 @@
     "officialTagsError": "NAI suggestions are unavailable. You can still type tags manually.",
     "officialTagsSource": "NAI suggestions · {model} · Character accuracy is not guaranteed",
     "officialTagsEmpty": "No official suggestions for {model}. You can type a tag manually.",
-    "dialectSwitchLabel": "Prompt dialect",
     "dialect": {
       "natural": "Natural language",
       "tags": "Tags"

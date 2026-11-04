@@ -64,7 +64,6 @@
     "officialTagsError": "NAI 公式候補を取得できません。手入力は引き続き可能です。",
     "officialTagsSource": "NAI 公式候補 · {model} · キャラクターの再現は保証されません",
     "officialTagsEmpty": "{model} の公式候補はありません。手入力できます。",
-    "dialectSwitchLabel": "プロンプト方言",
     "dialect": {
       "natural": "自然言語",
       "tags": "タグ"

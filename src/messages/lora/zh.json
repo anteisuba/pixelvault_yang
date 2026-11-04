@@ -246,8 +246,7 @@
         "empty": "这个 LoRA 没有公开样例",
         "lineTitle": "{name} 出过的图"
       },
-      "hintWithLora": "写一句提示词，出图后结果在这里",
-      "hintPure": "可以直接用底模出图，也可以去「库」挂 LoRA",
+      "emptyTitle": "想画什么？",
       "busy": "出图中",
       "assistantBusy": "装配台这会儿还在忙（出图或补挂配方 LoRA），忙完再让助手生成",
       "restoreShort": "还原",

@@ -41,28 +41,11 @@ export const STUDIO_MOBILE_COMPOSER_VIDEO_CLASS =
  */
 export const STUDIO_MOBILE_STAGE_CLASS = 'studio-mobile-stage' as const
 
-/**
- * 手机舞台卡顶上那一行（图片台的写法切换）—— src/styles/studio.css 按它把模板面板的高度
- * 再扣掉一行。
- */
-export const STUDIO_MOBILE_STAGE_HEADER_CLASS =
-  'studio-mobile-stage-header' as const
-
 /** 提示词输入最多长到几行（超过后内部滚动）。 */
 export const STUDIO_MOBILE_PROMPT_MAX_ROWS = 3
 
 /** 提示词输入的最大高度，与上面的行数一致（`line-height: 1.25rem` × 3 + 内边距）。 */
 export const STUDIO_MOBILE_PROMPT_MAX_HEIGHT = '5.25rem' as const
-
-/**
- * 空态起手屏的示例卡数量与键。2×2 = 4 张，比桌面那排 chip 多一张。
- * ⚠ 第四条键 `e4` 必须在 `StudioEmptyState.examples.<mode>` 下都有文案 ——
- * 图片与视频两档都已补齐；音频移动端仍走原来的 chip 行，不读这份。
- */
-export const STUDIO_MOBILE_EXAMPLE_KEYS = ['e1', 'e2', 'e3', 'e4'] as const
-
-/** 「继续创作」条在移动端最多显示几张。 */
-export const STUDIO_MOBILE_RECENT_COUNT = 4
 
 /**
  * 移动端队列卡上进度条的封顶百分比。

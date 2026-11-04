@@ -9,71 +9,10 @@
     "limitReached": "このモデルの参照画像は最大 {max} 枚です。追加するには1枚削除してください。"
   },
   "StudioEmptyState": {
-    "hint": {
-      "image": "作りたいイメージを言葉にするか、例から始めましょう",
-      "video": "ショットで何が起きるかを書くか、例から始めましょう",
-      "image_tags": "タグをいくつか書くか、セットから始めましょう"
-    },
-    "examples": {
-      "image": {
-        "e1": {
-          "label": "フィルムポートレート",
-          "prompt": "窓辺の柔らかい自然光に照らされた女性のフィルム調ポートレート、浅い被写界深度、Portra 400 の色調、繊細な肌の質感"
-        },
-        "e2": {
-          "label": "朝の街角",
-          "prompt": "朝もやに包まれた旧市街の通り、濡れた石畳に暖色の街灯が反射し、遠くに自転車の人影、映画的な構図"
-        },
-        "e3": {
-          "label": "水彩の猫",
-          "prompt": "窓辺でうたた寝する茶トラ猫、水彩イラスト風、余白を活かした構図、ゆるい筆致、透明感のある色彩"
-        },
-        "e4": {
-          "label": "サイバー工房",
-          "prompt": "深夜の機械工房、作業台に半分解されたロボットアーム、冷たい青の補助光と暖色のデスクランプが交差する、金属の質感が緻密"
-        }
-      },
-      "video": {
-        "e1": {
-          "label": "寄りのクローズアップ",
-          "prompt": "机の上の熱いコーヒーにカメラがゆっくり寄る、朝の光に湯気が立ちのぼる、浅い被写界深度、暖色トーン"
-        },
-        "e2": {
-          "label": "海岸の空撮",
-          "prompt": "海岸線に沿ったドローンショット、岩に砕ける波、カメラは海岸沿いをゆっくり横移動、夕暮れの光"
-        },
-        "e3": {
-          "label": "雨夜のネオン",
-          "prompt": "雨の夜の街角、水たまりに映るネオン、透明な傘がフレームに入り、カメラはゆっくりティルトダウン"
-        },
-        "e4": {
-          "label": "コンロ前の手元",
-          "prompt": "キッチンのコンロ前の手元クローズアップ、熱した鍋で具材を返す、油の照りと立ちのぼる湯気、わずかな手持ちの揺れ、暖色の光"
-        }
-      },
-      "image_tags": {
-        "e1": {
-          "label": "ポートレート",
-          "prompt": "1girl, solo, upper body, looking at viewer, smile, long hair, school uniform, cherry blossoms, soft lighting"
-        },
-        "e2": {
-          "label": "雨の夜の街",
-          "prompt": "no humans, scenery, city, night, rain, neon lights, reflection, wet street, cinematic lighting"
-        },
-        "e3": {
-          "label": "魔女",
-          "prompt": "1girl, solo, witch hat, holding staff, magic circle, floating hair, night sky, stars, glowing"
-        },
-        "e4": {
-          "label": "ちびキャラ",
-          "prompt": "chibi, 1girl, solo, full body, cat ears, oversized hoodie, sitting, simple background, pastel colors"
-        }
-      }
-    },
-    "recentLabel": "続きから作る",
-    "recentRemixHint": "この結果をベースに再生成",
-    "guideButton": "使い方を見る",
-    "guideDialogTitle": "クイックガイド"
+    "title": {
+      "image": "何を描きますか？",
+      "video": "何を撮りますか？"
+    }
   },
   "StudioPage": {
     "heroEyebrow": "スタジオ",
@@ -501,6 +440,9 @@
       "image": {
         "label": "画像"
       },
+      "tags": {
+        "label": "タグ"
+      },
       "video": {
         "label": "動画"
       },
@@ -534,8 +476,6 @@
     "promptPlaceholder": "作りたい画を書いてください",
     "generate": "生成",
     "regenerate": "再生成",
-    "emptyTitle": "何を描きますか？",
-    "emptyTitleVideo": "何を撮りますか？",
     "promptPlaceholderVideo": "撮りたいカットを書いてください",
     "actionDownload": "保存",
     "actionOriginal": "原寸",
@@ -762,7 +702,6 @@
     "takeLabel": "{index} 枚目"
   },
   "StudioImageEdit": {
-    "editMode": "編集",
     "moreTools": "その他のツール",
     "editPromptLabel": "編集内容",
     "editPromptPlaceholder": "この画像をどのように変更したいか入力…",
@@ -927,7 +866,8 @@
     "compareBefore": "修正前",
     "compareAfter": "修正後",
     "compareSlider": "ドラッグして前後を比較",
-    "stageHistoryStep": "編集 {index}"
+    "stageHistoryStep": "編集 {index}",
+    "toolChip": "画像を編集"
   },
   "workflows": {
     "QUICK_IMAGE": {

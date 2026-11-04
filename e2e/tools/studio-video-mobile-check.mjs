@@ -27,7 +27,6 @@ const STORAGE_STATE = path.join(REPO, 'e2e/.auth/user.json')
 const URL = 'http://localhost:3000/zh/studio/video'
 const SETTLE_MS = 4000
 const READY_TIMEOUT_MS = 45000
-const GUIDE_SEEN_KEY = 'pixelvault:studio-guide-seen'
 /** 没有历史视频时的兜底源（公有样片）—— 报告里会标出用的是哪一个。 */
 const FALLBACK_VIDEO_URL =
   'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4'
@@ -67,11 +66,6 @@ async function main() {
     isMobile: true,
     deviceScaleFactor: 2,
   })
-  await mobile.addInitScript((key) => {
-    try {
-      localStorage.setItem(key, '1')
-    } catch {}
-  }, GUIDE_SEEN_KEY)
   const page = await mobile.newPage()
   await gotoWithRetry(page, URL)
   await settle(page)
@@ -160,34 +154,6 @@ async function main() {
         costMatches: /≈\s*\$/.test(cost?.textContent ?? ''),
         buttonText: text,
         buttonMatchesDuration: /\d+s$/.test(text),
-      }
-    }),
-  )
-
-  log(
-    'exampleCards',
-    await page.evaluate(() => {
-      const cards = Array.from(
-        document.querySelectorAll('[data-testid="studio-mobile-example-card"]'),
-      )
-      return {
-        count: cards.length,
-        // 16:9 封面：宽/高 ≈ 1.78。
-        firstCoverRatio: cards[0]
-          ? Number(
-              (
-                cards[0].firstElementChild.getBoundingClientRect().width /
-                cards[0].firstElementChild.getBoundingClientRect().height
-              ).toFixed(2),
-            )
-          : null,
-        coverNotTransparent: cards.every((c) => {
-          const cover = c.firstElementChild
-          const bg = getComputedStyle(cover).backgroundImage
-          const hasImg = Boolean(cover.querySelector('img'))
-          return hasImg || (bg !== 'none' && bg !== '')
-        }),
-        excerpts: cards.map((c) => c.lastElementChild?.textContent?.trim()),
       }
     }),
   )
@@ -619,11 +585,6 @@ async function main() {
     storageState: STORAGE_STATE,
     viewport: { width: 1440, height: 900 },
   })
-  await desktop.addInitScript((key) => {
-    try {
-      localStorage.setItem(key, '1')
-    } catch {}
-  }, GUIDE_SEEN_KEY)
   const dpage = await desktop.newPage()
   await gotoWithRetry(dpage, URL)
   await settle(dpage)

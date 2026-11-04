@@ -277,13 +277,7 @@ export const GenerationPreview = memo(function GenerationPreview({
   if (!generation && !isGenerating && !error) {
     if (state.outputType === 'image' || state.outputType === 'video') {
       // 起手势空态（外边距归 StudioWorkbenchLayout 单层管理，这里不再加 wrapper）。
-      return (
-        <StudioEmptyState
-          key={state.outputType}
-          mode={state.outputType}
-          onRemix={onRemix}
-        />
-      )
+      return <StudioEmptyState key={state.outputType} mode={state.outputType} />
     }
 
     return (

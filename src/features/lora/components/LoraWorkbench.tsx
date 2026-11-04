@@ -4190,7 +4190,7 @@ function GenerateBranch({
                 }
               : undefined
           }}
-          hint={hasLora ? t('generate.hintWithLora') : t('generate.hintPure')}
+          hint={t('generate.emptyTitle')}
           eta={
             isGenerating && isRunnerBase
               ? isRunnerColdStart

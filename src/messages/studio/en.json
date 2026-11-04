@@ -9,71 +9,10 @@
     "limitReached": "This model accepts at most {max} reference images. Remove one to add another."
   },
   "StudioEmptyState": {
-    "hint": {
-      "image": "Describe the image you want, or start from an example",
-      "video": "Describe what happens in the shot, or start from an example",
-      "image_tags": "Type a few tags, or start from a set"
-    },
-    "examples": {
-      "image": {
-        "e1": {
-          "label": "Film portrait",
-          "prompt": "Film-look portrait of a woman by a window, soft natural light, shallow depth of field, Portra 400 tones, fine skin texture"
-        },
-        "e2": {
-          "label": "Morning street",
-          "prompt": "Old town street in early morning mist, wet cobblestones reflecting warm street lamps, a cyclist in the distance, cinematic composition"
-        },
-        "e3": {
-          "label": "Watercolor cat",
-          "prompt": "An orange cat napping on a windowsill, watercolor illustration, generous negative space, loose brushwork, clear translucent colors"
-        },
-        "e4": {
-          "label": "Cyber workshop",
-          "prompt": "A late-night mechanical workshop, a half-disassembled robotic arm on the bench, cool blue fill against a warm desk lamp, richly detailed metal surfaces"
-        }
-      },
-      "video": {
-        "e1": {
-          "label": "Push-in close-up",
-          "prompt": "Camera slowly pushes in on a cup of hot coffee on a desk, steam rising in morning light, shallow depth of field, warm tones"
-        },
-        "e2": {
-          "label": "Coastal aerial",
-          "prompt": "Drone shot along a coastline, waves crashing on rocks, camera tracks slowly along the shore, golden hour light"
-        },
-        "e3": {
-          "label": "Neon rain",
-          "prompt": "City street on a rainy night, neon signs reflected in puddles, a transparent umbrella enters the frame, camera tilts down slowly"
-        },
-        "e4": {
-          "label": "Hands at the stove",
-          "prompt": "Close-up of hands at a kitchen stove, ingredients tossed in a hot pan, oil sheen and steam rising, slight handheld sway, warm light"
-        }
-      },
-      "image_tags": {
-        "e1": {
-          "label": "Portrait",
-          "prompt": "1girl, solo, upper body, looking at viewer, smile, long hair, school uniform, cherry blossoms, soft lighting"
-        },
-        "e2": {
-          "label": "Rainy night street",
-          "prompt": "no humans, scenery, city, night, rain, neon lights, reflection, wet street, cinematic lighting"
-        },
-        "e3": {
-          "label": "Witch",
-          "prompt": "1girl, solo, witch hat, holding staff, magic circle, floating hair, night sky, stars, glowing"
-        },
-        "e4": {
-          "label": "Chibi",
-          "prompt": "chibi, 1girl, solo, full body, cat ears, oversized hoodie, sitting, simple background, pastel colors"
-        }
-      }
-    },
-    "recentLabel": "Pick up where you left off",
-    "recentRemixHint": "Remix from this result",
-    "guideButton": "How it works",
-    "guideDialogTitle": "Quick guide"
+    "title": {
+      "image": "What do you want to make?",
+      "video": "What do you want to shoot?"
+    }
   },
   "StudioPage": {
     "heroEyebrow": "Studio",
@@ -501,6 +440,9 @@
       "image": {
         "label": "Image"
       },
+      "tags": {
+        "label": "Tags"
+      },
       "video": {
         "label": "Video"
       },
@@ -534,8 +476,6 @@
     "promptPlaceholder": "Describe what you want",
     "generate": "Generate",
     "regenerate": "Regenerate",
-    "emptyTitle": "What do you want to make?",
-    "emptyTitleVideo": "What do you want to shoot?",
     "promptPlaceholderVideo": "Describe the shot you want",
     "actionDownload": "Save",
     "actionOriginal": "Full",
@@ -762,7 +702,6 @@
     "takeLabel": "Take {index}"
   },
   "StudioImageEdit": {
-    "editMode": "Edit",
     "moreTools": "More tools",
     "editPromptLabel": "Edit instructions",
     "editPromptPlaceholder": "Describe how you want to change this image…",
@@ -927,7 +866,8 @@
     "compareBefore": "Before",
     "compareAfter": "After",
     "compareSlider": "Drag to compare before and after",
-    "stageHistoryStep": "Edit {index}"
+    "stageHistoryStep": "Edit {index}",
+    "toolChip": "Edit image"
   },
   "workflows": {
     "QUICK_IMAGE": {

@@ -42,15 +42,6 @@ export const STUDIO_VIDEO_ASPECT_RATIOS = [
 
 export const STUDIO_CARD_SORT_OPTIONS = ['recent', 'created', 'name'] as const
 
-// ── 空态起手势（2026-07-05 方案 A：示例 prompt + 最近作品 + 教程入口）──
-/** 首次进入 Studio 自动弹一次教程后写入的标记；此后教程只从「?」入口打开。 */
-export const STUDIO_GUIDE_SEEN_STORAGE_KEY =
-  'pixelvault:studio-guide-seen' as const
-/** 空态「继续创作」行最多展示的最近生成数。 */
-export const STUDIO_EMPTY_RECENT_COUNT = 6
-/** 空态示例 prompt chips 的 i18n 键位（每个模态各一组）。 */
-export const STUDIO_EMPTY_EXAMPLE_KEYS = ['e1', 'e2', 'e3'] as const
-
 /** 原生拖拽 MIME：画廊 / 舞台上的图（`useStudioDraggable`）。舞台与输入框认它，
  *  落下 = 加参考图；内容是 `{ url, id }` 的 JSON。 */
 export const STUDIO_GENERATION_DRAG_MIME = 'application/x-studio-ref' as const

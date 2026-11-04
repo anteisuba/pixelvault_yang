@@ -27,7 +27,6 @@ const URL = 'http://localhost:3000/zh/studio/image'
 const SETTLE_MS = 4000
 /** 首帧后再等一次「目标元素出现」—— dev 下 Turbopack 重建能让首屏晚到十几秒。 */
 const READY_TIMEOUT_MS = 45000
-const GUIDE_SEEN_KEY = 'pixelvault:studio-guide-seen'
 
 const report = {}
 
@@ -69,11 +68,6 @@ async function main() {
     isMobile: true,
     deviceScaleFactor: 2,
   })
-  // 首访教程轮播会自动弹一次并盖住 composer —— 那是既有行为，不是本轮改动。
-  // 验收前先把"看过"标记写上，否则每一次 tap 都被抽屉遮罩吞掉。
-  await mobile.addInitScript((key) => {
-    try { localStorage.setItem(key, '1') } catch {}
-  }, GUIDE_SEEN_KEY)
   const page = await mobile.newPage()
   await gotoWithRetry(page, URL)
   await settle(page)
@@ -241,38 +235,6 @@ async function main() {
   await page.screenshot({ path: path.join(OUT_DIR, 'image-impl-375-spec.png') })
   await page.keyboard.press('Escape')
   await page.waitForTimeout(800)
-
-  // ── 示例卡回填 ─────────────────────────────────────────────────
-  const exampleCards = page.locator('.studio-empty-state .grid button')
-  const exampleCount = await exampleCards.count()
-  let examplePrompt = null
-  if (exampleCount > 0) {
-    await exampleCards.first().tap()
-    await page.waitForTimeout(600)
-    examplePrompt = await page.evaluate(
-      () =>
-        document.querySelector('#studio-prompt textarea')?.value ?? null,
-    )
-  }
-  log('exampleCards', {
-    count: exampleCount,
-    promptAfterTap: examplePrompt,
-    // 没有历史缩略图时也**不能是一块灰**：封面要么有 <img>，要么有渐变底。
-    ...(await page.evaluate(() => {
-      const cards = Array.from(
-        document.querySelectorAll('[data-testid="studio-mobile-example-card"]'),
-      )
-      return {
-        coverNotTransparent: cards.every((c) => {
-          const cover = c.firstElementChild
-          if (!cover) return false
-          const bg = getComputedStyle(cover).backgroundImage
-          return Boolean(cover.querySelector('img')) || (bg && bg !== 'none')
-        }),
-        excerpts: cards.map((c) => c.lastElementChild?.textContent?.trim()),
-      }
-    })),
-  })
 
   // ── 假成功：不花钱验「结果滚到顶 + composer 保留提示词」 ──────
   const sample = await page.evaluate(async () => {
@@ -555,9 +517,6 @@ async function main() {
     storageState: STORAGE_STATE,
     viewport: { width: 1440, height: 900 },
   })
-  await desktop.addInitScript((key) => {
-    try { localStorage.setItem(key, '1') } catch {}
-  }, GUIDE_SEEN_KEY)
   const dpage = await desktop.newPage()
   await gotoWithRetry(dpage, URL)
   await settle(dpage)

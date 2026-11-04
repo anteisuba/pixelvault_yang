@@ -52,7 +52,7 @@ interface LoraResultStageProps {
   onAskAssistant: (url: string) => void
   /** 「存成模板」（pages/prompts.md）：这一张出图那一刻的整套；记不着整套的格子不给。 */
   templateSaveFor: (id: string) => LoraResultTemplateSave | undefined
-  /** 还没出过图时台面中间那一句。 */
+  /** 还没出过图时台面中间那一句（起手屏只有这一句）。 */
   hint: string
   /** Runner 线路生成中的耗时预估。 */
   eta: string | null
@@ -122,12 +122,13 @@ export function LoraResultStage({
 
   if (!pendingTile && round.length === 0) {
     return (
-      <p
+      // 起手屏一句话（ui-spec §2，owner 11-04）：与图片 / 视频台同一副字。
+      <h2
         data-testid="lora-result-card"
-        className="grid min-h-0 flex-1 place-items-center text-2sm text-muted-foreground/70"
+        className="grid min-h-0 flex-1 place-items-center text-center text-xl font-semibold text-foreground"
       >
         {hint}
-      </p>
+      </h2>
     )
   }
 

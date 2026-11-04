@@ -11,6 +11,7 @@ import { getProviderLabel } from '@/constants/providers'
 import { STUDIO_PREFILL_PROMPT_STORAGE_KEY } from '@/constants/studio'
 import { STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR } from '@/constants/studio-assistant-operator'
 import { landRecipeInComposer } from '@/lib/studio-workbench-motion'
+import { cn } from '@/lib/utils'
 import {
   StudioCanvas,
   StudioWorkbenchLayout,
@@ -29,7 +30,6 @@ import { StudioTemplatesPanel } from '@/features/studio/components/templates/Stu
 import { StudioCardsStagePanel } from '@/features/studio/components/StudioCardsStagePanel'
 import { StudioTemplateUndoToast } from '@/features/studio/components/templates/StudioTemplateUndoToast'
 import { StudioStageSwap } from '@/components/business/studio-shared/chrome/StudioStageSwap'
-import { StudioDialectHeader } from '@/features/studio/components/tags/StudioDialectHeader'
 import { StudioImageEditWorkspace } from '@/components/business/studio-shared/editor/StudioImageEditWorkspace'
 import type { StudioImageEditTarget } from '@/components/business/studio-shared/editor/StudioImageEditStage'
 import { StudioOperatorBenchDock } from '@/features/assistant'
@@ -293,21 +293,10 @@ export function StudioWorkspaceUI() {
       : 'var(--workbench-pad)',
   )
   /**
-   * 底部输入框那几台舞台上方同一行：自然语言 / 标签切换。⛔ 台标题（ui-spec §1，
-   * owner 10-25：左上角留给收起后的头像）。⛔ 写法切换只给图片档：视频没有方言这一说。
+   * 工具行那颗「改图」（owner 11-04：⛔ 台顶「自然语言 · 标签 · 编辑」切换条——标签台
+   * 在左栏单列一格，改图进工具行）。不带图进去 = 先挑一张。
    */
-  const workbenchHeader = isBottomComposer ? (
-    <div className="flex items-center gap-3.5">
-      {state.outputType === 'image' ? (
-        <StudioDialectHeader
-          disabled={isGenerating || editRunning}
-          editing={isEditing}
-          onEdit={beginEdit}
-          onGenerate={exitEdit}
-        />
-      ) : null}
-    </div>
-  ) : undefined
+  const beginEditFromTool = useCallback(() => beginEdit(), [beginEdit])
 
   const { isLoaded, userId } = useAuth()
   const pathname = usePathname()
@@ -442,7 +431,12 @@ export function StudioWorkspaceUI() {
             它们的最小内容宽度会沿 flex 链一路往上传，把整个工作台撑到助手底下、
             撑出视口 —— 在地台这一层截断，里面的东西只能在自己格子里折行。 */}
         <motion.div
-          className="studio-layout-v2 workbench-ground min-w-0 flex-1 contain-inline-size"
+          // 底部输入框那几台（桌面图片 / 标签 / 视频）直接落在白板上，⛔ 灰地台
+          // （ui-spec §1 板里不再套卡，与 LoRA 台同一副）；音频与手机本项不动。
+          className={cn(
+            'studio-layout-v2 workbench-ground min-w-0 flex-1 contain-inline-size',
+            isBottomComposer && 'bg-transparent',
+          )}
           style={{ paddingRight: groundPaddingRight }}
         >
           {/* 三个模态共用一套外壳（切片 A，owner 2026-08-23）。此前只有图片走
@@ -477,20 +471,6 @@ export function StudioWorkspaceUI() {
                 {({ stage: tagsStage, composer: tagsComposer }) => (
                   <StudioWorkbenchLayout
                     layout={isBottomComposer ? 'bottom' : 'columns'}
-                    header={
-                      useMobileComposer && state.outputType === 'image' ? (
-                        // 手机图片台：写法切换在舞台左上角（owner 2026-10-02，输入条只留
-                        // 提示词与一行 ＋ · 模型 · 规格 · 生成），与标签台手机同一位置。
-                        <StudioDialectHeader
-                          disabled={isGenerating || editRunning}
-                          editing={isEditing}
-                          onEdit={beginEdit}
-                          onGenerate={exitEdit}
-                        />
-                      ) : (
-                        workbenchHeader
-                      )
-                    }
                     params={
                       useMobileComposer || (isEditing && !editTarget) ? null : (
                         <>
@@ -500,6 +480,7 @@ export function StudioWorkspaceUI() {
                               <StudioTagsComposer
                                 onOpenPanel={setStagePanel}
                                 activePanel={tagsPanel}
+                                onEditImage={beginEditFromTool}
                               />
                             ) : (
                               <StudioPromptArea
@@ -508,6 +489,11 @@ export function StudioWorkspaceUI() {
                                 }
                                 templates={templatesControl}
                                 characterCards={characterCardsControl}
+                                onEditImage={
+                                  state.outputType === 'image'
+                                    ? beginEditFromTool
+                                    : undefined
+                                }
                               />
                             ))}
                         </>

@@ -9,71 +9,10 @@
     "limitReached": "当前模型最多接受 {max} 张参考图，请先移除一张再添加。"
   },
   "StudioEmptyState": {
-    "hint": {
-      "image": "描述你想要的画面，或从一个示例开始",
-      "video": "描述镜头里发生什么，或从一个示例开始",
-      "image_tags": "写几个标签，或从一组起手"
-    },
-    "examples": {
-      "image": {
-        "e1": {
-          "label": "胶片人像",
-          "prompt": "一位女性的胶片质感肖像，柔和的窗边自然光，浅景深，Portra 400 色调，细腻的皮肤纹理"
-        },
-        "e2": {
-          "label": "清晨街景",
-          "prompt": "清晨薄雾中的老城街道，湿润的石板路反射着暖色路灯，远处有一个骑自行车的人，电影感构图"
-        },
-        "e3": {
-          "label": "水彩小猫",
-          "prompt": "一只蜷在窗台上打盹的橘猫，水彩插画风格，留白构图，笔触松弛，色彩清透"
-        },
-        "e4": {
-          "label": "赛博工坊",
-          "prompt": "深夜的机械工坊，一台半拆开的机械臂躺在工作台上，冷蓝色补光与暖色台灯交错，细节丰富的金属质感"
-        }
-      },
-      "video": {
-        "e1": {
-          "label": "推镜特写",
-          "prompt": "镜头缓慢推近桌上的一杯热咖啡，蒸汽在晨光中上升，浅景深，暖色调"
-        },
-        "e2": {
-          "label": "航拍海岸",
-          "prompt": "无人机航拍海岸线，海浪拍打礁石，镜头沿海岸缓慢横移，黄昏光线"
-        },
-        "e3": {
-          "label": "雨夜霓虹",
-          "prompt": "雨夜的城市街头，霓虹灯在积水中倒映，一把透明雨伞入画，镜头缓慢下摇"
-        },
-        "e4": {
-          "label": "灶前手部",
-          "prompt": "厨房灶台前的手部特写，热锅里的食材翻动，油光与蒸汽向上升腾，镜头轻微手持晃动，暖光"
-        }
-      },
-      "image_tags": {
-        "e1": {
-          "label": "人像",
-          "prompt": "1girl, solo, upper body, looking at viewer, smile, long hair, school uniform, cherry blossoms, soft lighting"
-        },
-        "e2": {
-          "label": "雨夜街景",
-          "prompt": "no humans, scenery, city, night, rain, neon lights, reflection, wet street, cinematic lighting"
-        },
-        "e3": {
-          "label": "魔女",
-          "prompt": "1girl, solo, witch hat, holding staff, magic circle, floating hair, night sky, stars, glowing"
-        },
-        "e4": {
-          "label": "Q 版",
-          "prompt": "chibi, 1girl, solo, full body, cat ears, oversized hoodie, sitting, simple background, pastel colors"
-        }
-      }
-    },
-    "recentLabel": "继续创作",
-    "recentRemixHint": "以此为基础再创作",
-    "guideButton": "查看操作教程",
-    "guideDialogTitle": "操作教程"
+    "title": {
+      "image": "想画什么？",
+      "video": "想拍什么？"
+    }
   },
   "StudioPage": {
     "heroEyebrow": "工作台",
@@ -501,6 +440,9 @@
       "image": {
         "label": "图像"
       },
+      "tags": {
+        "label": "标签"
+      },
       "video": {
         "label": "视频"
       },
@@ -534,8 +476,6 @@
     "promptPlaceholder": "描述你想要的画面",
     "generate": "生成",
     "regenerate": "重新生成",
-    "emptyTitle": "想画什么？",
-    "emptyTitleVideo": "想拍什么？",
     "promptPlaceholderVideo": "描述你想要的镜头",
     "actionDownload": "下载",
     "actionOriginal": "原图",
@@ -762,7 +702,6 @@
     "takeLabel": "第 {index} 张"
   },
   "StudioImageEdit": {
-    "editMode": "编辑",
     "moreTools": "更多工具",
     "editPromptLabel": "修改指令",
     "editPromptPlaceholder": "描述你想怎样修改这张图片…",
@@ -927,7 +866,8 @@
     "compareBefore": "修改前",
     "compareAfter": "修改后",
     "compareSlider": "拖动对比修改前后",
-    "stageHistoryStep": "第 {index} 次"
+    "stageHistoryStep": "第 {index} 次",
+    "toolChip": "改图"
   },
   "workflows": {
     "QUICK_IMAGE": {

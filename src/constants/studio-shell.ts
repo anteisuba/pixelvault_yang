@@ -6,9 +6,10 @@ import { ROUTES } from '@/constants/routes'
  * 设计稿：`/mnt/project-files/assistant-reliability/step9f-e.md`。
  */
 
-/** 台条（台开着在台顶、关着贴右边）里的六个台，顺序就是画板上的顺序（配音台 ③，样件 v5 排在 LoRA 后面）。 */
+/** 左栏「工作台」那一组的七个台，从上到下就是这个顺序（两指滑换台也按它）；标签台紧跟图像台（owner 11-04）。 */
 export const STUDIO_SHELL_BENCH_IDS = [
   'image',
+  'tags',
   'lora',
   'audio',
   'video',

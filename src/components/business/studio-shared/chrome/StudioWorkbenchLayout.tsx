@@ -2,10 +2,7 @@
 
 import { memo, useRef } from 'react'
 
-import {
-  STUDIO_MOBILE_STAGE_CLASS,
-  STUDIO_MOBILE_STAGE_HEADER_CLASS,
-} from '@/constants/studio-mobile'
+import { STUDIO_MOBILE_STAGE_CLASS } from '@/constants/studio-mobile'
 import { useToastLift } from '@/hooks/use-toast-lift'
 import { cn } from '@/lib/utils'
 
@@ -34,11 +31,6 @@ interface StudioWorkbenchLayoutProps {
    * 自然语言台）：`params` 渲染进舞台下方那张卡，`header` 在舞台上方。
    */
   layout?: 'columns' | 'bottom'
-  /**
-   * `bottom` 布局舞台上方那一行（标题 + 写法切换）；`columns` 布局（手机）里它住在
-   * 舞台卡的顶上一行。
-   */
-  header?: React.ReactNode
   /**
    * `bottom` 布局浮在输入框卡正上方的东西（套用模板后的「已套用 · 撤销」）。
    * 挂在卡里、绝对定位到卡外，⛔ 不占输入框的高度。
@@ -79,7 +71,6 @@ export const StudioWorkbenchLayout = memo(function StudioWorkbenchLayout({
   stage,
   composer,
   layout = 'columns',
-  header,
   composerOverlay,
   paramsClassName,
   stageOverlay,
@@ -102,24 +93,24 @@ export const StudioWorkbenchLayout = memo(function StudioWorkbenchLayout({
       // ⚠ 输入框卡**不挂** `.studio-param-panel`：参考图弹层拿它当碰撞边界，
       //   而弹层是朝上开出卡外的 —— 边界缩成这张矮卡会把弹层挤回卡里。
       <div className="studio-workbench-shell flex min-h-0 flex-1 flex-col gap-3 lg:flex-none">
-        {/* ⚠ 头部这一行定高 `h-9`、行距 `gap-3`：助手面板按这两个数对齐舞台顶边
+        {/* 台顶那一行（ui-spec §1）：⛔ 切换条、⛔ 台标题 —— 空着，是对话收起时头像落脚的地方
+            （`[data-bench-header]` 让位，与 LoRA / 配音 / 3D 台同一行）。
+            ⚠ 定高 `h-9`、行距 `gap-3`：助手面板按这两个数对齐舞台顶边
             （`STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR`），改这里必须改那边。 */}
-        {header ? (
-          <div data-bench-header className="flex h-9 shrink-0 items-center">
-            {header}
-          </div>
-        ) : null}
-        <div className="studio-workbench-stage workbench-card studio-scroll-area flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto px-3 pt-3 pb-3 lg:px-6 lg:pt-6 lg:pb-6">
+        <div data-bench-header className="flex h-9 shrink-0 items-center" />
+        {/* 舞台直接落在白板上（ui-spec §1 板里不再套卡，与 LoRA 台同一副），⛔ `.workbench-card`。 */}
+        <div className="studio-workbench-stage studio-scroll-area relative flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto">
           {stage}
         </div>
         {params ? (
           // `@container/composer`：工具行左组 chip 按这张卡的宽度收成图标
           // （`StudioChipClasses.compact`）。
           // `data-studio-composer`：「做同款」的配方落进来时这张卡顶一下（`landRecipeInComposer`）。
+          // 白板上一圈细边（与 LoRA 台输入框同一副），⛔ 浮起的投影。
           <div
             ref={composerCardRef}
             data-studio-composer=""
-            className="@container/composer relative shrink-0 rounded-2xl bg-card px-4 pt-3.5 pb-3 shadow-float"
+            className="@container/composer relative shrink-0 rounded-16 border border-border bg-card px-4 pt-3.5 pb-3"
           >
             {composerOverlay}
             <div className={paramsClassName}>{params}</div>
@@ -175,15 +166,6 @@ export const StudioWorkbenchLayout = memo(function StudioWorkbenchLayout({
             composer ? STUDIO_MOBILE_STAGE_CLASS : 'pb-3 lg:pb-6',
           )}
         >
-          {/* 手机图片台的写法切换（owner 2026-10-02：从输入条挪到舞台左上角，与标签台
-              手机同一位置）—— 跟着舞台一起滚，⛔ 不钉住。 */}
-          {header ? (
-            <div
-              className={cn(STUDIO_MOBILE_STAGE_HEADER_CLASS, 'mb-3 shrink-0')}
-            >
-              {header}
-            </div>
-          ) : null}
           {stage}
         </div>
         {stageOverlay ? (

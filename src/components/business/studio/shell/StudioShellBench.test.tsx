@@ -42,14 +42,15 @@ describe('useStudioBenchSwipe（9f-4 两指滑换台）', () => {
     wheel(content, STUDIO_SHELL_SWIPE.thresholdPx)
     wheel(content, STUDIO_SHELL_SWIPE.thresholdPx * 3)
     expect(onSwitch).toHaveBeenCalledTimes(1)
-    expect(onSwitch.mock.calls[0][0].id).toBe('lora')
+    // 台序 image → tags → lora（标签台 11-04 单列进左栏）
+    expect(onSwitch.mock.calls[0][0].id).toBe('tags')
   })
 
   it('停手之后才算下一次手势；往右滑回上一个，到头不换', () => {
     vi.useFakeTimers()
     const { content, onSwitch } = mount('lora')
     wheel(content, -STUDIO_SHELL_SWIPE.thresholdPx * 2)
-    expect(onSwitch.mock.calls[0][0].id).toBe('image')
+    expect(onSwitch.mock.calls[0][0].id).toBe('tags')
     vi.advanceTimersByTime(STUDIO_SHELL_SWIPE.idleMs + 1)
     wheel(content, -STUDIO_SHELL_SWIPE.thresholdPx * 2)
     expect(onSwitch).toHaveBeenCalledTimes(2)

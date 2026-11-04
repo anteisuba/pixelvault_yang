@@ -12,19 +12,16 @@ const EXPECTED_COPY = {
   en: {
     label: 'Canvas',
     metadataTitle: 'Canvas — ANTEI',
-    guideLabel: 'Canvas guide',
     oldBrand: /Node (?:Studio|Editor|workflow)/,
   },
   ja: {
     label: 'キャンバス',
     metadataTitle: 'キャンバス — ANTEI',
-    guideLabel: 'キャンバスガイド',
     oldBrand: /ノード(?:スタジオ|エディター|ワークフロー)/,
   },
   zh: {
     label: '画布',
     metadataTitle: '画布 — ANTEI',
-    guideLabel: '画布操作教程',
     oldBrand: /节点(?:工作台|编辑器|工作流)/,
   },
 } as const
@@ -38,7 +35,6 @@ interface CanvasNavigationMessages {
     eyebrow: string
     topbar: { deleteProjectConfirm: string }
   }
-  XiaoheiGuide: { node: { label: string } }
 }
 
 function readSource(relativePath: string): string {
@@ -70,13 +66,11 @@ describe('Canvas navigation contract', () => {
         messages.StudioTools.tools.node.description,
         messages.StudioNode.eyebrow,
         messages.StudioNode.topbar.deleteProjectConfirm,
-        messages.XiaoheiGuide.node.label,
       ].join('\n')
 
       expect(messages.StudioTools.tools.node.label).toBe(expected.label)
       expect(messages.StudioTools.tools.node.title).toBe(expected.label)
       expect(messages.Metadata.studio.node.title).toBe(expected.metadataTitle)
-      expect(messages.XiaoheiGuide.node.label).toBe(expected.guideLabel)
       expect(visibleCopy).not.toMatch(expected.oldBrand)
     },
   )

@@ -121,10 +121,10 @@ function pngHasAlpha(buffer: Buffer): boolean {
 }
 
 /** NovelAI 藏在透明通道最低位的那一份（按列读，先 15 字节魔数、再 32 位长度、再数据）。 */
-function readStealthText(buffer: Buffer): Map<string, string> {
+async function readStealthText(buffer: Buffer): Promise<Map<string, string>> {
   const out = new Map<string, string>()
   if (!pngHasAlpha(buffer)) return out
-  const image = decodeImage(buffer)
+  const image = await decodeImage(buffer)
   const { width, height } = image
   const total = width * height
   let index = 0
@@ -329,7 +329,7 @@ export async function readEmbeddedRecipe(
     const fromText = fromChunks(chunks)
     if (fromText) return fromText
     if (!buffer.subarray(0, 8).equals(PNG_SIGNATURE)) return null
-    return fromChunks(readStealthText(buffer))
+    return fromChunks(await readStealthText(buffer))
   } catch {
     return null
   }

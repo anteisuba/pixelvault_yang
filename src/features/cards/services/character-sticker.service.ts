@@ -86,7 +86,7 @@ export async function stickerLook(
 ): Promise<{ visualHash: string; pixels: number } | null> {
   try {
     const header = readImageHeader(data)
-    const small = resizeImage(decodeImage(data), 9, 8)
+    const small = await resizeImage(await decodeImage(data), 9, 8)
     const raw = Array.from({ length: 9 * 8 }, (_, i) => luminance(small, i))
     // 每 4 位拼成一个十六进制字（左边亮过右边 = 1），一共 16 个字。
     let visualHash = ''

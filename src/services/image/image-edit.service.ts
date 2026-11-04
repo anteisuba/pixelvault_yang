@@ -562,13 +562,13 @@ async function editImageWithOpenAI(params: {
   if (params.maskImageUrl) {
     const { buffer: maskBuffer } = await fetchAsBuffer(params.maskImageUrl)
     // 我们的遮罩白 = 要改；OpenAI 要的是「透明 = 要改」：白底，透明度 = 255 − 灰度。
-    const mask = decodeImage(maskBuffer)
+    const mask = await decodeImage(maskBuffer)
     const pixelCount = mask.width * mask.height
     const rgba = new Uint8Array(pixelCount * 4).fill(255)
     for (let i = 0; i < pixelCount; i++) {
       rgba[i * 4 + 3] = 255 - luminance(mask, i)
     }
-    const alphaMask = encodePng({
+    const alphaMask = await encodePng({
       width: mask.width,
       height: mask.height,
       data: rgba,
@@ -893,10 +893,10 @@ async function applyMaskToImage(
   maskBuffer: Buffer,
   invert: boolean,
 ): Promise<{ buffer: Buffer; width: number; height: number }> {
-  const source = decodeImage(sourceBuffer)
+  const source = await decodeImage(sourceBuffer)
   const { width, height } = source
   // 遮罩的透明通道不算（fal 有的回 RGB、有的回带透明的 RGBA），只看颜色的灰度。
-  const mask = resizeImage(decodeImage(maskBuffer), width, height)
+  const mask = await resizeImage(await decodeImage(maskBuffer), width, height)
   const pixelCount = width * height
   const maskAlpha = new Uint8Array(pixelCount)
   for (let i = 0; i < pixelCount; i++) {
@@ -923,7 +923,7 @@ async function applyMaskToImage(
 
   // 原图自带的透明度丢掉，换成遮罩。
   for (let i = 0; i < pixelCount; i++) source.data[i * 4 + 3] = maskAlpha[i]!
-  const cutoutBuffer = encodePng(source)
+  const cutoutBuffer = await encodePng(source)
 
   return { buffer: cutoutBuffer, width, height }
 }

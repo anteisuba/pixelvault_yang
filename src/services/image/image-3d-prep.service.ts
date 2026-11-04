@@ -202,8 +202,8 @@ export async function prepare3DSourceImage(
       const padY = Math.floor((side - h) / 2)
       // 原图像素原样贴上（透明的地方仍透明），只有补出来的边是白的。
       const canvas = createCanvas(side, side, WHITE)
-      pasteImage(canvas, decodeImage(workingBuffer), padX, padY)
-      workingBuffer = encodePng(canvas)
+      pasteImage(canvas, await decodeImage(workingBuffer), padX, padY)
+      workingBuffer = await encodePng(canvas)
       workingMime = 'image/png'
       mutated = true
       logger.info('3D prep: padded to square', { from: `${w}x${h}`, to: side })

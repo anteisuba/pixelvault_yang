@@ -115,7 +115,7 @@ export async function bilibiliFramePicture(
         maxBytes: 4 * 1024 * 1024,
         signal: AbortSignal.timeout(15_000),
       })
-      sources.set(imageIndex, decodeImage(buffer))
+      sources.set(imageIndex, await decodeImage(buffer))
     }
     const tiles = picks.map((pick) => {
       const cell = pick % perImage
@@ -142,7 +142,7 @@ export async function bilibiliFramePicture(
         Math.floor(n / columns) * sheet.height,
       ),
     )
-    const grid = encodeJpeg(canvas, 80)
+    const grid = await encodeJpeg(canvas, 80)
     return `data:image/jpeg;base64,${grid.toString('base64')}`
   } catch (error) {
     logger.info('character outing bilibili frames not built', {

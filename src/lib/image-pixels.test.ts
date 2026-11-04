@@ -35,7 +35,7 @@ describe('decodeImage', () => {
     '解开 %s',
     async (format) => {
       // 有损 webp 太小的图边上色偏大，用 32×24 才像真图。
-      const image = decodeImage(await solid(32, 24, format))
+      const image = await decodeImage(await solid(32, 24, format))
       expect(image.width).toBe(32)
       expect(image.height).toBe(24)
       expect(image.data.length).toBe(32 * 24 * 4)
@@ -57,7 +57,7 @@ describe('decodeImage', () => {
       .withMetadata({ orientation: 6 })
       .jpeg({ quality: 100 })
       .toBuffer()
-    const image = decodeImage(jpeg)
+    const image = await decodeImage(jpeg)
     expect([image.width, image.height]).toEqual([2, 4])
     expect(pixel(image, 0, 0)[0]).toBeGreaterThan(200)
     expect(pixel(image, 0, 3)[2]).toBeGreaterThan(200)
@@ -69,16 +69,18 @@ describe('decodeImage', () => {
     })
       .avif()
       .toBuffer()
-    expect(() => decodeImage(avif)).toThrow('Unsupported image format: avif')
-    expect(() => decodeImage(Buffer.from('nope'))).toThrow()
+    await expect(decodeImage(avif)).rejects.toThrow(
+      'Unsupported image format: avif',
+    )
+    await expect(decodeImage(Buffer.from('nope'))).rejects.toThrow()
   })
 })
 
 describe('encode', () => {
   it('PNG / JPEG 编出来别的库读得回', async () => {
     const canvas = createCanvas(5, 3, { r: 0, g: 128, b: 255 })
-    const png = await sharp(encodePng(canvas)).metadata()
-    const jpeg = await sharp(encodeJpeg(canvas, 80)).metadata()
+    const png = await sharp(await encodePng(canvas)).metadata()
+    const jpeg = await sharp(await encodeJpeg(canvas, 80)).metadata()
     expect([png.format, png.width, png.height]).toEqual(['png', 5, 3])
     expect([jpeg.format, jpeg.width, jpeg.height]).toEqual(['jpeg', 5, 3])
   })
@@ -87,14 +89,14 @@ describe('encode', () => {
 describe('fitImage', () => {
   const wide = (): RgbaImage => createCanvas(8, 4, { r: 255, g: 0, b: 0 })
 
-  it('cover：铺满再居中裁，尺寸正好', () => {
-    const out = fitImage(wide(), 4, 4, 'cover', { r: 0, g: 0, b: 0 })
+  it('cover：铺满再居中裁，尺寸正好', async () => {
+    const out = await fitImage(wide(), 4, 4, 'cover', { r: 0, g: 0, b: 0 })
     expect([out.width, out.height]).toEqual([4, 4])
     expect(pixel(out, 0, 0)).toEqual([255, 0, 0, 255])
   })
 
-  it('contain：整张放进去，上下空出来的填底色', () => {
-    const out = fitImage(wide(), 8, 8, 'contain', { r: 0, g: 0, b: 0 })
+  it('contain：整张放进去，上下空出来的填底色', async () => {
+    const out = await fitImage(wide(), 8, 8, 'contain', { r: 0, g: 0, b: 0 })
     expect([out.width, out.height]).toEqual([8, 8])
     expect(pixel(out, 4, 0)).toEqual([0, 0, 0, 255])
     expect(pixel(out, 4, 4)).toEqual([255, 0, 0, 255])

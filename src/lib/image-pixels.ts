@@ -8,7 +8,7 @@
  * ⚠ 都是整张图进内存：调用方只处理遮罩、参考图、拼图这类有限尺寸的图。
  * 出图后的缩略图 / 预览图走 execution Worker 的 Cloudflare Images（见 r2.ts）。
  */
-import { PhotonImage, resize, SamplingFilter } from '@cf-wasm/photon'
+import type { PhotonImage } from '@cf-wasm/photon'
 
 import { readImageHeader } from '@/lib/image-header'
 
@@ -23,6 +23,20 @@ export interface RgbColor {
   r: number
   g: number
   b: number
+}
+
+type Photon = typeof import('@cf-wasm/photon')
+
+let photonModule: Promise<Photon> | null = null
+
+/**
+ * photon 用到时才加载：它的 wasm 有 1.5 MB，模块一加载就编译。放在顶层 import 会让每个
+ * 间接引到这里的页面冷启动都多编一次；Cloudflare 构建里 Next 收集页面配置时还会在 Node
+ * 里加载 workerd 版而直接失败。
+ */
+function photon(): Promise<Photon> {
+  photonModule ??= import('@cf-wasm/photon')
+  return photonModule
 }
 
 /** photon 解得开的格式（动图只取第一帧）。其它格式先挡在外面，⛔ 交给 wasm 去 panic。 */
@@ -40,56 +54,63 @@ function takePixels(image: PhotonImage): RgbaImage {
   }
 }
 
-function toPhoton(image: RgbaImage): PhotonImage {
-  return new PhotonImage(image.data, image.width, image.height)
+function toPhoton(lib: Photon, image: RgbaImage): PhotonImage {
+  return new lib.PhotonImage(image.data, image.width, image.height)
 }
 
 /** 解码并按 EXIF 转向摆正。不是支持的图就抛错。 */
-export function decodeImage(buffer: Uint8Array): RgbaImage {
+export async function decodeImage(buffer: Uint8Array): Promise<RgbaImage> {
   const header = readImageHeader(buffer)
   if (!header || !DECODABLE_FORMATS.has(header.format)) {
     throw new Error(`Unsupported image format: ${header?.format ?? 'unknown'}`)
   }
+  const lib = await photon()
   let decoded: PhotonImage
   try {
-    decoded = PhotonImage.new_from_byteslice(buffer)
+    decoded = lib.PhotonImage.new_from_byteslice(buffer)
   } catch {
     throw new Error('Unsupported or corrupted image file')
   }
   return applyOrientation(takePixels(decoded), header.orientation ?? 1)
 }
 
-export function encodePng(image: RgbaImage): Buffer {
-  const photon = toPhoton(image)
+export async function encodePng(image: RgbaImage): Promise<Buffer> {
+  const encoder = toPhoton(await photon(), image)
   try {
-    return Buffer.from(photon.get_bytes())
+    return Buffer.from(encoder.get_bytes())
   } finally {
-    photon.free()
+    encoder.free()
   }
 }
 
 /** JPEG 没有透明：有透明的图先 `flatten` 到底色再编码。 */
-export function encodeJpeg(image: RgbaImage, quality: number): Buffer {
-  const photon = toPhoton(image)
+export async function encodeJpeg(
+  image: RgbaImage,
+  quality: number,
+): Promise<Buffer> {
+  const encoder = toPhoton(await photon(), image)
   try {
-    return Buffer.from(photon.get_bytes_jpeg(quality))
+    return Buffer.from(encoder.get_bytes_jpeg(quality))
   } finally {
-    photon.free()
+    encoder.free()
   }
 }
 
 /** 拉伸到指定宽高（不保比例）。 */
-export function resizeImage(
+export async function resizeImage(
   image: RgbaImage,
   width: number,
   height: number,
-): RgbaImage {
+): Promise<RgbaImage> {
   if (image.width === width && image.height === height) return image
-  const photon = toPhoton(image)
+  const lib = await photon()
+  const source = toPhoton(lib, image)
   try {
-    return takePixels(resize(photon, width, height, SamplingFilter.Lanczos3))
+    return takePixels(
+      lib.resize(source, width, height, lib.SamplingFilter.Lanczos3),
+    )
   } finally {
-    photon.free()
+    source.free()
   }
 }
 
@@ -203,20 +224,20 @@ export function cropImage(
  * - `cover` 铺满再居中裁（不留边）；
  * - `contain` 整张放进去、居中，空出来的地方填底色。
  */
-export function fitImage(
+export async function fitImage(
   image: RgbaImage,
   width: number,
   height: number,
   fit: 'cover' | 'contain',
   background: RgbColor,
-): RgbaImage {
+): Promise<RgbaImage> {
   const scale =
     fit === 'cover'
       ? Math.max(width / image.width, height / image.height)
       : Math.min(width / image.width, height / image.height)
   const scaledWidth = Math.max(1, Math.round(image.width * scale))
   const scaledHeight = Math.max(1, Math.round(image.height * scale))
-  const scaled = resizeImage(image, scaledWidth, scaledHeight)
+  const scaled = await resizeImage(image, scaledWidth, scaledHeight)
   if (fit === 'cover') {
     return cropImage(
       scaled,

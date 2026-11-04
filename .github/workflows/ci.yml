@@ -132,6 +132,19 @@ jobs:
           --health-interval=5s
           --health-timeout=5s
           --health-retries=10
+      # 生产模式下回调防重放、限流都要 Upstash：本地起一个 Redis + Upstash 兼容的 REST 口。
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+      redis-http:
+        image: hiett/serverless-redis-http:latest
+        env:
+          SRH_MODE: env
+          SRH_TOKEN: e2e-redis-token
+          SRH_CONNECTION_STRING: redis://redis:6379
+        ports:
+          - 8079:80
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/antei_e2e
       DIRECT_URL: postgresql://postgres:postgres@localhost:5432/antei_e2e
@@ -145,6 +158,12 @@ jobs:
       R2_SECRET_ACCESS_KEY: "stub"
       R2_BUCKET_NAME: "stub"
       API_KEY_ENCRYPTION_SECRET: "0000000000000000000000000000000000000000000000000000000000000000"
+      UPSTASH_REDIS_REST_URL: "http://localhost:8079"
+      UPSTASH_REDIS_REST_TOKEN: "e2e-redis-token"
+      # 执行 Worker + 服务商 = 假的（e2e/fake-worker/server.ts）；应用这一侧全真。
+      EXECUTION_WORKER_BASE_URL: "http://localhost:4010"
+      FAKE_WORKER_URL: "http://localhost:4010"
+      INTERNAL_CALLBACK_SECRET: "e2e-internal-callback-secret-not-real"
 
     steps:
       - uses: actions/checkout@v4
@@ -174,6 +193,12 @@ jobs:
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
 
+      - name: Start fake execution worker
+        run: |
+          node --experimental-strip-types e2e/fake-worker/server.ts > /tmp/fake-worker.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf -o /dev/null http://localhost:4010/health && exit 0; sleep 1; done
+          echo 'fake worker did not start'; cat /tmp/fake-worker.log; exit 1
+
       - name: Start server
         run: |
           npm run start > /tmp/next.log 2>&1 &
@@ -185,7 +210,10 @@ jobs:
 
       - name: Server log on failure
         if: failure()
-        run: tail -200 /tmp/next.log
+        run: |
+          tail -200 /tmp/next.log
+          echo '--- fake worker ---'
+          cat /tmp/fake-worker.log
 
       - uses: actions/upload-artifact@v4
         if: failure()

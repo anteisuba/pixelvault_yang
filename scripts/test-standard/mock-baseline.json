@@ -1,17 +1,6 @@
 [
-  "src/app/api/mcp/route.test.ts",
-  "src/app/api/studio/assistant-operator/route.test.ts",
-  "src/features/assistant/bench.test.ts",
-  "src/features/assistant/kernel.test.ts",
-  "src/features/assistant/library.test.ts",
-  "src/features/assistant/services/assistant-operator.service.test.ts",
-  "src/features/assistant/workspace.service.test.ts",
   "src/features/canvas/components/edit-desk/EditDesk.web.test.tsx",
   "src/features/canvas/components/nodes/v4/ImageNodeV4.test.tsx",
   "src/features/canvas/components/nodes/v4/VideoNodeV4.test.tsx",
-  "src/features/cards/services/character-browse.service.test.ts",
-  "src/features/cards/services/character-outing.service.test.ts",
-  "src/features/lora/components/LoraWorkbench.test.tsx",
-  "src/services/llm-text.service.test.ts",
-  "src/services/research/research-fanout.service.test.ts"
+  "src/features/lora/components/LoraWorkbench.test.tsx"
 ]

@@ -5816,8 +5816,10 @@ describe('LLM 入口统一重发', () => {
   })
 
   it('completion: a slow failure is not resent (route time budget)', async () => {
+    // 假时钟下推过去，不真等（runAllTimersAsync）。
+    const slowMs = 25_000
     const fetchMock = vi.fn().mockImplementation(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 25_000))
+      await new Promise((resolve) => setTimeout(resolve, slowMs))
       return new Response('busy', { status: 503 })
     })
     vi.stubGlobal('fetch', fetchMock)

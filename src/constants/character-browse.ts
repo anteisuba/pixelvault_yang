@@ -65,6 +65,11 @@ export const CHARACTER_BROWSE = {
    */
   interestAddsPerOuting: 2,
   interestDropsPerOuting: 1,
+  /**
+   * 新加一样至少要几个不同作品撑着（11-05，借鉴 dafeiyu-astrbot：同一视频看几遍、换分 P 都不算新证据）。
+   * 清单空着那一趟不要求。
+   */
+  interestEvidenceMin: 2,
   /** 清单空着时头一趟自己想几样（owner 10-30「全围着人设那几个字」）。 */
   interestSeedMin: 3,
   interestSeed: 5,

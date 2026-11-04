@@ -161,22 +161,53 @@ export class OutingClock {
 }
 
 /**
- * 一趟的额度表（owner 10-30「额度不能超」）：调之前 `ensure` 按上限估，估得超了就抛；
- * 调完 `charge` 记实扣（provider 报的 token，没报就按估的）。
+ * 一趟的额度表（owner 10-30「额度不能超」）：调之前 `reserve` 按上限估、先占住，估得超了就抛；
+ * 调完 `settle` 放掉占位、记实扣（provider 报的 token，没报就按估的）。
+ *
+ * ⭐ 先占后结（11-05，借鉴 dafeiyu-astrbot 的 budget.py）：给了 `persist` 就在调模型**之前**把
+ * 「已用 + 占住」写进库。函数在一次调用中途被掐（Vercel 300 s）时，库里留的是估算而不是调用前的数，
+ * 接着跑的那一段按它起算 —— 宁多勿少，⛔ 少算了让下一段超额。
  */
 export class OutingMeter {
   calls = 0
+  /** 已占住、还没结账的（正在调的那几次的估算）。 */
+  private reserved = 0
+
   constructor(
     private readonly limitTokens: number,
     public usedTokens = 0,
+    private readonly persist?: (committedTokens: number) => Promise<void>,
   ) {}
 
   remaining(): number {
-    return this.limitTokens - this.usedTokens
+    return this.limitTokens - this.usedTokens - this.reserved
   }
 
   ensure(estimate: number): void {
     if (estimate > this.remaining()) throw new OutingBudgetExhausted()
+  }
+
+  /** 调之前：够就占住，并（有 `persist` 时）先落库。落库失败就不调，占位退回。 */
+  async reserve(estimate: number): Promise<void> {
+    this.ensure(estimate)
+    const amount = Math.max(0, Math.round(estimate))
+    this.reserved += amount
+    if (!this.persist) return
+    try {
+      await this.persist(this.usedTokens + this.reserved)
+    } catch (error) {
+      this.reserved -= amount
+      throw error
+    }
+  }
+
+  /** 调完（成功失败都结）：放掉 `reserve` 占的那份，记实扣。 */
+  settle(estimate: number, tokens: number): void {
+    this.reserved = Math.max(
+      0,
+      this.reserved - Math.max(0, Math.round(estimate)),
+    )
+    this.charge(tokens)
   }
 
   charge(tokens: number): void {
@@ -235,7 +266,7 @@ export async function meteredComplete(
       userPrompt: options.buildUserPrompt(),
       images: options.imageData?.length ?? 0,
     }) + extraTokens
-  meter.ensure(estimate)
+  await meter.reserve(estimate)
   let reported: number | null = null
   try {
     return await completeAssistantTextWithContextRetry({
@@ -246,7 +277,7 @@ export async function meteredComplete(
     })
   } finally {
     // 没报 token 的家按估的扣（宁多勿少）。
-    meter.charge(reported ?? estimate)
+    meter.settle(estimate, reported ?? estimate)
   }
 }
 
@@ -267,7 +298,18 @@ const PlanSchema = z.object({
   /** 第 ④ 步：她在意的东西加几样、去几样。写坏了就当没改，⛔ 连累整趟的搜索词。 */
   interests: z
     .object({
-      add: z.array(z.string()).default([]),
+      // 清单空着那一趟只回字；之后每一样要带 `from`（最近看过的第几条，11-05 证据门槛）。
+      add: z
+        .array(
+          z.union([
+            z.string().transform((text) => ({ text, from: [] as number[] })),
+            z.object({
+              text: z.string(),
+              from: z.array(z.number().int()).default([]),
+            }),
+          ]),
+        )
+        .default([]),
       drop: z.array(z.string()).default([]),
     })
     .nullable()
@@ -275,9 +317,34 @@ const PlanSchema = z.object({
     .catch(null),
 })
 
+export interface CharacterInterestAdd {
+  text: string
+  /** 「最近看过的」里第几条（从 1 数）让她迷上的。 */
+  from: number[]
+}
+
 export interface CharacterInterestChange {
-  add: string[]
+  add: CharacterInterestAdd[]
   drop: string[]
+}
+
+/**
+ * 同一个作品认成一样：B 站按 BV 号（同一个视频换分 P、带不同参数都算一个），YouTube 按视频号，
+ * 别的按去掉 `#` 的网址。
+ */
+export function interestWorkKey(url: string): string {
+  const bv = /BV[0-9A-Za-z]{10}/.exec(url)
+  if (bv) return `bilibili:${bv[0]}`
+  try {
+    const parsed = new URL(url)
+    const host = parsed.hostname.replace(/^www\./, '').toLowerCase()
+    if (host === 'youtu.be') return `youtube:${parsed.pathname.slice(1)}`
+    if (host.endsWith('youtube.com') && parsed.searchParams.get('v'))
+      return `youtube:${parsed.searchParams.get('v')}`
+    return `${host}${parsed.pathname.replace(/\/+$/, '')}${parsed.search}`
+  } catch {
+    return url.trim()
+  }
 }
 
 /** 这个模型去得了的内置站：X 只有 Grok 搜得到，网页 / YouTube 要模型自带网搜。 */
@@ -342,7 +409,7 @@ THINGS YOU CARE ABOUT:
 ${card.interests.length ? card.interests.map((item) => `- ${item}`).join('\n') : '(none written down yet — go by who you are)'}
 
 WHAT YOU LOOKED AT RECENTLY (do not look for the same things again):
-${recentTitles.length ? recentTitles.map((title) => `- ${title}`).join('\n') : '(nothing yet)'}`
+${recentTitles.length ? recentTitles.map((title, n) => `${n + 1}. ${title}`).join('\n') : '(nothing yet)'}`
   const raw = await meteredComplete(route.meter, {
     signal: stepSignal(route, CHARACTER_BROWSE.callTimeoutMs),
     systemPrompt: `You are a character with your own tastes. Today you have some free time online. Decide what you feel like looking at, the way this person would — their hobbies, the shows, art and games they would care about, things that fit their mood.
@@ -359,7 +426,7 @@ Return ONE JSON object and nothing else: {"queries":[{"source":"…","query":"�
           ? `
 - "interests": you have no list yet. Add ${CHARACTER_BROWSE.interestSeedMin} to ${CHARACTER_BROWSE.interestSeed} things you would plausibly care about (a few words each) — a broad mix such as hobbies, shows or games, music, food, places — not only what the profile mentions. "drop" stays empty.`
           : `
-- "interests": your own list of things you care about. Add at most ${CHARACTER_BROWSE.interestAddsPerOuting} (a few words each) only if you have clearly gotten into something lately — judge by what you looked at recently; drop at most ${CHARACTER_BROWSE.interestDropsPerOuting} you have lost interest in, written exactly as in the list. Usually leave both empty.`
+- "interests": your own list of things you care about. Add at most ${CHARACTER_BROWSE.interestAddsPerOuting}, each as {"text":"a few words","from":[numbers]}, only if you have clearly gotten into something lately: "from" lists the numbers of at least ${CHARACTER_BROWSE.interestEvidenceMin} different things under WHAT YOU LOOKED AT RECENTLY that got you into it (one video seen twice is one thing); with fewer it is not added. Drop at most ${CHARACTER_BROWSE.interestDropsPerOuting} you have lost interest in, written exactly as in the list. Usually leave both empty.`
     }`,
     buildUserPrompt: () => material,
     route: route.route,
@@ -384,17 +451,29 @@ Return ONE JSON object and nothing else: {"queries":[{"source":"…","query":"�
 /**
  * 她在意的东西加减一次（第 ④ 步）：去掉的只认清单里原样的那几样，加的截短、去重、封顶，
  * 满了先不加。什么都没变 → `null`。
+ *
+ * ⭐ 证据门槛（11-05，借鉴 dafeiyu-astrbot 的经历记忆）：清单不空时，新加的一样要指着「最近看过」
+ * 里至少 `interestEvidenceMin` 个**不同作品**（`interestWorkKey`）—— 看一个视频就改兴趣的不加。
+ * 不够的这次不加、⛔ 另存：之后几趟看得多了，她再提就够了。
  */
 export function nextInterests(
   current: readonly string[],
   change: CharacterInterestChange | null,
+  recent: readonly { url: string }[] = [],
 ): string[] | null {
   if (!change) return null
   // 清单还空着（第 ⑩ 步后修补，owner 10-30「全围着人设那几个字」）：头一趟让她一次想好几样。
-  const adds =
-    current.length === 0
-      ? CHARACTER_BROWSE.interestSeed
-      : CHARACTER_BROWSE.interestAddsPerOuting
+  const seeding = current.length === 0
+  const adds = seeding
+    ? CHARACTER_BROWSE.interestSeed
+    : CHARACTER_BROWSE.interestAddsPerOuting
+  const backed = (from: readonly number[]) =>
+    new Set(
+      from
+        .map((n) => recent[n - 1]?.url)
+        .filter((url): url is string => Boolean(url))
+        .map(interestWorkKey),
+    ).size >= CHARACTER_BROWSE.interestEvidenceMin
   const drop = new Set(
     change.drop
       .map((item) => item.trim())
@@ -405,7 +484,10 @@ export function nextInterests(
   const added: string[] = []
   for (const raw of change.add) {
     if (added.length >= adds) break
-    const item = raw.trim().slice(0, CHARACTER_PERSONA_LIMITS.interestChars)
+    if (!seeding && !backed(raw.from)) continue
+    const item = raw.text
+      .trim()
+      .slice(0, CHARACTER_PERSONA_LIMITS.interestChars)
     if (!item || seen.has(item.toLowerCase())) continue
     seen.add(item.toLowerCase())
     added.push(item)
@@ -501,7 +583,7 @@ async function nativeSearch(
       ? CHARACTER_OUTING_VIDEO.xVideosPerSearch *
         CHARACTER_OUTING_VIDEO.xVideoTokens
       : 0)
-  route.meter.ensure(estimate)
+  await route.meter.reserve(estimate)
   let charged = estimate
   try {
     const found = await llmNativeWebSearch({
@@ -539,7 +621,7 @@ async function nativeSearch(
       excerpt: [item.excerpt, watched].filter(Boolean).join(' — ') || null,
     }))
   } finally {
-    route.meter.charge(charged)
+    route.meter.settle(estimate, charged)
   }
 }
 
@@ -1318,7 +1400,7 @@ export async function browseRound(input: {
     where: { characterCardId: card.id },
     orderBy: { seenAt: 'desc' },
     take: CHARACTER_BROWSE.recentTitles,
-    select: { title: true },
+    select: { title: true, url: true },
   })
   const plan = await planQueries(
     route,
@@ -1331,7 +1413,7 @@ export async function browseRound(input: {
   )
   const { sticker } = plan
   const changedInterests = parsedPersona.success
-    ? nextInterests(interests, plan.interests)
+    ? nextInterests(interests, plan.interests, recent)
     : null
   if (parsedPersona.success && changedInterests)
     await saveInterests(

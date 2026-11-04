@@ -406,10 +406,19 @@ export async function runOutingChunk(outingId: string): Promise<void> {
   if (!outing) return
   const card = outing.characterCard
   const total = outing.budgetPoints * CHARACTER_OUTING.tokensPerPoint
+  // 先占后结：每次调模型前把「已用 + 占住」落库，一段在调用中途被掐，接着跑的那段照它起算。
+  const persistUsed = async (usedTokens: number) => {
+    await db.characterOuting.update({
+      where: { id: outing.id },
+      data: { usedTokens },
+      select: { id: true },
+    })
+  }
   // 逛的那几轮碰不到写日记那一份。
   const meter = new OutingMeter(
     total - CHARACTER_OUTING.diaryReserveTokens,
     outing.usedTokens,
+    persistUsed,
   )
   meter.calls = outing.calls
   let { kept, rounds, emptyRounds } = outing
@@ -420,7 +429,7 @@ export async function runOutingChunk(outingId: string): Promise<void> {
     endReason: CharacterOutingEndReason,
   ) => {
     if (routeInfo && kept > 0 && !card.isDeleted) {
-      const diaryMeter = new OutingMeter(total, meter.usedTokens)
+      const diaryMeter = new OutingMeter(total, meter.usedTokens, persistUsed)
       diaryMeter.calls = meter.calls
       await writeOutingDiary({
         userId: outing.userId,

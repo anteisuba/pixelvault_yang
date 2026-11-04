@@ -118,6 +118,8 @@ vi.mock('@/services/llm-text.service', () => ({
 import {
   browseRound,
   estimateCallTokens,
+  interestWorkKey,
+  meteredComplete,
   nextInterests,
   normalizeOutingSite,
   OutingBudgetExhausted,
@@ -262,12 +264,25 @@ describe('browseRound（她出门逛一轮）', () => {
       model: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
       updatedAt,
     })
+    mocks.findingFindMany
+      .mockReset()
+      .mockResolvedValue([])
+      .mockResolvedValueOnce([
+        {
+          title: '猫咖探店',
+          url: `https://www.bilibili.com/video/${bv(5)}`,
+        },
+        {
+          title: '猫咖里的猫',
+          url: `https://www.bilibili.com/video/${bv(6)}`,
+        },
+      ])
     mocks.complete.mockReset()
     mocks.complete
       .mockResolvedValueOnce(
         JSON.stringify({
           queries: [{ source: 'bilibili', query: '水彩 猫' }],
-          interests: { add: ['猫咖'], drop: [] },
+          interests: { add: [{ text: '猫咖', from: [1, 2] }], drop: [] },
         }),
       )
       .mockResolvedValue(JSON.stringify({ notes: [] }))
@@ -279,7 +294,9 @@ describe('browseRound（她出门逛一轮）', () => {
       systemPrompt: string
     }
     expect(plan.buildUserPrompt()).toContain('- 水彩')
+    expect(plan.buildUserPrompt()).toContain('1. 猫咖探店')
     expect(plan.systemPrompt).toContain('"interests"')
+    expect(plan.systemPrompt).toContain('"from"')
     expect(mocks.cardUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
@@ -985,18 +1002,68 @@ describe('OutingClock（一段的截止时刻）', () => {
 })
 
 describe('nextInterests（她在意的东西加减一次）', () => {
+  const two = [
+    { url: `https://www.bilibili.com/video/${bv(1)}` },
+    { url: 'https://danbooru.donmai.us/posts/123' },
+  ]
+  const add = (text: string, from = [1, 2]) => ({ text, from })
+
   it('去掉只认原样的、加的去重截短、封顶', () => {
     expect(
-      nextInterests(['水彩', '猫'], {
-        add: ['猫', '  胶片  '],
-        drop: ['水彩'],
-      }),
+      nextInterests(
+        ['水彩', '猫'],
+        { add: [add('猫'), add('  胶片  ')], drop: ['水彩'] },
+        two,
+      ),
     ).toEqual(['猫', '胶片'])
-    expect(nextInterests(['水彩'], { add: ['a', 'b', 'c'], drop: [] })).toEqual(
-      ['水彩', 'a', 'b'],
-    )
+    expect(
+      nextInterests(
+        ['水彩'],
+        { add: [add('a'), add('b'), add('c')], drop: [] },
+        two,
+      ),
+    ).toEqual(['水彩', 'a', 'b'])
     expect(nextInterests(['水彩'], { add: [], drop: ['不在单上'] })).toBeNull()
     expect(nextInterests(['水彩'], null)).toBeNull()
+  })
+
+  it('证据门槛：不到两个不同作品撑着的不加，同一视频换分 P 算一个', () => {
+    const sameVideo = [
+      { url: `https://www.bilibili.com/video/${bv(1)}?p=1` },
+      { url: `https://www.bilibili.com/video/${bv(1)}?p=2` },
+    ]
+    expect(
+      nextInterests(['水彩'], { add: [add('猫咖')], drop: [] }, sameVideo),
+    ).toBeNull()
+    // 只指了一条、指了不存在的编号、根本没指：都不加。
+    expect(
+      nextInterests(['水彩'], { add: [add('猫咖', [1, 9])], drop: [] }, two),
+    ).toBeNull()
+    expect(
+      nextInterests(['水彩'], { add: [add('猫咖', [])], drop: [] }, two),
+    ).toBeNull()
+    // 去掉不需要证据。
+    expect(
+      nextInterests(['水彩', '猫'], { add: [add('猫咖', [1])], drop: ['猫'] }),
+    ).toEqual(['水彩'])
+  })
+
+  it('清单空着那一趟不要证据', () => {
+    expect(
+      nextInterests([], { add: [add('猫', []), add('胶片', [])], drop: [] }),
+    ).toEqual(['猫', '胶片'])
+  })
+
+  it('同一个作品认成一样：B 站按 BV、YouTube 按视频号', () => {
+    expect(
+      interestWorkKey(`https://www.bilibili.com/video/${bv(1)}/?p=3`),
+    ).toBe(interestWorkKey(`https://m.bilibili.com/video/${bv(1)}`))
+    expect(interestWorkKey('https://www.youtube.com/watch?v=abc&t=10')).toBe(
+      interestWorkKey('https://youtu.be/abc'),
+    )
+    expect(interestWorkKey('https://www.youtube.com/watch?v=abc')).not.toBe(
+      interestWorkKey('https://www.youtube.com/watch?v=xyz'),
+    )
   })
 })
 
@@ -1014,6 +1081,51 @@ describe('额度表与网址', () => {
     meter.charge(400)
     expect(meter.remaining()).toBe(600)
     expect(meter.calls).toBe(1)
+  })
+
+  it('先占后结：调之前库里先记上估算，占住的也算进剩余', async () => {
+    const persisted: number[] = []
+    const meter = new OutingMeter(10_000, 1_000, async (n) => {
+      persisted.push(n)
+    })
+    await meter.reserve(3_000)
+    // 函数要是此刻被掐，库里留的是 1000 + 3000，接着跑的那段照它起算。
+    expect(persisted).toEqual([4_000])
+    expect(meter.remaining()).toBe(6_000)
+    expect(() => meter.ensure(6_001)).toThrow(OutingBudgetExhausted)
+    meter.settle(3_000, 1_200)
+    expect(meter.usedTokens).toBe(2_200)
+    expect(meter.remaining()).toBe(7_800)
+    expect(meter.calls).toBe(1)
+  })
+
+  it('落库失败就不调，占位退回', async () => {
+    const meter = new OutingMeter(10_000, 0, async () => {
+      throw new Error('db down')
+    })
+    await expect(meter.reserve(2_000)).rejects.toThrow('db down')
+    expect(meter.remaining()).toBe(10_000)
+  })
+
+  it('调用出错也结账，按估的扣', async () => {
+    const persisted: number[] = []
+    const meter = new OutingMeter(10_000_000, 0, async (n) => {
+      persisted.push(n)
+    })
+    mocks.complete.mockRejectedValueOnce(new Error('provider 500'))
+    await expect(
+      meteredComplete(meter, {
+        systemPrompt: 'sys',
+        buildUserPrompt: () => 'user',
+      } as Parameters<typeof meteredComplete>[1]),
+    ).rejects.toThrow('provider 500')
+    const estimate = estimateCallTokens({
+      systemPrompt: 'sys',
+      userPrompt: 'user',
+    })
+    expect(persisted).toEqual([estimate])
+    expect(meter.usedTokens).toBe(estimate)
+    expect(meter.remaining()).toBe(10_000_000 - estimate)
   })
 
   it('你添加的网址规整成域名，认不出的丢掉', () => {

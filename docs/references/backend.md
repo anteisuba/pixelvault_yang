@@ -74,6 +74,18 @@ app/api routes（156 个 route.ts，以 glob 为准）  ← 只做三件事，�
 
 `AssistantOperatorErrorEventSchema` 多了 `traceId`（8 位十六进制）与 `detail`（原始 message）两个可选字段。成帧器对**非 `GenerationError`** 生成短码，同一个值同时写进 `logger.error`（连同 stack）；`detail` **只在非生产环境下发**，⛔ 生产 UI 上没有原始 message、更没有 stack。`GenerationError` 那一族不编短码（它自带 `errorCode` + `i18nKey`）。UI 形态见 [`pages/assistant-shell-v2.md §3.7`](pages/assistant-shell-v2.md)。
 
+## 外部动作的三条账（2026-11-05，借鉴 dafeiyu-astrbot）
+
+**结果分三态，⛔ 只有两态的布尔不够**：
+
+- **拿到回执**（对方给了 id / 状态码说已收下）= 成功，可以记账、可以往下走。
+- **对方说成功但没回执**（只有一句 ok、或者 2xx 但没 body）= 记成「据称成功」，界面照实说，⛔ 不当回执用来做下一步。
+- **不确定**（超时、连接断在请求发出之后、进程被杀）= 记成不确定，⛔ **不自动重发**。重发一个「可能已经成功」的动作会变成发两次 / 扣两次；只有能证明没发出去（请求没离开本机、对方明确拒收）才可以重试。要重发就让用户点，或先查对方那边有没有这条。
+
+**额度先占后结**：会花钱 / 花 token 的一跳，开跑前先把**估值**写进库（预占），跑完按实扣结账，失败也按估值结。理由是进程可能死在调用中途（Vercel 300 s 硬杀、分段交接），只在跑完后记账会把这一笔漏掉，下一段从库里接着跑时就超额了。预占写库失败 = 这一跳不跑（预占退回、抛出去）。落点：`features/cards/services/character-browse.service.ts` 的 `OutingMeter.reserve / settle`，出门的 `persistUsed` 回调写 `CharacterOuting.usedTokens`。
+
+**表演不是记录**：模型「说」它做了什么（日记写「今天去看了展」、回复里说「我已经帮你存好了」）不等于发生过。能被下一轮读回去的东西（日记、记忆、兴趣、状态）只许写真发生过的事 —— 角色休息时就是休息，⛔ 不编一段经历填空。写进去的会被下一次当成事实读回，编的东西会自我强化。
+
 ## 生成链路（现状要点）
 
 第一主路径：`选模型 → prompt/参考图 → 生成 → 永久保存 → 管理/复用`。Studio 是主入口；Node workflow 是长视频/高级编排层，不替代 Studio。

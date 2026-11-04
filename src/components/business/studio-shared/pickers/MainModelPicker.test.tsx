@@ -1,184 +1,139 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, screen } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('@/i18n/navigation', () => ({
-  useRouter: () => ({ push: vi.fn() }),
-  usePathname: () => '/studio/image',
-}))
-
-vi.mock('next-intl', () => ({
-  useTranslations: (namespace: string) => (key: string) =>
-    `${namespace}.${key}`,
-}))
-
-vi.mock('@/hooks/use-image-model-options', () => ({
-  useImageModelOptions: vi.fn(() => ({
-    modelOptions: [],
-    selectedModel: undefined,
-  })),
-}))
-vi.mock('@/hooks/use-video-model-options', () => ({
-  useVideoModelOptions: vi.fn(() => ({
-    modelOptions: [],
-    selectedModel: undefined,
-  })),
-}))
-vi.mock('@/hooks/use-3d-model-options', () => ({
-  use3DModelOptions: vi.fn(() => ({ modelOptions: [] })),
-}))
-vi.mock('@/hooks/use-llm-route-picker', () => ({
-  useLLMRoutePicker: vi.fn(() => ({
-    savedRoutes: [],
-    lockedRoutes: [],
-    allRoutes: [],
-    healthMap: {},
-  })),
-}))
-vi.mock('@/contexts/api-keys-context', () => ({
-  useApiKeysContext: vi.fn(() => ({
-    keys: [],
-    healthMap: {},
-    isLoading: false,
-  })),
-}))
-
+import { API_ENDPOINTS } from '@/constants/config'
 import { AI_MODELS } from '@/constants/models'
 import {
   AI_ADAPTER_TYPES,
   getDefaultProviderConfig,
 } from '@/constants/providers'
+import { ApiKeysProvider } from '@/contexts/api-keys-context'
 import {
   MainModelPicker,
   routeToStudioOption,
 } from '@/components/business/studio-shared/pickers/MainModelPicker'
-import { useImageModelOptions } from '@/hooks/use-image-model-options'
-import { useVideoModelOptions } from '@/hooks/use-video-model-options'
-import { use3DModelOptions } from '@/hooks/use-3d-model-options'
-import { useLLMRoutePicker } from '@/hooks/use-llm-route-picker'
 import type { LLMRouteOption } from '@/hooks/use-llm-route-picker'
+import { renderWithApp } from '@/test/app-harness'
+import { stubBrowserLayout } from '@/test/browser-stubs'
+import {
+  fakeStudioServer,
+  renderWithStudio,
+  settle,
+} from '@/test/studio-harness'
+import type { UserApiKeyRecord } from '@/types'
 
-describe('MainModelPicker dispatcher', () => {
-  it('renders without crashing for each modality', () => {
-    const cases: Array<React.ReactElement> = [
-      <MainModelPicker
-        key="image"
-        modality="image"
-        value={null}
-        onChange={vi.fn()}
-      />,
-      <MainModelPicker
-        key="video"
-        modality="video"
-        value={null}
-        onChange={vi.fn()}
-      />,
-      <MainModelPicker
-        key="3d"
-        modality="model_3d"
-        value={null}
-        onChange={vi.fn()}
-      />,
-      <MainModelPicker
-        key="llm"
-        modality="llm_assist"
-        llmCapability="enhance"
-        value={null}
-        onChange={vi.fn()}
-      />,
-    ]
-    for (const node of cases) {
-      const { unmount } = render(node)
-      expect(screen.getByRole('button')).toBeInTheDocument()
-      unmount()
-    }
-  })
+/**
+ * 按模态取清单的分发器：真 `useImageModelOptions` / `useVideoModelOptions` /
+ * `use3DModelOptions` / `useLLMRoutePicker`、真 key 名单、真统一选择器；只假网络。
+ * 「分发到哪个 hook」看的是弹层里列出来的是哪一类模型。
+ */
 
-  it('dispatches modality=image to useImageModelOptions only', () => {
-    vi.mocked(useImageModelOptions).mockClear()
-    vi.mocked(useVideoModelOptions).mockClear()
-    render(<MainModelPicker modality="image" value={null} onChange={vi.fn()} />)
-    expect(useImageModelOptions).toHaveBeenCalledTimes(1)
-    expect(useVideoModelOptions).not.toHaveBeenCalled()
-  })
+const auth = vi.hoisted(() => ({ userId: 'user-0', n: 0 }))
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({ isLoaded: true, isSignedIn: true, userId: auth.userId }),
+}))
+vi.mock('@/i18n/navigation', () => ({
+  useRouter: () => ({ push: vi.fn() }),
+  usePathname: () => '/studio/image',
+}))
 
-  it('每个模态都渲染同一颗统一触发器（D2 ④「五处宿主同一形状」）', () => {
-    // 2026-09-17 收口：五个模态**全部**走 `ModelPickerPopover`，触发器是
-    // 「名 + 型号 + 价 / 状态 + caret」那一颗 chip。三栏对话框已整删。
-    vi.mocked(useImageModelOptions).mockReturnValue({
-      modelOptions: [
-        {
-          optionId: 'key:fal-1',
-          modelId: AI_MODELS.SEEDREAM_50_PRO,
-          displayLabel: 'Seedream 5.0 Pro',
-          adapterType: AI_ADAPTER_TYPES.FAL,
-          providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
-          requestCount: 1,
-          isBuiltIn: true,
-          sourceType: 'saved',
-          keyId: 'fal-1',
-        },
-      ],
-      selectedModel: undefined,
-    } as unknown as ReturnType<typeof useImageModelOptions>)
+const ok = (data: unknown) => Response.json({ success: true, data })
 
-    const { unmount } = render(
-      <MainModelPicker modality="image" value="key:fal-1" onChange={vi.fn()} />,
+const FAL_KEY: UserApiKeyRecord = {
+  id: 'fal-1',
+  modelId: AI_MODELS.SEEDREAM_50_PRO,
+  adapterType: AI_ADAPTER_TYPES.FAL,
+  providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
+  label: 'fal',
+  maskedKey: 'fal-****',
+  isActive: true,
+  createdAt: new Date('2026-01-01'),
+}
+
+let keys: UserApiKeyRecord[] = []
+beforeEach(() => {
+  auth.n += 1
+  auth.userId = `user-${auth.n}`
+  keys = []
+  localStorage.clear()
+  stubBrowserLayout()
+  fakeStudioServer().on('GET', API_ENDPOINTS.API_KEYS, () => ok(keys))
+})
+afterEach(() => vi.unstubAllGlobals())
+
+/** 点开触发器，读弹层里列出来的每一行。 */
+function openRows(): string[] {
+  fireEvent.click(screen.getByRole('button', { name: /./ }))
+  return Array.from(document.querySelectorAll('[role="option"]')).map(
+    (row) => row.getAttribute('aria-label') ?? row.textContent ?? '',
+  )
+}
+
+const rendered = async () => {
+  await settle()
+  await settle()
+}
+
+describe('MainModelPicker 分发器', () => {
+  it('image：列生图模型，⛔ 混进视频', async () => {
+    renderWithStudio(
+      <MainModelPicker modality="image" value={null} onChange={vi.fn()} />,
     )
-    const chip = screen.getByRole('button')
-    expect(chip).toHaveAttribute('aria-haspopup', 'dialog')
-    // 名与型号在 chip 上是两格。
-    expect(chip.textContent).toContain('Seedream')
-    expect(chip.textContent).toContain('5.0 Pro')
-    unmount()
-
-    vi.mocked(useImageModelOptions).mockReturnValue({
-      modelOptions: [],
-      selectedModel: undefined,
-    } as unknown as ReturnType<typeof useImageModelOptions>)
+    await rendered()
+    const rows = openRows()
+    expect(rows).toContain('OpenAI GPT Image 2')
+    expect(rows).toContain('Seedream 5.0 Pro')
+    expect(rows.join()).not.toMatch(/Seedance|Hunyuan3D/)
   })
 
-  it('dispatches modality=video to useVideoModelOptions only', () => {
-    vi.mocked(useVideoModelOptions).mockClear()
-    vi.mocked(useImageModelOptions).mockClear()
-    render(<MainModelPicker modality="video" value={null} onChange={vi.fn()} />)
-    expect(useVideoModelOptions).toHaveBeenCalledTimes(1)
-    expect(useImageModelOptions).not.toHaveBeenCalled()
+  it('video：列视频模型，⛔ 混进生图', async () => {
+    renderWithStudio(
+      <MainModelPicker modality="video" value={null} onChange={vi.fn()} />,
+    )
+    await rendered()
+    const rows = openRows()
+    expect(rows).toContain('Seedance 2.0')
+    expect(rows.join()).not.toMatch(/GPT Image|Seedream|Hunyuan3D/)
   })
 
-  it('dispatches modality=model_3d to use3DModelOptions only', () => {
-    vi.mocked(use3DModelOptions).mockClear()
-    vi.mocked(useImageModelOptions).mockClear()
-    render(
+  // 3D 台不包 StudioProvider：3D 那一支若碰了生图 / 视频的 hook（要工作台表单）就会直接崩。
+  it('model_3d：不在工作台里也能挂，只列 3D 模型', async () => {
+    renderWithApp(
       <MainModelPicker modality="model_3d" value={null} onChange={vi.fn()} />,
+      { inner: ApiKeysProvider },
     )
-    expect(use3DModelOptions).toHaveBeenCalledTimes(1)
-    expect(useImageModelOptions).not.toHaveBeenCalled()
+    await rendered()
+    const rows = openRows()
+    expect(rows).toContain('Hunyuan3D v3')
+    expect(rows.join()).not.toMatch(/GPT Image|Seedance/)
   })
 
-  it('dispatches modality=llm_assist to useLLMRoutePicker with passed scope', () => {
-    vi.mocked(useLLMRoutePicker).mockClear()
-    render(
+  it('llm_assist：按传入的能力列文字模型路线', async () => {
+    renderWithApp(
       <MainModelPicker
         modality="llm_assist"
         llmCapability="planner"
         value={null}
         onChange={vi.fn()}
       />,
+      { inner: ApiKeysProvider },
     )
-    expect(useLLMRoutePicker).toHaveBeenCalledWith('planner')
+    await rendered()
+    const rows = openRows()
+    expect(rows).toContain('Gemini 3.8 Flash')
+    expect(rows.join()).not.toMatch(/GPT Image|Seedance|Hunyuan3D/)
   })
 
-  it('does NOT subscribe to Studio Form hooks when modality=model_3d (3D regression guard)', () => {
-    // Critical: if MainModelPicker3D ever calls useImage/VideoModelOptions
-    // it would crash inside Studio3DWorkspace which is not wrapped in
-    // StudioFormProvider. Component-level dispatch must isolate sub-component hooks.
-    vi.mocked(useImageModelOptions).mockClear()
-    vi.mocked(useVideoModelOptions).mockClear()
-    render(
-      <MainModelPicker modality="model_3d" value={null} onChange={vi.fn()} />,
+  it('每个模态都是同一颗统一触发器：名与型号两格（D2 ④「五处宿主同一形状」）', async () => {
+    keys = [FAL_KEY]
+    renderWithStudio(
+      <MainModelPicker modality="image" value="key:fal-1" onChange={vi.fn()} />,
     )
-    expect(useImageModelOptions).not.toHaveBeenCalled()
-    expect(useVideoModelOptions).not.toHaveBeenCalled()
+    await rendered()
+    const chip = screen.getByRole('button', { name: /Seedream/ })
+    expect(chip).toHaveAttribute('aria-haspopup', 'dialog')
+    expect(chip.textContent).toContain('Seedream')
+    expect(chip.textContent).toContain('5.0 Pro')
   })
 })
 
@@ -229,22 +184,18 @@ describe('routeToStudioOption', () => {
       providerLabel: 'openai',
       isSaved: false,
     }
-    const result = routeToStudioOption(route)
-    expect(result.modelId).toBe(AI_ADAPTER_TYPES.OPENAI)
+    expect(routeToStudioOption(route).modelId).toBe(AI_ADAPTER_TYPES.OPENAI)
   })
 
-  it('routes locked options to locked group via useSplitModelOptions semantics', () => {
-    // sourceType='workspace' with no key → useSplitModelOptions puts it in the
-    // locked group. Cross-hook integration: LLM lockedRoutes must land there.
-    const lockedRoute: LLMRouteOption = {
+  it('没 key 的路线不带 provider 覆盖，落「需要 key」那一桶', () => {
+    const result = routeToStudioOption({
       optionId: 'opt',
       apiKeyId: null,
       adapterType: AI_ADAPTER_TYPES.GEMINI,
       label: 'Gemini',
       providerLabel: 'Gemini',
       isSaved: false,
-    }
-    const result = routeToStudioOption(lockedRoute)
+    })
     expect(result.sourceType).toBe('workspace')
     expect(result.providerKeyId).toBeUndefined()
   })

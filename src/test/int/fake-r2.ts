@@ -84,7 +84,43 @@ export function fakeR2Module(real: R2Module): R2Module {
       if (stored) return { buffer: stored, mimeType: 'image/png' }
       throw new Error(`Failed to fetch ${url} (404)`)
     }),
+    // 视频 / 音频 / 图从服务商地址流式转存：地址得先登记在 `remote` 里，否则当下载失败。
+    streamUploadToR2: vi.fn(
+      async ({ sourceUrl, key }: { sourceUrl: string; key: string }) => {
+        const remote = fakeBucket.remote.get(sourceUrl)
+        if (!remote)
+          throw new Error(
+            `Failed to fetch video for upload (404): ${sourceUrl}`,
+          )
+        fakeBucket.objects.set(key, remote.buffer)
+        fakeBucket.uploads.push(key)
+        return {
+          publicUrl: `${FAKE_CDN}/${key}`,
+          sizeBytes: remote.buffer.length,
+        }
+      },
+    ),
+    createVideoPosterAsset: vi.fn(
+      async ({
+        sourceUrl,
+        sourceStorageKey,
+      }: {
+        sourceUrl: string
+        sourceStorageKey: string
+      }) => {
+        if (!fakeBucket.remote.has(sourceUrl))
+          throw new Error(`Failed to fetch poster (404): ${sourceUrl}`)
+        const thumbnailStorageKey = `${sourceStorageKey}.thumbnail.webp`
+        return {
+          thumbnailUrl: `${FAKE_CDN}/${thumbnailStorageKey}`,
+          thumbnailStorageKey,
+        }
+      },
+    ),
     r2ObjectExists: vi.fn(async (key: string) => fakeBucket.objects.has(key)),
+    deleteFromR2: vi.fn(async (key: string) => {
+      fakeBucket.objects.delete(key)
+    }),
     createPresignedR2GetUrl: vi.fn(
       async ({ key }: { key: string }) => `${FAKE_CDN}/${key}?signed`,
     ),

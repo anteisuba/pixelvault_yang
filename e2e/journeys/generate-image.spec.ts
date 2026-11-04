@@ -11,7 +11,7 @@ import { expect, test, type Page } from '@playwright/test'
  */
 
 const FAKE_WORKER = process.env.FAKE_WORKER_URL ?? 'http://localhost:4010'
-const MODEL_ID = 'seedream-4.5'
+const MODEL_ID = 'seedream-5.0-lite'
 const KEY_VALUE = 'fal-e2e-not-a-real-key'
 
 interface Envelope<T> {

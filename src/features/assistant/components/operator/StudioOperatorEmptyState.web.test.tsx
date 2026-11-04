@@ -1,9 +1,10 @@
 // ⚠ 用 `fireEvent` 不是 `user-event`：本仓没装 `@testing-library/user-event`。
-import { render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { screen } from '@testing-library/react'
+import { describe, expect, it } from 'vitest'
 
 import { ImageIcon } from '@/components/icons'
 import type { StudioOperatorFace } from '@/contexts/studio-operator-host'
+import { renderWithApp } from '@/test/app-harness'
 
 import { StudioOperatorEmptyState } from './StudioOperatorEmptyState'
 
@@ -21,13 +22,6 @@ import { StudioOperatorEmptyState } from './StudioOperatorEmptyState'
  *     （宽松档一字不差），但挤的时候它们先于内容收缩 —— 留白该比字先消失。
  */
 
-// 头像那一颗的内部（persona 预设 / 自传图）不是这条断言的契约。
-vi.mock('@/features/assistant/components/operator/TimelineAvatar', () => ({
-  AssistantTimelineAvatar: ({ className }: { className?: string }) => (
-    <span data-testid="operator-empty-avatar" className={className} />
-  ),
-}))
-
 const FACE: StudioOperatorFace = {
   domainIcon: ImageIcon,
   contextLine: () => 'Seedream 5.0 Pro · 1:1 · 4 张',
@@ -39,13 +33,14 @@ const FACE: StudioOperatorFace = {
 function renderEmpty(
   overrides: Partial<Parameters<typeof StudioOperatorEmptyState>[0]> = {},
 ) {
-  render(<StudioOperatorEmptyState face={FACE} {...overrides} />)
+  // 真的头像组件（真 next-intl 文案）：40px 那一档是空态交给它的类名。
+  renderWithApp(<StudioOperatorEmptyState face={FACE} {...overrides} />)
 }
 
 describe('StudioOperatorEmptyState', () => {
   it('画 40px 头像 + 那一句（⛔ 没有第二段说明）', () => {
     renderEmpty()
-    expect(screen.getByTestId('operator-empty-avatar').className).toContain(
+    expect(screen.getByTestId('operator-timeline-avatar').className).toContain(
       'size-10',
     )
     expect(screen.getByTestId('operator-empty-line').textContent).toBe(
@@ -89,7 +84,7 @@ describe('StudioOperatorEmptyState', () => {
   /** ⚠ 让步的是空白，⛔ 不是内容：头像与那句话都 `shrink-0`。 */
   it('⭐ 头像与那句话不跟着缩', () => {
     renderEmpty()
-    expect(screen.getByTestId('operator-empty-avatar').className).toContain(
+    expect(screen.getByTestId('operator-timeline-avatar').className).toContain(
       'shrink-0',
     )
     expect(screen.getByTestId('operator-empty-line').className).toContain(

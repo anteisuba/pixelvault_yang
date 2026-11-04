@@ -464,6 +464,9 @@
       "countryBlocked": "chub.ai 在你所在的网络不可用",
       "tooLarge": "这张卡超过 3 MB 了，没法建成角色"
     },
+    "danbooruCatalog": {
+      "unavailable": "Danbooru 暂时没回应，过一会儿再试"
+    },
     "characterLook": {
       "notFound": "找不到这套造型",
       "limit": "造型数到上限了",

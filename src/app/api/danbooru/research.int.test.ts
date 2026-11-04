@@ -140,6 +140,21 @@ describe('GET /api/danbooru/catalog（真服务）', () => {
       true,
     )
   })
+
+  it('Danbooru 那边 503：回 503「对方不可用」，⛔ 当成自家 500', async () => {
+    respond((url) =>
+      url.hostname === 'danbooru.donmai.us'
+        ? new Response('busy', { status: 503 })
+        : undefined,
+    )
+    const res = await catalog({ query: 'denia', kind: 'character' })
+    expect(res.status).toBe(503)
+    expect(await parseJSON<Envelope<unknown>>(res)).toMatchObject({
+      success: false,
+      errorCode: 'DANBOORU_UNAVAILABLE',
+      i18nKey: 'errors.danbooruCatalog.unavailable',
+    })
+  })
 })
 
 describe('/api/danbooru/favorites（真库）', () => {

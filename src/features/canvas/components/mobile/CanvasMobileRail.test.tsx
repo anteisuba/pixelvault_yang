@@ -1,3 +1,4 @@
+/** 手机画布左栏：真抽屉（真 MobileNodeSheet）、真角色库 hook、真参考轨绑定；只假角色库接口、路由与 Clerk。 */
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -7,64 +8,34 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
 
-// 抽屉是 vaul 的 portal + 一整套编排件，本片只验「点卡把哪一张递给了它」。
 const push = vi.fn()
 vi.mock('@/i18n/navigation', () => ({ useRouter: () => ({ push }) }))
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({ userId: 'user-a', isLoaded: true, isSignedIn: true }),
+}))
 
-vi.mock('@/features/cards/hooks/use-character-library', () => ({
-  useCharacterLibrary: () => ({
-    cards: [],
-    loaded: true,
-    find: (id: string) =>
-      id === 'denia'
-        ? {
-            id: 'denia',
-            name: 'Denia',
-            looks: [
-              {
-                id: 'denia-main',
-                isDefault: true,
-                tags: [],
-                referenceSlots: [
-                  {
-                    id: 's1',
-                    url: 'https://cdn.test/denia.png',
-                    isPrimary: true,
-                  },
-                ],
-              },
+// 角色库从接口拉：只假这一条。
+vi.mock('@/lib/api-client/cards', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api-client/cards')>()),
+  listCharacterCardsAPI: vi.fn(async () => ({
+    success: true,
+    data: [
+      {
+        id: 'denia',
+        name: 'Denia',
+        looks: [
+          {
+            id: 'denia-main',
+            isDefault: true,
+            tags: [],
+            referenceSlots: [
+              { id: 's1', url: 'https://cdn.test/denia.png', isPrimary: true },
             ],
-          }
-        : null,
-  }),
-}))
-
-vi.mock('./MobileNodeSheet', () => ({
-  MobileNodeSheet: ({ node }: { node: NodeV4 | null }) => (
-    <div data-testid="sheet">{node?.id ?? 'closed'}</div>
-  ),
-}))
-
-// 参考轨绑定要 upload / 素材库 / 整张图；卡的形状不依赖它有没有挂东西。
-vi.mock('../nodes/v4/video/use-video-rail-binding', () => ({
-  useVideoRailBinding: () => ({
-    node: undefined,
-    items: [],
-    railProps: {
-      onRemove: vi.fn(),
-      onPickFromCanvas: vi.fn(),
-      onUpload: vi.fn(),
-      onLibrary: vi.fn(),
-    },
-    capacity: { images: null, videos: null, voices: null },
-    candidatesOf: () => [],
-    runUpload: vi.fn(),
-    openFilePicker: vi.fn(),
-    selfUploading: false,
-    uploadProgress: 0,
-    backfillMedia: vi.fn(),
-    overlays: null,
-  }),
+          },
+        ],
+      },
+    ],
+  })),
 }))
 
 const nodes: NodeV4[] = [
@@ -112,29 +83,39 @@ const nodes: NodeV4[] = [
   },
 ] as unknown as NodeV4[]
 
-vi.mock('../nodes/v4/NodeV4Context', () => ({
-  useNodeV4Canvas: () => ({
-    nodes,
-    edges: [],
-    modelOptionsByKind: {},
-  }),
-}))
+import { ApiKeysProvider } from '@/contexts/api-keys-context'
 
+import {
+  NodeV4CanvasProvider,
+  type NodeV4CanvasContextValue,
+} from '../nodes/v4/NodeV4Context'
 import { CanvasMobileRail } from './CanvasMobileRail'
 
 function renderRail(
   overrides: Partial<Parameters<typeof CanvasMobileRail>[0]> = {},
 ) {
   return render(
-    <CanvasMobileRail
-      projectPill={<span data-testid="pill">项目</span>}
-      assistant={<div data-testid="assistant" />}
-      assistantOpen={false}
-      onOpenAssistant={vi.fn()}
-      onAddShot={vi.fn()}
-      onUploadFiles={vi.fn()}
-      {...overrides}
-    />,
+    <ApiKeysProvider autoLoad={false}>
+      <NodeV4CanvasProvider
+        value={
+          {
+            nodes,
+            edges: [],
+            modelOptionsByKind: {},
+          } as unknown as NodeV4CanvasContextValue
+        }
+      >
+        <CanvasMobileRail
+          projectPill={<span data-testid="pill">项目</span>}
+          assistant={<div data-testid="assistant" />}
+          assistantOpen={false}
+          onOpenAssistant={vi.fn()}
+          onAddShot={vi.fn()}
+          onUploadFiles={vi.fn()}
+          {...overrides}
+        />
+      </NodeV4CanvasProvider>
+    </ApiKeysProvider>,
   )
 }
 
@@ -163,10 +144,10 @@ describe('CanvasMobileRail', () => {
 
   it('点卡把这张卡递给抽屉；助手收起时不挂（⛔ 不自动盖住列表）', () => {
     const { container } = renderRail()
-    expect(screen.getByTestId('sheet')).toHaveTextContent('closed')
+    expect(screen.queryByRole('dialog')).toBeNull()
     expect(screen.queryByTestId('assistant')).toBeNull()
     fireEvent.click(container.querySelector('[data-mobile-shot-open]')!)
-    expect(screen.getByTestId('sheet')).toHaveTextContent('shot-1')
+    expect(screen.getByRole('dialog')).toHaveTextContent('站台')
   })
 
   it('画布上的角色卡：名字和图现读角色库，点了去角色页，⛔ 不开出图抽屉', () => {
@@ -179,7 +160,7 @@ describe('CanvasMobileRail', () => {
     )
     fireEvent.click(row)
     expect(push).toHaveBeenCalledWith('/library/cards?character=denia')
-    expect(screen.getByTestId('sheet')).toHaveTextContent('closed')
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 
   it('助手开着时才挂那块 sheet', () => {

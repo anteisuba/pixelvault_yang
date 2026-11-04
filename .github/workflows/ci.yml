@@ -74,7 +74,8 @@ jobs:
   integration-test:
     name: Integration Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # 158 个文件单线程真库约 8–9 分钟（11-04 慢机 9 分钟被 10 分钟上限掐断），留余量。
+    timeout-minutes: 20
     # L2a 真库测试（*.int.test.ts，docs/references/testing.md「测试标准」）：一次性
     # Postgres 16，global-setup 先把 prisma/migrations 全部执行一遍再跑。
     services:

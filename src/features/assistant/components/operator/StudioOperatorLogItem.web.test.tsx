@@ -1,10 +1,16 @@
 // ⚠ 用 `fireEvent` 不是 `user-event`：本仓没装 `@testing-library/user-event`。
 import { fireEvent, render, screen } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ASSISTANT_OPERATOR_TOOL_IDS } from '@/constants/assistant-operator'
 import type { AssistantOperatorStep } from '@/types/assistant-operator'
 
+import { openedLightbox } from '@/test/operator-lightbox'
+
+import {
+  closeOperatorLightbox,
+  StudioOperatorLightbox,
+} from './StudioOperatorLightbox'
 import { StudioOperatorLogItem } from './StudioOperatorLogItem'
 
 /**
@@ -23,7 +29,7 @@ vi.mock('next-intl', () => ({
 
 vi.mock('motion/react', async (importOriginal) => ({
   ...(await importOriginal<typeof import('motion/react')>()),
-  motion: { button: 'button' },
+  motion: { button: 'button', div: 'div' },
   useReducedMotion: () => true,
 }))
 
@@ -33,16 +39,6 @@ vi.mock('next/image', () => ({
     <img src={src} alt={alt} />
   ),
 }))
-
-vi.mock('@/components/ui/spinner', () => ({
-  Spinner: () => <span data-testid="spinner" />,
-}))
-
-const openOperatorLightbox = vi.hoisted(() => vi.fn())
-vi.mock(
-  '@/features/assistant/components/operator/StudioOperatorLightbox',
-  () => ({ openOperatorLightbox }),
-)
 
 const WEB_STEP: AssistantOperatorStep = {
   id: 'step-1',
@@ -126,13 +122,17 @@ function renderItem(
   overrides: Partial<Parameters<typeof StudioOperatorLogItem>[0]> = {},
 ) {
   render(
-    <StudioOperatorLogItem step={WEB_STEP} undone={false} {...overrides} />,
+    <>
+      <StudioOperatorLogItem step={WEB_STEP} undone={false} {...overrides} />
+      <StudioOperatorLightbox />
+    </>,
   )
 }
 
 beforeEach(() => {
   vi.clearAllMocks()
 })
+afterEach(() => closeOperatorLightbox())
 
 describe('日志条 · 找图那一步（搜索期切片 1）', () => {
   it('⭐ 只留一句「搜索 Google 图片：… · N 张」，⛔ 网格不再画在这一条里', () => {
@@ -230,10 +230,10 @@ describe('日志条 · 文件夹视觉检查', () => {
   it('点证据图打开原图，那一行就写着 2/30 的覆盖率', () => {
     renderItem({ step: FOLDER_VISION_STEP })
     fireEvent.click(screen.getAllByTestId('operator-folder-vision-image')[0])
-    expect(openOperatorLightbox).toHaveBeenCalledWith(
-      'https://cdn.example.com/asset-1.png',
-      'front-facing portrait',
-    )
+    expect(openedLightbox()).toMatchObject({
+      src: 'https://cdn.example.com/asset-1.png',
+      caption: 'front-facing portrait',
+    })
 
     expect(screen.getByTestId('operator-log-item').textContent).toContain(
       '2/30',

@@ -1,13 +1,21 @@
 // ⚠ 用 `fireEvent` 不是 `user-event`：本仓没装 `@testing-library/user-event`。
 import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type {
   StudioOperatorResultEntry,
   StudioOperatorResultItem,
 } from '@/types/studio-assistant-operator'
 
+import { openedLightbox } from '@/test/operator-lightbox'
+
+import {
+  closeOperatorLightbox,
+  StudioOperatorLightbox,
+} from './StudioOperatorLightbox'
 import { StudioOperatorResultRow } from './StudioOperatorResultRow'
+
+afterEach(() => closeOperatorLightbox())
 
 /**
  * 结果卡的回归闸（v2 §6 / 画板 BCards「结果」三态）。
@@ -27,15 +35,9 @@ vi.mock('next-intl', () => ({
 }))
 
 vi.mock('motion/react', () => ({
-  motion: { span: 'span', button: 'button', rect: 'rect' },
+  motion: { span: 'span', button: 'button', rect: 'rect', div: 'div' },
   useReducedMotion: () => true,
 }))
-
-const openLightbox = vi.hoisted(() => vi.fn())
-vi.mock(
-  '@/features/assistant/components/operator/StudioOperatorLightbox',
-  () => ({ openOperatorLightbox: openLightbox }),
-)
 
 vi.mock('next/image', () => ({
   // ⚠ `className` 透传：缩略图的裁切基准（`object-top`）就验在它身上。
@@ -89,7 +91,13 @@ function buildEntry(
 function renderCard(patch: Partial<StudioOperatorResultEntry> = {}) {
   const handlers = { onRerun: vi.fn(), onUseAsReference: vi.fn() }
   const entry = buildEntry(patch)
-  const view = render(<StudioOperatorResultRow entry={entry} {...handlers} />)
+  // 真灯箱一起挂上：点格子开的是它。
+  const view = render(
+    <>
+      <StudioOperatorResultRow entry={entry} {...handlers} />
+      <StudioOperatorLightbox />
+    </>,
+  )
   return { ...handlers, entry, view }
 }
 
@@ -132,10 +140,10 @@ describe('StudioOperatorResultRow', () => {
     expect(tiles[0]!.style.aspectRatio).toBe('3 / 2')
     expect(tiles[0]!.parentElement!.className).toContain('grid-cols-2')
     fireEvent.click(tiles[1]!)
-    expect(openLightbox).toHaveBeenCalledWith(
-      'https://cdn.test/2.png',
-      '夜景版',
-    )
+    expect(openedLightbox()).toMatchObject({
+      src: 'https://cdn.test/2.png',
+      caption: '夜景版',
+    })
   })
 
   it('多张：每张一格，读数走带计数的那一句', () => {

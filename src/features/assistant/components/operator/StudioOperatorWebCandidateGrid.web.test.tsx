@@ -1,9 +1,15 @@
 // ⚠ 用 `fireEvent` 不是 `user-event`：本仓没装 `@testing-library/user-event`。
 import { fireEvent, render, screen } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { AssistantOperatorWebImage } from '@/types/assistant-operator'
 
+import { openedLightbox } from '@/test/operator-lightbox'
+
+import {
+  closeOperatorLightbox,
+  StudioOperatorLightbox,
+} from './StudioOperatorLightbox'
 import { StudioOperatorWebCandidateGrid } from './StudioOperatorWebCandidateGrid'
 
 /**
@@ -23,18 +29,20 @@ vi.mock('next-intl', () => ({
       values ? `${key} ${JSON.stringify(values)}` : key,
 }))
 
-vi.mock('@/components/ui/spinner', () => ({
-  Spinner: () => <span data-testid="spinner" />,
-}))
-
-const openOperatorLightbox = vi.hoisted(() => vi.fn())
-vi.mock(
-  '@/features/assistant/components/operator/StudioOperatorLightbox',
-  () => ({ openOperatorLightbox }),
-)
-
-const mobile = vi.hoisted(() => ({ value: false }))
-vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => mobile.value }))
+/** 真的 `useIsMobile`：按窗口宽度判（< 768 = 手机）。 */
+function setViewport(phone: boolean) {
+  vi.stubGlobal('innerWidth', phone ? 390 : 1280)
+  vi.stubGlobal(
+    'matchMedia',
+    (query: string) =>
+      ({
+        matches: phone,
+        media: query,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      }) as unknown as MediaQueryList,
+  )
+}
 
 const USABLE: AssistantOperatorWebImage = {
   imageUrl: 'https://cdn.example.com/a.jpg',
@@ -64,14 +72,17 @@ function renderGrid(
 ) {
   const onSave = vi.fn()
   const view = render(
-    <StudioOperatorWebCandidateGrid
-      entryId="run-1:step-1"
-      query="初音未来 官方立绘"
-      images={images}
-      webImport={undefined}
-      onSave={onSave}
-      {...overrides}
-    />,
+    <>
+      <StudioOperatorWebCandidateGrid
+        entryId="run-1:step-1"
+        query="初音未来 官方立绘"
+        images={images}
+        webImport={undefined}
+        onSave={onSave}
+        {...overrides}
+      />
+      <StudioOperatorLightbox />
+    </>,
   )
   return { onSave, view }
 }
@@ -86,9 +97,14 @@ function many(count: number): AssistantOperatorWebImage[] {
   }))
 }
 
+afterEach(() => {
+  closeOperatorLightbox()
+  vi.unstubAllGlobals()
+})
+
 beforeEach(() => {
   vi.clearAllMocks()
-  mobile.value = false
+  setViewport(false)
   vi.unstubAllEnvs()
   vi.stubEnv('NEXT_PUBLIC_CIVITAI_IMAGE_PROXY_BASE', '')
 })
@@ -121,11 +137,11 @@ describe('找到的图 · 网格', () => {
     expect(img.getAttribute('src')).toBe(USABLE.thumbnailUrl)
     expect(img.getAttribute('referrerpolicy')).toBe('no-referrer')
     fireEvent.click(screen.getByTestId('operator-web-candidate'))
-    expect(openOperatorLightbox).toHaveBeenCalledWith(
-      USABLE.imageUrl,
-      expect.any(String),
-      expect.objectContaining({ thirdParty: true }),
-    )
+    // 真灯箱开的是原图，第三方图 ⛔ 不带 Referer。
+    expect(openedLightbox()).toMatchObject({
+      src: USABLE.imageUrl,
+      referrerPolicy: 'no-referrer',
+    })
     expect(onSave).not.toHaveBeenCalled()
   })
 
@@ -161,7 +177,7 @@ describe('找到的图 · 网格', () => {
   })
 
   it('手机：仍是胶片条，站名写在格子下面', () => {
-    mobile.value = true
+    setViewport(true)
     renderGrid([USABLE])
     expect(
       screen.getByTestId('operator-web-candidates').getAttribute('data-layout'),

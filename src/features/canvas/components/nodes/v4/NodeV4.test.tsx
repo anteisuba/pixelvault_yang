@@ -37,29 +37,14 @@ vi.mock('@xyflow/react', () => ({
     ) : null,
 }))
 
-vi.mock('@/components/ui/markdown', () => ({
-  Markdown: ({ children }: { children: ReactNode }) => (
-    <div data-testid="markdown">{children}</div>
-  ),
-}))
-
-/** ⋯「加入剪辑台」走动作出口（`useNodeCanvasActions`）——本组只看它被调到。 */
-const openEditDesk = vi.fn()
-vi.mock('./NodeV4ActionsBridge', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('./NodeV4ActionsBridge')>()),
-  useNodeCanvasActions: () => ({ openEditDesk }),
-}))
-
-vi.mock('@/components/ui/audio-player', () => ({
-  AudioPlayer: ({ src }: { src: string }) => (
-    <div data-testid="audio">{src}</div>
-  ),
-}))
-
 import { reconcileStateSlots } from '@/lib/node-slot-binding'
 import type { NodeV4, NodeWorkflowStateV4 } from '@/types/node-workflow'
 
 import { AudioNodeV4 } from './AudioNodeV4'
+import {
+  NodeCanvasActionsProvider,
+  type NodeCanvasActions,
+} from './NodeV4ActionsBridge'
 import { ImageNodeV4 } from './ImageNodeV4'
 import {
   NodeV4CanvasProvider,
@@ -198,11 +183,15 @@ function renderNode(
   context: NodeV4CanvasContextValue,
 ) {
   const target = context.nodes.find((item) => item.id === nodeId)!
+  // 画布动作出口由宿主注入（工作台那一层）；本组不点 ⋯ 菜单，给一份空实现。
+  const actions = new Proxy({}, { get: () => vi.fn() }) as NodeCanvasActions
   return render(
-    <NodeV4CanvasProvider value={context}>
-      {/* @ts-expect-error NodeProps 的其余字段本组测试用不到 */}
-      <Component id={nodeId} data={target.data} selected={false} />
-    </NodeV4CanvasProvider>,
+    <NodeCanvasActionsProvider value={actions}>
+      <NodeV4CanvasProvider value={context}>
+        {/* @ts-expect-error NodeProps 的其余字段本组测试用不到 */}
+        <Component id={nodeId} data={target.data} selected={false} />
+      </NodeV4CanvasProvider>
+    </NodeCanvasActionsProvider>,
   )
 }
 

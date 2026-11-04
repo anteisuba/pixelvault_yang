@@ -49,5 +49,18 @@ export function fakeR2Module<T extends object>(actual: T) {
     },
     createPresignedR2PutUrl: async ({ key }: { key: string }) =>
       `https://r2.test/put/${encodeURIComponent(key)}`,
+    /** 桶里那张（`${R2_PUBLIC_BASE}/<key>`）直接读；别的地址照真实现走。 */
+    fetchAsBuffer: async (url: string, ...rest: unknown[]) => {
+      if (url.startsWith(`${R2_PUBLIC_BASE}/`)) {
+        const object = r2Bucket.get(url.slice(R2_PUBLIC_BASE.length + 1))
+        if (!object) throw new Error(`Failed to fetch image (404): ${url}`)
+        return { buffer: object.data, mimeType: object.mimeType }
+      }
+      const real = (
+        actual as { fetchAsBuffer?: (...args: unknown[]) => unknown }
+      ).fetchAsBuffer
+      if (!real) throw new Error('fetchAsBuffer not available')
+      return real(url, ...rest)
+    },
   }
 }

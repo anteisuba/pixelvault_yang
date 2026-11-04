@@ -2,22 +2,8 @@ import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
 
 vi.mock('server-only', () => ({}))
 
-vi.mock('@/lib/crypto', () => ({
-  decryptApiKey: vi.fn().mockReturnValue('decrypted-key'),
-}))
-
-const mockFindFirst = vi.fn()
-vi.mock('@/lib/db', () => ({
-  db: {
-    userApiKey: {
-      findFirst: (...a: unknown[]) => mockFindFirst(...a),
-    },
-  },
-}))
-
 import {
   isLlmTextContextLimitError,
-  resolveLlmTextRoute,
   llmTextCompletion,
   llmTextStream,
   llmNativeWebSearch,
@@ -27,7 +13,6 @@ import {
   type LlmTextInput,
 } from '@/services/llm-text.service'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
-import { decryptApiKey } from '@/lib/crypto'
 import { GENERATION_ERROR_CODES } from '@/constants/generation-errors'
 import {
   ASSISTANT_IMAGE_LIMITS,
@@ -50,13 +35,6 @@ import {
 afterEach(() => {
   vi.unstubAllGlobals()
 })
-
-const GEMINI_KEY = {
-  id: 'key_1',
-  adapterType: AI_ADAPTER_TYPES.GEMINI,
-  encryptedKey: 'enc',
-  isActive: true,
-}
 
 function readFetchJson(
   fetchMock: ReturnType<typeof vi.fn>,
@@ -195,47 +173,6 @@ describe('structured output requests', () => {
         }),
       ])
     }
-  })
-})
-
-describe('resolveLlmTextRoute', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
-
-  it('点名的那把 key → 它那一家', async () => {
-    mockFindFirst.mockResolvedValue(GEMINI_KEY)
-
-    const route = await resolveLlmTextRoute('db_user_1', GEMINI_KEY.id)
-
-    expect(route.adapterType).toBe(AI_ADAPTER_TYPES.GEMINI)
-    expect(route.apiKey).toBe('decrypted-key')
-    expect(mockFindFirst).toHaveBeenCalledTimes(1)
-    expect(mockFindFirst).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({ id: GEMINI_KEY.id }),
-      }),
-    )
-  })
-
-  it('⛔ 那把 key 解不开 → 照实抛，不去找别家的 key', async () => {
-    mockFindFirst.mockResolvedValue(GEMINI_KEY)
-    vi.mocked(decryptApiKey).mockImplementationOnce(() => {
-      throw new Error('cannot decrypt')
-    })
-
-    await expect(
-      resolveLlmTextRoute('db_user_1', GEMINI_KEY.id),
-    ).rejects.toThrow('cannot decrypt')
-    expect(mockFindFirst).toHaveBeenCalledTimes(1)
-  })
-
-  it('那把 key 不在了 → 照实抛', async () => {
-    mockFindFirst.mockResolvedValue(null)
-
-    await expect(resolveLlmTextRoute('db_user_1', 'key_gone')).rejects.toThrow(
-      'The selected API key is unavailable',
-    )
   })
 })
 

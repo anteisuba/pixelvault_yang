@@ -1,30 +1,33 @@
-import { renderHook } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { act } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const mocks = vi.hoisted(() => ({
-  dispatch: vi.fn(),
-  clear: vi.fn(),
-  add: vi.fn(),
-  query: '',
-}))
-vi.mock('next/navigation', () => ({
-  useSearchParams: () => new URLSearchParams(mocks.query),
-}))
-vi.mock('@/contexts/studio-context', () => ({
-  useStudioForm: () => ({
-    state: { advancedParams: {} },
-    dispatch: mocks.dispatch,
-  }),
-  useStudioData: () => ({
-    imageUpload: { clearAllImages: mocks.clear, addReferenceImage: mocks.add },
-  }),
-}))
+import { fakeStudioServer, renderHookWithStudio } from '@/test/studio-harness'
 import { useStudioReplayFromUrl } from './use-studio-replay-from-url'
 
+const nav = vi.hoisted(() => ({ query: '' }))
+vi.mock('next/navigation', () => ({
+  useSearchParams: () => new URLSearchParams(nav.query),
+}))
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({ isLoaded: true, isSignedIn: true, userId: 'user-a' }),
+}))
+vi.mock('@/i18n/navigation', () => ({
+  usePathname: () => '/studio/image',
+  useRouter: () => ({ push: vi.fn() }),
+}))
+
+function renderReplay() {
+  return renderHookWithStudio(() => useStudioReplayFromUrl())
+}
+
 beforeEach(() => {
-  vi.clearAllMocks()
-  mocks.query = ''
+  fakeStudioServer()
+  nav.query = ''
   window.history.replaceState({}, '', '/')
+})
+afterEach(() => {
+  vi.useRealTimers()
+  vi.unstubAllGlobals()
 })
 
 describe('Studio recovery link', () => {
@@ -35,60 +38,57 @@ describe('Studio recovery link', () => {
     })
     params.append('referenceImage', 'https://example.com/one.png')
     params.append('referenceImage', 'https://example.com/two.png')
-    mocks.query = params.toString()
-    window.history.replaceState({}, '', `/?${mocks.query}`)
-    const view = renderHook(() => useStudioReplayFromUrl())
-    expect(mocks.clear).toHaveBeenCalledTimes(1)
-    expect(mocks.add.mock.calls).toEqual([
-      ['https://example.com/one.png'],
-      ['https://example.com/two.png'],
+    nav.query = params.toString()
+    window.history.replaceState({}, '', `/?${nav.query}`)
+    const view = renderReplay()
+    const { studio } = view.result.current
+    expect(studio.imageUpload.referenceImages).toEqual([
+      'https://example.com/one.png',
+      'https://example.com/two.png',
     ])
-    expect(mocks.dispatch).toHaveBeenCalledWith({
-      type: 'SET_PROMPT',
-      payload: 'Use @Image1 then @Image2',
-    })
-    expect(mocks.clear.mock.invocationCallOrder[0]).toBeLessThan(
-      mocks.dispatch.mock.invocationCallOrder[0],
-    )
+    // 先清参考图再填提示词：顺序反了，清图会把 @Image 提及从提示词里删掉。
+    expect(studio.state.prompt).toBe('Use @Image1 then @Image2')
     expect(window.location.search).toBe('?style=keep-this')
+
+    act(() => {
+      studio.imageUpload.removeReferenceImage(1)
+    })
     view.rerender()
-    expect(mocks.clear).toHaveBeenCalledTimes(1)
+    // 只回放一次：之后用户改动不会被地址栏的参数再盖回来。
+    expect(view.result.current.studio.imageUpload.referenceImages).toEqual([
+      'https://example.com/one.png',
+    ])
   })
 
   it('ignores nonpersistent or invalid reference URLs', () => {
-    mocks.query =
+    nav.query =
       'referenceImage=javascript%3Aalert(1)&referenceImage=blob%3Atest&referenceImage=not-a-url'
-    renderHook(() => useStudioReplayFromUrl())
-    expect(mocks.clear).not.toHaveBeenCalled()
-    expect(mocks.add).not.toHaveBeenCalled()
+    const { result } = renderReplay()
+    expect(result.current.studio.imageUpload.referenceImages).toEqual([])
   })
 
   it('generate=1 填完提示词后下一拍才请求出图，并从地址栏拿掉', () => {
-    vi.useFakeTimers()
-    mocks.query = 'prompt=%E6%B5%B7%E8%BE%B9&generate=1'
-    window.history.replaceState({}, '', `/?${mocks.query}`)
-    renderHook(() => useStudioReplayFromUrl())
-    expect(mocks.dispatch).toHaveBeenCalledWith({
-      type: 'SET_PROMPT',
-      payload: '海边',
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    nav.query = 'prompt=%E6%B5%B7%E8%BE%B9&generate=1'
+    window.history.replaceState({}, '', `/?${nav.query}`)
+    const { result } = renderReplay()
+    expect(result.current.studio.state.prompt).toBe('海边')
+    expect(result.current.studio.state.generateRequestId).toBe(0)
+    act(() => {
+      vi.runAllTimers()
     })
-    expect(mocks.dispatch).not.toHaveBeenCalledWith({
-      type: 'REQUEST_GENERATE',
-    })
-    vi.runAllTimers()
-    expect(mocks.dispatch).toHaveBeenCalledWith({ type: 'REQUEST_GENERATE' })
+    expect(result.current.studio.state.generateRequestId).toBe(1)
     expect(window.location.search).toBe('')
-    vi.useRealTimers()
   })
 
   it('没有 generate=1 只填不出图', () => {
-    vi.useFakeTimers()
-    mocks.query = 'prompt=hello'
-    renderHook(() => useStudioReplayFromUrl())
-    vi.runAllTimers()
-    expect(mocks.dispatch).not.toHaveBeenCalledWith({
-      type: 'REQUEST_GENERATE',
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    nav.query = 'prompt=hello'
+    const { result } = renderReplay()
+    act(() => {
+      vi.runAllTimers()
     })
-    vi.useRealTimers()
+    expect(result.current.studio.state.prompt).toBe('hello')
+    expect(result.current.studio.state.generateRequestId).toBe(0)
   })
 })

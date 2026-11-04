@@ -32,8 +32,9 @@
  *   the regression instead, then re-run.
  */
 
+import { createElement, type ReactNode } from 'react'
 import { describe, it, expect, vi } from 'vitest'
-import { renderHook } from '@testing-library/react'
+import { waitFor } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -43,14 +44,34 @@ import {
   type LlmCapabilityScope,
 } from '@/constants/llm-capability'
 import { AI_ADAPTER_TYPES, type ProviderConfig } from '@/constants/providers'
-import type { ApiKeyHealthStatus, UserApiKeyRecord } from '@/types'
+import type { UserApiKeyRecord } from '@/types'
 
-vi.mock('@/contexts/api-keys-context', () => ({
-  useApiKeysContext: vi.fn(),
+// 真 `ApiKeysProvider` + 真 hook；只假网络：她有哪几把 key 经 api-client 拉回来。
+const server = vi.hoisted(() => ({ keys: [] as unknown[], userSeq: 0 }))
+vi.mock('@/lib/api-client', () => ({
+  listApiKeys: vi.fn(async () => ({ success: true, data: server.keys })),
+  createApiKey: vi.fn(),
+  updateApiKey: vi.fn(),
+  deleteApiKey: vi.fn(),
+  verifyApiKey: vi.fn(),
 }))
+// ⚠ 名单缓存按用户存：每换一份名单就换一个 userId。
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({
+    userId: `user-${server.userSeq}`,
+    isLoaded: true,
+    isSignedIn: true,
+  }),
+}))
+vi.stubGlobal('requestIdleCallback', (task: () => void) => {
+  task()
+  return 1
+})
+vi.stubGlobal('cancelIdleCallback', () => {})
 
-import { useApiKeysContext } from '@/contexts/api-keys-context'
+import { ApiKeysProvider, useApiKeysContext } from '@/contexts/api-keys-context'
 import { useLLMRoutePicker } from '@/hooks/use-llm-route-picker'
+import { renderHookWithApp } from '@/test/app-harness'
 
 const ALL_SCOPES: LlmCapabilityScope[] = ['enhance', 'planner', 'assistant']
 
@@ -71,22 +92,36 @@ function makeKey(over: Partial<UserApiKeyRecord>): UserApiKeyRecord {
   }
 }
 
-function mockApiKeys(
-  keys: UserApiKeyRecord[],
-  healthMap: Record<string, ApiKeyHealthStatus> = {},
-) {
-  vi.mocked(useApiKeysContext).mockReturnValue({
-    keys,
-    healthMap,
-    isLoading: false,
-  } as ReturnType<typeof useApiKeysContext>)
+function mockApiKeys(keys: UserApiKeyRecord[]) {
+  server.keys = keys
+  server.userSeq += 1
+}
+
+function Keys({ children }: { children: ReactNode }) {
+  return createElement(ApiKeysProvider, null, children)
+}
+
+/** 真 Provider 拉完名单之后的选择器。 */
+async function renderPicker(scope: LlmCapabilityScope) {
+  const rendered = renderHookWithApp(
+    () => ({ picker: useLLMRoutePicker(scope), keys: useApiKeysContext() }),
+    { inner: Keys },
+  )
+  await waitFor(() => expect(rendered.result.current.keys.hasLoaded).toBe(true))
+  return {
+    result: {
+      get current() {
+        return rendered.result.current.picker
+      },
+    },
+  }
 }
 
 describe('IRON RULE — LLM scope source of truth', () => {
-  it('every adapter in getLLMCapabilityScope(scope) appears in useLLMRoutePicker(scope).lockedRoutes when no keys exist', () => {
+  it('every adapter in getLLMCapabilityScope(scope) appears in useLLMRoutePicker(scope).lockedRoutes when no keys exist', async () => {
     mockApiKeys([])
     for (const scope of ALL_SCOPES) {
-      const { result } = renderHook(() => useLLMRoutePicker(scope))
+      const { result } = await renderPicker(scope)
       const expectedAdapters = getLLMCapabilityScope(scope)
       for (const adapter of expectedAdapters) {
         expect(
@@ -97,10 +132,10 @@ describe('IRON RULE — LLM scope source of truth', () => {
     }
   })
 
-  it('no adapter without "scope" capability appears in useLLMRoutePicker("scope").lockedRoutes', () => {
+  it('no adapter without "scope" capability appears in useLLMRoutePicker("scope").lockedRoutes', async () => {
     mockApiKeys([])
     for (const scope of ALL_SCOPES) {
-      const { result } = renderHook(() => useLLMRoutePicker(scope))
+      const { result } = await renderPicker(scope)
       const allowedAdapters = new Set(getLLMCapabilityScope(scope))
       for (const route of result.current.lockedRoutes) {
         expect(
@@ -111,7 +146,7 @@ describe('IRON RULE — LLM scope source of truth', () => {
     }
   })
 
-  it('a saved key shows up in every scope its adapter declares', () => {
+  it('a saved key shows up in every scope its adapter declares', async () => {
     // OPENAI has enhance + planner + assistant per ADAPTER_CAPABILITIES.
     // The same key must show up in all three scopes' savedRoutes —
     // an entry point that filtered it out would create the kind of
@@ -122,7 +157,7 @@ describe('IRON RULE — LLM scope source of truth', () => {
     })
     mockApiKeys([openaiKey])
     for (const scope of ALL_SCOPES) {
-      const { result } = renderHook(() => useLLMRoutePicker(scope))
+      const { result } = await renderPicker(scope)
       const expected = adapterHasCapability(openaiKey.adapterType, scope)
       const actual = result.current.savedRoutes.some(
         (r) => r.apiKeyId === openaiKey.id,
@@ -131,7 +166,7 @@ describe('IRON RULE — LLM scope source of truth', () => {
     }
   })
 
-  it('a saved key for an adapter that does NOT declare the scope is filtered out', () => {
+  it('a saved key for an adapter that does NOT declare the scope is filtered out', async () => {
     // Regression guard for the original DeepSeek-in-enhance bug: DeepSeek
     // declares "planner" + "assistant" but NOT
     // "enhance", so it must surface in planner/assistant pickers and stay out
@@ -141,23 +176,23 @@ describe('IRON RULE — LLM scope source of truth', () => {
       adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
     })
     mockApiKeys([deepseekKey])
-    const enhance = renderHook(() => useLLMRoutePicker('enhance'))
+    const enhance = await renderPicker('enhance')
     expect(
       enhance.result.current.savedRoutes.find((r) => r.apiKeyId === 'k-ds'),
     ).toBeUndefined()
 
-    const planner = renderHook(() => useLLMRoutePicker('planner'))
+    const planner = await renderPicker('planner')
     expect(
       planner.result.current.savedRoutes.find((r) => r.apiKeyId === 'k-ds'),
     ).toBeDefined()
 
-    const assistant = renderHook(() => useLLMRoutePicker('assistant'))
+    const assistant = await renderPicker('assistant')
     expect(
       assistant.result.current.savedRoutes.find((r) => r.apiKeyId === 'k-ds'),
     ).toBeDefined()
   })
 
-  it('inactive keys are filtered uniformly across all scopes', () => {
+  it('inactive keys are filtered uniformly across all scopes', async () => {
     const inactiveKey = makeKey({
       id: 'k-inactive',
       adapterType: AI_ADAPTER_TYPES.OPENAI,
@@ -165,17 +200,17 @@ describe('IRON RULE — LLM scope source of truth', () => {
     })
     mockApiKeys([inactiveKey])
     for (const scope of ALL_SCOPES) {
-      const { result } = renderHook(() => useLLMRoutePicker(scope))
+      const { result } = await renderPicker(scope)
       expect(
         result.current.savedRoutes.find((r) => r.apiKeyId === 'k-inactive'),
       ).toBeUndefined()
     }
   })
 
-  it('locked routes do not duplicate the same adapter (one per modelId)', () => {
+  it('locked routes do not duplicate the same adapter (one per modelId)', async () => {
     mockApiKeys([])
     for (const scope of ALL_SCOPES) {
-      const { result } = renderHook(() => useLLMRoutePicker(scope))
+      const { result } = await renderPicker(scope)
       const seen = new Set<string>()
       for (const route of result.current.lockedRoutes) {
         expect(

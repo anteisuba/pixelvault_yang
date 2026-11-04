@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('server-only', () => ({}))
-vi.mock('@/lib/db', () => ({ db: {} }))
 
 import { parseCliArgs } from './assistant-taste-exam'
 

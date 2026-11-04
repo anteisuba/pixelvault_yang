@@ -1,33 +1,34 @@
+/**
+ * L2a 真库：NovelAI 官方标签联想与写入前核对（novelai-tags.service）。key 存在真库里（真加密），
+ * 只假 NovelAI（fetch）。核发给 NovelAI 的请求与返回值。
+ */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 vi.mock('server-only', () => ({}))
-vi.mock('@/services/user.service', () => ({ ensureUser: vi.fn() }))
-vi.mock('@/services/apiKey.service', () => ({
-  findActiveKeyForAdapter: vi.fn(),
-}))
-import { ensureUser } from '@/services/user.service'
-import { findActiveKeyForAdapter } from '@/services/apiKey.service'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { db } from '@/lib/db'
 import { NovelAiTagQuerySchema } from '@/types/novelai-tags'
+import { createTestUser, resetDatabase, seedAssistantKey } from '@/test/int/db'
 import {
   checkNovelAiPromptTags,
   suggestNovelAiTags,
 } from './novelai-tags.service'
 
+const KEY = 'sk-test-not-a-real-key'
 const query = NovelAiTagQuerySchema.parse({
   model: 'nai-diffusion-5-curated',
   prompt: 'denia',
 })
 const fetchMock = vi.fn()
-beforeEach(() => {
+let me: Awaited<ReturnType<typeof createTestUser>>
+beforeEach(async () => {
   vi.resetAllMocks()
   vi.stubGlobal('fetch', fetchMock)
-  vi.mocked(ensureUser).mockResolvedValue({ id: 'user-1' } as Awaited<
-    ReturnType<typeof ensureUser>
-  >)
-  vi.mocked(findActiveKeyForAdapter).mockResolvedValue({
-    keyValue: 'test-secret',
-  } as NonNullable<Awaited<ReturnType<typeof findActiveKeyForAdapter>>>)
+  await resetDatabase()
+  me = await createTestUser()
+  await seedAssistantKey(me.id, AI_ADAPTER_TYPES.NOVELAI)
 })
 afterEach(() => vi.unstubAllGlobals())
+const dropKeys = () => db.userApiKey.deleteMany({ where: { userId: me.id } })
 describe('NovelAI official tag suggestions', () => {
   it('queries the selected model with a server-side key and preserves official tags and order', async () => {
     const data = {
@@ -41,18 +42,18 @@ describe('NovelAI official tag suggestions', () => {
       ],
     }
     fetchMock.mockResolvedValue(new Response(JSON.stringify(data)))
-    expect(await suggestNovelAiTags('clerk-1', query)).toEqual(data)
+    expect(await suggestNovelAiTags(me.clerkId, query)).toEqual(data)
     const [url, init] = fetchMock.mock.calls[0]
     expect(url.origin).toBe('https://image.novelai.net')
     expect(url.searchParams.get('model')).toBe(query.model)
     expect(url.searchParams.get('prompt')).toBe('denia')
-    expect(init.headers.Authorization).toBe('Bearer test-secret')
+    expect(init.headers.Authorization).toBe(`Bearer ${KEY}`)
     expect(init.redirect).toBe('error')
-    expect(JSON.stringify(data)).not.toContain('test-secret')
+    expect(JSON.stringify(data)).not.toContain(KEY)
   })
   it('does not call the provider without the user key', async () => {
-    vi.mocked(findActiveKeyForAdapter).mockResolvedValue(null)
-    await expect(suggestNovelAiTags('clerk-1', query)).rejects.toMatchObject({
+    await dropKeys()
+    await expect(suggestNovelAiTags(me.clerkId, query)).rejects.toMatchObject({
       code: 'MISSING_API_KEY',
     })
     expect(fetchMock).not.toHaveBeenCalled()
@@ -61,7 +62,7 @@ describe('NovelAI official tag suggestions', () => {
     fetchMock.mockResolvedValue(
       new Response('private provider error', { status: 429 }),
     )
-    await expect(suggestNovelAiTags('clerk-1', query)).rejects.toMatchObject({
+    await expect(suggestNovelAiTags(me.clerkId, query)).rejects.toMatchObject({
       code: 'UPSTREAM_ERROR',
       status: 429,
     })
@@ -71,7 +72,7 @@ describe('NovelAI official tag suggestions', () => {
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify({ tags: [{ name: 'denia' }] })),
     )
-    await expect(suggestNovelAiTags('clerk-1', query)).rejects.toThrow()
+    await expect(suggestNovelAiTags(me.clerkId, query)).rejects.toThrow()
   })
   it('rejects unsupported models and unbounded prompts', () => {
     expect(
@@ -90,7 +91,7 @@ describe('NovelAI tag check before the assistant writes (拆分与反推 B3)', (
     new Response(JSON.stringify({ tags: tags.map((tag) => ({ tag })) }))
   const check = (prompt: string) =>
     checkNovelAiPromptTags({
-      userId: 'user-1',
+      userId: me.id,
       modelId: 'nai-diffusion-5-full',
       prompt,
     })
@@ -121,15 +122,14 @@ describe('NovelAI tag check before the assistant writes (拆分与反推 B3)', (
   })
 
   it('draws no conclusion when it cannot look a tag up (no key / upstream error)', async () => {
-    vi.mocked(findActiveKeyForAdapter).mockResolvedValue(null)
+    await dropKeys()
     expect(await check('1girl, sakura tree')).toEqual({
       prompt: '1girl, sakura tree',
       fixes: [],
       unknown: [],
     })
-    vi.mocked(findActiveKeyForAdapter).mockResolvedValue({
-      keyValue: 'test-secret',
-    } as NonNullable<Awaited<ReturnType<typeof findActiveKeyForAdapter>>>)
+    expect(fetchMock).not.toHaveBeenCalled()
+    await seedAssistantKey(me.id, AI_ADAPTER_TYPES.NOVELAI)
     fetchMock.mockResolvedValue(new Response('down', { status: 502 }))
     expect((await check('1girl, sakura tree')).unknown).toEqual([])
   })

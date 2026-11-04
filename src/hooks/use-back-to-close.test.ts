@@ -4,7 +4,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { useBackToClose } from './use-back-to-close'
 
-vi.mock('@/lib/touch', () => ({ isTouchPrimary: () => true }))
+/** 触屏为主的设备：浏览器的 `(hover: none)` 命中（真 `isTouchPrimary` 读它）。 */
+function asTouchDevice() {
+  vi.stubGlobal(
+    'matchMedia',
+    vi.fn((query: string) => ({
+      matches: query === '(hover: none)',
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    })),
+  )
+}
 
 /** jsdom 的 history.back() 不发 popstate：手动发一下，模拟系统返回。 */
 function systemBack() {
@@ -16,12 +27,14 @@ describe('useBackToClose', () => {
   let back: ReturnType<typeof vi.spyOn>
 
   beforeEach(() => {
+    asTouchDevice()
     push = vi.spyOn(window.history, 'pushState')
     back = vi.spyOn(window.history, 'back').mockImplementation(() => {})
   })
 
   afterEach(() => {
     vi.restoreAllMocks()
+    vi.unstubAllGlobals()
   })
 
   it('开着时压一层历史，系统返回 = 关它', () => {

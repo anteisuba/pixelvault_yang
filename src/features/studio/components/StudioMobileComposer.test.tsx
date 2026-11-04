@@ -1,320 +1,156 @@
-import type { ComponentProps, ReactNode } from 'react'
-import { act, fireEvent, render, screen } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, fireEvent, screen, within } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { StudioFormState } from '@/contexts/studio-context'
+import { API_ENDPOINTS } from '@/constants/config'
+import { AI_MODELS } from '@/constants/models'
+import { STUDIO_GUIDE_SEEN_STORAGE_KEY } from '@/constants/studio'
+import { stubBrowserLayout } from '@/test/browser-stubs'
+import { text } from '@/test/i18n-text'
+import {
+  fakeStudioServer,
+  renderWithStudio,
+  settle,
+  type StudioHandle,
+} from '@/test/studio-harness'
+import { MOBILE_WIDTH, setViewportWidth } from '@/test/viewport'
 
 import { StudioMobileComposer } from './StudioMobileComposer'
 
 /**
- * 移动端底部 composer（owner 2026-10-02「Claude 式最简」）。这里锁四件事：
- *   1. 输入框卡里只有 提示词 + 一行 `＋ · 模型 · 规格 ……… 生成`；参考图 / 模板 /
- *      角色 / 模型参数 / 写法切换都不在这条上（各自的去处另有单测）。
- *   2. 模型 chip 照实反映当前选择，空模型时写的是**自己的**占位文案而不是禁用
- *      按钮那句话（需求卡 §默认模型选型规则第 4 条）。
- *   3. 被闸挡住时圆键是 `aria-disabled` 且 `aria-label` 就是那条原因 ——
- *      按钮上不印长文案，原因只从无障碍名与 toast 出去。
- *   4. 生成键与桌面那颗共用 `useStudioGenerateAction`：这里断言它调的是同一个
- *      `handleGenerate`，不是自己另写一遍判据。
+ * 移动端底部 composer（owner 2026-10-02「Claude 式最简」），全程真的：真工作台、真
+ * `useStudioGenerateAction`（禁用判据 / 原因 / 提交）、真「＋」抽屉、真模型选择器、真规格
+ * chip、真费用行、真视频素材；只假网络（工作台挂载那几条回空、生成提交）与屏宽。
+ *
+ * ⚠ 原「模型选择器从按钮正上方弹、图片档多选」只断言了传给子组件的 props（`popoverSide` /
+ * `selectedOptionIds`），换成真选择器后没有可看的结果，没有迁。
  */
 
-const mockDispatch = vi.hoisted(() => vi.fn())
-const mockUseStudioForm = vi.hoisted(() => vi.fn())
-const mockHandleGenerate = vi.hoisted(() => vi.fn())
-const mockUseGenerateAction = vi.hoisted(() => vi.fn())
-const mockUseImageModelOptions = vi.hoisted(() => vi.fn())
-const mockSpecChip = vi.hoisted(() => ({ value: { rendered: true } }))
-const mockVideoAssets = vi.hoisted(() => ({ images: [], videos: [] }))
-const mockReferenceEntries = vi.hoisted(() => ({ value: [] as unknown[] }))
-
-const EMPTY_PANELS: StudioFormState['panels'] = {
-  projectHistory: false,
-  modelSelector: false,
-  civitai: false,
-  enhance: false,
-  stylePreset: false,
-  reverse: false,
-  refImage: false,
-  loraSelector: false,
-  videoAudio: false,
-  keepChange: false,
-}
-
-// 把 next-intl 的导航壳挡在测试之外（composer 自己不跳路由）。
-vi.mock('@/i18n/navigation', () => ({
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn() }),
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({ isLoaded: true, isSignedIn: true, userId: 'user-mobile' }),
+}))
+vi.mock('next/navigation', () => ({
+  useSearchParams: () => new URLSearchParams(),
   usePathname: () => '/studio/image',
-  Link: 'a',
-  redirect: vi.fn(),
-  getPathname: vi.fn(),
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+}))
+vi.mock('@/i18n/navigation', () => ({
+  usePathname: () => '/studio/image',
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }))
 
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
-  useLocale: () => 'en',
-}))
+const M = (key: string, values?: Record<string, string | number>) =>
+  text(`StudioMobile.${key}`, values)
+const BLOCKED = (key: string, values?: Record<string, string | number>) =>
+  text(`StudioPromptArea.blocked.${key}`, values)
+const MODEL_LABEL = (key: string) => text(`Models.${key}.label`)
 
-vi.mock('@/contexts/studio-context', () => ({
-  useStudioForm: mockUseStudioForm,
-  useStudioData: () => ({
-    imageUpload: {
-      referenceEntries: mockReferenceEntries.value,
-      referenceImages: [],
-      isUploading: false,
-      maxImages: 4,
-      handleFileChange: vi.fn(),
-      addFromUrl: vi.fn(),
-      removeReferenceImage: vi.fn(),
-    },
-    promptEnhance: { isEnhancing: false },
-    characters: { activeCardIds: [] },
-  }),
-  useStudioGen: () => ({ lastGeneration: null }),
-  useStudioGenOptional: () => ({ lastGeneration: null }),
-}))
+const TEMPLATES = { open: false, onToggle: vi.fn() }
+const REFERENCE = 'https://cdn.example.com/reference.png'
 
-vi.mock('@/hooks/use-studio-generate-action', () => ({
-  useStudioGenerateAction: mockUseGenerateAction,
-}))
-
-vi.mock('@/hooks/use-image-model-options', () => ({
-  useImageModelOptions: mockUseImageModelOptions,
-}))
-
-// 专属 chip 读的是这一轮的名单 —— 与生成键同一份夹具。
-vi.mock('@/hooks/use-studio-run-models', () => ({
-  useStudioRunModels: () => ({
-    runModels: mockUseGenerateAction().runModels ?? [],
-  }),
-}))
-
-// 「＋」抽屉自带参考图 / 素材 / 角色 / 参数整条链（它另有单测
-// `StudioMobileAddSheet.test`）。这里只验 composer 把它摆进那一行、并按模态交对那一份。
-vi.mock('@/features/studio/components/StudioMobileAddSheet', () => ({
-  StudioMobileAddSheet: ({ videoAssets }: { videoAssets?: unknown }) => (
-    <button
-      type="button"
-      data-testid="studio-mobile-add"
-      data-video-assets={videoAssets === mockVideoAssets ? 'host' : 'none'}
-    >
-      add
-    </button>
-  ),
-}))
-
-vi.mock('@/features/studio/components/StudioModelCapabilityChips', () => ({
-  StudioModelCapabilityChips: ({ variant }: { variant?: string }) => (
-    <button type="button" data-testid={`capability-chip-${variant}`}>
-      capability
-    </button>
-  ),
-}))
-
-vi.mock('@/hooks/use-studio-video-assets', () => ({
-  useStudioVideoAssets: () => mockVideoAssets,
-}))
-
-vi.mock(
-  '@/components/business/studio-shared/chrome/StudioVideoAssetRail',
-  () => ({
-    StudioVideoAssetRail: () => <div data-testid="video-asset-rail" />,
-  }),
-)
-
-vi.mock('@/components/business/ImageAttachmentPreviewStrip', () => ({
-  ImageAttachmentPreviewStrip: ({ entries }: { entries: unknown[] }) =>
-    entries.length > 0 ? <div data-testid="reference-strip" /> : null,
-}))
-
-// 模型选择器自带整套名册 / 渠道 / 缺 key 弹窗，另有单测；这里只验 composer 把
-// 哪一档、什么摘要、往哪边弹交给了它。
-vi.mock('@/components/business/studio-shared/pickers/MainModelPicker', () => ({
-  MainModelPicker: ({
-    modality,
-    triggerEmptyLabel,
-    popoverSide,
-    selectedOptionIds,
-  }: {
-    modality: string
-    triggerEmptyLabel?: string
-    popoverSide?: string
-    selectedOptionIds?: readonly string[]
-  }) => (
-    <button
-      type="button"
-      data-testid="model-picker"
-      data-modality={modality}
-      data-side={popoverSide}
-      data-multi={selectedOptionIds ? 'true' : 'false'}
-    >
-      {triggerEmptyLabel}
-    </button>
-  ),
-}))
-
-// 规格 chip 自带整条能力表 / 单价表，且它的弹层与摘要另有单测（`spec-chip-model`
-// 与 `SpecChip`）。这里只验 composer 有没有把它摆进 chip 行。
-vi.mock('@/features/studio/components/StudioSpecChip', () => ({
-  StudioSpecChip: () =>
-    mockSpecChip.value.rendered ? (
-      <button type="button" data-testid="studio-spec-chip">
-        spec
-      </button>
-    ) : null,
-}))
-
-vi.mock('@/features/studio/components/StudioCostPreview', () => ({
-  StudioCostPreview: ({ variant }: { variant?: string }) => (
-    <p data-testid="cost-line">{variant}</p>
-  ),
-}))
-
-vi.mock('@/components/ui/prompt-input', () => ({
-  PromptInput: ({
-    children,
-    ...props
-  }: { children: ReactNode } & ComponentProps<'div'>) => (
-    <div {...props}>{children}</div>
-  ),
-  PromptInputTextarea: (props: ComponentProps<'textarea'>) => (
-    <textarea {...props} />
-  ),
-}))
-
-const IMAGE_OPTION = {
-  optionId: 'image-option',
-  modelId: 'gpt-image-1',
-  displayLabel: 'GPT Image 1',
-  keyId: 'api-key-1',
-  adapterType: 'openai',
-  providerConfig: { label: 'OpenAI', baseUrl: '' },
-  sourceType: 'saved',
-  requestCount: 1,
-}
-
-function setForm(overrides: Partial<StudioFormState> = {}) {
-  mockUseStudioForm.mockReturnValue({
-    state: {
-      prompt: '',
-      outputType: 'image',
-      aspectRatio: '1:1',
-      imageBatchCount: 1,
-      advancedParams: {},
-      selectedOptionId: null,
-      panels: EMPTY_PANELS,
-      ...overrides,
-    } as unknown as StudioFormState,
-    dispatch: mockDispatch,
-  })
-}
-
-function setAction(overrides: Record<string, unknown> = {}) {
-  mockUseGenerateAction.mockReturnValue({
-    modelOptions: [IMAGE_OPTION],
-    runModels: [IMAGE_OPTION],
-    runModelIds: new Set([IMAGE_OPTION.optionId]),
-    handleToggleRunModel: vi.fn(),
-    handleRemoveRunModel: vi.fn(),
-    blockedReason: null,
-    handleGenerate: mockHandleGenerate,
-    isGenerating: false,
-    isImagePromptOverLimit: false,
-    selectedModel: IMAGE_OPTION,
-    filterVideoModelByMode: undefined,
-    handleSelectSingleModel: vi.fn(),
-    videoCostBasis: null,
-    ...overrides,
-  })
-}
-
-const VIDEO_OPTION = {
-  ...IMAGE_OPTION,
-  optionId: 'video-option',
-  modelId: 'seedance-2.5',
-  displayLabel: 'Seedance 2.5',
-}
-
-/** 视频档的最小前提：模态是 video、选中了一条视频型号、报价基准可用。 */
-function setVideo(
-  formOverrides: Partial<StudioFormState> = {},
-  actionOverrides: Record<string, unknown> = {},
-) {
-  setForm({
-    outputType: 'video',
-    videoDuration: 5,
-    videoResolution: '720p',
-    videoGenerateAudio: null,
-    videoAudioRefs: [],
-    selectedOptionId: VIDEO_OPTION.optionId,
-    aspectRatio: '16:9',
-    ...formOverrides,
-  } as Partial<StudioFormState>)
-  setAction({
-    selectedModel: VIDEO_OPTION,
-    runModels: [],
-    runModelIds: new Set(),
-    videoCostBasis: {
-      kind: 'video',
-      durationSeconds: 5,
-      resolution: '720p',
-    },
-    ...actionOverrides,
-  })
-}
-
+let server: ReturnType<typeof fakeStudioServer>
 beforeEach(() => {
-  vi.clearAllMocks()
-  mockUseImageModelOptions.mockReturnValue({ selectedModel: IMAGE_OPTION })
-  mockSpecChip.value = { rendered: true }
-  mockReferenceEntries.value = []
-  setForm()
-  setAction()
+  stubBrowserLayout()
+  setViewportWidth(MOBILE_WIDTH)
+  localStorage.setItem(STUDIO_GUIDE_SEEN_STORAGE_KEY, '1')
+  Element.prototype.scrollIntoView = vi.fn()
+  server = fakeStudioServer()
+})
+afterEach(() => {
+  vi.restoreAllMocks()
+  vi.unstubAllGlobals()
 })
 
-const mockTemplatesToggle = vi.fn()
-const TEMPLATES = { open: false, onToggle: mockTemplatesToggle }
+interface Setup {
+  video?: boolean
+  /** 主模型；`null` = 不选。 */
+  model?: string | null
+  /** 再挂几个同厂商的（图片档多模型）。 */
+  extra?: string[]
+  prompt?: string
+  batch?: number
+  duration?: number
+  references?: string[]
+  overlay?: React.ReactNode
+}
+
+/** 真工作台：摆好模态、模型、提示词、张数 / 时长、参考图，再渲染 composer。 */
+async function renderComposer({
+  video = false,
+  model = video ? AI_MODELS.SEEDANCE_20 : AI_MODELS.OPENAI_GPT_IMAGE_2,
+  extra = [],
+  prompt = '',
+  batch,
+  duration,
+  references = [],
+  overlay,
+}: Setup = {}) {
+  const view = renderWithStudio(
+    <div className="studio-layout-v2">
+      <StudioMobileComposer templates={TEMPLATES} overlay={overlay} />
+    </div>,
+  )
+  await settle()
+  act(() => {
+    const { dispatch, imageUpload } = view.studio.current
+    if (video) dispatch({ type: 'SET_OUTPUT_TYPE', payload: 'video' })
+    if (model)
+      dispatch({ type: 'SET_OPTION_ID', payload: `workspace:${model}` })
+    for (const id of extra)
+      dispatch({ type: 'TOGGLE_EXTRA_MODEL', payload: `workspace:${id}` })
+    if (prompt) dispatch({ type: 'SET_PROMPT', payload: prompt })
+    if (batch) dispatch({ type: 'SET_IMAGE_BATCH_COUNT', payload: batch })
+    if (duration) dispatch({ type: 'SET_VIDEO_DURATION', payload: duration })
+    for (const url of references) imageUpload.addReferenceImage(url)
+  })
+  await settle()
+  return view.studio as { current: StudioHandle }
+}
+
+const modelChip = () => screen.getByTestId('studio-mobile-model-chip')
+const generateKey = () => screen.getByTestId('studio-mobile-generate')
+const referenceRemove = () =>
+  screen.queryByRole('button', {
+    name: text('ImageChip.removeReferenceImage', { index: 1 }),
+  })
 
 describe('StudioMobileComposer', () => {
   /**
-   * owner 2026-10-02 选「Claude 式最简」：输入框卡里只有提示词与一行
-   * `＋ · 模型 · 规格 · 专属 ……… 生成`。参考图 / 模板 / 角色收进「＋」，写法
-   * 切换挪到舞台左上角 —— 这一条上再长出来任何一颗都算回退。
+   * 输入框卡里只有提示词与一行 `＋ · 模型 · 规格 · 专属 ……… 生成`。参考图 / 模板 / 角色
+   * 收进「＋」，写法切换挪到舞台左上角 —— 这一条上再长出来任何一颗都算回退。
    */
-  it('输入条只有一行：＋ · 模型 · 规格 · 专属 · 生成', () => {
-    render(<StudioMobileComposer templates={TEMPLATES} />)
-
-    expect(screen.getByTestId('studio-mobile-add')).toHaveAttribute(
-      'data-video-assets',
-      'none',
-    )
-    expect(screen.getByTestId('studio-mobile-model-chip')).toBeInTheDocument()
+  it('输入条只有一行：＋ · 模型 · 规格 · 生成；参考图 / 模板 / 角色都收进「＋」', async () => {
+    await renderComposer()
+    expect(screen.getByRole('button', { name: M('add') })).toBeInTheDocument()
+    expect(modelChip()).toBeInTheDocument()
     expect(screen.getByTestId('studio-spec-chip')).toBeInTheDocument()
-    // 模型参数（专属）在规格旁边一颗，与桌面同一颗 chip（owner 2026-10-03）。
-    expect(screen.getByTestId('capability-chip-single')).toBeInTheDocument()
-    expect(screen.getByTestId('studio-mobile-generate')).toBeInTheDocument()
-    expect(screen.queryByTestId('studio-mobile-template-chip')).toBeNull()
-    expect(screen.queryByTestId('studio-characters-chip')).toBeNull()
+    expect(generateKey()).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: text('ImageChip.label') }),
+    ).toBeNull()
     expect(screen.queryByRole('tablist')).toBeNull()
-    expect(screen.queryByText('modelParameters')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: M('add') }))
+    const sheet = await screen.findByRole('dialog')
+    expect(
+      within(sheet).getByText(text('PromptLibrary.templatePicker')),
+    ).toBeInTheDocument()
+    expect(
+      within(sheet).getByText(text('StudioV2.characters')),
+    ).toBeInTheDocument()
   })
 
-  it('挂着的参考图在输入框卡里看得见；撤销条挂在输入条上沿', () => {
-    mockReferenceEntries.value = [{ id: 'reference-1' }]
-    render(
-      <StudioMobileComposer
-        templates={TEMPLATES}
-        overlay={<div role="status">undo</div>}
-      />,
-    )
-
-    expect(screen.getByTestId('reference-strip')).toBeInTheDocument()
-    expect(screen.getByRole('status')).toHaveTextContent('undo')
+  it('挂着的参考图在输入框卡里看得见；撤销条挂在输入条上沿', async () => {
+    await renderComposer({
+      references: [REFERENCE],
+      overlay: <div role="status">undo</div>,
+    })
+    expect(referenceRemove()).toBeInTheDocument()
+    expect(screen.getByText('undo')).toBeInTheDocument()
   })
 
-  it('reserves the measured composer height and updates after resizing', () => {
-    // ⚠ 收全部回调：头部那颗写法切换（液态分段）自己也挂一个观察器。
+  it('量出输入条的高度写给舞台，长高了跟着更新，卸载时清掉', async () => {
+    // jsdom 没有布局：ResizeObserver 与 getBoundingClientRect 由这里代答（浏览器边界）。
     const callbacks: (() => void)[] = []
-    const resize = () => callbacks.forEach((callback) => callback())
     const disconnect = vi.fn()
     vi.stubGlobal(
       'ResizeObserver',
@@ -323,221 +159,192 @@ describe('StudioMobileComposer', () => {
           callbacks.push(callback)
         }
         observe() {}
+        unobserve() {}
         disconnect = disconnect
       },
     )
     let height = 180
-    const bounds = vi
-      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
-      .mockImplementation(() => ({ height }) as DOMRect)
-    const { container, unmount } = render(
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(
+      () => ({ height }) as DOMRect,
+    )
+    const view = renderWithStudio(
       <div className="studio-layout-v2">
         <StudioMobileComposer templates={TEMPLATES} />
       </div>,
     )
-    const layout = container.firstElementChild as HTMLElement
-    expect(
-      layout.style.getPropertyValue('--studio-mobile-composer-height'),
-    ).toBe('180px')
+    await settle()
+    const layout =
+      view.container.querySelector<HTMLElement>('.studio-layout-v2')!
+    const value = () =>
+      layout.style.getPropertyValue('--studio-mobile-composer-height')
+    expect(value()).toBe('180px')
+
     height = 268
-    act(() => resize())
-    expect(
-      layout.style.getPropertyValue('--studio-mobile-composer-height'),
-    ).toBe('268px')
-    unmount()
+    act(() => callbacks.forEach((callback) => callback()))
+    expect(value()).toBe('268px')
+
+    view.unmount()
     expect(disconnect).toHaveBeenCalled()
-    expect(
-      layout.style.getPropertyValue('--studio-mobile-composer-height'),
-    ).toBe('')
-    bounds.mockRestore()
-    vi.unstubAllGlobals()
+    expect(value()).toBe('')
   })
 
-  it('reflects the selected model and spec on the chip row', () => {
-    setForm({
-      aspectRatio: '3:4',
-      imageBatchCount: 2,
-    } as Partial<StudioFormState>)
-
-    render(<StudioMobileComposer templates={TEMPLATES} />)
-
-    expect(screen.getByTestId('studio-mobile-model-chip')).toHaveTextContent(
-      'GPT Image 1',
-    )
-    expect(screen.getByTestId('studio-spec-chip')).toBeInTheDocument()
+  it('模型 chip 写的是当前选中的那一个', async () => {
+    await renderComposer()
+    expect(modelChip()).toHaveTextContent(MODEL_LABEL('openaiGptImage2'))
   })
 
-  it('keeps the multi-model run list legible: N 个模型 + a count badge', () => {
-    const second = {
-      ...IMAGE_OPTION,
-      optionId: 'image-option-2',
-      displayLabel: 'FLUX 2 Flash',
-    }
-    setForm({ imageBatchCount: 2 } as Partial<StudioFormState>)
-    setAction({
-      runModels: [IMAGE_OPTION, second],
-      runModelIds: new Set([IMAGE_OPTION.optionId, second.optionId]),
+  it('多模型照实写「N 个模型」，生成键上一枚角标 = 模型数 × 每模型张数', async () => {
+    await renderComposer({
+      model: AI_MODELS.OPENAI_GPT_IMAGE_2,
+      extra: [AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE],
+      batch: 2,
+      prompt: 'a cat',
     })
-
-    render(<StudioMobileComposer templates={TEMPLATES} />)
-
     // 折成一个模型名就等于在手机上把「一次跑几路」这件事藏起来。
-    expect(screen.getByTestId('studio-mobile-model-chip')).toHaveTextContent(
-      'modelChipMulti',
-    )
-    // 2 模型 × 2 张 = 4 —— 与桌面按钮上那个数同一个算式。
+    expect(modelChip()).toHaveTextContent(M('modelChipMulti', { count: 2 }))
     expect(
       screen.getByTestId('studio-mobile-generate-count'),
     ).toHaveTextContent('4')
-    expect(screen.getByTestId('studio-mobile-generate')).toHaveAttribute(
+    expect(generateKey()).toHaveAttribute(
       'aria-label',
-      'generateCount',
+      text('StudioV2.generateCount', { count: 4 }),
     )
   })
 
-  it('hides the count badge when the run is a single image', () => {
-    render(<StudioMobileComposer templates={TEMPLATES} />)
-
+  it('只出一张时不挂角标', async () => {
+    await renderComposer({ prompt: 'a cat' })
     expect(screen.queryByTestId('studio-mobile-generate-count')).toBeNull()
+    expect(generateKey()).toHaveAttribute('aria-label', M('generate'))
   })
 
-  it('shows its own placeholder — not the blocked-button copy — with no model', () => {
-    setAction({ runModels: [], runModelIds: new Set() })
-
-    render(<StudioMobileComposer templates={TEMPLATES} />)
-
-    const chip = screen.getByTestId('studio-mobile-model-chip')
-    expect(chip).toHaveTextContent('modelChipEmpty')
-    expect(chip).not.toHaveTextContent('blocked.modelRequired')
-  })
-
-  it('marks the square button aria-disabled and names it with the blocked reason', () => {
-    setAction({
-      runModels: [],
-      runModelIds: new Set(),
-      blockedReason: { message: 'blocked.modelRequired' },
-    })
-
-    render(<StudioMobileComposer templates={TEMPLATES} />)
-
-    const button = screen.getByTestId('studio-mobile-generate')
+  it('没写提示词：圆键 aria-disabled，无障碍名就是那条原因；⛔ 真禁用（点了要能弹提示）', async () => {
+    await renderComposer()
+    const button = generateKey()
     expect(button).toHaveAttribute('aria-disabled', 'true')
-    expect(button).toHaveAttribute('aria-label', 'blocked.modelRequired')
-    // ⚠ 不是真 `disabled`：真禁用的按钮收不到点击，用户就只剩「点了没反应」。
+    expect(button).toHaveAttribute('aria-label', BLOCKED('promptRequired'))
     expect(button).not.toBeDisabled()
+
+    fireEvent.click(button)
+    await settle()
+    expect(
+      server.requests.filter((r) => r.path === API_ENDPOINTS.STUDIO_GENERATE),
+    ).toHaveLength(0)
   })
 
-  it('routes the square button to the shared generate handler', () => {
-    render(<StudioMobileComposer templates={TEMPLATES} />)
-
-    fireEvent.click(screen.getByTestId('studio-mobile-generate'))
-
-    expect(mockHandleGenerate).toHaveBeenCalledTimes(1)
-  })
-
-  it('模型是共用的选择器、从按钮正上方弹卡（iOS 稿）；规格走共用那颗 chip 自己的弹层', () => {
-    render(<StudioMobileComposer templates={TEMPLATES} />)
-
-    const picker = screen.getByTestId('model-picker')
-    expect(picker).toHaveAttribute('data-modality', 'image')
-    expect(picker).toHaveAttribute('data-side', 'top')
-    // 图片档多选：同厂商多模型一起出。
-    expect(picker).toHaveAttribute('data-multi', 'true')
-    expect(screen.getByTestId('studio-spec-chip')).toBeInTheDocument()
+  it('圆键走的是共用的生成动作：真提交一次', async () => {
+    server.on(
+      'POST',
+      API_ENDPOINTS.STUDIO_GENERATE,
+      () => new Promise<Response>(() => {}),
+    )
+    await renderComposer({ prompt: 'a cat' })
+    expect(generateKey()).toHaveAttribute('aria-disabled', 'false')
+    fireEvent.click(generateKey())
+    await settle()
+    expect(
+      server.requests.filter((r) => r.path === API_ENDPOINTS.STUDIO_GENERATE),
+    ).toHaveLength(1)
   })
 })
 
 /**
- * 视频档（`studio-video-mobile-request.md`，owner 2026-09-03）。这里锁的是
- * **同一个组件按模态分支**这件事本身：chip 集合、规格摘要、费用行、按钮上的
- * 时长各自对，而闸门与请求组装仍旧只有 `useStudioGenerateAction` 一份。
+ * 视频档（`studio-video-mobile-request.md`）。同一个组件按模态分支：chip 集合、费用行、
+ * 按钮上的时长各自对，而闸门与请求组装仍旧只有 `useStudioGenerateAction` 一份。
  */
 describe('StudioMobileComposer · 视频档', () => {
-  it('模型 chip 写的是当前那一条型号 —— 视频恒单选，没有「N 个模型」这回事', () => {
-    setVideo()
+  it('模型 chip 写的是当前那一条型号 —— 视频恒单选', async () => {
+    await renderComposer({ video: true })
+    // 视频那颗只写型号（`triggerVariantOnly`）：Seedance 2.0 → 「2.0」。
+    expect(modelChip()).toHaveTextContent('2.0')
+    expect(modelChip()).not.toHaveTextContent(M('modelChipMulti', { count: 2 }))
+  })
 
-    render(<StudioMobileComposer templates={TEMPLATES} />)
+  it('挂着的素材排在输入框卡里（素材排，⛔ 参考图条）；「＋」里是视频素材那一套', async () => {
+    await renderComposer({ video: true, references: [REFERENCE] })
+    expect(screen.getByTestId('studio-video-asset-rail')).toBeInTheDocument()
+    expect(referenceRemove()).toBeNull()
 
-    expect(screen.getByTestId('studio-mobile-model-chip')).toHaveTextContent(
-      'Seedance 2.5',
-    )
+    fireEvent.click(screen.getByRole('button', { name: M('add') }))
+    const sheet = await screen.findByRole('dialog')
     expect(
-      screen.getByTestId('studio-mobile-model-chip'),
-    ).not.toHaveTextContent('modelChipMulti')
+      within(sheet).getByText(text('StudioVideoSlots.pickVideo')),
+    ).toBeInTheDocument()
+    // 视频「＋」只有模板，⛔ 角色。
+    expect(within(sheet).queryByText(text('StudioV2.characters'))).toBeNull()
   })
 
-  it('「＋」拿到的是宿主那一份素材，挂着的素材排在输入框卡里', () => {
-    setVideo()
-
-    render(<StudioMobileComposer templates={TEMPLATES} />)
-
-    expect(screen.getByTestId('studio-mobile-add')).toHaveAttribute(
-      'data-video-assets',
-      'host',
-    )
-    expect(screen.getByTestId('video-asset-rail')).toBeInTheDocument()
-    expect(screen.queryByTestId('reference-strip')).toBeNull()
-    expect(screen.queryByTestId('capability-chip-single')).toBeNull()
+  it('费用行走共用的一行版报价', async () => {
+    await renderComposer({ video: true })
+    expect(screen.getByTestId('studio-mobile-cost-line')).toBeInTheDocument()
   })
 
-  it('规格走与图片档**同一颗** chip —— 档位按模态自己分，composer 不分支', () => {
-    setVideo()
-
-    render(<StudioMobileComposer templates={TEMPLATES} />)
-
-    expect(screen.getByTestId('studio-spec-chip')).toBeInTheDocument()
-  })
-
-  it('出声不再单独一颗 —— 它在规格抽屉里（与规格 chip 同一个开关）', () => {
-    setVideo()
-    render(<StudioMobileComposer templates={TEMPLATES} />)
-    expect(screen.queryByTestId('studio-mobile-audio-chip')).toBeNull()
-    expect(screen.queryByTestId('studio-mobile-audio-ref-chip')).toBeNull()
-    expect(screen.queryByTestId('studio-mobile-script-chip')).toBeNull()
-  })
-
-  it('费用行走共用的 `StudioCostPreview`（一行版），不在 composer 里另算一个数', () => {
-    setVideo()
-
-    render(<StudioMobileComposer templates={TEMPLATES} />)
-
-    expect(screen.getByTestId('cost-line')).toHaveTextContent('line')
-  })
-
-  it('⭐ 生成键上带这一枪的时长（`↑ 5s`），图片那枚张数角标不出现', () => {
-    setVideo({ videoDuration: 10 } as Partial<StudioFormState>)
-
-    render(<StudioMobileComposer templates={TEMPLATES} />)
-
+  it('⭐ 生成键上带这一枪的时长，图片那枚张数角标不出现', async () => {
+    await renderComposer({ video: true, duration: 10, prompt: 'a cat walks' })
     expect(
       screen.getByTestId('studio-mobile-generate-duration'),
     ).toHaveTextContent('10s')
     expect(screen.queryByTestId('studio-mobile-generate-count')).toBeNull()
   })
 
-  it('⭐ 没选模型时规格 chip 整颗不渲染 —— 只剩箭头的空丸是纯噪音', () => {
-    mockSpecChip.value = { rendered: false }
-    setVideo({ selectedOptionId: null } as Partial<StudioFormState>, {
-      selectedModel: null,
-    })
+  it('出声不再单独一颗 —— 它在规格抽屉里', async () => {
+    await renderComposer({ video: true })
+    expect(screen.queryByTestId('studio-mobile-audio-chip')).toBeNull()
+    expect(screen.queryByTestId('studio-mobile-audio-ref-chip')).toBeNull()
+    expect(screen.queryByTestId('studio-mobile-script-chip')).toBeNull()
+  })
 
-    render(<StudioMobileComposer templates={TEMPLATES} />)
-
+  it('⭐ 没选模型：规格 chip 整颗不渲染，模型 chip 写自己的占位（⛔ 禁用原因那句）', async () => {
+    await renderComposer({ video: true, model: null })
     expect(screen.queryByTestId('studio-spec-chip')).toBeNull()
-    // 模型 chip 照旧在 —— 它正是「怎么选一个」的唯一出口。
-    expect(screen.getByTestId('studio-mobile-model-chip')).toHaveTextContent(
-      'modelChipEmpty',
+    expect(modelChip()).toHaveTextContent(M('modelChipEmpty'))
+    expect(modelChip()).not.toHaveTextContent(BLOCKED('modelRequired'))
+    expect(generateKey()).toHaveAttribute(
+      'aria-label',
+      BLOCKED('modelRequired'),
     )
   })
 
-  it('视频专属的禁用原因照样只从 `useStudioGenerateAction` 出（队列满）', () => {
-    setVideo({}, { blockedReason: { message: 'blocked.videoQueueFull' } })
-
-    render(<StudioMobileComposer templates={TEMPLATES} />)
-
-    const button = screen.getByTestId('studio-mobile-generate')
+  it('同时在跑的满了：圆键说队列满，原因照样只从共用的生成动作出', async () => {
+    // 每一条都交上去了、还在跑（状态一直是 IN_PROGRESS）。
+    let n = 0
+    server
+      .on('POST', API_ENDPOINTS.GENERATE_VIDEO, () => {
+        n += 1
+        return Response.json({
+          success: true,
+          data: { jobId: `job-${n}`, requestId: `req-${n}` },
+        })
+      })
+      .on('GET', API_ENDPOINTS.GENERATE_VIDEO_STATUS, (request) =>
+        Response.json({
+          success: true,
+          data: {
+            jobId: request.nextUrl.searchParams.get('jobId'),
+            status: 'IN_PROGRESS',
+          },
+        }),
+      )
+    const studio = await renderComposer({ video: true, prompt: 'a cat walks' })
+    for (let i = 0; i < 4; i += 1) {
+      act(() => {
+        void studio.current.generation.generate({
+          mode: 'video',
+          video: {
+            modelId: AI_MODELS.SEEDANCE_20,
+            prompt: 'a cat walks',
+            aspectRatio: '16:9',
+            duration: 5,
+          },
+        })
+      })
+      await settle()
+    }
+    const button = generateKey()
     expect(button).toHaveAttribute('aria-disabled', 'true')
-    expect(button).toHaveAttribute('aria-label', 'blocked.videoQueueFull')
+    expect(button).toHaveAttribute(
+      'aria-label',
+      BLOCKED('videoQueueFull', { max: 4 }),
+    )
     expect(button).not.toBeDisabled()
   })
 })

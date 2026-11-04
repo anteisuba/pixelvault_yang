@@ -6,30 +6,12 @@ import {
   ASSISTANT_V3_LIMITS,
 } from '@/constants/assistant-v3'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
-import { AssistantOperatorStepSchema } from '@/types/assistant-operator'
 import type { AssistantOperatorEvent } from '@/types/assistant-operator'
 
 vi.mock('server-only', () => ({}))
 
-const { fetchAsBuffer, recordLedgerStep, queryRaw } = vi.hoisted(() => ({
+const { fetchAsBuffer } = vi.hoisted(() => ({
   fetchAsBuffer: vi.fn(),
-  recordLedgerStep: vi.fn(),
-  /** 查自家作品配方那条裸 SQL：默认一张都不是自家做的。 */
-  queryRaw: vi.fn(async (): Promise<unknown[]> => []),
-}))
-
-vi.mock('@/lib/db', () => ({ db: { $queryRaw: queryRaw } }))
-
-vi.mock('@/features/assistant/services/assistant-operator.service', () => ({
-  recordLedgerStep,
-  rememberStepArtifacts: vi.fn(),
-  isFatalOperatorToolError: () => false,
-  planTool: vi.fn(),
-  TOOL_FAILED_DETAIL: 'tool failed',
-  toStepEvent: (raw: unknown) => ({
-    type: 'step',
-    step: AssistantOperatorStepSchema.parse(raw),
-  }),
 }))
 
 /** 测试里的「图」：内容写着格式与地址（`png:https://…`），格式不在名单里就认不出。 */
@@ -47,10 +29,15 @@ vi.mock('@/services/storage/r2', () => ({
   },
 }))
 
+import { createTestUser, resetDatabase } from '@/test/int/db'
+import { createTestGeneration } from '@/test/int/generations'
 import { png, tEXt } from '@/test/png-fixture'
 import type { V3Context } from './assistant-v3-steps.service'
 import { createPictureCache, executeV3Look } from './assistant-v3-look.service'
 import { createClipCache } from './assistant-v3-watch.service'
+
+/** 真库（L2a）：自家作品的配方从库里的 Generation 行读。 */
+let userId = ''
 
 /** 地址 → 格式；没登记的地址下不来。 */
 const served = new Map<string, string>()
@@ -70,8 +57,14 @@ function context(overrides: Partial<V3Context> = {}): V3Context {
     face: 'canvas',
     clerkId: 'clerk-1',
     prepared: {
-      run: { stepSeq: 0, signal: undefined },
-      user: { id: 'user-1' },
+      run: {
+        stepSeq: 0,
+        signal: undefined,
+        ledgerSteps: 0,
+        roundLedger: { facts: [], decisions: [], todos: [] },
+        workingMemoryIndex: new Map(),
+      },
+      user: { id: userId },
     },
     request: { messages: [] },
     nodes: [],
@@ -106,12 +99,11 @@ async function run(
 }
 
 describe('v3 look · Denia 自己看', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    await resetDatabase()
+    userId = (await createTestUser()).id
     served.clear()
     bytesServed.clear()
-    queryRaw.mockReset()
-    queryRaw.mockResolvedValue([])
-    recordLedgerStep.mockReset()
     fetchAsBuffer.mockReset()
     clipsServed.clear()
     fetchAsBuffer.mockImplementation(
@@ -320,19 +312,21 @@ describe('v3 look · Denia 自己看', () => {
     const own = picture('own')
     const url = 'https://cdn.test/nai.png'
     bytesServed.set(url, png(tEXt('Software', 'NovelAI')))
-    queryRaw.mockResolvedValue([
-      {
-        url: own.url,
-        thumbnailUrl: null,
-        prompt: 'silver hair, rain',
-        negativePrompt: null,
-        model: 'gemini-3-image',
-        width: 832,
-        height: 1216,
-        seed: '42',
-        advancedParams: { steps: 30 },
-      },
-    ])
+    await createTestGeneration(userId, {
+      url: own.url,
+      prompt: 'silver hair, rain',
+      model: 'gemini-3-image',
+      width: 832,
+      height: 1216,
+      seed: 42n,
+      snapshot: { advancedParams: { steps: 30 } },
+    })
+    // 别人库里同一个地址的那张不算「自家作品」。
+    const stranger = await createTestUser()
+    await createTestGeneration(stranger.id, {
+      url: 'https://cdn.test/nai.png',
+      prompt: 'not yours',
+    })
     const { outcome } = await run(
       executeV3Look(context(), {
         targets: [own, { url, label: 'nai' }],
@@ -351,7 +345,11 @@ describe('v3 look · Denia 自己看', () => {
 
   it('板子上已经在眼前的图⛔ 不再查一遍配方（随板子给过了）', async () => {
     const pointed = picture('door')
-    await run(
+    await createTestGeneration(userId, {
+      url: pointed.url,
+      prompt: 'a red door',
+    })
+    const { outcome } = await run(
       executeV3Look(
         context({
           transcript: [{ type: 'board', text: 'BOARD', images: [pointed] }],
@@ -359,7 +357,7 @@ describe('v3 look · Denia 自己看', () => {
         { targets: [pointed], notes: [], question: 'what is it?' },
       ),
     )
-    expect(queryRaw).not.toHaveBeenCalled()
+    expect((outcome as { output: string }).output).not.toContain('a red door')
   })
 
   it('已经附在这一轮那句话里的图⛔ 不再附一遍，只指给模型看', async () => {

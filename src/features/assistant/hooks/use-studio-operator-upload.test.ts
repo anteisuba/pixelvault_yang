@@ -1,8 +1,12 @@
 // @vitest-environment jsdom
 import { act, renderHook, waitFor } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { buildGenerationDisplayName } from '@/lib/generation-name'
+import {
+  installFakeVideoDecoding,
+  type FakeVideoDecoding,
+} from '@/test/fake-video-element'
 import type { GenerationRecord } from '@/types'
 
 import {
@@ -39,22 +43,12 @@ vi.mock('@/lib/api-client/generation', () => ({
   uploadAudioFileAPI,
 }))
 
-// 元数据探测在 jsdom 里没有解码器 —— 它们本来就是 best-effort，桩掉。
-vi.mock('@/lib/audio-metadata', () => ({
-  readAudioFileMetadata: vi.fn().mockResolvedValue({ duration: 3 }),
-}))
-vi.mock('@/lib/video-thumbnail', () => ({
-  readVideoFileMetadata: vi.fn().mockResolvedValue({
-    width: 1920,
-    height: 1080,
-    duration: 30,
-  }),
-  captureVideoThumbnail: vi.fn().mockResolvedValue(null),
-}))
-// 小文件走不到压缩分支，但模块顶层会 import sonner —— 桩掉更省事。
-vi.mock('@/lib/prepare-image-upload', () => ({
-  prepareImageUpload: vi.fn(async (file: File) => file),
-}))
+/**
+ * 元数据探测（`audio-metadata` / `video-thumbnail`）与图片预处理都走真代码；jsdom 没有解码器，
+ * 只替浏览器那层（`installFakeVideoDecoding`，按本地预览地址答）。
+ */
+const PREVIEW_URL = 'blob:local-preview'
+let decoding: FakeVideoDecoding
 
 function generation(overrides: Record<string, unknown> = {}): GenerationRecord {
   return {
@@ -82,8 +76,15 @@ function setup() {
 beforeEach(() => {
   vi.clearAllMocks()
   // jsdom 没有 object URL —— chip 的本地预览要用它。
-  globalThis.URL.createObjectURL = vi.fn(() => 'blob:local-preview')
+  globalThis.URL.createObjectURL = vi.fn(() => PREVIEW_URL)
   globalThis.URL.revokeObjectURL = vi.fn()
+  decoding = installFakeVideoDecoding({
+    [PREVIEW_URL]: { duration: 30, width: 1920, height: 1080 },
+  })
+})
+
+afterEach(() => {
+  vi.restoreAllMocks()
 })
 
 describe('useStudioOperatorUpload · 按 MIME 分派三通道', () => {
@@ -143,6 +144,12 @@ describe('useStudioOperatorUpload · 按 MIME 分派三通道', () => {
     expect(uploadVideoFileAPI).toHaveBeenCalledTimes(1)
     expect(uploadImageFileAPI).not.toHaveBeenCalled()
     expect(onUploaded.mock.calls[0]?.[0].kind).toBe('video')
+    // 本地探到的尺寸 / 时长与封面随上传一起交给服务端。
+    expect(uploadVideoFileAPI.mock.calls[0]?.[1]).toMatchObject({
+      width: 1920,
+      height: 1080,
+      poster: expect.any(Blob),
+    })
     // 视频没有缩略图时不给 —— 回落到 url 会让 next/image 碎掉。
     expect(onUploaded.mock.calls[0]?.[0]).not.toHaveProperty('thumbnailUrl')
   })
@@ -169,6 +176,9 @@ describe('useStudioOperatorUpload · 按 MIME 分派三通道', () => {
     await waitFor(() => expect(onUploaded).toHaveBeenCalledTimes(1))
     expect(uploadAudioFileAPI).toHaveBeenCalledTimes(1)
     expect(onUploaded.mock.calls[0]?.[0].kind).toBe('audio')
+    expect(uploadAudioFileAPI.mock.calls[0]?.[1]).toMatchObject({
+      duration: 30,
+    })
   })
 
   it('在飞的那件只有 blob 预览，且**不会**进附件（附件必须有 https URL）', async () => {
@@ -286,10 +296,8 @@ describe('useStudioOperatorUpload · 探不到本地元数据不许把上传判�
   //   object URL）。预算耗尽后它们返回 `null` —— 这一组钉的是这个 `null` 到了
   //   hook 手里之后不许变成一次失败的上传。
   it('视频探测回 null 时照样传，服务端收 0 尺寸、封面缺席', async () => {
-    const { readVideoFileMetadata, captureVideoThumbnail } =
-      await import('@/lib/video-thumbnail')
-    vi.mocked(readVideoFileMetadata).mockResolvedValueOnce(null)
-    vi.mocked(captureVideoThumbnail).mockResolvedValueOnce(null)
+    // 浏览器读不出这段（探测回 null）。
+    decoding.set(PREVIEW_URL, 'loadError')
     uploadVideoFileAPI.mockResolvedValue({
       success: true,
       data: {
@@ -318,8 +326,7 @@ describe('useStudioOperatorUpload · 探不到本地元数据不许把上传判�
   })
 
   it('音频探测回 null 时照样传，只是没时长', async () => {
-    const { readAudioFileMetadata } = await import('@/lib/audio-metadata')
-    vi.mocked(readAudioFileMetadata).mockResolvedValueOnce(null)
+    decoding.set(PREVIEW_URL, 'loadError')
     uploadAudioFileAPI.mockResolvedValue({
       success: true,
       data: {

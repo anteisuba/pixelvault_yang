@@ -19,22 +19,26 @@ vi.mock('@/i18n/navigation', () => ({
     </a>
   ),
 }))
-vi.mock('@/hooks/use-chat-characters', () => ({
-  useChatCharacters: () => ({
-    characters: [
-      { character: { id: 'card-1', name: 'Denia' }, avatarUrl: null },
-      { character: { id: 'card-2', name: 'Rei' }, avatarUrl: null },
-    ],
-    isLoading: false,
-  }),
+/** 只假接口：真的 `useChatCharacters` 去要卡片列表。 */
+const card = (id: string, name: string) => ({
+  id,
+  name,
+  voiceCardId: null,
+  looks: [{ isDefault: true, referenceSlots: [] }],
+})
+vi.mock('@/lib/api-client/cards', () => ({
+  listCharacterCardsAPI: vi.fn(async () => ({
+    success: true,
+    data: [card('card-1', 'Denia'), card('card-2', 'Rei')],
+  })),
 }))
 
 import { AssistantHerPane } from './AssistantHerPane'
 
 describe('AssistantHerPane', () => {
-  it('每个角色一行，点了去她的角色页（日记和改动搬到那里了）', () => {
+  it('每个角色一行，点了去她的角色页（日记和改动搬到那里了）', async () => {
     render(<AssistantHerPane />)
-    const rows = screen.getAllByTestId('assistant-her-row')
+    const rows = await screen.findAllByTestId('assistant-her-row')
     expect(rows).toHaveLength(2)
     expect(rows[0].getAttribute('href')).toBe('/library/cards?character=card-1')
     expect(rows[0].textContent).toContain('Denia')

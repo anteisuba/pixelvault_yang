@@ -6,6 +6,7 @@
  * - `'loadError'`：读不出来（含 CORS 重试那一次——地址带 `?…=1` 也照样按原地址查）。
  * - `'tainted'`：跨域画布被污染，`toDataURL` 抛 SecurityError。
  *
+ * `<audio>` 也按这张表答（只用得上 `duration`）。
  * 事件两种挂法都认（`addEventListener` 与 `onloadedmetadata = …`）；画布 `toDataURL` / `toBlob` 都能编。
  */
 import { vi } from 'vitest'
@@ -43,7 +44,8 @@ export function installFakeVideoDecoding(
     tag: string,
     options?: ElementCreationOptions,
   ) => {
-    if (tag === 'video') return fakeVideo()
+    // `<audio>` 读时长与 `<video>` 同一套事件，按同一张登记表答。
+    if (tag === 'video' || tag === 'audio') return fakeVideo()
     if (tag === 'canvas') return fakeCanvas()
     return original(tag, options)
   }) as typeof document.createElement)

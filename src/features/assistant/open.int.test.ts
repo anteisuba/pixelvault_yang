@@ -4,23 +4,15 @@ import type { V3Context } from '@/features/assistant/services/assistant-v3-steps
 
 vi.mock('server-only', () => ({}))
 
-const { recent } = vi.hoisted(() => ({
-  recent: [] as { id: string; name: string }[],
-}))
-vi.mock('@/features/canvas/services/node-workflow.service', () => ({
-  listRecentNodeWorkflowProjectsForUser: async () => recent,
-}))
-vi.mock('@/features/assistant/workspace.service', async (importOriginal) => ({
-  ...(await importOriginal<
-    typeof import('@/features/assistant/workspace.service')
-  >()),
-  resolvePicture: async (_owner: unknown, raw: string) =>
-    raw === '图_012'
-      ? { generationId: 'gen-12', url: 'https://x/12.png', label: '图_012' }
-      : null,
-}))
+import { db } from '@/lib/db'
+import { createTestUser, resetDatabase } from '@/test/int/db'
+import { createTestGeneration } from '@/test/int/generations'
 
 import { arrivedAt, openedOutput, planOpen } from './open'
+
+/** 真库（L2a）：最近的画布、按编号认的图都是库里的行。 */
+let owner = { userId: '', clerkId: '' }
+let picture = ''
 
 function contextOn(
   workspaceKey: string,
@@ -30,8 +22,8 @@ function contextOn(
   },
 ): V3Context {
   return {
-    clerkId: 'clerk-1',
-    prepared: { user: { id: 'user-1' } },
+    clerkId: owner.clerkId,
+    prepared: { user: { id: owner.userId } },
     request: { workspaceKey, snapshot: cards ? { cards } : {} },
     handles: {
       idOf: (handle: string) => (handle === 'char-aa11' ? 'denia' : null),
@@ -39,26 +31,49 @@ function contextOn(
   } as unknown as V3Context
 }
 
-beforeEach(() => {
-  recent.length = 0
+beforeEach(async () => {
+  await resetDatabase()
+  const user = await createTestUser()
+  owner = { userId: user.id, clerkId: user.clerkId }
+  picture = (
+    await createTestGeneration(user.id, {
+      url: 'https://x/12.png',
+      seq: 12,
+      outputType: 'IMAGE',
+    })
+  ).id
 })
+
+function canvas(name: string, lastActiveAt: Date, userId = owner.userId) {
+  return db.nodeWorkflowProject.create({
+    data: { userId, name, state: {}, lastActiveAt },
+  })
+}
 
 describe('planOpen（第 9e 步）', () => {
   it('画布默认开最近那块；一块都没有就新建；说「new」才新建', async () => {
-    recent.push({ id: 'proj-2', name: '雨夜' }, { id: 'proj-1', name: '旧的' })
     const here = contextOn('image-natural')
+    // 一块都没有就新建（别人的、删掉的不算）。
+    const stranger = await createTestUser()
+    await canvas('别人的', new Date(), stranger.id)
+    expect((await planOpen(here, { bench: 'canvas' })).opening?.target).toEqual(
+      { workspace: 'canvas', projectId: 'new' },
+    )
+    await canvas('旧的', new Date('2026-10-01T00:00:00Z'))
+    const latest = await canvas('雨夜', new Date('2026-10-02T00:00:00Z'))
+    const gone = await canvas('删掉的', new Date('2026-10-03T00:00:00Z'))
+    await db.nodeWorkflowProject.update({
+      where: { id: gone.id },
+      data: { isDeleted: true },
+    })
     expect((await planOpen(here, { bench: 'canvas' })).opening).toEqual({
-      target: { workspace: 'canvas', projectId: 'proj-2' },
+      target: { workspace: 'canvas', projectId: latest.id },
       label: 'the canvas 「雨夜」',
     })
     expect(
       (await planOpen(here, { bench: 'canvas', canvas: 'new' })).opening
         ?.target,
     ).toEqual({ workspace: 'canvas', projectId: 'new' })
-    recent.length = 0
-    expect((await planOpen(here, { bench: 'canvas' })).opening?.target).toEqual(
-      { workspace: 'canvas', projectId: 'new' },
-    )
   })
 
   it('已经在画布上：不白跳（要另一块得说 new）', async () => {
@@ -122,7 +137,7 @@ describe('库里翻给你看（owner 10-28）', () => {
     })
     expect(result.opening?.target).toEqual({
       workspace: 'lora',
-      library: { library: 'assets', itemId: 'gen-12', itemName: '图_012' },
+      library: { library: 'assets', itemId: picture, itemName: '图_012' },
     })
   })
 

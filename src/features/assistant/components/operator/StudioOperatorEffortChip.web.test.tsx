@@ -10,42 +10,6 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
 
-/** 弹层原语换成直通，同模型 chip 的测试。 */
-vi.mock('@/components/ui/responsive-popover', async () => {
-  const React = await import('react')
-  const Ctx = React.createContext<{
-    open: boolean
-    setOpen(next: boolean): void
-  }>({ open: false, setOpen: () => {} })
-  return {
-    ResponsivePopover: ({
-      open,
-      onOpenChange,
-      children,
-    }: {
-      open: boolean
-      onOpenChange(next: boolean): void
-      children: React.ReactNode
-    }) => (
-      <Ctx.Provider value={{ open, setOpen: onOpenChange }}>
-        {children}
-      </Ctx.Provider>
-    ),
-    ResponsivePopoverTrigger: ({
-      children,
-    }: {
-      children: React.ReactElement<{ onClick?: () => void }>
-    }) => {
-      const { open, setOpen } = React.useContext(Ctx)
-      return React.cloneElement(children, { onClick: () => setOpen(!open) })
-    },
-    ResponsivePopoverContent: ({ children }: { children: React.ReactNode }) => {
-      const { open } = React.useContext(Ctx)
-      return open ? <div>{children}</div> : null
-    },
-  }
-})
-
 import { StudioOperatorEffortChip } from './StudioOperatorEffortChip'
 
 describe('StudioOperatorEffortChip', () => {

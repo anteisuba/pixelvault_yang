@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import type { ReactElement } from 'react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { CharacterGrowth } from '@/types/character-growth'
 import type { CharacterStickerRecord } from '@/types/character-sticker'
@@ -14,20 +15,16 @@ vi.mock('next-intl', () => {
   }
 })
 vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
-vi.mock(
-  '@/features/assistant/components/operator/StudioOperatorModelChip',
-  () => ({
-    StudioOperatorModelChip: ({ value }: { value: string }) => (
-      <span data-testid="model-chip">{value}</span>
-    ),
-  }),
-)
-vi.mock('@/features/cards/hooks', () => ({
-  useCharacterGrowth: vi.fn(),
-  useCharacterStickers: vi.fn(),
+// 出门卡里的模型 chip 是真的：它读 key 名单（真 ApiKeysProvider，名单走假服务器）。
+const auth = vi.hoisted(() => ({ userId: 'user_0' }))
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({ userId: auth.userId, isSignedIn: true, isLoaded: true }),
 }))
-vi.mock('@/hooks/use-chat-persona', () => ({ usePersonaSwitch: vi.fn() }))
-vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => false }))
+
+import { ApiKeysProvider } from '@/contexts/api-keys-context'
+import { fakeServer } from '@/test/app-harness'
+import { fakeApiKeyRoutes, runIdleCallbacksNow } from '@/test/fake-routes'
+import { DESKTOP_WIDTH, setViewport } from '@/test/viewport'
 
 import { CharacterRecentDiary, buildDiary } from './CharacterRecentDiary'
 
@@ -120,6 +117,20 @@ const sticker = (
   ...patch,
 })
 
+let userSeq = 0
+beforeEach(() => {
+  userSeq += 1
+  auth.userId = `user_${userSeq}`
+  localStorage.clear()
+  runIdleCallbacksNow()
+  setViewport(DESKTOP_WIDTH)
+  fakeApiKeyRoutes(fakeServer(), [])
+})
+
+function renderWithKeys(ui: ReactElement) {
+  return render(<ApiKeysProvider>{ui}</ApiKeysProvider>)
+}
+
 describe('CharacterRecentDiary（第 ③ 步）', () => {
   it('一天一块：日记在上，当天的小条挂在下面；只出门没写日记的那天只放小条；没有筛选条', () => {
     const days = buildDiary(growthOf(), [sticker('s1')])
@@ -129,7 +140,7 @@ describe('CharacterRecentDiary（第 ③ 步）', () => {
       'outing',
       'stickers',
     ])
-    render(
+    renderWithKeys(
       <CharacterRecentDiary
         stickers={stickersOf([sticker('s1')])}
         growth={hookOf(growthOf())}
@@ -147,7 +158,9 @@ describe('CharacterRecentDiary（第 ③ 步）', () => {
 
   it('日记能改：编辑框保存走 editJournal；删前先确认', async () => {
     const hook = hookOf(growthOf({ findings: [], opinions: [] }))
-    render(<CharacterRecentDiary stickers={stickersOf()} growth={hook} />)
+    renderWithKeys(
+      <CharacterRecentDiary stickers={stickersOf()} growth={hook} />,
+    )
     fireEvent.click(screen.getByText('editJournal'))
     fireEvent.change(screen.getByRole('textbox'), {
       target: { value: '数他叹了八口气。' },
@@ -180,7 +193,9 @@ describe('CharacterRecentDiary（第 ③ 步）', () => {
         ],
       }),
     )
-    render(<CharacterRecentDiary stickers={stickersOf()} growth={hook} />)
+    renderWithKeys(
+      <CharacterRecentDiary stickers={stickersOf()} growth={hook} />,
+    )
     expect(screen.queryByText('熟了会拖长音')).toBeNull()
     fireEvent.click(screen.getByText('changedField|speech'))
     expect(screen.getByText('熟了会拖长音')).toBeTruthy()

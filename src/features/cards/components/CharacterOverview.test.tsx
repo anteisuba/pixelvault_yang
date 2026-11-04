@@ -4,13 +4,9 @@ import { NextIntlClientProvider } from 'next-intl'
 
 import { zh as zhMessages } from '@/messages'
 import type { CharacterCardRecord } from '@/types'
-import { useIsMobile } from '@/hooks/use-mobile'
+import { DESKTOP_WIDTH, PHONE_WIDTH, setViewport } from '@/test/viewport'
 
 import { CharacterOverview } from './CharacterOverview'
-
-vi.mock('@/hooks/use-mobile', () => ({
-  useIsMobile: vi.fn(() => false),
-}))
 
 vi.mock('next/image', () => ({
   default: (props: React.ImgHTMLAttributes<HTMLImageElement>) => {
@@ -131,12 +127,12 @@ describe('CharacterOverview · 桌面（角色大项目 ①，样件 O4）', () 
 
 describe('CharacterOverview · 手机（iOS 稿 v16）', () => {
   afterEach(() => {
-    vi.mocked(useIsMobile).mockReturnValue(false)
+    setViewport(DESKTOP_WIDTH)
     vi.useRealTimers()
   })
 
   it('名字写在图下面：图那一格里没有字', () => {
-    vi.mocked(useIsMobile).mockReturnValue(true)
+    setViewport(PHONE_WIDTH)
     renderOverview([
       card('denia', '鸣潮', ['https://cdn.test/denia.png']),
       card('shiye', '无限大', ['https://cdn.test/shiye.png']),
@@ -148,7 +144,7 @@ describe('CharacterOverview · 手机（iOS 稿 v16）', () => {
   })
 
   it('长按一张：交给 onLongPress，紧跟的那一下点击不打开详情；底下有一句提示', () => {
-    vi.mocked(useIsMobile).mockReturnValue(true)
+    setViewport(PHONE_WIDTH)
     vi.useFakeTimers()
     const onOpen = vi.fn()
     const onLongPress = vi.fn()

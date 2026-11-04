@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import type { ReactElement } from 'react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type {
   CharacterGrowth,
@@ -17,23 +18,19 @@ vi.mock('next-intl', () => {
   }
 })
 vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
-vi.mock(
-  '@/features/assistant/components/operator/StudioOperatorModelChip',
-  () => ({
-    StudioOperatorModelChip: ({ value }: { value: string }) => (
-      <span data-testid="model-chip">{value}</span>
-    ),
-  }),
-)
-vi.mock('@/features/cards/hooks', () => ({
-  useCharacterGrowth: vi.fn(),
-  useCharacterStickers: vi.fn(),
+// 出门卡里的模型 chip 是真的：它读 key 名单（真 ApiKeysProvider，名单走假服务器）。
+const auth = vi.hoisted(() => ({ userId: 'user_0' }))
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({ userId: auth.userId, isSignedIn: true, isLoaded: true }),
 }))
-vi.mock('@/hooks/use-chat-persona', () => ({ usePersonaSwitch: vi.fn() }))
-vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => false }))
 
 import { NODE_STUDIO_ASSISTANT_ROUTE_MODELS } from '@/constants/node-studio'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { ApiKeysProvider } from '@/contexts/api-keys-context'
+import { fakeServer } from '@/test/app-harness'
+import { fakeApiKeyRoutes, runIdleCallbacksNow } from '@/test/fake-routes'
+import { DESKTOP_WIDTH, setViewport } from '@/test/viewport'
+
 import { CharacterRecent } from './CharacterRecent'
 
 const now = new Date()
@@ -147,9 +144,23 @@ const sticker = (
   ...patch,
 })
 
+let userSeq = 0
+beforeEach(() => {
+  userSeq += 1
+  auth.userId = `user_${userSeq}`
+  localStorage.clear()
+  runIdleCallbacksNow()
+  setViewport(DESKTOP_WIDTH)
+  fakeApiKeyRoutes(fakeServer(), [])
+})
+
+function renderWithKeys(ui: ReactElement) {
+  return render(<ApiKeysProvider>{ui}</ApiKeysProvider>)
+}
+
 describe('CharacterRecent', () => {
   it('同一天的见闻折成一趟出门：最新一趟展开，更早的折着、点开才看', () => {
-    render(
+    renderWithKeys(
       <CharacterRecent
         stickers={stickersOf()}
         growth={hookOf(growthOf())}
@@ -166,7 +177,7 @@ describe('CharacterRecent', () => {
   })
 
   it('收了工的一趟一条：挂它起止之间的见闻，写用了几点；一条没带回也有一条', () => {
-    render(
+    renderWithKeys(
       <CharacterRecent
         stickers={stickersOf()}
         growth={hookOf(
@@ -204,7 +215,7 @@ describe('CharacterRecent', () => {
 
   it('删见闻先弹确认，确认了才删', () => {
     const hook = hookOf(growthOf({ opinions: [] }))
-    render(
+    renderWithKeys(
       <CharacterRecent stickers={stickersOf()} growth={hook} reducedMotion />,
     )
     fireEvent.click(screen.getAllByText('delete')[0])
@@ -213,7 +224,7 @@ describe('CharacterRecent', () => {
   })
 
   it('没出过门又没见闻：空态卡 +「还没出过门」', () => {
-    render(
+    renderWithKeys(
       <CharacterRecent
         stickers={stickersOf()}
         growth={hookOf(growthOf({ findings: [] }))}
@@ -229,7 +240,7 @@ describe('CharacterRecent', () => {
       sticker('s1'),
       sticker('s2', { fromCreator: true }),
     ])
-    render(
+    renderWithKeys(
       <CharacterRecent
         growth={hookOf(growthOf())}
         stickers={rows}
@@ -242,7 +253,7 @@ describe('CharacterRecent', () => {
   })
 
   it('筛到「表情」：整格表情（含你上传的）+ 上传那一格 + 张数', () => {
-    render(
+    renderWithKeys(
       <CharacterRecent
         growth={hookOf(growthOf())}
         stickers={stickersOf([

@@ -51,8 +51,6 @@ vi.mock('sonner', () => ({
   toast: { success: vi.fn(), error: vi.fn() },
 }))
 
-// 标签格输入的本地词表是 5 万行的生成文件；这里只关心格子本身。
-vi.mock('@/lib/prompt-tag-search', () => ({ searchPromptTags: () => [] }))
 vi.mock('@/lib/api-client/novelai-tags', () => ({
   getNovelAiTagSuggestionsAPI: vi.fn(),
 }))

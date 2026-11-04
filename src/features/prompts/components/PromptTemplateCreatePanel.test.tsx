@@ -12,14 +12,9 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
-vi.mock('@/hooks/use-mobile', () => ({
-  useIsMobile: () => false,
-  useIsTablet: () => false,
-}))
 vi.mock('@/i18n/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }))
-vi.mock('@/lib/prompt-tag-search', () => ({ searchPromptTags: () => [] }))
 vi.mock('@/lib/api-client/novelai-tags', () => ({
   getNovelAiTagSuggestionsAPI: vi.fn(),
 }))

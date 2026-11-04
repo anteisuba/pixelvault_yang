@@ -48,7 +48,6 @@
   "src/app/api/internal/execution/callback/route.test.ts",
   "src/app/api/internal/execution/resolve-key/route.test.ts",
   "src/app/api/internal/execution/sweep/route.test.ts",
-  "src/app/api/internal/fal/webhook/route.test.ts",
   "src/app/api/likes/route.test.ts",
   "src/app/api/lora-assets/civitai/resolve/route.test.ts",
   "src/app/api/lora-assets/civitai/route.test.ts",

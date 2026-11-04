@@ -1,12 +1,12 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { queryClient } from '@/lib/query-client'
 import type { VoiceCardRecord } from '@/types'
 
 import { VoiceSelector } from './VoiceSelector'
 
 const {
-  refreshMock,
   listVoicesAPIMock,
   createVoiceCardAPIMock,
   deleteVoiceCardAPIMock,
@@ -14,7 +14,6 @@ const {
   updateVoiceCardAPIMock,
   voiceCardsRef,
 } = vi.hoisted(() => ({
-  refreshMock: vi.fn(),
   listVoicesAPIMock: vi.fn(),
   createVoiceCardAPIMock: vi.fn(),
   deleteVoiceCardAPIMock: vi.fn(),
@@ -30,22 +29,17 @@ vi.mock('next-intl', () => ({
       key,
 }))
 
-vi.mock('@/features/cards/hooks/use-voice-cards', () => ({
-  useVoiceCards: () => ({
-    cards: voiceCardsRef.cards,
-    isLoading: false,
-    error: null,
-    findCard: () => null,
-    refresh: refreshMock,
-  }),
-}))
-
 vi.mock('@/lib/api-client', () => ({
   createVoiceCardAPI: createVoiceCardAPIMock,
   deleteVoiceCardAPI: deleteVoiceCardAPIMock,
   getVoiceAPI: getVoiceAPIMock,
   listVoicesAPI: listVoicesAPIMock,
   updateVoiceCardAPI: updateVoiceCardAPIMock,
+  // 真 `useVoiceCards` 取「我的声音卡」走这一条。
+  listVoiceCardsAPI: vi.fn(async () => ({
+    success: true,
+    data: { items: voiceCardsRef.cards, total: voiceCardsRef.cards.length },
+  })),
 }))
 
 const FAVORITE_CARD: VoiceCardRecord = {
@@ -73,7 +67,7 @@ const FAVORITE_CARD: VoiceCardRecord = {
 
 describe('VoiceSelector', () => {
   beforeEach(() => {
-    refreshMock.mockClear()
+    queryClient.clear()
     voiceCardsRef.cards = []
     deleteVoiceCardAPIMock.mockReset()
     deleteVoiceCardAPIMock.mockResolvedValue({ success: true })
@@ -248,13 +242,15 @@ describe('VoiceSelector', () => {
       voiceCardsRef.cards = saved
         ? [{ ...FAVORITE_CARD, voiceId: 'fish-public-1' }]
         : []
+      queryClient.clear()
       const { unmount } = render(<VoiceSelector onSelectVoiceId={vi.fn()} />)
       await screen.findByText('Fish Narrator')
-      const svg = screen
-        .getByRole('button', {
+      // 我的声音卡是另一条请求：等它回来、星星换好再量。
+      const svg = (
+        await screen.findByRole('button', {
           name: saved ? 'voiceUnfavorite' : 'voiceFavorite',
         })
-        .querySelector('svg')!.innerHTML
+      ).querySelector('svg')!.innerHTML
       unmount()
       return svg
     }

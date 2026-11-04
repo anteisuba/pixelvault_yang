@@ -1,38 +1,66 @@
 // @vitest-environment jsdom
-import { renderHook, waitFor } from '@testing-library/react'
+import { waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const voicesState = vi.hoisted(() => ({
-  publicVoices: [
-    {
-      id: 'fish_audio:p1',
-      voiceId: 'p1',
-      title: '莫宁',
-      author: '平台',
-      sampleUrl: 'https://cdn.test/sample.mp3',
-    },
-  ],
-  favorites: [
-    {
-      id: 'f1',
-      name: '旁白 · 标准',
-      voiceId: 'fav1',
-      tone: ['低沉'],
-      sampleAudioUrl: 'https://cdn.test/fav.mp3',
-      referenceAudioUrl: null,
-    },
-  ],
-  setSearch: vi.fn(),
-  setTab: vi.fn(),
-  isLoading: false,
-}))
-vi.mock('@/hooks/use-voice-library', () => ({
-  useVoiceLibrary: () => voicesState,
+/** 服务端那边：一条公开音色（带样本）、一张收藏的音色卡；真 `useVoiceLibrary` 经 api-client 取。 */
+const server = vi.hoisted(() => ({
+  publicVoice: {
+    id: 'p1',
+    title: '莫宁',
+    description: null,
+    coverImage: null,
+    state: 'trained',
+    languages: ['zh'],
+    tags: [],
+    samples: [
+      { title: null, text: '示例', audio: 'https://cdn.test/sample.mp3' },
+    ],
+    likeCount: 0,
+    taskCount: 0,
+    visibility: 'public',
+    createdAt: '2026-08-01T00:00:00.000Z',
+    author: { nickname: '平台' },
+  },
+  favoriteCard: {
+    id: 'f1',
+    name: '旁白 · 标准',
+    description: null,
+    provider: 'fish_audio',
+    voiceId: 'fav1',
+    modelId: 'fish-audio-s2-pro',
+    referenceAudioUrl: null,
+    referenceText: null,
+    tone: ['低沉'],
+    language: null,
+    speed: null,
+    pitch: null,
+    pronunciationDictionary: {},
+    sampleAudioUrl: 'https://cdn.test/fav.mp3',
+    sampleText: null,
+    isDeleted: false,
+    createdAt: '2026-08-01T00:00:00.000Z',
+    updatedAt: '2026-08-01T00:00:00.000Z',
+  },
 }))
 
 const fetchGallery = vi.hoisted(() => vi.fn())
-vi.mock('@/lib/api-client', () => ({ fetchGalleryImages: fetchGallery }))
+vi.mock('@/lib/api-client', () => ({
+  fetchGalleryImages: fetchGallery,
+  importVoiceSampleAPI: vi.fn(),
+  listVoicesAPI: vi.fn(async () => ({
+    success: true,
+    data: { total: 1, items: [server.publicVoice] },
+  })),
+  listVoiceCardsAPI: vi.fn(async () => ({
+    success: true,
+    data: { total: 1, items: [server.favoriteCard] },
+  })),
+  createVoiceCardAPI: vi.fn(),
+  deleteVoiceCardAPI: vi.fn(),
+}))
 
+import { queryClient } from '@/lib/query-client'
+import { renderHookWithApp } from '@/test/app-harness'
 import {
   groupVoiceLibraryClipsByDate,
   useVoiceLibraryClips,
@@ -54,7 +82,7 @@ function generation(patch: Record<string, unknown>) {
 }
 
 function run(tab: string) {
-  return renderHook(() =>
+  return renderHookWithApp(() =>
     useVoiceLibraryClips({
       tab: tab as never,
       enabled: true,
@@ -66,6 +94,7 @@ function run(tab: string) {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  queryClient.clear()
   fetchGallery.mockResolvedValue({
     success: true,
     data: {
@@ -119,7 +148,7 @@ describe('五个页签各自的供数（S5c，画板 AudioLibrary）', () => {
   })
 
   it('搜索在本地过一遍名与副标', async () => {
-    const { result } = renderHook(() =>
+    const { result } = renderHookWithApp(() =>
       useVoiceLibraryClips({
         tab: 'history' as never,
         enabled: true,

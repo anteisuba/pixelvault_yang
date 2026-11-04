@@ -1,6 +1,1 @@
-[
-  "src/features/canvas/components/edit-desk/EditDesk.web.test.tsx",
-  "src/features/canvas/components/nodes/v4/ImageNodeV4.test.tsx",
-  "src/features/canvas/components/nodes/v4/VideoNodeV4.test.tsx",
-  "src/features/lora/components/LoraWorkbench.test.tsx"
-]
+[]

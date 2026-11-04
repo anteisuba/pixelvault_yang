@@ -1,93 +1,131 @@
 // @vitest-environment jsdom
-import { act, renderHook, waitFor } from '@testing-library/react'
+/**
+ * L2b：真 `StudioProvider`（真表单 reducer）+ 真 hook；只假网络——翻译那一条在 api-client
+ * 上替掉，Provider 挂上要拉的几条走 `studioServer()`。断言的是表单里那几格最后变成什么。
+ */
+import { act, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const dispatch = vi.fn()
-const formState = {
-  promptDialect: 'tags' as string,
-  tagCarrySource: null as string | null,
-}
-vi.mock('@/contexts/studio-context', () => ({
-  useStudioForm: () => ({ state: formState, dispatch }),
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({ userId: 'user-a', isLoaded: true, isSignedIn: true }),
+}))
+vi.mock('@/i18n/navigation', () => ({
+  usePathname: () => '/studio/image',
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+}))
+vi.mock('next/navigation', () => ({
+  usePathname: () => '/studio/image',
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
 }))
 
-const translate = vi.fn()
-vi.mock('@/lib/api-client', () => ({
-  translatePromptToTagsAPI: (...args: unknown[]) => translate(...args),
+const translate = vi.hoisted(() => vi.fn())
+vi.mock('@/lib/api-client', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api-client')>()),
+  translatePromptToTagsAPI: translate,
 }))
 
 import { ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE } from '@/constants/assistant-operator'
+import { StudioProvider, useStudioForm } from '@/contexts/studio-context'
 import { useTagCarryTranslation } from '@/hooks/use-tag-carry-translation'
+import { renderHookWithApp } from '@/test/app-harness'
+import { carrySentenceToTags, studioServer } from '@/test/studio-harness'
+
+function renderBench(modelId?: string) {
+  return renderHookWithApp(
+    () => ({
+      form: useStudioForm(),
+      carry: useTagCarryTranslation(modelId),
+    }),
+    { inner: StudioProvider },
+  )
+}
+
+type Bench = ReturnType<typeof renderBench>['result']
+
+function carry(result: Bench, sentence: string) {
+  act(() => carrySentenceToTags(result.current.form.dispatch, sentence))
+}
+
+beforeEach(() => {
+  vi.clearAllMocks()
+  window.localStorage.clear()
+  studioServer()
+})
 
 describe('useTagCarryTranslation', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    formState.promptDialect = 'tags'
-    formState.tagCarrySource = null
-  })
-
-  it('translates the carried sentence and swaps it for tags', async () => {
-    formState.tagCarrySource = 'a girl in the rain'
+  it('把带过来的那一句翻好，原地换成一串标签', async () => {
     translate.mockResolvedValue({
       success: true,
       data: { tags: '1girl, solo, rain' },
     })
+    const { result } = renderBench('nai-diffusion-4-5-full')
 
-    const { result } = renderHook(() =>
-      useTagCarryTranslation('nai-diffusion-4-5-full'),
-    )
+    carry(result, 'a girl in the rain')
+    expect(result.current.carry.status).toBe('translating')
 
-    expect(result.current.status).toBe('translating')
     await waitFor(() =>
-      expect(dispatch).toHaveBeenCalledWith({
-        type: 'RESOLVE_TAG_CARRY',
-        payload: {
-          source: 'a girl in the rain',
-          chips: [
-            { text: '1girl', weight: 1 },
-            { text: 'solo', weight: 1 },
-            { text: 'rain', weight: 1 },
-          ],
-        },
-      }),
+      expect(result.current.form.state.tagChips.map((c) => c.text)).toEqual([
+        '1girl',
+        'solo',
+        'rain',
+      ]),
     )
+    expect(result.current.form.state.tagCarrySource).toBeNull()
+    expect(result.current.carry.status).toBe('idle')
     expect(translate).toHaveBeenCalledWith({
       prompt: 'a girl in the rain',
       modelId: 'nai-diffusion-4-5-full',
     })
   })
 
-  it('sends one request for the same sentence across remounts', async () => {
-    formState.tagCarrySource = 'neon city at night'
+  it('同一句跨重挂只发一次请求', async () => {
     translate.mockResolvedValue({
       success: true,
       data: { tags: 'city, night, neon lights' },
     })
 
-    renderHook(() => useTagCarryTranslation()).unmount()
-    renderHook(() => useTagCarryTranslation())
+    const first = renderBench()
+    carry(first.result, 'neon city at night')
+    first.unmount()
 
-    await waitFor(() => expect(dispatch).toHaveBeenCalledTimes(1))
+    const { result } = renderBench()
+    carry(result, 'neon city at night')
+
+    await waitFor(() =>
+      expect(result.current.form.state.tagCarrySource).toBeNull(),
+    )
+    expect(result.current.form.state.tagChips.map((c) => c.text)).toEqual([
+      'city',
+      'night',
+      'neon lights',
+    ])
     expect(translate).toHaveBeenCalledTimes(1)
   })
 
-  it('keeps the sentence on failure and retries on demand', async () => {
-    formState.tagCarrySource = 'a cat on a windowsill'
+  it('翻失败留着那一句，点重试再翻', async () => {
     translate.mockResolvedValueOnce({ success: false, error: 'down' })
+    const { result } = renderBench()
 
-    const { result } = renderHook(() => useTagCarryTranslation())
-
-    await waitFor(() => expect(result.current.status).toBe('failed'))
-    expect(dispatch).not.toHaveBeenCalled()
+    carry(result, 'a cat on a windowsill')
+    await waitFor(() => expect(result.current.carry.status).toBe('failed'))
+    expect(result.current.form.state.tagChips.map((c) => c.text)).toEqual([
+      'a cat on a windowsill',
+    ])
 
     translate.mockResolvedValueOnce({
       success: true,
       data: { tags: 'cat, windowsill' },
     })
-    act(() => result.current.retry())
+    act(() => result.current.carry.retry())
+    expect(result.current.carry.status).toBe('translating')
 
-    expect(result.current.status).toBe('translating')
-    await waitFor(() => expect(dispatch).toHaveBeenCalledTimes(1))
+    await waitFor(() =>
+      expect(result.current.form.state.tagChips.map((c) => c.text)).toEqual([
+        'cat',
+        'windowsill',
+      ]),
+    )
     expect(translate).toHaveBeenCalledTimes(2)
   })
 
@@ -95,46 +133,50 @@ describe('useTagCarryTranslation', () => {
    * 「全跟助手」（owner 2026-10-15）：翻译用的是助手那一家。那一家跑不了（选定模型缺 key /
    * 一家都没配）时把那句原因交给小字照实说；别的失败只说「没成」。
    */
-  it('surfaces the reason when the assistant route cannot run it', async () => {
-    formState.tagCarrySource = 'a fox in the snow'
+  it('助手那一家跑不了：把原因交出来', async () => {
     translate.mockResolvedValueOnce({
       success: false,
       error: 'Claude has no key',
       errorCode: ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE,
       i18nKey: 'errors.assistant.modelKeyMissing',
     })
+    const { result } = renderBench()
 
-    const { result } = renderHook(() => useTagCarryTranslation())
+    carry(result, 'a fox in the snow')
 
-    await waitFor(() => expect(result.current.status).toBe('failed'))
-    expect(result.current.reason).toEqual({
+    await waitFor(() => expect(result.current.carry.status).toBe('failed'))
+    expect(result.current.carry.reason).toEqual({
       error: 'Claude has no key',
       errorCode: ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE,
       i18nKey: 'errors.assistant.modelKeyMissing',
     })
   })
 
-  it('gives no reason for an ordinary failure', async () => {
-    formState.tagCarrySource = 'a heron at dawn'
+  it('一般失败不给原因', async () => {
     translate.mockResolvedValueOnce({
       success: false,
       error: 'not a tag list',
       errorCode: 'PROMPT_TAGS_UNUSABLE',
     })
+    const { result } = renderBench()
 
-    const { result } = renderHook(() => useTagCarryTranslation())
+    carry(result, 'a heron at dawn')
 
-    await waitFor(() => expect(result.current.status).toBe('failed'))
-    expect(result.current.reason).toBeNull()
+    await waitFor(() => expect(result.current.carry.status).toBe('failed'))
+    expect(result.current.carry.reason).toBeNull()
   })
 
-  it('stays idle outside the tag studio', () => {
-    formState.promptDialect = 'natural'
-    formState.tagCarrySource = 'a quiet lake'
+  it('不在标签台就不翻', () => {
+    const { result } = renderBench()
 
-    const { result } = renderHook(() => useTagCarryTranslation())
+    act(() =>
+      result.current.form.dispatch({
+        type: 'SET_PROMPT',
+        payload: 'a quiet lake',
+      }),
+    )
 
-    expect(result.current.status).toBe('idle')
+    expect(result.current.carry.status).toBe('idle')
     expect(translate).not.toHaveBeenCalled()
   })
 })

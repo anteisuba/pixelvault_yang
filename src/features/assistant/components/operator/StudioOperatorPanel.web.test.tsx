@@ -2463,7 +2463,9 @@ describe('@ 菜单（§10b）', () => {
     fireEvent.click(screen.getByTestId('operator-add-mention'))
     const editor = screen.getByRole('combobox', { name: editorName })
     await vi.waitFor(() => expect(editor.textContent).toBe('@'))
-    expect(screen.getByRole('listbox')).toBeTruthy()
+    // ⚠ 菜单比那个 @ 晚一拍才开（查询串先进 state 再画浮层）：要等，⛔ 写完 @ 当场就断言
+    //   —— 单跑这一例时轮询恰好落在两拍之间，整份跑才碰巧过。
+    expect(await screen.findByRole('listbox')).toBeTruthy()
     expect(editor).toHaveAttribute('aria-expanded', 'true')
   })
 

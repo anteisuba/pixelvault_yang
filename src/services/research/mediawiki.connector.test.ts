@@ -6,11 +6,6 @@ vi.mock('@/lib/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }))
 
-// 退避链本身在 with-retry 自己的测试里覆盖；这里验的是连接器的降级逻辑。
-vi.mock('@/lib/with-retry', () => ({
-  withRetry: <T>(fn: () => Promise<T>) => fn(),
-}))
-
 import {
   FANDOM_WIKIS,
   MEDIAWIKI_READ_HOSTS,

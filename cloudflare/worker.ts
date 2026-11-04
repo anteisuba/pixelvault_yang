@@ -40,14 +40,14 @@ const handler = {
       console.error('[cron] CRON_SECRET is not configured; sweep skipped')
       return
     }
+    // 经自己的服务绑定发一个真请求（与线上请求走同一条路径，不经 DNS）。
     const origin = env.NEXT_PUBLIC_APP_URL ?? 'https://www.anteisuba.com'
-    const response = await worker.fetch(
-      new Request(new URL(SWEEP_PATH, origin), {
-        headers: { authorization: `Bearer ${env.CRON_SECRET}` },
-      }),
-      env,
-      ctx,
-    )
+    const request = new Request(new URL(SWEEP_PATH, origin), {
+      headers: { authorization: `Bearer ${env.CRON_SECRET}` },
+    })
+    const response = env.WORKER_SELF_REFERENCE
+      ? await env.WORKER_SELF_REFERENCE.fetch(request)
+      : await worker.fetch(request, env, ctx)
     if (!response.ok) {
       console.error(
         `[cron] sweep failed: ${response.status} ${await response.text()}`,

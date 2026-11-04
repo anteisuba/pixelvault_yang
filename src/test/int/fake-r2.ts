@@ -85,6 +85,9 @@ export function fakeR2Module(real: R2Module): R2Module {
       throw new Error(`Failed to fetch ${url} (404)`)
     }),
     r2ObjectExists: vi.fn(async (key: string) => fakeBucket.objects.has(key)),
+    deleteFromR2: vi.fn(async (key: string) => {
+      fakeBucket.objects.delete(key)
+    }),
     createPresignedR2GetUrl: vi.fn(
       async ({ key }: { key: string }) => `${FAKE_CDN}/${key}?signed`,
     ),

@@ -10,11 +10,6 @@ const mockLogger = vi.hoisted(() => ({
 }))
 vi.mock('@/lib/logger', () => ({ logger: mockLogger }))
 
-const mockBilibili = vi.hoisted(() => vi.fn())
-vi.mock('@/services/research/bilibili.connector', () => ({
-  fetchBilibiliEvidence: (...args: unknown[]) => mockBilibili(...args),
-}))
-
 import {
   mergeWebVideoHits,
   searchWebVideos,
@@ -30,7 +25,6 @@ beforeEach(() => {
   vi.unstubAllEnvs()
   vi.stubEnv('SERPER_API_KEY', 'test-serper-key')
   vi.stubGlobal('fetch', mockFetch)
-  mockBilibili.mockResolvedValue({ items: [] })
   resetResearchBreakers(['bilibili'])
 })
 
@@ -48,25 +42,6 @@ function jsonResponse(body: unknown, status = 200): Response {
 }
 
 const YT = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
-
-/** B站连接器的一条 `video` 证据（标题前带来源名，与真连接器同形）。 */
-function bilibiliItem(overrides: Record<string, unknown> = {}) {
-  return {
-    kind: 'video',
-    id: 'bilibili:search:BV1ji421e7nM',
-    sourceId: 'bilibili',
-    sourceTier: 'social',
-    retrievedAt: '2026-10-15T00:00:00.000Z',
-    title: 'bilibili · 《鸣潮》动画短片 | 今昔',
-    url: 'http://www.bilibili.com/video/BV1ji421e7nM',
-    videoUrl: 'http://www.bilibili.com/video/BV1ji421e7nM',
-    site: 'bilibili',
-    channel: '鸣潮',
-    durationSeconds: 1078,
-    thumbnailUrl: 'https://i2.hdslb.com/cover.jpg',
-    ...overrides,
-  }
-}
 
 describe('serperVideoSearch — 宽容解析', () => {
   it('打 /videos，用平台那把 key（X-API-KEY），⛔ 不记查询与 key', async () => {
@@ -186,44 +161,66 @@ describe('wantsBilibiliVideos', () => {
   })
 })
 
-describe('searchWebVideos — 两路归并', () => {
+describe('searchWebVideos — 两路归并（真 B站连接器，假网络）', () => {
+  const BILIBILI_SEARCH = 'https://api.bilibili.com/x/web-interface/search/type'
+
+  /** B站搜索接口里的一条（真接口的字段名）。 */
+  const ENTRY = {
+    bvid: 'BV1ji421e7nM',
+    title: '《鸣潮》<em class="keyword">动画短片</em> | 今昔',
+    author: '鸣潮',
+    duration: '17:58',
+    pic: '//i2.hdslb.com/cover.jpg',
+  }
+
+  /** 按网址分路：B站搜索 / Serper 视频 / Serper 网页（B站退路），各回各的。 */
+  function route(handlers: {
+    bilibili?: () => Response
+    serperVideos?: () => Response
+  }) {
+    const calls: string[] = []
+    mockFetch.mockImplementation(async (input: string) => {
+      const url = String(input)
+      if (url.startsWith(BILIBILI_SEARCH)) {
+        calls.push('bilibili')
+        return handlers.bilibili?.() ?? jsonResponse({}, 500)
+      }
+      if (url.endsWith('/videos')) {
+        calls.push('serper-videos')
+        return handlers.serperVideos?.() ?? jsonResponse({ videos: [] })
+      }
+      calls.push('serper-search')
+      return jsonResponse({ organic: [] })
+    })
+    return calls
+  }
+  const bilibiliResults = (result: unknown[]) => () =>
+    jsonResponse({ code: 0, message: '0', data: { result } })
+
   it('⭐ 轮转归并、按视频去重（重复那条补缺格）、封顶', async () => {
-    mockFetch.mockResolvedValue(
-      jsonResponse({
-        videos: [
-          // 与 B站连接器那一条是同一支（嵌入地址相同），只是没有频道与封面。
-          {
-            title: 'B 站 同一支',
-            link: 'https://www.bilibili.com/video/BV1ji421e7nM/?spm_id_from=x',
-          },
-          { title: 'YT 1', link: YT, duration: '3:29' },
-          { title: 'YT 2', link: 'https://youtu.be/aaaaaaaaaaa' },
-        ],
-      }),
-    )
-    mockBilibili.mockResolvedValue({
-      items: [
-        bilibiliItem(),
-        bilibiliItem({
-          id: 'bilibili:search:BV1xx411c7mD',
-          title: 'bilibili（经网搜）· 长离 演示',
-          url: 'https://www.bilibili.com/video/BV1xx411c7mD',
-          videoUrl: 'https://www.bilibili.com/video/BV1xx411c7mD',
-          channel: undefined,
-          thumbnailUrl: undefined,
-          durationSeconds: undefined,
+    const calls = route({
+      serperVideos: () =>
+        jsonResponse({
+          videos: [
+            // 与 B站那条是同一支（嵌入地址相同），只是没有频道与封面。
+            {
+              title: 'B 站 同一支',
+              link: 'https://www.bilibili.com/video/BV1ji421e7nM/?spm_id_from=x',
+            },
+            { title: 'YT 1', link: YT, duration: '3:29' },
+            { title: 'YT 2', link: 'https://youtu.be/aaaaaaaaaaa' },
+          ],
         }),
-        // 连接器退回 text 的那种（没有播放页）：⛔ 不当视频。
+      bilibili: bilibiliResults([
+        ENTRY,
+        // 没有 BV 号：用 arcurl（常是 http）
         {
-          kind: 'text',
-          id: 'bilibili:search:x',
-          sourceId: 'bilibili',
-          sourceTier: 'social',
-          retrievedAt: '2026-10-15T00:00:00.000Z',
-          title: 'bilibili · 没有链接',
-          excerpt: '标题：没有链接',
+          title: '长离 演示',
+          arcurl: 'http://www.bilibili.com/video/BV1xx411c7mD',
         },
-      ],
+        // 没有播放页：连接器退回 text，⛔ 不当视频
+        { title: '没有链接' },
+      ]),
     })
 
     const { hits, blocked } = await searchWebVideos({
@@ -233,7 +230,14 @@ describe('searchWebVideos — 两路归并', () => {
       bilibili: true,
     })
     expect(blocked).toBe(0)
-    expect(mockBilibili).toHaveBeenCalledWith({ query: '鸣潮 长离' })
+    expect(calls.sort()).toEqual(['bilibili', 'serper-videos'])
+    expect(
+      String(
+        mockFetch.mock.calls.find(([u]) =>
+          String(u).startsWith(BILIBILI_SEARCH),
+        )?.[0],
+      ),
+    ).toContain(`keyword=${encodeURIComponent('鸣潮 长离')}`)
     expect(hits.map((hit) => [hit.sourceId, hit.video.title])).toEqual([
       // 第一轮：Serper 的「同一支」先到，B站那条被认成重复、拿来补缺格。
       ['web_search', 'B 站 同一支'],
@@ -244,17 +248,18 @@ describe('searchWebVideos — 两路归并', () => {
     expect(merged?.channel).toBe('鸣潮')
     expect(merged?.durationSeconds).toBe(1078)
     expect(merged?.thumbnailUrl).toBe('https://i2.hdslb.com/cover.jpg')
-    // 四家一律 https（B站的 arcurl 常是 http）。
+    // 一律 https（B站的 arcurl 常是 http）。
     expect(hits[2]?.video.url).toBe(
       'https://www.bilibili.com/video/BV1xx411c7mD',
     )
   })
 
-  it('点名 B站时 B站排前；标题前那截来源名剥掉', async () => {
-    mockFetch.mockResolvedValue(
-      jsonResponse({ videos: [{ title: 'YT 1', link: YT }] }),
-    )
-    mockBilibili.mockResolvedValue({ items: [bilibiliItem()] })
+  it('点名 B站时 B站排前；标题前那截来源名、高亮标签剥掉', async () => {
+    route({
+      serperVideos: () =>
+        jsonResponse({ videos: [{ title: 'YT 1', link: YT }] }),
+      bilibili: bilibiliResults([ENTRY]),
+    })
     const { hits } = await searchWebVideos({
       query: 'wuthering waves',
       limit: 8,
@@ -273,51 +278,70 @@ describe('searchWebVideos — 两路归并', () => {
     })
   })
 
-  it('只开一路就只打那一路；B站连接器挂了照样出 Serper 那一半', async () => {
-    mockFetch.mockResolvedValue(
-      jsonResponse({ videos: [{ title: 'YT 1', link: YT }] }),
-    )
+  it('只开一路就只打那一路', async () => {
+    const serperOnly = route({
+      serperVideos: () =>
+        jsonResponse({ videos: [{ title: 'YT 1', link: YT }] }),
+    })
     await searchWebVideos({
       query: 'x',
       limit: 8,
       serper: true,
       bilibili: false,
     })
-    expect(mockBilibili).not.toHaveBeenCalled()
+    expect(serperOnly).toEqual(['serper-videos'])
 
-    mockFetch.mockClear()
-    mockBilibili.mockResolvedValue({ items: [bilibiliItem()] })
+    const bilibiliOnly = route({ bilibili: bilibiliResults([ENTRY]) })
     await searchWebVideos({
       query: '鸣潮',
       limit: 8,
       serper: false,
       bilibili: true,
     })
-    expect(mockFetch).not.toHaveBeenCalled()
+    expect(bilibiliOnly).toEqual(['bilibili'])
+  })
 
-    mockBilibili.mockRejectedValue(new Error('412'))
-    const { hits } = await searchWebVideos({
-      query: '鸣潮',
-      limit: 8,
-      serper: true,
-      bilibili: true,
-    })
-    expect(hits.map((hit) => hit.video.title)).toEqual(['YT 1'])
+  it('B站搜索被风控：退避重试一次再退到网搜；照样出 Serper 那一半', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout'] })
+    try {
+      const calls = route({
+        serperVideos: () =>
+          jsonResponse({ videos: [{ title: 'YT 1', link: YT }] }),
+        bilibili: () => jsonResponse({}, 412),
+      })
+      let settled = false
+      const pending = searchWebVideos({
+        query: '鸣潮',
+        limit: 8,
+        serper: true,
+        bilibili: true,
+      }).finally(() => {
+        settled = true
+      })
+      while (!settled) await vi.advanceTimersByTimeAsync(200)
+      const { hits } = await pending
+      expect(hits.map((hit) => hit.video.title)).toEqual(['YT 1'])
+      expect(calls.filter((c) => c === 'bilibili')).toHaveLength(2)
+      expect(calls).toContain('serper-search')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('来源名单那道闸：先滤再去重，被挡掉的数出来', async () => {
-    mockFetch.mockResolvedValue(
-      jsonResponse({
-        videos: [
-          { title: 'YT 1', link: YT },
-          {
-            title: 'B 站 同一支',
-            link: 'https://www.bilibili.com/video/BV1ji421e7nM',
-          },
-        ],
-      }),
-    )
-    mockBilibili.mockResolvedValue({ items: [bilibiliItem()] })
+    route({
+      serperVideos: () =>
+        jsonResponse({
+          videos: [
+            { title: 'YT 1', link: YT },
+            {
+              title: 'B 站 同一支',
+              link: 'https://www.bilibili.com/video/BV1ji421e7nM',
+            },
+          ],
+        }),
+      bilibili: bilibiliResults([ENTRY]),
+    })
     const { hits, blocked } = await searchWebVideos({
       query: '鸣潮',
       limit: 8,

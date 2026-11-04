@@ -1,5 +1,6 @@
 import '@testing-library/jest-dom/vitest'
 
+import { configure } from '@testing-library/react'
 import { notifyManager } from '@tanstack/react-query'
 
 import { queryClient } from '@/lib/query-client'
@@ -7,6 +8,10 @@ import { queryClient } from '@/lib/query-client'
 // 客户端查询缓存是模块级单例：每例清空，免得上一例拉到的数据漏进下一例；单测里失败不重试。
 // 通知同步发（默认是 setTimeout 0）：`act(…)` 一结束，缓存的改动就已经画上去。
 notifyManager.setScheduler((callback) => callback())
+// 真组件串真 hook 后，界面要等几拍接口（假的也是异步）才画出来；全量并发跑（pre-push
+// 时 4 核满载）默认 1 秒的 findBy / waitFor 偶尔不够。放宽到 5 秒：通过的用例不变慢，
+// 只是真卡住时晚一点报。
+configure({ asyncUtilTimeout: 5000 })
 queryClient.setDefaultOptions({
   queries: { ...queryClient.getDefaultOptions().queries, retry: false },
 })

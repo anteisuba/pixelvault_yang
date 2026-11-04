@@ -3,7 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { API_ENDPOINTS } from '@/constants/config'
 import { AI_MODELS } from '@/constants/models'
-import { STUDIO_GUIDE_SEEN_STORAGE_KEY } from '@/constants/studio'
+import {
+  STUDIO_GUIDE_SEEN_STORAGE_KEY,
+  type ImageBatchCount,
+} from '@/constants/studio'
 import { stubBrowserLayout } from '@/test/browser-stubs'
 import { text } from '@/test/i18n-text'
 import {
@@ -67,7 +70,7 @@ interface Setup {
   /** 再挂几个同厂商的（图片档多模型）。 */
   extra?: string[]
   prompt?: string
-  batch?: number
+  batch?: ImageBatchCount
   duration?: number
   references?: string[]
   overlay?: React.ReactNode

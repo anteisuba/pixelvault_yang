@@ -1,4 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import {
+  afterEach,
+  describe,
+  it,
+  expect,
+  vi,
+  beforeEach,
+  type MockInstance,
+} from 'vitest'
 
 vi.mock('server-only', () => ({}))
 
@@ -6,29 +14,11 @@ vi.mock('@/lib/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }))
 
-const mockEnsureUser = vi.fn()
-vi.mock('@/services/user.service', () => ({
-  ensureUser: (...a: unknown[]) => mockEnsureUser(...a),
-}))
-
 /**
- * ⭐ 路由是**真的**（`resolveAssistantRoute` + `resolveLlmTextRoute`），只桩库与补全那一跳
- * （owner 2026-10-15「全跟助手」）：标签台翻译此前就是在路由里悄悄换了一家。
+ * ⭐ 路由是**真的**（`resolveAssistantRoute` + `resolveLlmTextRoute`），key 与人设是真库里的行
+ * （L2a），只假补全那一跳与 NovelAI 联想的网络（owner 2026-10-15「全跟助手」）：标签台翻译此前
+ * 就是在路由里悄悄换了一家。
  */
-const keyStore = vi.hoisted(() => ({
-  findFirst: vi.fn(),
-  findMany: vi.fn(),
-  personaFindUnique: vi.fn(),
-}))
-vi.mock('@/lib/db', () => ({
-  db: {
-    userApiKey: { findFirst: keyStore.findFirst, findMany: keyStore.findMany },
-    assistantPersona: { findUnique: keyStore.personaFindUnique },
-  },
-}))
-vi.mock('@/lib/crypto', () => ({
-  decryptApiKey: (encrypted: string) => `plain:${encrypted}`,
-}))
 
 const mockLlmCompletion = vi.fn()
 vi.mock('@/services/llm-text.service', async (importOriginal) => ({
@@ -36,40 +26,55 @@ vi.mock('@/services/llm-text.service', async (importOriginal) => ({
   llmTextCompletion: (...a: unknown[]) => mockLlmCompletion(...a),
 }))
 
-const mockCheckTags = vi.fn()
-vi.mock('@/services/novelai-tags.service', () => ({
-  checkNovelAiPromptTags: (...a: unknown[]) => mockCheckTags(...a),
-}))
+/** NovelAI 官方联想（标签核对查本地词表查不到的那几个）：只假网络。 */
+const naiSuggest = vi.fn<(prompt: string) => Promise<Response>>()
 
 import { ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE } from '@/constants/assistant-operator'
 import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { ApiRequestError } from '@/lib/errors'
 import { translatePromptToTags } from '@/services/kernel/prompt-to-tags.service'
-import {
-  assistantKey,
-  seedAssistantRoute,
-} from '@/test/assistant-route-fixture'
+import { db } from '@/lib/db'
+import { plainKeyOf, seedAssistantKeys } from '@/test/int/assistant-keys'
+import { createTestUser, resetDatabase } from '@/test/int/db'
 import {
   expectSelectedProviderOnly,
   keyLookupUsesOf,
   providerUsesOf,
 } from '@/test/selected-provider-only'
 
+let userId = ''
+let findFirstSpy: MockInstance
+
+/** 这个人的 key / 人设换成这一套（真库）。 */
+async function seed(setup: Parameters<typeof seedAssistantKeys>[1]) {
+  await db.userApiKey.deleteMany({ where: { userId } })
+  await db.assistantPersona.deleteMany({ where: { userId } })
+  await seedAssistantKeys(userId, setup)
+  findFirstSpy.mockClear()
+}
+
 describe('translatePromptToTags', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    vi.restoreAllMocks()
     vi.clearAllMocks()
-    mockEnsureUser.mockResolvedValue({ id: 'db_user_1' })
-    seedAssistantRoute(keyStore, {
-      keys: [assistantKey(AI_ADAPTER_TYPES.GEMINI)],
+    await resetDatabase()
+    userId = (await createTestUser({ clerkId: 'clerk_1' })).id
+    findFirstSpy = vi.spyOn(db.userApiKey, 'findFirst')
+    await seed({
+      keys: [{ adapterType: AI_ADAPTER_TYPES.GEMINI }],
     })
-    mockCheckTags.mockImplementation(
-      async ({ prompt }: { prompt: string }) => ({
-        prompt,
-        fixes: [],
-        unknown: [],
-      }),
-    )
+    naiSuggest.mockResolvedValue(Response.json({ tags: [] }))
+    vi.stubGlobal('fetch', (input: string | URL) => {
+      const url = new URL(String(input))
+      if (!url.pathname.endsWith('/suggest-tags'))
+        throw new Error(`unexpected fetch ${url.href}`)
+      return naiSuggest(url.searchParams.get('prompt') ?? '')
+    })
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
   })
 
   it('sends the sentence as-is and returns the cleaned tag list', async () => {
@@ -90,12 +95,19 @@ describe('translatePromptToTags', () => {
   })
 
   it('runs the translated tags through the tag check with the selected model', async () => {
-    mockLlmCompletion.mockResolvedValue('1girl, schol uniform')
-    mockCheckTags.mockResolvedValue({
-      prompt: '1girl, school uniform',
-      fixes: [{ from: 'schol uniform', to: 'school uniform' }],
-      unknown: [],
+    // 本地词表查不到的那个，用这个人自己的 NovelAI key 问官方联想。
+    await seedAssistantKeys(userId, {
+      keys: [{ adapterType: AI_ADAPTER_TYPES.NOVELAI }],
     })
+    mockLlmCompletion.mockResolvedValue('1girl, schol uniform')
+    naiSuggest.mockImplementation(async (prompt) =>
+      Response.json({
+        tags:
+          prompt === 'schol uniform'
+            ? [{ tag: 'school uniform', count: 900000, confidence: 0.9 }]
+            : [],
+      }),
+    )
 
     const result = await translatePromptToTags('clerk_1', {
       prompt: 'a schoolgirl',
@@ -103,20 +115,21 @@ describe('translatePromptToTags', () => {
     })
 
     expect(result).toEqual({ tags: '1girl, school uniform' })
-    expect(mockCheckTags).toHaveBeenCalledWith({
-      userId: 'db_user_1',
-      modelId: 'nai-diffusion-4-5-full',
-      prompt: '1girl, schol uniform',
-    })
   })
 
   it('keeps the translation when the tag check fails', async () => {
-    mockLlmCompletion.mockResolvedValue('1girl, rain')
-    mockCheckTags.mockRejectedValue(new Error('lookup down'))
+    await seedAssistantKeys(userId, {
+      keys: [{ adapterType: AI_ADAPTER_TYPES.NOVELAI }],
+    })
+    mockLlmCompletion.mockResolvedValue('1girl, raiin')
+    naiSuggest.mockRejectedValue(new TypeError('fetch failed'))
 
     await expect(
-      translatePromptToTags('clerk_1', { prompt: 'a girl in the rain' }),
-    ).resolves.toEqual({ tags: '1girl, rain' })
+      translatePromptToTags('clerk_1', {
+        prompt: 'a girl in the rain',
+        modelId: 'nai-diffusion-4-5-full',
+      }),
+    ).resolves.toEqual({ tags: '1girl, raiin' })
   })
 
   it('rejects a reply that is a paragraph instead of tags', async () => {
@@ -133,7 +146,7 @@ describe('translatePromptToTags', () => {
       errorCode: 'PROMPT_TAGS_UNUSABLE',
       i18nKey: 'errors.promptTags.unusable',
     })
-    expect(mockCheckTags).not.toHaveBeenCalled()
+    expect(naiSuggest).not.toHaveBeenCalled()
   })
 
   /**
@@ -142,10 +155,10 @@ describe('translatePromptToTags', () => {
    */
   describe('只用助手那一家', () => {
     it('「自动」：顺序里第一家配了 key 的（DeepSeek），连型号一起', async () => {
-      seedAssistantRoute(keyStore, {
+      await seed({
         keys: [
-          assistantKey(AI_ADAPTER_TYPES.ANTHROPIC),
-          assistantKey(AI_ADAPTER_TYPES.DEEPSEEK),
+          { adapterType: AI_ADAPTER_TYPES.ANTHROPIC },
+          { adapterType: AI_ADAPTER_TYPES.DEEPSEEK },
         ],
       })
       mockLlmCompletion.mockResolvedValue('1girl, rain')
@@ -157,19 +170,19 @@ describe('translatePromptToTags', () => {
       })
       expectSelectedProviderOnly(
         [
-          ...keyLookupUsesOf(keyStore.findFirst),
+          ...keyLookupUsesOf(findFirstSpy),
           ...providerUsesOf(mockLlmCompletion, 'tag translation'),
         ],
         {
           adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
-          apiKey: `plain:enc_${AI_ADAPTER_TYPES.DEEPSEEK}`,
+          apiKey: plainKeyOf(AI_ADAPTER_TYPES.DEEPSEEK),
         },
       )
     })
 
     it('选了 Claude 却只有 Gemini 的 key → 照实报那句错，⛔ 一个字都没发给 Gemini', async () => {
-      seedAssistantRoute(keyStore, {
-        keys: [assistantKey(AI_ADAPTER_TYPES.GEMINI)],
+      await seed({
+        keys: [{ adapterType: AI_ADAPTER_TYPES.GEMINI }],
         routeModel: LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5,
       })
 
@@ -182,7 +195,7 @@ describe('translatePromptToTags', () => {
       expect(mockLlmCompletion).not.toHaveBeenCalled()
       expectSelectedProviderOnly(
         [
-          ...keyLookupUsesOf(keyStore.findFirst),
+          ...keyLookupUsesOf(findFirstSpy),
           ...providerUsesOf(mockLlmCompletion, 'tag translation'),
         ],
         { adapterType: AI_ADAPTER_TYPES.ANTHROPIC },

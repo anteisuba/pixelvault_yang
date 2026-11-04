@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, type MockInstance } from 'vitest'
 
 vi.mock('server-only', () => ({}))
 
@@ -6,31 +6,11 @@ vi.mock('@/lib/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }))
 
-const mockEnsureUser = vi.fn()
-vi.mock('@/services/user.service', () => ({
-  ensureUser: (...a: unknown[]) => mockEnsureUser(...a),
-}))
-
 /**
  * ⭐ 路由是**真的**（`resolveKeyOrAssistantRoute` → `resolveAssistantRoute` /
- * `resolveLlmTextRoute`），只桩库与补全那一跳（owner 2026-10-15「全跟助手」）：没点名 key 时
- * 润色此前走旧的自动兜底，不认助手选的型号。
+ * `resolveLlmTextRoute`），key 与人设是真库里的行（L2a），只假补全那一跳（owner 2026-10-15
+ * 「全跟助手」）：没点名 key 时润色此前走旧的自动兜底，不认助手选的型号。
  */
-const keyStore = vi.hoisted(() => ({
-  findFirst: vi.fn(),
-  findMany: vi.fn(),
-  personaFindUnique: vi.fn(),
-}))
-vi.mock('@/lib/db', () => ({
-  db: {
-    userApiKey: { findFirst: keyStore.findFirst, findMany: keyStore.findMany },
-    assistantPersona: { findUnique: keyStore.personaFindUnique },
-  },
-}))
-vi.mock('@/lib/crypto', () => ({
-  decryptApiKey: (encrypted: string) => `plain:${encrypted}`,
-}))
-
 const mockLlmCompletion = vi.fn()
 vi.mock('@/services/llm-text.service', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/services/llm-text.service')>()),
@@ -46,28 +26,39 @@ import {
 } from '@/constants/config'
 import { AI_MODELS } from '@/constants/models'
 import { AssistantModelKeyMissingError } from '@/lib/errors'
-import {
-  assistantKey,
-  seedAssistantRoute,
-} from '@/test/assistant-route-fixture'
+import { db } from '@/lib/db'
+import { plainKeyOf, seedAssistantKeys } from '@/test/int/assistant-keys'
+import { createTestUser, resetDatabase } from '@/test/int/db'
 import {
   expectSelectedProviderOnly,
   keyLookupUsesOf,
   providerUsesOf,
 } from '@/test/selected-provider-only'
 
-const FAKE_USER = { id: 'db_user_1', clerkId: 'clerk_1' }
+let userId = ''
+let findFirstSpy: MockInstance
+
+/** 这个人的 key / 人设换成这一套（真库）。 */
+async function seed(setup: Parameters<typeof seedAssistantKeys>[1]) {
+  await db.userApiKey.deleteMany({ where: { userId } })
+  await db.assistantPersona.deleteMany({ where: { userId } })
+  await seedAssistantKeys(userId, setup)
+  findFirstSpy.mockClear()
+}
 
 const ORIGINAL_PROMPT = 'a cat under a tree'
 const ENHANCED_REPLY =
   'A tabby cat rests beneath a gnarled oak, dappled late-afternoon sunlight filtering through layered leaves, soft chiaroscuro on the fur, subsurface scattering on the ears, shallow depth of field with 85mm compression, warm earth-tone palette, calm contemplative mood.'
 
 describe('enhancePrompt', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    vi.restoreAllMocks()
     vi.clearAllMocks()
-    mockEnsureUser.mockResolvedValue(FAKE_USER)
-    seedAssistantRoute(keyStore, {
-      keys: [assistantKey(AI_ADAPTER_TYPES.GEMINI)],
+    await resetDatabase()
+    userId = (await createTestUser({ clerkId: 'clerk_1' })).id
+    findFirstSpy = vi.spyOn(db.userApiKey, 'findFirst')
+    await seed({
+      keys: [{ adapterType: AI_ADAPTER_TYPES.GEMINI }],
     })
   })
 
@@ -163,10 +154,10 @@ describe('enhancePrompt', () => {
   })
 
   it('⭐ 没点名 key = 助手那一家、那个型号（⛔ 不是顺序里排第一的 Gemini）', async () => {
-    seedAssistantRoute(keyStore, {
+    await seed({
       keys: [
-        assistantKey(AI_ADAPTER_TYPES.GEMINI),
-        assistantKey(AI_ADAPTER_TYPES.ANTHROPIC),
+        { adapterType: AI_ADAPTER_TYPES.GEMINI },
+        { adapterType: AI_ADAPTER_TYPES.ANTHROPIC },
       ],
       routeModel: LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5,
     })
@@ -177,27 +168,27 @@ describe('enhancePrompt', () => {
     expect(mockLlmCompletion).toHaveBeenCalledWith(
       expect.objectContaining({
         adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
-        apiKey: `plain:enc_${AI_ADAPTER_TYPES.ANTHROPIC}`,
+        apiKey: plainKeyOf(AI_ADAPTER_TYPES.ANTHROPIC),
         modelId: LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5,
       }),
     )
     expectSelectedProviderOnly(
       [
-        ...keyLookupUsesOf(keyStore.findFirst),
+        ...keyLookupUsesOf(findFirstSpy),
         ...providerUsesOf(mockLlmCompletion, 'enhance'),
       ],
       {
         adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
-        apiKey: `plain:enc_${AI_ADAPTER_TYPES.ANTHROPIC}`,
+        apiKey: plainKeyOf(AI_ADAPTER_TYPES.ANTHROPIC),
       },
     )
   })
 
   it('点名了一把 key：就用它，型号是那一家的默认档（照旧）', async () => {
-    seedAssistantRoute(keyStore, {
+    await seed({
       keys: [
-        assistantKey(AI_ADAPTER_TYPES.GEMINI),
-        assistantKey(AI_ADAPTER_TYPES.OPENAI),
+        { adapterType: AI_ADAPTER_TYPES.GEMINI },
+        { adapterType: AI_ADAPTER_TYPES.OPENAI },
       ],
     })
     mockLlmCompletion.mockResolvedValue(ENHANCED_REPLY)
@@ -213,7 +204,7 @@ describe('enhancePrompt', () => {
     const call = mockLlmCompletion.mock.calls[0]?.[0] as Record<string, unknown>
     expect(call).toMatchObject({
       adapterType: AI_ADAPTER_TYPES.OPENAI,
-      apiKey: `plain:enc_${AI_ADAPTER_TYPES.OPENAI}`,
+      apiKey: plainKeyOf(AI_ADAPTER_TYPES.OPENAI),
     })
     expect(call).not.toHaveProperty('modelId')
     expectSelectedProviderOnly(providerUsesOf(mockLlmCompletion, 'enhance'), {
@@ -222,8 +213,8 @@ describe('enhancePrompt', () => {
   })
 
   it('⛔ 助手选的那一家没 key → 照实抛，⛔ 不拿别家的 key 润色', async () => {
-    seedAssistantRoute(keyStore, {
-      keys: [assistantKey(AI_ADAPTER_TYPES.GEMINI)],
+    await seed({
+      keys: [{ adapterType: AI_ADAPTER_TYPES.GEMINI }],
       routeModel: LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5,
     })
 

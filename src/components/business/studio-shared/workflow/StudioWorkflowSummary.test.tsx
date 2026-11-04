@@ -1,70 +1,72 @@
-import { render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { act, screen } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { WORKFLOW_IDS } from '@/constants/workflows'
+import type { StudioDraft } from '@/hooks/use-studio-draft'
+import { message } from '@/test/app-harness'
+import { fakeStudioServer, renderWithStudio } from '@/test/studio-harness'
 
 import { StudioWorkflowSummary } from './StudioWorkflowSummary'
 
-const contextState = vi.hoisted(() => ({
-  selectedWorkflowId: '',
-  prompt: '',
-  selectedWorkflow: undefined as
-    | {
-        publicNameKey: string
-        descriptionKey: string
-      }
-    | undefined,
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({ isLoaded: true, isSignedIn: true, userId: 'user-a' }),
+}))
+vi.mock('@/i18n/navigation', () => ({
+  usePathname: () => '/studio/image',
+  useRouter: () => ({ push: vi.fn() }),
 }))
 
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
-}))
+beforeEach(() => {
+  fakeStudioServer()
+})
+afterEach(() => vi.unstubAllGlobals())
 
-vi.mock('@/contexts/studio-context', () => ({
-  useStudioContext: () => ({
-    state: { prompt: contextState.prompt },
-    selectedWorkflowId: contextState.selectedWorkflowId,
-    getSelectedWorkflow: () => contextState.selectedWorkflow,
-  }),
-}))
+const EMPTY_HINT = () => message('StudioPage.workflowEmptyHint')
 
 describe('StudioWorkflowSummary', () => {
   it('shows the selected workflow name and description', () => {
-    contextState.selectedWorkflowId = WORKFLOW_IDS.QUICK_IMAGE
-    contextState.prompt = 'already started'
-    contextState.selectedWorkflow = {
-      publicNameKey: 'workflows.QUICK_IMAGE.name',
-      descriptionKey: 'workflows.QUICK_IMAGE.description',
-    }
+    const { studio } = renderWithStudio(<StudioWorkflowSummary />)
+    act(() => {
+      studio.current.setSelectedWorkflowId(WORKFLOW_IDS.QUICK_IMAGE)
+      studio.current.dispatch({
+        type: 'SET_PROMPT',
+        payload: 'already started',
+      })
+    })
 
-    render(<StudioWorkflowSummary />)
-
-    expect(screen.getByText('workflows.QUICK_IMAGE.name')).toBeInTheDocument()
     expect(
-      screen.getByText('workflows.QUICK_IMAGE.description'),
+      screen.getByText(message('workflows.QUICK_IMAGE.name')),
     ).toBeInTheDocument()
+    expect(
+      screen.getByText(message('workflows.QUICK_IMAGE.description')),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(EMPTY_HINT())).not.toBeInTheDocument()
   })
 
   it('shows the workflow empty hint when workflow is missing', () => {
-    contextState.selectedWorkflowId = 'MISSING_WORKFLOW'
-    contextState.prompt = ''
-    contextState.selectedWorkflow = undefined
+    const { studio } = renderWithStudio(<StudioWorkflowSummary />)
+    // 旧草稿里存着一个已经不在的工作流 id。
+    act(() => {
+      studio.current.dispatch({
+        type: 'RESTORE_WORKSPACE_DRAFT',
+        payload: {
+          draft: {
+            selectedWorkflowId: 'MISSING_WORKFLOW',
+          } as unknown as StudioDraft,
+          applyTransfer: false,
+        },
+      })
+    })
 
-    render(<StudioWorkflowSummary />)
-
-    expect(screen.getByText('workflowEmptyHint')).toBeInTheDocument()
+    expect(screen.getByText(EMPTY_HINT())).toBeInTheDocument()
   })
 
   it('shows the workflow empty hint in the initial prompt state', () => {
-    contextState.selectedWorkflowId = WORKFLOW_IDS.QUICK_IMAGE
-    contextState.prompt = ''
-    contextState.selectedWorkflow = {
-      publicNameKey: 'workflows.QUICK_IMAGE.name',
-      descriptionKey: 'workflows.QUICK_IMAGE.description',
-    }
+    renderWithStudio(<StudioWorkflowSummary />)
 
-    render(<StudioWorkflowSummary />)
-
-    expect(screen.getByText('workflowEmptyHint')).toBeInTheDocument()
+    expect(
+      screen.getByText(message('workflows.QUICK_IMAGE.name')),
+    ).toBeInTheDocument()
+    expect(screen.getByText(EMPTY_HINT())).toBeInTheDocument()
   })
 })

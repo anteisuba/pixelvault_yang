@@ -1,14 +1,16 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, screen } from '@testing-library/react'
 import type { ReactNode } from 'react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { TooltipProvider } from '@/components/ui/tooltip'
+import {
+  resetOperatorThread,
+  setOperatorSession,
+} from '@/hooks/use-studio-operator-store'
+import { message, renderWithApp } from '@/test/app-harness'
 
 import { StudioBenchPicker } from './StudioShellBench'
 
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
-}))
 vi.mock('@/i18n/navigation', () => ({
   Link: ({
     href,
@@ -21,12 +23,14 @@ vi.mock('@/i18n/navigation', () => ({
   ),
   useRouter: () => ({ push: vi.fn() }),
 }))
-vi.mock('@/hooks/use-studio-operator-store', () => ({
-  useStudioOperatorState: () => ({ sessionId: 's1' }),
-}))
+const render = (ui: React.ReactElement) => renderWithApp(ui)
+
+afterEach(() => resetOperatorThread())
 
 describe('StudioBenchPicker（左栏「工作台」那一条，用户 10-25）', () => {
   it('六个台竖着一排，点一个进那个台（带上这段对话），点完收起', () => {
+    // 真的助手台面：这段对话已经落过库（有 sessionId）。
+    setOperatorSession('s1', null)
     const onPicked = vi.fn()
     render(
       <TooltipProvider>
@@ -56,7 +60,7 @@ describe('StudioBenchPicker（左栏「工作台」那一条，用户 10-25）',
     )
 
     const lora = screen.getByRole('link', {
-      name: 'StudioTools.tools.lora.label',
+      name: message('StudioTools.tools.lora.label'),
     })
     expect(lora).toHaveAttribute('aria-current', 'page')
     expect(lora.getAttribute('href')).not.toContain('/lora')

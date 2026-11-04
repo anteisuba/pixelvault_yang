@@ -1,3 +1,7 @@
+/**
+ * 画布上的角色卡：真角色库 hook、真「用她出过的」hook、真画布助手草稿；
+ * 只假角色卡接口、React Flow 的画布量尺与 next-intl。
+ */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -32,47 +36,46 @@ vi.mock('motion/react', async (importOriginal) => ({
   useReducedMotion: () => true,
 }))
 
-const mockLibrary = vi.hoisted(() => ({
-  value: { cards: [] as unknown[], loaded: true },
-}))
-vi.mock('@/features/cards/hooks/use-character-library', () => ({
-  useCharacterLibrary: () => ({
-    ...mockLibrary.value,
-    find: (id: string) =>
-      (mockLibrary.value.cards as { id: string }[]).find(
-        (card) => card.id === id,
-      ) ?? null,
-  }),
-}))
-
-const requestOperatorDraft = vi.hoisted(() => vi.fn())
-vi.mock('@/hooks/use-studio-operator-store', () => ({
-  requestOperatorDraft,
-}))
-
-vi.mock('@/features/cards/hooks/use-character-card-usage', () => ({
-  useCharacterCardUsage: () => ({
-    generations: [
-      {
-        id: 'g_1',
-        url: 'https://cdn.test/made.png',
-        width: 832,
-        height: 1216,
-      },
-    ],
-    total: 1,
-    isLoading: false,
-  }),
+/** 角色库接口这一回回什么；`null` = 一直没回来。 */
+const library = vi.hoisted(() => ({ cards: [] as unknown[] | null }))
+vi.mock('@/lib/api-client/cards', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api-client/cards')>()),
+  listCharacterCardsAPI: vi.fn(() =>
+    library.cards === null
+      ? new Promise(() => {})
+      : Promise.resolve({ success: true, data: library.cards }),
+  ),
+  // 「用她出过的」那一条。
+  getCharacterCardGenerationsAPI: vi.fn(async () => ({
+    success: true,
+    data: {
+      generations: [
+        {
+          id: 'g_1',
+          url: 'https://cdn.test/made.png',
+          width: 832,
+          height: 1216,
+        },
+      ],
+      total: 1,
+    },
+  })),
 }))
 
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import type { NodeV4 } from '@/types/node-workflow'
 
-import { CharacterNodeV4 } from './CharacterNodeV4'
-import {
-  NodeV4CanvasProvider,
-  type NodeV4CanvasContextValue,
-} from './NodeV4Context'
+import type { NodeV4CanvasContextValue } from './NodeV4Context'
+
+/**
+ * 角色库、助手草稿都是模块级的一份（全页共用）：每例重新载入模块，
+ * 上一例拉回来的角色库不会让下一例「已经拉回来过」。
+ */
+let mod: {
+  CharacterNodeV4: typeof import('./CharacterNodeV4').CharacterNodeV4
+  NodeV4CanvasProvider: typeof import('./NodeV4Context').NodeV4CanvasProvider
+  operator: typeof import('@/hooks/use-studio-operator-store')
+}
 
 const DENIA = {
   id: 'denia',
@@ -151,26 +154,46 @@ function harness(
   } as NodeV4CanvasContextValue
 }
 
-function renderRole(
+async function renderRole(
   context: NodeV4CanvasContextValue,
-  { selected = false, node = roleNode() } = {},
+  { selected = false, node = roleNode(), waitLibrary = true } = {},
 ) {
-  return render(
+  const { CharacterNodeV4, NodeV4CanvasProvider } = mod
+  const view = render(
     <NodeV4CanvasProvider value={context}>
       {/* @ts-expect-error NodeProps 的其余字段本组测试用不到 */}
       <CharacterNodeV4 id={node.id} data={node.data} selected={selected} />
     </NodeV4CanvasProvider>,
   )
+  // 角色库拉回来之前卡面什么都不说（见最后一组）。
+  if (waitLibrary)
+    await waitFor(() =>
+      expect(document.querySelector('[data-character-node]')).not.toBeNull(),
+    )
+  return view
 }
 
-beforeEach(() => {
-  mockLibrary.value = { cards: [DENIA], loaded: true }
+/** 画布助手那一格收到的草稿（取走即清）。 */
+const draftForCanvas = () =>
+  mod.operator.takeOperatorDraft('user-a:thread', 'canvas:p1')
+
+beforeEach(async () => {
+  vi.resetModules()
+  library.cards = [DENIA]
+  mod = {
+    CharacterNodeV4: (await import('./CharacterNodeV4')).CharacterNodeV4,
+    NodeV4CanvasProvider: (await import('./NodeV4Context'))
+      .NodeV4CanvasProvider,
+    operator: await import('@/hooks/use-studio-operator-store'),
+  }
+  // 画布助手开着（草稿只投给眼前那一格）。
+  mod.operator.claimOperatorThreadScope('user-a:thread', 'canvas')
 })
 
 describe('画布上的角色卡（画布用角色 ④ 方向 A）', () => {
-  it('收起：卡就是她的主图，名字现读角色库；没有工具条、没有「图片 / 文字」', () => {
-    renderRole(harness({ selectedNodeIds: [] }))
-    expect(screen.getByRole('img', { name: 'Denia' })).toHaveAttribute(
+  it('收起：卡就是她的主图，名字现读角色库；没有工具条、没有「图片 / 文字」', async () => {
+    await renderRole(harness({ selectedNodeIds: [] }))
+    expect(await screen.findByRole('img', { name: 'Denia' })).toHaveAttribute(
       'src',
       'https://cdn.test/main.png',
     )
@@ -178,18 +201,24 @@ describe('画布上的角色卡（画布用角色 ④ 方向 A）', () => {
     expect(screen.queryByRole('tablist')).toBeNull()
   })
 
-  it('选中 = 原地展开：⛔ 没有工具条、没有底部提示词面板', () => {
-    renderRole(harness(), { selected: true })
+  it('选中 = 原地展开：⛔ 没有工具条、没有底部提示词面板', async () => {
+    await renderRole(harness(), { selected: true })
     expect(screen.queryByTestId('flow-toolbar-top')).toBeNull()
     expect(screen.queryByTestId('flow-toolbar-bottom')).toBeNull()
-    expect(screen.getByRole('tablist', { name: 'tabsLabel' })).toBeTruthy()
+    expect(
+      await screen.findByRole('tablist', { name: 'tabsLabel' }),
+    ).toBeTruthy()
   })
 
   it('图片页：卡上的在前、用她出的在后；点一张 = 右边落一张普通图片卡并选中，⛔ 不连线', async () => {
     const context = harness()
-    renderRole(context, { selected: true })
+    await renderRole(context, { selected: true })
+    await waitFor(() =>
+      expect(document.querySelectorAll('[data-character-tile]')).toHaveLength(
+        3,
+      ),
+    )
     const tiles = document.querySelectorAll('[data-character-tile]')
-    expect(tiles).toHaveLength(3)
     fireEvent.click(tiles[2]!)
 
     await waitFor(() => expect(context.onSetMedia).toHaveBeenCalled())
@@ -217,8 +246,8 @@ describe('画布上的角色卡（画布用角色 ④ 方向 A）', () => {
     expect(context.onFocusNode).not.toHaveBeenCalled()
   })
 
-  it('文字页：外观在前，再是写了的设定格；只读，要改去角色页', () => {
-    renderRole(harness(), { selected: true })
+  it('文字页：外观在前，再是写了的设定格；只读，要改去角色页', async () => {
+    await renderRole(harness(), { selected: true })
     fireEvent.click(screen.getByRole('tab', { name: 'textTab' }))
     return waitFor(() => {
       expect(screen.getByText('粉色长卷发、发梢浅蓝')).toBeTruthy()
@@ -230,23 +259,17 @@ describe('画布上的角色卡（画布用角色 ④ 方向 A）', () => {
   })
 
   it('文字页两键：把一句带 @她 的话填进画布助手（⛔ 不替用户发）', async () => {
-    renderRole(harness(), { selected: true })
+    await renderRole(harness(), { selected: true })
     fireEvent.click(screen.getByRole('tab', { name: 'textTab' }))
     fireEvent.click(await screen.findByRole('button', { name: 'writeScript' }))
-    expect(requestOperatorDraft).toHaveBeenLastCalledWith(
-      'canvas',
-      'writeScriptDraft:Denia',
-    )
+    expect(draftForCanvas()).toBe('writeScriptDraft:Denia')
     fireEvent.click(screen.getByRole('button', { name: 'writeLines' }))
-    expect(requestOperatorDraft).toHaveBeenLastCalledWith(
-      'canvas',
-      'writeLinesDraft:Denia',
-    )
+    expect(draftForCanvas()).toBe('writeLinesDraft:Denia')
   })
 
-  it('右键菜单只有「整理排布 · 删除」（展开 / 下载 / 克隆对她没意义）', () => {
+  it('右键菜单只有「整理排布 · 删除」（展开 / 下载 / 克隆对她没意义）', async () => {
     const context = harness({ selectedNodeIds: [] })
-    renderRole(context)
+    await renderRole(context)
     fireEvent.contextMenu(
       document.querySelector('[data-character-node]') as HTMLElement,
     )
@@ -261,13 +284,15 @@ describe('画布上的角色卡（画布用角色 ④ 方向 A）', () => {
     })
   })
 
-  it('角色库里删了她：灰底一句话 +「从画布移除」', () => {
-    mockLibrary.value = { cards: [], loaded: true }
+  it('角色库里删了她：灰底一句话 +「从画布移除」', async () => {
+    library.cards = []
     const context = harness({ selectedNodeIds: [] })
-    renderRole(context)
-    expect(
-      document.querySelector('[data-character-face="deleted"]'),
-    ).not.toBeNull()
+    await renderRole(context)
+    await waitFor(() =>
+      expect(
+        document.querySelector('[data-character-face="deleted"]'),
+      ).not.toBeNull(),
+    )
     fireEvent.click(screen.getByRole('button', { name: 'remove' }))
     expect(context.onApplyOp).toHaveBeenCalledWith({
       op: NODE_ASSISTANT_OP_V4_IDS.delete,
@@ -275,23 +300,22 @@ describe('画布上的角色卡（画布用角色 ④ 方向 A）', () => {
     })
   })
 
-  it('角色库还没拉回来时不说「已删除」', () => {
-    mockLibrary.value = { cards: [], loaded: false }
-    renderRole(harness({ selectedNodeIds: [] }))
+  it('角色库还没拉回来时不说「已删除」', async () => {
+    library.cards = null
+    await renderRole(harness({ selectedNodeIds: [] }), { waitLibrary: false })
     expect(document.querySelector('[data-character-face]')).toBeNull()
   })
 
-  it('她还没有图：灰底「还没有图」+ 去角色页加图，⛔ 不画空虚线框', () => {
-    mockLibrary.value = {
-      cards: [
-        { ...DENIA, looks: [{ ...DENIA.looks[0]!, referenceSlots: [] }] },
-      ],
-      loaded: true,
-    }
-    renderRole(harness({ selectedNodeIds: [] }))
-    expect(
-      document.querySelector('[data-character-face="no-images"]'),
-    ).not.toBeNull()
+  it('她还没有图：灰底「还没有图」+ 去角色页加图，⛔ 不画空虚线框', async () => {
+    library.cards = [
+      { ...DENIA, looks: [{ ...DENIA.looks[0]!, referenceSlots: [] }] },
+    ]
+    await renderRole(harness({ selectedNodeIds: [] }))
+    await waitFor(() =>
+      expect(
+        document.querySelector('[data-character-face="no-images"]'),
+      ).not.toBeNull(),
+    )
     expect(document.querySelector('[data-node-card-add]')).toBeNull()
   })
 })

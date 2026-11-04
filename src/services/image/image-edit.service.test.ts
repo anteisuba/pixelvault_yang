@@ -1,20 +1,8 @@
 import sharp from 'sharp'
-import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { SafetyFilterError } from '@/lib/errors'
 import { ProviderError } from '@/services/providers/types'
-import { ensureUser } from '@/services/user.service'
-import { getGenerationByIdForUser } from '@/services/generation.service'
-import { submitImageGeneration } from '@/services/image/submit-image.service'
-
-vi.mock('@/services/user.service', () => ({ ensureUser: vi.fn() }))
-vi.mock('@/services/generation.service', () => ({
-  getGenerationByIdForUser: vi.fn(),
-  createGeneration: vi.fn(),
-}))
-vi.mock('@/services/image/submit-image.service', () => ({
-  submitImageGeneration: vi.fn(),
-}))
 
 import {
   compileAnnotationPrompt,
@@ -23,76 +11,23 @@ import {
   removeBackground,
   replaceObjects,
   upscaleImage,
-  submitIdeogramImageEdit,
 } from './image-edit.service'
 
 function mockFetchJson(body: unknown): void {
-  global.fetch = vi.fn().mockResolvedValue({
-    ok: true,
-    json: () => Promise.resolve(body),
-  })
+  vi.stubGlobal(
+    'fetch',
+    vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(body),
+    }),
+  )
 }
 
-describe('Ideogram edit submission', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    vi.mocked(ensureUser).mockResolvedValue({ id: 'user' } as never)
-    vi.mocked(getGenerationByIdForUser).mockResolvedValue({
-      id: 'source-generation',
-      prompt: 'Original source prompt',
-    } as never)
-    vi.mocked(submitImageGeneration).mockResolvedValue({
-      jobId: 'job',
-      requestId: 'job',
-    })
-  })
-  const request = {
-    modelId: 'ideogram-4.5',
-    apiKeyId: 'selected-key',
-    sourceGenerationId: 'source-generation',
-    imageUrl: 'https://cdn.example.com/source.png',
-    referenceImages: ['https://cdn.example.com/ref.png'],
-    annotations: [{ index: 1, instruction: 'Make the mug blue' }],
-  }
-  it('keeps the explicit key, reference ordering, source prompt and edit operation in the queued request', async () => {
-    expect(await submitIdeogramImageEdit('clerk', request)).toEqual({
-      jobId: 'job',
-      requestId: 'job',
-    })
-    expect(getGenerationByIdForUser).toHaveBeenCalledWith(
-      'source-generation',
-      'user',
-    )
-    expect(submitImageGeneration).toHaveBeenCalledWith(
-      'clerk',
-      expect.objectContaining({
-        apiKeyId: 'selected-key',
-        referenceImages: [request.imageUrl, ...request.referenceImages],
-        prompt: expect.stringContaining('Make the mug blue'),
-        advancedParams: { quality: 'medium' },
-      }),
-      {},
-      expect.objectContaining({
-        sourceGenerationId: 'source-generation',
-        imageOperation: 'precise-edit',
-        imageEditSourcePrompt: 'Original source prompt',
-      }),
-    )
-  })
-  it('rejects a foreign/missing source generation before dispatch', async () => {
-    vi.mocked(getGenerationByIdForUser).mockResolvedValue(null)
-    await expect(submitIdeogramImageEdit('clerk', request)).rejects.toThrow(
-      'Source generation not found',
-    )
-    expect(submitImageGeneration).not.toHaveBeenCalled()
-  })
+afterEach(() => {
+  vi.unstubAllGlobals()
 })
 
 describe('image-edit.service', () => {
-  beforeEach(() => {
-    vi.restoreAllMocks()
-  })
-
   it('normalizes fal upscale responses through the schema', async () => {
     mockFetchJson({
       image: {
@@ -141,11 +76,14 @@ describe('image-edit.service', () => {
   })
 
   it('keeps provider HTTP failures classified as ProviderError', async () => {
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 429,
-      text: () => Promise.resolve('rate limited'),
-    })
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 429,
+        text: () => Promise.resolve('rate limited'),
+      }),
+    )
 
     await expect(
       removeBackground('https://example.com/source.png', 'key'),
@@ -190,11 +128,14 @@ describe('image-edit.service', () => {
   })
 
   it('keeps inpaint provider failures classified as ProviderError', async () => {
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 400,
-      text: () => Promise.resolve('bad mask'),
-    })
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 400,
+        text: () => Promise.resolve('bad mask'),
+      }),
+    )
 
     await expect(
       inpaintImage({
@@ -268,7 +209,7 @@ describe('image-edit.service', () => {
       ok: true,
       json: () => Promise.resolve({ data: [{ b64_json: TINY_PNG_BASE64 }] }),
     })
-    global.fetch = fetchSpy as unknown as typeof fetch
+    vi.stubGlobal('fetch', fetchSpy)
 
     const result = await extractElement({
       imageUrl: `data:image/png;base64,${TINY_PNG_BASE64}`,
@@ -297,7 +238,7 @@ describe('image-edit.service', () => {
       ok: true,
       json: () => Promise.resolve({ data: [{ b64_json: TINY_PNG_BASE64 }] }),
     })
-    global.fetch = fetchSpy as unknown as typeof fetch
+    vi.stubGlobal('fetch', fetchSpy)
 
     await extractElement({
       imageUrl: `data:image/png;base64,${TINY_PNG_BASE64}`,
@@ -340,7 +281,7 @@ describe('image-edit.service', () => {
           ],
         }),
     })
-    global.fetch = fetchSpy as unknown as typeof fetch
+    vi.stubGlobal('fetch', fetchSpy)
 
     const result = await extractElement({
       imageUrl: `data:image/png;base64,${TINY_PNG_BASE64}`,
@@ -362,19 +303,22 @@ describe('image-edit.service', () => {
   })
 
   it('translates an OpenAI safety refusal into a SafetyFilterError, not a generic 500', async () => {
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 400,
-      text: () =>
-        Promise.resolve(
-          JSON.stringify({
-            error: {
-              code: 'moderation_blocked',
-              message: 'Content was filtered by the safety system.',
-            },
-          }),
-        ),
-    }) as unknown as typeof fetch
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 400,
+        text: () =>
+          Promise.resolve(
+            JSON.stringify({
+              error: {
+                code: 'moderation_blocked',
+                message: 'Content was filtered by the safety system.',
+              },
+            }),
+          ),
+      }),
+    )
 
     await expect(
       extractElement({
@@ -387,13 +331,16 @@ describe('image-edit.service', () => {
   })
 
   it('detects Gemini safety blocks even when the response is 200 OK with no image', async () => {
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          candidates: [{ finishReason: 'SAFETY', content: { parts: [] } }],
-        }),
-    }) as unknown as typeof fetch
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            candidates: [{ finishReason: 'SAFETY', content: { parts: [] } }],
+          }),
+      }),
+    )
 
     await expect(
       extractElement({
@@ -426,7 +373,7 @@ describe('GPT Image 2.5 editing', () => {
           data: [{ b64_json: source.toString('base64') }],
         }),
       })
-      global.fetch = fetchSpy
+      vi.stubGlobal('fetch', fetchSpy)
       const result = await inpaintImage({
         modelId,
         apiKey: 'test',

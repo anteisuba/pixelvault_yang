@@ -373,7 +373,7 @@ describe('useStudioWorkbenchOperatorHost 当前工作台的模型边界', () => 
         .availableModels.map((model) => model.id)
       const onCard = view
         .host()
-        .generationControls.models.map((model) => model.id)
+        .generationControls!.models.map((model) => model.id)
       expect(listed).toContain(allowed)
       expect(listed.every((id) => isNai(id) === (dialect === 'tags'))).toBe(
         true,

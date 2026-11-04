@@ -157,7 +157,7 @@ async function renderBench() {
       owner,
     }: {
       optionId: string
-      count?: number
+      count?: 1 | 2 | 4
       dialect?: 'natural' | 'tags'
       owner?: StudioOperatorResultOwner
     }) {

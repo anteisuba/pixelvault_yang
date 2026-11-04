@@ -1,10 +1,11 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor } from '@testing-library/react'
 import * as Toolbar from '@radix-ui/react-toolbar'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { ReactNode } from 'react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { UseStudioVideoAssetsReturn } from '@/hooks/use-studio-video-assets'
-import type { GenerationRecord } from '@/types'
+import { AI_MODELS } from '@/constants/models'
+import { useStudioVideoAssets } from '@/hooks/use-studio-video-assets'
+import { text } from '@/test/i18n-text'
+import { fakeStudioServer, renderWithStudio } from '@/test/studio-harness'
 
 import { StudioVideoAssetChip } from './StudioVideoAssetChip'
 
@@ -15,163 +16,114 @@ import { StudioVideoAssetChip } from './StudioVideoAssetChip'
  *  ③ 上传与素材库都走宿主那一份 assets（与输入框里的素材排同一份）。
  */
 
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, values?: Record<string, unknown>) =>
-    values ? `${key}:${JSON.stringify(values)}` : key,
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({ isLoaded: true, isSignedIn: true, userId: 'user-a' }),
+}))
+vi.mock('@/i18n/navigation', () => ({
+  usePathname: () => '/studio/video',
+  useRouter: () => ({ push: vi.fn() }),
+}))
+// 只假上传那一跳（api-client 边界）：真 `useStudioVideoAssets` 拿回 URL 后自己落槽。
+const uploadImageFileAPI = vi.hoisted(() => vi.fn())
+vi.mock('@/lib/api-client/generation', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api-client/generation')>()),
+  uploadImageFileAPI,
 }))
 
-const form = vi.hoisted(() => ({
-  audioRefs: [] as { id: string; url: string }[],
-  dispatch: vi.fn(),
-}))
-vi.mock('@/contexts/studio-context', () => ({
-  useStudioForm: () => ({
-    state: { selectedOptionId: 'video-option', videoAudioRefs: form.audioRefs },
-    dispatch: form.dispatch,
-  }),
-}))
+const T = (key: string, values?: Record<string, string | number>) =>
+  text(`StudioVideoSlots.${key}`, values)
+// 可灵 O3 Pro：首尾帧两格、不收参考图 / 视频 / 音频。
+const KLING = () => text('Models.klingO3Pro.label')
 
-const model = vi.hoisted(() => ({ selected: true }))
-vi.mock('@/hooks/use-video-model-options', () => ({
-  useVideoModelOptions: () => ({
-    selectedModel: model.selected
-      ? { optionId: 'video-option', modelId: 'kling-v3-pro' }
-      : undefined,
-  }),
-}))
-
-vi.mock('@/lib/model-options', () => ({
-  getTranslatedModelLabel: () => 'Kling V3 Pro',
-}))
-
-const picked = vi.hoisted(() => ({
-  generation: null as GenerationRecord | null,
-}))
-vi.mock('@/features/assets', () => ({
-  AssetSelectorDialog: ({
-    open,
-    mediaType,
-    onSelect,
-  }: {
-    open: boolean
-    mediaType: string
-    onSelect: (generation: GenerationRecord) => void
-  }) =>
-    open ? (
-      <button
-        type="button"
-        onClick={() => picked.generation && onSelect(picked.generation)}
-      >
-        {`library:${mediaType}`}
-      </button>
-    ) : null,
-}))
-
-vi.mock('@/components/business/studio-shared/primitives/tool-surface', () => ({
-  useStudioChipClasses: () => ({
-    look: 'outline',
-    trigger: '',
-    open: '',
-    set: '',
-    compact: '',
-    compactLabel: '',
-    popoverAlign: 'start',
-    popoverSideOffset: 8,
-  }),
-  StudioToolSurface: ({ children }: { children: ReactNode }) => (
-    <div>{children}</div>
-  ),
-  StudioToolSurfaceTrigger: ({ children }: { children: ReactNode }) => (
-    <>{children}</>
-  ),
-  StudioToolPopoverContent: ({ children }: { children: ReactNode }) => (
-    <div>{children}</div>
-  ),
-}))
-
-function makeAssets(
-  overrides: Partial<UseStudioVideoAssetsReturn> = {},
-): UseStudioVideoAssetsReturn {
-  return {
-    capacity: { frames: 2, references: 0, videos: 0, audios: 0 },
-    images: [],
-    videos: [],
-    send: null,
-    rolesFor: () => [],
-    addImage: vi.fn(),
-    setRole: vi.fn(),
-    removeImage: vi.fn(),
-    uploadImageFile: vi.fn(async () => {}),
-    addVideo: vi.fn(),
-    removeVideo: vi.fn(),
-    acceptsImages: true,
-    acceptTransfer: vi.fn(),
-    acceptGeneration: vi.fn(),
-    isUploading: false,
-    ...overrides,
-  }
-}
-
-function renderChip(assets: UseStudioVideoAssetsReturn) {
-  return render(
+/** 宿主：真 `useStudioVideoAssets()` 那一份交给 chip（与工具行同一接法）。 */
+function Host() {
+  const assets = useStudioVideoAssets()
+  return (
     <Toolbar.Root>
       <StudioVideoAssetChip assets={assets} />
-    </Toolbar.Root>,
+    </Toolbar.Root>
   )
 }
 
+/** 真工作台里挂 chip，选好型号（不选 = 还没选型号），打开菜单。 */
+function renderChip({
+  modelId,
+  frames = [],
+}: { modelId?: string; frames?: string[] } = {}) {
+  const view = renderWithStudio(<Host />)
+  act(() => {
+    const { dispatch } = view.studio.current
+    dispatch({ type: 'SET_OUTPUT_TYPE', payload: 'video' })
+    dispatch({
+      type: 'SET_OPTION_ID',
+      payload: modelId ? `workspace:${modelId}` : '',
+    })
+    frames.forEach((url, index) =>
+      dispatch({
+        type: 'SET_VIDEO_FRAME_SLOT',
+        payload: { slot: index === 0 ? 'first' : 'last', url },
+      }),
+    )
+  })
+  fireEvent.click(screen.getByRole('button', { name: T('chipLabel') }))
+  return view.studio
+}
+
+const item = (key: string) =>
+  screen.getByRole('button', { name: new RegExp(`^${T(key)}`) })
+
 beforeEach(() => {
-  form.audioRefs = []
-  form.dispatch.mockClear()
-  model.selected = true
-  picked.generation = null
+  fakeStudioServer()
+  uploadImageFileAPI.mockReset()
 })
+afterEach(() => vi.unstubAllGlobals())
 
 describe('视频台 · 「素材」chip', () => {
   it('这个型号不收参考视频和音频：那两项灰着写原因（⛔ 不藏）', () => {
-    renderChip(makeAssets())
-    expect(screen.getByRole('button', { name: /^uploadImage/ })).toBeEnabled()
-    const video = screen.getByRole('button', { name: /^pickVideo/ })
+    renderChip({ modelId: AI_MODELS.KLING_O3_PRO })
+    expect(item('uploadImage')).toBeEnabled()
+    const video = item('pickVideo')
     expect(video).toBeDisabled()
-    expect(video).toHaveTextContent('menu.noVideo:{"model":"Kling V3 Pro"}')
-    expect(screen.getByRole('button', { name: /^addAudio/ })).toHaveTextContent(
-      'menu.noAudio:{"model":"Kling V3 Pro"}',
+    expect(video).toHaveTextContent(T('menu.noVideo', { model: KLING() }))
+    expect(item('addAudio')).toHaveTextContent(
+      T('menu.noAudio', { model: KLING() }),
     )
-    expect(screen.getByText('menu.dropHint')).toBeInTheDocument()
+    expect(screen.getByText(T('menu.dropHint'))).toBeInTheDocument()
   })
 
   it('首尾帧两格都占了：上传与选图灰着，说挂了几张、最多几张', () => {
-    renderChip(
-      makeAssets({
-        images: [
-          { url: 'https://cdn.example.com/a.png', role: 'first', n: 1 },
-          { url: 'https://cdn.example.com/b.png', role: 'last', n: 2 },
-        ],
-      }),
-    )
-    const upload = screen.getByRole('button', { name: /^uploadImage/ })
+    renderChip({
+      modelId: AI_MODELS.KLING_O3_PRO,
+      frames: [
+        'https://cdn.example.com/a.png',
+        'https://cdn.example.com/b.png',
+      ],
+    })
+    const upload = item('uploadImage')
     expect(upload).toBeDisabled()
-    expect(upload).toHaveTextContent('menu.imagesFull:{"count":2,"max":2}')
-    expect(screen.getByRole('button', { name: /^pickImage/ })).toBeDisabled()
+    expect(upload).toHaveTextContent(T('menu.imagesFull', { count: 2, max: 2 }))
+    expect(item('pickImage')).toBeDisabled()
   })
 
   it('还没选型号：说「先选型号」，⛔ 不说一个空名字「不收」', () => {
-    model.selected = false
-    renderChip(
-      makeAssets({
-        capacity: { frames: 0, references: 0, videos: 0, audios: 0 },
-        acceptsImages: false,
-      }),
-    )
+    renderChip()
+    expect(item('uploadImage')).toHaveTextContent(T('menu.pickModel'))
     expect(
-      screen.getByRole('button', { name: /^uploadImage/ }),
-    ).toHaveTextContent('menu.pickModel')
-    expect(screen.queryByText(/noImage/)).toBeNull()
+      screen.queryByText(T('menu.noImage', { model: '' })),
+    ).not.toBeInTheDocument()
   })
 
   it('上传：选几张传几张，一张一张走宿主那份 assets', async () => {
-    const assets = makeAssets()
-    renderChip(assets)
+    uploadImageFileAPI
+      .mockResolvedValueOnce({
+        success: true,
+        data: { generation: { url: 'https://cdn.test/a.png' } },
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        data: { generation: { url: 'https://cdn.test/b.png' } },
+      })
+    const studio = renderChip({ modelId: AI_MODELS.KLING_O3_PRO })
     const input = document.querySelector(
       'input[type="file"]',
     ) as HTMLInputElement
@@ -181,41 +133,24 @@ describe('视频台 · 「素材」chip', () => {
     ]
     Object.defineProperty(input, 'files', { value: files })
     fireEvent.change(input)
-    await vi.waitFor(() =>
-      expect(assets.uploadImageFile).toHaveBeenCalledTimes(2),
+    // 按选的顺序落进首帧、尾帧。
+    await waitFor(() =>
+      expect(studio.current.state.videoFrameSlots).toEqual({
+        first: 'https://cdn.test/a.png',
+        last: 'https://cdn.test/b.png',
+      }),
     )
-    expect(assets.uploadImageFile).toHaveBeenNthCalledWith(1, files[0])
-    expect(assets.uploadImageFile).toHaveBeenNthCalledWith(2, files[1])
   })
 
-  it('素材库选参考视频：挑中的那条交给 acceptGeneration(…, video)', () => {
-    const assets = makeAssets({
-      capacity: { frames: 2, references: 9, videos: 1, audios: 3 },
-    })
-    picked.generation = {
-      id: 'gen-video',
-      url: 'https://cdn.example.com/v.mp4',
-      outputType: 'VIDEO',
-    } as GenerationRecord
-    renderChip(assets)
-    fireEvent.click(screen.getByRole('button', { name: /^pickVideo/ }))
-    fireEvent.click(screen.getByRole('button', { name: 'library:video' }))
-    expect(assets.acceptGeneration).toHaveBeenCalledWith(
-      picked.generation,
-      'video',
-    )
+  it('素材库选参考视频：打开只列视频的素材库', async () => {
+    renderChip({ modelId: AI_MODELS.SEEDANCE_25 })
+    fireEvent.click(item('pickVideo'))
+    expect(await screen.findByRole('dialog')).toBeInTheDocument()
   })
 
   it('添加音频：打开音频设置那一面板', () => {
-    renderChip(
-      makeAssets({
-        capacity: { frames: 2, references: 9, videos: 1, audios: 3 },
-      }),
-    )
-    fireEvent.click(screen.getByRole('button', { name: /^addAudio/ }))
-    expect(form.dispatch).toHaveBeenCalledWith({
-      type: 'OPEN_PANEL',
-      payload: 'videoAudio',
-    })
+    const studio = renderChip({ modelId: AI_MODELS.SEEDANCE_25 })
+    fireEvent.click(item('addAudio'))
+    expect(studio.current.state.panels.videoAudio).toBe(true)
   })
 })

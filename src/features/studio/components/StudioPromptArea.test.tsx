@@ -1,32 +1,91 @@
-import type { ComponentProps, ReactNode } from 'react'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { useLayoutEffect, type ReactNode } from 'react'
+import { act, fireEvent, screen } from '@testing-library/react'
 import { toast } from 'sonner'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { API_ENDPOINTS } from '@/constants/config'
 import { AI_MODELS } from '@/constants/models'
-import { STUDIO_TEMPLATES_PANEL_ID } from '@/constants/studio'
+import { SAMPLE_PROMPT_STORAGE_KEY } from '@/constants/sample-prompts'
+import {
+  STUDIO_GUIDE_SEEN_STORAGE_KEY,
+  STUDIO_GENERATION_DRAG_MIME,
+  STUDIO_TEMPLATES_PANEL_ID,
+} from '@/constants/studio'
 import { WORKFLOW_IDS, type WorkflowId } from '@/constants/workflows'
-import type { StudioFormState } from '@/contexts/studio-context'
+import {
+  useStudioContext,
+  type VideoAudioReference,
+} from '@/contexts/studio-context'
 import {
   StudioOperatorHostProvider,
   type StudioOperatorHost,
 } from '@/contexts/studio-operator-host'
-
 import { setOperatorPrimed } from '@/hooks/use-studio-operator-store'
-
 import { ImageIcon } from '@/components/icons'
+import { renderWithApp } from '@/test/app-harness'
+import { stubBrowserLayout } from '@/test/browser-stubs'
+import { text } from '@/test/i18n-text'
+import {
+  fakeStudioServer,
+  settle,
+  StudioProviders,
+  type StudioHandle,
+} from '@/test/studio-harness'
+import { DESKTOP_WIDTH, setViewportWidth } from '@/test/viewport'
 
 import { StudioPromptArea } from './StudioPromptArea'
 
 /**
- * 生产树里 `StudioPromptArea` 长在 `StudioOperatorHostProvider` 里
- * （`StudioWorkspaceUI`）。参数栏会渲染 `StudioOperatorChangeRail`，
- * 没宿主就抛。本文件验的是提示词/生成载荷，宿主给一份空实现即可。
+ * 桌面提示词区，全程真的：真工作台、真 `useStudioGenerateAction`（闸门 / 原因 / 请求组装）、
+ * 真 `PromptInput`（根容器冒泡抢焦点那一手也是真的）、真参考图上传 / 拖放、真视频素材与
+ * 发送口、真模型名单；只假网络（工作台挂载那几条、`POST /api/generate-video` 等）与屏宽。
+ * 「发了什么」看的是真请求体。
+ *
+ * - 助手宿主给的是一份空宿主（参数栏里的变更轨要它在；这里不验助手）。
+ * - `sonner` 是外部包：只换成可观察的 `toast` 看「有没有弹」。
+ *
+ * ⚠ 没有迁的：
+ * - 负面提示词那几条 class 断言（`grid-rows-[0fr]`、`h-[46px]` 之类）：那是皮肤，不是结果；
+ *   改成断言展开 / 收起与输入写回。
+ * - 「图片工作流下的视频载荷不带 workflowId」：真工作台里选图片工作流就落到图片模态，
+ *   视频提交在那个状态下到不了。
  */
-const STUB_OPERATOR_HOST: StudioOperatorHost = {
+
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({ isLoaded: true, isSignedIn: true, userId: 'user-prompt' }),
+}))
+vi.mock('next/navigation', () => ({
+  useSearchParams: () => new URLSearchParams(),
+  usePathname: () => '/studio/image',
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+}))
+vi.mock('@/i18n/navigation', () => ({
+  usePathname: () => '/studio/image',
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  Link: ({ children, href }: { children: ReactNode; href: string }) => (
+    <a href={href}>{children}</a>
+  ),
+}))
+vi.mock('sonner', () => ({
+  toast: Object.assign(vi.fn(), {
+    info: vi.fn(),
+    error: vi.fn(),
+    success: vi.fn(),
+    warning: vi.fn(),
+    dismiss: vi.fn(),
+  }),
+  Toaster: () => null,
+}))
+
+const PA = (key: string, values?: Record<string, string | number>) =>
+  text(`StudioPromptArea.${key}`, values)
+const NEGATIVE = PA('negativePromptLabel')
+const GENERATE = text('StudioV2.generate')
+
+/** 生产树里提示词区长在助手宿主里（参数栏的变更轨要它）；这里给一份什么都不做的。 */
+const EMPTY_OPERATOR_HOST: StudioOperatorHost = {
   workspace: 'image-natural',
   domain: 'image',
-  // 四张脸那一格（D7b ③）—— 参数栏不读它，桩给最小形状即可。
   face: {
     domainIcon: ImageIcon,
     contextLine: () => '',
@@ -35,7 +94,6 @@ const STUB_OPERATOR_HOST: StudioOperatorHost = {
     inputPlaceholder: '',
   },
   buildSnapshot: () => ({ prompt: '', availableModels: [] }),
-  // 结果行卡的数据源（切片 3a 起是宿主契约的一格）—— 这份桩里没有结果。
   results: [],
   referenceImages: [],
   open: false,
@@ -55,843 +113,487 @@ const STUB_OPERATOR_HOST: StudioOperatorHost = {
   },
 }
 
-const mockTemplatesToggle = vi.hoisted(() => vi.fn())
-const TEMPLATES = { open: false, onToggle: mockTemplatesToggle }
-const CARDS = { open: false, onToggle: () => {} }
+let server: ReturnType<typeof fakeStudioServer>
+let videoBodies: Record<string, unknown>[]
 
-function renderPromptArea(templates = TEMPLATES) {
-  return render(
-    <StudioOperatorHostProvider host={STUB_OPERATOR_HOST}>
-      <StudioPromptArea templates={templates} characterCards={CARDS} />
-    </StudioOperatorHostProvider>,
-  )
+beforeEach(() => {
+  stubBrowserLayout()
+  setViewportWidth(DESKTOP_WIDTH)
+  localStorage.clear()
+  localStorage.setItem(STUDIO_GUIDE_SEEN_STORAGE_KEY, '1')
+  // 首次进来会往空提示词里填一句示例；除了专门验它的那条，都当作来过了。
+  localStorage.setItem(SAMPLE_PROMPT_STORAGE_KEY, '1')
+  Element.prototype.scrollIntoView = vi.fn()
+  vi.mocked(toast.info).mockClear()
+  vi.mocked(toast.error).mockClear()
+  videoBodies = []
+  let jobs = 0
+  server = fakeStudioServer()
+    .on('POST', API_ENDPOINTS.GENERATE_VIDEO, async (request) => {
+      videoBodies.push(await request.json())
+      jobs += 1
+      return Response.json({
+        success: true,
+        data: { jobId: `job-${jobs}`, requestId: `req-${jobs}` },
+      })
+    })
+    .on('GET', API_ENDPOINTS.GENERATE_VIDEO_STATUS, (request) =>
+      Response.json({
+        success: true,
+        data: {
+          jobId: request.nextUrl.searchParams.get('jobId'),
+          status: 'IN_PROGRESS',
+        },
+      }),
+    )
+})
+afterEach(() => vi.unstubAllGlobals())
+
+interface AreaProps {
+  layout?: 'column' | 'bottom'
+  templatesOpen?: boolean
+  onToggleTemplates?: () => void
 }
 
-const mockDispatch = vi.hoisted(() => vi.fn())
-const mockGenerate = vi.hoisted(() => vi.fn())
-const mockUseStudioForm = vi.hoisted(() => vi.fn())
-const mockUseImageModelOptions = vi.hoisted(() => vi.fn())
-const mockImageUploadHandleDrop = vi.hoisted(() => vi.fn())
-const mockImageUploadState = vi.hoisted(() => ({ isUploading: false }))
-const mockGenState = vi.hoisted(() => ({ isGenerating: false }))
-const mockCancelAllRunItems = vi.hoisted(() => vi.fn())
-import { SAMPLE_PROMPT_STORAGE_KEY } from '@/constants/sample-prompts'
-const SAMPLE_PROMPT_FLAG_KEY = SAMPLE_PROMPT_STORAGE_KEY
-
-const EMPTY_PANELS: StudioFormState['panels'] = {
-  projectHistory: false,
-  modelSelector: false,
-  civitai: false,
-  enhance: false,
-  stylePreset: false,
-  reverse: false,
-  refImage: false,
-  loraSelector: false,
-  videoAudio: false,
-  keepChange: false,
+/** 真工作台里挂提示词区；`rerender` 换 props 时工作台状态不丢。 */
+function renderArea(props: AreaProps = {}) {
+  const studio = { current: null as unknown as StudioHandle }
+  function Area({
+    layout = 'column',
+    templatesOpen = false,
+    onToggleTemplates = () => {},
+  }: AreaProps) {
+    const ctx = useStudioContext()
+    useLayoutEffect(() => {
+      studio.current = ctx
+    })
+    return (
+      <StudioOperatorHostProvider host={EMPTY_OPERATOR_HOST}>
+        <StudioPromptArea
+          layout={layout}
+          templates={{ open: templatesOpen, onToggle: onToggleTemplates }}
+          characterCards={{ open: false, onToggle: () => {} }}
+        />
+      </StudioOperatorHostProvider>
+    )
+  }
+  const view = renderWithApp(<Area {...props} />, { inner: StudioProviders })
+  return {
+    studio,
+    rerender: (next: AreaProps) => view.rerender(<Area {...next} />),
+  }
 }
 
-/**
- * ⚠ 助手面板那条 barrel（`assistant-operator/index`）拖进来一个走
- * `@/i18n/navigation` 的 hook（56a 的回执跳转），而那条链在 jsdom 里会去解
- * `next/navigation`。这份用例验的是提示词区，不是路由 —— 桩掉它。
- */
-vi.mock('next-intl', () => ({
-  // ⚠ 带 `rich`：素材轨那行「这次按 … 发」是富文本。
-  useTranslations: () =>
-    Object.assign((key: string) => key, { rich: (key: string) => key }),
-  useLocale: () => 'en',
-}))
+interface Setup {
+  workflow?: WorkflowId
+  model?: string | null
+  prompt?: string
+  advancedParams?: Record<string, unknown>
+  audioRefs?: VideoAudioReference[]
+  generateAudio?: boolean | null
+}
 
-vi.mock('sonner', () => {
-  // ⚠ 光有 `toast()` 不够：组件在被闸挡住时调 `toast.info(...)`，
-  //   缺这几个方法会在测试里抛 `toast.info is not a function`，而且是
-  //   unhandled rejection —— 报错指向 React 的 dispatch 栈，很难联想到替身。
-  const toast = Object.assign(vi.fn(), {
-    info: vi.fn(),
-    error: vi.fn(),
-    success: vi.fn(),
-    warning: vi.fn(),
+/** 摆好工作流（决定模态）、模型、提示词、高级参数、音频参考。 */
+async function arrange(
+  studio: { current: StudioHandle },
+  {
+    workflow = WORKFLOW_IDS.QUICK_IMAGE,
+    model,
+    prompt,
+    advancedParams,
+    audioRefs,
+    generateAudio,
+  }: Setup,
+) {
+  await settle()
+  act(() => {
+    const { dispatch } = studio.current
+    dispatch({ type: 'SET_SELECTED_WORKFLOW_ID', payload: workflow })
   })
-  return { toast }
+  act(() => {
+    const { dispatch } = studio.current
+    if (model !== undefined)
+      dispatch({
+        type: 'SET_OPTION_ID',
+        payload: model ? `workspace:${model}` : null,
+      })
+    if (prompt !== undefined) dispatch({ type: 'SET_PROMPT', payload: prompt })
+    if (advancedParams)
+      dispatch({ type: 'SET_ADVANCED_PARAMS', payload: advancedParams })
+    if (audioRefs)
+      dispatch({ type: 'SET_VIDEO_AUDIO_REFS', payload: audioRefs })
+    if (generateAudio !== undefined)
+      dispatch({ type: 'SET_VIDEO_GENERATE_AUDIO', payload: generateAudio })
+  })
+  await settle()
+}
+
+async function renderArranged(setup: Setup = {}, props: AreaProps = {}) {
+  const view = renderArea(props)
+  await arrange(view.studio, setup)
+  return view
+}
+
+describe('负面提示词（参数栏）', () => {
+  // 2026-08-22 owner：「我没看到有负面提示词的地方」—— 字段活着、门没开。折叠行是那道门。
+  it('⭐ 有入口：折叠行收着时不渲染输入框', async () => {
+    await renderArranged()
+    const row = screen.getByRole('button', { name: new RegExp(NEGATIVE) })
+    expect(row).toHaveAttribute('aria-expanded', 'false')
+    expect(row).toHaveAttribute('aria-controls', 'studio-negative-prompt-input')
+    expect(screen.queryByRole('textbox', { name: NEGATIVE })).toBeNull()
+  })
+
+  it('展开后能写，写回 advancedParams，⚠ 同住一个对象的参数不丢', async () => {
+    const { studio } = await renderArranged({ advancedParams: { seed: 1234 } })
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(NEGATIVE) }))
+    const input = screen.getByRole('textbox', { name: NEGATIVE })
+    expect(input).toHaveAttribute('id', 'studio-negative-prompt-input')
+    fireEvent.change(input, { target: { value: 'blurry' } })
+    expect(studio.current.state.advancedParams).toMatchObject({
+      seed: 1234,
+      negativePrompt: 'blurry',
+    })
+  })
+
+  // 2026-08-22 owner：「甚至无法点击」—— `PromptInput` 根容器在冒泡时把焦点抢回主提示词框。
+  it('⛔ 点负面框时容器不许把焦点抢回主提示词框', async () => {
+    await renderArranged()
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(NEGATIVE) }))
+    const negative = screen.getByRole('textbox', { name: NEGATIVE })
+    negative.focus()
+    fireEvent.click(negative)
+    expect(document.activeElement).toBe(negative)
+    expect(document.activeElement).not.toBe(
+      screen.getByRole('textbox', { name: text('StudioForm.promptLabel') }),
+    )
+  })
+
+  it('⛔ 展开后不再重复同一句 placeholder', async () => {
+    await renderArranged()
+    const row = screen.getByRole('button', { name: new RegExp(NEGATIVE) })
+    expect(row).toHaveTextContent(PA('negativePromptPlaceholder'))
+    fireEvent.click(row)
+    expect(row).not.toHaveTextContent(PA('negativePromptPlaceholder'))
+    expect(screen.getByRole('textbox', { name: NEGATIVE })).toHaveAttribute(
+      'placeholder',
+      PA('negativePromptPlaceholder'),
+    )
+  })
+
+  it('清空写成「没设过」而不是空串（空串会被当成设过一个空负面带进请求）', async () => {
+    const { studio } = await renderArranged({
+      advancedParams: { negativePrompt: 'bad hands' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(NEGATIVE) }))
+    fireEvent.change(screen.getByRole('textbox', { name: NEGATIVE }), {
+      target: { value: '' },
+    })
+    expect(studio.current.state.advancedParams.negativePrompt).toBeUndefined()
+  })
 })
 
-vi.mock('@/contexts/studio-context', () => ({
-  STUDIO_TOOL_PANEL_NAMES: [
-    'enhance',
-    'reverse',
-    'advanced',
-    'stylePreset',
-    'refImage',
-    'loraSelector',
-    'civitai',
-    'aspectRatio',
-    'resolution',
-    'batchCount',
-    'spec',
-    'videoParams',
-  ],
-  useStudioForm: mockUseStudioForm,
-  useStudioData: () => ({
-    characters: {
-      activeCardIds: [],
-      activeCards: [],
-    },
-    imageUpload: {
-      isUploading: mockImageUploadState.isUploading,
-      referenceEntries: [],
-      referenceImages: [],
-      handleFileChange: vi.fn(),
-      handleDragEnter: vi.fn(),
-      handleDragOver: vi.fn(),
-      handleDragLeave: vi.fn(),
-      handleDrop: mockImageUploadHandleDrop,
-      removeReferenceImage: vi.fn(),
-      isDragging: false,
-    },
-    projects: {
-      activeProjectId: null,
-    },
-  }),
-  useStudioGen: () => ({
-    isGenerating: mockGenState.isGenerating,
-    generate: mockGenerate,
-    elapsedSeconds: 0,
-    // ⚠ 手写镜像少一个字段就等于把闸关上：`canQueueMoreVideo` 缺席时
-    //   `!undefined` 为真，视频模态的生成按钮会被判成「队列已满」，三条视频
-    //   提交测试同时红。这类漏字段是这个仓库反复踩的一类（见 VideoComposer
-    //   的夹具脱节）。
-    canQueueMoreVideo: true,
-    cancelAllRunItems: mockCancelAllRunItems,
-  }),
-  // 「先搜再画」那份状态读的是可选版（助手宿主在没有生成层的路由上也读它）。
-  useStudioGenOptional: () => ({
-    isGenerating: mockGenState.isGenerating,
-    elapsedSeconds: 0,
-    activeRun: null,
-  }),
-}))
+/** 底部输入框布局（owner 2026-09-26，图片自然语言台桌面）。 */
+describe('底部输入框布局', () => {
+  it('负面提示词是工具行的一颗 chip：点开出现一行，写回整个对象', async () => {
+    const { studio } = await renderArranged(
+      { advancedParams: { seed: 7 } },
+      { layout: 'bottom' },
+    )
+    const chip = screen.getByRole('button', { name: NEGATIVE })
+    expect(chip).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.queryByRole('textbox', { name: NEGATIVE })).toBeNull()
 
-// 两台跳转那一行（`StudioDialectJumpHint`）要一个 router —— 参数栏本身
-// 不跳路由，这里只是把 next-intl 的导航壳挡在测试之外。
-vi.mock('@/i18n/navigation', () => ({
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn() }),
-  usePathname: () => '/studio/image',
-  Link: 'a',
-  redirect: vi.fn(),
-  getPathname: vi.fn(),
-}))
-
-vi.mock('@/features/studio/hooks/use-studio-shortcuts', () => ({
-  useStudioShortcuts: vi.fn(),
-}))
-
-vi.mock('@/hooks/use-image-model-options', () => ({
-  useImageModelOptions: mockUseImageModelOptions,
-}))
-
-/**
- * 视频型号 —— 缺省是一个契约里什么参考都不收的假型号；要验「挂上的音频送出去」时
- * 换成真正收音频的型号（发送口按实际端点的契约夹，⛔ 不收的不发）。
- */
-const mockVideoModel = vi.hoisted(() => ({
-  modelId: 'fal-video-model',
-  adapterType: 'fal',
-}))
-vi.mock('@/hooks/use-video-model-options', () => ({
-  useVideoModelOptions: () => {
-    const selectedModel = {
-      optionId: 'video-option',
-      modelId: mockVideoModel.modelId,
-      keyId: 'api-key-1',
-      keyLabel: 'FAL video',
-      adapterType: mockVideoModel.adapterType,
-      providerConfig: {
-        label: 'fal.ai',
-        baseUrl: 'https://fal.ai',
-      },
-      sourceType: 'saved',
-      requestCount: 2,
-    }
-
-    return {
-      selectedModel,
-      modelOptions: [selectedModel],
-    }
-  },
-}))
-
-vi.mock('@/contexts/api-keys-context', () => ({
-  useApiKeysContext: () => ({
-    keys: [],
-    healthMap: {},
-  }),
-}))
-
-// 角色那颗拖着角色选择链，与本文件要验的提示词 / 负面提示词 / 模型名单无关，
-// 替身掉保持单测聚焦。
-vi.mock('@/features/studio/components/StudioCardsButton', () => ({
-  StudioCardsButton: () => <button type="button">cards</button>,
-}))
-
-vi.mock('@/components/ui/prompt-input', () => ({
-  // ⚠ 必须复刻真组件那一手：根容器在**任何冒泡上来的点击**时把焦点抢给主输入框
-  //   （真实现见 `ui/prompt-input.tsx` 的 handleClick → focusUnlessTouch）。
-  //   ⛔ 别简化成光秃秃的 `<div {...props}>` —— 2026-08-22 就是因为这个，
-  //   「点了负面提示词框、打的字全进主提示词框」在测试里完全看不见，
-  //   owner 真机撞到时的原话是「甚至无法点击」。
-  PromptInput: ({
-    children,
-    ...props
-  }: { children: ReactNode } & ComponentProps<'div'>) => (
-    <div
-      {...props}
-      onClick={(event) => {
-        props.onClick?.(event)
-        // 第一个 textarea = 主提示词框（DOM 顺序），与真组件的 textareaRef 等价。
-        event.currentTarget.querySelector('textarea')?.focus()
-      }}
-    >
-      {children}
-    </div>
-  ),
-  PromptInputTextarea: (props: ComponentProps<'textarea'>) => (
-    <textarea {...props} />
-  ),
-  PromptInputActions: ({ children }: { children: ReactNode }) => (
-    <div>{children}</div>
-  ),
-}))
-
-vi.mock('@/components/ui/dropdown-menu', () => ({
-  DropdownMenu: ({ children }: { children: ReactNode }) => (
-    <div>{children}</div>
-  ),
-  DropdownMenuContent: ({ children }: { children: ReactNode }) => (
-    <div>{children}</div>
-  ),
-  DropdownMenuItem: ({
-    children,
-    onClick,
-  }: {
-    children: ReactNode
-    onClick?: () => void
-  }) => (
-    <button type="button" onClick={onClick}>
-      {children}
-    </button>
-  ),
-  DropdownMenuLabel: ({ children }: { children: ReactNode }) => (
-    <div>{children}</div>
-  ),
-  DropdownMenuSeparator: () => <hr />,
-  DropdownMenuTrigger: ({ children }: { children: ReactNode }) => (
-    <>{children}</>
-  ),
-}))
-
-function setupStudioForm(
-  workflowId: WorkflowId,
-  overrides: Partial<StudioFormState> = {},
-) {
-  const state: StudioFormState = {
-    selectedWorkflowId: workflowId,
-    outputType: 'video',
-    selectedOptionId: 'video-option',
-    prompt: 'Make a cinematic establishing shot',
-    promptDialect: 'natural',
-    tagChips: [],
-    tagNegativeChips: [],
-    tagCarrySource: null,
-    activeTagCharacterIndex: null,
-    recipeUsage: null,
-    aspectRatio: '16:9',
-    advancedParams: {},
-    searchGrounding: false,
-    imageBatchCount: 1,
-    extraModelOptionIds: [],
-    tokenInput: '',
-    videoDuration: 5,
-    videoResolution: '720p',
-    videoAudioRefs: [],
-    videoFrameSlots: { first: null, last: null },
-    videoReferenceVideos: [],
-    videoGenerateAudio: null,
-    generateRequestId: 0,
-    panels: { ...EMPTY_PANELS },
-    ...overrides,
-  }
-
-  mockUseStudioForm.mockReturnValue({
-    state,
-    dispatch: mockDispatch,
-  })
-}
-
-function getSubmittedVideoPayload(): Record<string, unknown> {
-  const payload = mockGenerate.mock.calls[0]?.[0]
-  if (typeof payload !== 'object' || payload === null) {
-    throw new Error('generate was not called with an object payload')
-  }
-  if (!('video' in payload)) {
-    throw new Error('generate payload did not include video input')
-  }
-  const video = payload.video
-  if (typeof video !== 'object' || video === null) {
-    throw new Error('generate payload video input was not an object')
-  }
-  return video
-}
-
-/** 视频台桌面 = 底部输入框（owner 2026-09-27 视频台 A）：生成键是右下那颗 ① 圆键。 */
-function renderVideoBottom(templates = TEMPLATES) {
-  return render(
-    <StudioOperatorHostProvider host={STUB_OPERATOR_HOST}>
-      <StudioPromptArea
-        layout="bottom"
-        templates={templates}
-        characterCards={CARDS}
-      />
-    </StudioOperatorHostProvider>,
-  )
-}
-
-async function submitVideoFromPromptArea(
-  workflowId: WorkflowId,
-  overrides: Partial<StudioFormState> = {},
-) {
-  setupStudioForm(workflowId, overrides)
-  renderVideoBottom()
-
-  fireEvent.click(screen.getByRole('button', { name: /^generate · / }))
-
-  await waitFor(() => expect(mockGenerate).toHaveBeenCalled())
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-interface SetPromptAction {
-  type: 'SET_PROMPT'
-  payload: string
-}
-
-function isSetPromptAction(action: unknown): action is SetPromptAction {
-  return (
-    isRecord(action) &&
-    action.type === 'SET_PROMPT' &&
-    typeof action.payload === 'string'
-  )
-}
-
-function getSetPromptActions(): SetPromptAction[] {
-  return mockDispatch.mock.calls
-    .map(([action]) => action)
-    .filter(isSetPromptAction)
-}
-
-describe('StudioPromptArea', () => {
-  it('shows upload feedback before a pasted reference image is ready', () => {
-    setupStudioForm(WORKFLOW_IDS.QUICK_IMAGE, { outputType: 'image' })
-    mockImageUploadState.isUploading = true
-    const view = renderPromptArea()
-    expect(screen.getByRole('status')).toHaveTextContent('uploading')
-    view.unmount()
-    mockImageUploadState.isUploading = false
-    renderPromptArea()
-    expect(screen.queryByText('uploading')).not.toBeInTheDocument()
-  })
-  // 2026-08-22 owner：「我没看到有负面提示词的地方」。查证结论 —— 输入框当时只长在
-  // `panels.advanced` 对话框里，而那条链图片模态整条不挂载，于是命令面板的
-  // 「切换高级设置」是个空开关；而生成管线一直在读 `advancedParams.negativePrompt`。
-  // 字段活着、门没开。折叠行是补上的那道门。
-  describe('负面提示词（图片参数栏）', () => {
-    const setupImagePanel = (advancedParams: Record<string, unknown> = {}) =>
-      setupStudioForm(WORKFLOW_IDS.QUICK_IMAGE, {
-        outputType: 'image',
-        selectedOptionId: null,
-        advancedParams,
-      })
-
-    it('⭐ 图片参数栏里有入口（折叠行，收起时不渲染输入框）', () => {
-      setupImagePanel()
-      renderPromptArea()
-
-      const row = screen.getByRole('button', { name: /negativePromptLabel/ })
-      expect(row).toHaveAttribute('aria-expanded', 'false')
-      expect(row).toHaveAttribute(
-        'aria-controls',
-        'studio-negative-prompt-input',
-      )
-      expect(row).toHaveClass('rounded-lg', 'border-border', 'coarse:min-h-11')
-      const reveal = row.nextElementSibling
-      expect(reveal).toHaveAttribute('aria-hidden', 'true')
-      expect(reveal).toHaveClass(
-        'grid-rows-[0fr]',
-        'opacity-0',
-        'duration-base',
-      )
-      expect(
-        screen.queryByRole('textbox', { name: 'negativePromptLabel' }),
-      ).not.toBeInTheDocument()
+    fireEvent.click(chip)
+    expect(chip).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.change(screen.getByRole('textbox', { name: NEGATIVE }), {
+      target: { value: 'blurry' },
     })
-
-    it('展开后能输入，且写回 advancedParams', () => {
-      setupImagePanel()
-      renderPromptArea()
-
-      fireEvent.click(
-        screen.getByRole('button', { name: /negativePromptLabel/ }),
-      )
-      const input = screen.getByRole('textbox', { name: 'negativePromptLabel' })
-      const reveal = input.closest('[aria-hidden="false"]')
-      expect(reveal).toHaveClass('grid-rows-[1fr]', 'opacity-100')
-      expect(input).toHaveAttribute('id', 'studio-negative-prompt-input')
-      expect(input).toHaveClass('h-[46px]', 'rounded-lg', 'border-border')
-      fireEvent.change(input, { target: { value: 'bad hands' } })
-
-      expect(mockDispatch).toHaveBeenCalledWith({
-        type: 'SET_ADVANCED_PARAMS',
-        payload: { negativePrompt: 'bad hands' },
-      })
-    })
-
-    it('⚠ 整个对象带过去，不清掉其余高级参数', () => {
-      // `SET_ADVANCED_PARAMS` 是**整体替换** —— 只发 negativePrompt 会把 seed
-      // 这类同住一个对象的参数一起抹掉。
-      setupImagePanel({ seed: 1234 })
-      renderPromptArea()
-
-      fireEvent.click(
-        screen.getByRole('button', { name: /negativePromptLabel/ }),
-      )
-      fireEvent.change(
-        screen.getByRole('textbox', { name: 'negativePromptLabel' }),
-        { target: { value: 'blurry' } },
-      )
-
-      expect(mockDispatch).toHaveBeenCalledWith({
-        type: 'SET_ADVANCED_PARAMS',
-        payload: { seed: 1234, negativePrompt: 'blurry' },
-      })
-    })
-
-    // 2026-08-22 owner：「甚至无法点击」。根因不是命中区域，是 `PromptInput` 根容器
-    // 在冒泡时把焦点抢回主提示词框 —— 点中了、也聚焦了，然后焦点被夺走，
-    // 于是打的字全进主提示词框。同文件的 `PromptInputAction` 早就用
-    // stopPropagation 防这一手。
-    it('⛔ 点负面框时容器不许把焦点抢回主提示词框', () => {
-      setupImagePanel()
-      renderPromptArea()
-
-      fireEvent.click(
-        screen.getByRole('button', { name: /negativePromptLabel/ }),
-      )
-      const negative = screen.getByRole('textbox', {
-        name: 'negativePromptLabel',
-      })
-      const mainPrompt = screen.getByRole('textbox', { name: 'promptLabel' })
-
-      fireEvent.click(negative)
-
-      expect(document.activeElement).not.toBe(mainPrompt)
-    })
-
-    it('⛔ 展开后不再重复同一句 placeholder（同一句话不许一屏两遍）', () => {
-      setupImagePanel()
-      renderPromptArea()
-
-      const row = screen.getByRole('button', { name: /negativePromptLabel/ })
-      expect(row.textContent).toContain('negativePromptPlaceholder')
-
-      fireEvent.click(row)
-
-      // 展开后同一句只由输入框的 placeholder 承担，摘要行不再重复。
-      expect(row.textContent).not.toContain('negativePromptPlaceholder')
-      expect(
-        screen.getByRole('textbox', { name: 'negativePromptLabel' }),
-      ).toHaveAttribute('placeholder', 'negativePromptPlaceholder')
-    })
-
-    it('清空写成 undefined 而不是空串（空串会被当成「设过一个空负面」带进请求）', () => {
-      setupImagePanel({ negativePrompt: 'bad hands' })
-      renderPromptArea()
-
-      fireEvent.click(
-        screen.getByRole('button', { name: /negativePromptLabel/ }),
-      )
-      fireEvent.change(
-        screen.getByRole('textbox', { name: 'negativePromptLabel' }),
-        { target: { value: '' } },
-      )
-
-      expect(mockDispatch).toHaveBeenCalledWith({
-        type: 'SET_ADVANCED_PARAMS',
-        payload: { negativePrompt: undefined },
-      })
+    expect(studio.current.state.advancedParams).toMatchObject({
+      seed: 7,
+      negativePrompt: 'blurry',
     })
   })
 
-  /**
-   * 底部输入框布局（owner 2026-09-26，图片自然语言台桌面）：同一套控件排成舞台
-   * 下方的一条输入框。验的是这一排法特有的三件事，生成载荷与参数栏共用、不重验。
-   */
-  describe('底部输入框布局', () => {
-    const renderBottom = () =>
-      render(
-        <StudioOperatorHostProvider host={STUB_OPERATOR_HOST}>
-          <StudioPromptArea
-            layout="bottom"
-            templates={TEMPLATES}
-            characterCards={CARDS}
-          />
-        </StudioOperatorHostProvider>,
-      )
-    const setupImage = (overrides: Partial<StudioFormState> = {}) =>
-      setupStudioForm(WORKFLOW_IDS.QUICK_IMAGE, {
-        outputType: 'image',
-        selectedOptionId: null,
-        advancedParams: {},
-        ...overrides,
-      })
-
-    it('负面提示词是工具行的一颗 chip：点开出现一行，写回整个对象', () => {
-      setupImage({ advancedParams: { seed: 7 } })
-      renderBottom()
-
-      const chip = screen.getByRole('button', { name: /negativePromptLabel/ })
-      expect(chip).toHaveAttribute('aria-pressed', 'false')
-      expect(
-        screen.queryByRole('textbox', { name: 'negativePromptLabel' }),
-      ).not.toBeInTheDocument()
-
-      fireEvent.click(chip)
-      expect(chip).toHaveAttribute('aria-pressed', 'true')
-      fireEvent.change(
-        screen.getByRole('textbox', { name: 'negativePromptLabel' }),
-        { target: { value: 'blurry' } },
-      )
-      expect(mockDispatch).toHaveBeenCalledWith({
-        type: 'SET_ADVANCED_PARAMS',
-        payload: { seed: 7, negativePrompt: 'blurry' },
-      })
-    })
-
-    it('已经写了负面词时那一行常驻，不用再点', () => {
-      setupImage({ advancedParams: { negativePrompt: 'watermark' } })
-      renderBottom()
-      expect(
-        screen.getByRole('textbox', { name: 'negativePromptLabel' }),
-      ).toHaveValue('watermark')
-    })
-
-    it('① 圆键：被挡住时仍可点，点了左边出一行缺什么', () => {
-      setupImage({ prompt: '' })
-      renderBottom()
-
-      const button = screen.getByRole('button', { name: /^generate · / })
-      expect(button).toHaveClass('rounded-full', 'size-9')
-      expect(button).toHaveAttribute('aria-disabled', 'true')
-      expect(button).not.toBeDisabled()
-
-      fireEvent.click(button)
-      const hint = button.closest('.ml-auto')
-        ?.previousElementSibling as HTMLElement | null
-      expect(hint).not.toBeNull()
-      expect(hint).toHaveClass('opacity-100')
-      expect(hint?.textContent).not.toBe('')
-      // 同一件事只说一遍：左边那行说了，就不再弹 toast。
-      expect(toast.info).not.toHaveBeenCalled()
-      expect(toast.error).not.toHaveBeenCalled()
-    })
-
-    it('① 圆键生成中是 ■ 停止：点一下取消整轮，不再发一枪', () => {
-      mockGenState.isGenerating = true
-      setupImage({ prompt: 'a cat' })
-      renderBottom()
-
-      const button = screen.getByRole('button', { name: 'cancelAll' })
-      expect(button).not.toBeDisabled()
-      fireEvent.click(button)
-      expect(mockCancelAllRunItems).toHaveBeenCalledTimes(1)
-      expect(mockGenerate).not.toHaveBeenCalled()
-    })
+  it('已经写了负面词时那一行常驻，不用再点', async () => {
+    await renderArranged(
+      { advancedParams: { negativePrompt: 'watermark' } },
+      { layout: 'bottom' },
+    )
+    expect(screen.getByRole('textbox', { name: NEGATIVE })).toHaveValue(
+      'watermark',
+    )
   })
 
-  beforeEach(() => {
-    vi.clearAllMocks()
-    mockImageUploadState.isUploading = false
-    mockGenState.isGenerating = false
-    mockGenerate.mockResolvedValue(null)
-    mockImageUploadHandleDrop.mockResolvedValue(undefined)
-    mockUseImageModelOptions.mockReturnValue({
-      selectedModel: null,
-      modelOptions: [],
+  it('① 圆键：被挡住时仍可点，点了左边出一行缺什么，⛔ 再弹 toast', async () => {
+    await renderArranged(
+      { model: AI_MODELS.OPENAI_GPT_IMAGE_2, prompt: '' },
+      { layout: 'bottom' },
+    )
+    const button = screen.getByRole('button', {
+      name: new RegExp(`^${GENERATE} · `),
     })
-    localStorage.clear()
+    expect(button).toHaveAttribute('aria-disabled', 'true')
+    expect(button).not.toBeDisabled()
+    expect(screen.queryByText(PA('blocked.promptRequired'))).toBeNull()
+
+    fireEvent.click(button)
+    expect(screen.getByText(PA('blocked.promptRequired'))).toBeInTheDocument()
+    // 同一件事只说一遍：左边那行说了，就不再弹 toast。
+    expect(toast.info).not.toHaveBeenCalled()
+    expect(toast.error).not.toHaveBeenCalled()
   })
 
-  it('prefills the sample prompt on first visit when prompt is empty', async () => {
-    setupStudioForm(WORKFLOW_IDS.QUICK_IMAGE, {
-      outputType: 'image',
-      selectedOptionId: null,
-      prompt: '',
-    })
+  it('① 圆键生成中是 ■ 停止：点一下取消整轮，⛔ 再发一枪', async () => {
+    server.on(
+      'POST',
+      API_ENDPOINTS.STUDIO_GENERATE,
+      () => new Promise<Response>(() => {}),
+    )
+    const { studio } = await renderArranged(
+      { model: AI_MODELS.OPENAI_GPT_IMAGE_2, prompt: 'a cat' },
+      { layout: 'bottom' },
+    )
+    fireEvent.click(
+      screen.getByRole('button', { name: new RegExp(`^${GENERATE} · `) }),
+    )
+    await settle()
+    expect(studio.current.generation.isGenerating).toBe(true)
 
-    renderPromptArea()
+    fireEvent.click(
+      screen.getByRole('button', { name: text('GenerationCancel.cancelAll') }),
+    )
+    await settle()
+    expect(studio.current.generation.isGenerating).toBe(false)
+    expect(
+      server.requests.filter((r) => r.path === API_ENDPOINTS.STUDIO_GENERATE),
+    ).toHaveLength(1)
+  })
+})
 
-    await waitFor(() => expect(getSetPromptActions()).toHaveLength(1))
-    const [setPromptAction] = getSetPromptActions()
-    expect(setPromptAction.payload.length).toBeGreaterThan(0)
-    expect(localStorage.getItem(SAMPLE_PROMPT_FLAG_KEY)).toBe('1')
+describe('示例提示词', () => {
+  it('第一次来、提示词是空的：填一句示例，并记下来过了', async () => {
+    localStorage.removeItem(SAMPLE_PROMPT_STORAGE_KEY)
+    const { studio } = renderArea()
+    await settle()
+    expect(studio.current.state.prompt).toBe(PA('samplePrompts.quickImage'))
+    expect(localStorage.getItem(SAMPLE_PROMPT_STORAGE_KEY)).toBe('1')
   })
 
-  it('does not prefill the sample prompt after the first visit flag exists', () => {
-    localStorage.setItem(SAMPLE_PROMPT_FLAG_KEY, '1')
-    setupStudioForm(WORKFLOW_IDS.QUICK_IMAGE, {
-      outputType: 'image',
-      selectedOptionId: null,
-      prompt: '',
-    })
+  it('来过了就不再填', async () => {
+    const { studio } = renderArea()
+    await settle()
+    expect(studio.current.state.prompt).toBe('')
+  })
+})
 
-    renderPromptArea()
-
-    expect(getSetPromptActions()).toEqual([])
+describe('参考图', () => {
+  it('参考图面板开着时按它的触发键，⛔ 先被「点外面就收」关掉', async () => {
+    const { studio } = await renderArranged()
+    act(() =>
+      studio.current.dispatch({ type: 'OPEN_PANEL', payload: 'refImage' }),
+    )
+    fireEvent.pointerDown(
+      screen.getByRole('button', { name: text('ImageChip.label') }),
+    )
+    expect(studio.current.state.panels.refImage).toBe(true)
   })
 
-  it('does not pre-close the open image surface when its panel trigger is pressed', () => {
-    setupStudioForm(WORKFLOW_IDS.QUICK_IMAGE, {
-      outputType: 'image',
-      selectedOptionId: null,
-      panels: { ...EMPTY_PANELS, refImage: true },
-    })
-
-    renderPromptArea()
-    mockDispatch.mockClear()
-
-    fireEvent.pointerDown(screen.getByRole('button', { name: 'label' }))
-
-    expect(mockDispatch).not.toHaveBeenCalledWith({
-      type: 'CLOSE_TOOL_PANELS',
-    })
-  })
-
-  it('routes dropped reference images through the prompt box', async () => {
-    setupStudioForm(WORKFLOW_IDS.QUICK_IMAGE, {
-      outputType: 'image',
-      selectedOptionId: null,
-    })
-
-    renderPromptArea()
-
-    const promptGroup = screen.getByRole('group')
-
-    fireEvent.drop(promptGroup, {
+  it('从结果区拖进提示词框的图挂成参考图', async () => {
+    const { studio } = await renderArranged()
+    fireEvent.drop(screen.getByRole('group'), {
       dataTransfer: {
-        types: ['application/x-studio-ref'],
-        getData: () =>
-          JSON.stringify({ url: 'https://cdn.example.com/reference.png' }),
+        types: [STUDIO_GENERATION_DRAG_MIME],
+        getData: (type: string) =>
+          type === STUDIO_GENERATION_DRAG_MIME
+            ? JSON.stringify({ url: 'https://cdn.example.com/reference.png' })
+            : '',
         files: [],
       },
     })
-
-    expect(mockImageUploadHandleDrop).toHaveBeenCalledTimes(1)
-  })
-
-  /**
-   * 模板 C 第二片（owner 2026-09-26）：视频台的「模板」开合的是舞台上那块面板
-   * （宿主持有开合），⛔ 不再是弹窗。
-   */
-  it('视频台的「模板」开合舞台上的模板面板', () => {
-    setupStudioForm(WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO)
-    const { rerender } = renderVideoBottom()
-    const chip = screen.getByRole('button', { name: 'templatePicker' })
-    expect(chip).toHaveAttribute('aria-expanded', 'false')
-    expect(chip).not.toHaveAttribute('aria-haspopup')
-    fireEvent.click(chip)
-    expect(mockTemplatesToggle).toHaveBeenCalledTimes(1)
-
-    rerender(
-      <StudioOperatorHostProvider host={STUB_OPERATOR_HOST}>
-        <StudioPromptArea
-          layout="bottom"
-          templates={{ ...TEMPLATES, open: true }}
-          characterCards={CARDS}
-        />
-      </StudioOperatorHostProvider>,
-    )
-    expect(
-      screen.getByRole('button', { name: 'templatePicker' }),
-    ).toHaveAttribute('aria-controls', STUDIO_TEMPLATES_PANEL_ID)
-  })
-
-  /**
-   * 视频台 A（owner 2026-09-27「素材在输入框里」）：工具行左组是 素材 · 模板（剧本 2026-10-21 下线），
-   * ⛔ 没有参考图 chip；拖放落点是整个输入框，走视频素材那一个入口。
-   */
-  describe('视频台（底部输入框）', () => {
-    it('工具行左组是 素材 · 模板，⛔ 没有参考图 / 卡片 / 遮罩 / 剧本', () => {
-      setupStudioForm(WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO)
-      renderVideoBottom()
-      // 规格 chip 的无障碍名也叫 `chipLabel`（另一个命名空间），按测试 id 认素材那颗。
-      expect(screen.getByTestId('video-asset-add')).toBeVisible()
-      expect(
-        screen.getByRole('button', { name: 'templatePicker' }),
-      ).toBeVisible()
-      // ReferenceImageChip 的无障碍名是 ImageChip.label。
-      expect(screen.queryByRole('button', { name: 'label' })).toBeNull()
-    })
-
-    it('拖进输入框走视频素材那条，⛔ 不经参考图的 handleDrop', () => {
-      setupStudioForm(WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO)
-      renderVideoBottom()
-      const composer = screen.getByRole('group')
-      fireEvent.drop(composer, {
-        dataTransfer: { files: [], getData: () => '' },
-      })
-      expect(mockImageUploadHandleDrop).not.toHaveBeenCalled()
-    })
-  })
-
-  it('adds CINEMATIC_SHORT_VIDEO workflowId to the video submit payload', async () => {
-    await submitVideoFromPromptArea(WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO)
-
-    expect(getSubmittedVideoPayload()).toEqual(
-      expect.objectContaining({
-        workflowId: WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO,
-      }),
+    await settle()
+    expect(studio.current.imageUpload.referenceImages).toContain(
+      'https://cdn.example.com/reference.png',
     )
   })
 
-  it('adds CHARACTER_TO_VIDEO workflowId to the video submit payload', async () => {
-    await submitVideoFromPromptArea(WORKFLOW_IDS.CHARACTER_TO_VIDEO)
-
-    expect(getSubmittedVideoPayload()).toEqual(
-      expect.objectContaining({
-        workflowId: WORKFLOW_IDS.CHARACTER_TO_VIDEO,
-      }),
+  it('粘贴进来的图还在上传时就有「上传中」，⛔ 等传完才有反馈', async () => {
+    server.on(
+      'POST',
+      API_ENDPOINTS.UPLOAD_IMAGE_DIRECT,
+      () => new Promise<Response>(() => {}),
     )
-  })
-
-  it('omits workflowId from the video submit payload for image workflows', async () => {
-    await submitVideoFromPromptArea(WORKFLOW_IDS.QUICK_IMAGE)
-
-    expect(getSubmittedVideoPayload()).not.toHaveProperty('workflowId')
-  })
-
-  // ── 音乐档的时长（切片 E）───────────────────────────────────────
-  //
-  // ⚠ 这一组盯的是一个「字段活着、门没开」：适配器早就读 `durationSeconds` 并
-  // 换算成 `music_length_ms`，而提交侧只在**音效**那一支传它 —— 于是所有音乐
-  // 都是适配器兜底的 30 秒，用户没有任何办法改。
-  const musicModelOption = {
-    optionId: 'music-option',
-    modelId: 'elevenlabs-music-v2',
-    keyId: 'eleven-key-1',
-    keyLabel: 'ElevenLabs key',
-    adapterType: 'elevenlabs',
-    providerConfig: {
-      label: 'ElevenLabs',
-      baseUrl: 'https://api.elevenlabs.io',
-    },
-    sourceType: 'saved',
-    requestCount: 1,
-  }
-
-  // ⭐ owner 2026-08-24：取消那个 2000。它的主人是卡片配方里「动作 / 姿势」那个
-  // 输入框，被借来当了 quick 模式的默认上限，于是一串正常的风格标签就能顶到
-  // `2932/2000` 并锁死生成按钮 —— 而请求边界本来就是 32000。
-
-  it('caps the prompt at the model-specific maxPromptChars (Ideogram V4 = 1000)', () => {
-    const ideogram = {
-      optionId: 'ideogram-option',
-      modelId: AI_MODELS.IDEOGRAM_3,
-      keyId: 'fal-key-1',
-      keyLabel: 'fal key',
-      adapterType: 'fal',
-      providerConfig: {
-        label: 'fal.ai',
-        baseUrl: 'https://fal.run',
+    await renderArranged()
+    const file = new File(['png'], 'paste.png', { type: 'image/png' })
+    fireEvent.paste(
+      screen.getByRole('textbox', { name: text('StudioForm.promptLabel') }),
+      {
+        clipboardData: {
+          files: [file],
+          items: [{ kind: 'file', type: 'image/png', getAsFile: () => file }],
+          types: ['Files'],
+          getData: () => '',
+        },
       },
-      sourceType: 'saved',
-      requestCount: 1,
-    }
-    mockUseImageModelOptions.mockReturnValue({
-      selectedModel: ideogram,
-      modelOptions: [ideogram],
-    })
-    // ⚠ 厂商声明的上限**保留**前置闸：那是真实的 encoder 限制，提前拦比让
-    //   provider 回一句英文错更有用（与音频 declared 层同理）。
-    setupStudioForm(WORKFLOW_IDS.QUICK_IMAGE, {
-      outputType: 'image',
-      selectedOptionId: 'ideogram-option',
-      prompt: 'a'.repeat(1001),
-    })
-
-    renderPromptArea()
-
-    expect(screen.getByText('1001/1000')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /^generate$/ })).toBeDisabled()
-    expect(mockGenerate).not.toHaveBeenCalled()
+    )
+    await settle()
+    expect(screen.getByRole('status')).toHaveTextContent(
+      text('ImageUpload.uploading'),
+    )
   })
 })
 
+/** 厂商声明的上限保留前置闸：那是真实的 encoder 限制（与请求边界的 32000 无关）。 */
+it('提示词按型号的上限卡（Gemini 3 Pro Image = 8000）：超了显示字数、生成键禁用', async () => {
+  await renderArranged({
+    model: AI_MODELS.GEMINI_PRO_IMAGE,
+    prompt: 'a'.repeat(8001),
+  })
+  expect(screen.getByText('8001/8000')).toBeInTheDocument()
+  const generate = screen.getByRole('button', {
+    name: new RegExp(`^${GENERATE}$`),
+  })
+  expect(generate).toBeDisabled()
+})
+
 /**
- * 台账 A（owner 2026-08-29 拍板补齐）：视频工作台的音频通道。
- *
- * ⭐ 守的是**最容易白做的那一步**：schema / service / worker 三层早就收
- * `audioUrls` + `audioBindings`，断点是 `buildVideoInput` 不填它们。只加面板
- * 而不改这里，界面上挂得上、请求里一个字都没有 —— 而且三绿。
+ * 视频台 A（owner 2026-09-27「素材在输入框里」）：工具行左组是 素材 · 模板，⛔ 没有参考图
+ * chip；「模板」开合的是舞台上那块面板（宿主持有开合）。
  */
-describe('StudioPromptArea · 视频音频参考（台账 A）', () => {
-  beforeEach(() => {
-    mockGenerate.mockClear()
-    mockGenerate.mockResolvedValue(undefined)
-    // 挂了音频 → 走参考端点；Seedance 2.5（火山）的参考端点收音频。
-    mockVideoModel.modelId = AI_MODELS.SEEDANCE_25_VOLCENGINE
-    mockVideoModel.adapterType = 'volcengine'
-  })
-  afterEach(() => {
-    mockVideoModel.modelId = 'fal-video-model'
-    mockVideoModel.adapterType = 'fal'
+describe('视频台（底部输入框）', () => {
+  const video = { workflow: WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO }
+
+  it('工具行左组是 素材 · 模板，⛔ 没有参考图', async () => {
+    await renderArranged(video, { layout: 'bottom' })
+    expect(screen.getByTestId('video-asset-add')).toBeVisible()
+    expect(
+      screen.getByRole('button', {
+        name: text('PromptLibrary.templatePicker'),
+      }),
+    ).toBeVisible()
+    expect(
+      screen.queryByRole('button', { name: text('ImageChip.label') }),
+    ).toBeNull()
   })
 
-  it('把挂上的音频送进 audioUrls，并按归属填 audioBindings.characterName', async () => {
-    await submitVideoFromPromptArea(WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO, {
-      videoAudioRefs: [
-        {
-          id: 'a1',
-          url: 'https://cdn.example.com/hinata.mp3',
-          fileName: 'hinata.mp3',
-          ownerName: 'ひなた',
-        },
-        {
-          id: 'a2',
-          url: 'https://cdn.example.com/narration.mp3',
-          fileName: 'narration.mp3',
-        },
-      ],
+  it('「模板」开合舞台上的模板面板（⛔ 弹窗）', async () => {
+    const onToggleTemplates = vi.fn()
+    const view = await renderArranged(video, {
+      layout: 'bottom',
+      onToggleTemplates,
     })
+    const chip = () =>
+      screen.getByRole('button', { name: text('PromptLibrary.templatePicker') })
+    expect(chip()).toHaveAttribute('aria-expanded', 'false')
+    expect(chip()).not.toHaveAttribute('aria-haspopup')
+    fireEvent.click(chip())
+    expect(onToggleTemplates).toHaveBeenCalledTimes(1)
 
-    const video = getSubmittedVideoPayload()
-    expect(video.audioUrls).toEqual([
+    view.rerender({ layout: 'bottom', templatesOpen: true, onToggleTemplates })
+    expect(chip()).toHaveAttribute('aria-controls', STUDIO_TEMPLATES_PANEL_ID)
+  })
+
+  it('拖进输入框的图走视频素材那条：进素材排，⛔ 挂成图片参考', async () => {
+    const { studio } = await renderArranged(
+      { ...video, model: AI_MODELS.SEEDANCE_25_VOLCENGINE },
+      { layout: 'bottom' },
+    )
+    const url = 'https://cdn.example.com/frame.png'
+    fireEvent.drop(screen.getByRole('group'), {
+      dataTransfer: {
+        types: ['text/uri-list'],
+        getData: (type: string) => (type === 'text/uri-list' ? url : ''),
+        files: [],
+      },
+    })
+    await settle()
+    const rail = screen.getByTestId('studio-video-asset-rail')
+    expect(rail.querySelector(`img[src="${url}"]`)).not.toBeNull()
+    expect(
+      screen.queryByRole('button', {
+        name: text('ImageChip.removeReferenceImage', { index: 1 }),
+      }),
+    ).toBeNull()
+    expect(studio.current.state.outputType).toBe('video')
+  })
+})
+
+describe('视频提交载荷', () => {
+  async function submitVideo(
+    setup: Setup,
+    sentModel = setup.model ?? AI_MODELS.SEEDANCE_25_VOLCENGINE,
+  ) {
+    await renderArranged(
+      {
+        model: AI_MODELS.SEEDANCE_25_VOLCENGINE,
+        prompt: 'Make a cinematic establishing shot',
+        ...setup,
+      },
+      { layout: 'bottom' },
+    )
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: new RegExp(`^${GENERATE} · `),
+      }),
+    )
+    await settle()
+    await settle()
+    expect(videoBodies).toHaveLength(1)
+    // 跑的就是选中的那一条型号（⛔ 落回目录里别的默认）。
+    expect(videoBodies[0]).toMatchObject({ modelId: sentModel })
+    return videoBodies[0]!
+  }
+
+  it.each([
+    WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO,
+    WORKFLOW_IDS.CHARACTER_TO_VIDEO,
+  ])('带上视频工作流 %s', async (workflow) => {
+    expect(await submitVideo({ workflow })).toMatchObject({
+      workflowId: workflow,
+    })
+  })
+
+  /**
+   * 台账 A：schema / service / worker 早就收 `audioUrls` + `audioBindings`，断点是请求组装
+   * 不填它们 —— 界面上挂得上、请求里一个字都没有，而且三绿。
+   */
+  it('挂上的音频送进 audioUrls，并按归属填 audioBindings.characterName', async () => {
+    const body = await submitVideo(
+      {
+        workflow: WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO,
+        audioRefs: [
+          {
+            id: 'a1',
+            url: 'https://cdn.example.com/hinata.mp3',
+            fileName: 'hinata.mp3',
+            ownerName: 'ひなた',
+          },
+          {
+            id: 'a2',
+            url: 'https://cdn.example.com/narration.mp3',
+            fileName: 'narration.mp3',
+          },
+        ],
+      },
+      // 挂了音频 → 发送口换到同一型号的参考端点（它收音频）。
+      AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE,
+    )
+    expect(body.audioUrls).toEqual([
       'https://cdn.example.com/hinata.mp3',
       'https://cdn.example.com/narration.mp3',
     ])
-    // ⚠ 没归属的那条**不带** characterName —— schema 上它是 `.min(1).optional()`，
-    // 送空串会被服务端拒收；不带则退化成无标签 @Audio2。
-    expect(video.audioBindings).toEqual([
+    // ⚠ 没归属的那条不带 characterName（schema 上是 `.min(1).optional()`）。
+    expect(body.audioBindings).toEqual([
       { url: 'https://cdn.example.com/hinata.mp3', characterName: 'ひなた' },
       { url: 'https://cdn.example.com/narration.mp3' },
     ])
   })
 
-  it('⛔ 这个型号不收音频：挂着的音频这次不发（素材排上说出来），不再发过去被服务端拒', async () => {
-    mockVideoModel.modelId = 'fal-video-model'
-    mockVideoModel.adapterType = 'fal'
-    await submitVideoFromPromptArea(WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO, {
-      videoAudioRefs: [
+  it('⛔ 这个型号不收音频：挂着的音频这次不发', async () => {
+    const body = await submitVideo({
+      workflow: WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO,
+      model: AI_MODELS.MINIMAX_H3_MAX_TURBO,
+      audioRefs: [
         {
           id: 'a1',
           url: 'https://cdn.example.com/hinata.mp3',
@@ -899,36 +601,32 @@ describe('StudioPromptArea · 视频音频参考（台账 A）', () => {
         },
       ],
     })
-    const video = getSubmittedVideoPayload()
-    expect(video).not.toHaveProperty('audioUrls')
-    expect(video).not.toHaveProperty('audioBindings')
+    expect(body).not.toHaveProperty('audioUrls')
+    expect(body).not.toHaveProperty('audioBindings')
   })
 
-  it('一条都没挂时，两个字段都不出现在请求里', async () => {
-    await submitVideoFromPromptArea(WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO, {
-      videoAudioRefs: [],
+  it('一条都没挂时，两个字段都不出现', async () => {
+    const body = await submitVideo({
+      workflow: WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO,
     })
-
-    const video = getSubmittedVideoPayload()
-    expect(video).not.toHaveProperty('audioUrls')
-    expect(video).not.toHaveProperty('audioBindings')
+    expect(body).not.toHaveProperty('audioUrls')
+    expect(body).not.toHaveProperty('audioBindings')
   })
 
-  /**
-   * ⭐ `generateAudio` 的三态。发一个 `false` 与「没设过」在**目录默认为 true**
-   * 的模型上是相反的结果 —— 用两态布尔会把「没设过」当成用户主动关掉了声音。
-   */
-  it('没设过就不发 generateAudio —— 最终值留给模型目录默认', async () => {
-    await submitVideoFromPromptArea(WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO, {
-      videoGenerateAudio: null,
+  /** `generateAudio` 三态：「没设过」与发一个 `false` 在目录默认为 true 的模型上相反。 */
+  it('没设过就不发 generateAudio —— 留给模型目录默认', async () => {
+    const body = await submitVideo({
+      workflow: WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO,
+      generateAudio: null,
     })
-    expect(getSubmittedVideoPayload()).not.toHaveProperty('generateAudio')
+    expect(body).not.toHaveProperty('generateAudio')
   })
 
   it('用户拨过就发那个显式布尔', async () => {
-    await submitVideoFromPromptArea(WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO, {
-      videoGenerateAudio: false,
+    const body = await submitVideo({
+      workflow: WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO,
+      generateAudio: false,
     })
-    expect(getSubmittedVideoPayload().generateAudio).toBe(false)
+    expect(body.generateAudio).toBe(false)
   })
 })

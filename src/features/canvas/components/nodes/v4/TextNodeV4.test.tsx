@@ -1,3 +1,7 @@
+/**
+ * 文本 / 剧本卡：真工具条（玻璃胶囊 + 真 Radix ⋯ 菜单）、真「拆成多段」、真写作模型
+ * chip（真 `ApiKeysProvider` 拉 key 列表）。只假网络、React Flow 的画布量尺与 next-intl。
+ */
 import { fireEvent, render, screen } from '@testing-library/react'
 import type { CSSProperties, ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -34,113 +38,27 @@ vi.mock('@xyflow/react', () => ({
     ) : null,
 }))
 
-// 模型 chip 要 API key 上下文；本组测试断言的是「栏上有没有这颗 chip」，
-// ⛔ 不把整条 key 供数链拉进来。
-vi.mock(
-  '@/components/business/studio-shared/pickers/ModelPickerPopover',
-  () => ({
-    ModelPickerPopover: () => <button type="button" data-chip="model" />,
-  }),
-)
-
-/**
- * 本组测试断言的是**本片的接线**（哪一键接哪个回调），所以把工具条那层壳桩掉：
- * 玻璃胶囊 / tooltip / 子菜单是 `chrome/NodeToolbar` 自己的事，回归闸在
- * `chrome/NodeToolbar.test.tsx`。
- */
-vi.mock('./chrome/NodeToolbar', () => ({
-  NodeToolbar: ({
-    groups,
-    ariaLabel,
-  }: {
-    groups: readonly (readonly {
-      id: string
-      label: string
-      onSelect: () => void
-      menu?: ReactNode
-      panel?: ReactNode
-    }[])[]
-    ariaLabel: string
-  }) => (
-    <div role="toolbar" aria-label={ariaLabel}>
-      {groups.flat().map((action) => (
-        <div key={action.id}>
-          <button
-            type="button"
-            data-toolbar-action={action.id}
-            data-has-menu={action.menu ? 'true' : undefined}
-            data-has-panel={action.panel ? 'true' : undefined}
-            onClick={action.onSelect}
-          />
-          {/* 子菜单 / 面板在真壳里要点开才有；桩里常驻渲染，本组要断言的是
-              「哪一键接哪份内容」。 */}
-          {action.menu}
-          {action.panel}
-        </div>
-      ))}
-    </div>
-  ),
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({ isLoaded: true, isSignedIn: true, userId: 'user-a' }),
 }))
 
-/**
- * ⋯ 菜单的项在真壳里长在 Radix 的 `Menu` 上下文里；本组要断言的是「⋯ 里有哪几项、
- * 各接哪个回调」，所以把菜单原语换成裸按钮。⛔ 不为此在被测组件里加测试专用分支。
- */
-vi.mock('@/components/ui/dropdown-menu', () => ({
-  DropdownMenu: ({ children }: { children: ReactNode }) => <>{children}</>,
-  DropdownMenuTrigger: ({ children }: { children: ReactNode }) => (
-    <>{children}</>
-  ),
-  DropdownMenuContent: ({ children }: { children: ReactNode }) => (
-    <>{children}</>
-  ),
-  DropdownMenuSeparator: () => null,
-  DropdownMenuItem: ({
-    children,
-    onSelect,
-    disabled,
-    variant,
-    ...attrs
-  }: {
-    children: ReactNode
-    onSelect?: () => void
-    disabled?: boolean
-    /** 真壳的 `variant="destructive"` 不是 DOM 属性，桩里丢掉。 */
-    variant?: string
-  }) => (
-    <button
-      type="button"
-      disabled={disabled}
-      data-variant={variant}
-      onClick={onSelect}
-      {...attrs}
-    >
-      {children}
-    </button>
-  ),
-}))
-
-/**
- * 「拆成多段」自带一条动作总线依赖（`useNodeCanvasActions`），真壳里它**只在菜单
- * 真的打开时**才挂载；桩工具条把菜单常驻渲染，所以这里把这一项换成裸按钮。
- */
-vi.mock('./text/TextSplitMenuItem', () => ({
-  TextSplitMenuItem: () => <button type="button" data-menu-action="split" />,
-}))
-
-vi.mock('@/hooks/use-llm-route-picker', () => ({
-  useLLMRoutePicker: () => ({
-    savedRoutes: [],
-    lockedRoutes: [],
-    allRoutes: [],
-    healthMap: {},
-  }),
+vi.mock('motion/react', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('motion/react')>()),
+  useReducedMotion: () => true,
 }))
 
 import { NODE_V4_CARD } from '@/constants/node-studio'
+import { API_ENDPOINTS } from '@/constants/config'
+import { ApiKeysProvider } from '@/contexts/api-keys-context'
 import { reconcileStateSlots } from '@/lib/node-slot-binding'
 import type { NodeV4, NodeWorkflowStateV4 } from '@/types/node-workflow'
+import { fakeServer } from '@/test/app-harness'
+import { openRadixMenu } from '@/test/radix-menu'
 
+import {
+  NodeCanvasActionsProvider,
+  type NodeCanvasActions,
+} from './NodeV4ActionsBridge'
 import {
   NodeV4CanvasProvider,
   type NodeV4CanvasContextValue,
@@ -236,18 +154,32 @@ function renderText(
   nodeId = 't_02',
 ) {
   const target = context.nodes.find((item) => item.id === nodeId)!
+  // 画布动作出口由宿主注入（工作台那一层）；「拆成多段」要它在场。
+  const actions = new Proxy({}, { get: () => vi.fn() }) as NodeCanvasActions
   return render(
-    <div data-canvas-stage>
-      <NodeV4CanvasProvider value={context}>
-        {/* @ts-expect-error NodeProps 的其余字段本组测试用不到 */}
-        <TextNodeV4 id={nodeId} data={target.data} selected={selected} />
-      </NodeV4CanvasProvider>
-    </div>,
+    <ApiKeysProvider>
+      <NodeCanvasActionsProvider value={actions}>
+        <div data-canvas-stage>
+          <NodeV4CanvasProvider value={context}>
+            {/* @ts-expect-error NodeProps 的其余字段本组测试用不到 */}
+            <TextNodeV4 id={nodeId} data={target.data} selected={selected} />
+          </NodeV4CanvasProvider>
+        </div>
+      </NodeCanvasActionsProvider>
+    </ApiKeysProvider>,
   )
+}
+
+/** ⋯ 菜单是真 Radix：点开后各项在 portal 里。 */
+function openMoreMenu(container: HTMLElement) {
+  openRadixMenu(container.querySelector('[data-toolbar-action="more"]')!)
 }
 
 beforeEach(() => {
   takeCanvasTextAssist()
+  fakeServer().on('GET', API_ENDPOINTS.API_KEYS, () =>
+    Response.json({ success: true, data: [] }),
+  )
 })
 
 describe('S2b 文本节点 · 收起态 = 高文本框', () => {
@@ -378,8 +310,9 @@ describe('S2b 文本节点 · 选中态', () => {
 
   it('⋯ = 改名 / 复制 / 拆成多段 / 生图 / 生镜头 / 删除', () => {
     const { container } = selected()
+    openMoreMenu(container)
     expect(
-      [...container.querySelectorAll('[data-menu-action]')].map((element) =>
+      [...document.querySelectorAll('[data-menu-action]')].map((element) =>
         element.getAttribute('data-menu-action'),
       ),
     ).toEqual(['rename', 'clone', 'split', 'shotImage', 'shot', 'delete'])
@@ -389,9 +322,11 @@ describe('S2b 文本节点 · 选中态', () => {
     const { context, container } = selected()
     fireEvent.click(container.querySelector('[data-toolbar-action="expand"]')!)
     expect(context.onToggleExpanded).toHaveBeenCalledWith('t_02')
-    fireEvent.click(container.querySelector('[data-menu-action="shotImage"]')!)
+    openMoreMenu(container)
+    fireEvent.click(document.querySelector('[data-menu-action="shotImage"]')!)
     expect(context.onDeriveFromText).toHaveBeenCalledWith('t_02', 'shotImage')
-    fireEvent.click(container.querySelector('[data-menu-action="shot"]')!)
+    openMoreMenu(container)
+    fireEvent.click(document.querySelector('[data-menu-action="shot"]')!)
     expect(context.onDeriveFromText).toHaveBeenCalledWith('t_02', 'video')
   })
 
@@ -419,7 +354,8 @@ describe('S2b 文本节点 · 选中态', () => {
   it('助手栏：动作 chip 可开可关，发送投一张便条（⛔ 不另起 LLM 调用）', () => {
     const { container } = selected()
     const bar = container.querySelector('[data-text-assistant-bar]')!
-    expect(bar.querySelector('[data-chip="model"]')).not.toBeNull()
+    // 写作模型 chip：还没选模型，chip 上是「模型」。
+    expect(bar.textContent).toContain('assist.model')
 
     const rewrite = bar.querySelector('[data-assist-action="rewrite"]')!
     fireEvent.click(rewrite)

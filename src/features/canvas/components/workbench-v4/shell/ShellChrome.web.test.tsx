@@ -5,15 +5,19 @@
  * ⌘K、底栏、助手 dock 收放与宽度、快捷键。
  *
  * ⚠ 只证「点了会调什么」，不证画板像素：对稿在真机验收里逐项比。
+ *
+ * 真节点定位器（`CastDock`）、真角色库（`useCharacterLibrary`）、真项目夹（`useProjects`）、
+ * 真 ⌘K 面板（cmdk）；只假网络（api-client）、React Flow 的画布 store、next-intl 与跳转。
  */
 import {
   act,
   cleanup,
   fireEvent,
-  render,
+  render as rtlRender,
   renderHook,
   screen,
 } from '@testing-library/react'
+import type { ReactElement, ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // cmdk 挂 ResizeObserver；jsdom 没有，补一个空壳（⛔ 不为此把面板换成手写列表）。
@@ -24,6 +28,8 @@ class ResizeObserverStub {
 }
 globalThis.ResizeObserver ??=
   ResizeObserverStub as unknown as typeof ResizeObserver
+// cmdk 首绘会对选中项调 `scrollIntoView`；jsdom 的元素没有它（浏览器排版那一层）。
+Element.prototype.scrollIntoView ??= function scrollIntoView() {}
 
 vi.mock('next-intl', () => ({
   useLocale: () => 'zh',
@@ -39,63 +45,11 @@ vi.mock('@xyflow/react', () => ({
   }),
   useStore: (selector: (state: { transform: number[] }) => unknown) =>
     selector({ transform: [0, 0, 0.8] }),
+  // 节点定位器读画布上的卡与线：本组的画布是空的。
+  useNodes: () => [],
+  useEdges: () => [],
 }))
 
-vi.mock('../../CastDock', () => ({
-  CastDock: ({ query }: { query: string }) => (
-    <div data-testid="cast-dock">{query}</div>
-  ),
-}))
-const mockLibrary = vi.hoisted(() => ({
-  value: { cards: [] as unknown[], loaded: true },
-}))
-vi.mock('@/features/cards/hooks/use-character-library', () => ({
-  useCharacterLibrary: () => mockLibrary.value,
-}))
-/**
- * `Command`（cmdk）整包桩成朴素列表。
- *
- * ⚠ 不是为了省事：cmdk 首绘会对选中项调 `scrollIntoView`，而 jsdom 没有它、
- * 且本文件里改 `Element.prototype` 改不到渲染出来的那个 realm（实测三种写法都
- * 没生效）。本组要断言的是**面板列了哪几组、点了调什么**，键盘导航是 cmdk 自己
- * 的事，⛔ 不为它把断言降级成「渲染没崩」。
- */
-vi.mock('@/components/ui/command', () => ({
-  Command: ({ children }: { children: React.ReactNode }) => (
-    <div>{children}</div>
-  ),
-  CommandInput: (props: Record<string, unknown>) => (
-    <input data-testid={props['data-testid'] as string} />
-  ),
-  CommandList: ({ children }: { children: React.ReactNode }) => (
-    <div>{children}</div>
-  ),
-  CommandEmpty: () => null,
-  CommandGroup: ({ children }: { children: React.ReactNode }) => (
-    <div>{children}</div>
-  ),
-  CommandItem: (props: Record<string, unknown>) => (
-    <button
-      type="button"
-      data-testid={props['data-testid'] as string}
-      onClick={props.onSelect as () => void}
-    >
-      {props.children as React.ReactNode}
-    </button>
-  ),
-}))
-
-vi.mock('@/hooks/use-projects', () => ({
-  useProjects: () => ({
-    projects: [
-      { id: 'folder-parent', name: '角色', parentId: null },
-      { id: 'folder-child', name: '时夜', parentId: 'folder-parent' },
-    ],
-    isLoading: false,
-    error: null,
-    refresh: vi.fn(),
-  }),
-}))
 vi.mock('@/i18n/navigation', () => ({
   Link: ({ children, href, ...props }: React.ComponentProps<'a'>) => (
     <a href={href} {...props}>
@@ -104,8 +58,35 @@ vi.mock('@/i18n/navigation', () => ({
   ),
 }))
 
-vi.mock('@/lib/api-client', () => ({
+/** 角色库这一回回哪几位（画布左栏「角色」读它）。 */
+const library = vi.hoisted(() => ({ cards: [] as unknown[] }))
+/** 素材库面板的文件夹：一层「角色」下面套「时夜」。 */
+const FOLDERS = vi.hoisted(() =>
+  [
+    { id: 'folder-parent', name: '角色', parentId: null },
+    { id: 'folder-child', name: '时夜', parentId: 'folder-parent' },
+  ].map((folder, index) => ({
+    ...folder,
+    description: null,
+    sortOrder: index,
+    pinnedOrder: null,
+    coverUrl: null,
+    createdAt: new Date('2026-09-01T00:00:00.000Z'),
+    updatedAt: new Date('2026-09-01T00:00:00.000Z'),
+  })),
+)
+vi.mock('@/lib/api-client', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api-client')>()),
   fetchGalleryImages: vi.fn().mockResolvedValue({ success: true, data: null }),
+  listCharacterCardsAPI: vi.fn(async () => ({
+    success: true,
+    data: library.cards,
+  })),
+  listProjectsAPI: vi.fn(async () => ({ success: true, data: FOLDERS })),
+  getProjectHistoryAPI: vi.fn(async () => ({
+    success: true,
+    data: { generations: [], total: 0, hasMore: false, nextCursor: null },
+  })),
 }))
 
 /** 「减少动态效果」由用例自己拨；默认 `false`，与 jsdom 里没有 matchMedia 时一致。 */
@@ -132,12 +113,35 @@ import type { NodeGraphV4 } from '@/features/canvas/hooks/use-node-graph-v4'
 import type { GenerationRecord } from '@/types'
 import type { NodeWorkflowProjectSummary } from '@/types/node-workflow'
 
+import {
+  NodeCanvasActionsProvider,
+  type NodeCanvasActions,
+} from '../../nodes/v4/NodeV4ActionsBridge'
 import { useWorkbenchShortcutsV4 } from '../WorkbenchShortcutsV4'
 import { ShellBottomBar } from './ShellBottomBar'
 import { ShellPaneMenu, ShellQuickAdd } from './ShellCanvasMenus'
 import { ShellCommandPalette } from './ShellCommandPalette'
 import { ShellSidePanels } from './ShellSidePanels'
 import { ShellProjectPill } from './ShellProjectPill'
+
+/** 画布动作出口由宿主（工作台）注入；节点定位器点一行会用到 `focusNode`。 */
+const CANVAS_ACTIONS = new Proxy(
+  {},
+  { get: () => vi.fn() },
+) as NodeCanvasActions
+
+function CanvasHost({ children }: { children: ReactNode }) {
+  return (
+    <NodeCanvasActionsProvider value={CANVAS_ACTIONS}>
+      {children}
+    </NodeCanvasActionsProvider>
+  )
+}
+
+/** 外壳的几块都长在画布宿主里（同一棵树里有动作出口）；重渲也套着它。 */
+function render(ui: ReactElement) {
+  return rtlRender(ui, { wrapper: CanvasHost })
+}
 
 /** 「当前项目」/「历史对话」两格的内容由宿主给；这里只证面板把它们摆进来。 */
 const PANEL_SLOT_PROPS = {
@@ -278,7 +282,7 @@ describe('ShellSidePanels · 六格（原型四格 + 角色 / 素材库）', () 
     )
     const panel = screen.getByTestId('shell-side-panel')
     expect(panel.dataset.panel).toBe('nodes')
-    expect(screen.getByTestId('cast-dock')).toBeTruthy()
+    expect(screen.getByTestId('canvas-node-locator')).toBeTruthy()
     expect(panel.parentElement?.style.left).toBe('16px')
 
     fireEvent.click(screen.getByRole('button', { name: 'close' }))
@@ -310,8 +314,8 @@ describe('ShellSidePanels · 角色库（画布用角色 ④）', () => {
     ],
   }
 
-  function renderCards(placed: string[] = []) {
-    mockLibrary.value = { cards: [DENIA], loaded: true }
+  async function renderCards(placed: string[] = []) {
+    library.cards = [DENIA]
     const props = {
       activePanel: CANVAS_SHELL_PANEL_IDS.cards,
       onActivePanelChange: vi.fn(),
@@ -324,24 +328,28 @@ describe('ShellSidePanels · 角色库（画布用角色 ④）', () => {
       ...PANEL_SLOT_PROPS,
     }
     render(<ShellSidePanels {...props} />)
+    // 角色库挂上就拉。
+    await screen.findByTestId('shell-card-row')
     return props
   }
 
   afterEach(() => {
-    mockLibrary.value = { cards: [], loaded: true }
+    library.cards = []
   })
 
-  it('列角色库；点一位 = 交给画布放上去（⛔ 不拖）', () => {
-    const props = renderCards()
+  it('列角色库；点一位 = 交给画布放上去（⛔ 不拖）', async () => {
+    const props = await renderCards()
     const row = screen.getByTestId('shell-card-row')
     expect(row.textContent).toContain('Denia')
     expect(row.getAttribute('draggable')).toBeNull()
     fireEvent.click(row)
-    expect(props.onPlaceCharacter).toHaveBeenCalledWith(DENIA)
+    expect(props.onPlaceCharacter).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'denia', name: 'Denia' }),
+    )
   })
 
-  it('已在画布上的那一行写「在画布上」', () => {
-    renderCards(['denia'])
+  it('已在画布上的那一行写「在画布上」', async () => {
+    await renderCards(['denia'])
     expect(screen.getByTestId('shell-card-row').textContent).toContain(
       'cardsOnCanvas',
     )
@@ -407,9 +415,11 @@ describe('ShellSidePanels · 液态开合', () => {
     expect(panel.dataset.phase).toBe('open')
     expect(panel.dataset.panel).toBe('project')
     // 旧内容还叠在下面退场，且不可交互；退场那一拍走完就摘掉。
-    expect(screen.getByTestId('cast-dock').closest('[inert]')).not.toBeNull()
+    expect(
+      screen.getByTestId('canvas-node-locator').closest('[inert]'),
+    ).not.toBeNull()
     advance(LIQUID_TIMING.swapOutS * 1000)
-    expect(screen.queryByTestId('cast-dock')).toBeNull()
+    expect(screen.queryByTestId('canvas-node-locator')).toBeNull()
 
     view.rerender(<ShellSidePanels {...baseProps} activePanel={null} />)
     expect(panel.dataset.phase).toBe('closing')
@@ -447,7 +457,7 @@ describe('ShellSidePanels · 液态开合', () => {
       />,
     )
     expect(panel.dataset.panel).toBe('cards')
-    expect(screen.queryByTestId('cast-dock')).toBeNull()
+    expect(screen.queryByTestId('canvas-node-locator')).toBeNull()
 
     view.rerender(<ShellSidePanels {...baseProps} activePanel={null} />)
     expect(screen.queryByTestId('shell-side-panel')).toBeNull()

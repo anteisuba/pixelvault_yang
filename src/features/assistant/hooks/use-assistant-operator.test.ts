@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { createElement, type ReactNode } from 'react'
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -177,68 +178,83 @@ const hostWorkspace = vi.hoisted(() => ({ current: 'image-natural' }))
 /** 工作台此刻按一下要多少点（钱闸，`generationPoints`）：默认 `null` = 估不出 → 卡留着等你按。 */
 const benchPoints = vi.hoisted(() => ({ current: null as number | null }))
 
-vi.mock('@/contexts/studio-operator-host', () => ({
-  useStudioOperatorBenchKey: () => undefined,
-  useStudioOperatorHost: () => ({
-    domain: hostDomain.current,
-    workspace:
-      hostDomain.current === 'image'
+/**
+ * 测试台：交给**真的** `StudioOperatorHostProvider`（⛔ 不再把宿主模块整个换掉）。
+ * ⚠ 会变的那几格写成 getter —— 用例中途改 `hostDomain` / `generationControls` 等，
+ *   hook 下一次读宿主就看到新值（与真台「每次现读」同一条）。
+ */
+function testHost(): HostModule['StudioOperatorHost'] {
+  const canvas = {
+    applyOp: canvasApply,
+    applyOps: canvasApplyOps,
+    getBatchFailures: () => canvasBatchFailures.current,
+    getApplyError: () =>
+      canvasInputSync.current
+        ? 'First canvas_apply {"op":"connect","source":"source","target":"target","slot":"reference"}. Then retry set_prompt after canvas_sync; prompt and inputs are unchanged.'
+        : '模型无法解析，请重新选择模型',
+    needsPromptInputSync: () => canvasInputSync.current,
+    get generate() {
+      return generationEnabled.canvas ? canvasGenerate : undefined
+    },
+    upscale: canvasUpscale,
+  }
+  const apply = {
+    canvas,
+    get triggerGeneration() {
+      return generationEnabled.workbench ? triggerGeneration : undefined
+    },
+    getState: () => ({ prompt: '', advancedParams: {} }),
+    dispatch,
+    resolveOptionId: () => null,
+    addReference: () => {},
+    removeReference: () => {},
+    addAudioReference: () => {},
+    removeAudioReference: () => {},
+    setSound: () => {},
+    mountUserUrl: () => {},
+    unmountUserUrl: () => {},
+    setPrimed: () => {},
+    cards: { applyProfile, attachImages },
+    lora: {
+      mount: mountLora,
+      unmountByCandidateId: vi.fn(),
+      unmount: unmountLora,
+      remount: vi.fn(),
+      setWeight: setLoraWeight,
+      setParameters: setLoraParameters,
+    },
+  }
+  return {
+    get domain() {
+      return hostDomain.current
+    },
+    get workspace() {
+      return hostDomain.current === 'image'
         ? hostWorkspace.current
-        : hostDomain.current,
-    projectId: hostDomain.current === 'canvas' ? 'project-1' : undefined,
+        : hostDomain.current
+    },
+    get projectId() {
+      return hostDomain.current === 'canvas' ? 'project-1' : undefined
+    },
     buildSnapshot: () => hostSnapshot.current,
     generationPoints: () => benchPoints.current,
     results: [],
     open: true,
     setOpen: () => {},
-    ...(canvasGenerationState.enabled
-      ? {
-          canvasTargets: {
+    get canvasTargets() {
+      return canvasGenerationState.enabled
+        ? {
             generationStateOf: () => canvasGenerationState.current ?? undefined,
             outputOf: () => canvasOutput.current,
-          },
-        }
-      : {}),
-    ...(generationControls.current
-      ? { generationControls: generationControls.current }
-      : {}),
-    apply: {
-      canvas: {
-        applyOp: canvasApply,
-        applyOps: canvasApplyOps,
-        getBatchFailures: () => canvasBatchFailures.current,
-        getApplyError: () =>
-          canvasInputSync.current
-            ? 'First canvas_apply {"op":"connect","source":"source","target":"target","slot":"reference"}. Then retry set_prompt after canvas_sync; prompt and inputs are unchanged.'
-            : '模型无法解析，请重新选择模型',
-        needsPromptInputSync: () => canvasInputSync.current,
-        ...(generationEnabled.canvas ? { generate: canvasGenerate } : {}),
-        upscale: canvasUpscale,
-      },
-      ...(generationEnabled.workbench ? { triggerGeneration } : {}),
-      getState: () => ({ prompt: '', advancedParams: {} }),
-      dispatch,
-      resolveOptionId: () => null,
-      addReference: () => {},
-      removeReference: () => {},
-      addAudioReference: () => {},
-      removeAudioReference: () => {},
-      setSound: () => {},
-      mountUserUrl: () => {},
-      unmountUserUrl: () => {},
-      setPrimed: () => {},
-      cards: { applyProfile, attachImages },
-      lora: {
-        mount: mountLora,
-        unmountByCandidateId: vi.fn(),
-        unmount: unmountLora,
-        remount: vi.fn(),
-        setWeight: setLoraWeight,
-        setParameters: setLoraParameters,
-      },
+          }
+        : undefined
     },
-  }),
-}))
+    get generationControls() {
+      return generationControls.current ?? undefined
+    },
+    apply,
+  } as unknown as HostModule['StudioOperatorHost']
+}
 
 // ── 可控的假流 ──────────────────────────────────────────────────────
 
@@ -327,11 +343,15 @@ function createFakeStream(signal?: AbortSignal): FakeStream {
  * reset 之后 import —— 顶层 import 拿到的是同一份（照抄 store 用例的头注）。
  */
 type Store = typeof import('@/hooks/use-studio-operator-store')
+type HostModule = typeof import('@/contexts/studio-operator-host') & {
+  StudioOperatorHost: import('@/contexts/studio-operator-host').StudioOperatorHost
+}
 type Operator =
   typeof import('@/features/assistant/hooks/use-assistant-operator')
 
 let store: Store
 let operator: Operator
+let hostModule: HostModule
 const streams: FakeStream[] = []
 
 beforeEach(async () => {
@@ -366,16 +386,51 @@ beforeEach(async () => {
   store = await import('@/hooks/use-studio-operator-store')
   store.claimOperatorThreadScope('test-user:image-natural', 'image')
   operator = await import('@/features/assistant/hooks/use-assistant-operator')
+  hostModule = (await import('@/contexts/studio-operator-host')) as HostModule
 })
 
-/** 把在飞的微任务全放完 —— 流的每一步都隔着一个 `await`。 */
+/**
+ * 把在飞的微任务全放完 —— 流的每一步都隔着一个 `await`。
+ * ⚠ 假时钟下走 `advanceTimersByTimeAsync(0)`（真 `setTimeout` 会永远等不到）。
+ */
 async function settle(): Promise<void> {
   await act(async () => {
+    if (vi.isFakeTimers()) {
+      await vi.advanceTimersByTimeAsync(0)
+      return
+    }
     await new Promise((resolve) => {
       setTimeout(resolve, 0)
     })
   })
 }
+
+/** 假时钟往前拨 `ms`（⛔ 真等：轮询 / 空窗那几百毫秒全用假时钟拨过去）。 */
+async function elapse(ms: number): Promise<void> {
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(ms)
+  })
+}
+
+/**
+ * 只假定时器与时钟。⚠ rAF 不假：正文逐字流那一组把它桩成微任务（`stubGlobal`），
+ * 假时钟一并接管 rAF 的话还原顺序会把那颗桩漏到后面的用例里。
+ */
+function useOperatorFakeTimers(): void {
+  vi.useFakeTimers({
+    toFake: [
+      'setTimeout',
+      'clearTimeout',
+      'setInterval',
+      'clearInterval',
+      'Date',
+    ],
+  })
+}
+
+afterEach(() => {
+  vi.useRealTimers()
+})
 
 function render() {
   const scope =
@@ -383,7 +438,14 @@ function render() {
       ? 'test-user:canvas:project-1'
       : `test-user:${hostDomain.current === 'image' ? hostWorkspace.current : hostDomain.current}`
   store.claimOperatorThreadScope(scope, hostDomain.current)
-  return renderHook(() => operator.useAssistantOperator(scope))
+  return renderHook(() => operator.useAssistantOperator(scope), {
+    wrapper: ({ children }: { children: ReactNode }) =>
+      createElement(
+        hostModule.StudioOperatorHostProvider,
+        { host: testHost() },
+        children,
+      ),
+  })
 }
 
 describe('放大到 4K 确认卡（P6）', () => {
@@ -488,6 +550,7 @@ describe('开台（第 9e 步）', () => {
   })
 
   it('新台准备好了：带着接力条接着发、清掉那一格；没到之前不发', async () => {
+    useOperatorFakeTimers()
     const { result, rerender } = render()
     act(() => result.current.send('改成 NAI 标签再出一张'))
     await settle()
@@ -504,9 +567,7 @@ describe('开台（第 9e 步）', () => {
     // 换过来了（同一个面板，台变了）：下一次轮询接上。
     hostWorkspace.current = 'image-tags'
     rerender()
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 300))
-    })
+    await elapse(300)
     expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(2)
     expect(streamAssistantOperatorAPI.mock.calls[1][0]).toMatchObject({
       planApproved: true,
@@ -542,7 +603,15 @@ describe('useAssistantOperator 的四条收尾路径', () => {
     async (workspace) => {
       const { result, rerender } = renderHook(
         ({ scope }) => operator.useAssistantOperator(scope),
-        { initialProps: { scope: 'test-user:image-natural' } },
+        {
+          initialProps: { scope: 'test-user:image-natural' },
+          wrapper: ({ children }: { children: ReactNode }) =>
+            createElement(
+              hostModule.StudioOperatorHostProvider,
+              { host: testHost() },
+              children,
+            ),
+        },
       )
       act(() => result.current.send('旧工作区请求'))
       await settle()
@@ -3607,13 +3676,11 @@ describe('正文流式累积与占位行', () => {
    * **首字到达就地替换**（⛔ 不另起一条条目，那是换 key = 重挂）。
    */
   describe('收尾前的占位行（步间空窗）', () => {
-    async function wait(ms: number): Promise<void> {
-      await act(async () => {
-        await new Promise((resolve) => {
-          setTimeout(resolve, ms)
-        })
-      })
-    }
+    const wait = elapse
+
+    beforeEach(() => {
+      useOperatorFakeTimers()
+    })
 
     it('停止旧回合后，新会话不会收到旧的延迟占位消息', async () => {
       const { result } = render()
@@ -3808,6 +3875,7 @@ describe('覆盖三选 · authoredByAssistant', () => {
     vi.resetModules()
     store = await import('@/hooks/use-studio-operator-store')
     operator = await import('@/features/assistant/hooks/use-assistant-operator')
+    hostModule = (await import('@/contexts/studio-operator-host')) as HostModule
     hostSnapshot.current = {
       prompt: '夜景，霓虹，湿地面',
       availableModels: [],

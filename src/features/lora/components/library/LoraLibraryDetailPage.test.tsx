@@ -8,47 +8,66 @@ import {
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { LORA_BASE_MODELS } from '@/features/lora/constants/lora-base-models'
+import { LoraStackProvider } from '@/features/lora/hooks/use-active-lora-stack'
+import { __resetMinedPromptsCacheForTests } from '@/features/lora/hooks/use-civitai-mined-prompts'
+import { __resetModelDescriptionCacheForTests } from '@/features/lora/hooks/use-civitai-model-description'
+import { LORA_STACK_CLERK_ID } from '@/test/lora-stack'
 import type { CivitaiLoraLibraryItem } from '@/types'
 
 import { LoraStageProvider } from '../lora-stage-context'
 import { LoraLibraryDetailPage } from './LoraLibraryDetailPage'
 
-vi.mock('next-intl', () => ({
-  useTranslations:
-    (ns: string) => (key: string, values?: Record<string, unknown>) =>
-      values ? `${ns}:${key}:${JSON.stringify(values)}` : `${ns}:${key}`,
-  useFormatter: () => ({
+// 和真 next-intl 一样，同一个命名空间回同一个 `t`（真挖配方 hook 的 effect 依赖它）。
+const intl = vi.hoisted(() => {
+  const byNamespace = new Map<
+    string,
+    (key: string, values?: Record<string, unknown>) => string
+  >()
+  const formatter = {
     number: (value: number) => String(Math.round(value)),
     relativeTime: () => 'now',
     dateTime: () => 'Aug 14',
-  }),
+  }
+  return {
+    formatter,
+    t(ns: string) {
+      let t = byNamespace.get(ns)
+      if (!t) {
+        t = (key, values) =>
+          values ? `${ns}:${key}:${JSON.stringify(values)}` : `${ns}:${key}`
+        byNamespace.set(ns, t)
+      }
+      return t
+    },
+  }
+})
+vi.mock('next-intl', () => ({
+  useTranslations: (ns: string) => intl.t(ns),
+  useFormatter: () => intl.formatter,
 }))
 
-vi.mock('@/features/lora/hooks/use-active-lora-stack', () => ({
-  useActiveLoraStack: () => ({ items: [] }),
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({ isLoaded: true, userId: LORA_STACK_CLERK_ID }),
 }))
 
-let mockVersions: CivitaiLoraLibraryItem[] = []
-vi.mock('@/features/lora/hooks/use-civitai-model-description', () => ({
-  useCivitaiModelDetail: () => ({
-    descriptionText: 'Author notes',
-    versions: mockVersions,
-    isLoading: false,
-  }),
+// 真作者描述 / 版本、真 HF README 样图、真挖配方 hook：只在 api-client 边界上假那三跳。
+const api = vi.hoisted(() => ({
+  versions: [] as unknown[],
+  showcaseImages: [] as string[],
 }))
-let mockShowcaseImages: string[] = []
-vi.mock('@/features/lora/hooks/use-huggingface-lora-showcase', () => ({
-  useHuggingFaceLoraShowcase: (source: unknown) => ({
-    images: source ? mockShowcaseImages : [],
-    prompts: [],
-    isLoading: false,
+vi.mock('@/lib/api-client/lora-assets', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api-client/lora-assets')>()),
+  fetchCivitaiModelDescriptionAPI: async () => ({
+    success: true,
+    data: { descriptionText: 'Author notes', versions: api.versions },
   }),
-}))
-vi.mock('@/features/lora/hooks/use-civitai-mined-prompts', () => ({
-  useCivitaiMinedPrompts: () => ({
-    recipes: [],
-    previewImages: [],
-    isLoading: false,
+  fetchHuggingFaceShowcaseAPI: async () => ({
+    success: true,
+    data: { images: api.showcaseImages, prompts: [] },
+  }),
+  mineCivitaiLoraPromptsAPI: async () => ({
+    success: true,
+    data: { recipes: [], previewImages: [] },
   }),
 }))
 
@@ -104,19 +123,21 @@ function renderPage(
   extra: Partial<Parameters<typeof LoraLibraryDetailPage>[0]> = {},
 ) {
   render(
-    <LoraStageProvider value={{ base: illustriousBase, baseLabel: 'WAI' }}>
-      <LoraLibraryDetailPage
-        item={item}
-        isMounted={() => false}
-        mountingId={null}
-        onMount={onMount}
-        isFavorited={() => false}
-        onToggleFavorite={vi.fn()}
-        nsfwFilter="safe"
-        onClose={vi.fn()}
-        {...extra}
-      />
-    </LoraStageProvider>,
+    <LoraStackProvider>
+      <LoraStageProvider value={{ base: illustriousBase, baseLabel: 'WAI' }}>
+        <LoraLibraryDetailPage
+          item={item}
+          isMounted={() => false}
+          mountingId={null}
+          onMount={onMount}
+          isFavorited={() => false}
+          onToggleFavorite={vi.fn()}
+          nsfwFilter="safe"
+          onClose={vi.fn()}
+          {...extra}
+        />
+      </LoraStageProvider>
+    </LoraStackProvider>,
   )
   return onMount
 }
@@ -124,20 +145,24 @@ function renderPage(
 describe('LoraLibraryDetailPage（库 B 详情页）', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockShowcaseImages = []
+    window.localStorage.clear()
+    __resetModelDescriptionCacheForTests()
+    __resetMinedPromptsCacheForTests()
+    api.versions = []
+    api.showcaseImages = []
   })
 
-  it('mounts whichever version is picked', () => {
+  it('mounts whichever version is picked', async () => {
     const illustrious = makeVersion(
       2,
       'Illustrious',
       'roccia (wuthering waves)',
     )
     const pony = makeVersion(1, 'Pony', 'roccia_(wuwa)')
-    mockVersions = [illustrious, pony]
+    api.versions = [illustrious, pony]
     const onMount = renderPage(illustrious)
 
-    fireEvent.click(screen.getByRole('button', { name: /v1/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /v1/ }))
     fireEvent.click(
       screen.getByRole('button', { name: 'LoraWorkbench.browse:mount' }),
     )
@@ -147,10 +172,10 @@ describe('LoraLibraryDetailPage（库 B 详情页）', () => {
   it('offers the version that loads when this one does not', async () => {
     const illustrious = makeVersion(2, 'Illustrious', 'roccia')
     const pony = makeVersion(1, 'Pony', 'roccia_(wuwa)')
-    mockVersions = [illustrious, pony]
+    api.versions = [illustrious, pony]
     renderPage(pony)
 
-    const offer = screen.getByRole('button', {
+    const offer = await screen.findByRole('button', {
       name: /LoraWorkbench\.browse:switchVersion/,
     })
     expect(offer.textContent).toContain('v2 · Illustrious')
@@ -165,7 +190,7 @@ describe('LoraLibraryDetailPage（库 B 详情页）', () => {
     const writeText = vi.fn().mockResolvedValue(undefined)
     Object.assign(navigator, { clipboard: { writeText } })
     const version = makeVersion(2, 'Illustrious', 'roccia (wuthering waves)')
-    mockVersions = [version]
+    api.versions = [version]
     renderPage(version)
 
     fireEvent.click(
@@ -179,9 +204,9 @@ describe('LoraLibraryDetailPage（库 B 详情页）', () => {
     ).toBeInTheDocument()
   })
 
-  it('shows a Hugging Face file as it is: README images, its license name, the hub author page, no rating', () => {
-    mockVersions = []
-    mockShowcaseImages = [
+  it('shows a Hugging Face file as it is: README images, its license name, the hub author page, no rating', async () => {
+    api.versions = []
+    api.showcaseImages = [
       'https://huggingface.co/example/anima/resolve/abc/a.png',
     ]
     const file: CivitaiLoraLibraryItem = {
@@ -224,12 +249,14 @@ describe('LoraLibraryDetailPage（库 B 详情页）', () => {
       screen.getByRole('link', { name: 'LoraWorkbench.browse:authorHome' }),
     ).toHaveAttribute('href', 'https://huggingface.co/example')
     expect(
-      screen.getAllByRole('button', { name: /LoraWorkbench:viewer\.imageAlt/ }),
+      await screen.findAllByRole('button', {
+        name: /LoraWorkbench:viewer\.imageAlt/,
+      }),
     ).toHaveLength(1)
   })
 
   it('says the license is unknown for a favorite saved without a snapshot — never “personal use”', () => {
-    mockVersions = []
+    api.versions = []
     const favorite: CivitaiLoraLibraryItem = {
       ...makeVersion(2, 'Illustrious', 'roccia'),
       isOwn: true,
@@ -247,7 +274,7 @@ describe('LoraLibraryDetailPage（库 B 详情页）', () => {
 
   it('draws a different heart once favorited, not just a different colour', () => {
     const version = makeVersion(2, 'Illustrious', 'roccia')
-    mockVersions = [version]
+    api.versions = [version]
     const heart = (favorited: boolean) => {
       renderPage(version, vi.fn(), { isFavorited: () => favorited })
       const svg = screen

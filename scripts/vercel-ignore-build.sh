@@ -53,11 +53,11 @@ if [[ -n "$base_sha" ]]; then
     echo "Cannot resolve previous deployment SHA ${base_sha}; building to be safe."
     exit 1
   fi
-elif git rev-parse --verify HEAD~1 >/dev/null 2>&1; then
-  # First deploy / PREVIOUS_SHA unset — only safe to use parent of tip.
-  diff_base="HEAD~1"
 else
-  echo "No previous commit is available; build can proceed."
+  # PREVIOUS_SHA is per branch: the first production deploy from a new branch
+  # (2026-11-04, the first push to `release`) has none. A release push can
+  # carry hundreds of commits, so HEAD~1 says nothing — always build.
+  echo "No previous deployment SHA for ${VERCEL_GIT_COMMIT_REF:-this branch}; building."
   exit 1
 fi
 

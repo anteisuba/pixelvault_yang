@@ -1,15 +1,37 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { useState, type ReactNode } from 'react'
-import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
-import type { useNodeMediaGenerationV4 } from '@/features/canvas/hooks/use-node-media-generation-v4'
+import type { ReactNode } from 'react'
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+  type Mock,
+} from 'vitest'
+
+// 图片卡的卡面 / 菜单 / 参考轨 / 模板 / 来源没了：真上传 hook、真素材库弹窗、真「我的模板」、
+// 真媒体探测；只假网络（上传那一跳在 api-client 边界上假，其余走 fakeServer）。
+// 生成那一路（真生成 hook + 真模型选择器 + 真配 key 弹窗）在 ImageNodeV4.generate.test.tsx。
 
 vi.mock('next-intl', () => ({
   useTranslations: () =>
     Object.assign(
       (key: string, values?: Record<string, unknown>) =>
         values ? `${key}:${Object.values(values).join('/')}` : key,
-      { has: () => true },
+      {
+        has: () => true,
+        rich: (key: string) => key,
+        markup: (key: string) => key,
+        raw: (key: string) => key,
+      },
     ),
+  useLocale: () => 'zh',
+  useFormatter: () => ({
+    number: (value: number) => String(value),
+    dateTime: () => 'date',
+    relativeTime: () => 'relative-time',
+  }),
 }))
 
 vi.mock('next/image', () => ({
@@ -38,130 +60,32 @@ vi.mock('@xyflow/react', () => ({
     ) : null,
 }))
 
-/** 上传 / 生成 / 模型清单三条外部路径桩掉：本组只看图片卡自己的行为。 */
-const uploadFn = vi.fn(async () => ({ url: 'https://cdn.test/up.png' }))
-vi.mock('@/features/canvas/hooks/use-node-upload-v4', () => ({
-  useNodeUploadV4: () => ({
-    upload: uploadFn,
-    retry: vi.fn(),
-    isUploading: false,
-    progress: 0,
-    error: null,
-    canRetry: false,
-    cancel: vi.fn(),
-  }),
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({ isLoaded: true, isSignedIn: true, userId: 'user-image' }),
+}))
+vi.mock('@/i18n/navigation', () => ({
+  usePathname: () => '/studio/canvas',
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }))
 
-type GenerateNode = ReturnType<typeof useNodeMediaGenerationV4>['generateNode']
-const generateNode = vi.fn<GenerateNode>(async () => ({
-  success: false,
-  error: 'noPlan',
-}))
-vi.mock('@/features/canvas/hooks/use-node-media-generation-v4', () => ({
-  useNodeMediaGenerationV4: () => ({ generateNode, isLoading: false }),
-}))
-
-const cancelJobs = vi.fn()
+/** 上传那一跳（浏览器直传 R2 的一整条）在 api-client 边界上假。 */
+const uploadImageFileAPI = vi.hoisted(() => vi.fn())
 vi.mock('@/lib/api-client', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/api-client')>()),
-  cancelGenerationsAPI: (...args: unknown[]) => cancelJobs(...args),
+  uploadImageFileAPI,
 }))
 
-vi.mock(
-  '@/components/business/studio-shared/pickers/ModelPickerPopover',
-  () => ({
-    ModelPickerPopover: (props: Record<string, unknown>) => (
-      <button
-        type="button"
-        data-testid="model-chip"
-        data-value={String(props.value)}
-        data-count={(props.options as unknown[]).length}
-        onClick={() =>
-          (props.onChange as (option: { optionId: string }) => void)({
-            optionId: 'opt_b',
-          })
-        }
-      />
-    ),
-  }),
-)
-
-/** key 名单：缺省「还没回来」= 不知道缺不缺，⛔ 当成缺。 */
-const apiKeys = vi.hoisted(() => ({
-  current: null as { hasLoaded: boolean } | null,
-}))
-vi.mock('@/contexts/api-keys-context', () => ({
-  useApiKeysContextOptional: () => apiKeys.current,
-}))
-
-vi.mock('@/components/business/studio-shared/setup/QuickSetupDialog', () => ({
-  QuickSetupDialog: (props: {
-    onVerified?: () => void
-    modelId: string
-    channelChoices?: readonly { id: string; label: string }[]
-    channelId?: string
-    onChannelChange?: (id: string) => void
-  }) => (
-    <div data-testid="quick-setup-root" data-channel={props.channelId}>
-      {props.channelChoices?.map((choice) => (
-        <button
-          key={choice.id}
-          type="button"
-          data-testid={`quick-setup-channel-${choice.id}`}
-          onClick={() => props.onChannelChange?.(choice.id)}
-        />
-      ))}
-      <button
-        type="button"
-        data-testid="quick-setup"
-        data-model={props.modelId}
-        onClick={() => props.onVerified?.()}
-      />
-    </div>
-  ),
-}))
-
-vi.mock('@/features/assets', () => ({
-  AssetSelectorDialog: () => <div data-testid="asset-picker" />,
-}))
-
-const mockProbeMedia = vi.hoisted(() => vi.fn())
-vi.mock('@/lib/media-probe', () => ({ probeMediaProblem: mockProbeMedia }))
-const { markRecipeUsedAPI } = vi.hoisted(() => ({
-  markRecipeUsedAPI: vi.fn(),
-}))
-vi.mock('@/lib/api-client/recipes', () => ({ markRecipeUsedAPI }))
-vi.mock('@/features/prompts', () => ({
-  prefetchRecipes: () => () => {},
-  useRecipes: () => ({
-    recipes: [
-      {
-        id: 'r_cat',
-        outputType: 'IMAGE',
-        name: '橘猫',
-        compiledPrompt: '一只橘猫',
-        negativePrompt: null,
-      },
-      {
-        id: 'r_video',
-        outputType: 'VIDEO',
-        name: '运镜',
-        compiledPrompt: '推镜头',
-        negativePrompt: null,
-      },
-    ],
-  }),
-}))
-
-vi.mock('../../CanvasImageEditWorkspace', () => ({
-  CanvasImageEditWorkspace: (props: Record<string, unknown>) => (
-    <div data-testid="image-edit" data-task={String(props.defaultTask)} />
-  ),
-}))
+import { API_ENDPOINTS } from '@/constants/config'
+import { ApiKeysProvider } from '@/contexts/api-keys-context'
+import { __resetRecipesCacheForTests } from '@/features/prompts/hooks/use-recipes'
+import { fakeServer } from '@/test/app-harness'
+import {
+  fakeAssetLibraryRoutes,
+  stubBrowserObservers,
+} from '@/test/fake-routes'
 
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import { NODE_SLOT_IDS } from '@/constants/node-slots'
-import { applyNodeMediaPatch } from '@/lib/node-media-patch'
 import type { NodeV4 } from '@/types/node-workflow'
 
 import { ImageNodeV4 } from './ImageNodeV4'
@@ -179,6 +103,80 @@ import {
 } from './NodeV4Context'
 
 const NOW = '2026-09-10T00:00:00.000Z'
+
+const ok = (data: unknown) => Response.json({ success: true, data })
+
+/** 「我的模板」里的两条：一条图片、一条视频（视频模板 ⛔ 出现在图片卡上）。 */
+const RECIPES = [
+  {
+    id: 'r_cat',
+    outputType: 'IMAGE',
+    name: '橘猫',
+    compiledPrompt: '一只橘猫',
+  },
+  {
+    id: 'r_video',
+    outputType: 'VIDEO',
+    name: '运镜',
+    compiledPrompt: '推镜头',
+  },
+].map((recipe) => ({
+  ...recipe,
+  userId: 'user-image',
+  negativePrompt: null,
+  modelId: 'gpt-image-2',
+  provider: 'openai',
+  parentGenerationId: null,
+  version: 1,
+  isDeleted: false,
+  createdAt: NOW,
+  updatedAt: NOW,
+}))
+
+let server: ReturnType<typeof fakeServer>
+/** CDN 对读不出来的那张图回什么（404 = 素材库删了）。 */
+let cdnStatus = 404
+let recipeUses: string[] = []
+
+beforeEach(() => {
+  stubBrowserObservers()
+  __resetRecipesCacheForTests()
+  cdnStatus = 404
+  recipeUses = []
+  uploadImageFileAPI.mockReset().mockResolvedValue({
+    success: true,
+    data: { generation: { url: 'https://cdn.test/up.png' } },
+  })
+  // jsdom 不解码图片：浏览器解出来是 640×480。
+  vi.stubGlobal(
+    'createImageBitmap',
+    vi.fn(async () => ({ width: 640, height: 480, close: () => {} })),
+  )
+  server = fakeAssetLibraryRoutes(fakeServer())
+    .on('GET', API_ENDPOINTS.API_KEYS, () => ok([]))
+    .on('GET', API_ENDPOINTS.CHARACTER_CARDS, () => ok([]))
+    .on('GET', API_ENDPOINTS.RECIPES, () =>
+      ok({ recipes: RECIPES, total: RECIPES.length }),
+    )
+    .on(
+      'POST',
+      `${API_ENDPOINTS.RECIPES}/:id/use`,
+      async (_request, { params }) => {
+        recipeUses.push((await params).id!)
+        return ok(null)
+      },
+    )
+    // 读不出来的那张图：探一次 CDN。
+    .on('HEAD', '/:file', () => new Response(null, { status: cdnStatus }))
+})
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
+
+function Host({ children }: { children: ReactNode }) {
+  return <ApiKeysProvider>{children}</ApiKeysProvider>
+}
 
 function imageNode(id: string, data: Record<string, unknown> = {}): NodeV4 {
   return {
@@ -244,6 +242,7 @@ function renderImage(
       {/* @ts-expect-error NodeProps 的其余字段本组测试用不到 */}
       <ImageNodeV4 id={nodeId} data={target.data} selected={selected} />
     </NodeV4CanvasProvider>,
+    { wrapper: Host },
   )
 }
 
@@ -261,225 +260,6 @@ it('手动把机器名改成另一种默认外形时走统一 set_field 改名',
     target: 'i_1',
     field: 'name',
     value: '生成图3',
-  })
-})
-
-function renderSubmittingImage(data: Record<string, unknown> = {}) {
-  const onSetMedia = vi.fn()
-  function Fixture() {
-    const [node, setNode] = useState(
-      imageNode('i_1', { prompt: '站台', ...data }),
-    )
-    const context = harness([node], {
-      selectedNodeIds: ['i_1'],
-      onSetMedia: (id, patch) => {
-        onSetMedia(id, patch)
-        setNode(
-          (current) =>
-            ({
-              ...current,
-              data: { ...current.data, ...patch },
-            }) as NodeV4,
-        )
-      },
-    })
-    return (
-      <NodeV4CanvasProvider value={context}>
-        {/* @ts-expect-error NodeProps 的其余字段本组测试用不到 */}
-        <ImageNodeV4 id="i_1" data={node.data} selected />
-      </NodeV4CanvasProvider>
-    )
-  }
-  render(<Fixture />)
-  return {
-    onSetMedia,
-    submit: () =>
-      fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' }),
-  }
-}
-
-describe('图片生成失败反馈', () => {
-  beforeEach(() => {
-    generateNode
-      .mockReset()
-      .mockResolvedValue({ success: false, error: 'noPlan' })
-  })
-
-  it('提交尚未创建任务就失败时持久化并显示具体错误', async () => {
-    const failure = {
-      success: false as const,
-      error: 'Reference image could not be read',
-      errorCode: 'reference_image_unreachable',
-      i18nKey: 'errors.generation.reference_image_unreachable',
-    }
-    generateNode.mockImplementationOnce(async (_id, _graph, options) => {
-      options?.onEach?.(failure, { index: 0, total: 1 })
-      return failure
-    })
-    const { submit, onSetMedia } = renderSubmittingImage()
-    submit()
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'generation.reference_image_unreachable',
-    )
-    expect(onSetMedia).toHaveBeenCalledWith('i_1', {
-      mediaJobId: undefined,
-      generationFailure: {
-        error: failure.error,
-        errorCode: failure.errorCode,
-        i18nKey: failure.i18nKey,
-      },
-    })
-    expect(document.querySelector('[data-node-kind="image"]')).toHaveAttribute(
-      'data-generating',
-      'false',
-    )
-  })
-
-  it('未识别的服务端错误仍显示原有具体原因', async () => {
-    const failure = {
-      success: false as const,
-      error: 'Execution dispatch outcome unknown',
-    }
-    generateNode.mockImplementationOnce(async (_id, _graph, options) => {
-      options?.onEach?.(failure, { index: 0, total: 1 })
-      return failure
-    })
-    const { submit } = renderSubmittingImage()
-    submit()
-    expect(await screen.findByRole('alert')).toHaveTextContent(failure.error)
-  })
-
-  it('刷新恢复的错误保持可见并保留此前图片', () => {
-    renderImage(
-      harness([
-        imageNode('i_1', {
-          url: 'https://cdn.test/previous.png',
-          generationFailure: { error: 'Execution dispatch outcome unknown' },
-        }),
-      ]),
-    )
-    expect(screen.getByRole('alert')).toHaveTextContent(
-      'Execution dispatch outcome unknown',
-    )
-    expect(document.querySelector('img')).toHaveAttribute(
-      'src',
-      'https://cdn.test/previous.png',
-    )
-  })
-
-  it('未创建生成计划也显示已有的选模型提示', async () => {
-    const { submit } = renderSubmittingImage()
-    submit()
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'generateDesk.noModel',
-    )
-  })
-
-  it('服务器仍在运行时保留任务，不显示失败', async () => {
-    const result = {
-      success: false as const,
-      error: 'poll window ended',
-      pending: true as const,
-      jobId: 'job-pending',
-    }
-    generateNode.mockImplementationOnce(async (_id, _graph, options) => {
-      options?.onJobCreated?.(result.jobId, {
-        index: 0,
-        total: 1,
-        jobId: result.jobId,
-      })
-      options?.onEach?.(result, { index: 0, total: 1, jobId: result.jobId })
-      return result
-    })
-    const { submit, onSetMedia } = renderSubmittingImage()
-    await act(async () => submit())
-    expect(screen.queryByRole('alert')).toBeNull()
-    expect(onSetMedia).toHaveBeenLastCalledWith('i_1', {
-      mediaJobId: 'job-pending',
-    })
-    expect(document.querySelector('[data-node-kind="image"]')).toHaveAttribute(
-      'data-generating',
-      'true',
-    )
-  })
-
-  it('服务器确认取消后清理任务，不把取消显示成生成失败', async () => {
-    const result = {
-      success: false as const,
-      error: 'Node media generation failed',
-      cancelled: true as const,
-    }
-    generateNode.mockImplementationOnce(async (_id, _graph, options) => {
-      options?.onJobCreated?.('job-cancelled', {
-        index: 0,
-        total: 1,
-        jobId: 'job-cancelled',
-      })
-      options?.onEach?.(result, { index: 0, total: 1, jobId: 'job-cancelled' })
-      return result
-    })
-    const { submit, onSetMedia } = renderSubmittingImage()
-    await act(async () => submit())
-    expect(screen.queryByRole('alert')).toBeNull()
-    expect(onSetMedia).toHaveBeenLastCalledWith('i_1', {
-      mediaJobId: undefined,
-      generationFailure: undefined,
-    })
-    expect(document.querySelector('[data-node-kind="image"]')).toHaveAttribute(
-      'data-generating',
-      'false',
-    )
-  })
-
-  it('再次提交立即清除旧失败状态', async () => {
-    let finish:
-      | ((result: Awaited<ReturnType<GenerateNode>>) => void)
-      | undefined
-    generateNode.mockImplementationOnce(
-      () =>
-        new Promise((resolve) => {
-          finish = resolve
-        }),
-    )
-    const { submit, onSetMedia } = renderSubmittingImage({
-      generationFailure: { error: 'previous failure' },
-    })
-    expect(screen.getByRole('alert')).toHaveTextContent('previous failure')
-    submit()
-    expect(screen.queryByRole('alert')).toBeNull()
-    expect(onSetMedia).toHaveBeenCalledWith('i_1', {
-      generationFailure: undefined,
-    })
-    await act(async () => finish?.({ success: false, error: 'noPlan' }))
-  })
-
-  it('本地取消后迟到的失败不再显示或持久化为生成失败', async () => {
-    let finish: (() => void) | undefined
-    generateNode.mockImplementationOnce(
-      (_id, _graph, options) =>
-        new Promise((resolve) => {
-          finish = () => {
-            const failure = {
-              success: false as const,
-              error: 'late provider failure',
-            }
-            options?.onEach?.(failure, { index: 0, total: 1 })
-            resolve(failure)
-          }
-        }),
-    )
-    const { submit, onSetMedia } = renderSubmittingImage()
-    submit()
-    fireEvent.click(screen.getByRole('button', { name: 'cancel' }))
-    await act(async () => finish?.())
-    expect(screen.queryByRole('alert')).toBeNull()
-    expect(
-      onSetMedia.mock.calls.every(([, patch]) => !patch.generationFailure),
-    ).toBe(true)
-    expect(document.querySelector('[data-node-kind="image"]')).toHaveAttribute(
-      'data-generating',
-      'false',
-    )
   })
 })
 
@@ -540,7 +320,7 @@ describe('空卡 / 有图两态', () => {
     expect(document.querySelector('img')).toBeNull()
   })
 
-  it('选中空镜头图无工具条与空参考轨，上传和素材库字键可用；拖入变实线', () => {
+  it('选中空镜头图无工具条与空参考轨，上传和素材库字键可用；拖入变实线', async () => {
     renderImage(
       harness([imageNode('i_1', { subtype: 'shot' })], {
         selectedNodeIds: ['i_1'],
@@ -558,7 +338,7 @@ describe('空卡 / 有图两态', () => {
     fireEvent.click(document.querySelector('[data-node-empty-upload]')!)
     expect(click).toHaveBeenCalled()
     fireEvent.click(document.querySelector('[data-node-empty-library]')!)
-    expect(screen.getByTestId('asset-picker')).toBeInTheDocument()
+    expect(screen.getByRole('dialog')).toHaveTextContent('add.library')
 
     const root = document.querySelector('[data-node-kind="image"]')!
     fireEvent.dragOver(root, { dataTransfer: { types: ['Files'] } })
@@ -573,9 +353,7 @@ describe('空卡 / 有图两态', () => {
   })
 
   it('尚未挂参考时从参考上传产生 pending，参考轨立即显示进度格', () => {
-    uploadFn.mockImplementationOnce(
-      () => new Promise<{ url: string }>(() => {}),
-    )
+    uploadImageFileAPI.mockImplementationOnce(() => new Promise(() => {}))
     renderImage(
       harness([imageNode('i_1', { subtype: 'shot' })], {
         selectedNodeIds: ['i_1'],
@@ -686,35 +464,6 @@ describe('选中态：工具条 + 提示词栏', () => {
     expect(document.querySelector('[data-prompt-bar-input]')).toBeNull()
   })
 
-  it('回车 = 生成新版本，先落提示词再发', () => {
-    const context = selectedContext()
-    renderImage(context, 'i_1', true)
-    const input = document.querySelector(
-      '[data-prompt-bar-input]',
-    ) as HTMLTextAreaElement
-    fireEvent.change(input, { target: { value: '站台，夜' } })
-    fireEvent.keyDown(input, { key: 'Enter' })
-    expect(context.onSetPrompt).toHaveBeenCalledWith('i_1', '站台，夜')
-    expect(generateNode).toHaveBeenCalled()
-  })
-
-  it('发送读 op 之后的图：刚 @ 出来的参考连线这一枪就带上', () => {
-    const fresh = {
-      id: 'e_mention',
-      source: 'i_ref',
-      target: 'i_1',
-    } as unknown as NodeV4CanvasContextValue['edges'][number]
-    const context = selectedContext()
-    context.readGraph = () => ({ nodes: context.nodes, edges: [fresh] })
-    renderImage(context, 'i_1', true)
-    const input = document.querySelector(
-      '[data-prompt-bar-input]',
-    ) as HTMLTextAreaElement
-    fireEvent.change(input, { target: { value: '站台 @i_ref' } })
-    fireEvent.keyDown(input, { key: 'Enter' })
-    expect(generateNode.mock.lastCall?.[1].edges).toEqual([fresh])
-  })
-
   it('正文里的 @别的图：镜像层压缩略，退格整颗删掉', () => {
     const context = harness(
       [
@@ -740,46 +489,6 @@ describe('选中态：工具条 + 提示词栏', () => {
     input.setSelectionRange(input.value.length, input.value.length)
     fireEvent.keyDown(input, { key: 'Backspace' })
     expect(input.value).toBe('站台 ')
-  })
-
-  it('取消 = 这一批在飞的几单一起向服务端取消，各自的在飞标记摘掉', async () => {
-    let options: Parameters<GenerateNode>[2] | undefined
-    generateNode.mockImplementationOnce(async (_id, _graph, opts) => {
-      options = opts
-      return new Promise(() => {})
-    })
-    const context = selectedContext()
-    renderImage(context, 'i_1', true)
-    const input = document.querySelector(
-      '[data-prompt-bar-input]',
-    ) as HTMLTextAreaElement
-    fireEvent.change(input, { target: { value: '站台，夜' } })
-    fireEvent.keyDown(input, { key: 'Enter' })
-    act(() => {
-      options?.onJobCreated?.('job_1', { index: 0, total: 2, jobId: 'job_1' })
-      options?.onJobCreated?.('job_2', { index: 1, total: 2, jobId: 'job_2' })
-    })
-    expect(context.onSetMedia).toHaveBeenCalledWith('i_1', {
-      addBatchJob: 'job_1',
-    })
-    expect(context.onSetMedia).toHaveBeenCalledWith('i_1', {
-      addBatchJob: 'job_2',
-    })
-    fireEvent.click(
-      document.querySelector('[data-prompt-bar-cancel]') as HTMLElement,
-    )
-    expect(cancelJobs).toHaveBeenCalledWith(['job_1', 'job_2'])
-    expect(context.onSetMedia).toHaveBeenCalledWith('i_1', {
-      settleBatchJob: 'job_1',
-    })
-    expect(context.onSetMedia).toHaveBeenCalledWith('i_1', {
-      settleBatchJob: 'job_2',
-    })
-    // job id 晚回来的那一单：一到手就补一刀。
-    act(() =>
-      options?.onJobCreated?.('job_3', { index: 2, total: 3, jobId: 'job_3' }),
-    )
-    expect(cancelJobs).toHaveBeenLastCalledWith(['job_3'])
   })
 
   /**
@@ -847,247 +556,7 @@ describe('画面弹层与模型 chip', () => {
       selectedNodeIds: ['i_1'],
     })
     renderImage(context, 'i_1', true)
-    expect(screen.getByTestId('model-chip')).toHaveAttribute('data-count', '0')
-  })
-
-  it('模型 chip 单选：选中回落 onSetModel', () => {
-    const options = [
-      {
-        optionId: 'opt_a',
-        modelId: 'model-a',
-        adapterType: 'fal',
-        providerConfig: {},
-        requestCount: 0,
-        sourceType: 'workspace',
-      },
-      {
-        optionId: 'opt_b',
-        modelId: 'model-b',
-        adapterType: 'fal',
-        providerConfig: {},
-        requestCount: 0,
-        sourceType: 'saved',
-      },
-    ] as never
-    const context = harness(
-      [
-        imageNode('i_1', {
-          url: 'https://cdn.test/a.png',
-          model: { optionId: 'opt_a', modelId: 'model-a' },
-        }),
-      ],
-      { selectedNodeIds: ['i_1'], modelOptionsByKind: { image: options } },
-    )
-    renderImage(context, 'i_1', true)
-    const chip = screen.getByTestId('model-chip')
-    expect(chip.getAttribute('data-value')).toBe('opt_a')
-    expect(chip.getAttribute('data-count')).toBe('2')
-    fireEvent.click(chip)
-    expect(context.onSetModel).toHaveBeenCalledWith(
-      'i_1',
-      expect.objectContaining({ optionId: 'opt_b', modelId: 'model-b' }),
-    )
-  })
-
-  it('新空卡展示可用默认模型，发送时落库并用同一模型构建当次生成图', () => {
-    generateNode.mockClear()
-    const options = [
-      {
-        optionId: 'opt_missing',
-        modelId: 'model-missing',
-        adapterType: 'fal',
-        providerConfig: {},
-        requestCount: 0,
-        sourceType: 'workspace',
-      },
-      {
-        optionId: 'opt_ready',
-        modelId: 'model-ready',
-        adapterType: 'fal',
-        providerConfig: {},
-        requestCount: 0,
-        sourceType: 'saved',
-      },
-    ] as never
-    const context = harness([imageNode('i_1', { prompt: '山间晨雾' })], {
-      selectedNodeIds: ['i_1'],
-      modelOptionsByKind: { image: options },
-    })
-    renderImage(context, 'i_1', true)
-    expect(screen.getByTestId('model-chip')).toHaveAttribute(
-      'data-value',
-      'opt_ready',
-    )
-    fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' })
-    expect(context.onSetModel).toHaveBeenCalledWith(
-      'i_1',
-      expect.objectContaining({
-        optionId: 'opt_ready',
-        modelId: 'model-ready',
-      }),
-    )
-    expect(generateNode).toHaveBeenCalledWith(
-      'i_1',
-      expect.objectContaining({
-        nodes: [
-          expect.objectContaining({
-            data: expect.objectContaining({
-              model: expect.objectContaining({ optionId: 'opt_ready' }),
-            }),
-          }),
-        ],
-      }),
-      expect.any(Object),
-    )
-  })
-
-  it('型号缺 key：发送不出图，就地弹配置；验证过才发（Hard Rule 8）', () => {
-    generateNode.mockClear()
-    apiKeys.current = { hasLoaded: true }
-    const options = [
-      {
-        optionId: 'opt_missing',
-        modelId: 'model-missing',
-        adapterType: 'fal',
-        providerConfig: {},
-        requestCount: 0,
-        sourceType: 'workspace',
-      },
-    ] as never
-    const context = harness(
-      [
-        imageNode('i_1', {
-          prompt: '山间晨雾',
-          model: {
-            optionId: 'opt_missing',
-            modelId: 'model-missing',
-            adapterType: 'fal',
-          },
-        }),
-      ],
-      { selectedNodeIds: ['i_1'], modelOptionsByKind: { image: options } },
-    )
-    const { container } = renderImage(context, 'i_1', true)
-    expect(
-      container.querySelector('[data-image-send-readout="missing-key"]'),
-    ).not.toBeNull()
-    expect(screen.queryByTestId('quick-setup')).toBeNull()
-    fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' })
-    expect(generateNode).not.toHaveBeenCalled()
-    const dialog = screen.getByTestId('quick-setup')
-    expect(dialog).toHaveAttribute('data-model', 'model-missing')
-    fireEvent.click(dialog)
-    expect(generateNode).toHaveBeenCalledTimes(1)
-    expect(screen.queryByTestId('quick-setup')).toBeNull()
-    apiKeys.current = null
-  })
-
-  /** Seedream 5.0 Pro 在 fal / 火山两家各一条。 */
-  const seedreamChannels = (volcKey: boolean) =>
-    [
-      {
-        optionId: 'opt_fal',
-        modelId: 'seedream-5.0-pro',
-        adapterType: 'fal',
-        providerConfig: {},
-        requestCount: 0,
-        sourceType: 'workspace',
-      },
-      {
-        optionId: 'opt_volc',
-        modelId: 'seedream-5.0-pro-volcengine',
-        adapterType: 'volcengine',
-        providerConfig: {},
-        requestCount: 0,
-        sourceType: 'workspace',
-        ...(volcKey ? { providerKeyId: 'pk_volc' } : {}),
-      },
-    ] as never
-
-  it('卡上那家没 key、同型号另一家配好了：发送键旁提示改走，点一下才切', () => {
-    generateNode.mockClear()
-    apiKeys.current = { hasLoaded: true }
-    const context = harness(
-      [
-        imageNode('i_1', {
-          prompt: '山间晨雾',
-          model: {
-            optionId: 'opt_fal',
-            modelId: 'seedream-5.0-pro',
-            adapterType: 'fal',
-          },
-        }),
-      ],
-      {
-        selectedNodeIds: ['i_1'],
-        modelOptionsByKind: { image: seedreamChannels(true) },
-      },
-    )
-    const { container } = renderImage(context, 'i_1', true)
-    const hint = container.querySelector(
-      '[data-image-send-readout="switch-channel"]',
-    )!
-    expect(hint).not.toBeNull()
-    // 没点之前卡上那家不动 —— ⛔ 偷偷换厂商。
-    expect(context.onSetModel).not.toHaveBeenCalled()
-    fireEvent.click(hint)
-    expect(context.onSetModel).toHaveBeenCalledWith(
-      'i_1',
-      expect.objectContaining({ optionId: 'opt_volc' }),
-    )
-    expect(generateNode).not.toHaveBeenCalled()
-    apiKeys.current = null
-  })
-
-  it('多厂商一家都没配：弹窗里挑配哪家，验证过这一枪走那一家', () => {
-    generateNode.mockClear()
-    apiKeys.current = { hasLoaded: true }
-    const context = harness(
-      [
-        imageNode('i_1', {
-          prompt: '山间晨雾',
-          model: {
-            optionId: 'opt_fal',
-            modelId: 'seedream-5.0-pro',
-            adapterType: 'fal',
-          },
-        }),
-      ],
-      {
-        selectedNodeIds: ['i_1'],
-        modelOptionsByKind: { image: seedreamChannels(false) },
-      },
-    )
-    const { container } = renderImage(context, 'i_1', true)
-    expect(
-      container.querySelector('[data-image-send-readout="missing-key"]'),
-    ).not.toBeNull()
-    fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' })
-    expect(screen.getByTestId('quick-setup-channel-opt_fal')).toBeTruthy()
-    fireEvent.click(screen.getByTestId('quick-setup-channel-opt_volc'))
-    expect(screen.getByTestId('quick-setup')).toHaveAttribute(
-      'data-model',
-      'seedream-5.0-pro-volcengine',
-    )
-    fireEvent.click(screen.getByTestId('quick-setup'))
-    expect(context.onSetModel).toHaveBeenCalledWith(
-      'i_1',
-      expect.objectContaining({ optionId: 'opt_volc' }),
-    )
-    expect(generateNode).toHaveBeenCalledWith(
-      'i_1',
-      expect.objectContaining({
-        nodes: [
-          expect.objectContaining({
-            data: expect.objectContaining({
-              model: expect.objectContaining({ optionId: 'opt_volc' }),
-            }),
-          }),
-        ],
-      }),
-      expect.any(Object),
-    )
-    apiKeys.current = null
+    expect(document.querySelector('[data-model-chip]')).not.toBeNull()
   })
 
   it('选项映射与 WorkflowModelPicker 同口径（apiKeyId → keyId）', () => {
@@ -1118,30 +587,36 @@ describe('编辑子菜单', () => {
 
 describe('粘贴 / 上传落卡', () => {
   it('选中态 ⌘V 图片落进这张卡（⛔ 不另开一张）', async () => {
-    uploadFn.mockClear()
     const context = harness([imageNode('i_1')], { selectedNodeIds: ['i_1'] })
     renderImage(context, 'i_1', true)
     const file = new File(['x'], 'a.png', { type: 'image/png' })
     const event = new Event('paste', { bubbles: true }) as ClipboardEvent
     Object.defineProperty(event, 'clipboardData', { value: { files: [file] } })
     window.dispatchEvent(event)
-    expect(uploadFn).toHaveBeenCalledWith('image', file, 'i_1')
-    await Promise.resolve()
-    await Promise.resolve()
-    expect(context.onSetMedia).toHaveBeenCalledWith(
-      'i_1',
-      expect.objectContaining({ url: 'https://cdn.test/up.png' }),
+    await waitFor(() =>
+      expect(context.onSetMedia).toHaveBeenCalledWith(
+        'i_1',
+        expect.objectContaining({
+          url: 'https://cdn.test/up.png',
+          mediaWidth: 640,
+          mediaHeight: 480,
+        }),
+      ),
+    )
+    expect(uploadImageFileAPI).toHaveBeenCalledWith(
+      file,
+      expect.objectContaining({ note: 'i_1' }),
     )
   })
 
-  it('未选中时不接管粘贴', () => {
-    uploadFn.mockClear()
+  it('未选中时不接管粘贴', async () => {
     renderImage(harness([imageNode('i_1')]), 'i_1', false)
     const file = new File(['x'], 'a.png', { type: 'image/png' })
     const event = new Event('paste', { bubbles: true }) as ClipboardEvent
     Object.defineProperty(event, 'clipboardData', { value: { files: [file] } })
     window.dispatchEvent(event)
-    expect(uploadFn).not.toHaveBeenCalled()
+    await act(async () => {})
+    expect(uploadImageFileAPI).not.toHaveBeenCalled()
   })
 })
 
@@ -1286,38 +761,6 @@ describe('生成中 / 版本 / 画中框', () => {
       '雨夜的天台',
     )
     expect(document.querySelector('[data-image-regenerate]')).not.toBeNull()
-  })
-
-  it('收起时的草稿进入画中框，画中框编辑后走同一条生成路径', () => {
-    generateNode.mockClear()
-    const node = imageNode('i_1', {
-      subtype: 'shot',
-      url: 'https://cdn.test/a.png',
-      prompt: '原始提示词',
-    })
-    const context = harness([node], { selectedNodeIds: ['i_1'] })
-    const view = renderImage(context, 'i_1', true)
-    fireEvent.change(document.querySelector('[data-prompt-bar-input]')!, {
-      target: { value: '收起时输入的新内容' },
-    })
-    view.rerender(
-      <NodeV4CanvasProvider value={{ ...context, expandedNodeId: 'i_1' }}>
-        {/* @ts-expect-error NodeProps 的其余字段本组测试用不到 */}
-        <ImageNodeV4 id="i_1" data={node.data} selected />
-      </NodeV4CanvasProvider>,
-    )
-    const editor = document.querySelector(
-      '[data-image-frame-body] [role="textbox"]',
-    ) as HTMLElement
-    expect(editor).toHaveTextContent('收起时输入的新内容')
-    editor.textContent = '画中框继续输入'
-    fireEvent.input(editor)
-    fireEvent.click(document.querySelector('[data-image-regenerate]')!)
-    expect(generateNode).toHaveBeenLastCalledWith(
-      'i_1',
-      expect.anything(),
-      expect.objectContaining({ prompt: '画中框继续输入' }),
-    )
   })
 
   it('画中框的版本点和左右键都切同一份输出版本', () => {
@@ -1520,8 +963,7 @@ describe('提示词栏参考图轨', () => {
     )
   })
 
-  it('已有图的镜头图 ⌘V 进参考轨，不覆盖本卡', () => {
-    uploadFn.mockClear()
+  it('已有图的镜头图 ⌘V 进参考轨，不覆盖本卡', async () => {
     const context = harness(
       [
         imageNode('i_shot', {
@@ -1536,7 +978,13 @@ describe('提示词栏参考图轨', () => {
     const event = new Event('paste', { bubbles: true }) as ClipboardEvent
     Object.defineProperty(event, 'clipboardData', { value: { files: [file] } })
     window.dispatchEvent(event)
-    expect(uploadFn).toHaveBeenCalledWith('image', file, 'i_shot')
+    await waitFor(() =>
+      expect(uploadImageFileAPI).toHaveBeenCalledWith(
+        file,
+        expect.objectContaining({ note: 'i_shot' }),
+      ),
+    )
+    await act(async () => {})
     expect(context.onSetMedia).not.toHaveBeenCalled()
   })
 })
@@ -1545,14 +993,16 @@ describe('来源没了（owner 09-27：素材库删了图，画布上是裂图�
   const URL = 'https://cdn.example/deleted.png'
 
   it('图读不出来且 CDN 回 404 → 灰底「已从素材库删除」+「从画布移除」，⛔ 不露裂图', async () => {
-    mockProbeMedia.mockResolvedValue('gone')
     const onApplyOp = vi.fn()
     renderImage(harness([imageNode('i_1', { url: URL })], { onApplyOp }))
     fireEvent.error(screen.getByRole('img'))
 
     expect(await screen.findByText('gone.image')).toBeInTheDocument()
     expect(screen.queryByRole('img')).toBeNull()
-    expect(mockProbeMedia).toHaveBeenCalledWith(URL)
+    expect(server.requests).toContainEqual({
+      method: 'HEAD',
+      path: '/deleted.png',
+    })
 
     fireEvent.click(screen.getByRole('button', { name: 'remove' }))
     expect(onApplyOp).toHaveBeenCalledWith({
@@ -1563,7 +1013,6 @@ describe('来源没了（owner 09-27：素材库删了图，画布上是裂图�
 
   // owner 2026-09-29：好几版里只有一版的原图删了，按钮 ⛔ 连好的那几版一起删掉整张卡。
   it('卡上不止一版：按钮换成「去掉这一版」，只拿掉当前这一版', async () => {
-    mockProbeMedia.mockResolvedValue('gone')
     const onApplyOp = vi.fn()
     renderImage(
       harness(
@@ -1598,7 +1047,7 @@ describe('来源没了（owner 09-27：素材库删了图，画布上是裂图�
   })
 
   it('网络读不到 → 只说暂时读不到 +「重试」，重试把图重新挂回去', async () => {
-    mockProbeMedia.mockResolvedValue('unreachable')
+    cdnStatus = 503
     renderImage(harness([imageNode('i_1', { url: URL })]))
     fireEvent.error(screen.getByRole('img'))
 
@@ -1670,7 +1119,7 @@ describe('`/` 模板与九宫格分镜（§3）', () => {
     })
   })
 
-  it('正文里打 `/` 列「我的模板」里的图片模板：选中把提示词落在 `/` 的位置', () => {
+  it('正文里打 `/` 列「我的模板」里的图片模板：选中把提示词落在 `/` 的位置', async () => {
     const context = harness(
       [imageNode('i_1', { url: 'https://cdn.test/a.png' })],
       { selectedNodeIds: ['i_1'] },
@@ -1680,15 +1129,17 @@ describe('`/` 模板与九宫格分镜（§3）', () => {
     fireEvent.change(input, {
       target: { value: '雨夜 /', selectionStart: 4, selectionEnd: 4 },
     })
+    // 「我的模板」拉回来之后这一条才在列表里。
+    const option = await waitFor(() => {
+      const found = document.querySelector('[data-mention-option="r_cat"]')
+      expect(found).not.toBeNull()
+      return found as HTMLElement
+    })
     // 视频模板不出现在图片卡上。
     expect(document.querySelector('[data-mention-option="r_video"]')).toBeNull()
-    const option = document.querySelector(
-      '[data-mention-option="r_cat"]',
-    ) as HTMLElement
-    expect(option).not.toBeNull()
     fireEvent.pointerDown(option)
     expect(input.value).toBe('雨夜 一只橘猫')
-    expect(markRecipeUsedAPI).toHaveBeenCalledWith('r_cat')
+    await waitFor(() => expect(recipeUses).toEqual(['r_cat']))
   })
 
   it('光标在最前面按退格：摘掉模板，正文不动', () => {
@@ -1733,130 +1184,5 @@ describe('`/` 模板与九宫格分镜（§3）', () => {
     )
     renderImage(context)
     expect(document.querySelector('[data-storyboard-splitting]')).toBeTruthy()
-  })
-})
-
-describe('一次多张 = 进版本，出完 2×2 挑一张（spec §3 A1）', () => {
-  beforeEach(() => {
-    generateNode.mockReset()
-  })
-
-  /** 回填走真的 `applyMediaPatchOutputs`：带 url 的补丁追加一版。 */
-  function renderBatch(count: number) {
-    const onApplyOp = vi.fn()
-    let minted = 0
-    function Fixture() {
-      const [node, setNode] = useState(
-        imageNode('i_1', {
-          prompt: '站台',
-          url: 'https://cdn.test/old.png',
-          params: { count },
-        }),
-      )
-      const context = harness([node], {
-        selectedNodeIds: ['i_1'],
-        onApplyOp,
-        onSetMedia: (_id, patch) =>
-          setNode(
-            (current) =>
-              ({
-                ...current,
-                data: applyNodeMediaPatch(current.data as never, patch, {
-                  now: NOW,
-                  mintId: () => `v_${(minted += 1)}`,
-                }),
-              }) as NodeV4,
-          ),
-      })
-      return (
-        <NodeV4CanvasProvider value={context}>
-          {/* @ts-expect-error NodeProps 的其余字段本组测试用不到 */}
-          <ImageNodeV4 id="i_1" data={node.data} selected />
-        </NodeV4CanvasProvider>
-      )
-    }
-    render(<Fixture />)
-    return {
-      onApplyOp,
-      submit: () =>
-        fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' }),
-    }
-  }
-
-  type ShotResult = Awaited<ReturnType<GenerateNode>>
-  function shot(url: string): ShotResult {
-    return {
-      success: true,
-      mediaUrl: url,
-      generation: { id: url },
-    } as ShotResult
-  }
-
-  it('出图中版本条末尾是还没回来的占位，出完卡面铺成挑图', async () => {
-    let options: Parameters<GenerateNode>[2] | undefined
-    let finish: (value: ShotResult) => void = () => {}
-    generateNode.mockImplementationOnce(async (_id, _graph, opts) => {
-      options = opts
-      return new Promise<ShotResult>((resolve) => (finish = resolve))
-    })
-    const { submit, onApplyOp } = renderBatch(2)
-    act(() => submit())
-    expect(
-      document.querySelectorAll('[data-version-thumb-pending]'),
-    ).toHaveLength(2)
-    act(() =>
-      options?.onEach?.(shot('https://cdn.test/a.png'), { index: 1, total: 2 }),
-    )
-    expect(
-      document.querySelectorAll('[data-version-thumb-pending]'),
-    ).toHaveLength(1)
-    act(() =>
-      options?.onEach?.(shot('https://cdn.test/b.png'), { index: 0, total: 2 }),
-    )
-    await act(async () => finish(shot('https://cdn.test/b.png')))
-
-    expect(document.querySelectorAll('[data-version-thumb]')).toHaveLength(3)
-    const pick = document.querySelector(
-      '[data-image-batch-pick]',
-    ) as HTMLElement
-    const choices = pick.querySelectorAll('[data-image-batch-pick-option]')
-    // 旧图是第 0 版，这一批落在第 1、2 版。
-    expect(
-      Array.from(choices, (item) =>
-        item.getAttribute('data-image-batch-pick-option'),
-      ),
-    ).toEqual(['1', '2'])
-    fireEvent.click(choices[0] as HTMLElement)
-    expect(onApplyOp).toHaveBeenCalledWith({
-      op: NODE_ASSISTANT_OP_V4_IDS.setOutputVersion,
-      target: 'i_1',
-      index: 1,
-    })
-    expect(document.querySelector('[data-image-batch-pick]')).toBeNull()
-  })
-
-  it('Esc = 保持最新一张，挑图收起、不切版本', async () => {
-    generateNode.mockImplementationOnce(async (_id, _graph, opts) => {
-      opts?.onEach?.(shot('https://cdn.test/a.png'), { index: 0, total: 2 })
-      opts?.onEach?.(shot('https://cdn.test/b.png'), { index: 1, total: 2 })
-      return shot('https://cdn.test/b.png')
-    })
-    const { submit, onApplyOp } = renderBatch(2)
-    await act(async () => submit())
-    const pick = document.querySelector('[data-image-batch-pick]')
-    expect(pick).not.toBeNull()
-    fireEvent.keyDown(pick as HTMLElement, { key: 'Escape' })
-    expect(document.querySelector('[data-image-batch-pick]')).toBeNull()
-    expect(onApplyOp).not.toHaveBeenCalled()
-  })
-
-  it('只出一张不挑图', async () => {
-    generateNode.mockImplementationOnce(async (_id, _graph, opts) => {
-      opts?.onEach?.(shot('https://cdn.test/a.png'), { index: 0, total: 1 })
-      return shot('https://cdn.test/a.png')
-    })
-    const { submit } = renderBatch(1)
-    await act(async () => submit())
-    expect(document.querySelector('[data-image-batch-pick]')).toBeNull()
   })
 })

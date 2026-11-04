@@ -3,12 +3,12 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 const importWebImageAPI = vi.hoisted(() => vi.fn())
-const appendOperatorEntry = vi.hoisted(() => vi.fn())
 vi.mock('@/lib/api-client/web-image-import', () => ({ importWebImageAPI }))
-vi.mock('@/hooks/use-studio-operator-store', () => ({
-  appendOperatorEntry,
-  nextOperatorEntryId: () => 'error',
-}))
+
+import {
+  getOperatorState,
+  resetOperatorThread,
+} from '@/hooks/use-studio-operator-store'
 
 import { useOperatorUserUrlMount } from './use-operator-user-url-mount'
 
@@ -35,7 +35,7 @@ it('导入成功后把入库的那张挂成参考图', async () => {
 
 describe('导入失败不挂图，线程里交代一行', () => {
   it.each([false, true])('网络异常=%s', async (reject) => {
-    appendOperatorEntry.mockClear()
+    resetOperatorThread()
     if (reject) importWebImageAPI.mockRejectedValueOnce(new Error('network'))
     else importWebImageAPI.mockResolvedValueOnce({ success: false })
     const addReferenceImage = vi.fn()
@@ -49,8 +49,9 @@ describe('导入失败不挂图，线程里交代一行', () => {
     act(() =>
       result.current.mountUserUrl(`https://source.test/failure-${reject}.png`),
     )
+    // 真的线程 store 里多了那一行。
     await waitFor(() =>
-      expect(appendOperatorEntry).toHaveBeenCalledWith(
+      expect(getOperatorState().entries).toContainEqual(
         expect.objectContaining({ code: 'urlImportFailed' }),
       ),
     )

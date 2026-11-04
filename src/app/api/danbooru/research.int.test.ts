@@ -119,7 +119,7 @@ describe('GET /api/danbooru/catalog（真服务）', () => {
       { kind: 'character', tag: 'denia,rating:e' },
       { kind: 'artist' },
       { random: '1' },
-    ]) {
+    ] as Record<string, string>[]) {
       expect((await catalog(query)).status).toBe(400)
     }
     expect(sent).toHaveLength(0)

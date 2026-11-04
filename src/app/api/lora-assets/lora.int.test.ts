@@ -402,7 +402,7 @@ describe('GET /api/lora-assets/civitai（假索引）', () => {
       { baseModel: 'not-a-model' },
       { type: 'not-a-type' },
       { sort: 'x' },
-    ]) {
+    ] as Record<string, string>[]) {
       expect((await list(query)).status).toBe(400)
     }
     expect(external.calls).toEqual([])

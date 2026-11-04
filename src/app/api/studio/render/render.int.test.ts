@@ -27,7 +27,12 @@ vi.mock('next-intl/server', async () => {
     }: {
       locale: keyof typeof MESSAGES
       namespace: string
-    }) => createTranslator({ locale, messages: MESSAGES[locale], namespace }),
+    }) =>
+      createTranslator({
+        locale,
+        messages: MESSAGES[locale],
+        namespace: namespace as never,
+      }),
   }
 })
 

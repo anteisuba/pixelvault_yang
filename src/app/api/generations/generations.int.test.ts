@@ -213,7 +213,7 @@ describe('PATCH /api/generations/[id]/review（真库）', () => {
   it('标 blocked 落进快照、回上一次的态（撤销用）；再标不给理由就清掉理由', async () => {
     const gen = await seedGeneration(me.id, { snapshot: { preset: 'keep' } })
     const res = await patch(gen.id, { state: 'blocked', reason: ' 手指糊了 ' })
-    expect((await parseJSON(res)).data).toEqual({
+    expect((await parseJSON<{ data: unknown }>(res)).data).toEqual({
       id: gen.id,
       state: 'blocked',
       previous: 'pending',
@@ -225,7 +225,9 @@ describe('PATCH /api/generations/[id]/review（真库）', () => {
     })
 
     const again = await patch(gen.id, { state: 'approved' })
-    expect((await parseJSON(again)).data).toMatchObject({ previous: 'blocked' })
+    expect((await parseJSON<{ data: unknown }>(again)).data).toMatchObject({
+      previous: 'blocked',
+    })
     expect(await snapshotOf(gen.id)).toMatchObject({
       reviewState: 'approved',
       reviewReason: null,
@@ -265,7 +267,7 @@ describe('PATCH /api/generations/[id]/cover（真库）', () => {
     const res = await patch(audio.id, {
       coverImageUrl: 'https://cdn.test/cover.png',
     })
-    expect((await parseJSON(res)).data).toEqual({
+    expect((await parseJSON<{ data: unknown }>(res)).data).toEqual({
       id: audio.id,
       previewUrl: 'https://cdn.test/cover.png',
     })

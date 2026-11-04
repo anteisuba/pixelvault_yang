@@ -1,14 +1,20 @@
 import {
+  act,
   fireEvent,
   render,
   screen,
   waitFor,
   within,
 } from '@testing-library/react'
-import type { ReactNode } from 'react'
+import type { ReactElement } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { LoraAssetRecord } from '@/types'
+import {
+  LoraStackProvider,
+  useActiveLoraStack,
+} from '@/features/lora/hooks/use-active-lora-stack'
+import { LORA_STACK_CLERK_ID, seedLoraStack } from '@/test/lora-stack'
 
 import { LoraAssetCard } from './LoraAssetCard'
 
@@ -19,14 +25,11 @@ import { LoraAssetCard } from './LoraAssetCard'
 // base and the preserved my-page behaviours.
 
 const mockPush = vi.hoisted(() => vi.fn())
-const mockStackPush = vi.hoisted(() => vi.fn())
-const mockStackRemove = vi.hoisted(() => vi.fn())
 const mockToastSuccess = vi.hoisted(() => vi.fn())
 const mockMinePrompts = vi.hoisted(() => vi.fn())
 vi.mock('@/lib/api-client/lora-assets', () => ({
   mineCivitaiLoraPromptsAPI: mockMinePrompts,
 }))
-let mockStackItems: { asset: LoraAssetRecord; scale?: number }[] = []
 
 vi.mock('next-intl', () => {
   const translators = new Map<string, (key: string) => string>()
@@ -48,35 +51,8 @@ vi.mock('@/i18n/navigation', () => ({
   useRouter: () => ({ push: mockPush, replace: vi.fn() }),
 }))
 
-vi.mock('@/features/lora/hooks/use-active-lora-stack', () => ({
-  useActiveLoraStack: () => ({
-    get items() {
-      return mockStackItems
-    },
-    push: mockStackPush,
-    setScale: vi.fn(),
-    remove: mockStackRemove,
-    clear: vi.fn(),
-  }),
-}))
-
-// Radix DropdownMenu doesn't open on a synthetic click in jsdom; follow the
-// repo's established pattern (StudioPromptArea.test) and render the menu
-// inline so its conditional items are queryable without driving the portal.
-vi.mock('@/components/ui/dropdown-menu', () => ({
-  DropdownMenu: ({ children }: { children: ReactNode }) => (
-    <div>{children}</div>
-  ),
-  DropdownMenuTrigger: ({ children }: { children: ReactNode }) => (
-    <>{children}</>
-  ),
-  DropdownMenuContent: ({ children }: { children: ReactNode }) => (
-    <div>{children}</div>
-  ),
-  DropdownMenuItem: ({ children }: { children: ReactNode }) => (
-    <div role="menuitem">{children}</div>
-  ),
-  DropdownMenuSeparator: () => <hr />,
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({ isLoaded: true, userId: LORA_STACK_CLERK_ID }),
 }))
 
 function makeAsset(
@@ -100,16 +76,47 @@ function makeAsset(
   }
 }
 
+/** 台上现在挂着哪几把（真挂载栈）。 */
+function StackProbe() {
+  const { items } = useActiveLoraStack()
+  return (
+    <output aria-label="stack">
+      {items.map((item) => item.asset.id).join(',')}
+    </output>
+  )
+}
+
+function renderCard(ui: ReactElement) {
+  return render(
+    <LoraStackProvider>
+      {ui}
+      <StackProbe />
+    </LoraStackProvider>,
+  )
+}
+
+// 详情弹窗开着时外面整页 aria-hidden：照样读。
+const stackIds = () =>
+  screen.getByRole('status', { name: 'stack', hidden: true }).textContent
+
+/** Radix 下拉菜单：键盘打开（jsdom 里点一下不触发）。 */
+function openActions() {
+  fireEvent.keyDown(
+    screen.getByRole('button', { name: 'LoraWorkbench:assetActionsLabel' }),
+    { key: 'Enter' },
+  )
+}
+
 describe('LoraAssetCard — B8 shared base + preserved my-page chrome', () => {
   beforeEach(() => {
     mockPush.mockReset()
-    mockStackPush.mockReset()
-    mockStackItems = []
+    mockToastSuccess.mockReset()
     mockMinePrompts.mockReset()
+    window.localStorage.clear()
   })
 
   it('renders the type badge on the shared black-nacre cover tile', () => {
-    render(
+    renderCard(
       <LoraAssetCard
         asset={makeAsset({ id: '1', name: 'My Char', type: 'subject' })}
       />,
@@ -121,7 +128,7 @@ describe('LoraAssetCard — B8 shared base + preserved my-page chrome', () => {
   })
 
   it('opens saved details from the cover without mounting the LoRA', () => {
-    render(
+    renderCard(
       <LoraAssetCard
         asset={makeAsset({ id: 'detail', name: 'Saved style' })}
       />,
@@ -130,12 +137,12 @@ describe('LoraAssetCard — B8 shared base + preserved my-page chrome', () => {
     const detail = screen.getByRole('dialog', { name: 'Saved style' })
     expect(within(detail).getByText('Illustrious')).toBeInTheDocument()
     expect(within(detail).getByText('trigger')).toBeInTheDocument()
-    expect(mockStackPush).not.toHaveBeenCalled()
+    expect(stackIds()).toBe('')
     expect(mockPush).not.toHaveBeenCalled()
     fireEvent.click(
       within(detail).getByRole('button', { name: 'LoraWorkbench:use' }),
     )
-    expect(mockStackPush).toHaveBeenCalledTimes(1)
+    expect(stackIds()).toBe('detail')
   })
 
   it('loads library samples only when saved details open and lets users preview them', async () => {
@@ -147,7 +154,7 @@ describe('LoraAssetCard — B8 shared base + preserved my-page chrome', () => {
         previewImages: [{ imageUrl: 'https://example.com/sample.png' }],
       },
     })
-    render(
+    renderCard(
       <LoraAssetCard
         asset={makeAsset({
           id: 'samples',
@@ -180,25 +187,24 @@ describe('LoraAssetCard — B8 shared base + preserved my-page chrome', () => {
     expect(
       within(detail).getByRole('img', { name: 'Saved samples' }),
     ).toHaveAttribute('src', 'https://example.com/sample.png')
-    expect(mockStackPush).not.toHaveBeenCalled()
+    expect(stackIds()).toBe('')
   })
 
   it('去生成: mounts the LoRA and navigates to the generate section', () => {
-    render(<LoraAssetCard asset={makeAsset({ id: '2', name: 'Use Me' })} />)
+    renderCard(<LoraAssetCard asset={makeAsset({ id: '2', name: 'Use Me' })} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'LoraWorkbench:use' }))
 
-    expect(mockStackPush).toHaveBeenCalledTimes(1)
-    expect(mockStackPush.mock.calls[0]?.[0]).toMatchObject({ id: '2' })
+    expect(stackIds()).toBe('2')
     expect(mockPush).toHaveBeenCalledWith(
       expect.stringContaining('section=generate'),
     )
   })
 
   it('去生成: the bottom bar carries one undo that unmounts what was just mounted', () => {
-    mockToastSuccess.mockReset()
-    mockStackRemove.mockReset()
-    render(<LoraAssetCard asset={makeAsset({ id: '5', name: 'Undo Me' })} />)
+    renderCard(
+      <LoraAssetCard asset={makeAsset({ id: '5', name: 'Undo Me' })} />,
+    )
 
     fireEvent.click(screen.getByRole('button', { name: 'LoraWorkbench:use' }))
 
@@ -206,34 +212,32 @@ describe('LoraAssetCard — B8 shared base + preserved my-page chrome', () => {
       action?: { label: string; onClick: () => void }
     }
     expect(options.action?.label).toBe('Feedback:undo')
-    options.action?.onClick()
-    expect(mockStackRemove).toHaveBeenCalledWith('5')
+    expect(stackIds()).toBe('5')
+    act(() => options.action?.onClick())
+    expect(stackIds()).toBe('')
   })
 
-  it('shows the alreadyInUse state (no re-mount) when the LoRA is already in the stack', () => {
+  it('shows the alreadyInUse state (no re-mount) when the LoRA is already in the stack', async () => {
     const asset = makeAsset({ id: '3', name: 'Already' })
-    mockStackItems = [{ asset, scale: 1 }]
+    seedLoraStack([{ asset, scale: 1 }])
 
-    render(<LoraAssetCard asset={asset} />)
+    renderCard(<LoraAssetCard asset={asset} />)
 
     fireEvent.click(
-      screen.getByRole('button', { name: 'LoraWorkbench:alreadyInUse' }),
+      await screen.findByRole('button', { name: 'LoraWorkbench:alreadyInUse' }),
     )
-    expect(mockStackPush).not.toHaveBeenCalled()
+    expect(stackIds()).toBe('3')
   })
 
   it('favorites card: overflow menu surfaces open-source + unfavorite', () => {
-    render(
+    renderCard(
       <LoraAssetCard
         asset={makeAsset({ id: '4', name: 'Fav', source: 'imported' })}
         onUnfavorite={vi.fn().mockResolvedValue(true)}
       />,
     )
 
-    // Trigger present (menu is wired) + its conditional items render.
-    expect(
-      screen.getByRole('button', { name: 'LoraWorkbench:assetActionsLabel' }),
-    ).toBeInTheDocument()
+    openActions()
     expect(
       screen.getByRole('menuitem', { name: /LoraWorkbench:unfavorite/ }),
     ).toBeInTheDocument()
@@ -245,7 +249,7 @@ describe('LoraAssetCard — B8 shared base + preserved my-page chrome', () => {
   })
 
   it('own trained card: shows the private lock indicator and a delete menu item', () => {
-    render(
+    renderCard(
       <LoraAssetCard
         asset={makeAsset({
           id: '5',
@@ -262,6 +266,7 @@ describe('LoraAssetCard — B8 shared base + preserved my-page chrome', () => {
     // Private-lock indicator preserved (§5 "自训卡保留私有锁标").
     expect(screen.getByText('LoraWorkbench:private')).toBeInTheDocument()
 
+    openActions()
     expect(
       screen.getByRole('menuitem', {
         name: /LoraWorkbench:assetActionDelete/,
@@ -270,7 +275,7 @@ describe('LoraAssetCard — B8 shared base + preserved my-page chrome', () => {
   })
 
   it('falls back to the type icon (no img) when the asset has no cover', () => {
-    render(
+    renderCard(
       <LoraAssetCard
         asset={makeAsset({ id: '6', name: 'No Cover', coverImageUrl: null })}
       />,

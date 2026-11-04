@@ -1,47 +1,17 @@
+/**
+ * L2a 真库：聊满一段之后她回想一下（写日记、记记忆、改卡、记进「她改了什么」）。
+ * 记忆服务、改动记录、库全真；只假文字模型。
+ */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('server-only', () => ({}))
 
-const mocks = vi.hoisted(() => ({
-  db: {
-    characterCard: { findFirst: vi.fn(), update: vi.fn() },
-    characterJournal: {
-      create: vi.fn(),
-      findMany: vi.fn(async () => []),
-      deleteMany: vi.fn(),
-    },
-  },
-  llmTextCompletion: vi.fn(),
-  listMemories: vi.fn(async () => []),
-  recordMemories: vi.fn(),
-  recordRevision: vi.fn(),
-}))
+const llmTextCompletion = vi.hoisted(() => vi.fn())
+vi.mock('@/services/llm-text.service', () => ({ llmTextCompletion }))
 
-vi.mock('@/lib/db', () => ({ db: mocks.db }))
-vi.mock('@/lib/logger', () => ({ logger: { warn: vi.fn() } }))
-vi.mock('@/services/llm-text.service', () => ({
-  llmTextCompletion: mocks.llmTextCompletion,
-}))
-vi.mock('@/features/assistant/services/assistant-memory.service', () => ({
-  listAssistantMemoriesForReview: mocks.listMemories,
-  recordAssistantMemories: mocks.recordMemories,
-}))
-vi.mock('@/features/assistant/services/assistant-operator.service', () => ({
-  resolveMemoryChanges: (draft: {
-    memories?: { kind: string; text: string }[]
-  }) => ({
-    candidates: (draft.memories ?? []).map(({ kind, text }) => ({
-      kind,
-      text,
-    })),
-    replacements: [],
-    forget: [],
-  }),
-}))
-vi.mock('./character-revision.service', () => ({
-  recordCharacterRevision: mocks.recordRevision,
-}))
-
+import { db } from '@/lib/db'
+import { createTestCard } from '@/test/int/cards'
+import { createTestUser, resetDatabase } from '@/test/int/db'
 import { CharacterPersonaSchema } from '@/types'
 
 import {
@@ -63,17 +33,6 @@ const persona = (patch: Record<string, unknown> = {}) =>
     speech: '慢吞吞',
     ...patch,
   })
-
-beforeEach(() => {
-  vi.clearAllMocks()
-  mocks.db.characterCard.findFirst.mockResolvedValue({
-    id: 'card-1',
-    name: 'Denia',
-    tags: ['oc'],
-    persona: persona(),
-    updatedAt: UPDATED_AT,
-  })
-})
 
 describe('shouldReflect', () => {
   it('每 30 句一次', () => {
@@ -146,8 +105,28 @@ describe('reflectOnChat', () => {
     { role: 'assistant' as const, content: '又熬夜了吧' },
   ]
 
+  let me: Awaited<ReturnType<typeof createTestUser>>
+  let cardId: string
+
+  beforeEach(async () => {
+    llmTextCompletion.mockReset()
+    await resetDatabase()
+    me = await createTestUser()
+    cardId = (
+      await createTestCard(me.id, {
+        name: 'Denia',
+        tags: ['oc'],
+        persona: persona(),
+      })
+    ).id
+    await db.$executeRaw`UPDATE "CharacterCard" SET "updatedAt" = ${UPDATED_AT} WHERE "id" = ${cardId}`
+  })
+
+  const reflect = () =>
+    reflectOnChat({ userId: me.id, cardId, messages, assistant: ASSISTANT })
+
   it('写日记、记记忆、改卡不碰 updatedAt、记进「她改了什么」', async () => {
-    mocks.llmTextCompletion.mockResolvedValue(
+    llmTextCompletion.mockResolvedValue(
       JSON.stringify({
         journal: '他今天又画崩了，我陪他吃了甜点。',
         relationship: '叫他「画师」，越来越熟',
@@ -155,42 +134,44 @@ describe('reflectOnChat', () => {
         persona: [{ field: 'speech', text: '慢吞吞，偶尔拖长音' }],
       }),
     )
-    await expect(
-      reflectOnChat({
-        userId: 'u',
-        cardId: 'card-1',
-        messages,
-        assistant: ASSISTANT,
-      }),
-    ).resolves.toBe(true)
-    expect(mocks.db.characterJournal.create).toHaveBeenCalledWith({
-      data: {
-        userId: 'u',
-        characterCardId: 'card-1',
+
+    await expect(reflect()).resolves.toBe(true)
+
+    const journals = await db.characterJournal.findMany()
+    expect(journals).toEqual([
+      expect.objectContaining({
+        userId: me.id,
+        characterCardId: cardId,
         text: '他今天又画崩了，我陪他吃了甜点。',
-      },
+      }),
+    ])
+    const memories = await db.assistantMemory.findMany({
+      where: { userId: me.id },
     })
-    expect(mocks.recordMemories).toHaveBeenCalledWith(
+    expect(memories).toEqual([
       expect.objectContaining({
-        characterCardId: 'card-1',
-        candidates: [{ kind: 'fact', text: '他常熬夜画图' }],
+        characterCardId: cardId,
+        text: '他常熬夜画图',
       }),
-    )
-    expect(mocks.db.characterCard.update).toHaveBeenCalledWith(
+    ])
+    const card = await db.characterCard.findUniqueOrThrow({
+      where: { id: cardId },
+    })
+    expect(card.updatedAt).toEqual(UPDATED_AT)
+    expect(card.version).toBe(2)
+    expect(card.persona).toMatchObject({
+      speech: '慢吞吞，偶尔拖长音',
+      relationship: '叫他「画师」，越来越熟',
+    })
+    const revisions = await db.characterCardRevision.findMany()
+    expect(revisions).toEqual([
       expect.objectContaining({
-        data: expect.objectContaining({
-          updatedAt: UPDATED_AT,
-          persona: expect.objectContaining({
-            speech: '慢吞吞，偶尔拖长音',
-            relationship: '叫他「画师」，越来越熟',
-          }),
-        }),
+        characterCardId: cardId,
+        source: 'REFLECTION',
+        fields: expect.arrayContaining(['speech', 'relationship']),
       }),
-    )
-    expect(mocks.recordRevision).toHaveBeenCalledWith(
-      expect.objectContaining({ cardId: 'card-1', source: 'REFLECTION' }),
-    )
-    const prompt = mocks.llmTextCompletion.mock.calls[0]![0] as {
+    ])
+    const prompt = llmTextCompletion.mock.calls[0]![0] as {
       userPrompt: string
     }
     expect(prompt.userPrompt).toContain('Creator: 今天画崩了')
@@ -198,28 +179,31 @@ describe('reflectOnChat', () => {
   })
 
   it('模型回了坏东西：什么都不写', async () => {
-    mocks.llmTextCompletion.mockResolvedValue('抱歉')
-    await expect(
-      reflectOnChat({
-        userId: 'u',
-        cardId: 'card-1',
-        messages,
-        assistant: ASSISTANT,
-      }),
-    ).resolves.toBe(false)
-    expect(mocks.db.characterJournal.create).not.toHaveBeenCalled()
-    expect(mocks.db.characterCard.update).not.toHaveBeenCalled()
+    llmTextCompletion.mockResolvedValue('抱歉')
+    await expect(reflect()).resolves.toBe(false)
+    expect(await db.characterJournal.count()).toBe(0)
+    expect(await db.characterCardRevision.count()).toBe(0)
+    const card = await db.characterCard.findUniqueOrThrow({
+      where: { id: cardId },
+    })
+    expect(card.version).toBe(1)
   })
 
   it('出错不抛', async () => {
-    mocks.llmTextCompletion.mockRejectedValue(new Error('down'))
+    llmTextCompletion.mockRejectedValue(new Error('down'))
+    await expect(reflect()).resolves.toBe(false)
+  })
+
+  it('不是本人的卡：不问模型、不写', async () => {
+    const other = await createTestUser()
     await expect(
       reflectOnChat({
-        userId: 'u',
-        cardId: 'card-1',
+        userId: other.id,
+        cardId,
         messages,
         assistant: ASSISTANT,
       }),
     ).resolves.toBe(false)
+    expect(llmTextCompletion).not.toHaveBeenCalled()
   })
 })

@@ -22,7 +22,6 @@ vi.mock('next-intl', () => {
   return { useTranslations: () => t }
 })
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
-vi.mock('@/lib/prompt-tag-search', () => ({ searchPromptTags: () => [] }))
 vi.mock('@/lib/api-client/novelai-tags', () => ({
   getNovelAiTagSuggestionsAPI: vi.fn(),
 }))

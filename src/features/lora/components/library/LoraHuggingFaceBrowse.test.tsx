@@ -5,83 +5,102 @@ import {
   waitFor,
   within,
 } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest'
 
+import {
+  LoraStackProvider,
+  useActiveLoraStack,
+} from '@/features/lora/hooks/use-active-lora-stack'
+import { LORA_STACK_CLERK_ID } from '@/test/lora-stack'
 import type { HuggingFaceLoraSearchItem } from '@/types'
 
 import { LoraHuggingFaceBrowse } from './LoraHuggingFaceBrowse'
 
-vi.mock('next-intl', () => ({
-  useTranslations:
-    (ns: string) => (key: string, values?: Record<string, unknown>) =>
-      values ? `${ns}:${key}:${JSON.stringify(values)}` : `${ns}:${key}`,
-  useFormatter: () => ({
+// 真 useHuggingFaceLoraLibraryWithUrl（接着往下滚那种）、真挂载栈、真底模表（Runner
+// 开关走环境变量）、真封面 / 详情 hook；只在 api-client 边界上假那几跳。
+vi.hoisted(() => {
+  process.env.NEXT_PUBLIC_FF_COMFY_RUNNER = 'true'
+})
+
+// 和真 next-intl 一样，同一个命名空间回同一个 `t`（真 hook 的 effect 依赖它）。
+const intl = vi.hoisted(() => {
+  const byNamespace = new Map<
+    string,
+    (key: string, values?: Record<string, unknown>) => string
+  >()
+  const formatter = {
     number: (value: number) => value.toLocaleString('en-US'),
     relativeTime: () => 'now',
     dateTime: () => 'Aug 14',
-  }),
+  }
+  return {
+    formatter,
+    t(ns: string) {
+      let t = byNamespace.get(ns)
+      if (!t) {
+        t = (key, values) =>
+          values ? `${ns}:${key}:${JSON.stringify(values)}` : `${ns}:${key}`
+        byNamespace.set(ns, t)
+      }
+      return t
+    },
+  }
+})
+vi.mock('next-intl', () => ({
+  useTranslations: (ns: string) => intl.t(ns),
+  useFormatter: () => intl.formatter,
 }))
 
 vi.mock('@clerk/nextjs', () => ({
-  useAuth: () => ({ isLoaded: true, userId: 'user-1' }),
+  useAuth: () => ({ isLoaded: true, userId: LORA_STACK_CLERK_ID }),
 }))
 
-vi.mock('sonner', () => ({ toast: { info: vi.fn(), success: vi.fn() } }))
-
-const mockPush = vi.fn()
-let mockStackItems: { asset: { id: string; loraUrl: string } }[] = []
-vi.mock('@/features/lora/hooks/use-active-lora-stack', () => ({
-  useActiveLoraStack: () => ({ items: mockStackItems, push: mockPush }),
+vi.mock('sonner', () => ({
+  toast: { info: vi.fn(), success: vi.fn(), error: vi.fn() },
 }))
 
-// 测试环境里 Runner 开关没开、所有底模都「不可用」：这里只验挂载本身。
-vi.mock(
-  '@/features/lora/constants/lora-base-models',
-  async (importOriginal) => ({
-    ...(await importOriginal<
-      typeof import('@/features/lora/constants/lora-base-models')
-    >()),
-    getCompatibleBases: () => [{ available: true }],
+const nav = vi.hoisted(() => ({ params: new URLSearchParams() }))
+vi.mock('next/navigation', () => ({
+  useSearchParams: () => nav.params,
+}))
+vi.mock('@/i18n/navigation', () => ({
+  usePathname: () => '/studio/lora',
+  useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
+}))
+
+const hf = vi.hoisted(() => ({ list: vi.fn() }))
+vi.mock('@/lib/api-client/lora-assets', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api-client/lora-assets')>()),
+  listHuggingFaceLoraAssetsAPI: hf.list,
+  // Hugging Face 的样例是 README 里的图；这里没有图。
+  fetchHuggingFaceShowcaseAPI: async () => ({
+    success: true,
+    data: { images: [], prompts: [] },
   }),
-)
-
-vi.mock('@/features/lora/hooks/use-huggingface-showcase-cover', () => ({
-  useHuggingFaceShowcaseCover: (
-    _repoId: string,
-    _revision: string,
-    cover: string | null,
-  ) => ({ coverUrl: cover, isPending: false, setObservedElement: vi.fn() }),
-}))
-
-// 详情页的数据 hook：Hugging Face 的样例是 README 里的图。
-vi.mock('@/features/lora/hooks/use-huggingface-lora-showcase', () => ({
-  useHuggingFaceLoraShowcase: () => ({
-    images: [],
-    prompts: [],
-    isLoading: false,
+  fetchCivitaiModelDescriptionAPI: async () => ({
+    success: true,
+    data: { descriptionText: null, versions: [] },
   }),
-}))
-vi.mock('@/features/lora/hooks/use-civitai-model-description', () => ({
-  useCivitaiModelDetail: () => ({
-    descriptionText: null,
-    versions: [],
-    isLoading: false,
-  }),
-}))
-vi.mock('@/features/lora/hooks/use-civitai-mined-prompts', () => ({
-  useCivitaiMinedPrompts: () => ({
-    recipes: [],
-    previewImages: [],
-    isLoading: false,
+  mineCivitaiLoraPromptsAPI: async () => ({
+    success: true,
+    data: { recipes: [], previewImages: [] },
   }),
 }))
 
-const mockCommitSearch = vi.fn()
-const mockSetBaseModelFamily = vi.fn()
-let mockLibrary: Record<string, unknown> = {}
-vi.mock('@/features/lora/hooks/use-huggingface-lora-library-url', () => ({
-  useHuggingFaceLoraLibraryWithUrl: () => mockLibrary,
-}))
+// 这一批回到浏览器的那一刻 —— 收藏时写进 sourceSnapshot.retrievedAt。
+const RETRIEVED_AT = '2026-09-28T00:30:00.000Z'
+
+afterAll(() => {
+  delete process.env.NEXT_PUBLIC_FF_COMFY_RUNNER
+})
 
 const RESOLVE = 'https://huggingface.co/example/anima-style/resolve/abc123'
 
@@ -134,38 +153,39 @@ const twoFiles = makeRepo({
   ],
 })
 
-function libraryState(overrides: Record<string, unknown> = {}) {
-  return {
-    items: [makeRepo(), twoFiles],
-    search: '',
-    debouncedSearch: '',
-    baseModelFamily: 'all',
-    sort: 'downloads',
-    contentType: 'all',
-    total: null,
-    page: 1,
-    hasNextPage: true,
-    retrievedAt: '2026-09-28T01:00:00.000Z',
-    retrievedAtFor: () => '2026-09-28T00:30:00.000Z',
-    isLoading: false,
-    isRevalidating: false,
-    isReplacing: false,
-    isLoadingMore: false,
-    error: null,
-    setSearch: vi.fn(),
-    commitSearch: mockCommitSearch,
-    setBaseModelFamily: mockSetBaseModelFamily,
-    setSort: vi.fn(),
-    setContentType: vi.fn(),
-    nextPage: vi.fn(),
-    previousPage: vi.fn(),
-    loadMore: vi.fn(),
-    refresh: vi.fn(),
-    ...overrides,
-  }
+type ListParams = {
+  search?: string
+  baseModelFamily?: string
+  page?: number
+}
+const listCalls = (): ListParams[] =>
+  hf.list.mock.calls.map((call) => call[0] as ListParams)
+
+function serve(overrides: Record<string, unknown> = {}) {
+  hf.list.mockImplementation(async () => ({
+    success: true,
+    data: {
+      items: [makeRepo(), twoFiles],
+      total: null,
+      hasNextPage: true,
+      nextCursor: 'next',
+      ...overrides,
+    },
+  }))
 }
 
-function renderBrowse(
+/** 挂载栈里现在有哪几个文件（按链接）。 */
+function StackProbe() {
+  const stack = useActiveLoraStack()
+  return (
+    <output aria-label="stack">
+      {stack.items.map((entry) => entry.asset.loraUrl).join(',')}
+    </output>
+  )
+}
+const stackText = () => screen.getByRole('status', { name: 'stack' })
+
+async function renderBrowse(
   props: Partial<Parameters<typeof LoraHuggingFaceBrowse>[0]> = {},
 ) {
   const all = {
@@ -175,7 +195,13 @@ function renderBrowse(
     isFavorited: () => false,
     ...props,
   }
-  render(<LoraHuggingFaceBrowse {...all} />)
+  render(
+    <LoraStackProvider>
+      <LoraHuggingFaceBrowse {...all} />
+      <StackProbe />
+    </LoraStackProvider>,
+  )
+  await screen.findByRole('button', { name: 'anima style' })
   return all
 }
 
@@ -201,18 +227,27 @@ describe('LoraHuggingFaceBrowse（库 B · Hugging Face）', () => {
       globalThis.ResizeObserver =
         ResizeObserverStub as unknown as typeof ResizeObserver
     }
-    mockStackItems = []
-    mockLibrary = libraryState()
+    // 只假 Date：retrievedAt 落成固定时刻，setTimeout 照旧走真的（0ms 的 defer）。
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(RETRIEVED_AT))
+    window.localStorage.clear()
+    nav.params = new URLSearchParams()
+    hf.list.mockReset()
+    serve()
   })
 
-  it('writes downloads and likes under each name', () => {
-    renderBrowse()
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('writes downloads and likes under each name', async () => {
+    await renderBrowse()
 
     expect(screen.getAllByText('↓ 1.2k · ♥ 8')).toHaveLength(2)
   })
 
-  it('has no rating filter — the source does not rate', () => {
-    renderBrowse()
+  it('has no rating filter — the source does not rate', async () => {
+    await renderBrowse()
 
     expect(
       screen.getByRole('tablist', { name: 'LoraWorkbench:typeFilterLabel' }),
@@ -222,8 +257,8 @@ describe('LoraHuggingFaceBrowse（库 B · Hugging Face）', () => {
     ).toBeNull()
   })
 
-  it('mounts a single-file repo in place — straight to the stack, not favorited', () => {
-    const props = renderBrowse()
+  it('mounts a single-file repo in place — straight to the stack, not favorited', async () => {
+    const props = await renderBrowse()
 
     openMoreOf('anima style')
     fireEvent.click(
@@ -232,18 +267,16 @@ describe('LoraHuggingFaceBrowse（库 B · Hugging Face）', () => {
       }),
     )
 
-    expect(mockPush).toHaveBeenCalledWith(
-      expect.objectContaining({
-        provider: 'huggingface',
-        loraUrl: `${RESOLVE}/anima-style.safetensors`,
-        baseModelFamily: 'illustrious',
-      }),
+    await waitFor(() =>
+      expect(stackText()).toHaveTextContent(
+        `${RESOLVE}/anima-style.safetensors`,
+      ),
     )
     expect(props.onImport).not.toHaveBeenCalled()
   })
 
   it('sends a multi-file repo to its detail page to pick the file, then mounts that file', async () => {
-    renderBrowse()
+    await renderBrowse()
 
     openMoreOf('two files')
     fireEvent.click(
@@ -251,7 +284,7 @@ describe('LoraHuggingFaceBrowse（库 B · Hugging Face）', () => {
         name: 'LoraWorkbench.browse:mountChooseLabel:{"name":"two files"}',
       }),
     )
-    expect(mockPush).not.toHaveBeenCalled()
+    expect(stackText()).toBeEmptyDOMElement()
     expect(await screen.findByTestId('lora-library-detail')).toBeInTheDocument()
     expect(screen.getByText('LoraWorkbench.browse:files')).toBeInTheDocument()
 
@@ -259,15 +292,15 @@ describe('LoraHuggingFaceBrowse（库 B · Hugging Face）', () => {
     fireEvent.click(
       await screen.findByRole('button', { name: 'LoraWorkbench.browse:mount' }),
     )
-    expect(mockPush).toHaveBeenCalledWith(
-      expect.objectContaining({
-        loraUrl: `${RESOLVE}/weights/epoch-20.safetensors`,
-      }),
+    await waitFor(() =>
+      expect(stackText()).toHaveTextContent(
+        `${RESOLVE}/weights/epoch-20.safetensors`,
+      ),
     )
   })
 
   it('favorites from the detail page with the snapshot of when that batch came back', async () => {
-    const props = renderBrowse()
+    const props = await renderBrowse()
 
     fireEvent.click(screen.getByRole('button', { name: 'anima style' }))
     fireEvent.click(
@@ -281,28 +314,30 @@ describe('LoraHuggingFaceBrowse（库 B · Hugging Face）', () => {
           loraUrl: `${RESOLVE}/anima-style.safetensors`,
           sourceSnapshot: expect.objectContaining({
             source: 'huggingface',
-            retrievedAt: '2026-09-28T00:30:00.000Z',
+            retrievedAt: RETRIEVED_AT,
           }),
         }),
       ),
     )
   })
 
-  it('searches only on Enter, not while typing', () => {
-    renderBrowse()
+  it('searches only on Enter, not while typing', async () => {
+    await renderBrowse()
 
     const input = screen.getByRole('textbox', {
       name: 'LoraWorkbench:huggingFaceSearchPlaceholder',
     })
     fireEvent.change(input, { target: { value: 'roccia' } })
-    expect(mockCommitSearch).not.toHaveBeenCalled()
+    expect(listCalls().map((params) => params.search)).not.toContain('roccia')
 
     fireEvent.keyDown(input, { key: 'Enter' })
-    expect(mockCommitSearch).toHaveBeenCalledWith('roccia')
+    await waitFor(() =>
+      expect(listCalls().at(-1)).toMatchObject({ search: 'roccia', page: 1 }),
+    )
   })
 
-  it('maps the base-model dropdown to the hub family', () => {
-    renderBrowse()
+  it('maps the base-model dropdown to the hub family', async () => {
+    await renderBrowse()
 
     fireEvent.click(
       screen.getByRole('button', {
@@ -312,12 +347,14 @@ describe('LoraHuggingFaceBrowse（库 B · Hugging Face）', () => {
     fireEvent.click(
       screen.getByRole('option', { name: 'LoraWorkbench:familyLabel.anima' }),
     )
-    expect(mockSetBaseModelFamily).toHaveBeenCalledWith('anima-dit')
+    await waitFor(() =>
+      expect(listCalls().at(-1)?.baseModelFamily).toBe('anima-dit'),
+    )
   })
 
-  it('writes the real total once the end is reached', () => {
-    mockLibrary = libraryState({ hasNextPage: false })
-    renderBrowse()
+  it('writes the real total once the end is reached', async () => {
+    serve({ hasNextPage: false, nextCursor: null })
+    await renderBrowse()
 
     expect(
       screen.getByText('LoraWorkbench.browse:end:{"count":"2"}'),

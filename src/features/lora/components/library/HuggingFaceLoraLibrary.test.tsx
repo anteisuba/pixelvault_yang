@@ -5,28 +5,26 @@ import {
   waitFor,
   within,
 } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { LoraStackProvider } from '@/features/lora/hooks/use-active-lora-stack'
+import { LORA_STACK_CLERK_ID } from '@/test/lora-stack'
+import { PHONE_WIDTH, setViewport } from '@/test/viewport'
 import type { HuggingFaceLoraSearchItem } from '@/types'
 
 import { HuggingFaceLoraLibrary } from './HuggingFaceLoraLibrary'
 
 // S3 统一详情抽屉（docs/references/pages/lora-workbench.md §2.4）：卡面不
 // 再自带 file Select/import 按钮——点卡开抽屉，文件选择 + 收藏都在抽屉里。
-// 这个文件之前直接在卡上测试 import 流程，S3 后改成「点卡 → 抽屉出现 →
-// 抽屉内选文件 → 点收藏」。
+// 真 useHuggingFaceLoraLibrary（+ 网址那层）、真挂载栈；只在 api-client 边界上假
+// HF 列表那一跳，筛选是否生效看下一次请求带了什么。
 
-const mockUseHuggingFaceLoraLibrary = vi.hoisted(() => vi.fn())
 const mockImport = vi.hoisted(() => vi.fn())
 const mockUnfavoriteByUrl = vi.hoisted(() => vi.fn())
-const mockStackPush = vi.hoisted(() => vi.fn())
-const mockSetBaseModelFamily = vi.hoisted(() => vi.fn())
-const mockSetSort = vi.hoisted(() => vi.fn())
-const mockSetContentType = vi.hoisted(() => vi.fn())
 const mockSetSource = vi.hoisted(() => vi.fn())
+const hf = vi.hoisted(() => ({ list: vi.fn() }))
 
-// S1 统一外壳：pane 现在自己读/写 family·q·sort 到 URL（与 civitai pane 同
-// 一套约定），所以需要和 LoraWorkbench.library.test.tsx 一样 mock 导航钩子。
+// pane 自己读/写 family·q·sort·type 到 URL。
 let mockLibraryQuery = ''
 
 vi.mock('next-intl', () => ({
@@ -53,26 +51,17 @@ vi.mock('@/i18n/navigation', () => ({
   useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
 }))
 
-// 这个面板只剩手机（<1024）：封面网格 + 底部详情抽屉 + 筛选 sheet。桌面是库 B
-// （LoraHuggingFaceBrowse.test.tsx）。
-vi.mock('@/hooks/use-mobile', () => ({
-  useIsMobile: () => true,
-  useIsTablet: () => false,
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({ isLoaded: true, userId: LORA_STACK_CLERK_ID }),
 }))
 
-vi.mock('@/features/lora/hooks/use-active-lora-stack', () => ({
-  useActiveLoraStack: () => ({
-    items: [],
-    push: mockStackPush,
-    setScale: vi.fn(),
-    remove: vi.fn(),
-    clear: vi.fn(),
-  }),
+vi.mock('@/lib/api-client/lora-assets', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api-client/lora-assets')>()),
+  listHuggingFaceLoraAssetsAPI: hf.list,
 }))
 
-vi.mock('@/features/lora/hooks/use-huggingface-lora-library', () => ({
-  useHuggingFaceLoraLibrary: mockUseHuggingFaceLoraLibrary,
-}))
+// 这批结果回到浏览器的那一刻 —— 导入时写进 sourceSnapshot.retrievedAt。
+const RETRIEVED_AT = '2026-08-21T09:30:00.000Z'
 
 function makeItem(): HuggingFaceLoraSearchItem {
   return {
@@ -109,31 +98,21 @@ function makeItem(): HuggingFaceLoraSearchItem {
   }
 }
 
-function libraryState(item = makeItem()) {
-  return {
-    items: [item],
-    search: '',
-    debouncedSearch: '',
-    baseModelFamily: 'all' as const,
-    sort: 'downloads' as const,
-    contentType: 'all' as const,
-    total: null,
-    page: 1,
-    hasNextPage: false,
-    // 这批结果回到浏览器的那一刻 —— 导入时写进 sourceSnapshot.retrievedAt。
-    retrievedAt: '2026-08-21T09:30:00.000Z',
-    isLoading: false,
-    isRevalidating: false,
-    error: null,
-    setSearch: vi.fn(),
-    setBaseModelFamily: mockSetBaseModelFamily,
-    setSort: mockSetSort,
-    setContentType: mockSetContentType,
-    nextPage: vi.fn(),
-    previousPage: vi.fn(),
-    refresh: vi.fn(),
-  }
+function serve(item = makeItem()) {
+  hf.list.mockResolvedValue({
+    success: true,
+    data: { items: [item], total: null, hasNextPage: false, nextCursor: null },
+  })
 }
+
+type ListParams = {
+  search?: string
+  baseModelFamily?: string
+  sort?: string
+  contentType?: string
+}
+const lastListParams = (): ListParams =>
+  hf.list.mock.calls.at(-1)?.[0] as ListParams
 
 function renderLibrary(
   isFavorited: (loraUrl: string) => boolean = () => false,
@@ -143,19 +122,27 @@ function renderLibrary(
   const searchSlotNode = document.createElement('div')
   document.body.appendChild(searchSlotNode)
   return render(
-    <HuggingFaceLoraLibrary
-      onImport={mockImport}
-      onUnfavoriteByUrl={mockUnfavoriteByUrl}
-      isFavorited={isFavorited}
-      searchSlotNode={searchSlotNode}
-      source="huggingface"
-      onSourceChange={mockSetSource}
-    />,
+    <LoraStackProvider>
+      <HuggingFaceLoraLibrary
+        onImport={mockImport}
+        onUnfavoriteByUrl={mockUnfavoriteByUrl}
+        isFavorited={isFavorited}
+        searchSlotNode={searchSlotNode}
+        source="huggingface"
+        onSourceChange={mockSetSource}
+      />
+    </LoraStackProvider>,
   )
 }
 
+const openCard = async () =>
+  fireEvent.click(await screen.findByRole('button', { name: 'anima style' }))
+
 describe('HuggingFaceLoraLibrary', () => {
   beforeEach(() => {
+    // 只假 Date：retrievedAt 落成固定时刻，setTimeout 照旧走真的（0ms 的 defer）。
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(RETRIEVED_AT))
     Element.prototype.scrollIntoView = vi.fn()
     // jsdom has no ResizeObserver; cmdk (the base-model filter combobox) calls
     // it on mount. Stub a no-op so opening the dropdown doesn't crash.
@@ -168,19 +155,24 @@ describe('HuggingFaceLoraLibrary', () => {
       globalThis.ResizeObserver =
         ResizeObserverStub as unknown as typeof ResizeObserver
     }
+    // 这个面板只剩手机（<1024）：封面网格 + 底部详情抽屉 + 筛选 sheet。
+    setViewport(PHONE_WIDTH)
+    window.localStorage.clear()
     mockLibraryQuery = ''
     mockImport.mockReset().mockResolvedValue(null)
     mockUnfavoriteByUrl.mockReset().mockResolvedValue(true)
-    mockStackPush.mockReset()
-    mockSetBaseModelFamily.mockReset()
-    mockSetSort.mockReset()
-    mockSetContentType.mockReset()
     mockSetSource.mockReset()
-    mockUseHuggingFaceLoraLibrary.mockReset().mockReturnValue(libraryState())
+    hf.list.mockReset()
+    serve()
   })
 
-  it('opens grid cards in the detail drawer', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('opens grid cards in the detail drawer', async () => {
     renderLibrary()
+    await screen.findByRole('button', { name: 'anima style' })
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(
@@ -190,9 +182,9 @@ describe('HuggingFaceLoraLibrary', () => {
       screen.queryByRole('button', { name: 'LoraWorkbench:useThisLora' }),
     ).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'anima style' }))
+    await openCard()
 
-    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(await screen.findByRole('dialog')).toBeInTheDocument()
     expect(
       screen.getByRole('button', { name: 'LoraWorkbench:useThisLora' }),
     ).toBeInTheDocument()
@@ -200,6 +192,7 @@ describe('HuggingFaceLoraLibrary', () => {
 
   it('opens the detail in a bottom drawer (not in place) on mobile, keeping the same primary action', async () => {
     renderLibrary()
+    await screen.findByRole('button', { name: 'anima style' })
 
     // 网格形态：整张卡是一个按钮，卡上没有第二动作。
     expect(
@@ -207,7 +200,7 @@ describe('HuggingFaceLoraLibrary', () => {
     ).not.toBeInTheDocument()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'anima style' }))
+    await openCard()
 
     // 抽屉（vaul → Radix Dialog）承载与桌面同一份详情：同一个主动作、同一个
     // 多文件选择门。
@@ -224,10 +217,10 @@ describe('HuggingFaceLoraLibrary', () => {
   })
 
   // <1024：顶栏那几行控件收成一行 chip + 底部筛选 sheet（pages/lora-library.md
-  // 「移动端」）。桌面的类型/底模下拉与排序 Select 在这一档必须**不渲染**——
-  // 渲染就等于头部又长回去，本轮改动的全部理由就没了。
-  it('collapses the desktop filter rows into a single chip row on mobile', () => {
+  // 「移动端」）。桌面的类型/底模下拉与排序 Select 在这一档必须**不渲染**。
+  it('collapses the desktop filter rows into a single chip row on mobile', async () => {
     renderLibrary()
+    await screen.findByRole('button', { name: 'anima style' })
 
     expect(
       screen.queryByRole('button', {
@@ -261,6 +254,7 @@ describe('HuggingFaceLoraLibrary', () => {
 
   it('opens the filter sheet from the chip row and applies a type immediately (no draft state)', async () => {
     renderLibrary()
+    await screen.findByRole('button', { name: 'anima style' })
 
     fireEvent.click(
       screen.getByRole('button', { name: 'LoraWorkbench:mobileFilters' }),
@@ -284,35 +278,33 @@ describe('HuggingFaceLoraLibrary', () => {
       }),
     ).not.toBeInTheDocument()
 
-    // 点选项即生效（状态归 hook 所有，没有本地草稿）。
+    // 点选项即生效（没有本地草稿）：下一次列表请求就带上这个类型。
     fireEvent.click(
       within(sheet).getByRole('button', { name: 'LoraWorkbench:typeStyle' }),
     )
-    expect(mockSetContentType).toHaveBeenCalledWith('style')
+    await waitFor(() => expect(lastListParams().contentType).toBe('style'))
   })
 
-  it('shows the non-default filter count on the filter chip', () => {
-    mockUseHuggingFaceLoraLibrary.mockReturnValue({
-      ...libraryState(),
-      contentType: 'style' as const,
-      baseModelFamily: 'flux' as const,
-    })
+  it('shows the non-default filter count on the filter chip', async () => {
+    mockLibraryQuery = 'type=style&family=flux'
     renderLibrary()
 
-    expect(screen.getByTestId('lora-mobile-filter-badge')).toHaveTextContent(
-      '2',
+    await waitFor(() =>
+      expect(screen.getByTestId('lora-mobile-filter-badge')).toHaveTextContent(
+        '2',
+      ),
     )
   })
 
   it('imports the exact SafeTensors file selected in the expanded detail (never files[0] silently)', async () => {
     renderLibrary()
 
-    fireEvent.click(screen.getByRole('button', { name: 'anima style' }))
+    await openCard()
 
     // Multi-file repo: the select starts unselected — clicking favorite before
     // picking a file must not silently import files[0].
     fireEvent.click(
-      screen.getByRole('button', { name: 'LoraWorkbench:favorite' }),
+      await screen.findByRole('button', { name: 'LoraWorkbench:favorite' }),
     )
     expect(mockImport).not.toHaveBeenCalled()
 
@@ -341,60 +333,56 @@ describe('HuggingFaceLoraLibrary', () => {
     })
   })
 
-  it('shows that no trigger was provided instead of inventing one from the repository name', () => {
+  it('shows that no trigger was provided instead of inventing one from the repository name', async () => {
     const item = makeItem()
     item.triggerWord = ''
-    mockUseHuggingFaceLoraLibrary.mockReturnValue(libraryState(item))
+    serve(item)
 
     renderLibrary()
-    fireEvent.click(screen.getByRole('button', { name: 'anima style' }))
+    await openCard()
 
     expect(
-      screen.getByText(/LoraWorkbench:huggingFaceNoTrigger/),
+      await screen.findByText(/LoraWorkbench:huggingFaceNoTrigger/),
     ).toBeInTheDocument()
   })
 
-  it('parses family/q/sort off the URL into the hook initial seed, including legacy family values', () => {
+  it('parses family/q/sort off the URL into the first request, including legacy family values', async () => {
     mockLibraryQuery = 'family=Illustrious&q=anime&sort=lastModified'
 
     renderLibrary()
 
-    expect(mockUseHuggingFaceLoraLibrary).toHaveBeenCalledWith(
-      expect.objectContaining({
-        initialSearch: 'anime',
-        initialBaseModelFamily: 'illustrious',
-        initialSort: 'lastModified',
-      }),
-    )
+    await waitFor(() => expect(hf.list).toHaveBeenCalled())
+    expect(hf.list.mock.calls[0]?.[0]).toMatchObject({
+      search: 'anime',
+      baseModelFamily: 'illustrious',
+      sort: 'lastModified',
+    })
   })
 
-  it('falls back to defaults for unknown query values instead of leaking them', () => {
+  it('falls back to defaults for unknown query values instead of leaking them', async () => {
     mockLibraryQuery = 'family=not-a-real-family&sort=also-bogus'
 
     renderLibrary()
 
-    expect(mockUseHuggingFaceLoraLibrary).toHaveBeenCalledWith(
-      expect.objectContaining({
-        initialBaseModelFamily: 'all',
-        initialSort: undefined,
-      }),
-    )
+    await waitFor(() => expect(hf.list).toHaveBeenCalled())
+    const first = hf.list.mock.calls[0]?.[0] as ListParams
+    expect(first.baseModelFamily).toBe('all')
+    expect(first.sort).not.toBe('also-bogus')
   })
 
-  it('favorites a single-file repo from its expanded detail (auto-selected file)', () => {
+  it('favorites a single-file repo from its expanded detail (auto-selected file)', async () => {
     const singleFileItem: HuggingFaceLoraSearchItem = {
       ...makeItem(),
       files: [makeItem().files[0]!],
     }
-    mockUseHuggingFaceLoraLibrary.mockReturnValue(libraryState(singleFileItem))
+    serve(singleFileItem)
 
     renderLibrary()
 
-    // Expand the row first — favorite lives in the in-place detail. Single-file
-    // repos auto-select the only file, so no explicit pick is needed.
-    fireEvent.click(screen.getByRole('button', { name: 'anima style' }))
+    // Single-file repos auto-select the only file, so no explicit pick is needed.
+    await openCard()
     fireEvent.click(
-      screen.getByRole('button', { name: 'LoraWorkbench:favorite' }),
+      await screen.findByRole('button', { name: 'LoraWorkbench:favorite' }),
     )
 
     expect(mockImport).toHaveBeenCalledWith(
@@ -405,7 +393,7 @@ describe('HuggingFaceLoraLibrary', () => {
         // 「使用此 LoRA」与这里的「收藏」，少接一个就是一半的行没有出处。
         sourceSnapshot: expect.objectContaining({
           source: 'huggingface',
-          retrievedAt: '2026-08-21T09:30:00.000Z',
+          retrievedAt: RETRIEVED_AT,
         }),
       }),
     )

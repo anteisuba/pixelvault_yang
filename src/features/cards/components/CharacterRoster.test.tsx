@@ -1,17 +1,27 @@
+/**
+ * 角色页：真 useCharacterCards / 最近 / 模板 / 人设 / 用量 / chub hook，真视口；只在
+ * api-client 边界上假那几跳（其余请求落到假服务器，没登记的当断网）。断言看发上去的东西。
+ */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 
 import { zh as zhMessages } from '@/messages'
 import type { CharacterCardRecord, CharacterLookRecord } from '@/types'
+import {
+  invalidateCardCache,
+  makeCardCacheKey,
+} from '@/features/cards/lib/card-cache'
+import { __resetRecipesCacheForTests } from '@/features/prompts/hooks/use-recipes'
+import { queryClient } from '@/lib/query-client'
+import { fakeServer } from '@/test/app-harness'
+import { DESKTOP_WIDTH, setViewport } from '@/test/viewport'
 
 import { CharacterRoster } from './CharacterRoster'
 
-vi.mock('@/features/cards/hooks/use-character-templates', () => ({
-  useCharacterTemplates: () => ({ byLook: new Map(), isLoading: false }),
-}))
 vi.mock('@clerk/nextjs', () => ({
   useUser: () => ({ user: null }),
+  useAuth: () => ({ userId: 'user_roster', isSignedIn: true, isLoaded: true }),
 }))
 
 vi.mock('next/image', () => ({
@@ -37,32 +47,46 @@ vi.mock('@/i18n/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
 }))
 
-vi.mock('@/hooks/use-assistant-persona', () => ({
-  useAssistantPersona: () => ({
-    persona: { character: null },
-    isLoading: false,
-    save: vi.fn(),
+const api = vi.hoisted(() => ({
+  cards: [] as unknown[],
+  recent: [] as unknown[],
+  create: vi.fn(),
+  importTavern: vi.fn(),
+  update: vi.fn(),
+  searchChub: vi.fn(),
+}))
+vi.mock('@/lib/api-client', async (importOriginal) => {
+  const { ASSISTANT_PERSONA_DEFAULTS } =
+    await import('@/constants/assistant-persona')
+  return {
+    ...(await importOriginal<typeof import('@/lib/api-client')>()),
+    listCharacterCardsAPI: async () => ({ success: true, data: api.cards }),
+    createCharacterCardAPI: api.create,
+    importTavernCardAPI: api.importTavern,
+    updateCharacterCardAPI: api.update,
+    getCharacterRecentActivityAPI: async () => ({
+      success: true,
+      data: api.recent,
+    }),
+    getAssistantPersonaAPI: async () => ({
+      success: true,
+      data: { ...ASSISTANT_PERSONA_DEFAULTS },
+    }),
+    searchChubCardsAPI: api.searchChub,
+  }
+})
+vi.mock('@/lib/api-client/recipes', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api-client/recipes')>()),
+  listRecipesAPI: async () => ({
+    success: true,
+    data: { recipes: [], total: 0 },
   }),
 }))
-
-const mockRecent = vi.hoisted(() => ({
-  rows: [] as {
-    cardId: string
-    kind: 'journal' | 'revision' | 'finding'
-    text: string
-    fields: string[]
-    at: string
-  }[],
-}))
-vi.mock('@/features/cards/hooks/use-character-recent-activity', () => ({
-  useCharacterRecentActivity: () => mockRecent.rows,
-}))
-
-vi.mock('@/features/cards/hooks/use-character-card-usage', () => ({
-  useCharacterCardUsage: () => ({
-    generations: [],
-    total: null,
-    isLoading: false,
+vi.mock('@/lib/api-client/cards', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api-client/cards')>()),
+  getCharacterCardGenerationsAPI: async () => ({
+    success: true,
+    data: { generations: [], total: 0 },
   }),
 }))
 
@@ -108,69 +132,6 @@ function card(
   }
 }
 
-const mockUpdate = vi.fn().mockResolvedValue(true)
-const mockToggleFavorite = vi.fn()
-const mockCreate = vi.fn()
-const mockImportTavern = vi.fn()
-const mockImportChub = vi.fn()
-const mockLibraryEnabled = vi.hoisted(() => ({ value: false }))
-
-vi.mock('@/features/cards/hooks/use-chub-card', () => ({
-  useChubCard: (fullPath: string | null) => ({
-    status: fullPath ? 'ready' : 'idle',
-    node: fullPath
-      ? {
-          name: 'Rei',
-          topics: [],
-          max_res_url: null,
-          definition: {
-            name: 'Rei',
-            personality: '',
-            tavern_personality: '',
-            scenario: '',
-            first_message: '欢迎光临。',
-            example_dialogs: '',
-            description: '',
-            system_prompt: '',
-            post_history_instructions: '',
-            alternate_greetings: ['又见面了。'],
-          },
-        }
-      : null,
-    error: null,
-    retry: () => {},
-  }),
-}))
-
-vi.mock('@/features/cards/hooks/use-chub-library', () => ({
-  useChubLibrary: (enabled: boolean) => {
-    mockLibraryEnabled.value = enabled
-    return {
-      query: '',
-      setQuery: vi.fn(),
-      sort: 'popular',
-      setSort: vi.fn(),
-      items: [
-        {
-          fullPath: 'maker/rei',
-          name: 'Rei',
-          tagline: '雨夜里的店主',
-          tags: ['Original'],
-          avatarUrl: null,
-          starCount: 1200,
-          tokenCount: 900,
-        },
-      ],
-      status: 'ready',
-      moreStatus: null,
-      hasMore: false,
-      error: null,
-      loadMore: vi.fn(),
-      retry: vi.fn(),
-    }
-  },
-}))
-
 const CARDS = [
   card('denia', 'Denia', {
     persona: {
@@ -199,22 +160,6 @@ const CARDS = [
   card('rixi', '里希'),
 ]
 
-vi.mock('@/features/cards/hooks/use-character-cards', () => ({
-  useCharacterCards: () => ({
-    cards: CARDS,
-    isLoading: false,
-    activeCardIds: [],
-    toggleCardSelection: vi.fn(),
-    findCard: (id: string) => CARDS.find((item) => item.id === id) ?? null,
-    create: (...a: unknown[]) => mockCreate(...a),
-    importTavern: (...a: unknown[]) => mockImportTavern(...a),
-    importChub: (...a: unknown[]) => mockImportChub(...a),
-    update: (...a: unknown[]) => mockUpdate(...a),
-    toggleFavorite: (...a: unknown[]) => mockToggleFavorite(...a),
-    remove: vi.fn(),
-  }),
-}))
-
 function renderRoster() {
   return render(
     <NextIntlClientProvider locale="zh" messages={zhMessages}>
@@ -223,10 +168,33 @@ function renderRoster() {
   )
 }
 
+/** 角色名单那一跳回来了（总览的格子或直接打开的那一位已经画出来）。 */
+async function renderLoaded() {
+  const view = renderRoster()
+  await screen.findAllByText(/Denia|里希/)
+  return view
+}
+
 describe('CharacterRoster（角色页 · 方向 A）', () => {
   beforeEach(() => {
     mockSearch.value = ''
-    mockRecent.rows = []
+    window.localStorage.clear()
+    invalidateCardCache(makeCardCacheKey('character'))
+    __resetRecipesCacheForTests()
+    queryClient.clear()
+    setViewport(DESKTOP_WIDTH)
+    fakeServer()
+    api.cards = CARDS
+    api.recent = []
+    api.create.mockReset()
+    api.importTavern.mockReset()
+    api.searchChub.mockReset()
+    api.searchChub.mockResolvedValue({ success: false, error: 'offline' })
+    api.update.mockReset()
+    api.update.mockImplementation(async (id: string) => ({
+      success: true,
+      data: CARDS.find((item) => item.id === id),
+    }))
   })
 
   const openDenia = (tab?: string) => {
@@ -234,28 +202,28 @@ describe('CharacterRoster（角色页 · 方向 A）', () => {
     if (tab) fireEvent.click(screen.getByRole('tab', { name: tab }))
   }
 
-  it('画布「在角色页打开」带 ?character= 进来：直接打开那一位', () => {
+  it('画布「在角色页打开」带 ?character= 进来：直接打开那一位', async () => {
     mockSearch.value = 'character=rixi'
-    renderRoster()
+    await renderLoaded()
     expect(screen.getByRole('region', { name: '里希' })).toBeTruthy()
   })
 
-  it('总览一位角色一张卡；造型只在「模板」页签左列管，图片页签不再有造型条', () => {
-    renderRoster()
+  it('总览一位角色一张卡；造型只在「模板」页签左列管，图片页签不再有造型条', async () => {
+    await renderLoaded()
     expect(screen.getAllByTestId('roster-tile')).toHaveLength(2)
     openDenia('图片')
     expect(screen.queryByRole('group', { name: '造型' })).toBeNull()
     fireEvent.click(screen.getByRole('tab', { name: '模板' }))
     expect(
-      screen.getByText('还没有模板。在台上「存成模板」时挂到这套造型。'),
+      await screen.findByText('还没有模板。在台上「存成模板」时挂到这套造型。'),
     ).toBeTruthy()
     const looks = screen.getByRole('group', { name: '造型' })
     expect(looks).toHaveTextContent('默认')
     expect(looks).toHaveTextContent('Q版')
   })
 
-  it('点一个角色进整页详情：左栏她 + 右边页签（最近 · 人物 · 图片 · 模板 · LoRA · 记忆 · 表情包）；「‹ 角色」回总览', () => {
-    renderRoster()
+  it('点一个角色进整页详情：左栏她 + 右边页签（最近 · 人物 · 图片 · 模板 · LoRA · 记忆 · 表情包）；「‹ 角色」回总览', async () => {
+    await renderLoaded()
     openDenia()
     const detail = screen.getByRole('region', { name: 'Denia' })
     expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
@@ -276,8 +244,7 @@ describe('CharacterRoster（角色页 · 方向 A）', () => {
   })
 
   it('设定里含酒馆字段：备选开场白弹框加一条；酒馆一组常开，世界书只读、不再写「只保存」', async () => {
-    mockUpdate.mockClear()
-    renderRoster()
+    await renderLoaded()
     openDenia('人物')
     const detail = screen.getByRole('region', { name: 'Denia' })
     expect(detail).toHaveTextContent('雨停了。')
@@ -290,7 +257,7 @@ describe('CharacterRoster（角色页 · 方向 A）', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: '保存' }))
     await vi.waitFor(() =>
-      expect(mockUpdate).toHaveBeenCalledWith(
+      expect(api.update).toHaveBeenCalledWith(
         'denia',
         expect.objectContaining({
           extensions: expect.objectContaining({
@@ -304,14 +271,13 @@ describe('CharacterRoster（角色页 · 方向 A）', () => {
   })
 
   it('人物页每格有图钉：钉住写进 pv.pinnedFields，再点取消；人物组有「声音」格', async () => {
-    mockUpdate.mockClear()
-    renderRoster()
+    await renderLoaded()
     openDenia('人物')
     const detail = screen.getByRole('region', { name: 'Denia' })
     expect(detail).toHaveTextContent('还没挑声音')
     fireEvent.click(screen.getByRole('button', { name: '钉住说话方式' }))
     await vi.waitFor(() =>
-      expect(mockUpdate).toHaveBeenCalledWith(
+      expect(api.update).toHaveBeenCalledWith(
         'denia',
         expect.objectContaining({
           extensions: expect.objectContaining({
@@ -323,19 +289,18 @@ describe('CharacterRoster（角色页 · 方向 A）', () => {
   })
 
   it('新角色 = 直接进空详情页，光标在名字；名字写好离开才建卡（只有名字、不带图）', async () => {
-    mockCreate.mockReset()
-    mockCreate.mockResolvedValue(card('shiye', '时夜'))
-    renderRoster()
+    api.create.mockResolvedValue({ success: true, data: card('shiye', '时夜') })
+    await renderLoaded()
     fireEvent.click(screen.getByRole('button', { name: /新角色/ }))
     const name = screen.getByRole('textbox', { name: '名字' })
     expect(document.activeElement).toBe(name)
     expect(screen.queryByRole('dialog')).toBeNull()
     fireEvent.blur(name)
-    expect(mockCreate).not.toHaveBeenCalled()
+    expect(api.create).not.toHaveBeenCalled()
     fireEvent.change(name, { target: { value: '时夜' } })
     fireEvent.blur(name)
     await vi.waitFor(() =>
-      expect(mockCreate).toHaveBeenCalledWith({
+      expect(api.create).toHaveBeenCalledWith({
         name: '时夜',
       }),
     )
@@ -345,60 +310,61 @@ describe('CharacterRoster（角色页 · 方向 A）', () => {
   })
 
   it('导入酒馆卡：选一个文件就导入，建好直接打开她', async () => {
-    mockImportTavern.mockReset()
-    mockImportTavern.mockResolvedValue(CARDS[1])
-    const { container } = renderRoster()
+    api.importTavern.mockResolvedValue({ success: true, data: CARDS[1] })
+    const { container } = await renderLoaded()
     expect(screen.getByRole('button', { name: '导入酒馆卡' })).toBeTruthy()
     const input =
       container.querySelector<HTMLInputElement>('input[type="file"]')!
     const file = new File(['{}'], 'rixi.json', { type: 'application/json' })
     fireEvent.change(input, { target: { files: [file] } })
-    await vi.waitFor(() => expect(mockImportTavern).toHaveBeenCalledWith(file))
+    await vi.waitFor(() =>
+      expect(api.importTavern.mock.calls[0]?.[0]).toBe(file),
+    )
     await vi.waitFor(() =>
       expect(screen.getByRole('region', { name: '里希' })).toBeTruthy(),
     )
   })
 
   it('把卡拖进总览也导入（只认第一个文件）', async () => {
-    mockImportTavern.mockReset()
-    mockImportTavern.mockResolvedValue(null)
-    renderRoster()
+    api.importTavern.mockResolvedValue({ success: false, error: 'bad card' })
+    await renderLoaded()
     const board = screen.getAllByTestId('roster-tile')[0]!
     const file = new File(['png'], 'card.png', { type: 'image/png' })
     const dataTransfer = { types: ['Files'], files: [file] }
     fireEvent.dragOver(board, { dataTransfer })
     fireEvent.drop(board, { dataTransfer })
-    await vi.waitFor(() => expect(mockImportTavern).toHaveBeenCalledWith(file))
+    await vi.waitFor(() =>
+      expect(api.importTavern.mock.calls[0]?.[0]).toBe(file),
+    )
   })
 
-  it('桌面总览 = 书架：顶上计数 · 搜索 · 导入 · 新角色；chub 卡库搬去酒馆库（用户 10-25）', () => {
-    renderRoster()
+  it('桌面总览 = 书架：顶上计数 · 搜索 · 导入 · 新角色；chub 卡库搬去酒馆库（用户 10-25）', async () => {
+    await renderLoaded()
     expect(screen.getByRole('searchbox')).toBeTruthy()
     expect(screen.getByRole('button', { name: /导入酒馆卡/ })).toBeTruthy()
     expect(screen.getByRole('button', { name: /新角色/ })).toBeTruthy()
     expect(screen.queryByRole('button', { name: /卡库/ })).toBeNull()
-    expect(mockLibraryEnabled.value).toBe(false)
+    expect(api.searchChub).not.toHaveBeenCalled()
   })
 
-  it('桌面带 ?tab=library 进来也只是书架（卡库在酒馆库）', () => {
+  it('桌面带 ?tab=library 进来也只是书架（卡库在酒馆库）', async () => {
     mockSearch.value = 'tab=library'
-    renderRoster()
+    await renderLoaded()
     expect(screen.queryAllByTestId('library-tile')).toHaveLength(0)
     expect(screen.getAllByTestId('roster-tile').length).toBeGreaterThan(0)
   })
 
-  it('新角色草稿没起名就返回 = 什么都没建', () => {
-    mockCreate.mockReset()
-    renderRoster()
+  it('新角色草稿没起名就返回 = 什么都没建', async () => {
+    await renderLoaded()
     fireEvent.click(screen.getByRole('button', { name: /新角色/ }))
     fireEvent.click(screen.getByRole('button', { name: '角色' }))
     expect(screen.queryByRole('textbox', { name: '名字' })).toBeNull()
     expect(screen.getAllByTestId('roster-tile')).toHaveLength(2)
-    expect(mockCreate).not.toHaveBeenCalled()
+    expect(api.create).not.toHaveBeenCalled()
   })
 
-  it('Esc 收起详情；叠在上面的弹层吃掉的 Esc 不收', () => {
-    renderRoster()
+  it('Esc 收起详情；叠在上面的弹层吃掉的 Esc 不收', async () => {
+    await renderLoaded()
     fireEvent.click(screen.getAllByTestId('roster-tile')[0]!)
     const handled = new KeyboardEvent('keydown', {
       key: 'Escape',
@@ -412,16 +378,15 @@ describe('CharacterRoster（角色页 · 方向 A）', () => {
   })
 
   it('点正文弹大编辑框：改性格点保存，整份设定带回（没改的格不丢）', async () => {
-    mockUpdate.mockClear()
-    renderRoster()
+    await renderLoaded()
     openDenia('人物')
     fireEvent.click(screen.getByRole('button', { name: '编辑性格' }))
     fireEvent.change(screen.getByRole('textbox', { name: '性格' }), {
       target: { value: '会先把伞递给别人' },
     })
     fireEvent.click(screen.getByRole('button', { name: '保存' }))
-    await vi.waitFor(() => expect(mockUpdate).toHaveBeenCalledTimes(1))
-    const [id, data] = mockUpdate.mock.calls[0]!
+    await vi.waitFor(() => expect(api.update).toHaveBeenCalledTimes(1))
+    const [id, data] = api.update.mock.calls[0]!
     expect(id).toBe('denia')
     expect(data.persona).toMatchObject({
       identity: '舞台魔术师',
@@ -431,8 +396,7 @@ describe('CharacterRoster（角色页 · 方向 A）', () => {
   })
 
   it('编辑框没改就保存不存；取消放弃这次改动，也不收起详情', async () => {
-    mockUpdate.mockClear()
-    renderRoster()
+    await renderLoaded()
     openDenia('人物')
     fireEvent.click(screen.getByRole('button', { name: '编辑身份' }))
     fireEvent.click(screen.getByRole('button', { name: '保存' }))
@@ -445,11 +409,11 @@ describe('CharacterRoster（角色页 · 方向 A）', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: '取消' }))
     expect(screen.getByRole('region', { name: 'Denia' })).toBeTruthy()
-    expect(mockUpdate).not.toHaveBeenCalled()
+    expect(api.update).not.toHaveBeenCalled()
   })
 
-  it('桌面总览「最近」：每位最近一件事一张卡，点一张打开她', () => {
-    mockRecent.rows = [
+  it('桌面总览「最近」：每位最近一件事一张卡，点一张打开她', async () => {
+    api.recent = [
       {
         cardId: 'rixi',
         kind: 'journal',
@@ -458,8 +422,8 @@ describe('CharacterRoster（角色页 · 方向 A）', () => {
         at: new Date().toISOString(),
       },
     ]
-    renderRoster()
-    const recent = screen.getByTestId('character-recent-card')
+    await renderLoaded()
+    const recent = await screen.findByTestId('character-recent-card')
     expect(recent).toHaveTextContent('里希 · 写了日记 · 今天')
     expect(recent).toHaveTextContent('今天学了一首新歌')
     fireEvent.click(recent)

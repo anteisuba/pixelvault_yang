@@ -38,3 +38,10 @@ export function setViewportWidth(width: number, { touch = false } = {}) {
 export const MOBILE_WIDTH = 390
 /** 电脑宽（≥ 1024）。 */
 export const DESKTOP_WIDTH = 1440
+
+/** `setViewportWidth` 的短名（不带触屏）。 */
+export function setViewport(width: number) {
+  setViewportWidth(width)
+}
+
+export const PHONE_WIDTH = MOBILE_WIDTH

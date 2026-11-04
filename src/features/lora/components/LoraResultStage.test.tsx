@@ -8,10 +8,6 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
 
-vi.mock('@/components/business/studio-shared', () => ({
-  StudioGeneratingProgress: () => <div role="progressbar" />,
-}))
-
 function props(
   overrides: Partial<ComponentProps<typeof LoraResultStage>> = {},
 ): ComponentProps<typeof LoraResultStage> {

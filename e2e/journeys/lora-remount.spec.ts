@@ -31,7 +31,9 @@ test('LoRA：挂上 → 卸下 → 再挂回', async ({ page }) => {
   expect(favorited.success, `收藏失败：${favorited.error}`).toBe(true)
 
   await page.reload()
-  const pill = page.getByRole('button', { name: new RegExp(`^${name} · `) })
+  const pill = page.getByRole('button', {
+    name: new RegExp(`^${name} · weight `),
+  })
 
   const mount = async (dumpName?: string) => {
     await page.getByRole('button', { name: 'Add LoRA' }).first().click()

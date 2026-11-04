@@ -532,9 +532,12 @@ export function StudioOperatorPanel({
    * 要读它，而依赖列是**渲染期**求值的 —— 定义在下面会撞 TDZ。
    */
   const threadEmpty = entries.length === 0 && historyEntries.length === 0
-  // 库页报了起手药丸（角色库「缺什么出什么」，第 ⑩ 步）就用它的，否则台上那几颗。
+  /**
+   * 库页报的药丸（角色库「缺什么出什么」，第 ⑩ 步）—— 这是对话里唯一还在的一排药丸。
+   * ⛔ 台上的空态起手药丸已删（ui-spec §2「对话里不放建议按钮」，owner 11-04）：
+   *   空线程照样画规格行，⛔ 别把 `face` 里补回一组药丸。
+   */
   const libraryPills = useLibraryPills()
-  const starterPills = libraryPills ?? operatorHost.face.starterPills
   const {
     domain,
     send,
@@ -3056,16 +3059,16 @@ export function StudioOperatorPanel({
         ) : (
           <>
             {/* ── 输入框上方那一行（D12 A 定稿 · P7）─────────────────────────
-          ⭐ 空态放起手 chip（点即发送，拍板 15；诱饵只在空态出现，D7c ④），
-            线程一开始就换成规格行 —— 两样**占同一个位置**，⛔ 不叠两排。
+          ⭐ 平时是规格行；只有库页报了「她缺什么」药丸时换成那一排（点即发送）——
+            两样**占同一个位置**，⛔ 不叠两排。库页药丸不等空线程：库里打开助手
+            多半接着上一段聊，缺的照样要看得见。
           ⚠ 入场错开：`fill-mode-backwards` 让它们在各自的延迟走完之前保持起始帧。 */}
-            {/* 库页报的药丸（她缺什么）不等空线程：库里打开助手多半接着上一段聊，缺的照样要看得见。 */}
-            {(threadEmpty || libraryPills) && starterPills.length > 0 ? (
+            {libraryPills && libraryPills.length > 0 ? (
               <div
                 data-testid="operator-suggestion-row"
                 className="flex shrink-0 flex-wrap gap-1.5 px-3 pb-2"
               >
-                {starterPills.map((text, index) => (
+                {libraryPills.map((text, index) => (
                   <button
                     key={text}
                     type="button"

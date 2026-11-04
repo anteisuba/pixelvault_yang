@@ -391,6 +391,7 @@ function AppSidebarFooter() {
                       同一处 —— 收展全程不动。 */}
                   <ProfileAvatar
                     avatarUrl={profile?.avatarUrl}
+                    name={name}
                     size={24}
                     className="size-6 shrink-0"
                     iconClassName="size-3.5"

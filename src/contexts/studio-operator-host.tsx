@@ -91,11 +91,6 @@ export interface StudioOperatorFace {
   contextLine(): string
   /** 空态那句话（已翻译）。⛔ 不重复人设名字 —— 名字在头部已经有了。 */
   emptyLine: string
-  /**
-   * 起手药丸的**文案**（已翻译，≤ `STUDIO_OPERATOR_FACE_PILL_LIMIT`）。
-   * ⚠ 点一颗 = **直接发这句话**（拍板 15），所以这里给的就是要发出去的那句原文。
-   */
-  starterPills: readonly string[]
   /** 输入框占位词 —— 四处各写各的，这是输入区唯一的文案差异。 */
   inputPlaceholder: string
 }

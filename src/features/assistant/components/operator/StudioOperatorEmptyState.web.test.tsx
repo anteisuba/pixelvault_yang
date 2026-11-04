@@ -32,7 +32,6 @@ const FACE: StudioOperatorFace = {
   domainIcon: ImageIcon,
   contextLine: () => 'Seedream 5.0 Pro · 1:1 · 4 张',
   emptyLine: '说你想要的画面，我来写提示词、挑模型、配参考。',
-  starterPills: ['把这句写成好提示词', '换个模型看差别'],
   inputPlaceholder: '描述画面，或把参考图挂进来…',
 }
 

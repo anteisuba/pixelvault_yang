@@ -297,7 +297,8 @@ export function readLibraryCardHands(): LibraryCardHands | null {
 }
 
 /**
- * 库页给助手的起手药丸（第 ⑩ 步「缺什么出什么」）：报了就顶掉台上那几颗，`null` = 不管。
+ * 库页给助手的起手药丸（第 ⑩ 步「缺什么出什么」）：报了就在规格行的位置画这一排，`null` = 不管。
+ * ⚠ 这是对话里唯一一排药丸 —— 台上的空态起手药丸已删（owner 11-04）。
  * ⚠ 面板要跟着重画（打开另一位、补齐了一格），所以这一份带订阅。
  */
 let libraryPills: readonly string[] | null = null

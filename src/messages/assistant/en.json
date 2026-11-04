@@ -1012,27 +1012,6 @@
     "incognito": "Incognito · not remembered or saved",
     "face": {
       "noModel": "No model yet",
-      "pill": {
-        "writePrompt": "Turn this into a good prompt",
-        "compareModels": "Try another model, show the difference",
-        "useReference": "Follow this reference",
-        "fourVariants": "Give me 4 to compare",
-        "writeShots": "Write a shot list",
-        "animateThis": "Make this image move",
-        "whichLoras": "Which LoRAs suit this subject?",
-        "loraPrompt": "Write the prompt for this shot",
-        "weightCheck": "Are these weights right?",
-        "trialShot": "Try one and see",
-        "scriptToBoard": "Lay this script out as a storyboard",
-        "refToCharacter": "Make a character asset from this reference",
-        "assetsToBoard": "Build a storyboard from my assets",
-        "boardToVideo": "Turn the storyboard into video",
-        "autoWire": "Wire it up for me",
-        "researchProfile": "Look up a character's profile",
-        "originalCharacter": "Help me invent an original character",
-        "findImages": "Find a few images of this character",
-        "checkLook": "Check the profile against the images"
-      },
       "image": {
         "empty": "Tell me the picture you want — I will write the prompt, pick the model, set the references.",
         "placeholder": "Describe the shot, or drop a reference in…",

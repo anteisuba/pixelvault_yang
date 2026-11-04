@@ -146,6 +146,7 @@ describe('user.service', () => {
         fullName: 'New Creator',
         firstName: 'New',
         imageUrl: 'https://img.example.com/new.png',
+        hasImage: true,
         primaryEmailAddressId: 'email-primary',
         emailAddresses: [
           {
@@ -184,6 +185,7 @@ describe('user.service', () => {
         fullName: 'Different Clerk Name',
         firstName: 'Different',
         imageUrl: 'https://clerk.example.com/different-avatar.png',
+        hasImage: true,
         primaryEmailAddressId: 'email-primary',
         emailAddresses: [
           {
@@ -640,6 +642,7 @@ describe('user.service', () => {
       mockUserFindUnique.mockResolvedValue(BASE_USER)
       mockClerkGetUser.mockResolvedValue({
         imageUrl: 'https://img.example.com/latest.png',
+        hasImage: true,
       })
       mockUserUpdate.mockResolvedValue(updated)
 
@@ -649,6 +652,25 @@ describe('user.service', () => {
       expect(mockUserUpdate).toHaveBeenCalledWith({
         where: { id: 'user-1' },
         data: { avatarUrl: 'https://img.example.com/latest.png' },
+      })
+    })
+
+    it('⭐ Clerk 说他没图（hasImage false = Clerk 自己画的默认图）→ 存 null', async () => {
+      mockUserFindUnique.mockResolvedValue({
+        ...BASE_USER,
+        avatarUrl: 'https://img.clerk.com/eyJ0eXBlIjoiZGVmYXVsdCJ9',
+      })
+      mockClerkGetUser.mockResolvedValue({
+        imageUrl: 'https://img.clerk.com/eyJ0eXBlIjoiZGVmYXVsdCJ9',
+        hasImage: false,
+      })
+      mockUserUpdate.mockResolvedValue({ ...BASE_USER, avatarUrl: null })
+
+      await refreshAvatarFromClerk('clerk-1')
+
+      expect(mockUserUpdate).toHaveBeenCalledWith({
+        where: { id: 'user-1' },
+        data: { avatarUrl: null },
       })
     })
   })

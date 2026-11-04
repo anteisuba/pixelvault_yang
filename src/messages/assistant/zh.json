@@ -1012,27 +1012,6 @@
     "incognito": "隐身 · 不记也不存",
     "face": {
       "noModel": "未选模型",
-      "pill": {
-        "writePrompt": "把这句写成好提示词",
-        "compareModels": "换个模型看差别",
-        "useReference": "照这张参考图来",
-        "fourVariants": "出 4 张对比",
-        "writeShots": "写一段分镜",
-        "animateThis": "让这张图动起来",
-        "whichLoras": "这个题材该挂哪些 LoRA",
-        "loraPrompt": "帮我写这张的提示词",
-        "weightCheck": "权重这样对不对",
-        "trialShot": "试一张看看",
-        "scriptToBoard": "把这段剧本排成分镜",
-        "refToCharacter": "从参考图做角色资产",
-        "assetsToBoard": "用资产排分镜",
-        "boardToVideo": "分镜出视频",
-        "autoWire": "帮我连线",
-        "researchProfile": "帮我查一个角色的设定",
-        "originalCharacter": "帮我想一个原创角色",
-        "findImages": "给这个角色找几张图",
-        "checkLook": "对一下设定和外观"
-      },
       "image": {
         "empty": "说你想要的画面，我来写提示词、挑模型、配参考。",
         "placeholder": "描述画面，或把参考图挂进来…",

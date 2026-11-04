@@ -37,11 +37,7 @@ vi.mock('@/features/cards/hooks/use-character-library', () => ({
 
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import { CANVAS_SHELL_LAYOUT } from '@/constants/canvas-shell'
-import {
-  STUDIO_OPERATOR_FACE_PILLS,
-  STUDIO_OPERATOR_FACE_PILL_LIMIT,
-  STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR,
-} from '@/constants/studio-assistant-operator'
+import { STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR } from '@/constants/studio-assistant-operator'
 import { useCanvasOperatorHost } from '@/features/canvas/hooks/use-canvas-operator-host'
 import {
   applyInverseV4,
@@ -225,16 +221,8 @@ describe('useCanvasOperatorHost 的 face（D7b ③）', () => {
     )
   })
 
-  it('药丸来自画布那张脸，数量 ≤ 封顶（五颗）', () => {
+  it('空态句与占位词来自画布那张脸', () => {
     const { result } = render([], '借伞分镜')
-    expect(result.current.face.starterPills).toEqual(
-      STUDIO_OPERATOR_FACE_PILLS[ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas].map(
-        (id) => `face.pill.${id}`,
-      ),
-    )
-    expect(result.current.face.starterPills.length).toBeLessThanOrEqual(
-      STUDIO_OPERATOR_FACE_PILL_LIMIT,
-    )
     expect(result.current.face.emptyLine).toBe('face.canvas.empty')
     expect(result.current.face.inputPlaceholder).toBe('face.canvas.placeholder')
   })

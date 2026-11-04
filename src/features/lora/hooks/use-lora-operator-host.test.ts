@@ -3,11 +3,6 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ASSISTANT_OPERATOR_LIMITS } from '@/constants/assistant-operator'
-import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
-import {
-  STUDIO_OPERATOR_FACE_PILLS,
-  STUDIO_OPERATOR_FACE_PILL_LIMIT,
-} from '@/constants/studio-assistant-operator'
 import {
   type LoraOperatorHostMount,
   type UseLoraOperatorHostInput,
@@ -951,16 +946,8 @@ describe('useLoraOperatorHost 的 face（D7b ③）', () => {
     )
   })
 
-  it('药丸来自装配台那张脸，数量 ≤ 封顶', () => {
+  it('空态句与占位词来自装配台那张脸', () => {
     const { result } = renderHook(() => useLoraOperatorHost(faceInput(0, BASE)))
-    expect(result.current.face.starterPills).toEqual(
-      STUDIO_OPERATOR_FACE_PILLS[ASSISTANT_PROTOCOL_DOMAIN_IDS.lora].map(
-        (id) => `face.pill.${id}`,
-      ),
-    )
-    expect(result.current.face.starterPills.length).toBeLessThanOrEqual(
-      STUDIO_OPERATOR_FACE_PILL_LIMIT,
-    )
     expect(result.current.face.emptyLine).toBe('face.lora.empty')
     expect(result.current.face.inputPlaceholder).toBe('face.lora.placeholder')
   })

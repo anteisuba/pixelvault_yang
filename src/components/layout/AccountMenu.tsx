@@ -106,6 +106,7 @@ function AccountMenuHeader() {
     <div className="flex items-center gap-2.5 px-2 py-1.5">
       <ProfileAvatar
         avatarUrl={profile?.avatarUrl}
+        name={name}
         size={32}
         className="size-8"
       />

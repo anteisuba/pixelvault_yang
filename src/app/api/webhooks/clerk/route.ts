@@ -6,6 +6,7 @@ import {
   provisionVerifiedClerkUser,
   softDeleteUser,
 } from '@/services/user.service'
+import { clerkAvatarToStore } from '@/lib/account-avatar'
 import { logger } from '@/lib/logger'
 
 function getVerifiedPrimaryEmail(data: UserJSON) {
@@ -57,7 +58,7 @@ export async function POST(request: Request) {
 
   // 3. Route by event type
   if (event.type === 'user.created' || event.type === 'user.updated') {
-    const { id, first_name, last_name, image_url } = event.data
+    const { id, first_name, last_name, image_url, has_image } = event.data
     const primaryEmail = getVerifiedPrimaryEmail(event.data)
 
     if (!primaryEmail) {
@@ -76,7 +77,8 @@ export async function POST(request: Request) {
       email: primaryEmail.email_address,
       emailVerificationStatus: primaryEmail.verification?.status,
       displayName,
-      avatarUrl: image_url ?? null,
+      // has_image false = Clerk 在替他画默认头像，⛔ 不当真头像存（lib/account-avatar.ts）。
+      avatarUrl: clerkAvatarToStore(image_url, has_image),
     })
     logger.info('User provisioned via Clerk webhook', {
       clerkId: id,

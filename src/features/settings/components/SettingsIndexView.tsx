@@ -194,6 +194,7 @@ function ProfileRow() {
     >
       <ProfileAvatar
         avatarUrl={profile?.avatarUrl}
+        name={name}
         size={48}
         className="size-12"
       />

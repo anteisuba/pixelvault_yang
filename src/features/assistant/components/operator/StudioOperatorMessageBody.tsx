@@ -835,9 +835,9 @@ export function StudioOperatorUserText({
       ) : null}
       <p
         data-testid="operator-user-text"
-        /* 对话框 B-C（owner 09-25）：你的那一句是象牙气泡 —— 与输入条同一种料，
-           右上角收成小圆角。 */
-        className="w-fit max-w-full whitespace-pre-wrap rounded-2xl rounded-tr-sm bg-surface-composer px-3 py-2 text-md leading-reading text-surface-composer-foreground"
+        /* ui-spec §9 Message（owner 11-04）：你的那一句是冷灰 `bubble` 气泡，右上角收成小圆角。
+           ⛔ 别再用输入条那块象牙料（09-25 旧版）—— 气泡色只认 `bubble` 这一格。 */
+        className="w-fit max-w-full whitespace-pre-wrap rounded-2xl rounded-tr-sm bg-bubble px-3 py-2 text-md leading-reading text-foreground"
       >
         {node}
         {trailing.length ? (

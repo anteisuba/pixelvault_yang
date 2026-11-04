@@ -31,7 +31,6 @@ const STUB_OPERATOR_HOST: StudioOperatorHost = {
     domainIcon: ImageIcon,
     contextLine: () => '',
     emptyLine: '',
-    starterPills: [],
     inputPlaceholder: '',
   },
   buildSnapshot: () => ({ prompt: '', availableModels: [] }),

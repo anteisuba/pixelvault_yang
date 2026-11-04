@@ -95,6 +95,7 @@ describe('POST /api/webhooks/clerk', () => {
         first_name: 'Test',
         last_name: 'User',
         image_url: 'https://example.com/avatar.jpg',
+        has_image: true,
         username: null,
       },
     })
@@ -109,6 +110,35 @@ describe('POST /api/webhooks/clerk', () => {
       displayName: 'Test User',
       avatarUrl: 'https://example.com/avatar.jpg',
     })
+  })
+
+  it('⭐ has_image false（Clerk 自己画的默认头像）→ 不当头像存', async () => {
+    mockHeaders()
+    mockWebhookVerify({
+      type: 'user.created',
+      data: {
+        id: 'clerk_abc',
+        primary_email_address_id: 'email_primary',
+        email_addresses: [
+          {
+            id: 'email_primary',
+            email_address: 'test@example.com',
+            verification: { status: 'verified' },
+          },
+        ],
+        first_name: 'Test',
+        last_name: 'User',
+        image_url: 'https://img.clerk.com/eyJ0eXBlIjoiZGVmYXVsdCJ9',
+        has_image: false,
+        username: null,
+      },
+    })
+
+    await POST(makeFakeRequest({}))
+
+    expect(provisionVerifiedClerkUser).toHaveBeenCalledWith(
+      expect.objectContaining({ avatarUrl: null }),
+    )
   })
 
   it('returns 200 without provisioning an unverified user.created event', async () => {
@@ -162,6 +192,7 @@ describe('POST /api/webhooks/clerk', () => {
         first_name: 'Updated',
         last_name: 'Name',
         image_url: 'https://example.com/avatar.jpg',
+        has_image: true,
         username: 'updateduser',
       },
     })
@@ -194,6 +225,7 @@ describe('POST /api/webhooks/clerk', () => {
         first_name: 'Updated',
         last_name: 'Name',
         image_url: null,
+        has_image: false,
         username: null,
       },
     })

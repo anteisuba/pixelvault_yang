@@ -19,7 +19,6 @@ import {
 } from '@/constants/models'
 import { getModelCapabilityChips } from '@/lib/model-capability-chips'
 import {
-  STUDIO_OPERATOR_FACE_PILLS,
   STUDIO_OPERATOR_FIELD_IDS,
   STUDIO_OPERATOR_SYSTEM_CODES,
 } from '@/constants/studio-assistant-operator'
@@ -658,17 +657,6 @@ describe('i18n completeness', () => {
         `${domain}.placeholder`,
         `${domain}.context`,
       ]),
-    },
-    /**
-     * 起手药丸同理 —— 值域从常量表现取（⛔ 不手抄一份 id 列表：抄的那份会在
-     * 下一次改脸时原地过期）。
-     */
-    {
-      label: 'StudioOperator.face.pill',
-      prefix: 'StudioOperator.face.pill',
-      values: [
-        ...new Set(Object.values(STUDIO_OPERATOR_FACE_PILLS).flat()),
-      ] as string[],
     },
     {
       label: 'StudioOperator.field',

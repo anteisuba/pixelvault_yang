@@ -233,6 +233,7 @@ function StudioConversationListAccount() {
         >
           <ProfileAvatar
             avatarUrl={profile?.avatarUrl}
+            name={profile?.displayName ?? profile?.username}
             size={32}
             className="size-8"
             iconClassName="size-4"

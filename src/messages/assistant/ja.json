@@ -1012,27 +1012,6 @@
     "incognito": "シークレット · 記憶も保存もしない",
     "face": {
       "noModel": "モデル未選択",
-      "pill": {
-        "writePrompt": "この一文をいいプロンプトに",
-        "compareModels": "モデルを変えて違いを見る",
-        "useReference": "この参考画像に寄せて",
-        "fourVariants": "4 枚出して比べる",
-        "writeShots": "カット割りを書いて",
-        "animateThis": "この画像を動かして",
-        "whichLoras": "この題材に合う LoRA は？",
-        "loraPrompt": "この一枚のプロンプトを書いて",
-        "weightCheck": "この重みで合ってる？",
-        "trialShot": "一枚試してみる",
-        "scriptToBoard": "この脚本を絵コンテに",
-        "refToCharacter": "参考画像からキャラ素材を作る",
-        "assetsToBoard": "素材で絵コンテを組む",
-        "boardToVideo": "絵コンテから動画に",
-        "autoWire": "つなぎ方はおまかせ",
-        "researchProfile": "キャラの設定を調べて",
-        "originalCharacter": "オリジナルキャラを一緒に考えて",
-        "findImages": "このキャラの画像を探して",
-        "checkLook": "設定と見た目を照らし合わせる"
-      },
       "image": {
         "empty": "欲しい画を言ってください。プロンプト・モデル・参考はこちらで用意します。",
         "placeholder": "画を説明するか、参考画像を入れて…",

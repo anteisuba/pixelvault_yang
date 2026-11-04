@@ -168,11 +168,6 @@ vi.mock('@/lib/studio-operator-snapshot', async (importOriginal) => ({
   }),
 }))
 
-import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
-import {
-  STUDIO_OPERATOR_FACE_PILLS,
-  STUDIO_OPERATOR_FACE_PILL_LIMIT,
-} from '@/constants/studio-assistant-operator'
 import { useStudioWorkbenchOperatorHost } from '@/features/assistant/hooks/use-studio-workbench-operator-host'
 import { buildGenerationDisplayName } from '@/lib/generation-name'
 import { setStudioStageFocus } from '@/lib/studio-stage-focus'
@@ -596,19 +591,11 @@ describe('useStudioWorkbenchOperatorHost 的 face（D7b ③）', () => {
     )
   })
 
-  it('②③ 药丸 ≤ 封顶且来自那张脸；两档的空态句与占位词各不相同', () => {
+  it('②③ 两档的空态句与占位词各不相同', () => {
     const { result, rerender } = renderHook(() =>
       useStudioWorkbenchOperatorHost(),
     )
     const image = result.current.face
-    expect(image.starterPills).toEqual(
-      STUDIO_OPERATOR_FACE_PILLS[ASSISTANT_PROTOCOL_DOMAIN_IDS.image].map(
-        (id) => `face.pill.${id}`,
-      ),
-    )
-    expect(image.starterPills.length).toBeLessThanOrEqual(
-      STUDIO_OPERATOR_FACE_PILL_LIMIT,
-    )
     expect(image.emptyLine).toBe('face.image.empty')
     expect(image.inputPlaceholder).toBe('face.image.placeholder')
 

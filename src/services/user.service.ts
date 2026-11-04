@@ -6,6 +6,7 @@ import { clerkClient } from '@clerk/nextjs/server'
 
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
+import { clerkAvatarToStore } from '@/lib/account-avatar'
 import { PAGINATION, PROFILE } from '@/constants/config'
 import { fetchAsBuffer, uploadToR2, deleteFromR2 } from '@/services/storage/r2'
 import type { User } from '@/lib/generated/prisma/client'
@@ -280,7 +281,10 @@ export const ensureUser = cache(async (clerkId: string): Promise<User> => {
         clerkUser.fullName ?? clerkUser.firstName ?? clerkUser.username ?? null
     }
     if (!existing.avatarUrl) {
-      updates.avatarUrl = clerkUser.imageUrl ?? null
+      updates.avatarUrl = clerkAvatarToStore(
+        clerkUser.imageUrl,
+        clerkUser.hasImage,
+      )
     }
 
     if (Object.keys(updates).length > 0) {
@@ -307,7 +311,7 @@ export const ensureUser = cache(async (clerkId: string): Promise<User> => {
     emailVerificationStatus: primaryEmail.verification?.status,
     displayName:
       clerkUser.fullName ?? clerkUser.firstName ?? clerkUser.username ?? null,
-    avatarUrl: clerkUser.imageUrl ?? null,
+    avatarUrl: clerkAvatarToStore(clerkUser.imageUrl, clerkUser.hasImage),
   })
 
   const updates: Partial<Pick<User, 'username' | 'displayName' | 'avatarUrl'>> =
@@ -324,7 +328,10 @@ export const ensureUser = cache(async (clerkId: string): Promise<User> => {
       clerkUser.fullName ?? clerkUser.firstName ?? clerkUser.username ?? null
   }
   if (!provisionedUser.avatarUrl) {
-    updates.avatarUrl = clerkUser.imageUrl ?? null
+    updates.avatarUrl = clerkAvatarToStore(
+      clerkUser.imageUrl,
+      clerkUser.hasImage,
+    )
   }
 
   if (Object.keys(updates).length > 0) {
@@ -699,7 +706,10 @@ export async function refreshAvatarFromClerk(
 
   const client = await clerkClient()
   const clerkUser = await client.users.getUser(clerkId)
-  const newAvatarUrl = clerkUser.imageUrl ?? null
+  const newAvatarUrl = clerkAvatarToStore(
+    clerkUser.imageUrl,
+    clerkUser.hasImage,
+  )
 
   if (newAvatarUrl !== user.avatarUrl) {
     return db.user.update({

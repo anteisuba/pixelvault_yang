@@ -206,7 +206,6 @@ vi.mock('@/contexts/studio-operator-host', () => ({
       domainIcon: () => null,
       contextLine: () => 'Seedream 5.0 Pro · 1:1 · 4 张',
       emptyLine: '说你想要的画面，我来写提示词、挑模型、配参考。',
-      starterPills: ['把这句写成好提示词', '换个模型看差别'],
       inputPlaceholder: '描述画面，或把参考图挂进来…',
     },
     ...(HOST_SPEC.controls ? { generationControls: HOST_SPEC.controls } : {}),
@@ -246,9 +245,12 @@ vi.mock('@/contexts/studio-operator-host', () => ({
 
 type Store = typeof import('@/hooks/use-studio-operator-store')
 type PanelModule = typeof import('./StudioOperatorPanel')
+type LibraryViewModule = typeof import('@/hooks/use-library-view')
 
 let store: Store
 let Panel: PanelModule['StudioOperatorPanel']
+/** ⚠ 和面板同一次 reset 之后取：库页药丸也是模块级单例，顶层 import 拿到的是另一份。 */
+let useReportLibraryPills: LibraryViewModule['useReportLibraryPills']
 
 const answerQuestion = vi.fn()
 const approvePlan = vi.fn()
@@ -296,6 +298,8 @@ beforeEach(async () => {
   lookupAssistantMentionAssetsAPI.mockResolvedValue({ success: true, data: [] })
   store = await import('@/hooks/use-studio-operator-store')
   Panel = (await import('./StudioOperatorPanel')).StudioOperatorPanel
+  useReportLibraryPills = (await import('@/hooks/use-library-view'))
+    .useReportLibraryPills
   // ⚠ resetModules 之后第一次 import 面板是冷加载整棵依赖树，全量闸门高负载时
   // 会超过默认 10 秒 hookTimeout（2026-10-15 推送被它拦过两次），这里放宽到 60 秒。
 }, 60_000)
@@ -401,6 +405,21 @@ function openAddMenu() {
 
 function renderPanel() {
   render(<PanelHarness />)
+}
+
+/** 库页报「她缺什么」药丸的那一方（角色库第 ⑩ 步）—— 和面板摆在同一棵树里。 */
+function LibraryPillsReporter({ pills }: { pills: readonly string[] }) {
+  useReportLibraryPills(pills)
+  return null
+}
+
+function renderPanelWithLibraryPills(pills: readonly string[]) {
+  render(
+    <>
+      <LibraryPillsReporter pills={pills} />
+      <PanelHarness />
+    </>,
+  )
 }
 
 describe('StudioOperatorPanel 接线（切片 3a）', () => {
@@ -1959,7 +1978,7 @@ describe('StudioOperatorPanel · 找到的图（搜索期切片 1）', () => {
 
 describe('StudioOperatorPanel · 会话区裁剪', () => {
   it('⭐ 时间线可收缩且自己滚；chip · 规格行 · 输入区都 `shrink-0` 且排在它后面', () => {
-    renderPanel()
+    renderPanelWithLibraryPills(['补一张正脸'])
     const thread = screen.getByTestId('operator-thread')
     expect(thread.className).toContain('min-h-0')
     expect(thread.className).toContain('flex-1')
@@ -1984,27 +2003,34 @@ describe('StudioOperatorPanel · 会话区裁剪', () => {
 })
 
 /**
- * 建议 chip（D7c ④ · 画板 `DesignD7cFlow`「空态 · 改后」）。
+ * 输入框上方那一排药丸（owner 11-04 · ui-spec §2「对话里不放建议按钮」）。
  *
  * 钉三件事：
- *  ① ⭐ **只在空态出现**（与旧实现相反）——线程一开始它们就退场；
- *  ② 长在**规格行上方**（自上而下：chip → 规格行 → 输入框 → 控件行）；
- *  ③ 点一颗 = 直接把那句话发出去（拍板 15），⛔ 不是填进输入框；
+ *  ① ⭐ 台上的空态起手药丸**已删**：空线程照样画规格行，⛔ 不出药丸；
+ *  ② 只有库页报了「她缺什么」才出那一排，长在**输入框上方**、占规格行的位置；
+ *  ③ 点一颗 = 直接把那句话发出去，⛔ 不是填进输入框；
  *     入场逐颗错开 `STUDIO_OPERATOR_SHELL.pillStaggerMs`。
  */
-describe('StudioOperatorPanel · D7c 建议 chip', () => {
-  it('⭐ 空态才画；点一颗直接发送，且逐颗错开入场', () => {
+describe('StudioOperatorPanel · 输入框上方的药丸', () => {
+  it('⭐ 空线程不出起手药丸，画的是规格行', () => {
     renderPanel()
+    expect(screen.queryByTestId('operator-suggestion-row')).toBeNull()
+    expect(screen.queryAllByTestId('operator-suggestion')).toHaveLength(0)
+    expect(screen.getByTestId('operator-spec-line')).toBeTruthy()
+  })
+
+  it('⭐ 库页报了药丸才画；点一颗直接发送，且逐颗错开入场', () => {
+    renderPanelWithLibraryPills(['补一张正脸', '补她的声音'])
     const chips = screen.getAllByTestId('operator-suggestion')
     expect(chips.map((chip) => chip.textContent)).toEqual([
-      '把这句写成好提示词',
-      '换个模型看差别',
+      '补一张正脸',
+      '补她的声音',
     ])
     expect(chips[1]!.style.animationDelay).toBe(
       `${STUDIO_OPERATOR_SHELL.pillStaggerMs}ms`,
     )
-
-    // 自上而下：chip → 输入框（规格行在空态让位给 chip，P7）。
+    // 占规格行的位置，⛔ 不叠两排。
+    expect(screen.queryByTestId('operator-spec-line')).toBeNull()
     expect(
       screen
         .getByTestId('operator-suggestion-row')
@@ -2014,19 +2040,18 @@ describe('StudioOperatorPanel · D7c 建议 chip', () => {
 
     fireEvent.click(chips[0]!)
     expect(send).toHaveBeenCalledTimes(1)
-    expect(send.mock.calls[0]?.[0]).toContain('把这句写成好提示词')
+    expect(send.mock.calls[0]?.[0]).toContain('补一张正脸')
   })
 
-  it('⭐ 线程一开始就退场（⛔ 别的地方不再出现）', () => {
+  it('⭐ 库页药丸不等空线程：聊过几句照样在', () => {
     store.appendOperatorEntry({
       kind: 'user',
       id: 'first-message',
-      text: '照这张参考图来',
+      text: '她还缺什么',
       attachments: [],
     })
-    renderPanel()
-    expect(screen.queryByTestId('operator-suggestion-row')).toBeNull()
-    expect(screen.queryAllByTestId('operator-suggestion')).toHaveLength(0)
+    renderPanelWithLibraryPills(['补一张正脸'])
+    expect(screen.getAllByTestId('operator-suggestion')).toHaveLength(1)
   })
 })
 
@@ -2101,10 +2126,10 @@ describe('StudioOperatorPanel · 规格行', () => {
     expect(line.textContent).toContain('Seedream 5.0 Pro · 1:1 · 4 张')
   })
 
-  it('⭐ 空态时起手 chip 占它的位置（P7），⛔ 不叠两排', () => {
+  it('⭐ 空线程也画它（起手药丸已删，owner 11-04）', () => {
     renderPanel()
-    expect(screen.getByTestId('operator-suggestion-row')).toBeTruthy()
-    expect(screen.queryByTestId('operator-spec-line')).toBeNull()
+    expect(screen.getByTestId('operator-spec-line')).toBeTruthy()
+    expect(screen.queryByTestId('operator-suggestion-row')).toBeNull()
   })
 })
 

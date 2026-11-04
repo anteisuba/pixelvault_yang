@@ -2,22 +2,26 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('server-only', () => ({}))
 
-const mockResolveVisionRoute = vi.fn()
-vi.mock('@/services/vision/vision-route.service', () => ({
-  resolveVisionRoute: (...args: unknown[]) => mockResolveVisionRoute(...args),
+/**
+ * 看图那一跳只在模型边界上假（`llmTextCompletion`）：路由（真库里的 key + 人设）、
+ * 结构化输出的解析与校验都是真代码。
+ */
+const mockLlm = vi.fn()
+vi.mock('@/services/llm-text.service', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/services/llm-text.service')>()),
+  llmTextCompletion: (...args: unknown[]) => mockLlm(...args),
 }))
-
-const mockCompleteVisionStructured = vi.fn()
-vi.mock('@/services/vision/vision-structured-output', () => ({
-  completeVisionStructured: (...args: unknown[]) =>
-    mockCompleteVisionStructured(...args),
-  VISION_JSON_CONTRACT: 'json',
-  VISION_SAFETY_PREAMBLE: 'data',
-}))
+/** 看图模型这一次回的 JSON。 */
+function modelReplies(value: unknown) {
+  mockLlm.mockResolvedValue(JSON.stringify(value))
+}
 
 vi.mock('@/lib/logger', () => ({ logger: { warn: vi.fn() } }))
 
 import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { plainKeyOf, seedAssistantKeys } from '@/test/int/assistant-keys'
+import { createTestUser, resetDatabase } from '@/test/int/db'
 import type { AssistantOperatorCanvasSnapshot } from '@/types/assistant-operator'
 
 import {
@@ -88,8 +92,17 @@ const frameUrl = (time: string) =>
 
 const mockFetch = vi.fn()
 
-beforeEach(() => {
+let userId = ''
+
+beforeEach(async () => {
   vi.clearAllMocks()
+  await resetDatabase()
+  // 助手选的是 Gemini 3.8 Flash（看得了图），key 是真加密进库的那一把。
+  userId = (await createTestUser()).id
+  await seedAssistantKeys(userId, {
+    keys: [{ adapterType: AI_ADAPTER_TYPES.GEMINI, id: 'key-1' }],
+    routeModel: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
+  })
   vi.stubEnv('NEXT_PUBLIC_STORAGE_BASE_URL', CDN)
   vi.stubGlobal('fetch', mockFetch)
   mockFetch.mockImplementation(
@@ -98,10 +111,6 @@ beforeEach(() => {
         headers: { 'content-type': 'image/jpeg' },
       }),
   )
-  mockResolveVisionRoute.mockResolvedValue({
-    route: { adapterType: 'gemini' },
-    modelId: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
-  })
 })
 
 afterEach(() => {
@@ -194,12 +203,12 @@ describe('planEditDeskFrames（看片 2b）', () => {
 
 describe('lookAtEditFrames（看片 2b）', () => {
   it('截成的帧交给看图模型，没截成的照实带原因', async () => {
-    mockCompleteVisionStructured.mockResolvedValue({
+    modelReplies({
       frames: [{ frame: 1, seen: '中景，少女回头，右手六根手指' }],
       answer: '手坏了',
     })
     const result = await lookAtEditFrames({
-      userId: 'user-1',
+      userId,
       plans: [
         { label: '1.5s on the timeline', url: frameUrl('3500ms') },
         { label: '4s on the timeline', url: null, reason: 'outside this clip' },
@@ -208,9 +217,11 @@ describe('lookAtEditFrames（看片 2b）', () => {
     })
 
     expect(mockFetch).toHaveBeenCalledTimes(1)
-    expect(mockCompleteVisionStructured).toHaveBeenCalledWith(
+    expect(mockLlm).toHaveBeenCalledWith(
       expect.objectContaining({
         // 「全跟助手」：看帧用 `resolveVisionRoute` 给的那个型号。
+        adapterType: AI_ADAPTER_TYPES.GEMINI,
+        apiKey: plainKeyOf(AI_ADAPTER_TYPES.GEMINI),
         modelId: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
         imageData: ['data:image/jpeg;base64,AQID'],
         userPrompt: expect.stringContaining('手有没有坏'),
@@ -229,7 +240,7 @@ describe('lookAtEditFrames（看片 2b）', () => {
   it('一帧都没截成就不调看图模型；看不成返回 null，不抛', async () => {
     await expect(
       lookAtEditFrames({
-        userId: 'u',
+        userId,
         plans: [
           { label: '9s into the take', url: null, reason: 'past the end' },
         ],
@@ -239,12 +250,12 @@ describe('lookAtEditFrames（看片 2b）', () => {
       answer: null,
       viewed: 0,
     })
-    expect(mockCompleteVisionStructured).not.toHaveBeenCalled()
+    expect(mockLlm).not.toHaveBeenCalled()
 
-    mockCompleteVisionStructured.mockRejectedValue(new Error('timeout'))
+    mockLlm.mockRejectedValue(new Error('upstream 500'))
     await expect(
       lookAtEditFrames({
-        userId: 'u',
+        userId,
         plans: [{ label: '1s into the take', url: frameUrl('1000ms') }],
       }),
     ).resolves.toBeNull()

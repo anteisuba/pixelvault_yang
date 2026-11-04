@@ -1,76 +1,99 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { fireEvent, screen, within } from '@testing-library/react'
+import { useLayoutEffect, type ReactElement, type ReactNode } from 'react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { AI_MODELS } from '@/constants/models'
+import {
+  clearOperatorMentions,
+  getOperatorState,
+} from '@/hooks/use-studio-operator-store'
+import { renderWithApp } from '@/test/app-harness'
+import { stubBrowserLayout } from '@/test/browser-stubs'
+import { generationFixture } from '@/test/generation-fixture'
+import { text } from '@/test/i18n-text'
+import {
+  fakeStudioServer,
+  StudioProviders,
+  type StudioHandle,
+} from '@/test/studio-harness'
+import { useStudioContext } from '@/contexts/studio-context'
 import type { GenerationRecord, RunItem } from '@/types'
-
-vi.mock('next-intl', () => ({
-  useTranslations: () =>
-    Object.assign((key: string) => key, { has: () => true }),
-}))
-
-vi.mock('@/components/ui/optimized-image', () => ({
-  OptimizedImage: ({ src, alt }: { src: string; alt: string }) => (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img data-testid="tile-image" src={src} alt={alt} />
-  ),
-}))
-
-// 进度层自己的画法在它自己的测试里；这里只看格子递给它什么（失败原因、重试）。
-vi.mock('@/components/business/studio-shared', () => ({
-  StudioGeneratingProgress: ({
-    failure,
-  }: {
-    failure?: { message: string; retryLabel: string; onRetry?: () => void }
-  }) => (
-    <div data-testid="progress">
-      {failure ? (
-        <div role="alert">
-          {failure.message}
-          {failure.onRetry ? (
-            <button type="button" onClick={failure.onRetry}>
-              {failure.retryLabel}
-            </button>
-          ) : null}
-        </div>
-      ) : null}
-    </div>
-  ),
-}))
-
-vi.mock('@/lib/api-client', () => ({
-  downloadRemoteAsset: vi.fn().mockResolvedValue({ success: true }),
-}))
-
-// §3.0b 第 4 条的注入口。用桩件断言「动作栏带的是被聚焦那格的 URL」——
-// 真实实现要 StudioProvider，而这里要验的是接线不是 reducer。
-const askAssistantMock = vi.fn()
-vi.mock('@/features/assistant/hooks/use-ask-assistant-about-image', () => ({
-  useAskAssistantAboutImage: () => askAssistantMock,
-}))
-
-// 大图弹窗按需加载（next/dynamic），这里只验网格接线；桩掉免得加载时机决定它渲不渲。
-vi.mock('@/components/business/ImageDetailModal', () => ({
-  ImageDetailModal: () => null,
-}))
 
 import { CompareGrid } from './CompareGrid'
 
-function makeGeneration(id: string, url: string): GenerationRecord {
+/**
+ * 对比网格（items 是宿主给的 prop），全程真的：真文案、真进度层、真大图、真工作台
+ * （「问助手」走真管线进助手 store、开助手面板）；只假网络。
+ */
+
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({ isLoaded: true, isSignedIn: true, userId: 'user-grid' }),
+}))
+vi.mock('@/i18n/navigation', () => ({
+  usePathname: () => '/studio/image',
+  useRouter: () => ({ push: vi.fn() }),
+  Link: ({ href, children }: { href: string; children: ReactNode }) => (
+    <a href={href}>{children}</a>
+  ),
+}))
+
+const T = (key: string, values?: Record<string, string | number>) =>
+  text(`StudioV3.${key}`, values)
+const FLUX = AI_MODELS.SEEDREAM_50_PRO
+const SEEDREAM = AI_MODELS.OPENAI_GPT_IMAGE_2
+
+const studioRef = { current: null as unknown as StudioHandle }
+function Capture() {
+  const ctx = useStudioContext()
+  useLayoutEffect(() => {
+    studioRef.current = ctx
+  })
+  return null
+}
+
+beforeEach(() => {
+  stubBrowserLayout()
+  clearOperatorMentions()
+  fakeStudioServer()
+})
+afterEach(() => vi.unstubAllGlobals())
+
+/** 真工作台里渲染；`rerender` 换 props 时树不变（捕获节点一直在）。 */
+function renderInStudio(ui: ReactElement) {
+  const view = renderWithApp(
+    <>
+      <Capture />
+      {ui}
+    </>,
+    { inner: StudioProviders },
+  )
   return {
-    id,
-    url,
-    prompt: 'a cat',
-    width: 1024,
-    height: 1024,
-    model: 'flux-dev',
-    mimeType: 'image/png',
-  } as GenerationRecord
+    ...view,
+    rerender: (next: ReactElement) =>
+      view.rerender(
+        <>
+          <Capture />
+          {next}
+        </>,
+      ),
+  }
+}
+
+/** 某格里的图（真 `OptimizedImage`）。 */
+const tileImages = () =>
+  screen
+    .getAllByRole('option')
+    .flatMap((tile) => Array.from(tile.querySelectorAll('img')))
+    .filter((img) => img.getAttribute('src'))
+
+function makeGeneration(id: string, url: string): GenerationRecord {
+  return generationFixture({ id, url, prompt: 'a cat', model: FLUX })
 }
 
 function makeItem(overrides: Partial<RunItem>): RunItem {
   return {
     id: 'item-1',
-    modelId: 'flux-dev',
+    modelId: FLUX,
     status: 'generating',
     generation: null,
     error: null,
@@ -82,32 +105,32 @@ function makeItem(overrides: Partial<RunItem>): RunItem {
 const matrixItems: RunItem[] = [
   makeItem({
     id: 'a1',
-    modelId: 'flux-dev',
+    modelId: FLUX,
     status: 'completed',
     generation: makeGeneration('gen-a1', 'https://cdn.example.com/a1.png'),
   }),
   makeItem({
     id: 'a2',
-    modelId: 'flux-dev',
+    modelId: FLUX,
     status: 'completed',
     generation: makeGeneration('gen-a2', 'https://cdn.example.com/a2.png'),
   }),
   makeItem({
     id: 'b1',
-    modelId: 'seedream-4',
+    modelId: SEEDREAM,
     status: 'completed',
     generation: makeGeneration('gen-b1', 'https://cdn.example.com/b1.png'),
   }),
   makeItem({
     id: 'b2',
-    modelId: 'seedream-4',
+    modelId: SEEDREAM,
     status: 'completed',
     generation: makeGeneration('gen-b2', 'https://cdn.example.com/b2.png'),
   }),
 ]
 
 function renderGrid(props: Partial<Parameters<typeof CompareGrid>[0]> = {}) {
-  return render(
+  return renderInStudio(
     <CompareGrid
       items={matrixItems}
       selectedItemId={null}
@@ -119,10 +142,6 @@ function renderGrid(props: Partial<Parameters<typeof CompareGrid>[0]> = {}) {
     />,
   )
 }
-
-beforeEach(() => {
-  askAssistantMock.mockClear()
-})
 
 describe('CompareGrid — 图上零按钮', () => {
   // 真机探针实测：旧版「下载」36×36 的正中心点下去命中的是「问助手」28×28。
@@ -137,7 +156,7 @@ describe('CompareGrid — 图上零按钮', () => {
   it('shows no action bar until a tile is focused', () => {
     renderGrid()
     expect(
-      screen.queryByRole('button', { name: /toolAskAssistant/ }),
+      screen.queryByRole('button', { name: T('toolAskAssistant') }),
     ).not.toBeInTheDocument()
   })
 })
@@ -221,7 +240,7 @@ describe('CompareGrid — 聚焦与定为最佳是两步', () => {
     fireEvent.click(screen.getAllByRole('option')[1])
 
     // 缺了它，同一个模型两张的动作栏（模型名 + 同样的尺寸）长得一模一样
-    expect(screen.getByText(/takeLabel/)).toBeInTheDocument()
+    expect(screen.getByText(T('takeLabel', { index: 2 }))).toBeInTheDocument()
   })
 
   it('selects the winner only from the action bar', () => {
@@ -229,7 +248,9 @@ describe('CompareGrid — 聚焦与定为最佳是两步', () => {
     renderGrid({ onSelect })
 
     fireEvent.click(screen.getAllByRole('option')[2])
-    fireEvent.click(screen.getByRole('button', { name: /variantSelectWinner/ }))
+    fireEvent.click(
+      screen.getByRole('button', { name: T('variantSelectWinner') }),
+    )
 
     expect(onSelect).toHaveBeenCalledWith('gen-b1')
   })
@@ -239,12 +260,13 @@ describe('CompareGrid — 聚焦与定为最佳是两步', () => {
     renderGrid({ onUseAsReference })
 
     fireEvent.click(screen.getAllByRole('option')[3])
-    fireEvent.click(screen.getByRole('button', { name: /toolAskAssistant/ }))
-    fireEvent.click(screen.getByRole('button', { name: /useAsReference/ }))
+    fireEvent.click(screen.getByRole('button', { name: T('toolAskAssistant') }))
+    fireEvent.click(screen.getByRole('button', { name: T('useAsReference') }))
 
-    expect(askAssistantMock).toHaveBeenCalledWith(
-      expect.objectContaining({ url: 'https://cdn.example.com/b2.png' }),
+    expect(JSON.stringify(getOperatorState().mentions)).toContain(
+      'https://cdn.example.com/b2.png',
     )
+    expect(studioRef.current.state.panels.enhance).toBe(true)
     expect(onUseAsReference).toHaveBeenCalledWith(
       'https://cdn.example.com/b2.png',
     )
@@ -256,7 +278,7 @@ describe('CompareGrid — 聚焦与定为最佳是两步', () => {
     const { rerender } = renderGrid()
     fireEvent.click(screen.getAllByRole('option')[0])
     expect(
-      screen.getByRole('button', { name: /toolAskAssistant/ }),
+      screen.getByRole('button', { name: T('toolAskAssistant') }),
     ).toBeInTheDocument()
 
     rerender(
@@ -271,7 +293,7 @@ describe('CompareGrid — 聚焦与定为最佳是两步', () => {
     )
 
     expect(
-      screen.queryByRole('button', { name: /toolAskAssistant/ }),
+      screen.queryByRole('button', { name: T('toolAskAssistant') }),
     ).not.toBeInTheDocument()
   })
 })
@@ -292,7 +314,7 @@ describe('CompareGrid — 矩阵按模型分行', () => {
   })
 
   it('keeps unfinished tiles unfocusable', () => {
-    render(
+    renderInStudio(
       <CompareGrid
         items={[
           makeItem({ id: 'a', status: 'generating' }),
@@ -311,7 +333,7 @@ describe('CompareGrid — 矩阵按模型分行', () => {
       expect(tile).toHaveAttribute('aria-selected', 'false')
     }
     expect(
-      screen.queryByRole('button', { name: /toolAskAssistant/ }),
+      screen.queryByRole('button', { name: T('toolAskAssistant') }),
     ).not.toBeInTheDocument()
   })
 })
@@ -321,7 +343,7 @@ it('renders a localized generation reason instead of the provider log', () => {
     items: [makeItem({ status: 'failed', error: 'ETIMEDOUT after 120000ms' })],
   })
   expect(screen.getByRole('alert')).toHaveTextContent(
-    'generation.provider_timeout',
+    text('Errors.generation.provider_timeout'),
   )
   expect(screen.queryByText('ETIMEDOUT after 120000ms')).not.toBeInTheDocument()
 })
@@ -350,7 +372,7 @@ describe('CompareGrid — 加载态 A', () => {
       ],
       onRetry,
     })
-    fireEvent.click(screen.getByRole('button', { name: 'retry' }))
+    fireEvent.click(screen.getByRole('button', { name: T('retry') }))
     expect(onRetry).toHaveBeenCalledWith('bad')
   })
 
@@ -359,7 +381,7 @@ describe('CompareGrid — 加载态 A', () => {
       items: [makeItem({ status: 'failed', error: 'boom' })],
     })
     expect(screen.getByRole('alert')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'retry' })).toBeNull()
+    expect(screen.queryByRole('button', { name: T('retry') })).toBeNull()
   })
 
   it('生成中 / 失败的格子把边交给进度线（⛔ 线旁边再一圈细边、⛔ 流光）', () => {
@@ -388,7 +410,7 @@ describe('CompareGrid — 加载态 A', () => {
     const { rerender } = renderGrid({
       items: [makeItem({ id: 'x', status: 'generating' })],
     })
-    expect(screen.getByTestId('progress')).toBeInTheDocument()
+    expect(screen.getByRole('progressbar')).toBeInTheDocument()
     rerender(
       <CompareGrid
         items={[
@@ -408,8 +430,10 @@ describe('CompareGrid — 加载态 A', () => {
         onUseAsReference={vi.fn()}
       />,
     )
-    expect(screen.getByTestId('progress')).toBeInTheDocument()
-    expect(screen.getByTestId('tile-image')).toBeInTheDocument()
+    expect(screen.getByRole('progressbar')).toBeInTheDocument()
+    expect(tileImages().map((img) => img.getAttribute('src'))).toContainEqual(
+      expect.stringContaining('x.png'),
+    )
   })
 })
 
@@ -417,11 +441,11 @@ describe('CompareGrid — 工作台出图动效（owner 2026-10-07 工作台原�
   it('跑着时舞台顶上有一颗进度胶囊，全部出完就收掉', () => {
     const running = [
       matrixItems[0],
-      makeItem({ id: 'a2', modelId: 'flux-dev', status: 'generating' }),
+      makeItem({ id: 'a2', modelId: FLUX, status: 'generating' }),
     ]
     const { rerender } = renderGrid({ items: running })
     expect(screen.getByTestId('compare-grid-progress')).toHaveTextContent(
-      'result.generating',
+      text('StudioOperator.result.generating', { done: 1, total: 2 }),
     )
 
     rerender(

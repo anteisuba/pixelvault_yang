@@ -351,8 +351,14 @@ export async function uploadReferenceImagesIfNeeded(params: {
     return Promise.all(
       referenceImages.map(async (referenceImage) => {
         const data = await fetchAsBuffer(referenceImage)
-        const buffer = encodePng(
-          fitImage(decodeImage(data.buffer), 1472, 1472, 'contain', BLACK),
+        const buffer = await encodePng(
+          await fitImage(
+            await decodeImage(data.buffer),
+            1472,
+            1472,
+            'contain',
+            BLACK,
+          ),
         )
         return uploadToR2({
           data: buffer,
@@ -376,9 +382,9 @@ export async function uploadReferenceImagesIfNeeded(params: {
           return referenceImage
         }
         // 铺满再居中裁，⛔ 不拉伸：比例不同时拉伸会把人压扁。
-        const buffer = encodePng(
-          fitImage(
-            decodeImage(data.buffer),
+        const buffer = await encodePng(
+          await fitImage(
+            await decodeImage(data.buffer),
             novelAiImg2ImgSize.width,
             novelAiImg2ImgSize.height,
             'cover',
@@ -451,7 +457,7 @@ export async function prepareIdeogramInpaintMask(
     )
   }
   // 铺黑底 → 灰度：白 = 要改、黑 = 保留；Ideogram 要的正好相反（黑 = 要改），下面反过来。
-  const flattened = flattenImage(decodeImage(mask.buffer), BLACK)
+  const flattened = flattenImage(await decodeImage(mask.buffer), BLACK)
   const pixelCount = flattened.width * flattened.height
   let min = 255
   let max = 0
@@ -472,7 +478,7 @@ export async function prepareIdeogramInpaintMask(
     )
   }
   return uploadToR2({
-    data: encodePng(flattened),
+    data: await encodePng(flattened),
     key: generateStorageKey('IMAGE', userId),
     mimeType: 'image/png',
   })

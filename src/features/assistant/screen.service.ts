@@ -320,8 +320,8 @@ async function renderSheet(input: {
   const drawn: number[] = []
   for (const cell of input.cells) {
     try {
-      const tile = fitImage(
-        decodeImage(cell.buffer),
+      const tile = await fitImage(
+        await decodeImage(cell.buffer),
         cell.width,
         cell.height,
         cell.fit,
@@ -342,7 +342,7 @@ async function renderSheet(input: {
   }
   if (drawn.length === 0) return { url: null, drawn }
   try {
-    const sheet = encodeJpeg(canvas, SHEET.quality)
+    const sheet = await encodeJpeg(canvas, SHEET.quality)
     const key = `${SHEET.keyPrefix}/${input.userId}/${createHash('sha256')
       .update(
         JSON.stringify({

@@ -86,7 +86,9 @@ const TWO: NovelAiCharacterLayout = {
 async function renderStage({
   layout = TWO as NovelAiCharacterLayout | undefined,
   modelId = AI_MODELS.NOVELAI_V5_FULL as string,
-  sceneTexts = undefined as { kind: string; text: string }[] | undefined,
+  sceneTexts = undefined as
+    | { kind: 'title' | 'other' | 'sign' | 'cover'; text: string }[]
+    | undefined,
 } = {}) {
   const view = renderWithStudio(
     <StudioTagCastStage active>

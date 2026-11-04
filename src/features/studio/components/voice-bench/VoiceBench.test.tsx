@@ -70,6 +70,8 @@ beforeEach(() => {
         id: 'g1',
         text: '[whispering] 嘘，书会被吵醒的。',
         url: 'https://cdn.test/g1.mp3',
+        duration: null,
+        createdAt: '2026-11-01T00:00:00.000Z',
       },
     ],
   } satisfies Partial<VoiceBenchData> as unknown

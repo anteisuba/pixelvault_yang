@@ -144,9 +144,9 @@ export interface StudioChipClasses {
   readonly popoverSideOffset: number
   /**
    * 窄了收成图标（布局 A，owner 2026-09-26「参数被分割成两行」）：工具行左组那几颗
-   * 加料 chip 在输入框卡变窄时（助手让位后）只留图标 + 数，整行保持一行。
-   * `compact` 挂在触发器上、`compactLabel` 挂在字上；判据是输入框卡的宽度
-   * （`@container/composer`，`StudioWorkbenchLayout` 的 `bottom` 分支），⛔ 不是视口。
+   * 加料 chip 在工具行带字放不下时只留图标 + 数，整行保持一行。
+   * `compact` 挂在触发器上、`compactLabel` 挂在字上；判据是这一行自己量出来的
+   * （`useStudioToolRow` → 行上 `data-compact`），⛔ 不是视口、⛔ 不是写死的容器门槛。
    * 字收进 `sr-only`，读屏照旧念得到。幽灵外观不收（两者都是空串）。
    */
   readonly compact: string
@@ -172,14 +172,15 @@ export const studioOutlineChipOpenClass = 'bg-fill-strong text-foreground'
 
 /**
  * 描边 chip 窄了收成图标那一档（见 `StudioChipClasses.compact`）—— 宿主自己画的 chip
- * 也用它。两个门槛：自然语言台量输入框卡（`composer`，56rem）；标签台左组多两颗、
- * 右组的专属 chip 也更长，整行要到 ~1030 才放得下，所以它在自己的根上另挂一个
- * 容器（`tagrow`，72rem）—— 没有那个祖先的宿主，第二条永远不命中。
+ * 也用它。判据只有一条（owner 2026-11-04，四个台统一）：工具行带字放不下才收，由
+ * `useStudioToolRow` 量出来写在行的 `data-compact` 上（行带 `group/toolrow`）。
+ * ⛔ 再按容器宽写死门槛（以前自然语言台 56rem、标签台 72rem，同宽一个带字一个不带）。
  */
-export const studioOutlineChipCompactClass =
-  '@max-4xl/composer:px-2 @max-6xl/tagrow:px-2'
+export const studioOutlineChipCompactClass = 'group-data-compact/toolrow:px-2'
 export const studioOutlineChipCompactLabelClass =
-  '@max-4xl/composer:sr-only @max-6xl/tagrow:sr-only'
+  'group-data-compact/toolrow:sr-only'
+/** 工具行本身：药丸的收字档认的是它。 */
+export const studioToolRowClass = 'group/toolrow'
 
 const OUTLINE_CHIP_CLASSES: StudioChipClasses = {
   look: 'outline',

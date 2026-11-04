@@ -72,10 +72,12 @@ import {
   studioToolPopoverMaxHeightClass,
   studioToolPopoverPaddingClass,
   studioToolPopoverWidthClass,
+  studioToolRowClass,
   studioToolSurfaceMobileClass,
   useStudioChipClasses,
   useStudioChipPopoverMotion,
 } from '@/components/business/studio-shared/primitives/tool-surface'
+import { useStudioToolRow } from '@/components/business/studio-shared/primitives/use-studio-tool-row'
 import { StudioGenerateButton } from '@/components/business/studio-shared/workflow/StudioGenerateButton'
 import { StudioTemplatesChip } from '@/features/studio/components/templates/StudioTemplatesChip'
 import { ReferenceImageChip } from '@/features/studio/components/ReferenceImageChip'
@@ -168,6 +170,7 @@ export function StudioTagsComposer({
   } = useStudioGenerateAction()
   const { hintVisible, submit } = useComposerSubmit(canGenerate, handleGenerate)
   useStudioShortcuts({ onGenerate: submit })
+  const { ref: toolRowRef, compact: toolRowCompact } = useStudioToolRow()
   const characters = useNovelAiCharacters()
   /**
    * 第 9f 步 9f-2c：桌面标签台开着就登记那一份「加进来」—— 从左栏打开标签库时顶上写
@@ -289,14 +292,7 @@ export function StudioTagsComposer({
 
   return (
     <>
-      {/* `@container/tagrow`：工具行 chip 按这一台自己的门槛收成图标（见
-          `studioOutlineChipCompactClass`）。 */}
-      <div
-        className={cn(
-          'flex min-h-0 flex-col gap-2',
-          !mobile && '@container/tagrow gap-2.5',
-        )}
-      >
+      <div className={cn('flex min-h-0 flex-col gap-2', !mobile && 'gap-2.5')}>
         {mobile && compact ? (
           <button
             type="button"
@@ -610,7 +606,14 @@ export function StudioTagsComposer({
           </div>
         ) : (
           <StudioChipLookProvider value="outline">
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
+            <div
+              ref={toolRowRef}
+              data-compact={toolRowCompact || undefined}
+              className={cn(
+                studioToolRowClass,
+                'flex flex-wrap items-center gap-x-2 gap-y-2',
+              )}
+            >
               <Toolbar.Root className="flex flex-wrap items-center gap-1.5">
                 <ReferenceImageChip disabled={isGenerating} />
                 <StudioTemplatesChip
@@ -686,9 +689,9 @@ export function StudioTagsComposer({
                     contentClassName="w-80"
                     disabled={isGenerating}
                     // ⚠ 单选 chip 写「型号名 · 版本」，宽屏用它自己的 240（⛔ 压到 192 把名字挤成
-                    //   「Novel… Diffusion V5 …」）；输入框 / 标签行变窄时才收到 144，保证工具行一行不折。
+                    //   「Novel… Diffusion V5 …」）；工具行放不下、收成图标时才收到 144，保证一行不折。
                     className={cn(
-                      'h-8 font-medium @max-4xl/composer:max-w-36 @max-6xl/tagrow:max-w-36',
+                      'h-8 font-medium group-data-compact/toolrow:max-w-36',
                       runModels.length > 0 && studioOutlineChipSetClass,
                     )}
                   />

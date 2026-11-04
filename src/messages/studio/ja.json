@@ -615,7 +615,7 @@
     "requiresReferenceImage": "このモデルは参照画像が必要です — プロンプト欄に追加してください",
     "promptHint": "プロンプトを入力して生成",
     "selectModel": "モデルを選択",
-    "noModelHint": "まずモデルを選択してください",
+    "noModelHint": "モデルを選ぶ",
     "toolbarLabel": "スタジオツール",
     "trainLora": "LoRA学習",
     "variantRequests": "{count}クレジット使用",

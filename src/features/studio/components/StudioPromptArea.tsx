@@ -75,7 +75,9 @@ import {
   studioOutlineChipCompactClass,
   studioOutlineChipCompactLabelClass,
   studioOutlineChipSetClass,
+  studioToolRowClass,
 } from '@/components/business/studio-shared/primitives/tool-surface'
+import { useStudioToolRow } from '@/components/business/studio-shared/primitives/use-studio-tool-row'
 
 const STUDIO_FLOATING_SURFACE_SELECTOR = [
   '[data-studio-tool-popover]',
@@ -307,6 +309,9 @@ export const StudioPromptArea = memo(function StudioPromptArea({
     [imageUpload],
   )
 
+  // 工具行带字放不下才收成图标（四个台同一条，见 `useStudioToolRow`）。
+  const { ref: toolRowRef, compact: toolRowCompact } = useStudioToolRow()
+
   useStudioShortcuts({
     onGenerate: () => {
       if (layout === 'bottom') submitFromComposer()
@@ -530,7 +535,12 @@ export const StudioPromptArea = memo(function StudioPromptArea({
               整行 chip 一种外观（描边药丸），⚠ 整行挡住冒泡，理由同负面词那一行。 */}
           <StudioChipLookProvider value="outline">
             <div
-              className="flex flex-wrap items-center gap-x-2 gap-y-2"
+              ref={toolRowRef}
+              data-compact={toolRowCompact || undefined}
+              className={cn(
+                studioToolRowClass,
+                'flex flex-wrap items-center gap-x-2 gap-y-2',
+              )}
               onClick={(event) => event.stopPropagation()}
             >
               <Toolbar.Root className="flex flex-wrap items-center gap-1.5">
@@ -660,7 +670,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
                       popoverAlign="end"
                       contentClassName="w-80"
                       className={cn(
-                        'h-8 max-w-48 font-medium @max-4xl/composer:max-w-36',
+                        'h-8 max-w-48 font-medium group-data-compact/toolrow:max-w-36',
                         runModels.length > 0 && studioOutlineChipSetClass,
                       )}
                     />

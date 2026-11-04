@@ -560,7 +560,7 @@
     "requiresReferenceImage": "This model requires a reference image — add one in the prompt box",
     "promptHint": "Enter a prompt to generate",
     "selectModel": "Select a model",
-    "noModelHint": "Select a model first",
+    "noModelHint": "Pick a model",
     "edit": "Edit",
     "save": "Save",
     "cancel": "Cancel",

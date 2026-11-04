@@ -249,7 +249,9 @@ import {
   StudioChipLookProvider,
   studioOutlineChipClass,
   studioOutlineChipOpenClass,
+  studioToolRowClass,
 } from '@/components/business/studio-shared/primitives/tool-surface'
+import { useStudioToolRow } from '@/components/business/studio-shared/primitives/use-studio-tool-row'
 import {
   buildSavedModelOptionsForModels,
   getTranslatedModelLabel,
@@ -738,6 +740,7 @@ function GenerateBranch({
   const tImageChip = useTranslations('ImageChip')
   const tImageUpload = useTranslations('ImageUpload')
   const stack = useActiveLoraStack()
+  const { ref: toolRowRef, compact: toolRowCompact } = useStudioToolRow()
   const {
     generate,
     isGenerating,
@@ -4536,7 +4539,14 @@ function GenerateBranch({
           {/* 工具行：左（搭配）· 参考图 · 还原 · 负面；右 比例 · 参数 · 出图。整行一种
             外观（描边药丸），弹层从 chip 长出来（与图片台工具行同一套）。 */}
           <StudioChipLookProvider value="outline">
-            <div className="flex min-w-0 items-center gap-2">
+            <div
+              ref={toolRowRef}
+              data-compact={toolRowCompact || undefined}
+              className={cn(
+                studioToolRowClass,
+                'flex min-w-0 items-center gap-2',
+              )}
+            >
               <div className="flex min-w-0 items-center gap-2">
                 {collocationVisible && collocationSlim && !composerExpanded ? (
                   <LoraCollocationChip

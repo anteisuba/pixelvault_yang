@@ -4,7 +4,7 @@ import { useRef, useState, type ChangeEvent } from 'react'
 import * as Toolbar from '@radix-ui/react-toolbar'
 import { useTranslations } from 'next-intl'
 
-import { Paperclip } from '@/components/icons'
+import { Plus } from '@/components/icons'
 import { AssetSelectorDialog } from '@/features/assets'
 import {
   StudioToolPopoverContent,
@@ -190,7 +190,7 @@ export function StudioVideoAssetLibraryDialog({
 }
 
 /**
- * 视频台工具行的「素材」chip（owner 2026-09-27 视频台 A）：往这一枪里挂图、参考视频、
+ * 视频台工具行左下角的「+」（owner 2026-09-27 视频台 A；11-04 由回形针「素材」改成「+」）：往这一枪里挂图、参考视频、
  * 音频的唯一一颗按钮。挂上的东西出现在输入框顶上那一排（`StudioVideoAssetRail`），
  * 拖进输入框是同一个入口。
  */
@@ -212,10 +212,15 @@ export function StudioVideoAssetChip({
             disabled={disabled}
             aria-label={t('chipLabel')}
             data-testid="video-asset-add"
-            className={cn(chip.trigger, chip.compact, open && chip.open)}
+            className={cn(
+              chip.trigger,
+              // 与图片台同一颗「+」圆钮（ui-spec.md §9「输入框」；owner 2026-11-04 F）：
+              // 挂上的东西排在输入框顶上那一排，钮上不写字。
+              'w-8 justify-center px-0',
+              open && chip.open,
+            )}
           >
-            <Paperclip className="size-4 shrink-0" aria-hidden />
-            <span className={chip.compactLabel}>{t('chipLabel')}</span>
+            <Plus className="size-4 shrink-0" aria-hidden />
           </Toolbar.Button>
         </StudioToolSurfaceTrigger>
         <StudioToolPopoverContent

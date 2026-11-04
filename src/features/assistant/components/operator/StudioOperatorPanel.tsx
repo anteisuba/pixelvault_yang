@@ -2397,7 +2397,8 @@ export function StudioOperatorPanel({
     出完图自己看、再改几轮（owner 2026-10-29，默认 1 轮）：点一下换档（1 → 2 → 3 → 出完就停 → 1）。
     ⭐ 出不出图由钱闸定（`lib/assistant-spend-gate.ts`，owner 11-01 去掉了「交给 AI 出图」开关）。
     ⚠ 只在有生成键的宿主上画：工作台那颗（图片 / 视频档）或画布卡自己那颗。
-    ⚠ `shrink-0 whitespace-nowrap`：窄屏上让出空间的该是左边那颗模型灰字。手机上住思考那张参数卡底部。
+    ⭐ 住「思考」那张参数卡底部（手机 iOS 稿 v19；桌面 owner 2026-11-04 B 跟进）——
+      工具行上只留 ＋ · 模型 · 思考 · 发送。
   */
   const autoReviewChip =
     operatorHost.apply.triggerGeneration || operatorHost.apply.canvas ? (
@@ -2411,10 +2412,8 @@ export function StudioOperatorPanel({
         }
         title={t('autoReview.hint')}
         className={cn(
-          'shrink-0 whitespace-nowrap rounded-full hover:tint-hover',
-          isMobile
-            ? 'min-h-11 w-full px-2.5 text-left text-2sm text-foreground'
-            : 'mr-1 h-6 px-2 text-xs text-muted-foreground',
+          'w-full whitespace-nowrap rounded-full px-2.5 text-left text-2sm text-foreground hover:tint-hover',
+          isMobile ? 'min-h-11' : 'min-h-9',
         )}
       >
         {autoReviewRounds > 0
@@ -3083,7 +3082,7 @@ export function StudioOperatorPanel({
                   </button>
                 ))}
               </div>
-            ) : (
+            ) : !operatorHost.face.specLine ? null : (
               <StudioOperatorSpecLine
                 domainIcon={operatorHost.face.domainIcon}
                 domainName={t(`domainName.${domain}`)}
@@ -3338,11 +3337,10 @@ export function StudioOperatorPanel({
                       ASSISTANT_PERSONA_DEFAULTS.reasoningEffort
                     }
                     onChange={onSelectReasoningEffort}
-                    /* 手机：自己看几轮收进这张参数卡（iOS 稿 v19），栏上只留 ＋ · 模型 · 思考 · 发送。 */
-                    footer={isMobile ? autoReviewChip : null}
+                    /* 自己看几轮收进这张参数卡（手机 iOS 稿 v19，桌面 11-04 跟进），栏上只留 ＋ · 模型 · 思考 · 发送。 */
+                    footer={autoReviewChip}
                   />
                   <span className="flex-1" />
-                  {!isMobile && autoReviewChip}
                   {/*
               ⭐ 跑着且输入框是空的 → 这一颗就是**停止**（S2）；跑着但你打了字 →
                 仍是发送，这一句排队（§3.1 ㉒）。⛔ 不并排两颗。

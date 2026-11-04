@@ -33,6 +33,7 @@ const FACE: StudioOperatorFace = {
   contextLine: () => 'Seedream 5.0 Pro · 1:1 · 4 张',
   emptyLine: '说你想要的画面，我来写提示词、挑模型、配参考。',
   inputPlaceholder: '描述画面，或把参考图挂进来…',
+  specLine: true,
 }
 
 function renderEmpty(

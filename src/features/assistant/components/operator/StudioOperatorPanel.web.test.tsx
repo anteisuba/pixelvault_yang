@@ -185,6 +185,8 @@ const HOST_SPEC = vi.hoisted(() => ({
   mountsReferences: false,
   /** 一个参考位都没挂（LoRA 台的常态）。 */
   noReferences: false,
+  /** 脸上「画不画规格行」—— 首页（没开台）是 false。 */
+  specLine: true,
 }))
 
 vi.mock(
@@ -207,6 +209,7 @@ vi.mock('@/contexts/studio-operator-host', () => ({
       contextLine: () => 'Seedream 5.0 Pro · 1:1 · 4 张',
       emptyLine: '说你想要的画面，我来写提示词、挑模型、配参考。',
       inputPlaceholder: '描述画面，或把参考图挂进来…',
+      specLine: HOST_SPEC.specLine,
     },
     ...(HOST_SPEC.controls ? { generationControls: HOST_SPEC.controls } : {}),
     ...(HOST_SPEC.mountsReferences ? { attachmentsMountReferences: true } : {}),
@@ -2019,6 +2022,14 @@ describe('StudioOperatorPanel · 输入框上方的药丸', () => {
     expect(screen.getByTestId('operator-spec-line')).toBeTruthy()
   })
 
+  it('⭐ 没开台（首页那张脸 specLine: false）不画规格行（owner 11-04 A）', () => {
+    HOST_SPEC.specLine = false
+    renderPanel()
+    expect(screen.queryByTestId('operator-spec-line')).toBeNull()
+    expect(screen.getByTestId('operator-input-area')).toBeTruthy()
+    HOST_SPEC.specLine = true
+  })
+
   it('⭐ 库页报了药丸才画；点一颗直接发送，且逐颗错开入场', () => {
     renderPanelWithLibraryPills(['补一张正脸', '补她的声音'])
     const chips = screen.getAllByTestId('operator-suggestion')
@@ -2200,7 +2211,7 @@ describe('StudioOperatorPanel · v2 §4.4 输入区两行', () => {
     )
   })
 
-  it('有生成键时发送键左边是「自看几轮」，没有「交给 AI 出图」开关（owner 11-01 去掉）', () => {
+  it('有生成键时「自看几轮」住在「思考」卡底（owner 11-04 B），没有「交给 AI 出图」开关（owner 11-01 去掉）', () => {
     HOST_SPEC.controls = {
       model: null,
       models: [],
@@ -2212,11 +2223,13 @@ describe('StudioOperatorPanel · v2 §4.4 输入区两行', () => {
     HOST_SPEC.trigger = 'workbench'
     renderPanel()
     expect(screen.queryByTestId('operator-auto-generate')).toBeNull()
+    // 工具行上只留 ＋ · 模型 · 思考 · 发送：不点开「思考」就看不见它。
+    expect(screen.queryByTestId('operator-auto-review')).toBeNull()
+    fireEvent.click(screen.getByTestId('operator-effort-chip'))
     const review = screen.getByTestId('operator-auto-review')
-    expect(
-      review.compareDocumentPosition(screen.getByTestId('operator-send')) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy()
+    expect(screen.getByTestId('operator-effort-chip-footer')).toContainElement(
+      review,
+    )
     const before = store.getOperatorState().autoReviewRounds
     fireEvent.click(review)
     expect(store.getOperatorState().autoReviewRounds).not.toBe(before)
@@ -2227,13 +2240,16 @@ describe('StudioOperatorPanel · v2 §4.4 输入区两行', () => {
   it('画布卡有自己的生成键 → 同样画「自看几轮」', () => {
     HOST_SPEC.trigger = 'canvas'
     renderPanel()
+    fireEvent.click(screen.getByTestId('operator-effort-chip'))
     expect(screen.getByTestId('operator-auto-review')).toBeInTheDocument()
     HOST_SPEC.trigger = null
   })
 
   it('没有生成键的宿主（装配台 / 角色页）不画「自看几轮」', () => {
     renderPanel()
+    fireEvent.click(screen.getByTestId('operator-effort-chip'))
     expect(screen.queryByTestId('operator-auto-review')).toBeNull()
+    expect(screen.queryByTestId('operator-effort-chip-footer')).toBeNull()
   })
 
   it('上传按钮 = 开文件选择器，选完交回上传通道（⛔ 不是装饰）', () => {

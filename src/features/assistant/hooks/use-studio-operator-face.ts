@@ -47,6 +47,16 @@ const DOMAIN_ICONS: Readonly<Record<AssistantOperatorDomain, LucideIcon>> = {
   [ASSISTANT_PROTOCOL_DOMAIN_IDS.home]: Home,
 }
 
+/** 画不画规格行：只有首页（没开台）不画（owner 2026-11-04）。⛔ 不给回落，同上。 */
+const DOMAIN_SPEC_LINE: Readonly<Record<AssistantOperatorDomain, boolean>> = {
+  [ASSISTANT_PROTOCOL_DOMAIN_IDS.image]: true,
+  [ASSISTANT_PROTOCOL_DOMAIN_IDS.video]: true,
+  [ASSISTANT_PROTOCOL_DOMAIN_IDS.lora]: true,
+  [ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas]: true,
+  [ASSISTANT_PROTOCOL_DOMAIN_IDS.cards]: true,
+  [ASSISTANT_PROTOCOL_DOMAIN_IDS.home]: false,
+}
+
 /**
  * 拼出这个宿主那张脸。
  *
@@ -64,6 +74,7 @@ export function useStudioOperatorFace(
       contextLine,
       emptyLine: t(`face.${domain}.empty`),
       inputPlaceholder: t(`face.${domain}.placeholder`),
+      specLine: DOMAIN_SPEC_LINE[domain],
     }),
     [contextLine, domain, t],
   )

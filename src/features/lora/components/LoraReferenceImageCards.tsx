@@ -154,8 +154,9 @@ export function LoraReferenceImageCards({
       Number.isFinite(imageUpload.maxImages) &&
       imageUpload.maxImages > 0 &&
       entries.length >= imageUpload.maxImages
-    // 桌面输入框工具行（owner 09-28「参考图直接放在输入框」）：与图片台那颗同一种
-    // 描边药丸、同一个弹层；挂了几张写在字后面，图本身排在提示词上方。
+    // 桌面输入框工具行（owner 09-28「参考图直接放在输入框」）：与图片台同一颗「+」圆钮、
+    // 同一个弹层（ui-spec.md §9「输入框」；owner 2026-11-04 G）—— 钮上不写字、不报数，
+    // 挂上的图排在提示词上方。
     return (
       <>
         <StudioToolSurface open={addOpen} onOpenChange={setAddOpen}>
@@ -166,16 +167,11 @@ export function LoraReferenceImageCards({
               aria-label={t('referenceLabel')}
               className={cn(
                 chip.trigger,
-                chip.compact,
-                hasEntries && chip.set,
+                'w-8 justify-center px-0',
                 addOpen && chip.open,
               )}
             >
-              <ImageIcon className="size-4 shrink-0" aria-hidden />
-              <span className={chip.compactLabel}>{t('referenceLabel')}</span>
-              {hasEntries ? (
-                <span className="tabular-nums">{entries.length}</span>
-              ) : null}
+              <Plus className="size-4 shrink-0" aria-hidden />
             </button>
           </StudioToolSurfaceTrigger>
           <StudioToolPopoverContent

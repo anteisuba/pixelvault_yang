@@ -560,7 +560,7 @@
     "requiresReferenceImage": "此模型需要参考图 — 请添加到输入框中",
     "promptHint": "输入提示词即可生成",
     "selectModel": "选择模型",
-    "noModelHint": "请先选择模型",
+    "noModelHint": "选模型",
     "edit": "编辑",
     "save": "保存",
     "cancel": "取消",

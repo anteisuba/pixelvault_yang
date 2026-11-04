@@ -4,6 +4,11 @@
  * ⚠ 这里断的是**用户看得见的那几件事**：布局到齐、拖进来建段、选中出属性、
  * 徽标出现且点了换新、导出只出对话框、快捷键走的是 op 栈。
  * ⛔ 不断样式数值 —— 那是对稿的事（画板逐项比对），不是断言的事。
+ *
+ * 真重拍栏（真 `useVideoComposer` → 真生成 hook → 真提交 / 轮询）、真续拍（真抽末帧 →
+ * 真上传 hook）、真读时长（`probeMediaDuration`）。只假网络（api-client 边界上的素材库 /
+ * 提交 / 状态 / 上传几跳，key 名单走 fakeServer）与浏览器缺的那层（媒体解码、2D 画布）。
+ * 剪辑台挂在画布宿主里：宿主给的 `NodeV4CanvasProvider` 在这里按台面那份 state 搭一份。
  */
 
 import * as React from 'react'
@@ -16,9 +21,9 @@ import {
   within,
 } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
-import { beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-/** 素材库那一页拉的是用户自己的产物 —— 组件不 fetch，桩掉 api-client 那一条。 */
+/** 素材库那一页拉的是用户自己的产物：api-client 那一跳。 */
 const fetchGalleryImages = vi.fn(async () => ({
   success: true as const,
   data: {
@@ -35,71 +40,24 @@ const fetchGalleryImages = vi.fn(async () => ({
     ],
   },
 }))
-vi.mock('@/lib/api-client', () => ({
+/** 重拍 / 续拍发出去的那几跳：提交、状态、取消、抽帧后的上传。 */
+const api = vi.hoisted(() => ({
+  submitVideoAPI: vi.fn(),
+  checkVideoStatusAPI: vi.fn(),
+  cancelGenerationsAPI: vi.fn(),
+  uploadImageFileAPI: vi.fn(),
+}))
+vi.mock('@/lib/api-client', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api-client')>()),
   fetchGalleryImages: () => fetchGalleryImages(),
+  ...api,
 }))
-/**
- * 重拍栏本身是画布卡那条提示词栏（要整套画布上下文，视频卡那组测试已测）。这里桩成两颗
- * 键，只看台面这一侧：发起 → 段上生成中 → 落版自动换上 / 失败描红。
- */
-vi.mock('./EditDeskRetakeBar', () => ({
-  EditDeskRetakeBar: ({
-    desk,
-    row,
-    track,
-  }: {
-    readonly desk: import('@/features/canvas/hooks/use-edit-desk').EditDesk
-    readonly row: import('@/lib/edit-project').EditTimelineRow
-    readonly track: import('@/constants/edit-desk').EditTrackId
-  }) => (
-    <div data-testid="retake-bar-stub" data-clip={row.clip.id}>
-      <button
-        type="button"
-        data-testid="retake-bar-send"
-        onClick={() => {
-          desk.beginRetake(track, row.clip.id)
-          desk.closeRetake()
-        }}
-      />
-      <button
-        type="button"
-        data-testid="retake-bar-blocked"
-        onClick={() => {
-          desk.beginRetake(track, row.clip.id)
-          desk.closeRetake()
-          desk.settleRetake(row.clip.id, { status: 'notSent' })
-        }}
-      />
-    </div>
-  ),
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({ isLoaded: true, isSignedIn: true, userId: 'user-desk' }),
 }))
-/** 版本弹层会去量每一版多长 —— jsdom 里 `<video>` 不出元数据，直接答「量不出来」。 */
-const probeDuration = vi.fn(async (): Promise<number | null> => null)
-vi.mock('@/lib/media-probe', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/lib/media-probe')>()),
-  probeMediaDuration: () => probeDuration(),
-}))
-
-/**
- * 续拍那一批（截末帧 + 建卡 + 连线）是画布卡同一个动作，视频卡那组测试已测。这里只看
- * 剪辑台托它带上的那一段占位：插在哪、截到哪一秒、之后栏升在哪一段上。
- */
-const continueVideo = vi.fn<
-  (
-    input: import('../nodes/v4/video/use-video-continue').VideoContinueInput,
-  ) => Promise<{ shotId: string } | null>
->(async () => ({ shotId: 'shot_new' }))
-vi.mock('../nodes/v4/video/use-video-continue', () => ({
-  VIDEO_CONTINUE_REFS: { tail: 'tail', shot: 'shot' },
-  useVideoContinue: () => continueVideo,
-}))
-vi.mock('@/features/canvas/hooks/use-video-reference-slots', () => ({
-  useVideoReferenceSlots: () => ({
-    grabbing: null,
-    uploadError: null,
-    captureLastFrame: vi.fn(),
-    captureCurrentFrame: vi.fn(),
-  }),
+vi.mock('@/i18n/navigation', () => ({
+  usePathname: () => '/studio/canvas',
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }))
 
 import { zh as messages } from '@/messages'
@@ -110,25 +68,118 @@ import {
   EDIT_DESK_TRANSITION_DRAG_MIME,
 } from '@/constants/edit-desk'
 import { applyNodeAssistantOpV4 } from '@/lib/node-assistant-op-apply-v4'
+import { applyNodeMediaPatch } from '@/lib/node-media-patch'
+import { ApiKeysProvider } from '@/contexts/api-keys-context'
+import { NODE_SLOT_IDS } from '@/constants/node-slots'
+import { FAKE_GENERATION } from '@/test/api-helpers'
+import { fakeServer } from '@/test/app-harness'
+import { installFakeCanvas2d } from '@/test/fake-canvas-2d'
+import { installFakeMediaElements } from '@/test/fake-media-element'
+import {
+  NodeV4CanvasProvider,
+  type NodeV4CanvasContextValue,
+} from '../nodes/v4/NodeV4Context'
 import type { NodeWorkflowRemoteChange } from '@/features/canvas/hooks/use-node-workflow-store'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
-import type { NodeV4, NodeWorkflowStateV4 } from '@/types/node-workflow'
+import type {
+  NodeV4,
+  NodeWorkflowModelOption,
+  NodeWorkflowStateV4,
+} from '@/types/node-workflow'
 
 import { EditDesk } from './EditDesk'
 
 // jsdom 没有 ResizeObserver：Radix 的滑杆（缩放 / 音量）挂载时要它。
-beforeAll(() => {
-  if (!('ResizeObserver' in globalThis)) {
-    class ResizeObserverStub {
-      observe() {}
-      unobserve() {}
-      disconnect() {}
-    }
-    vi.stubGlobal('ResizeObserver', ResizeObserverStub)
-  }
-})
+class ResizeObserverStub {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+globalThis.ResizeObserver ??=
+  ResizeObserverStub as unknown as typeof ResizeObserver
 
 const NOW = '2026-09-10T00:00:00.000Z'
+
+/** 画布上这条视频模型配好了 key：重拍栏没选模型时用它（宿主那份模型清单）。 */
+const SEEDANCE: NodeWorkflowModelOption = {
+  optionId: 'opt_seedance',
+  modelId: 'seedance-2.0',
+  adapterType: 'fal',
+  providerConfig: {},
+  requestCount: 0,
+  sourceType: 'saved',
+  apiKeyId: 'key-fal',
+} as NodeWorkflowModelOption
+
+beforeEach(() => {
+  for (const fn of Object.values(api)) fn.mockReset()
+  api.cancelGenerationsAPI.mockResolvedValue({
+    success: true,
+    data: { cancelled: [], alreadyFinished: [], notFound: [] },
+  })
+  fakeServer()
+    .on('GET', '/api/api-keys', () =>
+      Response.json({ success: true, data: [] }),
+    )
+    .on('GET', '/api/character-cards', () =>
+      Response.json({ success: true, data: [] }),
+    )
+})
+
+afterEach(() => {
+  vi.restoreAllMocks()
+  vi.unstubAllGlobals()
+})
+
+/** 一个可以从外面放行的承诺（状态那一跳「还在跑」）。 */
+function deferred<T>() {
+  let resolve: (value: T) => void = () => {}
+  const promise = new Promise<T>((done) => (resolve = done))
+  return { promise, resolve }
+}
+
+const submitted = (jobId: string) => ({ success: true, data: { jobId } })
+const completed = (jobId: string, url: string) => ({
+  success: true,
+  data: {
+    jobId,
+    status: 'COMPLETED',
+    generation: { ...FAKE_GENERATION, id: `gen-${jobId}`, url },
+  },
+})
+
+/** 抽帧 / 读时长那一路的浏览器层：片子按登记表答，画布编得出 base64。 */
+function installMediaDecoding(table: Record<string, { duration: number }>) {
+  const decoding = installFakeMediaElements(
+    Object.fromEntries(
+      Object.entries(table).map(([url, spec]) => [
+        url,
+        { ...spec, width: 1920, height: 1080 },
+      ]),
+    ),
+  )
+  installFakeCanvas2d()
+  vi.mocked(HTMLCanvasElement.prototype.toDataURL).mockImplementation(function (
+    this: HTMLCanvasElement,
+  ) {
+    return `data:image/webp;base64,${btoa(`frame-${this.width}x${this.height}`)}`
+  })
+  vi.stubGlobal(
+    'createImageBitmap',
+    vi.fn(async () => ({ width: 1920, height: 1080, close: () => {} })),
+  )
+  return decoding
+}
+
+/** 重拍栏里那一行提示词（真 `NodePromptBar`）。 */
+const retakeInput = () =>
+  screen
+    .getByTestId('edit-desk-retake-bar')
+    .querySelector('[data-prompt-bar-input]') as HTMLTextAreaElement
+
+function withPrompt(node: NodeV4, prompt: string): NodeV4 {
+  return { ...node, data: { ...node.data, prompt } } as NodeV4
+}
 
 function videoNode(
   id: string,
@@ -210,6 +261,8 @@ function renderDesk(
   const setMedia = vi.fn()
   const remoteListeners = new Set<(change: NodeWorkflowRemoteChange) => void>()
   let setHostState: (next: NodeWorkflowStateV4) => void = () => undefined
+  /** 画布那一侧的一批（续拍：建末帧图 / 建下一段 / 连线 + 剪辑台带上的那段占位）。 */
+  const canvasBatches: (readonly NodeAssistantOpV4[])[] = []
 
   /** 外部改动换进来（store 那一步）+ 通知台面 —— 与 `NodeWorkbenchV4` 同一个顺序。 */
   const pushRemote = (after: NodeWorkflowStateV4, byClaude = true): void => {
@@ -287,38 +340,107 @@ function renderDesk(
       setCurrent(next)
       setMedia(nodeId, patch)
     }
+    /** 宿主落媒体补丁：与画布同一个 `applyNodeMediaPatch`（带 url 的补丁追加一版）。 */
+    const setMediaLive = (
+      nodeId: string,
+      patch: Parameters<NodeV4CanvasContextValue['onSetMedia']>[1],
+    ) => {
+      const next: NodeWorkflowStateV4 = {
+        ...state,
+        nodes: state.nodes.map((node) =>
+          node.id === nodeId
+            ? ({
+                ...node,
+                data: applyNodeMediaPatch(node.data as never, patch, {
+                  now: NOW,
+                  mintId: () => `take_${(counter += 1)}`,
+                }),
+              } as NodeV4)
+            : node,
+        ),
+      }
+      state = next
+      setCurrent(next)
+    }
+    const canvas: NodeV4CanvasContextValue = {
+      nodes: current.nodes,
+      edges: current.edges,
+      draggingFrom: null,
+      changedNodeIds: [],
+      expandedNodeId: null,
+      selectedNodeIds: [],
+      modelOptionsByKind: { video: [SEEDANCE] },
+      onToggleExpanded: vi.fn(),
+      onSelectSlotVersion: vi.fn(),
+      onDisconnectSlot: vi.fn(),
+      onFocusNode: vi.fn(),
+      onEditText: vi.fn(),
+      onDeriveFromText: vi.fn(),
+      onSetPrompt: vi.fn(),
+      readGraph: () => ({ nodes: state.nodes, edges: state.edges }),
+      onSetModel: vi.fn(),
+      onSetParams: vi.fn(),
+      onSetMedia: setMediaLive,
+      onApplyOp: (op) => {
+        dispatchBatch([op])
+      },
+      // 带别名的那一批由工作台的批执行器落（那边有自己的测试）：这里记下发了什么，
+      // 照执行器的契约回这一批新建的卡（续拍：末帧图、下一段）。
+      onApplyBatch: async (ops) => {
+        canvasBatches.push(ops)
+        return { createdNodeIds: ['tail_new', 'shot_new'] }
+      },
+      onTidyLayout: vi.fn(),
+      onPlaceBeside: () => undefined,
+      canUndo: false,
+      canRedo: false,
+      onUndo: vi.fn(),
+      onRedo: vi.fn(),
+    }
     return (
       <NextIntlClientProvider locale="zh" messages={messages}>
-        <EditDesk
-          state={current}
-          projectId="proj_test"
-          dispatchBatch={dispatchBatch}
-          mintId={(prefix) => `${prefix}_${(counter += 1)}`}
-          addNode={addNodeReal}
-          setMedia={setMediaReal}
-          refreshProject={vi.fn()}
-          canUndo
-          onUndo={onUndo}
-          onExit={onExit}
-          onBackToNode={onBackToNode}
-          subscribeRemoteChange={(listener) => {
-            remoteListeners.add(listener)
-            return () => {
-              remoteListeners.delete(listener)
-            }
-          }}
-          restoreState={(target) => {
-            state = target
-            setCurrent(target)
-          }}
-          {...overrides}
-        />
+        <ApiKeysProvider>
+          <NodeV4CanvasProvider value={canvas}>
+            <EditDesk
+              state={current}
+              projectId="proj_test"
+              dispatchBatch={dispatchBatch}
+              mintId={(prefix) => `${prefix}_${(counter += 1)}`}
+              addNode={addNodeReal}
+              setMedia={setMediaReal}
+              refreshProject={vi.fn()}
+              canUndo
+              onUndo={onUndo}
+              onExit={onExit}
+              onBackToNode={onBackToNode}
+              subscribeRemoteChange={(listener) => {
+                remoteListeners.add(listener)
+                return () => {
+                  remoteListeners.delete(listener)
+                }
+              }}
+              restoreState={(target) => {
+                state = target
+                setCurrent(target)
+              }}
+              {...overrides}
+            />
+          </NodeV4CanvasProvider>
+        </ApiKeysProvider>
       </NextIntlClientProvider>
     )
   }
 
   const view = render(<Host />)
-  return { view, onExit, onBackToNode, onUndo, pushRemote, read: () => state }
+  return {
+    view,
+    onExit,
+    onBackToNode,
+    onUndo,
+    pushRemote,
+    read: () => state,
+    canvasBatches,
+  }
 }
 
 /** 素材面板默认收着（④ 方向 A）：要用素材格先点「画布素材」图标把它飞出来。 */
@@ -802,15 +924,29 @@ describe('剪辑台 · 台面', () => {
   })
 
   it('就地重拍：升起栏 → 段上生成中 → 新版落到卡上就自动换上；失败描红点开再改（4b）', async () => {
-    const take = (id: string, url: string) => ({ id, url, createdAt: NOW })
+    installMediaDecoding({})
+    // 这一段挂着一条语音、没挂画面：Seedance 2.0 的发送前校验拦下（音频要搭配图或视频）。
+    const voice = audioNode('a1')
     const base: NodeWorkflowStateV4 = {
       version: 4,
       nodes: [
-        videoNode('v1', {
-          versions: [{ id: 'ver1', url: 'https://example.test/a.mp4' }],
-        }),
+        withPrompt(
+          videoNode('v1', {
+            versions: [{ id: 'ver1', url: 'https://example.test/a.mp4' }],
+          }),
+          '镜头缓推',
+        ),
+        voice,
       ],
-      edges: [],
+      edges: [
+        {
+          id: 'e_voice',
+          source: 'a1',
+          sourceHandle: 'out',
+          target: 'v1',
+          slot: NODE_SLOT_IDS.voice,
+        },
+      ],
       edit: {
         name: '成片',
         tracks: {
@@ -837,57 +973,66 @@ describe('剪辑台 · 台面', () => {
 
     // 选中行「重拍」升起栏；Esc 先收栏，⛔ 不退出剪辑台
     fireEvent.click(screen.getByTestId('edit-desk-retake'))
-    expect(screen.getByTestId('retake-bar-stub')).toHaveAttribute(
-      'data-clip',
-      'c1',
-    )
+    expect(screen.getByTestId('edit-desk-retake-bar')).toBeInTheDocument()
     fireEvent.keyDown(window, { key: 'Escape' })
     await waitFor(() =>
-      expect(screen.queryByTestId('retake-bar-stub')).not.toBeInTheDocument(),
+      expect(
+        screen.queryByTestId('edit-desk-retake-bar'),
+      ).not.toBeInTheDocument(),
     )
 
     // 没发出去（发送前校验拦下）：段上什么都不留
     fireEvent.click(screen.getByTestId('edit-desk-retake'))
-    fireEvent.click(screen.getByTestId('retake-bar-blocked'))
-    expect(
-      screen.queryByTestId('edit-desk-retaking-c1'),
-    ).not.toBeInTheDocument()
+    fireEvent.keyDown(retakeInput(), { key: 'Enter' })
+    await waitFor(() =>
+      expect(
+        screen.queryByTestId('edit-desk-retaking-c1'),
+      ).not.toBeInTheDocument(),
+    )
+    expect(api.submitVideoAPI).not.toHaveBeenCalled()
 
-    // 发出去：栏收起，段上生成中，预览左上写第 2 版
+    // 语音那条线拆掉（画布上的事）；这回发得出去：栏收起，段上生成中，预览左上写第 2 版
+    pushRemote({ ...read(), edges: [] }, false)
+    const firstTake = deferred<unknown>()
+    api.submitVideoAPI.mockResolvedValueOnce(submitted('job_1'))
+    api.checkVideoStatusAPI.mockReturnValueOnce(firstTake.promise)
+    await waitFor(() =>
+      expect(
+        screen.queryByTestId('edit-desk-retake-bar'),
+      ).not.toBeInTheDocument(),
+    )
     fireEvent.click(screen.getByTestId('edit-desk-retake'))
-    fireEvent.click(screen.getByTestId('retake-bar-send'))
+    fireEvent.keyDown(retakeInput(), { key: 'Enter' })
     expect(screen.getByTestId('edit-desk-retaking-c1')).toBeInTheDocument()
     expect(
       screen.getByTestId('edit-desk-preview-generating'),
     ).toHaveTextContent('第 2 版生成中')
+    await waitFor(() =>
+      expect(api.submitVideoAPI).toHaveBeenCalledWith(
+        expect.objectContaining({
+          modelId: 'seedance-2.0',
+          prompt: expect.stringContaining('镜头缓推'),
+        }),
+      ),
+    )
 
     // 新版落到卡上 → 段自动换上
-    const landed = read()
-    pushRemote(
-      {
-        ...landed,
-        nodes: landed.nodes.map((node) =>
-          node.id === 'v1' && node.data.kind === 'video'
-            ? ({
-                ...node,
-                data: {
-                  ...node.data,
-                  outputs: {
-                    versions: [
-                      take('ver1', 'https://example.test/a.mp4'),
-                      take('ver2', 'https://example.test/b.mp4'),
-                    ],
-                    cur: 1,
-                  },
-                },
-              } as NodeV4)
-            : node,
-        ),
-      },
-      false,
+    await act(async () =>
+      firstTake.resolve(completed('job_1', 'https://example.test/b.mp4')),
+    )
+    const landedVersion = () => {
+      const node = read().nodes.find((item) => item.id === 'v1')
+      return node?.data.kind === 'video'
+        ? node.data.outputs?.versions.at(-1)
+        : undefined
+    }
+    await waitFor(() =>
+      expect(landedVersion()?.url).toBe('https://example.test/b.mp4'),
     )
     await waitFor(() =>
-      expect(read().edit?.tracks.video[0]?.sourceVersionId).toBe('ver2'),
+      expect(read().edit?.tracks.video[0]?.sourceVersionId).toBe(
+        landedVersion()?.id,
+      ),
     )
     expect(
       screen.queryByTestId('edit-desk-retaking-c1'),
@@ -895,38 +1040,29 @@ describe('剪辑台 · 台面', () => {
     expect(screen.getByTestId('edit-desk-takes-c1')).toHaveTextContent('2/2')
 
     // 再拍一次，这回失败：段描红、角上「!」，点它 = 再升起这一段的栏
+    api.submitVideoAPI.mockResolvedValueOnce(submitted('job_2'))
+    api.checkVideoStatusAPI.mockResolvedValueOnce({
+      success: true,
+      data: { jobId: 'job_2', status: 'FAILED', error: 'moderation' },
+    })
     fireEvent.click(screen.getByTestId('edit-desk-retake'))
-    fireEvent.click(screen.getByTestId('retake-bar-send'))
-    const before = read()
-    pushRemote(
-      {
-        ...before,
-        nodes: before.nodes.map((node) =>
-          node.id === 'v1'
-            ? ({
-                ...node,
-                data: {
-                  ...node.data,
-                  status: 'failed',
-                  generationFailure: { error: 'moderation' },
-                },
-              } as NodeV4)
-            : node,
-        ),
-      },
-      false,
-    )
+    fireEvent.keyDown(retakeInput(), { key: 'Enter' })
     const flag = await screen.findByTestId('edit-desk-retake-failed-c1')
     expect(screen.queryByTestId('edit-desk-takes-c1')).not.toBeInTheDocument()
     fireEvent.click(flag)
-    expect(screen.getByTestId('retake-bar-stub')).toHaveAttribute(
-      'data-clip',
-      'c1',
-    )
+    expect(screen.getByTestId('edit-desk-retake-bar')).toBeInTheDocument()
   })
 
   it('续拍：段后插一段占位、栏升在占位上；新版落下来占位按新版整段换成真段（4c）', async () => {
-    const take = (id: string, url: string) => ({ id, url, createdAt: NOW })
+    // 段在用的那一版 6 秒；续拍出来的新版 8 秒。
+    const decoding = installMediaDecoding({
+      'https://example.test/a.mp4': { duration: 6 },
+      'https://example.test/next.mp4': { duration: 8 },
+    })
+    api.uploadImageFileAPI.mockResolvedValue({
+      success: true,
+      data: { generation: { url: 'https://example.test/tail.webp' } },
+    })
     const base: NodeWorkflowStateV4 = {
       version: 4,
       nodes: [
@@ -956,19 +1092,22 @@ describe('剪辑台 · 台面', () => {
         settings: { aspect: '16:9', resolution: '1080p' },
       },
     }
-    const { read, pushRemote } = renderDesk(base)
+    const { read, pushRemote, canvasBatches } = renderDesk(base)
     fireEvent.pointerDown(screen.getByTestId('edit-desk-clip-c1'))
     fireEvent.click(screen.getByTestId('edit-desk-continue'))
-    await waitFor(() => expect(continueVideo).toHaveBeenCalled())
+    await waitFor(() => expect(canvasBatches).toHaveLength(1))
 
-    // 末帧截在段的出点（⛔ 不是整版片尾），占位插在这一段后面、来源是同一批新建的卡
-    const input = continueVideo.mock.calls[0]![0]
-    expect(input).toMatchObject({
-      nodeId: 'v1',
-      url: 'https://example.test/a.mp4',
-      untilSec: 3.5,
-    })
-    const added = input.then?.[0]
+    // 末帧截在段的出点（⛔ 不是整版片尾），传上去的是那一帧
+    const lastSeek = Math.max(...decoding.seeks)
+    expect(lastSeek).toBeLessThanOrEqual(3.5)
+    expect(lastSeek).toBeGreaterThan(3)
+    expect(
+      (api.uploadImageFileAPI.mock.lastCall?.[0] as File | undefined)?.type,
+    ).toBe('image/webp')
+    // 占位插在这一段后面、来源是同一批新建的卡
+    const added = canvasBatches[0]!.find(
+      (op) => op.op === NODE_ASSISTANT_OP_V4_IDS.editAddClip,
+    )
     expect(added).toMatchObject({
       op: NODE_ASSISTANT_OP_V4_IDS.editAddClip,
       track: 'video',
@@ -980,16 +1119,18 @@ describe('剪辑台 · 台面', () => {
     }
     const placeholder = added.clip
 
-    // 那一批落下来（桩里不落，这里照它落）：栏升在占位段上，段上写「待生成」
+    // 那一批由画布宿主落下来：栏升在占位段上，段上写「待生成」
     const after = read()
     pushRemote(
       {
         ...after,
-        nodes: [...after.nodes, videoNode('shot_new', { url: '' })].map(
-          (node) =>
-            node.id === 'shot_new'
-              ? ({ ...node, data: { ...node.data, url: undefined } } as NodeV4)
-              : node,
+        nodes: [
+          ...after.nodes,
+          withPrompt(videoNode('shot_new'), '接着往前走'),
+        ].map((node) =>
+          node.id === 'shot_new'
+            ? ({ ...node, data: { ...node.data, url: undefined } } as NodeV4)
+            : node,
         ),
         edit: {
           ...after.edit!,
@@ -1004,52 +1145,34 @@ describe('剪辑台 · 台面', () => {
       },
       false,
     )
-    await waitFor(() =>
-      expect(screen.getByTestId('retake-bar-stub')).toHaveAttribute(
-        'data-clip',
-        placeholder.id,
-      ),
-    )
+    await waitFor(() => expect(retakeInput()).toHaveValue('接着往前走'))
     expect(
       screen.getByTestId(`edit-desk-pending-${placeholder.id}`),
     ).toBeInTheDocument()
 
     // 在占位上发一枪 → 新版 8 秒落到卡上 → 占位按新版整段换成真段
-    probeDuration.mockResolvedValue(8)
-    fireEvent.click(screen.getByTestId('retake-bar-send'))
-    const sent = read()
-    pushRemote(
-      {
-        ...sent,
-        nodes: sent.nodes.map((node) =>
-          node.id === 'shot_new' && node.data.kind === 'video'
-            ? ({
-                ...node,
-                data: {
-                  ...node.data,
-                  url: 'https://example.test/next.mp4',
-                  outputs: {
-                    versions: [take('nv1', 'https://example.test/next.mp4')],
-                    cur: 0,
-                  },
-                },
-              } as NodeV4)
-            : node,
-        ),
-      },
-      false,
+    api.submitVideoAPI.mockResolvedValueOnce(submitted('job_next'))
+    api.checkVideoStatusAPI.mockResolvedValueOnce(
+      completed('job_next', 'https://example.test/next.mp4'),
     )
+    fireEvent.keyDown(retakeInput(), { key: 'Enter' })
+    const newVersion = () => {
+      const node = read().nodes.find((item) => item.id === 'shot_new')
+      return node?.data.kind === 'video'
+        ? node.data.outputs?.versions.at(-1)
+        : undefined
+    }
+    await waitFor(() => expect(newVersion()).toBeDefined())
     await waitFor(() =>
       expect(read().edit?.tracks.video[1]).toMatchObject({
         id: placeholder.id,
-        sourceVersionId: 'nv1',
+        sourceVersionId: newVersion()!.id,
         out: 8,
       }),
     )
     expect(
       screen.queryByTestId(`edit-desk-pending-${placeholder.id}`),
     ).not.toBeInTheDocument()
-    probeDuration.mockResolvedValue(null)
   })
 
   it('时间线缩放：放大变宽、「铺满」回到默认；按住标尺拖 = 拖播放头', () => {

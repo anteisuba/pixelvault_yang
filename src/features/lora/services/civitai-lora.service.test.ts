@@ -4,13 +4,6 @@ vi.mock('@/lib/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }))
 
-// Bypass withRetry so tests assert the service's own logic without the
-// 3-attempt backoff chain. Production behavior of retry-on-timeout is
-// already covered by with-retry.ts's own tests.
-vi.mock('@/lib/with-retry', () => ({
-  withRetry: <T>(fn: () => Promise<T>) => fn(),
-}))
-
 import {
   fetchCivitaiLoraDownloadPolicy,
   fetchCivitaiModelFileSha256s,

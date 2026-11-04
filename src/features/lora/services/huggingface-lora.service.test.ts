@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { safeFetch } from '@/lib/url-guard'
 import type {
   HuggingFaceLoraSearchItem,
   HuggingFaceLoraSearchQuery,
@@ -15,14 +14,29 @@ import {
   searchHuggingFaceLoras,
 } from './huggingface-lora.service'
 
-vi.mock('@/lib/url-guard', () => ({
-  safeFetch: vi.fn(),
-}))
+// 只假网络边界：DNS 解析（真 safeFetch 会先查一遍）和 fetch。
+vi.mock('node:dns', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:dns')>()
+  return {
+    ...actual,
+    promises: {
+      ...actual.promises,
+      lookup: async () => [{ address: '93.184.216.34', family: 4 }],
+    },
+  }
+})
 vi.mock('@/lib/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }))
 
-const mockSafeFetch = vi.mocked(safeFetch)
+const mockSafeFetch =
+  vi.fn<(input: string, init?: RequestInit) => Promise<Response>>()
+
+beforeEach(() => {
+  mockSafeFetch.mockReset()
+  vi.stubGlobal('fetch', mockSafeFetch)
+  return () => vi.unstubAllGlobals()
+})
 
 function jsonResponse(payload: unknown, link?: string): Response {
   return new Response(JSON.stringify(payload), {

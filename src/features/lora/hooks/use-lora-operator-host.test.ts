@@ -59,19 +59,17 @@ const mineCivitaiLoraPromptsAPI = vi.fn()
  * 在飞、各自落地」，而真的去打 Civitai 既慢又拿不到可控的时序。
  */
 const favoriteLoraAPI = vi.fn()
-const ensureMountable = vi.fn(async () => true)
-vi.mock('@/features/lora/hooks/use-civitai-download-gate', () => ({
-  useCivitaiDownloadGate: () => ({
-    checkingVersionId: null,
-    ensureMountable,
-  }),
-}))
+/** 下载闸用真的 `useCivitaiDownloadGate`，只假它问的那一跳 API。 */
+const allowed = { success: true, data: { downloadDisabled: false } }
+const fetchCivitaiLoraDownloadPolicyAPI = vi.fn(async () => allowed)
 vi.mock('@/lib/api-client/lora-assets', async (importOriginal) => ({
   // ⚠ 只换这两只：同一个模块里其余那些别的用例还在真的用。
   ...(await importOriginal<object>()),
   mineCivitaiLoraPromptsAPI: (...args: unknown[]) =>
     mineCivitaiLoraPromptsAPI(...args),
   favoriteLoraAPI: (...args: unknown[]) => favoriteLoraAPI(...args),
+  fetchCivitaiLoraDownloadPolicyAPI: (...args: unknown[]) =>
+    fetchCivitaiLoraDownloadPolicyAPI(...(args as [])),
 }))
 
 /**
@@ -700,7 +698,7 @@ describe('useLoraOperatorHost 的一批挂载只报一次超预算', () => {
 
   beforeEach(() => {
     resetOperatorThread()
-    ensureMountable.mockReset().mockResolvedValue(true)
+    fetchCivitaiLoraDownloadPolicyAPI.mockReset().mockResolvedValue(allowed)
     favoriteLoraAPI.mockReset()
     favoriteLoraAPI.mockImplementation(
       async (payload: { loraUrl: string; name: string }) => {
@@ -729,7 +727,10 @@ describe('useLoraOperatorHost 的一批挂载只报一次超预算', () => {
   })
 
   it('returns a download-gate failure without importing or mounting', async () => {
-    ensureMountable.mockResolvedValue(false)
+    fetchCivitaiLoraDownloadPolicyAPI.mockResolvedValue({
+      success: true,
+      data: { downloadDisabled: true },
+    })
     const input = hostInput([])
     const push = vi.fn()
     input.stack!.push = push

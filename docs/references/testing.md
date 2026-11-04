@@ -79,8 +79,14 @@ L4 的假边界（只替外部，应用全真）：
 ### 迁移旧测试（棘轮）
 
 - 基线（2026-11-03）：974 个文件里 351 个假了自己的非边界模块、99 个假了数据库；197 个路由里 102 个有测试，全抄 401 / 400 / 500。
-- 待迁名单：`scripts/test-standard/mock-baseline.json`（2026-11-03 上线时 402 个文件，含假数据库的），**名单只减不增**；新文件必须合规，改到名单里的文件顺手迁出并从名单删掉（迁好了还留在名单里，契约测试会红）。
-- 按域分批，先迁出事最多的：助手工具与台面 → LoRA（挂载、收藏）→ 角色 / 出门 → 技能、配方、点数（数据库）→ 画布 → 其余。每个域迁完删掉被替代的旧测试。
+- 待迁名单：`scripts/test-standard/mock-baseline.json`。2026-11-03 上线时 402 个文件，**2026-11-04 全部迁完，名单为空**（空数组留着当棘轮：以后不许再加）。新测试一律合规。
+- 长期豁免（不是待迁）：`rules.mjs` 的 `MOCK_EXEMPT`，目前只有助手实跑评测 `src/test/assistant-eval/live-eval.test.ts`（按设计打真模型 + 只读回放库，没设 `ASSISTANT_EVAL_DIR` 整组跳过，不进 CI）。
+- 迁移时攒下的共用件（新测试先找这里）：
+  - 真库：`src/test/int/`——`db.ts`（清库、建用户、种 key）、`generations.ts` / `seed-generation.ts`、`cards.ts`、`assistant-keys.ts`、`execution-worker.ts`（假执行 Worker）、`fake-r2.ts`（内存 R2 桶）、`fake-audio-providers.ts`、`execution-callback.ts`、`fake-llm-text.ts`
+  - 助手：`src/test/assistant-bench/`——`fake-model.ts`（只假外部 SDK 包）、`kernel-harness.ts`、`turn.ts`、`operator-plan.ts`
+  - 界面：`src/test/app-harness.tsx`（真 provider，只假 api-client / fakeServer）、`studio-harness.tsx`（真 StudioProvider）、`viewport.ts`（设屏宽给真 useIsMobile）、`radix-menu.ts`、`operator-lightbox.tsx`、`operator-dock.tsx`、`api-keys.ts`、`fake-video-element.ts`、`fake-canvas-2d.ts`、`browser-stubs.ts`、`i18n-text.ts`
+- 本机 PGlite 的已知限制：多条连接排在一个后端上，**并发提交**、**事务里报错后再查**拿到的结果不可靠。只有这两类用例用 `it.skipIf(!process.env.TEST_DATABASE_URL)` 并写一行原因（CI 真 Postgres 会跑），别的用例不许这样跳。
+- 环境：真库测试把 `NEXT_PUBLIC_STORAGE_BASE_URL` 钉成 `https://cdn.test`（`src/test/int/setup.ts`）——本机 shell 常带线上值，CI 没有，两边结果会不一样（11-04 CI 红过）。`findBy` / `waitFor` 默认等 5 秒（`vitest.setup.ts`，从 `@testing-library/dom` 配；从 react 入口引会打乱 cleanup 顺序）。
 - 记账：每个线上 bug 在施工单记一行「哪层拦住 / 本该哪层拦住」，一个月后按此砍不干活的那类测试。
 
 ## 命令与闸门（2026-07-10 核验）

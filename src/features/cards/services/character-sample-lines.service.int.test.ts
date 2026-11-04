@@ -17,6 +17,7 @@ import { ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE } from '@/constants/assistant
 import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { db } from '@/lib/db'
+import type { Prisma } from '@/lib/generated/prisma/client'
 import { createTestCard } from '@/test/int/cards'
 import { createTestUser, resetDatabase, seedAssistantKey } from '@/test/int/db'
 
@@ -37,7 +38,12 @@ beforeEach(async () => {
 })
 
 async function seedCard(persona: Record<string, unknown>) {
-  cardId = (await createTestCard(me.id, { name: 'Denia', persona })).id
+  cardId = (
+    await createTestCard(me.id, {
+      name: 'Denia',
+      persona: persona as Prisma.InputJsonValue,
+    })
+  ).id
 }
 
 describe('sampleCharacterLines（试读）', () => {

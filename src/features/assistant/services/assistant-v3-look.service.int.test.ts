@@ -318,7 +318,7 @@ describe('v3 look · Denia 自己看', () => {
       model: 'gemini-3-image',
       width: 832,
       height: 1216,
-      seed: 42n,
+      seed: BigInt(42),
       snapshot: { advancedParams: { steps: 30 } },
     })
     // 别人库里同一个地址的那张不算「自家作品」。

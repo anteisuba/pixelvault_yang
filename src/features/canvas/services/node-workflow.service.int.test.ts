@@ -61,7 +61,7 @@ const V4_STATE = NodeWorkflowStateV4Schema.parse({
   ],
   edges: [],
 })
-const EMPTY_V4 = { version: 4, nodes: [], edges: [] } as const
+const EMPTY_V4 = { version: 4 as const, nodes: [], edges: [] }
 
 const BASE = new Date('2026-08-25T00:00:00.000Z')
 

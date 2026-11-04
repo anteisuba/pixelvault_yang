@@ -312,7 +312,7 @@ describe('createApiRoute', () => {
   it('handles legacy GenerateImageServiceError', async () => {
     mockHandler.mockRejectedValue(
       new GenerateImageServiceError(
-        'FREE_LIMIT_EXCEEDED',
+        'RUNNER_MONTHLY_LIMIT_EXCEEDED',
         'Out of credits',
         402,
       ),
@@ -329,7 +329,7 @@ describe('createApiRoute', () => {
     expect(res.status).toBe(402)
     expect(json.success).toBe(false)
     expect(json.error).toBe('Out of credits')
-    expect(json.errorCode).toBe('FREE_LIMIT_EXCEEDED')
+    expect(json.errorCode).toBe('RUNNER_MONTHLY_LIMIT_EXCEEDED')
   })
 
   it('returns a provider-specific i18n key for unsupported reference image format errors', async () => {

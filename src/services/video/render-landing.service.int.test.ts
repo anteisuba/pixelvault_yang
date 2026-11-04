@@ -98,7 +98,11 @@ describe('landRenderOnCanvas', () => {
     userId = user.id
     projectId = (
       await db.nodeWorkflowProject.create({
-        data: { userId, name: 'canvas', state: STATE },
+        data: {
+          userId,
+          name: 'canvas',
+          state: JSON.parse(JSON.stringify(STATE)),
+        },
       })
     ).id
   })

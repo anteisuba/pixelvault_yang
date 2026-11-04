@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { AI_MODELS } from '@/constants/models/enum'
-import { createElement, type ReactNode } from 'react'
+import { createElement, type ComponentProps, type ReactNode } from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 
@@ -81,9 +81,10 @@ const mockCancelGenerations = vi.mocked(cancelGenerationsAPI)
 
 // 真 next-intl + 整份英文文案：错误怎么翻译走真 `api-error-message`。
 function wrapper({ children }: { children: ReactNode }) {
+  const props = { locale: 'en' } as ComponentProps<typeof AppProviders>
   return createElement(
     AppProviders,
-    { locale: 'en' },
+    props,
     createElement(LoraStackProvider, null, children),
   )
 }

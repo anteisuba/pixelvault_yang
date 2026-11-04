@@ -99,7 +99,9 @@ describe('useImageModelOptions', () => {
       getAvailableImageModels(IMAGE_KIND.GENERATE).map((m) => m.id),
     )
     expect(loraBases.length).toBeGreaterThan(0)
-    expect(listed.some((id) => loraBases.includes(id))).toBe(false)
+    expect(listed.some((id) => (loraBases as string[]).includes(id))).toBe(
+      false,
+    )
   })
 
   it('shows Qwen to everyone (owner 2026-11-02 dropped the evaluation allow-list)', () => {

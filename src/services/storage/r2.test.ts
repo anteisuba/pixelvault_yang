@@ -51,10 +51,6 @@ vi.mock('@/lib/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }))
 
-vi.mock('@/lib/with-retry', () => ({
-  withRetry: vi.fn((fn: () => Promise<unknown>) => fn()),
-}))
-
 // Stub env
 vi.stubEnv('R2_ACCOUNT_ID', 'test-account')
 vi.stubEnv('R2_ACCESS_KEY_ID', 'test-key')

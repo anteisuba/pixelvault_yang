@@ -1,10 +1,9 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+/**
+ * 真分级逻辑 + 真 Civitai 解析；只假网络（`fetch`）：Civitai 版本接口按 id / hash 回登记的版本。
+ */
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('@/features/lora/services/civitai-lora.service', () => ({
-  resolveCivitaiCheckpointByReference: vi.fn(),
-}))
-
-import { resolveCivitaiCheckpointByReference } from '@/features/lora/server'
+vi.mock('server-only', () => ({}))
 
 import {
   deriveRunnerCheckpointFilename,
@@ -13,28 +12,86 @@ import {
   RunnerCheckpointError,
 } from './prepare-runner-checkpoint.service'
 
-const mockResolve = vi.mocked(resolveCivitaiCheckpointByReference)
+interface CheckpointVersion {
+  modelVersionId: number
+  name: string
+  baseModel: string
+  downloadUrl: string
+  sizeKB: number | null
+  fileHashAutoV3: string | null
+  sha256: string | null
+}
 
-// 每例重置——无 versionId 的用例不消费 mockResolvedValueOnce，否则会泄漏到后续用例。
-beforeEach(() => mockResolve.mockReset())
+const VERSIONS_API = 'https://civitai.com/api/v1/model-versions/'
+let published: Map<string, CheckpointVersion>
+let requested: string[]
+
+/** Civitai 上能查到这一版底模（按版本 id，或按某个文件 hash）。 */
+function civitaiHas(version: CheckpointVersion, hash?: string) {
+  published.set(String(version.modelVersionId), version)
+  if (hash) published.set(`by-hash/${hash.toLowerCase()}`, version)
+}
+
+function versionPayload(v: CheckpointVersion) {
+  return {
+    id: v.modelVersionId,
+    name: v.name,
+    baseModel: v.baseModel,
+    model: { name: 'checkpoint', type: 'Checkpoint' },
+    files: [
+      {
+        type: 'Model',
+        primary: true,
+        downloadUrl: v.downloadUrl,
+        ...(v.sizeKB != null ? { sizeKB: v.sizeKB } : {}),
+        hashes: {
+          ...(v.fileHashAutoV3 ? { AutoV3: v.fileHashAutoV3 } : {}),
+          ...(v.sha256 ? { SHA256: v.sha256.toUpperCase() } : {}),
+        },
+      },
+    ],
+  }
+}
+
+beforeEach(() => {
+  published = new Map()
+  requested = []
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (input: URL | string) => {
+      const url = String(input)
+      requested.push(url)
+      const version = url.startsWith(VERSIONS_API)
+        ? published.get(url.slice(VERSIONS_API.length))
+        : undefined
+      return version
+        ? Response.json(versionPayload(version))
+        : new Response('not found', { status: 404 })
+    }),
+  )
+})
+
+afterEach(() => vi.unstubAllGlobals())
 
 describe('prepareRunnerCheckpoint', () => {
   it('prepares the exact uploaded checkpoint from its hash', async () => {
-    mockResolve.mockResolvedValueOnce({
-      modelVersionId: 2944197,
-      name: 'v4.0',
-      baseModel: 'Illustrious',
-      downloadUrl: 'https://civitai.com/api/download/models/2944197',
-      sizeKB: 6000000,
-      fileHashAutoV3: 'ca3f57183417',
-      sha256:
-        '29d5281e0adba1cf2dc8795e9016d3bf6e8c06b71630492b49468b7be8411bdf',
-    })
+    civitaiHas(
+      {
+        modelVersionId: 2944197,
+        name: 'v4.0',
+        baseModel: 'Illustrious',
+        downloadUrl: 'https://civitai.com/api/download/models/2944197',
+        sizeKB: 6000000,
+        fileHashAutoV3: 'ca3f57183417',
+        sha256:
+          '29d5281e0adba1cf2dc8795e9016d3bf6e8c06b71630492b49468b7be8411bdf',
+      },
+      '29d5281e0a',
+    )
     const result = await prepareRunnerCheckpoint({
       checkpointHash: '29d5281e0a',
       loraBaseModel: 'Illustrious',
     })
-    expect(mockResolve).toHaveBeenCalledWith({ hash: '29d5281e0a' })
     expect(result).toEqual({
       approximate: false,
       runnerCheckpoint: {
@@ -47,7 +104,7 @@ describe('prepareRunnerCheckpoint', () => {
     })
   })
   it('T1: resolvable + supported architecture → exact checkpoint download spec', async () => {
-    mockResolve.mockResolvedValueOnce({
+    civitaiHas({
       modelVersionId: 597138,
       name: 'v5.0.0',
       baseModel: 'SDXL 1.0',
@@ -71,7 +128,7 @@ describe('prepareRunnerCheckpoint', () => {
   })
 
   it('T1: source checkpoint is the selected pre-baked one → no second download', async () => {
-    mockResolve.mockResolvedValueOnce({
+    civitaiHas({
       modelVersionId: 2167369,
       name: 'v15.0',
       baseModel: 'Illustrious',
@@ -90,8 +147,6 @@ describe('prepareRunnerCheckpoint', () => {
   })
 
   it('T2: exact checkpoint unresolvable but name is a supported family → approximate', async () => {
-    mockResolve.mockResolvedValueOnce(null)
-
     const res = await prepareRunnerCheckpoint({
       checkpointVersionId: 1,
       checkpointName: 'BSSANIRLANIMASemi_v10',
@@ -101,7 +156,7 @@ describe('prepareRunnerCheckpoint', () => {
   })
 
   it('T3: resolves to an unsupported architecture → throws RunnerCheckpointError', async () => {
-    mockResolve.mockResolvedValueOnce({
+    civitaiHas({
       modelVersionId: 2,
       name: 'x',
       baseModel: 'Flux.1 D',
@@ -117,7 +172,6 @@ describe('prepareRunnerCheckpoint', () => {
   })
 
   it('T3: no reference resolvable / classifiable → throws', async () => {
-    mockResolve.mockResolvedValueOnce(null)
     await expect(
       prepareRunnerCheckpoint({ checkpointName: 'Krea2 Turbo' }),
     ).rejects.toBeInstanceOf(RunnerCheckpointError)
@@ -125,7 +179,6 @@ describe('prepareRunnerCheckpoint', () => {
 
   it('T2 Anima: loraBaseModel "Anima" (DiT) + private checkpoint → approximate (anima-base default)', async () => {
     // 心月狐：精确底模私有下不到 → 用 anima-base 默认档近似（Worker 按 manifest 走 DiT 图）。
-    mockResolve.mockResolvedValueOnce(null)
     const res = await prepareRunnerCheckpoint({
       checkpointName: 'BSSANIRLANIMASemi_v10',
       loraBaseModel: 'Anima',
@@ -134,7 +187,7 @@ describe('prepareRunnerCheckpoint', () => {
   })
 
   it('T1 Anima: resolvable DiT checkpoint → download spec targets diffusion_models; a turbo version borrows the Turbo defaults', async () => {
-    mockResolve.mockResolvedValueOnce({
+    civitaiHas({
       modelVersionId: 3108589,
       name: 'turbo-v1.0',
       baseModel: 'Anima',
@@ -156,7 +209,7 @@ describe('prepareRunnerCheckpoint', () => {
   })
 
   it('T1 Anima: an unlisted non-turbo DiT version keeps the Anima defaults (no borrowed id)', async () => {
-    mockResolve.mockResolvedValueOnce({
+    civitaiHas({
       modelVersionId: 9999999,
       name: 'base-v1.0',
       baseModel: 'Anima',
@@ -172,7 +225,7 @@ describe('prepareRunnerCheckpoint', () => {
 
 describe('prepareOnDemandRunnerCheckpoint', () => {
   it('builds a fetch spec for a not-preloaded manifest checkpoint', async () => {
-    mockResolve.mockResolvedValueOnce({
+    civitaiHas({
       modelVersionId: 3262295,
       name: 'v5.0',
       baseModel: 'Illustrious',
@@ -187,7 +240,7 @@ describe('prepareOnDemandRunnerCheckpoint', () => {
       'rinFlanimeIllustrious_v50',
     )
 
-    expect(mockResolve).toHaveBeenCalledWith({ modelVersionId: 3262295 })
+    expect(requested).toEqual([`${VERSIONS_API}3262295`])
     expect(spec).toEqual({
       filename: 'civitai-ckpt-3262295.safetensors',
       downloadUrl: 'https://civitai.com/api/download/models/3262295',
@@ -201,11 +254,10 @@ describe('prepareOnDemandRunnerCheckpoint', () => {
     expect(
       await prepareOnDemandRunnerCheckpoint('waiIllustriousSDXL_v150'),
     ).toBeUndefined()
-    expect(mockResolve).not.toHaveBeenCalled()
+    expect(requested).toEqual([])
   })
 
   it('fails loudly when the download link cannot be resolved', async () => {
-    mockResolve.mockResolvedValueOnce(null)
     await expect(
       prepareOnDemandRunnerCheckpoint('rinFlanimeIllustrious_v50'),
     ).rejects.toBeInstanceOf(RunnerCheckpointError)

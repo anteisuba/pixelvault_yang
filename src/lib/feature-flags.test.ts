@@ -1,63 +1,70 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { isFeatureEnabledForUser } from './feature-flags'
-
-vi.mock('@/constants/feature-flags', () => ({
-  FEATURE_FLAGS: {
-    smartPrompt: true,
-    variantGeneration: true,
-    multiModelCompare: false,
-    imageEditing: true,
-    seriesMode: true,
-  },
-}))
-
-const ORIGINAL_ENV = { ...process.env }
+/**
+ * 开关在模块加载时从环境变量读：每例先设好环境变量，再重新加载真的
+ * `@/constants/feature-flags` + `feature-flags`（不替开关表）。
+ */
+async function load(env: Record<string, string>) {
+  for (const [name, value] of Object.entries(env)) vi.stubEnv(name, value)
+  vi.resetModules()
+  return (await import('./feature-flags')).isFeatureEnabledForUser
+}
 
 afterEach(() => {
-  process.env = { ...ORIGINAL_ENV }
+  vi.unstubAllEnvs()
 })
 
 describe('isFeatureEnabledForUser', () => {
-  it('returns false when the flag is globally off', () => {
-    expect(isFeatureEnabledForUser('multiModelCompare', 'user_1')).toBe(false)
+  it('总开关关着：一律 false，放量比例也救不回来', async () => {
+    const isOn = await load({
+      NEXT_PUBLIC_FF_MULTI_COMPARE: 'false',
+      NEXT_PUBLIC_FF_MULTI_COMPARE_ROLLOUT: '100',
+    })
+    expect(isOn('multiModelCompare', 'user_1')).toBe(false)
   })
 
-  it('returns true when flag is on and no rollout env is set', () => {
-    delete process.env.NEXT_PUBLIC_FF_SMART_PROMPT_ROLLOUT
-    expect(isFeatureEnabledForUser('smartPrompt', 'user_1')).toBe(true)
+  it('开着、没设放量比例：true', async () => {
+    const isOn = await load({
+      NEXT_PUBLIC_FF_SMART_PROMPT: 'true',
+      NEXT_PUBLIC_FF_SMART_PROMPT_ROLLOUT: '',
+    })
+    expect(isOn('smartPrompt', 'user_1')).toBe(true)
   })
 
-  it('returns true when rollout=100', () => {
-    process.env.NEXT_PUBLIC_FF_VARIANT_GEN_ROLLOUT = '100'
-    expect(isFeatureEnabledForUser('variantGeneration', 'user_1')).toBe(true)
+  it('放量 100 → true；放量 0 → false', async () => {
+    let isOn = await load({
+      NEXT_PUBLIC_FF_VARIANT_GEN: 'true',
+      NEXT_PUBLIC_FF_VARIANT_GEN_ROLLOUT: '100',
+    })
+    expect(isOn('variantGeneration', 'user_1')).toBe(true)
+
+    isOn = await load({
+      NEXT_PUBLIC_FF_VARIANT_GEN: 'true',
+      NEXT_PUBLIC_FF_VARIANT_GEN_ROLLOUT: '0',
+    })
+    expect(isOn('variantGeneration', 'user_1')).toBe(false)
   })
 
-  it('returns false when rollout=0', () => {
-    process.env.NEXT_PUBLIC_FF_VARIANT_GEN_ROLLOUT = '0'
-    expect(isFeatureEnabledForUser('variantGeneration', 'user_1')).toBe(false)
+  it('同一个人结果不变；匿名用户进不了部分放量', async () => {
+    const isOn = await load({
+      NEXT_PUBLIC_FF_VARIANT_GEN: 'true',
+      NEXT_PUBLIC_FF_VARIANT_GEN_ROLLOUT: '50',
+    })
+    expect(isOn('variantGeneration', 'user_X')).toBe(
+      isOn('variantGeneration', 'user_X'),
+    )
+    expect(isOn('variantGeneration', null)).toBe(false)
+    expect(isOn('variantGeneration', undefined)).toBe(false)
   })
 
-  it('is sticky for the same userId', () => {
-    process.env.NEXT_PUBLIC_FF_VARIANT_GEN_ROLLOUT = '50'
-    const result1 = isFeatureEnabledForUser('variantGeneration', 'user_X')
-    const result2 = isFeatureEnabledForUser('variantGeneration', 'user_X')
-    expect(result1).toBe(result2)
-  })
-
-  it('rejects anonymous users from partial rollouts', () => {
-    process.env.NEXT_PUBLIC_FF_VARIANT_GEN_ROLLOUT = '50'
-    expect(isFeatureEnabledForUser('variantGeneration', null)).toBe(false)
-    expect(isFeatureEnabledForUser('variantGeneration', undefined)).toBe(false)
-  })
-
-  it('partitions a uniform set of users roughly along the rollout boundary', () => {
-    process.env.NEXT_PUBLIC_FF_VARIANT_GEN_ROLLOUT = '25'
+  it('一批人大致按放量比例切开', async () => {
+    const isOn = await load({
+      NEXT_PUBLIC_FF_VARIANT_GEN: 'true',
+      NEXT_PUBLIC_FF_VARIANT_GEN_ROLLOUT: '25',
+    })
     let enabled = 0
     for (let i = 0; i < 1000; i++) {
-      if (isFeatureEnabledForUser('variantGeneration', `user_${i}`)) {
-        enabled++
-      }
+      if (isOn('variantGeneration', `user_${i}`)) enabled++
     }
     // 25% target, allow ±10pp band on a 1k sample
     expect(enabled).toBeGreaterThan(150)

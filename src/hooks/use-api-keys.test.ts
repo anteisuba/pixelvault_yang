@@ -15,12 +15,12 @@ vi.mock('@clerk/nextjs', () => ({ useAuth: () => auth }))
 const t = vi.hoisted(() => (key: string) => key)
 vi.mock('next-intl', () => ({ useTranslations: () => t }))
 
-vi.mock('@/lib/defer-to-idle', () => ({
-  deferToIdle: (task: () => void) => {
-    task()
-    return () => {}
-  },
-}))
+// 浏览器「空闲时」回调：立刻跑（真 `deferToIdle` 用它）。
+vi.stubGlobal('requestIdleCallback', (task: () => void) => {
+  task()
+  return 1
+})
+vi.stubGlobal('cancelIdleCallback', () => {})
 
 vi.mock('@/lib/api-client', () => ({
   listApiKeys: vi.fn(),

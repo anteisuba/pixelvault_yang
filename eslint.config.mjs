@@ -5,6 +5,7 @@ import prettier from 'eslint-config-prettier'
 
 import {
   MOCK_BASELINE_GLOBS,
+  MOCK_EXEMPT,
   TEST_STANDARD_SYNTAX_RULES,
 } from './scripts/test-standard/rules.mjs'
 
@@ -267,7 +268,7 @@ const eslintConfig = defineConfig([
   // 文件在 scripts/test-standard/mock-baseline.json，名单只减不增。
   {
     files: ['**/*.test.{ts,tsx}'],
-    ignores: MOCK_BASELINE_GLOBS,
+    ignores: [...MOCK_BASELINE_GLOBS, ...MOCK_EXEMPT],
     rules: {
       'no-restricted-syntax': ['error', ...TEST_STANDARD_SYNTAX_RULES],
     },

@@ -13,6 +13,5 @@
   "src/features/cards/services/character-outing.service.test.ts",
   "src/features/lora/components/LoraWorkbench.test.tsx",
   "src/services/llm-text.service.test.ts",
-  "src/services/research/research-fanout.service.test.ts",
-  "src/test/assistant-eval/live-eval.test.ts"
+  "src/services/research/research-fanout.service.test.ts"
 ]

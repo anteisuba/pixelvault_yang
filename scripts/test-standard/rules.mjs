@@ -31,6 +31,13 @@ export const MOCK_BASELINE = JSON.parse(
   readFileSync(new URL('./mock-baseline.json', import.meta.url), 'utf8'),
 )
 
+/**
+ * 长期豁免（不是待迁名单）：不是测功能的测试，而是按设计就要假库的工具。
+ * - 助手实跑评测：打真模型、花真钱，库换成只读回放库（用户 / key / 人设）；
+ *   没设 ASSISTANT_EVAL_DIR 整组跳过，不进 CI。
+ */
+export const MOCK_EXEMPT = ['src/test/assistant-eval/live-eval.test.ts']
+
 /** 给 eslint `ignores` 用：路径里的 `[id]`、`(main)` 是 glob 特殊字符，要转义。 */
 export const MOCK_BASELINE_GLOBS = MOCK_BASELINE.map((file) =>
   file.replace(/[[\]()]/g, '\\$&'),

@@ -35,6 +35,11 @@ test('LoRA：挂上 → 卸下 → 再挂回', async ({ page }) => {
 
   const mount = async (dumpName?: string) => {
     await page.getByRole('button', { name: 'Add LoRA' }).first().click()
+    // 挑框默认开在 Civitai 浏览（CI 里没配，会报加载失败），收藏在「Favorites」那一栏。
+    await page
+      .getByRole('dialog', { name: 'Pick LoRAs' })
+      .getByRole('button', { name: /^Favorites/ })
+      .click()
     const pick = page.getByRole('button', { name: `Pick ${name}` })
     if (dumpName) {
       await pick.or(page.getByText(name)).first().waitFor({ timeout: 15_000 })

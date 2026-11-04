@@ -103,3 +103,6 @@ output/playwright/
 /requirements.compiled
 .open-next/
 .wrangler/
+
+# Cloudflare 构建临时生成的 Prisma workerd 引擎
+/src/lib/generated/prisma/internal/query_compiler_fast_bg.*

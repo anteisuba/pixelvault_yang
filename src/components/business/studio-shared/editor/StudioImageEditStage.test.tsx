@@ -1,54 +1,91 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor } from '@testing-library/react'
 import { useState } from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { API_ENDPOINTS } from '@/constants/config'
+import {
+  AI_ADAPTER_TYPES,
+  getDefaultProviderConfig,
+} from '@/constants/providers'
+import { stubBrowserLayout } from '@/test/browser-stubs'
+import { text } from '@/test/i18n-text'
+import {
+  fakeStudioServer,
+  renderWithStudio,
+  settle,
+} from '@/test/studio-harness'
+import type { UserApiKeyRecord } from '@/types'
 
 import {
   StudioImageEditStage,
   type StudioImageEditTarget,
 } from './StudioImageEditStage'
 
-const mocks = vi.hoisted(() => ({
-  replaceReferenceImage: vi.fn(),
-  referenceEntries: [] as { url: string }[],
-  /** 躯干的 onApplied —— 测试里由假的 Surface 直接调它。 */
-  applied: null as
-    | ((outputs: { imageUrl: string }[], summary: string) => boolean)
-    | null,
+/**
+ * 工作台编辑舞台，全程真的：真 `ImageEditSurface`（默认「整图修改」）、真工作台参考图槽、
+ * 真 canvas-capability-runtime → 真 api-client；只假网络（object-replace 那条接口）。
+ * 「跑完一步」= 写一句修改、点「应用修改」、服务端回一张新图。
+ */
+
+const auth = vi.hoisted(() => ({ userId: 'user-0', n: 0 }))
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({ isLoaded: true, isSignedIn: true, userId: auth.userId }),
+}))
+vi.mock('@/i18n/navigation', () => ({
+  usePathname: () => '/studio/image',
+  useRouter: () => ({ push: vi.fn() }),
 }))
 
-vi.mock('next-intl', () => ({
-  useTranslations:
-    () => (key: string, params?: Record<string, string | number>) =>
-      params ? `${key}:${JSON.stringify(params)}` : key,
-}))
+const T = (key: string, values?: Record<string, string | number>) =>
+  text(`StudioImageEdit.${key}`, values)
+const ORIGINAL = 'https://cdn.example.com/original.png'
+const ok = (data: unknown) => Response.json({ success: true, data })
 
-vi.mock('@/contexts/studio-context', () => ({
-  useStudioData: () => ({
-    imageUpload: {
-      replaceReferenceImage: mocks.replaceReferenceImage,
-      referenceEntries: mocks.referenceEntries,
-    },
-  }),
-}))
+const GEMINI_KEY: UserApiKeyRecord = {
+  id: 'gemini-key',
+  modelId: 'gemini-3-pro-image',
+  adapterType: AI_ADAPTER_TYPES.GEMINI,
+  providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.GEMINI),
+  label: 'Gemini',
+  maskedKey: 'test-****',
+  isActive: true,
+  createdAt: new Date('2026-01-01'),
+}
 
-// 假躯干：只把 onApplied 递出来，让测试自己决定「跑完一步」的时机。
-vi.mock('@/components/business/studio-shared/editor/ImageEditSurface', () => ({
-  ImageEditSurface: ({
-    sourceUrl,
-    onApplied,
-  }: {
-    sourceUrl: string
-    onApplied: (outputs: { imageUrl: string }[], summary: string) => boolean
-  }) => {
-    mocks.applied = onApplied
-    return <div data-testid="surface-source">{sourceUrl}</div>
-  },
-}))
+/** 每次提交回下一张图；`hold` 时先挂着，由用例决定什么时候回。 */
+let nextOutputs: string[] = []
+let held: Array<() => void> = []
+let hold = false
+let server: ReturnType<typeof fakeStudioServer>
+
+beforeEach(() => {
+  auth.n += 1
+  auth.userId = `user-${auth.n}`
+  nextOutputs = []
+  held = []
+  hold = false
+  stubBrowserLayout()
+  server = fakeStudioServer()
+    .on('GET', API_ENDPOINTS.API_KEYS, () => ok([GEMINI_KEY]))
+    .on('POST', API_ENDPOINTS.IMAGE_OBJECT_REPLACE, () => {
+      const imageUrl = nextOutputs.shift()
+      const response = ok({ imageUrl, width: 1024, height: 1024 })
+      if (!hold) return response
+      return new Promise<Response>((resolve) => {
+        held.push(() => resolve(response))
+      })
+    })
+})
+afterEach(() => vi.unstubAllGlobals())
 
 /** 宿主在真实用法里会把新 target 回灌进来，这里用受控包装模拟那条回路。 */
-function renderStage(initial: StudioImageEditTarget) {
+async function renderStage(references: string[], total = references.length) {
   function Harness() {
-    const [target, setTarget] = useState(initial)
+    const [target, setTarget] = useState<StudioImageEditTarget>({
+      url: ORIGINAL,
+      referenceIndex: 0,
+      referenceTotal: total,
+    })
     return (
       <StudioImageEditStage
         target={target}
@@ -57,140 +94,142 @@ function renderStage(initial: StudioImageEditTarget) {
       />
     )
   }
-  const result = render(<Harness />)
-  return { ...result, rerender: () => result.rerender(<Harness />) }
-}
-
-/** ⚠ 必须包 act：`onApplied` 是躯干在 React 之外调的，不包就不 flush 重渲染。 */
-function apply(url: string, summary: string) {
+  const view = renderWithStudio(<Harness />)
   act(() => {
-    mocks.applied?.([{ imageUrl: url }], summary)
+    for (const url of references)
+      view.studio.current.imageUpload.addReferenceImage(url)
   })
+  await settle()
+  await settle()
+  return view.studio
 }
 
-beforeEach(() => {
-  vi.clearAllMocks()
-  mocks.applied = null
-  mocks.referenceEntries = [{ url: 'https://cdn.example.com/original.png' }]
-  mocks.replaceReferenceImage.mockImplementation(
-    (index: number, url: string) => {
-      mocks.referenceEntries[index] = { url }
+/** 舞台上当前这一步那张图：原图是「源图」，编过之后是前后对比里的「修改后」。 */
+const stageImage = () =>
+  (screen.queryByRole('img', { name: T('compareAfter') }) ??
+    screen.getByRole('img', { name: T('sourceAlt') })) as HTMLImageElement
+
+function submitEdit(instruction: string, output: string) {
+  nextOutputs.push(output)
+  fireEvent.change(
+    screen.getByRole('textbox', { name: T('editPromptLabel') }),
+    {
+      target: { value: instruction },
     },
   )
-})
+  fireEvent.click(screen.getByRole('button', { name: T('applyEdit') }))
+}
+
+async function applyEdit(instruction: string, output: string) {
+  submitEdit(instruction, output)
+  await waitFor(() => expect(stageImage().src).toBe(output))
+}
+
+const historyLabels = () =>
+  screen
+    .getAllByRole('button', { name: /./ })
+    .filter((b) => b.closest('nav'))
+    .map((b) => b.textContent)
+
+const stepLabel = (index: number, summary: string) =>
+  `${T('stageHistoryStep', { index })} · ${summary}`
 
 describe('StudioImageEditStage · 编辑历史', () => {
-  const BASE: StudioImageEditTarget = {
-    url: 'https://cdn.example.com/original.png',
-    referenceIndex: 0,
-    referenceTotal: 1,
-  }
-
-  it('参考槽在退出编辑后已换图时，不把旧编辑结果写进新参考图槽位', () => {
-    renderStage(BASE)
-    mocks.referenceEntries[0] = {
-      url: 'https://cdn.example.com/another-reference.png',
-    }
-    apply('https://cdn.example.com/edited-old-source.png', 'edit old source')
-    expect(mocks.replaceReferenceImage).not.toHaveBeenCalled()
-    expect(mocks.referenceEntries[0].url).toBe(
-      'https://cdn.example.com/another-reference.png',
-    )
-    expect(screen.getByTestId('surface-source')).toHaveTextContent(
-      'edited-old-source.png',
-    )
-    apply('https://cdn.example.com/edited-again.png', 'continue editing')
-    expect(mocks.replaceReferenceImage).not.toHaveBeenCalled()
-  })
-
-  it('异步编辑中删除源参考图后，提交时的旧回调不能覆盖前移的另一张参考图', () => {
-    const otherReference = {
-      url: 'https://cdn.example.com/another-reference.png',
-    }
-    mocks.referenceEntries = [...mocks.referenceEntries, otherReference]
-    const { rerender } = renderStage({ ...BASE, referenceTotal: 2 })
-    const pendingApplied = mocks.applied
-
-    mocks.referenceEntries = [otherReference]
-    rerender()
-    act(() => {
-      pendingApplied?.(
-        [{ imageUrl: 'https://cdn.example.com/edited-old-source.png' }],
-        'edit old source',
-      )
-    })
-
-    expect(mocks.replaceReferenceImage).not.toHaveBeenCalled()
-    expect(mocks.referenceEntries).toEqual([otherReference])
-    expect(screen.getByTestId('surface-source')).toHaveTextContent(
-      'edited-old-source.png',
-    )
-    apply('https://cdn.example.com/edited-again.png', 'continue editing')
-    expect(mocks.replaceReferenceImage).not.toHaveBeenCalled()
-  })
-
-  it('每成功一步就在历史里多一格，并就地替换参考图槽位', () => {
-    renderStage(BASE)
+  it('每成功一步就在历史里多一格，并就地替换参考图槽位', async () => {
+    const studio = await renderStage([ORIGINAL])
 
     // 只有原图时不渲染历史条 —— 一格的历史是噪音。
     expect(screen.queryByRole('navigation')).toBeNull()
 
-    apply('https://cdn.example.com/a.png', 'red jacket')
-    apply('https://cdn.example.com/b.png', 'bare feet')
+    await applyEdit('red jacket', 'https://cdn.example.com/a.png')
+    await applyEdit('bare feet', 'https://cdn.example.com/b.png')
 
-    const steps = screen.getAllByRole('button')
-    // 舞台顶上只剩历史 + 右端「换一张」（owner 2026-10-03 撤掉「← 回到工作台」那一行）。
-    expect(steps.map((b) => b.textContent)).toEqual([
-      'stageHistoryOriginal',
-      'stageHistoryStep:{"index":1} · red jacket',
-      'stageHistoryStep:{"index":2} · bare feet',
+    expect(historyLabels()).toEqual([
+      T('stageHistoryOriginal'),
+      stepLabel(1, 'red jacket'),
+      stepLabel(2, 'bare feet'),
     ])
-    expect(mocks.replaceReferenceImage).toHaveBeenLastCalledWith(
-      0,
+    expect(studio.current.imageUpload.referenceEntries[0]?.url).toBe(
       'https://cdn.example.com/b.png',
     )
-    expect(screen.getByTestId('surface-source')).toHaveTextContent('b.png')
   })
 
   // E4 的验收原话：「改五次能回到第三次」。
-  it('改五次能回到第三次', () => {
-    renderStage(BASE)
+  it('改五次能回到第三次', async () => {
+    const studio = await renderStage([ORIGINAL])
     for (const n of [1, 2, 3, 4, 5]) {
-      apply(`https://cdn.example.com/step${n}.png`, `edit ${n}`)
+      await applyEdit(`edit ${n}`, `https://cdn.example.com/step${n}.png`)
     }
 
     fireEvent.click(
-      screen.getByRole('button', {
-        name: 'stageHistoryStep:{"index":3} · edit 3',
-      }),
+      screen.getByRole('button', { name: stepLabel(3, 'edit 3') }),
     )
 
-    expect(mocks.replaceReferenceImage).toHaveBeenLastCalledWith(
-      0,
+    expect(stageImage().src).toBe('https://cdn.example.com/step3.png')
+    expect(studio.current.imageUpload.referenceEntries[0]?.url).toBe(
       'https://cdn.example.com/step3.png',
     )
-    expect(screen.getByTestId('surface-source')).toHaveTextContent('step3.png')
   })
 
-  it('从中间回退后再编辑，砍掉后面的分支而不是并排堆着', () => {
-    renderStage(BASE)
-    apply('https://cdn.example.com/a.png', 'edit a')
-    apply('https://cdn.example.com/b.png', 'edit b')
+  it('从中间回退后再编辑，砍掉后面的分支而不是并排堆着', async () => {
+    await renderStage([ORIGINAL])
+    await applyEdit('edit a', 'https://cdn.example.com/a.png')
+    await applyEdit('edit b', 'https://cdn.example.com/b.png')
 
     fireEvent.click(
-      screen.getByRole('button', {
-        name: 'stageHistoryStep:{"index":1} · edit a',
-      }),
+      screen.getByRole('button', { name: stepLabel(1, 'edit a') }),
     )
-    apply('https://cdn.example.com/c.png', 'edit c')
+    await applyEdit('edit c', 'https://cdn.example.com/c.png')
 
-    const labels = screen.getAllByRole('button').map((b) => b.textContent)
+    const labels = historyLabels()
     expect(labels).toEqual([
-      'stageHistoryOriginal',
-      'stageHistoryStep:{"index":1} · edit a',
-      'stageHistoryStep:{"index":2} · edit c',
+      T('stageHistoryOriginal'),
+      stepLabel(1, 'edit a'),
+      stepLabel(2, 'edit c'),
     ])
-    // 被砍掉的那一步不该还留在条上
     expect(labels.some((label) => label?.includes('edit b'))).toBe(false)
+  })
+
+  it('参考槽在编辑途中被换了图：不把编辑结果写进那个槽', async () => {
+    const studio = await renderStage([ORIGINAL])
+    act(() => {
+      studio.current.imageUpload.replaceReferenceImage(
+        0,
+        'https://cdn.example.com/another-reference.png',
+      )
+    })
+
+    await applyEdit('edit old source', 'https://cdn.example.com/edited-old.png')
+    expect(studio.current.imageUpload.referenceEntries[0]?.url).toBe(
+      'https://cdn.example.com/another-reference.png',
+    )
+
+    await applyEdit('continue', 'https://cdn.example.com/edited-again.png')
+    expect(studio.current.imageUpload.referenceEntries[0]?.url).toBe(
+      'https://cdn.example.com/another-reference.png',
+    )
+  })
+
+  it('编辑跑着时删了源参考图：回来的结果不覆盖前移上来的另一张', async () => {
+    const other = 'https://cdn.example.com/another-reference.png'
+    const studio = await renderStage([ORIGINAL, other])
+    hold = true
+    submitEdit('edit old source', 'https://cdn.example.com/edited-old.png')
+    await waitFor(() => expect(held).toHaveLength(1))
+
+    act(() => studio.current.imageUpload.removeReferenceImage(0))
+    await act(async () => held.shift()!())
+    await waitFor(() =>
+      expect(stageImage().src).toBe('https://cdn.example.com/edited-old.png'),
+    )
+
+    expect(
+      studio.current.imageUpload.referenceEntries.map((e) => e.url),
+    ).toEqual([other])
+    expect(
+      server.requests.filter(
+        (r) => r.path === API_ENDPOINTS.IMAGE_OBJECT_REPLACE,
+      ),
+    ).toHaveLength(1)
   })
 })

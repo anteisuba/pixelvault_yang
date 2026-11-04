@@ -1,450 +1,383 @@
-import { fireEvent, render, screen } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, fireEvent, screen } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AI_MODELS } from '@/constants/models'
-import { AI_ADAPTER_TYPES } from '@/constants/providers'
-
-import type { TagChip } from '@/types/tag-composer'
-
-const mocks = vi.hoisted(() => ({
-  dispatch: vi.fn(),
-  runModels: [] as { modelId: string; adapterType: string }[],
-  advancedParams: {} as Record<string, unknown>,
-  negative: [] as TagChip[],
-  update: vi.fn(),
-  select: vi.fn(),
-  add: vi.fn(),
-  remove: vi.fn(),
-  activeIndex: null as number | null,
-  mode: 'grid' as 'grid' | 'free' | null,
-  characters: [] as {
-    prompt: string
-    negativePrompt: string
-    enabled?: boolean
-  }[],
-}))
-
-vi.mock('next-intl', () => ({
-  useTranslations: () =>
-    Object.assign(
-      (key: string, values?: Record<string, unknown>) =>
-        values ? `${key}:${Object.values(values).join(',')}` : key,
-      { has: () => false },
-    ),
-}))
-vi.mock('@/contexts/studio-context', () => ({
-  useStudioForm: () => ({
-    state: {
-      tagChips: [{ text: 'solo', weight: 1 }],
-      tagNegativeChips: mocks.negative,
-      activeTagCharacterIndex: mocks.activeIndex,
-      advancedParams: mocks.advancedParams,
-      aspectRatio: '1:1',
-      imageBatchCount: 1,
-    },
-    dispatch: mocks.dispatch,
-  }),
-  useStudioData: () => ({
-    characters: { activeCardIds: [] },
-    imageUpload: {
-      referenceEntries: [],
-      referenceImages: [],
-      removeReferenceImage: vi.fn(),
-      isUploading: false,
-    },
-  }),
-  useStudioGen: () => ({ cancelAllRunItems: vi.fn() }),
-}))
-vi.mock('@/hooks/use-studio-generate-action', () => ({
-  useStudioGenerateAction: () => ({
-    selectedModel: undefined,
-    modelOptions: [],
-    runModels: mocks.runModels,
-    filterModelByDialect: () => true,
-    handleReplaceRunModel: vi.fn(),
-    canGenerate: true,
-    blockedReason: null,
-    handleGenerate: vi.fn(),
-    isGenerating: false,
-    elapsedSeconds: 0,
-    isImagePromptOverLimit: false,
-  }),
-}))
-vi.mock('@/hooks/use-studio-run-models', () => ({
-  useStudioRunModels: () => ({ runModels: mocks.runModels }),
-}))
-vi.mock('@/hooks/use-novelai-characters', () => ({
-  useNovelAiCharacters: () => ({
-    mode: mocks.mode,
-    max: 6,
-    layout: mocks.characters.length
-      ? { positioning: 'auto', characters: mocks.characters }
-      : undefined,
-    characters: mocks.characters,
-    activeIndex: mocks.activeIndex,
-    update: mocks.update,
-    select: mocks.select,
-    add: mocks.add,
-    remove: mocks.remove,
-  }),
-}))
-const mockRouterPush = vi.hoisted(() => vi.fn())
-vi.mock('@/i18n/navigation', () => ({
-  useRouter: () => ({ push: mockRouterPush }),
-}))
-vi.mock('@/features/studio/hooks/use-studio-shortcuts', () => ({
-  useStudioShortcuts: () => {},
-}))
-vi.mock('@/hooks/use-reference-receiver-notice', () => ({
-  useReferenceReceiverNotice: () => undefined,
-}))
-vi.mock('@/lib/model-options', () => ({
-  getTranslatedModelLabel: (_t: unknown, modelId: string) => modelId,
-}))
-// 工具行里那几颗 chip 各有自己的测试，这里只验「编辑谁」这一件事。
-vi.mock('@/components/business/studio-shared/pickers', () => ({
-  MainModelPicker: () => null,
-}))
-vi.mock('@/features/studio/components/ReferenceImageChip', () => ({
-  ReferenceImageChip: () => null,
-  ReferenceImagePickerBody: () => null,
-  ReferenceImageCountLine: () => null,
-  ReferenceImageLibraryDialog: () => null,
-}))
-vi.mock('@/features/studio/components/StudioSpecChip', () => ({
-  StudioSpecChip: () => null,
-}))
-vi.mock('@/features/studio/components/StudioCostPreview', () => ({
-  StudioCostPreview: () => null,
-}))
-vi.mock(
-  '@/components/business/studio-shared/workflow/StudioGenerateButton',
-  () => ({
-    StudioGenerateButton: () => null,
-  }),
-)
-vi.mock('@/components/business/ImageAttachmentPreviewStrip', () => ({
-  ImageAttachmentPreviewStrip: () => null,
-}))
-// 两台跳转那一行走 `@/i18n/navigation`，jsdom 里解不到 next/navigation。
-vi.mock('./StudioDialectJumpHint', () => ({
-  StudioDialectJumpHint: () => null,
-}))
-vi.mock('./StudioTagAddCharacter', () => ({
-  StudioTagAddCharacter: ({
-    onAdd,
-  }: {
-    onAdd: (seed: { prompt: string }) => void
-  }) => (
-    <button type="button" onClick={() => onAdd({ prompt: '' })}>
-      addCharacter
-    </button>
-  ),
-}))
-vi.mock('./StudioTagCharacterMenuExtra', () => ({
-  StudioTagCharacterMenuExtra: () => null,
-  sameTags: (a: string, b: string) => a === b,
-}))
-vi.mock('./StudioTagTextField', () => ({
-  StudioTagTextField: ({
-    label,
-    chips,
-    onChange,
-  }: {
-    label: string
-    chips: readonly TagChip[]
-    onChange: (chips: TagChip[]) => void
-  }) => (
-    <button
-      type="button"
-      data-chips={chips.map((chip) => chip.text).join(',')}
-      onClick={() => onChange([...chips, { text: 'rain', weight: 1 }])}
-    >
-      {label}
-    </button>
-  ),
-}))
+import { STUDIO_GUIDE_SEEN_STORAGE_KEY } from '@/constants/studio'
+import type { NovelAiCharacterLayout } from '@/types/novelai'
+import { stubBrowserLayout } from '@/test/browser-stubs'
+import { text } from '@/test/i18n-text'
+import {
+  fakeStudioServer,
+  renderWithStudio,
+  settle,
+  type StudioHandle,
+} from '@/test/studio-harness'
+import { DESKTOP_WIDTH, MOBILE_WIDTH, setViewportWidth } from '@/test/viewport'
 
 import { StudioTagsComposer } from './StudioTagsComposer'
 
-describe('标签台底部输入框 · 编辑谁', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    Element.prototype.scrollIntoView = vi.fn()
-    mocks.runModels = []
-    mocks.advancedParams = {}
-    mocks.negative = []
-    mocks.activeIndex = null
-    mocks.mode = 'grid'
-    mocks.characters = [{ prompt: 'red eyes', negativePrompt: '' }]
+/**
+ * 标签台底部输入框，全程真的：真工作台（真 reducer 存整体标签 / 角色构图）、真
+ * `useNovelAiCharacters`、真标签输入框、真页签、真「画面文字 / 台词 / 人数提示」、真工具行；
+ * 只假网络（工作台挂载那几条回空）、屏宽，以及 jsdom 没有的 `scrollIntoView`。
+ * 「编辑谁」看的是真工作台状态里那一份标签落到了哪。
+ *
+ * ⚠ 原「模型不支持角色构图时页签只剩两格」没有迁：标签台只上架 NovelAI（四个型号都能
+ * 角色构图，PixAI 暂停），没选模型时工作台也会自动落一个 NovelAI —— 真页面上到不了。
+ */
+
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({ isLoaded: true, isSignedIn: true, userId: 'user-tags' }),
+}))
+vi.mock('next/navigation', () => ({
+  useSearchParams: () => new URLSearchParams(),
+  usePathname: () => '/studio/image/tags',
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+}))
+vi.mock('@/i18n/navigation', () => ({
+  usePathname: () => '/studio/image/tags',
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  Link: ({ children, href }: { children: React.ReactNode; href: string }) => (
+    <a href={href}>{children}</a>
+  ),
+}))
+
+const T = (key: string, values?: Record<string, string | number>) =>
+  text(`StudioTags.${key}`, values)
+const CAST = (key: string, values?: Record<string, string | number>) =>
+  T(`cast.${key}`, values)
+
+type Character = NovelAiCharacterLayout['characters'][number]
+const person = (prompt: string, negativePrompt = ''): Character => ({
+  prompt,
+  negativePrompt,
+  position: { x: 0.5, y: 0.5 },
+})
+
+const scrollIntoView = vi.fn()
+
+beforeEach(() => {
+  stubBrowserLayout()
+  setViewportWidth(DESKTOP_WIDTH)
+  localStorage.setItem(STUDIO_GUIDE_SEEN_STORAGE_KEY, '1')
+  scrollIntoView.mockClear()
+  Element.prototype.scrollIntoView = scrollIntoView
+  fakeStudioServer()
+})
+afterEach(() => vi.unstubAllGlobals())
+
+/**
+ * 真标签台：选一个 NovelAI 型号（缺省 V5，自由站位），
+ * 摆好整体标签 / 角色 / 正在编辑谁，再渲染底部输入框。
+ */
+async function renderComposer(
+  props: Partial<React.ComponentProps<typeof StudioTagsComposer>> = {},
+  {
+    modelId = AI_MODELS.NOVELAI_V5_FULL as string,
+    tags = ['solo'],
+    negative = [] as string[],
+    characters = [person('red eyes')],
+    active = null as number | null,
+  } = {},
+) {
+  const view = renderWithStudio(
+    <StudioTagsComposer onOpenPanel={vi.fn()} {...props} />,
+  )
+  await settle()
+  act(() => {
+    const { dispatch } = view.studio.current
+    dispatch({ type: 'SET_PROMPT_DIALECT', payload: 'tags' })
+    dispatch({ type: 'SET_OPTION_ID', payload: `workspace:${modelId}` })
   })
-
-  it('整体页改的是全局标签', () => {
-    render(<StudioTagsComposer onOpenPanel={vi.fn()} />)
-    const positive = screen.getByRole('button', { name: 'positiveLabel' })
-    expect(positive).toHaveAttribute('data-chips', 'solo')
-
-    fireEvent.click(positive)
-    expect(mocks.dispatch).toHaveBeenCalledWith({
+  // 先落角色（`SET_ADVANCED_PARAMS` 整份换掉），再写标签（负向会同步进 advancedParams）。
+  act(() => {
+    const { dispatch, state } = view.studio.current
+    if (characters.length)
+      dispatch({
+        type: 'SET_ADVANCED_PARAMS',
+        payload: {
+          ...state.advancedParams,
+          novelAiLayout: { positioning: 'auto', characters },
+        },
+      })
+  })
+  act(() => {
+    const { dispatch } = view.studio.current
+    const chips = (list: string[]) => list.map((t) => ({ text: t, weight: 1 }))
+    dispatch({
       type: 'SET_TAG_CHIPS',
-      payload: {
-        polarity: 'positive',
-        chips: [
-          { text: 'solo', weight: 1 },
-          { text: 'rain', weight: 1 },
-        ],
-      },
+      payload: { polarity: 'positive', chips: chips(tags) },
     })
-    expect(mocks.update).not.toHaveBeenCalled()
+    dispatch({
+      type: 'SET_TAG_CHIPS',
+      payload: { polarity: 'negative', chips: chips(negative) },
+    })
+    dispatch({ type: 'SET_ACTIVE_TAG_CHARACTER', payload: active })
+  })
+  return view.studio as { current: StudioHandle }
+}
+
+const field = (name: string) =>
+  screen.getByRole('combobox', { name }) as HTMLTextAreaElement
+
+/** 在框尾补一格 `rain`，像真的打字（逗号收成一格）。 */
+function appendRain(input: HTMLTextAreaElement) {
+  const value = input.value ? `${input.value}, rain, ` : 'rain, '
+  fireEvent.change(input, {
+    target: { value, selectionStart: value.length, selectionEnd: value.length },
+  })
+}
+
+const layoutOf = (studio: { current: StudioHandle }) =>
+  studio.current.state.advancedParams.novelAiLayout?.characters ?? []
+const tagsOf = (studio: { current: StudioHandle }) =>
+  studio.current.state.tagChips.map((chip) => chip.text)
+
+describe('标签台底部输入框 · 编辑谁（桌面）', () => {
+  it('整体页改的是全局标签，⛔ 碰角色', async () => {
+    const studio = await renderComposer()
+    const input = field(T('positiveLabel'))
+    expect(input).toHaveValue('solo')
+
+    appendRain(input)
+    expect(tagsOf(studio)).toEqual(['solo', 'rain'])
+    expect(layoutOf(studio)[0]?.prompt).toBe('red eyes')
   })
 
-  it('角色页改的是那一位角色，⛔ 不碰全局', () => {
-    mocks.activeIndex = 0
-    render(<StudioTagsComposer onOpenPanel={vi.fn()} />)
-    const positive = screen.getByRole('button', {
-      name: 'characterPositiveLabel:1',
-    })
-    expect(positive).toHaveAttribute('data-chips', 'red eyes')
+  it('角色页改的是那一位角色，⛔ 碰全局', async () => {
+    const studio = await renderComposer({}, { active: 0 })
+    const input = field(T('characterPositiveLabel', { number: 1 }))
+    expect(input).toHaveValue('red eyes')
 
-    fireEvent.click(positive)
-    expect(mocks.update).toHaveBeenCalledWith(0, { prompt: 'red eyes, rain' })
-    expect(mocks.dispatch).not.toHaveBeenCalled()
+    appendRain(input)
+    expect(layoutOf(studio)[0]?.prompt).toBe('red eyes, rain')
+    expect(tagsOf(studio)).toEqual(['solo'])
   })
 
-  it('分页与角色构图面板共用同一个「正在编辑谁」', () => {
-    const { unmount } = render(<StudioTagsComposer onOpenPanel={vi.fn()} />)
+  it('页签切换的就是工作台里那一份「正在编辑谁」（角色构图面板读的同一份）', async () => {
+    const studio = await renderComposer()
     fireEvent.click(
-      screen.getByRole('tab', { name: /^workbench\.characterNumber:1/ }),
+      screen.getByRole('tab', {
+        name: new RegExp(`^${T('workbench.characterNumber', { number: 1 })}`),
+      }),
     )
-    expect(mocks.select).toHaveBeenCalledWith(0)
-    unmount()
-
-    mocks.activeIndex = 0
-    render(<StudioTagsComposer onOpenPanel={vi.fn()} />)
-    fireEvent.click(screen.getByRole('tab', { name: /^wholeTab/ }))
-    expect(mocks.select).toHaveBeenLastCalledWith(null)
-  })
-
-  it('模型不支持角色构图时页签只剩「整体 · 负向」', () => {
-    mocks.mode = null
-    render(<StudioTagsComposer onOpenPanel={vi.fn()} />)
-    expect(screen.getAllByRole('tab')).toHaveLength(2)
+    expect(studio.current.state.activeTagCharacterIndex).toBe(0)
     expect(
-      screen.queryByRole('button', { name: 'addCharacter' }),
-    ).not.toBeInTheDocument()
-    expect(
-      screen.queryByRole('button', { name: /workbench\.composition/ }),
-    ).not.toBeInTheDocument()
+      field(T('characterPositiveLabel', { number: 1 })),
+    ).toBeInTheDocument()
+
+    fireEvent.click(
+      screen.getByRole('tab', { name: new RegExp(`^${T('wholeTab')}`) }),
+    )
+    expect(studio.current.state.activeTagCharacterIndex).toBeNull()
   })
 
   // 画风串 2026-09-27 取消：工具行里没有那颗 chip 了。
-  it('工具行没有「画风串」', () => {
-    render(<StudioTagsComposer onOpenPanel={vi.fn()} />)
+  it('工具行没有「画风串」', async () => {
+    await renderComposer()
     expect(
-      screen.queryByRole('button', { name: 'workbench.blocks' }),
+      screen.queryByRole('button', { name: T('workbench.blocks') }),
     ).not.toBeInTheDocument()
-  })
-  it('手机默认只展开正向，展开负向可编辑，收起后再打开保留标签', () => {
-    mocks.negative = [{ text: 'blurry', weight: 1 }]
-    render(<StudioTagsComposer mobile onOpenPanel={vi.fn()} />)
-    expect(
-      screen.getByRole('button', { name: 'positiveLabel' }),
-    ).toBeInTheDocument()
-    const toggle = screen.getByRole('button', { name: /negativeLabel\s*1/ })
-    expect(toggle).toHaveAttribute('aria-expanded', 'false')
-    expect(
-      screen.queryByRole('button', { name: 'negativeLabel' }),
-    ).not.toBeInTheDocument()
-    fireEvent.click(toggle)
-    expect(Element.prototype.scrollIntoView).toHaveBeenCalledWith({
-      block: 'nearest',
-    })
-    const field = screen.getByRole('button', {
-      name: 'negativeLabel',
-    })
-    expect(field).toHaveAttribute('data-chips', 'blurry')
-    fireEvent.click(field)
-    expect(mocks.dispatch).toHaveBeenCalledWith({
-      type: 'SET_TAG_CHIPS',
-      payload: {
-        polarity: 'negative',
-        chips: [
-          { text: 'blurry', weight: 1 },
-          { text: 'rain', weight: 1 },
-        ],
-      },
-    })
-    fireEvent.click(toggle)
-    fireEvent.click(toggle)
-    expect(
-      screen.getByRole('button', { name: 'negativeLabel' }),
-    ).toHaveAttribute('data-chips', 'blurry')
-  })
-
-  // owner 2026-10-15「看图片作为重点」：手机收起态只有一行摘要 + 工具行。
-  it('手机收起态只留一行摘要，点它交给宿主展开', () => {
-    const onExpand = vi.fn()
-    render(
-      <StudioTagsComposer
-        mobile
-        compact
-        onExpand={onExpand}
-        onOpenPanel={vi.fn()}
-      />,
-    )
-    expect(
-      screen.queryByRole('button', { name: 'positiveLabel' }),
-    ).not.toBeInTheDocument()
-    expect(
-      screen.queryByRole('button', { name: /negativeLabel/ }),
-    ).not.toBeInTheDocument()
-    const summary = screen.getByRole('button', { name: 'compactExpand' })
-    expect(summary).toHaveTextContent('solo')
-    fireEvent.click(summary)
-    expect(onExpand).toHaveBeenCalledTimes(1)
-    expect(screen.getByTestId('studio-mobile-add')).toBeInTheDocument()
-  })
-
-  it('手机角色页展开负向只更新当前角色', () => {
-    mocks.activeIndex = 0
-    render(<StudioTagsComposer mobile onOpenPanel={vi.fn()} />)
-    fireEvent.click(screen.getByRole('button', { name: 'negativeLabel' }))
-    fireEvent.click(screen.getAllByRole('button', { name: 'negativeLabel' })[1])
-    expect(mocks.update).toHaveBeenCalledWith(0, { negativePrompt: 'rain' })
-    expect(mocks.dispatch).not.toHaveBeenCalled()
-  })
-
-  // 2026-10-07 起画中文字改成角色页的台词与整体页的画面文字，「＋」里不再有那一页。
-  it('手机「＋」里不再有画中文字那一页', async () => {
-    mocks.runModels = [
-      {
-        modelId: AI_MODELS.NOVELAI_V5_FULL,
-        adapterType: AI_ADAPTER_TYPES.NOVELAI,
-      },
-    ]
-    render(<StudioTagsComposer mobile onOpenPanel={vi.fn()} />)
-    fireEvent.click(screen.getByTestId('studio-mobile-add'))
-    await screen.findByTestId('studio-mobile-add-catalog')
-    expect(screen.queryByTestId('studio-mobile-add-text')).toBeNull()
-  })
-
-  it('角色页：「＋ 台词」打开一行，写的字进这个人的台词', () => {
-    mocks.mode = 'free'
-    mocks.activeIndex = 0
-    mocks.characters = [
-      { prompt: 'girl', negativePrompt: '' },
-      { prompt: 'boy', negativePrompt: '' },
-    ]
-    render(<StudioTagsComposer onOpenPanel={vi.fn()} />)
-    expect(
-      screen.getByRole('button', { name: 'addInteraction' }),
-    ).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'addDialogue' }))
-    fireEvent.change(screen.getByRole('textbox', { name: 'dialogueAria:1' }), {
-      target: { value: 'Hi' },
-    })
-    expect(mocks.update).toHaveBeenCalledWith(0, { dialogue: 'Hi' })
-  })
-
-  it('一个人时没有「＋ 互动」（没有对象）', () => {
-    mocks.mode = 'free'
-    mocks.activeIndex = 0
-    mocks.characters = [{ prompt: 'girl', negativePrompt: '' }]
-    render(<StudioTagsComposer onOpenPanel={vi.fn()} />)
-    expect(screen.queryByRole('button', { name: 'addInteraction' })).toBeNull()
-    expect(
-      screen.getByRole('button', { name: 'addDialogue' }),
-    ).toBeInTheDocument()
-  })
-
-  it('整体页：「＋ 画面文字」加一行，人数对不上时一键改', () => {
-    mocks.mode = 'free'
-    mocks.characters = [
-      { prompt: 'girl, red hair', negativePrompt: '' },
-      { prompt: 'girl', negativePrompt: '' },
-    ]
-    render(<StudioTagsComposer onOpenPanel={vi.fn()} />)
-    fireEvent.click(screen.getByRole('button', { name: 'sceneText' }))
-    expect(mocks.dispatch).toHaveBeenCalledWith({
-      type: 'SET_ADVANCED_PARAMS',
-      payload: { novelAiSceneTexts: [{ kind: 'sign', text: '' }] },
-    })
-
-    expect(screen.getByText(/countHint:2,solo/)).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'countFix:2girls' }))
-    expect(mocks.dispatch).toHaveBeenCalledWith({
-      type: 'SET_TAG_CHIPS',
-      payload: {
-        polarity: 'positive',
-        chips: [{ text: '2girls', weight: 1 }],
-      },
-    })
   })
 
   // 标签台 A：负向是最右边那一格；进去后「写给」切整体 / 每位角色各自的负向。
-  it('负向页签：同一个框换成负向，写给谁由下面那一行切', () => {
-    mocks.negative = [{ text: 'lowres', weight: 1 }]
-    mocks.characters = [
-      { prompt: 'girl', negativePrompt: 'bad hands' },
-      { prompt: 'boy', negativePrompt: '' },
-    ]
-    render(<StudioTagsComposer onOpenPanel={vi.fn()} />)
-    // 在整体页：负向页签只数整体那一份（角色各自的进了角色页才显示）。
-    const negativeTab = screen.getByRole('tab', { name: /^tabs\.negative/ })
+  it('负向页签：同一个框换成负向，写给谁由下面那一行切', async () => {
+    const studio = await renderComposer(
+      {},
+      {
+        negative: ['lowres'],
+        characters: [person('girl', 'bad hands'), person('boy')],
+      },
+    )
+    // 在整体页：负向页签只数整体那一份。
+    const negativeTab = screen.getByRole('tab', {
+      name: new RegExp(`^${T('tabs.negative')}`),
+    })
     expect(negativeTab).toHaveTextContent('1')
     fireEvent.click(negativeTab)
-    const field = screen.getByRole('button', { name: 'tabs.negative' })
-    expect(field).toHaveAttribute('data-chips', 'lowres')
-    fireEvent.click(field)
-    expect(mocks.dispatch).toHaveBeenCalledWith({
-      type: 'SET_TAG_CHIPS',
-      payload: {
-        polarity: 'negative',
-        chips: [
-          { text: 'lowres', weight: 1 },
-          { text: 'rain', weight: 1 },
-        ],
-      },
-    })
-    expect(screen.getByText('tabs.writeFor')).toBeInTheDocument()
+
+    const input = field(T('tabs.negative'))
+    expect(input).toHaveValue('lowres')
+    appendRain(input)
+    expect(
+      studio.current.state.tagNegativeChips.map((chip) => chip.text),
+    ).toEqual(['lowres', 'rain'])
+    expect(screen.getByText(T('tabs.writeFor'))).toBeInTheDocument()
   })
 
   // owner 2026-10-25：选着角色 N，右上那格就是「角色 N 负向」，点了直接进她的负面。
-  it('选着角色 1 时负向页签写「角色 1 负向」，点了改的是那一位的负向', () => {
-    mocks.activeIndex = 0
-    mocks.negative = [{ text: 'lowres', weight: 1 }]
-    mocks.characters = [{ prompt: 'girl', negativePrompt: 'bad hands' }]
-    render(<StudioTagsComposer onOpenPanel={vi.fn()} />)
+  it('选着角色 1 时负向页签写「角色 1 负向」，点了改的是那一位的负向', async () => {
+    const studio = await renderComposer(
+      {},
+      {
+        active: 0,
+        negative: ['lowres'],
+        characters: [person('girl', 'bad hands')],
+      },
+    )
     const negativeTab = screen.getByRole('tab', {
-      name: /^tabs\.characterNegative:1/,
+      name: new RegExp(`^${T('tabs.characterNegative', { number: 1 })}`),
     })
     expect(negativeTab).toHaveTextContent('1')
     fireEvent.click(negativeTab)
-    const field = screen.getByRole('button', {
-      name: 'tabs.negative · workbench.characterNumber:1',
-    })
-    expect(field).toHaveAttribute('data-chips', 'bad hands')
-    fireEvent.click(field)
-    expect(mocks.update).toHaveBeenCalledWith(0, {
-      negativePrompt: 'bad hands, rain',
-    })
-  })
 
-  it('加人只有页签那颗 ＋', () => {
-    render(<StudioTagsComposer onOpenPanel={vi.fn()} />)
-    fireEvent.click(screen.getByRole('button', { name: 'addCharacter' }))
-    expect(mocks.add).toHaveBeenCalledTimes(1)
-  })
-
-  it('当前角色页签带 ⋯，其他页签没有', () => {
-    mocks.activeIndex = 0
-    mocks.characters = [
-      { prompt: 'girl', negativePrompt: '' },
-      { prompt: 'boy', negativePrompt: '' },
-    ]
-    render(<StudioTagsComposer onOpenPanel={vi.fn()} />)
-    expect(screen.getAllByRole('button', { name: /^tabs\.more/ })).toHaveLength(
-      1,
+    const input = field(
+      `${T('tabs.negative')} · ${T('workbench.characterNumber', { number: 1 })}`,
     )
+    expect(input).toHaveValue('bad hands')
+    appendRain(input)
+    expect(layoutOf(studio)[0]?.negativePrompt).toBe('bad hands, rain')
+    expect(
+      studio.current.state.tagNegativeChips.map((chip) => chip.text),
+    ).toEqual(['lowres'])
+  })
+
+  it('加人：页签那颗 ＋ 打开菜单，挑「空白」加一位并切过去', async () => {
+    const studio = await renderComposer()
+    fireEvent.click(screen.getByRole('button', { name: T('addMenu.trigger') }))
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: new RegExp(T('addMenu.blank.girl')),
+      }),
+    )
+    expect(layoutOf(studio).map((c) => c.prompt)).toEqual(['red eyes', 'girl'])
+    expect(studio.current.state.activeTagCharacterIndex).toBe(1)
+  })
+
+  it('当前角色页签带 ⋯，其他页签没有', async () => {
+    await renderComposer(
+      {},
+      { active: 0, characters: [person('girl'), person('boy')] },
+    )
+    expect(
+      screen.getAllByRole('button', {
+        name: new RegExp(`^${T('tabs.more', { who: '.+' })}$`),
+      }),
+    ).toHaveLength(1)
+  })
+
+  it('角色页：「＋ 台词」打开一行，写的字进这个人的台词', async () => {
+    const studio = await renderComposer(
+      {},
+      { active: 0, characters: [person('girl'), person('boy')] },
+    )
+    expect(
+      screen.getByRole('button', { name: CAST('addInteraction') }),
+    ).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: CAST('addDialogue') }))
+    fireEvent.change(
+      screen.getByRole('textbox', {
+        name: CAST('dialogueAria', { number: 1 }),
+      }),
+      { target: { value: 'Hi' } },
+    )
+    expect(layoutOf(studio)[0]?.dialogue).toBe('Hi')
+  })
+
+  it('一个人时没有「＋ 互动」（没有对象）', async () => {
+    await renderComposer({}, { active: 0, characters: [person('girl')] })
+    expect(
+      screen.queryByRole('button', { name: CAST('addInteraction') }),
+    ).toBeNull()
+    expect(
+      screen.getByRole('button', { name: CAST('addDialogue') }),
+    ).toBeInTheDocument()
+  })
+
+  it('整体页：「＋ 画面文字」加一行，人数对不上时一键改', async () => {
+    const studio = await renderComposer(
+      {},
+      { characters: [person('girl, red hair'), person('girl')] },
+    )
+    fireEvent.click(screen.getByRole('button', { name: CAST('sceneText') }))
+    expect(studio.current.state.advancedParams.novelAiSceneTexts).toEqual([
+      { kind: 'sign', text: '' },
+    ])
+
+    expect(
+      screen.getByText(CAST('countHint', { count: 2, tags: 'solo' }), {
+        exact: false,
+      }),
+    ).toBeInTheDocument()
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: CAST('countFix', { tags: '2girls' }),
+      }),
+    )
+    expect(tagsOf(studio)).toEqual(['2girls'])
+  })
+})
+
+describe('标签台底部输入框（手机）', () => {
+  beforeEach(() => setViewportWidth(MOBILE_WIDTH))
+
+  it('默认只展开正向；展开负向可编辑，收起后再打开标签还在', async () => {
+    const studio = await renderComposer(
+      { mobile: true },
+      { negative: ['blurry'] },
+    )
+    expect(field(T('positiveLabel'))).toBeInTheDocument()
+    const toggle = screen.getByRole('button', {
+      name: new RegExp(`${T('negativeLabel')}\\s*1`),
+    })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(
+      screen.queryByRole('combobox', { name: T('negativeLabel') }),
+    ).not.toBeInTheDocument()
+
+    fireEvent.click(toggle)
+    // 手机上展开的负向栏要滚进来。
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' })
+    const input = field(T('negativeLabel'))
+    expect(input).toHaveValue('blurry')
+    appendRain(input)
+    expect(
+      studio.current.state.tagNegativeChips.map((chip) => chip.text),
+    ).toEqual(['blurry', 'rain'])
+
+    fireEvent.click(toggle)
+    fireEvent.click(toggle)
+    expect(field(T('negativeLabel'))).toHaveValue('blurry, rain')
+  })
+
+  it('角色页展开负向只更新当前角色', async () => {
+    const studio = await renderComposer({ mobile: true }, { active: 0 })
+    fireEvent.click(
+      screen.getByRole('button', { name: new RegExp(T('negativeLabel')) }),
+    )
+    appendRain(field(T('negativeLabel')))
+    expect(layoutOf(studio)[0]?.negativePrompt).toBe('rain')
+    expect(studio.current.state.tagNegativeChips).toEqual([])
+  })
+
+  // owner 2026-10-15「看图片作为重点」：手机收起态只有一行摘要 + 工具行。
+  it('收起态只留一行摘要，点它交给宿主展开', async () => {
+    const onExpand = vi.fn()
+    await renderComposer({ mobile: true, compact: true, onExpand })
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: new RegExp(T('negativeLabel')) }),
+    ).not.toBeInTheDocument()
+    const summary = screen.getByRole('button', { name: T('compactExpand') })
+    expect(summary).toHaveTextContent('solo')
+    fireEvent.click(summary)
+    expect(onExpand).toHaveBeenCalledTimes(1)
+    expect(
+      screen.getByRole('button', { name: text('StudioMobile.add') }),
+    ).toBeInTheDocument()
+  })
+
+  // 2026-10-07 起画中文字改成角色页的台词与整体页的画面文字，「＋」里不再有那一页。
+  it('「＋」里是模板 · 查资料 · 识图 · 构图，没有画中文字那一页', async () => {
+    const onOpenPanel = vi.fn()
+    await renderComposer({ mobile: true, onOpenPanel })
+    fireEvent.click(
+      screen.getByRole('button', { name: text('StudioMobile.add') }),
+    )
+    fireEvent.click(
+      await screen.findByRole('button', { name: T('workbench.lookup') }),
+    )
+    expect(onOpenPanel).toHaveBeenCalledWith('catalog')
+    expect(screen.queryByTestId('studio-mobile-add-text')).toBeNull()
   })
 })

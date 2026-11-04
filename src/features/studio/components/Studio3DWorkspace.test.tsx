@@ -1,122 +1,108 @@
-import type { ReactNode } from 'react'
-import { fireEvent, render, screen } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { API_ENDPOINTS } from '@/constants/config'
+import {
+  AI_ADAPTER_TYPES,
+  getDefaultProviderConfig,
+} from '@/constants/providers'
+import { ApiKeysProvider } from '@/contexts/api-keys-context'
+import { fakeServer, renderWithApp } from '@/test/app-harness'
+import { stubBrowserLayout } from '@/test/browser-stubs'
+import { text } from '@/test/i18n-text'
+import { settle } from '@/test/studio-harness'
+import { DESKTOP_WIDTH, MOBILE_WIDTH, setViewportWidth } from '@/test/viewport'
+import type { UserApiKeyRecord } from '@/types'
+
 import { Studio3DWorkspace } from './Studio3DWorkspace'
 
-const mocks = vi.hoisted(() => ({
-  mobile: false,
-  hasKey: true,
-  /** key 名单回没回来 —— 默认回来了。 */
-  keysLoaded: true,
-  error: null as string | null,
-  generate: vi.fn(),
-  reset: vi.fn(),
-  restore: vi.fn(),
+/**
+ * 3D 台，全程真的：真 `useGenerate3D` / `useGenerateMultiView`、真 key 名单、真模型选择、
+ * 真配置窗、真弹窗；只假网络（key 列表、`POST /api/generate-3d`）与屏宽。
+ */
+
+const auth = vi.hoisted(() => ({ userId: 'user-0', n: 0 }))
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({ isLoaded: true, isSignedIn: true, userId: auth.userId }),
 }))
 vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(),
 }))
-vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
-vi.mock('next/image', () => ({ default: () => null }))
-vi.mock('@/hooks/use-mobile', () => ({
-  useIsMobile: () => mocks.mobile,
-  useIsTablet: () => false,
-}))
-vi.mock('@/contexts/api-keys-context', () => ({
-  useApiKeysContext: () => ({
-    keys: mocks.hasKey
-      ? [
-          {
-            id: 'key',
-            adapterType: AI_ADAPTER_TYPES.HYPER3D_RODIN,
-            isActive: true,
-          },
-        ]
-      : [],
-    isLoading: false,
-    hasLoaded: mocks.keysLoaded,
-  }),
-}))
-vi.mock('@/features/studio/hooks/use-generate-3d', () => ({
-  useGenerate3D: () => ({
-    isGenerating: false,
-    stage: 'idle',
-    elapsedSeconds: 0,
-    error: mocks.error,
-    generate: mocks.generate,
-    reset: mocks.reset,
-  }),
-}))
-vi.mock('@/features/studio/hooks/use-generate-multiview', () => ({
-  useGenerateMultiView: () => ({
-    isGenerating: false,
-    views: [],
-    generate: vi.fn(),
-    restore: mocks.restore,
-    reset: mocks.reset,
-  }),
-}))
-vi.mock('@/components/business/ModelViewer', () => ({
-  ModelViewer: () => null,
-}))
-vi.mock('@/components/business/WireframeModelPreview', () => ({
-  WireframeModelPreview: () => null,
-}))
-vi.mock('@/features/assets', () => ({
-  AssetSelectorDialog: () => null,
-}))
-vi.mock('@/components/business/studio-shared/pickers', () => ({
-  MainModelPicker: () => null,
-}))
-vi.mock('@/components/business/studio-shared/setup/QuickSetupDialog', () => ({
-  QuickSetupDialog: ({ open }: { open: boolean }) =>
-    open ? <div>setup-dialog</div> : null,
-}))
-vi.mock('@/components/ui/responsive-dialog', () => ({
-  ResponsiveDialog: ({
-    open,
-    children,
-  }: {
-    open: boolean
-    children: ReactNode
-  }) => (open ? <div role="dialog">{children}</div> : null),
-  ResponsiveDialogContent: ({ children }: { children: ReactNode }) => (
-    <div>{children}</div>
-  ),
-  ResponsiveDialogHeader: ({ children }: { children: ReactNode }) => (
-    <div>{children}</div>
-  ),
-  ResponsiveDialogTitle: ({ children }: { children: ReactNode }) => (
-    <h2>{children}</h2>
-  ),
-  ResponsiveDialogDescription: ({ children }: { children: ReactNode }) => (
-    <p>{children}</p>
-  ),
+vi.mock('@/i18n/navigation', () => ({
+  usePathname: () => '/studio/3d',
+  useRouter: () => ({ push: vi.fn() }),
 }))
 
+const T = (key: string) => text(`Model3DGenerate.${key}`)
+const ok = (data: unknown) => Response.json({ success: true, data })
+
+const RODIN_KEY: UserApiKeyRecord = {
+  id: 'rodin-key',
+  modelId: 'rodin-gen-2.5',
+  adapterType: AI_ADAPTER_TYPES.HYPER3D_RODIN,
+  providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.HYPER3D_RODIN),
+  label: 'Rodin',
+  maskedKey: 'rodin-****',
+  isActive: true,
+  createdAt: new Date('2026-01-01'),
+}
+
+let server: ReturnType<typeof fakeServer>
+/** `keys`：名单回什么；`'pending'` = 一直没回来。 */
+function setup(keys: UserApiKeyRecord[] | 'pending' = [RODIN_KEY]) {
+  server = fakeServer()
+    .on('GET', API_ENDPOINTS.API_KEYS, () =>
+      keys === 'pending' ? new Promise<Response>(() => {}) : ok(keys),
+    )
+    .on('POST', API_ENDPOINTS.GENERATE_3D, () =>
+      Response.json(
+        { success: false, error: 'Provider timed out' },
+        { status: 504 },
+      ),
+    )
+}
+
 beforeEach(() => {
-  mocks.mobile = false
-  mocks.hasKey = true
-  mocks.keysLoaded = true
-  mocks.error = null
-  vi.clearAllMocks()
+  auth.n += 1
+  auth.userId = `user-${auth.n}`
+  stubBrowserLayout()
+  setViewportWidth(DESKTOP_WIDTH)
 })
-const mount = () =>
-  render(
+afterEach(() => vi.unstubAllGlobals())
+
+async function mount() {
+  renderWithApp(
     <Studio3DWorkspace
       initialGenerations={[]}
       initialTotal={0}
       initialHasMore={false}
     />,
+    { inner: ApiKeysProvider },
   )
+  await settle()
+  await settle()
+}
 
-describe('Studio3DWorkspace approved layout', () => {
-  it('keeps format accessible while geometry controls are inside advanced settings', () => {
-    mount()
+const modeSelect = () =>
+  screen.getByRole('combobox', { name: T('rodinModeLabel') })
+const promptField = () =>
+  screen.getByLabelText(new RegExp(T('rodinPromptLabel')))
+
+function switchToText(prompt?: string) {
+  fireEvent.change(modeSelect(), { target: { value: 'text' } })
+  if (prompt !== undefined)
+    fireEvent.change(promptField(), { target: { value: prompt } })
+}
+
+const generateRequests = () =>
+  server.requests.filter((r) => r.path === API_ENDPOINTS.GENERATE_3D)
+
+describe('Studio3DWorkspace 布局与生成', () => {
+  it('格式放在外面，几何参数收进「高级设置」；没参考图时生成键不可点', async () => {
+    setup()
+    await mount()
     const advanced = screen
-      .getByText('rodinAdvancedSectionLabel')
+      .getByText(T('rodinAdvancedSectionLabel'))
       .closest('details')
     expect(advanced).not.toHaveAttribute('open')
     expect(advanced?.querySelector('#rodin-tapose')).not.toBeNull()
@@ -124,70 +110,76 @@ describe('Studio3DWorkspace approved layout', () => {
       document.getElementById('rodin-format')?.closest('details'),
     ).toBeNull()
     expect(
-      screen.getByRole('button', { name: 'selectImageToGenerate' }),
+      screen.getByRole('button', { name: T('selectImageToGenerate') }),
     ).toBeDisabled()
   })
-  it('retains the text draft when switching input modes without submitting', () => {
-    mount()
-    fireEvent.change(screen.getByRole('combobox', { name: 'rodinModeLabel' }), {
-      target: { value: 'text' },
-    })
-    fireEvent.change(screen.getByLabelText(/rodinPromptLabel/), {
-      target: { value: 'A ceramic vase' },
-    })
-    expect(screen.getByRole('button', { name: 'generateButton' })).toBeEnabled()
-    fireEvent.change(screen.getByRole('combobox', { name: 'rodinModeLabel' }), {
-      target: { value: 'image' },
-    })
+
+  it('切输入模式不丢已写的文字，也不发生成', async () => {
+    setup()
+    await mount()
+    switchToText('A ceramic vase')
     expect(
-      screen.getByRole('button', { name: 'selectImageToGenerate' }),
+      screen.getByRole('button', { name: T('generateButton') }),
+    ).toBeEnabled()
+
+    fireEvent.change(modeSelect(), { target: { value: 'image' } })
+    expect(
+      screen.getByRole('button', { name: T('selectImageToGenerate') }),
     ).toBeDisabled()
-    fireEvent.change(screen.getByRole('combobox', { name: 'rodinModeLabel' }), {
-      target: { value: 'text' },
-    })
-    expect(screen.getByLabelText(/rodinPromptLabel/)).toHaveValue(
-      'A ceramic vase',
-    )
-    expect(mocks.generate).not.toHaveBeenCalled()
+    switchToText()
+    expect(promptField()).toHaveValue('A ceramic vase')
+    expect(generateRequests()).toHaveLength(0)
   })
-  it('key 名单还没回来：不写「配置 API Key」，有输入就照常生成', () => {
-    mocks.keysLoaded = false
-    mocks.hasKey = false
-    mount()
+
+  it('key 名单还没回来：不写「配置 API Key」，有输入就照常生成', async () => {
+    setup('pending')
+    await mount()
     expect(
-      screen.queryByRole('button', { name: 'setupApiKeyButton' }),
+      screen.queryByRole('button', { name: T('setupApiKeyButton') }),
     ).not.toBeInTheDocument()
 
-    fireEvent.change(screen.getByRole('combobox', { name: 'rodinModeLabel' }), {
-      target: { value: 'text' },
-    })
-    fireEvent.change(screen.getByLabelText(/rodinPromptLabel/), {
-      target: { value: 'A ceramic vase' },
-    })
-    fireEvent.click(screen.getByRole('button', { name: 'generateButton' }))
-    expect(mocks.generate).toHaveBeenCalledTimes(1)
-    expect(screen.queryByText('setup-dialog')).not.toBeInTheDocument()
+    switchToText('A ceramic vase')
+    fireEvent.click(screen.getByRole('button', { name: T('generateButton') }))
+    await waitFor(() => expect(generateRequests()).toHaveLength(1))
+    expect(
+      screen.queryByLabelText(text('QuickSetup.step2')),
+    ).not.toBeInTheDocument()
   })
-  it('offers inline setup instead of a disabled missing-key action', () => {
-    mocks.hasKey = false
-    mount()
-    const buttons = screen.getAllByRole('button', { name: 'setupApiKeyButton' })
-    fireEvent.click(buttons[buttons.length - 1])
-    expect(screen.getByText('setup-dialog')).toBeInTheDocument()
-    expect(mocks.generate).not.toHaveBeenCalled()
+
+  it('真缺 key：生成键换成「配置 API Key」，点了就地弹配置窗、⛔ 不发生成', async () => {
+    setup([])
+    await mount()
+    const buttons = screen.getAllByRole('button', {
+      name: T('setupApiKeyButton'),
+    })
+    fireEvent.click(buttons[buttons.length - 1]!)
+    expect(
+      await screen.findByLabelText(text('QuickSetup.step2')),
+    ).toBeInTheDocument()
+    expect(generateRequests()).toHaveLength(0)
   })
-  it('opens settings in the narrow-screen dialog', () => {
-    mocks.mobile = true
-    mount()
+
+  it('窄屏：模型设置收进弹窗', async () => {
+    setViewportWidth(MOBILE_WIDTH)
+    setup()
+    await mount()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'settingsTitle' }))
-    expect(screen.getByRole('dialog')).toBeInTheDocument()
-    expect(screen.getByText('rodinModeLabel')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: T('settingsTitle') }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText(T('rodinModeLabel'))).toBeInTheDocument()
   })
-  it('shows real error details and retained-draft feedback', () => {
-    mocks.error = 'Provider timed out'
-    mount()
-    expect(screen.getByRole('alert')).toHaveTextContent('Provider timed out')
-    expect(screen.getByRole('alert')).toHaveTextContent('draftPreserved')
+
+  // 服务端回的英文原话经真错误分类落成这一语言的那句，⛔ 原样贴英文。
+  it('生成失败：报分类后的原因，并告诉他输入与参数都还在', async () => {
+    setup()
+    await mount()
+    switchToText('A ceramic vase')
+    fireEvent.click(screen.getByRole('button', { name: T('generateButton') }))
+
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent(text('Errors.generation.provider_timeout'))
+    expect(alert).not.toHaveTextContent('Provider timed out')
+    expect(alert).toHaveTextContent(T('draftPreserved'))
+    expect(promptField()).toHaveValue('A ceramic vase')
   })
 })

@@ -216,6 +216,13 @@ jobs:
           cat /tmp/fake-worker.log
 
       - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-pages
+          path: e2e/.pages/
+          retention-days: 7
+
+      - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: e2e-report

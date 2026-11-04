@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest'
 
-import { configure } from '@testing-library/react'
+import { configure } from '@testing-library/dom'
 import { notifyManager } from '@tanstack/react-query'
 
 import { queryClient } from '@/lib/query-client'

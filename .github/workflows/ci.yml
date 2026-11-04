@@ -214,6 +214,9 @@ jobs:
         env:
           # 假大模型那张现签证书：只这一个进程信任它。
           NODE_EXTRA_CA_CERTS: /tmp/fake-llm.crt
+          # 文字模型一律走官方默认地址（不看 key 上的 baseUrl），只有 AI Gateway 这一个真配置口能改道：
+          # 指到假大模型，`https://api.deepseek.com/...` → `https://localhost:4011/deepseek/...`。
+          CLOUDFLARE_AI_GATEWAY_URL: https://localhost:4011
         run: |
           npm run start > /tmp/next.log 2>&1 &
           for i in $(seq 1 60); do curl -sf -o /dev/null http://localhost:3000/en && exit 0; sleep 2; done

@@ -5,8 +5,9 @@ import { api } from './helpers'
 /**
  * L4 主流程③：和角色聊天（docs/references/testing.md「测试标准」）。
  *
- * 只替掉边界：DeepSeek 由 `e2e/fake-llm/server.ts` 顶上（测试账号的 DeepSeek key 的
- * `baseUrl` 指过去）。应用这一侧全是真的：建角色 → 角色页点「和她聊」→ 助手换成她 →
+ * 只替掉边界：DeepSeek 由 `e2e/fake-llm/server.ts` 顶上。⚠ 文字模型不看 key 上的 `baseUrl`、
+ * 一律打官方默认地址，CI 用真配置口 `CLOUDFLARE_AI_GATEWAY_URL` 把它改道到假大模型
+ * （key 的 `baseUrl` 仍指过去，只为存 key 时那一下验 key 也落在假的上）。应用这一侧全是真的：建角色 → 角色页点「和她聊」→ 助手换成她 →
  * 回首页对话 → 输入框发一句 → 助手主循环真跑、真流式 → 界面上出现模型那句回答。
  */
 

@@ -1,6 +1,7 @@
 /**
  * L4 端到端用的**假大模型**（docs/references/testing.md「测试标准」）：只替掉边界——DeepSeek。
- * 测试账号存一把 DeepSeek key、`baseUrl` 指到这里；应用这一侧（选路、拼提示词、流式解析、
+ * 应用的文字模型一律打官方默认地址，CI 用 `CLOUDFLARE_AI_GATEWAY_URL` 改道到这里
+ * （路径变成 `/deepseek/...`，下面按结尾匹配）；应用这一侧（选路、拼提示词、流式解析、
  * 助手主循环、界面显示）全是真代码。
  *
  * 两个口都接（助手先走 Anthropic 兼容口，被拒才退回 chat 口，两条都得能跑）：

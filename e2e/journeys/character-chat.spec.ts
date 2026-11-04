@@ -43,7 +43,7 @@ test('建一个角色 → 和她聊 → 发一句 → 看到她的回答', async
   await expect(page).toHaveURL(/\/studio/)
 
   const message = `你好，我是测试 ${Date.now()}`
-  const composer = page.getByPlaceholder(/Tell me/).first()
+  const composer = page.getByRole('combobox', { name: /Tell me/ }).first()
   await composer.fill(message)
   await page.getByRole('button', { name: 'Send', exact: true }).first().click()
 

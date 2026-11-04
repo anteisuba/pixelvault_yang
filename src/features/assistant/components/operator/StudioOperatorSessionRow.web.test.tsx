@@ -7,9 +7,14 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react'
-import { createContext, useContext, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { ASSISTANT_SURFACE_IDS } from '@/types/assistant-conversation'
 import type { AssistantConversationSummary } from '@/types/assistant-conversation'
 
@@ -37,46 +42,6 @@ vi.mock('next-intl', () => ({
 const toastError = vi.hoisted(() => vi.fn())
 vi.mock('sonner', () => ({ toast: { error: toastError } }))
 
-vi.mock('@/components/ui/dropdown-menu', () => {
-  const Open = createContext(false)
-  return {
-    DropdownMenu: ({
-      open,
-      children,
-    }: {
-      open?: boolean
-      children: ReactNode
-    }) => <Open.Provider value={Boolean(open)}>{children}</Open.Provider>,
-    DropdownMenuTrigger: ({ children }: { children: ReactNode }) => children,
-    DropdownMenuContent: function Content({
-      children,
-      ...props
-    }: { children: ReactNode } & Record<string, unknown>) {
-      return useContext(Open) ? (
-        <div role="menu" data-testid={props['data-testid'] as string}>
-          {children}
-        </div>
-      ) : null
-    },
-    DropdownMenuSeparator: () => <hr />,
-    DropdownMenuItem: ({
-      children,
-      onSelect,
-      ...props
-    }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
-      onSelect?: (event: { preventDefault(): void }) => void
-    }) => (
-      <button
-        {...props}
-        data-mock-menu-item=""
-        onClick={(event) => onSelect?.(event)}
-      >
-        {children}
-      </button>
-    ),
-  }
-})
-
 /**
  * ⚠ 标题带着**存量噪音**（`reference image 1`）—— 预填那一条要验的正是
  * 「填的是看得见的短名还是库里那一份」，干净标题两者相同，验不出来。
@@ -87,6 +52,16 @@ const SESSION = {
   surface: ASSISTANT_SURFACE_IDS.imageStudio,
   updatedAt: new Date().toISOString(),
 } as unknown as AssistantConversationSummary
+
+/** 真的历史下拉（开着）：菜单里的行要挂在真的 Radix 菜单里，和头部那份一样。 */
+function OpenSessionMenu({ children }: { children: ReactNode }) {
+  return (
+    <DropdownMenu open modal={false}>
+      <DropdownMenuTrigger>history</DropdownMenuTrigger>
+      <DropdownMenuContent>{children}</DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
 
 function renderRow(
   overrides: Partial<Parameters<typeof StudioOperatorSessionRow>[0]> = {},
@@ -109,6 +84,7 @@ function renderRow(
       {...handlers}
       {...overrides}
     />,
+    overrides.inMenu === false ? {} : { wrapper: OpenSessionMenu },
   )
   return { ...handlers, ...view }
 }
@@ -158,7 +134,7 @@ describe('StudioOperatorSessionRow — 行上不放图标（方向 3）', () => 
   it('inMenu={false}：选中这一格是普通按钮（⛔ 菜单项离了菜单会报错）', () => {
     const { onSelect } = renderRow({ compact: true, inMenu: false })
     const item = screen.getByTestId('operator-session-item')
-    expect(item).not.toHaveAttribute('data-mock-menu-item')
+    expect(item).not.toHaveAttribute('role', 'menuitem')
     fireEvent.click(item)
     expect(onSelect).toHaveBeenCalledTimes(1)
   })

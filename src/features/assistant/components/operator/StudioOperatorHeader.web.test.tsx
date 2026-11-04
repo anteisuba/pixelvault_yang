@@ -17,7 +17,16 @@ import {
   setOperatorIncognito,
 } from '@/hooks/use-studio-operator-store'
 
+import { openRadixMenu } from '@/test/radix-menu'
+
 import { StudioOperatorHeader } from './StudioOperatorHeader'
+
+/** 真的 Radix 下拉：标题▾开历史，右上 ⋯ 开设置菜单。 */
+const openSessions = () =>
+  openRadixMenu(screen.getByTestId('operator-session-menu'))
+const openMore = () => openRadixMenu(screen.getByTestId('operator-more'))
+const sessionMenu = () =>
+  screen.getByTestId('operator-new-thread').closest('[role="menu"]')
 
 /**
  * 面板头部的回归闸（D7c ④ · 画板 `DesignD7cShell`「头部 · 改后」）。
@@ -38,79 +47,6 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
   useFormatter: () => ({ dateTime: () => '09/05' }),
 }))
-
-/**
- * Radix 的 portal 在 jsdom 里只会给这条断言添噪声，但**开合必须是真的**：
- * ③ 那一条要断言「两个入口开的是同一个受控菜单」。所以这份替身把 `open` 原样
- * 挂到 DOM 上，并让触发器把 `onOpenChange(true)` 调回去（Radix 真身做的就是这件事）。
- */
-vi.mock('@/components/ui/dropdown-menu', async () => {
-  const React = await import('react')
-  const OpenChangeContext = React.createContext<(next: boolean) => void>(
-    () => {},
-  )
-  return {
-    DropdownMenu: ({
-      children,
-      open,
-      onOpenChange,
-    }: {
-      children: React.ReactNode
-      open?: boolean
-      onOpenChange?: (next: boolean) => void
-    }) => (
-      <OpenChangeContext.Provider value={onOpenChange ?? (() => {})}>
-        <div
-          /* ⚠ 两个 `DropdownMenu` 在场（历史下拉 + 右上那颗 ⋯）：受控的那个才是
-             历史下拉，⛔ 两个共用一个 testid 会让 `getByTestId` 直接抛「找到多个」。 */
-          data-testid={
-            open === undefined
-              ? 'operator-more-menu'
-              : 'operator-session-dropdown'
-          }
-          data-open={open ? 'true' : 'false'}
-        >
-          {children}
-        </div>
-      </OpenChangeContext.Provider>
-    ),
-    DropdownMenuTrigger: ({ children }: { children: React.ReactNode }) => {
-      const onOpenChange = React.useContext(OpenChangeContext)
-      return <span onClick={() => onOpenChange(true)}>{children}</span>
-    },
-    /* ⚠ 把 `className` 原样透下来：`motion-reduce` 那条断言验的是**组件交给
-       原语的那串类名**，替身吞掉它等于验了个寂寞。 */
-    DropdownMenuContent: ({
-      children,
-      className,
-    }: {
-      children: React.ReactNode
-      className?: string
-    }) => (
-      <div
-        data-testid="operator-session-dropdown-content"
-        className={className}
-      >
-        {children}
-      </div>
-    ),
-    DropdownMenuItem: ({
-      children,
-      onSelect,
-      ...props
-    }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
-      onSelect?: () => void
-    }) => (
-      <button {...props} onClick={onSelect}>
-        {children}
-      </button>
-    ),
-    DropdownMenuLabel: ({ children }: { children: React.ReactNode }) => (
-      <div>{children}</div>
-    ),
-    DropdownMenuSeparator: () => <hr />,
-  }
-})
 
 const NOW = Date.now()
 const DAY_MS = 86_400_000
@@ -208,18 +144,22 @@ describe('StudioOperatorHeader', () => {
 
   it('历史只走标题▾一个入口（D12 B7：⋯ 里不再有第二个）', () => {
     renderHeader()
-    const dropdown = screen.getByTestId('operator-session-dropdown')
-    expect(dropdown.dataset.open).toBe('false')
+    expect(screen.queryByTestId('operator-new-thread')).toBeNull()
+    openMore()
+    expect(screen.getByTestId('operator-assistant-settings')).toBeTruthy()
     expect(screen.queryByTestId('operator-more-history')).toBeNull()
-    // Radix 真身把触发器的点击变成 onOpenChange(true)。
-    fireEvent.click(screen.getByTestId('operator-session-menu'))
-    expect(dropdown.dataset.open).toBe('true')
+    fireEvent.keyDown(document.activeElement ?? document.body, {
+      key: 'Escape',
+    })
+    openSessions()
+    expect(sessionMenu()).toBeTruthy()
   })
 
   it('下拉里是历史列表：每行一枚「今天 / 昨天 / MM-DD」，新会话在最底下', () => {
     const { onNewThread } = renderHeader({
       history: { ...HISTORY, sessions: SESSIONS },
     })
+    openSessions()
     const rows = screen.getAllByTestId('operator-session-item')
     expect(rows.map((row) => row.dataset.sessionId)).toEqual([
       'today-session',
@@ -246,6 +186,7 @@ describe('StudioOperatorHeader', () => {
    */
   it('⭐ 头一次加载 = 三条骨架，底下「新对话」照常在', () => {
     renderHeader({ history: { ...HISTORY, isHydrating: true, sessions: [] } })
+    openSessions()
 
     const skeleton = screen.getByTestId('operator-history-skeleton')
     expect(skeleton.children).toHaveLength(3)
@@ -263,6 +204,7 @@ describe('StudioOperatorHeader', () => {
     renderHeader({
       history: { ...HISTORY, isHydrating: true, sessions: SESSIONS },
     })
+    openSessions()
     expect(screen.queryByTestId('operator-history-skeleton')).toBeNull()
     expect(screen.getAllByTestId('operator-session-item')).toHaveLength(
       SESSIONS.length,
@@ -275,6 +217,7 @@ describe('StudioOperatorHeader', () => {
    */
   it('⭐ 一条都没有 = 一句灰字 + 底下那颗新对话', () => {
     renderHeader()
+    openSessions()
     expect(screen.getByTestId('operator-history-empty').textContent).toBe(
       'history.empty',
     )
@@ -288,9 +231,13 @@ describe('StudioOperatorHeader', () => {
   it('⭐ 点垃圾桶弹确认窗，确认才删那一行', async () => {
     const deleteSession = vi.fn().mockResolvedValue(true)
     renderHeader({ history: { ...HISTORY, sessions: SESSIONS, deleteSession } })
-    const deletes = screen.getAllByTestId('operator-session-delete')
-
-    fireEvent.click(deletes[1] as HTMLElement)
+    openSessions()
+    // 行菜单（右键）里那颗删除：真的第二层 Radix 下拉。
+    fireEvent.contextMenu(screen.getAllByTestId('operator-session-row')[1]!, {
+      clientX: 40,
+      clientY: 20,
+    })
+    fireEvent.click(screen.getByTestId('operator-session-delete'))
     expect(deleteSession).not.toHaveBeenCalled()
     expect(screen.getByRole('alertdialog')).toBeTruthy()
 
@@ -324,6 +271,7 @@ describe('StudioOperatorHeader', () => {
         currentSessionId: 'noisy-session',
       },
     })
+    openSessions()
 
     const pill = screen.getByTestId('operator-session-menu')
     expect(pill.textContent).not.toContain('reference image')
@@ -340,6 +288,7 @@ describe('StudioOperatorHeader', () => {
    */
   it('右上只有一颗 ⋯（28px 档，静止无框），菜单两项：设置 · 隐身', () => {
     const { onOpenAssistantSettings } = renderHeader()
+    openMore()
     expect(screen.getByTestId('operator-more').className).toContain('size-7')
     expect(screen.getByTestId('operator-more').className).not.toContain(
       'border',
@@ -348,11 +297,12 @@ describe('StudioOperatorHeader', () => {
     expect(screen.queryByTestId('operator-history-button')).toBeNull()
     expect(screen.queryByTestId('operator-collapse')).toBeNull()
 
+    // 隐身（56a 切片 4）：真开关，⛔ 不再是禁用占位。
+    expect(screen.getByTestId('operator-more-incognito')).not.toHaveAttribute(
+      'data-disabled',
+    )
     fireEvent.click(screen.getByTestId('operator-assistant-settings'))
     expect(onOpenAssistantSettings).toHaveBeenCalledTimes(1)
-
-    // 隐身（56a 切片 4）：真开关，⛔ 不再是禁用占位。
-    expect(screen.getByTestId('operator-more-incognito')).not.toBeDisabled()
   })
 
   /**
@@ -366,10 +316,13 @@ describe('StudioOperatorHeader', () => {
     // 关着时整枚不渲染（⛔ 不画停用态）。
     expect(screen.queryByTestId('operator-incognito-pill')).toBeNull()
 
+    openMore()
     fireEvent.click(screen.getByTestId('operator-more-incognito'))
     expect(screen.getByTestId('operator-incognito-pill')).toBeTruthy()
     expect(getOperatorState().incognito).toBe(true)
 
+    // 切一下菜单还开着（同一处再切回去）；被关了才重开。
+    if (!screen.queryByTestId('operator-more-incognito')) openMore()
     fireEvent.click(screen.getByTestId('operator-more-incognito'))
     expect(screen.queryByTestId('operator-incognito-pill')).toBeNull()
     expect(getOperatorState().incognito).toBe(false)
@@ -437,13 +390,10 @@ describe('StudioOperatorHeader', () => {
    */
   it('⭐ 动的那几处都挂着对应的 `motion-reduce:` 降级', () => {
     renderHeader()
+    openSessions()
 
-    // 历史下拉：keyframes 动画档。⚠ 同屏两张浮层（历史 + ⋯），认「装着新对话
-    // 那一颗」的那一张，⛔ 不靠顺序取。
-    const content = screen
-      .getAllByTestId('operator-session-dropdown-content')
-      .find((node) => node.contains(screen.getByTestId('operator-new-thread')))
-    expect(content?.className).toContain('motion-reduce:animate-none')
+    // 历史下拉：keyframes 动画档（认「装着新对话那一颗」的那一张）。
+    expect(sessionMenu()?.className).toContain('motion-reduce:animate-none')
 
     // 标题药丸与右上 ⋯：`transition-colors` 档。
     for (const id of ['operator-session-menu', 'operator-more']) {
@@ -465,11 +415,8 @@ describe('StudioOperatorHeader', () => {
     })
     // ⛔ 工作 / 聊天切换已去掉（用户 10-25）。
     expect(screen.queryByTestId('operator-mode-chat')).toBeNull()
-    fireEvent.click(screen.getByTestId('operator-session-menu'))
-    const content = screen.getAllByTestId(
-      'operator-session-dropdown-content',
-    )[0]
-    const text = content.textContent ?? ''
+    openSessions()
+    const text = sessionMenu()?.textContent ?? ''
     // 组按各组最近那一条排：Rin 那组在前，两条聊天归在一起，工作那组在后。
     expect(text.indexOf('chat.group')).toBeLessThan(
       text.indexOf('chat.workGroup'),

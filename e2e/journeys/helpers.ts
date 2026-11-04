@@ -1,3 +1,6 @@
+import { mkdir, writeFile } from 'node:fs/promises'
+import path from 'node:path'
+
 import type { Page } from '@playwright/test'
 
 export interface Envelope<T> {
@@ -28,5 +31,19 @@ export async function api<T = unknown>(
       return { ...json, status: response.status }
     },
     { method, path, body },
+  )
+}
+
+/**
+ * 存一份这一刻的截图 + 无障碍树到 `e2e/.pages/`（CI 每次传成 artifact「e2e-pages」）：
+ * 写下一步用例前看它找按钮 / 输入框的名字。
+ */
+export async function dumpPage(page: Page, name: string): Promise<void> {
+  const dir = path.join(__dirname, '..', '.pages')
+  await mkdir(dir, { recursive: true })
+  await page.screenshot({ path: path.join(dir, `${name}.png`) })
+  await writeFile(
+    path.join(dir, `${name}.aria.yml`),
+    await page.locator('body').ariaSnapshot(),
   )
 }

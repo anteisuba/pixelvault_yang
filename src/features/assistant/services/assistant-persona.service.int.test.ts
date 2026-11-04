@@ -1,5 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+vi.mock('server-only', () => ({}))
+
+import type { Prisma } from '@/lib/generated/prisma/client'
 import {
   ASSISTANT_AVATAR_CHOICE_IDS,
   ASSISTANT_AVATAR_PRESET_IDS,
@@ -9,30 +12,9 @@ import {
   ASSISTANT_ROUTE_MODEL_AUTO,
 } from '@/constants/assistant-persona'
 import { NODE_STUDIO_ASSISTANT_ROUTE_MODELS } from '@/constants/node-studio'
+import { db } from '@/lib/db'
 import type { UpdateAssistantPersonaRequest } from '@/types/assistant-persona'
-
-// ─── Mocks ──────────────────────────────────────────────────────
-
-const mockFindUnique = vi.fn()
-const mockUpsert = vi.fn()
-const mockCardFindFirst = vi.fn()
-
-vi.mock('@/lib/db', () => ({
-  db: {
-    assistantPersona: {
-      findUnique: (...args: unknown[]) => mockFindUnique(...args),
-      upsert: (...args: unknown[]) => mockUpsert(...args),
-    },
-    characterCard: {
-      findFirst: (...args: unknown[]) => mockCardFindFirst(...args),
-    },
-  },
-}))
-
-vi.mock('@/services/user.service', () => ({
-  ensureUser: vi.fn(async () => ({ id: 'db_user_1' })),
-}))
-
+import { chatReminder } from '@/features/assistant/prompt'
 import {
   getAssistantPersona,
   getAssistantPersonaByUserId,
@@ -42,28 +24,19 @@ import {
   sanitizeToneCustom,
   upsertAssistantPersona,
 } from '@/features/assistant/services/assistant-persona.service'
-import { chatReminder } from '@/features/assistant/prompt'
+import { createTestUser, resetDatabase } from '@/test/int/db'
 
+/** 人设读写——真库（L2a）：人设那一行、角色卡、造型、日记都是库里的行。 */
+let userId = ''
+let clerkId = ''
+
+/** 库里那一行（没用角色）。 */
 const STORED_ROW = {
   name: 'Mika',
-  avatarPreset: ASSISTANT_AVATAR_PRESET_IDS[0],
-  avatarUrl: null as string | null,
-  avatarChoice: null as string | null,
-  characterCardId: null as string | null,
-  nameFromCharacter: false,
-  toneFromCharacter: false,
-  characterCard: null as null | {
-    id: string
-    name: string
-    looks: { referenceSlots: unknown }[]
-    persona: unknown
-    isDeleted: boolean
-  },
-  tone: ASSISTANT_PERSONA_TONE_IDS.friendly,
-  toneCustom: null,
+  avatarPreset: ASSISTANT_AVATAR_PRESET_IDS[0] as string,
+  tone: ASSISTANT_PERSONA_TONE_IDS.friendly as string,
   verbosity: 'detailed',
   language: 'chinese',
-  routeModel: null,
   reasoningEffort: 'medium',
   nextStepHint: true,
   useMyWords: false,
@@ -121,54 +94,91 @@ const BASE_UPDATE: UpdateAssistantPersonaRequest = {
   addressUserAs: null,
 }
 
-const DENIA_CARD = {
-  id: 'card_denia',
-  name: 'Denia',
-  looks: [
-    {
-      referenceSlots: [
-        {
-          id: 'slot-1',
-          role: 'identity',
-          url: 'https://cdn.test/denia.png',
-          isPrimary: true,
-        },
-      ],
-    },
-  ],
-  persona: { speech: '说话短，爱用反问。' },
-  isDeleted: false,
+function storePersona(
+  extra: Partial<Prisma.AssistantPersonaUncheckedCreateInput> = {},
+) {
+  return db.assistantPersona.create({
+    data: { userId, ...STORED_ROW, ...extra },
+  })
 }
 
-describe('assistant persona service', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
+function storedRow() {
+  return db.assistantPersona.findUniqueOrThrow({ where: { userId } })
+}
+
+/** 一张带默认造型（主图是那张脸）的角色卡。 */
+async function createCard(
+  options: {
+    name?: string
+    owner?: string
+    persona?: Prisma.InputJsonValue
+    isDeleted?: boolean
+    extensions?: Prisma.InputJsonValue
+    faceUrl?: string
+    journals?: string[]
+  } = {},
+) {
+  const owner = options.owner ?? userId
+  return db.characterCard.create({
+    data: {
+      userId: owner,
+      name: options.name ?? 'Denia',
+      persona: options.persona ?? { speech: '说话短，爱用反问。' },
+      isDeleted: options.isDeleted ?? false,
+      ...(options.extensions ? { extensions: options.extensions } : {}),
+      looks: {
+        create: [
+          {
+            isDefault: true,
+            referenceSlots: [
+              {
+                id: 'slot-1',
+                role: 'identity',
+                url: options.faceUrl ?? 'https://cdn.test/denia.png',
+                isPrimary: true,
+              },
+            ],
+          },
+        ],
+      },
+      journals: {
+        create: (options.journals ?? []).map((text) => ({
+          userId: owner,
+          text,
+        })),
+      },
+    },
   })
+}
 
+beforeEach(async () => {
+  await resetDatabase()
+  const user = await createTestUser()
+  userId = user.id
+  clerkId = user.clerkId
+})
+
+describe('assistant persona service（真库）', () => {
   it('缺行时读回代码默认值，⛔ 不建行（§8.4 第 4 条）', async () => {
-    mockFindUnique.mockResolvedValue(null)
-
-    const persona = await getAssistantPersona('clerk_1')
+    const persona = await getAssistantPersona(clerkId)
 
     expect(persona).toEqual({ ...ASSISTANT_PERSONA_DEFAULTS })
-    expect(mockUpsert).not.toHaveBeenCalled()
+    expect(await db.assistantPersona.count()).toBe(0)
   })
 
   it('有行时逐字读回那一行', async () => {
-    mockFindUnique.mockResolvedValue(STORED_ROW)
+    await storePersona()
 
-    await expect(getAssistantPersona('clerk_1')).resolves.toEqual(
-      STORED_PERSONA,
-    )
+    await expect(getAssistantPersona(clerkId)).resolves.toEqual(STORED_PERSONA)
   })
 
   /**
    * 词表改过而存量行没跟上 —— 退回默认值，⛔ 不把词表外的值塞进系统提示。
    */
   it('库里的值掉出词表时退回默认值', async () => {
-    mockFindUnique.mockResolvedValue({ ...STORED_ROW, tone: 'sarcastic' })
+    await storePersona({ tone: 'sarcastic' })
 
-    await expect(getAssistantPersona('clerk_1')).resolves.toEqual({
+    await expect(getAssistantPersona(clerkId)).resolves.toEqual({
       ...ASSISTANT_PERSONA_DEFAULTS,
     })
   })
@@ -176,9 +186,9 @@ describe('assistant persona service', () => {
   it.each(['spark', 'monogram'])(
     'avatarPreset 为 %s 时只回落头像那一格',
     async (avatarPreset) => {
-      mockFindUnique.mockResolvedValue({ ...STORED_ROW, avatarPreset })
+      await storePersona({ avatarPreset })
 
-      await expect(getAssistantPersona('clerk_1')).resolves.toEqual({
+      await expect(getAssistantPersona(clerkId)).resolves.toEqual({
         ...STORED_PERSONA,
         avatarPreset: ASSISTANT_PERSONA_DEFAULTS.avatarPreset,
         avatarChoice: ASSISTANT_PERSONA_DEFAULTS.avatarPreset,
@@ -186,10 +196,18 @@ describe('assistant persona service', () => {
     },
   )
 
-  it('upsert 走 userId 唯一键，且不碰头像那两列', async () => {
-    mockUpsert.mockResolvedValue(STORED_ROW)
+  it('upsert 按 userId 落一行：没有就建，有就改，且不碰头像那两列', async () => {
+    await upsertAssistantPersona(clerkId, { ...BASE_UPDATE, name: 'Mika' })
+    expect((await storedRow()).name).toBe('Mika')
 
-    await upsertAssistantPersona('clerk_1', {
+    await db.assistantPersona.update({
+      where: { userId },
+      data: {
+        avatarUrl: 'https://cdn.test/me.png',
+        avatarStorageKey: 'avatars/me.png',
+      },
+    })
+    await upsertAssistantPersona(clerkId, {
       ...BASE_UPDATE,
       name: 'Mika',
       avatarPreset: ASSISTANT_AVATAR_PRESET_IDS[0],
@@ -202,15 +220,14 @@ describe('assistant persona service', () => {
       addressUserAs: '阿羊',
     })
 
-    const call = mockUpsert.mock.calls[0][0] as {
-      where: { userId: string }
-      create: Record<string, unknown>
-      update: Record<string, unknown>
-    }
-    expect(call.where).toEqual({ userId: 'db_user_1' })
-    expect(call.update).not.toHaveProperty('avatarUrl')
-    expect(call.update).not.toHaveProperty('avatarStorageKey')
-    expect(call.create.userId).toBe('db_user_1')
+    expect(await db.assistantPersona.count()).toBe(1)
+    expect(await storedRow()).toMatchObject({
+      userId,
+      tone: ASSISTANT_PERSONA_TONE_IDS.friendly,
+      verbosity: 'detailed',
+      avatarUrl: 'https://cdn.test/me.png',
+      avatarStorageKey: 'avatars/me.png',
+    })
   })
 
   /**
@@ -219,57 +236,52 @@ describe('assistant persona service', () => {
    */
   it('routeModel 读回：库里存的 modelId 逐字读回，悬空 id 回落到自动', async () => {
     const pinned = NODE_STUDIO_ASSISTANT_ROUTE_MODELS[2].modelId
-    mockFindUnique.mockResolvedValue({ ...STORED_ROW, routeModel: pinned })
-    await expect(getAssistantPersona('clerk_1')).resolves.toMatchObject({
+    await storePersona({ routeModel: pinned })
+    await expect(getAssistantPersona(clerkId)).resolves.toMatchObject({
       routeModel: pinned,
       // ⚠ 其余几格照样逐字读回，⛔ 不整份退默认。
       tone: STORED_ROW.tone,
     })
 
-    mockFindUnique.mockResolvedValue({
-      ...STORED_ROW,
-      routeModel: 'qwen3-max-retired',
+    await db.assistantPersona.update({
+      where: { userId },
+      data: { routeModel: 'qwen3-max-retired' },
     })
-    await expect(getAssistantPersona('clerk_1')).resolves.toMatchObject({
+    await expect(getAssistantPersona(clerkId)).resolves.toMatchObject({
       routeModel: ASSISTANT_ROUTE_MODEL_AUTO,
       tone: STORED_ROW.tone,
     })
   })
 
   it('routeModel 写入：具体模型逐字写，「自动」写 null', async () => {
-    mockUpsert.mockResolvedValue(STORED_ROW)
     const pinned = NODE_STUDIO_ASSISTANT_ROUTE_MODELS[1].modelId
-    const base = BASE_UPDATE
 
-    await upsertAssistantPersona('clerk_1', { ...base, routeModel: pinned })
-    expect(
-      (mockUpsert.mock.calls[0][0] as { update: { routeModel: unknown } })
-        .update.routeModel,
-    ).toBe(pinned)
+    await upsertAssistantPersona(clerkId, {
+      ...BASE_UPDATE,
+      routeModel: pinned,
+    })
+    expect((await storedRow()).routeModel).toBe(pinned)
 
-    await upsertAssistantPersona('clerk_1', {
-      ...base,
+    await upsertAssistantPersona(clerkId, {
+      ...BASE_UPDATE,
       routeModel: ASSISTANT_ROUTE_MODEL_AUTO,
     })
-    expect(
-      (mockUpsert.mock.calls[1][0] as { update: { routeModel: unknown } })
-        .update.routeModel,
-    ).toBeNull()
+    expect((await storedRow()).routeModel).toBeNull()
   })
 
   /** 换回非 custom 档时那句自定义语气就该消失，⛔ 别让它下次诈尸。 */
   it('tone 不是 custom 时把 toneCustom 清成 null', async () => {
-    mockUpsert.mockResolvedValue(STORED_ROW)
+    await storePersona({
+      tone: ASSISTANT_PERSONA_TONE_IDS.custom,
+      toneCustom: 'talk like a pirate',
+    })
 
-    await upsertAssistantPersona('clerk_1', {
+    await upsertAssistantPersona(clerkId, {
       ...BASE_UPDATE,
       toneCustom: 'talk like a pirate',
     })
 
-    const call = mockUpsert.mock.calls[0][0] as {
-      update: { toneCustom: string | null }
-    }
-    expect(call.update.toneCustom).toBeNull()
+    expect((await storedRow()).toneCustom).toBeNull()
   })
 
   describe('sanitizeToneCustom（拼进系统提示之前的那一道）', () => {
@@ -316,18 +328,11 @@ describe('assistant persona service', () => {
 /**
  * 头像单选表（助手设置 B，owner 2026-09-26）：换成预设不丢上传的那张。
  */
-describe('头像单选表', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
-
+describe('头像单选表（真库）', () => {
   it('老行传过图（单选那一格还是 NULL）读回「我上传的」', async () => {
-    mockFindUnique.mockResolvedValue({
-      ...STORED_ROW,
-      avatarUrl: 'https://cdn.test/me.png',
-    })
+    await storePersona({ avatarUrl: 'https://cdn.test/me.png' })
 
-    await expect(getAssistantPersona('clerk_1')).resolves.toMatchObject({
+    await expect(getAssistantPersona(clerkId)).resolves.toMatchObject({
       avatarChoice: ASSISTANT_AVATAR_CHOICE_IDS.upload,
       avatarUrl: 'https://cdn.test/me.png',
       uploadedAvatarUrl: 'https://cdn.test/me.png',
@@ -335,13 +340,12 @@ describe('头像单选表', () => {
   })
 
   it('选了预设时显示字形，上传的那张还在表里', async () => {
-    mockFindUnique.mockResolvedValue({
-      ...STORED_ROW,
+    await storePersona({
       avatarUrl: 'https://cdn.test/me.png',
       avatarChoice: ASSISTANT_AVATAR_CHOICE_IDS.mark,
     })
 
-    await expect(getAssistantPersona('clerk_1')).resolves.toMatchObject({
+    await expect(getAssistantPersona(clerkId)).resolves.toMatchObject({
       avatarChoice: ASSISTANT_AVATAR_CHOICE_IDS.mark,
       avatarPreset: ASSISTANT_AVATAR_CHOICE_IDS.mark,
       avatarUrl: null,
@@ -350,70 +354,66 @@ describe('头像单选表', () => {
   })
 
   it('写入时选了预设就把它记成字形回落', async () => {
-    mockUpsert.mockResolvedValue(STORED_ROW)
-
-    await upsertAssistantPersona('clerk_1', {
+    await upsertAssistantPersona(clerkId, {
       ...BASE_UPDATE,
       avatarPreset: null,
       avatarChoice: ASSISTANT_AVATAR_CHOICE_IDS.mark,
     })
 
-    expect(
-      (mockUpsert.mock.calls[0][0] as { update: Record<string, unknown> })
-        .update,
-    ).toMatchObject({
+    expect(await storedRow()).toMatchObject({
       avatarChoice: ASSISTANT_AVATAR_CHOICE_IDS.mark,
       avatarPreset: ASSISTANT_AVATAR_CHOICE_IDS.mark,
     })
   })
 
-  it('已选首字母时回落默认头像，保留上传图片和其他人设', async () => {
-    mockFindUnique.mockResolvedValue({
-      ...STORED_ROW,
+  it('已选首字母时回落默认头像，保留上传图片和其他人设，⛔ 不改库', async () => {
+    await storePersona({
       avatarChoice: 'monogram',
       avatarPreset: 'monogram',
       avatarUrl: 'https://cdn.test/me.png',
     })
 
-    await expect(getAssistantPersona('clerk_1')).resolves.toEqual({
+    await expect(getAssistantPersona(clerkId)).resolves.toEqual({
       ...STORED_PERSONA,
       uploadedAvatarUrl: 'https://cdn.test/me.png',
     })
-    expect(mockUpsert).not.toHaveBeenCalled()
+    expect((await storedRow()).avatarChoice).toBe('monogram')
   })
 })
 
 /**
  * 用角色（助手设置 B，owner 2026-09-26：只当默认值，之后还能改）。
  */
-describe('用角色', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    mockCardFindFirst.mockResolvedValue({ id: DENIA_CARD.id })
-  })
-
-  const FOLLOWING_ROW = {
-    ...STORED_ROW,
-    name: '达妮娅',
-    avatarUrl: 'https://cdn.test/me.png',
-    avatarChoice: ASSISTANT_AVATAR_CHOICE_IDS.character,
-    characterCardId: DENIA_CARD.id,
-    characterCard: DENIA_CARD,
-    nameFromCharacter: true,
-    toneFromCharacter: true,
+describe('用角色（真库）', () => {
+  /** 跟着 Denia 走的那一行：自己的名字是「达妮娅」，自己传过一张图。 */
+  async function followDenia(
+    card: Parameters<typeof createCard>[0] = {},
+    extra: Partial<Prisma.AssistantPersonaUncheckedCreateInput> = {},
+  ) {
+    const denia = await createCard(card)
+    await storePersona({
+      name: '达妮娅',
+      avatarUrl: 'https://cdn.test/me.png',
+      avatarChoice: ASSISTANT_AVATAR_CHOICE_IDS.character,
+      characterCardId: denia.id,
+      nameFromCharacter: true,
+      toneFromCharacter: true,
+      ...extra,
+    })
+    return denia
   }
 
   it('读回显示用的名字与脸是角色的，自己的名字留在库里', async () => {
-    mockFindUnique.mockResolvedValue(FOLLOWING_ROW)
+    const denia = await followDenia()
 
-    await expect(getAssistantPersona('clerk_1')).resolves.toMatchObject({
+    await expect(getAssistantPersona(clerkId)).resolves.toMatchObject({
       name: 'Denia',
       avatarChoice: ASSISTANT_AVATAR_CHOICE_IDS.character,
       avatarUrl: 'https://cdn.test/denia.png',
       uploadedAvatarUrl: 'https://cdn.test/me.png',
-      characterCardId: DENIA_CARD.id,
+      characterCardId: denia.id,
       character: {
-        id: DENIA_CARD.id,
+        id: denia.id,
         name: 'Denia',
         faceUrl: 'https://cdn.test/denia.png',
         hasSpeech: true,
@@ -422,15 +422,13 @@ describe('用角色', () => {
       toneFromCharacter: true,
       tone: STORED_ROW.tone,
     })
+    expect((await storedRow()).name).toBe('达妮娅')
   })
 
   it('卡删了就当没用角色：名字、头像、语气都回到自己那一份', async () => {
-    mockFindUnique.mockResolvedValue({
-      ...FOLLOWING_ROW,
-      characterCard: { ...DENIA_CARD, isDeleted: true },
-    })
+    await followDenia({ isDeleted: true })
 
-    await expect(getAssistantPersona('clerk_1')).resolves.toMatchObject({
+    await expect(getAssistantPersona(clerkId)).resolves.toMatchObject({
       name: '达妮娅',
       character: null,
       characterCardId: null,
@@ -440,43 +438,35 @@ describe('用角色', () => {
     })
   })
 
-  it('助手这一轮按角色的说话方式说话；角色没写就用自己的语气', async () => {
-    mockFindUnique.mockResolvedValue(FOLLOWING_ROW)
-    await expect(
-      getAssistantPersonaByUserId('db_user_1'),
-    ).resolves.toMatchObject({
+  it('助手这一轮按角色的说话方式说话', async () => {
+    await followDenia()
+    await expect(getAssistantPersonaByUserId(userId)).resolves.toMatchObject({
       name: 'Denia',
       tone: ASSISTANT_PERSONA_TONE_IDS.custom,
-      toneCustom: DENIA_CARD.persona.speech,
+      toneCustom: '说话短，爱用反问。',
     })
+  })
 
-    mockFindUnique.mockResolvedValue({
-      ...FOLLOWING_ROW,
-      characterCard: { ...DENIA_CARD, persona: { speech: '' } },
+  it('角色没写说话方式就用自己的语气', async () => {
+    await followDenia({ persona: { speech: '' } })
+    await expect(getAssistantPersonaByUserId(userId)).resolves.toMatchObject({
+      tone: STORED_ROW.tone,
+      toneCustom: null,
     })
-    await expect(
-      getAssistantPersonaByUserId('db_user_1'),
-    ).resolves.toMatchObject({ tone: STORED_ROW.tone, toneCustom: null })
   })
 
   it('⭐ 用角色时把设定交给提示（附录J ①）：身份 / 性格 / 口头禅 / 经历都带上', async () => {
-    mockFindUnique.mockResolvedValue({
-      ...FOLLOWING_ROW,
-      characterCard: {
-        ...DENIA_CARD,
-        persona: {
-          identity: '十七岁，雾港侦探社见习生',
-          behavior: '先观察再开口',
-          speech: '说话短，爱用反问。',
-          boundaries: '',
-          catchphrases: ['真的吗？', ' '],
-          backstory: '从小在港口长大。',
-        },
+    await followDenia({
+      persona: {
+        identity: '十七岁，雾港侦探社见习生',
+        behavior: '先观察再开口',
+        speech: '说话短，爱用反问。',
+        boundaries: '',
+        catchphrases: ['真的吗？', ' '],
+        backstory: '从小在港口长大。',
       },
     })
-    await expect(
-      getAssistantPersonaByUserId('db_user_1'),
-    ).resolves.toMatchObject({
+    await expect(getAssistantPersonaByUserId(userId)).resolves.toMatchObject({
       promptCharacter: {
         name: 'Denia',
         identity: '十七岁，雾港侦探社见习生',
@@ -490,15 +480,11 @@ describe('用角色', () => {
   })
 
   it('语气不跟角色走：设定照给，说话方式不给（语气用自己那一份）', async () => {
-    mockFindUnique.mockResolvedValue({
-      ...FOLLOWING_ROW,
-      toneFromCharacter: false,
-      characterCard: {
-        ...DENIA_CARD,
-        persona: { identity: '侦探社见习生', speech: '说话短。' },
-      },
-    })
-    const persona = await getAssistantPersonaByUserId('db_user_1')
+    await followDenia(
+      { persona: { identity: '侦探社见习生', speech: '说话短。' } },
+      { toneFromCharacter: false },
+    )
+    const persona = await getAssistantPersonaByUserId(userId)
     expect(persona.tone).toBe(STORED_ROW.tone)
     expect(persona.promptCharacter).toMatchObject({
       identity: '侦探社见习生',
@@ -506,18 +492,17 @@ describe('用角色', () => {
     })
   })
 
-  it('没用角色 / 卡上一格设定都没有：不带 promptCharacter', async () => {
-    mockFindUnique.mockResolvedValue(STORED_ROW)
+  it('没用角色：不带 promptCharacter', async () => {
+    await storePersona()
     await expect(
-      getAssistantPersonaByUserId('db_user_1'),
+      getAssistantPersonaByUserId(userId),
     ).resolves.not.toHaveProperty('promptCharacter')
-    mockFindUnique.mockResolvedValue({
-      ...FOLLOWING_ROW,
-      toneFromCharacter: false,
-      characterCard: { ...DENIA_CARD, persona: {} },
-    })
+  })
+
+  it('卡上一格设定都没有：不带 promptCharacter', async () => {
+    await followDenia({ persona: {} }, { toneFromCharacter: false })
     await expect(
-      getAssistantPersonaByUserId('db_user_1'),
+      getAssistantPersonaByUserId(userId),
     ).resolves.not.toHaveProperty('promptCharacter')
   })
 
@@ -544,39 +529,40 @@ describe('用角色', () => {
     expect(cleaned?.backstory.endsWith('…')).toBe(true)
   })
 
-  it('用的角色必须是自己的卡', async () => {
-    mockCardFindFirst.mockResolvedValue(null)
+  it('用的角色必须是自己的卡（别人的、删了的都不行），⛔ 不写库', async () => {
+    const stranger = await createTestUser()
+    const theirs = await createCard({ owner: stranger.id })
+    const deleted = await createCard({ isDeleted: true })
 
-    await expect(
-      upsertAssistantPersona('clerk_1', {
-        ...BASE_UPDATE,
-        characterCardId: 'card_someone_else',
-        nameFromCharacter: true,
-        toneFromCharacter: true,
-        avatarChoice: ASSISTANT_AVATAR_CHOICE_IDS.character,
-      }),
-    ).rejects.toMatchObject({ httpStatus: 404 })
-    expect(mockUpsert).not.toHaveBeenCalled()
+    for (const card of [theirs, deleted]) {
+      await expect(
+        upsertAssistantPersona(clerkId, {
+          ...BASE_UPDATE,
+          characterCardId: card.id,
+          nameFromCharacter: true,
+          toneFromCharacter: true,
+          avatarChoice: ASSISTANT_AVATAR_CHOICE_IDS.character,
+        }),
+      ).rejects.toMatchObject({ httpStatus: 404 })
+    }
+    expect(await db.assistantPersona.count()).toBe(0)
   })
 
   it('名字跟着角色走时不动库里那一格', async () => {
-    mockUpsert.mockResolvedValue(FOLLOWING_ROW)
+    const denia = await followDenia()
 
-    await upsertAssistantPersona('clerk_1', {
+    await upsertAssistantPersona(clerkId, {
       ...BASE_UPDATE,
       name: 'Denia',
-      characterCardId: DENIA_CARD.id,
+      characterCardId: denia.id,
       nameFromCharacter: true,
       toneFromCharacter: true,
       avatarChoice: ASSISTANT_AVATAR_CHOICE_IDS.character,
     })
 
-    const update = (
-      mockUpsert.mock.calls[0][0] as { update: Record<string, unknown> }
-    ).update
-    expect(update).not.toHaveProperty('name')
-    expect(update).toMatchObject({
-      characterCardId: DENIA_CARD.id,
+    expect(await storedRow()).toMatchObject({
+      name: '达妮娅',
+      characterCardId: denia.id,
       nameFromCharacter: true,
       toneFromCharacter: true,
       avatarChoice: ASSISTANT_AVATAR_CHOICE_IDS.character,
@@ -584,24 +570,17 @@ describe('用角色', () => {
   })
 
   it('选回「不用角色」时也不写名字，自己的名字原样留着', async () => {
-    mockFindUnique.mockResolvedValue({
-      nameFromCharacter: true,
-      characterCardId: DENIA_CARD.id,
-    })
-    mockUpsert.mockResolvedValue(STORED_ROW)
+    await followDenia()
 
-    await upsertAssistantPersona('clerk_1', {
+    await upsertAssistantPersona(clerkId, {
       ...BASE_UPDATE,
       name: 'Denia',
       characterCardId: null,
       avatarChoice: ASSISTANT_AVATAR_CHOICE_IDS.upload,
     })
 
-    const update = (
-      mockUpsert.mock.calls[0][0] as { update: Record<string, unknown> }
-    ).update
-    expect(update).not.toHaveProperty('name')
-    expect(update).toMatchObject({
+    expect(await storedRow()).toMatchObject({
+      name: '达妮娅',
       characterCardId: null,
       nameFromCharacter: false,
       toneFromCharacter: false,
@@ -609,50 +588,52 @@ describe('用角色', () => {
   })
 
   it('在名字框里改了名字就落库，并不再跟着角色走', async () => {
-    mockUpsert.mockResolvedValue(FOLLOWING_ROW)
+    const denia = await followDenia({}, { name: 'Mika' })
 
-    await upsertAssistantPersona('clerk_1', {
+    await upsertAssistantPersona(clerkId, {
       ...BASE_UPDATE,
       name: '达妮娅',
-      characterCardId: DENIA_CARD.id,
+      characterCardId: denia.id,
       nameFromCharacter: false,
       toneFromCharacter: true,
       avatarChoice: ASSISTANT_AVATAR_CHOICE_IDS.character,
     })
 
-    expect(
-      (mockUpsert.mock.calls[0][0] as { update: Record<string, unknown> })
-        .update,
-    ).toMatchObject({ name: '达妮娅', nameFromCharacter: false })
+    expect(await storedRow()).toMatchObject({
+      name: '达妮娅',
+      nameFromCharacter: false,
+    })
   })
 
   it('没用角色却选了「角色的头像」时落 NULL，读的那一跳回推', async () => {
-    mockUpsert.mockResolvedValue(STORED_ROW)
-
-    await upsertAssistantPersona('clerk_1', {
+    await upsertAssistantPersona(clerkId, {
       ...BASE_UPDATE,
       avatarChoice: ASSISTANT_AVATAR_CHOICE_IDS.character,
     })
 
-    expect(
-      (mockUpsert.mock.calls[0][0] as { update: Record<string, unknown> })
-        .update.avatarChoice,
-    ).toBeNull()
+    expect((await storedRow()).avatarChoice).toBeNull()
+  })
+
+  it('卡真删掉（不是软删）时只清绑定，人设其余格不动', async () => {
+    const denia = await followDenia()
+    await db.characterCard.delete({ where: { id: denia.id } })
+
+    expect(await storedRow()).toMatchObject({
+      characterCardId: null,
+      name: '达妮娅',
+      tone: STORED_ROW.tone,
+    })
   })
 })
 
 /**
  * v2 §11.3 的三项（commit #15）—— 它们直连系统提示的「关于这位创作者」那一段。
  */
-describe('persona 的三项用户偏好', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
-
+describe('persona 的三项用户偏好（真库）', () => {
   it('三列逐字读回', async () => {
-    mockFindUnique.mockResolvedValue(STORED_ROW)
+    await storePersona()
 
-    await expect(getAssistantPersona('clerk_1')).resolves.toMatchObject({
+    await expect(getAssistantPersona(clerkId)).resolves.toMatchObject({
       nextStepHint: true,
       useMyWords: false,
       addressUserAs: '阿羊',
@@ -660,9 +641,7 @@ describe('persona 的三项用户偏好', () => {
   })
 
   it('缺行时走代码默认值（开 / 开 / 空）', async () => {
-    mockFindUnique.mockResolvedValue(null)
-
-    await expect(getAssistantPersona('clerk_1')).resolves.toMatchObject({
+    await expect(getAssistantPersona(clerkId)).resolves.toMatchObject({
       nextStepHint: ASSISTANT_PERSONA_DEFAULTS.nextStepHint,
       useMyWords: ASSISTANT_PERSONA_DEFAULTS.useMyWords,
       addressUserAs: ASSISTANT_PERSONA_DEFAULTS.addressUserAs,
@@ -670,9 +649,7 @@ describe('persona 的三项用户偏好', () => {
   })
 
   it('三列逐字写入', async () => {
-    mockUpsert.mockResolvedValue(STORED_ROW)
-
-    await upsertAssistantPersona('clerk_1', {
+    await upsertAssistantPersona(clerkId, {
       ...BASE_UPDATE,
       nextStepHint: true,
       useMyWords: false,
@@ -680,10 +657,7 @@ describe('persona 的三项用户偏好', () => {
       addressUserAs: '阿羊',
     })
 
-    expect(
-      (mockUpsert.mock.calls[0][0] as { update: Record<string, unknown> })
-        .update,
-    ).toMatchObject({
+    expect(await storedRow()).toMatchObject({
       nextStepHint: true,
       useMyWords: false,
       memoryCapture: false,
@@ -713,55 +687,45 @@ describe('persona 的三项用户偏好', () => {
 /**
  * 聊天模式（附录L）：这一轮按会话绑的那张卡扮演，⛔ 不看设置里用哪个角色。
  */
-describe('聊天模式按会话那张卡', () => {
-  const CHAT_CARD = {
-    id: '11111111-1111-4111-8111-111111111111',
-    name: 'Rin',
-    looks: [
-      {
-        referenceSlots: [
-          {
-            id: 'slot-1',
-            role: 'identity',
-            url: 'https://cdn.test/rin.png',
-            isPrimary: true,
-          },
-        ],
-      },
+describe('聊天模式按会话那张卡（真库）', () => {
+  const RIN_PERSONA = {
+    identity: '{{char}}，猫咖店员',
+    speech: '说话短，爱用「喵」结尾',
+    scenario: '雨天的猫咖，{{user}}推门进来',
+    opening: '欢迎光临喵',
+    examples: [
+      { user: '你好', reply: '……你好喵' },
+      { user: '', reply: '' },
     ],
-    isDeleted: false,
-    persona: {
-      identity: '{{char}}，猫咖店员',
-      speech: '说话短，爱用「喵」结尾',
-      scenario: '雨天的猫咖，{{user}}推门进来',
-      opening: '欢迎光临喵',
-      examples: [
-        { user: '你好', reply: '……你好喵' },
-        { user: '', reply: '' },
-      ],
-      relationship: '叫{{user}}「常客」，见面会多聊两句',
-    },
-    journals: [{ text: '今天常客又来了，还是点了热可可。' }],
+    relationship: '叫{{user}}「常客」，见面会多聊两句',
   }
 
-  beforeEach(() => {
-    vi.clearAllMocks()
-    mockFindUnique.mockResolvedValue(STORED_ROW)
+  function createRin(
+    extra: { extensions?: Prisma.InputJsonValue; owner?: string } = {},
+  ) {
+    return createCard({
+      name: 'Rin',
+      persona: RIN_PERSONA,
+      faceUrl: 'https://cdn.test/rin.png',
+      journals: ['今天常客又来了，还是点了热可可。'],
+      ...extra,
+    })
+  }
+
+  beforeEach(async () => {
+    await storePersona()
   })
 
-  it('⭐ 名字、口吻、场景三样都从会话那张卡来；只认自己的、没删的', async () => {
-    mockCardFindFirst.mockResolvedValue(CHAT_CARD)
-    const persona = await getAssistantPersonaByUserId('db_user_1', CHAT_CARD.id)
-    expect(mockCardFindFirst.mock.calls[0]?.[0]).toMatchObject({
-      where: { id: CHAT_CARD.id, userId: 'db_user_1', isDeleted: false },
-    })
+  it('⭐ 名字、口吻、场景三样都从会话那张卡来', async () => {
+    const rin = await createRin()
+    const persona = await getAssistantPersonaByUserId(userId, rin.id)
     expect(persona).toMatchObject({
       name: 'Rin',
-      characterCardId: CHAT_CARD.id,
+      characterCardId: rin.id,
       tone: ASSISTANT_PERSONA_TONE_IDS.custom,
-      toneCustom: CHAT_CARD.persona.speech,
+      toneCustom: RIN_PERSONA.speech,
       roleplay: {
-        scenario: CHAT_CARD.persona.scenario,
+        scenario: RIN_PERSONA.scenario,
         opening: '欢迎光临喵',
         examples: [{ user: '你好', reply: '……你好喵' }],
         journal: '今天常客又来了，还是点了热可可。',
@@ -773,9 +737,22 @@ describe('聊天模式按会话那张卡', () => {
     )
   })
 
+  it('日记取最近的那一篇', async () => {
+    const rin = await createRin()
+    await db.characterJournal.create({
+      data: {
+        userId,
+        characterCardId: rin.id,
+        text: '下雨了，店里只有常客。',
+        createdAt: new Date(Date.now() + 60_000),
+      },
+    })
+    const persona = await getAssistantPersonaByUserId(userId, rin.id)
+    expect(persona.roleplay?.journal).toBe('下雨了，店里只有常客。')
+  })
+
   it('⭐ 世界书从卡上原样存的那份读；进提示前清洗、条数封顶、只留正文', async () => {
-    mockCardFindFirst.mockResolvedValue({
-      ...CHAT_CARD,
+    const rin = await createRin({
       extensions: {
         'st.card': {
           characterBook: {
@@ -787,10 +764,7 @@ describe('聊天模式按会话那张卡', () => {
         },
       },
     })
-    const persona = await getAssistantPersonaByUserId('db_user_1', CHAT_CARD.id)
-    expect(mockCardFindFirst.mock.calls[0]?.[0].select).toMatchObject({
-      extensions: true,
-    })
+    const persona = await getAssistantPersonaByUserId(userId, rin.id)
     expect(persona.roleplay?.world).toHaveLength(10)
     const roleplay = sanitizePromptRoleplay(persona)
     expect(roleplay?.world).toHaveLength(ASSISTANT_PERSONA_LIMITS.maxWorldNotes)
@@ -802,17 +776,15 @@ describe('聊天模式按会话那张卡', () => {
   })
 
   it('⭐ 你在她故事里是谁：按角色记在卡上，每段聊天都从卡上读', async () => {
-    mockCardFindFirst.mockResolvedValue({
-      ...CHAT_CARD,
+    const rin = await createRin({
       extensions: { 'pv.chatUserRole': '  常来的熟客，怕猫 ' },
     })
-    const persona = await getAssistantPersonaByUserId('db_user_1', CHAT_CARD.id)
+    const persona = await getAssistantPersonaByUserId(userId, rin.id)
     expect(persona.roleplay?.userRole).toBe('常来的熟客，怕猫')
   })
 
   it('⭐ 酒馆卡作者的系统提示 / 历史后指令：聊天时读进来，去掉 {{original}}、填宏、截断（第 ② 步）', async () => {
-    mockCardFindFirst.mockResolvedValue({
-      ...CHAT_CARD,
+    const rin = await createRin({
       extensions: {
         'st.card': {
           systemPrompt: '{{original}} 你就是 {{char}}，用第三人称描写动作。',
@@ -820,7 +792,7 @@ describe('聊天模式按会话那张卡', () => {
         },
       },
     })
-    const persona = await getAssistantPersonaByUserId('db_user_1', CHAT_CARD.id)
+    const persona = await getAssistantPersonaByUserId(userId, rin.id)
     const roleplay = sanitizePromptRoleplay(persona)
     expect(roleplay?.authorSystem).toBe('你就是 Rin，用第三人称描写动作。')
     expect(roleplay?.authorPostHistory).toBe('回复不超过三段。')
@@ -829,9 +801,21 @@ describe('聊天模式按会话那张卡', () => {
     )
   })
 
-  it('卡不是你的 / 删了 → 照工作模式答（设置里那一份）', async () => {
-    mockCardFindFirst.mockResolvedValue(null)
-    const persona = await getAssistantPersonaByUserId('db_user_1', CHAT_CARD.id)
+  it('卡不是你的 → 照工作模式答（设置里那一份）', async () => {
+    const stranger = await createTestUser()
+    const theirs = await createRin({ owner: stranger.id })
+    const persona = await getAssistantPersonaByUserId(userId, theirs.id)
+    expect(persona.name).toBe('Mika')
+    expect(persona.roleplay).toBeUndefined()
+  })
+
+  it('卡删了 → 照工作模式答', async () => {
+    const rin = await createRin()
+    await db.characterCard.update({
+      where: { id: rin.id },
+      data: { isDeleted: true },
+    })
+    const persona = await getAssistantPersonaByUserId(userId, rin.id)
     expect(persona.name).toBe('Mika')
     expect(persona.roleplay).toBeUndefined()
   })

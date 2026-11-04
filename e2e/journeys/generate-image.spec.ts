@@ -1,5 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 
+import { api, type Envelope } from './helpers'
+
 /**
  * L4 主流程①：出一张图 → 进库（docs/references/testing.md「测试标准」）。
  *
@@ -7,38 +9,11 @@ import { expect, test, type Page } from '@playwright/test'
  * `EXECUTION_WORKER_BASE_URL`）。应用这一侧全是真的：存 key（加密入库）→ 提交出图
  * （真路由、真扣点、真派发签名）→ 假 Worker 向应用**取 key**（真解密）→ 回调写库 →
  * 状态接口报完成 → 库页把这张图显示出来。
- * ⚠ 接口请求走页面里的 fetch：Clerk 的会话 cookie 一分钟过期，页面上的 Clerk 会续。
  */
 
 const FAKE_WORKER = process.env.FAKE_WORKER_URL ?? 'http://localhost:4010'
 const MODEL_ID = 'seedream-5.0-lite'
 const KEY_VALUE = 'fal-e2e-not-a-real-key'
-
-interface Envelope<T> {
-  success: boolean
-  data?: T
-  error?: string
-}
-
-async function api<T>(
-  page: Page,
-  method: string,
-  path: string,
-  body?: unknown,
-): Promise<Envelope<T> & { status: number }> {
-  return page.evaluate(
-    async ({ method, path, body }) => {
-      const response = await fetch(path, {
-        method,
-        headers: body ? { 'Content-Type': 'application/json' } : undefined,
-        body: body ? JSON.stringify(body) : undefined,
-      })
-      const json = await response.json().catch(() => ({ success: false }))
-      return { ...json, status: response.status }
-    },
-    { method, path, body },
-  )
-}
 
 /** 测试账号上一把 fal 的 key（重跑时复用上一次存的）。 */
 async function ensureFalKey(page: Page): Promise<string> {

@@ -238,9 +238,12 @@ describe('CharacterLoraGrid（她页 LoRA 页签，第 ⑧ 步）', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'addLora' }))
     // 她已经收着的那把在框里算「已挂」，不能再圈。
-    const pick = await screen.findByRole('button', {
-      name: 'selectLabel:Fresh',
-    })
+    // 框里的收藏要等接口回来；全量并发跑时默认 1 秒偶尔不够。
+    const pick = await screen.findByRole(
+      'button',
+      { name: 'selectLabel:Fresh' },
+      { timeout: 5000 },
+    )
     expect(
       screen.queryByRole('button', { name: 'selectLabel:Denia' }),
     ).toBeNull()

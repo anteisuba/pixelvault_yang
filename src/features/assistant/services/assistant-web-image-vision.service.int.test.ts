@@ -2,38 +2,45 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('server-only', () => ({}))
 
-const mockResolveVisionRoute = vi.fn()
-vi.mock('@/services/vision/vision-route.service', () => ({
-  resolveVisionRoute: (...args: unknown[]) => mockResolveVisionRoute(...args),
+/**
+ * 看图那一跳只在模型边界上假（`llmTextCompletion`）：路由（真库里的 key + 人设）、
+ * 结构化输出的解析与校验都是真代码。
+ */
+const mockLlm = vi.fn()
+vi.mock('@/services/llm-text.service', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/services/llm-text.service')>()),
+  llmTextCompletion: (...args: unknown[]) => mockLlm(...args),
 }))
-
-const mockCompleteVisionStructured = vi.fn()
-vi.mock('@/services/vision/vision-structured-output', () => ({
-  completeVisionStructured: (...args: unknown[]) =>
-    mockCompleteVisionStructured(...args),
-  VISION_JSON_CONTRACT: 'json',
-  VISION_SAFETY_PREAMBLE: 'data',
-}))
+/** 看图模型这一次回的 JSON。 */
+function modelReplies(value: unknown) {
+  mockLlm.mockResolvedValue(JSON.stringify(value))
+}
 
 vi.mock('@/lib/logger', () => ({ logger: { warn: vi.fn() } }))
 
 import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { plainKeyOf, seedAssistantKeys } from '@/test/int/assistant-keys'
+import { createTestUser, resetDatabase } from '@/test/int/db'
 
 import { inspectWebImageCandidates } from './assistant-web-image-vision.service'
 
-const ROUTE = {
-  route: { adapterType: 'gemini' },
-  modelId: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
-}
+let userId = ''
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.clearAllMocks()
-  mockResolveVisionRoute.mockResolvedValue(ROUTE)
+  await resetDatabase()
+  // 助手选的是 Gemini 3.8 Flash（看得了图），key 是真加密进库的那一把。
+  userId = (await createTestUser()).id
+  await seedAssistantKeys(userId, {
+    keys: [{ adapterType: AI_ADAPTER_TYPES.GEMINI, id: 'key-1' }],
+    routeModel: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
+  })
 })
 
 describe('inspectWebImageCandidates（搜完先看一眼）', () => {
   it('主图排在第一张当参照，候选跟在后面；判断按候选序号排好', async () => {
-    mockCompleteVisionStructured.mockResolvedValue({
+    modelReplies({
       items: [
         {
           imageIndex: 1,
@@ -52,7 +59,7 @@ describe('inspectWebImageCandidates（搜完先看一眼）', () => {
       ],
     })
     const result = await inspectWebImageCandidates({
-      userId: 'user-1',
+      userId,
       apiKeyId: 'key-1',
       modelId: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
       character: {
@@ -63,13 +70,10 @@ describe('inspectWebImageCandidates（搜完先看一眼）', () => {
       thumbnails: ['https://t.test/a.jpg', 'https://t.test/b.jpg'],
     })
     // 「全跟助手」：看图用这一轮助手那把 key、那个型号，⛔ 不借别家。
-    expect(mockResolveVisionRoute).toHaveBeenCalledWith(
-      'user-1',
-      'key-1',
-      LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
-    )
-    expect(mockCompleteVisionStructured).toHaveBeenCalledWith(
+    expect(mockLlm).toHaveBeenCalledWith(
       expect.objectContaining({
+        adapterType: AI_ADAPTER_TYPES.GEMINI,
+        apiKey: plainKeyOf(AI_ADAPTER_TYPES.GEMINI),
         modelId: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
         imageData: [
           'https://cdn.test/main.png',
@@ -82,10 +86,10 @@ describe('inspectWebImageCandidates（搜完先看一眼）', () => {
   })
 
   it('看不成（没有能看图的路 / 输出不对）返回 null，不抛', async () => {
-    mockCompleteVisionStructured.mockRejectedValue(new Error('timeout'))
+    mockLlm.mockRejectedValue(new Error('upstream 500'))
     await expect(
       inspectWebImageCandidates({
-        userId: 'user-1',
+        userId,
         character: { name: 'Denia', work: null },
         thumbnails: ['https://t.test/a.jpg'],
       }),
@@ -95,11 +99,11 @@ describe('inspectWebImageCandidates（搜完先看一眼）', () => {
   it('没有候选就不看', async () => {
     await expect(
       inspectWebImageCandidates({
-        userId: 'user-1',
+        userId,
         character: { name: 'Denia', work: null },
         thumbnails: [],
       }),
     ).resolves.toEqual([])
-    expect(mockCompleteVisionStructured).not.toHaveBeenCalled()
+    expect(mockLlm).not.toHaveBeenCalled()
   })
 })

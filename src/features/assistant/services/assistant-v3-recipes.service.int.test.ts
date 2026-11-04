@@ -4,15 +4,13 @@ import { ASSISTANT_V3_RECIPE_LIMITS } from '@/constants/assistant-v3'
 
 vi.mock('server-only', () => ({}))
 
-const { queryRaw } = vi.hoisted(() => ({
-  queryRaw: vi.fn(async (): Promise<unknown[]> => []),
-}))
-
-vi.mock('@/lib/db', () => ({ db: { $queryRaw: queryRaw } }))
 vi.mock('@/lib/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }))
 
+import { USER_UPLOAD_PROVIDER } from '@/constants/uploads'
+import { db } from '@/lib/db'
+import { createTestUser, resetDatabase } from '@/test/int/db'
 import { png, tEXt, zTXt } from '@/test/png-fixture'
 import {
   fileRecipeOf,
@@ -25,21 +23,36 @@ function picture(bytes: Uint8Array, mediaType = 'image/png') {
   return { data: Buffer.from(bytes), mediaType, width: 1, height: 1 }
 }
 
+/** 这个人在这儿出的一张图（真库里的一行）。 */
 const OWN_ROW = {
   url: 'https://cdn.test/full.png',
   thumbnailUrl: 'https://cdn.test/thumb.webp',
   prompt: 'silver hair',
-  negativePrompt: null,
   model: 'gemini-3-image',
   width: 832,
   height: 1216,
-  seed: null,
-  advancedParams: { steps: 30, guidanceScale: 6 },
+}
+const OWN_RECIPE =
+  'silver hair\nSteps: 30, CFG scale: 6, Size: 832x1216, Model: gemini-3-image'
+
+let userId = ''
+
+async function seedOwnPicture(owner: string, extra: object = {}) {
+  await db.generation.create({
+    data: {
+      ...OWN_ROW,
+      userId: owner,
+      storageKey: 'full.png',
+      provider: 'fal',
+      snapshot: { advancedParams: { steps: 30, guidanceScale: 6 } },
+      ...extra,
+    },
+  })
 }
 
-beforeEach(() => {
-  queryRaw.mockReset()
-  queryRaw.mockResolvedValue([])
+beforeEach(async () => {
+  await resetDatabase()
+  userId = (await createTestUser()).id
 })
 
 describe('fileRecipeOf', () => {
@@ -56,36 +69,45 @@ describe('fileRecipeOf', () => {
 
 describe('readOwnRecipes', () => {
   it('原图地址、缩略图地址都认，配方与「复制配方」同一段字', async () => {
-    queryRaw.mockResolvedValue([OWN_ROW])
-    const recipes = await readOwnRecipes('user-1', [
+    await seedOwnPicture(userId)
+    const recipes = await readOwnRecipes(userId, [
       'https://cdn.test/thumb.webp',
       'https://cdn.test/other.png',
     ])
-    expect([...recipes]).toEqual([
-      [
-        'https://cdn.test/thumb.webp',
-        'silver hair\nSteps: 30, CFG scale: 6, Size: 832x1216, Model: gemini-3-image',
-      ],
-    ])
+    expect([...recipes]).toEqual([['https://cdn.test/thumb.webp', OWN_RECIPE]])
   })
 
-  it('一个地址都没有就不查库', async () => {
-    expect((await readOwnRecipes('user-1', [])).size).toBe(0)
-    expect(queryRaw).not.toHaveBeenCalled()
+  it('别人的图、自己传上来的图都不算「在这儿出的」', async () => {
+    const stranger = await createTestUser()
+    await seedOwnPicture(stranger.id)
+    await seedOwnPicture(userId, {
+      url: 'https://cdn.test/upload.png',
+      thumbnailUrl: null,
+      provider: USER_UPLOAD_PROVIDER,
+    })
+    const recipes = await readOwnRecipes(userId, [
+      OWN_ROW.url,
+      'https://cdn.test/upload.png',
+    ])
+    expect(recipes.size).toBe(0)
+  })
+
+  it('一个地址都没有就是空', async () => {
+    expect((await readOwnRecipes(userId, [])).size).toBe(0)
   })
 
   it('查库失败只是少一段字，⛔ 不抛', async () => {
-    queryRaw.mockRejectedValue(new Error('db down'))
+    // Postgres 的文本收不下 `\u0000`：让查询真报错。
     expect(
-      (await readOwnRecipes('user-1', ['https://x.test/a.png'])).size,
+      (await readOwnRecipes(userId, ['https://x.test/a\u0000.png'])).size,
     ).toBe(0)
   })
 })
 
 describe('readPictureRecipes / renderPictureRecipes', () => {
   it('两样都有就都给，都没有的不提', async () => {
-    queryRaw.mockResolvedValue([OWN_ROW])
-    const recipes = await readPictureRecipes('user-1', [
+    await seedOwnPicture(userId)
+    const recipes = await readPictureRecipes(userId, [
       {
         url: OWN_ROW.url,
         label: 'mine',
@@ -96,8 +118,7 @@ describe('readPictureRecipes / renderPictureRecipes', () => {
     expect(recipes).toEqual([
       {
         label: 'mine',
-        madeHere:
-          'silver hair\nSteps: 30, CFG scale: 6, Size: 832x1216, Model: gemini-3-image',
+        madeHere: OWN_RECIPE,
         savedInFile: 'parameters: silver hair, Steps: 30',
       },
     ])

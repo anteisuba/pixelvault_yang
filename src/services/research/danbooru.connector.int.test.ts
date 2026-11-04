@@ -6,31 +6,8 @@ vi.mock('@/lib/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }))
 
-vi.mock('@/lib/with-retry', () => ({
-  withRetry: <T>(fn: () => Promise<T>) => fn(),
-}))
-
-const localNames = vi.hoisted(() => ({
-  hits: [] as { name: string; category: number; post_count: number }[],
-  /** 按意思对上的（语义检索），从近到远。 */
-  related: [] as { name: string; category: number; post_count: number }[],
-  /** 给了就等它：模拟语义那边慢。 */
-  relatedGate: null as Promise<void> | null,
-  names: new Map<
-    string,
-    { zh: string | null; zhNote: string | null; ja: string | null }
-  >(),
-}))
-vi.mock('@/services/research/danbooru-tag-name.service', () => ({
-  findTagsByLocalName: async (_text: string, categories: number[]) =>
-    localNames.hits.filter((hit) => categories.includes(hit.category)),
-  findTagsByMeaning: async (_text: string, categories: number[]) => {
-    await localNames.relatedGate
-    return localNames.related.filter((hit) => categories.includes(hit.category))
-  },
-  localNamesOf: async () => localNames.names,
-}))
-
+import { db } from '@/lib/db'
+import { resetDatabase } from '@/test/int/db'
 import { resetResearchBreakers } from '@/services/research/connector-runtime'
 import { RESEARCH_SOURCE_IDS } from '@/constants/research'
 import {
@@ -38,21 +15,75 @@ import {
   resetDanbooruCatalogCache,
 } from '@/services/research/danbooru.connector'
 
+/**
+ * 只假网络：Danbooru 接口与语义检索 Worker（`SEMANTIC_INDEX_URL`）都在 `fetch` 上替；
+ * 中日文名词库（`DanbooruTagName`）是真库里的行（L2a）。
+ */
+const SEMANTIC_INDEX_URL = 'https://semantic-index.test'
+
+const semantic = {
+  /** 按意思对上的（语义检索），从近到远。 */
+  related: [] as { name: string; category: number; post_count: number }[],
+  /** 给了就等它：模拟语义那边慢。 */
+  gate: null as Promise<void> | null,
+}
+
 const mockFetch = vi.fn()
 
-beforeEach(() => {
+async function semanticIndex(init?: RequestInit): Promise<Response> {
+  await semantic.gate
+  const body = JSON.parse(String(init?.body ?? '{}')) as {
+    categories?: number[]
+  }
+  return Response.json({
+    matches: semantic.related
+      .filter(
+        (hit) => !body.categories || body.categories.includes(hit.category),
+      )
+      .map((hit, index) => ({
+        key: hit.name,
+        score: 0.9 - index * 0.01,
+        meta: { category: hit.category, count: hit.post_count },
+      })),
+  })
+}
+
+async function seedTagName(row: {
+  tag: string
+  category: number
+  count: number
+  zh?: string
+  zhNote?: string
+  ja?: string
+}) {
+  await db.danbooruTagName.create({
+    data: {
+      ...row,
+      searchText: [row.zh, row.ja].filter(Boolean).join('\n').toLowerCase(),
+    },
+  })
+}
+
+beforeEach(async () => {
+  await resetDatabase()
   resetResearchBreakers([RESEARCH_SOURCE_IDS.danbooru])
   resetDanbooruCatalogCache()
-  localNames.hits = []
-  localNames.related = []
-  localNames.relatedGate = null
-  localNames.names = new Map()
+  semantic.related = []
+  semantic.gate = null
   vi.clearAllMocks()
-  vi.stubGlobal('fetch', mockFetch)
+  vi.stubEnv('SEMANTIC_INDEX_URL', SEMANTIC_INDEX_URL)
+  vi.stubEnv('SEMANTIC_INDEX_TOKEN', 'semantic-test-token')
+  vi.stubGlobal('fetch', (input: string | URL, init?: RequestInit) => {
+    const url = String(input)
+    return url.startsWith(SEMANTIC_INDEX_URL)
+      ? semanticIndex(init)
+      : mockFetch(url, init)
+  })
 })
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  vi.unstubAllEnvs()
 })
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -738,12 +769,14 @@ describe('catalog used by the tag workbench', () => {
   })
 
   it('中日文名先查自家词库，候选与详情带上中日文名', async () => {
-    localNames.hits = [
-      { name: 'hatsune_miku', category: 4, post_count: 150000 },
-    ]
-    localNames.names = new Map([
-      ['hatsune_miku', { zh: '初音未来', zhNote: '虚拟歌姬', ja: '初音ミク' }],
-    ])
+    await seedTagName({
+      tag: 'hatsune_miku',
+      category: 4,
+      count: 150000,
+      zh: '初音未来',
+      zhNote: '虚拟歌姬',
+      ja: '初音ミク',
+    })
     mockFetch.mockImplementation(async (raw: string) => {
       const url = new URL(raw)
       if (url.pathname === '/wiki_pages.json') return jsonResponse([])
@@ -771,7 +804,7 @@ describe('catalog used by the tag workbench', () => {
   })
 
   it('按意思对上的接在字面结果后面：字面有的排前，重复的去掉，别的类别不混进来', async () => {
-    localNames.related = [
+    semantic.related = [
       { name: 'cat_ears', category: 0, post_count: 900000 },
       { name: 'cat_girl', category: 0, post_count: 200000 },
       { name: 'nekomimi_artist', category: 1, post_count: 300 },
@@ -799,8 +832,8 @@ describe('catalog used by the tag workbench', () => {
   })
 
   it('字面已经排满时不等慢的语义那边', async () => {
-    localNames.relatedGate = new Promise(() => undefined)
-    localNames.related = [{ name: 'cat_ears', category: 0, post_count: 9 }]
+    semantic.gate = new Promise(() => undefined)
+    semantic.related = [{ name: 'cat_ears', category: 0, post_count: 9 }]
     const fuzzy = Array.from({ length: 6 }, (_, i) => ({
       name: `cat_${i}`,
       category: 0,

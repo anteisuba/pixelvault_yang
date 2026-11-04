@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { ASSISTANT_V3_HISTORY } from '@/constants/assistant-v3'
 import {
   splitAssistantV3History,
   type AssistantV3HistoryPlan,
@@ -13,13 +12,9 @@ vi.mock('server-only', () => ({}))
 const mocks = vi.hoisted(() => ({
   afterTasks: [] as (() => Promise<unknown>)[],
   afterThrows: false,
+  /** 摘要那一次模型调用（`llmTextCompletion` 边界）。 */
   complete: vi.fn<(options: Record<string, unknown>) => Promise<string>>(),
   warn: vi.fn(),
-  store: {
-    persists: true,
-    load: vi.fn<() => Promise<AssistantV3HistorySummary[]>>(),
-    rows: [] as AssistantV3HistorySummary[],
-  },
 }))
 
 vi.mock('next/server', () => ({
@@ -31,28 +26,14 @@ vi.mock('next/server', () => ({
 vi.mock('@/lib/logger', () => ({
   logger: { warn: mocks.warn, info: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }))
-vi.mock('@/services/kernel/assistant-completion.service', () => ({
-  completeAssistantTextWithContextRetry: mocks.complete,
+vi.mock('@/services/llm-text.service', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/services/llm-text.service')>()),
+  llmTextCompletion: (options: Record<string, unknown>) =>
+    mocks.complete(options),
 }))
-vi.mock(
-  '@/features/assistant/services/assistant-v3-history-store.service',
-  () => ({
-    assistantV3HistoryStore: {
-      get persists() {
-        return mocks.store.persists
-      },
-      load: () => mocks.store.load(),
-      update: async (
-        _key: unknown,
-        apply: (
-          current: AssistantV3HistorySummary[],
-        ) => AssistantV3HistorySummary[],
-      ) => {
-        mocks.store.rows = apply(mocks.store.rows)
-      },
-    },
-  }),
-)
+
+import { db } from '@/lib/db'
+import { createTestUser, resetDatabase } from '@/test/int/db'
 
 import {
   ASSISTANT_V3_HISTORY_SUMMARY_SYSTEM_PROMPT,
@@ -60,11 +41,29 @@ import {
   scheduleAssistantV3HistorySummary,
 } from './assistant-v3-history.service'
 
-const owner = {
-  userId: 'db_user_1',
-  clerkId: 'clerk_1',
-  conversationId: '5f0c2a9e-3b1d-4c7a-9e21-7d4b8a6c0f13',
+/**
+ * v3 历史摘要（真库 L2a）：摘要存进真会话行的 `historySummary`（真 store）；只假模型那一跳。
+ */
+let owner = {
+  userId: '',
+  clerkId: '',
+  conversationId: '' as string | undefined,
   incognito: false,
+}
+
+/** 这段会话存着的摘要。 */
+async function storedRows(): Promise<AssistantV3HistorySummary[]> {
+  const row = await db.assistantConversation.findUniqueOrThrow({
+    where: { id: owner.conversationId! },
+  })
+  return (row.historySummary ?? []) as unknown as AssistantV3HistorySummary[]
+}
+
+async function storeRows(rows: AssistantV3HistorySummary[]) {
+  await db.assistantConversation.update({
+    where: { id: owner.conversationId! },
+    data: { historySummary: rows as never },
+  })
 }
 const route = {
   adapterType: 'deepseek',
@@ -103,35 +102,38 @@ function schedule(
 }
 
 async function settle() {
-  const tasks = mocks.afterTasks.splice(0)
-  await Promise.all(tasks.map((task) => task()))
+  while (mocks.afterTasks.length) {
+    const tasks = mocks.afterTasks.splice(0)
+    await Promise.all(tasks.map((task) => task()))
+  }
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   mocks.afterTasks.length = 0
   mocks.afterThrows = false
   mocks.complete.mockReset()
   mocks.warn.mockReset()
-  mocks.store.persists = true
-  mocks.store.load.mockReset()
-  mocks.store.rows = []
+  await resetDatabase()
+  const user = await createTestUser()
+  const conversation = await db.assistantConversation.create({
+    data: { userId: user.id, surface: 'NODE_CANVAS', messages: [] },
+  })
+  owner = {
+    userId: user.id,
+    clerkId: user.clerkId,
+    conversationId: conversation.id,
+    incognito: false,
+  }
 })
 
 describe('loadAssistantV3HistorySummaries', () => {
-  it('存不下 / 没会话：不读、不补', async () => {
-    mocks.store.persists = false
-    expect(await loadAssistantV3HistorySummaries(owner)).toEqual({
-      summaries: [],
-      canSummarize: false,
-    })
-    mocks.store.persists = true
+  it('没会话：不读、不补', async () => {
     expect(
       await loadAssistantV3HistorySummaries({
         ...owner,
         conversationId: undefined,
       }),
     ).toEqual({ summaries: [], canSummarize: false })
-    expect(mocks.store.load).not.toHaveBeenCalled()
   })
 
   it('隐身照读（只关写入），⛔ 补', async () => {
@@ -145,7 +147,7 @@ describe('loadAssistantV3HistorySummaries', () => {
         names: [],
       },
     ]
-    mocks.store.load.mockResolvedValue(stored)
+    await storeRows(stored)
     expect(
       await loadAssistantV3HistorySummaries({ ...owner, incognito: true }),
     ).toEqual({ summaries: stored, canSummarize: false })
@@ -156,14 +158,16 @@ describe('loadAssistantV3HistorySummaries', () => {
   })
 
   it('读不出来：记一行警告，⛔ 写（免得冲掉存着的）', async () => {
-    mocks.store.load.mockRejectedValue(new Error('db down'))
-    expect(await loadAssistantV3HistorySummaries(owner)).toEqual({
-      summaries: [],
-      canSummarize: false,
-    })
+    // Postgres 的文本收不下 `\u0000`：让那一次读真报错。
+    expect(
+      await loadAssistantV3HistorySummaries({
+        ...owner,
+        conversationId: 'bad\u0000id',
+      }),
+    ).toEqual({ summaries: [], canSummarize: false })
     expect(mocks.warn).toHaveBeenCalledWith(
       'assistant history summaries not loaded',
-      expect.objectContaining({ error: 'db down' }),
+      expect.anything(),
     )
   })
 })
@@ -179,22 +183,18 @@ describe('scheduleAssistantV3HistorySummary', () => {
     expect(mocks.complete).toHaveBeenCalledTimes(1)
     const options = mocks.complete.mock.calls[0]![0]
     expect(options).toMatchObject({
-      route,
+      adapterType: route.adapterType,
+      apiKey: route.apiKey,
       modelId: 'deepseek-flash',
       reasoningEffort: 'low',
       responseFormat: 'json_object',
       systemPrompt: ASSISTANT_V3_HISTORY_SUMMARY_SYSTEM_PROMPT,
-      callLog: { purpose: 'historySummary', domain: 'canvas' },
       cacheKey: 'historySummary:abc',
-      contextCompactionTargetLength:
-        ASSISTANT_V3_HISTORY.summary.compactedSourceChars,
     })
     expect(options.signal).toBeInstanceOf(AbortSignal)
-    const buildUserPrompt = options.buildUserPrompt as (max?: number) => string
-    expect(buildUserPrompt()).toContain('[creator] 定了：16:9 横版')
-    expect(buildUserPrompt()).not.toContain('第二轮')
-    expect(buildUserPrompt(20)).toHaveLength(20)
-    expect(mocks.store.rows).toEqual([
+    expect(options.userPrompt).toContain('[creator] 定了：16:9 横版')
+    expect(options.userPrompt).not.toContain('第二轮')
+    expect(await storedRows()).toEqual([
       {
         through: turns[0]!.fingerprint,
         turns: 1,
@@ -215,16 +215,19 @@ describe('scheduleAssistantV3HistorySummary', () => {
       openItems: [],
       names: [],
     }
-    mocks.store.rows = [kept]
+    await storeRows([kept])
     mocks.complete.mockResolvedValueOnce('sorry, no json')
     schedule()
     await settle()
     mocks.complete.mockRejectedValueOnce(new Error('timeout'))
     schedule()
     await settle()
-    expect(mocks.store.rows).toEqual([kept])
-    expect(mocks.warn).toHaveBeenCalledTimes(2)
-    expect(mocks.warn).toHaveBeenLastCalledWith(
+    expect(await storedRows()).toEqual([kept])
+    const notStored = mocks.warn.mock.calls.filter(
+      ([message]) => message === 'assistant history summary not stored',
+    )
+    expect(notStored).toHaveLength(2)
+    expect(mocks.warn).toHaveBeenCalledWith(
       'assistant history summary not stored',
       expect.objectContaining({
         adapterType: 'deepseek',
@@ -238,19 +241,18 @@ describe('scheduleAssistantV3HistorySummary', () => {
     mocks.complete.mockResolvedValue('{"decisions":[]}')
     schedule()
     schedule()
-    expect(mocks.afterTasks).toHaveLength(1)
     await settle()
+    expect(mocks.complete).toHaveBeenCalledTimes(1)
+    // 那一份补完了，下一次照常起。
     schedule()
-    expect(mocks.afterTasks).toHaveLength(1)
     await settle()
+    expect(mocks.complete).toHaveBeenCalledTimes(2)
   })
 
-  it('隐身 / 存不下 / 没会话 / 没缺口：一次都不调', async () => {
+  it('隐身 / 没会话 / 没缺口：一次都不调', async () => {
     schedule({ owner: { ...owner, incognito: true } })
     schedule({ owner: { ...owner, conversationId: undefined } })
     schedule({ plan: { ...plan, summarize: null } })
-    mocks.store.persists = false
-    schedule()
     await settle()
     expect(mocks.complete).not.toHaveBeenCalled()
   })
@@ -259,6 +261,6 @@ describe('scheduleAssistantV3HistorySummary', () => {
     mocks.afterThrows = true
     mocks.complete.mockResolvedValue('{"decisions":["x"]}')
     schedule()
-    await vi.waitFor(() => expect(mocks.store.rows).toHaveLength(1))
+    await vi.waitFor(async () => expect(await storedRows()).toHaveLength(1))
   })
 })

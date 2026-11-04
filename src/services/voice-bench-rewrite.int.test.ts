@@ -21,6 +21,7 @@ vi.mock('@/services/llm-text.service', async (importOriginal) => ({
 
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { db } from '@/lib/db'
+import type { Prisma } from '@/lib/generated/prisma/client'
 import {
   cleanRewrittenLines,
   rewriteAsPersona,
@@ -39,7 +40,12 @@ beforeEach(async () => {
 
 async function useCard(persona: Record<string, unknown>, isDeleted = false) {
   const card = await db.characterCard.create({
-    data: { userId: me.id, name: '晴', persona, isDeleted },
+    data: {
+      userId: me.id,
+      name: '晴',
+      persona: persona as Prisma.InputJsonValue,
+      isDeleted,
+    },
   })
   await db.assistantPersona.upsert({
     where: { userId: me.id },

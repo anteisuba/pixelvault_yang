@@ -1,45 +1,50 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+// @vitest-environment jsdom
+/**
+ * 上传前压图：真 `compressImageToLimit` 一起跑。jsdom 没有 createImageBitmap / canvas 编码，
+ * 这两样浏览器能力用小桩替（不是假自己的模块）；提示走 sonner（第三方，替掉看弹了哪句）。
+ */
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { toastMock, compressImageToLimitMock, ImageCompressionErrorStub } =
-  vi.hoisted(() => {
-    class ImageCompressionErrorStub extends Error {
-      constructor(
-        public readonly code:
-          | 'UNSUPPORTED_FORMAT'
-          | 'DECODE_FAILED'
-          | 'CANNOT_COMPRESS_ENOUGH',
-        message: string,
-      ) {
-        super(message)
-        this.name = 'ImageCompressionError'
-      }
-    }
-    return {
-      toastMock: {
-        success: vi.fn(),
-        error: vi.fn(),
-        message: vi.fn(),
-        loading: vi.fn(() => 'loading-id'),
-        dismiss: vi.fn(),
-      },
-      compressImageToLimitMock: vi.fn(),
-      ImageCompressionErrorStub,
-    }
-  })
-
+const toastMock = vi.hoisted(() => ({
+  success: vi.fn(),
+  error: vi.fn(),
+  message: vi.fn(),
+  loading: vi.fn(() => 'loading-id'),
+  dismiss: vi.fn(),
+}))
 vi.mock('sonner', () => ({ toast: toastMock }))
 
-vi.mock('@/lib/compress-image', () => ({
-  compressImageToLimit: compressImageToLimitMock,
-  ImageCompressionError: ImageCompressionErrorStub,
-}))
-
 import { prepareImageUpload } from '@/lib/prepare-image-upload'
+
+const MB = 1024 * 1024
+const FIVE_MB = 5 * MB
 
 function makeFile(name: string, type: string, size: number): File {
   const file = new File(['stub'], name, { type })
   Object.defineProperty(file, 'size', { value: size, configurable: true })
   return file
+}
+
+/** 浏览器解码 + canvas 重编码：每次 toBlob 回一个 `encodedBytes` 大的图。 */
+function installBrowserImage(options: {
+  encodedBytes: number
+  drawImage?: () => void
+}) {
+  vi.stubGlobal(
+    'createImageBitmap',
+    vi.fn(async () => ({ width: 4000, height: 3000, close: vi.fn() })),
+  )
+  const original = document.createElement.bind(document)
+  vi.spyOn(document, 'createElement').mockImplementation(((tag: string) => {
+    if (tag !== 'canvas') return original(tag)
+    return {
+      width: 0,
+      height: 0,
+      getContext: () => ({ drawImage: options.drawImage ?? (() => {}) }),
+      toBlob: (callback: (blob: Blob | null) => void, type: string) =>
+        callback(new Blob([new Uint8Array(options.encodedBytes)], { type })),
+    } as unknown as HTMLCanvasElement
+  }) as typeof document.createElement)
 }
 
 const messages = {
@@ -50,76 +55,53 @@ const messages = {
   tooLarge: 'File too large',
 }
 
-const FIVE_MB = 5 * 1024 * 1024
-
 beforeEach(() => {
   vi.clearAllMocks()
 })
 
+afterEach(() => {
+  vi.restoreAllMocks()
+  vi.unstubAllGlobals()
+})
+
 describe('prepareImageUpload', () => {
-  it('returns the original file untouched when it already fits under the cap', async () => {
+  it('没超上限：原文件原样回，不弹任何提示、也不调 onError', async () => {
     const file = makeFile('small.png', 'image/png', 1024)
+    const onError = vi.fn()
 
     const result = await prepareImageUpload(file, {
       maxBytes: FIVE_MB,
       messages,
+      onError,
     })
 
     expect(result).toBe(file)
-    expect(compressImageToLimitMock).not.toHaveBeenCalled()
     expect(toastMock.loading).not.toHaveBeenCalled()
     expect(toastMock.message).not.toHaveBeenCalled()
     expect(toastMock.error).not.toHaveBeenCalled()
+    expect(onError).not.toHaveBeenCalled()
   })
 
-  it('compresses oversized files and announces the size delta', async () => {
-    const file = makeFile('big.png', 'image/png', 8 * 1024 * 1024)
-    const compressed = makeFile('big.png', 'image/png', 2 * 1024 * 1024)
-    compressImageToLimitMock.mockResolvedValue({
-      file: compressed,
-      originalBytes: 8 * 1024 * 1024,
-      compressedBytes: 2 * 1024 * 1024,
-      wasCompressed: true,
-    })
+  it('超了：压到上限以下，回压好的文件并报大小变化', async () => {
+    installBrowserImage({ encodedBytes: 2 * MB })
+    const file = makeFile('big.png', 'image/png', 8 * MB)
 
     const result = await prepareImageUpload(file, {
       maxBytes: FIVE_MB,
       messages,
     })
 
-    expect(result).toBe(compressed)
+    expect(result).not.toBe(file)
+    expect(result?.size).toBe(2 * MB)
+    expect(result?.type).toBe('image/png')
     expect(toastMock.loading).toHaveBeenCalledWith('Compressing…')
     expect(toastMock.dismiss).toHaveBeenCalledWith('loading-id')
     expect(toastMock.message).toHaveBeenCalledWith('Compressed 8.0 → 2.0')
     expect(toastMock.error).not.toHaveBeenCalled()
   })
 
-  it('skips the "compressed" message when the compressor reports no work was needed', async () => {
-    // wasCompressed=false ⇒ source size was already fine even though the
-    // caller-level branch still ran (size==cap edge case, or future tweaks
-    // to the cap). Don't spam the user with a misleading delta toast.
-    const file = makeFile('boundary.png', 'image/png', 6 * 1024 * 1024)
-    compressImageToLimitMock.mockResolvedValue({
-      file,
-      originalBytes: file.size,
-      compressedBytes: file.size,
-      wasCompressed: false,
-    })
-
-    const result = await prepareImageUpload(file, {
-      maxBytes: FIVE_MB,
-      messages,
-    })
-
-    expect(result).toBe(file)
-    expect(toastMock.message).not.toHaveBeenCalled()
-  })
-
-  it('surfaces gifTooLarge when the compressor refuses an animated GIF', async () => {
-    const file = makeFile('big.gif', 'image/gif', 8 * 1024 * 1024)
-    compressImageToLimitMock.mockRejectedValue(
-      new ImageCompressionErrorStub('UNSUPPORTED_FORMAT', 'gif'),
-    )
+  it('动图 GIF 压不了：报 gifTooLarge，onError 同一句', async () => {
+    const file = makeFile('big.gif', 'image/gif', 8 * MB)
     const onError = vi.fn()
 
     const result = await prepareImageUpload(file, {
@@ -131,18 +113,12 @@ describe('prepareImageUpload', () => {
     expect(result).toBeNull()
     expect(toastMock.error).toHaveBeenCalledWith('GIF too large')
     expect(toastMock.dismiss).toHaveBeenCalledWith('loading-id')
-    // onError mirrors the toast for callers that show a persistent banner.
     expect(onError).toHaveBeenCalledWith('GIF too large')
   })
 
-  it('falls back to tooLarge when compression cannot fit the file under the cap', async () => {
-    const file = makeFile('huge.png', 'image/png', 50 * 1024 * 1024)
-    compressImageToLimitMock.mockRejectedValue(
-      new ImageCompressionErrorStub(
-        'CANNOT_COMPRESS_ENOUGH',
-        'still too big after 8 tries',
-      ),
-    )
+  it('怎么压都下不去：报 tooLarge（不是 GIF 那句）', async () => {
+    installBrowserImage({ encodedBytes: 50 * MB })
+    const file = makeFile('huge.png', 'image/png', 50 * MB)
 
     const result = await prepareImageUpload(file, {
       maxBytes: FIVE_MB,
@@ -154,12 +130,14 @@ describe('prepareImageUpload', () => {
     expect(toastMock.error).not.toHaveBeenCalledWith('GIF too large')
   })
 
-  it('uses tooLarge (not gifTooLarge) for non-ImageCompressionError exceptions', async () => {
-    // A defensive guard — if compressImageToLimit ever throws a plain Error
-    // (e.g. canvas API blew up), we still want the user to see the generic
-    // size error rather than a misleading GIF message.
-    const file = makeFile('weird.png', 'image/png', 8 * 1024 * 1024)
-    compressImageToLimitMock.mockRejectedValue(new Error('canvas exploded'))
+  it('canvas 自己炸了（普通 Error）：也报 tooLarge', async () => {
+    installBrowserImage({
+      encodedBytes: 1,
+      drawImage: () => {
+        throw new Error('canvas exploded')
+      },
+    })
+    const file = makeFile('weird.png', 'image/png', 8 * MB)
 
     const result = await prepareImageUpload(file, {
       maxBytes: FIVE_MB,
@@ -170,28 +148,9 @@ describe('prepareImageUpload', () => {
     expect(toastMock.error).toHaveBeenCalledWith('File too large')
   })
 
-  it('does not call onError when the file does not need compression', async () => {
-    const file = makeFile('small.png', 'image/png', 1024)
-    const onError = vi.fn()
-
-    await prepareImageUpload(file, {
-      maxBytes: FIVE_MB,
-      messages,
-      onError,
-    })
-
-    expect(onError).not.toHaveBeenCalled()
-  })
-
-  it('skips the loading toast when the caller writes progress on its own key', async () => {
-    const file = makeFile('big.png', 'image/png', 8 * 1024 * 1024)
-    const compressed = makeFile('big.png', 'image/png', 2 * 1024 * 1024)
-    compressImageToLimitMock.mockResolvedValue({
-      file: compressed,
-      originalBytes: 8 * 1024 * 1024,
-      compressedBytes: 2 * 1024 * 1024,
-      wasCompressed: true,
-    })
+  it('调用方自己写进度（inlineProgress）：不弹加载提示，只报一次结果', async () => {
+    installBrowserImage({ encodedBytes: 2 * MB })
+    const file = makeFile('big.png', 'image/png', 8 * MB)
 
     const result = await prepareImageUpload(file, {
       maxBytes: FIVE_MB,
@@ -199,7 +158,7 @@ describe('prepareImageUpload', () => {
       inlineProgress: true,
     })
 
-    expect(result).toBe(compressed)
+    expect(result?.size).toBe(2 * MB)
     expect(toastMock.loading).not.toHaveBeenCalled()
     expect(toastMock.dismiss).not.toHaveBeenCalled()
     expect(toastMock.message).toHaveBeenCalledTimes(1)

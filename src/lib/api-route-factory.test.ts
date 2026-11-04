@@ -19,9 +19,7 @@ vi.mock('@/lib/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }))
 
-vi.mock('@/services/image/generate-image.service', () => ({
-  isGenerateImageServiceError: vi.fn(),
-}))
+vi.mock('server-only', () => ({}))
 
 import {
   createApiGetRoute,
@@ -35,9 +33,7 @@ import {
   InsufficientCreditsError,
   GenerationValidationError,
 } from '@/lib/errors'
-import { isGenerateImageServiceError } from '@/services/image/generate-image.service'
-
-const mockIsServiceError = vi.mocked(isGenerateImageServiceError)
+import { GenerateImageServiceError } from '@/services/image/generate-image.service'
 
 // ─── Test Schema & Route ─────────────────────────────────────────
 
@@ -133,7 +129,6 @@ describe('createApiRoute', () => {
     vi.clearAllMocks()
     mockAuthenticated()
     mockRateLimitAllowed()
-    mockIsServiceError.mockReturnValue(false)
     mockHandler.mockResolvedValue({ id: '1', name: 'test' })
   })
 
@@ -315,13 +310,13 @@ describe('createApiRoute', () => {
   // ── Legacy Service Error ──
 
   it('handles legacy GenerateImageServiceError', async () => {
-    const legacyError = Object.assign(new Error('Out of credits'), {
-      code: 'FREE_LIMIT_EXCEEDED',
-      status: 402,
-      name: 'GenerateImageServiceError',
-    })
-    mockHandler.mockRejectedValue(legacyError)
-    mockIsServiceError.mockReturnValue(true)
+    mockHandler.mockRejectedValue(
+      new GenerateImageServiceError(
+        'FREE_LIMIT_EXCEEDED',
+        'Out of credits',
+        402,
+      ),
+    )
 
     const req = createPOST('/api/test', { name: 'a', count: 1 })
     const res = await POST(req)
@@ -338,18 +333,13 @@ describe('createApiRoute', () => {
   })
 
   it('returns a provider-specific i18n key for unsupported reference image format errors', async () => {
-    const legacyError = Object.assign(
-      new Error(
+    mockHandler.mockRejectedValue(
+      new GenerateImageServiceError(
+        'PROVIDER_ERROR',
         "OpenAI error: Invalid file 'image': unsupported mimetype ('image/avif'). Supported file formats are 'image/jpeg', 'image/png', and 'image/webp'.",
+        400,
       ),
-      {
-        code: 'PROVIDER_ERROR',
-        status: 400,
-        name: 'GenerateImageServiceError',
-      },
     )
-    mockHandler.mockRejectedValue(legacyError)
-    mockIsServiceError.mockReturnValue(true)
 
     const req = createPOST('/api/test', { name: 'a', count: 1 })
     const res = await POST(req)
@@ -365,18 +355,13 @@ describe('createApiRoute', () => {
   })
 
   it('returns a precise i18n key for unreachable reference image errors', async () => {
-    const legacyError = Object.assign(
-      new Error(
+    mockHandler.mockRejectedValue(
+      new GenerateImageServiceError(
+        'PROVIDER_ERROR',
         'fal.ai could not download the reference image. The URL is not accessible.',
+        400,
       ),
-      {
-        code: 'PROVIDER_ERROR',
-        status: 400,
-        name: 'GenerateImageServiceError',
-      },
     )
-    mockHandler.mockRejectedValue(legacyError)
-    mockIsServiceError.mockReturnValue(true)
 
     const req = createPOST('/api/test', { name: 'a', count: 1 })
     const res = await POST(req)
@@ -504,7 +489,6 @@ describe('createApiGetRoute', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockAuthenticated('user_should_not_be_read')
-    mockIsServiceError.mockReturnValue(false)
     mockGetHandler.mockResolvedValue({ id: '1', name: 'public' })
   })
 
@@ -527,7 +511,6 @@ describe('createApiGetRoute', () => {
 describe('createApiInternalRoute', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockIsServiceError.mockReturnValue(false)
     mockVerifySignature.mockImplementation(() => undefined)
     mockInternalHandler.mockImplementation(async ({ data }) => ({
       received: data.runId,

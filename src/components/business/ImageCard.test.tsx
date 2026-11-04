@@ -1,11 +1,15 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
-import { NextIntlClientProvider } from 'next-intl'
+import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
+import { screen, fireEvent } from '@testing-library/react'
 
 // ─── Mocks ──────────────────────────────────────────────────────
 
 vi.mock('@/lib/api-client', () => ({
   downloadRemoteAsset: vi.fn(),
+}))
+
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({ isLoaded: true, isSignedIn: true, userId: 'user-a' }),
+  useUser: () => ({ user: { id: 'user-a' } }),
 }))
 
 vi.mock('next/image', () => ({
@@ -23,34 +27,19 @@ vi.mock('next/image', () => ({
   ),
 }))
 
-// 手机的全屏详情另有测试；这里只看卡片什么时候把它挂出来。
-vi.mock('@/components/business/ImageDetailModal', () => ({
-  ImageDetailModal: ({ open }: { open: boolean }) =>
-    open ? <div data-testid="detail-modal">Modal Open</div> : null,
-}))
-
 import { ImageCard } from '@/components/business/ImageCard'
 import { downloadRemoteAsset } from '@/lib/api-client'
 import type { GenerationRecord } from '@/types'
+import { renderWithApp } from '@/test/app-harness'
+import { text } from '@/test/i18n-text'
+import { MOBILE_WIDTH, setViewportWidth } from '@/test/viewport'
 
 const mockDownloadRemoteAsset = vi.mocked(downloadRemoteAsset)
 
 // ─── Fixtures ───────────────────────────────────────────────────
 
-const MESSAGES = {
-  GalleryCard: {
-    openImage: 'Open Image',
-    openVideo: 'Open Video',
-    like: 'Like',
-    unlike: 'Unlike',
-    download: 'Download',
-    downloadFailed: 'Download failed',
-    creatorProfileLabel: 'View {name} profile',
-    referenceImageLabel: 'Reference Image',
-    layerBadge: 'Base + {count} layers',
-  },
-  Errors: {},
-}
+const T = (key: string, values?: Record<string, string>) =>
+  text(`GalleryCard.${key}`, values, 'en')
 
 const BASE_GEN: GenerationRecord = {
   id: 'gen_card_001',
@@ -86,11 +75,7 @@ function renderCard(
     onToggleLike: vi.fn(),
     ...props,
   }
-  return render(
-    <NextIntlClientProvider locale="en" messages={MESSAGES}>
-      <ImageCard {...defaults} />
-    </NextIntlClientProvider>,
-  )
+  return renderWithApp(<ImageCard {...defaults} />, { locale: 'en' })
 }
 
 // ─── Tests ──────────────────────────────────────────────────────
@@ -98,12 +83,14 @@ function renderCard(
 describe('ImageCard', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    setViewportWidth(MOBILE_WIDTH, { touch: true })
     mockDownloadRemoteAsset.mockResolvedValue({ success: true })
   })
+  afterEach(() => vi.unstubAllGlobals())
 
   it('keeps the card face to the media alone — no prompt, model or provider', () => {
     renderCard()
-    expect(screen.getByLabelText('Open Image')).toBeInTheDocument()
+    expect(screen.getByLabelText(T('openImage'))).toBeInTheDocument()
     expect(screen.queryByText('sunset over the ocean')).not.toBeInTheDocument()
     expect(screen.queryByText('huggingface')).not.toBeInTheDocument()
   })
@@ -119,7 +106,7 @@ describe('ImageCard', () => {
     renderCard({ generation: { ...BASE_GEN, creator: ALICE } })
 
     const creatorLink = screen.getByRole('link', {
-      name: 'View Alice W. profile',
+      name: T('creatorProfileLabel', { name: 'Alice W.' }),
     })
     expect(creatorLink).toHaveAttribute('href', '/en/u/alice')
     expect(creatorLink.className).toContain('opacity-0')
@@ -149,7 +136,7 @@ describe('ImageCard', () => {
     const generation = { ...BASE_GEN, likeCount: 5, isLiked: true }
     renderCard({ generation, onToggleLike })
 
-    const like = screen.getByRole('button', { name: 'Unlike' })
+    const like = screen.getByRole('button', { name: T('unlike') })
     // 数字是滚轴：读屏只念 sr-only 那一份。
     expect(like.querySelector('.sr-only')).toHaveTextContent(/^5$/)
     expect(like).toHaveAttribute('aria-pressed', 'true')
@@ -161,26 +148,28 @@ describe('ImageCard', () => {
     const onOpen = vi.fn()
     renderCard({ onOpen })
 
-    fireEvent.click(screen.getByLabelText('Open Image'))
+    fireEvent.click(screen.getByLabelText(T('openImage')))
 
     expect(onOpen).toHaveBeenCalledWith(BASE_GEN)
-    expect(screen.queryByTestId('detail-modal')).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
   it('opens its own full-screen detail on phones (no viewer)', async () => {
     renderCard()
-    expect(screen.queryByTestId('detail-modal')).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByLabelText('Open Image'))
+    fireEvent.click(screen.getByLabelText(T('openImage')))
 
-    expect(await screen.findByTestId('detail-modal')).toBeInTheDocument()
+    // 真的详情弹框（按需加载，第一次要等模块载完）：里面是这张图的提示词。
+    const dialog = await screen.findByRole('dialog', {}, { timeout: 5000 })
+    expect(dialog).toHaveTextContent('sunset over the ocean')
   })
 
   it('renders public work as a crawlable link to its detail page', () => {
     const onOpen = vi.fn()
     renderCard({ onOpen })
 
-    const opener = screen.getByRole('link', { name: 'Open Image' })
+    const opener = screen.getByRole('link', { name: T('openImage') })
     expect(opener).toHaveAttribute('href', '/en/gallery/gen_card_001')
 
     // 普通左键：留在画廊、交给查看器，⛔ 跳页。
@@ -193,7 +182,7 @@ describe('ImageCard', () => {
     const onOpen = vi.fn()
     renderCard({ onOpen })
 
-    const opener = screen.getByRole('link', { name: 'Open Image' })
+    const opener = screen.getByRole('link', { name: T('openImage') })
     opener.addEventListener('click', (event) => event.preventDefault())
     fireEvent.click(opener, { metaKey: true })
     fireEvent.click(opener, { ctrlKey: true })
@@ -206,10 +195,10 @@ describe('ImageCard', () => {
       generation: { ...BASE_GEN, isPublic: false },
     })
     expect(
-      screen.getByRole('button', { name: 'Open Image' }),
+      screen.getByRole('button', { name: T('openImage') }),
     ).toBeInTheDocument()
     expect(
-      screen.queryByRole('link', { name: 'Open Image' }),
+      screen.queryByRole('link', { name: T('openImage') }),
     ).not.toBeInTheDocument()
     unmount()
 
@@ -222,7 +211,7 @@ describe('ImageCard', () => {
       },
     })
     expect(
-      screen.getByRole('button', { name: 'Open Image' }),
+      screen.getByRole('button', { name: T('openImage') }),
     ).toBeInTheDocument()
   })
 
@@ -230,10 +219,10 @@ describe('ImageCard', () => {
     const onOpen = vi.fn()
     renderCard({ generation: { ...BASE_GEN, creator: ALICE }, onOpen })
 
-    fireEvent.click(screen.getByLabelText('Like'))
-    fireEvent.click(screen.getByLabelText('Download'))
+    fireEvent.click(screen.getByLabelText(T('like')))
+    fireEvent.click(screen.getByLabelText(T('download')))
     const creatorLink = screen.getByRole('link', {
-      name: 'View Alice W. profile',
+      name: T('creatorProfileLabel', { name: 'Alice W.' }),
     })
     creatorLink.addEventListener('click', (event) => event.preventDefault())
     fireEvent.click(creatorLink)
@@ -250,18 +239,16 @@ describe('ImageCard', () => {
     expect(screen.queryByText('0:07')).not.toBeInTheDocument()
 
     rerender(
-      <NextIntlClientProvider locale="en" messages={MESSAGES}>
-        <ImageCard
-          generation={{
-            ...BASE_GEN,
-            outputType: 'VIDEO',
-            url: 'https://r2.example.com/card.mp4',
-            mimeType: 'video/mp4',
-            duration: 7,
-          }}
-          onToggleLike={vi.fn()}
-        />
-      </NextIntlClientProvider>,
+      <ImageCard
+        generation={{
+          ...BASE_GEN,
+          outputType: 'VIDEO',
+          url: 'https://r2.example.com/card.mp4',
+          mimeType: 'video/mp4',
+          duration: 7,
+        }}
+        onToggleLike={vi.fn()}
+      />,
     )
     expect(screen.getByText('0:07')).toBeInTheDocument()
   })

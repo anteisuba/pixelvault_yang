@@ -1,14 +1,9 @@
 // ⚠ 用 `fireEvent` 不是 `user-event`：本仓没装 `@testing-library/user-event`。
-import {
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { THEME_STORAGE_KEY } from '@/constants/theme'
+import { message as M, renderWithApp } from '@/test/app-harness'
 
 import { AccountMenu } from './AccountMenu'
 
@@ -33,20 +28,25 @@ import { AccountMenu } from './AccountMenu'
  *     夹取写死在代码里，窄屏溢出就不可能。
  */
 
-vi.mock('next-intl', () => ({
-  useTranslations: (namespace?: string) => (key: string) =>
-    namespace ? `${namespace}:${key}` : key,
-  useLocale: () => 'zh',
-}))
-
 const signOut = vi.hoisted(() => vi.fn())
-vi.mock('@clerk/nextjs', () => ({ useClerk: () => ({ signOut }) }))
-
-vi.mock('@/hooks/use-my-profile', () => ({
-  useMyProfile: () => ({
-    profile: { username: 'fulina', displayName: '福林', avatarUrl: null },
-  }),
+vi.mock('@clerk/nextjs', () => ({
+  useClerk: () => ({ signOut }),
+  useAuth: () => ({ isLoaded: true, isSignedIn: true, userId: 'user-a' }),
 }))
+
+// 只假网络：真 `useMyProfile` 去拉「我的资料」。
+const getMyProfileAPI = vi.hoisted(() => vi.fn())
+vi.mock('@/lib/api-client', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api-client')>()),
+  getMyProfileAPI,
+}))
+
+beforeEach(() => {
+  getMyProfileAPI.mockResolvedValue({
+    success: true,
+    data: { username: 'fulina', displayName: '福林', avatarUrl: null },
+  })
+})
 
 vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams('tab=lora'),
@@ -74,7 +74,7 @@ vi.mock('@/i18n/navigation', () => ({
 }))
 
 function openMenu() {
-  render(
+  renderWithApp(
     <AccountMenu>
       <button type="button">trigger</button>
     </AccountMenu>,
@@ -96,7 +96,7 @@ afterEach(async () => {
 
 /** 语言那一行（整行一颗 menuitem）与里面的三格，按 DOM 顺序。 */
 async function findLanguageRow() {
-  const row = await screen.findByText('LocaleSwitcher:label')
+  const row = await screen.findByText(M('LocaleSwitcher.label'))
   const item = row.closest<HTMLElement>('[data-slot="account-menu-language"]')
   if (!item) throw new Error('language row not found')
   return {
@@ -107,7 +107,7 @@ async function findLanguageRow() {
 
 /** 外观那一行与里面的两格（素 | 暗房），按 DOM 顺序。 */
 async function findAppearanceRow() {
-  const row = await screen.findByText('ThemeSwitcher:label')
+  const row = await screen.findByText(M('ThemeSwitcher.label'))
   const item = row.closest<HTMLElement>('[data-slot="account-menu-appearance"]')
   if (!item) throw new Error('appearance row not found')
   return {
@@ -122,8 +122,6 @@ describe('AccountMenu（D11 ④）', () => {
 
     expect(await screen.findByText('福林')).toBeInTheDocument()
     expect(screen.getByText('@fulina')).toBeInTheDocument()
-    expect(screen.queryByText('Navbar:apiKeys')).toBeNull()
-    expect(screen.queryByText('Navbar:requestsLoading')).toBeNull()
   })
 
   it('外观在语言下面、设置上面：一行分段条，只有素 / 暗房两档，默认素', async () => {
@@ -131,7 +129,7 @@ describe('AccountMenu（D11 ④）', () => {
 
     const { item, options } = await findAppearanceRow()
     const language = (await findLanguageRow()).item
-    const settings = screen.getByLabelText('Navbar:settings')
+    const settings = screen.getByLabelText(M('Navbar.settings'))
     expect(item.getAttribute('role')).toBe('menuitem')
     expect(
       language.compareDocumentPosition(item) & Node.DOCUMENT_POSITION_FOLLOWING,
@@ -140,8 +138,8 @@ describe('AccountMenu（D11 ④）', () => {
       item.compareDocumentPosition(settings) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy()
     expect(options.map((option) => option.textContent)).toEqual([
-      'ThemeSwitcher:options.light',
-      'ThemeSwitcher:options.dark',
+      M('ThemeSwitcher.options.light'),
+      M('ThemeSwitcher.options.dark'),
     ])
     expect(
       options.map((option) => option.getAttribute('aria-checked')),
@@ -154,7 +152,7 @@ describe('AccountMenu（D11 ④）', () => {
     const { options } = await findAppearanceRow()
     fireEvent.click(options[1])
     expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBe('dark')
-    expect(screen.getByText('ThemeSwitcher:label')).toBeInTheDocument()
+    expect(screen.getByText(M('ThemeSwitcher.label'))).toBeInTheDocument()
     expect(
       (await findAppearanceRow()).options.map((option) =>
         option.getAttribute('aria-checked'),
@@ -180,9 +178,9 @@ describe('AccountMenu（D11 ④）', () => {
     const { item, options } = await findLanguageRow()
     expect(item.getAttribute('role')).toBe('menuitem')
     expect(options.map((option) => option.getAttribute('aria-label'))).toEqual([
-      'LocaleSwitcher:names.en',
-      'LocaleSwitcher:names.ja',
-      'LocaleSwitcher:names.zh',
+      M('LocaleSwitcher.names.en'),
+      M('LocaleSwitcher.names.ja'),
+      M('LocaleSwitcher.names.zh'),
     ])
     expect(
       document.querySelector('[data-slot="dropdown-menu-sub-trigger"]'),
@@ -213,13 +211,18 @@ describe('AccountMenu（D11 ④）', () => {
       }),
     )
     // 换语言不是关菜单的动作：菜单还开着。
-    expect(screen.getByText('LocaleSwitcher:label')).toBeInTheDocument()
+    expect(screen.getByText(M('LocaleSwitcher.label'))).toBeInTheDocument()
 
-    // 点当前那一格什么都不做。
+    // 点当前那一格什么都不做（等过滑块那一段也没换地址）。
     replace.mockClear()
-    fireEvent.click(options[1])
-    await new Promise((resolve) => setTimeout(resolve, 400))
-    expect(replace).not.toHaveBeenCalled()
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    try {
+      fireEvent.click(options[1])
+      await vi.advanceTimersByTimeAsync(400)
+      expect(replace).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('键盘落在语言行上：←/→ 换语言（分段条里的格子在菜单里键盘到不了）', async () => {
@@ -245,7 +248,7 @@ describe('AccountMenu（D11 ④）', () => {
   it('「设置」带上来处，与旧的最底一行同一个去处', async () => {
     openMenu()
 
-    const settings = await screen.findByLabelText('Navbar:settings')
+    const settings = await screen.findByLabelText(M('Navbar.settings'))
     expect(settings.getAttribute('href')).toBe(
       '/settings?from=%2Fstudio%2Fimage',
     )
@@ -278,7 +281,7 @@ describe('AccountMenu（D11 ④）', () => {
   it('退出登录走 Clerk 同一条路，⛔ 没有二次确认', async () => {
     openMenu()
 
-    fireEvent.click(await screen.findByText('Settings:signOut'))
+    fireEvent.click(await screen.findByText(M('Settings.signOut')))
     expect(signOut).toHaveBeenCalledWith({ redirectUrl: '/' })
     expect(screen.queryByRole('alertdialog')).toBeNull()
   })

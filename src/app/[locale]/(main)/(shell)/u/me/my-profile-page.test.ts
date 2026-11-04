@@ -25,10 +25,6 @@ vi.mock('@/services/user.service', () => ({
   getCreatorProfile: vi.fn(),
 }))
 
-vi.mock('@/components/business/CreatorProfileView', () => ({
-  CreatorProfileView: () => null,
-}))
-
 import { generateMetadata } from './my-profile-page'
 import { ensureUser } from '@/services/user.service'
 

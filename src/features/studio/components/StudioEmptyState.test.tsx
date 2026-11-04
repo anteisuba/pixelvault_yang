@@ -1,84 +1,61 @@
-import type { ReactNode } from 'react'
+import { act, fireEvent, screen, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { fireEvent, render, screen } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-
-import { STUDIO_GUIDE_SEEN_STORAGE_KEY } from '@/constants/studio'
+import { API_ENDPOINTS } from '@/constants/config'
+import {
+  STUDIO_GUIDE_SEEN_STORAGE_KEY,
+  STUDIO_PROMPT_TEXTAREA_ID,
+} from '@/constants/studio'
 import type { GenerationRecord } from '@/types'
+import { text } from '@/test/i18n-text'
+import {
+  fakeStudioServer,
+  renderWithStudio,
+  type StudioHandle,
+} from '@/test/studio-harness'
 
 import { StudioEmptyState } from './StudioEmptyState'
 
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({ isLoaded: true, isSignedIn: true, userId: 'user-a' }),
+}))
+vi.mock('@/i18n/navigation', () => ({
+  usePathname: () => '/studio/image',
+  useRouter: () => ({ push: vi.fn() }),
 }))
 
-const dispatchMock = vi.fn()
-const addFromUrlMock = vi.fn(() => Promise.resolve())
-let historyMock: GenerationRecord[] = []
-let promptDialectMock = 'natural'
+const T = (key: string) => text(`StudioEmptyState.${key}`)
+const ok = (data: unknown) => Response.json({ success: true, data })
 
-vi.mock('@/contexts/studio-context', () => ({
-  useStudioForm: () => ({
-    state: { promptDialect: promptDialectMock },
-    dispatch: dispatchMock,
-  }),
-  // ⚠ 手写镜像：组件消费到哪些字段这里就得有哪些。缺 `imageUpload` 时点缩略图
-  // 会在事件处理里抛（测试仍报 pass，只多一条 unhandled error）——
-  // 同 VideoComposer 夹具脱节那一类，别只看 pass 数。
-  useStudioData: () => ({
-    projects: { history: historyMock },
-    imageUpload: { addFromUrl: addFromUrlMock },
-  }),
-}))
+let history: GenerationRecord[] = []
 
-const focusMock = vi.fn()
-vi.mock('@/lib/focus-studio-prompt', () => ({
-  focusStudioPrompt: () => focusMock(),
-}))
+/**
+ * 真工作台里挂起手屏，旁边放一块真的提示词框（`focusStudioPrompt` 找它）。
+ * 最近作品走真 `useProjects` 拉回来的未归档历史。
+ */
+function renderEmpty(
+  props: React.ComponentProps<typeof StudioEmptyState>,
+  { tags = false } = {},
+) {
+  const view = renderWithStudio(
+    <>
+      {tags ? (
+        <textarea aria-label="positive" data-tag-polarity="positive" />
+      ) : (
+        <textarea aria-label="prompt" id={STUDIO_PROMPT_TEXTAREA_ID} />
+      )}
+      <StudioEmptyState {...props} />
+    </>,
+  )
+  return view
+}
 
-vi.mock('@/components/business/studio-shared/XiaoheiGuideCarousel', () => ({
-  XiaoheiGuideCarousel: ({ guideId }: { guideId: string }) => (
-    <div data-testid="guide-carousel" data-guide={guideId} />
-  ),
-}))
+function useTagStudio(studio: { current: StudioHandle }) {
+  studio.current.dispatch({ type: 'SET_PROMPT_DIALECT', payload: 'tags' })
+}
 
-vi.mock('@/components/ui/optimized-image', () => ({
-  OptimizedImage: ({ src, alt }: { src: string; alt: string }) => (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src={src} alt={alt} />
-  ),
-}))
-
-vi.mock('@/components/ui/responsive-dialog', () => ({
-  ResponsiveDialog: ({
-    open,
-    onOpenChange,
-    children,
-  }: {
-    open: boolean
-    onOpenChange: (open: boolean) => void
-    children: ReactNode
-  }) =>
-    open ? (
-      <div data-testid="guide-dialog">
-        <button
-          type="button"
-          data-testid="guide-dialog-close"
-          onClick={() => onOpenChange(false)}
-        />
-        {children}
-      </div>
-    ) : null,
-  ResponsiveDialogContent: ({ children }: { children: ReactNode }) => (
-    <div>{children}</div>
-  ),
-  ResponsiveDialogHeader: ({ children }: { children: ReactNode }) => (
-    <div>{children}</div>
-  ),
-  ResponsiveDialogTitle: ({ children }: { children: ReactNode }) => (
-    <h2>{children}</h2>
-  ),
-}))
+const recentTiles = () =>
+  screen.findAllByRole('button', { name: new RegExp(T('recentRemixHint')) })
 
 function makeGeneration(
   overrides: Partial<GenerationRecord> = {},
@@ -93,64 +70,62 @@ function makeGeneration(
 }
 
 beforeEach(() => {
-  vi.clearAllMocks()
-  historyMock = []
-  promptDialectMock = 'natural'
+  history = []
   localStorage.clear()
+  fakeStudioServer().on('GET', `${API_ENDPOINTS.PROJECTS}/:id/history`, () =>
+    ok({ generations: history, total: history.length, hasMore: false }),
+  )
 })
+afterEach(() => vi.unstubAllGlobals())
 
 describe('StudioEmptyState', () => {
   it('renders the hint and fills prompt + focuses on example chip click', () => {
     localStorage.setItem(STUDIO_GUIDE_SEEN_STORAGE_KEY, '1')
-    render(<StudioEmptyState mode="image" />)
+    const { studio } = renderEmpty({ mode: 'image' })
 
-    expect(screen.getByText('hint.image')).toBeInTheDocument()
+    expect(screen.getByText(T('hint.image'))).toBeInTheDocument()
     // 台名不再写在起手屏上（用户 10-25：留位置给左上角的头像）。
-    expect(screen.queryByText('modeLabel.image')).toBeNull()
+    expect(screen.queryByText(T('modeLabel.image'))).toBeNull()
 
     fireEvent.click(
-      screen.getByRole('button', { name: 'examples.image.e1.label' }),
+      screen.getByRole('button', { name: T('examples.image.e1.label') }),
     )
-    expect(dispatchMock).toHaveBeenCalledWith({
-      type: 'SET_PROMPT',
-      payload: 'examples.image.e1.prompt',
-    })
-    expect(focusMock).toHaveBeenCalled()
+    expect(studio.current.state.prompt).toBe(T('examples.image.e1.prompt'))
+    expect(document.activeElement).toBe(screen.getByLabelText('prompt'))
   })
 
   // 标签台起手是几组标签：点一组 = 正向栏换成这一组（⛔ 不走 SET_PROMPT 的整句）。
   it('starts the tag studio from a tag set', () => {
     localStorage.setItem(STUDIO_GUIDE_SEEN_STORAGE_KEY, '1')
-    promptDialectMock = 'tags'
-    render(<StudioEmptyState mode="image" />)
+    const { studio } = renderEmpty({ mode: 'image' }, { tags: true })
+    act(() => useTagStudio(studio))
 
-    expect(screen.getByText('hint.image_tags')).toBeInTheDocument()
+    expect(screen.getByText(T('hint.image_tags'))).toBeInTheDocument()
     fireEvent.click(
-      screen.getByRole('button', { name: 'examples.image_tags.e1.label' }),
+      screen.getByRole('button', { name: T('examples.image_tags.e1.label') }),
     )
-    expect(dispatchMock).toHaveBeenCalledWith({
-      type: 'SET_TAG_CHIPS',
-      payload: {
-        polarity: 'positive',
-        chips: [{ text: 'examples.image_tags.e1.prompt', weight: 1 }],
-      },
-    })
-    expect(focusMock).toHaveBeenCalled()
+    // 正向栏换成这一组：一个标签一格，权重 1。
+    expect(studio.current.state.tagChips).toEqual(
+      T('examples.image_tags.e1.prompt')
+        .split(',')
+        .map((tag) => ({ text: tag.trim(), weight: 1 })),
+    )
+    expect(document.activeElement).toBe(screen.getByLabelText('positive'))
   })
 
-  it('shows recent tiles filtered by mode, capped at 6, remixing on click', () => {
+  it('shows recent tiles filtered by mode, capped at 6, remixing on click', async () => {
     localStorage.setItem(STUDIO_GUIDE_SEEN_STORAGE_KEY, '1')
     const onRemix = vi.fn()
-    historyMock = [
+    history = [
       makeGeneration({ id: 'img-1' }),
       makeGeneration({ id: 'vid-1', outputType: 'VIDEO' }),
       ...Array.from({ length: 7 }, (_, i) =>
         makeGeneration({ id: `img-${i + 2}` }),
       ),
     ]
-    render(<StudioEmptyState mode="image" onRemix={onRemix} />)
+    renderEmpty({ mode: 'image', onRemix })
 
-    const tiles = screen.getAllByRole('button', { name: /recentRemixHint/ })
+    const tiles = await recentTiles()
     expect(tiles).toHaveLength(6)
 
     fireEvent.click(tiles[0])
@@ -159,9 +134,9 @@ describe('StudioEmptyState', () => {
     )
   })
 
-  it('点缩略图时图片模态还会把图挂进输入框，视频模态不会', () => {
+  it('点缩略图时图片模态还会把图挂进输入框，视频模态不会', async () => {
     localStorage.setItem(STUDIO_GUIDE_SEEN_STORAGE_KEY, '1')
-    historyMock = [
+    history = [
       makeGeneration({ id: 'img-1', url: 'https://cdn/img-1.png' }),
       makeGeneration({
         id: 'vid-1',
@@ -170,53 +145,54 @@ describe('StudioEmptyState', () => {
       }),
     ]
 
-    const { unmount } = render(<StudioEmptyState mode="image" />)
-    fireEvent.click(
-      screen.getAllByRole('button', { name: /recentRemixHint/ })[0],
+    const image = renderEmpty({ mode: 'image' })
+    fireEvent.click((await recentTiles())[0]!)
+    await waitFor(() =>
+      expect(
+        image.studio.current.imageUpload.referenceEntries.map((e) => e.url),
+      ).toEqual(['https://cdn/img-1.png']),
     )
-    expect(addFromUrlMock).toHaveBeenCalledWith('https://cdn/img-1.png')
-    unmount()
+    image.unmount()
 
     // 视频产物挂成图片参考没有意义 —— 那两个模态维持原来的 remix 行为。
-    addFromUrlMock.mockClear()
-    render(<StudioEmptyState mode="video" />)
-    fireEvent.click(
-      screen.getAllByRole('button', { name: /recentRemixHint/ })[0],
-    )
-    expect(addFromUrlMock).not.toHaveBeenCalled()
+    const video = renderEmpty({ mode: 'video' })
+    fireEvent.click((await recentTiles())[0]!)
+    await act(async () => {})
+    expect(video.studio.current.imageUpload.referenceEntries).toEqual([])
   })
 
-  it('hides the recent row when no history matches the mode', () => {
+  it('hides the recent row when no history matches the mode', async () => {
     localStorage.setItem(STUDIO_GUIDE_SEEN_STORAGE_KEY, '1')
-    historyMock = [makeGeneration({ id: 'vid-1', outputType: 'VIDEO' })]
-    render(<StudioEmptyState mode="image" />)
+    history = [makeGeneration({ id: 'vid-1', outputType: 'VIDEO' })]
+    const { studio } = renderEmpty({ mode: 'image' })
+    await waitFor(() => expect(studio.current.projects.history).toHaveLength(1))
 
-    expect(screen.queryByText('recentLabel')).not.toBeInTheDocument()
+    expect(screen.queryByText(T('recentLabel'))).not.toBeInTheDocument()
   })
 
-  it('auto-opens the guide on first visit; closing records the seen flag', () => {
-    render(<StudioEmptyState mode="image" />)
+  it('auto-opens the guide on first visit; closing records the seen flag', async () => {
+    renderEmpty({ mode: 'image' })
 
-    expect(screen.getByTestId('guide-dialog')).toBeInTheDocument()
-    expect(screen.getByTestId('guide-carousel')).toHaveAttribute(
-      'data-guide',
-      'image',
-    )
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog).toBeInTheDocument()
     // 标记在用户关闭教程时才写，避免"弹过但没看"的用户永远错过。
     expect(localStorage.getItem(STUDIO_GUIDE_SEEN_STORAGE_KEY)).toBeNull()
 
-    fireEvent.click(screen.getByTestId('guide-dialog-close'))
-    expect(screen.queryByTestId('guide-dialog')).not.toBeInTheDocument()
-    expect(localStorage.getItem(STUDIO_GUIDE_SEEN_STORAGE_KEY)).toBe('1')
+    fireEvent.keyDown(dialog, { key: 'Escape' })
+    await waitFor(() =>
+      expect(localStorage.getItem(STUDIO_GUIDE_SEEN_STORAGE_KEY)).toBe('1'),
+    )
   })
 
-  it('does not auto-open once seen; the manual entry still opens it', () => {
+  it('does not auto-open once seen; the manual entry still opens it', async () => {
     localStorage.setItem(STUDIO_GUIDE_SEEN_STORAGE_KEY, '1')
-    render(<StudioEmptyState mode="image" />)
+    renderEmpty({ mode: 'image' })
 
-    expect(screen.queryByTestId('guide-dialog')).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: /guideButton/ }))
-    expect(screen.getByTestId('guide-dialog')).toBeInTheDocument()
+    fireEvent.click(
+      screen.getByRole('button', { name: new RegExp(T('guideButton')) }),
+    )
+    expect(await screen.findByRole('dialog')).toBeInTheDocument()
   })
 })

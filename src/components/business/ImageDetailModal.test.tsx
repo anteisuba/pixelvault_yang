@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { fireEvent, render, screen, within } from '@testing-library/react'
-import { NextIntlClientProvider } from 'next-intl'
+import { fireEvent, screen, within } from '@testing-library/react'
 
 // ─── Mocks ──────────────────────────────────────────────────────
 
@@ -10,11 +9,7 @@ vi.mock('@/lib/api-client', () => ({
 }))
 
 vi.mock('@clerk/nextjs', () => ({
-  useAuth: vi.fn(() => ({ isSignedIn: true })),
-}))
-
-vi.mock('@/i18n/routing', () => ({
-  isCjkLocale: vi.fn(() => false),
+  useAuth: vi.fn(() => ({ isLoaded: true, isSignedIn: true })),
 }))
 
 vi.mock('@/i18n/navigation', () => ({
@@ -29,88 +24,15 @@ vi.mock('@/i18n/navigation', () => ({
   ),
 }))
 
-vi.mock('@/lib/model-options', () => ({
-  getTranslatedModelLabel: vi.fn(() => 'Stable Diffusion XL'),
-}))
-
-vi.mock('@/components/business/VideoPlayer', () => ({
-  default: () => <div data-testid="video-player" />,
-}))
-
 import { ImageDetailModal } from '@/components/business/ImageDetailModal'
 import { toggleGenerationVisibility } from '@/lib/api-client'
 import type { GenerationRecord } from '@/types'
+import { renderWithApp } from '@/test/app-harness'
+import { text } from '@/test/i18n-text'
 
 // ─── Fixtures ───────────────────────────────────────────────────
 
-const MESSAGES = {
-  ImageDetail: {
-    title: 'Image Details',
-    promptLabel: 'Prompt',
-    negativePromptLabel: 'Negative Prompt',
-    dimensionsLabel: 'Dimensions',
-    download: 'Download',
-    downloading: 'Downloading...',
-    openOriginal: 'Open Original',
-    copyPrompt: 'Copy Prompt',
-    promptCopied: 'Copied!',
-    shareLink: 'Share Link',
-    linkCopied: 'Link Copied!',
-    generateWithPrompt: 'Generate',
-    savePromptTemplate: 'Save Prompt',
-    editInStudio: 'Edit in Studio',
-    upscale: 'Upscale',
-    upscaling: 'Upscaling...',
-    removeBackground: 'Remove BG',
-    removingBackground: 'Removing...',
-    saveUpscaleToGallery: 'Save Upscale',
-    decomposing: 'Decomposing...',
-    delete: 'Delete',
-    close: 'Close',
-    editFailed: 'Edit failed',
-    downloadFailed: 'Download failed',
-    editSuccess: 'Edit done',
-    editSavedToGallery: 'Saved',
-    referenceLabel: 'Reference',
-    generatedLabel: 'Generated',
-    referenceImageLabel: 'Reference Image',
-    shareFailed: 'Share failed',
-  },
-  GalleryCard: {
-    modelLabel: 'Model',
-    providerLabel: 'Provider',
-    requestsLabel: 'Credits',
-    imageVisibilityShort: '{status}',
-    promptVisibilityShort: '{status}',
-    publicLabel: 'Public',
-    privateLabel: 'Private',
-    featuredOn: 'Featured',
-    unpinAction: 'Unpin',
-    pinAction: 'Pin',
-    promptPrivateHint: 'Prompt is private',
-  },
-  Common: {
-    requestCount: '{count} credits',
-    close: 'Close',
-  },
-  Models: {},
-  Feedback: {
-    downloadStarted: 'Download started',
-    deleteDialog: {
-      cancel: 'Cancel',
-      confirm: 'Delete',
-      irreversible: "Once deleted, it can't be recovered.",
-      imageTitle: 'Delete this image?',
-    },
-  },
-  Toasts: {
-    featuredAdded: 'Pinned',
-    featuredRemoved: 'Unpinned',
-    featuredFailed: 'Failed',
-    featuredLimitReached: 'Limit',
-  },
-  Errors: {},
-}
+const T = (path: string) => text(path, {}, 'en')
 
 const BASE_GEN: GenerationRecord = {
   id: 'gen_modal_001',
@@ -123,7 +45,7 @@ const BASE_GEN: GenerationRecord = {
   width: 1024,
   height: 1024,
   prompt: 'a beautiful mountain landscape',
-  model: 'sdxl',
+  model: 'seedream-5.0-pro',
   provider: 'huggingface',
   requestCount: 1,
   isPublic: true,
@@ -139,11 +61,7 @@ function renderModal(
     onOpenChange: vi.fn(),
     ...props,
   }
-  return render(
-    <NextIntlClientProvider locale="en" messages={MESSAGES} timeZone="UTC">
-      <ImageDetailModal {...defaults} />
-    </NextIntlClientProvider>,
-  )
+  return renderWithApp(<ImageDetailModal {...defaults} />, { locale: 'en' })
 }
 
 // ─── Tests ──────────────────────────────────────────────────────
@@ -155,8 +73,12 @@ describe('ImageDetailModal', () => {
 
   it('renders nothing visible when open is false', () => {
     renderModal({ open: false })
-    expect(screen.queryByText('Prompt')).not.toBeInTheDocument()
-    expect(screen.queryByText('Download')).not.toBeInTheDocument()
+    expect(
+      screen.queryByText(T('ImageDetail.promptLabel')),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByText(T('ImageDetail.download')),
+    ).not.toBeInTheDocument()
   })
 
   it('renders prompt and metadata when open', () => {
@@ -164,7 +86,9 @@ describe('ImageDetailModal', () => {
     // Prompt text appears in multiple places (prompt section, img alt, sr-only description)
     const matches = screen.getAllByText('a beautiful mountain landscape')
     expect(matches.length).toBeGreaterThanOrEqual(1)
-    expect(screen.getByText('Stable Diffusion XL')).toBeInTheDocument()
+    expect(
+      screen.getByText(T('Models.seedream50Pro.label')),
+    ).toBeInTheDocument()
     expect(screen.getByText('huggingface')).toBeInTheDocument()
   })
 
@@ -179,15 +103,19 @@ describe('ImageDetailModal', () => {
     expect(
       screen.getByAltText('a beautiful mountain landscape'),
     ).toBeInTheDocument()
-    expect(screen.queryByAltText('Generated')).not.toBeInTheDocument()
-    expect(screen.queryByAltText('Reference')).not.toBeInTheDocument()
+    expect(
+      screen.queryByAltText(T('ImageDetail.generatedLabel')),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByAltText(T('ImageDetail.referenceLabel')),
+    ).not.toBeInTheDocument()
   })
 
   it('shows copy prompt button when prompt is visible', () => {
     renderModal({
       generation: { ...BASE_GEN, isPromptPublic: true },
     })
-    expect(screen.getByText('Copy Prompt')).toBeInTheDocument()
+    expect(screen.getByText(T('ImageDetail.copyPrompt'))).toBeInTheDocument()
   })
 
   it('links visible prompts to the prompt template creation page', () => {
@@ -195,10 +123,15 @@ describe('ImageDetailModal', () => {
       generation: { ...BASE_GEN, isPromptPublic: true },
     })
 
-    const link = screen.getByRole('link', { name: /save prompt/i })
+    const link = screen.getByRole('link', {
+      name: T('ImageDetail.savePromptTemplate'),
+    })
     expect(link).toHaveAttribute('href', expect.stringContaining('/prompts?'))
     expect(link).toHaveAttribute('href', expect.stringContaining('create=1'))
-    expect(link).toHaveAttribute('href', expect.stringContaining('model=sdxl'))
+    expect(link).toHaveAttribute(
+      'href',
+      expect.stringContaining('model=seedream-5.0-pro'),
+    )
     expect(link).toHaveAttribute(
       'href',
       expect.stringContaining('generationId=gen_modal_001'),
@@ -210,36 +143,48 @@ describe('ImageDetailModal', () => {
       generation: { ...BASE_GEN, isPromptPublic: false },
       showVisibility: false,
     })
-    expect(screen.getByText('Prompt is private')).toBeInTheDocument()
-    expect(screen.queryByText('Copy Prompt')).not.toBeInTheDocument()
+    expect(
+      screen.getByText(T('GalleryCard.promptPrivateHint')),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText(T('ImageDetail.copyPrompt')),
+    ).not.toBeInTheDocument()
   })
 
   it('shows delete button when showDelete and onDelete provided', () => {
     renderModal({ showDelete: true, onDelete: vi.fn() })
-    expect(screen.getByText('Delete')).toBeInTheDocument()
+    expect(screen.getByText(T('ImageDetail.delete'))).toBeInTheDocument()
   })
 
   it('deletes only after confirming in the centered dialog', async () => {
     const onDelete = vi.fn()
     const onOpenChange = vi.fn()
     renderModal({ showDelete: true, onDelete, onOpenChange })
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    fireEvent.click(
+      screen.getByRole('button', { name: T('ImageDetail.delete') }),
+    )
     const dialog = await screen.findByRole('alertdialog')
-    expect(dialog).toHaveTextContent('Delete this image?')
+    expect(dialog).toHaveTextContent(T('Feedback.deleteDialog.imageTitle'))
     expect(onDelete).not.toHaveBeenCalled()
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
+    fireEvent.click(
+      within(dialog).getByRole('button', {
+        name: T('Feedback.deleteDialog.confirm'),
+      }),
+    )
     expect(onDelete).toHaveBeenCalledWith(BASE_GEN.id)
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })
 
   it('hides delete button when showDelete is false', () => {
     renderModal({ showDelete: false })
-    expect(screen.queryByText('Delete')).not.toBeInTheDocument()
+    expect(screen.queryByText(T('ImageDetail.delete'))).not.toBeInTheDocument()
   })
 
   it('links IMAGE output type to the Canvas image editor', () => {
     renderModal()
-    const link = screen.getByRole('link', { name: /edit in studio/i })
+    const link = screen.getByRole('link', {
+      name: T('ImageDetail.editInStudio'),
+    })
     expect(link).toHaveAttribute(
       'href',
       expect.stringContaining('/studio/node?canvasTool=image-edit'),
@@ -258,7 +203,9 @@ describe('ImageDetailModal', () => {
         url: 'https://r2.example.com/test.mp4',
       },
     })
-    expect(screen.queryByText('Edit in Studio')).not.toBeInTheDocument()
+    expect(
+      screen.queryByText(T('ImageDetail.editInStudio')),
+    ).not.toBeInTheDocument()
   })
 
   it('draws a different pin once pinned, not just a different colour', () => {
@@ -268,7 +215,11 @@ describe('ImageDetailModal', () => {
         showVisibility: true,
       })
       const svg = screen
-        .getByRole('button', { name: isFeatured ? 'Unpin' : 'Pin' })
+        .getByRole('button', {
+          name: T(
+            isFeatured ? 'GalleryCard.unpinAction' : 'GalleryCard.pinAction',
+          ),
+        })
         .querySelector('svg')!.innerHTML
       unmount()
       return svg
@@ -282,8 +233,12 @@ describe('ImageDetailModal', () => {
       data: { isFeatured: true },
     } as Awaited<ReturnType<typeof toggleGenerationVisibility>>)
     renderModal({ showVisibility: true })
-    fireEvent.click(screen.getByRole('button', { name: 'Pin' }))
-    const key = await screen.findByRole('button', { name: 'Pinned' })
+    fireEvent.click(
+      screen.getByRole('button', { name: T('GalleryCard.pinAction') }),
+    )
+    const key = await screen.findByRole('button', {
+      name: T('Toasts.featuredAdded'),
+    })
     expect(key).toHaveAttribute('data-feedback', 'done')
   })
 })

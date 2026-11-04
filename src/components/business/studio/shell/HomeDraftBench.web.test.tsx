@@ -1,6 +1,9 @@
-import { useState, type ReactNode } from 'react'
-import { render } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { useCallback, useState } from 'react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { ApiKeysProvider } from '@/contexts/api-keys-context'
+import { renderWithApp } from '@/test/app-harness'
+import { fakeStudioServer } from '@/test/studio-harness'
 
 import { HomeDraftBench } from './HomeDraftBench'
 import type { StudioOperatorHost } from '@/contexts/studio-operator-host'
@@ -11,23 +14,30 @@ import type { StudioOperatorHost } from '@/contexts/studio-operator-host'
  *   ⛔ 不能把这一份再带着重渲染一遍，否则无限循环。
  */
 
-vi.mock('@/contexts/studio-context', () => ({
-  StudioProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
+// 真 StudioProvider、真首页宿主、真出图执行端；只假网络与登录。
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({ isLoaded: true, isSignedIn: true, userId: 'user-a' }),
+  useUser: () => ({ user: { id: 'user-a' } }),
 }))
-vi.mock('@/hooks/use-studio-generate-action', () => ({
-  useStudioGenerateAction: () => undefined,
-}))
-const hostRenders = vi.fn()
-vi.mock('@/features/assistant/hooks/use-home-draft-operator-host', () => ({
-  useHomeDraftOperatorHost: () => {
-    hostRenders()
-    // 每次都是新对象：最坏情况。
-    return { domain: 'home' } as unknown as StudioOperatorHost
-  },
+vi.mock('@/i18n/navigation', () => ({
+  usePathname: () => '/',
+  useRouter: () => ({ push: vi.fn() }),
 }))
 
+beforeEach(() => {
+  fakeStudioServer()
+})
+afterEach(() => vi.unstubAllGlobals())
+
+const hostHandoffs = vi.fn()
+
 function Shell() {
-  const [host, setHost] = useState<StudioOperatorHost | null>(null)
+  const [host, setHostState] = useState<StudioOperatorHost | null>(null)
+  // 稳的 setter（外壳给的就是 useState 的 setter），顺手数一下交了几次。
+  const setHost = useCallback((next: StudioOperatorHost | null) => {
+    hostHandoffs(next)
+    setHostState(next)
+  }, [])
   return (
     <>
       <span data-testid="has-host">{host ? 'yes' : 'no'}</span>
@@ -38,14 +48,18 @@ function Shell() {
 
 describe('HomeDraftBench', () => {
   it('⭐ 宿主交给外壳不会死循环（外壳重渲染不带着它重算）', () => {
-    const view = render(<Shell />)
+    hostHandoffs.mockClear()
+    const view = renderWithApp(<Shell />, { inner: ApiKeysProvider })
     expect(view.getByTestId('has-host')).toHaveTextContent('yes')
-    expect(hostRenders.mock.calls.length).toBeLessThanOrEqual(2)
+    // 死循环时这里会一直交（React 到 50 次报 #185）；挡住了就只有挂载那几次。
+    expect(hostHandoffs.mock.calls.length).toBeLessThanOrEqual(4)
   })
 
   it('卸下时把宿主收回（外壳退回普通首页宿主）', () => {
     const onHost = vi.fn()
-    const view = render(<HomeDraftBench onHost={onHost} />)
+    const view = renderWithApp(<HomeDraftBench onHost={onHost} />, {
+      inner: ApiKeysProvider,
+    })
     view.unmount()
     expect(onHost).toHaveBeenLastCalledWith(null)
   })

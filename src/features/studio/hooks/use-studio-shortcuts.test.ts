@@ -1,24 +1,20 @@
 // @vitest-environment jsdom
-import { renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-
-const mockDispatch = vi.fn()
-const mockPush = vi.fn()
-const mockState = {
-  prompt: '',
-  panels: {} as Record<string, boolean>,
-}
-
-vi.mock('@/contexts/studio-context', () => ({
-  useStudioForm: () => ({ state: mockState, dispatch: mockDispatch }),
-}))
-
-vi.mock('@/i18n/navigation', () => ({
-  useRouter: () => ({ push: mockPush }),
-}))
 
 import { STUDIO_PROMPT_TEXTAREA_ID } from '@/constants/studio'
 import { useStudioShortcuts } from '@/features/studio/hooks/use-studio-shortcuts'
+import {
+  fakeStudioServer,
+  renderHookWithStudio as renderHook,
+} from '@/test/studio-harness'
+
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({ isLoaded: true, isSignedIn: true, userId: 'user-a' }),
+}))
+vi.mock('@/i18n/navigation', () => ({
+  usePathname: () => '/studio/image',
+  useRouter: () => ({ push: vi.fn() }),
+}))
 
 /** 在某个元素上派发一次 Cmd/Ctrl+Enter，返回事件（好断言 preventDefault）。 */
 function pressGenerateChord(target: HTMLElement): KeyboardEvent {
@@ -41,14 +37,13 @@ function mount<T extends HTMLElement>(el: T): T {
 }
 
 beforeEach(() => {
-  vi.clearAllMocks()
-  mockState.prompt = ''
-  mockState.panels = {}
+  fakeStudioServer()
 })
 
 afterEach(() => {
   for (const el of mounted) el.remove()
   mounted = []
+  vi.unstubAllGlobals()
 })
 
 describe('useStudioShortcuts — Cmd/Ctrl+Enter', () => {

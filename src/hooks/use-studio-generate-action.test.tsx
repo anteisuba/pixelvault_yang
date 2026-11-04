@@ -1,22 +1,29 @@
-import { act, renderHook } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { act } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { API_ENDPOINTS } from '@/constants/config'
+import { AI_MODELS } from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
-import type { StudioFormState } from '@/contexts/studio-context'
-import type { StudioModelOption } from '@/types/model-option'
 import {
   appendOperatorPendingResult,
   claimOperatorThreadScope,
   getOperatorState,
   resetOperatorThread,
 } from '@/hooks/use-studio-operator-store'
-
 import {
   modelPickerGateKey,
   resetModelPickerGate,
   setPendingModel,
   subscribeModelPickerOpen,
 } from '@/lib/model-picker-gate'
+import { apiKeyRecord, runIdleTasksImmediately } from '@/test/api-keys'
+import { text } from '@/test/i18n-text'
+import {
+  fakeStudioServer,
+  renderHookWithStudio,
+  settle,
+} from '@/test/studio-harness'
+import type { StudioGenerateRequest } from '@/types'
 
 import { useStudioGenerateAction } from './use-studio-generate-action'
 
@@ -24,131 +31,147 @@ import { useStudioGenerateAction } from './use-studio-generate-action'
  * `useStudioGenerateAction` 是**两个**生成按钮共用的那份闸门与请求组装
  * （桌面参数栏底部那颗 + 移动端 composer 的 44×44 方形键）。这里锁的就是
  * 「两处共用」这件事的判据本身：缺什么 → 哪一条 `blockedReason`，
- * 不缺 → `generate()` 收到什么载荷。
+ * 不缺 → 发出去的出图请求长什么样。
+ *
+ * 全程真工作台：真 `StudioProvider`（真表单 reducer、真 `useUnifiedGenerate`）、
+ * 真 `ApiKeysProvider`、真型号目录；只假 api-client 上「出图」那一跳
+ * （`studioGenerateAPI`，断言它收到的请求）与 key 名单那条接口。
  */
 
-const mockDispatch = vi.hoisted(() => vi.fn())
-const mockGenerate = vi.hoisted(() => vi.fn())
-const mockUseStudioForm = vi.hoisted(() => vi.fn())
-const mockUseImageModelOptions = vi.hoisted(() => vi.fn())
-const mockToastInfo = vi.hoisted(() => vi.fn())
-
-const EMPTY_PANELS: StudioFormState['panels'] = {
-  projectHistory: false,
-  modelSelector: false,
-  civitai: false,
-  enhance: false,
-  stylePreset: false,
-  reverse: false,
-  refImage: false,
-  loraSelector: false,
-  videoAudio: false,
-  keepChange: false,
-}
-
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
-  useLocale: () => 'en',
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({ isLoaded: true, isSignedIn: true, userId: 'user-a' }),
+}))
+// 默认型号自动补位只在 `/studio/image` 上开火 —— 这里要「没选模型」那一档，换个路由。
+vi.mock('next/navigation', () => ({
+  usePathname: () => '/zh/studio',
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+}))
+vi.mock('@/i18n/navigation', () => ({
+  usePathname: () => '/studio',
+  useRouter: () => ({ push: vi.fn() }),
 }))
 
-vi.mock('sonner', () => ({
-  toast: Object.assign(vi.fn(), {
-    info: mockToastInfo,
-    error: vi.fn(),
-    success: vi.fn(),
-    warning: vi.fn(),
-  }),
-}))
-
-vi.mock('@/lib/focus-studio-prompt', () => ({
-  focusStudioPrompt: vi.fn(),
-}))
-
-vi.mock('@/contexts/studio-context', () => ({
-  useStudioForm: mockUseStudioForm,
-  useStudioData: () => ({
-    characters: { activeCardIds: [], activeCards: [] },
-    imageUpload: { referenceEntries: [], referenceImages: [] },
-    projects: { activeProjectId: null },
-  }),
-  useStudioGen: () => ({
-    isGenerating: false,
-    generate: mockGenerate,
-    elapsedSeconds: 0,
-    // ⚠ 少这一个字段就等于把闸关上：`!undefined` 为真 → 视频档恒判「队列已满」。
-    canQueueMoreVideo: true,
-  }),
-}))
-
-// ⚠ 显式标成 `StudioModelOption`：这份夹具会原样喂给 `handleToggleRunModel`，
-// 缺字段的话错会报在调用点而不是这里。
-const IMAGE_OPTION: StudioModelOption = {
-  optionId: 'image-option',
-  modelId: 'gpt-image-2.5-flare',
-  keyId: 'api-key-1',
-  keyLabel: 'OpenAI',
-  adapterType: AI_ADAPTER_TYPES.OPENAI,
-  providerConfig: { label: 'OpenAI', baseUrl: 'https://api.openai.com' },
-  sourceType: 'saved',
-  isBuiltIn: true,
-  requestCount: 1,
-}
-
-vi.mock('@/hooks/use-image-model-options', () => ({
-  useImageModelOptions: mockUseImageModelOptions,
-}))
-
-vi.mock('@/hooks/use-video-model-options', () => ({
-  useVideoModelOptions: () => ({ selectedModel: null, modelOptions: [] }),
-}))
-
-vi.mock('@/features/cards/hooks/use-voice-cards', () => ({
-  useVoiceCards: () => ({ findCard: () => null }),
-}))
-
-function makeState(overrides: Partial<StudioFormState> = {}) {
+/** 被挡住时说的那一句：用户看到的是这条 toast（sonner 是项目外的包）。 */
+const toastInfo = vi.hoisted(() => vi.fn())
+vi.mock('sonner', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('sonner')>()
   return {
-    prompt: '',
-    outputType: 'image',
-    promptDialect: 'natural',
-    tagChips: [],
-    tagNegativeChips: [],
-    activeTagCharacterIndex: null,
-    selectedWorkflowId: 'quick-image',
-    selectedOptionId: null,
-    extraModelOptionIds: [],
-    aspectRatio: '1:1',
-    imageBatchCount: 1,
-    advancedParams: {},
-    panels: EMPTY_PANELS,
-    generateRequestId: 0,
-    recipeUsage: null,
-    videoAudioRefs: [],
-    videoGenerateAudio: null,
-    videoDuration: 5,
-    videoResolution: undefined,
-    videoMode: 'keyframe',
-    ...overrides,
-  } as unknown as StudioFormState
+    ...actual,
+    toast: Object.assign(vi.fn(), {
+      ...actual.toast,
+      info: toastInfo,
+      error: vi.fn(),
+      success: vi.fn(),
+      warning: vi.fn(),
+      loading: vi.fn(),
+      dismiss: vi.fn(),
+    }),
+  }
+})
+
+/** 出图那一跳：记下请求，回一个失败（⛔ 不进轮询）。 */
+const studioGenerateAPI = vi.hoisted(() =>
+  vi.fn(
+    async (
+      ...request: [unknown]
+    ): Promise<{ success: false; error: string }> => {
+      void request
+      return { success: false, error: 'stop here' }
+    },
+  ),
+)
+vi.mock('@/lib/api-client/generation', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api-client/generation')>()),
+  studioGenerateAPI,
+}))
+
+const FLARE = AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE
+const GPT2 = AI_MODELS.OPENAI_GPT_IMAGE_2
+const SUNBURST = AI_MODELS.OPENAI_GPT_IMAGE_25_SUNBURST
+const SEEDREAM = AI_MODELS.SEEDREAM_50_PRO
+const NAI_FULL = AI_MODELS.NOVELAI_V45_FULL
+const NAI_CURATED = AI_MODELS.NOVELAI_V45_CURATED
+const NANO_BANANA = AI_MODELS.GEMINI_NANO_BANANA_21
+
+/** 她配过的 key：每一把都绑在一个型号上，选项 id 是 `key:<id>`。 */
+const KEYS = [
+  apiKeyRecord({
+    id: 'k-flare',
+    modelId: FLARE,
+    adapterType: AI_ADAPTER_TYPES.OPENAI,
+  }),
+  apiKeyRecord({
+    id: 'k-gpt2',
+    modelId: GPT2,
+    adapterType: AI_ADAPTER_TYPES.OPENAI,
+  }),
+  apiKeyRecord({
+    id: 'k-nai',
+    modelId: NAI_FULL,
+    adapterType: AI_ADAPTER_TYPES.NOVELAI,
+  }),
+]
+const SAVED = (keyId: string) => `key:${keyId}`
+const WORKSPACE = (modelId: string) => `workspace:${modelId}`
+
+const requests = () =>
+  studioGenerateAPI.mock.calls.map(
+    ([request]) => request as StudioGenerateRequest,
+  )
+
+type Bench = ReturnType<typeof renderAction>
+
+function renderAction() {
+  const view = renderHookWithStudio(() => useStudioGenerateAction())
+  return {
+    ...view,
+    action: () => view.result.current.value,
+    dispatch: view.result.current.studio.dispatch,
+  }
 }
 
-function setState(overrides: Partial<StudioFormState> = {}) {
-  mockUseStudioForm.mockReturnValue({
-    state: makeState(overrides),
-    dispatch: mockDispatch,
-  })
+/** 挂上工作台、等 key 名单回来，再把表单摆好。 */
+async function bench(
+  setup: (dispatch: Bench['dispatch']) => void = () => {},
+): Promise<Bench> {
+  const view = renderAction()
+  await settle()
+  act(() => setup(view.dispatch))
+  return view
 }
+
+function pick(
+  dispatch: Bench['dispatch'],
+  optionId: string,
+  prompt?: string,
+  extras: string[] = [],
+) {
+  dispatch({ type: 'SET_OPTION_ID', payload: optionId })
+  if (prompt !== undefined) dispatch({ type: 'SET_PROMPT', payload: prompt })
+  for (const id of extras) dispatch({ type: 'TOGGLE_EXTRA_MODEL', payload: id })
+}
+
+async function generate(view: Bench) {
+  await act(async () => {
+    await view.action().handleGenerate()
+  })
+  await settle()
+}
+
+const state = (view: Bench) => view.result.current.studio.state
 
 beforeEach(() => {
-  vi.clearAllMocks()
   window.localStorage.clear()
   resetModelPickerGate()
-  mockUseImageModelOptions.mockReturnValue({
-    selectedModel: IMAGE_OPTION,
-    modelOptions: [IMAGE_OPTION],
-  })
-  setState()
+  studioGenerateAPI.mockClear()
+  toastInfo.mockClear()
+  runIdleTasksImmediately()
+  fakeStudioServer().on('GET', API_ENDPOINTS.API_KEYS, () =>
+    Response.json({ success: true, data: KEYS }),
+  )
 })
+afterEach(() => vi.unstubAllGlobals())
 
 describe('useStudioGenerateAction', () => {
   it('REQUEST_GENERATE传递提交身份，切到新对话时不使用新表单生成', async () => {
@@ -160,235 +183,147 @@ describe('useStudioGenerateAction', () => {
       localThreadId: getOperatorState().localThreadId,
       pendingResultId: 'request-owned',
     }
-    const form = {
-      prompt: 'a cat',
-      selectedOptionId: IMAGE_OPTION.optionId,
-    }
-    setState(form)
-    const view = renderHook(() => useStudioGenerateAction())
-    setState({ ...form, generateRequestId: 1, generateRequestOwner: owner })
-    await act(async () => view.rerender())
-    expect(mockGenerate).toHaveBeenCalledWith(
-      expect.objectContaining({ operatorResultOwner: owner }),
+    const view = await bench((dispatch) =>
+      pick(dispatch, SAVED('k-flare'), 'a cat'),
     )
-    mockGenerate.mockClear()
+    act(() => view.dispatch({ type: 'REQUEST_GENERATE', owner }))
+    await settle()
+    expect(requests()).toHaveLength(1)
+    expect(requests()[0]).toMatchObject({ modelId: FLARE, freePrompt: 'a cat' })
+
     act(() => {
       resetOperatorThread()
       appendOperatorPendingResult({ id: 'request-new', total: 1 })
     })
-    setState({
-      ...form,
-      prompt: 'new thread prompt',
-      generateRequestId: 2,
-      generateRequestOwner: owner,
+    act(() => {
+      view.dispatch({ type: 'SET_PROMPT', payload: 'new thread prompt' })
+      view.dispatch({ type: 'REQUEST_GENERATE', owner })
     })
-    await act(async () => view.rerender())
-    expect(mockGenerate).not.toHaveBeenCalled()
+    await settle()
+    // 旧对话的那一枪落不到新对话上：⛔ 拿新表单再发一次。
+    expect(requests()).toHaveLength(1)
   })
+
   it('blocks a missing image mention without submitting a generation', async () => {
-    setState({
-      prompt: 'Use @Image2',
-      selectedOptionId: IMAGE_OPTION.optionId,
-    } as Partial<StudioFormState>)
-    const { result } = renderHook(() => useStudioGenerateAction())
-    expect(result.current.canGenerate).toBe(false)
-    expect(result.current.blockedReason?.message).toBe(
-      'referenceMention.invalid',
+    const view = await bench((dispatch) =>
+      pick(dispatch, SAVED('k-flare'), 'Use @Image2'),
     )
-    await act(async () => {
-      await result.current.handleGenerate()
-    })
-    expect(mockGenerate).not.toHaveBeenCalled()
+    expect(view.action().canGenerate).toBe(false)
+    expect(view.action().blockedReason?.message).toBe(
+      text('StudioPromptArea.referenceMention.invalid'),
+    )
+    await generate(view)
+    expect(requests()).toHaveLength(0)
   })
 
-  it('blocks with modelRequired when no model is selected', () => {
-    mockUseImageModelOptions.mockReturnValue({
-      selectedModel: null,
-      modelOptions: [],
-    })
-    setState({ prompt: 'a cat' } as Partial<StudioFormState>)
-
-    const { result } = renderHook(() => useStudioGenerateAction())
-
-    expect(result.current.canGenerate).toBe(false)
-    expect(result.current.blockedReason?.message).toBe('blocked.modelRequired')
+  it('blocks with modelRequired when no model is selected', async () => {
+    const view = await bench((dispatch) =>
+      dispatch({ type: 'SET_PROMPT', payload: 'a cat' }),
+    )
+    expect(view.action().canGenerate).toBe(false)
+    expect(view.action().blockedReason?.message).toBe(
+      text('StudioPromptArea.blocked.modelRequired'),
+    )
   })
 
-  it('blocks with promptRequired when the prompt is empty', () => {
-    setState({
-      selectedOptionId: IMAGE_OPTION.optionId,
-    } as Partial<StudioFormState>)
-
-    const { result } = renderHook(() => useStudioGenerateAction())
-
-    expect(result.current.blockedReason?.message).toBe('blocked.promptRequired')
+  it('blocks with promptRequired when the prompt is empty', async () => {
+    const view = await bench((dispatch) => pick(dispatch, SAVED('k-flare')))
+    expect(view.action().blockedReason?.message).toBe(
+      text('StudioPromptArea.blocked.promptRequired'),
+    )
     // 空提示词那条要把焦点送回输入框（桌面与移动端共用这一份判据）。
-    expect(result.current.blockedReason?.focusPrompt).toBe('now')
+    expect(view.action().blockedReason?.focusPrompt).toBe('now')
   })
 
   it('clears the block and submits once model + prompt are both present', async () => {
-    setState({
-      prompt: 'a cat',
-      selectedOptionId: IMAGE_OPTION.optionId,
-    } as Partial<StudioFormState>)
+    const view = await bench((dispatch) =>
+      pick(dispatch, SAVED('k-flare'), 'a cat'),
+    )
+    expect(view.action().blockedReason).toBeNull()
+    expect(view.action().canGenerate).toBe(true)
 
-    const { result } = renderHook(() => useStudioGenerateAction())
+    await generate(view)
 
-    expect(result.current.blockedReason).toBeNull()
-    expect(result.current.canGenerate).toBe(true)
-
-    await act(async () => {
-      await result.current.handleGenerate()
-    })
-
-    expect(mockGenerate).toHaveBeenCalledTimes(1)
-    expect(mockGenerate.mock.calls[0][0]).toMatchObject({
-      mode: 'image',
-      variantCount: 1,
-      image: { modelId: IMAGE_OPTION.modelId, freePrompt: 'a cat' },
+    expect(requests()).toHaveLength(1)
+    expect(requests()[0]).toMatchObject({
+      modelId: FLARE,
+      apiKeyId: 'k-flare',
+      freePrompt: 'a cat',
     })
   })
 
   it('surfaces the blocked reason as a toast instead of silently doing nothing', async () => {
-    setState({
-      selectedOptionId: IMAGE_OPTION.optionId,
-    } as Partial<StudioFormState>)
-
-    const { result } = renderHook(() => useStudioGenerateAction())
-
-    await act(async () => {
-      await result.current.handleGenerate()
-    })
-
-    expect(mockGenerate).not.toHaveBeenCalled()
-    expect(mockToastInfo).toHaveBeenCalledWith('blocked.promptRequired')
+    const view = await bench((dispatch) => pick(dispatch, SAVED('k-flare')))
+    await generate(view)
+    expect(requests()).toHaveLength(0)
+    expect(toastInfo).toHaveBeenCalledWith(
+      text('StudioPromptArea.blocked.promptRequired'),
+    )
   })
 
   it('carries the whole run list only when more than one model is picked', async () => {
-    const second = {
-      ...IMAGE_OPTION,
-      optionId: 'image-option-2',
-      modelId: 'gpt-image-2',
-    }
-    mockUseImageModelOptions.mockReturnValue({
-      selectedModel: IMAGE_OPTION,
-      modelOptions: [IMAGE_OPTION, second],
-    })
-    setState({
-      prompt: 'a cat',
-      selectedOptionId: IMAGE_OPTION.optionId,
-      extraModelOptionIds: [second.optionId],
-    } as Partial<StudioFormState>)
+    const view = await bench((dispatch) =>
+      pick(dispatch, SAVED('k-flare'), 'a cat', [SAVED('k-gpt2')]),
+    )
+    expect(view.action().runModels).toHaveLength(2)
 
-    const { result } = renderHook(() => useStudioGenerateAction())
+    await generate(view)
 
-    expect(result.current.runModels).toHaveLength(2)
-
-    await act(async () => {
-      await result.current.handleGenerate()
-    })
-
-    expect(mockGenerate.mock.calls[0][0].compareModels).toEqual([
-      { modelId: IMAGE_OPTION.modelId, apiKeyId: IMAGE_OPTION.keyId },
-      { modelId: second.modelId, apiKeyId: second.keyId },
+    // 矩阵逐格发：两个型号各一枪，各自带自己的 key。
+    expect(
+      requests().map(({ modelId, apiKeyId }) => ({ modelId, apiKeyId })),
+    ).toEqual([
+      { modelId: FLARE, apiKeyId: 'k-flare' },
+      { modelId: GPT2, apiKeyId: 'k-gpt2' },
     ])
   })
 
   it('先搜再画：开着且型号支持才带上，参数里残留的那一位不算数', async () => {
-    const nanoBanana = {
-      ...IMAGE_OPTION,
-      optionId: 'nb-option',
-      modelId: 'gemini-nano-banana-2.1',
-      adapterType: AI_ADAPTER_TYPES.GEMINI,
-    }
-    mockUseImageModelOptions.mockReturnValue({
-      selectedModel: nanoBanana,
-      modelOptions: [IMAGE_OPTION, nanoBanana],
+    const view = await bench((dispatch) => {
+      pick(dispatch, WORKSPACE(NANO_BANANA), 'Taipei 101')
+      dispatch({ type: 'SET_SEARCH_GROUNDING', payload: true })
     })
-    setState({
-      prompt: 'Taipei 101',
-      selectedOptionId: nanoBanana.optionId,
-      searchGrounding: true,
-    } as Partial<StudioFormState>)
-    const { result, rerender } = renderHook(() => useStudioGenerateAction())
-    await act(async () => {
-      await result.current.handleGenerate()
-    })
-    expect(mockGenerate.mock.calls[0][0].image.advancedParams).toEqual({
-      searchGrounding: true,
-    })
+    await generate(view)
+    expect(requests()[0]?.advancedParams).toEqual({ searchGrounding: true })
 
     // 关着：即便「做同款」把这一位写回了参数，也不发。
-    setState({
-      prompt: 'Taipei 101',
-      selectedOptionId: nanoBanana.optionId,
-      searchGrounding: false,
-      advancedParams: { searchGrounding: true },
-    } as Partial<StudioFormState>)
-    rerender()
-    await act(async () => {
-      await result.current.handleGenerate()
+    act(() => {
+      view.dispatch({ type: 'SET_SEARCH_GROUNDING', payload: false })
+      view.dispatch({
+        type: 'SET_ADVANCED_PARAMS',
+        payload: { searchGrounding: true },
+      })
     })
-    expect(mockGenerate.mock.calls[1][0].image.advancedParams).toBeUndefined()
+    await generate(view)
+    expect(requests()[1]?.advancedParams).toBeUndefined()
 
     // 不支持的型号：开着也不发。
-    setState({
-      prompt: 'Taipei 101',
-      selectedOptionId: IMAGE_OPTION.optionId,
-      searchGrounding: true,
-    } as Partial<StudioFormState>)
-    rerender()
-    await act(async () => {
-      await result.current.handleGenerate()
+    act(() => {
+      view.dispatch({ type: 'SET_OPTION_ID', payload: SAVED('k-flare') })
+      view.dispatch({ type: 'SET_SEARCH_GROUNDING', payload: true })
     })
-    expect(mockGenerate.mock.calls[2][0].image.advancedParams).toBeUndefined()
+    await generate(view)
+    expect(requests()[2]?.modelId).toBe(FLARE)
+    expect(requests()[2]?.advancedParams).toBeUndefined()
   })
 
   // ⛔ 不跨方言（D10 ② Q3）：跨台留下来的陈旧选择不进这一轮的名单。
-  it('drops a model from the other dialect', () => {
-    const novelAi = {
-      ...IMAGE_OPTION,
-      optionId: 'nai-option',
-      modelId: 'nai-diffusion-5-full',
-      adapterType: 'novelai',
-    }
-    mockUseImageModelOptions.mockReturnValue({
-      selectedModel: IMAGE_OPTION,
-      modelOptions: [IMAGE_OPTION, novelAi],
-    })
-    setState({
-      prompt: 'a cat',
-      selectedOptionId: IMAGE_OPTION.optionId,
-      extraModelOptionIds: [novelAi.optionId],
-    } as Partial<StudioFormState>)
-
-    const { result } = renderHook(() => useStudioGenerateAction())
-    expect(result.current.runModels.map((o) => o.optionId)).toEqual([
-      IMAGE_OPTION.optionId,
+  it('drops a model from the other dialect', async () => {
+    const view = await bench((dispatch) =>
+      pick(dispatch, SAVED('k-flare'), 'a cat', [SAVED('k-nai')]),
+    )
+    expect(view.action().runModels.map((o) => o.optionId)).toEqual([
+      SAVED('k-flare'),
     ])
   })
 
-  it('keeps only the tag-dialect models on the tag workbench', () => {
-    const novelAi = {
-      ...IMAGE_OPTION,
-      optionId: 'nai-option',
-      modelId: 'nai-diffusion-5-full',
-      adapterType: 'novelai',
-    }
-    mockUseImageModelOptions.mockReturnValue({
-      selectedModel: novelAi,
-      modelOptions: [IMAGE_OPTION, novelAi],
+  it('keeps only the tag-dialect models on the tag workbench', async () => {
+    const view = await bench((dispatch) => {
+      dispatch({ type: 'SET_PROMPT_DIALECT', payload: 'tags' })
+      pick(dispatch, SAVED('k-nai'), '1girl', [SAVED('k-flare')])
     })
-    setState({
-      prompt: '1girl',
-      promptDialect: 'tags',
-      selectedOptionId: novelAi.optionId,
-      extraModelOptionIds: [IMAGE_OPTION.optionId],
-    } as Partial<StudioFormState>)
-
-    const { result } = renderHook(() => useStudioGenerateAction())
-    expect(result.current.runModels.map((o) => o.optionId)).toEqual([
-      novelAi.optionId,
+    expect(view.action().runModels.map((o) => o.optionId)).toEqual([
+      SAVED('k-nai'),
     ])
   })
 
@@ -397,230 +332,119 @@ describe('useStudioGenerateAction', () => {
    * 名单长度必须**减一**，且任何时候不出现同一条路两份。
    */
   it('toggling a model already in the run list shortens it', async () => {
-    const second = {
-      ...IMAGE_OPTION,
-      optionId: 'image-option-2',
-      modelId: 'gpt-image-2',
-    }
-    mockUseImageModelOptions.mockReturnValue({
-      selectedModel: IMAGE_OPTION,
-      modelOptions: [IMAGE_OPTION, second],
-    })
-    setState({
-      prompt: 'a cat',
-      selectedOptionId: IMAGE_OPTION.optionId,
-      extraModelOptionIds: [second.optionId],
-    } as Partial<StudioFormState>)
-
-    const { result } = renderHook(() => useStudioGenerateAction())
-    expect(result.current.runModels).toHaveLength(2)
+    const view = await bench((dispatch) =>
+      pick(dispatch, SAVED('k-flare'), 'a cat', [SAVED('k-gpt2')]),
+    )
+    expect(view.action().runModels).toHaveLength(2)
 
     // ⚠ 点的是**主模型**那一条 —— 它对 `TOGGLE_EXTRA_MODEL` 是个 no-op，
     // 「名单第一条点不掉」就是从这里来的。
-    act(() => {
-      result.current.handleToggleRunModel(IMAGE_OPTION)
-    })
-    expect(mockDispatch).toHaveBeenCalledWith({
-      type: 'SET_OPTION_ID',
-      payload: second.optionId,
-    })
-    expect(mockDispatch).toHaveBeenCalledWith({
-      type: 'REMOVE_EXTRA_MODEL',
-      payload: second.optionId,
-    })
-    expect(mockDispatch).not.toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'TOGGLE_EXTRA_MODEL' }),
-    )
+    const primary = view.action().runModels[0]!
+    act(() => view.action().handleToggleRunModel(primary))
+
+    expect(view.action().runModels.map((o) => o.optionId)).toEqual([
+      SAVED('k-gpt2'),
+    ])
+    expect(state(view).selectedOptionId).toBe(SAVED('k-gpt2'))
+    expect(state(view).extraModelOptionIds).toEqual([])
   })
 
-  it('toggling a model that is not in the run list still adds it', () => {
-    const second = {
-      ...IMAGE_OPTION,
-      optionId: 'image-option-2',
-      modelId: 'gpt-image-2',
-    }
-    mockUseImageModelOptions.mockReturnValue({
-      selectedModel: IMAGE_OPTION,
-      modelOptions: [IMAGE_OPTION, second],
-    })
-    setState({
-      prompt: 'a cat',
-      selectedOptionId: IMAGE_OPTION.optionId,
-    } as Partial<StudioFormState>)
-
-    const { result } = renderHook(() => useStudioGenerateAction())
-    act(() => {
-      result.current.handleToggleRunModel(second)
-    })
-    expect(mockDispatch).toHaveBeenCalledWith({
-      type: 'TOGGLE_EXTRA_MODEL',
-      payload: second.optionId,
-    })
+  it('toggling a model that is not in the run list still adds it', async () => {
+    const view = await bench((dispatch) =>
+      pick(dispatch, SAVED('k-flare'), 'a cat'),
+    )
+    const second = view
+      .action()
+      .modelOptions.find((o) => o.optionId === SAVED('k-gpt2'))!
+    act(() => view.action().handleToggleRunModel(second))
+    expect(view.action().runModels.map((o) => o.optionId)).toEqual([
+      SAVED('k-flare'),
+      SAVED('k-gpt2'),
+    ])
   })
 
-  it('replaces the entire family and clears its parameters even on the same provider', () => {
-    const sibling = {
-      ...IMAGE_OPTION,
-      optionId: 'gpt-2',
-      modelId: 'gpt-image-2',
-    }
-    const other = {
-      ...IMAGE_OPTION,
-      optionId: 'seedream',
-      modelId: 'seedream-5.0',
-    }
-    mockUseImageModelOptions.mockReturnValue({
-      selectedModel: IMAGE_OPTION,
-      modelOptions: [IMAGE_OPTION, sibling, other],
+  it('replaces the entire family and clears its parameters even on the same provider', async () => {
+    const view = await bench((dispatch) => {
+      pick(dispatch, SAVED('k-flare'), 'a cat', [SAVED('k-gpt2')])
+      dispatch({ type: 'SET_ADVANCED_PARAMS', payload: { quality: 'high' } })
     })
-    setState({
-      selectedOptionId: IMAGE_OPTION.optionId,
-      extraModelOptionIds: [sibling.optionId],
-    })
-    const { result } = renderHook(() => useStudioGenerateAction())
-    act(() => result.current.handleToggleRunModel(other))
-    expect(mockDispatch).toHaveBeenCalledWith({
-      type: 'REMOVE_EXTRA_MODEL',
-      payload: sibling.optionId,
-    })
-    expect(mockDispatch).toHaveBeenCalledWith({
-      type: 'SET_OPTION_ID',
-      payload: other.optionId,
-    })
-    expect(mockDispatch).toHaveBeenCalledWith({ type: 'RESET_ADVANCED_PARAMS' })
-    expect(mockDispatch).not.toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'TOGGLE_EXTRA_MODEL' }),
-    )
+    const other = view
+      .action()
+      .modelOptions.find((o) => o.optionId === WORKSPACE(SEEDREAM))!
+    act(() => view.action().handleToggleRunModel(other))
+
+    expect(view.action().runModels.map((o) => o.optionId)).toEqual([
+      WORKSPACE(SEEDREAM),
+    ])
+    expect(state(view).extraModelOptionIds).toEqual([])
+    expect(state(view).advancedParams).toEqual({})
   })
 
   // 标签台只能单选（owner 2026-09-27）：同系列点一行 = 换成它，参数不归零。
-  it('replaces the run list with one model and keeps same-family parameters', () => {
-    const sibling = {
-      ...IMAGE_OPTION,
-      optionId: 'gpt-2',
-      modelId: 'gpt-image-2',
-    }
-    const third = {
-      ...IMAGE_OPTION,
-      optionId: 'gpt-3',
-      modelId: 'gpt-image-2.5-sunburst',
-    }
-    mockUseImageModelOptions.mockReturnValue({
-      selectedModel: IMAGE_OPTION,
-      modelOptions: [IMAGE_OPTION, sibling, third],
+  it('replaces the run list with one model and keeps same-family parameters', async () => {
+    const view = await bench((dispatch) => {
+      pick(dispatch, SAVED('k-flare'), 'a cat', [SAVED('k-gpt2')])
+      dispatch({ type: 'SET_ADVANCED_PARAMS', payload: { quality: 'high' } })
     })
-    setState({
-      selectedOptionId: IMAGE_OPTION.optionId,
-      extraModelOptionIds: [sibling.optionId],
-    })
-    const { result } = renderHook(() => useStudioGenerateAction())
-    act(() => result.current.handleReplaceRunModel(third))
-    expect(mockDispatch).toHaveBeenCalledWith({
-      type: 'REMOVE_EXTRA_MODEL',
-      payload: sibling.optionId,
-    })
-    expect(mockDispatch).toHaveBeenCalledWith({
-      type: 'SET_OPTION_ID',
-      payload: third.optionId,
-    })
-    expect(mockDispatch).not.toHaveBeenCalledWith({
-      type: 'RESET_ADVANCED_PARAMS',
-    })
+    const third = view
+      .action()
+      .modelOptions.find((o) => o.optionId === WORKSPACE(SUNBURST))!
+    act(() => view.action().handleReplaceRunModel(third))
+
+    expect(view.action().runModels.map((o) => o.optionId)).toEqual([
+      WORKSPACE(SUNBURST),
+    ])
+    expect(state(view).advancedParams).toEqual({ quality: 'high' })
   })
 
-  it('runs a single model on the tag studio even with extras left over', () => {
-    const naiFull = {
-      ...IMAGE_OPTION,
-      optionId: 'nai-full',
-      modelId: 'nai-diffusion-4-5-full',
-      adapterType: AI_ADAPTER_TYPES.NOVELAI,
-    }
-    const naiCurated = {
-      ...naiFull,
-      optionId: 'nai-curated',
-      modelId: 'nai-diffusion-4-5-curated',
-    }
-    mockUseImageModelOptions.mockReturnValue({
-      selectedModel: naiFull,
-      modelOptions: [naiFull, naiCurated],
+  it('runs a single model on the tag studio even with extras left over', async () => {
+    const view = await bench((dispatch) => {
+      dispatch({ type: 'SET_PROMPT_DIALECT', payload: 'tags' })
+      pick(dispatch, SAVED('k-nai'), '1girl', [WORKSPACE(NAI_CURATED)])
     })
-    setState({
-      promptDialect: 'tags',
-      selectedOptionId: naiFull.optionId,
-      extraModelOptionIds: [naiCurated.optionId],
-    })
-    const { result } = renderHook(() => useStudioGenerateAction())
-    expect(result.current.runModels.map((model) => model.optionId)).toEqual([
-      naiFull.optionId,
+    expect(view.action().runModels.map((model) => model.optionId)).toEqual([
+      SAVED('k-nai'),
     ])
   })
 
   it('excludes stale cross-family selections from the generation request', async () => {
-    const other = { ...IMAGE_OPTION, optionId: 'flux', modelId: 'flux-1' }
-    mockUseImageModelOptions.mockReturnValue({
-      selectedModel: IMAGE_OPTION,
-      modelOptions: [IMAGE_OPTION, other],
-    })
-    setState({
-      prompt: 'a cat',
-      selectedOptionId: IMAGE_OPTION.optionId,
-      extraModelOptionIds: [other.optionId],
-    })
-    const { result } = renderHook(() => useStudioGenerateAction())
-    expect(result.current.runModels).toEqual([IMAGE_OPTION])
-    await act(async () => {
-      await result.current.handleGenerate()
-    })
-    expect(mockGenerate.mock.calls[0][0].compareModels).toBeUndefined()
-    act(() => result.current.handleRemoveRunModel(IMAGE_OPTION.optionId))
-    expect(mockDispatch).toHaveBeenCalledWith({
-      type: 'SET_OPTION_ID',
-      payload: null,
-    })
+    const view = await bench((dispatch) =>
+      pick(dispatch, SAVED('k-flare'), 'a cat', [WORKSPACE(SEEDREAM)]),
+    )
+    expect(view.action().runModels.map((o) => o.optionId)).toEqual([
+      SAVED('k-flare'),
+    ])
+    await generate(view)
+    // 只跑主模型：一枪、只发它。
+    expect(requests().map((request) => request.modelId)).toEqual([FLARE])
+
+    act(() => view.action().handleRemoveRunModel(SAVED('k-flare')))
+    expect(state(view).selectedOptionId).toBeNull()
+    expect(view.action().runModels).toEqual([])
   })
 
   // 同一条路的两个 optionId 若仍旧溜进 state，出图名单也只认一条 —— 算钱、
   // 裁剪 payload、画 chip 读的都是它。
-  it('never runs the same route twice', () => {
-    const twin: StudioModelOption = {
-      ...IMAGE_OPTION,
-      optionId: 'workspace:gpt-image-2.5-flare',
-      sourceType: 'workspace',
-      keyId: undefined,
-    }
-    mockUseImageModelOptions.mockReturnValue({
-      selectedModel: IMAGE_OPTION,
-      modelOptions: [IMAGE_OPTION, twin],
-    })
-    setState({
-      prompt: 'a cat',
-      selectedOptionId: IMAGE_OPTION.optionId,
-      extraModelOptionIds: [twin.optionId],
-    } as Partial<StudioFormState>)
-
-    const { result } = renderHook(() => useStudioGenerateAction())
-    expect(result.current.runModels).toHaveLength(1)
-    expect(result.current.runModels[0].optionId).toBe(IMAGE_OPTION.optionId)
+  it('never runs the same route twice', async () => {
+    const view = await bench((dispatch) =>
+      pick(dispatch, SAVED('k-flare'), 'a cat', [WORKSPACE(FLARE)]),
+    )
+    expect(view.action().runModels.map((o) => o.optionId)).toEqual([
+      SAVED('k-flare'),
+    ])
   })
 
   // 标签台那一枪要带着方言出门，翻译才发生在发请求那一跳。
   it('tells the generator which dialect the prompt came from', async () => {
-    setState({
-      prompt: '1girl, rain:1.2',
-      promptDialect: 'tags',
-      selectedOptionId: IMAGE_OPTION.optionId,
-    } as Partial<StudioFormState>)
-    mockUseImageModelOptions.mockReturnValue({
-      selectedModel: { ...IMAGE_OPTION, adapterType: 'novelai' },
-      modelOptions: [{ ...IMAGE_OPTION, adapterType: 'novelai' }],
+    const view = await bench((dispatch) => {
+      dispatch({ type: 'SET_PROMPT_DIALECT', payload: 'tags' })
+      pick(dispatch, SAVED('k-nai'), '1girl, rain:1.2')
     })
+    await generate(view)
 
-    const { result } = renderHook(() => useStudioGenerateAction())
-    await act(async () => {
-      await result.current.handleGenerate()
-    })
-
-    expect(mockGenerate.mock.calls[0][0].promptDialect).toBe('tags')
+    // 标签串的权重写法按 NovelAI 的语法翻过再发（⛔ 原样带着 `rain:1.2` 出门）。
+    expect(requests()[0]?.freePrompt).not.toContain('rain:1.2')
+    expect(requests()[0]?.freePrompt).toContain('rain')
   })
 })
 
@@ -629,60 +453,46 @@ describe('useStudioGenerateAction', () => {
  * 桌面参数栏与移动端 composer 共用这一份判据（见本文件头注）。
  */
 describe('useStudioGenerateAction — 未选渠道闸门', () => {
-  it('型号在等渠道时不能生成，按钮上写「先选渠道」', () => {
-    setState({
-      prompt: 'a cat',
-      selectedOptionId: IMAGE_OPTION.optionId,
-    } as Partial<StudioFormState>)
-    setPendingModel(modelPickerGateKey('image'), 'seedream-5.0-pro')
+  const ready = (dispatch: Bench['dispatch']) =>
+    pick(dispatch, SAVED('k-flare'), 'a cat')
 
-    const { result } = renderHook(() => useStudioGenerateAction())
+  it('型号在等渠道时不能生成，按钮上写「先选渠道」', async () => {
+    const view = await bench(ready)
+    act(() => setPendingModel(modelPickerGateKey('image'), SEEDREAM))
 
-    expect(result.current.canGenerate).toBe(false)
-    expect(result.current.blockedReason?.message).toBe('pickChannel')
-    expect(result.current.blockedReason?.action).toBe('pickChannel')
+    expect(view.action().canGenerate).toBe(false)
+    expect(view.action().blockedReason?.message).toBe(
+      text('ModelPicker.pickChannel'),
+    )
+    expect(view.action().blockedReason?.action).toBe('pickChannel')
   })
 
   it('点这颗被挡住的按钮 → 打开选择器，⛔ 不发生成', async () => {
     const opened = vi.fn()
     subscribeModelPickerOpen(modelPickerGateKey('image'), opened)
-    setState({
-      prompt: 'a cat',
-      selectedOptionId: IMAGE_OPTION.optionId,
-    } as Partial<StudioFormState>)
-    setPendingModel(modelPickerGateKey('image'), 'seedream-5.0-pro')
+    const view = await bench(ready)
+    act(() => setPendingModel(modelPickerGateKey('image'), SEEDREAM))
 
-    const { result } = renderHook(() => useStudioGenerateAction())
-    await act(async () => {
-      await result.current.handleGenerate()
-    })
+    await generate(view)
 
     expect(opened).toHaveBeenCalledTimes(1)
-    expect(mockGenerate).not.toHaveBeenCalled()
+    expect(requests()).toHaveLength(0)
   })
 
-  it('选定渠道之后闸门解除', () => {
-    setState({
-      prompt: 'a cat',
-      selectedOptionId: IMAGE_OPTION.optionId,
-    } as Partial<StudioFormState>)
-    setPendingModel(modelPickerGateKey('image'), 'seedream-5.0-pro')
-    setPendingModel(modelPickerGateKey('image'), null)
-
-    const { result } = renderHook(() => useStudioGenerateAction())
-    expect(result.current.canGenerate).toBe(true)
-    expect(result.current.blockedReason).toBeNull()
+  it('选定渠道之后闸门解除', async () => {
+    const view = await bench(ready)
+    act(() => {
+      setPendingModel(modelPickerGateKey('image'), SEEDREAM)
+      setPendingModel(modelPickerGateKey('image'), null)
+    })
+    expect(view.action().canGenerate).toBe(true)
+    expect(view.action().blockedReason).toBeNull()
   })
 
   /** ⚠ 画布卡的闸门带 gateId，⛔ 不能挡住工作台这一份。 */
-  it('别的宿主（带 gateId）的待选渠道挡不住工作台', () => {
-    setState({
-      prompt: 'a cat',
-      selectedOptionId: IMAGE_OPTION.optionId,
-    } as Partial<StudioFormState>)
-    setPendingModel(modelPickerGateKey('image', 'node-a'), 'seedream-5.0-pro')
-
-    const { result } = renderHook(() => useStudioGenerateAction())
-    expect(result.current.canGenerate).toBe(true)
+  it('别的宿主（带 gateId）的待选渠道挡不住工作台', async () => {
+    const view = await bench(ready)
+    act(() => setPendingModel(modelPickerGateKey('image', 'node-a'), SEEDREAM))
+    expect(view.action().canGenerate).toBe(true)
   })
 })

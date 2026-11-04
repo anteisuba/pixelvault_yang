@@ -19,6 +19,14 @@ import type { StudioOperatorAttachment } from '@/types/studio-assistant-operator
 import type { UseStudioOperatorHistoryResult } from '@/hooks/use-studio-operator-history'
 import type { UseStudioOperatorUploadResult } from '@/features/assistant/hooks/use-studio-operator-upload'
 import type { UseStudioOperatorWebImportResult } from '@/features/assistant/hooks/use-studio-operator-web-import'
+import type { StudioOperatorHost } from '@/contexts/studio-operator-host'
+import { fakeServer } from '@/test/app-harness'
+import {
+  apiKeyRecord,
+  openQuickSetup,
+  runIdleTasksImmediately,
+  submitQuickSetup,
+} from '@/test/api-keys'
 
 /**
  * **接线闸**：五类卡真的出现在它们该在的地方（v2 §3.2 / §3.4）。
@@ -46,6 +54,8 @@ vi.mock('next-intl', () => ({
 }))
 
 vi.mock('@/i18n/navigation', () => ({
+  usePathname: () => '/studio',
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
   Link: ({ children, href }: { children: React.ReactNode; href: string }) => (
     <a href={href}>{children}</a>
   ),
@@ -58,43 +68,42 @@ vi.mock('next/image', () => ({
   ),
 }))
 
-vi.mock('motion/react', () => ({
+vi.mock('motion/react', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('motion/react')>()),
   motion: { div: 'div', span: 'span', p: 'p', button: 'button' },
   useReducedMotion: () => true,
 }))
 
 /**
- * 模型 chip 有自己的一份闸（`StudioOperatorModelChip.web.test.tsx`）——
- * 这里只桩掉它要的 key 表，免得面板测试连上 `ApiKeysProvider`。
+ * 配 key 弹窗是真的 `QuickSetupDialog`、模型 chip 读真的 `useLLMRoutePicker`（都挂在真
+ * `ApiKeysProvider` 里）；只假 api-client 上 key 那几条与「我的资料」：名单是空的，
+ * 存 key 回 `k-new`，验证通过。
  */
-vi.mock('@/hooks/use-llm-route-picker', () => ({
-  useLLMRoutePicker: () => ({
-    savedRoutes: [],
-    lockedRoutes: [],
-    allRoutes: [],
-    healthMap: {},
+const keysApi = vi.hoisted(() => ({
+  list: vi.fn(),
+  create: vi.fn(),
+  verify: vi.fn(),
+  remove: vi.fn(),
+  userSeq: 0,
+}))
+vi.mock('@/lib/api-client', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api-client')>()),
+  listApiKeys: keysApi.list,
+  createApiKey: keysApi.create,
+  verifyApiKey: keysApi.verify,
+  deleteApiKey: keysApi.remove,
+  getMyProfileAPI: async () => ({ success: true, data: null }),
+}))
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({
+    userId: `panel-user-${keysApi.userSeq}`,
+    isLoaded: true,
+    isSignedIn: true,
   }),
-}))
-
-vi.mock('@/components/business/studio-shared/setup/QuickSetupDialog', () => ({
-  QuickSetupDialog: (props: {
-    modelLabel: string
-    adapterType: string
-    onVerified?: (modelId: string, keyId: string) => void
-  }) => (
-    <div data-testid="quick-setup" data-adapter={props.adapterType}>
-      {props.modelLabel}
-      <button
-        type="button"
-        data-testid="quick-setup-verified"
-        onClick={() => props.onVerified?.('model', 'key-1')}
-      />
-    </div>
-  ),
-}))
-
-vi.mock('@/hooks/use-my-profile', () => ({
-  useMyProfile: () => ({ profile: null }),
+  useUser: () => ({
+    user: { id: `panel-user-${keysApi.userSeq}` },
+    isLoaded: true,
+  }),
 }))
 
 /** ⛔ 用例里不打真请求。 */
@@ -113,41 +122,13 @@ vi.mock('@/lib/api-client/assistant-mentions', () => ({
   lookupAssistantMentionAssetsAPI,
 }))
 
-/** 角色库：菜单打开时才拉（`useCharacterLibraryCards`）。 */
-const refreshCharacters = vi.hoisted(() => vi.fn(async () => undefined))
-vi.mock('@/features/cards/hooks', () => ({
-  useCharacterLibraryCards: () => ({ cards: [], refresh: refreshCharacters }),
-}))
-
 /**
- * 素材库弹层（切片 #7c）—— 桩成「一颗按钮 = 挑完两张」，⛔ 不把整个 picker
- * 拉进面板用例：它自己有一份闸（`AssetPickerBrowser.test.tsx`）。
+ * 角色库：菜单打开时才拉（真 `useCharacterLibraryCards`）—— 只假那条 api-client。
+ * 素材库弹层是真的 `AssetSelectorDialog`（它的 picker 走 `fetchGalleryImages`）。
  */
-vi.mock('@/features/assets', () => ({
-  AssetSelectorDialog: ({
-    mediaType,
-    multiSelect,
-    pageSize,
-    onConfirmMany,
-  }: {
-    mediaType?: string
-    multiSelect?: boolean
-    pageSize?: number
-    onConfirmMany?: (generations: unknown[]) => void
-  }) => (
-    <div
-      data-testid="asset-selector-dialog"
-      data-media-type={mediaType}
-      data-multi={String(Boolean(multiSelect))}
-      data-page-size={String(pageSize)}
-    >
-      <button
-        type="button"
-        data-testid="asset-selector-confirm-many"
-        onClick={() => onConfirmMany?.(libraryPicks)}
-      />
-    </div>
-  ),
+vi.mock('@/lib/api-client/cards', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api-client/cards')>()),
+  listCharacterCardsAPI: async () => ({ success: true, data: [] }),
 }))
 
 const applyDispatch = vi.hoisted(() => vi.fn())
@@ -187,18 +168,9 @@ const HOST_SPEC = vi.hoisted(() => ({
   noReferences: false,
 }))
 
-vi.mock(
-  '@/features/assistant/components/operator/StudioOperatorOldChatBar',
-  () => ({
-    StudioOperatorOldChatBar: ({
-      character,
-    }: {
-      character: { name: string }
-    }) => <div data-testid="operator-old-chat-bar">{character.name}</div>,
-  }),
-)
-vi.mock('@/contexts/studio-operator-host', () => ({
-  useStudioOperatorHost: () => ({
+/** 宿主契约（真 `StudioOperatorHostProvider` 往下给）；按 `HOST_SPEC` 现拼。 */
+function buildHost() {
+  return {
     domain: 'image' as const,
     workspace: 'image-natural' as const,
     /** 四张脸那一格（D7b ③）—— 面板读 `face` 而不是按 domain 取药丸表。 */
@@ -241,14 +213,18 @@ vi.mock('@/contexts/studio-operator-host', () => ({
         ? { canvas: { generate: vi.fn() } }
         : {}),
     },
-  }),
-}))
+  }
+}
 
 type Store = typeof import('@/hooks/use-studio-operator-store')
 type PanelModule = typeof import('./StudioOperatorPanel')
+type HostModule = typeof import('@/contexts/studio-operator-host')
+type KeysModule = typeof import('@/contexts/api-keys-context')
 
 let store: Store
 let Panel: PanelModule['StudioOperatorPanel']
+let HostProvider: HostModule['StudioOperatorHostProvider']
+let KeysProvider: KeysModule['ApiKeysProvider']
 
 const answerQuestion = vi.fn()
 const approvePlan = vi.fn()
@@ -294,8 +270,24 @@ beforeEach(async () => {
     data: { items: [], folders: [] },
   })
   lookupAssistantMentionAssetsAPI.mockResolvedValue({ success: true, data: [] })
+  // 真子组件（老聊天条的角色表等）挂上就会拉的几条：⛔ 不出真网络，没登记的一律失败。
+  fakeServer()
+  runIdleTasksImmediately()
+  keysApi.userSeq += 1
+  keysApi.list.mockResolvedValue({ success: true, data: [] })
+  keysApi.create.mockImplementation(async (input: { modelId: string }) => ({
+    success: true,
+    data: apiKeyRecord({ id: 'k-new', modelId: input.modelId }),
+  }))
+  keysApi.verify.mockResolvedValue({
+    success: true,
+    data: { status: 'available' },
+  })
   store = await import('@/hooks/use-studio-operator-store')
   Panel = (await import('./StudioOperatorPanel')).StudioOperatorPanel
+  HostProvider = (await import('@/contexts/studio-operator-host'))
+    .StudioOperatorHostProvider
+  KeysProvider = (await import('@/contexts/api-keys-context')).ApiKeysProvider
   // ⚠ resetModules 之后第一次 import 面板是冷加载整棵依赖树，全量闸门高负载时
   // 会超过默认 10 秒 hookTimeout（2026-10-15 推送被它拦过两次），这里放宽到 60 秒。
 }, 60_000)
@@ -357,6 +349,22 @@ let initialAttachments: readonly StudioOperatorAttachment[] = []
 
 function PanelHarness() {
   const [draft, setDraft] = useState('')
+  return (
+    <KeysProvider>
+      <HostProvider host={buildHost() as unknown as StudioOperatorHost}>
+        <PanelBody draft={draft} setDraft={setDraft} />
+      </HostProvider>
+    </KeysProvider>
+  )
+}
+
+function PanelBody({
+  draft,
+  setDraft,
+}: {
+  draft: string
+  setDraft: (next: string) => void
+}) {
   return (
     <Panel
       operator={
@@ -420,8 +428,9 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
     })
     renderPanel()
     expect(screen.getByText('去海边吧。')).toBeTruthy()
+    // ⚠ 本文件的 next-intl 桩只回 key（`oldChat` 里那个名字是插值）。
     expect(screen.getByTestId('operator-old-chat-bar')).toHaveTextContent(
-      '莉莉',
+      'oldChat',
     )
     expect(screen.queryByTestId('operator-input-area')).toBeNull()
   })
@@ -684,7 +693,7 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
     now.mockRestore()
   })
 
-  it('⭐ 缺 key 的错误条带「配置 Key」，点开就地配 Gemini（免费档）', () => {
+  it('⭐ 缺 key 的错误条带「配置 Key」，点开就地配 Gemini（免费档）', async () => {
     renderPanel()
     act(() =>
       store.setOperatorStatus(
@@ -695,11 +704,17 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
       ),
     )
     fireEvent.click(screen.getByTestId('operator-error-action-addKey'))
-    expect(screen.getByTestId('quick-setup')).toHaveTextContent('Gemini')
+    expect(openQuickSetup()).not.toBeNull()
+    submitQuickSetup('verify')
+    await vi.waitFor(() =>
+      expect(keysApi.create).toHaveBeenCalledWith(
+        expect.objectContaining({ adapterType: AI_ADAPTER_TYPES.GEMINI }),
+      ),
+    )
   })
 
   /** owner 2026-10-15：选定的模型缺 key 不换别家 —— 配它那一家的 key，配好接着跑刚才那句。 */
-  it('⭐ 选定的模型缺 key：错误条「配置 Claude 的 key」就地配那一家，验证过就接着跑', () => {
+  it('⭐ 选定的模型缺 key：错误条「配置 Claude 的 key」就地配那一家，验证过就接着跑', async () => {
     renderPanel()
     act(() =>
       store.setOperatorStatus(
@@ -718,12 +733,18 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
     // ⛔ 这一种不给「重试」：没有 key，重试只会再撞一次。
     expect(screen.queryByTestId('operator-error-action-retry')).toBeNull()
     fireEvent.click(addKey)
-    const setup = screen.getByTestId('quick-setup')
-    expect(setup).toHaveTextContent('Claude Sonnet 5.5')
-    expect(setup).toHaveAttribute('data-adapter', AI_ADAPTER_TYPES.ANTHROPIC)
+    expect(openQuickSetup()).not.toBeNull()
     expect(send).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByTestId('quick-setup-verified'))
-    expect(send).toHaveBeenCalledWith('error.retryPrompt')
+    submitQuickSetup('verify')
+    await vi.waitFor(() =>
+      expect(send).toHaveBeenCalledWith('error.retryPrompt'),
+    )
+    expect(keysApi.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+        modelId: LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5,
+      }),
+    )
   })
 
   it('⭐ 其他错误给「重试」：发一句接着做完，⛔ 不原样重放上一条', () => {
@@ -2243,24 +2264,72 @@ describe('StudioOperatorPanel · v2 §4.4 输入区两行', () => {
  * ⚠ 挑中的图只进这条消息（§10b：正文里一枚 `library` 胶囊），⛔ 不挂工作台参考位。
  */
 describe('素材库按钮（切片 #7c）', () => {
-  it('下行有素材库按钮，点一下开弹层，首屏页大小是 10', () => {
-    renderPanel()
-    expect(screen.queryByTestId('asset-selector-dialog')).toBeNull()
-    openAddMenu()
-    fireEvent.click(screen.getByTestId('operator-add-library'))
-
-    const dialog = screen.getByTestId('asset-selector-dialog')
-    expect(dialog).toHaveAttribute('data-page-size', '10')
-    expect(dialog).toHaveAttribute('data-media-type', 'image')
-    expect(dialog).toHaveAttribute('data-multi', 'true')
+  /** 素材库那一页（真 `useGallery` 拉的那条 api-client）。 */
+  beforeEach(() => {
+    fetchGalleryImages.mockImplementation(async () => ({
+      success: true,
+      data: {
+        generations: libraryPicks,
+        page: 1,
+        limit: 10,
+        total: libraryPicks.length,
+        hasMore: false,
+        nextCursor: null,
+      },
+    }))
   })
 
-  it('挑两张：正文里各留一枚 @ 胶囊（按 id 指，⛔ 不再按「图N」编号）', () => {
+  const libraryDialog = () => screen.queryByRole('dialog')
+
+  async function openLibrary() {
+    openAddMenu()
+    // ＋ 的弹层先收起，再隔一拍开素材库（`afterClose`）。
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('operator-add-library'))
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+    return vi.waitFor(() => {
+      const node = libraryDialog()
+      expect(node).not.toBeNull()
+      return node!
+    })
+  }
+
+  /** ＋ → 素材库 → 在真 picker 里点这几格 → 「加入」。 */
+  async function pickFromLibrary(...prompts: string[]) {
+    const dialog = await openLibrary()
+    for (const prompt of prompts) {
+      fireEvent.click(
+        await within(dialog).findByRole('button', { name: prompt }),
+      )
+    }
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: 'pickerConfirmAdd' }),
+    )
+  }
+
+  it('下行有素材库按钮，点一下开弹层：多选、首屏页大小是 10', async () => {
+    renderPanel()
+    expect(libraryDialog()).toBeNull()
+    const dialog = await openLibrary()
+    await vi.waitFor(() => expect(fetchGalleryImages).toHaveBeenCalled())
+    expect(fetchGalleryImages.mock.calls[0]![1]).toBe(10)
+    // 多选：瓦片是可按下的开关，按下一格底下才出「加入」。
+    const tile = await within(dialog).findByRole('button', {
+      name: '库里那张海报',
+    })
+    expect(tile).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.click(tile)
+    expect(tile).toHaveAttribute('aria-pressed', 'true')
+    expect(
+      within(dialog).getByRole('button', { name: 'pickerConfirmAdd' }),
+    ).toBeTruthy()
+  })
+
+  it('挑两张：正文里各留一枚 @ 胶囊（按 id 指，⛔ 不再按「图N」编号）', async () => {
     renderPanel()
     const editor = screen.getByRole('combobox', { name: editorName })
-    openAddMenu()
-    fireEvent.click(screen.getByTestId('operator-add-library'))
-    fireEvent.click(screen.getByTestId('asset-selector-confirm-many'))
+    await pickFromLibrary('库里那张海报', '库里那张插画')
 
     expect(
       store.getOperatorState().mentions.map((item) => [item.id, item.scope]),
@@ -2268,10 +2337,14 @@ describe('素材库按钮（切片 #7c）', () => {
       ['lib-1', 'library'],
       ['lib-2', 'library'],
     ])
+    /**
+     * ⚠ 胶囊在正文里的先后不在这里钉：真弹层开着时 Radix 的焦点圈把 `el.focus()` 拽回
+     * 弹层，jsdom 里光标跟着丢，第二枚落到了第一枚前面 —— 真浏览器里选区不随焦点走。
+     */
     const chips = editor.querySelectorAll('[data-mention]')
-    expect([...chips].map((chip) => chip.getAttribute('data-mention'))).toEqual(
-      ['<@image:lib-1>', '<@image:lib-2>'],
-    )
+    expect(
+      [...chips].map((chip) => chip.getAttribute('data-mention')).sort(),
+    ).toEqual(['<@image:lib-1>', '<@image:lib-2>'])
     expect(editor.textContent).not.toContain('@Image')
   })
 
@@ -2308,26 +2381,12 @@ describe('素材库按钮（切片 #7c）', () => {
     expect(editor.querySelectorAll('[data-mention]')).toHaveLength(1)
   })
 
-  it('已经在正文里的那张跳过 —— ⛔ 同一件不插第二枚', () => {
-    libraryPicks = [
-      {
-        id: 'lib-1',
-        url: 'https://cdn.test/lib-1.png',
-        prompt: '库里那张海报',
-        outputType: 'IMAGE',
-      },
-      {
-        id: 'lib-1',
-        url: 'https://cdn.test/lib-1.png',
-        prompt: '库里那张海报',
-        outputType: 'IMAGE',
-      },
-    ]
+  it('已经在正文里的那张跳过 —— ⛔ 同一件不插第二枚', async () => {
     renderPanel()
     const editor = screen.getByRole('combobox', { name: editorName })
-    openAddMenu()
-    fireEvent.click(screen.getByTestId('operator-add-library'))
-    fireEvent.click(screen.getByTestId('asset-selector-confirm-many'))
+    await pickFromLibrary('库里那张海报')
+    await vi.waitFor(() => expect(libraryDialog()).toBeNull())
+    await pickFromLibrary('库里那张海报')
     expect(editor.querySelectorAll('[data-mention]')).toHaveLength(1)
   })
 })
@@ -2404,7 +2463,9 @@ describe('@ 菜单（§10b）', () => {
     fireEvent.click(screen.getByTestId('operator-add-mention'))
     const editor = screen.getByRole('combobox', { name: editorName })
     await vi.waitFor(() => expect(editor.textContent).toBe('@'))
-    expect(screen.getByRole('listbox')).toBeTruthy()
+    // ⚠ 菜单比那个 @ 晚一拍才开（查询串先进 state 再画浮层）：要等，⛔ 写完 @ 当场就断言
+    //   —— 单跑这一例时轮询恰好落在两拍之间，整份跑才碰巧过。
+    expect(await screen.findByRole('listbox')).toBeTruthy()
     expect(editor).toHaveAttribute('aria-expanded', 'true')
   })
 

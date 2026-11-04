@@ -59,7 +59,7 @@ interface DanbooruWorld {
 }
 
 const web = {
-  serper: (_query: string): SerperHit[] => [],
+  serper: (() => []) as (query: string) => SerperHit[],
   /** 主机名 → 按搜索词 / 页名给页（`null` = 没有）。 */
   wiki: {} as Record<string, (search: string) => WikiPage | null>,
   danbooru: null as unknown as DanbooruWorld,

@@ -19,7 +19,14 @@
 | L4  | 端到端           | `e2e/journeys/*.spec.ts` | Playwright 登录测试账号 + 假出图服务：关键链路 + 冒烟（每个台、每个库页打开不崩、控制台无报错），CI 每次跑   |
 | L5  | 助手评测         | `test:eval`              | 真模型 68 题，管话术质量；花钱、手动                                                                         |
 
-关键链路（L4）：① 工作台出图 → 进素材库 ② 助手挂 / 摘 / 再挂 LoRA，台面一致、收藏不多写 ③ 角色页聊一句 ④ 画布镜头表新建 → 发送 ⑤ 冒烟全台全库页。
+关键链路（L4）：① 工作台出图 → 进素材库 ② LoRA 挂上 → 卸下 → 再挂回 ③ 角色页聊一句 → 看到回答 ④ 镜头表写描述 → 存库 → 重进还在 ⑤ 冒烟全台全库页（截图 + 无障碍树落 `e2e/.pages`，CI 产物 `e2e-pages`）。
+
+L4 的假边界（只替外部，应用全真）：
+
+- **执行 Worker + 出图服务商**：`e2e/fake-worker/server.ts`，签名 / 取 key / 回调直接复用真 Worker 的 `workers/execution/src/lib/app-bridge.ts`；`EXECUTION_WORKER_BASE_URL` 指过去。生产模式回调防重放要 Redis，CI 起 redis + serverless-redis-http。
+- **文字模型**：`e2e/fake-llm/server.ts`（OpenAI chat + Anthropic messages，流式 / 缓冲）。⚠ 文字模型不看 key 上的 `baseUrl`，一律打官方默认地址；唯一改道口是 `CLOUDFLARE_AI_GATEWAY_URL`（`llm-core` 与助手新内核的 AI SDK `aiGatewayFetch` 都走它），CI 把它指到假模型。只能 https：CI 现签 localhost 证书，Next 进程用 `NODE_EXTRA_CA_CERTS` 信任。
+- **不走点击的那一跳**：收藏 LoRA（不碰 Civitai）、建带镜号的镜头卡（桌面「添加节点」加的不编号）用真接口，之后全走界面。
+- 坑：登录时先点掉隐私提示条（挡底栏按钮）；`api()` 每次现取 Clerk 令牌（60 秒过期）；跑主循环的用例自己 `test.setTimeout`（默认 30 秒盖住 expect 的超时）。
 
 ### 改什么，必须带什么
 

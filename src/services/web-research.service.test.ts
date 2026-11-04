@@ -10,11 +10,6 @@ vi.mock('node:dns', () => {
   return { ...mocked, default: mocked }
 })
 
-// 退避链在 with-retry 自己的测试里覆盖；这里验的是读页那条链的先后。
-vi.mock('@/lib/with-retry', () => ({
-  withRetry: <T>(fn: () => Promise<T>) => fn(),
-}))
-
 import { URL_READER, WEB_IMAGE_SEARCH } from '@/constants/web-search'
 import {
   isReadHostBlocked,
@@ -154,6 +149,22 @@ describe('readUrl', () => {
  * ⭐ **被挡了说被挡了**（2026-10-15）：Jina → wiki 站的 API → 直连，挑战页的字永远不当正文。
  */
 describe('readUrlDetailed：被挡的页与退路', () => {
+  // Jina 5xx 会按真的退避重试：假时钟一路推过去，不真等
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['setTimeout'] })
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+  async function readDetailed(url: string) {
+    let settled = false
+    const pending = readUrlDetailed(url).finally(() => {
+      settled = true
+    })
+    while (!settled) await vi.advanceTimersByTimeAsync(500)
+    return pending
+  }
+
   const JINA_CHALLENGE = [
     'Title: Just a moment...',
     '',
@@ -212,7 +223,7 @@ describe('readUrlDetailed：被挡的页与退路', () => {
           'Title: 时夜\n\nURL Source: https://example.test/a\n\nMarkdown Content:\n黑色长发，金色瞳孔。',
         ),
     })
-    const outcome = await readUrlDetailed('https://example.test/a')
+    const outcome = await readDetailed('https://example.test/a')
     expect(outcome).toEqual({
       status: 'read',
       via: 'jina',
@@ -230,7 +241,7 @@ describe('readUrlDetailed：被挡的页与退路', () => {
       jina: () => textResponse(JINA_CHALLENGE),
       direct: () => htmlResponse(ARTICLE_HTML),
     })
-    const outcome = await readUrlDetailed('https://blocked.example.test/post')
+    const outcome = await readDetailed('https://blocked.example.test/post')
     expect(outcome).toMatchObject({
       status: 'read',
       via: 'direct',
@@ -252,7 +263,7 @@ describe('readUrlDetailed：被挡的页与退路', () => {
 
     // 下一次直接走退路，⛔ 不再碰 Jina。
     mockFetch.mockClear()
-    await readUrlDetailed('https://blocked.example.test/other')
+    await readDetailed('https://blocked.example.test/other')
     expect(kindsCalled()).toEqual(['direct'])
   })
 
@@ -266,7 +277,7 @@ describe('readUrlDetailed：被挡的页与退路', () => {
           },
         }),
     })
-    const outcome = await readUrlDetailed(
+    const outcome = await readDetailed(
       'https://zh.moegirl.org.cn/%E9%95%BF%E7%A6%BB',
     )
     expect(outcome).toMatchObject({
@@ -290,9 +301,10 @@ describe('readUrlDetailed：被挡的页与退路', () => {
       api: () => jsonResponse({ error: { code: 'action-notallowed' } }),
       direct: () => htmlResponse(ARTICLE_HTML),
     })
-    const outcome = await readUrlDetailed('https://zh.moegirl.org.cn/X')
+    const outcome = await readDetailed('https://zh.moegirl.org.cn/X')
     expect(outcome).toMatchObject({ status: 'read', via: 'direct' })
-    expect(kindsCalled()).toEqual(['jina', 'api', 'direct'])
+    // Jina 5xx 按退避重试满 3 次才换 API
+    expect(kindsCalled()).toEqual(['jina', 'jina', 'jina', 'api', 'direct'])
   })
 
   it('⛔ 整条链都被挡 → blocked（⛔ 不交挑战页的字），记 30 分钟；之内再读不碰网络', async () => {
@@ -300,7 +312,7 @@ describe('readUrlDetailed：被挡的页与退路', () => {
       jina: () => textResponse(JINA_CHALLENGE),
       direct: () => htmlResponse(CHALLENGE_HTML, 503),
     })
-    const first = await readUrlDetailed('https://blocked.example.test/post')
+    const first = await readDetailed('https://blocked.example.test/post')
     expect(first).toEqual({
       status: 'blocked',
       url: 'https://blocked.example.test/post',
@@ -313,7 +325,7 @@ describe('readUrlDetailed：被挡的页与退路', () => {
     expect(await readUrl('https://blocked.example.test/post')).toBeNull()
 
     mockFetch.mockClear()
-    const again = await readUrlDetailed('https://blocked.example.test/other')
+    const again = await readDetailed('https://blocked.example.test/other')
     expect(again).toMatchObject({ status: 'blocked', cached: true })
     expect(mockFetch).not.toHaveBeenCalled()
   })
@@ -323,7 +335,7 @@ describe('readUrlDetailed：被挡的页与退路', () => {
       jina: () => textResponse('', 502),
       direct: () => htmlResponse('', 429),
     })
-    expect(await readUrlDetailed('https://busy.example.test/a')).toMatchObject({
+    expect(await readDetailed('https://busy.example.test/a')).toMatchObject({
       status: 'blocked',
       reason: 'status',
       detail: 'HTTP 429',
@@ -335,7 +347,7 @@ describe('readUrlDetailed：被挡的页与退路', () => {
       jina: () => textResponse('', 502),
       direct: () => htmlResponse('%PDF-1.7', 200, 'application/pdf'),
     })
-    expect(await readUrlDetailed('https://files.example.test/a.pdf')).toEqual({
+    expect(await readDetailed('https://files.example.test/a.pdf')).toEqual({
       status: 'failed',
       url: 'https://files.example.test/a.pdf',
     })
@@ -358,7 +370,7 @@ describe('readUrlDetailed：被挡的页与退路', () => {
           headers: { 'content-type': 'text/html' },
         }),
     })
-    const outcome = await readUrlDetailed('https://big.example.test/a')
+    const outcome = await readDetailed('https://big.example.test/a')
     expect(outcome.status).toBe('read')
     expect(pulled).toBeLessThanOrEqual(
       Math.ceil(URL_READER.directMaxBytes / chunk.byteLength) + 2,

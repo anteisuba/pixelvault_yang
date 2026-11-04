@@ -1,21 +1,24 @@
+/**
+ * L2a 真库：模型路由（model-router.service）。用户偏好（UserCreativePreference）走真库，
+ * 不假任何自有模块。
+ */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+vi.mock('server-only', () => ({}))
+
 import { AI_MODELS, RETIRED_MODEL_IDS } from '@/constants/models'
+import { db } from '@/lib/db'
+import { createTestUser, resetDatabase } from '@/test/int/db'
 import type { ImageIntent } from '@/types'
-
-const mockGetUserPreference = vi.hoisted(() => vi.fn())
-
-vi.mock('@/services/user-preference.service', () => ({
-  getUserPreference: (...args: unknown[]) => mockGetUserPreference(...args),
-  parseUserPreferredModelsByTask: (value: unknown) => value ?? {},
-}))
 
 import { estimateModelCost, routeModelsForIntent } from './model-router.service'
 
+let me: Awaited<ReturnType<typeof createTestUser>>
+
 describe('routeModelsForIntent', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    mockGetUserPreference.mockResolvedValue(null)
+  beforeEach(async () => {
+    await resetDatabase()
+    me = await createTestUser()
   })
 
   it('keeps anime models off the top for a product-photo intent', async () => {
@@ -121,11 +124,14 @@ describe('routeModelsForIntent', () => {
     const intent: ImageIntent = { subject: 'something completely vague' }
     const baselineResults = await routeModelsForIntent(intent)
     const targetModelId = baselineResults[baselineResults.length - 1].modelId
-    mockGetUserPreference.mockResolvedValue({
-      preferredModelsByTask: { general: [targetModelId] },
+    await db.userCreativePreference.create({
+      data: {
+        userId: me.id,
+        preferredModelsByTask: { general: [targetModelId] },
+      },
     })
 
-    const results = await routeModelsForIntent(intent, {}, { userId: 'user-1' })
+    const results = await routeModelsForIntent(intent, {}, { userId: me.id })
 
     expect(results[0].modelId).toBe(targetModelId)
     expect(results[0].reason).toContain('user preference signal')
@@ -135,9 +141,7 @@ describe('routeModelsForIntent', () => {
     const intent: ImageIntent = { subject: 'something completely vague' }
     const baselineResults = await routeModelsForIntent(intent)
 
-    mockGetUserPreference.mockResolvedValue(null)
-
-    const results = await routeModelsForIntent(intent, {}, { userId: 'user-1' })
+    const results = await routeModelsForIntent(intent, {}, { userId: me.id })
 
     expect(results.map((result) => result.modelId)).toEqual(
       baselineResults.map((result) => result.modelId),

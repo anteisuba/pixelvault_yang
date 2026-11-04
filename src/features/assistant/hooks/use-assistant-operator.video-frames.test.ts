@@ -169,7 +169,7 @@ function render() {
     wrapper: ({ children }: { children: ReactNode }) =>
       createElement(
         hostModule.StudioOperatorHostProvider,
-        { host: testHost() },
+        { host: testHost() } as never,
         children,
       ),
   })

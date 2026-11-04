@@ -271,7 +271,7 @@ describe('submitRenderJob', () => {
             { ...plan().video[0], id: 'c2' },
             { ...plan().video[0], id: 'c3', sourceNodeId: 'v2' },
           ],
-        }),
+        }) as never,
         locale: 'zh',
       }),
     )

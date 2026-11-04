@@ -126,7 +126,7 @@ describe('checkImageGenerationStatus', () => {
         data: { externalRequestId: '{}' },
       })
       return updateMany(args)
-    }) as typeof updateMany)
+    }) as unknown as typeof updateMany)
 
     const result = await checkImageGenerationStatus(me.clerkId, job.id)
 

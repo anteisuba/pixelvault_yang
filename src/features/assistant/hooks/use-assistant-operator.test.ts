@@ -442,7 +442,7 @@ function render() {
     wrapper: ({ children }: { children: ReactNode }) =>
       createElement(
         hostModule.StudioOperatorHostProvider,
-        { host: testHost() },
+        { host: testHost() } as never,
         children,
       ),
   })
@@ -608,7 +608,7 @@ describe('useAssistantOperator 的四条收尾路径', () => {
           wrapper: ({ children }: { children: ReactNode }) =>
             createElement(
               hostModule.StudioOperatorHostProvider,
-              { host: testHost() },
+              { host: testHost() } as never,
               children,
             ),
         },

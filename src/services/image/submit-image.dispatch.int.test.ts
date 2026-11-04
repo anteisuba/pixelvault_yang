@@ -80,7 +80,7 @@ beforeEach(async () => {
       if (civitaiDown) throw new TypeError('fetch failed')
       const version = civitai.get(Number(url.slice(CIVITAI.length)))
       return version
-        ? Response.json({ id: 1, name: version.name, ...version })
+        ? Response.json({ id: 1, ...version })
         : new Response('not found', { status: 404 })
     },
   })
@@ -270,7 +270,7 @@ describe('submitImageGeneration · 参考图与遮罩', () => {
     const pixels = (rgb: number[][]) => ({
       width: rgb.length,
       height: 1,
-      data: new Uint8ClampedArray(rgb.flatMap((c) => [...c, 255])),
+      data: new Uint8Array(rgb.flatMap((c) => [...c, 255])),
     })
     fakeBucket.remote.set(source, {
       buffer: await encodePng(pixels(Array(4).fill([10, 20, 30]))),

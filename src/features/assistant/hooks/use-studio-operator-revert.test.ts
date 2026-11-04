@@ -76,7 +76,11 @@ function renderRevert() {
   const host = testHost()
   return renderHook(() => revert.useStudioOperatorRevert(), {
     wrapper: ({ children }: { children: ReactNode }) =>
-      createElement(hostModule.StudioOperatorHostProvider, { host }, children),
+      createElement(
+        hostModule.StudioOperatorHostProvider,
+        { host } as never,
+        children,
+      ),
   })
 }
 

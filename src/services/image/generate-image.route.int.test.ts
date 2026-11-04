@@ -77,7 +77,9 @@ describe('resolveGenerationRoute · 选中的 key', () => {
         userId: me.id,
         adapterType: AI_ADAPTER_TYPES.PIXAI,
         modelId: 'custom-pixai-version',
-        providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.PIXAI),
+        providerConfig: JSON.parse(
+          JSON.stringify(getDefaultProviderConfig(AI_ADAPTER_TYPES.PIXAI)),
+        ),
         label: 'pixai',
         encryptedKey: encryptApiKey(PLAIN_KEY),
       },
@@ -144,7 +146,9 @@ describe('resolveGenerationRoute · 型号目录', () => {
         modelId: AI_MODELS.SEEDREAM_50_PRO,
         externalModelId: 'fal-ai/seedream',
         adapterType: AI_ADAPTER_TYPES.FAL,
-        providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
+        providerConfig: JSON.parse(
+          JSON.stringify(getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL)),
+        ),
         available: false,
       },
     })
@@ -161,7 +165,9 @@ describe('resolveGenerationRoute · 型号目录', () => {
         modelId: AI_MODELS.SEEDREAM_50_PRO,
         externalModelId: 'owner/flux-new-version',
         adapterType: AI_ADAPTER_TYPES.REPLICATE,
-        providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.REPLICATE),
+        providerConfig: JSON.parse(
+          JSON.stringify(getDefaultProviderConfig(AI_ADAPTER_TYPES.REPLICATE)),
+        ),
         cost: 7,
       },
     })

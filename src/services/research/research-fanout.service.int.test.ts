@@ -1,64 +1,25 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+/**
+ * 助手检索扇出（2026-09-06）。真连接器、真并发、真归并；只假网络：
+ * Serper / 萌百 / 中文维基 / Fandom / Danbooru / B站 都在 `fetch` 上按主机名回包。
+ * ⚠ 一个真请求都不发 —— Serper credit 是真钱，萌百 / danbooru 是别人的服务器。
+ * 断言的是「打了哪几个源、发了什么查询、证据怎么归并排序、回执怎么写」。
+ * 真库（L2a）：danbooru 那一支会去词库（`DanbooruTagName`）补中日文名。
+ */
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('server-only', () => ({}))
-
-/**
- * 助手检索扇出（2026-09-06）。
- *
- * ⚠ **连接器全程 mock，一个真请求都不发** —— Serper credit 是真钱，萌百 /
- * danbooru 是别人的服务器。这一层要验的是「打哪几个源、怎么归并、怎么投影」，
- * 不是上游返回什么。
- */
-const mockFetchWebSearchEvidence = vi.fn()
-const mockFetchMediaWikiEvidence = vi.fn()
-const mockFetchDanbooruEvidence = vi.fn()
-const mockFetchBilibiliEvidence = vi.fn()
-
-vi.mock('@/services/research/web-search.connector', async () => {
-  const actual = await vi.importActual<
-    typeof import('@/services/research/web-search.connector')
-  >('@/services/research/web-search.connector')
-  return {
-    ...actual,
-    fetchWebSearchEvidence: (...args: unknown[]) =>
-      mockFetchWebSearchEvidence(...args),
-  }
-})
-/**
- * ⚠ **只 mock 取证据那一跳**：`resolveFandomSite` / `getMediaWikiSite` 是**纯的
- * 站点解析**（本轮 A4 的判据全在它们身上），mock 掉就等于把要验的东西验没了。
- */
-vi.mock('@/services/research/mediawiki.connector', async () => {
-  const actual = await vi.importActual<
-    typeof import('@/services/research/mediawiki.connector')
-  >('@/services/research/mediawiki.connector')
-  return {
-    ...actual,
-    fetchMediaWikiEvidence: (...args: unknown[]) =>
-      mockFetchMediaWikiEvidence(...args),
-  }
-})
-
-/** Serper 是否配了 —— 本轮 A1 的判据，逐条测两支。 */
-const mockIsWebSearchConfigured = vi.fn()
-vi.mock('@/services/web-research.service', async () => {
-  const actual = await vi.importActual<
-    typeof import('@/services/web-research.service')
-  >('@/services/web-research.service')
-  return { ...actual, isWebSearchConfigured: () => mockIsWebSearchConfigured() }
-})
-vi.mock('@/services/research/danbooru.connector', () => ({
-  fetchDanbooruEvidence: (...args: unknown[]) =>
-    mockFetchDanbooruEvidence(...args),
-}))
-vi.mock('@/services/research/bilibili.connector', () => ({
-  fetchBilibiliEvidence: (...args: unknown[]) =>
-    mockFetchBilibiliEvidence(...args),
+vi.mock('@/lib/logger', () => ({
+  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }))
 
-import { MEDIAWIKI_SOURCE_IDS, RESEARCH_SOURCE_IDS } from '@/constants/research'
+import {
+  RESEARCH_SOURCE_IDS,
+  type ResearchSourceId,
+} from '@/constants/research'
 import { markReadHostBlocked, resetReadHostBlocks } from '@/lib/read-url-blocks'
 import type { EvidenceItem } from '@/types/research'
+import { resetResearchBreakers } from '@/services/research/connector-runtime'
+import { resetDanbooruCatalogCache } from '@/services/research/danbooru.connector'
 import {
   buildResearchQueryPlan,
   confidenceOfCredibility,
@@ -68,6 +29,214 @@ import {
   scopeOfEvidence,
   toAssistantEvidence,
 } from '@/services/research/research-fanout.service'
+import { resetDatabase } from '@/test/int/db'
+
+// ─── 假的外网 ─────────────────────────────────────────────────────
+
+interface WikiPage {
+  title: string
+  extract: string
+  categories?: string[]
+}
+
+interface SerperHit {
+  title: string
+  link: string
+  snippet?: string
+}
+
+interface DanbooruWorld {
+  /** 别名（中日文名）→ tag。 */
+  aliases: Record<string, string>
+  /** tag → 分类（4 = 角色）。 */
+  categories: Record<string, number>
+  /** 「a b」两个 tag 同时出现过。 */
+  together: string[]
+  /** tag → 每张样图上的一般标签。 */
+  posts: Record<string, string[]>
+  /** 整个站挂了（回 403，不重试）。 */
+  down: boolean
+}
+
+const web = {
+  serper: (_query: string): SerperHit[] => [],
+  /** 主机名 → 按搜索词 / 页名给页（`null` = 没有）。 */
+  wiki: {} as Record<string, (search: string) => WikiPage | null>,
+  danbooru: null as unknown as DanbooruWorld,
+  /** 发出去的每个请求（完整 URL）。 */
+  requests: [] as string[],
+  /** Serper 收到的每条查询（`q`）。 */
+  serperQueries: [] as string[],
+}
+
+function hostsHit(): string[] {
+  return [...new Set(web.requests.map((url) => new URL(url).host))]
+}
+
+function param(url: string, name: string): string | null {
+  return new URL(url).searchParams.get(name)
+}
+
+function wikiResponse(host: string, url: string): unknown {
+  const pageOf = web.wiki[host] ?? (() => null)
+  const action = param(url, 'action')
+  if (action === 'opensearch') {
+    const search = param(url, 'search') ?? ''
+    const page = pageOf(search)
+    return [search, page ? [page.title] : [], [], []]
+  }
+  const titles = param(url, 'titles')
+  if (action === 'query' && titles) {
+    const page = pageOf(titles)
+    return {
+      query: {
+        pages: page
+          ? [
+              {
+                title: page.title,
+                extract: page.extract,
+                categories: (page.categories ?? []).map((name) => ({
+                  title: `Category:${name}`,
+                })),
+              },
+            ]
+          : [],
+      },
+    }
+  }
+  return {}
+}
+
+function danbooruResponse(url: string): Response {
+  const world = web.danbooru
+  if (world.down) return new Response('forbidden', { status: 403 })
+  const path = new URL(url).pathname
+  if (path === '/wiki_pages.json') {
+    const alias = param(url, 'search[other_names_match]')
+    if (alias !== null) {
+      const tag = world.aliases[alias]
+      return Response.json(tag ? [{ title: tag, other_names: [alias] }] : [])
+    }
+    const title = param(url, 'search[title]')
+    return Response.json(
+      title && Object.values(world.aliases).includes(title)
+        ? [{ title, other_names: [], body: '' }]
+        : [],
+    )
+  }
+  if (path === '/tags.json') {
+    const name = param(url, 'search[name]')
+    return Response.json(
+      name && world.categories[name] !== undefined
+        ? [{ name, category: world.categories[name], post_count: 100 }]
+        : [],
+    )
+  }
+  if (path === '/posts.json') {
+    const tags = param(url, 'tags') ?? ''
+    if (tags.includes(' '))
+      return Response.json(world.together.includes(tags) ? [{ id: 1 }] : [])
+    return Response.json(
+      (world.posts[tags] ?? []).map((general, id) => ({
+        id,
+        tag_string_general: general,
+      })),
+    )
+  }
+  return Response.json([])
+}
+
+async function fakeFetch(
+  input: string | URL | Request,
+  init?: RequestInit,
+): Promise<Response> {
+  const url = input instanceof Request ? input.url : String(input)
+  web.requests.push(url)
+  const { host } = new URL(url)
+  if (host === 'google.serper.dev') {
+    const { q } = JSON.parse(String(init?.body ?? '{}')) as { q: string }
+    web.serperQueries.push(q)
+    return Response.json({ organic: web.serper(q) })
+  }
+  if (
+    host.endsWith('moegirl.org.cn') ||
+    host.endsWith('wikipedia.org') ||
+    host.endsWith('fandom.com')
+  )
+    return Response.json(wikiResponse(host, url))
+  if (host === 'danbooru.donmai.us') return danbooruResponse(url)
+  if (host.endsWith('bilibili.com')) return Response.json({ data: {} })
+  throw new Error(`unexpected fetch ${url}`)
+}
+
+const MOEGIRL = 'zh.moegirl.org.cn'
+const ZHWIKI = 'zh.wikipedia.org'
+/** 萌百那一页的地址（连接器按页名拼）。 */
+const moegirlUrl = (title: string) =>
+  `https://${MOEGIRL}/${encodeURIComponent(title)}`
+
+/** 搜的词 / 页名里带着 `key` 就给这一页。 */
+function pageWhen(key: string, page: WikiPage) {
+  return (search: string) => (search.includes(key) ? page : null)
+}
+
+const SHIYE: WikiPage = {
+  title: '时夜',
+  extract: '时夜是游戏《无限大》的登场角色。黑色长发，金色瞳孔。',
+  categories: ['黑发', '金瞳'],
+}
+
+const ALL_SOURCES = Object.values(RESEARCH_SOURCE_IDS) as ResearchSourceId[]
+
+beforeEach(async () => {
+  await resetDatabase()
+  resetResearchBreakers(ALL_SOURCES)
+  resetDanbooruCatalogCache()
+  resetReadHostBlocks()
+  web.serper = () => []
+  web.wiki = {}
+  web.danbooru = {
+    aliases: {},
+    categories: {},
+    together: [],
+    posts: {},
+    down: false,
+  }
+  web.requests = []
+  web.serperQueries = []
+  vi.stubEnv('SERPER_API_KEY', 'serper-test-key')
+  vi.stubGlobal('fetch', fakeFetch)
+})
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+  vi.unstubAllEnvs()
+})
+
+function receiptOf(
+  outcome: Awaited<ReturnType<typeof runAssistantResearch>>,
+  sourceId: ResearchSourceId,
+) {
+  return outcome.receipts.find((receipt) => receipt.sourceId === sourceId)
+}
+
+/** Danbooru 收到的别名反查（`other_names_match`）。 */
+function danbooruLookups(): string[] {
+  return web.requests
+    .filter((url) => url.includes('danbooru.donmai.us/wiki_pages.json'))
+    .map((url) => param(url, 'search[other_names_match]'))
+    .filter((value): value is string => value !== null)
+}
+
+/** 萌百收到的页名搜索（opensearch 的 `search`）。 */
+function moegirlSearches(): string[] {
+  return web.requests
+    .filter(
+      (url) =>
+        new URL(url).host === MOEGIRL && param(url, 'action') === 'opensearch',
+    )
+    .map((url) => param(url, 'search') ?? '')
+}
 
 const RETRIEVED_AT = '2026-09-06T00:00:00.000Z'
 
@@ -84,15 +253,6 @@ function textItem(overrides: Partial<EvidenceItem> = {}): EvidenceItem {
     ...overrides,
   } as EvidenceItem
 }
-
-beforeEach(() => {
-  vi.clearAllMocks()
-  mockIsWebSearchConfigured.mockReturnValue(true)
-  mockFetchWebSearchEvidence.mockResolvedValue({ items: [] })
-  mockFetchMediaWikiEvidence.mockResolvedValue({ items: [] })
-  mockFetchDanbooruEvidence.mockResolvedValue({ items: [] })
-  mockFetchBilibiliEvidence.mockResolvedValue({ items: [] })
-})
 
 describe('buildResearchQueryPlan（A3：查询表不截角色名）', () => {
   it('⭐ 有角色名时三条**全是角色级**，⛔ 不再单发一条只有作品名的查询', () => {
@@ -215,48 +375,49 @@ describe('toAssistantEvidence', () => {
 
 describe('runAssistantResearch', () => {
   it('默认打 wiki + 网搜 + danbooru，⛔ 默认不打 B站', async () => {
-    await runAssistantResearch({
-      goal: '外貌',
-      entities: ['鸣潮', '今州'],
-    })
-
-    // ⚠ 三个 wiki 源都发出去了（Fandom 这一轮解析得出子站）。
-    expect(mockFetchMediaWikiEvidence).toHaveBeenCalledTimes(
-      MEDIAWIKI_SOURCE_IDS.length,
-    )
-    expect(mockFetchWebSearchEvidence).toHaveBeenCalledTimes(1)
-    expect(mockFetchDanbooruEvidence).toHaveBeenCalledTimes(1)
-    expect(mockFetchBilibiliEvidence).not.toHaveBeenCalled()
-  })
-
-  it('模型指定 sources 时只打那几组', async () => {
-    await runAssistantResearch({ goal: '外貌', sources: ['web'] })
-
-    expect(mockFetchWebSearchEvidence).toHaveBeenCalledTimes(1)
-    expect(mockFetchMediaWikiEvidence).not.toHaveBeenCalled()
-    expect(mockFetchDanbooruEvidence).not.toHaveBeenCalled()
-  })
-
-  it('⭐ A1：缺 SERPER_API_KEY 只把 web_search 标 skipped，百科腿照跑', async () => {
-    mockIsWebSearchConfigured.mockReturnValue(false)
-    mockFetchMediaWikiEvidence.mockResolvedValue({ items: [textItem()] })
-
     const outcome = await runAssistantResearch({
       goal: '外貌',
       entities: ['鸣潮', '今州'],
     })
 
+    // ⚠ 三个 wiki 源都发出去了（Fandom 这一轮解析得出子站）。
+    expect(hostsHit()).toEqual(
+      expect.arrayContaining([
+        MOEGIRL,
+        ZHWIKI,
+        'wutheringwaves.fandom.com',
+        'google.serper.dev',
+        'danbooru.donmai.us',
+      ]),
+    )
+    expect(hostsHit().some((host) => host.endsWith('bilibili.com'))).toBe(false)
+    expect(receiptOf(outcome, RESEARCH_SOURCE_IDS.bilibili)).toBeUndefined()
+  })
+
+  it('模型指定 sources 时只打那几组', async () => {
+    await runAssistantResearch({ goal: '外貌', sources: ['web'] })
+    expect(hostsHit()).toEqual(['google.serper.dev'])
+  })
+
+  it('⭐ A1：缺 SERPER_API_KEY 只把 web_search 标 skipped，百科腿照跑', async () => {
+    vi.stubEnv('SERPER_API_KEY', '')
+    web.wiki[MOEGIRL] = pageWhen('时夜', SHIYE)
+
+    const outcome = await runAssistantResearch({
+      goal: '外貌',
+      entities: ['无限大', '时夜'],
+    })
+
     // ⛔ 一把 Serper 钥匙不许锁上免 key 的那几扇门。
-    expect(mockFetchWebSearchEvidence).not.toHaveBeenCalled()
-    expect(mockFetchMediaWikiEvidence).toHaveBeenCalled()
-    expect(mockFetchDanbooruEvidence).toHaveBeenCalled()
+    expect(web.serperQueries).toEqual([])
+    expect(hostsHit()).toEqual(
+      expect.arrayContaining([MOEGIRL, 'danbooru.donmai.us']),
+    )
     expect(outcome.evidence.length).toBeGreaterThan(0)
 
-    const web = outcome.receipts.find(
-      (receipt) => receipt.sourceId === RESEARCH_SOURCE_IDS.webSearch,
-    )
-    expect(web?.status).toBe('skipped')
-    expect(web?.error).toBe('missing SERPER_API_KEY')
+    const webReceipt = receiptOf(outcome, RESEARCH_SOURCE_IDS.webSearch)
+    expect(webReceipt?.status).toBe('skipped')
+    expect(webReceipt?.error).toBe('missing SERPER_API_KEY')
   })
 
   it('⭐ A3：wiki 腿吃「作品 + 角色」，网搜吃整张查询表', async () => {
@@ -266,22 +427,15 @@ describe('runAssistantResearch', () => {
       sources: ['wiki', 'web'],
     })
 
-    expect(mockFetchWebSearchEvidence).toHaveBeenCalledWith(
-      expect.objectContaining({
-        queries: [
-          '无限大 时夜',
-          '无限大 时夜 角色 设定',
-          'Ananta 时夜 キャラクター',
-        ],
-      }),
+    expect([...web.serperQueries].sort()).toEqual(
+      [
+        '无限大 时夜',
+        '无限大 时夜 角色 设定',
+        'Ananta 时夜 キャラクター',
+      ].sort(),
     )
     // ⛔ 不再是 `queries.at(-1)` 漂到的那个别名。
-    expect(mockFetchMediaWikiEvidence).toHaveBeenCalledWith(
-      expect.objectContaining({
-        query: '无限大 时夜',
-        entities: ['无限大', 'Ananta', '时夜'],
-      }),
-    )
+    expect(moegirlSearches()).toEqual(['无限大 时夜'])
   })
 
   it('⭐ A4：Fandom 按实体解析子站 —— 原神走 genshin-impact，⛔ 不再恒返鸣潮', async () => {
@@ -291,14 +445,8 @@ describe('runAssistantResearch', () => {
       sources: ['wiki'],
     })
 
-    const fandomCall = mockFetchMediaWikiEvidence.mock.calls.find(
-      ([arg]) =>
-        (arg as { site: { sourceId: string } }).site.sourceId ===
-        RESEARCH_SOURCE_IDS.fandom,
-    )
-    const site = (fandomCall?.[0] as { site: { api: string } }).site
-    expect(site.api).toContain('genshin-impact.fandom.com')
-    expect(site.api).not.toContain('wutheringwaves')
+    const fandomHosts = hostsHit().filter((host) => host.endsWith('fandom.com'))
+    expect(fandomHosts).toEqual(['genshin-impact.fandom.com'])
   })
 
   it('⭐ A4：表里没有的作品 → skipped: no fandom site，⛔ 不退回任何子域', async () => {
@@ -308,25 +456,17 @@ describe('runAssistantResearch', () => {
       sources: ['wiki'],
     })
 
-    const fandom = outcome.receipts.find(
-      (receipt) => receipt.sourceId === RESEARCH_SOURCE_IDS.fandom,
-    )
+    const fandom = receiptOf(outcome, RESEARCH_SOURCE_IDS.fandom)
     expect(fandom?.status).toBe('skipped')
     expect(fandom?.error).toBe('no fandom site')
-    expect(
-      mockFetchMediaWikiEvidence.mock.calls.some(
-        ([arg]) =>
-          (arg as { site: { sourceId: string } }).site.sourceId ===
-          RESEARCH_SOURCE_IDS.fandom,
-      ),
-    ).toBe(false)
+    expect(hostsHit().some((host) => host.endsWith('fandom.com'))).toBe(false)
   })
 
-  it('⭐ A2：连接器判掉不相关的页 → 回执 unrelated（⛔ 不折进 empty）', async () => {
-    mockFetchMediaWikiEvidence.mockResolvedValue({
-      items: [],
-      unrelated:
-        '萌娘百科 returned "时之歌", which does not match 无限大 / 时夜',
+  it('⭐ A2：搜到的页不是它 → 回执 unrelated（⛔ 不折进 empty），一条证据都不交', async () => {
+    // 模糊搜索永远有第一条：萌百把《时之歌》当第一条回来。
+    web.wiki[MOEGIRL] = () => ({
+      title: '时之歌',
+      extract: '时之歌是一首歌曲。',
     })
 
     const outcome = await runAssistantResearch({
@@ -335,19 +475,16 @@ describe('runAssistantResearch', () => {
       sources: ['wiki'],
     })
 
-    const moegirl = outcome.receipts.find(
-      (receipt) => receipt.sourceId === RESEARCH_SOURCE_IDS.moegirl,
-    )
+    const moegirl = receiptOf(outcome, RESEARCH_SOURCE_IDS.moegirl)
     // 「搜到了但不是它」与「没料」下一步该做的事不同：前者换名字重查。
     expect(moegirl?.status).toBe('unrelated')
     expect(moegirl?.error).toContain('时之歌')
-    // ⛔ 不相关的页一条证据都不许交出去。
     expect(outcome.evidence).toEqual([])
   })
 
   it('⭐ 单源失败不拖垮整体：回执如实说 failed，其余源照常出证据', async () => {
-    mockFetchDanbooruEvidence.mockRejectedValue(new Error('danbooru is down'))
-    mockFetchMediaWikiEvidence.mockResolvedValue({ items: [textItem()] })
+    web.danbooru.down = true
+    web.wiki[MOEGIRL] = pageWhen('时夜', SHIYE)
 
     const outcome = await runAssistantResearch({
       goal: '外貌',
@@ -355,24 +492,17 @@ describe('runAssistantResearch', () => {
     })
 
     expect(outcome.evidence.length).toBeGreaterThan(0)
-    const danbooru = outcome.receipts.find(
-      (receipt) => receipt.sourceId === RESEARCH_SOURCE_IDS.danbooru,
-    )
     // ⚠ 「源挂了」≠「没料」—— 两句话下一步该做的事完全不同。
-    expect(danbooru?.status).toBe('failed')
+    expect(receiptOf(outcome, RESEARCH_SOURCE_IDS.danbooru)?.status).toBe(
+      'failed',
+    )
   })
 
   it('同一个页面被两个源命中时只留权威档那条', async () => {
-    mockFetchMediaWikiEvidence.mockResolvedValue({ items: [textItem()] })
-    mockFetchWebSearchEvidence.mockResolvedValue({
-      items: [
-        textItem({
-          id: 'web_search:shiye',
-          sourceId: RESEARCH_SOURCE_IDS.webSearch,
-          title: 'Google 的那条',
-        } as Partial<EvidenceItem>),
-      ],
-    })
+    web.wiki[MOEGIRL] = pageWhen('时夜', SHIYE)
+    web.serper = () => [
+      { title: 'Google 的那条', link: moegirlUrl('时夜'), snippet: '黑发' },
+    ]
 
     const outcome = await runAssistantResearch({
       goal: '外貌',
@@ -381,23 +511,16 @@ describe('runAssistantResearch', () => {
     })
 
     const sameUrl = outcome.evidence.filter(
-      (item) => item.url === 'https://zh.moegirl.org.cn/shiye',
+      (item) => item.url === moegirlUrl('时夜'),
     )
-    expect(sameUrl).toHaveLength(1)
-    expect(sameUrl[0]?.title).toBe('萌娘百科 · 时夜')
+    // 萌百那一页（正文 + 分类标签两条）留着，网搜那条同址的被并掉。
+    expect(sameUrl.map((item) => item.title)).toContain('萌娘百科 · 时夜')
+    expect(sameUrl.map((item) => item.title)).not.toContain('Google 的那条')
   })
 
   it('尊重 limit', async () => {
-    mockFetchMediaWikiEvidence.mockImplementation(
-      async ({ site }: { site: { sourceId: string } }) => ({
-        items: [
-          textItem({
-            id: `${site.sourceId}:a`,
-            url: `https://${site.sourceId}.test/a`,
-          } as Partial<EvidenceItem>),
-        ],
-      }),
-    )
+    web.wiki[MOEGIRL] = pageWhen('时夜', SHIYE)
+    web.wiki[ZHWIKI] = pageWhen('时夜', SHIYE)
 
     const outcome = await runAssistantResearch({
       goal: '外貌',
@@ -415,44 +538,36 @@ describe('runAssistantResearch', () => {
  * 被挤到后面截掉。
  */
 describe('runAssistantResearch · 题型排序（2026-09-12）', () => {
-  const BIO = textItem({
-    id: 'web:bio',
-    sourceId: RESEARCH_SOURCE_IDS.webSearch,
+  const BIO: SerperHit = {
     title: '新海诚 - 维基百科：生平',
-    url: 'https://zh.wikipedia.org/wiki/新海诚',
-    excerpt: '新海诚，日本动画导演，1973 年出生于长野县。',
-  } as Partial<EvidenceItem>)
-  const CRAFT = textItem({
-    id: 'web:craft',
-    sourceId: RESEARCH_SOURCE_IDS.webSearch,
+    link: 'https://zh.wikipedia.org/wiki/新海诚',
+    snippet: '新海诚，日本动画导演，1973 年出生于长野县。',
+  }
+  const CRAFT: SerperHit = {
     title: '新海诚光影技法解析：逆光与云层',
-    url: 'https://example.com/shinkai-lighting',
-    excerpt: '他的黄昏用高饱和的橙紫渐变与强逆光。',
-  } as Partial<EvidenceItem>)
+    link: 'https://example.com/shinkai-lighting',
+    snippet: '他的黄昏用高饱和的橙紫渐变与强逆光。',
+  }
 
   it('⭐ style_technique：技法页排到生平条目前面', async () => {
-    mockFetchWebSearchEvidence.mockResolvedValue({ items: [BIO, CRAFT] })
-
+    web.serper = () => [BIO, CRAFT]
     const outcome = await runAssistantResearch({
       goal: '黄昏光怎么描述',
       sources: ['web'],
       questionType: 'style_technique',
     })
-
     expect(outcome.evidence[0]?.title).toBe(CRAFT.title)
   })
 
   it('⚠ 不给题型（或别的题型）时排序**逐字与改动前一致**', async () => {
-    mockFetchWebSearchEvidence.mockResolvedValue({ items: [BIO, CRAFT] })
-
-    const outcome = await runAssistantResearch({
+    web.serper = () => [BIO, CRAFT]
+    const typed = await runAssistantResearch({
       goal: '新海诚是谁',
       sources: ['web'],
       questionType: 'entity_facts',
     })
-    expect(outcome.evidence[0]?.title).toBe(BIO.title)
+    expect(typed.evidence[0]?.title).toBe(BIO.title)
 
-    mockFetchWebSearchEvidence.mockResolvedValue({ items: [BIO, CRAFT] })
     const untyped = await runAssistantResearch({
       goal: '新海诚是谁',
       sources: ['web'],
@@ -462,21 +577,17 @@ describe('runAssistantResearch · 题型排序（2026-09-12）', () => {
 
   it('⛔ 题型不许越过印证数：3 源印证的生平仍排在单源技法文之前', async () => {
     // 同名 = 同一事实（`factKeyOf` 判标题），三个不同域名 = 3 源印证。
-    mockFetchWebSearchEvidence.mockResolvedValue({
-      items: [
-        BIO,
-        { ...BIO, id: 'web:bio2', url: 'https://baike.baidu.com/新海诚' },
-        { ...BIO, id: 'web:bio3', url: 'https://www.sohu.com/a/1' },
-        CRAFT,
-      ],
-    })
-
+    web.serper = () => [
+      BIO,
+      { ...BIO, link: 'https://baike.baidu.com/新海诚' },
+      { ...BIO, link: 'https://www.sohu.com/a/1' },
+      CRAFT,
+    ]
     const outcome = await runAssistantResearch({
       goal: '黄昏光怎么描述',
       sources: ['web'],
       questionType: 'style_technique',
     })
-
     expect(outcome.evidence[0]?.title).toBe(BIO.title)
     expect(outcome.evidence[0]?.corroboration).toBe(3)
   })
@@ -486,24 +597,16 @@ describe('runAssistantResearch · 题型排序（2026-09-12）', () => {
  * **最近挡过读者的站排后面**（2026-10-15）：同印证、同题型分时才起作用，⛔ 不删、不越过前两道次序。
  */
 describe('runAssistantResearch · 挡过读者的站往后放（2026-10-15）', () => {
-  const OPEN = textItem({
-    id: 'web:open',
-    sourceId: RESEARCH_SOURCE_IDS.webSearch,
+  const OPEN: SerperHit = {
     title: '时夜 - 设定集',
-    url: 'https://open.example.test/a',
-    excerpt: '黑色长发。',
-  } as Partial<EvidenceItem>)
-  const WALLED = textItem({
-    id: 'web:walled',
-    sourceId: RESEARCH_SOURCE_IDS.webSearch,
+    link: 'https://open.example.test/a',
+    snippet: '黑色长发。',
+  }
+  const WALLED: SerperHit = {
     title: '时夜 - 攻略站',
-    url: 'https://walled.example.test/a',
-    excerpt: '金色瞳孔。',
-  } as Partial<EvidenceItem>)
-
-  beforeEach(() => {
-    resetReadHostBlocks()
-  })
+    link: 'https://walled.example.test/a',
+    snippet: '金色瞳孔。',
+  }
 
   it('⭐ 同印证数时，挡过读者的站排到读得到的后面；它的摘要照样留着', async () => {
     markReadHostBlocked('walled.example.test', {
@@ -511,8 +614,7 @@ describe('runAssistantResearch · 挡过读者的站往后放（2026-10-15）', 
       detail: 'just a moment...',
       readerOnly: false,
     })
-    mockFetchWebSearchEvidence.mockResolvedValue({ items: [WALLED, OPEN] })
-
+    web.serper = () => [WALLED, OPEN]
     const outcome = await runAssistantResearch({
       goal: '外貌',
       sources: ['web'],
@@ -529,8 +631,7 @@ describe('runAssistantResearch · 挡过读者的站往后放（2026-10-15）', 
       detail: 'HTTP 403',
       readerOnly: true,
     })
-    mockFetchWebSearchEvidence.mockResolvedValue({ items: [WALLED, OPEN] })
-
+    web.serper = () => [WALLED, OPEN]
     const outcome = await runAssistantResearch({
       goal: '外貌',
       sources: ['web'],
@@ -540,18 +641,14 @@ describe('runAssistantResearch · 挡过读者的站往后放（2026-10-15）', 
 })
 
 describe('runAssistantResearch · 角色级（2026-09-07）', () => {
-  it('⭐ danbooru 收到的是**角色名 + 作品名**，⛔ 不再是 queries[0]（作品名）', async () => {
+  it('⭐ danbooru 查的是**角色名**（作品名只拿来核共现），⛔ 不再是 queries[0]', async () => {
     await runAssistantResearch({
       goal: '外貌 服饰',
       entities: ['无限大', 'Ananta', '时夜'],
       sources: ['danbooru'],
     })
-
-    // 🔬 旧实现喂作品名，回来的是 game tag 的全作品统计（别人的兔耳朵）。
-    expect(mockFetchDanbooruEvidence).toHaveBeenCalledWith({
-      query: '时夜',
-      work: '无限大',
-    })
+    // 🔬 旧实现喂「无限大 时夜」整条，回来的是 game tag 的全作品统计（别人的兔耳朵）。
+    expect(danbooruLookups()).toEqual(['时夜', '无限大'])
   })
 
   it('没有角色名时 danbooru 照旧查作品本身（那时问的就是作品）', async () => {
@@ -560,28 +657,25 @@ describe('runAssistantResearch · 角色级（2026-09-07）', () => {
       entities: ['无限大'],
       sources: ['danbooru'],
     })
-    expect(mockFetchDanbooruEvidence).toHaveBeenCalledWith({ query: '无限大' })
+    expect(danbooruLookups()).toEqual(['无限大'])
   })
 
   it('⭐ 官方域出 official/high，未知域回落玩家整理/low', async () => {
-    mockFetchWebSearchEvidence.mockResolvedValue({
-      items: [
-        textItem({
-          id: 'web_search:official',
-          sourceId: RESEARCH_SOURCE_IDS.webSearch,
-          title: '无限大 - 网易',
-          url: 'https://ananta.163.com/m/',
-          excerpt: '时夜. 我负责出钱，你负责出力。',
-        } as Partial<EvidenceItem>),
-        textItem({
-          id: 'web_search:blog',
-          sourceId: RESEARCH_SOURCE_IDS.webSearch,
-          title: '某人的整理',
-          url: 'https://mugendai-matome.com/260/',
-          excerpt: '主人公の幼馴染。',
-        } as Partial<EvidenceItem>),
-      ],
-    })
+    web.serper = (query) =>
+      query === '无限大 时夜'
+        ? [
+            {
+              title: '无限大 - 网易',
+              link: 'https://ananta.163.com/m/',
+              snippet: '时夜. 我负责出钱，你负责出力。',
+            },
+            {
+              title: '某人的整理',
+              link: 'https://mugendai-matome.com/260/',
+              snippet: '主人公の幼馴染。',
+            },
+          ]
+        : []
 
     const outcome = await runAssistantResearch({
       goal: '外貌',
@@ -603,26 +697,23 @@ describe('runAssistantResearch · 角色级（2026-09-07）', () => {
   })
 
   it('⭐ danbooru 的证据钉死角色级 —— 它的字面是英文 tag，判不出中文名', async () => {
-    mockFetchDanbooruEvidence.mockResolvedValue({
-      items: [
-        textItem({
-          id: 'danbooru:tag',
-          sourceId: RESEARCH_SOURCE_IDS.danbooru,
-          kind: 'tags',
-          title: 'danbooru · shiye_(ananta)',
-          url: 'https://danbooru.donmai.us/wiki_pages/shiye',
-          tags: ['black_hair', 'red_streaks'],
-          provenance: '共现统计',
-        } as Partial<EvidenceItem>),
-      ],
-    })
+    web.danbooru.aliases = { 时夜: 'shiye_(ananta)', 无限大: 'ananta' }
+    web.danbooru.categories = { 'shiye_(ananta)': 4, ananta: 3 }
+    web.danbooru.together = ['shiye_(ananta) ananta']
+    web.danbooru.posts = {
+      'shiye_(ananta)': ['black_hair red_streaks', 'black_hair'],
+    }
 
     const outcome = await runAssistantResearch({
       goal: '外貌',
       entities: ['无限大', '时夜'],
       sources: ['danbooru'],
     })
-    expect(outcome.evidence[0]?.scope).toBe('character')
+    expect(outcome.evidence.length).toBeGreaterThan(0)
+    expect(outcome.evidence.every((item) => item.scope === 'character')).toBe(
+      true,
+    )
+    expect(JSON.stringify(outcome.evidence)).toContain('black_hair')
   })
 })
 
@@ -652,33 +743,26 @@ describe('印证与结论（§9，commit #16）', () => {
   })
 
   it('⭐ 印证多的排前，且每条都带 corroboration（⛔ 不由模型写）', async () => {
-    mockFetchMediaWikiEvidence.mockResolvedValue({
-      items: [
-        textItem({
-          id: 'a',
-          title: '只有一个人这么说',
-          url: 'https://a.test/x',
-        }),
-        textItem(),
-      ],
-    })
-    mockFetchWebSearchEvidence.mockResolvedValue({
-      items: [
-        textItem({
-          id: 'b',
-          sourceId: RESEARCH_SOURCE_IDS.webSearch,
-          url: 'https://zh.wikipedia.org/wiki/shiye',
-        }),
-      ],
-    })
+    // 萌百、中文维基都有「时夜」（两个域名 = 2 源印证）；网页那条只有一个人这么说。
+    web.wiki[MOEGIRL] = pageWhen('时夜', SHIYE)
+    web.wiki[ZHWIKI] = pageWhen('时夜', SHIYE)
+    web.serper = () => [
+      {
+        title: '只有一个人这么说',
+        link: 'https://a.test/x',
+        snippet: '时夜喜欢甜食。',
+      },
+    ]
 
     const outcome = await runAssistantResearch({
       goal: '外貌',
       entities: ['无限大', '时夜'],
+      sources: ['wiki', 'web'],
     })
 
     expect(outcome.evidence[0]?.corroboration).toBe(2)
     expect(outcome.evidence.at(-1)?.corroboration).toBe(1)
+    expect(outcome.evidence.at(-1)?.title).toBe('只有一个人这么说')
   })
 
   it('⭐ 结论取印证最多、层级最高的那一条；一条可读的都没有就缺席', () => {
@@ -733,22 +817,16 @@ describe('印证与结论（§9，commit #16）', () => {
       queries: ['无限大 时夜 设定', 'Ananta Shiye design'],
     })
 
-    expect(mockFetchWebSearchEvidence).toHaveBeenCalledWith(
-      expect.objectContaining({
-        queries: ['无限大 时夜 设定', 'Ananta Shiye design'],
-      }),
+    expect([...web.serperQueries].sort()).toEqual(
+      ['无限大 时夜 设定', 'Ananta Shiye design'].sort(),
     )
     // wiki 吃的仍然是「作品 + 角色」那条页名，⛔ 不是改写出来的长查询。
-    expect(mockFetchMediaWikiEvidence).toHaveBeenCalledWith(
-      expect.objectContaining({ query: '无限大 时夜' }),
-    )
+    expect(moegirlSearches()).toEqual(['无限大 时夜'])
   })
 })
 
 describe('runAssistantResearch · 所选模型自带联网（owner 2026-09-30）', () => {
   it('⭐ 网页那一源交给模型自带联网：不打 Serper，回执标出是哪一家', async () => {
-    mockIsWebSearchConfigured.mockReturnValue(true)
-    mockFetchWebSearchEvidence.mockClear()
     const outcome = await runAssistantResearch({
       goal: '卡提希娅 配色',
       sources: ['web'],
@@ -767,7 +845,7 @@ describe('runAssistantResearch · 所选模型自带联网（owner 2026-09-30）
       }),
     })
 
-    expect(mockFetchWebSearchEvidence).not.toHaveBeenCalled()
+    expect(web.serperQueries).toEqual([])
     expect(outcome.items).toHaveLength(1)
     expect(outcome.items[0]).toMatchObject({
       sourceId: RESEARCH_SOURCE_IDS.webSearch,
@@ -788,7 +866,7 @@ describe('runAssistantResearch · 所选模型自带联网（owner 2026-09-30）
   })
 
   it('⚠ 模型那边挂了、又没配 Serper：只记这一源失败，⛔ 不抛', async () => {
-    mockIsWebSearchConfigured.mockReturnValue(false)
+    vi.stubEnv('SERPER_API_KEY', '')
     const outcome = await runAssistantResearch({
       goal: '卡提希娅 配色',
       sources: ['web'],
@@ -823,22 +901,19 @@ describe('runAssistantResearch · 所选模型自带联网（owner 2026-09-30）
   ] as const)(
     '⭐ 自带联网%s：回落 Serper，回执写清从哪儿退下来的（2026-10-14）',
     async (_status, nativeWebSearch, error) => {
-      mockFetchWebSearchEvidence.mockResolvedValue({
-        items: [
-          textItem({
-            id: 'web_search:fallback',
-            sourceId: RESEARCH_SOURCE_IDS.webSearch,
-            title: 'Serper 那一条',
-            url: 'https://serper.test/page',
-          } as Partial<EvidenceItem>),
-        ],
-      })
+      web.serper = () => [
+        {
+          title: 'Serper 那一条',
+          link: 'https://serper.test/page',
+          snippet: '配色',
+        },
+      ]
       const outcome = await runAssistantResearch({
         goal: '卡提希娅 配色',
         sources: ['web'],
         nativeWebSearch,
       })
-      expect(mockFetchWebSearchEvidence).toHaveBeenCalled()
+      expect(web.serperQueries.length).toBeGreaterThan(0)
       expect(outcome.items.map((item) => item.url)).toEqual([
         'https://serper.test/page',
       ])
@@ -863,7 +938,7 @@ describe('runAssistantResearch · 所选模型自带联网（owner 2026-09-30）
     '原生%s回执不被证据条数改成成功',
     async (status, receiptStatus, count, error) => {
       // 没配 Serper：看的是自带联网自己的回执（配了时 failed / not_invoked 会回落）。
-      mockIsWebSearchConfigured.mockReturnValue(false)
+      vi.stubEnv('SERPER_API_KEY', '')
       const outcome = await runAssistantResearch({
         goal: '配色',
         sources: ['web'],
@@ -895,7 +970,7 @@ describe('runAssistantResearch · 所选模型自带联网（owner 2026-09-30）
           ...(error ? { error } : {}),
         }),
       )
-      expect(mockFetchWebSearchEvidence).not.toHaveBeenCalled()
+      expect(web.serperQueries).toEqual([])
     },
   )
 })

@@ -75,7 +75,14 @@ export function useNavIndicator(
     (tracking: boolean) => {
       const scope = scopeRef.current
       if (!scope) return
-      const el = scope.querySelector<HTMLElement>(ACTIVE_SELECTOR)
+      // 同一项可能摆了两份、按高度只露一份（外壳左栏的库：放得下一颗一颗、放不下收成一颗）：
+      // 认露着的那一份，⛔ 浮片落到藏起来的那一格（0×0）上。量不出布局（jsdom）时退回第一份。
+      const candidates = [
+        ...scope.querySelectorAll<HTMLElement>(ACTIVE_SELECTOR),
+      ]
+      const el =
+        candidates.find((item) => item.getClientRects().length > 0) ??
+        candidates[0]
       setActiveTracking(tracking)
       setActive(el ? rectWithin(scope, el) : null)
     },

@@ -158,7 +158,8 @@
       "voices": "ボイス",
       "profile": "マイページ",
       "tags": "タグ",
-      "tavern": "酒場"
+      "tavern": "酒場",
+      "loraModels": "LoRAモデル"
     },
     "groupLabel": "移動先"
   },

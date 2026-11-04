@@ -116,7 +116,6 @@
   "src/components/business/studio-shared/workflow/StudioWorkflowPicker.test.tsx",
   "src/components/business/studio-shared/workflow/StudioWorkflowSummary.test.tsx",
   "src/components/business/studio/shell/HomeDraftBench.web.test.tsx",
-  "src/components/business/studio/shell/StudioBenchPicker.test.tsx",
   "src/components/business/vision/VideoAnalysisPanel.test.tsx",
   "src/components/business/voices/VoicePickerDialog.test.tsx",
   "src/components/business/voices/VoiceTrainer.test.tsx",

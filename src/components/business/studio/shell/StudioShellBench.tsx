@@ -1,12 +1,12 @@
 'use client'
 
 import {
+  createContext,
   useCallback,
   useEffect,
   useLayoutEffect,
   useRef,
   useState,
-  type MouseEvent as ReactMouseEvent,
   type ReactNode,
   type RefObject,
 } from 'react'
@@ -15,17 +15,13 @@ import { useTranslations } from 'next-intl'
 
 import {
   SHELL_NAV_TOOLS,
-  STUDIO_LIBRARY_ITEMS,
   activeShellTool,
   type ShellNavItem,
 } from '@/constants/navigation'
 import { SHELL_MOTION } from '@/constants/motion'
 import {
-  STUDIO_LIBRARY_TAB_IDS,
   STUDIO_SHELL_BENCH_IDS,
   STUDIO_SHELL_SWIPE,
-  studioLibraryPath,
-  type StudioLibraryCategoryId,
   type StudioShellBenchId,
 } from '@/constants/studio-shell'
 import { StudioOperatorCurrentAvatar } from '@/features/assistant'
@@ -35,32 +31,31 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { useIntentPrefetch } from '@/hooks/use-intent-prefetch'
 import { useStudioOperatorState } from '@/hooks/use-studio-operator-store'
-import { Link, useRouter } from '@/i18n/navigation'
+import { useRouter } from '@/i18n/navigation'
 import { shellEnter, shellLeave } from '@/lib/studio-shell-motion'
 import {
   studioBenchHref,
   studioConversationHref,
 } from '@/lib/studio-shell-route'
-import { cn } from '@/lib/utils'
 
-/** 台条上的几个台，按 `STUDIO_SHELL_BENCH_IDS` 的顺序。 */
-const BENCH_ITEMS: readonly ShellNavItem[] = STUDIO_SHELL_BENCH_IDS.flatMap(
-  (id) => SHELL_NAV_TOOLS.filter((item) => item.id === id),
-)
+/** 外壳左栏「工作台」那一组的几个台，按 `STUDIO_SHELL_BENCH_IDS` 的顺序（两指滑换台也按它）。 */
+export const STUDIO_SHELL_BENCH_ITEMS: readonly ShellNavItem[] =
+  STUDIO_SHELL_BENCH_IDS.flatMap((id) =>
+    SHELL_NAV_TOOLS.filter((item) => item.id === id),
+  )
 
-/** 台条上的一格（样件 E S01 / S02）：图标在上、台名在下，当前那一格浅灰底。 */
-const RAIL_BUTTON_CLASS =
-  'flex w-13 flex-col items-center gap-0.5 rounded-12 py-1.5 text-2xs text-ink-2 transition-colors duration-fast ease-standard hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus [&>svg]:size-4.5'
+/**
+ * 左栏的台那几颗借台框里的「推 / 滑」（owner 11-04：台的入口搬进左栏）：左栏在台框外面，
+ * 台框（`StudioShellStage`）挂上时把这两样登记进来；没登记（设置等页的左栏）就照常跳地址。
+ */
+export interface StudioBenchNav {
+  switchBench(item: ShellNavItem): void
+  closeBench(): void
+}
 
-const RAIL_ACTIVE_CLASS = 'bg-muted font-medium text-foreground'
-
-/** 左栏「工作台」弹出来那一条：只有图标的竖胶囊（用户 10-25 图一）。 */
-const PICKER_BUTTON_CLASS =
-  'flex size-9 items-center justify-center rounded-full text-ink-2 transition-colors duration-fast ease-standard hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus [&>svg]:size-4.5'
-
-const PICKER_ACTIVE_CLASS = 'bg-fill-strong text-foreground'
+export const StudioBenchNavContext =
+  createContext<RefObject<StudioBenchNav | null> | null>(null)
 
 function benchIndex(id: string | undefined): number {
   return STUDIO_SHELL_BENCH_IDS.indexOf(id as StudioShellBenchId)
@@ -231,7 +226,8 @@ export function useStudioBenchSwipe({
       total += deltaX
       if (Math.abs(total) < STUDIO_SHELL_SWIPE.thresholdPx) return
       fired = true
-      const next = BENCH_ITEMS[benchIndex(activeId) + (total > 0 ? 1 : -1)]
+      const next =
+        STUDIO_SHELL_BENCH_ITEMS[benchIndex(activeId) + (total > 0 ? 1 : -1)]
       total = 0
       if (next) onSwitchRef.current(next)
     }
@@ -261,184 +257,6 @@ function scrollsSideways(
     node = node.parentElement
   }
   return false
-}
-
-/**
- * 台条（ui-spec §1 / §9「切台」）：开着台时竖着浮在白板右边、上下居中（盖在台上，⛔ 单独占一列；
- * 平时收成一道细线，鼠标移过去才浮出） —— 图片 · LoRA ·
- * 视频 · 3D · 画布，同时只开一个台。⛔ 台顶上的切换条、⛔ 台标题。首页也摆（用户 10-26：左栏
- * 不再有「工作台」）。点别的 = 换台（滑过去），点当前那颗 = 收台。
- */
-export function StudioBenchRail({
-  activeId,
-  onSwitch,
-  onClose,
-}: {
-  activeId?: string
-  onSwitch?: (item: ShellNavItem) => void
-  onClose?: () => void
-}) {
-  const t = useTranslations('StudioShell')
-  const tAll = useTranslations()
-  const { sessionId } = useStudioOperatorState()
-  const intent = useIntentPrefetch()
-
-  return (
-    <nav
-      aria-label={t('benches')}
-      data-testid="studio-bench-rail"
-      // 浮在台上面、⛔ 单独占一列（用户 10-25）；平时只留右边缘一道细线，鼠标移过去 / 键盘
-      // 走到才浮出那张白卡（用户 10-25 ①：浮着的卡挡住了图片台右边那列工具）。外层点不着，
-      // 点得着的只有细线那一条感应区和浮出来的卡。
-      className="group/rail pointer-events-none absolute inset-y-0 right-0 z-20 hidden items-center lg:flex"
-    >
-      <span
-        aria-hidden
-        data-testid="studio-bench-rail-handle"
-        className="pointer-events-auto absolute inset-y-1/3 right-0 flex w-4 items-center justify-center"
-      >
-        <span className="h-12 w-1 rounded-full bg-ink-2 opacity-40 transition-opacity duration-base ease-standard group-hover/rail:opacity-0 group-focus-within/rail:opacity-0 motion-reduce:transition-none" />
-      </span>
-      <div className="pointer-events-none mr-3 flex translate-x-2 flex-col gap-0.5 rounded-16 bg-raise p-1.5 opacity-0 shadow-soft transition duration-base ease-standard group-hover/rail:pointer-events-auto group-hover/rail:translate-x-0 group-hover/rail:opacity-100 group-focus-within/rail:pointer-events-auto group-focus-within/rail:translate-x-0 group-focus-within/rail:opacity-100 motion-reduce:transition-none">
-        {BENCH_ITEMS.map((item) => {
-          const Icon = item.icon
-          const label = tAll(item.labelKey)
-          const active = item.id === activeId
-          return (
-            <BarTip key={item.id} label={active ? t('closeBench') : label}>
-              <Link
-                href={studioBenchHref(item.href, sessionId)}
-                prefetch={false}
-                {...intent(studioBenchHref(item.href, sessionId))}
-                aria-label={label}
-                aria-current={active ? 'page' : undefined}
-                data-bench={item.id}
-                onClick={(event: ReactMouseEvent<HTMLAnchorElement>) => {
-                  if (event.metaKey || event.ctrlKey || event.shiftKey) return
-                  if (active && onClose) {
-                    event.preventDefault()
-                    onClose()
-                    return
-                  }
-                  if (activeId && onSwitch) {
-                    event.preventDefault()
-                    onSwitch(item)
-                  }
-                }}
-                className={cn(RAIL_BUTTON_CLASS, active && RAIL_ACTIVE_CLASS)}
-              >
-                <Icon />
-                <span aria-hidden>{label}</span>
-              </Link>
-            </BarTip>
-          )
-        })}
-      </div>
-    </nav>
-  )
-}
-
-/**
- * 左栏「工作台」点开的那一条（用户 10-25）：竖着一排台图标，点一个进那个台；
- * 当前开着的那颗再点 = 收台、回到对话。
- */
-export function StudioBenchPicker({
-  activeId,
-  onPicked,
-}: {
-  activeId?: string
-  onPicked?: () => void
-}) {
-  const t = useTranslations('StudioShell')
-  const tAll = useTranslations()
-  const { sessionId } = useStudioOperatorState()
-
-  return (
-    <nav
-      aria-label={t('benches')}
-      data-testid="studio-bench-picker"
-      className="flex flex-col gap-1 rounded-full bg-raise p-1 shadow-soft"
-    >
-      {BENCH_ITEMS.map((item) => {
-        const Icon = item.icon
-        const label = tAll(item.labelKey)
-        const active = item.id === activeId
-        const href = active
-          ? studioConversationHref(sessionId)
-          : studioBenchHref(item.href, sessionId)
-        return (
-          <BarTip
-            key={item.id}
-            label={active ? t('closeBench') : label}
-            side="right"
-          >
-            <Link
-              href={href}
-              aria-label={label}
-              aria-current={active ? 'page' : undefined}
-              data-bench={item.id}
-              onClick={onPicked}
-              className={cn(PICKER_BUTTON_CLASS, active && PICKER_ACTIVE_CLASS)}
-            >
-              <Icon />
-            </Link>
-          </BarTip>
-        )
-      })}
-    </nav>
-  )
-}
-
-/** 库的那几样（左栏「库」弹出的那一排，用户 10-25）：LoRA · 酒馆 · 标签 · 音色。 */
-const LIBRARY_PICKER_ITEMS = STUDIO_LIBRARY_TAB_IDS.flatMap((id) =>
-  STUDIO_LIBRARY_ITEMS.filter((item) => item.id === id),
-)
-
-/**
- * 左栏「库」点开的那一条（用户 10-25：跟「工作台」一样，点一下出一排）：竖排图标，点一个进那个库。
- * 库开着时换一个 = 换叠层里那一页，⛔ 多压一层历史。
- */
-export function StudioLibraryPicker({
-  activeId,
-  replace,
-  onPicked,
-}: {
-  activeId: StudioLibraryCategoryId | null
-  /** 库已经开着：换一个用 replace。 */
-  replace: boolean
-  onPicked?: () => void
-}) {
-  const t = useTranslations('StudioShell')
-  const tAll = useTranslations()
-
-  return (
-    <nav
-      aria-label={t('library')}
-      data-testid="studio-library-picker"
-      className="flex flex-col gap-1 rounded-full bg-raise p-1 shadow-soft"
-    >
-      {LIBRARY_PICKER_ITEMS.map((item) => {
-        const Icon = item.icon
-        const label = tAll(item.labelKey)
-        const active = item.id === activeId
-        return (
-          <BarTip key={item.id} label={label} side="right">
-            <Link
-              href={studioLibraryPath(item.id as StudioLibraryCategoryId)}
-              replace={replace}
-              aria-label={label}
-              aria-current={active ? 'page' : undefined}
-              data-library={item.id}
-              onClick={onPicked}
-              className={cn(PICKER_BUTTON_CLASS, active && PICKER_ACTIVE_CLASS)}
-            >
-              <Icon />
-            </Link>
-          </BarTip>
-        )
-      })}
-    </nav>
-  )
 }
 
 /**
@@ -492,7 +310,7 @@ export function StudioShellExpandChat({ onExpand }: { onExpand: () => void }) {
   }, [])
 
   return (
-    <BarTip label={t('expandChat')} side="right">
+    <BarTip label={t('expandChat')}>
       <button
         ref={ref}
         type="button"
@@ -509,19 +327,11 @@ export function StudioShellExpandChat({ onExpand }: { onExpand: () => void }) {
   )
 }
 
-function BarTip({
-  label,
-  side = 'left',
-  children,
-}: {
-  label: string
-  side?: 'left' | 'right'
-  children: ReactNode
-}) {
+function BarTip({ label, children }: { label: string; children: ReactNode }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>{children}</TooltipTrigger>
-      <TooltipContent side={side}>{label}</TooltipContent>
+      <TooltipContent side="right">{label}</TooltipContent>
     </Tooltip>
   )
 }

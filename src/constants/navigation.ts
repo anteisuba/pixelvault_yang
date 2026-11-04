@@ -19,6 +19,7 @@ import {
   Mic,
   Image as ImageIcon,
   Images,
+  Layers,
   Plus,
   SwatchBook,
   Tag,
@@ -163,8 +164,18 @@ export const SHELL_NAV_SECTIONS: readonly ShellNavSection[] = [
   { id: 'tools', labelKey: 'StudioTools.groupLabel', items: SHELL_NAV_TOOLS },
 ] as const
 
-/** 只在库里的几类（没有旧页面、也不进全局导航）：标签（第 9f 步 9f-2c）、酒馆（chub.ai 公开卡，用户 10-25）。 */
+/**
+ * 只在库里的几类（没有旧页面、也不进全局导航）：标签（第 9f 步 9f-2c）、酒馆（chub.ai 公开卡，用户 10-25）。
+ * 库里的 LoRA 也写在这里（owner 11-04）：叫「LoRA 模型」、换一个图标 —— 它和工作台那颗 LoRA 台
+ * 同排在左栏里，⛔ 再借台那一项的名字和图标（两颗长得一样）。
+ */
 const STUDIO_LIBRARY_ONLY_ITEMS: readonly ShellNavItem[] = [
+  {
+    id: 'lora',
+    href: `${ROUTES.LIBRARY}/lora`,
+    icon: Layers,
+    labelKey: 'Navbar.links.loraModels',
+  },
   {
     id: 'tags',
     href: `${ROUTES.LIBRARY}/tags`,
@@ -181,11 +192,12 @@ const STUDIO_LIBRARY_ONLY_ITEMS: readonly ShellNavItem[] = [
 
 /**
  * 库的几类（第 9f 步，`/library/<id>`）：外壳左栏与库叠层顶上那一排共用这一份。名字与图标
- * 跟「去处」/「工具」同一份 —— LoRA 一类取 LoRA 台那一项；标签只在库里。
+ * 先认只在库里的那几项（LoRA 模型 · 标签 · 酒馆），其余跟「去处」同一份。
  */
 export const STUDIO_LIBRARY_ITEMS = STUDIO_LIBRARY_CATEGORY_IDS.flatMap((id) =>
-  [...SHELL_NAV_GO, ...SHELL_NAV_TOOLS, ...STUDIO_LIBRARY_ONLY_ITEMS]
+  [...STUDIO_LIBRARY_ONLY_ITEMS, ...SHELL_NAV_GO]
     .filter((item) => item.id === id)
+    .slice(0, 1)
     .map((item) => ({ ...item, id })),
 )
 

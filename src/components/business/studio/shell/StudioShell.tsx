@@ -12,6 +12,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
+  type RefObject,
 } from 'react'
 import { useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
@@ -53,18 +54,14 @@ import {
   type StudioShellAvatarSpot,
 } from '@/components/business/studio/shell/StudioShellAvatarFlight'
 import {
-  StudioBenchRail,
+  StudioBenchNavContext,
   StudioShellExpandChat,
   activeBenchId,
   useStudioBenchMotion,
   useStudioBenchSwipe,
+  type StudioBenchNav,
 } from '@/components/business/studio/shell/StudioShellBench'
 import {
-  SHELL_HISTORY_COLUMN_WIDTH,
-  StudioShellHistoryColumn,
-} from '@/components/business/studio/shell/StudioShellHistoryColumn'
-import {
-  StudioShellHistoryExpandKey,
   StudioShellHistoryKey,
   StudioShellPersonaKey,
 } from '@/components/business/studio/shell/StudioShellHistoryKeys'
@@ -120,7 +117,7 @@ function initialRestore(pathname: string): StudioOperatorHistoryRestore {
  * 左 = 在哪儿（列表）· 中 = 想什么（对话，面板**只挂这一份**）· 右 = 用什么做（台）。
  *
  * - ≥768 三层摆开：对话与台之间一根分隔线定宽窄（记得住）；往左拖到底收起对话，
- *   往右拖到底收起台（回到只有对话）。台开着时台条横在台顶，没开台时竖着贴右边（9f-4）。
+ *   往右拖到底收起台（回到只有对话）。开台 / 换台 / 收台都走左栏（owner 11-04，ui-spec §1）。
  * - 更窄照旧：台全屏、面板由台自己挂（浮起的那一颗）；首页就是一整页对话。
  * - 台照旧用 `StudioOperatorHostProvider` 包住自己，同一个 Provider 把宿主登记给这里；
  *   没有台在场时面板拿首页那张脸（`useHomeOperatorHost`）。
@@ -216,31 +213,18 @@ export function StudioShell({
   )
 
   /**
-   * 框里那一列对话记录（用户 10-26 定稿 v5）：没开台时摊开，一开台自动收起、收台再摊开；
-   * 中间用户自己开合照用户的。⚠ 渲染期按 `kind` 调整（⛔ 晚一帧闪一下）。
+   * 对话头那几颗键（owner 11-04）：最左一颗「记录」—— 首页、台上、手机同一颗、同一个下拉，
+   * ⛔ 框里不再摊一列记录，也 ⛔ 和左栏的「去哪儿」混在一起。
    */
-  const [historyOpen, setHistoryOpen] = useState(kind !== 'bench')
-  const [historyKind, setHistoryKind] = useState(kind)
-  if (historyKind !== kind) {
-    setHistoryKind(kind)
-    if (kind === 'bench') setHistoryOpen(false)
-    else if (historyKind === 'bench') setHistoryOpen(true)
-  }
-  /** 对话头那几颗键（用户 10-26：从左栏搬进白板）。 */
   const headerSlots = useMemo<StudioShellHeaderSlots>(
     () => ({
-      // 桌面上记录是框里那一列，收起时这里留一颗展开键；手机没有那一列，照旧弹下拉。
-      history: isDesk ? (
-        historyOpen ? null : (
-          <StudioShellHistoryExpandKey onExpand={() => setHistoryOpen(true)} />
-        )
-      ) : (
-        <StudioShellHistoryKey />
-      ),
+      history: <StudioShellHistoryKey />,
       persona: <StudioShellPersonaKey />,
     }),
-    [historyOpen, isDesk],
+    [],
   )
+  /** 左栏换台 / 收台借台框的「推 / 滑」（左栏在台框外面，台框在场时把两只手挂上来）。 */
+  const benchNavRef = useRef<StudioBenchNav | null>(null)
 
   const libraryLayer = (
     <div
@@ -252,62 +236,63 @@ export function StudioShell({
 
   return (
     <StudioOperatorDockPlacementProvider value={placement}>
-      <StudioShellHeaderSlotsProvider value={headerSlots}>
-        <StudioLibraryTargetContext.Provider value={libraryContext}>
-          <StudioLibraryPickProvider>
-            <StudioOperatorHostSlotProvider fallback={homeHost}>
-              {() => (
-                <div
-                  data-testid="studio-shell"
-                  data-kind={kind}
-                  data-library={libraryCategory ?? undefined}
-                  className="lg:flex lg:h-svh lg:overflow-hidden lg:bg-surface-sunken"
-                >
-                  <StudioConversationList className="hidden lg:flex" />
-                  {kind === 'page' ? (
-                    <div
-                      className={cn(SHELL_BOARD_CLASS, 'lg:overflow-y-auto')}
-                      style={libraryWidth('100%')}
-                    >
-                      {/* 从台上过来的：`children` 还是那张台，库在 `@library` 那一格就地画。 */}
-                      {base === null ? children : null}
-                      {libraryLayer}
-                    </div>
-                  ) : (
-                    <StudioShellStage
-                      kind={kind}
-                      benchPathname={base?.pathname ?? ROUTES.STUDIO}
-                      shellDock={placement.owner === 'shell'}
-                      libraryOpen={libraryOpen}
-                      libraryAssistantOpen={libraryAssistantOpen}
-                      libraryAssistantLeft={
-                        libraryCategory !== null &&
-                        (
-                          LIBRARY_ASSISTANT_LEFT_CATEGORIES as readonly string[]
-                        ).includes(libraryCategory)
-                      }
-                      libraryLayer={libraryLayer}
-                      historyOpen={historyOpen}
-                      onCloseHistory={() => setHistoryOpen(false)}
-                      onCloseLibraryAssistant={() =>
-                        setLibraryAssistantOpen(false)
-                      }
-                    >
-                      {children}
-                    </StudioShellStage>
-                  )}
-                  <StudioLibrarySlotContext.Provider value>
-                    {library}
-                  </StudioLibrarySlotContext.Provider>
-                  {kind === 'home' ? (
-                    <HomeDraftBench onHost={setDraftHost} />
-                  ) : null}
-                </div>
-              )}
-            </StudioOperatorHostSlotProvider>
-          </StudioLibraryPickProvider>
-        </StudioLibraryTargetContext.Provider>
-      </StudioShellHeaderSlotsProvider>
+      <StudioBenchNavContext.Provider value={benchNavRef}>
+        <StudioShellHeaderSlotsProvider value={headerSlots}>
+          <StudioLibraryTargetContext.Provider value={libraryContext}>
+            <StudioLibraryPickProvider>
+              <StudioOperatorHostSlotProvider fallback={homeHost}>
+                {() => (
+                  <div
+                    data-testid="studio-shell"
+                    data-kind={kind}
+                    data-library={libraryCategory ?? undefined}
+                    className="lg:flex lg:h-svh lg:overflow-hidden lg:bg-surface-sunken"
+                  >
+                    <StudioConversationList className="hidden lg:flex" />
+                    {kind === 'page' ? (
+                      <div
+                        className={cn(SHELL_BOARD_CLASS, 'lg:overflow-y-auto')}
+                        style={libraryWidth('100%')}
+                      >
+                        {/* 从台上过来的：`children` 还是那张台，库在 `@library` 那一格就地画。 */}
+                        {base === null ? children : null}
+                        {libraryLayer}
+                      </div>
+                    ) : (
+                      <StudioShellStage
+                        kind={kind}
+                        benchPathname={base?.pathname ?? ROUTES.STUDIO}
+                        shellDock={placement.owner === 'shell'}
+                        libraryOpen={libraryOpen}
+                        libraryAssistantOpen={libraryAssistantOpen}
+                        libraryAssistantLeft={
+                          libraryCategory !== null &&
+                          (
+                            LIBRARY_ASSISTANT_LEFT_CATEGORIES as readonly string[]
+                          ).includes(libraryCategory)
+                        }
+                        libraryLayer={libraryLayer}
+                        benchNavRef={benchNavRef}
+                        onCloseLibraryAssistant={() =>
+                          setLibraryAssistantOpen(false)
+                        }
+                      >
+                        {children}
+                      </StudioShellStage>
+                    )}
+                    <StudioLibrarySlotContext.Provider value>
+                      {library}
+                    </StudioLibrarySlotContext.Provider>
+                    {kind === 'home' ? (
+                      <HomeDraftBench onHost={setDraftHost} />
+                    ) : null}
+                  </div>
+                )}
+              </StudioOperatorHostSlotProvider>
+            </StudioLibraryPickProvider>
+          </StudioLibraryTargetContext.Provider>
+        </StudioShellHeaderSlotsProvider>
+      </StudioBenchNavContext.Provider>
       <Suspense fallback={null}>
         <StudioConversationUrlSync />
       </Suspense>
@@ -348,8 +333,7 @@ function StudioShellStage({
   libraryAssistantOpen,
   libraryAssistantLeft,
   libraryLayer,
-  historyOpen,
-  onCloseHistory,
+  benchNavRef,
   onCloseLibraryAssistant,
   children,
 }: {
@@ -363,8 +347,8 @@ function StudioShellStage({
   /** 这一页的助手贴左边（`LIBRARY_ASSISTANT_LEFT_CATEGORIES`），库往右让。 */
   libraryAssistantLeft: boolean
   libraryLayer: ReactNode
-  historyOpen: boolean
-  onCloseHistory(): void
+  /** 左栏借这两只手换台 / 收台（`StudioBenchNavContext`）。 */
+  benchNavRef: RefObject<StudioBenchNav | null>
   /** 库里叫出的助手收回去（对话头的「收起」在库里就是它）。 */
   onCloseLibraryAssistant(): void
   children: ReactNode
@@ -405,6 +389,15 @@ function StudioShellStage({
     enabled: bench && !libraryOpen,
     onSwitch: switchBench,
   })
+  useEffect(() => {
+    benchNavRef.current = {
+      switchBench: (item) => void switchBench(item),
+      closeBench: () => void closeBench(),
+    }
+    return () => {
+      benchNavRef.current = null
+    }
+  }, [benchNavRef, closeBench, switchBench])
   /** 拖着线：宽跟手、⛔ 动画；松手 / 键盘 / 双击才走「拉」那一段。 */
   const [dragging, setDragging] = useState(false)
   /** 拖过头、松手就会收起的那一边（变淡提示）。 */
@@ -499,17 +492,11 @@ function StudioShellStage({
   const conversationWidth = `${split.conversationPx}px`
   const libraryChat = libraryOpen && libraryAssistantOpen
   /**
-   * 助手贴左的那几页（角色，第 ① 步）：记录列 + 对话照首页那样从左排开（⛔ 浮在库上），
-   * 库从它们右边开始；记录列能开合，库跟着让。
+   * 助手贴左的那几页（角色，第 ① 步）：对话照首页那样从左排开（⛔ 浮在库上），
+   * 库从它右边开始。
    */
   const libraryChatLeft = libraryChat && libraryAssistantLeft
-  const historyShown =
-    historyOpen && !conversationHidden && (!libraryOpen || libraryChatLeft)
-  const libraryLeft = libraryChatLeft
-    ? historyShown
-      ? `calc(${conversationWidth} + ${SHELL_HISTORY_COLUMN_WIDTH})`
-      : conversationWidth
-    : '0px'
+  const libraryLeft = libraryChatLeft ? conversationWidth : '0px'
   const pullTransition =
     dragging || reduceMotion
       ? undefined
@@ -533,8 +520,6 @@ function StudioShellStage({
         libraryLeft,
       )}
     >
-      <StudioShellHistoryColumn open={historyShown} onClose={onCloseHistory} />
-
       <section
         ref={conversationRef}
         aria-label={t('conversations')}
@@ -606,15 +591,6 @@ function StudioShellStage({
           }}
         />
       ) : null}
-
-      {/* 首页也摆（用户 10-26 定稿 v5：左栏不再有「工作台」，开台只走这一条）。 */}
-      {libraryOpen ? null : (
-        <StudioBenchRail
-          activeId={activeId}
-          onSwitch={(item) => void switchBench(item)}
-          onClose={() => void closeBench()}
-        />
-      )}
 
       <div
         ref={columnRef}

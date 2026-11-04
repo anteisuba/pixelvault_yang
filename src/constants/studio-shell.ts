@@ -78,7 +78,24 @@ export const STUDIO_LIBRARY_CATEGORY_IDS = [
   'gallery',
 ] as const
 
-/** 库顶上那一排、左栏「库」弹出的那一排：LoRA · 酒馆 · 标签 · 音色。 */
+/** 左栏「我的」那一组（owner 11-04）：画廊 · 素材 · 提示词 · 角色，各一颗、点开整页。 */
+export const STUDIO_RAIL_MINE_IDS = [
+  'gallery',
+  'assets',
+  'prompts',
+  'cards',
+] as const satisfies readonly StudioLibraryCategoryId[]
+
+/**
+ * 左栏（owner 11-04）：带字那一档记在本机；对话记录下拉先列最近几段，「全部对话记录」再摊开手上那一份。
+ * ⚠ 放不下那一档靠 `globals.css` 的 `rail-short` 变体（高度门槛写在那里，和这一栏一共几格对着算）。
+ */
+export const STUDIO_SHELL_RAIL = {
+  expandedStorageKey: 'pixelvault:studio-rail-expanded',
+  historyRecentLimit: 12,
+} as const
+
+/** 库顶上那一排、左栏「库」那一组：LoRA 模型 · 酒馆 · 标签 · 音色。 */
 export const STUDIO_LIBRARY_TAB_IDS = [
   'lora',
   'tavern',

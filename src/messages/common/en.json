@@ -158,7 +158,8 @@
       "voices": "Voices",
       "profile": "My Page",
       "tags": "Tags",
-      "tavern": "Tavern"
+      "tavern": "Tavern",
+      "loraModels": "LoRA models"
     },
     "groupLabel": "Go to"
   },

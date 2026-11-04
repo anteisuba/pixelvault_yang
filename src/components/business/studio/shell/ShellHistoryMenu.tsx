@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, type ReactNode } from 'react'
+import { useState, type KeyboardEvent, type ReactNode } from 'react'
 import { useFormatter, useTranslations } from 'next-intl'
 
-import { Plus } from '@/components/icons'
+import { Plus, Search } from '@/components/icons'
 import {
   SESSION_ROW_MENU_ATTR,
   StudioOperatorSessionDeleteDialog,
@@ -22,16 +22,13 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { cn } from '@/lib/utils'
 
 /** 一天的毫秒数 —— 只给「今天 / 昨天 / 更早」的日差用。 */
 const MS_PER_DAY = 86_400_000
 
 /** 加载中那三条骨架的宽（不等长，读起来是三个标题而不是三条进度条）。 */
-export const SHELL_HISTORY_SKELETON_WIDTHS = [
-  'w-3/5',
-  'w-1/2',
-  'w-7/10',
-] as const
+const SHELL_HISTORY_SKELETON_WIDTHS = ['w-3/5', 'w-1/2', 'w-7/10'] as const
 
 type DayBucket = 'today' | 'yesterday' | 'earlier'
 
@@ -69,9 +66,19 @@ interface ShellHistoryMenuProps {
   /** 删成功回 true（确认态这时才放下）。 */
   onDelete(id: string): Promise<boolean>
   testId: string
+  /**
+   * 顶上一格搜索 + 只摊最近 `limit` 条、底下「全部…」（owner 11-04）。搜的是手上已经拿到的那份。
+   * 不给 = 整份照摊、没有搜索。
+   */
+  search?: {
+    placeholder: string
+    emptyLabel: string
+    allLabel: string
+    limit: number
+  }
 }
 
-export interface ShellHistoryBucket {
+interface ShellHistoryBucket {
   id: DayBucket
   items: ShellHistoryItem[]
   /** 行右边那枚时间：今天 / 昨天写钟点，更早写月日。 */
@@ -79,10 +86,9 @@ export interface ShellHistoryBucket {
 }
 
 /**
- * 按今天 / 昨天 / 更早分组（列表已按时间倒序）。下拉和框里那一列（用户 10-26）同一份，⛔ 各算各的。
- * 日差按本地零点算（23:50 和次日 00:10 是两天）。
+ * 按今天 / 昨天 / 更早分组（列表已按时间倒序）。日差按本地零点算（23:50 和次日 00:10 是两天）。
  */
-export function useShellHistoryBuckets(
+function useShellHistoryBuckets(
   items: readonly ShellHistoryItem[],
 ): ShellHistoryBucket[] {
   const format = useFormatter()
@@ -143,12 +149,39 @@ export function ShellHistoryMenu({
   onRename,
   onDelete,
   testId,
+  search,
 }: ShellHistoryMenuProps) {
   const t = useTranslations('StudioShell')
   const [open, setOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<{ id: string } | null>(null)
+  const [query, setQuery] = useState('')
+  const [showAll, setShowAll] = useState(false)
 
-  const buckets = useShellHistoryBuckets(items)
+  const needle = query.trim().toLocaleLowerCase()
+  const matches = needle
+    ? items.filter((item) =>
+        (item.title ?? '').toLocaleLowerCase().includes(needle),
+      )
+    : items
+  // 搜着的时候搜整份；没搜只摊最近那几条，「全部」再放开。
+  const capped = search && !needle && !showAll && matches.length > search.limit
+  const shown = capped ? matches.slice(0, search.limit) : matches
+  const buckets = useShellHistoryBuckets(shown)
+
+  /**
+   * ⚠ 下拉菜单自己吃按键（打字跳到首字母那一行）：输入框里的键先拦下，只放 Esc（关菜单）；
+   * ↓ 把焦点交给第一行，之后就是菜单自己的上下键。
+   */
+  const onSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Escape') return
+    event.stopPropagation()
+    if (event.key !== 'ArrowDown') return
+    event.preventDefault()
+    event.currentTarget
+      .closest('[role=menu]')
+      ?.querySelector<HTMLElement>('[role=menuitem]:not([data-disabled])')
+      ?.focus()
+  }
 
   return (
     <>
@@ -157,6 +190,10 @@ export function ShellHistoryMenu({
         open={open}
         onOpenChange={(next) => {
           setOpen(next)
+          if (!next) {
+            setQuery('')
+            setShowAll(false)
+          }
           onOpenChange?.(next)
         }}
       >
@@ -171,7 +208,10 @@ export function ShellHistoryMenu({
           align="start"
           sideOffset={8}
           data-testid={testId}
-          className="max-h-[70svh] w-64 overflow-y-auto rounded-xl p-1.5"
+          className={cn(
+            'max-h-[70svh] overflow-y-auto rounded-xl p-1.5',
+            search ? 'w-72' : 'w-64',
+          )}
           onInteractOutside={(event) => {
             // 行菜单（右键 / ⋯）是另一层下拉，点它不算外面。
             if (
@@ -181,6 +221,20 @@ export function ShellHistoryMenu({
               event.preventDefault()
           }}
         >
+          {search ? (
+            <div className="flex h-9 items-center gap-2 px-2.25 text-muted-foreground">
+              <Search className="size-4 shrink-0" aria-hidden />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                onKeyDown={onSearchKeyDown}
+                placeholder={search.placeholder}
+                aria-label={search.placeholder}
+                data-testid={`${testId}-search`}
+                className="min-w-0 flex-1 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground lg:text-sm"
+              />
+            </div>
+          ) : null}
           <DropdownMenuItem
             data-testid={`${testId}-new`}
             disabled={newDisabled}
@@ -228,6 +282,27 @@ export function ShellHistoryMenu({
               ))}
             </div>
           ))}
+          {search && needle && matches.length === 0 ? (
+            <p
+              data-testid={`${testId}-no-match`}
+              className="px-2.25 py-3 text-2sm text-muted-foreground"
+            >
+              {search.emptyLabel}
+            </p>
+          ) : null}
+          {capped ? (
+            <DropdownMenuItem
+              data-testid={`${testId}-all`}
+              onSelect={(event) => {
+                // 留在菜单里，就地放开整份。
+                event.preventDefault()
+                setShowAll(true)
+              }}
+              className="mt-1 h-9 justify-center text-2sm text-muted-foreground"
+            >
+              {search.allLabel}
+            </DropdownMenuItem>
+          ) : null}
           {error ? (
             <p className="px-2.25 py-2 text-2sm text-destructive">{error}</p>
           ) : null}

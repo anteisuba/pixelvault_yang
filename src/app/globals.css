@@ -23,6 +23,12 @@
    (a 13" laptop leaves ~745px once the browser chrome is drawn). */
 @custom-variant short (@media (max-height: 56rem));
 
+/* `/studio` left rail (owner 2026-11-04): every item is one click while the column
+   fits — 18 keys × 40px + 3 group gaps × 16px + 20 × 2px + 24px padding = 832px =
+   52rem. Shorter than that, only the 库 group folds into one key with a popover.
+   Change the rail's item count or sizes → recount this. */
+@custom-variant rail-short (@media (max-height: 52rem));
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

@@ -7,7 +7,8 @@ import { useTranslations } from 'next-intl'
 import { EASE_STANDARD, SHELL_MOTION } from '@/constants/motion'
 import { ROUTES, studioConversationPath } from '@/constants/routes'
 import { STUDIO_OPERATOR_HISTORY } from '@/constants/studio-assistant-operator'
-import { ChevronDown, History, PanelLeftOpen } from '@/components/icons'
+import { STUDIO_SHELL_RAIL } from '@/constants/studio-shell'
+import { ChevronDown, History } from '@/components/icons'
 import {
   StudioOperatorAvatarSwitcher,
   StudioOperatorChatModeChip,
@@ -36,7 +37,7 @@ const HEADER_KEY_CLASS =
   'grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus data-[state=open]:bg-surface-fill data-[state=open]:text-foreground motion-reduce:transition-none [&>svg]:size-4.5'
 
 /**
- * 工作台的对话记录（框里那一列与手机上对话头那颗下拉同一份）。
+ * 工作台的对话记录（对话头「记录」那颗下拉，左栏「＋ 新对话」也从这里拿）。
  *
  * ⚠ 对话面板在场时读它发布的那份历史（`useStudioOperatorHistoryView`），选一段就地换上；
  *   不在场就自己拿一份列表（`refresh` 时拿），选一段去 `/studio/c/<编号>`。
@@ -142,7 +143,10 @@ export function useShellWorkHistory() {
   }
 }
 
-/** 手机上对话头最左那颗（桌面上是框里那一列，`StudioShellHistoryColumn`）：点开 = 「＋ 新对话」+ 以前的几段。 */
+/**
+ * 对话头最左那颗「记录」（owner 11-04：首页、台上、手机同一颗）：点开 = 搜索 +「＋ 新对话」+
+ * 最近十几段 +「全部对话记录」。⛔ 框里摊一列（`StudioShellHistoryColumn` 已删）。
+ */
 export function StudioShellHistoryKey() {
   const t = useTranslations('StudioShell')
   const { refresh, ...history } = useShellWorkHistory()
@@ -152,6 +156,12 @@ export function StudioShellHistoryKey() {
       testId="studio-shell-work-history"
       tooltip={t('history')}
       newLabel={t('newChat')}
+      search={{
+        placeholder: t('historySearch'),
+        emptyLabel: t('historyNoMatch'),
+        allLabel: t('historyAll'),
+        limit: STUDIO_SHELL_RAIL.historyRecentLimit,
+      }}
       {...history}
       onOpenChange={(open) => {
         if (open) refresh()
@@ -166,27 +176,6 @@ export function StudioShellHistoryKey() {
         <History />
       </button>
     </ShellHistoryMenu>
-  )
-}
-
-/** 框里那一列收起时，对话头最左那颗：点它把那一列拉回来（样件 v5）。 */
-export function StudioShellHistoryExpandKey({
-  onExpand,
-}: {
-  onExpand(): void
-}) {
-  const t = useTranslations('StudioShell')
-  return (
-    <button
-      type="button"
-      aria-label={t('historyShow')}
-      title={t('historyShow')}
-      data-testid="studio-shell-history-expand"
-      onClick={onExpand}
-      className={HEADER_KEY_CLASS}
-    >
-      <PanelLeftOpen />
-    </button>
   )
 }
 

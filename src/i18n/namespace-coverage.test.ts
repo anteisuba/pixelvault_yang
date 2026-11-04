@@ -678,26 +678,18 @@ const KNOWN_DYNAMIC_NAMESPACE_SITES: Readonly<
 > = {
   'components/business/studio/shell/StudioConversationList.tsx': {
     reason:
-      'The left rail renders the full-screen pages (素材 / 角色 / 提示词) from ' +
-      '`STUDIO_LIBRARY_ITEMS` via `t(item.labelKey)`: all `Navbar.links.*`.',
+      'The left rail renders the benches from `STUDIO_SHELL_BENCH_ITEMS` ' +
+      '(`SHELL_NAV_TOOLS`: `StudioTools.tools.*`) and the 我的 / 库 pages from ' +
+      '`STUDIO_LIBRARY_ITEMS` (`Navbar.links.*`), all via `tAll(item.labelKey)`.',
     calls: ['useTranslations()'],
-    namespaces: ['Navbar'],
+    namespaces: ['Navbar', 'StudioTools'],
   },
   'components/business/studio/shell/StudioLibraryOverlay.tsx': {
     reason:
       'The library tabs render `STUDIO_LIBRARY_ITEMS` via `t(item.labelKey)`: ' +
-      '`Navbar.links.*`, and the LoRA one `StudioTools.tools.lora.label`.',
+      '`Navbar.links.*` (the LoRA one is `Navbar.links.loraModels` since 11-04).',
     calls: ['useTranslations()'],
-    namespaces: ['Navbar', 'StudioTools'],
-  },
-  'components/business/studio/shell/StudioShellBench.tsx': {
-    reason:
-      'The bench rail and the left-rail bench picker render `SHELL_NAV_TOOLS` ' +
-      'items via `t(item.labelKey)`; every `labelKey` there is under `StudioTools.`. ' +
-      'The left-rail library picker renders `STUDIO_LIBRARY_ITEMS` the same way: ' +
-      '`Navbar.links.*`, and the LoRA one `StudioTools.tools.lora.label`.',
-    calls: ['useTranslations()', 'useTranslations()', 'useTranslations()'],
-    namespaces: ['StudioTools', 'Navbar'],
+    namespaces: ['Navbar'],
   },
   'components/layout/AppSidebar.tsx': {
     // lines 133 and 230 as of 2026-10-08

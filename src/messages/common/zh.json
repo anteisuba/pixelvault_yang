@@ -158,7 +158,8 @@
       "voices": "音色",
       "profile": "我的主页",
       "tags": "标签",
-      "tavern": "酒馆"
+      "tavern": "酒馆",
+      "loraModels": "LoRA 模型"
     },
     "groupLabel": "去处"
   },

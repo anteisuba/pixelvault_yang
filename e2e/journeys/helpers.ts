@@ -20,8 +20,15 @@ export async function api<T = unknown>(
   path: string,
   body?: unknown,
 ): Promise<Envelope<T>> {
+  // 先等 Clerk 起来、现拿一张会话令牌：跑到后面（重试时尤其）存下来那张早过期了，直接 fetch 会 401。
+  await page.waitForFunction(
+    () => (window as { Clerk?: { loaded?: boolean } }).Clerk?.loaded === true,
+  )
   return page.evaluate(
     async ({ method, path, body }) => {
+      await (
+        window as { Clerk?: { session?: { getToken(): Promise<unknown> } } }
+      ).Clerk?.session?.getToken()
       const response = await fetch(path, {
         method,
         headers: body ? { 'Content-Type': 'application/json' } : undefined,

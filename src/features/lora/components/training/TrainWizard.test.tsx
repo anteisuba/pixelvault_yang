@@ -107,8 +107,9 @@ describe('TrainWizard', () => {
     const sheet = await screen.findByRole('dialog', {
       name: L.mobileSheetAriaLabel,
     })
+    // sheet 里的表单也是懒加载的那一块，满载时晚一拍才画出来。
     expect(
-      within(sheet).getByRole('button', { name: L.emptyCtaPreset }),
+      await within(sheet).findByRole('button', { name: L.emptyCtaPreset }),
     ).toBeInTheDocument()
     expect(screen.getByText(L.historyTitle)).toBeInTheDocument()
   })

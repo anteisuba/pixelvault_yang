@@ -30,6 +30,11 @@ import {
   toAssistantEvidence,
 } from '@/services/research/research-fanout.service'
 import { resetDatabase } from '@/test/int/db'
+import {
+  danbooruResponse,
+  emptyDanbooruWorld,
+  type DanbooruWorld,
+} from '@/test/int/fake-research-web'
 
 // ─── 假的外网 ─────────────────────────────────────────────────────
 
@@ -43,19 +48,6 @@ interface SerperHit {
   title: string
   link: string
   snippet?: string
-}
-
-interface DanbooruWorld {
-  /** 别名（中日文名）→ tag。 */
-  aliases: Record<string, string>
-  /** tag → 分类（4 = 角色）。 */
-  categories: Record<string, number>
-  /** 「a b」两个 tag 同时出现过。 */
-  together: string[]
-  /** tag → 每张样图上的一般标签。 */
-  posts: Record<string, string[]>
-  /** 整个站挂了（回 403，不重试）。 */
-  down: boolean
 }
 
 const web = {
@@ -107,45 +99,6 @@ function wikiResponse(host: string, url: string): unknown {
   return {}
 }
 
-function danbooruResponse(url: string): Response {
-  const world = web.danbooru
-  if (world.down) return new Response('forbidden', { status: 403 })
-  const path = new URL(url).pathname
-  if (path === '/wiki_pages.json') {
-    const alias = param(url, 'search[other_names_match]')
-    if (alias !== null) {
-      const tag = world.aliases[alias]
-      return Response.json(tag ? [{ title: tag, other_names: [alias] }] : [])
-    }
-    const title = param(url, 'search[title]')
-    return Response.json(
-      title && Object.values(world.aliases).includes(title)
-        ? [{ title, other_names: [], body: '' }]
-        : [],
-    )
-  }
-  if (path === '/tags.json') {
-    const name = param(url, 'search[name]')
-    return Response.json(
-      name && world.categories[name] !== undefined
-        ? [{ name, category: world.categories[name], post_count: 100 }]
-        : [],
-    )
-  }
-  if (path === '/posts.json') {
-    const tags = param(url, 'tags') ?? ''
-    if (tags.includes(' '))
-      return Response.json(world.together.includes(tags) ? [{ id: 1 }] : [])
-    return Response.json(
-      (world.posts[tags] ?? []).map((general, id) => ({
-        id,
-        tag_string_general: general,
-      })),
-    )
-  }
-  return Response.json([])
-}
-
 async function fakeFetch(
   input: string | URL | Request,
   init?: RequestInit,
@@ -164,7 +117,7 @@ async function fakeFetch(
     host.endsWith('fandom.com')
   )
     return Response.json(wikiResponse(host, url))
-  if (host === 'danbooru.donmai.us') return danbooruResponse(url)
+  if (host === 'danbooru.donmai.us') return danbooruResponse(web.danbooru, url)
   if (host.endsWith('bilibili.com')) return Response.json({ data: {} })
   throw new Error(`unexpected fetch ${url}`)
 }
@@ -195,13 +148,7 @@ beforeEach(async () => {
   resetReadHostBlocks()
   web.serper = () => []
   web.wiki = {}
-  web.danbooru = {
-    aliases: {},
-    categories: {},
-    together: [],
-    posts: {},
-    down: false,
-  }
+  web.danbooru = emptyDanbooruWorld()
   web.requests = []
   web.serperQueries = []
   vi.stubEnv('SERPER_API_KEY', 'serper-test-key')

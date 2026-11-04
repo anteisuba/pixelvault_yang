@@ -17,3 +17,20 @@ export function text(
     values,
   )
 }
+
+/** 带 `<strong>` 之类标签的句子：标签拆掉、只留字（`toHaveTextContent` 比的就是这个）。 */
+export function richText(
+  path: string,
+  values: Record<string, string | number> = {},
+  locale: AppLocale = 'zh',
+): string {
+  const t = createTranslator({ locale, messages: MESSAGES[locale] })
+  const flat = (chunks: string) => chunks
+  const tags = { strong: flat, b: flat, em: flat, code: flat }
+  const markup = (
+    t as unknown as {
+      markup: (key: string, v: Record<string, unknown>) => string
+    }
+  ).markup
+  return markup(path, { ...tags, ...values })
+}

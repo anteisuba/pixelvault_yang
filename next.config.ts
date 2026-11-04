@@ -1,4 +1,4 @@
-import { dirname } from 'node:path'
+import { dirname, resolve as resolvePath } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import bundleAnalyzer from '@next/bundle-analyzer'
 import { withSentryConfig } from '@sentry/nextjs'
@@ -20,6 +20,12 @@ const withBundleAnalyzer = bundleAnalyzer({
 // LoRA-training and asset-library uploads all go browser → R2 presigned PUT and
 // need nothing here.
 const PROXY_CLIENT_MAX_BODY_SIZE = '100mb'
+
+/**
+ * Cloudflare（OpenNext）构建：`ANTEI_CLOUDFLARE_BUILD=1`（open-next.config.ts 的 buildCommand 设）。
+ * 服务端 Sentry 换成 @sentry/cloudflare，不套 withSentryConfig（它的服务端包装在 Workers 上跑不了）。
+ */
+const IS_CLOUDFLARE_BUILD = process.env.ANTEI_CLOUDFLARE_BUILD === '1'
 
 const storageHost = process.env.NEXT_PUBLIC_STORAGE_BASE_URL
   ? new URL(process.env.NEXT_PUBLIC_STORAGE_BASE_URL).hostname
@@ -68,18 +74,37 @@ const nextConfig: NextConfig = {
   // then inlines (~9 MB of grammars) into the Worker. Turn it into an empty
   // object on the server instead; code-block.tsx only loads it in useEffect.
   webpack(config, { isServer }) {
+    if (isServer && IS_CLOUDFLARE_BUILD) {
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        '@sentry/nextjs$': `${PROJECT_ROOT}/src/lib/sentry-workers.ts`,
+        // photon 的 Node 版把 wasm 存成 base64 现场编译，Workers 不许；workerd 版直接 import .wasm。
+        '@cf-wasm/photon$': '@cf-wasm/photon/workerd',
+      }
+    }
     if (isServer) {
       const externals = Array.isArray(config.externals)
         ? config.externals
         : [config.externals].filter(Boolean)
       config.externals = [
         (
-          { request }: { request?: string },
+          { context, request }: { context?: string; request?: string },
           callback: (error?: Error | null, result?: string) => void,
-        ) =>
-          request === 'shiki' || request?.startsWith('@shikijs/')
-            ? callback(null, 'var {}')
-            : callback(),
+        ) => {
+          if (request === 'shiki' || request?.startsWith('@shikijs/')) {
+            return callback(null, 'var {}')
+          }
+          // Cloudflare 构建里 Prisma（workerd 版）和 photon 都直接 import .wasm：webpack 不认，
+          // 留成绝对路径的 import，交给 OpenNext / wrangler 打包（Workers 只允许这样加载 wasm）。
+          if (
+            IS_CLOUDFLARE_BUILD &&
+            context &&
+            /\.wasm(\?module)?$/.test(request ?? '')
+          ) {
+            return callback(null, `import ${resolvePath(context, request!)}`)
+          }
+          return callback()
+        },
         ...externals,
       ]
     }
@@ -228,6 +253,6 @@ const sentryOptions = {
   },
 } as const
 
-export default process.env.NODE_ENV === 'development'
+export default process.env.NODE_ENV === 'development' || IS_CLOUDFLARE_BUILD
   ? composedConfig
   : withSentryConfig(composedConfig, sentryOptions)

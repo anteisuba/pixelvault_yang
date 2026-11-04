@@ -1,19 +1,41 @@
+import { getCloudflareContext } from '@opennextjs/cloudflare'
 import { PrismaPg } from '@prisma/adapter-pg'
 
 import { DATABASE_POOL } from '@/constants/config'
 import { PrismaClient } from '@/lib/generated/prisma/client'
 import { normalizeDatabaseConnectionString } from '@/lib/database-utils'
 
+/**
+ * 跑在 Cloudflare Workers 上时，连接串优先用 Hyperdrive（就近连接池，替 Neon 省握手）；
+ * 没配 Hyperdrive（本地 / Vercel）就用 DATABASE_URL。
+ */
+function databaseUrl(): string {
+  const hyperdrive = isWorkersRuntime()
+    ? getCloudflareContext().env.HYPERDRIVE
+    : undefined
+  return (
+    hyperdrive?.connectionString ??
+    normalizeDatabaseConnectionString(process.env.DATABASE_URL!)
+  )
+}
+
 function createPrismaClient() {
   const adapter = new PrismaPg({
-    connectionString: normalizeDatabaseConnectionString(
-      process.env.DATABASE_URL!,
-    ),
+    connectionString: databaseUrl(),
     max: DATABASE_POOL.MAX_CONNECTIONS,
     connectionTimeoutMillis: DATABASE_POOL.CONNECTION_TIMEOUT_MS,
     idleTimeoutMillis: DATABASE_POOL.IDLE_TIMEOUT_MS,
   })
   return new PrismaClient({ adapter, omit: RETIRED_COLUMNS })
+}
+
+type Database = ReturnType<typeof createPrismaClient>
+
+function isWorkersRuntime(): boolean {
+  return (
+    typeof navigator !== 'undefined' &&
+    navigator.userAgent === 'Cloudflare-Workers'
+  )
 }
 
 /**
@@ -24,14 +46,40 @@ function createPrismaClient() {
 const RETIRED_COLUMNS = {} as const
 
 const globalForPrisma = globalThis as typeof globalThis & {
-  prisma?: ReturnType<typeof createPrismaClient>
+  prisma?: Database
 }
 
-export const db = globalForPrisma.prisma ?? createPrismaClient()
+/**
+ * Workers 上每个请求一个客户端：Workers ⛔ 跨请求复用连接（上一个请求开的 socket
+ * 在下一个请求里用会直接报错），所以按这次请求的执行上下文缓存，请求结束一起回收。
+ * `after()` 里的活走同一个上下文（waitUntil），拿到的也是同一个客户端。
+ */
+const perRequestClients = new WeakMap<object, Database>()
 
-if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.prisma = db
+function requestScopedClient(): Database {
+  const { ctx } = getCloudflareContext()
+  let client = perRequestClients.get(ctx)
+  if (!client) {
+    client = createPrismaClient()
+    perRequestClients.set(ctx, client)
+  }
+  return client
 }
+
+function resolveClient(): Database {
+  if (isWorkersRuntime()) return requestScopedClient()
+  globalForPrisma.prisma ??= createPrismaClient()
+  return globalForPrisma.prisma
+}
+
+/** 用法不变（`db.user.findMany(...)`）；真正的客户端每次取用时按运行环境挑。 */
+export const db = new Proxy({} as Database, {
+  get(_target, property) {
+    const client = resolveClient()
+    const value = Reflect.get(client, property, client)
+    return typeof value === 'function' ? value.bind(client) : value
+  },
+})
 
 /**
  * 这个错是不是「撞了唯一约束」（Prisma 的 P2002）。

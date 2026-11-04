@@ -1,8 +1,49 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
+  // 网站本体（Next.js 经 OpenNext 跑在 Workers 上）。生成任务的执行 Worker 是另一个：workers/execution。
   "name": "antei-web",
-  "main": ".open-next/worker.js",
+  "main": "cloudflare/worker.ts",
   "compatibility_date": "2026-10-01",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
-  "assets": { "directory": ".open-next/assets", "binding": "ASSETS" }
+  "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
+
+  // CPU 时间（不含等网络）上限；默认 30 秒，拼图、读大图偶尔要更久。
+  "limits": { "cpu_ms": 120000 },
+
+  // 原 vercel.json 的 cron，入口在 cloudflare/worker.ts 的 scheduled。
+  "triggers": { "crons": ["0 12 * * *"] },
+
+  // Workers 日志（替代 Vercel 的运行日志）：请求和 console.* 全留，量大了再调抽样率。
+  "observability": { "enabled": true, "head_sampling_rate": 1 },
+
+  "r2_buckets": [
+    // ISR / unstable_cache 的缓存（open-next.config.ts）。
+    { "binding": "NEXT_INC_CACHE_R2_BUCKET", "bucket_name": "antei-next-cache" }
+  ],
+
+  "durable_objects": {
+    "bindings": [
+      { "name": "NEXT_CACHE_DO_QUEUE", "class_name": "DOQueueHandler" },
+      { "name": "NEXT_TAG_CACHE_DO_SHARDED", "class_name": "DOShardedTagCache" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["DOQueueHandler", "DOShardedTagCache"] }
+  ],
+
+  "services": [
+    // ISR 后台重算时调自己。
+    { "binding": "WORKER_SELF_REFERENCE", "service": "antei-web" }
+  ],
+
+  // Neon 前面的连接池：owner 在 Cloudflare 建好后把 id 填进来（见 docs/references/cloudflare-hosting.md）。
+  "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "REPLACE_WITH_HYPERDRIVE_ID" }],
+
+  // 非机密的配置；机密（各家 API key、数据库、Clerk secret 等）用 `wrangler secret bulk` 上传。
+  "vars": {
+    "NEXT_PUBLIC_APP_URL": "https://new.anteisuba.com"
+  },
+
+  // 第 3 步先挂测试子域名；切正式域名在第 4 步。
+  "routes": [{ "pattern": "new.anteisuba.com", "custom_domain": true }]
 }

@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import type { ReactNode } from 'react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
+
+import { stubBrowserObservers } from '@/test/fake-routes'
 
 import { LoraScaleChip } from './LoraScaleChip'
 
@@ -10,30 +11,12 @@ vi.mock('next-intl', () => ({
       ? `LoraWorkbench:${key}:${JSON.stringify(vars)}`
       : `LoraWorkbench:${key}`,
 }))
-vi.mock('@/components/ui/popover', () => ({
-  Popover: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  PopoverTrigger: ({ children }: { children: ReactNode }) => <>{children}</>,
-  PopoverContent: ({ children }: { children: ReactNode }) => (
-    <div>{children}</div>
-  ),
-}))
-// Stub the slider to a button that reports config.max, so we can assert the
-// onChange wiring without driving a real range input.
-vi.mock('@/components/ui/param-slider', () => ({
-  ParamSlider: ({
-    onChange,
-    max,
-  }: {
-    onChange: (v: number) => void
-    max: number
-  }) => (
-    <button type="button" data-testid="slider" onClick={() => onChange(max)}>
-      slider
-    </button>
-  ),
-}))
 
 const CONFIG = { min: 0.1, max: 2, step: 0.05, default: 1 }
+
+beforeAll(() => {
+  stubBrowserObservers()
+})
 
 describe('LoraScaleChip (B10-2)', () => {
   it('renders the current scale as ×value on the trigger', () => {
@@ -50,7 +33,7 @@ describe('LoraScaleChip (B10-2)', () => {
     ).toHaveTextContent('×0.80')
   })
 
-  it('reports the new scale via onChange', () => {
+  it('点开拖到头：按底模的上限报新权重', () => {
     const onChange = vi.fn()
     render(
       <LoraScaleChip
@@ -60,7 +43,8 @@ describe('LoraScaleChip (B10-2)', () => {
         config={CONFIG}
       />,
     )
-    fireEvent.click(screen.getByTestId('slider'))
+    fireEvent.click(screen.getByRole('button', { name: /scaleLabel/ }))
+    fireEvent.keyDown(screen.getByRole('slider'), { key: 'End' })
     expect(onChange).toHaveBeenCalledWith(2)
   })
 })

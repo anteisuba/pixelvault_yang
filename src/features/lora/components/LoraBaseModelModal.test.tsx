@@ -1,10 +1,18 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
+
+// 底模可不可用跟着 Comfy Runner 的开关走，开关在模块加载时读环境变量：
+// 先把环境变量设好再导入（⛔ 改常量模块）。
+vi.hoisted(() => {
+  process.env.NEXT_PUBLIC_FF_COMFY_RUNNER = 'true'
+})
 
 import {
   getBaseOnlyGenerationBases,
   getCompatibleBases,
 } from '@/features/lora/constants/lora-base-models'
+
+import { DESKTOP_WIDTH, PHONE_WIDTH, setViewport } from '@/test/viewport'
 
 import { LoraBaseModelModal } from './LoraBaseModelModal'
 
@@ -12,20 +20,10 @@ vi.mock('next-intl', () => ({
   useTranslations: (ns: string) => (key: string) => `${ns}:${key}`,
 }))
 
-vi.mock('@/constants/feature-flags', async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import('@/constants/feature-flags')>()
-  return {
-    ...actual,
-    FEATURE_FLAGS: { ...actual.FEATURE_FLAGS, comfyRunner: true },
-  }
+afterAll(() => {
+  delete process.env.NEXT_PUBLIC_FF_COMFY_RUNNER
+  vi.unstubAllGlobals()
 })
-
-let mockIsMobile = false
-vi.mock('@/hooks/use-mobile', () => ({
-  useIsMobile: () => mockIsMobile,
-  useIsTablet: () => false,
-}))
 
 // jsdom 没有 ResizeObserver；弹层用它量高度做补间，测试里给个空壳。
 vi.stubGlobal(
@@ -58,7 +56,7 @@ function renderModal(
 
 describe('LoraBaseModelModal（45 Runner 底模 · ④ 画板）', () => {
   beforeEach(() => {
-    mockIsMobile = false
+    setViewport(DESKTOP_WIDTH)
   })
 
   it('M1 纯底模：两组八张、没有「自动」、没有开关，Turbo 推荐 + 快出', () => {
@@ -170,7 +168,7 @@ describe('LoraBaseModelModal（45 Runner 底模 · ④ 画板）', () => {
   })
 
   it('手机：一列，当前选中那组排在前面', () => {
-    mockIsMobile = true
+    setViewport(PHONE_WIDTH)
     renderModal()
 
     const headings = screen

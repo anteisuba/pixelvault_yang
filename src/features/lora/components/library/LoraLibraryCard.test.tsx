@@ -13,18 +13,6 @@ vi.mock('next-intl', () => ({
     `${namespace}:${key}`,
 }))
 
-vi.mock('@/features/lora/hooks/use-huggingface-showcase-cover', () => ({
-  useHuggingFaceShowcaseCover: (
-    _repoId: string,
-    _revision: string,
-    fallbackCoverUrl: string | null,
-  ) => ({
-    coverUrl: fallbackCoverUrl,
-    isPending: false,
-    setObservedElement: vi.fn(),
-  }),
-}))
-
 function makeCivitaiItem(): CivitaiLoraLibraryItem {
   return {
     id: 'civitai-1',

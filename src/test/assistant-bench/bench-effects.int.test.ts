@@ -383,11 +383,11 @@ const BENCH_EFFECTS: Record<
   [T.libraryWrite]: { on: 'off-bench', why: LIBRARY },
   [T.canvasApply]: {
     on: 'off-bench',
-    why: 'TODO 画布：浏览器落一批、下一跳带新快照回来',
+    why: '服务端不动台面，后果落在浏览器的图上、下一轮带回来：见 canvas-next-turn.int.test.ts',
   },
   [T.canvasBatch]: {
     on: 'off-bench',
-    why: 'TODO 画布：浏览器落一批、下一跳带新快照回来',
+    why: '服务端不动台面，后果落在浏览器的图上、下一轮带回来：见 canvas-next-turn.int.test.ts',
   },
 }
 

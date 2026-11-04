@@ -2,11 +2,11 @@ name: CI
 
 on:
   push:
-    branches: [main, feat/*]
+    branches: [main, release, feat/*]
   pull_request:
     branches: [main]
-  # 手动触发：不改代码也能把 main 上的 worker 重新推上去（本机 wrangler 登录态
-  # 失效时的唯一部署入口）。只对 main 生效，见 deploy-worker 的 if。
+  # 手动触发：不改代码也能把 release 上的 worker 重新推上去（本机 wrangler 登录态
+  # 失效时的唯一部署入口）。只对 release 生效，见 deploy-worker 的 if。
   workflow_dispatch:
 
 env:
@@ -74,7 +74,8 @@ jobs:
   integration-test:
     name: Integration Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # 158 个文件单线程真库约 8–9 分钟（11-04 慢机 9 分钟被 10 分钟上限掐断），留余量。
+    timeout-minutes: 20
     # L2a 真库测试（*.int.test.ts，docs/references/testing.md「测试标准」）：一次性
     # Postgres 16，global-setup 先把 prisma/migrations 全部执行一遍再跑。
     services:
@@ -132,6 +133,19 @@ jobs:
           --health-interval=5s
           --health-timeout=5s
           --health-retries=10
+      # 生产模式下回调防重放、限流都要 Upstash：本地起一个 Redis + Upstash 兼容的 REST 口。
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+      redis-http:
+        image: hiett/serverless-redis-http:latest
+        env:
+          SRH_MODE: env
+          SRH_TOKEN: e2e-redis-token
+          SRH_CONNECTION_STRING: redis://redis:6379
+        ports:
+          - 8079:80
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/antei_e2e
       DIRECT_URL: postgresql://postgres:postgres@localhost:5432/antei_e2e
@@ -145,6 +159,13 @@ jobs:
       R2_SECRET_ACCESS_KEY: "stub"
       R2_BUCKET_NAME: "stub"
       API_KEY_ENCRYPTION_SECRET: "0000000000000000000000000000000000000000000000000000000000000000"
+      UPSTASH_REDIS_REST_URL: "http://localhost:8079"
+      UPSTASH_REDIS_REST_TOKEN: "e2e-redis-token"
+      # 执行 Worker + 服务商 = 假的（e2e/fake-worker/server.ts）；应用这一侧全真。
+      EXECUTION_WORKER_BASE_URL: "http://localhost:4010"
+      FAKE_WORKER_URL: "http://localhost:4010"
+      FAKE_LLM_URL: "https://localhost:4011"
+      INTERNAL_CALLBACK_SECRET: "e2e-internal-callback-secret-not-real"
 
     steps:
       - uses: actions/checkout@v4
@@ -174,18 +195,55 @@ jobs:
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
 
+      - name: Start fake execution worker
+        run: |
+          node --experimental-strip-types e2e/fake-worker/server.ts > /tmp/fake-worker.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf -o /dev/null http://localhost:4010/health && exit 0; sleep 1; done
+          echo 'fake worker did not start'; cat /tmp/fake-worker.log; exit 1
+
+      - name: Start fake LLM (https, self-signed)
+        run: |
+          openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj /CN=localhost \
+            -addext "subjectAltName=DNS:localhost,IP:127.0.0.1" \
+            -keyout /tmp/fake-llm.key -out /tmp/fake-llm.crt 2>/dev/null
+          FAKE_LLM_CERT=/tmp/fake-llm.crt FAKE_LLM_KEY=/tmp/fake-llm.key \
+            node --experimental-strip-types e2e/fake-llm/server.ts > /tmp/fake-llm.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf --cacert /tmp/fake-llm.crt -o /dev/null https://localhost:4011/health && exit 0; sleep 1; done
+          echo 'fake LLM did not start'; cat /tmp/fake-llm.log; exit 1
+
       - name: Start server
+        env:
+          # 假大模型那张现签证书：只这一个进程信任它。
+          NODE_EXTRA_CA_CERTS: /tmp/fake-llm.crt
+          # 文字模型一律走官方默认地址（不看 key 上的 baseUrl），只有 AI Gateway 这一个真配置口能改道：
+          # 指到假大模型，`https://api.deepseek.com/...` → `https://localhost:4011/deepseek/...`。
+          CLOUDFLARE_AI_GATEWAY_URL: https://localhost:4011
         run: |
           npm run start > /tmp/next.log 2>&1 &
           for i in $(seq 1 60); do curl -sf -o /dev/null http://localhost:3000/en && exit 0; sleep 2; done
           echo 'server did not start'; tail -100 /tmp/next.log; exit 1
 
       - name: Smoke
+        env:
+          NODE_EXTRA_CA_CERTS: /tmp/fake-llm.crt
         run: npx playwright test --project=journeys
 
       - name: Server log on failure
         if: failure()
-        run: tail -200 /tmp/next.log
+        run: |
+          tail -200 /tmp/next.log
+          echo '--- fake worker ---'
+          cat /tmp/fake-worker.log
+          echo '--- fake llm ---'
+          cat /tmp/fake-llm.log
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-pages
+          path: e2e/.pages/
+          include-hidden-files: true
+          retention-days: 7
 
       - uses: actions/upload-artifact@v4
         if: failure()
@@ -378,12 +436,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [worker-test]
-    # 只有 main 部署；feat/* 与 PR 跑到 worker-test 为止。
-    # ⚠ 每次 main push 都重新部署，不按路径过滤——「main 上的 worker 代码 = 线上
+    # 只有 release 部署（2026-11-03 起上线走 release，和 Vercel 生产分支同步）；
+    # main / feat/* / PR 跑到 worker-test 为止。
+    # ⚠ 每次 release push 都重新部署，不按路径过滤——「release 上的 worker 代码 = 线上
     # 代码」要是无条件不变量。2026-08-29 的 NovelAI 解压修复（29bef566）就是因为
     # 部署全靠手动，在 main 上躺了 5 天，线上一直跑旧代码、NovelAI 全数失败。
     if: >-
-      github.ref == 'refs/heads/main' &&
+      github.ref == 'refs/heads/release' &&
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     defaults:
       run:
@@ -421,7 +480,7 @@ jobs:
     timeout-minutes: 40
     needs: [side-worker-test]
     if: >-
-      github.ref == 'refs/heads/main' &&
+      github.ref == 'refs/heads/release' &&
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     strategy:
       fail-fast: false

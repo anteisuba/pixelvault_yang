@@ -1,16 +1,41 @@
+import type { ReactNode } from 'react'
 import { describe, it, expect, vi } from 'vitest'
-import { renderHook } from '@testing-library/react'
+import { waitFor } from '@testing-library/react'
 
 import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
 import { AI_ADAPTER_TYPES, type ProviderConfig } from '@/constants/providers'
 import { useLLMRoutePicker } from '@/hooks/use-llm-route-picker'
-import type { ApiKeyHealthStatus, UserApiKeyRecord } from '@/types'
+import type { UserApiKeyRecord } from '@/types'
 
-vi.mock('@/contexts/api-keys-context', () => ({
-  useApiKeysContext: vi.fn(),
+/** 服务端那边她有哪几把 key（真 `ApiKeysProvider` 经 api-client 拉）。 */
+const server = vi.hoisted(() => ({ keys: [] as unknown[], userSeq: 0 }))
+vi.mock('@/lib/api-client', () => ({
+  listApiKeys: vi.fn(async () => ({ success: true, data: server.keys })),
+  createApiKey: vi.fn(),
+  updateApiKey: vi.fn(),
+  deleteApiKey: vi.fn(),
+  verifyApiKey: vi.fn(),
 }))
+// ⚠ 名单缓存按用户存：每个用例换一个 userId，免得读到上一个的缓存。
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({
+    userId: `user-${server.userSeq}`,
+    isLoaded: true,
+    isSignedIn: true,
+  }),
+}))
+vi.stubGlobal('requestIdleCallback', (task: () => void) => {
+  task()
+  return 1
+})
+vi.stubGlobal('cancelIdleCallback', () => {})
 
-import { useApiKeysContext } from '@/contexts/api-keys-context'
+import { ApiKeysProvider, useApiKeysContext } from '@/contexts/api-keys-context'
+import { renderHookWithApp } from '@/test/app-harness'
+
+function Keys({ children }: { children: ReactNode }) {
+  return <ApiKeysProvider>{children}</ApiKeysProvider>
+}
 
 function makeKey(overrides: Partial<UserApiKeyRecord>): UserApiKeyRecord {
   const providerConfig: ProviderConfig = {
@@ -29,26 +54,37 @@ function makeKey(overrides: Partial<UserApiKeyRecord>): UserApiKeyRecord {
   }
 }
 
-function mockApiKeys(
-  keys: UserApiKeyRecord[],
-  healthMap: Record<string, ApiKeyHealthStatus> = {},
-) {
-  vi.mocked(useApiKeysContext).mockReturnValue({
-    keys,
-    healthMap,
-    isLoading: false,
-  } as ReturnType<typeof useApiKeysContext>)
+function givenKeys(keys: UserApiKeyRecord[]) {
+  server.keys = keys
+  server.userSeq += 1
+}
+
+/** 真 Provider 拉完名单之后的选择器。 */
+async function renderPicker(scope: Parameters<typeof useLLMRoutePicker>[0]) {
+  const rendered = renderHookWithApp(
+    () => ({ picker: useLLMRoutePicker(scope), keys: useApiKeysContext() }),
+    { inner: Keys },
+  )
+  await waitFor(() => expect(rendered.result.current.keys.hasLoaded).toBe(true))
+  return {
+    result: {
+      get current() {
+        return rendered.result.current.picker
+      },
+    },
+    context: () => rendered.result.current.keys,
+  }
 }
 
 describe('useLLMRoutePicker', () => {
   describe('enhance scope', () => {
-    it('returns saved routes for enhance-capable text keys (OPENAI/GEMINI)', () => {
-      mockApiKeys([
+    it('returns saved routes for enhance-capable text keys (OPENAI/GEMINI)', async () => {
+      givenKeys([
         makeKey({ id: 'k1', adapterType: AI_ADAPTER_TYPES.OPENAI }),
         makeKey({ id: 'k2', adapterType: AI_ADAPTER_TYPES.GEMINI }),
         makeKey({ id: 'k3', adapterType: AI_ADAPTER_TYPES.VOLCENGINE }),
       ])
-      const { result } = renderHook(() => useLLMRoutePicker('enhance'))
+      const { result } = await renderPicker('enhance')
       // One key × N registry tiers → N options (OpenAI 4, Gemini 3).
       expect(result.current.savedRoutes.map((r) => r.apiKeyId)).toEqual([
         'k1',
@@ -61,12 +97,12 @@ describe('useLLMRoutePicker', () => {
       ])
     })
 
-    it('filters out DeepSeek keys (not enhance-capable per current behavior)', () => {
-      mockApiKeys([
+    it('filters out DeepSeek keys (not enhance-capable per current behavior)', async () => {
+      givenKeys([
         makeKey({ id: 'k1', adapterType: AI_ADAPTER_TYPES.OPENAI }),
         makeKey({ id: 'k2', adapterType: AI_ADAPTER_TYPES.DEEPSEEK }),
       ])
-      const { result } = renderHook(() => useLLMRoutePicker('enhance'))
+      const { result } = await renderPicker('enhance')
       expect(result.current.savedRoutes.map((r) => r.apiKeyId)).toEqual([
         'k1',
         'k1',
@@ -75,21 +111,21 @@ describe('useLLMRoutePicker', () => {
       ])
     })
 
-    it('filters out inactive keys', () => {
-      mockApiKeys([
+    it('filters out inactive keys', async () => {
+      givenKeys([
         makeKey({
           id: 'k1',
           adapterType: AI_ADAPTER_TYPES.OPENAI,
           isActive: false,
         }),
       ])
-      const { result } = renderHook(() => useLLMRoutePicker('enhance'))
+      const { result } = await renderPicker('enhance')
       expect(result.current.savedRoutes).toEqual([])
     })
 
-    it('locked routes list enhance-capable text models with registry modelIds', () => {
-      mockApiKeys([])
-      const { result } = renderHook(() => useLLMRoutePicker('enhance'))
+    it('locked routes list enhance-capable text models with registry modelIds', async () => {
+      givenKeys([])
+      const { result } = await renderPicker('enhance')
       const adapters = result.current.lockedRoutes.map((r) => r.adapterType)
       expect([...new Set(adapters)].sort()).toEqual(
         [
@@ -115,44 +151,44 @@ describe('useLLMRoutePicker', () => {
   })
 
   describe('planner scope', () => {
-    it('returns saved routes for planner-capable keys (OPENAI/GEMINI/DEEPSEEK)', () => {
-      mockApiKeys([
+    it('returns saved routes for planner-capable keys (OPENAI/GEMINI/DEEPSEEK)', async () => {
+      givenKeys([
         makeKey({ id: 'k1', adapterType: AI_ADAPTER_TYPES.OPENAI }),
         makeKey({ id: 'k2', adapterType: AI_ADAPTER_TYPES.DEEPSEEK }),
         makeKey({ id: 'k3', adapterType: AI_ADAPTER_TYPES.VOLCENGINE }),
       ])
-      const { result } = renderHook(() => useLLMRoutePicker('planner'))
+      const { result } = await renderPicker('planner')
       expect(result.current.savedRoutes.map((r) => r.apiKeyId)).toEqual([
         'k1',
         'k2',
       ])
     })
 
-    it('saved routes carry modelId from SCRIPT_PLANNER_MODELS registry', () => {
-      mockApiKeys([makeKey({ id: 'k1', adapterType: AI_ADAPTER_TYPES.OPENAI })])
-      const { result } = renderHook(() => useLLMRoutePicker('planner'))
+    it('saved routes carry modelId from SCRIPT_PLANNER_MODELS registry', async () => {
+      givenKeys([makeKey({ id: 'k1', adapterType: AI_ADAPTER_TYPES.OPENAI })])
+      const { result } = await renderPicker('planner')
       expect(result.current.savedRoutes[0].modelId).toBeDefined()
       expect(result.current.savedRoutes[0].label).toBe('OpenAI GPT-6.1 Sol')
     })
 
-    it('locked routes list all planner-capable adapters with registry data', () => {
-      mockApiKeys([])
-      const { result } = renderHook(() => useLLMRoutePicker('planner'))
+    it('locked routes list all planner-capable adapters with registry data', async () => {
+      givenKeys([])
+      const { result } = await renderPicker('planner')
       expect(result.current.lockedRoutes.length).toBe(3)
       expect(result.current.lockedRoutes.every((r) => r.modelId)).toBe(true)
     })
   })
 
   describe('assistant scope', () => {
-    it('returns only saved routes present in the assistant registry', () => {
-      mockApiKeys([
+    it('returns only saved routes present in the assistant registry', async () => {
+      givenKeys([
         makeKey({ id: 'k1', adapterType: AI_ADAPTER_TYPES.GEMINI }),
         makeKey({ id: 'k2', adapterType: AI_ADAPTER_TYPES.OPENAI }),
         makeKey({ id: 'k4', adapterType: AI_ADAPTER_TYPES.DEEPSEEK }),
         makeKey({ id: 'k6', adapterType: AI_ADAPTER_TYPES.HUGGINGFACE }),
         makeKey({ id: 'k5', adapterType: AI_ADAPTER_TYPES.ANTHROPIC }),
       ])
-      const { result } = renderHook(() => useLLMRoutePicker('assistant'))
+      const { result } = await renderPicker('assistant')
       // Gemini two tiers (4 Argon since 11-01), OpenAI four (6.1 Terra since
       // 11-01), Claude four (Haiku 5.5 since 10-10); DeepSeek two.
       expect(result.current.savedRoutes.map((r) => r.apiKeyId)).toEqual([
@@ -171,16 +207,16 @@ describe('useLLMRoutePicker', () => {
       ])
     })
 
-    it('saved routes carry modelId from NODE_STUDIO_ASSISTANT_ROUTE_MODELS', () => {
-      mockApiKeys([makeKey({ id: 'k1', adapterType: AI_ADAPTER_TYPES.GEMINI })])
-      const { result } = renderHook(() => useLLMRoutePicker('assistant'))
+    it('saved routes carry modelId from NODE_STUDIO_ASSISTANT_ROUTE_MODELS', async () => {
+      givenKeys([makeKey({ id: 'k1', adapterType: AI_ADAPTER_TYPES.GEMINI })])
+      const { result } = await renderPicker('assistant')
       expect(result.current.savedRoutes[0].modelId).toBeDefined()
       expect(result.current.savedRoutes[0].label).toBe('Gemini 3.8 Flash')
     })
 
-    it('offers OpenAI, Gemini, DeepSeek, Claude, and Grok setup rows', () => {
-      mockApiKeys([])
-      const { result } = renderHook(() => useLLMRoutePicker('assistant'))
+    it('offers OpenAI, Gemini, DeepSeek, Claude, and Grok setup rows', async () => {
+      givenKeys([])
+      const { result } = await renderPicker('assistant')
       expect(
         result.current.lockedRoutes.map((route) => route.adapterType),
       ).toEqual([
@@ -200,11 +236,11 @@ describe('useLLMRoutePicker', () => {
       ])
     })
 
-    it('offers Sonnet 5.5 through the existing Claude key', () => {
-      mockApiKeys([
+    it('offers Sonnet 5.5 through the existing Claude key', async () => {
+      givenKeys([
         makeKey({ id: 'claude-key', adapterType: AI_ADAPTER_TYPES.ANTHROPIC }),
       ])
-      const { result } = renderHook(() => useLLMRoutePicker('assistant'))
+      const { result } = await renderPicker('assistant')
       expect(result.current.savedRoutes).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
@@ -223,11 +259,11 @@ describe('useLLMRoutePicker', () => {
 
   it.each(['enhance', 'assistant'] as const)(
     'exposes GPT-6 with the saved OpenAI key in %s',
-    (scope) => {
-      mockApiKeys([
+    async (scope) => {
+      givenKeys([
         makeKey({ id: 'openai-key', adapterType: AI_ADAPTER_TYPES.OPENAI }),
       ])
-      const { result } = renderHook(() => useLLMRoutePicker(scope))
+      const { result } = await renderPicker(scope)
       expect(result.current.savedRoutes).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
@@ -241,30 +277,24 @@ describe('useLLMRoutePicker', () => {
   )
 
   describe('common behavior', () => {
-    it('allRoutes equals savedRoutes + lockedRoutes', () => {
-      mockApiKeys([makeKey({ id: 'k1', adapterType: AI_ADAPTER_TYPES.OPENAI })])
-      const { result } = renderHook(() => useLLMRoutePicker('planner'))
+    it('allRoutes equals savedRoutes + lockedRoutes', async () => {
+      givenKeys([makeKey({ id: 'k1', adapterType: AI_ADAPTER_TYPES.OPENAI })])
+      const { result } = await renderPicker('planner')
       expect(result.current.allRoutes).toEqual([
         ...result.current.savedRoutes,
         ...result.current.lockedRoutes,
       ])
     })
 
-    it('passes healthMap through unchanged', () => {
-      const healthMap: Record<string, ApiKeyHealthStatus> = {
-        k1: 'available',
-        k2: 'failed',
-      }
-      mockApiKeys(
-        [makeKey({ id: 'k1', adapterType: AI_ADAPTER_TYPES.OPENAI })],
-        healthMap,
-      )
-      const { result } = renderHook(() => useLLMRoutePicker('planner'))
-      expect(result.current.healthMap).toBe(healthMap)
+    it('health 原样用 key 名单那一份', async () => {
+      givenKeys([makeKey({ id: 'k1', adapterType: AI_ADAPTER_TYPES.OPENAI })])
+      const { result, context } = await renderPicker('planner')
+      expect(result.current.healthMap).toBe(context().healthMap)
+      expect(result.current.healthMap).toHaveProperty('k1')
     })
 
-    it('saved routes use unique optionId per key', () => {
-      mockApiKeys([
+    it('saved routes use unique optionId per key', async () => {
+      givenKeys([
         makeKey({ id: 'k1', adapterType: AI_ADAPTER_TYPES.OPENAI }),
         makeKey({
           id: 'k2',
@@ -272,22 +302,22 @@ describe('useLLMRoutePicker', () => {
           label: 'Second OpenAI key',
         }),
       ])
-      const { result } = renderHook(() => useLLMRoutePicker('planner'))
+      const { result } = await renderPicker('planner')
       const optionIds = result.current.savedRoutes.map((r) => r.optionId)
       expect(new Set(optionIds).size).toBe(optionIds.length)
     })
 
-    it('locked routes have apiKeyId = null', () => {
-      mockApiKeys([])
-      const { result } = renderHook(() => useLLMRoutePicker('planner'))
+    it('locked routes have apiKeyId = null', async () => {
+      givenKeys([])
+      const { result } = await renderPicker('planner')
       expect(
         result.current.lockedRoutes.every((r) => r.apiKeyId === null),
       ).toBe(true)
     })
 
-    it('saved routes have isSaved = true; locked routes have isSaved = false', () => {
-      mockApiKeys([makeKey({ id: 'k1', adapterType: AI_ADAPTER_TYPES.OPENAI })])
-      const { result } = renderHook(() => useLLMRoutePicker('planner'))
+    it('saved routes have isSaved = true; locked routes have isSaved = false', async () => {
+      givenKeys([makeKey({ id: 'k1', adapterType: AI_ADAPTER_TYPES.OPENAI })])
+      const { result } = await renderPicker('planner')
       expect(result.current.savedRoutes.every((r) => r.isSaved)).toBe(true)
       expect(result.current.lockedRoutes.every((r) => !r.isSaved)).toBe(true)
     })

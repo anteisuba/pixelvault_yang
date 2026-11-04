@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useEffectEvent,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -1572,6 +1573,12 @@ function GenerateBranch({
   )
   const templateParam = replaySearchParams.get('template')
   const appliedTemplateRef = useRef<string | null>(null)
+  // 模板回来时按**那一刻**的挂载栈套（Effect Event 读最新）：挂载栈从 localStorage
+  // 读回来晚于首帧，用首帧那份 applyLoraTemplate 不认得触发词，正文里的会被拿掉。
+  const applyFetchedTemplate = useEffectEvent(
+    (recipe: Parameters<typeof applyLoraTemplate>[0]) =>
+      applyLoraTemplate(recipe),
+  )
   useEffect(() => {
     if (!templateParam || appliedTemplateRef.current === templateParam) return
     appliedTemplateRef.current = templateParam
@@ -1583,17 +1590,10 @@ function GenerateBranch({
       router.replace(rest ? `${pathname}?${rest}` : pathname, {
         scroll: false,
       })
-      if (response.success && response.data) applyLoraTemplate(response.data)
+      if (response.success && response.data) applyFetchedTemplate(response.data)
       else toast.error(t('generate.templateLoadFailed'))
     })
-  }, [
-    applyLoraTemplate,
-    pathname,
-    replaySearchParams,
-    router,
-    t,
-    templateParam,
-  ])
+  }, [pathname, replaySearchParams, router, t, templateParam])
 
   // 一键补挂配方里叠加的其他 LoRA：解析（本地库→Civitai）→ push 进挂载栈，
   // 状态（loading/mounted/failed/incompatible）回写驱动「常与它同挂」行内反馈。

@@ -19,7 +19,14 @@
 | L4  | 端到端           | `e2e/journeys/*.spec.ts` | Playwright 登录测试账号 + 假出图服务：关键链路 + 冒烟（每个台、每个库页打开不崩、控制台无报错），CI 每次跑   |
 | L5  | 助手评测         | `test:eval`              | 真模型 68 题，管话术质量；花钱、手动                                                                         |
 
-关键链路（L4）：① 工作台出图 → 进素材库 ② 助手挂 / 摘 / 再挂 LoRA，台面一致、收藏不多写 ③ 角色页聊一句 ④ 画布镜头表新建 → 发送 ⑤ 冒烟全台全库页。
+关键链路（L4）：① 工作台出图 → 进素材库 ② LoRA 挂上 → 卸下 → 再挂回 ③ 角色页聊一句 → 看到回答 ④ 镜头表写描述 → 存库 → 重进还在 ⑤ 冒烟全台全库页（截图 + 无障碍树落 `e2e/.pages`，CI 产物 `e2e-pages`）。
+
+L4 的假边界（只替外部，应用全真）：
+
+- **执行 Worker + 出图服务商**：`e2e/fake-worker/server.ts`，签名 / 取 key / 回调直接复用真 Worker 的 `workers/execution/src/lib/app-bridge.ts`；`EXECUTION_WORKER_BASE_URL` 指过去。生产模式回调防重放要 Redis，CI 起 redis + serverless-redis-http。
+- **文字模型**：`e2e/fake-llm/server.ts`（OpenAI chat + Anthropic messages，流式 / 缓冲）。⚠ 文字模型不看 key 上的 `baseUrl`，一律打官方默认地址；唯一改道口是 `CLOUDFLARE_AI_GATEWAY_URL`（`llm-core` 与助手新内核的 AI SDK `aiGatewayFetch` 都走它），CI 把它指到假模型。只能 https：CI 现签 localhost 证书，Next 进程用 `NODE_EXTRA_CA_CERTS` 信任。
+- **不走点击的那一跳**：收藏 LoRA（不碰 Civitai）、建带镜号的镜头卡（桌面「添加节点」加的不编号）用真接口，之后全走界面。
+- 坑：登录时先点掉隐私提示条（挡底栏按钮）；`api()` 每次现取 Clerk 令牌（60 秒过期）；跑主循环的用例自己 `test.setTimeout`（默认 30 秒盖住 expect 的超时）。
 
 ### 改什么，必须带什么
 
@@ -56,8 +63,9 @@
 - 清单在 `src/test/assistant-bench/bench-effects.int.test.ts` 的 `BENCH_EFFECTS`：`ASSISTANT_OPERATOR_MUTATING_TOOLS` 里每一条都要声明「改哪几格台面」（`run.state` 的键）或「不在台面上、为什么」。**新加会改东西的工具不声明，清单那一例直接红。**
 - 声明了改台面的逐条真跑（L2a 真库 + 真 `prepareOperatorTurn`，不调模型）：`planTool` 必须是 `mutate` → `apply()` 后这一轮台面真变（⛔ 空操作）、只变声明的格、助手下一步 `read_state` 读得到。
 - 线上出过事的对话把工具调用原样写成一条回放放在同文件（第一条：11-03 摘下 LoRA 挂不回去；它还查出同轮重复挂同一把没拦，已修）。
-- 下一轮对账 `src/test/assistant-bench/next-turn.int.test.ts`（图片台 8 例）：这一步过客户端 schema → 真 `applyOperatorStep` 落进真表单 reducer → 宿主同一份 `buildWorkbenchOperatorForm` + 快照 → 再开一轮，台面必须和这一轮服务端记下的一样。
-- 还没覆盖：画布两条（浏览器落一批、下一跳带新快照回来）；视频 / 标签 / LoRA 台的下一轮对账。
+- 下一轮对账 `src/test/assistant-bench/next-turn.int.test.ts`（图片 8 / 视频 7 / 标签 3 例）：这一步过客户端 schema → 真 `applyOperatorStep` 落进真表单 reducer → 宿主同一份 `buildWorkbenchOperatorForm` + 快照 → 再开一轮，台面必须和这一轮服务端记下的一样。
+- 画布两条 `src/test/assistant-bench/canvas-next-turn.int.test.ts`：服务端不动台面，这一步经真 `applyOperatorStep` → 宿主同一个 `applyCanvasBatchV4` 落进真图 → `buildCanvasOperatorSnapshot` → 再开一轮，下一轮读到的卡必须变成这一步说的样子（写词 / 改正文 / 一批新建+连线）。
+- 还没覆盖：LoRA 台的下一轮对账（台面在 `LoraStackProvider` 里，放进第 4 步 LoRA 挂卸主流程 E2E 一起测）。
 
 ### 四条硬规矩
 
@@ -71,8 +79,14 @@
 ### 迁移旧测试（棘轮）
 
 - 基线（2026-11-03）：974 个文件里 351 个假了自己的非边界模块、99 个假了数据库；197 个路由里 102 个有测试，全抄 401 / 400 / 500。
-- 待迁名单：`scripts/test-standard/mock-baseline.json`（2026-11-03 上线时 402 个文件，含假数据库的），**名单只减不增**；新文件必须合规，改到名单里的文件顺手迁出并从名单删掉（迁好了还留在名单里，契约测试会红）。
-- 按域分批，先迁出事最多的：助手工具与台面 → LoRA（挂载、收藏）→ 角色 / 出门 → 技能、配方、点数（数据库）→ 画布 → 其余。每个域迁完删掉被替代的旧测试。
+- 待迁名单：`scripts/test-standard/mock-baseline.json`。2026-11-03 上线时 402 个文件，**2026-11-04 全部迁完，名单为空**（空数组留着当棘轮：以后不许再加）。新测试一律合规。
+- 长期豁免（不是待迁）：`rules.mjs` 的 `MOCK_EXEMPT`，目前只有助手实跑评测 `src/test/assistant-eval/live-eval.test.ts`（按设计打真模型 + 只读回放库，没设 `ASSISTANT_EVAL_DIR` 整组跳过，不进 CI）。
+- 迁移时攒下的共用件（新测试先找这里）：
+  - 真库：`src/test/int/`——`db.ts`（清库、建用户、种 key）、`generations.ts` / `seed-generation.ts`、`cards.ts`、`assistant-keys.ts`、`execution-worker.ts`（假执行 Worker）、`fake-r2.ts`（内存 R2 桶）、`fake-audio-providers.ts`、`execution-callback.ts`、`fake-llm-text.ts`
+  - 助手：`src/test/assistant-bench/`——`fake-model.ts`（只假外部 SDK 包）、`kernel-harness.ts`、`turn.ts`、`operator-plan.ts`
+  - 界面：`src/test/app-harness.tsx`（真 provider，只假 api-client / fakeServer）、`studio-harness.tsx`（真 StudioProvider）、`viewport.ts`（设屏宽给真 useIsMobile）、`radix-menu.ts`、`operator-lightbox.tsx`、`operator-dock.tsx`、`api-keys.ts`、`fake-video-element.ts`、`fake-canvas-2d.ts`、`browser-stubs.ts`、`i18n-text.ts`
+- 本机 PGlite 的已知限制：多条连接排在一个后端上，**并发提交**、**事务里报错后再查**拿到的结果不可靠。只有这两类用例用 `it.skipIf(!process.env.TEST_DATABASE_URL)` 并写一行原因（CI 真 Postgres 会跑），别的用例不许这样跳。
+- 环境：真库测试把 `NEXT_PUBLIC_STORAGE_BASE_URL` 钉成 `https://cdn.test`（`src/test/int/setup.ts`）——本机 shell 常带线上值，CI 没有，两边结果会不一样（11-04 CI 红过）。`findBy` / `waitFor` 默认等 5 秒（`vitest.setup.ts`，从 `@testing-library/dom` 配；从 react 入口引会打乱 cleanup 顺序）。
 - 记账：每个线上 bug 在施工单记一行「哪层拦住 / 本该哪层拦住」，一个月后按此砍不干活的那类测试。
 
 ## 命令与闸门（2026-07-10 核验）

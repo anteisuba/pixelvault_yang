@@ -1,28 +1,28 @@
-import type { ReactNode } from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
 
-import type { DanbooruCatalogRequest } from '@/hooks/use-danbooru-catalog'
 import type { DanbooruCatalogCandidate } from '@/types/danbooru-catalog'
+import { renderWithApp } from '@/test/app-harness'
 
-const mocks = vi.hoisted(() => ({
-  navigate: vi.fn(),
-  setView: vi.fn(),
-  params: {
-    favoritesView: false,
-    kind: 'character' as const,
-    query: '',
-    tag: null as string | null,
-    of: null as string | null,
-  },
-  pages: [] as DanbooruCatalogCandidate[],
-  requests: [] as (DanbooruCatalogRequest | null)[],
+import { TagLibraryDesk } from './TagLibraryDesk'
+import { TAG_LIBRARY_PARAM } from './tag-library-params'
+
+/**
+ * 全程真 hook：真 `useTagLibraryParams`（读地址栏、`router.replace` 写回）、真分页 /
+ * 预览 / 详情 / 收藏 hook、真 library-kit。只假 api-client 那两跳与地址栏。
+ */
+
+const nav = vi.hoisted(() => ({ query: '', replace: vi.fn() }))
+vi.mock('next/navigation', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('next/navigation')>()),
+  useSearchParams: () => new URLSearchParams(nav.query),
 }))
-
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, values?: Record<string, unknown>) =>
-    values ? `${key}(${Object.values(values).join('|')})` : key,
-  useLocale: () => 'zh',
+vi.mock('@/i18n/navigation', () => ({
+  usePathname: () => '/library/tags',
+  useRouter: () => ({ replace: nav.replace, push: vi.fn() }),
+}))
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({ isLoaded: true, isSignedIn: true, userId: 'user-a' }),
 }))
 vi.mock('motion/react', async (importOriginal) => ({
   ...(await importOriginal<typeof import('motion/react')>()),
@@ -34,85 +34,20 @@ vi.mock('next/image', () => ({
     <img src={src} alt={alt} />
   ),
 }))
-vi.mock('./tag-library-params', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('./tag-library-params')>()),
-  useTagLibraryParams: () => ({
-    ...mocks.params,
-    navigate: mocks.navigate,
-    setView: mocks.setView,
-  }),
-}))
-vi.mock('@/contexts/studio-library-pick', () => ({
-  useStudioLibraryPick: () => ({ tags: null }),
-}))
-vi.mock('@/hooks/use-danbooru-favorites', () => ({
-  useDanbooruFavorites: () => ({
-    loaded: true,
-    of: () => [],
-    has: () => false,
-    toggle: vi.fn(),
-  }),
-}))
-vi.mock('@/hooks/use-danbooru-tag-library', () => ({
-  useDanbooruTagPages: () => ({
-    items: mocks.pages,
-    loading: false,
-    error: false,
-    done: true,
-    loadMore: vi.fn(),
-    retry: vi.fn(),
-  }),
-  useDanbooruTagPreview: () => ({
-    previews: ['https://cdn.donmai.us/p.jpg'],
-    work: 'vocaloid',
-  }),
-}))
-vi.mock('@/hooks/use-near-viewport', () => ({
-  useNearViewport: () => ({ setNode: () => {}, isNearViewport: true }),
-}))
-vi.mock('@/hooks/use-danbooru-catalog', () => ({
-  useDanbooruCatalog: (request: DanbooruCatalogRequest | null) => {
-    mocks.requests.push(request)
-    return { error: false, loading: true, retry: vi.fn() }
-  },
-}))
-vi.mock('../lookup/LookupDetailPane', () => ({
-  LookupDetailPane: ({ candidate }: { candidate: { name: string } }) => (
-    <div data-testid="detail">{candidate.name}</div>
-  ),
-}))
-vi.mock('@/components/ui/library-kit', () => ({
-  LibraryRail: ({ children }: { children: ReactNode }) => <nav>{children}</nav>,
-  LibraryRailRow: ({
-    label,
-    onSelect,
-  }: {
-    label: string
-    onSelect: () => void
-  }) => (
-    <button type="button" onClick={onSelect}>
-      {label}
-    </button>
-  ),
-  LibraryToolbar: ({ search }: { search: ReactNode }) => <div>{search}</div>,
-  LibrarySearch: ({
-    value,
-    onChange,
-    label,
-  }: {
-    value: string
-    onChange: (value: string) => void
-    label: string
-  }) => (
-    <input
-      aria-label={label}
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-    />
-  ),
-}))
 
-import { TagLibraryDesk } from './TagLibraryDesk'
+const catalog = vi.hoisted(() => ({
+  pages: [] as unknown[],
+  api: vi.fn(),
+}))
+vi.mock('@/lib/api-client/danbooru-catalog', () => ({
+  getDanbooruCatalogAPI: catalog.api,
+}))
+vi.mock('@/lib/api-client/danbooru-favorites', async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import('@/lib/api-client/danbooru-favorites')
+  >()),
+  listDanbooruFavoritesAPI: async () => [],
+}))
 
 const candidate = (
   name: string,
@@ -129,48 +64,79 @@ const candidate = (
 
 describe('TagLibraryDesk（ui-spec §9 ㊴ 左列表 + 右详情）', () => {
   beforeEach(() => {
-    mocks.navigate.mockReset()
-    mocks.requests.length = 0
-    mocks.params.tag = null
-    mocks.params.of = null
-    mocks.pages = [
+    nav.query = ''
+    nav.replace.mockReset()
+    const pages = [
       candidate('hatsune_miku', '初音未来'),
       candidate('kagamine_rin', null),
     ]
+    // 列表一页回这两位；预览回作品 vocaloid；详情那一跳按 tag 回那一位。
+    catalog.api.mockReset()
+    catalog.api.mockImplementation(
+      async (query: { page?: number; preview?: string; tag?: string }) => {
+        if (query.page) return { candidates: pages, nextPage: null }
+        if (query.preview)
+          return {
+            candidates: [
+              {
+                ...candidate(query.tag!, null),
+                work: 'vocaloid',
+                previews: ['https://cdn.donmai.us/p.jpg'],
+              },
+            ],
+          }
+        return {
+          candidates: pages.filter((item) => item.name === query.tag),
+          nextPage: null,
+        }
+      },
+    )
+  })
+  afterEach(() => vi.unstubAllGlobals())
+
+  const rows = () =>
+    screen.findAllByRole('button', { name: /hatsune miku|kagamine rin/ })
+
+  it('一行一个：名字去下划线，灰字写中文名 · 作品 · 张数；不点就详情看第一个', async () => {
+    renderWithApp(<TagLibraryDesk />)
+
+    const list = await rows()
+    expect(list).toHaveLength(2)
+    expect(list[0]).toHaveTextContent('初音未来')
+    // 作品是逐行预览那一跳拉回来的。
+    await waitFor(() => expect(list[0]).toHaveTextContent('vocaloid'))
+    expect(list[0]).toHaveAttribute('aria-current', 'true')
+    // 详情那一栏去拉第一个的详情。
+    await waitFor(() =>
+      expect(catalog.api).toHaveBeenCalledWith(
+        expect.objectContaining({ tag: 'hatsune_miku', kind: 'character' }),
+        expect.anything(),
+      ),
+    )
   })
 
-  it('一行一个：名字去下划线，灰字写中文名 · 作品 · 张数；不点就详情看第一个', () => {
-    render(<TagLibraryDesk />)
-
-    const rows = screen.getAllByRole('button', {
-      name: /hatsune miku|kagamine rin/,
-    })
-    expect(rows).toHaveLength(2)
-    expect(rows[0]).toHaveTextContent('初音未来 · rowWork(vocaloid|')
-    expect(rows[0]).toHaveAttribute('aria-current', 'true')
-    expect(screen.getByTestId('detail')).toHaveTextContent('hatsune_miku')
-    expect(mocks.requests).toContainEqual({
-      tag: 'hatsune_miku',
-      kind: 'character',
-    })
-  })
-
-  it('点一行 = 地址里记下它（刷新回到原处）', () => {
-    render(<TagLibraryDesk />)
+  it('点一行 = 地址里记下它（刷新回到原处）', async () => {
+    renderWithApp(<TagLibraryDesk />)
+    await rows()
     fireEvent.click(screen.getByRole('button', { name: /kagamine rin/ }))
-    expect(mocks.navigate).toHaveBeenCalledWith({
-      tag: 'kagamine_rin',
-      of: 'character',
-    })
+    const [url] = nav.replace.mock.lastCall!
+    const params = new URL(url as string, 'https://x.test').searchParams
+    expect(params.get(TAG_LIBRARY_PARAM.tag)).toBe('kagamine_rin')
+    expect(params.get(TAG_LIBRARY_PARAM.of)).toBe('character')
   })
 
-  it('地址里记着的那一个就是选中的', () => {
-    mocks.params.tag = 'kagamine_rin'
-    mocks.params.of = 'character'
-    render(<TagLibraryDesk />)
+  it('地址里记着的那一个就是选中的', async () => {
+    nav.query = `${TAG_LIBRARY_PARAM.tag}=kagamine_rin&${TAG_LIBRARY_PARAM.of}=character`
+    renderWithApp(<TagLibraryDesk />)
+    await rows()
     expect(
       screen.getByRole('button', { name: /kagamine rin/ }),
     ).toHaveAttribute('aria-current', 'true')
-    expect(screen.getByTestId('detail')).toHaveTextContent('kagamine_rin')
+    await waitFor(() =>
+      expect(catalog.api).toHaveBeenCalledWith(
+        expect.objectContaining({ tag: 'kagamine_rin', kind: 'character' }),
+        expect.anything(),
+      ),
+    )
   })
 })

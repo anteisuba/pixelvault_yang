@@ -1,34 +1,32 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+/**
+ * L2b：key 页连真 `ApiKeysProvider`（真 useApiKeys，体检结果读真 localStorage 缓存）、
+ * 真 `useMonthlyUsage`、真 `QuickSetupDialog`，只假网络与路由跳转。
+ */
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { AI_MODELS } from '@/constants/models'
+import {
+  AI_ADAPTER_TYPES,
+  getDefaultProviderConfig,
+  getProviderLabel,
+} from '@/constants/providers'
+import { ApiKeysProvider } from '@/contexts/api-keys-context'
+import { fakeServer, message, renderWithApp } from '@/test/app-harness'
+import {
+  apiKeyRecord,
+  fakeApiKeyRoutes,
+  runIdleCallbacksNow,
+} from '@/test/fake-routes'
 import type { ApiKeyHealthStatus, UserApiKeyRecord } from '@/types'
+import type { MonthlyUsageRow } from '@/types/usage'
 
 import { SettingsKeysSection } from './SettingsKeysSection'
 
-vi.mock('next-intl', () => ({
-  useTranslations: (namespace: string) => (key: string) =>
-    `${namespace}:${key}`,
-  useFormatter: () => ({ relativeTime: () => 'just now' }),
-}))
-
-vi.mock('@/components/business/studio-shared/setup/QuickSetupDialog', () => ({
-  QuickSetupDialog: ({
-    open,
-    onOpenChange,
-  }: {
-    open: boolean
-    onOpenChange: (open: boolean) => void
-  }) =>
-    open ? (
-      <div data-testid="quick-setup">
-        <button
-          type="button"
-          data-testid="quick-setup-close"
-          onClick={() => onOpenChange(false)}
-        />
-      </div>
-    ) : null,
+// 每例换一个登录用户：真 useApiKeys 的名单按用户缓存在模块里。
+const auth = vi.hoisted(() => ({ userId: 'user_0' }))
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({ userId: auth.userId, isSignedIn: true, isLoaded: true }),
 }))
 
 const navigation = vi.hoisted(() => ({
@@ -39,69 +37,44 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => navigation.search,
 }))
 vi.mock('@/i18n/navigation', () => ({
-  useRouter: () => ({ replace: navigation.replace }),
+  useRouter: () => ({ replace: navigation.replace, push: vi.fn() }),
   usePathname: () => '/settings/keys',
+  Link: ({ children, href }: { children: React.ReactNode; href: string }) => (
+    <a href={href}>{children}</a>
+  ),
 }))
 
-const mockUseApiKeysContext = vi.hoisted(() => vi.fn())
-vi.mock('@/contexts/api-keys-context', () => ({
-  useApiKeysContext: mockUseApiKeysContext,
-}))
+const t = (key: string, values: Record<string, string> = {}) =>
+  message(`Settings.keys.${key}`).replace(
+    /\{(\w+)\}/g,
+    (_, name: string) => values[name] ?? `{${name}}`,
+  )
+const providerName = (adapter: AI_ADAPTER_TYPES) =>
+  getProviderLabel(getDefaultProviderConfig(adapter))
 
-vi.mock('@/features/settings/hooks/use-monthly-usage', () => ({
-  useMonthlyUsage: () => ({
-    month: '2026-09',
-    providers: [
-      {
-        adapterType: 'fal',
-        label: 'fal.ai',
-        requests: 12,
-        estimatedCostUsd: 3,
-      },
-    ],
-    totalRequests: 12,
-    totalEstimatedCostUsd: 3,
-    runner: null,
-    isLoading: false,
-    refresh: vi.fn(),
-  }),
-}))
+let userSeq = 0
+beforeEach(() => {
+  userSeq += 1
+  auth.userId = `user_${userSeq}`
+  navigation.replace.mockReset()
+  navigation.search = new URLSearchParams()
+  localStorage.clear()
+  runIdleCallbacksNow()
+})
 
-function keyRecord(
-  id: string,
-  adapterType: AI_ADAPTER_TYPES,
-  label: string,
-  providerLabel = label,
-): UserApiKeyRecord {
-  return {
-    id,
-    modelId: 'whatever',
-    adapterType,
-    providerConfig: { label: providerLabel, baseUrl: 'https://example.com' },
-    label,
-    maskedKey: '••••••••',
-    isActive: true,
-    createdAt: new Date('2026-09-01T00:00:00Z'),
-  }
-}
-
-function mountWith(
+async function mountWith(
   keys: UserApiKeyRecord[],
-  healthMap: Record<string, ApiKeyHealthStatus>,
+  health: Record<string, ApiKeyHealthStatus> = {},
+  usage: MonthlyUsageRow[] = [],
 ) {
-  mockUseApiKeysContext.mockReturnValue({
-    keys,
-    isLoading: false,
-    error: null,
-    healthMap,
-    verifiedAtMap: { 'fal-1': Date.parse('2026-09-18T00:00:00Z') },
-    create: vi.fn(),
-    update: vi.fn(),
-    remove: vi.fn(),
-    verify: vi.fn(),
-    refresh: vi.fn(),
+  const server = fakeApiKeyRoutes(fakeServer(), keys, { health, usage })
+  const view = renderWithApp(<SettingsKeysSection />, {
+    inner: ApiKeysProvider,
   })
-  return render(<SettingsKeysSection />)
+  await waitFor(() =>
+    expect(server.requests.map((r) => r.path)).toContain('/api/api-keys'),
+  )
+  return view
 }
 
 /** 行的可读快照：provider 名 + 状态一句。 */
@@ -113,114 +86,119 @@ function rowSummaries(): string[] {
 }
 
 describe('SettingsKeysSection', () => {
-  beforeEach(() => {
-    mockUseApiKeysContext.mockReset()
-    navigation.replace.mockReset()
-    navigation.search = new URLSearchParams()
-  })
-
-  it('sorts failing providers first, then configured, then unconfigured', () => {
-    mountWith(
+  it('失效的排最前，再是配好的，最后未配置', async () => {
+    await mountWith(
       [
-        keyRecord('fal-1', AI_ADAPTER_TYPES.FAL, 'fal.ai'),
-        keyRecord('openai-1', AI_ADAPTER_TYPES.OPENAI, 'OpenAI'),
+        apiKeyRecord('fal-1', AI_ADAPTER_TYPES.FAL, 'fal.ai'),
+        apiKeyRecord('openai-1', AI_ADAPTER_TYPES.OPENAI, 'OpenAI'),
       ],
       { 'fal-1': 'available', 'openai-1': 'failed' },
     )
 
+    await waitFor(() =>
+      expect(rowSummaries().some((text) => text.includes('OpenAI'))).toBe(true),
+    )
     const summaries = rowSummaries()
     const openAiIndex = summaries.findIndex((text) => text.includes('OpenAI'))
     const falIndex = summaries.findIndex((text) => text.includes('fal.ai'))
     const unconfiguredIndex = summaries.findIndex((text) =>
-      text.includes('Settings:keys.status.unconfigured'),
+      text.includes(t('status.unconfigured')),
     )
 
-    expect(openAiIndex).toBeGreaterThanOrEqual(0)
     expect(openAiIndex).toBeLessThan(falIndex)
     expect(falIndex).toBeLessThan(unconfiguredIndex)
-    // OpenAI 那把没校验过的时间戳 —— 状态句就退到不带时间的那一条。
-    expect(summaries[openAiIndex]).toContain('Settings:keys.status.invalid')
+    // OpenAI 那把没校验时间戳 —— 状态句退到不带时间的那一条。
+    expect(summaries[openAiIndex]).toContain(t('status.invalid'))
   })
 
-  it('offers "replace key" on a failing row and "set up" on an unconfigured one', () => {
-    mountWith([keyRecord('openai-1', AI_ADAPTER_TYPES.OPENAI, 'OpenAI')], {
-      'openai-1': 'failed',
-    })
+  it('失效行给「换一把」，未配置行给「配置」', async () => {
+    await mountWith(
+      [apiKeyRecord('openai-1', AI_ADAPTER_TYPES.OPENAI, 'OpenAI')],
+      {
+        'openai-1': 'failed',
+      },
+    )
 
-    expect(screen.getByText('Settings:keys.replaceKey')).toBeTruthy()
-    expect(
-      screen.getAllByText('Settings:keys.configure').length,
-    ).toBeGreaterThan(0)
+    expect(await screen.findByText(t('replaceKey'))).toBeInTheDocument()
+    expect(screen.getAllByText(t('configure')).length).toBeGreaterThan(0)
   })
 
-  it('expands a configured provider into its individual keys', () => {
-    mountWith(
+  it('配好的一家能展开看每一把，展开后才有「再加一把」', async () => {
+    await mountWith(
       [
-        keyRecord('fal-1', AI_ADAPTER_TYPES.FAL, 'personal', 'fal.ai'),
-        keyRecord('fal-2', AI_ADAPTER_TYPES.FAL, 'work', 'fal.ai'),
+        apiKeyRecord('fal-1', AI_ADAPTER_TYPES.FAL, 'personal', 'fal.ai'),
+        apiKeyRecord('fal-2', AI_ADAPTER_TYPES.FAL, 'work', 'fal.ai'),
       ],
       { 'fal-1': 'available', 'fal-2': 'available' },
     )
 
-    expect(screen.queryByText('Settings:keys.addAnother')).toBeNull()
-
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Settings:keys.toggleKeys' }),
-    )
-
-    expect(screen.getByText('personal')).toBeTruthy()
-    expect(screen.getByText('work')).toBeTruthy()
-    expect(screen.getByText('Settings:keys.addAnother')).toBeTruthy()
-  })
-
-  it('falls back to the unconfigured state once the last key is gone', () => {
-    const { unmount } = mountWith(
-      [keyRecord('fal-1', AI_ADAPTER_TYPES.FAL, 'fal.ai')],
-      { 'fal-1': 'available' },
-    )
-    expect(
-      screen.getByText('Settings:keys.status.healthyWithStamp'),
-    ).toBeTruthy()
-    unmount()
-
-    mountWith([], {})
-    expect(
-      screen.queryByText('Settings:keys.status.healthyWithStamp'),
-    ).toBeNull()
-    expect(
-      screen.getAllByText('Settings:keys.status.unconfigured').length,
-    ).toBeGreaterThan(0)
-  })
-
-  it('shows this month spend only for providers that have one', () => {
-    mountWith([keyRecord('fal-1', AI_ADAPTER_TYPES.FAL, 'fal.ai')], {
-      'fal-1': 'available',
+    const toggle = await screen.findByRole('button', {
+      name: t('toggleKeys', { provider: 'fal.ai' }),
     })
+    expect(screen.queryByText(t('addAnother'))).toBeNull()
 
-    const spendCells = screen.getAllByText('Settings:keys.monthlySpend')
-    expect(spendCells).toHaveLength(1)
+    fireEvent.click(toggle)
+
+    expect(screen.getByText('personal')).toBeInTheDocument()
+    expect(screen.getByText('work')).toBeInTheDocument()
+    expect(screen.getByText(t('addAnother'))).toBeInTheDocument()
   })
 
-  it('?setup= 带着 provider 进来就直接打开它的配置弹窗；关掉时去掉这个参数、留下 from', () => {
+  it('没有 key 时每家都是「未配置」，没有任何一行写着可用', async () => {
+    await mountWith([])
+
+    await waitFor(() =>
+      expect(
+        screen.getAllByText(t('status.unconfigured')).length,
+      ).toBeGreaterThan(1),
+    )
+    expect(rowSummaries().join('')).not.toContain(t('status.healthy'))
+  })
+
+  it('本月花费只出现在有花费的那一家', async () => {
+    await mountWith(
+      [apiKeyRecord('fal-1', AI_ADAPTER_TYPES.FAL, 'fal.ai')],
+      { 'fal-1': 'available' },
+      [{ adapterType: 'fal', modelId: AI_MODELS.KLING_V3_PRO, requests: 12 }],
+    )
+
+    const spendSuffix = t('monthlySpend', { amount: '' }).trim()
+    await waitFor(() =>
+      expect(
+        screen.getAllByText((text) => text.endsWith(spendSuffix)),
+      ).toHaveLength(1),
+    )
+  })
+
+  it('?setup= 带着 provider 进来就打开它的配置弹窗；关掉时去掉这个参数、留下 from', async () => {
     navigation.search = new URLSearchParams(
       `from=${encodeURIComponent('/studio/image')}&setup=${AI_ADAPTER_TYPES.OPENAI}`,
     )
-    mountWith([], {})
-    expect(screen.getByTestId('quick-setup')).toBeTruthy()
-    fireEvent.click(screen.getByTestId('quick-setup-close'))
-    expect(navigation.replace).toHaveBeenCalledWith(
-      '/settings/keys?from=%2Fstudio%2Fimage',
+    await mountWith([])
+
+    const dialog = await screen.findByRole('dialog')
+    expect(
+      within(dialog).getAllByText(
+        new RegExp(providerName(AI_ADAPTER_TYPES.OPENAI)),
+      ).length,
+    ).toBeGreaterThan(0)
+    fireEvent.keyDown(dialog, { key: 'Escape' })
+
+    await waitFor(() =>
+      expect(navigation.replace).toHaveBeenCalledWith(
+        '/settings/keys?from=%2Fstudio%2Fimage',
+      ),
     )
   })
 
-  it('?setup= 写了不认识的 provider 时什么都不弹', () => {
+  it('?setup= 写了不认识的 provider 时什么都不弹', async () => {
     navigation.search = new URLSearchParams('setup=not-a-provider')
-    mountWith([], {})
-    expect(screen.queryByTestId('quick-setup')).toBeNull()
+    await mountWith([])
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 
-  it('没有 ?setup= 时不自己弹', () => {
-    mountWith([], {})
-    expect(screen.queryByTestId('quick-setup')).toBeNull()
+  it('没有 ?setup= 时不自己弹', async () => {
+    await mountWith([])
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 })

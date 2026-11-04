@@ -1,7 +1,13 @@
 // @vitest-environment jsdom
+import { createElement, type ReactNode } from 'react'
 import { act, renderHook } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { VIDEO_FRAME_CAPTURE_REASONS } from '@/constants/video-analysis'
+import type { StudioOperatorHost } from '@/contexts/studio-operator-host'
+import {
+  installFakeVideoDecoding,
+  type FakeVideoDecoding,
+} from '@/test/fake-video-element'
 import type { AssistantOperatorRequest } from '@/types/assistant-operator'
 import type { StudioOperatorAttachment } from '@/types/studio-assistant-operator'
 
@@ -16,8 +22,6 @@ import type { StudioOperatorAttachment } from '@/types/studio-assistant-operator
  */
 
 const streamAssistantOperatorAPI = vi.hoisted(() => vi.fn())
-const captureVideoEndpointFrames = vi.hoisted(() => vi.fn())
-const captureClipFrames = vi.hoisted(() => vi.fn())
 const hostDomain = vi.hoisted(() => ({ current: 'video' as 'video' | 'image' }))
 const hostSnapshot = vi.hoisted(() => ({
   current: { prompt: '', availableModels: [] } as Record<string, unknown>,
@@ -30,21 +34,24 @@ vi.mock('@/lib/api-client/assistant-operator', () => ({
 vi.mock('@/i18n/navigation', () => ({
   useRouter: () => ({ push: () => {} }),
 }))
-vi.mock('@/lib/video-frame-capture', () => ({
-  captureVideoEndpointFrames,
-  captureClipFrames,
-}))
 
 vi.mock('next-intl', () => {
   const t = Object.assign((key: string) => `i18n:${key}`, { has: () => false })
   return { useLocale: () => 'zh', useTranslations: () => t }
 })
 
-vi.mock('@/contexts/studio-operator-host', () => ({
-  useStudioOperatorBenchKey: () => undefined,
-  useStudioOperatorHost: () => ({
-    domain: hostDomain.current,
-    workspace: hostDomain.current === 'image' ? 'image-natural' : 'video',
+/**
+ * 测试台交给**真的** `StudioOperatorHostProvider`；域按用例换（getter 现读）。
+ * 抽帧走真的 `@/lib/video-frame-capture`，只替浏览器那层解码（`installFakeVideoDecoding`）。
+ */
+function testHost(): StudioOperatorHost {
+  return {
+    get domain() {
+      return hostDomain.current
+    },
+    get workspace() {
+      return hostDomain.current === 'image' ? 'image-natural' : 'video'
+    },
     buildSnapshot: () => hostSnapshot.current,
     results: [],
     open: true,
@@ -63,8 +70,8 @@ vi.mock('@/contexts/studio-operator-host', () => ({
       unmountUserUrl: () => {},
       setPrimed: () => {},
     },
-  }),
-}))
+  } as unknown as StudioOperatorHost
+}
 
 const CLIP_URL = 'https://cdn.anteisuba.com/clips/shot.mp4'
 
@@ -82,27 +89,28 @@ const IMAGE_CHIP: StudioOperatorAttachment = {
   kind: 'image',
 }
 
-function capturedOk(frameCount = 3) {
-  return {
-    ok: true as const,
-    plan: { entries: [] },
-    durationSeconds: 6,
-    width: 768,
-    height: 432,
-    frames: Array.from({ length: frameCount }, (_, index) => ({
-      index,
-      timestampSeconds: index * 1.5 + 0.75,
-      dataUrl: `data:image/webp;base64,AAA${String(index)}`,
-    })),
-  }
-}
+const REF_URL = 'https://cdn.anteisuba.com/refs/ref.mp4'
+
+/** 抽出来的那几帧：按片长计划的若干张、每张都是编好的图。 */
+const FRAMES = expect.arrayContaining([
+  expect.objectContaining({
+    index: 0,
+    timestampSeconds: expect.any(Number),
+    dataUrl: expect.stringMatching(/^data:image\//),
+  }),
+])
+
+let decoding: FakeVideoDecoding
 
 type Store = typeof import('@/hooks/use-studio-operator-store')
 type Operator =
   typeof import('@/features/assistant/hooks/use-assistant-operator')
 
+type HostModule = typeof import('@/contexts/studio-operator-host')
+
 let store: Store
 let operator: Operator
+let hostModule: HostModule
 const requests: AssistantOperatorRequest[] = []
 
 beforeEach(async () => {
@@ -112,8 +120,13 @@ beforeEach(async () => {
   hostDomain.current = 'video'
   hostSnapshot.current = { prompt: '', availableModels: [] }
   window.localStorage.clear()
-  captureVideoEndpointFrames.mockResolvedValue(capturedOk())
-  captureClipFrames.mockResolvedValue(capturedOk(4))
+  decoding = installFakeVideoDecoding({
+    [CLIP_URL]: { duration: 6, width: 768, height: 432 },
+    [REF_URL]: { duration: 4 },
+    'https://cdn.anteisuba.com/clips/1.mp4': { duration: 5 },
+    'https://cdn.anteisuba.com/clips/2.mp4': { duration: 5 },
+    'https://cdn.anteisuba.com/clips/3.mp4': { duration: 5 },
+  })
   streamAssistantOperatorAPI.mockImplementation(
     (request: AssistantOperatorRequest) => {
       requests.push(request)
@@ -129,7 +142,17 @@ beforeEach(async () => {
   )
   store = await import('@/hooks/use-studio-operator-store')
   operator = await import('@/features/assistant/hooks/use-assistant-operator')
+  hostModule = await import('@/contexts/studio-operator-host')
 })
+
+afterEach(() => {
+  vi.restoreAllMocks()
+})
+
+/** 这段片子被 `<video>` 读了几次（没读过 = 0）。 */
+function loadsOf(url: string): number {
+  return decoding.loads[url] ?? 0
+}
 
 async function settle(): Promise<void> {
   await act(async () => {
@@ -142,7 +165,14 @@ async function settle(): Promise<void> {
 function render() {
   const scope = `user-a:${hostDomain.current === 'image' ? 'image-natural' : 'video'}`
   store.claimOperatorThreadScope(scope, hostDomain.current)
-  return renderHook(() => operator.useAssistantOperator(scope))
+  return renderHook(() => operator.useAssistantOperator(scope), {
+    wrapper: ({ children }: { children: ReactNode }) =>
+      createElement(
+        hostModule.StudioOperatorHostProvider,
+        { host: testHost() } as never,
+        children,
+      ),
+  })
 }
 
 function systemLines(code: string) {
@@ -160,15 +190,13 @@ describe('v3 看片：被指着的片子按片长抽帧，随 videoClips 上去'
     })
     await settle()
 
-    expect(captureClipFrames).toHaveBeenCalledWith(CLIP_URL)
-    expect(captureVideoEndpointFrames).not.toHaveBeenCalled()
     expect(requests).toHaveLength(1)
     expect(requests[0]?.videoClips).toEqual([
       {
         sourceUrl: CLIP_URL,
         label: VIDEO_CHIP.label,
         durationSeconds: 6,
-        frames: capturedOk(4).frames,
+        frames: FRAMES,
       },
     ])
     expect(requests[0]?.videoFrames).toBeUndefined()
@@ -208,7 +236,7 @@ describe('v3 看片：被指着的片子按片长抽帧，随 videoClips 上去'
       prompt: '',
       availableModels: [],
       videoReferences: {
-        items: [{ url: 'https://cdn.anteisuba.com/refs/ref.mp4' }],
+        items: [{ url: REF_URL }],
         limit: 3,
       },
     }
@@ -221,10 +249,10 @@ describe('v3 看片：被指着的片子按片长抽帧，随 videoClips 上去'
 
     expect(requests[0]?.videoClips).toEqual([
       expect.objectContaining({
-        sourceUrl: 'https://cdn.anteisuba.com/refs/ref.mp4',
+        sourceUrl: REF_URL,
         label: 'video-1',
         mounted: true,
-        frames: capturedOk(4).frames,
+        frames: FRAMES,
       }),
     ])
   })
@@ -234,19 +262,12 @@ describe('v3 看片：被指着的片子按片长抽帧，随 videoClips 上去'
       prompt: '',
       availableModels: [],
       videoReferences: {
-        items: [{ url: 'https://cdn.anteisuba.com/refs/ref.mp4' }],
+        items: [{ url: REF_URL }],
         limit: 3,
       },
     }
-    captureClipFrames.mockImplementation(async (url: string) =>
-      url.includes('/refs/')
-        ? {
-            ok: false,
-            reason: VIDEO_FRAME_CAPTURE_REASONS.taintedCanvas,
-            message: 'tainted',
-          }
-        : capturedOk(4),
-    )
+    // 挂着的那段跨域、画布被污染 —— 抽不成。
+    decoding.set(REF_URL, 'tainted')
     const chips = [1, 2].map(
       (index): StudioOperatorAttachment => ({
         id: `clip-${index}`,
@@ -262,7 +283,7 @@ describe('v3 看片：被指着的片子按片长抽帧，随 videoClips 上去'
     })
     await settle()
 
-    expect(captureClipFrames).toHaveBeenCalledTimes(3)
+    expect(loadsOf(REF_URL)).toBeGreaterThan(0)
     expect(requests[0]?.videoClips?.map((clip) => clip.label)).toEqual([
       '片子1',
       '片子2',
@@ -287,7 +308,8 @@ describe('v3 看片：被指着的片子按片长抽帧，随 videoClips 上去'
     })
     await settle()
 
-    expect(captureClipFrames).toHaveBeenCalledTimes(2)
+    // 第三段一帧都没读。
+    expect(loadsOf('https://cdn.anteisuba.com/clips/3.mp4')).toBe(0)
     expect(requests[0]?.videoClips?.map((clip) => clip.label)).toEqual([
       '片子1',
       '片子2',
@@ -298,11 +320,7 @@ describe('v3 看片：被指着的片子按片长抽帧，随 videoClips 上去'
   })
 
   it('抽帧失败 → 片子照样上去（没有帧），线程里留一行带原因码的系统行', async () => {
-    captureClipFrames.mockResolvedValue({
-      ok: false,
-      reason: VIDEO_FRAME_CAPTURE_REASONS.taintedCanvas,
-      message: 'tainted',
-    })
+    decoding.set(CLIP_URL, 'tainted')
     const { result } = render()
 
     act(() => {
@@ -329,8 +347,9 @@ describe('v3 看片：被指着的片子按片长抽帧，随 videoClips 上去'
     })
     await settle()
 
-    expect(captureClipFrames).toHaveBeenCalledWith(CLIP_URL)
-    expect(requests[0]?.videoClips).toHaveLength(1)
+    expect(requests[0]?.videoClips).toEqual([
+      expect.objectContaining({ sourceUrl: CLIP_URL, frames: FRAMES }),
+    ])
     expect(requests[0]?.mediaAttachments).toEqual([
       { kind: 'video', label: VIDEO_CHIP.label, url: VIDEO_CHIP.url },
     ])
@@ -347,30 +366,20 @@ describe('v3 看片：被指着的片子按片长抽帧，随 videoClips 上去'
     })
     await settle()
 
-    expect(captureClipFrames).not.toHaveBeenCalled()
+    expect(Object.keys(decoding.loads)).toEqual([])
     expect(requests[0]?.videoClips).toBeUndefined()
   })
 
   it('抽帧那几秒里带子写「正在抽帧」，跑完复位', async () => {
-    const released: (() => void)[] = []
-    captureClipFrames.mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          released.push(() => {
-            resolve(capturedOk(4))
-          })
-        }),
-    )
     const { result } = render()
 
     act(() => {
       result.current.send('看看这段哪里有问题', [VIDEO_CHIP])
     })
-    await settle()
+    // 解码还没回来（都隔着微任务）：这一刻带子写「正在抽帧」，请求还没发。
     expect(store.getOperatorState().capturingFrames).toBe(true)
     expect(requests).toHaveLength(0)
 
-    released[0]?.()
     await settle()
     expect(store.getOperatorState().capturingFrames).toBe(false)
     expect(requests).toHaveLength(1)

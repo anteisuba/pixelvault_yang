@@ -12,6 +12,7 @@ import {
   mapFishVoiceToAsset,
   useVoiceLibrary,
 } from '@/hooks/use-voice-library'
+import { queryClient } from '@/lib/query-client'
 import type { FishAudioVoice } from '@/services/fish-audio-voice.service'
 import type { VoiceCardRecord } from '@/types'
 
@@ -29,6 +30,11 @@ vi.mock('@/lib/api-client', () => ({
   listVoicesAPI: vi.fn(),
   createVoiceCardAPI: vi.fn(),
   deleteVoiceCardAPI: vi.fn(),
+  // 真 `useVoiceCards` 取「我的声音卡」走这一条。
+  listVoiceCardsAPI: vi.fn(async () => ({
+    success: true,
+    data: { items: cardsRef.cards, total: cardsRef.cards.length },
+  })),
 }))
 
 /**
@@ -44,18 +50,8 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
 
-const refreshMock = vi.fn(async () => {})
-const cardsRef: { cards: VoiceCardRecord[] } = { cards: [] }
-
-vi.mock('@/features/cards/hooks/use-voice-cards', () => ({
-  useVoiceCards: () => ({
-    cards: cardsRef.cards,
-    isLoading: false,
-    error: null,
-    findCard: () => null,
-    refresh: refreshMock,
-  }),
-}))
+/** 服务端那边「我的声音卡」现在是哪几张（真 `useVoiceCards` 经 api-client 取）。 */
+const cardsRef = vi.hoisted(() => ({ cards: [] as VoiceCardRecord[] }))
 
 const mockListVoices = vi.mocked(listVoicesAPI)
 const mockCreateCard = vi.mocked(createVoiceCardAPI)
@@ -110,6 +106,7 @@ function makeCard(overrides?: Partial<VoiceCardRecord>): VoiceCardRecord {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  queryClient.clear()
   cardsRef.cards = []
   mockListVoices.mockResolvedValue({
     success: true,

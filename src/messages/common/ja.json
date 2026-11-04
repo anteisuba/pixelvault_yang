@@ -465,6 +465,9 @@
       "countryBlocked": "お使いのネットワークでは chub.ai を利用できません。",
       "tooLarge": "このカードは 3 MB を超えているため取り込めません。"
     },
+    "danbooruCatalog": {
+      "unavailable": "Danbooru から応答がありません。少し待ってからお試しください。"
+    },
     "characterLook": {
       "notFound": "衣装が見つかりません",
       "limit": "衣装の数が上限に達しました",

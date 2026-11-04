@@ -1,39 +1,51 @@
+/**
+ * 画布改图工作区：真 key 名单（`ApiKeysProvider`）→ 真改图模型清单 → 真模型选择器、
+ * 真配 key 弹窗、真蒙版编辑器（`StudioInpaintEditor`）。
+ * 只假网络（api-client 上 key 名单与改图那几条）、浏览器缺的 2D 画布 / 位图量尺、
+ * 宿主注入的画布动作出口（`NodeCanvasActionsProvider`）、toast 与 next-intl。
+ */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { ImageEditComposerControls } from '@/components/business/studio-shared/editor/ImageEditComposer'
-import type { StudioModelOption } from '@/types/model-option'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { ApiKeysProvider } from '@/contexts/api-keys-context'
 import type { NodeWorkflowNodeData } from '@/types/node-workflow'
+import { apiKeyRecord, runIdleTasksImmediately } from '@/test/api-keys'
+import { installFakeCanvas2d } from '@/test/fake-canvas-2d'
 
 import { CanvasImageEditWorkspace } from './CanvasImageEditWorkspace'
+import {
+  NodeCanvasActionsProvider,
+  type NodeCanvasActions,
+} from './nodes/v4/NodeV4ActionsBridge'
 
 const mocks = vi.hoisted(() => ({
+  listApiKeys: vi.fn(),
   createExtractedElementAPI: vi.fn(),
   editImageAPI: vi.fn(),
   extractElementAPI: vi.fn(),
-  focusNode: vi.fn(),
   inpaintImageAPI: vi.fn(),
   appendImageVersions: vi.fn(),
   setNodeRunState: vi.fn(),
+  focusNode: vi.fn(),
   toastError: vi.fn(),
   toastSuccess: vi.fn(),
   toastWarning: vi.fn(),
 }))
 
-// jsdom 没有 ResizeObserver：编辑面板里 Radix 的开关挂载时要它。
-beforeAll(() => {
-  if (!('ResizeObserver' in globalThis)) {
-    class ResizeObserverStub {
-      observe() {}
-      unobserve() {}
-      disconnect() {}
-    }
-    vi.stubGlobal('ResizeObserver', ResizeObserverStub)
-  }
-})
-
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () =>
+    Object.assign((key: string) => key, { has: () => true }),
+}))
+
+// ⚠ key 名单缓存按用户存：每例换一个 userId，每例都真去拉一次名单。
+const user = vi.hoisted(() => ({ seq: 0 }))
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({
+    isLoaded: true,
+    isSignedIn: true,
+    userId: `edit-user-${user.seq}`,
+  }),
 }))
 
 vi.mock('sonner', () => ({
@@ -48,112 +60,37 @@ vi.mock('@/lib/logger', () => ({
   logger: {
     error: vi.fn(),
     warn: vi.fn(),
+    info: vi.fn(),
   },
 }))
 
-vi.mock('@/lib/api-client', () => ({
+vi.mock('@/lib/api-client', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api-client')>()),
+  listApiKeys: mocks.listApiKeys,
   createExtractedElementAPI: mocks.createExtractedElementAPI,
   editImageAPI: mocks.editImageAPI,
   extractElementAPI: mocks.extractElementAPI,
   inpaintImageAPI: mocks.inpaintImageAPI,
 }))
 
-vi.mock('@/contexts/api-keys-context', () => ({
-  useApiKeysContext: () => ({ hasLoaded: true }),
-}))
-
-vi.mock('@/hooks/use-image-edit-model-options', () => ({
-  useImageEditModelOptions: (modelIds: readonly string[]) =>
-    modelIds.map((modelId) => ({
-      optionId: modelId,
-      modelId,
-      adapterType: modelId.startsWith('gpt-') ? 'openai' : 'fal',
-      sourceType: 'saved',
-      keyId: 'edit-key',
-    })),
-}))
-
-vi.mock('@/components/business/studio-shared/setup/QuickSetupDialog', () => ({
-  QuickSetupDialog: () => null,
-}))
-
-vi.mock(
-  '@/components/business/studio-shared/pickers/ModelPickerPopover',
-  () => ({
-    ModelPickerPopover: ({
-      options,
-      value,
-      onChange,
-      disabled,
-    }: {
-      options: StudioModelOption[]
-      value: string | null
-      onChange: (option: StudioModelOption) => void
-      disabled: boolean
-    }) => (
-      <select
-        aria-label="modelLabel"
-        value={value ?? ''}
-        disabled={disabled}
-        onChange={(event) => {
-          const option = options.find(
-            (item) => item.optionId === event.target.value,
-          )
-          if (option) onChange(option)
-        }}
-      >
-        {options.map((option) => (
-          <option key={option.optionId} value={option.optionId}>
-            {option.modelId}
-          </option>
-        ))}
-      </select>
-    ),
+/** 改图用得上的几把 key：FLUX Fill 走 fal、Ideogram 走自家、GPT Image 走 OpenAI。 */
+const EDIT_KEYS = [
+  apiKeyRecord({
+    id: 'edit-key',
+    modelId: 'fal-ai/flux-pro/v1/fill',
+    adapterType: AI_ADAPTER_TYPES.FAL,
   }),
-)
-
-vi.mock('./nodes/v4/NodeV4ActionsBridge', () => ({
-  useNodeCanvasActions: () => ({
-    appendImageVersions: mocks.appendImageVersions,
-    focusNode: mocks.focusNode,
-    setNodeRunState: mocks.setNodeRunState,
+  apiKeyRecord({
+    id: 'edit-key-ideogram',
+    modelId: 'ideogram-4.5',
+    adapterType: AI_ADAPTER_TYPES.IDEOGRAM,
   }),
-}))
-
-vi.mock('@/features/studio/components/StudioInpaintEditor', () => ({
-  StudioInpaintEditor: ({
-    onApply,
-    imageWidth,
-    imageHeight,
-    renderComposer,
-    prompt,
-    onPromptChange,
-  }: {
-    onApply: (maskDataUrl: string, prompt: string) => void
-    imageWidth: number
-    imageHeight: number
-    renderComposer: (controls: ImageEditComposerControls) => React.ReactNode
-    prompt: string
-    onPromptChange: (value: string) => void
-  }) => (
-    <>
-      {/* 蒙版画布就是按这两个数建的 —— 它们错了，蒙版尺寸就和源图对不上。 */}
-      <span data-testid="inpaint-canvas-size">{`${imageWidth}x${imageHeight}`}</span>
-      {renderComposer({
-        input: (
-          <textarea
-            aria-label="inpaintPrompt"
-            value={prompt}
-            onChange={(event) => onPromptChange(event.target.value)}
-          />
-        ),
-        onSubmit: () => onApply('data:image/png;base64,mask', 'repair face'),
-        canSubmit: true,
-        submitLabel: 'editor.inpaint.apply',
-      })}
-    </>
-  ),
-}))
+  apiKeyRecord({
+    id: 'edit-key-openai',
+    modelId: 'gpt-image-2.5-sunburst',
+    adapterType: AI_ADAPTER_TYPES.OPENAI,
+  }),
+]
 
 const SOURCE_DATA = {
   mediaKind: 'image',
@@ -172,16 +109,83 @@ function selectTask(task: string) {
   )
 }
 
-function renderWorkspace(
+/** 真模型选择器：点开 chip，点那一行（每条都只有一把 key，点了直接选上）。 */
+async function pickModel(modelId: string) {
+  fireEvent.click(document.querySelector('[data-model-chip]')!)
+  const row = await waitFor(() => {
+    const found = document.querySelector(
+      `[role="option"][data-model-key="${modelId}"]`,
+    )
+    expect(found).not.toBeNull()
+    return found!
+  })
+  fireEvent.click(row)
+}
+
+/** 当前 chip 上写的模型名。 */
+const chipModel = () =>
+  document.querySelector('[data-model-chip]')?.getAttribute('title')
+
+/** 局部重绘的提示词框（真蒙版编辑器的那一格）。 */
+const inpaintPrompt = () =>
+  document.querySelector<HTMLTextAreaElement>('#inpaint-prompt')!
+
+const maskCanvas = () =>
+  screen.getByLabelText('canvasLabel') as HTMLCanvasElement
+
+/**
+ * 在蒙版画布上涂一笔。画布量尺是浏览器排版给的，jsdom 里是 0 —— 这里按画布自己的
+ * 像素尺寸答一个矩形，指针坐标才换算得出来。
+ */
+function paintMask() {
+  const canvas = maskCanvas()
+  vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({
+    left: 0,
+    top: 0,
+    width: canvas.width,
+    height: canvas.height,
+  } as DOMRect)
+  fireEvent.pointerDown(canvas, { clientX: 10, clientY: 10, pointerId: 1 })
+  fireEvent.pointerMove(canvas, { clientX: 40, clientY: 40, pointerId: 1 })
+  fireEvent.pointerUp(canvas, { clientX: 40, clientY: 40, pointerId: 1 })
+}
+
+/** 写一句、涂一笔、按「应用」。 */
+function applyInpaint(prompt = 'repair face') {
+  fireEvent.change(inpaintPrompt(), { target: { value: prompt } })
+  paintMask()
+  fireEvent.click(screen.getByRole('button', { name: 'apply' }))
+}
+
+/** 宿主（工作台）注入的画布动作出口：本组只用得到落版本与运行态两条。 */
+const ACTIONS = new Proxy(
+  {},
+  {
+    get: (_target, key) =>
+      key === 'appendImageVersions'
+        ? mocks.appendImageVersions
+        : key === 'setNodeRunState'
+          ? mocks.setNodeRunState
+          : mocks.focusNode,
+  },
+) as NodeCanvasActions
+
+async function renderWorkspace(
   defaultTask?: Parameters<typeof CanvasImageEditWorkspace>[0]['defaultTask'],
 ) {
   render(
-    <CanvasImageEditWorkspace
-      nodeId="source-node"
-      data={SOURCE_DATA}
-      defaultTask={defaultTask}
-    />,
+    <ApiKeysProvider>
+      <NodeCanvasActionsProvider value={ACTIONS}>
+        <CanvasImageEditWorkspace
+          nodeId="source-node"
+          data={SOURCE_DATA}
+          defaultTask={defaultTask}
+        />
+      </NodeCanvasActionsProvider>
+    </ApiKeysProvider>,
   )
+  // key 名单回来（挂上就拉）。
+  await waitFor(() => expect(mocks.listApiKeys).toHaveBeenCalled())
 }
 
 /**
@@ -207,6 +211,19 @@ function stubImageProbe(naturalWidth: number, naturalHeight: number) {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  user.seq += 1
+  // jsdom 没有 ResizeObserver：编辑面板里 Radix 的开关挂载时要它。
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  )
+  runIdleTasksImmediately()
+  installFakeCanvas2d()
+  mocks.listApiKeys.mockResolvedValue({ success: true, data: EDIT_KEYS })
   mocks.appendImageVersions.mockReturnValue(1)
   mocks.createExtractedElementAPI.mockResolvedValue({
     success: true,
@@ -214,37 +231,37 @@ beforeEach(() => {
   })
 })
 
+afterEach(() => {
+  vi.restoreAllMocks()
+  vi.unstubAllGlobals()
+})
+
 describe('CanvasImageEditWorkspace', () => {
-  it('keeps edit instructions when changing models and restores separate drafts when switching tasks', () => {
-    renderWorkspace('edit-image')
+  it('keeps edit instructions when changing models and restores separate drafts when switching tasks', async () => {
+    await renderWorkspace('edit-image')
     fireEvent.change(screen.getByRole('textbox', { name: 'editPromptLabel' }), {
       target: { value: 'keep the face and change the jacket' },
     })
-    fireEvent.change(screen.getByRole('combobox', { name: 'modelLabel' }), {
-      target: { value: 'ideogram-4.5' },
-    })
+    await pickModel('ideogram-4.5')
+    expect(chipModel()).toContain('Ideogram · 4.5')
     expect(
       screen.getByRole('textbox', { name: 'editPromptLabel' }),
     ).toHaveValue('keep the face and change the jacket')
     selectTask('inpaint')
-    fireEvent.change(screen.getByRole('textbox', { name: 'inpaintPrompt' }), {
+    fireEvent.change(inpaintPrompt(), {
       target: { value: 'repair the collar' },
     })
     selectTask('edit-image')
     expect(
       screen.getByRole('textbox', { name: 'editPromptLabel' }),
     ).toHaveValue('keep the face and change the jacket')
-    expect(screen.getByRole('combobox', { name: 'modelLabel' })).toHaveValue(
-      'ideogram-4.5',
-    )
+    expect(chipModel()).toContain('Ideogram · 4.5')
     selectTask('inpaint')
-    expect(screen.getByRole('textbox', { name: 'inpaintPrompt' })).toHaveValue(
-      'repair the collar',
-    )
+    expect(inpaintPrompt()).toHaveValue('repair the collar')
   })
 
-  it('renders the three primary capabilities and exposes other tools in the menu', () => {
-    renderWorkspace('edit-image')
+  it('renders the three primary capabilities and exposes other tools in the menu', async () => {
+    await renderWorkspace('edit-image')
     // 任务收成一颗 chip（owner 2026-10-03）：一个菜单列完六项，主三项在前。
     fireEvent.click(screen.getByTestId('image-edit-task-chip'))
     expect(
@@ -277,7 +294,7 @@ describe('CanvasImageEditWorkspace', () => {
         generation: { id: 'upscaled-generation' },
       },
     })
-    renderWorkspace('upscale')
+    await renderWorkspace('upscale')
 
     fireEvent.click(screen.getByRole('button', { name: 'actions.upscale' }))
 
@@ -309,7 +326,7 @@ describe('CanvasImageEditWorkspace', () => {
       success: false,
       error: 'provider failed',
     })
-    renderWorkspace('remove-background')
+    await renderWorkspace('remove-background')
 
     fireEvent.click(screen.getByRole('button', { name: 'actions.removeBg' }))
 
@@ -327,7 +344,7 @@ describe('CanvasImageEditWorkspace', () => {
         resolveRequest = resolve
       }),
     )
-    renderWorkspace('upscale')
+    await renderWorkspace('upscale')
     const runButton = screen.getByRole('button', { name: 'actions.upscale' })
 
     fireEvent.click(runButton)
@@ -342,31 +359,46 @@ describe('CanvasImageEditWorkspace', () => {
   // 1672×941，而工作区只读 `data.mediaWidth`、读不到就兜底 1024×1024 —— 导入
   // 进来的节点恰恰没有这个字段。蒙版按 1024 建、图是 1672 宽，FLUX Fill 直接
   // 拒绝。换成原尺寸蒙版重放同一个端点就成功，根因已证死。
-  it('sizes the mask canvas from the measured bitmap, not the declared metadata', async () => {
+  it('sizes the exported mask from the measured bitmap, not the declared metadata', async () => {
+    mocks.inpaintImageAPI.mockResolvedValue({ success: false, error: 'x' })
     const restoreImage = stubImageProbe(1672, 941)
     try {
-      renderWorkspace('inpaint')
-
-      await waitFor(() => {
-        expect(screen.getByTestId('inpaint-canvas-size')).toHaveTextContent(
-          '1672x941',
-        )
-      })
-      // 声明值（640×480）没赢 —— 它只是备份，位图才是事实源。
-      expect(screen.getByTestId('inpaint-canvas-size')).not.toHaveTextContent(
-        '640x480',
+      await renderWorkspace('inpaint')
+      // 位图量到之后，绘制画布按 1672:941 的比例重建。
+      await waitFor(() =>
+        expect(maskCanvas().width / maskCanvas().height).toBeCloseTo(
+          1672 / 941,
+          2,
+        ),
+      )
+      applyInpaint()
+      // 发出去的蒙版是源图的逐像素尺寸 —— 声明值（640×480）没赢，它只是备份。
+      await waitFor(() =>
+        expect(mocks.inpaintImageAPI).toHaveBeenCalledWith(
+          expect.objectContaining({
+            maskImageUrl: 'data:image/png;base64,canvas-1672x941',
+          }),
+          expect.anything(),
+        ),
       )
     } finally {
       restoreImage()
     }
   })
 
-  it('falls back to the declared metadata when the bitmap never loads', () => {
-    // 替身不装 onload，模拟图取不到：此时只能退回 `data.mediaWidth`。
-    renderWorkspace('inpaint')
-
-    expect(screen.getByTestId('inpaint-canvas-size')).toHaveTextContent(
-      '640x480',
+  it('falls back to the declared metadata when the bitmap never loads', async () => {
+    mocks.inpaintImageAPI.mockResolvedValue({ success: false, error: 'x' })
+    // jsdom 的图永远不 onload，模拟图取不到：此时只能退回 `data.mediaWidth`。
+    await renderWorkspace('inpaint')
+    expect([maskCanvas().width, maskCanvas().height]).toEqual([640, 480])
+    applyInpaint()
+    await waitFor(() =>
+      expect(mocks.inpaintImageAPI).toHaveBeenCalledWith(
+        expect.objectContaining({
+          maskImageUrl: 'data:image/png;base64,canvas-640x480',
+        }),
+        expect.anything(),
+      ),
     )
   })
 
@@ -380,17 +412,15 @@ describe('CanvasImageEditWorkspace', () => {
         generation: { id: 'inpaint-generation' },
       },
     })
-    renderWorkspace('inpaint')
+    await renderWorkspace('inpaint')
 
-    fireEvent.click(
-      screen.getByRole('button', { name: 'editor.inpaint.apply' }),
-    )
+    applyInpaint('repair face')
 
     await waitFor(() => {
       expect(mocks.inpaintImageAPI).toHaveBeenCalledWith(
         {
           imageUrl: SOURCE_DATA.mediaUrl,
-          maskImageUrl: 'data:image/png;base64,mask',
+          maskImageUrl: 'data:image/png;base64,canvas-640x480',
           prompt: 'repair face',
           options: {},
           sourceGenerationId: 'source-generation',
@@ -400,14 +430,16 @@ describe('CanvasImageEditWorkspace', () => {
         { onPreview: expect.any(Function), signal: expect.any(AbortSignal) },
       )
     })
-    expect(mocks.appendImageVersions).toHaveBeenCalledWith(
-      'source-node',
-      expect.arrayContaining([
-        expect.objectContaining({
-          imageUrl: 'https://cdn.example.com/inpaint.png',
-          editCapability: 'inpaint',
-        }),
-      ]),
+    await waitFor(() =>
+      expect(mocks.appendImageVersions).toHaveBeenCalledWith(
+        'source-node',
+        expect.arrayContaining([
+          expect.objectContaining({
+            imageUrl: 'https://cdn.example.com/inpaint.png',
+            editCapability: 'inpaint',
+          }),
+        ]),
+      ),
     )
   })
 
@@ -420,23 +452,20 @@ describe('CanvasImageEditWorkspace', () => {
         height: 480,
       },
     })
-    renderWorkspace('inpaint')
-    fireEvent.change(screen.getByRole('combobox', { name: 'modelLabel' }), {
-      target: { value: 'gpt-image-2.5-sunburst' },
-    })
+    await renderWorkspace('inpaint')
+    await pickModel('gpt-image-2.5-sunburst')
     fireEvent.click(screen.getByRole('button', { name: 'settingsLabel' }))
     fireEvent.click(screen.getByRole('radio', { name: 'qualityOption.max' }))
     fireEvent.click(
       screen.getByRole('radio', { name: 'backgroundOption.transparent' }),
     )
     fireEvent.click(screen.getByRole('switch'))
-    fireEvent.click(
-      screen.getByRole('button', { name: 'editor.inpaint.apply' }),
-    )
+    applyInpaint()
     await waitFor(() =>
       expect(mocks.inpaintImageAPI).toHaveBeenCalledWith(
         expect.objectContaining({
           modelId: 'gpt-image-2.5-sunburst',
+          apiKeyId: 'edit-key-openai',
           options: { quality: 'max', background: 'transparent', preview: true },
         }),
         { onPreview: expect.any(Function), signal: expect.any(AbortSignal) },
@@ -458,7 +487,7 @@ describe('CanvasImageEditWorkspace', () => {
       success: false,
       error: 'materials unavailable',
     })
-    renderWorkspace('extract-element')
+    await renderWorkspace('extract-element')
 
     fireEvent.click(screen.getByRole('button', { name: 'extract.run' }))
 

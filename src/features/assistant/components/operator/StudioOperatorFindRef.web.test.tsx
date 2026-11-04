@@ -33,15 +33,6 @@ vi.mock('next-intl', () => ({
       values ? `${key} ${JSON.stringify(values)}` : key,
 }))
 
-vi.mock('@/components/ui/spinner', () => ({
-  Spinner: () => <span data-testid="spinner" />,
-}))
-
-vi.mock(
-  '@/features/assistant/components/operator/StudioOperatorLightbox',
-  () => ({ openOperatorLightbox: vi.fn() }),
-)
-
 const STEP = 'run-1:step-3'
 
 const IMAGES: AssistantOperatorWebImage[] = [1, 2].map((n) => ({

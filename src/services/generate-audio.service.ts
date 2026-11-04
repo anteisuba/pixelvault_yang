@@ -111,6 +111,8 @@ const AudioRouteIdentitySchema = z.object({
     .optional(),
   apiKeyId: z.string().min(1).nullable().optional(),
   isFreeGeneration: z.boolean().optional(),
+  /** 库里配的执行端点 id；老任务没存就按内置目录推。 */
+  externalModelId: z.string().min(1).optional(),
 })
 
 type AudioRouteIdentity = z.infer<typeof AudioRouteIdentitySchema>
@@ -1883,6 +1885,7 @@ async function dispatchAudioSubmitOutbox(
           adapter.submitAudioToQueue!({
             prompt: providerPrompt,
             modelId: executionRoute.modelId,
+            externalModelId: executionRoute.externalModelId,
             providerConfig,
             apiKey: executionRoute.apiKey,
             voiceId: payload.data.voiceId,
@@ -1966,6 +1969,7 @@ async function resolveStoredAudioRoute(
   route: AudioRouteIdentity | undefined,
 ): Promise<{
   modelId: string
+  externalModelId: string
   adapterType: AI_ADAPTER_TYPES
   provider: string
   providerConfig?: ProviderConfig
@@ -1980,6 +1984,9 @@ async function resolveStoredAudioRoute(
     )
   }
 
+  const externalModelId =
+    route.externalModelId ?? getExecutionModelId(route.modelId)
+
   if (route.isFreeGeneration) {
     const apiKey = getSystemApiKey(route.adapterType)
     if (!apiKey) {
@@ -1992,6 +1999,7 @@ async function resolveStoredAudioRoute(
 
     return {
       modelId: route.modelId,
+      externalModelId,
       adapterType: route.adapterType,
       provider: route.provider,
       providerConfig: route.providerConfig,
@@ -2019,6 +2027,7 @@ async function resolveStoredAudioRoute(
 
   return {
     modelId: route.modelId,
+    externalModelId,
     adapterType: route.adapterType,
     provider: route.provider,
     providerConfig: route.providerConfig,
@@ -2032,6 +2041,7 @@ function buildAudioRouteIdentity(
     modelId: string
     adapterType: AI_ADAPTER_TYPES
     providerConfig: ProviderConfig
+    externalModelId?: string
     resolvedApiKeyId?: string | null
     isFreeGeneration?: boolean
   },
@@ -2044,6 +2054,9 @@ function buildAudioRouteIdentity(
     providerConfig: route.providerConfig,
     apiKeyId: route.resolvedApiKeyId ?? null,
     isFreeGeneration: route.isFreeGeneration ?? false,
+    ...(route.externalModelId
+      ? { externalModelId: route.externalModelId }
+      : {}),
   }
 }
 

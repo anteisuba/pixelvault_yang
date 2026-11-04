@@ -28,8 +28,8 @@ const api = vi.hoisted(() => ({
 }))
 vi.mock('@/lib/api-client', () => api)
 
-const toast = vi.hoisted(() => ({ toastSuccess: vi.fn() }))
-vi.mock('@/lib/toast', () => toast)
+const sonner = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }))
+vi.mock('sonner', () => ({ toast: sonner }))
 
 const TOKEN = 'pvmcp_abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG'
 
@@ -137,9 +137,9 @@ describe('SettingsConnectionsSection', () => {
       expect(screen.queryByText('…a3f9')).not.toBeInTheDocument(),
     )
     // 吊销是点完才知道结果的事，但那一行已经收走了 —— 结果放进底部黑条。
-    expect(toast.toastSuccess).toHaveBeenCalledWith(
+    expect(sonner.success.mock.calls.map((call) => call[0])).toEqual([
       'Settings:connections.revoked:Claude Code',
-    )
+    ])
   })
 
   it('turns the copy button itself into 已复制 (no toast)', async () => {
@@ -168,7 +168,7 @@ describe('SettingsConnectionsSection', () => {
     expect(writeText).toHaveBeenCalledWith(TOKEN)
     expect(copy).toHaveAttribute('data-feedback', 'done')
     expect(copy).toHaveAccessibleName('Settings:connections.copied')
-    expect(toast.toastSuccess).not.toHaveBeenCalled()
+    expect(sonner.success).not.toHaveBeenCalled()
   })
 
   it('greys out create once the active-token limit is reached', async () => {

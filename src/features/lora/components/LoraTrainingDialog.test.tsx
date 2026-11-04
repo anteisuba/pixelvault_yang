@@ -1,18 +1,30 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+/**
+ * 训练表单：真 `useLoraTraining`（图一张张传上去）、真 `ApiKeysProvider`、真
+ * `QuickSetupDialog`、真素材库选择器（关着）。只假网络：key 名单走假服务器，
+ * 训练那几跳在 api-client 边界上假。
+ */
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
-import { AI_MODELS } from '@/constants/models'
+import { ApiKeysProvider } from '@/contexts/api-keys-context'
+import { fakeServer, renderWithApp } from '@/test/app-harness'
+import {
+  apiKeyRecord,
+  fakeApiKeyRoutes,
+  runIdleCallbacksNow,
+} from '@/test/fake-routes'
+import type { UserApiKeyRecord } from '@/types'
 
 import { LoraTrainingForm } from './LoraTrainingDialog'
 
 // P1-2 (Hard Rule 8): the training form's Submit button must never be
 // disabled just because the user hasn't configured an API key yet —
 // clicking it should open the same QuickSetupDialog as the provider
-// buttons, mirroring the generate page's key-gate pattern (see
-// LoraWorkbench.test.tsx's "API key gate" suite for the sibling case).
+// buttons, mirroring the generate page's key-gate pattern.
 
-vi.mock('next-intl', () => ({
+vi.mock('next-intl', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('next-intl')>()),
   useTranslations: (namespace: string) => {
     const t = (key: string, values?: Record<string, unknown>) => {
       const base = `${namespace}:${key}`
@@ -22,69 +34,78 @@ vi.mock('next-intl', () => ({
         .join(',')
       return `${base}(${interpolated})`
     }
-    return t
+    return Object.assign(t, { rich: t, has: () => true })
   },
 }))
 
-const mockUseApiKeysContext = vi.hoisted(() => vi.fn())
-vi.mock('@/contexts/api-keys-context', () => ({
-  useApiKeysContext: mockUseApiKeysContext,
+// 每例换一个登录用户：真 useApiKeys 的名单按用户缓存在模块里。
+const auth = vi.hoisted(() => ({ userId: 'user_0' }))
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({ userId: auth.userId, isSignedIn: true, isLoaded: true }),
+}))
+vi.mock('@/i18n/navigation', () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  usePathname: () => '/studio/lora',
 }))
 
-const mockSubmit = vi.hoisted(() => vi.fn())
-let mockImageUrls: string[] = []
-vi.mock('@/features/lora/hooks/use-lora-training', () => ({
-  useLoraTraining: () => ({
-    jobs: [],
-    isLoading: false,
-    isSubmitting: false,
-    submit: mockSubmit,
-    refresh: vi.fn(),
-    activePollingJobId: null,
-    uploaded: [],
-    failed: [],
-    uploadsInFlight: 0,
-    uploadImages: vi.fn(),
-    retryFailedUpload: vi.fn(),
-    removeUploaded: vi.fn(),
-    reorderUploaded: vi.fn(),
-    setCoverUploaded: vi.fn(),
-    clearImages: vi.fn(),
-    dismissFailed: vi.fn(),
-    adoptExistingUrls: vi.fn(),
-    get imageUrls() {
-      return mockImageUrls
+const training = vi.hoisted(() => ({
+  submit: vi.fn(),
+  upload: vi.fn(),
+}))
+vi.mock('@/lib/api-client', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api-client')>()),
+  listLoraTrainingJobsAPI: async () => ({ success: true, data: [] }),
+  uploadLoraTrainingImageAPI: training.upload,
+  submitLoraTrainingAPI: training.submit,
+}))
+
+let userSeq = 0
+beforeEach(() => {
+  userSeq += 1
+  auth.userId = `user_${userSeq}`
+  localStorage.clear()
+  runIdleCallbacksNow()
+  training.submit.mockReset()
+  training.upload.mockReset()
+  training.upload.mockImplementation(async (file: File) => ({
+    success: true,
+    data: {
+      url: `https://cdn.test/${file.name}`,
+      storageKey: `lora-training/${file.name}`,
     },
-  }),
-}))
+  }))
+})
 
-vi.mock('@/features/assets', () => ({
-  AssetSelectorDialog: () => null,
-}))
+async function mountForm(keys: UserApiKeyRecord[] = []) {
+  const server = fakeApiKeyRoutes(fakeServer(), keys)
+  renderWithApp(<LoraTrainingForm />, { inner: ApiKeysProvider })
+  await waitFor(() =>
+    expect(server.requests.map((r) => r.path)).toContain('/api/api-keys'),
+  )
+  return server
+}
 
-const quickSetupSpy = vi.hoisted(() => vi.fn())
-vi.mock('@/components/business/studio-shared/setup/QuickSetupDialog', () => ({
-  QuickSetupDialog: (props: {
-    open: boolean
-    modelId: string
-    adapterType: string
-  }) => {
-    quickSetupSpy(props)
-    if (!props.open) return null
-    return (
-      <div data-testid="quick-setup-dialog">
-        {props.adapterType}:{props.modelId}
-      </div>
-    )
-  },
-}))
+/** 从文件选择框传 `count` 张图上去（真 useLoraTraining 一张一张传）。 */
+async function addImages(count: number) {
+  const input = document.querySelector<HTMLInputElement>('input[type="file"]')!
+  const files = Array.from(
+    { length: count },
+    (_, i) => new File([`img${i}`], `${i}.png`, { type: 'image/png' }),
+  )
+  fireEvent.change(input, { target: { files } })
+  await waitFor(() =>
+    expect(
+      screen.getByText(
+        new RegExp(`LoraTraining:imageCountWithMax\\(count=${count},`),
+      ),
+    ).toBeInTheDocument(),
+  )
+}
 
 function fillValidForm() {
   fireEvent.change(
     screen.getByPlaceholderText('LoraTraining:namePlaceholder'),
-    {
-      target: { value: 'My Character' },
-    },
+    { target: { value: 'My Character' } },
   )
   fireEvent.change(
     screen.getByPlaceholderText('LoraTraining:triggerWordPlaceholder'),
@@ -92,69 +113,55 @@ function fillValidForm() {
   )
 }
 
+const replicateKey = () =>
+  apiKeyRecord('key-1', AI_ADAPTER_TYPES.REPLICATE, 'Replicate')
+
 describe('LoraTrainingForm — P1-2 API key gate (Hard Rule 8)', () => {
-  beforeEach(() => {
-    mockUseApiKeysContext.mockReset()
-    mockSubmit.mockReset()
-    quickSetupSpy.mockReset()
-    mockImageUrls = Array.from(
-      { length: 10 },
-      (_, i) => `https://example.com/${i}.png`,
-    )
-  })
-
-  it('keeps Submit enabled (not disabled) when the form is valid but no provider has a key', () => {
-    mockUseApiKeysContext.mockReturnValue({ keys: [] })
-
-    render(<LoraTrainingForm />)
+  it('keeps Submit enabled (not disabled) when the form is valid but no provider has a key', async () => {
+    await mountForm()
+    await addImages(10)
     fillValidForm()
 
-    const submitButton = screen.getByRole('button', {
-      name: 'LoraTraining:submit',
-    })
-    expect(submitButton).not.toBeDisabled()
+    expect(
+      screen.getByRole('button', { name: 'LoraTraining:submit' }),
+    ).not.toBeDisabled()
   })
 
-  it('opens QuickSetupDialog for the selected provider on Submit click instead of silently no-op-ing', () => {
-    mockUseApiKeysContext.mockReturnValue({ keys: [] })
-
-    render(<LoraTrainingForm />)
+  it('opens QuickSetupDialog for the selected provider on Submit click instead of silently no-op-ing', async () => {
+    await mountForm()
+    await addImages(10)
     fillValidForm()
 
     fireEvent.click(screen.getByRole('button', { name: 'LoraTraining:submit' }))
 
-    expect(mockSubmit).not.toHaveBeenCalled()
-    expect(screen.getByTestId('quick-setup-dialog')).toHaveTextContent(
-      `${AI_ADAPTER_TYPES.REPLICATE}:${AI_MODELS.ILLUSTRIOUS_XL}`,
-    )
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getAllByText(/Replicate/).length).toBeGreaterThan(0)
+    expect(training.submit).not.toHaveBeenCalled()
   })
 
   it('submits directly once a key exists for the selected provider', async () => {
-    mockUseApiKeysContext.mockReturnValue({
-      keys: [
-        {
-          id: 'key-1',
-          adapterType: AI_ADAPTER_TYPES.REPLICATE,
-          isActive: true,
-        },
-      ],
+    training.submit.mockResolvedValue({
+      success: true,
+      data: { job: { id: 'job-1' } },
     })
-    mockSubmit.mockResolvedValue({ job: { id: 'job-1' } })
-
-    render(<LoraTrainingForm />)
+    await mountForm([replicateKey()])
+    await addImages(10)
     fillValidForm()
 
     fireEvent.click(screen.getByRole('button', { name: 'LoraTraining:submit' }))
 
-    await waitFor(() => expect(mockSubmit).toHaveBeenCalledTimes(1))
-    expect(mockSubmit.mock.calls[0]?.[0]).toMatchObject({ apiKeyId: 'key-1' })
-    expect(screen.queryByTestId('quick-setup-dialog')).not.toBeInTheDocument()
+    await waitFor(() => expect(training.submit).toHaveBeenCalledTimes(1))
+    expect(training.submit.mock.calls[0]?.[0]).toMatchObject({
+      apiKeyId: 'key-1',
+      name: 'My Character',
+      triggerWord: 'sks_character',
+    })
+    expect(training.submit.mock.calls[0]?.[0].trainingImages).toHaveLength(10)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
-  it('shows the no-key warning naming the currently selected provider, without pointing at a sidebar', () => {
-    mockUseApiKeysContext.mockReturnValue({ keys: [] })
-
-    render(<LoraTrainingForm />)
+  it('shows the no-key warning naming the currently selected provider, without pointing at a sidebar', async () => {
+    await mountForm()
 
     expect(
       screen.getByText('LoraTraining:noApiKey(provider=Replicate)'),
@@ -164,19 +171,8 @@ describe('LoraTrainingForm — P1-2 API key gate (Hard Rule 8)', () => {
     ).toBeInTheDocument()
   })
 
-  it('still disables Submit for real form-validity reasons (e.g. no images), independent of API key state', () => {
-    mockUseApiKeysContext.mockReturnValue({
-      keys: [
-        {
-          id: 'key-1',
-          adapterType: AI_ADAPTER_TYPES.REPLICATE,
-          isActive: true,
-        },
-      ],
-    })
-    mockImageUrls = []
-
-    render(<LoraTrainingForm />)
+  it('still disables Submit for real form-validity reasons (e.g. no images), independent of API key state', async () => {
+    await mountForm([replicateKey()])
     fillValidForm()
 
     expect(
@@ -186,15 +182,8 @@ describe('LoraTrainingForm — P1-2 API key gate (Hard Rule 8)', () => {
 })
 
 describe('LoraTrainingForm — D7⑥ image counter tone', () => {
-  beforeEach(() => {
-    mockUseApiKeysContext.mockReset()
-    mockUseApiKeysContext.mockReturnValue({ keys: [] })
-    quickSetupSpy.mockReset()
-  })
-
-  it('renders the 0/max counter in a neutral (muted) tone, not the warning color', () => {
-    mockImageUrls = []
-    render(<LoraTrainingForm />)
+  it('renders the 0/max counter in a neutral (muted) tone, not the warning color', async () => {
+    await mountForm()
 
     const counter = screen.getByText(
       'LoraTraining:imageCountWithMax(count=0,max=50)',
@@ -203,9 +192,9 @@ describe('LoraTrainingForm — D7⑥ image counter tone', () => {
     expect(counter.className).not.toContain('text-destructive')
   })
 
-  it('renders a below-minimum but non-zero count in the warning color', () => {
-    mockImageUrls = ['https://example.com/1.png', 'https://example.com/2.png']
-    render(<LoraTrainingForm />)
+  it('renders a below-minimum but non-zero count in the warning color', async () => {
+    await mountForm()
+    await addImages(2)
 
     const counter = screen.getByText(
       'LoraTraining:imageCountWithMax(count=2,max=50)',

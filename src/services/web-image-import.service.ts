@@ -297,7 +297,7 @@ export async function importWebImage(
     throw importFailed(failure, status, i18nKey, message)
   }
 
-  // ⛔ 不信 content-type：判型走 libvips 的魔数（SVG 有意不在允许集里 —— 它能带脚本）。
+  // ⛔ 不信 content-type：判型走文件头魔数（SVG 有意不在允许集里 —— 它能带脚本）。
   let trustedMimeType: string
   let width: number
   let height: number
@@ -339,14 +339,14 @@ export async function importWebImage(
   }
 
   const storageKey = generateStorageKey('IMAGE', dbUser.id)
-  const [publicUrl, thumbnail, embedded] = await Promise.all([
+  // 缩略图由 Worker 从 R2 读原图来做，所以先等原图落进 R2。
+  const [publicUrl, embedded] = await Promise.all([
     uploadToR2({ data: buffer, key: storageKey, mimeType: trustedMimeType }),
-    createImageThumbnailAsset({
-      sourceBuffer: buffer,
-      sourceStorageKey: storageKey,
-    }),
     readEmbeddedRecipe(buffer),
   ])
+  const thumbnail = await createImageThumbnailAsset({
+    sourceStorageKey: storageKey,
+  })
   // 网上的 NovelAI / A1111 原图也可能带着配方（Civitai、Pixiv 原图）。
   const recipe = embedded ? embeddedRecipeFields(embedded) : null
 

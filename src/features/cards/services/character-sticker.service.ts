@@ -3,10 +3,11 @@ import 'server-only'
 import { createHash, randomBytes } from 'node:crypto'
 
 import { after } from 'next/server'
-import sharp from 'sharp'
 
 import { CHARACTER_STICKERS } from '@/constants/character-browse'
 import { db } from '@/lib/db'
+import { readImageHeader } from '@/lib/image-header'
+import { decodeImage, luminance, resizeImage } from '@/lib/image-pixels'
 import { logger } from '@/lib/logger'
 import {
   detectTrustedImageMime,
@@ -84,12 +85,9 @@ export async function stickerLook(
   data: Buffer,
 ): Promise<{ visualHash: string; pixels: number } | null> {
   try {
-    const meta = await sharp(data, { animated: false }).metadata()
-    const raw = await sharp(data, { animated: false })
-      .grayscale()
-      .resize(9, 8, { fit: 'fill' })
-      .raw()
-      .toBuffer()
+    const header = readImageHeader(data)
+    const small = await resizeImage(await decodeImage(data), 9, 8)
+    const raw = Array.from({ length: 9 * 8 }, (_, i) => luminance(small, i))
     // 每 4 位拼成一个十六进制字（左边亮过右边 = 1），一共 16 个字。
     let visualHash = ''
     for (let nibble = 0; nibble < 16; nibble++) {
@@ -103,7 +101,7 @@ export async function stickerLook(
     }
     return {
       visualHash,
-      pixels: (meta.width ?? 0) * (meta.height ?? 0),
+      pixels: (header?.width ?? 0) * (header?.height ?? 0),
     }
   } catch {
     return null

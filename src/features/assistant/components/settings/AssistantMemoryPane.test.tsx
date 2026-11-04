@@ -10,8 +10,9 @@ import {
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ASSISTANT_PERSONA_DEFAULTS } from '@/constants/assistant-persona'
+import { FEEDBACK_TIMING } from '@/constants/motion'
 import type { UseAssistantMemoriesValue } from '@/features/assistant/hooks/use-assistant-memories'
-import type { UndoableActionOptions } from '@/lib/undoable-action'
+import { resetUndoableActionsForTest } from '@/lib/undoable-action'
 import type { UseAssistantPersonaAutosaveValue } from '@/hooks/use-assistant-persona'
 import type { AssistantMemory } from '@/types/assistant-memory'
 import type { ProjectRule } from '@/types/assistant-persona'
@@ -38,32 +39,50 @@ vi.mock('next-intl', () => ({
   }),
 }))
 
-/** 删一条走「先拿掉、5 秒后才落库」：测试里把那一下接住，手动撤销 / 落库。 */
-const undoable = vi.hoisted(() => ({
-  last: null as UndoableActionOptions | null,
+/**
+ * 删一条走真的 `runUndoableAction`（先拿掉、窗口过了才落库）。底部黑条是 sonner（外部
+ * 包）：把 `toast.success` 接住，读那句话、按那颗「撤销」。
+ */
+const toast = vi.hoisted(() => ({
+  success: vi.fn(),
+  error: vi.fn(),
+  info: vi.fn(),
+  message: vi.fn(),
 }))
-vi.mock('@/lib/undoable-action', () => ({
-  runUndoableAction: (options: UndoableActionOptions) => {
-    undoable.last = options
-    options.apply()
-  },
+vi.mock('sonner', () => ({ toast }))
+
+/** 搜图来源名单走真的 `useProjectRules`；只假它背后的三条接口。 */
+const rulesApi = vi.hoisted(() => ({
+  current: [] as ProjectRule[],
+  list: vi.fn(),
+  create: vi.fn(),
+  remove: vi.fn(),
+}))
+vi.mock('@/lib/api-client', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api-client')>()),
+  listProjectRulesAPI: rulesApi.list,
+  createProjectRuleAPI: rulesApi.create,
+  deleteProjectRuleAPI: rulesApi.remove,
 }))
 
-const rules = vi.hoisted(() => ({
-  current: [] as ProjectRule[],
-  add: vi.fn(async () => true),
-  remove: vi.fn(async () => true),
-}))
-vi.mock('@/hooks/use-project-rules', () => ({
-  useProjectRules: () => ({
-    rules: rules.current,
-    isLoading: false,
-    error: null,
-    add: rules.add,
-    remove: rules.remove,
-    reload: vi.fn(),
-  }),
-}))
+interface UndoToast {
+  message: string
+  undoLabel: string
+  undo: () => void
+}
+
+/** 最近一条带「撤销」的黑条。 */
+function lastUndoToast(): UndoToast | null {
+  const call = toast.success.mock.calls.at(-1) as
+    | [string, { action: { label: string; onClick: () => void } }]
+    | undefined
+  if (!call) return null
+  return {
+    message: call[0],
+    undoLabel: call[1].action.label,
+    undo: call[1].action.onClick,
+  }
+}
 
 const TODAY = new Date()
 TODAY.setHours(14, 20, 0, 0)
@@ -143,8 +162,26 @@ function rowTexts(): string[] {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  rules.current = []
-  undoable.last = null
+  vi.useRealTimers()
+  resetUndoableActionsForTest()
+  rulesApi.current = []
+  rulesApi.list.mockImplementation(async () => ({
+    success: true,
+    data: rulesApi.current,
+  }))
+  rulesApi.create.mockImplementation(
+    async (input: { text: string; kind: ProjectRule['kind'] }) => ({
+      success: true,
+      data: {
+        id: 'r-new',
+        scope: null,
+        source: 'creator',
+        createdAt: '2026-09-20T00:00:00.000Z',
+        ...input,
+      },
+    }),
+  )
+  rulesApi.remove.mockResolvedValue({ success: true, data: null })
 })
 
 describe('AssistantMemoryPane · 一列（M-A）', () => {
@@ -357,7 +394,7 @@ describe('AssistantMemoryPane · 改 / 删', () => {
   it('删先弹居中小弹窗确认，确认后这一行收起、底部黑条给撤销', async () => {
     renderPane([LEARNED])
     fireEvent.click(screen.getByTestId('assistant-memory-delete'))
-    expect(undoable.last).toBeNull()
+    expect(lastUndoToast()).toBeNull()
     const dialog = await screen.findByRole('alertdialog')
     expect(dialog).toHaveTextContent('AssistantSettings:memory.deleteTitle')
     fireEvent.click(
@@ -366,19 +403,20 @@ describe('AssistantMemoryPane · 改 / 删', () => {
       }),
     )
 
-    expect(undoable.last?.message).toBe('AssistantSettings:memory.deleted')
-    expect(undoable.last?.undoLabel).toBe('AssistantSettings:memory.undo')
+    expect(lastUndoToast()?.message).toBe('AssistantSettings:memory.deleted')
+    expect(lastUndoToast()?.undoLabel).toBe('AssistantSettings:memory.undo')
     // 先在界面上拿掉，服务端还没碰。
     await waitFor(() => expect(rowTexts()).toEqual([]))
     expect(store.remove).not.toHaveBeenCalled()
 
     // 撤销：原样放回来。
-    act(() => undoable.last?.undo())
+    act(() => lastUndoToast()?.undo())
     await waitFor(() => expect(rowTexts()).toEqual([LEARNED.text]))
     expect(store.remove).not.toHaveBeenCalled()
   })
 
   it('撤销窗口过了才真删', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
     renderPane([LEARNED])
     fireEvent.click(screen.getByTestId('assistant-memory-delete'))
     const dialog = await screen.findByRole('alertdialog')
@@ -387,8 +425,9 @@ describe('AssistantMemoryPane · 改 / 删', () => {
         name: 'Feedback:deleteDialog.confirm',
       }),
     )
+    expect(store.remove).not.toHaveBeenCalled()
     await act(async () => {
-      await undoable.last?.commit()
+      await vi.advanceTimersByTimeAsync(FEEDBACK_TIMING.undoWindowMs)
     })
     expect(store.remove).toHaveBeenCalledWith('learned-1')
   })
@@ -447,23 +486,28 @@ describe('AssistantMemoryPane · 搜图来源', () => {
     createdAt: '2026-09-20T00:00:00.000Z',
   })
 
-  it('两行名单各自列出；× 移除那一条', () => {
-    rules.current = [
+  it('两行名单各自列出；× 移除那一条', async () => {
+    rulesApi.current = [
       rule('r1', 'sourceAllow', 'danbooru.donmai.us'),
       rule('r2', 'sourceDeny', 'pinterest.com'),
     ]
     renderPane([])
-    expect(screen.getByText('danbooru.donmai.us')).toBeInTheDocument()
+    expect(await screen.findByText('danbooru.donmai.us')).toBeInTheDocument()
     fireEvent.click(
       screen.getByLabelText(
         'AssistantSettings:sources.remove({"token":"pinterest.com"})',
       ),
     )
-    expect(rules.remove).toHaveBeenCalledWith('r2')
+    await waitFor(() => expect(screen.queryByText('pinterest.com')).toBeNull())
+    expect(screen.getByText('danbooru.donmai.us')).toBeInTheDocument()
+    expect(rulesApi.remove).toHaveBeenCalledWith('r2')
   })
 
   it('添加：把地址收成域名再存；一句话不收', async () => {
     renderPane([])
+    // 等名单头一回读回来，再往里加。
+    await waitFor(() => expect(rulesApi.list).toHaveBeenCalled())
+    await act(async () => {})
     const [allowAdd] = screen.getAllByText('AssistantSettings:sources.add')
     fireEvent.click(allowAdd!)
     const input = screen.getByLabelText('AssistantSettings:sources.addLabel')
@@ -472,7 +516,7 @@ describe('AssistantMemoryPane · 搜图来源', () => {
     await act(async () => {
       fireEvent.keyDown(input, { key: 'Enter' })
     })
-    expect(rules.add).not.toHaveBeenCalled()
+    expect(rulesApi.create).not.toHaveBeenCalled()
     expect(screen.getByRole('alert')).toHaveTextContent(
       'AssistantSettings:sources.invalid',
     )
@@ -483,9 +527,10 @@ describe('AssistantMemoryPane · 搜图来源', () => {
     await act(async () => {
       fireEvent.keyDown(input, { key: 'Enter' })
     })
-    expect(rules.add).toHaveBeenCalledWith({
+    expect(rulesApi.create).toHaveBeenCalledWith({
       text: 'danbooru.donmai.us',
       kind: 'sourceAllow',
     })
+    expect(await screen.findByText('danbooru.donmai.us')).toBeInTheDocument()
   })
 })

@@ -1,18 +1,52 @@
-import { render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+/**
+ * L2b：用量表连真 `useMonthlyUsage`（真单价表现算花费），只假网络
+ * （`/api/usage/by-model`、`/api/runner/usage`）。
+ */
+import { screen, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { AI_MODELS } from '@/constants/models'
+import { getModelUnitPriceByStringId } from '@/constants/models/unit-prices'
+import {
+  getDefaultProviderConfig,
+  getProviderLabel,
+  type AI_ADAPTER_TYPES,
+} from '@/constants/providers'
+import { fakeServer, message, renderWithApp } from '@/test/app-harness'
+import type { MonthlyUsageRow } from '@/types/usage'
 import { SettingsUsageSection } from './SettingsUsageSection'
 
-vi.mock('next-intl', () => ({
-  useTranslations: (namespace: string) => (key: string) =>
-    `${namespace}:${key}`,
-  useFormatter: () => ({ dateTime: () => '10-01' }),
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({ isSignedIn: true }),
 }))
 
-const mockUseMonthlyUsage = vi.hoisted(() => vi.fn())
-vi.mock('@/features/settings/hooks/use-monthly-usage', () => ({
-  useMonthlyUsage: mockUseMonthlyUsage,
-}))
+const en = (path: string) => message(path, 'en')
+const label = (adapter: string) =>
+  getProviderLabel(getDefaultProviderConfig(adapter as AI_ADAPTER_TYPES))
+const usd = (amount: number) => `$${amount.toFixed(2)}`
+
+function serve(rows: MonthlyUsageRow[], runner: unknown = null) {
+  fakeServer()
+    .on('GET', '/api/usage/by-model', () =>
+      Response.json({ success: true, data: { month: '2026-09', rows } }),
+    )
+    .on('GET', '/api/runner/usage', () =>
+      runner
+        ? Response.json({ success: true, data: runner })
+        : Response.json({ success: false, error: 'off' }, { status: 404 }),
+    )
+}
+
+beforeEach(() => {
+  // 浏览器空闲回调：立刻跑（jsdom 没有，会退回 1 秒的 setTimeout）。
+  vi.stubGlobal('requestIdleCallback', (task: () => void) => {
+    task()
+    return 1
+  })
+  vi.stubGlobal('cancelIdleCallback', () => {})
+})
+
+afterEach(() => vi.unstubAllGlobals())
 
 function cellsOf(rowLabel: string): string[] {
   const row = screen
@@ -26,27 +60,19 @@ function cellsOf(rowLabel: string): string[] {
   )
 }
 
+const PRICED_A = AI_MODELS.KLING_V3_PRO
+const PRICED_B = AI_MODELS.SEEDANCE_20
+const price = (id: string) => getModelUnitPriceByStringId(id)!.amount
+
 describe('SettingsUsageSection', () => {
-  it('totals requests and cost across providers and the runner quota', () => {
-    mockUseMonthlyUsage.mockReturnValue({
-      month: '2026-09',
-      providers: [
-        {
-          adapterType: 'fal',
-          label: 'fal.ai',
-          requests: 128,
-          estimatedCostUsd: 61.1,
-        },
-        {
-          adapterType: 'openai',
-          label: 'OpenAI',
-          requests: 40,
-          estimatedCostUsd: 25.1,
-        },
+  it('按 provider 合并各模型的次数、按单价现算花费；合计把 runner 的次数也算进去', async () => {
+    serve(
+      [
+        { adapterType: 'fal', modelId: PRICED_A, requests: 100 },
+        { adapterType: 'fal', modelId: PRICED_B, requests: 28 },
+        { adapterType: 'openai', modelId: PRICED_A, requests: 40 },
       ],
-      totalRequests: 168,
-      totalEstimatedCostUsd: 86.2,
-      runner: {
+      {
         enabled: true,
         used: 42,
         limit: 100,
@@ -54,76 +80,59 @@ describe('SettingsUsageSection', () => {
         exempt: false,
         platformEnabled: true,
       },
-      isLoading: false,
-      refresh: vi.fn(),
-    })
-
-    render(<SettingsUsageSection />)
-
-    expect(cellsOf('fal.ai')).toEqual(['fal.ai', '128', '$61.10'])
-    // runner 的次数格是额度读数，花费格是重置日期（平台出资，用户付 $0）。
-    expect(cellsOf('Settings:usage.runnerLabel')[1]).toBe(
-      'Settings:usage.runnerQuota',
     )
-    // 合计的次数把 runner 那 42 次也算进来（168 + 42）。
-    expect(cellsOf('Settings:usage.total')).toEqual([
-      'Settings:usage.total',
+
+    renderWithApp(<SettingsUsageSection />, { locale: 'en' })
+
+    const falCost = price(PRICED_A) * 100 + price(PRICED_B) * 28
+    const openaiCost = price(PRICED_A) * 40
+    await waitFor(() =>
+      expect(cellsOf(label('fal'))).toEqual([
+        label('fal'),
+        '128',
+        usd(falCost),
+      ]),
+    )
+    expect(cellsOf(label('openai'))).toEqual([
+      label('openai'),
+      '40',
+      usd(openaiCost),
+    ])
+    // runner 的次数格是额度读数（平台出资，用户付 $0）。
+    expect(cellsOf(en('Settings.usage.runnerLabel'))[1]).toBe('42 / 100')
+    expect(cellsOf(en('Settings.usage.total'))).toEqual([
+      en('Settings.usage.total'),
       '210',
-      '$86.20',
+      usd(falCost + openaiCost),
     ])
   })
 
-  it('rolls every number up from 0 on entry (the visible copy starts at zero)', () => {
-    mockUseMonthlyUsage.mockReturnValue({
-      month: '2026-09',
-      providers: [
-        {
-          adapterType: 'fal',
-          label: 'fal.ai',
-          requests: 128,
-          estimatedCostUsd: 61.1,
-        },
-      ],
-      totalRequests: 128,
-      totalEstimatedCostUsd: 61.1,
-      runner: null,
-      isLoading: false,
-      refresh: vi.fn(),
-    })
+  it('进场每个数字从 0 滚上去（可见那份是 aria-hidden 的过场）', async () => {
+    serve([{ adapterType: 'fal', modelId: PRICED_A, requests: 128 }])
 
-    render(<SettingsUsageSection />)
+    renderWithApp(<SettingsUsageSection />, { locale: 'en' })
 
+    await waitFor(() => expect(cellsOf(label('fal'))[1]).toBe('128'))
     const visuals = screen.getAllByTestId('count-up-visual')
-    // 2 格 fal.ai + 2 格合计。读屏念的是旁边那份终值（上面的 `cellsOf`）。
+    // 2 格 fal + 2 格合计。
     expect(visuals).toHaveLength(4)
     for (const visual of visuals) {
       expect(visual).toHaveAttribute('aria-hidden', 'true')
     }
   })
 
-  it('shows a request count only when no model in that provider has a unit price', () => {
-    mockUseMonthlyUsage.mockReturnValue({
-      month: '2026-09',
-      providers: [
-        {
-          adapterType: 'novelai',
-          label: 'NovelAI',
-          requests: 9,
-          estimatedCostUsd: null,
-        },
-      ],
-      totalRequests: 9,
-      totalEstimatedCostUsd: null,
-      runner: null,
-      isLoading: false,
-      refresh: vi.fn(),
-    })
+  it('一家里没有任何一个模型有单价 → 只显次数，花费格空着', async () => {
+    serve([
+      { adapterType: 'novelai', modelId: 'no-such-priced-model', requests: 9 },
+    ])
 
-    render(<SettingsUsageSection />)
+    renderWithApp(<SettingsUsageSection />, { locale: 'en' })
 
-    expect(cellsOf('NovelAI')).toEqual(['NovelAI', '9', ''])
-    expect(cellsOf('Settings:usage.total')).toEqual([
-      'Settings:usage.total',
+    await waitFor(() =>
+      expect(cellsOf(label('novelai'))).toEqual([label('novelai'), '9', '']),
+    )
+    expect(cellsOf(en('Settings.usage.total'))).toEqual([
+      en('Settings.usage.total'),
       '9',
       '',
     ])

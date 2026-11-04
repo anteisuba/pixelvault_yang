@@ -29,18 +29,6 @@ vi.mock('@/lib/api-client/projects', () => ({
   getFolderMembershipsAPI: vi.fn(async () => ({ success: true, data: {} })),
 }))
 
-vi.mock('@/features/assets/components/AssetAddToFolderPanel', () => ({
-  AssetAddToFolderPanel: ({ trigger }: { trigger: React.ReactNode }) => trigger,
-}))
-
-vi.mock('@/components/business/vision/VideoAnalysisPanel', () => ({
-  VideoAnalysisPanel: () => <div data-testid="video-analysis" />,
-}))
-
-vi.mock('@/components/business/ModelViewer', () => ({
-  ModelViewer: () => <div data-testid="model-viewer" />,
-}))
-
 function image(id: string, overrides: Partial<GenerationRecord> = {}) {
   return {
     ...FAKE_GENERATION,
@@ -184,6 +172,6 @@ describe('AssetViewer', () => {
     expect(
       screen.queryByRole('button', { name: 'AssetsPage:detailNextImage' }),
     ).not.toBeInTheDocument()
-    expect(screen.getByTestId('video-analysis')).toBeInTheDocument()
+    expect(screen.getByText('VideoAnalysis:title')).toBeInTheDocument()
   })
 })

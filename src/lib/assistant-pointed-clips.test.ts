@@ -1,11 +1,14 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+// @vitest-environment jsdom
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ASSISTANT_V3_CLIP_LIMITS } from '@/constants/assistant-v3'
 import { VIDEO_FRAME_CAPTURE_REASONS } from '@/constants/video-analysis'
+import { planClipFrames } from '@/lib/video-frame-plan'
 import type { AssistantMention } from '@/types/assistant-mention'
-
-const captureClipFrames = vi.hoisted(() => vi.fn())
-vi.mock('@/lib/video-frame-capture', () => ({ captureClipFrames }))
+import {
+  installFakeVideoDecoding,
+  type FakeVideoDecoding,
+} from '@/test/fake-video-element'
 
 import {
   captureTurnClips,
@@ -25,24 +28,6 @@ function videoMention(
     scope: 'canvas',
     ...(url ? { url } : {}),
     ...(nodeId ? { nodeId } : {}),
-  }
-}
-
-/** 抽好的一段：`frameChars` 是这段帧的 dataUrl 一共多少字（量预算用）。 */
-function captured(duration: number, frameChars = 25) {
-  return {
-    ok: true as const,
-    plan: { durationSeconds: duration, frames: [] },
-    durationSeconds: duration,
-    width: 768,
-    height: 432,
-    frames: [
-      {
-        index: 0,
-        timestampSeconds: duration / 2,
-        dataUrl: `data:image/webp;base64,${'A'.repeat(Math.max(0, frameChars - 23))}`,
-      },
-    ],
   }
 }
 
@@ -118,18 +103,22 @@ describe('resolveTurnClips', () => {
   })
 })
 
-describe('captureTurnClips', () => {
+describe('captureTurnClips（真抽帧，只替浏览器解码那层）', () => {
+  let videos: FakeVideoDecoding
+
   beforeEach(() => {
-    captureClipFrames.mockReset()
     resetPointedClipCaptureCache()
+    videos = installFakeVideoDecoding()
   })
 
-  it('sends frames for captured clips and keeps failed pointed ones without frames', async () => {
-    captureClipFrames.mockResolvedValueOnce(captured(4)).mockResolvedValueOnce({
-      ok: false,
-      reason: VIDEO_FRAME_CAPTURE_REASONS.taintedCanvas,
-      message: 'tainted',
-    })
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('抽成的带帧；被指着的没抽成留下不带帧，并记一笔原因', async () => {
+    videos.set(url('a'), { duration: 4 })
+    videos.set(url('b'), 'tainted')
+
     const result = await captureTurnClips({
       pointed: [
         { sourceUrl: url('a'), label: 'A', nodeId: 'n1' },
@@ -137,31 +126,29 @@ describe('captureTurnClips', () => {
       ],
       mounted: [],
     })
+
+    const plan = planClipFrames(4)
     expect(result.videoClips).toEqual([
       {
         sourceUrl: url('a'),
         label: 'A',
         nodeId: 'n1',
         durationSeconds: 4,
-        frames: [
-          {
-            index: 0,
-            timestampSeconds: 2,
-            dataUrl: 'data:image/webp;base64,AA',
-          },
-        ],
+        frames: plan.entries.map((entry) => ({
+          index: entry.index,
+          timestampSeconds: entry.timestampSeconds,
+          dataUrl: expect.stringMatching(/^data:image\//),
+        })),
       },
       { sourceUrl: url('b'), label: 'B' },
     ])
     expect(result.failures).toEqual([VIDEO_FRAME_CAPTURE_REASONS.taintedCanvas])
   })
 
-  it('⭐ mounted clips ride flagged; one that failed is dropped silently', async () => {
-    captureClipFrames.mockResolvedValueOnce(captured(6)).mockResolvedValueOnce({
-      ok: false,
-      reason: VIDEO_FRAME_CAPTURE_REASONS.loadFailed,
-      message: 'load',
-    })
+  it('⭐ 挂着的带上标记；没抽成的那段悄悄不带', async () => {
+    videos.set(url('m1'), { duration: 6 })
+    videos.set(url('m2'), 'loadError')
+
     const result = await captureTurnClips({
       pointed: [],
       mounted: [
@@ -169,6 +156,7 @@ describe('captureTurnClips', () => {
         { sourceUrl: url('m2'), label: 'video-2' },
       ],
     })
+
     expect(result.videoClips).toEqual([
       expect.objectContaining({
         sourceUrl: url('m1'),
@@ -181,12 +169,14 @@ describe('captureTurnClips', () => {
     expect(result.failures).toEqual([])
   })
 
-  it('mounted clips fill only what the frame budget leaves; pointed ones never give way', async () => {
+  it('挂着的只填帧预算剩下的；被指着的从不让位', async () => {
     const budget = ASSISTANT_V3_CLIP_LIMITS.carriedFramesMaxChars
-    captureClipFrames
-      .mockResolvedValueOnce(captured(4, budget - 100))
-      .mockResolvedValueOnce(captured(4, 200))
-      .mockResolvedValueOnce(captured(4, 50))
+    const frames = planClipFrames(4).entries.length
+    const perFrame = (total: number) => Math.floor(total / frames)
+    videos.set(url('p'), { duration: 4, frameChars: perFrame(budget - 1000) })
+    videos.set(url('big'), { duration: 4, frameChars: 2000 })
+    videos.set(url('small'), { duration: 4, frameChars: 30 })
+
     const result = await captureTurnClips({
       pointed: [{ sourceUrl: url('p'), label: 'P' }],
       mounted: [
@@ -194,26 +184,24 @@ describe('captureTurnClips', () => {
         { sourceUrl: url('small'), label: 'video-2' },
       ],
     })
+
     expect(result.videoClips.map((clip) => clip.label)).toEqual([
       'P',
       'video-2',
     ])
   })
 
-  it('reuses a successful capture and retries a failed one', async () => {
-    captureClipFrames
-      .mockResolvedValueOnce(captured(4))
-      .mockResolvedValueOnce({
-        ok: false,
-        reason: VIDEO_FRAME_CAPTURE_REASONS.loadFailed,
-        message: 'load',
-      })
-      .mockResolvedValueOnce(captured(6))
+  it('抽成的下次直接复用；没抽成的下次再试', async () => {
+    videos.set(url('a'), { duration: 4 })
+    videos.set(url('b'), 'loadError')
     const a = { sourceUrl: url('a'), label: 'A' }
     const b = { sourceUrl: url('b'), label: 'B' }
+
     await captureTurnClips({ pointed: [a, b], mounted: [] })
+    videos.set(url('b'), { duration: 6 })
     const again = await captureTurnClips({ pointed: [a, b], mounted: [] })
-    expect(captureClipFrames).toHaveBeenCalledTimes(3)
+
+    expect(videos.loads[url('a')]).toBe(1)
     expect(again.failures).toEqual([])
     expect(again.videoClips.map((clip) => clip.durationSeconds)).toEqual([4, 6])
   })

@@ -292,6 +292,7 @@ export const falAdapter: ProviderAdapter = {
   async submitAudioToQueue({
     prompt,
     modelId,
+    externalModelId: storedExternalModelId,
     apiKey,
     referenceAudioUrl,
     referenceText,
@@ -304,7 +305,8 @@ export const falAdapter: ProviderAdapter = {
       )
     }
 
-    const externalModelId = getExecutionModelId(modelId)
+    const externalModelId =
+      storedExternalModelId ?? getExecutionModelId(modelId)
     const endpoint = `${AI_PROVIDER_ENDPOINTS.FAL_QUEUE}/${externalModelId}`
     const body: Record<string, unknown> = {
       gen_text: prompt,

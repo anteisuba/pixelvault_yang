@@ -20,6 +20,34 @@ interface R2Bucket {
   delete(key: string): Promise<void>
 }
 
+// ─── Cloudflare Images binding ─────────────────────────────────────────────
+// 只声明用到的那一截：https://developers.cloudflare.com/images/optimization/binding/
+
+interface ImageTransform {
+  width?: number
+  height?: number
+  fit?: 'scale-down' | 'contain' | 'cover' | 'crop' | 'pad'
+}
+
+interface ImageOutputOptions {
+  format: 'image/webp' | 'image/avif' | 'image/jpeg' | 'image/png'
+  quality?: number
+}
+
+interface ImageTransformationResult {
+  image(): ReadableStream
+  contentType(): string
+}
+
+interface ImageTransformer {
+  transform(transform: ImageTransform): ImageTransformer
+  output(options: ImageOutputOptions): Promise<ImageTransformationResult>
+}
+
+interface ImagesBinding {
+  input(stream: ReadableStream): ImageTransformer
+}
+
 // ─── Cloudflare Workers ─────────────────────────────────────────────────────
 
 declare module 'cloudflare:workers' {

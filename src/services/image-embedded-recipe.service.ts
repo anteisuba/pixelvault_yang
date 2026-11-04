@@ -2,7 +2,7 @@ import 'server-only'
 
 import { gunzipSync, inflateSync } from 'node:zlib'
 
-import sharp from 'sharp'
+import { decodeImage } from '@/lib/image-pixels'
 
 /**
  * 读图片文件里自带的配方（反推画风方案 A）：NovelAI 与 A1111 / Forge 出的 PNG 把提示词写在文件里。
@@ -105,17 +105,27 @@ export function readPngTextChunks(buffer: Buffer): Map<string, string> {
   return out
 }
 
+/** PNG 带不带透明：看 IHDR 的颜色类型（4 = 灰度 + 透明、6 = RGBA）或有没有 tRNS 块。 */
+function pngHasAlpha(buffer: Buffer): boolean {
+  const colorType = buffer[25]
+  if (colorType === 4 || colorType === 6) return true
+  let offset = 8
+  while (offset + 8 <= buffer.length) {
+    const length = buffer.readUInt32BE(offset)
+    const type = buffer.toString('latin1', offset + 4, offset + 8)
+    if (type === 'tRNS') return true
+    if (type === 'IDAT' || type === 'IEND') return false
+    offset += 12 + length
+  }
+  return false
+}
+
 /** NovelAI 藏在透明通道最低位的那一份（按列读，先 15 字节魔数、再 32 位长度、再数据）。 */
 async function readStealthText(buffer: Buffer): Promise<Map<string, string>> {
   const out = new Map<string, string>()
-  const image = sharp(buffer)
-  const meta = await image.metadata()
-  if (!meta.hasAlpha) return out
-  const { data, info } = await image
-    .extractChannel(3)
-    .raw()
-    .toBuffer({ resolveWithObject: true })
-  const { width, height } = info
+  if (!pngHasAlpha(buffer)) return out
+  const image = await decodeImage(buffer)
+  const { width, height } = image
   const total = width * height
   let index = 0
   const readBits = (count: number): number[] | null => {
@@ -124,7 +134,7 @@ async function readStealthText(buffer: Buffer): Promise<Map<string, string>> {
     for (let i = 0; i < count; i += 1, index += 1) {
       const x = Math.floor(index / height)
       const y = index % height
-      bits.push(data[y * width + x]! & 1)
+      bits.push(image.data[(y * width + x) * 4 + 3]! & 1)
     }
     return bits
   }

@@ -1,4 +1,8 @@
 // @vitest-environment jsdom
+/**
+ * 真 hook + 真上传前压图（`prepareImageUpload` / `compressImageToLimit`）；只假网络（api-client）。
+ * 测试里的图都很小，压图那一步直接放行原文件；大 GIF 压不了，正好走「传不了」那条。
+ */
 import { act, renderHook } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
@@ -8,17 +12,14 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
 
+const toastError = vi.hoisted(() => vi.fn())
 vi.mock('sonner', () => ({
   toast: {
-    error: vi.fn(),
+    error: toastError,
     success: vi.fn(),
     loading: vi.fn(),
     dismiss: vi.fn(),
   },
-}))
-
-vi.mock('@/lib/prepare-image-upload', () => ({
-  prepareImageUpload: vi.fn(),
 }))
 
 vi.mock('@/lib/api-client', () => ({
@@ -26,10 +27,8 @@ vi.mock('@/lib/api-client', () => ({
 }))
 
 import { useImageUpload } from '@/hooks/use-image-upload'
-import { prepareImageUpload } from '@/lib/prepare-image-upload'
 import { uploadImageFileAPI } from '@/lib/api-client'
 
-const mockPrepare = vi.mocked(prepareImageUpload)
 const mockUpload = vi.mocked(uploadImageFileAPI)
 
 describe('useImageUpload', () => {
@@ -295,7 +294,6 @@ describe('useImageUpload', () => {
   describe('local file upload (R2)', () => {
     beforeEach(() => {
       vi.clearAllMocks()
-      mockPrepare.mockImplementation(async (file) => file)
     })
 
     const imageFile = () => new File(['x'], 'photo.png', { type: 'image/png' })
@@ -343,7 +341,6 @@ describe('useImageUpload', () => {
             }),
         )
         const file = new File(['image'], 'test.png', { type: 'image/png' })
-        mockPrepare.mockResolvedValue(file)
         const view = renderHook(
           ({ scope }) => useImageUpload({ scopeKey: scope }),
           { initialProps: { scope: 'user-a:image-natural' } },
@@ -417,7 +414,6 @@ describe('useImageUpload', () => {
             })
             await upload
           })
-          expect(mockPrepare).toHaveBeenCalledTimes(1)
           expect(mockUpload).toHaveBeenCalledTimes(1)
           expect(view.result.current.referenceImages).toEqual(['new-scope.png'])
           expect(view.result.current.isUploading).toBe(false)
@@ -440,13 +436,12 @@ describe('useImageUpload', () => {
       await act(async () => {
         await staleUpload(imageFile())
       })
-      expect(mockPrepare).not.toHaveBeenCalled()
       expect(mockUpload).not.toHaveBeenCalled()
       expect(view.result.current.referenceImages).toEqual([])
       expect(view.result.current.isUploading).toBe(false)
     })
 
-    it('compresses, uploads to R2, and stores the url — never inline base64', async () => {
+    it('uploads to R2 and stores the url — never inline base64', async () => {
       mockUpload.mockResolvedValue({
         success: true,
         data: {
@@ -459,7 +454,6 @@ describe('useImageUpload', () => {
         await result.current.handleFileChange(imageFile())
       })
 
-      expect(mockPrepare).toHaveBeenCalledTimes(1)
       expect(mockUpload).toHaveBeenCalledTimes(1)
       expect(result.current.referenceImages).toEqual([
         'https://cdn/r2/photo.png',
@@ -480,13 +474,16 @@ describe('useImageUpload', () => {
     })
 
     it('skips upload when the file cannot be shrunk under the cap', async () => {
-      mockPrepare.mockResolvedValue(null)
+      // 动图 GIF 一重编码就只剩一帧，超了上限只能拒收。
+      const gif = new File(['gif'], 'big.gif', { type: 'image/gif' })
+      Object.defineProperty(gif, 'size', { value: 200 * 1024 * 1024 })
 
       const { result } = renderHook(() => useImageUpload())
       await act(async () => {
-        await result.current.handleFileChange(imageFile())
+        await result.current.handleFileChange(gif)
       })
 
+      expect(toastError).toHaveBeenCalledWith('gifTooLarge')
       expect(mockUpload).not.toHaveBeenCalled()
       expect(result.current.referenceImages).toEqual([])
     })
@@ -499,8 +496,8 @@ describe('useImageUpload', () => {
         )
       })
 
-      expect(mockPrepare).not.toHaveBeenCalled()
       expect(mockUpload).not.toHaveBeenCalled()
+      expect(result.current.referenceImages).toEqual([])
     })
   })
 

@@ -10,9 +10,11 @@ import {
 } from '@aws-sdk/client-s3'
 import { Upload } from '@aws-sdk/lib-storage'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
-import sharp from 'sharp'
+import { readImageHeader } from '@/lib/image-header'
 import { logger } from '@/lib/logger'
 import { withRetry } from '@/lib/with-retry'
+import { EXECUTION_WORKER } from '@/constants/execution'
+import { createInternalExecutionHeaders } from '@/lib/signature-verifiers/internal-execution'
 import { assertSafeUrl, safeFetch } from '@/lib/url-guard'
 
 // ─── R2 Client ────────────────────────────────────────────────────
@@ -75,7 +77,7 @@ export function generateStorageKey(
 
 // ─── Magic-Byte Image Validation ──────────────────────────────────
 
-const SHARP_FORMAT_TO_MIME: Record<string, string> = {
+const FORMAT_TO_MIME: Record<string, string> = {
   jpeg: 'image/jpeg',
   png: 'image/png',
   webp: 'image/webp',
@@ -83,7 +85,7 @@ const SHARP_FORMAT_TO_MIME: Record<string, string> = {
 }
 
 /**
- * Verify the *real* format of an image buffer via libvips magic bytes and
+ * Verify the *real* format of an image buffer via its magic bytes and
  * return a trusted MIME type. Use this on every code path that accepts an
  * image from a client — `fetchAsBuffer` only reads the claimed MIME from a
  * data URL header or HTTP `content-type`, both of which the user controls.
@@ -101,27 +103,19 @@ export async function detectTrustedImageMime(
   width: number
   height: number
 }> {
-  let format: string | undefined
-  let width: number | undefined
-  let height: number | undefined
-  try {
-    const metadata = await sharp(buffer).metadata()
-    format = metadata.format
-    width = metadata.width
-    height = metadata.height
-  } catch {
-    throw new Error('Unsupported or corrupted image file')
-  }
-  if (!format || !allowedFormats.has(format)) {
+  const header = readImageHeader(buffer)
+  if (!header) throw new Error('Unsupported or corrupted image file')
+  const { format, width, height } = header
+  if (!allowedFormats.has(format)) {
     throw new Error(
-      `Unsupported image format: ${format ?? 'unknown'}. Allowed: ${[...allowedFormats].join(', ')}`,
+      `Unsupported image format: ${format}. Allowed: ${[...allowedFormats].join(', ')}`,
     )
   }
   return {
     format,
-    mimeType: SHARP_FORMAT_TO_MIME[format] ?? `image/${format}`,
-    width: width ?? 0,
-    height: height ?? 0,
+    mimeType: FORMAT_TO_MIME[format] ?? `image/${format}`,
+    width,
+    height,
   }
 }
 
@@ -436,7 +430,7 @@ export async function getR2ObjectRange(params: {
 // large remote files and 500 during Studio browsing), so this pipeline
 // pre-derives the variants on R2 instead. Both landed the same day.
 // Keep that split in mind before touching sizes: raising a variant costs one
-// sharp encode at upload time, and the bytes are then served by R2/CDN —
+// Cloudflare Images transform at upload time (one billed unique transformation), and the bytes are then served by R2/CDN —
 // nothing here ever routes back through Vercel's optimizer.
 //
 // `maxSize` caps the LONG edge, but grid tiles are square + `object-cover`,
@@ -480,52 +474,73 @@ function buildDerivativeStorageKey(sourceKey: string, suffix: string): string {
   return `${directory}${basename}.${suffix}.webp`
 }
 
-async function createImageDerivativeBuffer(
-  sourceBuffer: Buffer,
-  variant: ImagePreviewVariant,
-): Promise<Buffer> {
-  const spec = IMAGE_PREVIEW_VARIANTS[variant]
-  return sharp(sourceBuffer, { animated: false })
-    .rotate()
-    .resize({
-      width: spec.maxSize,
-      height: spec.maxSize,
-      fit: 'inside',
-      withoutEnlargement: true,
-    })
-    .webp({ quality: spec.quality, effort: 4 })
-    .toBuffer()
+/**
+ * 小图交给 execution Worker 用 Cloudflare Images 做（2026-11-03）：网站函数里 sharp
+ * 解码大图再编码两次是 Vercel CPU 的最大头，也挡着网站搬去 Workers。Worker 从 R2
+ * （或给定 URL）读源图，按每个尺寸缩成 WebP 写回 R2 的 `key`；这里只管定 key 和拼公网地址。
+ * `fit: scale-down` = 长边封顶、⛔ 放大，和原来 sharp 的 `inside + withoutEnlargement` 一致。
+ */
+type ImageDerivativeSource =
+  | { key: string }
+  | { url: string; headers?: Record<string, string> }
+
+async function requestImageDerivatives(
+  source: ImageDerivativeSource,
+  variants: Array<{ key: string; maxSize: number; quality: number }>,
+): Promise<void> {
+  const baseUrl = process.env.EXECUTION_WORKER_BASE_URL
+  const secret = process.env.INTERNAL_CALLBACK_SECRET
+  if (!baseUrl || !secret) {
+    throw new Error(
+      'Image derivatives need EXECUTION_WORKER_BASE_URL and INTERNAL_CALLBACK_SECRET',
+    )
+  }
+  const url = `${baseUrl.replace(/\/$/, '')}${EXECUTION_WORKER.IMAGE_DERIVATIVES_PATH}`
+  const body = JSON.stringify({ source, variants })
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...createInternalExecutionHeaders({ body, method: 'POST', url, secret }),
+    },
+    body,
+    signal: AbortSignal.timeout(EXECUTION_WORKER.IMAGE_DERIVATIVES_TIMEOUT_MS),
+  })
+  if (!response.ok) {
+    const detail = await response.text().catch(() => '')
+    throw new Error(
+      `Image derivatives failed (${response.status}): ${detail.slice(0, 200)}`,
+    )
+  }
 }
 
 /**
  * Thumbnail-only derivative for user uploads. Unlike generated images (which
- * keep both a 1280px preview and a 384px thumbnail), a stored upload serves
+ * keep both a 1280px preview and a 768px thumbnail), a stored upload serves
  * its full original in the detail view, so only the grid-tile thumbnail is
  * worth deriving — it keeps a dense asset grid of hundreds of high-res
  * originals from downloading multi-MB files per tile.
+ *
+ * ⚠ 源图必须已经在 R2 的 `sourceStorageKey` 上（Worker 从 R2 读）。
  */
 export async function createImageThumbnailAsset(params: {
-  sourceBuffer: Buffer
   sourceStorageKey: string
 }): Promise<{ thumbnailUrl: string; thumbnailStorageKey: string }> {
   const thumbnailStorageKey = buildImageDerivativeStorageKey(
     params.sourceStorageKey,
     'thumbnail',
   )
-  const thumbnailBuffer = await createImageDerivativeBuffer(
-    params.sourceBuffer,
-    'thumbnail',
-  )
-  const thumbnailUrl = await uploadToR2({
-    data: thumbnailBuffer,
-    key: thumbnailStorageKey,
-    mimeType: 'image/webp',
-  })
-  return { thumbnailUrl, thumbnailStorageKey }
+  await requestImageDerivatives({ key: params.sourceStorageKey }, [
+    { key: thumbnailStorageKey, ...IMAGE_PREVIEW_VARIANTS.thumbnail },
+  ])
+  return {
+    thumbnailUrl: getR2PublicUrl(thumbnailStorageKey),
+    thumbnailStorageKey,
+  }
 }
 
+/** ⚠ 源图必须已经在 R2 的 `sourceStorageKey` 上（Worker 从 R2 读）。 */
 export async function createImagePreviewAssets(params: {
-  sourceBuffer: Buffer
   sourceStorageKey: string
 }): Promise<ImagePreviewAssets> {
   const thumbnailStorageKey = buildImageDerivativeStorageKey(
@@ -536,36 +551,20 @@ export async function createImagePreviewAssets(params: {
     params.sourceStorageKey,
     'preview',
   )
-
-  const [thumbnailBuffer, previewBuffer] = await Promise.all([
-    createImageDerivativeBuffer(params.sourceBuffer, 'thumbnail'),
-    createImageDerivativeBuffer(params.sourceBuffer, 'preview'),
+  await requestImageDerivatives({ key: params.sourceStorageKey }, [
+    { key: thumbnailStorageKey, ...IMAGE_PREVIEW_VARIANTS.thumbnail },
+    { key: previewStorageKey, ...IMAGE_PREVIEW_VARIANTS.preview },
   ])
-
-  const [thumbnailUrl, previewUrl] = await Promise.all([
-    uploadToR2({
-      data: thumbnailBuffer,
-      key: thumbnailStorageKey,
-      mimeType: 'image/webp',
-    }),
-    uploadToR2({
-      data: previewBuffer,
-      key: previewStorageKey,
-      mimeType: 'image/webp',
-    }),
-  ])
-
   return {
-    thumbnailUrl,
+    thumbnailUrl: getR2PublicUrl(thumbnailStorageKey),
     thumbnailStorageKey,
-    previewUrl,
+    previewUrl: getR2PublicUrl(previewStorageKey),
     previewStorageKey,
   }
 }
 
 // ─── Video Poster Derivative ────────────────────────────────────
 
-const VIDEO_POSTER_MAX_SOURCE_BYTES = 12 * 1024 * 1024
 const VIDEO_POSTER_MAX_SIZE = 768
 const VIDEO_POSTER_QUALITY = 80
 
@@ -574,37 +573,29 @@ export interface VideoPosterAsset {
   thumbnailStorageKey: string
 }
 
+/** 服务商给的封面图（可能要带鉴权头）→ Worker 取图缩成 WebP 海报，存在视频 key 旁边。 */
 export async function createVideoPosterAsset(params: {
   sourceUrl: string
   sourceStorageKey: string
   fetchHeaders?: Record<string, string>
 }): Promise<VideoPosterAsset> {
+  assertSafeUrl(params.sourceUrl)
   const posterStorageKey = buildDerivativeStorageKey(
     params.sourceStorageKey,
     'thumbnail',
   )
-  const source = await fetchAsBuffer(params.sourceUrl, {
-    headers: params.fetchHeaders,
-    maxBytes: VIDEO_POSTER_MAX_SOURCE_BYTES,
-  })
-  const posterBuffer = await sharp(source.buffer, { animated: false })
-    .rotate()
-    .resize({
-      width: VIDEO_POSTER_MAX_SIZE,
-      height: VIDEO_POSTER_MAX_SIZE,
-      fit: 'inside',
-      withoutEnlargement: true,
-    })
-    .webp({ quality: VIDEO_POSTER_QUALITY, effort: 4 })
-    .toBuffer()
-  const thumbnailUrl = await uploadToR2({
-    data: posterBuffer,
-    key: posterStorageKey,
-    mimeType: 'image/webp',
-  })
-
+  await requestImageDerivatives(
+    { url: params.sourceUrl, headers: params.fetchHeaders },
+    [
+      {
+        key: posterStorageKey,
+        maxSize: VIDEO_POSTER_MAX_SIZE,
+        quality: VIDEO_POSTER_QUALITY,
+      },
+    ],
+  )
   return {
-    thumbnailUrl,
+    thumbnailUrl: getR2PublicUrl(posterStorageKey),
     thumbnailStorageKey: posterStorageKey,
   }
 }

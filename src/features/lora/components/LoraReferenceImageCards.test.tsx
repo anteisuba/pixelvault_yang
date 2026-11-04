@@ -5,21 +5,13 @@ import type { useImageUpload } from '@/hooks/use-image-upload'
 
 import { LoraReferenceImageCards } from './LoraReferenceImageCards'
 
-// The cards compose standalone pieces (ImagePickerPopoverBody, AssetSelectorDialog)
-// that have their own suites and heavier deps; stub them so this stays a focused
-// smoke test of the cards' own empty/filled presentation, and that it mounts
-// without any Studio-context coupling.
+// 卡片里组的素材库选择器、图片来源弹层都是真的（关着不发请求）；这里看卡片自己的
+// 空 / 有图两种样子，以及它不依赖 Studio 上下文也能挂上。
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => `ImageChip:${key}`,
 }))
-vi.mock('@/components/business/studio-shared/ImagePickerPopoverBody', () => ({
-  ImagePickerPopoverBody: () => <div data-testid="image-picker-popover-body" />,
-}))
 vi.mock('@/i18n/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
-}))
-vi.mock('@/features/assets', () => ({
-  AssetSelectorDialog: () => null,
 }))
 
 const STRENGTH = { min: 0.01, max: 0.99, step: 0.01, default: 0.7 }

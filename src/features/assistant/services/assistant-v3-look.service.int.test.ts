@@ -1,0 +1,539 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { ASSISTANT_VIDEO_TIERS } from '@/constants/assistant'
+import {
+  ASSISTANT_V3_CLIP_LIMITS,
+  ASSISTANT_V3_LIMITS,
+} from '@/constants/assistant-v3'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import type { AssistantOperatorEvent } from '@/types/assistant-operator'
+
+vi.mock('server-only', () => ({}))
+
+const { fetchAsBuffer } = vi.hoisted(() => ({
+  fetchAsBuffer: vi.fn(),
+}))
+
+/** 测试里的「图」：内容写着格式与地址（`png:https://…`），格式不在名单里就认不出。 */
+vi.mock('@/services/storage/r2', () => ({
+  fetchAsBuffer,
+  detectTrustedImageMime: async (
+    buffer: Buffer,
+    formats: ReadonlySet<string>,
+  ) => {
+    // 真的 PNG 字节（带文本块的那几张）按文件头认。
+    const format =
+      buffer[0] === 0x89 ? 'png' : (buffer.toString().split(':')[0] ?? '')
+    if (!formats.has(format)) throw new Error('unsupported image')
+    return { format, mimeType: `image/${format}`, width: 512, height: 768 }
+  },
+}))
+
+import { createTestUser, resetDatabase } from '@/test/int/db'
+import { createTestGeneration } from '@/test/int/generations'
+import { png, tEXt } from '@/test/png-fixture'
+import type { V3Context } from './assistant-v3-steps.service'
+import { createPictureCache, executeV3Look } from './assistant-v3-look.service'
+import { createClipCache } from './assistant-v3-watch.service'
+
+/** 真库（L2a）：自家作品的配方从库里的 Generation 行读。 */
+let userId = ''
+
+/** 地址 → 格式；没登记的地址下不来。 */
+const served = new Map<string, string>()
+/** 地址 → 真的 PNG 字节（文件里写着配方的那几张）。 */
+const bytesServed = new Map<string, Uint8Array>()
+/** 地址 → 片子多大（真的 mp4 文件头）；没登记的下不来。 */
+const clipsServed = new Map<string, number>()
+
+function clip(name: string, bytes = 1_000) {
+  const url = `https://cdn.test/${name}.mp4`
+  clipsServed.set(url, bytes)
+  return { url, label: name }
+}
+
+function context(overrides: Partial<V3Context> = {}): V3Context {
+  return {
+    face: 'canvas',
+    clerkId: 'clerk-1',
+    prepared: {
+      run: {
+        stepSeq: 0,
+        signal: undefined,
+        ledgerSteps: 0,
+        roundLedger: { facts: [], decisions: [], todos: [] },
+        workingMemoryIndex: new Map(),
+      },
+      user: { id: userId },
+    },
+    request: { messages: [] },
+    nodes: [],
+    handles: {},
+    language: 'english',
+    stepPrefix: 'v3s1',
+    transcript: [{ type: 'board', text: 'BOARD', images: [] }],
+    replyText: { current: '' },
+    seesImages: true,
+    pictures: createPictureCache(AI_ADAPTER_TYPES.OPENAI),
+    clipTier: ASSISTANT_VIDEO_TIERS.frames,
+    clips: createClipCache(),
+    ...overrides,
+  } as unknown as V3Context
+}
+
+function picture(name: string, format = 'png') {
+  const url = `https://cdn.test/${name}.${format}`
+  served.set(url, format)
+  return { url, label: name }
+}
+
+async function run(
+  generator: AsyncGenerator<AssistantOperatorEvent, unknown>,
+): Promise<{ events: AssistantOperatorEvent[]; outcome: unknown }> {
+  const events: AssistantOperatorEvent[] = []
+  for (;;) {
+    const next = await generator.next()
+    if (next.done) return { events, outcome: next.value }
+    events.push(next.value)
+  }
+}
+
+describe('v3 look · Denia 自己看', () => {
+  beforeEach(async () => {
+    await resetDatabase()
+    userId = (await createTestUser()).id
+    served.clear()
+    bytesServed.clear()
+    fetchAsBuffer.mockReset()
+    clipsServed.clear()
+    fetchAsBuffer.mockImplementation(
+      async (url: string, options: { maxBytes?: number }) => {
+        const bytes = clipsServed.get(url)
+        if (bytes !== undefined) {
+          if (options.maxBytes !== undefined && bytes > options.maxBytes)
+            throw new Error(
+              `Image exceeds maximum size of ${options.maxBytes} bytes (declared ${bytes}).`,
+            )
+          return {
+            buffer: Buffer.concat([
+              Buffer.from([0, 0, 0, 24]),
+              Buffer.from('ftypisom-mp4-bytes', 'ascii'),
+            ]),
+            mimeType: 'video/mp4',
+          }
+        }
+        const pngBytes = bytesServed.get(url)
+        if (pngBytes)
+          return { buffer: Buffer.from(pngBytes), mimeType: 'image/png' }
+        const format = served.get(url)
+        if (!format) throw new Error('unreachable')
+        return { buffer: Buffer.from(`${format}:${url}`), mimeType: 'image/*' }
+      },
+    )
+  })
+
+  it('一次最多看 maxLookCards 张：多出来的明说只看了前几张', async () => {
+    const targets = Array.from(
+      { length: ASSISTANT_V3_LIMITS.maxLookCards + 2 },
+      (_, index) => picture(`p${index + 1}`),
+    )
+    const { events, outcome } = await run(
+      executeV3Look(context(), { targets, notes: [], question: 'who is who?' }),
+    )
+    expect(fetchAsBuffer).toHaveBeenCalledTimes(
+      ASSISTANT_V3_LIMITS.maxLookCards,
+    )
+    expect(outcome).toMatchObject({
+      kind: 'result',
+      error: false,
+      images: targets.slice(0, ASSISTANT_V3_LIMITS.maxLookCards),
+    })
+    const output = (outcome as { output: string }).output
+    expect(output).toContain(
+      `Only the first ${ASSISTANT_V3_LIMITS.maxLookCards} pictures were looked at; 「p7」, 「p8」 were not.`,
+    )
+    expect(output).toContain(
+      'You are looking at these pictures for: "who is who?"',
+    )
+    expect(output).toContain('for your next step only')
+    expect(output).toContain('1 = 「p1」 (512×768)')
+    // 过程行只写看了哪几张，⛔ 不写看到了什么。
+    expect(events).toHaveLength(1)
+    expect(events[0]).toMatchObject({
+      type: 'step',
+      step: {
+        tool: 'read_state',
+        status: 'done',
+        result: { digest: 'p1 · p2 · p3 · p4 · p5 · p6' },
+      },
+    })
+  })
+
+  it('一张下不来只点名那一张，其余照看，⛔ 不连坐整步', async () => {
+    const good = picture('harry')
+    const gif = picture('goyle', 'gif')
+    const lost = { url: 'https://cdn.test/gone.png', label: 'gone' }
+    const { events, outcome } = await run(
+      executeV3Look(context(), {
+        targets: [good, gif, lost],
+        notes: [],
+        question: 'compare',
+      }),
+    )
+    expect(outcome).toMatchObject({
+      kind: 'result',
+      error: false,
+      images: [good],
+    })
+    expect((outcome as { output: string }).output).toContain(
+      'Could not load 「goyle」, 「gone」',
+    )
+    expect(events[0]).toMatchObject({ step: { status: 'done' } })
+  })
+
+  it('⭐ 联网找到的图：原图下不来看小预览；本来就只能看预览的照实说是小图', async () => {
+    const thumb = picture('thumb-3')
+    const pixiv = picture('pixiv-thumb-4')
+    const { outcome } = await run(
+      executeV3Look(context(), {
+        targets: [
+          {
+            url: 'https://img.test/full-3.jpg',
+            label: '#3',
+            fallbackUrl: thumb.url,
+          },
+          { url: pixiv.url, label: '#4', preview: true },
+        ],
+        notes: [],
+        question: 'which is Draco?',
+      }),
+    )
+    // ⚠ 记的是真下来的那个地址：下一步按它再下一次。
+    expect(outcome).toMatchObject({
+      kind: 'result',
+      error: false,
+      images: [
+        { url: thumb.url, label: '#3' },
+        { url: pixiv.url, label: '#4' },
+      ],
+    })
+    const output = (outcome as { output: string }).output
+    expect(output).toContain(
+      "「#3」, 「#4」 are only the search engine's small preview",
+    )
+    expect(output).not.toContain('Could not load')
+  })
+
+  it('原图下得来就看原图，⛔ 不提小预览', async () => {
+    const full = picture('full-5')
+    const { outcome } = await run(
+      executeV3Look(context(), {
+        targets: [
+          {
+            url: full.url,
+            label: '#5',
+            fallbackUrl: 'https://thumb.test/5.png',
+          },
+        ],
+        notes: [],
+        question: '',
+      }),
+    )
+    expect(outcome).toMatchObject({ images: [{ url: full.url, label: '#5' }] })
+    expect((outcome as { output: string }).output).not.toContain(
+      'small preview',
+    )
+    expect(fetchAsBuffer).toHaveBeenCalledTimes(1)
+  })
+
+  it('一张都没下来：这一步才算失败', async () => {
+    const { events, outcome } = await run(
+      executeV3Look(context(), {
+        targets: [{ url: 'https://cdn.test/gone.png', label: 'gone' }],
+        notes: [],
+        question: '',
+      }),
+    )
+    expect(outcome).toMatchObject({
+      kind: 'result',
+      error: true,
+      failureKey: 'look:unloaded',
+    })
+    expect(outcome).not.toHaveProperty('images')
+    expect(events[0]).toMatchObject({ step: { status: 'error' } })
+  })
+
+  it('所选模型看不了图、图也没带配方：只回一句换模型，⛔ 不附图、不借别家', async () => {
+    const { events, outcome } = await run(
+      executeV3Look(context({ seesImages: false }), {
+        targets: [picture('harry')],
+        notes: [],
+        question: 'who?',
+      }),
+    )
+    expect(events).toEqual([])
+    expect(outcome).toMatchObject({
+      kind: 'result',
+      error: true,
+      failureKey: 'look:noVision',
+    })
+    expect(outcome).not.toHaveProperty('images')
+    expect((outcome as { output: string }).output).toContain(
+      'cannot see pictures, and no other provider is used in its place',
+    )
+  })
+
+  it('⭐ 看不了图，但文件里写着配方：配方照样给（是字），⛔ 仍不附图', async () => {
+    const url = 'https://cdn.test/a1111.png'
+    bytesServed.set(
+      url,
+      png(
+        tEXt('parameters', '1girl, rain\nNegative prompt: lowres\nSteps: 28'),
+      ),
+    )
+    const { events, outcome } = await run(
+      executeV3Look(context({ seesImages: false }), {
+        targets: [{ url, label: 'rain' }],
+        notes: [],
+        question: '反推',
+      }),
+    )
+    expect(events).toEqual([])
+    expect(outcome).toMatchObject({ kind: 'result', error: false })
+    expect(outcome).not.toHaveProperty('images')
+    const output = (outcome as { output: string }).output
+    expect(output).toContain('cannot see pictures')
+    expect(output).toContain(
+      '「rain」 — saved inside the file by the tool that made it:\nparameters: 1girl, rain',
+    )
+  })
+
+  it('⭐ 看的图带着配方：文件里写的与自家作品存的都随结果给', async () => {
+    const own = picture('own')
+    const url = 'https://cdn.test/nai.png'
+    bytesServed.set(url, png(tEXt('Software', 'NovelAI')))
+    await createTestGeneration(userId, {
+      url: own.url,
+      prompt: 'silver hair, rain',
+      model: 'gemini-3-image',
+      width: 832,
+      height: 1216,
+      seed: BigInt(42),
+      snapshot: { advancedParams: { steps: 30 } },
+    })
+    // 别人库里同一个地址的那张不算「自家作品」。
+    const stranger = await createTestUser()
+    await createTestGeneration(stranger.id, {
+      url: 'https://cdn.test/nai.png',
+      prompt: 'not yours',
+    })
+    const { outcome } = await run(
+      executeV3Look(context(), {
+        targets: [own, { url, label: 'nai' }],
+        notes: [],
+        question: 'how was it made?',
+      }),
+    )
+    const output = (outcome as { output: string }).output
+    expect(output).toContain(
+      "「own」 — made here, the creator's own work:\nsilver hair, rain\nSteps: 30, Seed: 42, Size: 832x1216, Model: gemini-3-image",
+    )
+    expect(output).toContain(
+      '「nai」 — saved inside the file by the tool that made it:\nSoftware: NovelAI',
+    )
+  })
+
+  it('板子上已经在眼前的图⛔ 不再查一遍配方（随板子给过了）', async () => {
+    const pointed = picture('door')
+    await createTestGeneration(userId, {
+      url: pointed.url,
+      prompt: 'a red door',
+    })
+    const { outcome } = await run(
+      executeV3Look(
+        context({
+          transcript: [{ type: 'board', text: 'BOARD', images: [pointed] }],
+        }),
+        { targets: [pointed], notes: [], question: 'what is it?' },
+      ),
+    )
+    expect((outcome as { output: string }).output).not.toContain('a red door')
+  })
+
+  it('已经附在这一轮那句话里的图⛔ 不再附一遍，只指给模型看', async () => {
+    const pointed = picture('door')
+    const { outcome } = await run(
+      executeV3Look(
+        context({
+          transcript: [{ type: 'board', text: 'BOARD', images: [pointed] }],
+        }),
+        { targets: [pointed], notes: [], question: 'what is it?' },
+      ),
+    )
+    expect(outcome).toMatchObject({ kind: 'result', error: false })
+    expect(outcome).not.toHaveProperty('images')
+    expect((outcome as { output: string }).output).toContain(
+      "Already in front of you in the creator's message: 「door」 (picture 1 of IMAGES THE CREATOR POINTED AT)",
+    )
+  })
+
+  it('单图上限按所选那家收紧：Claude 是 base64 后 10 MB，别家 20 MB', () => {
+    expect(createPictureCache(AI_ADAPTER_TYPES.ANTHROPIC).maxBytes).toBe(
+      7_500_000,
+    )
+    for (const adapter of [
+      AI_ADAPTER_TYPES.OPENAI,
+      AI_ADAPTER_TYPES.GEMINI,
+      AI_ADAPTER_TYPES.DEEPSEEK,
+      AI_ADAPTER_TYPES.XAI,
+    ])
+      expect(createPictureCache(adapter).maxBytes).toBe(20_000_000)
+  })
+
+  /* ── 看片（看图期第二段）──────────────────────────────────────────── */
+
+  it('⭐ 别家（帧档）看一段没被指着的片子：只回一句请创作者 @ 它，⛔ 不下、不猜、不记失败', async () => {
+    const take = clip('take')
+    const { events, outcome } = await run(
+      executeV3Look(context(), {
+        targets: [],
+        clips: [take],
+        notes: [],
+        question: 'does it move?',
+      }),
+    )
+    expect(fetchAsBuffer).not.toHaveBeenCalled()
+    expect(events).toEqual([])
+    expect(outcome).toMatchObject({ kind: 'result', error: false })
+    expect(outcome).not.toHaveProperty('clips')
+    expect(outcome).not.toHaveProperty('failureKey')
+    expect((outcome as { output: string }).output).toContain(
+      '「take」 is a clip you were not shown: you only watch clips the creator points at. Ask them to @ the clip in their message. Do not describe it from its prompt or its name.',
+    )
+  })
+
+  it('⭐ Gemini（native 档）看一段没被指着的片子：在内联上限内交片子本体，只附给下一次', async () => {
+    const take = clip('take')
+    const { events, outcome } = await run(
+      executeV3Look(context({ clipTier: ASSISTANT_VIDEO_TIERS.native }), {
+        targets: [],
+        clips: [take],
+        notes: [],
+        question: 'does it move?',
+      }),
+    )
+    expect(fetchAsBuffer).toHaveBeenCalledWith(
+      take.url,
+      expect.objectContaining({
+        maxBytes: ASSISTANT_V3_CLIP_LIMITS.inlineMaxBytes,
+      }),
+    )
+    expect(outcome).toMatchObject({
+      kind: 'result',
+      error: false,
+      clips: [take],
+    })
+    expect((outcome as { output: string }).output).toContain(
+      'The clip itself comes with this result, for your next step only: 「take」.',
+    )
+    expect(events[0]).toMatchObject({
+      step: { status: 'done', result: { digest: 'take' } },
+    })
+  })
+
+  it('Gemini 片子太大：如实说，请创作者 @ 它（@ 了浏览器会抽帧）', async () => {
+    const big = clip('big', ASSISTANT_V3_CLIP_LIMITS.inlineMaxBytes + 1)
+    const { outcome } = await run(
+      executeV3Look(context({ clipTier: ASSISTANT_VIDEO_TIERS.native }), {
+        targets: [],
+        clips: [big],
+        notes: [],
+        question: '',
+      }),
+    )
+    expect(outcome).toMatchObject({ kind: 'result', error: false })
+    expect(outcome).not.toHaveProperty('clips')
+    expect((outcome as { output: string }).output).toContain(
+      '「big」 is too large to watch directly (over 20 MB). Ask the creator to @ the clip',
+    )
+  })
+
+  it('被指着的片子已经在眼前：只指给模型看，⛔ 不再下第二遍', async () => {
+    const take = clip('take')
+    const { outcome } = await run(
+      executeV3Look(
+        context({
+          clipTier: ASSISTANT_VIDEO_TIERS.native,
+          transcript: [
+            { type: 'board', text: 'BOARD', images: [], clips: [take] },
+          ],
+        }),
+        { targets: [], clips: [take], notes: [], question: 'ok?' },
+      ),
+    )
+    expect(fetchAsBuffer).not.toHaveBeenCalled()
+    expect(outcome).not.toHaveProperty('clips')
+    expect((outcome as { output: string }).output).toContain(
+      "Already in front of you in the creator's message: 「take」 (clip 1 of CLIPS THE CREATOR POINTED AT).",
+    )
+  })
+
+  it('⛔ 不借别家：所选模型看不了图，片子一段也不看', async () => {
+    const { events, outcome } = await run(
+      executeV3Look(context({ seesImages: false, clipTier: false }), {
+        targets: [],
+        clips: [clip('take')],
+        notes: [],
+        question: '',
+      }),
+    )
+    expect(events).toEqual([])
+    expect(fetchAsBuffer).not.toHaveBeenCalled()
+    expect(outcome).toMatchObject({ failureKey: 'look:noVision' })
+  })
+
+  /* ── 视频台上只是挂着的参考视频：look 它才看（owner 2026-10-15「挂着不等于每轮都看」）── */
+
+  /** 浏览器随请求带来的一段挂着的片子（3 秒 → 3 帧），帧里写着地址与序号。 */
+  function carried(url: string, label: string) {
+    return {
+      sourceUrl: url,
+      label,
+      mounted: true as const,
+      durationSeconds: 3,
+      frames: [0.5, 1.5, 2.5].map((timestampSeconds, index) => ({
+        index,
+        timestampSeconds,
+        dataUrl: `data:image/webp;base64,${Buffer.from(
+          `webp:${url}#${index}`,
+        ).toString('base64')}`,
+      })),
+    }
+  }
+
+  it('Gemini look 一段挂着的片子：先给片子本体；太大才用带来的帧', async () => {
+    const mountedUrl = 'https://cdn.test/ref.mp4'
+    clipsServed.set(mountedUrl, ASSISTANT_V3_CLIP_LIMITS.inlineMaxBytes + 1)
+    const { outcome } = await run(
+      executeV3Look(
+        context({
+          clipTier: ASSISTANT_VIDEO_TIERS.native,
+          request: {
+            messages: [],
+            videoClips: [carried(mountedUrl, 'video-1')],
+          } as unknown as V3Context['request'],
+        }),
+        {
+          targets: [],
+          clips: [{ url: mountedUrl, label: 'video-1' }],
+          notes: [],
+          question: '',
+        },
+      ),
+    )
+    expect(fetchAsBuffer).toHaveBeenCalledWith(mountedUrl, expect.anything())
+    expect((outcome as { output: string }).output).toContain(
+      'Frames sampled from 「video-1」 (3 frames sampled across 3 s)',
+    )
+  })
+})

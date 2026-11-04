@@ -51,5 +51,19 @@ setup('authenticate test user', async ({ page }) => {
   await expect(page).toHaveURL(/\/studio/)
   await expect(page.getByText('This page could not be found')).toHaveCount(0)
 
+  // 隐私提示条盖在页面底部、会挡住底栏按钮：在这里同意一次，存进登录态，后面每个用例都不再出现。
+  const accept = page
+    .getByRole('region', { name: 'Privacy notice' })
+    .getByRole('button', { name: 'Accept' })
+  // 提示条水合后才出现：最多等 10 秒，没出现（已同意过）就算了。
+  const shown = await accept
+    .waitFor({ state: 'visible', timeout: 10_000 })
+    .then(() => true)
+    .catch(() => false)
+  if (shown) {
+    await accept.click()
+    await expect(accept).toBeHidden()
+  }
+
   await page.context().storageState({ path: STORAGE_STATE })
 })

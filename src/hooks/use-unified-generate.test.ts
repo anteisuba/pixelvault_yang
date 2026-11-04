@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { AI_MODELS } from '@/constants/models/enum'
-import { createElement, type ReactNode } from 'react'
+import { createElement, type ComponentProps, type ReactNode } from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 
@@ -14,11 +14,6 @@ import { FAKE_GENERATION } from '@/test/api-helpers'
 import type { GenerationRecord } from '@/types'
 
 // ─── Mock dependencies ───────────────────────────────────────────
-
-vi.mock('next-intl', () => ({
-  useLocale: () => 'en',
-  useTranslations: () => (key: string) => key,
-}))
 
 const mockSearchParams = new URLSearchParams()
 
@@ -48,17 +43,6 @@ vi.mock('@/lib/api-client', () => ({
   cancelGenerationsAPI: vi.fn(),
 }))
 
-vi.mock('@/lib/api-error-message', () => ({
-  getApiErrorMessage: vi.fn(
-    (_tErrors: unknown, result: { error?: string }, fallback: string) =>
-      result?.error ?? fallback,
-  ),
-  getGenerationErrorMessage: vi.fn(
-    (_tErrors: unknown, result: { error?: string }, fallback: string) =>
-      result?.error ?? fallback,
-  ),
-}))
-
 // LoraStackProvider now calls useAuth() to scope its localStorage slot
 // per signed-in user. The test wrapper doesn't mount ClerkProvider, so
 // stub useAuth into a stable signed-in state for these tests.
@@ -66,7 +50,7 @@ vi.mock('@clerk/nextjs', () => ({
   useAuth: () => ({ isLoaded: true, userId: 'user_test_unified_generate' }),
 }))
 
-import { getGenerationErrorMessage } from '@/lib/api-error-message'
+import { AppProviders, message } from '@/test/app-harness'
 import {
   useUnifiedGenerate,
   type UnifiedGenerateInput,
@@ -95,9 +79,23 @@ const mockSubmitVideo = vi.mocked(submitVideoAPI)
 const mockCheckVideoStatus = vi.mocked(checkVideoStatusAPI)
 const mockCancelGenerations = vi.mocked(cancelGenerationsAPI)
 
+// 真 next-intl + 整份英文文案：错误怎么翻译走真 `api-error-message`。
 function wrapper({ children }: { children: ReactNode }) {
-  return createElement(LoraStackProvider, null, children)
+  const props = { locale: 'en' } as ComponentProps<typeof AppProviders>
+  return createElement(
+    AppProviders,
+    props,
+    createElement(LoraStackProvider, null, children),
+  )
 }
+
+// 真错误词表认出的那几句（服务商原话认得出就给对应那句；认不出的转述原话）。
+const OVERLOADED = message('Errors.generation.provider_overloaded', 'en')
+const UNKNOWN_FAILURE = message('Errors.generation.unknown', 'en')
+const PROVIDER_SAID_UNSAFE = message(
+  'Errors.generation.unknownWithDetail',
+  'en',
+).replace('{detail}', 'Provider reported unsafe input')
 
 // ─── Fixtures ─────────────────────────────────────────────────────
 
@@ -555,7 +553,7 @@ describe('useUnifiedGenerate', () => {
     })
 
     expect(gen).toBeNull()
-    expect(result.current.error).toBe('Provider unavailable')
+    expect(result.current.error).toBe(OVERLOADED)
     expect(result.current.lastGeneration).toBeNull()
     expect(result.current.isGenerating).toBe(false)
   })
@@ -635,6 +633,47 @@ describe('useUnifiedGenerate', () => {
     expect(result.current.error).toBeNull()
     expect(result.current.activeRun?.items[0].status).toBe('completed')
     expect(toast.error).not.toHaveBeenCalled()
+  })
+
+  it('单张出图轮询把服务端的阶段写进那一格：排队中 → 排上号后消掉', async () => {
+    vi.useFakeTimers()
+    mockStudioGenerate.mockResolvedValue(SUCCESS_IMAGE_SUBMIT_RESPONSE)
+    mockCheckImageStatus.mockResolvedValue({
+      success: true,
+      data: {
+        jobId: 'job-image-123',
+        status: 'IN_QUEUE',
+        executionStage: 'runnerQueued',
+      },
+    })
+
+    const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
+    await act(async () => {
+      void result.current.generate({ mode: 'image', image: IMAGE_INPUT })
+      await Promise.resolve()
+    })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(IMAGE_GENERATION.POLL_INTERVAL_MS)
+    })
+    expect(result.current.activeRun?.items[0]).toMatchObject({
+      status: 'generating',
+      executionStage: 'runnerQueued',
+    })
+
+    mockCheckImageStatus.mockResolvedValue({
+      success: true,
+      data: {
+        jobId: 'job-image-123',
+        status: 'IN_PROGRESS',
+        executionStage: 'runnerRunning',
+      },
+    })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(IMAGE_GENERATION.POLL_INTERVAL_MS)
+    })
+    expect(result.current.activeRun?.items[0]).toMatchObject({
+      executionStage: 'runnerRunning',
+    })
   })
 
   it('does not report failure when polling times out but the job is still running', async () => {
@@ -904,11 +943,9 @@ describe('useUnifiedGenerate', () => {
 
     await expect(generationPromise).resolves.toBeNull()
     expect(result.current.stage).toBe('idle')
-    expect(result.current.error).toBe('Provider reported unsafe input')
+    expect(result.current.error).toBe(PROVIDER_SAID_UNSAFE)
     expect(result.current.activeRun?.items[0].status).toBe('failed')
-    expect(result.current.activeRun?.items[0].error).toBe(
-      'Provider reported unsafe input',
-    )
+    expect(result.current.activeRun?.items[0].error).toBe(PROVIDER_SAID_UNSAFE)
   })
 
   it('marks audio run failed when async polling times out', async () => {
@@ -948,7 +985,9 @@ describe('useUnifiedGenerate', () => {
 
     await expect(generationPromise).resolves.toBeNull()
     expect(result.current.stage).toBe('idle')
-    expect(result.current.error).toBe('generation.provider_timeout')
+    expect(result.current.error).toBe(
+      message('Errors.generation.provider_timeout', 'en'),
+    )
     expect(result.current.activeRun?.items[0].status).toBe('failed')
   })
 
@@ -969,9 +1008,9 @@ describe('useUnifiedGenerate', () => {
 
     expect(generation).toBeNull()
     expect(result.current.stage).toBe('idle')
-    expect(result.current.error).toBe('generateFailed')
+    expect(result.current.error).toBe(UNKNOWN_FAILURE)
     expect(result.current.activeRun?.items[0].status).toBe('failed')
-    expect(result.current.activeRun?.items[0].error).toBe('generateFailed')
+    expect(result.current.activeRun?.items[0].error).toBe(UNKNOWN_FAILURE)
   })
 
   it('returns null when mode has no matching input', async () => {
@@ -997,7 +1036,7 @@ describe('useUnifiedGenerate', () => {
       await result.current.generate({ mode: 'image', image: IMAGE_INPUT })
     })
 
-    expect(result.current.error).toBe('Provider unavailable')
+    expect(result.current.error).toBe(OVERLOADED)
 
     let retryPromise: Promise<GenerationRecord | null>
     await act(async () => {
@@ -1146,7 +1185,7 @@ describe('useUnifiedGenerate', () => {
       expect(result.current.canQueueMoreVideo).toBe(true)
     })
 
-    it('⭐ 提交时抛异常：失败原因过错误词表，⛔ 不把异常原文写给用户', async () => {
+    it('⭐ 提交时抛异常：那一条落成失败态、给的是本地化的一句', async () => {
       const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
 
       mockSubmitVideo.mockRejectedValueOnce(
@@ -1154,17 +1193,27 @@ describe('useUnifiedGenerate', () => {
       )
       await queueVideo(result, { prompt: 'doomed take' })
 
-      // 词表本身在 `api-error-message.test.ts` 里验；这里验这条路**过了词表**。
-      expect(vi.mocked(getGenerationErrorMessage)).toHaveBeenCalledWith(
-        expect.anything(),
-        { error: 'Failed to fetch at submitVideoAPI (chunk-4.js:12)' },
-        'errorUnexpected',
+      const failed = result.current.activeRun?.items.find(
+        (item) => item.status === 'failed',
       )
-      expect(
-        result.current.activeRun?.items.some(
-          (item) => item.status === 'failed',
-        ),
-      ).toBe(true)
+      expect(failed).toBeDefined()
+      expect(failed!.error).not.toBe(
+        'Failed to fetch at submitVideoAPI (chunk-4.js:12)',
+      )
+    })
+
+    it('⭐ 提交时抛异常：⛔ 不把异常原文写给用户', async () => {
+      const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
+
+      mockSubmitVideo.mockRejectedValueOnce(
+        new TypeError('Failed to fetch at submitVideoAPI (chunk-4.js:12)'),
+      )
+      await queueVideo(result, { prompt: 'doomed take' })
+
+      const failed = result.current.activeRun?.items.find(
+        (item) => item.status === 'failed',
+      )
+      expect(failed!.error).not.toContain('Failed to fetch')
     })
 
     it('⭐ 重试用**那一条**自己的参数重放，不是最后一次提交的参数', async () => {
@@ -1299,7 +1348,9 @@ describe('useUnifiedGenerate', () => {
         await Promise.resolve()
       })
 
-      expect(toast.error).toHaveBeenCalledWith('cancel blew up')
+      expect(toast.error).toHaveBeenCalledWith(
+        message('GenerationCancel.cancelFailed', 'en'),
+      )
     })
 
     it('轮询收到 CANCELLED 时干净收尾：不落进失败态、不弹全局错误', async () => {

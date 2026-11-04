@@ -1,16 +1,14 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { act, fireEvent, screen, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { renderWithApp } from '@/test/app-harness'
+import { text } from '@/test/i18n-text'
 
 import { VoiceTrainer } from './VoiceTrainer'
 
-vi.mock('next-intl', () => ({
-  useTranslations:
-    () =>
-    (key: string, vars?: Record<string, unknown>): string => {
-      if (!vars) return key
-      return `${key}:${JSON.stringify(vars)}`
-    },
-}))
+const T = (key: string, values?: Record<string, string | number>) =>
+  text(`StudioPage.${key}`, values)
+const render = (ui: React.ReactElement) => renderWithApp(ui)
 
 /**
  * ⚠ 2026-08-30：训练成功后的落点从「直接 dispatch 进 StudioContext」改成了
@@ -19,22 +17,15 @@ vi.mock('next-intl', () => ({
  */
 const onCreatedMock = vi.fn()
 
-const refreshMock = vi.fn(async () => {})
-vi.mock('@/features/cards/hooks/use-voice-cards', () => ({
-  useVoiceCards: () => ({
-    cards: [],
-    isLoading: false,
-    error: null,
-    findCard: () => null,
-    refresh: refreshMock,
-  }),
-}))
-
+// 只假网络：真 `useVoiceCards`，「刷新音色卡列表」= 再拉一次列表。
 const createVoiceMock = vi.fn()
 const transcribeVoiceMock = vi.fn()
-vi.mock('@/lib/api-client', () => ({
+const listVoiceCardsMock = vi.fn()
+vi.mock('@/lib/api-client', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api-client')>()),
   createVoiceAPI: (...args: unknown[]) => createVoiceMock(...args),
   transcribeVoiceAPI: (...args: unknown[]) => transcribeVoiceMock(...args),
+  listVoiceCardsAPI: (...args: unknown[]) => listVoiceCardsMock(...args),
 }))
 
 const toastSuccess = vi.fn()
@@ -66,9 +57,15 @@ function pickFiles(files: File[]) {
 }
 
 describe('VoiceTrainer', () => {
+  beforeEach(() => {
+    listVoiceCardsMock.mockResolvedValue({
+      success: true,
+      data: { items: [], total: 0 },
+    })
+  })
   afterEach(() => {
     onCreatedMock.mockReset()
-    refreshMock.mockClear()
+    listVoiceCardsMock.mockReset()
     createVoiceMock.mockReset()
     transcribeVoiceMock.mockReset()
     toastSuccess.mockReset()
@@ -77,10 +74,10 @@ describe('VoiceTrainer', () => {
 
   it('renders the empty form with the train button disabled', () => {
     render(<VoiceTrainer />)
-    expect(screen.getByText('voiceTrainName')).toBeInTheDocument()
-    expect(screen.getByText('voiceTrainAudio')).toBeInTheDocument()
+    expect(screen.getByText(T('voiceTrainName'))).toBeInTheDocument()
+    expect(screen.getByText(T('voiceTrainAudio'))).toBeInTheDocument()
     expect(
-      screen.getByText('voiceTrainCreate').closest('button'),
+      screen.getByText(T('voiceTrainCreate')).closest('button'),
     ).toBeDisabled()
   })
 
@@ -102,7 +99,9 @@ describe('VoiceTrainer', () => {
     pickFiles([makeAudioFile('huge.mp3', 11 * 1024 * 1024)])
 
     expect(toastError).toHaveBeenCalled()
-    expect(toastError.mock.calls[0]?.[0]).toMatch(/voiceTrainFileTooLarge/)
+    expect(toastError.mock.calls[0]?.[0]).toBe(
+      T('voiceTrainFileTooLarge', { name: 'huge.mp3', maxMb: 10 }),
+    )
     expect(screen.queryByText('huge.mp3')).not.toBeInTheDocument()
   })
 
@@ -114,7 +113,9 @@ describe('VoiceTrainer', () => {
     pickFiles(nine)
 
     expect(toastError).toHaveBeenCalled()
-    expect(toastError.mock.calls[0]?.[0]).toMatch(/voiceTrainTooManyFiles/)
+    expect(toastError.mock.calls[0]?.[0]).toBe(
+      T('voiceTrainTooManyFiles', { max: 8 }),
+    )
     // First 8 are accepted, the 9th is dropped.
     for (let i = 0; i < 8; i += 1) {
       expect(screen.getByText(`c${i}.mp3`)).toBeInTheDocument()
@@ -130,20 +131,25 @@ describe('VoiceTrainer', () => {
     })
 
     render(<VoiceTrainer onCreated={onCreatedMock} />)
-    fireEvent.change(screen.getByPlaceholderText('voiceTrainNamePlaceholder'), {
-      target: { value: 'My Voice' },
-    })
+    await waitFor(() => expect(listVoiceCardsMock).toHaveBeenCalledTimes(1))
+    fireEvent.change(
+      screen.getByPlaceholderText(T('voiceTrainNamePlaceholder')),
+      {
+        target: { value: 'My Voice' },
+      },
+    )
     pickFiles([makeAudioFile('clip.mp3', 1024)])
 
-    fireEvent.click(screen.getByText('voiceTrainCreate'))
+    fireEvent.click(screen.getByText(T('voiceTrainCreate')))
 
     await waitFor(() => expect(createVoiceMock).toHaveBeenCalled())
     expect(onCreatedMock).toHaveBeenCalledWith({
       cardId: 'card-1',
       voiceId: 'fish-voice-1',
     })
-    await waitFor(() => expect(refreshMock).toHaveBeenCalled())
-    expect(toastSuccess).toHaveBeenCalledWith('voiceTrainSuccess')
+    // 列表真去重拉了一次（挂载那一次 + 训练完刷新这一次）。
+    await waitFor(() => expect(listVoiceCardsMock).toHaveBeenCalledTimes(2))
+    expect(toastSuccess).toHaveBeenCalledWith(T('voiceTrainSuccess'))
     // Form is reset on success.
     expect(screen.queryByText('clip.mp3')).not.toBeInTheDocument()
   })
@@ -156,16 +162,19 @@ describe('VoiceTrainer', () => {
     })
 
     render(<VoiceTrainer onCreated={onCreatedMock} />)
-    fireEvent.change(screen.getByPlaceholderText('voiceTrainNamePlaceholder'), {
-      target: { value: 'My Voice' },
-    })
+    fireEvent.change(
+      screen.getByPlaceholderText(T('voiceTrainNamePlaceholder')),
+      {
+        target: { value: 'My Voice' },
+      },
+    )
     pickFiles([makeAudioFile('clip.mp3', 1024)])
-    fireEvent.click(screen.getByText('voiceTrainCreate'))
+    fireEvent.click(screen.getByText(T('voiceTrainCreate')))
 
     await waitFor(() => expect(toastError).toHaveBeenCalled())
-    expect(toastError.mock.calls[0]?.[0]).toBe('voiceApiKeyRequired')
+    expect(toastError.mock.calls[0]?.[0]).toBe(T('voiceApiKeyRequired'))
     expect(onCreatedMock).not.toHaveBeenCalled()
-    expect(refreshMock).not.toHaveBeenCalled()
+    expect(listVoiceCardsMock).toHaveBeenCalledTimes(1)
   })
 
   it('shows the uploading-stage label immediately after train is clicked', async () => {
@@ -177,20 +186,25 @@ describe('VoiceTrainer', () => {
     )
 
     render(<VoiceTrainer />)
-    fireEvent.change(screen.getByPlaceholderText('voiceTrainNamePlaceholder'), {
-      target: { value: 'My Voice' },
-    })
+    fireEvent.change(
+      screen.getByPlaceholderText(T('voiceTrainNamePlaceholder')),
+      {
+        target: { value: 'My Voice' },
+      },
+    )
     pickFiles([makeAudioFile('clip.mp3', 1024)])
 
-    fireEvent.click(screen.getByText('voiceTrainCreate'))
+    fireEvent.click(screen.getByText(T('voiceTrainCreate')))
 
     // The "uploading" label is what proves the user gets immediate feedback
     // when they hit Create. The 1500ms → finalizing transition is a pure
     // setTimeout schedule and is not worth wrestling fake timers for.
     await waitFor(() =>
-      expect(screen.getByText('voiceTrainStageUploading')).toBeInTheDocument(),
+      expect(
+        screen.getByText(T('voiceTrainStageUploading')),
+      ).toBeInTheDocument(),
     )
-    expect(screen.queryByText('voiceTrainCreate')).not.toBeInTheDocument()
+    expect(screen.queryByText(T('voiceTrainCreate'))).not.toBeInTheDocument()
 
     // Resolving the request returns the button to idle.
     await act(async () => {
@@ -202,7 +216,7 @@ describe('VoiceTrainer', () => {
     })
 
     await waitFor(() =>
-      expect(screen.getByText('voiceTrainCreate')).toBeInTheDocument(),
+      expect(screen.getByText(T('voiceTrainCreate'))).toBeInTheDocument(),
     )
   })
 
@@ -210,12 +224,14 @@ describe('VoiceTrainer', () => {
     render(<VoiceTrainer />)
 
     pickFiles([makeAudioFile('a.mp3', 1024)])
-    expect(screen.getByText('voiceTranscribe')).toBeInTheDocument()
-    expect(screen.queryByText('voiceTranscribeFirst')).not.toBeInTheDocument()
+    expect(screen.getByText(T('voiceTranscribe'))).toBeInTheDocument()
+    expect(
+      screen.queryByText(T('voiceTranscribeFirst')),
+    ).not.toBeInTheDocument()
 
     pickFiles([makeAudioFile('b.mp3', 1024)])
-    expect(screen.getByText('voiceTranscribeFirst')).toBeInTheDocument()
-    expect(screen.queryByText('voiceTranscribe')).not.toBeInTheDocument()
+    expect(screen.getByText(T('voiceTranscribeFirst'))).toBeInTheDocument()
+    expect(screen.queryByText(T('voiceTranscribe'))).not.toBeInTheDocument()
   })
 
   it('fills the transcript via the auto-transcribe button', async () => {
@@ -226,16 +242,16 @@ describe('VoiceTrainer', () => {
 
     render(<VoiceTrainer />)
     pickFiles([makeAudioFile('clip.mp3', 1024)])
-    fireEvent.click(screen.getByText('voiceTranscribe'))
+    fireEvent.click(screen.getByText(T('voiceTranscribe')))
 
     await waitFor(() => expect(transcribeVoiceMock).toHaveBeenCalled())
     const transcriptInput = screen.getByPlaceholderText(
-      'voiceTrainTranscriptPlaceholder',
+      T('voiceTrainTranscriptPlaceholder'),
     ) as HTMLTextAreaElement
     expect(transcriptInput.value).toBe('hello there')
     // 结果写在「自动转写」键上（ui-defaults §7.1），⛔ 弹底部黑条。
     expect(
-      await screen.findByRole('button', { name: 'voiceTranscribeSuccess' }),
+      await screen.findByRole('button', { name: T('voiceTranscribeSuccess') }),
     ).toHaveAttribute('data-feedback', 'done')
     expect(toastSuccess).not.toHaveBeenCalled()
   })

@@ -1,365 +1,311 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, screen, within } from '@testing-library/react'
 import { toast } from 'sonner'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   ASSISTANT_MODEL_CANNOT_SEE_CODE,
   ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE,
 } from '@/constants/assistant-operator'
-import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
+import {
+  API_ENDPOINTS,
+  IMAGE_GENERATION,
+  LLM_TEXT_MODEL_IDS,
+} from '@/constants/config'
+import { AI_MODELS } from '@/constants/models'
+import {
+  AI_ADAPTER_TYPES,
+  getDefaultProviderConfig,
+} from '@/constants/providers'
 import {
   STUDIO_GENERATION_DRAG_MIME,
+  STUDIO_GUIDE_SEEN_STORAGE_KEY,
   STUDIO_REFERENCE_DRAG_MIME,
 } from '@/constants/studio'
-import { AI_ADAPTER_TYPES } from '@/constants/providers'
-import { evaluateGenerationAPI } from '@/lib/api-client/generation'
+import { closeImageRecipeImport } from '@/hooks/use-image-recipe-import'
+import { clearOperatorMentions } from '@/hooks/use-studio-operator-store'
 import type { GenerationRecord } from '@/types'
-import type { ActiveRun } from '@/types'
+import { stubBrowserLayout } from '@/test/browser-stubs'
+import { generationFixture } from '@/test/generation-fixture'
+import { richText, text } from '@/test/i18n-text'
+import {
+  fakeStudioServer,
+  renderWithStudio,
+  type StudioHandle,
+} from '@/test/studio-harness'
+import { DESKTOP_WIDTH, setViewportWidth } from '@/test/viewport'
 
 import { StudioCanvas } from './StudioCanvas'
 
 /**
- * 修复：单张生成完成后 `StudioResultFeedback` 不渲染。
+ * 结果区舞台，全程真的：真生成（提交 → 轮询 → 完成）、真 `GenerationPreview` /
+ * `CompareGrid` / 参考轨 / 反馈条、真「满意」评估（缺 key 就地弹真 `QuickSetupDialog`，
+ * 存 key → 验 key → 接着评）、真视频发送口（哪几帧这次不发）、真拖放；只假网络、屏宽、时钟，
+ * 以及 jsdom 没有的 `URL.createObjectURL`（浏览器 API）。`sonner` 是外部包，换成可观察的
+ * `toast` 看「有没有照实说一句」。
  *
- * 根因（见 git log -S"activeRun?.mode"，commit 7da5d0e7 首次接线）：守卫写的是
- * `!activeRun?.mode`。`ActiveRun.mode` 是必填字段（'single' | 'compare' |
- * 'variant'，见 `src/types/index.ts` `RunGroupMode`），单张生成路径从 B0 起就
- * 建 `mode: 'single'` 的 run 做逐项追踪（`use-unified-generate.ts`），且只有
- * 显式 `reset()` 才会把 `activeRun` 清回 `null`——生成完成本身不清。所以
- * `!activeRun?.mode` 在单张生成完成后恒为 false，反馈条永远不出现；这不是
- * 「刻意排除 single」，是漏了 single 分支的 bug（提交信息只说「接上
- * StudioResultFeedback」，没有任何「仅 compare/variant」的意图说明，且组件
- * 本就分支在 `activeRun?.mode !== 'compare' && !== 'variant'` 的 else 分支里，
- * 已经排除了 compare/variant，多余的 `!activeRun?.mode` 纯属误判）。
+ * 修复回归：单张生成完成后 `StudioResultFeedback` 不渲染 —— 守卫曾写成 `!activeRun?.mode`，
+ * 而单张生成路径从 B0 起就建 `mode: 'single'` 的 run、完成后不清，于是反馈条永远不出现。
  */
 
-vi.mock('next-intl', () => ({
-  // ⚠ 带 `rich`：视频台首帧封面下面那行说明是富文本。
-  useTranslations: () =>
-    Object.assign((key: string) => key, { rich: (key: string) => key }),
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({ isLoaded: true, isSignedIn: true, userId: 'user-canvas' }),
 }))
-
 vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(),
-}))
-
-vi.mock('@/i18n/navigation', () => ({
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
   usePathname: () => '/studio/image',
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }))
-
+vi.mock('@/i18n/navigation', () => ({
+  usePathname: () => '/studio/image',
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  Link: ({ children, href }: { children: React.ReactNode; href: string }) => (
+    <a href={href}>{children}</a>
+  ),
+}))
 vi.mock('sonner', () => ({
-  toast: { info: vi.fn(), success: vi.fn(), error: vi.fn() },
-}))
-
-vi.mock('@/hooks/use-studio-run-models', () => ({
-  useStudioRunModels: () => ({
-    runModels: [],
-    runModelIds: new Set<string>(),
-    filterModelByDialect: () => true,
+  toast: Object.assign(vi.fn(), {
+    info: vi.fn(),
+    success: vi.fn(),
+    error: vi.fn(),
+    warning: vi.fn(),
+    dismiss: vi.fn(),
   }),
-}))
-vi.mock('@/hooks/use-image-model-options', () => ({
-  useImageModelOptions: () => ({ modelOptions: [] }),
+  Toaster: () => null,
 }))
 
-vi.mock('@/hooks/use-mobile', () => ({
-  useIsMobile: () => false,
-  useIsTablet: () => false,
-}))
+const ok = (data: unknown) => Response.json({ success: true, data })
+const EDIT = (key: string) => text(`StudioImageEdit.${key}`)
+const SLOTS = (key: string) => text(`StudioVideoSlots.${key}`)
+const SATISFIED = text('StudioResultFeedback.satisfied')
+const REFERENCE = 'https://cdn.example.com/reference.png'
 
-/** 这一枪不发的那几张图（素材排、发送口与舞台封面同一份）。 */
-const videoSend = vi.hoisted(() => ({ unsentImages: [] as string[] }))
-vi.mock('@/hooks/use-studio-video-assets', () => ({
-  useStudioVideoAssets: () => ({
-    send: { unsent: { images: videoSend.unsentImages } },
-  }),
-}))
+let server: ReturnType<typeof fakeStudioServer>
+/** 每一枪的任务号 → 它完成时带回的那一条。 */
+let jobs: Map<string, GenerationRecord>
+let pending: GenerationRecord[]
+let evaluations: unknown[]
+let evaluateReplies: Array<() => Response>
+let savedKeys: unknown[]
 
-vi.mock('@/lib/api-client', () => ({
-  fetchGenerationByIdAPI: vi.fn(),
-}))
-
-vi.mock('@/lib/api-client/generation', () => ({
-  evaluateGenerationAPI: vi.fn(),
-}))
-
-vi.mock('@/lib/focus-studio-prompt', () => ({
-  focusStudioPrompt: vi.fn(),
-}))
-
-vi.mock('@/lib/studio-remix', () => ({
-  buildStudioRemixPreset: vi.fn(),
-}))
-
-vi.mock('@/features/studio/components/image/CompareGrid', () => ({
-  CompareGrid: () => <div data-testid="compare-grid" />,
-}))
-
-vi.mock(
-  '@/components/business/studio-shared/chrome/StudioReferenceRail',
-  () => ({
-    StudioReferenceRail: () => <div data-testid="reference-rail" />,
-  }),
-)
-
-vi.mock(
-  '@/components/business/studio-shared/chrome/StudioVideoQueueStrip',
-  () => ({
-    StudioVideoQueueStrip: () => <div data-testid="video-queue-strip" />,
-  }),
-)
-
-vi.mock('@/features/studio/components/GenerationPreview', () => ({
-  GenerationPreview: ({
-    generation,
-  }: {
-    generation: GenerationRecord | null
-  }) => (
-    <div
-      data-testid="generation-preview"
-      data-generation-id={generation?.id ?? ''}
-    />
-  ),
-}))
-
-vi.mock('@/features/studio/components/image/StudioResultFeedback', () => ({
-  StudioResultFeedback: ({
-    generationId,
-    onFeedback,
-  }: {
-    generationId: string
-    onFeedback: (tags: string[]) => void
-  }) => (
-    <div data-testid="studio-result-feedback" data-generation-id={generationId}>
-      <button type="button" onClick={() => onFeedback(['satisfied'])}>
-        satisfied
-      </button>
-    </div>
-  ),
-}))
-
-vi.mock('@/components/business/studio-shared/setup/QuickSetupDialog', () => ({
-  QuickSetupDialog: (props: {
-    adapterType: string
-    modelId: string
-    selectStudioModel?: boolean
-    onVerified?: (modelId: string, keyId: string) => void
-  }) => (
-    <div
-      data-testid="quick-setup"
-      data-adapter={props.adapterType}
-      data-model={props.modelId}
-      data-select-studio-model={String(props.selectStudioModel)}
-    >
-      <button
-        type="button"
-        onClick={() => props.onVerified?.(props.modelId, 'key_new')}
-      >
-        verified
-      </button>
-    </div>
-  ),
-}))
-
-vi.mock(
-  '@/components/business/studio-shared/editor/StudioImageEditStage',
-  () => ({
-    StudioImageEditStage: () => null,
-  }),
-)
-
-const mockUseStudioForm = vi.hoisted(() => vi.fn())
-const mockUseStudioGen = vi.hoisted(() => vi.fn())
-const mockAddFromUrl = vi.hoisted(() => vi.fn(() => Promise.resolve()))
-const mockStartRecipeImport = vi.hoisted(() => vi.fn())
-vi.mock('@/hooks/use-image-recipe-import', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/hooks/use-image-recipe-import')>()),
-  startImageRecipeImport: mockStartRecipeImport,
-}))
-const referenceState = vi.hoisted(() => ({
-  entries: [] as { url: string; disabledReason: null }[],
-}))
-
-vi.mock('@/contexts/studio-context', () => ({
-  useStudioForm: mockUseStudioForm,
-  useStudioData: () => ({
-    imageUpload: {
-      referenceEntries: referenceState.entries,
-      referenceImages: [],
-      addFromUrl: mockAddFromUrl,
-      removeReferenceImage: vi.fn(),
-    },
-  }),
-  useStudioGen: mockUseStudioGen,
-}))
-
-function makeGeneration(): GenerationRecord {
-  return {
-    id: 'gen-single-1',
-    outputType: 'IMAGE',
-    url: 'https://cdn.example.com/gen-single-1.png',
-    prompt: 'a cat',
-    negativePrompt: null,
-    model: 'flux-pro',
-    provider: 'fal',
-    createdAt: new Date().toISOString(),
-    status: 'completed',
-  } as unknown as GenerationRecord
-}
-
-/** 单张生成路径真实建出的 run 形状：mode 恒为 'single'，完成后不会被清空。 */
-function makeSingleActiveRun(generation: GenerationRecord): ActiveRun {
-  return {
-    id: 'run-1',
-    mode: 'single',
-    outputType: 'IMAGE',
-    items: [
-      {
-        id: 'item-1',
-        status: 'completed',
-        modelId: generation.model,
-        generation,
-        startedAt: Date.now(),
-      },
-    ],
-    selectedItemId: null,
-  } as unknown as ActiveRun
-}
-
-describe('StudioCanvas — 单张生成完成后的反馈条', () => {
-  it.each([false, true])(
-    '有参考图时根据生成状态选择舞台（生成中=%s）',
-    (isGenerating) => {
-      referenceState.entries = [
-        { url: 'https://cdn.example.com/reference.png', disabledReason: null },
-      ]
-      mockUseStudioGen.mockReturnValue({
-        lastGeneration: null,
-        activeRun: null,
-        error: null,
-        isGenerating,
-        elapsedSeconds: 12,
-        setLastEvaluation: vi.fn(),
-      })
-      render(<StudioCanvas />)
-      expect(screen.getByTestId('reference-rail')).toBeInTheDocument()
-      if (isGenerating) {
-        expect(screen.getByTestId('generation-preview')).toBeInTheDocument()
-        expect(screen.queryByAltText('sourceAlt')).not.toBeInTheDocument()
-      } else {
-        expect(screen.getByAltText('sourceAlt')).toBeInTheDocument()
-        expect(
-          screen.queryByTestId('generation-preview'),
-        ).not.toBeInTheDocument()
+beforeEach(() => {
+  vi.useFakeTimers({
+    toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'],
+  })
+  stubBrowserLayout()
+  setViewportWidth(DESKTOP_WIDTH)
+  localStorage.setItem(STUDIO_GUIDE_SEEN_STORAGE_KEY, '1')
+  Element.prototype.scrollIntoView = vi.fn()
+  // jsdom 没有 object URL（从图读串先拿它当预览）。
+  URL.createObjectURL = () => 'blob:dropped'
+  URL.revokeObjectURL = () => {}
+  clearOperatorMentions()
+  closeImageRecipeImport()
+  vi.mocked(toast.error).mockClear()
+  jobs = new Map()
+  pending = []
+  evaluations = []
+  evaluateReplies = []
+  savedKeys = []
+  let n = 0
+  server = fakeStudioServer()
+    .on('POST', API_ENDPOINTS.STUDIO_GENERATE, () => {
+      n += 1
+      const jobId = `job-${n}`
+      const next = pending.shift()
+      if (next) jobs.set(jobId, next)
+      return ok({ jobId, requestId: `req-${n}` })
+    })
+    .on('GET', API_ENDPOINTS.STUDIO_GENERATE_STATUS, (request) => {
+      const jobId = request.nextUrl.searchParams.get('jobId') ?? ''
+      const generation = jobs.get(jobId)
+      return ok(
+        generation
+          ? { jobId, status: 'COMPLETED', generation }
+          : { jobId, status: 'IN_PROGRESS' },
+      )
+    })
+    .on('POST', API_ENDPOINTS.GENERATION_EVALUATE, async (request) => {
+      evaluations.push(await request.json())
+      return evaluateReplies.shift()?.() ?? ok(null)
+    })
+    .on('GET', API_ENDPOINTS.API_KEYS, () => ok(savedKeys))
+    .on('POST', API_ENDPOINTS.API_KEYS, async (request) => {
+      const body = (await request.json()) as {
+        adapterType: AI_ADAPTER_TYPES
+        modelId: string
       }
+      const key = {
+        id: 'key-new',
+        modelId: body.modelId,
+        adapterType: body.adapterType,
+        providerConfig: getDefaultProviderConfig(body.adapterType),
+        label: 'new',
+        maskedKey: '••••',
+        isActive: true,
+        createdAt: new Date().toISOString(),
+      }
+      savedKeys = [key]
+      return ok(key)
+    })
+    .on(
+      'POST',
+      `${API_ENDPOINTS.API_KEYS}/:id/verify`,
+      (_request, { params }) =>
+        params.then(({ id }) => ok({ id, status: 'available' })),
+    )
+})
+afterEach(() => {
+  closeImageRecipeImport()
+  vi.useRealTimers()
+  vi.unstubAllGlobals()
+})
+
+const tick = (ms = 0) => act(() => vi.advanceTimersByTimeAsync(ms))
+
+function renderCanvas(props: React.ComponentProps<typeof StudioCanvas> = {}) {
+  const view = renderWithStudio(<StudioCanvas {...props} />)
+  return { ...view, studio: view.studio as { current: StudioHandle } }
+}
+
+const IMAGE = generationFixture({ id: 'gen-single-1', prompt: 'a cat' })
+const resultImage = (generation: GenerationRecord) =>
+  document.querySelector(`img[src="${generation.url}"]`)
+
+/** 真出一张：提交 → 轮询一拍 → 完成。 */
+async function generate(
+  studio: { current: StudioHandle },
+  results: GenerationRecord[],
+  input: Parameters<StudioHandle['generation']['generate']>[0] = {
+    mode: 'image',
+    image: {
+      modelId: AI_MODELS.GEMINI_PRO_IMAGE,
+      freePrompt: 'a cat',
+      aspectRatio: '1:1',
     },
-  )
-  beforeEach(() => {
-    referenceState.entries = []
-    mockUseStudioForm.mockReturnValue({
-      state: {
-        outputType: 'image',
-        promptDialect: 'natural',
-        videoMode: 'text-to-video',
-      },
-      dispatch: vi.fn(),
-    })
+  },
+) {
+  pending.push(...results)
+  await act(async () => {
+    void studio.current.generation.generate(input)
+    await vi.advanceTimersByTimeAsync(0)
   })
+  await tick(IMAGE_GENERATION.POLL_INTERVAL_MS)
+  await tick()
+}
 
-  it('single 模式下 lastGeneration 到位后渲染 StudioResultFeedback（修复前：!activeRun?.mode 恒假，永不渲染）', () => {
-    const generation = makeGeneration()
-    mockUseStudioGen.mockReturnValue({
-      lastGeneration: generation,
-      error: null,
-      errorCode: null,
-      retry: vi.fn(),
-      activeRun: makeSingleActiveRun(generation),
-      selectWinner: vi.fn(),
-      lastEvaluation: null,
-      setLastEvaluation: vi.fn(),
-      isGenerating: false,
-      elapsedSeconds: 0,
-      retryVideoQueueItem: vi.fn(),
-      cancelRunItem: vi.fn(),
-      cancelAllRunItems: vi.fn(),
+describe('舞台：结果 / 参考图 / 生成中', () => {
+  it('有参考图、还没出结果：参考图占住舞台', async () => {
+    const { studio } = renderCanvas()
+    await tick()
+    await act(async () => {
+      await studio.current.imageUpload.addFromUrl(REFERENCE)
     })
-
-    render(<StudioCanvas />)
-
-    const feedback = screen.getByTestId('studio-result-feedback')
-    expect(feedback).toHaveAttribute('data-generation-id', generation.id)
-  })
-
-  it('其他方言的结果与生成状态不会出现在当前台，切回后仍在', () => {
-    const generation = { ...makeGeneration(), model: 'nai-diffusion-5-full' }
-    const activeRun = makeSingleActiveRun(generation)
-    const generationState = {
-      lastGeneration: generation,
-      activeRun,
-      isGenerating: true,
-      error: null,
-      setLastEvaluation: vi.fn(),
-      elapsedSeconds: 12,
-    }
-    mockUseStudioGen.mockReturnValue(generationState)
-    const view = render(<StudioCanvas />)
-    expect(screen.getByTestId('generation-preview')).toHaveAttribute(
-      'data-generation-id',
-      '',
+    await tick()
+    expect(screen.getByAltText(EDIT('sourceAlt'))).toHaveAttribute(
+      'src',
+      REFERENCE,
     )
-    expect(
-      screen.queryByTestId('studio-result-feedback'),
-    ).not.toBeInTheDocument()
-    mockUseStudioForm.mockReturnValue({
-      state: { outputType: 'image', promptDialect: 'tags' },
-      dispatch: vi.fn(),
-    })
-    view.rerender(<StudioCanvas className="tags-workspace" />)
-    expect(screen.getByTestId('generation-preview')).toHaveAttribute(
-      'data-generation-id',
-      generation.id,
-    )
-    expect(generationState.activeRun).toBe(activeRun)
   })
 
-  it('compare 模式下继续不渲染 StudioResultFeedback（图墙分支本就互斥，守卫不能反过来把它露出来）', () => {
-    const generation = makeGeneration()
-    const compareRun = {
-      id: 'run-2',
-      mode: 'compare',
-      outputType: 'IMAGE',
-      items: [
-        {
-          id: 'item-1',
-          status: 'completed',
-          modelId: generation.model,
-          generation,
-          startedAt: Date.now(),
+  it('有参考图、正在生成：舞台让给生成中，⛔ 还铺着参考图', async () => {
+    const { studio } = renderCanvas()
+    await tick()
+    await act(async () => {
+      await studio.current.imageUpload.addFromUrl(REFERENCE)
+    })
+    // 交上去了、一直没出完。
+    await act(async () => {
+      void studio.current.generation.generate({
+        mode: 'image',
+        image: {
+          modelId: AI_MODELS.GEMINI_PRO_IMAGE,
+          freePrompt: 'a cat',
+          aspectRatio: '1:1',
         },
-      ],
-      selectedItemId: null,
-    } as unknown as ActiveRun
-
-    mockUseStudioGen.mockReturnValue({
-      lastGeneration: generation,
-      error: null,
-      errorCode: null,
-      retry: vi.fn(),
-      activeRun: compareRun,
-      selectWinner: vi.fn(),
-      lastEvaluation: null,
-      setLastEvaluation: vi.fn(),
-      isGenerating: false,
-      elapsedSeconds: 0,
-      retryVideoQueueItem: vi.fn(),
-      cancelRunItem: vi.fn(),
-      cancelAllRunItems: vi.fn(),
+      })
+      await vi.advanceTimersByTimeAsync(0)
     })
+    await tick()
+    expect(studio.current.generation.isGenerating).toBe(true)
+    expect(screen.queryByAltText(EDIT('sourceAlt'))).toBeNull()
+    expect(screen.getByRole('progressbar')).toBeInTheDocument()
+  })
 
-    render(<StudioCanvas />)
+  it('⭐ 单张出完：结果下面有反馈条（回归：`!activeRun?.mode` 曾把 single 一起挡掉）', async () => {
+    const { studio } = renderCanvas()
+    await tick()
+    await generate(studio, [IMAGE])
+    expect(studio.current.generation.activeRun?.mode).toBe('single')
+    expect(resultImage(IMAGE)).not.toBeNull()
+    expect(screen.getByRole('button', { name: SATISFIED })).toBeInTheDocument()
+  })
 
-    expect(screen.queryByTestId('studio-result-feedback')).toBeNull()
+  it('对比出完：是图墙，⛔ 反馈条（两个分支互斥）', async () => {
+    const { studio } = renderCanvas()
+    await tick()
+    const a = generationFixture({
+      id: 'gen-a',
+      model: AI_MODELS.GEMINI_PRO_IMAGE,
+    })
+    const b = generationFixture({
+      id: 'gen-b',
+      model: AI_MODELS.OPENAI_GPT_IMAGE_2,
+      provider: 'openai',
+    })
+    await generate(studio, [a, b], {
+      mode: 'image',
+      image: {
+        modelId: AI_MODELS.GEMINI_PRO_IMAGE,
+        freePrompt: 'a cat',
+        aspectRatio: '1:1',
+      },
+      compareModels: [
+        { modelId: AI_MODELS.GEMINI_PRO_IMAGE },
+        { modelId: AI_MODELS.OPENAI_GPT_IMAGE_2 },
+      ],
+    })
+    expect(studio.current.generation.activeRun?.mode).toBe('compare')
+    // 图墙：两个模型各一格。
+    expect(screen.getAllByRole('option')).toHaveLength(2)
+    expect(screen.queryByRole('button', { name: SATISFIED })).toBeNull()
+  })
+
+  it('标签台出的图只在标签台露面：切到自然语言台不见，切回来还在', async () => {
+    const { studio } = renderCanvas()
+    await tick()
+    act(() =>
+      studio.current.dispatch({ type: 'SET_PROMPT_DIALECT', payload: 'tags' }),
+    )
+    const nai = generationFixture({
+      id: 'gen-nai',
+      model: AI_MODELS.NOVELAI_V5_FULL,
+      provider: 'novelai',
+    })
+    await generate(studio, [nai], {
+      mode: 'image',
+      promptDialect: 'tags',
+      image: {
+        modelId: AI_MODELS.NOVELAI_V5_FULL,
+        freePrompt: '1girl',
+        aspectRatio: '1:1',
+      },
+    })
+    expect(resultImage(nai)).not.toBeNull()
+
+    act(() =>
+      studio.current.dispatch({
+        type: 'SET_PROMPT_DIALECT',
+        payload: 'natural',
+      }),
+    )
+    expect(resultImage(nai)).toBeNull()
+    expect(screen.queryByRole('button', { name: SATISFIED })).toBeNull()
+
+    act(() =>
+      studio.current.dispatch({ type: 'SET_PROMPT_DIALECT', payload: 'tags' }),
+    )
+    expect(resultImage(nai)).not.toBeNull()
+    expect(studio.current.generation.lastGeneration?.id).toBe('gen-nai')
   })
 })
 
@@ -367,97 +313,109 @@ describe('StudioCanvas — 单张生成完成后的反馈条', () => {
  * 「满意」评估跑不了（owner 2026-10-15「全跟助手」）：缺 key 就地弹那一家的配置（Hard Rule 8，
  * 与助手面板错误条同一跳），配好接着评；看不了图这种配 key 解决不了的，照实说一句。
  */
-describe('StudioCanvas — 「满意」评估缺 key', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    referenceState.entries = []
-    mockUseStudioForm.mockReturnValue({
-      state: {
-        outputType: 'image',
-        promptDialect: 'natural',
-        videoMode: 'text-to-video',
-      },
-      dispatch: vi.fn(),
-    })
-    const generation = makeGeneration()
-    mockUseStudioGen.mockReturnValue({
-      lastGeneration: generation,
-      error: null,
-      retry: vi.fn(),
-      activeRun: makeSingleActiveRun(generation),
-      selectWinner: vi.fn(),
-      lastEvaluation: null,
-      setLastEvaluation: vi.fn(),
-      isGenerating: false,
-      elapsedSeconds: 0,
-      retryVideoQueueItem: vi.fn(),
-      cancelRunItem: vi.fn(),
-      cancelAllRunItems: vi.fn(),
-    })
-  })
+describe('「满意」评估缺 key', () => {
+  const quickSetup = () =>
+    screen
+      .queryAllByRole('dialog')
+      .find((dialog) =>
+        within(dialog).queryByLabelText(text('QuickSetup.step2')),
+      ) ?? null
+  const providerOf = (dialog: HTMLElement) =>
+    within(dialog).getAllByRole('link')[0]?.textContent
+
+  async function satisfiedOnResult() {
+    const view = renderCanvas()
+    await tick()
+    await generate(view.studio, [IMAGE])
+    fireEvent.click(screen.getByRole('button', { name: SATISFIED }))
+    await tick()
+    await tick()
+    return view
+  }
 
   it('一把 key 都没有：就地弹免费档那一家（Gemini），配好接着评，⛔ 不改工作台模型', async () => {
-    vi.mocked(evaluateGenerationAPI).mockResolvedValueOnce({
-      success: false,
-      error: 'No API key available.',
-      errorCode: 'MISSING_API_KEY',
-    })
-    vi.mocked(evaluateGenerationAPI).mockResolvedValueOnce({
-      success: true,
-      data: null,
-    })
-
-    render(<StudioCanvas />)
-    fireEvent.click(screen.getByText('satisfied'))
-
-    const dialog = await screen.findByTestId('quick-setup')
-    expect(dialog).toHaveAttribute('data-adapter', AI_ADAPTER_TYPES.GEMINI)
-    expect(dialog).toHaveAttribute(
-      'data-model',
-      LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
+    evaluateReplies.push(() =>
+      Response.json(
+        {
+          success: false,
+          error: 'No API key available.',
+          errorCode: 'MISSING_API_KEY',
+        },
+        { status: 400 },
+      ),
     )
-    expect(dialog).toHaveAttribute('data-select-studio-model', 'false')
+    const { studio } = await satisfiedOnResult()
+    // 工作台此刻在用 GPT Image 2 出图；配的是助手那一家，⛔ 顺手换掉它。
+    const optionBefore = `workspace:${AI_MODELS.OPENAI_GPT_IMAGE_2}`
+    act(() =>
+      studio.current.dispatch({ type: 'SET_OPTION_ID', payload: optionBefore }),
+    )
+
+    const dialog = quickSetup()
+    expect(dialog).not.toBeNull()
+    expect(providerOf(dialog!)).toBe(
+      getDefaultProviderConfig(AI_ADAPTER_TYPES.GEMINI).label,
+    )
     expect(toast.error).not.toHaveBeenCalled()
 
-    fireEvent.click(screen.getByText('verified'))
-    await waitFor(() => expect(evaluateGenerationAPI).toHaveBeenCalledTimes(2))
-    expect(evaluateGenerationAPI).toHaveBeenLastCalledWith('gen-single-1')
+    fireEvent.change(within(dialog!).getByLabelText(text('QuickSetup.step2')), {
+      target: { value: 'test-key-value-123' },
+    })
+    fireEvent.click(
+      within(dialog!).getByRole('button', { name: text('QuickSetup.verify') }),
+    )
+    for (let i = 0; i < 6; i += 1) await tick()
+
+    expect(savedKeys).toMatchObject([
+      {
+        adapterType: AI_ADAPTER_TYPES.GEMINI,
+        modelId: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
+      },
+    ])
+    expect(evaluations).toEqual([
+      { generationId: IMAGE.id },
+      { generationId: IMAGE.id },
+    ])
+    expect(studio.current.state.selectedOptionId).toBe(optionBefore)
   })
 
   it('选定的模型缺 key：就地弹**它那一家**，⛔ 不换别家', async () => {
-    vi.mocked(evaluateGenerationAPI).mockResolvedValueOnce({
-      success: false,
-      error: 'no key',
-      errorCode: ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE,
-      missingKey: {
-        adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
-        modelId: LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5,
-      },
-    })
-
-    render(<StudioCanvas />)
-    fireEvent.click(screen.getByText('satisfied'))
-
-    const dialog = await screen.findByTestId('quick-setup')
-    expect(dialog).toHaveAttribute('data-adapter', AI_ADAPTER_TYPES.ANTHROPIC)
-    expect(dialog).toHaveAttribute(
-      'data-model',
-      LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5,
+    evaluateReplies.push(() =>
+      Response.json(
+        {
+          success: false,
+          error: 'no key',
+          errorCode: ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE,
+          missingKey: {
+            adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+            modelId: LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5,
+          },
+        },
+        { status: 400 },
+      ),
+    )
+    await satisfiedOnResult()
+    const dialog = quickSetup()
+    expect(dialog).not.toBeNull()
+    expect(providerOf(dialog!)).toBe(
+      getDefaultProviderConfig(AI_ADAPTER_TYPES.ANTHROPIC).label,
     )
   })
 
   it('看不了图：照实说一句（配 key 解决不了），不弹配置', async () => {
-    vi.mocked(evaluateGenerationAPI).mockResolvedValueOnce({
-      success: false,
-      error: 'cannot see',
-      errorCode: ASSISTANT_MODEL_CANNOT_SEE_CODE,
-    })
-
-    render(<StudioCanvas />)
-    fireEvent.click(screen.getByText('satisfied'))
-
-    await waitFor(() => expect(toast.error).toHaveBeenCalledTimes(1))
-    expect(screen.queryByTestId('quick-setup')).not.toBeInTheDocument()
+    evaluateReplies.push(() =>
+      Response.json(
+        {
+          success: false,
+          error: 'cannot see',
+          errorCode: ASSISTANT_MODEL_CANNOT_SEE_CODE,
+        },
+        { status: 400 },
+      ),
+    )
+    await satisfiedOnResult()
+    expect(toast.error).toHaveBeenCalledTimes(1)
+    expect(quickSetup()).toBeNull()
   })
 })
 
@@ -465,125 +423,87 @@ describe('StudioCanvas — 「满意」评估缺 key', () => {
  * 视频台桌面（底部输入框，owner 2026-09-27 视频台 A）：素材在输入框里，舞台没有参考轨。
  * 还没出过结果时，挂了首帧就把首帧当封面；⛔ 不铺参考图，也没有「编辑这张」（那是图片的）。
  */
-describe('StudioCanvas — 视频台桌面（没有参考轨）', () => {
-  beforeEach(() => {
-    videoSend.unsentImages = []
-    referenceState.entries = [
-      { url: 'https://cdn.example.com/ref.png', disabledReason: null },
-    ]
-    mockUseStudioGen.mockReturnValue({
-      lastGeneration: null,
-      activeRun: null,
-      error: null,
-      isGenerating: false,
-      elapsedSeconds: 0,
-      setLastEvaluation: vi.fn(),
-      retryVideoQueueItem: vi.fn(),
-      cancelRunItem: vi.fn(),
-      cancelAllRunItems: vi.fn(),
-    })
-  })
+describe('视频台桌面（没有参考轨）', () => {
+  const FIRST = 'https://cdn.example.com/f.png'
+  /** 封面下那一行（富文本：「首帧」加粗、后半句是字）。 */
+  const posterLine = (key: string) => (_: string, node: Element | null) =>
+    node?.tagName === 'P' &&
+    node.textContent === richText(`StudioVideoSlots.poster.${key}`)
+  const LAST = 'https://cdn.example.com/l.png'
 
-  it('还没出结果、挂了首尾帧：首帧当封面、尾帧缩在右下，说一句视频从这一帧开始', () => {
-    mockUseStudioForm.mockReturnValue({
-      state: {
-        outputType: 'video',
-        videoFrameSlots: {
-          first: 'https://cdn.example.com/f.png',
-          last: 'https://cdn.example.com/l.png',
-        },
-      },
-      dispatch: vi.fn(),
+  async function videoStage(
+    model: string,
+    first: string | null,
+    last: string | null,
+    /** 输入框里另挂一张普通参考图（舞台 ⛔ 把它铺上来）。 */
+    withReference = true,
+  ) {
+    const view = renderCanvas({ referenceRail: false })
+    await tick()
+    act(() => {
+      const { dispatch } = view.studio.current
+      dispatch({ type: 'SET_OUTPUT_TYPE', payload: 'video' })
+      dispatch({ type: 'SET_OPTION_ID', payload: `workspace:${model}` })
+      dispatch({
+        type: 'SET_VIDEO_FRAME_SLOT',
+        payload: { slot: 'first', url: first },
+      })
+      dispatch({
+        type: 'SET_VIDEO_FRAME_SLOT',
+        payload: { slot: 'last', url: last },
+      })
     })
-    render(<StudioCanvas referenceRail={false} />)
-    expect(screen.getByAltText('firstFrame')).toHaveAttribute(
+    if (withReference)
+      await act(async () => {
+        await view.studio.current.imageUpload.addFromUrl(REFERENCE)
+      })
+    await tick()
+    return view
+  }
+
+  it('还没出结果、挂了首尾帧：首帧当封面、尾帧缩在右下，说一句视频从这一帧开始', async () => {
+    // MiniMax H3：首帧 + 尾帧两格。
+    await videoStage(AI_MODELS.MINIMAX_H3_MAX_TURBO, FIRST, LAST)
+    expect(screen.getByAltText(SLOTS('firstFrame'))).toHaveAttribute(
       'src',
-      'https://cdn.example.com/f.png',
+      FIRST,
     )
-    expect(screen.getByAltText('lastFrame')).toHaveAttribute(
-      'src',
-      'https://cdn.example.com/l.png',
-    )
-    expect(screen.getByText('poster.withLast')).toBeInTheDocument()
-    expect(screen.queryByAltText('sourceAlt')).not.toBeInTheDocument()
-    expect(screen.queryByText('stageEditThis')).not.toBeInTheDocument()
+    expect(screen.getByAltText(SLOTS('lastFrame'))).toHaveAttribute('src', LAST)
+    expect(screen.getByText(posterLine('withLast'))).toBeInTheDocument()
+    expect(screen.queryByAltText(EDIT('sourceAlt'))).toBeNull()
+    expect(screen.queryByText(EDIT('stageEditThis'))).toBeNull()
   })
 
-  it('换到只收一张图的型号：尾帧这次不发，⛔ 还缩在右下角、说明也不提尾帧', () => {
-    videoSend.unsentImages = ['https://cdn.example.com/l.png']
-    mockUseStudioForm.mockReturnValue({
-      state: {
-        outputType: 'video',
-        videoFrameSlots: {
-          first: 'https://cdn.example.com/f.png',
-          last: 'https://cdn.example.com/l.png',
-        },
-      },
-      dispatch: vi.fn(),
-    })
-    render(<StudioCanvas referenceRail={false} />)
-    expect(screen.getByAltText('firstFrame')).toBeInTheDocument()
-    expect(screen.queryByAltText('lastFrame')).not.toBeInTheDocument()
-    expect(screen.getByText('poster.firstOnly')).toBeInTheDocument()
+  it('换到只收一张图的型号：尾帧这次不发，⛔ 还缩在右下角、说明也不提尾帧', async () => {
+    // Seedance 2.0（fal）：只有首帧那一格。⚠ 不另挂参考图 —— 挂了参考图发送口会换到参考端点，
+    //   那一端收多张图，尾帧就作为参考图照发了。
+    await videoStage(AI_MODELS.SEEDANCE_20, FIRST, LAST, false)
+    expect(screen.getByAltText(SLOTS('firstFrame'))).toBeInTheDocument()
+    expect(screen.queryByAltText(SLOTS('lastFrame'))).toBeNull()
+    expect(screen.getByText(posterLine('firstOnly'))).toBeInTheDocument()
   })
 
-  it('型号连首帧都不收：不当封面，走正常的结果区', () => {
-    videoSend.unsentImages = ['https://cdn.example.com/f.png']
-    mockUseStudioForm.mockReturnValue({
-      state: {
-        outputType: 'video',
-        videoFrameSlots: { first: 'https://cdn.example.com/f.png', last: null },
-      },
-      dispatch: vi.fn(),
-    })
-    render(<StudioCanvas referenceRail={false} />)
-    expect(screen.queryByAltText('firstFrame')).not.toBeInTheDocument()
-    expect(screen.getByTestId('generation-preview')).toBeInTheDocument()
-  })
-
-  it('没挂首帧：走正常的结果区，⛔ 不把参考图铺上来', () => {
-    mockUseStudioForm.mockReturnValue({
-      state: {
-        outputType: 'video',
-        videoFrameSlots: { first: null, last: null },
-      },
-      dispatch: vi.fn(),
-    })
-    render(<StudioCanvas referenceRail={false} />)
-    expect(screen.getByTestId('generation-preview')).toBeInTheDocument()
-    expect(screen.queryByAltText('sourceAlt')).not.toBeInTheDocument()
-    expect(screen.queryByAltText('firstFrame')).not.toBeInTheDocument()
+  it('没挂首帧：走正常的结果区，⛔ 把参考图铺上来', async () => {
+    await videoStage(AI_MODELS.SEEDANCE_20, null, null)
+    expect(screen.queryByAltText(EDIT('sourceAlt'))).toBeNull()
+    expect(screen.queryByAltText(SLOTS('firstFrame'))).toBeNull()
   })
 })
 
-describe('StudioCanvas — 拖放（原生 HTML5）', () => {
+describe('拖放（原生 HTML5）', () => {
   function dragData(entries: Record<string, string>, files: File[] = []) {
     const types = Object.keys(entries)
     if (files.length > 0) types.push('Files')
     return { types, files, getData: (type: string) => entries[type] ?? '' }
   }
+  const stageOf = (container: HTMLElement) =>
+    container.querySelector('[data-studio-canvas]') ??
+    (container.firstElementChild as HTMLElement)
 
-  beforeEach(() => {
-    referenceState.entries = []
-    mockAddFromUrl.mockClear()
-    mockStartRecipeImport.mockClear()
-    mockUseStudioGen.mockReturnValue({
-      lastGeneration: null,
-      activeRun: null,
-      error: null,
-      isGenerating: false,
-      elapsedSeconds: 0,
-      setLastEvaluation: vi.fn(),
-    })
-    mockUseStudioForm.mockReturnValue({
-      state: { outputType: 'image', promptDialect: 'natural' },
-      dispatch: vi.fn(),
-    })
-  })
-
-  it('画廊的图拖到舞台：加参考图', () => {
-    const { container } = render(<StudioCanvas />)
-    const stage = container.firstElementChild as HTMLElement
+  it('画廊的图拖到舞台：加参考图', async () => {
+    const { studio, container } = renderCanvas()
+    await tick()
+    const stage = stageOf(container) as HTMLElement
     const dataTransfer = dragData({
       [STUDIO_GENERATION_DRAG_MIME]: JSON.stringify({
         url: 'https://cdn.example.com/a.png',
@@ -592,39 +512,56 @@ describe('StudioCanvas — 拖放（原生 HTML5）', () => {
     })
     fireEvent.dragEnter(stage, { dataTransfer })
     fireEvent.drop(stage, { dataTransfer })
-    expect(mockAddFromUrl).toHaveBeenCalledWith('https://cdn.example.com/a.png')
+    await tick()
+    expect(studio.current.imageUpload.referenceImages).toEqual([
+      'https://cdn.example.com/a.png',
+    ])
   })
 
-  it('输入框参考图条里的缩略图拖到舞台：⛔ 不再加一遍', () => {
-    const { container } = render(<StudioCanvas />)
-    const stage = container.firstElementChild as HTMLElement
-    const dataTransfer = dragData({
-      [STUDIO_REFERENCE_DRAG_MIME]: 'https://cdn.example.com/a.png',
+  it('输入框参考图条里的缩略图拖到舞台：⛔ 不再加一遍，也不去读图', async () => {
+    const { studio, container } = renderCanvas()
+    await tick()
+    fireEvent.drop(stageOf(container) as HTMLElement, {
+      dataTransfer: dragData({
+        [STUDIO_REFERENCE_DRAG_MIME]: 'https://cdn.example.com/a.png',
+      }),
     })
-    fireEvent.drop(stage, { dataTransfer })
-    expect(mockAddFromUrl).not.toHaveBeenCalled()
-    expect(mockStartRecipeImport).not.toHaveBeenCalled()
+    await tick()
+    expect(studio.current.imageUpload.referenceImages).toEqual([])
+    expect(
+      server.requests.some(
+        (r) => r.path === API_ENDPOINTS.IMAGE_RECIPE_PREPARE,
+      ),
+    ).toBe(false)
   })
 
-  it('电脑里的图拖到图片台舞台：从图读串；视频台不接', () => {
+  it('电脑里的图拖到图片台舞台：去读这张图的配方；视频台不接', async () => {
+    server.on(
+      'POST',
+      API_ENDPOINTS.IMAGE_RECIPE_PREPARE,
+      () => new Promise<Response>(() => {}),
+    )
     const file = new File(['x'], 'a.png', { type: 'image/png' })
-    const view = render(<StudioCanvas />)
-    const stage = view.container.firstElementChild as HTMLElement
-    fireEvent.drop(stage, { dataTransfer: dragData({}, [file]) })
-    expect(mockStartRecipeImport).toHaveBeenCalledWith(file)
-
-    mockStartRecipeImport.mockClear()
-    mockUseStudioForm.mockReturnValue({
-      state: {
-        outputType: 'video',
-        videoFrameSlots: { first: null, last: null },
-      },
-      dispatch: vi.fn(),
-    })
-    view.rerender(<StudioCanvas referenceRail={false} />)
-    fireEvent.drop(view.container.firstElementChild as HTMLElement, {
+    const { studio, container } = renderCanvas()
+    await tick()
+    fireEvent.drop(stageOf(container) as HTMLElement, {
       dataTransfer: dragData({}, [file]),
     })
-    expect(mockStartRecipeImport).not.toHaveBeenCalled()
+    await tick()
+    const reads = () =>
+      server.requests.filter(
+        (r) => r.path === API_ENDPOINTS.IMAGE_RECIPE_PREPARE,
+      )
+    expect(reads()).toHaveLength(1)
+
+    act(() => {
+      closeImageRecipeImport()
+      studio.current.dispatch({ type: 'SET_OUTPUT_TYPE', payload: 'video' })
+    })
+    fireEvent.drop(stageOf(container) as HTMLElement, {
+      dataTransfer: dragData({}, [file]),
+    })
+    await tick()
+    expect(reads()).toHaveLength(1)
   })
 })

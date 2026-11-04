@@ -1,6 +1,10 @@
 // @vitest-environment jsdom
+/**
+ * 真 hook + 真压图 / 读像素 / 视频取封面 / 产物库招呼；只假网络（api-client）。
+ * jsdom 不会解码图片和视频：`createImageBitmap` 与 `<video>`/`<canvas>` 用浏览器层小桩替。
+ */
 import { act, renderHook } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS } from '@/constants/node-studio'
 
@@ -9,12 +13,7 @@ vi.mock('next-intl', () => ({
 }))
 
 const uploadImageFileAPI = vi.hoisted(() => vi.fn())
-const compressImageToLimit = vi.hoisted(() => vi.fn())
-const readImagePixelSize = vi.hoisted(() => vi.fn())
-const notifyGalleryChanged = vi.hoisted(() => vi.fn())
 const uploadVideoFileAPI = vi.hoisted(() => vi.fn())
-const readVideoFileMetadata = vi.hoisted(() => vi.fn())
-const captureVideoThumbnail = vi.hoisted(() => vi.fn())
 
 vi.mock('@/lib/api-client', () => ({
   uploadImageFileAPI,
@@ -23,44 +22,51 @@ vi.mock('@/lib/api-client', () => ({
 vi.mock('@/lib/api-client/voices', () => ({
   uploadReferenceAudioAPI: vi.fn(),
 }))
-vi.mock('@/lib/compress-image', () => ({
-  compressImageToLimit,
-  readImagePixelSize,
-}))
-vi.mock('@/lib/gallery-revision', () => ({
-  notifyGalleryChanged,
-}))
-vi.mock('@/lib/video-thumbnail', () => ({
-  captureVideoThumbnail,
-  readVideoFileMetadata,
-}))
+
+import { useGalleryRevision } from '@/lib/gallery-revision'
+import { installFakeVideoDecoding } from '@/test/fake-video-element'
 
 import { useNodeUploadV4 } from './use-node-upload-v4'
 
 const file = new File(['pixels'], 'portrait.png', { type: 'image/png' })
 
+/** 浏览器把这张图解出来是多大（null = 解不出来）。 */
+function browserDecodesImageAs(size: { width: number; height: number } | null) {
+  vi.stubGlobal(
+    'createImageBitmap',
+    vi.fn(async () => {
+      if (!size) throw new DOMException('decode failed', 'EncodingError')
+      return { ...size, close: vi.fn() }
+    }),
+  )
+}
+
+function renderUpload() {
+  return renderHook(() => ({
+    ...useNodeUploadV4(),
+    galleryRevision: useGalleryRevision(),
+  }))
+}
+
 beforeEach(() => {
   uploadImageFileAPI.mockReset()
-  compressImageToLimit.mockReset()
-  readImagePixelSize.mockReset()
-  notifyGalleryChanged.mockReset()
-  compressImageToLimit.mockResolvedValue({
-    file,
-    originalBytes: file.size,
-    compressedBytes: file.size,
-    wasCompressed: false,
-  })
+  uploadVideoFileAPI.mockReset()
+})
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+  vi.restoreAllMocks()
 })
 
 describe('useNodeUploadV4 · 图片回填带原图像素', () => {
   it('writes mediaWidth / mediaHeight so the collapsed card follows real ratio', async () => {
-    readImagePixelSize.mockResolvedValue({ width: 1024, height: 1792 })
+    browserDecodesImageAs({ width: 1024, height: 1792 })
     uploadImageFileAPI.mockResolvedValue({
       success: true,
       data: { generation: { url: 'https://cdn.example.com/portrait.png' } },
     })
 
-    const { result } = renderHook(() => useNodeUploadV4())
+    const { result } = renderUpload()
     let patch: Awaited<ReturnType<typeof result.current.upload>> = null
     await act(async () => {
       patch = await result.current.upload('image', file, '生成图')
@@ -76,13 +82,13 @@ describe('useNodeUploadV4 · 图片回填带原图像素', () => {
   })
 
   it('omits dims when decode fails so the card can still land', async () => {
-    readImagePixelSize.mockResolvedValue(null)
+    browserDecodesImageAs(null)
     uploadImageFileAPI.mockResolvedValue({
       success: true,
       data: { generation: { url: 'https://cdn.example.com/ok.png' } },
     })
 
-    const { result } = renderHook(() => useNodeUploadV4())
+    const { result } = renderUpload()
     let patch: Awaited<ReturnType<typeof result.current.upload>> = null
     await act(async () => {
       patch = await result.current.upload('image', file, '生成图')
@@ -100,18 +106,16 @@ describe('useNodeUploadV4 · 图片回填带原图像素', () => {
 
 describe('useNodeUploadV4 · 视频走浏览器直传', () => {
   const video = new File(['frames'], 'clip.mp4', { type: 'video/mp4' })
-  const poster = new Blob(['poster'], { type: 'image/webp' })
 
   beforeEach(() => {
-    uploadVideoFileAPI.mockReset()
-    readVideoFileMetadata.mockReset()
-    captureVideoThumbnail.mockReset()
-    readVideoFileMetadata.mockResolvedValue({
-      width: 1280,
-      height: 720,
-      duration: 5,
+    // jsdom 没有 object URL：按文件名给一个，好让假 `<video>` 认出是哪段。
+    Object.assign(URL, {
+      createObjectURL: (blob: File) => `blob:${blob.name}`,
+      revokeObjectURL: () => {},
     })
-    captureVideoThumbnail.mockResolvedValue(poster)
+    installFakeVideoDecoding({
+      'blob:clip.mp4': { duration: 5, width: 1280, height: 720 },
+    })
   })
 
   it('uploads through the direct R2 path and backfills url + poster + dims', async () => {
@@ -125,7 +129,8 @@ describe('useNodeUploadV4 · 视频走浏览器直传', () => {
       },
     })
 
-    const { result } = renderHook(() => useNodeUploadV4())
+    const { result } = renderUpload()
+    const revisionBefore = result.current.galleryRevision
     let patch: Awaited<ReturnType<typeof result.current.upload>> = null
     await act(async () => {
       patch = await result.current.upload('video', video, '参考片段')
@@ -137,7 +142,7 @@ describe('useNodeUploadV4 · 视频走浏览器直传', () => {
         width: 1280,
         height: 720,
         duration: 5,
-        poster,
+        poster: expect.objectContaining({ type: 'image/webp' }),
         note: '参考片段',
       }),
     )
@@ -148,7 +153,8 @@ describe('useNodeUploadV4 · 视频走浏览器直传', () => {
       mediaWidth: 1280,
       mediaHeight: 720,
     })
-    expect(notifyGalleryChanged).toHaveBeenCalled()
+    // 产物库那边被叫了一声（会重拉一页）。
+    expect(result.current.galleryRevision).toBeGreaterThan(revisionBefore)
   })
 
   it('returns null with a localized retryable error when the upload fails', async () => {
@@ -157,7 +163,7 @@ describe('useNodeUploadV4 · 视频走浏览器直传', () => {
       error: 'Video storage rejected the upload (status 403)',
     })
 
-    const { result } = renderHook(() => useNodeUploadV4())
+    const { result } = renderUpload()
     let patch: Awaited<ReturnType<typeof result.current.upload>> = null
     await act(async () => {
       patch = await result.current.upload('video', video, '参考片段')

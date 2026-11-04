@@ -465,6 +465,9 @@
       "countryBlocked": "chub.ai isn't available on your network.",
       "tooLarge": "That card is over 3 MB, too large to import."
     },
+    "danbooruCatalog": {
+      "unavailable": "Danbooru isn't responding right now. Try again in a moment."
+    },
     "characterLook": {
       "notFound": "Look not found",
       "limit": "This character has the maximum number of looks",

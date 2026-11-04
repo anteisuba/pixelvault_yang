@@ -11,7 +11,7 @@
  * ── 这里为什么不列「可信来源域名」白名单 ───────────────────────────
  * 通用图搜的结果来自整个互联网，域名白名单要么形同虚设、要么把它变成一个只能搜
  * 五个站的功能。真正的闸在别处，且都已存在：`assertSafeUrl` / `safeFetch`（SSRF）、
- * `detectTrustedImageMime`（拿 libvips 的魔数判型，⛔ 不信 content-type）、
+ * `detectTrustedImageMime`（读文件头魔数判型，⛔ 不信 content-type）、
  * 下面这个字节上限，以及**强制 `isPublic:false`**（选型报告 §四的硬闸：
  * 通用档导入的图不进公开画廊）。
  */

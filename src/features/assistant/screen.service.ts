@@ -2,9 +2,16 @@ import 'server-only'
 
 import { createHash } from 'node:crypto'
 
-import sharp, { type OverlayOptions } from 'sharp'
-
 import { CHUB_LIBRARY } from '@/constants/cards/chub-library'
+import {
+  createCanvas,
+  decodeImage,
+  drawImage,
+  encodeJpeg,
+  fitImage,
+  type RgbaImage,
+  type RgbColor,
+} from '@/lib/image-pixels'
 import { logger } from '@/lib/logger'
 import type { AssistantLibraryView } from '@/types/assistant-operator'
 import type { AssistantV3PictureRef } from '@/types/assistant-v3'
@@ -132,7 +139,7 @@ function layout(
 
 /**
  * 七段数码的笔画（a 上 · b 右上 · c 右下 · d 下 · e 左下 · f 左上 · g 中）。
- * ⚠ 角标数字用线段画、⛔ 不用 `<text>`：服务器上不一定装了字体，没字体时 SVG 的字整个不出来。
+ * ⚠ 角标数字用线段直接画在像素上、⛔ 不靠字体：服务器（Workers）上没有字体可用。
  */
 const SEGMENTS: Record<string, string> = {
   '0': 'abcdef',
@@ -147,10 +154,13 @@ const SEGMENTS: Record<string, string> = {
   '9': 'abcdfg',
 }
 
-function digitPath(digit: string, x: number, y: number): string {
+type Segment = [number, number, number, number]
+
+/** 一个数字的笔画线段（相对数字左上角；数字 8 宽 14 高）。 */
+function digitSegments(digit: string, x: number, y: number): Segment[] {
   const w = 8
   const h = 7
-  const lines: Record<string, [number, number, number, number]> = {
+  const lines: Record<string, Segment> = {
     a: [0, 0, w, 0],
     b: [w, 0, w, h],
     c: [w, h, w, h * 2],
@@ -159,29 +169,113 @@ function digitPath(digit: string, x: number, y: number): string {
     f: [0, 0, 0, h],
     g: [0, h, w, h],
   }
-  return [...(SEGMENTS[digit] ?? '')]
-    .map((segment) => {
-      const [x1, y1, x2, y2] = lines[segment]!
-      return `M${x + x1} ${y + y1}L${x + x2} ${y + y2}`
-    })
-    .join('')
+  return [...(SEGMENTS[digit] ?? '')].map((segment) => {
+    const [x1, y1, x2, y2] = lines[segment]!
+    return [x + x1, y + y1, x + x2, y + y2]
+  })
 }
 
-function badgeSvg(label: string): Buffer {
+function distanceToSegment(
+  px: number,
+  py: number,
+  [x1, y1, x2, y2]: Segment,
+): number {
+  const dx = x2 - x1
+  const dy = y2 - y1
+  const lengthSq = dx * dx + dy * dy
+  const t =
+    lengthSq === 0
+      ? 0
+      : Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / lengthSq))
+  return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy))
+}
+
+/** 按覆盖率（0–1，抗锯齿用）把一种颜色叠到画布的一个像素上。 */
+function blendPixel(
+  canvas: RgbaImage,
+  x: number,
+  y: number,
+  color: RgbColor,
+  coverage: number,
+): void {
+  if (
+    coverage <= 0 ||
+    x < 0 ||
+    y < 0 ||
+    x >= canvas.width ||
+    y >= canvas.height
+  )
+    return
+  const amount = Math.min(1, coverage)
+  const p = (y * canvas.width + x) * 4
+  canvas.data[p] = Math.round(
+    canvas.data[p]! + (color.r - canvas.data[p]!) * amount,
+  )
+  canvas.data[p + 1] = Math.round(
+    canvas.data[p + 1]! + (color.g - canvas.data[p + 1]!) * amount,
+  )
+  canvas.data[p + 2] = Math.round(
+    canvas.data[p + 2]! + (color.b - canvas.data[p + 2]!) * amount,
+  )
+}
+
+const WHITE: RgbColor = { r: 255, g: 255, b: 255 }
+const BADGE_FILL: RgbColor = { r: 17, g: 17, b: 17 }
+
+/** 角标：深色圆、2px 白圈、白色七段数字（笔画 2.6px、圆头）。 */
+function drawBadge(
+  canvas: RgbaImage,
+  left: number,
+  top: number,
+  label: string,
+): void {
   const size = SHEET.badge
+  const center = size / 2
+  const radius = size / 2 - 1
   const digitWidth = 8
   const gap = 4
   const total = label.length * digitWidth + (label.length - 1) * gap
-  const left = (size - total) / 2
-  const top = (size - 14) / 2
-  const path = [...label]
-    .map((digit, index) =>
-      digitPath(digit, left + index * (digitWidth + gap), top),
-    )
-    .join('')
-  return Buffer.from(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}"><circle cx="${size / 2}" cy="${size / 2}" r="${size / 2 - 1}" fill="#111" stroke="#fff" stroke-width="2"/><path d="${path}" stroke="#fff" stroke-width="2.6" stroke-linecap="round" fill="none"/></svg>`,
+  const digitLeft = (size - total) / 2
+  const digitTop = (size - 14) / 2
+  const segments = [...label].flatMap((digit, index) =>
+    digitSegments(digit, digitLeft + index * (digitWidth + gap), digitTop),
   )
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const px = x + 0.5
+      const py = y + 0.5
+      const fromCenter = Math.hypot(px - center, py - center)
+      blendPixel(
+        canvas,
+        left + x,
+        top + y,
+        BADGE_FILL,
+        radius + 1.5 - fromCenter,
+      )
+      blendPixel(
+        canvas,
+        left + x,
+        top + y,
+        WHITE,
+        1.5 - Math.abs(fromCenter - radius),
+      )
+      const nearest = Math.min(
+        ...segments.map((segment) => distanceToSegment(px, py, segment)),
+      )
+      blendPixel(canvas, left + x, top + y, WHITE, 1.8 - nearest)
+    }
+  }
+}
+
+/** 选中那张：沿格子内侧描一圈 4px 白边。 */
+function drawFrame(canvas: RgbaImage, cell: SheetCell): void {
+  for (let y = 0; y < cell.height; y++) {
+    for (let x = 0; x < cell.width; x++) {
+      if (x >= 4 && y >= 4 && x < cell.width - 4 && y < cell.height - 4)
+        continue
+      blendPixel(canvas, cell.left + x, cell.top + y, WHITE, 1)
+    }
+  }
 }
 
 async function loadThumb(
@@ -222,32 +316,25 @@ async function renderSheet(input: {
   seed: unknown
 }): Promise<{ url: string | null; drawn: number[] }> {
   const { width, height } = input
-  const composites: OverlayOptions[] = []
+  const canvas = createCanvas(width, height, SHEET.background)
   const drawn: number[] = []
   for (const cell of input.cells) {
     try {
-      const tile = await sharp(cell.buffer, { animated: false })
-        .resize(cell.width, cell.height, {
-          fit: cell.fit,
-          background: { ...SHEET.background, alpha: 1 },
-        })
-        .flatten({ background: SHEET.background })
-        .jpeg({ quality: 90 })
-        .toBuffer()
-      composites.push({ input: tile, left: cell.left, top: cell.top })
-      if (cell.highlight)
-        composites.push({
-          input: Buffer.from(
-            `<svg xmlns="http://www.w3.org/2000/svg" width="${cell.width}" height="${cell.height}"><rect x="2" y="2" width="${cell.width - 4}" height="${cell.height - 4}" fill="none" stroke="#fff" stroke-width="4"/></svg>`,
-          ),
-          left: cell.left,
-          top: cell.top,
-        })
-      composites.push({
-        input: badgeSvg(cell.badge),
-        left: Math.min(cell.left + 6, width - SHEET.badge),
-        top: Math.min(cell.top + 6, height - SHEET.badge),
-      })
+      const tile = await fitImage(
+        await decodeImage(cell.buffer),
+        cell.width,
+        cell.height,
+        cell.fit,
+        SHEET.background,
+      )
+      drawImage(canvas, tile, cell.left, cell.top)
+      if (cell.highlight) drawFrame(canvas, cell)
+      drawBadge(
+        canvas,
+        Math.min(cell.left + 6, width - SHEET.badge),
+        Math.min(cell.top + 6, height - SHEET.badge),
+        cell.badge,
+      )
       drawn.push(cell.index)
     } catch {
       // 格式解不开（视频、坏图）：这一格不画，号照样在文字那行里。
@@ -255,12 +342,7 @@ async function renderSheet(input: {
   }
   if (drawn.length === 0) return { url: null, drawn }
   try {
-    const sheet = await sharp({
-      create: { width, height, channels: 3, background: SHEET.background },
-    })
-      .composite(composites)
-      .jpeg({ quality: SHEET.quality })
-      .toBuffer()
+    const sheet = await encodeJpeg(canvas, SHEET.quality)
     const key = `${SHEET.keyPrefix}/${input.userId}/${createHash('sha256')
       .update(
         JSON.stringify({

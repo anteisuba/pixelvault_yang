@@ -1,15 +1,10 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('server-only', () => ({}))
 
-const { completion, stream, sendLog } = vi.hoisted(() => ({
+const { completion, stream } = vi.hoisted(() => ({
   completion: vi.fn(),
   stream: vi.fn(),
-  sendLog: vi.fn(async () => undefined),
-}))
-
-vi.mock('@/services/execution-worker.service', () => ({
-  sendLlmCallLogToWorker: sendLog,
 }))
 
 vi.mock('@/services/llm-text.service', () => ({
@@ -28,6 +23,9 @@ import {
   completeAssistantTextWithContextRetry,
   streamAssistantTextWithContextRetry,
 } from './assistant-completion.service'
+
+const workerFetch =
+  vi.fn<(url: string, init?: RequestInit) => Promise<Response>>()
 
 const options = {
   systemPrompt: 'system',
@@ -248,8 +246,17 @@ describe('assistant llm call 日志（每次请求一行，只记录）', () => 
   beforeEach(() => {
     completion.mockReset()
     stream.mockReset()
-    sendLog.mockReset()
-    sendLog.mockResolvedValue(undefined)
+    // 调用日志转给 execution worker：只假网络那一跳（签名、拼地址都是真代码）。
+    vi.stubEnv('EXECUTION_WORKER_BASE_URL', 'https://worker.test')
+    vi.stubEnv('INTERNAL_CALLBACK_SECRET', 'test-callback-secret')
+    workerFetch.mockReset()
+    workerFetch.mockResolvedValue(new Response(null, { status: 204 }))
+    vi.stubGlobal('fetch', workerFetch)
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+    vi.unstubAllGlobals()
   })
 
   it('completion: provider 报的 token 原样进日志，带用途', async () => {
@@ -359,7 +366,7 @@ describe('assistant llm call 日志（每次请求一行，只记录）', () => 
     const consoleLog = vi.spyOn(console, 'log').mockImplementation(() => {})
     const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     try {
-      sendLog.mockRejectedValueOnce(new Error('worker down'))
+      workerFetch.mockResolvedValueOnce(new Response(null, { status: 503 }))
       completion.mockImplementationOnce(
         async (input: { onUsage?: (usage: object) => void }) => {
           input.onUsage?.({ inputTokens: 100, outputTokens: 20 })
@@ -373,7 +380,10 @@ describe('assistant llm call 日志（每次请求一行，只记录）', () => 
           callLog: { purpose: 'roundSummary' },
         }),
       ).resolves.toBe('answer')
-      expect(sendLog).toHaveBeenCalledWith(
+      expect(workerFetch).toHaveBeenCalledTimes(1)
+      const [url, init] = workerFetch.mock.calls[0]!
+      expect(String(url)).toMatch(/^https:\/\/worker\.test\//)
+      expect(JSON.parse(String(init?.body))).toEqual(
         expect.objectContaining({
           purpose: 'roundSummary',
           outcome: 'ok',

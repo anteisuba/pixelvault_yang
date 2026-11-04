@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 
 import { Mic, Plus, Search } from '@/components/icons'
@@ -49,6 +49,16 @@ export function VoicesPage() {
   const page = useVoicesPage()
   const isMobile = useIsMobile()
   const { library, characters, preview } = page
+
+  // 手机落在「我的收藏」：`useIsMobile` 首帧回 false，桌面那份先挂一帧、把页签落到
+  // 「全部」；量出是手机后在这里落回来（只落一次，之后照用户点的）。
+  const phoneLanded = useRef(false)
+  const { setTab } = library
+  useEffect(() => {
+    if (!isMobile || phoneLanded.current) return
+    phoneLanded.current = true
+    setTab('favorites')
+  }, [isMobile, setTab])
 
   const [renaming, setRenaming] = useState<VoiceCardRecord | null>(null)
   const [covering, setCovering] = useState<VoiceCardRecord | null>(null)

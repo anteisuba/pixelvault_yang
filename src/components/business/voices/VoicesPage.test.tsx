@@ -1,34 +1,32 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, within } from '@testing-library/react'
-import { NextIntlClientProvider } from 'next-intl'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { fireEvent, screen, within } from '@testing-library/react'
 
-import { zh as zhMessages } from '@/messages'
+import { VOICE_CARD_PROVIDER } from '@/constants/voice-cards'
 import type { CharacterCardRecord, VoiceCardRecord } from '@/types'
-import type { UseVoicesPageReturn } from '@/hooks/use-voices-page'
+import { renderWithApp } from '@/test/app-harness'
+import { DESKTOP_WIDTH, MOBILE_WIDTH, setViewportWidth } from '@/test/viewport'
 
 import { VoicesPage } from './VoicesPage'
 
-const pageState = vi.hoisted(() => ({ current: null as unknown }))
-const mobile = vi.hoisted(() => ({ current: false }))
-
-vi.mock('@/hooks/use-mobile', () => ({
-  useIsMobile: () => mobile.current,
+// 只假网络：真 `useVoicesPage` → 真 `useVoiceLibrary` + 真角色库 + 真试听。
+const api = vi.hoisted(() => ({
+  listVoiceCardsAPI: vi.fn(),
+  listVoicesAPI: vi.fn(),
+  listCharacterCardsAPI: vi.fn(),
 }))
-
-vi.mock('@/hooks/use-voices-page', () => ({
-  useVoicesPage: () => pageState.current,
+vi.mock('@/lib/api-client', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api-client')>()),
+  ...api,
 }))
-vi.mock('@/components/business/voices/VoiceTrainer', () => ({
-  VoiceTrainer: () => null,
-}))
-vi.mock('@/features/assets', () => ({
-  AssetSelectorDialog: () => null,
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({ isLoaded: true, isSignedIn: true, userId: 'user-a' }),
 }))
 
 function voice(id: string, name: string, cloned = false): VoiceCardRecord {
   return {
     id,
     name,
+    provider: VOICE_CARD_PROVIDER.FISH_AUDIO,
     coverImage: null,
     referenceAudioUrl: cloned ? 'https://cdn.test/ref.mp3' : null,
     sampleAudioUrl: null,
@@ -49,114 +47,100 @@ const DENIA = {
   ],
 } as unknown as CharacterCardRecord
 
-function setup(tab: 'favorites' | 'cloned' | 'public' = 'favorites') {
-  const setTab = vi.fn()
-  const favorites = [voice('v1', 'Warm'), voice('v2', 'Calm')]
-  const cloned = [voice('v3', 'Mine', true)]
-  pageState.current = {
-    library: {
-      tab,
-      setTab,
-      favorites,
-      cloned,
-      cards: [...favorites, ...cloned],
-      publicVoices: [],
-      isLoading: false,
-      isLoadingMore: false,
-      hasMore: false,
-      error: null,
-      search: '',
-      setSearch: vi.fn(),
-      language: 'all',
-      setLanguage: vi.fn(),
-      sortBy: 'score',
-      setSortBy: vi.fn(),
-      loadMore: vi.fn(),
-      favoriteCardOf: () => null,
-      toggleFavorite: vi.fn(),
-      favoritePendingId: null,
-      refreshCards: vi.fn(),
+beforeEach(() => {
+  api.listVoiceCardsAPI.mockResolvedValue({
+    success: true,
+    data: {
+      items: [
+        voice('v1', 'Warm'),
+        voice('v2', 'Calm'),
+        voice('v3', 'Mine', true),
+      ],
+      total: 3,
     },
-    characters: [DENIA],
-    preview: {
-      playingId: null,
-      loadingId: null,
-      progress: 0,
-      toggle: vi.fn(),
-      stop: vi.fn(),
-    },
-    pendingId: null,
-    rename: vi.fn(),
-    setCoverUrl: vi.fn(),
-    uploadCover: vi.fn(),
-    bindCharacter: vi.fn(),
-    remove: vi.fn(),
-  } as unknown as UseVoicesPageReturn
-  render(
-    <NextIntlClientProvider locale="zh" messages={zhMessages}>
-      <VoicesPage />
-    </NextIntlClientProvider>,
-  )
-  return { setTab }
+  })
+  api.listVoicesAPI.mockResolvedValue({
+    success: true,
+    data: { items: [], total: 0 },
+  })
+  api.listCharacterCardsAPI.mockResolvedValue({ success: true, data: [DENIA] })
+})
+afterEach(() => {
+  vi.clearAllMocks()
+  vi.unstubAllGlobals()
+})
+
+async function renderPage() {
+  renderWithApp(<VoicesPage />)
+  // 卡片拉回来了（页签上的数到了）。
+  await vi.waitFor(() => expect(api.listVoiceCardsAPI).toHaveBeenCalledTimes(1))
 }
 
 describe('VoicesPage · desktop library', () => {
-  it('shows the rail with counts and my voices on 全部', () => {
-    mobile.current = false
-    setup('public')
+  beforeEach(() => setViewportWidth(DESKTOP_WIDTH))
+
+  it('shows the rail with counts and my voices', async () => {
+    await renderPage()
+    await screen.findByText('Warm')
     const rail = screen.getByRole('navigation', { name: '音色' })
     expect(within(rail).getByText('Fish Audio')).toBeInTheDocument()
-    expect(within(rail).getByRole('button', { name: /全部/ })).toHaveAttribute(
-      'aria-current',
-      'true',
-    )
     expect(screen.getByRole('button', { name: '克隆音色' })).toBeInTheDocument()
     expect(screen.getByText('Warm')).toBeInTheDocument()
-    expect(screen.getByText('Mine')).toBeInTheDocument()
-    expect(screen.getByText('角色：Denia')).toBeInTheDocument()
+    expect(await screen.findByText('角色：Denia')).toBeInTheDocument()
   })
 
-  it('switches to 收藏 through the rail', () => {
-    mobile.current = false
-    const { setTab } = setup('public')
+  it('switches to 我的克隆 through the rail, listing only cloned voices', async () => {
+    await renderPage()
     const rail = screen.getByRole('navigation', { name: '音色' })
-    fireEvent.click(within(rail).getByRole('button', { name: /收藏/ }))
-    expect(setTab).toHaveBeenCalledWith('favorites')
-  })
-
-  it('lists only cloned voices on 我的克隆', () => {
-    mobile.current = false
-    setup('cloned')
-    expect(screen.getByText('Mine')).toBeInTheDocument()
+    fireEvent.click(within(rail).getByRole('button', { name: /我的克隆/ }))
+    expect(
+      within(rail).getByRole('button', { name: /我的克隆/ }),
+    ).toHaveAttribute('aria-current', 'true')
+    expect(await screen.findByText('Mine')).toBeInTheDocument()
     expect(screen.queryByText('Warm')).not.toBeInTheDocument()
   })
 })
 
 describe('VoicesPage · phone', () => {
-  beforeEach(() => {
-    mobile.current = true
+  beforeEach(() => setViewportWidth(MOBILE_WIDTH, { touch: true }))
+
+  it('lands on 我的收藏 on a phone', async () => {
+    await renderPage()
+    expect(
+      await screen.findByRole('tab', { name: '我的收藏 2' }),
+    ).toHaveAttribute('aria-selected', 'true')
   })
-  it('shows my saved voices with counts and who uses them', () => {
-    setup()
+
+  it('shows my saved voices with counts and who uses them', async () => {
+    await renderPage()
+    fireEvent.click(await screen.findByRole('tab', { name: '我的收藏 2' }))
     expect(screen.getByRole('tab', { name: '我的收藏 2' })).toHaveAttribute(
       'aria-selected',
       'true',
     )
     expect(screen.getByRole('tab', { name: '我的克隆 1' })).toBeInTheDocument()
-    expect(screen.getByText('Warm')).toBeInTheDocument()
-    expect(screen.getByText('角色：Denia')).toBeInTheDocument()
+    expect(await screen.findByText('Warm')).toBeInTheDocument()
+    expect(await screen.findByText('角色：Denia')).toBeInTheDocument()
     // 搜索框只在「找音色」出现。
     expect(screen.queryByRole('searchbox')).not.toBeInTheDocument()
   })
 
-  it('switches tabs through the shared library kernel', () => {
-    const { setTab } = setup()
+  it('switches tabs through the shared library kernel', async () => {
+    await renderPage()
+    fireEvent.click(await screen.findByRole('tab', { name: '我的收藏 2' }))
     fireEvent.click(screen.getByRole('tab', { name: '找音色' }))
-    expect(setTab).toHaveBeenCalledWith('public')
+    expect(screen.getByRole('tab', { name: '找音色' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    // 切到公开库就去拉公开库。
+    await vi.waitFor(() => expect(api.listVoicesAPI).toHaveBeenCalled())
   })
 
-  it('lists cloned voices on the cloned tab', () => {
-    setup('cloned')
-    expect(screen.getByText('Mine')).toBeInTheDocument()
+  it('lists cloned voices on the cloned tab', async () => {
+    await renderPage()
+    fireEvent.click(await screen.findByRole('tab', { name: '我的克隆 1' }))
+    expect(await screen.findByText('Mine')).toBeInTheDocument()
+    expect(screen.queryByText('Warm')).not.toBeInTheDocument()
   })
 })

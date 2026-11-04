@@ -2,10 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('server-only', () => ({}))
 
-vi.mock('@/lib/with-retry', () => ({
-  withRetry: <T>(fn: () => Promise<T>) => fn(),
-}))
-
 import {
   __resetModelKeywordCacheForTests,
   searchModelKeywordLoraTags,
@@ -69,5 +65,12 @@ describe('searchModelKeywordLoraTags', () => {
     expect(results).toHaveLength(3)
     expect(results[0]?.source).toBe('model_keyword')
     expect(results[0]?.polarity).toBe('negative')
+  })
+
+  it('取一次表就缓存，第二次搜不再发请求', async () => {
+    mockFetch.mockResolvedValueOnce(textResponse('00010981, watermark'))
+    await searchModelKeywordLoraTags({ query: 'water' })
+    await searchModelKeywordLoraTags({ query: 'mark' })
+    expect(mockFetch).toHaveBeenCalledTimes(1)
   })
 })

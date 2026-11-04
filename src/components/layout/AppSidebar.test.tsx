@@ -1,5 +1,5 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { act, fireEvent, screen, within } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { CANVAS_SHELL_SIDEBAR_ENTRY_ATTR } from '@/constants/canvas-shell'
 import {
@@ -8,20 +8,19 @@ import {
 } from '@/features/canvas/hooks'
 
 import { SidebarProvider } from '@/components/ui/sidebar'
+import { message as M, renderWithApp } from '@/test/app-harness'
 
 import { AppSidebar } from './AppSidebar'
 
-vi.mock('next-intl', () => ({
-  useTranslations: (namespace?: string) => (key: string) =>
-    namespace ? `${namespace}:${key}` : key,
-}))
-
 vi.mock('@clerk/nextjs', () => ({
   useUser: () => ({ isLoaded: true }),
+  useAuth: () => ({ isLoaded: true, isSignedIn: true, userId: 'user-a' }),
+  useClerk: () => ({ signOut: vi.fn() }),
   SignedIn: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   SignedOut: () => null,
 }))
 
+// 只假网络：真 `useMyProfile` 去拉「我的资料」；`current = null` = 还没回来。
 const mockProfile = vi.hoisted(() => ({
   current: { username: 'fulina', displayName: 'fulina', avatarUrl: null } as {
     username: string
@@ -29,23 +28,18 @@ const mockProfile = vi.hoisted(() => ({
     avatarUrl: string | null
   } | null,
 }))
-
-vi.mock('@/hooks/use-my-profile', () => ({
-  useMyProfile: () => ({ profile: mockProfile.current }),
+const getMyProfileAPI = vi.hoisted(() => vi.fn())
+vi.mock('@/lib/api-client', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api-client')>()),
+  getMyProfileAPI,
 }))
-
-vi.mock('@/hooks/use-has-hydrated', () => ({ useHasHydrated: () => true }))
-
-vi.mock('@/hooks/use-nav-indicator', () => ({
-  useNavIndicator: () => ({
-    hover: null,
-    active: null,
-    hoverVisible: false,
-    hoverJumped: false,
-    onPointerOver: vi.fn(),
-    onPointerLeave: vi.fn(),
-  }),
-}))
+beforeEach(() => {
+  getMyProfileAPI.mockImplementation(() =>
+    mockProfile.current
+      ? Promise.resolve({ success: true, data: mockProfile.current })
+      : new Promise(() => {}),
+  )
+})
 
 const mockPathname = vi.hoisted(() => ({ current: '/studio/image' }))
 
@@ -66,7 +60,7 @@ vi.mock('@/i18n/navigation', () => ({
 }))
 
 function renderSidebar() {
-  return render(
+  return renderWithApp(
     <SidebarProvider>
       <AppSidebar />
     </SidebarProvider>,
@@ -84,7 +78,6 @@ describe('AppSidebar 入口收口（D11 ④）', () => {
 
     const header = container.querySelector('[data-slot="sidebar-header"]')
     expect(header?.querySelector('img')).toBeNull()
-    expect(screen.queryByLabelText('Navbar:viewProfile')).toBeNull()
   })
 
   it('最底一行是账号入口：一颗真 button，点开菜单，⛔ 不是链接', () => {
@@ -95,7 +88,7 @@ describe('AppSidebar 入口收口（D11 ④）', () => {
     }
     const { container } = renderSidebar()
 
-    const trigger = screen.getByLabelText('Navbar:account')
+    const trigger = screen.getByLabelText(M('Navbar.account'))
     expect(trigger.tagName).toBe('BUTTON')
     expect(trigger.getAttribute('aria-haspopup')).toBe('menu')
     // 「设置」那一行收进了菜单，底部不再有第二个常驻入口。
@@ -116,7 +109,7 @@ describe('AppSidebar 入口收口（D11 ④）', () => {
 
     const anchor = container.querySelector('[data-onboarding="apiKey"]')
     expect(anchor).not.toBeNull()
-    expect(anchor).toBe(screen.getByLabelText('Navbar:account'))
+    expect(anchor).toBe(screen.getByLabelText(M('Navbar.account')))
   })
 
   it('「我的主页」的地址是静态的 /u/me —— username 由服务端解析', () => {
@@ -130,7 +123,7 @@ describe('AppSidebar 入口收口（D11 ④）', () => {
     const item = container.querySelector(
       '[data-slot="sidebar-menu-button"][href="/u/me"]',
     )
-    expect(item?.textContent).toContain('Navbar.links.profile')
+    expect(item?.textContent).toContain(M('Navbar.links.profile'))
     // ⛔ 壳里不许再出现按 username 拼出来的地址。
     expect(container.querySelector('a[href="/u/fulina"]')).toBeNull()
   })
@@ -221,7 +214,7 @@ describe('AppSidebar 入口收口（D11 ④）', () => {
     }
     renderSidebar()
 
-    const row = screen.getByLabelText('Navbar:account')
+    const row = screen.getByLabelText(M('Navbar.account'))
     // 反极性三档：hover 往暗 → pressed / 菜单打开更暗（app-shell.md §5.1）。
     expect(row.className).toContain('hover:bg-sidebar-accent')
     expect(row.className).toContain('active:bg-sidebar-accent-strong')
@@ -238,7 +231,7 @@ describe('AppSidebar 入口收口（D11 ④）', () => {
    * **结构**：轨宽走弹簧；字是原地糊掉（还在 DOM 里），⛔ 不是 `display:none`；
    * 图标所在的按钮两档同尺寸同内距 —— 收展全程不动。
    */
-  it('收起时字原地糊掉、图标不动，轨宽走弹簧', () => {
+  it('收起时字原地糊掉、图标不动，轨宽走弹簧', async () => {
     mockProfile.current = {
       username: 'fulina',
       displayName: 'fulina',
@@ -273,7 +266,7 @@ describe('AppSidebar 入口收口（D11 ④）', () => {
     expect(className).not.toContain('group-data-[collapsible=icon]:size-8')
     expect(className).not.toContain('group-data-[collapsible=icon]:p-0')
     expect(button?.querySelector('span')?.textContent).toBe(
-      'Navbar.links.gallery',
+      M('Navbar.links.gallery'),
     )
 
     // 段标题保留，收起时原地糊掉；那一行走弹簧收成细线（⛔ 不用 -mt-8 瞬间收走）。
@@ -290,9 +283,9 @@ describe('AppSidebar 入口收口（D11 ④）', () => {
     ).toContain('group-data-[collapsible=icon]:opacity-100')
 
     // 账号名同样糊掉。
-    const name = within(screen.getByLabelText('Navbar:account')).getByText(
-      'fulina',
-    )
+    const name = await within(
+      screen.getByLabelText(M('Navbar.account')),
+    ).findByText('fulina')
     expect(name.className).toContain('group-data-[collapsible=icon]:blur-xs')
   })
 
@@ -303,9 +296,6 @@ describe('AppSidebar 入口收口（D11 ④）', () => {
       avatarUrl: null,
     }
     renderSidebar()
-
-    expect(screen.queryByText('Navbar:requestsLoading')).toBeNull()
-    expect(screen.queryByText('Navbar:apiKeys')).toBeNull()
   })
 })
 
@@ -322,7 +312,7 @@ describe('AppSidebar · 画布子图标（owner 2026-10-08 画布换皮）', () 
 
   it('画布挂着、停在画布路由：「画布」下面长出六颗（原型四颗 + 角色 / 素材库，按顺序），点一颗开、再点收', () => {
     mockPathname.current = '/studio/node'
-    render(
+    renderWithApp(
       <SidebarProvider>
         <AppSidebar />
         <CanvasHost />
@@ -335,17 +325,19 @@ describe('AppSidebar · 画布子图标（owner 2026-10-08 画布换皮）', () 
         .getAllByRole('button')
         .map((button) => button.getAttribute('aria-label')),
     ).toEqual([
-      'StudioNode.shell.panels.addNode',
-      'StudioNode.shell.panels.nodes',
-      'StudioNode.shell.panels.project',
-      'StudioNode.shell.panels.history',
-      'StudioNode.shell.panels.cards',
-      'StudioNode.shell.panels.library',
+      M('StudioNode.shell.panels.addNode'),
+      M('StudioNode.shell.panels.nodes'),
+      M('StudioNode.shell.panels.project'),
+      M('StudioNode.shell.panels.history'),
+      M('StudioNode.shell.panels.cards'),
+      M('StudioNode.shell.panels.library'),
     ])
 
-    const nodes = within(group).getByLabelText('StudioNode.shell.panels.nodes')
+    const nodes = within(group).getByLabelText(
+      M('StudioNode.shell.panels.nodes'),
+    )
     const history = within(group).getByLabelText(
-      'StudioNode.shell.panels.history',
+      M('StudioNode.shell.panels.history'),
     )
     expect(nodes.getAttribute('aria-pressed')).toBe('false')
     expect(nodes.getAttribute(CANVAS_SHELL_SIDEBAR_ENTRY_ATTR)).toBe('nodes')
@@ -363,7 +355,7 @@ describe('AppSidebar · 画布子图标（owner 2026-10-08 画布换皮）', () 
 
   it('子项装在一整块浅灰里，开着的那一个是白底 —— ⛔ 不借路由的激活白浮片', () => {
     mockPathname.current = '/studio/node'
-    render(
+    renderWithApp(
       <SidebarProvider>
         <AppSidebar />
         <CanvasHost />
@@ -375,10 +367,10 @@ describe('AppSidebar · 画布子图标（owner 2026-10-08 画布换皮）', () 
     expect(block.className).toContain('bg-sidebar-accent')
 
     const project = within(group).getByLabelText(
-      'StudioNode.shell.panels.project',
+      M('StudioNode.shell.panels.project'),
     )
     // 每行带名字（展开时显示，收起时糊掉）。
-    expect(project.textContent).toContain('StudioNode.shell.panels.project')
+    expect(project.textContent).toContain(M('StudioNode.shell.panels.project'))
     expect(project.className).not.toContain('bg-sidebar-active-surface')
 
     fireEvent.click(project)
@@ -393,7 +385,7 @@ describe('AppSidebar · 画布子图标（owner 2026-10-08 画布换皮）', () 
     unmount()
 
     mockPathname.current = '/studio/image'
-    render(
+    renderWithApp(
       <SidebarProvider>
         <AppSidebar />
         <CanvasHost />

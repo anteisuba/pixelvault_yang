@@ -1,64 +1,14 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { act, render, screen, fireEvent, within } from '@testing-library/react'
-
-const navigation = vi.hoisted(() => ({ push: vi.fn() }))
-/** key 名单回没回来 —— 默认回来了；「还不知道」那组用例自己改成 false。 */
-const apiKeys = vi.hoisted(() => ({ hasLoaded: true }))
-
-vi.mock('@/i18n/navigation', () => ({
-  useRouter: () => ({ push: navigation.push }),
-  usePathname: () => '/studio/image',
-}))
-
-vi.mock('next-intl', () => ({
-  useTranslations:
-    (namespace: string) => (key: string, values?: Record<string, unknown>) =>
-      values
-        ? `${namespace}.${key}(${JSON.stringify(values)})`
-        : `${namespace}.${key}`,
-}))
-
-/** 缺 key 就地弹的配置窗 —— 只认它开没开、开给哪家，「验证」一键回调。 */
-vi.mock('@/components/business/studio-shared/setup/QuickSetupDialog', () => ({
-  QuickSetupDialog: ({
-    modelId,
-    adapterType,
-    onVerified,
-    channelChoices,
-    onChannelChange,
-  }: {
-    modelId: string
-    adapterType: string
-    onVerified?: (modelId: string, keyId: string) => void
-    channelChoices?: readonly { id: string; label: string }[]
-    onChannelChange?: (id: string) => void
-  }) => (
-    <div data-testid="quick-setup" data-adapter={adapterType}>
-      {channelChoices?.map((choice) => (
-        <button
-          key={choice.id}
-          type="button"
-          data-quick-setup-choice={choice.id}
-          onClick={() => onChannelChange?.(choice.id)}
-        >
-          {choice.label}
-        </button>
-      ))}
-      <button type="button" onClick={() => onVerified?.(modelId, 'k1')}>
-        verify
-      </button>
-    </div>
-  ),
-}))
-
-vi.mock('@/contexts/api-keys-context', () => ({
-  useApiKeysContext: vi.fn(() => ({
-    keys: [],
-    healthMap: {},
-    isLoading: false,
-    hasLoaded: apiKeys.hasLoaded,
-  })),
-}))
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
+import type { ReactElement } from 'react'
 
 import type { StudioModelOption } from '@/types/model-option'
 import {
@@ -66,16 +16,100 @@ import {
   placeCanvasModelPopover,
 } from '@/components/business/studio-shared/pickers/ModelPickerPopover'
 import { StudioChipDensityProvider } from '@/components/business/studio-shared/primitives/tool-surface'
+import { API_ENDPOINTS } from '@/constants/config'
 import { AI_MODELS } from '@/constants/models'
 import {
   AI_ADAPTER_TYPES,
   getDefaultProviderConfig,
 } from '@/constants/providers'
+import { ApiKeysProvider } from '@/contexts/api-keys-context'
 import {
   modelPickerGateKey,
   requestModelPickerOpen,
   resetModelPickerGate,
 } from '@/lib/model-picker-gate'
+import { fakeServer, renderWithApp } from '@/test/app-harness'
+import { stubBrowserLayout } from '@/test/browser-stubs'
+import { text } from '@/test/i18n-text'
+
+/**
+ * 统一模型选择器，全程真的：真 next-intl 文案、真 key 名单（`ApiKeysProvider`）、
+ * 真缺 key 配置窗（`QuickSetupDialog`：存 key → 验证 → 刷新名单 → 回调）。
+ * 只假网络（key 的增、验、列）与路由跳转。选项本身是宿主传进来的 prop。
+ */
+
+const navigation = vi.hoisted(() => ({ push: vi.fn() }))
+const auth = vi.hoisted(() => ({ userId: 'picker-user' }))
+
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({ isLoaded: true, isSignedIn: true, userId: auth.userId }),
+}))
+vi.mock('@/i18n/navigation', () => ({
+  useRouter: () => ({ push: navigation.push }),
+  usePathname: () => '/studio/image',
+}))
+
+const ok = (data: unknown) => Response.json({ success: true, data })
+/** 单价（「$0.0675 / 张」之类）。 */
+const PRICE = /\$\d/
+const T = (key: string, values?: Record<string, string | number>) =>
+  text(key, values)
+
+/**
+ * key 名单：默认「已回来」——所有用例共用一个用户，名单在 `beforeAll` 里真拉过一次、
+ * 进了 `use-api-keys` 的缓存，挂上即「已回来」。`keysPending()` 换一个新用户、
+ * 让列表接口挂着，就是「还没回来」；`releaseKeys()` 让它回来。
+ */
+let pending: { release: () => void } | null = null
+let pendingUsers = 0
+function keysPending() {
+  pendingUsers += 1
+  auth.userId = `pending-user-${pendingUsers}`
+  let release = () => {}
+  const gate = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  pending = { release: () => release() }
+  return gate
+}
+let keysGate: Promise<void> | null = null
+async function releaseKeys() {
+  pending?.release()
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0))
+  })
+}
+
+function installServer() {
+  return fakeServer()
+    .on('GET', API_ENDPOINTS.API_KEYS, async () => {
+      if (keysGate) await keysGate
+      return ok([])
+    })
+    .on('POST', API_ENDPOINTS.API_KEYS, async (request) => {
+      const body = (await request.json()) as {
+        adapterType: AI_ADAPTER_TYPES
+        modelId: string
+      }
+      return ok({
+        id: 'k1',
+        modelId: body.modelId,
+        adapterType: body.adapterType,
+        providerConfig: getDefaultProviderConfig(body.adapterType),
+        label: 'k1',
+        maskedKey: '••••',
+        isActive: true,
+        createdAt: new Date().toISOString(),
+      })
+    })
+    .on('POST', `${API_ENDPOINTS.API_KEYS}/:id/verify`, (_r, { params }) =>
+      params.then(({ id }) => ok({ id, status: 'available' })),
+    )
+}
+
+function renderPicker(ui: ReactElement) {
+  return renderWithApp(ui, { inner: ApiKeysProvider })
+}
 
 function option(over: Partial<StudioModelOption>): StudioModelOption {
   const adapterType = over.adapterType ?? AI_ADAPTER_TYPES.FAL
@@ -135,8 +169,37 @@ function row(modelKey: string): HTMLElement {
   return el as HTMLElement
 }
 
+/** 缺 key 配置窗（真 `QuickSetupDialog`；认它的「粘贴到这里」那一格）。 */
 function quickSetup(): HTMLElement | null {
-  return screen.queryByTestId('quick-setup')
+  return (
+    screen
+      .queryAllByRole('dialog')
+      .find((dialog) =>
+        within(dialog).queryByLabelText(T('QuickSetup.step2')),
+      ) ?? null
+  )
+}
+
+/** 配置窗开给哪家：第 1 步那条「去哪拿 key」链接写的是厂商名。 */
+function setupProvider(): string | null {
+  const dialog = quickSetup()
+  if (!dialog) return null
+  // 第一条链接 = 「去哪拿 key」；底下那条是「管理全部 key」。
+  return within(dialog).getAllByRole('link')[0]?.textContent ?? null
+}
+const providerLabel = (adapter: AI_ADAPTER_TYPES) =>
+  getDefaultProviderConfig(adapter).label
+
+/** 在配置窗里填 key、点验证，等真存好验好（「已保存」）。 */
+async function verifyKey() {
+  const dialog = quickSetup() as HTMLElement
+  fireEvent.change(within(dialog).getByLabelText(T('QuickSetup.step2')), {
+    target: { value: 'test-key-value-123' },
+  })
+  fireEvent.click(
+    within(dialog).getByRole('button', { name: T('QuickSetup.verify') }),
+  )
+  await within(dialog).findAllByText(T('QuickSetup.saved'))
 }
 
 function channelPanel(): HTMLElement | null {
@@ -147,7 +210,7 @@ function openPicker(
   props: Partial<React.ComponentProps<typeof ModelPickerPopover>> = {},
 ) {
   const onChange = vi.fn()
-  const view = render(
+  const view = renderPicker(
     <ModelPickerPopover
       options={FIXTURE}
       value={null}
@@ -155,7 +218,7 @@ function openPicker(
       {...props}
     />,
   )
-  fireEvent.click(screen.getByRole('button', { name: /Common.selectModel/ }))
+  fireEvent.click(screen.getByRole('button', { name: T('Common.selectModel') }))
   return { onChange, ...view }
 }
 
@@ -164,7 +227,7 @@ function openCanvasPicker(
   host: 'prompt-bar' | 'frame' = 'prompt-bar',
 ) {
   const onChange = vi.fn()
-  const view = render(
+  const view = renderPicker(
     <StudioChipDensityProvider value="compact">
       <div className="react-flow">
         <div className="react-flow__node" data-id="node-a" />
@@ -184,28 +247,50 @@ function openCanvasPicker(
   return { onChange, ...view }
 }
 
+beforeAll(async () => {
+  // 把「已回来」的那份名单真拉一次进缓存（之后挂上就是「已回来」）。
+  installServer()
+  stubBrowserLayout()
+  const view = renderPicker(<span />)
+  await waitFor(() =>
+    expect(vi.mocked(fetch).mock.calls.map(([u]) => String(u))).toContain(
+      API_ENDPOINTS.API_KEYS,
+    ),
+  )
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0))
+  })
+  view.unmount()
+  vi.unstubAllGlobals()
+})
+
 beforeEach(() => {
   window.localStorage.clear()
   navigation.push.mockClear()
-  apiKeys.hasLoaded = true
+  auth.userId = 'picker-user'
+  keysGate = null
+  pending = null
+  stubBrowserLayout()
+  installServer()
   // 「未选渠道」住模块级 store —— 不清就会漏进下一个用例。
   resetModelPickerGate()
 })
+afterEach(() => vi.unstubAllGlobals())
 
 describe('ModelPickerPopover — 未配置渠道就地弹配置窗', () => {
-  it('直接点未配置的单渠道模型行时先不选中，就地弹配置窗，⛔ 不跳页', () => {
+  it('直接点未配置的单渠道模型行时先不选中，就地弹配置窗，⛔ 不跳页', async () => {
     const { onChange } = openPicker()
     fireEvent.click(row('gpt-image-2'))
     expect(onChange).not.toHaveBeenCalled()
     expect(navigation.push).not.toHaveBeenCalled()
-    expect(quickSetup()).toHaveAttribute('data-adapter', 'openai')
+    expect(setupProvider()).toBe(providerLabel(AI_ADAPTER_TYPES.OPENAI))
     expect(window.localStorage.length).toBe(0)
   })
 
-  it('配置窗验证通过后才选中这一行', () => {
+  it('配置窗验证通过后才选中这一行', async () => {
     const { onChange } = openPicker()
     fireEvent.click(row('gpt-image-2'))
-    fireEvent.click(screen.getByRole('button', { name: 'verify' }))
+    await verifyKey()
     expect(onChange).toHaveBeenCalledWith(FIXTURE[3])
   })
 
@@ -226,7 +311,7 @@ describe('ModelPickerPopover — 未配置渠道就地弹配置窗', () => {
     expect(quickSetup()).toBeNull()
   })
 
-  it('记住过的渠道失去 key 后不能通过模型行重新选中', () => {
+  it('记住过的渠道失去 key 后不能通过模型行重新选中', async () => {
     const { onChange, rerender } = openPicker()
     fireEvent.mouseEnter(row('seedream-5.0-pro'))
     fireEvent.click(
@@ -248,16 +333,18 @@ describe('ModelPickerPopover — 未配置渠道就地弹配置窗', () => {
       />,
     )
     onChange.mockClear()
-    fireEvent.click(screen.getByRole('button', { name: /Common.selectModel/ }))
+    fireEvent.click(
+      screen.getByRole('button', { name: T('Common.selectModel') }),
+    )
     fireEvent.click(row('seedream-5.0-pro'))
     expect(onChange).not.toHaveBeenCalled()
-    expect(quickSetup()).toHaveAttribute('data-adapter', 'fal')
+    expect(setupProvider()).toBe(providerLabel(AI_ADAPTER_TYPES.FAL))
     expect({ ...window.localStorage }).toEqual(memoryBefore)
   })
 })
 
 describe('ModelPickerPopover — 画布模型弹层', () => {
-  it('候选先夹进安全区，再避开卡和提示词栏', () => {
+  it('候选先夹进安全区，再避开卡和提示词栏', async () => {
     const safe = { left: 72, top: 64, right: 1424, bottom: 824 }
     expect(
       placeCanvasModelPopover({
@@ -281,7 +368,7 @@ describe('ModelPickerPopover — 画布模型弹层', () => {
     ).toMatchObject({ x: 948, y: 432 })
   })
 
-  it('画布触发器实底28高、始终有字；弹层300宽、392高上限与搜索/底栏结构', () => {
+  it('画布触发器实底28高、始终有字；弹层300宽、392高上限与搜索/底栏结构', async () => {
     openCanvasPicker({ onManageChannels: vi.fn() })
     const chip = document.querySelector('[data-model-chip]') as HTMLElement
     const popup = document.querySelector(
@@ -293,30 +380,32 @@ describe('ModelPickerPopover — 画布模型弹层', () => {
     expect(popup.className).toContain('w-75')
     expect(popup.className).toContain('max-h-98')
     expect(
-      within(popup).getByPlaceholderText('ModelPicker.searchPlaceholder')
+      within(popup).getByPlaceholderText(T('ModelPicker.searchPlaceholder'))
         .parentElement,
     ).toHaveClass('h-8.5')
     expect(
-      within(popup).getByRole('button', { name: 'ModelPicker.manageChannels' }),
+      within(popup).getByRole('button', {
+        name: T('ModelPicker.manageChannels'),
+      }),
     ).toHaveClass('h-10')
   })
 
-  it('系列组行只写型号，第二行是选中渠道及该渠道单价；缺 key 仍可点开配置窗', () => {
+  it('系列组行只写型号，第二行是选中渠道及该渠道单价；缺 key 仍可点开配置窗', async () => {
     const { onChange } = openCanvasPicker({ value: 'key:fal-1' })
     const pro = row('seedream-5.0-pro')
     expect(pro.textContent).toContain('5.0 Pro')
     expect(pro.textContent).not.toContain('Seedream')
-    expect(pro.textContent).toContain('Common.unitPrice')
+    expect(pro.textContent).toMatch(PRICE)
     expect(pro.parentElement?.querySelector('svg')).not.toBeNull()
     expect(pro).toHaveAttribute('aria-label', 'Seedream 5.0 Pro')
     const locked = row('gpt-image-2')
-    expect(locked.textContent).toContain('ModelPicker.missingKeyConfigure')
+    expect(locked.textContent).toContain(T('ModelPicker.missingKeyConfigure'))
     fireEvent.click(locked)
     expect(onChange).not.toHaveBeenCalled()
-    expect(quickSetup()).toHaveAttribute('data-adapter', 'openai')
+    expect(setupProvider()).toBe(providerLabel(AI_ADAPTER_TYPES.OPENAI))
   })
 
-  it('多厂商一家都没配：点行先挑配哪家（默认最便宜），配好选中那一家', () => {
+  it('多厂商一家都没配：点行先挑配哪家（默认最便宜），配好选中那一家', async () => {
     const falPro = option({
       optionId: 'ws:fal-pro',
       modelId: AI_MODELS.SEEDREAM_50_PRO,
@@ -330,20 +419,20 @@ describe('ModelPickerPopover — 画布模型弹层', () => {
     const { onChange } = openCanvasPicker({ options: [falPro, volcPro] })
     fireEvent.click(row('seedream-5.0-pro'))
     const dialog = quickSetup() as HTMLElement
-    expect(dialog.querySelectorAll('[data-quick-setup-choice]').length).toBe(2)
+    expect(dialog.querySelectorAll('[data-quick-setup-channel]').length).toBe(2)
     // 单价表里 fal 那条（$0.0675）比火山（2K 档 $0.085）便宜 —— 默认那一家。
-    expect(dialog).toHaveAttribute('data-adapter', 'fal')
+    expect(setupProvider()).toBe(providerLabel(AI_ADAPTER_TYPES.FAL))
     fireEvent.click(
-      dialog.querySelector('[data-quick-setup-choice="ws:volc-pro"]')!,
+      dialog.querySelector('[data-quick-setup-channel="ws:volc-pro"]')!,
     )
-    expect(quickSetup()).toHaveAttribute('data-adapter', 'volcengine')
-    fireEvent.click(within(quickSetup()!).getByText('verify'))
+    expect(setupProvider()).toBe(providerLabel(AI_ADAPTER_TYPES.VOLCENGINE))
+    await verifyKey()
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({ optionId: 'ws:volc-pro' }),
     )
   })
 
-  it('有厂商前缀的 GPT Image 组也只写型号；无固定单价如实写按用量计费', () => {
+  it('有厂商前缀的 GPT Image 组也只写型号；无固定单价如实写按用量计费', async () => {
     const readyGpt = option({
       optionId: 'key:gpt',
       modelId: AI_MODELS.OPENAI_GPT_IMAGE_2,
@@ -359,10 +448,10 @@ describe('ModelPickerPopover — 画布模型弹层', () => {
     const gpt = row('gpt-image-2')
     expect(gpt.textContent).toContain('2')
     expect(gpt.textContent).not.toContain('OpenAI GPT Image')
-    expect(gpt.textContent).toContain('ModelPicker.usageBilled')
+    expect(gpt.textContent).toContain(T('ModelPicker.usageBilled'))
   })
 
-  it('最近最多三行且写全名；多渠道行提供数量并可打开渠道价', () => {
+  it('最近最多三行且写全名；多渠道行提供数量并可打开渠道价', async () => {
     window.localStorage.setItem(
       'pv:model-picker:recent',
       JSON.stringify({
@@ -382,7 +471,7 @@ describe('ModelPickerPopover — 画布模型弹层', () => {
       '[data-picker-canvas-row][data-row-id="group:seedream-5.0-pro"]',
     ) as HTMLElement
     expect(pro.parentElement?.textContent).toContain(
-      'ModelPicker.channelsCount',
+      T('ModelPicker.channelsCount', { count: 2 }),
     )
     fireEvent.click(
       pro.parentElement?.querySelector(
@@ -393,10 +482,10 @@ describe('ModelPickerPopover — 画布模型弹层', () => {
       'option',
     )
     expect(channels).toHaveLength(2)
-    expect(channels[0]?.textContent).toContain('Common.unitPrice')
+    expect(channels[0]?.textContent).toMatch(PRICE)
   })
 
-  it('展开的画中框里（没有提示词栏）点开也会落位显示', () => {
+  it('展开的画中框里（没有提示词栏）点开也会落位显示', async () => {
     openCanvasPicker({}, 'frame')
     const popover = document.querySelector(
       '[data-canvas-model-popover]',
@@ -404,7 +493,7 @@ describe('ModelPickerPopover — 画布模型弹层', () => {
     expect(popover.style.visibility).toBe('visible')
   })
 
-  it('多渠道行主体按自动选中的渠道选型号，行尾单独打开渠道面板', () => {
+  it('多渠道行主体按自动选中的渠道选型号，行尾单独打开渠道面板', async () => {
     const { onChange } = openCanvasPicker()
     const pro = row('seedream-5.0-pro')
     fireEvent.click(pro)
@@ -415,7 +504,7 @@ describe('ModelPickerPopover — 画布模型弹层', () => {
     expect(window.localStorage.getItem('pv:model-picker:pending')).toBeNull()
   })
 
-  it('选择后保持弹层 160ms，再开始收起', () => {
+  it('选择后保持弹层 160ms，再开始收起', async () => {
     vi.useFakeTimers()
     try {
       openCanvasPicker()
@@ -437,7 +526,7 @@ describe('ModelPickerPopover — 行只有 模型 · 型号 · 价格', () => {
    * ⚠ 本条 2026-09-20 改口（owner 真机第 2 条，原话「有一个 NovelAI 的表示了，
    * 下面应该是版本号，不需要再重复」）：分组头已经写着厂商，行里**不再重复**它。
    */
-  it('每个型号一行；头顶分组头写着厂商时行里只剩型号', () => {
+  it('每个型号一行；头顶分组头写着厂商时行里只剩型号', async () => {
     openPicker()
     const pro = row('seedream-5.0-pro')
     expect(pro.textContent).toContain('5.0 Pro')
@@ -458,10 +547,10 @@ describe('ModelPickerPopover — 行只有 模型 · 型号 · 价格', () => {
     expect(screen.getAllByText('GPT Image').length).toBeGreaterThan(0)
   })
 
-  it('搜索结果平铺、没有分组头 —— 行里把厂商名写回来', () => {
+  it('搜索结果平铺、没有分组头 —— 行里把厂商名写回来', async () => {
     openPicker()
     fireEvent.change(
-      screen.getByPlaceholderText('ModelPicker.searchPlaceholder'),
+      screen.getByPlaceholderText(T('ModelPicker.searchPlaceholder')),
       {
         target: { value: '5.0 pro' },
       },
@@ -474,23 +563,23 @@ describe('ModelPickerPopover — 行只有 模型 · 型号 · 价格', () => {
     expect(document.querySelectorAll('[data-picker-group]')).toHaveLength(0)
   })
 
-  it('多渠道但没选过 → 价格位写「—」', () => {
+  it('多渠道但没选过 → 价格位写「—」', async () => {
     openPicker()
     expect(row('seedream-5.0-pro').textContent).toContain(
-      'ModelPicker.channelUnset',
+      T('ModelPicker.channelUnset'),
     )
   })
 
-  it('单渠道型号自动选中那一条，价格位直接写单价', () => {
+  it('单渠道型号自动选中那一条，价格位直接写单价', async () => {
     openPicker()
     // Lite 只有 fal 一条，但缺 key —— 缺 key 时价格位**不写字**。
-    expect(row('seedream-5.0-lite').textContent).not.toContain('unitPrice')
+    expect(row('seedream-5.0-lite').textContent).not.toMatch(PRICE)
     expect(row('seedream-5.0-lite').textContent).not.toContain(
-      'ModelPicker.channelUnset',
+      T('ModelPicker.channelUnset'),
     )
   })
 
-  it('⛔ 行上不画状态点、不写渠道名、不写能力标', () => {
+  it('⛔ 行上不画状态点、不写渠道名、不写能力标', async () => {
     openPicker()
     const pro = row('seedream-5.0-pro')
     expect(pro.querySelector('.bg-status-applied')).toBeNull()
@@ -500,7 +589,7 @@ describe('ModelPickerPopover — 行只有 模型 · 型号 · 价格', () => {
 })
 
 describe('ModelPickerPopover — 渠道面板', () => {
-  it('hover 一行就把独立渠道面板摆到它旁边，每条写 点 · 名 · 价', () => {
+  it('hover 一行就把独立渠道面板摆到它旁边，每条写 点 · 名 · 价', async () => {
     openPicker()
     expect(channelPanel()).toBeNull()
     fireEvent.mouseEnter(row('seedream-5.0-pro'))
@@ -509,12 +598,12 @@ describe('ModelPickerPopover — 渠道面板', () => {
     const rows = within(panel as HTMLElement).getAllByRole('option')
     expect(rows).toHaveLength(2)
     expect(rows[0]?.querySelector('.bg-status-applied')).not.toBeNull()
-    expect(rows[0]?.textContent).toContain('Common.unitPrice')
+    expect(rows[0]?.textContent).toMatch(PRICE)
     // ⛔ 面板里没有对勾，选中只用底色。
     expect((panel as HTMLElement).querySelector('svg')).toBeNull()
   })
 
-  it('单渠道型号的面板只有一行且已选中', () => {
+  it('单渠道型号的面板只有一行且已选中', async () => {
     openPicker()
     fireEvent.mouseEnter(row('seedream-5.0-lite'))
     const rows = within(channelPanel() as HTMLElement).getAllByRole('option')
@@ -522,7 +611,7 @@ describe('ModelPickerPopover — 渠道面板', () => {
     expect(rows[0]).toHaveAttribute('data-channel-picked', 'true')
   })
 
-  it('缺 key 的渠道是黄点，配了 key 的是绿点', () => {
+  it('缺 key 的渠道是黄点，配了 key 的是绿点', async () => {
     openPicker()
     fireEvent.mouseEnter(row('seedream-5.0-lite'))
     const locked = document.querySelector('[data-channel-has-key="false"]')
@@ -530,7 +619,7 @@ describe('ModelPickerPopover — 渠道面板', () => {
     expect(locked?.querySelector('.bg-status-warning')).not.toBeNull()
   })
 
-  it('点一条渠道 = 选定 + 按型号记住，下次默认走它', () => {
+  it('点一条渠道 = 选定 + 按型号记住，下次默认走它', async () => {
     const { onChange } = openPicker()
     fireEvent.mouseEnter(row('seedream-5.0-pro'))
     const volc = within(channelPanel() as HTMLElement)
@@ -548,7 +637,7 @@ describe('ModelPickerPopover — 渠道面板', () => {
 })
 
 describe('ModelPickerPopover — 没有「自动」', () => {
-  it('点多渠道行只停在「未选渠道」，⛔ 不替他挑一条', () => {
+  it('点多渠道行只停在「未选渠道」，⛔ 不替他挑一条', async () => {
     const { onChange } = openPicker()
     fireEvent.click(row('seedream-5.0-pro'))
     expect(onChange).not.toHaveBeenCalled()
@@ -559,7 +648,7 @@ describe('ModelPickerPopover — 没有「自动」', () => {
     expect(window.localStorage.getItem('pv:model-picker:channel')).toBeNull()
   })
 
-  it('记住过渠道之后，点同一行一步到位', () => {
+  it('记住过渠道之后，点同一行一步到位', async () => {
     const { onChange } = openPicker()
     fireEvent.mouseEnter(row('seedream-5.0-pro'))
     fireEvent.click(
@@ -570,16 +659,16 @@ describe('ModelPickerPopover — 没有「自动」', () => {
     expect(onChange).toHaveBeenCalledTimes(1)
   })
 
-  it('触发器在「选了型号没选渠道」时写「先选渠道」', () => {
+  it('触发器在「选了型号没选渠道」时写「先选渠道」', async () => {
     openPicker()
     fireEvent.click(row('seedream-5.0-pro'))
     const chip = document.querySelector('[data-model-chip]')
     expect(chip?.getAttribute('data-status-tone')).toBe('warning')
-    expect(chip?.textContent).toContain('ModelPicker.pickChannel')
+    expect(chip?.textContent).toContain(T('ModelPicker.pickChannel'))
   })
 
-  it('触发器在缺 key 的选中型号上写「缺 key」', () => {
-    render(
+  it('触发器在缺 key 的选中型号上写「缺 key」', async () => {
+    renderPicker(
       <ModelPickerPopover
         options={FIXTURE}
         value="workspace:seedream-lite"
@@ -588,11 +677,11 @@ describe('ModelPickerPopover — 没有「自动」', () => {
     )
     const chip = document.querySelector('[data-model-chip]')
     expect(chip?.getAttribute('data-status-tone')).toBe('warning')
-    expect(chip?.textContent).toContain('ModelPicker.missingKey')
+    expect(chip?.textContent).toContain(T('ModelPicker.missingKey'))
   })
 
-  it('触发器在渠道就绪时写单价', () => {
-    render(
+  it('触发器在渠道就绪时写单价', async () => {
+    renderPicker(
       <ModelPickerPopover
         options={FIXTURE}
         value="key:fal-1"
@@ -601,12 +690,12 @@ describe('ModelPickerPopover — 没有「自动」', () => {
     )
     const chip = document.querySelector('[data-model-chip]')
     expect(chip?.getAttribute('data-status-tone')).toBeNull()
-    expect(chip?.textContent).toContain('Common.unitPrice')
+    expect(chip?.textContent).toMatch(PRICE)
   })
 })
 
 describe('ModelPickerPopover — 缺 key 渠道就地弹配置窗', () => {
-  it('点黄点渠道时关闭弹层、不选中，也不记住缺 key 渠道', () => {
+  it('点黄点渠道时关闭弹层、不选中，也不记住缺 key 渠道', async () => {
     const { onChange } = openPicker()
     fireEvent.mouseEnter(row('gpt-image-2'))
     fireEvent.click(
@@ -614,13 +703,13 @@ describe('ModelPickerPopover — 缺 key 渠道就地弹配置窗', () => {
         'option',
       )[0] as HTMLElement,
     )
-    expect(quickSetup()).toHaveAttribute('data-adapter', 'openai')
+    expect(setupProvider()).toBe(providerLabel(AI_ADAPTER_TYPES.OPENAI))
     expect(onChange).not.toHaveBeenCalled()
     expect(window.localStorage.length).toBe(0)
     expect(channelPanel()).toBeNull()
   })
 
-  it('黄点渠道验证通过后选中，并按型号记住这条渠道', () => {
+  it('黄点渠道验证通过后选中，并按型号记住这条渠道', async () => {
     const { onChange } = openPicker()
     fireEvent.mouseEnter(row('gpt-image-2'))
     fireEvent.click(
@@ -628,12 +717,12 @@ describe('ModelPickerPopover — 缺 key 渠道就地弹配置窗', () => {
         'option',
       )[0] as HTMLElement,
     )
-    fireEvent.click(screen.getByRole('button', { name: 'verify' }))
+    await verifyKey()
     expect(onChange).toHaveBeenCalledWith(FIXTURE[3])
     expect(window.localStorage.length).toBeGreaterThan(0)
   })
 
-  it('多选模式点未配置模型行时不切换选项，就地弹配置窗', () => {
+  it('多选模式点未配置模型行时不切换选项，就地弹配置窗', async () => {
     const onToggleOption = vi.fn()
     const { onChange } = openPicker({
       selectedOptionIds: new Set<string>(),
@@ -642,9 +731,9 @@ describe('ModelPickerPopover — 缺 key 渠道就地弹配置窗', () => {
     fireEvent.click(row('gpt-image-2'))
     expect(onToggleOption).not.toHaveBeenCalled()
     expect(onChange).not.toHaveBeenCalled()
-    expect(quickSetup()).toHaveAttribute('data-adapter', 'openai')
+    expect(setupProvider()).toBe(providerLabel(AI_ADAPTER_TYPES.OPENAI))
     expect(window.localStorage.length).toBe(0)
-    fireEvent.click(screen.getByRole('button', { name: 'verify' }))
+    await verifyKey()
     expect(onToggleOption).toHaveBeenCalledWith(FIXTURE[3])
   })
 })
@@ -661,9 +750,9 @@ describe('ModelPickerPopover — key 名单还没回来', () => {
       : item,
   )
 
-  it('有 key 的型号：名单回来前后触发器都不写「缺 key」', () => {
-    apiKeys.hasLoaded = false
-    const { rerender } = render(
+  it('有 key 的型号：名单回来前后触发器都不写「缺 key」', async () => {
+    keysGate = keysPending()
+    const { rerender } = renderPicker(
       <ModelPickerPopover
         options={FIXTURE}
         value="workspace:seedream-lite"
@@ -671,9 +760,9 @@ describe('ModelPickerPopover — key 名单还没回来', () => {
       />,
     )
     expect(chip()?.getAttribute('data-status-tone')).toBeNull()
-    expect(chip()?.textContent).not.toContain('ModelPicker.missingKey')
+    expect(chip()?.textContent).not.toContain(T('ModelPicker.missingKey'))
 
-    apiKeys.hasLoaded = true
+    await releaseKeys()
     rerender(
       <ModelPickerPopover
         options={withLiteKey}
@@ -682,21 +771,21 @@ describe('ModelPickerPopover — key 名单还没回来', () => {
       />,
     )
     expect(chip()?.getAttribute('data-status-tone')).toBeNull()
-    expect(chip()?.textContent).toContain('Common.unitPrice')
+    expect(chip()?.textContent).toMatch(PRICE)
   })
 
-  it('真缺 key 的型号：名单回来之后照旧写「缺 key」', () => {
-    apiKeys.hasLoaded = false
-    const { rerender } = render(
+  it('真缺 key 的型号：名单回来之后照旧写「缺 key」', async () => {
+    keysGate = keysPending()
+    const { rerender } = renderPicker(
       <ModelPickerPopover
         options={FIXTURE}
         value="workspace:seedream-lite"
         onChange={vi.fn()}
       />,
     )
-    expect(chip()?.textContent).not.toContain('ModelPicker.missingKey')
+    expect(chip()?.textContent).not.toContain(T('ModelPicker.missingKey'))
 
-    apiKeys.hasLoaded = true
+    await releaseKeys()
     rerender(
       <ModelPickerPopover
         options={FIXTURE}
@@ -705,11 +794,11 @@ describe('ModelPickerPopover — key 名单还没回来', () => {
       />,
     )
     expect(chip()?.getAttribute('data-status-tone')).toBe('warning')
-    expect(chip()?.textContent).toContain('ModelPicker.missingKey')
+    expect(chip()?.textContent).toContain(T('ModelPicker.missingKey'))
   })
 
-  it('渠道是灰点不是黄点，行尾先摆一条灰条（加载中 2026-10-08）', () => {
-    apiKeys.hasLoaded = false
+  it('渠道是灰点不是黄点，行尾先摆一条灰条（加载中 2026-10-08）', async () => {
+    keysGate = keysPending()
     openPicker()
     const pending = row('seedream-5.0-lite').querySelector(
       '[data-picker-price-pending]',
@@ -717,7 +806,7 @@ describe('ModelPickerPopover — key 名单还没回来', () => {
     expect(pending).not.toBeNull()
     expect(pending?.className).not.toContain('animate-pulse')
     expect(row('seedream-5.0-lite').textContent).not.toContain(
-      'ModelPicker.missingKey',
+      T('ModelPicker.missingKey'),
     )
     fireEvent.mouseEnter(row('seedream-5.0-lite'))
     const panel = channelPanel() as HTMLElement
@@ -725,24 +814,24 @@ describe('ModelPickerPopover — key 名单还没回来', () => {
     expect(panel.querySelector('.bg-status-warning')).toBeNull()
   })
 
-  it('画布行不写「缺 key · 点了去配置」', () => {
-    apiKeys.hasLoaded = false
+  it('画布行不写「缺 key · 点了去配置」', async () => {
+    keysGate = keysPending()
     openCanvasPicker()
     const gpt = row('gpt-image-2')
-    expect(gpt.textContent).not.toContain('ModelPicker.missingKeyConfigure')
+    expect(gpt.textContent).not.toContain(T('ModelPicker.missingKeyConfigure'))
     expect(gpt).not.toHaveAttribute('data-missing-key')
   })
 
-  it('点模型行 = 照常选，⛔ 不跳配置页', () => {
-    apiKeys.hasLoaded = false
+  it('点模型行 = 照常选，⛔ 不跳配置页', async () => {
+    keysGate = keysPending()
     const { onChange } = openPicker()
     fireEvent.click(row('gpt-image-2'))
     expect(onChange).toHaveBeenCalledWith(FIXTURE[3])
     expect(quickSetup()).toBeNull()
   })
 
-  it('点渠道 = 照常选，⛔ 不跳配置页', () => {
-    apiKeys.hasLoaded = false
+  it('点渠道 = 照常选，⛔ 不跳配置页', async () => {
+    keysGate = keysPending()
     const { onChange } = openPicker()
     fireEvent.mouseEnter(row('gpt-image-2'))
     fireEvent.click(
@@ -756,10 +845,10 @@ describe('ModelPickerPopover — key 名单还没回来', () => {
 })
 
 describe('ModelPickerPopover — 其余契约', () => {
-  it('搜索跨模型名、系列与渠道名过滤', () => {
+  it('搜索跨模型名、系列与渠道名过滤', async () => {
     openPicker()
     fireEvent.change(
-      screen.getByPlaceholderText('ModelPicker.searchPlaceholder'),
+      screen.getByPlaceholderText(T('ModelPicker.searchPlaceholder')),
       { target: { value: 'gpt' } },
     )
     expect(
@@ -770,7 +859,7 @@ describe('ModelPickerPopover — 其余契约', () => {
     ).toBeNull()
   })
 
-  it('多选模式不关弹层，走 onToggleOption', () => {
+  it('多选模式不关弹层，走 onToggleOption', async () => {
     const onToggleOption = vi.fn()
     const { onChange } = openPicker({
       selectedOptionIds: new Set<string>(),
@@ -789,15 +878,15 @@ describe('ModelPickerPopover — 其余契约', () => {
     ).not.toBeNull()
   })
 
-  it('只在宿主接得住时渲染底部「配置渠道与 key…」', () => {
+  it('只在宿主接得住时渲染底部「配置渠道与 key…」', async () => {
     const onManageChannels = vi.fn()
     openPicker({ onManageChannels })
-    fireEvent.click(screen.getByText('ModelPicker.manageChannels'))
+    fireEvent.click(screen.getByText(T('ModelPicker.manageChannels')))
     expect(onManageChannels).toHaveBeenCalledTimes(1)
   })
 
-  it('inline 模式只渲染面板本体，不渲染触发器', () => {
-    render(
+  it('inline 模式只渲染面板本体，不渲染触发器', async () => {
+    renderPicker(
       <ModelPickerPopover
         options={FIXTURE}
         value={null}
@@ -806,13 +895,13 @@ describe('ModelPickerPopover — 其余契约', () => {
       />,
     )
     expect(
-      screen.getByPlaceholderText('ModelPicker.searchPlaceholder'),
+      screen.getByPlaceholderText(T('ModelPicker.searchPlaceholder')),
     ).toBeInTheDocument()
     expect(document.querySelector('[data-model-chip]')).toBeNull()
   })
 
-  it('groupBy="kind" 把音频模型分成语音 / 配乐 / 音效三组（空组不画）', () => {
-    render(
+  it('groupBy="kind" 把音频模型分成语音 / 配乐 / 音效三组（空组不画）', async () => {
+    renderPicker(
       <ModelPickerPopover
         options={[
           option({
@@ -832,15 +921,15 @@ describe('ModelPickerPopover — 其余契约', () => {
         inline
       />,
     )
-    expect(screen.getByText('ModelPicker.kinds.speech')).toBeInTheDocument()
-    expect(screen.getByText('ModelPicker.kinds.music')).toBeInTheDocument()
-    expect(screen.queryByText('ModelPicker.kinds.sfx')).toBeNull()
+    expect(screen.getByText(T('ModelPicker.kinds.speech'))).toBeInTheDocument()
+    expect(screen.getByText(T('ModelPicker.kinds.music'))).toBeInTheDocument()
+    expect(screen.queryByText(T('ModelPicker.kinds.sfx'))).toBeNull()
   })
 })
 
 describe('ModelPickerPopover — 未选渠道闸门', () => {
-  it('待选型号按 (scope, gateId) 存，画布上一张卡挡不住另一张', () => {
-    render(
+  it('待选型号按 (scope, gateId) 存，画布上一张卡挡不住另一张', async () => {
+    renderPicker(
       <ModelPickerPopover
         options={FIXTURE}
         value={null}
@@ -856,8 +945,8 @@ describe('ModelPickerPopover — 未选渠道闸门', () => {
     expect(raw).not.toContain('image:node-b')
   })
 
-  it('生成键点「先选渠道」→ 这个选择器自己打开', () => {
-    render(
+  it('生成键点「先选渠道」→ 这个选择器自己打开', async () => {
+    renderPicker(
       <ModelPickerPopover
         options={FIXTURE}
         value={null}
@@ -871,8 +960,8 @@ describe('ModelPickerPopover — 未选渠道闸门', () => {
     expect(document.querySelector('[data-model-key]')).not.toBeNull()
   })
 
-  it('⛔ 别的宿主的请求叫不醒它', () => {
-    render(
+  it('⛔ 别的宿主的请求叫不醒它', async () => {
+    renderPicker(
       <ModelPickerPopover
         options={FIXTURE}
         value={null}
@@ -906,7 +995,7 @@ describe('ModelPickerPopover — 行 → 过渡区 → 渠道面板走得过去'
     ) as HTMLElement
   }
 
-  it('面板贴住列表右缘 —— 间距是 padding，⛔ 不是真空隙', () => {
+  it('面板贴住列表右缘 —— 间距是 padding，⛔ 不是真空隙', async () => {
     openPicker()
     fireEvent.mouseEnter(row('seedream-5.0-pro'))
     const hit = panelHitArea()
@@ -915,7 +1004,7 @@ describe('ModelPickerPopover — 行 → 过渡区 → 渠道面板走得过去'
     expect(hit.className).not.toMatch(/left-\[/)
   })
 
-  it('指针经过渡区进入面板，面板全程不关', () => {
+  it('指针经过渡区进入面板，面板全程不关', async () => {
     vi.useFakeTimers()
     try {
       openPicker()
@@ -942,7 +1031,7 @@ describe('ModelPickerPopover — 行 → 过渡区 → 渠道面板走得过去'
     }
   })
 
-  it('离开整块之后延时才收，延时不短于 150ms', () => {
+  it('离开整块之后延时才收，延时不短于 150ms', async () => {
     vi.useFakeTimers()
     try {
       openPicker()
@@ -961,7 +1050,7 @@ describe('ModelPickerPopover — 行 → 过渡区 → 渠道面板走得过去'
     }
   })
 
-  it('→ 开面板并把焦点落到第一条渠道，Esc 回到行', () => {
+  it('→ 开面板并把焦点落到第一条渠道，Esc 回到行', async () => {
     openPicker()
     const pro = row('seedream-5.0-pro')
     fireEvent.focus(pro)
@@ -1015,9 +1104,9 @@ describe('ModelPickerPopover — 有历史记录时仍只显示厂商列表', ()
     )
   })
 
-  it('历史记录不产生最近分组或重复行', () => {
+  it('历史记录不产生最近分组或重复行', async () => {
     openPicker()
-    expect(screen.queryByText('ModelPicker.recent')).toBeNull()
+    expect(screen.queryByText(T('ModelPicker.recent'))).toBeNull()
     expect(
       document.querySelectorAll('[data-model-key="seedream-5.0-pro"]'),
     ).toHaveLength(1)
@@ -1025,7 +1114,7 @@ describe('ModelPickerPopover — 有历史记录时仍只显示厂商列表', ()
     expect(document.querySelector('[data-row-id^="recent:"]')).toBeNull()
   })
 
-  it('渠道面板对齐厂商列表中的行', () => {
+  it('渠道面板对齐厂商列表中的行', async () => {
     const rect = stubRowRects({
       'group:seedream-5.0-pro': 480,
     })
@@ -1038,7 +1127,7 @@ describe('ModelPickerPopover — 有历史记录时仍只显示厂商列表', ()
     }
   })
 
-  it('只有当前行带有激活标记', () => {
+  it('只有当前行带有激活标记', async () => {
     openPicker()
     fireEvent.mouseEnter(rowById('group:seedream-5.0-pro'))
     const active = document.querySelectorAll('[data-row-active]')
@@ -1046,7 +1135,7 @@ describe('ModelPickerPopover — 有历史记录时仍只显示厂商列表', ()
     expect(active[0]).toHaveAttribute('data-row-id', 'group:seedream-5.0-pro')
   })
 
-  it('→ 打开渠道面板，Esc 回到厂商列表行', () => {
+  it('→ 打开渠道面板，Esc 回到厂商列表行', async () => {
     openPicker()
     const grouped = rowById('group:seedream-5.0-pro')
     fireEvent.focus(grouped)
@@ -1058,7 +1147,7 @@ describe('ModelPickerPopover — 有历史记录时仍只显示厂商列表', ()
     expect(document.activeElement).toBe(grouped)
   })
 
-  it('记忆按裸型号存 —— ⛔ 复合行身份不许漏进 memory 层', () => {
+  it('记忆按裸型号存 —— ⛔ 复合行身份不许漏进 memory 层', async () => {
     openPicker()
     fireEvent.mouseEnter(rowById('group:seedream-5.0-pro'))
     fireEvent.click(

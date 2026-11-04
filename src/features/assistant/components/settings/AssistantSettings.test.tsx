@@ -14,11 +14,7 @@ vi.mock('next-intl', () => ({
     () => (key: string, values?: Record<string, string | number>) =>
       values ? `${key}|${Object.values(values).join(',')}` : key,
   useFormatter: () => ({ dateTime: () => 'date' }),
-}))
-
-vi.mock('@/hooks/use-mobile', () => ({
-  useIsMobile: () => false,
-  useIsTablet: () => false,
+  useLocale: () => 'en',
 }))
 
 vi.mock('@/i18n/navigation', () => ({
@@ -36,12 +32,21 @@ vi.mock('@/i18n/navigation', () => ({
   ),
 }))
 
+/**
+ * 真的人设 / 角色卡 / 记忆 / 来源名单 hook 全挂上；只假它们背后的接口。
+ */
 const api = vi.hoisted(() => ({
   getAssistantPersonaAPI: vi.fn(),
   updateAssistantPersonaAPI: vi.fn(),
   uploadAssistantAvatarAPI: vi.fn(),
+  listCharacterCardsAPI: vi.fn(),
+  listAssistantMemoriesAPI: vi.fn(),
+  listProjectRulesAPI: vi.fn(),
 }))
-vi.mock('@/lib/api-client', () => api)
+vi.mock('@/lib/api-client', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api-client')>()),
+  ...api,
+}))
 
 const DENIA = {
   id: 'card_denia',
@@ -63,37 +68,13 @@ const DENIA = {
   ],
   persona: { speech: '' },
 }
-vi.mock('@/features/cards/hooks', () => ({
-  useCharacterCards: () => ({ cards: [DENIA] }),
-}))
-
-vi.mock('@/features/assistant/hooks/use-assistant-memories', () => ({
-  useAssistantMemories: () => ({
-    memories: [],
-    isLoading: false,
-    error: null,
-    create: vi.fn(),
-    update: vi.fn(),
-    remove: vi.fn(),
-    clear: vi.fn(),
-    reload: vi.fn(),
-  }),
-}))
-
-vi.mock('@/hooks/use-project-rules', () => ({
-  useProjectRules: () => ({
-    rules: [],
-    isLoading: false,
-    error: null,
-    add: vi.fn(),
-    remove: vi.fn(),
-    reload: vi.fn(),
-  }),
-}))
-
-vi.mock('@/hooks/use-local-preference', () => ({
-  useLocalPreference: () => [null, vi.fn()],
-}))
+/** 每例都从「接口回来的」那一份起步：角色卡只有 Denia，记忆与名单都是空的。 */
+function stubLists() {
+  window.localStorage.clear()
+  api.listCharacterCardsAPI.mockResolvedValue({ success: true, data: [DENIA] })
+  api.listAssistantMemoriesAPI.mockResolvedValue({ success: true, data: [] })
+  api.listProjectRulesAPI.mockResolvedValue({ success: true, data: [] })
+}
 
 import { AssistantSettingsDialog } from '@/features/assistant/components/operator/AssistantSettingsDialog'
 import { AssistantSettings } from './AssistantSettings'
@@ -131,6 +112,7 @@ function openAdvanced() {
 describe('AssistantSettings · 人设', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    stubLists()
     api.updateAssistantPersonaAPI.mockImplementation(
       async (input: Record<string, unknown>) => ({
         success: true,
@@ -349,6 +331,7 @@ describe('AssistantSettings · 人设', () => {
 describe('AssistantSettingsDialog', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    stubLists()
     api.getAssistantPersonaAPI.mockResolvedValue({
       success: true,
       data: PERSONA,

@@ -1,110 +1,116 @@
-import { render, screen, fireEvent } from '@testing-library/react'
-import { NextIntlClientProvider } from 'next-intl'
-import { describe, expect, it, vi, beforeEach } from 'vitest'
+/**
+ * 训练向导壳：真表单（真 useLoraTraining）、真训练历史、真手机抽屉、真 `useIsMobile`。
+ * 只假网络：key 名单走假服务器，训练任务列表在 api-client 边界上假。
+ */
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { LORA_TRAINING_PRESETS } from '@/constants/lora'
-
+import { ApiKeysProvider } from '@/contexts/api-keys-context'
 import { en } from '@/messages'
-
-const mockIsMobile = vi.hoisted(() => vi.fn(() => false))
-
-vi.mock('@/hooks/use-mobile', () => ({
-  useIsMobile: mockIsMobile,
-  useIsTablet: () => false,
-}))
-
-// 表单与任务列表整套状态机（上传 / 配置 / 提交 / 轮询）住在 LoraTrainingDialog
-// 里，向导壳只负责把它们摆在两步里 —— 这个测试锁的是壳，不是那套状态机。
-vi.mock('@/features/lora/components/LoraTrainingDialog', () => ({
-  LoraTrainingForm: ({
-    selectedPresetId,
-    onRequestPreset,
-  }: {
-    selectedPresetId: string | null
-    onRequestPreset: () => void
-  }) => (
-    <div data-testid="training-form" data-preset={selectedPresetId ?? ''}>
-      <button type="button" onClick={onRequestPreset}>
-        request-preset
-      </button>
-    </div>
-  ),
-  LoraTrainingHistorySidebar: () => <div data-testid="training-history" />,
-}))
-
-vi.mock('@/features/lora/components/training/MobileTrainingSheet', () => ({
-  MobileTrainingSheet: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="mobile-training-sheet">{children}</div>
-  ),
-}))
+import { fakeServer, renderWithApp } from '@/test/app-harness'
+import { fakeApiKeyRoutes, runIdleCallbacksNow } from '@/test/fake-routes'
+import { DESKTOP_WIDTH, PHONE_WIDTH, setViewport } from '@/test/viewport'
 
 import { TrainWizard } from './TrainWizard'
 
-function renderWizard() {
-  return render(
-    <NextIntlClientProvider locale="en" messages={en}>
-      <TrainWizard />
-    </NextIntlClientProvider>,
+const auth = vi.hoisted(() => ({ userId: 'user_0' }))
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({ userId: auth.userId, isSignedIn: true, isLoaded: true }),
+}))
+vi.mock('@/i18n/navigation', () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  usePathname: () => '/studio/lora',
+}))
+vi.mock('@/lib/api-client', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api-client')>()),
+  listLoraTrainingJobsAPI: async () => ({ success: true, data: [] }),
+}))
+
+const L = en.LoraTraining
+
+let userSeq = 0
+beforeEach(() => {
+  userSeq += 1
+  auth.userId = `user_${userSeq}`
+  localStorage.clear()
+  runIdleCallbacksNow()
+  setViewport(DESKTOP_WIDTH)
+})
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
+
+async function renderWizard() {
+  const server = fakeApiKeyRoutes(fakeServer(), [])
+  renderWithApp(<TrainWizard />, { locale: 'en', inner: ApiKeysProvider })
+  await waitFor(() =>
+    expect(server.requests.map((r) => r.path)).toContain('/api/api-keys'),
   )
 }
 
 describe('TrainWizard', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    mockIsMobile.mockReturnValue(false)
+  it('renders both steps plus the history rail on desktop', async () => {
+    await renderWizard()
+
+    expect(screen.getByText(L.presetRailTitle)).toBeInTheDocument()
+    // ② 表单第一次进来是空态（选预设 / 传图两个入口）
+    expect(
+      await screen.findByRole('button', { name: L.emptyCtaPreset }),
+    ).toBeInTheDocument()
+    expect(screen.getByText(L.historyTitle)).toBeInTheDocument()
+    expect(screen.getByText(L.historyOutputHint)).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: L.mobileSheetTrigger }),
+    ).toBeNull()
   })
 
-  it('renders both steps plus the history rail on desktop', () => {
-    renderWizard()
-
-    expect(
-      screen.getByText(en.LoraTraining.presetRailTitle),
-    ).toBeInTheDocument()
-    expect(screen.getByTestId('training-form')).toBeInTheDocument()
-    expect(screen.getByTestId('training-history')).toBeInTheDocument()
-    expect(
-      screen.getByText(en.LoraTraining.historyOutputHint),
-    ).toBeInTheDocument()
-    expect(screen.queryByTestId('mobile-training-sheet')).toBeNull()
-  })
-
-  it('hands the picked preset down to the form', () => {
-    renderWizard()
-
+  it('hands the picked preset down to the form', async () => {
+    await renderWizard()
     const preset = LORA_TRAINING_PRESETS.find((p) => p.available)!
-    expect(screen.getByTestId('training-form')).toHaveAttribute(
-      'data-preset',
-      '',
-    )
 
     fireEvent.click(
       document.querySelector(`[data-preset-id="${preset.id}"]`) as HTMLElement,
     )
-    expect(screen.getByTestId('training-form')).toHaveAttribute(
-      'data-preset',
-      preset.id,
-    )
+
+    const name = (L as Record<string, unknown>)[
+      preset.nameKey.replace(/^.*\./, '')
+    ] as string
+    expect(
+      await screen.findByText(L.presetSelectedLabel.replace('{name}', name)),
+    ).toBeInTheDocument()
   })
 
-  it('scrolls step 1 back into view when the form asks for a preset', () => {
+  it('scrolls step 1 back into view when the form asks for a preset', async () => {
     const scrollIntoView = vi.fn()
     Element.prototype.scrollIntoView = scrollIntoView
-    renderWizard()
+    await renderWizard()
 
-    fireEvent.click(screen.getByText('request-preset'))
+    fireEvent.click(
+      await screen.findByRole('button', { name: L.emptyCtaPreset }),
+    )
     expect(scrollIntoView).toHaveBeenCalledWith(
       expect.objectContaining({ block: 'center' }),
     )
   })
 
   it('puts the form inside the sheet on mobile', async () => {
-    mockIsMobile.mockReturnValue(true)
-    renderWizard()
+    setViewport(PHONE_WIDTH)
+    await renderWizard()
 
     // 手机 sheet 是 `next/dynamic` 懒加载的（Vaul 不进桌面 SSR 载荷），
     // 第一帧只有占位，得等那次 import 落地。
-    const sheet = await screen.findByTestId('mobile-training-sheet')
-    expect(sheet).toContainElement(screen.getByTestId('training-form'))
-    expect(screen.getByTestId('training-history')).toBeInTheDocument()
+    fireEvent.click(
+      await screen.findByRole('button', { name: L.mobileSheetTrigger }),
+    )
+    const sheet = await screen.findByRole('dialog', {
+      name: L.mobileSheetAriaLabel,
+    })
+    // sheet 里的表单也是懒加载的那一块，满载时晚一拍才画出来。
+    expect(
+      await within(sheet).findByRole('button', { name: L.emptyCtaPreset }),
+    ).toBeInTheDocument()
+    expect(screen.getByText(L.historyTitle)).toBeInTheDocument()
   })
 })

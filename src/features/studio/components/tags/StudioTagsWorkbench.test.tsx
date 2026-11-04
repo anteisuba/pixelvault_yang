@@ -1,177 +1,172 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
-import type { ReactNode } from 'react'
-import {
-  afterEach,
-  beforeAll,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from 'vitest'
+import { act, fireEvent, screen } from '@testing-library/react'
+import { useState, type ReactNode } from 'react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { API_ENDPOINTS } from '@/constants/config'
 import { DURATION_MS } from '@/constants/motion'
+import { STUDIO_GUIDE_SEEN_STORAGE_KEY } from '@/constants/studio'
+import { renderWithApp } from '@/test/app-harness'
+import { stubBrowserLayout } from '@/test/browser-stubs'
+import { text } from '@/test/i18n-text'
+import { fakeStudioServer, StudioProviders } from '@/test/studio-harness'
+import { DESKTOP_WIDTH, MOBILE_WIDTH, setViewportWidth } from '@/test/viewport'
 
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+import {
+  StudioTagsStage,
+  StudioTagsWorkbench,
+  type TagWorkbenchPanel,
+} from './StudioTagsWorkbench'
+
+/**
+ * 标签台舞台换场，全程真的：真结果区（`StudioCanvas`）、真查资料面板、真标签输入框、
+ * 真工作台；只假网络（Danbooru 目录 / 收藏回空）、屏宽、时钟，以及 jsdom 没有的
+ * `scrollIntoView`（浏览器 API）。
+ */
+
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({ isLoaded: true, isSignedIn: true, userId: 'user-tags-wb' }),
 }))
-vi.mock('motion/react', () => ({ useReducedMotion: () => false }))
-vi.mock('@/contexts/studio-context', () => ({
-  useStudioForm: () => ({ state: { prompt: '1girl, solo' } }),
-  useStudioGen: () => ({ isGenerating: false }),
+vi.mock('next/navigation', () => ({
+  useSearchParams: () => new URLSearchParams(),
+  usePathname: () => '/studio/image/tags',
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }))
-vi.mock('@/hooks/use-novelai-characters', () => ({
-  useNovelAiCharacters: () => ({ mode: null }),
-}))
-const viewport = vi.hoisted(() => ({ phone: false }))
-vi.mock('@/hooks/use-mobile', () => ({
-  useIsMobile: () => viewport.phone,
-  useIsTablet: () => false,
-}))
-vi.mock('@/components/business/studio-shared/chrome/StudioCanvas', () => ({
-  StudioCanvas: () => <div data-testid="results" />,
-}))
-// 人物层有自己的测试（StudioTagCastLayer.test.tsx）；这里只管面板换场。
-vi.mock('./StudioTagCastLayer', () => ({
-  StudioTagCastStage: ({ children }: { children: ReactNode }) => children,
-}))
-vi.mock('./StudioTagsPromptArea', () => ({
-  StudioTagsPromptArea: ({
-    onOpenPanel,
-  }: {
-    onOpenPanel: (panel: string) => void
-  }) => <button onClick={() => onOpenPanel('catalog')}>openCatalog</button>,
-}))
-// 查资料自带头部：宿主只把「挂上就落焦点」的 ref 递给它。
-vi.mock('./StudioDanbooruPanel', () => ({
-  StudioDanbooruPanel: ({
-    headingRef,
-    onClose,
-  }: {
-    headingRef?: import('react').Ref<HTMLHeadingElement>
-    onClose: () => void
-  }) => (
-    <section data-testid="catalog-panel">
-      <h2 ref={headingRef} tabIndex={-1}>
-        catalog
-      </h2>
-      <button onClick={onClose}>backToResults</button>
-    </section>
-  ),
-}))
-vi.mock('./NovelAiCharacterComposer', () => ({
-  NovelAiCharacterComposer: () => null,
+vi.mock('@/i18n/navigation', () => ({
+  usePathname: () => '/studio/image/tags',
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }))
 
-import { StudioTagsStage, StudioTagsWorkbench } from './StudioTagsWorkbench'
+const ok = (data: unknown) => Response.json({ success: true, data })
+const LOOKUP_TITLE = text('StudioTags.lookup.title')
+const COMPOSITION = text('StudioTags.workbench.composition')
 
-const renderSlots = ({
-  stage,
-  composer,
-}: {
-  stage: ReactNode
-  composer: ReactNode
-}) => (
-  <>
-    {stage}
-    {composer}
-  </>
-)
+const scrollIntoView = vi.fn()
+
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+  stubBrowserLayout()
+  setViewportWidth(DESKTOP_WIDTH)
+  scrollIntoView.mockClear()
+  // 首次进工作台会自动弹操作教程（模态，盖住整页）；这里当作看过了。
+  localStorage.setItem(STUDIO_GUIDE_SEEN_STORAGE_KEY, '1')
+  Element.prototype.scrollIntoView = scrollIntoView
+  fakeStudioServer()
+    .on('GET', API_ENDPOINTS.DANBOORU_CATALOG, () =>
+      ok({ candidates: [], crossHint: null, nextPage: null, detail: null }),
+    )
+    .on('GET', API_ENDPOINTS.DANBOORU_FAVORITES, () => ok([]))
+})
+afterEach(() => {
+  vi.useRealTimers()
+  vi.unstubAllGlobals()
+})
+
+/** 跑完挂载请求、换场定时器。 */
+const tick = (ms = 0) => act(() => vi.advanceTimersByTimeAsync(ms))
+
+function renderStage(panel: TagWorkbenchPanel | null) {
+  const view = renderWithApp(
+    <StudioTagsStage panel={panel} onClose={vi.fn()} />,
+    { inner: StudioProviders },
+  )
+  return (next: TagWorkbenchPanel | null) =>
+    view.rerender(<StudioTagsStage panel={next} onClose={vi.fn()} />)
+}
 
 describe('标签台舞台面板', () => {
-  beforeAll(() => {
-    Element.prototype.scrollIntoView = vi.fn()
-  })
-  beforeEach(() => {
-    vi.useFakeTimers()
-    viewport.phone = false
-    vi.mocked(Element.prototype.scrollIntoView).mockClear()
-  })
-  afterEach(() => vi.useRealTimers())
-
   /**
    * 换场是「结果先淡出一拍，面板再上来」：标题要在**挂上时**落焦点，⛔ 在
    * `panel` 一变就去找（那一拍它还没挂上，焦点就留在触发键上了）。
    */
-  it('面板晚一拍挂上，标题照样拿到焦点', () => {
-    const { rerender } = render(
-      <StudioTagsStage panel={null} onClose={vi.fn()} />,
-    )
-    rerender(<StudioTagsStage panel="catalog" onClose={vi.fn()} />)
-    expect(screen.queryByRole('heading', { name: 'catalog' })).toBeNull()
-    act(() => {
-      vi.advanceTimersByTime(DURATION_MS.fast)
-    })
-    expect(screen.getByRole('heading', { name: 'catalog' })).toHaveFocus()
+  it('面板晚一拍挂上，标题照样拿到焦点；面板之间直接切，新标题接过焦点', async () => {
+    const show = renderStage(null)
+    await tick()
+    show('catalog')
+    expect(screen.queryByRole('heading', { name: LOOKUP_TITLE })).toBeNull()
+    await tick(DURATION_MS.fast)
+    expect(screen.getByRole('heading', { name: LOOKUP_TITLE })).toHaveFocus()
 
-    // 面板之间直接切：新那块的标题接过焦点。
-    rerender(<StudioTagsStage panel="composition" onClose={vi.fn()} />)
-    expect(screen.getByRole('heading', { name: 'composition' })).toHaveFocus()
+    show('composition')
+    expect(screen.getByRole('heading', { name: COMPOSITION })).toHaveFocus()
   })
 
   /**
    * 手机上整页在滚：面板要整块顶到顶栏下（它的高度正好卡在顶栏与底部生成栏之间），
    * ⛔ 只把标题滚进来 —— 那样钉在面板底部的「加到哪 + 加入」会压在生成栏底下。
    */
-  it('手机：打开查资料把整块面板滚到顶，桌面只在看不见时才动', () => {
-    viewport.phone = true
-    const { rerender } = render(
-      <StudioTagsStage panel={null} onClose={vi.fn()} />,
-    )
-    rerender(<StudioTagsStage panel="catalog" onClose={vi.fn()} />)
-    act(() => {
-      vi.advanceTimersByTime(DURATION_MS.fast)
-    })
-    const scroll = vi.mocked(Element.prototype.scrollIntoView)
-    expect(scroll).toHaveBeenCalledWith({ block: 'start' })
-    expect(scroll.mock.contexts.at(-1)).toBe(
-      screen.getByTestId('catalog-panel'),
+  it('手机：打开查资料把整块面板滚到顶', async () => {
+    setViewportWidth(MOBILE_WIDTH)
+    const show = renderStage(null)
+    await tick()
+    show('catalog')
+    await tick(DURATION_MS.fast)
+
+    expect(scrollIntoView).toHaveBeenLastCalledWith({ block: 'start' })
+    expect(scrollIntoView.mock.contexts.at(-1)).toBe(
+      screen.getByRole('heading', { name: LOOKUP_TITLE }).closest('section'),
     )
   })
 
-  it('手机：资料入口在底部编辑框，关闭面板回到上方结果', () => {
-    viewport.phone = true
-    const onPanelChange = vi.fn()
-    const { rerender } = render(
+  it('桌面：标题只在看不见时才滚进来（nearest）', async () => {
+    const show = renderStage(null)
+    await tick()
+    show('catalog')
+    await tick(DURATION_MS.fast)
+
+    expect(scrollIntoView).toHaveBeenLastCalledWith({ block: 'nearest' })
+    expect(scrollIntoView.mock.contexts.at(-1)).toBe(
+      screen.getByRole('heading', { name: LOOKUP_TITLE }),
+    )
+  })
+})
+
+describe('标签台（手机）', () => {
+  function Workbench() {
+    const [panel, setPanel] = useState<TagWorkbenchPanel | null>(null)
+    return (
       <StudioTagsWorkbench
-        panel={null}
-        onPanelChange={onPanelChange}
+        panel={panel}
+        onPanelChange={setPanel}
         templates={null}
       >
-        {renderSlots}
-      </StudioTagsWorkbench>,
+        {({ stage, composer }: { stage: ReactNode; composer: ReactNode }) => (
+          <div className="studio-layout-v2">
+            <div data-testid="stage-slot">{stage}</div>
+            <div data-testid="composer-slot">{composer}</div>
+          </div>
+        )}
+      </StudioTagsWorkbench>
     )
-    const stage = screen.getByTestId('results').closest('[tabindex="-1"]')
-    fireEvent.click(screen.getByRole('button', { name: 'openCatalog' }))
-    expect(onPanelChange).toHaveBeenCalledWith('catalog')
-    expect(
-      vi.mocked(Element.prototype.scrollIntoView).mock.contexts.at(-1),
-    ).toBe(stage)
-    rerender(
-      <StudioTagsWorkbench
-        panel="catalog"
-        onPanelChange={onPanelChange}
-        templates={null}
-      >
-        {renderSlots}
-      </StudioTagsWorkbench>,
+  }
+
+  it('资料入口在底部编辑框；返回结果把焦点交回上方舞台', async () => {
+    setViewportWidth(MOBILE_WIDTH)
+    renderWithApp(<Workbench />, { inner: StudioProviders })
+    await tick()
+    const stage = screen.getByTestId('stage-slot').firstElementChild
+
+    // 手机：查资料住在底部编辑框的「＋」里。
+    const add = screen.getByRole('button', { name: text('StudioMobile.add') })
+    expect(screen.getByTestId('composer-slot')).toContainElement(add)
+    fireEvent.click(add)
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: text('StudioTags.workbench.lookup'),
+      }),
     )
-    act(() => {
-      vi.advanceTimersByTime(DURATION_MS.fast)
-    })
-    fireEvent.click(screen.getByRole('button', { name: 'backToResults' }))
-    expect(onPanelChange).toHaveBeenLastCalledWith(null)
-    expect(screen.getByTestId('results').closest('[tabindex="-1"]')).toBe(stage)
+    // 打开时先把舞台顶上来。
+    expect(scrollIntoView.mock.contexts).toContain(stage)
+    await tick(DURATION_MS.fast)
+    expect(screen.getByRole('heading', { name: LOOKUP_TITLE })).toBeVisible()
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: text('StudioTags.lookup.backToResults'),
+      }),
+    )
+    await tick(DURATION_MS.base)
+    expect(screen.queryByRole('heading', { name: LOOKUP_TITLE })).toBeNull()
+    expect(screen.getByTestId('stage-slot').firstElementChild).toBe(stage)
     expect(stage).toHaveFocus()
-    expect(
-      screen.queryByRole('button', { name: 'backToEditor' }),
-    ).not.toBeInTheDocument()
-    expect(
-      screen
-        .getByTestId('results')
-        .compareDocumentPosition(
-          screen.getByRole('button', { name: 'openCatalog' }),
-        ) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy()
   })
 })

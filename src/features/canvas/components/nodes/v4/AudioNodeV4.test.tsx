@@ -1,12 +1,19 @@
+/**
+ * 音频卡：真上传 hook、真生成 hook、真声音库（`useVoiceLibrary` / 640 面板）、真转写、
+ * 真裁剪（`trimAudioToWav`）、真模型选择器、真卡面闪光。
+ * 只假网络（`fakeServer`）、浏览器缺的那几样（`AudioContext` 解码、`ResizeObserver`、
+ * 媒体播放）、React Flow 的画布量尺、Clerk 与 next-intl。
+ */
 import {
+  act,
   fireEvent,
   render,
   screen,
   waitFor,
   within,
 } from '@testing-library/react'
-import type { ReactNode } from 'react'
-import { beforeAll, describe, expect, it, vi } from 'vitest'
+import type { ReactElement, ReactNode } from 'react'
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
@@ -32,125 +39,8 @@ vi.mock('@xyflow/react', () => ({
     ) : null,
 }))
 
-const uploadFn = vi.fn(async () => ({ url: 'https://cdn.test/up.mp3' }))
-vi.mock('@/features/canvas/hooks/use-node-upload-v4', () => ({
-  useNodeUploadV4: () => ({
-    upload: uploadFn,
-    retry: vi.fn(),
-    isUploading: false,
-    progress: 0,
-    error: null,
-    canRetry: false,
-    cancel: vi.fn(),
-  }),
-}))
-
-/**
- * 切采样与编 WAV 的本体在 `src/lib/audio-trim.ts`（那边有逐字段的 WAV 头测试）——
- * 这一组要看的是**卡上那条路**：面板吐一对入出点 → 走上传 → 落成新一版。
- */
-const trimSpy = vi.hoisted(() => vi.fn())
-vi.mock('@/lib/audio-trim', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/lib/audio-trim')>()),
-  trimAudioToWav: trimSpy,
-}))
-
-const generateNode = vi.fn(async () => ({ success: false as const }))
-/** 转写本体在服务端（`/api/voices/transcribe`）；这里只关心卡上那一批 op。 */
-const transcribeSpy = vi.hoisted(() => vi.fn())
-vi.mock('./audio/audio-transcribe', () => ({
-  transcribeAudioUrl: transcribeSpy,
-}))
-vi.mock('@/features/canvas/hooks/use-node-media-generation-v4', () => ({
-  useNodeMediaGenerationV4: () => ({ generateNode, isLoading: false }),
-}))
-
-const setSearchSpy = vi.hoisted(() => vi.fn())
-/** 声音库的事实层桩掉：本组要看的是弹层长什么样、点了写什么，不是拉取。 */
-vi.mock('@/hooks/use-voice-library', () => ({
-  useVoiceLibrary: () => ({
-    cloned: [
-      {
-        id: 'c1',
-        name: '莫宁',
-        voiceId: 'fish_morning',
-        tone: ['低沉'],
-        referenceAudioUrl: 'https://cdn.test/ref.mp3',
-        sampleAudioUrl: null,
-      },
-    ],
-    favorites: [
-      {
-        id: 'f1',
-        name: '旁白 · 标准',
-        voiceId: 'fish_narrator',
-        tone: [],
-        referenceAudioUrl: null,
-        sampleAudioUrl: 'https://cdn.test/sample.mp3',
-      },
-      // 同一副嗓子收藏了两次（真机：「林翩翩」「弗洛洛」各出现两遍）。
-      {
-        id: 'f1b',
-        name: '旁白 · 标准',
-        voiceId: 'fish_narrator',
-        tone: [],
-        referenceAudioUrl: null,
-        sampleAudioUrl: null,
-      },
-      // 当年没存示例的收藏。
-      {
-        id: 'f2',
-        name: '安静',
-        voiceId: 'fish_quiet',
-        tone: [],
-        referenceAudioUrl: null,
-        sampleAudioUrl: null,
-      },
-    ],
-    publicVoices: [
-      {
-        id: 'fish_audio:fish_public',
-        voiceId: 'fish_public',
-        title: '西格莉卡',
-        author: '平台',
-        sampleUrl: 'https://cdn.test/public.mp3',
-      },
-    ],
-    setSearch: setSearchSpy,
-    setTab: vi.fn(),
-    isLoading: false,
-  }),
-  isClonedVoiceCard: (card: { referenceAudioUrl: string | null }) =>
-    Boolean(card.referenceAudioUrl),
-}))
-
-/** 模型弹层本体在 `ModelPickerPopover.test.tsx` 里测（分组、渠道、缺 key）；
- *  这里只关心「音频栏摆的是它、分组维度是 kind」。 */
-vi.mock(
-  '@/components/business/studio-shared/pickers/ModelPickerPopover',
-  () => ({
-    MODEL_PICKER_GROUP_BY: { series: 'series', kind: 'kind' },
-    ModelPickerPopover: (props: Record<string, unknown>) => (
-      <button
-        type="button"
-        data-model-chip
-        data-group-by={String(props.groupBy)}
-        data-count={(props.options as unknown[]).length}
-        data-value={String(props.value)}
-      />
-    ),
-  }),
-)
-
-const importVoiceSampleSpy = vi.hoisted(() =>
-  vi.fn(async (voiceId: string) => ({
-    success: true as const,
-    data: { url: `https://cdn.test/owned/${voiceId}.mp3` },
-  })),
-)
-vi.mock('@/lib/api-client', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/lib/api-client')>()),
-  importVoiceSampleAPI: importVoiceSampleSpy,
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({ isLoaded: true, isSignedIn: true, userId: 'user-a' }),
 }))
 
 vi.mock('next/image', () => ({
@@ -158,17 +48,6 @@ vi.mock('next/image', () => ({
     // eslint-disable-next-line @next/next/no-img-element
     <img alt="" src={String(props.src)} />
   ),
-}))
-
-vi.mock('../../FishVoiceLibraryDialog', () => ({
-  FishVoiceLibraryDialog: () => <div data-testid="voice-library-dialog" />,
-}))
-
-/** 卡面闪一下的本体（找 DOM、挂 class）在 `node-card-flash.test.ts`；这里只看拍子。 */
-const flashCardSpy = vi.hoisted(() => vi.fn())
-vi.mock('./chrome/node-card-flash', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('./chrome/node-card-flash')>()),
-  flashNodeCard: flashCardSpy,
 }))
 
 import { AI_MODELS } from '@/constants/models'
@@ -201,8 +80,124 @@ import {
   NodeV4CanvasProvider,
   type NodeV4CanvasContextValue,
 } from './NodeV4Context'
+import { API_ENDPOINTS } from '@/constants/config'
+import { ApiKeysProvider } from '@/contexts/api-keys-context'
+import { fakeServer } from '@/test/app-harness'
 
 const NOW = '2026-09-10T00:00:00.000Z'
+
+const ok = (data: unknown) => Response.json({ success: true, data })
+
+function voiceCard(
+  id: string,
+  name: string,
+  voiceId: string,
+  patch: { referenceAudioUrl?: string | null; sampleAudioUrl?: string | null },
+) {
+  return {
+    id,
+    userId: 'u_1',
+    name,
+    provider: 'fish_audio',
+    modelId: null,
+    voiceId,
+    coverImage: null,
+    referenceAudioUrl: null,
+    referenceAudioStorageKey: null,
+    gender: null,
+    age: null,
+    tone: id === 'c1' ? ['低沉'] : [],
+    pace: 'normal',
+    pitch: null,
+    pronunciationDictionary: {},
+    sampleAudioUrl: null,
+    sampleText: null,
+    isDeleted: false,
+    createdAt: NOW,
+    updatedAt: NOW,
+    ...patch,
+  }
+}
+
+/** 我的音色：一副克隆的、同一副嗓子收藏了两次（真机：「林翩翩」各出现两遍）、一副当年没存示例的收藏。 */
+const MY_VOICE_CARDS = [
+  voiceCard('c1', '莫宁', 'fish_morning', {
+    referenceAudioUrl: 'https://cdn.test/ref.mp3',
+  }),
+  voiceCard('f1', '旁白 · 标准', 'fish_narrator', {
+    sampleAudioUrl: 'https://cdn.test/sample.mp3',
+  }),
+  voiceCard('f1b', '旁白 · 标准', 'fish_narrator', {}),
+  voiceCard('f2', '安静', 'fish_quiet', {}),
+]
+
+const PUBLIC_VOICE = {
+  id: 'fish_public',
+  title: '西格莉卡',
+  description: null,
+  coverImage: null,
+  state: 'trained',
+  languages: ['zh'],
+  tags: [],
+  samples: [{ audio: 'https://cdn.test/public.mp3', text: '你好' }],
+  likeCount: 0,
+  taskCount: 0,
+  visibility: 'public',
+  createdAt: NOW,
+  author: { id: 'p', nickname: '平台', avatar: null },
+}
+
+/** 每例的假服务端记下的请求体：断言「发出去的是什么」。 */
+const sent = {
+  generate: [] as Record<string, unknown>[],
+  voiceSample: [] as Record<string, unknown>[],
+  uploads: [] as File[],
+}
+/** 转写这一回回什么。 */
+let transcribeText = '真正的告别'
+
+beforeEach(() => {
+  sent.generate = []
+  sent.voiceSample = []
+  sent.uploads = []
+  transcribeText = '真正的告别'
+  fakeServer()
+    .on('GET', API_ENDPOINTS.API_KEYS, () => ok([]))
+    .on('GET', API_ENDPOINTS.CHARACTER_CARDS, () => ok([]))
+    .on('GET', API_ENDPOINTS.VOICE_CARDS, () =>
+      ok({ items: MY_VOICE_CARDS, total: MY_VOICE_CARDS.length }),
+    )
+    .on('GET', '/api/voices', () => ok({ items: [PUBLIC_VOICE], total: 1 }))
+    .on('POST', API_ENDPOINTS.VOICE_SAMPLE, async (request) => {
+      const body = (await request.json()) as { voiceId: string }
+      sent.voiceSample.push(body)
+      return ok({ url: `https://cdn.test/owned/${body.voiceId}.mp3` })
+    })
+    .on('POST', '/api/voices/upload-reference', async (request) => {
+      const file = (await request.formData()).get('audio') as File
+      sent.uploads.push(file)
+      return ok({
+        url: 'https://cdn.test/up.mp3',
+        sizeBytes: file.size,
+        mimeType: file.type,
+        fileName: file.name,
+      })
+    })
+    .on('POST', '/api/voices/transcribe', () => ok({ text: transcribeText }))
+    .on('POST', API_ENDPOINTS.GENERATE_AUDIO, async (request) => {
+      sent.generate.push((await request.json()) as Record<string, unknown>)
+      return Response.json(
+        { success: false, error: 'provider down' },
+        { status: 502 },
+      )
+    })
+    // 卡上那一版的音频字节（CDN）：裁剪 / 转写都先取回来。
+    .on(
+      'GET',
+      '/:file',
+      () => new Response('mp3', { headers: { 'Content-Type': 'audio/mpeg' } }),
+    )
+})
 
 beforeAll(() => {
   // Radix 的滑杆要量尺寸；jsdom 没有 `ResizeObserver`。
@@ -222,6 +217,24 @@ beforeAll(() => {
   Object.defineProperty(HTMLMediaElement.prototype, 'pause', {
     configurable: true,
     value: vi.fn(),
+  })
+  // jsdom 没有 WebAudio：解码一律答「8 kHz 单声道、7 秒」，切段与编 WAV 走真代码。
+  Object.defineProperty(window, 'AudioContext', {
+    configurable: true,
+    value: class {
+      async decodeAudioData() {
+        const sampleRate = 8000
+        const length = sampleRate * 7
+        return {
+          numberOfChannels: 1,
+          sampleRate,
+          duration: 7,
+          length,
+          getChannelData: () => new Float32Array(length),
+        }
+      }
+      async close() {}
+    },
   })
 })
 
@@ -300,12 +313,20 @@ function renderAudio(
   selected = false,
 ) {
   const target = context.nodes.find((item) => item.id === nodeId)!
-  return render(
-    <NodeV4CanvasProvider value={context}>
-      {/* @ts-expect-error NodeProps 的其余字段本组测试用不到 */}
-      <AudioNodeV4 id={nodeId} data={target.data} selected={selected} />
-    </NodeV4CanvasProvider>,
+  // 外面套一层 `.react-flow__node`（与画布里一样），卡面闪光才找得到这张卡。
+  return renderInApp(
+    <div className="react-flow__node" data-id={nodeId}>
+      <NodeV4CanvasProvider value={context}>
+        {/* @ts-expect-error NodeProps 的其余字段本组测试用不到 */}
+        <AudioNodeV4 id={nodeId} data={target.data} selected={selected} />
+      </NodeV4CanvasProvider>
+    </div>,
   )
+}
+
+/** 卡上的模型选择器要真 key 列表（`ApiKeysProvider`）。 */
+function renderInApp(ui: ReactElement) {
+  return render(<ApiKeysProvider>{ui}</ApiKeysProvider>)
 }
 
 describe('空卡 / 有声两态', () => {
@@ -522,18 +543,16 @@ describe('选中态：工具条与提示词栏', () => {
   })
 
   it('裁剪确认 = 新建一张「· 裁剪」音频卡放原卡右侧，原卡原样不动（owner 2026-09-11）', async () => {
-    trimSpy.mockResolvedValueOnce({ blob: new Blob(['wav']) })
     const context = selectedContext()
     // 落点由画布给（右边第一个空位，§7 摆放 A「让位」）。
     context.onPlaceBeside = vi.fn(() => [{ x: 384, y: 0 }])
     renderAudio(context, 'a_1', true)
     fireEvent.click(document.querySelector('[data-toolbar-action="trim"]')!)
     fireEvent.click(document.querySelector('[data-audio-trim-confirm]')!)
-    await waitFor(() => expect(uploadFn).toHaveBeenCalled())
-    expect(trimSpy).toHaveBeenCalledWith('https://cdn.test/v.mp3', {
-      startSec: 0,
-      endSec: 7,
-    })
+    // 整段（0–7 秒）裁出来编成 WAV，走与手动上传同一条上传管线。
+    await waitFor(() => expect(sent.uploads).toHaveLength(1))
+    const wav = sent.uploads[0]!
+    expect(wav.type).toBe('audio/wav')
     // 建卡走的是转文字那条同一条路：一条 add_node，名字「原名 · 裁剪」，落右侧。
     await waitFor(() => expect(context.onApplyBatch).toHaveBeenCalled())
     const ops = (context.onApplyBatch as ReturnType<typeof vi.fn>).mock
@@ -566,7 +585,7 @@ describe('选中态：工具条与提示词栏', () => {
     // 建完自动选中新卡。
     expect(context.onFocusNode).toHaveBeenCalledWith('t_1')
     // ⛔ 这条路上一次生成都不该发。
-    expect(generateNode).not.toHaveBeenCalled()
+    expect(sent.generate).toEqual([])
     // 裁完面板收起来，栏回到提示词。
     await waitFor(() =>
       expect(document.querySelector('[data-audio-trim-panel]')).toBeNull(),
@@ -642,11 +661,16 @@ describe('选中态：工具条与提示词栏', () => {
     // 分组维度换成类型（语音 / 配乐 / 音效）。
     const chip = document.querySelector('[data-model-chip]')!
     expect(chip).not.toBeNull()
-    expect(chip.getAttribute('data-group-by')).toBe('kind')
+    // 点开：分组维度是类型（语音 / 配乐 / 音效），⛔ 不是系列。
+    fireEvent.click(chip)
+    expect(
+      [...document.querySelectorAll('[data-picker-group]')].map((group) =>
+        group.getAttribute('data-picker-group'),
+      ),
+    ).toEqual(['speech'])
   })
 
-  it('未选模型时显示首个可用型号，生成提交也使用同一型号', () => {
-    generateNode.mockClear()
+  it('未选模型时显示首个可用型号，生成提交也使用同一型号', async () => {
     const locked = modelOption('opt_locked', AI_MODELS.FISH_AUDIO_S2_PRO)
     const runnable = modelOption('opt_music', AI_MODELS.ELEVENLABS_MUSIC_V2, {
       adapterType: AI_ADAPTER_TYPES.ELEVENLABS,
@@ -661,10 +685,10 @@ describe('选中态：工具条与提示词栏', () => {
       },
     )
     renderAudio(context, 'a_1', true)
-    expect(document.querySelector('[data-model-chip]')).toHaveAttribute(
-      'data-value',
-      'opt_music',
-    )
+    // chip 上写的就是那条能跑的配乐型号（⛔ 不是排第一、被锁住的那条）。
+    expect(
+      document.querySelector('[data-model-chip]')!.getAttribute('title'),
+    ).toBe('elevenMusicV2.label')
     expect(document.querySelector('[data-audio-voice-chip]')).toBeNull()
     const input = document.querySelector('[data-prompt-bar-input]')!
     expect(input).toHaveAttribute('placeholder', 'promptPlaceholderMusic')
@@ -678,17 +702,13 @@ describe('选中态：工具条与提示词栏', () => {
       apiKeyId: runnable.apiKeyId,
     }
     expect(context.onSetModel).toHaveBeenCalledWith('a_1', selection)
-    expect(generateNode).toHaveBeenCalledWith(
-      'a_1',
-      expect.objectContaining({
-        nodes: [
-          expect.objectContaining({
-            data: expect.objectContaining({ model: selection }),
-          }),
-        ],
-      }),
-      expect.objectContaining({ prompt: '柔和的旋律' }),
-    )
+    // 发出去的生成请求用的就是这同一型号、同一把 key。
+    await waitFor(() => expect(sent.generate).toHaveLength(1))
+    expect(sent.generate[0]).toMatchObject({
+      modelId: AI_MODELS.ELEVENLABS_MUSIC_V2,
+      apiKeyId: 'key_music',
+      prompt: '柔和的旋律',
+    })
   })
 
   it('选了配乐模型：音色 chip 消失、占位文案换成描述', () => {
@@ -720,13 +740,22 @@ describe('选中态：工具条与提示词栏', () => {
     ).toBe('promptPlaceholderMusic')
   })
 
-  it('回车 = 发一次生成', () => {
-    const context = selectedContext()
+  it('回车 = 发一次生成', async () => {
+    const context = harness(
+      [audioNode('a_1', { url: 'https://cdn.test/v.mp3', durationSec: 7 })],
+      {
+        selectedNodeIds: ['a_1'],
+        modelOptionsByKind: {
+          audio: [modelOption('opt_fish', AI_MODELS.FISH_AUDIO_S2_PRO)],
+        },
+      },
+    )
     renderAudio(context, 'a_1', true)
     const input = document.querySelector('[data-prompt-bar-input]')!
     fireEvent.change(input, { target: { value: '真正的告别' } })
     fireEvent.keyDown(input, { key: 'Enter' })
-    expect(generateNode).toHaveBeenCalled()
+    await waitFor(() => expect(sent.generate).toHaveLength(1))
+    expect(sent.generate[0]).toMatchObject({ prompt: '真正的告别' })
   })
 
   it('退格删掉整颗行内标记，⛔ 不啃成半个方括号', () => {
@@ -892,8 +921,17 @@ describe('版本与快速听', () => {
   })
 })
 
+/** 音色弹层开了才去拉我的音色（`GET /api/voice-cards`）。 */
+async function waitForVoiceRows() {
+  await waitFor(() =>
+    expect(
+      document.querySelector('[data-audio-voice-row="fish_morning"]'),
+    ).not.toBeNull(),
+  )
+}
+
 describe('音色弹层', () => {
-  it('列出我的音色、每条可试听，选中写 voiceId', () => {
+  it('列出我的音色、每条可试听，选中写 voiceId', async () => {
     const onSelectVoice = vi.fn()
     render(
       <AudioVoiceChip
@@ -908,9 +946,7 @@ describe('音色弹层', () => {
       />,
     )
     fireEvent.click(document.querySelector('[data-audio-voice-chip]')!)
-    expect(
-      document.querySelector('[data-audio-voice-row="fish_morning"]'),
-    ).not.toBeNull()
+    await waitForVoiceRows()
     expect(
       document.querySelector('[data-audio-voice-preview="fish_morning"]'),
     ).not.toBeNull()
@@ -927,7 +963,7 @@ describe('音色弹层', () => {
     })
   })
 
-  it('同一副嗓子只列一行；收藏的写「收藏的」，⛔ 一律写成「我克隆的」', () => {
+  it('同一副嗓子只列一行；收藏的写「收藏的」，⛔ 一律写成「我克隆的」', async () => {
     render(
       <AudioVoiceChip
         voiceId={undefined}
@@ -941,6 +977,7 @@ describe('音色弹层', () => {
       />,
     )
     fireEvent.click(document.querySelector('[data-audio-voice-chip]')!)
+    await waitForVoiceRows()
     expect(
       document.querySelectorAll('[data-audio-voice-row="fish_narrator"]'),
     ).toHaveLength(1)
@@ -1060,6 +1097,14 @@ describe('音色弹层', () => {
   })
 })
 
+/** 假时钟下一拍一拍往前推，直到条件成立（请求回包是微任务，防抖 / 动画是定时器）。 */
+async function advanceUntil(done: () => boolean, stepMs = 10) {
+  for (let step = 0; step < 50 && !done(); step += 1) {
+    await act(() => vi.advanceTimersByTimeAsync(stepMs))
+  }
+  expect(done()).toBe(true)
+}
+
 /** Radix 的 DropdownMenu 认 `pointerdown`，⛔ 不是 click。 */
 function openMenu(selector: string) {
   fireEvent.pointerDown(document.querySelector(selector)!, {
@@ -1091,49 +1136,64 @@ describe('S5c v2：+ 菜单 / ⋯ 菜单 / 转文字', () => {
     ).toEqual(['upload', 'library', 'voices'])
   })
 
-  it('「声音库…」开 640 面板；面板的「用这段」先存进自己的存储再落成一版并记来源，⛔ 不生成', async () => {
-    generateNode.mockClear()
-    const context = clip()
-    renderAudio(context, 'a_1', true)
-    openMenu('[data-prompt-bar-add]')
-    fireEvent.click(document.querySelector('[data-audio-add="voices"]')!)
-    const use = document.querySelector('[data-voice-library-use]')
-    expect(document.querySelector('[data-node-chrome="frame"]')).not.toBeNull()
-    expect(use).not.toBeNull()
-    fireEvent.click(use!)
-    // 平台样本的地址（Fish 常给一小时就过期的签名链接）⛔ 原样落卡 —— 落的是转存后的那份。
-    expect(importVoiceSampleSpy).toHaveBeenCalledWith('fish_public')
-    await waitFor(() =>
+  /*
+   * ⚠ 两件事并在一例：「用这段」会排一颗 GROW_CLOSE_MS 后的闪光定时器，它按 data-id
+   * 在**整页**找卡；分成两例时前一例的定时器会闪到后一例的卡上。这里全程假时钟。
+   */
+  it('「声音库…」开 640 面板；「用这段」先转存再落成一版并记来源（⛔ 不生成）；框缩回（GROW_CLOSE_MS）后卡面闪一下', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    try {
+      const context = clip()
+      renderAudio(context, 'a_1', true)
+      const surface = document.querySelector('[data-node-card-surface]')!
+      openMenu('[data-prompt-bar-add]')
+      fireEvent.click(document.querySelector('[data-audio-add="voices"]')!)
+      expect(
+        document.querySelector('[data-node-chrome="frame"]'),
+      ).not.toBeNull()
+      await advanceUntil(
+        () => document.querySelector('[data-voice-library-use]') !== null,
+      )
+      fireEvent.click(document.querySelector('[data-voice-library-use]')!)
+      // 转存是一条请求（只有微任务），⛔ 不推时钟。
+      await advanceUntil(
+        () => vi.mocked(context.onSetMedia).mock.calls.length > 0,
+        0,
+      )
+      // 平台样本的地址（Fish 常给一小时就过期的签名链接）⛔ 原样落卡 —— 落的是转存后的那份。
+      expect(sent.voiceSample).toEqual([{ voiceId: 'fish_public' }])
       expect(context.onSetMedia).toHaveBeenCalledWith(
         'a_1',
         expect.objectContaining({
           url: 'https://cdn.test/owned/fish_public.mp3',
           source: expect.objectContaining({ kind: 'platformSample' }),
         }),
-      ),
-    )
-    expect(generateNode).not.toHaveBeenCalled()
+      )
+      expect(sent.generate).toEqual([])
+      // 框还在缩回去：卡面先不闪。
+      expect(surface).not.toHaveClass('node-assistant-touched')
+      await act(() => vi.advanceTimersByTimeAsync(GROW_CLOSE_MS - 1))
+      expect(surface).not.toHaveClass('node-assistant-touched')
+      await act(() => vi.advanceTimersByTimeAsync(1))
+      expect(surface).toHaveClass('node-assistant-touched')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
-  it('「用这段」之后：框先缩回这张卡，缩完（GROW_CLOSE_MS）卡面再闪一下', async () => {
-    flashCardSpy.mockClear()
-    const context = clip()
-    renderAudio(context, 'a_1', true)
-    openMenu('[data-prompt-bar-add]')
-    fireEvent.click(document.querySelector('[data-audio-add="voices"]')!)
-    fireEvent.click(document.querySelector('[data-voice-library-use]')!)
-    await waitFor(() => expect(context.onSetMedia).toHaveBeenCalled())
-    expect(flashCardSpy).toHaveBeenCalledTimes(1)
-    expect(flashCardSpy).toHaveBeenCalledWith('a_1', GROW_CLOSE_MS)
-  })
-
-  it('面板的「设为音色」写 voiceProfile，⛔ 不落产物', () => {
+  it('面板的「设为音色」写 voiceProfile，⛔ 不落产物', async () => {
     // 名字是新建时的默认名（机器起的）。
     const context = clip({ name: '语音3' })
     renderAudio(context, 'a_1', true)
     openMenu('[data-prompt-bar-add]')
     fireEvent.click(document.querySelector('[data-audio-add="voices"]')!)
-    fireEvent.click(document.querySelector('[data-voice-library-set-voice]')!)
+    fireEvent.click(
+      await waitFor(() => {
+        const found = document.querySelector('[data-voice-library-set-voice]')
+        expect(found).not.toBeNull()
+        return found!
+      }),
+    )
     expect(context.onApplyBatch).toHaveBeenCalledWith([
       {
         op: NODE_ASSISTANT_OP_V4_IDS.setVoiceProfile,
@@ -1197,7 +1257,6 @@ describe('S5c v2：+ 菜单 / ⋯ 菜单 / 转文字', () => {
   })
 
   it('转文字 = 派生一张文本卡并连线指回；转写中卡上走进度线', async () => {
-    transcribeSpy.mockResolvedValueOnce({ ok: true, text: '真正的告别' })
     const context = clip()
     renderAudio(context, 'a_1', true)
     fireEvent.click(

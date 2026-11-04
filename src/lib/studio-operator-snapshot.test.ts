@@ -1,69 +1,39 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
-/**
- * ⚠ 契约表全部桩掉：这一层要验的是**构造器的判断**（哪一节给、哪一节不给、
- * 渠道有没有印出来），不是目录里今天有哪些型号。用真目录写死一组值的下场是
- * 「加一个模型就红一片」，而那时红的不是这份逻辑。
- */
-const mockGetVideoModelParameterOptions = vi.fn()
-const mockGetVideoModelSendContract = vi.fn()
-vi.mock('@/constants/video-model-send-plan', () => ({
-  getVideoModelParameterOptions: (...args: unknown[]) =>
-    mockGetVideoModelParameterOptions(...args),
-  getVideoModelSendContract: (...args: unknown[]) =>
-    mockGetVideoModelSendContract(...args),
-}))
-
-/**
- * 素材轨容量桩掉（它自己的判据在 `video-workbench-slots.test.ts` 里验）：这一层要验
- * 的是「容量为 0 的那几节缺不缺席」。⚠ 部分桩 —— `resolveStudioVideoSend` 照用真的。
- */
-const mockGetStudioVideoCapacity = vi.fn()
-vi.mock(
-  import('@/lib/studio/video-workbench-slots'),
-  async (importOriginal) => ({
-    ...(await importOriginal()),
-    getStudioVideoCapacity: (...args: unknown[]) =>
-      mockGetStudioVideoCapacity(...args),
-  }),
-)
-
-/**
- * ⚠ `@/constants/models` 必须**部分**桩：`constants/api-keys.ts` 在模块加载期就
- * 调 `getAvailableModels()`，整个换掉会让 `types/index.ts` 那条 import 链直接崩
- * （表现是「0 test」而不是断言失败）。
- */
-const mockGetModelById = vi.fn()
-vi.mock(import('@/constants/models'), async (importOriginal) => ({
-  ...(await importOriginal()),
-  getModelById: (...args: unknown[]) =>
-    mockGetModelById(...args) as ReturnType<
-      Awaited<ReturnType<typeof importOriginal>>['getModelById']
-    >,
-}))
-
-const mockGetCapabilityConfig = vi.fn()
-// ⚠ 部分 mock，不是整模块替换：`src/types` 会读这份能力表里的常量
-// （`VOLCENGINE_SEEDREAM_MAX_LAYERS`），整模块替换会让它在 import 期就炸掉，
-// 而失败点离这里很远（「No export is defined on the mock」）。
-vi.mock('@/constants/provider-capabilities', async (importOriginal) => ({
-  ...(await importOriginal<
-    typeof import('@/constants/provider-capabilities')
-  >()),
-  getCapabilityConfig: (...args: unknown[]) => mockGetCapabilityConfig(...args),
-}))
-
-import { AI_MODELS } from '@/constants/models'
 import { ASSISTANT_OPERATOR_LIMITS } from '@/constants/assistant-operator'
-import { AI_ADAPTER_TYPES } from '@/constants/providers'
-import type { StudioModelOption } from '@/types/model-option'
+import {
+  AI_MODELS,
+  getAvailableVideoModels,
+  getModelById,
+} from '@/constants/models'
+import {
+  AI_ADAPTER_TYPES,
+  getDefaultProviderConfig,
+} from '@/constants/providers'
+import {
+  getVideoModelParameterOptions,
+  getVideoModelSendContract,
+} from '@/constants/video-model-send-plan'
+import {
+  isVideoPickerModel,
+  resolveVideoSendModelId,
+} from '@/constants/video-node-modes'
 import {
   buildImageOperatorSnapshot,
   buildLoraOperatorSnapshot,
   buildVideoOperatorSnapshot,
   type StudioOperatorSnapshotForm,
 } from '@/lib/studio-operator-snapshot'
+import { getStudioVideoCapacity } from '@/lib/studio/video-workbench-slots'
 import { AssistantOperatorSnapshotSchema } from '@/types/assistant-operator'
+import type { StudioModelOption } from '@/types/model-option'
+
+/**
+ * 快照构造器（纯函数，L1）。⭐ 全部跑在**真目录**上：契约表、素材轨容量、能力表、
+ * 模型默认值一律不替。视频那几组用「能力对得上的真型号」——按谓词从目录里挑
+ * （`videoModelWhere`），挑不到就直接红（说明目录变了，换一条能力对得上的）。
+ * 图片那几组点名用今天目录里的真型号，期望值就是它们在能力表里的样子。
+ */
 
 const FORM: StudioOperatorSnapshotForm = {
   prompt: '雨里撑伞的少女',
@@ -80,12 +50,20 @@ const FORM: StudioOperatorSnapshotForm = {
   videoSoundEnabled: null,
 }
 
+/** 目录里一个真型号的选项行；渠道默认是它在目录里的 adapter。 */
 function option(
-  overrides: Partial<StudioModelOption> & { optionId: string; modelId: string },
+  modelId: string,
+  overrides: Partial<StudioModelOption> = {},
 ): StudioModelOption {
+  const adapterType =
+    overrides.adapterType ??
+    (getModelById(modelId)?.adapterType as AI_ADAPTER_TYPES | undefined) ??
+    AI_ADAPTER_TYPES.FAL
   return {
-    adapterType: AI_ADAPTER_TYPES.FAL,
-    providerConfig: { label: 'fal.ai' } as StudioModelOption['providerConfig'],
+    optionId: `workspace:${modelId}`,
+    modelId,
+    adapterType,
+    providerConfig: getDefaultProviderConfig(adapterType),
     requestCount: 30,
     isBuiltIn: true,
     sourceType: 'workspace',
@@ -94,101 +72,84 @@ function option(
   }
 }
 
-const SEEDANCE_ON_BYTEPLUS = option({
-  optionId: 'workspace:seedance-2.5-byteplus',
-  modelId: 'seedance-2.5-byteplus',
-  displayLabel: 'Seedance 2.5',
-  adapterType: AI_ADAPTER_TYPES.BYTEPLUS,
-  providerConfig: { label: 'BytePlus' } as StudioModelOption['providerConfig'],
-  requestCount: 22,
-})
-const SEEDANCE_ON_FAL = option({
-  optionId: 'workspace:seedance-2.5',
-  modelId: 'seedance-2.5',
-  displayLabel: 'Seedance 2.5',
-  requestCount: 48,
-})
-
-function videoParams(
-  overrides: Partial<{
-    durations: number[]
-    resolutions: string[]
-    aspectRatios: string[]
-  }> = {},
-) {
-  mockGetVideoModelParameterOptions.mockReturnValue({
-    durations: [5, 10],
-    resolutions: ['720p', '1080p'],
-    aspectRatios: ['16:9', '9:16'],
-    ...overrides,
-  })
+interface VideoTraits {
+  frames: number
+  references: number | null
+  videos: number
+  audios: number
+  sound: boolean
+  negativePrompt: boolean
+  aspectRatioLock: string | null
+  audioRequiresVisual: boolean
+  resolutions: readonly string[]
 }
 
-function videoContract(
-  overrides: Partial<{
-    audio: number
-    audioRequiresVisual: boolean
-    sound: boolean
-    videos: number
-    keyframeSlots: 0 | 1 | 2
-    imageAspectRatioLock: string | null
-    negativePrompt: boolean
-  }> = {},
-) {
-  const merged = {
-    audio: 10,
-    audioRequiresVisual: false,
-    sound: true,
-    videos: 10,
-    keyframeSlots: 2 as 0 | 1 | 2,
-    imageAspectRatioLock: null as string | null,
-    negativePrompt: false,
-    ...overrides,
+function traitsOf(modelId: string, adapterType: AI_ADAPTER_TYPES) {
+  const capacity = getStudioVideoCapacity(modelId, adapterType)
+  const contract = getVideoModelSendContract(modelId, adapterType)
+  const referenceId = resolveVideoSendModelId(modelId, adapterType, true)
+  return {
+    ...capacity,
+    sound: contract.parameters.generateAudio,
+    negativePrompt: contract.parameters.negativePrompt,
+    aspectRatioLock: contract.imageAspectRatioLock,
+    audioRequiresVisual: Boolean(
+      getVideoModelSendContract(referenceId, adapterType).slots
+        .audioRequiresVisual,
+    ),
+    resolutions: getVideoModelParameterOptions(modelId, adapterType)
+      .resolutions,
+  } satisfies VideoTraits
+}
+
+/** 选择器里点得到、且能力对得上的第一个真视频型号。 */
+function videoModelWhere(
+  describe: string,
+  predicate: (traits: VideoTraits) => boolean,
+): StudioModelOption {
+  for (const model of getAvailableVideoModels()) {
+    const adapterType = model.adapterType as AI_ADAPTER_TYPES
+    if (!isVideoPickerModel(model.id, adapterType)) continue
+    if (predicate(traitsOf(model.id, adapterType)))
+      return option(model.id, { adapterType, displayLabel: model.id })
   }
-  mockGetVideoModelSendContract.mockImplementation((modelId: string) => ({
-    referenceMode: modelId.includes('reference')
-      ? 'multimodal-reference'
-      : 'text-or-first-frame',
-    slots: {
-      images: 30,
-      videos: merged.videos,
-      audio: merged.audio,
-      audioRequiresVisual: merged.audioRequiresVisual,
-    },
-    parameters: {
-      generateAudio: merged.sound,
-      negativePrompt: merged.negativePrompt,
-    },
-    keyframeSlots: merged.keyframeSlots || 1,
-    imageAspectRatioLock: merged.imageAspectRatioLock,
-  }))
-  mockGetStudioVideoCapacity.mockReturnValue({
-    frames: merged.keyframeSlots,
-    references: 30,
-    videos: merged.videos,
-    audios: merged.audio,
-  })
+  throw new Error(`目录里已经没有「${describe}」的视频型号，换一条能力对得上的`)
 }
 
-beforeEach(() => {
-  vi.clearAllMocks()
-  mockGetModelById.mockReturnValue({ videoDefaults: { generateAudio: true } })
-  // ⚠ `capabilities` 必须给：`CapabilityConfig` 上它是必填，而专属 chip 行
-  //    （进度表 21）就是从它派生的 —— 桩里漏掉它等于桩出一个不存在的形状。
-  mockGetCapabilityConfig.mockReturnValue({
-    capabilities: [],
-    resolutionOptions: ['auto', '2K'],
+/** 视频这几组的主角：首尾帧、参考视频 / 音频、出声开关都有的那条。 */
+const FULL_VIDEO = videoModelWhere(
+  '首尾帧 + 参考视频 + 参考音频 + 出声',
+  (t) => t.frames === 2 && t.videos > 0 && t.audios > 0 && t.sound,
+)
+
+function buildVideo(
+  selectedModel: StudioModelOption,
+  form: Partial<StudioOperatorSnapshotForm> = {},
+) {
+  return buildVideoOperatorSnapshot({
+    form: { ...FORM, ...form },
+    modelOptions: [selectedModel],
+    selectedModel,
+    references: { items: [], limit: 4 },
   })
-  videoParams()
-  videoContract()
-})
+}
 
 describe('buildVideoOperatorSnapshot', () => {
+  const ON_BYTEPLUS = option('seedance-2.5-byteplus', {
+    optionId: 'workspace:seedance-2.5-byteplus',
+    displayLabel: 'Seedance 2.5',
+    requestCount: 22,
+  })
+  const ON_FAL = option('seedance-2.5', {
+    displayLabel: 'Seedance 2.5',
+    requestCount: 48,
+  })
+
   it('⭐ 模型目录按 optionId 给，每行带渠道与积分（K-3：同型号不同渠道差一倍多）', () => {
     const snapshot = buildVideoOperatorSnapshot({
       form: FORM,
-      modelOptions: [SEEDANCE_ON_BYTEPLUS, SEEDANCE_ON_FAL],
-      selectedModel: SEEDANCE_ON_BYTEPLUS,
+      modelOptions: [ON_BYTEPLUS, ON_FAL],
+      selectedModel: ON_BYTEPLUS,
       references: { items: [], limit: 4 },
     })
 
@@ -215,15 +176,11 @@ describe('buildVideoOperatorSnapshot', () => {
   })
 
   it('名单一行一个型号 × 渠道 —— 参考端点不单列（与左栏选择器同一个谓词，拍板 19）', () => {
-    const referenceOnByteplus = option({
-      optionId: 'workspace:seedance-2.5-reference-byteplus',
-      modelId: 'seedance-2.5-reference-byteplus',
-      adapterType: AI_ADAPTER_TYPES.BYTEPLUS,
-    })
+    const referenceEndpoint = option('seedance-2.5-reference-byteplus')
     const snapshot = buildVideoOperatorSnapshot({
       form: FORM,
-      modelOptions: [SEEDANCE_ON_BYTEPLUS, referenceOnByteplus],
-      selectedModel: SEEDANCE_ON_BYTEPLUS,
+      modelOptions: [ON_BYTEPLUS, referenceEndpoint],
+      selectedModel: ON_BYTEPLUS,
       references: { items: [], limit: 4 },
     })
     expect(snapshot.availableModels.map((model) => model.id)).toEqual([
@@ -232,33 +189,36 @@ describe('buildVideoOperatorSnapshot', () => {
   })
 
   it('⛔ 视频快照里没有 specs / count 两节 —— 缺席即拒，那正是它们该有的行为', () => {
-    const snapshot = buildVideoOperatorSnapshot({
-      form: FORM,
-      modelOptions: [SEEDANCE_ON_BYTEPLUS],
-      selectedModel: SEEDANCE_ON_BYTEPLUS,
-      references: { items: [], limit: 4 },
-    })
+    const plain = videoModelWhere(
+      '能选 720p、带图不锁比例',
+      (t) => t.resolutions.includes('720p') && t.aspectRatioLock === null,
+    )
+    const snapshot = buildVideo(plain)
     expect(snapshot.specs).toBeUndefined()
     expect(snapshot.count).toBeUndefined()
-    expect(snapshot.videoSpecs).toEqual({
-      durationSeconds: 5,
+    const params = getVideoModelParameterOptions(
+      plain.modelId,
+      plain.adapterType,
+    )
+    expect(snapshot.videoSpecs).toMatchObject({
+      durationSeconds: params.durations.includes(5) ? 5 : null,
       aspectRatio: '16:9',
       resolution: '720p',
-      durationOptions: [5, 10],
-      aspectRatioOptions: ['16:9', '9:16'],
-      resolutionOptions: ['720p', '1080p'],
+      resolutionOptions: params.resolutions,
       // 带图锁（第二期）：契约里没有就是 `null`，⛔ 不缺席（缺席读起来像「没这回事」）。
       aspectRatioLock: null,
     })
+    expect(snapshot.videoSpecs?.aspectRatioOptions).toContain('16:9')
   })
 
   it('现值不在档位表里就报 null —— ⛔ 不印一个弹层里点不回去的值', () => {
-    videoParams({ durations: [8], resolutions: [], aspectRatios: ['1:1'] })
-    const snapshot = buildVideoOperatorSnapshot({
-      form: FORM,
-      modelOptions: [SEEDANCE_ON_BYTEPLUS],
-      selectedModel: SEEDANCE_ON_BYTEPLUS,
-      references: { items: [], limit: 4 },
+    const noResolution = videoModelWhere(
+      '没有清晰度档位',
+      (t) => t.resolutions.length === 0,
+    )
+    const snapshot = buildVideo(noResolution, {
+      videoDurationSeconds: 999,
+      aspectRatio: '7:3',
     })
     expect(snapshot.videoSpecs).toMatchObject({
       durationSeconds: null,
@@ -269,74 +229,62 @@ describe('buildVideoOperatorSnapshot', () => {
   })
 
   it('⭐ 出声开关三态：用户没设过时 value 是 null，effective 走目录默认', () => {
-    const snapshot = buildVideoOperatorSnapshot({
-      form: FORM,
-      modelOptions: [SEEDANCE_ON_BYTEPLUS],
-      selectedModel: SEEDANCE_ON_BYTEPLUS,
-      references: { items: [], limit: 4 },
-    })
+    const snapshot = buildVideo(FULL_VIDEO)
     // ⛔ 把「没设过」端上去成 false，在目录默认为开的模型上结果正好相反。
-    expect(snapshot.sound).toEqual({ value: null, effective: true })
+    expect(snapshot.sound).toEqual({
+      value: null,
+      effective:
+        getModelById(FULL_VIDEO.modelId)?.videoDefaults?.generateAudio ?? true,
+    })
+    expect(buildVideo(FULL_VIDEO, { videoSoundEnabled: false }).sound).toEqual({
+      value: false,
+      effective: false,
+    })
   })
 
   it('线路没有出声开关时整节缺席（界面上那颗 Switch 也不渲染）', () => {
-    videoContract({ sound: false })
-    const snapshot = buildVideoOperatorSnapshot({
-      form: FORM,
-      modelOptions: [SEEDANCE_ON_BYTEPLUS],
-      selectedModel: SEEDANCE_ON_BYTEPLUS,
-      references: { items: [], limit: 4 },
-    })
-    expect(snapshot.sound).toBeUndefined()
+    const silent = videoModelWhere('没有出声开关', (t) => !t.sound)
+    expect(buildVideo(silent).sound).toBeUndefined()
   })
 
   it('音频参考位：上限与「能不能只挂声音」都按线路给（台账 A ②）', () => {
-    videoContract({ audio: 3, audioRequiresVisual: true })
-    const snapshot = buildVideoOperatorSnapshot({
-      form: {
-        ...FORM,
-        videoAudioRefs: [
+    const AUDIO_REF = {
+      id: 'a1',
+      url: 'https://cdn.example.com/line.mp3',
+      fileName: '我不走',
+      ownerName: '阿岚',
+    }
+    for (const requiresVisual of [true, false]) {
+      const model = videoModelWhere(
+        `收音频参考、${requiresVisual ? '不能' : '能'}只挂声音`,
+        (t) => t.audios > 0 && t.audioRequiresVisual === requiresVisual,
+      )
+      expect(
+        buildVideo(model, { videoAudioRefs: [AUDIO_REF] }).audioReferences,
+      ).toEqual({
+        items: [
           {
-            id: 'a1',
             url: 'https://cdn.example.com/line.mp3',
-            fileName: '我不走',
+            label: '我不走',
             ownerName: '阿岚',
           },
         ],
-      },
-      modelOptions: [SEEDANCE_ON_BYTEPLUS],
-      selectedModel: SEEDANCE_ON_BYTEPLUS,
-      references: { items: [], limit: 4 },
-    })
-    expect(snapshot.audioReferences).toEqual({
-      items: [
-        {
-          url: 'https://cdn.example.com/line.mp3',
-          label: '我不走',
-          ownerName: '阿岚',
-        },
-      ],
-      limit: 3,
-      requiresVisual: true,
-    })
+        limit: getStudioVideoCapacity(model.modelId, model.adapterType).audios,
+        requiresVisual,
+      })
+    }
   })
 
   it('线路不吃音频参考（槽 0）时整节缺席 —— 助手连试都不会试', () => {
-    videoContract({ audio: 0 })
-    const snapshot = buildVideoOperatorSnapshot({
-      form: FORM,
-      modelOptions: [SEEDANCE_ON_BYTEPLUS],
-      selectedModel: SEEDANCE_ON_BYTEPLUS,
-      references: { items: [], limit: 4 },
-    })
-    expect(snapshot.audioReferences).toBeUndefined()
+    const deaf = videoModelWhere('不收音频参考', (t) => t.audios === 0)
+    expect(buildVideo(deaf).audioReferences).toBeUndefined()
   })
 
   it('产出过得了契约 schema（服务端收的就是它）', () => {
     const snapshot = buildVideoOperatorSnapshot({
       form: FORM,
-      modelOptions: [SEEDANCE_ON_BYTEPLUS, SEEDANCE_ON_FAL],
-      selectedModel: SEEDANCE_ON_BYTEPLUS,
+      modelOptions: [ON_BYTEPLUS, ON_FAL],
+      selectedModel: ON_BYTEPLUS,
       references: {
         items: [
           { url: 'https://cdn.example.com/a.png' },
@@ -356,45 +304,39 @@ describe('buildVideoOperatorSnapshot', () => {
 })
 
 describe('buildImageOperatorSnapshot', () => {
-  it('形状不变：按 modelId 去重、给 specs 与 count、⛔ 不带任何视频节', () => {
-    const snapshot = buildImageOperatorSnapshot({
+  /** fal 上的 Seedream 5.0 Pro：今天能力表里一颗专属 chip 都没有，清晰度只有 2K。 */
+  const PLAIN = 'seedream-5.0-pro'
+
+  function buildImage(
+    selected: StudioModelOption,
+    input: Partial<Parameters<typeof buildImageOperatorSnapshot>[0]> = {},
+  ) {
+    return buildImageOperatorSnapshot({
       form: FORM,
-      modelOptions: [
-        option({
-          optionId: 'workspace:seedream-4',
-          modelId: 'seedream-4',
-          displayLabel: 'Seedream 4',
-        }),
-        option({
-          optionId: 'saved:seedream-4',
-          modelId: 'seedream-4',
-          displayLabel: 'Seedream 4',
-        }),
-      ],
-      selectedModel: option({
-        optionId: 'workspace:seedream-4',
-        modelId: 'seedream-4',
-        displayLabel: 'Seedream 4',
-      }),
-      runModels: [
-        option({
-          optionId: 'workspace:seedream-4',
-          modelId: 'seedream-4',
-          displayLabel: 'Seedream 4',
-        }),
-      ],
+      modelOptions: [selected],
+      selectedModel: selected,
+      runModels: [selected],
       references: { items: [], limit: 4 },
+      ...input,
+    })
+  }
+
+  it('形状不变：按 modelId 去重、给 specs 与 count、⛔ 不带任何视频节', () => {
+    const onWorkspace = option(PLAIN, { displayLabel: 'Seedream 5.0 Pro' })
+    const saved = { ...onWorkspace, optionId: `saved:${PLAIN}` }
+    const snapshot = buildImage(onWorkspace, {
+      modelOptions: [onWorkspace, saved],
     })
 
     expect(snapshot.availableModels).toEqual([
-      { id: 'seedream-4', label: 'Seedream 4' },
+      { id: PLAIN, label: 'Seedream 5.0 Pro' },
     ])
-    expect(snapshot.model).toEqual({ id: 'seedream-4', label: 'Seedream 4' })
+    expect(snapshot.model).toEqual({ id: PLAIN, label: 'Seedream 5.0 Pro' })
     expect(snapshot.specs).toEqual({
       aspectRatio: '16:9',
       resolution: 'auto',
       aspectRatioOptions: expect.arrayContaining(['1:1', '16:9']),
-      resolutionOptions: ['auto', '2K'],
+      resolutionOptions: ['2K'],
       quality: undefined,
       background: undefined,
       preview: undefined,
@@ -409,38 +351,34 @@ describe('buildImageOperatorSnapshot', () => {
     expect(snapshot).not.toHaveProperty('extraModels')
   })
 
+  it('specs 的质量 / 背景档位按选中模型的能力表给', () => {
+    const snapshot = buildImage(option('gpt-image-2'))
+    expect(snapshot.specs).toMatchObject({
+      qualityOptions: ['auto', 'low', 'medium', 'high'],
+      backgroundOptions: ['auto', 'transparent', 'opaque'],
+      resolutionOptions: ['auto', '1K', '2K', '4K'],
+    })
+  })
+
   /**
    * 渠道（进度表 10 + 21）—— **只在多渠道型号上给**，且折叠判据与选择器共用。
    */
   it('单渠道型号不给 channels —— 那上面「选渠道」这件事不存在', () => {
-    const snapshot = buildImageOperatorSnapshot({
-      form: FORM,
-      modelOptions: [option({ optionId: 'a', modelId: 'seedream-4' })],
-      selectedModel: option({ optionId: 'a', modelId: 'seedream-4' }),
-      runModels: [option({ optionId: 'a', modelId: 'seedream-4' })],
-      references: { items: [], limit: 4 },
-    })
+    const snapshot = buildImage(option(PLAIN))
     expect(snapshot.availableModels[0]).not.toHaveProperty('channels')
     expect(snapshot.model).not.toHaveProperty('channelId')
   })
 
   it('NovelAI V5 带上角色构图一节（现有名单原样）；没有角色构图的模型整节不给', () => {
-    const nai = option({
-      optionId: 'workspace:nai',
-      modelId: AI_MODELS.NOVELAI_V5_FULL,
-      adapterType: AI_ADAPTER_TYPES.NOVELAI,
-    })
+    const nai = option(AI_MODELS.NOVELAI_V5_FULL)
     const layout = {
       positioning: 'auto' as const,
       characters: [
         { prompt: '', negativePrompt: '', position: { x: 0.5, y: 0.5 } },
       ],
     }
-    const snapshot = buildImageOperatorSnapshot({
+    const snapshot = buildImage(nai, {
       form: { ...FORM, advancedParams: { novelAiLayout: layout } },
-      modelOptions: [nai],
-      selectedModel: nai,
-      runModels: [nai],
       references: { items: [], limit: 1 },
     })
     expect(snapshot.novelAiCharacters).toEqual({
@@ -448,36 +386,20 @@ describe('buildImageOperatorSnapshot', () => {
       max: 22,
       layout,
     })
-    const seedream = option({ optionId: 'a', modelId: 'seedream-4' })
-    const plain = buildImageOperatorSnapshot({
-      form: FORM,
-      modelOptions: [seedream],
-      selectedModel: seedream,
-      runModels: [seedream],
-      references: { items: [], limit: 4 },
-    })
+    const plain = buildImage(option(PLAIN))
     expect(plain).not.toHaveProperty('novelAiCharacters')
     expect(plain).not.toHaveProperty('novelAiSceneTexts')
   })
 
   it('画面文字一节带上现有清单与这个模型的字数上限（V4.5 只认英文）', () => {
-    const nai = (modelId: string) =>
-      option({
-        optionId: `workspace:${modelId}`,
-        modelId,
-        adapterType: AI_ADAPTER_TYPES.NOVELAI,
-      })
     const build = (modelId: string) =>
-      buildImageOperatorSnapshot({
+      buildImage(option(modelId), {
         form: {
           ...FORM,
           advancedParams: {
             novelAiSceneTexts: [{ kind: 'sign', text: 'CAFE' }],
           },
         },
-        modelOptions: [nai(modelId)],
-        selectedModel: nai(modelId),
-        runModels: [nai(modelId)],
         references: { items: [], limit: 1 },
       })
     expect(build(AI_MODELS.NOVELAI_V5_FULL).novelAiSceneTexts).toEqual({
@@ -493,62 +415,44 @@ describe('buildImageOperatorSnapshot', () => {
   })
 
   it('另一台图片工作台的模型单列一节（去重、只给跑得了的），缺席时整节不给', () => {
-    const base = {
-      form: FORM,
-      modelOptions: [option({ optionId: 'a', modelId: 'seedream-4' })],
-      selectedModel: option({ optionId: 'a', modelId: 'seedream-4' }),
-      runModels: [],
-      references: { items: [], limit: 4 },
-    }
-    expect(buildImageOperatorSnapshot(base)).not.toHaveProperty(
+    const base = option(PLAIN)
+    expect(buildImage(base, { runModels: [] })).not.toHaveProperty(
       'otherWorkbenchModels',
     )
-    const nai = option({
-      optionId: 'workspace:nai',
-      modelId: 'novelai-v5-full',
+    const nai = option(AI_MODELS.NOVELAI_V5_FULL, {
       displayLabel: 'NovelAI V5 Full',
-      adapterType: AI_ADAPTER_TYPES.NOVELAI,
     })
-    const snapshot = buildImageOperatorSnapshot({
-      ...base,
-      otherModelOptions: [nai, { ...nai, optionId: 'saved:nai' }],
+    const snapshot = buildImage(base, {
+      runModels: [],
+      otherModelOptions: [
+        nai,
+        { ...nai, optionId: 'saved:nai' },
+        option(AI_MODELS.NOVELAI_V45_CURATED, { keyId: undefined }),
+      ],
     })
     expect(snapshot.otherWorkbenchModels).toEqual([
-      { id: 'novelai-v5-full', label: 'NovelAI V5 Full' },
+      { id: AI_MODELS.NOVELAI_V5_FULL, label: 'NovelAI V5 Full' },
     ])
   })
 
   it('⭐ 多渠道型号：channels 用的是选择器那一行的 optionId，并写出当前在跑哪条', () => {
-    const onFal = option({
-      optionId: 'workspace:seedream-4',
-      modelId: 'seedream-4',
-      displayLabel: 'Seedream 4',
-      keyId: 'key-fal',
-    })
-    const onBytePlus = option({
-      optionId: 'saved:seedream-4-byteplus',
-      modelId: 'seedream-4',
-      displayLabel: 'Seedream 4',
+    const onFal = option(PLAIN, { keyId: 'key-fal' })
+    const onBytePlus = option(PLAIN, {
+      optionId: `saved:${PLAIN}-byteplus`,
       adapterType: AI_ADAPTER_TYPES.BYTEPLUS,
-      providerConfig: {
-        label: 'BytePlus',
-      } as StudioModelOption['providerConfig'],
+      providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.BYTEPLUS),
       keyId: 'key-byteplus',
     })
-    const snapshot = buildImageOperatorSnapshot({
-      form: FORM,
+    const snapshot = buildImage(onBytePlus, {
       modelOptions: [onFal, onBytePlus],
-      selectedModel: onBytePlus,
-      runModels: [onBytePlus],
-      references: { items: [], limit: 4 },
     })
     expect(snapshot.availableModels[0]?.channels).toEqual([
-      { id: 'workspace:seedream-4', label: 'fal.ai' },
-      { id: 'saved:seedream-4-byteplus', label: 'BytePlus' },
+      { id: `workspace:${PLAIN}`, label: 'fal.ai' },
+      { id: `saved:${PLAIN}-byteplus`, label: 'BytePlus' },
     ])
     expect(snapshot.model).toMatchObject({
-      id: 'seedream-4',
-      channelId: 'saved:seedream-4-byteplus',
+      id: PLAIN,
+      channelId: `saved:${PLAIN}-byteplus`,
     })
   })
 
@@ -556,150 +460,86 @@ describe('buildImageOperatorSnapshot', () => {
    * 专属 chip 行（进度表 21）—— **白名单来自派生**，⛔ 不是这里写死的一张表。
    */
   it('capabilities 这一节从能力表派生：一颗都没有就整节缺席', () => {
-    const snapshot = buildImageOperatorSnapshot({
-      form: FORM,
-      modelOptions: [option({ optionId: 'a', modelId: 'seedream-4' })],
-      selectedModel: option({ optionId: 'a', modelId: 'seedream-4' }),
-      runModels: [option({ optionId: 'a', modelId: 'seedream-4' })],
-      references: { items: [], limit: 4 },
-    })
-    expect(snapshot.capabilities).toBeUndefined()
+    expect(buildImage(option(PLAIN)).capabilities).toBeUndefined()
   })
 
+  /** 火山上的 Seedream 5.0 Pro：滑杆（引导）、下拉（背景）、开关（分层）各一颗，后两颗要参考图。 */
+  const PRO_VOLC = 'seedream-5.0-pro-volcengine'
+  const LITE_VOLC = 'seedream-5.0-lite-volcengine'
+
   it('⭐ 三种形态各自带上值域，参考图依赖那颗标 available=false', () => {
-    mockGetCapabilityConfig.mockReturnValue({
-      capabilities: [
-        'quality',
-        'guidanceScale',
-        'preview',
-        'referenceStrength',
-      ],
-      qualityOptions: ['auto', 'high'],
-      guidanceScale: { min: 1, max: 20, step: 0.5, default: 7 },
-      referenceStrength: { min: 0, max: 1, step: 0.05, default: 0.6 },
-      resolutionOptions: ['auto'],
-    })
-    const snapshot = buildImageOperatorSnapshot({
-      form: { ...FORM, advancedParams: { quality: 'high', seed: 7 } },
-      modelOptions: [option({ optionId: 'a', modelId: 'seedream-4' })],
-      selectedModel: option({ optionId: 'a', modelId: 'seedream-4' }),
-      runModels: [option({ optionId: 'a', modelId: 'seedream-4' })],
-      references: { items: [], limit: 4 },
+    const pro = option(PRO_VOLC)
+    const snapshot = buildImage(pro, {
+      form: { ...FORM, advancedParams: { background: 'transparent' } },
     })
     expect(snapshot.capabilities).toEqual([
-      {
-        key: 'quality',
-        kind: 'select',
-        // ⚠ 现值是**原始值**：助手要分得清「没设过」与「选了缺省值」。
-        value: 'high',
-        defaultValue: 'auto',
-        options: ['auto', 'high'],
-        available: true,
-      },
       {
         key: 'guidanceScale',
         kind: 'slider',
         value: null,
-        defaultValue: 7,
-        range: { min: 1, max: 20, step: 0.5 },
+        defaultValue: 8,
+        range: { min: 1, max: 10, step: 0.5 },
         available: true,
       },
       {
-        key: 'preview',
+        key: 'background',
+        kind: 'select',
+        // ⚠ 现值是**原始值**：助手要分得清「没设过」与「选了缺省值」。
+        value: 'transparent',
+        defaultValue: 'opaque',
+        options: ['opaque', 'transparent'],
+        // 没挂参考图 = 画着但点不动（⛔ 不隐藏）。
+        available: false,
+      },
+      {
+        key: 'layerDecomposition',
         kind: 'toggle',
         value: null,
         defaultValue: false,
-        available: true,
-      },
-      {
-        key: 'referenceStrength',
-        kind: 'slider',
-        value: null,
-        defaultValue: 0.6,
-        range: { min: 0, max: 1, step: 0.05 },
-        // 没挂参考图 = 画着但点不动（⛔ 不隐藏）。
         available: false,
       },
     ])
 
-    const mounted = buildImageOperatorSnapshot({
-      form: { ...FORM, advancedParams: {} },
-      modelOptions: [option({ optionId: 'a', modelId: 'seedream-4' })],
-      selectedModel: option({ optionId: 'a', modelId: 'seedream-4' }),
-      runModels: [option({ optionId: 'a', modelId: 'seedream-4' })],
+    const mounted = buildImage(pro, {
       references: {
         items: [{ url: 'https://cdn.example.com/a.png' }],
         limit: 4,
       },
     })
     expect(
-      mounted.capabilities?.find((chip) => chip.key === 'referenceStrength')
-        ?.available,
-    ).toBe(true)
+      mounted.capabilities
+        ?.filter((chip) => chip.key !== 'guidanceScale')
+        .map((chip) => chip.available),
+    ).toEqual([true, true])
   })
 
   /**
    * 一轮多个模型（owner 2026-09-26）—— 与界面那行 chip 同一份并集。
-   * 桩的两份能力表：Lite 只有 `quality`，Pro 多出 `background` / `layerDecomposition`。
+   * 火山上的 Lite 只有引导，Pro 多出背景 / 分层。
    */
-  function seedreamRun() {
-    mockGetCapabilityConfig.mockImplementation(
-      (_adapter: unknown, modelId: string) =>
-        modelId === 'seedream-pro'
-          ? {
-              capabilities: ['quality', 'background', 'layerDecomposition'],
-              qualityOptions: ['standard', 'high'],
-              backgroundOptions: ['auto', 'transparent'],
-              resolutionOptions: ['auto'],
-            }
-          : modelId === 'seedream-lite'
-            ? {
-                capabilities: ['quality'],
-                qualityOptions: ['standard', 'high'],
-                resolutionOptions: ['auto'],
-              }
-            : { capabilities: [], resolutionOptions: ['auto'] },
-    )
-    return {
-      lite: option({
-        optionId: 'lite',
-        modelId: 'seedream-lite',
-        displayLabel: 'Seedream Lite',
-        adapterType: AI_ADAPTER_TYPES.VOLCENGINE,
-      }),
-      pro: option({
-        optionId: 'pro',
-        modelId: 'seedream-pro',
-        displayLabel: 'Seedream Pro',
-        adapterType: AI_ADAPTER_TYPES.VOLCENGINE,
-      }),
-    }
-  }
-
   it('⭐ 主模型是 Lite 也看得见 Pro 才有的项，并注明只对谁生效', () => {
-    const { lite, pro } = seedreamRun()
-    const snapshot = buildImageOperatorSnapshot({
+    const lite = option(LITE_VOLC, { displayLabel: 'Seedream Lite' })
+    const pro = option(PRO_VOLC, { displayLabel: 'Seedream Pro' })
+    const snapshot = buildImage(lite, {
       form: { ...FORM, advancedParams: { background: 'transparent' } },
       modelOptions: [lite, pro],
-      selectedModel: lite,
       runModels: [lite, pro],
-      references: { items: [], limit: 4 },
     })
 
     expect(
       snapshot.capabilities?.map(({ key, models }) => ({ key, models })),
     ).toEqual([
       // 两个都认 = 不带 `models`。
-      { key: 'quality', models: undefined },
-      { key: 'background', models: ['seedream-pro'] },
-      { key: 'layerDecomposition', models: ['seedream-pro'] },
+      { key: 'guidanceScale', models: undefined },
+      { key: 'background', models: [PRO_VOLC] },
+      { key: 'layerDecomposition', models: [PRO_VOLC] },
     ])
     expect(
       snapshot.capabilities?.find((chip) => chip.key === 'background')?.value,
     ).toBe('transparent')
     // 服务端 `set_model` 之后按「新主模型 + 这几个」重算 —— 主模型不在里面。
     expect(snapshot.extraModels).toEqual([
-      { id: 'seedream-pro', label: 'Seedream Pro' },
+      { id: PRO_VOLC, label: 'Seedream Pro' },
     ])
     expect(AssistantOperatorSnapshotSchema.safeParse(snapshot).success).toBe(
       true,
@@ -707,37 +547,25 @@ describe('buildImageOperatorSnapshot', () => {
   })
 
   it('⭐ 主线路没有专属项、另一个模型有 → 这一节照样给（⛔ 不整节缺席）', () => {
-    const { pro } = seedreamRun()
-    const onFal = option({ optionId: 'fal', modelId: 'seedream-fal' })
-    const snapshot = buildImageOperatorSnapshot({
-      form: FORM,
+    const onFal = option(PLAIN)
+    const pro = option(PRO_VOLC)
+    const snapshot = buildImage(onFal, {
       modelOptions: [onFal, pro],
-      selectedModel: onFal,
       runModels: [onFal, pro],
-      references: { items: [], limit: 4 },
     })
     expect(snapshot.capabilities?.map((chip) => chip.key)).toEqual([
-      'quality',
+      'guidanceScale',
       'background',
       'layerDecomposition',
     ])
     expect(
-      snapshot.capabilities?.every(
-        (chip) => chip.models?.join() === 'seedream-pro',
-      ),
+      snapshot.capabilities?.every((chip) => chip.models?.join() === PRO_VOLC),
     ).toBe(true)
   })
 
   it('这一轮一个模型都跑不了（跨台陈旧选择）→ 与界面一样没有专属行', () => {
-    const { lite } = seedreamRun()
-    const snapshot = buildImageOperatorSnapshot({
-      form: FORM,
-      modelOptions: [lite],
-      selectedModel: lite,
-      runModels: [],
-      references: { items: [], limit: 4 },
-    })
-    expect(snapshot.capabilities).toBeUndefined()
+    const lite = option(LITE_VOLC)
+    expect(buildImage(lite, { runModels: [] }).capabilities).toBeUndefined()
   })
 
   /**
@@ -745,65 +573,45 @@ describe('buildImageOperatorSnapshot', () => {
    * 判据与标签台参数弹层那格同源；自然语言台没有那一格，⛔ 不给。
    */
   it('⭐ 标签台多一格种子，自然语言台的模型认 seed 也不给', () => {
-    mockGetCapabilityConfig.mockReturnValue({
-      capabilities: ['seed'],
-      resolutionOptions: [],
-    })
-    const nai = option({
-      optionId: 'nai',
-      modelId: AI_MODELS.NOVELAI_V5_FULL,
-      adapterType: AI_ADAPTER_TYPES.NOVELAI,
-    })
-    const tags = buildImageOperatorSnapshot({
+    const nai = option(AI_MODELS.NOVELAI_V5_FULL)
+    const tags = buildImage(nai, {
       form: { ...FORM, advancedParams: { seed: 3513516593 } },
-      modelOptions: [nai],
-      selectedModel: nai,
-      runModels: [nai],
       references: { items: [], limit: 1 },
     })
-    expect(tags.capabilities).toEqual([
-      {
-        key: 'seed',
-        kind: 'seed',
-        value: 3513516593,
-        range: { min: 0, max: 4294967295, step: 1 },
-        available: true,
-      },
-    ])
+    // 种子排在 chip 后面。
+    expect(tags.capabilities?.at(-1)).toEqual({
+      key: 'seed',
+      kind: 'seed',
+      value: 3513516593,
+      range: { min: 0, max: 4294967295, step: 1 },
+      available: true,
+    })
     expect(AssistantOperatorSnapshotSchema.safeParse(tags).success).toBe(true)
 
-    const natural = buildImageOperatorSnapshot({
+    // 火山 Seedream 的能力表认 seed，但它在自然语言台。
+    const natural = buildImage(option('seedream-5.0-volcengine'), {
       form: { ...FORM, advancedParams: { seed: 7 } },
-      modelOptions: [option({ optionId: 'a', modelId: 'flux' })],
-      selectedModel: option({ optionId: 'a', modelId: 'flux' }),
-      runModels: [option({ optionId: 'a', modelId: 'flux' })],
-      references: { items: [], limit: 4 },
     })
-    expect(natural.capabilities).toBeUndefined()
+    expect(natural.capabilities?.map((chip) => chip.key)).not.toContain('seed')
   })
 
   it('只放用户真能跑的模型 —— 推荐一个跑不了的等于把人推去配置页', () => {
     const snapshot = buildImageOperatorSnapshot({
       form: FORM,
       modelOptions: [
-        option({
-          optionId: 'workspace:no-key',
-          modelId: 'no-key',
-          keyId: undefined,
-        }),
-        option({ optionId: 'workspace:has-key', modelId: 'has-key' }),
+        option('gpt-image-2', { keyId: undefined }),
+        option(PLAIN),
       ],
       selectedModel: undefined,
       runModels: [],
       references: { items: [], limit: 4 },
     })
-    expect(snapshot.availableModels.map((model) => model.id)).toEqual([
-      'has-key',
-    ])
+    expect(snapshot.availableModels.map((model) => model.id)).toEqual([PLAIN])
     // 没选模型 = `null`（明确「还没选」），⛔ 不是字段缺席（那是「这台机器不选模型」）。
     expect(snapshot.model).toBeNull()
   })
 })
+
 describe('buildLoraOperatorSnapshot（P4-C）', () => {
   const BASE_INPUT = {
     prompt: '水彩，雨天',
@@ -998,20 +806,15 @@ describe('buildLoraOperatorSnapshot（P4-C）', () => {
  * 一节给出来就等于告诉助手「这里有个格子」，而它会去填。
  */
 describe('buildVideoOperatorSnapshot · 具名帧槽与参考视频（第二期）', () => {
+  const FRAMES = {
+    videoFrameSlots: {
+      first: 'https://cdn.example.com/first.png',
+      last: 'https://cdn.example.com/last.png',
+    },
+  }
+
   it('关键帧档给 frameReferences，槽数来自契约的 keyframeSlots', () => {
-    const snapshot = buildVideoOperatorSnapshot({
-      form: {
-        ...FORM,
-        videoFrameSlots: {
-          first: 'https://cdn.example.com/first.png',
-          last: 'https://cdn.example.com/last.png',
-        },
-      },
-      modelOptions: [SEEDANCE_ON_BYTEPLUS],
-      selectedModel: SEEDANCE_ON_BYTEPLUS,
-      references: { items: [], limit: 4 },
-    })
-    expect(snapshot.frameReferences).toEqual({
+    expect(buildVideo(FULL_VIDEO, FRAMES).frameReferences).toEqual({
       first: { url: 'https://cdn.example.com/first.png' },
       last: { url: 'https://cdn.example.com/last.png' },
       slots: 2,
@@ -1019,98 +822,58 @@ describe('buildVideoOperatorSnapshot · 具名帧槽与参考视频（第二期�
   })
 
   it('⛔ 只有首帧的模型上尾帧整格不给（声明得比实现宽 = 用户填了被静默丢掉）', () => {
-    videoContract({ keyframeSlots: 1 })
-    const snapshot = buildVideoOperatorSnapshot({
-      form: {
-        ...FORM,
-        videoFrameSlots: {
-          first: 'https://cdn.example.com/first.png',
-          last: 'https://cdn.example.com/last.png',
-        },
-      },
-      modelOptions: [SEEDANCE_ON_BYTEPLUS],
-      selectedModel: SEEDANCE_ON_BYTEPLUS,
-      references: { items: [], limit: 4 },
-    })
-    expect(snapshot.frameReferences).toEqual({
+    const firstOnly = videoModelWhere('只有首帧', (t) => t.frames === 1)
+    expect(buildVideo(firstOnly, FRAMES).frameReferences).toEqual({
       first: { url: 'https://cdn.example.com/first.png' },
       slots: 1,
     })
   })
 
   it('⛔ 型号不吃首尾帧时帧槽整节缺席', () => {
-    videoContract({ keyframeSlots: 0 })
-    const snapshot = buildVideoOperatorSnapshot({
-      form: {
-        ...FORM,
+    const noFrames = videoModelWhere('不吃首尾帧', (t) => t.frames === 0)
+    expect(
+      buildVideo(noFrames, {
         videoFrameSlots: {
           first: 'https://cdn.example.com/first.png',
           last: null,
         },
-      },
-      modelOptions: [SEEDANCE_ON_BYTEPLUS],
-      selectedModel: SEEDANCE_ON_BYTEPLUS,
-      references: { items: [], limit: 4 },
-    })
-    expect(snapshot.frameReferences).toBeUndefined()
+      }).frameReferences,
+    ).toBeUndefined()
   })
 
   it('参考视频：槽位为 0 时整节缺席，>0 时带上限', () => {
-    videoContract({ videos: 0 })
-    expect(
-      buildVideoOperatorSnapshot({
-        form: FORM,
-        modelOptions: [SEEDANCE_ON_BYTEPLUS],
-        selectedModel: SEEDANCE_ON_BYTEPLUS,
-        references: { items: [], limit: 4 },
-      }).videoReferences,
-    ).toBeUndefined()
+    const noVideos = videoModelWhere('不收参考视频', (t) => t.videos === 0)
+    expect(buildVideo(noVideos).videoReferences).toBeUndefined()
 
-    videoContract({ videos: 3 })
     expect(
-      buildVideoOperatorSnapshot({
-        form: {
-          ...FORM,
-          videoReferenceVideos: ['https://cdn.example.com/a.mp4', 'blob:nope'],
-        },
-        modelOptions: [SEEDANCE_ON_BYTEPLUS],
-        selectedModel: SEEDANCE_ON_BYTEPLUS,
-        references: { items: [], limit: 4 },
+      buildVideo(FULL_VIDEO, {
+        videoReferenceVideos: ['https://cdn.example.com/a.mp4', 'blob:nope'],
       }).videoReferences,
     ).toEqual({
       // ⚠ 非 http(s) 的照旧滤掉（与参考图那条同一道闸：schema 要求合法 URL）。
       items: [{ url: 'https://cdn.example.com/a.mp4' }],
-      limit: 3,
+      limit: getStudioVideoCapacity(FULL_VIDEO.modelId, FULL_VIDEO.adapterType)
+        .videos,
     })
   })
 
   it('⭐ 负面框只在实际端点收这个字段时给（视频画板 W6）—— 否则缺席，助手改写进正文', () => {
-    const without = buildVideoOperatorSnapshot({
-      form: { ...FORM, negativePrompt: '字幕' },
-      modelOptions: [SEEDANCE_ON_BYTEPLUS],
-      selectedModel: SEEDANCE_ON_BYTEPLUS,
-      references: { items: [], limit: 4 },
-    })
-    expect(without.negativePrompt).toBeUndefined()
+    const without = videoModelWhere('不收负面', (t) => !t.negativePrompt)
+    expect(
+      buildVideo(without, { negativePrompt: '字幕' }).negativePrompt,
+    ).toBeUndefined()
 
-    videoContract({ negativePrompt: true })
-    const withField = buildVideoOperatorSnapshot({
-      form: { ...FORM, negativePrompt: '字幕' },
-      modelOptions: [SEEDANCE_ON_BYTEPLUS],
-      selectedModel: SEEDANCE_ON_BYTEPLUS,
-      references: { items: [], limit: 4 },
-    })
-    expect(withField.negativePrompt).toBe('字幕')
+    const withField = videoModelWhere('收负面', (t) => t.negativePrompt)
+    expect(
+      buildVideo(withField, { negativePrompt: '字幕' }).negativePrompt,
+    ).toBe('字幕')
   })
 
   it('带图锁原样透传契约 —— ⛔ 这一层不判「现在有没有图」', () => {
-    videoContract({ imageAspectRatioLock: 'adaptive' })
-    const snapshot = buildVideoOperatorSnapshot({
-      form: FORM,
-      modelOptions: [SEEDANCE_ON_BYTEPLUS],
-      selectedModel: SEEDANCE_ON_BYTEPLUS,
-      references: { items: [], limit: 4 },
-    })
-    expect(snapshot.videoSpecs?.aspectRatioLock).toBe('adaptive')
+    const locked = videoModelWhere(
+      '带图锁成 adaptive',
+      (t) => t.aspectRatioLock === 'adaptive',
+    )
+    expect(buildVideo(locked).videoSpecs?.aspectRatioLock).toBe('adaptive')
   })
 })

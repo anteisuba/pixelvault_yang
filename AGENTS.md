@@ -25,7 +25,7 @@ Personal AI Gallery：多模型图像、视频、音频、3D 生成，永久归�
 - UI 改版先完成业务域定义 → 三个结构方向 → 关键切片 → owner 确认 → 页面文档，再进入整页实现，见 [ui-page](docs/scenes/ui-page.md)。局部机械修复或按已确认页面文档且已授权的实现直接执行，不重新走设计门。
 - provider/model/API 的外部契约先核官方资料；计费、权限、持久化与产品方向不能猜。先调查，只有仍缺决策或授权时暂停依赖该决策的操作。
 - 保留用户与其他会话的修改。3000 被占用时复用，不 kill、不另起 dev 实例；dev 运行时不并行 build，需要其日志时向 owner 要。
-- commit/push 需用户授权；push main 会生产部署，必须通过 [release checklist](docs/checklists/release.md)。禁止 `--no-verify`、secret 入库或擅装 hooks。分支与提交细则见 WORKFLOW。
+- commit/push 需用户授权；**上线 = 推 `release` 分支**（2026-11-03 起；push main 只跑 CI 不部署），owner 说「上线」才推 release，推前过 [release checklist](docs/checklists/release.md)。禁止 `--no-verify`、secret 入库或擅装 hooks。分支与提交细则见 WORKFLOW。
 
 ## owner 工作规矩（2026-10 定）
 
@@ -36,7 +36,7 @@ Personal AI Gallery：多模型图像、视频、音频、3D 生成，永久归�
 - **改搜索先给方案**：LoRA 库索引 / 计数 / 筛选 / 助手搜库这类影响面大的，先写原因 + 2–3 个方案 + 推荐，owner 定了再写代码。
 - **UI 一个组件一个组件问**：一次只问一处，2–4 种画法并排出图、只变这一处，标「我推荐」。文字说不清的布局用图问。视觉判断归 owner，平时不看截图；owner 说要优化某处时才去看实际画面。
 - **一个模块尽量一个 PR**：讨论追加的改动推到同一 PR；本地只跑相关测试 + tsc，全量交给 CI。
-- **CI 绿了自己合**：自己开的 PR，CI 全绿、无冲突、非草稿、没有待 owner 拍板的设计问题，直接合（合 main = 生产部署，过 release checklist，合后看 Vercel 部署与运行时报错）。仍要先问：草稿、等定方向的、删数据或外部资源的。
+- **CI 绿了自己合**：自己开的 PR，CI 全绿、无冲突、非草稿、没有待 owner 拍板的设计问题，直接合（合 main 不部署；上线另等 owner 说「上线」）。仍要先问：草稿、等定方向的、删数据或外部资源的。
 - **线上坏了直接修，不撤回**：先查原因推修复 PR；改外壳 / 首页的 PR 合并前在预览上跑 `e2e/tools/ui-check.mjs` 看 console error。
 - **花额度先问**：助手评测（68 题）用 owner 自己的 API key，等助手全部改完统一跑一轮，跑前问。NAI 出图例外（无限档，实测不用问）。
 - **key 都由用户自己出，能走官方渠道就走官方**；不接第三方免费网关。

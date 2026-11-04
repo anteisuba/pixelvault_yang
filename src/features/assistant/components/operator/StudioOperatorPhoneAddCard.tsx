@@ -10,7 +10,7 @@
  * ⚠ 必须包在 `ResponsivePopoverPhoneCard` 里，否则手机上会退回底部抽屉。
  */
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import { useAuth } from '@clerk/nextjs'
 import { useTranslations } from 'next-intl'
@@ -167,13 +167,19 @@ function RecentAssets({
 }) {
   const t = useTranslations('StudioOperator.phoneAdd')
   const { userId } = useAuth()
-  const { generations, hasLoaded } = useGallery({
+  const { generations, hasLoaded, filters, setFilters } = useGallery({
     initialFilters: { types: ['image'] },
     mine: true,
     includeTotal: false,
     limit: RECENT_COUNT,
     cacheScope: `operator-recent:${userId ?? 'anonymous'}`,
   })
+  // useGallery 挂上不自己拉第一页（没有 SSR 数据的调用方都在这里 setFilters 一下），
+  // 不拉的话最近一排永远停在骨架。
+  useEffect(() => {
+    setFilters(filters)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const recent = generations.filter((g) => g.url).slice(0, RECENT_COUNT)
   // 一张素材都没有就整排不画，⛔ 不留一排空格子。
   if (hasLoaded && recent.length === 0) return null

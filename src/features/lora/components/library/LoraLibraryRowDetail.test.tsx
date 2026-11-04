@@ -15,8 +15,13 @@ vi.mock('next-intl', () => ({
   },
 }))
 
-vi.mock('@/features/lora/hooks/use-civitai-model-description', () => ({
-  useCivitaiModelDescription: () => ({ descriptionText: null }),
+// 真 useCivitaiModelDescription；只假它问的那一跳（问不到 = 没有简介）。
+vi.mock('@/lib/api-client/lora-assets', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api-client/lora-assets')>()),
+  fetchCivitaiModelDescriptionAPI: vi.fn(async () => ({
+    success: false,
+    error: 'offline',
+  })),
 }))
 
 afterEach(cleanup)

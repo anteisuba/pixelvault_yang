@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+/** 真轨 + 真 `useCharacterCardUsage`；只假网络：「用她出过的图」那一条走 api-client。 */
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('next-intl', () => ({
@@ -13,12 +14,15 @@ vi.mock('next/image', () => ({
   ),
 }))
 
-vi.mock('@/features/cards/hooks/use-character-card-usage', () => ({
-  useCharacterCardUsage: () => ({
-    generations: [{ id: 'g_1', url: 'https://cdn/made.png' }],
-    total: 1,
-    isLoading: false,
-  }),
+vi.mock('@/lib/api-client/cards', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api-client/cards')>()),
+  getCharacterCardGenerationsAPI: vi.fn(async () => ({
+    success: true,
+    data: {
+      generations: [{ id: 'g_1', url: 'https://cdn/made.png' }],
+      total: 1,
+    },
+  })),
 }))
 
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
@@ -65,6 +69,15 @@ function renderRail(
   return { onApplyOp }
 }
 
+/** 点开她那一格，等「用她出过的」拉回来：主图一张 + 出过的一张。 */
+async function openPicker() {
+  fireEvent.click(screen.getByRole('button', { name: 'chipLabel:Denia/1' }))
+  await waitFor(() =>
+    expect(screen.getAllByTestId('card-picker-image')).toHaveLength(2),
+  )
+  return screen.getAllByTestId('card-picker-image')
+}
+
 describe('参考轨上的 @她（画布用角色 ④ 第 2 片）', () => {
   it('一位一格：角标是这一镜带几张，下面是她的名字', () => {
     renderRail()
@@ -87,11 +100,9 @@ describe('参考轨上的 @她（画布用角色 ④ 第 2 片）', () => {
     expect(document.querySelector('[data-character-mention-rail]')).toBeNull()
   })
 
-  it('点开勾一张 = 发 set_character_picks，按勾的顺序', () => {
+  it('点开勾一张 = 发 set_character_picks，按勾的顺序', async () => {
     const { onApplyOp } = renderRail()
-    fireEvent.click(screen.getByRole('button', { name: 'chipLabel:Denia/1' }))
-    const tiles = screen.getAllByTestId('card-picker-image')
-    expect(tiles).toHaveLength(2)
+    const tiles = await openPicker()
     fireEvent.click(tiles[1]!)
     expect(onApplyOp).toHaveBeenCalledWith({
       op: NODE_ASSISTANT_OP_V4_IDS.setCharacterPicks,
@@ -101,29 +112,22 @@ describe('参考轨上的 @她（画布用角色 ④ 第 2 片）', () => {
     })
   })
 
-  it('全部取消 = 回到默认（picks: null）', () => {
+  it('全部取消 = 回到默认（picks: null）', async () => {
     const { onApplyOp } = renderRail()
-    fireEvent.click(screen.getByRole('button', { name: 'chipLabel:Denia/1' }))
-    fireEvent.click(screen.getAllByTestId('card-picker-image')[0]!)
+    fireEvent.click((await openPicker())[0]!)
     expect(onApplyOp).toHaveBeenCalledWith(
       expect.objectContaining({ picks: null }),
     )
   })
 
-  it('名额满了：没勾的格子勾不上', () => {
+  it('名额满了：没勾的格子勾不上', async () => {
     renderRail({ capacity: 2, usedImages: 1 })
-    fireEvent.click(screen.getByRole('button', { name: 'chipLabel:Denia/1' }))
-    expect(
-      screen.getAllByTestId('card-picker-image')[1]!.hasAttribute('disabled'),
-    ).toBe(true)
+    expect((await openPicker())[1]!.hasAttribute('disabled')).toBe(true)
   })
 
-  it('上限没公布（null）：不卡、不写上限那一行', () => {
+  it('上限没公布（null）：不卡、不写上限那一行', async () => {
     renderRail({ capacity: null, usedImages: 9 })
-    fireEvent.click(screen.getByRole('button', { name: 'chipLabel:Denia/1' }))
-    expect(
-      screen.getAllByTestId('card-picker-image')[1]!.hasAttribute('disabled'),
-    ).toBe(false)
+    expect((await openPicker())[1]!.hasAttribute('disabled')).toBe(false)
     expect(screen.queryByText(/^limit:/)).toBeNull()
   })
 })

@@ -1,10 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('server-only', () => ({}))
-vi.mock('@/lib/db', () => ({ db: {} }))
-vi.mock('@/services/kernel/assistant-route.service', () => ({
-  resolveAssistantRoute: vi.fn(),
-}))
 vi.mock('@/services/llm-text.service', () => ({ llmTextCompletion: vi.fn() }))
 
 import { CharacterPersonaSchema } from '@/types'

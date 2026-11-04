@@ -46,7 +46,7 @@ export async function uploadGenerationPoster(
     )
   }
 
-  // Trust libvips, not the client header. The 3D viewer captures the
+  // Trust the magic bytes, not the client header. The 3D viewer captures the
   // canvas as image/png via `.toBlob()`, so the strict allow-list
   // (jpeg/png/webp/gif) is enough. SVG is intentionally excluded
   // because it can carry inline scripts.

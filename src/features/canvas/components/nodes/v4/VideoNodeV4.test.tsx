@@ -1,6 +1,10 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+// 视频卡：真上传 hook、真抽帧（真 `video-frame-capture`）、真生成 hook（真 plan / 提交 /
+// 轮询）、真模型选择器、真素材库弹窗、真写作助手栏。只假网络（上传 / 提交 / 状态 / 取消
+// 几跳在 api-client 边界上假，其余走 fakeServer）与浏览器缺的那层（媒体解码、2D 画布）。
 
 const motionAnimateCalls = vi.hoisted(() => vi.fn())
 vi.mock('motion/react', async (importOriginal) => {
@@ -22,15 +26,27 @@ class MockResizeObserver {
   unobserve() {}
   disconnect() {}
 }
-vi.stubGlobal('ResizeObserver', MockResizeObserver)
+globalThis.ResizeObserver ??=
+  MockResizeObserver as unknown as typeof ResizeObserver
 
 vi.mock('next-intl', () => ({
   useTranslations: () =>
     Object.assign(
       (key: string, values?: Record<string, unknown>) =>
         values ? `${key}:${Object.values(values).join('/')}` : key,
-      { has: () => false },
+      {
+        has: () => false,
+        rich: (key: string) => key,
+        markup: (key: string) => key,
+        raw: (key: string) => key,
+      },
     ),
+  useLocale: () => 'zh',
+  useFormatter: () => ({
+    number: (value: number) => String(value),
+    dateTime: () => 'date',
+    relativeTime: () => 'relative-time',
+  }),
 }))
 
 vi.mock('@xyflow/react', () => ({
@@ -52,81 +68,30 @@ vi.mock('@xyflow/react', () => ({
     ) : null,
 }))
 
-/** 上传 / 生成 / 抓帧 / 模型清单四条外部路径桩掉：本组只看视频卡自己的行为。 */
-const uploadFn = vi.fn(async () => ({ url: 'https://cdn.test/up.mp4' }))
-vi.mock('@/features/canvas/hooks/use-node-upload-v4', () => ({
-  useNodeUploadV4: () => ({
-    upload: uploadFn,
-    retry: vi.fn(),
-    isUploading: false,
-    progress: 0,
-    error: null,
-    canRetry: false,
-    cancel: vi.fn(),
-  }),
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({ isLoaded: true, isSignedIn: true, userId: 'user-video' }),
+}))
+vi.mock('@/i18n/navigation', () => ({
+  usePathname: () => '/studio/canvas',
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }))
 
-const captureLastFrame = vi.fn(async () => ({
-  ok: true as const,
-  url: 'https://cdn.test/tail.webp',
+/** 网络边界：上传（直传 R2 那一整条）、提交、状态、取消。 */
+const api = vi.hoisted(() => ({
+  uploadImageFileAPI: vi.fn(),
+  uploadVideoFileAPI: vi.fn(),
+  submitVideoAPI: vi.fn(),
+  checkVideoStatusAPI: vi.fn(),
+  cancelGenerationsAPI: vi.fn(),
 }))
-const captureFrameAt = vi.fn(async () => ({
-  ok: true as const,
-  url: 'https://cdn.test/frame.webp',
-}))
-vi.mock('@/features/canvas/hooks/use-video-reference-slots', () => ({
-  useVideoReferenceSlots: () => ({
-    grabbing: null,
-    uploadError: null,
-    captureLastFrame,
-    captureFrameAt,
-  }),
-}))
-
-const cancelJobs = vi.fn()
-const checkVideo = vi.fn()
 vi.mock('@/lib/api-client', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/api-client')>()),
-  cancelGenerationsAPI: (...args: unknown[]) => cancelJobs(...args),
-  checkVideoStatusAPI: (...args: unknown[]) => checkVideo(...args),
+  ...api,
 }))
-const generateNode = vi.fn<
-  ReturnType<
-    typeof import('@/features/canvas/hooks/use-node-media-generation-v4').useNodeMediaGenerationV4
-  >['generateNode']
->(async () => ({ success: false as const, error: 'failed' }))
-vi.mock('@/features/canvas/hooks/use-node-media-generation-v4', () => ({
-  useNodeMediaGenerationV4: () => ({ generateNode, isLoading: false }),
-}))
-
-vi.mock(
-  '@/components/business/studio-shared/pickers/ModelPickerPopover',
-  () => ({
-    ModelPickerPopover: (props: Record<string, unknown>) => (
-      <button
-        type="button"
-        data-testid="model-chip"
-        data-value={String(props.value)}
-        data-count={(props.options as unknown[]).length}
-      />
-    ),
-  }),
-)
-
-/** ⋯「加入剪辑台」走动作出口（`useNodeCanvasActions`）——本组只看它被调到。 */
-const openEditDesk = vi.fn()
-vi.mock('./NodeV4ActionsBridge', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('./NodeV4ActionsBridge')>()),
-  useNodeCanvasActions: () => ({ openEditDesk }),
-}))
-
-vi.mock('@/features/assets', () => ({
-  AssetSelectorDialog: () => <div data-testid="asset-picker" />,
-}))
-
-// 画中框底部那条写作助手栏要 Clerk / ApiKeys 上下文，本组不测它（S2 已测）。
-vi.mock('./text/TextAssistantBar', () => ({
-  TextAssistantBar: () => <div data-testid="assistant-bar" />,
+const uploadReferenceAudioAPI = vi.hoisted(() => vi.fn())
+vi.mock('@/lib/api-client/voices', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api-client/voices')>()),
+  uploadReferenceAudioAPI,
 }))
 
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
@@ -136,8 +101,24 @@ import {
   videoRailCapacity,
   videoSendMode,
 } from '@/constants/video-node-modes'
+import { API_ENDPOINTS, VIDEO_GENERATION } from '@/constants/config'
+import { ApiKeysProvider } from '@/contexts/api-keys-context'
+import { fakeServer } from '@/test/app-harness'
+import { installFakeCanvas2d } from '@/test/fake-canvas-2d'
+import {
+  installFakeMediaElements,
+  type FakeMediaElements,
+} from '@/test/fake-media-element'
+import {
+  fakeAssetLibraryRoutes,
+  stubBrowserObservers,
+} from '@/test/fake-routes'
 import type { NodeV4, NodeWorkflowEdgeV4 } from '@/types/node-workflow'
 
+import {
+  NodeCanvasActionsProvider,
+  type NodeCanvasActions,
+} from './NodeV4ActionsBridge'
 import {
   NodeV4CanvasProvider,
   type NodeV4CanvasContextValue,
@@ -239,6 +220,28 @@ function harness(
   }
 }
 
+/** 画布动作出口由宿主（工作台）注入；⋯「加入剪辑台」走它的 `openEditDesk`。 */
+const actions = new Map<string, ReturnType<typeof vi.fn>>()
+const CANVAS_ACTIONS = new Proxy(
+  {},
+  {
+    get: (_target, key: string) => {
+      if (!actions.has(key)) actions.set(key, vi.fn())
+      return actions.get(key)
+    },
+  },
+) as NodeCanvasActions
+
+function Host({ children }: { children: ReactNode }) {
+  return (
+    <ApiKeysProvider>
+      <NodeCanvasActionsProvider value={CANVAS_ACTIONS}>
+        {children}
+      </NodeCanvasActionsProvider>
+    </ApiKeysProvider>
+  )
+}
+
 function renderVideo(
   context: NodeV4CanvasContextValue,
   nodeId = 'v_1',
@@ -250,8 +253,64 @@ function renderVideo(
       {/* @ts-expect-error NodeProps 的其余字段本组测试用不到 */}
       <VideoNodeV4 id={nodeId} data={target.data} selected={selected} />
     </NodeV4CanvasProvider>,
+    { wrapper: Host },
   )
 }
+
+const ok = (data: unknown) => Response.json({ success: true, data })
+/** 抽出来的那一帧传上去之后的地址。 */
+const FRAME_URL = 'https://cdn.test/frame.webp'
+let decoding: FakeMediaElements
+
+beforeEach(() => {
+  stubBrowserObservers()
+  actions.clear()
+  for (const fn of Object.values(api)) fn.mockReset()
+  uploadReferenceAudioAPI.mockReset()
+  // 片子能读：7 秒、1920×1080（抽帧那只 `<video>` 照这个答）。
+  decoding = installFakeMediaElements({
+    'https://cdn.test/a.mp4': { duration: 7, width: 1920, height: 1080 },
+  })
+  installFakeCanvas2d()
+  // 画布编出来的那一帧（`dataUrlToFile` 要能解得开的 base64）。
+  vi.mocked(HTMLCanvasElement.prototype.toDataURL).mockImplementation(function (
+    this: HTMLCanvasElement,
+  ) {
+    return `data:image/webp;base64,${btoa(`frame-${this.width}x${this.height}`)}`
+  })
+  vi.stubGlobal(
+    'createImageBitmap',
+    vi.fn(async () => ({ width: 1920, height: 1080, close: () => {} })),
+  )
+  URL.createObjectURL ??= () => 'blob:local'
+  URL.revokeObjectURL ??= () => {}
+  api.uploadImageFileAPI.mockResolvedValue({
+    success: true,
+    data: { generation: { url: FRAME_URL } },
+  })
+  api.uploadVideoFileAPI.mockResolvedValue({
+    success: true,
+    data: { generation: { url: 'https://cdn.test/up.mp4' } },
+  })
+  uploadReferenceAudioAPI.mockResolvedValue({
+    success: true,
+    data: { url: 'https://cdn.test/up.wav', sizeBytes: 5 },
+  })
+  api.submitVideoAPI.mockResolvedValue({ success: false, error: 'failed' })
+  fakeAssetLibraryRoutes(fakeServer())
+    .on('GET', API_ENDPOINTS.API_KEYS, () => ok([]))
+    .on('GET', API_ENDPOINTS.CHARACTER_CARDS, () => ok([]))
+})
+
+afterEach(() => {
+  vi.useRealTimers()
+  vi.restoreAllMocks()
+  vi.unstubAllGlobals()
+})
+
+/** 抽帧之后传上去的那一张（文件本身）。 */
+const uploadedFrame = () =>
+  api.uploadImageFileAPI.mock.lastCall?.[0] as File | undefined
 
 const READY = {
   url: 'https://cdn.test/a.mp4',
@@ -469,7 +528,9 @@ describe('选中：工具条与批操作', () => {
     )
 
     await waitFor(() => expect(onApplyBatch).toHaveBeenCalled())
-    expect(captureLastFrame).toHaveBeenCalledWith(READY.url, 'v_1')
+    // 末帧是贴着片尾抽的那一张，传上去的是一张 webp。
+    expect(Math.max(...decoding.seeks)).toBeGreaterThan(6.5)
+    expect(uploadedFrame()?.type).toBe('image/webp')
     const ops = onApplyBatch.mock.calls[0]?.[0] as unknown as readonly Record<
       string,
       unknown
@@ -484,9 +545,7 @@ describe('选中：工具条与批操作', () => {
     // 接续边从这一段的 `tailFrame` 出口出去 —— 画布上因此看得见「接着上一段」。
     expect(ops[3]).toMatchObject({ source: 'v_1', sourceHandle: 'tailFrame' })
     await waitFor(() =>
-      expect(onSetMedia).toHaveBeenCalledWith('img_new', {
-        url: 'https://cdn.test/tail.webp',
-      }),
+      expect(onSetMedia).toHaveBeenCalledWith('img_new', { url: FRAME_URL }),
     )
   })
 
@@ -530,11 +589,9 @@ describe('选中：工具条与批操作', () => {
     )
 
     await waitFor(() => expect(onApplyBatch).toHaveBeenCalled())
-    expect(captureFrameAt).toHaveBeenLastCalledWith(
-      READY.url,
-      2.5,
-      expect.any(String),
-    )
+    // 抽的就是刚才看到的那一秒。
+    expect(decoding.seeks).toContain(2.5)
+    expect(uploadedFrame()?.type).toBe('image/webp')
     const ops = onApplyBatch.mock.calls[0]?.[0] as unknown as readonly Record<
       string,
       unknown
@@ -545,9 +602,7 @@ describe('选中：工具条与批操作', () => {
       slot: NODE_SLOT_IDS.reference,
     })
     await waitFor(() =>
-      expect(onSetMedia).toHaveBeenCalledWith('img_new', {
-        url: 'https://cdn.test/frame.webp',
-      }),
+      expect(onSetMedia).toHaveBeenCalledWith('img_new', { url: FRAME_URL }),
     )
   })
 })
@@ -588,11 +643,7 @@ describe('片段卡与镜头卡同一套', () => {
       document.querySelector('[data-video-frame-pick-confirm]') as HTMLElement,
     )
     await waitFor(() => expect(onApplyBatch).toHaveBeenCalled())
-    expect(captureFrameAt).toHaveBeenLastCalledWith(
-      CLIP.url,
-      0,
-      expect.any(String),
-    )
+    expect(decoding.seeks).toContain(0)
     const ops = onApplyBatch.mock.calls[0]?.[0] as unknown as readonly Record<
       string,
       unknown
@@ -631,7 +682,7 @@ describe('片段卡与镜头卡同一套', () => {
 })
 
 describe('提示词栏', () => {
-  it('回车 = 生成新版本', () => {
+  it('回车 = 生成新版本', async () => {
     const onSetPrompt = vi.fn()
     renderVideo(
       harness([videoNode('v_1', { ...READY, prompt: '她转身走向站台尽头' })], {
@@ -647,7 +698,14 @@ describe('提示词栏', () => {
     expect(bar).toHaveClass('w-160')
     expect(bar?.parentElement).toHaveClass('gap-2')
     fireEvent.keyDown(input, { key: 'Enter' })
-    expect(generateNode).toHaveBeenCalled()
+    await waitFor(() =>
+      expect(api.submitVideoAPI).toHaveBeenCalledWith(
+        expect.objectContaining({
+          modelId: MODEL_ID,
+          prompt: expect.stringContaining('她转身走向站台尽头'),
+        }),
+      ),
+    )
   })
 
   it('参考轨在栏首行：图组第 1 项带「首」角标，退格删断的是那条边', () => {
@@ -974,7 +1032,6 @@ describe('参考轨（spec §5，画板 `VideoRefs.dc.html` 方向 A）', () => 
   ] as const)(
     '公共 + 上传 %s 落对应参考轨而非覆盖成片',
     async (mime, kind, slot) => {
-      uploadFn.mockClear()
       const onApplyBatch = vi.fn(async (ops: readonly unknown[]) => {
         void ops
         return { createdNodeIds: ['new_1'] }
@@ -1000,10 +1057,13 @@ describe('参考轨（spec §5，画板 `VideoRefs.dc.html` 方向 A）', () => 
       )!
       fireEvent.change(input, { target: { files: [file] } })
 
-      await waitFor(() =>
-        expect(uploadFn).toHaveBeenCalledWith(kind, file, 'v_1'),
-      )
       await waitFor(() => expect(onApplyBatch).toHaveBeenCalledTimes(1))
+      const uploader = {
+        image: api.uploadImageFileAPI,
+        video: api.uploadVideoFileAPI,
+        audio: uploadReferenceAudioAPI,
+      }[kind]
+      expect(uploader.mock.lastCall?.[0]).toBe(file)
       expect(onApplyBatch.mock.calls[0]?.[0]).toEqual([
         {
           op: NODE_ASSISTANT_OP_V4_IDS.addNode,
@@ -1179,9 +1239,9 @@ describe('参数 chip 永不为空（spec §5）', () => {
     ...extra,
   })
 
-  it('新卡即带默认模型（与图片卡同一条 `resolveModelChannel`：自己的 key 优先）', () => {
+  it('新卡即带默认模型（与图片卡同一条 `resolveModelChannel`：自己的 key 优先）', async () => {
     renderVideo(
-      harness([videoNode('v_1')], {
+      harness([videoNode('v_1', { prompt: '雨夜' })], {
         modelOptionsByKind: {
           video: [
             option('opt_keyless'),
@@ -1192,9 +1252,14 @@ describe('参数 chip 永不为空（spec §5）', () => {
       'v_1',
       true,
     )
-    // 自己的 key 那条赢 —— chip 上写的就是它（⛔ 不是清单第一条）。
-    expect(screen.getByTestId('model-chip').getAttribute('data-value')).toBe(
-      'opt_mine',
+    // 自己的 key 那条赢 —— 发出去用的就是它那把 key（⛔ 不是清单第一条）。
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'promptLabel' }), {
+      key: 'Enter',
+    })
+    await waitFor(() =>
+      expect(api.submitVideoAPI).toHaveBeenCalledWith(
+        expect.objectContaining({ modelId: MODEL_ID, apiKeyId: 'k_1' }),
+      ),
     )
   })
 
@@ -1244,7 +1309,7 @@ describe('生成中（spec §1.9）', () => {
 })
 
 describe('画中框（spec §5 / §1.11）', () => {
-  it('未发送的草稿在展开和收起间保持一致，展开生成也读取最新编辑', () => {
+  it('未发送的草稿在展开和收起间保持一致，展开生成也读取最新编辑', async () => {
     const context = harness([
       videoNode('v_1', { ...READY, prompt: '原始内容' }),
     ])
@@ -1264,10 +1329,12 @@ describe('画中框（spec §5 / §1.11）', () => {
     editor.textContent = '展开后继续输入'
     fireEvent.input(editor)
     fireEvent.click(document.querySelector('[data-video-regenerate]')!)
-    expect(generateNode).toHaveBeenLastCalledWith(
-      'v_1',
-      expect.anything(),
-      expect.objectContaining({ prompt: '展开后继续输入' }),
+    await waitFor(() =>
+      expect(api.submitVideoAPI).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          prompt: expect.stringContaining('展开后继续输入'),
+        }),
+      ),
     )
     view.rerender(renderState(null))
     expect(document.querySelector('[data-prompt-bar-input]')).toHaveValue(
@@ -1315,9 +1382,9 @@ describe('画中框（spec §5 / §1.11）', () => {
     expect(frame.querySelector('[data-node-chrome="version-dots"]')).toBeNull()
     expect(frame.querySelector('[data-video-frame-assist-bar]')).toBeNull()
     // ⛔ 常驻最底再占一条：写作助手（LLM）点了页脚那颗才出来，再点收起。
-    expect(screen.queryByTestId('assistant-bar')).toBeNull()
+    expect(document.querySelector('[data-assist-action]')).toBeNull()
     fireEvent.click(document.querySelector('[data-video-frame-assist]')!)
-    expect(screen.getByTestId('assistant-bar')).toBeInTheDocument()
+    expect(document.querySelector('[data-assist-action]')).not.toBeNull()
   })
 
   it('画中框顶栏读有效参数，打开态隐藏卡上工具条与提示词栏', () => {
@@ -1521,7 +1588,6 @@ describe('双击 = 展开 · 快速看走空格（画板 `VideoRefs.dc.html` 底
   })
 
   it('⋯「加入剪辑台」：有片时开台并带上这张卡', async () => {
-    openEditDesk.mockClear()
     renderVideo(harness([videoNode('v_1', READY)]), 'v_1', true)
     const openMore = () => {
       const more = document.querySelector(
@@ -1533,13 +1599,13 @@ describe('双击 = 展开 · 快速看走空格（画板 `VideoRefs.dc.html` 底
     openMore()
     const item = await screen.findByText('more.addToEditDesk')
     fireEvent.click(item)
-    expect(openEditDesk).toHaveBeenCalledWith(['v_1'])
+    expect(CANVAS_ACTIONS.openEditDesk).toHaveBeenCalledWith(['v_1'])
   })
 })
 
 describe('取消服务端任务', () => {
   it('调用取消 API，确认取消后才清理任务 ID', async () => {
-    cancelJobs.mockResolvedValueOnce({
+    api.cancelGenerationsAPI.mockResolvedValueOnce({
       success: true,
       data: { cancelled: ['job_1'], alreadyFinished: [], notFound: [] },
     })
@@ -1554,27 +1620,29 @@ describe('取消服务端任务', () => {
         generationFailure: undefined,
       }),
     )
-    expect(cancelJobs).toHaveBeenLastCalledWith(['job_1'])
+    expect(api.cancelGenerationsAPI).toHaveBeenLastCalledWith(['job_1'])
   })
 
   it('服务端取消失败时保留任务 ID 和生成态', async () => {
-    cancelJobs.mockResolvedValueOnce({ success: false })
+    api.cancelGenerationsAPI.mockResolvedValueOnce({ success: false })
     const context = harness([
       videoNode('v_1', { ...READY, mediaJobId: 'job_1' }),
     ])
     renderVideo(context, 'v_1', true)
     fireEvent.click(screen.getByRole('button', { name: 'cancel' }))
-    await waitFor(() => expect(cancelJobs).toHaveBeenLastCalledWith(['job_1']))
+    await waitFor(() =>
+      expect(api.cancelGenerationsAPI).toHaveBeenLastCalledWith(['job_1']),
+    )
     expect(context.onSetMedia).not.toHaveBeenCalled()
     expect(screen.getByRole('progressbar')).toBeInTheDocument()
   })
 
   it('已完成的任务保留成功产物并退出残留生成态', async () => {
-    cancelJobs.mockResolvedValueOnce({
+    api.cancelGenerationsAPI.mockResolvedValueOnce({
       success: true,
       data: { cancelled: [], alreadyFinished: ['job_1'], notFound: [] },
     })
-    checkVideo.mockResolvedValueOnce({
+    api.checkVideoStatusAPI.mockResolvedValueOnce({
       success: true,
       data: {
         status: 'COMPLETED',
@@ -1602,29 +1670,33 @@ describe('取消服务端任务', () => {
 it.each([false, true])(
   '失败回包 pending=%s 时正确保留或清除任务 ID',
   async (pending) => {
-    generateNode.mockImplementationOnce(async (_id, _graph, options) => {
-      options?.onJobCreated?.('job-failure', {
-        index: 0,
-        total: 1,
-        jobId: 'job-failure',
-      })
-      const result = {
-        success: false as const,
-        error: 'failed',
-        ...(pending ? { pending: true as const, jobId: 'job-failure' } : {}),
-      }
-      options?.onEach?.(result, { index: 0, total: 1, jobId: 'job-failure' })
-      return result
+    api.submitVideoAPI.mockResolvedValue({
+      success: true,
+      data: { jobId: 'job-failure' },
     })
+    // pending：服务端一直在跑，轮询窗口过完还没结果；否则回一句失败。
+    api.checkVideoStatusAPI.mockResolvedValue({
+      success: true,
+      data: pending
+        ? { jobId: 'job-failure', status: 'IN_PROGRESS' }
+        : { jobId: 'job-failure', status: 'FAILED', error: 'failed' },
+    })
+    if (pending) vi.useFakeTimers()
     const context = harness([videoNode('v_1', { ...READY, prompt: 'a shot' })])
     renderVideo(context, 'v_1', true)
     fireEvent.click(screen.getByRole('button', { name: 'send' }))
-    await waitFor(() =>
+    if (pending) {
+      for (let i = 0; i <= VIDEO_GENERATION.MAX_POLL_ATTEMPTS; i += 1) {
+        await act(() =>
+          vi.advanceTimersByTimeAsync(VIDEO_GENERATION.POLL_INTERVAL_MS),
+        )
+      }
+      expect(api.checkVideoStatusAPI).toHaveBeenCalledTimes(
+        VIDEO_GENERATION.MAX_POLL_ATTEMPTS,
+      )
       expect(context.onSetMedia).toHaveBeenCalledWith('v_1', {
         mediaJobId: 'job-failure',
-      }),
-    )
-    if (pending) {
+      })
       expect(context.onSetMedia).not.toHaveBeenCalledWith('v_1', {
         mediaJobId: undefined,
         generationFailure: undefined,
@@ -1636,37 +1708,40 @@ it.each([false, true])(
           generationFailure: { error: 'failed' },
         }),
       )
+      expect(context.onSetMedia).toHaveBeenCalledWith('v_1', {
+        mediaJobId: 'job-failure',
+      })
     }
   },
 )
 
 it('提交尚未取得任务 ID 时点击取消，在 ID 到达后取消服务端任务', async () => {
-  let options: Parameters<typeof generateNode>[2]
-  let finish!: () => void
-  generateNode.mockImplementationOnce(async (_id, _graph, supplied) => {
-    options = supplied
-    await new Promise<void>((resolve) => {
-      finish = resolve
-    })
-    return { success: false, error: 'cancelled' }
-  })
-  cancelJobs.mockResolvedValueOnce({
+  let deliver!: (value: unknown) => void
+  api.submitVideoAPI.mockReturnValue(
+    new Promise((resolve) => {
+      deliver = resolve
+    }),
+  )
+  api.checkVideoStatusAPI.mockReturnValue(new Promise(() => {}))
+  api.cancelGenerationsAPI.mockResolvedValueOnce({
     success: true,
     data: { cancelled: ['late-job'], alreadyFinished: [], notFound: [] },
   })
   const context = harness([videoNode('v_1', { ...READY, prompt: 'a shot' })])
   renderVideo(context, 'v_1', true)
   fireEvent.click(screen.getByRole('button', { name: 'send' }))
+  await waitFor(() => expect(api.submitVideoAPI).toHaveBeenCalled())
   fireEvent.click(screen.getByRole('button', { name: 'cancel' }))
-  options?.onJobCreated?.('late-job', { index: 0, total: 1, jobId: 'late-job' })
-  await waitFor(() => expect(cancelJobs).toHaveBeenLastCalledWith(['late-job']))
+  await act(async () => deliver({ success: true, data: { jobId: 'late-job' } }))
+  await waitFor(() =>
+    expect(api.cancelGenerationsAPI).toHaveBeenLastCalledWith(['late-job']),
+  )
   await waitFor(() =>
     expect(context.onSetMedia).toHaveBeenCalledWith('v_1', {
       mediaJobId: undefined,
       generationFailure: undefined,
     }),
   )
-  finish()
 })
 
 it('失败原因在卡片与展开态持续显示，编辑提示词不会清除', () => {
@@ -1806,8 +1881,7 @@ describe('卡上选帧与播放暂停', () => {
     fireEvent.keyDown(panel, { key: 'ArrowRight' })
     fireEvent.keyDown(panel, { key: 'Enter' })
     await waitFor(() => expect(onApplyBatch).toHaveBeenCalled())
-    const [, at] = captureFrameAt.mock.lastCall as unknown as [string, number]
-    expect(at).toBeCloseTo(2 / 30, 5)
+    expect(decoding.seeks.some((at) => Math.abs(at - 2 / 30) < 1e-5)).toBe(true)
     await waitFor(() =>
       expect(
         document.querySelector('[data-video-frame-pick-panel]'),

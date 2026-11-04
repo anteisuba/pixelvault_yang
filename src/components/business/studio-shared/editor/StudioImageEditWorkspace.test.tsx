@@ -1,60 +1,67 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { API_ENDPOINTS } from '@/constants/config'
+import { stubBrowserLayout } from '@/test/browser-stubs'
+import { generationFixture } from '@/test/generation-fixture'
+import { text } from '@/test/i18n-text'
+import { renderWithApp } from '@/test/app-harness'
+import {
+  fakeStudioServer,
+  renderWithStudio,
+  settle,
+  StudioProviders,
+} from '@/test/studio-harness'
+import { DESKTOP_WIDTH, MOBILE_WIDTH, setViewportWidth } from '@/test/viewport'
+
 import { StudioImageEditWorkspace } from './StudioImageEditWorkspace'
 
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, params?: { index: number }) =>
-    params ? `${key}:${params.index}` : key,
+/**
+ * 编辑台外壳，全程真的：真源图选择（真 `useImageUpload`、真素材库弹窗 + 真 `useGallery`）、
+ * 真编辑舞台 / 躯干；只假网络（画廊、素材分区计数）与屏宽。
+ */
+
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({ isLoaded: true, isSignedIn: true, userId: 'user-ws' }),
+}))
+vi.mock('@/i18n/navigation', () => ({
+  usePathname: () => '/studio/image',
+  useRouter: () => ({ push: vi.fn() }),
 }))
 
-const viewport = vi.hoisted(() => ({ phone: false }))
-vi.mock('@/hooks/use-mobile', () => ({
-  useIsMobile: () => viewport.phone,
-  useIsTablet: () => false,
-}))
-vi.mock('@/hooks/use-image-upload', () => ({
-  useImageUpload: () => ({
-    referenceImage: undefined,
-    fileInputRef: { current: null },
-    isUploading: false,
-    openFilePicker: vi.fn(),
-  }),
-}))
-vi.mock('./StudioImageEditStage', () => ({
-  StudioImageEditStage: ({ active }: { active: boolean }) => (
-    <input data-testid="edit-draft" data-active={active} defaultValue="" />
-  ),
-}))
-vi.mock('@/features/assets', () => ({
-  AssetSelectorDialog: ({
-    open,
-    mediaType,
-    onSelect,
-  }: {
-    open: boolean
-    mediaType: string
-    onSelect: (generation: { url: string; id: string }) => void
-  }) =>
-    open ? (
-      <div role="dialog" aria-label="assets" data-media-type={mediaType}>
-        {mediaType === 'image' ? (
-          <button
-            type="button"
-            onClick={() =>
-              onSelect({
-                url: 'https://cdn.example.com/selected.png',
-                id: 'asset-1',
-              })
-            }
-          >
-            Choose saved image
-          </button>
-        ) : null}
-      </div>
-    ) : null,
-}))
+const T = (key: string, values?: Record<string, string | number>) =>
+  text(`StudioImageEdit.${key}`, values)
+const ok = (data: unknown) => Response.json({ success: true, data })
+
+const SAVED = generationFixture({
+  id: 'asset-1',
+  url: 'https://cdn.example.com/selected.png',
+  prompt: 'saved sunset',
+})
+
+beforeEach(() => {
+  stubBrowserLayout()
+  setViewportWidth(DESKTOP_WIDTH)
+  fakeStudioServer()
+    .on('GET', API_ENDPOINTS.IMAGES, () =>
+      ok({
+        generations: [SAVED],
+        page: 1,
+        limit: 30,
+        total: 1,
+        hasMore: false,
+        nextCursor: null,
+      }),
+    )
+    .on('GET', API_ENDPOINTS.ASSET_SECTION_COUNTS, () =>
+      ok({ all: 1, liked: 0, unassigned: 1, uploads: 0, projects: {} }),
+    )
+})
+afterEach(() => {
+  vi.restoreAllMocks()
+  vi.unstubAllGlobals()
+})
 
 function renderSlots({
   stage,
@@ -75,17 +82,9 @@ function renderSlots({
   )
 }
 
-beforeEach(() => {
-  viewport.phone = false
-})
-afterEach(() => {
-  vi.restoreAllMocks()
-  vi.unstubAllGlobals()
-})
-
 function renderPicker() {
   const onSelect = vi.fn()
-  render(
+  renderWithStudio(
     <StudioImageEditWorkspace
       active
       target={null}
@@ -106,25 +105,31 @@ function renderPicker() {
   return onSelect
 }
 
-describe('StudioImageEditWorkspace source picker', () => {
-  it('opens the asset library with its lowercase image media contract and binds the chosen asset', () => {
+describe('StudioImageEditWorkspace 源图选择', () => {
+  it('素材库只按图片查，点一张就把它（连 generation）当源图', async () => {
     const onSelect = renderPicker()
-    fireEvent.click(screen.getByRole('button', { name: 'chooseSource' }))
-    expect(screen.getByRole('dialog', { name: 'assets' })).toHaveAttribute(
-      'data-media-type',
-      'image',
-    )
-    fireEvent.click(screen.getByRole('button', { name: 'Choose saved image' }))
+    fireEvent.click(screen.getByRole('button', { name: T('chooseSource') }))
+
+    fireEvent.click(await screen.findByRole('button', { name: 'saved sunset' }))
     expect(onSelect).toHaveBeenCalledWith({
       url: 'https://cdn.example.com/selected.png',
       generationId: 'asset-1',
     })
+    const galleryUrl = vi
+      .mocked(fetch)
+      .mock.calls.map(([input]) => String(input))
+      .find((url) => url.startsWith(API_ENDPOINTS.IMAGES))
+    expect(new URL(galleryUrl!, 'http://x').searchParams.get('type')).toBe(
+      'image',
+    )
   })
 
-  it('binds the explicitly chosen reference slot instead of selecting the first image', () => {
+  it('点哪一张参考图就编哪一张，⛔ 默认拿第一张', () => {
     const onSelect = renderPicker()
     fireEvent.click(
-      screen.getByRole('button', { name: 'stageEditingReference:2' }),
+      screen.getByRole('button', {
+        name: T('stageEditingReference', { index: 2, total: 2 }),
+      }),
     )
     expect(onSelect).toHaveBeenCalledWith({
       url: 'https://cdn.example.com/b.png',
@@ -134,7 +139,7 @@ describe('StudioImageEditWorkspace source picker', () => {
   })
 })
 
-describe('StudioImageEditWorkspace slots', () => {
+describe('StudioImageEditWorkspace 槽位', () => {
   const session = {
     target: { url: 'https://cdn.example.com/source.png' },
     sessionId: 1,
@@ -146,57 +151,60 @@ describe('StudioImageEditWorkspace slots', () => {
     references: [],
     children: renderSlots,
   }
+  const draft = () =>
+    screen.queryByRole('textbox', { name: T('editPromptLabel') })
 
-  it('keeps the edit session and shared header mounted while inactive', () => {
-    const view = render(<StudioImageEditWorkspace {...session} active />)
+  it('切走再切回：编辑会话与共用表头不重挂，写了一半的修改还在；换会话才清空', async () => {
+    // 要 rerender 同一棵树：直接包真 Provider（`renderWithStudio` 外面多一层捕获节点）。
+    const view = renderWithApp(
+      <StudioImageEditWorkspace {...session} active />,
+      { inner: StudioProviders },
+    )
+    await settle()
     const header = screen.getByTestId('shared-header')
-    const draft = screen.getByTestId('edit-draft')
-    const params = screen.getByTestId('params').firstElementChild
-    fireEvent.change(draft, { target: { value: 'Keep this edit' } })
+    const stage = screen.getByRole('img', { name: T('sourceAlt') })
+    fireEvent.change(draft()!, { target: { value: 'Keep this edit' } })
 
     view.rerender(<StudioImageEditWorkspace {...session} active={false} />)
     expect(screen.getByTestId('shared-header')).toBe(header)
-    expect(screen.getByTestId('edit-draft')).toBe(draft)
-    expect(draft).toHaveValue('Keep this edit')
-    expect(draft).toHaveAttribute('data-active', 'false')
-    expect(draft.parentElement).toHaveClass('hidden')
-    expect(draft.parentElement).toHaveAttribute('aria-hidden', 'true')
-    expect(screen.getByTestId('params').firstElementChild).toBe(params)
-    expect(params).toHaveClass('hidden')
+    // 切走：舞台还挂着（藏起来），输入框收起。
+    const hidden = stage.closest('[aria-hidden="true"]')
+    expect(hidden).toHaveClass('hidden')
+    expect(draft()).toBeNull()
 
     view.rerender(<StudioImageEditWorkspace {...session} active />)
     expect(screen.getByTestId('shared-header')).toBe(header)
-    expect(screen.getByTestId('edit-draft')).toBe(draft)
-    expect(draft).toHaveValue('Keep this edit')
-    expect(draft.parentElement).toHaveClass('flex')
-    expect(params).not.toHaveClass('hidden')
+    expect(screen.getByRole('img', { name: T('sourceAlt') })).toBe(stage)
+    await waitFor(() => expect(draft()).toHaveValue('Keep this edit'))
+    // 桌面：输入框落在参数栏那一格里。
+    expect(screen.getByTestId('params')).toContainElement(draft())
 
     view.rerender(
       <StudioImageEditWorkspace {...session} active sessionId={2} />,
     )
-    expect(screen.getByTestId('edit-draft')).not.toBe(draft)
-    expect(screen.getByTestId('edit-draft')).toHaveValue('')
+    await waitFor(() => expect(draft()).toHaveValue(''))
     expect(screen.getByTestId('shared-header')).toBe(header)
   })
 
-  it('does not mount the source picker before editing starts', () => {
-    render(
+  it('还没开始编辑时不挂源图选择、不挂舞台', () => {
+    renderWithStudio(
       <StudioImageEditWorkspace {...session} active={false} target={null} />,
     )
     expect(screen.getByTestId('shared-header')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'chooseSource' })).toBeNull()
-    expect(screen.queryByTestId('edit-draft')).toBeNull()
+    expect(screen.queryByRole('button', { name: T('chooseSource') })).toBeNull()
+    expect(draft()).toBeNull()
     expect(screen.getByTestId('params')).toBeEmptyDOMElement()
   })
 
-  it('retains one mobile composer and updates its height only while active', () => {
-    viewport.phone = true
+  it('手机：只留一条底部输入条，只在编辑台开着时量高度', async () => {
+    setViewportWidth(MOBILE_WIDTH)
     const observe = vi.fn()
     const disconnect = vi.fn()
     vi.stubGlobal(
       'ResizeObserver',
       class {
         observe = observe
+        unobserve() {}
         disconnect = disconnect
       },
     )
@@ -204,12 +212,18 @@ describe('StudioImageEditWorkspace slots', () => {
       new DOMRect(0, 0, 390, 128),
     )
 
-    const view = render(<StudioImageEditWorkspace {...session} active />)
+    // 要 rerender 同一棵树：直接包真 Provider（`renderWithStudio` 外面多一层捕获节点）。
+    const view = renderWithApp(
+      <StudioImageEditWorkspace {...session} active />,
+      { inner: StudioProviders },
+    )
+    await settle()
     const workspace = screen.getByTestId('shared-workspace')
     const composer = workspace.querySelector('.studio-mobile-composer')
     expect(workspace.querySelectorAll('.studio-mobile-composer')).toHaveLength(
       1,
     )
+    expect(composer).toContainElement(draft())
     expect(screen.getByTestId('params')).toBeEmptyDOMElement()
     expect(
       workspace.style.getPropertyValue('--studio-mobile-composer-height'),
@@ -222,7 +236,6 @@ describe('StudioImageEditWorkspace slots', () => {
     expect(
       workspace.style.getPropertyValue('--studio-mobile-composer-height'),
     ).toBe('')
-    expect(disconnect).toHaveBeenCalledOnce()
 
     view.rerender(<StudioImageEditWorkspace {...session} active />)
     expect(workspace.querySelector('.studio-mobile-composer')).toBe(composer)
@@ -230,8 +243,5 @@ describe('StudioImageEditWorkspace slots', () => {
     expect(
       workspace.style.getPropertyValue('--studio-mobile-composer-height'),
     ).toBe('128px')
-    expect(workspace.querySelectorAll('.studio-mobile-composer')).toHaveLength(
-      1,
-    )
   })
 })

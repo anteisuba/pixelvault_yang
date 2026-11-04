@@ -1,6 +1,12 @@
 // ⚠ 用 `fireEvent` 不是 `user-event`：本仓没装 `@testing-library/user-event`。
-import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import type { ReactElement } from 'react'
+import {
+  fireEvent,
+  render as rtlRender,
+  screen,
+  waitFor,
+} from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { StudioOperatorConfirmCard } from './StudioOperatorConfirmCard'
 import { STUDIO_OPERATOR_CONFIRM_STATUS_IDS } from '@/constants/studio-assistant-operator'
@@ -9,6 +15,13 @@ import { AI_MODELS, getModelMessageKey } from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type { StudioOperatorGenerateKnob } from '@/constants/studio-assistant-operator'
 import type { CanvasNodeGenerationState } from '@/lib/studio-operator-canvas-snapshot'
+import { ApiKeysProvider } from '@/contexts/api-keys-context'
+import {
+  apiKeyRecord,
+  openQuickSetup,
+  runIdleTasksImmediately,
+  submitQuickSetup,
+} from '@/test/api-keys'
 import type {
   StudioOperatorConfirmPrompt,
   StudioOperatorGenerationControls,
@@ -36,59 +49,55 @@ vi.mock('next-intl', () => ({
   },
 }))
 
-/** 弹层原语换成直通：本测试问的是旋钮的选项与回写，不是 Radix 的锚定。 */
-vi.mock('@/components/ui/responsive-popover', async () => {
-  const React = await import('react')
-  const Ctx = React.createContext<{
-    open: boolean
-    setOpen(next: boolean): void
-  }>({ open: false, setOpen: () => {} })
-  return {
-    ResponsivePopover: ({
-      open,
-      onOpenChange,
-      children,
-    }: {
-      open: boolean
-      onOpenChange(next: boolean): void
-      children: React.ReactNode
-    }) => (
-      <Ctx.Provider value={{ open, setOpen: onOpenChange }}>
-        {children}
-      </Ctx.Provider>
-    ),
-    ResponsivePopoverTrigger: ({
-      children,
-    }: {
-      children: React.ReactElement<{ onClick?: () => void }>
-    }) => {
-      const { open, setOpen } = React.useContext(Ctx)
-      return React.cloneElement(children, { onClick: () => setOpen(!open) })
-    },
-    ResponsivePopoverContent: ({ children }: { children: React.ReactNode }) => {
-      const { open } = React.useContext(Ctx)
-      return open ? <div>{children}</div> : null
-    },
-  }
+/**
+ * 配 key 弹窗是真的 `QuickSetupDialog`（挂在真 `ApiKeysProvider` 里）；只假 api-client
+ * 上 key 那几条：名单是空的，存 key 回 `k-new`，验证通过。
+ */
+const keysApi = vi.hoisted(() => ({
+  list: vi.fn(),
+  create: vi.fn(),
+  verify: vi.fn(),
+  remove: vi.fn(),
+  userSeq: 0,
+}))
+vi.mock('@/lib/api-client', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api-client')>()),
+  listApiKeys: keysApi.list,
+  createApiKey: keysApi.create,
+  verifyApiKey: keysApi.verify,
+  deleteApiKey: keysApi.remove,
+}))
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({
+    userId: `confirm-user-${keysApi.userSeq}`,
+    isLoaded: true,
+    isSignedIn: true,
+  }),
+}))
+
+beforeEach(() => {
+  window.localStorage.clear()
+  runIdleTasksImmediately()
+  keysApi.userSeq += 1
+  keysApi.list.mockResolvedValue({ success: true, data: [] })
+  keysApi.create.mockImplementation(async (input: { modelId: string }) => ({
+    success: true,
+    data: apiKeyRecord({ id: 'k-new', modelId: input.modelId }),
+  }))
+  keysApi.verify.mockResolvedValue({
+    success: true,
+    data: { status: 'available' },
+  })
 })
 
-/** 配 key 弹窗换成一颗「配好了」：本测试问的是配好之后那一跳，不是弹窗里的表单。 */
-vi.mock('@/components/business/studio-shared/setup/QuickSetupDialog', () => ({
-  QuickSetupDialog: ({
-    open,
-    onVerified,
-  }: {
-    open: boolean
-    onVerified?: (modelId: string, keyId: string) => void
-  }) =>
-    open ? (
-      <button
-        type="button"
-        data-testid="quick-setup-verify"
-        onClick={() => onVerified?.('flux-2-flash', 'k1')}
-      />
-    ) : null,
-}))
+function render(ui: ReactElement) {
+  const view = rtlRender(<ApiKeysProvider>{ui}</ApiKeysProvider>)
+  return {
+    ...view,
+    rerender: (next: ReactElement) =>
+      view.rerender(<ApiKeysProvider>{next}</ApiKeysProvider>),
+  }
+}
 
 /* ⚠ 搭配卡等几支不走这张卡（见 `StudioOperatorConfirmCardProps` 头注）。 */
 type ConfirmCardPrompt = Exclude<
@@ -713,10 +722,10 @@ describe('StudioOperatorConfirmCard 首页那份小配方（9g）', () => {
     })
     fireEvent.click(screen.getByTestId('operator-confirm-primary'))
     expect(view.onConfirm).toHaveBeenCalledTimes(1)
-    expect(screen.queryByTestId('quick-setup-verify')).toBeNull()
+    expect(openQuickSetup()).toBeNull()
   })
 
-  it('⭐ 没 key：先就地配，配好选上那把 key 再出', () => {
+  it('⭐ 没 key：先就地配，配好选上那把 key 再出', async () => {
     const onVerified = vi.fn()
     const view = renderCard(GENERATE, {
       controls: CONTROLS,
@@ -732,8 +741,13 @@ describe('StudioOperatorConfirmCard 首页那份小配方（9g）', () => {
     })
     fireEvent.click(screen.getByTestId('operator-confirm-primary'))
     expect(view.onConfirm).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByTestId('quick-setup-verify'))
-    expect(onVerified).toHaveBeenCalledWith('k1')
+    expect(openQuickSetup()).toHaveTextContent('title:FLUX 2 Flash')
+
+    submitQuickSetup('verify')
+    await waitFor(() => expect(onVerified).toHaveBeenCalledWith('k-new'))
+    expect(keysApi.create).toHaveBeenCalledWith(
+      expect.objectContaining({ modelId: 'flux-2-flash' }),
+    )
     expect(view.onConfirm).toHaveBeenCalledTimes(1)
   })
 

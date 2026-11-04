@@ -29,3 +29,13 @@ export function routeThroughAiGateway(
     headers: routed,
   }
 }
+
+/**
+ * 给 AI SDK 的 `fetch`：助手新内核直接用 AI SDK 发请求、不过 `llm-core` 那个 fetch，
+ * 没有这个就绕开了网关（日志 / 限流 / 重试都没留下）。改道规则与 `routeThroughAiGateway` 同一套。
+ */
+export const aiGatewayFetch: typeof fetch = (input, init) => {
+  if (input instanceof Request) return fetch(input, init)
+  const routed = routeThroughAiGateway(String(input), init?.headers)
+  return fetch(routed.endpoint, { ...init, headers: routed.headers })
+}

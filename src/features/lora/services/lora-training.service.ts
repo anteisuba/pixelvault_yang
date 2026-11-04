@@ -410,7 +410,7 @@ export async function createTrainingImageDirectUpload(
 
 /**
  * Stage 3 — read the object the browser just PUT and decide whether to keep
- * it. `detectTrustedImageMime` re-derives the format from libvips magic bytes
+ * it. `detectTrustedImageMime` re-derives the format from the magic bytes
  * (never trust a client-supplied MIME), and a mismatch against the prepared
  * size means the client sent something other than what it declared. Either
  * way the object is deleted so a rejected upload leaves no orphan in R2.

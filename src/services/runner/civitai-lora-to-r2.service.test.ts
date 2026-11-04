@@ -1,7 +1,10 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+/**
+ * 真 Civitai 查校验和 + 真平台 token 读取；只假边界：R2 那几个函数、网络（`fetch`）。
+ */
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { getSystemCivitaiToken } from '@/lib/platform-keys'
-import { fetchCivitaiModelFileSha256s } from '@/features/lora/server'
+vi.mock('server-only', () => ({}))
+
 import {
   createPresignedR2GetUrl,
   R2SourceChecksumMismatchError,
@@ -20,24 +23,11 @@ import {
   prepareRunnerLoras,
 } from './civitai-lora-to-r2.service'
 
-vi.mock('@/services/storage/r2', () => ({
+vi.mock('@/services/storage/r2', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/services/storage/r2')>()),
   r2ObjectExists: vi.fn(),
   uploadVerifiedHttpToR2: vi.fn(),
   createPresignedR2GetUrl: vi.fn(),
-  R2SourceChecksumMismatchError: class extends Error {
-    constructor(
-      readonly key: string,
-      readonly actualSha256: string,
-    ) {
-      super(`SHA-256 mismatch for ${key}: got ${actualSha256}`)
-    }
-  },
-}))
-vi.mock('@/features/lora/services/civitai-lora.service', () => ({
-  fetchCivitaiModelFileSha256s: vi.fn(),
-}))
-vi.mock('@/lib/platform-keys', () => ({
-  getSystemCivitaiToken: vi.fn(),
 }))
 vi.mock('@/lib/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
@@ -45,11 +35,13 @@ vi.mock('@/lib/logger', () => ({
 
 const mockExists = vi.mocked(r2ObjectExists)
 const mockUpload = vi.mocked(uploadVerifiedHttpToR2)
-const mockToken = vi.mocked(getSystemCivitaiToken)
 const mockPresign = vi.mocked(createPresignedR2GetUrl)
-const mockCivitaiSha = vi.mocked(fetchCivitaiModelFileSha256s)
 const mockFetch = vi.fn<typeof fetch>()
 const PUBLISHED_SHA = 'ab'.repeat(32)
+const CIVITAI_VERSIONS_API = 'https://civitai.com/api/v1/model-versions/'
+
+/** Civitai 版本接口上，这一版的模型文件公布了这个 SHA-256。 */
+let civitaiPublishes: Map<number, string>
 
 const URL_3118200 = 'https://civitai.com/api/download/models/3118200'
 const R2_KEY = 'runner-loras/civitai-3118200.safetensors'
@@ -59,10 +51,29 @@ const HF_URL =
 describe('civitai-lora-to-r2.service', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockToken.mockReturnValue('civitai-token')
-    mockCivitaiSha.mockResolvedValue(null)
-    mockFetch.mockResolvedValue(new Response(null, { status: 302 }))
+    vi.stubEnv('CIVITAI_API_TOKEN', 'civitai-token')
+    civitaiPublishes = new Map()
+    mockFetch.mockImplementation(async (input) => {
+      const url = String(input)
+      if (url.startsWith(CIVITAI_VERSIONS_API)) {
+        const id = Number(url.slice(CIVITAI_VERSIONS_API.length))
+        const sha = civitaiPublishes.get(id)
+        return sha
+          ? Response.json({
+              id,
+              name: 'v1',
+              files: [{ type: 'Model', hashes: { SHA256: sha.toUpperCase() } }],
+            })
+          : new Response('not found', { status: 404 })
+      }
+      return new Response(null, { status: 302 })
+    })
     vi.stubGlobal('fetch', mockFetch)
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+    vi.unstubAllGlobals()
   })
 
   it('derives a deterministic filename + version id', () => {
@@ -138,7 +149,7 @@ describe('civitai-lora-to-r2.service', () => {
 
   it('checks the download against the SHA-256 Civitai publishes for the version', async () => {
     mockExists.mockResolvedValue(false)
-    mockCivitaiSha.mockResolvedValue([PUBLISHED_SHA])
+    civitaiPublishes.set(3118200, PUBLISHED_SHA)
     mockUpload.mockResolvedValue({
       publicUrl: 'x',
       mimeType: 'application/octet-stream',
@@ -147,7 +158,6 @@ describe('civitai-lora-to-r2.service', () => {
 
     await ensureCivitaiLoraInR2(URL_3118200)
 
-    expect(mockCivitaiSha).toHaveBeenCalledWith(3118200)
     expect(mockUpload).toHaveBeenCalledWith(
       expect.objectContaining({ acceptedSha256s: [PUBLISHED_SHA] }),
     )
@@ -155,7 +165,7 @@ describe('civitai-lora-to-r2.service', () => {
 
   it('maps a published-checksum mismatch to CHECKSUM_MISMATCH without trying other tokens', async () => {
     mockExists.mockResolvedValue(false)
-    mockCivitaiSha.mockResolvedValue([PUBLISHED_SHA])
+    civitaiPublishes.set(3118200, PUBLISHED_SHA)
     mockUpload.mockRejectedValue(
       new R2SourceChecksumMismatchError(R2_KEY, 'cd'.repeat(32)),
     )
@@ -199,7 +209,7 @@ describe('civitai-lora-to-r2.service', () => {
 
   it('omits the auth header when no platform token is configured', async () => {
     mockExists.mockResolvedValue(false)
-    mockToken.mockReturnValue(null)
+    vi.stubEnv('CIVITAI_API_TOKEN', undefined)
     mockUpload.mockResolvedValue({
       publicUrl: 'x',
       mimeType: 'application/octet-stream',

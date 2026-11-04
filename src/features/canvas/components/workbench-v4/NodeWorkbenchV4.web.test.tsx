@@ -26,12 +26,6 @@ vi.mock('@/i18n/navigation', () => ({
  * 要断言的正是**哪一个组件被挑中渲染**（v4 四类 vs legacy 空壳），而不是 RF 的
  * 视口/连线内部。
  */
-// S8c：视频卡的 ⋯「加入剪辑台」走动作出口；本组只渲染快照，桩一个空出口即可。
-vi.mock('../nodes/v4/NodeV4ActionsBridge', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../nodes/v4/NodeV4ActionsBridge')>()),
-  useNodeCanvasActions: () => ({ openEditDesk: () => {} }),
-}))
-
 vi.mock('@xyflow/react', () => {
   const ReactFlow = (props: Record<string, unknown>) => {
     const nodes = (props.nodes ?? []) as { id: string; type: string }[]
@@ -103,25 +97,28 @@ vi.mock('@xyflow/react', () => {
   }
 })
 
-vi.mock('@/components/ui/markdown', () => ({
-  Markdown: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-}))
-vi.mock('@/components/ui/audio-player', () => ({
-  AudioPlayer: () => null,
-}))
-
 import { CANVAS_ADD_CATALOG } from '@/constants/canvas-add-catalog'
 import { NODE_STUDIO_TOOL_MODE_IDS } from '@/constants/node-studio'
 import { useNodeGraphV4 } from '@/features/canvas/hooks/use-node-graph-v4'
 import type { NodeV4, NodeWorkflowStateV4 } from '@/types/node-workflow'
 
 import { IngestDragProviderV4 } from '../IngestDragLayerV4'
+import {
+  NodeCanvasActionsProvider,
+  type NodeCanvasActions,
+} from '../nodes/v4/NodeV4ActionsBridge'
 import { NodeV4Provider } from '../nodes/v4/NodeV4Provider'
 import { CanvasV4 } from './CanvasV4'
 import { buildTextDeriveOps } from './NodeWorkbenchV4'
 import { useWorkbenchShortcutsV4 } from './WorkbenchShortcutsV4'
 
 const NOW = '2026-09-08T00:00:00.000Z'
+
+// S8c：视频卡的 ⋯「加入剪辑台」走动作出口（工作台注入）；本组只渲染快照，给一份空出口。
+const NO_CANVAS_ACTIONS = new Proxy(
+  {},
+  { get: () => () => {} },
+) as NodeCanvasActions
 
 function node(id: string, data: Record<string, unknown>): NodeV4 {
   return {
@@ -158,15 +155,17 @@ function Harness({ state }: { state: NodeWorkflowStateV4 }) {
       edges={graph.edges}
       onConnect={() => undefined}
     >
-      <NodeV4Provider graph={graph}>
-        <CanvasV4
-          graph={graph}
-          toolMode={NODE_STUDIO_TOOL_MODE_IDS.hand}
-          relationsCollapsed={false}
-          canvasAppearance={undefined}
-          edgeSigning={NO_EDGE_SIGNING}
-        />
-      </NodeV4Provider>
+      <NodeCanvasActionsProvider value={NO_CANVAS_ACTIONS}>
+        <NodeV4Provider graph={graph}>
+          <CanvasV4
+            graph={graph}
+            toolMode={NODE_STUDIO_TOOL_MODE_IDS.hand}
+            relationsCollapsed={false}
+            canvasAppearance={undefined}
+            edgeSigning={NO_EDGE_SIGNING}
+          />
+        </NodeV4Provider>
+      </NodeCanvasActionsProvider>
     </IngestDragProviderV4>
   )
 }

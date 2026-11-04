@@ -1,6 +1,5 @@
 import 'server-only'
 
-import sharp from 'sharp'
 import { z } from 'zod'
 
 import { AI_PROVIDER_ENDPOINTS } from '@/constants/config'
@@ -11,6 +10,13 @@ import { readOpenAIImageStream } from '@/lib/openai-image-stream'
 import { encodeSseEvent } from '@/lib/sse'
 import { ensureUser } from '@/services/user.service'
 import { ApiKeyError, SafetyFilterError, isGenerationError } from '@/lib/errors'
+import { readImageHeader } from '@/lib/image-header'
+import {
+  decodeImage,
+  encodePng,
+  luminance,
+  resizeImage,
+} from '@/lib/image-pixels'
 import { logger } from '@/lib/logger'
 import { withRetry } from '@/lib/with-retry'
 import {
@@ -152,20 +158,16 @@ const PROVIDER_TO_ADAPTER: Record<EditProvider, AI_ADAPTER_TYPES> = {
 
 /**
  * Read the buffer's intrinsic dimensions. Gemini and OpenAI both return
- * base64-encoded image data without surfacing width/height fields, so we lean
- * on sharp's metadata reader (already in use elsewhere in this service).
+ * base64-encoded image data without surfacing width/height fields, so we read
+ * them from the file header.
  */
 async function readBufferDimensions(
   buffer: Buffer,
 ): Promise<{ width: number; height: number }> {
-  try {
-    const metadata = await sharp(buffer).metadata()
-    return {
-      width: metadata.width ?? 1024,
-      height: metadata.height ?? 1024,
-    }
-  } catch {
-    return { width: 1024, height: 1024 }
+  const header = readImageHeader(buffer)
+  return {
+    width: header?.width ?? 1024,
+    height: header?.height ?? 1024,
   }
 }
 
@@ -559,18 +561,18 @@ async function editImageWithOpenAI(params: {
 
   if (params.maskImageUrl) {
     const { buffer: maskBuffer } = await fetchAsBuffer(params.maskImageUrl)
-    const { data, info } = await sharp(maskBuffer)
-      .removeAlpha()
-      .greyscale()
-      .raw()
-      .toBuffer({ resolveWithObject: true })
-    const rgba = Buffer.alloc(info.width * info.height * 4, 255)
-    for (let i = 0; i < data.length; i++) rgba[i * 4 + 3] = 255 - data[i]
-    const alphaMask = await sharp(rgba, {
-      raw: { width: info.width, height: info.height, channels: 4 },
+    // 我们的遮罩白 = 要改；OpenAI 要的是「透明 = 要改」：白底，透明度 = 255 − 灰度。
+    const mask = await decodeImage(maskBuffer)
+    const pixelCount = mask.width * mask.height
+    const rgba = new Uint8Array(pixelCount * 4).fill(255)
+    for (let i = 0; i < pixelCount; i++) {
+      rgba[i * 4 + 3] = 255 - luminance(mask, i)
+    }
+    const alphaMask = await encodePng({
+      width: mask.width,
+      height: mask.height,
+      data: rgba,
     })
-      .png()
-      .toBuffer()
     formData.append(
       'mask',
       new Blob([Uint8Array.from(alphaMask)], { type: 'image/png' }),
@@ -882,42 +884,24 @@ async function callExtractionModel(
  * channel of its own (fal models are inconsistent here — some return RGB
  * binary masks, some return RGBA with alpha-only mask data).
  *
- * Pipeline: grayscale + resize the mask → extract raw single-channel bytes →
- * join those bytes as the source image's alpha. When `invert` is true the
- * mask is negated first — that's how the "extract background" preset works.
+ * Pipeline: resize the mask to the source → take its grey level per pixel →
+ * write that as the source image's alpha. When `invert` is true the mask is
+ * negated first — that's how the "extract background" preset works.
  */
 async function applyMaskToImage(
   sourceBuffer: Buffer,
   maskBuffer: Buffer,
   invert: boolean,
 ): Promise<{ buffer: Buffer; width: number; height: number }> {
-  const sourceMeta = await sharp(sourceBuffer).metadata()
-  const width = sourceMeta.width ?? 1024
-  const height = sourceMeta.height ?? 1024
-
-  // sharp's `.greyscale()` keeps the image as 3-channel sRGB (R=G=B), so a
-  // subsequent `.raw()` yields width*height*3 bytes. `joinChannel` then sees
-  // a buffer triple the size it expects for channels:1 and either errors or
-  // (silently) walks off the end of the meaningful data — which is exactly
-  // how the cutout ended up looking like the original image. Force a real
-  // single-channel buffer via `toColourspace('b-w')` + `extractChannel(0)`.
-  let maskPipeline = sharp(maskBuffer)
-    .resize(width, height, { fit: 'fill' })
-    .removeAlpha()
-    .toColourspace('b-w')
-    .extractChannel(0)
-  if (invert) maskPipeline = maskPipeline.negate()
-
-  const { data: maskAlpha, info: maskInfo } = await maskPipeline
-    .raw()
-    .toBuffer({ resolveWithObject: true })
-
-  if (maskInfo.channels !== 1 || maskAlpha.length !== width * height) {
-    throw new ProviderError(
-      'fal.ai',
-      500,
-      `Bad mask shape: ${maskInfo.channels}ch ${maskAlpha.length}B vs expected 1ch ${width * height}B`,
-    )
+  const source = await decodeImage(sourceBuffer)
+  const { width, height } = source
+  // 遮罩的透明通道不算（fal 有的回 RGB、有的回带透明的 RGBA），只看颜色的灰度。
+  const mask = await resizeImage(await decodeImage(maskBuffer), width, height)
+  const pixelCount = width * height
+  const maskAlpha = new Uint8Array(pixelCount)
+  for (let i = 0; i < pixelCount; i++) {
+    const grey = luminance(mask, i)
+    maskAlpha[i] = invert ? 255 - grey : grey
   }
 
   // Quick sanity log so failed extractions show whether the model returned
@@ -925,25 +909,21 @@ async function applyMaskToImage(
   // segmentation result.
   let zeroCount = 0
   let fullCount = 0
-  for (let i = 0; i < maskAlpha.length; i++) {
-    const v = maskAlpha[i]
+  for (let i = 0; i < pixelCount; i++) {
+    const v = maskAlpha[i]!
     if (v < 8) zeroCount++
     else if (v > 247) fullCount++
   }
   logger.info('[extract] mask stats', {
     width,
     height,
-    zeroPct: ((zeroCount / maskAlpha.length) * 100).toFixed(1),
-    fullPct: ((fullCount / maskAlpha.length) * 100).toFixed(1),
+    zeroPct: ((zeroCount / pixelCount) * 100).toFixed(1),
+    fullPct: ((fullCount / pixelCount) * 100).toFixed(1),
   })
 
-  // Strip the source's own alpha (if any) then attach the mask as alpha.
-  const cutoutBuffer = await sharp(sourceBuffer)
-    .resize(width, height, { fit: 'fill' })
-    .removeAlpha()
-    .joinChannel(maskAlpha, { raw: { width, height, channels: 1 } })
-    .png()
-    .toBuffer()
+  // 原图自带的透明度丢掉，换成遮罩。
+  for (let i = 0; i < pixelCount; i++) source.data[i * 4 + 3] = maskAlpha[i]!
+  const cutoutBuffer = await encodePng(source)
 
   return { buffer: cutoutBuffer, width, height }
 }
@@ -1131,17 +1111,15 @@ export async function persistEditedImage(params: {
 }): Promise<GenerationRecord> {
   const storageKey = generateStorageKey('IMAGE', params.userId)
   const { buffer, mimeType } = await fetchAsBuffer(params.resultUrl)
-  const [permanentUrl, previewAssets] = await Promise.all([
-    uploadToR2({
-      data: buffer,
-      key: storageKey,
-      mimeType,
-    }),
-    createImagePreviewAssets({
-      sourceBuffer: buffer,
-      sourceStorageKey: storageKey,
-    }),
-  ])
+  // 小图由 Worker 从 R2 读原图来做，所以先等原图落进 R2。
+  const permanentUrl = await uploadToR2({
+    data: buffer,
+    key: storageKey,
+    mimeType,
+  })
+  const previewAssets = await createImagePreviewAssets({
+    sourceStorageKey: storageKey,
+  })
 
   return createGeneration({
     url: permanentUrl,

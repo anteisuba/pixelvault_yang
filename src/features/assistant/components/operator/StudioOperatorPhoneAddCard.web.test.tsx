@@ -11,56 +11,38 @@ vi.mock('next-intl', () => ({
 }))
 
 /** 弹层原语换成直通，同思考 chip 的测试。 */
-vi.mock('@/components/ui/responsive-popover', async () => {
-  const React = await import('react')
-  const Ctx = React.createContext<{
-    open: boolean
-    setOpen(next: boolean): void
-  }>({ open: false, setOpen: () => {} })
-  return {
-    ResponsivePopover: ({
-      open,
-      onOpenChange,
-      children,
-    }: {
-      open: boolean
-      onOpenChange(next: boolean): void
-      children: React.ReactNode
-    }) => (
-      <Ctx.Provider value={{ open, setOpen: onOpenChange }}>
-        {children}
-      </Ctx.Provider>
-    ),
-    ResponsivePopoverTrigger: ({
-      children,
-    }: {
-      children: React.ReactElement<{ onClick?: () => void }>
-    }) => {
-      const { open, setOpen } = React.useContext(Ctx)
-      return React.cloneElement(children, { onClick: () => setOpen(!open) })
-    },
-    ResponsivePopoverContent: ({ children }: { children: React.ReactNode }) => {
-      const { open } = React.useContext(Ctx)
-      return open ? <div>{children}</div> : null
-    },
-  }
-})
 
-const galleryState = vi.hoisted(() => ({
+/** 只假接口：真的 `useGallery` 去要最近的素材。每例换一个用户，缓存不串。 */
+const gallery = vi.hoisted(() => ({
   generations: [] as { id: string; url: string; prompt: string }[],
-  hasLoaded: true,
+  userId: 'u0',
 }))
-vi.mock('@/hooks/use-gallery', () => ({
-  useGallery: () => galleryState,
+vi.mock('@/lib/api-client', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api-client')>()),
+  fetchGalleryImages: vi.fn(async () => ({
+    success: true,
+    data: {
+      generations: gallery.generations,
+      total: gallery.generations.length,
+      hasMore: false,
+      nextCursor: null,
+      page: 1,
+    },
+  })),
 }))
-vi.mock('@clerk/nextjs', () => ({ useAuth: () => ({ userId: 'u1' }) }))
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({ userId: gallery.userId }),
+}))
 vi.mock('next/image', () => ({
   default: ({ alt }: { alt: string }) => <span data-alt={alt} />,
 }))
 
 import { StudioOperatorPhoneAddCard } from './StudioOperatorPhoneAddCard'
 
+let seq = 0
 function setup() {
+  seq += 1
+  gallery.userId = `u${seq}`
   const props = {
     onPickLibrary: vi.fn(),
     onPickRecent: vi.fn(),
@@ -101,14 +83,16 @@ describe('StudioOperatorPhoneAddCard', () => {
   })
 
   it('shows the three latest assets plus 全部, and picks one', async () => {
-    galleryState.generations = ['a', 'b', 'c', 'd'].map((id) => ({
+    gallery.generations = ['a', 'b', 'c', 'd'].map((id) => ({
       id,
       url: `https://cdn.example/${id}.png`,
       prompt: id,
     }))
     const props = setup()
     fireEvent.click(screen.getByTestId('operator-phone-add'))
-    expect(screen.getByTestId('operator-phone-add-recent-c')).toBeTruthy()
+    expect(
+      await screen.findByTestId('operator-phone-add-recent-c'),
+    ).toBeTruthy()
     expect(screen.queryByTestId('operator-phone-add-recent-d')).toBeNull()
     fireEvent.click(screen.getByTestId('operator-phone-add-recent-b'))
     await waitFor(() =>
@@ -118,12 +102,15 @@ describe('StudioOperatorPhoneAddCard', () => {
     )
     openAndPick('recent-all')
     await waitFor(() => expect(props.onPickLibrary).toHaveBeenCalledTimes(1))
-    galleryState.generations = []
+    gallery.generations = []
   })
 
-  it('hides the recent row when there are no assets', () => {
+  it('hides the recent row when there are no assets', async () => {
     setup()
     fireEvent.click(screen.getByTestId('operator-phone-add'))
+    await waitFor(() =>
+      expect(screen.getByTestId('operator-phone-add-library')).toBeTruthy(),
+    )
     expect(screen.queryByTestId('operator-phone-add-recent')).toBeNull()
   })
 

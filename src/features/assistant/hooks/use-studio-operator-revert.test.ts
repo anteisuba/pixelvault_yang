@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { act, renderHook } from '@testing-library/react'
+import { createElement, type ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ASSISTANT_OPERATOR_TOOL_IDS } from '@/constants/assistant-operator'
@@ -35,12 +36,11 @@ const primedSink = vi.hoisted(() => ({
 
 /**
  * ⭐ P4-C 起落笔的那几只手**由宿主给**（`contexts/studio-operator-host.tsx`）——
- * 撤销这条链不再直接碰 `studio-context`，所以桩的也从那三个 hook 换成了宿主本身。
- * 桩宿主比桩 studio-context 更贴这一层的职责：这里验的是「撤销挑哪几条、按什么
- * 顺序撤」，不是「dispatch 长什么样」。
+ * 这里用**真的** `StudioOperatorHostProvider` 挂一个测试台（落笔那几只手记账），
+ * ⛔ 不再把整个宿主模块换掉。这里验的是「撤销挑哪几条、按什么顺序撤」。
  */
-vi.mock('@/contexts/studio-operator-host', () => ({
-  useStudioOperatorHost: () => ({
+function testHost() {
+  return {
     domain: 'image',
     workspace: 'image-natural',
     buildSnapshot: () => ({ prompt: '', availableModels: [] }),
@@ -64,8 +64,25 @@ vi.mock('@/contexts/studio-operator-host', () => ({
       deleteProjectRule,
       ...(assetRevertEnabled.value ? { revertAssetWrite } : {}),
     },
-  }),
-}))
+  } as unknown as Parameters<
+    HostModule['StudioOperatorHostProvider']
+  >[0]['host']
+}
+
+type HostModule = typeof import('@/contexts/studio-operator-host')
+let hostModule: HostModule
+
+function renderRevert() {
+  const host = testHost()
+  return renderHook(() => revert.useStudioOperatorRevert(), {
+    wrapper: ({ children }: { children: ReactNode }) =>
+      createElement(
+        hostModule.StudioOperatorHostProvider,
+        { host } as never,
+        children,
+      ),
+  })
+}
 
 type Store = typeof import('@/hooks/use-studio-operator-store')
 type RevertHook =
@@ -83,6 +100,7 @@ beforeEach(async () => {
   deleteProjectRule.mockResolvedValue(true)
   store = await import('@/hooks/use-studio-operator-store')
   revert = await import('@/features/assistant/hooks/use-studio-operator-revert')
+  hostModule = await import('@/contexts/studio-operator-host')
   store.claimOperatorThreadScope('account-a:image-natural', 'image')
   // 每次 resetModules 之后 store 是新的一份实例 —— 桩宿主的那只手要接到这一份上。
   primedSink.set = store.setOperatorPrimed
@@ -211,7 +229,7 @@ describe('checkpoint 薄卡的「已改 N 项：××」', () => {
    */
   it('记规则那一步有数也有名字，⛔ 冒号后面不留空', () => {
     store.upsertOperatorStep(RULE_STEP, ROUND_A)
-    const { result } = renderHook(() => revert.useStudioOperatorRevert())
+    const { result } = renderRevert()
 
     expect(result.current.countRoundChanges(ROUND_A)).toBe(1)
     expect(result.current.roundChangeLabelKeys(ROUND_A)).toEqual([
@@ -236,7 +254,7 @@ describe('checkpoint 薄卡的「已改 N 项：××」', () => {
   it('表单那几格在前、按登记簿顺序；库里那一档跟在后面', () => {
     buildTwoRounds()
     store.upsertOperatorStep(RULE_STEP, ROUND_B)
-    const { result } = renderHook(() => revert.useStudioOperatorRevert())
+    const { result } = renderRevert()
 
     expect(result.current.roundChangeLabelKeys(ROUND_B)).toEqual([
       'field.prompt',
@@ -249,7 +267,7 @@ describe('checkpoint 薄卡的「已改 N 项：××」', () => {
 describe('还原这轮', () => {
   it('数的是这一轮里可还原的步 —— 评价那一条不算（它什么都没改）', () => {
     buildTwoRounds()
-    const { result } = renderHook(() => revert.useStudioOperatorRevert())
+    const { result } = renderRevert()
 
     // round B 有四条 step，其中 critique_result 是读类 → 3。
     expect(result.current.countRoundChanges(ROUND_B)).toBe(3)
@@ -258,7 +276,7 @@ describe('还原这轮', () => {
 
   it('倒着撤，落回上一轮的值；上一轮的改动原地不动', () => {
     buildTwoRounds()
-    const { result } = renderHook(() => revert.useStudioOperatorRevert())
+    const { result } = renderRevert()
 
     act(() => {
       result.current.revertRound(ROUND_B)
@@ -286,7 +304,7 @@ describe('还原这轮', () => {
 
   it('提示词在上一轮还被改着 → ✦ 留着；张数只有这一轮动过 → 清掉', () => {
     buildTwoRounds()
-    const { result } = renderHook(() => revert.useStudioOperatorRevert())
+    const { result } = renderRevert()
 
     act(() => {
       result.current.revertRound(ROUND_B)
@@ -299,7 +317,7 @@ describe('还原这轮', () => {
 
   it('生成键跟着熄灭，并且只插一行系统行', () => {
     buildTwoRounds()
-    const { result } = renderHook(() => revert.useStudioOperatorRevert())
+    const { result } = renderRevert()
 
     act(() => {
       result.current.revertRound(ROUND_B)
@@ -315,7 +333,7 @@ describe('还原这轮', () => {
 
   it('已经撤过的那一轮再点一次什么都不做（不插第二行系统行）', () => {
     buildTwoRounds()
-    const { result } = renderHook(() => revert.useStudioOperatorRevert())
+    const { result } = renderRevert()
 
     act(() => {
       result.current.revertRound(ROUND_B)
@@ -333,7 +351,7 @@ describe('还原这轮', () => {
 
   it('切工作区后保留的旧撤销回调不会撤掉新工作区的同名轮次', () => {
     buildTwoRounds()
-    const { result } = renderHook(() => revert.useStudioOperatorRevert())
+    const { result } = renderRevert()
     const oldRevert = result.current.revertRound
 
     act(() => {
@@ -349,7 +367,7 @@ describe('还原这轮', () => {
 
   it('新对话后旧撤销回调不能修改当前对话', () => {
     buildTwoRounds()
-    const { result } = renderHook(() => revert.useStudioOperatorRevert())
+    const { result } = renderRevert()
     const oldRevert = result.current.revertRound
 
     act(() => {
@@ -372,7 +390,7 @@ describe('还原这轮', () => {
     )
     store.upsertOperatorStep(promptStep('step-1', 'changed', ''), ROUND_B)
     store.upsertOperatorStep(ASSET_STEP, ROUND_B)
-    const { result } = renderHook(() => revert.useStudioOperatorRevert())
+    const { result } = renderRevert()
     let pending = Promise.resolve()
 
     act(() => {
@@ -403,7 +421,7 @@ describe('还原这轮', () => {
     store.upsertOperatorStep(ASSET_STEP, ROUND_B)
     store.upsertOperatorStep(PRIME_STEP, ROUND_B)
     store.setOperatorPrimed(true)
-    const { result } = renderHook(() => revert.useStudioOperatorRevert())
+    const { result } = renderRevert()
 
     await act(async () => result.current.revertRound(ROUND_B))
 
@@ -423,7 +441,7 @@ describe('还原这轮', () => {
   it('缺少宿主撤销能力时不划线，留下失败通报', async () => {
     assetRevertEnabled.value = false
     store.upsertOperatorStep(ASSET_STEP, ROUND_B)
-    const { result } = renderHook(() => revert.useStudioOperatorRevert())
+    const { result } = renderRevert()
 
     await act(async () => result.current.revertRound(ROUND_B))
 
@@ -445,7 +463,7 @@ describe('还原这轮', () => {
       )
       store.upsertOperatorStep(promptStep('step-1', 'changed', ''), ROUND_B)
       store.upsertOperatorStep(ASSET_STEP, ROUND_B)
-      const { result } = renderHook(() => revert.useStudioOperatorRevert())
+      const { result } = renderRevert()
       let pending = Promise.resolve()
       act(() => {
         pending = result.current.revertRound(ROUND_B)
@@ -474,7 +492,7 @@ describe('还原这轮', () => {
       }),
     )
     store.upsertOperatorStep(ASSET_STEP, ROUND_B)
-    const { result } = renderHook(() => revert.useStudioOperatorRevert())
+    const { result } = renderRevert()
     let pending = Promise.resolve()
     act(() => {
       pending = result.current.revertRound(ROUND_B)

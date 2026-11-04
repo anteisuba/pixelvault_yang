@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { ROUTES } from '@/constants/routes'
 import { SettingsLayoutFrame, SettingsShell } from './SettingsShell'
 
 vi.mock('next-intl', () => ({
@@ -31,8 +32,9 @@ vi.mock('@/i18n/navigation', () => ({
   ),
 }))
 
-const signOut = vi.hoisted(() => vi.fn())
-vi.mock('@/hooks/use-sign-out', () => ({ useSignOut: () => signOut }))
+// Clerk 是登录边界：真 `useSignOut` 调它的 `signOut`。
+const signOut = vi.hoisted(() => vi.fn(async () => {}))
+vi.mock('@clerk/nextjs', () => ({ useClerk: () => ({ signOut }) }))
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -94,6 +96,7 @@ describe('SettingsShell', () => {
     const button = screen.getByRole('button', { name: 'Settings:signOut' })
     fireEvent.click(button)
     expect(signOut).toHaveBeenCalledTimes(1)
+    expect(signOut).toHaveBeenCalledWith({ redirectUrl: ROUTES.HOME })
     expect(button).toHaveAttribute('data-feedback', 'progress')
     expect(button).toHaveAccessibleName('Settings:signingOut')
     expect(button).toBeDisabled()

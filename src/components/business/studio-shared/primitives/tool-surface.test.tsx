@@ -1,8 +1,15 @@
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { useState } from 'react'
 
-import { useIsMobile } from '@/hooks/use-mobile'
 import { Popover, PopoverTrigger } from '@/components/ui/popover'
 import { CHIP_POPOVER } from '@/constants/motion'
 import {
@@ -14,13 +21,7 @@ import {
   studioChipActiveClass,
   studioToolTriggerClass,
 } from './tool-surface'
-
-vi.mock('@/hooks/use-mobile', () => ({
-  useIsMobile: vi.fn(() => false),
-  useIsTablet: () => false,
-}))
-
-const mockUseIsMobile = vi.mocked(useIsMobile)
+import { DESKTOP_WIDTH, MOBILE_WIDTH, setViewportWidth } from '@/test/viewport'
 
 beforeAll(() => {
   // jsdom lacks the observers Radix/floating-ui and vaul rely on.
@@ -35,37 +36,13 @@ beforeAll(() => {
   if (!Element.prototype.scrollIntoView) {
     Element.prototype.scrollIntoView = () => {}
   }
-  if (typeof window.matchMedia !== 'function') {
-    vi.stubGlobal('matchMedia', (query: string) => ({
-      matches: false,
-      media: query,
-      onchange: null,
-      addListener: () => {},
-      removeListener: () => {},
-      addEventListener: () => {},
-      removeEventListener: () => {},
-      dispatchEvent: () => false,
-    }))
-  }
 })
 
+// 真 `useIsMobile` 读屏宽；默认电脑宽、鼠标为主。
 beforeEach(() => {
-  mockUseIsMobile.mockReturnValue(false)
-  mockTouchPrimary(false)
+  setViewportWidth(DESKTOP_WIDTH)
 })
-
-function mockTouchPrimary(isTouch: boolean) {
-  vi.stubGlobal('matchMedia', (query: string) => ({
-    matches: query === '(hover: none)' ? isTouch : false,
-    media: query,
-    onchange: null,
-    addListener: () => {},
-    removeListener: () => {},
-    addEventListener: () => {},
-    removeEventListener: () => {},
-    dispatchEvent: () => false,
-  }))
-}
+afterEach(() => vi.unstubAllGlobals())
 
 function renderChip(open?: boolean) {
   return render(
@@ -158,8 +135,7 @@ describe('StudioToolSurface', () => {
   })
 
   it('opens a bottom drawer with an accessible title on mobile', async () => {
-    mockUseIsMobile.mockReturnValue(true)
-    mockTouchPrimary(true)
+    setViewportWidth(MOBILE_WIDTH, { touch: true })
     renderChip(true)
 
     expect(await screen.findByText('面板内容')).toBeInTheDocument()
@@ -171,7 +147,7 @@ describe('StudioToolSurface', () => {
   it('keeps legacy bare-Popover hosts on the popover path even on mobile', async () => {
     // 过渡期安全属性：尚未迁到 StudioToolSurface 根的旧宿主（裸 Popover 根）
     // 不受响应式内容影响 —— 没有响应式上下文时永远走桌面 popover 分支。
-    mockUseIsMobile.mockReturnValue(true)
+    setViewportWidth(MOBILE_WIDTH, { touch: true })
     render(
       <Popover open>
         <PopoverTrigger>旧chip</PopoverTrigger>

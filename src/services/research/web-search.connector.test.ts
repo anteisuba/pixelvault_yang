@@ -1,22 +1,36 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('server-only', () => ({}))
-
-const mockWebSearch = vi.fn()
-vi.mock('@/services/web-research.service', () => ({
-  webSearch: (...args: unknown[]) => mockWebSearch(...args),
-  readUrl: vi.fn(),
-}))
 
 import { RESEARCH_FRESHNESS } from '@/constants/research'
 import { fetchWebSearchEvidence } from '@/services/research/web-search.connector'
 
-function result(id: string) {
-  return { title: id, url: `https://example.com/${id}`, snippet: `${id} body` }
+/**
+ * 只假网络：Serper 那一跳用 `fetch` 替身回，传输层（`webSearch`）走真代码。
+ * 每条查询的回包由 `organicFor(q)` 决定。
+ */
+function stubSerper(organicFor: (q: string) => string[]) {
+  const fetchFake = vi.fn(async (_url: string, init?: RequestInit) => {
+    const { q } = JSON.parse(String(init?.body)) as { q: string }
+    return Response.json({
+      organic: organicFor(q).map((id) => ({
+        title: id,
+        link: `https://example.com/${id}`,
+        snippet: `${id} body`,
+      })),
+    })
+  })
+  vi.stubGlobal('fetch', fetchFake)
+  return fetchFake
 }
 
 beforeEach(() => {
-  vi.clearAllMocks()
+  vi.stubEnv('SERPER_API_KEY', 'serper-test-key')
+})
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+  vi.unstubAllEnvs()
 })
 
 describe('fetchWebSearchEvidence', () => {
@@ -26,9 +40,7 @@ describe('fetchWebSearchEvidence', () => {
    * 而回执上只写着 `web_search:ok · 8`。
    */
   it('⭐ 按名次交叉取：每条查询的第 1 名都排在任何一条查询的第 2 名之前', async () => {
-    mockWebSearch.mockImplementation(async (query: string) =>
-      [1, 2, 3].map((rank) => result(`${query}-${rank}`)),
-    )
+    stubSerper((q) => [1, 2, 3].map((rank) => `${q}-${rank}`))
 
     const { items } = await fetchWebSearchEvidence({
       queries: ['work', 'character', 'character-ja'],
@@ -49,7 +61,7 @@ describe('fetchWebSearchEvidence', () => {
   })
 
   it('同一个 URL 只留一条（多条查询命中同一页是常态）', async () => {
-    mockWebSearch.mockResolvedValue([result('same')])
+    stubSerper(() => ['same'])
 
     const { items } = await fetchWebSearchEvidence({
       queries: ['a', 'b'],
@@ -59,11 +71,7 @@ describe('fetchWebSearchEvidence', () => {
   })
 
   it('长短不一的批次不留空洞', async () => {
-    mockWebSearch.mockImplementation(async (query: string) =>
-      query === 'short'
-        ? [result('short-1')]
-        : [result('long-1'), result('long-2')],
-    )
+    stubSerper((q) => (q === 'short' ? ['short-1'] : ['long-1', 'long-2']))
 
     const { items } = await fetchWebSearchEvidence({
       queries: ['short', 'long'],
@@ -74,5 +82,17 @@ describe('fetchWebSearchEvidence', () => {
       'long-1',
       'long-2',
     ])
+  })
+
+  it('限定站点时查询词带上 site:，发出去的请求里看得到', async () => {
+    const fetchFake = stubSerper(() => ['x'])
+
+    await fetchWebSearchEvidence({
+      queries: ['changli'],
+      freshness: RESEARCH_FRESHNESS.none,
+      includeDomains: ['wiki.example.com'],
+    })
+    const body = JSON.parse(String(fetchFake.mock.calls[0]?.[1]?.body))
+    expect(body.q).toBe('changli site:wiki.example.com')
   })
 })

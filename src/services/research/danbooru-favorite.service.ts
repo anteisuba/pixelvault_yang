@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { db } from '@/lib/db'
+import { db, isUniqueConstraintError } from '@/lib/db'
 import { ApiRequestError } from '@/lib/errors'
 import { ensureUser } from '@/services/user.service'
 import { localNamesOf } from '@/services/research/danbooru-tag-name.service'
@@ -91,14 +91,22 @@ export async function addDanbooruFavorite(
   }
   const row =
     existing ??
-    (await db.danbooruFavorite.create({
-      data: {
-        ...key,
-        count: input.count,
-        work: input.work,
-        previews: input.previews,
-      },
-    }))
+    (await db.danbooruFavorite
+      .create({
+        data: {
+          ...key,
+          count: input.count,
+          work: input.work,
+          previews: input.previews,
+        },
+      })
+      .catch(async (error: unknown) => {
+        // 连点两下：两个请求都查到「没有」，后到的撞唯一约束 → 回先到的那一条。
+        if (!isUniqueConstraintError(error)) throw error
+        return db.danbooruFavorite.findUniqueOrThrow({
+          where: { userId_kind_name: key },
+        })
+      }))
   const favorite = toFavorite(row)
   if (!favorite) throw new Error('Unexpected favorite kind')
   return favorite

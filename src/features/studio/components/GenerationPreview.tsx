@@ -216,9 +216,16 @@ export const GenerationPreview = memo(function GenerationPreview({
   // of its blur on the same beat (加载态 A motion table「出图」).
   const [completionReleased, setCompletionReleased] = useState(false)
   const [prevIsGenerating, setPrevIsGenerating] = useState(isGenerating)
+  // 开跑那一刻舞台上是哪条：收尾只给这一轮新出来的那条放。视频台的失败不经
+  // `error` 传进来（由队列那一行说），只看 error 会在旧视频上放一遍「出完了」。
+  const [runStartGenerationId, setRunStartGenerationId] = useState<
+    string | null
+  >(null)
   if (isGenerating !== prevIsGenerating) {
     setPrevIsGenerating(isGenerating)
-    if (prevIsGenerating && !isGenerating && generation && !error) {
+    if (isGenerating) {
+      setRunStartGenerationId(generation?.id ?? null)
+    } else if (generation && !error && generation.id !== runStartGenerationId) {
       setCompletingGenerationId(generation.id)
       setCompletionReleased(false)
     }

@@ -6,7 +6,6 @@
 
 import { createHash } from 'node:crypto'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import sharp from 'sharp'
 
 // ─── Mocks (must precede imports) ───────────────────────────────
 
@@ -50,10 +49,6 @@ vi.mock('@aws-sdk/lib-storage', () => {
 
 vi.mock('@/lib/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
-}))
-
-vi.mock('@/lib/with-retry', () => ({
-  withRetry: vi.fn((fn: () => Promise<unknown>) => fn()),
 }))
 
 // Stub env
@@ -371,26 +366,35 @@ describe('bounded R2 object inspection', () => {
   })
 })
 
+// ─── 小图：交给 execution Worker（Cloudflare Images）────────────────
+// 网络是边界：只假 fetch，看发给 Worker 的请求和拼出来的地址。
+
+function mockWorkerOk() {
+  const fetchMock = vi
+    .fn()
+    .mockResolvedValue(
+      new Response(JSON.stringify({ ok: true }), { status: 200 }),
+    )
+  global.fetch = fetchMock
+  return fetchMock
+}
+
+function sentBody(fetchMock: ReturnType<typeof vi.fn>) {
+  const [url, init] = fetchMock.mock.calls[0]
+  return { url, init, body: JSON.parse(init.body as string) }
+}
+
 describe('createImagePreviewAssets', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockSend.mockResolvedValue({})
+    vi.stubEnv('EXECUTION_WORKER_BASE_URL', 'https://worker.test.com/')
+    vi.stubEnv('INTERNAL_CALLBACK_SECRET', 'secret')
   })
 
-  it('uploads WebP thumbnail and preview derivatives next to the source key', async () => {
-    const sourceBuffer = await sharp({
-      create: {
-        width: 32,
-        height: 24,
-        channels: 3,
-        background: '#ff0000',
-      },
-    })
-      .png()
-      .toBuffer()
+  it('asks the worker for thumbnail + preview next to the source key, signed', async () => {
+    const fetchMock = mockWorkerOk()
 
     const result = await createImagePreviewAssets({
-      sourceBuffer,
       sourceStorageKey: 'generations/user-1/image/source.png',
     })
 
@@ -402,111 +406,92 @@ describe('createImagePreviewAssets', () => {
         'https://cdn.test.com/generations/user-1/image/source.preview.webp',
       previewStorageKey: 'generations/user-1/image/source.preview.webp',
     })
-    expect(mockSend).toHaveBeenCalledTimes(2)
-    expect(mockSend).toHaveBeenCalledWith(
-      expect.objectContaining({
-        params: expect.objectContaining({
-          Key: 'generations/user-1/image/source.thumbnail.webp',
-          ContentType: 'image/webp',
-        }),
+    const { url, init, body } = sentBody(fetchMock)
+    expect(url).toBe('https://worker.test.com/image-derivatives')
+    expect(init.method).toBe('POST')
+    expect(init.headers['X-Execution-Signature']).toMatch(/^[0-9a-f]{64}$/)
+    // 768 长边：16:9 源图短边仍有 432，盖得住网格 336px 的方块（见 IMAGE_PREVIEW_VARIANTS）。
+    expect(body).toEqual({
+      source: { key: 'generations/user-1/image/source.png' },
+      variants: [
+        {
+          key: 'generations/user-1/image/source.thumbnail.webp',
+          maxSize: 768,
+          quality: 78,
+        },
+        {
+          key: 'generations/user-1/image/source.preview.webp',
+          maxSize: 1280,
+          quality: 82,
+        },
+      ],
+    })
+    expect(mockSend).not.toHaveBeenCalled()
+  })
+
+  it("throws with the worker's reason when it fails", async () => {
+    global.fetch = vi
+      .fn()
+      .mockResolvedValue(new Response('Source too large', { status: 413 }))
+
+    await expect(
+      createImagePreviewAssets({
+        sourceStorageKey: 'generations/u/image/a.png',
       }),
-    )
-    expect(mockSend).toHaveBeenCalledWith(
-      expect.objectContaining({
-        params: expect.objectContaining({
-          Key: 'generations/user-1/image/source.preview.webp',
-          ContentType: 'image/webp',
-        }),
+    ).rejects.toThrow('Image derivatives failed (413): Source too large')
+  })
+
+  it('refuses to run without the worker configured', async () => {
+    vi.stubEnv('EXECUTION_WORKER_BASE_URL', '')
+    global.fetch = vi.fn()
+
+    await expect(
+      createImagePreviewAssets({
+        sourceStorageKey: 'generations/u/image/a.png',
       }),
-    )
+    ).rejects.toThrow('EXECUTION_WORKER_BASE_URL')
+    expect(global.fetch).not.toHaveBeenCalled()
   })
 })
 
 describe('createImageThumbnailAsset', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockSend.mockResolvedValue({})
+    vi.stubEnv('EXECUTION_WORKER_BASE_URL', 'https://worker.test.com')
+    vi.stubEnv('INTERNAL_CALLBACK_SECRET', 'secret')
   })
 
-  it('derives a thumbnail whose short edge still covers a square grid tile', async () => {
-    // 16:9 is the worst case for the assets grid: tiles are square and
-    // `object-cover`, so the SHORT edge is what has to fill them. Measured
-    // tile at `comfortable` density is 336px — the old 384px long-edge cap
-    // left only a 216px short edge and upscaled every wide upload 1.56x.
-    const sourceBuffer = await sharp({
-      create: { width: 2752, height: 1548, channels: 3, background: '#3366cc' },
-    })
-      .png()
-      .toBuffer()
+  it('asks the worker for the grid thumbnail only', async () => {
+    const fetchMock = mockWorkerOk()
 
-    await createImageThumbnailAsset({
-      sourceBuffer,
+    const result = await createImageThumbnailAsset({
       sourceStorageKey: 'generations/user-1/image/source.png',
     })
 
-    const put = mockSend.mock.calls
-      .map(([command]) => command)
-      .find((command) => command.params.Key.endsWith('.thumbnail.webp'))
-    const meta = await sharp(put.params.Body).metadata()
-
-    expect(meta.format).toBe('webp')
-    expect(meta.width).toBe(768)
-    expect(meta.height).toBeGreaterThanOrEqual(336)
-  })
-
-  it('never enlarges a source that is already smaller than the cap', async () => {
-    const sourceBuffer = await sharp({
-      create: { width: 200, height: 150, channels: 3, background: '#3366cc' },
+    expect(result).toEqual({
+      thumbnailUrl:
+        'https://cdn.test.com/generations/user-1/image/source.thumbnail.webp',
+      thumbnailStorageKey: 'generations/user-1/image/source.thumbnail.webp',
     })
-      .png()
-      .toBuffer()
-
-    await createImageThumbnailAsset({
-      sourceBuffer,
-      sourceStorageKey: 'generations/user-1/image/small.png',
-    })
-
-    const put = mockSend.mock.calls
-      .map(([command]) => command)
-      .find((command) => command.params.Key.endsWith('.thumbnail.webp'))
-    const meta = await sharp(put.params.Body).metadata()
-
-    expect(meta.width).toBe(200)
-    expect(meta.height).toBe(150)
+    expect(sentBody(fetchMock).body.variants).toEqual([
+      {
+        key: 'generations/user-1/image/source.thumbnail.webp',
+        maxSize: 768,
+        quality: 78,
+      },
+    ])
   })
 })
 
 describe('createVideoPosterAsset', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockSend.mockResolvedValue({})
+    vi.stubEnv('EXECUTION_WORKER_BASE_URL', 'https://worker.test.com')
+    vi.stubEnv('INTERNAL_CALLBACK_SECRET', 'secret')
   })
 
-  it('uploads a WebP video poster next to the source video key', async () => {
-    const sourceBuffer = await sharp({
-      create: {
-        width: 64,
-        height: 36,
-        channels: 3,
-        background: '#3366ff',
-      },
-    })
-      .jpeg()
-      .toBuffer()
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      arrayBuffer: () =>
-        Promise.resolve(
-          sourceBuffer.buffer.slice(
-            sourceBuffer.byteOffset,
-            sourceBuffer.byteOffset + sourceBuffer.byteLength,
-          ),
-        ),
-      headers: new Headers({
-        'content-type': 'image/jpeg',
-        'content-length': String(sourceBuffer.byteLength),
-      }),
-    })
+  it('passes the provider poster URL and its auth headers to the worker', async () => {
+    const fetchMock = mockWorkerOk()
 
     const result = await createVideoPosterAsset({
       sourceUrl: 'https://provider.example.com/thumb.jpg',
@@ -519,21 +504,31 @@ describe('createVideoPosterAsset', () => {
         'https://cdn.test.com/generations/user-1/video/source.thumbnail.webp',
       thumbnailStorageKey: 'generations/user-1/video/source.thumbnail.webp',
     })
-    expect(global.fetch).toHaveBeenCalledWith(
-      'https://provider.example.com/thumb.jpg',
-      {
+    expect(sentBody(fetchMock).body).toEqual({
+      source: {
+        url: 'https://provider.example.com/thumb.jpg',
         headers: { Authorization: 'Bearer token' },
-        redirect: 'manual',
       },
-    )
-    expect(mockSend).toHaveBeenCalledWith(
-      expect.objectContaining({
-        params: expect.objectContaining({
-          Key: 'generations/user-1/video/source.thumbnail.webp',
-          ContentType: 'image/webp',
-        }),
+      variants: [
+        {
+          key: 'generations/user-1/video/source.thumbnail.webp',
+          maxSize: 768,
+          quality: 80,
+        },
+      ],
+    })
+  })
+
+  it('rejects unsafe poster URLs before calling the worker', async () => {
+    global.fetch = vi.fn()
+
+    await expect(
+      createVideoPosterAsset({
+        sourceUrl: 'http://169.254.169.254/latest',
+        sourceStorageKey: 'generations/user-1/video/source.mp4',
       }),
-    )
+    ).rejects.toThrow()
+    expect(global.fetch).not.toHaveBeenCalled()
   })
 })
 

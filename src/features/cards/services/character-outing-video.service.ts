@@ -1,8 +1,14 @@
 import 'server-only'
 
-import sharp from 'sharp'
-
 import { CHARACTER_OUTING_VIDEO } from '@/constants/character-browse'
+import {
+  createCanvas,
+  cropImage,
+  decodeImage,
+  encodeJpeg,
+  pasteImage,
+  type RgbaImage,
+} from '@/lib/image-pixels'
 import { logger } from '@/lib/logger'
 import {
   bilibiliMediaHeaders,
@@ -100,7 +106,7 @@ export async function bilibiliFramePicture(
       range.end,
     )
     if (!picks.length) return null
-    const sources = new Map<number, Buffer>()
+    const sources = new Map<number, RgbaImage>()
     for (const imageIndex of new Set(
       picks.map((pick) => Math.floor(pick / perImage)),
     )) {
@@ -109,40 +115,34 @@ export async function bilibiliFramePicture(
         maxBytes: 4 * 1024 * 1024,
         signal: AbortSignal.timeout(15_000),
       })
-      sources.set(imageIndex, buffer)
+      sources.set(imageIndex, await decodeImage(buffer))
     }
-    const tiles = await Promise.all(
-      picks.map(async (pick) => {
-        const cell = pick % perImage
-        return sharp(sources.get(Math.floor(pick / perImage)))
-          .extract({
-            left: (cell % sheet.columns) * sheet.width,
-            top: Math.floor(cell / sheet.columns) * sheet.height,
-            width: sheet.width,
-            height: sheet.height,
-          })
-          .toBuffer()
-      }),
-    )
+    const tiles = picks.map((pick) => {
+      const cell = pick % perImage
+      return cropImage(
+        sources.get(Math.floor(pick / perImage))!,
+        (cell % sheet.columns) * sheet.width,
+        Math.floor(cell / sheet.columns) * sheet.height,
+        sheet.width,
+        sheet.height,
+      )
+    })
     const columns = Math.min(CHARACTER_OUTING_VIDEO.frameColumns, tiles.length)
     const rows = Math.ceil(tiles.length / columns)
-    const grid = await sharp({
-      create: {
-        width: columns * sheet.width,
-        height: rows * sheet.height,
-        channels: 3,
-        background: '#000000',
-      },
+    const canvas = createCanvas(columns * sheet.width, rows * sheet.height, {
+      r: 0,
+      g: 0,
+      b: 0,
     })
-      .composite(
-        tiles.map((input, n) => ({
-          input,
-          left: (n % columns) * sheet.width,
-          top: Math.floor(n / columns) * sheet.height,
-        })),
-      )
-      .jpeg({ quality: 80 })
-      .toBuffer()
+    tiles.forEach((tile, n) =>
+      pasteImage(
+        canvas,
+        tile,
+        (n % columns) * sheet.width,
+        Math.floor(n / columns) * sheet.height,
+      ),
+    )
+    const grid = await encodeJpeg(canvas, 80)
     return `data:image/jpeg;base64,${grid.toString('base64')}`
   } catch (error) {
     logger.info('character outing bilibili frames not built', {

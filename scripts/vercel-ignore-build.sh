@@ -9,10 +9,15 @@
 # production when the tip is docs-only after undeployed app commits.
 set -euo pipefail
 
-# Dependabot branches are fully built by CI (ci.yml `build`). On Hobby the
-# single build slot would queue these previews ahead of production builds.
-if [[ "${VERCEL_GIT_COMMIT_REF:-}" == dependabot/* ]]; then
-  echo "Dependabot branch ${VERCEL_GIT_COMMIT_REF}; CI builds it, skipping Vercel."
+# Only production (main) builds on Vercel. Every preview deployment keeps its
+# own copy of the function bundle (Function + Deployment Storage quota), and
+# thread branches (claude/*) push dozens of times a day: on 2026-11-03 that
+# pushed the Hobby team over its storage limits and production got paused.
+# CI (ci.yml `build`) already builds every branch. vercel.json
+# `git.deploymentEnabled` stops the known prefixes before a deployment record
+# even exists; this catches any other branch.
+if [[ "${VERCEL_ENV:-}" != "production" ]]; then
+  echo "VERCEL_ENV=${VERCEL_ENV:-<unset>} (${VERCEL_GIT_COMMIT_REF:-?}); previews are off, skipping."
   exit 0
 fi
 
@@ -48,11 +53,11 @@ if [[ -n "$base_sha" ]]; then
     echo "Cannot resolve previous deployment SHA ${base_sha}; building to be safe."
     exit 1
   fi
-elif git rev-parse --verify HEAD~1 >/dev/null 2>&1; then
-  # First deploy / PREVIOUS_SHA unset — only safe to use parent of tip.
-  diff_base="HEAD~1"
 else
-  echo "No previous commit is available; build can proceed."
+  # PREVIOUS_SHA is per branch: the first production deploy from a new branch
+  # (2026-11-04, the first push to `release`) has none. A release push can
+  # carry hundreds of commits, so HEAD~1 says nothing — always build.
+  echo "No previous deployment SHA for ${VERCEL_GIT_COMMIT_REF:-this branch}; building."
   exit 1
 fi
 

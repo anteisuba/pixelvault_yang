@@ -1,56 +1,83 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import {
+  LoraStackProvider,
+  useActiveLoraStack,
+} from '@/features/lora/hooks/use-active-lora-stack'
+import { __resetMinedPromptsCacheForTests } from '@/features/lora/hooks/use-civitai-mined-prompts'
+import { __resetModelDescriptionCacheForTests } from '@/features/lora/hooks/use-civitai-model-description'
+import { LORA_STACK_CLERK_ID } from '@/test/lora-stack'
 import type { CivitaiLoraLibraryItem, LoraAssetRecord } from '@/types'
 
 import { LoraFavoritesBrowse } from './LoraFavoritesBrowse'
 
-vi.mock('next-intl', () => ({
-  useTranslations:
-    (ns: string) => (key: string, values?: Record<string, unknown>) =>
-      values ? `${ns}:${key}:${JSON.stringify(values)}` : `${ns}:${key}`,
-  useFormatter: () => ({
+// 和真 next-intl 一样，同一个命名空间回同一个 `t`（真挖配方 hook 的 effect 依赖它）。
+const intl = vi.hoisted(() => {
+  const byNamespace = new Map<
+    string,
+    (key: string, values?: Record<string, unknown>) => string
+  >()
+  const formatter = {
     number: (value: number) => String(value),
     relativeTime: () => 'now',
     dateTime: () => 'Aug 14',
-  }),
+  }
+  return {
+    formatter,
+    t(ns: string) {
+      let t = byNamespace.get(ns)
+      if (!t) {
+        t = (key, values) =>
+          values ? `${ns}:${key}:${JSON.stringify(values)}` : `${ns}:${key}`
+        byNamespace.set(ns, t)
+      }
+      return t
+    },
+  }
+})
+vi.mock('next-intl', () => ({
+  useTranslations: (ns: string) => intl.t(ns),
+  useFormatter: () => intl.formatter,
 }))
 
-vi.mock('sonner', () => ({ toast: { info: vi.fn() } }))
+vi.mock('sonner', () => ({ toast: { info: vi.fn(), error: vi.fn() } }))
 
-const mockPush = vi.fn()
-let mockStackItems: {
-  asset: { id: string; loraUrl: string; modelVersionId?: number }
-}[] = []
-vi.mock('@/features/lora/hooks/use-active-lora-stack', () => ({
-  useActiveLoraStack: () => ({ items: mockStackItems, push: mockPush }),
-}))
-vi.mock('@/features/lora/hooks/use-civitai-download-gate', () => ({
-  useCivitaiDownloadGate: () => ({ ensureMountable: async () => true }),
-}))
-vi.mock('@/features/assistant/hooks/use-hand-to-assistant', () => ({
-  useHandMentionToAssistant: () => null,
-}))
-vi.mock('@/hooks/use-local-preference', () => ({
-  useLocalPreference: () => ['safe', vi.fn()],
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({ isLoaded: true, userId: LORA_STACK_CLERK_ID }),
 }))
 
+// 真挂载栈、真下载闸、真详情 / 挖配方 hook、真本机偏好；只在 api-client 边界上假那几跳。
 // 详情页取回的那一版：链接写法与收藏记录不同，版本号相同。
-let mockVersions: CivitaiLoraLibraryItem[] = []
-vi.mock('@/features/lora/hooks/use-civitai-model-description', () => ({
-  useCivitaiModelDetail: () => ({
-    descriptionText: null,
-    versions: mockVersions,
-    isLoading: false,
+const api = vi.hoisted(() => ({ versions: [] as CivitaiLoraLibraryItem[] }))
+vi.mock('@/lib/api-client', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api-client')>()),
+  fetchCivitaiLoraDownloadPolicyAPI: async () => ({
+    success: true,
+    data: { downloadDisabled: false },
   }),
 }))
-vi.mock('@/features/lora/hooks/use-civitai-mined-prompts', () => ({
-  useCivitaiMinedPrompts: () => ({
-    recipes: [],
-    previewImages: [],
-    isLoading: false,
+vi.mock('@/lib/api-client/lora-assets', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api-client/lora-assets')>()),
+  fetchCivitaiModelDescriptionAPI: async () => ({
+    success: true,
+    data: { descriptionText: null, versions: api.versions },
+  }),
+  mineCivitaiLoraPromptsAPI: async () => ({
+    success: true,
+    data: { recipes: [], previewImages: [] },
   }),
 }))
+
+/** 挂载栈里现在有哪几把（按名字）。 */
+function StackProbe() {
+  const stack = useActiveLoraStack()
+  return (
+    <output aria-label="stack">
+      {stack.items.map((entry) => entry.asset.name).join(',')}
+    </output>
+  )
+}
 
 function makeAsset(
   id: string,
@@ -106,7 +133,12 @@ function renderFavorites(overrides: Record<string, unknown> = {}) {
     onGoTrain: vi.fn(),
     ...overrides,
   }
-  render(<LoraFavoritesBrowse {...props} />)
+  render(
+    <LoraStackProvider>
+      <LoraFavoritesBrowse {...props} />
+      <StackProbe />
+    </LoraStackProvider>,
+  )
   return props
 }
 
@@ -121,8 +153,10 @@ function openMore(index: number) {
 describe('LoraFavoritesBrowse（库 B · 收藏）', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockStackItems = []
-    mockVersions = []
+    window.localStorage.clear()
+    __resetModelDescriptionCacheForTests()
+    __resetMinedPromptsCacheForTests()
+    api.versions = []
   })
 
   it('lists favorites newest first with the trigger word under each name', () => {
@@ -148,7 +182,7 @@ describe('LoraFavoritesBrowse（库 B · 收藏）', () => {
     expect(screen.getByRole('button', { name: 'Qingxiao' })).toBeInTheDocument()
   })
 
-  it('mounts the favorite record itself, in place', () => {
+  it('mounts the favorite record itself, in place', async () => {
     renderFavorites()
 
     openMore(1)
@@ -157,11 +191,15 @@ describe('LoraFavoritesBrowse（库 B · 收藏）', () => {
         name: 'LoraWorkbench.browse:mountLabel:{"name":"Roccia"}',
       }),
     )
-    expect(mockPush).toHaveBeenCalledWith(roccia)
+    await waitFor(() =>
+      expect(screen.getByRole('status', { name: 'stack' })).toHaveTextContent(
+        'Roccia',
+      ),
+    )
   })
 
   it('knows the fetched version is the favorite — unfavorites by the record’s own link', async () => {
-    mockVersions = [
+    api.versions = [
       {
         ...roccia,
         id: 'civitai:30:3001',

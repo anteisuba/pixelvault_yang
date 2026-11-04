@@ -899,11 +899,6 @@
       "description": "Animate a character image while preserving as much character identity as possible."
     }
   },
-  "Transform": {
-    "errors": {
-      "allFailed": "All variants failed to generate. Please try again."
-    }
-  },
   "StudioResultFeedback": {
     "satisfied": "Satisfied",
     "subjectMismatch": "Subject looks off",

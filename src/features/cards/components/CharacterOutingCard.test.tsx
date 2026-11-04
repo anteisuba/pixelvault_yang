@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import type { ReactElement } from 'react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type {
   CharacterGrowth,
@@ -16,18 +17,23 @@ vi.mock('next-intl', () => {
   }
 })
 vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
-vi.mock(
-  '@/features/assistant/components/operator/StudioOperatorModelChip',
-  () => ({
-    StudioOperatorModelChip: ({ value }: { value: string }) => (
-      <span data-testid="model-chip">{value}</span>
-    ),
-  }),
-)
-vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => false }))
+// 模型 chip 是真的：它读 key 名单（真 ApiKeysProvider，名单走假服务器）。
+const auth = vi.hoisted(() => ({ userId: 'user_0' }))
+vi.mock('@clerk/nextjs', () => ({
+  useAuth: () => ({ userId: auth.userId, isSignedIn: true, isLoaded: true }),
+}))
 
 import { NODE_STUDIO_ASSISTANT_ROUTE_MODELS } from '@/constants/node-studio'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { ApiKeysProvider } from '@/contexts/api-keys-context'
+import { fakeServer } from '@/test/app-harness'
+import {
+  apiKeyRecord,
+  fakeApiKeyRoutes,
+  runIdleCallbacksNow,
+} from '@/test/fake-routes'
+import { DESKTOP_WIDTH, setViewport } from '@/test/viewport'
+
 import { OutingCard } from './CharacterOutingCard'
 
 const grok = NODE_STUDIO_ASSISTANT_ROUTE_MODELS.find(
@@ -87,6 +93,23 @@ function hookOf(outing: CharacterGrowth['outing']) {
   }
 }
 
+let userSeq = 0
+beforeEach(() => {
+  userSeq += 1
+  auth.userId = `user_${userSeq}`
+  localStorage.clear()
+  runIdleCallbacksNow()
+  setViewport(DESKTOP_WIDTH)
+  fakeApiKeyRoutes(fakeServer(), [
+    apiKeyRecord('k-xai', AI_ADAPTER_TYPES.XAI, 'xAI'),
+    apiKeyRecord('k-gemini', AI_ADAPTER_TYPES.GEMINI, 'Gemini'),
+  ])
+})
+
+function renderCard(ui: ReactElement) {
+  return render(<ApiKeysProvider>{ui}</ApiKeysProvider>)
+}
+
 describe('OutingCard', () => {
   it('没出门：「上次调查：昨天」+「出门调查」；弹框记住上次的模型、来源、网址和额度', async () => {
     const hook = hookOf({
@@ -94,10 +117,12 @@ describe('OutingCard', () => {
       recent: [run()],
       frequentSites: ['pixiv.net', 'zhihu.com'],
     })
-    render(<OutingCard growth={hook} />)
+    renderCard(<OutingCard growth={hook} />)
     expect(screen.getByText('lastOut|yesterday')).toBeTruthy()
     fireEvent.click(screen.getByText('title'))
-    expect(screen.getByTestId('model-chip').textContent).toBe(grok.modelId)
+    expect(screen.getByRole('button', { name: 'label' }).textContent).toContain(
+      grok.label,
+    )
     // Grok 才有 X；她常去的网址也列出来。
     expect(screen.getByText('sourceX')).toBeTruthy()
     expect(screen.getByText('zhihu.com')).toBeTruthy()
@@ -124,7 +149,7 @@ describe('OutingCard', () => {
 
   it('点「自动」清掉来源和网址；自定点数夹在上下限之间', async () => {
     const hook = hookOf({ running: null, recent: [run()], frequentSites: [] })
-    render(<OutingCard growth={hook} />)
+    renderCard(<OutingCard growth={hook} />)
     fireEvent.click(screen.getByText('title'))
     fireEvent.click(screen.getByText('auto'))
     fireEvent.click(screen.getByText('custom'))
@@ -145,7 +170,7 @@ describe('OutingCard', () => {
       recent: [run({ model: gemini.modelId, sources: [], sites: [] })],
       frequentSites: [],
     })
-    render(<OutingCard growth={hook} />)
+    renderCard(<OutingCard growth={hook} />)
     fireEvent.click(screen.getByText('title'))
     // 自动 = 全部来源：B 站、YouTube 有开关（Gemini 没有 X）。
     const switches = screen.getAllByRole('switch')
@@ -188,7 +213,7 @@ describe('OutingCard', () => {
 
   it('别家模型：YouTube 开关灰着（换 Gemini 才能看）', () => {
     const hook = hookOf({ running: null, recent: [run()], frequentSites: [] })
-    render(<OutingCard growth={hook} />)
+    renderCard(<OutingCard growth={hook} />)
     fireEvent.click(screen.getByText('title'))
     fireEvent.click(screen.getByText('auto'))
     expect(screen.getByText('hint.youtubeNeedsGemini')).toBeTruthy()
@@ -208,7 +233,7 @@ describe('OutingCard', () => {
       recent: [],
       frequentSites: [],
     })
-    render(<OutingCard growth={hook} />)
+    renderCard(<OutingCard growth={hook} />)
     expect(screen.getByText('looking|sourceBilibili,古籍修复')).toBeTruthy()
     expect(screen.getByText(/points\|12,30/)).toBeTruthy()
     fireEvent.click(screen.getByText('stop'))
@@ -216,7 +241,7 @@ describe('OutingCard', () => {
   })
 
   it('从没出过门：写「还没出过门」', () => {
-    render(
+    renderCard(
       <OutingCard
         growth={hookOf({ running: null, recent: [], frequentSites: [] })}
       />,

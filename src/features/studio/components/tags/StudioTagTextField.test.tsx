@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 beforeEach(() => {
@@ -12,38 +12,18 @@ beforeEach(() => {
 })
 afterEach(() => vi.unstubAllGlobals())
 
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
-}))
-// 补全的词库是 5 万行的生成文件，组件测里只关心「选中一条会落一格」。
-vi.mock('@/lib/prompt-tag-search', () => ({
-  searchPromptTags: ({ query }: { query: string }) =>
-    query.startsWith('1g')
-      ? [
-          {
-            tag: {
-              id: 'danbooru:1girl',
-              promptText: '1girl',
-              label: '1girl',
-              popularity: 50,
-            },
-            score: 1,
-            isSelected: false,
-          },
-        ]
-      : [],
-}))
-
+// 补全走真词库（`searchPromptTags`）；只假 NovelAI 官方补全那一跳网络。
 vi.mock('@/lib/api-client/novelai-tags', () => ({
   getNovelAiTagSuggestionsAPI: vi.fn(),
 }))
 import { getNovelAiTagSuggestionsAPI } from '@/lib/api-client/novelai-tags'
+import { message as M, renderWithApp } from '@/test/app-harness'
 import { StudioTagTextField } from './StudioTagTextField'
 import type { TagChip } from '@/types/tag-composer'
 
 function setup(chips: TagChip[] = [], onLookup?: (chip: TagChip) => void) {
   const onChange = vi.fn()
-  const utils = render(
+  const utils = renderWithApp(
     <StudioTagTextField
       label="positiveLabel"
       polarity="positive"
@@ -267,7 +247,7 @@ describe('official NAI completion', () => {
       ],
     })
     const onChange = vi.fn()
-    render(
+    renderWithApp(
       <StudioTagTextField
         modelId="nai-diffusion-5-curated"
         label="official"
@@ -282,7 +262,13 @@ describe('official NAI completion', () => {
     fireEvent.focus(input)
     type(input, 'denia')
     await waitFor(() =>
-      expect(screen.getByText('officialTagsSource')).toBeInTheDocument(),
+      expect(
+        screen.getByText((content) =>
+          content.startsWith(
+            M('StudioTags.officialTagsSource').split('{model}')[0]!,
+          ),
+        ),
+      ).toBeInTheDocument(),
     )
     fireEvent.keyDown(input, { key: 'ArrowDown' })
     fireEvent.keyDown(input, { key: 'Enter' })
@@ -295,7 +281,7 @@ describe('official NAI completion', () => {
       new Error('UPSTREAM_ERROR'),
     )
     const onChange = vi.fn()
-    render(
+    renderWithApp(
       <StudioTagTextField
         modelId="nai-diffusion-5-curated"
         label="offline"
@@ -310,7 +296,9 @@ describe('official NAI completion', () => {
     fireEvent.focus(input)
     type(input, '1gi')
     await waitFor(() =>
-      expect(screen.getByText('officialTagsError')).toBeInTheDocument(),
+      expect(
+        screen.getByText(M('StudioTags.officialTagsError')),
+      ).toBeInTheDocument(),
     )
     expect(input).toHaveAttribute('aria-expanded', 'false')
     expect(onChange).toHaveBeenLastCalledWith([{ text: '1gi', weight: 1 }])

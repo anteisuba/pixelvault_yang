@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useState } from 'react'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -11,36 +11,6 @@ import { AssetFolderSidebar, type AssetFolderScope } from './AssetFolderSidebar'
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
-
-// Radix 菜单在 jsdom 里开不起来：换成「受控 open 就把内容画出来」的最小替身。
-vi.mock('@/components/ui/dropdown-menu', async () => {
-  const React = await import('react')
-  const OpenContext = React.createContext(false)
-  type Slot = { children?: ReactNode }
-  return {
-    DropdownMenu: ({ open, children }: Slot & { open?: boolean }) => (
-      <OpenContext.Provider value={Boolean(open)}>
-        {children}
-      </OpenContext.Provider>
-    ),
-    DropdownMenuTrigger: ({ children }: Slot) => <>{children}</>,
-    DropdownMenuContent: ({ children }: Slot) =>
-      React.useContext(OpenContext) ? <div role="menu">{children}</div> : null,
-    DropdownMenuItem: ({
-      children,
-      onSelect,
-    }: Slot & { onSelect?: () => void }) => (
-      <div role="menuitem" onClick={() => onSelect?.()}>
-        {children}
-      </div>
-    ),
-    DropdownMenuSeparator: () => null,
-    DropdownMenuShortcut: ({ children }: Slot) => <span>{children}</span>,
-    DropdownMenuSub: ({ children }: Slot) => <div>{children}</div>,
-    DropdownMenuSubTrigger: ({ children }: Slot) => <div>{children}</div>,
-    DropdownMenuSubContent: ({ children }: Slot) => <div>{children}</div>,
-  }
-})
 
 function folder(id: string, name: string, parentId: string | null = null) {
   return {

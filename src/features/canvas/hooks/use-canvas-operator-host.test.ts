@@ -13,7 +13,9 @@ vi.mock('next-intl', () => ({
   useLocale: () => 'zh',
 }))
 
-const mockLibraryCards = vi.hoisted(() => ({ value: [] as unknown[] }))
+const mockLibraryCards = vi.hoisted(() => ({
+  value: [] as CharacterCardRecord[],
+}))
 const deleteAssistantMemoryAPI = vi.hoisted(() => vi.fn())
 const deleteProjectRuleAPI = vi.hoisted(() => vi.fn())
 const revertAssistantAssetWriteAPI = vi.hoisted(() => vi.fn())
@@ -27,11 +29,15 @@ vi.mock('@/i18n/navigation', () => ({
 vi.mock('@/lib/api-client/assistant-operator', () => ({
   revertAssistantAssetWriteAPI,
 }))
-vi.mock('@/features/cards/hooks/use-character-library', () => ({
-  useCharacterLibrary: () => ({
-    cards: mockLibraryCards.value,
-    loaded: true,
-    find: () => null,
+/**
+ * 角色库是真 `useCharacterLibrary`（模块级一份，挂上就拉一次）；只假它拉的那条接口。
+ * ⚠ 那份库跨用例常驻：塞过卡的那一例收尾要换回空的、再拉一次。
+ */
+vi.mock('@/lib/api-client/cards', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api-client/cards')>()),
+  listCharacterCardsAPI: async () => ({
+    success: true,
+    data: mockLibraryCards.value,
   }),
 }))
 
@@ -43,6 +49,8 @@ import {
   applyInverseV4,
   applyNodeAssistantOpV4,
 } from '@/lib/node-assistant-op-apply-v4'
+import { characterCardFixture } from '@/test/studio-harness'
+import type { CharacterCardRecord } from '@/types'
 import type {
   NodeV4,
   NodeWorkflowEdgeV4,
@@ -272,46 +280,30 @@ describe('canvas assistant image references', () => {
     return { ...hook, applyOp }
   }
 
-  it('快照带上角色库：画布上的那位标 onCanvas 并带设定，其余只有名字', () => {
+  it('快照带上角色库：画布上的那位标 onCanvas 并带设定，其余只有名字', async () => {
+    const look = (description: string | null) =>
+      [
+        {
+          id: 'look',
+          label: null,
+          isDefault: true,
+          description,
+          tags: [],
+          referenceSlots: [],
+        },
+      ] as unknown as CharacterCardRecord['looks']
     mockLibraryCards.value = [
-      {
+      characterCardFixture({
         id: 'denia',
         name: 'Denia',
-        looks: [
-          {
-            id: 'look',
-            label: null,
-            isDefault: true,
-            description: '粉发红眼',
-            tags: [],
-            referenceSlots: [],
-          },
-        ],
-        persona: null,
-        workOverride: null,
-        summary: null,
-        tavern: null,
-        generationCount: 0,
-      },
-      {
+        looks: look('粉发红眼'),
+      }),
+      characterCardFixture({
         id: 'rixi',
         name: 'Rixi',
-        looks: [
-          {
-            id: 'look',
-            label: null,
-            isDefault: true,
-            description: null,
-            tags: [],
-            referenceSlots: [],
-          },
-        ],
-        persona: null,
-        workOverride: null,
-        summary: null,
-        tavern: null,
+        looks: look(null),
         generationCount: 3,
-      },
+      }),
     ]
     const placed = {
       ...image('c_1'),
@@ -321,9 +313,15 @@ describe('canvas assistant image references', () => {
         characterId: 'denia',
       },
     } as NodeV4
-    const { result } = setup([placed])
+    const { result, rerender } = setup([placed])
+    // 库那一趟回来（微任务）。
+    await act(async () => {})
+    rerender({ nodes: [placed], projectId: 'project-a' })
     const characters = result.current.buildSnapshot().canvas?.characters
+    // 换回空库，再挂一次让模块里那份也拉成空的（别漏给后面的用例）。
     mockLibraryCards.value = []
+    setup([])
+    await act(async () => {})
     expect(characters?.total).toBe(2)
     expect(characters?.list[0]).toMatchObject({
       name: 'Denia',

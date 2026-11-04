@@ -2,6 +2,8 @@ import { useMemo, useState, type ReactNode } from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
+import { StudioLibraryPickProvider } from '@/contexts/studio-library-pick'
+
 import {
   LoraPickSelectionProvider,
   type LoraPickEntry,
@@ -17,9 +19,9 @@ vi.mock('next-intl', () => ({
         : `${namespace}:${key}`,
 }))
 
-const handoff = vi.hoisted(() => ({ value: null as (() => void) | null }))
-vi.mock('@/contexts/studio-library-pick', () => ({
-  useLoraBenchHandoff: () => handoff.value,
+const routerPush = vi.hoisted(() => vi.fn())
+vi.mock('@/i18n/navigation', () => ({
+  useRouter: () => ({ push: routerPush, replace: vi.fn() }),
 }))
 
 function PickHarness({ children }: { children: ReactNode }) {
@@ -107,10 +109,12 @@ describe('LoraLibraryTile（挑选框 ui-spec ㉔）', () => {
   })
 
   it('LoRA 台没开：「更多」里写「去 LoRA 台用」，已挂的也能点', () => {
-    handoff.value = vi.fn()
     const onMount = vi.fn()
+    // 外壳里、没有 LoRA 台登记 = 从左栏进的库。
     render(
-      <LoraLibraryTile {...base} mounted onOpen={vi.fn()} onMount={onMount} />,
+      <StudioLibraryPickProvider>
+        <LoraLibraryTile {...base} mounted onOpen={vi.fn()} onMount={onMount} />
+      </StudioLibraryPickProvider>,
     )
     fireEvent.keyDown(
       screen.getByRole('button', { name: 'LoraWorkbench.browse:more' }),
@@ -122,6 +126,5 @@ describe('LoraLibraryTile（挑选框 ui-spec ㉔）', () => {
       }),
     )
     expect(onMount).toHaveBeenCalled()
-    handoff.value = null
   })
 })

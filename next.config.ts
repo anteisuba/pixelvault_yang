@@ -50,16 +50,40 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: PROJECT_ROOT,
   // Vercel stores a copy of every retained deployment's function bundle
   // (Function Storage quota), so keep files that can never run there out of
-  // the trace: sharp's musl/wasm builds (Vercel Functions run on glibc x64)
-  // and shiki, which code-block.tsx only imports inside useEffect.
+  // the trace: sharp (server code no longer imports it since 2026-11-03 —
+  // pixels go through @cf-wasm/photon, and `images.unoptimized` keeps Next's
+  // own optimizer off) and shiki, which code-block.tsx only imports inside
+  // useEffect.
   outputFileTracingExcludes: {
     '*': [
-      'node_modules/@img/sharp-libvips-linuxmusl-*/**',
-      'node_modules/@img/sharp-linuxmusl-*/**',
-      'node_modules/@img/sharp-wasm32/**',
+      'node_modules/sharp/**',
+      'node_modules/@img/**',
       'node_modules/shiki/**',
       'node_modules/@shikijs/**',
     ],
+  },
+  // Same reason for the webpack build (the Cloudflare/OpenNext build uses
+  // webpack): shiki never runs on the server, but Next lists it as a server
+  // external, so every page bundle keeps an `import("shiki")` that OpenNext
+  // then inlines (~9 MB of grammars) into the Worker. Turn it into an empty
+  // object on the server instead; code-block.tsx only loads it in useEffect.
+  webpack(config, { isServer }) {
+    if (isServer) {
+      const externals = Array.isArray(config.externals)
+        ? config.externals
+        : [config.externals].filter(Boolean)
+      config.externals = [
+        (
+          { request }: { request?: string },
+          callback: (error?: Error | null, result?: string) => void,
+        ) =>
+          request === 'shiki' || request?.startsWith('@shikijs/')
+            ? callback(null, 'var {}')
+            : callback(),
+        ...externals,
+      ]
+    }
+    return config
   },
   turbopack: {
     root: PROJECT_ROOT,

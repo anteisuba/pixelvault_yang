@@ -15,6 +15,8 @@ import {
 import type { EvidenceItem } from '@/types/research'
 import { isStyleMediumTag } from '@/lib/tag-lookup'
 import { withinBudget } from '@/lib/within-budget'
+import { CircuitOpenError } from '@/lib/circuit-breaker'
+import { ApiRequestError } from '@/lib/errors'
 import {
   findTagsByLocalName,
   findTagsByMeaning,
@@ -23,6 +25,7 @@ import {
 import {
   clampExcerpt,
   getResearchBreaker,
+  ResearchSourceError,
   evidenceId,
   evidenceTier,
   researchFetchJson,
@@ -921,9 +924,23 @@ export async function searchDanbooruTags(
 export async function fetchDanbooruCatalog(
   query: DanbooruCatalogQuery,
 ): Promise<DanbooruCatalog> {
-  const catalog = await getResearchBreaker(RESEARCH_SOURCE_IDS.danbooru).call(
-    () => readDanbooruCatalog(query),
-  )
+  const catalog = await getResearchBreaker(RESEARCH_SOURCE_IDS.danbooru)
+    .call(() => readDanbooruCatalog(query))
+    .catch((error: unknown) => {
+      // Danbooru 那边没回 / 熔断开着 = 对方不可用（503），⛔ 当成自家 500。
+      if (
+        error instanceof ResearchSourceError ||
+        error instanceof CircuitOpenError
+      ) {
+        throw new ApiRequestError(
+          'DANBOORU_UNAVAILABLE',
+          503,
+          'errors.danbooruCatalog.unavailable',
+          'Danbooru did not answer. Try again in a moment.',
+        )
+      }
+      throw error
+    })
   return query.preview ? catalog : withLocalNames(catalog)
 }
 

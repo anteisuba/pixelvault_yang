@@ -1,15 +1,16 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
-import { NextIntlClientProvider } from 'next-intl'
+/**
+ * L2b：公开画廊连真 `useGallery`（真筛选、真翻页、真缓存），只假网络（`/api/images`）。
+ * 断言界面上的字、发出去的请求带了什么筛选、地址栏同步成什么。
+ */
+import { act, fireEvent, screen, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { GalleryFeed } from '@/features/gallery/components/GalleryFeed'
-import { useGallery, type GalleryFilters } from '@/hooks/use-gallery'
+import type { GalleryFilters } from '@/hooks/use-gallery'
+import { clearGalleryCache } from '@/lib/gallery-cache'
 import { FAKE_GENERATION } from '@/test/api-helpers'
+import { fakeServer, message, renderWithApp } from '@/test/app-harness'
 import type { GenerationRecord } from '@/types'
-
-vi.mock('@/hooks/use-gallery', () => ({
-  useGallery: vi.fn(),
-}))
 
 vi.mock('@clerk/nextjs', () => ({
   useAuth: () => ({ isSignedIn: true }),
@@ -28,7 +29,7 @@ vi.mock('@/i18n/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
 }))
 
-const mockUseGallery = vi.mocked(useGallery)
+const en = (path: string) => message(path, 'en')
 
 const DEFAULT_FILTERS: GalleryFilters = {
   search: '',
@@ -40,91 +41,6 @@ const DEFAULT_FILTERS: GalleryFilters = {
   published: false,
   projectId: '',
   provider: '',
-}
-
-const MESSAGES = {
-  GalleryPage: {
-    feedEyebrow: 'Public gallery',
-    viewLabel: 'Gallery view',
-    viewPrompts: 'Prompts',
-    emptyTitle: 'No works yet',
-    emptyDescription: 'Nothing matches this view.',
-    emptyAction: 'Create',
-    feedLabel: 'Gallery feed',
-    itemFallbackLabel: 'Untitled generation',
-    loadMore: 'Load more',
-    filters: {
-      tabs: {
-        all: 'All',
-        favorites: 'Liked',
-      },
-      type: {
-        image: 'Images',
-        video: 'Videos',
-        audio: 'Audio',
-        model_3d: '3D',
-      },
-      sortLabel: 'Sort',
-      sort: { newest: 'Newest first', oldest: 'Oldest first' },
-      searchLabel: 'Search',
-      searchPlaceholder: 'Search prompts',
-      signInToFavorite: 'Sign in to view favorites',
-    },
-    viewer: {
-      label: 'Gallery viewer',
-      close: 'Close viewer',
-      thumb: 'Image {n}',
-      previous: 'Previous image',
-      next: 'Next image',
-      remix: 'Recreate',
-      more: 'More',
-      promptPrivate: 'Private',
-      negative: 'Negative',
-      publishedAt: 'Published',
-      copy: 'Copy',
-      copied: 'Copied',
-      copyFailed: "Couldn't copy",
-      expand: 'Show all',
-      collapse: 'Show less',
-      openOriginal: 'Open original',
-      linkCopied: 'Link copied',
-      references: 'References used',
-      referenceAlt: 'Reference {n}',
-    },
-  },
-  GalleryCard: {
-    openImage: 'Open image',
-    openVideo: 'Open video',
-    like: 'Like',
-    unlike: 'Unlike',
-    download: 'Download',
-    creatorProfileLabel: 'View {name} profile',
-    referenceImageLabel: 'Reference',
-    modelLabel: 'Model',
-  },
-  ImageDetail: {
-    title: 'Details',
-    promptLabel: 'Prompt',
-    dimensionsLabel: 'Size',
-    shareLink: 'Share',
-    shareFailed: 'Share failed',
-    savePromptTemplate: 'Save as template',
-    download: 'Download',
-    downloading: 'Downloading',
-    downloadFailed: 'Download failed',
-    copyPrompt: 'Copy prompt',
-  },
-  Models: {},
-  Errors: {},
-  Feedback: {
-    slowLoading: 'Slow connection — still loading',
-    batchFailed: "Couldn't load this batch",
-    retry: 'Retry',
-    retrying: 'Retrying',
-    loadingMore: 'Loading more',
-    endOfList: "That's everything",
-    pageLoadFailedHint: 'Nothing will be lost.',
-  },
 }
 
 function work(id: string): GenerationRecord {
@@ -139,202 +55,248 @@ function work(id: string): GenerationRecord {
   } as GenerationRecord
 }
 
-function renderFeed() {
-  return render(
-    // 模型目录的名字不在这份假消息里：缺的消息退回 key，不刷屏。
-    <NextIntlClientProvider locale="en" messages={MESSAGES} onError={() => {}}>
-      <GalleryFeed
-        initialGenerations={[]}
-        initialPage={1}
-        initialHasMore={false}
-        initialNextCursor={null}
-        total={0}
-        initialFilters={DEFAULT_FILTERS}
-      />
-    </NextIntlClientProvider>,
+type Reply = {
+  status?: number
+  generations?: GenerationRecord[]
+  hasMore?: boolean
+}
+
+/** `/api/images` 的每一发请求按顺序领一个回答；`hold()` 让它悬着直到 `release`。 */
+function galleryServer() {
+  const queries: URLSearchParams[] = []
+  const replies: Array<Reply | Promise<Reply>> = []
+  fakeServer().on('GET', '/api/images', async (request) => {
+    queries.push(request.nextUrl.searchParams)
+    const reply = await (replies.shift() ?? { generations: [] })
+    if (reply.status && reply.status >= 400) {
+      return Response.json(
+        { success: false, error: 'boom' },
+        { status: reply.status },
+      )
+    }
+    const generations = reply.generations ?? []
+    return Response.json({
+      success: true,
+      data: {
+        generations,
+        page: Number(request.nextUrl.searchParams.get('page')),
+        limit: 24,
+        total: generations.length,
+        hasMore: reply.hasMore ?? false,
+        nextCursor: reply.hasMore ? 'next' : null,
+      },
+    })
+  })
+  return {
+    queries,
+    reply(value: Reply) {
+      replies.push(value)
+    },
+    hold() {
+      let release!: (value: Reply) => void
+      replies.push(new Promise<Reply>((resolve) => (release = resolve)))
+      return (value: Reply) => act(async () => release(value))
+    },
+  }
+}
+
+/** 无限滚动的哨兵：测试里手动「滚到底」。 */
+let reachBottom: () => void = () => {}
+
+function renderFeed(
+  initial: {
+    generations?: GenerationRecord[]
+    hasMore?: boolean
+    filters?: Partial<GalleryFilters>
+  } = {},
+) {
+  const generations = initial.generations ?? []
+  return renderWithApp(
+    <GalleryFeed
+      initialGenerations={generations}
+      initialPage={1}
+      initialHasMore={initial.hasMore ?? false}
+      initialNextCursor={initial.hasMore ? 'c1' : null}
+      total={generations.length}
+      initialFilters={{ ...DEFAULT_FILTERS, ...initial.filters }}
+    />,
+    { locale: 'en' },
   )
 }
 
-function mockGalleryState(
-  overrides: Partial<ReturnType<typeof useGallery>> = {},
-) {
-  const setFilters = vi.fn()
-  mockUseGallery.mockReturnValue({
-    generations: [],
-    total: 0,
-    isLoading: false,
-    hasLoaded: true,
-    hasMore: false,
-    error: null,
-    appendError: null,
-    retry: vi.fn(),
-    retryLoadMore: vi.fn(),
-    filters: DEFAULT_FILTERS,
-    setFilters,
-    loadMore: vi.fn(),
-    sentinelRef: { current: null },
-    removeGeneration: vi.fn(),
-    removeGenerations: vi.fn(),
-    prependGeneration: vi.fn(),
-    insertGeneration: vi.fn(),
-    updateGeneration: vi.fn(),
-    ...overrides,
-  })
-  return { setFilters }
-}
-
-describe('GalleryFeed', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    window.history.pushState(null, '', '/zh/gallery')
-    // jsdom 没有这两个 API：瀑布流量列宽、缩略轨把当前那一张滚到中间用的。
-    globalThis.ResizeObserver = class {
+beforeEach(() => {
+  clearGalleryCache()
+  window.history.pushState(null, '', '/zh/gallery')
+  globalThis.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+  vi.stubGlobal(
+    'IntersectionObserver',
+    class {
+      constructor(callback: IntersectionObserverCallback) {
+        reachBottom = () =>
+          act(() =>
+            callback(
+              [{ isIntersecting: true } as IntersectionObserverEntry],
+              this as never,
+            ),
+          )
+      }
       observe() {}
       unobserve() {}
       disconnect() {}
-    }
-    Element.prototype.scrollIntoView = vi.fn()
-  })
+    },
+  )
+  Element.prototype.scrollIntoView = vi.fn()
+})
 
-  it('shows still gray blocks (not the empty state) while a filter switch loads', () => {
-    mockGalleryState({ generations: [], isLoading: true })
+afterEach(() => vi.unstubAllGlobals())
 
-    renderFeed()
+/** 画廊顶上那排类型标签（ui-spec §9：全部 · 图片 · 视频 · 音频 · 3D）。 */
+function pickVideos() {
+  fireEvent.click(
+    screen.getByRole('tab', { name: en('GalleryPage.filters.type.video') }),
+  )
+}
 
-    const skeleton = screen.getByTestId('gallery-skeleton')
-    expect(skeleton.querySelector('.animate-pulse')).toBeNull()
-    expect(screen.queryByText('No works yet')).not.toBeInTheDocument()
-  })
+describe('GalleryFeed', () => {
+  it('换筛选时：地址栏同步、请求带上筛选、加载中是静止灰块（不是空态），回来空的才出空态', async () => {
+    const server = galleryServer()
+    const release = server.hold()
+    renderFeed({ generations: [work('a')] })
 
-  it('uses the unified error template when the whole page fails', () => {
-    const retry = vi.fn()
-    mockGalleryState({ generations: [], error: 'Load failed', retry })
+    pickVideos()
 
-    renderFeed()
-
-    expect(screen.getByTestId('empty-state-error-dot')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
-    expect(retry).toHaveBeenCalledTimes(1)
-  })
-
-  it('appends gray blocks while scrolling, one line on a failed batch, and an end note', () => {
-    mockGalleryState({
-      generations: [work('a')],
-      isLoading: true,
-      hasMore: true,
-    })
-    const { unmount } = renderFeed()
-    expect(screen.getByTestId('feed-tail-loading')).toBeInTheDocument()
-    unmount()
-
-    const retryLoadMore = vi.fn()
-    mockGalleryState({
-      generations: [work('a')],
-      hasMore: true,
-      appendError: 'boom',
-      retryLoadMore,
-    })
-    const second = renderFeed()
-    expect(screen.getByRole('alert')).toHaveTextContent(
-      "Couldn't load this batch",
-    )
-    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
-    expect(retryLoadMore).toHaveBeenCalledTimes(1)
-    second.unmount()
-
-    mockGalleryState({ generations: [work('a')], hasMore: false })
-    renderFeed()
-    expect(screen.getByText("That's everything")).toBeInTheDocument()
-  })
-
-  it('renders a single public gallery heading', () => {
-    mockGalleryState()
-
-    renderFeed()
-
-    expect(
-      screen.getByRole('heading', { level: 1, name: 'Public gallery' }),
-    ).toBeInTheDocument()
-    expect(screen.queryByText('Recent public works')).not.toBeInTheDocument()
-    expect(
-      screen.queryByText('Browse the public archive.'),
-    ).not.toBeInTheDocument()
-  })
-
-  it('syncs filter changes into the current URL', () => {
-    const { setFilters } = mockGalleryState()
-    const replaceState = vi.spyOn(window.history, 'replaceState')
-
-    renderFeed()
-
-    fireEvent.click(screen.getByRole('tab', { name: 'Videos' }))
-
-    expect(replaceState).toHaveBeenCalledWith(
-      window.history.state,
-      '',
+    expect(window.location.pathname + window.location.search).toBe(
       '/zh/gallery?type=video',
     )
-    expect(setFilters).toHaveBeenCalledWith({
-      ...DEFAULT_FILTERS,
-      view: 'images',
-      types: ['video'],
-    })
+    await waitFor(() => expect(server.queries).toHaveLength(1))
+    expect(server.queries[0]!.get('type')).toBe('video')
+    const skeleton = screen.getByTestId('gallery-skeleton')
+    expect(skeleton.querySelector('.animate-pulse')).toBeNull()
+    expect(
+      screen.queryByText(en('GalleryPage.emptyTitle')),
+    ).not.toBeInTheDocument()
+
+    await release({ generations: [] })
+    expect(
+      await screen.findByText(en('GalleryPage.emptyTitle')),
+    ).toBeInTheDocument()
   })
 
-  it('switching back to All also drops filters an old link carried in', () => {
-    const { setFilters } = mockGalleryState({
-      generations: [],
-      total: 0,
-      filters: {
-        ...DEFAULT_FILTERS,
-        types: ['video'],
-        models: ['some-model'],
-        timeRange: 'week',
-      },
-    })
-    const replaceState = vi.spyOn(window.history, 'replaceState')
+  it('整页拉失败走统一错误模板，点重试再拉一次', async () => {
+    const server = galleryServer()
+    server.reply({ status: 500 })
+    server.reply({ generations: [work('b')] })
+    renderFeed({ generations: [work('a')] })
 
+    pickVideos()
+
+    expect(
+      await screen.findByTestId('empty-state-error-dot'),
+    ).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: en('Feedback.retry') }))
+    await waitFor(() =>
+      expect(
+        screen.queryByTestId('empty-state-error-dot'),
+      ).not.toBeInTheDocument(),
+    )
+    expect(server.queries).toHaveLength(2)
+    expect(server.queries[1]!.get('type')).toBe('video')
+  })
+
+  it('滚到底接着拉：拉的时候尾巴是灰块，失败一行字 + 重试，拉完到底一行收尾', async () => {
+    const server = galleryServer()
+    const releaseFirst = server.hold()
+    renderFeed({ generations: [work('a')], hasMore: true })
+
+    reachBottom()
+    expect(await screen.findByTestId('feed-tail-loading')).toBeInTheDocument()
+    expect(server.queries[0]!.get('cursor')).toBe('c1')
+
+    await releaseFirst({ status: 500 })
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      en('Feedback.batchFailed'),
+    )
+    // 已经在屏上的那张不动
+    expect(
+      screen.getAllByRole('link', { name: en('GalleryCard.openImage') }),
+    ).toHaveLength(1)
+
+    server.reply({ generations: [work('b')], hasMore: false })
+    fireEvent.click(screen.getByRole('button', { name: en('Feedback.retry') }))
+
+    expect(
+      await screen.findByText(en('Feedback.endOfList')),
+    ).toBeInTheDocument()
+    expect(
+      screen.getAllByRole('link', { name: en('GalleryCard.openImage') }),
+    ).toHaveLength(2)
+  })
+
+  it('只有一个公开画廊的大标题', () => {
+    galleryServer()
     renderFeed()
 
-    expect(screen.getByText('No works yet')).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: 'Videos' })).toHaveAttribute(
-      'aria-selected',
-      'true',
-    )
-    fireEvent.click(screen.getByRole('tab', { name: 'All' }))
+    expect(
+      screen.getByRole('heading', {
+        level: 1,
+        name: en('GalleryPage.feedEyebrow'),
+      }),
+    ).toBeInTheDocument()
+  })
 
-    expect(replaceState).toHaveBeenCalledWith(
-      window.history.state,
-      '',
+  it('点「全部」连旧链接带进来的筛选一起清掉：地址栏回到干净的、按无筛选重拉', async () => {
+    const server = galleryServer()
+    server.reply({ generations: [work('a')] })
+    renderFeed({
+      filters: { types: ['video'], models: ['some-model'], timeRange: 'week' },
+    })
+
+    expect(screen.getByText(en('GalleryPage.emptyTitle'))).toBeInTheDocument()
+    expect(
+      screen.getByRole('tab', { name: en('GalleryPage.filters.type.video') }),
+    ).toHaveAttribute('aria-selected', 'true')
+    fireEvent.click(
+      screen.getByRole('tab', { name: en('GalleryPage.filters.tabs.all') }),
+    )
+
+    expect(window.location.pathname + window.location.search).toBe(
       '/zh/gallery',
     )
-    expect(setFilters).toHaveBeenCalledWith({
-      ...DEFAULT_FILTERS,
-      view: 'images',
-    })
+    await waitFor(() => expect(server.queries).toHaveLength(1))
+    expect(server.queries[0]!.get('type')).toBeNull()
+    expect(
+      await screen.findAllByRole('link', { name: en('GalleryCard.openImage') }),
+    ).toHaveLength(1)
   })
 
-  it('opens a card in place and holds the page still until it closes', () => {
-    const { setFilters } = mockGalleryState({
-      generations: [work('a'), work('b')],
-      total: 2,
-    })
+  it('点卡就地打开查看器、页面不滚；换筛选就把查看器放下', async () => {
+    const server = galleryServer()
+    server.reply({ generations: [] })
+    renderFeed({ generations: [work('a'), work('b')] })
 
-    renderFeed()
-
-    fireEvent.click(screen.getAllByRole('link', { name: 'Open image' })[0])
+    fireEvent.click(
+      screen.getAllByRole('link', { name: en('GalleryCard.openImage') })[0]!,
+    )
 
     expect(
-      screen.getByRole('dialog', { name: 'Gallery viewer' }),
+      screen.getByRole('dialog', { name: en('GalleryPage.viewer.label') }),
     ).toBeInTheDocument()
-    expect(screen.getByText('prompt of a')).toBeInTheDocument()
+    expect(screen.getAllByText('prompt of a').length).toBeGreaterThan(0)
     expect(document.documentElement.style.overflow).toBe('hidden')
 
-    // 换筛选就把查看器放下，页面重新能滚。
-    fireEvent.click(screen.getByRole('button', { name: 'Liked' }))
-    expect(setFilters).toHaveBeenCalledWith({ ...DEFAULT_FILTERS, liked: true })
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: en('GalleryPage.filters.tabs.favorites'),
+      }),
+    )
+    await waitFor(() => expect(server.queries).toHaveLength(1))
+    expect(server.queries[0]!.get('liked')).toBe('1')
     expect(
-      screen.queryByRole('dialog', { name: 'Gallery viewer' }),
+      screen.queryByRole('dialog', { name: en('GalleryPage.viewer.label') }),
     ).not.toBeInTheDocument()
     expect(document.documentElement.style.overflow).toBe('')
   })

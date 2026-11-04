@@ -25,6 +25,7 @@ import {
   getOpenAiChatBaseUrl,
   type ResolvedLlmTextRoute,
 } from '@/services/llm-text.service'
+import { aiGatewayFetch } from '@/lib/ai-gateway'
 
 /**
  * 新内核的模型接法（接口与搜索调研：/mnt/project-files/assistant-reliability/model-interfaces.md）。
@@ -143,7 +144,11 @@ export function resolveNextModel(
 
 function openAiModel(route: ResolvedLlmTextRoute, modelId: string): NextModel {
   const baseURL = getOpenAiChatBaseUrl(route.providerConfig.baseUrl)
-  const provider = createOpenAI({ apiKey: route.apiKey, baseURL })
+  const provider = createOpenAI({
+    apiKey: route.apiKey,
+    baseURL,
+    fetch: aiGatewayFetch,
+  })
   const official = baseURL === AI_PROVIDER_ENDPOINTS.OPENAI_CHAT
   // 代理端点不一定有 `/responses`，也不一定认档位：照 v3 走 Chat Completions、不发档位。
   if (!official)
@@ -189,6 +194,7 @@ function anthropicModel(
 ): NextModel {
   const provider = createAnthropic({
     apiKey: route.apiKey,
+    fetch: aiGatewayFetch,
     baseURL: trimmedBase(
       route.providerConfig.baseUrl,
       AI_PROVIDER_ENDPOINTS.ANTHROPIC,
@@ -234,7 +240,10 @@ function anthropicModel(
 }
 
 function geminiModel(route: ResolvedLlmTextRoute, modelId: string): NextModel {
-  const provider = createGoogleGenerativeAI({ apiKey: route.apiKey })
+  const provider = createGoogleGenerativeAI({
+    apiKey: route.apiKey,
+    fetch: aiGatewayFetch,
+  })
   const v3Path: NextModel = {
     model: provider(modelId),
     path: 'gemini',
@@ -272,7 +281,11 @@ function deepSeekModel(
     AI_PROVIDER_ENDPOINTS.DEEPSEEK,
   )
   const chatPath: NextModel = {
-    model: createOpenAI({ apiKey: route.apiKey, baseURL: base }).chat(modelId),
+    model: createOpenAI({
+      apiKey: route.apiKey,
+      baseURL: base,
+      fetch: aiGatewayFetch,
+    }).chat(modelId),
     path: 'deepseek-chat',
     nativeTools: {},
     strictTools: false,
@@ -293,6 +306,7 @@ function deepSeekModel(
    */
   const anthropic = createAnthropic({
     apiKey: route.apiKey,
+    fetch: aiGatewayFetch,
     baseURL: `${base.replace(/\/v1$/, '')}/anthropic/v1`,
   })
   return {
@@ -315,7 +329,11 @@ function grokModel(route: ResolvedLlmTextRoute, modelId: string): NextModel {
     route.providerConfig.baseUrl,
     AI_PROVIDER_ENDPOINTS.XAI,
   )
-  const provider = createOpenAI({ apiKey: route.apiKey, baseURL })
+  const provider = createOpenAI({
+    apiKey: route.apiKey,
+    baseURL,
+    fetch: aiGatewayFetch,
+  })
   const official = baseURL === AI_PROVIDER_ENDPOINTS.XAI
   const outputCap = official ? assistantV3VerifiedOutputCap(modelId) : undefined
   // ⚠ grok 的推理关不掉、自己默认 high；⛔ 不发已弃用的 `max_tokens`。

@@ -70,7 +70,11 @@ import {
 import { listNextAssistantMemoriesForPrompt } from '@/features/assistant/services/assistant-memory.service'
 import {
   LLM_TEXT_PROVIDER_ERROR_CODES,
+  isLlmTextNetworkError,
+  isLlmTextUpstreamTimeoutMessage,
   toLlmTextProviderError,
+  toLlmTextUnreachableError,
+  toLlmTextUpstreamTimeoutError,
 } from '@/services/llm-text.service'
 import {
   getHomeChatCharacterId,
@@ -436,6 +440,30 @@ function toProviderError(
     if (classified.errorCode !== LLM_TEXT_PROVIDER_ERROR_CODES.failed)
       return new AssistantModelCallError(classified, provider, modelId)
   }
+  // 没状态码的两类（11-05：别再一律落成「AI 提供商超时」）：
+  //   · 连不上 / 流读到一半连接断了 → 「和 X 的连接断了」，不是 key 的问题；
+  //   · 厂商原话写着超时（流里的 error 事件）→ 「X 那边超时」。
+  // 我们自己的时限（`hardMs`）不走这里：那一层在 `runWithOperatorTimeBudget` 单独报。
+  if (status === undefined && isLlmTextNetworkError(error))
+    return new AssistantModelCallError(
+      toLlmTextUnreachableError({
+        adapterType: provider,
+        modelId,
+        cause: message,
+      }),
+      provider,
+      modelId,
+    )
+  if (status === undefined && isLlmTextUpstreamTimeoutMessage(message))
+    return new AssistantModelCallError(
+      toLlmTextUpstreamTimeoutError({
+        adapterType: provider,
+        modelId,
+        detail: message,
+      }),
+      provider,
+      modelId,
+    )
   const i18nKey = getGenerationErrorI18nKey(message, {
     hasReferenceImage: false,
   })

@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { Agent } from 'undici'
 
 vi.mock('server-only', () => ({}))
 
@@ -100,5 +101,31 @@ describe('aiGatewayFetch（给 AI SDK 的 fetch）', () => {
       },
       { url: 'https://api.deepseek.com/chat/completions', auth: null },
     ])
+  })
+
+  // 11-05：Node fetch 默认流上 300 秒没字节就断（undici bodyTimeout）—— 想得久的模型会被误杀。
+  // 每条助手模型请求都必须带上关掉静默计时的 dispatcher（真断线行为 11-05 用本地脚本实测过）。
+  it('每条请求都带关掉静默断线的 dispatcher（改道与直连都带）', async () => {
+    const dispatchers: unknown[] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async (_url: string, init?: RequestInit & { dispatcher?: unknown }) => {
+          dispatchers.push(init?.dispatcher)
+          return new Response('{}')
+        },
+      ),
+    )
+    vi.stubEnv('CLOUDFLARE_AI_GATEWAY_URL', GATEWAY)
+    await aiGatewayFetch('https://api.deepseek.com/anthropic/v1/messages')
+    vi.stubEnv('CLOUDFLARE_AI_GATEWAY_URL', '')
+    await aiGatewayFetch('https://api.deepseek.com/chat/completions')
+    await aiGatewayFetch(
+      new Request('https://api.deepseek.com/chat/completions'),
+    )
+
+    expect(dispatchers).toHaveLength(3)
+    for (const dispatcher of dispatchers)
+      expect(dispatcher).toBeInstanceOf(Agent)
   })
 })

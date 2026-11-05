@@ -1596,6 +1596,15 @@ export type AssistantOperatorStopReason =
 export const ASSISTANT_OPERATOR_INTERNAL_ERROR_CODE = 'INTERNAL'
 
 /**
+ * 这次请求跑到时间预算硬线（`ASSISTANT_OPERATOR_TIME_BUDGET.hardMs`）时**一步都没跑完**
+ * （owner 11-05：「AI 提供商超时」不准确，要说清原因）。这是**我们**为了赶在 Vercel 杀函数前
+ * 收尾设的线，不是厂商超时 —— 文案说「等了将近 13 分钟没给出结果」。
+ * ⚠ 文案里的「13 分钟」跟着 `hardMs` 走，改 `hardMs` 时三语一起改。
+ */
+export const ASSISTANT_OPERATOR_TIME_BUDGET_ERROR_CODE =
+  'ASSISTANT_TIME_BUDGET_EXHAUSTED'
+
+/**
  * 助手选定的那个模型在它那一家下**没有可用的 key**（owner 2026-10-15：⛔ 换别家的 key 去跑 ——
  * 「会自动扣其他模型的token，用户还不知道」）。这一轮一步都不跑，失败帧带着厂商与型号。
  *
@@ -1657,6 +1666,7 @@ export const ASSISTANT_OPERATOR_ERROR_MESSAGE_KEYS: Readonly<
    * 一个没修的内部错误没有用。
    */
   [ASSISTANT_OPERATOR_INTERNAL_ERROR_CODE]: 'internal',
+  [ASSISTANT_OPERATOR_TIME_BUDGET_ERROR_CODE]: 'timeBudgetExhausted',
   STREAM_INTERRUPTED: 'streamInterrupted',
   EMPTY_STREAM: 'emptyStream',
   UNAUTHORIZED: 'unauthorized',
@@ -1670,13 +1680,20 @@ export const ASSISTANT_OPERATOR_ERROR_MESSAGE_KEYS: Readonly<
 }
 
 /**
- * 助手的模型调用被厂商拒、认得出原因、而且**换个说法就有出路**的两种（帧上带 `provider`）：
- * 点名是哪一家、哪个型号（10-27：Gemini 预付额度用完，界面只说「Agent Key 余额不足」）。
+ * 助手的模型调用失败、认得出原因的几种（帧上带 `provider`）：点名是哪一家、哪个型号
+ * （10-27：Gemini 预付额度用完，界面只说「Agent Key 余额不足」；11-05：504 / 断线 / 厂商
+ * 自己超时都被说成「AI 提供商超时」或「暂时不可用」，分开说）。
  * 码与 `llm-text.service` 的 `LLM_TEXT_PROVIDER_ERROR_CODES` 同值（那边是 server-only）。
  */
 export const ASSISTANT_PROVIDER_ERROR_CODES = {
   insufficientBalance: 'PROVIDER_INSUFFICIENT_BALANCE',
   authFailed: 'PROVIDER_AUTH_FAILED',
+  /** 厂商 / 网关自己报超时（408 / 504 / 524，或原话写着 timed out）。 */
+  upstreamTimeout: 'PROVIDER_UPSTREAM_TIMEOUT',
+  /** 连不上，或连接中途断了。 */
+  unreachable: 'PROVIDER_UNREACHABLE',
+  /** 厂商 5xx / 满载（503 / 529）。 */
+  temporarilyUnavailable: 'PROVIDER_TRANSIENT',
 } as const
 
 export const ASSISTANT_PROVIDER_ERROR_MESSAGE_KEYS: Readonly<
@@ -1684,6 +1701,10 @@ export const ASSISTANT_PROVIDER_ERROR_MESSAGE_KEYS: Readonly<
 > = {
   [ASSISTANT_PROVIDER_ERROR_CODES.insufficientBalance]: 'providerOutOfCredit',
   [ASSISTANT_PROVIDER_ERROR_CODES.authFailed]: 'providerKeyInvalid',
+  [ASSISTANT_PROVIDER_ERROR_CODES.upstreamTimeout]: 'providerTimedOut',
+  [ASSISTANT_PROVIDER_ERROR_CODES.unreachable]: 'providerUnreachable',
+  [ASSISTANT_PROVIDER_ERROR_CODES.temporarilyUnavailable]:
+    'providerUnavailable',
 }
 
 /** 会触发就地确认的字段 —— 只有这两个是「用户手写的自由文本」。 */

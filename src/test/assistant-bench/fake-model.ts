@@ -149,7 +149,7 @@ export function heldModel(
   })
   let calls = 0
   const model = new MockLanguageModelV3({
-    doStream: async () => {
+    doStream: async ({ abortSignal }) => {
       calls += 1
       if (calls > 1)
         return { stream: simulateReadableStream({ chunks: textTurn('…') }) }
@@ -158,7 +158,17 @@ export function heldModel(
           async start(controller) {
             for (const part of before) controller.enqueue(part)
             markStarted()
-            await held
+            // 和真请求一样：被 abort（⏹ / 时间预算硬线）就断流，不再等 `release()`。
+            const aborted = new Promise<'aborted'>((resolve) => {
+              if (abortSignal?.aborted) resolve('aborted')
+              abortSignal?.addEventListener('abort', () => resolve('aborted'), {
+                once: true,
+              })
+            })
+            if ((await Promise.race([held, aborted])) === 'aborted') {
+              controller.error(abortSignal?.reason)
+              return
+            }
             for (const part of after) controller.enqueue(part)
             controller.close()
           },

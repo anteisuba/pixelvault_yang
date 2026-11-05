@@ -16,7 +16,6 @@ import {
 } from '@/constants/config'
 import { ApiRequestError } from '@/lib/errors'
 import { isGifImageUrl, isGifMimeType } from '@/lib/gif-image'
-import { readSseData } from '@/lib/sse'
 import { logger } from '@/lib/logger'
 import { isSvgImageUrl, isSvgMimeType } from '@/lib/svg-image'
 import {
@@ -271,8 +270,15 @@ export const LLM_TEXT_PROVIDER_ERROR_CODES = {
   /** The provider rejected the request because its input context was too long. */
   contextLimitExceeded: 'PROVIDER_CONTEXT_LIMIT_EXCEEDED',
   requestTooLarge: 'PROVIDER_REQUEST_TOO_LARGE',
-  /** We gave up waiting on the provider before the platform killed the function. */
+  /**
+   * **我们自己**等满了 `LLM_TEXT_TIMEOUTS_MS.COMPLETION` 先停下（赶在平台杀函数之前）。
+   * ⚠ 码名沿用历史值，但它不是厂商超时：文案说「等了多久没回完」，⛔ 别说成「提供商超时」。
+   */
   timeout: 'PROVIDER_TIMEOUT',
+  /** 厂商 / 网关**自己**报的超时（HTTP 408 / 504 / 524，或原话写着 timed out）。 */
+  upstreamTimeout: 'PROVIDER_UPSTREAM_TIMEOUT',
+  /** 连不上厂商，或连接中途断了（fetch failed / ECONNRESET / 连接被关）。不是 key 的问题。 */
+  unreachable: 'PROVIDER_UNREACHABLE',
   /**
    * The provider's safety classifiers declined the request (Claude Fable 5.1:
    * HTTP 200 + `stop_reason: 'refusal'`, even after the server-side fallback
@@ -290,7 +296,9 @@ export const LLM_TEXT_PROVIDER_ERROR_I18N_KEYS = {
   outputBudgetExhausted: 'errors.provider.outputBudgetExhausted',
   contextLimitExceeded: 'errors.provider.contextLimitExceeded',
   requestTooLarge: 'errors.provider.requestTooLarge',
-  timeout: 'errors.provider.timeout',
+  timeout: 'errors.provider.waitLimitReached',
+  upstreamTimeout: 'errors.provider.upstreamTimeout',
+  unreachable: 'errors.provider.unreachable',
   refused: 'errors.provider.refused',
 } as const
 
@@ -312,7 +320,11 @@ export const LLM_TEXT_PROVIDER_ERROR_MESSAGES = {
   requestTooLarge:
     "The request exceeds this provider's size limit. Reduce the number or size of attachments, or shorten the text.",
   timeout:
-    'The selected provider did not answer in time. Retry, shorten the conversation, or choose another Agent Key.',
+    'The model did not finish within our 2-minute wait limit, so we stopped it. Retry with a lower reasoning effort, shorter input, or a faster model.',
+  upstreamTimeout:
+    'The provider timed out on its own side (it did not finish within its own limit). This is not a key or settings problem; retry later or switch models.',
+  unreachable:
+    'Could not reach the provider, or the connection dropped mid-way. This is not a key problem; retry in a moment.',
   refused:
     'The selected model declined this request under its content policy. Rephrase the request or choose another Agent Key.',
 } as const
@@ -385,12 +397,24 @@ const LLM_TEXT_NETWORK_ERROR_CODES = new Set([
   'EPIPE',
   'ETIMEDOUT',
   'EAI_AGAIN',
+  'ENOTFOUND',
   'UND_ERR_SOCKET',
+  'UND_ERR_CLOSED',
   'UND_ERR_CONNECT_TIMEOUT',
+  'UND_ERR_BODY_TIMEOUT',
+  'UND_ERR_HEADERS_TIMEOUT',
 ])
 
-/** 连接层断了（fetch failed / ECONNRESET…）—— 没拿到 provider 的任何答复。 */
-function isLlmTextNetworkError(error: unknown): boolean {
+/** 厂商 / 网关自己报超时的状态码：408 请求超时 · 504 网关超时 · 524 Cloudflare 源站超时。 */
+const LLM_TEXT_UPSTREAM_TIMEOUT_STATUSES: ReadonlySet<number> = new Set([
+  408, 504, 524,
+])
+
+/**
+ * 连接层断了（fetch failed / ECONNRESET / 流读到一半 `terminated`…）—— 没拿到 provider 的
+ * 完整答复。AI SDK 把连不上包成 `APICallError('Cannot connect to API: …')`、不带状态码。
+ */
+export function isLlmTextNetworkError(error: unknown): boolean {
   if (!(error instanceof Error) || error instanceof ApiRequestError)
     return false
   if (isAbortError(error)) return false
@@ -403,7 +427,51 @@ function isLlmTextNetworkError(error: unknown): boolean {
   if (typeof code === 'string' && LLM_TEXT_NETWORK_ERROR_CODES.has(code)) {
     return true
   }
-  return error.name === 'TypeError' && /fetch failed/i.test(error.message)
+  if (/^Cannot connect to API\b/.test(error.message)) return true
+  return (
+    error.name === 'TypeError' &&
+    /fetch failed|^terminated$/i.test(error.message)
+  )
+}
+
+/**
+ * 不带状态码、但厂商原话写着超时（流里的 error 事件、网关回的说明）：同 408 / 504 归一类。
+ * ⚠ 调用方先排除自己的 abort 与连接层错误（`isAbortError` / `isLlmTextNetworkError`），
+ *   剩下的「timeout」字样才是厂商说的。
+ */
+export function isLlmTextUpstreamTimeoutMessage(message: string): boolean {
+  return /\btime(?:d)?[\s_-]?out\b|\btimeout\b|deadline[\s_-]?exceeded/i.test(
+    message,
+  )
+}
+
+export function toLlmTextUpstreamTimeoutError(context: {
+  adapterType: AI_ADAPTER_TYPES
+  modelId: string
+  detail: string
+}): ApiRequestError {
+  logger.warn('LLM provider reported a timeout', context)
+  return new ApiRequestError(
+    LLM_TEXT_PROVIDER_ERROR_CODES.upstreamTimeout,
+    LLM_TEXT_PROVIDER_HTTP_STATUS.gatewayTimeout,
+    LLM_TEXT_PROVIDER_ERROR_I18N_KEYS.upstreamTimeout,
+    `${LLM_TEXT_PROVIDER_ERROR_MESSAGES.upstreamTimeout} (model=${context.modelId}, detail=${context.detail.slice(0, 200)})`,
+  )
+}
+
+/** 连不上 / 连接中途断：点名「不是 key 的问题」。 */
+export function toLlmTextUnreachableError(context: {
+  adapterType: AI_ADAPTER_TYPES
+  modelId: string
+  cause: string
+}): ApiRequestError {
+  logger.warn('LLM provider unreachable', context)
+  return new ApiRequestError(
+    LLM_TEXT_PROVIDER_ERROR_CODES.unreachable,
+    LLM_TEXT_PROVIDER_HTTP_STATUS.upstreamFailure,
+    LLM_TEXT_PROVIDER_ERROR_I18N_KEYS.unreachable,
+    `${LLM_TEXT_PROVIDER_ERROR_MESSAGES.unreachable} (model=${context.modelId}, cause=${context.cause.slice(0, 200)})`,
+  )
 }
 
 export type LlmTextRetryReason = 'transient' | 'rate-limited' | 'network'
@@ -417,7 +485,9 @@ export function getLlmTextRetryReason(
 ): LlmTextRetryReason | null {
   if (error instanceof ApiRequestError) {
     if (
-      error.errorCode === LLM_TEXT_PROVIDER_ERROR_CODES.temporarilyUnavailable
+      error.errorCode ===
+        LLM_TEXT_PROVIDER_ERROR_CODES.temporarilyUnavailable ||
+      error.errorCode === LLM_TEXT_PROVIDER_ERROR_CODES.upstreamTimeout
     )
       return 'transient'
     if (error.errorCode === LLM_TEXT_PROVIDER_ERROR_CODES.rateLimited)
@@ -592,7 +662,19 @@ export function toLlmTextProviderError(
     )
   }
 
-  // 5xx 一律算「暂时不可用」（o-llm 重试）：500 / 502 / 504 / 529 是 provider 那头
+  // 厂商 / 网关自己说超时（408 请求超时 · 504 网关超时 · 524 Cloudflare 源站超时）：
+  // 单独一类，文案说清「是它那边没在自己的时限内回完」，⛔ 别和我们自己的等待上限
+  // （`timeout`）或「暂时不可用」混成一句。重试策略与 5xx 相同（见 `getLlmTextRetryReason`）。
+  if (LLM_TEXT_UPSTREAM_TIMEOUT_STATUSES.has(responseStatus)) {
+    return new ApiRequestError(
+      LLM_TEXT_PROVIDER_ERROR_CODES.upstreamTimeout,
+      LLM_TEXT_PROVIDER_HTTP_STATUS.gatewayTimeout,
+      LLM_TEXT_PROVIDER_ERROR_I18N_KEYS.upstreamTimeout,
+      `${LLM_TEXT_PROVIDER_ERROR_MESSAGES.upstreamTimeout} (provider status ${responseStatus}, model=${context.modelId})`,
+    )
+  }
+
+  // 5xx 一律算「暂时不可用」（o-llm 重试）：500 / 502 / 529 是 provider 那头
   // 出事，同一请求稍后重发常常就好；原先落到下面的 `failed` 会叫人「换一把 key」。
   // 501（不支持）除外 —— 重发无益。
   if (

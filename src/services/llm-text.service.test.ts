@@ -2462,7 +2462,7 @@ describe('LLM 文本请求的超时', () => {
     ).rejects.toMatchObject({
       errorCode: 'PROVIDER_TIMEOUT',
       httpStatus: 504,
-      i18nKey: 'errors.provider.timeout',
+      i18nKey: 'errors.provider.waitLimitReached',
     })
   })
 
@@ -2612,7 +2612,7 @@ describe('LLM cancellation and body deadlines', () => {
     const expected = expect(pending).rejects.toMatchObject({
       errorCode: 'PROVIDER_TIMEOUT',
       httpStatus: 504,
-      i18nKey: 'errors.provider.timeout',
+      i18nKey: 'errors.provider.waitLimitReached',
     })
     await flush()
     await vi.advanceTimersByTimeAsync(LLM_TEXT_TIMEOUTS_MS.COMPLETION)
@@ -4786,6 +4786,46 @@ describe('LLM 入口统一重发', () => {
     const pending = llmTextCompletion(base)
     await vi.runAllTimersAsync()
     await expect(pending).resolves.toBe('answer')
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it.each([
+    ['504', 504],
+    ['524', 524],
+    ['408', 408],
+  ])(
+    'completion: %s is the provider timing out on its side — resent once, then reported as upstream timeout (not our wait limit)',
+    async (_label, status) => {
+      const fetchMock = vi
+        .fn()
+        .mockImplementation(async () => new Response('gateway', { status }))
+      vi.stubGlobal('fetch', fetchMock)
+      const pending = llmTextCompletion(base)
+      const assertion = expect(pending).rejects.toMatchObject({
+        errorCode: 'PROVIDER_UPSTREAM_TIMEOUT',
+        httpStatus: 504,
+        i18nKey: 'errors.provider.upstreamTimeout',
+      })
+      await vi.runAllTimersAsync()
+      await assertion
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+    },
+  )
+
+  it('completion: a connection that keeps failing is reported as unreachable, not a raw TypeError', async () => {
+    const fetchMock = vi.fn().mockImplementation(async () => {
+      throw Object.assign(new TypeError('fetch failed'), {
+        cause: { code: 'ECONNRESET' },
+      })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const pending = llmTextCompletion(base)
+    const assertion = expect(pending).rejects.toMatchObject({
+      errorCode: 'PROVIDER_UNREACHABLE',
+      i18nKey: 'errors.provider.unreachable',
+    })
+    await vi.runAllTimersAsync()
+    await assertion
     expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 

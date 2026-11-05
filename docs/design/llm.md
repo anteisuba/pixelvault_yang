@@ -36,7 +36,13 @@
 - 第一次失败来得比 20s 慢也不重发（时限保护）；等待中用户点停止立即收手。
 - 每次尝试各记一行 `llm call`（带 `attempt`），重发另记一行 `llm retry`（原因 / 等多久）。
 - ⛔ 调用方不再各自包传输层重试：视觉结构化输出、Seedance 分镜只重打「输出不合规」和自己的墙钟超时；评审器、助手的 503 重发已拆掉。
-- 超时统一成 `PROVIDER_TIMEOUT`（入口的 `toLlmTextTimeoutError`）；上游错误由 `toLlmTextProviderError` 归类成可翻译的码（11-03 起 5xx 一律算「暂时不可用」，不再叫人换 key）。
+- 上游错误由 `toLlmTextProviderError` 归类成可翻译的码（11-03 起 5xx 算「暂时不可用」，不再叫人换 key）。
+- ⛔ **「超时」按是谁的时限分开说**（owner 2026-11-05：「AI 提供商超时」不准确）：
+  - `PROVIDER_TIMEOUT` = **我们自己**等满 `COMPLETION`（2 分钟）先停（`toLlmTextTimeoutError`），文案「2 分钟内没回完」；
+  - `PROVIDER_UPSTREAM_TIMEOUT` = **厂商 / 网关自己**超时（408 / 504 / 524，或流里原话写着 timed out），重发规则同 5xx；
+  - `PROVIDER_UNREACHABLE` = 连不上或连接中途断（重发一次后仍断），点明「不是 key 的问题」；
+  - 助手那边另有 `ASSISTANT_TIME_BUDGET_EXHAUSTED` = 请求到了时间预算硬线（`hardMs`）一步都没跑完。
+  - 助手模型请求走 `aiGatewayFetch`，带 undici `Agent({ headersTimeout: 0, bodyTimeout: 0 })`：Node fetch 默认流上静默 300 秒就断，会误杀想得久的模型（OpenAI / Grok 的 Responses 不流思考）。
 
 ## 5. 输出校验
 

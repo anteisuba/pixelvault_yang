@@ -48,6 +48,9 @@ const nextConfig: NextConfig = {
     ],
   },
   outputFileTracingRoot: PROJECT_ROOT,
+  // undici：助手模型请求要用它的 Agent 关掉 Node fetch 的 300 秒静默断线（src/lib/ai-gateway.ts）。
+  // 不进打包，运行时从 node_modules 取（静态 require 照常被文件追踪带进函数包）。
+  serverExternalPackages: ['undici'],
   // Vercel stores a copy of every retained deployment's function bundle
   // (Function Storage quota), so keep files that can never run there out of
   // the trace: sharp (server code no longer imports it since 2026-11-03 —

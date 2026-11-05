@@ -457,6 +457,69 @@ describe('新内核主循环', () => {
     })
   })
 
+  it('到了我们自己的时间预算硬线、一步都没跑完：报「时间预算用完」，不说成厂商超时', async () => {
+    const held = heldModel([], textTurn('太晚了。'))
+    fakeModels.main = held.model
+    const pending = run(imageRequest('你好'), {
+      timeBudget: { softMs: 0, hardMs: 50 },
+    })
+    await expect(pending).rejects.toMatchObject({
+      errorCode: 'ASSISTANT_TIME_BUDGET_EXHAUSTED',
+      i18nKey: 'errors.assistant.timeBudgetExhausted',
+    })
+    held.release()
+  })
+
+  // 11-05 owner：「AI 提供商超时」不准确，要说清原因。下面三种原先都会落成那一句或「暂时不可用」。
+  it('厂商 / 网关自己超时（504）：记成厂商那边超时并点名是哪一家，不是「暂时不可用」', async () => {
+    fakeModels.main = scriptedModel([
+      new APICallError({
+        message: 'Gateway Timeout',
+        url: 'https://api.test',
+        requestBodyValues: {},
+        statusCode: 504,
+        isRetryable: false,
+      }),
+    ])
+    const error = await run(imageRequest('你好')).catch(
+      (caught: { toJSON(): unknown }) => caught.toJSON(),
+    )
+    expect(error).toMatchObject({
+      errorCode: 'PROVIDER_UPSTREAM_TIMEOUT',
+      provider: { adapterType: 'deepseek' },
+    })
+  })
+
+  it('连不上 / 连接中途断：记成「连接断了」并点名是哪一家，不是「AI 提供商超时」', async () => {
+    fakeModels.main = scriptedModel([
+      new APICallError({
+        message: 'Cannot connect to API: other side closed',
+        url: 'https://api.test',
+        requestBodyValues: {},
+        isRetryable: false,
+        cause: { code: 'UND_ERR_SOCKET' },
+      }),
+    ])
+    const error = await run(imageRequest('你好')).catch(
+      (caught: { toJSON(): unknown }) => caught.toJSON(),
+    )
+    expect(error).toMatchObject({
+      errorCode: 'PROVIDER_UNREACHABLE',
+      provider: { adapterType: 'deepseek' },
+    })
+  })
+
+  it('流里厂商原话写着超时（没状态码）：记成厂商那边超时', async () => {
+    fakeModels.main = scriptedModel([new Error('upstream request timed out')])
+    const error = await run(imageRequest('你好')).catch(
+      (caught: { toJSON(): unknown }) => caught.toJSON(),
+    )
+    expect(error).toMatchObject({
+      errorCode: 'PROVIDER_UPSTREAM_TIMEOUT',
+      provider: { adapterType: 'deepseek' },
+    })
+  })
+
   it('厂商自己跑的联网：时间线上一行「联网查」，结果留给模型自己读', async () => {
     fakeModels.main = scriptedModel([
       [

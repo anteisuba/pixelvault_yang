@@ -15,7 +15,9 @@ import {
   guardUserPrompt,
   isAbortError,
   isLlmTextAdapter,
+  isLlmTextNetworkError,
   toLlmTextTimeoutError,
+  toLlmTextUnreachableError,
 } from '@/services/llm/llm-core'
 import { geminiTextCompletion } from '@/services/llm/llm-gemini'
 import { openAiTextCompletion } from '@/services/llm/llm-openai'
@@ -33,7 +35,11 @@ export {
   LLM_TEXT_ADAPTERS,
   LLM_TEXT_PROVIDER_ERROR_CODES,
   isLlmTextContextLimitError,
+  isLlmTextNetworkError,
+  isLlmTextUpstreamTimeoutMessage,
   toLlmTextProviderError,
+  toLlmTextUnreachableError,
+  toLlmTextUpstreamTimeoutError,
   resolveLlmTextRoute,
 } from '@/services/llm/llm-core'
 export { getOpenAiChatBaseUrl } from '@/services/llm/llm-openai'
@@ -193,7 +199,16 @@ export async function llmTextCompletion(input: LlmTextInput): Promise<string> {
         })
       }
       const delayMs = retryDelayFor(error, input, attempt, record.startedAt)
-      if (delayMs === null) throw error
+      if (delayMs === null) {
+        // 重发过还是连不上：说清「连不上 / 断了」，⛔ 别把裸 TypeError 抛给界面（会落成「内部错误」）。
+        if (isLlmTextNetworkError(error) && isLlmTextAdapter(input.adapterType))
+          throw toLlmTextUnreachableError({
+            adapterType: input.adapterType,
+            modelId: input.modelId ?? LLM_TEXT_MODELS[input.adapterType],
+            cause: error instanceof Error ? error.message : String(error),
+          })
+        throw error
+      }
       await waitBeforeRetry(delayMs, input.signal)
     }
   }

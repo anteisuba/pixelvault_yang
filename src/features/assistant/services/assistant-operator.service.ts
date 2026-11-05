@@ -100,6 +100,7 @@ import {
   PROJECT_RULE_KIND_IDS,
   PROJECT_RULE_SOURCE_IDS,
   overwriteAnswerId,
+  ASSISTANT_OPERATOR_TIME_BUDGET_ERROR_CODE,
   type ProjectRuleKindId,
 } from '@/constants/assistant-operator'
 import { assistantAdapterSupportsImage } from '@/constants/assistant'
@@ -172,7 +173,6 @@ import {
   ApiRequestError,
   AuthError,
   InsufficientCreditsError,
-  ProviderError,
 } from '@/lib/errors'
 import { AdvancedParamsSchema, type AdvancedParams } from '@/types'
 import { getAssistantPlanVisual } from '@/constants/assistant-plan-visuals'
@@ -12536,10 +12536,12 @@ export async function* runWithOperatorTimeBudget(
   }
   if (terminal || !timedOut()) return
   if (concluded === 0) {
-    throw new ProviderError(
-      'assistant-operator',
-      `One assistant step ran past ${budget.hardMs}ms without finishing.`,
-      { timeout: true },
+    // 是**我们**的时限到了，不是厂商超时（owner 11-05）：单独的码 → 「等了将近 13 分钟没给出结果」。
+    throw new ApiRequestError(
+      ASSISTANT_OPERATOR_TIME_BUDGET_ERROR_CODE,
+      504,
+      'errors.assistant.timeBudgetExhausted',
+      `One assistant step ran past ${budget.hardMs}ms without finishing (our time budget, not a provider timeout).`,
     )
   }
   if (running) {

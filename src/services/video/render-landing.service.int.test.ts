@@ -88,6 +88,67 @@ describe('buildRenderLanding', () => {
   })
 })
 
+/** 视频卡「裁剪」（node-canvas-v2 §4 shot；owner 2026-11-05「服务器落卡」）。 */
+describe('buildRenderLanding · 视频卡裁剪', () => {
+  const TRIM_INPUT = {
+    sourceNodeIds: ['v1'],
+    name: 'v1 · 裁剪',
+    sourceLabel: '来自剪辑台 · v1 · 裁剪',
+    generation: { id: 'gen_trim', url: 'https://cdn.test/renders/p/trim.mp4' },
+  }
+
+  it('落成 video.clip，来源写「裁剪」+ 原卡名字，落在浏览器交上来的位置', () => {
+    const landed = buildRenderLanding(
+      STATE,
+      {
+        ...TRIM_INPUT,
+        trim: { sourceName: 'v1', position: { x: 520, y: 300 } },
+      },
+      { now: NOW },
+    )
+    expect(landed).not.toBeNull()
+    const node = landed!.state.nodes.find((n) => n.id === landed!.nodeId)!
+    expect(node.data.kind).toBe('video')
+    expect(node.data.subtype).toBe('clip')
+    expect(node.data.name).toBe('v1 · 裁剪')
+    expect(node.position).toEqual({ x: 520, y: 300 })
+    expect(currentUrlOf(node)).toBe('https://cdn.test/renders/p/trim.mp4')
+    expect((node.data as { source?: unknown }).source).toEqual({
+      kind: 'trim',
+      label: 'v1',
+    })
+    // 截出来的一段是素材：⛔ 不占镜号。
+    expect('shotNo' in node.data && node.data.shotNo).toBeFalsy()
+  })
+
+  it('从原卡连一条 reference 过去，原卡不动，整份仍是合法 v4', () => {
+    const landed = buildRenderLanding(
+      STATE,
+      { ...TRIM_INPUT, trim: { sourceName: 'v1' } },
+      { now: NOW },
+    )!
+    const edges = landed.state.edges.filter((e) => e.target === landed.nodeId)
+    expect(edges).toHaveLength(1)
+    expect(edges[0]).toMatchObject({ source: 'v1', slot: 'reference' })
+    const original = landed.state.nodes.find((n) => n.id === 'v1')!
+    expect(currentUrlOf(original)).toBe('https://cdn.test/v1.mp4')
+    expect(NodeWorkflowStateV4Schema.safeParse(landed.state).success).toBe(true)
+  })
+
+  it('没交落点（MCP 之类）= 照旧落在来源卡右侧', () => {
+    const landed = buildRenderLanding(
+      STATE,
+      { ...TRIM_INPUT, trim: { sourceName: 'v1' } },
+      { now: NOW },
+    )!
+    const node = landed.state.nodes.find((n) => n.id === landed.nodeId)!
+    expect(node.position).toEqual({
+      x: NODE_V4_CARD.shotCollapsedWidth + 80,
+      y: 40,
+    })
+  })
+})
+
 describe('landRenderOnCanvas', () => {
   let userId: string
   let projectId: string

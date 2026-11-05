@@ -1566,6 +1566,7 @@
         "toolbar": {
           "label": "Video actions",
           "continue": "Continue shot",
+          "trim": "Trim",
           "extract": "Extract frame",
           "more": "More",
           "expand": "Expand"
@@ -1670,6 +1671,10 @@
           "keyEsc": "Esc to cancel",
           "confirm": "Use this frame",
           "confirming": "Extracting…"
+        },
+        "trim": {
+          "rendering": "Trimming…",
+          "failed": "Trim failed. Try again in a moment."
         }
       },
       "connectToShot": {

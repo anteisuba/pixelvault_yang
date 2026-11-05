@@ -1566,6 +1566,7 @@
         "toolbar": {
           "label": "视频操作",
           "continue": "续拍",
+          "trim": "裁剪",
           "extract": "抽帧",
           "more": "更多",
           "expand": "展开"
@@ -1670,6 +1671,10 @@
           "keyEsc": "Esc 取消",
           "confirm": "抽这一帧",
           "confirming": "抽帧中…"
+        },
+        "trim": {
+          "rendering": "裁剪中…",
+          "failed": "裁剪失败了，稍后再试一次。"
         }
       },
       "connectToShot": {

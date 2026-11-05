@@ -18,9 +18,22 @@
  *
  * ⚠ 选区窗里那层黑波形是**整条淡波形的同一份**，靠 `left: -窗左` 平移后被窗口裁掉
  * 两边。⛔ 不另画一条属于选区的波形：两条波对不齐，拖窗时窗里的形状会自己跳。
+ *
+ * ── 视频卡也用这一条（node-canvas-v2 §4 shot，owner 2026-11-03）─────────────
+ * 「与音频裁剪同款」：轨道里画的换成**胶片**（`renderTrack`），试听换成**卡上那只
+ * `<video>`**（`previewRef`）——画面在卡上动、播放头停着时卡上就是手柄那一帧。
+ * 其余（窗 / 手柄 / I O / 空格 / ⌘Z / Esc / 最短选区）一行不分叉：⛔ 不复制一份
+ * 「视频裁剪条」，两份迟早手感对不上。
  */
 
-import { useEffect, useRef, useState } from 'react'
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+  type RefObject,
+} from 'react'
 import { useTranslations } from 'next-intl'
 import { Pause, Play } from '@/components/icons'
 
@@ -43,6 +56,16 @@ export interface AudioTrimPanelProps {
   readonly seed: string
   /** 正在切 / 传（确认键转成禁用）。 */
   readonly busy?: boolean
+  /**
+   * 轨道里画什么（缺省 = 波形）。两层是**同一份**：`faint` 铺满整条轨道、
+   * `selected` 被选区窗裁着看 —— 返回的东西要铺满轨道宽（`trackWidth`）才对得齐。
+   */
+  readonly renderTrack?: (tone: TrimTone) => ReactNode
+  /**
+   * 试听放在外面那只媒体上（视频卡：画面在卡上动）。缺省 = 条内一只隐藏的
+   * `<audio>`。⚠ 那只元素要和面板同时挂着（同一次提交里挂上）。
+   */
+  readonly previewRef?: RefObject<HTMLMediaElement | null>
   onCancel(): void
   onConfirm(range: AudioTrimRange): void
   readonly className?: string
@@ -51,6 +74,12 @@ export interface AudioTrimPanelProps {
 /** 拖的是哪一端。 */
 const TRIM_HANDLE = { start: 'start', end: 'end' } as const
 type TrimHandle = (typeof TRIM_HANDLE)[keyof typeof TRIM_HANDLE]
+
+/** 轨道两层：整条淡的那份、被选区窗裁着看的那份。 */
+export type TrimTone = 'faint' | 'selected'
+
+/** 外部媒体停着时，播放头与它差多少秒才去拨它（拨得太勤会一直解码）。 */
+const PREVIEW_SEEK_EPSILON_SEC = 0.04
 
 /**
  * 这一手正在拖什么。
@@ -80,8 +109,8 @@ function TrimBars({
   style,
 }: {
   readonly bars: readonly number[]
-  readonly tone: 'faint' | 'selected'
-  readonly style?: React.CSSProperties
+  readonly tone: TrimTone
+  readonly style?: CSSProperties
 }) {
   return (
     <div
@@ -111,6 +140,8 @@ export function AudioTrimPanel({
   durationSec,
   seed,
   busy = false,
+  renderTrack,
+  previewRef,
   onCancel,
   onConfirm,
   className,
@@ -142,6 +173,33 @@ export function AudioTrimPanel({
   const bars = buildAudioWaveformBars(seed, NODE_V4_AUDIO_TRIM.barCount)
   /** 秒 → 轨道内像素（⚠ 全条都用像素，窗里那层波形才对得齐柱子）。 */
   const pxOf = (seconds: number) => (total > 0 ? (seconds / total) * track : 0)
+
+  /** 轨道的一层：缺省是波形；给了 `renderTrack` 就画调用方那份（视频卡 = 胶片）。 */
+  const trackLayer = (tone: TrimTone, style: CSSProperties) =>
+    renderTrack ? (
+      <div
+        aria-hidden
+        data-audio-trim-strip={tone}
+        className="pointer-events-none absolute inset-y-0"
+        style={{ width: track, ...style }}
+      >
+        {renderTrack(tone)}
+      </div>
+    ) : (
+      <TrimBars bars={bars} tone={tone} style={style} />
+    )
+
+  /** 试听对着哪只媒体：外面给的优先，否则条内那只隐藏 `<audio>`。 */
+  const mediaOf = (): HTMLMediaElement | null =>
+    previewRef?.current ?? audioRef.current
+
+  /** 只播选区：越过出点就绕回入点（⛔ 不 pause —— 要能反复听那一段）。 */
+  const followMediaTime = (el: HTMLMediaElement) => {
+    if (el.currentTime >= endSec || el.currentTime < startSec) {
+      el.currentTime = startSec
+    }
+    setPlayhead(el.currentTime)
+  }
 
   const secondsAtClientX = (clientX: number): number => {
     const rect = trackRef.current?.getBoundingClientRect()
@@ -253,9 +311,38 @@ export function AudioTrimPanel({
     }
   })
 
+  // 外部媒体（视频卡那只 `<video>`）：播 / 停 / 走时的读数挂监听回来 —— 条内那只
+  // `<audio>` 走 JSX 事件，这只不在本组件里渲染，只能 addEventListener。
+  useEffect(() => {
+    const el = previewRef?.current
+    if (!el) return
+    const onPlay = () => setPlaying(true)
+    const onPause = () => setPlaying(false)
+    const onTime = () => followMediaTime(el)
+    el.addEventListener('play', onPlay)
+    el.addEventListener('pause', onPause)
+    el.addEventListener('timeupdate', onTime)
+    return () => {
+      el.removeEventListener('play', onPlay)
+      el.removeEventListener('pause', onPause)
+      el.removeEventListener('timeupdate', onTime)
+    }
+  })
+
+  // 外部媒体停着时，卡上那一帧跟着播放头走（拖入点 = 看见入点那一帧）。播着的时候
+  // 播放头本来就是它报上来的，差不出阈值，不会自己拨自己。
+  useEffect(() => {
+    if (!previewRef) return
+    const el = mediaOf()
+    if (!el || !el.paused) return
+    if (Math.abs(el.currentTime - playhead) > PREVIEW_SEEK_EPSILON_SEC) {
+      el.currentTime = playhead
+    }
+  })
+
   /** 试听：从入点起播，到出点绕回去（拖完立刻听得出来）。 */
   const togglePreview = () => {
-    const el = audioRef.current
+    const el = mediaOf()
     if (!el) return
     if (!el.paused) {
       el.pause()
@@ -338,7 +425,7 @@ export function AudioTrimPanel({
           }
         }}
       >
-        <TrimBars bars={bars} tone="faint" style={{ left: 0 }} />
+        {trackLayer('faint', { left: 0 })}
         <div
           data-audio-trim-window
           role="group"
@@ -359,11 +446,7 @@ export function AudioTrimPanel({
         >
           {/* 亮窗本体：白底 + 浅影，窗内那层黑波形被它裁掉两边。 */}
           <div className="absolute inset-0 overflow-hidden rounded-sm bg-card shadow-node-trim-window">
-            <TrimBars
-              bars={bars}
-              tone="selected"
-              style={{ left: -windowLeft, width: track }}
-            />
+            {trackLayer('selected', { left: -windowLeft, width: track })}
           </div>
           {[TRIM_HANDLE.start, TRIM_HANDLE.end].map((handle) => {
             const isStart = handle === TRIM_HANDLE.start
@@ -491,22 +574,17 @@ export function AudioTrimPanel({
         </button>
       </div>
 
-      <audio
-        ref={audioRef}
-        src={url}
-        preload="metadata"
-        hidden
-        onPlay={() => setPlaying(true)}
-        onPause={() => setPlaying(false)}
-        onTimeUpdate={(event) => {
-          const el = event.currentTarget
-          // 只播选区：越过出点就绕回入点（⛔ 不 pause —— 要能反复听那一段）。
-          if (el.currentTime >= endSec || el.currentTime < startSec) {
-            el.currentTime = startSec
-          }
-          setPlayhead(el.currentTime)
-        }}
-      />
+      {previewRef ? null : (
+        <audio
+          ref={audioRef}
+          src={url}
+          preload="metadata"
+          hidden
+          onPlay={() => setPlaying(true)}
+          onPause={() => setPlaying(false)}
+          onTimeUpdate={(event) => followMediaTime(event.currentTarget)}
+        />
+      )}
     </div>
   )
 }

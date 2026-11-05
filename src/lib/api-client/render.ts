@@ -4,6 +4,7 @@ import {
   renderJobEndpoint,
   type RenderJobStatusId,
   type RenderStepId,
+  type RenderTrimLanding,
 } from '@/constants/render-video'
 
 import { getErrorPayload } from '@/lib/api-client/shared'
@@ -58,6 +59,8 @@ export async function submitRenderAPI(body: {
   readonly toCanvas: boolean
   /** 成片卡上那行「来源」按它拼（服务端落卡，docs/references/mcp.md §7）。 */
   readonly locale?: string
+  /** 视频卡「裁剪」：成片落成 `video.clip`（缺席 = 剪辑台导出）。 */
+  readonly trim?: RenderTrimLanding
 }): Promise<RenderApiResponse<RenderJobResponse>> {
   try {
     const response = await apiFetch(RENDER_API_ENDPOINTS.SUBMIT, {

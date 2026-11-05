@@ -1566,6 +1566,7 @@
         "toolbar": {
           "label": "動画の操作",
           "continue": "続きを撮る",
+          "trim": "トリム",
           "extract": "フレーム抽出",
           "more": "その他",
           "expand": "展開"
@@ -1670,6 +1671,10 @@
           "keyEsc": "Esc でキャンセル",
           "confirm": "このフレームを使う",
           "confirming": "抽出中…"
+        },
+        "trim": {
+          "rendering": "トリム中…",
+          "failed": "トリムに失敗しました。少し待ってからもう一度お試しください。"
         }
       },
       "connectToShot": {

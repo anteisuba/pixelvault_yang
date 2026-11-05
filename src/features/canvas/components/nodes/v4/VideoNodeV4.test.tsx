@@ -83,6 +83,8 @@ const api = vi.hoisted(() => ({
   submitVideoAPI: vi.fn(),
   checkVideoStatusAPI: vi.fn(),
   cancelGenerationsAPI: vi.fn(),
+  submitRenderAPI: vi.fn(),
+  getRenderJobAPI: vi.fn(),
 }))
 vi.mock('@/lib/api-client', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/api-client')>()),
@@ -327,6 +329,9 @@ const READY = {
 /** 档位和模型都齐、但还没出过片：再按生成就在本卡上出（有片的卡会长新卡，§1 第 18 条）。 */
 const READY_EMPTY = { params: READY.params, model: READY.model }
 
+/** 视频卡「裁剪」的落卡宿主（工作台给的那两样）。 */
+const TRIM_HOST = () => ({ projectId: 'proj_1', refresh: vi.fn() })
+
 describe('空卡 / 有片两态（spec §5）', () => {
   it('空卡是 16:9 虚线框 + 说明与两颗字键，⛔ 没有封面', () => {
     renderVideo(harness([videoNode('v_1')]))
@@ -526,17 +531,32 @@ describe('空卡 / 有片两态（spec §5）', () => {
 
 describe('选中：工具条与批操作', () => {
   // 方向 B（owner 2026-09-29）：第一件事写成带字的黑胶囊 ——视频卡是「续拍」。
-  it('工具条第一键 = 带字的「续拍」，其后 展开 · 抽帧 · 下载 · ⋯', () => {
+  // §4 shot（owner 2026-11-03）：续拍（带字）· 裁剪 · 抽帧 · 展开 · ⋯，下载挪进 ⋯。
+  it('工具条第一键 = 带字的「续拍」，其后 裁剪 · 抽帧 · 展开 · ⋯', () => {
+    renderVideo(
+      harness([videoNode('v_1', READY)], { videoTrim: TRIM_HOST() }),
+      'v_1',
+      true,
+    )
+    const toolbar = screen.getByTestId('flow-toolbar-top')
+    expect(
+      [...toolbar.querySelectorAll('[data-toolbar-action]')].map((element) =>
+        element.getAttribute('data-toolbar-action'),
+      ),
+    ).toEqual(['continue', 'trim', 'extract', 'expand', 'more'])
+    expect(
+      toolbar.querySelector('[data-toolbar-action="continue"]')?.textContent,
+    ).toBe('toolbar.continue')
+  })
+
+  it('宿主没接落卡（预览 / 单测画布）= 不摆「裁剪」', () => {
     renderVideo(harness([videoNode('v_1', READY)]), 'v_1', true)
     const toolbar = screen.getByTestId('flow-toolbar-top')
     expect(
       [...toolbar.querySelectorAll('[data-toolbar-action]')].map((element) =>
         element.getAttribute('data-toolbar-action'),
       ),
-    ).toEqual(['continue', 'expand', 'extract', 'download', 'more'])
-    expect(
-      toolbar.querySelector('[data-toolbar-action="continue"]')?.textContent,
-    ).toBe('toolbar.continue')
+    ).toEqual(['continue', 'extract', 'expand', 'more'])
   })
 
   it('续拍 = 抓末帧 + 一批四条（建末帧图 / 建下一段 / 落首帧 / 接续边），末帧图回填 url', async () => {
@@ -1669,6 +1689,19 @@ describe('双击 = 展开 · 快速看走空格（画板 `VideoRefs.dc.html` 底
     ).not.toBeNull()
   })
 
+  it('⋯ 菜单里有「下载」（从工具条挪进来，有片才给）', async () => {
+    renderVideo(harness([videoNode('v_1', READY)]), 'v_1', true)
+    const more = document.querySelector(
+      '[data-toolbar-action="more"]',
+    ) as HTMLElement
+    fireEvent.pointerDown(more, { button: 0, ctrlKey: false })
+    fireEvent.click(more)
+    await screen.findByText('toolbar.download')
+    expect(
+      document.querySelector('[data-video-more="download"]'),
+    ).not.toBeNull()
+  })
+
   it('⋯「加入剪辑台」：有片时开台并带上这张卡', async () => {
     renderVideo(harness([videoNode('v_1', READY)]), 'v_1', true)
     const openMore = () => {
@@ -2013,5 +2046,115 @@ describe('卡上声音键', () => {
     expect(toggle.getAttribute('data-sound')).toBe('on')
     fireEvent.click(toggle)
     expect(preview.muted).toBe(true)
+  })
+})
+
+describe('卡上裁剪（§4 shot，owner 2026-11-03 / 11-05「服务器落卡」）', () => {
+  const openTrim = () =>
+    fireEvent.click(
+      screen
+        .getByTestId('flow-toolbar-top')
+        .querySelector('[data-toolbar-action="trim"]') as HTMLElement,
+    )
+
+  it('点「裁剪」= 提示词栏换成胶片裁剪条，卡上换成只放选区的 <video>；再点退出', () => {
+    renderVideo(
+      harness([videoNode('v_1', READY)], { videoTrim: TRIM_HOST() }),
+      'v_1',
+      true,
+    )
+    openTrim()
+    expect(document.querySelector('[data-audio-trim-panel]')).not.toBeNull()
+    expect(document.querySelector('[data-prompt-bar-input]')).toBeNull()
+    // 轨道画胶片（整条淡 + 选区窗里原色），⛔ 不是波形。
+    expect(
+      document.querySelector('[data-video-trim-filmstrip="faint"]'),
+    ).not.toBeNull()
+    expect(
+      document.querySelector('[data-video-trim-filmstrip="selected"]'),
+    ).not.toBeNull()
+    expect(document.querySelector('[data-audio-trim-bars]')).toBeNull()
+    expect(document.querySelector('[data-video-trim-preview]')).not.toBeNull()
+    // 裁剪时时长角标让位（画面就是选区）。
+    expect(document.querySelector('[data-video-duration]')).toBeNull()
+
+    openTrim()
+    expect(document.querySelector('[data-audio-trim-panel]')).toBeNull()
+    expect(document.querySelector('[data-prompt-bar-input]')).not.toBeNull()
+  })
+
+  it('确认 = 一段的计划交给渲染层（落卡带名字与 placeBeside 落点），完成后拉一次最新', async () => {
+    api.submitRenderAPI.mockResolvedValueOnce({
+      success: true,
+      data: { jobId: 'r_1', status: 'queued', name: 'v_1 · 裁剪' },
+    })
+    api.getRenderJobAPI.mockResolvedValue({
+      success: true,
+      data: {
+        jobId: 'r_1',
+        status: 'completed',
+        name: 'v_1 · 裁剪',
+        generationId: 'gen_1',
+      },
+    })
+    const host = TRIM_HOST()
+    const onPlaceBeside = vi.fn(() => [{ x: 900, y: 0 }])
+    const context = harness([videoNode('v_1', READY)], {
+      videoTrim: host,
+      onPlaceBeside,
+    })
+    renderVideo(context, 'v_1', true)
+    openTrim()
+    fireEvent.click(
+      document.querySelector('[data-audio-trim-confirm]') as HTMLElement,
+    )
+
+    await waitFor(() => expect(api.submitRenderAPI).toHaveBeenCalledTimes(1))
+    const body = api.submitRenderAPI.mock.calls[0]?.[0]
+    expect(body).toMatchObject({
+      toCanvas: true,
+      locale: 'zh',
+      trim: { sourceName: 'v_1', position: { x: 900, y: 0 } },
+    })
+    expect(body.plan.projectId).toBe('proj_1')
+    expect(body.plan.name).toBe('audio.trim.derivedName:v_1')
+    expect(body.plan.video).toHaveLength(1)
+    expect(body.plan.video[0]).toMatchObject({
+      in: 0,
+      out: 7,
+      sourceNodeId: 'v_1',
+    })
+    // 新卡落在旁边，算法只有一套（§7 摆放 A）：问的是 `video.clip`。
+    expect(onPlaceBeside).toHaveBeenCalledWith('v_1', [
+      { kind: 'video', subtype: 'clip' },
+    ])
+    // ⛔ 浏览器不建卡：落卡是服务端的事。原卡也一帧不动。
+    expect(context.onApplyBatch).not.toHaveBeenCalled()
+    // 提交成功就收起裁剪条，进度走卡边。
+    await waitFor(() =>
+      expect(document.querySelector('[data-audio-trim-panel]')).toBeNull(),
+    )
+    await waitFor(() => expect(host.refresh).toHaveBeenCalledTimes(1), {
+      timeout: 6_000,
+    })
+  }, 10_000)
+
+  it('入队失败：条留着、入出点不丢，也不拉最新', async () => {
+    api.submitRenderAPI.mockResolvedValueOnce({
+      success: false,
+      error: 'too many renders',
+    })
+    const host = TRIM_HOST()
+    const context = harness([videoNode('v_1', READY)], { videoTrim: host })
+    renderVideo(context, 'v_1', true)
+    openTrim()
+    fireEvent.click(
+      document.querySelector('[data-audio-trim-confirm]') as HTMLElement,
+    )
+    await waitFor(() => expect(api.submitRenderAPI).toHaveBeenCalledTimes(1))
+    await act(async () => {})
+    expect(document.querySelector('[data-audio-trim-panel]')).not.toBeNull()
+    expect(host.refresh).not.toHaveBeenCalled()
+    expect(context.onApplyBatch).not.toHaveBeenCalled()
   })
 })

@@ -50,6 +50,7 @@ import {
   NodeV4CanvasProvider,
   type NodeTextDeriveAction,
   type NodeV4CanvasContextValue,
+  type VideoTrimHostApi,
 } from './NodeV4Context'
 
 export interface NodeV4ProviderProps {
@@ -77,6 +78,8 @@ export interface NodeV4ProviderProps {
   onDeriveFromText?(nodeId: string, action: NodeTextDeriveAction): void
   /** 九宫格分镜的切开（§3，`useStoryboardGridSplit`）。 */
   readonly storyboard?: StoryboardSplitApi
+  /** 视频卡「裁剪」的落卡宿主（§4 shot）。 */
+  readonly videoTrim?: VideoTrimHostApi
   readonly children: ReactNode
 }
 
@@ -91,6 +94,7 @@ export function NodeV4Provider({
   onFocusNode,
   onDeriveFromText,
   storyboard,
+  videoTrim,
   children,
 }: NodeV4ProviderProps) {
   const t = useTranslations('StudioNode.v4')
@@ -242,6 +246,7 @@ export function NodeV4Provider({
       onUndo,
       onRedo,
       ...(storyboard ? { storyboard } : {}),
+      ...(videoTrim ? { videoTrim } : {}),
     }),
     [
       engine.nodes,
@@ -275,6 +280,7 @@ export function NodeV4Provider({
       onUndo,
       onRedo,
       storyboard,
+      videoTrim,
     ],
   )
 

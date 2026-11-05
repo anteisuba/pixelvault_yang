@@ -18,6 +18,7 @@ import { AUDIO_CLIP_SOURCE } from '@/constants/audio-options'
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import { NODE_SLOT_IDS } from '@/constants/node-slots'
 import { NODE_V4_CARD } from '@/constants/node-studio'
+import type { RenderTrimLanding } from '@/constants/render-video'
 import {
   NODE_MEDIA_KIND_IDS,
   NODE_V4_VIDEO_SUBTYPE_IDS,
@@ -35,6 +36,10 @@ import type { NodeWorkflowStateV4 } from '@/types/node-workflow'
  * 一次落卡 = 一张 `video.shot`（⛔ 不复活 `video.merge`）+ 每张来源卡连一条
  * `reference`（端口表上唯一收视频的口）+ 成片那一版的来源写 `render`。建卡与连线
  * 走与图引擎同一个批量纯函数，回填走与 `setMedia` 同一个纯函数。
+ *
+ * 视频卡「裁剪」（带 `trim`，owner 2026-11-05）走同一条路，只换三处：落成 `video.clip`
+ * （截出来的一段是素材，不占镜号）、来源写 `trim` + 原卡名字、落点用浏览器交上来的
+ * （画布引擎 `placeBeside` 算的；缺席才回落到这里的「最右来源卡右侧」）。
  */
 
 /** 批内给新卡起的别名（同批的 connect 靠它引用）。 */
@@ -53,6 +58,8 @@ export interface RenderLandingInput {
   readonly name: string
   /** 卡上 ⋯ 那一行只读的「来源」—— 按发起导出时的界面语言拼好。 */
   readonly sourceLabel: string
+  /** 视频卡「裁剪」（缺席 = 剪辑台导出）。 */
+  readonly trim?: RenderTrimLanding
   readonly generation: {
     readonly id: string
     readonly url: string
@@ -88,14 +95,17 @@ export function buildRenderLanding(
   const sources = [...new Set(input.sourceNodeIds)].filter((id) =>
     state.nodes.some((node) => node.id === id),
   )
+  const trim = input.trim
   const ops: NodeAssistantOpV4[] = [
     {
       op: NODE_ASSISTANT_OP_V4_IDS.addNode,
       kind: NODE_MEDIA_KIND_IDS.video,
-      subtype: NODE_V4_VIDEO_SUBTYPE_IDS.shot,
+      subtype: trim
+        ? NODE_V4_VIDEO_SUBTYPE_IDS.clip
+        : NODE_V4_VIDEO_SUBTYPE_IDS.shot,
       ref: CUT_REF,
       name: input.name,
-      position: landingPosition(state, sources),
+      position: trim?.position ?? landingPosition(state, sources),
     },
     ...sources.map(
       (source): NodeAssistantOpV4 => ({
@@ -127,10 +137,12 @@ export function buildRenderLanding(
                 generationId: input.generation.id,
                 // ⚠ 这一版**不是这张卡自己生成的**：没有提示词也没有模型，⋯ 菜单那一行
                 // 只读的「来源」是唯一能回答「这是哪来的」的地方。
-                source: {
-                  kind: AUDIO_CLIP_SOURCE.render,
-                  label: input.sourceLabel,
-                },
+                source: trim
+                  ? { kind: AUDIO_CLIP_SOURCE.trim, label: trim.sourceName }
+                  : {
+                      kind: AUDIO_CLIP_SOURCE.render,
+                      label: input.sourceLabel,
+                    },
               },
               { now: context.now, mintId: mintCanvasId },
             ),

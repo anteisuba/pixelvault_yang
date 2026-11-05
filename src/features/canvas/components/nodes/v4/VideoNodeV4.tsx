@@ -29,17 +29,17 @@
 import { Position } from '@xyflow/react'
 import type { NodeProps } from '@xyflow/react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 
 import { useModelChannelGate } from '@/hooks/use-model-channel-gate'
 import { useEffect, useRef, useState } from 'react'
 import {
   Camera,
-  Download,
   Maximize2,
   MoreHorizontal,
   Pause,
   Play,
+  Scissors,
   StepForward,
   Upload,
   ImageIcon,
@@ -54,6 +54,7 @@ import { getNodeV4Ports, NODE_SLOT_IDS } from '@/constants/node-slots'
 import { cn } from '@/lib/utils'
 import { NODE_SCRIPT_SHOT_STATE_IDS } from '@/constants/node-script'
 import { NODE_V4_CARD } from '@/constants/node-studio'
+import type { RenderPlan } from '@/constants/render-video'
 import { VIDEO_RAIL_GROUP_IDS } from '@/lib/video-node-rail'
 import {
   NODE_MEDIA_KIND_IDS,
@@ -63,6 +64,9 @@ import {
 import { useVideoReferenceSlots } from '@/features/canvas/hooks/use-video-reference-slots'
 import { useRecipeSlashOptions } from '@/features/canvas/hooks/use-recipe-slash-options'
 import { getGeneratingStageKey } from '@/lib/generation-progress'
+import { RenderPlanError } from '@/lib/edit-project'
+import { mintCanvasId } from '@/lib/node-canvas-batch-v4'
+import { buildVideoTrimPlan, type VideoTrimRange } from '@/lib/video-trim-plan'
 import {
   formatShotDisplayName,
   renameStableNodeName,
@@ -89,14 +93,20 @@ import { splitVersionOp, useNodeV4Canvas } from './NodeV4Context'
 import { RetakeAutostartTrigger, revealRetakeCard } from './retake-autostart'
 import { NodeV4ContextMenu } from './NodeV4ContextMenu'
 import { triggerNodeV4Download } from './NodeV4SelectionToolbar'
+import { AudioTrimPanel } from './audio/AudioTrimPanel'
 import { VideoFramePickPanel } from './video/VideoFramePickPanel'
 import { VideoNodeFrame } from './video/VideoNodeFrame'
 import { VideoAddMenuItems, VideoMoreMenuItems } from './video/VideoNodeMenus'
 import { VideoPlayer } from './video/VideoPlayer'
 import { VideoRefRail } from './video/VideoRefRail'
 import { VideoScriptShotBadge } from './video/VideoScriptShotChips'
+import {
+  VideoTrimFilmstrip,
+  videoTrimFrameUrls,
+} from './video/VideoTrimFilmstrip'
 import { useVideoComposer } from './video/use-video-composer'
 import { useVideoContinue } from './video/use-video-continue'
+import { useVideoTrimRender } from './video/use-video-trim-render'
 import { ASSET_BATCH_REF } from './video/use-video-rail-binding'
 import {
   formatVideoSeconds,
@@ -115,6 +125,8 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
   // 这张卡自己的「未选渠道」闸（gateId = 节点 id，与卡上那颗 chip 同一对）。
   const channelGate = useModelChannelGate(NODE_MEDIA_KIND_IDS.video, id)
   const tCapture = useTranslations('VideoAnalysis')
+  const tRender = useTranslations('StudioNode.editDesk.render')
+  const locale = useLocale()
   const canvas = useNodeV4Canvas()
   const frames = useVideoReferenceSlots()
   const continueVideo = useVideoContinue(frames)
@@ -171,6 +183,15 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
   const [pickSec, setPickSec] = useState(0)
   const [pickPlaying, setPickPlaying] = useState(false)
   const pickVideoRef = useRef<HTMLVideoElement | null>(null)
+  /**
+   * 裁剪（node-canvas-v2 §4 shot，owner 2026-11-03）：卡上换成一只只放选区的
+   * `<video>`，提示词栏换成裁剪条。确认后**服务端**渲出一张新的 `video.clip` 落在
+   * 旁边、从原卡连线过去 —— 原卡一帧不动（⛔ 原地截短）。
+   */
+  const [trimming, setTrimming] = useState(false)
+  const trimVideoRef = useRef<HTMLVideoElement | null>(null)
+  /** 原片像素（裁剪那只 `<video>` 的元数据）—— 成片比例与清晰度跟它走。 */
+  const trimSizeRef = useRef<{ width: number; height: number } | null>(null)
   const [previousShowChrome, setPreviousShowChrome] = useState(false)
   /** 画中框与快速看的来处（§1 第 12 条：从卡上长出来、缩回卡）。 */
   const cardRef = useRef<HTMLDivElement>(null)
@@ -258,6 +279,7 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
     setFrameReady(false)
     setPinned(false)
     setPicking(false)
+    setTrimming(false)
   }
 
   /**
@@ -308,6 +330,12 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
   // `/` = 「我的模板」里的视频模板：只落提示词，⛔ 换模型 / 套参数（owner 2026-10-15）。
   const recipeSlash = useRecipeSlashOptions('VIDEO')
 
+  const trimRender = useVideoTrimRender({
+    host: canvas.videoTrim,
+    locale,
+    onError: (message) => toast.error(message || tVideo('trim.failed')),
+  })
+
   if (!node) return null
 
   const expanded = canvas.expandedNodeId === id
@@ -318,7 +346,10 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
   // 卡没选中 / 进了画中框：选帧条跟着收起，⛔ 留一只停住的 `<video>` 在卡上。
   if (showChrome !== previousShowChrome) {
     setPreviousShowChrome(showChrome)
-    if (!showChrome) setPicking(false)
+    if (!showChrome) {
+      setPicking(false)
+      setTrimming(false)
+    }
   }
   const width = NODE_V4_CARD.collapsedWidth
   const height = videoCardHeight(width)
@@ -327,6 +358,8 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
     probedDuration ??
     Number(videoData.params?.duration) ??
     0
+  /** 裁剪条要一个真的时长（⚠ `Number(undefined)` 是 NaN，`??` 拦不住它）。 */
+  const trimDuration = Number.isFinite(durationSeconds) ? durationSeconds : 0
   const effectiveDuration = Number(effectiveParams.duration)
   const frameHeadline = [
     effectiveParams.aspectRatio,
@@ -455,7 +488,57 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
     setPickPlaying(false)
     setPinned(false)
     setHovering(false)
+    setTrimming(false)
     setPicking(true)
+  }
+
+  /** 进裁剪：停住悬停预览，与选帧互斥（提示词栏那一格只换得成一条）。 */
+  const startTrim = () => {
+    frameVideoRef.current?.pause()
+    trimSizeRef.current = null
+    setPinned(false)
+    setHovering(false)
+    setPicking(false)
+    setTrimming(true)
+  }
+
+  /**
+   * 确认裁剪：一段的时间线计划 → 渲染层（与剪辑台导出同一条）→ 服务端落 `video.clip`。
+   * 落点由这里用 `placeBeside` 算好交上去（§7 摆放 A 只有一套算法）。提交成功就收起
+   * 裁剪条，进度走卡边；失败条留着，入出点不丢。
+   */
+  const confirmTrim = async (range: VideoTrimRange) => {
+    const host = canvas.videoTrim
+    if (!host || !videoData.url) return
+    trimVideoRef.current?.pause()
+    const size = trimSizeRef.current
+    let plan: RenderPlan
+    try {
+      plan = buildVideoTrimPlan(node, range, {
+        projectId: host.projectId,
+        name: t('audio.trim.derivedName', { name: displayName }),
+        ...(size ? { width: size.width, height: size.height } : {}),
+        mintId: mintCanvasId,
+      })
+    } catch (error) {
+      toast.error(
+        error instanceof RenderPlanError
+          ? tRender(`planError.${error.code}`)
+          : tVideo('trim.failed'),
+      )
+      return
+    }
+    const position = canvas.onPlaceBeside(id, [
+      {
+        kind: NODE_MEDIA_KIND_IDS.video,
+        subtype: NODE_V4_VIDEO_SUBTYPE_IDS.clip,
+      },
+    ])?.[0]
+    const submitted = await trimRender.submit(plan, {
+      sourceName: displayName,
+      ...(position ? { position } : {}),
+    })
+    if (submitted) setTrimming(false)
   }
 
   const seekPick = (sec: number) => {
@@ -503,14 +586,23 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
         disabled: !videoData.url || frames.grabbing !== null,
         onSelect: () => void runContinue(),
       },
-      {
-        // 展开（画中框）。双击仍是快速看片，右键菜单里的「展开」保留 —— 三条路进的是
-        // 同一个框。
-        id: 'expand',
-        label: tVideo('toolbar.expand'),
-        icon: Maximize2,
-        onSelect: () => canvas.onToggleExpanded(id),
-      },
+      // 裁剪（§4 shot）：宿主没接落卡（预览 / 单测）就不摆 —— ⛔ 摆一颗确认了也落不下的键。
+      ...(canvas.videoTrim
+        ? [
+            {
+              id: 'trim',
+              label: tVideo('toolbar.trim'),
+              icon: Scissors,
+              disabled:
+                !videoData.url ||
+                !(trimDuration > 0) ||
+                Boolean(media.problem) ||
+                trimRender.busy,
+              active: trimming,
+              onSelect: () => (trimming ? setTrimming(false) : startTrim()),
+            },
+          ]
+        : []),
       {
         id: 'extract',
         label: tVideo('toolbar.extract'),
@@ -521,15 +613,16 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
         active: picking,
         onSelect: () => (picking ? setPicking(false) : startPick()),
       },
+      {
+        // 展开（画中框）。双击仍是快速看片，右键菜单里的「展开」保留 —— 三条路进的是
+        // 同一个框。顺序按 §4 shot：续拍 · 裁剪 · 抽帧 · 展开 · ⋯。
+        id: 'expand',
+        label: tVideo('toolbar.expand'),
+        icon: Maximize2,
+        onSelect: () => canvas.onToggleExpanded(id),
+      },
     ],
     [
-      {
-        id: 'download',
-        label: t('toolbar.download'),
-        icon: Download,
-        disabled: !videoData.url,
-        onSelect: () => videoData.url && triggerNodeV4Download(videoData.url),
-      },
       {
         id: 'more',
         label: tVideo('toolbar.more'),
@@ -541,6 +634,13 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
               ? { onQuickLook: () => setQuickLook(true) }
               : {})}
             onRename={() => setRenameRequest((count) => count + 1)}
+            // 下载挪进 ⋯（§4 shot：工具条把位置让给「裁剪」）。
+            {...(videoData.url
+              ? {
+                  onDownload: () =>
+                    triggerNodeV4Download(videoData.url as string),
+                }
+              : {})}
             onDuplicate={() =>
               void canvas.onApplyOp({
                 op: NODE_ASSISTANT_OP_V4_IDS.addNode,
@@ -667,7 +767,13 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
         onRename={renameNode}
         renameRequest={renameRequest}
         selected={Boolean(selected)}
-        edgeBusy={generating || selfUploading || failed || genFinish.holding}
+        edgeBusy={
+          generating ||
+          selfUploading ||
+          failed ||
+          genFinish.holding ||
+          trimRender.busy
+        }
         edgeOverlay={
           generating || genFinish.completing || failed ? (
             <NodeFrameProgress
@@ -702,6 +808,14 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
               stageLabel={tVideo('rail.uploading', {
                 name: displayName,
               })}
+              hideStageLabel={progressNarrow}
+            />
+          ) : trimRender.busy ? (
+            // 裁剪在渲染：原卡的边走渲染层回报的真实进度，新卡出来前卡不能一动不动。
+            <NodeFrameProgress
+              elapsedSeconds={0}
+              realProgress={trimRender.percent}
+              stageLabel={tVideo('trim.rendering')}
               hideStageLabel={progressNarrow}
             />
           ) : undefined
@@ -811,7 +925,8 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
                 !frameReady ||
                 generating ||
                 media.problem ||
-                picking
+                picking ||
+                trimming
               )
                 return
               setHovering(true)
@@ -908,6 +1023,7 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
 
             {(hovering || pinned) &&
             !picking &&
+            !trimming &&
             frameReady &&
             videoData.url &&
             !media.problem ? (
@@ -1029,11 +1145,38 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
               />
             ) : null}
 
+            {/* 裁剪：卡上这只只放选区（裁剪条拿它试听、停着时跟手柄那一帧）。出声 ——
+                剪的时候要听得到对白从哪儿开始。 */}
+            {trimming && videoData.url && !media.problem ? (
+              <video
+                ref={trimVideoRef}
+                src={videoData.url}
+                poster={posterUrl}
+                playsInline
+                preload="auto"
+                aria-label={displayName}
+                data-video-trim-preview
+                className="absolute inset-0 size-full rounded-node object-cover corner-squircle"
+                onLoadedMetadata={(event) => {
+                  const element = event.currentTarget
+                  if (element.videoWidth > 0 && element.videoHeight > 0) {
+                    trimSizeRef.current = {
+                      width: element.videoWidth,
+                      height: element.videoHeight,
+                    }
+                  }
+                  if (Number.isFinite(element.duration) && element.duration > 0)
+                    setProbedDuration(element.duration)
+                }}
+              />
+            ) : null}
+
             {videoData.url &&
             (durationSeconds > 0 || shotSpecBadge) &&
             !hovering &&
             !pinned &&
-            !picking ? (
+            !picking &&
+            !trimming ? (
               <div className="absolute right-2.5 bottom-2.25 flex items-center gap-1">
                 {shotSpecBadge ? (
                   <span
@@ -1090,7 +1233,28 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
               })
             }
           />
-          {picking && videoData.url ? (
+          {trimming && videoData.url && canvas.videoTrim ? (
+            // 裁剪时**提示词栏换成裁剪条**（§4 shot：与音频裁剪同款，轨道画胶片）。
+            <AudioTrimPanel
+              url={videoData.url}
+              durationSec={trimDuration}
+              seed={videoData.url}
+              busy={trimRender.busy}
+              renderTrack={(tone) => (
+                <VideoTrimFilmstrip
+                  frames={videoTrimFrameUrls(
+                    videoData.url as string,
+                    trimDuration,
+                    posterUrl,
+                  )}
+                  tone={tone}
+                />
+              )}
+              previewRef={trimVideoRef}
+              onCancel={() => setTrimming(false)}
+              onConfirm={(range) => void confirmTrim(range)}
+            />
+          ) : picking && videoData.url ? (
             // 选帧时**提示词栏换成选帧条**（与音频卡裁剪同一个做法），⛔ 不是又弹一层。
             <VideoFramePickPanel
               durationSec={durationSeconds}

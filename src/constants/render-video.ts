@@ -232,6 +232,29 @@ export interface RenderPlan {
   readonly totalDurationSec: number
 }
 
+/**
+ * 视频卡「裁剪」的落卡方式（node-canvas-v2 §4 shot 那条；owner 2026-11-05 定**服务端落卡**，
+ * 与剪辑台导出同一条路：关了页面也照样落）。
+ *
+ * 提交时带上它 = 成片落成一张 `video.clip`（⛔ 不是 `video.shot`），来源写「裁剪」、
+ * ⋯ 里只读那一行写原卡的名字（与音频裁剪同一个读法），从原卡连一条 `reference`；
+ * 缺席 = 剪辑台导出（`video.shot` + 来源「render」）。
+ *
+ * ⚠ 它跟着落卡上下文走一趟 worker 再原样回来（worker 不读、不校验它）。
+ */
+export interface RenderTrimLanding {
+  /** 原卡的名字。 */
+  readonly sourceName: string
+  /**
+   * 落点：浏览器用画布引擎的 `placeBeside` 算好再交上来（落点只有一个算法，§7 摆放 A）。
+   * 缺席（MCP 之类没有画布的入口）= 服务端按「最右来源卡右侧」落。
+   */
+  readonly position?: { readonly x: number; readonly y: number }
+}
+
+/** 落点坐标的护栏（画布坐标，宁宽勿窄 —— 只防离谱的数）。 */
+export const RENDER_LANDING_POSITION_LIMIT = 1_000_000
+
 /** 混音权重（`amix` 的 `weights`）：语音压过配乐。 */
 export const RENDER_MIX_WEIGHTS = {
   /** 段自带的原声（未静音时）。 */

@@ -21,6 +21,7 @@ import {
   AudioLines,
   Check,
   Copy,
+  Download,
   Film,
   GalleryVerticalEnd,
   Clapperboard,
@@ -176,6 +177,11 @@ export interface VideoMoreMenuItemsProps {
   onQuickLook?: (() => void) | undefined
   onRename(): void
   onDuplicate(): void
+  /**
+   * 「下载」（node-canvas-v2 §4 shot，owner 11-03）：工具条腾出位置给「裁剪」，下载挪进 ⋯。
+   * 没片的卡不给这一项（与音频卡 ⋯ 同一条）。
+   */
+  onDownload?: (() => void) | undefined
   /** 「拆出当前版本」—— 只有两版起才给（⛔ 不摆一个按了什么都不变的项）。 */
   onSplitVersion?: (() => void) | undefined
   /**
@@ -199,6 +205,7 @@ export function VideoMoreMenuItems({
   onQuickLook,
   onRename,
   onDuplicate,
+  onDownload,
   onSplitVersion,
   onAddToEditDesk,
   addToEditDeskDisabled,
@@ -206,6 +213,7 @@ export function VideoMoreMenuItems({
   onDelete,
 }: VideoMoreMenuItemsProps) {
   const tVideo = useTranslations('StudioNode.v4.video')
+  const tNode = useTranslations('StudioNode.v4')
   return (
     <>
       {onQuickLook ? (
@@ -223,6 +231,12 @@ export function VideoMoreMenuItems({
         <Copy aria-hidden className="size-4" />
         {tVideo('more.duplicate')}
       </DropdownMenuItem>
+      {onDownload ? (
+        <DropdownMenuItem data-video-more="download" onSelect={onDownload}>
+          <Download aria-hidden className="size-4" />
+          {tNode('toolbar.download')}
+        </DropdownMenuItem>
+      ) : null}
       {onSplitVersion ? (
         <DropdownMenuItem data-video-more="split" onSelect={onSplitVersion}>
           <GalleryVerticalEnd aria-hidden className="size-4" />

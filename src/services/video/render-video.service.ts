@@ -17,6 +17,7 @@ import {
   RENDER_DRAFT_R2_PREFIX,
   RENDER_DRAFT_RESOLUTION,
   RENDER_DRAFT_SHORT_SIDE,
+  RENDER_LANDING_POSITION_LIMIT,
   RENDER_MAX_DURATION_SEC,
   RENDER_MAX_SEGMENTS,
   RENDER_PLAN_VERSION,
@@ -168,12 +169,33 @@ export function toDraftRenderPlan(plan: RenderPlanInput): RenderPlanInput {
   }
 }
 
+/** 视频卡「裁剪」的落卡方式（形状见 `RenderTrimLanding`）。 */
+const RenderTrimLandingSchema = z.object({
+  sourceName: z.string().trim().min(1).max(160),
+  position: z
+    .object({
+      x: z
+        .number()
+        .finite()
+        .min(-RENDER_LANDING_POSITION_LIMIT)
+        .max(RENDER_LANDING_POSITION_LIMIT),
+      y: z
+        .number()
+        .finite()
+        .min(-RENDER_LANDING_POSITION_LIMIT)
+        .max(RENDER_LANDING_POSITION_LIMIT),
+    })
+    .optional(),
+})
+
 export const RenderSubmitSchema = z.object({
   plan: RenderPlanSchema,
   /** 完成后要不要在画布上落一张成片卡（服务端在成片回调里落，docs/references/mcp.md §7）。 */
   toCanvas: z.boolean().default(true),
   /** 发起导出时的界面语言 —— 成片卡上那行「来源」按它拼。缺席 = 默认语言。 */
   locale: z.enum(LOCALES).optional(),
+  /** 视频卡「裁剪」：成片落成 `video.clip`（缺席 = 剪辑台导出，落 `video.shot`）。 */
+  trim: RenderTrimLandingSchema.optional(),
 })
 
 /**
@@ -189,6 +211,8 @@ export const RenderLandingSchema = z.object({
     .array(z.string().trim().min(1).max(160))
     .max(RENDER_MAX_SEGMENTS),
   sourceLabel: z.string().max(400),
+  /** 视频卡「裁剪」。⚠ 可缺席：老任务的回调里没有这一格，照剪辑台导出落。 */
+  trim: RenderTrimLandingSchema.optional(),
 })
 
 export type RenderLanding = z.infer<typeof RenderLandingSchema>
@@ -390,6 +414,7 @@ export async function submitRenderJob(
       input.locale ?? DEFAULT_LOCALE,
       input.plan.name,
     ),
+    ...(input.trim && !draft ? { trim: input.trim } : {}),
   }
 
   try {
@@ -674,6 +699,7 @@ export async function handleRenderCallback(
         sourceNodeIds: landing.sourceNodeIds,
         name: job.prompt ?? '',
         sourceLabel: landing.sourceLabel,
+        ...(landing.trim ? { trim: landing.trim } : {}),
         generation: {
           id: generation.id,
           url: payload.url,

@@ -167,7 +167,10 @@ import {
   type NodeCanvasActions,
 } from '../nodes/v4/NodeV4ActionsBridge'
 import { subscribeCanvasTextAssist } from '../nodes/v4/text/text-assist-request'
-import type { NodeTextDeriveAction } from '../nodes/v4/NodeV4Context'
+import type {
+  NodeTextDeriveAction,
+  VideoTrimHostApi,
+} from '../nodes/v4/NodeV4Context'
 import { NodeV4Provider } from '../nodes/v4/NodeV4Provider'
 import { CanvasV4 } from './CanvasV4'
 import { WorkbenchDocksV4 } from './WorkbenchDocksV4'
@@ -765,6 +768,11 @@ function NodeWorkbenchV4Inner() {
     [fitCameraNodes],
   )
   const storyboard = useStoryboardGridSplit({ graph, onReveal: revealNodes })
+  // 视频卡「裁剪」：新卡由服务端落进**这个**项目，落完拉一次最新（§4 shot）。
+  const videoTrim = useMemo<VideoTrimHostApi>(
+    () => ({ projectId: store.currentProject.id, refresh: store.followNow }),
+    [store.currentProject.id, store.followNow],
+  )
 
   /** 刚投影/刚落的一批入镜。空 = 整图 fit（与 v3 那条同一个兜底）。 */
   const lastCreatedRef = useRef<readonly string[]>([])
@@ -1793,6 +1801,7 @@ function NodeWorkbenchV4Inner() {
             onFocusNode={focusNode}
             onDeriveFromText={deriveFromText}
             storyboard={storyboard}
+            videoTrim={videoTrim}
           >
             <div className="node-workbench-v4 relative size-full">
               <WorkbenchUploadStatus items={dnd.pendingUploads} />
@@ -1881,6 +1890,7 @@ function NodeWorkbenchV4Inner() {
               onFocusNode={focusNode}
               onDeriveFromText={deriveFromText}
               storyboard={storyboard}
+              videoTrim={videoTrim}
             >
               <div className="node-workbench-v4 contents">
                 <WorkbenchUploadStatus items={dnd.pendingUploads} />

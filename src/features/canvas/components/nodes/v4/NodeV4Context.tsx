@@ -195,6 +195,21 @@ export interface NodeV4CanvasContextValue {
    * 九宫格」那一句（预览 / 单测里的画布）。
    */
   readonly storyboard?: StoryboardSplitApi
+  /**
+   * 视频卡「裁剪」交给渲染层（node-canvas-v2 §4 shot）。宿主没接 = 卡上不出「裁剪」
+   * （预览 / 单测里的画布没有项目可落卡）。
+   */
+  readonly videoTrim?: VideoTrimHostApi
+}
+
+/**
+ * 「裁剪」要宿主给的两样东西。⚠ 新卡由**服务端**落进项目（owner 2026-11-05「服务器
+ * 落卡」，与剪辑台导出同一条），浏览器只负责把最新一份拉回来 —— ⛔ 不在这里建卡。
+ */
+export interface VideoTrimHostApi {
+  readonly projectId: string
+  /** 服务端落完卡后立刻拉一次最新（`store.followNow`）。 */
+  refresh(): void
 }
 
 export const NODE_TEXT_DERIVE_ACTIONS = [

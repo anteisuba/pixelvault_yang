@@ -285,6 +285,13 @@
       "xhigh": "Extra high",
       "max": "Maximum"
     },
+    "complexity": "Complexity",
+    "complexityHint": "How much the model plans the scene before rendering. Low suits quick, focused edits; high helps dense text and complex layouts but takes longer. No extra cost.",
+    "complexityOption": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High"
+    },
     "background": "Background",
     "backgroundHint": "Choose whether the generated image has a transparent or opaque background.",
     "backgroundOption": {
@@ -950,6 +957,7 @@
     "onlyFor": "Only applies to {models}",
     "capability": {
       "quality": "Quality",
+      "complexity": "Complexity",
       "background": "Background",
       "layerDecomposition": "Split layers",
       "style": "Style",

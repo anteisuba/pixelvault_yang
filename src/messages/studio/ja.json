@@ -285,6 +285,13 @@
       "xhigh": "超高",
       "max": "最高"
     },
+    "complexity": "複雑さ",
+    "complexityHint": "描画前にモデルが構図をどれだけ検討するか。低はすばやい部分的な編集向き、高は文字の多い画面や複雑なレイアウトに強い一方、時間がかかります。追加料金はありません。",
+    "complexityOption": {
+      "low": "低",
+      "medium": "中",
+      "high": "高"
+    },
     "background": "背景",
     "backgroundHint": "生成画像の背景を透明にするか不透明にするかを選択します。",
     "backgroundOption": {
@@ -950,6 +957,7 @@
     "onlyFor": "{models} のみに適用",
     "capability": {
       "quality": "画質",
+      "complexity": "複雑さ",
       "background": "背景",
       "layerDecomposition": "レイヤー分解",
       "style": "スタイル",

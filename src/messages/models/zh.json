@@ -32,6 +32,14 @@
       "label": "Gemini 3.1 Flash Image",
       "description": "由 Google 最新一代模型驱动的快速图像探索。"
     },
+    "openaiGptImage26Flare": {
+      "label": "OpenAI GPT Image 2.6 Flare",
+      "description": "出图更快，适合快速迭代的生成与编辑；可调整构思复杂度。"
+    },
+    "openaiGptImage26Sunburst": {
+      "label": "OpenAI GPT Image 2.6 Sunburst",
+      "description": "更高画质，多轮编辑时角色与细节更稳定；可调整构思复杂度。"
+    },
     "openaiGptImage25Flare": {
       "label": "OpenAI GPT Image 2.5 Flare",
       "description": "快速、高质量的日常图像生成与参考图编辑。"

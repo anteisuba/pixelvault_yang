@@ -59,6 +59,19 @@ describe('model unit prices', () => {
     },
   )
 
+  it.each([
+    AI_MODELS.OPENAI_GPT_IMAGE_26_FLARE,
+    AI_MODELS.OPENAI_GPT_IMAGE_26_SUNBURST,
+  ])('lists %s as a variable-priced range', (modelId) => {
+    expect(getModelUnitPrice(modelId)).toBeNull()
+    expect(getModelUnitPriceRangeByStringId(modelId)).toMatchObject({
+      min: 0.02469,
+      max: 0.21072,
+      unit: 'image',
+      verifiedAt: '2026-11-05',
+    })
+  })
+
   it('has at least the Seedance VolcEngine line priced', () => {
     // 火山是目前唯一端到端跑通、且我们主推的视频线；它没价，第三层比价就没意义。
     expect(getModelUnitPrice(AI_MODELS.SEEDANCE_25_VOLCENGINE)).toBeTruthy()
@@ -292,6 +305,37 @@ describe('OpenAI image output estimates', () => {
       }
     },
   )
+  it.each([
+    ['low', 0.02469],
+    ['medium', 0.04347],
+    ['high', 0.05268],
+    ['xhigh', 0.09366],
+    ['max', 0.21072],
+  ])(
+    'applies the 2.6 low/medium token multipliers for %s (official calculator)',
+    (quality, amount) => {
+      for (const modelId of [
+        AI_MODELS.OPENAI_GPT_IMAGE_26_FLARE,
+        AI_MODELS.OPENAI_GPT_IMAGE_26_SUNBURST,
+      ]) {
+        expect(
+          getOpenAIImageOutputPrice(modelId, {
+            aspectRatio: '1:1',
+            resolution: '1K',
+            quality: String(quality),
+          }),
+        ).toEqual({ min: amount, max: amount })
+      }
+    },
+  )
+  it('spans the full 2.6 range when quality is auto', () => {
+    expect(
+      getOpenAIImageOutputPrice(AI_MODELS.OPENAI_GPT_IMAGE_26_FLARE, {
+        aspectRatio: '1:1',
+        resolution: '1K',
+      }),
+    ).toEqual({ min: 0.02469, max: 0.21072 })
+  })
   it('scales with the actual 2K size and includes only an upper bound for previews', () => {
     expect(
       getOpenAIImageOutputPrice('gpt-image-2.5-flare', {

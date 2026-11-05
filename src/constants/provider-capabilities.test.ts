@@ -25,6 +25,35 @@ describe('provider-capabilities', () => {
   })
 
   it.each([
+    AI_MODELS.OPENAI_GPT_IMAGE_26_FLARE,
+    AI_MODELS.OPENAI_GPT_IMAGE_26_SUNBURST,
+  ])('exposes complexity alongside extended quality for %s', (modelId) => {
+    const config = getCapabilityConfig(AI_ADAPTER_TYPES.OPENAI, modelId)
+    expect(config.capabilities).toContain('complexity')
+    // `high` 必须排第一 —— chip 缺省取 options[0] 且不发送，官方缺省就是 high。
+    expect(config.complexityOptions).toEqual(['high', 'medium', 'low'])
+    expect(config.qualityOptions).toEqual([
+      'auto',
+      'low',
+      'medium',
+      'high',
+      'xhigh',
+      'max',
+    ])
+    expect(config.maxReferenceImages).toBe(16)
+  })
+
+  it.each([
+    AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE,
+    AI_MODELS.OPENAI_GPT_IMAGE_25_SUNBURST,
+    AI_MODELS.OPENAI_GPT_IMAGE_2,
+  ])('keeps complexity off %s', (modelId) => {
+    const config = getCapabilityConfig(AI_ADAPTER_TYPES.OPENAI, modelId)
+    expect(config.capabilities).not.toContain('complexity')
+    expect(config.complexityOptions).toBeUndefined()
+  })
+
+  it.each([
     AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE,
     AI_MODELS.OPENAI_GPT_IMAGE_25_SUNBURST,
   ])('exposes native editing and extended quality for %s', (modelId) => {

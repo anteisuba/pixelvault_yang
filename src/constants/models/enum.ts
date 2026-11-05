@@ -9,6 +9,8 @@ export enum AI_MODELS {
   OPENAI_GPT_IMAGE_2 = 'gpt-image-2',
   OPENAI_GPT_IMAGE_25_FLARE = 'gpt-image-2.5-flare',
   OPENAI_GPT_IMAGE_25_SUNBURST = 'gpt-image-2.5-sunburst',
+  OPENAI_GPT_IMAGE_26_FLARE = 'gpt-image-2.6-flare',
+  OPENAI_GPT_IMAGE_26_SUNBURST = 'gpt-image-2.6-sunburst',
   FLUX_2_PRO = 'flux-2-pro',
   /** FLUX.2 Pro multi-reference edit endpoint (image_urls + prompt). */
   FLUX_2_PRO_EDIT = 'flux-2-pro-edit',

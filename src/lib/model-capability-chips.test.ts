@@ -33,6 +33,44 @@ describe('getModelCapabilityChips', () => {
     ])
   })
 
+  // 2.6 多一颗 complexity select；缺省 high（官方缺省，options[0] 不发送）。
+  it.each([
+    AI_MODELS.OPENAI_GPT_IMAGE_26_FLARE,
+    AI_MODELS.OPENAI_GPT_IMAGE_26_SUNBURST,
+  ])('grows a complexity select chip on %s', (id) => {
+    expect(capabilitiesOf(AI_ADAPTER_TYPES.OPENAI, id)).toEqual([
+      'quality',
+      'complexity',
+      'preview',
+      'background',
+    ])
+    const chip = getModelCapabilityChips(AI_ADAPTER_TYPES.OPENAI, id).find(
+      (entry) => entry.capability === 'complexity',
+    )
+    expect(chip?.kind).toBe('select')
+    expect(chip?.options).toEqual(['high', 'medium', 'low'])
+    expect(chip?.defaultValue).toBe('high')
+    expect(chip?.requiresReferenceImage).toBe(false)
+  })
+
+  // 从 2.6 切回 2.5 时 complexity 必须被丢掉，否则 OpenAI 会因未知字段拒单。
+  it('drops complexity when switching to a model without it', () => {
+    expect(
+      pruneIncompatibleCapabilityValues(
+        { complexity: 'low', quality: 'high' },
+        AI_ADAPTER_TYPES.OPENAI,
+        AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE,
+      ),
+    ).toEqual({ quality: 'high' })
+    expect(
+      pruneIncompatibleCapabilityValues(
+        { complexity: 'low' },
+        AI_ADAPTER_TYPES.OPENAI,
+        AI_MODELS.OPENAI_GPT_IMAGE_26_FLARE,
+      ),
+    ).toBeNull()
+  })
+
   // 火山 / BytePlus 的 5.0 Pro：透明底是一颗 select chip，且**必须**标成依赖
   // 参考图 —— 文档写死「仅支持图生图场景」。它和 referenceStrength 不同，不能靠
   // 「这个能力键天生依赖参考图」实现：同一个 `background` 键在 OpenAI 上文生图

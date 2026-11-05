@@ -23,6 +23,7 @@ export type ProviderCapability =
   | 'preciseReferenceStrength'
   | 'preciseReferenceFidelity'
   | 'quality'
+  | 'complexity'
   | 'preview'
   | 'resolution'
   | 'background'
@@ -56,6 +57,19 @@ export type ReferenceImageMode = 'native' | 'img2img' | 'director'
  * https://developers.openai.com/api/reference/resources/images/methods/edit
  */
 export const OPENAI_GPT_IMAGE_MAX_REFERENCE_IMAGES = 16
+
+/**
+ * GPT Image 2.6 `complexity` —— 出图前「构思多少」，与 `quality`（渲染精细度）
+ * 是两条独立的轴，不另收费。官方：不填 = `high`，所以 `high` 必须排第一（chip
+ * 的缺省值 = options[0]，停在缺省上就是不发这个字段，逐字等于官方默认）。
+ * 官方建议编辑类任务用 `low`（更快、更少意外改动），密集文字/复杂版式用高档。
+ * https://developers.openai.com/api/docs/guides/image-generation#set-image-complexity
+ */
+export const OPENAI_GPT_IMAGE_COMPLEXITY_OPTIONS = [
+  'high',
+  'medium',
+  'low',
+] as const
 
 /**
  * 火山 Ark `background` —— Seedream 5.0 Pro 专属的透明通道开关。文档只给这两
@@ -161,6 +175,8 @@ export interface CapabilityConfig {
   novelAiReferenceModeOptions?: readonly string[]
   loraScale?: NumericRange
   qualityOptions?: readonly string[]
+  /** GPT Image 2.6 构思复杂度档位（`complexityOptions[0]` = 官方缺省，不发）。 */
+  complexityOptions?: readonly string[]
   /** Resolution tiers the model accepts (e.g. 'auto' | '1K' | '2K' | '4K') */
   resolutionOptions?: readonly string[]
   aspectRatioOptions?: readonly string[]
@@ -586,6 +602,34 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
   // No `input_fidelity` on any gpt-image model: OpenAI rejects it on 2.5 Flare
   // ("does not support the 'input_fidelity' parameter", prod 2026-10-08) and the
   // image-generation guide no longer documents it for any model.
+  // GPT Image 2.6：在 2.5 那一套之上多一个 `complexity`，其余契约（六档画质、
+  // 16 张参考图、透明背景、流式预览）官方未变。
+  [AI_MODELS.OPENAI_GPT_IMAGE_26_FLARE]: {
+    capabilities: [
+      'quality',
+      'complexity',
+      'preview',
+      'resolution',
+      'background',
+      'imageAnalysis',
+    ],
+    qualityOptions: ['auto', 'low', 'medium', 'high', 'xhigh', 'max'],
+    complexityOptions: OPENAI_GPT_IMAGE_COMPLEXITY_OPTIONS,
+    maxReferenceImages: OPENAI_GPT_IMAGE_MAX_REFERENCE_IMAGES,
+  },
+  [AI_MODELS.OPENAI_GPT_IMAGE_26_SUNBURST]: {
+    capabilities: [
+      'quality',
+      'complexity',
+      'preview',
+      'resolution',
+      'background',
+      'imageAnalysis',
+    ],
+    qualityOptions: ['auto', 'low', 'medium', 'high', 'xhigh', 'max'],
+    complexityOptions: OPENAI_GPT_IMAGE_COMPLEXITY_OPTIONS,
+    maxReferenceImages: OPENAI_GPT_IMAGE_MAX_REFERENCE_IMAGES,
+  },
   [AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE]: {
     capabilities: [
       'quality',
@@ -869,6 +913,7 @@ export function getCapabilityFieldType(
     preciseReferenceFidelity: 'slider',
     seed: 'seed',
     quality: 'select',
+    complexity: 'select',
     background: 'select',
     qualityToggle: 'select',
     ucPreset: 'select',

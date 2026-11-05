@@ -653,6 +653,9 @@ export async function resolveImageRouteAndValidate(
     const config = getCapabilityConfig(resolvedRoute.adapterType, input.modelId)
     for (const [field, options] of [
       ['quality', config.qualityOptions],
+      // 只有 GPT Image 2.6 声明了候选 —— 其他 OpenAI 型号上 `options` 是
+      // undefined，任何值都在这里死掉，不发给不认它的 2 / 2.5 去吃 400。
+      ['complexity', config.complexityOptions],
       ['background', config.backgroundOptions],
       // ⚠ `pixaiMode` 只在 Tsubaki 家族的 override 里有候选 —— 别的 PixAI 型号
       // 上 `options` 是 undefined，于是任何值都在这里死掉，⛔ 不放到 provider

@@ -34,6 +34,16 @@ export const EDIT_MODELS: Record<string, EditModelOption> = {
     provider: 'ideogram',
     displayName: 'Ideogram 4.5',
   },
+  [AI_MODELS.OPENAI_GPT_IMAGE_26_FLARE]: {
+    id: AI_MODELS.OPENAI_GPT_IMAGE_26_FLARE,
+    provider: 'openai',
+    displayName: 'GPT Image 2.6 Flare',
+  },
+  [AI_MODELS.OPENAI_GPT_IMAGE_26_SUNBURST]: {
+    id: AI_MODELS.OPENAI_GPT_IMAGE_26_SUNBURST,
+    provider: 'openai',
+    displayName: 'GPT Image 2.6 Sunburst',
+  },
   [AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE]: {
     id: AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE,
     provider: 'openai',

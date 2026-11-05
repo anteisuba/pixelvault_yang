@@ -57,12 +57,14 @@ owner 已选择接入 [H3 Max Turbo](https://fal.ai/models/minimax/h3-max-turbo/
 
 2026-09-21：新增本地内部评估条目 `QWEN_IMAGE_21_RUNNER` → `qwen-image-2.1`，仅 development 模式可见且可提交，现由 Modal 的 `qwen` target 承接（最初是独立 RunPod 端点）；不计入公开模型。文生图／最多 10 张参考图编辑、默认 CFG 1 与 25 步，契约及验收状态见 [Runner 域](domains/runner.md#qwen-image-21-内部评估2026-09-21)。
 
-### 图像（13 + 5 runner）
+### 图像（15 + 5 runner）
 
 | enum                         | externalModelId                                   | 通道                  |
 | ---------------------------- | ------------------------------------------------- | --------------------- |
 | IDEOGRAM_45                  | ideogram-4-5                                      | Ideogram 官方（BYOK） |
 | OPENAI_GPT_IMAGE_2           | （同 id）                                         | OpenAI 直连           |
+| OPENAI_GPT_IMAGE_26_FLARE    | gpt-image-2.6-flare                               | OpenAI 直连（BYOK）   |
+| OPENAI_GPT_IMAGE_26_SUNBURST | gpt-image-2.6-sunburst                            | OpenAI 直连（BYOK）   |
 | OPENAI_GPT_IMAGE_25_FLARE    | gpt-image-2.5-flare                               | OpenAI 直连（BYOK）   |
 | OPENAI_GPT_IMAGE_25_SUNBURST | gpt-image-2.5-sunburst                            | OpenAI 直连（BYOK）   |
 | GEMINI_PRO_IMAGE             | gemini-3-pro-image                                | Gemini 直连           |
@@ -146,6 +148,13 @@ RODIN_GEN_2_5 · HUNYUAN3D_V31_PRO · HUNYUAN3D_V3 · TRELLIS_2 · TRIPOSR（全
 **卡片 LoRA 一并停用（owner 同日拍板）**：画风卡去掉 LoRA 模式、背景卡表单去掉 LoRA 配置（本就没保存过），卡片编译不再合并三种卡上的 LoRA。库里已存的 `loras` 不删，只是不再发送；模型仍指向 LoRA 底模或编辑端点的旧画风卡，编译时报 `MISSING_MODEL_IN_STYLE`，让用户重选模型。
 
 顺带修正：Kontext Max 虚标 LoRA（fal `kontext/max/multi` 的 OpenAPI 无 `loras`、`image_urls` 必填，2026-09-11 核验）→ 去掉 `supportsLora` / `maxLoras`，补 `requiresReferenceImage`。`models.test.ts` 钉住「`supportsLora` ⇔ `lora-base`」与「工作流推荐的图片模型必须是 `generate`」。
+
+## 本月发现（2026-11-05 · GPT Image 2.6）
+
+- 新增 [Flare](https://developers.openai.com/api/docs/models/gpt-image-2.6-flare) 与 [Sunburst](https://developers.openai.com/api/docs/models/gpt-image-2.6-sunburst)，与 2.5 **并列上架、不替代**（退役 2.5 待 owner 拍）。端点、BYOK、Worker 路径、16 张参考图、32,000 字符、六档画质全同 2.5。
+- 新参数 `complexity: low | medium | high`（缺省 high，不另收费，与 `quality` 正交；官方建议改图用 low）已接：能力键 `complexity`（select，`high` 排第一 = 缺省不发），工作台 chip、改图面板、`AdvancedParamsSchema` / `ImageEditOptionsSchema`、服务端值域校验、Worker JSON 与 multipart、`image-edit.service` 全线贯通；非 2.6 型号送来即 400。
+- 费率同 2.5（图片输出 $30 / 图片输入 $8 / 文字输入 $5 每百万 token），但官方计算器（`GptImageTokenCalculator.react.B8NGWY1d.js`，2026-11-05 核验）对 2.6 的 low / medium 输出 token 分别再乘 4.2 / 3.3：1024² low/medium/high/xhigh/max = $0.02469/$0.04347/$0.05268/$0.09366/$0.21072——**low 约是 2.5 的 4 倍**，high 以上与 2.5 相同。`getOpenAIImageOutputPrice` 已按此算。
+- 未接（下一切片候选）：markup（仅 edits，透明 PNG 标注层）、SVG 输出（仅 generations、n=1）、GIF 输出（`frame_count` 2–64 / `frame_duration_ms` 20–2000）、`safety_identifier`（取代已废弃的 `user`）、错误里的 `moderation_details`。画布节点与助手 operator 尚未透传 `complexity`。未做付费生成实测。
 
 ## 本月发现（2026-09-09 · GPT Image 2.5）
 

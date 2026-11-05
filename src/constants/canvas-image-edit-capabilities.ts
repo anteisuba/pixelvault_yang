@@ -4,7 +4,9 @@ import type {
 } from '@/types/canvas-image-edit'
 import { AI_MODELS } from '@/constants/models/enum'
 
-const GPT_IMAGE_25_EDIT_MODELS = [
+const GPT_IMAGE_EDIT_MODELS = [
+  AI_MODELS.OPENAI_GPT_IMAGE_26_FLARE,
+  AI_MODELS.OPENAI_GPT_IMAGE_26_SUNBURST,
   AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE,
   AI_MODELS.OPENAI_GPT_IMAGE_25_SUNBURST,
 ] as const
@@ -38,7 +40,7 @@ export const CANVAS_IMAGE_EDIT_CAPABILITIES = [
       AI_MODELS.IDEOGRAM_45,
       'gemini-3-pro-image',
       'gpt-image-2',
-      ...GPT_IMAGE_25_EDIT_MODELS,
+      ...GPT_IMAGE_EDIT_MODELS,
       'fal-ai/flux-pro/kontext/max/multi',
       'fal-ai/flux-2-pro/edit',
     ],
@@ -72,7 +74,7 @@ export const CANVAS_IMAGE_EDIT_CAPABILITIES = [
       'fal-ai/flux-pro/v1/fill',
       AI_MODELS.IDEOGRAM_45,
       'gpt-image-2',
-      ...GPT_IMAGE_25_EDIT_MODELS,
+      ...GPT_IMAGE_EDIT_MODELS,
     ],
     defaultModelId: 'fal-ai/flux-pro/v1/fill',
   },
@@ -84,7 +86,7 @@ export const CANVAS_IMAGE_EDIT_CAPABILITIES = [
     output: 'single-image',
     models: [
       'gpt-image-2',
-      ...GPT_IMAGE_25_EDIT_MODELS,
+      ...GPT_IMAGE_EDIT_MODELS,
       'gemini-3-pro-image',
       'fal-ai/sam-3/image',
       'fal-ai/evf-sam',
@@ -108,7 +110,7 @@ export const CANVAS_IMAGE_EDIT_CAPABILITIES = [
       'gemini-3-pro-image',
       AI_MODELS.IDEOGRAM_45,
       'gpt-image-2',
-      ...GPT_IMAGE_25_EDIT_MODELS,
+      ...GPT_IMAGE_EDIT_MODELS,
       'fal-ai/flux-pro/kontext/max/multi',
       'fal-ai/flux-2-pro/edit',
     ],

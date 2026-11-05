@@ -376,6 +376,7 @@ Owner 决定暂时移除 PixAI 接入。三个模型标记 unavailable 并加入
 第 11 项把工作台「专属 chip 行」改成只从 `provider-capabilities.ts` 派生后，设计画板上四家模型的 9 颗专属 chip 逐颗对照一手 schema（OpenAI `/images/edits` 参考、Google image-generation 文档、fal OpenAPI、火山 Ark 图片生成 API）：
 
 - **OpenAI**：`input_fidelity: "high" | "low"` 已接（能力键 `inputFidelity`，`select`，只在 `/v1/images/edits` 即带参考图时发）。**gpt-image-2.5 专属**——gpt-image-2 官方要求省略该参数（始终高保真处理输入）。
+- **OpenAI `complexity`（2026-11-05）**：`low | medium | high`，**gpt-image-2.6 专属**，generations 与 edits 都收，缺省 high。能力表只在两条 2.6 override 声明 `complexityOptions`（`high` 排第一 → chip 缺省不发）；服务端值域校验让 2 / 2.5 上的任何值 400 在派发前；Worker 读 `advancedParams.complexity` 原样写进 JSON / multipart；改图走 `image-edit.service` 同样校验。⚠ 该服务的拒绝文案别写成「Unsupported image …」——`generation-errors` 的格式错正则会把它翻成「请转换图片格式」。
 - **Gemini 3 Pro Image**：对话式改图 = 会话历史（`contents`），多图融合 = 多个 image part，角色 / 物体槽只是条数上限（≤5 角色 / ≤6 物体）且无标注机制——三者都**不是请求字段**，不进能力表。
 - **fal `fal-ai/flux-2-pro{,/edit}`**：入参只有 `prompt · image_size · image_urls · seed · output_format · safety_tolerance · enable_safety_checker`；`@image1` 与 JSON prompt 都是提示词写法，**没有「图层」**。
 - **Seedream 5.0 Pro（火山 Ark，文档 2026-09-09）**：支持 `layer_decomposition`（1 底图 + ≤16 张带 alpha 的 PNG 图层，任一图层失败整体报错）、`background: transparent | opaque`（仅 5.0 Pro · 图生图 · 单张透明通道输入 · 输出 png）、交互编辑（bbox）；**不支持**组图、联网搜索、流式输出。组图 `sequential_image_generation` + `max_images`（1–15，参考数 + 生成数 ≤15）只在 **5.0 Lite / 4.5 / 4.0**；`tools[].type = web_search` 只在 **5.0 Lite**。fal 侧 `bytedance/seedream/v5/pro/*` 无以上任一字段。

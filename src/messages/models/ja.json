@@ -32,6 +32,14 @@
       "label": "Gemini 3.1 Flash Image",
       "description": "Google の最新世代モデルで、画像のアイデアをすばやく試せます。"
     },
+    "openaiGptImage26Flare": {
+      "label": "OpenAI GPT Image 2.6 Flare",
+      "description": "すばやく試行できる高速な画像生成・編集。構図の検討量（複雑さ）を調整できます。"
+    },
+    "openaiGptImage26Sunburst": {
+      "label": "OpenAI GPT Image 2.6 Sunburst",
+      "description": "より高品質な画像生成と、編集を重ねても崩れにくい一貫性。構図の検討量（複雑さ）を調整できます。"
+    },
     "openaiGptImage25Flare": {
       "label": "OpenAI GPT Image 2.5 Flare",
       "description": "日常の画像制作に適した高速・高品質な画像生成と参照画像を使った編集。"

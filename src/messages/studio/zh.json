@@ -285,6 +285,13 @@
       "xhigh": "超高",
       "max": "最高"
     },
+    "complexity": "复杂度",
+    "complexityHint": "出图前模型构思画面的程度。低档适合快速的局部修改；高档更擅长密集文字和复杂版式，但更慢。不额外收费。",
+    "complexityOption": {
+      "low": "低",
+      "medium": "中",
+      "high": "高"
+    },
     "background": "背景",
     "backgroundHint": "选择生成图像的背景为透明或不透明。",
     "backgroundOption": {
@@ -950,6 +957,7 @@
     "onlyFor": "只对 {models} 生效",
     "capability": {
       "quality": "画质",
+      "complexity": "复杂度",
       "background": "背景",
       "layerDecomposition": "图层拆分",
       "style": "风格",

@@ -46,13 +46,20 @@ export function getOpenAIImageOutputPrice(
     preview?: boolean
   },
 ): { min: number; max: number } | null {
+  const is26 =
+    modelId === AI_MODELS.OPENAI_GPT_IMAGE_26_FLARE ||
+    modelId === AI_MODELS.OPENAI_GPT_IMAGE_26_SUNBURST
   const is25 =
     modelId === AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE ||
     modelId === AI_MODELS.OPENAI_GPT_IMAGE_25_SUNBURST
-  if (!is25 && modelId !== AI_MODELS.OPENAI_GPT_IMAGE_2) return null
-  const scales: Record<string, number> = is25
-    ? { low: 16, medium: 24, high: 48, xhigh: 64, max: 96 }
-    : { low: 16, medium: 48, high: 96 }
+  if (!is26 && !is25 && modelId !== AI_MODELS.OPENAI_GPT_IMAGE_2) return null
+  const scales: Record<string, number> =
+    is26 || is25
+      ? { low: 16, medium: 24, high: 48, xhigh: 64, max: 96 }
+      : { low: 16, medium: 48, high: 96 }
+  // 2.6 keeps the 2.5 token formula but multiplies low/medium output tokens
+  // (official calculator: low ×4.2, medium ×3.3, high and above ×1).
+  const multipliers: Record<number, number> = is26 ? { 16: 4.2, 24: 3.3 } : {}
   const { width, height } =
     options.resolution && isImageResolutionTier(options.resolution)
       ? tieredOpenAISize(options.aspectRatio, options.resolution)
@@ -62,11 +69,10 @@ export function getOpenAIImageOutputPrice(
     const floor = Math.floor(short)
     const rounded =
       short - floor === 0.5 ? floor + (floor % 2) : Math.round(short)
-    return (
-      (Math.ceil((scale * rounded * (2_000_000 + width * height)) / 4_000_000) *
-        30) /
-      1_000_000
+    const tokens = Math.ceil(
+      (scale * rounded * (2_000_000 + width * height)) / 4_000_000,
     )
+    return (Math.round(tokens * (multipliers[scale] ?? 1)) * 30) / 1_000_000
   }
   const scale = options.quality ? scales[options.quality] : undefined
   if (options.quality && options.quality !== 'auto' && scale === undefined)
@@ -663,6 +669,24 @@ export interface ModelUnitPriceRange {
 export const MODEL_UNIT_PRICE_RANGES: Partial<
   Record<AI_MODELS, ModelUnitPriceRange>
 > = {
+  [AI_MODELS.OPENAI_GPT_IMAGE_26_FLARE]: {
+    min: 0.02469,
+    max: 0.21072,
+    unit: 'image',
+    reason:
+      '1024×1024 输出参考价，low / medium / high / xhigh / max 分别为 $0.02469 / $0.04347 / $0.05268 / $0.09366 / $0.21072（low、medium 比 2.5 贵约 4.2× / 3.3×）。auto 随生成结果变化；complexity 不另收费；不含文字和参考图输入，其他尺寸费用不同。',
+    source: 'https://developers.openai.com/api/docs/guides/image-generation',
+    verifiedAt: '2026-11-05',
+  },
+  [AI_MODELS.OPENAI_GPT_IMAGE_26_SUNBURST]: {
+    min: 0.02469,
+    max: 0.21072,
+    unit: 'image',
+    reason:
+      '1024×1024 输出参考价，low / medium / high / xhigh / max 分别为 $0.02469 / $0.04347 / $0.05268 / $0.09366 / $0.21072（low、medium 比 2.5 贵约 4.2× / 3.3×）。auto 随生成结果变化；complexity 不另收费；不含文字和参考图输入，其他尺寸费用不同。',
+    source: 'https://developers.openai.com/api/docs/guides/image-generation',
+    verifiedAt: '2026-11-05',
+  },
   [AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE]: {
     min: 0.00588,
     max: 0.21072,

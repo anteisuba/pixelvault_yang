@@ -649,6 +649,7 @@ export function ImageEditSurface({
     generativeEdit &&
     Boolean(
       qualityOptions?.length ||
+      config?.complexityOptions?.length ||
       config?.backgroundOptions?.length ||
       config?.capabilities.includes('preview'),
     )
@@ -658,22 +659,29 @@ export function ImageEditSurface({
         hasReferenceImage: true,
       })
     : null
-  const optionLabel = (kind: 'quality' | 'background', value: string) =>
+  type SettingKind = 'quality' | 'complexity' | 'background'
+  const optionLabel = (kind: SettingKind, value: string) =>
     kind === 'quality' && selectedModelId === AI_MODELS.IDEOGRAM_45
       ? t(`quality.${value}`)
       : tAdvanced(`${kind}Option.${value}`)
-  const settingRows = (['quality', 'background'] as const).flatMap((kind) => {
-    const options =
-      kind === 'quality' ? qualityOptions : config?.backgroundOptions
+  const settingOptions: Record<SettingKind, readonly string[] | undefined> = {
+    quality: qualityOptions,
+    complexity: config?.complexityOptions,
+    background: config?.backgroundOptions,
+  }
+  const settingRows = (
+    ['quality', 'complexity', 'background'] as const
+  ).flatMap((kind) => {
+    const options = settingOptions[kind]
     if (!options?.length) return []
     return [{ kind, options, selected: editOptions[kind] ?? options[0]! }]
   })
   /** 设置那颗写「画质 高 · 透明底 · 预览」—— 改了什么一眼看见，⛔ 只写「编辑设置」。 */
   const settingsSummary = [
     ...settingRows.map(({ kind, selected }) =>
-      kind === 'quality'
-        ? `${tAdvanced('quality')} ${optionLabel(kind, selected)}`
-        : optionLabel(kind, selected),
+      kind === 'background'
+        ? optionLabel(kind, selected)
+        : `${tAdvanced(kind)} ${optionLabel(kind, selected)}`,
     ),
     ...(editOptions.preview ? [tAdvanced('preview')] : []),
   ].join(' · ')

@@ -50,6 +50,7 @@ const SELECT_OPTION_KEYS: Partial<
   Record<ProviderCapability, keyof CapabilityConfig>
 > = {
   quality: 'qualityOptions',
+  complexity: 'complexityOptions',
   background: 'backgroundOptions',
   style: 'styleOptions',
   qualityToggle: 'qualityToggleOptions',

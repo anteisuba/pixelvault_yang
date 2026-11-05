@@ -2670,6 +2670,52 @@ describe('OpenAI reference uploads and input fidelity', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
+  it('sends GPT Image 2.6 complexity on text-to-image and edit requests', async () => {
+    const { env } = openAiEnv()
+    const { fetchMock, uploadedForm } = stubImageResponse()
+    const model = {
+      modelId: 'gpt-image-2.6-flare',
+      externalModelId: 'gpt-image-2.6-flare',
+    }
+    await generateOpenAIImage(
+      env,
+      openAiContext({
+        ...model,
+        advancedParams: { quality: 'high', complexity: 'low' },
+      }),
+      'test-key',
+    )
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({
+      model: 'gpt-image-2.6-flare',
+      quality: 'high',
+      complexity: 'low',
+    })
+
+    await generateOpenAIImage(
+      env,
+      openAiContext({
+        ...model,
+        referenceImages: ['https://cdn.example.com/ref.png'],
+        advancedParams: { complexity: 'medium' },
+      }),
+      'test-key',
+    )
+    expect(uploadedForm()?.get('complexity')).toBe('medium')
+  })
+
+  it('omits complexity when the chip stays on its default', async () => {
+    const { env } = openAiEnv()
+    const { fetchMock } = stubImageResponse()
+    await generateOpenAIImage(
+      env,
+      openAiContext({ advancedParams: { quality: 'high' } }),
+      'test-key',
+    )
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).not.toHaveProperty(
+      'complexity',
+    )
+  })
+
   it('keeps data URL references as file bytes without fetching their contents', async () => {
     const { env, get } = openAiEnv()
     const { fetchMock, uploadedForm } = stubImageResponse()

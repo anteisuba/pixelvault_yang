@@ -77,6 +77,8 @@ describe('models', () => {
     ])
   })
   it.each([
+    [AI_MODELS.OPENAI_GPT_IMAGE_26_FLARE, 'openaiGptImage26Flare'],
+    [AI_MODELS.OPENAI_GPT_IMAGE_26_SUNBURST, 'openaiGptImage26Sunburst'],
     [AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE, 'openaiGptImage25Flare'],
     [AI_MODELS.OPENAI_GPT_IMAGE_25_SUNBURST, 'openaiGptImage25Sunburst'],
   ])(

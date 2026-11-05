@@ -52,6 +52,9 @@ export async function generateOpenAIImage(
 
   const quality = readStringField(advancedParams, 'quality')
   if (quality) body.quality = quality
+  // GPT Image 2.6 only; the app rejects it for other models before dispatch.
+  const complexity = readStringField(advancedParams, 'complexity')
+  if (complexity) body.complexity = complexity
   const background = readStringField(advancedParams, 'background')
   if (background) body.background = background
 

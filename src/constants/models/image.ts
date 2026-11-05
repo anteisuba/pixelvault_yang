@@ -54,6 +54,36 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     maxPromptChars: 10_000,
   },
   {
+    // GPT Image 2.6 (2026-11-04). Same Image API surface and token rates as
+    // 2.5; adds the `complexity` field. Listed alongside 2.5, not replacing it.
+    id: AI_MODELS.OPENAI_GPT_IMAGE_26_FLARE,
+    cost: 3,
+    adapterType: AI_ADAPTER_TYPES.OPENAI,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.OPENAI),
+    externalModelId: AI_MODELS.OPENAI_GPT_IMAGE_26_FLARE,
+    outputType: 'IMAGE',
+    available: true,
+    officialUrl:
+      'https://developers.openai.com/api/docs/models/gpt-image-2.6-flare',
+    qualityTier: 'premium',
+    styleTag: 'general',
+    maxPromptChars: 32_000,
+  },
+  {
+    id: AI_MODELS.OPENAI_GPT_IMAGE_26_SUNBURST,
+    cost: 3,
+    adapterType: AI_ADAPTER_TYPES.OPENAI,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.OPENAI),
+    externalModelId: AI_MODELS.OPENAI_GPT_IMAGE_26_SUNBURST,
+    outputType: 'IMAGE',
+    available: true,
+    officialUrl:
+      'https://developers.openai.com/api/docs/models/gpt-image-2.6-sunburst',
+    qualityTier: 'premium',
+    styleTag: 'general',
+    maxPromptChars: 32_000,
+  },
+  {
     id: AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE,
     cost: 3,
     adapterType: AI_ADAPTER_TYPES.OPENAI,

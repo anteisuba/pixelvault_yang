@@ -398,6 +398,55 @@ describe('GPT Image 2.5 editing', () => {
   )
 })
 
+describe('GPT Image 2.6 complexity', () => {
+  const editWith = async (modelId: string, complexity: string) => {
+    const source = await sharp({
+      create: { width: 2, height: 1, channels: 3, background: 'red' },
+    })
+      .png()
+      .toBuffer()
+    const fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: [{ b64_json: source.toString('base64') }] }),
+    })
+    vi.stubGlobal('fetch', fetchSpy)
+    const mask = await sharp(Buffer.from([0, 255]), {
+      raw: { width: 2, height: 1, channels: 1 },
+    })
+      .png()
+      .toBuffer()
+    const run = inpaintImage({
+      modelId,
+      apiKey: 'test',
+      imageUrl: `data:image/png;base64,${source.toString('base64')}`,
+      maskImageUrl: `data:image/png;base64,${mask.toString('base64')}`,
+      prompt: 'Change only the sky',
+      options: { complexity: complexity as 'low' },
+    })
+    return { run, fetchSpy }
+  }
+
+  it.each(['gpt-image-2.6-flare', 'gpt-image-2.6-sunburst'])(
+    'sends complexity to %s',
+    async (modelId) => {
+      const { run, fetchSpy } = await editWith(modelId, 'low')
+      await run
+      const form = fetchSpy.mock.calls[0][1].body as FormData
+      expect(form.get('model')).toBe(modelId)
+      expect(form.get('complexity')).toBe('low')
+    },
+  )
+
+  it('rejects complexity on 2.5 before calling OpenAI', async () => {
+    const { run, fetchSpy } = await editWith('gpt-image-2.5-flare', 'low')
+    // ProviderError 的 message 会被换成用户文案；这里锁住它**不是**格式错。
+    const error = await run.catch((caught: unknown) => caught)
+    expect(error).toBeInstanceOf(Error)
+    expect(String((error as Error).message)).not.toMatch(/JPEG|PNG|WebP/)
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
+})
+
 describe('object-replace on fal edit endpoints', () => {
   const annotations = [{ index: 1, instruction: 'change the jacket to red' }]
 

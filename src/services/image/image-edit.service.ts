@@ -513,11 +513,27 @@ async function editImageWithOpenAI(params: {
   signal?: AbortSignal
 }): Promise<ImageEditResult> {
   const config = getCapabilityConfig(AI_ADAPTER_TYPES.OPENAI, params.modelId)
+  // ⚠ 文案别写成「Unsupported image …」—— generation-errors 的 UNSUPPORTED_FORMAT
+  // 正则会把它认成参考图格式错，用户看到的是「请转换图片格式」。
   if (
     params.options?.quality &&
     !config.qualityOptions?.includes(params.options.quality)
   ) {
-    throw new ProviderError('OpenAI', 400, 'Unsupported image quality')
+    throw new ProviderError(
+      'OpenAI',
+      400,
+      'Unsupported quality for the selected model',
+    )
+  }
+  if (
+    params.options?.complexity &&
+    !config.complexityOptions?.includes(params.options.complexity)
+  ) {
+    throw new ProviderError(
+      'OpenAI',
+      400,
+      'Unsupported complexity for the selected model',
+    )
   }
   const baseUrl = AI_PROVIDER_ENDPOINTS.OPENAI.replace(/\/$/, '').replace(
     /\/(generations|edits)$/,
@@ -536,6 +552,8 @@ async function editImageWithOpenAI(params: {
   }
   if (params.options?.quality)
     formData.append('quality', params.options.quality)
+  if (params.options?.complexity)
+    formData.append('complexity', params.options.complexity)
   if (params.options?.background)
     formData.append('background', params.options.background)
 

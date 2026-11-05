@@ -32,6 +32,14 @@
       "label": "Gemini 3.1 Flash Image",
       "description": "Explore image ideas quickly with Google's latest-generation model."
     },
+    "openaiGptImage26Flare": {
+      "label": "OpenAI GPT Image 2.6 Flare",
+      "description": "Fast image generation and editing for quick iteration, with adjustable planning complexity."
+    },
+    "openaiGptImage26Sunburst": {
+      "label": "OpenAI GPT Image 2.6 Sunburst",
+      "description": "Higher-quality image generation with stronger consistency across edits, with adjustable planning complexity."
+    },
     "openaiGptImage25Flare": {
       "label": "OpenAI GPT Image 2.5 Flare",
       "description": "Fast, high-quality everyday image generation and reference-guided editing."

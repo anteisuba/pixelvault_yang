@@ -73,6 +73,7 @@ import { AI_ADAPTER_TYPES, type ProviderConfig } from '@/constants/providers'
 import {
   NOVELAI_QUALITY_TOGGLE_OPTIONS,
   NOVELAI_UC_PRESET_OPTIONS,
+  OPENAI_GPT_IMAGE_COMPLEXITY_OPTIONS,
   VOLCENGINE_SEEDREAM_MAX_LAYERS,
 } from '@/constants/provider-capabilities'
 import { GENERATION_CANCEL_MAX_BATCH } from '@/constants/generation-cancel'
@@ -287,6 +288,11 @@ export const AdvancedParamsSchema = z.object({
   quality: z
     .enum(['auto', 'very_low', 'low', 'medium', 'high', 'xhigh', 'max'])
     .optional(),
+  /**
+   * GPT Image 2.6 构思复杂度。不设 = 不发 = 官方默认 `high`。
+   * https://developers.openai.com/api/docs/guides/image-generation#set-image-complexity
+   */
+  complexity: z.enum(OPENAI_GPT_IMAGE_COMPLEXITY_OPTIONS).optional(),
   preview: z.boolean().optional(),
   resolution: z.enum(['auto', '1K', '2K', '4K']).optional(),
   background: z.string().optional(),
@@ -1084,6 +1090,7 @@ export type ImageEditRequest = z.infer<typeof ImageEditSchema>
 
 export const ImageEditOptionsSchema = AdvancedParamsSchema.pick({
   quality: true,
+  complexity: true,
   preview: true,
 }).extend({
   background: z.enum(['auto', 'opaque', 'transparent']).optional(),

@@ -1,5 +1,5 @@
 import { useLayoutEffect } from 'react'
-import { act, screen } from '@testing-library/react'
+import { act, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AI_MODELS } from '@/constants/models'
@@ -119,18 +119,19 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('视频台 · 素材排', () => {
-  it('按类型编号，首帧是图片上的角标；音频也在同一排', () => {
+  it('按类型编号（名字在按钮上、格子只放图），首帧是图片上的角标；音频也在同一排', () => {
     renderRail({ first: F, references: [R], audio: true })
-    expect(screen.getByTestId('video-asset-image-1')).toHaveTextContent(
+    const tile = (id: string) => screen.getByTestId(id)
+    const named = (id: string, name: string) =>
+      within(tile(id)).getByRole('button', { name })
+    expect(named('video-asset-image-1', T('image', { n: 1 }))).toBeTruthy()
+    // u-thumbnails：格子底下不再写「图片1」。
+    expect(tile('video-asset-image-1')).not.toHaveTextContent(
       T('image', { n: 1 }),
     )
     expect(screen.getByTestId('video-asset-badge-first')).toBeInTheDocument()
-    expect(screen.getByTestId('video-asset-image-2')).toHaveTextContent(
-      T('image', { n: 2 }),
-    )
-    expect(screen.getByTestId('video-asset-audio-1')).toHaveTextContent(
-      T('audio', { n: 1 }),
-    )
+    expect(named('video-asset-image-2', T('image', { n: 2 }))).toBeTruthy()
+    expect(named('video-asset-audio-1', T('audio', { n: 1 }))).toBeTruthy()
   })
 
   it('最右一行灰字说清这一枪怎么发（⛔ 没有模式分段）', () => {

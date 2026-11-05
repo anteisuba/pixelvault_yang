@@ -162,6 +162,7 @@
     "loadFailed": "个人主页加载失败",
     "privateProfileHint": "创作者选择了隐藏个人主页",
     "noPublicImages": "还没有公开作品",
+    "noPublicImagesHint": "公开的作品会出现在这里。",
     "startCreating": "去工作室",
     "loadMore": "加载更多",
     "loading": "加载中...",

@@ -2981,42 +2981,83 @@ export function StudioOperatorPanel({
         {/* ── 已挂上的附件 chip（可摘）──────────────────────────── */}
         {attachments.length > 0 ? (
           <div className="flex shrink-0 flex-wrap gap-1.5 px-3 pb-1.5">
-            {attachments.map((attachment) => (
-              <span
-                key={attachment.id}
-                data-testid="operator-attachment-chip"
-                className="flex items-center gap-1 rounded-lg border border-primary/30 bg-primary/10 py-0.5 pl-0.5 pr-1.5 text-2sm text-primary"
-              >
-                {/* ⚠ 预览走 `thumbnailUrl`，**不是 `url`** —— 视频 / 音频的 url
-                  是媒体文件本身，喂给 `next/image` 得到的是一个碎图标。 */}
-                {attachment.thumbnailUrl ? (
-                  <Image
-                    src={attachment.thumbnailUrl}
-                    alt={attachment.label}
-                    width={40}
-                    height={40}
-                    className="size-5 rounded object-cover"
-                  />
-                ) : (
-                  <span className="grid size-5 place-items-center rounded bg-primary/15">
-                    <AttachKindGlyph kind={attachment.kind} />
-                  </span>
-                )}
-                <span className="max-w-24 truncate">{attachment.label}</span>
-                <button
-                  type="button"
-                  aria-label={t('attach.remove')}
-                  onClick={() =>
-                    onAttachmentsChange(
-                      attachments.filter((item) => item.id !== attachment.id),
-                    )
-                  }
-                  className="text-muted-foreground hover:text-foreground"
+            {attachments.map((attachment) =>
+              /* 图只放图（u-thumbnails，owner 11-02）：名字退到 title，点开看大图。
+                图片的 url 本身就是图，没缩略图时直接用它（⛔ 别落回 ▶ 图标 + 名字）。 */
+              attachment.kind === 'image' ? (
+                <span
+                  key={attachment.id}
+                  data-testid="operator-attachment-chip"
+                  data-image-only="true"
+                  className="group relative size-10 shrink-0"
                 >
-                  <X className="size-2.5" aria-hidden />
-                </button>
-              </span>
-            ))}
+                  <button
+                    type="button"
+                    title={attachment.label}
+                    aria-label={attachment.label}
+                    onClick={() =>
+                      openOperatorLightbox(attachment.url, attachment.label)
+                    }
+                    className="size-full cursor-zoom-in overflow-hidden rounded-md ring-1 ring-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <Image
+                      src={attachment.thumbnailUrl ?? attachment.url}
+                      alt=""
+                      width={80}
+                      height={80}
+                      className="size-full object-cover"
+                    />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={t('attach.remove')}
+                    onClick={() =>
+                      onAttachmentsChange(
+                        attachments.filter((item) => item.id !== attachment.id),
+                      )
+                    }
+                    className="absolute -right-1.5 -top-1.5 flex size-4.5 items-center justify-center rounded-full bg-card text-ink-2 opacity-0 shadow-soft transition-opacity group-hover:opacity-100 hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring coarse:opacity-100"
+                  >
+                    <X className="size-3" aria-hidden />
+                  </button>
+                </span>
+              ) : (
+                <span
+                  key={attachment.id}
+                  data-testid="operator-attachment-chip"
+                  className="flex items-center gap-1 rounded-lg border border-primary/30 bg-primary/10 py-0.5 pl-0.5 pr-1.5 text-2sm text-primary"
+                >
+                  {/* ⚠ 预览走 `thumbnailUrl`，**不是 `url`** —— 视频 / 音频的 url
+                  是媒体文件本身，喂给 `next/image` 得到的是一个碎图标。 */}
+                  {attachment.thumbnailUrl ? (
+                    <Image
+                      src={attachment.thumbnailUrl}
+                      alt={attachment.label}
+                      width={40}
+                      height={40}
+                      className="size-5 rounded object-cover"
+                    />
+                  ) : (
+                    <span className="grid size-5 place-items-center rounded bg-primary/15">
+                      <AttachKindGlyph kind={attachment.kind} />
+                    </span>
+                  )}
+                  <span className="max-w-24 truncate">{attachment.label}</span>
+                  <button
+                    type="button"
+                    aria-label={t('attach.remove')}
+                    onClick={() =>
+                      onAttachmentsChange(
+                        attachments.filter((item) => item.id !== attachment.id),
+                      )
+                    }
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="size-2.5" aria-hidden />
+                  </button>
+                </span>
+              ),
+            )}
           </div>
         ) : null}
 

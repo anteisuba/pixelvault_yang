@@ -52,16 +52,18 @@ interface StudioVideoAssetRailProps {
 const TILE_CLASS =
   'relative flex size-12 items-center justify-center overflow-hidden rounded-lg border border-border transition-[border-color,opacity] duration-base ease-linear hover:border-foreground/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 motion-reduce:transition-none'
 
-/** 这一枪不发的那一格：200ms 线性变淡（动效表），编号也跟着淡。 */
+/** 这一枪不发的那一格：200ms 线性变淡（动效表）。 */
 const UNSENT_TILE_CLASS = 'opacity-40'
 
+/**
+ * 一格只放图（u-thumbnails，owner 11-02）：⛔ 底下不再写「图 1 / 视频 1」，名字只留在按钮的
+ * `aria-label` 上；首尾帧角标是用途不是名字，照留。
+ */
 function Tile({
-  label,
   children,
   testId,
   unsent = false,
 }: {
-  label: string
   children: React.ReactNode
   testId?: string
   unsent?: boolean
@@ -70,17 +72,9 @@ function Tile({
     <span
       data-testid={testId}
       data-unsent={unsent || undefined}
-      className="flex shrink-0 animate-in flex-col items-center gap-1 fade-in-0 duration-base ease-linear motion-reduce:animate-none"
+      className="flex shrink-0 animate-in fade-in-0 duration-base ease-linear motion-reduce:animate-none"
     >
       {children}
-      <span
-        className={cn(
-          'text-2xs text-muted-foreground transition-colors duration-base ease-linear motion-reduce:transition-none',
-          unsent && 'text-muted-foreground/60',
-        )}
-      >
-        {label}
-      </span>
     </span>
   )
 }
@@ -190,7 +184,6 @@ export function StudioVideoAssetRail({
           return (
             <Tile
               key={image.url}
-              label={label}
               testId={`video-asset-image-${image.n}`}
               unsent={unsentImages.has(image.url)}
             >
@@ -249,7 +242,6 @@ export function StudioVideoAssetRail({
           return (
             <Tile
               key={url}
-              label={label}
               testId={`video-asset-video-${index + 1}`}
               unsent={unsentVideos.has(url)}
             >
@@ -290,7 +282,6 @@ export function StudioVideoAssetRail({
           return (
             <Tile
               key={ref.url}
-              label={label}
               testId={`video-asset-audio-${index + 1}`}
               unsent={index >= audioFrom}
             >
@@ -340,7 +331,7 @@ export function StudioVideoAssetRail({
         })}
 
         {assets.isUploading ? (
-          <Tile label={t('uploading')}>
+          <Tile>
             <span
               role="status"
               aria-label={t('uploading')}
@@ -357,8 +348,8 @@ export function StudioVideoAssetRail({
           // 换词时交叉淡化一下（动效表：旧的 120ms 淡出 → 新的 200ms 淡入）。
           key={`${send.mode}:${send.unsent.lastWithoutFirst}:${unsentLabels.join('|')}`}
           data-testid="video-asset-send-mode"
-          // 与缩略图的中线对齐（下面那一行编号不算）。
-          className="ml-auto shrink-0 animate-in self-center pb-4 text-xs text-muted-foreground fade-in-0 duration-base ease-linear motion-reduce:animate-none"
+          // 与缩略图的中线对齐。
+          className="ml-auto shrink-0 animate-in self-center text-xs text-muted-foreground fade-in-0 duration-base ease-linear motion-reduce:animate-none"
         >
           {send.unsent.lastWithoutFirst
             ? t.rich('unsent.lastWithoutFirst', { strong })

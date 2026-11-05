@@ -524,16 +524,22 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
       ).toHaveAttribute('src', 'https://cdn.test/ref2.png')
       expect(screen.queryByRole('img', { name: 'voice sample' })).toBeNull()
       expect(screen.getByText('voice sample')).toBeTruthy()
-      /* P4 第 3 项（owner 2026-10-16）：图一律排在气泡上方，同一张只一格；字里只留名字。 */
+      /* u-thumbnails（owner 11-05）：正文写到的图在句子里原位只放图、不写名字；
+         上方那一排只放正文没写到的，⛔ 同一张不重复。 */
       const body = within(screen.getByTestId('operator-user-text'))
-      expect(body.queryAllByRole('img')).toHaveLength(0)
-      expect(screen.getByTestId('operator-user-text')).toHaveTextContent(
+      expect(
+        body.getAllByRole('img', { name: 'reference image 2' }),
+      ).toHaveLength(2)
+      expect(screen.getByTestId('operator-user-text')).not.toHaveTextContent(
         'reference image 2',
       )
       const thumbs = within(screen.getByTestId('operator-user-thumbs'))
       expect(
-        thumbs.getAllByRole('img', { name: 'reference image 2' }),
-      ).toHaveLength(1)
+        thumbs.queryByRole('img', { name: 'reference image 2' }),
+      ).toBeNull()
+      expect(
+        thumbs.getByRole('img', { name: 'reference image 1' }),
+      ).toBeTruthy()
       expect(
         thumbs.queryByRole('img', { name: 'reference image 4' }),
       ).toBeNull()
@@ -605,7 +611,11 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
       const editor = screen.getByRole('combobox', { name: editorName })
       typeInto(editor, '采用@')
       fireEvent.click(screen.getByRole('option', { name: /生成图3/ }))
-      expect(editor.textContent).toContain('生成图3')
+      // 图只放图（u-thumbnails）：名字在胶囊的 title 上，正文里不写。
+      expect(editor.querySelector('[data-mention]')).toHaveAttribute(
+        'title',
+        '@生成图3',
+      )
       expect(editor.querySelector('img')).toHaveAttribute(
         'src',
         HOST_RESULTS[1].url,
@@ -2538,7 +2548,11 @@ describe('@ 菜单（§10b）', () => {
     expect(chip).not.toBeNull()
     fireEvent.click(chip)
     const card = screen.getByTestId('operator-mention-card')
-    expect(within(card).getByText('第一张')).toBeTruthy()
+    // 有图就顶上直接是大图、不写名字（u-thumbnails）：名字在卡片的 aria-label 上。
+    expect(card).toHaveAttribute('aria-label', '第一张')
+    expect(
+      within(card).getByTestId('operator-mention-card-preview'),
+    ).toBeTruthy()
     fireEvent.click(within(card).getByTestId('operator-mention-card-remove'))
     expect(screen.queryByTestId('operator-mention-card')).toBeNull()
     expect(editor.querySelector('[data-mention]')).toBeNull()
@@ -2598,8 +2612,11 @@ describe('@ 菜单（§10b）', () => {
       'operator-user-mention',
     )
     expect(chip.tagName).toBe('BUTTON')
-    expect(chip).toHaveTextContent('第一张')
+    // u-thumbnails：有图的引用只放图，名字在 title 与图的 alt 上。
+    expect(chip).toHaveAttribute('title', '第一张')
+    expect(within(chip).getByRole('img', { name: '第一张' })).toBeTruthy()
     expect(screen.getByTestId('operator-user-text')).not.toHaveTextContent('「')
+    expect(screen.queryByTestId('operator-user-thumbs')).toBeNull()
   })
 })
 

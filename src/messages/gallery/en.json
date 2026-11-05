@@ -162,6 +162,7 @@
     "loadFailed": "Couldn't load profile",
     "privateProfileHint": "The creator has chosen to keep their profile hidden",
     "noPublicImages": "No public works yet",
+    "noPublicImagesHint": "Works you make public will show up here.",
     "startCreating": "Go to Studio",
     "loadMore": "Load more",
     "loading": "Loading...",

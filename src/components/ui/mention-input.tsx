@@ -344,11 +344,17 @@ function buildThumb(
   doc: Document,
   kind: MentionToken['kind'],
   thumbnailUrl: string | undefined,
+  imageOnly = false,
 ): HTMLSpanElement {
   const thumb = doc.createElement('span')
   thumb.className = cn(
-    'mention-chip-thumb relative flex size-4 shrink-0 items-center justify-center overflow-hidden',
-    THUMB_SHAPE[kind],
+    'mention-chip-thumb relative flex shrink-0 items-center justify-center overflow-hidden',
+    imageOnly
+      ? cn(
+          'size-6 ring-1 ring-border',
+          THUMB_SHAPE[kind] === 'rounded-full' ? 'rounded-full' : 'rounded-md',
+        )
+      : cn('size-4', THUMB_SHAPE[kind]),
     !thumbnailUrl && THUMB_FILL[kind],
   )
   if (thumbnailUrl) {
@@ -364,10 +370,21 @@ function buildThumb(
   return thumb
 }
 
+/** 只放图的胶囊认哪几种：有真图的画面类引用；声音 / 文本没有图，照旧写名字。 */
+const IMAGE_ONLY_KINDS: ReadonlySet<MentionToken['kind']> = new Set([
+  'reference',
+  'character',
+  'background',
+  'shot',
+  'closeup',
+  'video',
+])
+
 function buildChip(
   doc: Document,
   name: string,
   token: MentionToken | undefined,
+  imageOnlyChips = false,
 ): HTMLSpanElement {
   const kind = token?.kind
   const chip = doc.createElement('span')
@@ -378,6 +395,29 @@ function buildChip(
   const stored = token?.literal ? name : `${MENTION_PREFIX}${name}`
   chip.setAttribute(MENTION_ATTR, stored)
   chip.setAttribute('contenteditable', 'false')
+  const shown = token?.slotLabel ?? stored
+  /**
+   * 只放图（u-thumbnails，owner 11-02「输入框里的都只放图、不带名字」）：胶囊就是
+   * 一张 24px 的图，名字退到 `title` / `aria-label`。存储与序列化不变（读的是属性）。
+   * ⚠ 没有真图、已删除的引用不走这条 —— 一块色块或一张空图认不出来是什么。
+   */
+  if (
+    imageOnlyChips &&
+    kind &&
+    IMAGE_ONLY_KINDS.has(kind) &&
+    token?.thumbnailUrl &&
+    !token.missing
+  ) {
+    chip.className = cn(
+      'mention-chip mx-0.5 inline-flex select-none align-middle',
+      token.dimmed && 'opacity-45',
+    )
+    chip.setAttribute('data-image-only', 'true')
+    chip.setAttribute('title', shown)
+    chip.setAttribute('aria-label', shown)
+    chip.appendChild(buildThumb(doc, kind, token.thumbnailUrl, true))
+    return chip
+  }
   chip.className = cn(
     CHIP_BASE,
     token?.missing
@@ -394,7 +434,7 @@ function buildChip(
   const label = doc.createElement('span')
   label.className = 'mention-chip-label leading-none'
   // 显示位置（「图 3」），存储仍是字面量 —— 见 `MentionToken.slotLabel`。
-  label.textContent = token?.slotLabel ?? stored
+  label.textContent = shown
   chip.appendChild(label)
   return chip
 }
@@ -406,6 +446,7 @@ function renderInto(
   value: string,
   knownNames: readonly string[],
   tokenByName: ReadonlyMap<string, MentionToken>,
+  imageOnlyChips = false,
 ): void {
   const doc = el.ownerDocument
   el.replaceChildren()
@@ -417,7 +458,12 @@ function renderInto(
       el.appendChild(doc.createTextNode(segment.text))
     } else {
       el.appendChild(
-        buildChip(doc, segment.name, tokenByName.get(segment.name)),
+        buildChip(
+          doc,
+          segment.name,
+          tokenByName.get(segment.name),
+          imageOnlyChips,
+        ),
       )
     }
   }
@@ -767,6 +813,8 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
     ref,
   ) {
     const editorRef = useRef<HTMLDivElement>(null)
+    /** 画布节点的输入框另有安排（p-canvas-nodes），这里只管工作台与助手。 */
+    const imageOnlyChips = variant !== 'canvas'
     const listId = useId()
     const composingRef = useRef(false)
     const compositionEndedAtRef = useRef(0)
@@ -872,11 +920,19 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
         return
       // 失焦重建也要保住光标：外部改写完用户点回来时，位置不该回到开头。
       const caret = getCaretOffset(el)
-      renderInto(el, value, knownNames, tokenByName)
+      renderInto(el, value, knownNames, tokenByName, imageOnlyChips)
       if (caret !== null) setCaretOffset(el, caret)
       lastValueRef.current = value
       renderedTokensRef.current = tokenSignature
-    }, [value, isComposing, knownNames, tokenByName, variant, tokenSignature])
+    }, [
+      value,
+      isComposing,
+      knownNames,
+      tokenByName,
+      variant,
+      imageOnlyChips,
+      tokenSignature,
+    ])
 
     /**
      * 候选按当前查询过滤（大小写不敏感，子串匹配即可），再**按族分名额**截断。
@@ -1136,7 +1192,12 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
           el.focus()
           insertNodeAtCaret(
             el,
-            buildChip(el.ownerDocument, name, token ?? tokenByName.get(name)),
+            buildChip(
+              el.ownerDocument,
+              name,
+              token ?? tokenByName.get(name),
+              imageOnlyChips,
+            ),
           )
           // A trailing space so the caret has a text node to live in after the
           // atomic chip (chips can't hold a caret on their trailing edge alone).
@@ -1219,7 +1280,12 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
           closeMention()
           insertNodeAtCaret(
             el,
-            buildChip(doc, name, token ?? tokenByName.get(name)),
+            buildChip(
+              doc,
+              name,
+              token ?? tokenByName.get(name),
+              imageOnlyChips,
+            ),
           )
           insertNodeAtCaret(el, doc.createTextNode(' '))
           emit()
@@ -1268,7 +1334,7 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
         },
       }),
       // eslint-disable-next-line react-hooks/exhaustive-deps
-      [tokenByName, disabled, mentionMenu],
+      [tokenByName, disabled, mentionMenu, imageOnlyChips],
     )
 
     return (
@@ -1367,7 +1433,13 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
             insertNodeAtCaret(el, el.ownerDocument.createTextNode(text))
             if (variant !== 'canvas') {
               const caret = getCaretOffset(el)
-              renderInto(el, serializeEditor(el), knownNames, tokenByName)
+              renderInto(
+                el,
+                serializeEditor(el),
+                knownNames,
+                tokenByName,
+                imageOnlyChips,
+              )
               if (caret !== null) setCaretOffset(el, caret)
             }
             emit()

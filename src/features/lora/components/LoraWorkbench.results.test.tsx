@@ -291,7 +291,8 @@ describe('LoraWorkbench 结果台 — 出过的图', () => {
       expect(
         screen
           .getAllByTestId('operator-attachment-chip')
-          .map((chip) => chip.textContent),
+          // 图只放图（u-thumbnails）：名字在那张图的 title 上。
+          .map((chip) => chip.querySelector('[title]')?.getAttribute('title')),
       ).toContain('result.png')
     },
   )

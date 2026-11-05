@@ -28,6 +28,8 @@ const LANDING_POINTS = [
   'src/components/business/RouteErrorState.tsx',
   // 整页加载失败（画廊 / 素材库共用，owner 2026-10-08 加载中）。
   'src/components/business/PageLoadError.tsx',
+  // 我的主页作品格：还没有公开作品（骨架对齐，u-audit-skeleton）。
+  'src/components/business/PolaroidGrid.tsx',
   'src/components/business/studio-shared/chrome/StudioErrorBoundary.tsx',
   'src/features/gallery/components/GalleryGrid.tsx',
   'src/features/gallery/components/GalleryPromptList.tsx',

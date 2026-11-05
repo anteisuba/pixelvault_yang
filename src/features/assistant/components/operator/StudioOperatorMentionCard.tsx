@@ -7,6 +7,8 @@
  * ⚠ 与 `@` 菜单住同一个位置（输入框正上方、输入区里绝对定位），⛔ 不 portal：
  * 手机上键盘弹起时它跟着输入框走。点外面 / Esc 关。
  * ⚠ 指的东西没了（「已删除」）只剩「移除」一颗 —— 预览、定位都没有对象。
+ * ⭐ 有图就**顶上直接是大图**、不写名字（u-thumbnails，owner 11-05 拍）：点开就看得到
+ *   是哪张；再点图进全屏。没图的（文本、画布卡、已删除）照旧写名字和种类。
  */
 
 import { useEffect, useRef } from 'react'
@@ -68,6 +70,7 @@ export function StudioOperatorMentionCard({
   }, [onClose])
 
   const label = mention?.label ?? t('deleted')
+  const image = !draft.missing ? mention?.thumb : undefined
   const showRoles =
     !draft.missing &&
     roles.length > 0 &&
@@ -85,16 +88,35 @@ export function StudioOperatorMentionCard({
       className="assistant-mention-card absolute bottom-full z-30 mb-2 flex w-64 max-w-full flex-col gap-2 rounded-12 bg-popover p-2 text-popover-foreground shadow-pop"
       style={{ left }}
     >
-      <div className="flex items-center gap-2">
-        {mention?.thumb && !draft.missing ? (
+      {image ? (
+        onPreview ? (
+          <button
+            type="button"
+            data-testid="operator-mention-card-preview"
+            aria-label={t('preview')}
+            title={label}
+            onClick={onPreview}
+            className="cursor-zoom-in overflow-hidden rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={image}
+              alt=""
+              draggable={false}
+              className="max-h-60 w-full bg-muted object-contain"
+            />
+          </button>
+        ) : (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={mention.thumb}
+            src={image}
             alt=""
+            title={label}
             draggable={false}
-            className="size-12 shrink-0 rounded-md bg-muted object-cover"
+            className="max-h-60 w-full rounded-md bg-muted object-contain"
           />
-        ) : null}
+        )
+      ) : (
         <div className="flex min-w-0 flex-col">
           <span
             className={cn(
@@ -112,7 +134,7 @@ export function StudioOperatorMentionCard({
                 : null}
           </span>
         </div>
-      </div>
+      )}
       {showRoles ? (
         <div
           role="radiogroup"
@@ -144,7 +166,7 @@ export function StudioOperatorMentionCard({
         </div>
       ) : null}
       <div className="flex flex-wrap items-center gap-1">
-        {onPreview && !draft.missing ? (
+        {onPreview && !draft.missing && !image ? (
           <button
             type="button"
             data-testid="operator-mention-card-preview"

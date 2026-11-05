@@ -221,9 +221,14 @@ export function typeDockDraft(value: string) {
   })
 }
 
-/** 输入框上方那一排附件 chip 的文字。 */
+/** 输入框上方那一排附件 chip 的名字（图只放图时名字在那张图的 title 上）。 */
 export function dockAttachmentLabels(): string[] {
   return screen
     .queryAllByTestId('operator-attachment-chip')
-    .map((chip) => chip.textContent ?? '')
+    .map(
+      (chip) =>
+        chip.querySelector('[title]')?.getAttribute('title') ??
+        chip.textContent ??
+        '',
+    )
 }

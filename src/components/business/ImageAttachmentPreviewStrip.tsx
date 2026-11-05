@@ -1,7 +1,6 @@
 'use client'
 
 import { useRef, useState, type ReactNode } from 'react'
-import { useTranslations } from 'next-intl'
 import { Image as ImageIcon, X } from '@/components/icons'
 
 import type { ReferenceImageEntry } from '@/hooks/use-image-upload'
@@ -88,7 +87,6 @@ export function ImageAttachmentPreviewStrip({
   dragMime,
   className,
 }: ImageAttachmentPreviewStripProps) {
-  const t = useTranslations('ImageChip')
   const [previewIndex, setPreviewIndex] = useState<number | null>(null)
   const previewTriggerRef = useRef<HTMLButtonElement | null>(null)
 
@@ -186,14 +184,6 @@ export function ImageAttachmentPreviewStrip({
               {isDisabled ? (
                 <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-md bg-background/35 text-muted-foreground">
                   <ImageIcon className="size-4" />
-                </span>
-              ) : null}
-              {variant === 'composer' ? (
-                <span
-                  aria-hidden
-                  className="pointer-events-none absolute bottom-0.75 left-0.75 h-4 rounded-sm bg-media-chip px-1 font-mono text-3xs leading-4 text-on-media-chip"
-                >
-                  {t('thumbIndex', { index: index + 1 })}
                 </span>
               ) : null}
               <button

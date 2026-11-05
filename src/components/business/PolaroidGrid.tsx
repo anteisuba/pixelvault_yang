@@ -57,9 +57,10 @@ export function PolaroidGrid({
         <EmptyState
           icon={<ImageIcon />}
           title={t('noPublicImages')}
+          description={t('noPublicImagesHint')}
           action={
             isOwnProfile ? (
-              <Button asChild size="sm" className="coarse:h-11">
+              <Button asChild size="sm" className="rounded-full coarse:h-11">
                 <Link href={ROUTES.STUDIO}>{t('startCreating')}</Link>
               </Button>
             ) : undefined

@@ -130,7 +130,7 @@ function ReferenceThumb({ url, name }: { url: string; name: string }) {
       <span
         aria-hidden
         data-testid="operator-reference-thumb-missing"
-        className="size-7 shrink-0 rounded-md bg-muted"
+        className="size-full rounded-md bg-muted"
       />
     )
   }
@@ -138,12 +138,40 @@ function ReferenceThumb({ url, name }: { url: string; name: string }) {
     <Image
       src={url}
       alt={name}
-      width={56}
-      height={56}
+      width={48}
+      height={48}
       unoptimized
       onError={() => setBroken(true)}
-      className="size-7 shrink-0 rounded-md object-cover"
+      className="size-full rounded-md object-cover"
     />
+  )
+}
+
+/**
+ * 正文里的一张图：**只放图、不写名字**，点开看大图（u-thumbnails，owner 11-02 / 11-05
+ * 拍 24px）。名字退到 `title` 与图的 `alt`（按钮的读屏名就是它）。用户气泡、助手回复、输入框三处同一个尺寸。
+ */
+function InlineImage({
+  url,
+  name,
+  onOpen,
+  testId = 'operator-inline-image',
+}: {
+  url: string
+  name: string
+  onOpen: () => void
+  testId?: string
+}) {
+  return (
+    <button
+      type="button"
+      data-testid={testId}
+      title={name}
+      onClick={onOpen}
+      className="mx-0.5 inline-flex size-6 shrink-0 cursor-zoom-in overflow-hidden rounded-md align-middle ring-1 ring-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <ReferenceThumb url={url} name={name} />
+    </button>
   )
 }
 
@@ -153,7 +181,7 @@ type InlineReference = NamedImageReference & { readonly text?: true }
 function withImageReferences(
   node: ReactNode,
   references: readonly InlineReference[],
-  /** `name`：只留名字（用户气泡里，图已在气泡上方排成缩略图，P4 第 3 项）。 */
+  /** `name`：文本节点只写名字（用户气泡里）；图两种都只放图。 */
   inline: 'chip' | 'name' = 'chip',
 ): ReactNode {
   if (typeof node === 'string') {
@@ -168,7 +196,7 @@ function withImageReferences(
     if (!aliases.length) return node
     /**
      * ⚠ 名字两侧的 `@` 与「」一并吞掉（2026-09-24 真机：气泡里是「@图1」原文）——
-     * 那是发给模型的记号，界面上缩略图 + 名字已经说清楚了。只有一个捕获组，
+     * 那是发给模型的记号，界面上那张图已经说清楚了。只有一个捕获组，
      * `split` 留下的就只是名字本身。
      */
     const pattern = new RegExp(
@@ -177,6 +205,15 @@ function withImageReferences(
     )
     return node.split(pattern).map((part, index) => {
       const reference = byAlias.get(part)
+      if (reference && !reference.text)
+        return (
+          <InlineImage
+            key={index}
+            url={reference.url}
+            name={reference.name}
+            onOpen={() => openOperatorLightbox(reference.url, reference.name)}
+          />
+        )
       if (reference && inline === 'name')
         return (
           <span
@@ -194,16 +231,12 @@ function withImageReferences(
         <span
           key={index}
           title={reference.name}
-          /* D12 P8：28px 圆角缩略图 + 名字，⛔ 不带边框，直接贴在字里。 */
+          /* 文本节点没有图：文档字形 + 名字，⛔ 不带边框，直接贴在字里。 */
           className="mx-0.5 inline-flex max-w-full items-center gap-1.5 align-middle text-xs font-normal text-muted-foreground"
         >
-          {reference.text ? (
-            <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
-              <FileText className="size-4" aria-hidden />
-            </span>
-          ) : (
-            <ReferenceThumb url={reference.url} name={reference.name} />
-          )}
+          <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+            <FileText className="size-3.5" aria-hidden />
+          </span>
           <span className="min-w-0 break-words">{reference.name}</span>
         </span>
       ) : (
@@ -640,7 +673,22 @@ function MentionChip({
   onClick?: (mention: AssistantMention) => void
 }) {
   const t = useTranslations('StudioOperator.mention')
-  /* P4 第 3 项：图的缩略图排在气泡上方，这里只留名字（没有图的引用仍带文档字形）。 */
+  /* 有图的引用只放图，就在原来那句话的位置（u-thumbnails，owner 11-05）；
+     点一下由面板决定去哪（画布定位 / 看大图）。 */
+  if (mention.thumb && !missing)
+    return (
+      <InlineImage
+        testId="operator-user-mention"
+        url={mention.thumb}
+        name={mention.label}
+        onOpen={() =>
+          onClick
+            ? onClick(mention)
+            : openOperatorLightbox(mention.thumb ?? '', mention.label)
+        }
+      />
+    )
+  /* 没有图的引用写名字（文本节点带文档字形）。 */
   const body = (
     <>
       {mention.thumb ? null : (
@@ -783,9 +831,9 @@ export function StudioOperatorUserText({
     (mention) => !inlined.has(mention) && !mention.thumb,
   )
   /**
-   * ⭐ **引用的图排在气泡上方**（P4 第 3 项，owner 2026-10-16）：48px 缩略图、⛔ 不带
-   *   文件名（悬停才出），点一下放大 / 去画布定位。正文里同一处只留名字。
-   * ⚠ 三个来源按地址去重：`@` 引用、按名字认出的参考图、没被正文提到的图片附件。
+   * ⭐ 气泡上方只排**正文里没写到**的图（u-thumbnails，owner 11-05 改 10-16 的 P4 第 3 项）：
+   *   写到的那张已经在句子里原位放成图，⛔ 上方不再重复一遍。48px、⛔ 不带文件名，点一下放大。
+   * ⚠ 两个来源按地址去重：没进正文的 `@` 引用、没被正文提到的图片附件。
    */
   const thumbs: {
     key: string
@@ -801,17 +849,22 @@ export function StudioOperatorUserText({
   }
   for (const mention of mentions) {
     if (!mention.thumb || isMentionMissing?.(mention)) continue
+    if (inlined.has(mention)) {
+      // 已在句子里原位放成图：同一张图的附件不再排到上方。
+      seen.add(mention.thumb)
+      if (mention.url) seen.add(mention.url)
+      continue
+    }
     pushThumb(mention.thumb, mention.label, () =>
       onMentionClick
         ? onMentionClick(mention)
         : openOperatorLightbox(mention.thumb ?? '', mention.label),
     )
   }
+  // 正文里写到的参考图已在原位放成图：它的地址先记下，下面的附件不再重复。
   for (const reference of imageReferences)
     if (reference.aliases.some((alias) => alias && text.includes(alias)))
-      pushThumb(reference.url, reference.name, () =>
-        openOperatorLightbox(reference.url, reference.name),
-      )
+      seen.add(reference.url)
   const below = attachmentsBelowUserText(text, attachments)
   for (const attachment of below)
     if (attachment.kind === 'image')

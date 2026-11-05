@@ -14,7 +14,8 @@ import { openAISafetyIdentifierFor } from '@/lib/openai-safety-identifier'
 import { encodeSseEvent } from '@/lib/sse'
 import { ensureUser } from '@/services/user.service'
 import { ApiKeyError, SafetyFilterError, isGenerationError } from '@/lib/errors'
-import { readImageHeader } from '@/lib/image-header'
+import { orientedSize, readImageHeader } from '@/lib/image-header'
+import { renderObjectReplaceMarkup } from '@/lib/object-replace-markup'
 import {
   decodeImage,
   encodePng,
@@ -500,6 +501,26 @@ const OpenAiEditResponseSchema = z.object({
   ),
 })
 
+/** 官方给标注文件的大小上限。 */
+const OPENAI_MARKUP_MAX_BYTES = 50 * 1024 * 1024
+
+/**
+ * 按原图**摆正后**的宽高画标注层（官方：after orientation 同宽高）。读不出尺寸、
+ * 没框位置、超像素 / 字节上限 → `null`（调用方退回纯文字清单）。
+ */
+async function renderMarkupPng(
+  annotations: readonly ObjectReplaceAnnotation[],
+  sourceBuffer: Buffer,
+): Promise<Buffer | null> {
+  const header = readImageHeader(sourceBuffer)
+  if (!header) return null
+  const { width, height } = orientedSize(header)
+  const layer = renderObjectReplaceMarkup(annotations, width, height)
+  if (!layer) return null
+  const png = await encodePng(layer)
+  return png.byteLength <= OPENAI_MARKUP_MAX_BYTES ? png : null
+}
+
 /**
  * OpenAI image edits via `/v1/images/edits`. Accepts an optional mask (soft
  * mask — the model regenerates the whole image but biases toward the masked
@@ -514,6 +535,15 @@ async function editImageWithOpenAI(params: {
   prompt: string
   maskImageUrl?: string
   referenceImages?: string[]
+  /**
+   * 多框编号改图：模型认 `markup`（`acceptsMarkup`）且框能画成标注层时，附上标注层
+   * 并改用 `promptWithMarkup`；画不出来（没有框位置 / 超像素上限）照旧发 `prompt`。
+   * ⛔ 与 `maskImageUrl` 同给 —— 官方禁止两者同发。
+   */
+  markup?: {
+    annotations: readonly ObjectReplaceAnnotation[]
+    promptWithMarkup: string
+  }
   options?: ImageEditOptions
   onPreview?: (url: string) => void
   signal?: AbortSignal
@@ -547,9 +577,20 @@ async function editImageWithOpenAI(params: {
   )
   const endpoint = `${baseUrl}/edits`
 
+  const { buffer: imageBuffer, mimeType: imageMime } = await fetchAsBuffer(
+    params.imageUrl,
+  )
+  const markupPng =
+    params.markup && config.acceptsMarkup && !params.maskImageUrl
+      ? await renderMarkupPng(params.markup.annotations, imageBuffer)
+      : null
+
   const formData = new FormData()
   formData.append('model', params.modelId)
-  formData.append('prompt', params.prompt)
+  formData.append(
+    'prompt',
+    markupPng && params.markup ? params.markup.promptWithMarkup : params.prompt,
+  )
   formData.append('size', 'auto')
   formData.append('output_format', 'png')
   if (params.onPreview) {
@@ -572,14 +613,18 @@ async function editImageWithOpenAI(params: {
   )
   if (safetyIdentifier) formData.append('safety_identifier', safetyIdentifier)
 
-  const { buffer: imageBuffer, mimeType: imageMime } = await fetchAsBuffer(
-    params.imageUrl,
-  )
   formData.append(
     params.referenceImages?.length ? 'image[]' : 'image',
     new Blob([Uint8Array.from(imageBuffer)], { type: imageMime }),
     `source.${imageMime.split('/')[1] ?? 'png'}`,
   )
+  if (markupPng) {
+    formData.append(
+      'markup',
+      new Blob([Uint8Array.from(markupPng)], { type: 'image/png' }),
+      'markup.png',
+    )
+  }
 
   // Additional reference images stack as `image[]` per OpenAI's multi-input
   // contract (gpt-image-2 supports multi-reference compositing).
@@ -738,20 +783,30 @@ function describeArea(area: NonNullable<ObjectReplaceAnnotation['area']>) {
  */
 export function compileAnnotationPrompt(
   annotations: readonly ObjectReplaceAnnotation[],
+  { withMarkup = false }: { withMarkup?: boolean } = {},
 ): string {
   const lines = [...annotations]
     .sort((a, b) => a.index - b.index)
     .map((annotation) => {
-      const where = annotation.area
-        ? ` (${describeArea(annotation.area)} area)`
-        : ''
+      const where =
+        withMarkup && annotation.area
+          ? ' (inside red box ' + annotation.index + ')'
+          : annotation.area
+            ? ` (${describeArea(annotation.area)} area)`
+            : ''
       return `${annotation.index}.${where} ${annotation.instruction}`
     })
 
+  // 带标注层时：说清红框和编号在哪一层、成品里必须去掉（官方示例的写法：
+  // 「Remove the red circle from the finished photo」）。其余三句不变。
   return [
-    'Apply ALL of the following edits to this image in a single pass, and keep every other part of the image unchanged:',
+    withMarkup
+      ? 'The markup layer marks each edit with a numbered red box. Apply ALL of the following edits to this image in a single pass, and keep every other part of the image unchanged:'
+      : 'Apply ALL of the following edits to this image in a single pass, and keep every other part of the image unchanged:',
     ...lines,
-    'Output a clean image with no annotations, numbers, boxes or markings.',
+    withMarkup
+      ? 'Remove the red boxes and numbers from the finished image. Output a clean image with no annotations, numbers, boxes or markings.'
+      : 'Output a clean image with no annotations, numbers, boxes or markings.',
   ].join('\n')
 }
 
@@ -788,6 +843,12 @@ export async function replaceObjects(params: {
       userId: params.userId,
       imageUrl: params.imageUrl,
       prompt,
+      markup: {
+        annotations: params.annotations,
+        promptWithMarkup: compileAnnotationPrompt(params.annotations, {
+          withMarkup: true,
+        }),
+      },
       options: params.options,
       onPreview: params.onPreview,
       signal: params.signal,

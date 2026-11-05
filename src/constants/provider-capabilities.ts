@@ -191,6 +191,11 @@ export interface CapabilityConfig {
    * 别为它补，免得整条线路 400。
    */
   acceptsSafetyIdentifier?: true
+  /**
+   * OpenAI `/v1/images/edits` 收 `markup`（透明 PNG 标注层，与第一张图同宽高）。
+   * 官方只点名 2.5 / 2.6；⛔ 与 `mask` 同发（官方禁止），所以只用在多框编号改图上。
+   */
+  acceptsMarkup?: true
   /** Resolution tiers the model accepts (e.g. 'auto' | '1K' | '2K' | '4K') */
   resolutionOptions?: readonly string[]
   aspectRatioOptions?: readonly string[]
@@ -630,6 +635,7 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
     qualityOptions: ['auto', 'low', 'medium', 'high', 'xhigh', 'max'],
     complexityOptions: OPENAI_GPT_IMAGE_COMPLEXITY_OPTIONS,
     acceptsSafetyIdentifier: true,
+    acceptsMarkup: true,
     maxReferenceImages: OPENAI_GPT_IMAGE_MAX_REFERENCE_IMAGES,
   },
   [AI_MODELS.OPENAI_GPT_IMAGE_26_SUNBURST]: {
@@ -644,6 +650,7 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
     qualityOptions: ['auto', 'low', 'medium', 'high', 'xhigh', 'max'],
     complexityOptions: OPENAI_GPT_IMAGE_COMPLEXITY_OPTIONS,
     acceptsSafetyIdentifier: true,
+    acceptsMarkup: true,
     maxReferenceImages: OPENAI_GPT_IMAGE_MAX_REFERENCE_IMAGES,
   },
   [AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE]: {
@@ -656,6 +663,7 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
     ],
     qualityOptions: ['auto', 'low', 'medium', 'high', 'xhigh', 'max'],
     acceptsSafetyIdentifier: true,
+    acceptsMarkup: true,
     maxReferenceImages: OPENAI_GPT_IMAGE_MAX_REFERENCE_IMAGES,
   },
   [AI_MODELS.OPENAI_GPT_IMAGE_25_SUNBURST]: {
@@ -668,6 +676,7 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
     ],
     qualityOptions: ['auto', 'low', 'medium', 'high', 'xhigh', 'max'],
     acceptsSafetyIdentifier: true,
+    acceptsMarkup: true,
     maxReferenceImages: OPENAI_GPT_IMAGE_MAX_REFERENCE_IMAGES,
   },
   [AI_MODELS.FLUX_2_PRO]: {

@@ -531,6 +531,71 @@ describe('GPT Image 2.6 complexity', () => {
   })
 })
 
+describe('object-replace markup（GPT Image 2.5 / 2.6）', () => {
+  const boxed = [
+    {
+      index: 1,
+      instruction: 'change the jacket to red',
+      area: { x: 0.1, y: 0.2, width: 0.4, height: 0.5 },
+    },
+  ]
+  const replaceWith = async (
+    modelId: string,
+    annotations: Parameters<typeof replaceObjects>[0]['annotations'],
+  ) => {
+    const source = await sharp({
+      create: { width: 40, height: 20, channels: 3, background: 'red' },
+    })
+      .png()
+      .toBuffer()
+    const fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: [{ b64_json: source.toString('base64') }] }),
+    })
+    vi.stubGlobal('fetch', fetchSpy)
+    await replaceObjects({
+      userId: 'user-1',
+      modelId,
+      apiKey: 'test',
+      imageUrl: `data:image/png;base64,${source.toString('base64')}`,
+      annotations,
+    })
+    return fetchSpy.mock.calls[0][1].body as FormData
+  }
+
+  it.each(['gpt-image-2.6-flare', 'gpt-image-2.5-sunburst'])(
+    '%s：附一张与原图同宽高的透明标注层，prompt 说明红框在标注层上',
+    async (modelId) => {
+      const form = await replaceWith(modelId, boxed)
+      const markup = form.get('markup')
+      expect(markup).toBeInstanceOf(Blob)
+      const meta = await sharp(
+        Buffer.from(await (markup as Blob).arrayBuffer()),
+      ).metadata()
+      expect(meta).toMatchObject({ width: 40, height: 20, hasAlpha: true })
+      expect(form.get('mask')).toBeNull()
+      const prompt = form.get('prompt') as string
+      expect(prompt).toContain('markup layer')
+      expect(prompt).toContain('1. (inside red box 1) change the jacket to red')
+      expect(prompt).toContain('Remove the red boxes and numbers')
+    },
+  )
+
+  it('gpt-image-2 不认 markup：照旧只发文字清单', async () => {
+    const form = await replaceWith('gpt-image-2', boxed)
+    expect(form.get('markup')).toBeNull()
+    expect(form.get('prompt') as string).not.toContain('markup layer')
+  })
+
+  it('没有一个框带位置：不附标注层', async () => {
+    const form = await replaceWith('gpt-image-2.6-flare', [
+      { index: 1, instruction: 'make it night' },
+    ])
+    expect(form.get('markup')).toBeNull()
+    expect(form.get('prompt') as string).not.toContain('markup layer')
+  })
+})
+
 describe('object-replace on fal edit endpoints', () => {
   const annotations = [{ index: 1, instruction: 'change the jacket to red' }]
 

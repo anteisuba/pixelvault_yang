@@ -18,7 +18,6 @@ import {
 } from '@/constants/providers'
 import {
   STUDIO_GENERATION_DRAG_MIME,
-  STUDIO_GUIDE_SEEN_STORAGE_KEY,
   STUDIO_REFERENCE_DRAG_MIME,
 } from '@/constants/studio'
 import { closeImageRecipeImport } from '@/hooks/use-image-recipe-import'
@@ -93,7 +92,6 @@ beforeEach(() => {
   })
   stubBrowserLayout()
   setViewportWidth(DESKTOP_WIDTH)
-  localStorage.setItem(STUDIO_GUIDE_SEEN_STORAGE_KEY, '1')
   Element.prototype.scrollIntoView = vi.fn()
   // jsdom 没有 object URL（从图读串先拿它当预览）。
   URL.createObjectURL = () => 'blob:dropped'

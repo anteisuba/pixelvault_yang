@@ -3,10 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { API_ENDPOINTS } from '@/constants/config'
 import { AI_MODELS } from '@/constants/models'
-import {
-  STUDIO_GUIDE_SEEN_STORAGE_KEY,
-  type ImageBatchCount,
-} from '@/constants/studio'
+import { type ImageBatchCount } from '@/constants/studio'
 import { stubBrowserLayout } from '@/test/browser-stubs'
 import { text } from '@/test/i18n-text'
 import {
@@ -54,7 +51,6 @@ let server: ReturnType<typeof fakeStudioServer>
 beforeEach(() => {
   stubBrowserLayout()
   setViewportWidth(MOBILE_WIDTH)
-  localStorage.setItem(STUDIO_GUIDE_SEEN_STORAGE_KEY, '1')
   Element.prototype.scrollIntoView = vi.fn()
   server = fakeStudioServer()
 })

@@ -3,7 +3,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { API_ENDPOINTS } from '@/constants/config'
 import { AI_MODELS } from '@/constants/models'
-import { STUDIO_GUIDE_SEEN_STORAGE_KEY } from '@/constants/studio'
 import type {
   DanbooruCatalog,
   DanbooruFavorite,
@@ -196,7 +195,6 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
   stubBrowserLayout()
   setViewportWidth(DESKTOP_WIDTH)
-  localStorage.setItem(STUDIO_GUIDE_SEEN_STORAGE_KEY, '1')
   Element.prototype.scrollIntoView = vi.fn()
   queryClient.clear()
   asks = []

@@ -2,7 +2,6 @@ import { act, fireEvent, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AI_MODELS } from '@/constants/models'
-import { STUDIO_GUIDE_SEEN_STORAGE_KEY } from '@/constants/studio'
 import type { NovelAiCharacterLayout } from '@/types/novelai'
 import { stubBrowserLayout } from '@/test/browser-stubs'
 import { text } from '@/test/i18n-text'
@@ -59,7 +58,6 @@ const scrollIntoView = vi.fn()
 beforeEach(() => {
   stubBrowserLayout()
   setViewportWidth(DESKTOP_WIDTH)
-  localStorage.setItem(STUDIO_GUIDE_SEEN_STORAGE_KEY, '1')
   scrollIntoView.mockClear()
   Element.prototype.scrollIntoView = scrollIntoView
   fakeStudioServer()

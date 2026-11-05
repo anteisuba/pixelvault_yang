@@ -7,7 +7,6 @@ import { API_ENDPOINTS } from '@/constants/config'
 import { AI_MODELS } from '@/constants/models'
 import { SAMPLE_PROMPT_STORAGE_KEY } from '@/constants/sample-prompts'
 import {
-  STUDIO_GUIDE_SEEN_STORAGE_KEY,
   STUDIO_GENERATION_DRAG_MIME,
   STUDIO_TEMPLATES_PANEL_ID,
 } from '@/constants/studio'
@@ -120,7 +119,6 @@ beforeEach(() => {
   stubBrowserLayout()
   setViewportWidth(DESKTOP_WIDTH)
   localStorage.clear()
-  localStorage.setItem(STUDIO_GUIDE_SEEN_STORAGE_KEY, '1')
   // 首次进来会往空提示词里填一句示例；除了专门验它的那条，都当作来过了。
   localStorage.setItem(SAMPLE_PROMPT_STORAGE_KEY, '1')
   Element.prototype.scrollIntoView = vi.fn()

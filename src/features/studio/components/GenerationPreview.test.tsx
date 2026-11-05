@@ -5,7 +5,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { API_ENDPOINTS, IMAGE_GENERATION } from '@/constants/config'
 import { AI_MODELS } from '@/constants/models'
-import { STUDIO_GUIDE_SEEN_STORAGE_KEY } from '@/constants/studio'
 import {
   clearOperatorMentions,
   getOperatorState,
@@ -75,7 +74,6 @@ beforeEach(() => {
   })
   stubBrowserLayout()
   setViewportWidth(DESKTOP_WIDTH)
-  localStorage.setItem(STUDIO_GUIDE_SEEN_STORAGE_KEY, '1')
   // 助手的引用登记住在模块级 store，跨用例会留着上一例那张图。
   clearOperatorMentions()
   server = fakeStudioServer()

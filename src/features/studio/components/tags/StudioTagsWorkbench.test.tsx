@@ -4,7 +4,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { API_ENDPOINTS } from '@/constants/config'
 import { DURATION_MS } from '@/constants/motion'
-import { STUDIO_GUIDE_SEEN_STORAGE_KEY } from '@/constants/studio'
 import { renderWithApp } from '@/test/app-harness'
 import { stubBrowserLayout } from '@/test/browser-stubs'
 import { text } from '@/test/i18n-text'
@@ -47,8 +46,6 @@ beforeEach(() => {
   stubBrowserLayout()
   setViewportWidth(DESKTOP_WIDTH)
   scrollIntoView.mockClear()
-  // 首次进工作台会自动弹操作教程（模态，盖住整页）；这里当作看过了。
-  localStorage.setItem(STUDIO_GUIDE_SEEN_STORAGE_KEY, '1')
   Element.prototype.scrollIntoView = scrollIntoView
   fakeStudioServer()
     .on('GET', API_ENDPOINTS.DANBOORU_CATALOG, () =>

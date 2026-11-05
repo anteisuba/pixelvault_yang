@@ -90,6 +90,14 @@ describe('withoutVoiceCuesInProse (owner 10-30)', () => {
       '看[链接](https://a.b)',
     )
   })
+
+  it('keeps citation marks whole (11-05: only "](url)" was left)', () => {
+    expect(
+      withoutVoiceCuesInProse(
+        '榜换得很快。[[1]](https://a.b/x) [softly] 就这样',
+      ),
+    ).toBe('榜换得很快。[[1]](https://a.b/x)就这样')
+  })
 })
 
 describe('chatBubbles', () => {
@@ -110,6 +118,14 @@ describe('chatBubbles', () => {
     expect(chatBubbles('看[这里](https://a.b)')).toEqual([
       '看[这里](https://a.b)',
     ])
+  })
+
+  it('drops citation marks from the plain-text bubbles', () => {
+    expect(
+      chatBubbles(
+        '主人，查到了～[[1]](https://a.b/1)\n多巴胺中毒的小孩。[[2]](https://ja.wikipedia.org/wiki/%E3%83%89)',
+      ),
+    ).toEqual(['主人，查到了～', '多巴胺中毒的小孩。'])
   })
 })
 

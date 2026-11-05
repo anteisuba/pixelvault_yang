@@ -1860,7 +1860,15 @@ export function useAssistantOperator(
                 ...event.step,
                 id: `${continuationPrefix}${event.step.id}`,
               }
-              upsertOperatorStep(step, runKey)
+              upsertOperatorStep(
+                step,
+                runKey,
+                // 厂商联网只在说完后补一行「查过了」：插回这一段正文前面（见 `upsertOperatorStep`）。
+                step.tool === ASSISTANT_OPERATOR_TOOL_IDS.searchWeb &&
+                  step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done
+                  ? deltaEntryIds
+                  : [],
+              )
               const resume = getOperatorState().resume
               const matchingSteps = resume?.steps.filter(
                 (item) => item.label === step.title,

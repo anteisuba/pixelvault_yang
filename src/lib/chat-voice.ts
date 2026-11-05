@@ -89,7 +89,10 @@ export function normalizeVoiceCues(text: string, expressive: boolean): string {
     .join('\n')
 }
 
-const VOICE_CUE = /[ \t]*\[[^\]\n]{1,40}\](?!\()[ \t]*/g
+/** ⚠ 引用角标 `[[1]](地址)` 不是提示：⛔ 吃掉前半截只剩「](地址)」（11-05 真机）。 */
+const VOICE_CUE = /[ \t]*(?<!\[)\[[^[\]\n]{1,40}\](?![(\]])[ \t]*/g
+/** 联网回答句尾的引用角标 `[[1]](地址)`。 */
+const CITATION = /[ \t]*\[\[\d{1,3}\]\]\([^)\s]+\)/g
 const DRAMA_TAG = new RegExp(`</?(?:${DRAMA_PAIRED_TAGS.join('|')})>`, 'g')
 /** 中日文字与全角标点：挨着它的那一格空白是提示带进来的，藏掉提示时一起去掉。 */
 const CJK = /[\u3000-\u30ff\u3400-\u9fff\uff00-\uffef]/
@@ -153,10 +156,15 @@ export function withoutStageDirections(text: string): string {
 
 /** 一段回复按行拆成气泡（10-26 F：像发消息一样一句一条）；语气提示、动作藏掉，空行不算。 */
 export function chatBubbles(text: string): string[] {
-  return text
-    .split(/\n+/)
-    .map((line) => withoutVoiceCues(withoutStageDirections(line)))
-    .filter(Boolean)
+  return (
+    text
+      .split(/\n+/)
+      // 气泡是纯文字、不渲染 markdown：引用角标拿掉，出处在回答底下那一行来源里。
+      .map((line) =>
+        withoutVoiceCues(withoutStageDirections(line.replace(CITATION, ''))),
+      )
+      .filter(Boolean)
+  )
 }
 
 /** 她发的表情包那一行（服务端换好的 `![表情](地址)`，4d）。 */

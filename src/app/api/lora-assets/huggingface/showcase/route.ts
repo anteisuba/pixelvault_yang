@@ -22,6 +22,7 @@ const PUBLIC_CACHE = 'public, s-maxage=300, stale-while-revalidate=1800'
  * 惯例。
  */
 export const GET = createApiGetRoute({
+  maxDuration,
   schema: HuggingFaceRepoShowcaseQuerySchema,
   routeName: 'GET /api/lora-assets/huggingface/showcase',
   skipAuth: true,

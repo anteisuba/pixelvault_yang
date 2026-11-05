@@ -4,6 +4,7 @@ import { after, NextResponse } from 'next/server'
 import { z } from 'zod'
 
 import { isValidBearerToken } from '@/lib/bearer-token'
+import { runWithRequestDeadline } from '@/lib/request-deadline'
 import { runOutingChunk } from '@/features/cards/server'
 
 export const dynamic = 'force-dynamic'
@@ -36,6 +37,8 @@ export async function POST(request: Request): Promise<NextResponse> {
       { status: 400 },
     )
   }
-  after(() => runOutingChunk(parsed.data.id))
+  // 活在 `after` 里跑，仍占这次函数的 `maxDuration`：截止时刻显式交给它（`lib/request-deadline.ts`）。
+  const id = parsed.data.id
+  after(() => runWithRequestDeadline(maxDuration, () => runOutingChunk(id)))
   return NextResponse.json({ success: true })
 }

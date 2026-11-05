@@ -274,9 +274,9 @@ describe('createApiRoute', () => {
     expect(json.i18nKey).toBe('errors.provider.failed')
   })
 
-  it('returns 504 for timeout ProviderError', async () => {
+  it('passes a ProviderError custom status through (504)', async () => {
     mockHandler.mockRejectedValue(
-      new ProviderError('gemini', 'Timed out', { timeout: true }),
+      new ProviderError('gemini', 'Gateway timeout', { status: 504 }),
     )
     const req = createPOST('/api/test', { name: 'a', count: 1 })
     const res = await POST(req)

@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 
 import {
   AUDIO_GENERATION,
+  GENERATION_POLL,
   IMAGE_GENERATION,
   PLATFORM_GENERATION_GUARD,
   VIDEO_GENERATION,
@@ -27,6 +28,7 @@ import {
   parseGenerationErrorCode,
 } from '@/constants/generation-errors'
 import { getGenerationErrorMessage } from '@/lib/api-error-message'
+import { transientBackoffMs } from '@/lib/poll-generation-status'
 import { requestStudioResultDetail } from '@/lib/studio-result-detail'
 import { GENERATION_CANCEL_MAX_BATCH } from '@/constants/generation-cancel'
 import type {
@@ -853,14 +855,116 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
    * 一个永不停的定时器，要么被下一次 `stopPolling()` 一起清掉，第一条从此再也
    * 不更新。视频能排队的前提就是先拆掉这个共享槽。
    */
+  // 视频轮询窗口用完后的那一次权威复查：完成就落成功，失败按服务端原因落失败，
+  // 取消干净收尾；仍在跑（或复查本身没拿到）= 'pending'，不是失败。
+  const resolveVideoJobFromStatus = useCallback(
+    async (
+      jobId: string,
+      itemId: string,
+    ): Promise<GenerationRecord | null | 'pending'> => {
+      try {
+        const statusResponse = await checkVideoStatusAPI(jobId)
+        if (statusResponse.success && statusResponse.data) {
+          const statusData = statusResponse.data
+          if (statusData.status === 'COMPLETED') {
+            const generation = statusData.generation
+            markActiveRunItemCompleted(itemId, generation)
+            setLastGeneration(generation)
+            notifySaved(generation, tVideo('toastSuccess'))
+            return generation
+          }
+          if (statusData.status === 'FAILED') {
+            const { message } = resolveGenerationError(
+              statusData,
+              tVideo('errorFallback'),
+            )
+            markActiveRunItemFailed(itemId, message)
+            return null
+          }
+          if (statusData.status === 'CANCELLED') {
+            markActiveRunItemCancelled(itemId)
+            return null
+          }
+        }
+      } catch {
+        // 复查没拿到 = 未知，当作还在跑，绝不判失败。
+      }
+      return 'pending'
+    },
+    [
+      tVideo,
+      notifySaved,
+      resolveGenerationError,
+      markActiveRunItemCompleted,
+      markActiveRunItemFailed,
+      markActiveRunItemCancelled,
+    ],
+  )
+
+  // 音频轮询窗口用完（或状态接口持续不通）后的那一次权威复查——和图片同一思路：
+  // 完成就落成功，失败按服务端原因，取消干净收尾，仍在跑 = 'pending'（不是失败，
+  // 更不是「服务商超时」：窗口是我们自己的上限）。
+  const resolveAudioJobFromStatus = useCallback(
+    async (
+      jobId: string,
+      itemId: string,
+    ): Promise<
+      | { status: 'completed'; generation: GenerationRecord }
+      | { status: 'failed'; message: string; code: GenerationErrorCode }
+      | { status: 'cancelled' }
+      | { status: 'pending' }
+    > => {
+      try {
+        const statusResponse = await checkAudioStatusAPI(jobId)
+        if (statusResponse.success && statusResponse.data) {
+          const statusData = statusResponse.data
+          if (statusData.status === 'COMPLETED') {
+            markActiveRunItemCompleted(itemId, statusData.generation)
+            return { status: 'completed', generation: statusData.generation }
+          }
+          if (statusData.status === 'FAILED') {
+            const failure = resolveGenerationError(
+              statusData,
+              tStudio('generateFailed'),
+            )
+            markActiveRunItemFailed(itemId, failure.message)
+            return { status: 'failed', ...failure }
+          }
+          if (statusData.status === 'CANCELLED') {
+            markActiveRunItemCancelled(itemId)
+            return { status: 'cancelled' }
+          }
+        }
+      } catch {
+        // 复查没拿到 = 未知，当作还在跑，绝不判失败。
+      }
+      return { status: 'pending' }
+    },
+    [
+      tStudio,
+      resolveGenerationError,
+      markActiveRunItemCompleted,
+      markActiveRunItemFailed,
+      markActiveRunItemCancelled,
+    ],
+  )
+
   const pollVideoJobForRunItem = useCallback(
     async (jobId: string, itemId: string): Promise<GenerationRecord | null> => {
+      // 连续拿不到状态的拍数（含抛错）。超过容忍就停止轮询、走收尾那次权威复查，
+      // ⛔ 不把一条可能还在跑的任务判死。
+      let consecutiveStatusFailures = 0
       for (
         let attempt = 1;
         attempt <= VIDEO_GENERATION.MAX_POLL_ATTEMPTS;
         attempt += 1
       ) {
-        await waitForPollInterval(VIDEO_GENERATION.POLL_INTERVAL_MS)
+        await waitForPollInterval(
+          VIDEO_GENERATION.POLL_INTERVAL_MS +
+            (consecutiveStatusFailures > 0
+              ? transientBackoffMs(consecutiveStatusFailures)
+              : 0),
+        )
 
         // 用户按了「取消」—— 这一条的条目已经被摘掉，继续轮询只会把结果写回
         // 一个不存在的格子（或者更糟：把它设成 lastGeneration 弹上舞台）。
@@ -873,15 +977,15 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
           const statusResponse = await checkVideoStatusAPI(jobId)
 
           if (!statusResponse.success || !statusResponse.data) {
-            // 提交后头几拍拿不到状态是正常的（job 还没落库）；超过容忍窗口才判失败。
+            // 提交后头几拍拿不到状态是正常的（job 还没落库）；之后连续失败也只是
+            // 状态接口抖动——超过容忍就收尾复查，不判失败。
             if (attempt <= VIDEO_GENERATION.EARLY_POLL_TOLERANCE) continue
-            const { message } = resolveGenerationError(
-              statusResponse,
-              tVideo('errorFallback'),
-            )
-            markActiveRunItemFailed(itemId, message)
-            return null
+            consecutiveStatusFailures += 1
+            if (consecutiveStatusFailures > GENERATION_POLL.TRANSIENT_TOLERANCE)
+              break
+            continue
           }
+          consecutiveStatusFailures = 0
 
           const statusData = statusResponse.data
 
@@ -910,18 +1014,29 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
             return null
           }
         } catch {
-          // 网络抖一下：跳过这一拍继续轮询，不把整条判死。
+          // 网络抖一下：退避后继续轮询，不把整条判死。
+          consecutiveStatusFailures += 1
+          if (consecutiveStatusFailures > GENERATION_POLL.TRANSIENT_TOLERANCE)
+            break
           continue
         }
       }
 
-      markActiveRunItemFailed(itemId, tVideo('errorTimeout'))
-      return null
+      // 轮询窗口用完（或状态接口持续不通）：以服务端的权威状态为准。任务可能还在
+      // worker 里跑——此时判「超时失败」会邀请用户重试而重复扣费。
+      const outcome = await resolveVideoJobFromStatus(jobId, itemId)
+      if (outcome === 'pending') {
+        toast.info(tStudio('stillProcessingHint'))
+        return null
+      }
+      return outcome
     },
     [
       tVideo,
+      tStudio,
       notifySaved,
       resolveGenerationError,
+      resolveVideoJobFromStatus,
       markActiveRunItemCompleted,
       markActiveRunItemFailed,
       markActiveRunItemCancelled,
@@ -1374,16 +1489,37 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
           activeJobIdsRef.current.set(itemId, jobId)
           setStage('queued')
           pollCountRef.current = 0
+          let consecutiveStatusFailures = 0
 
           return await new Promise<GenerationRecord | null>((resolve) => {
+            // 窗口用完 / 状态接口持续不通：以服务端权威状态收尾，绝不编一个
+            // 「服务商超时」——窗口是我们自己的上限，任务多半还在 worker 里跑。
+            const settleFromStatus = async () => {
+              stopPolling()
+              const outcome = await resolveAudioJobFromStatus(jobId, itemId)
+              if (outcome.status === 'completed') {
+                setLastGeneration(outcome.generation)
+                finish()
+                notifySaved(outcome.generation, tStudio('generateSuccess'))
+                resolve(outcome.generation)
+              } else if (outcome.status === 'failed') {
+                finish(outcome.message, outcome.code)
+                resolve(null)
+              } else if (outcome.status === 'cancelled') {
+                finish()
+                resolve(null)
+              } else {
+                finish()
+                toast.info(tStudio('stillProcessingHint'))
+                resolve(null)
+              }
+            }
+
             pollRef.current = setInterval(async () => {
               pollCountRef.current += 1
 
               if (pollCountRef.current > AUDIO_GENERATION.MAX_POLL_ATTEMPTS) {
-                const msg = tErrors('generation.provider_timeout')
-                markActiveRunItemFailed(itemId, msg)
-                finish(msg, GENERATION_ERROR_CODES.PROVIDER_TIMEOUT)
-                resolve(null)
+                await settleFromStatus()
                 return
               }
 
@@ -1391,15 +1527,17 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
                 const statusResponse = await checkAudioStatusAPI(jobId)
 
                 if (!statusResponse.success || !statusResponse.data) {
-                  const { message, code } = resolveGenerationError(
-                    statusResponse,
-                    tStudio('generateFailed'),
-                  )
-                  markActiveRunItemFailed(itemId, message)
-                  finish(message, code)
-                  resolve(null)
+                  // 状态接口抖一下不是任务失败：容忍几拍，持续不通再去权威复查。
+                  consecutiveStatusFailures += 1
+                  if (
+                    consecutiveStatusFailures >
+                    GENERATION_POLL.TRANSIENT_TOLERANCE
+                  ) {
+                    await settleFromStatus()
+                  }
                   return
                 }
+                consecutiveStatusFailures = 0
 
                 const statusData = statusResponse.data
 
@@ -1439,10 +1577,13 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
                   setStage('processing')
                 }
               } catch {
-                const msg = tStudio('generateFailed')
-                markActiveRunItemFailed(itemId, msg)
-                finish(msg)
-                resolve(null)
+                consecutiveStatusFailures += 1
+                if (
+                  consecutiveStatusFailures >
+                  GENERATION_POLL.TRANSIENT_TOLERANCE
+                ) {
+                  await settleFromStatus()
+                }
               }
             }, AUDIO_GENERATION.POLL_INTERVAL_MS)
           })
@@ -1463,14 +1604,15 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
       }
     },
     [
-      tErrors,
       tStudio,
       notifySaved,
       startTimer,
       stopTimer,
+      stopPolling,
       finish,
       markActiveRunItemCompleted,
       markActiveRunItemFailed,
+      resolveAudioJobFromStatus,
       resolveGenerationError,
     ],
   )
@@ -1514,10 +1656,8 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
       const firstFailure = {
         current: null as { message: string; code: GenerationErrorCode } | null,
       }
-      const timeoutFailure = () => ({
-        message: tErrors('generation.provider_timeout'),
-        code: GENERATION_ERROR_CODES.PROVIDER_TIMEOUT,
-      })
+      // 有格子到窗口末了还在 worker 里跑（不是失败）——全部格子都这样时收尾提示一次。
+      let anyStillRunning = false
 
       // Each variant submits + polls on its own loop (the shared pollRef only
       // tracks one job), resolving its tile as soon as it finishes.
@@ -1534,12 +1674,18 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
         }
         const { jobId } = submit.data
         activeJobIdsRef.current.set(itemId, jobId)
+        let consecutiveStatusFailures = 0
         for (
           let attempt = 0;
           attempt < AUDIO_GENERATION.MAX_POLL_ATTEMPTS;
           attempt += 1
         ) {
-          await waitForPollInterval(AUDIO_GENERATION.POLL_INTERVAL_MS)
+          await waitForPollInterval(
+            AUDIO_GENERATION.POLL_INTERVAL_MS +
+              (consecutiveStatusFailures > 0
+                ? transientBackoffMs(consecutiveStatusFailures)
+                : 0),
+          )
 
           // 用户按了「取消」—— 本地已经把这一格标成 cancelled。
           if (cancelledRunItemsRef.current.has(itemId)) {
@@ -1551,22 +1697,16 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
           try {
             statusResponse = await checkAudioStatusAPI(jobId)
           } catch {
-            markActiveRunItemFailed(itemId, tStudio('generateFailed'))
-            firstFailure.current ??= {
-              message: tStudio('generateFailed'),
-              code: GENERATION_ERROR_CODES.UNKNOWN,
-            }
-            return
+            statusResponse = null
           }
-          if (!statusResponse.success || !statusResponse.data) {
-            const failure = resolveGenerationError(
-              statusResponse,
-              tStudio('generateFailed'),
-            )
-            markActiveRunItemFailed(itemId, failure.message)
-            firstFailure.current ??= failure
-            return
+          if (!statusResponse?.success || !statusResponse.data) {
+            // 状态接口抖一下不是任务失败：退避后重试，持续不通走收尾权威复查。
+            consecutiveStatusFailures += 1
+            if (consecutiveStatusFailures > GENERATION_POLL.TRANSIENT_TOLERANCE)
+              break
+            continue
           }
+          consecutiveStatusFailures = 0
           const statusData = statusResponse.data
           if (statusData.status === 'COMPLETED') {
             markActiveRunItemCompleted(itemId, statusData.generation)
@@ -1590,8 +1730,21 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
             return
           }
         }
-        markActiveRunItemFailed(itemId, timeoutFailure().message)
-        firstFailure.current ??= timeoutFailure()
+        // 窗口用完 / 状态接口持续不通：以服务端权威状态为准，不编「服务商超时」。
+        const outcome = await resolveAudioJobFromStatus(jobId, itemId)
+        if (outcome.status === 'completed') {
+          if (!firstSuccess) {
+            firstSuccess = outcome.generation
+            setLastGeneration(outcome.generation)
+          }
+        } else if (outcome.status === 'failed') {
+          firstFailure.current ??= {
+            message: outcome.message,
+            code: outcome.code,
+          }
+        } else if (outcome.status === 'pending') {
+          anyStillRunning = true
+        }
       }
 
       try {
@@ -1606,10 +1759,10 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
           finish(firstFailure.current.message, firstFailure.current.code)
           return null
         }
-        // 没有成功也没有真失败——要么全被取消，要么还在跑（不该发生：
-        // `runOne` 只在成功/失败/取消三种终态之一才返回）。取消是干净收尾，
-        // 不弹通用错误。
+        // 没有成功也没有真失败——要么全被取消，要么还在 worker 里跑。取消是干净
+        // 收尾；还在跑就说「仍在后台生成」，不弹通用错误。
         finish()
+        if (anyStillRunning) toast.info(tStudio('stillProcessingHint'))
         return null
       } finally {
         stopTimer()
@@ -1618,7 +1771,6 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
       }
     },
     [
-      tErrors,
       tStudio,
       notifySaved,
       startTimer,
@@ -1627,6 +1779,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
       markActiveRunItemCompleted,
       markActiveRunItemFailed,
       markActiveRunItemCancelled,
+      resolveAudioJobFromStatus,
       resolveGenerationError,
     ],
   )

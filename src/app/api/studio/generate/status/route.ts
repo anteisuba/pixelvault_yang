@@ -14,6 +14,7 @@ export const GET = createApiGetRoute<
   typeof AudioStatusRequestSchema,
   ImageStatusResponseData
 >({
+  maxDuration,
   schema: AudioStatusRequestSchema,
   routeName: 'GET /api/studio/generate/status',
   requireAuth: true,

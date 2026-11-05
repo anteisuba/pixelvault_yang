@@ -6,6 +6,7 @@ import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 export const maxDuration = 120
 
 export const POST = createApiRoute({
+  maxDuration,
   schema: GenerateAudioRequestSchema,
   rateLimit: RATE_LIMIT_CONFIGS.generateAudio,
   routeName: 'POST /api/generate-audio',

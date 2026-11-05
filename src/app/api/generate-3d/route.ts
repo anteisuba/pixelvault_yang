@@ -6,6 +6,7 @@ import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 export const maxDuration = 240
 
 export const POST = createApiRoute({
+  maxDuration,
   schema: Generate3DRequestSchema,
   rateLimit: RATE_LIMIT_CONFIGS.generateVideo,
   routeName: 'POST /api/generate-3d',

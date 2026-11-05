@@ -14,6 +14,7 @@ export const GET = createApiGetRoute<
   typeof MultiViewStatusRequestSchema,
   MultiViewStatusResponseData
 >({
+  maxDuration,
   schema: MultiViewStatusRequestSchema,
   routeName: 'GET /api/generate-multiview/status',
   requireAuth: true,

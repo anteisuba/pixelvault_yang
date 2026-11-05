@@ -10,6 +10,7 @@ import { ImageRecipeReadRequestSchema } from '@/types/image-recipe'
 export const maxDuration = 120
 
 export const POST = createApiRoute({
+  maxDuration,
   schema: ImageRecipeReadRequestSchema,
   rateLimit: RATE_LIMIT_CONFIGS.assetUpload,
   routeName: 'POST /api/studio/image-recipe',

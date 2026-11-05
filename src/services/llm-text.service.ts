@@ -25,6 +25,7 @@ import { deepseekTextCompletion } from '@/services/llm/llm-deepseek'
 import { anthropicTextCompletion } from '@/services/llm/llm-anthropic'
 import { xaiTextCompletion } from '@/services/llm/llm-xai'
 import { logger } from '@/lib/logger'
+import { getRequestTimeLeftMs } from '@/lib/request-deadline'
 import type { LlmTextUsage } from '@/services/llm/llm-core'
 
 export {
@@ -120,8 +121,17 @@ function retryDelayFor(
   const reason = getLlmTextRetryReason(error)
   if (!reason) return null
   const failedAfterMs = Date.now() - startedAt
-  if (failedAfterMs > LLM_TEXT_RETRY.MAX_FAILED_ATTEMPT_MS) return null
   const delayMs = RETRY_DELAY_MS[reason]
+  // 路由里按这次请求剩下的时间判：重发还来得及跑一次就重发；路由外沿用「慢失败不重发」。
+  const timeLeftMs = getRequestTimeLeftMs()
+  if (timeLeftMs === null) {
+    if (failedAfterMs > LLM_TEXT_RETRY.MAX_FAILED_ATTEMPT_MS) return null
+  } else if (
+    timeLeftMs - delayMs - LLM_TEXT_TIMEOUTS_MS.DEADLINE_MARGIN <
+    LLM_TEXT_TIMEOUTS_MS.MIN_ATTEMPT
+  ) {
+    return null
+  }
   logger.warn('llm retry', {
     purpose: input.purpose ?? 'unspecified',
     adapterType: input.adapterType,
@@ -195,7 +205,7 @@ export async function llmTextCompletion(input: LlmTextInput): Promise<string> {
         throw toLlmTextTimeoutError({
           adapterType: input.adapterType,
           modelId: input.modelId ?? LLM_TEXT_MODELS[input.adapterType],
-          timeoutMs: LLM_TEXT_TIMEOUTS_MS.COMPLETION,
+          timeoutMs: Date.now() - record.startedAt,
         })
       }
       const delayMs = retryDelayFor(error, input, attempt, record.startedAt)

@@ -1,5 +1,20 @@
 export const GENERATION_ERROR_CODES = {
+  /**
+   * **只**表示服务商自己说超时了（HTTP 408 / 504、provider 原话 timed out）。
+   * ⛔ 我们自己的等待上限到了不要用它——用 GENERATION_WAIT_LIMIT / ACCOUNT_QUEUE_TIMEOUT。
+   */
   PROVIDER_TIMEOUT: 'provider_timeout',
+  /**
+   * **我们的** worker 等满了自己的轮询预算先停手（fal / Replicate / Ideogram / PixAI / 3D
+   * 轮询，或 `AbortSignal.timeout` 到点）。服务商那边的任务可能还在跑、可能已经计费：
+   * 先查素材库 / 生成记录再决定是否重试。
+   */
+  GENERATION_WAIT_LIMIT: 'generation_wait_limit',
+  /**
+   * 同一账号 / key 下已有太多任务在跑，这一条排队等满了没轮到。请求**从没发给**服务商，
+   * 没有扣费；等别的任务跑完再试。
+   */
+  ACCOUNT_QUEUE_TIMEOUT: 'account_queue_timeout',
   PROVIDER_RATE_LIMIT: 'provider_rate_limit',
   PROVIDER_OVERLOADED: 'provider_overloaded',
   INVALID_API_KEY: 'invalid_api_key',
@@ -349,6 +364,17 @@ const ERROR_PATTERNS: Array<{
     code: GENERATION_ERROR_CODES.INVALID_REFERENCE_IMAGE_DIMENSIONS,
     requiresReferenceImage: true,
   },
+  // Worker 自己的等待上限（固定英文，见 workers/execution `createGenerationWaitLimitError` /
+  // `createAccountQueueTimeoutError`）：必须排在通用 timeout 规则之前，errorCode 丢了也不被说成
+  // 「服务商超时」。
+  {
+    pattern: /Generation wait limit reached/i,
+    code: GENERATION_ERROR_CODES.GENERATION_WAIT_LIMIT,
+  },
+  {
+    pattern: /Account queue wait limit reached/i,
+    code: GENERATION_ERROR_CODES.ACCOUNT_QUEUE_TIMEOUT,
+  },
   {
     pattern: /timeout|timed?\s*out/i,
     code: GENERATION_ERROR_CODES.PROVIDER_TIMEOUT,
@@ -445,7 +471,10 @@ export function parseGenerationErrorCode(
 // bridges the two so the UI can resolve a friendly reason from the payload's
 // errorCode without re-parsing the message string.
 const BACKEND_ERROR_CODE_MAP: Record<string, GenerationErrorCode> = {
-  PROVIDER_TIMEOUT: GENERATION_ERROR_CODES.PROVIDER_TIMEOUT,
+  // ⚠ 大写的 PROVIDER_TIMEOUT 是 llm-core 的「我们自己等到时限先停」，不是厂商自己超时
+  //   （owner 11-05：超时按是谁的时限分开说）；厂商 / 网关自己超时是 PROVIDER_UPSTREAM_TIMEOUT。
+  PROVIDER_TIMEOUT: GENERATION_ERROR_CODES.GENERATION_WAIT_LIMIT,
+  PROVIDER_UPSTREAM_TIMEOUT: GENERATION_ERROR_CODES.PROVIDER_TIMEOUT,
   RATE_LIMIT_EXCEEDED: GENERATION_ERROR_CODES.PROVIDER_RATE_LIMIT,
   SAFETY_FILTER_BLOCKED: GENERATION_ERROR_CODES.CONTENT_FILTERED,
   FREE_LIMIT_EXCEEDED: GENERATION_ERROR_CODES.INSUFFICIENT_CREDITS,

@@ -6,6 +6,8 @@ import {
   getImageReferenceInputs,
 } from '../../lib/image-io'
 import {
+  asWaitLimitIfAbortTimeout,
+  createGenerationWaitLimitError,
   createProviderNoOutputError,
   createProviderResponseError,
 } from '../../lib/provider-error'
@@ -19,7 +21,6 @@ import {
   downloadAndUploadImageArtifactToKey,
   getWorkerImageOutputKey,
 } from '../../lib/image-io'
-import { WorkerProviderError } from '../../lib/provider-error'
 import { RETRY_TWICE } from '../multi-step'
 import { imageStepNames, type MultiStepImageDriver } from '../types'
 
@@ -75,6 +76,11 @@ export async function submitIdeogramImageQueue(
       })
     await reportProviderJobId(env, context, generationId)
     return generationId
+  } catch (error) {
+    throw asWaitLimitIfAbortTimeout(error, {
+      provider: 'ideogram',
+      phase: 'image_submit',
+    })
   } finally {
     multipart?.cancel('Submission finished')
   }
@@ -133,12 +139,10 @@ export const ideogramImageDriver: MultiStepImageDriver<
       ? { state: 'done', value: polled }
       : { state: 'pending', nextDelayMs: polled.retryAfterMs },
   timeoutError: (generationId) =>
-    new WorkerProviderError({
+    createGenerationWaitLimitError({
       provider: 'ideogram',
       phase: 'image_poll',
       requestId: generationId,
-      errorCode: 'provider_timeout',
-      message: 'Ideogram image generation timed out.',
     }),
   upload: {
     step: { retries: RETRY_TWICE, timeout: '120 seconds' },

@@ -20,6 +20,7 @@ import {
   readAdvancedRecord,
 } from '../../lib/image-io'
 import {
+  createGenerationWaitLimitError,
   createProviderNoOutputError,
   createProviderPayloadError,
   createProviderResponseError,
@@ -443,7 +444,12 @@ export const falImageDriver: MultiStepImageDriver<
     }
     return { state: 'pending' }
   },
-  timeoutError: () => new Error('fal.ai image generation timed out.'),
+  timeoutError: (queue) =>
+    createGenerationWaitLimitError({
+      provider: 'fal',
+      phase: 'image_poll',
+      requestId: queue.requestId,
+    }),
   upload: {
     step: { retries: RETRY_TWICE, timeout: '120 seconds' },
     run: ({ env, context }, _queue, done) =>

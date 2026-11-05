@@ -7,6 +7,7 @@ import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 export const maxDuration = 240
 
 export const POST = createApiRoute({
+  maxDuration,
   schema: MultiViewGenerateRequestSchema,
   rateLimit: RATE_LIMIT_CONFIGS.generate,
   routeName: 'POST /api/generate-multiview',

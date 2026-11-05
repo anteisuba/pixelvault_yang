@@ -12,7 +12,10 @@ import {
   downloadAndUploadAudioArtifact,
   downloadAndUploadVideoArtifact,
 } from '../lib/media-io'
-import { WorkerProviderError } from '../lib/provider-error'
+import {
+  createGenerationWaitLimitError,
+  WorkerProviderError,
+} from '../lib/provider-error'
 import { pollFalQueue, submitFalQueue } from './fal/queue'
 import { pollGeminiVideoQueue, submitGeminiVideoQueue } from './gemini/video'
 import { pollMiniMaxQueue, submitMiniMaxQueue } from './minimax/video'
@@ -165,7 +168,11 @@ export function buildQueueMediaDriver(
       }
       return { state: 'pending' }
     },
-    timeoutError: () => new Error('Provider polling timed out.'),
+    timeoutError: () =>
+      createGenerationWaitLimitError({
+        provider: context.providerId,
+        phase: 'provider_poll',
+      }),
     upload: {
       step: { retries: RETRY_TWICE, timeout: '120 seconds' },
       async run({ env, readApiKey }, _queue, done) {

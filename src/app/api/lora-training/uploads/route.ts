@@ -14,6 +14,7 @@ export const maxDuration = 10
  * per-image progress now measures a browser → R2 request.
  */
 export const POST = createApiRoute({
+  maxDuration,
   schema: CreateLoraTrainingUploadRequestSchema,
   rateLimit: RATE_LIMIT_CONFIGS.generateVideo,
   routeName: 'POST /api/lora-training/uploads',

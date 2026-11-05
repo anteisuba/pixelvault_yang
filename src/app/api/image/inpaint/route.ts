@@ -13,6 +13,7 @@ import { InpaintRequestSchema } from '@/types'
 export const maxDuration = 180
 
 export const POST = createApiRoute({
+  maxDuration,
   schema: InpaintRequestSchema,
   rateLimit: RATE_LIMIT_CONFIGS.imageEdit,
   routeName: 'POST /api/image/inpaint',

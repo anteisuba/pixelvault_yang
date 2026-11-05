@@ -17,11 +17,7 @@ import { AssistantSkillsPane } from '@/features/assistant/components/settings/As
 import { useAssistantSkills } from '@/features/assistant/hooks/use-assistant-skills'
 import { LoraStackProvider } from '@/features/lora/hooks'
 import { createApiGetRoute, createApiRoute } from '@/lib/api-route-factory'
-import {
-  ApiRequestError,
-  InsufficientCreditsError,
-  ProviderError,
-} from '@/lib/errors'
+import { ApiRequestError, InsufficientCreditsError } from '@/lib/errors'
 import { buildGenerationFailureResponseFields } from '@/services/generation-failure-response.service'
 import {
   fakeServer,
@@ -252,17 +248,6 @@ describe('出图出错 → 舞台上那句话', () => {
     submitFailsWith(new InsufficientCreditsError())
     const shown = await generateOnce()
     expect(shown).toBe(message('Errors.credits.exceeded'))
-  })
-
-  it('服务商超时（提交时）', async () => {
-    submitFailsWith(
-      new ProviderError('gemini', 'Request timed out after 60000ms', {
-        timeout: true,
-      }),
-    )
-    const shown = await generateOnce()
-    expect(shown).toBe(message('Errors.provider.timeout'))
-    expect(shown).not.toContain('timed out')
   })
 
   it('服务端程序异常（提交时）：意外错误，不露原话', async () => {

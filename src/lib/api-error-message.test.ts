@@ -22,6 +22,7 @@ const translator = makeTranslator({
   'validation.invalidInput': 'Please check the generation settings',
   'provider.timeout': 'Provider timed out (i18n)',
   'generation.provider_timeout': 'AI provider took too long',
+  'generation.generation_wait_limit': 'We stopped waiting',
   'generation.provider_overloaded': 'Model at capacity',
   'generation.content_filtered': 'Content filtered',
   'generation.model_unavailable': 'Model unavailable',
@@ -87,10 +88,20 @@ describe('getGenerationErrorMessage', () => {
     expect(
       getGenerationErrorMessage(
         translator,
-        { errorCode: 'PROVIDER_TIMEOUT', error: 'raw' },
+        { errorCode: 'PROVIDER_UPSTREAM_TIMEOUT', error: 'raw' },
         'fallback',
       ),
     ).toBe('AI provider took too long')
+  })
+
+  it('reads PROVIDER_TIMEOUT as our own wait limit, not the provider timing out', () => {
+    expect(
+      getGenerationErrorMessage(
+        translator,
+        { errorCode: 'PROVIDER_TIMEOUT', error: 'raw' },
+        'fallback',
+      ),
+    ).toBe('We stopped waiting')
   })
 
   it('refines a generic errorCode via message parsing', () => {
@@ -198,7 +209,10 @@ describe('getGenerationErrorMessage', () => {
       expect(
         getGenerationErrorMessage(
           translator,
-          { errorCode: 'PROVIDER_TIMEOUT', error: 'ETIMEDOUT after 120000ms' },
+          {
+            errorCode: 'PROVIDER_UPSTREAM_TIMEOUT',
+            error: 'ETIMEDOUT after 120000ms',
+          },
           'fallback',
         ),
       ).toBe('AI provider took too long')

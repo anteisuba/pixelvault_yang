@@ -6,6 +6,7 @@ import { CreateUploadAudioDirectRequestSchema } from '@/types'
 export const maxDuration = 10
 
 export const POST = createApiRoute({
+  maxDuration,
   schema: CreateUploadAudioDirectRequestSchema,
   rateLimit: RATE_LIMIT_CONFIGS.assetUpload,
   routeName: 'POST /api/upload-audio/direct',

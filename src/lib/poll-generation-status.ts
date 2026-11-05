@@ -59,7 +59,7 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-function transientBackoffMs(consecutiveFailures: number): number {
+export function transientBackoffMs(consecutiveFailures: number): number {
   const exponential =
     GENERATION_POLL.BACKOFF_BASE_MS * 2 ** (consecutiveFailures - 1)
   return Math.min(exponential, GENERATION_POLL.BACKOFF_MAX_MS)

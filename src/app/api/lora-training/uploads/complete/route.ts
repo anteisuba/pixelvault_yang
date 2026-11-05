@@ -13,6 +13,7 @@ export const maxDuration = 30
  * rejected upload is deleted, so nothing orphaned stays in the bucket.
  */
 export const POST = createApiRoute({
+  maxDuration,
   schema: CompleteLoraTrainingUploadRequestSchema,
   rateLimit: RATE_LIMIT_CONFIGS.generateVideo,
   routeName: 'POST /api/lora-training/uploads/complete',

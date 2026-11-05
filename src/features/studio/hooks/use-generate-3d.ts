@@ -161,16 +161,22 @@ export function useGenerate3D(): UseGenerate3DReturn {
 
         pollCountRef.current += 1
 
-        if (pollCountRef.current > VIDEO_GENERATION.MAX_POLL_ATTEMPTS) {
-          finish(t('errorTimeout'))
-          return
-        }
+        // 轮询窗口是我们自己的上限，不是失败：窗口用完时多问服务端一次（权威状态），
+        // 只有它说失败才报失败；还在跑就如实说「仍在后台生成」，⛔ 不邀请重试。
+        const finalCheck =
+          pollCountRef.current > VIDEO_GENERATION.MAX_POLL_ATTEMPTS
+        if (finalCheck) stopPolling()
 
         inFlightRef.current = true
         try {
           const statusResponse = await check3DStatusAPI(activeJobId)
 
           if (!statusResponse.success || !statusResponse.data) {
+            if (finalCheck) {
+              finish()
+              toast.info(t('stillProcessing'))
+              return
+            }
             if (pollCountRef.current <= 5) return
             finish(
               getGenerationErrorMessage(
@@ -251,8 +257,14 @@ export function useGenerate3D(): UseGenerate3DReturn {
             }
             setStage(stage ?? 'generating')
           }
+
+          if (finalCheck) {
+            finish()
+            toast.info(t('stillProcessing'))
+          }
         } catch {
-          finish(t('errorUnexpected'))
+          finish(finalCheck ? undefined : t('errorUnexpected'))
+          if (finalCheck) toast.info(t('stillProcessing'))
         } finally {
           inFlightRef.current = false
         }

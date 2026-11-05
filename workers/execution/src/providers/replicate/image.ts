@@ -16,7 +16,10 @@ import {
   R2_WORKER_BASE,
   readAdvancedRecord,
 } from '../../lib/image-io'
-import { createProviderResponseError } from '../../lib/provider-error'
+import {
+  createGenerationWaitLimitError,
+  createProviderResponseError,
+} from '../../lib/provider-error'
 import { REPLICATE_BASE_URL } from './api'
 import { resolveRunCivitaiToken } from '../../lib/app-bridge'
 import {
@@ -346,7 +349,11 @@ export const replicateImageDriver: MultiStepImageDriver<
       ? { state: 'done', value: completeReplicatePrediction(polled) }
       : { state: 'pending' }
   },
-  timeoutError: () => new Error('Replicate image generation timed out.'),
+  timeoutError: () =>
+    createGenerationWaitLimitError({
+      provider: 'replicate',
+      phase: 'image_poll',
+    }),
   upload: {
     step: { retries: RETRY_TWICE, timeout: '120 seconds' },
     async run({ env, context, readApiKey }, _prediction, completed) {

@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 import { z } from 'zod'
 
-import { IMAGE_GENERATION } from '@/constants/config'
+import { GENERATION_POLL, IMAGE_GENERATION } from '@/constants/config'
 import { MODEL_3D_MULTIVIEW_CACHE } from '@/constants/model-3d-generation'
 import type { MultiViewImageRecord, MultiViewGenerateRequest } from '@/types'
 import { checkMultiViewStatusAPI, generateMultiViewAPI } from '@/lib/api-client'
@@ -177,6 +177,7 @@ export function useGenerateMultiView(): UseGenerateMultiViewReturn {
         const response = await generateMultiViewAPI(params)
         if (response.success && response.data) {
           const jobIds = response.data.jobs.map((job) => job.jobId)
+          let consecutiveStatusFailures = 0
           for (
             let attempt = 1;
             attempt <= IMAGE_GENERATION.MAX_POLL_ATTEMPTS;
@@ -189,11 +190,18 @@ export function useGenerateMultiView(): UseGenerateMultiViewReturn {
               jobIds,
             )
             if (!statusResponse.success || !statusResponse.data) {
-              toast.error(
-                getGenerationErrorMessage(tErrors, statusResponse, t('failed')),
-              )
-              return []
+              // 状态接口抖一下不是任务失败（worker 里的图还在跑）：容忍几拍，
+              // 持续不通就如实说「还在后台」，不判失败。
+              consecutiveStatusFailures += 1
+              if (
+                consecutiveStatusFailures > GENERATION_POLL.TRANSIENT_TOLERANCE
+              ) {
+                toast.info(t('stillProcessing'))
+                return []
+              }
+              continue
             }
+            consecutiveStatusFailures = 0
 
             if (statusResponse.data.status === 'IN_PROGRESS') {
               continue
@@ -221,7 +229,9 @@ export function useGenerateMultiView(): UseGenerateMultiViewReturn {
             return completedViews
           }
 
-          toast.error(t('failed'))
+          // 轮询窗口是我们自己的上限：最后一拍状态仍是 IN_PROGRESS = worker 还在出图，
+          // 图稍后会进素材库——⛔ 不说「失败」。
+          toast.info(t('stillProcessing'))
           return []
         }
         toast.error(getGenerationErrorMessage(tErrors, response, t('failed')))

@@ -8,6 +8,7 @@ import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 export const maxDuration = 300
 
 export const POST = createApiRoute({
+  maxDuration,
   schema: GenerateRequestSchema,
   rateLimit: RATE_LIMIT_CONFIGS.generate,
   routeName: 'POST /api/generate',

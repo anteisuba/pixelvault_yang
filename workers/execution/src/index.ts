@@ -59,6 +59,8 @@ import {
   WorkerProviderError,
   WorkerStepFailure,
   buildWorkerFailureCallbackData,
+  createAccountQueueTimeoutError,
+  createGenerationWaitLimitError,
   createProviderNoOutputError,
   createProviderPayloadError,
   createProviderResponseError,
@@ -1297,7 +1299,10 @@ export class Hyper3DRodinWorkflow extends WorkflowEntrypoint<
         }
       }
 
-      throw new Error('Hyper3D Rodin polling timed out.')
+      throw createGenerationWaitLimitError({
+        provider: 'rodin',
+        phase: 'poll',
+      })
     } catch (error) {
       const failureData = buildWorkerFailureCallbackData(error, {
         message: 'Workflow execution failed.',
@@ -1526,7 +1531,10 @@ export class Hunyuan3DWorkflow extends WorkflowEntrypoint<
         }
       }
 
-      throw new Error('fal.ai 3D polling timed out.')
+      throw createGenerationWaitLimitError({
+        provider: 'fal',
+        phase: 'poll_3d',
+      })
     } catch (error) {
       const failureData = buildWorkerFailureCallbackData(error, {
         message: 'Workflow execution failed.',
@@ -1757,7 +1765,10 @@ export async function waitForImageSlot(
       ),
     )
   }
-  throw new Error('Timed out waiting for this account to free up.')
+  throw createAccountQueueTimeoutError({
+    provider: context.providerId,
+    phase: 'acquire_slot',
+  })
 }
 
 function isRateLimitFailure(error: unknown): boolean {

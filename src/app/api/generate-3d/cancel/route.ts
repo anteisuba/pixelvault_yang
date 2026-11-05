@@ -11,6 +11,7 @@ export const maxDuration = 30
  * `CANCELLED` `GenerationJobStatus` — see `cancel3DGenerationForUserId`.
  */
 export const POST = createApiRoute({
+  maxDuration,
   schema: Cancel3DRequestSchema,
   rateLimit: RATE_LIMIT_CONFIGS.generateVideo,
   routeName: 'POST /api/generate-3d/cancel',

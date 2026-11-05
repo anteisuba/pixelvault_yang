@@ -17,6 +17,7 @@ import {
 import { ApiRequestError } from '@/lib/errors'
 import { isGifImageUrl, isGifMimeType } from '@/lib/gif-image'
 import { logger } from '@/lib/logger'
+import { getRequestTimeLeftMs } from '@/lib/request-deadline'
 import { isSvgImageUrl, isSvgMimeType } from '@/lib/svg-image'
 import {
   parseGenerationErrorCode,
@@ -271,7 +272,7 @@ export const LLM_TEXT_PROVIDER_ERROR_CODES = {
   contextLimitExceeded: 'PROVIDER_CONTEXT_LIMIT_EXCEEDED',
   requestTooLarge: 'PROVIDER_REQUEST_TOO_LARGE',
   /**
-   * **我们自己**等满了 `LLM_TEXT_TIMEOUTS_MS.COMPLETION` 先停下（赶在平台杀函数之前）。
+   * **我们自己**等到这次请求的时间上限先停下（`getLlmTextCompletionTimeoutMs`，赶在平台杀函数之前）。
    * ⚠ 码名沿用历史值，但它不是厂商超时：文案说「等了多久没回完」，⛔ 别说成「提供商超时」。
    */
   timeout: 'PROVIDER_TIMEOUT',
@@ -320,7 +321,7 @@ export const LLM_TEXT_PROVIDER_ERROR_MESSAGES = {
   requestTooLarge:
     "The request exceeds this provider's size limit. Reduce the number or size of attachments, or shorten the text.",
   timeout:
-    'The model did not finish within our 2-minute wait limit, so we stopped it. Retry with a lower reasoning effort, shorter input, or a faster model.',
+    'The model did not finish within the time limit of this request, so we stopped it. Retry with a lower reasoning effort, shorter input, or a faster model.',
   upstreamTimeout:
     'The provider timed out on its own side (it did not finish within its own limit). This is not a key or settings problem; retry later or switch models.',
   unreachable:
@@ -731,9 +732,21 @@ export function isAbortError(error: unknown): boolean {
 }
 
 /**
- * 整次请求（连读完正文）一个总时限 `COMPLETION`。只剩这一条通道：旧的逐块流式通道
- * （按「多久没分片」掐）11-05 已删 —— 它会在推理模型想的时候误杀，助手主对话早已走
- * `features/assistant/kernel.ts` 的 AI SDK。
+ * 这一次补全最多等多久（owner 11-05：能避免的超时尽量避免）：
+ * - 在路由里 = 这次请求在平台杀函数前还剩的时间，减去收尾余量（`lib/request-deadline.ts`）——
+ *   30 秒的路由不会再被平台无声杀掉，800 秒的路由也不会被固定 120 秒提前掐断；
+ * - 路由外（脚本 / 测试 / 工作流）= `COMPLETION`。
+ */
+export function getLlmTextCompletionTimeoutMs(): number {
+  const left = getRequestTimeLeftMs()
+  if (left === null) return LLM_TEXT_TIMEOUTS_MS.COMPLETION
+  return Math.max(left - LLM_TEXT_TIMEOUTS_MS.DEADLINE_MARGIN, 0)
+}
+
+/**
+ * 整次请求（连读完正文）一个总时限（`getLlmTextCompletionTimeoutMs`）。只剩这一条通道：
+ * 旧的逐块流式通道（按「多久没分片」掐）11-05 已删 —— 它会在推理模型想的时候误杀，
+ * 助手主对话早已走 `features/assistant/kernel.ts` 的 AI SDK。
  */
 export async function fetchLlmTextBuffered(
   endpoint: string,
@@ -742,8 +755,11 @@ export async function fetchLlmTextBuffered(
   signal?: AbortSignal,
 ): Promise<Response> {
   signal?.throwIfAborted()
+  const timeoutMs = getLlmTextCompletionTimeoutMs()
+  // 剩的时间连发一次都不够：发出去也会被平台杀掉、只剩无信息的 504 —— 现在就说清。
+  if (timeoutMs < LLM_TEXT_TIMEOUTS_MS.MIN_ATTEMPT)
+    throw toLlmTextTimeoutError({ ...context, timeoutMs })
   const controller = new AbortController()
-  const timeoutMs = LLM_TEXT_TIMEOUTS_MS.COMPLETION
   let timer: ReturnType<typeof setTimeout> | undefined
   const clearTimer = () => {
     clearTimeout(timer)

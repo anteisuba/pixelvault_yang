@@ -81,15 +81,13 @@ export class ProviderError extends GenerationError {
   constructor(
     provider: string,
     message: string,
-    options?: { timeout?: boolean; status?: number; i18nKey?: string },
+    options?: { status?: number; i18nKey?: string },
   ) {
     super(message)
     this.provider = provider
-    this.errorCode = options?.timeout ? 'PROVIDER_TIMEOUT' : 'PROVIDER_ERROR'
-    this.httpStatus = options?.timeout ? 504 : (options?.status ?? 502)
-    this.i18nKey = options?.timeout
-      ? 'errors.provider.timeout'
-      : (options?.i18nKey ?? 'errors.provider.failed')
+    this.errorCode = 'PROVIDER_ERROR'
+    this.httpStatus = options?.status ?? 502
+    this.i18nKey = options?.i18nKey ?? 'errors.provider.failed'
   }
 }
 

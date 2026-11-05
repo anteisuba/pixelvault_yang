@@ -11,6 +11,7 @@ export const maxDuration = 240
  * wants to commit to texture generation.
  */
 export const POST = createApiRoute({
+  maxDuration,
   schema: Continue3DRequestSchema,
   rateLimit: RATE_LIMIT_CONFIGS.generateVideo,
   routeName: 'POST /api/generate-3d/continue',

@@ -9,6 +9,7 @@ import { getGenerationErrorI18nKey } from '@/constants/generation-errors'
 import { logger } from '@/lib/logger'
 import { isDatabaseQuotaExceededError } from '@/lib/database-utils'
 import { rateLimit } from '@/lib/rate-limit'
+import { runWithRequestDeadline } from '@/lib/request-deadline'
 import {
   AuthError,
   ApiRequestError,
@@ -22,7 +23,24 @@ import { isGenerateImageServiceError } from '@/services/image/generate-image.ser
 
 // ─── Types ───────────────────────────────────────────────────────
 
-interface RouteConfig<TSchema extends z.ZodType, TResult> {
+interface RouteTiming {
+  /**
+   * 路由文件里 `export const maxDuration` 的同一个值（秒）。不给 = 平台默认 300。
+   * 大模型调用按它算还剩多少时间（`lib/request-deadline.ts`），赶在平台杀函数前停并说清原因。
+   */
+  maxDuration?: number
+}
+
+/** 整个请求跑在这条路由的截止时刻之下（见 `RouteTiming.maxDuration`）。 */
+function withRouteDeadline<TArgs extends unknown[], TResult>(
+  maxDuration: number | undefined,
+  handler: (...args: TArgs) => Promise<TResult>,
+): (...args: TArgs) => Promise<TResult> {
+  return (...args) =>
+    runWithRequestDeadline(maxDuration, () => handler(...args))
+}
+
+interface RouteConfig<TSchema extends z.ZodType, TResult> extends RouteTiming {
   /** Zod schema for request body validation */
   schema: TSchema
   /** Optional rate limit config */
@@ -33,7 +51,10 @@ interface RouteConfig<TSchema extends z.ZodType, TResult> {
   handler: (clerkId: string, data: z.infer<TSchema>) => Promise<TResult>
 }
 
-interface GetRouteConfig<TSchema extends z.ZodType, TResult> {
+interface GetRouteConfig<
+  TSchema extends z.ZodType,
+  TResult,
+> extends RouteTiming {
   /** Zod schema for query string validation */
   schema: TSchema
   /** Route name for logging (e.g. 'GET /api/images') */
@@ -65,7 +86,10 @@ interface GetRouteConfig<TSchema extends z.ZodType, TResult> {
   }) => Promise<TResult>
 }
 
-interface InternalRouteConfig<TSchema extends z.ZodType, TResult> {
+interface InternalRouteConfig<
+  TSchema extends z.ZodType,
+  TResult,
+> extends RouteTiming {
   /** Zod schema for parsed JSON body validation */
   schema: TSchema
   /** Route name for logging (e.g. 'POST /api/internal/execution/callback') */
@@ -309,7 +333,7 @@ function parseRawJsonBody(rawBody: string): unknown {
 export function createApiRoute<TSchema extends z.ZodType, TResult>(
   config: RouteConfig<TSchema, TResult>,
 ) {
-  return async function handler(
+  const handler = async function handler(
     request: NextRequest,
   ): Promise<NextResponse<SuccessResponse<TResult> | ErrorResponse>> {
     const startedAt = Date.now()
@@ -389,19 +413,23 @@ export function createApiRoute<TSchema extends z.ZodType, TResult>(
       })
     }
   }
+  return withRouteDeadline(config.maxDuration, handler)
 }
 
 // ─── Path-param route configs ─────────────────────────────────────
 
 type IdContext = { params: Promise<Record<string, string>> }
 
-interface GetByIdConfig<TResult> {
+interface GetByIdConfig<TResult> extends RouteTiming {
   routeName: string
   notFoundMessage?: string
   handler: (clerkId: string, id: string) => Promise<TResult | null | undefined>
 }
 
-interface PutByIdConfig<TSchema extends z.ZodType, TResult> {
+interface PutByIdConfig<
+  TSchema extends z.ZodType,
+  TResult,
+> extends RouteTiming {
   schema: TSchema
   routeName: string
   notFoundMessage?: string
@@ -413,7 +441,7 @@ interface PutByIdConfig<TSchema extends z.ZodType, TResult> {
   ) => Promise<TResult | null | undefined>
 }
 
-interface DeleteByIdConfig {
+interface DeleteByIdConfig extends RouteTiming {
   routeName: string
   notFoundMessage?: string
   rateLimit?: { limit: number; windowSeconds: number }
@@ -422,7 +450,7 @@ interface DeleteByIdConfig {
 }
 
 export function createApiGetByIdRoute<TResult>(config: GetByIdConfig<TResult>) {
-  return async function handler(
+  const handler = async function handler(
     _request: NextRequest,
     context: IdContext,
   ): Promise<NextResponse<SuccessResponse<TResult> | ErrorResponse>> {
@@ -457,12 +485,13 @@ export function createApiGetByIdRoute<TResult>(config: GetByIdConfig<TResult>) {
       })
     }
   }
+  return withRouteDeadline(config.maxDuration, handler)
 }
 
 export function createApiPutRoute<TSchema extends z.ZodType, TResult>(
   config: PutByIdConfig<TSchema, TResult>,
 ) {
-  return async function handler(
+  const handler = async function handler(
     request: NextRequest,
     context: IdContext,
   ): Promise<NextResponse<SuccessResponse<TResult> | ErrorResponse>> {
@@ -530,10 +559,11 @@ export function createApiPutRoute<TSchema extends z.ZodType, TResult>(
       })
     }
   }
+  return withRouteDeadline(config.maxDuration, handler)
 }
 
 export function createApiDeleteRoute(config: DeleteByIdConfig) {
-  return async function handler(
+  const handler = async function handler(
     _request: NextRequest,
     context: IdContext,
   ): Promise<NextResponse<SuccessResponse<null> | ErrorResponse>> {
@@ -578,6 +608,7 @@ export function createApiDeleteRoute(config: DeleteByIdConfig) {
       })
     }
   }
+  return withRouteDeadline(config.maxDuration, handler)
 }
 
 /**
@@ -604,7 +635,7 @@ export const createApiPatchByIdRoute = createApiPutRoute
 export function createApiInternalRoute<TSchema extends z.ZodType, TResult>(
   config: InternalRouteConfig<TSchema, TResult>,
 ) {
-  return async function handler(
+  const handler = async function handler(
     request: NextRequest,
   ): Promise<NextResponse<SuccessResponse<TResult> | ErrorResponse>> {
     const startedAt = Date.now()
@@ -644,12 +675,13 @@ export function createApiInternalRoute<TSchema extends z.ZodType, TResult>(
       })
     }
   }
+  return withRouteDeadline(config.maxDuration, handler)
 }
 
 export function createApiGetRoute<TSchema extends z.ZodType, TResult>(
   config: GetRouteConfig<TSchema, TResult>,
 ) {
-  return async function handler(
+  const handler = async function handler(
     request: NextRequest,
   ): Promise<NextResponse<SuccessResponse<TResult> | ErrorResponse>> {
     const startedAt = Date.now()
@@ -720,4 +752,5 @@ export function createApiGetRoute<TSchema extends z.ZodType, TResult>(
       })
     }
   }
+  return withRouteDeadline(config.maxDuration, handler)
 }

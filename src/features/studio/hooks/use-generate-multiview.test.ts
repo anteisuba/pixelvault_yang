@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { act, renderHook } from '@testing-library/react'
+import { toast } from 'sonner'
 
 import { IMAGE_GENERATION } from '@/constants/config'
 import type { MultiViewGenerateRequest, MultiViewImageRecord } from '@/types'
@@ -14,6 +15,7 @@ vi.mock('sonner', () => ({
     success: vi.fn(),
     warning: vi.fn(),
     error: vi.fn(),
+    info: vi.fn(),
   },
 }))
 
@@ -125,6 +127,29 @@ afterEach(() => {
 })
 
 describe('useGenerateMultiView', () => {
+  it('poll window exhausted while jobs still run: says still processing, not failed', async () => {
+    mockSuccessfulMultiView()
+    mockCheckStatus.mockResolvedValue({
+      success: true,
+      data: { batchId: 'batch-1', status: 'IN_PROGRESS', views: [], jobs: [] },
+    } as never)
+    const { result } = renderHook(() => useGenerateMultiView())
+
+    let views: MultiViewImageRecord[] | undefined
+    await act(async () => {
+      const promise = result.current.generate(SAMPLE_REQUEST)
+      await vi.advanceTimersByTimeAsync(
+        IMAGE_GENERATION.POLL_INTERVAL_MS *
+          (IMAGE_GENERATION.MAX_POLL_ATTEMPTS + 1),
+      )
+      views = await promise
+    })
+
+    expect(views).toEqual([])
+    expect(toast.error).not.toHaveBeenCalled()
+    expect(toast.info).toHaveBeenCalledWith('stillProcessing')
+  })
+
   it('writes a cache slot scoped to the active clerkId after generate', async () => {
     mockSuccessfulMultiView()
     const { result } = renderHook(() => useGenerateMultiView())

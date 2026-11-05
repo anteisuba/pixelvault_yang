@@ -4,9 +4,10 @@ import { PromptFeedbackRequestSchema } from '@/types'
 import { getPromptFeedback } from '@/services/prompts/prompt-feedback.service'
 import { createApiRoute } from '@/lib/api-route-factory'
 
-export const maxDuration = 30
+export const maxDuration = 300
 
 export const POST = createApiRoute({
+  maxDuration,
   schema: PromptFeedbackRequestSchema,
   routeName: 'POST /api/prompt/feedback',
   rateLimit: { limit: 10, windowSeconds: 60 },

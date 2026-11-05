@@ -323,8 +323,7 @@
       "moderationBlockedInput": "请求在出图前就被服务商的安全审核拦下了，问题在提示词或参考图。改一下措辞或换张参考图再试。",
       "moderationBlockedOutput": "图已经画出来，但成品没通过服务商的安全审核。常见原因是画面太像真人，试试写得更风格化、非写实。",
       "temporarilyUnavailable": "当前规划模型暂时不可用或容量已满。请稍后重试，或切换另一个 Agent Key。",
-      "timeout": "AI 提供商超时，请重试。",
-      "waitLimitReached": "模型 2 分钟内没回完，这次先停下了（不是 Key 的问题）。可以把推理档调低、缩短内容，或换个更快的模型再试。",
+      "waitLimitReached": "模型在这次请求的时限内没回完，赶在被系统强制中断前先停下了（不是 Key 的问题）。可以把推理档调低、缩短内容，或换个更快的模型再试。",
       "upstreamTimeout": "服务商那边处理超时了（它自己没在时限内回完），不是 Key 或设置的问题。请稍后重试，或换个模型。",
       "unreachable": "连不上服务商，或连接中途断了，不是 Key 的问题。请稍后重试。",
       "unsupportedOpenAiReferenceImage": "OpenAI 只接受 JPEG、PNG 或 WebP 参考图。请转换图片格式后再试。",
@@ -355,7 +354,9 @@
       "loraDownloadDisabled": "这把 LoRA 的作者在 Civitai 关掉了下载，任何后端都取不到它的权重。请换一把 LoRA。"
     },
     "generation": {
-      "provider_timeout": "这次生成等待时间过长。请稍后重试，或换一个模型。",
+      "provider_timeout": "服务商那边处理超时了（它自己没在时限内回完），不是 Key 或设置的问题。请稍后重试，或换一个模型。",
+      "generation_wait_limit": "服务商处理太久，我们先停止等待了。它那边可能仍在生成，也可能已经计费——请先到素材库或生成记录里看看有没有结果，再决定是否重试。",
+      "account_queue_timeout": "这个账号下同时在跑的生成太多，这一条排队没轮到，所以没有发给服务商，也没有扣费。等其它任务跑完再试一次。",
       "provider_rate_limit": "请求过于频繁，请稍后再试",
       "provider_overloaded": "该模型当前需求过高，服务商容量已满。请换个模型试试。",
       "invalid_api_key": "当前服务商的 API Key 无效或已过期。请到设置中更新后再试。",

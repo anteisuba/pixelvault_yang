@@ -11,6 +11,7 @@ import { ImageExtractSchema } from '@/types'
 export const maxDuration = 120
 
 export const POST = createApiRoute({
+  maxDuration,
   schema: ImageExtractSchema,
   rateLimit: RATE_LIMIT_CONFIGS.imageEdit,
   routeName: 'POST /api/image/extract',

@@ -323,8 +323,7 @@
       "moderationBlockedInput": "The provider's safety check stopped this before generating — the prompt or a reference image was flagged. Rephrase or swap the reference and try again.",
       "moderationBlockedOutput": "The image was generated but didn't pass the provider's safety check. This often happens when it looks too much like a real person — try a more stylized, non-photorealistic description.",
       "temporarilyUnavailable": "The selected planner model is temporarily unavailable. Try again in a moment or choose another Agent Key.",
-      "timeout": "AI provider timed out. Please try again.",
-      "waitLimitReached": "The model did not finish within 2 minutes, so we stopped this request (not a key problem). Lower the reasoning effort, shorten the input, or switch to a faster model and try again.",
+      "waitLimitReached": "The model did not finish within this request's time limit, so we stopped it before the platform cut it off (not a key problem). Lower the reasoning effort, shorten the input, or switch to a faster model and try again.",
       "upstreamTimeout": "The provider timed out on its own side (it did not finish within its own limit). This is not a key or settings problem; try again later or switch models.",
       "unreachable": "Could not reach the provider, or the connection dropped mid-way. This is not a key problem; try again in a moment.",
       "unsupportedOpenAiReferenceImage": "OpenAI accepts JPEG, PNG, or WebP reference images. Convert the image and try again.",
@@ -355,7 +354,9 @@
       "loraDownloadDisabled": "The creator has disabled downloads for this LoRA on Civitai, so it can't be loaded here. Choose another LoRA."
     },
     "generation": {
-      "provider_timeout": "Generation took too long. Try again later or choose another model.",
+      "provider_timeout": "The provider itself timed out (it did not finish within its own limit). This is not a key or settings problem. Try again later or choose another model.",
+      "generation_wait_limit": "We stopped waiting because the provider took too long. It may still be generating this, and may have already charged for it. Check your gallery or generation history first, then decide whether to retry.",
+      "account_queue_timeout": "Too many generations were already running on this account, and this one waited in line without getting a turn. It was never sent to the provider, so nothing was charged. Try again once the others finish.",
       "provider_rate_limit": "Too many requests, please wait a moment",
       "provider_overloaded": "This model is at capacity right now. Try another model.",
       "invalid_api_key": "The provider API key is invalid or expired. Update it in Settings and try again.",

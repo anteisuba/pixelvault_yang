@@ -10,6 +10,7 @@ export const maxDuration = 300
 
 /** 角色页「出门调查」弹框点「开始」（角色大项目第 ⑤ 步）：马上回这一趟，后台去逛。 */
 export const POST = createApiPostByIdRoute({
+  maxDuration,
   schema: StartCharacterOutingSchema,
   routeName: 'POST /api/character-cards/[id]/outing',
   notFoundMessage: 'Character card not found',

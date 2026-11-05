@@ -7,6 +7,7 @@ export const maxDuration = 30
 
 // POST /api/voices/sample — 平台音色的示例存进自己的存储（「用这段」）
 export const POST = createApiRoute({
+  maxDuration,
   schema: ImportVoiceSampleRequestSchema,
   rateLimit: RATE_LIMIT_CONFIGS.authedWrite,
   routeName: 'POST /api/voices/sample',

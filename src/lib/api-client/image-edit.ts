@@ -32,6 +32,11 @@ export interface ImageEditApiResponse {
   error?: string
   errorCode?: string
   i18nKey?: string
+  /**
+   * 我们的轮询窗口用完而任务还在 worker 里跑：不是失败，也没有错误码（⛔ 别再编
+   * `callback_timeout`——那是服务端 sweeper 对「久未回调」的判定）。结果会进素材库。
+   */
+  pending?: true
 }
 
 export interface ImageEditStreamOptions {
@@ -123,8 +128,8 @@ async function waitForImageEdit(
     return {
       success: false,
       error: 'Image edit is still running. Check the gallery for its result.',
-      errorCode: 'callback_timeout',
       i18nKey: 'errors.provider.callbackTimeout',
+      pending: true,
     }
   } finally {
     signal?.removeEventListener('abort', cancel)

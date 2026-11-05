@@ -9,6 +9,10 @@ export const WORKER_GENERATION_ERROR_CODES = {
   MODEL_UNAVAILABLE: 'model_unavailable',
   PROVIDER_NO_OUTPUT: 'provider_no_output',
   PROVIDER_INSUFFICIENT_BALANCE: 'provider_insufficient_balance',
+  /** 我们的 worker 等满自己的预算先停手；provider 可能还在跑、可能已计费。 */
+  GENERATION_WAIT_LIMIT: 'generation_wait_limit',
+  /** 同一账号 / key 下排队太久没轮到；这次请求根本没发给 provider，没有扣费。 */
+  ACCOUNT_QUEUE_TIMEOUT: 'account_queue_timeout',
   REFERENCE_IMAGE_UNREACHABLE: 'reference_image_unreachable',
   UNKNOWN: 'unknown',
 } as const
@@ -212,7 +216,7 @@ function classifyProviderFailure(params: {
   if (params.httpStatus === 402) {
     return WORKER_GENERATION_ERROR_CODES.PROVIDER_INSUFFICIENT_BALANCE
   }
-  if (params.httpStatus === 408) {
+  if (params.httpStatus === 408 || params.httpStatus === 504) {
     return WORKER_GENERATION_ERROR_CODES.PROVIDER_TIMEOUT
   }
   if (params.httpStatus === 429) {
@@ -224,8 +228,7 @@ function classifyProviderFailure(params: {
   if (
     params.httpStatus === 500 ||
     params.httpStatus === 502 ||
-    params.httpStatus === 503 ||
-    params.httpStatus === 504
+    params.httpStatus === 503
   ) {
     return WORKER_GENERATION_ERROR_CODES.PROVIDER_OVERLOADED
   }
@@ -351,6 +354,61 @@ export async function createProviderResponseError(
     requestId: input.requestId,
     bodyExcerpt,
     providerMetadata: input.providerMetadata,
+  })
+}
+
+/**
+ * 固定英文原话：app 侧 `generation-errors.ts` 的 ERROR_PATTERNS 靠它在 errorCode
+ * 丢失时兜底认出来（排在通用 /timed?\s*out/ 之前）。⚠ 改措辞要同步那两条规则。
+ */
+export const GENERATION_WAIT_LIMIT_MESSAGE_PREFIX =
+  'Generation wait limit reached'
+export const ACCOUNT_QUEUE_TIMEOUT_MESSAGE =
+  'Account queue wait limit reached: too many generations were already running on this account, so this one was never sent to the provider.'
+
+/**
+ * **我们自己**的轮询预算用完了（不是 provider 报超时）：provider 那边的任务可能还在跑、
+ * 也可能已经计费。显示给用户的文案按 errorCode 取，这里的英文只进日志 / 详情。
+ */
+export function createGenerationWaitLimitError(input: {
+  provider: string
+  phase: string
+  requestId?: string
+  providerMetadata?: Record<string, unknown>
+}): WorkerProviderError {
+  return new WorkerProviderError({
+    message: `${GENERATION_WAIT_LIMIT_MESSAGE_PREFIX}: ANTEI stopped waiting for ${input.provider}; the provider may still be processing this job.`,
+    provider: input.provider,
+    phase: input.phase,
+    errorCode: WORKER_GENERATION_ERROR_CODES.GENERATION_WAIT_LIMIT,
+    requestId: input.requestId,
+    providerMetadata: input.providerMetadata,
+  })
+}
+
+/**
+ * `AbortSignal.timeout()` 触发的 `TimeoutError` 是**我们**给这次请求设的上限到了，
+ * provider 并没有说超时 —— 转成 wait-limit；其它错误原样返回给调用方去 throw。
+ */
+export function asWaitLimitIfAbortTimeout(
+  error: unknown,
+  input: { provider: string; phase: string },
+): unknown {
+  return error instanceof Error && error.name === 'TimeoutError'
+    ? createGenerationWaitLimitError(input)
+    : error
+}
+
+/** 按账号排队等满了：请求从没发给 provider，没有扣费。 */
+export function createAccountQueueTimeoutError(input: {
+  provider: string
+  phase: string
+}): WorkerProviderError {
+  return new WorkerProviderError({
+    message: ACCOUNT_QUEUE_TIMEOUT_MESSAGE,
+    provider: input.provider,
+    phase: input.phase,
+    errorCode: WORKER_GENERATION_ERROR_CODES.ACCOUNT_QUEUE_TIMEOUT,
   })
 }
 

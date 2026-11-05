@@ -689,12 +689,15 @@ export const LLM_TEXT_DEFAULT_MAX_TOKENS = {
  */
 export const LLM_TEXT_TIMEOUTS_MS = {
   /**
-   * 缓冲补全一整次请求（含读完响应体）的上限。
-   *
-   * 取值受 `completeWithCitationGate` 的 `maxAttempts: 2` 约束：两次串起来
-   * 是 240s，仍小于各路由最低的 `maxDuration = 300`。
+   * 缓冲补全一整次请求（含读完响应体）在**路由外**（脚本 / 测试 / 工作流）的上限。
+   * 路由里不看它：按这次请求剩下的时间等（`lib/request-deadline.ts`），减去
+   * `DEADLINE_MARGIN` 留给收尾与回错（owner 11-05：能避免的超时尽量避免）。
    */
   COMPLETION: 120_000,
+  /** 赶在平台杀函数之前停下、写日志、把带原因的错误回给界面所需的余量。 */
+  DEADLINE_MARGIN: 8_000,
+  /** 剩下的时间不足这么多就不再发起 / 重发（发出去也必然被平台杀掉）。 */
+  MIN_ATTEMPT: 5_000,
   // ⛔ 旧的 `STREAM_HEADERS`（流式「多久没分片」就掐）11-05 已随自写流式通道一起删：
   //    推理模型想的时候本来就可以很久一个字节都没有。助手对话走 AI SDK，不设静默时限。
 } as const
@@ -715,8 +718,9 @@ export const LLM_TEXT_RETRY = {
   /** 连接被掐（ECONNRESET / fetch failed）：多半是一次性的，马上重发。 */
   NETWORK_DELAY_MS: 500,
   /**
-   * 第一次失败来得比这慢就不重发：路由 `maxDuration` 最短 60s，慢失败再来一次
-   * 会被平台直接杀掉，只剩一个不带信息的 504。超时（`PROVIDER_TIMEOUT`）同理不重发。
+   * **路由外**第一次失败来得比这慢就不重发。路由里改按这次请求剩下的时间判
+   * （`llm-text.service.ts` 的 `retryDelayFor`）：还够再跑一次就重发，不够就不发——
+   * 发出去也只会被平台杀成不带信息的 504。超时（`PROVIDER_TIMEOUT`）一律不重发。
    */
   MAX_FAILED_ATTEMPT_MS: 20_000,
 } as const
@@ -757,7 +761,13 @@ export const AUDIO_GENERATION = {
   DEFAULT_SPEED: 1.0,
   MAX_TEXT_LENGTH: 5000,
   POLL_INTERVAL_MS: 2000,
-  MAX_POLL_ATTEMPTS: 100,
+  // The worker waits on audio providers for up to EXECUTION_WORKER.DEFAULT_TIMEOUT_MS
+  // (600s; fal queue audio polls 200 × 3s) before it sends a terminal callback. The
+  // poll window must out-wait that plus a margin, or the UI gives up while the worker
+  // is still working. 330 × 2s = 660s (same window as IMAGE_GENERATION). Running out
+  // anyway is NOT a provider timeout — the callers re-check the job status once and
+  // show "still processing" if it is still running.
+  MAX_POLL_ATTEMPTS: 330,
 } as const
 
 /** Image generation (async via execution worker) configuration */
@@ -977,6 +987,12 @@ export const RATE_LIMIT_CONFIGS = {
    * 查询的重复请求，这道闸挡的是换着参数绕缓存刷平台 key 的。
    */
   anonymousPlatformRead: { limit: 60, windowSeconds: 60 },
+} as const
+
+/** Vercel 函数（Pro · Fluid compute）。 */
+export const VERCEL_FUNCTION = {
+  /** 路由没写 `export const maxDuration` 时平台给的上限（秒）。 */
+  DEFAULT_MAX_DURATION_S: 300,
 } as const
 
 /** Centralized maxDuration configs for serverless functions */

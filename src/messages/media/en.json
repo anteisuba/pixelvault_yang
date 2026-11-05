@@ -59,7 +59,6 @@
     "negativePromptPlaceholder": "Describe what to avoid in the video...",
     "errorFallback": "Video generation failed. Please try again.",
     "errorUnexpected": "An unexpected error occurred.",
-    "errorTimeout": "Video generation timed out. Please try again.",
     "toastSuccess": "Video generated successfully!",
     "referenceRemoveLabel": "Remove reference image",
     "characterCard": {
@@ -109,7 +108,7 @@
     "removeBackgroundHint": "TripoSR only — strip background before reconstruction",
     "errorFallback": "3D generation failed, please retry.",
     "errorUnexpected": "An unexpected error occurred.",
-    "errorTimeout": "3D generation timed out, please retry.",
+    "stillProcessing": "3D is still generating in the background and will appear in your library when done. Please don't resubmit, to avoid being charged twice.",
     "errorNoSourceImage": "Pick a source image first.",
     "toastSuccess": "3D model generated!",
     "viewerLoading": "Loading 3D model...",
@@ -274,7 +273,8 @@
   "MultiViewGenerate": {
     "success": "Side views ready.",
     "partialSuccess": "{count, plural, one {# side view was generated} other {# side views were generated}}. You can still use the available views for 3D generation.",
-    "failed": "Multi-view generation failed."
+    "failed": "Multi-view generation failed.",
+    "stillProcessing": "The side views are still generating in the background and will appear in your library when done. Please don't resubmit, to avoid being charged twice."
   },
   "LongVideo": {
     "toggle": "Long Video",

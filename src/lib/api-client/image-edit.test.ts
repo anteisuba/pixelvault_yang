@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { IMAGE_GENERATION } from '@/constants/config'
+
 import { inpaintImageAPI, objectReplaceAPI } from './image-edit'
 
 const request = {
@@ -61,6 +63,30 @@ describe('asynchronous image edits', () => {
     expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({
       jobIds: ['edit-job'],
     })
+  })
+  it('poll window exhausted: reports pending without inventing an error code', async () => {
+    vi.useFakeTimers()
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) =>
+      String(input).includes('/status')
+        ? Response.json({
+            success: true,
+            data: { jobId: 'edit-job', status: 'IN_PROGRESS' },
+          })
+        : Response.json({ success: true, data: { jobId: 'edit-job' } }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    try {
+      const pending = objectReplaceAPI(params)
+      await vi.advanceTimersByTimeAsync(
+        IMAGE_GENERATION.POLL_INTERVAL_MS *
+          (IMAGE_GENERATION.MAX_POLL_ATTEMPTS + 1),
+      )
+      const result = await pending
+      expect(result).toMatchObject({ success: false, pending: true })
+      expect(result.errorCode).toBeUndefined()
+    } finally {
+      vi.useRealTimers()
+    }
   })
   it('returns a terminal status API error immediately with its localization key', async () => {
     const fetchMock = vi

@@ -12,6 +12,7 @@ export const maxDuration = 240
  * "侧视图不对 → 替换侧视图" / "太粗糙 → 提高 face count" flows.
  */
 export const POST = createApiRoute({
+  maxDuration,
   schema: RetryMesh3DRequestSchema,
   rateLimit: RATE_LIMIT_CONFIGS.generateVideo,
   routeName: 'POST /api/generate-3d/retry-mesh',

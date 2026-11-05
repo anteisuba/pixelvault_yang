@@ -8,12 +8,13 @@ import {
   type SeedancePromptPlanResponseData,
 } from '@/types/seedance-prompt-plan'
 
-export const maxDuration = 60
+export const maxDuration = 300
 
 export const POST = createApiRoute<
   typeof SeedancePromptPlanRequestSchema,
   SeedancePromptPlanResponseData
 >({
+  maxDuration,
   schema: SeedancePromptPlanRequestSchema,
   rateLimit: RATE_LIMIT_CONFIGS.seedancePromptPlan,
   routeName: 'POST /api/studio/seedance-prompt-plan',

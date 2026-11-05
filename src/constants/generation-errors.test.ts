@@ -11,7 +11,11 @@ import {
 
 describe('normalizeErrorCode', () => {
   it('maps backend SCREAMING_SNAKE codes to client codes', () => {
+    // 大写 PROVIDER_TIMEOUT = 我们自己等到时限先停；厂商自己超时是 PROVIDER_UPSTREAM_TIMEOUT。
     expect(normalizeErrorCode('PROVIDER_TIMEOUT')).toBe(
+      GENERATION_ERROR_CODES.GENERATION_WAIT_LIMIT,
+    )
+    expect(normalizeErrorCode('PROVIDER_UPSTREAM_TIMEOUT')).toBe(
       GENERATION_ERROR_CODES.PROVIDER_TIMEOUT,
     )
     expect(normalizeErrorCode('RATE_LIMIT_EXCEEDED')).toBe(
@@ -320,5 +324,35 @@ describe('isGenerationRetryFutile', () => {
       isGenerationRetryFutile(GENERATION_ERROR_CODES.PROVIDER_TIMEOUT),
     ).toBe(false)
     expect(isGenerationRetryFutile(null)).toBe(false)
+  })
+})
+
+describe('我们自己的等待上限不再被说成服务商超时', () => {
+  it('worker 的固定原话认成 generation_wait_limit / account_queue_timeout', () => {
+    expect(
+      parseGenerationErrorCode(
+        'Generation wait limit reached: ANTEI stopped waiting for fal; the provider may still be processing this job.',
+      ),
+    ).toBe(GENERATION_ERROR_CODES.GENERATION_WAIT_LIMIT)
+    expect(
+      parseGenerationErrorCode(
+        'Account queue wait limit reached: too many generations were already running on this account, so this one was never sent to the provider.',
+      ),
+    ).toBe(GENERATION_ERROR_CODES.ACCOUNT_QUEUE_TIMEOUT)
+  })
+
+  it('errorCode 直接透传', () => {
+    expect(normalizeErrorCode('generation_wait_limit')).toBe(
+      GENERATION_ERROR_CODES.GENERATION_WAIT_LIMIT,
+    )
+    expect(normalizeErrorCode('account_queue_timeout')).toBe(
+      GENERATION_ERROR_CODES.ACCOUNT_QUEUE_TIMEOUT,
+    )
+  })
+
+  it('provider 自己的超时原话仍是 provider_timeout', () => {
+    expect(parseGenerationErrorCode('Upstream request timed out')).toBe(
+      GENERATION_ERROR_CODES.PROVIDER_TIMEOUT,
+    )
   })
 })

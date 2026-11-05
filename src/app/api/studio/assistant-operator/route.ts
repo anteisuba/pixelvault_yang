@@ -9,6 +9,7 @@ import { toAssistantOperatorSseResponse } from '@/lib/assistant-operator-stream'
 import { isGenerationError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 import { rateLimit } from '@/lib/rate-limit'
+import { runWithRequestDeadline } from '@/lib/request-deadline'
 
 /**
  * Pro + Fluid 的 GA 上限 800 秒（11-03 起团队是 Pro；Hobby 只有 300，超了部署直接失败）。
@@ -23,8 +24,15 @@ export const maxDuration = 800
  *
  * ⛔ 这条路由**不创建任何 generation**，也没有任何一条工具能。钱闸是结构性的
  * （见 `features/assistant/services/assistant-operator.service.ts` 头注与 money-gate 测试）。
+ *
+ * 不走工厂，所以自己把 `maxDuration` 记成这次请求的截止时刻（`lib/request-deadline.ts`）：
+ * 工具里的缓冲补全按剩下的时间等。成帧器的活全在 `ReadableStream.start` 里，截止时刻跟得过去。
  */
-export async function POST(request: NextRequest): Promise<Response> {
+export function POST(request: NextRequest): Promise<Response> {
+  return runWithRequestDeadline(maxDuration, () => handlePost(request))
+}
+
+async function handlePost(request: NextRequest): Promise<Response> {
   const startedAt = Date.now()
   const routeName = 'POST /api/studio/assistant-operator'
   const authResult = await auth()

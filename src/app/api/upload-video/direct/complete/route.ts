@@ -6,6 +6,7 @@ import { CompleteUploadVideoDirectRequestSchema } from '@/types'
 export const maxDuration = 60
 
 export const POST = createApiRoute({
+  maxDuration,
   schema: CompleteUploadVideoDirectRequestSchema,
   rateLimit: RATE_LIMIT_CONFIGS.assetUpload,
   routeName: 'POST /api/upload-video/direct/complete',

@@ -59,7 +59,6 @@
     "negativePromptPlaceholder": "動画で避けたい要素を記述...",
     "errorFallback": "動画生成に失敗しました。もう一度お試しください。",
     "errorUnexpected": "予期しないエラーが発生しました。",
-    "errorTimeout": "動画生成がタイムアウトしました。もう一度お試しください。",
     "toastSuccess": "動画が生成されました！",
     "referenceRemoveLabel": "参照画像を削除",
     "characterCard": {
@@ -109,7 +108,7 @@
     "removeBackgroundHint": "TripoSR専用 — 背景を除去してから再構成",
     "errorFallback": "3D生成に失敗しました。もう一度お試しください。",
     "errorUnexpected": "予期しないエラーが発生しました。",
-    "errorTimeout": "3D生成がタイムアウトしました。",
+    "stillProcessing": "3Dはバックグラウンドで生成中です。完了するとライブラリに表示されます。二重課金を避けるため、再送信しないでください。",
     "errorNoSourceImage": "先にソース画像を選択してください。",
     "toastSuccess": "3Dモデルが生成されました！",
     "viewerLoading": "3Dモデルを読み込み中...",
@@ -274,7 +273,8 @@
   "MultiViewGenerate": {
     "success": "側面ビューの準備ができました。",
     "partialSuccess": "生成できた側面画像は{count}枚です。この画像を使って3D生成を続けられます。",
-    "failed": "マルチビュー生成に失敗しました。"
+    "failed": "マルチビュー生成に失敗しました。",
+    "stillProcessing": "側面ビューはバックグラウンドで生成中です。完了するとライブラリに表示されます。二重課金を避けるため、再送信しないでください。"
   },
   "LongVideo": {
     "toggle": "ロング動画",

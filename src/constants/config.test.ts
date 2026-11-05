@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { getClerkAllowedOrigins, IMAGE_GENERATION } from '@/constants/config'
+import {
+  AUDIO_GENERATION,
+  getClerkAllowedOrigins,
+  IMAGE_GENERATION,
+} from '@/constants/config'
 import { EXECUTION_WORKER } from '@/constants/execution'
 
 describe('IMAGE_GENERATION poll window', () => {
@@ -18,6 +22,15 @@ describe('IMAGE_GENERATION poll window', () => {
     expect(pollWindowMs).toBeGreaterThanOrEqual(
       EXECUTION_WORKER.DEFAULT_TIMEOUT_MS,
     )
+  })
+})
+
+describe('AUDIO_GENERATION poll window', () => {
+  // 窗口比 worker 短 = UI 在 worker 还在跑时放弃（曾经 100 × 2s = 200s < 600s）。
+  it('out-waits the worker timeout', () => {
+    expect(
+      AUDIO_GENERATION.MAX_POLL_ATTEMPTS * AUDIO_GENERATION.POLL_INTERVAL_MS,
+    ).toBeGreaterThanOrEqual(EXECUTION_WORKER.DEFAULT_TIMEOUT_MS)
   })
 })
 

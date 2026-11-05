@@ -14,6 +14,7 @@ export const GET = createApiGetRoute<
   typeof Model3DStatusRequestSchema,
   Model3DStatusResponseData
 >({
+  maxDuration,
   schema: Model3DStatusRequestSchema,
   routeName: 'GET /api/generate-3d/status',
   requireAuth: true,

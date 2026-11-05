@@ -13,6 +13,7 @@ export const maxDuration = 30
  * `cancelGenerationJobs` for the ownership/state contract.
  */
 export const POST = createApiRoute({
+  maxDuration,
   schema: cancelGenerationsRequestSchema,
   rateLimit: RATE_LIMIT_CONFIGS.generationsCancel,
   routeName: 'POST /api/generations/cancel',

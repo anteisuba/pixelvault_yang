@@ -27,6 +27,7 @@ import {
   getWorkerImageOutputKey,
   readAdvancedRecord,
 } from '../../lib/image-io'
+import { createGenerationWaitLimitError } from '../../lib/provider-error'
 
 export const PIXAI_API_BASE_URL = 'https://api.pixai.art'
 
@@ -147,9 +148,12 @@ export async function generatePixAiImage(
 
   while (status === 'waiting' || status === 'running') {
     if (Date.now() >= deadline) {
-      throw new Error(
-        `PixAI task ${taskId} did not finish in time (last status: ${status}).`,
-      )
+      throw createGenerationWaitLimitError({
+        provider: 'pixai',
+        phase: 'image_poll',
+        requestId: taskId,
+        providerMetadata: { lastStatus: status },
+      })
     }
     // 官方写死的下限：「Poll no more frequently than once every 1.5 seconds.」
     await new Promise((resolve) => setTimeout(resolve, PIXAI_POLL_INTERVAL_MS))

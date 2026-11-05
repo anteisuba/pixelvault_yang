@@ -147,25 +147,10 @@ describe('ProviderError', () => {
     expect(err.message).toBe('Service unavailable')
   })
 
-  it('uses PROVIDER_TIMEOUT / 504 when timeout option is set', () => {
-    const err = new ProviderError('gemini', 'Timed out', { timeout: true })
-    expect(err.errorCode).toBe('PROVIDER_TIMEOUT')
-    expect(err.httpStatus).toBe(504)
-    expect(err.i18nKey).toBe('errors.provider.timeout')
-  })
-
   it('respects custom status code', () => {
     const err = new ProviderError('openai', 'Rate limited', { status: 429 })
     expect(err.httpStatus).toBe(429)
     expect(err.errorCode).toBe('PROVIDER_ERROR')
-  })
-
-  it('timeout takes precedence over custom status', () => {
-    const err = new ProviderError('openai', 'Timed out', {
-      timeout: true,
-      status: 429,
-    })
-    expect(err.httpStatus).toBe(504)
   })
 
   it('toJSON() serializes correctly', () => {

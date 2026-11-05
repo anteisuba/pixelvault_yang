@@ -22,6 +22,7 @@ import { ensureUser } from '@/services/user.service'
 export const maxDuration = 300
 
 export const POST = createApiRoute({
+  maxDuration,
   schema: VideoAnalyzeRequestSchema,
   rateLimit: RATE_LIMIT_CONFIGS.imageAnalyze,
   routeName: 'POST /api/vision/analyze-video',

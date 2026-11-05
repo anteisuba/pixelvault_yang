@@ -14,6 +14,7 @@ export const GET = createApiGetRoute<
   typeof VideoStatusRequestSchema,
   VideoStatusResponseData
 >({
+  maxDuration,
   schema: VideoStatusRequestSchema,
   routeName: 'GET /api/generate-video/status',
   requireAuth: true,

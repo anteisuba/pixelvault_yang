@@ -19,6 +19,7 @@ import { WebImageImportRequestSchema } from '@/types/web-image-import'
 export const maxDuration = 60
 
 export const POST = createApiRoute({
+  maxDuration,
   schema: WebImageImportRequestSchema,
   rateLimit: RATE_LIMIT_CONFIGS.outboundProbe,
   routeName: 'POST /api/studio/web-image-import',

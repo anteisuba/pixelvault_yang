@@ -17,6 +17,7 @@ export const maxDuration = 60
 
 /** 她的表情包（4d）：她逛来的和你喂给她的。 */
 export const GET = createApiGetByIdRoute({
+  maxDuration,
   routeName: 'GET /api/character-cards/[id]/stickers',
   notFoundMessage: 'Character card not found',
   handler: (clerkId, id) => listCharacterStickers(clerkId, id),

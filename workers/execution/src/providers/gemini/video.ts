@@ -9,6 +9,7 @@ import { isRecord, readStringField } from '../../lib/fields'
 import { JSON_CONTENT_TYPE } from '../../lib/http'
 import { readReferenceImageAsInlinePart } from '../../lib/image-io'
 import {
+  asWaitLimitIfAbortTimeout,
   createProviderNoOutputError,
   createProviderPayloadError,
   createProviderResponseError,
@@ -69,6 +70,11 @@ export async function submitGeminiVideoQueue(
       },
     }),
     signal: AbortSignal.timeout(context.timeoutMs),
+  }).catch((error: unknown) => {
+    throw asWaitLimitIfAbortTimeout(error, {
+      provider: 'gemini',
+      phase: 'queue_submit',
+    })
   })
   if (!response.ok) {
     throw await createProviderResponseError(response, {

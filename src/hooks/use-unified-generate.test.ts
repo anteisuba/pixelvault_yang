@@ -948,7 +948,7 @@ describe('useUnifiedGenerate', () => {
     expect(result.current.activeRun?.items[0].error).toBe(PROVIDER_SAID_UNSAFE)
   })
 
-  it('marks audio run failed when async polling times out', async () => {
+  it('audio poll window exhausted while the job still runs: says still processing, never provider_timeout', async () => {
     vi.useFakeTimers()
     mockGenerateAudio.mockResolvedValue({
       success: true,
@@ -985,10 +985,58 @@ describe('useUnifiedGenerate', () => {
 
     await expect(generationPromise).resolves.toBeNull()
     expect(result.current.stage).toBe('idle')
-    expect(result.current.error).toBe(
-      message('Errors.generation.provider_timeout', 'en'),
-    )
-    expect(result.current.activeRun?.items[0].status).toBe('failed')
+    // 窗口是我们自己的上限：任务还在跑 = 不是失败，也绝不说成「服务商超时」。
+    expect(result.current.error).toBeNull()
+    expect(result.current.errorCode).toBeNull()
+    expect(result.current.activeRun?.items[0].status).not.toBe('failed')
+    expect(toast.error).not.toHaveBeenCalled()
+    expect(toast.info).toHaveBeenCalled()
+  })
+
+  it('audio poll window exhausted but the authoritative check says COMPLETED: succeeds', async () => {
+    vi.useFakeTimers()
+    mockGenerateAudio.mockResolvedValue({
+      success: true,
+      data: { jobId: 'job-audio-late' },
+    })
+
+    const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
+    let generationPromise: Promise<unknown> | undefined
+    await act(async () => {
+      generationPromise = result.current.generate({
+        mode: 'audio',
+        audio: AUDIO_INPUT,
+      })
+      await Promise.resolve()
+    })
+    // 窗口内一直在跑；只有窗口之后的那次收尾复查才拿到完成
+    let calls = 0
+    mockCheckAudioStatus.mockImplementation(async () => {
+      calls += 1
+      return calls > AUDIO_GENERATION.MAX_POLL_ATTEMPTS
+        ? {
+            success: true,
+            data: {
+              jobId: 'job-audio-late',
+              status: 'COMPLETED' as const,
+              generation: { id: 'gen-audio-late' } as GenerationRecord,
+            },
+          }
+        : {
+            success: true,
+            data: { jobId: 'job-audio-late', status: 'IN_PROGRESS' as const },
+          }
+    })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(
+        AUDIO_GENERATION.POLL_INTERVAL_MS *
+          (AUDIO_GENERATION.MAX_POLL_ATTEMPTS + 1),
+      )
+    })
+    await expect(generationPromise).resolves.toMatchObject({
+      id: 'gen-audio-late',
+    })
+    expect(result.current.error).toBeNull()
   })
 
   it('fails audio run when submit succeeds without generation or jobId', async () => {
@@ -1263,6 +1311,46 @@ describe('useUnifiedGenerate', () => {
       expect(result.current.activeRun?.items[0].status).toBe('failed')
       // `error` 是全局错误对话框的开关 —— 队列里单条失败不该弹它
       expect(result.current.error).toBeNull()
+    })
+
+    it('⭐ 轮询窗口用完而任务还在跑：复查一次，说「仍在后台」，不判超时失败（重试会重复扣费）', async () => {
+      vi.useFakeTimers()
+      const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
+
+      mockCheckVideoStatus.mockResolvedValue({
+        success: true,
+        data: { jobId: 'job-video-1', status: 'IN_PROGRESS' },
+      })
+
+      await queueVideo(result)
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(
+          VIDEO_GENERATION.POLL_INTERVAL_MS *
+            (VIDEO_GENERATION.MAX_POLL_ATTEMPTS + 1),
+        )
+      })
+
+      expect(result.current.activeRun?.items[0].status).not.toBe('failed')
+      expect(result.current.error).toBeNull()
+      expect(toast.info).toHaveBeenCalled()
+    })
+
+    it('状态接口持续不通：不判失败，收尾复查后同样说「仍在后台」', async () => {
+      vi.useFakeTimers()
+      const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
+
+      mockCheckVideoStatus.mockResolvedValue({
+        success: false,
+        error: 'upstream blip',
+      })
+
+      await queueVideo(result)
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5 * 60_000)
+      })
+
+      expect(result.current.activeRun?.items[0].status).not.toBe('failed')
+      expect(toast.info).toHaveBeenCalled()
     })
 
     it('⭐ 取消这一条会真调服务端 cancelGenerationsAPI，传的是它的 jobId 不是本地 item.id', async () => {

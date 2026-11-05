@@ -14,6 +14,7 @@ import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 export const maxDuration = 120
 
 export const POST = createApiRoute({
+  maxDuration,
   schema: ImageEditSchema,
   rateLimit: RATE_LIMIT_CONFIGS.imageEdit,
   routeName: 'POST /api/image/edit',

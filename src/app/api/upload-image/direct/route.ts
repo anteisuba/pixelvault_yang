@@ -6,6 +6,7 @@ import { CreateUploadImageDirectRequestSchema } from '@/types'
 export const maxDuration = 10
 
 export const POST = createApiRoute({
+  maxDuration,
   schema: CreateUploadImageDirectRequestSchema,
   rateLimit: RATE_LIMIT_CONFIGS.assetUpload,
   routeName: 'POST /api/upload-image/direct',

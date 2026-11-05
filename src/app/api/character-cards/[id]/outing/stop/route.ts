@@ -10,6 +10,7 @@ export const maxDuration = 300
 
 /** 「结束」：看到的照样留着（owner 10-30）。没在外面 → 404。 */
 export const POST = createApiPostByIdRoute({
+  maxDuration,
   schema: StopCharacterOutingSchema,
   routeName: 'POST /api/character-cards/[id]/outing/stop',
   notFoundMessage: 'Character outing not found',

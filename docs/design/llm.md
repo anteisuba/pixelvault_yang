@@ -33,12 +33,12 @@
 - 同一家、同一把 key、同一型号、同一请求**原样重发一次**。⛔ **不换一家再试**（owner 2026-10-15：「会自动扣其他模型的 token，用户还不知道」）。⛔ 同家也不换备用型号（owner 2026-11-03 选「不换，只重发一次」）。
 - 重发的只有三种：provider 自己说忙（503 / 529 / 其余 5xx）等 1.5s；限流 429 等 3s；连接断（fetch failed / ECONNRESET…）等 0.5s。判断在 `getLlmTextRetryReason`。
 - 不重发：key 失效、余额不足、上下文超限（助手自己压缩后重发，`assistant-completion.service`）、拒答、空回复 / 截断、**超时**（再等一轮只会翻倍等待，常常撞上路由 `maxDuration`）。
-- 第一次失败来得比 20s 慢也不重发（时限保护）；等待中用户点停止立即收手。
+- 时限保护按**这次请求剩下的时间**判（11-05 起）：路由工厂把路由的 `maxDuration` 记成截止时刻（`lib/request-deadline.ts`，没写按平台默认 300 秒），缓冲补全等「剩余 − 8 秒余量」，剩下不足 5 秒就不发 / 不重发；路由外（脚本 / 测试）才用固定 120 秒、「第一次失败慢于 20s 不重发」。⚠ 路由文件 `export const maxDuration` 必须同时交给工厂（`maxDuration,`）或手写路由自己 `runWithRequestDeadline` —— `src/app/api/route-max-duration.test.ts` 锁着。调大模型的路由时限一律 ≥ 300（Fluid 按实际用时计费，写短只会被平台先杀成不带原因的 504）。等待中用户点停止立即收手。
 - 每次尝试各记一行 `llm call`（带 `attempt`），重发另记一行 `llm retry`（原因 / 等多久）。
 - ⛔ 调用方不再各自包传输层重试：视觉结构化输出、Seedance 分镜只重打「输出不合规」和自己的墙钟超时；评审器、助手的 503 重发已拆掉。
 - 上游错误由 `toLlmTextProviderError` 归类成可翻译的码（11-03 起 5xx 算「暂时不可用」，不再叫人换 key）。
 - ⛔ **「超时」按是谁的时限分开说**（owner 2026-11-05：「AI 提供商超时」不准确）：
-  - `PROVIDER_TIMEOUT` = **我们自己**等满 `COMPLETION`（2 分钟）先停（`toLlmTextTimeoutError`），文案「2 分钟内没回完」；
+  - `PROVIDER_TIMEOUT` = **我们自己**等到这次请求的时限先停（`toLlmTextTimeoutError`），赶在平台杀函数之前把原因说清；文案不写具体秒数（各路由时限不同）；
   - `PROVIDER_UPSTREAM_TIMEOUT` = **厂商 / 网关自己**超时（408 / 504 / 524，或流里原话写着 timed out），重发规则同 5xx；
   - `PROVIDER_UNREACHABLE` = 连不上或连接中途断（重发一次后仍断），点明「不是 key 的问题」；
   - 助手那边另有 `ASSISTANT_TIME_BUDGET_EXHAUSTED` = 请求到了时间预算硬线（`hardMs`）一步都没跑完。

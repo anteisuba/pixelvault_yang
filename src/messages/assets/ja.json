@@ -252,7 +252,7 @@
     "phone": {
       "favorites": "お気に入り",
       "search": "素材を検索",
-      "searchPlaceholder": "名前やプロンプトで検索",
+      "searchPlaceholder": "検索",
       "searchCancel": "キャンセル",
       "typeTabs": "種類",
       "types": {

@@ -398,8 +398,8 @@ export function TagLibraryDesk() {
                 <LibrarySearch
                   value={queryText}
                   maxLength={100}
-                  placeholder={t(KIND_TEXT[kind].search)}
-                  label={t(KIND_TEXT[kind].search)}
+                  placeholder={t('search')}
+                  label={t('search')}
                   onChange={(text) => {
                     setDraft({ key: draftKey, text })
                     // 一搜就看搜到的第一个：刚才点开的那一个放掉。

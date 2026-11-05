@@ -428,7 +428,7 @@
     "tabFavorites": "お気に入り {count}",
     "tabCloned": "クローン {count}",
     "tabPublic": "ボイスを探す",
-    "searchPlaceholder": "ボイスを検索",
+    "searchPlaceholder": "検索",
     "clone": "ボイスをクローン",
     "loadMore": "さらに読み込む",
     "emptyFavorites": "お気に入りのボイスはまだありません",

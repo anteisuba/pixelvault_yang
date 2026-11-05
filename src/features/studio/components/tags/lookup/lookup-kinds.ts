@@ -54,7 +54,10 @@ export function shownData(result: {
   return result.data ?? (result.loading ? result.previous : undefined)
 }
 
-/** 每一页用哪几句文案（页签 · 类别小签 · 搜索框 · 列表标题 · 搜不到 · 样图说明）。 */
+/**
+ * 每一页用哪几句文案（页签 · 类别小签 · 标签台搜索框 · 列表标题 · 搜不到）。
+ * 标签库的搜索框只写「搜索」（ui-spec §9 库），⛔ 用这里带例子的那句。
+ */
 export const KIND_TEXT: Record<
   DanbooruCatalogKind,
   {
@@ -64,8 +67,6 @@ export const KIND_TEXT: Record<
     random: string
     results: string
     none: string
-    note: string
-    notePhone: string
   }
 > = {
   character: {
@@ -75,8 +76,6 @@ export const KIND_TEXT: Record<
     random: 'randomCharacterTitle',
     results: 'characterCount',
     none: 'noneText',
-    note: 'traitsNote',
-    notePhone: 'traitsNotePhone',
   },
   artist: {
     tab: 'tabStyle',
@@ -85,8 +84,6 @@ export const KIND_TEXT: Record<
     random: 'randomTitle',
     results: 'artistResults',
     none: 'artistNoneText',
-    note: 'traitsNote',
-    notePhone: 'traitsNotePhone',
   },
   copyright: {
     tab: 'tabWork',
@@ -95,8 +92,6 @@ export const KIND_TEXT: Record<
     random: 'randomWorkTitle',
     results: 'workResults',
     none: 'workNoneText',
-    note: 'workNote',
-    notePhone: 'workNotePhone',
   },
   general: {
     tab: 'tabFeature',
@@ -105,8 +100,6 @@ export const KIND_TEXT: Record<
     random: 'randomFeatureTitle',
     results: 'featureResults',
     none: 'featureNoneText',
-    note: 'featureNote',
-    notePhone: 'featureNotePhone',
   },
 }
 

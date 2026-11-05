@@ -34,6 +34,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   LIBRARY_PILL_CLASS,
+  LibraryGrid,
   LibraryPillSelect,
   LibrarySearch,
   LibraryToolbar,
@@ -184,13 +185,10 @@ function LibrarySortChips({ library }: { library: UseChubLibraryReturn }) {
   )
 }
 
-/** 与「我的角色」的 `CellGrid` 同一套列数（owner 2026-10-15：卡库卡与角色卡对齐）。 */
-const GRID_CLASS =
-  'grid grid-cols-2 gap-x-3 gap-y-4 max-md:gap-x-2.5 max-md:gap-y-3.5 sm:grid-cols-3 md:grid-cols-4 desk:grid-cols-6 2xl:grid-cols-8'
-
+/** 骨架与格子里的图同一个 3:4（格子本身是库骨架的 `LibraryGrid`，ui-spec §9）。 */
 function TileSkeletons({ count }: { count: number }) {
   return Array.from({ length: count }, (_, index) => (
-    <Skeleton key={index} className="aspect-4/5 w-full rounded-2xl" />
+    <Skeleton key={index} className="aspect-3/4 w-full rounded-2xl" />
   ))
 }
 
@@ -246,44 +244,19 @@ function tileMeta(card: ChubCardSummary, compact: Intl.NumberFormat): string {
 }
 
 /**
- * 卡库里的一张卡 = 「我的角色」那张卡（`CharacterOverview` 的 `CharacterTile`）：4:5、
- * 大圆角、名字和一行小字压在图底。点开看详情，「做成角色」与 chub 外链都在详情里。
+ * 卡库里的一张卡（ui-spec §9 库）：3:4 图，名字和一行小字写在图下面 —— 桌面、手机同一种，
+ * 和角色 / 提示词 / 音色那几个库的格子一样。点开看详情，「做成角色」与 chub 外链都在详情里。
  */
 function LibraryTile({
   card,
-  captionBelow,
   onOpen,
 }: {
   card: ChubCardSummary
-  /** 手机：名字写在图下面，与「我的角色」手机那张同一种（iOS 稿）。 */
-  captionBelow: boolean
   onOpen(): void
 }) {
   const t = useTranslations('CharacterRoster')
   const compact = useCompactNumber()
   const meta = tileMeta(card, compact)
-  if (captionBelow) {
-    return (
-      <button
-        type="button"
-        data-testid="library-tile"
-        {...screenItemProps('tavern', card.name, card.avatarUrl)}
-        onClick={onOpen}
-        aria-label={t('libraryOpenDetail', { name: card.name })}
-        className="block w-full text-left transition-transform duration-fast ease-standard active:scale-96 motion-reduce:transition-none"
-      >
-        <ChubImage card={card} className="aspect-3/4 w-full rounded-2xl" />
-        <span className="mt-2 block truncate text-sm font-semibold">
-          {card.name}
-        </span>
-        {meta ? (
-          <span className="block truncate text-xs text-muted-foreground">
-            {meta}
-          </span>
-        ) : null}
-      </button>
-    )
-  }
   return (
     <button
       type="button"
@@ -291,21 +264,21 @@ function LibraryTile({
       {...screenItemProps('tavern', card.name, card.avatarUrl)}
       onClick={onOpen}
       aria-label={t('libraryOpenDetail', { name: card.name })}
-      className="group relative block aspect-4/5 w-full text-left"
+      className="group block w-full text-left transition-transform duration-fast ease-standard active:scale-96 motion-reduce:transition-none"
     >
-      <span className="absolute inset-0 overflow-hidden rounded-2xl bg-muted">
-        <ChubImage
-          card={card}
-          className="size-full"
-          imgClassName="transition-transform duration-reveal ease-standard group-hover:scale-103"
-        />
-        <span className="absolute inset-x-0 bottom-0 flex flex-col bg-linear-to-t from-foreground/60 to-transparent px-4 pb-3 pt-10 text-background">
-          <span className="truncate text-base font-semibold">{card.name}</span>
-          {meta ? (
-            <span className="truncate text-xs opacity-85">{meta}</span>
-          ) : null}
-        </span>
+      <ChubImage
+        card={card}
+        className="aspect-3/4 w-full rounded-2xl"
+        imgClassName="transition-transform duration-reveal ease-standard group-hover:scale-103 motion-reduce:transition-none"
+      />
+      <span className="mt-2 block truncate text-sm font-semibold">
+        {card.name}
       </span>
+      {meta ? (
+        <span className="block truncate text-xs text-muted-foreground">
+          {meta}
+        </span>
+      ) : null}
     </button>
   )
 }
@@ -486,7 +459,7 @@ function LibraryDetail({
   )
 }
 
-/** 白卡里的卡库：说明一行 · 网格 · 底部接下一页。 */
+/** 白卡里的卡库：网格 · 底部接下一页（手机顶上多一排排序 chip、最底下一句来源）。 */
 export function CharacterLibrary({
   library,
   importingPath,
@@ -518,16 +491,14 @@ export function CharacterLibrary({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* 手机：排序是胶囊下面一排 chip，说明挪到最底下一句（iOS 稿）。 */}
-      {isMobile ? (
-        <LibrarySortChips library={library} />
-      ) : (
-        <p className="text-2sm text-muted-foreground">{t('libraryNote')}</p>
-      )}
+      {/* 手机：排序是胶囊下面一排 chip，来源说明在最底下一句（iOS 稿）。桌面不写说明（ui-spec §9：库里不写解释句）。 */}
+      {isMobile ? <LibrarySortChips library={library} /> : null}
 
       {status === 'loading' ? (
-        <div className={GRID_CLASS} aria-busy>
-          <TileSkeletons count={12} />
+        <div aria-busy>
+          <LibraryGrid>
+            <TileSkeletons count={12} />
+          </LibraryGrid>
         </div>
       ) : status === 'error' ? (
         <EmptyState
@@ -564,17 +535,16 @@ export function CharacterLibrary({
         </div>
       ) : (
         <>
-          <div className={GRID_CLASS}>
+          <LibraryGrid>
             {library.items.map((card) => (
               <LibraryTile
                 key={card.fullPath}
                 card={card}
-                captionBelow={isMobile}
                 onOpen={() => setOpenCard(card)}
               />
             ))}
             {moreStatus === 'loading' ? <TileSkeletons count={6} /> : null}
-          </div>
+          </LibraryGrid>
           <div
             ref={sentinel}
             className="flex justify-center py-2 text-2sm text-muted-foreground"

@@ -342,8 +342,8 @@ function TagLibraryPhone() {
             <Search className="size-3.5 shrink-0" aria-hidden />
             <input
               type="search"
-              aria-label={t(KIND_TEXT[kind].search)}
-              placeholder={t(KIND_TEXT[kind].search)}
+              aria-label={t('search')}
+              placeholder={t('search')}
               value={queryText}
               maxLength={100}
               onChange={(event) =>

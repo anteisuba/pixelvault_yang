@@ -178,16 +178,19 @@ export const VOICE_LIBRARY_PAGE_SIZE = 20
 /** 声音库「全部」的来源（左栏「全部」右边那行小字）。 */
 export const VOICE_LIBRARY_SOURCE_LABEL = 'Fish Audio'
 
-export const VOICE_LIBRARY_LANGUAGES = ['all', 'zh', 'en', 'ja', 'es'] as const
+/**
+ * 音色库的语言条（ui-spec §9 库）：只列界面那三种语言，各用本语言写自己的名字
+ * （中文 / 日本語 / English，三个界面都一样）。
+ */
+export const VOICE_LIBRARY_LANGUAGES = ['all', 'zh', 'ja', 'en'] as const
 
 export type VoiceLibraryLanguage = (typeof VOICE_LIBRARY_LANGUAGES)[number]
 
 export const VOICE_LIBRARY_LANGUAGE_FILTERS = [
   { value: 'all', labelKey: 'voiceLanguageAll' },
   { value: 'zh', labelKey: 'voiceLanguageChinese' },
-  { value: 'en', labelKey: 'voiceLanguageEnglish' },
   { value: 'ja', labelKey: 'voiceLanguageJapanese' },
-  { value: 'es', labelKey: 'voiceLanguageSpanish' },
+  { value: 'en', labelKey: 'voiceLanguageEnglish' },
 ] as const satisfies readonly {
   value: VoiceLibraryLanguage
   labelKey: string

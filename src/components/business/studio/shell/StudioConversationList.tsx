@@ -28,7 +28,6 @@ import {
   MoreHorizontal,
   PanelLeftClose,
   PanelLeftOpen,
-  Plus,
 } from '@/components/icons'
 import { AccountMenu } from '@/components/layout/AccountMenu'
 import { ProfileAvatar } from '@/components/layout/ProfileAvatar'
@@ -90,11 +89,11 @@ const LIBRARY_ITEMS = pageItems(STUDIO_LIBRARY_TAB_IDS)
 /**
  * `/studio` 外壳左边那一栏（owner 11-04 定稿）：只管「去哪儿」，每一样一点就开。
  *
- * 从上到下：展开键 ·「＋ 新对话」黑圆 · 对话 ｜工作台：图像 · LoRA · 配音 · 视频 · 3D · 画布
+ * 从上到下：展开键 · 新对话 ｜工作台：图像 · LoRA · 配音 · 视频 · 3D · 画布
  * ｜我的：画廊 · 素材 · 提示词 · 角色 ｜库：LoRA 模型 · 酒馆 · 标签 · 音色 … 最底下账号。
  *
  * - 对话记录 ⛔ 不在这里：白板头最左那颗「记录」（`StudioShellHistoryKey`），首页和台上同一颗。
- * - 正在出图的那个台图标上一颗高亮小点（这段对话有任务在跑；还没开台就点在「对话」上）。
+ * - 正在出图的那个台图标上一颗高亮小点（这段对话有任务在跑；还没开台就点在「新对话」上）。
  * - 放不下（`rail-short`）只把「库」那一组收成一颗，点开浮出那四样；放得下全都一点就开。
  * - 带字那一档浮在内容上（⛔ 把白板往右推），开合记在本机（`useStudioRailExpanded`）。
  */
@@ -115,8 +114,6 @@ export function StudioConversationList({ className }: { className?: string }) {
     openCategory !== null &&
     (STUDIO_LIBRARY_TAB_IDS as readonly string[]).includes(openCategory)
   const inShell = isStudioShellPath(pathname) && openCategory === null
-  /** 只剩对话（首页、`/studio/c/编号`）才亮「对话」；开着台亮的是那个台。 */
-  const conversationActive = inShell && kind === 'home'
   const activeBench =
     inShell && kind === 'bench' ? activeBenchId(pathname) : undefined
   const runningBench = useRunningBench(sessionId, activeBench)
@@ -251,45 +248,28 @@ export function StudioConversationList({ className }: { className?: string }) {
           </button>
         </NavTip>
 
+        {/* 「新对话」只有这一颗（owner 11-05：黑圆不要了，和「对话」并成一颗，点了永远开新的）。
+            ⛔ 不亮：它是动作不是去处；回到这段对话 = 再点亮着的台 / 库那一颗。 */}
         <NavTip label={t('newChat')} show={!expanded}>
           <button
             type="button"
             aria-label={t('newChat')}
+            data-slot="sidebar-menu-button"
             data-testid="studio-rail-new-chat"
             disabled={history.newDisabled}
             onClick={history.onNew}
             className={cn(
-              'relative z-1 flex h-10 shrink-0 items-center gap-3 overflow-hidden rounded-full bg-primary px-2.75 text-primary-foreground transition-[width,transform,opacity] duration-base ease-standard active:scale-96 disabled:opacity-50 focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none [&>svg]:size-4.5 [&>svg]:shrink-0',
+              RAIL_ITEM_CLASS,
               railWidth(expanded),
+              'disabled:opacity-50',
             )}
-          >
-            <Plus />
-            {expanded ? (
-              <span className={cn(RAIL_LABEL_CLASS, 'font-medium')}>
-                {t('newChat')}
-              </span>
-            ) : null}
-          </button>
-        </NavTip>
-
-        <NavTip label={t('conversation')} show={!expanded}>
-          <Link
-            href={conversationHref}
-            prefetch={false}
-            {...intent(conversationHref)}
-            aria-label={t('conversation')}
-            aria-current={conversationActive ? 'page' : undefined}
-            data-slot="sidebar-menu-button"
-            data-active={conversationActive}
-            data-testid="studio-shell-conversation-key"
-            className={cn(RAIL_ITEM_CLASS, railWidth(expanded))}
           >
             <ChatCircleText />
             {runningBench === null ? <RunningDot /> : null}
             {expanded ? (
-              <span className={RAIL_LABEL_CLASS}>{t('conversation')}</span>
+              <span className={RAIL_LABEL_CLASS}>{t('newChat')}</span>
             ) : null}
-          </Link>
+          </button>
         </NavTip>
 
         <RailGroup label={t('benches')} expanded={expanded} />

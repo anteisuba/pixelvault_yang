@@ -294,7 +294,7 @@ export function LoraLibraryOverlayView() {
           </div>
         ) : (
           // 桌面 = 库骨架（ui-spec §9，样件 E S19）：左栏「全部 · 收藏 · 自训 · 角色」，右边那一格。
-          <div className="domain-lora flex h-full min-h-0 gap-8 pt-3 pr-5.5">
+          <div className="domain-lora lora-library flex h-full min-h-0 gap-8 pt-3 pr-5.5">
             <LoraLibrarySectionRail
               view={view}
               onViewChange={setView}

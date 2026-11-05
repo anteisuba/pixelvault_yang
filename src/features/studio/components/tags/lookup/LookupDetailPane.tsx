@@ -133,7 +133,6 @@ export function LookupDetailPane({
               sample: detail.sampleSize,
             }),
           ),
-          t(medium ? 'mediumShotsNote' : 'artistShotsNote'),
         ]}
         about={about}
         link={{
@@ -231,9 +230,6 @@ export function LookupDetailPane({
       texts={{
         tagsTitle: adder ? t('tagsTitle') : t(REFS_TITLE[kind]),
         tagsHint: phone ? t('tagsHintPhone') : t('tagsHint'),
-        note: t(phone ? text.notePhone : text.note, {
-          count: detail.sampleSize,
-        }),
         addTo: t('addTo'),
         targets: t('targetsLabel'),
         noComposition: t('noComposition'),

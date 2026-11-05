@@ -252,7 +252,7 @@
     "phone": {
       "favorites": "Favorites",
       "search": "Search assets",
-      "searchPlaceholder": "Search names or prompts",
+      "searchPlaceholder": "Search",
       "searchCancel": "Cancel",
       "typeTabs": "Type",
       "types": {

@@ -473,7 +473,7 @@
     "tryPromptUseWithPrompt": "プロンプト付きで生成",
     "tryPromptCopied": "サンプルプロンプトをコピーしました — Studioに貼り付けてください",
     "tryPromptCopyFailed": "コピーに失敗しました",
-    "communitySearch": "LoRAを検索...",
+    "communitySearch": "検索",
     "communitySearchSubmit": "検索",
     "communitySortFilter": "並び順",
     "communityLoadFailed": "Civitai LoRAライブラリを読み込めませんでした。もう一度お試しください。",

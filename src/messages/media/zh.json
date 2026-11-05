@@ -428,7 +428,7 @@
     "tabFavorites": "我的收藏 {count}",
     "tabCloned": "我的克隆 {count}",
     "tabPublic": "找音色",
-    "searchPlaceholder": "搜音色",
+    "searchPlaceholder": "搜索",
     "clone": "克隆音色",
     "loadMore": "加载更多",
     "emptyFavorites": "还没有收藏的音色",

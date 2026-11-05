@@ -116,7 +116,6 @@ export function TagPane({
   texts: {
     tagsTitle: string
     tagsHint: string
-    note: string
     addTo: string
     targets: string
     noComposition: string
@@ -150,9 +149,6 @@ export function TagPane({
           ),
         )}
       </div>
-      <span className="text-2xs leading-4.5 text-muted-foreground/70">
-        {texts.note}
-      </span>
     </LookupSection>
   )
   const where = !addBar ? null : addBar.composition ? (

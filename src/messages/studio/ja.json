@@ -69,10 +69,9 @@
     "voiceSourceFilter": "ソースでボイスを絞り込む",
     "voiceSourceAll": "すべてのソース",
     "voiceLanguageAll": "すべて",
-    "voiceLanguageChinese": "中国語",
-    "voiceLanguageEnglish": "英語",
+    "voiceLanguageChinese": "中文",
+    "voiceLanguageEnglish": "English",
     "voiceLanguageJapanese": "日本語",
-    "voiceLanguageSpanish": "スペイン語",
     "voiceSortFilter": "ボイスの並び替え",
     "voiceSortRecommended": "おすすめ",
     "voiceSortPopular": "人気",
@@ -1114,7 +1113,6 @@
       "yesterday": "昨日",
       "earlier": "それ以前"
     },
-    "conversation": "会話",
     "history": "会話履歴",
     "switchPersona": "相手を切り替え（いまは {name}）",
     "chatMode": {

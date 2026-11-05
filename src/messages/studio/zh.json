@@ -70,9 +70,8 @@
     "voiceSourceAll": "全部来源",
     "voiceLanguageAll": "全部",
     "voiceLanguageChinese": "中文",
-    "voiceLanguageEnglish": "英文",
-    "voiceLanguageJapanese": "日文",
-    "voiceLanguageSpanish": "西语",
+    "voiceLanguageEnglish": "English",
+    "voiceLanguageJapanese": "日本語",
     "voiceSortFilter": "声音排序",
     "voiceSortRecommended": "推荐",
     "voiceSortPopular": "热门",
@@ -1114,7 +1113,6 @@
       "yesterday": "昨天",
       "earlier": "更早"
     },
-    "conversation": "对话",
     "history": "对话记录",
     "switchPersona": "换人（现在是 {name}）",
     "chatMode": {

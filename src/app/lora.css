@@ -79,6 +79,15 @@
   background: transparent;
 }
 
+/* 桌面库（ui-spec §9 库）：库骨架直接落在白板上，和酒馆 / 标签 / 音色同一处起点 ——
+   ⛔ 铺工作台灰（当前行的 `fill` 底与搜索框会融进去）、⛔ 地台外距（左栏会多挪 18）。
+   ⚠ 本文件不在 `@layer` 里，会压过 JSX 上的 Tailwind 内距：`revert-layer` 把内距
+   交还给那几个工具类（`pt-3 pr-5.5`，与酒馆同值），⛔ 在这里再抄一份数。 */
+.domain-lora.lora-library {
+  background: transparent;
+  padding: revert-layer;
+}
+
 .domain-lora .lora-ground {
   display: flex;
   flex-direction: column;

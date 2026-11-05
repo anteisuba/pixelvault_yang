@@ -69,7 +69,7 @@
     "sidebarModel3D": "3D",
     "sidebarTools": "工具",
     "pickerLocked": "仅{type}",
-    "sidebarImages": "图像",
+    "sidebarImages": "图片",
     "sidebarVideos": "视频",
     "sidebarAudio": "音频",
     "sidebarFolders": "文件夹",
@@ -252,14 +252,14 @@
     "phone": {
       "favorites": "收藏",
       "search": "搜索素材",
-      "searchPlaceholder": "搜名字或提示词",
+      "searchPlaceholder": "搜索",
       "searchCancel": "取消",
       "typeTabs": "类型",
       "types": {
         "all": "全部",
         "image": "图片",
         "video": "视频",
-        "audio": "声音"
+        "audio": "音频"
       }
     }
   }

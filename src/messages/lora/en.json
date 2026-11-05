@@ -473,7 +473,7 @@
     "tryPromptUseWithPrompt": "Generate with prompt",
     "tryPromptCopied": "Example prompt copied — paste into Studio",
     "tryPromptCopyFailed": "Couldn't copy",
-    "communitySearch": "Search LoRAs...",
+    "communitySearch": "Search",
     "communitySearchSubmit": "Search",
     "communitySortFilter": "Sort",
     "communityLoadFailed": "Couldn't load the Civitai LoRA library. Please try again.",

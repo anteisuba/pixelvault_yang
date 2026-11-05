@@ -428,7 +428,7 @@
     "tabFavorites": "Saved {count}",
     "tabCloned": "Cloned {count}",
     "tabPublic": "Find voices",
-    "searchPlaceholder": "Search voices",
+    "searchPlaceholder": "Search",
     "clone": "Clone a voice",
     "loadMore": "Load more",
     "emptyFavorites": "No saved voices yet",

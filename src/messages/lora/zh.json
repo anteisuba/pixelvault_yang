@@ -473,7 +473,7 @@
     "tryPromptUseWithPrompt": "带词去生成",
     "tryPromptCopied": "示例提示词已复制 — 粘贴到 Studio 即可",
     "tryPromptCopyFailed": "复制失败",
-    "communitySearch": "搜索 LoRA...",
+    "communitySearch": "搜索",
     "communitySearchSubmit": "搜索",
     "communitySortFilter": "排序",
     "communityLoadFailed": "Civitai LoRA 库加载失败，请稍后重试。",

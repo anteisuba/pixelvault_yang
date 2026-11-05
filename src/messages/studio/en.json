@@ -69,10 +69,9 @@
     "voiceSourceFilter": "Filter voices by source",
     "voiceSourceAll": "All sources",
     "voiceLanguageAll": "All",
-    "voiceLanguageChinese": "Chinese",
+    "voiceLanguageChinese": "中文",
     "voiceLanguageEnglish": "English",
-    "voiceLanguageJapanese": "Japanese",
-    "voiceLanguageSpanish": "Spanish",
+    "voiceLanguageJapanese": "日本語",
     "voiceSortFilter": "Sort voices",
     "voiceSortRecommended": "Best",
     "voiceSortPopular": "Popular",
@@ -1114,7 +1113,6 @@
       "yesterday": "Yesterday",
       "earlier": "Earlier"
     },
-    "conversation": "Conversation",
     "history": "Conversations",
     "switchPersona": "Switch persona (now {name})",
     "chatMode": {

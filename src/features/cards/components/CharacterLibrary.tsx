@@ -168,7 +168,7 @@ function LibrarySortChips({ library }: { library: UseChubLibraryReturn }) {
           data-testid={`library-phone-sort-${key}`}
           onClick={() => library.setSort(key)}
           className={cn(
-            'h-8 rounded-full px-3 text-2sm transition-colors duration-fast ease-standard',
+            'touch-target-y h-8 rounded-full px-3 text-2sm transition-colors duration-fast ease-standard',
             library.sort === key
               ? 'bg-foreground text-background'
               : 'bg-muted text-foreground active:bg-accent',
@@ -179,7 +179,7 @@ function LibrarySortChips({ library }: { library: UseChubLibraryReturn }) {
       ))}
       <LibraryTagMenu
         library={library}
-        className="h-8 bg-muted text-foreground active:bg-accent"
+        className="touch-target-y h-8 bg-muted text-foreground active:bg-accent"
       />
     </div>
   )

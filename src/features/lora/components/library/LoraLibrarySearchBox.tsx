@@ -77,7 +77,7 @@ export function LoraLibrarySearchBox({
           onClick={submit}
           aria-label={t('communitySearchSubmit')}
           className={cn(
-            'shrink-0 transition-colors duration-fast ease-linear hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            'touch-target shrink-0 transition-colors duration-fast ease-linear hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             pending ? 'text-foreground' : 'text-muted-foreground',
           )}
         >

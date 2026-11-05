@@ -3749,7 +3749,8 @@ function GenerateBranch({
                   />
                 </button>
                 <span aria-hidden className="h-6 w-px shrink-0 bg-border" />
-                <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
+                {/* coarse 下四周让出 6px 再负边距抵回：横滚行会把 44 外扩裁回 32（u-audit-mobile）。 */}
+                <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto coarse:-m-1.5 coarse:p-1.5">
                   {stack.items.map((item) => (
                     <button
                       key={item.asset.id}
@@ -3757,7 +3758,7 @@ function GenerateBranch({
                       onClick={() => setAssemblySheetOpen(true)}
                       aria-label={item.asset.name}
                       className={cn(
-                        'grid size-8 shrink-0 place-items-center overflow-hidden rounded-lg border border-border/60 bg-muted text-muted-foreground',
+                        'touch-target grid size-8 shrink-0 place-items-center overflow-hidden rounded-lg border border-border/60 bg-muted text-muted-foreground',
                         item.enabled === false && 'opacity-50',
                       )}
                     >

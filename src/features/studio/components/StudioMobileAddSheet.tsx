@@ -174,7 +174,8 @@ export function StudioMobileAddSheet({
             data-testid="studio-mobile-add"
             data-set={hasHiddenSetting ? '' : undefined}
             className={cn(
-              'touch-target grid size-8 shrink-0 place-items-center rounded-full border border-border bg-background text-foreground',
+              // z-10：行首这颗只有 32，外扩要压过右边药丸的边（药丸自己远宽于 44，让出 2px 无妨）。
+              'touch-target z-10 grid size-8 shrink-0 place-items-center rounded-full border border-border bg-background text-foreground',
               'transition-[background-color,border-color] duration-fast ease-standard active:bg-muted',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
               'disabled:pointer-events-none disabled:opacity-50',

@@ -34,7 +34,7 @@ import type { AssistantConversationSummary } from '@/types/assistant-conversatio
 
 /** 对话头里的图标键（和头部 ⋯ 同一档）。 */
 const HEADER_KEY_CLASS =
-  'grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus data-[state=open]:bg-surface-fill data-[state=open]:text-foreground motion-reduce:transition-none [&>svg]:size-4.5'
+  'touch-target grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus data-[state=open]:bg-surface-fill data-[state=open]:text-foreground motion-reduce:transition-none [&>svg]:size-4.5'
 
 /**
  * 工作台的对话记录（对话头「记录」那颗下拉，左栏「＋ 新对话」也从这里拿）。
@@ -208,7 +208,7 @@ export function StudioShellPersonaKey() {
           type="button"
           aria-label={t('switchPersona', { name })}
           data-testid="studio-shell-persona"
-          className="group/persona relative flex h-9 min-w-0 shrink items-center gap-2 rounded-full py-0 pr-2 pl-0.5 text-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill focus-visible:outline-none focus-visible:shadow-focus data-[state=open]:bg-surface-fill motion-reduce:transition-none"
+          className="group/persona touch-target-y relative flex h-9 min-w-0 shrink items-center gap-2 rounded-full py-0 pr-2 pl-0.5 text-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill focus-visible:outline-none focus-visible:shadow-focus data-[state=open]:bg-surface-fill motion-reduce:transition-none"
         >
           <AnimatePresence mode="popLayout" initial={false}>
             <motion.span

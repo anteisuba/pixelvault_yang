@@ -49,7 +49,8 @@ export function TavernLibraryDesk() {
       </LibraryRail>
       <div className="flex min-w-0 flex-1 flex-col">
         <CharacterLibraryToolbar library={library} />
-        <div className="mt-3 min-h-0 flex-1 overflow-y-auto pb-6">
+        {/* coarse：顶上一排排序 chip 的 44 命中区会被这层纵滚的上沿裁掉 6px，上外边距挪 6px 进内边距（版面不动，u-audit-mobile）。 */}
+        <div className="mt-3 min-h-0 flex-1 overflow-y-auto pb-6 coarse:mt-1.5 coarse:pt-1.5">
           <CharacterLibrary
             library={library}
             importingPath={importing}

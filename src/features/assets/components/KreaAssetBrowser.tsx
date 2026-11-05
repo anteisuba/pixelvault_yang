@@ -1984,7 +1984,7 @@ export function KreaAssetBrowser({
       )}
 
       {!isPickerMode && (
-        <div className="ml-auto flex shrink-0 items-center gap-2 max-md:gap-0.5">
+        <div className="ml-auto flex shrink-0 items-center gap-2 max-md:gap-0.5 max-md:coarse:gap-2">
           <button
             type="button"
             aria-label={t('phone.search')}
@@ -2008,8 +2008,9 @@ export function KreaAssetBrowser({
               buttonVariants({ size: 'sm' }),
               TOOLBAR_BUTTON_CLASS,
               'coarse:h-11 md:hidden',
-              // 手机：只留一个上传图标（iOS 稿），字给读屏。
-              'max-md:size-9 max-md:bg-transparent max-md:px-0 max-md:text-foreground max-md:shadow-none max-md:hover:bg-muted max-md:has-[>svg]:px-0 max-md:active:bg-muted',
+              // 手机：只留一个上传图标（iOS 稿），字给读屏。触屏上整颗就是 44 方：它自带
+              // overflow-hidden（回执字的伸缩），`.touch-target` 的外扩会被自己裁掉。
+              'max-md:size-9 max-md:coarse:w-11 max-md:bg-transparent max-md:px-0 max-md:text-foreground max-md:shadow-none max-md:hover:bg-muted max-md:has-[>svg]:px-0 max-md:active:bg-muted',
               SELECTION_YIELD_CLASS,
               selectionMode &&
                 cn(SELECTION_YIELD_HIDDEN_CLASS, 'max-md:hidden'),

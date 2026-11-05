@@ -47,7 +47,7 @@ export function PromptFilterMenu<T extends string>({
           aria-expanded={open}
           aria-label={`${label}：${current ?? ''}`}
           className={cn(
-            'inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border px-2.75 text-2sm transition-colors duration-fast ease-linear',
+            'touch-target-y inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border px-2.75 text-2sm transition-colors duration-fast ease-linear',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             changed
               ? 'border-transparent bg-muted'

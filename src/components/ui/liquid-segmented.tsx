@@ -71,7 +71,8 @@ function measure(items: Map<string, HTMLButtonElement>, target: string) {
 
 const ITEM_CLASS = {
   xs: 'shrink-0 whitespace-nowrap rounded-full px-2 py-1 text-2xs font-medium coarse:py-3',
-  sm: 'shrink-0 whitespace-nowrap rounded-full px-3.5 py-1 text-2xs font-medium',
+  // coarse:min-w-11：一个字的格（「库」）只有 39 宽，相邻格又不能横向外扩（会盖住邻格）。
+  sm: 'shrink-0 whitespace-nowrap rounded-full px-3.5 py-1 text-2xs font-medium coarse:min-w-11',
   md: 'shrink-0 whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-medium coarse:py-3',
   // 定高而不是靠行高撑：和同一行 32px 的按钮对齐。
   row: 'inline-flex h-6.5 shrink-0 items-center justify-center whitespace-nowrap rounded-full px-3 text-2sm font-medium',

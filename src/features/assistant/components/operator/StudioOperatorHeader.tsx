@@ -162,7 +162,7 @@ function groupSessionsByChat(sessions: readonly SessionSummary[]): {
  */
 /** P4 第 5 项（owner 2026-10-16）：静止时⛔ 框、⛔ 底，悬停才出底 —— 与标题下拉同一种。 */
 const HEADER_ICON_BUTTON_CLASS =
-  'grid size-7 shrink-0 place-items-center rounded-lg text-muted-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill hover:text-foreground active:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 data-[state=open]:bg-surface-fill data-[state=open]:text-foreground motion-reduce:transition-none'
+  'touch-target grid size-7 shrink-0 place-items-center rounded-lg text-muted-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill hover:text-foreground active:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 data-[state=open]:bg-surface-fill data-[state=open]:text-foreground motion-reduce:transition-none'
 
 /** 头部左上那个头像位怎么处理 —— 见头注「左上那个头像位」。 */
 export type StudioOperatorHeaderAvatar =

@@ -220,7 +220,7 @@ export function LoraParamsChip({
           disabled={disabled}
           aria-label={`${t('generate.advanced.title')} · ${summary}`}
           className={cn(
-            'inline-flex h-8 min-w-0 max-w-56 items-center gap-1.5 rounded-full px-3 text-2sm transition-[background-color,color,box-shadow] duration-fast ease-standard',
+            'touch-target-y inline-flex h-8 min-w-0 max-w-56 items-center gap-1.5 rounded-full px-3 text-2sm transition-[background-color,color,box-shadow] duration-fast ease-standard',
             'focus-visible:outline-none focus-visible:shadow-focus',
             'disabled:pointer-events-none disabled:opacity-45',
             error

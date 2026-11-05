@@ -67,7 +67,7 @@ export function StudioOperatorEffortChip({
           title={`${t('label')} ${t(`levels.${selected}`)}`}
           data-open={open || undefined}
           className={cn(
-            'flex h-8 shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-md @max-assistant-bar:w-7 @assistant-bar:px-1.5 text-xs transition-colors duration-fast ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
+            'touch-target flex h-8 shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-md @max-assistant-bar:w-7 @assistant-bar:px-1.5 text-xs transition-colors duration-fast ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
             open ? 'bg-accent text-foreground' : 'text-muted-foreground',
           )}
         >

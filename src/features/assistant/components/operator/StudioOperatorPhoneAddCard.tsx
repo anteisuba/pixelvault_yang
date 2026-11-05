@@ -86,7 +86,7 @@ export function StudioOperatorPhoneAddCard({
             aria-label={t('label')}
             data-open={open || undefined}
             className={cn(
-              'grid size-9 shrink-0 place-items-center rounded-full border border-border transition-colors duration-fast ease-standard active:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
+              'touch-target grid size-9 shrink-0 place-items-center rounded-full border border-border transition-colors duration-fast ease-standard active:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
               open ? 'bg-accent text-foreground' : 'text-foreground',
             )}
           >

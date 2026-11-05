@@ -68,7 +68,9 @@ export function LocaleSwitcher({
                     isCompact
                       ? cn(
                           'h-7 px-2 py-0 text-2xs tracking-nav-dense',
-                          isSidebar ? 'min-w-0 flex-1' : 'min-w-9',
+                          isSidebar
+                            ? 'min-w-0 flex-1'
+                            : 'min-w-9 coarse:min-w-11',
                         )
                       : 'px-2.5 py-2.5',
                   ),

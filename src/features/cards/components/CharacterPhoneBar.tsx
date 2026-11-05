@@ -64,7 +64,7 @@ export function CharacterPhoneBar({
   return (
     <div className="sticky top-0 z-20 -mx-1.5 mr-11.5 pt-1 pb-2">
       <h1 className="sr-only">{t('title')}</h1>
-      <div className="relative flex h-11 items-center gap-0.5 rounded-full border border-border/70 bg-background/85 px-1 shadow-sm backdrop-blur-xl">
+      <div className="relative flex h-11 items-center gap-0.5 coarse:gap-2 rounded-full border border-border/70 bg-background/85 px-1 shadow-sm backdrop-blur-xl">
         <div
           role="tablist"
           aria-label={t('title')}

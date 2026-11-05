@@ -460,7 +460,7 @@ export function SpecChip({
           data-testid={testId}
           data-spec-chip-state={flashing ? 'flash' : open ? 'open' : 'default'}
           className={cn(
-            'nodrag nopan inline-flex h-8 min-w-0 items-center gap-1.5 rounded-full px-3 text-2sm transition-[background-color,color,box-shadow] duration-fast ease-standard',
+            'nodrag nopan touch-target-y inline-flex h-8 min-w-0 items-center gap-1.5 rounded-full px-3 text-2sm transition-[background-color,color,box-shadow] duration-fast ease-standard',
             compact &&
               'h-7 gap-1 border-0 bg-surface-fill px-2.5 text-xs transition-colors duration-fast hover:bg-surface-fill-hover',
             'focus-visible:outline-none focus-visible:shadow-focus',

@@ -517,7 +517,16 @@
 }
 
 @media (pointer: coarse) {
-  .studio-mobile-chip-row > button::before {
+  /* ⚠ `overflow-x: auto` 会把 overflow-y 也算成 auto：药丸上下外扩到 44 的那截被行自己
+     裁回 32（u-audit-mobile 11-05 实测）。行四周各让出 6px、再用等量负边距抵回去 ——
+     版面一个像素不动，外扩不再被裁。 */
+  .studio-mobile-chip-row {
+    padding: calc((44px - 2rem) / 2);
+    margin: calc((2rem - 44px) / 2);
+  }
+
+  /* 自带 `.touch-target` 的图标键（行首 +）走它自己的横竖 44，⛔ 被这条压成只撑高。 */
+  .studio-mobile-chip-row > button:not(.touch-target)::before {
     content: '';
     position: absolute;
     left: 0;

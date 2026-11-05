@@ -272,7 +272,7 @@ export function StudioOperatorModelChip({
             /* D12 T-A：一行**灰字**，不穿框（输入区整块只有一个边框）；hover /
                展开才垫一层浅底。⛔ 不翻成近黑信号位：那一档只给发送键。 */
             className={cn(
-              'flex min-w-0 shrink items-center gap-1 transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
+              'touch-target flex min-w-0 shrink items-center gap-1 transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
               inDialog
                 ? 'h-9 rounded-full bg-muted px-3.5 text-2sm text-foreground hover:tint-hover'
                 : cn(

@@ -13,6 +13,7 @@ import { ImageCardMedia } from '@/components/business/image-card/ImageCardMedia'
 import type { MediaTransitionOrigin } from '@/components/business/MediaDetailViewer'
 import { downloadRemoteAsset } from '@/lib/api-client'
 import { getApiErrorMessage } from '@/lib/api-error-message'
+import { fileExtensionForMime } from '@/lib/svg-image'
 
 // 平板 / 手机才用得到的全屏详情：500+ 行、带播放器与对比组件，只在第一次点开时再加载。
 const ImageDetailModal = dynamic(
@@ -78,7 +79,7 @@ export const ImageCard = memo(function ImageCard({
       if (isDownloading) return
       setIsDownloading(true)
       try {
-        const ext = generation.mimeType.split('/')[1] || 'png'
+        const ext = fileExtensionForMime(generation.mimeType)
         const result = await downloadRemoteAsset(
           generation.url,
           `antei-${generation.id.slice(0, 8)}.${ext}`,

@@ -291,6 +291,12 @@
       "medium": "中",
       "high": "高"
     },
+    "outputFormat": "输出格式",
+    "outputFormatHint": "SVG 是矢量图，可以在 Figma、Illustrator、Inkscape 里继续编辑。只在不挂参考图时可选；没有生成预览。要拿去改图或当参考，先在结果上转成 PNG。",
+    "outputFormatOption": {
+      "png": "PNG",
+      "svg": "SVG 矢量"
+    },
     "background": "背景",
     "backgroundHint": "选择生成图像的背景为透明或不透明。",
     "backgroundOption": {
@@ -957,6 +963,7 @@
     "capability": {
       "quality": "画质",
       "complexity": "复杂度",
+      "outputFormat": "格式",
       "background": "背景",
       "layerDecomposition": "图层拆分",
       "style": "风格",

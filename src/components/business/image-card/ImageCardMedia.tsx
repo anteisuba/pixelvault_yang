@@ -8,6 +8,7 @@ import {
   getGenerationVideoPosterUrl,
 } from '@/lib/generation-media'
 import { buildPromptAltText } from '@/lib/generation-seo'
+import { isSvgMimeType } from '@/lib/svg-image'
 import { cn } from '@/lib/utils'
 import { useMediaReveal } from '@/components/ui/load-reveal'
 import type { GenerationRecord } from '@/types'
@@ -156,6 +157,15 @@ export function ImageCardMedia({
         <span className="absolute right-3 top-3 flex items-center gap-1.5 rounded-full bg-black/50 px-2 py-1 text-xs text-white shadow-sm backdrop-blur-md">
           <Layers className="size-3" />
           {layerBadgeLabel}
+        </span>
+      )}
+      {!isVideo && !isAudio && isSvgMimeType(generation.mimeType) && (
+        // SVG 矢量作品（svg-output mockup ②）：与视频时长同一档机器串角标。
+        <span
+          data-testid="image-card-svg-badge"
+          className="pointer-events-none absolute bottom-3 right-3 rounded-full bg-black/50 px-2 py-0.5 font-mono text-3xs font-medium text-white backdrop-blur-md"
+        >
+          SVG
         </span>
       )}
       {isVideo && (

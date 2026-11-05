@@ -5,6 +5,7 @@ import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   getModelCapabilityChips,
   isCapabilityChipSet,
+  isCapabilityChipVisible,
   pruneIncompatibleCapabilityValues,
 } from '@/lib/model-capability-chips'
 
@@ -28,6 +29,7 @@ describe('getModelCapabilityChips', () => {
   ])('follows a per-model override instead of the adapter default', (id) => {
     expect(capabilitiesOf(AI_ADAPTER_TYPES.OPENAI, id)).toEqual([
       'quality',
+      'outputFormat',
       'preview',
       'background',
     ])
@@ -41,6 +43,7 @@ describe('getModelCapabilityChips', () => {
     expect(capabilitiesOf(AI_ADAPTER_TYPES.OPENAI, id)).toEqual([
       'quality',
       'complexity',
+      'outputFormat',
       'preview',
       'background',
     ])
@@ -69,6 +72,47 @@ describe('getModelCapabilityChips', () => {
         AI_MODELS.OPENAI_GPT_IMAGE_26_FLARE,
       ),
     ).toBeNull()
+  })
+
+  // SVG 输出（owner 2026-11-05 svg-output mockup ①）：只在 2.5 / 2.6 纯生成上有；
+  // 选了 SVG 流式预览收起；挂了参考图格式 chip 收起、预览回来。
+  it.each([
+    AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE,
+    AI_MODELS.OPENAI_GPT_IMAGE_26_SUNBURST,
+  ])(
+    'outputFormat chip on %s: png / svg select, hidden with references',
+    (id) => {
+      const chips = getModelCapabilityChips(AI_ADAPTER_TYPES.OPENAI, id)
+      const format = chips.find((chip) => chip.capability === 'outputFormat')
+      const preview = chips.find((chip) => chip.capability === 'preview')
+      expect(format?.kind).toBe('select')
+      expect(format?.options).toEqual(['png', 'svg'])
+      expect(format?.defaultValue).toBe('png')
+      if (!format || !preview) throw new Error('chips missing')
+
+      expect(isCapabilityChipVisible(format, {}, false)).toBe(true)
+      expect(isCapabilityChipVisible(format, {}, true)).toBe(false)
+      expect(
+        isCapabilityChipVisible(preview, { outputFormat: 'svg' }, false),
+      ).toBe(false)
+      expect(
+        isCapabilityChipVisible(preview, { outputFormat: 'svg' }, true),
+      ).toBe(true)
+      expect(isCapabilityChipVisible(preview, {}, false)).toBe(true)
+    },
+  )
+
+  it('has no outputFormat chip on GPT Image 2 or non-OpenAI models', () => {
+    expect(
+      capabilitiesOf(AI_ADAPTER_TYPES.OPENAI, AI_MODELS.OPENAI_GPT_IMAGE_2),
+    ).not.toContain('outputFormat')
+    expect(
+      pruneIncompatibleCapabilityValues(
+        { outputFormat: 'svg', quality: 'high' },
+        AI_ADAPTER_TYPES.OPENAI,
+        AI_MODELS.OPENAI_GPT_IMAGE_2,
+      ),
+    ).toEqual({ quality: 'high' })
   })
 
   // 火山 / BytePlus 的 5.0 Pro：透明底是一颗 select chip，且**必须**标成依赖

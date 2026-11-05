@@ -4,6 +4,11 @@ import {
   tieredOpenAISize,
 } from '../../../../../src/lib/image-output-size'
 import { readOpenAIImageStream } from '../../../../../src/lib/openai-image-stream'
+import {
+  readSvgDimensions,
+  sanitizeGeneratedSvg,
+  SVG_MIME_TYPE,
+} from '../../../../../src/lib/svg-image'
 import type { ExecutionEnv, WorkerImageRunContext } from '../../index'
 import { postSignedJson } from '../../lib/app-bridge'
 import { base64ToBytes } from '../../lib/bytes'
@@ -61,12 +66,17 @@ export async function generateOpenAIImage(
   if (providerInput.safetyIdentifier)
     body.safety_identifier = providerInput.safetyIdentifier
 
-  const streaming = advancedParams.preview === true
+  // SVG 只在 `/images/generations` 上成立，且官方不给流式预览 —— app 侧已经
+  // 拒了「SVG + 参考图」，这里再按同一条收口：有参考图就照旧出 PNG。
+  const svg =
+    readStringField(advancedParams, 'outputFormat') === 'svg' &&
+    referenceImages.length === 0
+  const streaming = !svg && advancedParams.preview === true
   if (streaming) {
     body.stream = true
     body.partial_images = 2
   }
-  body.output_format = 'png'
+  body.output_format = svg ? 'svg' : 'png'
 
   const edit = referenceImages.length
     ? createImageEditBody(env, body, referenceImages)
@@ -146,6 +156,8 @@ export async function generateOpenAIImage(
     throw new Error('OpenAI response did not include base64 image data.')
   }
 
+  if (svg) return storeOpenAISvg(env, context, b64, { width, height })
+
   const bytes = base64ToBytes(b64)
   const mimeType = 'image/png'
   const r2Key = providerInput.outputStorageKey ?? `image/${context.runId}.png`
@@ -162,5 +174,38 @@ export async function generateOpenAIImage(
     width,
     height,
     mimeType,
+  }
+}
+
+/**
+ * SVG 结果：解码 → 白名单清洗 → 按 viewBox 读尺寸 → 存 `image/svg+xml`。
+ * `Content-Disposition: attachment` 让人直接打开 CDN 地址时只会下载、不会在
+ * CDN 源上渲染（`<img>` 显示不受影响）。
+ */
+async function storeOpenAISvg(
+  env: ExecutionEnv,
+  context: WorkerImageRunContext,
+  b64: string,
+  requested: { width: number; height: number },
+) {
+  const source = new TextDecoder().decode(base64ToBytes(b64))
+  const clean = sanitizeGeneratedSvg(source)
+  const { width, height } = readSvgDimensions(clean) ?? requested
+  const key =
+    context.providerInput.outputStorageKey ?? `image/${context.runId}.svg`
+  const r2Key = key.endsWith('.svg') ? key : key.replace(/\.[^./]+$/, '.svg')
+  await env.GENERATION_BUCKET.put(r2Key, new TextEncoder().encode(clean), {
+    httpMetadata: {
+      contentType: SVG_MIME_TYPE,
+      contentDisposition: 'attachment',
+      cacheControl: R2_OBJECT_CACHE_CONTROL,
+    },
+  })
+  return {
+    artifactUrl: `${env.R2_PUBLIC_URL}/${r2Key}`,
+    imageR2Key: r2Key,
+    width,
+    height,
+    mimeType: SVG_MIME_TYPE,
   }
 }

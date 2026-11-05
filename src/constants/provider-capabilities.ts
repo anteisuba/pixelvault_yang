@@ -24,6 +24,7 @@ export type ProviderCapability =
   | 'preciseReferenceFidelity'
   | 'quality'
   | 'complexity'
+  | 'outputFormat'
   | 'preview'
   | 'resolution'
   | 'background'
@@ -70,6 +71,13 @@ export const OPENAI_GPT_IMAGE_COMPLEXITY_OPTIONS = [
   'medium',
   'low',
 ] as const
+
+/**
+ * GPT Image 2.5 / 2.6 输出格式。官方：SVG 只在 `/images/generations` 上可用，
+ * 每次 1 张（我们本来就一请求一张）、不支持 `partial_images` 流式预览。
+ * `png` 排第一 = chip 缺省 = 不发，逐字等于此前硬编的 png。
+ */
+export const OPENAI_GPT_IMAGE_OUTPUT_FORMATS = ['png', 'svg'] as const
 
 /**
  * 改图（`/images/edits`）不填 complexity 时代发的档位——owner 2026-11-05 拍：
@@ -196,6 +204,12 @@ export interface CapabilityConfig {
    * 官方只点名 2.5 / 2.6；⛔ 与 `mask` 同发（官方禁止），所以只用在多框编号改图上。
    */
   acceptsMarkup?: true
+  /**
+   * GPT Image 2.5 / 2.6 输出格式（`[0]` = png = 不发）。⚠ svg 只在纯生成上成立：
+   * 挂了参考图走 `/images/edits` 就没有这一档，所以 chip 在有参考图时不画、
+   * 服务端拒「svg + 参考图」。
+   */
+  outputFormatOptions?: readonly string[]
   /** Resolution tiers the model accepts (e.g. 'auto' | '1K' | '2K' | '4K') */
   resolutionOptions?: readonly string[]
   aspectRatioOptions?: readonly string[]
@@ -627,6 +641,7 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
     capabilities: [
       'quality',
       'complexity',
+      'outputFormat',
       'preview',
       'resolution',
       'background',
@@ -636,12 +651,14 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
     complexityOptions: OPENAI_GPT_IMAGE_COMPLEXITY_OPTIONS,
     acceptsSafetyIdentifier: true,
     acceptsMarkup: true,
+    outputFormatOptions: OPENAI_GPT_IMAGE_OUTPUT_FORMATS,
     maxReferenceImages: OPENAI_GPT_IMAGE_MAX_REFERENCE_IMAGES,
   },
   [AI_MODELS.OPENAI_GPT_IMAGE_26_SUNBURST]: {
     capabilities: [
       'quality',
       'complexity',
+      'outputFormat',
       'preview',
       'resolution',
       'background',
@@ -651,11 +668,13 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
     complexityOptions: OPENAI_GPT_IMAGE_COMPLEXITY_OPTIONS,
     acceptsSafetyIdentifier: true,
     acceptsMarkup: true,
+    outputFormatOptions: OPENAI_GPT_IMAGE_OUTPUT_FORMATS,
     maxReferenceImages: OPENAI_GPT_IMAGE_MAX_REFERENCE_IMAGES,
   },
   [AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE]: {
     capabilities: [
       'quality',
+      'outputFormat',
       'preview',
       'resolution',
       'background',
@@ -664,11 +683,13 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
     qualityOptions: ['auto', 'low', 'medium', 'high', 'xhigh', 'max'],
     acceptsSafetyIdentifier: true,
     acceptsMarkup: true,
+    outputFormatOptions: OPENAI_GPT_IMAGE_OUTPUT_FORMATS,
     maxReferenceImages: OPENAI_GPT_IMAGE_MAX_REFERENCE_IMAGES,
   },
   [AI_MODELS.OPENAI_GPT_IMAGE_25_SUNBURST]: {
     capabilities: [
       'quality',
+      'outputFormat',
       'preview',
       'resolution',
       'background',
@@ -677,6 +698,7 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
     qualityOptions: ['auto', 'low', 'medium', 'high', 'xhigh', 'max'],
     acceptsSafetyIdentifier: true,
     acceptsMarkup: true,
+    outputFormatOptions: OPENAI_GPT_IMAGE_OUTPUT_FORMATS,
     maxReferenceImages: OPENAI_GPT_IMAGE_MAX_REFERENCE_IMAGES,
   },
   [AI_MODELS.FLUX_2_PRO]: {
@@ -941,6 +963,7 @@ export function getCapabilityFieldType(
     seed: 'seed',
     quality: 'select',
     complexity: 'select',
+    outputFormat: 'select',
     background: 'select',
     qualityToggle: 'select',
     ucPreset: 'select',

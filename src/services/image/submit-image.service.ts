@@ -313,7 +313,11 @@ export async function submitImageGeneration(
     !supportsSearchGrounding(route.modelId)
       ? { ...uploadedAdvancedParams, searchGrounding: undefined }
       : uploadedAdvancedParams
-  const outputStorageKey = generateStorageKey('IMAGE', dbUser.id)
+  const outputStorageKey = generateStorageKey(
+    'IMAGE',
+    dbUser.id,
+    advancedParams?.outputFormat,
+  )
   const assignedSeed = assignDispatchSeed(
     route.adapterType,
     route.modelId,

@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { ApiRequestError } from '@/lib/errors'
 import type { Prisma } from '@/lib/generated/prisma/client'
 import { logger } from '@/lib/logger'
+import { isSvgImageUrl, isSvgMimeType } from '@/lib/svg-image'
 import { validateLlmStructuredOutput } from '@/lib/llm-output-validator'
 import { withRetry } from '@/lib/with-retry'
 import {
@@ -282,6 +283,15 @@ export async function evaluateGeneration(
    * 那一家没 key、或那个型号看不了图 → 照实抛（路由回 4xx + i18nKey，「满意」那里一条提示
    * 说清楚），⛔ 不拿别家的 key 顶上，也⛔ 不记成一次「评估失败」。
    */
+  // SVG（GPT Image 的矢量输出）看图模型读不了：跟「图取不回来」一样记成一次评估
+  // 失败、返回 null，⛔ 不去要助手 key、不转给模型。
+  if (isSvgMimeType(generation.mimeType) || isSvgImageUrl(generation.url)) {
+    logger.info('Generation evaluator skipped SVG generation', {
+      generationId,
+    })
+    return writeFailureEvaluation(generationId, 'svg_not_supported')
+  }
+
   const assistant = await resolveAssistantRoute(dbUser.id)
   assertAssistantRouteSeesImages(assistant)
   const { route, modelId } = assistant

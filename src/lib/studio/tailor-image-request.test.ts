@@ -324,3 +324,31 @@ it('removes disabled and blank characters before applying the model limit withou
   )
   expect(empty.advancedParams?.novelAiLayout).toBeUndefined()
 })
+
+// SVG 输出只在纯生成上成立（owner 2026-11-05 svg-output mockup ①）。
+describe('outputFormat: svg', () => {
+  it('drops the streaming preview when generating an SVG', () => {
+    const out = tailorImageRequestToModel(
+      {
+        modelId: AI_MODELS.OPENAI_GPT_IMAGE_26_FLARE,
+        advancedParams: { outputFormat: 'svg', preview: true },
+      },
+      'natural',
+    )
+    expect(out.advancedParams).toMatchObject({ outputFormat: 'svg' })
+    expect(out.advancedParams?.preview).toBeUndefined()
+  })
+
+  it('falls back to PNG when a reference image is attached', () => {
+    const out = tailorImageRequestToModel(
+      {
+        modelId: AI_MODELS.OPENAI_GPT_IMAGE_26_FLARE,
+        advancedParams: { outputFormat: 'svg', preview: true },
+        referenceImages: ['https://cdn.example.com/a.png'],
+      },
+      'natural',
+    )
+    expect(out.advancedParams?.outputFormat).toBeUndefined()
+    expect(out.advancedParams?.preview).toBe(true)
+  })
+})

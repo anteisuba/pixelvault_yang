@@ -11,6 +11,8 @@ import { getProviderLabel } from '@/constants/providers'
 import { STUDIO_PREFILL_PROMPT_STORAGE_KEY } from '@/constants/studio'
 import { STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR } from '@/constants/studio-assistant-operator'
 import { landRecipeInComposer } from '@/lib/studio-workbench-motion'
+import { isSvgImageUrl } from '@/lib/svg-image'
+import { requestSvgToPng } from '@/lib/svg-to-png-request'
 import { cn } from '@/lib/utils'
 import {
   StudioCanvas,
@@ -159,9 +161,8 @@ export function StudioWorkspaceUI() {
   const [stagePanel, setStagePanel] = useState<StagePanel | null>(null)
   /** 标签台只认它自己那几块。 */
   const tagsPanel = stagePanel === 'cards' ? null : stagePanel
-  const beginEdit = useCallback(
+  const openEdit = useCallback(
     (target?: StudioImageEditTarget) => {
-      if (isGenerating || editRunning) return
       if (target) {
         setEditTarget(target)
         setEditSessionId((id) => id + 1)
@@ -170,7 +171,25 @@ export function StudioWorkspaceUI() {
       dispatch({ type: 'CLOSE_ALL_PANELS' })
       setEditOpen(true)
     },
-    [dispatch, editRunning, isGenerating],
+    [dispatch],
+  )
+  const beginEdit = useCallback(
+    (target?: StudioImageEditTarget) => {
+      if (isGenerating || editRunning) return
+      if (target && isSvgImageUrl(target.url)) {
+        // 改图只吃位图（改图入口全从这里过）：先弹「转 PNG」，拿转好的那张进编辑。
+        void requestSvgToPng({
+          url: target.url,
+          id: target.generationId,
+          mode: 'gate',
+        }).then((png) => {
+          if (png) openEdit({ url: png.url, generationId: png.id })
+        })
+        return
+      }
+      openEdit(target)
+    },
+    [editRunning, isGenerating, openEdit],
   )
   const exitEdit = useCallback(() => {
     if (!editRunning) setEditOpen(false)

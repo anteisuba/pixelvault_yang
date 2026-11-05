@@ -291,6 +291,12 @@
       "medium": "Medium",
       "high": "High"
     },
+    "outputFormat": "Output format",
+    "outputFormatHint": "SVG is a vector image you can keep editing in Figma, Illustrator or Inkscape. Only available without reference images, and without a generation preview. To edit it or use it as a reference, convert it to PNG from the result first.",
+    "outputFormatOption": {
+      "png": "PNG",
+      "svg": "SVG vector"
+    },
     "background": "Background",
     "backgroundHint": "Choose whether the generated image has a transparent or opaque background.",
     "backgroundOption": {
@@ -957,6 +963,7 @@
     "capability": {
       "quality": "Quality",
       "complexity": "Complexity",
+      "outputFormat": "Format",
       "background": "Background",
       "layerDecomposition": "Split layers",
       "style": "Style",

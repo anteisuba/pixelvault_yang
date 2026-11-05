@@ -1,4 +1,19 @@
 {
+  "SvgToPng": {
+    "badge": "SVG",
+    "action": "PNG に変換",
+    "sizeHint": "長辺のピクセル数",
+    "converting": "PNG に変換中…",
+    "done": "{size} の PNG に変換し、新しい作品として保存しました",
+    "failed": "PNG に変換できませんでした",
+    "tooLarge": "PNG が 15 MB を超えました。小さいサイズで試してください",
+    "gateTitle": "この画像は SVG（ベクター）です",
+    "gateBody": "画像編集・参照画像・アシスタントはラスター画像のみ対応しています。先に PNG に変換しますか？",
+    "gateConfirm": "PNG に変換して続ける",
+    "gateCancel": "キャンセル",
+    "convertTitle": "PNG に変換",
+    "convertBody": "元の SVG はそのまま残り、PNG は新しい作品として保存されます。"
+  },
   "audioParams": {
     "pace": "話す速度",
     "expressiveness": "表現力",

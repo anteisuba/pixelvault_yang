@@ -10,6 +10,8 @@ import { STUDIO_GENERATION_DRAG_MIME } from '@/constants/studio'
 import { uploadImageFileAPI } from '@/lib/api-client'
 import { getApiErrorMessage } from '@/lib/api-error-message'
 import { prepareImageUpload } from '@/lib/prepare-image-upload'
+import { isSvgImageUrl } from '@/lib/svg-image'
+import { requestSvgToPng } from '@/lib/svg-to-png-request'
 import { useStableDragState } from '@/hooks/use-stable-drag-state'
 
 /**
@@ -191,6 +193,13 @@ export function useImageUpload(options?: {
    *   → R2 URL）；已有的 http(s) URL 走 `addFromUrl`。
    */
   const addReferenceImage = useCallback((image: string) => {
+    if (isSvgImageUrl(image)) {
+      // 参考图只吃位图：先弹「转 PNG」，转好的那张落进槽位（取消就什么都不落）。
+      void requestSvgToPng({ url: image, mode: 'gate' }).then((png) => {
+        if (png) addReferenceImage(png.url)
+      })
+      return
+    }
     setReferenceEntries((prev) => {
       const max = maxImagesRef.current
       if (prev.some((entry) => entry.url === image)) return prev
@@ -227,6 +236,12 @@ export function useImageUpload(options?: {
   )
 
   const replaceReferenceImage = useCallback((index: number, image: string) => {
+    if (isSvgImageUrl(image)) {
+      void requestSvgToPng({ url: image, mode: 'gate' }).then((png) => {
+        if (png) replaceReferenceImage(index, png.url)
+      })
+      return
+    }
     setReferenceEntries((prev) => {
       if (index < 0 || index >= prev.length) return prev
       if (prev[index].url === image) return prev
@@ -266,6 +281,12 @@ export function useImageUpload(options?: {
   // Legacy setter — replaces all entries with a single one (or clears).
   const setReferenceImage = useCallback(
     (image: string | undefined) => {
+      if (image && isSvgImageUrl(image)) {
+        void requestSvgToPng({ url: image, mode: 'gate' }).then((png) => {
+          if (png) setReferenceImage(png.url)
+        })
+        return
+      }
       onReferencesRemoved?.()
       if (!image) {
         setReferenceEntries([])

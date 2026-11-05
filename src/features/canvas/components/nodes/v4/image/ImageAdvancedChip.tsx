@@ -78,8 +78,12 @@ export function ImageAdvancedChip({
   )
   const capabilityParams = toCapabilityParams(params)
   const models = [{ adapterType, modelId: model.modelId }]
-  const capabilityChips = getRunCapabilityChips(models).filter((chip) =>
-    isCapabilityChipVisible(chip, capabilityParams, hasReferenceImage),
+  // SVG 输出（2.5 / 2.6）先只开在图片工作台：画布上的图会被连去当参考 / 首帧，
+  // 而那些下游只吃位图。
+  const capabilityChips = getRunCapabilityChips(models).filter(
+    (chip) =>
+      chip.capability !== 'outputFormat' &&
+      isCapabilityChipVisible(chip, capabilityParams, hasReferenceImage),
   )
   if (!seedSupported && !negativeSupported && capabilityChips.length === 0)
     return null

@@ -162,6 +162,21 @@ describe('evaluateGeneration（真库）', () => {
       error: 'evaluation_failed',
     })
   })
+
+  // GPT Image 的 SVG 输出看图模型读不了：和「图取不回来」一样记一次失败，⛔ 问模型。
+  it('SVG 作品：回 null、记失败，一个字都不发', async () => {
+    const gen = await seed({
+      url: 'https://cdn.test/generations/vector.svg',
+      storageKey: 'generations/vector.svg',
+      mimeType: 'image/svg+xml',
+    })
+    expect(await evaluateGeneration(me.clerkId, gen.id)).toBeNull()
+    expect(await evaluationOf(gen.id)).toMatchObject({
+      error: 'evaluation_failed',
+      reason: 'svg_not_supported',
+    })
+    expect(llm.calls).toHaveLength(0)
+  })
 })
 
 describe('只用助手那一家（真库路由）', () => {

@@ -1,7 +1,11 @@
 // ─── Cloudflare R2 ──────────────────────────────────────────────────────────
 
 interface R2PutOptions {
-  httpMetadata?: { contentType?: string; cacheControl?: string }
+  httpMetadata?: {
+    contentType?: string
+    cacheControl?: string
+    contentDisposition?: string
+  }
   customMetadata?: Record<string, string>
 }
 

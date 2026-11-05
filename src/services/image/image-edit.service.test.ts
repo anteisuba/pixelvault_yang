@@ -1,7 +1,7 @@
 import sharp from 'sharp'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { SafetyFilterError } from '@/lib/errors'
+import { GenerationValidationError, SafetyFilterError } from '@/lib/errors'
 import { ProviderError } from '@/services/providers/types'
 
 import {
@@ -10,6 +10,8 @@ import {
   inpaintImage,
   removeBackground,
   replaceObjects,
+  streamImageEdit,
+  submitIdeogramImageEdit,
   upscaleImage,
 } from './image-edit.service'
 
@@ -650,4 +652,83 @@ describe('object-replace on fal edit endpoints', () => {
 
     expect(edited).toMatchObject({ width: 3, height: 2 })
   })
+})
+
+describe('SVG inputs are rejected before any provider call', () => {
+  const svgUrl = 'https://cdn.example.com/u/1/gen.svg'
+  const message = "SVG images can't be used as input. Convert it to PNG first."
+  let fetchMock: ReturnType<typeof vi.fn>
+
+  beforeEach(() => {
+    fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+  })
+
+  async function expectRejected(run: () => Promise<unknown>) {
+    const error = await run().catch((caught: unknown) => caught)
+    expect(error).toBeInstanceOf(GenerationValidationError)
+    expect(error).toMatchObject({ httpStatus: 400, message })
+    expect(fetchMock).not.toHaveBeenCalled()
+  }
+
+  it('upscaleImage', () => expectRejected(() => upscaleImage(svgUrl, 'key')))
+
+  it('removeBackground', () =>
+    expectRejected(() => removeBackground(svgUrl, 'key')))
+
+  it('inpaintImage', () =>
+    expectRejected(() =>
+      inpaintImage({
+        userId: 'user-1',
+        imageUrl: svgUrl,
+        maskImageUrl: 'data:image/png;base64,mask',
+        prompt: 'flowers',
+        apiKey: 'key',
+      }),
+    ))
+
+  it('replaceObjects', () =>
+    expectRejected(() =>
+      replaceObjects({
+        userId: 'user-1',
+        imageUrl: svgUrl,
+        annotations: [{ index: 1, instruction: 'make it red' }],
+        apiKey: 'key',
+      }),
+    ))
+
+  it('extractElement', () =>
+    expectRejected(() =>
+      extractElement({
+        userId: 'user-1',
+        imageUrl: svgUrl,
+        prompt: 'cat',
+        apiKey: 'key',
+      }),
+    ))
+
+  it('submitIdeogramImageEdit checks references too', () =>
+    expectRejected(() =>
+      submitIdeogramImageEdit('clerk-1', {
+        imageUrl: 'https://cdn.example.com/u/1/source.png',
+        referenceImages: ['data:image/svg+xml;base64,PHN2Zy8+'],
+        maskImageUrl: 'data:image/png;base64,mask',
+        prompt: 'flowers',
+      }),
+    ))
+
+  it('streamImageEdit rejects before opening the stream', () =>
+    expectRejected(() =>
+      streamImageEdit(
+        'clerk-1',
+        {
+          action: 'inpaint',
+          imageUrl: svgUrl,
+          maskImageUrl: 'data:image/png;base64,mask',
+          prompt: 'flowers',
+          modelId: 'gpt-image-2',
+        },
+        new AbortController().signal,
+      ),
+    ))
 })

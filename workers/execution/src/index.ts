@@ -232,7 +232,12 @@ interface R2Bucket {
     key: string,
     value: ArrayBuffer | ArrayBufferView | ReadableStream | string,
     options?: {
-      httpMetadata?: { contentType?: string; cacheControl?: string }
+      httpMetadata?: {
+        contentType?: string
+        cacheControl?: string
+        /** SVG 作品存成 `attachment`：直开 CDN 链接只下载不渲染。 */
+        contentDisposition?: string
+      }
     },
   ): Promise<{ key: string }>
 }

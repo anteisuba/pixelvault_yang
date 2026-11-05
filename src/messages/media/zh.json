@@ -1,4 +1,19 @@
 {
+  "SvgToPng": {
+    "badge": "SVG",
+    "action": "转 PNG",
+    "sizeHint": "长边像素",
+    "converting": "正在转成 PNG…",
+    "done": "已转成 {size} PNG，存为新作品",
+    "failed": "转 PNG 失败",
+    "tooLarge": "转出来的 PNG 超过 15 MB，换小一档再试",
+    "gateTitle": "这张是 SVG 矢量图",
+    "gateBody": "改图、参考图和助手只认位图。先转成 PNG 再继续？",
+    "gateConfirm": "转 PNG 并继续",
+    "gateCancel": "取消",
+    "convertTitle": "转成 PNG",
+    "convertBody": "SVG 原件保留，PNG 存成一张新作品。"
+  },
   "audioParams": {
     "pace": "语速",
     "expressiveness": "表现力",

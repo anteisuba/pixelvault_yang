@@ -6,6 +6,7 @@ import {
   Bot,
   Download,
   GripHorizontal,
+  ImageIcon,
   ImagePlus,
   Maximize2,
   PenTool,
@@ -47,6 +48,8 @@ import {
 import { cn } from '@/lib/utils'
 import { downloadRemoteAsset } from '@/lib/api-client/generation'
 import { flyImageToComposer } from '@/lib/fly-to-composer'
+import { fileExtensionForMime, isSvgMimeType } from '@/lib/svg-image'
+import { requestSvgToPng } from '@/lib/svg-to-png-request'
 import { getGenerationAudioSegments } from '@/lib/generation-media'
 import { resolveGeneratingStageKey } from '@/lib/generation-progress'
 import { getTranslatedModelLabel } from '@/lib/model-options'
@@ -147,6 +150,7 @@ export const GenerationPreview = memo(function GenerationPreview({
   const tCancel = useTranslations('GenerationCancel')
   const tModels = useTranslations('Models')
   const tMobile = useTranslations('StudioMobile')
+  const tSvg = useTranslations('SvgToPng')
   const isMobile = useIsMobile()
   // §3.0b 第 4 条：把这张结果图作为附件引用进助手对话（不自动发送、不自动喂图）。
   const askAssistantAboutImage = useAskAssistantAboutImage()
@@ -401,6 +405,8 @@ export const GenerationPreview = memo(function GenerationPreview({
   const canUseAsReference =
     generation.outputType === 'IMAGE' && typeof onUseAsReference === 'function'
   const audioSegments = getGenerationAudioSegments(generation)
+  const isSvgResult =
+    generation.outputType === 'IMAGE' && isSvgMimeType(generation.mimeType)
 
   const handleDownload = async () => {
     if (!generation.url) return
@@ -409,7 +415,7 @@ export const GenerationPreview = memo(function GenerationPreview({
         ? 'mp4'
         : generation.outputType === 'AUDIO'
           ? 'mp3'
-          : 'png'
+          : fileExtensionForMime(generation.mimeType)
     const result = await downloadRemoteAsset(
       generation.url,
       `antei-${generation.id}.${ext}`,
@@ -532,6 +538,15 @@ export const GenerationPreview = memo(function GenerationPreview({
           />
         </TransformComponent>
 
+        {isSvgResult && !showGeneratingOverlay ? (
+          <span
+            data-testid="studio-svg-result-badge"
+            className="pointer-events-none absolute top-3 left-3 rounded-full bg-background/85 px-2 py-0.5 font-mono text-2xs font-medium text-foreground shadow-sm backdrop-blur-sm"
+          >
+            {tSvg('badge')}
+          </span>
+        ) : null}
+
         {/* Drag hint — desktop only */}
         {!isMobile &&
           !showGeneratingOverlay &&
@@ -650,6 +665,21 @@ export const GenerationPreview = memo(function GenerationPreview({
         onClick={handleDownload}
         variant={variant}
       />
+      {/* SVG 作品才有：画成 PNG 存成新作品，原件不动（弹窗是全站那一个）。 */}
+      {isSvgResult && generation.url ? (
+        <CanvasToolButton
+          icon={ImageIcon}
+          label={tSvg('action')}
+          onClick={() =>
+            void requestSvgToPng({
+              url: generation.url,
+              id: generation.id,
+              mode: 'convert',
+            })
+          }
+          variant={variant}
+        />
+      ) : null}
       <CanvasToolButton
         icon={Maximize2}
         label={t('toolViewOriginal')}

@@ -13,7 +13,12 @@ import { readOpenAIImageStream } from '@/lib/openai-image-stream'
 import { openAISafetyIdentifierFor } from '@/lib/openai-safety-identifier'
 import { encodeSseEvent } from '@/lib/sse'
 import { ensureUser } from '@/services/user.service'
-import { ApiKeyError, SafetyFilterError, isGenerationError } from '@/lib/errors'
+import {
+  ApiKeyError,
+  GenerationValidationError,
+  SafetyFilterError,
+  isGenerationError,
+} from '@/lib/errors'
 import { orientedSize, readImageHeader } from '@/lib/image-header'
 import { renderObjectReplaceMarkup } from '@/lib/object-replace-markup'
 import {
@@ -23,6 +28,7 @@ import {
   resizeImage,
 } from '@/lib/image-pixels'
 import { logger } from '@/lib/logger'
+import { isSvgImageUrl } from '@/lib/svg-image'
 import { withRetry } from '@/lib/with-retry'
 import {
   findActiveKeyForAdapter,
@@ -82,10 +88,24 @@ const FAL_IMAGE_URLS_EDIT_MODELS = new Set([
 
 export type UpscaleTargetScale = '2x' | '4x'
 
+/**
+ * 改图 / 放大 / 抠图的模型只吃位图：SVG（GPT Image 2.5 / 2.6 的矢量输出）在
+ * 这里拦成 400，⛔ 别让它进解码器或原样转给服务商。每个导出入口各拦一次；
+ * 蒙版恒为我们自己画的 PNG，不查。
+ */
+function assertNoSvgEditInputs(
+  urls: ReadonlyArray<string | null | undefined>,
+): void {
+  if (!urls.some((url) => isSvgImageUrl(url))) return
+  const message = "SVG images can't be used as input. Convert it to PNG first."
+  throw new GenerationValidationError([{ field: 'imageUrl', message }], message)
+}
+
 export async function submitIdeogramImageEdit(
   clerkId: string,
   request: InpaintRequest | ObjectReplaceRequest,
 ): Promise<ImageSubmitResponseData> {
+  assertNoSvgEditInputs([request.imageUrl, ...(request.referenceImages ?? [])])
   const user = await ensureUser(clerkId)
   const sourceGeneration = request.sourceGenerationId
     ? await getGenerationByIdForUser(request.sourceGenerationId, user.id)
@@ -301,6 +321,7 @@ export async function upscaleImage(
   modelId?: string,
   targetScale?: UpscaleTargetScale,
 ): Promise<ImageEditResult> {
+  assertNoSvgEditInputs([imageUrl])
   const resolvedModel = resolveUpscaleModel(modelId, targetScale)
   const endpoint = `${AI_PROVIDER_ENDPOINTS.FAL}/${resolvedModel}`
   const body: Record<string, unknown> = { image_url: imageUrl }
@@ -333,6 +354,7 @@ export async function removeBackground(
   apiKey: string,
   modelId: string = FAL_DEFAULT_REMOVE_BG_MODEL,
 ): Promise<ImageEditResult> {
+  assertNoSvgEditInputs([imageUrl])
   const endpoint = `${AI_PROVIDER_ENDPOINTS.FAL}/${modelId}`
   const response = await fetch(endpoint, {
     method: 'POST',
@@ -723,6 +745,7 @@ export async function inpaintImage(params: {
   negativePrompt?: string
   modelId?: string
 }): Promise<ImageEditResult> {
+  assertNoSvgEditInputs([params.imageUrl])
   const modelId = params.modelId ?? FAL_DEFAULT_INPAINT_MODEL
   const provider = providerForModel(modelId)
 
@@ -824,6 +847,7 @@ export async function replaceObjects(params: {
   apiKey: string
   modelId?: string
 }): Promise<ImageEditResult> {
+  assertNoSvgEditInputs([params.imageUrl])
   const modelId = params.modelId ?? DEFAULT_OBJECT_REPLACE_MODEL
   const provider = providerForModel(modelId)
   const prompt = compileAnnotationPrompt(params.annotations)
@@ -1120,6 +1144,7 @@ export async function extractElement(params: {
   invert?: boolean
   modelId?: string
 }): Promise<ImageEditResult> {
+  assertNoSvgEditInputs([params.imageUrl])
   const modelId = params.modelId ?? FAL_DEFAULT_EXTRACT_MODEL
   const provider = providerForModel(modelId)
 
@@ -1259,6 +1284,8 @@ export async function streamImageEdit(
       'Streaming requires an OpenAI image model.',
     )
   }
+  // 流一开就只能回 200 + SSE error 事件 —— 在开流之前拦，路由才回得出 400。
+  assertNoSvgEditInputs([request.imageUrl])
   const user = await ensureUser(clerkId)
   const apiKey = await resolveEditApiKey(
     user.id,

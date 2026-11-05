@@ -219,6 +219,30 @@ describe('submitVideoGeneration · 派发', () => {
   })
 })
 
+describe('submitVideoGeneration · SVG 参考图', () => {
+  // GPT Image 的 SVG 输出不能当首帧 / 参考图：400，⛔ 建任务、⛔ 转存、⛔ 派发。
+  it('参考图里有 SVG：拒', async () => {
+    await expect(
+      submitVideoGeneration(
+        me.clerkId,
+        request({
+          referenceImages: [
+            'https://cdn.example.com/start.png',
+            'https://cdn.example.com/u/1/gen.svg',
+          ],
+        }),
+      ),
+    ).rejects.toMatchObject({
+      code: 'VALIDATION_ERROR',
+      status: 400,
+      message: "SVG images can't be used as input. Convert it to PNG first.",
+    })
+    expect(await db.generationJob.count()).toBe(0)
+    expect(fakeBucket.uploads).toHaveLength(0)
+    expect(worker.requests).toHaveLength(0)
+  })
+})
+
 describe('submitVideoGeneration · 提示词长度与输出尺寸', () => {
   // owner 2026-09-27：长度只认模型自己声明的上限（厂商硬上限）；没声明就不拦。
   it('超过型号声明的上限 400、⛔ 建任务；没声明上限的型号不拦', async () => {

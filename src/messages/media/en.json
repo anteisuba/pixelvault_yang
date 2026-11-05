@@ -1,4 +1,19 @@
 {
+  "SvgToPng": {
+    "badge": "SVG",
+    "action": "Convert to PNG",
+    "sizeHint": "Long edge in pixels",
+    "converting": "Converting to PNG…",
+    "done": "Converted to a {size} PNG and saved as a new image",
+    "failed": "Couldn't convert to PNG",
+    "tooLarge": "The PNG is over 15 MB. Try a smaller size",
+    "gateTitle": "This is an SVG vector image",
+    "gateBody": "Editing, references and the assistant only accept raster images. Convert it to PNG first?",
+    "gateConfirm": "Convert to PNG and continue",
+    "gateCancel": "Cancel",
+    "convertTitle": "Convert to PNG",
+    "convertBody": "The SVG original stays. The PNG is saved as a new image."
+  },
   "audioParams": {
     "pace": "Pace",
     "expressiveness": "Expressiveness",

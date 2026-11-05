@@ -41,6 +41,8 @@ import {
 } from '@/lib/asset-links'
 import type { GenerationRecord } from '@/types'
 import { getGenerationPreviewUrl } from '@/lib/generation-media'
+import { fileExtensionForMime, isSvgMimeType } from '@/lib/svg-image'
+import { requestSvgToPng } from '@/lib/svg-to-png-request'
 import VideoPlayer from '@/components/business/VideoPlayer'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -99,6 +101,9 @@ export function ImageDetailModal({
   const tModels = useTranslations('Models')
   const tToasts = useTranslations('Toasts')
   const tErrors = useTranslations('Errors')
+  const tSvg = useTranslations('SvgToPng')
+  const isSvg =
+    generation.outputType === 'IMAGE' && isSvgMimeType(generation.mimeType)
   const closeLabel = tCommon.has('close') ? tCommon('close') : t('close')
 
   const createdAt = new Date(generation.createdAt)
@@ -120,7 +125,7 @@ export function ImageDetailModal({
 
   const handleDownload = async () => {
     if (isDownloading) return
-    const ext = generation.mimeType.split('/')[1] || 'png'
+    const ext = fileExtensionForMime(generation.mimeType)
     const fileName = `antei-${generation.id.slice(0, 8)}.${ext}`
 
     if (!isSignedIn) {
@@ -203,15 +208,37 @@ export function ImageDetailModal({
       >
         <Download className="size-4" />
       </FeedbackButton>
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        className="rounded-full text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-        onClick={handleOpenOriginal}
-        aria-label={t('openOriginal')}
-      >
-        <ArrowUpRight className="size-4" />
-      </Button>
+      {/* SVG 不在新标签页里打开（mockup「看不见的活」）：那一格换成「转 PNG」。 */}
+      {isSvg ? (
+        isSignedIn ? (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="rounded-full text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+            onClick={() =>
+              void requestSvgToPng({
+                url: generation.url,
+                id: generation.id,
+                mode: 'convert',
+              })
+            }
+            aria-label={tSvg('action')}
+            title={tSvg('action')}
+          >
+            <ImageIcon className="size-4" />
+          </Button>
+        ) : null
+      ) : (
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="rounded-full text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+          onClick={handleOpenOriginal}
+          aria-label={t('openOriginal')}
+        >
+          <ArrowUpRight className="size-4" />
+        </Button>
+      )}
     </>
   )
 

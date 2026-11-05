@@ -291,6 +291,12 @@
       "medium": "中",
       "high": "高"
     },
+    "outputFormat": "出力形式",
+    "outputFormatHint": "SVG はベクター画像で、Figma・Illustrator・Inkscape で編集を続けられます。参照画像なしのときだけ選べ、生成プレビューはありません。編集や参照に使うときは、結果から先に PNG に変換してください。",
+    "outputFormatOption": {
+      "png": "PNG",
+      "svg": "SVG ベクター"
+    },
     "background": "背景",
     "backgroundHint": "生成画像の背景を透明にするか不透明にするかを選択します。",
     "backgroundOption": {
@@ -957,6 +963,7 @@
     "capability": {
       "quality": "画質",
       "complexity": "複雑さ",
+      "outputFormat": "形式",
       "background": "背景",
       "layerDecomposition": "レイヤー分解",
       "style": "スタイル",

@@ -347,6 +347,27 @@ describe('提示词长度', () => {
   })
 })
 
+// GPT Image 的 SVG 输出不能回头当参考图：两个字段都查，拦成 400，不碰网络。
+describe('SVG 参考图', () => {
+  it.each([
+    ['referenceImages', { referenceImages: ['https://cdn.example.com/a.svg'] }],
+    [
+      'referenceImage',
+      { referenceImage: 'data:image/svg+xml;base64,PHN2Zy8+' },
+    ],
+  ])('%s 里有 SVG：拒', async (_label, refs) => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch')
+    await expect(
+      validate({ modelId: AI_MODELS.SEEDREAM_50_PRO_VOLCENGINE, ...refs }),
+    ).rejects.toMatchObject({
+      code: 'VALIDATION_ERROR',
+      status: 400,
+      message: "SVG images can't be used as input. Convert it to PNG first.",
+    })
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
+})
+
 /* ─── 参考图 / 遮罩预处理 ─────────────────────────────────────────────── */
 
 const png = (

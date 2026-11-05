@@ -74,6 +74,7 @@ import {
   NOVELAI_QUALITY_TOGGLE_OPTIONS,
   NOVELAI_UC_PRESET_OPTIONS,
   OPENAI_GPT_IMAGE_COMPLEXITY_OPTIONS,
+  OPENAI_GPT_IMAGE_OUTPUT_FORMATS,
   VOLCENGINE_SEEDREAM_MAX_LAYERS,
 } from '@/constants/provider-capabilities'
 import { GENERATION_CANCEL_MAX_BATCH } from '@/constants/generation-cancel'
@@ -293,6 +294,12 @@ export const AdvancedParamsSchema = z.object({
    * https://developers.openai.com/api/docs/guides/image-generation#set-image-complexity
    */
   complexity: z.enum(OPENAI_GPT_IMAGE_COMPLEXITY_OPTIONS).optional(),
+  /**
+   * GPT Image 2.5 / 2.6 输出格式。不设 = PNG。`svg` 只在纯生成（无参考图）上
+   * 成立，且没有流式预览。
+   * https://developers.openai.com/api/docs/guides/image-generation
+   */
+  outputFormat: z.enum(OPENAI_GPT_IMAGE_OUTPUT_FORMATS).optional(),
   preview: z.boolean().optional(),
   resolution: z.enum(['auto', '1K', '2K', '4K']).optional(),
   background: z.string().optional(),

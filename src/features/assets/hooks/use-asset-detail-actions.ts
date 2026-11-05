@@ -14,6 +14,7 @@ import {
   toggleLikeAPI,
 } from '@/lib/api-client'
 import { getApiErrorMessage } from '@/lib/api-error-message'
+import { fileExtensionForMime } from '@/lib/svg-image'
 import { runUndoableAction } from '@/lib/undoable-action'
 import {
   openExternalAsset,
@@ -54,7 +55,7 @@ function getAssetFileName(generation: GenerationRecord): string {
   if (generation.outputType === 'MODEL_3D' && generation.modelUrl) {
     return `antei-${generation.id.slice(0, 8)}.glb`
   }
-  const ext = generation.mimeType.split('/')[1] || 'bin'
+  const ext = fileExtensionForMime(generation.mimeType)
   return `antei-${generation.id.slice(0, 8)}.${ext}`
 }
 

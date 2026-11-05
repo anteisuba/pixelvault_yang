@@ -51,6 +51,7 @@ import {
   luminance,
 } from '@/lib/image-pixels'
 import { logger } from '@/lib/logger'
+import { isSvgImageUrl } from '@/lib/svg-image'
 import { validatePrompt } from '@/services/kernel/prompt-guard'
 import { getResolvedModelOption } from '@/services/model-config.service'
 import {
@@ -588,6 +589,19 @@ export async function resolveImageRouteAndValidate(
   const refCount =
     input.referenceImages?.length ?? (input.referenceImage ? 1 : 0)
   const hasReferenceImage = refCount > 0
+  // 参考图只吃位图：SVG（GPT Image 的矢量输出）在这里拦成 400，⛔ 别让它进解码器
+  // 或原样转给服务商。两个字段都查 —— 有的调用方两个都带。
+  if (
+    [input.referenceImage, ...(input.referenceImages ?? [])].some((url) =>
+      isSvgImageUrl(url),
+    )
+  ) {
+    throw new GenerateImageServiceError(
+      'VALIDATION_ERROR',
+      "SVG images can't be used as input. Convert it to PNG first.",
+      400,
+    )
+  }
   if (resolvedRoute.adapterType === AI_ADAPTER_TYPES.IDEOGRAM) {
     const quality = input.advancedParams?.quality
     if (
@@ -673,6 +687,18 @@ export async function resolveImageRouteAndValidate(
       }
     }
 
+    // SVG 只在 `/images/generations` 上成立；挂了参考图会走 `/images/edits`。
+    if (
+      input.advancedParams?.outputFormat === 'svg' &&
+      (refCount > 0 || input.advancedParams.inpaintMask)
+    ) {
+      throw new GenerateImageServiceError(
+        'VALIDATION_ERROR',
+        'SVG output is only available without reference images.',
+        400,
+      )
+    }
+
     // 火山 Ark 的透明底前置：「仅支持图生图场景，且只支持输入 1 张带透明通道
     // 的图片」。0 张和 ≥2 张都不成立 —— worker 侧遇到这两种情况会**不发**
     // `background`，这里再把它变成一条能读懂的错误，而不是让用户拿到一张
@@ -721,6 +747,8 @@ export async function resolveImageRouteAndValidate(
       ['qualityToggle', naiConfig.qualityToggleOptions],
       ['ucPreset', naiConfig.ucPresetOptions],
       ['novelAiReferenceMode', naiConfig.novelAiReferenceModeOptions],
+      // 不认它的模型收到 `svg` 会照出 PNG，而存储键已按 .svg 起好 —— 必须在这里死。
+      ['outputFormat', naiConfig.outputFormatOptions],
     ] as const) {
       const value = input.advancedParams?.[field]
       if (value === undefined) continue

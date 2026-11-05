@@ -51,6 +51,7 @@ const SELECT_OPTION_KEYS: Partial<
 > = {
   quality: 'qualityOptions',
   complexity: 'complexityOptions',
+  outputFormat: 'outputFormatOptions',
   background: 'backgroundOptions',
   style: 'styleOptions',
   qualityToggle: 'qualityToggleOptions',
@@ -331,6 +332,10 @@ export function isCapabilityChipVisible(
   hasReferenceImage: boolean,
 ): boolean {
   if (chip.requiresReferenceImage && !hasReferenceImage) return false
+  // SVG 只在纯生成上有（挂了参考图走改图端点），且官方不给流式预览。
+  if (chip.capability === 'outputFormat') return !hasReferenceImage
+  if (chip.capability === 'preview')
+    return hasReferenceImage || advancedParams.outputFormat !== 'svg'
   const precise = advancedParams.novelAiReferenceMode === 'precise'
   if (
     chip.capability === 'preciseReferenceStrength' ||

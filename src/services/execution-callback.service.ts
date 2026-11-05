@@ -23,6 +23,7 @@ import {
 } from '@/lib/generation-observability'
 import { createGeneration } from '@/services/generation.service'
 import { buildRecipeSnapshotForUser } from '@/features/prompts/server'
+import { isSvgMimeType } from '@/lib/svg-image'
 import {
   buildImageRecipeDraft,
   finalizeGenerationRecipe,
@@ -1197,17 +1198,20 @@ async function finalizeImageResult(
     // The outbox row is the durable record; it is processed right after the
     // callback responds, and an attempt that fails or gets cut short stays in
     // the outbox for the daily sweep cron.
-    const previewOutbox = await enqueueImagePreviewDerivatives({
-      generationJobId: job.id,
-      generationId: generation.id,
-      sourceStorageKey: storageKey,
-    }).catch((error: unknown) => {
-      logger.warn('Image preview derivative enqueue failed (callback)', {
-        runId: job.id,
-        error: error instanceof Error ? error.message : String(error),
-      })
-      return null
-    })
+    // SVG 不做衍生图：缩略图管线只吃位图，列表直接用矢量原件（<img> 显示安全）。
+    const previewOutbox = isSvgMimeType(mimeType)
+      ? null
+      : await enqueueImagePreviewDerivatives({
+          generationJobId: job.id,
+          generationId: generation.id,
+          sourceStorageKey: storageKey,
+        }).catch((error: unknown) => {
+          logger.warn('Image preview derivative enqueue failed (callback)', {
+            runId: job.id,
+            error: error instanceof Error ? error.message : String(error),
+          })
+          return null
+        })
 
     if (previewOutbox) {
       const outboxId = previewOutbox.id

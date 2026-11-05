@@ -64,6 +64,7 @@ import {
   triggerDirectAssetDownload,
 } from '@/lib/asset-links'
 import { getGenerationThumbnailUrl } from '@/lib/generation-media'
+import { fileExtensionForMime } from '@/lib/svg-image'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { cn } from '@/lib/utils'
 import { formatDuration } from '@/lib/video-utils'
@@ -199,7 +200,7 @@ function GalleryViewerAside({
 
   const download = async () => {
     if (isDownloading) return
-    const ext = generation.mimeType.split('/')[1] || 'png'
+    const ext = fileExtensionForMime(generation.mimeType)
     const fileName = `antei-${generation.id.slice(0, 8)}.${ext}`
     if (!isSignedIn) {
       triggerDirectAssetDownload(generation.url, fileName)

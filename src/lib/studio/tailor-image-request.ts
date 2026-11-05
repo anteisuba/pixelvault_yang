@@ -60,6 +60,13 @@ export function tailorImageRequestToModel<T extends TailorableImageRequest>(
       delete advancedParams.preciseReferenceStrength
       delete advancedParams.preciseReferenceFidelity
     }
+    // SVG 只在纯生成上成立：挂了参考图 chip 已经藏起来，残留的值在这里丢掉，
+    // 回到 PNG（服务端对「svg + 参考图」是 400）。没参考图时流式预览不成立。
+    if (advancedParams.outputFormat === 'svg') {
+      advancedParams = { ...advancedParams }
+      if (hasReferenceImage) delete advancedParams.outputFormat
+      else delete advancedParams.preview
+    }
     const pruned = pruneIncompatibleCapabilityValues(
       advancedParams,
       adapterType,

@@ -50,7 +50,7 @@ type PaneProps = Parameters<typeof CharacterPersonPane>[0]
  *
  * ⭐ 左栏只放她：头像 · 名字（⋯ 里删除）· 一句介绍 · 「和她聊」（这块板唯一的黑钮）·
  *   「她在意的东西」（第 ④ 步）·「现在」（出门调查，第 ⑤ 步）。⛔ 分割线、⛔「用她 ▾」。
- * ⭐ 右边页签：最近 · 人物 · 图片 · 模板（11-01）· LoRA · 记忆（第 ⑦ 步）· 表情包。各页内容先原样搬过来，
+ * ⭐ 右边页签：小房间（活动记录，11-05 由「最近」改名）· 人物 · 图片 · 模板（11-01）· LoRA · 记忆（第 ⑦ 步）· 表情包。各页内容先原样搬过来，
  *   后面几步一页一页改。
  * ⚠ 手机照旧走 `CharacterDetailSplit`（手机归整体重设计）。
  */
@@ -116,7 +116,11 @@ export function CharacterDetailDesk({
         />
         <div className="min-h-0 flex-1">
           {tab === 'recent' ? (
-            <CharacterRecentDiary growth={growth} stickers={stickers} />
+            <CharacterRecentDiary
+              growth={growth}
+              stickers={stickers}
+              memories={memories}
+            />
           ) : tab === 'person' ? (
             <div className="h-full overflow-y-auto pb-12">
               <CharacterPersonPane {...paneProps} />

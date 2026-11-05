@@ -16,7 +16,9 @@ import {
   forgetFindings,
   indexFindings,
   recallFindings,
+  recallOutingDigests,
   renderFindingsRecall,
+  renderOutingDigestsRecall,
 } from './character-findings.service'
 
 let me: Awaited<ReturnType<typeof createTestUser>>
@@ -145,5 +147,88 @@ describe('她的见闻怎么被想起来（4c）', () => {
     expect(text).toContain('THINGS YOU CAME ACROSS ONLINE LATELY')
     expect(text).toContain('松饼 — you thought: 好吃')
     expect(text).toContain('never force them in')
+  })
+})
+
+describe('话题小结进聊天', () => {
+  function outing(
+    text: string,
+    urls: string[] | null,
+    extra: {
+      userId?: string
+      cardId?: string
+      startedAt: string
+      endedAt?: string
+      status?: 'RUNNING' | 'DONE'
+      topic?: object
+    },
+  ) {
+    return db.characterOuting.create({
+      data: {
+        userId: extra.userId ?? me.id,
+        characterCardId: extra.cardId ?? card.id,
+        status: extra.status ?? 'DONE',
+        model: 'm',
+        budgetPoints: 30,
+        startedAt: new Date(extra.startedAt),
+        endedAt: extra.endedAt ? new Date(extra.endedAt) : null,
+        topic: extra.topic ?? {
+          text,
+          tags: ['meme'],
+          digest: urls ? { lines: [{ text: `${text}的意思`, urls }] } : null,
+        },
+      },
+    })
+  }
+
+  it('取最近 2 份有小结的话题趟（没写成小结 / 读不懂 / 还在跑 / 别人的 / 别的卡的不带），带出处', async () => {
+    const other = await createTestUser()
+    const otherCard = await createTestCard(me.id, { name: '别的卡' })
+    await outing('甲', null, {
+      startedAt: '2026-11-04T09:00:00Z',
+      endedAt: '2026-11-04T10:00:00Z',
+    })
+    await outing('乙', ['https://a.example/1'], {
+      startedAt: '2026-11-03T09:00:00Z',
+      endedAt: '2026-11-03T10:00:00Z',
+    })
+    await outing('', null, {
+      startedAt: '2026-11-02T09:00:00Z',
+      topic: { 坏: true },
+    })
+    await outing('丙', ['https://b.example/2'], {
+      startedAt: '2026-11-01T09:00:00Z',
+    })
+    await outing('丁', ['https://c.example/3'], {
+      startedAt: '2026-10-30T09:00:00Z',
+    })
+    await outing('跑着的', ['https://d.example/4'], {
+      startedAt: '2026-11-04T11:00:00Z',
+      status: 'RUNNING',
+    })
+    await outing('别人的', ['https://e.example/5'], {
+      userId: other.id,
+      cardId: (await createTestCard(other.id)).id,
+      startedAt: '2026-11-04T12:00:00Z',
+    })
+    await outing('别的卡', ['https://f.example/6'], {
+      cardId: otherCard.id,
+      startedAt: '2026-11-04T13:00:00Z',
+    })
+
+    const found = await recallOutingDigests({ userId: me.id, cardId: card.id })
+
+    expect(found.map((item) => item.topic)).toEqual(['乙', '丙'])
+    const text = renderOutingDigestsRecall(found)
+    expect(text).toContain('乙的意思 (https://a.example/1)')
+    expect(text).toContain('2026-11-03')
+    expect(text).toContain('Never invent links')
+    expect(renderOutingDigestsRecall([])).toBe('')
+  })
+
+  it('没有话题趟：空', async () => {
+    expect(
+      await recallOutingDigests({ userId: me.id, cardId: card.id }),
+    ).toEqual([])
   })
 })

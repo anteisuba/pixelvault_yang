@@ -5,7 +5,6 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   createCharacterMemoryAPI,
   deleteAssistantMemoryAPI,
-  deleteCharacterFindingAPI,
   getCharacterMemoriesAPI,
   updateAssistantMemoryAPI,
 } from '@/lib/api-client'
@@ -19,7 +18,7 @@ export type MemoryWriteResult =
   | { ok: false; error: string; i18nKey?: string }
 
 /**
- * 她页「记忆」栏（角色大项目第 ⑦ 步）：记得的 · 沉睡的 · 见闻；记一条、改、钉住、唤醒、删。
+ * 她页「记忆」栏（角色大项目第 ⑦ 步）：记得的 · 沉睡的（见闻的删除归 `useCharacterGrowth`）；记一条、改、钉住、唤醒、删。
  * 改 / 钉住就地换手里那一条；记一条、唤醒、删完整份重读（会有别的条跟着睡 / 醒）。
  * `cardId` 为空 = 什么都不读；换角色时调用方用 key 重置。
  */
@@ -140,23 +139,6 @@ export function useCharacterMemories(cardId: string | null) {
     [settle],
   )
 
-  const removeFinding = useCallback(
-    async (findingId: string) =>
-      settle(await deleteCharacterFindingAPI(findingId), () =>
-        setList((current) =>
-          current
-            ? {
-                ...current,
-                findings: current.findings.filter(
-                  (row) => row.id !== findingId,
-                ),
-              }
-            : current,
-        ),
-      ),
-    [settle],
-  )
-
   return {
     list,
     isLoading,
@@ -167,6 +149,5 @@ export function useCharacterMemories(cardId: string | null) {
     setPinned,
     wake,
     remove,
-    removeFinding,
   }
 }

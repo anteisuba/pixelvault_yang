@@ -15,7 +15,7 @@ vi.mock('@/services/storage/r2', async (importOriginal) =>
   (await import('@/test/int/fake-r2')).fakeR2Module(await importOriginal()),
 )
 
-type Step = 'plan' | 'screen' | 'notes' | 'watch'
+type Step = 'plan' | 'topicPlan' | 'classify' | 'screen' | 'notes' | 'watch'
 type Call = {
   step: Step
   systemPrompt: string
@@ -25,10 +25,14 @@ type Call = {
   videoAnalysis?: { fps: number; startOffset: number; endOffset: number }
 }
 const llm = vi.hoisted(() => ({
-  queues: { plan: [], screen: [], notes: [], watch: [] } as Record<
-    string,
-    unknown[]
-  >,
+  queues: {
+    plan: [],
+    topicPlan: [],
+    classify: [],
+    screen: [],
+    notes: [],
+    watch: [],
+  } as Record<string, unknown[]>,
   calls: [] as Call[],
   /** 每次调用报的 token（`null` = 不报，按估的扣）。 */
   usage: null as null | { inputTokens: number; outputTokens: number },
@@ -45,12 +49,16 @@ vi.mock('@/services/llm-text.service', async (importOriginal) => ({
     const prompt = input.systemPrompt
     const step: Step = prompt.includes('Today you have some free time online')
       ? 'plan'
-      : prompt.includes('scrolling through what turned up')
-        ? 'screen'
-        : prompt.includes('watch this video') ||
-            prompt.includes('watched this video')
-          ? 'watch'
-          : 'notes'
+      : prompt.includes('find out about ONE topic today')
+        ? 'topicPlan'
+        : prompt.includes('You sort a short topic')
+          ? 'classify'
+          : prompt.includes('scrolling through what turned up')
+            ? 'screen'
+            : prompt.includes('watch this video') ||
+                prompt.includes('watched this video')
+              ? 'watch'
+              : 'notes'
     llm.calls.push({ ...input, step })
     if (llm.usage) input.onUsage?.(llm.usage)
     const next = llm.queues[step]!.shift()
@@ -58,13 +66,15 @@ vi.mock('@/services/llm-text.service', async (importOriginal) => ({
     if (typeof next === 'string') return next
     if (next) return JSON.stringify(next)
     return JSON.stringify(
-      step === 'plan'
+      step === 'plan' || step === 'topicPlan'
         ? { queries: [] }
-        : step === 'screen'
-          ? { pick: [] }
-          : step === 'watch'
-            ? { note: null }
-            : { notes: [] },
+        : step === 'classify'
+          ? { vague: false, tags: [] }
+          : step === 'screen'
+            ? { pick: [] }
+            : step === 'watch'
+              ? { note: null }
+              : { notes: [] },
     )
   },
 }))
@@ -100,6 +110,7 @@ import {
   meteredComplete,
   OutingBudgetExhausted,
   OutingMeter,
+  planOutingTopic,
   watchPinnedVideos,
 } from './character-browse.service'
 
@@ -186,7 +197,14 @@ beforeEach(async () => {
   fakeBucket.reset()
   resetResearchBreakers(Object.values(RESEARCH_SOURCE_IDS))
   resetDanbooruCatalogCache()
-  llm.queues = { plan: [], screen: [], notes: [], watch: [] }
+  llm.queues = {
+    plan: [],
+    topicPlan: [],
+    classify: [],
+    screen: [],
+    notes: [],
+    watch: [],
+  }
   llm.calls = []
   llm.usage = null
   llm.native = { status: 'ok', answer: '', queries: [], sources: [] }
@@ -273,6 +291,7 @@ async function browse(
     sources?: string[]
     watch?: string[]
     model?: string
+    topic?: string
   } = {},
 ) {
   const route = await resolveAssistantRoute(user.id, {
@@ -284,7 +303,8 @@ async function browse(
     route: { ...route, meter: options.meter ?? new OutingMeter(10_000_000) },
     sources: options.sources ?? ['bilibili', 'danbooru', 'civitai', 'web'],
     watch: new Set(options.watch ?? []),
-    askInterests: true,
+    askInterests: !options.topic,
+    topic: options.topic ?? null,
     onNow: async () => {},
   })
 }
@@ -509,7 +529,7 @@ describe('browseRound（她出门逛一轮）', () => {
       route,
       systemPrompt: 'sys',
       buildUserPrompt: () => 'user',
-    } as Parameters<typeof meteredComplete>[1]
+    } as unknown as Parameters<typeof meteredComplete>[1]
 
     await expect(meteredComplete(meter, options)).rejects.toThrow(
       'provider 500',
@@ -843,5 +863,82 @@ describe('watchPinnedVideos（你贴的视频，第 ⑥ 步）', () => {
 
     expect(llm.calls).toHaveLength(2)
     expect(kept).toBe(1)
+  })
+})
+
+describe('browseRound 话题那趟', () => {
+  it('搜索词只围着话题：不读兴趣清单、不加减兴趣、不找表情包', async () => {
+    await db.characterCard.update({
+      where: { id: cardId },
+      data: { persona: { identity: '画师', interests: ['水彩画', '猫猫'] } },
+    })
+    web.serperImages = [
+      { imageUrl: 'https://img.example/a.png', title: '猫猫 好耶' },
+    ]
+    llm.queues.topicPlan!.push({
+      queries: [{ source: 'bilibili', query: '丝之歌 评价' }],
+      // 就算模型回了这些也一概不理。
+      sticker: '猫猫 表情包',
+      interests: { add: [{ text: '丝之歌', from: [1, 2] }], drop: [] },
+    })
+
+    await browse({ topic: '《丝之歌》的剧情和评价', sources: ['bilibili'] })
+
+    // 走的是话题那一步，不是平常的「想搜什么」。
+    expect(callsOf('plan')).toHaveLength(0)
+    const [plan] = callsOf('topicPlan')
+    expect(plan!.systemPrompt).not.toContain('"interests"')
+    expect(plan!.systemPrompt).not.toContain('"sticker"')
+    expect(plan!.userPrompt).toContain('《丝之歌》的剧情和评价')
+    expect(plan!.userPrompt).not.toContain('水彩画')
+    expect(plan!.userPrompt).not.toContain('THINGS YOU CARE ABOUT')
+    // 人设里的兴趣原样，表情包一张没收，也没去搜。
+    const persona = (await cardRow()).persona as { interests: string[] }
+    expect(persona.interests).toEqual(['水彩画', '猫猫'])
+    expect(web.serperQueries).toEqual([])
+    expect(
+      await db.characterSticker.count({ where: { characterCardId: cardId } }),
+    ).toBe(0)
+  })
+})
+
+describe('planOutingTopic（话题 → 标签 + 配站）', () => {
+  const routeFor = () => resolveAssistantRoute(user.id, { routeModel: GEMINI })
+
+  it('模型分出标签：按标签配站', async () => {
+    llm.queues.classify!.push({ vague: false, tags: ['story'] })
+    const plan = await planOutingTopic(await routeFor(), '丝之歌的剧情')
+    expect(plan).toMatchObject({
+      tags: ['story'],
+      vague: false,
+      sites: ['fandom.com'],
+    })
+    expect(callsOf('classify')).toHaveLength(1)
+  })
+
+  it('太泛：不给标签、不配站', async () => {
+    llm.queues.classify!.push({ vague: true, tags: [] })
+    expect(await planOutingTopic(await routeFor(), '游戏')).toEqual({
+      tags: [],
+      vague: true,
+      sources: [],
+      sites: [],
+    })
+  })
+
+  it('分类那一步失败：不抛，走兜底站（网页 + 平常去的来源）', async () => {
+    llm.queues.classify!.push(new Error('timeout'))
+    const plan = await planOutingTopic(await routeFor(), '丝之歌')
+    expect(plan.vague).toBe(false)
+    expect(plan.tags).toEqual([])
+    expect(plan.sources).toContain('web')
+    expect(plan.sources).not.toContain('danbooru')
+    expect(plan.sites).toEqual([])
+  })
+
+  it('已经带了标签：不再问模型', async () => {
+    const plan = await planOutingTopic(await routeFor(), '丝之歌', ['story'])
+    expect(callsOf('classify')).toHaveLength(0)
+    expect(plan.sites).toEqual(['fandom.com'])
   })
 })

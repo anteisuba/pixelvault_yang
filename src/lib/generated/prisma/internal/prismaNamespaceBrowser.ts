@@ -818,6 +818,7 @@ export const CharacterOutingScalarFieldEnum = {
   videos: 'videos',
   pinnedVideos: 'pinnedVideos',
   pinnedDone: 'pinnedDone',
+  topic: 'topic',
   budgetPoints: 'budgetPoints',
   usedTokens: 'usedTokens',
   calls: 'calls',

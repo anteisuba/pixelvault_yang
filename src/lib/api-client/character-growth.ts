@@ -5,7 +5,9 @@ import type {
   CharacterJournalEntry,
   CharacterMemoryList,
   CharacterOutingRun,
+  CharacterOutingTopicPreview,
   CharacterRecentActivity,
+  PreviewCharacterOutingTopicRequest,
   StartCharacterOutingRequest,
   UpdateCharacterJournalRequest,
 } from '@/types/character-growth'
@@ -77,6 +79,26 @@ export async function startCharacterOutingAPI(
   try {
     const response = await apiFetch(
       `${API_ENDPOINTS.CHARACTER_CARDS}/${encodeURIComponent(cardId)}/outing`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(input),
+      },
+    )
+    return await parseApiResult(response)
+  } catch (error) {
+    return toApiFailure(error)
+  }
+}
+
+/** 出门话题预览：写完话题后问一下会配哪些站（`sources` / `sites` 直接填进「开始」的请求）。 */
+export async function previewCharacterOutingTopicAPI(
+  cardId: string,
+  input: PreviewCharacterOutingTopicRequest,
+): Promise<ApiResult<CharacterOutingTopicPreview>> {
+  try {
+    const response = await apiFetch(
+      `${API_ENDPOINTS.CHARACTER_CARDS}/${encodeURIComponent(cardId)}/outing/topic`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

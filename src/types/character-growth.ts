@@ -15,6 +15,8 @@ import {
 import {
   CHARACTER_BROWSE_SOURCES,
   CHARACTER_OUTING,
+  CHARACTER_TOPIC,
+  CHARACTER_TOPIC_TAGS,
   CHARACTER_OUTING_END_REASONS,
   CHARACTER_OUTING_STATUS,
   CHARACTER_OUTING_VIDEO,
@@ -78,6 +80,29 @@ export const OutingVideoLinkSchema = z.object({
   end: z.number().int().min(1).optional(),
 })
 
+/** 出门话题的标签（`CHARACTER_TOPIC_TAGS`，模型只能从里面挑）。 */
+export const CharacterTopicTagSchema = z.enum(CHARACTER_TOPIC_TAGS)
+
+/**
+ * 带出处的小结：每句至少挂一个这趟见闻里真有的 url（服务端校验，挂不上的句子丢掉）。
+ * 只有话题那趟、回来之后才有。
+ */
+export const CharacterOutingDigestSchema = z.object({
+  lines: z.array(
+    z.object({
+      text: z.string(),
+      urls: z.array(z.string()),
+    }),
+  ),
+})
+
+/** 这一趟的话题（`CharacterOuting.topic` 那一列的形状）；`digest` 没写 / 还没回来 = `null`。 */
+export const CharacterOutingTopicSchema = z.object({
+  text: z.string(),
+  tags: z.array(CharacterTopicTagSchema),
+  digest: CharacterOutingDigestSchema.nullable(),
+})
+
 /**
  * 一趟出门（角色大项目第 ⑤ 步）。`nowLabel` = 「来源\n搜索词」（来源是内置站 id 或 `site:域名`）；
  * `usedTokens` 按 `CHARACTER_OUTING.tokensPerPoint` 折点给人看。
@@ -110,6 +135,8 @@ export const CharacterOutingRunSchema = z.object({
     .nullable(),
   startedAt: z.string(),
   endedAt: z.string().nullable(),
+  /** 这一趟的话题（没写 = `null`，旧的趟也是）。 */
+  topic: CharacterOutingTopicSchema.nullable(),
 })
 
 /** 出门卡要的：正在跑的那一趟、最近几趟（河里每趟一条；弹框记住上次的选法）、你常加的网址。 */
@@ -146,6 +173,34 @@ export const StartCharacterOutingSchema = z.object({
     .int()
     .min(CHARACTER_OUTING.minBudget)
     .max(CHARACTER_OUTING.maxBudget),
+  /**
+   * 选填话题：写了这一趟只查它（不看兴趣清单、不改兴趣）。`tags` 可以是预览接口拿到的；
+   * 没带就在开始时服务端自己分类。`sources` / `sites` 都空时服务端按标签配站。
+   */
+  topic: z
+    .object({
+      text: z.string().trim().min(1).max(CHARACTER_TOPIC.maxChars),
+      tags: z
+        .array(CharacterTopicTagSchema)
+        .max(CHARACTER_TOPIC.maxTags)
+        .default([]),
+    })
+    .optional(),
+})
+
+/** POST `/api/character-cards/[id]/outing/topic`：弹框里写完话题，预览配了哪些站。 */
+export const PreviewCharacterOutingTopicSchema = z.object({
+  topic: z.string().trim().min(1).max(CHARACTER_TOPIC.maxChars),
+  /** 同 `StartCharacterOutingSchema.model`（可以是 `auto`）。 */
+  model: z.string().trim().min(1).max(120),
+})
+
+/** 预览结果：`vague` = 话题太泛，不配站、照旧自动；`sources` / `sites` 直接填进开始的请求。 */
+export const CharacterOutingTopicPreviewSchema = z.object({
+  tags: z.array(CharacterTopicTagSchema),
+  vague: z.boolean(),
+  sources: z.array(z.enum(CHARACTER_BROWSE_SOURCES)),
+  sites: z.array(z.string()),
 })
 
 /** POST `/api/character-cards/[id]/outing/stop`：「结束」。 */
@@ -193,6 +248,14 @@ export type CharacterOutingRun = z.infer<typeof CharacterOutingRunSchema>
 export type CharacterOutingState = z.infer<typeof CharacterOutingStateSchema>
 export type StartCharacterOutingRequest = z.infer<
   typeof StartCharacterOutingSchema
+>
+export type CharacterOutingTopic = z.infer<typeof CharacterOutingTopicSchema>
+export type CharacterOutingDigest = z.infer<typeof CharacterOutingDigestSchema>
+export type PreviewCharacterOutingTopicRequest = z.infer<
+  typeof PreviewCharacterOutingTopicSchema
+>
+export type CharacterOutingTopicPreview = z.infer<
+  typeof CharacterOutingTopicPreviewSchema
 >
 export type CharacterGrowth = z.infer<typeof CharacterGrowthSchema>
 export type CharacterMemoryList = z.infer<typeof CharacterMemoryListSchema>

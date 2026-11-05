@@ -9,6 +9,7 @@ vi.mock('server-only', () => ({}))
 import { CHARACTER_OUTING } from '@/constants/character-browse'
 
 import {
+  cleanDigest,
   estimateCallTokens,
   interestWorkKey,
   nextInterests,
@@ -17,6 +18,8 @@ import {
   OutingClock,
   OutingMeter,
   OutingTimeSlice,
+  parseTopicClassification,
+  pickTopicSites,
 } from './character-browse.service'
 
 /** 真实长度的 BV 号（BV + 10 位）。 */
@@ -146,5 +149,112 @@ describe('额度表与网址', () => {
     expect(normalizeOutingSite('zhihu.com')).toBe('zhihu.com')
     expect(normalizeOutingSite('不是网址')).toBeNull()
     expect(normalizeOutingSite('')).toBeNull()
+  })
+})
+
+describe('出门话题：配站 / 分类清洗 / 小结校验', () => {
+  const ALL = [
+    'bilibili',
+    'youtube',
+    'danbooru',
+    'civitai',
+    'x',
+    'web',
+  ] as const
+
+  it('pickTopicSites：按标签轮流挑各自最靠前的站，最多 5 个', () => {
+    // story → wiki；review → Steam / TapTap…；meme → 萌娘百科 / 小鸡词典…
+    const picked = pickTopicSites(['story', 'review', 'meme'], ALL)
+    expect(picked.sites).toEqual([
+      'fandom.com',
+      'store.steampowered.com',
+      'zh.moegirl.org.cn',
+      'taptap.cn',
+      'jikipedia.com',
+    ])
+    expect(picked.sources).toEqual([])
+    // 超过 5 个站时截断
+    const many = pickTopicSites(['discussion', 'review', 'meme'], ALL)
+    expect(many.sites.length + many.sources.length).toBe(5)
+  })
+
+  it('pickTopicSites：同一个站被两个标签选中只算一次；内置来源进 sources', () => {
+    const picked = pickTopicSites(['video', 'image'], ALL)
+    expect(picked.sources).toEqual([
+      'bilibili',
+      'danbooru',
+      'youtube',
+      'civitai',
+    ])
+    expect(picked.sites).toEqual([])
+  })
+
+  it('pickTopicSites：这个模型去不了的站跳过（没网搜 / 不是 Grok）', () => {
+    // 没有 web / youtube / x：网页站点全去不了，只剩 B 站
+    const noNative = pickTopicSites(
+      ['meme', 'discussion'],
+      ['bilibili', 'danbooru', 'civitai'],
+    )
+    expect(noNative).toEqual({ sources: ['bilibili'], sites: [] })
+    // X 只在可达时才配
+    const withoutX = pickTopicSites(['meme'], ['bilibili', 'web'])
+    expect(withoutX.sources).not.toContain('x')
+  })
+
+  it('pickTopicSites：一个标签都没对上 → 兜底「网页 + 平常去的来源」（去掉只出图的）', () => {
+    expect(pickTopicSites([], ALL)).toEqual({
+      sources: ['bilibili', 'youtube', 'x', 'web'],
+      sites: [],
+    })
+    expect(pickTopicSites(['story'], ['bilibili']).sources).toEqual([
+      'bilibili',
+    ])
+  })
+
+  it('parseTopicClassification：认不出的标签丢掉，去重，最多 3 个；太泛不给标签', () => {
+    expect(
+      parseTopicClassification(
+        JSON.stringify({
+          vague: false,
+          tags: ['story', 'nonsense', 'story', 'review', 'meme', 'video', 3],
+        }),
+      ),
+    ).toEqual({ tags: ['story', 'review', 'meme'], vague: false })
+    expect(
+      parseTopicClassification(JSON.stringify({ vague: true, tags: ['meme'] })),
+    ).toEqual({ tags: [], vague: true })
+    expect(parseTopicClassification('不是 JSON')).toEqual({
+      tags: [],
+      vague: false,
+    })
+    expect(parseTopicClassification('{"tags":"meme"}')).toEqual({
+      tags: [],
+      vague: false,
+    })
+  })
+
+  it('cleanDigest：每句要挂得上这趟真有的链接，挂不上的句子丢掉，一句不剩 = null', () => {
+    const urls = ['https://a.example/1', 'https://b.example/2']
+    const digest = cleanDigest(
+      JSON.stringify({
+        lines: [
+          { text: '有出处', refs: [1, 2, 9] },
+          { text: '编号编的', refs: [7] },
+          { text: '没挂', refs: [] },
+          { text: '只有一条', refs: [2, 2] },
+        ],
+      }),
+      urls,
+    )
+    expect(digest).toEqual({
+      lines: [
+        { text: '有出处', urls },
+        { text: '只有一条', urls: ['https://b.example/2'] },
+      ],
+    })
+    expect(
+      cleanDigest(JSON.stringify({ lines: [{ text: 'x', refs: [5] }] }), urls),
+    ).toBeNull()
+    expect(cleanDigest('坏的', urls)).toBeNull()
   })
 })

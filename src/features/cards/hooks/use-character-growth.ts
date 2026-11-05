@@ -11,6 +11,7 @@ import {
   deleteCharacterFindingAPI,
   deleteCharacterJournalAPI,
   getCharacterGrowthAPI,
+  previewCharacterOutingTopicAPI,
   revertCharacterRevisionAPI,
   startCharacterOutingAPI,
   stopCharacterOutingAPI,
@@ -20,6 +21,7 @@ import {
 import { deferEffectTask } from '@/lib/defer-effect-task'
 import type {
   CharacterGrowth,
+  CharacterOutingTopicPreview,
   StartCharacterOutingRequest,
 } from '@/types/character-growth'
 
@@ -134,6 +136,22 @@ export function useCharacterGrowth(cardId: string | null) {
     [cardId],
   )
 
+  /** 弹框里写完话题：预览会配哪些站（`model` 可以是 `auto`）；读不到 = `null`（弹框当没预览）。 */
+  const previewTopic = useCallback(
+    async (
+      topic: string,
+      model: string,
+    ): Promise<CharacterOutingTopicPreview | null> => {
+      if (!cardId) return null
+      const result = await previewCharacterOutingTopicAPI(cardId, {
+        topic,
+        model,
+      })
+      return result.success ? result.data : null
+    },
+    [cardId],
+  )
+
   /** 「结束」：看到的照样留着；收完工轮询会读到这一趟。 */
   const stopOuting = useCallback(async (): Promise<GrowthWriteResult> => {
     if (!cardId) return { ok: false, error: 'No character' }
@@ -222,6 +240,7 @@ export function useCharacterGrowth(cardId: string | null) {
     revert,
     reload,
     startOuting,
+    previewTopic,
     stopOuting,
     removeFinding,
     editOpinion,

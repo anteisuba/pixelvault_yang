@@ -22,12 +22,28 @@ const fake = vi.hoisted(() => ({
   planTokens: 10,
   beforePlan: null as null | (() => Promise<void> | void),
   diary: '今天看到古籍修复，好想学。',
+  /** 话题分类（小任务）、话题那趟的搜索词、回来写的小结：回什么（`Error` = 抛）。 */
+  classify: { vague: false, tags: [] } as unknown,
+  topicPlan: { queries: [] } as unknown,
+  digest: { lines: [] } as unknown,
   calls: [] as CompletionInput[],
 }))
 vi.mock('@/services/llm-text.service', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/services/llm-text.service')>()),
   llmTextCompletion: async (input: CompletionInput) => {
     fake.calls.push(input)
+    const system = input.systemPrompt
+    if (system.includes('You sort a short topic')) {
+      if (fake.classify instanceof Error) throw fake.classify
+      return JSON.stringify(fake.classify)
+    }
+    if (system.includes('find out about ONE topic today')) {
+      await fake.beforePlan?.()
+      input.onUsage?.({ inputTokens: fake.planTokens, outputTokens: 0 })
+      return JSON.stringify(fake.topicPlan)
+    }
+    if (system.includes('Write a short summary of what you found out'))
+      return JSON.stringify(fake.digest)
     if (input.systemPrompt.includes('Today you have some free time online')) {
       await fake.beforePlan?.()
       input.onUsage?.({ inputTokens: fake.planTokens, outputTokens: 0 })
@@ -42,16 +58,18 @@ vi.mock('@/services/llm-text.service', async (importOriginal) => ({
 
 import { after } from 'next/server'
 
-import { CHARACTER_OUTING } from '@/constants/character-browse'
+import { CHARACTER_OUTING, CHARACTER_TOPIC } from '@/constants/character-browse'
 import { NODE_STUDIO_ASSISTANT_ROUTE_MODELS } from '@/constants/node-studio'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type { StartCharacterOutingRequest } from '@/types/character-growth'
 import { db } from '@/lib/db'
+import { Prisma } from '@/lib/generated/prisma/client'
 import { seedAssistantKeys } from '@/test/int/assistant-keys'
 import { createTestCard } from '@/test/int/cards'
 import { createTestUser, resetDatabase } from '@/test/int/db'
 
 import {
+  previewOutingTopicForClerkId,
   runOutingChunk,
   startOutingForClerkId,
   stopOutingForClerkId,
@@ -82,6 +100,9 @@ beforeEach(async () => {
   fake.plan = { queries: [] }
   fake.planTokens = 10
   fake.beforePlan = null
+  fake.classify = { vague: false, tags: [] }
+  fake.topicPlan = { queries: [] }
+  fake.digest = { lines: [] }
   fake.calls = []
   network.mockClear()
   vi.stubGlobal('fetch', (input: string | URL) => network(String(input)))
@@ -123,7 +144,7 @@ const planCalls = () =>
 const journals = () =>
   db.characterJournal.findMany({ where: { characterCardId: cardId } })
 
-function finding(url: string) {
+function finding(url: string, seenAt?: Date) {
   return db.characterFinding.create({
     data: {
       userId: user.id,
@@ -132,9 +153,13 @@ function finding(url: string) {
       url,
       title: '古籍修复',
       note: '好想学',
+      ...(seenAt ? { seenAt } : {}),
     },
   })
 }
+
+const callsWith = (needle: string) =>
+  fake.calls.filter((call) => call.systemPrompt.includes(needle))
 
 describe('startOutingForClerkId', () => {
   it('记一趟（网址规整成域名、去重），马上回，后台开跑', async () => {
@@ -385,5 +410,178 @@ describe('runOutingChunk', () => {
       endReason: 'failed',
     })
     expect(fake.calls).toHaveLength(0)
+  })
+})
+
+describe('出门指定话题', () => {
+  const TEXT = '《丝之歌》的剧情和评价'
+  const topicStart = (
+    topic: { text: string; tags: string[] },
+    rest: Partial<StartCharacterOutingRequest> = {},
+  ) =>
+    startOutingForClerkId(user.clerkId, cardId, {
+      ...START,
+      ...rest,
+      topic,
+    } as StartCharacterOutingRequest)
+
+  it('开始：前端带了标签和站就照存，不再分类', async () => {
+    const run = await topicStart(
+      { text: TEXT, tags: ['story', 'review'] },
+      { sites: ['fandom.com', 'store.steampowered.com'] },
+    )
+    expect(callsWith('You sort a short topic')).toHaveLength(0)
+    const row = await reload(run!.id)
+    expect(row.sites).toEqual(['fandom.com', 'store.steampowered.com'])
+    expect(row.topic).toEqual({
+      text: TEXT,
+      tags: ['story', 'review'],
+      digest: null,
+    })
+    expect(run?.topic).toEqual({
+      text: TEXT,
+      tags: ['story', 'review'],
+      digest: null,
+    })
+  })
+
+  it('开始：没带站就由服务端分类配站', async () => {
+    fake.classify = { vague: false, tags: ['story'] }
+    const run = await topicStart({ text: TEXT, tags: [] })
+    const row = await reload(run!.id)
+    expect(row.sites).toEqual(['fandom.com'])
+    expect(row.topic).toEqual({ text: TEXT, tags: ['story'], digest: null })
+  })
+
+  it('开始：话题太泛 = 当没写话题，照旧自动（库里 topic 是空）', async () => {
+    fake.classify = { vague: true, tags: [] }
+    const run = await topicStart({ text: '游戏', tags: [] })
+    const row = await reload(run!.id)
+    expect(row.topic).toBeNull()
+    expect(row.sites).toEqual([])
+    expect(run?.topic).toBeNull()
+  })
+
+  it('跨段续跑：话题从库里读，只去配的网站，不问兴趣；回来先写带出处的小结再写日记', async () => {
+    const row = await outing({
+      sites: ['fandom.com'],
+      topic: { text: TEXT, tags: ['story', 'review'], digest: null },
+    })
+    const base = Date.now() + 1_000
+    await finding('https://fandom.com/a', new Date(base))
+    await finding('https://fandom.com/b', new Date(base + 1_000))
+    fake.digest = {
+      lines: [
+        { text: '讲的是一只虫', refs: [1] },
+        { text: '编的', refs: [9] },
+      ],
+    }
+    // 第一轮那一下把逛的那份额度用完（日记和小结那两份另留着）。
+    fake.planTokens =
+      30 * CHARACTER_OUTING.tokensPerPoint -
+      CHARACTER_OUTING.diaryReserveTokens -
+      CHARACTER_TOPIC.digestReserveTokens
+
+    await runOutingChunk(row.id)
+
+    // 话题那一步：只给她配的网站，话题进提示，没有兴趣清单。
+    const [plan] = callsWith('find out about ONE topic today')
+    expect(plan!.systemPrompt).toMatch(/source is one of: site:fandom\.com\./)
+    expect(plan!.userPrompt).toContain(TEXT)
+    expect(callsWith('"interests"')).toHaveLength(0)
+    // 小结只留挂得上这趟链接的句子；日记照写。
+    const done = await reload(row.id)
+    expect(done).toMatchObject({ status: 'DONE', endReason: 'budget' })
+    expect(done.topic).toEqual({
+      text: TEXT,
+      tags: ['story', 'review'],
+      digest: {
+        lines: [{ text: '讲的是一只虫', urls: ['https://fandom.com/a'] }],
+      },
+    })
+    expect(await journals()).toHaveLength(1)
+  })
+
+  it('小结一句都挂不上链接：不存小结，日记照写', async () => {
+    const row = await outing({
+      topic: { text: TEXT, tags: ['story'], digest: null },
+    })
+    await finding('https://fandom.com/a', new Date(Date.now() + 1_000))
+    fake.digest = { lines: [{ text: '没出处', refs: [5] }] }
+    fake.planTokens =
+      30 * CHARACTER_OUTING.tokensPerPoint -
+      CHARACTER_OUTING.diaryReserveTokens -
+      CHARACTER_TOPIC.digestReserveTokens
+
+    await runOutingChunk(row.id)
+
+    expect(
+      callsWith('Write a short summary of what you found out'),
+    ).toHaveLength(1)
+    expect((await reload(row.id)).topic).toEqual({
+      text: TEXT,
+      tags: ['story'],
+      digest: null,
+    })
+    expect(await journals()).toHaveLength(1)
+  })
+
+  it('没话题的旧趟（topic 为空）照旧：问兴趣、不写小结', async () => {
+    const row = await outing({ topic: Prisma.DbNull })
+    await finding('https://a.test/1', new Date(Date.now() + 1_000))
+    fake.planTokens =
+      30 * CHARACTER_OUTING.tokensPerPoint - CHARACTER_OUTING.diaryReserveTokens
+
+    await runOutingChunk(row.id)
+
+    expect(planCalls()[0]!.systemPrompt).toContain('"interests"')
+    expect(callsWith('find out about ONE topic today')).toHaveLength(0)
+    expect(
+      callsWith('Write a short summary of what you found out'),
+    ).toHaveLength(0)
+    expect(await reload(row.id)).toMatchObject({
+      status: 'DONE',
+      endReason: 'budget',
+      topic: null,
+    })
+    expect(await journals()).toHaveLength(1)
+  })
+})
+
+describe('previewOutingTopicForClerkId（弹框里预览会配哪些站）', () => {
+  it('回标签和站，不开跑；分类失败走兜底站不报错', async () => {
+    fake.classify = { vague: false, tags: ['story'] }
+    await expect(
+      previewOutingTopicForClerkId(user.clerkId, cardId, {
+        topic: '丝之歌的剧情',
+        model: MODEL,
+      }),
+    ).resolves.toMatchObject({ tags: ['story'], sites: ['fandom.com'] })
+    expect(await db.characterOuting.count()).toBe(0)
+
+    fake.classify = new Error('timeout')
+    const fallback = await previewOutingTopicForClerkId(user.clerkId, cardId, {
+      topic: '丝之歌',
+      model: MODEL,
+    })
+    expect(fallback?.vague).toBe(false)
+    expect(fallback?.sources).toContain('web')
+  })
+
+  it('不是你的卡回 null；型号不认识说人话', async () => {
+    const stranger = await createTestUser()
+    const theirs = await createTestCard(stranger.id)
+    await expect(
+      previewOutingTopicForClerkId(user.clerkId, theirs.id, {
+        topic: '丝之歌',
+        model: MODEL,
+      }),
+    ).resolves.toBeNull()
+    await expect(
+      previewOutingTopicForClerkId(user.clerkId, cardId, {
+        topic: '丝之歌',
+        model: 'retired-model',
+      }),
+    ).rejects.toMatchObject({ i18nKey: 'errors.characterOuting.unknownModel' })
   })
 })

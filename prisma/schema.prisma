@@ -1417,6 +1417,8 @@ model CharacterOuting {
   pinnedVideos  Json?
   /// 指定视频看完了（跨段不重看）。
   pinnedDone    Boolean   @default(false)
+  /// 这一趟的话题（选填，旧行为空）：{ text: string, tags: ("meme"|"discussion"|"story"|"review"|"image"|"video")[], digest: { lines: { text: string, urls: string[] }[] } | null }（`CharacterOutingTopicSchema`）。写了话题这一趟只查它；digest = 回来后带出处的小结，没写成就是 null。
+  topic         Json?
   budgetPoints  Int
   usedTokens    Int       @default(0)
   calls         Int       @default(0)

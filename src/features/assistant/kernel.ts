@@ -78,7 +78,12 @@ import {
 } from '@/features/assistant/services/assistant-persona.service'
 import { recordNativeSearches } from '@/services/research/assistant-evidence-book.service'
 import { maybeDistillTaste } from '@/features/assistant/services/assistant-taste.service'
-import { recallFindings, renderFindingsRecall } from '@/features/cards/server'
+import {
+  recallFindings,
+  recallOutingDigests,
+  renderFindingsRecall,
+  renderOutingDigestsRecall,
+} from '@/features/cards/server'
 import { loadChatStickers, resolveStickerTokens } from '@/features/cards/server'
 import {
   loadAssistantLastTime,
@@ -755,6 +760,11 @@ async function* runNextTurn(
           text: latestUserText,
         })
       : []
+  // 出门话题的小结（带出处）：最近一两份，和见闻一起进召回；隐身不读。
+  const digests =
+    chat && !saved && request.incognito !== true
+      ? await recallOutingDigests({ userId: user.id, cardId: chat.id })
+      : []
   // 4d：她手上能发的表情包（只在和她聊天时）。
   const stickers =
     chat && request.incognito !== true
@@ -991,7 +1001,8 @@ async function* runNextTurn(
     language,
     skillsNote: skillsSettingsNote(skills),
     lastTime: renderAssistantLastTime(lastTime),
-    findings: renderFindingsRecall(findings),
+    findings:
+      renderFindingsRecall(findings) + renderOutingDigestsRecall(digests),
     stickers: stickers?.section ?? '',
   })
   recording.turn = {

@@ -4,20 +4,17 @@ import { useMemo, useState, type ReactNode } from 'react'
 import { useFormatter, useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
-import { ArrowUpRight, Brain, ChevronRight } from '@/components/icons'
+import { Brain, ChevronRight } from '@/components/icons'
 import {
   ASSISTANT_MEMORY_LIMITS,
   ASSISTANT_MEMORY_SOURCE_IDS,
 } from '@/constants/assistant-memory'
 import { CHARACTER_OPINION_PREFIX } from '@/constants/character-browse'
 import type { AssistantMemory } from '@/types/assistant-memory'
-import type { CharacterFindingEntry } from '@/types/character-growth'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
-import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import { Spinner } from '@/components/ui/spinner'
-import { SOURCE_KEYS } from '@/features/cards/components/CharacterOutingCard'
 import { CharacterFieldEditor } from '@/features/cards/components/CharacterTextField'
 import type {
   MemoryWriteResult,
@@ -27,34 +24,24 @@ import { untilFromExpiresAt } from '@/lib/memory-until'
 import { cn } from '@/lib/utils'
 
 /**
- * 她页「记忆」页签（角色大项目第 ⑦ 步，样件 v4 + owner 10-30）：
- * 切换条 全部 · 记得的 · 见闻 · 观点 + 「记一条」；每条能改、能删、能钉住（见闻只能删）。
- * 「沉睡」折叠在记得的最底下（owner 10-30：挤出去的和过期的都在这，⛔ 自动删），点开每条能唤醒。
+ * 她页「记忆」页签（角色大项目第 ⑦ 步，样件 v4 + owner 10-30；11-05 瘦身）：**只留记忆**——
+ * 她记得的事 + 「记一条」，每条能改、能删、能钉住。
+ * 「沉睡」折叠在最底下（owner 10-30：挤出去的和过期的都在这，⛔ 自动删），点开每条能唤醒。
+ *
+ * ⚠ 见闻与观点搬去了「小房间」的活动记录（`CharacterRecentDiary`），在那里管（见闻删、观点钉住 / 改 / 删 / 唤醒）。
+ *   观点本质是带 `CHARACTER_OPINION_PREFIX` 的记忆，所以仍占那 200 条上限、仍按沉睡规则睡——这里只是不再列它
+ *   （连沉睡区里的观点也不列，免得两处各管一遍）。
  */
 
 type Memories = ReturnType<typeof useCharacterMemories>
-type Filter = 'all' | 'memory' | 'finding' | 'opinion'
 
-type Row =
-  | { kind: 'memory' | 'opinion'; at: string; memory: AssistantMemory }
-  | { kind: 'finding'; at: string; finding: CharacterFindingEntry }
-
-type Pending =
-  | { kind: 'memory'; id: string }
-  | { kind: 'finding'; id: string }
-  | null
+type Pending = { kind: 'memory'; id: string } | null
 
 const isOpinion = (memory: AssistantMemory) =>
   memory.text.startsWith(CHARACTER_OPINION_PREFIX)
 
-const opinionText = (memory: AssistantMemory) =>
-  isOpinion(memory)
-    ? memory.text.slice(CHARACTER_OPINION_PREFIX.length).trim()
-    : memory.text
-
 export function CharacterMemoryPane({ memories }: { memories: Memories }) {
   const t = useTranslations('CharacterRoster.memory')
-  const [filter, setFilter] = useState<Filter>('all')
   const [adding, setAdding] = useState(false)
   const [draft, setDraft] = useState('')
   const [editing, setEditing] = useState<AssistantMemory | null>(null)
@@ -62,35 +49,24 @@ export function CharacterMemoryPane({ memories }: { memories: Memories }) {
   const [sleepOpen, setSleepOpen] = useState(false)
   const { list } = memories
 
-  const rows = useMemo<Row[]>(() => {
-    if (!list) return []
-    const remembered: Row[] = list.remembered.map((memory) => ({
-      kind: isOpinion(memory) ? 'opinion' : 'memory',
-      at: memory.updatedAt,
-      memory,
-    }))
-    const found: Row[] = list.findings.map((finding) => ({
-      kind: 'finding',
-      at: finding.seenAt,
-      finding,
-    }))
-    const pinnedFirst = (row: Row) =>
-      row.kind !== 'finding' && row.memory.pinned ? 1 : 0
-    return [...remembered, ...found]
-      .filter((row) => filter === 'all' || row.kind === filter)
-      .sort(
-        (a, b) =>
-          pinnedFirst(b) - pinnedFirst(a) ||
-          (a.at < b.at ? 1 : a.at > b.at ? -1 : 0),
-      )
-  }, [filter, list])
-
-  const filters = [
-    { value: 'all', label: t('filterAll') },
-    { value: 'memory', label: t('filterMemory') },
-    { value: 'finding', label: t('filterFinding') },
-    { value: 'opinion', label: t('filterOpinion') },
-  ] as const
+  /** 记得的（钉住的在最前，其余新的在上）与沉睡的，观点都不在这页。 */
+  const { rows, dormant } = useMemo(() => {
+    const pinnedFirst = (memory: AssistantMemory) => (memory.pinned ? 1 : 0)
+    return {
+      rows: (list?.remembered ?? [])
+        .filter((memory) => !isOpinion(memory))
+        .sort(
+          (a, b) =>
+            pinnedFirst(b) - pinnedFirst(a) ||
+            (a.updatedAt < b.updatedAt
+              ? 1
+              : a.updatedAt > b.updatedAt
+                ? -1
+                : 0),
+        ),
+      dormant: (list?.dormant ?? []).filter((memory) => !isOpinion(memory)),
+    }
+  }, [list])
 
   const fail = (result: MemoryWriteResult, key: string) => {
     if (result.ok) return
@@ -116,10 +92,7 @@ export function CharacterMemoryPane({ memories }: { memories: Memories }) {
 
   const confirmDelete = async () => {
     if (!pending) return
-    const result =
-      pending.kind === 'memory'
-        ? await memories.remove(pending.id)
-        : await memories.removeFinding(pending.id)
+    const result = await memories.remove(pending.id)
     setPending(null)
     fail(result, 'deleteFailed')
   }
@@ -142,12 +115,7 @@ export function CharacterMemoryPane({ memories }: { memories: Memories }) {
       />
     )
 
-  const nothing =
-    list.remembered.length === 0 &&
-    list.findings.length === 0 &&
-    list.dormant.length === 0
-  const showSleep =
-    list.dormant.length > 0 && (filter === 'all' || filter === 'memory')
+  const nothing = rows.length === 0 && dormant.length === 0
 
   return (
     <section
@@ -155,15 +123,7 @@ export function CharacterMemoryPane({ memories }: { memories: Memories }) {
       className="flex h-full min-w-0 flex-col gap-3.5 overflow-y-auto overflow-x-hidden pb-12"
       data-testid="character-memory-pane"
     >
-      <div className="flex flex-wrap items-center gap-2">
-        <LiquidSegmented
-          items={filters}
-          value={filter}
-          onChange={setFilter}
-          ariaLabel={t('filterLabel')}
-          size="sm"
-        />
-        <span className="flex-1" />
+      <div className="flex items-center justify-end">
         <Button variant="secondary" size="sm" onClick={() => setAdding(true)}>
           {t('add')}
         </Button>
@@ -222,48 +182,29 @@ export function CharacterMemoryPane({ memories }: { memories: Memories }) {
           title={t('emptyTitle')}
           description={t('emptyHint')}
         />
-      ) : rows.length === 0 && !showSleep ? (
-        <p className="text-2sm text-muted-foreground">{t('filteredEmpty')}</p>
       ) : null}
 
       {rows.length ? (
         <ul className="flex flex-col gap-1.5">
-          {rows.map((row) => (
-            <li
-              key={`${row.kind}:${row.kind === 'finding' ? row.finding.id : row.memory.id}`}
-            >
-              {row.kind === 'finding' ? (
-                <FindingRow
-                  finding={row.finding}
-                  onDelete={() =>
-                    setPending({ kind: 'finding', id: row.finding.id })
-                  }
-                />
-              ) : (
-                <MemoryRow
-                  kind={row.kind}
-                  memory={row.memory}
-                  onEdit={() => setEditing(row.memory)}
-                  onPin={async () =>
-                    fail(
-                      await memories.setPinned(
-                        row.memory.id,
-                        !row.memory.pinned,
-                      ),
-                      'saveFailed',
-                    )
-                  }
-                  onDelete={() =>
-                    setPending({ kind: 'memory', id: row.memory.id })
-                  }
-                />
-              )}
+          {rows.map((memory) => (
+            <li key={memory.id}>
+              <MemoryRow
+                memory={memory}
+                onEdit={() => setEditing(memory)}
+                onPin={async () =>
+                  fail(
+                    await memories.setPinned(memory.id, !memory.pinned),
+                    'saveFailed',
+                  )
+                }
+                onDelete={() => setPending({ kind: 'memory', id: memory.id })}
+              />
             </li>
           ))}
         </ul>
       ) : null}
 
-      {showSleep ? (
+      {dormant.length > 0 ? (
         <div className="flex flex-col gap-1.5 pt-1">
           <button
             type="button"
@@ -272,7 +213,7 @@ export function CharacterMemoryPane({ memories }: { memories: Memories }) {
             data-testid="character-memory-sleep"
             className="flex items-center gap-1.5 self-start rounded-full py-1 pr-2 text-2sm text-muted-foreground transition-colors duration-fast hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus"
           >
-            {t('sleeping', { count: list.dormant.length })}
+            {t('sleeping', { count: dormant.length })}
             <ChevronRight
               aria-hidden
               className={cn(
@@ -283,7 +224,7 @@ export function CharacterMemoryPane({ memories }: { memories: Memories }) {
           </button>
           {sleepOpen ? (
             <ul className="flex flex-col gap-1.5">
-              {list.dormant.map((memory) => (
+              {dormant.map((memory) => (
                 <li key={memory.id}>
                   <SleepingRow
                     memory={memory}
@@ -304,14 +245,11 @@ export function CharacterMemoryPane({ memories }: { memories: Memories }) {
       <CharacterFieldEditor
         open={editing !== null}
         label={t('editTitle')}
-        value={editing ? opinionText(editing) : ''}
+        value={editing?.text ?? ''}
         limit={ASSISTANT_MEMORY_LIMITS.maxTextChars}
         onSave={async (text) => {
           if (!editing || !text) return false
-          const full = isOpinion(editing)
-            ? `${CHARACTER_OPINION_PREFIX}${text.trim()}`
-            : text
-          const result = await memories.edit(editing.id, full)
+          const result = await memories.edit(editing.id, text)
           fail(result, 'saveFailed')
           return result.ok
         }}
@@ -322,12 +260,8 @@ export function CharacterMemoryPane({ memories }: { memories: Memories }) {
         onOpenChange={(open) => {
           if (!open) setPending(null)
         }}
-        title={t(
-          pending?.kind === 'finding' ? 'deleteFindingTitle' : 'deleteTitle',
-        )}
-        description={t(
-          pending?.kind === 'finding' ? 'deleteFindingBody' : 'deleteBody',
-        )}
+        title={t('deleteTitle')}
+        description={t('deleteBody')}
         cancelLabel={t('cancel')}
         confirmLabel={t('delete')}
         onConfirm={() => void confirmDelete()}
@@ -391,13 +325,11 @@ function RowAction({
 }
 
 function MemoryRow({
-  kind,
   memory,
   onEdit,
   onPin,
   onDelete,
 }: {
-  kind: 'memory' | 'opinion'
   memory: AssistantMemory
   onEdit(): void
   onPin(): void
@@ -418,7 +350,7 @@ function MemoryRow({
   ].filter(Boolean)
   return (
     <RowShell
-      label={t(kind === 'opinion' ? 'kindOpinion' : 'kindMemory')}
+      label={t('kindMemory')}
       actions={
         <>
           <RowAction onClick={onPin}>
@@ -429,45 +361,8 @@ function MemoryRow({
         </>
       }
     >
-      <p className="text-2sm leading-reading break-words">
-        {opinionText(memory)}
-      </p>
+      <p className="text-2sm leading-reading break-words">{memory.text}</p>
       <p className="text-xs text-muted-foreground">{meta.join(' · ')}</p>
-    </RowShell>
-  )
-}
-
-function FindingRow({
-  finding,
-  onDelete,
-}: {
-  finding: CharacterFindingEntry
-  onDelete(): void
-}) {
-  const t = useTranslations('CharacterRoster.memory')
-  const recent = useTranslations('CharacterRoster.recent')
-  const shortDate = useShortDate()
-  return (
-    <RowShell
-      label={t('kindFinding')}
-      actions={<RowAction onClick={onDelete}>{t('delete')}</RowAction>}
-    >
-      <p className="text-2sm leading-reading break-words">
-        {finding.note || finding.title}
-      </p>
-      <a
-        href={finding.url}
-        target="_blank"
-        rel="noreferrer noopener"
-        title={finding.title}
-        className="inline-flex min-w-0 max-w-full items-center gap-1 self-start text-xs text-muted-foreground hover:text-foreground"
-      >
-        <span className="truncate">
-          {shortDate(finding.seenAt)} · {recent(SOURCE_KEYS[finding.source])} ·{' '}
-          {finding.title}
-        </span>
-        <ArrowUpRight aria-hidden className="size-3 shrink-0" />
-      </a>
     </RowShell>
   )
 }
@@ -487,7 +382,7 @@ function SleepingRow({
   const until = memory.expiresAt ? untilFromExpiresAt(memory.expiresAt) : null
   return (
     <RowShell
-      label={t(isOpinion(memory) ? 'kindOpinion' : 'kindMemory')}
+      label={t('kindMemory')}
       className="bg-transparent"
       actions={
         <>
@@ -497,7 +392,7 @@ function SleepingRow({
       }
     >
       <p className="text-2sm leading-reading break-words text-ink-2">
-        {opinionText(memory)}
+        {memory.text}
       </p>
       <p className="text-xs text-muted-foreground">
         {until

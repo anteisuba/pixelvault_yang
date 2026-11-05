@@ -58,7 +58,7 @@ export function CharacterRecentCards({
 
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-sm font-semibold">{t('recent.title')}</h2>
+      <h2 className="text-sm font-semibold">{t('recent.overviewTitle')}</h2>
       <div className="grid max-w-225 grid-cols-2 gap-2.5 desk:grid-cols-3">
         {items.map(({ row, card }) => {
           const cover = characterCoverUrl(card)

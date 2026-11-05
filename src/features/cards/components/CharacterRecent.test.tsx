@@ -63,6 +63,7 @@ const run = (patch: Partial<CharacterOutingRun> = {}): CharacterOutingRun => ({
   endReason: 'budget',
   startedAt: today(8),
   endedAt: today(10),
+  topic: null,
   ...patch,
 })
 
@@ -111,6 +112,7 @@ function hookOf(growth: CharacterGrowth) {
     revert: vi.fn(),
     reload: vi.fn(),
     startOuting: vi.fn(async () => ({ ok: true as const })),
+    previewTopic: vi.fn(async () => null),
     stopOuting: vi.fn(async () => ({ ok: true as const })),
     removeFinding: vi.fn(async () => ({ ok: true as const })),
     editOpinion: vi.fn(async () => ({ ok: true as const })),
@@ -211,6 +213,70 @@ describe('CharacterRecent', () => {
     ).toBeTruthy()
     // 出门表之前的那条照旧按天折。
     expect(screen.getByText('wentOut|sourceCivitai')).toBeTruthy()
+  })
+
+  it('筛选条与电脑的活动记录同一份：全部 · 见闻 · 观点 · 日记 · 改动 · 表情', () => {
+    renderWithKeys(
+      <CharacterRecent
+        stickers={stickersOf()}
+        growth={hookOf(growthOf())}
+        reducedMotion
+      />,
+    )
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
+      'filterAll',
+      'filterFindings',
+      'filterOpinions',
+      'filterJournal',
+      'filterRevisions',
+      'filterStickers',
+    ])
+  })
+
+  it('话题那趟：标题写「查了「话题」」、小结带站名丸子（最新一趟默认摊开，见闻折在底下）', () => {
+    renderWithKeys(
+      <CharacterRecent
+        stickers={stickersOf()}
+        growth={hookOf(
+          growthOf({
+            outing: {
+              running: null,
+              recent: [
+                run({
+                  sources: ['bilibili'],
+                  topic: {
+                    text: '最近的梗',
+                    tags: ['meme'],
+                    digest: {
+                      lines: [
+                        {
+                          text: '「哈基米」是蜂蜜。',
+                          urls: ['https://jikipedia.com/x'],
+                        },
+                      ],
+                    },
+                  },
+                }),
+              ],
+              frequentSites: [],
+            },
+          }),
+        )}
+        reducedMotion
+      />,
+    )
+    expect(screen.getByText('topicTitle|最近的梗')).toBeTruthy()
+    expect(
+      screen.getByText('「哈基米」是蜂蜜。', { exact: false }),
+    ).toBeTruthy()
+    expect(screen.getByRole('link', { name: '小鸡词典' })).toHaveAttribute(
+      'href',
+      'https://jikipedia.com/x',
+    )
+    // 有小结的最新一趟：见闻不再默认摊开
+    expect(screen.queryByText('先铺冷色再压暖色。')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'findingCount|2' }))
+    expect(screen.getByText('先铺冷色再压暖色。')).toBeTruthy()
   })
 
   it('删见闻先弹确认，确认了才删', () => {

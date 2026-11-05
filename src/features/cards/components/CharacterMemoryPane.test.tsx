@@ -37,10 +37,20 @@ const list = (
 ): CharacterMemoryList => ({
   remembered: [
     memory(),
-    memory({ id: 'm2', text: '观点：猫比狗可爱', pinned: true }),
-    memory({ id: 'm3', text: '叫我旅人', source: 'creator' }),
+    memory({
+      id: 'm2',
+      text: '叫我旅人',
+      source: 'creator',
+      pinned: true,
+      updatedAt: '2026-10-29T01:00:00.000Z',
+    }),
+    // 观点住在「小房间」的活动记录里，这一页不列
+    memory({ id: 'o1', text: '观点：猫比狗可爱' }),
   ],
-  dormant: [memory({ id: 'm9', text: '很久以前的事', dormant: true })],
+  dormant: [
+    memory({ id: 'm9', text: '很久以前的事', dormant: true }),
+    memory({ id: 'o9', text: '观点：睡着的观点', dormant: true }),
+  ],
   findings: [
     {
       id: 'f1',
@@ -65,53 +75,73 @@ function hookOf(data: CharacterMemoryList | null) {
     setPinned: vi.fn(async () => ({ ok: true as const })),
     wake: vi.fn(async () => ({ ok: true as const })),
     remove: vi.fn(async () => ({ ok: true as const })),
-    removeFinding: vi.fn(async () => ({ ok: true as const })),
   }
 }
 
-describe('CharacterMemoryPane（她页「记忆」栏，第 ⑦ 步）', () => {
-  it('全部：钉住的在最前，记得 / 观点 / 见闻都列；见闻只能删', () => {
+describe('CharacterMemoryPane（她页「记忆」页签：只留记忆）', () => {
+  it('只列她记得的：钉住的在最前；没有筛选条，见闻和观点都不在这页', () => {
     render(<CharacterMemoryPane memories={hookOf(list())} />)
     const rows = screen.getAllByRole('listitem')
-    expect(rows[0]).toHaveTextContent('猫比狗可爱')
-    expect(rows[0]).toHaveTextContent('kindOpinion')
+    expect(rows).toHaveLength(2)
+    expect(rows[0]).toHaveTextContent('叫我旅人')
     expect(rows[0]).toHaveTextContent('pinned')
-    expect(screen.getByText('叫我旅人').parentElement).toHaveTextContent(
-      'byYou',
-    )
-    const finding = rows.find((row) => row.textContent?.includes('PV 好看'))!
-    expect(finding).toHaveTextContent('kindFinding')
-    expect(finding.querySelectorAll('button')).toHaveLength(1)
+    expect(rows[0]).toHaveTextContent('byYou')
+    expect(rows[1]).toHaveTextContent('主人周六要去海边')
+    expect(screen.queryByRole('tab')).toBeNull()
+    expect(screen.queryByRole('radio')).toBeNull()
+    expect(screen.queryByText('猫比狗可爱')).toBeNull()
+    expect(screen.queryByText(/PV 好看/)).toBeNull()
   })
 
-  it('切到「见闻」只剩见闻，沉睡那一行不出', () => {
-    render(<CharacterMemoryPane memories={hookOf(list())} />)
-    fireEvent.click(screen.getByRole('tab', { name: 'filterFinding' }))
-    expect(screen.getAllByRole('listitem')).toHaveLength(1)
-    expect(screen.queryByTestId('character-memory-sleep')).toBeNull()
-  })
-
-  it('沉睡折叠在最底下，点开能唤醒', async () => {
+  it('沉睡折叠在最底下，点开能唤醒；睡着的观点不算在这里', async () => {
     const hook = hookOf(list())
     render(<CharacterMemoryPane memories={hook} />)
+    expect(screen.getByTestId('character-memory-sleep')).toHaveTextContent(
+      'sleeping|1',
+    )
     expect(screen.queryByText('很久以前的事')).toBeNull()
     fireEvent.click(screen.getByTestId('character-memory-sleep'))
     expect(screen.getByText('很久以前的事')).toBeTruthy()
+    expect(screen.queryByText('睡着的观点')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'wake' }))
     await waitFor(() => expect(hook.wake).toHaveBeenCalledWith('m9'))
   })
 
-  it('钉住 / 记一条', async () => {
+  it('钉住 / 改 / 删 / 记一条', async () => {
     const hook = hookOf(list())
     render(<CharacterMemoryPane memories={hook} />)
-    fireEvent.click(screen.getAllByRole('button', { name: 'pin' })[0]!)
+    fireEvent.click(screen.getByRole('button', { name: 'pin' }))
     await waitFor(() => expect(hook.setPinned).toHaveBeenCalledWith('m1', true))
+    fireEvent.click(screen.getByRole('button', { name: 'unpin' }))
+    await waitFor(() =>
+      expect(hook.setPinned).toHaveBeenCalledWith('m2', false),
+    )
+
     fireEvent.click(screen.getByRole('button', { name: 'add' }))
     fireEvent.change(screen.getByRole('textbox', { name: 'add' }), {
       target: { value: '她怕打雷' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'save' }))
     await waitFor(() => expect(hook.add).toHaveBeenCalledWith('她怕打雷'))
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'delete' })[0]!)
+    expect(hook.remove).not.toHaveBeenCalled()
+    expect(screen.getByText('deleteTitle')).toBeTruthy()
+  })
+
+  it('记得的和沉睡的里都只有观点 / 见闻时：空状态（观点和见闻在小房间管）', () => {
+    render(
+      <CharacterMemoryPane
+        memories={hookOf(
+          list({
+            remembered: [memory({ id: 'o1', text: '观点：猫比狗可爱' })],
+            dormant: [memory({ id: 'o9', text: '观点：睡着的观点' })],
+          }),
+        )}
+      />,
+    )
+    expect(screen.getByText('emptyTitle')).toBeTruthy()
+    expect(screen.queryByTestId('character-memory-sleep')).toBeNull()
   })
 
   it('什么都没有：空状态', () => {
@@ -121,5 +151,12 @@ describe('CharacterMemoryPane（她页「记忆」栏，第 ⑦ 步）', () => {
       />,
     )
     expect(screen.getByText('emptyTitle')).toBeTruthy()
+  })
+
+  it('没读出来：错误态带重试', () => {
+    const hook = hookOf(null)
+    render(<CharacterMemoryPane memories={hook} />)
+    fireEvent.click(screen.getByRole('button', { name: 'retry' }))
+    expect(hook.reload).toHaveBeenCalled()
   })
 })

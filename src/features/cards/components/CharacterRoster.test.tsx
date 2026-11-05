@@ -222,12 +222,12 @@ describe('CharacterRoster（角色页 · 方向 A）', () => {
     expect(looks).toHaveTextContent('Q版')
   })
 
-  it('点一个角色进整页详情：左栏她 + 右边页签（最近 · 人物 · 图片 · 模板 · LoRA · 记忆 · 表情包）；「‹ 角色」回总览', async () => {
+  it('点一个角色进整页详情：左栏她 + 右边页签（小房间 · 人物 · 图片 · 模板 · LoRA · 记忆 · 表情包）；「‹ 角色」回总览', async () => {
     await renderLoaded()
     openDenia()
     const detail = screen.getByRole('region', { name: 'Denia' })
     expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
-      '最近',
+      '小房间',
       '人物',
       '图片',
       '模板',

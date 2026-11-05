@@ -232,6 +232,14 @@ owner 逐项定的口径（对齐稿 https://claude.ai/artifact/FTTAHbuCwHmnMcPr
 - **主动联系只是底稿，⛔ 不开工**（「她先开口」owner 10-27 定不做）：真要做时照 dafeiyu 那套 —— 跟出门共用一份额度、两次之间有最短间隔、你刚说过话不打扰、连着几次没回就停、同一句话 24 小时内不重发、发出去的结果按三态记。
 - 额度先占后结、结果三态见 [`backend.md`「外部动作的三条账」](../backend.md)。
 
+## 出门话题（2026-11-05，`ch-outing-topic`）
+
+- **数据**：`CharacterOuting.topic`（可空 JSONB，迁移 `20261105120000_character_outing_topic`）= `{ text, tags, digest: { lines: { text, urls[] }[] } | null }`，形状 `CharacterOutingTopicSchema`。一趟分段跑（Vercel 300 s），话题必须落在这一行上，接着跑的那段才知道在查什么。
+- **话题 = 只查话题**：有话题的那趟不看兴趣、不贴表情包、⛔ 不问兴趣增减（`browseRound` 的 `topic` 参数）。只配了网页站时内置来源清空，只走 `site:`。
+- **配站**：前端预判拿到的来源 / 站原样用；没带就按标签从名册配（`pickTopicSites`）；连标签都没有就先分类（`planOutingTopic`，失败 / 超时不抛，当没对上 → 兜底网页 + 她常去的）。名册只在 `src/constants/character-browse.ts` 改，⛔ 别处写死站名。
+- **小结**：收工且留下 ≥ 1 条见闻时，日记之前先写小结，用日记那份预留额度（`digestReserveTokens`）；模型只按见闻编号写 `refs`，链接由服务端换（`cleanDigest`），⛔ 让模型自己写 URL。聊天召回最近 `CHARACTER_FINDINGS_RECALL.digestRuns` 趟、限 `digestChars` 字，隐身模式不召回（`renderOutingDigestsRecall`）。
+- ⚠ 预判那一次分类不过额度表（还没开跑，几百 token）。
+
 ## 不能破坏
 
 卡与 `AssistantMemory` 的分界（⛔ 不许长出互相转换的路） · 角色卡 owner-scoped 查询与 ownership 服务端校验 · 每个角色至少一套造型、恰有一套默认（造型随角色删）· `VoiceCard` 的软引用语义（删音色不删角色）· `referenceRoles` 值域与画布词表同源。

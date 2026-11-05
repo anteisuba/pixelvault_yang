@@ -25,6 +25,130 @@ export const CHARACTER_BROWSE_SOURCES = [
 
 export type CharacterBrowseSource = (typeof CHARACTER_BROWSE_SOURCES)[number]
 
+/**
+ * 出门话题的标签（11-05，owner 拍板）：模型只给话题打这 6 种标签（Zod enum 卡死，认不出的丢掉），
+ * 再按标签从 `CHARACTER_TOPIC_ROSTER` 里配站。
+ */
+export const CHARACTER_TOPIC_TAGS = [
+  'meme',
+  'discussion',
+  'story',
+  'review',
+  'image',
+  'video',
+] as const
+
+export type CharacterTopicTag = (typeof CHARACTER_TOPIC_TAGS)[number]
+
+export interface CharacterTopicRosterEntry {
+  id: string
+  /** 给人看的站名（预览里显示用；不写就用 `site` / `source`）。 */
+  label?: string
+  /** 现有来源 id（B 站 / YouTube / X / Danbooru / Civitai）。 */
+  source?: CharacterBrowseSource
+  /** 网页类站点的域名：用模型自带网搜 `site:` 去找，所以要这个模型有网搜（= 去得了 `web`）。 */
+  site?: string
+  tags: readonly CharacterTopicTag[]
+}
+
+/**
+ * 出门话题的名册：每站一行标它擅长哪些标签。⭐ **专门站排上面、综合站排下面，顺序就是优先级**
+ * （同一个标签下，排得靠前的先配）。改名册只改这里。
+ *
+ * wiki 一行用 `fandom.com`：游戏 / 动漫的剧情条目大半在它上面，域名单一、能 `site:` 搜；
+ * 中文游戏 wiki（biligame 等）散在各域名下，一行只放得下一个域名，owner 觉得不够再加一行。
+ */
+export const CHARACTER_TOPIC_ROSTER: readonly CharacterTopicRosterEntry[] = [
+  { id: 'wiki', label: 'wiki', site: 'fandom.com', tags: ['story'] },
+  {
+    id: 'steam',
+    label: 'Steam',
+    site: 'store.steampowered.com',
+    tags: ['review'],
+  },
+  { id: 'taptap', label: 'TapTap', site: 'taptap.cn', tags: ['review'] },
+  {
+    id: 'moegirl',
+    label: '萌娘百科',
+    site: 'zh.moegirl.org.cn',
+    tags: ['meme'],
+  },
+  { id: 'jiki', label: '小鸡词典', site: 'jikipedia.com', tags: ['meme'] },
+  {
+    id: 'tieba',
+    label: '贴吧',
+    site: 'tieba.baidu.com',
+    tags: ['discussion', 'review'],
+  },
+  { id: 'nga', label: 'NGA', site: 'nga.cn', tags: ['discussion', 'review'] },
+  {
+    id: 'zhihu',
+    label: '知乎',
+    site: 'zhihu.com',
+    tags: ['discussion', 'review'],
+  },
+  {
+    id: 'reddit',
+    label: 'Reddit',
+    site: 'reddit.com',
+    tags: ['discussion', 'review'],
+  },
+  {
+    id: 'bilibili',
+    label: 'B 站',
+    source: CHARACTER_BROWSE_SOURCE_IDS.bilibili,
+    tags: ['meme', 'discussion', 'review', 'video'],
+  },
+  {
+    id: 'x',
+    label: 'X',
+    source: CHARACTER_BROWSE_SOURCE_IDS.x,
+    tags: ['meme', 'discussion'],
+  },
+  {
+    id: 'youtube',
+    label: 'YouTube',
+    source: CHARACTER_BROWSE_SOURCE_IDS.youtube,
+    tags: ['video', 'review'],
+  },
+  {
+    id: 'danbooru',
+    label: 'Danbooru',
+    source: CHARACTER_BROWSE_SOURCE_IDS.danbooru,
+    tags: ['image'],
+  },
+  {
+    id: 'civitai',
+    label: 'Civitai',
+    source: CHARACTER_BROWSE_SOURCE_IDS.civitai,
+    tags: ['image'],
+  },
+] as const
+
+/** 出门话题（选填；写了这一趟只查这个，不看兴趣清单）。 */
+export const CHARACTER_TOPIC = {
+  /** 话题最多几个字。 */
+  maxChars: 80,
+  /** 模型最多给话题打几个标签。 */
+  maxTags: 3,
+  /** 按标签配出来的站最多几个。 */
+  maxAutoSites: 5,
+  /** 分类那一次调用的时限（很小的一次）。 */
+  classifyTimeoutMs: 15_000,
+  /** 话题一个标签都没对上：「网页 + 她平常去的来源」= 去得了的来源里去掉这些只出图的。 */
+  fallbackExcludedSources: [
+    CHARACTER_BROWSE_SOURCE_IDS.danbooru,
+    CHARACTER_BROWSE_SOURCE_IDS.civitai,
+  ] as readonly CharacterBrowseSource[],
+  /** 小结：回来多写这一份，额度从一开始多留一块；最多几句、每句多长、每句最多挂几个链接。 */
+  digestReserveTokens: 6_000,
+  digestMaxLines: 8,
+  digestLineChars: 200,
+  digestUrlsPerLine: 3,
+  /** 小结喂给模型的见闻最多几条。 */
+  digestFindings: 25,
+} as const
+
 /** 能「看视频」的来源（第 ⑥ 步，弹框里每个一个开关）。 */
 export const CHARACTER_VIDEO_SOURCES = [
   CHARACTER_BROWSE_SOURCE_IDS.bilibili,
@@ -231,6 +355,9 @@ export const CHARACTER_FINDINGS_RECALL = {
   queryChars: 300,
   /** 一条都对不上时，最近这么久看到的最新一条可以顺口提。 */
   freshMs: 2 * 24 * 60 * 60 * 1000,
+  /** 带上最近几份「话题小结」（出门调查带出处的小结），每份最多多少字（含链接）。 */
+  digestRuns: 2,
+  digestChars: 900,
 } as const
 
 /** 她的表情包（4d，owner 2026-10-28）：细看时顺手挑，存 R2 独立路径，⛔ 进素材库。 */

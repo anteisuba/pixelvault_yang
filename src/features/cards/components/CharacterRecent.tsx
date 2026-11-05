@@ -34,6 +34,11 @@ import {
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
 import { LiquidSegmented } from '@/components/ui/liquid-segmented'
+import {
+  OutingDigest,
+  digestLinesOf,
+  useSiteName,
+} from '@/features/cards/components/CharacterOutingDigest'
 import { Spinner } from '@/components/ui/spinner'
 import {
   useCharacterGrowth,
@@ -44,17 +49,40 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import { cn } from '@/lib/utils'
 
 /**
- * **角色页右栏「最近」**（方向 B，`docs/references/pages/cards.md` §2.2–§2.3）：出门卡 →
- * 筛选切换条 → 按天分组的时间河。河里五种事件：出门（同一天带回的见闻折成一条）· 收了表情 ·
+ * **角色页右栏「小房间」**（方向 B，`docs/references/pages/cards.md` §2.2–§2.3；11-05 由「最近」改名）：
+ * 出门卡 → 筛选切换条 → 按天分组的活动记录。记录里五种事件：出门（同一天带回的见闻折成一条）· 收了表情 ·
  * 观点 · 改动（能撤回）· 日记。筛到「表情」时整栏换成她的表情包格子（能上传一张）。
+ * 筛选项与电脑的 `CharacterRecentDiary` 同一份（`useRecentFilters`）。
  *
  * ⭐ 一趟出门一条（第 ⑤ 步起有 `CharacterOuting`）：那一趟起止之间看到的见闻挂在它下面，一条没带回也
  *   照样有一条；有这张表之前的见闻按天折成一趟。单站失败不画（后台不记）。
+ * ⭐ 话题那趟（`run.topic`）：标题写「查了「话题」」；回来写了带出处的小结就摆在标题下面（最新一趟默认摊开），
+ *   见闻折在小结底下；没小结照旧。
  */
 
 type Growth = ReturnType<typeof useCharacterGrowth>
 type Stickers = ReturnType<typeof useCharacterStickers>
-type Filter = 'all' | 'finding' | 'sticker' | 'opinion' | 'journal' | 'revision'
+export type RecentFilter =
+  | 'all'
+  | 'finding'
+  | 'opinion'
+  | 'journal'
+  | 'revision'
+  | 'sticker'
+type Filter = RecentFilter
+
+/** 小房间的筛选项（顺序与文案电脑 / 手机共用）。 */
+export function useRecentFilters() {
+  const t = useTranslations('CharacterRoster.recent')
+  return [
+    { value: 'all', label: t('filterAll') },
+    { value: 'finding', label: t('filterFindings') },
+    { value: 'opinion', label: t('filterOpinions') },
+    { value: 'journal', label: t('filterJournal') },
+    { value: 'revision', label: t('filterRevisions') },
+    { value: 'sticker', label: t('filterStickers') },
+  ] as const satisfies readonly { value: RecentFilter; label: string }[]
+}
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000
 
@@ -254,16 +282,25 @@ export function OutingEvent({
   open,
   onToggle,
   onDelete,
+  latest = false,
 }: {
   findings: CharacterFindingEntry[]
   run: CharacterOutingRun | null
+  /** 见闻那一串是否摊开（有小结的趟默认折着，调用方自己定默认值）。 */
   open: boolean
   onToggle(): void
   onDelete(finding: CharacterFindingEntry): void
+  /** 最新一趟：它的小结默认摊开，其余折着。 */
+  latest?: boolean
 }) {
   const t = useTranslations('CharacterRoster.recent')
   const tOuting = useTranslations('CharacterRoster.recent.outing')
   const sourceLabel = useOutingSourceLabel()
+  const siteName = useSiteName()
+  const [digestToggled, setDigestToggled] = useState<boolean | null>(null)
+  const topic = run?.topic ?? null
+  const digestLines = digestLinesOf(run)
+  const digestOpen = digestToggled ?? latest
   const where = run
     ? [
         ...(run.sources.length
@@ -272,9 +309,17 @@ export function OutingEvent({
         ...run.sites.map((site) => `site:${site}`),
       ]
     : findings.map((row) => row.source)
-  const whereText = [...new Set(where)].map(sourceLabel).join(' · ')
+  // 话题那趟的网页站写名册里的站名（萌娘百科），平时的网址照旧写域名。
+  const whereText = [...new Set(where)]
+    .map((id) =>
+      topic && id.startsWith('site:')
+        ? siteName(id.slice('site:'.length))
+        : sourceLabel(id),
+    )
+    .join(' · ')
   if (run) {
     const detail = [
+      ...(topic && whereText ? [whereText] : []),
       t('findingCount', { count: findings.length }),
       tOuting('runPoints', {
         count: Math.min(run.budgetPoints, tokensToPoints(run.usedTokens)),
@@ -286,11 +331,37 @@ export function OutingEvent({
     const summary = (
       <>
         <span>
-          {tOuting('runSummary', { where: whereText || tOuting('auto') })}
+          {topic
+            ? tOuting('topicTitle', { topic: topic.text })
+            : tOuting('runSummary', { where: whereText || tOuting('auto') })}
         </span>
         <span className="font-normal text-muted-foreground">· {detail}</span>
       </>
     )
+    if (digestLines.length > 0)
+      return (
+        <>
+          <button
+            type="button"
+            aria-expanded={digestOpen}
+            onClick={() => setDigestToggled(!digestOpen)}
+            className="flex w-full flex-wrap items-center gap-x-2 py-0.5 text-left text-2sm font-medium"
+          >
+            {summary}
+            <Chevron open={digestOpen} />
+          </button>
+          {digestOpen ? <OutingDigest lines={digestLines} /> : null}
+          {findings.length > 0 ? (
+            <FindingsFold
+              label={t('findingCount', { count: findings.length })}
+              findings={findings}
+              open={open}
+              onToggle={onToggle}
+              onDelete={onDelete}
+            />
+          ) : null}
+        </>
+      )
     if (findings.length === 0)
       return (
         <p
@@ -328,6 +399,55 @@ export function OutingEvent({
   )
 }
 
+function Chevron({ open }: { open: boolean }) {
+  return (
+    <ChevronRight
+      aria-hidden
+      className={cn(
+        'size-3.5 text-muted-foreground transition-transform duration-base ease-standard motion-reduce:transition-none',
+        open && 'rotate-90',
+      )}
+    />
+  )
+}
+
+/** 这一趟的见闻一条一条：她记下的话 + 来源链接 + 删除。 */
+function FindingList({
+  findings,
+  onDelete,
+}: {
+  findings: CharacterFindingEntry[]
+  onDelete(finding: CharacterFindingEntry): void
+}) {
+  const t = useTranslations('CharacterRoster.recent')
+  return (
+    <ul className="flex flex-col gap-3">
+      {findings.map((finding) => (
+        <li key={finding.id} className="flex flex-col gap-1">
+          <p className="text-md leading-reading">{finding.note}</p>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <a
+              href={finding.url}
+              target="_blank"
+              rel="noreferrer noopener"
+              title={finding.title}
+              className="inline-flex min-w-0 items-center gap-1 hover:text-foreground"
+            >
+              <span className="truncate">
+                {t(SOURCE_KEYS[finding.source])} · {hostOf(finding.url)}
+              </span>
+              <ArrowUpRight aria-hidden className="size-3 shrink-0" />
+            </a>
+            <span className="ml-auto">
+              <Ghost onClick={() => onDelete(finding)}>{t('delete')}</Ghost>
+            </span>
+          </div>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 function OutingFindings({
   summary,
   findings,
@@ -341,7 +461,6 @@ function OutingFindings({
   onToggle(): void
   onDelete(finding: CharacterFindingEntry): void
 }) {
-  const t = useTranslations('CharacterRoster.recent')
   return (
     <>
       <button
@@ -351,50 +470,63 @@ function OutingFindings({
         className="flex w-full flex-wrap items-center gap-x-2 py-0.5 text-left text-2sm font-medium"
       >
         {summary}
-        <ChevronRight
-          aria-hidden
-          className={cn(
-            'size-3.5 text-muted-foreground transition-transform duration-base ease-standard motion-reduce:transition-none',
-            open && 'rotate-90',
-          )}
-        />
+        <Chevron open={open} />
       </button>
-      {open ? (
-        <ul className="flex flex-col gap-3">
-          {findings.map((finding) => (
-            <li key={finding.id} className="flex flex-col gap-1">
-              <p className="text-md leading-reading">{finding.note}</p>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <a
-                  href={finding.url}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  title={finding.title}
-                  className="inline-flex min-w-0 items-center gap-1 hover:text-foreground"
-                >
-                  <span className="truncate">
-                    {t(SOURCE_KEYS[finding.source])} · {hostOf(finding.url)}
-                  </span>
-                  <ArrowUpRight aria-hidden className="size-3 shrink-0" />
-                </a>
-                <span className="ml-auto">
-                  <Ghost onClick={() => onDelete(finding)}>{t('delete')}</Ghost>
-                </span>
-              </div>
-            </li>
-          ))}
-        </ul>
-      ) : null}
+      {open ? <FindingList findings={findings} onDelete={onDelete} /> : null}
     </>
   )
 }
 
+/** 有小结的那趟：小结下面一行「9 条见闻 ›」，点开才看她逐条记下的话。 */
+function FindingsFold({
+  label,
+  findings,
+  open,
+  onToggle,
+  onDelete,
+}: {
+  label: string
+  findings: CharacterFindingEntry[]
+  open: boolean
+  onToggle(): void
+  onDelete(finding: CharacterFindingEntry): void
+}) {
+  return (
+    <>
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={onToggle}
+        className="flex w-fit items-center gap-1 py-0.5 text-left text-2sm text-muted-foreground transition-colors duration-fast hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus"
+      >
+        {label}
+        <Chevron open={open} />
+      </button>
+      {open ? <FindingList findings={findings} onDelete={onDelete} /> : null}
+    </>
+  )
+}
+
+/**
+ * 一条观点能不能钉住 / 唤醒：观点本质是她那份记忆里「观点：」开头的一条，钉住与沉睡住在记忆那边
+ * （电脑详情传进来；手机没有记忆那份，不传 = 只有改 / 删）。
+ */
+export interface OpinionMemoryState {
+  pinned: boolean
+  /** 挤出去或过期睡着了：只能唤醒、不能钉。 */
+  dormant: boolean
+  onPin(): void
+  onWake(): void
+}
+
 export function OpinionEvent({
   opinion,
+  memoryState,
   onSave,
   onDelete,
 }: {
   opinion: CharacterOpinionEntry
+  memoryState?: OpinionMemoryState
   onSave(text: string): Promise<boolean>
   onDelete(): void
 }) {
@@ -438,6 +570,25 @@ export function OpinionEvent({
         )}
         {editing ? null : (
           <>
+            {memoryState?.dormant ? (
+              <>
+                <span className="text-xs text-muted-foreground">
+                  {t('opinionAsleep')}
+                </span>
+                <Ghost onClick={memoryState.onWake}>{t('wake')}</Ghost>
+              </>
+            ) : memoryState ? (
+              <>
+                {memoryState.pinned ? (
+                  <span className="text-xs text-muted-foreground">
+                    {t('pinned')}
+                  </span>
+                ) : null}
+                <Ghost onClick={memoryState.onPin}>
+                  {t(memoryState.pinned ? 'unpin' : 'pin')}
+                </Ghost>
+              </>
+            ) : null}
             <Ghost onClick={() => setEditing(true)}>{t('edit')}</Ghost>
             <Ghost onClick={onDelete}>{t('delete')}</Ghost>
           </>
@@ -693,7 +844,7 @@ export function CharacterRecent({
   /** 栏头右边（电脑是「和她聊」；手机由外面另放）。 */
   header?: ReactNode
   reducedMotion: boolean
-  /** 手机顶上的切换条已经写着「最近」，⛔ 再来一行栏头。 */
+  /** 手机顶上的切换条已经写着「小房间」，⛔ 再来一行栏头。 */
   showTitle?: boolean
 }) {
   const t = useTranslations('CharacterRoster.recent')
@@ -733,14 +884,7 @@ export function CharacterRecent({
   const askDeleteSticker = (sticker: CharacterStickerRecord) =>
     setPending({ kind: 'sticker', id: sticker.id })
 
-  const filters = [
-    { value: 'all', label: t('filterAll') },
-    { value: 'finding', label: t('filterFindings') },
-    { value: 'sticker', label: t('filterStickers') },
-    { value: 'opinion', label: t('filterOpinions') },
-    { value: 'journal', label: t('filterJournal') },
-    { value: 'revision', label: t('filterRevisions') },
-  ] as const
+  const filters = useRecentFilters()
 
   const neverOut =
     growth !== null &&
@@ -816,9 +960,12 @@ export function CharacterRecent({
                     <DayLabel iso={day.at} />
                     {day.events.map((event) => {
                       const key = `${event.kind}:${event.at}`
+                      // 有小结的趟：小结摊开、见闻折在它底下；没小结的最新一趟照旧摊见闻。
                       const open =
                         event.kind === 'outing'
-                          ? (opened[event.at] ?? event.at === newestOuting)
+                          ? (opened[event.at] ??
+                            (event.at === newestOuting &&
+                              digestLinesOf(event.run).length === 0))
                           : true
                       return (
                         <motion.div
@@ -839,6 +986,7 @@ export function CharacterRecent({
                                 findings={event.findings}
                                 run={event.run}
                                 open={open}
+                                latest={event.at === newestOuting}
                                 onToggle={() =>
                                   setOpened((prev) => ({
                                     ...prev,

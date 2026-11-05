@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useFormatter, useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
@@ -15,12 +15,23 @@ import {
   CHARACTER_BROWSE_SOURCE_IDS,
   CHARACTER_OUTING,
   CHARACTER_OUTING_VIDEO,
+  CHARACTER_TOPIC,
+  CHARACTER_TOPIC_ROSTER,
   CHARACTER_VIDEO_SOURCES,
   type CharacterBrowseSource,
   type CharacterVideoSource,
 } from '@/constants/character-browse'
-import { AI_ADAPTER_TYPES } from '@/constants/providers'
-import type { CharacterOutingRun } from '@/types/character-growth'
+import { NODE_STUDIO_ASSISTANT_ROUTE_MODELS } from '@/constants/node-studio'
+import {
+  AI_ADAPTER_TYPES,
+  getDefaultProviderConfig,
+  getProviderLabel,
+} from '@/constants/providers'
+import type {
+  CharacterOutingRun,
+  CharacterOutingTopicPreview,
+} from '@/types/character-growth'
+import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 import { StudioOperatorModelChip } from '@/features/assistant'
 import {
   ResponsiveDialog,
@@ -31,6 +42,7 @@ import {
 import { Progress } from '@/components/ui/progress'
 import { Switch } from '@/components/ui/switch'
 import type { useCharacterGrowth } from '@/features/cards/hooks'
+import { useLLMRoutePicker } from '@/hooks/use-llm-route-picker'
 import { getApiErrorMessage } from '@/lib/api-error-message'
 import {
   formatVideoRange,
@@ -117,59 +129,219 @@ function videoHint(
   }
 }
 
+/** 输入停一下再问预览：别每个字都打一次分类。 */
+const TOPIC_PREVIEW_DEBOUNCE_MS = 600
+
+/** 这个模型上不了网时换哪两家（都自带网搜）。 */
+const WEB_CAPABLE_SWAPS = [AI_ADAPTER_TYPES.GEMINI, AI_ADAPTER_TYPES.XAI]
+
 function Chip({
   selected,
   onClick,
   children,
   label,
+  removable = false,
+  disabled = false,
 }: {
   selected: boolean
   onClick(): void
   children: ReactNode
   label?: string
+  /** 选中且带 ×：按话题配上的站（点掉就不去）。 */
+  removable?: boolean
+  /** 这个模型去不了：变淡不藏。 */
+  disabled?: boolean
 }) {
   return (
     <button
       type="button"
       aria-pressed={selected}
       aria-label={label}
+      disabled={disabled}
       onClick={onClick}
       className={cn(
-        'flex h-8 items-center gap-1 rounded-full px-3.5 text-2sm transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none',
+        'flex h-8 items-center gap-1 rounded-full px-3.5 text-2sm transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:shadow-focus disabled:cursor-not-allowed disabled:opacity-45 motion-reduce:transition-none',
+        removable && 'pr-2',
         selected
           ? 'bg-primary text-primary-foreground'
           : 'bg-muted text-ink-2 hover:tint-hover',
       )}
     >
       {children}
+      {removable ? (
+        <span
+          aria-hidden
+          className="flex size-4.5 items-center justify-center rounded-full bg-primary-foreground/20"
+        >
+          <X className="size-3" />
+        </span>
+      ) : null}
     </button>
   )
 }
+
+/** 来源选择：普通选中 + 哪些是按话题配的（带 ×）。`topic*` ⊆ 选中的那份。 */
+interface OutingPicks {
+  sources: CharacterBrowseSource[]
+  sites: string[]
+  topicSources: CharacterBrowseSource[]
+  topicSites: string[]
+}
+
+const EMPTY_PICKS: OutingPicks = {
+  sources: [],
+  sites: [],
+  topicSources: [],
+  topicSites: [],
+}
+
+/** 新一份预览压进选择：先撤掉上一份话题配的，再把新配的（用户已选的不算话题配的）放进去。 */
+function applyTopicPicks(
+  picks: OutingPicks,
+  preview: CharacterOutingTopicPreview,
+): OutingPicks {
+  const baseSources = picks.sources.filter(
+    (source) => !picks.topicSources.includes(source),
+  )
+  const baseSites = picks.sites.filter(
+    (site) => !picks.topicSites.includes(site),
+  )
+  const addedSources = preview.sources.filter(
+    (source) => !baseSources.includes(source),
+  )
+  const sites = [
+    ...baseSites,
+    ...preview.sites.filter((site) => !baseSites.includes(site)),
+  ].slice(0, CHARACTER_OUTING.maxSites)
+  return {
+    sources: [...baseSources, ...addedSources],
+    sites,
+    topicSources: addedSources,
+    topicSites: preview.sites.filter(
+      (site) => !baseSites.includes(site) && sites.includes(site),
+    ),
+  }
+}
+
+/** 话题清空 / 太泛：撤掉话题配的，恢复原来的选择。 */
+function clearTopicPicks(picks: OutingPicks): OutingPicks {
+  return {
+    sources: picks.sources.filter(
+      (source) => !picks.topicSources.includes(source),
+    ),
+    sites: picks.sites.filter((site) => !picks.topicSites.includes(site)),
+    topicSources: [],
+    topicSites: [],
+  }
+}
+
+const TOPIC_EXAMPLE_KEYS = [
+  'exampleMeme',
+  'exampleSay',
+  'exampleStory',
+] as const
 
 function OutingDialog({
   open,
   onOpenChange,
   growth: data,
+  initialTopic = '',
 }: {
   open: boolean
   onOpenChange(open: boolean): void
   growth: Growth
+  /** 「现在」卡上点「查了…」带进来的话题（打开就预填）。 */
+  initialTopic?: string
 }) {
   const t = useTranslations('CharacterRoster.recent')
   const tOuting = useTranslations('CharacterRoster.recent.outing')
   const tErrors = useTranslations('Errors')
   const outing = data.growth?.outing
   const last = outing?.recent[0] ?? null
+  const lastTopic = last?.topic?.text ?? null
   // 记住上次那个；下架了回落「自动」。
   const [model, setModel] = useState<AssistantRouteModel>(
     getAssistantRouteModelEntry(last?.model)?.modelId ??
       ASSISTANT_ROUTE_MODEL_AUTO,
   )
   const [modelOpen, setModelOpen] = useState(false)
-  const [sources, setSources] = useState<CharacterBrowseSource[]>(
-    (last?.sources ?? []) as CharacterBrowseSource[],
-  )
-  const [sites, setSites] = useState<string[]>(last?.sites ?? [])
+  /**
+   * 「换 Gemini / 换 Grok」缺 key 时就地配（Hard Rule 8），配好才换上。
+   * ⚠ key 名单没回来 = 不知道，⛔ 不弹，照常换（与模型 chip 同一条规矩）。
+   */
+  const { savedRoutes, hasLoaded: keysLoaded } = useLLMRoutePicker('assistant')
+  const [swapSetup, setSwapSetup] = useState<{
+    modelId: string
+    label: string
+    adapterType: AI_ADAPTER_TYPES
+  } | null>(null)
+  const [picks, setPicks] = useState<OutingPicks>({
+    ...EMPTY_PICKS,
+    sources: (last?.sources ?? []) as CharacterBrowseSource[],
+    sites: last?.sites ?? [],
+  })
+  const { sources, sites, topicSources, topicSites } = picks
+  /** 你自己点的：选中的就不再算「话题配的」（× 跟着没了）。 */
+  const setSources = (
+    next:
+      | CharacterBrowseSource[]
+      | ((list: CharacterBrowseSource[]) => CharacterBrowseSource[]),
+  ) =>
+    setPicks((current) => {
+      const list = typeof next === 'function' ? next(current.sources) : next
+      return {
+        ...current,
+        sources: list,
+        topicSources: current.topicSources.filter((source) =>
+          list.includes(source),
+        ),
+      }
+    })
+  const setSites = (next: string[] | ((list: string[]) => string[])) =>
+    setPicks((current) => {
+      const list = typeof next === 'function' ? next(current.sites) : next
+      return {
+        ...current,
+        sites: list,
+        topicSites: current.topicSites.filter((site) => list.includes(site)),
+      }
+    })
+  const [topicText, setTopicText] = useState(initialTopic)
+  const [preview, setPreview] = useState<{
+    text: string
+    result: CharacterOutingTopicPreview
+  } | null>(null)
+  const topic = topicText.trim()
+  const previewTopic = data.previewTopic
+
+  const changeTopic = (value: string) => {
+    setTopicText(value)
+    if (!value.trim()) {
+      setPreview(null)
+      setPicks(clearTopicPicks)
+    }
+  }
+
+  // 输入停顿后问一次预览；晚到的回答（话题或模型已经变了）直接丢。
+  useEffect(() => {
+    if (!topic) return
+    let cancelled = false
+    const timer = window.setTimeout(() => {
+      void previewTopic(topic, model).then((result) => {
+        if (cancelled || !result) return
+        setPreview({ text: topic, result })
+        setPicks((current) =>
+          result.vague
+            ? clearTopicPicks(current)
+            : applyTopicPicks(current, result),
+        )
+      })
+    }, TOPIC_PREVIEW_DEBOUNCE_MS)
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [topic, model, previewTopic])
   const [videos, setVideos] = useState<CharacterVideoSource[]>(
     (last?.videos ?? []).filter((source): source is CharacterVideoSource =>
       (CHARACTER_VIDEO_SOURCES as readonly string[]).includes(source),
@@ -246,6 +418,74 @@ function OutingDialog({
   const toggle = <T,>(list: T[], item: T) =>
     list.includes(item) ? list.filter((x) => x !== item) : [...list, item]
 
+  // 话题预览：只认和当前输入对得上的那份（还在等新的就先显示上一份，不闪）。
+  const topicPreview = topic ? (preview?.result ?? null) : null
+  const topicMatched =
+    topicPreview && !topicPreview.vague && topicPreview.tags.length > 0
+  const topicUnmatched =
+    topicPreview && !topicPreview.vague && topicPreview.tags.length === 0
+  // 这些标签名册里有网页类站，可一个都没配上 = 模型上不了网（判据在服务端，这里只读结果）。
+  const topicWebEntries = topicMatched
+    ? CHARACTER_TOPIC_ROSTER.filter(
+        (entry) =>
+          entry.site &&
+          entry.tags.some((tag) => topicPreview.tags.includes(tag)),
+      )
+    : []
+  const netless =
+    topicWebEntries.length > 0 &&
+    !topicWebEntries.some(
+      (entry) => entry.site && topicPreview?.sites.includes(entry.site),
+    )
+  const unreachableSites = netless
+    ? topicWebEntries
+        .filter((entry) => entry.site && !sites.includes(entry.site))
+        .slice(0, CHARACTER_TOPIC.maxAutoSites)
+    : []
+  const siteLabel = (site: string) =>
+    topicSites.includes(site)
+      ? (CHARACTER_TOPIC_ROSTER.find((entry) => entry.site === site)?.label ??
+        site)
+      : site
+  const tagNames = (topicPreview?.tags ?? [])
+    .map((tag) => tOuting(`topicTag.${tag}`))
+    .join('、')
+  const examples = [
+    ...(lastTopic ? [lastTopic] : []),
+    ...TOPIC_EXAMPLE_KEYS.map((key) => tOuting(key)).filter(
+      (text) => text !== lastTopic,
+    ),
+  ].slice(0, 3)
+  const swapTargets = WEB_CAPABLE_SWAPS.flatMap((adapterType) => {
+    const target = NODE_STUDIO_ASSISTANT_ROUTE_MODELS.find(
+      (item) => item.adapterType === adapterType,
+    )
+    return target
+      ? [
+          {
+            modelId: target.modelId,
+            label: target.label,
+            adapterType,
+            name: getProviderLabel(getDefaultProviderConfig(adapterType)),
+          },
+        ]
+      : []
+  })
+  const swapModel = (target: (typeof swapTargets)[number]) => {
+    const missingKey =
+      keysLoaded &&
+      !savedRoutes.some((route) => route.modelId === target.modelId)
+    if (missingKey) {
+      setSwapSetup({
+        modelId: target.modelId,
+        label: target.label,
+        adapterType: target.adapterType,
+      })
+      return
+    }
+    setModel(target.modelId)
+  }
+
   const addSite = () => {
     if (!siteText.trim()) {
       setAdding(false)
@@ -288,6 +528,15 @@ function OutingDialog({
       videos: videoRows.filter((row) => row.on).map((row) => row.source),
       pinnedVideos: pinned,
       budgetPoints: points,
+      ...(topic
+        ? {
+            topic: {
+              text: topic,
+              // 预览还没回来 / 太泛 → 标签空，服务端自己分类。
+              tags: preview?.text === topic ? preview.result.tags : [],
+            },
+          }
+        : {}),
     })
     setStarting(false)
     if (result.ok) {
@@ -314,6 +563,79 @@ function OutingDialog({
             {tOuting('title')}
           </ResponsiveDialogTitle>
         </ResponsiveDialogHeader>
+
+        <section className="flex flex-col gap-2">
+          <h3 className="text-xs text-muted-foreground">
+            {tOuting('topic')}
+            <span className="opacity-70"> · {tOuting('topicOptional')}</span>
+          </h3>
+          <div className="relative">
+            <input
+              value={topicText}
+              maxLength={CHARACTER_TOPIC.maxChars}
+              placeholder={tOuting('topicPlaceholder')}
+              aria-label={tOuting('topic')}
+              onChange={(event) => changeTopic(event.target.value)}
+              className="h-11 w-full rounded-xl bg-muted pr-10 pl-3.5 text-md outline-none focus-visible:shadow-focus lg:h-9 lg:text-2sm"
+            />
+            {topicText ? (
+              <button
+                type="button"
+                aria-label={tOuting('topicClear')}
+                onClick={() => changeTopic('')}
+                className="absolute top-1/2 right-2 flex size-7 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus"
+              >
+                <X className="size-3.5" aria-hidden />
+              </button>
+            ) : null}
+          </div>
+          {!topicText ? (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs text-muted-foreground">
+                {tOuting('examples')}
+              </span>
+              {examples.map((text) => (
+                <button
+                  key={text}
+                  type="button"
+                  onClick={() => changeTopic(text)}
+                  className="flex h-7 items-center gap-1.5 rounded-full bg-muted px-3 text-xs text-ink-2 transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none"
+                >
+                  {text === lastTopic ? (
+                    <span className="text-muted-foreground">
+                      {tOuting('exampleLast')}
+                    </span>
+                  ) : null}
+                  {text}
+                </button>
+              ))}
+            </div>
+          ) : null}
+          {topicPreview?.vague ? (
+            <p className="text-xs text-muted-foreground">
+              {tOuting('topicVague')}
+            </p>
+          ) : null}
+          {topicMatched ? (
+            <p className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+              <span>{tOuting('topicSeenAs')}</span>
+              {topicPreview.tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="flex h-6 items-center rounded-md bg-muted px-2 text-ink-2"
+                >
+                  {tOuting(`topicTag.${tag}`)}
+                </span>
+              ))}
+              <span>· {tOuting('topicOnly')}</span>
+            </p>
+          ) : null}
+          {topicUnmatched ? (
+            <p className="text-xs text-muted-foreground">
+              {tOuting('topicUnmatched')}
+            </p>
+          ) : null}
+        </section>
 
         <section className="flex flex-col gap-2">
           <h3 className="text-xs text-muted-foreground">{tOuting('model')}</h3>
@@ -345,19 +667,24 @@ function OutingDialog({
             {tOuting('sources')}
           </h3>
           <div className="flex flex-wrap gap-1.5">
-            <Chip
-              selected={auto}
-              onClick={() => {
-                setSources([])
-                setSites([])
-              }}
-            >
+            <Chip selected={auto} onClick={() => setPicks(EMPTY_PICKS)}>
               {tOuting('auto')}
             </Chip>
             {builtIn.map((source) => (
               <Chip
                 key={source}
                 selected={sources.includes(source)}
+                removable={topicSources.includes(source)}
+                disabled={
+                  netless &&
+                  (source === CHARACTER_BROWSE_SOURCE_IDS.web ||
+                    source === CHARACTER_BROWSE_SOURCE_IDS.youtube)
+                }
+                label={
+                  topicSources.includes(source)
+                    ? tOuting('topicSkip', { name: t(SOURCE_KEYS[source]) })
+                    : undefined
+                }
                 onClick={() => setSources((list) => toggle(list, source))}
               >
                 {t(SOURCE_KEYS[source])}
@@ -367,9 +694,26 @@ function OutingDialog({
               <Chip
                 key={site}
                 selected={sites.includes(site)}
+                removable={topicSites.includes(site)}
+                disabled={netless}
+                label={
+                  topicSites.includes(site)
+                    ? tOuting('topicSkip', { name: siteLabel(site) })
+                    : undefined
+                }
                 onClick={() => setSites((list) => toggle(list, site))}
               >
-                {site}
+                {siteLabel(site)}
+              </Chip>
+            ))}
+            {unreachableSites.map((entry) => (
+              <Chip
+                key={entry.id}
+                selected={false}
+                disabled
+                onClick={() => undefined}
+              >
+                {entry.label ?? entry.site}
               </Chip>
             ))}
             {pinned.map((link) => {
@@ -436,6 +780,53 @@ function OutingDialog({
               </button>
             ) : null}
           </div>
+          {netless ? (
+            <div className="flex flex-col items-start gap-2">
+              <p className="flex items-center gap-2 text-xs text-status-warning">
+                <span
+                  aria-hidden
+                  className="size-1.5 shrink-0 rounded-full bg-status-warning"
+                />
+                {tOuting('topicNoWeb', {
+                  model: entry?.label ?? tOuting('modelThis'),
+                })}
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {swapTargets.map((target) => (
+                  <WhiteButton
+                    key={target.modelId}
+                    onClick={() => swapModel(target)}
+                  >
+                    {tOuting('topicSwap', { name: target.name })}
+                  </WhiteButton>
+                ))}
+              </div>
+              {/* 开着才挂：这颗弹层要读 key 上下文（同模型 chip）。 */}
+              {swapSetup ? (
+                <QuickSetupDialog
+                  open
+                  onOpenChange={(next) => {
+                    if (!next) setSwapSetup(null)
+                  }}
+                  modelId={swapSetup.modelId}
+                  modelLabel={swapSetup.label}
+                  adapterType={swapSetup.adapterType}
+                  optionId={`llm-route:assistant:setup:${swapSetup.modelId}`}
+                  onVerified={(modelId) => {
+                    const verified = getAssistantRouteModelEntry(modelId)
+                    if (verified) setModel(verified.modelId)
+                    setSwapSetup(null)
+                  }}
+                />
+              ) : null}
+            </div>
+          ) : topicSources.length > 0 || topicSites.length > 0 ? (
+            <p className="text-xs text-muted-foreground">
+              {tOuting(topicMatched ? 'topicChipHint' : 'topicChipHintLoose', {
+                tags: tagNames,
+              })}
+            </p>
+          ) : null}
           {pinned.length ? (
             <p className="text-xs text-muted-foreground">
               {tOuting('pinnedHint')}
@@ -590,17 +981,24 @@ function RunningNow({
       className="flex flex-col gap-2.5"
       data-testid="character-outing-running"
     >
-      <p className="text-2sm">
-        <span>
-          {source && query
-            ? tOuting('looking', { where: sourceLabel(source), query })
-            : tOuting('thinking')}
-        </span>
-        <span className="text-muted-foreground">
-          {' · '}
-          {tOuting('points', { used, total: run.budgetPoints })}
-        </span>
-      </p>
+      <div className="flex flex-col gap-0.5 text-2sm">
+        {run.topic ? (
+          <p data-testid="character-outing-topic">
+            {tOuting('topicNow', { topic: run.topic.text })}
+          </p>
+        ) : null}
+        <p>
+          <span>
+            {source && query
+              ? tOuting('looking', { where: sourceLabel(source), query })
+              : tOuting('thinking')}
+          </span>
+          <span className="text-muted-foreground">
+            {' · '}
+            {tOuting('points', { used, total: run.budgetPoints })}
+          </span>
+        </p>
+      </div>
       <Progress
         value={Math.min(run.usedTokens, budgetTokens)}
         max={budgetTokens}
@@ -630,6 +1028,8 @@ export function OutingCard({ growth: data }: { growth: Growth }) {
   const tOuting = useTranslations('CharacterRoster.recent.outing')
   const format = useFormatter()
   const [dialogOpen, setDialogOpen] = useState(false)
+  // 点「查了「…」」打开弹框时预填的话题；普通的「出门调查」不预填。
+  const [prefill, setPrefill] = useState('')
   const outing = data.growth?.outing
   if (!outing) return null
   const last = outing.recent[0]
@@ -661,13 +1061,33 @@ export function OutingCard({ growth: data }: { growth: Growth }) {
       {outing.running ? (
         <RunningNow run={outing.running} growth={data} />
       ) : (
-        <div className="flex items-center gap-3">
-          <span className="min-w-0 flex-1 text-2sm">
-            {when ? tOuting('lastOut', { when }) : tOuting('never')}
-          </span>
-          <WhiteButton onClick={() => setDialogOpen(true)}>
-            {tOuting('title')}
-          </WhiteButton>
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-3">
+            <span className="min-w-0 flex-1 text-2sm">
+              {when ? tOuting('lastOut', { when }) : tOuting('never')}
+            </span>
+            <WhiteButton
+              onClick={() => {
+                setPrefill('')
+                setDialogOpen(true)
+              }}
+            >
+              {tOuting('title')}
+            </WhiteButton>
+          </div>
+          {last?.topic ? (
+            <button
+              type="button"
+              data-testid="character-outing-last-topic"
+              onClick={() => {
+                setPrefill(last.topic?.text ?? '')
+                setDialogOpen(true)
+              }}
+              className="min-w-0 self-start truncate text-left text-xs text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none"
+            >
+              {tOuting('topicLast', { topic: last.topic.text })}
+            </button>
+          ) : null}
         </div>
       )}
       {dialogOpen ? (
@@ -675,6 +1095,7 @@ export function OutingCard({ growth: data }: { growth: Growth }) {
           open={dialogOpen}
           onOpenChange={setDialogOpen}
           growth={data}
+          initialTopic={prefill}
         />
       ) : null}
     </section>

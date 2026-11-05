@@ -1770,6 +1770,42 @@ describe('buildGenerationKnobSteps（§5.2 第二行：卡上改一项 → 写�
     })
   })
 
+  it('⭐ 换模型回落出来的 `set_specs` ⛔ 不把旧模型的背景 / complexity 写回去，撤销仍带全', () => {
+    const { steps } = buildGenerationKnobSteps({
+      ...KNOB_BASE,
+      advanced: {
+        quality: 'high',
+        preview: true,
+        background: 'transparent',
+        complexity: 'low',
+      },
+      knob: 'model',
+      value: 'seedream-4',
+    })
+    const specs = steps.find(
+      (step) => step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setSpecs,
+    )!
+    expect(specs.payload).toEqual({ aspectRatio: '1:1', resolution: '1K' })
+    expect(specs).toMatchObject({
+      inverse: {
+        quality: 'high',
+        preview: true,
+        background: 'transparent',
+        complexity: 'low',
+      },
+    })
+  })
+
+  it('换比例那条照旧带上当前的背景 / complexity（同一模型上它们合法）', () => {
+    const { steps } = buildGenerationKnobSteps({
+      ...KNOB_BASE,
+      advanced: { ...KNOB_BASE.advanced, background: 'transparent' },
+      knob: 'aspect',
+      value: '1:1',
+    })
+    expect(steps[0]!.payload).toMatchObject({ background: 'transparent' })
+  })
+
   it('⚠ 选中当前那一项 = 什么都没改 → 一条 step 都不落', () => {
     expect(
       buildGenerationKnobSteps({

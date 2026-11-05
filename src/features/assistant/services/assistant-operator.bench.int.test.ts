@@ -114,6 +114,69 @@ const facts = {
   uncertainties: [],
 }
 
+describe('set_model：旧模型的背景 / complexity 不粘到新模型上', () => {
+  const GPT26 = 'gpt-image-2.6-flare'
+  const snapshot = (
+    model: { id: string; label: string },
+    extra: Partial<NonNullable<AssistantOperatorRequest['snapshot']['specs']>>,
+  ): AssistantOperatorRequest['snapshot'] => ({
+    ...SNAPSHOT,
+    model,
+    availableModels: [
+      { id: GPT26, label: 'GPT Image 2.6 Flare' },
+      { id: 'seedream-4', label: 'Seedream 4' },
+    ],
+    specs: { ...SNAPSHOT.specs!, ...extra },
+  })
+
+  it('⭐ 2.6 透明背景 + complexity low → 换到 Seedream 4：两格都清掉', async () => {
+    const prepared = await prepare(
+      operatorRequest({
+        domain: 'image',
+        messages: [{ role: 'user', content: '换成 Seedream' }],
+        snapshot: snapshot(
+          { id: GPT26, label: 'GPT Image 2.6 Flare' },
+          { background: 'transparent', complexity: 'low' },
+        ),
+      }),
+    )
+    expect(prepared.run.state.background).toBe('transparent')
+    const plan = await planTool(
+      prepared.run,
+      ASSISTANT_OPERATOR_TOOL_IDS.setModel,
+      { modelId: 'seedream-4' },
+      prepared.user.id,
+    )
+    expect(plan.kind).toBe('mutate')
+    if (plan.kind !== 'mutate') return
+    plan.apply()
+    expect(prepared.run.state.background).toBeUndefined()
+    expect(prepared.run.state.complexity).toBeUndefined()
+  })
+
+  it('换到 2.6：提示里的背景选项照能力表念，不是写死的一串', async () => {
+    const prepared = await prepare(
+      operatorRequest({
+        domain: 'image',
+        messages: [{ role: 'user', content: '换成 GPT' }],
+        snapshot: snapshot({ id: 'seedream-4', label: 'Seedream 4' }, {}),
+      }),
+    )
+    const plan = await planTool(
+      prepared.run,
+      ASSISTANT_OPERATOR_TOOL_IDS.setModel,
+      { modelId: GPT26 },
+      prepared.user.id,
+    )
+    expect(plan.kind).toBe('mutate')
+    if (plan.kind !== 'mutate') return
+    expect(plan.observation).toContain(
+      'Background options: auto, transparent, opaque.',
+    )
+    expect(plan.observation).toContain('Complexity options:')
+  })
+})
+
 describe('参考图在台上时写词（v3 skipReferenceReview）', () => {
   it.each(['image', 'lora'] as const)(
     '%s 台写词：⛔ 不补读参考图、不起简报',

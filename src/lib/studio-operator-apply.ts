@@ -1477,9 +1477,17 @@ export function buildGenerationKnobSteps({
   }
 
   /** 图片 / 视频两条规格通道 —— 载荷形状不同，⛔ 别硬塞给对方（P4-A 那条教训）。 */
+  /**
+   * `carryAdvanced` = 载荷里带不带画质 / 预览 / 背景 / complexity 这几格。
+   * ⚠ 换模型时回落出来的那条**不带**：那几格是旧模型的值，换模型那一刻工作台已按
+   * 新模型的能力表剪过（`pruneIncompatibleCapabilityValues`）—— 再原样写回去，
+   * 2.6 的 complexity 会粘在 2.5 上、透明背景会粘在不认它的型号上，卡面也照着画。
+   * `inverse` 照旧带全：撤销要回到改之前那一整份。
+   */
   const specsStep = (
     id: string,
     next: StudioOperatorGenerationValues,
+    carryAdvanced = true,
   ): AssistantOperatorAppliedStep =>
     domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.video
       ? {
@@ -1506,10 +1514,14 @@ export function buildGenerationKnobSteps({
             // ⚠ 图片档的 `set_specs` 只有两格齐了才落（台账 AE/BG/BS）——
             //   这个模型没有清晰度这颗旋钮时写 `auto`，那正是表单里那一格的默认档。
             resolution: next.resolution ?? 'auto',
-            quality: advanced.quality,
-            preview: advanced.preview,
-            background: advanced.background,
-            complexity: advanced.complexity,
+            ...(carryAdvanced
+              ? {
+                  quality: advanced.quality,
+                  preview: advanced.preview,
+                  background: advanced.background,
+                  complexity: advanced.complexity,
+                }
+              : {}),
           },
           inverse: {
             aspectRatio: current.aspectRatio,
@@ -1552,7 +1564,7 @@ export function buildGenerationKnobSteps({
       adjusted.includes(STUDIO_OPERATOR_GENERATE_KNOB_IDS.aspect) ||
       adjusted.includes(STUDIO_OPERATOR_GENERATE_KNOB_IDS.resolution)
     ) {
-      steps.push(specsStep(`${stepId}-specs`, values))
+      steps.push(specsStep(`${stepId}-specs`, values, false))
     }
     if (adjusted.includes(STUDIO_OPERATOR_GENERATE_KNOB_IDS.count)) {
       steps.push({

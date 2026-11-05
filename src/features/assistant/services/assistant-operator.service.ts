@@ -1850,7 +1850,9 @@ function renderState(
     lines.push(
       '  (set_specs always carries aspectRatio and resolution. Optional quality, background and complexity are independent of resolution.)',
       `- Quality: ${state.quality ?? 'auto'} — options: ${specs?.qualityOptions?.join(', ') || '(none)'}`,
-      `- Background: ${state.background ?? 'auto'} — options: ${specs?.backgroundOptions?.join(', ') || '(none)'}`,
+      // ⚠ 没设时只在选项里真有 `auto` 的型号上写 auto（Seedream 只有 opaque / 透明，
+      //   写 auto 等于教助手去设一个会被拒的值）。
+      `- Background: ${state.background ?? (specs?.backgroundOptions?.includes('auto') ? 'auto' : '(not set)')} — options: ${specs?.backgroundOptions?.join(', ') || '(none)'}`,
     )
     // ⚠ 只有声明了 `complexityOptions` 的型号（GPT Image 2.6）才有这一行：缺省值是
     //   官方的 `high`（options[0]），在别的型号上写一行「high」等于说谎。
@@ -4389,6 +4391,12 @@ function planSetModel(
 
   const previousId = run.state.modelId
   const previousChannelId = run.state.modelChannelId
+  const nextAdapter = resolveAdapterType(match.id)
+  const nextConfig = nextAdapter
+    ? getCapabilityConfig(nextAdapter, match.id)
+    : null
+  const openaiConfig =
+    nextAdapter === AI_ADAPTER_TYPES.OPENAI ? nextConfig : null
   return {
     kind: 'mutate',
     payload: {
@@ -4409,7 +4417,7 @@ function planSetModel(
       match.catalogId && match.catalogId !== match.id
         ? 'The prompt rules in WHAT THE PROMPT MUST LOOK LIKE were for the previous model — from now on write for THIS one, in its own format and asset tokens: '
         : ''
-    }${getModelEnhanceHint(match.catalogId ?? match.id, resolveAdapterType(match.catalogId ?? match.id) ?? undefined) ?? ''}${resolveAdapterType(match.id) === AI_ADAPTER_TYPES.OPENAI ? ` Quality options: ${getCapabilityConfig(AI_ADAPTER_TYPES.OPENAI, match.id).qualityOptions?.join(', ')}. Background: auto, opaque, transparent.${getCapabilityConfig(AI_ADAPTER_TYPES.OPENAI, match.id).complexityOptions ? ` Complexity options: ${getCapabilityConfig(AI_ADAPTER_TYPES.OPENAI, match.id).complexityOptions?.join(', ')} (default high, no extra cost).` : ''} Preview: optional, up to $0.006 extra per image.` : ''}`,
+    }${getModelEnhanceHint(match.catalogId ?? match.id, resolveAdapterType(match.catalogId ?? match.id) ?? undefined) ?? ''}${openaiConfig ? ` Quality options: ${openaiConfig.qualityOptions?.join(', ')}.${openaiConfig.backgroundOptions?.length ? ` Background options: ${openaiConfig.backgroundOptions.join(', ')}.` : ''}${openaiConfig.complexityOptions ? ` Complexity options: ${openaiConfig.complexityOptions.join(', ')} (default high, no extra cost).` : ''} Preview: optional, up to $0.006 extra per image.` : ''}`,
     apply: () => {
       run.state.modelId = match.id
       run.state.modelLabel = match.label
@@ -4456,16 +4464,21 @@ function planSetModel(
        * complexity 只有 GPT Image 2.6 认：换到没有这一档的型号就清掉（不设 = 不发），
        * ⛔ 留着会让 2.5 / 别家因未知字段拒单 —— 与工作台 chip 换模型时丢掉它同一条。
        */
-      if (run.state.complexity) {
-        const adapter = resolveAdapterType(match.id)
-        if (
-          !adapter ||
-          !getCapabilityConfig(adapter, match.id).complexityOptions?.includes(
-            run.state.complexity,
-          )
-        )
-          run.state.complexity = undefined
-      }
+      if (
+        run.state.complexity &&
+        !nextConfig?.complexityOptions?.includes(run.state.complexity)
+      )
+        run.state.complexity = undefined
+      /**
+       * 背景同一条：OpenAI 的 `transparent` 换到 Seedream（它的透明是另一个值）或
+       * 根本没有背景这颗旋钮的型号上，留着就会画在确认卡上、而发送时又被剪掉 ——
+       * 卡上说透明、出来不透明。不认就清掉（不设 = 不发）。
+       */
+      if (
+        run.state.background &&
+        !nextConfig?.backgroundOptions?.includes(run.state.background)
+      )
+        run.state.background = undefined
     },
   }
 }

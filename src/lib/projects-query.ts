@@ -1,6 +1,6 @@
 import type { ProjectRecord } from '@/types'
 import { QUERY_KEYS } from '@/constants/query'
-import { listProjectsAPI } from '@/lib/api-client/projects'
+import { listProjectsAPI } from '@/lib/api-client'
 import { ApiClientError } from '@/lib/api-client/error-fields'
 import { queryClient } from '@/lib/query-client'
 

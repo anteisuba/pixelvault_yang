@@ -8,10 +8,6 @@ import { NextIntlClientProvider } from 'next-intl'
 
 import { zh as zhMessages } from '@/messages'
 import type { CharacterCardRecord, CharacterLookRecord } from '@/types'
-import {
-  invalidateCardCache,
-  makeCardCacheKey,
-} from '@/features/cards/lib/card-cache'
 import { __resetRecipesCacheForTests } from '@/features/prompts/hooks/use-recipes'
 import { queryClient } from '@/lib/query-client'
 import { fakeServer } from '@/test/app-harness'
@@ -179,7 +175,6 @@ describe('CharacterRoster（角色页 · 方向 A）', () => {
   beforeEach(() => {
     mockSearch.value = ''
     window.localStorage.clear()
-    invalidateCardCache(makeCardCacheKey('character'))
     __resetRecipesCacheForTests()
     queryClient.clear()
     setViewport(DESKTOP_WIDTH)

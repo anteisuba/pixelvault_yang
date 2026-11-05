@@ -4,7 +4,7 @@
  */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('next-intl', () => ({
   useLocale: () => 'zh',
@@ -176,6 +176,12 @@ async function renderRole(
 /** 画布助手那一格收到的草稿（取走即清）。 */
 const draftForCanvas = () =>
   mod.operator.takeOperatorDraft('user-a:thread', 'canvas:p1')
+
+// 每例 resetModules 后重新 import 整棵卡片依赖树：第一次要先转译（本机冷启动实测 ~25 秒，
+// 远超 10 秒的 hook 上限），之后每例 ~250ms。先在这里热一次，冷启动的账只记这一处。
+beforeAll(async () => {
+  await import('./CharacterNodeV4')
+}, 60_000)
 
 beforeEach(async () => {
   vi.resetModules()

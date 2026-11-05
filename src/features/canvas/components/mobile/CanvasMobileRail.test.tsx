@@ -1,5 +1,5 @@
 /** 手机画布左栏：真抽屉（真 MobileNodeSheet）、真角色库 hook、真参考轨绑定；只假角色库接口、路由与 Clerk。 */
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import type { NodeV4 } from '@/types/node-workflow'
@@ -150,11 +150,12 @@ describe('CanvasMobileRail', () => {
     expect(screen.getByRole('dialog')).toHaveTextContent('站台')
   })
 
-  it('画布上的角色卡：名字和图现读角色库，点了去角色页，⛔ 不开出图抽屉', () => {
+  it('画布上的角色卡：名字和图现读角色库，点了去角色页，⛔ 不开出图抽屉', async () => {
     const { container } = renderRail()
     fireEvent.click(container.querySelector('[data-mobile-list-tab="images"]')!)
     const row = container.querySelector('[data-mobile-media-row="char-1"]')!
-    expect(row).toHaveTextContent('Denia')
+    // 角色库那一跳回来之前，行上是节点自己存的旧名字。
+    await waitFor(() => expect(row).toHaveTextContent('Denia'))
     expect(row.querySelector('img')?.getAttribute('src')).toBe(
       'https://cdn.test/denia.png',
     )

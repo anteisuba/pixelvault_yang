@@ -10,17 +10,13 @@ import { useLayoutEffect, type ReactElement, type ReactNode } from 'react'
 import { act } from '@testing-library/react'
 
 import { API_ENDPOINTS } from '@/constants/config'
+import { QUERY_KEYS } from '@/constants/query'
 import { ApiKeysProvider } from '@/contexts/api-keys-context'
 import { StudioProvider, useStudioContext } from '@/contexts/studio-context'
-// 测试底座要清角色卡的模块级缓存；这个缓存没从 `@/features/cards` 入口导出。
-// eslint-disable-next-line no-restricted-imports
-import {
-  invalidateCardCache,
-  makeCardCacheKey,
-} from '@/features/cards/lib/card-cache'
 import type { useStudioForm } from '@/contexts/studio-context'
 import { EMPTY_STUDIO_DRAFT } from '@/hooks/use-studio-draft'
 import type { AppLocale } from '@/i18n/routing'
+import { queryClient } from '@/lib/query-client'
 import type { CharacterCardRecord } from '@/types'
 import {
   fakeServer,
@@ -121,11 +117,11 @@ export function characterCardFixture(
 }
 
 /**
- * 角色卡列表有模块级缓存（`card-cache`），跨用例会留着上一例的卡；
- * 要「首次加载」语义的用例在 `beforeEach` 里清掉。
+ * 角色卡列表住共用查询（`QUERY_KEYS.characterCards`）。`vitest.setup` 每例前已整份清空；
+ * 一例之内要再回到「首次加载」语义时调它。
  */
 export function resetCharacterCardsCache() {
-  invalidateCardCache(makeCardCacheKey('character'))
+  queryClient.removeQueries({ queryKey: QUERY_KEYS.characterCards })
 }
 
 /** 假网络 + Provider 挂上就会拉的那几条（项目、角色卡、Civitai token）先回空。 */

@@ -61,6 +61,20 @@ describe('getGenerationPreviewUrl', () => {
     expect(getGenerationPreviewUrl(generation)).toBe(PREVIEW)
   })
 
+  it('plays the GIF original in full-size views — its derivatives are first-frame stills', () => {
+    const gif = 'https://r2.example.com/source.gif'
+    const generation = makeGeneration({
+      url: gif,
+      mimeType: 'image/gif',
+      thumbnailUrl: THUMBNAIL,
+      previewUrl: PREVIEW,
+    })
+
+    expect(getGenerationPreviewUrl(generation)).toBe(gif)
+    // 列表小图仍是静止派生，悬停才换原件。
+    expect(getGenerationThumbnailUrl(generation)).toBe(THUMBNAIL)
+  })
+
   it('keeps the poster fallback for media whose url is not a displayable image', () => {
     // A VIDEO/AUDIO `url` is an mp4/mp3 — the derivative is the only image
     // source there, so the thumbnail step must survive for non-image output.

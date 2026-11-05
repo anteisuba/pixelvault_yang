@@ -127,6 +127,26 @@ const OPENAI_RESOLUTION_TARGET_PIXELS: Record<ImageResolutionTier, number> = {
   '4K': OPENAI_SIZE_MAX_TOTAL_PIXELS,
 }
 
+/**
+ * GIF 每一帧的尺寸（GPT Image 2.5 / 2.6 的 `size` 在 GIF 下指每帧）。owner
+ * 2026-11-05 拍「比例照选、每帧小一档」：取官方单张总像素下限 655,360
+ * （1:1 → 816×816），把整次请求的总像素额度尽量留给帧数。分辨率档位不参与。
+ */
+export function openAIGifFrameSize(aspectRatio: string): {
+  size: string
+  width: number
+  height: number
+} {
+  const { width, height } = computeTieredDimensions(aspectRatio, {
+    targetPixels: OPENAI_SIZE_MIN_TOTAL_PIXELS,
+    edgeStep: OPENAI_SIZE_EDGE_STEP,
+    maxEdge: OPENAI_SIZE_MAX_EDGE,
+    minTotalPixels: OPENAI_SIZE_MIN_TOTAL_PIXELS,
+    maxTotalPixels: OPENAI_SIZE_MAX_TOTAL_PIXELS,
+  })
+  return { size: `${width}x${height}`, width, height }
+}
+
 /** Resolution-tier-aware gpt-image size, only used once the user picks a tier. */
 export function tieredOpenAISize(
   aspectRatio: string,

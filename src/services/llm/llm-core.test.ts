@@ -53,3 +53,46 @@ describe('SVG image inputs', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 })
+
+// GIF 动图看图模型只看一帧：同一个码、另一句文案（先取首帧，不是先转 PNG）。
+const gifRejection = {
+  errorCode: GENERATION_ERROR_CODES.UNSUPPORTED_REFERENCE_IMAGE_FORMAT,
+  httpStatus: 400,
+  message:
+    "GIF images can't be used as input. Extract its first frame as a PNG to continue.",
+}
+
+describe('GIF image inputs', () => {
+  it.each([
+    AI_ADAPTER_TYPES.ANTHROPIC,
+    AI_ADAPTER_TYPES.OPENAI,
+    AI_ADAPTER_TYPES.GEMINI,
+  ])('getLlmImages rejects .gif URLs and GIF data URLs (%s)', (adapterType) => {
+    const input = (imageData: string[]) =>
+      ({ adapterType, imageData }) as unknown as LlmTextInput
+    expect(() =>
+      getLlmImages(input(['https://cdn.example.com/u/1/gen.gif'])),
+    ).toThrow(expect.objectContaining(gifRejection))
+    expect(() =>
+      getLlmImages(input(['data:image/gif;base64,R0lGODlhAQABAAAAACw='])),
+    ).toThrow(expect.objectContaining(gifRejection))
+  })
+
+  it('prepareInlineImages rejects a download served as image/gif', async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x39, 0x61]), {
+        headers: { 'content-type': 'image/gif' },
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(
+      prepareInlineImages(
+        ['https://cdn.example.com/u/1/image'],
+        AI_ADAPTER_TYPES.OPENAI,
+      ),
+    ).rejects.toMatchObject(gifRejection)
+    // 只有取图那一下，没有发给模型的请求。
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+})

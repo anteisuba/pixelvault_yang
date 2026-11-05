@@ -199,7 +199,13 @@ export async function handleImageDerivatives(
             height: variant.maxSize,
             fit: 'scale-down',
           })
-          .output({ format: 'image/webp', quality: variant.quality })
+          // 小图一律静止：动图（GIF）缺省会出成动态 WebP（`anim` 缺省 true），
+          // 列表要的是首帧、悬停才换原件播放。`anim: false` = 只取第一帧。
+          .output({
+            format: 'image/webp',
+            quality: variant.quality,
+            anim: false,
+          })
         const bytes = await new Response(result.image()).arrayBuffer()
         await env.GENERATION_BUCKET.put(variant.key, bytes, {
           httpMetadata: { contentType: 'image/webp' },

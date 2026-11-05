@@ -27,6 +27,7 @@ import {
   luminance,
   resizeImage,
 } from '@/lib/image-pixels'
+import { isGifImageUrl } from '@/lib/gif-image'
 import { logger } from '@/lib/logger'
 import { isSvgImageUrl } from '@/lib/svg-image'
 import { withRetry } from '@/lib/with-retry'
@@ -89,15 +90,20 @@ const FAL_IMAGE_URLS_EDIT_MODELS = new Set([
 export type UpscaleTargetScale = '2x' | '4x'
 
 /**
- * 改图 / 放大 / 抠图的模型只吃位图：SVG（GPT Image 2.5 / 2.6 的矢量输出）在
- * 这里拦成 400，⛔ 别让它进解码器或原样转给服务商。每个导出入口各拦一次；
- * 蒙版恒为我们自己画的 PNG，不查。
+ * 改图 / 放大 / 抠图的模型只吃静态位图：SVG（GPT Image 2.5 / 2.6 的矢量输出）
+ * 与 GIF 动图（模型只看一帧）在这里拦成 400，⛔ 别让它进解码器或原样转给服务商。
+ * 两者文案分开：SVG 先转 PNG，GIF 先取首帧（前端各有一个弹窗）。每个导出入口
+ * 各拦一次；蒙版恒为我们自己画的 PNG，不查。
  */
-function assertNoSvgEditInputs(
+function assertNoSvgOrGifEditInputs(
   urls: ReadonlyArray<string | null | undefined>,
 ): void {
-  if (!urls.some((url) => isSvgImageUrl(url))) return
-  const message = "SVG images can't be used as input. Convert it to PNG first."
+  const message = urls.some((url) => isSvgImageUrl(url))
+    ? "SVG images can't be used as input. Convert it to PNG first."
+    : urls.some((url) => isGifImageUrl(url))
+      ? "GIF images can't be used as input. Extract its first frame as a PNG to continue."
+      : null
+  if (!message) return
   throw new GenerationValidationError([{ field: 'imageUrl', message }], message)
 }
 
@@ -105,7 +111,10 @@ export async function submitIdeogramImageEdit(
   clerkId: string,
   request: InpaintRequest | ObjectReplaceRequest,
 ): Promise<ImageSubmitResponseData> {
-  assertNoSvgEditInputs([request.imageUrl, ...(request.referenceImages ?? [])])
+  assertNoSvgOrGifEditInputs([
+    request.imageUrl,
+    ...(request.referenceImages ?? []),
+  ])
   const user = await ensureUser(clerkId)
   const sourceGeneration = request.sourceGenerationId
     ? await getGenerationByIdForUser(request.sourceGenerationId, user.id)
@@ -321,7 +330,7 @@ export async function upscaleImage(
   modelId?: string,
   targetScale?: UpscaleTargetScale,
 ): Promise<ImageEditResult> {
-  assertNoSvgEditInputs([imageUrl])
+  assertNoSvgOrGifEditInputs([imageUrl])
   const resolvedModel = resolveUpscaleModel(modelId, targetScale)
   const endpoint = `${AI_PROVIDER_ENDPOINTS.FAL}/${resolvedModel}`
   const body: Record<string, unknown> = { image_url: imageUrl }
@@ -354,7 +363,7 @@ export async function removeBackground(
   apiKey: string,
   modelId: string = FAL_DEFAULT_REMOVE_BG_MODEL,
 ): Promise<ImageEditResult> {
-  assertNoSvgEditInputs([imageUrl])
+  assertNoSvgOrGifEditInputs([imageUrl])
   const endpoint = `${AI_PROVIDER_ENDPOINTS.FAL}/${modelId}`
   const response = await fetch(endpoint, {
     method: 'POST',
@@ -745,7 +754,7 @@ export async function inpaintImage(params: {
   negativePrompt?: string
   modelId?: string
 }): Promise<ImageEditResult> {
-  assertNoSvgEditInputs([params.imageUrl])
+  assertNoSvgOrGifEditInputs([params.imageUrl])
   const modelId = params.modelId ?? FAL_DEFAULT_INPAINT_MODEL
   const provider = providerForModel(modelId)
 
@@ -847,7 +856,7 @@ export async function replaceObjects(params: {
   apiKey: string
   modelId?: string
 }): Promise<ImageEditResult> {
-  assertNoSvgEditInputs([params.imageUrl])
+  assertNoSvgOrGifEditInputs([params.imageUrl])
   const modelId = params.modelId ?? DEFAULT_OBJECT_REPLACE_MODEL
   const provider = providerForModel(modelId)
   const prompt = compileAnnotationPrompt(params.annotations)
@@ -1144,7 +1153,7 @@ export async function extractElement(params: {
   invert?: boolean
   modelId?: string
 }): Promise<ImageEditResult> {
-  assertNoSvgEditInputs([params.imageUrl])
+  assertNoSvgOrGifEditInputs([params.imageUrl])
   const modelId = params.modelId ?? FAL_DEFAULT_EXTRACT_MODEL
   const provider = providerForModel(modelId)
 
@@ -1285,7 +1294,7 @@ export async function streamImageEdit(
     )
   }
   // 流一开就只能回 200 + SSE error 事件 —— 在开流之前拦，路由才回得出 400。
-  assertNoSvgEditInputs([request.imageUrl])
+  assertNoSvgOrGifEditInputs([request.imageUrl])
   const user = await ensureUser(clerkId)
   const apiKey = await resolveEditApiKey(
     user.id,

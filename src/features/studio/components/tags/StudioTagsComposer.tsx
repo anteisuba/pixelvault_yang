@@ -912,6 +912,7 @@ function TagQuotaLine({
                 ? undefined
                 : false,
           preview: state.advancedParams.preview,
+          outputFormat: state.advancedParams.outputFormat,
         }}
       />
     )

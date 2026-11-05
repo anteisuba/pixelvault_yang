@@ -746,6 +746,7 @@ export function useStudioWorkbenchOperatorHost({
         quality: state.advancedParams.quality,
         hasReferenceImage: imageUpload.referenceEntries.length > 0,
         preview: state.advancedParams.preview,
+        outputFormat: state.advancedParams.outputFormat,
       }),
       paid.length,
     )
@@ -753,6 +754,7 @@ export function useStudioWorkbenchOperatorHost({
     domain,
     imageUpload.referenceEntries.length,
     runModels,
+    state.advancedParams.outputFormat,
     state.advancedParams.preview,
     state.advancedParams.quality,
     state.advancedParams.resolution,

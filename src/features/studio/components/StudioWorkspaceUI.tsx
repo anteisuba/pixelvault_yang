@@ -11,8 +11,7 @@ import { getProviderLabel } from '@/constants/providers'
 import { STUDIO_PREFILL_PROMPT_STORAGE_KEY } from '@/constants/studio'
 import { STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR } from '@/constants/studio-assistant-operator'
 import { landRecipeInComposer } from '@/lib/studio-workbench-motion'
-import { isSvgImageUrl } from '@/lib/svg-image'
-import { requestSvgToPng } from '@/lib/svg-to-png-request'
+import { gateNonRasterInput } from '@/lib/svg-to-png-request'
 import { cn } from '@/lib/utils'
 import {
   StudioCanvas,
@@ -176,17 +175,16 @@ export function StudioWorkspaceUI() {
   const beginEdit = useCallback(
     (target?: StudioImageEditTarget) => {
       if (isGenerating || editRunning) return
-      if (target && isSvgImageUrl(target.url)) {
-        // 改图只吃位图（改图入口全从这里过）：先弹「转 PNG」，拿转好的那张进编辑。
-        void requestSvgToPng({
-          url: target.url,
-          id: target.generationId,
-          mode: 'gate',
-        }).then((png) => {
-          if (png) openEdit({ url: png.url, generationId: png.id })
-        })
+      // 改图只吃静态位图（改图入口全从这里过）：SVG 先转 PNG、GIF 先取首帧，
+      // 拿转好的那张进编辑。
+      if (
+        target &&
+        gateNonRasterInput(
+          { url: target.url, id: target.generationId },
+          (png) => openEdit({ url: png.url, generationId: png.id }),
+        )
+      )
         return
-      }
       openEdit(target)
     },
     [editRunning, isGenerating, openEdit],

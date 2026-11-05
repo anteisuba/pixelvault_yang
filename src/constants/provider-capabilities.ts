@@ -25,6 +25,8 @@ export type ProviderCapability =
   | 'quality'
   | 'complexity'
   | 'outputFormat'
+  | 'gifFrameCount'
+  | 'gifFrameDuration'
   | 'preview'
   | 'resolution'
   | 'background'
@@ -73,11 +75,35 @@ export const OPENAI_GPT_IMAGE_COMPLEXITY_OPTIONS = [
 ] as const
 
 /**
- * GPT Image 2.5 / 2.6 输出格式。官方：SVG 只在 `/images/generations` 上可用，
- * 每次 1 张（我们本来就一请求一张）、不支持 `partial_images` 流式预览。
+ * GPT Image 2.5 / 2.6 输出格式。官方：SVG / GIF 只在 `/images/generations` 上
+ * 可用、不支持 `partial_images` 流式预览；SVG 每次 1 张（我们本来就一请求一张）。
  * `png` 排第一 = chip 缺省 = 不发，逐字等于此前硬编的 png。
  */
-export const OPENAI_GPT_IMAGE_OUTPUT_FORMATS = ['png', 'svg'] as const
+export const OPENAI_GPT_IMAGE_OUTPUT_FORMATS = ['png', 'svg', 'gif'] as const
+
+/**
+ * GIF 帧数档位（官方 `frame_count` 2–64，缺省 9）。`9` 排第一 = 缺省 = 不发。
+ * 值是字符串：chip 引擎的 select 只认字符串，Worker 发送时转数字。
+ */
+export const OPENAI_GPT_IMAGE_GIF_FRAME_COUNTS = [
+  '9',
+  '16',
+  '24',
+  '32',
+  '48',
+  '64',
+] as const
+
+/**
+ * GIF 每帧时长档位，毫秒（官方 `frame_duration_ms` 20–2000，缺省 200）。
+ * `200` 排第一 = 缺省 = 不发；其余按慢 → 快排。
+ */
+export const OPENAI_GPT_IMAGE_GIF_FRAME_DURATIONS = [
+  '200',
+  '400',
+  '100',
+  '50',
+] as const
 
 /**
  * 改图（`/images/edits`）不填 complexity 时代发的档位——owner 2026-11-05 拍：
@@ -210,6 +236,10 @@ export interface CapabilityConfig {
    * 服务端拒「svg + 参考图」。
    */
   outputFormatOptions?: readonly string[]
+  /** GIF 帧数档位（`[0]` = 官方缺省 = 不发）；只在 `outputFormat === 'gif'` 时有意义。 */
+  gifFrameCountOptions?: readonly string[]
+  /** GIF 每帧时长档位，毫秒（`[0]` = 官方缺省 = 不发）。 */
+  gifFrameDurationOptions?: readonly string[]
   /** Resolution tiers the model accepts (e.g. 'auto' | '1K' | '2K' | '4K') */
   resolutionOptions?: readonly string[]
   aspectRatioOptions?: readonly string[]
@@ -642,6 +672,8 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
       'quality',
       'complexity',
       'outputFormat',
+      'gifFrameCount',
+      'gifFrameDuration',
       'preview',
       'resolution',
       'background',
@@ -652,6 +684,8 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
     acceptsSafetyIdentifier: true,
     acceptsMarkup: true,
     outputFormatOptions: OPENAI_GPT_IMAGE_OUTPUT_FORMATS,
+    gifFrameCountOptions: OPENAI_GPT_IMAGE_GIF_FRAME_COUNTS,
+    gifFrameDurationOptions: OPENAI_GPT_IMAGE_GIF_FRAME_DURATIONS,
     maxReferenceImages: OPENAI_GPT_IMAGE_MAX_REFERENCE_IMAGES,
   },
   [AI_MODELS.OPENAI_GPT_IMAGE_26_SUNBURST]: {
@@ -659,6 +693,8 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
       'quality',
       'complexity',
       'outputFormat',
+      'gifFrameCount',
+      'gifFrameDuration',
       'preview',
       'resolution',
       'background',
@@ -669,12 +705,16 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
     acceptsSafetyIdentifier: true,
     acceptsMarkup: true,
     outputFormatOptions: OPENAI_GPT_IMAGE_OUTPUT_FORMATS,
+    gifFrameCountOptions: OPENAI_GPT_IMAGE_GIF_FRAME_COUNTS,
+    gifFrameDurationOptions: OPENAI_GPT_IMAGE_GIF_FRAME_DURATIONS,
     maxReferenceImages: OPENAI_GPT_IMAGE_MAX_REFERENCE_IMAGES,
   },
   [AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE]: {
     capabilities: [
       'quality',
       'outputFormat',
+      'gifFrameCount',
+      'gifFrameDuration',
       'preview',
       'resolution',
       'background',
@@ -684,12 +724,16 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
     acceptsSafetyIdentifier: true,
     acceptsMarkup: true,
     outputFormatOptions: OPENAI_GPT_IMAGE_OUTPUT_FORMATS,
+    gifFrameCountOptions: OPENAI_GPT_IMAGE_GIF_FRAME_COUNTS,
+    gifFrameDurationOptions: OPENAI_GPT_IMAGE_GIF_FRAME_DURATIONS,
     maxReferenceImages: OPENAI_GPT_IMAGE_MAX_REFERENCE_IMAGES,
   },
   [AI_MODELS.OPENAI_GPT_IMAGE_25_SUNBURST]: {
     capabilities: [
       'quality',
       'outputFormat',
+      'gifFrameCount',
+      'gifFrameDuration',
       'preview',
       'resolution',
       'background',
@@ -699,6 +743,8 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
     acceptsSafetyIdentifier: true,
     acceptsMarkup: true,
     outputFormatOptions: OPENAI_GPT_IMAGE_OUTPUT_FORMATS,
+    gifFrameCountOptions: OPENAI_GPT_IMAGE_GIF_FRAME_COUNTS,
+    gifFrameDurationOptions: OPENAI_GPT_IMAGE_GIF_FRAME_DURATIONS,
     maxReferenceImages: OPENAI_GPT_IMAGE_MAX_REFERENCE_IMAGES,
   },
   [AI_MODELS.FLUX_2_PRO]: {
@@ -964,6 +1010,8 @@ export function getCapabilityFieldType(
     quality: 'select',
     complexity: 'select',
     outputFormat: 'select',
+    gifFrameCount: 'select',
+    gifFrameDuration: 'select',
     background: 'select',
     qualityToggle: 'select',
     ucPreset: 'select',

@@ -12,7 +12,14 @@
     "gateConfirm": "Convert to PNG and continue",
     "gateCancel": "Cancel",
     "convertTitle": "Convert to PNG",
-    "convertBody": "The SVG original stays. The PNG is saved as a new image."
+    "convertBody": "The SVG original stays. The PNG is saved as a new image.",
+    "gifBadge": "GIF",
+    "gifGateTitle": "This is an animated GIF",
+    "gifGateBody": "Editing, references and the assistant only see one frame. Continue with the first frame (saved as a new PNG)?",
+    "gifGateConfirm": "Use first frame",
+    "gifConverting": "Taking the first frame…",
+    "gifDone": "First frame saved as a new PNG",
+    "gifFailed": "Couldn't take the first frame"
   },
   "audioParams": {
     "pace": "Pace",

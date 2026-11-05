@@ -298,4 +298,71 @@ describe('ImageCard', () => {
     expect(video).toHaveAttribute('preload', 'none')
     expect(video).not.toHaveAttribute('poster')
   })
+
+  describe('GIF', () => {
+    const GIF_URL = 'https://r2.example.com/card.gif'
+    const GIF_STILL = 'https://r2.example.com/card.thumbnail.webp'
+    const GIF_GEN: GenerationRecord = {
+      ...BASE_GEN,
+      url: GIF_URL,
+      storageKey: 'generations/image/card.gif',
+      mimeType: 'image/gif',
+      thumbnailUrl: GIF_STILL,
+      previewUrl: 'https://r2.example.com/card.preview.webp',
+    }
+    const imgSrcs = (container: HTMLElement) =>
+      Array.from(container.querySelectorAll('img')).map((img) =>
+        img.getAttribute('src'),
+      )
+
+    it('badges GIF cards and only GIF cards', () => {
+      const { rerender } = renderCard()
+      expect(
+        screen.queryByTestId('image-card-gif-badge'),
+      ).not.toBeInTheDocument()
+
+      rerender(<ImageCard generation={GIF_GEN} onToggleLike={vi.fn()} />)
+      expect(screen.getByTestId('image-card-gif-badge')).toHaveTextContent(
+        'GIF',
+      )
+    })
+
+    it('rests on the still first frame and plays the original only while a mouse hovers', () => {
+      const { container } = renderCard({ generation: GIF_GEN })
+      const tile = screen.getByLabelText(T('openImage'))
+      expect(imgSrcs(container)).not.toContain(GIF_URL)
+      expect(imgSrcs(container)).toContain(GIF_STILL)
+
+      fireEvent.pointerEnter(tile, { pointerType: 'mouse' })
+      expect(imgSrcs(container)).toContain(GIF_URL)
+      // 静止图留在底下：原件到之前不露白。
+      expect(imgSrcs(container)).toContain(GIF_STILL)
+
+      fireEvent.pointerLeave(tile, { pointerType: 'mouse' })
+      expect(imgSrcs(container)).not.toContain(GIF_URL)
+    })
+
+    it('stays still on touch — tapping opens the detail, which plays it', () => {
+      const { container } = renderCard({ generation: GIF_GEN })
+      fireEvent.pointerEnter(screen.getByLabelText(T('openImage')), {
+        pointerType: 'touch',
+      })
+      expect(imgSrcs(container)).not.toContain(GIF_URL)
+    })
+
+    it('shows the original directly for an old GIF without a still derivative', () => {
+      const { container } = renderCard({
+        generation: { ...GIF_GEN, thumbnailUrl: null, previewUrl: null },
+      })
+      const originals = () =>
+        imgSrcs(container).filter((src) => src === GIF_URL)
+      expect(originals()).toHaveLength(1)
+
+      // 底下已经是原件，悬停不再叠第二张。
+      fireEvent.pointerEnter(screen.getByLabelText(T('openImage')), {
+        pointerType: 'mouse',
+      })
+      expect(originals()).toHaveLength(1)
+    })
+  })
 })

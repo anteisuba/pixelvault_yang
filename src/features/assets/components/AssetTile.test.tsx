@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { AssetTile } from '@/features/assets/components/AssetTile'
@@ -195,5 +195,61 @@ describe('AssetTile badges', () => {
     expect(badge).toBe(glyph(<Play weight="fill" />))
     expect(badge).not.toBe(glyph(<Play weight="bold" />))
     vi.unstubAllEnvs()
+  })
+})
+
+describe('AssetTile GIF', () => {
+  const GIF_URL = 'https://storage.example.com/test.gif'
+  const GIF_STILL = 'https://storage.example.com/test.thumbnail.webp'
+  const gifGeneration = (
+    overrides: Partial<GenerationRecord> = {},
+  ): GenerationRecord =>
+    ({
+      ...FAKE_GENERATION,
+      url: GIF_URL,
+      storageKey: 'generations/image/test.gif',
+      mimeType: 'image/gif',
+      thumbnailUrl: GIF_STILL,
+      previewUrl: null,
+      ...overrides,
+    }) as GenerationRecord
+  const imgSrcs = (container: HTMLElement) =>
+    Array.from(container.querySelectorAll('img')).map((img) =>
+      img.getAttribute('src'),
+    )
+  const tileOf = (container: HTMLElement) =>
+    container.querySelector('[data-asset-tile-id]')!
+
+  it('badges GIF tiles and only GIF tiles', () => {
+    const { unmount } = renderTile(FAKE_GENERATION as GenerationRecord)
+    expect(screen.queryByTestId('asset-tile-gif-badge')).not.toBeInTheDocument()
+    unmount()
+
+    renderTile(gifGeneration())
+    expect(screen.getByTestId('asset-tile-gif-badge')).toHaveTextContent('GIF')
+  })
+
+  it('rests on the still first frame and plays the original only while a mouse hovers', () => {
+    const { container } = renderTile(gifGeneration())
+    expect(imgSrcs(container)).toEqual([GIF_STILL])
+
+    fireEvent.pointerEnter(tileOf(container), { pointerType: 'mouse' })
+    expect(imgSrcs(container)).toEqual([GIF_STILL, GIF_URL])
+
+    fireEvent.pointerLeave(tileOf(container), { pointerType: 'mouse' })
+    expect(imgSrcs(container)).toEqual([GIF_STILL])
+  })
+
+  it('stays still on touch', () => {
+    const { container } = renderTile(gifGeneration())
+    fireEvent.pointerEnter(tileOf(container), { pointerType: 'touch' })
+    expect(imgSrcs(container)).toEqual([GIF_STILL])
+  })
+
+  it('shows the original directly for an old GIF without a still derivative', () => {
+    const { container } = renderTile(gifGeneration({ thumbnailUrl: null }))
+    expect(imgSrcs(container)).toEqual([GIF_URL])
+    fireEvent.pointerEnter(tileOf(container), { pointerType: 'mouse' })
+    expect(imgSrcs(container)).toEqual([GIF_URL])
   })
 })

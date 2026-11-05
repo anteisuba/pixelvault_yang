@@ -48,6 +48,7 @@ import {
 import { cn } from '@/lib/utils'
 import { downloadRemoteAsset } from '@/lib/api-client/generation'
 import { flyImageToComposer } from '@/lib/fly-to-composer'
+import { isGifMimeType } from '@/lib/gif-image'
 import { fileExtensionForMime, isSvgMimeType } from '@/lib/svg-image'
 import { requestSvgToPng } from '@/lib/svg-to-png-request'
 import { getGenerationAudioSegments } from '@/lib/generation-media'
@@ -407,6 +408,9 @@ export const GenerationPreview = memo(function GenerationPreview({
   const audioSegments = getGenerationAudioSegments(generation)
   const isSvgResult =
     generation.outputType === 'IMAGE' && isSvgMimeType(generation.mimeType)
+  // GIF 动图：舞台上的 `<img>` 本来就会播，这里只补一个角标。
+  const isGifResult =
+    generation.outputType === 'IMAGE' && isGifMimeType(generation.mimeType)
 
   const handleDownload = async () => {
     if (!generation.url) return
@@ -538,12 +542,16 @@ export const GenerationPreview = memo(function GenerationPreview({
           />
         </TransformComponent>
 
-        {isSvgResult && !showGeneratingOverlay ? (
+        {(isSvgResult || isGifResult) && !showGeneratingOverlay ? (
           <span
-            data-testid="studio-svg-result-badge"
+            data-testid={
+              isGifResult
+                ? 'studio-gif-result-badge'
+                : 'studio-svg-result-badge'
+            }
             className="pointer-events-none absolute top-3 left-3 rounded-full bg-background/85 px-2 py-0.5 font-mono text-2xs font-medium text-foreground shadow-sm backdrop-blur-sm"
           >
-            {tSvg('badge')}
+            {isGifResult ? tSvg('gifBadge') : tSvg('badge')}
           </span>
         ) : null}
 

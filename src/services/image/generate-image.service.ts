@@ -51,6 +51,7 @@ import {
   luminance,
 } from '@/lib/image-pixels'
 import { logger } from '@/lib/logger'
+import { isGifImageUrl } from '@/lib/gif-image'
 import { isSvgImageUrl } from '@/lib/svg-image'
 import { validatePrompt } from '@/services/kernel/prompt-guard'
 import { getResolvedModelOption } from '@/services/model-config.service'
@@ -602,6 +603,19 @@ export async function resolveImageRouteAndValidate(
       400,
     )
   }
+  // GIF 同理：参考图只看一帧，⛔ 别把动图原样转给服务商。前端会先弹「用首帧继续」，
+  // 这里兜助手 @ / API 直调这些没有前端拦截的入口。
+  if (
+    [input.referenceImage, ...(input.referenceImages ?? [])].some((url) =>
+      isGifImageUrl(url),
+    )
+  ) {
+    throw new GenerateImageServiceError(
+      'VALIDATION_ERROR',
+      "GIF images can't be used as input. Extract its first frame as a PNG to continue.",
+      400,
+    )
+  }
   if (resolvedRoute.adapterType === AI_ADAPTER_TYPES.IDEOGRAM) {
     const quality = input.advancedParams?.quality
     if (
@@ -687,14 +701,27 @@ export async function resolveImageRouteAndValidate(
       }
     }
 
-    // SVG 只在 `/images/generations` 上成立；挂了参考图会走 `/images/edits`。
+    // SVG / GIF 只在 `/images/generations` 上成立；挂了参考图会走 `/images/edits`。
+    const outputFormat = input.advancedParams?.outputFormat
     if (
-      input.advancedParams?.outputFormat === 'svg' &&
-      (refCount > 0 || input.advancedParams.inpaintMask)
+      (outputFormat === 'svg' || outputFormat === 'gif') &&
+      (refCount > 0 || input.advancedParams?.inpaintMask)
     ) {
       throw new GenerateImageServiceError(
         'VALIDATION_ERROR',
-        'SVG output is only available without reference images.',
+        `${outputFormat.toUpperCase()} output is only available without reference images.`,
+        400,
+      )
+    }
+    // 官方：帧数 / 每帧时长只能与 gif 同发。
+    if (
+      outputFormat !== 'gif' &&
+      (input.advancedParams?.gifFrameCount ||
+        input.advancedParams?.gifFrameDuration)
+    ) {
+      throw new GenerateImageServiceError(
+        'VALIDATION_ERROR',
+        'GIF frame settings require GIF output.',
         400,
       )
     }
@@ -749,6 +776,8 @@ export async function resolveImageRouteAndValidate(
       ['novelAiReferenceMode', naiConfig.novelAiReferenceModeOptions],
       // 不认它的模型收到 `svg` 会照出 PNG，而存储键已按 .svg 起好 —— 必须在这里死。
       ['outputFormat', naiConfig.outputFormatOptions],
+      ['gifFrameCount', naiConfig.gifFrameCountOptions],
+      ['gifFrameDuration', naiConfig.gifFrameDurationOptions],
     ] as const) {
       const value = input.advancedParams?.[field]
       if (value === undefined) continue

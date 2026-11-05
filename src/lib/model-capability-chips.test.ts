@@ -30,6 +30,8 @@ describe('getModelCapabilityChips', () => {
     expect(capabilitiesOf(AI_ADAPTER_TYPES.OPENAI, id)).toEqual([
       'quality',
       'outputFormat',
+      'gifFrameCount',
+      'gifFrameDuration',
       'preview',
       'background',
     ])
@@ -44,6 +46,8 @@ describe('getModelCapabilityChips', () => {
       'quality',
       'complexity',
       'outputFormat',
+      'gifFrameCount',
+      'gifFrameDuration',
       'preview',
       'background',
     ])
@@ -86,7 +90,7 @@ describe('getModelCapabilityChips', () => {
       const format = chips.find((chip) => chip.capability === 'outputFormat')
       const preview = chips.find((chip) => chip.capability === 'preview')
       expect(format?.kind).toBe('select')
-      expect(format?.options).toEqual(['png', 'svg'])
+      expect(format?.options).toEqual(['png', 'svg', 'gif'])
       expect(format?.defaultValue).toBe('png')
       if (!format || !preview) throw new Error('chips missing')
 
@@ -101,6 +105,40 @@ describe('getModelCapabilityChips', () => {
       expect(isCapabilityChipVisible(preview, {}, false)).toBe(true)
     },
   )
+
+  // GIF（owner 2026-11-05 gif-output mockup ①）：帧数 / 速度只在选了 GIF 且没挂
+  // 参考图时出现；预览同 SVG 一样收起。
+  it('shows the GIF frame chips only for GIF output without references', () => {
+    const chips = getModelCapabilityChips(
+      AI_ADAPTER_TYPES.OPENAI,
+      AI_MODELS.OPENAI_GPT_IMAGE_26_FLARE,
+    )
+    const frames = chips.find((chip) => chip.capability === 'gifFrameCount')
+    const speed = chips.find((chip) => chip.capability === 'gifFrameDuration')
+    const preview = chips.find((chip) => chip.capability === 'preview')
+    if (!frames || !speed || !preview) throw new Error('chips missing')
+    expect(frames.kind).toBe('select')
+    expect(frames.options).toEqual(['9', '16', '24', '32', '48', '64'])
+    expect(frames.defaultValue).toBe('9')
+    expect(speed.options).toEqual(['200', '400', '100', '50'])
+    expect(speed.defaultValue).toBe('200')
+
+    for (const chip of [frames, speed]) {
+      expect(isCapabilityChipVisible(chip, {}, false)).toBe(false)
+      expect(
+        isCapabilityChipVisible(chip, { outputFormat: 'svg' }, false),
+      ).toBe(false)
+      expect(
+        isCapabilityChipVisible(chip, { outputFormat: 'gif' }, false),
+      ).toBe(true)
+      expect(isCapabilityChipVisible(chip, { outputFormat: 'gif' }, true)).toBe(
+        false,
+      )
+    }
+    expect(
+      isCapabilityChipVisible(preview, { outputFormat: 'gif' }, false),
+    ).toBe(false)
+  })
 
   it('has no outputFormat chip on GPT Image 2 or non-OpenAI models', () => {
     expect(

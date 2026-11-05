@@ -47,6 +47,7 @@ import {
   isExecutionWorkerDispatchConfigured,
 } from '@/services/execution-worker.service'
 import { db } from '@/lib/db'
+import { isGifImageUrl } from '@/lib/gif-image'
 import { orientedSize, readImageHeader } from '@/lib/image-header'
 import { logger } from '@/lib/logger'
 import { isSvgImageUrl } from '@/lib/svg-image'
@@ -99,16 +100,21 @@ export async function submitVideoGenerationForUserId(
 ): Promise<VideoSubmitResponseData> {
   // 卡片总线的视频出口：@ 了角色的镜头，把她勾的图追加进参考图（按本人校验、按端点封顶）。
   const input = await withCharacterVideoReferences(userId, request)
-  // 参考图 / 首帧只吃位图：SVG（GPT Image 的矢量输出）在这里拦成 400。放在角色卡
-  // 追加之后，卡里挑的图一起查。
-  if (
-    [input.referenceImage, ...(input.referenceImages ?? [])].some((url) =>
-      isSvgImageUrl(url),
-    )
-  ) {
+  // 参考图 / 首帧只吃静态位图：SVG（GPT Image 的矢量输出）与 GIF 动图（只看一帧）
+  // 在这里拦成 400，文案分开（SVG 先转 PNG，GIF 先取首帧）。放在角色卡追加之后，
+  // 卡里挑的图一起查。
+  const imageInputs = [input.referenceImage, ...(input.referenceImages ?? [])]
+  if (imageInputs.some((url) => isSvgImageUrl(url))) {
     throw new GenerateImageServiceError(
       'VALIDATION_ERROR',
       "SVG images can't be used as input. Convert it to PNG first.",
+      400,
+    )
+  }
+  if (imageInputs.some((url) => isGifImageUrl(url))) {
+    throw new GenerateImageServiceError(
+      'VALIDATION_ERROR',
+      "GIF images can't be used as input. Extract its first frame as a PNG to continue.",
       400,
     )
   }

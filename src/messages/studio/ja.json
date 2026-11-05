@@ -292,10 +292,29 @@
       "high": "高"
     },
     "outputFormat": "出力形式",
-    "outputFormatHint": "SVG はベクター画像で、Figma・Illustrator・Inkscape で編集を続けられます。参照画像なしのときだけ選べ、生成プレビューはありません。編集や参照に使うときは、結果から先に PNG に変換してください。",
+    "outputFormatHint": "SVG はベクター画像で、Figma・Illustrator・Inkscape で編集を続けられます。GIF は動く画像です。どちらも参照画像なしのときだけ選べ、生成プレビューはありません。編集や参照に使うときは、SVG は PNG に変換し、GIF は最初のフレームを取り出してください。",
     "outputFormatOption": {
       "png": "PNG",
-      "svg": "SVG ベクター"
+      "svg": "SVG ベクター",
+      "gif": "GIF アニメ"
+    },
+    "gifFrameCount": "フレーム数",
+    "gifFrameCountHint": "GIF に含めるフレームの数。多いほど動きがなめらかになりますが、1 フレームのサイズは固定のため、多すぎると 1 回のリクエストのピクセル上限を超えて失敗します。",
+    "gifFrameCountOption": {
+      "9": "9 フレーム",
+      "16": "16 フレーム",
+      "24": "24 フレーム",
+      "32": "32 フレーム",
+      "48": "48 フレーム",
+      "64": "64 フレーム"
+    },
+    "gifFrameDuration": "速度",
+    "gifFrameDurationHint": "1 フレームを表示する時間。全体の長さ = フレーム数 × 1 フレームの時間。",
+    "gifFrameDurationOption": {
+      "200": "標準 0.2 秒",
+      "400": "ゆっくり 0.4 秒",
+      "100": "速い 0.1 秒",
+      "50": "とても速い 0.05 秒"
     },
     "background": "背景",
     "backgroundHint": "生成画像の背景を透明にするか不透明にするかを選択します。",
@@ -964,6 +983,8 @@
       "quality": "画質",
       "complexity": "複雑さ",
       "outputFormat": "形式",
+      "gifFrameCount": "フレーム数",
+      "gifFrameDuration": "速度",
       "background": "背景",
       "layerDecomposition": "レイヤー分解",
       "style": "スタイル",

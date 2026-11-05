@@ -28,6 +28,8 @@ const SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100"/>'
 class LoadedImage {
   onload: (() => void) | null = null
   onerror: (() => void) | null = null
+  naturalWidth = 816
+  naturalHeight = 816
   set src(_value: string) {
     queueMicrotask(() => this.onload?.())
   }
@@ -137,5 +139,43 @@ describe('SvgToPngDialogHost', () => {
       ).toBeTruthy(),
     )
     expect(screen.getByText(text('SvgToPng.gateTitle'))).toBeTruthy()
+  })
+
+  // GIF 当输入（owner 2026-11-05 gif-output mockup ③）：同一个弹窗，只取第一帧、
+  // 原尺寸，不给长边档。
+  it('gif gate: no size picker, takes the first frame at its own size', async () => {
+    stubFetch(() => new Response('GIF89a', { status: 200 }))
+    uploadImageFileAPI.mockResolvedValue({
+      success: true,
+      data: { generation: png },
+    })
+    let canvasSize: [number, number] | null = null
+    vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation(
+      function (this: HTMLCanvasElement, callback: BlobCallback) {
+        canvasSize = [this.width, this.height]
+        callback(new Blob(['png'], { type: 'image/png' }))
+      },
+    )
+    renderWithApp(<SvgToPngDialogHost />)
+
+    let pending!: Promise<GenerationRecord | null>
+    act(() => {
+      pending = requestSvgToPng({
+        url: 'https://cdn.example.com/a.gif',
+        id: 'gif-12345678',
+        mode: 'gate',
+        kind: 'gif',
+      })
+    })
+
+    expect(await screen.findByText(text('SvgToPng.gifGateTitle'))).toBeTruthy()
+    expect(screen.queryByRole('radio')).toBeNull()
+    fireEvent.click(
+      screen.getByRole('button', { name: text('SvgToPng.gifGateConfirm') }),
+    )
+
+    await expect(pending).resolves.toBe(png)
+    expect(uploadedFile().name).toBe('antei-gif-1234-frame1.png')
+    expect(canvasSize).toEqual([816, 816])
   })
 })

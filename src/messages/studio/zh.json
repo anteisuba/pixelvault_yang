@@ -292,10 +292,29 @@
       "high": "高"
     },
     "outputFormat": "输出格式",
-    "outputFormatHint": "SVG 是矢量图，可以在 Figma、Illustrator、Inkscape 里继续编辑。只在不挂参考图时可选；没有生成预览。要拿去改图或当参考，先在结果上转成 PNG。",
+    "outputFormatHint": "SVG 是矢量图，可以在 Figma、Illustrator、Inkscape 里继续编辑；GIF 是会动的动图。两者都只在不挂参考图时可选，也都没有生成预览。要拿去改图或当参考，SVG 先转成 PNG，GIF 先取第一帧。",
     "outputFormatOption": {
       "png": "PNG",
-      "svg": "SVG 矢量"
+      "svg": "SVG 矢量",
+      "gif": "GIF 动图"
+    },
+    "gifFrameCount": "帧数",
+    "gifFrameCountHint": "一张 GIF 里有几帧。帧越多动作越顺，但每帧尺寸固定，帧太多会超出单次请求的像素额度而失败。",
+    "gifFrameCountOption": {
+      "9": "9 帧",
+      "16": "16 帧",
+      "24": "24 帧",
+      "32": "32 帧",
+      "48": "48 帧",
+      "64": "64 帧"
+    },
+    "gifFrameDuration": "速度",
+    "gifFrameDurationHint": "每一帧停留多久。总时长 = 帧数 × 每帧时长。",
+    "gifFrameDurationOption": {
+      "200": "标准 0.2 秒",
+      "400": "慢 0.4 秒",
+      "100": "快 0.1 秒",
+      "50": "极快 0.05 秒"
     },
     "background": "背景",
     "backgroundHint": "选择生成图像的背景为透明或不透明。",
@@ -964,6 +983,8 @@
       "quality": "画质",
       "complexity": "复杂度",
       "outputFormat": "格式",
+      "gifFrameCount": "帧数",
+      "gifFrameDuration": "速度",
       "background": "背景",
       "layerDecomposition": "图层拆分",
       "style": "风格",

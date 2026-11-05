@@ -115,9 +115,10 @@ describe('handleImageDerivatives', () => {
       { width: 768, height: 768, fit: 'scale-down' },
       { width: 1280, height: 1280, fit: 'scale-down' },
     ])
+    // 小图恒静止：动图只取首帧（GIF 列表平时静止、悬停才播原件）。
     expect(outputs).toEqual([
-      { format: 'image/webp', quality: 78 },
-      { format: 'image/webp', quality: 82 },
+      { format: 'image/webp', quality: 78, anim: false },
+      { format: 'image/webp', quality: 82, anim: false },
     ])
     expect(puts).toEqual([
       { key: 'u/1.thumbnail.webp', size: 3, contentType: 'image/webp' },

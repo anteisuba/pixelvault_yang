@@ -352,3 +352,58 @@ describe('outputFormat: svg', () => {
     expect(out.advancedParams?.preview).toBe(true)
   })
 })
+
+// GIF（owner 2026-11-05 gif-output mockup ①）：同 SVG 只在纯生成上成立；帧参数
+// 跟着 GIF 走，别的格式一律不带。
+describe('outputFormat: gif', () => {
+  it('keeps the frame settings and drops the preview for a GIF', () => {
+    const out = tailorImageRequestToModel(
+      {
+        modelId: AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE,
+        advancedParams: {
+          outputFormat: 'gif',
+          gifFrameCount: '16',
+          gifFrameDuration: '100',
+          preview: true,
+        },
+      },
+      'natural',
+    )
+    expect(out.advancedParams).toMatchObject({
+      outputFormat: 'gif',
+      gifFrameCount: '16',
+      gifFrameDuration: '100',
+    })
+    expect(out.advancedParams?.preview).toBeUndefined()
+  })
+
+  it('falls back to PNG and drops the frame settings with a reference image', () => {
+    const out = tailorImageRequestToModel(
+      {
+        modelId: AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE,
+        advancedParams: {
+          outputFormat: 'gif',
+          gifFrameCount: '16',
+          preview: true,
+        },
+        referenceImages: ['https://cdn.example.com/a.png'],
+      },
+      'natural',
+    )
+    expect(out.advancedParams?.outputFormat).toBeUndefined()
+    expect(out.advancedParams?.gifFrameCount).toBeUndefined()
+    expect(out.advancedParams?.preview).toBe(true)
+  })
+
+  it('drops stray frame settings when the format is not GIF', () => {
+    const out = tailorImageRequestToModel(
+      {
+        modelId: AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE,
+        advancedParams: { gifFrameCount: '16', gifFrameDuration: '400' },
+      },
+      'natural',
+    )
+    expect(out.advancedParams?.gifFrameCount).toBeUndefined()
+    expect(out.advancedParams?.gifFrameDuration).toBeUndefined()
+  })
+})

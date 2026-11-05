@@ -71,8 +71,8 @@ export function generateStorageKey(
         : mediaFormat === 'mov'
           ? 'mov'
           : 'mp4'
-      : mediaFormat === 'svg'
-        ? 'svg'
+      : mediaFormat === 'svg' || mediaFormat === 'gif'
+        ? mediaFormat
         : 'png'
   return `generations/${userId}/${subdir}/${date}_${random}.${ext}`
 }

@@ -9,6 +9,7 @@ import type { GenerationRecord } from '@/types'
 import { useErrorText } from '@/hooks/use-error-text'
 import { uploadImageFileAPI } from '@/lib/api-client'
 import { clearGalleryCache } from '@/lib/gallery-cache'
+import { rasterizeGifFirstFrameToPng } from '@/lib/gif-first-frame'
 import { rasterizeSvgUrlToPng, type SvgToPngLongEdge } from '@/lib/svg-to-png'
 
 /**
@@ -56,5 +57,40 @@ export function useSvgToPng() {
     [errText, t],
   )
 
-  return { convert, convertingId }
+  /** GIF → 第一帧 PNG（原尺寸），同样存成新作品；GIF 原件不动。 */
+  const convertGifFirstFrame = useCallback(
+    async (source: {
+      url: string
+      id?: string
+    }): Promise<GenerationRecord | null> => {
+      const key = source.id ?? source.url
+      setConvertingId(key)
+      try {
+        const file = await rasterizeGifFirstFrameToPng({
+          url: source.url,
+          baseName: source.id ? `antei-${source.id.slice(0, 8)}` : 'antei-gif',
+        })
+        if (file.size > CLIENT_UPLOAD_MAX_BYTES) {
+          toast.error(t('tooLarge'))
+          return null
+        }
+        const response = await uploadImageFileAPI(file)
+        if (!response.success || !response.data) {
+          toast.error(errText.api(response, t('gifFailed')))
+          return null
+        }
+        clearGalleryCache()
+        toast.success(t('gifDone'))
+        return response.data.generation
+      } catch (error) {
+        toast.error(errText.thrown(error, t('gifFailed')))
+        return null
+      } finally {
+        setConvertingId(null)
+      }
+    },
+    [errText, t],
+  )
+
+  return { convert, convertGifFirstFrame, convertingId }
 }

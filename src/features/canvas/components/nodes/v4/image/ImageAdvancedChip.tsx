@@ -78,8 +78,9 @@ export function ImageAdvancedChip({
   )
   const capabilityParams = toCapabilityParams(params)
   const models = [{ adapterType, modelId: model.modelId }]
-  // SVG 输出（2.5 / 2.6）先只开在图片工作台：画布上的图会被连去当参考 / 首帧，
-  // 而那些下游只吃位图。
+  // SVG / GIF 输出（2.5 / 2.6）先只开在图片工作台：画布上的图会被连去当参考 /
+  // 首帧，而那些下游只吃静态位图。GIF 的帧数 / 速度跟着格式走，格式不出现它俩
+  // 也不会出现（`isCapabilityChipVisible` 只在 outputFormat=gif 时放行）。
   const capabilityChips = getRunCapabilityChips(models).filter(
     (chip) =>
       chip.capability !== 'outputFormat' &&

@@ -1,6 +1,8 @@
 'use client'
 
 import type { GenerationRecord } from '@/types'
+import { isGifImageUrl } from '@/lib/gif-image'
+import { isSvgImageUrl } from '@/lib/svg-image'
 
 /**
  * 「转 PNG」弹窗的全局 store（owner 2026-11-05 svg-output mockup ②③）。
@@ -17,12 +19,45 @@ import type { GenerationRecord } from '@/types'
 
 export type SvgToPngRequestMode = 'gate' | 'convert'
 
+/**
+ * 拿来当输入之前要先变成 PNG 的两种作品：SVG（矢量，选长边转）与 GIF（动图，
+ * 取第一帧，原尺寸）。owner 2026-11-05 gif-output mockup ③：两者共用这一个弹窗。
+ */
+export type NonRasterInputKind = 'svg' | 'gif'
+
 export interface SvgToPngRequest {
   readonly url: string
   /** 作品 id：只用来起文件名；参考图槽只拿得到 URL。 */
   readonly id?: string
   readonly mode: SvgToPngRequestMode
+  /** 缺省 = `svg`（「转 PNG」键只给 SVG）。 */
+  readonly kind?: NonRasterInputKind
   readonly resolve: (png: GenerationRecord | null) => void
+}
+
+/** 这条地址拿来当输入前要不要先过弹窗；位图返回 null。 */
+export function nonRasterInputKind(
+  url: string | null | undefined,
+): NonRasterInputKind | null {
+  if (isSvgImageUrl(url)) return 'svg'
+  if (isGifImageUrl(url)) return 'gif'
+  return null
+}
+
+/**
+ * 输入口的统一拦截：SVG / GIF 先弹窗，确认后把转好的 PNG 交给 `onPng`（取消就
+ * 什么都不落），返回 true 表示已拦下、调用方直接 return；位图返回 false 照常走。
+ */
+export function gateNonRasterInput(
+  source: { url: string; id?: string },
+  onPng: (png: GenerationRecord) => void,
+): boolean {
+  const kind = nonRasterInputKind(source.url)
+  if (!kind) return false
+  void requestSvgToPng({ ...source, mode: 'gate', kind }).then((png) => {
+    if (png) onPng(png)
+  })
+  return true
 }
 
 let current: SvgToPngRequest | null = null
@@ -36,6 +71,7 @@ export function requestSvgToPng(params: {
   url: string
   id?: string
   mode: SvgToPngRequestMode
+  kind?: NonRasterInputKind
 }): Promise<GenerationRecord | null> {
   current?.resolve(null)
   return new Promise((resolve) => {

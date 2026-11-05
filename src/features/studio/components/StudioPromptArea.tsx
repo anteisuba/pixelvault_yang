@@ -723,6 +723,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
                       quality: state.advancedParams.quality,
                       hasReferenceImage: hasImageReferences,
                       preview: state.advancedParams.preview,
+                      outputFormat: state.advancedParams.outputFormat,
                     }}
                   />
                 )}
@@ -1074,6 +1075,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
                 quality: state.advancedParams.quality,
                 hasReferenceImage: hasImageReferences,
                 preview: state.advancedParams.preview,
+                outputFormat: state.advancedParams.outputFormat,
               }}
             />
           ) : null}

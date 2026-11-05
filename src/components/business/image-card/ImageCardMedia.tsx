@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import NextImage from 'next/image'
 
 import { ImageIcon, Layers, Music, Play } from '@/components/icons'
@@ -8,6 +9,7 @@ import {
   getGenerationVideoPosterUrl,
 } from '@/lib/generation-media'
 import { buildPromptAltText } from '@/lib/generation-seo'
+import { isGifMimeType } from '@/lib/gif-image'
 import { isSvgMimeType } from '@/lib/svg-image'
 import { cn } from '@/lib/utils'
 import { useMediaReveal } from '@/components/ui/load-reveal'
@@ -59,6 +61,19 @@ export function ImageCardMedia({
   // `currentTime` 自己抠一帧，等于为一张封面拉真实视频字节。
   const videoPoster = getGenerationVideoPosterUrl(generation) ?? undefined
   const openLabel = isVideo ? openVideoLabel : openImageLabel
+  const isGif = !isVideo && !isAudio && isGifMimeType(generation.mimeType)
+  // GIF：平时是静止首帧派生图，鼠标悬停才把原件叠上去播放。没有派生图的旧 GIF
+  // 本来就直接显示原件，不用切。触屏不悬停，保持静止（点进详情会播）。
+  const canHoverPlayGif = isGif && imageSrc !== generation.url
+  const [isPlayingGif, setIsPlayingGif] = useState(false)
+  const gifHoverHandlers = canHoverPlayGif
+    ? {
+        onPointerEnter: (event: React.PointerEvent) => {
+          if (event.pointerType === 'mouse') setIsPlayingGif(true)
+        },
+        onPointerLeave: () => setIsPlayingGif(false),
+      }
+    : undefined
 
   const media = (
     <>
@@ -96,6 +111,20 @@ export function ImageCardMedia({
           revealStep={revealStep}
         />
       )}
+      {canHoverPlayGif && isPlayingGif && (
+        // 叠在静止图上面而不是换 src：换 src 会让由糊变清重播一遍；原件没到之前
+        // 这一层是透明的，底下的首帧照常露着。
+        <NextImage
+          data-testid="image-card-gif-playback"
+          src={generation.url}
+          alt=""
+          fill
+          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+          unoptimized
+          draggable={false}
+          className="pointer-events-none object-cover"
+        />
+      )}
     </>
   )
 
@@ -104,7 +133,8 @@ export function ImageCardMedia({
       {detailHref ? (
         <a
           href={detailHref}
-          className="block w-full cursor-pointer bg-muted"
+          className="relative block w-full cursor-pointer bg-muted"
+          {...gifHoverHandlers}
           onClick={(event) => {
             // 带修饰键或非左键 = 想开新标签，交给浏览器。
             if (
@@ -130,7 +160,8 @@ export function ImageCardMedia({
       ) : (
         <button
           type="button"
-          className="block w-full cursor-pointer bg-muted"
+          className="relative block w-full cursor-pointer bg-muted"
+          {...gifHoverHandlers}
           onClick={(event) =>
             onOpenDetail(
               toMediaTransitionOrigin(
@@ -166,6 +197,15 @@ export function ImageCardMedia({
           className="pointer-events-none absolute bottom-3 right-3 rounded-full bg-black/50 px-2 py-0.5 font-mono text-3xs font-medium text-white backdrop-blur-md"
         >
           SVG
+        </span>
+      )}
+      {isGif && (
+        // GIF 动图：与 SVG 角标同位同档。
+        <span
+          data-testid="image-card-gif-badge"
+          className="pointer-events-none absolute bottom-3 right-3 rounded-full bg-black/50 px-2 py-0.5 font-mono text-3xs font-medium text-white backdrop-blur-md"
+        >
+          GIF
         </span>
       )}
       {isVideo && (

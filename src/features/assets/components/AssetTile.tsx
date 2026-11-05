@@ -13,6 +13,7 @@ import {
   getGenerationThumbnailUrl,
   getGenerationVideoPosterUrl,
 } from '@/lib/generation-media'
+import { isGifMimeType } from '@/lib/gif-image'
 import { cn } from '@/lib/utils'
 import {
   MediaTileActions,
@@ -101,6 +102,13 @@ export function AssetTile({
   const isLiked = Boolean(generation.isLiked)
   // 视频的悬停预览：媒体层不接指针，所以悬停记在整格上。
   const [isPreviewing, setIsPreviewing] = useState(false)
+  const isGif =
+    generation.outputType === 'IMAGE' && isGifMimeType(generation.mimeType)
+  const stillSrc = getGenerationThumbnailUrl(generation)
+  // GIF：平时是静止首帧派生图，鼠标悬停才叠原件播放；没有派生图的旧 GIF 本来就
+  // 直接是原件。只认鼠标 —— 触屏点一下也会派发 enter，那时保持静止（点进详情会播）。
+  const canHoverPlayGif = isGif && stillSrc !== generation.url
+  const [isPlayingGif, setIsPlayingGif] = useState(false)
   const durationLabel =
     typeof generation.duration === 'number' && generation.duration > 0
       ? formatDuration(Math.round(generation.duration))
@@ -117,6 +125,16 @@ export function AssetTile({
       onContextMenu={onContextMenu}
       onMouseEnter={isVideo ? () => setIsPreviewing(true) : undefined}
       onMouseLeave={isVideo ? () => setIsPreviewing(false) : undefined}
+      onPointerEnter={
+        canHoverPlayGif
+          ? (event) => {
+              if (event.pointerType === 'mouse') setIsPlayingGif(true)
+            }
+          : undefined
+      }
+      onPointerLeave={
+        canHoverPlayGif ? () => setIsPlayingGif(false) : undefined
+      }
       style={{ width, height }}
       data-asset-tile-id={generation.id}
       // 图格 `MediaTile`（ui-spec §9）：干净无框、没边没影；悬停图变暗、左下出动作。
@@ -140,12 +158,27 @@ export function AssetTile({
           <Model3DTileMedia generation={generation} width={width} />
         ) : (
           <TileImage
-            src={getGenerationThumbnailUrl(generation)}
+            src={stillSrc}
             alt={generation.prompt || ''}
             width={width}
             revealStep={revealStep}
           />
         )}
+
+        {canHoverPlayGif && isPlayingGif ? (
+          // 叠在静止图上面而不是换 src：换 src 会让由糊变清重播；原件没到之前
+          // 这一层透明，底下的首帧照常露着。
+          <NextImage
+            data-testid="asset-tile-gif-playback"
+            src={generation.url}
+            alt=""
+            fill
+            sizes={`${Math.max(Math.round(width), 1)}px`}
+            unoptimized
+            draggable={false}
+            className="object-cover"
+          />
+        ) : null}
 
         <MediaTileShade />
 
@@ -193,6 +226,15 @@ export function AssetTile({
             aria-hidden
           >
             {is3D ? t('badge3D') : durationLabel}
+          </span>
+        ) : isGif ? (
+          /* GIF 动图角标：与时长 / 3D 角标同位同档。 */
+          <span
+            data-testid="asset-tile-gif-badge"
+            className="asset-tile-badge absolute top-2 left-2 flex h-5 items-center rounded-md px-1.5 font-mono text-2xs"
+            aria-hidden
+          >
+            GIF
           </span>
         ) : null}
       </span>

@@ -732,3 +732,98 @@ describe('SVG inputs are rejected before any provider call', () => {
       ),
     ))
 })
+
+// GIF 动图模型只看一帧：前端弹「用首帧继续？」；没有前端拦截的入口（助手 @、画布、
+// API 直调）在这里 400，文案与 SVG 分开（先取首帧，不是先转 PNG）。
+describe('GIF inputs are rejected before any provider call', () => {
+  const gifUrl = 'https://cdn.example.com/u/1/gen.gif'
+  const message =
+    "GIF images can't be used as input. Extract its first frame as a PNG to continue."
+  let fetchMock: ReturnType<typeof vi.fn>
+
+  beforeEach(() => {
+    fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+  })
+
+  async function expectRejected(run: () => Promise<unknown>) {
+    const error = await run().catch((caught: unknown) => caught)
+    expect(error).toBeInstanceOf(GenerationValidationError)
+    expect(error).toMatchObject({ httpStatus: 400, message })
+    expect(fetchMock).not.toHaveBeenCalled()
+  }
+
+  it('upscaleImage', () => expectRejected(() => upscaleImage(gifUrl, 'key')))
+
+  it('removeBackground', () =>
+    expectRejected(() => removeBackground(gifUrl, 'key')))
+
+  it('inpaintImage', () =>
+    expectRejected(() =>
+      inpaintImage({
+        userId: 'user-1',
+        imageUrl: gifUrl,
+        maskImageUrl: 'data:image/png;base64,mask',
+        prompt: 'flowers',
+        apiKey: 'key',
+      }),
+    ))
+
+  it('replaceObjects', () =>
+    expectRejected(() =>
+      replaceObjects({
+        userId: 'user-1',
+        imageUrl: gifUrl,
+        annotations: [{ index: 1, instruction: 'make it red' }],
+        apiKey: 'key',
+      }),
+    ))
+
+  it('extractElement', () =>
+    expectRejected(() =>
+      extractElement({
+        userId: 'user-1',
+        imageUrl: gifUrl,
+        prompt: 'cat',
+        apiKey: 'key',
+      }),
+    ))
+
+  it('submitIdeogramImageEdit checks references too', () =>
+    expectRejected(() =>
+      submitIdeogramImageEdit('clerk-1', {
+        imageUrl: 'https://cdn.example.com/u/1/source.png',
+        referenceImages: ['data:image/gif;base64,R0lGODlhAQABAAAAACw='],
+        maskImageUrl: 'data:image/png;base64,mask',
+        prompt: 'flowers',
+      }),
+    ))
+
+  it('streamImageEdit rejects before opening the stream', () =>
+    expectRejected(() =>
+      streamImageEdit(
+        'clerk-1',
+        {
+          action: 'inpaint',
+          imageUrl: gifUrl,
+          maskImageUrl: 'data:image/png;base64,mask',
+          prompt: 'flowers',
+          modelId: 'gpt-image-2',
+        },
+        new AbortController().signal,
+      ),
+    ))
+
+  it('SVG wins when both SVG and GIF are present (convert-to-PNG message)', async () => {
+    const error = await submitIdeogramImageEdit('clerk-1', {
+      imageUrl: gifUrl,
+      referenceImages: ['https://cdn.example.com/u/1/gen.svg'],
+      maskImageUrl: 'data:image/png;base64,mask',
+      prompt: 'flowers',
+    }).catch((caught: unknown) => caught)
+    expect(error).toMatchObject({
+      httpStatus: 400,
+      message: "SVG images can't be used as input. Convert it to PNG first.",
+    })
+  })
+})

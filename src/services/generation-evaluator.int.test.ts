@@ -177,6 +177,34 @@ describe('evaluateGeneration（真库）', () => {
     })
     expect(llm.calls).toHaveLength(0)
   })
+
+  // GIF 动图看图模型只看一帧：同样记一次失败（gif_not_supported），⛔ 问模型。
+  it.each([
+    [
+      '按 MIME 认',
+      {
+        url: 'https://cdn.test/generations/anim',
+        storageKey: 'generations/anim',
+        mimeType: 'image/gif',
+      },
+    ],
+    [
+      '按 .gif 地址认',
+      {
+        url: 'https://cdn.test/generations/anim.gif',
+        storageKey: 'generations/anim.gif',
+        mimeType: 'image/png',
+      },
+    ],
+  ])('GIF 作品（%s）：回 null、记失败，一个字都不发', async (_name, fields) => {
+    const gen = await seed(fields)
+    expect(await evaluateGeneration(me.clerkId, gen.id)).toBeNull()
+    expect(await evaluationOf(gen.id)).toMatchObject({
+      error: 'evaluation_failed',
+      reason: 'gif_not_supported',
+    })
+    expect(llm.calls).toHaveLength(0)
+  })
 })
 
 describe('只用助手那一家（真库路由）', () => {

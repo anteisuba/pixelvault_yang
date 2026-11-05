@@ -36,6 +36,12 @@ interface ImageTransform {
 interface ImageOutputOptions {
   format: 'image/webp' | 'image/avif' | 'image/jpeg' | 'image/png'
   quality?: number
+  /**
+   * 动图是否保留全部帧（缺省 true）；false = 只取第一帧出静图。
+   * ⚠ 绑定上它在 `.output()` 里，不在 `.transform()` 里：
+   * https://developers.cloudflare.com/images/transform-images/bindings/
+   */
+  anim?: boolean
 }
 
 interface ImageTransformationResult {

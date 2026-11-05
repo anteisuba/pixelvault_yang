@@ -87,6 +87,12 @@ describe('generateStorageKey', () => {
     )
   })
 
+  it('uses the requested vector / animated image extension', () => {
+    expect(generateStorageKey('IMAGE', 'user-123', 'svg')).toMatch(/\.svg$/)
+    expect(generateStorageKey('IMAGE', 'user-123', 'gif')).toMatch(/\.gif$/)
+    expect(generateStorageKey('IMAGE', 'user-123', 'webp')).toMatch(/\.png$/)
+  })
+
   it('generates video key with .mp4 extension', () => {
     const key = generateStorageKey('VIDEO', 'user-456')
     expect(key).toMatch(/\/video\/.*\.mp4$/)

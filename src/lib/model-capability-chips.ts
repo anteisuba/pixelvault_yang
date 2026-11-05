@@ -52,6 +52,8 @@ const SELECT_OPTION_KEYS: Partial<
   quality: 'qualityOptions',
   complexity: 'complexityOptions',
   outputFormat: 'outputFormatOptions',
+  gifFrameCount: 'gifFrameCountOptions',
+  gifFrameDuration: 'gifFrameDurationOptions',
   background: 'backgroundOptions',
   style: 'styleOptions',
   qualityToggle: 'qualityToggleOptions',
@@ -326,16 +328,27 @@ export function pruneIncompatibleCapabilityValues<
   return changed ? (next as T) : null
 }
 
+/** 选了没有流式预览的输出格式（SVG / GIF）。 */
+export function isNonStreamingOutputFormat(params: AdvancedParams): boolean {
+  return params.outputFormat === 'svg' || params.outputFormat === 'gif'
+}
+
 export function isCapabilityChipVisible(
   chip: CapabilityChip,
   advancedParams: AdvancedParams,
   hasReferenceImage: boolean,
 ): boolean {
   if (chip.requiresReferenceImage && !hasReferenceImage) return false
-  // SVG 只在纯生成上有（挂了参考图走改图端点），且官方不给流式预览。
+  // SVG / GIF 只在纯生成上有（挂了参考图走改图端点），且官方不给流式预览；
+  // 帧数 / 速度只在选了 GIF 时出现。
   if (chip.capability === 'outputFormat') return !hasReferenceImage
+  if (
+    chip.capability === 'gifFrameCount' ||
+    chip.capability === 'gifFrameDuration'
+  )
+    return !hasReferenceImage && advancedParams.outputFormat === 'gif'
   if (chip.capability === 'preview')
-    return hasReferenceImage || advancedParams.outputFormat !== 'svg'
+    return hasReferenceImage || !isNonStreamingOutputFormat(advancedParams)
   const precise = advancedParams.novelAiReferenceMode === 'precise'
   if (
     chip.capability === 'preciseReferenceStrength' ||

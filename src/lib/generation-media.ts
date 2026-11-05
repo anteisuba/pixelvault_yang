@@ -1,3 +1,4 @@
+import { isGifMimeType } from '@/lib/gif-image'
 import { getVideoPosterUrl } from '@/lib/video-poster'
 import type { GenerationRecord } from '@/types'
 
@@ -137,6 +138,8 @@ export function getGenerationModel3DVisualUrl(
  */
 export function getGenerationPreviewUrl(generation: GenerationRecord): string {
   if (generation.outputType === 'IMAGE') {
+    // GIF 的派生小图只有第一帧（Worker `anim: false`），详情要播原件。
+    if (isGifMimeType(generation.mimeType)) return generation.url
     return generation.previewUrl ?? generation.url
   }
   return generation.previewUrl ?? generation.thumbnailUrl ?? generation.url

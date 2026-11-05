@@ -74,6 +74,8 @@ import {
   NOVELAI_QUALITY_TOGGLE_OPTIONS,
   NOVELAI_UC_PRESET_OPTIONS,
   OPENAI_GPT_IMAGE_COMPLEXITY_OPTIONS,
+  OPENAI_GPT_IMAGE_GIF_FRAME_COUNTS,
+  OPENAI_GPT_IMAGE_GIF_FRAME_DURATIONS,
   OPENAI_GPT_IMAGE_OUTPUT_FORMATS,
   VOLCENGINE_SEEDREAM_MAX_LAYERS,
 } from '@/constants/provider-capabilities'
@@ -295,11 +297,15 @@ export const AdvancedParamsSchema = z.object({
    */
   complexity: z.enum(OPENAI_GPT_IMAGE_COMPLEXITY_OPTIONS).optional(),
   /**
-   * GPT Image 2.5 / 2.6 输出格式。不设 = PNG。`svg` 只在纯生成（无参考图）上
-   * 成立，且没有流式预览。
+   * GPT Image 2.5 / 2.6 输出格式。不设 = PNG。`svg` / `gif` 只在纯生成（无参考图）
+   * 上成立，且没有流式预览。
    * https://developers.openai.com/api/docs/guides/image-generation
    */
   outputFormat: z.enum(OPENAI_GPT_IMAGE_OUTPUT_FORMATS).optional(),
+  /** GIF 帧数（字符串档位）；只随 `outputFormat === 'gif'` 发送。 */
+  gifFrameCount: z.enum(OPENAI_GPT_IMAGE_GIF_FRAME_COUNTS).optional(),
+  /** GIF 每帧时长，毫秒（字符串档位）；只随 `outputFormat === 'gif'` 发送。 */
+  gifFrameDuration: z.enum(OPENAI_GPT_IMAGE_GIF_FRAME_DURATIONS).optional(),
   preview: z.boolean().optional(),
   resolution: z.enum(['auto', '1K', '2K', '4K']).optional(),
   background: z.string().optional(),

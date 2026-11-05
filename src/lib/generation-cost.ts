@@ -1,4 +1,5 @@
 import { getModelById } from '@/constants/models'
+import { hasCapability } from '@/constants/provider-capabilities'
 import {
   VIDEO_UNIT_PRICE_BASE_RESOLUTION,
   getIdeogramImageOutputPrice,
@@ -31,6 +32,7 @@ export type CostPreviewBasis =
       quality?: string
       hasReferenceImage?: boolean
       preview?: boolean
+      outputFormat?: string
     }
   | { kind: 'video'; durationSeconds: number; resolution: VideoResolution }
 
@@ -48,6 +50,14 @@ export interface GenerationCostEstimate {
   referenceRange: boolean
 }
 
+/** 这条模型这次真会出 GIF 吗 —— 声明了帧数能力的才会（其余在发送时被裁回 PNG）。 */
+function producesGif(modelId: string): boolean {
+  const adapterType = getModelById(modelId)?.adapterType
+  return adapterType
+    ? hasCapability(adapterType, 'gifFrameCount', modelId)
+    : false
+}
+
 export function estimateGenerationCost(
   models: readonly { modelId: string }[],
   basis: CostPreviewBasis,
@@ -61,6 +71,9 @@ export function estimateGenerationCost(
   let perSecondForLine: number | null = null
   for (const model of models) {
     if (basis.kind === 'image') {
+      // GIF：官方没有 GIF 单价，按实际用量计 —— 出图前估不出，按缺价报（⛔ 不拿
+      // 单张 PNG 的价顶上，帧数一多差几十倍）。
+      if (basis.outputFormat === 'gif' && producesGif(model.modelId)) continue
       const ideogramPrice = getIdeogramImageOutputPrice(model.modelId, basis)
       if (ideogramPrice && ideogramPrice.min !== ideogramPrice.max) {
         hasReferenceRange = true

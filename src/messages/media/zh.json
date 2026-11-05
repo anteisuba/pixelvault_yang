@@ -12,7 +12,14 @@
     "gateConfirm": "转 PNG 并继续",
     "gateCancel": "取消",
     "convertTitle": "转成 PNG",
-    "convertBody": "SVG 原件保留，PNG 存成一张新作品。"
+    "convertBody": "SVG 原件保留，PNG 存成一张新作品。",
+    "gifBadge": "GIF",
+    "gifGateTitle": "这张是 GIF 动图",
+    "gifGateBody": "改图、参考图和助手只看一帧。用第一帧（存成 PNG 新作品）继续？",
+    "gifGateConfirm": "用首帧继续",
+    "gifConverting": "正在取第一帧…",
+    "gifDone": "已取第一帧，存为 PNG 新作品",
+    "gifFailed": "取第一帧失败"
   },
   "audioParams": {
     "pace": "语速",

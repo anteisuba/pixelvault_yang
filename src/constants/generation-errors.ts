@@ -118,6 +118,13 @@ export const GENERATION_ERROR_CODES = {
    */
   PROMPT_TOO_LONG: 'prompt_too_long',
   /**
+   * GPT Image GIF：帧数 × 每帧尺寸超出了一次请求的总像素额度（官方只说「超了就
+   * 拒」，没公布数字）。Worker 认出这种拒绝后改写成固定英文
+   * `GIF_FRAME_BUDGET_MESSAGE`，这里认字面。⚠ 上游原话未经付费实测，认法见
+   * Worker `providers/openai/image.ts`。
+   */
+  GIF_FRAME_BUDGET_EXCEEDED: 'gif_frame_budget_exceeded',
+  /**
    * 我们的服务器根本没连上服务商：Node fetch 的裸 `fetch failed`、`write EPIPE`、
    * `socket hang up`、`ECONNRESET` 这类（11-03 线上样本：Fish Audio / Gemini /
    * Replicate / OpenAI / Rodin 共 31 次）。此前被参考图规则的 `fetch.*failed` 吃掉，
@@ -310,6 +317,12 @@ const ERROR_PATTERNS: Array<{
   {
     pattern: /prompt exceeds maximum length of \d+ characters/i,
     code: GENERATION_ERROR_CODES.PROMPT_TOO_LONG,
+  },
+  // Worker 改写过的固定英文（`GIF_FRAME_BUDGET_MESSAGE`）；排在 timeout /
+  // 参考图规则之前，免得原话里的 size / image 被别的规则先咬走。
+  {
+    pattern: /GIF frames exceed the request pixel budget/i,
+    code: GENERATION_ERROR_CODES.GIF_FRAME_BUDGET_EXCEEDED,
   },
   {
     pattern: REFERENCE_IMAGE_ERROR_PATTERNS.UNSUPPORTED_FORMAT,
@@ -577,6 +590,9 @@ export function getGenerationErrorI18nKeyForCode(
   }
   if (errorCode === GENERATION_ERROR_CODES.PROMPT_TOO_LONG) {
     return 'errors.provider.promptTooLong'
+  }
+  if (errorCode === GENERATION_ERROR_CODES.GIF_FRAME_BUDGET_EXCEEDED) {
+    return 'errors.provider.gifFrameBudgetExceeded'
   }
   if (errorCode === GENERATION_ERROR_CODES.INVALID_REFERENCE_IMAGE_DIMENSIONS) {
     return 'errors.provider.invalidReferenceImageDimensions'

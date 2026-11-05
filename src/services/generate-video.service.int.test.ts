@@ -243,6 +243,47 @@ describe('submitVideoGeneration · SVG 参考图', () => {
   })
 })
 
+describe('submitVideoGeneration · GIF 参考图', () => {
+  // GIF 动图只看一帧：首帧 / 参考图是 GIF 就 400「先取首帧」，⛔ 建任务、⛔ 转存、⛔ 派发。
+  it('首帧是 GIF：拒，文案说先取首帧', async () => {
+    await expect(
+      submitVideoGeneration(
+        me.clerkId,
+        request({ referenceImage: 'https://cdn.example.com/u/1/anim.gif' }),
+      ),
+    ).rejects.toMatchObject({
+      code: 'VALIDATION_ERROR',
+      status: 400,
+      message:
+        "GIF images can't be used as input. Extract its first frame as a PNG to continue.",
+    })
+    expect(await db.generationJob.count()).toBe(0)
+    expect(fakeBucket.uploads).toHaveLength(0)
+    expect(worker.requests).toHaveLength(0)
+  })
+
+  it('参考图里有 GIF：拒', async () => {
+    await expect(
+      submitVideoGeneration(
+        me.clerkId,
+        request({
+          referenceImages: [
+            'https://cdn.example.com/start.png',
+            'https://cdn.example.com/u/1/anim.gif',
+          ],
+        }),
+      ),
+    ).rejects.toMatchObject({
+      code: 'VALIDATION_ERROR',
+      status: 400,
+      message:
+        "GIF images can't be used as input. Extract its first frame as a PNG to continue.",
+    })
+    expect(await db.generationJob.count()).toBe(0)
+    expect(worker.requests).toHaveLength(0)
+  })
+})
+
 describe('submitVideoGeneration · 提示词长度与输出尺寸', () => {
   // owner 2026-09-27：长度只认模型自己声明的上限（厂商硬上限）；没声明就不拦。
   it('超过型号声明的上限 400、⛔ 建任务；没声明上限的型号不拦', async () => {

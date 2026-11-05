@@ -60,12 +60,22 @@ export function tailorImageRequestToModel<T extends TailorableImageRequest>(
       delete advancedParams.preciseReferenceStrength
       delete advancedParams.preciseReferenceFidelity
     }
-    // SVG 只在纯生成上成立：挂了参考图 chip 已经藏起来，残留的值在这里丢掉，
-    // 回到 PNG（服务端对「svg + 参考图」是 400）。没参考图时流式预览不成立。
-    if (advancedParams.outputFormat === 'svg') {
+    // SVG / GIF 只在纯生成上成立：挂了参考图 chip 已经藏起来，残留的值在这里
+    // 丢掉，回到 PNG（服务端对「svg/gif + 参考图」是 400）。没参考图时流式预览
+    // 不成立。帧数 / 速度只随 GIF 发（官方：只能与 gif 同发）。
+    const format = advancedParams.outputFormat
+    if (format === 'svg' || format === 'gif') {
       advancedParams = { ...advancedParams }
       if (hasReferenceImage) delete advancedParams.outputFormat
       else delete advancedParams.preview
+    }
+    if (
+      advancedParams.outputFormat !== 'gif' &&
+      (advancedParams.gifFrameCount || advancedParams.gifFrameDuration)
+    ) {
+      advancedParams = { ...advancedParams }
+      delete advancedParams.gifFrameCount
+      delete advancedParams.gifFrameDuration
     }
     const pruned = pruneIncompatibleCapabilityValues(
       advancedParams,

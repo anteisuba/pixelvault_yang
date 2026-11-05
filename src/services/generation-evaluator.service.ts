@@ -3,6 +3,7 @@ import 'server-only'
 import { db } from '@/lib/db'
 import { ApiRequestError } from '@/lib/errors'
 import type { Prisma } from '@/lib/generated/prisma/client'
+import { isGifImageUrl, isGifMimeType } from '@/lib/gif-image'
 import { logger } from '@/lib/logger'
 import { isSvgImageUrl, isSvgMimeType } from '@/lib/svg-image'
 import { validateLlmStructuredOutput } from '@/lib/llm-output-validator'
@@ -290,6 +291,13 @@ export async function evaluateGeneration(
       generationId,
     })
     return writeFailureEvaluation(generationId, 'svg_not_supported')
+  }
+  // GIF 动图同理：看图模型只看一帧，评不了整段动图，记失败、⛔ 不调模型。
+  if (isGifMimeType(generation.mimeType) || isGifImageUrl(generation.url)) {
+    logger.info('Generation evaluator skipped GIF generation', {
+      generationId,
+    })
+    return writeFailureEvaluation(generationId, 'gif_not_supported')
   }
 
   const assistant = await resolveAssistantRoute(dbUser.id)

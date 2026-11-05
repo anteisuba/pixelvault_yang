@@ -1,6 +1,9 @@
+import { readGifDimensions } from '../../../../../src/lib/gif-header'
+import { GIF_MIME_TYPE } from '../../../../../src/lib/gif-image'
 import {
   aspectRatioToOpenAISize,
   isImageResolutionTier,
+  openAIGifFrameSize,
   tieredOpenAISize,
 } from '../../../../../src/lib/image-output-size'
 import { readOpenAIImageStream } from '../../../../../src/lib/openai-image-stream'
@@ -20,7 +23,10 @@ import {
   R2_OBJECT_CACHE_CONTROL,
   readAdvancedRecord,
 } from '../../lib/image-io'
-import { createProviderResponseError } from '../../lib/provider-error'
+import {
+  createProviderResponseError,
+  WorkerProviderError,
+} from '../../lib/provider-error'
 
 export const OPENAI_BASE_URL = 'https://api.openai.com'
 
@@ -43,11 +49,22 @@ export async function generateOpenAIImage(
   const { providerInput } = context
   const advancedParams = readAdvancedRecord(context)
   const resolution = readStringField(advancedParams, 'resolution')
-  const { size, width, height } =
-    resolution && isImageResolutionTier(resolution)
+  const referenceImages = getImageReferenceInputs(context)
+  // SVG / GIF 只在 `/images/generations` 上成立，且官方不给流式预览 —— app 侧
+  // 已经拒了「SVG/GIF + 参考图」，这里再按同一条收口：有参考图就照旧出 PNG。
+  const requestedFormat = readStringField(advancedParams, 'outputFormat')
+  const outputFormat =
+    referenceImages.length === 0 &&
+    (requestedFormat === 'svg' || requestedFormat === 'gif')
+      ? requestedFormat
+      : 'png'
+  const gif = outputFormat === 'gif'
+  // GIF 的 size 是「每帧」尺寸：比例照选，每帧取官方最小总像素，帧数才放得下。
+  const { size, width, height } = gif
+    ? openAIGifFrameSize(providerInput.aspectRatio)
+    : resolution && isImageResolutionTier(resolution)
       ? tieredOpenAISize(providerInput.aspectRatio, resolution)
       : aspectRatioToOpenAISize(providerInput.aspectRatio)
-  const referenceImages = getImageReferenceInputs(context)
   const body: Record<string, unknown> = {
     model: providerInput.externalModelId,
     prompt: providerInput.prompt,
@@ -66,17 +83,18 @@ export async function generateOpenAIImage(
   if (providerInput.safetyIdentifier)
     body.safety_identifier = providerInput.safetyIdentifier
 
-  // SVG 只在 `/images/generations` 上成立，且官方不给流式预览 —— app 侧已经
-  // 拒了「SVG + 参考图」，这里再按同一条收口：有参考图就照旧出 PNG。
-  const svg =
-    readStringField(advancedParams, 'outputFormat') === 'svg' &&
-    referenceImages.length === 0
-  const streaming = !svg && advancedParams.preview === true
+  const streaming = outputFormat === 'png' && advancedParams.preview === true
   if (streaming) {
     body.stream = true
     body.partial_images = 2
   }
-  body.output_format = svg ? 'svg' : 'png'
+  body.output_format = outputFormat
+  if (gif) {
+    const frameCount = readStringField(advancedParams, 'gifFrameCount')
+    if (frameCount) body.frame_count = Number(frameCount)
+    const frameDuration = readStringField(advancedParams, 'gifFrameDuration')
+    if (frameDuration) body.frame_duration_ms = Number(frameDuration)
+  }
 
   const edit = referenceImages.length
     ? createImageEditBody(env, body, referenceImages)
@@ -108,7 +126,7 @@ export async function generateOpenAIImage(
       fallbackMessage: `OpenAI image generation failed (${response.status}).`,
     })
     edit?.cancel(failure)
-    throw failure
+    throw gif ? asGifBudgetError(failure, response.status) : failure
   }
 
   let b64: unknown
@@ -156,7 +174,9 @@ export async function generateOpenAIImage(
     throw new Error('OpenAI response did not include base64 image data.')
   }
 
-  if (svg) return storeOpenAISvg(env, context, b64, { width, height })
+  if (outputFormat === 'svg')
+    return storeOpenAISvg(env, context, b64, { width, height })
+  if (gif) return storeOpenAIGif(env, context, b64, { width, height })
 
   const bytes = base64ToBytes(b64)
   const mimeType = 'image/png'
@@ -174,6 +194,60 @@ export async function generateOpenAIImage(
     width,
     height,
     mimeType,
+  }
+}
+
+/**
+ * 官方没公布 GIF 的「整次请求像素额度」报错原话：GIF 请求的 400 只要提到
+ * pixel / frame / budget 就改写成固定句首，app 侧按这句认成
+ * `gif_frame_budget_exceeded`（「帧数太多」）。原话留在后半句。
+ * ⚠ 原话是猜的，首次付费实测后按真句子收紧。
+ */
+const GIF_BUDGET_SIGNAL = /pixel|frame|budget/i
+export const GIF_FRAME_BUDGET_MESSAGE =
+  'GIF frames exceed the request pixel budget'
+
+function asGifBudgetError(
+  failure: WorkerProviderError,
+  status: number,
+): WorkerProviderError {
+  if (status !== 400 || !GIF_BUDGET_SIGNAL.test(failure.message)) return failure
+  const { provider, phase, ...rest } = failure.providerMetadata
+  return new WorkerProviderError({
+    message: `${GIF_FRAME_BUDGET_MESSAGE}: ${failure.message}`,
+    provider: String(provider),
+    phase: String(phase),
+    errorCode: failure.errorCode,
+    providerMetadata: rest,
+  })
+}
+
+/**
+ * GIF 结果：宽高按文件头（逻辑屏幕尺寸）读，读不到才用请求值；存 `image/gif`。
+ */
+async function storeOpenAIGif(
+  env: ExecutionEnv,
+  context: WorkerImageRunContext,
+  b64: string,
+  requested: { width: number; height: number },
+) {
+  const bytes = base64ToBytes(b64)
+  const { width, height } = readGifDimensions(bytes) ?? requested
+  const key =
+    context.providerInput.outputStorageKey ?? `image/${context.runId}.gif`
+  const r2Key = key.endsWith('.gif') ? key : key.replace(/\.[^./]+$/, '.gif')
+  await env.GENERATION_BUCKET.put(r2Key, bytes, {
+    httpMetadata: {
+      contentType: GIF_MIME_TYPE,
+      cacheControl: R2_OBJECT_CACHE_CONTROL,
+    },
+  })
+  return {
+    artifactUrl: `${env.R2_PUBLIC_URL}/${r2Key}`,
+    imageR2Key: r2Key,
+    width,
+    height,
+    mimeType: GIF_MIME_TYPE,
   }
 }
 

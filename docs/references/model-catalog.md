@@ -161,7 +161,14 @@ RODIN_GEN_2_5 · HUNYUAN3D_V31_PRO · HUNYUAN3D_V3 · TRELLIS_2 · TRIPOSR（全
   - **存储**：Worker 把 SVG 过白名单清洗（`src/lib/svg-image.ts` `sanitizeGeneratedSvg`：去脚本 / 事件属性 / 外链 / 外部 `url()`，DTD/ENTITY 直接拒），宽高从 width/height/viewBox 读；R2 键 `.svg`、`image/svg+xml`、`Content-Disposition: attachment`（直开 CDN 链接只下载不渲染）。不做缩略图派生（Cloudflare Images 不认 SVG），列表直接用原件；下载名按 mime 取扩展名。
   - **转 PNG**：浏览器端光栅化（`src/lib/svg-to-png.ts`），长边 1024 / 2048 / 4096（缺省 2048），走普通上传存成新作品，SVG 原件不动。全站一个弹窗 `SvgToPngDialogHost`（`(main)/layout`），由 `lib/svg-to-png-request.ts` 的 promise store 驱动：结果台工具列 / 详情（顶替「新标签打开原图」）的「转 PNG」，以及拿 SVG 当输入时的拦截——参考图槽（`use-image-upload` 的增 / 换 / 设）和改图入口（`StudioWorkspaceUI.beginEdit`）先弹「先转 PNG 再继续？」，转好的 PNG 落回原处。卡片 / 结果图右下 / 左上有 `SVG` 角标。⚠ 读 CDN 像素要 CORS，预览部署（`*.vercel.app`）不在允许名单，那里转 PNG 会失败。
   - **服务端兜底**（没有前端拦截的入口：助手 `@`、画布、API 直调）：生成 / 视频的参考图、改图七个入口、LLM 看图（`getLlmImages` + 下载后按 mime 再查）遇 SVG 一律 400「先转 PNG」；生成评估遇 SVG 记 `svg_not_supported` 不调模型。3D 源图未单独拦（大概率落到 `missing_dimensions` 422，未实测）。
-- 未接（下一切片候选）：GIF 输出（`frame_count` 2–64 / `frame_duration_ms` 20–2000）。未做付费生成实测（markup、SVG 同样未实测）。
+- GIF 输出（同日，按 `.claude/mockups/gif-output/` 三触点落地）：
+  - **生成**：`outputFormat` 第三档 `gif`；选中后「专属」里多两颗 select：帧数 `gifFrameCount`（9 / 16 / 24 / 32 / 48 / 64，缺省 9 不发）与速度 `gifFrameDuration`（每帧 200 / 400 / 100 / 50 ms，缺省 200 不发），只在 outputFormat=gif 且没挂参考图时出现；生成预览收起（同 SVG）。Worker 发 `output_format=gif` + `frame_count` / `frame_duration_ms`，不流式。服务端：gif + 参考图 / 蒙版 → 400；非 gif 请求带帧参数 → 400；裁剪层（`tailor-image-request`）在格式不是 gif 时先把帧参数丢掉。**画布暂不开放**（格式 chip 被过滤，帧数 / 速度跟着不出现）。
+  - **每帧尺寸**：owner 选「比例照选，每帧长边 512」，但官方每张总像素下限 655,360，512 边不合法 —— 改为「比例照选，每帧取官方下限」（`openAIGifFrameSize`：1:1 = 816×816，边长 16 的倍数），无视分辨率档。帧数 × 每帧像素还要落在整次请求的像素额度里（官方未公布具体数）。
+  - **存储**：R2 键 `.gif`、`image/gif`，宽高读 GIF 文件头（`src/lib/gif-header.ts`），读不到用请求值。
+  - **报错**：GIF 请求的 400 只要原话提到 pixel / frame / budget，Worker 改写成固定句首「GIF frames exceed the request pixel budget」，app 认成 `gif_frame_budget_exceeded` →「帧数太多…减少帧数再试」。⚠ 原话是猜的，首次付费实测后按真句子收紧。mockup 里的「一键减到 16 帧重试」没做。
+  - **价格**：官方没给 GIF 单价（按实际用量），成本预览把出 GIF 的模型算「未标价」，⛔ 不拿单张 PNG 价顶上。
+  - **当输入**：改图 / 参考图槽与 SVG 共用 `SvgToPngDialogHost`（请求带 `kind: 'gif'`）：「这张是 GIF 动图…用第一帧（存成 PNG 新作品）继续？」，浏览器取首帧（`src/lib/gif-first-frame.ts`，原尺寸）存新作品后落回原处。服务端兜底：生成 / 视频参考图、改图七入口、LLM 看图 400，生成评估记 `gif_not_supported`（判据 `src/lib/gif-image.ts`：键以 `.gif` 结尾或 mime）。结果台左上 `GIF` 角标，舞台与详情直接播。
+- 未做付费生成实测（markup、SVG、GIF 同样未实测）。
 
 ## 本月发现（2026-09-09 · GPT Image 2.5）
 

@@ -292,10 +292,29 @@
       "high": "High"
     },
     "outputFormat": "Output format",
-    "outputFormatHint": "SVG is a vector image you can keep editing in Figma, Illustrator or Inkscape. Only available without reference images, and without a generation preview. To edit it or use it as a reference, convert it to PNG from the result first.",
+    "outputFormatHint": "SVG is a vector image you can keep editing in Figma, Illustrator or Inkscape; GIF is an animated image. Both are only available without reference images, and neither has a generation preview. To edit or use one as a reference, convert an SVG to PNG, or take a GIF's first frame.",
     "outputFormatOption": {
       "png": "PNG",
-      "svg": "SVG vector"
+      "svg": "SVG vector",
+      "gif": "Animated GIF"
+    },
+    "gifFrameCount": "Frames",
+    "gifFrameCountHint": "How many frames the GIF has. More frames move more smoothly, but each frame has a fixed size, so too many frames exceed the request's pixel budget and fail.",
+    "gifFrameCountOption": {
+      "9": "9 frames",
+      "16": "16 frames",
+      "24": "24 frames",
+      "32": "32 frames",
+      "48": "48 frames",
+      "64": "64 frames"
+    },
+    "gifFrameDuration": "Speed",
+    "gifFrameDurationHint": "How long each frame stays on screen. Total length = frames × frame duration.",
+    "gifFrameDurationOption": {
+      "200": "Normal 0.2s",
+      "400": "Slow 0.4s",
+      "100": "Fast 0.1s",
+      "50": "Very fast 0.05s"
     },
     "background": "Background",
     "backgroundHint": "Choose whether the generated image has a transparent or opaque background.",
@@ -964,6 +983,8 @@
       "quality": "Quality",
       "complexity": "Complexity",
       "outputFormat": "Format",
+      "gifFrameCount": "Frames",
+      "gifFrameDuration": "Speed",
       "background": "Background",
       "layerDecomposition": "Split layers",
       "style": "Style",

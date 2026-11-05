@@ -47,7 +47,7 @@ export function SvgToPngDialogHost() {
     getSvgToPngRequest,
     () => null,
   )
-  const { convert, convertingId } = useSvgToPng()
+  const { convert, convertGifFirstFrame, convertingId } = useSvgToPng()
   // 档位记在「哪一条请求」名下：来了新请求就回到默认（上一张选 4096 不该粘到
   // 下一张），⛔ 用 effect 去重置。
   const [choice, setChoice] = useState<{
@@ -59,13 +59,15 @@ export function SvgToPngDialogHost() {
   const busy = convertingId !== null
 
   const gate = request?.mode === 'gate'
+  // GIF 只有「取第一帧」一种做法，原尺寸，不给长边档。
+  const gif = request?.kind === 'gif'
 
   const handleConfirm = async () => {
     if (!request) return
-    const png = await convert(
-      { url: request.url, id: request.id },
-      Number(longEdge) as SvgToPngLongEdge,
-    )
+    const source = { url: request.url, id: request.id }
+    const png = gif
+      ? await convertGifFirstFrame(source)
+      : await convert(source, Number(longEdge) as SvgToPngLongEdge)
     // 失败已经 toast 过；弹窗留着，用户可以换一档重试或取消。
     if (png) settleSvgToPngRequest(png)
   }
@@ -83,27 +85,33 @@ export function SvgToPngDialogHost() {
       >
         <ResponsiveDialogHeader>
           <ResponsiveDialogTitle>
-            {gate ? t('gateTitle') : t('convertTitle')}
+            {gif
+              ? t('gifGateTitle')
+              : gate
+                ? t('gateTitle')
+                : t('convertTitle')}
           </ResponsiveDialogTitle>
           <ResponsiveDialogDescription>
-            {gate ? t('gateBody') : t('convertBody')}
+            {gif ? t('gifGateBody') : gate ? t('gateBody') : t('convertBody')}
           </ResponsiveDialogDescription>
         </ResponsiveDialogHeader>
 
-        <div className="flex items-center justify-between gap-3 py-2">
-          <span className="text-2sm text-muted-foreground">
-            {t('sizeHint')}
-          </span>
-          <LiquidSegmented
-            items={LONG_EDGE_ITEMS}
-            value={longEdge}
-            onChange={setLongEdge}
-            ariaLabel={t('sizeHint')}
-            semantics="radio"
-            size="sm"
-            disabled={busy}
-          />
-        </div>
+        {gif ? null : (
+          <div className="flex items-center justify-between gap-3 py-2">
+            <span className="text-2sm text-muted-foreground">
+              {t('sizeHint')}
+            </span>
+            <LiquidSegmented
+              items={LONG_EDGE_ITEMS}
+              value={longEdge}
+              onChange={setLongEdge}
+              ariaLabel={t('sizeHint')}
+              semantics="radio"
+              size="sm"
+              disabled={busy}
+            />
+          </div>
+        )}
 
         <ResponsiveDialogFooter>
           <Button
@@ -114,7 +122,15 @@ export function SvgToPngDialogHost() {
             {t('gateCancel')}
           </Button>
           <Button disabled={busy} onClick={() => void handleConfirm()}>
-            {busy ? t('converting') : gate ? t('gateConfirm') : t('action')}
+            {busy
+              ? gif
+                ? t('gifConverting')
+                : t('converting')
+              : gif
+                ? t('gifGateConfirm')
+                : gate
+                  ? t('gateConfirm')
+                  : t('action')}
           </Button>
         </ResponsiveDialogFooter>
       </ResponsiveDialogContent>

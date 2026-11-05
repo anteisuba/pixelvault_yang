@@ -2,7 +2,9 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import type { GenerationRecord } from '@/types'
 import {
+  gateNonRasterInput,
   getSvgToPngRequest,
+  nonRasterInputKind,
   requestSvgToPng,
   settleSvgToPngRequest,
   subscribeSvgToPngRequest,
@@ -41,5 +43,37 @@ describe('svg-to-png request store', () => {
     expect(getSvgToPngRequest()?.url).toBe('https://x/2.svg')
     settleSvgToPngRequest(null)
     await expect(second).resolves.toBeNull()
+  })
+
+  // GIF 当输入（owner 2026-11-05 gif-output mockup ③）：与 SVG 共用这一个弹窗。
+  it('tells SVG and GIF inputs apart and lets bitmaps through', () => {
+    expect(nonRasterInputKind('https://cdn.example.com/a.svg')).toBe('svg')
+    expect(nonRasterInputKind('https://cdn.example.com/a.gif')).toBe('gif')
+    expect(nonRasterInputKind('data:image/gif;base64,R0lG')).toBe('gif')
+    expect(nonRasterInputKind('https://cdn.example.com/a.png')).toBeNull()
+    expect(nonRasterInputKind(undefined)).toBeNull()
+  })
+
+  it('gates a GIF input and hands the first-frame PNG back', async () => {
+    const received: GenerationRecord[] = []
+    expect(
+      gateNonRasterInput({ url: 'https://x/a.png' }, (p) => received.push(p)),
+    ).toBe(false)
+    expect(getSvgToPngRequest()).toBeNull()
+
+    expect(
+      gateNonRasterInput({ url: 'https://x/a.gif', id: 'g1' }, (p) =>
+        received.push(p),
+      ),
+    ).toBe(true)
+    expect(getSvgToPngRequest()).toMatchObject({
+      url: 'https://x/a.gif',
+      id: 'g1',
+      mode: 'gate',
+      kind: 'gif',
+    })
+    settleSvgToPngRequest(png)
+    await Promise.resolve()
+    expect(received).toEqual([png])
   })
 })

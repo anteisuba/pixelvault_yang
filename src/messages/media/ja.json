@@ -12,7 +12,14 @@
     "gateConfirm": "PNG に変換して続ける",
     "gateCancel": "キャンセル",
     "convertTitle": "PNG に変換",
-    "convertBody": "元の SVG はそのまま残り、PNG は新しい作品として保存されます。"
+    "convertBody": "元の SVG はそのまま残り、PNG は新しい作品として保存されます。",
+    "gifBadge": "GIF",
+    "gifGateTitle": "これは GIF アニメです",
+    "gifGateBody": "画像編集・参照画像・アシスタントは 1 フレームしか見ません。最初のフレーム（新しい PNG 作品として保存）で続けますか？",
+    "gifGateConfirm": "最初のフレームで続ける",
+    "gifConverting": "最初のフレームを取り出しています…",
+    "gifDone": "最初のフレームを新しい PNG 作品として保存しました",
+    "gifFailed": "最初のフレームを取り出せませんでした"
   },
   "audioParams": {
     "pace": "話す速度",

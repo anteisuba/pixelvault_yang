@@ -548,18 +548,18 @@ export function StudioOperatorChatText({
           typeof part === 'string' ? (
             <Fragment key={index}>{withImageReferences(part, all)}</Fragment>
           ) : (
-            // 引用角标（owner 11-05「做成能点的」）：和正文角标同一个样子，点了在新页打开出处。
+            // 出处（owner 11-06「标题加上蓝色可点」）：写网站名、强调色，点了在新页打开（ui-spec §3.1 链接例外）。
             <a
               key={index}
               href={part.url}
               target="_blank"
               rel="noopener noreferrer"
-              title={siteOf(part.url)}
+              title={part.url}
               data-testid="operator-chat-citation"
               aria-label={t('answer.citation', { index: part.cite })}
-              className="mx-px inline-flex min-w-4 items-center justify-center rounded border border-border px-1 align-super font-mono text-2xs tabular-nums leading-4 text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none"
+              className="mx-1 whitespace-nowrap text-highlight underline-offset-2 hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:shadow-focus"
             >
-              {part.cite}
+              {siteOf(part.url)}
             </a>
           ),
         )

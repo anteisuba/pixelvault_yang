@@ -379,6 +379,14 @@ export const NODE_STUDIO_DOCK = {
 } as const
 
 /**
+ * 配音卡名字行「→ 镜 3 · 4.0s / 3.6s」（node-canvas-v2 §4，owner 2026-11-03）：
+ * 配音与镜头时长差超过这么多秒，读数转琥珀。
+ */
+export const NODE_VOICE_SHOT_LINK = {
+  mismatchSeconds: 0.5,
+} as const
+
+/**
  * Cast 卡匣（references/pages/node-canvas.md §6.2）：mirrors the identity
  * nodes (character/background/voice/videoReference) already on the ReactFlow
  * canvas as a second, dock-level presentation. Horizontal inset/avoidance

@@ -11,7 +11,7 @@
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import { NODE_V4_VIDEO_SUBTYPE_IDS } from '@/constants/node-types'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
-import type { NodeSlotId } from '@/constants/node-slots'
+import { NODE_SLOT_IDS, type NodeSlotId } from '@/constants/node-slots'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
 import { formatShotDisplayName } from '@/lib/node-display-name'
 import type { NodeV4, NodeWorkflowEdgeV4 } from '@/types/node-workflow'
@@ -63,18 +63,13 @@ function shotThumbnail(
  * 画布上的镜头，**按镜头带顺序**：有 `shotNo` 的先按它排，没有的按位置（上→下、
  * 左→右）排在后面 —— 这与镜头带自己的排序同一条判据。
  */
-export function buildConnectToShotTargets({
-  nodes,
-  edges,
-  formatDuration,
-}: BuildConnectToShotTargetsOptions): readonly ConnectToShotTarget[] {
-  const byId = new Map(nodes.map((node) => [node.id, node]))
+function orderedShots(nodes: readonly NodeV4[]): readonly NodeV4[] {
   const shots = nodes.filter(
     (node) =>
       node.data.kind === NODE_MEDIA_KIND_IDS.video &&
       node.data.subtype === NODE_V4_VIDEO_SUBTYPE_IDS.shot,
   )
-  const ordered = [...shots].sort((a, b) => {
+  return [...shots].sort((a, b) => {
     const aNo = 'shotNo' in a.data ? a.data.shotNo : undefined
     const bNo = 'shotNo' in b.data ? b.data.shotNo : undefined
     if (aNo !== undefined && bNo !== undefined && aNo !== bNo) return aNo - bNo
@@ -83,6 +78,15 @@ export function buildConnectToShotTargets({
     if (a.position.y !== b.position.y) return a.position.y - b.position.y
     return a.position.x - b.position.x
   })
+}
+
+export function buildConnectToShotTargets({
+  nodes,
+  edges,
+  formatDuration,
+}: BuildConnectToShotTargetsOptions): readonly ConnectToShotTarget[] {
+  const byId = new Map(nodes.map((node) => [node.id, node]))
+  const ordered = orderedShots(nodes)
 
   return ordered.map((node) => {
     const seconds = shotSeconds(node)
@@ -108,6 +112,50 @@ export function buildConnectToShotTargets({
       occupiedSlots,
     }
   })
+}
+
+/** 配音卡连进了哪几张镜头的 `voice` 槽（一张镜头一项）。 */
+export interface VoiceShotLink {
+  readonly shotId: string
+  /** 镜号；没编号的镜头按镜头带顺序数（从 1 起）。 */
+  readonly shotNo: number
+  /** 镜头时长（秒）；不知道 = 0。 */
+  readonly seconds: number
+}
+
+/**
+ * 配音卡名字行「→ 镜 3 · 4.0s / 3.6s」的来源（node-canvas-v2 §4，owner 11-03）：
+ * 这段配音连进的镜头，**按镜头带顺序**——第一项就是卡上写的那一镜（owner 11-05：
+ * 连了好几镜写第一镜 +「等 N 镜」）。纯读，⛔ 不认识 i18n。
+ */
+export function findVoiceShotLinks({
+  audioId,
+  nodes,
+  edges,
+}: {
+  readonly audioId: string
+  readonly nodes: readonly NodeV4[]
+  readonly edges: readonly NodeWorkflowEdgeV4[]
+}): readonly VoiceShotLink[] {
+  const linked = new Set(
+    edges
+      .filter(
+        (edge) => edge.source === audioId && edge.slot === NODE_SLOT_IDS.voice,
+      )
+      .map((edge) => edge.target),
+  )
+  if (linked.size === 0) return []
+  const links: VoiceShotLink[] = []
+  orderedShots(nodes).forEach((node, index) => {
+    if (!linked.has(node.id)) return
+    const shotNo = 'shotNo' in node.data ? node.data.shotNo : undefined
+    links.push({
+      shotId: node.id,
+      shotNo: shotNo ?? index + 1,
+      seconds: shotSeconds(node),
+    })
+  })
+  return links
 }
 
 /**

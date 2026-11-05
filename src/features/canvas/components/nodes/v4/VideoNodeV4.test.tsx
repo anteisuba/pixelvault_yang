@@ -377,7 +377,7 @@ describe('空卡 / 有片两态（spec §5）', () => {
       READY.videoThumbnailUrl,
     )
     const duration = screen.getByText('0:07')
-    expect(duration).toHaveClass('right-2.5', 'bottom-2.25')
+    expect(duration.parentElement).toHaveClass('right-2.5', 'bottom-2.25')
     expect(duration).not.toHaveClass('rounded-sm')
     expect(duration.style.borderRadius).toBe(
       'calc(var(--radius-node-thumb) / 2)',
@@ -385,6 +385,30 @@ describe('空卡 / 有片两态（spec §5）', () => {
     // 压在画面上的读数两档都是暗底白字（暗色主题模块）。
     expect(duration).toHaveClass('bg-black/45', 'text-white', 'text-2xs')
     expect(document.querySelector('[data-video-ref-rail]')).toBeNull()
+    // 没填景别运镜 = 不出角标。
+    expect(document.querySelector('[data-video-shot-spec]')).toBeNull()
+  })
+
+  it('镜头卡角标「景别 · 运镜」排在时长左边，两格读 shot 字段（owner 11-03）', () => {
+    renderVideo(
+      harness([
+        videoNode('v_1', {
+          ...READY,
+          shot: { size: 'medium', move: '缓慢推近' },
+        }),
+      ]),
+    )
+    const badge = document.querySelector('[data-video-shot-spec]')!
+    expect(badge.textContent).toBe('sizes.medium · 缓慢推近')
+    expect(badge).toHaveClass('bg-black/45', 'text-white', 'truncate')
+    expect(badge.nextElementSibling?.textContent).toBe('0:07')
+  })
+
+  it('没片的镜头卡也写角标（owner 11-05），只填了一格就只写那一格', () => {
+    renderVideo(harness([videoNode('v_1', { shot: { move: '手持' } })]))
+    const badge = document.querySelector('[data-video-shot-spec]')!
+    expect(badge.textContent).toBe('手持')
+    expect(badge).toHaveClass('text-muted-foreground', 'right-2.5')
   })
 
   it('首帧到达前只露灰底 ▶，图或视频首帧到达后线性淡入', () => {

@@ -1547,6 +1547,11 @@
           "confirming": "裁剪中…",
           "failed": "裁剪失败",
           "derivedName": "{name} · 裁剪"
+        },
+        "shotLink": {
+          "shot": "→ 镜 {shotNo}",
+          "more": "等 {count} 镜",
+          "goTo": "跳到镜 {shotNo}"
         }
       },
       "video": {

@@ -1547,6 +1547,11 @@
           "confirming": "Trimming…",
           "failed": "Trim failed",
           "derivedName": "{name} · Trim"
+        },
+        "shotLink": {
+          "shot": "→ Shot {shotNo}",
+          "more": "+{count} more",
+          "goTo": "Go to shot {shotNo}"
         }
       },
       "video": {

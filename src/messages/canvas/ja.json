@@ -1547,6 +1547,11 @@
           "confirming": "トリム中…",
           "failed": "トリムに失敗しました",
           "derivedName": "{name} · トリム"
+        },
+        "shotLink": {
+          "shot": "→ カット {shotNo}",
+          "more": "ほか {count} カット",
+          "goTo": "カット {shotNo} へ移動"
         }
       },
       "video": {

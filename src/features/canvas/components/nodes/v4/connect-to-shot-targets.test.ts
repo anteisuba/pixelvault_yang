@@ -15,6 +15,7 @@ import type {
 import {
   buildConnectToShotOps,
   buildConnectToShotTargets,
+  findVoiceShotLinks,
 } from './connect-to-shot-targets'
 
 const NOW = '2026-09-10T00:00:00.000Z'
@@ -159,5 +160,42 @@ describe('buildConnectToShotOps（替换 = 先断旧边）', () => {
         slot: NODE_SLOT_IDS.voice,
       },
     ])
+  })
+})
+
+describe('findVoiceShotLinks（配音卡名字行「→ 镜 3 · 4.0s / 3.6s」）', () => {
+  it('只认这段配音连进镜头 voice 槽的边，按镜头带顺序，带时长', () => {
+    const links = findVoiceShotLinks({
+      audioId: 'v',
+      nodes: [
+        shot('late', { shotNo: 5, durationSec: 3.6 }),
+        shot('early', { shotNo: 3, params: { duration: '4' } }),
+        shot('other', { shotNo: 1 }),
+        node('v', { kind: NODE_MEDIA_KIND_IDS.audio }),
+      ],
+      edges: [
+        edge('e1', 'v', 'late', NODE_SLOT_IDS.voice),
+        edge('e2', 'v', 'early', NODE_SLOT_IDS.voice),
+        // 别的槽、别的源都不算。
+        edge('e3', 'v', 'other', NODE_SLOT_IDS.reference),
+        edge('e4', 'x', 'other', NODE_SLOT_IDS.voice),
+      ],
+    })
+    expect(links).toEqual([
+      { shotId: 'early', shotNo: 3, seconds: 4 },
+      { shotId: 'late', shotNo: 5, seconds: 3.6 },
+    ])
+  })
+
+  it('没编号的镜头按镜头带顺序数号；不知道时长 = 0；没连 = 空', () => {
+    const nodes = [shot('a', { shotNo: 1 }), shot('b', {}, { x: 0, y: 200 })]
+    expect(
+      findVoiceShotLinks({
+        audioId: 'v',
+        nodes,
+        edges: [edge('e1', 'v', 'b', NODE_SLOT_IDS.voice)],
+      }),
+    ).toEqual([{ shotId: 'b', shotNo: 2, seconds: 0 }])
+    expect(findVoiceShotLinks({ audioId: 'v', nodes, edges: [] })).toEqual([])
   })
 })

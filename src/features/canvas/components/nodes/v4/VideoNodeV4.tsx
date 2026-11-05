@@ -108,6 +108,7 @@ import { CharacterMentionRail } from './character/CharacterMentionRail'
 export function VideoNodeV4({ id, data, selected }: NodeProps) {
   const t = useTranslations('StudioNode.v4')
   const tVideo = useTranslations('StudioNode.v4.video')
+  const tShot = useTranslations('StudioNode.shotTable')
   const tStage = useTranslations('StudioV3')
   const tPicker = useTranslations('ModelPicker')
   // 这张卡自己的「未选渠道」闸（gateId = 节点 id，与卡上那颗 chip 同一对）。
@@ -181,6 +182,20 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
     videoData.subtype === NODE_V4_VIDEO_SUBTYPE_IDS.shot
       ? videoData.label
       : videoData.name
+  /**
+   * 镜头卡右下角的「中景 · 推」（node-canvas-v2 §5，owner 11-03）：读 `shot.size` /
+   * `shot.move`，与镜头表同一组字段；两格都空就不写。owner 11-05：没片也显示 ——
+   * 先填景别运镜再出片时，正是没片的时候最需要看到这一镜怎么拍。
+   */
+  const shotSpecBadge =
+    videoData.subtype === NODE_V4_VIDEO_SUBTYPE_IDS.shot
+      ? [
+          videoData.shot?.size ? tShot(`sizes.${videoData.shot.size}`) : null,
+          videoData.shot?.move ?? null,
+        ]
+          .filter((part): part is string => Boolean(part))
+          .join(' · ')
+      : ''
 
   /**
    * 轨 / 草稿 / 参数 / 模型 / 发送 / 上传落卡 —— 与手机镜头带的底部抽屉共用
@@ -721,6 +736,15 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
                 {t('chrome.emptyLibrary')}
               </button>
             </div>
+            {shotSpecBadge ? (
+              <span
+                data-video-shot-spec
+                title={shotSpecBadge}
+                className="absolute right-2.5 bottom-2.25 max-w-48 truncate text-2xs leading-3.5 text-muted-foreground"
+              >
+                {shotSpecBadge}
+              </span>
+            ) : null}
           </div>
         }
         emptyHeight={height}
@@ -990,17 +1014,35 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
             ) : null}
 
             {videoData.url &&
-            durationSeconds > 0 &&
+            (durationSeconds > 0 || shotSpecBadge) &&
             !hovering &&
             !pinned &&
             !picking ? (
-              <span
-                data-video-duration
-                className="absolute right-2.5 bottom-2.25 bg-black/45 px-1.5 py-0.25 font-mono text-2xs leading-3.5 tabular-nums text-white"
-                style={{ borderRadius: 'calc(var(--radius-node-thumb) / 2)' }}
-              >
-                {formatVideoClock(durationSeconds)}
-              </span>
+              <div className="absolute right-2.5 bottom-2.25 flex items-center gap-1">
+                {shotSpecBadge ? (
+                  <span
+                    data-video-shot-spec
+                    title={shotSpecBadge}
+                    className="max-w-48 truncate bg-black/45 px-1.5 py-0.25 text-2xs leading-3.5 text-white"
+                    style={{
+                      borderRadius: 'calc(var(--radius-node-thumb) / 2)',
+                    }}
+                  >
+                    {shotSpecBadge}
+                  </span>
+                ) : null}
+                {durationSeconds > 0 ? (
+                  <span
+                    data-video-duration
+                    className="bg-black/45 px-1.5 py-0.25 font-mono text-2xs leading-3.5 tabular-nums text-white"
+                    style={{
+                      borderRadius: 'calc(var(--radius-node-thumb) / 2)',
+                    }}
+                  >
+                    {formatVideoClock(durationSeconds)}
+                  </span>
+                ) : null}
+              </div>
             ) : null}
 
             {/* 重画 / 出图那一拍 / 失败：片留着，盖一层白纱（加载态 A）；线、原因与

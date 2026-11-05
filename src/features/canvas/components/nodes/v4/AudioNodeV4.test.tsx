@@ -1324,3 +1324,67 @@ describe('加语气浮层', () => {
     expect(onInsert).toHaveBeenCalledWith([{ label: '像在憋着笑' }])
   })
 })
+
+describe('名字行「→ 镜 3 · 4.0s / 3.6s」（node-canvas-v2 §4，owner 11-03）', () => {
+  const shotCard = (id: string, shotNo: number, durationSec: number) =>
+    ({
+      id,
+      position: { x: 400, y: shotNo * 100 },
+      data: {
+        kind: 'video',
+        subtype: 'shot',
+        name: id,
+        shotNo,
+        durationSec,
+        status: 'idle',
+        createdAt: NOW,
+      },
+    }) as NodeV4
+  const voiceEdge = (target: string, source = 'a_1') => ({
+    id: `e_${target}`,
+    source,
+    sourceHandle: 'out' as const,
+    target,
+    slot: 'voice' as const,
+  })
+
+  it('连了几镜：写第一镜 +「等 N 镜」；任一镜差超 0.5s 转琥珀；点它平移到第一镜', () => {
+    const context = harness(
+      [
+        audioNode('a_1', { url: 'https://cdn.test/v.mp3', durationSec: 4 }),
+        shotCard('s_5', 5, 5),
+        shotCard('s_3', 3, 3.6),
+      ],
+      { edges: [voiceEdge('s_5'), voiceEdge('s_3')] },
+    )
+    renderAudio(context)
+    const link = document.querySelector('[data-audio-shot-link]')!
+    expect(link.textContent).toBe(
+      'shotLink.shot:3 · 4.0s / 3.6s shotLink.more:1',
+    )
+    expect(link.getAttribute('data-mismatch')).toBe('true')
+    expect(link).toHaveClass('text-status-warning', 'ml-auto')
+    fireEvent.click(link)
+    expect(context.onFocusNode).toHaveBeenCalledWith('s_3')
+  })
+
+  it('差在 0.5s 以内是平常灰字；没连镜头就不写', () => {
+    const { unmount } = renderAudio(
+      harness(
+        [
+          audioNode('a_1', { url: 'https://cdn.test/v.mp3', durationSec: 4 }),
+          shotCard('s_3', 3, 3.6),
+        ],
+        { edges: [voiceEdge('s_3')] },
+      ),
+    )
+    const link = document.querySelector('[data-audio-shot-link]')!
+    expect(link.textContent).toBe('shotLink.shot:3 · 4.0s / 3.6s')
+    expect(link.getAttribute('data-mismatch')).toBe('false')
+    expect(link).toHaveClass('text-muted-foreground')
+    unmount()
+
+    renderAudio(harness([audioNode('a_1', { durationSec: 4 })]))
+    expect(document.querySelector('[data-audio-shot-link]')).toBeNull()
+  })
+})

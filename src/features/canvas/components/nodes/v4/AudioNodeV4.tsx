@@ -58,7 +58,11 @@ import {
   NODE_ASSISTANT_WRITE_MODES,
 } from '@/constants/node-assistant-ops'
 import { NODE_SLOT_IDS } from '@/constants/node-slots'
-import { NODE_STUDIO_DOCK, NODE_V4_CARD } from '@/constants/node-studio'
+import {
+  NODE_STUDIO_DOCK,
+  NODE_V4_CARD,
+  NODE_VOICE_SHOT_LINK,
+} from '@/constants/node-studio'
 import {
   NODE_MEDIA_KIND_IDS,
   NODE_V4_AUDIO_SUBTYPE_IDS,
@@ -111,6 +115,7 @@ import { GROW_CLOSE_MS } from './chrome/use-grow-from-origin'
 import {
   buildConnectToShotOps,
   buildConnectToShotTargets,
+  findVoiceShotLinks,
 } from './connect-to-shot-targets'
 import {
   AUDIO_CARD,
@@ -557,6 +562,41 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
     }
   }
 
+  /**
+   * 名字行「→ 镜 3 · 4.0s / 3.6s」（node-canvas-v2 §4，owner 11-03）：配音连进了哪几镜。
+   * 环境音不进镜头的 `voice` 槽，不算。读数 = 配音时长 / 第一镜时长；任一镜差超
+   * `mismatchSeconds` 转琥珀。两边有一边不知道时长就只写镜号。
+   */
+  const voiceShotLinks =
+    audioData.subtype === NODE_V4_AUDIO_SUBTYPE_IDS.ambience
+      ? []
+      : findVoiceShotLinks({
+          audioId: id,
+          nodes: canvas.nodes,
+          edges: canvas.edges,
+        })
+  const firstShotLink = voiceShotLinks[0]
+  const shotLinkMismatch =
+    seconds > 0 &&
+    voiceShotLinks.some(
+      (link) =>
+        link.seconds > 0 &&
+        Math.abs(seconds - link.seconds) > NODE_VOICE_SHOT_LINK.mismatchSeconds,
+    )
+  const shotLinkBadge = firstShotLink
+    ? [
+        tAudio('shotLink.shot', { shotNo: firstShotLink.shotNo }),
+        seconds > 0 && firstShotLink.seconds > 0
+          ? `${seconds.toFixed(1)}s / ${firstShotLink.seconds.toFixed(1)}s`
+          : null,
+      ]
+        .filter((part): part is string => Boolean(part))
+        .join(' · ') +
+      (voiceShotLinks.length > 1
+        ? ` ${tAudio('shotLink.more', { count: voiceShotLinks.length - 1 })}`
+        : '')
+    : ''
+
   /** 「连到镜头」列表 = 画布上的视频卡，按镜头带顺序（spec §1.13）。 */
   const shotTargets = buildConnectToShotTargets({
     nodes: canvas.nodes,
@@ -771,6 +811,37 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
         name={audioData.name}
         renameAriaLabel={t('renameNode')}
         onRename={renameNode}
+        {...(firstShotLink
+          ? {
+              nameTrailing: (
+                <button
+                  type="button"
+                  data-audio-shot-link
+                  data-mismatch={shotLinkMismatch ? 'true' : 'false'}
+                  aria-label={tAudio('shotLink.goTo', {
+                    shotNo: firstShotLink.shotNo,
+                  })}
+                  title={shotLinkBadge}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    canvas.onFocusNode(firstShotLink.shotId)
+                    flashNodeCard(
+                      firstShotLink.shotId,
+                      NODE_STUDIO_DOCK.focusDurationMs,
+                    )
+                  }}
+                  className={cn(
+                    'nodrag nopan ml-auto min-w-0 shrink truncate rounded-sm px-0.5 tabular-nums transition-colors duration-fast ease-standard hover:bg-surface-fill-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+                    shotLinkMismatch
+                      ? 'text-status-warning'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  {shotLinkBadge}
+                </button>
+              ),
+            }
+          : {})}
         selected={Boolean(selected)}
         width={NODE_V4_CARD.collapsedWidth}
         empty={empty}

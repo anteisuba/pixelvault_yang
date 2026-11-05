@@ -2,14 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('server-only', () => ({}))
 
-const { completion, stream } = vi.hoisted(() => ({
+const { completion } = vi.hoisted(() => ({
   completion: vi.fn(),
-  stream: vi.fn(),
 }))
 
 vi.mock('@/services/llm-text.service', () => ({
   llmTextCompletion: completion,
-  llmTextStream: stream,
   isLlmTextContextLimitError: (error: unknown) =>
     error instanceof Error && error.message === 'context overflow',
 }))
@@ -19,10 +17,7 @@ import {
   expectSelectedProviderOnly,
   providerUsesOf,
 } from '@/test/selected-provider-only'
-import {
-  completeAssistantTextWithContextRetry,
-  streamAssistantTextWithContextRetry,
-} from './assistant-completion.service'
+import { completeAssistantTextWithContextRetry } from './assistant-completion.service'
 
 const workerFetch =
   vi.fn<(url: string, init?: RequestInit) => Promise<Response>>()
@@ -37,180 +32,104 @@ const options = {
   contextCompactionTargetLength: 20,
 }
 
-async function collect(chunks: AsyncIterable<string>) {
-  const result: string[] = []
-  for await (const chunk of chunks) result.push(chunk)
-  return result
-}
-
 describe('assistant completion cancellation and context retry', () => {
   beforeEach(() => {
     completion.mockReset()
-    stream.mockReset()
   })
 
-  it.each(['completion', 'stream'] as const)(
-    '%s does not dispatch a pre-cancelled request',
-    async (mode) => {
-      const controller = new AbortController()
-      const reason = new DOMException('stopped', 'AbortError')
+  it('does not dispatch a pre-cancelled request', async () => {
+    const controller = new AbortController()
+    const reason = new DOMException('stopped', 'AbortError')
+    controller.abort(reason)
+    const buildUserPrompt = vi.fn(() => 'full')
+    await expect(
+      completeAssistantTextWithContextRetry({
+        ...options,
+        signal: controller.signal,
+        buildUserPrompt,
+      }),
+    ).rejects.toBe(reason)
+    expect(buildUserPrompt).not.toHaveBeenCalled()
+    expect(completion).not.toHaveBeenCalled()
+  })
+
+  it('forwards cancellation to both context attempts', async () => {
+    const signal = new AbortController().signal
+    const buildUserPrompt = vi.fn((limit?: number) =>
+      limit ? 'compact' : 'full',
+    )
+    completion.mockRejectedValueOnce(new Error('context overflow'))
+    completion.mockResolvedValueOnce('answer')
+    await expect(
+      completeAssistantTextWithContextRetry({
+        ...options,
+        signal,
+        buildUserPrompt,
+      }),
+    ).resolves.toBe('answer')
+    expect(completion).toHaveBeenCalledTimes(2)
+    expect(completion).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ signal, userPrompt: 'full' }),
+    )
+    expect(completion).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ signal, userPrompt: 'compact' }),
+    )
+    expect(buildUserPrompt).toHaveBeenLastCalledWith(20)
+  })
+
+  it('does not compact or retry after cancellation even if the provider reports overflow', async () => {
+    const controller = new AbortController()
+    const reason = new DOMException('stopped', 'AbortError')
+    const buildUserPrompt = vi.fn(() => 'full')
+    completion.mockImplementationOnce(async () => {
       controller.abort(reason)
-      const buildUserPrompt = vi.fn(() => 'full')
-      const input = { ...options, signal: controller.signal, buildUserPrompt }
-      const result =
-        mode === 'completion'
-          ? completeAssistantTextWithContextRetry(input)
-          : collect(streamAssistantTextWithContextRetry(input))
-      await expect(result).rejects.toBe(reason)
-      expect(buildUserPrompt).not.toHaveBeenCalled()
-      expect(completion).not.toHaveBeenCalled()
-      expect(stream).not.toHaveBeenCalled()
-    },
-  )
-
-  it.each(['completion', 'stream'] as const)(
-    '%s forwards cancellation to both context attempts',
-    async (mode) => {
-      const signal = new AbortController().signal
-      const buildUserPrompt = vi.fn((limit?: number) =>
-        limit ? 'compact' : 'full',
-      )
-      if (mode === 'completion') {
-        completion.mockRejectedValueOnce(new Error('context overflow'))
-        completion.mockResolvedValueOnce('answer')
-      } else {
-        stream.mockImplementationOnce(async function* () {
-          throw new Error('context overflow')
-        })
-        stream.mockImplementationOnce(async function* () {
-          yield 'answer'
-        })
-      }
-      const input = { ...options, signal, buildUserPrompt }
-      const result =
-        mode === 'completion'
-          ? await completeAssistantTextWithContextRetry(input)
-          : await collect(streamAssistantTextWithContextRetry(input))
-      expect(result).toEqual(mode === 'completion' ? 'answer' : ['answer'])
-      const transport = mode === 'completion' ? completion : stream
-      expect(transport).toHaveBeenCalledTimes(2)
-      expect(transport).toHaveBeenNthCalledWith(
-        1,
-        expect.objectContaining({ signal, userPrompt: 'full' }),
-      )
-      expect(transport).toHaveBeenNthCalledWith(
-        2,
-        expect.objectContaining({ signal, userPrompt: 'compact' }),
-      )
-      expect(buildUserPrompt).toHaveBeenLastCalledWith(20)
-    },
-  )
-
-  it.each(['completion', 'stream'] as const)(
-    '%s does not compact or retry after cancellation even if the provider reports overflow',
-    async (mode) => {
-      const controller = new AbortController()
-      const reason = new DOMException('stopped', 'AbortError')
-      const buildUserPrompt = vi.fn(() => 'full')
-      if (mode === 'completion') {
-        completion.mockImplementationOnce(async () => {
-          controller.abort(reason)
-          throw new Error('context overflow')
-        })
-      } else {
-        stream.mockImplementationOnce(async function* () {
-          controller.abort(reason)
-          throw new Error('context overflow')
-        })
-      }
-      const input = { ...options, signal: controller.signal, buildUserPrompt }
-      await expect(
-        mode === 'completion'
-          ? completeAssistantTextWithContextRetry(input)
-          : collect(streamAssistantTextWithContextRetry(input)),
-      ).rejects.toBe(reason)
-      expect(buildUserPrompt).toHaveBeenCalledTimes(1)
-      expect(mode === 'completion' ? completion : stream).toHaveBeenCalledTimes(
-        1,
-      )
-    },
-  )
+      throw new Error('context overflow')
+    })
+    await expect(
+      completeAssistantTextWithContextRetry({
+        ...options,
+        signal: controller.signal,
+        buildUserPrompt,
+      }),
+    ).rejects.toBe(reason)
+    expect(buildUserPrompt).toHaveBeenCalledTimes(1)
+    expect(completion).toHaveBeenCalledTimes(1)
+  })
 
   // 临时不可用的重发在入口 llm-text.service 统一做（docs/design/llm.md §4），
   // 这里再叠一层就成了 2×2 次。
-  it.each(['completion', 'stream'] as const)(
-    '%s does not stack its own retry on a provider outage',
-    async (mode) => {
-      const failure = new Error('overloaded')
-      if (mode === 'completion') {
-        completion.mockRejectedValue(failure)
-      } else {
-        stream.mockImplementation(async function* () {
-          throw failure
-        })
-      }
-      const input = { ...options, buildUserPrompt: () => 'full' }
-      await expect(
-        mode === 'completion'
-          ? completeAssistantTextWithContextRetry(input)
-          : collect(streamAssistantTextWithContextRetry(input)),
-      ).rejects.toBe(failure)
-      expect(mode === 'completion' ? completion : stream).toHaveBeenCalledTimes(
-        1,
-      )
-    },
-  )
+  it('does not stack its own retry on a provider outage', async () => {
+    const failure = new Error('overloaded')
+    completion.mockRejectedValue(failure)
+    await expect(
+      completeAssistantTextWithContextRetry({
+        ...options,
+        buildUserPrompt: () => 'full',
+      }),
+    ).rejects.toBe(failure)
+    expect(completion).toHaveBeenCalledTimes(1)
+  })
 
   /**
    * ⛔ 出不来就不换一家（owner 2026-10-15：「会自动扣其他模型的token，用户还不知道」）。
    * 只在同一家、同一把 key、同一个型号上重发一次，仍不行就把原错交回。
    */
-  describe('只用所选那一家：出不来不换一家', () => {
-    it.each(['completion', 'stream'] as const)(
-      '%s: timed out → no retry on any other provider, the original error',
-      async (mode) => {
-        const failure = new Error('timed out')
-        if (mode === 'completion') {
-          completion.mockRejectedValue(failure)
-        } else {
-          stream.mockImplementation(async function* () {
-            throw failure
-          })
-        }
-        const input = { ...options, buildUserPrompt: () => 'full' }
-        await expect(
-          mode === 'completion'
-            ? completeAssistantTextWithContextRetry(input)
-            : collect(streamAssistantTextWithContextRetry(input)),
-        ).rejects.toBe(failure)
-        const transport = mode === 'completion' ? completion : stream
-        expect(transport).toHaveBeenCalledTimes(1)
-        expectSelectedProviderOnly(providerUsesOf(transport, 'step'), {
-          adapterType: AI_ADAPTER_TYPES.OPENAI,
-          apiKey: 'test-key',
-        })
-      },
-    )
-  })
-
-  it('does not retry a stream after visible text', async () => {
-    const failure = new Error('context overflow')
-    stream.mockImplementationOnce(async function* () {
-      yield 'partial'
-      throw failure
+  it('只用所选那一家：timed out → no retry on any other provider, the original error', async () => {
+    const failure = new Error('timed out')
+    completion.mockRejectedValue(failure)
+    await expect(
+      completeAssistantTextWithContextRetry({
+        ...options,
+        buildUserPrompt: () => 'full',
+      }),
+    ).rejects.toBe(failure)
+    expect(completion).toHaveBeenCalledTimes(1)
+    expectSelectedProviderOnly(providerUsesOf(completion, 'step'), {
+      adapterType: AI_ADAPTER_TYPES.OPENAI,
+      apiKey: 'test-key',
     })
-    const buildUserPrompt = vi.fn(() => 'full')
-    const iterator = streamAssistantTextWithContextRetry({
-      ...options,
-      buildUserPrompt,
-    })[Symbol.asyncIterator]()
-    await expect(iterator.next()).resolves.toEqual({
-      done: false,
-      value: 'partial',
-    })
-    await expect(iterator.next()).rejects.toBe(failure)
-    expect(stream).toHaveBeenCalledTimes(1)
-    expect(buildUserPrompt).toHaveBeenCalledTimes(1)
   })
 
   it('drops a reply that completes after cancellation', async () => {
@@ -245,7 +164,6 @@ describe('assistant llm call 日志（每次请求一行，只记录）', () => 
 
   beforeEach(() => {
     completion.mockReset()
-    stream.mockReset()
     // 调用日志转给 execution worker：只假网络那一跳（签名、拼地址都是真代码）。
     vi.stubEnv('EXECUTION_WORKER_BASE_URL', 'https://worker.test')
     vi.stubEnv('INTERNAL_CALLBACK_SECRET', 'test-callback-secret')
@@ -293,25 +211,21 @@ describe('assistant llm call 日志（每次请求一行，只记录）', () => 
     }
   })
 
-  it('stream: 重发的两次各一行；没报 token 的那次标 usageReported:false', async () => {
+  it('重发的两次各一行；没报 token 的那次标 usageReported:false', async () => {
     const consoleLog = vi.spyOn(console, 'log').mockImplementation(() => {})
     try {
-      stream.mockImplementationOnce(async function* () {
-        throw new Error('context overflow')
-      })
-      stream.mockImplementationOnce(async function* (input: {
-        onUsage?: (usage: object) => void
-      }) {
-        yield 'answer'
-        input.onUsage?.({ inputTokens: 9000, reasoningTokens: 800 })
-      })
-      await collect(
-        streamAssistantTextWithContextRetry({
-          ...options,
-          buildUserPrompt: (limit?: number) => (limit ? 'compact' : 'full'),
-          callLog: { purpose: 'step', domain: 'canvas', step: 3 },
-        }),
+      completion.mockRejectedValueOnce(new Error('context overflow'))
+      completion.mockImplementationOnce(
+        async (input: { onUsage?: (usage: object) => void }) => {
+          input.onUsage?.({ inputTokens: 9000, reasoningTokens: 800 })
+          return 'answer'
+        },
       )
+      await completeAssistantTextWithContextRetry({
+        ...options,
+        buildUserPrompt: (limit?: number) => (limit ? 'compact' : 'full'),
+        callLog: { purpose: 'step', domain: 'canvas', step: 3 },
+      })
       const calls = loggedCalls(consoleLog)
       expect(calls).toEqual([
         expect.objectContaining({
@@ -335,25 +249,23 @@ describe('assistant llm call 日志（每次请求一行，只记录）', () => 
     }
   })
 
-  it('stream: 被掐断（⏹ / 时间预算）记成 aborted', async () => {
+  it('被掐断（⏹ / 时间预算）记成 aborted', async () => {
     const consoleLog = vi.spyOn(console, 'log').mockImplementation(() => {})
     try {
       const controller = new AbortController()
-      stream.mockImplementationOnce(async function* () {
-        yield 'partial'
-        yield 'more'
+      const reason = new DOMException('stopped', 'AbortError')
+      completion.mockImplementationOnce(async () => {
+        controller.abort(reason)
+        throw reason
       })
-      const iterator = streamAssistantTextWithContextRetry({
-        ...options,
-        signal: controller.signal,
-        buildUserPrompt: () => 'full',
-        callLog: { purpose: 'step' },
-      })[Symbol.asyncIterator]()
-      await iterator.next()
-      controller.abort(new DOMException('stopped', 'AbortError'))
-      await expect(iterator.next()).rejects.toMatchObject({
-        name: 'AbortError',
-      })
+      await expect(
+        completeAssistantTextWithContextRetry({
+          ...options,
+          signal: controller.signal,
+          buildUserPrompt: () => 'full',
+          callLog: { purpose: 'step' },
+        }),
+      ).rejects.toBe(reason)
       expect(loggedCalls(consoleLog)).toEqual([
         expect.objectContaining({ outcome: 'aborted', usageReported: false }),
       ])

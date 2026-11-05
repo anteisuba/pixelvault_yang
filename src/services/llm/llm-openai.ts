@@ -1,6 +1,6 @@
 import 'server-only'
 
-/** OpenAI：Chat Completions 补全与流式（DeepSeek / xAI 复用其中的流式读法）。（o-llm 拆分，2026-11-01；见 docs/design/llm.md） */
+/** OpenAI：Chat Completions 缓冲补全。（o-llm 拆分，2026-11-01；见 docs/design/llm.md） */
 
 import { z } from 'zod'
 import {
@@ -12,7 +12,6 @@ import { ApiRequestError } from '@/lib/errors'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { LLM_STRUCTURED_OUTPUT_MODELS } from '@/constants/llm-capability'
 import {
-  LLM_TEXT_LABELS,
   LLM_TEXT_MODELS,
   LLM_TEXT_PROVIDER_ERROR_CODES,
   LLM_TEXT_PROVIDER_ERROR_I18N_KEYS,
@@ -21,12 +20,9 @@ import {
   type LlmTextInput,
   checkTextFinishReason,
   fetchLlmTextBuffered,
-  fetchLlmTextStreaming,
   getLlmImages,
-  parseLlmStreamEvent,
   prepareInlineImages,
   readLlmErrorBody,
-  readLlmSseData,
   readOpenAiCompatibleUsage,
   reportUsage,
   serializeLlmRequest,
@@ -179,13 +175,9 @@ function throwNoOpenAiTextResponse(
   throw textResponseError(modelId)
 }
 
-/**
- * OpenAI `/chat/completions` 的请求，缓冲与流式共用一份 —— 同 Gemini 那条的理由：
- * 两条各建各的 body 迟早漂移，而漂移的表现是「流式的回答和缓冲的不一样」。
- */
+/** OpenAI `/chat/completions` 的请求体。 */
 async function buildOpenAiChatRequest(
   input: LlmTextInput,
-  options: { stream?: boolean } = {},
 ): Promise<{ endpoint: string; requestModelId: string; body: string }> {
   if (input.videoData) {
     throw new Error('OpenAI assistant route does not support video input.')
@@ -229,15 +221,7 @@ async function buildOpenAiChatRequest(
     body: serializeLlmRequest(input, {
       model: requestModelId,
       messages,
-      ...(options.stream ? { stream: true } : {}),
-      /**
-       * 流式默认不报 usage，要显式要（花费计量，2026-10-08）。⚠ 只对官方端点开：
-       * 用户自填的兼容代理未必认这个字段，⛔ 不为计量多出一种报错。
-       */
-      ...(options.stream && baseUrl === AI_PROVIDER_ENDPOINTS.OPENAI_CHAT
-        ? { stream_options: { include_usage: true } }
-        : {}),
-      // 同上：只对官方端点开，⛔ 不为缓存路由在自填代理上多一种报错。
+      // 只对官方端点开：用户自填的兼容代理未必认这个字段，⛔ 不为缓存路由多一种报错。
       ...(input.cacheKey && baseUrl === AI_PROVIDER_ENDPOINTS.OPENAI_CHAT
         ? { prompt_cache_key: input.cacheKey }
         : {}),
@@ -314,111 +298,4 @@ export async function openAiTextCompletion(
     data.choices[0]?.message.refusal,
   )
   return content
-}
-
-/**
- * OpenAI 兼容 `/chat/completions` 的 SSE 消费 —— **四家共用一份**。
- *
- * OpenAI / DeepSeek / Grok 的事件格式完全一致
- * （`data: {choices:[{delta:{content}}]}`，以字面量 `[DONE]` 收尾），所以解析
- * 只写一遍。各家的差异全在请求那一侧（host / model id / 能力闸 / JSON 模式的
- * 特殊要求），由各自的 `build*ChatRequest` 负责——这条边界的意义是：接第五家
- * OpenAI 兼容 provider 时只用写它的 request builder。
- */
-const OpenAiChatStreamSchema = z.object({
-  choices: z
-    .array(
-      z.object({
-        delta: z
-          .object({
-            content: z.string().nullable().optional(),
-            refusal: z.string().nullable().optional(),
-          })
-          .optional(),
-        finish_reason: z.string().nullable().optional(),
-      }),
-    )
-    .optional(),
-})
-
-export async function* streamOpenAiCompatibleChat(options: {
-  endpoint: string
-  body: string
-  apiKey: string
-  adapterType: AI_ADAPTER_TYPES
-  modelId: string
-  label: string
-  signal?: AbortSignal
-  onUsage?: LlmTextInput['onUsage']
-}): AsyncIterable<string> {
-  const response = await fetchLlmTextStreaming(
-    options.endpoint,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${options.apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: options.body,
-    },
-    { adapterType: options.adapterType, modelId: options.modelId },
-    options.signal,
-  )
-
-  if (!response.ok) {
-    const errorBody = await readLlmErrorBody(response, options.signal)
-    throw toLlmTextProviderError(response.status, errorBody, {
-      adapterType: options.adapterType,
-      modelId: options.modelId,
-    })
-  }
-  if (!response.body) throw textResponseError(options.modelId)
-  let hasText = false
-  let finished = false
-  for await (const data of readLlmSseData(response.body, options.modelId)) {
-    if (!data) continue
-    if (data === '[DONE]') {
-      finished = true
-      break
-    }
-    const parsed = parseLlmStreamEvent(data, options)
-    const usage = readOpenAiCompatibleUsage(parsed)
-    if (usage) options.onUsage?.(usage)
-    const chunk = OpenAiChatStreamSchema.safeParse(parsed)
-    if (!chunk.success) throw textResponseError(options.modelId, true)
-    const choice = chunk.data.choices?.[0]
-    checkTextFinishReason(
-      choice?.finish_reason,
-      options.modelId,
-      choice?.delta?.refusal,
-    )
-    const delta = choice?.delta?.content
-    if (delta) {
-      hasText ||= delta.trim().length > 0
-      yield delta
-    }
-  }
-  if (!hasText || !finished) throw textResponseError(options.modelId, hasText)
-}
-
-export async function* openAiTextStream(
-  input: LlmTextInput,
-): AsyncIterable<string> {
-  const { endpoint, requestModelId, body } = await buildOpenAiChatRequest(
-    input,
-    {
-      stream: true,
-    },
-  )
-
-  yield* streamOpenAiCompatibleChat({
-    endpoint,
-    body,
-    apiKey: input.apiKey,
-    adapterType: AI_ADAPTER_TYPES.OPENAI,
-    modelId: requestModelId,
-    label: LLM_TEXT_LABELS[AI_ADAPTER_TYPES.OPENAI],
-    signal: input.signal,
-    onUsage: input.onUsage,
-  })
 }

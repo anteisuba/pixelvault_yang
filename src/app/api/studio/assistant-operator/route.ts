@@ -10,8 +10,11 @@ import { isGenerationError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 import { rateLimit } from '@/lib/rate-limit'
 
-/** Hobby 的真实上限就是 300。 */
-export const maxDuration = 300
+/**
+ * Pro + Fluid 的 GA 上限 800 秒（11-03 起团队是 Pro；Hobby 只有 300，超了部署直接失败）。
+ * ⚠ 与 `ASSISTANT_OPERATOR_TIME_BUDGET.hardMs`（770）成对改。⛔ 1800 是 Beta，不用。
+ */
+export const maxDuration = 800
 
 /**
  * 工作台助手的**工具环**（P1）。出的是结构化事件流，不是文本流。

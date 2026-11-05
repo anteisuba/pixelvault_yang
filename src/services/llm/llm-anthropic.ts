@@ -1,6 +1,6 @@
 import 'server-only'
 
-/** Anthropic（Claude）：Messages 补全与流式。（o-llm 拆分，2026-11-01；见 docs/design/llm.md） */
+/** Anthropic（Claude）：Messages 缓冲补全。（o-llm 拆分，2026-11-01；见 docs/design/llm.md） */
 
 import { z } from 'zod'
 import {
@@ -17,12 +17,9 @@ import {
   checkTextFinishReason,
   compactUsage,
   fetchLlmTextBuffered,
-  fetchLlmTextStreaming,
   getLlmImages,
   parseInlineImage,
-  parseLlmStreamEvent,
   readLlmErrorBody,
-  readLlmSseData,
   reportUsage,
   serializeLlmRequest,
   textResponseError,
@@ -63,12 +60,6 @@ const AnthropicResponseUsageSchema = z.object({
   usage: AnthropicUsageFieldsSchema,
 })
 
-/** 流式：`message_start` 带输入，`message_delta` 带累计输出。 */
-const AnthropicStreamUsageSchema = z.object({
-  message: z.object({ usage: AnthropicUsageFieldsSchema }).nullish(),
-  usage: AnthropicUsageFieldsSchema.nullish(),
-})
-
 /**
  * Claude (Anthropic) text completion — the Messages API, NOT an
  * OpenAI-compatible drop-in. Models: Opus 5.5, Sonnet 5.5, and Fable 5.1.
@@ -86,13 +77,13 @@ const AnthropicStreamUsageSchema = z.object({
  *     and a system-prompt instruction otherwise (see the builder).
  *  4. No `thinking` configuration is sent: these models reject
  *     `{type:'disabled'}` and `budget_tokens` with a 400, and run adaptive
- *     thinking when the field is omitted. The stream parser only forwards
- *     `text_delta`, so thinking never leaks into the reply.
+ *     thinking when the field is omitted. Only `type: 'text'` content blocks
+ *     are read, so thinking never leaks into the reply.
  *  5. Refusals: the safety classifiers can decline a request with HTTP 200
  *     and `stop_reason: 'refusal'` (empty or partial `content`). We opt into
  *     the server-side fallback chain (`fallbacks: 'default'` + beta header),
  *     which lets the provider select the fallback model; if the whole
- *     chain declines, both consumers throw `PROVIDER_REFUSED` instead of
+ *     chain declines, the completion throws `PROVIDER_REFUSED` instead of
  *     returning empty/partial text. Branch on `stop_reason` only —
  *     `stop_details` is informational and may be null.
  *  6. Images use native URL/base64 blocks. Web search uses the separate
@@ -120,24 +111,19 @@ const AnthropicTextResponseSchema = z.object({
  * so every explicit budget is raised to the Anthropic floor — it is a cap,
  * not spend, so the floor costs nothing on short replies.
  */
-function resolveAnthropicMaxTokens(
-  input: LlmTextInput,
-  stream: boolean,
-): number {
-  if (input.providerManagedOutput)
-    return stream
-      ? LLM_TEXT_DEFAULT_MAX_TOKENS.ANTHROPIC_STREAM
-      : LLM_TEXT_DEFAULT_MAX_TOKENS.ANTHROPIC
+function resolveAnthropicMaxTokens(input: LlmTextInput): number {
+  if (input.providerManagedOutput) return LLM_TEXT_DEFAULT_MAX_TOKENS.ANTHROPIC
   return Math.max(
     input.maxTokens ?? LLM_TEXT_DEFAULT_MAX_TOKENS.DEFAULT,
     LLM_TEXT_DEFAULT_MAX_TOKENS.ANTHROPIC,
   )
 }
 
-function buildAnthropicMessagesRequest(
-  input: LlmTextInput,
-  options: { stream?: boolean } = {},
-): { endpoint: string; modelId: string; body: string } {
+function buildAnthropicMessagesRequest(input: LlmTextInput): {
+  endpoint: string
+  modelId: string
+  body: string
+} {
   if (input.videoData) {
     throw new Error('Claude text completion does not support video input.')
   }
@@ -168,8 +154,7 @@ function buildAnthropicMessagesRequest(
     modelId,
     body: serializeLlmRequest(input, {
       model: modelId,
-      ...(options.stream ? { stream: true } : {}),
-      max_tokens: resolveAnthropicMaxTokens(input, options.stream === true),
+      max_tokens: resolveAnthropicMaxTokens(input),
       // Omission enables adaptive thinking; disabled and budget_tokens are
       // unsupported. No sampling parameters or forced tool choice are sent.
       // Effort stays at the model default (Opus: medium; Sonnet/Fable: high); tune via
@@ -295,103 +280,4 @@ export async function anthropicTextCompletion(
   }
 
   return textBlock.text.trim()
-}
-
-/**
- * Claude 的 SSE —— **不与那四家共用解析**，它是 Anthropic 自己的事件格式
- * （官方文档 `platform.claude.com/docs/en/build-with-claude/streaming`，
- * 2026-08-25 查证）：
- *
- *   event: content_block_delta
- *   data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"…"}}
- *
- * 以 `message_stop` 收尾，没有 `[DONE]` 哨兵。
- *
- * ⚠ 只取 `text_delta`。同一个 `content_block_delta` 还会驮 `thinking_delta` /
- * `signature_delta`（扩展思考）与 `input_json_delta`（工具调用）—— 把它们当正文
- * yield 出去，就是把模型的思考过程念给用户听。Fable 5.1 的 thinking 恒开（关不掉），
- * 默认 `display: "omitted"` 时 `thinking_delta` 为空串，但这道判据不能靠那个默认兜着。
- */
-const AnthropicTextStreamSchema = z.object({
-  type: z.string(),
-  delta: z
-    .object({
-      type: z.string().optional(),
-      text: z.string().nullable().optional(),
-      stop_reason: z.string().nullable().optional(),
-    })
-    .optional(),
-})
-
-export async function* anthropicTextStream(
-  input: LlmTextInput,
-): AsyncIterable<string> {
-  const { endpoint, modelId, body } = buildAnthropicMessagesRequest(input, {
-    stream: true,
-  })
-
-  const response = await fetchLlmTextStreaming(
-    endpoint,
-    anthropicRequestInit(
-      input.apiKey,
-      body,
-      input.providerConfig.anthropicWorkspaceId,
-    ),
-    { adapterType: AI_ADAPTER_TYPES.ANTHROPIC, modelId },
-    input.signal,
-  )
-
-  if (!response.ok) {
-    const errorBody = await readLlmErrorBody(response, input.signal)
-    throw toLlmTextProviderError(response.status, errorBody, {
-      adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
-      modelId,
-    })
-  }
-  if (!response.body) throw textResponseError(modelId)
-  let hasText = false
-  let finished = false
-  let usage: z.infer<typeof AnthropicUsageFieldsSchema> = {}
-  for await (const data of readLlmSseData(response.body, modelId)) {
-    if (!data) continue
-    const parsed = parseLlmStreamEvent(data, {
-      adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
-      modelId,
-    })
-    const usageEvent = AnthropicStreamUsageSchema.safeParse(parsed)
-    const usageFields =
-      usageEvent.success &&
-      (usageEvent.data.message?.usage ?? usageEvent.data.usage)
-    if (usageFields) {
-      usage = {
-        input_tokens: usageFields.input_tokens ?? usage.input_tokens,
-        output_tokens: usageFields.output_tokens ?? usage.output_tokens,
-        cache_read_input_tokens:
-          usageFields.cache_read_input_tokens ?? usage.cache_read_input_tokens,
-        cache_creation_input_tokens:
-          usageFields.cache_creation_input_tokens ??
-          usage.cache_creation_input_tokens,
-      }
-      reportUsage(input, toAnthropicUsage(usage))
-    }
-    const event = AnthropicTextStreamSchema.safeParse(parsed)
-    if (!event.success) throw textResponseError(modelId, true)
-    if (event.data.type === 'message_stop') {
-      finished = true
-      break
-    }
-    if (event.data.type === 'message_delta') {
-      checkTextFinishReason(event.data.delta?.stop_reason, modelId)
-    }
-    const delta = event.data.delta
-    if (
-      event.data.type === 'content_block_delta' &&
-      delta?.type === 'text_delta' &&
-      delta.text
-    ) {
-      hasText ||= delta.text.trim().length > 0
-      yield delta.text
-    }
-  }
-  if (!hasText || !finished) throw textResponseError(modelId, hasText)
 }

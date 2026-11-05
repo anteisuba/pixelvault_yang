@@ -7,7 +7,6 @@ import { sendLlmCallLogToWorker } from '@/services/execution-worker.service'
 import {
   isLlmTextContextLimitError,
   llmTextCompletion,
-  llmTextStream,
   type LlmTextInput,
   type LlmTextUsage,
   type ResolvedLlmTextRoute,
@@ -53,7 +52,7 @@ interface CompleteAssistantTextOptions {
    */
 }
 
-type CallOutcome = 'ok' | 'error' | 'aborted' | 'closed'
+type CallOutcome = 'ok' | 'error' | 'aborted'
 
 export interface AssistantLlmCallLog {
   purpose: string
@@ -315,100 +314,4 @@ async function promptForRetry(
   if (compactedPrompt === fullPrompt) throw error
   signal?.throwIfAborted()
   return compactedPrompt
-}
-
-/**
- * 流式版，策略与上面那条一致：先发全量上下文，超限压缩后重发一次。
- *
- * ⚠ **已经吐出过字就绝不重试**（照搬画布 gateway 分支用真机换来的规则）：重试会把
- * 同一段开场白再流一遍，用户看到的是重复的半截话。
- */
-export async function* streamAssistantTextWithContextRetry({
-  systemPrompt,
-  signal,
-  buildUserPrompt,
-  route,
-  contextCompactionTargetLength,
-  modelId,
-  imageData,
-  imageLabels,
-  imageDetail,
-  reasoningEffort,
-  cacheKey,
-  videoData,
-  audioData,
-  videoAnalysis,
-  responseFormat,
-  jsonSchema,
-  callLog,
-}: CompleteAssistantTextOptions): AsyncIterable<string> {
-  signal?.throwIfAborted()
-  let attempt = 0
-  async function* stream(userPrompt: string): AsyncIterable<string> {
-    const call = startCallLog(
-      { callLog, route, modelId, reasoningEffort },
-      ++attempt,
-    )
-    /** 没跑完也没抛 = 调用方提前收了这条流（⏹ / 时间预算掐断时就是这样）。 */
-    let outcome: CallOutcome = 'closed'
-    try {
-      yield* llmTextStream({
-        purpose: 'assistant',
-        systemPrompt,
-        signal,
-        userPrompt,
-        modelId,
-        imageData,
-        imageLabels,
-        imageDetail,
-        reasoningEffort,
-        cacheKey,
-        videoData,
-        audioData,
-        videoAnalysis,
-        adapterType: route.adapterType,
-        providerConfig: route.providerConfig,
-        apiKey: route.apiKey,
-        providerManagedOutput: true,
-        promptGuardMaxLength: null,
-        responseFormat,
-        jsonSchema,
-        onUsage: call.onUsage,
-      })
-      outcome = 'ok'
-    } catch (error) {
-      outcome = failureOutcome(signal)
-      throw error
-    } finally {
-      call.finish(outcome === 'closed' && signal?.aborted ? 'aborted' : outcome)
-    }
-  }
-
-  const fullPrompt = buildUserPrompt()
-  let emittedText = false
-
-  try {
-    for await (const chunk of stream(fullPrompt)) {
-      signal?.throwIfAborted()
-      emittedText = true
-      yield chunk
-    }
-    signal?.throwIfAborted()
-    return
-  } catch (error) {
-    signal?.throwIfAborted()
-    if (emittedText) throw error
-
-    const retryPrompt = await promptForRetry(error, {
-      fullPrompt,
-      buildUserPrompt,
-      contextCompactionTargetLength,
-      signal,
-    })
-    for await (const chunk of stream(retryPrompt)) {
-      signal?.throwIfAborted()
-      yield chunk
-    }
-    signal?.throwIfAborted()
-  }
 }

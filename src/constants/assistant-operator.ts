@@ -1538,8 +1538,8 @@ export const ASSISTANT_OPERATOR_STOP_REASONS = {
   /** 撞到步数上限。**不自动续跑** —— 台账 AH：这条链没有幂等键，不做任何自动重试。 */
   maxSteps: 'max_steps',
   /**
-   * 这一次请求的时间用到头了（`ASSISTANT_OPERATOR_TIME_BUDGET`），在平台 300 秒
-   * 杀函数之前自己收尾。画布照 `canvas_sync` 那样自动接下一次请求；其他域出「继续」。
+   * 这一次请求的时间用到头了（`ASSISTANT_OPERATOR_TIME_BUDGET`），在平台按路由
+   * `maxDuration` 杀函数之前自己收尾。画布照 `canvas_sync` 那样自动接下一次请求；其他域出「继续」。
    * ⚠ 它只发生在步与步之间、或掐掉一步之后 —— 没有写到一半的东西，接着跑不会重复写。
    */
   timeBudget: 'time_budget',
@@ -1548,15 +1548,18 @@ export const ASSISTANT_OPERATOR_STOP_REASONS = {
 /**
  * 一次请求的**时间预算**（`docs/references/assistant-durable-turns.md` §2）。
  *
- * ⭐ 平台上限是 300 秒（Hobby `maxDuration`），到点是杀进程 —— 用户看到的是
- * 「连接在本轮完成前中断」。这里在那之前自己收尾，换成一次可续跑的停止。
- *  · `softMs`：只管画布（它有自动接力，收尾是无感的）—— 用到这个数就不再开新的一步。
- *    120 是「最慢的一步约 160 秒还落得进 300」倒推出来的（2026-10-07 实测 Grok 单次到 160 秒）。
+ * ⭐ 平台上限 = 助手路由的 `maxDuration`（`app/api/studio/assistant-operator/route.ts`，
+ * Pro + Fluid 的 GA 上限 800 秒；11-03 起团队是 Pro，之前 Hobby 只有 300），到点是杀进程 ——
+ * 用户看到的是「连接在本轮完成前中断」。这里在那之前自己收尾，换成一次可续跑的停止。
+ *  · `softMs`：用到这个数就不再开新的一步（新内核所有台都接力，收尾是无感的）。
+ *    ⭐ 一次模型调用至少还有 `hardMs - softMs` = 650 秒（owner 11-05：想 / 联网的过程不许被打断）。
  *  · `hardMs`：所有域 —— 正在跑的那一步到这个数还没回来就掐掉，留到下一次请求重做。
+ *    比 `maxDuration` 少 30 秒，留给收尾（存这一轮、发接力条）。
+ * ⚠ 改路由的 `maxDuration` 必须同步改 `hardMs`；回 Hobby 时两处一起回 300 / 270。
  */
 export const ASSISTANT_OPERATOR_TIME_BUDGET = {
   softMs: 120_000,
-  hardMs: 270_000,
+  hardMs: 770_000,
 } as const
 
 /**

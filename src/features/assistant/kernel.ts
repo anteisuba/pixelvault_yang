@@ -445,26 +445,6 @@ function toProviderError(
   })
 }
 
-/** 一次调用的两只表：首个分片前、分片之间静默多久算卡住。 */
-function watchCall() {
-  const controller = new AbortController()
-  let fired = false
-  const fire = () => {
-    fired = true
-    controller.abort()
-  }
-  let idle = setTimeout(fire, ASSISTANT_NEXT_LIMITS.firstChunkMs)
-  return {
-    signal: controller.signal,
-    onChunk() {
-      clearTimeout(idle)
-      idle = setTimeout(fire, ASSISTANT_NEXT_LIMITS.silenceMs)
-    },
-    timedOut: () => fired,
-    dispose: () => clearTimeout(idle),
-  }
-}
-
 interface ClientCall {
   readonly toolCallId: string
   readonly toolName: string
@@ -1038,7 +1018,6 @@ async function* runNextTurn(
       ...(pending ? { pending } : {}),
     })
   let emptyRetried = false
-  let timeoutRetried = false
   let unpairedRetried = false
   let succeededOnce = Boolean(saved)
   /** 这一跳里失败过的调用（工具名 + 原样参数）→ 失败说明与当时做成过几步。 */
@@ -1081,7 +1060,6 @@ async function* runNextTurn(
       },
       1,
     )
-    const watch = watchCall()
     let reply = ''
     let restart = true
     let filtered = false
@@ -1121,14 +1099,20 @@ async function* runNextTurn(
         ...(model.maxOutputTokens === undefined
           ? {}
           : { maxOutputTokens: model.maxOutputTokens }),
-        abortSignal: AbortSignal.any([signal, watch.signal]),
+        /**
+         * ⛔ 这一次调用**不设静默时限**（owner 11-05：思考过程不许被打断）。推理模型想完之前、厂商
+         * 自己联网 / 读网页 / 跑整理代码的时候，流上可以很久一个分片都没有（Claude 的 `ping` 被 SDK
+         * 吞掉），按「多久没分片」掐一定误杀 —— 11-05 让角色去推特查热点，第二轮联网被 90 秒看门狗
+         * 掐掉、原样重问又被掐，报成「AI 提供商超时」。真卡死的连接交给整次请求的时间预算（`hardMs`）
+         * 收尾、接力重做。
+         */
+        abortSignal: signal,
         providerOptions: model.providerOptions(
           cacheKey,
           persona.reasoningEffort,
         ),
       })
       for await (const part of result.fullStream) {
-        watch.onChunk()
         chunks += 1
         switch (part.type) {
           case 'reasoning-delta':
@@ -1230,10 +1214,6 @@ async function* runNextTurn(
             break
         }
       }
-      if (watch.timedOut())
-        throw new ProviderError('assistant-next', 'Model call timed out.', {
-          timeout: true,
-        })
       response = await result.response
       const usage = await result.usage
       callLog.onUsage({
@@ -1256,22 +1236,12 @@ async function* runNextTurn(
       callLog.finish('ok')
     } catch (error) {
       callLog.finish(signal.aborted ? 'aborted' : 'error')
-      watch.dispose()
       if (signal.aborted) {
         yield {
           type: ASSISTANT_OPERATOR_EVENTS.stopped,
           reason: ASSISTANT_OPERATOR_STOP_REASONS.aborted,
         }
         return
-      }
-      if (watch.timedOut() && !timeoutRetried) {
-        timeoutRetried = true
-        logger.warn('assistant next model call timed out, asking again', {
-          userId: clerkId,
-          step,
-          modelId,
-        })
-        continue
       }
       // 厂商说某个联网调用没有对应结果：前面几步的厂商调用整对拿掉，同一接法重来一次。
       if (!unpairedRetried && isUnpairedToolError(providerReasonOf(error))) {
@@ -1306,9 +1276,7 @@ async function* runNextTurn(
       }
       throw toProviderError(route.adapterType, modelId, error)
     }
-    watch.dispose()
     succeededOnce = true
-    timeoutRetried = false
     unpairedRetried = false
 
     for (const search of searches.values())

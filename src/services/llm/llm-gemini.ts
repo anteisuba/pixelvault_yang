@@ -1,6 +1,6 @@
 import 'server-only'
 
-/** Gemini：文本 / 多模态（含视频上传）补全与流式。（o-llm 拆分，2026-11-01；见 docs/design/llm.md） */
+/** Gemini：文本 / 多模态（含视频上传）缓冲补全。（o-llm 拆分，2026-11-01；见 docs/design/llm.md） */
 
 import { z } from 'zod'
 import {
@@ -23,16 +23,12 @@ import {
   type VideoAnalysisWindow,
   compactUsage,
   fetchLlmTextBuffered,
-  fetchLlmTextStreaming,
   getLlmImages,
   mediaRequestSignal,
-  parseLlmStreamEvent,
   prepareInlineImages,
   readLlmErrorBody,
-  readLlmSseData,
   reportUsage,
   serializeLlmRequest,
-  textResponseError,
   toLlmTextProviderError,
   withImageLabels,
 } from '@/services/llm/llm-core'
@@ -329,12 +325,6 @@ async function deleteGeminiUploadedFile(
 }
 
 /**
- * Build the Gemini request once so the buffered and streaming branches can't
- * drift apart. Uploaded video files are returned rather than deleted here —
- * the streaming branch must keep them alive until the body is fully consumed,
- * not just until `fetch` resolves (headers arrive long before the last chunk).
- */
-/**
  * ⚠ **坑 1（§4.3.2）**：thinking token 从 `maxOutputTokens` 里扣，给 800 实测只
  * 剩 31 字正文 + `finishReason=MAX_TOKENS`。带视频的一轮**只抬不降**到
  * `VIDEO_ANALYSIS_MIN_OUTPUT_TOKENS`。
@@ -352,10 +342,11 @@ function resolveGeminiMaxOutputTokens(
     : input.maxTokens
 }
 
-async function buildGeminiRequest(
-  input: LlmTextInput,
-  options: { stream?: boolean } = {},
-): Promise<{
+/**
+ * Uploaded video files are returned rather than deleted here — the caller
+ * deletes them once the response body has been read.
+ */
+async function buildGeminiRequest(input: LlmTextInput): Promise<{
   modelId: string
   baseUrl: string
   body: string
@@ -450,21 +441,8 @@ async function buildGeminiRequest(
         generationConfig: {
           responseModalities: ['TEXT'],
           ...(maxOutputTokens ? { maxOutputTokens } : {}),
-          /**
-           * ⚠ Gemini 要等第一个字生成完才回响应头，静默思考的整段时间都压在
-           * `STREAM_HEADERS` 那 90s 上（2026-10-07 实测头 = 首字 11s；生产上长对话
-           * 连续 90s 超时）。流式请求带上思考摘要，响应头与字节在思考期间就开始流动，
-           * 计时器回到「空闲多久」的本意；摘要在解析时丢掉，不进正文。
-           */
-          ...(options.stream || input.reasoningEffort
-            ? {
-                thinkingConfig: {
-                  ...(options.stream ? { includeThoughts: true } : {}),
-                  ...(input.reasoningEffort
-                    ? { thinkingLevel: input.reasoningEffort }
-                    : {}),
-                },
-              }
+          ...(input.reasoningEffort
+            ? { thinkingConfig: { thinkingLevel: input.reasoningEffort } }
             : {}),
           ...(input.responseFormat === 'json_object'
             ? {
@@ -589,76 +567,6 @@ export async function geminiTextCompletion(
 
     return text.trim()
   } finally {
-    await Promise.allSettled(
-      uploadedVideoNames.map((name) =>
-        deleteGeminiUploadedFile(name, input.apiKey),
-      ),
-    )
-  }
-}
-
-export async function* geminiTextStream(
-  input: LlmTextInput,
-): AsyncIterable<string> {
-  const { modelId, baseUrl, body, uploadedVideoNames, hasLinkedVideo } =
-    await buildGeminiRequest(input, { stream: true })
-  const endpoint = `${baseUrl}/${modelId}:streamGenerateContent?alt=sse`
-
-  try {
-    const response = await fetchLlmTextStreaming(
-      endpoint,
-      {
-        method: 'POST',
-        headers: {
-          'x-goog-api-key': input.apiKey,
-          'Content-Type': 'application/json',
-        },
-        body,
-      },
-      { adapterType: AI_ADAPTER_TYPES.GEMINI, modelId },
-      input.signal,
-    )
-
-    if (!response.ok) {
-      const errorBody = await readLlmErrorBody(response, input.signal)
-      throw toLlmTextProviderError(response.status, errorBody, {
-        adapterType: AI_ADAPTER_TYPES.GEMINI,
-        modelId,
-        hasLinkedVideo,
-      })
-    }
-    if (!response.body) throw textResponseError(modelId)
-    let hasText = false
-    let finished = false
-    for await (const data of readLlmSseData(response.body, modelId)) {
-      if (!data) continue
-      const parsed = parseLlmStreamEvent(data, {
-        adapterType: AI_ADAPTER_TYPES.GEMINI,
-        modelId,
-        hasLinkedVideo,
-      })
-      reportUsage(input, readGeminiUsage(parsed))
-      const chunk = GeminiTextResponseSchema.safeParse(parsed)
-      if (!chunk.success) throw textResponseError(modelId, true)
-      const reason = chunk.data.candidates?.[0]?.finishReason
-      if (
-        chunk.data.promptFeedback?.blockReason ||
-        (reason && reason !== 'STOP')
-      ) {
-        throw buildGeminiNoTextError(chunk.data, modelId)
-      }
-      if (reason === 'STOP') finished = true
-      for (const part of chunk.data.candidates?.[0]?.content?.parts ?? []) {
-        if (part.text && !part.thought) {
-          hasText ||= part.text.trim().length > 0
-          yield part.text
-        }
-      }
-    }
-    if (!hasText || !finished) throw textResponseError(modelId, hasText)
-  } finally {
-    // 删上传的视频文件必须等流真读完 —— `fetch` resolve 时只到了响应头，
-    // 这时候删会把还没读完的那条流打断。
     await Promise.allSettled(
       uploadedVideoNames.map((name) =>
         deleteGeminiUploadedFile(name, input.apiKey),

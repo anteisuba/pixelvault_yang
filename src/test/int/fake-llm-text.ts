@@ -48,9 +48,6 @@ export function fakeLlmTextModule(real: LlmTextModule): LlmTextModule {
   return {
     ...real,
     llmTextCompletion: answer,
-    llmTextStream: async function* (input: LlmTextInput) {
-      yield await answer(input)
-    },
     supportsNativeWebSearch: () => false,
     llmNativeWebSearch: async () => {
       throw new Error('native web search is not faked')

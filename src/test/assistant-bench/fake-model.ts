@@ -127,6 +127,48 @@ export function scriptedModel(
   })
 }
 
+/**
+ * 吐完 `before` 就一个分片都不出、停在那里（厂商在想 / 在自己联网），等测试 `release()` 才吐 `after`。
+ * `started` = 模型已经开始往外吐（`before` 已发出）。之后再调用回一句「…」。
+ */
+export function heldModel(
+  before: LanguageModelV3StreamPart[],
+  after: LanguageModelV3StreamPart[],
+): {
+  model: MockLanguageModelV3
+  started: Promise<void>
+  release: () => void
+} {
+  let markStarted!: () => void
+  const started = new Promise<void>((resolve) => {
+    markStarted = resolve
+  })
+  let release!: () => void
+  const held = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  let calls = 0
+  const model = new MockLanguageModelV3({
+    doStream: async () => {
+      calls += 1
+      if (calls > 1)
+        return { stream: simulateReadableStream({ chunks: textTurn('…') }) }
+      return {
+        stream: new ReadableStream<LanguageModelV3StreamPart>({
+          async start(controller) {
+            for (const part of before) controller.enqueue(part)
+            markStarted()
+            await held
+            for (const part of after) controller.enqueue(part)
+            controller.close()
+          },
+        }),
+      }
+    },
+  })
+  return { model, started, release }
+}
+
 /** 这一次调用发出去的整段（系统提示 + 消息），拿来查字。 */
 export const promptOf = (call: LanguageModelV3CallOptions) =>
   JSON.stringify(call.prompt)

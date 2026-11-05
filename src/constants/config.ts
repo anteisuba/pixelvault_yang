@@ -665,7 +665,8 @@ export const LLM_TEXT_DEFAULT_MAX_TOKENS = {
   // sized for a non-thinking adapter (the 1024 default) could be spent
   // entirely on reasoning and truncate the reply. It is a cap, not spend.
   ANTHROPIC: 16_000,
-  // Streaming Claude requests get the wide ceiling: Sonnet 5.5 / Opus 5.5 /
+  // Streaming Claude requests (today only the assistant kernel's AI SDK call,
+  // via `ASSISTANT_V3_MAX_OUTPUT_TOKENS.anthropic`) get the wide ceiling: Sonnet 5.5 / Opus 5.5 /
   // Fable 5.1 output up to 128K and streaming has no HTTP-timeout reason to
   // stay low. 16K was cutting operator turns off mid-JSON once adaptive
   // thinking ran long (2026-10-07 production `ASSISTANT_OUTPUT_TRUNCATED`).
@@ -691,19 +692,11 @@ export const LLM_TEXT_TIMEOUTS_MS = {
    * 缓冲补全一整次请求（含读完响应体）的上限。
    *
    * 取值受 `completeWithCitationGate` 的 `maxAttempts: 2` 约束：两次串起来
-   * 是 240s，仍小于助手路由的 `maxDuration = 300`。
+   * 是 240s，仍小于各路由最低的 `maxDuration = 300`。
    */
   COMPLETION: 120_000,
-  /**
-   * 流式请求**只盖「连接 + 响应头」**这一段，响应头到手就撤掉计时器。
-   *
-   * ⛔ 不能拿它去盖整条流：一条正常但很长的回答会被自己的超时掐断，
-   * 而那正是流式要解决的问题。
-   * ⚠ **所有 provider 一律 90s**（owner 2026-09-24）：推理模型在想完之前可能一个
-   * 字节都不回 —— grok-4.7 早就因此单独放宽过，gpt-6-luna 读两张图写分工 JSON 时
-   * 也在 30s 上被掐（dev 日志 `brief_request`）。头到手之后不再计时。
-   */
-  STREAM_HEADERS: 90_000,
+  // ⛔ 旧的 `STREAM_HEADERS`（流式「多久没分片」就掐）11-05 已随自写流式通道一起删：
+  //    推理模型想的时候本来就可以很久一个字节都没有。助手对话走 AI SDK，不设静默时限。
 } as const
 
 /**

@@ -9,7 +9,6 @@ import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { LLM_TEXT_RETRY, LLM_TEXT_TIMEOUTS_MS } from '@/constants/config'
 import {
   LLM_TEXT_MODELS,
-  type LlmTextAdapterType,
   type LlmTextInput,
   type LlmTextRetryReason,
   getLlmTextRetryReason,
@@ -18,23 +17,11 @@ import {
   isLlmTextAdapter,
   toLlmTextTimeoutError,
 } from '@/services/llm/llm-core'
-import {
-  geminiTextCompletion,
-  geminiTextStream,
-} from '@/services/llm/llm-gemini'
-import {
-  openAiTextCompletion,
-  openAiTextStream,
-} from '@/services/llm/llm-openai'
-import {
-  deepseekTextCompletion,
-  deepseekTextStream,
-} from '@/services/llm/llm-deepseek'
-import {
-  anthropicTextCompletion,
-  anthropicTextStream,
-} from '@/services/llm/llm-anthropic'
-import { xaiTextCompletion, xaiTextStream } from '@/services/llm/llm-xai'
+import { geminiTextCompletion } from '@/services/llm/llm-gemini'
+import { openAiTextCompletion } from '@/services/llm/llm-openai'
+import { deepseekTextCompletion } from '@/services/llm/llm-deepseek'
+import { anthropicTextCompletion } from '@/services/llm/llm-anthropic'
+import { xaiTextCompletion } from '@/services/llm/llm-xai'
 import { logger } from '@/lib/logger'
 import type { LlmTextUsage } from '@/services/llm/llm-core'
 
@@ -49,10 +36,7 @@ export {
   toLlmTextProviderError,
   resolveLlmTextRoute,
 } from '@/services/llm/llm-core'
-export {
-  getOpenAiChatBaseUrl,
-  openAiTextStream,
-} from '@/services/llm/llm-openai'
+export { getOpenAiChatBaseUrl } from '@/services/llm/llm-openai'
 export {
   type LlmNativeSearchSource,
   type LlmNativeSearchStatus,
@@ -62,34 +46,6 @@ export {
   llmNativeWebSearch,
 } from '@/services/llm/llm-web-search'
 
-/**
- * 每一家的 SSE 实现 —— **穷举 Record，没有兜底分支**。
- *
- * ⭐ 这张表取代了原先的 `LLM_TEXT_STREAMING_ADAPTERS: Set` + 「不在集合里就缓冲」
- *    降级。那条降级是 2026-08-24 生产 504 能活下来的原因：08-23 接 Grok 时只写了
- *    缓冲那一半，`llmTextStream` 于是静默地 `yield await llmTextCompletion()`，
- *    形态一模一样、行为天差地别（一个逐字、一个等完再一坨），**编译器和测试都不
- *    会说话**，直到线上一条长对话把 60 秒跑穿。
- *
- *    原来的注释写着「调用方要区分就查 `supportsLlmTextStreaming()`」——
- *    实际上没有任何调用方去查过。这正是 Engineering Principles 1 禁的那种
- *    fallback：它让缺陷可以静默存在。
- *
- * ⛔ **不许加 `default` / 索引签名 / `Partial`**。这张表的全部价值就是：接第七家
- *    LLM 文本 provider 时漏写 stream 实现，`tsc` 当场报
- *    「Property '<家>' is missing」，而不是等生产给你一个 504。
- */
-export const LLM_TEXT_STREAMS: Record<
-  LlmTextAdapterType,
-  (input: LlmTextInput) => AsyncIterable<string>
-> = {
-  [AI_ADAPTER_TYPES.GEMINI]: geminiTextStream,
-  [AI_ADAPTER_TYPES.OPENAI]: openAiTextStream,
-  [AI_ADAPTER_TYPES.DEEPSEEK]: deepseekTextStream,
-  [AI_ADAPTER_TYPES.ANTHROPIC]: anthropicTextStream,
-  [AI_ADAPTER_TYPES.XAI]: xaiTextStream,
-}
-
 type LlmCallOutcome = 'ok' | 'error' | 'aborted'
 
 /**
@@ -98,11 +54,7 @@ type LlmCallOutcome = 'ok' | 'error' | 'aborted'
  * ⛔ 不靠各调用方自己记 —— 之前只有助手记，其余 20 个调用方的花费看不见。
  * 调用方自己的 `onUsage` 照常收到。
  */
-function startLlmCallRecord(
-  input: LlmTextInput,
-  mode: 'complete' | 'stream',
-  attempt: number,
-) {
+function startLlmCallRecord(input: LlmTextInput, attempt: number) {
   const startedAt = Date.now()
   let usage: LlmTextUsage | null = null
   const recorded: LlmTextInput = {
@@ -122,7 +74,6 @@ function startLlmCallRecord(
     finish(outcome: LlmCallOutcome) {
       logger.info('llm call', {
         purpose: input.purpose ?? 'unspecified',
-        mode,
         adapterType: input.adapterType,
         modelId:
           input.modelId ??
@@ -191,57 +142,6 @@ function waitBeforeRetry(delayMs: number, signal?: AbortSignal): Promise<void> {
   })
 }
 
-export async function* llmTextStream(
-  input: LlmTextInput,
-): AsyncIterable<string> {
-  input.signal?.throwIfAborted()
-  if (!isLlmTextAdapter(input.adapterType)) {
-    // 与 `llmTextCompletion` 的 default 同一条：大声失败，不静默降级。
-    throw new Error(
-      `LLM text streaming not supported for adapter: ${input.adapterType}`,
-    )
-  }
-
-  if (
-    input.audioData?.length &&
-    input.adapterType !== AI_ADAPTER_TYPES.GEMINI
-  ) {
-    throw new Error(
-      'The selected assistant route does not support audio input. Select Gemini.',
-    )
-  }
-  guardUserPrompt(input.userPrompt, input.promptGuardMaxLength)
-  const streamOf = LLM_TEXT_STREAMS[input.adapterType]
-  for (let attempt = 1; ; attempt++) {
-    const record = startLlmCallRecord(input, 'stream', attempt)
-    // ⚠ 已经吐出过字就绝不重发：重发会把同一段开场白再流一遍，用户看到重复的半截话。
-    let emitted = false
-    try {
-      for await (const chunk of streamOf(record.input)) {
-        emitted = true
-        yield chunk
-      }
-      record.finish('ok')
-      return
-    } catch (error) {
-      record.finish(outcomeOf(error, input.signal))
-      input.signal?.throwIfAborted()
-      if (isAbortError(error)) {
-        throw toLlmTextTimeoutError({
-          adapterType: input.adapterType,
-          modelId: input.modelId ?? LLM_TEXT_MODELS[input.adapterType],
-          timeoutMs: LLM_TEXT_TIMEOUTS_MS.COMPLETION,
-        })
-      }
-      const delayMs = emitted
-        ? null
-        : retryDelayFor(error, input, attempt, record.startedAt)
-      if (delayMs === null) throw error
-      await waitBeforeRetry(delayMs, input.signal)
-    }
-  }
-}
-
 function completeWith(input: LlmTextInput): Promise<string> {
   switch (input.adapterType) {
     case AI_ADAPTER_TYPES.GEMINI:
@@ -277,7 +177,7 @@ export async function llmTextCompletion(input: LlmTextInput): Promise<string> {
   }
   guardUserPrompt(input.userPrompt, input.promptGuardMaxLength)
   for (let attempt = 1; ; attempt++) {
-    const record = startLlmCallRecord(input, 'complete', attempt)
+    const record = startLlmCallRecord(input, attempt)
     try {
       const text = await completeWith(record.input)
       record.finish('ok')

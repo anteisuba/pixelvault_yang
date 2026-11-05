@@ -1,6 +1,6 @@
 import 'server-only'
 
-/** xAI（Grok）：补全与流式。（o-llm 拆分，2026-11-01；见 docs/design/llm.md） */
+/** xAI（Grok）：缓冲补全。（o-llm 拆分，2026-11-01；见 docs/design/llm.md） */
 
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
@@ -8,7 +8,6 @@ import {
   LLM_TEXT_DEFAULT_MAX_TOKENS,
 } from '@/constants/config'
 import {
-  LLM_TEXT_LABELS,
   LLM_TEXT_MODELS,
   type LlmTextInput,
   checkTextFinishReason,
@@ -25,13 +24,11 @@ import {
 import {
   OpenAiChatResponseSchema,
   getOpenAiChatText,
-  streamOpenAiCompatibleChat,
 } from '@/services/llm/llm-openai'
 
 /**
  * xAI (Grok) `/chat/completions` request — OpenAI drop-in (xAI's docs state
- * "full compatibility with the OpenAI REST API"), shared by the buffered and
- * streaming consumers.
+ * "full compatibility with the OpenAI REST API").
  *
  * ⚠ Deliberately NOT routed through `buildOpenAiChatRequest`, even though the
  * wire format matches. That helper resolves its base URL via
@@ -46,10 +43,11 @@ import {
  * jpg/png only) using the same OpenAI multimodal content shape DeepSeek uses.
  * Video is not; xAI search lives on the Responses API (`xaiNativeWebSearch`).
  */
-function buildXaiChatRequest(
-  input: LlmTextInput,
-  options: { stream?: boolean } = {},
-): { endpoint: string; modelId: string; body: string } {
+function buildXaiChatRequest(input: LlmTextInput): {
+  endpoint: string
+  modelId: string
+  body: string
+} {
   if (input.videoData) {
     throw new Error('Grok (xAI) text completion does not support video input.')
   }
@@ -82,7 +80,6 @@ function buildXaiChatRequest(
     body: serializeLlmRequest(input, {
       model: modelId,
       messages,
-      ...(options.stream ? { stream: true } : {}),
       ...xaiVisibleOutputBudget(input),
       // grok-4.7 reasoning cannot be turned off and defaults to high.
       // Official "low" is the latency-sensitive agentic / tool-calling tier
@@ -154,23 +151,4 @@ export async function xaiTextCompletion(input: LlmTextInput): Promise<string> {
   if (!content) throw textResponseError(modelId)
 
   return content
-}
-
-export async function* xaiTextStream(
-  input: LlmTextInput,
-): AsyncIterable<string> {
-  const { endpoint, modelId, body } = buildXaiChatRequest(input, {
-    stream: true,
-  })
-
-  yield* streamOpenAiCompatibleChat({
-    endpoint,
-    body,
-    apiKey: input.apiKey,
-    adapterType: AI_ADAPTER_TYPES.XAI,
-    modelId,
-    label: LLM_TEXT_LABELS[AI_ADAPTER_TYPES.XAI],
-    signal: input.signal,
-    onUsage: input.onUsage,
-  })
 }

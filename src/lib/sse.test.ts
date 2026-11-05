@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest'
 import {
   encodeSseEvent,
   parseSseStream,
-  readSseData,
   SSE_DEFAULT_EVENT,
   type SseFrame,
 } from '@/lib/sse'
@@ -108,17 +107,5 @@ describe('SSE 帧编解码', () => {
     const frames = await collect(streamOf(['event: text\ndata: {"last":true}']))
 
     expect(frames).toEqual([{ event: 'text', data: '{"last":true}' }])
-  })
-
-  it('readSseData：provider 的流没有事件名，只要 data 原文', async () => {
-    // OpenAI / Gemini / Anthropic 都走这条 —— 它们只发 `data:` 行。
-    const seen: string[] = []
-    for await (const data of readSseData(
-      streamOf(['data: {"choices":[]}\n\n', 'data: [DONE]\n\n']),
-    )) {
-      seen.push(data)
-    }
-
-    expect(seen).toEqual(['{"choices":[]}', '[DONE]'])
   })
 })

@@ -1,10 +1,8 @@
 /**
  * Server-Sent Events 的帧编解码 —— **服务端与客户端共用一份**。
  *
- * 两个用处，同一份解析：
- *  1. 读 **provider** 的流（OpenAI / Gemini / Anthropic 的 SSE）。它们只发 `data:`
- *     行，没有 `event:` 名，于是落到默认事件名 `message`。
- *  2. 读 / 写 **我们自己**的助手流（`event: text` / `research` / `lora` / …）。
+ * 用处：读 / 写**我们自己**的流（助手 `event: text` / `research` / `lora` / …、改图进度）。
+ * provider 的流不经这里 —— 助手对话走 AI SDK，旧的自写 provider 流式通道 11-05 已删。
  *
  * ⚠ **不加 `server-only`**：客户端要用同一份解析。两头各写一份的下场，
  * `lora-candidate-receipt.ts` 的注释里已经写过了——「漂移的表现是某一档解出来是
@@ -112,16 +110,5 @@ export async function* parseSseStream(
     if (last) yield last
   } finally {
     reader.releaseLock()
-  }
-}
-
-/**
- * 只要 `data` 原文 —— 读 provider 流时用这个，它们没有事件名可分。
- */
-export async function* readSseData(
-  body: ReadableStream<Uint8Array>,
-): AsyncIterable<string> {
-  for await (const frame of parseSseStream(body)) {
-    if (frame.data) yield frame.data
   }
 }

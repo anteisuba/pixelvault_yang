@@ -5,11 +5,9 @@ vi.mock('server-only', () => ({}))
 import {
   isLlmTextContextLimitError,
   llmTextCompletion,
-  llmTextStream,
   llmNativeWebSearch,
   supportsNativeWebSearch,
   LLM_TEXT_ADAPTERS,
-  LLM_TEXT_STREAMS,
   type LlmTextInput,
 } from '@/services/llm-text.service'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
@@ -372,14 +370,9 @@ describe('llmTextCompletion - Gemini', () => {
     })
   })
 
-  it.each([
-    { stream: false, source: 'remote' },
-    { stream: true, source: 'remote' },
-    { stream: false, source: 'inline' },
-    { stream: true, source: 'inline' },
-  ])(
-    'preserves the 12,718,465-byte incident image (stream=$stream, source=$source)',
-    async ({ stream, source }) => {
+  it.each([{ source: 'remote' }, { source: 'inline' }])(
+    'preserves the 12,718,465-byte incident image (source=$source)',
+    async ({ source }) => {
       const bytes = Buffer.alloc(12_718_465, 127)
       const url = 'https://cdn.example.com/incident.png'
       const reply = {
@@ -397,11 +390,7 @@ describe('llmTextCompletion - Gemini', () => {
                   'content-length': String(bytes.byteLength),
                 },
               })
-            : new Response(
-                stream
-                  ? `data: ${JSON.stringify(reply)}\n\n`
-                  : JSON.stringify(reply),
-              ),
+            : new Response(JSON.stringify(reply)),
         )
       vi.stubGlobal('fetch', fetchMock)
       const input: LlmTextInput = {
@@ -415,12 +404,7 @@ describe('llmTextCompletion - Gemini', () => {
         providerConfig: { label: 'Gemini', baseUrl: '' },
         apiKey: 'test-key',
       }
-      let result = ''
-      if (stream) {
-        for await (const text of llmTextStream(input)) result += text
-      } else {
-        result = await llmTextCompletion(input)
-      }
+      const result = await llmTextCompletion(input)
 
       expect(result).toBe('ok')
       const payload = readFetchJson(fetchMock, source === 'remote' ? 1 : 0) as {
@@ -849,87 +833,73 @@ describe('OpenAI reference image transport', () => {
     responseFormat: 'json_object',
   }
 
-  async function complete(stream: boolean, imageData?: string | string[]) {
-    const request = { ...input, imageData }
-    if (!stream) return llmTextCompletion(request)
-    let text = ''
-    for await (const chunk of llmTextStream(request)) text += chunk
-    return text
+  async function complete(imageData?: string | string[]) {
+    return llmTextCompletion({ ...input, imageData })
   }
 
-  function providerResponse(stream: boolean) {
+  function providerResponse() {
     return new Response(
-      stream
-        ? 'data: {"choices":[{"delta":{"content":"ok"}}]}\n\ndata: [DONE]\n\n'
-        : JSON.stringify({ choices: [{ message: { content: 'ok' } }] }),
+      JSON.stringify({ choices: [{ message: { content: 'ok' } }] }),
       { status: 200 },
     )
   }
 
-  it.each([false, true])(
-    'inlines remote images in order without forwarding CDN URLs (stream=%s)',
-    async (stream) => {
-      const firstUrl = 'https://cdn.example.com/first.png'
-      const lastUrl = 'https://cdn.example.com/last.webp'
-      const inline = `data:image/jpeg;base64,${Buffer.from('inline').toString('base64')}`
-      const fetchMock = vi
-        .fn<typeof fetch>()
-        .mockImplementation(async (url) => {
-          if (url === firstUrl)
-            return new Response('first', {
-              headers: { 'content-type': 'image/png' },
-            })
-          if (url === lastUrl)
-            return new Response('last', {
-              headers: { 'content-type': 'image/webp' },
-            })
-          return providerResponse(stream)
+  it('inlines remote images in order without forwarding CDN URLs', async () => {
+    const firstUrl = 'https://cdn.example.com/first.png'
+    const lastUrl = 'https://cdn.example.com/last.webp'
+    const inline = `data:image/jpeg;base64,${Buffer.from('inline').toString('base64')}`
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async (url) => {
+      if (url === firstUrl)
+        return new Response('first', {
+          headers: { 'content-type': 'image/png' },
         })
-      vi.stubGlobal('fetch', fetchMock)
+      if (url === lastUrl)
+        return new Response('last', {
+          headers: { 'content-type': 'image/webp' },
+        })
+      return providerResponse()
+    })
+    vi.stubGlobal('fetch', fetchMock)
 
-      await expect(complete(stream, [firstUrl, inline, lastUrl])).resolves.toBe(
-        'ok',
-      )
+    await expect(complete([firstUrl, inline, lastUrl])).resolves.toBe('ok')
 
-      expect(fetchMock).toHaveBeenCalledTimes(3)
-      const call = fetchMock.mock.calls.find(([url]) =>
-        String(url).endsWith('/chat/completions'),
-      )
-      const body = call?.[1]?.body
-      if (typeof body !== 'string') throw new Error('Expected OpenAI JSON body')
-      const payload = JSON.parse(body) as {
-        messages: Array<{ content: unknown }>
-        stream?: boolean
-        response_format: { type: string }
-      }
-      expect(payload.messages[1]?.content).toEqual([
-        {
-          type: 'image_url',
-          image_url: {
-            url: `data:image/png;base64,${Buffer.from('first').toString('base64')}`,
-          },
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    const call = fetchMock.mock.calls.find(([url]) =>
+      String(url).endsWith('/chat/completions'),
+    )
+    const body = call?.[1]?.body
+    if (typeof body !== 'string') throw new Error('Expected OpenAI JSON body')
+    const payload = JSON.parse(body) as {
+      messages: Array<{ content: unknown }>
+      response_format: { type: string }
+    }
+    expect(payload.messages[1]?.content).toEqual([
+      {
+        type: 'image_url',
+        image_url: {
+          url: `data:image/png;base64,${Buffer.from('first').toString('base64')}`,
         },
-        { type: 'image_url', image_url: { url: inline } },
-        {
-          type: 'image_url',
-          image_url: {
-            url: `data:image/webp;base64,${Buffer.from('last').toString('base64')}`,
-          },
+      },
+      { type: 'image_url', image_url: { url: inline } },
+      {
+        type: 'image_url',
+        image_url: {
+          url: `data:image/webp;base64,${Buffer.from('last').toString('base64')}`,
         },
-        { type: 'text', text: input.userPrompt },
-      ])
-      expect(body).not.toContain('cdn.example.com')
-      expect(payload.stream).toBe(stream ? true : undefined)
-      expect(payload.response_format).toEqual({ type: 'json_object' })
-    },
-  )
+      },
+      { type: 'text', text: input.userPrompt },
+    ])
+    expect(body).not.toContain('cdn.example.com')
+    expect(payload).not.toHaveProperty('stream')
+    expect(payload.response_format).toEqual({ type: 'json_object' })
+  })
 
   // 看图那一跳要 high：默认清晰度下九宫格每格的脸只有几个像素（回放 T20）。
   it('passes imageDetail through as the OpenAI detail of every image part', async () => {
     const inline = `data:image/png;base64,${Buffer.from('grid').toString('base64')}`
     const fetchMock = vi
       .fn<typeof fetch>()
-      .mockResolvedValue(providerResponse(false))
+      .mockResolvedValue(providerResponse())
     vi.stubGlobal('fetch', fetchMock)
 
     await llmTextCompletion({
@@ -949,78 +919,67 @@ describe('OpenAI reference image transport', () => {
     expect(details).toEqual(['high', 'high'])
   })
 
-  it.each([false, true])(
-    'preserves a 21 MiB original image within the OpenAI request budget (stream=%s)',
-    async (stream) => {
-      const bytes = Buffer.alloc(21 * 1024 * 1024, 127)
-      const fetchMock = vi
-        .fn<typeof fetch>()
-        .mockResolvedValueOnce(
-          new Response(bytes, {
-            headers: {
-              'content-type': 'image/png',
-              'content-length': String(bytes.byteLength),
-            },
-          }),
-        )
-        .mockResolvedValueOnce(providerResponse(stream))
-      vi.stubGlobal('fetch', fetchMock)
-
-      await expect(
-        complete(stream, 'https://cdn.example.com/original.png'),
-      ).resolves.toBe('ok')
-
-      const body = fetchMock.mock.calls[1]?.[1]?.body
-      if (typeof body !== 'string') throw new Error('Expected OpenAI JSON body')
-      const payload = JSON.parse(body) as {
-        messages: Array<{ content: Array<{ image_url?: { url: string } }> }>
-      }
-      const sentImage = payload.messages[1]?.content[0]?.image_url?.url
-      expect(sentImage?.startsWith('data:image/png;base64,')).toBe(true)
-      expect(
-        Buffer.from(sentImage!.split(',')[1], 'base64').equals(bytes),
-      ).toBe(true)
-    },
-  )
-
-  it.each([false, true])(
-    'rejects a private image URL before any network request (stream=%s)',
-    async (stream) => {
-      const fetchMock = vi
-        .fn()
-        .mockImplementation(() => providerResponse(stream))
-      vi.stubGlobal('fetch', fetchMock)
-
-      await expect(
-        complete(stream, 'http://127.0.0.1/private.png'),
-      ).rejects.toMatchObject({
-        errorCode: GENERATION_ERROR_CODES.REFERENCE_IMAGE_UNREACHABLE,
-        i18nKey: 'errors.generation.reference_image_unreachable',
-      })
-      expect(fetchMock).not.toHaveBeenCalled()
-    },
-  )
-
-  it.each([false, true])(
-    'reports image download failure without calling the provider (stream=%s)',
-    async (stream) => {
-      const fetchMock = vi
-        .fn()
-        .mockResolvedValue(new Response('forbidden', { status: 403 }))
-      vi.stubGlobal('fetch', fetchMock)
-
-      await expect(
-        complete(stream, 'https://cdn.example.com/private.png'),
-      ).rejects.toMatchObject({
-        errorCode: GENERATION_ERROR_CODES.REFERENCE_IMAGE_UNREACHABLE,
-        i18nKey: 'errors.generation.reference_image_unreachable',
-      })
-      expect(fetchMock).toHaveBeenCalledTimes(1)
-      expect(fetchMock.mock.calls[0]?.[0]).toBe(
-        'https://cdn.example.com/private.png',
+  it('preserves a 21 MiB original image within the OpenAI request budget', async () => {
+    const bytes = Buffer.alloc(21 * 1024 * 1024, 127)
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        new Response(bytes, {
+          headers: {
+            'content-type': 'image/png',
+            'content-length': String(bytes.byteLength),
+          },
+        }),
       )
-    },
-  )
+      .mockResolvedValueOnce(providerResponse())
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(
+      complete('https://cdn.example.com/original.png'),
+    ).resolves.toBe('ok')
+
+    const body = fetchMock.mock.calls[1]?.[1]?.body
+    if (typeof body !== 'string') throw new Error('Expected OpenAI JSON body')
+    const payload = JSON.parse(body) as {
+      messages: Array<{ content: Array<{ image_url?: { url: string } }> }>
+    }
+    const sentImage = payload.messages[1]?.content[0]?.image_url?.url
+    expect(sentImage?.startsWith('data:image/png;base64,')).toBe(true)
+    expect(Buffer.from(sentImage!.split(',')[1], 'base64').equals(bytes)).toBe(
+      true,
+    )
+  })
+
+  it('rejects a private image URL before any network request', async () => {
+    const fetchMock = vi.fn().mockImplementation(() => providerResponse())
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(
+      complete('http://127.0.0.1/private.png'),
+    ).rejects.toMatchObject({
+      errorCode: GENERATION_ERROR_CODES.REFERENCE_IMAGE_UNREACHABLE,
+      i18nKey: 'errors.generation.reference_image_unreachable',
+    })
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('reports image download failure without calling the provider', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response('forbidden', { status: 403 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(
+      complete('https://cdn.example.com/private.png'),
+    ).rejects.toMatchObject({
+      errorCode: GENERATION_ERROR_CODES.REFERENCE_IMAGE_UNREACHABLE,
+      i18nKey: 'errors.generation.reference_image_unreachable',
+    })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      'https://cdn.example.com/private.png',
+    )
+  })
 
   it('rejects a remote image whose Base64 alone exceeds the request budget', async () => {
     const maxBytes =
@@ -1032,7 +991,7 @@ describe('OpenAI reference image transport', () => {
     )
     vi.stubGlobal('fetch', fetchMock)
     await expect(
-      complete(false, 'https://cdn.example.com/large.png'),
+      complete('https://cdn.example.com/large.png'),
     ).rejects.toMatchObject({
       errorCode: 'PROVIDER_REQUEST_TOO_LARGE',
       i18nKey: 'errors.provider.requestTooLarge',
@@ -1055,7 +1014,7 @@ describe('OpenAI reference image transport', () => {
         ),
       )
 
-      await expect(complete(false)).rejects.toMatchObject({
+      await expect(complete()).rejects.toMatchObject({
         errorCode: 'PROVIDER_AUTH_FAILED',
         httpStatus: status,
         i18nKey: 'errors.provider.invalidApiKey',
@@ -1090,7 +1049,7 @@ describe('OpenAI reference image transport', () => {
         ),
       )
 
-      await expect(complete(false)).rejects.toMatchObject({
+      await expect(complete()).rejects.toMatchObject({
         errorCode,
         i18nKey: `errors.generation.${errorCode}`,
       })
@@ -2217,665 +2176,50 @@ describe('llmTextCompletion - Claude (Anthropic)', () => {
   })
 })
 
-describe('llmTextStream', () => {
-  const GEMINI_ROUTE = {
-    adapterType: AI_ADAPTER_TYPES.GEMINI,
-    providerConfig: {
-      label: 'Gemini',
-      baseUrl: 'https://generativelanguage.googleapis.com',
-    },
-    apiKey: 'test-key',
-  } as const
-
-  function sseResponse(lines: string[]): Response {
-    const body = new ReadableStream<Uint8Array>({
-      start(controller) {
-        const encoder = new TextEncoder()
-        for (const line of lines) controller.enqueue(encoder.encode(line))
-        controller.close()
-      },
-    })
-    return new Response(body, {
-      status: 200,
-      headers: { 'Content-Type': 'text/event-stream' },
-    })
-  }
-
-  const GEMINI_STOP_FRAME = 'data: {"candidates":[{"finishReason":"STOP"}]}\n\n'
-
-  function geminiEvent(text: string): string {
-    return `data: ${JSON.stringify({
-      candidates: [{ content: { parts: [{ text }] } }],
-    })}
-
-`
-  }
-
-  /** Anthropic 的收尾帧 —— 没有 `[DONE]` 哨兵，用 `message_stop`。 */
-  const CLAUDE_MESSAGE_STOP_FRAME =
-    'event: message_stop\ndata: {"type":"message_stop"}\n\n'
-
-  async function collect(stream: AsyncIterable<string>): Promise<string[]> {
-    const chunks: string[] = []
-    for await (const chunk of stream) chunks.push(chunk)
-    return chunks
-  }
-
-  it('每一家 LLM 文本 adapter 都有 SSE 实现 —— 没有「不支持就缓冲」这条路', () => {
-    // ⭐ 这条替代了原先的「能力矩阵」断言。那版断言的语义是「谁支持谁不支持」，
-    //    也就是承认降级存在；降级正是 2026-08-24 生产 504 能活下来的原因
-    //    （08-23 漏写 Grok 的 SSE，静默缓冲把它兜住了）。现在表是穷举 Record，
-    //    漏写一家 tsc 直接报错，这条只是把同一件事在运行时也钉一遍。
-    expect(Object.keys(LLM_TEXT_STREAMS).sort()).toEqual(
-      [...LLM_TEXT_ADAPTERS].sort(),
-    )
-  })
-
-  it('不是 LLM 文本 adapter 的家：大声失败，不静默降级成缓冲', async () => {
+describe('llmTextCompletion - shared request rules', () => {
+  it('不是 LLM 文本 adapter 的家：大声失败，不静默降级', async () => {
     await expect(
-      collect(
-        llmTextStream({
-          systemPrompt: 'sys',
-          userPrompt: 'user',
-          adapterType: AI_ADAPTER_TYPES.FAL,
-          providerConfig: { label: 'fal', baseUrl: 'https://fal.run' },
-          apiKey: 'test-key',
-        }),
-      ),
+      llmTextCompletion({
+        systemPrompt: 'sys',
+        userPrompt: 'user',
+        adapterType: AI_ADAPTER_TYPES.FAL,
+        providerConfig: { label: 'fal', baseUrl: 'https://fal.run' },
+        apiKey: 'test-key',
+      }),
     ).rejects.toThrow(/not supported/i)
   })
 
-  it('Gemini：逐个 SSE 事件产出增量文本', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi
-        .fn()
-        .mockResolvedValue(
-          sseResponse([
-            geminiEvent('你好'),
-            geminiEvent('，世界'),
-            GEMINI_STOP_FRAME,
-          ]),
-        ),
-    )
-
-    const chunks = await collect(
-      llmTextStream({
-        systemPrompt: 'sys',
-        userPrompt: 'user',
-        ...GEMINI_ROUTE,
-      }),
-    )
-
-    expect(chunks).toEqual(['你好', '，世界'])
-  })
-
-  it('Gemini：走的是 streamGenerateContent 且带 alt=sse', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue(sseResponse([geminiEvent('ok'), GEMINI_STOP_FRAME]))
-    vi.stubGlobal('fetch', fetchMock)
-
-    await collect(
-      llmTextStream({
-        systemPrompt: 'sys',
-        userPrompt: 'user',
-        ...GEMINI_ROUTE,
-      }),
-    )
-
-    expect(fetchMock.mock.calls[0]?.[0]).toContain(':streamGenerateContent')
-    expect(fetchMock.mock.calls[0]?.[0]).toContain('alt=sse')
-  })
-
-  it('Gemini：流式请求带思考摘要保活，摘要不进正文', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      sseResponse([
-        `data: ${JSON.stringify({
-          candidates: [
-            {
-              content: {
-                parts: [{ text: 'Weighing the refs', thought: true }],
-              },
-            },
-          ],
-        })}\n\n`,
-        geminiEvent('{"ok":true}'),
-        GEMINI_STOP_FRAME,
-      ]),
-    )
-    vi.stubGlobal('fetch', fetchMock)
-
-    const chunks = await collect(
-      llmTextStream({
-        systemPrompt: 'sys',
-        userPrompt: 'user',
-        ...GEMINI_ROUTE,
-      }),
-    )
-
-    expect(chunks).toEqual(['{"ok":true}'])
-    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))
-    expect(body.generationConfig.thinkingConfig).toEqual({
-      includeThoughts: true,
+  describe('缓冲响应里 provider 自报的 usage 进 onUsage（只记录）', () => {
+    const json = (payload: unknown) =>
+      vi.fn().mockResolvedValue(new Response(JSON.stringify(payload)))
+    const chatReply = (usage: unknown) => ({
+      choices: [{ message: { content: 'ok' }, finish_reason: 'stop' }],
+      usage,
     })
-  })
 
-  it('chunk 边界切在一行中间也要能拼回来', async () => {
-    const whole = geminiEvent('半截字')
-    const cut = Math.floor(whole.length / 2)
-    vi.stubGlobal(
-      'fetch',
-      vi
-        .fn()
-        .mockResolvedValue(
-          sseResponse([
-            whole.slice(0, cut),
-            whole.slice(cut),
-            GEMINI_STOP_FRAME,
-          ]),
-        ),
-    )
-
-    const chunks = await collect(
-      llmTextStream({
-        systemPrompt: 'sys',
-        userPrompt: 'user',
-        ...GEMINI_ROUTE,
-      }),
-    )
-
-    expect(chunks.join('')).toBe('半截字')
-  })
-
-  it('损坏的 SSE 事件不能被跳过并伪装成完整回复', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi
-        .fn()
-        .mockResolvedValue(
-          sseResponse([
-            geminiEvent('前'),
-            'data: {不是 JSON}\n\n',
-            geminiEvent('后'),
-            GEMINI_STOP_FRAME,
-          ]),
-        ),
-    )
-    await expect(
-      collect(
-        llmTextStream({
-          systemPrompt: 'sys',
-          userPrompt: 'user',
-          ...GEMINI_ROUTE,
-        }),
-      ),
-    ).rejects.toMatchObject({ errorCode: 'ASSISTANT_OUTPUT_TRUNCATED' })
-  })
-
-  it('HTTP 失败按 provider 错误抛，不产出空流', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue(new Response('bad key', { status: 401 })),
-    )
-
-    await expect(
-      collect(
-        llmTextStream({
-          systemPrompt: 'sys',
-          userPrompt: 'user',
-          ...GEMINI_ROUTE,
-        }),
-      ),
-    ).rejects.toMatchObject({ httpStatus: 401 })
-  })
-
-  it('OpenAI：从 delta.content 逐段产出，[DONE] 不当 JSON 解析', async () => {
-    const event = (content: string) =>
-      `data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\n\n`
-    vi.stubGlobal(
-      'fetch',
-      vi
-        .fn()
-        .mockResolvedValue(
-          sseResponse([event('前半'), event('后半'), 'data: [DONE]\n\n']),
-        ),
-    )
-
-    const chunks = await collect(
-      llmTextStream({
-        systemPrompt: 'sys',
-        userPrompt: 'user',
-        adapterType: AI_ADAPTER_TYPES.OPENAI,
-        providerConfig: {
-          label: 'OpenAI',
-          baseUrl: 'https://api.openai.com/v1',
-        },
-        apiKey: 'test-key',
-      }),
-    )
-
-    expect(chunks).toEqual(['前半', '后半'])
-  })
-
-  it('OpenAI：请求体带 stream:true', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue(
-        sseResponse([
-          'data: {"choices":[{"delta":{"content":"ok"}}]}\n\n',
-          'data: [DONE]\n\n',
-        ]),
-      )
-    vi.stubGlobal('fetch', fetchMock)
-
-    await collect(
-      llmTextStream({
-        systemPrompt: 'sys',
-        userPrompt: 'user',
-        adapterType: AI_ADAPTER_TYPES.OPENAI,
-        providerConfig: {
-          label: 'OpenAI',
-          baseUrl: 'https://api.openai.com/v1',
-        },
-        apiKey: 'test-key',
-      }),
-    )
-
-    const body = JSON.parse(fetchMock.mock.calls[0]?.[1]?.body as string)
-    expect(body.stream).toBe(true)
-    expect(body.model).toBe(LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_1_SOL)
-  })
-
-  it.each([undefined, LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5])(
-    'Claude：只取 text_delta —— thinking_delta 绝不当正文念出去 (%s)',
-    async (modelId) => {
-      // ⚠ Anthropic 是自己的事件格式，不与那四家共用解析。同一个
-      //   `content_block_delta` 还会驮思考与工具调用的增量；把它们 yield 出去就是
-      //   把模型的思考过程念给用户听。Fable 5.1 的 thinking 恒开（关不掉），默认
-      //   `display: "omitted"` 时 thinking_delta 为空串，但这道判据不能靠那个默认兜着。
-      const frame = (delta: Record<string, unknown>) =>
-        `event: content_block_delta\ndata: ${JSON.stringify({
-          type: 'content_block_delta',
-          index: 0,
-          delta,
-        })}\n\n`
+    it('Grok：reasoning 与 cached 字段按 OpenAI 兼容形状映射', async () => {
       vi.stubGlobal(
         'fetch',
-        vi
-          .fn()
-          .mockResolvedValue(
-            sseResponse([
-              frame({ type: 'thinking_delta', thinking: '我先想想' }),
-              frame({ type: 'text_delta', text: '前半' }),
-              frame({ type: 'text_delta', text: '后半' }),
-              CLAUDE_MESSAGE_STOP_FRAME,
-            ]),
-          ),
-      )
-
-      const chunks = await collect(
-        llmTextStream({
-          systemPrompt: 'sys',
-          userPrompt: 'user',
-          modelId,
-          adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
-          providerConfig: {
-            label: 'Claude',
-            baseUrl: 'https://api.anthropic.com/v1',
-          },
-          apiKey: 'test-key',
-        }),
-      )
-
-      expect(chunks).toEqual(['前半', '后半'])
-    },
-  )
-
-  it.each([undefined, LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5])(
-    'Claude：请求体带 stream:true (%s)',
-    async (modelId) => {
-      const fetchMock = vi
-        .fn()
-        .mockResolvedValue(
-          sseResponse([
-            'data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"ok"}}\n\n',
-            CLAUDE_MESSAGE_STOP_FRAME,
-          ]),
-        )
-      vi.stubGlobal('fetch', fetchMock)
-
-      await collect(
-        llmTextStream({
-          systemPrompt: 'sys',
-          userPrompt: 'user',
-          modelId,
-          adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
-          providerConfig: {
-            label: 'Claude',
-            baseUrl: 'https://api.anthropic.com/v1',
-          },
-          apiKey: 'test-key',
-        }),
-      )
-
-      const payload = readFetchJson(fetchMock)
-      expect(payload.stream).toBe(true)
-      expect(payload.model).toBe(modelId ?? LLM_TEXT_MODEL_IDS.CLAUDE_OPUS_5_5)
-      expect(payload.thinking).toBeUndefined()
-      expect(payload.max_tokens).toBe(LLM_TEXT_DEFAULT_MAX_TOKENS.ANTHROPIC)
-    },
-  )
-
-  it('Claude：provider 管上限的流式请求给宽上限，思考长了也不截断正文', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue(
-        sseResponse([
-          'data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"ok"}}\n\n',
-          CLAUDE_MESSAGE_STOP_FRAME,
-        ]),
-      )
-    vi.stubGlobal('fetch', fetchMock)
-
-    await collect(
-      llmTextStream({
-        systemPrompt: 'sys',
-        userPrompt: 'user',
-        providerManagedOutput: true,
-        adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
-        providerConfig: {
-          label: 'Claude',
-          baseUrl: 'https://api.anthropic.com/v1',
-        },
-        apiKey: 'test-key',
-      }),
-    )
-
-    expect(readFetchJson(fetchMock).max_tokens).toBe(
-      LLM_TEXT_DEFAULT_MAX_TOKENS.ANTHROPIC_STREAM,
-    )
-  })
-
-  it.each([undefined, LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5])(
-    'Claude：流中途 stop_reason=refusal 抛 PROVIDER_REFUSED，不把半截当完整回复 (%s)',
-    async (modelId) => {
-      // 分类器可以在已经吐了一部分正文之后才拒绝：`message_delta` 带
-      // `stop_reason: 'refusal'`。这时要抛错让上层丢掉半截，而不是静默收尾。
-      const refusalFrame =
-        'event: message_delta\ndata: ' +
-        JSON.stringify({
-          type: 'message_delta',
-          delta: { stop_reason: 'refusal', stop_sequence: null },
-          usage: { output_tokens: 3 },
-        }) +
-        '\n\n'
-      vi.stubGlobal(
-        'fetch',
-        vi.fn().mockResolvedValue(
-          sseResponse([
-            'event: content_block_delta\ndata: ' +
-              JSON.stringify({
-                type: 'content_block_delta',
-                index: 0,
-                delta: { type: 'text_delta', text: '半截' },
-              }) +
-              '\n\n',
-            refusalFrame,
-            CLAUDE_MESSAGE_STOP_FRAME,
-          ]),
-        ),
-      )
-
-      await expect(
-        collect(
-          llmTextStream({
-            systemPrompt: 'sys',
-            userPrompt: 'user',
-            modelId,
-            adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
-            providerConfig: {
-              label: 'Claude',
-              baseUrl: 'https://api.anthropic.com/v1',
-            },
-            apiKey: 'test-key',
+        json(
+          chatReply({
+            prompt_tokens: 9000,
+            completion_tokens: 40,
+            prompt_tokens_details: { cached_tokens: 8000 },
+            completion_tokens_details: { reasoning_tokens: 900 },
           }),
         ),
-      ).rejects.toMatchObject({ errorCode: 'PROVIDER_REFUSED' })
-    },
-  )
-
-  // ─── OpenAI 兼容的另外三家（2026-08-24 补齐） ──────────────────
-  //
-  // ⚠ 这三条不是「顺手加的覆盖」。Grok 08-23 接入时只写了缓冲那一半，助手的
-  //   流式路由于是一个字节都不产出、响应头从未 flush，第二天生产就回了 504。
-  //   每一家都必须同时验「请求带 stream:true」和「真的逐段产出」——只验其一
-  //   都会漏掉那个形态。
-
-  const OPENAI_COMPATIBLE_STREAM_ROUTES = [
-    {
-      name: 'DeepSeek',
-      adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
-      baseUrl: 'https://api.deepseek.com',
-      expectedHost: 'https://api.deepseek.com/chat/completions',
-    },
-    {
-      name: 'Grok',
-      adapterType: AI_ADAPTER_TYPES.XAI,
-      baseUrl: 'https://api.x.ai/v1',
-      expectedHost: 'https://api.x.ai/v1/chat/completions',
-    },
-  ] as const
-
-  it.each(OPENAI_COMPATIBLE_STREAM_ROUTES)(
-    '$name：请求带 stream:true、打自己的 host、并逐段产出',
-    async ({ adapterType, baseUrl, expectedHost, name }) => {
-      const event = (content: string) =>
-        `data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\n\n`
-      const fetchMock = vi
-        .fn()
-        .mockResolvedValue(
-          sseResponse([event('前半'), event('后半'), 'data: [DONE]\n\n']),
-        )
-      vi.stubGlobal('fetch', fetchMock)
-
-      const chunks = await collect(
-        llmTextStream({
-          systemPrompt: 'sys',
-          userPrompt: 'user',
-          adapterType,
-          providerConfig: { label: name, baseUrl },
-          apiKey: 'test-key',
-        }),
       )
-
-      expect(chunks).toEqual(['前半', '后半'])
-      expect(fetchMock.mock.calls[0]?.[0]).toBe(expectedHost)
-      expect(readFetchJson(fetchMock).stream).toBe(true)
-    },
-  )
-
-  it('流式完成后撤掉计时器，不再触发迟到的超时', async () => {
-    // ⛔ 只 fake setTimeout/clearTimeout：sinon 的默认集合里有 queueMicrotask，
-    //    fake 掉它会把 ReadableStream 的读取卡死，测的就不是这件事了。
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
-    try {
-      let capturedSignal: AbortSignal | null = null
-      vi.stubGlobal(
-        'fetch',
-        vi.fn().mockImplementation(async (_url: string, init: RequestInit) => {
-          capturedSignal = init.signal ?? null
-          return sseResponse([
-            `data: ${JSON.stringify({ choices: [{ delta: { content: '慢' } }] })}\n\n`,
-            'data: [DONE]\n\n',
-          ])
-        }),
-      )
-
-      const chunks = await collect(
-        llmTextStream({
-          systemPrompt: 'sys',
-          userPrompt: 'user',
-          adapterType: AI_ADAPTER_TYPES.XAI,
-          providerConfig: { label: 'Grok', baseUrl: 'https://api.x.ai/v1' },
-          apiKey: 'test-key',
-        }),
-      )
-
-      expect(chunks).toEqual(['慢'])
-      expect(capturedSignal).not.toBeNull()
-      const completedReason = (capturedSignal as unknown as AbortSignal).reason
-      expect(vi.getTimerCount()).toBe(0)
-      vi.advanceTimersByTime(LLM_TEXT_TIMEOUTS_MS.STREAM_HEADERS * 4)
-      expect((capturedSignal as unknown as AbortSignal).reason).toBe(
-        completedReason,
-      )
-    } finally {
-      vi.useRealTimers()
-    }
-  })
-
-  it('流式首包窗口一律 90s：30s 时还在等，到点才掐（Grok 与 OpenAI 同一档）', async () => {
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
-    try {
-      let capturedSignal: AbortSignal | null = null
-      vi.stubGlobal(
-        'fetch',
-        vi.fn().mockImplementation((_url: string, init: RequestInit) => {
-          capturedSignal = init.signal ?? null
-          return new Promise((_resolve, reject) => {
-            const signal = init.signal
-            if (!signal) return
-            const onAbort = () => {
-              const aborted = new Error('The operation was aborted')
-              aborted.name = 'AbortError'
-              reject(aborted)
-            }
-            if (signal.aborted) onAbort()
-            else signal.addEventListener('abort', onAbort, { once: true })
-          })
-        }),
-      )
-
-      const pending = collect(
-        llmTextStream({
-          systemPrompt: 'sys',
-          userPrompt: 'user',
-          adapterType: AI_ADAPTER_TYPES.XAI,
-          providerConfig: { label: 'Grok', baseUrl: 'https://api.x.ai/v1' },
-          apiKey: 'test-key',
-        }),
-      )
-      const expected = expect(pending).rejects.toMatchObject({
-        errorCode: 'PROVIDER_TIMEOUT',
-        httpStatus: 504,
-      })
-      // fetchLlmTextStreaming arms the timer then awaits fetch — flush that.
-      await Promise.resolve()
-      await Promise.resolve()
-
-      // ⭐ 30s 时还在等（推理模型开口前可能一个字节都不回），90s 才掐。
-      await vi.advanceTimersByTimeAsync(30_000)
-      expect(capturedSignal).not.toBeNull()
-      expect((capturedSignal as unknown as AbortSignal).aborted).toBe(false)
-
-      await vi.advanceTimersByTimeAsync(
-        LLM_TEXT_TIMEOUTS_MS.STREAM_HEADERS - 30_000,
-      )
-      expect((capturedSignal as unknown as AbortSignal).aborted).toBe(true)
-      await expected
-    } finally {
-      vi.useRealTimers()
-    }
-  })
-
-  it('Grok 流式请求同样带 reasoning_effort: low，不发已弃用的 max_tokens', async () => {
-    const event = (content: string) =>
-      `data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\n\n`
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue(sseResponse([event('ok'), 'data: [DONE]\n\n']))
-    vi.stubGlobal('fetch', fetchMock)
-
-    await collect(
-      llmTextStream({
+      const onUsage = vi.fn()
+      await llmTextCompletion({
         systemPrompt: 'sys',
         userPrompt: 'user',
         adapterType: AI_ADAPTER_TYPES.XAI,
         providerConfig: { label: 'Grok', baseUrl: 'https://api.x.ai/v1' },
         apiKey: 'test-key',
-      }),
-    )
-
-    const payload = readFetchJson(fetchMock)
-    expect(payload.stream).toBe(true)
-    expect(payload.reasoning_effort).toBe('low')
-    expect(payload.max_completion_tokens).toBe(LLM_TEXT_DEFAULT_MAX_TOKENS.XAI)
-    expect(payload.max_tokens).toBeUndefined()
-  })
-
-  it('流式：响应头等不到时报 PROVIDER_TIMEOUT，不是没头没尾的 502', async () => {
-    const aborted = new Error('The operation was aborted')
-    aborted.name = 'AbortError'
-    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(aborted))
-
-    await expect(
-      collect(
-        llmTextStream({
-          systemPrompt: 'sys',
-          userPrompt: 'user',
-          adapterType: AI_ADAPTER_TYPES.XAI,
-          providerConfig: { label: 'Grok', baseUrl: 'https://api.x.ai/v1' },
-          apiKey: 'test-key',
-        }),
-      ),
-    ).rejects.toMatchObject({
-      errorCode: 'PROVIDER_TIMEOUT',
-      httpStatus: 504,
-    })
-  })
-
-  describe('provider 自报的 usage 进 onUsage（只记录）', () => {
-    const openAiEvent = (payload: Record<string, unknown>) =>
-      `data: ${JSON.stringify(payload)}\n\n`
-
-    it('Grok：每帧带累计 usage，以最后一帧为准', async () => {
-      vi.stubGlobal(
-        'fetch',
-        vi.fn().mockResolvedValue(
-          sseResponse([
-            openAiEvent({
-              choices: [{ delta: { content: '{"a"' } }],
-              usage: { prompt_tokens: 9000, completion_tokens: 1 },
-            }),
-            openAiEvent({
-              choices: [{ delta: { content: ':1}' }, finish_reason: 'stop' }],
-              usage: {
-                prompt_tokens: 9000,
-                completion_tokens: 40,
-                prompt_tokens_details: { cached_tokens: 8000 },
-                completion_tokens_details: { reasoning_tokens: 900 },
-              },
-            }),
-            'data: [DONE]\n\n',
-          ]),
-        ),
-      )
-      const onUsage = vi.fn()
-
-      const chunks = await collect(
-        llmTextStream({
-          systemPrompt: 'sys',
-          userPrompt: 'user',
-          adapterType: AI_ADAPTER_TYPES.XAI,
-          providerConfig: { label: 'Grok', baseUrl: 'https://api.x.ai/v1' },
-          apiKey: 'test-key',
-          onUsage,
-        }),
-      )
-
-      expect(chunks.join('')).toBe('{"a":1}')
-      expect(onUsage).toHaveBeenLastCalledWith({
+        onUsage,
+      })
+      expect(onUsage).toHaveBeenCalledOnce()
+      expect(onUsage).toHaveBeenCalledWith({
         inputTokens: 9000,
         outputTokens: 40,
         reasoningTokens: 900,
@@ -2883,45 +2227,30 @@ describe('llmTextStream', () => {
       })
     })
 
-    it('DeepSeek：最后一帧 choices 为空、只带 usage，正文不受影响', async () => {
+    it('DeepSeek：缓存命中数取 prompt_cache_hit_tokens', async () => {
       vi.stubGlobal(
         'fetch',
-        vi.fn().mockResolvedValue(
-          sseResponse([
-            openAiEvent({
-              choices: [{ delta: { content: 'ok' }, finish_reason: 'stop' }],
-            }),
-            openAiEvent({
-              choices: [],
-              usage: {
-                prompt_tokens: 26000,
-                completion_tokens: 12000,
-                prompt_cache_hit_tokens: 20000,
-                completion_tokens_details: { reasoning_tokens: 11500 },
-              },
-            }),
-            'data: [DONE]\n\n',
-          ]),
+        json(
+          chatReply({
+            prompt_tokens: 26000,
+            completion_tokens: 12000,
+            prompt_cache_hit_tokens: 20000,
+            completion_tokens_details: { reasoning_tokens: 11500 },
+          }),
         ),
       )
       const onUsage = vi.fn()
-
-      const chunks = await collect(
-        llmTextStream({
-          systemPrompt: 'sys',
-          userPrompt: 'user',
-          adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
-          providerConfig: {
-            label: 'DeepSeek',
-            baseUrl: 'https://api.deepseek.com',
-          },
-          apiKey: 'test-key',
-          onUsage,
-        }),
-      )
-
-      expect(chunks).toEqual(['ok'])
-      expect(onUsage).toHaveBeenCalledOnce()
+      await llmTextCompletion({
+        systemPrompt: 'sys',
+        userPrompt: 'user',
+        adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+        providerConfig: {
+          label: 'DeepSeek',
+          baseUrl: 'https://api.deepseek.com',
+        },
+        apiKey: 'test-key',
+        onUsage,
+      })
       expect(onUsage).toHaveBeenCalledWith({
         inputTokens: 26000,
         outputTokens: 12000,
@@ -2930,204 +2259,188 @@ describe('llmTextStream', () => {
       })
     })
 
-    it.each([
-      { baseUrl: '', sent: true },
-      { baseUrl: 'https://proxy.example.test/v1', sent: false },
-    ])(
-      'OpenAI：给了 cacheKey 时官方端点带 prompt_cache_key，自填代理不加（baseUrl=$baseUrl）',
-      async ({ baseUrl, sent }) => {
-        const fetchMock = vi.fn().mockResolvedValue(
-          sseResponse([
-            openAiEvent({
-              choices: [{ delta: { content: 'ok' }, finish_reason: 'stop' }],
-            }),
-            'data: [DONE]\n\n',
-          ]),
-        )
-        vi.stubGlobal('fetch', fetchMock)
-
-        await collect(
-          llmTextStream({
-            systemPrompt: 'sys',
-            userPrompt: 'user',
-            adapterType: AI_ADAPTER_TYPES.OPENAI,
-            providerConfig: { label: 'OpenAI', baseUrl },
-            apiKey: 'test-key',
-            cacheKey: 'operator-abc',
+    it('OpenAI：usage 映射到 inputTokens / outputTokens / reasoningTokens', async () => {
+      vi.stubGlobal(
+        'fetch',
+        json(
+          chatReply({
+            prompt_tokens: 30000,
+            completion_tokens: 200,
+            completion_tokens_details: { reasoning_tokens: 50 },
           }),
-        )
-
-        const body = JSON.parse(String(fetchMock.mock.calls[0][1].body))
-        expect(body.prompt_cache_key).toBe(sent ? 'operator-abc' : undefined)
-      },
-    )
-
-    it.each([
-      { baseUrl: '', asked: true },
-      { baseUrl: 'https://proxy.example.test/v1', asked: false },
-    ])(
-      'OpenAI 流式：官方端点要 usage，自填代理不加字段（baseUrl=$baseUrl）',
-      async ({ baseUrl, asked }) => {
-        const fetchMock = vi.fn().mockResolvedValue(
-          sseResponse([
-            openAiEvent({
-              choices: [{ delta: { content: 'ok' }, finish_reason: 'stop' }],
-            }),
-            openAiEvent({
-              choices: [],
-              usage: { prompt_tokens: 30000, completion_tokens: 200 },
-            }),
-            'data: [DONE]\n\n',
-          ]),
-        )
-        vi.stubGlobal('fetch', fetchMock)
-        const onUsage = vi.fn()
-
-        const chunks = await collect(
-          llmTextStream({
-            systemPrompt: 'sys',
-            userPrompt: 'user',
-            adapterType: AI_ADAPTER_TYPES.OPENAI,
-            providerConfig: { label: 'OpenAI', baseUrl },
-            apiKey: 'test-key',
-            onUsage,
-          }),
-        )
-
-        expect(chunks).toEqual(['ok'])
-        const body = JSON.parse(String(fetchMock.mock.calls[0][1].body))
-        expect(body.stream_options).toEqual(
-          asked ? { include_usage: true } : undefined,
-        )
-        expect(onUsage).toHaveBeenCalledWith({
-          inputTokens: 30000,
-          outputTokens: 200,
-        })
-      },
-    )
+        ),
+      )
+      const onUsage = vi.fn()
+      await llmTextCompletion({
+        systemPrompt: 'sys',
+        userPrompt: 'user',
+        adapterType: AI_ADAPTER_TYPES.OPENAI,
+        providerConfig: {
+          label: 'OpenAI',
+          baseUrl: 'https://api.openai.com/v1',
+        },
+        apiKey: 'test-key',
+        onUsage,
+      })
+      expect(onUsage).toHaveBeenCalledWith({
+        inputTokens: 30000,
+        outputTokens: 200,
+        reasoningTokens: 50,
+      })
+    })
 
     it('Gemini：usageMetadata 的思考数单独记，不并进输出', async () => {
       vi.stubGlobal(
         'fetch',
-        vi.fn().mockResolvedValue(
-          sseResponse([
-            geminiEvent('ok'),
-            `data: ${JSON.stringify({
-              candidates: [{ finishReason: 'STOP' }],
-              usageMetadata: {
-                promptTokenCount: 10000,
-                candidatesTokenCount: 300,
-                thoughtsTokenCount: 5000,
-              },
-            })}\n\n`,
-          ]),
-        ),
-      )
-      const onUsage = vi.fn()
-
-      await collect(
-        llmTextStream({
-          systemPrompt: 'sys',
-          userPrompt: 'user',
-          ...GEMINI_ROUTE,
-          onUsage,
+        json({
+          candidates: [
+            { content: { parts: [{ text: 'ok' }] }, finishReason: 'STOP' },
+          ],
+          usageMetadata: {
+            promptTokenCount: 10000,
+            candidatesTokenCount: 300,
+            thoughtsTokenCount: 5000,
+            cachedContentTokenCount: 4000,
+          },
         }),
       )
-
-      expect(onUsage).toHaveBeenLastCalledWith({
+      const onUsage = vi.fn()
+      await llmTextCompletion({
+        systemPrompt: 'sys',
+        userPrompt: 'user',
+        adapterType: AI_ADAPTER_TYPES.GEMINI,
+        providerConfig: {
+          label: 'Gemini',
+          baseUrl: 'https://generativelanguage.googleapis.com',
+        },
+        apiKey: 'test-key',
+        onUsage,
+      })
+      expect(onUsage).toHaveBeenCalledWith({
         inputTokens: 10000,
         outputTokens: 300,
         reasoningTokens: 5000,
+        cachedInputTokens: 4000,
       })
     })
 
-    it('Claude：message_start 的输入（含缓存）与 message_delta 的累计输出合在一起', async () => {
+    it('Claude：input 与缓存读写三段相加，缓存读写另记', async () => {
       vi.stubGlobal(
         'fetch',
-        vi.fn().mockResolvedValue(
-          sseResponse([
-            `event: message_start\ndata: ${JSON.stringify({
-              type: 'message_start',
-              message: {
-                usage: {
-                  input_tokens: 200,
-                  cache_read_input_tokens: 9800,
-                  cache_creation_input_tokens: 0,
-                  output_tokens: 1,
-                },
-              },
-            })}\n\n`,
-            `event: content_block_delta\ndata: ${JSON.stringify({
-              type: 'content_block_delta',
-              delta: { type: 'text_delta', text: 'ok' },
-            })}\n\n`,
-            `event: message_delta\ndata: ${JSON.stringify({
-              type: 'message_delta',
-              delta: { stop_reason: 'end_turn' },
-              usage: { output_tokens: 700 },
-            })}\n\n`,
-            CLAUDE_MESSAGE_STOP_FRAME,
-          ]),
-        ),
-      )
-      const onUsage = vi.fn()
-
-      const chunks = await collect(
-        llmTextStream({
-          systemPrompt: 'sys',
-          userPrompt: 'user',
-          adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
-          providerConfig: {
-            label: 'Claude',
-            baseUrl: 'https://api.anthropic.com',
+        json({
+          content: [{ type: 'text', text: 'ok' }],
+          stop_reason: 'end_turn',
+          usage: {
+            input_tokens: 200,
+            cache_read_input_tokens: 9800,
+            cache_creation_input_tokens: 500,
+            output_tokens: 700,
           },
-          apiKey: 'test-key',
-          onUsage,
         }),
       )
-
-      expect(chunks).toEqual(['ok'])
-      expect(onUsage).toHaveBeenLastCalledWith({
-        inputTokens: 10000,
+      const onUsage = vi.fn()
+      await llmTextCompletion({
+        systemPrompt: 'sys',
+        userPrompt: 'user',
+        adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+        providerConfig: {
+          label: 'Claude',
+          baseUrl: 'https://api.anthropic.com',
+        },
+        apiKey: 'test-key',
+        onUsage,
+      })
+      expect(onUsage).toHaveBeenCalledWith({
+        inputTokens: 10500,
         outputTokens: 700,
         cachedInputTokens: 9800,
-        cacheWriteTokens: 0,
+        cacheWriteTokens: 500,
       })
     })
 
-    it('没报 usage、或 usage 形状对不上：不回调，正文照常', async () => {
-      vi.stubGlobal(
-        'fetch',
-        vi.fn().mockResolvedValue(
-          sseResponse([
-            openAiEvent({
-              choices: [{ delta: { content: 'ok' }, finish_reason: 'stop' }],
-              usage: { prompt_tokens: 'many' },
-            }),
-            'data: [DONE]\n\n',
-          ]),
-        ),
-      )
+    it.each([
+      {
+        name: 'OpenAI usage 形状对不上',
+        adapterType: AI_ADAPTER_TYPES.OPENAI,
+        baseUrl: 'https://api.openai.com/v1',
+        payload: chatReply({ prompt_tokens: 'many' }),
+      },
+      {
+        name: 'OpenAI 没报 usage',
+        adapterType: AI_ADAPTER_TYPES.OPENAI,
+        baseUrl: 'https://api.openai.com/v1',
+        payload: {
+          choices: [{ message: { content: 'ok' }, finish_reason: 'stop' }],
+        },
+      },
+      {
+        name: 'Gemini usageMetadata 形状对不上',
+        adapterType: AI_ADAPTER_TYPES.GEMINI,
+        baseUrl: 'https://generativelanguage.googleapis.com',
+        payload: {
+          candidates: [
+            { content: { parts: [{ text: 'ok' }] }, finishReason: 'STOP' },
+          ],
+          usageMetadata: { promptTokenCount: 'many' },
+        },
+      },
+      {
+        name: 'Claude usage 形状对不上',
+        adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+        baseUrl: 'https://api.anthropic.com',
+        payload: {
+          content: [{ type: 'text', text: 'ok' }],
+          stop_reason: 'end_turn',
+          usage: { input_tokens: 'many' },
+        },
+      },
+    ])('$name：不回调，正文照常', async ({ adapterType, baseUrl, payload }) => {
+      vi.stubGlobal('fetch', json(payload))
       const onUsage = vi.fn()
-
-      const chunks = await collect(
-        llmTextStream({
+      await expect(
+        llmTextCompletion({
           systemPrompt: 'sys',
           userPrompt: 'user',
-          adapterType: AI_ADAPTER_TYPES.OPENAI,
-          providerConfig: {
-            label: 'OpenAI',
-            baseUrl: 'https://api.openai.com/v1',
-          },
+          adapterType,
+          providerConfig: { label: adapterType, baseUrl },
           apiKey: 'test-key',
           onUsage,
         }),
-      )
-
-      expect(chunks).toEqual(['ok'])
+      ).resolves.toBe('ok')
       expect(onUsage).not.toHaveBeenCalled()
     })
   })
+
+  it.each([
+    { baseUrl: '', sent: true },
+    { baseUrl: 'https://proxy.example.test/v1', sent: false },
+  ])(
+    'OpenAI：给了 cacheKey 时官方端点带 prompt_cache_key，自填代理不加（baseUrl=$baseUrl）',
+    async ({ baseUrl, sent }) => {
+      const fetchMock = vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            choices: [{ message: { content: 'ok' }, finish_reason: 'stop' }],
+          }),
+          { status: 200 },
+        ),
+      )
+      vi.stubGlobal('fetch', fetchMock)
+
+      await llmTextCompletion({
+        systemPrompt: 'sys',
+        userPrompt: 'user',
+        adapterType: AI_ADAPTER_TYPES.OPENAI,
+        providerConfig: { label: 'OpenAI', baseUrl },
+        apiKey: 'test-key',
+        cacheKey: 'operator-abc',
+      })
+
+      expect(readFetchJson(fetchMock).prompt_cache_key).toBe(
+        sent ? 'operator-abc' : undefined,
+      )
+    },
+  )
 })
 
 describe('LLM 文本请求的超时', () => {
@@ -3153,7 +2466,7 @@ describe('LLM 文本请求的超时', () => {
     })
   })
 
-  it('缓冲补全：signal 带的是整次请求的窗口，不是流式那个短的', async () => {
+  it('缓冲补全：signal 带的是整次请求的窗口', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(
         JSON.stringify({ choices: [{ message: { content: 'ok' } }] }),
@@ -3208,194 +2521,126 @@ describe('LLM cancellation and body deadlines', () => {
     providerConfig: { label: 'Grok', baseUrl: 'https://api.x.ai/v1' },
     apiKey: 'test-key',
   }
-  const event = (content: string) =>
-    `data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\n\n`
-  const collect = async (request: LlmTextInput) => {
-    const chunks: string[] = []
-    for await (const chunk of llmTextStream(request)) chunks.push(chunk)
-    return chunks
-  }
   const flush = async () => {
     for (let index = 0; index < 8; index++) await Promise.resolve()
   }
-  const run = (stream: boolean, request: LlmTextInput) =>
-    stream ? collect(request) : llmTextCompletion(request)
+  const run = (request: LlmTextInput) => llmTextCompletion(request)
 
   afterEach(() => vi.useRealTimers())
 
-  it.each([false, true])(
-    'skips a pre-aborted request (stream=%s)',
-    async (stream) => {
-      const controller = new AbortController()
-      controller.abort()
-      const fetchMock = vi.fn()
-      vi.stubGlobal('fetch', fetchMock)
-      await expect(
-        run(stream, { ...input, signal: controller.signal }),
-      ).rejects.toMatchObject({
-        name: 'AbortError',
-      })
-      expect(fetchMock).not.toHaveBeenCalled()
-    },
-  )
+  it('skips a pre-aborted request', async () => {
+    const controller = new AbortController()
+    controller.abort()
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(
+      run({ ...input, signal: controller.signal }),
+    ).rejects.toMatchObject({
+      name: 'AbortError',
+    })
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
 
   it.each(LLM_TEXT_ADAPTERS)(
     'cancels %s while waiting for headers',
     async (adapterType) => {
-      for (const stream of [false, true]) {
-        const controller = new AbortController()
-        let providerSignal!: AbortSignal
-        const fetchMock = vi
-          .fn()
-          .mockImplementation((_url: string, init: RequestInit) => {
-            providerSignal = init.signal as AbortSignal
-            return new Promise((_resolve, reject) => {
-              providerSignal.addEventListener(
-                'abort',
-                () => reject(providerSignal.reason),
-                { once: true },
-              )
-            })
-          })
-        vi.stubGlobal('fetch', fetchMock)
-        const pending = run(stream, {
-          ...input,
-          adapterType,
-          signal: controller.signal,
-        })
-        const expected = expect(pending).rejects.toMatchObject({
-          name: 'AbortError',
-        })
-        await flush()
-        expect(fetchMock).toHaveBeenCalledTimes(1)
-        controller.abort()
-        await expected
-        expect(providerSignal.aborted).toBe(true)
-      }
-    },
-  )
-
-  it.each([false, true])(
-    'cancels a blocked body reader (stream=%s)',
-    async (stream) => {
       const controller = new AbortController()
-      const cancel = vi.fn()
       let providerSignal!: AbortSignal
-      vi.stubGlobal(
-        'fetch',
-        vi.fn().mockImplementation(async (_url: string, init: RequestInit) => {
+      const fetchMock = vi
+        .fn()
+        .mockImplementation((_url: string, init: RequestInit) => {
           providerSignal = init.signal as AbortSignal
-          return new Response(new ReadableStream<Uint8Array>({ cancel }))
-        }),
-      )
-      const pending = run(stream, { ...input, signal: controller.signal })
+          return new Promise((_resolve, reject) => {
+            providerSignal.addEventListener(
+              'abort',
+              () => reject(providerSignal.reason),
+              { once: true },
+            )
+          })
+        })
+      vi.stubGlobal('fetch', fetchMock)
+      const pending = run({
+        ...input,
+        adapterType,
+        signal: controller.signal,
+      })
       const expected = expect(pending).rejects.toMatchObject({
         name: 'AbortError',
       })
       await flush()
+      expect(fetchMock).toHaveBeenCalledTimes(1)
       controller.abort()
       await expected
       expect(providerSignal.aborted).toBe(true)
-      expect(cancel).toHaveBeenCalledTimes(1)
     },
   )
 
-  it.each([false, true])(
-    'reports a stalled body as a provider timeout (stream=%s)',
-    async (stream) => {
-      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
-      const cancel = vi.fn()
-      let providerSignal!: AbortSignal
-      vi.stubGlobal(
-        'fetch',
-        vi.fn().mockImplementation(async (_url: string, init: RequestInit) => {
-          providerSignal = init.signal as AbortSignal
-          return new Response(new ReadableStream<Uint8Array>({ cancel }))
-        }),
-      )
-      const pending = run(stream, input)
-      const expected = expect(pending).rejects.toMatchObject({
-        errorCode: 'PROVIDER_TIMEOUT',
-        httpStatus: 504,
-        i18nKey: 'errors.provider.timeout',
-      })
-      await flush()
-      await vi.advanceTimersByTimeAsync(
-        stream
-          ? LLM_TEXT_TIMEOUTS_MS.STREAM_HEADERS
-          : LLM_TEXT_TIMEOUTS_MS.COMPLETION,
-      )
-      await expected
-      expect(providerSignal.aborted).toBe(true)
-      expect(cancel).toHaveBeenCalledTimes(1)
-    },
-  )
-
-  it.each([false, true])(
-    'preserves a timeout while reading a non-success body (stream=%s)',
-    async (stream) => {
-      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
-      const cancel = vi.fn()
-      vi.stubGlobal(
-        'fetch',
-        vi.fn().mockResolvedValue(
-          new Response(new ReadableStream<Uint8Array>({ cancel }), {
-            status: 502,
-          }),
-        ),
-      )
-      const pending = run(stream, input)
-      const expected = expect(pending).rejects.toMatchObject({
-        errorCode: 'PROVIDER_TIMEOUT',
-        httpStatus: 504,
-      })
-      await flush()
-      await vi.advanceTimersByTimeAsync(
-        stream
-          ? LLM_TEXT_TIMEOUTS_MS.STREAM_HEADERS
-          : LLM_TEXT_TIMEOUTS_MS.COMPLETION,
-      )
-      await expected
-      expect(cancel).toHaveBeenCalledTimes(1)
-    },
-  )
-
-  it('keeps an active stream alive beyond the header window and cancels an early consumer exit', async () => {
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
-    let source!: ReadableStreamDefaultController<Uint8Array>
-    let providerSignal!: AbortSignal
+  it('cancels a blocked body reader', async () => {
+    const controller = new AbortController()
     const cancel = vi.fn()
-    const encoder = new TextEncoder()
+    let providerSignal!: AbortSignal
     vi.stubGlobal(
       'fetch',
       vi.fn().mockImplementation(async (_url: string, init: RequestInit) => {
         providerSignal = init.signal as AbortSignal
-        return new Response(
-          new ReadableStream<Uint8Array>({
-            start: (controller) => {
-              source = controller
-            },
-            cancel,
-          }),
-        )
+        return new Response(new ReadableStream<Uint8Array>({ cancel }))
       }),
     )
-    const iterator = llmTextStream(input)[Symbol.asyncIterator]()
-    for (let index = 0; index < 4; index++) {
-      const pending = iterator.next()
-      await flush()
-      await vi.advanceTimersByTimeAsync(LLM_TEXT_TIMEOUTS_MS.STREAM_HEADERS - 1)
-      expect(providerSignal.aborted).toBe(false)
-      source.enqueue(encoder.encode(event(String(index))))
-      await expect(pending).resolves.toEqual({
-        value: String(index),
-        done: false,
-      })
-    }
-    await iterator.return?.()
+    const pending = run({ ...input, signal: controller.signal })
+    const expected = expect(pending).rejects.toMatchObject({
+      name: 'AbortError',
+    })
+    await flush()
+    controller.abort()
+    await expected
     expect(providerSignal.aborted).toBe(true)
     expect(cancel).toHaveBeenCalledTimes(1)
-    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('reports a stalled body as a provider timeout', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const cancel = vi.fn()
+    let providerSignal!: AbortSignal
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(async (_url: string, init: RequestInit) => {
+        providerSignal = init.signal as AbortSignal
+        return new Response(new ReadableStream<Uint8Array>({ cancel }))
+      }),
+    )
+    const pending = run(input)
+    const expected = expect(pending).rejects.toMatchObject({
+      errorCode: 'PROVIDER_TIMEOUT',
+      httpStatus: 504,
+      i18nKey: 'errors.provider.timeout',
+    })
+    await flush()
+    await vi.advanceTimersByTimeAsync(LLM_TEXT_TIMEOUTS_MS.COMPLETION)
+    await expected
+    expect(providerSignal.aborted).toBe(true)
+    expect(cancel).toHaveBeenCalledTimes(1)
+  })
+
+  it('preserves a timeout while reading a non-success body', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const cancel = vi.fn()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(new ReadableStream<Uint8Array>({ cancel }), {
+          status: 502,
+        }),
+      ),
+    )
+    const pending = run(input)
+    const expected = expect(pending).rejects.toMatchObject({
+      errorCode: 'PROVIDER_TIMEOUT',
+      httpStatus: 504,
+    })
+    await flush()
+    await vi.advanceTimersByTimeAsync(LLM_TEXT_TIMEOUTS_MS.COMPLETION)
+    await expected
+    expect(cancel).toHaveBeenCalledTimes(1)
   })
 
   it.each([
@@ -3819,29 +3064,17 @@ describe('LLM provider response regressions', () => {
       providerManagedOutput: true,
     }
   }
-  function respond(payload: unknown, stream = false) {
+  function respond(payload: unknown) {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockImplementation(
         async () =>
-          new Response(stream ? (payload as string) : JSON.stringify(payload), {
+          new Response(JSON.stringify(payload), {
             status: 200,
-            headers: {
-              'content-type': stream ? 'text/event-stream' : 'application/json',
-            },
+            headers: { 'content-type': 'application/json' },
           }),
       ),
     )
-  }
-  function sse(...frames: unknown[]) {
-    return frames
-      .map((frame) => 'data: ' + JSON.stringify(frame) + '\n\n')
-      .join('')
-  }
-  async function consume(adapter: AI_ADAPTER_TYPES) {
-    let text = ''
-    for await (const part of llmTextStream(input(adapter))) text += part
-    return text
   }
   afterEach(() => vi.unstubAllGlobals())
   describe('compatibility audit: protocol success', () => {
@@ -3869,97 +3102,8 @@ describe('LLM provider response regressions', () => {
       )
       await expect(llmTextCompletion(input(adapter))).resolves.toBe(answer)
     })
-    it.each(adapters)('%s streamed JSON', async (adapter) => {
-      respond(
-        adapter === AI_ADAPTER_TYPES.GEMINI
-          ? sse({
-              candidates: [
-                {
-                  content: { parts: [{ text: answer }] },
-                  finishReason: 'STOP',
-                },
-              ],
-            })
-          : adapter === AI_ADAPTER_TYPES.ANTHROPIC
-            ? sse(
-                {
-                  type: 'content_block_delta',
-                  delta: { type: 'text_delta', text: answer },
-                },
-                { type: 'message_delta', delta: { stop_reason: 'end_turn' } },
-                { type: 'message_stop' },
-              )
-            : sse(
-                {
-                  choices: [
-                    { delta: { content: answer }, finish_reason: null },
-                  ],
-                },
-                { choices: [{ delta: {}, finish_reason: 'stop' }] },
-              ) + 'data: [DONE]\n\n',
-        true,
-      )
-      await expect(consume(adapter)).resolves.toBe(answer)
-    })
   })
   describe('compatibility audit: required failure handling', () => {
-    it.each([
-      AI_ADAPTER_TYPES.OPENAI,
-      AI_ADAPTER_TYPES.DEEPSEEK,
-      AI_ADAPTER_TYPES.XAI,
-    ])('%s must report stream output limit', async (adapter) => {
-      respond(
-        sse({ choices: [{ delta: {}, finish_reason: 'length' }] }) +
-          'data: [DONE]\n\n',
-        true,
-      )
-      await expect(consume(adapter)).rejects.toMatchObject({
-        errorCode: 'ASSISTANT_OUTPUT_TRUNCATED',
-      })
-    })
-    it('OpenAI must report streamed refusal', async () => {
-      respond(
-        sse({
-          choices: [
-            {
-              delta: { refusal: 'Request declined' },
-              finish_reason: 'content_filter',
-            },
-          ],
-        }) + 'data: [DONE]\n\n',
-        true,
-      )
-      await expect(consume(AI_ADAPTER_TYPES.OPENAI)).rejects.toMatchObject({
-        errorCode: 'PROVIDER_REFUSED',
-      })
-    })
-    it('Gemini must report streamed MAX_TOKENS without parts', async () => {
-      respond(
-        sse({
-          candidates: [
-            { content: { role: 'model' }, finishReason: 'MAX_TOKENS' },
-          ],
-        }),
-        true,
-      )
-      await expect(consume(AI_ADAPTER_TYPES.GEMINI)).rejects.toMatchObject({
-        errorCode: 'ASSISTANT_OUTPUT_TRUNCATED',
-      })
-    })
-    it('Claude must report SSE overloaded_error', async () => {
-      respond(
-        sse({
-          type: 'error',
-          error: { type: 'overloaded_error', message: 'Overloaded' },
-        }),
-        true,
-      )
-      await skipRetryWait(LLM_TEXT_RETRY.TRANSIENT_DELAY_MS, () =>
-        expect(consume(AI_ADAPTER_TYPES.ANTHROPIC)).rejects.toMatchObject({
-          errorCode: 'PROVIDER_TRANSIENT',
-        }),
-      )
-    })
     it.each([AI_ADAPTER_TYPES.DEEPSEEK, AI_ADAPTER_TYPES.XAI])(
       '%s empty completion must preserve a structured error',
       async (adapter) => {
@@ -3981,102 +3125,61 @@ describe('LLM provider response regressions', () => {
     })
   })
 
-  function textFrame(adapter: AI_ADAPTER_TYPES, text: string) {
-    return adapter === AI_ADAPTER_TYPES.GEMINI
-      ? { candidates: [{ content: { parts: [{ text }] } }] }
-      : adapter === AI_ADAPTER_TYPES.ANTHROPIC
-        ? { type: 'content_block_delta', delta: { type: 'text_delta', text } }
-        : { choices: [{ delta: { content: text } }] }
-  }
-  function stopFrame(adapter: AI_ADAPTER_TYPES) {
-    return adapter === AI_ADAPTER_TYPES.GEMINI
-      ? sse({ candidates: [{ finishReason: 'STOP' }] })
-      : adapter === AI_ADAPTER_TYPES.ANTHROPIC
-        ? sse({ type: 'message_stop' })
-        : 'data: [DONE]\n\n'
-  }
-  it.each(adapters)('%s empty stream is classified', async (adapter) => {
-    respond(stopFrame(adapter), true)
-    await expect(consume(adapter)).rejects.toMatchObject({
-      errorCode: 'ASSISTANT_NO_TEXT_RESPONSE',
+  it.each([
+    AI_ADAPTER_TYPES.OPENAI,
+    AI_ADAPTER_TYPES.DEEPSEEK,
+    AI_ADAPTER_TYPES.XAI,
+  ])('%s buffered refusal is preserved', async (adapter) => {
+    respond({
+      choices: [
+        {
+          message: { content: answer, refusal: 'Declined' },
+          finish_reason: 'content_filter',
+        },
+      ],
     })
+    await expect(llmTextCompletion(input(adapter))).rejects.toMatchObject({
+      errorCode: 'PROVIDER_REFUSED',
+    })
+  })
+  it('DeepSeek resource exhaustion is transient', async () => {
+    respond({
+      choices: [
+        {
+          message: { content: null },
+          finish_reason: 'insufficient_system_resource',
+        },
+      ],
+    })
+    await skipRetryWait(LLM_TEXT_RETRY.TRANSIENT_DELAY_MS, () =>
+      expect(
+        llmTextCompletion(input(AI_ADAPTER_TYPES.DEEPSEEK)),
+      ).rejects.toMatchObject({
+        errorCode: 'PROVIDER_TRANSIENT',
+      }),
+    )
   })
   it.each(adapters)('%s whitespace is not a response', async (adapter) => {
-    respond(sse(textFrame(adapter, '  \n')) + stopFrame(adapter), true)
-    await expect(consume(adapter)).rejects.toMatchObject({
-      errorCode: 'ASSISTANT_NO_TEXT_RESPONSE',
-    })
-  })
-  it.each(adapters)(
-    '%s EOF without terminal event rejects even valid JSON',
-    async (adapter) => {
-      respond(sse(textFrame(adapter, answer)), true)
-      await expect(consume(adapter)).rejects.toMatchObject({
-        errorCode: 'ASSISTANT_OUTPUT_TRUNCATED',
-      })
-    },
-  )
-  it.each(adapters)(
-    '%s partial text followed by output limit rejects',
-    async (adapter) => {
-      const terminal =
-        adapter === AI_ADAPTER_TYPES.GEMINI
-          ? { candidates: [{ finishReason: 'MAX_TOKENS' }] }
-          : adapter === AI_ADAPTER_TYPES.ANTHROPIC
-            ? { type: 'message_delta', delta: { stop_reason: 'max_tokens' } }
-            : { choices: [{ delta: {}, finish_reason: 'length' }] }
-      respond(
-        sse(textFrame(adapter, answer), terminal) + stopFrame(adapter),
-        true,
-      )
-      await expect(consume(adapter)).rejects.toMatchObject({
-        errorCode: 'ASSISTANT_OUTPUT_TRUNCATED',
-      })
-    },
-  )
-  it.each(adapters)(
-    '%s SSE error after partial text rejects',
-    async (adapter) => {
-      respond(
-        sse(textFrame(adapter, answer), {
-          error: { code: 503, message: 'Service unavailable' },
-        }),
-        true,
-      )
-      await expect(consume(adapter)).rejects.toMatchObject({
-        errorCode: 'PROVIDER_TRANSIENT',
-      })
-    },
-  )
-  it.each(adapters)(
-    '%s malformed event cannot turn into successful JSON',
-    async (adapter) => {
-      respond(
-        sse(textFrame(adapter, answer)) + 'data: null\n\n' + stopFrame(adapter),
-        true,
-      )
-      await expect(consume(adapter)).rejects.toMatchObject({
-        errorCode: 'ASSISTANT_OUTPUT_TRUNCATED',
-      })
-    },
-  )
-  it('DeepSeek resource exhaustion is transient', async () => {
     respond(
-      sse({
-        choices: [{ delta: {}, finish_reason: 'insufficient_system_resource' }],
-      }),
-      true,
+      adapter === AI_ADAPTER_TYPES.GEMINI
+        ? {
+            candidates: [
+              { content: { parts: [{ text: '  \n' }] }, finishReason: 'STOP' },
+            ],
+          }
+        : adapter === AI_ADAPTER_TYPES.ANTHROPIC
+          ? {
+              content: [{ type: 'text', text: '  \n' }],
+              stop_reason: 'end_turn',
+            }
+          : {
+              choices: [
+                { message: { content: '  \n' }, finish_reason: 'stop' },
+              ],
+            },
     )
-    await skipRetryWait(LLM_TEXT_RETRY.TRANSIENT_DELAY_MS, () =>
-      expect(consume(AI_ADAPTER_TYPES.DEEPSEEK)).rejects.toMatchObject({
-        errorCode: 'PROVIDER_TRANSIENT',
-      }),
-    )
-  })
-  it('Gemini prompt block is preserved in streams', async () => {
-    respond(sse({ promptFeedback: { blockReason: 'SAFETY' } }), true)
-    await expect(consume(AI_ADAPTER_TYPES.GEMINI)).rejects.toMatchObject({
-      errorCode: 'ASSISTANT_CONTENT_BLOCKED',
+    await expect(llmTextCompletion(input(adapter))).rejects.toMatchObject({
+      errorCode: 'ASSISTANT_NO_TEXT_RESPONSE',
     })
   })
   it.each(adapters)(
@@ -4108,50 +3211,6 @@ describe('LLM provider response regressions', () => {
       })
     },
   )
-  it.each(adapters)(
-    '%s transport failure retains a classified stream error',
-    async (adapter) => {
-      let sent = false
-      vi.stubGlobal(
-        'fetch',
-        vi.fn().mockImplementation(
-          async () =>
-            new Response(
-              new ReadableStream({
-                pull(controller) {
-                  if (!sent) {
-                    sent = true
-                    controller.enqueue(
-                      new TextEncoder().encode(sse(textFrame(adapter, answer))),
-                    )
-                  } else controller.error(new TypeError('terminated'))
-                },
-              }),
-            ),
-        ),
-      )
-      await expect(consume(adapter)).rejects.toMatchObject({
-        errorCode: 'ASSISTANT_OUTPUT_TRUNCATED',
-      })
-    },
-  )
-  it.each([
-    AI_ADAPTER_TYPES.OPENAI,
-    AI_ADAPTER_TYPES.DEEPSEEK,
-    AI_ADAPTER_TYPES.XAI,
-  ])('%s refusal after partial JSON is preserved', async (adapter) => {
-    respond(
-      sse(textFrame(adapter, answer), {
-        choices: [
-          { delta: { refusal: 'Declined' }, finish_reason: 'content_filter' },
-        ],
-      }) + stopFrame(adapter),
-      true,
-    )
-    await expect(consume(adapter)).rejects.toMatchObject({
-      errorCode: 'PROVIDER_REFUSED',
-    })
-  })
   it.each(adapters)('%s buffered empty text is classified', async (adapter) => {
     respond(
       adapter === AI_ADAPTER_TYPES.GEMINI
@@ -4166,18 +3225,26 @@ describe('LLM provider response regressions', () => {
       errorCode: 'ASSISTANT_NO_TEXT_RESPONSE',
     })
   })
-  it('nullable SSE error code preserves the provider failure', async () => {
-    respond(
-      sse({
-        error: {
-          type: 'invalid_request_error',
-          code: null,
-          message: 'Bad request',
-        },
-      }),
-      true,
+  it('nullable error code preserves the provider failure', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(
+        async () =>
+          new Response(
+            JSON.stringify({
+              error: {
+                type: 'invalid_request_error',
+                code: null,
+                message: 'Bad request',
+              },
+            }),
+            { status: 400 },
+          ),
+      ),
     )
-    await expect(consume(AI_ADAPTER_TYPES.OPENAI)).rejects.toMatchObject({
+    await expect(
+      llmTextCompletion(input(AI_ADAPTER_TYPES.OPENAI)),
+    ).rejects.toMatchObject({
       errorCode: 'PROVIDER_ERROR',
     })
   })
@@ -5208,72 +4275,44 @@ describe('native web search receipts', () => {
 })
 
 describe('assistant image size contracts', () => {
-  function reply(adapterType: AI_ADAPTER_TYPES, stream: boolean): Response {
+  function reply(adapterType: AI_ADAPTER_TYPES): Response {
     if (adapterType === AI_ADAPTER_TYPES.GEMINI) {
-      const payload = {
-        candidates: [
-          { content: { parts: [{ text: 'ok' }] }, finishReason: 'STOP' },
-        ],
-      }
       return new Response(
-        stream
-          ? 'data: ' + JSON.stringify(payload) + '\n\n'
-          : JSON.stringify(payload),
+        JSON.stringify({
+          candidates: [
+            { content: { parts: [{ text: 'ok' }] }, finishReason: 'STOP' },
+          ],
+        }),
       )
     }
     if (adapterType === AI_ADAPTER_TYPES.ANTHROPIC) {
       return new Response(
-        stream
-          ? [
-              {
-                type: 'content_block_delta',
-                delta: { type: 'text_delta', text: 'ok' },
-              },
-              { type: 'message_delta', delta: { stop_reason: 'end_turn' } },
-              { type: 'message_stop' },
-            ]
-              .map(
-                (event) =>
-                  'event: ' +
-                  event.type +
-                  '\ndata: ' +
-                  JSON.stringify(event) +
-                  '\n\n',
-              )
-              .join('')
-          : JSON.stringify({
-              content: [{ type: 'text', text: 'ok' }],
-              stop_reason: 'end_turn',
-            }),
+        JSON.stringify({
+          content: [{ type: 'text', text: 'ok' }],
+          stop_reason: 'end_turn',
+        }),
       )
     }
     return new Response(
-      stream
-        ? 'data: {"choices":[{"delta":{"content":"ok"},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n'
-        : JSON.stringify({
-            choices: [{ message: { content: 'ok' }, finish_reason: 'stop' }],
-          }),
+      JSON.stringify({
+        choices: [{ message: { content: 'ok' }, finish_reason: 'stop' }],
+      }),
     )
   }
 
   async function complete(
     adapterType: AI_ADAPTER_TYPES,
     imageData: string | string[],
-    stream = false,
     userPrompt = 'Describe the images.',
   ) {
-    const input: LlmTextInput = {
+    return llmTextCompletion({
       systemPrompt: 'sys',
       userPrompt,
       imageData,
       adapterType,
       providerConfig: { label: adapterType, baseUrl: '' },
       apiKey: 'test-key',
-    }
-    if (!stream) return llmTextCompletion(input)
-    let text = ''
-    for await (const chunk of llmTextStream(input)) text += chunk
-    return text
+    })
   }
 
   const requestTooLarge = {
@@ -5286,67 +4325,56 @@ describe('assistant image size contracts', () => {
     i18nKey: 'errors.generation.reference_image_too_large',
   }
 
-  it.each([false, true])(
-    'checks Claude at the encoded 10 MB boundary (stream=%s)',
-    async (stream) => {
-      const limit = ASSISTANT_IMAGE_LIMITS.anthropic.maxBase64ImageBytes
-      const fetchMock = vi.fn(() =>
-        Promise.resolve(reply(AI_ADAPTER_TYPES.ANTHROPIC, stream)),
-      )
-      vi.stubGlobal('fetch', fetchMock)
-      const image = 'data:image/png;base64,' + 'A'.repeat(limit)
+  it('checks Claude at the encoded 10 MB boundary', async () => {
+    const limit = ASSISTANT_IMAGE_LIMITS.anthropic.maxBase64ImageBytes
+    const fetchMock = vi.fn(() =>
+      Promise.resolve(reply(AI_ADAPTER_TYPES.ANTHROPIC)),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    const image = 'data:image/png;base64,' + 'A'.repeat(limit)
 
-      await expect(
-        complete(AI_ADAPTER_TYPES.ANTHROPIC, image, stream),
-      ).resolves.toBe('ok')
-      fetchMock.mockClear()
-      await expect(
-        complete(AI_ADAPTER_TYPES.ANTHROPIC, image + 'AAAA', stream),
-      ).rejects.toMatchObject(imageTooLarge)
-      expect(fetchMock).not.toHaveBeenCalled()
-    },
-  )
+    await expect(complete(AI_ADAPTER_TYPES.ANTHROPIC, image)).resolves.toBe(
+      'ok',
+    )
+    fetchMock.mockClear()
+    await expect(
+      complete(AI_ADAPTER_TYPES.ANTHROPIC, image + 'AAAA'),
+    ).rejects.toMatchObject(imageTooLarge)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
 
-  it.each([
-    { adapterType: AI_ADAPTER_TYPES.XAI, stream: false },
-    { adapterType: AI_ADAPTER_TYPES.XAI, stream: true },
-    { adapterType: AI_ADAPTER_TYPES.DEEPSEEK, stream: false },
-    { adapterType: AI_ADAPTER_TYPES.DEEPSEEK, stream: true },
-  ] as const)(
-    'checks decoded bytes at the $adapterType single-image boundary (stream=$stream)',
-    async ({ adapterType, stream }) => {
+  it.each([AI_ADAPTER_TYPES.XAI, AI_ADAPTER_TYPES.DEEPSEEK] as const)(
+    'checks decoded bytes at the %s single-image boundary',
+    async (adapterType) => {
       const limit = ASSISTANT_IMAGE_LIMITS[adapterType].maxImageBytes
-      const fetchMock = vi.fn(() => Promise.resolve(reply(adapterType, stream)))
+      const fetchMock = vi.fn(() => Promise.resolve(reply(adapterType)))
       vi.stubGlobal('fetch', fetchMock)
       const image =
         'data:image/png;base64,' + Buffer.alloc(limit).toString('base64')
 
-      await expect(complete(adapterType, image, stream)).resolves.toBe('ok')
+      await expect(complete(adapterType, image)).resolves.toBe('ok')
       fetchMock.mockClear()
       const oversized =
         'data:image/png;base64,' + Buffer.alloc(limit + 1).toString('base64')
-      await expect(
-        complete(adapterType, oversized, stream),
-      ).rejects.toMatchObject(imageTooLarge)
+      await expect(complete(adapterType, oversized)).rejects.toMatchObject(
+        imageTooLarge,
+      )
       expect(fetchMock).not.toHaveBeenCalled()
     },
   )
 
-  it.each([false, true])(
-    'enforces the Gemini inline budget without a URL-only bypass (stream=%s)',
-    async (stream) => {
-      const fetchMock = vi.fn()
-      vi.stubGlobal('fetch', fetchMock)
-      const image =
-        'data:image/png;base64,' +
-        'A'.repeat(ASSISTANT_IMAGE_LIMITS.gemini.maxRequestBytes + 4)
+  it('enforces the Gemini inline budget without a URL-only bypass', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    const image =
+      'data:image/png;base64,' +
+      'A'.repeat(ASSISTANT_IMAGE_LIMITS.gemini.maxRequestBytes + 4)
 
-      await expect(
-        complete(AI_ADAPTER_TYPES.GEMINI, image, stream),
-      ).rejects.toMatchObject(requestTooLarge)
-      expect(fetchMock).not.toHaveBeenCalled()
-    },
-  )
+    await expect(
+      complete(AI_ADAPTER_TYPES.GEMINI, image),
+    ).rejects.toMatchObject(requestTooLarge)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
 
   it.each([
     { adapterType: AI_ADAPTER_TYPES.GEMINI, base64Bytes: 36_000_000, count: 3 },
@@ -5381,12 +4409,7 @@ describe('assistant image size contracts', () => {
     const image = 'data:image/png;base64,' + 'A'.repeat((limit - 1024) / 2)
 
     await expect(
-      complete(
-        AI_ADAPTER_TYPES.GEMINI,
-        [image, image],
-        false,
-        '猫'.repeat(350),
-      ),
+      complete(AI_ADAPTER_TYPES.GEMINI, [image, image], '猫'.repeat(350)),
     ).rejects.toMatchObject(requestTooLarge)
     expect(fetchMock).not.toHaveBeenCalled()
   })
@@ -5494,7 +4517,7 @@ describe('assistant image size contracts', () => {
     async (adapterType) => {
       const fetchMock = vi
         .fn<typeof fetch>()
-        .mockImplementation(async () => reply(adapterType, false))
+        .mockImplementation(async () => reply(adapterType))
       vi.stubGlobal('fetch', fetchMock)
       const imageUrl = 'https://cdn.example.com/original.png'
 
@@ -5507,81 +4530,79 @@ describe('assistant image size contracts', () => {
   it.each(LLM_TEXT_ADAPTERS)(
     'reports %s upstream payload errors separately from single-image errors',
     async (adapterType) => {
-      for (const stream of [false, true]) {
-        for (const status of [400, 413]) {
-          const fetchMock = vi.fn().mockResolvedValue(
-            new Response(
-              JSON.stringify({
-                error: { message: 'Request body exceeds the maximum size.' },
-              }),
-              { status },
-            ),
-          )
-          vi.stubGlobal('fetch', fetchMock)
-          await expect(
-            complete(adapterType, 'data:image/png;base64,aGVsbG8=', stream),
-          ).rejects.toMatchObject(requestTooLarge)
-        }
-
-        vi.stubGlobal(
-          'fetch',
-          vi.fn().mockResolvedValue(
-            new Response(
-              JSON.stringify({
-                error: {
-                  type: 'invalid_request_error',
-                  message: 'Image exceeds the maximum size.',
-                },
-              }),
-              { status: 400 },
-            ),
+      for (const status of [400, 413]) {
+        const fetchMock = vi.fn().mockResolvedValue(
+          new Response(
+            JSON.stringify({
+              error: { message: 'Request body exceeds the maximum size.' },
+            }),
+            { status },
           ),
         )
+        vi.stubGlobal('fetch', fetchMock)
         await expect(
-          complete(adapterType, 'data:image/png;base64,aGVsbG8=', stream),
-        ).rejects.toMatchObject(imageTooLarge)
-
-        vi.stubGlobal(
-          'fetch',
-          vi.fn().mockResolvedValue(
-            new Response(
-              JSON.stringify({
-                error: {
-                  type: 'invalid_request_error',
-                  message: 'Request exceeds the maximum context length.',
-                },
-              }),
-              { status: 400 },
-            ),
-          ),
-        )
-        await expect(
-          complete(adapterType, 'data:image/png;base64,aGVsbG8=', stream),
-        ).rejects.toMatchObject({
-          errorCode: 'PROVIDER_CONTEXT_LIMIT_EXCEEDED',
-          i18nKey: 'errors.provider.contextLimitExceeded',
-        })
-
-        vi.stubGlobal(
-          'fetch',
-          vi.fn().mockResolvedValue(
-            new Response(
-              JSON.stringify({
-                error: { message: 'Request exceeds the rate limit.' },
-              }),
-              { status: 429 },
-            ),
-          ),
-        )
-        await skipRetryWait(LLM_TEXT_RETRY.RATE_LIMITED_DELAY_MS, () =>
-          expect(
-            complete(adapterType, 'data:image/png;base64,aGVsbG8=', stream),
-          ).rejects.toMatchObject({
-            errorCode: 'PROVIDER_RATE_LIMITED',
-            i18nKey: 'errors.provider.rateLimited',
-          }),
-        )
+          complete(adapterType, 'data:image/png;base64,aGVsbG8='),
+        ).rejects.toMatchObject(requestTooLarge)
       }
+
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(
+          new Response(
+            JSON.stringify({
+              error: {
+                type: 'invalid_request_error',
+                message: 'Image exceeds the maximum size.',
+              },
+            }),
+            { status: 400 },
+          ),
+        ),
+      )
+      await expect(
+        complete(adapterType, 'data:image/png;base64,aGVsbG8='),
+      ).rejects.toMatchObject(imageTooLarge)
+
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(
+          new Response(
+            JSON.stringify({
+              error: {
+                type: 'invalid_request_error',
+                message: 'Request exceeds the maximum context length.',
+              },
+            }),
+            { status: 400 },
+          ),
+        ),
+      )
+      await expect(
+        complete(adapterType, 'data:image/png;base64,aGVsbG8='),
+      ).rejects.toMatchObject({
+        errorCode: 'PROVIDER_CONTEXT_LIMIT_EXCEEDED',
+        i18nKey: 'errors.provider.contextLimitExceeded',
+      })
+
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(
+          new Response(
+            JSON.stringify({
+              error: { message: 'Request exceeds the rate limit.' },
+            }),
+            { status: 429 },
+          ),
+        ),
+      )
+      await skipRetryWait(LLM_TEXT_RETRY.RATE_LIMITED_DELAY_MS, () =>
+        expect(
+          complete(adapterType, 'data:image/png;base64,aGVsbG8='),
+        ).rejects.toMatchObject({
+          errorCode: 'PROVIDER_RATE_LIMITED',
+          i18nKey: 'errors.provider.rateLimited',
+        }),
+      )
     },
   )
 })
@@ -5719,23 +4740,6 @@ describe('LLM 入口统一重发', () => {
       }),
       { status: 200, headers: { 'content-type': 'application/json' } },
     )
-  const okStream = () =>
-    new Response(
-      [
-        { choices: [{ delta: { content: 'answer' }, finish_reason: null }] },
-        { choices: [{ delta: {}, finish_reason: 'stop' }] },
-      ]
-        .map((frame) => 'data: ' + JSON.stringify(frame) + '\n\n')
-        .join('') + 'data: [DONE]\n\n',
-      { status: 200, headers: { 'content-type': 'text/event-stream' } },
-    )
-
-  async function collectText(iterable: AsyncIterable<string>) {
-    let text = ''
-    for await (const part of iterable) text += part
-    return text
-  }
-
   beforeEach(() => vi.useFakeTimers())
   afterEach(() => {
     vi.useRealTimers()
@@ -5845,46 +4849,6 @@ describe('LLM 入口统一重发', () => {
     controller.abort(reason)
     await vi.runAllTimersAsync()
     await assertion
-    expect(fetchMock).toHaveBeenCalledTimes(1)
-  })
-
-  it('stream: 503 before any text → resent once', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(new Response('busy', { status: 503 }))
-      .mockResolvedValueOnce(okStream())
-    vi.stubGlobal('fetch', fetchMock)
-    const pending = collectText(llmTextStream(base))
-    await vi.runAllTimersAsync()
-    await expect(pending).resolves.toBe('answer')
-    expect(fetchMock).toHaveBeenCalledTimes(2)
-  })
-
-  it('stream: never resent after text was shown', async () => {
-    const broken = () =>
-      new Response(
-        'data: ' +
-          JSON.stringify({
-            choices: [{ delta: { content: 'half' }, finish_reason: null }],
-          }) +
-          '\n\n' +
-          'data: ' +
-          JSON.stringify({ error: { type: 'server_error', message: 'x' } }) +
-          '\n\n',
-        { status: 200, headers: { 'content-type': 'text/event-stream' } },
-      )
-    const fetchMock = vi.fn().mockImplementation(async () => broken())
-    vi.stubGlobal('fetch', fetchMock)
-    const seen: string[] = []
-    const pending = (async () => {
-      for await (const part of llmTextStream(base)) seen.push(part)
-    })()
-    const assertion = expect(pending).rejects.toMatchObject({
-      errorCode: 'PROVIDER_TRANSIENT',
-    })
-    await vi.runAllTimersAsync()
-    await assertion
-    expect(seen).toEqual(['half'])
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 })

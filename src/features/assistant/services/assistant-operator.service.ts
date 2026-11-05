@@ -219,7 +219,6 @@ import {
 import {
   buildAssistantConversation,
   completeAssistantTextWithContextRetry,
-  streamAssistantTextWithContextRetry,
 } from '@/services/kernel/assistant-completion.service'
 import {
   llmNativeWebSearch,
@@ -4645,8 +4644,7 @@ async function completeReferenceAnalysisText(
   modelId = run.modelId,
   jsonSchema?: Record<string, unknown>,
 ): Promise<string> {
-  let result = ''
-  for await (const chunk of streamAssistantTextWithContextRetry({
+  return completeAssistantTextWithContextRetry({
     signal: run.signal,
     systemPrompt: system,
     buildUserPrompt: (maxLength) =>
@@ -4664,10 +4662,7 @@ async function completeReferenceAnalysisText(
     jsonSchema,
     callLog: { purpose, domain: run.request.domain },
     cacheKey: operatorCacheKey(run, purpose),
-  })) {
-    result += chunk
-  }
-  return result
+  })
 }
 
 async function planAnalyzeReferences(

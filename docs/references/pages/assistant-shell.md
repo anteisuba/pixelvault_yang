@@ -217,7 +217,7 @@
 | **定稿后的揭示（打字机）**     | 定稿那一帧**不跳到末尾**：已显示长度按 **60 字/秒**（`revealCharsPerSec`）追着目标长度走，超过 **1.5s**（`revealMaxMs`）就整体提速一次收完（已落地 `4146ce83`）。🔬 由来：provider 那侧分块粗到 4 块 / 130ms，落地闸只能保证「块到了就写进去」，写进去的仍是一整块。⚠ 速率按**墙钟**算，⛔ 不按帧——后台被节流的标签页否则会一个字一个字爬。**后台标签页 / `prefers-reduced-motion` / 点一下正文** 三种情况直接落到末尾；面板收起要**等揭示走完** |
 | **收尾前的占位行**             | 最后一个工具步落定之后 **300ms**（`pendingAfterStepMs`）还没有下一步，就挂一条助手占位行接住那段空白（已落地 `4146ce83`）。🔬 由来：末步到收尾正文第一个字之间实测可达数秒，那段时间线程里一条活的助手行都没有，读起来像「它不打算说话了」。⚠ 300 是**防闪门槛**不是延迟动画：连着跑的工具步之间常常只隔几十毫秒，⛔ 调到 0 的表现是每两步之间闪一行三点脉冲又被拆掉；⛔ 也别超过一秒——那等于它在最需要出现的那一刻还没出现                      |
 
-⚠ 五条都已接线（2026-09-06）：服务端那一轮的 LLM 往返改走**流式**（`streamAssistantTextWithContextRetry`），`lib/assistant-operator-stream.ts` 的 `createOperatorMessageStreamer` 从**半截 turn JSON** 里边收边解出 `message` 字段吐成 `message_delta`；⛔ 一次 LLM 往返都没多花，OUTPUT 契约也没改成两段协议。工具轮靠**键的先后**闭嘴（OUTPUT 里 `"tool"` 排在 `"message"` 前面），模型不守序时两种失败都良性：漏吐 = 退回一次性刷出，多吐 = 定稿帧整体覆盖。客户端 `use-assistant-operator` 按 rAF 合批累加，`StudioOperatorStreamingText` 是正文渲染件（中日韩逐字 / 拉丁逐词，按 §11.5 的 `fast` 配方淡入，`motion-reduce` 直接显示）。
+⚠ 五条都已接线（2026-09-06）。服务端现状（11-05 核对）：新内核 `features/assistant/kernel.ts` 用 AI SDK `streamText`，正文分片直接转成 `message_delta`，**不设静默时限**（推理 / 厂商联网时可以很久没有分片）；09-06 那套「`streamAssistantTextWithContextRetry` + 从半截 turn JSON 里边收边解 `message`」随旧内核退场，自写流式通道 11-05 整条删除。客户端 `use-assistant-operator` 按 rAF 合批累加，`StudioOperatorStreamingText` 是正文渲染件（中日韩逐字 / 拉丁逐词，按 §11.5 的 `fast` 配方淡入，`motion-reduce` 直接显示）。
 
 ### 4.2 卡片态
 

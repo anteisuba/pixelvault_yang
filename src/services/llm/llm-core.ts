@@ -15,8 +15,8 @@ import {
   LLM_TEXT_TIMEOUTS_MS,
 } from '@/constants/config'
 import { ApiRequestError } from '@/lib/errors'
-import { readSseData } from '@/lib/sse'
 import { logger } from '@/lib/logger'
+import { isSvgImageUrl, isSvgMimeType } from '@/lib/svg-image'
 import {
   parseGenerationErrorCode,
   GENERATION_ERROR_CODES,
@@ -478,78 +478,6 @@ export function checkTextFinishReason(
   }
 }
 
-const LlmStreamEnvelopeSchema = z
-  .object({
-    error: z
-      .object({
-        code: z.union([z.string(), z.number()]).nullable().optional(),
-        type: z.string().optional(),
-        message: z.string().optional(),
-      })
-      .optional(),
-  })
-  .passthrough()
-
-export function parseLlmStreamEvent(
-  data: string,
-  context: {
-    adapterType: AI_ADAPTER_TYPES
-    modelId: string
-    hasLinkedVideo?: boolean
-  },
-): Record<string, unknown> {
-  let value: unknown
-  try {
-    value = JSON.parse(data)
-  } catch {
-    throw textResponseError(context.modelId, true)
-  }
-  const parsed = LlmStreamEnvelopeSchema.safeParse(value)
-  if (!parsed.success) throw textResponseError(context.modelId, true)
-  if (parsed.data.error) {
-    const error = parsed.data.error
-    const kind = error.type ?? error.code
-    const status =
-      typeof error.code === 'number'
-        ? error.code === 529
-          ? 503
-          : error.code
-        : kind === 'overloaded_error'
-          ? 503
-          : kind === 'rate_limit_error'
-            ? 429
-            : typeof kind === 'string' &&
-                SSE_SERVER_ERROR_KINDS.has(kind.toLowerCase())
-              ? 500
-              : // 认不出的种类按「请求被拒」处理：落到 `failed`，⛔ 不当成 5xx 去重发。
-                400
-    throw toLlmTextProviderError(status, JSON.stringify(error), context)
-  }
-  return parsed.data
-}
-
-export async function* readLlmSseData(
-  body: ReadableStream<Uint8Array>,
-  modelId: string,
-): AsyncIterable<string> {
-  try {
-    yield* readSseData(body)
-  } catch (error) {
-    if (error instanceof ApiRequestError || isAbortError(error)) throw error
-    throw textResponseError(modelId, true)
-  } finally {
-    await body.cancel().catch(() => undefined)
-  }
-}
-
-/** 流里 `error.type` 这几种是 provider 那头出事（等同 5xx），值得重发。 */
-const SSE_SERVER_ERROR_KINDS = new Set([
-  'server_error',
-  'api_error',
-  'internal_error',
-  'internal',
-])
-
 export function toLlmTextProviderError(
   responseStatus: number,
   errorBody: string,
@@ -718,18 +646,20 @@ export function isAbortError(error: unknown): boolean {
   return name === 'AbortError' || name === 'TimeoutError'
 }
 
-async function fetchLlmText(
+/**
+ * 整次请求（连读完正文）一个总时限 `COMPLETION`。只剩这一条通道：旧的逐块流式通道
+ * （按「多久没分片」掐）11-05 已删 —— 它会在推理模型想的时候误杀，助手主对话早已走
+ * `features/assistant/kernel.ts` 的 AI SDK。
+ */
+export async function fetchLlmTextBuffered(
   endpoint: string,
   init: Omit<RequestInit, 'signal'>,
   context: { adapterType: AI_ADAPTER_TYPES; modelId: string },
-  streaming: boolean,
   signal?: AbortSignal,
 ): Promise<Response> {
   signal?.throwIfAborted()
   const controller = new AbortController()
-  const timeoutMs = streaming
-    ? LLM_TEXT_TIMEOUTS_MS.STREAM_HEADERS
-    : LLM_TEXT_TIMEOUTS_MS.COMPLETION
+  const timeoutMs = LLM_TEXT_TIMEOUTS_MS.COMPLETION
   let timer: ReturnType<typeof setTimeout> | undefined
   const clearTimer = () => {
     clearTimeout(timer)
@@ -775,7 +705,6 @@ async function fetchLlmText(
     cleanup()
     return response
   }
-  if (streaming) clearTimer()
   const reader = response.body.getReader()
   let finished = false
   const finish = () => {
@@ -803,7 +732,6 @@ async function fetchLlmText(
       },
       async pull(output) {
         if (controller.signal.aborted) return
-        if (streaming) armTimer()
         try {
           const { done, value } = await reader.read()
           if (controller.signal.aborted) return
@@ -811,7 +739,6 @@ async function fetchLlmText(
             output.close()
             finish()
           } else {
-            if (streaming) clearTimer()
             output.enqueue(value)
           }
         } catch (error) {
@@ -835,24 +762,6 @@ async function fetchLlmText(
     statusText: response.statusText,
     headers: response.headers,
   })
-}
-
-export async function fetchLlmTextBuffered(
-  endpoint: string,
-  init: Omit<RequestInit, 'signal'>,
-  context: { adapterType: AI_ADAPTER_TYPES; modelId: string },
-  signal?: AbortSignal,
-): Promise<Response> {
-  return fetchLlmText(endpoint, init, context, false, signal)
-}
-
-export async function fetchLlmTextStreaming(
-  endpoint: string,
-  init: Omit<RequestInit, 'signal'>,
-  context: { adapterType: AI_ADAPTER_TYPES; modelId: string },
-  signal?: AbortSignal,
-): Promise<Response> {
-  return fetchLlmText(endpoint, init, context, true, signal)
 }
 
 export async function readLlmErrorBody(
@@ -939,12 +848,25 @@ export function withImageLabels<Part>(
   })
 }
 
+/** 看图模型只吃位图；SVG 与读不了的格式同一个码（前端按码先弹「转 PNG」）。 */
+function svgImageInputError(): ApiRequestError {
+  const code = GENERATION_ERROR_CODES.UNSUPPORTED_REFERENCE_IMAGE_FORMAT
+  return new ApiRequestError(
+    code,
+    400,
+    `errors.generation.${code}`,
+    "SVG images can't be used as input. Convert it to PNG first.",
+  )
+}
+
 export function getLlmImages(input: LlmTextInput): string[] {
   const images = input.imageData
     ? Array.isArray(input.imageData)
       ? input.imageData
       : [input.imageData]
     : []
+  // 每一家都先过这里：`.svg` 地址 / `data:image/svg+xml` 在这儿就拦，⛔ 别转给模型。
+  if (images.some((image) => isSvgImageUrl(image))) throw svgImageInputError()
   if (!isLlmTextAdapter(input.adapterType)) return images
   const limits = ASSISTANT_IMAGE_LIMITS[input.adapterType]
   let totalImageBytes = 0
@@ -1029,6 +951,8 @@ export async function prepareInlineImages(
         throw new ApiRequestError(code, 400, `errors.generation.${code}`, code)
       }
     }
+    // 地址不带 `.svg` 但实际回的是 SVG：按下载到的 MIME 再拦一次。
+    if (isSvgMimeType(part.mimeType)) throw svgImageInputError()
     remainingBytes -= Buffer.byteLength(part.data, 'utf8')
     if (remainingBytes < 0) throw llmRequestTooLargeError()
     parts.push(part)

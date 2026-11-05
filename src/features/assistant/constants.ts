@@ -226,9 +226,6 @@ export const ASSISTANT_NEXT_LIMITS = {
   /** 一次 `edit` 最多几条改动、一条提示词改动最多几处 find/replace。 */
   maxEditOps: 20,
   maxFindReplace: 30,
-  /** 一次模型调用：首个分片前 / 分片间静默多久算卡住（思考分片也算）。卡住原样再问一次。 */
-  firstChunkMs: 90_000,
-  silenceMs: 90_000,
 } as const
 
 /**

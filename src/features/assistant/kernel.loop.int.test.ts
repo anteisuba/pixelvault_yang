@@ -27,6 +27,7 @@ import { db } from '@/lib/db'
 import {
   fakeModels,
   finish,
+  heldModel,
   promptOf,
   resetFakeModels,
   scriptedModel,
@@ -489,6 +490,48 @@ describe('新内核主循环', () => {
       ['search_web', 'done'],
     ])
     expect(steps[0]!.title).toContain('长离 官方设定')
+  })
+
+  it('厂商自己联网 / 在想时很久一个分片都没有：⛔ 不掐、不重问，等它说完（owner 11-05）', async () => {
+    // 11-05：让角色去推特查热点，第二轮联网流静默过 90 秒被看门狗掐、原样重问又被掐 →「AI 提供商超时」。
+    vi.useFakeTimers({
+      toFake: ['setTimeout', 'clearTimeout'],
+      shouldAdvanceTime: true,
+    })
+    const held = heldModel(
+      [
+        {
+          type: 'tool-call',
+          toolCallId: 'srv_1',
+          toolName: 'web_search',
+          input: JSON.stringify({ query: '日本 年轻人 今日 热点' }),
+          providerExecuted: true,
+        },
+      ],
+      [
+        {
+          type: 'tool-result',
+          toolCallId: 'srv_1',
+          toolName: 'web_search',
+          result: [{ url: 'https://x.test/trend', title: '热点' }],
+        },
+        ...textTurn('查到了。'),
+      ],
+    )
+    fakeModels.main = held.model
+    const pending = run(imageRequest('去推特看看今天的热点'))
+    await held.started
+    await vi.advanceTimersByTimeAsync(200_000)
+    held.release()
+    const events = await pending
+
+    expect(events.at(-1)).toMatchObject({ type: 'done' })
+    expect(events.some((event) => event.type === 'error')).toBe(false)
+    expect(held.model.doStreamCalls).toHaveLength(1)
+    expect(stepsOf(events).map((step) => [step.tool, step.status])).toEqual([
+      ['search_web', 'running'],
+      ['search_web', 'done'],
+    ])
   })
 
   it('台上没带那一块（LoRA 台没带 LoRA）：说清做不了，⛔ 不调模型', async () => {

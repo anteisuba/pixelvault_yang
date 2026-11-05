@@ -1,6 +1,6 @@
 import 'server-only'
 
-/** DeepSeek：补全与流式。（o-llm 拆分，2026-11-01；见 docs/design/llm.md） */
+/** DeepSeek：缓冲补全。（o-llm 拆分，2026-11-01；见 docs/design/llm.md） */
 
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
@@ -10,7 +10,6 @@ import {
 } from '@/constants/config'
 import { ASSISTANT_DEEPSEEK_EFFORTS } from '@/constants/assistant-persona'
 import {
-  LLM_TEXT_LABELS,
   LLM_TEXT_MODELS,
   type LlmTextInput,
   checkTextFinishReason,
@@ -27,18 +26,14 @@ import {
 import {
   OpenAiChatResponseSchema,
   getOpenAiChatText,
-  streamOpenAiCompatibleChat,
 } from '@/services/llm/llm-openai'
 
-/**
- * DeepSeek `/chat/completions` 的请求，缓冲与流式共用一份 —— 同
- * `buildOpenAiChatRequest` 的理由：两条各建各的 body 迟早漂移，而漂移的表现是
- * 「流式的回答和缓冲的不一样」。
- */
-function buildDeepseekChatRequest(
-  input: LlmTextInput,
-  options: { stream?: boolean } = {},
-): { endpoint: string; modelId: string; body: string } {
+/** DeepSeek `/chat/completions` 的请求体。 */
+function buildDeepseekChatRequest(input: LlmTextInput): {
+  endpoint: string
+  modelId: string
+  body: string
+} {
   if (input.videoData) {
     throw new Error('DeepSeek text completion does not support video input.')
   }
@@ -74,7 +69,6 @@ function buildDeepseekChatRequest(
     body: serializeLlmRequest(input, {
       model: modelId,
       messages,
-      ...(options.stream ? { stream: true } : {}),
       ...(!input.providerManagedOutput
         ? {
             max_tokens: input.maxTokens ?? LLM_TEXT_DEFAULT_MAX_TOKENS.DEFAULT,
@@ -132,23 +126,4 @@ export async function deepseekTextCompletion(
   if (!content) throw textResponseError(modelId)
 
   return content
-}
-
-export async function* deepseekTextStream(
-  input: LlmTextInput,
-): AsyncIterable<string> {
-  const { endpoint, modelId, body } = buildDeepseekChatRequest(input, {
-    stream: true,
-  })
-
-  yield* streamOpenAiCompatibleChat({
-    endpoint,
-    body,
-    apiKey: input.apiKey,
-    adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
-    modelId,
-    label: LLM_TEXT_LABELS[AI_ADAPTER_TYPES.DEEPSEEK],
-    signal: input.signal,
-    onUsage: input.onUsage,
-  })
 }

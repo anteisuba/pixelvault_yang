@@ -5,6 +5,7 @@ import {
   withoutVoiceCuesInProse,
   withoutStageDirections,
   chatBubbles,
+  chatBubbleParts,
   leadingVoiceCues,
   spokenVoiceText,
   stickerUrlOf,
@@ -120,12 +121,22 @@ describe('chatBubbles', () => {
     ])
   })
 
-  it('drops citation marks from the plain-text bubbles', () => {
-    expect(
-      chatBubbles(
-        '主人，查到了～[[1]](https://a.b/1)\n多巴胺中毒的小孩。[[2]](https://ja.wikipedia.org/wiki/%E3%83%89)',
-      ),
-    ).toEqual(['主人，查到了～', '多巴胺中毒的小孩。'])
+  it('keeps citation marks whole and splits them out to be drawn as links', () => {
+    const bubbles = chatBubbles(
+      '主人，查到了～[[1]](https://a.b/1)\n多巴胺中毒的小孩。[[2]](https://ja.wikipedia.org/wiki/%E3%83%89)末尾',
+    )
+    expect(bubbles).toEqual([
+      '主人，查到了～[[1]](https://a.b/1)',
+      '多巴胺中毒的小孩。[[2]](https://ja.wikipedia.org/wiki/%E3%83%89)末尾',
+    ])
+    expect(chatBubbleParts(bubbles[1]!)).toEqual([
+      '多巴胺中毒的小孩。',
+      { cite: 2, url: 'https://ja.wikipedia.org/wiki/%E3%83%89' },
+      '末尾',
+    ])
+    expect(chatBubbleParts('看[[1]](javascript:alert(1))')).toEqual([
+      '看[[1]](javascript:alert(1))',
+    ])
   })
 })
 

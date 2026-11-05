@@ -91,8 +91,8 @@ export function normalizeVoiceCues(text: string, expressive: boolean): string {
 
 /** ⚠ 引用角标 `[[1]](地址)` 不是提示：⛔ 吃掉前半截只剩「](地址)」（11-05 真机）。 */
 const VOICE_CUE = /[ \t]*(?<!\[)\[[^[\]\n]{1,40}\](?![(\]])[ \t]*/g
-/** 联网回答句尾的引用角标 `[[1]](地址)`。 */
-const CITATION = /[ \t]*\[\[\d{1,3}\]\]\([^)\s]+\)/g
+/** 联网回答句尾的引用角标 `[[1]](地址)`（只认 http / https）。 */
+const CITATION = /\[\[(\d{1,3})\]\]\((https?:\/\/[^)\s]+)\)/g
 const DRAMA_TAG = new RegExp(`</?(?:${DRAMA_PAIRED_TAGS.join('|')})>`, 'g')
 /** 中日文字与全角标点：挨着它的那一格空白是提示带进来的，藏掉提示时一起去掉。 */
 const CJK = /[\u3000-\u30ff\u3400-\u9fff\uff00-\uffef]/
@@ -156,15 +156,27 @@ export function withoutStageDirections(text: string): string {
 
 /** 一段回复按行拆成气泡（10-26 F：像发消息一样一句一条）；语气提示、动作藏掉，空行不算。 */
 export function chatBubbles(text: string): string[] {
-  return (
-    text
-      .split(/\n+/)
-      // 气泡是纯文字、不渲染 markdown：引用角标拿掉，出处在回答底下那一行来源里。
-      .map((line) =>
-        withoutVoiceCues(withoutStageDirections(line.replace(CITATION, ''))),
-      )
-      .filter(Boolean)
-  )
+  return text
+    .split(/\n+/)
+    .map((line) => withoutVoiceCues(withoutStageDirections(line)))
+    .filter(Boolean)
+}
+
+export type ChatBubblePart = string | { cite: number; url: string }
+
+/**
+ * 气泡是纯文字、不渲染 markdown：一行里的引用角标 `[[1]](地址)` 拆出来，由气泡画成能点的小角标（owner 11-05）。
+ */
+export function chatBubbleParts(line: string): ChatBubblePart[] {
+  const parts: ChatBubblePart[] = []
+  let last = 0
+  for (const match of line.matchAll(CITATION)) {
+    if (match.index > last) parts.push(line.slice(last, match.index))
+    parts.push({ cite: Number(match[1]), url: match[2]! })
+    last = match.index + match[0].length
+  }
+  if (last < line.length) parts.push(line.slice(last))
+  return parts
 }
 
 /** 她发的表情包那一行（服务端换好的 `![表情](地址)`，4d）。 */

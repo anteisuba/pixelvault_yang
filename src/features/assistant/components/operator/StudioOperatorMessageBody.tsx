@@ -67,7 +67,7 @@ import {
   type OperatorFindRef,
 } from '@/lib/studio-operator-timeline'
 import { usePictureNumberReferences } from '@/hooks/use-picture-number-references'
-import { withoutVoiceCuesInProse } from '@/lib/chat-voice'
+import { chatBubbleParts, withoutVoiceCuesInProse } from '@/lib/chat-voice'
 import { cn } from '@/lib/utils'
 import type { NamedImageReference } from '@/lib/studio-reference-mentions'
 import type { AssistantMention } from '@/types/assistant-mention'
@@ -533,6 +533,7 @@ export function StudioOperatorChatText({
   streaming: boolean
   references?: readonly NamedImageReference[]
 }) {
+  const t = useTranslations('StudioOperator')
   const numbered = usePictureNumberReferences(streaming ? '' : text)
   const all = useMemo(
     () => (numbered.length ? [...references, ...numbered] : references),
@@ -542,9 +543,37 @@ export function StudioOperatorChatText({
     <StudioOperatorChatBubbles
       text={text}
       streaming={streaming}
-      renderBubble={(bubble) => withImageReferences(bubble, all)}
+      renderBubble={(bubble) =>
+        chatBubbleParts(bubble).map((part, index) =>
+          typeof part === 'string' ? (
+            <Fragment key={index}>{withImageReferences(part, all)}</Fragment>
+          ) : (
+            // 引用角标（owner 11-05「做成能点的」）：和正文角标同一个样子，点了在新页打开出处。
+            <a
+              key={index}
+              href={part.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={siteOf(part.url)}
+              data-testid="operator-chat-citation"
+              aria-label={t('answer.citation', { index: part.cite })}
+              className="mx-px inline-flex min-w-4 items-center justify-center rounded border border-border px-1 align-super font-mono text-2xs tabular-nums leading-4 text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none"
+            >
+              {part.cite}
+            </a>
+          ),
+        )
+      }
     />
   )
+}
+
+function siteOf(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '')
+  } catch {
+    return url
+  }
 }
 
 export function StudioOperatorMessageBody({

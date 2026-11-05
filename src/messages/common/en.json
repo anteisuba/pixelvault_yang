@@ -357,6 +357,8 @@
       "provider_timeout": "The provider itself timed out (it did not finish within its own limit). This is not a key or settings problem. Try again later or choose another model.",
       "generation_wait_limit": "We stopped waiting because the provider took too long. It may still be generating this, and may have already charged for it. Check your gallery or generation history first, then decide whether to retry.",
       "account_queue_timeout": "Too many generations were already running on this account, and this one waited in line without getting a turn. It was never sent to the provider, so nothing was charged. Try again once the others finish.",
+      "runner_start_timeout": "The Runner never got to start this job (it may be cold-starting, or no GPU is free right now), so it was canceled and no image will come. This is not a key or settings problem — try again in a little while, or switch to a hosted model for now.",
+      "runner_run_timeout": "The Runner started this job but it ran past the time limit, so it was canceled and no image will come. Lower the resolution or steps and try again.",
       "provider_rate_limit": "Too many requests, please wait a moment",
       "provider_overloaded": "This model is at capacity right now. Try another model.",
       "invalid_api_key": "The provider API key is invalid or expired. Update it in Settings and try again.",

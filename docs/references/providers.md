@@ -161,7 +161,7 @@ adapter / Worker 抛错
 
 注意：17 个小写标准码是**客户端分类字典**；服务端错误类用 SCREAMING_SNAKE 码（PROVIDER_TIMEOUT、RATE_LIMIT_EXCEEDED…），两套由 `normalizeErrorCode()` 的 BACKEND_ERROR_CODE_MAP 桥接。
 
-**标准错误码（19）**：provider_timeout（仅服务商自己报超时）· generation_wait_limit（我们的 worker 等满预算先停手，服务商可能仍在跑 / 已计费）· account_queue_timeout（同账号排队没轮到，未发给服务商、未扣费）· provider_rate_limit · provider_overloaded · invalid_api_key · content_filtered · model_unavailable · provider_no_output · callback_timeout · storage_upload_failed · provider_insufficient_balance · insufficient_credits · unsupported_reference_image_format · reference_image_too_large · reference_image_unreachable · reference_image_limit_exceeded · invalid_reference_image_dimensions · unknown。
+**标准错误码（21）**：provider_timeout（仅服务商自己报超时）· generation_wait_limit（我们的 worker 等满预算先停手，服务商可能仍在跑 / 已计费）· account_queue_timeout（同账号排队没轮到，未发给服务商、未扣费）· runner_start_timeout / runner_run_timeout（Runner 窗口用完已撤掉：一直没开始 / 开始了但太久，不会有迟到结果）· provider_rate_limit · provider_overloaded · invalid_api_key · content_filtered · model_unavailable · provider_no_output · callback_timeout · storage_upload_failed · provider_insufficient_balance · insufficient_credits · unsupported_reference_image_format · reference_image_too_large · reference_image_unreachable · reference_image_limit_exceeded · invalid_reference_image_dimensions · unknown。
 
 - **参考图错误分类**：`REFERENCE_IMAGE_ERROR_PATTERNS` 五类正则（格式 / 过大 / 不可达 / 数量超限 / 尺寸不合）扫 provider 原始 message；`PROVIDER_REFERENCE_FORMAT_GUIDANCE` 按 provider 给用户格式指引，共 4 条（OpenAI=JPEG/PNG/WebP · Gemini=+HEIC/HEIF · fal=+GIF 且 URL 须直接可达 · VolcEngine/Seedream=常见格式且 URL 须直接可达）。
 - **新接 provider 的义务**：把该 provider 的错误码/message 特征映射进标准码表 + i18n 三语文案；**raw provider error 不许直达用户**。

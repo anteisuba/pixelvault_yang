@@ -51,7 +51,7 @@ describe('buildGenerationFailureResponseFields', () => {
   it('an explicit backend errorCode still wins over text classification', () => {
     const fields = buildGenerationFailureResponseFields({
       errorMessage: AMBIGUOUS_MESSAGE,
-      errorCode: 'PROVIDER_TIMEOUT',
+      errorCode: 'PROVIDER_UPSTREAM_TIMEOUT',
       hasReferenceImage: false,
     })
 

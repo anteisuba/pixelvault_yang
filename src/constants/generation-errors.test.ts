@@ -341,6 +341,25 @@ describe('我们自己的等待上限不再被说成服务商超时', () => {
     ).toBe(GENERATION_ERROR_CODES.ACCOUNT_QUEUE_TIMEOUT)
   })
 
+  it('Runner 窗口用完按开没开始分开认（errorCode 丢了也认原话）', () => {
+    expect(
+      parseGenerationErrorCode(
+        'Runner job never started: it stayed queued for the whole wait window (cold start or no free GPU), so it was canceled.',
+      ),
+    ).toBe(GENERATION_ERROR_CODES.RUNNER_START_TIMEOUT)
+    expect(
+      parseGenerationErrorCode(
+        'Runner job ran past the wait window after starting, so it was canceled.',
+      ),
+    ).toBe(GENERATION_ERROR_CODES.RUNNER_RUN_TIMEOUT)
+    expect(normalizeErrorCode('runner_start_timeout')).toBe(
+      GENERATION_ERROR_CODES.RUNNER_START_TIMEOUT,
+    )
+    expect(normalizeErrorCode('runner_run_timeout')).toBe(
+      GENERATION_ERROR_CODES.RUNNER_RUN_TIMEOUT,
+    )
+  })
+
   it('errorCode 直接透传', () => {
     expect(normalizeErrorCode('generation_wait_limit')).toBe(
       GENERATION_ERROR_CODES.GENERATION_WAIT_LIMIT,

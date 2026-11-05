@@ -15,6 +15,13 @@ export const GENERATION_ERROR_CODES = {
    * 没有扣费；等别的任务跑完再试。
    */
   ACCOUNT_QUEUE_TIMEOUT: 'account_queue_timeout',
+  /**
+   * Runner（Modal）作业等满窗口**一直没开始跑**（冷启动 / 没有空闲 GPU），worker 已把它撤掉，
+   * 不会有迟到的结果。worker `createRunnerTimeoutError({ started: false })`。
+   */
+  RUNNER_START_TIMEOUT: 'runner_start_timeout',
+  /** Runner 作业**开始跑了**但超出窗口，已撤掉，不会有结果。`started: true`。 */
+  RUNNER_RUN_TIMEOUT: 'runner_run_timeout',
   PROVIDER_RATE_LIMIT: 'provider_rate_limit',
   PROVIDER_OVERLOADED: 'provider_overloaded',
   INVALID_API_KEY: 'invalid_api_key',
@@ -374,6 +381,15 @@ const ERROR_PATTERNS: Array<{
   {
     pattern: /Account queue wait limit reached/i,
     code: GENERATION_ERROR_CODES.ACCOUNT_QUEUE_TIMEOUT,
+  },
+  // Runner 窗口用完已撤掉（固定英文，见 workers/execution `createRunnerTimeoutError`）。
+  {
+    pattern: /Runner job never started/i,
+    code: GENERATION_ERROR_CODES.RUNNER_START_TIMEOUT,
+  },
+  {
+    pattern: /Runner job ran past the wait window/i,
+    code: GENERATION_ERROR_CODES.RUNNER_RUN_TIMEOUT,
   },
   {
     pattern: /timeout|timed?\s*out/i,

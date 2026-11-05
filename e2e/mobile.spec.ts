@@ -51,7 +51,9 @@ test.describe('Mobile Responsive', () => {
             waitUntil: 'domcontentloaded',
           })
 
-          await expect(page.locator('body')).toBeVisible()
+          // 判「画出来了」看有没有可见元素，不看 body 自身：首页翻页站全是 fixed 层，
+          // html / body 实测高 0，`body` 的 toBeVisible 永远判 hidden（画面其实正常）。
+          await expect(page.locator('body *:visible').first()).toBeVisible()
 
           // Dev-server cold compiles paint a transiently unstyled page whose
           // scrollWidth far exceeds the viewport. Poll until layout settles so

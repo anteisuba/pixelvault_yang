@@ -22,6 +22,7 @@ export const POST = createApiRoute({
     const user = await ensureUser(clerkId)
     const apiKey = await resolveEditApiKey(user.id, data.modelId, data.apiKeyId)
     const result = await inpaintImage({
+      userId: user.id,
       imageUrl: data.imageUrl,
       maskImageUrl: data.maskImageUrl,
       prompt: data.prompt,

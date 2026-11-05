@@ -746,6 +746,9 @@ export function applyOperatorStep(
           ...(step.payload.background !== undefined
             ? { background: step.payload.background }
             : {}),
+          ...(step.payload.complexity !== undefined
+            ? { complexity: step.payload.complexity }
+            : {}),
         },
       })
       return STUDIO_OPERATOR_FIELD_IDS.specs
@@ -1108,8 +1111,14 @@ export function revertOperatorStep(
     }
 
     case ASSISTANT_OPERATOR_TOOL_IDS.setSpecs: {
-      const { aspectRatio, resolution, quality, background, preview } =
-        step.inverse
+      const {
+        aspectRatio,
+        resolution,
+        quality,
+        background,
+        complexity,
+        preview,
+      } = step.inverse
       if (aspectRatio && isAspectRatio(aspectRatio)) {
         ctx.dispatch({ type: 'SET_ASPECT_RATIO', payload: aspectRatio })
       }
@@ -1121,6 +1130,9 @@ export function revertOperatorStep(
           ...(preview !== undefined ? { preview: preview ?? undefined } : {}),
           ...(background !== undefined
             ? { background: background ?? undefined }
+            : {}),
+          ...(complexity !== undefined
+            ? { complexity: complexity ?? undefined }
             : {}),
           resolution: resolution
             ? (toResolution(resolution) ?? undefined)
@@ -1416,11 +1428,12 @@ export interface StudioOperatorGenerationKnobInput {
   title: string
   /** 归属标记 hover 里那句「为什么」。 */
   reason: string
-  /** 图片档 `set_specs` 的三个附带格 —— 原样带回，撤销才回得去。 */
+  /** 图片档 `set_specs` 的几个附带格 —— 原样带回，撤销才回得去。 */
   advanced: {
     quality: StudioFormState['advancedParams']['quality']
     preview: StudioFormState['advancedParams']['preview']
     background: StudioFormState['advancedParams']['background']
+    complexity: StudioFormState['advancedParams']['complexity']
   }
 }
 
@@ -1496,6 +1509,7 @@ export function buildGenerationKnobSteps({
             quality: advanced.quality,
             preview: advanced.preview,
             background: advanced.background,
+            complexity: advanced.complexity,
           },
           inverse: {
             aspectRatio: current.aspectRatio,
@@ -1503,6 +1517,7 @@ export function buildGenerationKnobSteps({
             quality: advanced.quality ?? null,
             preview: advanced.preview ?? null,
             background: advanced.background ?? null,
+            complexity: advanced.complexity ?? null,
           },
         }
 

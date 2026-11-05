@@ -2716,6 +2716,39 @@ describe('OpenAI reference uploads and input fidelity', () => {
     )
   })
 
+  it('forwards the app-hashed safety_identifier on JSON and multipart bodies', async () => {
+    const { env } = openAiEnv()
+    const { fetchMock, uploadedForm } = stubImageResponse()
+    const safetyIdentifier = 'a'.repeat(64)
+    await generateOpenAIImage(
+      env,
+      openAiContext({ safetyIdentifier }),
+      'test-key',
+    )
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({
+      safety_identifier: safetyIdentifier,
+    })
+
+    await generateOpenAIImage(
+      env,
+      openAiContext({
+        safetyIdentifier,
+        referenceImages: ['https://cdn.example.com/ref.png'],
+      }),
+      'test-key',
+    )
+    expect(uploadedForm()?.get('safety_identifier')).toBe(safetyIdentifier)
+  })
+
+  it('omits safety_identifier when the app did not send one', async () => {
+    const { env } = openAiEnv()
+    const { fetchMock } = stubImageResponse()
+    await generateOpenAIImage(env, openAiContext({}), 'test-key')
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).not.toHaveProperty(
+      'safety_identifier',
+    )
+  })
+
   it('keeps data URL references as file bytes without fetching their contents', async () => {
     const { env, get } = openAiEnv()
     const { fetchMock, uploadedForm } = stubImageResponse()

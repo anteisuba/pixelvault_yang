@@ -346,7 +346,8 @@ const ERROR_PATTERNS: Array<{
     code: GENERATION_ERROR_CODES.PROVIDER_OVERLOADED,
   },
   {
-    pattern: /rate\s*limit|too many requests|concurrent generation is locked|\b429\b/i,
+    pattern:
+      /rate\s*limit|too many requests|concurrent generation is locked|\b429\b/i,
     code: GENERATION_ERROR_CODES.PROVIDER_RATE_LIMIT,
   },
   {
@@ -521,10 +522,35 @@ function getUnsupportedReferenceImageI18nKey(errorMessage: string): string {
  * re-parsing the raw message a second time through the context-blind
  * default patterns.
  */
+/**
+ * OpenAI `moderation_details.moderation_stage`：拦在出图前（`input` = 提示词 /
+ * 参考图）还是出图后（`output` = 成品）。认两种来源：
+ * - 生成路径：`execution-callback.service` 的 `moderationNote()` 落库前写成
+ *   `[moderation: output · harassment]` 前缀；
+ * - 改图路径：原样的 OpenAI 错误体 `"moderation_stage":"input"`。
+ * `unknown` / 没有 = null（用户看到原来那句泛化文案）。官方建议主文案保持泛化，
+ * 阶段只用来给一句轻提示——所以这里⛔ 不把 categories 透给用户。
+ */
+export function moderationStageOf(text: string): 'input' | 'output' | null {
+  const stage =
+    /\[moderation:\s*(input|output)\b/.exec(text)?.[1] ??
+    /"moderation_stage"\s*:\s*"(input|output)"/.exec(text)?.[1]
+  return stage === 'input' || stage === 'output' ? stage : null
+}
+
+export const MODERATION_STAGE_I18N_KEYS = {
+  input: 'errors.provider.moderationBlockedInput',
+  output: 'errors.provider.moderationBlockedOutput',
+} as const
+
 export function getGenerationErrorI18nKeyForCode(
   errorCode: GenerationErrorCode,
   errorMessage: string,
 ): string | null {
+  if (errorCode === GENERATION_ERROR_CODES.CONTENT_FILTERED) {
+    const stage = moderationStageOf(errorMessage)
+    return stage ? MODERATION_STAGE_I18N_KEYS[stage] : null
+  }
   if (errorCode === GENERATION_ERROR_CODES.UNSUPPORTED_REFERENCE_IMAGE_FORMAT) {
     return getUnsupportedReferenceImageI18nKey(errorMessage)
   }

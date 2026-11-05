@@ -339,10 +339,13 @@ describe('buildImageOperatorSnapshot', () => {
       resolutionOptions: ['2K'],
       quality: undefined,
       background: undefined,
+      complexity: undefined,
       preview: undefined,
       qualityOptions: [],
       backgroundOptions: [],
     })
+    // 没有构思复杂度的型号 = 这一格整个缺席（⛔ 不是空表）。
+    expect(snapshot.specs).not.toHaveProperty('complexityOptions')
     expect(snapshot.count).toEqual({ value: 1, options: [1, 2, 4] })
     expect(snapshot.videoSpecs).toBeUndefined()
     expect(snapshot.audioReferences).toBeUndefined()
@@ -358,7 +361,24 @@ describe('buildImageOperatorSnapshot', () => {
       backgroundOptions: ['auto', 'transparent', 'opaque'],
       resolutionOptions: ['auto', '1K', '2K', '4K'],
     })
+    expect(snapshot.specs).not.toHaveProperty('complexityOptions')
   })
+
+  it.each(['gpt-image-2.6-flare', 'gpt-image-2.6-sunburst'])(
+    'specs 带上 %s 的构思复杂度档位与现值',
+    (modelId) => {
+      const snapshot = buildImage(option(modelId), {
+        form: { ...FORM, imageComplexity: 'low' },
+      })
+      expect(snapshot.specs).toMatchObject({
+        complexity: 'low',
+        complexityOptions: ['high', 'medium', 'low'],
+      })
+      expect(AssistantOperatorSnapshotSchema.safeParse(snapshot).success).toBe(
+        true,
+      )
+    },
+  )
 
   /**
    * 渠道（进度表 10 + 21）—— **只在多渠道型号上给**，且折叠判据与选择器共用。

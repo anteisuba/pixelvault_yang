@@ -48,6 +48,7 @@ import {
 import { defaultLook } from '@/lib/card-bus'
 import { probeMediaDuration } from '@/lib/media-probe'
 import { listPromptLoraNames } from '@/lib/prompt-weight-syntax'
+import { pruneIncompatibleCapabilityValues } from '@/lib/model-capability-chips'
 import {
   buildV4AudioPayload,
   buildV4ImagePayload,
@@ -417,7 +418,18 @@ export function planV4Generation(
     supportsSearchGrounding(data.model.modelId)
       ? { searchGrounding: true }
       : {}),
-    ...(data.params?.advanced ? { advanced: data.params.advanced } : {}),
+    ...(data.params?.advanced
+      ? {
+          // 切过模型的卡：上一个模型的专属值（如 2.6 的 complexity、Seedream 的
+          // 透明底）新模型不认，发出去就是整张 400。与工作台同一个判据删掉再发。
+          advanced:
+            pruneIncompatibleCapabilityValues(
+              data.params.advanced,
+              data.model.adapterType,
+              data.model.modelId,
+            ) ?? data.params.advanced,
+        }
+      : {}),
     ...(template || data.params?.count !== undefined ? { count } : {}),
     referenceImages: payload.referenceUrls,
   }

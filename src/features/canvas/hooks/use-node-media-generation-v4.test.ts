@@ -324,6 +324,33 @@ describe('planV4Generation · 其余分支', () => {
     ).toBeUndefined()
   })
 
+  it('图 · 专属参数跟着模型走：2.6 的 complexity 照发，切到 2.5 后不发', () => {
+    const openai = (modelId: string) =>
+      Object.assign({}, MODEL, { adapterType: 'openai', modelId })
+    const card = (modelId: string) =>
+      node('c', {
+        kind: 'image',
+        subtype: 'shot',
+        model: openai(modelId),
+        prompt: '海报',
+        params: { advanced: { complexity: 'low', background: 'transparent' } },
+      })
+    const on26 = planV4Generation('c', {
+      nodes: [card('gpt-image-2.6-flare')],
+      edges: [],
+    })!
+    expect(on26.advanced).toEqual({
+      complexity: 'low',
+      background: 'transparent',
+    })
+
+    const on25 = planV4Generation('c', {
+      nodes: [card('gpt-image-2.5-flare')],
+      edges: [],
+    })!
+    expect(on25.advanced).toEqual({ background: 'transparent' })
+  })
+
   it('音：台词经 text 槽进 prompt', () => {
     const out = node('out', { kind: 'audio', subtype: 'voice', model: MODEL })
     const plan = planV4Generation('out', {

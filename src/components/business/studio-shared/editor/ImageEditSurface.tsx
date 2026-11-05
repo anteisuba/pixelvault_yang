@@ -48,7 +48,10 @@ import {
 } from '@/constants/canvas-image-edit-capabilities'
 import { canvasCapabilityRuntime } from '@/lib/canvas-capability-runtime'
 import { EDIT_MODELS } from '@/constants/edit-tasks'
-import { getCapabilityConfig } from '@/constants/provider-capabilities'
+import {
+  getCapabilityConfig,
+  OPENAI_GPT_IMAGE_EDIT_COMPLEXITY_DEFAULT,
+} from '@/constants/provider-capabilities'
 import {
   StudioToolSurface,
   StudioToolSurfaceTrigger,
@@ -674,7 +677,12 @@ export function ImageEditSurface({
   ).flatMap((kind) => {
     const options = settingOptions[kind]
     if (!options?.length) return []
-    return [{ kind, options, selected: editOptions[kind] ?? options[0]! }]
+    // 改图的 complexity 缺省是 low（服务端代发，owner 2026-11-05），不是生成的 options[0]
+    const fallback =
+      kind === 'complexity'
+        ? OPENAI_GPT_IMAGE_EDIT_COMPLEXITY_DEFAULT
+        : options[0]!
+    return [{ kind, options, selected: editOptions[kind] ?? fallback }]
   })
   /** 设置那颗写「画质 高 · 透明底 · 预览」—— 改了什么一眼看见，⛔ 只写「编辑设置」。 */
   const settingsSummary = [

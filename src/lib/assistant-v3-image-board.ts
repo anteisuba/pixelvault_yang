@@ -85,6 +85,7 @@ function specsLine(snapshot: AssistantOperatorSnapshot): string {
     choice('resolution', specs.resolution, specs.resolutionOptions),
     choice('quality', specs.quality ?? null, specs.qualityOptions),
     choice('background', specs.background ?? null, specs.backgroundOptions),
+    choice('complexity', specs.complexity ?? null, specs.complexityOptions),
   ].filter(Boolean)
   return parts.length
     ? `Specs: ${parts.join(' · ')}`

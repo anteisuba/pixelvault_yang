@@ -72,6 +72,14 @@ export const OPENAI_GPT_IMAGE_COMPLEXITY_OPTIONS = [
 ] as const
 
 /**
+ * 改图（`/images/edits`）不填 complexity 时代发的档位——owner 2026-11-05 拍：
+ * 改图默认 low（官方建议，改动更克制）。生成仍走 options[0] = high 不发。
+ * 用户在改图面板显式选了别的档位则照发用户的。
+ */
+export const OPENAI_GPT_IMAGE_EDIT_COMPLEXITY_DEFAULT =
+  'low' satisfies (typeof OPENAI_GPT_IMAGE_COMPLEXITY_OPTIONS)[number]
+
+/**
  * 火山 Ark `background` —— Seedream 5.0 Pro 专属的透明通道开关。文档只给这两
  * 个值，默认 `opaque`，所以 `opaque` 必须排第一（chip 的缺省值 = options[0]，
  * 停在缺省上就是不发这个字段）。
@@ -177,6 +185,12 @@ export interface CapabilityConfig {
   qualityOptions?: readonly string[]
   /** GPT Image 2.6 构思复杂度档位（`complexityOptions[0]` = 官方缺省，不发）。 */
   complexityOptions?: readonly string[]
+  /**
+   * OpenAI Images API 收 `safety_identifier`（哈希过的用户标识，取代已废弃的
+   * `user`）。官方指南只点名 2.5 / 2.6，所以只给这两代声明——gpt-image-2 未验证，
+   * 别为它补，免得整条线路 400。
+   */
+  acceptsSafetyIdentifier?: true
   /** Resolution tiers the model accepts (e.g. 'auto' | '1K' | '2K' | '4K') */
   resolutionOptions?: readonly string[]
   aspectRatioOptions?: readonly string[]
@@ -615,6 +629,7 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
     ],
     qualityOptions: ['auto', 'low', 'medium', 'high', 'xhigh', 'max'],
     complexityOptions: OPENAI_GPT_IMAGE_COMPLEXITY_OPTIONS,
+    acceptsSafetyIdentifier: true,
     maxReferenceImages: OPENAI_GPT_IMAGE_MAX_REFERENCE_IMAGES,
   },
   [AI_MODELS.OPENAI_GPT_IMAGE_26_SUNBURST]: {
@@ -628,6 +643,7 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
     ],
     qualityOptions: ['auto', 'low', 'medium', 'high', 'xhigh', 'max'],
     complexityOptions: OPENAI_GPT_IMAGE_COMPLEXITY_OPTIONS,
+    acceptsSafetyIdentifier: true,
     maxReferenceImages: OPENAI_GPT_IMAGE_MAX_REFERENCE_IMAGES,
   },
   [AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE]: {
@@ -639,6 +655,7 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
       'imageAnalysis',
     ],
     qualityOptions: ['auto', 'low', 'medium', 'high', 'xhigh', 'max'],
+    acceptsSafetyIdentifier: true,
     maxReferenceImages: OPENAI_GPT_IMAGE_MAX_REFERENCE_IMAGES,
   },
   [AI_MODELS.OPENAI_GPT_IMAGE_25_SUNBURST]: {
@@ -650,6 +667,7 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
       'imageAnalysis',
     ],
     qualityOptions: ['auto', 'low', 'medium', 'high', 'xhigh', 'max'],
+    acceptsSafetyIdentifier: true,
     maxReferenceImages: OPENAI_GPT_IMAGE_MAX_REFERENCE_IMAGES,
   },
   [AI_MODELS.FLUX_2_PRO]: {

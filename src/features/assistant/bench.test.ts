@@ -191,6 +191,24 @@ describe('新工具的一条改动 → v3 执行函数的入参', () => {
     expect(toV3Mutation('video', { op: 'count', count: 2 }).tool).toBeNull()
   })
 
+  it('图片台：构思复杂度随规格一起带过去，没说的那几格是 null', () => {
+    expect(toV3Mutation('image', { op: 'specs', complexity: 'low' })).toEqual({
+      tool: 'edit',
+      input: {
+        ops: [
+          {
+            op: 'set_specs',
+            aspectRatio: null,
+            resolution: null,
+            quality: null,
+            background: null,
+            complexity: 'low',
+          },
+        ],
+      },
+    })
+  })
+
   it('角色页：提议设定补齐可空的那几格', () => {
     expect(
       toV3Mutation('cards', {

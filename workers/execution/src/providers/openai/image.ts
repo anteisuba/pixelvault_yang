@@ -57,6 +57,9 @@ export async function generateOpenAIImage(
   if (complexity) body.complexity = complexity
   const background = readStringField(advancedParams, 'background')
   if (background) body.background = background
+  // 已在 app 侧哈希；只有声明支持的模型才会带过来。
+  if (providerInput.safetyIdentifier)
+    body.safety_identifier = providerInput.safetyIdentifier
 
   const streaming = advancedParams.preview === true
   if (streaming) {

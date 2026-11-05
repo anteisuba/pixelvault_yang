@@ -29,6 +29,7 @@ import type {
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import { normalizePromptForAdapter } from '@/lib/prompt-weight-syntax'
+import { openAISafetyIdentifierFor } from '@/lib/openai-safety-identifier'
 import { GenerationStageTimer } from '@/lib/generation-observability'
 import { withoutSearchGrounding } from '@/lib/search-grounding'
 import {
@@ -516,6 +517,11 @@ export async function submitImageGeneration(
         // generate-audio.service.ts have always sent.
         providerBaseUrl: route.providerConfig.baseUrl,
         outputStorageKey,
+        safetyIdentifier: openAISafetyIdentifierFor(
+          route.adapterType,
+          route.modelId,
+          dbUser.id,
+        ),
       },
     }
 

@@ -220,6 +220,25 @@ describe('applyOperatorStep', () => {
     expect(state.advancedParams.seed).toBe(1234)
   })
 
+  it('applies and restores GPT Image 2.6 complexity alongside the other specs', () => {
+    const { ctx, state } = makeContext()
+    const step = {
+      ...BASE,
+      tool: ASSISTANT_OPERATOR_TOOL_IDS.setSpecs,
+      verb: 'apply',
+      payload: { aspectRatio: '1:1', resolution: '2K', complexity: 'low' },
+      inverse: { aspectRatio: '1:1', resolution: 'auto', complexity: null },
+    } satisfies AssistantOperatorAppliedStep
+    applyOperatorStep(step, ctx)
+    expect(state.advancedParams).toMatchObject({
+      seed: 1234,
+      complexity: 'low',
+    })
+    revertOperatorStep(step, ctx)
+    expect(state.advancedParams.complexity).toBeUndefined()
+    expect(state.advancedParams.seed).toBe(1234)
+  })
+
   it('set_specs 的值不在收窄表里就整条不落，绝不 as 过去', () => {
     const { ctx, dispatched } = makeContext()
     const step = {
@@ -1640,7 +1659,12 @@ const KNOB_BASE = {
   stepId: 'knob-1',
   title: '在确认卡上改了参数',
   reason: '你在确认卡上改的',
-  advanced: { quality: undefined, preview: undefined, background: undefined },
+  advanced: {
+    quality: undefined,
+    preview: undefined,
+    background: undefined,
+    complexity: undefined,
+  },
 } as const
 
 describe('fallbackGenerationValues（§5.1 换模型 → 非法值回落）', () => {

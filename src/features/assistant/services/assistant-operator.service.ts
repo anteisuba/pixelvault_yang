@@ -633,6 +633,7 @@ interface OperatorWorkingState {
   quality: AdvancedParams['quality']
   preview: boolean | undefined
   background: AdvancedParams['background']
+  complexity: AdvancedParams['complexity']
   hasSpecsControl: boolean
   count: number | null
   hasCountControl: boolean
@@ -757,6 +758,7 @@ function toWorkingState(
     quality: snapshot.specs?.quality ?? undefined,
     preview: snapshot.specs?.preview ?? undefined,
     background: snapshot.specs?.background ?? undefined,
+    complexity: snapshot.specs?.complexity ?? undefined,
     hasSpecsControl: snapshot.specs !== undefined,
     count: snapshot.count?.value ?? null,
     hasCountControl: snapshot.count !== undefined,
@@ -1846,10 +1848,16 @@ function renderState(
           }`,
     )
     lines.push(
-      '  (set_specs always carries aspectRatio and resolution. Optional quality and background are independent of resolution.)',
+      '  (set_specs always carries aspectRatio and resolution. Optional quality, background and complexity are independent of resolution.)',
       `- Quality: ${state.quality ?? 'auto'} — options: ${specs?.qualityOptions?.join(', ') || '(none)'}`,
       `- Background: ${state.background ?? 'auto'} — options: ${specs?.backgroundOptions?.join(', ') || '(none)'}`,
     )
+    // ⚠ 只有声明了 `complexityOptions` 的型号（GPT Image 2.6）才有这一行：缺省值是
+    //   官方的 `high`（options[0]），在别的型号上写一行「high」等于说谎。
+    if (specs?.complexityOptions?.length)
+      lines.push(
+        `- Complexity (how much the model plans the scene before rendering; no extra cost, independent of quality): ${state.complexity ?? specs.complexityOptions[0]} — options: ${specs.complexityOptions.join(', ')}`,
+      )
   }
 
   if (!state.hasCountControl) {
@@ -4401,7 +4409,7 @@ function planSetModel(
       match.catalogId && match.catalogId !== match.id
         ? 'The prompt rules in WHAT THE PROMPT MUST LOOK LIKE were for the previous model — from now on write for THIS one, in its own format and asset tokens: '
         : ''
-    }${getModelEnhanceHint(match.catalogId ?? match.id, resolveAdapterType(match.catalogId ?? match.id) ?? undefined) ?? ''}${resolveAdapterType(match.id) === AI_ADAPTER_TYPES.OPENAI ? ` Quality options: ${getCapabilityConfig(AI_ADAPTER_TYPES.OPENAI, match.id).qualityOptions?.join(', ')}. Background: auto, opaque, transparent. Preview: optional, up to $0.006 extra per image.` : ''}`,
+    }${getModelEnhanceHint(match.catalogId ?? match.id, resolveAdapterType(match.catalogId ?? match.id) ?? undefined) ?? ''}${resolveAdapterType(match.id) === AI_ADAPTER_TYPES.OPENAI ? ` Quality options: ${getCapabilityConfig(AI_ADAPTER_TYPES.OPENAI, match.id).qualityOptions?.join(', ')}. Background: auto, opaque, transparent.${getCapabilityConfig(AI_ADAPTER_TYPES.OPENAI, match.id).complexityOptions ? ` Complexity options: ${getCapabilityConfig(AI_ADAPTER_TYPES.OPENAI, match.id).complexityOptions?.join(', ')} (default high, no extra cost).` : ''} Preview: optional, up to $0.006 extra per image.` : ''}`,
     apply: () => {
       run.state.modelId = match.id
       run.state.modelLabel = match.label
@@ -4443,6 +4451,20 @@ function planSetModel(
         ).qualityOptions?.includes(run.state.quality)
       ) {
         run.state.quality = 'auto'
+      }
+      /**
+       * complexity 只有 GPT Image 2.6 认：换到没有这一档的型号就清掉（不设 = 不发），
+       * ⛔ 留着会让 2.5 / 别家因未知字段拒单 —— 与工作台 chip 换模型时丢掉它同一条。
+       */
+      if (run.state.complexity) {
+        const adapter = resolveAdapterType(match.id)
+        if (
+          !adapter ||
+          !getCapabilityConfig(adapter, match.id).complexityOptions?.includes(
+            run.state.complexity,
+          )
+        )
+          run.state.complexity = undefined
       }
     },
   }
@@ -5340,6 +5362,7 @@ function planSetSpecs(
     resolution: string
     quality?: string
     background?: string
+    complexity?: string
     preview?: boolean
   },
 ): ToolPlan {
@@ -5371,9 +5394,16 @@ function planSetSpecs(
   ) {
     return reject(REJECT.unknownValue, `background "${args.background}"`)
   }
+  if (
+    args.complexity !== undefined &&
+    !config?.complexityOptions?.includes(args.complexity)
+  ) {
+    return reject(REJECT.unknownValue, `complexity "${args.complexity}"`)
+  }
   const parsedParams = AdvancedParamsSchema.safeParse({
     quality: args.quality,
     background: args.background,
+    complexity: args.complexity,
   })
   if (!parsedParams.success) return reject(REJECT.unknownValue)
   if (args.preview !== undefined && adapter !== AI_ADAPTER_TYPES.OPENAI)
@@ -5386,6 +5416,9 @@ function planSetSpecs(
     ...(args.background !== undefined
       ? { background: parsedParams.data.background }
       : {}),
+    ...(args.complexity !== undefined
+      ? { complexity: parsedParams.data.complexity }
+      : {}),
   }
   const previous = {
     ...(args.preview !== undefined
@@ -5396,6 +5429,9 @@ function planSetSpecs(
       : {}),
     ...(args.background !== undefined
       ? { background: run.state.background ?? null }
+      : {}),
+    ...(args.complexity !== undefined
+      ? { complexity: run.state.complexity ?? null }
       : {}),
     aspectRatio: run.state.aspectRatio,
     resolution: run.state.resolution,
@@ -5418,6 +5454,8 @@ function planSetSpecs(
         run.state.quality = parsedParams.data.quality
       if (args.background !== undefined)
         run.state.background = parsedParams.data.background
+      if (args.complexity !== undefined)
+        run.state.complexity = parsedParams.data.complexity
     },
   }
 }
@@ -6854,6 +6892,7 @@ function buildGenerationRequestPayload(
         ? {
             quality: run.state.quality,
             background: run.state.background,
+            complexity: run.state.complexity,
             preview: run.state.preview,
           }
         : {}),

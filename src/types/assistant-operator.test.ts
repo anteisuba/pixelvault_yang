@@ -1208,6 +1208,17 @@ describe('step 契约 · inverse 完备性', () => {
     expect(onlyRatio.success).toBe(false)
   })
 
+  it('set_specs 的 complexity 只收三档，逆操作可以是 null（= 回到没设过）', () => {
+    const withComplexity = (complexity: unknown) =>
+      AssistantOperatorStepSchema.safeParse({
+        ...buildStep(ASSISTANT_OPERATOR_TOOL_IDS.setSpecs),
+        payload: { aspectRatio: '16:9', resolution: '2K', complexity },
+        inverse: { aspectRatio: '1:1', resolution: 'auto', complexity: null },
+      }).success
+    expect(withComplexity('low')).toBe(true)
+    expect(withComplexity('ultra')).toBe(false)
+  })
+
   it('被拒的一步照样是合法 step，且不需要 inverse', () => {
     const rejected = AssistantOperatorStepSchema.safeParse({
       id: 'step-9',

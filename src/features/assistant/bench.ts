@@ -596,6 +596,7 @@ export function toV3Mutation(
               resolution: change.resolution ?? null,
               quality: change.quality ?? null,
               background: change.background ?? null,
+              complexity: change.complexity ?? null,
             },
       )
     case OP.count:

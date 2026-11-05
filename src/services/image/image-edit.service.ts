@@ -5,8 +5,12 @@ import { z } from 'zod'
 import { AI_PROVIDER_ENDPOINTS } from '@/constants/config'
 import { AI_MODELS } from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
-import { getCapabilityConfig } from '@/constants/provider-capabilities'
+import {
+  getCapabilityConfig,
+  OPENAI_GPT_IMAGE_EDIT_COMPLEXITY_DEFAULT,
+} from '@/constants/provider-capabilities'
 import { readOpenAIImageStream } from '@/lib/openai-image-stream'
+import { openAISafetyIdentifierFor } from '@/lib/openai-safety-identifier'
 import { encodeSseEvent } from '@/lib/sse'
 import { ensureUser } from '@/services/user.service'
 import { ApiKeyError, SafetyFilterError, isGenerationError } from '@/lib/errors'
@@ -504,6 +508,8 @@ const OpenAiEditResponseSchema = z.object({
 async function editImageWithOpenAI(params: {
   modelId: string
   apiKey: string
+  /** 内部 DB user id，用来算 OpenAI `safety_identifier`（哈希后发）。 */
+  userId: string
   imageUrl: string
   prompt: string
   maskImageUrl?: string
@@ -552,10 +558,19 @@ async function editImageWithOpenAI(params: {
   }
   if (params.options?.quality)
     formData.append('quality', params.options.quality)
-  if (params.options?.complexity)
-    formData.append('complexity', params.options.complexity)
+  // 改图默认 low（owner 2026-11-05）；只对声明了 complexityOptions 的模型（2.6）代发
+  const complexity =
+    params.options?.complexity ??
+    (config.complexityOptions ? OPENAI_GPT_IMAGE_EDIT_COMPLEXITY_DEFAULT : null)
+  if (complexity) formData.append('complexity', complexity)
   if (params.options?.background)
     formData.append('background', params.options.background)
+  const safetyIdentifier = openAISafetyIdentifierFor(
+    AI_ADAPTER_TYPES.OPENAI,
+    params.modelId,
+    params.userId,
+  )
+  if (safetyIdentifier) formData.append('safety_identifier', safetyIdentifier)
 
   const { buffer: imageBuffer, mimeType: imageMime } = await fetchAsBuffer(
     params.imageUrl,
@@ -652,6 +667,7 @@ async function editImageWithOpenAI(params: {
  * conversational), or OpenAI (`/v1/images/edits` with optional mask).
  */
 export async function inpaintImage(params: {
+  userId: string
   onPreview?: (url: string) => void
   signal?: AbortSignal
   options?: ImageEditOptions
@@ -677,6 +693,7 @@ export async function inpaintImage(params: {
     return editImageWithOpenAI({
       modelId,
       apiKey: params.apiKey,
+      userId: params.userId,
       imageUrl: params.imageUrl,
       prompt: params.prompt,
       maskImageUrl: params.maskImageUrl,
@@ -743,6 +760,7 @@ export function compileAnnotationPrompt(
  * prompt 里 —— 不落像素，所以成品不可能带标注痕。
  */
 export async function replaceObjects(params: {
+  userId: string
   onPreview?: (url: string) => void
   signal?: AbortSignal
   options?: ImageEditOptions
@@ -767,6 +785,7 @@ export async function replaceObjects(params: {
     return editImageWithOpenAI({
       modelId,
       apiKey: params.apiKey,
+      userId: params.userId,
       imageUrl: params.imageUrl,
       prompt,
       options: params.options,
@@ -993,6 +1012,7 @@ async function extractElementWithGenerativeModel(
   provider: 'gemini' | 'openai',
   modelId: string,
   apiKey: string,
+  userId: string,
   imageUrl: string,
   prompt: string,
   invert: boolean,
@@ -1009,6 +1029,7 @@ async function extractElementWithGenerativeModel(
   return editImageWithOpenAI({
     modelId,
     apiKey,
+    userId,
     imageUrl,
     prompt: instruction,
     options: { background: 'transparent' },
@@ -1031,6 +1052,7 @@ async function extractElementWithGenerativeModel(
  *     subject instead of keeping it.
  */
 export async function extractElement(params: {
+  userId: string
   imageUrl: string
   prompt: string
   apiKey: string
@@ -1045,6 +1067,7 @@ export async function extractElement(params: {
       provider,
       modelId,
       params.apiKey,
+      params.userId,
       params.imageUrl,
       params.prompt,
       params.invert === true,
@@ -1200,8 +1223,8 @@ export async function streamImageEdit(
         }
         const result =
           request.action === 'inpaint'
-            ? await inpaintImage({ ...request, ...controls })
-            : await replaceObjects({ ...request, ...controls })
+            ? await inpaintImage({ ...request, ...controls, userId: user.id })
+            : await replaceObjects({ ...request, ...controls, userId: user.id })
         const generation = await persistEditedImage({
           userId: user.id,
           resultUrl: result.imageUrl,

@@ -358,11 +358,18 @@ export const AssistantOperatorSnapshotSpecsSchema = z.object({
   quality: AdvancedParamsSchema.shape.quality.nullable(),
   preview: AdvancedParamsSchema.shape.preview.nullable(),
   background: AdvancedParamsSchema.shape.background.nullable(),
+  /** GPT Image 2.6 构思复杂度；`null` = 没设（不发 = 官方缺省 high）。 */
+  complexity: AdvancedParamsSchema.shape.complexity.nullable(),
   qualityOptions: z
     .array(ParamValueSchema)
     .max(LIMITS.maxSpecOptions)
     .optional(),
   backgroundOptions: z
+    .array(ParamValueSchema)
+    .max(LIMITS.maxSpecOptions)
+    .optional(),
+  /** ⚠ 只在型号声明了 `complexityOptions`（GPT Image 2.6）时出现。 */
+  complexityOptions: z
     .array(ParamValueSchema)
     .max(LIMITS.maxSpecOptions)
     .optional(),
@@ -1381,6 +1388,7 @@ export const AssistantPlanVisualSchema = z.enum(ASSISTANT_PLAN_VISUAL_IDS)
 export const AssistantOperatorGenerationSpecsSchema = z.object({
   quality: AdvancedParamsSchema.shape.quality,
   background: AdvancedParamsSchema.shape.background,
+  complexity: AdvancedParamsSchema.shape.complexity,
   preview: AdvancedParamsSchema.shape.preview,
   aspectRatio: ParamValueSchema.nullable(),
   resolution: ParamValueSchema.nullable(),
@@ -3098,6 +3106,7 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
     quality: ParamValueSchema.optional(),
     preview: z.boolean().optional(),
     background: ParamValueSchema.optional(),
+    complexity: ParamValueSchema.optional(),
     aspectRatio: ParamValueSchema,
     resolution: ParamValueSchema,
   }),
@@ -4249,6 +4258,7 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
       quality: AdvancedParamsSchema.shape.quality,
       preview: AdvancedParamsSchema.shape.preview,
       background: AdvancedParamsSchema.shape.background,
+      complexity: AdvancedParamsSchema.shape.complexity,
     }),
     z.object({
       aspectRatio: ParamValueSchema.nullable(),
@@ -4256,6 +4266,7 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
       quality: AdvancedParamsSchema.shape.quality.nullable(),
       preview: AdvancedParamsSchema.shape.preview.nullable(),
       background: AdvancedParamsSchema.shape.background.nullable(),
+      complexity: AdvancedParamsSchema.shape.complexity.nullable(),
     }),
   ),
   /**

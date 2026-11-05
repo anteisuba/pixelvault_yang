@@ -30,6 +30,7 @@ export const POST = createApiRoute({
     const apiKey = await resolveEditApiKey(user.id, data.modelId, data.apiKeyId)
 
     const result = await replaceObjects({
+      userId: user.id,
       imageUrl: data.imageUrl,
       annotations: data.annotations,
       apiKey,

@@ -19,6 +19,7 @@ export const POST = createApiRoute({
     const apiKey = await resolveEditApiKey(user.id, data.modelId, data.apiKeyId)
 
     const result = await extractElement({
+      userId: user.id,
       imageUrl: data.imageUrl,
       prompt: data.prompt,
       apiKey,

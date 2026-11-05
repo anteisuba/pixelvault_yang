@@ -319,6 +319,8 @@
       "invalidApiKey": "The selected Agent Key is invalid or no longer authorized. Reconfigure it or choose another Agent Key.",
       "rateLimited": "The selected planner route is rate limited. Wait a moment or choose another Agent Key.",
       "safetyBlocked": "The provider refused this content due to its safety policy. Try switching to another model (e.g. Gemini if you were on GPT, or vice versa).",
+      "moderationBlockedInput": "The provider's safety check stopped this before generating — the prompt or a reference image was flagged. Rephrase or swap the reference and try again.",
+      "moderationBlockedOutput": "The image was generated but didn't pass the provider's safety check. This often happens when it looks too much like a real person — try a more stylized, non-photorealistic description.",
       "temporarilyUnavailable": "The selected planner model is temporarily unavailable. Try again in a moment or choose another Agent Key.",
       "timeout": "AI provider timed out. Please try again.",
       "unsupportedOpenAiReferenceImage": "OpenAI accepts JPEG, PNG, or WebP reference images. Convert the image and try again.",

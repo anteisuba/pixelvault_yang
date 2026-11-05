@@ -3063,6 +3063,7 @@ export function useAssistantOperator(
           quality: advancedParams.quality,
           preview: advancedParams.preview,
           background: advancedParams.background,
+          complexity: advancedParams.complexity,
         },
       })
       /**

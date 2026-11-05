@@ -3196,7 +3196,7 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
   [ASSISTANT_OPERATOR_TOOL_IDS.setNegative]:
     'write the negative prompt. Only exists on workbenches that actually have that field.',
   [ASSISTANT_OPERATOR_TOOL_IDS.setSpecs]:
-    'set aspectRatio AND resolution together. Optionally include quality and background from the available model options. Quality (low/medium/high/xhigh/max) is independent of resolution (1K/2K/4K). For OpenAI images, preview is an optional boolean: up to two partial images, adding up to $0.006 per output. Enable only when requested.',
+    'set aspectRatio AND resolution together. Optionally include quality, background and complexity from the available model options. Quality (low/medium/high/xhigh/max) is independent of resolution (1K/2K/4K). Complexity (high/medium/low, only on models that list it; default high, no extra cost) is how much the model plans the scene before rendering — low suits quick focused edits, high helps dense text and complex layouts; it is independent of quality. For OpenAI images, preview is an optional boolean: up to two partial images, adding up to $0.006 per output. Enable only when requested.',
   /**
    * ⚠ 参数名**逐字写出来**（真机 2026-08-31：模型第一次写的是 `duration` /
    * `aspect_ratio`，一条都没认出来，白烧一步换回一条 `emptyValue`）。

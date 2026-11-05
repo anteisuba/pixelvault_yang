@@ -385,6 +385,11 @@ export interface WorkerImageRunContext {
      */
     providerBaseUrl?: string
     outputStorageKey?: string
+    /**
+     * OpenAI `safety_identifier`：app 侧已哈希好的稳定匿名用户标识（≤128 字），
+     * 只有声明支持的 OpenAI 图像模型才带。worker 原样转发，不再加工。
+     */
+    safetyIdentifier?: string
   }
 }
 
@@ -1626,6 +1631,8 @@ export function parseImageRunContext(
         readStringField(providerInput, 'providerBaseUrl') ?? undefined,
       outputStorageKey:
         readStringField(providerInput, 'outputStorageKey') ?? undefined,
+      safetyIdentifier:
+        readStringField(providerInput, 'safetyIdentifier') ?? undefined,
     },
   }
 }

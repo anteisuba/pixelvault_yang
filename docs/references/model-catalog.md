@@ -154,7 +154,8 @@ RODIN_GEN_2_5 · HUNYUAN3D_V31_PRO · HUNYUAN3D_V3 · TRELLIS_2 · TRIPOSR（全
 - 新增 [Flare](https://developers.openai.com/api/docs/models/gpt-image-2.6-flare) 与 [Sunburst](https://developers.openai.com/api/docs/models/gpt-image-2.6-sunburst)，与 2.5 **并列上架、不替代**（退役 2.5 待 owner 拍）。端点、BYOK、Worker 路径、16 张参考图、32,000 字符、六档画质全同 2.5。
 - 新参数 `complexity: low | medium | high`（缺省 high，不另收费，与 `quality` 正交；官方建议改图用 low）已接：能力键 `complexity`（select，`high` 排第一 = 缺省不发），工作台 chip、改图面板、`AdvancedParamsSchema` / `ImageEditOptionsSchema`、服务端值域校验、Worker JSON 与 multipart、`image-edit.service` 全线贯通；非 2.6 型号送来即 400。
 - 费率同 2.5（图片输出 $30 / 图片输入 $8 / 文字输入 $5 每百万 token），但官方计算器（`GptImageTokenCalculator.react.B8NGWY1d.js`，2026-11-05 核验）对 2.6 的 low / medium 输出 token 分别再乘 4.2 / 3.3：1024² low/medium/high/xhigh/max = $0.02469/$0.04347/$0.05268/$0.09366/$0.21072——**low 约是 2.5 的 4 倍**，high 以上与 2.5 相同。`getOpenAIImageOutputPrice` 已按此算。
-- 未接（下一切片候选）：markup（仅 edits，透明 PNG 标注层）、SVG 输出（仅 generations、n=1）、GIF 输出（`frame_count` 2–64 / `frame_duration_ms` 20–2000）、`safety_identifier`（取代已废弃的 `user`）、错误里的 `moderation_details`。画布节点与助手 operator 尚未透传 `complexity`。未做付费生成实测。
+- 第二批（同日）：改图缺省 `complexity=low`（owner 拍；`OPENAI_GPT_IMAGE_EDIT_COMPLEXITY_DEFAULT`，服务端代发、改图面板显示为选中 low，生成仍缺省 high 不发）；画布卡切模型后专属值按新模型能力删掉再发（与工作台同一个 `pruneIncompatibleCapabilityValues`）；`safety_identifier` 已发（见 providers.md）；`moderation_details` 的阶段换成分阶段提示（见 providers.md）。
+- 未接（下一切片候选）：markup（仅 edits，透明 PNG 标注层）、SVG 输出（仅 generations、n=1）、GIF 输出（`frame_count` 2–64 / `frame_duration_ms` 20–2000）。未做付费生成实测。
 
 ## 本月发现（2026-09-09 · GPT Image 2.5）
 

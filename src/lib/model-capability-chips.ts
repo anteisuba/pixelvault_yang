@@ -278,15 +278,18 @@ export function isCapabilityChipSet(
  * @returns 需要写回的新 params；**没有任何变化时返回 `null`**（宿主据此不
  *   dispatch —— 每次都返回新对象会把调用方的 effect 打成死循环）。
  */
-export function pruneIncompatibleCapabilityValues(
-  params: AdvancedParams,
+export function pruneIncompatibleCapabilityValues<
+  T extends Readonly<Record<string, unknown>> = AdvancedParams,
+>(
+  params: T,
   adapterType: AI_ADAPTER_TYPES | undefined,
   modelId?: string,
-): AdvancedParams | null {
+): T | null {
   const chips = getModelCapabilityChips(adapterType, modelId)
   const byCapability = new Map(chips.map((chip) => [chip.capability, chip]))
 
-  const next: AdvancedParams = { ...params }
+  // 泛型：工作台传 AdvancedParams，画布传节点上存的 `params.advanced`（同一套键）。
+  const next: Record<string, unknown> = { ...params }
   let changed = false
 
   for (const capability of Object.keys(SELECT_OPTION_KEYS).concat(
@@ -294,7 +297,7 @@ export function pruneIncompatibleCapabilityValues(
     Object.keys(TEXT_MAX_LENGTH_KEYS),
     TOGGLE_CAPABILITIES,
   ) as ProviderCapability[]) {
-    const key = capability as keyof AdvancedParams
+    const key: string = capability
     const current = next[key]
     if (current === undefined) continue
 
@@ -318,7 +321,8 @@ export function pruneIncompatibleCapabilityValues(
     changed = true
   }
 
-  return changed ? next : null
+  // 只删键、不改值，形状仍是 T
+  return changed ? (next as T) : null
 }
 
 export function isCapabilityChipVisible(

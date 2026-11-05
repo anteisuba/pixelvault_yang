@@ -173,6 +173,10 @@ export const EditChangeSchema = z.object({
   resolution: z.string().nullish().describe('specs / add_card / set_card'),
   quality: z.string().nullish().describe('specs / add_card / set_card'),
   background: z.string().nullish().describe('specs'),
+  complexity: z
+    .string()
+    .nullish()
+    .describe('specs: only where the board lists complexity options.'),
   count: z
     .number()
     .nullish()

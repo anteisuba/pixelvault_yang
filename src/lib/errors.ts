@@ -9,6 +9,10 @@ import {
   ASSISTANT_MODEL_CANNOT_SEE_CODE,
   ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE,
 } from '@/constants/assistant-operator'
+import {
+  MODERATION_STAGE_I18N_KEYS,
+  moderationStageOf,
+} from '@/constants/generation-errors'
 import type { AI_ADAPTER_TYPES } from '@/constants/providers'
 
 // ─── Base Class ──────────────────────────────────────────────────
@@ -262,7 +266,8 @@ export class NotImplementedError extends GenerationError {
 export class SafetyFilterError extends GenerationError {
   readonly errorCode = 'SAFETY_FILTER_BLOCKED' as const
   readonly httpStatus = 422
-  readonly i18nKey = 'errors.provider.safetyBlocked' as const
+  /** OpenAI 带了 `moderation_stage` 就换成分阶段的那句提示，否则原来的「换个模型」。 */
+  readonly i18nKey: string
   readonly provider: string
 
   constructor(provider: string, detail?: string) {
@@ -271,6 +276,10 @@ export class SafetyFilterError extends GenerationError {
         `${provider} refused to process the request due to its content safety policy.`,
     )
     this.provider = provider
+    const stage = detail ? moderationStageOf(detail) : null
+    this.i18nKey = stage
+      ? MODERATION_STAGE_I18N_KEYS[stage]
+      : 'errors.provider.safetyBlocked'
   }
 }
 

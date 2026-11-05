@@ -270,6 +270,7 @@ async function* runEditOp(
         resolution,
         ...(op.quality ? { quality: op.quality } : {}),
         ...(op.background ? { background: op.background } : {}),
+        ...(op.complexity ? { complexity: op.complexity } : {}),
       })
     }
     case ASSISTANT_V3_IMAGE_EDIT_OP_IDS.setCount:

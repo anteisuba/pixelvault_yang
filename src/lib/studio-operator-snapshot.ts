@@ -76,11 +76,12 @@ export interface StudioOperatorSnapshotForm {
   imageQuality?: import('@/types').AdvancedParams['quality']
   imagePreview?: boolean
   imageBackground?: import('@/types').AdvancedParams['background']
+  imageComplexity?: import('@/types').AdvancedParams['complexity']
   imageBatchCount: number
   /**
    * 参数栏那一整份高级参数 —— **专属 chip 行的现值从这里读**（进度表 21）。
-   * ⚠ 与上面 `imageQuality` / `imagePreview` / `imageBackground` 三格并存不是
-   * 冗余：那三格是 `specs` 那一节的成员（图片规格的一部分），这一份是**逐模型
+   * ⚠ 与上面 `imageQuality` / `imagePreview` / `imageBackground` / `imageComplexity`
+   * 几格并存不是冗余：那几格是 `specs` 那一节的成员（图片规格的一部分），这一份是**逐模型
    * 派生的那一行**的原料，键随模型变，⛔ 列不出一张固定字段表。
    */
   advancedParams: AdvancedParams
@@ -112,6 +113,7 @@ export function buildWorkbenchOperatorForm(
     imageQuality: current.advancedParams.quality,
     imagePreview: current.advancedParams.preview,
     imageBackground: current.advancedParams.background,
+    imageComplexity: current.advancedParams.complexity,
     imageBatchCount: current.imageBatchCount,
     // 专属 chip 行的现值（进度表 21）—— 整份端上去，键随模型变。
     advancedParams: current.advancedParams,
@@ -453,6 +455,7 @@ export function buildImageOperatorSnapshot({
       quality: form.imageQuality,
       preview: form.imagePreview,
       background: form.imageBackground,
+      complexity: form.imageComplexity,
       qualityOptions: selectedModel
         ? [
             ...(getCapabilityConfig(
@@ -469,6 +472,20 @@ export function buildImageOperatorSnapshot({
             ).backgroundOptions ?? []),
           ]
         : [],
+      // ⚠ 只在型号声明了 `complexityOptions`（GPT Image 2.6）时带这一格 ——
+      //   缺席 = 这个型号没有构思复杂度这件事（系统提示据此整行不写）。
+      ...(selectedModel &&
+      getCapabilityConfig(selectedModel.adapterType, selectedModel.modelId)
+        .complexityOptions?.length
+        ? {
+            complexityOptions: [
+              ...(getCapabilityConfig(
+                selectedModel.adapterType,
+                selectedModel.modelId,
+              ).complexityOptions ?? []),
+            ],
+          }
+        : {}),
       aspectRatioOptions: [...STUDIO_IMAGE_ASPECT_RATIOS],
       resolutionOptions,
     },

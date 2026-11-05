@@ -4,6 +4,7 @@ import {
   GENERATION_ERROR_CODES,
   getGenerationErrorI18nKeyForCode,
   isGenerationRetryFutile,
+  moderationStageOf,
   normalizeErrorCode,
   parseGenerationErrorCode,
 } from './generation-errors'
@@ -236,6 +237,34 @@ describe('PROMPT_TOO_LONG', () => {
         message,
       ),
     ).toBe('errors.provider.promptTooLong')
+  })
+})
+
+// GPT Image moderation_details（2026-11-05）：拦在出图前 / 出图后给不同的一句提示；
+// 没有阶段时保持原来的泛化文案（官方建议主文案泛化）。
+describe('CONTENT_FILTERED moderation stage', () => {
+  it('reads the stage from the stored callback prefix and from the raw OpenAI body', () => {
+    expect(moderationStageOf('[moderation: output · other] blocked')).toBe(
+      'output',
+    )
+    expect(
+      moderationStageOf(
+        '{"error":{"code":"moderation_blocked","moderation_details":{"moderation_stage":"input","categories":["harassment"]}}}',
+      ),
+    ).toBe('input')
+    expect(moderationStageOf('[moderation: unknown]')).toBeNull()
+    expect(moderationStageOf('Your request was rejected')).toBeNull()
+  })
+
+  it('maps each stage to its own i18n key and keeps the generic fallback otherwise', () => {
+    const code = GENERATION_ERROR_CODES.CONTENT_FILTERED
+    expect(
+      getGenerationErrorI18nKeyForCode(code, '[moderation: input · sexual]'),
+    ).toBe('errors.provider.moderationBlockedInput')
+    expect(
+      getGenerationErrorI18nKeyForCode(code, '[moderation: output · other]'),
+    ).toBe('errors.provider.moderationBlockedOutput')
+    expect(getGenerationErrorI18nKeyForCode(code, 'safety system')).toBeNull()
   })
 })
 

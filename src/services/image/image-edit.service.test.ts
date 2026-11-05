@@ -102,6 +102,7 @@ describe('image-edit.service', () => {
     })
 
     const result = await inpaintImage({
+      userId: 'user-1',
       imageUrl: 'https://example.com/source.png',
       maskImageUrl: 'data:image/png;base64,mask',
       prompt: 'replace with flowers',
@@ -139,6 +140,7 @@ describe('image-edit.service', () => {
 
     await expect(
       inpaintImage({
+        userId: 'user-1',
         imageUrl: 'https://example.com/source.png',
         maskImageUrl: 'data:image/png;base64,mask',
         prompt: 'replace with flowers',
@@ -212,6 +214,7 @@ describe('image-edit.service', () => {
     vi.stubGlobal('fetch', fetchSpy)
 
     const result = await extractElement({
+      userId: 'user-1',
       imageUrl: `data:image/png;base64,${TINY_PNG_BASE64}`,
       prompt: 'the red dress',
       apiKey: 'sk-test',
@@ -241,6 +244,7 @@ describe('image-edit.service', () => {
     vi.stubGlobal('fetch', fetchSpy)
 
     await extractElement({
+      userId: 'user-1',
       imageUrl: `data:image/png;base64,${TINY_PNG_BASE64}`,
       prompt: 'person',
       apiKey: 'sk-test',
@@ -284,6 +288,7 @@ describe('image-edit.service', () => {
     vi.stubGlobal('fetch', fetchSpy)
 
     const result = await extractElement({
+      userId: 'user-1',
       imageUrl: `data:image/png;base64,${TINY_PNG_BASE64}`,
       prompt: 'hair',
       apiKey: 'gem-key',
@@ -322,12 +327,49 @@ describe('image-edit.service', () => {
 
     await expect(
       extractElement({
+        userId: 'user-1',
         imageUrl: `data:image/png;base64,${TINY_PNG_BASE64}`,
         prompt: 'person',
         apiKey: 'sk-test',
         modelId: 'gpt-image-2',
       }),
     ).rejects.toBeInstanceOf(SafetyFilterError)
+  })
+
+  it('carries the OpenAI moderation stage into the SafetyFilterError i18n key', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 400,
+        text: () =>
+          Promise.resolve(
+            JSON.stringify({
+              error: {
+                type: 'image_generation_user_error',
+                code: 'moderation_blocked',
+                message: 'Your request was rejected by the safety system.',
+                moderation_details: {
+                  moderation_stage: 'output',
+                  categories: ['other'],
+                },
+              },
+            }),
+          ),
+      }),
+    )
+
+    const error = await extractElement({
+      userId: 'user-1',
+      imageUrl: `data:image/png;base64,${TINY_PNG_BASE64}`,
+      prompt: 'person',
+      apiKey: 'sk-test',
+      modelId: 'gpt-image-2',
+    }).catch((caught: unknown) => caught)
+    expect(error).toBeInstanceOf(SafetyFilterError)
+    expect((error as SafetyFilterError).i18nKey).toBe(
+      'errors.provider.moderationBlockedOutput',
+    )
   })
 
   it('detects Gemini safety blocks even when the response is 200 OK with no image', async () => {
@@ -344,6 +386,7 @@ describe('image-edit.service', () => {
 
     await expect(
       extractElement({
+        userId: 'user-1',
         imageUrl: `data:image/png;base64,${TINY_PNG_BASE64}`,
         prompt: 'person',
         apiKey: 'gem-key',
@@ -375,6 +418,7 @@ describe('GPT Image 2.5 editing', () => {
       })
       vi.stubGlobal('fetch', fetchSpy)
       const result = await inpaintImage({
+        userId: 'user-1',
         modelId,
         apiKey: 'test',
         imageUrl: `data:image/png;base64,${source.toString('base64')}`,
@@ -399,7 +443,7 @@ describe('GPT Image 2.5 editing', () => {
 })
 
 describe('GPT Image 2.6 complexity', () => {
-  const editWith = async (modelId: string, complexity: string) => {
+  const editWith = async (modelId: string, complexity: string | null) => {
     const source = await sharp({
       create: { width: 2, height: 1, channels: 3, background: 'red' },
     })
@@ -416,12 +460,15 @@ describe('GPT Image 2.6 complexity', () => {
       .png()
       .toBuffer()
     const run = inpaintImage({
+      userId: 'user-1',
       modelId,
       apiKey: 'test',
       imageUrl: `data:image/png;base64,${source.toString('base64')}`,
       maskImageUrl: `data:image/png;base64,${mask.toString('base64')}`,
       prompt: 'Change only the sky',
-      options: { complexity: complexity as 'low' },
+      ...(complexity === null
+        ? {}
+        : { options: { complexity: complexity as 'low' } }),
     })
     return { run, fetchSpy }
   }
@@ -436,6 +483,43 @@ describe('GPT Image 2.6 complexity', () => {
       expect(form.get('complexity')).toBe('low')
     },
   )
+
+  it('defaults edits to complexity low when the user picked nothing', async () => {
+    const { run, fetchSpy } = await editWith('gpt-image-2.6-flare', null)
+    await run
+    const form = fetchSpy.mock.calls[0][1].body as FormData
+    expect(form.get('complexity')).toBe('low')
+  })
+
+  it('keeps an explicit complexity over the edit default', async () => {
+    const { run, fetchSpy } = await editWith('gpt-image-2.6-flare', 'high')
+    await run
+    const form = fetchSpy.mock.calls[0][1].body as FormData
+    expect(form.get('complexity')).toBe('high')
+  })
+
+  it('never sends complexity to 2.5 by default', async () => {
+    const { run, fetchSpy } = await editWith('gpt-image-2.5-flare', null)
+    await run
+    const form = fetchSpy.mock.calls[0][1].body as FormData
+    expect(form.get('complexity')).toBeNull()
+  })
+
+  it('sends a hashed safety_identifier, never the raw user id', async () => {
+    const { run, fetchSpy } = await editWith('gpt-image-2.6-flare', null)
+    await run
+    const form = fetchSpy.mock.calls[0][1].body as FormData
+    const id = form.get('safety_identifier')
+    expect(id).toMatch(/^[0-9a-f]{64}$/)
+    expect(id).not.toContain('user-1')
+  })
+
+  it('omits safety_identifier for gpt-image-2', async () => {
+    const { run, fetchSpy } = await editWith('gpt-image-2', null)
+    await run
+    const form = fetchSpy.mock.calls[0][1].body as FormData
+    expect(form.get('safety_identifier')).toBeNull()
+  })
 
   it('rejects complexity on 2.5 before calling OpenAI', async () => {
     const { run, fetchSpy } = await editWith('gpt-image-2.5-flare', 'low')
@@ -462,6 +546,7 @@ describe('object-replace on fal edit endpoints', () => {
     })
 
     const result = await replaceObjects({
+      userId: 'user-1',
       imageUrl: 'https://example.com/source.png',
       annotations,
       apiKey: 'key',
@@ -491,6 +576,7 @@ describe('object-replace on fal edit endpoints', () => {
     })
 
     const edited = await replaceObjects({
+      userId: 'user-1',
       imageUrl: 'https://example.com/source.png',
       annotations,
       apiKey: 'key',

@@ -2123,6 +2123,8 @@ const WorkerImageProviderInputSchema = z.object({
    */
   providerBaseUrl: z.string().trim().url().optional(),
   outputStorageKey: z.string().trim().min(1).optional(),
+  /** OpenAI `safety_identifier`（已哈希，官方上限 128 字）；只有声明支持的模型才带。 */
+  safetyIdentifier: z.string().min(1).max(128).optional(),
 })
 
 export const WorkerRunContextSchema = z

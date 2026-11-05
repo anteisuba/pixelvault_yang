@@ -455,9 +455,10 @@ export const AssistantV3ImageEditOpInputSchema = z.union([
       resolution: z.string().nullable(),
       quality: z.string().nullable(),
       background: z.string().nullable(),
+      complexity: z.string().nullable(),
     })
     .describe(
-      "Aspect ratio, resolution, quality, background — values from the board's options. null keeps a field as it is.",
+      "Aspect ratio, resolution, quality, background, complexity — values from the board's options (complexity only where the board lists it). null keeps a field as it is.",
     ),
   z.object({
     op: one(ASSISTANT_V3_IMAGE_EDIT_OP_IDS.setCount),

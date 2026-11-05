@@ -1001,7 +1001,13 @@
       },
       "ports": {
         "input": "入力",
-        "output": "出力"
+        "output": "出力",
+        "grow": "次のカードを追加",
+        "growTo": {
+          "image": "画像",
+          "video": "動画"
+        },
+        "growOne": "次のカードを追加：{target}"
       },
       "edgeRole": {
         "menu": "このつながりの役割",

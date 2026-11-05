@@ -78,6 +78,7 @@ import {
   type NodeGenerationShot,
 } from '@/lib/node-media-patch'
 import { renameStableNodeName } from '@/lib/node-display-name'
+import { shouldRetakeAsNewCard } from '@/lib/node-retake'
 import { pickDefaultModelOption } from '@/lib/pick-default-model-option'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import type { ImagePromptTemplateId } from '@/constants/image-prompt-templates'
@@ -150,7 +151,13 @@ import { cn } from '@/lib/utils'
 import { ModelPickerPopover } from '@/components/business/studio-shared/pickers/ModelPickerPopover'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 import { splitVersionOp, useNodeV4Canvas } from './NodeV4Context'
+import {
+  forkRetake,
+  revealRetakeCard,
+  RetakeAutostartTrigger,
+} from './retake-autostart'
 import { NodeV4ContextMenu } from './NodeV4ContextMenu'
+import { useNodeGrow } from './node-grow'
 import { triggerNodeV4Download } from './NodeV4SelectionToolbar'
 import { requestCanvasRerunDownstream } from '@/lib/canvas-rerun-request'
 import { collectDownstream } from '@/lib/node-downstream'
@@ -607,7 +614,8 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
 
   // `/` = 「我的模板」里的图片模板（owner 2026-10-15）。hook，同样在提前返回之前取。
   const recipeSlash = useRecipeSlashOptions('IMAGE')
-
+  // 出口「+」：有图才长下游卡（§1 第 18 条尾句）。
+  const grow = useNodeGrow(node, Boolean(imageData.url))
   if (!node) return null
 
   const versions = imageVersions(imageData)
@@ -734,11 +742,13 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
   /**
    * `keyVerified`：刚在 `QuickSetupDialog` 里配好 key —— 渲染闭包里的 `missingKey`
    * 还没刷新。`model`：弹窗里换了一家，这一枪走那一家（闭包里的还是旧的）。
+   * `inPlace`：失败卡上的「重试」—— 补的是这张卡没出成的那一枪，⛔ 另长新卡。
    */
   const submitPrompt = (
     options: {
       readonly keyVerified?: boolean
       readonly model?: NodeWorkflowModelSelection
+      readonly inPlace?: boolean
     } = {},
   ) => {
     if (draft.trim().length === 0 || generating) return
@@ -747,6 +757,19 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
       return
     }
     const sendModel = options.model ?? effectiveModel
+    // 重生成 = 新卡（§1 第 18 条）：已有产物的卡再发一枪，右边长一张同条件的新卡、由
+    // 新卡自己发（`retake-autostart`）。旧卡原样不动 —— 正文没落库的改动跟着新卡走，
+    // 旧卡的草稿退回它自己那份正文。
+    if (
+      !options.inPlace &&
+      shouldRetakeAsNewCard(
+        canvas.readGraph().nodes.find((item) => item.id === id),
+      )
+    ) {
+      void forkRetake(canvas, id, draft, sendModel ? { model: sendModel } : {})
+      setDraft(currentPrompt)
+      return
+    }
     if (draft !== currentPrompt) canvas.onSetPrompt(id, draft)
     if (sendModel && (options.model || !imageData.model))
       canvas.onSetModel(id, sendModel)
@@ -1109,7 +1132,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
                       shortMessage: t('statuses.failed'),
                       retryLabel: tImage('rail.retry'),
                       ...(draft.trim()
-                        ? { onRetry: () => submitPrompt() }
+                        ? { onRetry: () => submitPrompt({ inPlace: true }) }
                         : {}),
                     }
                   : null
@@ -1149,7 +1172,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
         }
         surfaceClassName="overflow-hidden"
         changed={canvas.changedNodeIds.includes(id)}
-        portSpec={portSpecOf(node)}
+        portSpec={{ ...portSpecOf(node), grow }}
       >
         {failed && !imageData.url ? (
           // 失败就地说（加载态 A）：原因 +「重试」在卡边那一层，这里只占住卡的高度。
@@ -1645,6 +1668,17 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
           />
         ) : null}
       </AnimatePresence>
+      {/* 本卡是「重生成」长出来的那张：一挂上就亮出来，并用旧卡那一枪的模型自己发。 */}
+      <RetakeAutostartTrigger
+        nodeId={id}
+        onStart={(payload) => {
+          revealRetakeCard(canvas, id)
+          submitPrompt({
+            keyVerified: true,
+            ...(payload.model ? { model: payload.model } : {}),
+          })
+        }}
+      />
     </div>
   )
 }

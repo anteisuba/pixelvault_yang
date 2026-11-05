@@ -113,7 +113,11 @@ import {
   fakeAssetLibraryRoutes,
   stubBrowserObservers,
 } from '@/test/fake-routes'
-import type { NodeV4, NodeWorkflowEdgeV4 } from '@/types/node-workflow'
+import type {
+  NodeV4,
+  NodeWorkflowEdgeV4,
+  NodeWorkflowModelSelection,
+} from '@/types/node-workflow'
 
 import {
   NodeCanvasActionsProvider,
@@ -123,6 +127,7 @@ import {
   NodeV4CanvasProvider,
   type NodeV4CanvasContextValue,
 } from './NodeV4Context'
+import { markRetakeAutostart } from './retake-autostart'
 import { VideoNodeV4 } from './VideoNodeV4'
 import {
   videoCardHeight,
@@ -319,6 +324,8 @@ const READY = {
   params: { duration: '7', aspectRatio: '16:9', resolution: '1080p' },
   model: { optionId: 'opt_a', modelId: MODEL_ID, adapterType: 'fal' },
 }
+/** 档位和模型都齐、但还没出过片：再按生成就在本卡上出（有片的卡会长新卡，§1 第 18 条）。 */
+const READY_EMPTY = { params: READY.params, model: READY.model }
 
 describe('空卡 / 有片两态（spec §5）', () => {
   it('空卡是 16:9 虚线框 + 说明与两颗字键，⛔ 没有封面', () => {
@@ -706,12 +713,15 @@ describe('片段卡与镜头卡同一套', () => {
 })
 
 describe('提示词栏', () => {
-  it('回车 = 生成新版本', async () => {
+  it('回车 = 生成（空卡在本卡上出）', async () => {
     const onSetPrompt = vi.fn()
     renderVideo(
-      harness([videoNode('v_1', { ...READY, prompt: '她转身走向站台尽头' })], {
-        onSetPrompt,
-      }),
+      harness(
+        [videoNode('v_1', { ...READY_EMPTY, prompt: '她转身走向站台尽头' })],
+        {
+          onSetPrompt,
+        },
+      ),
       'v_1',
       true,
     )
@@ -730,6 +740,24 @@ describe('提示词栏', () => {
         }),
       ),
     )
+  })
+
+  it('有片的卡回车 = 长同镜号新卡，⛔ 在本卡上叠版本', async () => {
+    const context = harness([
+      videoNode('v_1', { ...READY, prompt: '她转身走向站台尽头' }),
+    ])
+    renderVideo(context, 'v_1', true)
+    const input = screen
+      .getByTestId('flow-toolbar-bottom')
+      .querySelector('textarea') as HTMLTextAreaElement
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await waitFor(() => expect(context.onApplyBatch).toHaveBeenCalledTimes(1))
+    expect(vi.mocked(context.onApplyBatch).mock.calls[0]![0][0]).toMatchObject({
+      op: NODE_ASSISTANT_OP_V4_IDS.addNode,
+      kind: 'video',
+      subtype: 'shot',
+    })
+    expect(api.submitVideoAPI).not.toHaveBeenCalled()
   })
 
   it('参考轨在栏首行：图组第 1 项带「首」角标，退格删断的是那条边', () => {
@@ -1353,17 +1381,47 @@ describe('画中框（spec §5 / §1.11）', () => {
     editor.textContent = '展开后继续输入'
     fireEvent.input(editor)
     fireEvent.click(document.querySelector('[data-video-regenerate]')!)
+    // 有片的卡重生成 = 长一张同镜号的新卡（§1 第 18 条），新卡带着刚编辑的正文
+    await waitFor(() => expect(context.onApplyBatch).toHaveBeenCalledTimes(1))
+    const ops = vi.mocked(context.onApplyBatch).mock.calls[0]![0]
+    expect(ops[0]).toMatchObject({
+      op: NODE_ASSISTANT_OP_V4_IDS.addNode,
+      kind: 'video',
+    })
+    expect(ops.at(-1)).toMatchObject({
+      op: NODE_ASSISTANT_OP_V4_IDS.setPrompt,
+      prompt: '展开后继续输入',
+    })
+    expect(api.submitVideoAPI).not.toHaveBeenCalled()
+    expect(context.onSetPrompt).not.toHaveBeenCalled()
+    // 旧卡原样：草稿退回它自己那份正文
+    view.rerender(renderState(null))
+    expect(document.querySelector('[data-prompt-bar-input]')).toHaveValue(
+      '原始内容',
+    )
+  })
+
+  it('重生成长出来的新视频卡一挂上就自己发，用旧卡那一枪的模型', async () => {
+    // 载荷是完整的模型选择（含线路）；READY 那份夹具只带了卡上读得到的三格。
+    const model = {
+      ...READY.model,
+      providerConfig: { label: 'fal', baseUrl: 'https://fal.run' },
+    } as NodeWorkflowModelSelection
+    markRetakeAutostart('v_2', { model })
+    const context = harness([
+      videoNode('v_2', { params: READY.params, prompt: '两人对视' }),
+    ])
+    renderVideo(context, 'v_2', true)
     await waitFor(() =>
       expect(api.submitVideoAPI).toHaveBeenLastCalledWith(
         expect.objectContaining({
-          prompt: expect.stringContaining('展开后继续输入'),
+          prompt: expect.stringContaining('两人对视'),
         }),
       ),
     )
-    view.rerender(renderState(null))
-    expect(document.querySelector('[data-prompt-bar-input]')).toHaveValue(
-      '展开后继续输入',
-    )
+    expect(context.onSetModel).toHaveBeenCalledWith('v_2', model)
+    expect(context.onFocusNode).toHaveBeenCalledWith('v_2')
+    expect(context.onApplyBatch).not.toHaveBeenCalled()
   })
   it('上半播放器 · 下半镜头说明 · 一条页脚；写作助手点了「让助手写」才出来（方向 A）', () => {
     renderVideo(
@@ -1706,7 +1764,9 @@ it.each([false, true])(
         : { jobId: 'job-failure', status: 'FAILED', error: 'failed' },
     })
     if (pending) vi.useFakeTimers()
-    const context = harness([videoNode('v_1', { ...READY, prompt: 'a shot' })])
+    const context = harness([
+      videoNode('v_1', { ...READY_EMPTY, prompt: 'a shot' }),
+    ])
     renderVideo(context, 'v_1', true)
     fireEvent.click(screen.getByRole('button', { name: 'send' }))
     if (pending) {
@@ -1751,7 +1811,9 @@ it('提交尚未取得任务 ID 时点击取消，在 ID 到达后取消服务�
     success: true,
     data: { cancelled: ['late-job'], alreadyFinished: [], notFound: [] },
   })
-  const context = harness([videoNode('v_1', { ...READY, prompt: 'a shot' })])
+  const context = harness([
+    videoNode('v_1', { ...READY_EMPTY, prompt: 'a shot' }),
+  ])
   renderVideo(context, 'v_1', true)
   fireEvent.click(screen.getByRole('button', { name: 'send' }))
   await waitFor(() => expect(api.submitVideoAPI).toHaveBeenCalled())

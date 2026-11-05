@@ -1001,7 +1001,13 @@
       },
       "ports": {
         "input": "入口",
-        "output": "出口"
+        "output": "出口",
+        "grow": "往下接一张卡",
+        "growTo": {
+          "image": "图片",
+          "video": "视频"
+        },
+        "growOne": "往下接一张卡：{target}"
       },
       "edgeRole": {
         "menu": "这条线的用途",

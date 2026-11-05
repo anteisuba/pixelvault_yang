@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import type { CSSProperties, ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -16,8 +16,11 @@ vi.mock('@xyflow/react', () => ({
       data-port={props['data-port'] as string}
       data-hot={props['data-hot'] as string}
       data-id={props.id as string}
+      data-grow={props['data-grow'] as string}
+      aria-label={props['aria-label'] as string}
       className={props.className as string}
       style={props.style as CSSProperties}
+      onClick={props.onClick as () => void}
     >
       {props.children as ReactNode}
     </span>
@@ -120,6 +123,71 @@ describe('NodePorts', () => {
     )
     const handle = container.querySelector('[data-testid="handle"]')!
     expect(handle).toHaveAttribute('data-hot', 'false')
+  })
+})
+
+describe('NodePorts 出口「+」（§1 第 18 条尾句）', () => {
+  it('只有一个去处：点一下直接做，⛔ 不弹菜单', () => {
+    const onSelect = vi.fn()
+    const { container } = render(
+      <NodePorts
+        kind="video"
+        right={[{ id: 'out' }]}
+        grow={{ choices: [{ id: 'continue', label: '续拍', onSelect }] }}
+      />,
+    )
+    const handle = container.querySelector('[data-port="output"]')!
+    expect(handle).toHaveAttribute('data-grow', 'true')
+    expect(handle).toHaveAttribute('aria-label', 'growOne')
+    expect(handle.className).toContain('node-port--grow')
+    expect(handle).toHaveTextContent('+')
+    fireEvent.click(handle)
+    expect(onSelect).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('menu')).toBeNull()
+  })
+
+  it('两个去处：点一下贴着出口弹菜单，选哪个做哪个', () => {
+    const toImage = vi.fn()
+    const toVideo = vi.fn()
+    const { container } = render(
+      <NodePorts
+        kind="image"
+        right={[{ id: 'out' }]}
+        grow={{
+          choices: [
+            { id: 'image', label: '图片', onSelect: toImage },
+            { id: 'video', label: '视频', onSelect: toVideo },
+          ],
+        }}
+      />,
+    )
+    const handle = container.querySelector('[data-port="output"]')!
+    expect(handle).toHaveAttribute('aria-label', 'grow')
+    fireEvent.click(handle)
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('menuitem', { name: '视频' }))
+    expect(toVideo).toHaveBeenCalledTimes(1)
+    expect(toImage).not.toHaveBeenCalled()
+  })
+
+  it('还没东西可接（disabled）：只剩拖线的点，没有「+」', () => {
+    const onSelect = vi.fn()
+    const { container } = render(
+      <NodePorts
+        kind="audio"
+        right={[{ id: 'out' }]}
+        grow={{
+          disabled: true,
+          choices: [{ id: 'video', label: '视频', onSelect }],
+        }}
+      />,
+    )
+    const handle = container.querySelector('[data-port="output"]')!
+    expect(handle).not.toHaveAttribute('data-grow')
+    expect(handle).toHaveAttribute('aria-label', 'output')
+    expect(handle).not.toHaveTextContent('+')
+    fireEvent.click(handle)
+    expect(onSelect).not.toHaveBeenCalled()
   })
 })
 

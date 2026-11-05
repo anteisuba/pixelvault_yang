@@ -150,6 +150,7 @@ import {
   type NodeV4MediaPatch,
 } from './NodeV4Context'
 import { NodeV4ContextMenu } from './NodeV4ContextMenu'
+import { useNodeGrow } from './node-grow'
 import { triggerNodeV4Download } from './NodeV4SelectionToolbar'
 
 /** 「生镜头」那一批里指代新建镜头的别名（只在这一批之内有效）。 */
@@ -325,6 +326,8 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
       ...(source.apiKeyId ? { apiKeyId: source.apiKeyId } : {}),
     }
   }, [modelOptions])
+  // 出口「+」：有声音才长下游镜头卡、接进语音槽（§1 第 18 条尾句）。
+  const grow = useNodeGrow(node, Boolean(audioData.url))
   if (!node) return null
 
   const effectiveModel = audioData.model ?? defaultModel
@@ -880,7 +883,7 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
         renameRequest={renameRequest}
         emptyHeight={AUDIO_CARD.height}
         changed={canvas.changedNodeIds.includes(id)}
-        portSpec={portSpecOf(node)}
+        portSpec={{ ...portSpecOf(node), grow }}
       >
         {media.problem && !generating ? (
           <NodeMediaMissing

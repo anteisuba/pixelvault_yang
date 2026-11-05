@@ -86,6 +86,7 @@ import {
   type NodeToolbarGroup,
 } from './chrome'
 import { splitVersionOp, useNodeV4Canvas } from './NodeV4Context'
+import { RetakeAutostartTrigger, revealRetakeCard } from './retake-autostart'
 import { NodeV4ContextMenu } from './NodeV4ContextMenu'
 import { triggerNodeV4Download } from './NodeV4SelectionToolbar'
 import { VideoFramePickPanel } from './video/VideoFramePickPanel'
@@ -244,6 +245,8 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
     videoData,
     displayName,
   })
+  // 发送 / 重生成：本卡已有片子就长同镜号的新卡（§1 第 18 条）。失败重试仍补在本卡上。
+  const submitAsNewCard = () => submitPrompt({ asNewCard: true })
   const frameKey = JSON.stringify([
     videoData.url ?? '',
     posterUrl ?? '',
@@ -683,7 +686,9 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
                       }),
                       shortMessage: t('statuses.failed'),
                       retryLabel: tVideo('rail.retry'),
-                      ...(draft.trim() ? { onRetry: submitPrompt } : {}),
+                      ...(draft.trim()
+                        ? { onRetry: () => submitPrompt() }
+                        : {}),
                     }
                   : null
               }
@@ -775,6 +780,17 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
             ariaLabel: t(`outputs.${output}`),
           })),
           dragging: Boolean(dragSource) && dragSource?.id !== id,
+          // 出口「+」= 续拍（owner 11-05：视频只续拍，这批不放音频）。与工具条同一条路。
+          grow: {
+            disabled: !videoData.url || frames.grabbing !== null,
+            choices: [
+              {
+                id: 'continue',
+                label: tVideo('toolbar.continue'),
+                onSelect: () => void runContinue(),
+              },
+            ],
+          },
         }}
       >
         {failed && !videoData.url ? (
@@ -1114,7 +1130,7 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
               }
               value={draft}
               onValueChange={setDraft}
-              onSubmit={submitPrompt}
+              onSubmit={submitAsNewCard}
               // 多渠道型号没选渠道 = 这一枪发不出去（D2 Q1：没有「自动」渠道）。
               // 按钮上写「先选渠道」，点了打开这张卡的选择器并定位到那一行。
               {...(channelGate.blocked
@@ -1193,7 +1209,7 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
             onSave={(body) => {
               if (body !== currentPrompt) canvas.onSetPrompt(id, body)
             }}
-            onRegenerate={submitPrompt}
+            onRegenerate={submitAsNewCard}
             regenerateDisabled={generating || draft.trim().length === 0}
             onUpload={() => openFilePicker(null)}
             onLibrary={() => openLibrary(null)}
@@ -1286,6 +1302,14 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
           />
         ) : null}
       </AnimatePresence>
+      {/* 本卡是「重生成」长出来的那张：一挂上就亮出来，并用旧卡那一枪的模型自己发。 */}
+      <RetakeAutostartTrigger
+        nodeId={id}
+        onStart={(payload) => {
+          revealRetakeCard(canvas, id)
+          void submitPrompt(payload.model ? { model: payload.model } : {})
+        }}
+      />
     </div>
   )
 }

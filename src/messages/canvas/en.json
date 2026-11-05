@@ -1001,7 +1001,13 @@
       },
       "ports": {
         "input": "Input",
-        "output": "Output"
+        "output": "Output",
+        "grow": "Add next card",
+        "growTo": {
+          "image": "Image",
+          "video": "Video"
+        },
+        "growOne": "Add next card: {target}"
       },
       "edgeRole": {
         "menu": "What this link does",

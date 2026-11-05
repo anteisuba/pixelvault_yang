@@ -36,6 +36,7 @@ import type { NodeV4, NodeV4TextData } from '@/types/node-workflow'
 
 import { NodeCardShell, NodeChromeLayer, portSpecOf } from './chrome'
 import { useNodeV4Canvas } from './NodeV4Context'
+import { useNodeGrow } from './node-grow'
 import { buildMentionCandidates } from './NodeV4Mentions'
 import { TextAssistantBar } from './text/TextAssistantBar'
 import { ScriptCardBody } from './text/ScriptCardBody'
@@ -116,6 +117,8 @@ export function TextNodeV4({ id, data, selected }: NodeProps) {
   }, [canvas.nodes, id, textData.body, textData.subtype])
 
   const cardRef = useRef<HTMLDivElement>(null)
+  // 出口「+」：文本 → 图片 / 视频，与工具条的两个派生同一条路（§1 第 18 条尾句）。
+  const grow = useNodeGrow(node, true)
 
   if (!node) return null
 
@@ -202,7 +205,7 @@ export function TextNodeV4({ id, data, selected }: NodeProps) {
         empty={emptyText}
         surfaceHeight={cardHeight}
         surfaceClassName="overflow-hidden"
-        portSpec={portSpecOf(node)}
+        portSpec={{ ...portSpecOf(node), grow }}
         nameLeading={
           !emptyText ? (
             <span

@@ -30,6 +30,7 @@ import type { NodeCharacterMention } from '@/lib/node-character-mentions'
 import { getGenerationErrorMessage } from '@/lib/api-error-message'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { readOutputIndex, readOutputVersions } from '@/lib/node-output-versions'
+import { shouldRetakeAsNewCard } from '@/lib/node-retake'
 import { readSlotSources } from '@/lib/node-slot-payload'
 import { pickDefaultModelOption } from '@/lib/pick-default-model-option'
 import {
@@ -60,6 +61,7 @@ import {
 } from '../chrome'
 import { useNodeCharacterMentions } from '../character/use-node-character-mentions'
 import { useNodeV4Canvas } from '../NodeV4Context'
+import { forkRetake } from '../retake-autostart'
 import { buildMentionCandidates, buildMentionTokens } from '../NodeV4Mentions'
 import { toStudioModelOption } from '../image/image-node-model'
 import { VideoAudioToggle } from './VideoAudioToggle'
@@ -95,6 +97,17 @@ export type VideoSubmitOutcome =
   | { readonly status: 'pending' }
   | { readonly status: 'notSent' }
 
+export interface VideoSubmitOptions {
+  /**
+   * 画布卡上的发送 / 重生成（§1 第 18 条「重生成 = 新卡」）：本卡已有片子时右边长一张
+   * 同镜号同条件的新卡、由它自己发。⚠ 只有画布卡传 —— 剪辑台重拍栏与手机抽屉照旧在
+   * 本卡上叠一版（剪辑台的段靠「这张卡的第几版」记账，换卡它就跟丢了）。
+   */
+  readonly asNewCard?: boolean
+  /** 这一枪用的模型（含线路）：新卡起跑时由旧卡交过来，盖过本卡的默认。 */
+  readonly model?: NodeWorkflowModelSelection
+}
+
 export interface VideoComposer extends Omit<
   VideoRailBinding,
   'items' | 'candidatesOf' | 'capacity'
@@ -105,8 +118,8 @@ export interface VideoComposer extends Omit<
   readonly draft: string
   setDraft(next: string): void
   readonly currentPrompt: string
-  /** 发出这一枪。`null` = 没发（草稿空 / 正在生成）。 */
-  submitPrompt(): Promise<VideoSubmitOutcome> | null
+  /** 发出这一枪。`null` = 没发（草稿空 / 正在生成 / 交给了新卡）。 */
+  submitPrompt(options?: VideoSubmitOptions): Promise<VideoSubmitOutcome> | null
   cancelGeneration(): void
 
   readonly railItems: VideoRailBinding['items']
@@ -484,12 +497,26 @@ export function useVideoComposer({
   const setParams = (patch: Partial<NonNullable<NodeV4VideoData['params']>>) =>
     canvas.onSetParams(id, { ...videoData.params, ...patch })
 
-  const submitPrompt = (): Promise<VideoSubmitOutcome> | null => {
+  const submitPrompt = (
+    options: VideoSubmitOptions = {},
+  ): Promise<VideoSubmitOutcome> | null => {
     if (draft.trim().length === 0 || generating) return null
+    const sendModel = options.model ?? effectiveModel
+    if (
+      options.asNewCard &&
+      shouldRetakeAsNewCard(
+        canvas.readGraph().nodes.find((item) => item.id === id),
+      )
+    ) {
+      // 旧卡原样不动：没落库的正文改动跟着新卡走，旧卡草稿退回它自己那份。
+      void forkRetake(canvas, id, draft, sendModel ? { model: sendModel } : {})
+      setDraft(currentPrompt)
+      return null
+    }
     if (draft !== currentPrompt) canvas.onSetPrompt(id, draft)
     // 默认模型 / 默认档到这一刻才落库：用户按了生成，它就是**用户的**选择了。
-    if (!videoData.model && effectiveModel)
-      canvas.onSetModel(id, effectiveModel)
+    if (sendModel && (options.model || !videoData.model))
+      canvas.onSetModel(id, sendModel)
     if (
       !videoData.params ||
       videoData.params.duration !== effectiveParams.duration ||
@@ -508,7 +535,7 @@ export function useVideoComposer({
             ...item,
             data: {
               ...item.data,
-              ...(effectiveModel ? { model: effectiveModel } : {}),
+              ...(sendModel ? { model: sendModel } : {}),
               params: effectiveParams,
             },
           } as NodeV4)

@@ -1381,6 +1381,39 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
   text-align: center;
 }
 
+/* 出口有「+」（node-canvas-v2 §1 第 18 条尾句）：平时与普通点一样，鼠标停到这颗点上
+   才长成拖线起点那颗 18px 黑底「+」（同一套尺寸 / 配色），点一下长下游卡。
+   ⚠ 尺寸走变量不走行内 width：行内值压过 :hover，点就长不大了。变量由 `NodePorts`
+   按画布缩放折算好写在行内。 */
+.react-flow__handle.node-port.node-port--grow {
+  width: var(--node-port-size);
+  height: var(--node-port-size);
+  border-width: var(--node-port-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.react-flow__handle.node-port.node-port--grow > [data-port-plus] {
+  font-weight: 600;
+  text-align: center;
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-standard);
+}
+
+.react-flow__handle.node-port.node-port--grow:hover {
+  width: var(--node-port-grow-size);
+  height: var(--node-port-grow-size);
+  border-width: var(--node-port-grow-border);
+  background: var(--node-foreground);
+  color: var(--node-panel);
+}
+
+.react-flow__handle.node-port.node-port--grow:hover > [data-port-plus] {
+  opacity: 1;
+}
+
 /* 拖线中的整卡反馈：合法目标描一圈 2px 黑环，非法目标压暗。
    动效样片 AB（owner 2026-10-08）：环由 0 长到 2px 走 `--spring-slot`（⛔ 一下子亮起来）；
    退场仍走卡面自己的 `duration-fast` 线性档（移除不用弹簧）。

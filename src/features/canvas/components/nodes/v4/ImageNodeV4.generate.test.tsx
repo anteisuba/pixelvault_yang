@@ -88,6 +88,7 @@ import {
   NodeV4CanvasProvider,
   type NodeV4CanvasContextValue,
 } from './NodeV4Context'
+import { markRetakeAutostart } from './retake-autostart'
 
 const NOW = '2026-09-10T00:00:00.000Z'
 const ok = (data: unknown) => Response.json({ success: true, data })
@@ -467,16 +468,10 @@ describe('图片生成失败反馈', () => {
 })
 
 describe('发送', () => {
-  it('回车 = 生成新版本：先落提示词，再按卡上的模型发出去', async () => {
+  it('空卡回车：先落提示词，再按卡上的模型就在这张卡上发出去', async () => {
     api.studioGenerateAPI.mockReturnValue(new Promise(() => {}))
     const context = harness(
-      [
-        imageNode('i_1', {
-          url: 'https://cdn.test/a.png',
-          prompt: '站台',
-          model: selection(GPT),
-        }),
-      ],
+      [imageNode('i_1', { prompt: '站台', model: selection(GPT) })],
       { selectedNodeIds: ['i_1'] },
     )
     renderImage(context)
@@ -491,6 +486,80 @@ describe('发送', () => {
         freePrompt: '站台，夜',
       }),
     )
+    expect(context.onApplyBatch).not.toHaveBeenCalled()
+  })
+
+  it('已有图的卡再发 = 右边长一张同条件的新卡；旧卡不改正文、不出图', async () => {
+    const context = harness(
+      [
+        imageNode('i_1', {
+          url: 'https://cdn.test/a.png',
+          prompt: '站台',
+          model: selection(GPT),
+        }),
+      ],
+      {
+        selectedNodeIds: ['i_1'],
+        onApplyBatch: vi.fn(() => ({ createdNodeIds: ['i_2'] })),
+      },
+    )
+    renderImage(context)
+    const input = screen.getByRole('textbox')
+    fireEvent.change(input, { target: { value: '站台，夜' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await waitFor(() => expect(context.onApplyBatch).toHaveBeenCalledTimes(1))
+    const ops = vi.mocked(context.onApplyBatch).mock.calls[0]![0]
+    expect(ops[0]).toMatchObject({
+      op: NODE_ASSISTANT_OP_V4_IDS.addNode,
+      kind: 'image',
+      subtype: 'reference',
+    })
+    expect(ops.at(-1)).toMatchObject({
+      op: NODE_ASSISTANT_OP_V4_IDS.setPrompt,
+      prompt: '站台，夜',
+    })
+    expect(context.onSetPrompt).not.toHaveBeenCalled()
+    expect(api.studioGenerateAPI).not.toHaveBeenCalled()
+    // 旧卡的草稿退回它自己那份正文
+    expect(screen.getByRole('textbox')).toHaveValue('站台')
+  })
+
+  it('重生成长出来的新卡一挂上就自己发，用旧卡那一枪的模型，并亮出来', async () => {
+    api.studioGenerateAPI.mockReturnValue(new Promise(() => {}))
+    markRetakeAutostart('i_2', { model: selection(GPT) })
+    const context = harness([imageNode('i_2', { prompt: '站台，夜' })], {
+      selectedNodeIds: ['i_2'],
+    })
+    renderImage(context, 'i_2')
+    await waitFor(() =>
+      expect(lastSubmit()).toMatchObject({
+        modelId: 'gpt-image-2',
+        apiKeyId: 'key-gpt',
+        freePrompt: '站台，夜',
+      }),
+    )
+    expect(context.onSetModel).toHaveBeenCalledWith('i_2', selection(GPT))
+    expect(context.onFocusNode).toHaveBeenCalledWith('i_2')
+    expect(api.studioGenerateAPI).toHaveBeenCalledTimes(1)
+  })
+
+  it('失败卡上的「重试」补在本卡上，⛔ 另长新卡', async () => {
+    api.studioGenerateAPI.mockReturnValue(new Promise(() => {}))
+    const context = harness(
+      [
+        imageNode('i_1', {
+          url: 'https://cdn.test/a.png',
+          prompt: '站台',
+          model: selection(GPT),
+          generationFailure: { error: 'boom' },
+        }),
+      ],
+      { selectedNodeIds: ['i_1'] },
+    )
+    renderImage(context)
+    fireEvent.click(screen.getByRole('button', { name: 'rail.retry' }))
+    await waitFor(() => expect(lastSubmit()?.freePrompt).toBe('站台'))
+    expect(context.onApplyBatch).not.toHaveBeenCalled()
   })
 
   it('发送读 op 之后的图：刚 @ 出来的参考连线这一枪就带上', async () => {
@@ -579,7 +648,15 @@ describe('发送', () => {
     editor.textContent = '画中框继续输入'
     fireEvent.input(editor)
     fireEvent.click(document.querySelector('[data-image-regenerate]')!)
-    await waitFor(() => expect(lastSubmit()?.freePrompt).toBe('画中框继续输入'))
+    // 这张已有图：重生成长新卡，新卡带着画中框里的正文
+    await waitFor(() => expect(context.onApplyBatch).toHaveBeenCalledTimes(1))
+    expect(
+      vi.mocked(context.onApplyBatch).mock.calls[0]![0].at(-1),
+    ).toMatchObject({
+      op: NODE_ASSISTANT_OP_V4_IDS.setPrompt,
+      prompt: '画中框继续输入',
+    })
+    expect(api.studioGenerateAPI).not.toHaveBeenCalled()
   })
 })
 
@@ -763,8 +840,9 @@ describe('一次多张 = 进版本，出完 2×2 挑一张（spec §3 A1）', ()
   /** 回填走真的 `applyNodeMediaPatch`：带 url 的补丁追加一版。 */
   function renderBatch(count: number) {
     minted = 0
+    // 空卡起手：有图的卡再发一次会长新卡（§1 第 18 条），挑图发生在新卡自己身上。
     return renderLive(
-      { url: 'https://cdn.test/old.png', params: { count } },
+      { params: { count } },
       {
         apply: (current, patch) =>
           applyNodeMediaPatch(current as never, patch as never, {
@@ -812,15 +890,15 @@ describe('一次多张 = 进版本，出完 2×2 挑一张（spec §3 A1）', ()
     await waitFor(() =>
       expect(document.querySelector('[data-image-batch-pick]')).not.toBeNull(),
     )
-    expect(document.querySelectorAll('[data-version-thumb]')).toHaveLength(3)
+    expect(document.querySelectorAll('[data-version-thumb]')).toHaveLength(2)
     const choices = document.querySelectorAll('[data-image-batch-pick-option]')
-    // 旧图是第 0 版，这一批落在第 1、2 版。
+    // 空卡：这一批落在第 0、1 版。
     expect(
       Array.from(choices, (item) =>
         item.getAttribute('data-image-batch-pick-option'),
       ),
-    ).toEqual(['1', '2'])
-    fireEvent.click(choices[0] as HTMLElement)
+    ).toEqual(['0', '1'])
+    fireEvent.click(choices[1] as HTMLElement)
     expect(onApplyOp).toHaveBeenCalledWith({
       op: NODE_ASSISTANT_OP_V4_IDS.setOutputVersion,
       target: 'i_1',

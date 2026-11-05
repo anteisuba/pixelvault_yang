@@ -229,10 +229,10 @@ export function ImageNodeFrame({
               type="button"
               data-image-regenerate
               disabled={regenerateDisabled}
-              onClick={() => {
-                commit()
-                onRegenerate()
-              }}
+              // ⛔ 先 `commit()`：有图 / 片的卡重生成会长新卡（§1 第 18 条），正文跟着新卡走，
+              // 先存会把新正文写到旧卡上、旧卡的字和它的产物对不上。空卡原地生成时，
+              // 卡的发送路径自己会把草稿落库。
+              onClick={() => onRegenerate()}
               className="inline-flex h-7.5 items-center gap-1.5 rounded-full bg-primary px-3 text-xs font-medium text-primary-foreground transition-opacity duration-fast ease-standard hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
             >
               {tVideo('frame.regenerate')}

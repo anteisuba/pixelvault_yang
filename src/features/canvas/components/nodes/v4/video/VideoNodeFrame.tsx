@@ -228,10 +228,10 @@ export function VideoNodeFrame({
               type="button"
               data-video-regenerate
               disabled={regenerateDisabled}
-              onClick={() => {
-                commit()
-                onRegenerate()
-              }}
+              // ⛔ 先 `commit()`：有图 / 片的卡重生成会长新卡（§1 第 18 条），正文跟着新卡走，
+              // 先存会把新正文写到旧卡上、旧卡的字和它的产物对不上。空卡原地生成时，
+              // 卡的发送路径自己会把草稿落库。
+              onClick={() => onRegenerate()}
               className="inline-flex h-7.5 items-center gap-1.5 rounded-full bg-primary px-3 text-xs font-medium text-primary-foreground transition duration-fast ease-standard hover:opacity-90 active:scale-96 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
             >
               {/* 没片时写「生成」，有片才是「重新生成」：换字 120 交叉淡入，键宽跟着

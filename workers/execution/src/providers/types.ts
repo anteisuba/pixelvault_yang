@@ -1,6 +1,7 @@
 import type { WorkflowStepConfig } from 'cloudflare:workers'
 
 import type { ExecutionProgressStage } from '../../../../src/constants/generation-progress'
+import type { ProviderCancelOutcome } from '../lib/provider-cancel'
 import type {
   ExecutionEnv,
   WorkerImageGenerationResult,
@@ -95,6 +96,11 @@ export interface MultiStepDriver<
   TResult,
 > {
   stepNames: MultiStepNames
+  /**
+   * ⚠ 这里的 `retries.limit` 不交给引擎：通用流程把它换成步骤内重试、只重试服务商明确拒收的
+   * （408 / 429 / 503），引擎层恒为 0 —— 防止步骤超时后重放出第二单。`timeout` 要留够
+   * 这几次重试加等待（5s、10s…）的时间。见 `lib/submit-once.ts`。
+   */
   submitStep: WorkflowStepConfig
   pollStep: WorkflowStepConfig
   submit(runtime: DriverRuntime<TContext>): Promise<TJob>
@@ -108,9 +114,20 @@ export interface MultiStepDriver<
   ): MultiStepPollOutcome<TDone>
   /** 第一次离开排队时回报一次进度阶段（Runner 冷启动）。 */
   runningStage?: ExecutionProgressStage
-  /** 轮询次数用完时先取消服务商那边的任务（Runner，免得空烧 GPU）。 */
-  cancelOnTimeout?(env: ExecutionEnv, job: TJob): Promise<void>
-  timeoutError(job: TJob, context: TContext): Error
+  /**
+   * 轮询次数用完时先取消服务商那边的任务（免得空烧 GPU / 继续计费）。best-effort：
+   * 撤不掉如实返回，结果记进超时错误的 `providerMetadata.providerCancel`。没有取消接口的不写。
+   */
+  cancelOnTimeout?(
+    runtime: DriverRuntime<TContext>,
+    job: TJob,
+  ): Promise<ProviderCancelOutcome>
+  /** `progress.started`：轮询期间是否见过任务离开排队开始跑（Runner 据此分「没轮到」和「跑太久」）。 */
+  timeoutError(
+    job: TJob,
+    context: TContext,
+    progress: { started: boolean },
+  ): Error
   upload?: {
     step: WorkflowStepConfig
     run(

@@ -248,6 +248,19 @@ describe('isNonRetryableProviderFailure', () => {
     )
     expect(isNonRetryableProviderFailure(build('unknown'))).toBe(false)
   })
+
+  it('等满我们自己的预算（generation_wait_limit）不重跑：服务商已立案，重跑 = 再提交一单', () => {
+    expect(
+      isNonRetryableProviderFailure(
+        new WorkerProviderError({
+          message: 'Generation wait limit reached',
+          provider: 'pixai',
+          phase: 'image_poll',
+          errorCode: 'generation_wait_limit',
+        }),
+      ),
+    ).toBe(true)
+  })
 })
 
 describe('buildWorkerFailureCallbackData', () => {

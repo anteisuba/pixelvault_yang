@@ -82,6 +82,36 @@ export interface ExecutionCallbackOptions {
   defer?: (task: () => Promise<void>) => void
 }
 
+/**
+ * 「判死」而不是「真死」的失败码：我们这边没等到结果就先判了失败，服务商那边的任务
+ * 可能还在跑、事后成功并且已经计费。
+ *
+ *  - `callback_timeout`：sweeper（1 小时）/ 3D reaper（20 分钟）没听到 worker 回音就判死；
+ *    worker 其实可能还在轮询，之后照样发回 result。
+ *  - `generation_wait_limit`：worker 等满自己的预算先停手，providerJobId 留在任务行上，
+ *    之后认领到的结果从这里进来。
+ *
+ * 这两类任务收到**成功**的 result 仍要落库，并把状态从 FAILED 纠正回 COMPLETED；
+ * 迟到的失败回执照旧忽略（已经是失败了）。计费只在 finalize 写一次 ApiUsageLedger，
+ * 失败路径从不写，所以复活不会重复记账；`claimRunningJobForFinalize` 的 CAS 保证
+ * 同一任务只能被认领落库一次。⛔ CANCELLED（用户主动取消）和其它失败码永不复活。
+ */
+const REVIVABLE_FAILURE_CODES: readonly string[] = [
+  GENERATION_ERROR_CODES.CALLBACK_TIMEOUT,
+  GENERATION_ERROR_CODES.GENERATION_WAIT_LIMIT,
+]
+
+function isRevivableFailedJob(job: {
+  status: string
+  errorCode: string | null
+}): boolean {
+  return (
+    job.status === 'FAILED' &&
+    job.errorCode !== null &&
+    REVIVABLE_FAILURE_CODES.includes(job.errorCode)
+  )
+}
+
 function isTerminalGenerationJobStatus(
   status: ExecutionCallbackJobStatus,
 ): boolean {
@@ -345,6 +375,7 @@ export async function handleExecutionCallback(
       id: true,
       userId: true,
       status: true,
+      errorCode: true,
       adapterType: true,
       provider: true,
       modelId: true,
@@ -369,6 +400,19 @@ export async function handleExecutionCallback(
   }
 
   const jobStatus = toExecutionCallbackJobStatus(job.status)
+
+  // 被判死的任务等来了迟到的成功结果：照常落库，状态由 finalize 的 CAS 纠正回 COMPLETED。
+  if (
+    payload.kind === 'result' &&
+    isRevivableFailedJob(job) &&
+    !ExecutionCallbackErrorDataSchema.safeParse(payload.data).success
+  ) {
+    logger.warn('Late execution result arrived for a reaped job; finalizing', {
+      runId: job.id,
+      previousErrorCode: job.errorCode,
+    })
+    return finalizeExecutionResult(payload, job, jobStatus, options)
+  }
 
   if (isTerminalGenerationJobStatus(jobStatus)) {
     logger.info('Execution callback ignored for terminal run', {
@@ -474,13 +518,23 @@ async function failCallbackJob(
  * RUNNING → COMPLETED; a concurrent duplicate `result` callback that loses the
  * race sees count === 0 and must abort, preventing a double Generation + double
  * ApiUsageLedger (neither row has a unique constraint to catch the duplicate).
+ *
+ * A job that was only *judged* dead (`REVIVABLE_FAILURE_CODES`) is claimable
+ * too: its late success lands once and the status is corrected back. That also
+ * covers a reaper flipping RUNNING → FAILED while this result was uploading.
  */
 async function claimRunningJobForFinalize(
   tx: Pick<typeof db, 'generationJob'>,
   jobId: string,
 ): Promise<boolean> {
   const claim = await tx.generationJob.updateMany({
-    where: { id: jobId, status: 'RUNNING' },
+    where: {
+      id: jobId,
+      OR: [
+        { status: 'RUNNING' },
+        { status: 'FAILED', errorCode: { in: [...REVIVABLE_FAILURE_CODES] } },
+      ],
+    },
     data: { status: 'COMPLETED' },
   })
   return claim.count === 1

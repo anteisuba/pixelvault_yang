@@ -32,7 +32,10 @@ import {
   inspect3DSourceImageQuality,
   prepare3DSourceImage,
 } from '@/services/image/image-3d-prep.service'
-import { failGenerationJob } from '@/services/usage.service'
+import {
+  failActiveGenerationJob,
+  failGenerationJob,
+} from '@/services/usage.service'
 import {
   createWorkerGenerationJob,
   dispatchWorkerRunDurably,
@@ -328,10 +331,16 @@ export async function check3DGenerationStatusForUserId(
     ) {
       const errorMessage =
         'Worker job timed out without callback (exceeded stale threshold)'
-      await failGenerationJob(job.id, {
+      // CAS：只翻还在跑的任务。抢输 = 结果回执刚好先落库，让下一轮轮询读真状态。
+      // 判死后 worker 迟到的成功结果仍会落库并纠正回 COMPLETED（execution-callback 的
+      // REVIVABLE_FAILURE_CODES），所以这里判的是「暂时没音讯」，不是「肯定没结果」。
+      const reaped = await failActiveGenerationJob(job.id, {
         errorMessage,
         errorCode: GENERATION_ERROR_CODES.CALLBACK_TIMEOUT,
       })
+      if (!reaped.transitioned) {
+        return { jobId: job.id, status: 'IN_PROGRESS' }
+      }
       logger.warn('3D worker job marked FAILED by stale sweeper', {
         jobId: job.id,
         userId,

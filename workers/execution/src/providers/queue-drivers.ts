@@ -13,6 +13,11 @@ import {
   downloadAndUploadVideoArtifact,
 } from '../lib/media-io'
 import {
+  cancelArkTaskIfQueued,
+  cancelFalQueueRequest,
+  type ProviderCancelOutcome,
+} from '../lib/provider-cancel'
+import {
   createGenerationWaitLimitError,
   WorkerProviderError,
 } from '../lib/provider-error'
@@ -39,12 +44,18 @@ export interface QueueDriver {
     apiKey: string,
     context: WorkerRunContext,
   ): Promise<FalQueueStatusResult>
+  /** 等满预算时撤掉服务商的任务（best-effort）。没有取消接口的（MiniMax / Gemini）不写。 */
+  cancel?(
+    queue: FalQueueSubmitResult,
+    apiKey: string,
+  ): Promise<ProviderCancelOutcome>
 }
 
 const falQueueDriver: QueueDriver = {
   submit: submitFalQueue,
   poll: (queue, apiKey, context) =>
     pollFalQueue(queue, apiKey, context.outputType),
+  cancel: (queue, apiKey) => cancelFalQueueRequest(queue.statusUrl, apiKey),
 }
 
 const miniMaxQueueDriver: QueueDriver = {
@@ -57,6 +68,8 @@ const volcEngineQueueDriver: QueueDriver = {
   submit: submitVolcEngineQueue,
   poll: (queue, apiKey, context) =>
     pollVolcEngineQueue(queue, apiKey, context.providerId),
+  // statusUrl 就是任务地址；只撤 queued 的（DELETE 对已结束任务是删记录）。
+  cancel: (queue, apiKey) => cancelArkTaskIfQueued(queue.statusUrl, apiKey),
 }
 
 /** 按共享契约 `worker-video-providers.ts` 穷举：契约里多一家、这里没写，类型检查报错。 */
@@ -122,6 +135,7 @@ export function buildQueueMediaDriver(
 > {
   const queueDriver = getQueueDriver(context.providerId)
   const isGemini = context.providerId === 'gemini'
+  const cancelQueue = queueDriver.cancel
   return {
     stepNames: {
       submit: 'submit-provider',
@@ -168,10 +182,14 @@ export function buildQueueMediaDriver(
       }
       return { state: 'pending' }
     },
-    timeoutError: () =>
+    cancelOnTimeout: cancelQueue
+      ? async ({ readApiKey }, queue) => cancelQueue(queue, await readApiKey())
+      : undefined,
+    timeoutError: (queue) =>
       createGenerationWaitLimitError({
         provider: context.providerId,
         phase: 'provider_poll',
+        requestId: queue.requestId,
       }),
     upload: {
       step: { retries: RETRY_TWICE, timeout: '120 seconds' },

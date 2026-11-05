@@ -66,6 +66,11 @@ import {
   createProviderResponseError,
 } from './lib/provider-error'
 import { guardWorkflowStep } from './lib/step-failure'
+import {
+  cancelFalQueueRequest,
+  settleProviderCancel,
+} from './lib/provider-cancel'
+import { SUBMIT_STEP_RETRIES, submitWithSafeRetry } from './lib/submit-once'
 import { suffixStepNames } from './lib/step-rounds'
 import {
   isMiniMaxProviderId,
@@ -1138,15 +1143,19 @@ export class CinematicShortVideoWorkflow extends WorkflowEntrypoint<
         context.outputType === 'AUDIO' &&
         context.providerId === 'fish_audio'
       ) {
+        // 同步合成 = 提交即计费：引擎不重放，只在步骤里重试明确拒收的（lib/submit-once.ts）。
         const audioResult = await step.do(
           'submit-fish-audio-and-upload-r2',
           {
-            retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
+            retries: SUBMIT_STEP_RETRIES,
             timeout: Math.min(context.timeoutMs, 1_800_000),
           },
           async () => {
             const apiKey = await decryptStateString(encryptedApiKey, this.env)
-            return submitFishAudio(this.env, context, apiKey)
+            return submitWithSafeRetry(
+              () => submitFishAudio(this.env, context, apiKey),
+              { attempts: 3 },
+            )
           },
         )
 
@@ -1232,17 +1241,25 @@ export class Hyper3DRodinWorkflow extends WorkflowEntrypoint<
       // downstream (status polling, download, R2 upload, callback) is identical
       // to a regular Rodin job, so the rest of this workflow is unchanged.
       const isTextureOnly = context.providerInput.rodinTextureOnly === true
+      // 提交只发一次（lib/submit-once.ts）；拿到 jobUuid 立刻报给 app —— Rodin 没有取消接口，
+      // 等满预算后只能靠这个 id 认领迟到的结果。
       const rodin = await step.do(
         isTextureOnly ? 'submit-rodin-texture-only' : 'submit-rodin',
         {
-          retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
+          retries: SUBMIT_STEP_RETRIES,
           timeout: Math.min(context.timeoutMs, 1_800_000),
         },
         async () => {
           const apiKey = await decryptStateString(encryptedApiKey, this.env)
-          return isTextureOnly
-            ? submitRodinTextureOnlyJob(context, apiKey)
-            : submitRodinJob(context, apiKey)
+          const submitted = await submitWithSafeRetry(
+            () =>
+              isTextureOnly
+                ? submitRodinTextureOnlyJob(context, apiKey)
+                : submitRodinJob(context, apiKey),
+            { attempts: 3 },
+          )
+          await reportProviderJobId(this.env, context, submitted.jobUuid)
+          return submitted
         },
       )
 
@@ -1302,6 +1319,14 @@ export class Hyper3DRodinWorkflow extends WorkflowEntrypoint<
       throw createGenerationWaitLimitError({
         provider: 'rodin',
         phase: 'poll',
+        requestId: rodin.jobUuid,
+        providerMetadata: {
+          providerCancel: {
+            attempted: false,
+            ok: false,
+            detail: 'Hyper3D Rodin has no cancel API; job left running.',
+          },
+        },
       })
     } catch (error) {
       const failureData = buildWorkerFailureCallbackData(error, {
@@ -1345,15 +1370,19 @@ export class Hunyuan3DWorkflow extends WorkflowEntrypoint<
         },
       )
 
+      // 提交只发一次（lib/submit-once.ts）。
       const queue = await step.do(
         'submit-fal',
         {
-          retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
+          retries: SUBMIT_STEP_RETRIES,
           timeout: Math.min(context.timeoutMs, 1_800_000),
         },
         async () => {
           const apiKey = await decryptStateString(encryptedApiKey, this.env)
-          return submitFalModel3DQueue(context, apiKey, this.env)
+          return submitWithSafeRetry(
+            () => submitFalModel3DQueue(context, apiKey, this.env),
+            { attempts: 3 },
+          )
         },
       )
 
@@ -1531,9 +1560,26 @@ export class Hunyuan3DWorkflow extends WorkflowEntrypoint<
         }
       }
 
+      // 等满预算：先撤 fal 那边的任务（还在排队的能撤掉），撤没撤成记进失败详情。
+      const providerCancel = await step.do(
+        'cancel-fal3d-timeout',
+        {
+          retries: { limit: 0, delay: '1 second', backoff: 'constant' },
+          timeout: '30 seconds',
+        },
+        () =>
+          settleProviderCancel(async () =>
+            cancelFalQueueRequest(
+              queue.statusUrl,
+              await decryptStateString(encryptedApiKey, this.env),
+            ),
+          ),
+      )
       throw createGenerationWaitLimitError({
         provider: 'fal',
         phase: 'poll_3d',
+        requestId: queue.requestId,
+        providerMetadata: { providerCancel },
       })
     } catch (error) {
       const failureData = buildWorkerFailureCallbackData(error, {
@@ -1886,15 +1932,20 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
   ): Promise<WorkerImageGenerationResult> {
     const singleStepDriver = getSingleStepImageDriver(context.providerId)
     if (singleStepDriver) {
+      // 一次请求就出图 = 提交即计费：引擎不重放（步骤超时重放 = 多出一张、多扣一次），
+      // 只在步骤里重试一次明确拒收的（lib/submit-once.ts）。
       return step.do(
         singleStepDriver.stepName,
         {
-          retries: { limit: 1, delay: '5 seconds', backoff: 'exponential' },
+          retries: SUBMIT_STEP_RETRIES,
           timeout: Math.min(context.timeoutMs, 600_000),
         },
         async () => {
           const apiKey = await decryptStateString(encryptedApiKey, this.env)
-          return singleStepDriver.generate(this.env, context, apiKey)
+          return submitWithSafeRetry(
+            () => singleStepDriver.generate(this.env, context, apiKey),
+            { attempts: 2, rateLimitHandledByCaller: true },
+          )
         },
       )
     }

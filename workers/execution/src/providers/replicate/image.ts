@@ -7,6 +7,7 @@ import {
   readStringField,
 } from '../../lib/fields'
 import { JSON_CONTENT_TYPE } from '../../lib/http'
+import { cancelReplicatePrediction } from '../../lib/provider-cancel'
 import {
   getImageLoraInputs,
   getImageReferenceInputs,
@@ -313,7 +314,8 @@ export const replicateImageDriver: MultiStepImageDriver<
   CompletedReplicatePrediction
 > = {
   stepNames: imageStepNames('replicate'),
-  submitStep: { retries: RETRY_TWICE, timeout: '30 seconds' },
+  // 三次提交 + 中间等 5s / 10s（步骤内重试，见 lib/submit-once.ts）。
+  submitStep: { retries: RETRY_TWICE, timeout: '120 seconds' },
   pollStep: { retries: RETRY_TWICE, timeout: '30 seconds' },
   async submit({ env, context, readApiKey }) {
     const apiKey = await readApiKey()
@@ -349,10 +351,17 @@ export const replicateImageDriver: MultiStepImageDriver<
       ? { state: 'done', value: completeReplicatePrediction(polled) }
       : { state: 'pending' }
   },
-  timeoutError: () =>
+  cancelOnTimeout: async ({ readApiKey }, prediction) =>
+    cancelReplicatePrediction(
+      REPLICATE_BASE_URL,
+      prediction.id,
+      await readApiKey(),
+    ),
+  timeoutError: (prediction) =>
     createGenerationWaitLimitError({
       provider: 'replicate',
       phase: 'image_poll',
+      requestId: prediction.id,
     }),
   upload: {
     step: { retries: RETRY_TWICE, timeout: '120 seconds' },

@@ -13,6 +13,10 @@ export const WORKER_GENERATION_ERROR_CODES = {
   GENERATION_WAIT_LIMIT: 'generation_wait_limit',
   /** 同一账号 / key 下排队太久没轮到；这次请求根本没发给 provider，没有扣费。 */
   ACCOUNT_QUEUE_TIMEOUT: 'account_queue_timeout',
+  /** Runner 作业等满窗口一直没开始跑（冷启动 / 算力紧张），已撤掉，没出图。 */
+  RUNNER_START_TIMEOUT: 'runner_start_timeout',
+  /** Runner 作业开始跑了但超出窗口，已撤掉，没出图。 */
+  RUNNER_RUN_TIMEOUT: 'runner_run_timeout',
   REFERENCE_IMAGE_UNREACHABLE: 'reference_image_unreachable',
   UNKNOWN: 'unknown',
 } as const
@@ -397,6 +401,34 @@ export function asWaitLimitIfAbortTimeout(
   return error instanceof Error && error.name === 'TimeoutError'
     ? createGenerationWaitLimitError(input)
     : error
+}
+
+/** 固定英文原话：app 侧 ERROR_PATTERNS 靠它在 errorCode 丢失时兜底认出（排在通用 timeout 之前）。 */
+export const RUNNER_START_TIMEOUT_MESSAGE =
+  'Runner job never started: it stayed queued for the whole wait window (cold start or no free GPU), so it was canceled.'
+export const RUNNER_RUN_TIMEOUT_MESSAGE =
+  'Runner job ran past the wait window after starting, so it was canceled.'
+
+/**
+ * Runner 轮询窗口用完、作业已被撤掉（`cancelOnTimeout`）：分「一直没开始」和「开始了但太久」。
+ * 和 `generation_wait_limit` 不同 —— 这里不会有迟到的结果，用户不用去素材库找。
+ */
+export function createRunnerTimeoutError(input: {
+  provider: string
+  requestId?: string
+  started: boolean
+}): WorkerProviderError {
+  return new WorkerProviderError({
+    message: input.started
+      ? RUNNER_RUN_TIMEOUT_MESSAGE
+      : RUNNER_START_TIMEOUT_MESSAGE,
+    provider: input.provider,
+    phase: 'status_poll',
+    errorCode: input.started
+      ? WORKER_GENERATION_ERROR_CODES.RUNNER_RUN_TIMEOUT
+      : WORKER_GENERATION_ERROR_CODES.RUNNER_START_TIMEOUT,
+    requestId: input.requestId,
+  })
 }
 
 /** 按账号排队等满了：请求从没发给 provider，没有扣费。 */

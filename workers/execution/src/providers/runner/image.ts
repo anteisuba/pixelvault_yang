@@ -17,6 +17,7 @@ import {
 } from '../../lib/image-io'
 import {
   createProviderResponseError,
+  createRunnerTimeoutError,
   WorkerProviderError,
 } from '../../lib/provider-error'
 import { getRunnerCheckpointById } from './checkpoints'
@@ -779,7 +780,8 @@ export const runnerImageDriver: MultiStepImageDriver<
   stepNames: imageStepNames('runner'),
   submitStep: {
     retries: { limit: 1, delay: '5 seconds', backoff: 'exponential' },
-    timeout: '30 seconds',
+    // 两次提交 + 中间等 5 秒（步骤内重试，见 lib/submit-once.ts）。
+    timeout: '70 seconds',
   },
   pollStep: { retries: RETRY_TWICE, timeout: '30 seconds' },
   // Runner 用平台自己的 Modal 入口，不解密用户 key。
@@ -807,13 +809,21 @@ export const runnerImageDriver: MultiStepImageDriver<
     return { state: 'pending', running: polled.status === 'IN_PROGRESS' }
   },
   runningStage: EXECUTION_PROGRESS_STAGES.RUNNER_RUNNING,
-  cancelOnTimeout: async (env, submitted) => {
-    await cancelRunnerImageJob(submitted.id, env)
+  cancelOnTimeout: async ({ env }, submitted) => {
+    const ok = await cancelRunnerImageJob(submitted.id, env)
+    return {
+      attempted: true,
+      ok,
+      detail: ok ? 'Modal cancel requested.' : 'Modal cancel request failed.',
+    }
   },
-  timeoutError: () =>
-    new Error(
-      'Runner image generation timed out (cold start can take 150s+ on the first request after idle — try again).',
-    ),
+  // 窗口用完时上面的 cancelOnTimeout 已把作业撤掉：按有没有开始跑分开说（owner 11-05）。
+  timeoutError: (submitted, context, { started }) =>
+    createRunnerTimeoutError({
+      provider: context.providerId,
+      requestId: submitted.id,
+      started,
+    }),
   toResult: (submitted, completed) => ({
     artifactUrl: completed.artifactUrl,
     imageR2Key: completed.imageR2Key,

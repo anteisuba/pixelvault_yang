@@ -13,6 +13,7 @@ import type {
   WorkerImageGenerationResult,
   WorkerImageRunContext,
 } from '../../index'
+import { reportProviderJobId } from '../../lib/app-bridge'
 import {
   isRecord,
   readNumberField,
@@ -141,6 +142,8 @@ export async function generatePixAiImage(
   if (!taskId) {
     throw new Error('PixAI task creation returned no task id.')
   }
+  // PixAI 没有取消接口：等满预算后服务商可能照样出图，任务 id 先报给 app 留底，便于认领。
+  await reportProviderJobId(env, context, taskId)
 
   const deadline = Date.now() + Math.min(context.timeoutMs, 600_000)
   let task: Record<string, unknown> = created

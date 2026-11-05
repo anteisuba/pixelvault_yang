@@ -12,6 +12,7 @@ import {
   readStringField,
 } from '../../lib/fields'
 import { JSON_CONTENT_TYPE } from '../../lib/http'
+import { cancelFalQueueRequest } from '../../lib/provider-cancel'
 import {
   getImageLoraInputs,
   getImageReferenceInputs,
@@ -417,7 +418,8 @@ export const falImageDriver: MultiStepImageDriver<
   FalImageResult & { imageUrl: string }
 > = {
   stepNames: imageStepNames('fal'),
-  submitStep: { retries: RETRY_TWICE, timeout: '30 seconds' },
+  // 三次提交 + 中间等 5s / 10s（步骤内重试，见 lib/submit-once.ts）。
+  submitStep: { retries: RETRY_TWICE, timeout: '120 seconds' },
   pollStep: { retries: RETRY_TWICE, timeout: '120 seconds' },
   async submit({ env, context, readApiKey }) {
     const apiKey = await readApiKey()
@@ -444,6 +446,8 @@ export const falImageDriver: MultiStepImageDriver<
     }
     return { state: 'pending' }
   },
+  cancelOnTimeout: async ({ readApiKey }, queue) =>
+    cancelFalQueueRequest(queue.statusUrl, await readApiKey()),
   timeoutError: (queue) =>
     createGenerationWaitLimitError({
       provider: 'fal',

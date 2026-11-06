@@ -3,7 +3,8 @@
  *
  * ⭐ 表的每一行**就是**一张 `video.shot` 镜头卡，这里只是把卡上已有的东西摆成一行：
  * 「说明」= 卡的提示词正文，「时长」= `params.duration`，「画面」= 片子或首帧，
- * 「角色 · 场景」= 正文里 `@` 到的角色 + 连进来的背景卡。⛔ 不另存任何一格 ——
+ * 「素材」= 这一镜真实挂着的首帧 / 参考 / 语音 + `@` 到的角色库人物（`shot-table-materials.ts`，
+ * H2a）。⛔ 不另存任何一格 ——
  * 改表就是改卡，表和画布永远对得上。
  *
  * 只收有镜号的镜头卡（镜头带里那一排）；没镜号的散卡不进表。
@@ -15,12 +16,14 @@ import { NODE_SLOT_IDS } from '@/constants/node-slots'
 import {
   NODE_MEDIA_KIND_IDS,
   NODE_STATUS_IDS,
-  NODE_V4_IMAGE_SUBTYPE_IDS,
   NODE_V4_VIDEO_SUBTYPE_IDS,
 } from '@/constants/node-types'
 import type { ShotSize } from '@/constants/shot-spec'
-import { mentionedCharacters } from '@/lib/node-character-mentions'
 import { resolveShotLook } from '@/lib/shot-spec-prompt'
+import {
+  readShotMaterials,
+  type ShotTableMaterial,
+} from '@/lib/shot-table-materials'
 import type { CharacterCardRecord } from '@/types'
 import type {
   NodeV4,
@@ -34,12 +37,6 @@ export type ShotTableFrame =
   | { readonly kind: 'video'; readonly url: string; readonly poster?: string }
   | { readonly kind: 'image'; readonly url: string }
   | { readonly kind: 'empty' }
-
-export interface ShotTableCastEntry {
-  readonly kind: 'character' | 'scene'
-  readonly id: string
-  readonly name: string
-}
 
 export interface ShotTableRow {
   readonly nodeId: string
@@ -55,7 +52,8 @@ export interface ShotTableRow {
   readonly effectiveLook?: string
   readonly durationSec?: number
   readonly durationLocked: boolean
-  readonly cast: readonly ShotTableCastEntry[]
+  /** 素材列（H2a）：首 / 角 / 场 / 参 / 声。 */
+  readonly materials: readonly ShotTableMaterial[]
   readonly generating: boolean
 }
 
@@ -148,21 +146,13 @@ export function buildShotTableRows(input: {
       }
     }
 
-    const cast: ShotTableCastEntry[] = mentionedCharacters(
+    const materials = readShotMaterials({
       prompt,
-      input.characterCards ?? [],
-      data.characterPicks,
-    ).map(({ card }) => ({ kind: 'character', id: card.id, name: card.name }))
-    for (const edge of edges) {
-      const source = byId.get(edge.source)
-      if (
-        source?.data.kind === NODE_MEDIA_KIND_IDS.image &&
-        source.data.subtype === NODE_V4_IMAGE_SUBTYPE_IDS.background &&
-        !cast.some((entry) => entry.id === source.id)
-      ) {
-        cast.push({ kind: 'scene', id: source.id, name: source.data.name })
-      }
-    }
+      incoming: edges,
+      byId,
+      characterCards: input.characterCards ?? [],
+      ...(data.characterPicks ? { characterPicks: data.characterPicks } : {}),
+    })
 
     const spec = data.shot
     const effectiveLook = resolveShotLook(spec, input.shotlist)
@@ -179,7 +169,7 @@ export function buildShotTableRows(input: {
       ...(effectiveLook ? { effectiveLook } : {}),
       ...(durationSec === undefined ? {} : { durationSec }),
       durationLocked: spec?.durationLocked === true,
-      cast,
+      materials,
       generating: data.status === NODE_STATUS_IDS.running,
     })
   }

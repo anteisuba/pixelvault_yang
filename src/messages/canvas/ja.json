@@ -2138,7 +2138,7 @@
         "note": "説明",
         "look": "ルック",
         "duration": "尺",
-        "cast": "キャラ · 背景"
+        "cast": "素材"
       },
       "sizes": {
         "extreme_wide": "超ロング",
@@ -2149,6 +2149,23 @@
         "close": "バスト",
         "close_up": "クローズアップ",
         "extreme_close_up": "超クローズアップ"
+      },
+      "materials": {
+        "roles": {
+          "first": "開始フレーム",
+          "character": "キャラ",
+          "scene": "背景",
+          "reference": "参照",
+          "voice": "ボイス"
+        },
+        "slotFirst": "開始フレーム",
+        "swapWith": "「{name}」と入れ替え",
+        "replaceWith": "「{name}」に差し替え",
+        "inShot": "カット {shotNo} の {name}",
+        "locate": "キャンバスで表示",
+        "remove": "このカットから外す",
+        "addTitle": "カット {shotNo} に素材を追加",
+        "filmEmpty": "ほかの素材はまだありません。他のカットで使った素材がここに並びます"
       }
     }
   }

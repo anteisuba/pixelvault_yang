@@ -1411,13 +1411,22 @@ function NodeWorkbenchV4Inner() {
     if (nodeId) lastCreatedRef.current = [nodeId]
   }, [graph])
 
-  /** 表上「回到这张卡」：定位并选中那一镜。 */
+  /**
+   * 表上「回到这张卡」/ 素材弹层「在画布上看它」：定位并选中那张卡。
+   * ⚠ 表的选中态不在图引擎里（`useShotTableRfNode` 本地持有），`clearSelection` 清不到它 ——
+   * 走 RF 的 `triggerNodeChanges` 让 CanvasV4 的分路把表取消选中，否则 Delete 会连表带卡一起删。
+   */
   const locateShotFromTable = useCallback(
     (nodeId: string) => {
+      flowStore
+        .getState()
+        .triggerNodeChanges([
+          { id: SHOT_TABLE_BOARD.nodeId, type: 'select', selected: false },
+        ])
       focusNode(nodeId)
       graph.onRfNodesChange([{ id: nodeId, type: 'select', selected: true }])
     },
-    [focusNode, graph],
+    [flowStore, focusNode, graph],
   )
 
   const shotTableBoard = useMemo<ShotTableBoardValue>(

@@ -2138,7 +2138,7 @@
         "note": "说明",
         "look": "风格",
         "duration": "时长",
-        "cast": "角色 · 场景"
+        "cast": "素材"
       },
       "sizes": {
         "extreme_wide": "大远景",
@@ -2149,6 +2149,23 @@
         "close": "近景",
         "close_up": "特写",
         "extreme_close_up": "大特写"
+      },
+      "materials": {
+        "roles": {
+          "first": "首帧",
+          "character": "角色",
+          "scene": "场景",
+          "reference": "参考",
+          "voice": "配音"
+        },
+        "slotFirst": "首帧",
+        "swapWith": "和「{name}」对调",
+        "replaceWith": "换成「{name}」",
+        "inShot": "{name} 在镜 {shotNo} 里",
+        "locate": "在画布上看它",
+        "remove": "从这镜移除",
+        "addTitle": "加素材到镜 {shotNo}",
+        "filmEmpty": "全片还没有别的素材——其它镜挂上的素材会出现在这里"
       }
     }
   }

@@ -29,7 +29,11 @@ const shot = (id: string, shotNo: number | undefined, extra = {}) =>
     ...extra,
   } as Partial<NodeV4Data>)
 
-const LIN = { id: 'c1', name: '林夏' } as unknown as CharacterCardRecord
+const LIN = {
+  id: 'c1',
+  name: '林夏',
+  looks: [],
+} as unknown as CharacterCardRecord
 
 describe('buildShotTableRows', () => {
   it('lists numbered shot cards in shot order and skips loose cards', () => {
@@ -81,9 +85,9 @@ describe('buildShotTableRows', () => {
       effectiveLook: '冷蓝夜色',
       durationSec: 6,
       durationLocked: true,
-      cast: [
-        { kind: 'character', id: 'c1', name: '林夏' },
-        { kind: 'scene', id: 'bg', name: 'bg' },
+      materials: [
+        { origin: 'library', sourceId: 'c1', role: 'character', name: '林夏' },
+        { origin: 'edge', sourceId: 'bg', role: 'scene', name: 'bg' },
       ],
     })
     expect(rows[0].look).toBeUndefined()

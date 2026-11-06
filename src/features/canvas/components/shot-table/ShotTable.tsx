@@ -14,13 +14,19 @@
  * - 每行最右一格留给 `renderRowPort`（画布在那里挂一颗出口，连到这一镜的镜头卡）。
  *   ⛔ 这一层不认识 ReactFlow —— 单测直接渲染它，不必搭画布。
  *
+ * ── 素材列（H2a，owner 2026-11-07）────────────────────────────────────
+ * 「素材」= 这一镜真实挂着的边 + `@` 到的角色库人物（`ShotTableMaterialsCell`，以图为主，
+ * 第 25 条）。
+ * 改列 = 改边：op 由 `shot-table-materials.ts` 的规划函数编好，一次点击一步撤销。
+ *
  * ── 这一刀不做的 ────────────────────────────────────────────────────────
- * 素材列（H2）· 拉片（H4）· 逐镜出片（H3，走点数）· 多选统一改与手机（H5）。
+ * 画布侧素材（H2b：「N 镜」角标 / 拖卡进全片素材 / 素材到表左缘的线）· 拉片（H4）·
+ * 逐镜出片（H3，走点数）· 多选统一改与手机（H5）。
  * 空表三颗键里「让助手填」「拉片」先摆着、不能点。
  */
 
 import { useCallback, useMemo, useState, type ReactNode } from 'react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 
 import {
   ChevronDown,
@@ -45,6 +51,14 @@ import {
   summarizeShotTable,
   type ShotTableRow,
 } from '@/lib/shot-table-rows'
+import {
+  listFilmMaterials,
+  planMaterialAdd,
+  planMaterialRemove,
+  planMaterialReplace,
+  planMaterialSlot,
+  type ShotMaterialPlanContext,
+} from '@/lib/shot-table-materials'
 import { cn } from '@/lib/utils'
 import type { CharacterCardRecord } from '@/types'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
@@ -59,6 +73,8 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 
+import { ShotTableMaterialsCell } from './ShotTableMaterialsCell'
+
 export interface ShotTableProps {
   readonly state: NodeWorkflowStateV4
   readonly characterCards: readonly CharacterCardRecord[]
@@ -66,7 +82,7 @@ export interface ShotTableProps {
   dispatchBatch(ops: readonly NodeAssistantOpV4[]): unknown
   /** 「+ 加一镜」/ 空表「自己写」：在画布上长一张新镜头卡（位置由宿主算）。 */
   onAddShot(): void
-  /** 「回到这张卡」：定位并选中。 */
+  /** 「回到这张卡」/ 素材弹层「在画布上看它」：定位并选中。 */
   onLocate(nodeId: string): void
   /** 每行右缘那颗出口（画布给；单测不给）。 */
   renderRowPort?(nodeId: string): ReactNode
@@ -93,6 +109,7 @@ export function ShotTable({
   renderRowPort,
 }: ShotTableProps) {
   const t = useTranslations('StudioNode.shotTable')
+  const locale = useLocale()
   const shotlist = state.shotlist
   const rows = useMemo(
     () =>
@@ -105,6 +122,7 @@ export function ShotTable({
     [state.nodes, state.edges, shotlist, characterCards],
   )
   const summary = useMemo(() => summarizeShotTable(rows), [rows])
+  const film = useMemo(() => listFilmMaterials(rows), [rows])
   const hidden = useMemo(
     () => new Set<ShotlistOptionalColumn>(shotlist?.hiddenColumns ?? []),
     [shotlist?.hiddenColumns],
@@ -153,6 +171,20 @@ export function ShotTable({
       ])
     },
     [dispatchBatch],
+  )
+
+  /** 素材列的一次点击 = 一批 op = 一步撤销（规划函数已排好「先断后写」）。 */
+  const applyOps = useCallback(
+    (ops: readonly NodeAssistantOpV4[]) => {
+      if (ops.length === 0) return
+      if (ops.length === 1 && ops[0]) dispatch(ops[0])
+      else dispatchBatch(ops)
+    },
+    [dispatch, dispatchBatch],
+  )
+  const planContext = useCallback(
+    (shotId: string): ShotMaterialPlanContext => ({ state, shotId, locale }),
+    [state, locale],
   )
 
   /** ⚠ 整份替换：`compactShotlist` 会带上 `board`，否则改一下风格表就从画布上消失。 */
@@ -327,6 +359,41 @@ export function ShotTable({
                 onPrompt={(prompt) => setPrompt(row.nodeId, prompt)}
                 onDuration={(seconds) => setDuration(row.nodeId, seconds)}
                 onLocate={() => onLocate(row.nodeId)}
+                materialsCell={
+                  <ShotTableMaterialsCell
+                    shotNo={row.shotNo}
+                    materials={row.materials}
+                    film={film}
+                    onAdd={(entry) =>
+                      applyOps(planMaterialAdd(planContext(row.nodeId), entry))
+                    }
+                    onRemove={(material) =>
+                      applyOps(
+                        planMaterialRemove(planContext(row.nodeId), material),
+                      )
+                    }
+                    onSlot={(material, slot, holder) =>
+                      applyOps(
+                        planMaterialSlot(
+                          planContext(row.nodeId),
+                          material,
+                          slot,
+                          holder,
+                        ),
+                      )
+                    }
+                    onReplace={(material, entry) =>
+                      applyOps(
+                        planMaterialReplace(
+                          planContext(row.nodeId),
+                          material,
+                          entry,
+                        ),
+                      )
+                    }
+                    onLocateSource={onLocate}
+                  />
+                }
                 port={renderRowPort?.(row.nodeId)}
               />
             ))}
@@ -349,6 +416,7 @@ function ShotTableRowView({
   onPrompt,
   onDuration,
   onLocate,
+  materialsCell,
   port,
 }: {
   readonly row: ShotTableRow
@@ -358,6 +426,7 @@ function ShotTableRowView({
   onPrompt(prompt: string): void
   onDuration(seconds: number): void
   onLocate(): void
+  readonly materialsCell: ReactNode
   readonly port?: ReactNode
 }) {
   const t = useTranslations('StudioNode.shotTable')
@@ -385,7 +454,7 @@ function ShotTableRowView({
           onCommit={(move) => onSpec({ move: move || null })}
         />
       </td>
-      <td className="min-w-64 px-3 py-2.5">
+      <td className="min-w-56 px-3 py-2.5">
         <CellInput
           testId="shot-table-note"
           multiline
@@ -397,7 +466,7 @@ function ShotTableRowView({
           }}
         />
       </td>
-      <td className="w-48 px-3 py-2.5">
+      <td className="w-48 min-w-40 px-3 py-2.5">
         <CellInput
           testId="shot-table-look"
           multiline
@@ -454,26 +523,7 @@ function ShotTableRowView({
           </div>
         </td>
       ) : null}
-      {showCast ? (
-        <td className="px-3 py-2.5">
-          <div className="flex flex-wrap gap-1">
-            {row.cast.map((entry) => (
-              <span
-                key={`${entry.kind}-${entry.id}`}
-                title={entry.name}
-                className={cn(
-                  'inline-flex size-7 items-center justify-center rounded-full text-xs',
-                  entry.kind === 'character'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-surface-fill text-foreground',
-                )}
-              >
-                {Array.from(entry.name)[0] ?? '?'}
-              </span>
-            ))}
-          </div>
-        </td>
-      ) : null}
+      {showCast ? <td className="px-3 py-2.5">{materialsCell}</td> : null}
       {/* 最右一格兼作出口的锚：`relative` 让画布挂的 handle 落在这一行的右缘正中。 */}
       <td className="relative px-3 py-2.5">
         <button

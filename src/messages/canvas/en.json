@@ -2138,7 +2138,7 @@
         "note": "Description",
         "look": "Look",
         "duration": "Duration",
-        "cast": "Cast · Scene"
+        "cast": "Materials"
       },
       "sizes": {
         "extreme_wide": "Extreme wide",
@@ -2149,6 +2149,23 @@
         "close": "Close",
         "close_up": "Close-up",
         "extreme_close_up": "Extreme close-up"
+      },
+      "materials": {
+        "roles": {
+          "first": "First frame",
+          "character": "Character",
+          "scene": "Scene",
+          "reference": "Reference",
+          "voice": "Voice"
+        },
+        "slotFirst": "First frame",
+        "swapWith": "Swap with “{name}”",
+        "replaceWith": "Replace with “{name}”",
+        "inShot": "{name} in shot {shotNo}",
+        "locate": "Show on canvas",
+        "remove": "Remove from this shot",
+        "addTitle": "Add material to shot {shotNo}",
+        "filmEmpty": "No other materials yet — materials used in other shots show up here"
       }
     }
   }

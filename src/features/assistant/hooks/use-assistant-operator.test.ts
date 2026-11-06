@@ -4552,6 +4552,37 @@ describe('钱闸与出完图自己看', () => {
     await settle()
     expect(store.getOperatorState().question).toBeNull()
   })
+
+  it('排队的话接进来也算开口：图落地后不再自己看，她答的是你那句（11-06）', async () => {
+    act(() => store.setOperatorAutoReviewRounds(1))
+    generationControls.current = null
+    benchPoints.current = 4
+    const { result, rerender } = render()
+    act(() => result.current.send('出一张看看'))
+    await settle()
+    act(() => result.current.send('为什么自动出图了'))
+    expect(store.getOperatorState().queue).toHaveLength(1)
+    streams[0].emit(generateConfirmEvent())
+    streams[0].emit({
+      type: ASSISTANT_OPERATOR_EVENTS.stopped,
+      reason: 'awaiting_confirm',
+    })
+    streams[0].close()
+    await settle()
+    expect(triggerGeneration).toHaveBeenCalledTimes(1)
+    expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(2)
+    const asked = JSON.stringify(streamAssistantOperatorAPI.mock.calls[1][0])
+    expect(asked).toContain('为什么自动出图了')
+    expect(asked).not.toContain('[auto review]')
+    streams[1].emit({ type: 'done' })
+    streams[1].close()
+    await settle()
+
+    landResult()
+    rerender()
+    await settle()
+    expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(2)
+  })
 })
 
 /** `p-assistant-undo`：角色页提议卡「收下」之后，那一行行尾能撤回原样。 */

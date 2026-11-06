@@ -1092,6 +1092,12 @@ export function useAssistantOperator(
   const flushQueue = useCallback((): boolean => {
     const queued = takeOperatorQueue()
     if (queued.length === 0) return false
+    /**
+     * 排着的话接进来 = 用户开口了：这一枪的「出图后看一眼」作废，与直接说同一条（11-06 真机：
+     * 接进来之后图才落地，系统行排在你那句后面，她就去评图、不答你问的）。
+     */
+    autoReviewRef.current = null
+    autoReviewDoneRef.current = 0
     appendOperatorEntry({
       kind: 'system',
       id: nextOperatorEntryId('sys'),
@@ -2520,6 +2526,8 @@ export function useAssistantOperator(
   useEffect(() => {
     const pending = autoReviewRef.current
     if (!pending || operatorState.status !== 'idle') return
+    // 队里还有用户的话：先答他（接住时会作废这一次看图）。
+    if (operatorState.queue.length > 0) return
     if (pending.kind === 'canvas') {
       const output = canvasTargets?.outputOf?.(pending.nodeId)
       if (!output || output.url === pending.before) return

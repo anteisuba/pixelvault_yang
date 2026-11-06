@@ -244,7 +244,7 @@ function writtenText(
   entry: AssistantV3LoraWriteEntry,
 ): { ok: true; value: string } | { ok: false; error: string } {
   if (entry.mode !== ASSISTANT_V3_WRITE_MODE_IDS.edit) {
-    const text = entry.text?.trim()
+    const text = entry.text ? unwrapLines(entry.text).trim() : ''
     if (!text) return { ok: false, error: `mode "${entry.mode}" needs text.` }
     return {
       ok: true,
@@ -258,6 +258,24 @@ function writtenText(
     current,
     (entry.edits ?? []).slice(0, ASSISTANT_V3_LIMITS.maxWriteEdits),
     entry.field,
+  )
+}
+
+const CJK_CHAR = /[　-ヿ㐀-鿿＀-￯]/
+
+/**
+ * 模型写的提示词常每百来个字硬换一行（11-06 真机：框里的字只铺半宽）：段内的单个换行接回去，
+ * 两边是西文补一格空、挨着中日文直接接；空一行的分段照留。
+ */
+export function unwrapLines(text: string): string {
+  return text.replace(
+    /([^\n])[ \t]*\n[ \t]*(?=[^\n])/g,
+    (_, before: string, offset: number, whole: string) => {
+      const after = whole[offset + _.length] ?? ''
+      return CJK_CHAR.test(before) || CJK_CHAR.test(after)
+        ? before
+        : `${before} `
+    },
   )
 }
 

@@ -13,7 +13,7 @@
  * 排在「剪辑台」右边。⛔ 别把胶囊找回来：画布上助手的开合只认那颗头像与 Esc 梯。
  */
 
-import { Scissors, Table } from '@/components/icons'
+import { Scissors } from '@/components/icons'
 import { motion, useTransform } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
@@ -35,8 +35,6 @@ export interface ShellTopBarProps {
   onDuplicateProject(): void
   onDeleteProject(): void
   onOpenEditDesk(): void
-  /** 镜头表（画布第三个视图，`p-canvas-shotlist`）。 */
-  onOpenShotTable(): void
 }
 
 export function ShellTopBar({
@@ -50,7 +48,6 @@ export function ShellTopBar({
   onDuplicateProject,
   onDeleteProject,
   onOpenEditDesk,
-  onOpenShotTable,
 }: ShellTopBarProps) {
   const t = useTranslations('StudioNode.shell')
   const operatorYield = useStudioOperatorYield()
@@ -95,16 +92,6 @@ export function ShellTopBar({
           top: CANVAS_SHELL_LAYOUT.edgeInsetPx,
         }}
       >
-        <button
-          type="button"
-          data-testid="shell-shot-table"
-          onClick={onOpenShotTable}
-          style={{ height: CANVAS_SHELL_LAYOUT.pillHeightPx }}
-          className="canvas-glass pointer-events-auto inline-flex items-center gap-1.5 rounded-full px-3 text-xs text-node-foreground"
-        >
-          <Table className="size-4 shrink-0" aria-hidden />
-          <span>{t('shotTable')}</span>
-        </button>
         <button
           type="button"
           data-testid="shell-edit-desk"

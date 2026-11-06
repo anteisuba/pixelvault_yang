@@ -1801,7 +1801,9 @@
         "fit": "Fit view",
         "menu": "Canvas menu",
         "upload": "Upload",
-        "uploadMenu": "Upload…"
+        "uploadMenu": "Upload…",
+        "shotTable": "Shot list",
+        "shotTableHint": "One row per shot"
       },
       "palette": {
         "title": "Command palette",
@@ -1818,7 +1820,8 @@
         "switchTo": "Switch to “{name}”",
         "empty": "No matches",
         "upload": "Upload media…",
-        "openShotTable": "Open shot list"
+        "newShotTable": "New shot list",
+        "goToShotTable": "Go to shot list"
       },
       "bottom": {
         "select": "Select",
@@ -1839,8 +1842,7 @@
       "minimap": {
         "collapse": "Collapse minimap",
         "expand": "Expand minimap"
-      },
-      "shotTable": "Shot list"
+      }
     },
     "editDesk": {
       "title": "Edit desk",
@@ -2096,10 +2098,23 @@
     },
     "shotTable": {
       "title": "Shot list",
-      "back": "Back to canvas",
-      "undo": "Undo",
-      "empty": "No shots yet",
-      "emptyHint": "Add a shot on the canvas shot rail, or ask the assistant to break a script into shots. They will show up here row by row.",
+      "boardName": "Shot list · {project}",
+      "emptyLead": "This list is still empty. Three ways to fill it:",
+      "addShot": "Add shot",
+      "sources": {
+        "write": {
+          "title": "Write it yourself",
+          "hint": "Add shots one by one, @ assets"
+        },
+        "assistant": {
+          "title": "Let the assistant fill it",
+          "hint": "From a script or one sentence"
+        },
+        "breakdown": {
+          "title": "Break down a film",
+          "hint": "Drop in a reference clip, AI splits it into shots"
+        }
+      },
       "filmLook": "Film look",
       "filmLookEmpty": "Not set",
       "totalDuration": "Total",

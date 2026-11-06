@@ -1,5 +1,5 @@
 // ⚠ 用 `fireEvent` 不是 `user-event`：本仓没装 `@testing-library/user-event`。
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { CANVAS_SHELL_LAYOUT } from '@/constants/canvas-shell'
@@ -25,7 +25,7 @@ vi.mock('./ShellProjectPill', () => ({
   ShellProjectPill: () => <div data-testid="shell-project-pill" />,
 }))
 
-function renderTopBar(onOpenShotTable = vi.fn()) {
+function renderTopBar() {
   render(
     <ShellTopBar
       projectName="借伞"
@@ -38,7 +38,6 @@ function renderTopBar(onOpenShotTable = vi.fn()) {
       onDuplicateProject={vi.fn()}
       onDeleteProject={vi.fn()}
       onOpenEditDesk={vi.fn()}
-      onOpenShotTable={onOpenShotTable}
     />,
   )
 }
@@ -46,18 +45,11 @@ function renderTopBar(onOpenShotTable = vi.fn()) {
 describe('ShellTopBar', () => {
   beforeEach(() => studioOperatorYield.jump(0))
 
-  it('① 「助手」胶囊已退场，右上是「镜头表」+「剪辑台」', () => {
+  it('① 「助手」胶囊已退场，右上只剩「剪辑台」（镜头表 H1 起坐在画布上，⛔ 顶栏不再有入口）', () => {
     renderTopBar()
     expect(screen.queryByTestId('shell-assistant-toggle')).toBeNull()
     expect(screen.getByTestId('shell-edit-desk')).toBeTruthy()
-    expect(screen.getByTestId('shell-shot-table')).toBeTruthy()
-  })
-
-  it('①b 点「镜头表」开表', () => {
-    const onOpenShotTable = vi.fn()
-    renderTopBar(onOpenShotTable)
-    fireEvent.click(screen.getByTestId('shell-shot-table'))
-    expect(onOpenShotTable).toHaveBeenCalledTimes(1)
+    expect(screen.queryByTestId('shell-shot-table')).toBeNull()
   })
 
   it('② 右上那一格按画布稿给头像和剪辑台留位', () => {

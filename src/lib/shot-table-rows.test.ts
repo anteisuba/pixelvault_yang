@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
 import { NODE_SLOT_IDS, NODE_SLOT_OUTPUT_IDS } from '@/constants/node-slots'
-import { buildShotTableRows, summarizeShotTable } from '@/lib/shot-table-rows'
+import {
+  buildShotTableRows,
+  compactShotlist,
+  listShotTableNodes,
+  summarizeShotTable,
+} from '@/lib/shot-table-rows'
 import type { CharacterCardRecord } from '@/types'
 import type { NodeV4, NodeV4Data } from '@/types/node-workflow'
 
@@ -119,6 +124,36 @@ describe('buildShotTableRows', () => {
       shots: 2,
       withVideo: 1,
       durationSec: 9.5,
+    })
+  })
+})
+
+describe('listShotTableNodes', () => {
+  it('is the one list both the rows and the canvas row edges read', () => {
+    const nodes = [
+      shot('b', 2),
+      shot('loose', undefined),
+      node('img', { kind: 'image', subtype: 'result' } as Partial<NodeV4Data>),
+      shot('a', 1),
+    ]
+    const ids = listShotTableNodes(nodes).map((item) => item.id)
+    expect(ids).toEqual(['a', 'b'])
+    expect(
+      buildShotTableRows({ nodes, edges: [] }).map((row) => row.nodeId),
+    ).toEqual(ids)
+  })
+})
+
+describe('compactShotlist', () => {
+  it('drops empty keys and collapses to undefined when nothing is left', () => {
+    expect(
+      compactShotlist({ look: '', totalDurationSec: 0, hiddenColumns: [] }),
+    ).toBeUndefined()
+  })
+
+  it('keeps board, so whole-replace writes never lift the table off the canvas', () => {
+    expect(compactShotlist({ look: '', board: { x: 10, y: 20 } })).toEqual({
+      board: { x: 10, y: 20 },
     })
   })
 })

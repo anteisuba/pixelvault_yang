@@ -81,6 +81,37 @@ function parseSeconds(value: string | undefined): number | undefined {
   return Number.isFinite(seconds) && seconds > 0 ? seconds : undefined
 }
 
+/**
+ * 表里有哪几镜，按镜号排。⚠ 行与画布上「行右缘 → 镜头卡」那几根线共用这一份口径，
+ * ⛔ 别处不再自己筛一遍（两处筛法一漂，就有行没线或线连到不在表里的卡）。
+ */
+export function listShotTableNodes(
+  nodes: readonly NodeV4[],
+): (NodeV4 & { data: NodeV4VideoShotData })[] {
+  return nodes
+    .filter(isShotCard)
+    .filter((node) => node.data.shotNo !== undefined)
+    .sort((a, b) => (a.data.shotNo ?? 0) - (b.data.shotNo ?? 0))
+}
+
+/**
+ * 去掉空键；整份都空了就是「没设过」（`set_shotlist` 省略 = 清空，撤销能退回不存在）。
+ * ⚠ `board`（表在画布上的位置）也是一键 —— 漏了它，改一下全片风格表就从画布上消失。
+ */
+export function compactShotlist(
+  shotlist: NodeWorkflowShotlist,
+): NodeWorkflowShotlist | undefined {
+  const next: NodeWorkflowShotlist = {}
+  if (shotlist.look) next.look = shotlist.look
+  if (shotlist.totalDurationSec)
+    next.totalDurationSec = shotlist.totalDurationSec
+  if (shotlist.hiddenColumns && shotlist.hiddenColumns.length > 0) {
+    next.hiddenColumns = shotlist.hiddenColumns
+  }
+  if (shotlist.board) next.board = shotlist.board
+  return Object.keys(next).length > 0 ? next : undefined
+}
+
 export function buildShotTableRows(input: {
   readonly nodes: readonly NodeV4[]
   readonly edges: readonly NodeWorkflowEdgeV4[]
@@ -96,10 +127,8 @@ export function buildShotTableRows(input: {
   }
 
   const rows: ShotTableRow[] = []
-  for (const node of input.nodes) {
-    if (!isShotCard(node)) continue
-    const shotNo = node.data.shotNo
-    if (shotNo === undefined) continue
+  for (const node of listShotTableNodes(input.nodes)) {
+    const shotNo = node.data.shotNo ?? 0
     const data = node.data
     const edges = incoming.get(node.id) ?? []
     const prompt = data.prompt ?? ''
@@ -154,7 +183,7 @@ export function buildShotTableRows(input: {
       generating: data.status === NODE_STATUS_IDS.running,
     })
   }
-  return rows.sort((a, b) => a.shotNo - b.shotNo)
+  return rows
 }
 
 export function summarizeShotTable(

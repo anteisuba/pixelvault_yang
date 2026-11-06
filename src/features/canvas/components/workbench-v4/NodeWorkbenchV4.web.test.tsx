@@ -10,6 +10,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
+  useLocale: () => 'zh',
 }))
 
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), info: vi.fn() } }))

@@ -146,6 +146,7 @@ function render(ui: ReactElement) {
 /** 「当前项目」/「历史对话」两格的内容由宿主给；这里只证面板把它们摆进来。 */
 const PANEL_SLOT_PROPS = {
   onAddNode: vi.fn(),
+  onAddShotTable: vi.fn(),
   projectPanel: <div data-testid="project-slot" />,
   historyPanel: <div data-testid="history-slot" />,
 }
@@ -257,6 +258,10 @@ describe('ShellSidePanels · 六格（原型四格 + 角色 / 素材库）', () 
     expect(props.onAddNode).toHaveBeenCalledWith(
       CANVAS_ADD_INTENT_IDS.videoShot,
     )
+    // 镜头表不在目录里（不是一类卡）：最后单独一行，交给宿主「建或转过去」。
+    fireEvent.click(screen.getByTestId('shell-add-shot-table'))
+    expect(props.onAddShotTable).toHaveBeenCalledTimes(1)
+    expect(props.onAddNode).toHaveBeenCalledTimes(1)
     fireEvent.click(screen.getByTestId('shell-add-upload'))
     expect(props.onUpload).toHaveBeenCalled()
     fireEvent.click(screen.getByTestId('shell-add-library'))
@@ -511,8 +516,9 @@ describe('加节点三条路 · 都落在同一份意图表上', () => {
     expect(onFitView).toHaveBeenCalled()
   })
 
-  it('⌘K：节点定位 · 新建四类 · 上传 · 问助手 · 剪辑台 · 配置渠道 · 切项目', () => {
+  it('⌘K：节点定位 · 新建四类 · 上传 · 问助手 · 剪辑台 · 镜头表 · 配置渠道 · 切项目', () => {
     const onFocusNode = vi.fn()
+    const onShotTable = vi.fn()
     const onOpenEditDesk = vi.fn()
     const onUpload = vi.fn()
     const onManageChannels = vi.fn()
@@ -540,7 +546,8 @@ describe('加节点三条路 · 都落在同一份意图表上', () => {
         onUpload={onUpload}
         onAskAssistant={vi.fn()}
         onOpenEditDesk={onOpenEditDesk}
-        onOpenShotTable={vi.fn()}
+        hasShotTable={false}
+        onShotTable={onShotTable}
         onSwitchProject={vi.fn()}
         onManageChannels={onManageChannels}
       />,
@@ -555,6 +562,11 @@ describe('加节点三条路 · 都落在同一份意图表上', () => {
 
     fireEvent.click(screen.getByTestId('shell-command-upload'))
     expect(onUpload).toHaveBeenCalled()
+    // 还没有表：那一条写「新建镜头表」。
+    const shotTable = screen.getByTestId('shell-command-shot-table')
+    expect(shotTable.textContent).toBe('newShotTable')
+    fireEvent.click(shotTable)
+    expect(onShotTable).toHaveBeenCalledTimes(1)
     fireEvent.click(screen.getByTestId('shell-command-manage-channels'))
     expect(onManageChannels).toHaveBeenCalled()
   })

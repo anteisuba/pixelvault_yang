@@ -1323,6 +1323,12 @@ export const NodeWorkflowShotlistSchema = z.object({
     .optional(),
   /** 用户关掉的可选列（owner 11-01：时长、角色 · 场景两列要能关）。 */
   hiddenColumns: z.array(z.enum(SHOTLIST_OPTIONAL_COLUMNS)).max(8).optional(),
+  /**
+   * 表在画布上的位置（owner 2026-11-06：项目级一张，不算第五类卡）。有 = 表坐在画布上。
+   * 建 / 删走 `set_shotlist`（一步撤销）；拖动走图引擎 `moveShotTable`（拖动坐标例外，
+   * 不进撤销栈）。⚠ 整份替换的写法（表头改风格 / 总时长）必须把它带上，否则表会跟着消失。
+   */
+  board: NodeWorkflowPositionSchema.optional(),
 })
 
 const NodeV4VideoShape = {

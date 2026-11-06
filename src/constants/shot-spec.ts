@@ -69,7 +69,21 @@ export const SHOT_SPEC_LIMITS = {
 } as const
 
 /**
- * 镜头表视图的 URL 值：与剪辑台共用 `?mode=`（`EDIT_DESK_MODE_PARAM`），两者互斥。
- * ⚠ 理由同剪辑台：做成画布的全屏模式而不是新页，退出时视口与选择原样还在。
+ * 镜头表在画布上的那张宽卡（owner 2026-11-06：项目级一张，不算第五类卡）。
+ *
+ * ⚠ 它**不是** `state.nodes` 里的节点：画布渲染层按 `state.shotlist.board` 合成一张
+ * ReactFlow 节点（id 固定为 `nodeId`），行是 `video.shot` 卡的投影。双下划线前缀的 id
+ * 与引擎 `mintId` 出的节点 id 撞不上。
  */
-export const SHOT_TABLE_MODE_VALUE = 'table'
+export const SHOT_TABLE_BOARD = {
+  nodeId: '__shot-table',
+  rfType: 'shotTable',
+  /** 行右缘连线口的 handle id 前缀，后接那一镜的卡 id。 */
+  rowHandlePrefix: 'row:',
+  /** 行 → 镜头卡那根合成线的 id 前缀。 */
+  rowEdgePrefix: '__shot-table-row:',
+  /** 卡宽（mock 11-03 晚）。 */
+  widthPx: 1180,
+  /** 新加的一镜落在表右缘多远。 */
+  gapPx: 120,
+} as const

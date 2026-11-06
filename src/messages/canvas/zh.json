@@ -1801,7 +1801,9 @@
         "fit": "适配视图",
         "menu": "画布菜单",
         "upload": "上传",
-        "uploadMenu": "上传…"
+        "uploadMenu": "上传…",
+        "shotTable": "镜头表",
+        "shotTableHint": "一行一镜"
       },
       "palette": {
         "title": "命令面板",
@@ -1818,7 +1820,8 @@
         "switchTo": "切到「{name}」",
         "empty": "没有匹配项",
         "upload": "上传素材…",
-        "openShotTable": "打开镜头表"
+        "newShotTable": "新建镜头表",
+        "goToShotTable": "转到镜头表"
       },
       "bottom": {
         "select": "选择",
@@ -1839,8 +1842,7 @@
       "minimap": {
         "collapse": "收起小地图",
         "expand": "展开小地图"
-      },
-      "shotTable": "镜头表"
+      }
     },
     "editDesk": {
       "title": "剪辑台",
@@ -2096,10 +2098,23 @@
     },
     "shotTable": {
       "title": "镜头表",
-      "back": "回画布",
-      "undo": "撤销",
-      "empty": "还没有镜头",
-      "emptyHint": "在画布的镜头带上加一镜，或者让助手按剧本拆镜，这里就会一行一行列出来。",
+      "boardName": "镜头表 · {project}",
+      "emptyLead": "这张表还是空的。三条来路：",
+      "addShot": "加一镜",
+      "sources": {
+        "write": {
+          "title": "自己写",
+          "hint": "一镜一镜加，@ 素材"
+        },
+        "assistant": {
+          "title": "让助手填",
+          "hint": "按剧本 / 一句话排整表"
+        },
+        "breakdown": {
+          "title": "拉片",
+          "hint": "放一段参考片，AI 拆成表"
+        }
+      },
       "filmLook": "全片风格",
       "filmLookEmpty": "未设",
       "totalDuration": "总时长",

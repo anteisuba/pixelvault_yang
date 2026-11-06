@@ -73,6 +73,7 @@ import {
 } from '@/constants/node-studio'
 import type { CharacterCardRecord } from '@/types'
 import { looseAreaSpawn, nextShotNo } from '@/lib/node-shot-layout'
+import { listShotTableNodes } from '@/lib/shot-table-rows'
 import { pendingJobPatch, settledJobPatch } from '@/lib/node-media-patch'
 import { buildAssistantSetModelPatch } from '@/lib/node-assistant-op-patch'
 import {
@@ -90,7 +91,7 @@ import {
   EDIT_DESK_MODE_VALUE,
   EDIT_DESK_OPERATOR_ANCHOR,
 } from '@/constants/edit-desk'
-import { SHOT_TABLE_MODE_VALUE } from '@/constants/shot-spec'
+import { SHOT_TABLE_BOARD } from '@/constants/shot-spec'
 import { NODE_SLOT_IDS } from '@/constants/node-slots'
 import { motionTransition } from '@/constants/motion'
 import {
@@ -147,7 +148,7 @@ import {
   StudioChipZoomProvider,
 } from '@/components/business/studio-shared/primitives/tool-surface'
 import { EditDesk } from '../edit-desk'
-import { ShotTable } from '../shot-table'
+import { ShotTableBoardProvider, type ShotTableBoardValue } from '../shot-table'
 import { flashNodeCard } from '../nodes/v4/chrome/node-card-flash'
 import { useKeepCanvasCenterOnYield } from './use-keep-canvas-center-on-yield'
 import {
@@ -1314,13 +1315,6 @@ function NodeWorkbenchV4Inner() {
   const [editMode, setEditMode] = useState(
     () => searchParams.get(EDIT_DESK_MODE_PARAM) === EDIT_DESK_MODE_VALUE,
   )
-  /**
-   * 镜头表（画布第三个视图，`p-canvas-shotlist` 第 2 步）：与剪辑台共用 `?mode=`、互斥，
-   * 做法也同剪辑台（本地 state + history 改参）。
-   */
-  const [tableMode, setTableMode] = useState(
-    () => searchParams.get(EDIT_DESK_MODE_PARAM) === SHOT_TABLE_MODE_VALUE,
-  )
   /** 「进剪辑台」带进来的那几张卡（台面开起来就先追加进 V 轨）。 */
   const [editDeskSeed, setEditDeskSeed] = useState<readonly string[]>([])
 
@@ -1338,33 +1332,113 @@ function NodeWorkbenchV4Inner() {
   const openEditDesk = useCallback(
     (nodeIds?: readonly string[]) => {
       setEditDeskSeed(nodeIds ?? [])
-      setTableMode(false)
       setEditMode(true)
       writeModeParam(EDIT_DESK_MODE_VALUE)
     },
     [writeModeParam],
   )
 
-  const openShotTable = useCallback(() => {
-    setEditMode(false)
-    setEditDeskSeed([])
-    setTableMode(true)
-    writeModeParam(SHOT_TABLE_MODE_VALUE)
-  }, [writeModeParam])
+  /**
+   * 镜头表卡（H1，owner 2026-11-06）：项目级一张，坐在画布上。
+   * 新建菜单 / ⌘K 的同一个入口 —— 还没有表就建一张（`set_shotlist` 带上 `board`，一步撤销），
+   * 已经有了就把镜头移过去。⛔ 不建第二张。
+   * 落点：画布上已有卡 = 所有卡的包围盒正下方隔一道沟（表在 z 序最底层，⛔ 落在卡底下会被
+   * 卡盖住、格子点不到）；空画布 = 视口中央。建完镜头跟过去。
+   */
+  const createOrGoToShotTable = useCallback(() => {
+    const shotlist = graph.readState().shotlist
+    if (shotlist?.board) {
+      focusNode(SHOT_TABLE_BOARD.nodeId)
+      return
+    }
+    let board: { x: number; y: number }
+    const cardIds = graph.nodes.map((node) => node.id)
+    if (cardIds.length > 0) {
+      const bounds = getNodesBounds(cardIds)
+      board = {
+        x: Math.round(bounds.x),
+        y: Math.round(bounds.y + bounds.height + SHOT_TABLE_BOARD.gapPx),
+      }
+    } else {
+      const rect = canvasRef.current?.getBoundingClientRect()
+      const center = rect
+        ? screenToFlowPosition({
+            x: rect.left + rect.width / 2,
+            y: rect.top + rect.height / 2,
+          })
+        : { x: 0, y: 0 }
+      board = {
+        x: Math.round(center.x - SHOT_TABLE_BOARD.widthPx / 2),
+        y: Math.round(center.y - SHOT_TABLE_BOARD.gapPx),
+      }
+    }
+    const ok = graph.dispatch({
+      op: NODE_ASSISTANT_OP_V4_IDS.setShotlist,
+      shotlist: { ...(shotlist ?? {}), board },
+    })
+    if (ok && cardIds.length > 0) focusNode(SHOT_TABLE_BOARD.nodeId)
+  }, [graph, focusNode, getNodesBounds, screenToFlowPosition])
 
-  const exitShotTable = useCallback(() => {
-    setTableMode(false)
-    writeModeParam(null)
-  }, [writeModeParam])
+  /**
+   * 表上「+ 加一镜」/ 空表「自己写」：长一张镜号顺延的镜头卡。落点 = 最后一镜右边第一个空位
+   * （`placeBeside`）；表里还没有镜 = 表右边隔一道沟。镜头 ⛔ 不跟过去 —— 人还在表上写。
+   */
+  const addShotFromTable = useCallback(() => {
+    const shots = listShotTableNodes(graph.nodes)
+    const last = shots[shots.length - 1]
+    const board = graph.readState().shotlist?.board
+    const position = last
+      ? graph.placeBeside(last.id, [
+          {
+            kind: NODE_MEDIA_KIND_IDS.video,
+            subtype: NODE_V4_VIDEO_SUBTYPE_IDS.shot,
+          },
+        ])?.[0]
+      : board
+        ? {
+            x: board.x + SHOT_TABLE_BOARD.widthPx + SHOT_TABLE_BOARD.gapPx,
+            y: board.y,
+          }
+        : undefined
+    const nodeId = graph.addNode(
+      NODE_MEDIA_KIND_IDS.video,
+      NODE_V4_VIDEO_SUBTYPE_IDS.shot,
+      {
+        shotNo: nextShotNo(graph.nodes),
+        ...(position ? { position } : {}),
+      },
+    )
+    if (nodeId) lastCreatedRef.current = [nodeId]
+  }, [graph])
 
-  /** 「回到这张卡」：关表 + 定位并选中那一镜。 */
-  const backToNodeFromShotTable = useCallback(
+  /** 表上「回到这张卡」：定位并选中那一镜。 */
+  const locateShotFromTable = useCallback(
     (nodeId: string) => {
-      exitShotTable()
       focusNode(nodeId)
       graph.onRfNodesChange([{ id: nodeId, type: 'select', selected: true }])
     },
-    [exitShotTable, focusNode, graph],
+    [focusNode, graph],
+  )
+
+  const shotTableBoard = useMemo<ShotTableBoardValue>(
+    () => ({
+      state: graph.state,
+      characterCards: characterLibrary.cards,
+      projectName: store.currentProject.name,
+      dispatch: graph.dispatch,
+      dispatchBatch: graph.dispatchBatch,
+      onAddShot: addShotFromTable,
+      onLocate: locateShotFromTable,
+    }),
+    [
+      graph.state,
+      graph.dispatch,
+      graph.dispatchBatch,
+      characterLibrary.cards,
+      store.currentProject.name,
+      addShotFromTable,
+      locateShotFromTable,
+    ],
   )
 
   /**
@@ -1916,38 +1990,43 @@ function NodeWorkbenchV4Inner() {
                     尺寸走画布那一档（小一号）。 */}
                   <StudioChipDensityProvider value="compact">
                     <StudioChipZoomProvider value>
-                      <CanvasV4
-                        graph={graph}
-                        toolMode={toolMode}
-                        relationsCollapsed={relationsCollapsed}
-                        canvasAppearance={canvasAppearance}
-                        edgeSigning={edgeSigning}
-                        onDrop={dnd.onDrop}
-                        onDragOver={dnd.onDragOver}
-                        onPaneDoubleClick={onPaneDoubleClick}
-                        onPaneContextMenu={onPaneContextMenu}
-                        onNodeDragStart={(node) =>
-                          rosterDrop.onNodeDragStart(node as unknown as NodeV4)
-                        }
-                        onNodeDrag={(node, event) =>
-                          rosterDrop.onNodeDrag(
-                            node as unknown as NodeV4,
-                            event.clientX,
-                            event.clientY,
-                          )
-                        }
-                        onNodeDragStopIntercept={(node, event) =>
-                          rosterDrop.onNodeDragStop(
-                            node as unknown as NodeV4,
-                            event.clientX,
-                            event.clientY,
-                          )
-                        }
-                      />
+                      <ShotTableBoardProvider value={shotTableBoard}>
+                        <CanvasV4
+                          graph={graph}
+                          toolMode={toolMode}
+                          relationsCollapsed={relationsCollapsed}
+                          canvasAppearance={canvasAppearance}
+                          edgeSigning={edgeSigning}
+                          onDrop={dnd.onDrop}
+                          onDragOver={dnd.onDragOver}
+                          onPaneDoubleClick={onPaneDoubleClick}
+                          onPaneContextMenu={onPaneContextMenu}
+                          onNodeDragStart={(node) =>
+                            rosterDrop.onNodeDragStart(
+                              node as unknown as NodeV4,
+                            )
+                          }
+                          onNodeDrag={(node, event) =>
+                            rosterDrop.onNodeDrag(
+                              node as unknown as NodeV4,
+                              event.clientX,
+                              event.clientY,
+                            )
+                          }
+                          onNodeDragStopIntercept={(node, event) =>
+                            rosterDrop.onNodeDragStop(
+                              node as unknown as NodeV4,
+                              event.clientX,
+                              event.clientY,
+                            )
+                          }
+                        />
+                      </ShotTableBoardProvider>
                     </StudioChipZoomProvider>
                   </StudioChipDensityProvider>
                 </motion.div>
-                {graph.nodes.length === 0 ? (
+                {/* 画布上只有一张空镜头表时也不算空：表自己有三条来路，引导页别盖上去。 */}
+                {graph.nodes.length === 0 && !graph.state.shotlist?.board ? (
                   <div className="pointer-events-none absolute inset-x-4 bottom-24 top-20 z-canvas-selection flex items-center justify-center md:inset-x-8 md:bottom-16 md:top-24">
                     <NodeCanvasEmptyGuide
                       onChatOutline={() => {
@@ -1976,7 +2055,6 @@ function NodeWorkbenchV4Inner() {
                     onDuplicateProject={() => setProjectDialogMode('duplicate')}
                     onDeleteProject={() => setDeleteConfirmOpen(true)}
                     onOpenEditDesk={openEditDeskWithSelection}
-                    onOpenShotTable={openShotTable}
                     /* ⚠ 「助手」胶囊已从顶栏退场（D7b ④）：同一位置换成 Dock 自己
                        那颗人设头像，顶栏只为它留出右侧那一格（见 ShellTopBar 头注）。 */
                   />
@@ -1990,6 +2068,7 @@ function NodeWorkbenchV4Inner() {
                     placedCharacterIds={placedCharacterIds}
                     onPlaceCharacter={placeCharacter}
                     onAddNode={addNodeAtViewportCenter}
+                    onAddShotTable={createOrGoToShotTable}
                     projectPanel={
                       // 项目胶囊弹层里那份列表，同一组出口（⛔ 不另写项目列表）。
                       <ShellProjectList
@@ -2070,7 +2149,8 @@ function NodeWorkbenchV4Inner() {
                       setAssistantOpen(true)
                     }}
                     onOpenEditDesk={openEditDeskWithSelection}
-                    onOpenShotTable={openShotTable}
+                    hasShotTable={Boolean(graph.state.shotlist?.board)}
+                    onShotTable={createOrGoToShotTable}
                     onSwitchProject={store.switchProject}
                     onManageChannels={openKeySettings}
                   />
@@ -2120,19 +2200,6 @@ function NodeWorkbenchV4Inner() {
                     assistant={benchDock}
                     subscribeRemoteChange={subscribeDeskRemoteChange}
                     restoreState={restoreDeskState}
-                  />
-                ) : null}
-                {tableMode ? (
-                  <ShotTable
-                    state={graph.state}
-                    characterCards={characterLibrary.cards}
-                    dispatch={graph.dispatch}
-                    dispatchBatch={graph.dispatchBatch}
-                    canUndo={graph.canUndo}
-                    onUndo={graph.undo}
-                    onExit={exitShotTable}
-                    onBackToNode={backToNodeFromShotTable}
-                    assistant={benchDock}
                   />
                 ) : null}
                 {projectDialogs}

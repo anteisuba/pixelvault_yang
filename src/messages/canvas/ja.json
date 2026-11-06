@@ -1801,7 +1801,9 @@
         "fit": "全体表示",
         "menu": "キャンバスメニュー",
         "upload": "アップロード",
-        "uploadMenu": "アップロード…"
+        "uploadMenu": "アップロード…",
+        "shotTable": "ショットリスト",
+        "shotTableHint": "1 行 1 ショット"
       },
       "palette": {
         "title": "コマンドパレット",
@@ -1818,7 +1820,8 @@
         "switchTo": "「{name}」に切り替え",
         "empty": "該当なし",
         "upload": "素材をアップロード…",
-        "openShotTable": "ショットリストを開く"
+        "newShotTable": "ショットリストを新規作成",
+        "goToShotTable": "ショットリストへ移動"
       },
       "bottom": {
         "select": "選択",
@@ -1839,8 +1842,7 @@
       "minimap": {
         "collapse": "ミニマップを閉じる",
         "expand": "ミニマップを開く"
-      },
-      "shotTable": "ショットリスト"
+      }
     },
     "editDesk": {
       "title": "編集台",
@@ -2096,10 +2098,23 @@
     },
     "shotTable": {
       "title": "ショットリスト",
-      "back": "キャンバスに戻る",
-      "undo": "元に戻す",
-      "empty": "まだショットがありません",
-      "emptyHint": "キャンバスのショット列に追加するか、アシスタントに脚本をショットに分けてもらうと、ここに一行ずつ並びます。",
+      "boardName": "ショットリスト · {project}",
+      "emptyLead": "まだ空のリストです。埋め方は三つ：",
+      "addShot": "ショットを追加",
+      "sources": {
+        "write": {
+          "title": "自分で書く",
+          "hint": "1 ショットずつ追加、@ で素材"
+        },
+        "assistant": {
+          "title": "アシスタントに任せる",
+          "hint": "脚本や一文から全体を組む"
+        },
+        "breakdown": {
+          "title": "映像から起こす",
+          "hint": "参考映像を入れると AI がショットに分解"
+        }
+      },
       "filmLook": "全体のルック",
       "filmLookEmpty": "未設定",
       "totalDuration": "総尺",

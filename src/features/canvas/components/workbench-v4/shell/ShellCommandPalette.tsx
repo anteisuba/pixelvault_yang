@@ -61,7 +61,10 @@ export interface ShellCommandPaletteProps {
   onUpload(): void
   onAskAssistant(query: string): void
   onOpenEditDesk(): void
-  onOpenShotTable(): void
+  /** 画布上已经有镜头表了吗（决定那一条写「新建」还是「转到」）。 */
+  readonly hasShotTable: boolean
+  /** 镜头表：没有就在视口中央建一张，有了就把镜头移过去（H1）。 */
+  onShotTable(): void
   onSwitchProject(projectId: string): void
   /** 「配置渠道与 key…」——跳 `/settings/keys`；外壳没挂时为 `null`，那一行不出现。 */
   readonly onManageChannels: (() => void) | null
@@ -78,7 +81,8 @@ export function ShellCommandPalette({
   onUpload,
   onAskAssistant,
   onOpenEditDesk,
-  onOpenShotTable,
+  hasShotTable,
+  onShotTable,
   onSwitchProject,
   onManageChannels,
 }: ShellCommandPaletteProps) {
@@ -239,15 +243,17 @@ export function ShellCommandPalette({
                 <span>{t('openEditDesk')}</span>
               </CommandItem>
               <CommandItem
-                value={t('openShotTable')}
+                value={hasShotTable ? t('goToShotTable') : t('newShotTable')}
                 data-testid="shell-command-shot-table"
                 onSelect={() => {
-                  onOpenShotTable()
+                  onShotTable()
                   close()
                 }}
               >
                 <Table className="size-4 shrink-0" aria-hidden />
-                <span>{t('openShotTable')}</span>
+                <span>
+                  {hasShotTable ? t('goToShotTable') : t('newShotTable')}
+                </span>
               </CommandItem>
               {onManageChannels ? (
                 <CommandItem

@@ -56,13 +56,16 @@ import {
   type NodeStudioToolMode,
 } from '@/constants/node-studio'
 import { SPRING } from '@/constants/motion'
+import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import { NODE_PORT_HANDLE_IDS } from '@/constants/node-slots'
+import { SHOT_TABLE_BOARD } from '@/constants/shot-spec'
 import {
   edgePairKey,
   resolveNodeEdgeTierV4,
   resolveNodeEdgeVisibility,
 } from '@/lib/node-edge-tier'
 import { isNodeWorkflowGenerating } from '@/lib/node-workflow-edge-visual'
+import { compactShotlist, listShotTableNodes } from '@/lib/shot-table-rows'
 import { planV4ConnectDrop } from '@/features/canvas/hooks/use-cast-ingest-v4'
 import type { EdgeSigning } from '@/features/canvas/hooks/use-edge-signing'
 import {
@@ -89,6 +92,19 @@ import { StoryboardBrackets } from './StoryboardBrackets'
 import { layoutSlideOffset, useLayoutSlide } from './use-layout-slide'
 import { CanvasSurface } from '../CanvasSurface'
 import { NODE_V4_COMPONENTS } from '../nodes/v4/registry'
+import { ShotTableNode } from '../shot-table/ShotTableNode'
+import { useShotTableRfNode } from '../shot-table/use-shot-table-rf-node'
+
+/**
+ * 四类卡 + 镜头表卡（H1）。⚠ 表 ⛔ 不进 `NODE_V4_COMPONENTS`：那张表是 `state.nodes` 的
+ * kind 词表，表不是一类卡（项目级一张，位置在 `state.shotlist.board`）。
+ */
+const CANVAS_NODE_TYPES = {
+  ...NODE_V4_COMPONENTS,
+  [SHOT_TABLE_BOARD.rfType]: ShotTableNode,
+}
+
+const SHOT_TABLE_ID = SHOT_TABLE_BOARD.nodeId
 
 const NODE_EDGE_COMPONENTS: EdgeTypes = {
   nodeSlot: NodeSlotEdge,
@@ -135,6 +151,8 @@ function nodeIdAtFlowPoint(
   if (!point) return null
   let hit: string | null = null
   for (const [id, node] of nodeLookup) {
+    // 镜头表卡不是落点（不收线、不收整卡拖放）；⛔ 让它挡住压在它上面的卡。
+    if (id === SHOT_TABLE_ID) continue
     const { x, y } = node.internals.positionAbsolute
     const width = node.measured.width ?? 0
     const height = node.measured.height ?? 0
@@ -346,8 +364,10 @@ export function CanvasV4({
   const { rfNodes, edges, nodes, selectedNodeIds, layoutSlide } = graph
   const slideLeft = useLayoutSlide(layoutSlide)
   const storeApi = useStoreApi()
+  const tableBoard = graph.state.shotlist?.board
+  const shotTable = useShotTableRfNode(tableBoard)
 
-  const decoratedNodes = useMemo(() => {
+  const slidNodes = useMemo(() => {
     if (slideLeft === 0) return rfNodes as NodeWorkflowNode[]
     return rfNodes.map((node) => {
       const slide = layoutSlideOffset(
@@ -371,6 +391,15 @@ export function CanvasV4({
       }
     }) as NodeWorkflowNode[]
   }, [rfNodes, layoutSlide, slideLeft])
+
+  // 表卡垫在最底下（绘制顺序 = 数组顺序）：镜头卡挪到表上时压在表上面。
+  const decoratedNodes = useMemo(
+    () =>
+      shotTable.node
+        ? ([shotTable.node, ...slidNodes] as unknown as NodeWorkflowNode[])
+        : slidNodes,
+    [shotTable.node, slidNodes],
+  )
 
   const { signedEdgePairs, fadingEdges } = edgeSigning
   const renderEdges = useMemo(() => {
@@ -422,7 +451,24 @@ export function CanvasV4({
       return { ...base, hidden: false, data }
     })
 
-    if (fadingEdges.size === 0) return live as unknown as NodeWorkflowEdge[]
+    // 表的每行右缘 → 这一镜的镜头卡（H1）。纯画法：⛔ 不进 `state.edges`，不能选、不能删。
+    const rowEdges = tableBoard
+      ? listShotTableNodes(nodes).map((shot) => ({
+          id: `${SHOT_TABLE_BOARD.rowEdgePrefix}${shot.id}`,
+          source: SHOT_TABLE_ID,
+          sourceHandle: `${SHOT_TABLE_BOARD.rowHandlePrefix}${shot.id}`,
+          target: shot.id,
+          targetHandle: NODE_PORT_HANDLE_IDS.input,
+          hidden: false,
+          selectable: false,
+          deletable: false,
+          focusable: false,
+          data: {},
+        }))
+      : []
+    const drawn = rowEdges.length > 0 ? [...live, ...rowEdges] : live
+
+    if (fadingEdges.size === 0) return drawn as unknown as NodeWorkflowEdge[]
 
     // §2.7 解绑反放：刚删掉、还在反向褪去的边补一份装饰性回声。按 id 去重，免得
     // 一条其实还在图上的边被画两遍。
@@ -440,8 +486,8 @@ export function CanvasV4({
       })
     }
     return (echoes.length > 0
-      ? [...live, ...echoes]
-      : live) as unknown as NodeWorkflowEdge[]
+      ? [...drawn, ...echoes]
+      : drawn) as unknown as NodeWorkflowEdge[]
   }, [
     edges,
     nodes,
@@ -449,6 +495,7 @@ export function CanvasV4({
     relationsCollapsed,
     signedEdgePairs,
     fadingEdges,
+    tableBoard,
   ])
 
   /**
@@ -464,11 +511,22 @@ export function CanvasV4({
     [toolMode],
   )
 
+  /** 按 id 分两路：表卡的进本地（`useShotTableRfNode`），其余照旧进图引擎。 */
+  const applyShotTableChanges = shotTable.applyChanges
+  const endShotTableDrag = shotTable.endDrag
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {
-      graph.onRfNodesChange(changes)
+      const forTable: NodeChange[] = []
+      const forGraph: NodeChange[] = []
+      for (const change of changes) {
+        const id = 'id' in change ? change.id : undefined
+        if (id === SHOT_TABLE_ID) forTable.push(change)
+        else forGraph.push(change)
+      }
+      if (forTable.length > 0) applyShotTableChanges(forTable)
+      if (forGraph.length > 0) graph.onRfNodesChange(forGraph)
     },
-    [graph],
+    [graph, applyShotTableChanges],
   )
 
   /**
@@ -492,6 +550,8 @@ export function CanvasV4({
         ])
         return
       }
+      // 表卡不是 `state.nodes` 里的卡：外壳的点卡逻辑（选中 / 详情）认不得它。
+      if (node.id === SHOT_TABLE_ID) return
       onNodeClick?.(event, node)
     },
     [quickThrowSource, feedQuickThrow, graph, onNodeClick],
@@ -613,6 +673,8 @@ export function CanvasV4({
    */
   const handleNodeDrag = useCallback(
     (event: React.MouseEvent, node: NodeWorkflowNode) => {
+      // 拖表卡只是挪位置：⛔ 不找落点、不交给名册。
+      if (node.id === SHOT_TABLE_ID) return
       const point = screenToFlowPosition({
         x: event.clientX,
         y: event.clientY,
@@ -644,6 +706,21 @@ export function CanvasV4({
     ) => {
       const hovered = dragHoverRef.current
       endConnect()
+      // 表卡（单拖或框选里带着）：坐标落进 `shotlist.board`（拖动坐标例外，不进撤销栈）。
+      const tableMoved = dragged.find((moved) => moved.id === SHOT_TABLE_ID)
+      if (tableMoved) {
+        graph.moveShotTable(tableMoved.position)
+        endShotTableDrag()
+      }
+      const cards = dragged.filter((moved) => moved.id !== SHOT_TABLE_ID)
+      if (node.id === SHOT_TABLE_ID) {
+        if (cards.length > 0) {
+          graph.moveNodes(
+            cards.map((moved) => ({ id: moved.id, position: moved.position })),
+          )
+        }
+        return
+      }
       // 名册卡先接：吃掉了就连坐标都不提交（本体已被弹回起点）。
       if (onNodeDragStopIntercept?.(node, event)) return
       // 松在另一张卡上 = 连上，卡**弹回原位**（它不该留在目标卡上）。
@@ -664,15 +741,36 @@ export function CanvasV4({
       }
       // 拖动**结束**才提交坐标（⛔ 不逐帧写 state：那会让一次拖拽产生几十次落库）。
       graph.moveNodes(
-        dragged.map((moved) => ({ id: moved.id, position: moved.position })),
+        cards.map((moved) => ({ id: moved.id, position: moved.position })),
       )
     },
-    [graph, nodes, onNodeDragStopIntercept, connectDrop, endConnect],
+    [
+      graph,
+      nodes,
+      onNodeDragStopIntercept,
+      connectDrop,
+      endConnect,
+      endShotTableDrag,
+    ],
   )
 
+  /**
+   * 删表 = 把 `board` 从 `shotlist` 里拿掉（一步撤销；镜头卡一张不动）。框选连表带卡一起删时
+   * 是两步：先删卡、再收表，撤两下全回来。
+   */
   const onNodesDelete = useCallback(
     (deleted: readonly { id: string }[]) => {
-      graph.deleteNodes(deleted.map((node) => node.id))
+      const cardIds = deleted
+        .map((node) => node.id)
+        .filter((id) => id !== SHOT_TABLE_ID)
+      if (cardIds.length > 0) graph.deleteNodes(cardIds)
+      if (!deleted.some((node) => node.id === SHOT_TABLE_ID)) return
+      const shotlist = graph.readState().shotlist
+      if (!shotlist?.board) return
+      graph.dispatch({
+        op: NODE_ASSISTANT_OP_V4_IDS.setShotlist,
+        shotlist: compactShotlist({ ...shotlist, board: undefined }),
+      })
     },
     [graph],
   )
@@ -721,7 +819,7 @@ export function CanvasV4({
       <ReactFlow
         nodes={decoratedNodes}
         edges={renderEdges}
-        nodeTypes={NODE_V4_COMPONENTS}
+        nodeTypes={CANVAS_NODE_TYPES}
         edgeTypes={NODE_EDGE_COMPONENTS}
         onNodesChange={onNodesChange}
         onConnectStart={onConnectStart}
@@ -734,7 +832,9 @@ export function CanvasV4({
         onEdgesDelete={onEdgesDelete}
         onNodeDragStart={
           onNodeDragStart
-            ? (event, node) => onNodeDragStart(node, event)
+            ? (event, node) => {
+                if (node.id !== SHOT_TABLE_ID) onNodeDragStart(node, event)
+              }
             : undefined
         }
         onNodeDrag={handleNodeDrag}

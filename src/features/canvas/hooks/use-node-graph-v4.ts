@@ -253,6 +253,11 @@ export interface NodeGraphV4 {
   duplicate(nodeIds: readonly string[]): string[]
   /** 位置提交。⛔ 不进撤销栈（见文件头注例外 ①）。 */
   moveNodes(moves: readonly NodeGraphV4Move[]): void
+  /**
+   * 镜头表那张宽卡的拖动落位（`state.shotlist.board`）—— 与 `moveNodes` 同一条例外 ①，
+   * ⛔ 不进撤销栈。表不在画布上时什么都不做（建表是 `set_shotlist`，不是这里）。
+   */
+  moveShotTable(position: { readonly x: number; readonly y: number }): void
   /** 按流向整理（§7 摆放 A）。整次一条撤销；卡片滑过去由渲染层读 `layoutSlide`。 */
   tidyLayout(): void
   /**
@@ -961,6 +966,21 @@ export function useNodeGraphV4({
     [state, commitWithoutHistory],
   )
 
+  const moveShotTable = useCallback(
+    (position: { readonly x: number; readonly y: number }) => {
+      const shotlist = state.shotlist
+      const board = shotlist?.board
+      if (!shotlist || !board) return
+      if (board.x === position.x && board.y === position.y) return
+      // ⛔ 不进撤销栈（文件头注例外 ①：拖动坐标）。
+      commitWithoutHistory({
+        ...state,
+        shotlist: { ...shotlist, board: { x: position.x, y: position.y } },
+      })
+    },
+    [state, commitWithoutHistory],
+  )
+
   const placeBeside = useCallback(
     (
       anchorId: string,
@@ -1213,6 +1233,7 @@ export function useNodeGraphV4({
     deleteNodes,
     duplicate,
     moveNodes,
+    moveShotTable,
     tidyLayout,
     placeBeside,
     layoutSlide,

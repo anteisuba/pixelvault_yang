@@ -36,11 +36,15 @@ function shot(
   }
 }
 
-function setup(nodes: readonly NodeV4[], shotlist?: NodeWorkflowShotlist) {
+function setup(
+  nodes: readonly NodeV4[],
+  shotlist?: NodeWorkflowShotlist,
+  options: { readonly withPorts?: boolean } = {},
+) {
   const dispatch = vi.fn(() => true)
   const dispatchBatch = vi.fn()
-  const onExit = vi.fn()
-  const onBackToNode = vi.fn()
+  const onAddShot = vi.fn()
+  const onLocate = vi.fn()
   const state = { nodes, edges: [], shotlist } as unknown as NodeWorkflowStateV4
   render(
     <NextIntlClientProvider locale="zh" messages={messages}>
@@ -49,18 +53,23 @@ function setup(nodes: readonly NodeV4[], shotlist?: NodeWorkflowShotlist) {
         characterCards={[]}
         dispatch={dispatch}
         dispatchBatch={dispatchBatch}
-        canUndo={false}
-        onUndo={vi.fn()}
-        onExit={onExit}
-        onBackToNode={onBackToNode}
+        onAddShot={onAddShot}
+        onLocate={onLocate}
+        {...(options.withPorts
+          ? {
+              renderRowPort: (nodeId: string) => (
+                <span data-testid="row-port" data-for={nodeId} />
+              ),
+            }
+          : {})}
       />
     </NextIntlClientProvider>,
   )
-  return { dispatch, dispatchBatch, onExit, onBackToNode }
+  return { dispatch, dispatchBatch, onAddShot, onLocate }
 }
 
 describe('ShotTable', () => {
-  it('一镜一行，按镜号排；没镜头时给空态', () => {
+  it('一镜一行，按镜号排', () => {
     setup([
       shot('b', 2, { prompt: '第二镜' } as Partial<NodeV4Data>),
       shot('a', 1, { prompt: '第一镜' } as Partial<NodeV4Data>),
@@ -75,9 +84,29 @@ describe('ShotTable', () => {
     )
   })
 
-  it('空表', () => {
-    setup([])
+  it('空表三条来路：只有「自己写」能点，点了 = 加一镜', () => {
+    const { onAddShot } = setup([])
     expect(screen.getByTestId('shot-table-empty')).toBeTruthy()
+    const write = screen.getByTestId('shot-table-source-write')
+    expect(write.hasAttribute('disabled')).toBe(false)
+    expect(
+      screen
+        .getByTestId('shot-table-source-assistant')
+        .hasAttribute('disabled'),
+    ).toBe(true)
+    expect(
+      screen
+        .getByTestId('shot-table-source-breakdown')
+        .hasAttribute('disabled'),
+    ).toBe(true)
+    fireEvent.click(write)
+    expect(onAddShot).toHaveBeenCalledTimes(1)
+  })
+
+  it('表头「+ 加一镜」交给宿主落卡', () => {
+    const { onAddShot } = setup([shot('a', 1)])
+    fireEvent.click(screen.getByTestId('shot-table-add-shot'))
+    expect(onAddShot).toHaveBeenCalledTimes(1)
   })
 
   it('改运镜 = 一条 set_shot_spec；没改不发', () => {
@@ -146,16 +175,40 @@ describe('ShotTable', () => {
     })
   })
 
+  it('⚠ 整份替换带着 board：清空风格，表照样坐在画布上', () => {
+    const { dispatch } = setup([shot('a', 1)], {
+      look: '冷蓝',
+      board: { x: 40, y: -80 },
+    })
+    const input = screen.getByTestId('shot-table-film-look')
+    fireEvent.focus(input)
+    fireEvent.change(input, { target: { value: '' } })
+    fireEvent.blur(input)
+    expect(dispatch).toHaveBeenCalledWith({
+      op: NODE_ASSISTANT_OP_V4_IDS.setShotlist,
+      shotlist: { board: { x: 40, y: -80 } },
+    })
+  })
+
   it('关掉的列不渲染', () => {
     setup([shot('a', 1)], { hiddenColumns: ['duration', 'cast'] })
     expect(screen.queryByTestId('shot-table-duration')).toBeNull()
   })
 
-  it('Esc 回画布；「回到这张卡」带着 id', () => {
-    const { onExit, onBackToNode } = setup([shot('a', 1)])
+  it('「回到这张卡」带着 id；表里不再接管 Esc（全屏模式已删）', () => {
+    const { onLocate } = setup([shot('a', 1)])
     fireEvent.click(screen.getByTestId('shot-table-locate'))
-    expect(onBackToNode).toHaveBeenCalledWith('a')
-    fireEvent.keyDown(window, { key: 'Escape' })
-    expect(onExit).toHaveBeenCalled()
+    expect(onLocate).toHaveBeenCalledWith('a')
+    expect(screen.queryByTestId('shot-table-back')).toBeNull()
+    expect(screen.queryByTestId('shot-table-undo')).toBeNull()
+  })
+
+  it('每行右缘一颗出口，按行序给到这一镜的 id', () => {
+    setup([shot('b', 2), shot('a', 1)], undefined, { withPorts: true })
+    expect(
+      screen
+        .getAllByTestId('row-port')
+        .map((port) => port.getAttribute('data-for')),
+    ).toEqual(['a', 'b'])
   })
 })

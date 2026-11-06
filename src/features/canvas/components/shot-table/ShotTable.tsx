@@ -1,39 +1,34 @@
 'use client'
 
 /**
- * 镜头表 · 画布的第三个视图（`p-canvas-shotlist` 第 2 步，方向 A「整张表」，owner 2026-11-01）。
+ * 镜头表的**卡体**（`p-canvas-shotlist`；H1「表上画布」，owner 2026-11-06）。
  *
  * ⭐ 一行 = 一张有镜号的 `video.shot` 镜头卡，每一格都是卡上已有的东西（`buildShotTableRows`）。
  * 改格 = 发 op（`set_shot_spec` / `set_prompt` / `set_params` / `set_shotlist`），走画布同一条
  * 写入路径、同一个撤销栈 —— ⛔ 表自己不存任何一份，改表就是改片。
  *
- * ── 为什么是全屏模式而不是新页 ──────────────────────────────────────────
- * 同剪辑台（`EditDesk` 头注）：URL 只加 `?mode=table`，画布留在 DOM 里只是被盖住，
- * 退出时视口与选择原样还在。整块 portal 到 body、z 只取 `z-canvas-workspace`（45），
- * 理由也同剪辑台：要盖住外壳旁的助手窄条，又不能压过自己弹出的 Popover（z-50）。
+ * ── 表坐在画布上（H1 起）──────────────────────────────────────────────
+ * 全屏 `?mode=table` 已删：表是画布上的一张宽卡（`ShotTableNode` 包这一层），撤销走画布
+ * 底栏 / ⌘Z 那一份，⛔ 表里不再自带撤销键和 Esc。
+ * - 格子里能点能写的件一律带 `nodrag`：在画布卡里，按下去默认是拖卡。
+ * - 每行最右一格留给 `renderRowPort`（画布在那里挂一颗出口，连到这一镜的镜头卡）。
+ *   ⛔ 这一层不认识 ReactFlow —— 单测直接渲染它，不必搭画布。
  *
- * ── 这一步不做的 ────────────────────────────────────────────────────────
- * 「逐镜生成」（第 4 步，走点数）与「助手按总时长分配」（第 3 步，等自主度定稿）都不在这里。
+ * ── 这一刀不做的 ────────────────────────────────────────────────────────
+ * 素材列（H2）· 拉片（H4）· 逐镜出片（H3，走点数）· 多选统一改与手机（H5）。
+ * 空表三颗键里「让助手填」「拉片」先摆着、不能点。
  */
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from 'react'
-import { createPortal } from 'react-dom'
+import { useCallback, useMemo, useState, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 
 import {
   ChevronDown,
-  ChevronLeft,
   Columns,
   Locate,
   Lock,
   LockOpen,
-  Undo2,
+  Plus,
 } from '@/components/icons'
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import {
@@ -46,6 +41,7 @@ import {
 } from '@/constants/shot-spec'
 import {
   buildShotTableRows,
+  compactShotlist,
   summarizeShotTable,
   type ShotTableRow,
 } from '@/lib/shot-table-rows'
@@ -68,13 +64,12 @@ export interface ShotTableProps {
   readonly characterCards: readonly CharacterCardRecord[]
   dispatch(op: NodeAssistantOpV4): boolean
   dispatchBatch(ops: readonly NodeAssistantOpV4[]): unknown
-  readonly canUndo: boolean
-  onUndo(): void
-  onExit(): void
-  /** 「回到这张卡」：关模式 + 定位并选中。 */
-  onBackToNode(nodeId: string): void
-  /** 画布那块助手面板（同剪辑台：头像留在顶栏最右那一格）。 */
-  readonly assistant?: ReactNode
+  /** 「+ 加一镜」/ 空表「自己写」：在画布上长一张新镜头卡（位置由宿主算）。 */
+  onAddShot(): void
+  /** 「回到这张卡」：定位并选中。 */
+  onLocate(nodeId: string): void
+  /** 每行右缘那颗出口（画布给；单测不给）。 */
+  renderRowPort?(nodeId: string): ReactNode
 }
 
 /** 一次撤销里改一行的几格（`set_shot_spec` 的补丁形状）。 */
@@ -85,40 +80,17 @@ type ShotSpecPatch = {
   durationLocked?: boolean | null
 }
 
-function isTypingTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false
-  return (
-    target.isContentEditable ||
-    target.tagName === 'INPUT' ||
-    target.tagName === 'TEXTAREA' ||
-    target.tagName === 'SELECT'
-  )
-}
-
-/** 去掉空键；整份都空了就是「没设过」（`set_shotlist` 省略 = 清空，撤销能退回不存在）。 */
-function compactShotlist(
-  shotlist: NodeWorkflowShotlist,
-): NodeWorkflowShotlist | undefined {
-  const next: NodeWorkflowShotlist = {}
-  if (shotlist.look) next.look = shotlist.look
-  if (shotlist.totalDurationSec)
-    next.totalDurationSec = shotlist.totalDurationSec
-  if (shotlist.hiddenColumns && shotlist.hiddenColumns.length > 0) {
-    next.hiddenColumns = shotlist.hiddenColumns
-  }
-  return Object.keys(next).length > 0 ? next : undefined
-}
+/** 空表的三条来路（mock 11-03 晚）。H1 只有「自己写」能点。 */
+const SHOT_TABLE_SOURCES = ['write', 'assistant', 'breakdown'] as const
 
 export function ShotTable({
   state,
   characterCards,
   dispatch,
   dispatchBatch,
-  canUndo,
-  onUndo,
-  onExit,
-  onBackToNode,
-  assistant,
+  onAddShot,
+  onLocate,
+  renderRowPort,
 }: ShotTableProps) {
   const t = useTranslations('StudioNode.shotTable')
   const shotlist = state.shotlist
@@ -183,6 +155,7 @@ export function ShotTable({
     [dispatchBatch],
   )
 
+  /** ⚠ 整份替换：`compactShotlist` 会带上 `board`，否则改一下风格表就从画布上消失。 */
   const patchShotlist = useCallback(
     (patch: Partial<NodeWorkflowShotlist>) => {
       dispatch({
@@ -205,196 +178,163 @@ export function ShotTable({
     [hidden, patchShotlist],
   )
 
-  /* ── 键盘：Esc 回画布 · ⌘Z 撤销（输入框里一律让开）─────────────────── */
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (isTypingTarget(event.target)) return
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        onExit()
-        return
-      }
-      if (
-        (event.metaKey || event.ctrlKey) &&
-        !event.shiftKey &&
-        event.key.toLowerCase() === 'z' &&
-        canUndo
-      ) {
-        event.preventDefault()
-        onUndo()
-      }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [canUndo, onExit, onUndo])
-
-  const root = (
+  return (
     <div
       data-testid="shot-table"
       role="region"
       aria-label={t('title')}
-      className="fixed inset-0 z-canvas-workspace flex"
+      className="flex flex-col text-foreground"
     >
-      <div className="flex min-w-0 flex-1 flex-col bg-background text-foreground">
-        {/* 顶栏：回画布 · 标题 · 全片风格 · 总时长 · 读数 ｜ 列 · 撤销 */}
-        <div
-          data-testid="shot-table-top-bar"
-          className={cn(
-            'flex h-12 shrink-0 items-center gap-2.5 border-b border-border bg-background px-3.5',
-            assistant && 'pr-16',
-          )}
-        >
-          <button
-            type="button"
-            data-testid="shot-table-back"
-            onClick={onExit}
-            className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg pl-1.5 pr-3 text-2sm text-muted-foreground transition-colors duration-fast hover:bg-surface-fill hover:text-foreground"
-          >
-            <ChevronLeft className="size-4 shrink-0" aria-hidden />
-            <span>{t('back')}</span>
-          </button>
-          <span className="shrink-0 text-sm font-semibold">{t('title')}</span>
-
-          <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">
-            <PillInput
-              testId="shot-table-film-look"
-              label={t('filmLook')}
-              value={shotlist?.look ?? ''}
-              placeholder={t('filmLookEmpty')}
-              maxLength={SHOT_SPEC_LIMITS.lookMaxLength}
-              onCommit={(look) => patchShotlist({ look: look || undefined })}
-            />
-            <PillInput
-              testId="shot-table-total-duration"
-              label={t('totalDuration')}
-              value={
-                shotlist?.totalDurationSec
-                  ? String(shotlist.totalDurationSec)
-                  : ''
-              }
-              placeholder={t('totalDurationEmpty')}
-              suffix="s"
-              numeric
-              onCommit={(raw) => {
-                const seconds = Number(raw)
-                patchShotlist({
-                  totalDurationSec:
-                    Number.isFinite(seconds) && seconds > 0
-                      ? Math.min(
-                          Math.round(seconds),
-                          SHOT_SPEC_LIMITS.totalDurationMaxSeconds,
-                        )
-                      : undefined,
-                })
-              }}
-            />
-            <span
-              data-testid="shot-table-summary"
-              className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground"
+      {/* 表头：全片风格 · 总时长 · 列 ▾ ｜ 读数 · + 加一镜 */}
+      <div
+        data-testid="shot-table-top-bar"
+        className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-3.5"
+      >
+        <PillInput
+          testId="shot-table-film-look"
+          label={t('filmLook')}
+          value={shotlist?.look ?? ''}
+          placeholder={t('filmLookEmpty')}
+          maxLength={SHOT_SPEC_LIMITS.lookMaxLength}
+          onCommit={(look) => patchShotlist({ look: look || undefined })}
+        />
+        <PillInput
+          testId="shot-table-total-duration"
+          label={t('totalDuration')}
+          value={
+            shotlist?.totalDurationSec ? String(shotlist.totalDurationSec) : ''
+          }
+          placeholder={t('totalDurationEmpty')}
+          suffix="s"
+          numeric
+          onCommit={(raw) => {
+            const seconds = Number(raw)
+            patchShotlist({
+              totalDurationSec:
+                Number.isFinite(seconds) && seconds > 0
+                  ? Math.min(
+                      Math.round(seconds),
+                      SHOT_SPEC_LIMITS.totalDurationMaxSeconds,
+                    )
+                  : undefined,
+            })
+          }}
+        />
+        <Popover>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              data-testid="shot-table-columns"
+              className="nodrag inline-flex h-8 shrink-0 items-center gap-1 rounded-lg px-2.5 text-2sm text-muted-foreground transition-colors duration-fast hover:bg-surface-fill hover:text-foreground"
             >
-              {t('summary', {
-                shots: summary.shots,
-                withVideo: summary.withVideo,
-                seconds: Number(summary.durationSec.toFixed(1)),
-              })}
-            </span>
-          </div>
-
-          <Popover>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                data-testid="shot-table-columns"
-                className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg px-2.5 text-2sm text-muted-foreground transition-colors duration-fast hover:bg-surface-fill hover:text-foreground"
+              <Columns className="size-4 shrink-0" aria-hidden />
+              <span>{t('columnsMenu')}</span>
+              <ChevronDown className="size-3.5 shrink-0" aria-hidden />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-48 p-1.5">
+            {SHOTLIST_OPTIONAL_COLUMNS.map((column) => (
+              <label
+                key={column}
+                className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-surface-fill"
               >
-                <Columns className="size-4 shrink-0" aria-hidden />
-                <span>{t('columnsMenu')}</span>
-                <ChevronDown className="size-3.5 shrink-0" aria-hidden />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent align="end" className="w-48 p-1.5">
-              {SHOTLIST_OPTIONAL_COLUMNS.map((column) => (
-                <label
-                  key={column}
-                  className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-surface-fill"
-                >
-                  <input
-                    type="checkbox"
-                    data-testid={`shot-table-column-${column}`}
-                    checked={!hidden.has(column)}
-                    onChange={() => toggleColumn(column)}
-                    className="size-3.5 accent-primary"
-                  />
-                  <span>{t(`columns.${column}`)}</span>
-                </label>
-              ))}
-            </PopoverContent>
-          </Popover>
-          <button
-            type="button"
-            data-testid="shot-table-undo"
-            aria-label={t('undo')}
-            title={t('undo')}
-            disabled={!canUndo}
-            onClick={onUndo}
-            className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors duration-fast hover:bg-surface-fill hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
-          >
-            <Undo2 className="size-4" aria-hidden />
-          </button>
-        </div>
+                <input
+                  type="checkbox"
+                  data-testid={`shot-table-column-${column}`}
+                  checked={!hidden.has(column)}
+                  onChange={() => toggleColumn(column)}
+                  className="size-3.5 accent-primary"
+                />
+                <span>{t(`columns.${column}`)}</span>
+              </label>
+            ))}
+          </PopoverContent>
+        </Popover>
 
-        {rows.length === 0 ? (
-          <div
-            data-testid="shot-table-empty"
-            className="flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center"
-          >
-            <p className="text-sm font-medium">{t('empty')}</p>
-            <p className="max-w-sm text-2sm text-muted-foreground">
-              {t('emptyHint')}
-            </p>
-          </div>
-        ) : (
-          <div className="min-h-0 flex-1 overflow-auto">
-            <table className="w-full min-w-max border-collapse text-sm">
-              <thead className="sticky top-0 z-10 bg-background">
-                <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                  <Th>{t('columns.shotNo')}</Th>
-                  <Th>{t('columns.frame')}</Th>
-                  <Th>{t('columns.size')}</Th>
-                  <Th>{t('columns.move')}</Th>
-                  <Th>{t('columns.note')}</Th>
-                  <Th>{t('columns.look')}</Th>
-                  {showDuration ? <Th>{t('columns.duration')}</Th> : null}
-                  {showCast ? <Th>{t('columns.cast')}</Th> : null}
-                  <Th>
-                    <span className="sr-only">{t('locate')}</span>
-                  </Th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row) => (
-                  <ShotTableRowView
-                    key={row.nodeId}
-                    row={row}
-                    showDuration={showDuration}
-                    showCast={showCast}
-                    onSpec={(spec) => setSpec(row.nodeId, spec)}
-                    onPrompt={(prompt) => setPrompt(row.nodeId, prompt)}
-                    onDuration={(seconds) => setDuration(row.nodeId, seconds)}
-                    onLocate={() => onBackToNode(row.nodeId)}
-                  />
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <span className="min-w-0 flex-1" aria-hidden />
+        <span
+          data-testid="shot-table-summary"
+          className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground"
+        >
+          {t('summary', {
+            shots: summary.shots,
+            withVideo: summary.withVideo,
+            seconds: Number(summary.durationSec.toFixed(1)),
+          })}
+        </span>
+        <button
+          type="button"
+          data-testid="shot-table-add-shot"
+          onClick={onAddShot}
+          className="nodrag inline-flex h-8 shrink-0 items-center gap-1 rounded-lg bg-primary pl-2 pr-3 text-2sm font-medium text-primary-foreground transition-colors duration-fast hover:bg-primary/90"
+        >
+          <Plus className="size-4 shrink-0" aria-hidden />
+          <span>{t('addShot')}</span>
+        </button>
       </div>
-      {assistant}
+
+      {rows.length === 0 ? (
+        <div data-testid="shot-table-empty" className="px-6 py-8">
+          <p className="mb-4 text-sm text-muted-foreground">{t('emptyLead')}</p>
+          <div className="grid grid-cols-3 gap-3">
+            {SHOT_TABLE_SOURCES.map((source) => {
+              const live = source === 'write'
+              return (
+                <button
+                  key={source}
+                  type="button"
+                  data-testid={`shot-table-source-${source}`}
+                  disabled={!live}
+                  onClick={live ? onAddShot : undefined}
+                  className="nodrag flex flex-col items-start gap-1 rounded-xl border border-border px-4 py-3.5 text-left transition-colors duration-fast hover:bg-surface-fill disabled:pointer-events-none disabled:opacity-40"
+                >
+                  <span className="text-sm font-semibold">
+                    {t(`sources.${source}.title`)}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {t(`sources.${source}.hint`)}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      ) : (
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            <tr className="border-b border-border text-left text-xs text-muted-foreground">
+              <Th>{t('columns.shotNo')}</Th>
+              <Th>{t('columns.frame')}</Th>
+              <Th>{t('columns.size')}</Th>
+              <Th>{t('columns.move')}</Th>
+              <Th>{t('columns.note')}</Th>
+              <Th>{t('columns.look')}</Th>
+              {showDuration ? <Th>{t('columns.duration')}</Th> : null}
+              {showCast ? <Th>{t('columns.cast')}</Th> : null}
+              <Th>
+                <span className="sr-only">{t('locate')}</span>
+              </Th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <ShotTableRowView
+                key={row.nodeId}
+                row={row}
+                showDuration={showDuration}
+                showCast={showCast}
+                onSpec={(spec) => setSpec(row.nodeId, spec)}
+                onPrompt={(prompt) => setPrompt(row.nodeId, prompt)}
+                onDuration={(seconds) => setDuration(row.nodeId, seconds)}
+                onLocate={() => onLocate(row.nodeId)}
+                port={renderRowPort?.(row.nodeId)}
+              />
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   )
-
-  if (typeof document === 'undefined') return root
-  return createPortal(root, document.body)
 }
 
 function Th({ children }: { readonly children: ReactNode }) {
@@ -409,6 +349,7 @@ function ShotTableRowView({
   onPrompt,
   onDuration,
   onLocate,
+  port,
 }: {
   readonly row: ShotTableRow
   readonly showDuration: boolean
@@ -417,13 +358,14 @@ function ShotTableRowView({
   onPrompt(prompt: string): void
   onDuration(seconds: number): void
   onLocate(): void
+  readonly port?: ReactNode
 }) {
   const t = useTranslations('StudioNode.shotTable')
   return (
     <tr
       data-testid="shot-table-row"
       data-node-id={row.nodeId}
-      className="border-b border-border align-top"
+      className="border-b border-border align-top last:border-b-0"
     >
       <td className="px-3 py-2.5 font-mono text-xs tabular-nums text-muted-foreground">
         {String(row.shotNo).padStart(2, '0')}
@@ -497,7 +439,7 @@ function ShotTableRowView({
                 onSpec({ durationLocked: row.durationLocked ? null : true })
               }
               className={cn(
-                'inline-flex size-7 items-center justify-center rounded-md transition-colors duration-fast hover:bg-surface-fill',
+                'nodrag inline-flex size-7 items-center justify-center rounded-md transition-colors duration-fast hover:bg-surface-fill',
                 row.durationLocked
                   ? 'text-foreground'
                   : 'text-muted-foreground',
@@ -532,17 +474,19 @@ function ShotTableRowView({
           </div>
         </td>
       ) : null}
-      <td className="px-3 py-2.5">
+      {/* 最右一格兼作出口的锚：`relative` 让画布挂的 handle 落在这一行的右缘正中。 */}
+      <td className="relative px-3 py-2.5">
         <button
           type="button"
           data-testid="shot-table-locate"
           aria-label={t('locate')}
           title={t('locate')}
           onClick={onLocate}
-          className="inline-flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors duration-fast hover:bg-surface-fill hover:text-foreground"
+          className="nodrag inline-flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors duration-fast hover:bg-surface-fill hover:text-foreground"
         >
           <Locate className="size-4" aria-hidden />
         </button>
+        {port}
       </td>
     </tr>
   )
@@ -610,7 +554,7 @@ function SizePicker({
           type="button"
           data-testid="shot-table-size"
           className={cn(
-            'inline-flex h-7 items-center gap-1 whitespace-nowrap rounded-md px-1.5 text-sm transition-colors duration-fast hover:bg-surface-fill',
+            'nodrag inline-flex h-7 items-center gap-1 whitespace-nowrap rounded-md px-1.5 text-sm transition-colors duration-fast hover:bg-surface-fill',
             !value && 'text-muted-foreground',
           )}
         >
@@ -695,7 +639,7 @@ function CellInput({
     onFocus: () => setDraft(value),
     onBlur: commit,
     className: cn(
-      'w-full resize-none rounded-md border border-transparent bg-transparent px-1.5 py-1 text-base text-foreground outline-none transition-colors duration-fast placeholder:text-muted-foreground hover:border-border focus:border-input focus:bg-card lg:text-sm',
+      'nodrag w-full resize-none rounded-md border border-transparent bg-transparent px-1.5 py-1 text-base text-foreground outline-none transition-colors duration-fast placeholder:text-muted-foreground hover:border-border focus:border-input focus:bg-card lg:text-sm',
       className,
     ),
   }
@@ -739,7 +683,7 @@ function CellInput({
   )
 }
 
-/** 顶栏那两颗胶囊（全片风格 / 总时长）：看是读数，点进去就地改。 */
+/** 表头那两颗胶囊（全片风格 / 总时长）：看是读数，点进去就地改。 */
 function PillInput({
   testId,
   label,
@@ -760,7 +704,7 @@ function PillInput({
   onCommit(next: string): void
 }) {
   return (
-    <label className="inline-flex h-8 min-w-0 shrink-0 items-center gap-1.5 rounded-full border border-border px-3 text-xs text-muted-foreground">
+    <label className="nodrag inline-flex h-8 min-w-0 shrink-0 items-center gap-1.5 rounded-full border border-border px-3 text-xs text-muted-foreground">
       <span className="shrink-0">{label}</span>
       <CellInput
         testId={testId}

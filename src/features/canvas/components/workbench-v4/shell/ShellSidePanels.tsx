@@ -50,6 +50,7 @@ import {
   FolderOpen,
   Images,
   PanelLeftClose,
+  Table,
   Upload,
 } from '@/components/icons'
 import { useLocale, useTranslations } from 'next-intl'
@@ -381,10 +382,12 @@ function ShellPanelFrame({
  */
 function ShellAddPanel({
   onAddNode,
+  onAddShotTable,
   onUpload,
   onPickFromLibrary,
 }: {
   onAddNode(intentId: CanvasAddIntentId): void
+  onAddShotTable(): void
   onUpload(): void
   onPickFromLibrary(): void
 }) {
@@ -446,6 +449,22 @@ function ShellAddPanel({
           })}
         </section>
       ))}
+      {/* 镜头表（H1）：⛔ 不进 `CANVAS_ADD_CATALOG` —— 那张表也是助手 `add_node` 的载荷
+          词表，而表不是一张卡（项目级一张，建 = `set_shotlist`）。已有表时点它 = 转过去。 */}
+      <section className="mt-1 flex flex-col gap-0.5 border-t border-node-panel-inner pt-1.5">
+        <button
+          type="button"
+          data-testid="shell-add-shot-table"
+          onClick={onAddShotTable}
+          className={rowClass}
+        >
+          <Table className="size-4 shrink-0 text-node-muted" aria-hidden />
+          <span className="truncate">{tAdd('shotTable')}</span>
+          <span className="ml-auto shrink-0 text-2xs text-node-muted">
+            {tAdd('shotTableHint')}
+          </span>
+        </button>
+      </section>
     </div>
   )
 }
@@ -1012,6 +1031,8 @@ export interface ShellSidePanelsProps {
   onPlaceCharacter(card: CharacterCardRecord): void
   /** 「添加节点」里点一项 —— 与 ⌘K 同一个落点（视口中央）。 */
   onAddNode(intentId: CanvasAddIntentId): void
+  /** 「添加节点」最后一行「镜头表」：没有就建，有了就转过去（与 ⌘K 同一个入口）。 */
+  onAddShotTable(): void
   /** 「当前项目」那一格的内容（`ShellProjectList`，与项目胶囊弹层同一份）。 */
   readonly projectPanel: React.ReactNode
   /** 「历史对话」那一格的内容（`CanvasAssistantHistoryPanel`）。 */
@@ -1028,6 +1049,7 @@ export function ShellSidePanels({
   placedCharacterIds,
   onPlaceCharacter,
   onAddNode,
+  onAddShotTable,
   projectPanel,
   historyPanel,
 }: ShellSidePanelsProps) {
@@ -1334,6 +1356,7 @@ export function ShellSidePanels({
               {panel === CANVAS_SHELL_PANEL_IDS.addNode ? (
                 <ShellAddPanel
                   onAddNode={onAddNode}
+                  onAddShotTable={onAddShotTable}
                   onUpload={onUpload}
                   onPickFromLibrary={() =>
                     onActivePanelChange(CANVAS_SHELL_PANEL_IDS.library)

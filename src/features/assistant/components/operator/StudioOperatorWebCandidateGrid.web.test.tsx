@@ -205,6 +205,17 @@ describe('找到的图 · 网格', () => {
     expect(screen.queryByTestId('operator-web-save')).toBeNull()
   })
 
+  it('「交给她」把选上的号按选的先后交出去，并清掉选择（owner 11-06）', () => {
+    const onHandOver = vi.fn()
+    renderGrid(many(3), { onHandOver })
+    const circles = screen.getAllByTestId('operator-web-candidate-use')
+    fireEvent.click(circles[2]!)
+    fireEvent.click(circles[0]!)
+    fireEvent.click(screen.getByTestId('operator-web-hand-over'))
+    expect(onHandOver).toHaveBeenCalledWith([3, 1])
+    expect(screen.queryByTestId('operator-web-bar')).toBeNull()
+  })
+
   it('选上的再点 = 取消；「清空」一次全清', () => {
     renderGrid(many(3))
     const circles = screen.getAllByTestId('operator-web-candidate-use')

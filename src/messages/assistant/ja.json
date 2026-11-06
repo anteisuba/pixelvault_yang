@@ -590,6 +590,8 @@
       "barSaving": "{count} 枚を素材に保存中…",
       "clear": "クリア",
       "save": "保存",
+      "handOver": "渡す",
+      "handOverPrompt": "これを見て：{refs}",
       "saveFailed": "{handle} を保存できませんでした：{reason}",
       "savedCandidate": "{handle} は素材に保存済み。@ で使えます",
       "moreImages": "あと {count} 枚",

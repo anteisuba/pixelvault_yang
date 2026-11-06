@@ -1218,6 +1218,17 @@ export function StudioOperatorPanel({
     ],
   )
 
+  /** 「交给她」（owner 11-06）：选上的 `#n` 用一句话交回去，她下一轮按号去看。 */
+  const handOverFinds = useCallback(
+    (numbers: readonly number[]) =>
+      submit(
+        t('web.handOverPrompt', {
+          refs: numbers.map((n) => `#${n}`).join(' '),
+        }),
+      ),
+    [submit, t],
+  )
+
   /** `@` 菜单多词查询一条都没中（打完 `@` 接着写了一句话）：放掉这个 `@`。 */
   useEffect(() => {
     if (mentionMenu.exhausted) inputRef.current?.dismissMention()
@@ -1575,6 +1586,7 @@ export function StudioOperatorPanel({
         placeholderCount={step.payload.limit}
         webImport={webImport.states[item.id]}
         onSave={webImport.saveCandidates}
+        onHandOver={handOverFinds}
         namedFinds={findRefs.named}
       />
     )

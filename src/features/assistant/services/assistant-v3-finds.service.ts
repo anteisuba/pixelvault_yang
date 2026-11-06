@@ -9,8 +9,10 @@ import {
 import { ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS } from '@/constants/assistant-v3'
 import { isWebImageSourceUsableAsInput } from '@/constants/web-image-sources'
 import {
+  describeWebFindLine,
   judgeWebImageFind,
   parseWebFindHandle,
+  webFindToWebImage,
   webImageToFind,
   webVideoToFind,
 } from '@/lib/assistant-web-finds'
@@ -101,6 +103,49 @@ export function sourcesOfStepResult(
       return parsed.success ? [parsed.data] : []
     })
     .slice(0, ASSISTANT_RESEARCH_LIMITS.maxEvidenceItems * 2)
+}
+
+/**
+ * 每一跳开头：旧执行器的两条连号接着本轮记录往下数，找到过的图回到准入名单，查证过的页的
+ * 搜索摘要回到 `run.researchSnippets`（11-06 补回：第 9c 步删旧内核时一并删了，上一轮的 `#n`
+ * 交回来认不出、编号从 #1 重排）。
+ *
+ * ⭐ 连号：下一条找到的东西从「已有最大号 + 1」起（上一轮带来的也算 —— 所以「用 #2」永远
+ *   只指一张）；`[n]` 同理，接力之后再查一次也不和前一跳的撞号。
+ * ⭐ 准入：`import_user_url` / `propose_character_images` 只认 `run.webImageIndex` 里的图；
+ *   接力那一跳与下一轮的 run 是新的，这里把记录里的图放回去。「能不能当参考」按域名现判
+ *   （`webFindToWebImage`），⛔ 不信往返带回来的结论。
+ */
+export function seedV3WebFinds(
+  run: Run,
+  transcript: AssistantV3Transcript,
+): void {
+  const finds = transcriptFinds(transcript)
+  const topFind = finds.reduce((max, find) => Math.max(max, find.n), 0)
+  run.webFindSeq = Math.max(run.webFindSeq, topFind + 1)
+  for (const find of finds)
+    if (find.kind === 'image' && !run.webImageIndex.has(find.imageUrl))
+      run.webImageIndex.set(find.imageUrl, webFindToWebImage(find))
+  const sources = transcriptSources(transcript)
+  const topCite = sources.reduce((max, source) => Math.max(max, source.cite), 0)
+  run.evidenceCiteSeq = Math.max(run.evidenceCiteSeq, topCite + 1)
+  // 搜索摘要回到 `read_url` 的最后一条退路（再读被挡时只交它，明说全文没读到）。
+  for (const source of sources)
+    if (source.snippet && !run.researchSnippets.has(source.url))
+      run.researchSnippets.set(source.url, {
+        title: source.title,
+        snippet: source.snippet,
+      })
+}
+
+/** 上一轮带来的那几条给模型的那一段（开轮冻进板子，每一跳逐字相同）。⛔ 不给地址。 */
+export function priorFindsText(
+  finds: readonly AssistantWebFind[],
+): string | null {
+  if (finds.length === 0) return null
+  return `FOUND ON THE WEB LAST TURN (still on the creator's screen under the earlier reply; same numbers):\n${finds
+    .map((find) => `  ${describeWebFindLine(find)}`)
+    .join('\n')}`
 }
 
 /** 本轮记录里所有找到的东西（板子上带来的在前，本轮的按先后）。 */

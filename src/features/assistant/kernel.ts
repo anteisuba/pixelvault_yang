@@ -46,6 +46,7 @@ import {
 import { logger } from '@/lib/logger'
 import { voiceCueRules } from '@/lib/chat-voice'
 import { openCharacterImages } from '@/lib/assistant-v3-cards-board'
+import { carriedWebFinds } from '@/lib/assistant-web-finds'
 import {
   assistantV3HistoryMessages,
   pinnedAssistantV3History,
@@ -120,6 +121,10 @@ import {
 } from '@/features/assistant/services/assistant-operator.service'
 import { loadPicture } from '@/features/assistant/services/assistant-v3-look.service'
 import { refused } from '@/features/assistant/services/assistant-v3-bench.service'
+import {
+  priorFindsText,
+  seedV3WebFinds,
+} from '@/features/assistant/services/assistant-v3-finds.service'
 import {
   joinPhrases,
   planSafely,
@@ -234,6 +239,12 @@ const CONTENT_FILTERED: Record<PromptAssistantResponseLanguage, string> = {
 
 const NOT_RUN_AFTER_STOP =
   'Not run: this turn stopped on a card to wait for the creator.'
+/**
+ * 网上找到的东西摆出来了（owner 11-06「摆出来就停」）：下一次只说话、不调工具，说完这一轮就停，
+ * 等创作者挑好按「交给她」。⛔ 换着词接着搜（11-06 真机一轮里连搜不停）。
+ */
+const FINDS_SHOWN =
+  'These are now in front of the creator as cards, and this turn ends with your next message — you cannot call tools in it. Say in a sentence or two which ones you would pick (by number) and why, judging only what you can actually see; they choose and hand the ones they want back to you.'
 /** 画布：同一步里前面的 edit 还在落，板子还不是新的样子。 */
 const NOT_RUN_WHILE_BOARD_CHANGES =
   'Not run: an edit earlier in this step is still landing on the board. Call it again in your next step if you still need it.'
@@ -889,9 +900,13 @@ async function* runNextTurn(
       : null
     // 「/」点名的技能：全文直接进这一轮的消息，不等模型自己去读。
     const called = renderCalledSkills(latestUserText, skills)
+    // 上一轮在网上找到的（`#n`）：冻进板子，「交给她」交回来的号才认得出（11-06）。
+    const priorFinds = carriedWebFinds(request.priorFinds ?? [])
     messages = [
       openingUserMessage(
-        [bench, called, voice, reminder].filter(Boolean).join('\n\n'),
+        [bench, priorFindsText(priorFinds), called, voice, reminder]
+          .filter(Boolean)
+          .join('\n\n'),
         pictures,
       ),
     ]
@@ -899,6 +914,7 @@ async function* runNextTurn(
       type: ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.board,
       text: bench.slice(0, ASSISTANT_V3_LIMITS.maxBoardChars),
       images: pictures.slice(0, ASSISTANT_V3_LIMITS.maxLookCards * 2),
+      ...(priorFinds.length ? { finds: priorFinds } : {}),
       turn: { id: turnId, hop },
     })
   }
@@ -907,6 +923,14 @@ async function* runNextTurn(
     transcript[0] = { ...opening, turn: { id: turnId, hop } }
     context.transcript[0] = { ...opening, turn: { id: turnId, hop } }
   }
+  // 接力：前几跳找到的、查证过的也接回这一跳的对照表，号接着往下排、图回到准入名单。
+  for (const entry of transcript.slice(1))
+    if (
+      entry.type === ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.result &&
+      (entry.finds?.length || entry.sources?.length)
+    )
+      context.transcript.push(entry)
+  seedV3WebFinds(run, transcript)
   // 画布：上一跳交给浏览器落的那一批，这一跳按落没落、新画面补上结果，再接着跑。
   if (saved?.pending) {
     const landed: ToolResultPart[] = saved.pending.canvas.map((edit) => {
@@ -1051,6 +1075,8 @@ async function* runNextTurn(
   /** 这一跳里失败过的调用（工具名 + 原样参数）→ 失败说明与当时做成过几步。 */
   const failedCalls = new Map<string, { output: string; okCount: number }>()
   let okCount = 0
+  /** 上一步把网上找到的东西摆出来了：这一步只说话（`FINDS_SHOWN`）。 */
+  let sayOnly = false
 
   for (let step = 0; ; step += 1) {
     if (signal.aborted) {
@@ -1122,7 +1148,7 @@ async function* runNextTurn(
           ...assistantNextTools(model.strictTools),
           ...model.nativeTools,
         },
-        toolChoice: 'auto',
+        toolChoice: sayOnly ? 'none' : 'auto',
         maxRetries: 2,
         ...(model.maxOutputTokens === undefined
           ? {}
@@ -1447,19 +1473,41 @@ async function* runNextTurn(
     let opening: { call: ClientCall; opening: BenchOpening } | null = null
     for (const call of calls) {
       const settle = (result: BenchResult) => {
+        // 角色页搜完要接着看、接着提议（propose_images 自己就是停在卡上），⛔ 在这里停。
+        const shown =
+          face !== ASSISTANT_V3_FACE_IDS.cards &&
+          !result.error &&
+          Boolean(result.finds?.length)
+        if (shown) {
+          sayOnly = true
+          // 看得见图的模型：缩略图跟着下一步摆到它眼前，说哪几张好要凭看到的。
+          if (context.seesImages)
+            for (const find of result.finds ?? [])
+              if (
+                find.kind === 'image' &&
+                looked.length < ASSISTANT_V3_LIMITS.maxLookCards
+              )
+                looked.push({
+                  url: find.thumbnailUrl ?? find.imageUrl,
+                  label: `#${find.n}`,
+                })
+        }
+        const output = shown
+          ? `${result.output}\n${FINDS_SHOWN}`
+          : result.output
         results.push({
           type: 'tool-result',
           toolCallId: call.toolCallId,
           toolName: call.toolName,
           output: result.error
-            ? { type: 'error-text', value: result.output }
-            : { type: 'text', value: result.output },
+            ? { type: 'error-text', value: output }
+            : { type: 'text', value: output },
         })
         transcript.push({
           type: ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.result,
           id: call.toolCallId.slice(0, ASSISTANT_V3_LIMITS.maxCallIdChars),
           tool: transcriptTool(call.toolName),
-          output: result.output.slice(0, ASSISTANT_V3_LIMITS.maxEntryChars),
+          output: output.slice(0, ASSISTANT_V3_LIMITS.maxEntryChars),
           error: result.error,
           ...(result.pictures?.length
             ? {

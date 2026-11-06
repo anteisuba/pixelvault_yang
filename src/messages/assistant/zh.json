@@ -590,6 +590,8 @@
       "barSaving": "正在收进素材库 {count} 张…",
       "clear": "清空",
       "save": "保存",
+      "handOver": "交给她",
+      "handOverPrompt": "看看这几个：{refs}",
       "saveFailed": "{handle} 没存上：{reason}",
       "savedCandidate": "{handle} 已存进素材库，可以 @ 它",
       "moreImages": "还有 {count} 张",

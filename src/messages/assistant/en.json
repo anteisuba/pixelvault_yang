@@ -590,6 +590,8 @@
       "barSaving": "Saving {count} to your library…",
       "clear": "Clear",
       "save": "Save",
+      "handOver": "Hand over",
+      "handOverPrompt": "Take a look at these: {refs}",
       "saveFailed": "{handle} wasn't saved: {reason}",
       "savedCandidate": "{handle} is in your library — @ it to use it",
       "moreImages": "{count} more",

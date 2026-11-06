@@ -93,6 +93,8 @@ interface StudioOperatorWebCandidateGridProps {
   webImport: StudioOperatorWebImportState | undefined
   /** 「保存」：把选上的几张收进素材库。缺席 = 只能看（⛔ 不画圈）。 */
   onSave?(entryId: string, images: readonly AssistantOperatorWebImage[]): void
+  /** 「交给她」（owner 11-06）：把选上的 `#n` 发给助手接着看。 */
+  onHandOver?(numbers: readonly number[]): void
   /** 回复点名的那几张（`operatorFindKey`）：常驻一圈细黑框。 */
   namedFinds?: ReadonlySet<string>
 }
@@ -104,6 +106,7 @@ export function StudioOperatorWebCandidateGrid({
   placeholderCount = ASSISTANT_OPERATOR_LIMITS.maxWebImageResults,
   webImport,
   onSave,
+  onHandOver,
   namedFinds = NO_NAMED,
 }: StudioOperatorWebCandidateGridProps) {
   const t = useTranslations('StudioOperator')
@@ -142,6 +145,13 @@ export function StudioOperatorWebCandidateGrid({
   const save = () => {
     if (!onSave || !stagedImages.length) return
     onSave(entryId, stagedImages)
+    setStaged([])
+  }
+
+  const handOver = () => {
+    const numbers = stagedImages.flatMap((image) => (image.n ? [image.n] : []))
+    if (!onHandOver || !numbers.length) return
+    onHandOver(numbers)
     setStaged([])
   }
 
@@ -290,10 +300,24 @@ export function StudioOperatorWebCandidateGrid({
                 type="button"
                 data-testid="operator-web-save"
                 onClick={save}
-                className="h-7 shrink-0 rounded-lg bg-background px-3 font-medium text-foreground transition-transform duration-fast ease-standard active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+                className={
+                  onHandOver
+                    ? 'h-7 shrink-0 rounded-lg px-2.5 text-background/70 transition-colors duration-fast ease-standard hover:text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none'
+                    : 'h-7 shrink-0 rounded-lg bg-background px-3 font-medium text-foreground transition-transform duration-fast ease-standard active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none'
+                }
               >
                 {t('web.save')}
               </button>
+              {onHandOver ? (
+                <button
+                  type="button"
+                  data-testid="operator-web-hand-over"
+                  onClick={handOver}
+                  className="h-7 shrink-0 rounded-lg bg-background px-3 font-medium text-foreground transition-transform duration-fast ease-standard active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+                >
+                  {t('web.handOver')}
+                </button>
+              ) : null}
             </>
           ) : (
             <Spinner size="sm" className="mr-2 text-background" />

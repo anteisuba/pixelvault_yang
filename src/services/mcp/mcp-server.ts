@@ -4,6 +4,7 @@ import {
   acceptedContent,
   CLIENT_CAPABILITIES_META_KEY,
   inputRequired,
+  inputResponse,
   type AuthInfo,
   type CallToolResult,
   type InputRequiredResult,
@@ -163,8 +164,9 @@ async function guard<R extends CallToolResult | InputRequiredResult>(
 
 /* ─── 出图确认（§4.4）────────────────────────────────────────────────── */
 
+// 默认勾上：她点「接受」就是要出图；只有亲手取消勾选才算不要。
 const ConfirmSchema = z.object({
-  confirm: z.boolean().describe('Generate it'),
+  confirm: z.boolean().default(true).describe('Generate it'),
 })
 
 /**
@@ -200,16 +202,27 @@ async function runGenerate(
     const pending = await readPendingSummary(owner, state)
     // 已经定过 / 过期：照实说，⛔ 不再发起一条新的。
     if (!pending) return textResult(await getGenerationForMcp(owner, state))
-    if (ctx.mcpReq.inputResponses?.[MCP_CONFIRM_INPUT_KEY] !== undefined) {
+    const response = inputResponse(
+      ctx.mcpReq.inputResponses,
+      MCP_CONFIRM_INPUT_KEY,
+    )
+    if (response.kind !== 'missing') {
       const answer = acceptedContent(
         ctx.mcpReq.inputResponses,
         MCP_CONFIRM_INPUT_KEY,
         ConfirmSchema,
       )
-      const decision = answer?.confirm === true ? 'confirm' : 'decline'
-      const decided = await decideGenerationRequest(owner, state, decision)
-      if (decision === 'decline' || !decided)
-        return textResult('The user declined this generation.')
+      // 只有「接受」才算数。拒绝 / 关掉 / 取消勾选都不作废：有的客户端不弹框就自动回
+      // decline（11-06 桌面端实测），分不出是不是她亲手点的；请求留着等她去网站确认，
+      // 没确认就过期，一张不出。
+      if (
+        response.kind !== 'elicit' ||
+        response.action !== 'accept' ||
+        answer?.confirm === false
+      )
+        return confirmOnSiteResult(pending)
+      const decided = await decideGenerationRequest(owner, state, 'confirm')
+      if (!decided) return textResult(await getGenerationForMcp(owner, state))
       return textResult(
         `${await getGenerationForMcp(owner, state)}\nrequestId: ${state} — poll get_generation until the pictures are done.`,
       )
@@ -233,6 +246,13 @@ function askToConfirm(
       },
       requestState: pending.requestId,
     })
+  return confirmOnSiteResult(pending)
+}
+
+function confirmOnSiteResult(pending: {
+  requestId: string
+  summary: string
+}): CallToolResult {
   return textResult(
     `Nothing is generated yet: the user has to confirm it themselves. Tell them to open ${confirmOnSiteUrl()} and confirm "${pending.summary}" (it waits 30 minutes). Then poll get_generation with requestId ${pending.requestId}.`,
   )

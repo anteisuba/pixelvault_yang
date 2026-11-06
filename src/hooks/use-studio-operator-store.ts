@@ -926,6 +926,11 @@ export function operatorStepEntryId(runKey: string, stepId: string): string {
 export function upsertOperatorStep(
   step: AssistantOperatorStep,
   runKey: string,
+  /**
+   * 新的一步插到末尾这几条正文**前面**（⛔ 已有的那一步不挪）：厂商自己跑的联网只在说完之后补一行，
+   * 而它查在说之前 —— 追加在后面，那段回答就成了「查之前的旁白」被折进过程行（11-05 聊天里回复整段不见）。
+   */
+  beforeTrailing: readonly string[] = [],
 ): void {
   const entryId = operatorStepEntryId(runKey, step.id)
   const index = state.entries.findIndex(
@@ -940,10 +945,17 @@ export function upsertOperatorStep(
     runKey,
     undone: existing?.undone ?? false,
   }
+  let at = state.entries.length
+  while (
+    at > 0 &&
+    state.entries[at - 1]!.kind === 'message' &&
+    beforeTrailing.includes(state.entries[at - 1]!.id)
+  )
+    at -= 1
   const entries =
     index >= 0
       ? state.entries.map((entry, i) => (i === index ? nextEntry : entry))
-      : [...state.entries, nextEntry]
+      : [...state.entries.slice(0, at), nextEntry, ...state.entries.slice(at)]
   // 「跑完几步」数的是 `done` 的那一次 —— `running` 也数就会一步顶两步。
   const stepsDone =
     step.status === 'done' && existing?.step.status !== 'done'

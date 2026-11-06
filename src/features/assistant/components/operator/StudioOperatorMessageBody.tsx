@@ -67,7 +67,7 @@ import {
   type OperatorFindRef,
 } from '@/lib/studio-operator-timeline'
 import { usePictureNumberReferences } from '@/hooks/use-picture-number-references'
-import { withoutVoiceCuesInProse } from '@/lib/chat-voice'
+import { chatBubbleParts, withoutVoiceCuesInProse } from '@/lib/chat-voice'
 import { cn } from '@/lib/utils'
 import type { NamedImageReference } from '@/lib/studio-reference-mentions'
 import type { AssistantMention } from '@/types/assistant-mention'
@@ -533,6 +533,7 @@ export function StudioOperatorChatText({
   streaming: boolean
   references?: readonly NamedImageReference[]
 }) {
+  const t = useTranslations('StudioOperator')
   const numbered = usePictureNumberReferences(streaming ? '' : text)
   const all = useMemo(
     () => (numbered.length ? [...references, ...numbered] : references),
@@ -542,9 +543,37 @@ export function StudioOperatorChatText({
     <StudioOperatorChatBubbles
       text={text}
       streaming={streaming}
-      renderBubble={(bubble) => withImageReferences(bubble, all)}
+      renderBubble={(bubble) =>
+        chatBubbleParts(bubble).map((part, index) =>
+          typeof part === 'string' ? (
+            <Fragment key={index}>{withImageReferences(part, all)}</Fragment>
+          ) : (
+            // 出处（owner 11-06「标题加上蓝色可点」）：写网站名、强调色，点了在新页打开（ui-spec §3.1 链接例外）。
+            <a
+              key={index}
+              href={part.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={part.url}
+              data-testid="operator-chat-citation"
+              aria-label={t('answer.citation', { index: part.cite })}
+              className="mx-1 whitespace-nowrap text-highlight underline-offset-2 hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:shadow-focus"
+            >
+              {siteOf(part.url)}
+            </a>
+          ),
+        )
+      }
     />
   )
+}
+
+function siteOf(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '')
+  } catch {
+    return url
+  }
 }
 
 export function StudioOperatorMessageBody({

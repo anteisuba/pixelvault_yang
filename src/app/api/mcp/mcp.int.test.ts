@@ -337,7 +337,7 @@ describe('/api/mcp generate（她在客户端里确认）', () => {
     expect((await requests())[0]).toMatchObject({ status: 'confirmed' })
   })
 
-  it('她拒了：记下拒绝，一张都不出', async () => {
+  it('客户端回了拒绝：一张不出，请求留着叫她去网站上确认', async () => {
     const asked = (await rpc2026('generate', ARGS))?.result as {
       requestState: string
     }
@@ -347,8 +347,55 @@ describe('/api/mcp generate（她在客户端里确认）', () => {
       inputResponses: { confirm: { action: 'decline' } },
     })
 
-    expect(JSON.stringify(body?.result)).toContain('declined')
-    expect((await requests())[0]).toMatchObject({ status: 'declined' })
+    expect(JSON.stringify(body?.result)).toContain('/settings/connections')
+    expect((await requests())[0]).toMatchObject({ status: 'pending' })
+    expect(await jobs()).toEqual([])
+  })
+
+  it('她点了接受但表单没带勾选值：照样算确认', async () => {
+    await seedAssistantKey(me.id, AI_ADAPTER_TYPES.OPENAI)
+    const asked = (await rpc2026('generate', ARGS))?.result as {
+      requestState: string
+    }
+
+    await rpc2026('generate', ARGS, {
+      requestState: asked.requestState,
+      inputResponses: { confirm: { action: 'accept', content: {} } },
+    })
+
+    expect((await requests())[0]).toMatchObject({ status: 'confirmed' })
+    expect(await jobs()).toHaveLength(1)
+  })
+
+  it('她接受时亲手取消了勾选：一张不出，请求留着', async () => {
+    const asked = (await rpc2026('generate', ARGS))?.result as {
+      requestState: string
+    }
+
+    await rpc2026('generate', ARGS, {
+      requestState: asked.requestState,
+      inputResponses: {
+        confirm: { action: 'accept', content: { confirm: false } },
+      },
+    })
+
+    expect((await requests())[0]).toMatchObject({ status: 'pending' })
+    expect(await jobs()).toEqual([])
+  })
+
+  it('她关掉了确认框：请求留着，叫她去网站上确认', async () => {
+    const asked = (await rpc2026('generate', ARGS))?.result as {
+      requestState: string
+    }
+
+    const body = await rpc2026('generate', ARGS, {
+      requestState: asked.requestState,
+      inputResponses: { confirm: { action: 'cancel' } },
+    })
+
+    const text = JSON.stringify(body?.result)
+    expect(text).toContain('/settings/connections')
+    expect((await requests())[0]).toMatchObject({ status: 'pending' })
     expect(await jobs()).toEqual([])
   })
 

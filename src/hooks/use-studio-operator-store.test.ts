@@ -167,6 +167,36 @@ describe('日志条按 id 覆盖', () => {
     expect(result.current.stepsDone).toBe(1)
   })
 
+  it('说完才补的那一步插回这段正文前面；已有的那一步不挪（11-05 聊天回复整段被折走）', () => {
+    const result = readState()
+    act(() => {
+      store.appendOperatorEntry({
+        kind: 'user',
+        id: 'u1',
+        text: '查一下',
+        attachments: [],
+      })
+      store.appendOperatorStreamingMessage('m0', '主人，查到了～')
+      store.upsertOperatorStep(DONE, RUN, ['m0'])
+    })
+    expect(result.current.entries.map((entry) => entry.id)).toEqual([
+      'u1',
+      `${RUN}:step-1`,
+      'm0',
+    ])
+
+    act(() => {
+      store.appendOperatorStreamingMessage('m1', '再看看')
+      store.upsertOperatorStep(DONE, RUN, ['m1'])
+    })
+    expect(result.current.entries.map((entry) => entry.id)).toEqual([
+      'u1',
+      `${RUN}:step-1`,
+      'm0',
+      'm1',
+    ])
+  })
+
   it('撤销标记跨越同一步的再次 upsert 不丢', () => {
     const result = readState()
     act(() => store.upsertOperatorStep(DONE, RUN))

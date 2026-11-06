@@ -2165,7 +2165,16 @@
         "locate": "Show on canvas",
         "remove": "Remove from this shot",
         "addTitle": "Add material to shot {shotNo}",
-        "filmEmpty": "No other materials yet — materials used in other shots show up here"
+        "removeFromFilm": "Remove “{name}” from film materials",
+        "pickMore": "Canvas /<br></br>Characters",
+        "pickCanvas": "On the canvas",
+        "pickLibrary": "Characters",
+        "pickEmpty": "No other materials on the canvas or in Characters",
+        "pickAdd": "Add “{name}” to shot {shotNo}"
+      },
+      "canvas": {
+        "shotCount": "{count, plural, one {# shot} other {# shots}}",
+        "dropHint": "Release to add to film materials"
       }
     }
   }

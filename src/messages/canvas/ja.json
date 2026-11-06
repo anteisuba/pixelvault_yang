@@ -2165,7 +2165,16 @@
         "locate": "キャンバスで表示",
         "remove": "このカットから外す",
         "addTitle": "カット {shotNo} に素材を追加",
-        "filmEmpty": "ほかの素材はまだありません。他のカットで使った素材がここに並びます"
+        "removeFromFilm": "「{name}」を全体の素材から外す",
+        "pickMore": "キャンバス /<br></br>キャラから",
+        "pickCanvas": "キャンバス上",
+        "pickLibrary": "キャラクター",
+        "pickEmpty": "キャンバスにもキャラクターにも、ほかの素材はありません",
+        "pickAdd": "「{name}」をカット {shotNo} に追加"
+      },
+      "canvas": {
+        "shotCount": "{count} ショット",
+        "dropHint": "離すと全体の素材に追加"
       }
     }
   }

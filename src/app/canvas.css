@@ -1432,6 +1432,20 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
   opacity: 0.4;
 }
 
+/* 点着的那张素材（H2b）：蓝边、离卡 2px —— 替掉墨色选中环。宽度由卡壳按缩放内联补。 */
+.node-card-focus {
+  outline: 2px solid var(--highlight);
+  outline-offset: 2px;
+}
+
+/* 拖一张素材卡压在表上（H2b mock ③）：表描蓝边 + 一圈浅蓝光晕 = 松手就进全片素材。 */
+.shot-table-drop-target {
+  outline: 2px solid var(--highlight);
+  box-shadow:
+    var(--shadow-node-card),
+    0 0 0 8px var(--highlight-soft);
+}
+
 /* 落线被拒的那一下红环（理由走 toast，⛔ 不静默失败）。 */
 .node-card-reject {
   outline: 2px solid var(--node-status-failed);
@@ -1454,6 +1468,28 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
 .react-flow__edge-path.node-slot-edge.node-slot-edge--active {
   stroke: var(--node-foreground);
   stroke-width: 2;
+}
+
+/* 表坐上画布时（H2b，`canvas-shotlist.md` 第 26 条，mock 11-03 画布版）：
+   素材 → 镜头卡的直连线退成淡线（线还在、生成照旧用）；点着一张素材时它的线变蓝
+   （到表的那几根实线，直连的那几根淡蓝），别的线压暗。强调色只表示「选中了」。 */
+.react-flow__edge-path.node-slot-edge.node-slot-edge--faded {
+  stroke-width: 1;
+  opacity: 0.2;
+}
+
+.react-flow__edge-path.node-slot-edge.node-slot-edge--focus {
+  stroke: var(--highlight);
+  stroke-width: 2;
+}
+
+.react-flow__edge-path.node-slot-edge.node-slot-edge--focus-soft {
+  stroke: var(--highlight);
+  opacity: 0.5;
+}
+
+.react-flow__edge-path.node-slot-edge.node-slot-edge--dimmed {
+  opacity: 0.2;
 }
 
 /* 线中点的槽名胶囊（画板 `.ech`）。 */

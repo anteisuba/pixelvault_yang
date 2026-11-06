@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import { NODE_SLOT_IDS, NODE_SLOT_OUTPUT_IDS } from '@/constants/node-slots'
 import { zh as messages } from '@/messages'
+import type { CharacterCardRecord } from '@/types'
 import type {
   NodeV4,
   NodeV4Data,
@@ -44,6 +45,8 @@ function setup(
   options: {
     readonly withPorts?: boolean
     readonly edges?: readonly NodeWorkflowEdgeV4[]
+    readonly characterCards?: readonly CharacterCardRecord[]
+    readonly focusSourceId?: string
   } = {},
 ) {
   const dispatch = vi.fn(() => true)
@@ -60,7 +63,7 @@ function setup(
     <NextIntlClientProvider locale="zh" messages={messages}>
       <ShotTable
         state={state}
-        characterCards={[]}
+        characterCards={options.characterCards ?? []}
         dispatch={dispatch}
         dispatchBatch={dispatchBatch}
         onAddShot={onAddShot}
@@ -70,7 +73,14 @@ function setup(
               renderRowPort: (nodeId: string) => (
                 <span data-testid="row-port" data-for={nodeId} />
               ),
+              renderRowInPort: (nodeId: string) => (
+                <span data-testid="row-in-port" data-for={nodeId} />
+              ),
+              renderTopInPort: () => <span data-testid="top-in-port" />,
             }
+          : {})}
+        {...(options.focusSourceId
+          ? { focusSourceId: options.focusSourceId }
           : {})}
       />
     </NextIntlClientProvider>,
@@ -213,13 +223,19 @@ describe('ShotTable', () => {
     expect(screen.queryByTestId('shot-table-undo')).toBeNull()
   })
 
-  it('每行右缘一颗出口，按行序给到这一镜的 id', () => {
+  it('每行右缘一颗出口、左缘一颗入口，按行序给到这一镜的 id；表头一颗入口', () => {
     setup([shot('b', 2), shot('a', 1)], undefined, { withPorts: true })
     expect(
       screen
         .getAllByTestId('row-port')
         .map((port) => port.getAttribute('data-for')),
     ).toEqual(['a', 'b'])
+    expect(
+      screen
+        .getAllByTestId('row-in-port')
+        .map((port) => port.getAttribute('data-for')),
+    ).toEqual(['a', 'b'])
+    expect(screen.getAllByTestId('top-in-port')).toHaveLength(1)
   })
 
   describe('素材列（H2a）', () => {
@@ -354,6 +370,125 @@ describe('ShotTable', () => {
       fireEvent.click(scene)
       fireEvent.click(screen.getByTestId('shot-table-material-locate'))
       expect(onLocate).toHaveBeenCalledWith('bg')
+    })
+  })
+
+  describe('全片素材与画布侧（H2b）', () => {
+    const image = (id: string, subtype: string, name = id): NodeV4 => ({
+      id,
+      position: { x: 0, y: 0 },
+      data: {
+        kind: 'image',
+        subtype,
+        name,
+        status: 'idle',
+        createdAt: NOW,
+        url: `https://cdn/${id}.png`,
+      } as NodeV4Data,
+    })
+    const edge = (
+      id: string,
+      source: string,
+      target: string,
+    ): NodeWorkflowEdgeV4 => ({
+      id,
+      source,
+      sourceHandle: NODE_SLOT_OUTPUT_IDS.out,
+      target,
+      slot: NODE_SLOT_IDS.reference,
+    })
+    const LIB = {
+      id: 'lib-qiu',
+      name: '秋',
+      looks: [],
+    } as unknown as CharacterCardRecord
+    const nodes = [
+      shot('a', 1, { prompt: '雪落' } as Partial<NodeV4Data>),
+      shot('b', 2, { prompt: '车来' } as Partial<NodeV4Data>),
+      image('bg', 'background', '街道'),
+      image('tv', 'reference', '电视'),
+      image('cat', 'reference', '猫'),
+    ]
+
+    it('「+」里闲着的才有 ✕；点 ✕ = 一条 set_shotlist 移出，board 照留', () => {
+      const { dispatch } = setup(
+        nodes,
+        { materials: ['tv', 'bg'], board: { x: 1, y: 2 } },
+        { edges: [edge('e1', 'bg', 'a')] },
+      )
+      fireEvent.click(screen.getAllByTestId('shot-table-material-add')[1]!)
+      const items = screen.getAllByTestId('shot-table-material-add-item')
+      expect(items.map((item) => item.getAttribute('data-source'))).toEqual([
+        'bg',
+        'tv',
+      ])
+      expect(items.map((item) => item.getAttribute('data-idle'))).toEqual([
+        null,
+        'true',
+      ])
+      const removes = screen.getAllByTestId('shot-table-material-film-remove')
+      expect(removes.map((x) => x.getAttribute('data-source'))).toEqual(['tv'])
+      fireEvent.click(removes[0]!)
+      expect(dispatch).toHaveBeenCalledWith({
+        op: NODE_ASSISTANT_OP_V4_IDS.setShotlist,
+        shotlist: { board: { x: 1, y: 2 }, materials: ['bg'] },
+      })
+    })
+
+    it('「从画布 / 角色库拿」= 两段格子；点一张 = 加进这一镜', () => {
+      const { dispatch } = setup(
+        nodes,
+        { materials: ['tv'] },
+        { edges: [edge('e1', 'bg', 'a')], characterCards: [LIB] },
+      )
+      fireEvent.click(screen.getAllByTestId('shot-table-material-add')[1]!)
+      fireEvent.click(screen.getByTestId('shot-table-material-pick-more'))
+      expect(screen.queryByTestId('shot-table-material-add-item')).toBeNull()
+      const canvas = screen.getByTestId('shot-table-material-picks-canvas')
+      const library = screen.getByTestId('shot-table-material-picks-library')
+      expect(canvas.textContent).toContain('画布上的')
+      expect(library.textContent).toContain('角色库')
+      const sources = (el: HTMLElement) =>
+        Array.from(
+          el.querySelectorAll('[data-testid="shot-table-material-pick"]'),
+        ).map((pick) => pick.getAttribute('data-source'))
+      expect(sources(canvas)).toEqual(['cat'])
+      expect(sources(library)).toEqual(['lib-qiu'])
+      // 格子下面写名字：同封面的人只看图分不出
+      expect(
+        screen
+          .getAllByTestId('shot-table-material-pick-name')
+          .map((name) => name.textContent),
+      ).toEqual(['猫', '秋'])
+      fireEvent.click(screen.getByLabelText('把「秋」加进镜 2'))
+      expect(dispatch).toHaveBeenCalledWith({
+        op: NODE_ASSISTANT_OP_V4_IDS.setPrompt,
+        target: 'b',
+        prompt: '车来 @秋',
+        mode: 'replace',
+      })
+    })
+
+    it('画布点着一张素材：用到它的行浅蓝、其它行变淡，它的格子描蓝边', () => {
+      setup(nodes, undefined, {
+        edges: [edge('e1', 'bg', 'b'), edge('e2', 'tv', 'a')],
+        focusSourceId: 'bg',
+      })
+      const rows = screen.getAllByTestId('shot-table-row')
+      expect(rows.map((row) => row.getAttribute('data-focus'))).toEqual([
+        'off',
+        'on',
+      ])
+      const tiles = screen.getAllByTestId('shot-table-material')
+      expect(
+        tiles.map((tile) => [
+          tile.getAttribute('data-source'),
+          tile.getAttribute('data-focused'),
+        ]),
+      ).toEqual([
+        ['tv', null],
+        ['bg', 'true'],
+      ])
     })
   })
 })

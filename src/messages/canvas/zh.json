@@ -2165,7 +2165,16 @@
         "locate": "在画布上看它",
         "remove": "从这镜移除",
         "addTitle": "加素材到镜 {shotNo}",
-        "filmEmpty": "全片还没有别的素材——其它镜挂上的素材会出现在这里"
+        "removeFromFilm": "从全片素材移出「{name}」",
+        "pickMore": "从画布 /<br></br>角色库拿",
+        "pickCanvas": "画布上的",
+        "pickLibrary": "角色库",
+        "pickEmpty": "画布上和角色库里都没有别的素材了",
+        "pickAdd": "把「{name}」加进镜 {shotNo}"
+      },
+      "canvas": {
+        "shotCount": "{count} 镜",
+        "dropHint": "松手 = 加进全片素材"
       }
     }
   }

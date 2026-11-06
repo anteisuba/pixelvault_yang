@@ -1329,6 +1329,15 @@ export const NodeWorkflowShotlistSchema = z.object({
    * 不进撤销栈）。⚠ 整份替换的写法（表头改风格 / 总时长）必须把它带上，否则表会跟着消失。
    */
   board: NodeWorkflowPositionSchema.optional(),
+  /**
+   * 全片素材（owner 2026-11-07 第 23 条）：拖到表上的画布卡 id。任何一镜在用的素材**不必**
+   * 在这里——读时自动算进全片素材；这里只多记「拖进来了、还没人用」的那几张。
+   * 卡被删后 id 留在这里也无害：读时按现存的卡过滤，下次写回顺手去掉（撤销删卡能原样回来）。
+   */
+  materials: z
+    .array(z.string().trim().min(1).max(160))
+    .max(SHOT_SPEC_LIMITS.filmMaterialsMax)
+    .optional(),
 })
 
 const NodeV4VideoShape = {

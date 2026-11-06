@@ -65,7 +65,21 @@ import {
   resolveNodeEdgeVisibility,
 } from '@/lib/node-edge-tier'
 import { isNodeWorkflowGenerating } from '@/lib/node-workflow-edge-visual'
-import { compactShotlist, listShotTableNodes } from '@/lib/shot-table-rows'
+import {
+  filmMaterialShots,
+  isFilmMaterialNode,
+  listIdleFilmMaterials,
+  planFilmMaterialAdd,
+} from '@/lib/shot-film-materials'
+import {
+  SHOT_MATERIAL_SLOTS,
+  type ShotMaterialSlot,
+} from '@/lib/shot-table-materials'
+import {
+  buildShotTableRows,
+  compactShotlist,
+  listShotTableNodes,
+} from '@/lib/shot-table-rows'
 import { planV4ConnectDrop } from '@/features/canvas/hooks/use-cast-ingest-v4'
 import type { EdgeSigning } from '@/features/canvas/hooks/use-edge-signing'
 import {
@@ -93,6 +107,11 @@ import { layoutSlideOffset, useLayoutSlide } from './use-layout-slide'
 import { CanvasSurface } from '../CanvasSurface'
 import { NODE_V4_COMPONENTS } from '../nodes/v4/registry'
 import { ShotTableNode } from '../shot-table/ShotTableNode'
+import {
+  SHOT_TABLE_CANVAS_IDLE,
+  ShotTableCanvasProvider,
+  type ShotTableCanvasState,
+} from '../shot-table/shot-table-canvas-context'
 import { useShotTableRfNode } from '../shot-table/use-shot-table-rf-node'
 
 /**
@@ -167,6 +186,34 @@ function nodeIdAtFlowPoint(
   }
   return hit
 }
+
+/** 指针在不在镜头表卡上（H2b：拖素材卡进全片素材）。表垫在最底下，压在它上面的卡先被找到。 */
+function pointOnShotTable(
+  nodeLookup: ReadonlyMap<
+    string,
+    {
+      readonly internals: { readonly positionAbsolute: XYPosition }
+      readonly measured: {
+        width?: number | undefined
+        height?: number | undefined
+      }
+    }
+  >,
+  point: XYPosition,
+): boolean {
+  const table = nodeLookup.get(SHOT_TABLE_ID)
+  if (!table) return false
+  const { x, y } = table.internals.positionAbsolute
+  return (
+    point.x >= x &&
+    point.x <= x + (table.measured.width ?? 0) &&
+    point.y >= y &&
+    point.y <= y + (table.measured.height ?? 0)
+  )
+}
+
+const isShotMaterialSlot = (slot: string): slot is ShotMaterialSlot =>
+  (SHOT_MATERIAL_SLOTS as readonly string[]).includes(slot)
 
 /** 卡的入口在流坐标里的位置；handle 还没量出来时退到卡左边中点。 */
 function inputPortFlowPoint(node: {
@@ -367,6 +414,43 @@ export function CanvasV4({
   const tableBoard = graph.state.shotlist?.board
   const shotTable = useShotTableRfNode(tableBoard)
 
+  /**
+   * 表坐上画布时的全片素材（H2b，`canvas-shotlist.md` 第 26 条）：每张素材卡被哪几镜用（「N 镜」
+   * 角标、到表左缘的线）+ 拖进来还闲着的（一根淡线到表顶）。表不在画布上 = 三样都不画。
+   */
+  const shotlist = graph.state.shotlist
+  const filmOnCanvas = useMemo(() => {
+    if (!tableBoard) return null
+    const rows = buildShotTableRows({ nodes, edges, shotlist })
+    const shots = filmMaterialShots(rows)
+    const idle = listIdleFilmMaterials({ nodes, shotlist, used: shots }).map(
+      (material) => material.sourceId,
+    )
+    return {
+      shots,
+      idle,
+      rowIds: new Set(rows.map((row) => row.nodeId)),
+      has: (id: string) => shots.has(id) || idle.includes(id),
+    }
+  }, [tableBoard, nodes, edges, shotlist])
+
+  /**
+   * 点着的素材：点一张素材卡 = 点着，再点一下 / 点空白 = 取消。只在它还是**唯一**选中的卡时
+   * 算数（选了别的卡、框选一片 = 自然取消）。
+   */
+  const [focusPick, setFocusPick] = useState<string | null>(null)
+  const focusId =
+    filmOnCanvas &&
+    focusPick &&
+    selectedNodeIds.length === 1 &&
+    selectedNodeIds[0] === focusPick &&
+    filmOnCanvas.has(focusPick)
+      ? focusPick
+      : null
+  /** 正压在表上、松手就进全片素材的那张卡（拖动中只在换状态时写一次）。 */
+  const [tableDrop, setTableDrop] = useState<string | null>(null)
+  const tableDropRef = useRef<string | null>(null)
+
   const slidNodes = useMemo(() => {
     if (slideLeft === 0) return rfNodes as NodeWorkflowNode[]
     return rfNodes.map((node) => {
@@ -447,6 +531,15 @@ export function CanvasV4({
         ...(signingPhase === 'fading' && !underlyingShouldRender
           ? { signingFadeOut: true }
           : {}),
+        // 表坐上画布后，素材 → 镜头卡的直连线退成淡线；点着这张素材时变淡蓝（第 26 条 ①）。
+        ...(filmOnCanvas &&
+        filmOnCanvas.rowIds.has(edge.target) &&
+        isShotMaterialSlot(edge.slot) &&
+        filmOnCanvas.shots.has(edge.source)
+          ? focusId === edge.source
+            ? { focusSoft: true }
+            : { faded: true }
+          : {}),
       }
       return { ...base, hidden: false, data }
     })
@@ -463,10 +556,61 @@ export function CanvasV4({
           selectable: false,
           deletable: false,
           focusable: false,
-          data: {},
+          // 点着一张素材时，没用到它的那几行的线压暗。
+          data:
+            focusId && !filmOnCanvas?.shots.get(focusId)?.includes(shot.id)
+              ? { dimmed: true }
+              : {},
         }))
       : []
-    const drawn = rowEdges.length > 0 ? [...live, ...rowEdges] : live
+
+    /**
+     * 素材卡右缘 → 表左缘（H2b）：平时一根，落在第一行用到它的那一行；点着它时散到每一行、
+     * 变蓝。闲着的（进了全片素材、还没人用）一根淡线到表顶。角色库的人不是画布卡，不画线。
+     * 纯画法：⛔ 不进 `state.edges`，不能选、不能删；收起关系线时只留点着的那张。
+     */
+    const materialEdges = []
+    if (filmOnCanvas) {
+      const materialEdge = (cardId: string, handle: string, idle: boolean) => {
+        const focused = focusId === cardId
+        return {
+          id: `${SHOT_TABLE_BOARD.materialEdgePrefix}${cardId}:${handle}`,
+          source: cardId,
+          sourceHandle: NODE_PORT_HANDLE_IDS.output,
+          target: SHOT_TABLE_ID,
+          targetHandle: handle,
+          hidden: relationsCollapsed && !focused,
+          selectable: false,
+          deletable: false,
+          focusable: false,
+          data: focused
+            ? { focus: true }
+            : {
+                ...(idle ? { faded: true } : {}),
+                ...(focusId ? { dimmed: true } : {}),
+              },
+        }
+      }
+      for (const [cardId, shotIds] of filmOnCanvas.shots) {
+        const targets = focusId === cardId ? shotIds : shotIds.slice(0, 1)
+        for (const shotId of targets) {
+          materialEdges.push(
+            materialEdge(
+              cardId,
+              `${SHOT_TABLE_BOARD.materialHandlePrefix}${shotId}`,
+              false,
+            ),
+          )
+        }
+      }
+      for (const cardId of filmOnCanvas.idle) {
+        materialEdges.push(
+          materialEdge(cardId, SHOT_TABLE_BOARD.materialTopHandle, true),
+        )
+      }
+    }
+    const synthetic = [...rowEdges, ...materialEdges]
+    const drawn = synthetic.length > 0 ? [...live, ...synthetic] : live
 
     if (fadingEdges.size === 0) return drawn as unknown as NodeWorkflowEdge[]
 
@@ -496,6 +640,8 @@ export function CanvasV4({
     signedEdgePairs,
     fadingEdges,
     tableBoard,
+    filmOnCanvas,
+    focusId,
   ])
 
   /**
@@ -552,15 +698,27 @@ export function CanvasV4({
       }
       // 表卡不是 `state.nodes` 里的卡：外壳的点卡逻辑（选中 / 详情）认不得它。
       if (node.id === SHOT_TABLE_ID) return
+      // 点一张全片素材卡 = 点着它（线散开变蓝）；再点一下 = 取消（第 26 条）。
+      if (filmOnCanvas?.has(node.id)) {
+        setFocusPick(focusId === node.id ? null : node.id)
+      }
       onNodeClick?.(event, node)
     },
-    [quickThrowSource, feedQuickThrow, graph, onNodeClick],
+    [
+      quickThrowSource,
+      feedQuickThrow,
+      graph,
+      onNodeClick,
+      filmOnCanvas,
+      focusId,
+    ],
   )
 
   const handlePaneClick = useCallback(
     (event: React.MouseEvent) => {
-      // 点空白 = 退出快投（Esc 那条在引擎里）。
+      // 点空白 = 退出快投（Esc 那条在引擎里）；也取消点着的素材。
       if (quickThrowSource) exitQuickThrow()
+      setFocusPick(null)
       onPaneClick?.(event)
     },
     [quickThrowSource, exitQuickThrow, onPaneClick],
@@ -679,8 +837,22 @@ export function CanvasV4({
         x: event.clientX,
         y: event.clientY,
       })
-      const hovered = nodeIdAtFlowPoint(storeApi.getState().nodeLookup, point)
+      const nodeLookup = storeApi.getState().nodeLookup
+      const hovered = nodeIdAtFlowPoint(nodeLookup, point)
       const over = hovered === node.id ? null : hovered
+      // 一张素材卡压在表上（没压在别的卡上）= 松手就进全片素材（H2b mock ③）。
+      const card =
+        tableBoard && over === null
+          ? nodes.find((item) => item.id === node.id)
+          : undefined
+      const nextDrop =
+        card && isFilmMaterialNode(card) && pointOnShotTable(nodeLookup, point)
+          ? node.id
+          : null
+      if (nextDrop !== tableDropRef.current) {
+        tableDropRef.current = nextDrop
+        setTableDrop(nextDrop)
+      }
       if (over !== dragHoverRef.current) {
         dragHoverRef.current = over
         setConnectState(
@@ -695,7 +867,14 @@ export function CanvasV4({
       }
       onNodeDrag?.(node, event)
     },
-    [screenToFlowPosition, storeApi, legalTargetsOf, onNodeDrag],
+    [
+      screenToFlowPosition,
+      storeApi,
+      legalTargetsOf,
+      onNodeDrag,
+      tableBoard,
+      nodes,
+    ],
   )
 
   const onNodeDragStop = useCallback(
@@ -705,6 +884,9 @@ export function CanvasV4({
       dragged: readonly NodeWorkflowNode[],
     ) => {
       const hovered = dragHoverRef.current
+      const droppedOnTable = tableDropRef.current === node.id
+      tableDropRef.current = null
+      setTableDrop(null)
       endConnect()
       // 表卡（单拖或框选里带着）：坐标落进 `shotlist.board`（拖动坐标例外，不进撤销栈）。
       const tableMoved = dragged.find((moved) => moved.id === SHOT_TABLE_ID)
@@ -723,9 +905,7 @@ export function CanvasV4({
       }
       // 名册卡先接：吃掉了就连坐标都不提交（本体已被弹回起点）。
       if (onNodeDragStopIntercept?.(node, event)) return
-      // 松在另一张卡上 = 连上，卡**弹回原位**（它不该留在目标卡上）。
-      if (hovered && hovered !== node.id) {
-        connectDrop(node.id, hovered)
+      const snapBack = () => {
         const origin = nodes.find((item) => item.id === node.id)?.position
         if (origin) {
           graph.onRfNodesChange([
@@ -737,6 +917,19 @@ export function CanvasV4({
             },
           ])
         }
+      }
+      // 松在表上 = 进全片素材（一步撤销），卡**留在原位**（第 26 条 / mock ③）。
+      if (droppedOnTable) {
+        for (const op of planFilmMaterialAdd(graph.readState(), node.id)) {
+          graph.dispatch(op)
+        }
+        snapBack()
+        return
+      }
+      // 松在另一张卡上 = 连上，卡**弹回原位**（它不该留在目标卡上）。
+      if (hovered && hovered !== node.id) {
+        connectDrop(node.id, hovered)
+        snapBack()
         return
       }
       // 拖动**结束**才提交坐标（⛔ 不逐帧写 state：那会让一次拖拽产生几十次落库）。
@@ -813,77 +1006,98 @@ export function CanvasV4({
     [connectState],
   )
 
+  /** 卡壳 / 表卡读的那一份（H2b）：「N 镜」、点着的素材、压在表上的卡。 */
+  const shotTableCanvas = useMemo<ShotTableCanvasState>(() => {
+    if (!filmOnCanvas) return SHOT_TABLE_CANVAS_IDLE
+    const dimIds = new Set<string>()
+    if (focusId) {
+      for (const id of [...filmOnCanvas.shots.keys(), ...filmOnCanvas.idle]) {
+        if (id !== focusId) dimIds.add(id)
+      }
+    }
+    return {
+      shotCounts: new Map(
+        [...filmOnCanvas.shots].map(([id, shotIds]) => [id, shotIds.length]),
+      ),
+      focusId,
+      dimIds,
+      dropSourceId: tableDrop,
+    }
+  }, [filmOnCanvas, focusId, tableDrop])
+
   return (
     <NodeConnectStateProvider value={connectState}>
-      <CanvasSurface appearance={canvasAppearance} />
-      <ReactFlow
-        nodes={decoratedNodes}
-        edges={renderEdges}
-        nodeTypes={CANVAS_NODE_TYPES}
-        edgeTypes={NODE_EDGE_COMPONENTS}
-        onNodesChange={onNodesChange}
-        onConnectStart={onConnectStart}
-        onConnectEnd={onConnectEnd}
-        onNodeClick={handleNodeClick}
-        onPaneClick={handlePaneClick}
-        onPaneContextMenu={onPaneContextMenu}
-        onDoubleClick={handleDoubleClick}
-        onNodesDelete={onNodesDelete}
-        onEdgesDelete={onEdgesDelete}
-        onNodeDragStart={
-          onNodeDragStart
-            ? (event, node) => {
-                if (node.id !== SHOT_TABLE_ID) onNodeDragStart(node, event)
-              }
-            : undefined
-        }
-        onNodeDrag={handleNodeDrag}
-        onNodeDragStop={onNodeDragStop}
-        onDrop={onDrop}
-        onDragOver={onDragOver}
-        deleteKeyCode={['Backspace', 'Delete']}
-        defaultViewport={NODE_STUDIO_CANVAS.defaultViewport}
-        minZoom={NODE_STUDIO_CANVAS.minZoom}
-        maxZoom={NODE_STUDIO_CANVAS.maxZoom}
-        defaultEdgeOptions={NODE_STUDIO_DEFAULT_EDGE_OPTIONS}
-        connectionLineType={ConnectionLineType.Bezier}
-        connectionLineComponent={connectionLineComponent}
-        proOptions={NODE_STUDIO_REACT_FLOW_PRO_OPTIONS}
-        nodesDraggable
-        nodesConnectable
-        elementsSelectable
-        // 边默认可聚焦会让 Tab 从画布进去先穿过所有线才轮到按钮（D1 键盘可达）。
-        // 关掉只影响 Tab 序：鼠标点边选中 + Delete 删边照旧。
-        edgesFocusable={false}
-        selectNodesOnDrag={false}
-        nodeDragThreshold={NODE_STUDIO_CANVAS.nodeDragThreshold}
-        panOnDrag={panOnDrag}
-        panActivationKeyCode={NODE_STUDIO_CANVAS.panActivationKeyCode}
-        selectionOnDrag
-        selectionMode={SelectionMode.Partial}
-        // 滚轮 / 双指滑动平移；捏合与 ⌘/Ctrl + 滚轮缩放（见 NODE_STUDIO_CANVAS）。
-        panOnScroll
-        panOnScrollSpeed={NODE_STUDIO_CANVAS.panOnScrollSpeed}
-        zoomOnScroll
-        zoomOnPinch
-        // 详情只从展开钮开；双击缩放在卡上要保持无效。
-        zoomOnDoubleClick={false}
-        fitView={false}
-        className="h-full w-full !bg-transparent"
-        style={{ backgroundColor: 'transparent' }}
-      >
-        <Background
-          variant={BackgroundVariant.Dots}
-          gap={NODE_STUDIO_CANVAS.background.gap}
-          size={NODE_STUDIO_CANVAS.background.size}
-          color="var(--canvas-grid-dot)"
-        />
-        <StoryboardBrackets nodes={nodes} />
-        {children}
-      </ReactFlow>
-      {/* 小地图常显、可收成右下一颗 —— 收放是它自己的状态（`CanvasMiniMap` 的
+      <ShotTableCanvasProvider value={shotTableCanvas}>
+        <CanvasSurface appearance={canvasAppearance} />
+        <ReactFlow
+          nodes={decoratedNodes}
+          edges={renderEdges}
+          nodeTypes={CANVAS_NODE_TYPES}
+          edgeTypes={NODE_EDGE_COMPONENTS}
+          onNodesChange={onNodesChange}
+          onConnectStart={onConnectStart}
+          onConnectEnd={onConnectEnd}
+          onNodeClick={handleNodeClick}
+          onPaneClick={handlePaneClick}
+          onPaneContextMenu={onPaneContextMenu}
+          onDoubleClick={handleDoubleClick}
+          onNodesDelete={onNodesDelete}
+          onEdgesDelete={onEdgesDelete}
+          onNodeDragStart={
+            onNodeDragStart
+              ? (event, node) => {
+                  if (node.id !== SHOT_TABLE_ID) onNodeDragStart(node, event)
+                }
+              : undefined
+          }
+          onNodeDrag={handleNodeDrag}
+          onNodeDragStop={onNodeDragStop}
+          onDrop={onDrop}
+          onDragOver={onDragOver}
+          deleteKeyCode={['Backspace', 'Delete']}
+          defaultViewport={NODE_STUDIO_CANVAS.defaultViewport}
+          minZoom={NODE_STUDIO_CANVAS.minZoom}
+          maxZoom={NODE_STUDIO_CANVAS.maxZoom}
+          defaultEdgeOptions={NODE_STUDIO_DEFAULT_EDGE_OPTIONS}
+          connectionLineType={ConnectionLineType.Bezier}
+          connectionLineComponent={connectionLineComponent}
+          proOptions={NODE_STUDIO_REACT_FLOW_PRO_OPTIONS}
+          nodesDraggable
+          nodesConnectable
+          elementsSelectable
+          // 边默认可聚焦会让 Tab 从画布进去先穿过所有线才轮到按钮（D1 键盘可达）。
+          // 关掉只影响 Tab 序：鼠标点边选中 + Delete 删边照旧。
+          edgesFocusable={false}
+          selectNodesOnDrag={false}
+          nodeDragThreshold={NODE_STUDIO_CANVAS.nodeDragThreshold}
+          panOnDrag={panOnDrag}
+          panActivationKeyCode={NODE_STUDIO_CANVAS.panActivationKeyCode}
+          selectionOnDrag
+          selectionMode={SelectionMode.Partial}
+          // 滚轮 / 双指滑动平移；捏合与 ⌘/Ctrl + 滚轮缩放（见 NODE_STUDIO_CANVAS）。
+          panOnScroll
+          panOnScrollSpeed={NODE_STUDIO_CANVAS.panOnScrollSpeed}
+          zoomOnScroll
+          zoomOnPinch
+          // 详情只从展开钮开；双击缩放在卡上要保持无效。
+          zoomOnDoubleClick={false}
+          fitView={false}
+          className="h-full w-full !bg-transparent"
+          style={{ backgroundColor: 'transparent' }}
+        >
+          <Background
+            variant={BackgroundVariant.Dots}
+            gap={NODE_STUDIO_CANVAS.background.gap}
+            size={NODE_STUDIO_CANVAS.background.size}
+            color="var(--canvas-grid-dot)"
+          />
+          <StoryboardBrackets nodes={nodes} />
+          {children}
+        </ReactFlow>
+        {/* 小地图常显、可收成右下一颗 —— 收放是它自己的状态（`CanvasMiniMap` 的
           `expanded`），⛔ 外壳不再存第二份。 */}
-      <CanvasMiniMap hidden={graph.expandedNodeId !== null} />
+        <CanvasMiniMap hidden={graph.expandedNodeId !== null} />
+      </ShotTableCanvasProvider>
     </NodeConnectStateProvider>
   )
 }

@@ -27,6 +27,8 @@ import type { ReactNode } from 'react'
 import { DURATION, EASE_STANDARD } from '@/constants/motion'
 import { cn } from '@/lib/utils'
 
+import { ShotTableCardMarks } from '../../../shot-table/ShotTableCardMarks'
+import { useShotTableCanvasCard } from '../../../shot-table/shot-table-canvas-context'
 import { NodeV4EditableLabel } from '../NodeV4EditableLabel'
 import { useNodeConnectRole } from './node-connect-state'
 import { useNodeCardReject } from './node-card-flash'
@@ -133,6 +135,8 @@ export function NodeCardShell({
   const zoom = useStore((state) => state.transform[2])
   const connect = useNodeConnectRole(nodeId)
   const rejected = useNodeCardReject(nodeId)
+  // 表坐上画布时（H2b）：「N 镜」角标 / 点着的素材描蓝边、其它素材变淡 / 压在表上的提示。
+  const tableMark = useShotTableCanvasCard(nodeId)
   const cardHeight = empty ? (emptyHeight ?? surfaceHeight) : surfaceHeight
 
   return (
@@ -222,7 +226,9 @@ export function NodeCardShell({
               : 'corner-squircle bg-card',
             !empty &&
               (expanded ? 'shadow-node-card-expanded' : 'shadow-node-card'),
-            selected && !edgeBusy && 'node-selected-ring',
+            selected && !edgeBusy && !tableMark.focused && 'node-selected-ring',
+            tableMark.focused && 'node-card-focus',
+            tableMark.dimmed && !connect.connecting && 'node-card-dim',
             // 拖线中（spec §1.13）：收得下 = 发光，收不下 = 压暗。
             connect.connecting && connect.legal && 'node-card-glow',
             connect.connecting && !connect.legal && 'node-card-dim',
@@ -248,6 +254,11 @@ export function NodeCardShell({
         >
           {empty ? (emptyContent ?? children) : children}
         </motion.div>
+        <ShotTableCardMarks
+          shotCount={tableMark.shotCount}
+          dropping={tableMark.dropping}
+          zoom={zoom}
+        />
         {edgeOverlay ? (
           <div
             data-node-card-edge

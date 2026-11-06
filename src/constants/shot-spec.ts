@@ -66,6 +66,8 @@ export const SHOT_SPEC_LIMITS = {
   lookMaxLength: 400,
   /** 全片总时长上限（秒）。剪辑台成片的段数与时长另有护栏。 */
   totalDurationMaxSeconds: 600,
+  /** 全片素材（拖到表上的画布卡 id）上限：一部片子的角色 / 场景 / 参考 / 配音远到不了。 */
+  filmMaterialsMax: 200,
 } as const
 
 /**
@@ -82,6 +84,12 @@ export const SHOT_TABLE_BOARD = {
   rowHandlePrefix: 'row:',
   /** 行 → 镜头卡那根合成线的 id 前缀。 */
   rowEdgePrefix: '__shot-table-row:',
+  /** 行左缘收素材线的 handle id 前缀，后接那一镜的卡 id（H2b）。 */
+  materialHandlePrefix: 'mat:',
+  /** 表顶左缘：全片素材里还没有哪一镜在用的那几根淡线落在这里。 */
+  materialTopHandle: 'mat-top',
+  /** 素材卡 → 表左缘那根合成线的 id 前缀（后接 `素材 id:镜头卡 id` 或 `素材 id:top`）。 */
+  materialEdgePrefix: '__shot-table-mat:',
   /** 卡宽（mock 11-03 晚）。 */
   widthPx: 1180,
   /** 新加的一镜落在表右缘多远。 */

@@ -19,9 +19,14 @@
  * 第 25 条）。
  * 改列 = 改边：op 由 `shot-table-materials.ts` 的规划函数编好，一次点击一步撤销。
  *
+ * ── 全片素材与画布侧（H2b，owner 2026-11-07 第 26 条）──────────────────
+ * 全片素材 = 有镜在用的 + 拖进来还闲着的（`shot-film-materials.ts`）。「+」里闲着的悬停出 ✕
+ * 移出；最后一格「从画布 / 角色库拿」换成两段大图格子，点一张 = 加进这一镜。
+ * 画布点着一张素材时（`focusSourceId`），用到它的几行变浅蓝、其它行变淡、它的格子描蓝边。
+ * 每行最左一格 / 表头左缘留给 `renderRowInPort` / `renderTopInPort`（素材卡的线落在这里）。
+ *
  * ── 这一刀不做的 ────────────────────────────────────────────────────────
- * 画布侧素材（H2b：「N 镜」角标 / 拖卡进全片素材 / 素材到表左缘的线）· 拉片（H4）·
- * 逐镜出片（H3，走点数）· 多选统一改与手机（H5）。
+ * 拉片（H4）· 逐镜出片（H3，走点数）· 多选统一改与手机（H5）。
  * 空表三颗键里「让助手填」「拉片」先摆着、不能点。
  */
 
@@ -51,6 +56,12 @@ import {
   summarizeShotTable,
   type ShotTableRow,
 } from '@/lib/shot-table-rows'
+import {
+  filmMaterialShots,
+  listIdleFilmMaterials,
+  listMaterialPicks,
+  planFilmMaterialRemove,
+} from '@/lib/shot-film-materials'
 import {
   listFilmMaterials,
   planMaterialAdd,
@@ -86,6 +97,12 @@ export interface ShotTableProps {
   onLocate(nodeId: string): void
   /** 每行右缘那颗出口（画布给；单测不给）。 */
   renderRowPort?(nodeId: string): ReactNode
+  /** 每行左缘那颗入口：在用的素材卡的线落在这里（画布给；单测不给）。 */
+  renderRowInPort?(nodeId: string): ReactNode
+  /** 表头左缘那颗入口：进了全片素材、还没人用的卡的淡线落在这里。 */
+  renderTopInPort?(): ReactNode
+  /** 画布上点着的那张素材卡（H2b）：用到它的行变浅蓝、其它行变淡。 */
+  readonly focusSourceId?: string | null
 }
 
 /** 一次撤销里改一行的几格（`set_shot_spec` 的补丁形状）。 */
@@ -107,6 +124,9 @@ export function ShotTable({
   onAddShot,
   onLocate,
   renderRowPort,
+  renderRowInPort,
+  renderTopInPort,
+  focusSourceId = null,
 }: ShotTableProps) {
   const t = useTranslations('StudioNode.shotTable')
   const locale = useLocale()
@@ -122,7 +142,26 @@ export function ShotTable({
     [state.nodes, state.edges, shotlist, characterCards],
   )
   const summary = useMemo(() => summarizeShotTable(rows), [rows])
-  const film = useMemo(() => listFilmMaterials(rows), [rows])
+  const usedBy = useMemo(() => filmMaterialShots(rows), [rows])
+  const film = useMemo(
+    () => [
+      ...listFilmMaterials(rows),
+      ...listIdleFilmMaterials({
+        nodes: state.nodes,
+        shotlist,
+        used: usedBy,
+      }),
+    ],
+    [rows, state.nodes, shotlist, usedBy],
+  )
+  const picks = useMemo(
+    () => listMaterialPicks({ nodes: state.nodes, film, characterCards }),
+    [state.nodes, film, characterCards],
+  )
+  const focusRows = useMemo(
+    () => (focusSourceId ? new Set(usedBy.get(focusSourceId) ?? []) : null),
+    [focusSourceId, usedBy],
+  )
   const hidden = useMemo(
     () => new Set<ShotlistOptionalColumn>(shotlist?.hiddenColumns ?? []),
     [shotlist?.hiddenColumns],
@@ -220,8 +259,9 @@ export function ShotTable({
       {/* 表头：全片风格 · 总时长 · 列 ▾ ｜ 读数 · + 加一镜 */}
       <div
         data-testid="shot-table-top-bar"
-        className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-3.5"
+        className="relative flex h-12 shrink-0 items-center gap-2 border-b border-border px-3.5"
       >
+        {renderTopInPort?.()}
         <PillInput
           testId="shot-table-film-look"
           label={t('filmLook')}
@@ -359,13 +399,25 @@ export function ShotTable({
                 onPrompt={(prompt) => setPrompt(row.nodeId, prompt)}
                 onDuration={(seconds) => setDuration(row.nodeId, seconds)}
                 onLocate={() => onLocate(row.nodeId)}
+                focus={
+                  focusRows
+                    ? focusRows.has(row.nodeId)
+                      ? 'on'
+                      : 'off'
+                    : undefined
+                }
                 materialsCell={
                   <ShotTableMaterialsCell
                     shotNo={row.shotNo}
                     materials={row.materials}
                     film={film}
+                    picks={picks}
+                    focusSourceId={focusSourceId}
                     onAdd={(entry) =>
                       applyOps(planMaterialAdd(planContext(row.nodeId), entry))
+                    }
+                    onRemoveFromFilm={(entry) =>
+                      applyOps(planFilmMaterialRemove(state, entry.sourceId))
                     }
                     onRemove={(material) =>
                       applyOps(
@@ -395,6 +447,7 @@ export function ShotTable({
                   />
                 }
                 port={renderRowPort?.(row.nodeId)}
+                inPort={renderRowInPort?.(row.nodeId)}
               />
             ))}
           </tbody>
@@ -418,6 +471,8 @@ function ShotTableRowView({
   onLocate,
   materialsCell,
   port,
+  inPort,
+  focus,
 }: {
   readonly row: ShotTableRow
   readonly showDuration: boolean
@@ -428,16 +483,26 @@ function ShotTableRowView({
   onLocate(): void
   readonly materialsCell: ReactNode
   readonly port?: ReactNode
+  readonly inPort?: ReactNode
+  /** 画布点着一张素材时：`on` = 这一镜用到它（浅蓝底），`off` = 没用到（变淡）。 */
+  readonly focus?: 'on' | 'off' | undefined
 }) {
   const t = useTranslations('StudioNode.shotTable')
   return (
     <tr
       data-testid="shot-table-row"
       data-node-id={row.nodeId}
-      className="border-b border-border align-top last:border-b-0"
+      data-focus={focus}
+      className={cn(
+        'border-b border-border align-top transition-[background-color,opacity] duration-fast ease-standard last:border-b-0',
+        focus === 'on' && 'bg-highlight-soft',
+        focus === 'off' && 'opacity-30',
+      )}
     >
-      <td className="px-3 py-2.5 font-mono text-xs tabular-nums text-muted-foreground">
+      {/* 最左一格兼作入口的锚：素材卡的线落在这一行的左缘正中。 */}
+      <td className="relative px-3 py-2.5 font-mono text-xs tabular-nums text-muted-foreground">
         {String(row.shotNo).padStart(2, '0')}
+        {inPort}
       </td>
       <td className="px-3 py-2.5">
         <FrameThumb row={row} generatingLabel={t('generating')} />

@@ -55,6 +55,15 @@ export interface NodeSlotEdgeData extends Record<string, unknown> {
   readonly justSigned?: boolean
   readonly signingFadeOut?: boolean
   readonly unsigning?: boolean
+  /**
+   * 表坐上画布时（H2b，`canvas-shotlist.md` 第 26 条）：素材 → 镜头卡的直连线变淡；
+   * 点着那张素材时它的线和表线一起亮（`focus` = 蓝实线，`focusSoft` = 蓝淡线）；
+   * 点着别的素材时其余的线压暗（`dimmed`）。⛔ 不落库，画布的 `renderEdges` 盖章。
+   */
+  readonly faded?: boolean
+  readonly focus?: boolean
+  readonly focusSoft?: boolean
+  readonly dimmed?: boolean
 }
 
 export function NodeSlotEdge({
@@ -164,7 +173,17 @@ export function NodeSlotEdge({
           'react-flow__edge-path',
           'node-slot-edge',
           edgeData.signingFadeOut && 'node-canvas-edge-signing-fade-out',
-          active && 'node-slot-edge--active',
+          active &&
+            !edgeData.focus &&
+            !edgeData.focusSoft &&
+            'node-slot-edge--active',
+          edgeData.faded &&
+            !active &&
+            !edgeData.focusSoft &&
+            'node-slot-edge--faded',
+          edgeData.focus && 'node-slot-edge--focus',
+          edgeData.focusSoft && 'node-slot-edge--focus-soft',
+          edgeData.dimmed && !active && 'node-slot-edge--dimmed',
           edgeData.running && 'node-canvas-edge-running',
         )}
       />

@@ -85,13 +85,16 @@ export interface ShotTableMaterial {
 export type ShotFilmMaterial = Pick<
   ShotTableMaterial,
   'origin' | 'sourceId' | 'kindRole' | 'name' | 'thumbUrl' | 'mediaKind'
->
+> & {
+  /** 拖进全片素材、但还没有哪一镜在用（H2b）：「+」弹层里悬停出 ✕ 的只有它们。 */
+  readonly idle?: boolean
+}
 
 function isMaterialSlot(slot: NodeSlotId): slot is ShotMaterialSlot {
   return (SHOT_MATERIAL_SLOTS as readonly NodeSlotId[]).includes(slot)
 }
 
-function kindRoleOf(node: NodeV4): ShotMaterialKindRole {
+export function kindRoleOf(node: NodeV4): ShotMaterialKindRole {
   if (node.data.kind === NODE_MEDIA_KIND_IDS.audio) return 'voice'
   if (node.data.kind === NODE_MEDIA_KIND_IDS.image) {
     if (node.data.subtype === NODE_V4_IMAGE_SUBTYPE_IDS.character)
@@ -102,7 +105,7 @@ function kindRoleOf(node: NodeV4): ShotMaterialKindRole {
   return 'reference'
 }
 
-function thumbOf(node: NodeV4): string | undefined {
+export function thumbOf(node: NodeV4): string | undefined {
   if (node.data.kind === NODE_MEDIA_KIND_IDS.image) return node.data.url
   if (node.data.kind === NODE_MEDIA_KIND_IDS.video) {
     return node.data.videoThumbnailUrl ?? undefined
@@ -111,7 +114,7 @@ function thumbOf(node: NodeV4): string | undefined {
 }
 
 /** 这张画布卡绑的是哪位角色库的人（同一个人不在列里出现两次）。 */
-function boundCharacterId(node: NodeV4): string | undefined {
+export function boundCharacterId(node: NodeV4): string | undefined {
   if (node.data.kind !== NODE_MEDIA_KIND_IDS.image) return undefined
   return node.data.characterId ?? node.data.contextCardId ?? undefined
 }
@@ -186,7 +189,7 @@ export function readShotMaterials(input: {
 }
 
 /**
- * 全片素材 = 任何一镜在用的素材（第 23 条；拖到表上存的 `shotlist.materials` 是 H2b）。
+ * 全片素材里「有镜在用」的那部分（第 23 条）；拖进来还没人用的见 `shot-film-materials.ts`。
  * 同一个来源只出现一次，顺序按镜号 → 列内顺序。
  */
 export function listFilmMaterials(

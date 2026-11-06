@@ -95,6 +95,7 @@ export function listShotTableNodes(
 /**
  * 去掉空键；整份都空了就是「没设过」（`set_shotlist` 省略 = 清空，撤销能退回不存在）。
  * ⚠ `board`（表在画布上的位置）也是一键 —— 漏了它，改一下全片风格表就从画布上消失。
+ * `materials`（全片素材）同理：漏了它，改一下风格拖进来的素材就全没了。
  */
 export function compactShotlist(
   shotlist: NodeWorkflowShotlist,
@@ -107,6 +108,9 @@ export function compactShotlist(
     next.hiddenColumns = shotlist.hiddenColumns
   }
   if (shotlist.board) next.board = shotlist.board
+  if (shotlist.materials && shotlist.materials.length > 0) {
+    next.materials = shotlist.materials
+  }
   return Object.keys(next).length > 0 ? next : undefined
 }
 

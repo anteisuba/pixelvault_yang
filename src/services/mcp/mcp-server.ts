@@ -207,21 +207,22 @@ async function runGenerate(
       MCP_CONFIRM_INPUT_KEY,
     )
     if (response.kind !== 'missing') {
-      // 关掉弹框 ≠ 拒绝：请求留着，她还能去网站上确认。
-      if (response.kind !== 'elicit' || response.action === 'cancel')
-        return confirmOnSiteResult(pending)
       const answer = acceptedContent(
         ctx.mcpReq.inputResponses,
         MCP_CONFIRM_INPUT_KEY,
         ConfirmSchema,
       )
-      const decision =
-        response.action === 'accept' && answer?.confirm !== false
-          ? 'confirm'
-          : 'decline'
-      const decided = await decideGenerationRequest(owner, state, decision)
-      if (decision === 'decline' || !decided)
-        return textResult('The user declined this generation.')
+      // 只有「接受」才算数。拒绝 / 关掉 / 取消勾选都不作废：有的客户端不弹框就自动回
+      // decline（11-06 桌面端实测），分不出是不是她亲手点的；请求留着等她去网站确认，
+      // 没确认就过期，一张不出。
+      if (
+        response.kind !== 'elicit' ||
+        response.action !== 'accept' ||
+        answer?.confirm === false
+      )
+        return confirmOnSiteResult(pending)
+      const decided = await decideGenerationRequest(owner, state, 'confirm')
+      if (!decided) return textResult(await getGenerationForMcp(owner, state))
       return textResult(
         `${await getGenerationForMcp(owner, state)}\nrequestId: ${state} — poll get_generation until the pictures are done.`,
       )

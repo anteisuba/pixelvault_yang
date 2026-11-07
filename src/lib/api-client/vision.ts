@@ -1,3 +1,4 @@
+import { SHOT_READ_ENDPOINT } from '@/constants/shot-reading'
 import type { VideoAnalysisMode } from '@/constants/video-analysis'
 import {
   VISION_ANALYZE_ENDPOINT,
@@ -6,6 +7,7 @@ import {
 import { getErrorPayload } from '@/lib/api-client/shared'
 import { getThrownErrorFields } from '@/lib/api-client/error-fields'
 import type { VideoAnalyzeRequest } from '@/lib/video-frame-request'
+import type { ShotReadRequest, ShotReadResult } from '@/types/shot-reading'
 import type { VisionAnalysisResult, VisionAnalyzeRequest } from '@/types/vision'
 import { apiFetch } from '@/lib/api-client/api-fetch'
 
@@ -24,12 +26,14 @@ async function postVisionJson<TRequest, TResult>(
   endpoint: string,
   request: TRequest,
   failureMessage: string,
+  signal?: AbortSignal,
 ): Promise<ApiResult<TResult>> {
   try {
     const response = await apiFetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(request),
+      ...(signal ? { signal } : {}),
     })
 
     if (!response.ok) {
@@ -97,5 +101,23 @@ export async function analyzeVisualAPI(
     VISION_ANALYZE_ENDPOINT,
     request,
     'Vision analysis failed',
+  )
+}
+
+/**
+ * 拉片 · 读镜：一批 ≤ 8 镜 → 一镜一行（p-canvas-nodes H4b）。
+ *
+ * ⚠ `errorCode` 照样往上传：`ASSISTANT_VIDEO_UNSUPPORTED`（这把 key 看不了视频）/
+ * key 失效那几条是拉片纸就地弹 Gemini `QuickSetupDialog` 的入口（Hard Rule 8）。
+ */
+export async function readShotsAPI(
+  request: ShotReadRequest,
+  signal?: AbortSignal,
+): Promise<ApiResult<ShotReadResult>> {
+  return postVisionJson<ShotReadRequest, ShotReadResult>(
+    SHOT_READ_ENDPOINT,
+    request,
+    'Shot reading failed',
+    signal,
   )
 }

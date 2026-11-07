@@ -14,7 +14,18 @@ import type { CharacterCardRecord } from '@/types'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
 import type { NodeWorkflowStateV4 } from '@/types/node-workflow'
 
+import type { ShotReadingState } from '@/features/canvas/hooks/use-shot-reading'
+
 import type { ShotPullSourceActions } from './ShotPullSourcePicker'
+
+/** 读镜（H4b）在表上露出来的那一份：表头下那条 + 卡边进度 + 在读那几行的灰条。 */
+export interface ShotTableReadingView {
+  readonly state: ShotReadingState
+  /** 停下 / 算了：已填的留着。 */
+  stop(): void
+  /** 从没读出来的那一批接着读；给了 key = 换这把（刚在弹窗里配好的）。 */
+  retry(apiKeyId?: string): void
+}
 
 export interface ShotTableBoardValue {
   readonly state: NodeWorkflowStateV4
@@ -27,6 +38,8 @@ export interface ShotTableBoardValue {
   onLocate(nodeId: string): void
   /** 拉片（H4a）：拉画布上的某张片段卡 / 先上传 / 先从素材库拿。 */
   readonly pull?: ShotPullSourceActions
+  /** 读镜（H4b）：宿主给了才有表头下那条。 */
+  readonly reading?: ShotTableReadingView
 }
 
 const ShotTableBoardContext = createContext<ShotTableBoardValue | null>(null)

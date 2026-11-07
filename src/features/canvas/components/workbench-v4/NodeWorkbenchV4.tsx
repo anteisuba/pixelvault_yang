@@ -51,7 +51,7 @@ import {
 } from 'motion/react'
 import { useAuth } from '@clerk/nextjs'
 import { useSearchParams } from 'next/navigation'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
 import {
@@ -76,6 +76,8 @@ import { looseAreaSpawn, nextShotNo } from '@/lib/node-shot-layout'
 import { listShotTableNodes } from '@/lib/shot-table-rows'
 import { estimateCardSize, placeRowBeside } from '@/lib/node-flow-layout'
 import { isPullSourceNode, planShotPull } from '@/lib/shot-pull-plan'
+import type { ShotReadTarget } from '@/lib/shot-read-plan'
+import { DEFAULT_LOCALE, isAppLocale } from '@/i18n/routing'
 import type { ShotDetectRange } from '@/lib/shot-detect/scenes'
 import { pendingJobPatch, settledJobPatch } from '@/lib/node-media-patch'
 import { buildAssistantSetModelPatch } from '@/lib/node-assistant-op-patch'
@@ -120,6 +122,7 @@ import { useNodeMediaGenerationV4 } from '@/features/canvas/hooks/use-node-media
 import { useNodeGenerationReconcileV4 } from '@/features/canvas/hooks/use-node-generation-reconcile-v4'
 import { useStoryboardGridSplit } from '@/features/canvas/hooks/use-storyboard-grid-split'
 import { useNodeReviewMode } from '@/features/canvas/hooks/use-node-review-mode'
+import { useShotReading } from '@/features/canvas/hooks/use-shot-reading'
 import {
   useNodeWorkflowStore,
   type NodeWorkflowRemoteChange,
@@ -156,6 +159,7 @@ import {
   ShotPullPaper,
   type ShotPullRequest,
 } from '../shot-table/ShotPullPaper'
+import type { ShotPullReadChoice } from '../shot-table/ShotPullReadOption'
 import { flashNodeCard } from '../nodes/v4/chrome/node-card-flash'
 import { useKeepCanvasCenterOnYield } from './use-keep-canvas-center-on-yield'
 import {
@@ -1489,14 +1493,30 @@ function NodeWorkbenchV4Inner() {
   const closePull = useCallback(() => setPullHost(null), [])
 
   /**
+   * 读镜（H4b）挂在工作台：拉片纸关了、表卡滚出视口都照读。一批读回来 = 一次 `dispatchBatch`
+   * = 一步撤销；读镜不扣点（用户自己的 Gemini key），⛔ 不走 `generate`。
+   */
+  const shotReading = useShotReading(graph)
+  const startShotReading = shotReading.start
+  const uiLocale = useLocale()
+  const readLocale = isAppLocale(uiLocale) ? uiLocale : DEFAULT_LOCALE
+
+  /**
    * 落到表里 · 追加（一次 `dispatchBatch` = 一步撤销）。落点：表里已有镜 = 最后一镜右边排开
    * （`placeBeside`）；还没有 = 表右边排开，第一镜和「+ 加一镜」落在同一个位置（表右缘隔
    * `SHOT_TABLE_BOARD.gapPx`），撞上别的卡就整行往下挪。⚠ 表不是 `state.nodes` 里的卡，
    * `placeBeside` 看不见它 —— 锚在参考片上会把新镜落进表底下（表在 z 序最底层，卡被盖住）。
    * toast 上带「撤销」。
+   *
+   * 勾了读镜（`read`）：落表那一批建出来的卡按 `plan.refs` → `createdRefs` 对回真 id，
+   * 交给 `useShotReading` 一批一批读（⭐ 按卡 id 对回，⛔ 不按镜号：读的途中镜号会变）。
    */
   const landPull = useCallback(
-    (clipId: string, ranges: readonly ShotDetectRange[]) => {
+    (
+      clipId: string,
+      ranges: readonly ShotDetectRange[],
+      read: ShotPullReadChoice | null,
+    ) => {
       const nodes = graph.readState().nodes
       const count = planShotPull({ nodes, clipNodeId: clipId, ranges }).added
         .length
@@ -1548,15 +1568,40 @@ function NodeWorkbenchV4Inner() {
       })
       setPullHost(null)
       if (plan.ops.length === 0) return
-      graph.dispatchBatch(plan.ops)
+      const landed = graph.dispatchBatch(plan.ops)
       toast(t('shotTable.pull.landed', { count: plan.added.length }), {
         action: {
           label: t('shotTable.pull.undo'),
           onClick: () => graph.undo(),
         },
       })
+      const clip = nodes.find((node) => node.id === clipId)
+      const videoUrl = clip?.data.kind === 'video' ? clip.data.url : undefined
+      if (!read || !videoUrl) return
+      const targets: ShotReadTarget[] = plan.added.flatMap((range, index) => {
+        const nodeId = landed.createdRefs[plan.refs[index] ?? '']
+        return nodeId
+          ? [{ nodeId, startSec: range.startSec, endSec: range.endSec }]
+          : []
+      })
+      startShotReading({
+        videoUrl,
+        apiKeyId: read.apiKeyId,
+        locale: readLocale,
+        fields: read.fields,
+        targets,
+      })
     },
-    [graph, flowStore, t],
+    [graph, flowStore, t, startShotReading, readLocale],
+  )
+
+  const shotTableReading = useMemo<NonNullable<ShotTableBoardValue['reading']>>(
+    () => ({
+      state: shotReading.state,
+      stop: shotReading.stop,
+      retry: shotReading.retry,
+    }),
+    [shotReading.state, shotReading.stop, shotReading.retry],
   )
 
   const shotTablePull = useMemo<NonNullable<ShotTableBoardValue['pull']>>(
@@ -1584,6 +1629,7 @@ function NodeWorkbenchV4Inner() {
       onAddShot: addShotFromTable,
       onLocate: locateShotFromTable,
       pull: shotTablePull,
+      reading: shotTableReading,
     }),
     [
       graph.state,
@@ -1594,6 +1640,7 @@ function NodeWorkbenchV4Inner() {
       addShotFromTable,
       locateShotFromTable,
       shotTablePull,
+      shotTableReading,
     ],
   )
 

@@ -7,6 +7,8 @@
  * - 模型一次出每一帧的切点把握，「粗细」只是换门槛：拨一下当场换算刻度和镜数，⛔ 不重跑。
  * - 落表 = 一批 op 交给宿主（`onLand`）：宿主算落点、一次 `dispatchBatch` = 一步撤销。
  * - 每种卡住都给下一步（⑨），⛔ 不只报错。
+ * - H4b：「顺便读每一镜」勾着时，落表把读镜选择一起交给宿主（`ShotPullReadOption`）；
+ *   读由工作台跑，纸关了照读。
  *
  * 纸由工作台挂（在画布外）：表卡被滚出视口也不会把正在切的线程一起卸掉。`key` 换一次 = 一次
  * 新的拉片，状态全从头来。
@@ -50,6 +52,14 @@ import { isPullSourceNode } from '@/lib/shot-pull-plan'
 import type { NodeV4 } from '@/types/node-workflow'
 
 import { VideoTrimFilmstrip } from '../nodes/v4/video/VideoTrimFilmstrip'
+import {
+  resolveShotPullRead,
+  SHOT_PULL_READ_DRAFT,
+  ShotPullReadOption,
+  useShotPullReadKey,
+  type ShotPullReadChoice,
+  type ShotPullReadDraft,
+} from './ShotPullReadOption'
 
 /** 一次拉片：拉哪张片段卡；`nonce` 换一次就是重新开一张纸。 */
 export interface ShotPullRequest {
@@ -79,7 +89,12 @@ export function ShotPullPaper({
   readonly request: ShotPullRequest | null
   readonly nodes: readonly NodeV4[]
   onClose(): void
-  onLand(clipId: string, ranges: readonly ShotDetectRange[]): void
+  /** `read` = 落表之后接着读镜（没勾 = `null`）。 */
+  onLand(
+    clipId: string,
+    ranges: readonly ShotDetectRange[],
+    read: ShotPullReadChoice | null,
+  ): void
   /** 「去剪」：片子太长时回到那张片段卡（裁剪在卡上）。 */
   onTrim(clipId: string): void
 }) {
@@ -117,7 +132,7 @@ export function ShotPullPaper({
             key={request.nonce}
             source={source}
             onClose={onClose}
-            onLand={(ranges) => onLand(source.id, ranges)}
+            onLand={(ranges, read) => onLand(source.id, ranges, read)}
             onTrim={() => onTrim(source.id)}
           />
         ) : null}
@@ -139,7 +154,10 @@ function PullBody({
     readonly durationSec?: number
   }
   onClose(): void
-  onLand(ranges: readonly ShotDetectRange[]): void
+  onLand(
+    ranges: readonly ShotDetectRange[],
+    read: ShotPullReadChoice | null,
+  ): void
   onTrim(): void
 }) {
   const t = useTranslations('StudioNode.shotTable.pull')
@@ -147,6 +165,10 @@ function PullBody({
   const { prepare } = detect
   const state = detect.state
   const [grain, setGrain] = useState<ShotDetectGrain>(SHOT_DETECT_DEFAULT_GRAIN)
+  const [readDraft, setReadDraft] =
+    useState<ShotPullReadDraft>(SHOT_PULL_READ_DRAFT)
+  const readKey = useShotPullReadKey(readDraft)
+  const read = resolveShotPullRead(readDraft, readKey)
 
   // 纸一打开就开始（模型下过直接切；没下过停在「要下载」那一步）。卸载 = 线程收掉。
   useEffect(() => {
@@ -253,6 +275,14 @@ function PullBody({
             grain={grain}
             counts={counts}
             onGrain={setGrain}
+            read={
+              <ShotPullReadOption
+                shotCount={ranges.length}
+                draft={readDraft}
+                keyId={readKey}
+                onChange={setReadDraft}
+              />
+            }
           />
           {done && counts && ranges.length <= 1 ? (
             <PullNotice
@@ -269,7 +299,7 @@ function PullBody({
                   {t('errors.noCut.fine')}
                 </Button>
               ) : null}
-              <Button size="sm" onClick={() => onLand(ranges)}>
+              <Button size="sm" onClick={() => onLand(ranges, read)}>
                 {t('errors.noCut.asOne')}
               </Button>
             </PullNotice>
@@ -283,7 +313,7 @@ function PullBody({
           ) : null}
           <ResponsiveDialogFooter className="flex-row items-center justify-between gap-3 p-0 sm:justify-between">
             <p className="min-w-0 text-xs text-muted-foreground">
-              {done ? t('footDone') : t('footRunning')}
+              {done ? (read ? t('footRead') : t('footDone')) : t('footRunning')}
             </p>
             <div className="flex shrink-0 items-center gap-2">
               <Button variant="secondary" size="sm" onClick={onClose}>
@@ -293,10 +323,12 @@ function PullBody({
                 size="sm"
                 data-testid="shot-pull-land"
                 disabled={!done || ranges.length === 0}
-                onClick={() => onLand(ranges)}
+                onClick={() => onLand(ranges, read)}
               >
                 {done
-                  ? t('landCount', { count: ranges.length })
+                  ? t(read ? 'landCountRead' : 'landCount', {
+                      count: ranges.length,
+                    })
                   : t('landButton')}
               </Button>
             </div>
@@ -429,17 +461,20 @@ function PullProgress({
   )
 }
 
-/** 切镜粗细（切完才能拨）+ 落到表里 + 读镜（灰着，H4b 接上）。 */
+/** 切镜粗细（切完才能拨）+ 落到表里 + 读镜（H4b）。 */
 function PullOptions({
   done,
   grain,
   counts,
   onGrain,
+  read,
 }: {
   readonly done: boolean
   readonly grain: ShotDetectGrain
   readonly counts: Record<ShotDetectGrain, number> | null
   onGrain(grain: ShotDetectGrain): void
+  /** 「顺便读每一镜」那一格（切完才出）。 */
+  readonly read: ReactNode
 }) {
   const t = useTranslations('StudioNode.shotTable.pull')
   return (
@@ -480,25 +515,7 @@ function PullOptions({
               }))}
             />
           </OptionRow>
-          <label
-            data-testid="shot-pull-read"
-            className="flex cursor-not-allowed items-start gap-2.5 rounded-xl border border-border px-3.5 py-3 opacity-60"
-          >
-            <input
-              type="checkbox"
-              disabled
-              className="mt-0.5 size-3.5 accent-primary"
-            />
-            <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-              <span className="font-medium">{t('read.title')}</span>
-              <span className="rounded-full bg-surface-fill px-2 py-0.5 text-xs text-muted-foreground">
-                {t('read.needs')}
-              </span>
-              <span className="rounded-full border border-dashed border-border px-2 py-0.5 text-xs text-muted-foreground">
-                {t('read.next')}
-              </span>
-            </span>
-          </label>
+          {read}
         </>
       ) : null}
     </div>

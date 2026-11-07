@@ -2222,16 +2222,24 @@
           "fill": "Fill empty rows only"
         },
         "read": {
-          "title": "Also read each shot: size · movement · description",
+          "title": "Also read each shot",
           "needs": "Uses Gemini · your own key · no credits",
-          "next": "Coming next"
+          "fields": {
+            "size_move": "Size · movement",
+            "description": "Description",
+            "look": "Per-shot look"
+          },
+          "note": "Sent to Gemini {size} shots at a time (this clip = {batches, plural, one {# batch} other {# batches}}) and filled in batch by batch. What it reads is a draft too, and only goes into empty cells.",
+          "noKey": "No Gemini key yet — tick this to add one here"
         },
         "footRunning": "Runs in your browser · no credits",
         "footDone": "Runs in your browser · no credits · one undo for the whole thing",
+        "footRead": "Cutting runs in your browser · reading uses your Gemini key",
         "cancel": "Cancel",
         "retry": "Retry",
         "landButton": "Put into the list",
         "landCount": "Put into the list · {count, plural, one {# shot} other {# shots}}",
+        "landCountRead": "Put into the list · {count, plural, one {# shot} other {# shots}} · then read",
         "landed": "{count, plural, one {# shot} other {# shots}} cut, all drafts · only cells you edit count",
         "undo": "Undo",
         "errors": {
@@ -2270,6 +2278,24 @@
             "title": "Reference frames unavailable",
             "body": "The server can’t grab frames from this format (not MP4 / too large). Rows still go in; the picture cell shows only the time range."
           }
+        }
+      },
+      "reading": {
+        "label": "Reading",
+        "batch": "Batch {index} · shots {range}",
+        "batchOnly": "Batch {index}",
+        "progress": "Reading progress",
+        "stop": "Stop",
+        "failed": "Couldn't read shots {range}",
+        "failedBatch": "Couldn't read batch {index}",
+        "retry": "Retry this batch",
+        "rekey": "Use another key",
+        "dismiss": "Never mind",
+        "reasons": {
+          "tooLarge": "The clip is over {mb} MB — trim it first, then read",
+          "key": "This Gemini key isn't working (expired or no access)",
+          "notVideo": "This key can't watch video — reading needs a Gemini key",
+          "fallback": "Gemini couldn't read it this time"
         }
       }
     }

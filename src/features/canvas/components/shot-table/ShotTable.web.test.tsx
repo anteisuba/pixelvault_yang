@@ -4,6 +4,12 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import { NODE_SLOT_IDS, NODE_SLOT_OUTPUT_IDS } from '@/constants/node-slots'
+import {
+  SHOT_READ_ERROR_CODES,
+  SHOT_READ_FIELD_IDS,
+  SHOT_READ_MAX_VIDEO_MB,
+} from '@/constants/shot-reading'
+import type { ShotReadingState } from '@/features/canvas/hooks/use-shot-reading'
 import { planShotMerge } from '@/lib/shot-pull-plan'
 import { zh as messages } from '@/messages'
 import type { CharacterCardRecord } from '@/types'
@@ -17,6 +23,7 @@ import type {
 
 import { ShotTable } from './ShotTable'
 import type { ShotPullSourceActions } from './ShotPullSourcePicker'
+import type { ShotTableReadingView } from './shot-table-board-context'
 
 const NOW = '2026-11-02T00:00:00.000Z'
 
@@ -50,6 +57,7 @@ function setup(
     readonly characterCards?: readonly CharacterCardRecord[]
     readonly focusSourceId?: string
     readonly pull?: ShotPullSourceActions
+    readonly reading?: ShotTableReadingView
   } = {},
 ) {
   const dispatch = vi.fn(() => true)
@@ -86,6 +94,7 @@ function setup(
           ? { focusSourceId: options.focusSourceId }
           : {})}
         {...(options.pull ? { pull: options.pull } : {})}
+        {...(options.reading ? { reading: options.reading } : {})}
       />
     </NextIntlClientProvider>,
   )
@@ -165,6 +174,37 @@ describe('ShotTable', () => {
       prompt: '新的一镜',
       mode: 'replace',
     })
+  })
+
+  it('长说明：不在改时看到两行截断那层（字在下层、输入框字透明）；点进去显出全文、跟内容长高', () => {
+    const long = '雪夜街口，一个穿红外套的女人背对镜头走远。'.repeat(6)
+    setup([shot('a', 1, { prompt: long } as Partial<NodeV4Data>)])
+    const note = screen.getByTestId('shot-table-note')
+    const clamp = screen.getByTestId('shot-table-note-clamp')
+    expect(clamp).toHaveTextContent(long)
+    // 截断挂在没有内边距的里层：挂在外层，第三行顶会从下内边距里露出来
+    expect(clamp).not.toHaveClass('line-clamp-2')
+    expect(clamp.firstElementChild).toHaveClass('line-clamp-2')
+    expect(clamp).toHaveAttribute('aria-hidden', 'true')
+    expect(note).toHaveClass('text-transparent')
+    expect(note).toHaveValue(long)
+
+    fireEvent.focus(note)
+    expect(screen.queryByTestId('shot-table-note-clamp')).toBeNull()
+    expect(note).not.toHaveClass('text-transparent')
+    expect(note).toHaveClass('field-sizing-content')
+
+    fireEvent.blur(note)
+    expect(screen.getByTestId('shot-table-note-clamp')).toHaveTextContent(long)
+    expect(note).not.toHaveClass('field-sizing-content')
+  })
+
+  it('说明空着：没有截断那层，占位字照常露出来', () => {
+    setup([shot('a', 1, { prompt: '' } as Partial<NodeV4Data>)])
+    expect(screen.queryByTestId('shot-table-note-clamp')).toBeNull()
+    const note = screen.getByTestId('shot-table-note')
+    expect(note).not.toHaveClass('text-transparent')
+    expect(note).toHaveAttribute('placeholder')
   })
 
   it('手改时长 = 改参数并锁住，一步撤销', () => {
@@ -664,6 +704,141 @@ describe('ShotTable', () => {
       ])
       fireEvent.click(items[2] as HTMLElement)
       expect(pull.onPull).toHaveBeenCalledWith('plain')
+    })
+  })
+
+  describe('读镜（H4b）', () => {
+    function draft(id: string, shotNo: number, extra: object = {}): NodeV4 {
+      return shot(id, shotNo, {
+        shot: { ref: { nodeId: 'ref', startSec: 0, endSec: 2 }, draft: true },
+        ...extra,
+      } as Partial<NodeV4Data>)
+    }
+
+    const PROGRESS = {
+      batchIndex: 0,
+      batchCount: 2,
+      doneShots: 0,
+      totalShots: 3,
+      batchIds: ['a', 'b'],
+      fields: [SHOT_READ_FIELD_IDS.sizeMove, SHOT_READ_FIELD_IDS.description],
+    } as const
+
+    function reading(state: ShotReadingState) {
+      return { state, stop: vi.fn(), retry: vi.fn() }
+    }
+
+    function shimsIn(nodeId: string): number {
+      const row = screen
+        .getAllByTestId('shot-table-row')
+        .find((item) => item.getAttribute('data-node-id') === nodeId)
+      return (
+        row?.querySelectorAll('[data-testid="shot-table-read-shim"]').length ??
+        -1
+      )
+    }
+
+    it('在读：表头下写第几批、哪几镜；这一批要读又空着的格子换灰条，停下 = stop', () => {
+      const view = reading({ status: 'reading', ...PROGRESS })
+      setup(
+        [
+          // a 的运镜已经填了：只有景别、说明是灰条。
+          draft('a', 1, {
+            shot: {
+              ref: { nodeId: 'ref', startSec: 0, endSec: 2 },
+              draft: true,
+              move: '缓推',
+            },
+          }),
+          draft('b', 2),
+          draft('c', 3),
+        ],
+        undefined,
+        { reading: view },
+      )
+      const bar = screen.getByTestId('shot-table-read-bar')
+      expect(bar.getAttribute('data-status')).toBe('reading')
+      expect(bar.textContent).toContain('第 1 批 · 1–2 镜')
+      expect(bar.textContent).toContain('0 / 3')
+      expect(shimsIn('a')).toBe(2)
+      expect(shimsIn('b')).toBe(3)
+      // 不在这一批：照常能写。
+      expect(shimsIn('c')).toBe(0)
+      fireEvent.click(screen.getByTestId('shot-table-read-stop'))
+      expect(view.stop).toHaveBeenCalledOnce()
+    })
+
+    it('没在读：没有那一条，也没有灰条', () => {
+      setup([draft('a', 1)], undefined, {
+        reading: reading({ status: 'idle' }),
+      })
+      expect(screen.queryByTestId('shot-table-read-bar')).toBeNull()
+      expect(shimsIn('a')).toBe(0)
+    })
+
+    it('key 用不了：说原因、给「换一把 key」，不给重试；算了 = stop', () => {
+      const view = reading({
+        status: 'failed',
+        ...PROGRESS,
+        failure: { error: 'Unauthorized', errorCode: 'PROVIDER_AUTH_FAILED' },
+      })
+      setup([draft('a', 1), draft('b', 2)], undefined, { reading: view })
+      const bar = screen.getByTestId('shot-table-read-bar')
+      expect(bar.getAttribute('data-status')).toBe('failed')
+      expect(bar.textContent).toContain('1–2 镜没读出来')
+      expect(bar.textContent).toContain('这把 Gemini key 用不了')
+      expect(screen.getByTestId('shot-table-read-rekey')).toBeTruthy()
+      expect(screen.queryByTestId('shot-table-read-retry')).toBeNull()
+      // 没读出来的行不留灰条：格子还给用户。
+      expect(shimsIn('a')).toBe(0)
+      fireEvent.click(screen.getByTestId('shot-table-read-dismiss'))
+      expect(view.stop).toHaveBeenCalledOnce()
+    })
+
+    it('片子太大：只说先剪一段（重试也一样大）', () => {
+      setup([draft('a', 1)], undefined, {
+        reading: reading({
+          status: 'failed',
+          ...PROGRESS,
+          failure: {
+            error: 'too large',
+            errorCode: SHOT_READ_ERROR_CODES.videoTooLarge,
+          },
+        }),
+      })
+      expect(screen.getByTestId('shot-table-read-bar').textContent).toContain(
+        `片子超过 ${SHOT_READ_MAX_VIDEO_MB} MB`,
+      )
+      expect(screen.queryByTestId('shot-table-read-retry')).toBeNull()
+      expect(screen.queryByTestId('shot-table-read-rekey')).toBeNull()
+    })
+
+    it('别的错：「重试这批」= 用原来那把 key 接着读', () => {
+      const view = reading({
+        status: 'failed',
+        ...PROGRESS,
+        failure: { error: 'Vision output rejected' },
+      })
+      setup([draft('a', 1)], undefined, { reading: view })
+      expect(screen.getByTestId('shot-table-read-bar').textContent).toContain(
+        'Gemini 这次没读出来',
+      )
+      fireEvent.click(screen.getByTestId('shot-table-read-retry'))
+      expect(view.retry).toHaveBeenCalledWith()
+    })
+
+    it('镜号按当前的行算：这一批的行都不在了，就说第几批', () => {
+      setup([draft('c', 1)], undefined, {
+        reading: reading({
+          status: 'failed',
+          ...PROGRESS,
+          batchIndex: 1,
+          failure: { error: 'x' },
+        }),
+      })
+      expect(screen.getByTestId('shot-table-read-bar').textContent).toContain(
+        '第 2 批没读出来',
+      )
     })
   })
 })

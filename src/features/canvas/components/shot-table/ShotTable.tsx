@@ -32,8 +32,13 @@
  * 草稿行的「画面」格没片没首帧时放参考帧（灰），点它在参考段的某一刻切开；悬停一行、它和
  * 上一行首尾相接时出「↑ 和上一镜合并」。
  *
+ * ── 读镜（H4b，owner 2026-11-07）──────────────────────────────────────
+ * 拉片纸上勾了「顺便读每一镜」，落表后工作台一批一批读（`useShotReading`）。表上露出来的：
+ * 表头下一条（`ShotTableReadBar`：第几批 / 停下；没读出来 = 原因 + 下一步），在读那一批的
+ * 行里，要读又空着的格子换成静止灰条。读回来只填空格、仍是草稿；改过的格子 ⛔ 不碰。
+ *
  * ── 这一刀不做的 ────────────────────────────────────────────────────────
- * 读镜（H4b）· 映射纸（H4c）· 逐镜出片（H3，走点数）· 多选统一改与手机（H5）。
+ * 映射纸（H4c）· 逐镜出片（H3，走点数）· 多选统一改与手机（H5）。
  * 空表三颗键里「让助手填」先摆着、不能点。
  */
 
@@ -51,6 +56,10 @@ import {
   Plus,
 } from '@/components/icons'
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
+import {
+  SHOT_READ_FIELD_IDS,
+  type ShotReadField,
+} from '@/constants/shot-reading'
 import {
   SHOT_SIZES,
   SHOT_SPEC_LIMITS,
@@ -102,6 +111,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import { Skeleton } from '@/components/ui/skeleton'
 
 import {
   ShotPullSourcePicker,
@@ -109,6 +119,8 @@ import {
 } from './ShotPullSourcePicker'
 import { ShotSplitPopover } from './ShotSplitPopover'
 import { ShotTableMaterialsCell } from './ShotTableMaterialsCell'
+import { ShotTableReadBar } from './ShotTableReadBar'
+import type { ShotTableReadingView } from './shot-table-board-context'
 
 export interface ShotTableProps {
   readonly state: NodeWorkflowStateV4
@@ -129,6 +141,8 @@ export interface ShotTableProps {
   readonly focusSourceId?: string | null
   /** 拉片（H4a）：宿主给了才亮「拉片」键（单测可以不给）。 */
   readonly pull?: ShotPullSourceActions
+  /** 读镜（H4b）：表头下那一条 + 在读那一批的灰条（宿主给了才有）。 */
+  readonly reading?: ShotTableReadingView
 }
 
 /** 一次撤销里改一行的几格（`set_shot_spec` 的补丁形状）。 */
@@ -155,6 +169,7 @@ export function ShotTable({
   renderTopInPort,
   focusSourceId = null,
   pull,
+  reading,
 }: ShotTableProps) {
   const t = useTranslations('StudioNode.shotTable')
   const locale = useLocale()
@@ -200,6 +215,18 @@ export function ShotTable({
   const draftIds = useMemo(
     () => new Set(rows.filter((row) => row.draft).map((row) => row.nodeId)),
     [rows],
+  )
+  /** 在读那一批：哪几行、读哪几样（空格子换灰条；读完 / 没读出来就收掉）。 */
+  const readingState = reading?.state
+  const readingRows = useMemo(
+    () =>
+      readingState?.status === 'reading'
+        ? {
+            ids: new Set(readingState.batchIds),
+            fields: new Set<ShotReadField>(readingState.fields),
+          }
+        : null,
+    [readingState],
   )
   /** 下一行 id → 上一行 id：两行拉自同一张参考片、首尾相接，才能合并。 */
   const mergeUp = useMemo(() => {
@@ -426,6 +453,7 @@ export function ShotTable({
           <span>{t('addShot')}</span>
         </button>
       </div>
+      {reading ? <ShotTableReadBar reading={reading} rows={rows} /> : null}
 
       {rows.length === 0 ? (
         <div data-testid="shot-table-empty" className="px-6 py-8">
@@ -487,6 +515,11 @@ export function ShotTable({
               <ShotTableRowView
                 key={row.nodeId}
                 row={row}
+                readingFields={
+                  readingRows?.ids.has(row.nodeId)
+                    ? readingRows.fields
+                    : undefined
+                }
                 landingIndex={landingIndex(rows, index)}
                 onMergeUp={
                   mergeUp.has(row.nodeId)
@@ -611,6 +644,7 @@ function ShotTableRowView({
   landingIndex,
   onMergeUp,
   onSplit,
+  readingFields,
 }: {
   readonly row: ShotTableRow
   readonly showDuration: boolean
@@ -630,17 +664,26 @@ function ShotTableRowView({
   onMergeUp?(): void
   /** 在参考段的某一刻切开。 */
   onSplit(atSec: number): void
+  /** 读镜正在读这一行：读哪几样（要读又空着的格子换成灰条）。 */
+  readonly readingFields?: ReadonlySet<ShotReadField>
 }) {
   const t = useTranslations('StudioNode.shotTable')
   const draftEmpty = row.draft
     ? 'border-dashed border-status-warning/70 hover:border-status-warning'
     : undefined
+  const reads = (field: ShotReadField) => readingFields?.has(field) === true
+  const readingSize = reads(SHOT_READ_FIELD_IDS.sizeMove) && !row.size
+  const readingMove = reads(SHOT_READ_FIELD_IDS.sizeMove) && !row.move
+  const readingNote =
+    reads(SHOT_READ_FIELD_IDS.description) && !row.prompt.trim()
+  const readingLook = reads(SHOT_READ_FIELD_IDS.look) && !row.look
   return (
     <tr
       data-testid="shot-table-row"
       data-node-id={row.nodeId}
       data-focus={focus}
       data-draft={row.draft || undefined}
+      data-reading={readingFields ? true : undefined}
       style={
         landingIndex !== undefined
           ? { animationDelay: `${Math.min(landingIndex, 12) * 40}ms` }
@@ -687,21 +730,29 @@ function ShotTableRowView({
         )}
       </td>
       <td className="px-3 py-2.5">
-        <SizePicker
-          value={row.size}
-          draftClassName={row.size ? undefined : draftEmpty}
-          onChange={(size) => onSpec({ size })}
-        />
+        {readingSize ? (
+          <ReadingShim className="w-16" />
+        ) : (
+          <SizePicker
+            value={row.size}
+            draftClassName={row.size ? undefined : draftEmpty}
+            onChange={(size) => onSpec({ size })}
+          />
+        )}
       </td>
       <td className="w-40 px-3 py-2.5">
-        <CellInput
-          testId="shot-table-move"
-          value={row.move ?? ''}
-          placeholder={t('movePlaceholder')}
-          maxLength={SHOT_SPEC_LIMITS.moveMaxLength}
-          className={row.move ? undefined : draftEmpty}
-          onCommit={(move) => onSpec({ move: move || null })}
-        />
+        {readingMove ? (
+          <ReadingShim className="w-2/3" />
+        ) : (
+          <CellInput
+            testId="shot-table-move"
+            value={row.move ?? ''}
+            placeholder={t('movePlaceholder')}
+            maxLength={SHOT_SPEC_LIMITS.moveMaxLength}
+            className={row.move ? undefined : draftEmpty}
+            onCommit={(move) => onSpec({ move: move || null })}
+          />
+        )}
       </td>
       <td className="relative min-w-56 px-3 py-2.5">
         {onMergeUp ? (
@@ -715,30 +766,38 @@ function ShotTableRowView({
             {t('mergeUp')}
           </button>
         ) : null}
-        <CellInput
-          testId="shot-table-note"
-          multiline
-          value={row.prompt}
-          placeholder={t('notePlaceholder')}
-          // ⚠ 说明不能清空：`set_prompt` 要至少一个字，清空等于没说这一镜拍什么。
-          onCommit={(prompt) => {
-            if (prompt) onPrompt(prompt)
-          }}
-        />
+        {readingNote ? (
+          <ReadingShim lines={2} />
+        ) : (
+          <CellInput
+            testId="shot-table-note"
+            multiline
+            value={row.prompt}
+            placeholder={t('notePlaceholder')}
+            // ⚠ 说明不能清空：`set_prompt` 要至少一个字，清空等于没说这一镜拍什么。
+            onCommit={(prompt) => {
+              if (prompt) onPrompt(prompt)
+            }}
+          />
+        )}
       </td>
       <td className="w-48 min-w-40 px-3 py-2.5">
-        <CellInput
-          testId="shot-table-look"
-          multiline
-          value={row.look ?? ''}
-          placeholder={
-            row.effectiveLook
-              ? t('followFilmWith', { look: row.effectiveLook })
-              : t('followFilm')
-          }
-          maxLength={SHOT_SPEC_LIMITS.lookMaxLength}
-          onCommit={(look) => onSpec({ look: look || null })}
-        />
+        {readingLook ? (
+          <ReadingShim lines={2} />
+        ) : (
+          <CellInput
+            testId="shot-table-look"
+            multiline
+            value={row.look ?? ''}
+            placeholder={
+              row.effectiveLook
+                ? t('followFilmWith', { look: row.effectiveLook })
+                : t('followFilm')
+            }
+            maxLength={SHOT_SPEC_LIMITS.lookMaxLength}
+            onCommit={(look) => onSpec({ look: look || null })}
+          />
+        )}
       </td>
       {showDuration ? (
         <td className="px-3 py-2.5">
@@ -812,6 +871,32 @@ function ShotTableRowView({
         {port}
       </td>
     </tr>
+  )
+}
+
+/**
+ * 读镜在读这一格：静止灰条（owner 2026-10-08 加载中不闪），高度与那一格的输入框一样，
+ * 读回来换上真内容时行高不跳。
+ */
+function ReadingShim({
+  lines = 1,
+  className,
+}: {
+  readonly lines?: 1 | 2
+  readonly className?: string
+}) {
+  return (
+    <div
+      data-testid="shot-table-read-shim"
+      className={cn(
+        'flex flex-col justify-center gap-1.5 px-1.5',
+        lines === 2 ? 'h-12' : 'h-7',
+        className,
+      )}
+    >
+      <Skeleton className="h-3 w-full" />
+      {lines === 2 ? <Skeleton className="h-3 w-2/3" /> : null}
+    </div>
   )
 }
 
@@ -976,6 +1061,10 @@ function SizePicker({
 /**
  * 一格里就地改字：失焦 / 回车提交，Esc 退回。⚠ 值没变不发 op —— 每发一条就是一步撤销。
  */
+/** 格子里那一框字的尺寸（输入框和下面那层两行截断共用，两层的折行才一样）。 */
+const CELL_BOX =
+  'w-full rounded-md border border-transparent px-1.5 py-1 text-base lg:text-sm'
+
 function CellInput({
   testId,
   value,
@@ -1012,26 +1101,56 @@ function CellInput({
     onFocus: () => setDraft(value),
     onBlur: commit,
     className: cn(
-      'nodrag w-full resize-none rounded-md border border-transparent bg-transparent px-1.5 py-1 text-base text-foreground outline-none transition-colors duration-fast placeholder:text-muted-foreground hover:border-border focus:border-input focus:bg-card lg:text-sm',
+      'nodrag resize-none bg-transparent text-foreground outline-none transition-colors duration-fast placeholder:text-muted-foreground hover:border-border focus:border-input focus:bg-card',
+      CELL_BOX,
       className,
     ),
   }
   if (multiline) {
+    // 长说明（owner 11-07）：不在改时看到的是下面那层 —— 两行截断 + 省略号（textarea 截不出
+    // 省略号，第三行还会从下内边距里露出半截）；textarea 叠在上面、字透明，点哪改哪照旧。
+    // 点进去 textarea 显出字、跟着内容长高，看全文；最矮不低于原来的两行，点进去不跳。
+    // ⛔ `line-clamp-2` 不能挂在带 `py-1` 的那层：溢出裁在内边距外沿，第三行顶上那几像素
+    //   会从下内边距里露出来（真机见过）。内边距在外层、截断在里层，裁口正好在第二行底。
+    const editing = draft !== null
+    const clamped = !editing && value !== ''
     return (
-      <textarea
-        {...shared}
-        rows={2}
-        onChange={(event) => setDraft(event.target.value)}
-        onKeyDown={(event) => {
-          if (event.key === 'Escape') {
-            setDraft(null)
-            event.currentTarget.blur()
-          }
-          if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
-            event.currentTarget.blur()
-          }
-        }}
-      />
+      <div className="grid">
+        {clamped ? (
+          <div
+            aria-hidden
+            data-testid={`${testId}-clamp`}
+            className={cn(
+              CELL_BOX,
+              'pointer-events-none col-start-1 row-start-1 text-foreground',
+            )}
+          >
+            <div className="line-clamp-2 whitespace-pre-wrap break-words">
+              {value}
+            </div>
+          </div>
+        ) : null}
+        <textarea
+          {...shared}
+          rows={2}
+          className={cn(
+            shared.className,
+            'col-start-1 row-start-1',
+            editing && 'field-sizing-content min-h-14.5 lg:min-h-12.5',
+            clamped && 'overflow-hidden text-transparent',
+          )}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') {
+              setDraft(null)
+              event.currentTarget.blur()
+            }
+            if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+              event.currentTarget.blur()
+            }
+          }}
+        />
+      </div>
     )
   }
   return (

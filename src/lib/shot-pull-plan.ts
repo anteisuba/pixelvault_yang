@@ -106,6 +106,11 @@ export interface ShotPullPlan {
   readonly ops: NodeAssistantOpV4[]
   /** 真正新建的段（被改过的行盖住的段已跳过）。 */
   readonly added: readonly ShotDetectRange[]
+  /**
+   * 与 `added` 一一对应的批内别名：`dispatchBatch` 回来的 `createdRefs[refs[i]]` 就是第 i 段的
+   * 镜头卡 id（读镜 H4b 按卡 id 回填）。
+   */
+  readonly refs: readonly string[]
   /** 被替换掉的旧草稿行数。 */
   readonly replaced: number
 }
@@ -160,8 +165,9 @@ export function planShotPull(input: ShotPullPlanInput): ShotPullPlan {
   const added = input.ranges.filter(
     (range) => !kept.some((ref) => overlapRatio(range, ref) >= 0.5),
   )
+  const refs = added.map((_, index) => `${PULL_REF_PREFIX}${index + 1}`)
   added.forEach((range, index) => {
-    const alias = `${PULL_REF_PREFIX}${index + 1}`
+    const alias = refs[index] ?? `${PULL_REF_PREFIX}${index + 1}`
     const ref: NodeV4ShotRef = {
       nodeId: input.clipNodeId,
       startSec: range.startSec,
@@ -186,7 +192,7 @@ export function planShotPull(input: ShotPullPlanInput): ShotPullPlan {
     )
   })
 
-  return { ops, added, replaced: staleDrafts.length }
+  return { ops, added, refs, replaced: staleDrafts.length }
 }
 
 /** 这一行能不能和上一行合并：两行都拉自同一张参考片，且时间段首尾相接。 */

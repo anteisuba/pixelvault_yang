@@ -5,6 +5,8 @@ import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
+  // 视频卡「裁剪」交给服务端渲时带上界面语言（p-canvas-nodes D 的 `useVideoTrimRender`）。
+  useLocale: () => 'zh',
 }))
 
 // ReactFlow 的 `Handle` 在测试里没有 store，桩成一个带 data-* 的 span 就够——

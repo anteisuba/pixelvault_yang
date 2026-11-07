@@ -2112,7 +2112,7 @@
         },
         "breakdown": {
           "title": "Break down a film",
-          "hint": "Drop in a reference clip, AI splits it into shots"
+          "hint": "Drop in a reference clip, cut it into one shot per row"
         }
       },
       "filmLook": "Film look",
@@ -2174,7 +2174,103 @@
       },
       "canvas": {
         "shotCount": "{count, plural, one {# shot} other {# shots}}",
-        "dropHint": "Release to add to film materials"
+        "dropHint": "Release to add to film materials",
+        "dropHintPull": "Release to break it down"
+      },
+      "pullButton": "Break down",
+      "refBadge": "Ref",
+      "refSpan": "Ref {seconds}s",
+      "mergeUp": "Merge with the shot above",
+      "split": {
+        "open": "View the reference segment and split it",
+        "title": "{shotNo} · ref {range}",
+        "hint": "Drag to where it should split",
+        "action": "Split at {time}"
+      },
+      "pull": {
+        "picker": {
+          "title": "Which clip?",
+          "canvas": "Videos on the canvas",
+          "upload": "Upload a video",
+          "library": "Pick from the library",
+          "note": "The clip you pick gets marked “Ref”"
+        },
+        "title": "Break down · {name} {duration} → shot list",
+        "firstTime": {
+          "title": "First time: download the shot-cut model · {mb} MB",
+          "body": "Only once. After that it runs in your browser · no credits",
+          "start": "Download and start"
+        },
+        "reading": "Reading the clip…",
+        "download": "First time: downloading the shot-cut model {loaded} / {total} MB",
+        "downloadOnce": "(only once)",
+        "analyzing": "Finding cuts… {done} / {total}",
+        "cutCount": "{count, plural, one {# shot} other {# shots}}",
+        "segment": "{index} · {seconds}s",
+        "grain": {
+          "label": "Cut detail",
+          "fine": "Fine · more cuts",
+          "normal": "Normal",
+          "coarse": "Coarse · fewer cuts",
+          "counts": "Fine → {fine} · Normal → {normal} · Coarse → {coarse}",
+          "later": "Adjust when it’s done"
+        },
+        "land": {
+          "label": "Put into the list",
+          "append": "Append to the end",
+          "reorder": "Renumber by the reference",
+          "fill": "Fill empty rows only"
+        },
+        "read": {
+          "title": "Also read each shot: size · movement · description",
+          "needs": "Uses Gemini · your own key · no credits",
+          "next": "Coming next"
+        },
+        "footRunning": "Runs in your browser · no credits",
+        "footDone": "Runs in your browser · no credits · one undo for the whole thing",
+        "cancel": "Cancel",
+        "retry": "Retry",
+        "landButton": "Put into the list",
+        "landCount": "Put into the list · {count, plural, one {# shot} other {# shots}}",
+        "landed": "{count, plural, one {# shot} other {# shots}} cut, all drafts · only cells you edit count",
+        "undo": "Undo",
+        "errors": {
+          "tooLong": {
+            "title": "This clip is {duration}, too long",
+            "body": "Up to 5 minutes per breakdown. Trim the part you want first.",
+            "action": "Trim"
+          },
+          "network": {
+            "title": "The shot-cut model didn’t download",
+            "body": "The connection dropped (got {loaded} / {total} MB)."
+          },
+          "videoNetwork": {
+            "title": "Couldn’t read the clip",
+            "body": "The connection dropped, or the clip’s address won’t open."
+          },
+          "noVideoTrack": {
+            "title": "This clip has no picture",
+            "body": "Audio-only clips can’t be broken down."
+          },
+          "cannotDecode": {
+            "title": "Your browser can’t decode this video",
+            "body": "Convert it to MP4 (H.264) and try again."
+          },
+          "failed": {
+            "title": "Something went wrong",
+            "body": "Try again; if it still fails, use another clip."
+          },
+          "noCut": {
+            "title": "No cuts found",
+            "body": "It looks like one long take. Try “Fine”, or put it in as one shot.",
+            "fine": "Try Fine",
+            "asOne": "Use as one shot"
+          },
+          "noFrames": {
+            "title": "Reference frames unavailable",
+            "body": "The server can’t grab frames from this format (not MP4 / too large). Rows still go in; the picture cell shows only the time range."
+          }
+        }
       }
     }
   }

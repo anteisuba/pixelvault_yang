@@ -64,6 +64,8 @@ export interface NodeSlotEdgeData extends Record<string, unknown> {
   readonly focus?: boolean
   readonly focusSoft?: boolean
   readonly dimmed?: boolean
+  /** 参考片 → 表（H4a mock ①）：标成参考、还没拉过 = 虚线。 */
+  readonly dashed?: boolean
 }
 
 export function NodeSlotEdge({
@@ -184,6 +186,7 @@ export function NodeSlotEdge({
           edgeData.focus && 'node-slot-edge--focus',
           edgeData.focusSoft && 'node-slot-edge--focus-soft',
           edgeData.dimmed && !active && 'node-slot-edge--dimmed',
+          edgeData.dashed && 'node-slot-edge--dashed',
           edgeData.running && 'node-canvas-edge-running',
         )}
       />

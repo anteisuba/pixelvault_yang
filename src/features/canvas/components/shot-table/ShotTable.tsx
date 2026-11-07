@@ -25,17 +25,26 @@
  * 画布点着一张素材时（`focusSourceId`），用到它的几行变浅蓝、其它行变淡、它的格子描蓝边。
  * 每行最左一格 / 表头左缘留给 `renderRowInPort` / `renderTopInPort`（素材卡的线落在这里）。
  *
+ * ── 拉片（H4a，owner 2026-11-07）──────────────────────────────────────
+ * 空表「拉片」键 / 有行时表头「拉片」→ 「拉哪一段？」（`ShotPullSourcePicker`），切镜与落表
+ * 在宿主挂的拉片纸里做（`ShotPullPaper`）。落下来的行是**草稿**：左缘一道黄、空的景别 / 运镜
+ * 虚线框；改了哪一格就和那一格同批去掉草稿标（一步撤销）。
+ * 草稿行的「画面」格没片没首帧时放参考帧（灰），点它在参考段的某一刻切开；悬停一行、它和
+ * 上一行首尾相接时出「↑ 和上一镜合并」。
+ *
  * ── 这一刀不做的 ────────────────────────────────────────────────────────
- * 拉片（H4）· 逐镜出片（H3，走点数）· 多选统一改与手机（H5）。
- * 空表三颗键里「让助手填」「拉片」先摆着、不能点。
+ * 读镜（H4b）· 映射纸（H4c）· 逐镜出片（H3，走点数）· 多选统一改与手机（H5）。
+ * 空表三颗键里「让助手填」先摆着、不能点。
  */
 
 import { useCallback, useMemo, useState, type ReactNode } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 
 import {
+  ArrowUp,
   ChevronDown,
   Columns,
+  Film,
   Locate,
   Lock,
   LockOpen,
@@ -70,6 +79,16 @@ import {
   planMaterialSlot,
   type ShotMaterialPlanContext,
 } from '@/lib/shot-table-materials'
+import {
+  formatPullClockPrecise,
+  formatPullSpan,
+  shotRefFrameUrl,
+} from '@/lib/shot-pull-frames'
+import {
+  canMergeWithPrevious,
+  planShotMerge,
+  planShotSplit,
+} from '@/lib/shot-pull-plan'
 import { cn } from '@/lib/utils'
 import type { CharacterCardRecord } from '@/types'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
@@ -84,6 +103,11 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 
+import {
+  ShotPullSourcePicker,
+  type ShotPullSourceActions,
+} from './ShotPullSourcePicker'
+import { ShotSplitPopover } from './ShotSplitPopover'
 import { ShotTableMaterialsCell } from './ShotTableMaterialsCell'
 
 export interface ShotTableProps {
@@ -103,6 +127,8 @@ export interface ShotTableProps {
   renderTopInPort?(): ReactNode
   /** 画布上点着的那张素材卡（H2b）：用到它的行变浅蓝、其它行变淡。 */
   readonly focusSourceId?: string | null
+  /** 拉片（H4a）：宿主给了才亮「拉片」键（单测可以不给）。 */
+  readonly pull?: ShotPullSourceActions
 }
 
 /** 一次撤销里改一行的几格（`set_shot_spec` 的补丁形状）。 */
@@ -111,9 +137,10 @@ type ShotSpecPatch = {
   move?: string | null
   look?: string | null
   durationLocked?: boolean | null
+  draft?: null
 }
 
-/** 空表的三条来路（mock 11-03 晚）。H1 只有「自己写」能点。 */
+/** 空表的三条来路（mock 11-03 晚）。「让助手填」还不能点。 */
 const SHOT_TABLE_SOURCES = ['write', 'assistant', 'breakdown'] as const
 
 export function ShotTable({
@@ -127,6 +154,7 @@ export function ShotTable({
   renderRowInPort,
   renderTopInPort,
   focusSourceId = null,
+  pull,
 }: ShotTableProps) {
   const t = useTranslations('StudioNode.shotTable')
   const locale = useLocale()
@@ -168,6 +196,25 @@ export function ShotTable({
   )
   const showDuration = !hidden.has(SHOTLIST_OPTIONAL_COLUMN_IDS.duration)
   const showCast = !hidden.has(SHOTLIST_OPTIONAL_COLUMN_IDS.cast)
+  /** 拉片的草稿行：改它哪一格都顺手去掉草稿标（同一批 op）。 */
+  const draftIds = useMemo(
+    () => new Set(rows.filter((row) => row.draft).map((row) => row.nodeId)),
+    [rows],
+  )
+  /** 下一行 id → 上一行 id：两行拉自同一张参考片、首尾相接，才能合并。 */
+  const mergeUp = useMemo(() => {
+    const byId = new Map(state.nodes.map((node) => [node.id, node]))
+    const pairs = new Map<string, string>()
+    rows.forEach((row, index) => {
+      const previous = rows[index - 1]
+      const node = byId.get(row.nodeId)
+      if (!previous || !node) return
+      if (canMergeWithPrevious(byId.get(previous.nodeId), node)) {
+        pairs.set(row.nodeId, previous.nodeId)
+      }
+    })
+    return pairs
+  }, [rows, state.nodes])
 
   /* ── 写入：全部走 op ─────────────────────────────────────────────────── */
   const setSpec = useCallback(
@@ -175,22 +222,42 @@ export function ShotTable({
       dispatch({
         op: NODE_ASSISTANT_OP_V4_IDS.setShotSpec,
         target: nodeId,
-        spec,
+        spec: draftIds.has(nodeId) ? { ...spec, draft: null } : spec,
       })
     },
-    [dispatch],
+    [dispatch, draftIds],
+  )
+
+  /** 草稿行：在那一格的 op 后面补一条「去掉草稿标」，同一步撤销。 */
+  const withDraftCleared = useCallback(
+    (nodeId: string, ops: readonly NodeAssistantOpV4[]) =>
+      draftIds.has(nodeId) && ops.length > 0
+        ? [
+            ...ops,
+            {
+              op: NODE_ASSISTANT_OP_V4_IDS.setShotSpec,
+              target: nodeId,
+              spec: { draft: null },
+            } satisfies NodeAssistantOpV4,
+          ]
+        : ops,
+    [draftIds],
   )
 
   const setPrompt = useCallback(
     (nodeId: string, prompt: string) => {
-      dispatch({
-        op: NODE_ASSISTANT_OP_V4_IDS.setPrompt,
-        target: nodeId,
-        prompt,
-        mode: 'replace',
-      })
+      const ops = withDraftCleared(nodeId, [
+        {
+          op: NODE_ASSISTANT_OP_V4_IDS.setPrompt,
+          target: nodeId,
+          prompt,
+          mode: 'replace',
+        },
+      ])
+      if (ops.length === 1 && ops[0]) dispatch(ops[0])
+      else dispatchBatch(ops)
     },
-    [dispatch],
+    [dispatch, dispatchBatch, withDraftCleared],
   )
 
   /** 手改时长 = 这一镜锁定（助手按总时长分配时不动它），一步撤销。 */
@@ -205,11 +272,14 @@ export function ShotTable({
         {
           op: NODE_ASSISTANT_OP_V4_IDS.setShotSpec,
           target: nodeId,
-          spec: { durationLocked: true },
+          spec: {
+            durationLocked: true,
+            ...(draftIds.has(nodeId) ? { draft: null } : {}),
+          },
         },
       ])
     },
-    [dispatchBatch],
+    [dispatchBatch, draftIds],
   )
 
   /** 素材列的一次点击 = 一批 op = 一步撤销（规划函数已排好「先断后写」）。 */
@@ -334,6 +404,18 @@ export function ShotTable({
             seconds: Number(summary.durationSec.toFixed(1)),
           })}
         </span>
+        {pull && rows.length > 0 ? (
+          <ShotPullSourcePicker nodes={state.nodes} actions={pull} align="end">
+            <button
+              type="button"
+              data-testid="shot-table-pull"
+              className="nodrag inline-flex h-8 shrink-0 items-center gap-1 rounded-lg px-2.5 text-2sm text-muted-foreground transition-colors duration-fast hover:bg-surface-fill hover:text-foreground"
+            >
+              <Film className="size-4 shrink-0" aria-hidden />
+              <span>{t('pullButton')}</span>
+            </button>
+          </ShotPullSourcePicker>
+        ) : null}
         <button
           type="button"
           data-testid="shot-table-add-shot"
@@ -350,14 +432,15 @@ export function ShotTable({
           <p className="mb-4 text-sm text-muted-foreground">{t('emptyLead')}</p>
           <div className="grid grid-cols-3 gap-3">
             {SHOT_TABLE_SOURCES.map((source) => {
-              const live = source === 'write'
-              return (
+              const live =
+                source === 'write' || (source === 'breakdown' && pull)
+              const key = (
                 <button
                   key={source}
                   type="button"
                   data-testid={`shot-table-source-${source}`}
                   disabled={!live}
-                  onClick={live ? onAddShot : undefined}
+                  onClick={source === 'write' ? onAddShot : undefined}
                   className="nodrag flex flex-col items-start gap-1 rounded-xl border border-border px-4 py-3.5 text-left transition-colors duration-fast hover:bg-surface-fill disabled:pointer-events-none disabled:opacity-40"
                 >
                   <span className="text-sm font-semibold">
@@ -367,6 +450,17 @@ export function ShotTable({
                     {t(`sources.${source}.hint`)}
                   </span>
                 </button>
+              )
+              return source === 'breakdown' && pull ? (
+                <ShotPullSourcePicker
+                  key={source}
+                  nodes={state.nodes}
+                  actions={pull}
+                >
+                  {key}
+                </ShotPullSourcePicker>
+              ) : (
+                key
               )
             })}
           </div>
@@ -389,10 +483,26 @@ export function ShotTable({
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
+            {rows.map((row, index) => (
               <ShotTableRowView
                 key={row.nodeId}
                 row={row}
+                landingIndex={landingIndex(rows, index)}
+                onMergeUp={
+                  mergeUp.has(row.nodeId)
+                    ? () =>
+                        applyOps(
+                          planShotMerge(
+                            state.nodes,
+                            mergeUp.get(row.nodeId) ?? '',
+                            row.nodeId,
+                          ),
+                        )
+                    : undefined
+                }
+                onSplit={(at) =>
+                  applyOps(planShotSplit(state.nodes, row.nodeId, at))
+                }
                 showDuration={showDuration}
                 showCast={showCast}
                 onSpec={(spec) => setSpec(row.nodeId, spec)}
@@ -414,32 +524,46 @@ export function ShotTable({
                     picks={picks}
                     focusSourceId={focusSourceId}
                     onAdd={(entry) =>
-                      applyOps(planMaterialAdd(planContext(row.nodeId), entry))
+                      applyOps(
+                        withDraftCleared(
+                          row.nodeId,
+                          planMaterialAdd(planContext(row.nodeId), entry),
+                        ),
+                      )
                     }
                     onRemoveFromFilm={(entry) =>
                       applyOps(planFilmMaterialRemove(state, entry.sourceId))
                     }
                     onRemove={(material) =>
                       applyOps(
-                        planMaterialRemove(planContext(row.nodeId), material),
+                        withDraftCleared(
+                          row.nodeId,
+                          planMaterialRemove(planContext(row.nodeId), material),
+                        ),
                       )
                     }
                     onSlot={(material, slot, holder) =>
                       applyOps(
-                        planMaterialSlot(
-                          planContext(row.nodeId),
-                          material,
-                          slot,
-                          holder,
+                        withDraftCleared(
+                          row.nodeId,
+                          planMaterialSlot(
+                            planContext(row.nodeId),
+                            material,
+                            slot,
+                            holder,
+                          ),
                         ),
                       )
                     }
                     onReplace={(material, entry) =>
                       applyOps(
-                        planMaterialReplace(
-                          planContext(row.nodeId),
-                          material,
-                          entry,
+                        withDraftCleared(
+                          row.nodeId,
+                          planMaterialReplace(
+                            planContext(row.nodeId),
+                            material,
+                            entry,
+                          ),
                         ),
                       )
                     }
@@ -455,6 +579,17 @@ export function ShotTable({
       )}
     </div>
   )
+}
+
+/** 落表入场的错峰序号：一串连着的草稿行里排第几（不是草稿行 = 不动）。 */
+function landingIndex(
+  rows: readonly ShotTableRow[],
+  index: number,
+): number | undefined {
+  if (!rows[index]?.draft) return undefined
+  let start = index
+  while (start > 0 && rows[start - 1]?.draft) start -= 1
+  return index - start
 }
 
 function Th({ children }: { readonly children: ReactNode }) {
@@ -473,6 +608,9 @@ function ShotTableRowView({
   port,
   inPort,
   focus,
+  landingIndex,
+  onMergeUp,
+  onSplit,
 }: {
   readonly row: ShotTableRow
   readonly showDuration: boolean
@@ -486,29 +624,74 @@ function ShotTableRowView({
   readonly inPort?: ReactNode
   /** 画布点着一张素材时：`on` = 这一镜用到它（浅蓝底），`off` = 没用到（变淡）。 */
   readonly focus?: 'on' | 'off' | undefined
+  /** 草稿行落表入场的错峰序号（不是草稿行 = 不给）。 */
+  readonly landingIndex?: number
+  /** 和上一镜合并（两行首尾相接才给）。 */
+  onMergeUp?(): void
+  /** 在参考段的某一刻切开。 */
+  onSplit(atSec: number): void
 }) {
   const t = useTranslations('StudioNode.shotTable')
+  const draftEmpty = row.draft
+    ? 'border-dashed border-status-warning/70 hover:border-status-warning'
+    : undefined
   return (
     <tr
       data-testid="shot-table-row"
       data-node-id={row.nodeId}
       data-focus={focus}
+      data-draft={row.draft || undefined}
+      style={
+        landingIndex !== undefined
+          ? { animationDelay: `${Math.min(landingIndex, 12) * 40}ms` }
+          : undefined
+      }
       className={cn(
-        'border-b border-border align-top transition-[background-color,opacity] duration-fast ease-standard last:border-b-0',
+        'group/row border-b border-border align-top transition-[background-color,opacity] duration-fast ease-standard last:border-b-0',
+        landingIndex !== undefined && 'shot-table-row-landing',
         focus === 'on' && 'bg-highlight-soft',
         focus === 'off' && 'opacity-30',
       )}
     >
       {/* 最左一格兼作入口的锚：素材卡的线落在这一行的左缘正中。 */}
       <td className="relative px-3 py-2.5 font-mono text-xs tabular-nums text-muted-foreground">
+        {row.draft ? (
+          <span
+            data-testid="shot-table-draft-mark"
+            aria-hidden
+            className="absolute inset-y-1 left-0 w-0.5 rounded-full bg-status-warning"
+          />
+        ) : null}
         {String(row.shotNo).padStart(2, '0')}
         {inPort}
       </td>
       <td className="px-3 py-2.5">
-        <FrameThumb row={row} generatingLabel={t('generating')} />
+        {row.reference?.url ? (
+          <ShotSplitPopover
+            shotNo={row.shotNo}
+            reference={{ ...row.reference, url: row.reference.url }}
+            onSplit={onSplit}
+          >
+            <button
+              type="button"
+              data-testid="shot-table-split-open"
+              aria-label={t('split.open')}
+              title={t('split.open')}
+              className="nodrag block rounded-md transition-opacity duration-fast hover:opacity-85"
+            >
+              <FrameThumb row={row} generatingLabel={t('generating')} />
+            </button>
+          </ShotSplitPopover>
+        ) : (
+          <FrameThumb row={row} generatingLabel={t('generating')} />
+        )}
       </td>
       <td className="px-3 py-2.5">
-        <SizePicker value={row.size} onChange={(size) => onSpec({ size })} />
+        <SizePicker
+          value={row.size}
+          draftClassName={row.size ? undefined : draftEmpty}
+          onChange={(size) => onSpec({ size })}
+        />
       </td>
       <td className="w-40 px-3 py-2.5">
         <CellInput
@@ -516,10 +699,22 @@ function ShotTableRowView({
           value={row.move ?? ''}
           placeholder={t('movePlaceholder')}
           maxLength={SHOT_SPEC_LIMITS.moveMaxLength}
+          className={row.move ? undefined : draftEmpty}
           onCommit={(move) => onSpec({ move: move || null })}
         />
       </td>
-      <td className="min-w-56 px-3 py-2.5">
+      <td className="relative min-w-56 px-3 py-2.5">
+        {onMergeUp ? (
+          <button
+            type="button"
+            data-testid="shot-table-merge-up"
+            onClick={onMergeUp}
+            className="nodrag absolute -top-3 left-3 z-10 inline-flex h-6 items-center gap-1 rounded-full border border-border bg-card px-2 text-xs text-foreground opacity-0 shadow-soft transition-opacity duration-fast hover:bg-surface-fill focus-visible:opacity-100 group-hover/row:opacity-100"
+          >
+            <ArrowUp className="size-3" aria-hidden />
+            {t('mergeUp')}
+          </button>
+        ) : null}
         <CellInput
           testId="shot-table-note"
           multiline
@@ -586,6 +781,19 @@ function ShotTableRowView({
               )}
             </button>
           </div>
+          {row.reference ? (
+            <span
+              data-testid="shot-table-ref-span"
+              className="block px-1.5 text-2xs tabular-nums text-muted-foreground"
+            >
+              {t('refSpan', {
+                seconds: formatPullSpan(
+                  row.reference.startSec,
+                  row.reference.endSec,
+                ),
+              })}
+            </span>
+          ) : null}
         </td>
       ) : null}
       {showCast ? <td className="px-3 py-2.5">{materialsCell}</td> : null}
@@ -641,6 +849,8 @@ function FrameThumb({
           alt={row.label}
           className="size-full object-cover"
         />
+      ) : row.reference ? (
+        <ReferenceFrame reference={row.reference} label={row.label} />
       ) : (
         <div className="size-full rounded-md border border-dashed border-border" />
       )}
@@ -653,11 +863,58 @@ function FrameThumb({
   )
 }
 
+/**
+ * 草稿行「画面」格没片没首帧：放参考片那一段的一帧（灰 = 借来看结构的，⛔ 不是这一镜的
+ * 首帧）；截不了帧就只写时间段。
+ */
+function ReferenceFrame({
+  reference,
+  label,
+}: {
+  readonly reference: NonNullable<ShotTableRow['reference']>
+  readonly label: string
+}) {
+  const t = useTranslations('StudioNode.shotTable')
+  const src = shotRefFrameUrl(
+    reference.url,
+    reference.startSec,
+    reference.endSec,
+  )
+  const range = `${formatPullClockPrecise(reference.startSec)}–${formatPullClockPrecise(reference.endSec)}`
+  return (
+    <div data-testid="shot-table-ref-frame" className="relative size-full">
+      {src ? (
+        // eslint-disable-next-line @next/next/no-img-element -- 边缘截帧直链，不走优化
+        <img
+          src={src}
+          alt={label}
+          className="size-full object-cover opacity-80 grayscale"
+        />
+      ) : (
+        <div className="flex size-full items-center justify-center rounded-md border border-dashed border-border font-mono text-2xs tabular-nums text-muted-foreground">
+          {range}
+        </div>
+      )}
+      <span className="absolute left-1 top-1 rounded-sm bg-media-chip px-1 text-2xs text-on-media-chip">
+        {t('refBadge')}
+      </span>
+      {src ? (
+        <span className="absolute bottom-1 right-1 rounded-sm bg-media-chip px-1 font-mono text-2xs tabular-nums text-on-media-chip">
+          {range}
+        </span>
+      ) : null}
+    </div>
+  )
+}
+
 function SizePicker({
   value,
+  draftClassName,
   onChange,
 }: {
   readonly value?: ShotSize
+  /** 草稿行空着的样子（虚线黄框）。 */
+  readonly draftClassName?: string
   onChange(size: ShotSize | null): void
 }) {
   const t = useTranslations('StudioNode.shotTable')
@@ -669,8 +926,9 @@ function SizePicker({
           type="button"
           data-testid="shot-table-size"
           className={cn(
-            'nodrag inline-flex h-7 items-center gap-1 whitespace-nowrap rounded-md px-1.5 text-sm transition-colors duration-fast hover:bg-surface-fill',
+            'nodrag inline-flex h-7 items-center gap-1 whitespace-nowrap rounded-md border border-transparent px-1.5 text-sm transition-colors duration-fast hover:bg-surface-fill',
             !value && 'text-muted-foreground',
+            draftClassName,
           )}
         >
           <span>{value ? t(`sizes.${value}`) : '—'}</span>

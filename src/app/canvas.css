@@ -1446,6 +1446,29 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
     0 0 0 8px var(--highlight-soft);
 }
 
+/* 拉片落表（H4a）：草稿行一行行落进来（错峰由行内 animation-delay 给）。
+   ⚠ 用 animation 不用 transition —— 挂载那一刻就有起始帧，不靠 rAF 补；fill 只取
+   `backwards`：落完不再占着 opacity，「点着素材时其它行变淡」还能照常生效。 */
+@keyframes shot-table-row-land {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.shot-table-row-landing {
+  animation: shot-table-row-land var(--duration-slow) var(--ease-standard)
+    backwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .shot-table-row-landing {
+    animation: none;
+  }
+}
+
 /* 落线被拒的那一下红环（理由走 toast，⛔ 不静默失败）。 */
 .node-card-reject {
   outline: 2px solid var(--node-status-failed);
@@ -1476,6 +1499,11 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
 .react-flow__edge-path.node-slot-edge.node-slot-edge--faded {
   stroke-width: 1;
   opacity: 0.2;
+}
+
+/* 参考片 → 表（H4a mock ①）：标成参考、还没拉过。拉过之后同一根线去掉这一档变实线。 */
+.react-flow__edge-path.node-slot-edge.node-slot-edge--dashed {
+  stroke-dasharray: 6 5;
 }
 
 .react-flow__edge-path.node-slot-edge.node-slot-edge--focus {

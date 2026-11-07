@@ -78,6 +78,7 @@ export function ShotTableNode({ selected }: NodeProps) {
         dispatchBatch={board.dispatchBatch}
         onAddShot={board.onAddShot}
         onLocate={board.onLocate}
+        pull={board.pull}
         focusSourceId={canvas.focusId}
         renderRowInPort={(nodeId) => (
           <Handle

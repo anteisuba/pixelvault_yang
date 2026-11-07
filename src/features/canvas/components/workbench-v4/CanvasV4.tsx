@@ -71,6 +71,7 @@ import {
   listIdleFilmMaterials,
   planFilmMaterialAdd,
 } from '@/lib/shot-film-materials'
+import { isPullSourceNode, isReferenceClip } from '@/lib/shot-pull-plan'
 import {
   SHOT_MATERIAL_SLOTS,
   type ShotMaterialSlot,
@@ -388,6 +389,8 @@ export interface CanvasV4Props {
   onPaneDoubleClick?(event: React.MouseEvent): void
   onDrop?(event: React.DragEvent): void
   onDragOver?(event: React.DragEvent): void
+  /** 把一张有片子的片段卡拖到表上松手 = 拉这一段（H4a）。不给 = 照旧进全片素材。 */
+  onPullClip?(clipNodeId: string): void
   readonly children?: React.ReactNode
 }
 
@@ -406,6 +409,7 @@ export function CanvasV4({
   onPaneDoubleClick,
   onDrop,
   onDragOver,
+  onPullClip,
   children,
 }: CanvasV4Props) {
   const { rfNodes, edges, nodes, selectedNodeIds, layoutSlide } = graph
@@ -609,7 +613,35 @@ export function CanvasV4({
         )
       }
     }
-    const synthetic = [...rowEdges, ...materialEdges]
+
+    /**
+     * 参考片 → 表顶（H4a mock ①）：标成「参考」还没拉 = 虚线，表里有行拉自它 = 实线。已经作为
+     * 全片素材连着表的不再画第二根。纯画法，同上。
+     */
+    const referenceEdges = []
+    if (tableBoard) {
+      const pulledFrom = new Set(
+        listShotTableNodes(nodes)
+          .map((shot) => shot.data.shot?.ref?.nodeId)
+          .filter((id): id is string => Boolean(id)),
+      )
+      for (const clip of nodes) {
+        if (!isReferenceClip(clip) || filmOnCanvas?.has(clip.id)) continue
+        referenceEdges.push({
+          id: `${SHOT_TABLE_BOARD.materialEdgePrefix}ref:${clip.id}`,
+          source: clip.id,
+          sourceHandle: NODE_PORT_HANDLE_IDS.output,
+          target: SHOT_TABLE_ID,
+          targetHandle: SHOT_TABLE_BOARD.materialTopHandle,
+          hidden: relationsCollapsed,
+          selectable: false,
+          deletable: false,
+          focusable: false,
+          data: pulledFrom.has(clip.id) ? {} : { dashed: true },
+        })
+      }
+    }
+    const synthetic = [...rowEdges, ...materialEdges, ...referenceEdges]
     const drawn = synthetic.length > 0 ? [...live, ...synthetic] : live
 
     if (fadingEdges.size === 0) return drawn as unknown as NodeWorkflowEdge[]
@@ -918,6 +950,16 @@ export function CanvasV4({
           ])
         }
       }
+      // 有片子的片段卡松在表上 = 拉片（H4a mock ②）：打开拉片纸，卡留在原位。
+      if (
+        droppedOnTable &&
+        onPullClip &&
+        isPullSourceNode(nodes.find((item) => item.id === node.id))
+      ) {
+        onPullClip(node.id)
+        snapBack()
+        return
+      }
       // 松在表上 = 进全片素材（一步撤销），卡**留在原位**（第 26 条 / mock ③）。
       if (droppedOnTable) {
         for (const op of planFilmMaterialAdd(graph.readState(), node.id)) {
@@ -941,6 +983,7 @@ export function CanvasV4({
       graph,
       nodes,
       onNodeDragStopIntercept,
+      onPullClip,
       connectDrop,
       endConnect,
       endShotTableDrag,
@@ -1022,8 +1065,12 @@ export function CanvasV4({
       focusId,
       dimIds,
       dropSourceId: tableDrop,
+      dropPull:
+        tableDrop !== null &&
+        onPullClip !== undefined &&
+        isPullSourceNode(nodes.find((item) => item.id === tableDrop)),
     }
-  }, [filmOnCanvas, focusId, tableDrop])
+  }, [filmOnCanvas, focusId, tableDrop, nodes, onPullClip])
 
   return (
     <NodeConnectStateProvider value={connectState}>

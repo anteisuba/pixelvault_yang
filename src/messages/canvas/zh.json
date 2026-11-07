@@ -2112,7 +2112,7 @@
         },
         "breakdown": {
           "title": "拉片",
-          "hint": "放一段参考片，AI 拆成表"
+          "hint": "放一段参考片，切成一镜一行"
         }
       },
       "filmLook": "全片风格",
@@ -2174,7 +2174,103 @@
       },
       "canvas": {
         "shotCount": "{count} 镜",
-        "dropHint": "松手 = 加进全片素材"
+        "dropHint": "松手 = 加进全片素材",
+        "dropHintPull": "松手 = 拉片"
+      },
+      "pullButton": "拉片",
+      "refBadge": "参考",
+      "refSpan": "参考 {seconds}s",
+      "mergeUp": "和上一镜合并",
+      "split": {
+        "open": "看参考段，在某一刻切开",
+        "title": "{shotNo} · 参考 {range}",
+        "hint": "拖到要切的位置",
+        "action": "在 {time} 切开"
+      },
+      "pull": {
+        "picker": {
+          "title": "拉哪一段？",
+          "canvas": "画布上的视频",
+          "upload": "上传一段视频",
+          "library": "从素材库选",
+          "note": "选中的片段卡会被标成「参考」"
+        },
+        "title": "拉片 · {name} {duration} → 镜头表",
+        "firstTime": {
+          "title": "第一次要下载切镜模型 · {mb} MB",
+          "body": "只下这一次，之后都在你的浏览器里切 · 不扣点",
+          "start": "下载并开始切"
+        },
+        "reading": "正在读片子…",
+        "download": "第一次用：下载切镜模型 {loaded} / {total} MB",
+        "downloadOnce": "（只下这一次）",
+        "analyzing": "正在切镜… {done} / {total}",
+        "cutCount": "切出 {count} 镜",
+        "segment": "{index} · {seconds}s",
+        "grain": {
+          "label": "切镜粗细",
+          "fine": "细 · 多切",
+          "normal": "正常",
+          "coarse": "粗 · 少切",
+          "counts": "细 → {fine} 镜 · 正常 → {normal} 镜 · 粗 → {coarse} 镜",
+          "later": "切完再调"
+        },
+        "land": {
+          "label": "落到表里",
+          "append": "追加到表尾",
+          "reorder": "按参考片重排镜号",
+          "fill": "只填空行"
+        },
+        "read": {
+          "title": "顺便读每一镜：景别 · 运镜 · 画面说明",
+          "needs": "要用 Gemini · 你自己的 key · 不扣点",
+          "next": "下一步接上"
+        },
+        "footRunning": "在你的浏览器里切 · 不扣点",
+        "footDone": "在你的浏览器里切 · 不扣点 · 一整次 = 一步撤销",
+        "cancel": "取消",
+        "retry": "重试",
+        "landButton": "落到表里",
+        "landCount": "落到表里 · {count} 镜",
+        "landed": "切出 {count} 镜，都是草稿 · 改过的格子才算数",
+        "undo": "撤销",
+        "errors": {
+          "tooLong": {
+            "title": "这段 {duration}，太长了",
+            "body": "拉片一次最多 5 分钟。先剪出要拉的那一段。",
+            "action": "去剪"
+          },
+          "network": {
+            "title": "切镜模型没下下来",
+            "body": "网络断了（下到 {loaded} / {total} MB）。"
+          },
+          "videoNetwork": {
+            "title": "片子读不下来",
+            "body": "网络断了，或者片子的地址打不开。"
+          },
+          "noVideoTrack": {
+            "title": "这段没有画面",
+            "body": "只有声音的片子拉不了片。"
+          },
+          "cannotDecode": {
+            "title": "你的浏览器解不开这段视频",
+            "body": "换成 MP4（H.264）再拉。"
+          },
+          "failed": {
+            "title": "切镜出错了",
+            "body": "再试一次；还不行就换一段片子。"
+          },
+          "noCut": {
+            "title": "一刀都没切出来",
+            "body": "整段像一个长镜头。拨到「细」再看，或者就当一镜落表。",
+            "fine": "拨到细",
+            "asOne": "当一镜落表"
+          },
+          "noFrames": {
+            "title": "参考帧出不来",
+            "body": "这段视频的格式服务器截不了帧（不是 MP4 / 太大）。行照样落，画面格只写时间段。"
+          }
+        }
       }
     }
   }

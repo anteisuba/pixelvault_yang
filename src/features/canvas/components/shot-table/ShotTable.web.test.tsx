@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import { NODE_SLOT_IDS, NODE_SLOT_OUTPUT_IDS } from '@/constants/node-slots'
+import { planShotMerge } from '@/lib/shot-pull-plan'
 import { zh as messages } from '@/messages'
 import type { CharacterCardRecord } from '@/types'
 import type {
@@ -15,6 +16,7 @@ import type {
 } from '@/types/node-workflow'
 
 import { ShotTable } from './ShotTable'
+import type { ShotPullSourceActions } from './ShotPullSourcePicker'
 
 const NOW = '2026-11-02T00:00:00.000Z'
 
@@ -47,6 +49,7 @@ function setup(
     readonly edges?: readonly NodeWorkflowEdgeV4[]
     readonly characterCards?: readonly CharacterCardRecord[]
     readonly focusSourceId?: string
+    readonly pull?: ShotPullSourceActions
   } = {},
 ) {
   const dispatch = vi.fn(() => true)
@@ -82,6 +85,7 @@ function setup(
         {...(options.focusSourceId
           ? { focusSourceId: options.focusSourceId }
           : {})}
+        {...(options.pull ? { pull: options.pull } : {})}
       />
     </NextIntlClientProvider>,
   )
@@ -489,6 +493,177 @@ describe('ShotTable', () => {
         ['tv', null],
         ['bg', 'true'],
       ])
+    })
+  })
+
+  describe('拉片（H4a）', () => {
+    const CLIP_URL = 'https://cdn.anteisuba.com/clip.mp4'
+
+    function clip(id: string, reference: boolean): NodeV4 {
+      return {
+        id,
+        position: { x: 0, y: 0 },
+        data: {
+          kind: 'video',
+          subtype: 'clip',
+          name: id,
+          label: id,
+          status: 'idle',
+          createdAt: NOW,
+          url: CLIP_URL,
+          ...(reference ? { clipRole: 'reference' } : {}),
+        } as NodeV4Data,
+      }
+    }
+
+    function pulled(
+      id: string,
+      shotNo: number,
+      startSec: number,
+      endSec: number,
+      draft = true,
+    ): NodeV4 {
+      return shot(id, shotNo, {
+        shot: { ref: { nodeId: 'ref', startSec, endSec }, draft },
+      } as Partial<NodeV4Data>)
+    }
+
+    function pullActions() {
+      return { onPull: vi.fn(), onUpload: vi.fn(), onLibrary: vi.fn() }
+    }
+
+    it('草稿行带草稿标；时长格下写参考段长', () => {
+      setup([clip('ref', true), pulled('a', 1, 0, 3.04)])
+      const row = screen.getByTestId('shot-table-row')
+      expect(row.getAttribute('data-draft')).toBe('true')
+      expect(screen.getByTestId('shot-table-draft-mark')).toBeTruthy()
+      expect(screen.getByTestId('shot-table-ref-span').textContent).toBe(
+        '参考 3s',
+      )
+    })
+
+    it('改过的行不是草稿：没有草稿标', () => {
+      setup([clip('ref', true), pulled('a', 1, 0, 3, false)])
+      expect(
+        screen.getByTestId('shot-table-row').getAttribute('data-draft'),
+      ).toBeNull()
+      expect(screen.queryByTestId('shot-table-draft-mark')).toBeNull()
+    })
+
+    it('草稿行改运镜 = 同一条 set_shot_spec 顺手去掉草稿', () => {
+      const { dispatch } = setup([clip('ref', true), pulled('a', 1, 0, 3)])
+      const input = screen.getByTestId('shot-table-move')
+      fireEvent.focus(input)
+      fireEvent.change(input, { target: { value: '缓推' } })
+      fireEvent.blur(input)
+      expect(dispatch).toHaveBeenCalledWith({
+        op: NODE_ASSISTANT_OP_V4_IDS.setShotSpec,
+        target: 'a',
+        spec: { move: '缓推', draft: null },
+      })
+    })
+
+    it('草稿行改说明 = set_prompt + 去草稿，一批（一步撤销）', () => {
+      const { dispatch, dispatchBatch } = setup([
+        clip('ref', true),
+        pulled('a', 1, 0, 3),
+      ])
+      const note = screen.getByTestId('shot-table-note')
+      fireEvent.focus(note)
+      fireEvent.change(note, { target: { value: '她回头' } })
+      fireEvent.blur(note)
+      expect(dispatch).not.toHaveBeenCalled()
+      expect(dispatchBatch).toHaveBeenCalledWith([
+        {
+          op: NODE_ASSISTANT_OP_V4_IDS.setPrompt,
+          target: 'a',
+          prompt: '她回头',
+          mode: 'replace',
+        },
+        {
+          op: NODE_ASSISTANT_OP_V4_IDS.setShotSpec,
+          target: 'a',
+          spec: { draft: null },
+        },
+      ])
+    })
+
+    it('草稿行手改时长：锁住 + 去草稿在同一条', () => {
+      const { dispatchBatch } = setup([clip('ref', true), pulled('a', 1, 0, 3)])
+      const input = screen.getByTestId('shot-table-duration')
+      fireEvent.focus(input)
+      fireEvent.change(input, { target: { value: '5' } })
+      fireEvent.blur(input)
+      expect(dispatchBatch).toHaveBeenCalledWith([
+        {
+          op: NODE_ASSISTANT_OP_V4_IDS.setParams,
+          target: 'a',
+          params: { duration: '5' },
+        },
+        {
+          op: NODE_ASSISTANT_OP_V4_IDS.setShotSpec,
+          target: 'a',
+          spec: { durationLocked: true, draft: null },
+        },
+      ])
+    })
+
+    it('同一张参考片首尾相接的下一行才有「和上一镜合并」；点了 = 合并计划一批', () => {
+      const nodes = [
+        clip('ref', true),
+        pulled('a', 1, 0, 3),
+        pulled('b', 2, 3, 5),
+        pulled('c', 3, 6, 8),
+      ]
+      const { dispatchBatch } = setup(nodes)
+      const rows = screen.getAllByTestId('shot-table-row')
+      const merges = rows.map(
+        (row) =>
+          row.querySelector('[data-testid="shot-table-merge-up"]') !== null,
+      )
+      // a 没有上一行；b 接着 a；c 和 b 中间空了一秒，不能合。
+      expect(merges).toEqual([false, true, false])
+      fireEvent.click(screen.getByTestId('shot-table-merge-up'))
+      expect(dispatchBatch).toHaveBeenCalledWith(planShotMerge(nodes, 'a', 'b'))
+    })
+
+    it('没传 pull：「拉片」键不在，空表「拆参考片」灰着', () => {
+      setup([clip('ref', true), pulled('a', 1, 0, 3)])
+      expect(screen.queryByTestId('shot-table-pull')).toBeNull()
+    })
+
+    it('空表 + 画布上恰好一张参考片：点「拆参考片」直接拉它，不多问', () => {
+      const pull = pullActions()
+      setup([clip('ref', true), clip('other', false)], undefined, { pull })
+      const key = screen.getByTestId('shot-table-source-breakdown')
+      expect(key.hasAttribute('disabled')).toBe(false)
+      fireEvent.click(key)
+      expect(pull.onPull).toHaveBeenCalledWith('ref')
+      expect(screen.queryByTestId('shot-pull-picker')).toBeNull()
+    })
+
+    it('参考片不止一张：表头「拉片」先问拉哪张，参考片排在前面', () => {
+      const pull = pullActions()
+      setup(
+        [
+          clip('plain', false),
+          clip('ref', true),
+          clip('ref2', true),
+          pulled('a', 1, 0, 3),
+        ],
+        undefined,
+        { pull },
+      )
+      fireEvent.click(screen.getByTestId('shot-table-pull'))
+      expect(screen.getByTestId('shot-pull-picker')).toBeTruthy()
+      const items = screen.getAllByTestId('shot-pull-picker-clip')
+      expect(items.map((item) => item.getAttribute('data-node-id'))).toEqual([
+        'ref',
+        'ref2',
+        'plain',
+      ])
+      fireEvent.click(items[2] as HTMLElement)
+      expect(pull.onPull).toHaveBeenCalledWith('plain')
     })
   })
 })

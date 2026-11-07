@@ -1287,6 +1287,15 @@ export const NodeV4ScriptShotSchema = z.object({
     .catch(undefined),
 })
 
+/** 一镜在参考片上的时间段（拉片 H4a）。 */
+export const NodeV4ShotRefSchema = z.object({
+  nodeId: z.string().trim().min(1).max(160),
+  startSec: z.number().min(0).max(SHOT_SPEC_LIMITS.refMaxSeconds),
+  endSec: z.number().min(0).max(SHOT_SPEC_LIMITS.refMaxSeconds),
+})
+
+export type NodeV4ShotRef = z.infer<typeof NodeV4ShotRefSchema>
+
 /**
  * 镜头表的一行在镜头卡上的那几格（`p-canvas-shotlist`，`docs/design/canvas-shotlist.md`）。
  *
@@ -1306,6 +1315,17 @@ export const NodeV4ShotSpecSchema = z.object({
    * `true` = 助手重新分配时不动这一镜；缺席 = 可以分。
    */
   durationLocked: z.boolean().optional(),
+  /**
+   * 拉片（H4a）：这一镜借的是哪张参考片的哪一段。表里的参考帧按它现截
+   * （`getVideoFrameUrl`），⛔ 不另存图；⛔ 也不会自动变成首帧 —— 只借结构不借画面。
+   * 坏值单独丢掉，不连累同一块里的景别 / 运镜。
+   */
+  ref: NodeV4ShotRefSchema.optional().catch(undefined),
+  /**
+   * 拉片落下来、还没人动过的草稿行。改了这一行的任何一格就去掉（与那一格同批写，
+   * 同一步撤销）。重拉同一段时只替换还是草稿的行，改过的行留着。
+   */
+  draft: z.boolean().optional(),
 })
 
 /**

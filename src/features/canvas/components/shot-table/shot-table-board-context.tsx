@@ -14,6 +14,8 @@ import type { CharacterCardRecord } from '@/types'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
 import type { NodeWorkflowStateV4 } from '@/types/node-workflow'
 
+import type { ShotPullSourceActions } from './ShotPullSourcePicker'
+
 export interface ShotTableBoardValue {
   readonly state: NodeWorkflowStateV4
   readonly characterCards: readonly CharacterCardRecord[]
@@ -23,6 +25,8 @@ export interface ShotTableBoardValue {
   dispatchBatch(ops: readonly NodeAssistantOpV4[]): unknown
   onAddShot(): void
   onLocate(nodeId: string): void
+  /** 拉片（H4a）：拉画布上的某张片段卡 / 先上传 / 先从素材库拿。 */
+  readonly pull?: ShotPullSourceActions
 }
 
 const ShotTableBoardContext = createContext<ShotTableBoardValue | null>(null)

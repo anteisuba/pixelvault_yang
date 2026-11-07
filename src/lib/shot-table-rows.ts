@@ -9,6 +9,9 @@
  *
  * 只收有镜号的镜头卡（镜头带里那一排）；没镜号的散卡不进表。
  *
+ * 拉片（H4a）落下来的行多两样：`reference` = 这一镜在参考片里的那一段（画面格没片没首帧时
+ * 就看它），`draft` = 还没人动过的草稿（改了哪一格都算确认）。
+ *
  * ⛔ 纯函数：不读时钟、不碰 DOM。
  */
 
@@ -31,6 +34,15 @@ import type {
   NodeWorkflowEdgeV4,
   NodeWorkflowShotlist,
 } from '@/types/node-workflow'
+
+/** 拉片落下来的那一段：参考片是哪张卡、从几秒到几秒，片子的地址（截参考帧用）。 */
+export interface ShotTableReference {
+  readonly nodeId: string
+  readonly startSec: number
+  readonly endSec: number
+  /** 参考片还在画布上且有片子时才有。 */
+  readonly url?: string
+}
 
 /** 「画面」那一格放什么：有片放片，没片放首帧，都没有是空格。 */
 export type ShotTableFrame =
@@ -55,6 +67,10 @@ export interface ShotTableRow {
   /** 素材列（H2a）：首 / 角 / 场 / 参 / 声。 */
   readonly materials: readonly ShotTableMaterial[]
   readonly generating: boolean
+  /** 拉片落下来的参考段（H4a）。 */
+  readonly reference?: ShotTableReference
+  /** 拉片的草稿行：还没人改过（H4a）。 */
+  readonly draft: boolean
 }
 
 export interface ShotTableSummary {
@@ -161,6 +177,12 @@ export function buildShotTableRows(input: {
     const spec = data.shot
     const effectiveLook = resolveShotLook(spec, input.shotlist)
     const durationSec = parseSeconds(data.params?.duration)
+    const ref = spec?.ref
+    const refSource = ref ? byId.get(ref.nodeId) : undefined
+    const refUrl =
+      refSource?.data.kind === NODE_MEDIA_KIND_IDS.video
+        ? refSource.data.url
+        : undefined
     rows.push({
       nodeId: node.id,
       shotNo,
@@ -175,6 +197,17 @@ export function buildShotTableRows(input: {
       durationLocked: spec?.durationLocked === true,
       materials,
       generating: data.status === NODE_STATUS_IDS.running,
+      ...(ref
+        ? {
+            reference: {
+              nodeId: ref.nodeId,
+              startSec: ref.startSec,
+              endSec: ref.endSec,
+              ...(refUrl ? { url: refUrl } : {}),
+            },
+          }
+        : {}),
+      draft: spec?.draft === true,
     })
   }
   return rows

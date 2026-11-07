@@ -68,6 +68,8 @@ export const SHOT_SPEC_LIMITS = {
   totalDurationMaxSeconds: 600,
   /** 全片素材（拖到表上的画布卡 id）上限：一部片子的角色 / 场景 / 参考 / 配音远到不了。 */
   filmMaterialsMax: 200,
+  /** 拉片：一镜在参考片上的时刻上限（秒）。拉片本身只收 5 分钟以内，这里给存量留余量。 */
+  refMaxSeconds: 600,
 } as const
 
 /**

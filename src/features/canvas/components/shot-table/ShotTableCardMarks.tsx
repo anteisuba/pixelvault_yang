@@ -3,7 +3,7 @@
 /**
  * 表坐上画布时素材卡身上的两样（H2b，`canvas-shotlist.md` 第 26 条 ④ / mock ③）：
  * - 右下角墨色胶囊「N 镜」（配音卡也有；0 镜不显示）；
- * - 正压在表上时，卡下面一行墨底提示「松手 = 加进全片素材」。
+ * - 正压在表上时，卡下面一行墨底提示「松手 = 加进全片素材」；有片子的片段卡是「松手 = 拉片」（H4a）。
  *
  * 单独一个文件：卡壳四类卡共用、被很多单测直接渲染，⛔ 卡壳自己不拿文案 —— 只有真要画
  * 的时候这里才挂上（单测里没有 provider，两样都是 0 / false，不挂）。
@@ -17,7 +17,7 @@ export function ShotTableCardMarks({
   zoom,
 }: {
   readonly shotCount: number
-  readonly dropping: boolean
+  readonly dropping: false | 'film' | 'pull'
   readonly zoom: number
 }) {
   if (shotCount <= 0 && !dropping) return null
@@ -30,7 +30,7 @@ function Marks({
   zoom,
 }: {
   readonly shotCount: number
-  readonly dropping: boolean
+  readonly dropping: false | 'film' | 'pull'
   readonly zoom: number
 }) {
   const t = useTranslations('StudioNode.shotTable.canvas')
@@ -48,6 +48,7 @@ function Marks({
       {dropping ? (
         <span
           data-testid="shot-table-drop-hint"
+          data-drop={dropping}
           className="pointer-events-none absolute top-full left-0 mt-2 whitespace-nowrap rounded-full bg-foreground px-3 py-1 text-xs font-semibold text-background"
           // 提示跟着屏幕走、不跟画布缩放（与卡名同一个做法）。
           style={{
@@ -55,7 +56,7 @@ function Marks({
             transformOrigin: 'top left',
           }}
         >
-          {t('dropHint')}
+          {dropping === 'pull' ? t('dropHintPull') : t('dropHint')}
         </span>
       ) : null}
     </>

@@ -907,6 +907,12 @@ export const NODE_ASSISTANT_SETTABLE_FIELDS = [
   'blocked',
   'note',
   'title',
+  /**
+   * 片段卡的用途：`reference` = 参考片（拉片 H4a，卡角写「参考」），`null` = 普通片段。
+   * 字段在所有视频卡的形状里，但只有 `video.clip` 认它（画布只在片段卡上画角标、
+   * 拉片只从片段卡取）；写到非视频卡上会被回读拦成 `fieldNotOnThisNode`。
+   */
+  'clipRole',
 ] as const
 
 export type NodeAssistantSettableField =

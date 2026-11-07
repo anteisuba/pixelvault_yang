@@ -49,6 +49,7 @@ import {
   EditClipSchema,
   EditProjectSchema,
   EditTextClipSchema,
+  NodeV4ShotRefSchema,
   NodeWorkflowShotlistSchema,
 } from '@/types/node-workflow'
 
@@ -710,6 +711,8 @@ export const NodeAssistantSetShotSpecOpSchema = z.object({
       .nullable()
       .optional(),
     durationLocked: z.boolean().nullable().optional(),
+    ref: NodeV4ShotRefSchema.nullable().optional(),
+    draft: z.boolean().nullable().optional(),
   }),
 })
 

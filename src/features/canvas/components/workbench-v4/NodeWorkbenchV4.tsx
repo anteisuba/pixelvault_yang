@@ -74,6 +74,9 @@ import {
 import type { CharacterCardRecord } from '@/types'
 import { looseAreaSpawn, nextShotNo } from '@/lib/node-shot-layout'
 import { listShotTableNodes } from '@/lib/shot-table-rows'
+import { estimateCardSize, placeRowBeside } from '@/lib/node-flow-layout'
+import { isPullSourceNode, planShotPull } from '@/lib/shot-pull-plan'
+import type { ShotDetectRange } from '@/lib/shot-detect/scenes'
 import { pendingJobPatch, settledJobPatch } from '@/lib/node-media-patch'
 import { buildAssistantSetModelPatch } from '@/lib/node-assistant-op-patch'
 import {
@@ -149,6 +152,10 @@ import {
 } from '@/components/business/studio-shared/primitives/tool-surface'
 import { EditDesk } from '../edit-desk'
 import { ShotTableBoardProvider, type ShotTableBoardValue } from '../shot-table'
+import {
+  ShotPullPaper,
+  type ShotPullRequest,
+} from '../shot-table/ShotPullPaper'
 import { flashNodeCard } from '../nodes/v4/chrome/node-card-flash'
 import { useKeepCanvasCenterOnYield } from './use-keep-canvas-center-on-yield'
 import {
@@ -1429,6 +1436,144 @@ function NodeWorkbenchV4Inner() {
     [flowStore, focusNode, graph],
   )
 
+  /**
+   * 拉片（H4a）的那张纸挂在这里（画布外）：`open` = 正在拉哪张片段卡；`waiting` = 刚点了
+   * 「上传一段视频 / 从素材库选」，等新片段卡落到画布上那一刻接着开纸（`before` = 当时画布上
+   * 已有的卡）。⚠ 「等到了」是从 `graph.nodes` 现推的，⛔ 不在 effect 里 setState。
+   */
+  const [pullHost, setPullHost] = useState<
+    | { readonly kind: 'open'; readonly clipId: string; readonly nonce: number }
+    | {
+        readonly kind: 'waiting'
+        readonly before: ReadonlySet<string>
+        readonly nonce: number
+      }
+    | null
+  >(null)
+  const waitingClipId =
+    pullHost?.kind === 'waiting'
+      ? graph.nodes.find(
+          (node) => !pullHost.before.has(node.id) && isPullSourceNode(node),
+        )?.id
+      : undefined
+  const pullRequest = useMemo<ShotPullRequest | null>(() => {
+    if (pullHost?.kind === 'open') {
+      return { clipId: pullHost.clipId, nonce: pullHost.nonce }
+    }
+    if (pullHost?.kind === 'waiting' && waitingClipId) {
+      return { clipId: waitingClipId, nonce: pullHost.nonce }
+    }
+    return null
+  }, [pullHost, waitingClipId])
+  // 等了 5 分钟没等到（关了文件框 / 素材库没挑）就不等了 —— 免得之后随手拖进来的片子自己开纸。
+  useEffect(() => {
+    if (pullHost?.kind !== 'waiting' || waitingClipId) return
+    const waiting = pullHost
+    const timer = window.setTimeout(
+      () => setPullHost((current) => (current === waiting ? null : current)),
+      5 * 60 * 1000,
+    )
+    return () => window.clearTimeout(timer)
+  }, [pullHost, waitingClipId])
+
+  const openPull = useCallback((clipId: string) => {
+    setPullHost({ kind: 'open', clipId, nonce: Date.now() })
+  }, [])
+  const waitForPullSource = useCallback(() => {
+    setPullHost({
+      kind: 'waiting',
+      before: new Set(graph.readState().nodes.map((node) => node.id)),
+      nonce: Date.now(),
+    })
+  }, [graph])
+  const closePull = useCallback(() => setPullHost(null), [])
+
+  /**
+   * 落到表里 · 追加（一次 `dispatchBatch` = 一步撤销）。落点：表里已有镜 = 最后一镜右边排开
+   * （`placeBeside`）；还没有 = 表右边排开，第一镜和「+ 加一镜」落在同一个位置（表右缘隔
+   * `SHOT_TABLE_BOARD.gapPx`），撞上别的卡就整行往下挪。⚠ 表不是 `state.nodes` 里的卡，
+   * `placeBeside` 看不见它 —— 锚在参考片上会把新镜落进表底下（表在 z 序最底层，卡被盖住）。
+   * toast 上带「撤销」。
+   */
+  const landPull = useCallback(
+    (clipId: string, ranges: readonly ShotDetectRange[]) => {
+      const nodes = graph.readState().nodes
+      const count = planShotPull({ nodes, clipNodeId: clipId, ranges }).added
+        .length
+      const shapes = Array.from({ length: count }, () => ({
+        kind: NODE_MEDIA_KIND_IDS.video,
+        subtype: NODE_V4_VIDEO_SUBTYPE_IDS.shot,
+      }))
+      const priorShot = listShotTableNodes(nodes)
+        .filter((node) => node.data.shot?.ref?.nodeId !== clipId)
+        .at(-1)
+      const board = graph.readState().shotlist?.board
+      let positions: readonly { x: number; y: number }[] | undefined
+      if (count === 0) {
+        positions = undefined
+      } else if (priorShot || !board) {
+        positions = graph.placeBeside(priorShot?.id ?? clipId, shapes)
+      } else {
+        const lookup = flowStore.getState().nodeLookup
+        const occupied = nodes.map((node) => {
+          const size = lookup.get(node.id)?.measured
+          return {
+            ...node.position,
+            ...(size?.width && size.height
+              ? { width: size.width, height: size.height }
+              : estimateCardSize(node)),
+          }
+        })
+        // 锚宽 = 表宽 + 沟 − 卡间距：`placeRowBeside` 的第一张落在「锚右缘 + 卡间距」。
+        positions = placeRowBeside(
+          occupied,
+          {
+            x: board.x,
+            y: board.y,
+            width:
+              SHOT_TABLE_BOARD.widthPx +
+              SHOT_TABLE_BOARD.gapPx -
+              NODE_V4_CARD.derivedGap,
+            height: 0,
+          },
+          shapes.map((shape) => estimateCardSize({ data: shape })),
+          NODE_V4_CARD.derivedGap,
+        )
+      }
+      const plan = planShotPull({
+        nodes,
+        clipNodeId: clipId,
+        ranges,
+        positionFor: (index) => positions?.[index],
+      })
+      setPullHost(null)
+      if (plan.ops.length === 0) return
+      graph.dispatchBatch(plan.ops)
+      toast(t('shotTable.pull.landed', { count: plan.added.length }), {
+        action: {
+          label: t('shotTable.pull.undo'),
+          onClick: () => graph.undo(),
+        },
+      })
+    },
+    [graph, flowStore, t],
+  )
+
+  const shotTablePull = useMemo<NonNullable<ShotTableBoardValue['pull']>>(
+    () => ({
+      onPull: openPull,
+      onUpload: () => {
+        waitForPullSource()
+        openUpload()
+      },
+      onLibrary: () => {
+        waitForPullSource()
+        setActivePanel(CANVAS_SHELL_PANEL_IDS.library)
+      },
+    }),
+    [openPull, waitForPullSource, openUpload, setActivePanel],
+  )
+
   const shotTableBoard = useMemo<ShotTableBoardValue>(
     () => ({
       state: graph.state,
@@ -1438,6 +1583,7 @@ function NodeWorkbenchV4Inner() {
       dispatchBatch: graph.dispatchBatch,
       onAddShot: addShotFromTable,
       onLocate: locateShotFromTable,
+      pull: shotTablePull,
     }),
     [
       graph.state,
@@ -1447,6 +1593,7 @@ function NodeWorkbenchV4Inner() {
       store.currentProject.name,
       addShotFromTable,
       locateShotFromTable,
+      shotTablePull,
     ],
   )
 
@@ -2008,6 +2155,7 @@ function NodeWorkbenchV4Inner() {
                           edgeSigning={edgeSigning}
                           onDrop={dnd.onDrop}
                           onDragOver={dnd.onDragOver}
+                          onPullClip={openPull}
                           onPaneDoubleClick={onPaneDoubleClick}
                           onPaneContextMenu={onPaneContextMenu}
                           onNodeDragStart={(node) =>
@@ -2164,6 +2312,16 @@ function NodeWorkbenchV4Inner() {
                     onManageChannels={openKeySettings}
                   />
                   <WorkbenchDocksV4 />
+                  <ShotPullPaper
+                    request={pullRequest}
+                    nodes={graph.nodes}
+                    onClose={closePull}
+                    onLand={landPull}
+                    onTrim={(clipId) => {
+                      closePull()
+                      locateShotFromTable(clipId)
+                    }}
+                  />
                   {/* 添加菜单「上传素材」的隐藏 input：菜单关掉后仍要在场接住系统
                     对话框的 change，所以挂宿主不挂菜单。 */}
                   <input

@@ -7,6 +7,7 @@
  * - 点着一张素材：它描蓝边、其它素材卡变淡（表那边的行 / 格子由 `ShotTableNode` 读 `focusId`，
  *   用到它的是哪几行由表自己按同一份行数据算）。
  * - 拖着一张素材卡压在表上：表描蓝边 + 浅蓝光晕，卡下面一行「松手 = 加进全片素材」。
+ *   压上去的是一段有片子的片段卡（H4a）：提示换成「松手 = 拉片」，松手打开拉片纸。
  *
  * 为什么是 context：数要整张图才算得出来（`buildShotTableRows`），而卡壳只知道自己的 id ——
  * 画布算一次放这里，卡壳只读自己那一位（与 `node-connect-state` 同一条理由）。
@@ -24,6 +25,8 @@ export interface ShotTableCanvasState {
   readonly dimIds: ReadonlySet<string>
   /** 正压在表上、松手就进全片素材的那张卡；`null` = 没有。 */
   readonly dropSourceId: string | null
+  /** 压在表上的是能拉片的片段卡（H4a）：松手 = 拉片，不进全片素材。 */
+  readonly dropPull: boolean
 }
 
 const IDLE: ShotTableCanvasState = {
@@ -31,6 +34,7 @@ const IDLE: ShotTableCanvasState = {
   focusId: null,
   dimIds: new Set(),
   dropSourceId: null,
+  dropPull: false,
 }
 
 const ShotTableCanvasContext = createContext<ShotTableCanvasState>(IDLE)
@@ -58,8 +62,8 @@ export interface ShotTableCanvasCard {
   readonly shotCount: number
   readonly focused: boolean
   readonly dimmed: boolean
-  /** 这张卡正压在表上（卡下面出提示）。 */
-  readonly dropping: boolean
+  /** 这张卡正压在表上（卡下面出提示）。`pull` = 松手就拉片（H4a）。 */
+  readonly dropping: false | 'film' | 'pull'
 }
 
 export function useShotTableCanvasCard(
@@ -73,7 +77,12 @@ export function useShotTableCanvasCard(
     shotCount: state.shotCounts.get(nodeId) ?? 0,
     focused: state.focusId === nodeId,
     dimmed: state.dimIds.has(nodeId),
-    dropping: state.dropSourceId === nodeId,
+    dropping:
+      state.dropSourceId === nodeId
+        ? state.dropPull
+          ? 'pull'
+          : 'film'
+        : false,
   }
 }
 

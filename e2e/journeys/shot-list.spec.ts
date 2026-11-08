@@ -7,7 +7,8 @@ import { api } from './helpers'
  *
  * 真接口建一个带一张镜头卡（`shotNo: 1`）的项目并设为当前项目——⚠ 桌面「添加节点」菜单
  * 加出来的镜头卡不带镜号、进不了镜头表（只有镜头带 / 助手排镜才编号），所以这一跳不走点击。
- * 之后全走界面：画布 → 镜头表里有这一行 → 写一句描述 → 存库 → 刷新后还在 → 回画布。
+ * 表本身也随项目一起放上画布（`shotlist.board`）——H1 起表是画布上的一张宽卡，没有全屏入口。
+ * 之后全走界面：画布上的表里有这一行 → 写一句描述 → 存库 → 刷新后还在。
  */
 test('镜头表：写一句描述 → 存库 → 刷新还在', async ({ page }) => {
   await page.goto('/en/studio/image')
@@ -36,6 +37,8 @@ test('镜头表：写一句描述 → 存库 → 刷新还在', async ({ page })
           },
         ],
         edges: [],
+        // 表坐在画布上（H1 起表是画布上的一张宽卡，位置 = shotlist.board）
+        shotlist: { board: { x: 0, y: 480 } },
       },
     },
   )
@@ -48,10 +51,12 @@ test('镜头表：写一句描述 → 存库 → 刷新还在', async ({ page })
   )
   expect(activated.success, `设当前项目失败：${activated.error}`).toBe(true)
 
+  const table = page.getByRole('region', { name: 'Shot list', exact: true })
   const openTable = async () => {
     await page.goto('/en/studio/node')
-    await page.getByRole('button', { name: 'Shot list', exact: true }).click()
-    await expect(page.getByText('1 shots')).toBeVisible()
+    // 表要等画布从服务端水化完才合成出来（鉴权 + 列项目），比默认 5 秒久
+    await expect(table).toBeVisible({ timeout: 20_000 })
+    await expect(table.getByText(/^1 shots/)).toBeVisible()
   }
 
   await openTable()
@@ -63,18 +68,13 @@ test('镜头表：写一句描述 → 存库 → 刷新还在', async ({ page })
       (response.request().postData() ?? '').includes(note),
     { timeout: 20_000 },
   )
-  const cell = page.getByPlaceholder('What happens in this shot…').first()
+  const cell = table.getByPlaceholder('What happens in this shot…').first()
   await cell.fill(note)
   await cell.blur()
   expect((await saved).ok(), '存库那一下失败').toBe(true)
 
   await openTable() // 重新进页面：读的是库里的那份
   await expect(
-    page.getByPlaceholder('What happens in this shot…').first(),
+    table.getByPlaceholder('What happens in this shot…').first(),
   ).toHaveValue(note)
-
-  await page.getByRole('button', { name: 'Back to canvas' }).click()
-  await expect(
-    page.getByRole('button', { name: 'Shot list', exact: true }),
-  ).toBeVisible()
 })

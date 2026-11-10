@@ -132,6 +132,16 @@ interface LoraTrainingFormProps {
   onRequestPreset?: () => void
 }
 
+/**
+ * 训练表单里的单选（训练类型 · 基础模型 · 渠道）= 切换条（ui-spec §9「切换条」）：浅灰轨道，
+ * 选中的是浮起来的白格（owner 2026-11-11 训练页平铺，小样 6 选 B），⛔ 描边按钮。
+ */
+const TRAINING_SEG_TRACK = 'flex rounded-full bg-fill-strong p-0.75'
+const TRAINING_SEG_ITEM =
+  'flex-1 rounded-full px-3 py-1.5 text-2sm transition-[background-color,color,box-shadow] duration-fast ease-standard focus-visible:outline-none focus-visible:shadow-focus'
+const TRAINING_SEG_ON = 'bg-raise font-semibold text-foreground shadow-seg'
+const TRAINING_SEG_OFF = 'text-ink-2 hover:text-foreground'
+
 export function LoraTrainingForm({
   characterCardId,
   characterLookId,
@@ -487,7 +497,7 @@ export function LoraTrainingForm({
 
   return (
     <TooltipProvider delayDuration={200}>
-      <div className="space-y-4">
+      <div className="space-y-6">
         {showHeading ? (
           <h2 className="text-lg font-semibold tracking-tight">{t('title')}</h2>
         ) : null}
@@ -517,9 +527,9 @@ export function LoraTrainingForm({
         ) : null}
 
         {activePreset ? (
-          <div className="flex items-center gap-2 rounded-full border border-primary/30 bg-primary/5 px-3 py-1.5 text-2xs">
+          <div className="flex items-center gap-2 rounded-full bg-muted px-3 py-1.5 text-2xs">
             <Sparkles className="size-3 text-primary" aria-hidden />
-            <span className="font-medium text-foreground">
+            <span className=" text-foreground">
               {t('presetSelectedLabel', { name: t(activePreset.nameKey) })}
             </span>
             <button
@@ -534,7 +544,7 @@ export function LoraTrainingForm({
         ) : null}
 
         <div className="space-y-1.5">
-          <label className="text-sm font-medium" htmlFor="lora-name">
+          <label className="text-2sm font-semibold" htmlFor="lora-name">
             {t('name')}
           </label>
           <Input
@@ -555,7 +565,7 @@ export function LoraTrainingForm({
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-sm font-medium" htmlFor="lora-trigger">
+          <label className="text-2sm font-semibold" htmlFor="lora-trigger">
             {t('triggerWord')}
           </label>
           <Input
@@ -568,16 +578,14 @@ export function LoraTrainingForm({
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-sm font-medium">{t('loraType')}</label>
-          <div className="flex gap-2">
+          <label className="text-2sm font-semibold">{t('loraType')}</label>
+          <div className={TRAINING_SEG_TRACK}>
             <button
               type="button"
               onClick={() => setLoraType('subject')}
               className={cn(
-                'flex-1 rounded-lg border px-3 py-2 text-sm transition-colors',
-                loraType === 'subject'
-                  ? 'border-primary/40 bg-primary/5 text-foreground'
-                  : 'border-border/50 text-muted-foreground hover:border-primary/20',
+                TRAINING_SEG_ITEM,
+                loraType === 'subject' ? TRAINING_SEG_ON : TRAINING_SEG_OFF,
               )}
             >
               {t('subject')}
@@ -586,10 +594,8 @@ export function LoraTrainingForm({
               type="button"
               onClick={() => setLoraType('style')}
               className={cn(
-                'flex-1 rounded-lg border px-3 py-2 text-sm transition-colors',
-                loraType === 'style'
-                  ? 'border-primary/40 bg-primary/5 text-foreground'
-                  : 'border-border/50 text-muted-foreground hover:border-primary/20',
+                TRAINING_SEG_ITEM,
+                loraType === 'style' ? TRAINING_SEG_ON : TRAINING_SEG_OFF,
               )}
             >
               {t('style')}
@@ -598,8 +604,8 @@ export function LoraTrainingForm({
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-sm font-medium">{t('baseModel')}</label>
-          <div className="grid grid-cols-3 gap-2">
+          <label className="text-2sm font-semibold">{t('baseModel')}</label>
+          <div className="grid grid-cols-3 rounded-12 bg-fill-strong p-0.75">
             {LORA_TRAINING_BASE_MODELS.map((option) => {
               const isActive = baseModel === option.id
               const isComingSoon = !option.available
@@ -612,17 +618,14 @@ export function LoraTrainingForm({
                   }}
                   disabled={isComingSoon}
                   className={cn(
-                    'flex w-full flex-col items-center justify-center gap-0.5 rounded-lg border px-2 py-2 text-xs transition-colors',
-                    isActive
-                      ? 'border-primary/40 bg-primary/5 text-foreground'
-                      : 'border-border/50 text-muted-foreground hover:border-primary/20',
-                    isComingSoon &&
-                      'cursor-not-allowed opacity-50 hover:border-border/50',
+                    'flex w-full flex-col items-center justify-center gap-0.5 rounded-lg px-2 py-1.5 text-2sm transition-[background-color,color,box-shadow] duration-fast ease-standard focus-visible:outline-none focus-visible:shadow-focus',
+                    isActive ? TRAINING_SEG_ON : TRAINING_SEG_OFF,
+                    isComingSoon && 'cursor-not-allowed opacity-45',
                   )}
                 >
-                  <span className="font-medium">{option.label}</span>
+                  <span className="">{option.label}</span>
                   {isComingSoon && (
-                    <span className="text-3xs text-muted-foreground">
+                    <span className="text-2xs text-muted-foreground">
                       {t('baseModelComingSoonBadge')}
                     </span>
                   )}
@@ -646,8 +649,8 @@ export function LoraTrainingForm({
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-sm font-medium">{t('selectApiKey')}</label>
-          <div className="flex gap-2">
+          <label className="text-2sm font-semibold">{t('selectApiKey')}</label>
+          <div className={TRAINING_SEG_TRACK}>
             <button
               type="button"
               onClick={() => {
@@ -661,10 +664,10 @@ export function LoraTrainingForm({
                 }
               }}
               className={cn(
-                'flex-1 rounded-lg border px-3 py-2 text-xs transition-colors',
+                TRAINING_SEG_ITEM,
                 provider === 'replicate' && hasReplicateKey
-                  ? 'border-primary/40 bg-primary/5 text-foreground'
-                  : 'border-border/50 text-muted-foreground hover:border-primary/20',
+                  ? TRAINING_SEG_ON
+                  : TRAINING_SEG_OFF,
               )}
             >
               Replicate
@@ -687,10 +690,10 @@ export function LoraTrainingForm({
                 }
               }}
               className={cn(
-                'flex-1 rounded-lg border px-3 py-2 text-xs transition-colors',
+                TRAINING_SEG_ITEM,
                 provider === 'fal' && hasFalKey
-                  ? 'border-primary/40 bg-primary/5 text-foreground'
-                  : 'border-border/50 text-muted-foreground hover:border-primary/20',
+                  ? TRAINING_SEG_ON
+                  : TRAINING_SEG_OFF,
               )}
             >
               fal.ai
@@ -705,7 +708,9 @@ export function LoraTrainingForm({
 
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <label className="text-sm font-medium">{t('uploadImages')}</label>
+            <label className="text-2sm font-semibold">
+              {t('uploadImages')}
+            </label>
             {(() => {
               // Real-time progress hint — green inside the recommended 15-30
               // range, amber too few, blue plenty. Drives "is my dataset
@@ -726,7 +731,7 @@ export function LoraTrainingForm({
                         ? 'text-status-applied'
                         : 'text-primary'
               return (
-                <span className={cn('text-2xs font-medium', tone)}>
+                <span className={cn('text-2xs', tone)}>
                   {t('imageCountWithMax', {
                     count: n,
                     max: LORA_TRAINING.MAX_IMAGES,
@@ -754,7 +759,7 @@ export function LoraTrainingForm({
             {imageUrls.length === 0 && (
               <div className="flex flex-col items-center gap-1 text-center">
                 <Upload className="size-5 text-muted-foreground" aria-hidden />
-                <p className="text-xs text-muted-foreground">
+                <p className="text-2xs text-muted-foreground">
                   {t('dropZoneHint', {
                     min: LORA_TRAINING.MIN_IMAGES,
                     max: LORA_TRAINING.MAX_IMAGES,
@@ -770,7 +775,7 @@ export function LoraTrainingForm({
                   imageUrls.length >= LORA_TRAINING.MAX_IMAGES ||
                   uploadsInFlight > 0
                 }
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-border/60 bg-background px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground disabled:opacity-40"
+                className="flex h-8 flex-1 items-center justify-center gap-1.5 rounded-full bg-raise px-3 text-2sm text-foreground shadow-soft transition-colors duration-fast hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus disabled:opacity-45"
               >
                 {uploadsInFlight > 0 ? (
                   <Spinner size="sm" />
@@ -785,7 +790,7 @@ export function LoraTrainingForm({
                 type="button"
                 onClick={() => setAssetSelectorOpen(true)}
                 disabled={imageUrls.length >= LORA_TRAINING.MAX_IMAGES}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-border/60 bg-background px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground disabled:opacity-40"
+                className="flex h-8 flex-1 items-center justify-center gap-1.5 rounded-full bg-raise px-3 text-2sm text-foreground shadow-soft transition-colors duration-fast hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus disabled:opacity-45"
               >
                 <ImagePlus className="size-3.5" />
                 {t('uploadFromAssetLibrary')}
@@ -834,7 +839,7 @@ export function LoraTrainingForm({
 
         {failed.length > 0 ? (
           <div className="space-y-1.5 rounded-lg border border-status-risk/30 bg-status-risk-surface px-3 py-2.5">
-            <div className="flex items-center gap-1.5 text-xs font-medium text-destructive">
+            <div className="flex items-center gap-1.5 text-2xs text-destructive">
               <AlertTriangle className="size-3.5" aria-hidden />
               {t('failedUploadsTitle', { count: failed.length })}
             </div>
@@ -851,7 +856,7 @@ export function LoraTrainingForm({
                     type="button"
                     onClick={() => void retryFailedUpload(entry.id)}
                     disabled={uploadsInFlight > 0}
-                    className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-background px-2 py-0.5 font-medium text-foreground hover:border-primary/40 disabled:opacity-40"
+                    className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-background px-2 py-0.5 text-foreground hover:border-primary/40 disabled:opacity-40"
                   >
                     <RefreshCw className="size-3" aria-hidden />
                     {t('failedUploadRetry')}
@@ -875,7 +880,7 @@ export function LoraTrainingForm({
             makes clear Submit itself also opens the same setup dialog. */}
         {!hasAnyKey && (
           <div className="rounded-lg border border-dashed border-status-warning/40 bg-status-warning-surface px-3 py-2">
-            <p className="text-xs font-medium text-status-warning">
+            <p className="text-2xs text-status-warning">
               {t('noApiKey', {
                 provider: TRAINING_PROVIDER_QUICK_SETUP[provider].modelLabel,
               })}
@@ -898,9 +903,7 @@ export function LoraTrainingForm({
 
         {!hideRecentJobs && recentJobs.length > 0 && (
           <div className="space-y-2">
-            <p className="text-xs font-medium text-muted-foreground">
-              {t('viewJobs')}
-            </p>
+            <p className="text-2xs text-muted-foreground">{t('viewJobs')}</p>
             {recentJobs.map((job) => (
               <div
                 key={job.id}
@@ -926,7 +929,7 @@ export function LoraTrainingForm({
                   {job.status === 'CANCELED' && (
                     <Clock className="size-3.5 text-muted-foreground" />
                   )}
-                  <span className="flex-1 text-xs font-medium">{job.name}</span>
+                  <span className="flex-1 text-2xs">{job.name}</span>
                   <Badge variant="secondary" className="text-2xs">
                     {job.status === 'COMPLETED'
                       ? t('statusCompleted')
@@ -942,7 +945,7 @@ export function LoraTrainingForm({
 
                 {job.status === 'COMPLETED' && (
                   <div className="space-y-1 rounded-md bg-background/60 p-2">
-                    <p className="text-2xs font-medium text-status-applied">
+                    <p className="text-2xs text-status-applied">
                       {t('trainedLoraReady')}
                     </p>
                     <p className="text-2xs text-muted-foreground">
@@ -1070,77 +1073,63 @@ export function LoraTrainingHistorySidebar() {
 
   return (
     <aside className="flex h-full min-h-0 flex-col gap-3">
-      <h3 className="text-sm font-semibold tracking-tight">
-        {t('historyTitle')}
-      </h3>
+      <h3 className="text-md font-semibold">{t('historyTitle')}</h3>
 
-      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+      <div className="min-h-0 flex-1 overflow-y-auto pr-1">
         {isLoading ? (
           <div className="flex items-center justify-center py-8 text-muted-foreground">
             <Spinner size="md" />
           </div>
         ) : jobs.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-border/60 px-3 py-6 text-center text-2xs text-muted-foreground">
+          <p className="px-2.5 py-3 text-2xs text-muted-foreground">
             {t('historyEmpty')}
           </p>
         ) : (
           jobs.map((job) => (
+            // 一行一条（小样 6 选 B「平铺」）：状态图标 · 名字 · 状态 · 复制链接，⛔ 每条一张染色小卡。
             <div
               key={job.id}
-              className={cn(
-                'space-y-1 rounded-md border px-2.5 py-2',
-                job.status === 'COMPLETED'
-                  ? 'border-status-applied/40 bg-status-applied-surface'
-                  : job.status === 'FAILED'
-                    ? 'border-status-risk/30 bg-status-risk-surface'
-                    : job.status === 'CANCELED'
-                      ? 'border-border/60 bg-muted/30'
-                      : 'border-primary/20 bg-primary/5',
-              )}
+              className="flex h-11 items-center gap-2.5 rounded-lg px-2.5 transition-colors duration-fast hover:tint-hover"
             >
-              <div className="flex items-center gap-1.5">
-                {job.status === 'COMPLETED' && (
-                  <CheckCircle2 className="size-3 shrink-0 text-status-applied" />
-                )}
-                {(job.status === 'QUEUED' || job.status === 'TRAINING') && (
-                  <Spinner size="sm" className="shrink-0 text-primary" />
-                )}
-                {job.status === 'FAILED' && (
-                  <XCircle className="size-3 shrink-0 text-destructive" />
-                )}
-                {job.status === 'CANCELED' && (
-                  <Clock className="size-3 shrink-0 text-muted-foreground" />
-                )}
-                <span className="flex-1 truncate text-2xs font-medium">
-                  {job.name}
-                </span>
-              </div>
-              <div className="flex items-center justify-between gap-1 text-3xs text-muted-foreground">
-                <span className="truncate">
-                  {job.status === 'COMPLETED'
-                    ? t('statusCompleted')
-                    : job.status === 'FAILED'
-                      ? t('statusFailed')
-                      : job.status === 'CANCELED'
-                        ? t('statusCanceled')
-                        : job.status === 'QUEUED'
-                          ? t('statusQueued')
-                          : t('statusTraining')}
-                </span>
-                {job.status === 'COMPLETED' && job.loraUrl && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      void navigator.clipboard.writeText(job.loraUrl!)
-                    }}
-                    className="inline-flex items-center gap-1 text-primary hover:underline"
-                    title={t('copyLoraUrl')}
-                  >
-                    <Copy className="size-2.5" />
-                    {t('copyLoraUrl')}
-                  </button>
-                )}
-              </div>
+              {job.status === 'COMPLETED' && (
+                <CheckCircle2 className="size-3.5 shrink-0 text-status-applied" />
+              )}
+              {(job.status === 'QUEUED' || job.status === 'TRAINING') && (
+                <Spinner size="sm" className="shrink-0" />
+              )}
+              {job.status === 'FAILED' && (
+                <XCircle className="size-3.5 shrink-0 text-status-risk" />
+              )}
+              {job.status === 'CANCELED' && (
+                <Clock className="size-3.5 shrink-0 text-muted-foreground" />
+              )}
+              <span className="min-w-0 flex-1 truncate text-2sm">
+                {job.name}
+              </span>
+              <span className="shrink-0 text-2xs text-muted-foreground">
+                {job.status === 'COMPLETED'
+                  ? t('statusCompleted')
+                  : job.status === 'FAILED'
+                    ? t('statusFailed')
+                    : job.status === 'CANCELED'
+                      ? t('statusCanceled')
+                      : job.status === 'QUEUED'
+                        ? t('statusQueued')
+                        : t('statusTraining')}
+              </span>
+              {job.status === 'COMPLETED' && job.loraUrl && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    void navigator.clipboard.writeText(job.loraUrl!)
+                  }}
+                  className="inline-flex shrink-0 items-center gap-1 text-2xs text-muted-foreground transition-colors duration-fast hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus"
+                  title={t('copyLoraUrl')}
+                >
+                  <Copy className="size-3" />
+                  {t('copyLoraUrl')}
+                </button>
+              )}
             </div>
           ))
         )}
@@ -1218,7 +1207,7 @@ function TrainingImageTile({
       />
       {isCover && (
         <span
-          className="pointer-events-none absolute left-1 top-1 inline-flex items-center gap-0.5 rounded-full bg-primary/90 px-1.5 py-0.5 text-3xs font-medium text-primary-foreground"
+          className="pointer-events-none absolute left-1 top-1 inline-flex items-center gap-0.5 rounded-full bg-primary/90 px-1.5 py-0.5 text-2xs font-semibold text-primary-foreground"
           aria-label={coverBadgeLabel}
         >
           <Star weight="fill" className="size-2.5" aria-hidden />
@@ -1237,7 +1226,7 @@ function TrainingImageTile({
           }}
           aria-label={setAsCoverLabel}
           title={setAsCoverLabel}
-          className="absolute left-1 top-1 flex size-5 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition-opacity hover:bg-black/80 group-hover:opacity-100"
+          className="absolute left-1 top-1 flex size-5 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition-opacity hover:tint-hover group-hover:opacity-100"
         >
           <Star className="size-3" />
         </button>
@@ -1251,7 +1240,7 @@ function TrainingImageTile({
         }}
         aria-label={removeLabel}
         title={removeLabel}
-        className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition-opacity hover:bg-destructive group-hover:opacity-100"
+        className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition-opacity hover:tint-hover group-hover:opacity-100"
       >
         <X className="size-3" />
       </button>
@@ -1300,7 +1289,7 @@ export function LoraTrainingDialog({
       <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{t('title')}</DialogTitle>
-          <p className="text-sm text-muted-foreground">{t('description')}</p>
+          <p className="text-2sm text-muted-foreground">{t('description')}</p>
         </DialogHeader>
 
         <div className="pt-2">

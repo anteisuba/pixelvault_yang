@@ -105,11 +105,11 @@ function PresetCard({ preset, isSelected, onSelect }: PresetCardProps) {
   // `presetExplanationKey` and surfaces below the grid once a card is
   // picked, so nothing is hidden, just deferred.
   const cardClass = cn(
-    'group relative flex h-full items-center gap-2 rounded-xl border bg-card p-2.5 text-left transition-all',
-    disabled && 'cursor-not-allowed opacity-60',
-    !disabled && 'hover:border-primary/40 hover:shadow-sm active:scale-[0.98]',
-    isSelected && !disabled && 'border-primary/60 bg-primary/5 shadow-sm',
-    !isSelected && !disabled && 'border-border/60',
+    // 平铺在白板上的浅底格（ui-spec §3.2 `fill`），⛔ 描边卡；选中深一档（`fill-strong`）。
+    'group relative flex h-full items-center gap-2 rounded-12 bg-muted p-2.5 text-left transition-[background-color,scale] duration-fast ease-standard',
+    disabled && 'cursor-not-allowed opacity-45',
+    !disabled && 'hover:tint-hover active:scale-[0.98]',
+    isSelected && !disabled && 'bg-fill-strong text-foreground',
   )
 
   const cardContent = (
@@ -121,11 +121,11 @@ function PresetCard({ preset, isSelected, onSelect }: PresetCardProps) {
         )}
         aria-hidden
       />
-      <span className="min-w-0 flex-1 truncate text-xs font-semibold leading-tight">
+      <span className="min-w-0 flex-1 truncate text-2xs font-semibold leading-tight">
         {t(preset.nameKey)}
       </span>
       {disabled ? (
-        <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-3xs font-medium text-muted-foreground">
+        <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground">
           {t('presetComingSoonBadge')}
         </span>
       ) : null}

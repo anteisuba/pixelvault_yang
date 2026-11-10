@@ -1,0 +1,554 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>工作台方向 · 对比 6：LoRA 训练页</title>
+    <style>
+      :root {
+        --ground: #e9e6e0;
+        --panel: #ffffff;
+        --fill: #f5f3ef;
+        --fill-strong: #eeebe5;
+        --line: rgba(28, 22, 14, 0.08);
+        --line-strong: rgba(28, 22, 14, 0.15);
+        --ink: #171411;
+        --ink-2: #4b463f;
+        --ink-3: #655f57;
+        --ok: #16794c;
+        --ok-soft: #f0f7f2;
+        --card: 0 0 0 1px rgba(16, 18, 24, 0.05), 0 2px 6px rgba(16, 18, 24, 0.05),
+          0 12px 28px rgba(16, 18, 24, 0.08);
+        --soft: 0 0 0 1px rgba(16, 18, 24, 0.06), 0 1px 2px rgba(16, 18, 24, 0.08),
+          0 2px 6px rgba(16, 18, 24, 0.05);
+        --seg: 0 0 0 0.5px rgba(16, 18, 24, 0.04), 0 2px 6px rgba(16, 18, 24, 0.1);
+        --sans: 'Geist', 'PingFang SC', 'Noto Sans SC', system-ui, sans-serif;
+        --mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--ground);
+        color: var(--ink);
+        font-family: var(--sans);
+        font-size: 13px;
+        -webkit-font-smoothing: antialiased;
+      }
+      button,
+      input {
+        font: inherit;
+        color: inherit;
+        border: 0;
+        background: none;
+      }
+      .switch {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px 18px;
+        padding: 10px 16px;
+        background: #101216;
+        color: #fff;
+      }
+      .seg-s {
+        display: inline-flex;
+        padding: 2px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.14);
+      }
+      .seg-s button {
+        height: 28px;
+        padding: 0 12px;
+        border-radius: 999px;
+        color: rgba(255, 255, 255, 0.72);
+        cursor: pointer;
+      }
+      .seg-s button[aria-pressed='true'] {
+        background: #fff;
+        color: #101216;
+        font-weight: 600;
+      }
+      kbd {
+        font-family: var(--mono);
+        font-size: 11px;
+        opacity: 0.55;
+      }
+      .hint {
+        opacity: 0.6;
+        font-size: 12px;
+      }
+      .board {
+        margin: 8px;
+        min-height: calc(100vh - 66px);
+        border-radius: 20px;
+        background: var(--panel);
+        padding: 32px;
+      }
+      .v {
+        display: none;
+      }
+      body[data-v='a'] .v-a,
+      body[data-v='b'] .v-b,
+      body[data-v='c'] .v-c {
+        display: block;
+      }
+      .back {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 32px;
+        margin-bottom: 16px;
+        color: var(--ink);
+      }
+
+      /* 共用小件 */
+      .label {
+        font-size: 11px;
+        color: var(--ink-3);
+      }
+      .h {
+        margin: 0;
+        font-size: 15px;
+        font-weight: 600;
+      }
+      .input {
+        width: 100%;
+        height: 36px;
+        padding: 0 12px;
+        border-radius: 999px;
+        background: var(--fill);
+        color: var(--ink-3);
+        display: flex;
+        align-items: center;
+      }
+      .seg {
+        display: flex;
+        padding: 3px;
+        border-radius: 999px;
+        background: var(--fill-strong);
+      }
+      .seg span {
+        flex: 1;
+        height: 30px;
+        display: grid;
+        place-items: center;
+        border-radius: 999px;
+        color: var(--ink-2);
+        white-space: nowrap;
+      }
+      .seg span.on {
+        background: #fff;
+        box-shadow: var(--seg);
+        color: var(--ink);
+        font-weight: 600;
+      }
+      .seg span.off {
+        opacity: 0.45;
+      }
+      .presets {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+      }
+      .preset {
+        height: 40px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 12px;
+        border-radius: 12px;
+        background: var(--fill);
+        color: var(--ink-2);
+      }
+      .preset.off {
+        opacity: 0.45;
+      }
+      .drop {
+        display: grid;
+        place-items: center;
+        gap: 8px;
+        padding: 24px;
+        border: 1px dashed var(--line-strong);
+        border-radius: 12px;
+        color: var(--ink-3);
+        text-align: center;
+      }
+      .go {
+        height: 36px;
+        padding: 0 18px;
+        border-radius: 999px;
+        background: var(--ink);
+        color: #fff;
+        font-weight: 600;
+      }
+      .go.wide {
+        width: 100%;
+        opacity: 0.4;
+      }
+
+      /* A：现在 —— 卡套卡 */
+      .a-grid {
+        display: grid;
+        grid-template-columns: 7fr 5fr;
+        gap: 16px;
+        align-items: start;
+      }
+      .a-card {
+        position: relative;
+        border: 1px solid var(--line-strong);
+        border-radius: 18px;
+        padding: 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .a-card + .a-card {
+        margin-top: 16px;
+      }
+      .a-num {
+        position: absolute;
+        left: -6px;
+        top: -6px;
+        width: 18px;
+        height: 18px;
+        display: grid;
+        place-items: center;
+        border: 1px solid var(--line-strong);
+        border-radius: 50%;
+        background: #fff;
+        font-family: var(--mono);
+        font-size: 11px;
+      }
+      .a-done {
+        border: 1px solid var(--line-strong);
+        border-radius: 14px;
+        padding: 14px;
+        box-shadow: var(--soft);
+      }
+      .a-hist {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .a-hist div {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px 12px;
+        border: 1px solid rgba(22, 121, 76, 0.3);
+        border-radius: 10px;
+        background: var(--ok-soft);
+      }
+
+      /* B：平铺 —— 同样两栏，去掉所有卡框，分组靠间距和小标题 */
+      .b-grid {
+        display: grid;
+        grid-template-columns: 7fr 4fr;
+        gap: 48px;
+        align-items: start;
+      }
+      .b-col {
+        display: flex;
+        flex-direction: column;
+        gap: 28px;
+      }
+      .b-group {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .b-done {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 16px;
+        border-radius: 20px;
+        box-shadow: var(--card);
+      }
+      .b-done .go {
+        margin-left: auto;
+        height: 32px;
+      }
+      .rows {
+        display: flex;
+        flex-direction: column;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        height: 44px;
+        padding: 0 10px;
+        border-radius: 10px;
+      }
+      .row:hover {
+        background: var(--fill);
+      }
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--ok);
+      }
+      .row .meta {
+        margin-left: auto;
+        color: var(--ink-3);
+        font-size: 11px;
+      }
+
+      /* C：和其余台同一副 —— 舞台是训练图，下面一张浮起的输入框 */
+      .c-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: 28px;
+        min-height: calc(100vh - 66px - 64px - 16px);
+      }
+      .c-head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        height: 36px;
+      }
+      .c-head h1 {
+        margin: 0 auto 0 0;
+        font-size: 20px;
+        font-weight: 600;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 32px;
+        padding: 0 12px;
+        border-radius: 999px;
+        background: var(--fill);
+        color: var(--ink-2);
+        white-space: nowrap;
+      }
+      .pill.white {
+        background: #fff;
+        box-shadow: var(--soft);
+        color: var(--ink);
+      }
+      .c-stage {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .tiles {
+        display: grid;
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        gap: 16px;
+      }
+      .tile {
+        aspect-ratio: 3 / 4;
+        border-radius: 12px;
+        background: var(--fill-strong) center / cover no-repeat;
+      }
+      .tile.add {
+        display: grid;
+        place-items: center;
+        background: none;
+        border: 1px dashed var(--line-strong);
+        color: var(--ink-3);
+      }
+      .c-note {
+        color: var(--ink-3);
+        font-size: 11px;
+      }
+      .composer {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        padding: 14px 16px 12px;
+        border-radius: 16px;
+        background: #fff;
+        box-shadow: var(--card);
+      }
+      .fields {
+        display: flex;
+        gap: 12px;
+        font-size: 15px;
+        line-height: 1.7;
+        color: var(--ink-3);
+      }
+      .fields span {
+        flex: 1;
+      }
+      .fields span + span {
+        padding-left: 12px;
+        border-left: 1px solid var(--line);
+      }
+      .tools {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+      }
+      .tools .cost {
+        margin-left: auto;
+        color: var(--ink-3);
+        font-family: var(--mono);
+        font-size: 11px;
+      }
+    </style>
+  </head>
+  <body data-v="a">
+    <div class="switch" role="toolbar" aria-label="对比开关">
+      <span>训练页</span>
+      <span class="seg-s">
+        <button aria-pressed="true" data-v="a">A 现在：卡套卡</button>
+        <button aria-pressed="false" data-v="b">B 平铺</button>
+        <button aria-pressed="false" data-v="c">C 和其余台同一副</button>
+      </span>
+      <kbd>1 / 2 / 3</kbd>
+      <span class="hint">表单内容一样，只是放法不同</span>
+    </div>
+
+    <div class="board">
+      <!-- A -->
+      <div class="v v-a">
+        <div class="back">‹ 训练新 LoRA</div>
+        <div class="a-grid">
+          <div>
+            <section class="a-card">
+              <span class="a-num">1</span>
+              <div><b>预设</b><div class="label">点一张卡，自动填好表单</div></div>
+              <div class="presets">
+                <span class="preset">二次元角色</span><span class="preset">真人肖像</span
+                ><span class="preset">画风 / 风格</span><span class="preset">物体 / 道具</span
+                ><span class="preset off">S… 敬请期待</span><span class="preset off">Ill… 敬请期待</span>
+              </div>
+            </section>
+            <section class="a-card">
+              <span class="a-num">2</span>
+              <div class="a-done">
+                <b>LoRA 训练完成</b>
+                <div class="label">「aimiss」训练完成，去生成里激活它就能开始出图。</div>
+              </div>
+              <div class="label">模型名称</div>
+              <div class="input">例如：我的角色</div>
+              <div class="label">触发词</div>
+              <div class="input">例如：sks_character</div>
+              <div class="label">训练类型</div>
+              <div class="seg"><span class="on">角色 / 物体</span><span>画风 / 风格</span></div>
+              <div class="label">基础模型</div>
+              <div class="seg"><span class="on">FLUX.1 D</span><span class="off">SDXL 1.0</span><span class="off">Illustrious</span></div>
+              <div class="label">训练图片 · 0/50 张</div>
+              <div class="drop">拖拽 5–50 张图到这里<span>本地上传 · 从素材库选</span></div>
+              <button class="go wide">开始训练</button>
+            </section>
+          </div>
+          <section class="a-card">
+            <b>训练历史</b>
+            <div class="a-hist">
+              <div><span>aimiss · 已完成</span><span class="label">复制 LoRA URL</span></div>
+              <div><span>sks_flasso · 已完成</span><span class="label">复制 LoRA URL</span></div>
+              <div><span>flasso · 已完成</span><span class="label">复制 LoRA URL</span></div>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <!-- B -->
+      <div class="v v-b">
+        <div class="back">‹ 训练新 LoRA</div>
+        <div class="b-grid">
+          <div class="b-col">
+            <div class="b-done">
+              <b>「aimiss」训练好了</b>
+              <span class="label">触发词 aimiss</span>
+              <button class="go">去使用</button>
+            </div>
+            <div class="b-group">
+              <h2 class="h">从哪种开始</h2>
+              <div class="presets">
+                <span class="preset">二次元角色</span><span class="preset">真人肖像</span
+                ><span class="preset">画风 / 风格</span><span class="preset">物体 / 道具</span>
+              </div>
+            </div>
+            <div class="b-group">
+              <h2 class="h">名字和触发词</h2>
+              <div class="input">例如：我的角色</div>
+              <div class="input">例如：sks_character</div>
+            </div>
+            <div class="b-group">
+              <h2 class="h">训练什么</h2>
+              <div class="seg"><span class="on">角色 / 物体</span><span>画风 / 风格</span></div>
+              <div class="seg"><span class="on">FLUX.1 D</span><span class="off">SDXL 1.0</span><span class="off">Illustrious</span></div>
+            </div>
+            <div class="b-group">
+              <h2 class="h">训练图片 <span class="label">0 / 50</span></h2>
+              <div class="drop">拖拽 5–50 张图到这里<span>本地上传 · 从素材库选</span></div>
+            </div>
+            <div><button class="go">开始训练</button></div>
+          </div>
+          <div class="b-group">
+            <h2 class="h">训练记录</h2>
+            <div class="rows">
+              <div class="row"><span class="dot"></span>aimiss<span class="meta">已完成 · 复制链接</span></div>
+              <div class="row"><span class="dot"></span>sks_flasso<span class="meta">已完成 · 复制链接</span></div>
+              <div class="row"><span class="dot"></span>flasso<span class="meta">已完成 · 复制链接</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- C -->
+      <div class="v v-c">
+        <div class="c-wrap">
+          <div class="c-head">
+            <h1>训练新 LoRA</h1>
+            <span class="pill white">训练记录 3 ▾</span>
+          </div>
+          <section class="c-stage">
+            <div class="tiles">
+              <div class="tile" style="background-image: url(../home-v6/media/production/quad/quad-gpt-image-2.webp)"></div>
+              <div class="tile" style="background-image: url(../home-v6/media/production/quad/quad-flux-2-pro.webp)"></div>
+              <div class="tile" style="background-image: url(../home-v6/media/production/quad/quad-gemini-3-pro.webp)"></div>
+              <div class="tile" style="background-image: url(../home-v6/media/production/quad/quad-seedream-5-0.webp)"></div>
+              <div class="tile add">＋ 再加图</div>
+            </div>
+            <span class="c-note">训练图 4 / 50 · 至少 5 张</span>
+          </section>
+          <section class="composer">
+            <div class="fields"><span>名字：我的角色</span><span>触发词：sks_character</span></div>
+            <div class="tools">
+              <span class="pill">＋</span>
+              <span class="pill">二次元角色 ▾</span>
+              <span class="pill">角色 / 物体 ▾</span>
+              <span class="pill">FLUX.1 D ▾</span>
+              <span class="cost">约 20 分钟</span>
+              <span class="pill">Replicate ▾</span>
+              <button class="go">开始训练</button>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const set = (v) => {
+        document.body.dataset.v = v
+        document
+          .querySelectorAll('.seg-s button')
+          .forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === v)))
+      }
+      document.querySelector('.seg-s').addEventListener('click', (e) => {
+        const b = e.target.closest('button')
+        if (b) set(b.dataset.v)
+      })
+      addEventListener('keydown', (e) => {
+        const v = { 1: 'a', 2: 'b', 3: 'c' }[e.key]
+        if (v) set(v)
+      })
+      const q = new URLSearchParams(location.search).get('v')
+      if (q) set(q)
+    </script>
+  </body>
+</html>

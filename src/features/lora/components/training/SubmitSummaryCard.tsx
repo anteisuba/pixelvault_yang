@@ -38,17 +38,14 @@ export function SubmitSummaryCard({
   return (
     <section
       aria-label={t('submitSummaryAriaLabel')}
-      className={cn(
-        'rounded-xl border border-primary/30 bg-primary/5 p-4 shadow-sm',
-        className,
-      )}
+      className={cn('rounded-12 bg-muted p-4', className)}
     >
       <header className="flex items-center justify-between gap-2">
-        <p className="text-sm font-semibold text-foreground">
+        <p className="text-md font-semibold text-foreground">
           {t('submitSummaryTitle')}
         </p>
         {presetName ? (
-          <span className="rounded-full border border-primary/30 bg-background px-2 py-0.5 text-3xs font-medium text-primary">
+          <span className="rounded-full border border-primary/30 bg-background px-2 py-0.5 text-2xs text-primary">
             {presetName}
           </span>
         ) : null}
@@ -92,10 +89,12 @@ function SummaryCell({ icon, label, value }: SummaryCellProps) {
     <div className="flex items-start gap-2 rounded-lg bg-background/60 p-2.5">
       <span className="mt-0.5 text-primary">{icon}</span>
       <div className="min-w-0 space-y-0.5">
-        <p className="text-3xs uppercase tracking-wide text-muted-foreground">
+        <p className="text-2xs uppercase tracking-wide text-muted-foreground">
           {label}
         </p>
-        <p className="truncate text-sm font-medium text-foreground">{value}</p>
+        <p className="truncate text-md font-semibold text-foreground">
+          {value}
+        </p>
       </div>
     </div>
   )

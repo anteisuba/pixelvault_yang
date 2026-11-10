@@ -94,108 +94,91 @@ describe('POST /api/generate-multiview', () => {
     expect(await db.generationJob.count()).toBe(0)
   })
 
-  // 三个角度并发提交：本机 PGlite 把多条连接排在一个后端上，并发事务里查 key 会偶尔拿到空结果
-  // （「没绑 key」），只在 CI 的真 Postgres（TEST_DATABASE_URL）上跑。
-  it.skipIf(!process.env.TEST_DATABASE_URL)(
-    '每个角度派一单：同一批号、正面图当参考、各自角度的提示词',
-    async () => {
-      await seedAssistantKey(me.id, AI_ADAPTER_TYPES.OPENAI)
+  it('每个角度派一单：同一批号、正面图当参考、各自角度的提示词', async () => {
+    await seedAssistantKey(me.id, AI_ADAPTER_TYPES.OPENAI)
 
-      const res = await POST(
-        createPOST('/api/generate-multiview', {
-          imageUrl: FRONT,
-          sourceGenerationId: 'src_1',
-        }),
+    const res = await POST(
+      createPOST('/api/generate-multiview', {
+        imageUrl: FRONT,
+        sourceGenerationId: 'src_1',
+      }),
+    )
+    const json = await parseJSON<{
+      success: boolean
+      data: MultiViewGenerateResponseData
+    }>(res)
+
+    expect(res.status).toBe(200)
+    expect(json.data.jobs.map((job) => job.view)).toEqual(GENERATED_VIEW_ANGLES)
+
+    const jobs = await db.generationJob.findMany({ where: { userId: me.id } })
+    expect(jobs).toHaveLength(GENERATED_VIEW_ANGLES.length)
+    for (const job of jobs) {
+      const metadata = metadataOf(job)
+      expect(metadata).toMatchObject({
+        outputType: 'IMAGE',
+        multiViewBatchId: json.data.batchId,
+        sourceGenerationId: 'src_1',
+      })
+      expect(job.prompt).toBe(
+        MULTI_VIEW_PROMPTS[metadata.multiViewAngle as Angle],
       )
-      const json = await parseJSON<{
-        success: boolean
-        data: MultiViewGenerateResponseData
-      }>(res)
-
-      expect(res.status).toBe(200)
-      expect(json.data.jobs.map((job) => job.view)).toEqual(
-        GENERATED_VIEW_ANGLES,
-      )
-
-      const jobs = await db.generationJob.findMany({ where: { userId: me.id } })
-      expect(jobs).toHaveLength(GENERATED_VIEW_ANGLES.length)
-      for (const job of jobs) {
-        const metadata = metadataOf(job)
-        expect(metadata).toMatchObject({
-          outputType: 'IMAGE',
-          multiViewBatchId: json.data.batchId,
-          sourceGenerationId: 'src_1',
-        })
-        expect(job.prompt).toBe(
-          MULTI_VIEW_PROMPTS[metadata.multiViewAngle as Angle],
-        )
-        expect(job.modelId).toBe(AI_MODELS.OPENAI_GPT_IMAGE_2)
-      }
-      expect(worker.requests).toHaveLength(GENERATED_VIEW_ANGLES.length)
-      for (const request of worker.requests) {
-        expect(JSON.stringify(request.json)).toContain(FRONT)
-        expect(JSON.stringify(request.json)).toContain(MULTI_VIEW_NEGATIVE)
-      }
-    },
-  )
+      expect(job.modelId).toBe(AI_MODELS.OPENAI_GPT_IMAGE_2)
+    }
+    expect(worker.requests).toHaveLength(GENERATED_VIEW_ANGLES.length)
+    for (const request of worker.requests) {
+      expect(JSON.stringify(request.json)).toContain(FRONT)
+      expect(JSON.stringify(request.json)).toContain(MULTI_VIEW_NEGATIVE)
+    }
+  })
 })
 
 describe('generateMultiView', () => {
-  // 三个角度并发提交：本机 PGlite 把多条连接排在一个后端上，并发事务里查 key 会偶尔拿到空结果
-  // （「没绑 key」），只在 CI 的真 Postgres（TEST_DATABASE_URL）上跑。
-  it.skipIf(!process.env.TEST_DATABASE_URL)(
-    '照用户选的型号 / key / 项目派单',
-    async () => {
-      const key = await seedAssistantKey(me.id, AI_ADAPTER_TYPES.GEMINI)
-      const project = await db.project.create({
-        data: { userId: me.id, name: 'p' },
-      })
+  it('照用户选的型号 / key / 项目派单', async () => {
+    const key = await seedAssistantKey(me.id, AI_ADAPTER_TYPES.GEMINI)
+    const project = await db.project.create({
+      data: { userId: me.id, name: 'p' },
+    })
 
-      await generateMultiView(me.clerkId, {
-        imageUrl: FRONT,
-        modelId: AI_MODELS.GEMINI_NANO_BANANA_21,
-        apiKeyId: key.id,
-        projectId: project.id,
-      })
+    await generateMultiView(me.clerkId, {
+      imageUrl: FRONT,
+      modelId: AI_MODELS.GEMINI_NANO_BANANA_21,
+      apiKeyId: key.id,
+      projectId: project.id,
+    })
 
-      const jobs = await db.generationJob.findMany({ where: { userId: me.id } })
-      expect(jobs).toHaveLength(3)
-      expect(
-        jobs.every((job) => job.modelId === AI_MODELS.GEMINI_NANO_BANANA_21),
-      ).toBe(true)
-      expect(worker.requests.map((r) => r.json.apiKeyId)).toEqual([
-        key.id,
-        key.id,
-        key.id,
-      ])
-    },
-  )
+    const jobs = await db.generationJob.findMany({ where: { userId: me.id } })
+    expect(jobs).toHaveLength(3)
+    expect(
+      jobs.every((job) => job.modelId === AI_MODELS.GEMINI_NANO_BANANA_21),
+    ).toBe(true)
+    expect(worker.requests.map((r) => r.json.apiKeyId)).toEqual([
+      key.id,
+      key.id,
+      key.id,
+    ])
+  })
 
-  // 三个角度并发提交：本机 PGlite 把多条连接排在一个后端上，并发事务里查 key 会偶尔拿到空结果
-  // （「没绑 key」），只在 CI 的真 Postgres（TEST_DATABASE_URL）上跑。
-  it.skipIf(!process.env.TEST_DATABASE_URL)(
-    '一个角度没派出去：交回其余两个',
-    async () => {
-      await seedAssistantKey(me.id, AI_ADAPTER_TYPES.OPENAI)
-      // 左视角那一单 Worker 明确拒收，其余照收。
-      const accept = vi.mocked(fetch).getMockImplementation()!
-      vi.mocked(fetch).mockImplementation(async (input, init) => {
-        if (
-          String(input).startsWith(FAKE_WORKER_BASE_URL) &&
-          String(init?.body ?? '').includes(
-            JSON.stringify(MULTI_VIEW_PROMPTS.left).slice(1, -1),
-          )
-        ) {
-          return new Response('rejected', { status: 400 })
-        }
-        return accept(input, init)
-      })
+  it('一个角度没派出去：交回其余两个', async () => {
+    await seedAssistantKey(me.id, AI_ADAPTER_TYPES.OPENAI)
+    // 左视角那一单 Worker 明确拒收，其余照收。
+    const accept = vi.mocked(fetch).getMockImplementation()!
+    vi.mocked(fetch).mockImplementation(async (input, init) => {
+      if (
+        String(input).startsWith(FAKE_WORKER_BASE_URL) &&
+        String(init?.body ?? '').includes(
+          JSON.stringify(MULTI_VIEW_PROMPTS.left).slice(1, -1),
+        )
+      ) {
+        return new Response('rejected', { status: 400 })
+      }
+      return accept(input, init)
+    })
 
-      const result = await generateMultiView(me.clerkId, { imageUrl: FRONT })
+    const result = await generateMultiView(me.clerkId, { imageUrl: FRONT })
 
-      expect(result.jobs.map((job) => job.view)).toEqual(['back', 'right'])
-    },
-  )
+    expect(result.jobs.map((job) => job.view)).toEqual(['back', 'right'])
+  })
 
   it('三个角度都没派出去：502', async () => {
     await seedAssistantKey(me.id, AI_ADAPTER_TYPES.OPENAI)

@@ -85,8 +85,9 @@ L4 的假边界（只替外部，应用全真）：
   - 真库：`src/test/int/`——`db.ts`（清库、建用户、种 key）、`generations.ts` / `seed-generation.ts`、`cards.ts`、`assistant-keys.ts`、`execution-worker.ts`（假执行 Worker）、`fake-r2.ts`（内存 R2 桶）、`fake-audio-providers.ts`、`execution-callback.ts`、`fake-llm-text.ts`
   - 助手：`src/test/assistant-bench/`——`fake-model.ts`（只假外部 SDK 包）、`kernel-harness.ts`、`turn.ts`、`operator-plan.ts`
   - 界面：`src/test/app-harness.tsx`（真 provider，只假 api-client / fakeServer）、`studio-harness.tsx`（真 StudioProvider）、`viewport.ts`（设屏宽给真 useIsMobile）、`radix-menu.ts`、`operator-lightbox.tsx`、`operator-dock.tsx`、`api-keys.ts`、`fake-video-element.ts`、`fake-canvas-2d.ts`、`browser-stubs.ts`、`i18n-text.ts`
-- 本机 PGlite 的已知限制：多条连接排在一个后端上，**并发提交**拿到的结果不可靠。只有这类用例用 `it.skipIf(!process.env.TEST_DATABASE_URL)` 并写一行原因（CI 真 Postgres 会跑），别的用例不许这样跳。
-- ⛔ `@electric-sql/pglite` 不许低于 0.5.11：之前扩展协议里一条语句报错会多回一个 ReadyForQuery，node-postgres 那条连接从此错一位、每条查询拿到上一条的结果（11-10 证据本「两道闸」偶发 `Expected zero or one element, got 43` = INSERT 拿到了清库查表名的 43 行）。「事务里报错后再查」因此不再是限制，照常在本机跑。
+- 本机 PGlite 与 CI 真 Postgres 结果一致，⛔ 不许用 `it.skipIf(!process.env.TEST_DATABASE_URL)` 跳本机。本机挂、CI 过，先查 socket 这一层，别跳用例。它靠两处前提（2026-11-10 修）：
+  - `@electric-sql/pglite` 不低于 0.5.11：之前扩展协议里一条语句报错会多回一个 ReadyForQuery，node-postgres 那条连接从此错一位、每条查询拿到上一条的结果（证据本「两道闸」偶发 `Expected zero or one element, got 43`）。
+  - `src/test/int/pglite-batch-queue.ts`：pglite-socket 自带的排队按单条协议消息轮转，并发连接的 Parse / Bind / Execute 会串到 PGlite 唯一的会话上（上游 #1046 未修；multiview 并发派单偶尔少派）。global-setup 换成按「一段到 Sync」和「一整个事务」排队；升级 pglite-socket 时核对这个接法。
 - 环境：真库测试把 `NEXT_PUBLIC_STORAGE_BASE_URL` 钉成 `https://cdn.test`（`src/test/int/setup.ts`）——本机 shell 常带线上值，CI 没有，两边结果会不一样（11-04 CI 红过）。`findBy` / `waitFor` 默认等 5 秒（`vitest.setup.ts`，从 `@testing-library/dom` 配；从 react 入口引会打乱 cleanup 顺序）。
 - 记账：每个线上 bug 在施工单记一行「哪层拦住 / 本该哪层拦住」，一个月后按此砍不干活的那类测试。
 

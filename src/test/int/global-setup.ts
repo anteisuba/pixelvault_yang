@@ -1,6 +1,7 @@
 import type { TestProject } from 'vitest/node'
 
 import { readMigrationSql } from './migrations'
+import { PGliteBatchQueue } from './pglite-batch-queue'
 
 declare module 'vitest' {
   export interface ProvidedContext {
@@ -47,13 +48,20 @@ export default async function setup(project: TestProject) {
   const { PGLiteSocketServer } = await import('@electric-sql/pglite-socket')
   const db = await PGlite.create({ extensions: { pg_trgm } })
   for (const sql of readMigrationSql()) await db.exec(sql)
-  // 连接池 + 测试自己的清库连接，都排在同一个 PGlite 上（服务端按查询排队）。
+  // 连接池 + 测试自己的清库连接，都排在同一个 PGlite 上：服务端按「一段扩展协议到 Sync」
+  // 和「一整个事务」排队，自带的按单条消息排会串批次（见 pglite-batch-queue.ts）。
   const server = new PGLiteSocketServer({
     db,
     port: 0,
     host: '127.0.0.1',
     maxConnections: 32,
   })
+  if (!('queryQueue' in server)) {
+    throw new Error(
+      '@electric-sql/pglite-socket 不再有 queryQueue：升级后重新核对 pglite-batch-queue.ts 的接法。',
+    )
+  }
+  Object.assign(server, { queryQueue: new PGliteBatchQueue(db) })
   await server.start()
   project.provide(
     'databaseUrl',

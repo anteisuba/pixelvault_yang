@@ -72,9 +72,9 @@ import {
 import { searchMemoriesStep } from '@/features/assistant/services/assistant-v3-memories.service'
 import {
   normalizePlanQuestions,
-  recordLedgerStep,
   toStepEvent,
 } from '@/features/assistant/services/assistant-operator.service'
+import { recordLedgerStep } from '@/features/assistant/services/assistant-operator-run.service'
 import { executeAssistantV3LoraCall } from '@/features/assistant/services/assistant-v3-lora.service'
 import { openCharacterImages } from '@/lib/assistant-v3-cards-board'
 import { executeAssistantV3CardsCall } from '@/features/assistant/services/assistant-v3-cards.service'

@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
@@ -19,11 +19,17 @@ import {
  * 同类先例：`prisma/migration-safety.test.ts`（约束型迁移 CI 抓不到，只能读文件锁）。
  */
 
-const SERVICE_PATH = join(
-  process.cwd(),
-  'src/features/assistant/services/assistant-operator.service.ts',
+/**
+ * 工具环的源码 = 执行器的**所有**文件（11-10 起旧执行器按职责拆成几份）。
+ * ⚠ 拆出去的模块必须叫 `assistant-operator-*.service.ts`：这里按前缀收，换个名字就逃出了这道闸。
+ */
+const SERVICES_DIR = join(process.cwd(), 'src/features/assistant/services')
+const OPERATOR_FILES = readdirSync(SERVICES_DIR).filter((name) =>
+  /^assistant-operator(-[a-z-]+)?\.service\.ts$/.test(name),
 )
-const SOURCE = readFileSync(SERVICE_PATH, 'utf8')
+const SOURCE = OPERATOR_FILES.map((name) =>
+  readFileSync(join(SERVICES_DIR, name), 'utf8'),
+).join('\n')
 const WEB_IMAGE_VISION_SOURCE = readFileSync(
   join(
     process.cwd(),

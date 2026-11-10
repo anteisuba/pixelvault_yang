@@ -14,8 +14,8 @@ import {
   memoryAsRule,
   memoryScopeForDomain,
   requestProjectId,
-  type ToolPlan,
 } from '@/features/assistant/services/assistant-operator.service'
+import type { ToolPlan } from '@/features/assistant/services/assistant-operator-run.service'
 import {
   settlePlan,
   TITLE_TEXT,

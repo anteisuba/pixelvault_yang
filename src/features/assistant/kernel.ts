@@ -109,7 +109,6 @@ import {
 import {
   closeRoundV3,
   closeRoundV3BeforeStop,
-  isFatalOperatorToolError,
   operatorCacheKey,
   prepareOperatorTurn,
   requestProjectId,
@@ -119,6 +118,7 @@ import {
   type AssistantOperatorRunOptions,
   type OperatorTurnOptions,
 } from '@/features/assistant/services/assistant-operator.service'
+import { isFatalOperatorToolError } from '@/features/assistant/services/assistant-operator-run.service'
 import { loadPicture } from '@/features/assistant/services/assistant-v3-look.service'
 import { refused } from '@/features/assistant/services/assistant-v3-bench.service'
 import {

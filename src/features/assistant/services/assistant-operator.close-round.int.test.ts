@@ -28,8 +28,8 @@ import {
   closeRoundV3,
   closeRoundV3BeforeStop,
   prepareOperatorTurn,
-  recordLedgerStep,
 } from '@/features/assistant/services/assistant-operator.service'
+import { recordLedgerStep } from '@/features/assistant/services/assistant-operator-run.service'
 import {
   operatorRequest,
   operatorUser,

@@ -33,11 +33,11 @@ import type {
   AssistantWebFind,
 } from '@/types/assistant-web-finds'
 import {
-  planTool,
   rememberStepArtifacts,
   toStepEvent,
   type PreparedOperatorTurn,
-} from '@/features/assistant/services/assistant-operator.service'
+} from '@/features/assistant/services/assistant-operator-turn.service'
+import { planTool } from '@/features/assistant/services/assistant-operator-tools.service'
 import {
   isFatalOperatorToolError,
   recordLedgerStep,

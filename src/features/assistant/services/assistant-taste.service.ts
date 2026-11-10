@@ -17,7 +17,7 @@ import {
 } from '@/features/assistant/services/assistant-memory.service'
 import { completeAssistantTextWithContextRetry } from '@/services/kernel/assistant-completion.service'
 import { lastTexts } from '@/features/assistant/services/assistant-last-time.service'
-import { resolveMemoryChanges } from '@/features/assistant/services/assistant-operator.service'
+import { resolveMemoryChanges } from '@/features/assistant/services/assistant-operator-round.service'
 import type { AssistantRoute } from '@/services/kernel/assistant-route.service'
 import type { AssistantMemory } from '@/types/assistant-memory'
 import { AssistantRoundMemoriesDraftSchema } from '@/types/assistant-operator'

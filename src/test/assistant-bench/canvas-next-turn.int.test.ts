@@ -16,10 +16,8 @@ import {
   type AssistantOperatorTool,
 } from '@/constants/assistant-operator'
 import { NODE_ASSISTANT_OP_V4_IDS as OP } from '@/constants/node-assistant-ops'
-import {
-  planTool,
-  prepareOperatorTurn,
-} from '@/features/assistant/services/assistant-operator.service'
+import { prepareOperatorTurn } from '@/features/assistant/services/assistant-operator-turn.service'
+import { planTool } from '@/features/assistant/services/assistant-operator-tools.service'
 import { applyCanvasBatchV4 } from '@/lib/node-canvas-batch-v4'
 import {
   applyOperatorStep,

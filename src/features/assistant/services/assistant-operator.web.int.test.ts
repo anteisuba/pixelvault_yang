@@ -26,10 +26,8 @@ import {
 import { RESEARCH_SOURCE_IDS } from '@/constants/research'
 import type { AssistantOperatorRequest } from '@/types/assistant-operator'
 import { resetReadHostBlocks } from '@/lib/read-url-blocks'
-import {
-  planTool,
-  prepareOperatorTurn,
-} from '@/features/assistant/services/assistant-operator.service'
+import { prepareOperatorTurn } from '@/features/assistant/services/assistant-operator-turn.service'
+import { planTool } from '@/features/assistant/services/assistant-operator-tools.service'
 import { addProjectRule } from '@/services/project-rule.service'
 import { resetResearchBreakers } from '@/services/research/connector-runtime'
 import { resetDanbooruCatalogCache } from '@/services/research/danbooru.connector'

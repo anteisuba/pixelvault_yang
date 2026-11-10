@@ -30,8 +30,8 @@ import {
 /**
  * **助手记忆**的全部读写（进度表 56a · 最简版）。
  *
- * 一条 = 一行字。写入只发生在**每轮结账**那一刻（`assistant-operator.service`
- * 的 `closeRound`），读出发生在两处：下一轮的系统提示注入、`/settings/assistant`
+ * 一条 = 一行字。写入只发生在**每轮收尾**之后（`assistant-operator-round.service`
+ * 的 `closeRoundV3` 起的后台抽取），读出发生在两处：下一轮的系统提示注入、`/settings/assistant`
  * 的总览列表。
  *
  * ⚠ **每一条查询都按 `userId` 收敛**，没有例外 —— 与 `context-cards.service.ts`

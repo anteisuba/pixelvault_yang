@@ -24,11 +24,11 @@ import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type { AssistantOperatorRequest } from '@/types/assistant-operator'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
+import { prepareOperatorTurn } from '@/features/assistant/services/assistant-operator-turn.service'
 import {
   closeRoundV3,
   closeRoundV3BeforeStop,
-  prepareOperatorTurn,
-} from '@/features/assistant/services/assistant-operator.service'
+} from '@/features/assistant/services/assistant-operator-round.service'
 import { recordLedgerStep } from '@/features/assistant/services/assistant-operator-run.service'
 import {
   operatorRequest,

@@ -52,7 +52,7 @@ import type { AssistantWebFind } from '@/types/assistant-web-finds'
 import {
   normalizePlanQuestions,
   type PreparedOperatorTurn,
-} from '@/features/assistant/services/assistant-operator.service'
+} from '@/features/assistant/services/assistant-operator-turn.service'
 import {
   refused,
   runOldTool,

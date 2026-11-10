@@ -23,7 +23,7 @@ export const maxDuration = 800
  * 不走 `api-route-factory` —— 工厂产的是 JSON 信封，而这里的载荷是流本身。
  *
  * ⛔ 这条路由**不创建任何 generation**，也没有任何一条工具能。钱闸是结构性的
- * （见 `features/assistant/services/assistant-operator.service.ts` 头注与 money-gate 测试）。
+ * （见 `features/assistant/services/assistant-operator-turn.service.ts` 头注与 money-gate 测试）。
  *
  * 不走工厂，所以自己把 `maxDuration` 记成这次请求的截止时刻（`lib/request-deadline.ts`）：
  * 工具里的缓冲补全按剩下的时间等。成帧器的活全在 `ReadableStream.start` 里，截止时刻跟得过去。

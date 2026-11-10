@@ -11,7 +11,7 @@ import {
   benchFaceOf,
   boardEntry,
 } from '@/features/assistant/bench'
-import { prepareOperatorTurn } from '@/features/assistant/services/assistant-operator.service'
+import { prepareOperatorTurn } from '@/features/assistant/services/assistant-operator-turn.service'
 import type { V3Context } from '@/features/assistant/services/assistant-v3-steps.service'
 /* eslint-enable no-restricted-imports */
 

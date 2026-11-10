@@ -45,7 +45,7 @@ export {
   lookupMentionAssetsForClerkId,
   searchMentionLibraryForClerkId,
 } from './services/assistant-mention.service'
-export { resolveMemoryChanges } from './services/assistant-operator.service'
+export { resolveMemoryChanges } from './services/assistant-operator-round.service'
 export { uploadAssistantAvatar } from './services/assistant-persona-avatar.service'
 export {
   getAssistantPersona,

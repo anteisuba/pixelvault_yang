@@ -107,14 +107,16 @@ import {
   scheduleAssistantV3HistorySummary,
 } from '@/features/assistant/services/assistant-v3-history.service'
 import {
-  closeRoundV3,
-  closeRoundV3BeforeStop,
   prepareOperatorTurn,
   runWithOperatorTimeBudget,
   toStepEvent,
   type AssistantOperatorRunOptions,
   type OperatorTurnOptions,
-} from '@/features/assistant/services/assistant-operator.service'
+} from '@/features/assistant/services/assistant-operator-turn.service'
+import {
+  closeRoundV3,
+  closeRoundV3BeforeStop,
+} from '@/features/assistant/services/assistant-operator-round.service'
 import { requestProjectId } from '@/features/assistant/services/assistant-operator-memory.service'
 import {
   operatorCacheKey,

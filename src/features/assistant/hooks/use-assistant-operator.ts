@@ -1570,7 +1570,7 @@ export function useAssistantOperator(
              * 外加钉在流末尾那张待确认的计划卡。两张卡列的是同一串阶段，用户读到
              * 的是「它规划了两遍」。
              * ⚠ 所以这里只**攒着**：多步确认帧紧跟在下一帧（服务端那一侧写死的
-             * 顺序，见 `assistant-operator.service.ts`），由它来收 —— 出卡 = 这份
+             * 顺序），由它来收 —— 出卡 = 这份
              * 清单归卡，条目不落；不出卡 = 落成一行折叠。
              */
             case ASSISTANT_OPERATOR_EVENTS.plan:

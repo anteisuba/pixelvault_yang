@@ -145,8 +145,7 @@ export const VIDEO_FRAME_PLAN = {
  * seek 行为不一致（见上面 `strategy` 的头注），退 80ms 换来的是一个稳定可复跑的
  * 采样点；首帧那头不退 —— 首帧就是要看第 0 帧本身（黑场也是一条结论）。
  * ⚠ `frameCount` 与 `ASSISTANT_OPERATOR_LIMITS.videoCritiqueFrameCount` 是同一个数，
- * 两处各自为政的表现是「服务端算 3 帧、卡片排 4 格」。⛔ 改一处必须改另一处，
- * 而 `assistant-operator.service` 的单测逐字对着这条断言。
+ * 两处各自为政的表现是「服务端算 3 帧、卡片排 4 格」。⛔ 改一处必须改另一处。
  */
 export const VIDEO_FRAME_ENDPOINT_PLAN = {
   frameCount: 3,

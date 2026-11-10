@@ -2334,7 +2334,7 @@ export type AssistantOperatorRequest = z.infer<
  * 每个工具的入参，**模型视角**。
  *
  * ⚠ 一律宽松：`modelId` 是 `string` 不是 `enum(availableModels)`，比例是 `string`
- * 不是枚举。值域全部在规划器收窄（`features/assistant/services/assistant-operator.service.ts`），
+ * 不是枚举。值域全部在规划器收窄（`features/assistant/services/assistant-operator-planning.service.ts`），
  * 理由见文件头注 ②。
  * 写成 `Record<AssistantOperatorTool, …>`：工具表加一条而这里没跟上，编译期就红。
  */

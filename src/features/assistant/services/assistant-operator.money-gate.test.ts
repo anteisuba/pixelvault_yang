@@ -589,7 +589,7 @@ describe('⛔ 助手工具环的钱闸', () => {
    * 扣钱 / 查库的路，而 `uploadToR2` **必须**出现（它就是那条被允许的、也是唯一的
    * 副作用；哪天有人把它换成别的写入，这里会红）。
    * ⛔ 工具环那一侧的禁字表**一个字都没松**：`uploadToR2` 仍然不许出现在
-   * `assistant-operator.service.ts` 里，上面那条用例照旧扫着。
+   * 执行器一族（`assistant-operator-*.service.ts`）里，上面那条用例照旧扫着。
    */
   it('⭐ 抽帧服务只落帧：写 R2 是它唯一的副作用，够不着 generation / credit / 库', () => {
     const source = readFileSync(

@@ -27,7 +27,7 @@ import {
   type AssistantWebFind,
   type AssistantWebImageFind,
 } from '@/types/assistant-web-finds'
-import type { PreparedOperatorTurn } from '@/features/assistant/services/assistant-operator.service'
+import type { PreparedOperatorTurn } from '@/features/assistant/services/assistant-operator-turn.service'
 import type { V3LookTarget } from '@/features/assistant/services/assistant-v3-look.service'
 
 /**

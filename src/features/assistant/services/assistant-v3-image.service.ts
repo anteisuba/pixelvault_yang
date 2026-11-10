@@ -26,7 +26,7 @@ import {
 } from '@/types/assistant-v3'
 import type { AssistantOperatorEvent } from '@/types/assistant-operator'
 import { searchMemoriesStep } from '@/features/assistant/services/assistant-v3-memories.service'
-import { toStepEvent } from '@/features/assistant/services/assistant-operator.service'
+import { toStepEvent } from '@/features/assistant/services/assistant-operator-turn.service'
 import {
   executeBenchGenerate,
   executeBenchLook,

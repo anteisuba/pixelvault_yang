@@ -26,10 +26,8 @@ import {
   studioFormReducer,
   type StudioFormState,
 } from '@/contexts/studio-context'
-import {
-  planTool,
-  prepareOperatorTurn,
-} from '@/features/assistant/services/assistant-operator.service'
+import { prepareOperatorTurn } from '@/features/assistant/services/assistant-operator-turn.service'
+import { planTool } from '@/features/assistant/services/assistant-operator-tools.service'
 import {
   applyOperatorStep,
   type StudioOperatorApplyContext,

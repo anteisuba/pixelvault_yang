@@ -18,10 +18,8 @@ import {
   ASSISTANT_OPERATOR_TOOL_IDS as T,
   type AssistantOperatorTool,
 } from '@/constants/assistant-operator'
-import {
-  planTool,
-  prepareOperatorTurn,
-} from '@/features/assistant/services/assistant-operator.service'
+import { prepareOperatorTurn } from '@/features/assistant/services/assistant-operator-turn.service'
+import { planTool } from '@/features/assistant/services/assistant-operator-tools.service'
 import type { AssistantOperatorRequest } from '@/types/assistant-operator'
 import { createTestUser, resetDatabase, seedAssistantKey } from '@/test/int/db'
 

@@ -23,7 +23,7 @@ import {
   type AssistantV3ClipRef,
   type AssistantV3PictureRef,
 } from '@/types/assistant-v3'
-import { toStepEvent } from '@/features/assistant/services/assistant-operator.service'
+import { toStepEvent } from '@/features/assistant/services/assistant-operator-turn.service'
 import { recordLedgerStep } from '@/features/assistant/services/assistant-operator-run.service'
 import {
   joinPhrases,

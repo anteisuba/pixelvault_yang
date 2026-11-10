@@ -1141,7 +1141,7 @@ When the choice is "which reference image", put the asset URL in "assetUrl" inst
 - 断点续跑：`src/types/studio-operator-resume.ts` · `src/lib/studio-operator-resume.ts` · `src/constants/studio-assistant-operator.ts`（`STUDIO_OPERATOR_RESUME` / TTL）
 - 只重跑下游：`src/lib/node-rerun-downstream.ts` · `src/lib/node-downstream.ts` · `src/lib/canvas-rerun-request.ts`
 - 上下文卡：`src/constants/context-cards.ts` · `src/hooks/use-context-cards.ts`
-- 服务端：`src/features/assistant/services/assistant-operator.service.ts`（系统提示 `:2019`、上下文压缩 `:2153`）
+- 服务端：`src/features/assistant/kernel.ts` · 执行器 `src/features/assistant/services/assistant-operator-*.service.ts`
 - 视觉 token：`src/app/globals.css`（动效 `:198-202`、三层浅底 `:355-365`）· `docs/references/ui-defaults.md`
 - 画布：[`node-canvas-v2.md`](node-canvas-v2.md)（目标态）· [`node-canvas.md`](node-canvas.md)（现状）
 - 域：`docs/references/domains/studio.md` · 画布域定义见 [`node-canvas-v2.md`](node-canvas-v2.md) §0.1

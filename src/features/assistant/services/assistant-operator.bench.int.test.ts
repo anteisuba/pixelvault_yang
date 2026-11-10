@@ -20,10 +20,8 @@ import type {
   AssistantOperatorCanvasNode,
   AssistantOperatorRequest,
 } from '@/types/assistant-operator'
-import {
-  planTool,
-  prepareOperatorTurn,
-} from '@/features/assistant/services/assistant-operator.service'
+import { prepareOperatorTurn } from '@/features/assistant/services/assistant-operator-turn.service'
+import { planTool } from '@/features/assistant/services/assistant-operator-tools.service'
 import {
   canvasProject,
   LORA_SNAPSHOT,

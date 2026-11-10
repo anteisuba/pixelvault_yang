@@ -24,24 +24,6 @@ const SERVICE_PATH = join(
   'src/features/assistant/services/assistant-operator.service.ts',
 )
 const SOURCE = readFileSync(SERVICE_PATH, 'utf8')
-const FOLDER_VISION_SERVICE_PATH = join(
-  process.cwd(),
-  'src/features/assistant/services/assistant-asset-folder-vision.service.ts',
-)
-const FOLDER_VISION_SOURCE = readFileSync(FOLDER_VISION_SERVICE_PATH, 'utf8')
-const CHARACTER_LOOK_SOURCE = readFileSync(
-  join(
-    process.cwd(),
-    'src/features/assistant/services/assistant-character-look.service.ts',
-  ),
-  'utf8',
-)
-const EDIT_LOOK_SOURCE = [
-  'src/features/assistant/services/assistant-edit-look.service.ts',
-  'src/services/video-frames/edge-frame.service.ts',
-]
-  .map((path) => readFileSync(join(process.cwd(), path), 'utf8'))
-  .join('\n')
 const WEB_IMAGE_VISION_SOURCE = readFileSync(
   join(
     process.cwd(),
@@ -79,27 +61,11 @@ const ALLOWED_SERVICE_IMPORTS = new Set([
   // 所以下面还有一条「不许出现的标识符」名单兜着。
   '@/services/generation.service',
   /**
-   * 素材文件夹视觉检查：只读用户文件夹与既有图片 URL，再走结构化视觉补全；
-   * 不创建 generation、不写库、不下载文件，也不触发图片 / 视频 / 音频生成。
-   */
-  '@/features/assistant/services/assistant-asset-folder-vision.service',
-  /**
    * 联网候选「搜完先看一眼」（卡片助手 C3）：把搜图拿到的缩略图 URL 交给结构化视觉
    * 补全，逐张判是不是这个角色。⭐ 判据比文件夹视觉那条还干净：连库都不读 ——
    * 不建 generation、不扣 credit、不写库、不落字节（下面有一条用例扫它的源码）。
    */
   '@/features/assistant/services/assistant-web-image-vision.service',
-  /**
-   * 对一下设定和外观（卡片助手 S14）：判据与上一条逐字同源 —— 只把卡上既有图的 URL
-   * 交给结构化视觉补全，连库都不读（下面同一条用例扫它的源码）。
-   */
-  '@/features/assistant/services/assistant-character-look.service',
-  /**
-   * 看片（剪辑台 v2 第 2 片 2b）：判据与上一条逐字同源 —— 截帧地址只随快照来，取的是
-   * 自家 CDN 的边缘截帧（字节只在内存里转一手），再走一次结构化视觉补全；连库都不读
-   * （下面同一条用例扫它和截帧那条腿的源码）。
-   */
-  '@/features/assistant/services/assistant-edit-look.service',
   // 文本补全本身与一把点名 key 的解析（`resolveLlmTextRoute(userId, apiKeyId)`）。
   // ⚠ 没有平台兜底（owner 2026-10-07），也不在无 key 时自己挑一家（那是 `assistant-route`）。
   '@/services/llm-text.service',
@@ -198,17 +164,6 @@ const ALLOWED_SERVICE_IMPORTS = new Set([
    */
   '@/services/project-rule.service',
   /**
-   * 上下文卡（第三期 K1）。⭐ 判据逐条与上面两条同源：一张**只有文本列与一列
-   * Json** 的表，Json 里存的是**已经上传好的** URL —— 不创建 generation、
-   * 不扣 credit、不调 provider、不碰 R2。它做的全部事情是把用户自己写下的一段
-   * 设定读出来。
-   * ⛔ 参考图**上传**那条腿（`context-cards-avatar.service`）**有意不在这份名单
-   * 里**：它会写 R2，所以它住在另一个文件 —— 与 persona「读写在名单里、头像上传
-   * 不在」是同一条论据的第三次应用。哪天有人想把上传挪进来「省一次往返」，
-   * 那就是这条判据破的那一天。
-   */
-  '@/services/context-cards.service',
-  /**
    * 助手记忆（56a）。⭐ 判据逐条与上面那条同源：一张**只有文本列**的表 ——
    * 不创建 generation、不扣 credit、不调 provider、不碰 R2。它是名单里第三条会
    * 往库里写的服务，写的是助手这一轮归纳出的一行字（`recordAssistantMemories`），
@@ -217,30 +172,6 @@ const ALLOWED_SERVICE_IMPORTS = new Set([
    * 那一天。
    */
   '@/features/assistant/services/assistant-memory.service',
-  /**
-   * **抽帧落库**（第二期 · 视频域评审）。⭐ 这是第五次值得复核的改动，而且是名单
-   * 里**第二条会往外写字节**的服务（第一条是 `project-rule.service` 写一行文本）。
-   *
-   * ── 判据，逐条 ─────────────────────────────────────────────────
-   *  · **不建 generation** —— 全文没有 `createGeneration`，也没有任何 prisma /
-   *    `@/lib/db` 的 import（下面那条用例逐字扫）。它写完 R2 就返回一个对象，
-   *    库里不留任何一行。⭐ owner 定的门槛就是这一条：**只落帧不建 generation
-   *    才进得来**。
-   *  · **不扣 credit** —— 没有 credit policy、没有 provider 调用；这一整条链花的
-   *    是助手线的 token（与 `critique_result` 的视觉那一跳同源），不是用户的积分。
-   *  · **落的是什么** —— 客户端在浏览器里抽好的三张帧图（`data:image/…`），
-   *    服务端复算计划、核对时间戳、验魔数之后转存到 `VIDEO_FRAME_STORAGE_PREFIX`
-   *    下这个用户自己的目录。字节的来源是**用户自己的视频**，不是助手从网上搜到的
-   *    候选 —— 这正是 `web-image-import` 被挡在名单外的那条判据的另一面：那条落的是
-   *    「助手搜来的、用户还没点头的」东西，这条落的是「用户手上已经有的那段片子的
-   *    三个截面」。
-   *  · **为什么非落不可** —— 评审卡上那三格要稳定 URL；不落盘就只能把三张
-   *    base64 塞进 SSE 载荷，那是几百 KB 走一条本该只走文本的流。
-   * ⛔ `@/services/vision/video-analysis.service` **有意不在名单里**：那条经
-   * `analyzeVisual` 写 `ResearchRun`，也就是会 import 库客户端。哪天有人想
-   * 「复用现成的视频分析入口」把它换进来，这份名单就是那个看得见的动作。
-   */
-  '@/services/video-frames/video-frame-set.service',
   /**
    * **每轮结账落库**（assistant-shell-v2 §7.2 / §7.5）。⭐ 这是名单里**第三条会
    * 往库里写**的服务，判据与 `project-rule.service` 那条逐字同源：它写的是**文本**
@@ -359,71 +290,6 @@ describe('⛔ 助手工具环的钱闸', () => {
         false,
       )
     }
-  })
-
-  it('文件夹视觉服务只看既有素材，不具备生成、扣费或写入能力', () => {
-    for (const identifier of [
-      'createGeneration',
-      'generateImage',
-      'generateVideo',
-      'generateAudio',
-      'deductCredits',
-      'submitGeneration',
-      'execution-worker',
-      'uploadToR2',
-      'uploadFromHttpToR2',
-      '.create(',
-      '.update(',
-      '.delete(',
-      '.upsert(',
-    ]) {
-      expect(
-        FOLDER_VISION_SOURCE.includes(identifier),
-        `文件夹视觉服务里出现了 ${identifier}`,
-      ).toBe(false)
-    }
-    expect(FOLDER_VISION_SOURCE).toContain('db.generation.findMany')
-    expect(FOLDER_VISION_SOURCE).toContain('completeVisionStructured')
-  })
-
-  it('对设定和外观的看图服务只看卡上的图：够不着生成、扣费、写入，连库都不读', () => {
-    for (const identifier of [
-      'createGeneration',
-      'generateImage',
-      'deductCredits',
-      'submitGeneration',
-      'execution-worker',
-      'uploadToR2',
-      "from '@/lib/db'",
-      'prisma',
-    ]) {
-      expect(
-        CHARACTER_LOOK_SOURCE.includes(identifier),
-        `对外观的看图服务里出现了 ${identifier}`,
-      ).toBe(false)
-    }
-    expect(CHARACTER_LOOK_SOURCE).toContain('completeVisionStructured')
-  })
-
-  it('看片服务只看截帧：够不着生成、扣费、写入，连库都不读', () => {
-    for (const identifier of [
-      'createGeneration',
-      'generateImage',
-      'generateVideo',
-      'deductCredits',
-      'submitGeneration',
-      'execution-worker',
-      'uploadToR2',
-      'uploadFromHttpToR2',
-      "from '@/lib/db'",
-      'prisma',
-    ]) {
-      expect(
-        EDIT_LOOK_SOURCE.includes(identifier),
-        `看片服务里出现了 ${identifier}`,
-      ).toBe(false)
-    }
-    expect(EDIT_LOOK_SOURCE).toContain('completeVisionStructured')
   })
 
   it('找视频服务只搜元数据：够不着生成、扣费、写入、转存，连库都不读', () => {
@@ -749,20 +615,10 @@ describe('⛔ 助手工具环的钱闸', () => {
   })
 
   /**
-   * ⭐ 上下文卡两条工具（K1）都是**只读**，而卡上带着参考图 URL —— 最容易被
-   * 「顺手」改坏的正是这一点：下一个人会想「读到卡了不如直接把图挂上」，
-   * 而挂图那一跳一旦挪进服务端，它就得 import 上传那条腿。这条用例把两件事钉住：
-   * 工具在表里、在只读档里，而上传服务的三个名字一个都不许出现在工具环里。
+   * ⭐ 上下文卡的参考图**上传**那条腿永远不进工具环。读卡那两条工具已随旧内核下线（11-10），
+   * 这条用例只剩一件事要钉：上传服务的名字一个都不许出现在工具环里。
    */
-  it('上下文卡可读，而工具环仍然够不着参考图上传那条腿', () => {
-    expect(ASSISTANT_OPERATOR_TOOLS).toContain('list_context_cards')
-    expect(ASSISTANT_OPERATOR_TOOLS).toContain('read_context_card')
-    expect(ASSISTANT_OPERATOR_MUTATING_TOOLS).not.toContain(
-      'list_context_cards',
-    )
-    expect(ASSISTANT_OPERATOR_MUTATING_TOOLS).not.toContain('read_context_card')
-    expect(SOURCE).toContain('listContextCards')
-    expect(SOURCE).toContain('getContextCard')
+  it('工具环够不着上下文卡参考图上传那条腿', () => {
     // 上传那条腿的名字，一个都不许出现。
     expect(SOURCE).not.toContain('context-cards-avatar')
     expect(SOURCE).not.toContain('addContextCardImage')

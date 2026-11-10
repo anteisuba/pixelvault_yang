@@ -33,7 +33,6 @@ import {
 import { isAssistantQuestionTurn } from '@/lib/assistant-operator-intent'
 
 import {
-  ASSISTANT_FOLDER_VISION_DEFAULT_INSTRUCTION,
   ASSISTANT_NAI_PROMPT_LIMITS,
   ASSISTANT_OPERATOR_APPEND_SEPARATOR,
   ASSISTANT_OPERATOR_OVERWRITE_INTENT_WORDS,
@@ -41,7 +40,6 @@ import {
   ASSISTANT_OPERATOR_CONFIRM_FIELDS,
   ASSISTANT_OPERATOR_DEFAULT_SEARCH_KINDS,
   ASSISTANT_OPERATOR_EVENTS,
-  ASSISTANT_OPERATOR_CRITIQUE_FRAME_LABELS as FRAME_LABELS,
   ASSISTANT_OPERATOR_LIMITS as LIMITS,
   ASSISTANT_OPERATOR_CANVAS_LIMITS,
   ASSISTANT_OPERATOR_REFERENCE_SLOT_IDS as SLOT,
@@ -52,11 +50,7 @@ import {
   ASSISTANT_OPERATOR_TOOL_ARG_SHAPE_HINTS,
   ASSISTANT_OPERATOR_TOOL_IDS as TOOL,
   ASSISTANT_OPERATOR_PENDING_LORA_PREFIX,
-  ASSISTANT_OPERATOR_VERDICT_SEVERITIES,
-  ASSISTANT_OPERATOR_VERDICT_SEVERITY_IDS as SEVERITY,
-  ASSISTANT_EVIDENCE_RECALL_LIMITS as RECALL_LIMITS,
   ASSISTANT_OPERATOR_WRITE_MODES,
-  type AssistantOperatorVerdictSeverity,
   ASSISTANT_PLAN_CARD_LIMITS as PLAN_LIMITS,
   ASSISTANT_RESEARCH_LIMITS as RESEARCH_LIMITS,
   ASSISTANT_RESEARCH_SCOPE_IDS,
@@ -94,13 +88,10 @@ import {
   ASSISTANT_PROJECT_RULE_LIMITS as RULE_LIMITS,
   ASSISTANT_ASSET_WRITE_LIMITS as ASSET_WRITE_LIMITS,
   PROJECT_RULE_KIND_IDS,
-  PROJECT_RULE_SOURCE_IDS,
   overwriteAnswerId,
   ASSISTANT_OPERATOR_TIME_BUDGET_ERROR_CODE,
-  type ProjectRuleKindId,
 } from '@/constants/assistant-operator'
 import { assistantAdapterSupportsImage } from '@/constants/assistant'
-import { planVideoEndpointFrames } from '@/lib/video-frame-plan'
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 /**
  * ⭐ 画布那几条**原样借 v4 的 op 词表与 spec 表**（进度表 22）：词表、确认三档与
@@ -189,15 +180,6 @@ import {
 import { getAppOrigin } from '@/constants/config'
 import { USER_UPLOAD_PROVIDER } from '@/constants/uploads'
 import {
-  inspectAssistantAssetFolder,
-  listAssistantAssetFolders,
-} from '@/features/assistant/services/assistant-asset-folder-vision.service'
-import { checkCharacterLook } from '@/features/assistant/services/assistant-character-look.service'
-import {
-  lookAtEditFrames,
-  planEditDeskFrames,
-} from '@/features/assistant/services/assistant-edit-look.service'
-import {
   inspectWebImageCandidates,
   type WebImageVisionItem,
 } from '@/features/assistant/services/assistant-web-image-vision.service'
@@ -266,24 +248,7 @@ import {
   setAssetFavorites,
   tagAssets,
 } from '@/features/assets/server'
-import {
-  ProjectRuleLimitError,
-  addProjectRule,
-  listProjectSourceRules,
-} from '@/services/project-rule.service'
-/**
- * ⭐ 上下文卡（第三期 K1）。判据与上面两条逐字同源：一张只有文本列与一列 Json
- * 的表，而 Json 里存的是**已经上传好的** URL —— 读写它不创建 generation、
- * 不扣 credit、不调任何 provider、**不碰 R2**。
- * ⛔ 参考图**上传**那条腿有意住在另一个文件，且**不在**钱闸名单里：它会写 R2。
- * 工具环因此在 import 表上就够不着上传 —— 与 persona 的头像「读写在名单里、
- * 上传不在」是同一条论据的第三次应用。那个文件的名字逐字写在
- * `assistant-operator.money-gate.test.ts` 的禁字表里（写在这里会让那条用例自己红）。
- */
-import {
-  getContextCard,
-  listContextCards,
-} from '@/services/context-cards.service'
+import { listProjectSourceRules } from '@/services/project-rule.service'
 /**
  * ⭐ **助手记忆**（56a）。加它进钱闸白名单的判据逐条与
  * `context-cards.service` 同源：一张**只有文本列**的表 —— 不创建 generation、
@@ -291,7 +256,6 @@ import {
  * 一行字存起来，以及把之前存下的那几行读回提示里。
  */
 import {
-  addAssistantRuleMemory,
   listAssistantMemoriesForReview,
   listCreatorMemoriesForPrompt,
   listStandingRuleMemories,
@@ -308,15 +272,6 @@ import {
 import { checkNovelAiPromptTags } from '@/services/novelai-tags.service'
 import { buildOperatorCapabilities } from '@/lib/studio-operator-snapshot'
 import { buildCanvasGenerationRequest } from '@/lib/studio-operator-canvas-snapshot'
-/**
- * ⭐ **抽帧落库**（第二期 · 视频域评审）。加它进钱闸白名单的判据只有一条：
- * 它把客户端交上来的三张**帧图**核对后转存 R2，然后就结束了 —— 不建 generation、
- * 不扣 credit、不碰 provider、一行库都不写（`video-frame-set.service.ts` 全文没有
- * prisma / `@/lib/db`）。钱闸那份名单里逐字写着这条判据，另有一条用例逐字扫它的源码。
- * ⛔ `services/vision/video-analysis.service` **有意不在名单里**：那条会经
- * `analyzeVisual` 写 `ResearchRun`，也就是会 import 库客户端。
- */
-import { persistVideoFrameSet } from '@/services/video-frames/video-frame-set.service'
 /**
  * ⭐ LoRA 检索（P4-C）。加它进钱闸白名单的判据与上面两条**逐字同源**：它是
  * **检索 + 归一**模块 —— 打 Civitai / HF 的搜索接口，出一串候选对象，
@@ -406,7 +361,6 @@ import {
 } from '@/constants/research'
 import {
   appendAssistantEvidenceBook,
-  recallAssistantEvidence,
   type AssistantEvidenceBookEntry,
 } from '@/services/research/assistant-evidence-book.service'
 import {
@@ -452,22 +406,13 @@ import {
   attachmentArtifacts,
   collectStepArtifacts,
 } from '@/lib/studio-operator-artifacts'
-import {
-  readGenerationMentions,
-  resolveGenerationDisplayName,
-} from '@/lib/generation-name'
+import { resolveGenerationDisplayName } from '@/lib/generation-name'
 import { logger } from '@/lib/logger'
 import {
   ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS,
   CANVAS_APPLY_OP_IDS,
-  AssistantOperatorCritiqueCheckSchema,
-  AssistantOperatorCritiqueSchema,
-  AssistantOperatorVideoCritiqueSchema,
   AssistantOperatorStepSchema,
   type AssistantOperatorContextCardDraft,
-  type AssistantOperatorCritique,
-  type AssistantOperatorCritiqueCheck,
-  type AssistantOperatorVideoCritique,
   type AssistantOperatorEvent,
   type AssistantOperatorGenerationRequest,
   type AssistantOperatorLoraCandidate,
@@ -476,7 +421,6 @@ import {
   type AssistantOperatorPlanAnswer,
   type AssistantOperatorPlanQuestion,
   type AssistantOperatorRequest,
-  type AssistantOperatorResult,
   type AssistantOperatorStep,
   AssistantOperatorRoundSummaryDraftSchema,
   AssistantResearchConclusionDraftSchema,
@@ -489,7 +433,6 @@ import {
   type AssistantOperatorCardsSnapshot,
   type AssistantOperatorCharacterProfileDraft,
   type AssistantOperatorCharacterImageCandidate,
-  type AssistantOperatorCanvasLookAtArgs,
   type AssistantOperatorCharacterImagesDraft,
   type AssistantOperatorCharacterImagesProposal,
   type AssistantOperatorWebImage,
@@ -503,14 +446,12 @@ import {
 import type { AssistantConversationRoundStored } from '@/types/assistant-conversation'
 import type { OutputType, PromptAssistantResponseLanguage } from '@/types'
 import {
-  ProjectRuleSourceTokenSchema,
-  isProjectRuleSourceKind,
   type AssistantPersona,
   type AssistantPromptPersona,
   type AssistantPromptWorldEntry,
   type ProjectRule,
 } from '@/types/assistant-persona'
-import { toContextCardDigest, type ContextCard } from '@/types/context-cards'
+import { type ContextCard } from '@/types/context-cards'
 import {
   ASSISTANT_MEMORY_KINDS,
   ASSISTANT_MEMORY_LIMITS,
@@ -524,12 +465,6 @@ import {
   type AssistantMemory,
   type AssistantMemoryCandidate,
 } from '@/types/assistant-memory'
-import type { ContextCardKindId } from '@/constants/context-cards'
-import {
-  CONTEXT_CARD_KIND_IDS as CARD_KIND,
-  CONTEXT_CARD_LIMITS as CARD_LIMITS,
-  CONTEXT_CARD_STATUS_IDS,
-} from '@/constants/context-cards'
 import type { AssistantAssetFolderCandidate } from '@/types/asset-folder-vision'
 import type { LoraCandidate } from '@/types/lora-candidate'
 
@@ -2334,96 +2269,6 @@ function planSearchAssets(
         result: { totalFound: page.total, assets },
         observation,
       }
-    },
-  }
-}
-
-function planListAssetFolders(
-  run: OperatorRun,
-  args: { query: string; limit?: number },
-  userId: string,
-): ToolPlan {
-  const limit = Math.min(
-    args.limit ?? LIMITS.maxFolderMatches,
-    LIMITS.maxFolderMatches,
-  )
-
-  return {
-    kind: 'read',
-    payload: { query: args.query, limit },
-    run: async () => {
-      const folders = await listAssistantAssetFolders({
-        userId,
-        query: args.query,
-        limit,
-      })
-      for (const folder of folders) {
-        run.folderIndex.set(folder.folderId, folder)
-      }
-
-      const observation =
-        folders.length === 0
-          ? `list_asset_folders("${args.query}") found NOTHING. Do not invent a folder id; ask for a different name.`
-          : `list_asset_folders("${args.query}") → ${folders.length} folder(s):\n${folders
-              .map(
-                (folder, index) =>
-                  `  ${index + 1}. folderId=${folder.folderId} · ${folder.path} · ${folder.imageCount} image(s)`,
-              )
-              .join(
-                '\n',
-              )}\nUse the full paths to disambiguate duplicates. inspect_asset_folder only accepts one of these folderIds.`
-
-      return { result: { folders }, observation }
-    },
-  }
-}
-
-function planInspectAssetFolder(
-  run: OperatorRun,
-  args: { folderId: string; instruction?: string },
-  userId: string,
-): ToolPlan {
-  const listedFolder = run.folderIndex.get(args.folderId)
-  if (!listedFolder) {
-    return reject(
-      REJECT.unknownFolder,
-      'Only folder ids returned by list_asset_folders in this run can be inspected. Call list_asset_folders first and use one of its exact ids.',
-    )
-  }
-
-  const instruction =
-    args.instruction ?? ASSISTANT_FOLDER_VISION_DEFAULT_INSTRUCTION
-  if (!runSeesImages(run)) return cannotSeeRejection('the folder')
-
-  return {
-    kind: 'read',
-    payload: { folderId: listedFolder.folderId, instruction },
-    run: async () => {
-      const result = await inspectAssistantAssetFolder({
-        userId,
-        folderId: listedFolder.folderId,
-        instruction,
-        apiKeyId: run.apiKeyId,
-        modelId: run.modelId,
-      })
-      const observation =
-        result.inspectedImages === 0
-          ? `inspect_asset_folder("${result.folder.path}") found 0 viewable images. Do not describe this folder as if you saw anything.`
-          : [
-              `inspect_asset_folder("${result.folder.path}") — ACTUALLY VIEWED ${result.inspectedImages}/${result.totalImages} image(s) in ${result.batchCount} batch(es).${result.truncated ? ` ${result.totalImages - result.inspectedImages} image(s) were NOT viewed; never describe them.` : ' The whole folder was covered.'}`,
-              ...result.findings.map(
-                (finding, index) =>
-                  `  ${index + 1}. assetId=${finding.assetId} · relevance=${finding.relevance} · ${finding.observation} · why: ${finding.reason}${finding.tags.length > 0 ? ` · tags: ${finding.tags.join(', ')}` : ''}`,
-              ),
-              ...result.batchSummaries.map(
-                (summary, index) => `  batch ${index + 1} summary: ${summary}`,
-              ),
-              ...(result.uncertainties.length > 0
-                ? [`  uncertainties: ${result.uncertainties.join(' | ')}`]
-                : []),
-            ].join('\n')
-
-      return { result, observation }
     },
   }
 }
@@ -6803,37 +6648,6 @@ function planSetLoraWeight(
   }
 }
 
-function planPrimeGenerate(
-  run: OperatorRun,
-  args: { label?: string },
-): ToolPlan {
-  if (run.state.hasModelControl && !run.state.modelId) {
-    return reject(REJECT.noModelSelected)
-  }
-  if (!run.state.prompt.trim()) return reject(REJECT.emptyPrompt)
-
-  /**
-   * ⚠ 名字**只透传**（切片 X）：服务端一行库都不写，落库发生在客户端提交那一跳
-   * （它把这个字当成 `displayLabel` 交给落库那一跳 —— 那个函数的名字逐字写在钱闸
-   * 的禁字表里，所以这里不写出来：那份测试扫的是源码文本，注释也算数）。
-   * ⛔ 别在这里顺手写库「省一次往返」——
-   * 那一枪还没打，这时候写下的名字属于一条不存在的产物。
-   */
-  const label = args.label?.trim()
-
-  return {
-    kind: 'mutate',
-    payload: {
-      primed: true,
-      ...(label ? { label: clamp(label, LIMITS.maxGenerationLabelChars) } : {}),
-    },
-    inverse: { primed: false },
-    observation:
-      'The generate button is armed with the current form. The creator presses it themselves — you cannot.',
-    apply: () => {},
-  }
-}
-
 /** 这一枪的张数 —— 没有张数控件的域（视频 / 装配台）恒 1。 */
 function currentGenerationCount(run: OperatorRun): number {
   if (!run.state.hasCountControl) return 1
@@ -6920,478 +6734,6 @@ function planRequestGeneration(
   }
 }
 
-/**
- * 助手问「你说的是哪一张」时那句话。服务端在模型没给出目标时替它问，所以按
- * `responseLanguage` 三语写死（2026-10-09：中文界面上弹了一张英文卡）。
- */
-const CRITIQUE_CHOICE_QUESTIONS: Record<
-  PromptAssistantResponseLanguage,
-  string
-> = {
-  english: 'Which one do you mean?',
-  japanese: 'どの画像のことですか？',
-  chinese: '你说的是哪一张？',
-}
-
-/**
- * **看哪一张**（拍板 4 推翻，§7，切片 3a）—— 三条来源，按序：
- *  ① `targetIds`：用户 `@` 引用的那几张（`request.mentionedAssets`）。值可以是那张图
- *     的 id，也可以是它的 URL —— 模型从消息里那句 `[attached: …]` 读到的是地址，
- *     强迫它转成 id 只会多一次它会写错的转换。
- *  ② 都没有，但用户这一轮 `@` 上来 / 参考位上摆着**两张以上**候选 —— 那不是拒绝的
- *     时候，是**问一句**的时候（歧义反问单选卡）。
- *
- * ⛔ **名单之外一律拒**（`unknownAsset`）：模型不许自己写一条地址来看。没有这道闸，
- * 「看图」就变成了「它说看哪张就看哪张」—— 而那条视觉线是要花 token 的，且它看到
- * 什么用户完全无从核对。
- */
-type CritiqueTarget =
-  | { kind: 'result'; result: AssistantOperatorResult }
-  | { kind: 'none' }
-  | { kind: 'unknown' }
-  | {
-      kind: 'ambiguous'
-      options: { id: string; label: string; assetUrl: string }[]
-    }
-
-/**
- * 用户 `@` 上来的那批里，名字（`图_012` / `@图_012·摘要`）指的是哪一张。
- *
- * ⚠ 判据是**身份段**（`lib/generation-name.ts` 的纯函数），不是字符串包含 ——
- * 摘要写没写、写得对不对都不影响，而一条摘要里恰好含 `图_012` 的素材也不会
- * 被误命中。名单里没有 → `undefined` → 调用方按 `unknownAsset` 拒。
- */
-function matchMentionedByName(
-  mentioned: NonNullable<AssistantOperatorRequest['mentionedAssets']>,
-  wanted: string,
-): (typeof mentioned)[number] | undefined {
-  const [token] = readGenerationMentions(
-    wanted.startsWith('@') ? wanted : `@${wanted}`,
-  )
-  if (!token) return undefined
-  /**
-   * ⚠ 按**序号**比，⛔ 不比整个身份段：这张名单上没有 `outputType`（契约里只有
-   * id / url / label / seq），照 `图_` 拼一遍会让视频那几条（`视频_0xx`）永远
-   * 对不上。前缀是给人看的那一半。
-   * ⚠ `seq` 缺席的条目（老客户端、迁移前的行）**一条都不命中** —— 没有号的行
-   * 没有名字可念，⛔ 不退回任何派生值去猜。
-   */
-  return mentioned.find((asset) => asset.seq === token.serial)
-}
-
-function resolveCritiqueTarget(
-  run: OperatorRun,
-  targetIds: string[] | undefined,
-): CritiqueTarget {
-  const mentioned = run.request.mentionedAssets ?? []
-
-  if (targetIds?.length) {
-    const wanted = targetIds[0] as string
-    /**
-     * ⚠ 名单**三张**（切片 X 加了第三张）：用户 `@` 上来的、按产物名对上的、
-     * 以及跨轮记忆里那几件。⛔ 三张之外照旧 `unknownAsset` —— 名字与记忆都是
-     * 称呼，名单才是权限。
-     */
-    const rememberedTarget = run.workingMemoryIndex.get(wanted)
-    const hit =
-      mentioned.find((asset) => asset.id === wanted || asset.url === wanted) ??
-      (rememberedTarget?.url
-        ? {
-            id: rememberedTarget.id,
-            url: rememberedTarget.url,
-            label: rememberedTarget.displayName,
-          }
-        : undefined) ??
-      /**
-       * **产物名**也认（`图_012`，切片 N1）—— 系统提示让模型用名字指认，那这条闸
-       * 就必须听得懂名字，否则「按我们教的说法说话」= 一律被拒。
-       * ⛔ 名字仍然**不是凭证**：只在 `mentionedAssets` 这张名单里找，找不到照旧
-       * `unknownAsset`。名字是称呼，名单才是权限。
-       */
-      matchMentionedByName(mentioned, wanted)
-    if (!hit) return { kind: 'unknown' }
-    /**
-     * ⚠ 一次只看一张（同 `readOperatorClaimEvidence` 的「只取一张」）：评价卡内嵌
-     * 的是**它评的那张图**，单数（拍板 6）。多给几个 id 就看第一个 —— ⛔ 不静默
-     * 把四张拼成一份评价，那是一张卡上四份证据。
-     */
-    return {
-      kind: 'result',
-      result: {
-        url: hit.url,
-        generationId: hit.id,
-        ...(hit.label ? { prompt: hit.label } : {}),
-      },
-    }
-  }
-
-  /**
-   * 这一轮只 `@` 了一张：看的就是它（2026-10-09 马尔福画布：出图后自动看一眼只带
-   * 那一张新图，参考位上的两张被凑成候选，弹了一张「哪一张」）。参考位上的是源图，
-   * 不是要评的结果。
-   */
-  if (mentioned.length === 1) {
-    const only = mentioned[0]!
-    return {
-      kind: 'result',
-      result: {
-        url: only.url,
-        generationId: only.id,
-        ...(only.label ? { prompt: only.label } : {}),
-      },
-    }
-  }
-
-  /**
-   * 没票也没指名 —— 手上有两张以上候选时**问一句**而不是拒绝（§3.3 第 5 行）。
-   * ⚠ 候选先取 `@` 上来的那些，再取参考位上摆着的（那是这台工作台上此刻看得见的
-   * 图）。⛔ 不去翻素材库：那不是「你指的哪一张」，那是重新挑一张。
-   */
-  const candidates = [
-    ...mentioned.map((asset) => ({
-      id: asset.id,
-      label: asset.label ?? asset.url,
-      assetUrl: asset.url,
-    })),
-    ...(run.request.snapshot.references?.items ?? []).map((item, index) => ({
-      id: item.assetId ?? item.url,
-      label: item.label ?? `reference ${index + 1}`,
-      assetUrl: item.url,
-    })),
-  ]
-    // ⚠ 按地址去重：同一张图既被 @ 又挂在参考位上时，卡上会出现两个一模一样的格子。
-    .filter(
-      (option, index, all) =>
-        all.findIndex((other) => other.assetUrl === option.assetUrl) === index,
-    )
-    .slice(0, PLAN_LIMITS.maxOptions)
-
-  if (candidates.length >= PLAN_LIMITS.minOptions) {
-    return { kind: 'ambiguous', options: candidates }
-  }
-  return { kind: 'none' }
-}
-
-/**
- * 观察行里那一个字符 —— 模型下一步读的就是这段文字。
- *
- * ⚠ 三档各有各的记号（⛔ 不把 `warn` 混进 ✗）：观察行是模型判断「这一轮成没成」
- * 的唯一依据，把「做到了但有瑕疵」写成 ✗ 会让它把一次基本成功当成失败去重做。
- */
-const SEVERITY_MARKS: Record<AssistantOperatorVerdictSeverity, string> = {
-  [SEVERITY.fail]: '✗',
-  [SEVERITY.warn]: '⚠',
-  [SEVERITY.pass]: '✓',
-}
-
-/**
- * 看图闭环（P3-C，拍板 4 + 6）。
- *
- * ── 三件事按顺序发生，缺一条就退回一条**可教的**拒绝 ────────────────
- *  ① 用户 `@` 了哪一张（`resolveCritiqueTarget`）—— 什么都没指就 `noResultToCritique`。
- *     出图后不自检（D12）：助手不会自己去看刚出的图。
- *  ② 这一轮那一家看不看得见图 —— 看不见就 `visionUnavailable`（⛔ 不借别家），
- *     **⛔ 绝不降级成「凭提示词猜」**（论据见 `vision-route.service.ts` 头注：
- *     一份格式完整、内容全编的评价比说不出话坏得多）。
- *  ③ 视觉那一跳读不出结构 —— `critiqueFailed`。
- *
- * ── 为什么视觉那一跳跑在**规划期**而不是 `run()` 里 ──────────────────
- * `run()` 里抛错会让整轮以一句笼统的「跑到一半失败了」结束，而那条日志会永远
- * 停在 `running`（`clamp` 头注记着这种失败长什么样）。跑在这里，失败就是一条
- * 普通的被拒步：模型读得到理由，还能接着改表单。代价是这一步没有「看图中…」
- * 的中间态 —— 面板本来就在 working 态，值这个换。
- *
- * ⛔ 这一跳**不花用户的积分**：它是一次文本补全（带一张图），走的是本文件
- * 一直在用的那条助手线，与钱闸无关 —— 生成永远只有用户点得动。
- */
-/**
- * 看片评审（第二期 · 视频域，§7「视频域第二期扩成三帧抽帧版」）。
- *
- * ── 三件事按顺序发生，缺一条就退回一条**可教的**拒绝 ────────────────
- *  ① 客户端这一轮交没交上帧 —— 没交就 `videoFramesMissing`。
- *     ⭐ 抽帧发生在**浏览器里**（`lib/video-frame-capture.ts` 的选型头注：worker
- *     跑不了原生二进制、服务端塞不下 ffmpeg），服务端只**复算计划再核对时间戳**。
- *     ⛔ 绝不回落成「把 mp4 地址喂给静态图视觉线」—— 那得到的是一份格式完整、
- *     内容全编的评价，正是 `vision-route.service.ts` 头注里说的那种。
- *  ② 帧是不是**这段片子**的 —— `sourceUrl` 对不上就 `unknownAsset`。没有这一条，
- *     「看片」就变成了「客户端说这是哪段片子就是哪段」。
- *  ③ 这一轮那一家看不看得见图 —— 看不见就 `visionUnavailable`（与图片档同源，⛔ 不借别家）。
- *
- * ── 逐帧 + 汇总，而不是一次把三张塞进去 ────────────────────────────
- * 三帧各自绑一个固定问题（起手 / 动作有没有冻住 / 末帧到没到 endState），
- * 而一次多图补全回来的是**一段混在一起的话**——模型分不清它在说哪一帧，
- * 卡上那三格也就配不上文字。所以三帧**并行**各看一次（`Promise.all`，延迟 ≈ 一次
- * 往返），再拿三段观察做一次**纯文本**汇总。汇总那一跳不带图：它要判的是
- * 「三帧之间发生了什么」，那件事只存在于三段描述的**差异**里。
- *
- * ⛔ 这一跳照旧**不花用户的积分**：三次文本补全（各带一张 png）+ 一次纯文本，
- * 走的是本文件一直在用的那条助手线；落 R2 的只有那三张帧（不建 generation、
- * 不扣 credit，判据逐字写在 `assistant-operator.money-gate.test.ts` 的白名单里）。
- */
-async function planVideoCritique(
-  run: OperatorRun,
-  result: AssistantOperatorResult,
-  goal: string | null,
-  userId: string,
-): Promise<ToolPlan> {
-  const submitted = run.request.videoFrames
-  if (!submitted) {
-    return reject(
-      REJECT.videoFramesMissing,
-      'No frames came with this turn, so there is nothing for you to look at. Say plainly that you could not read this clip — do NOT describe it from the prompt.',
-    )
-  }
-  if (submitted.sourceUrl !== result.url) {
-    return reject(
-      REJECT.unknownAsset,
-      'The frames on this turn were taken from a different clip than the one you asked about.',
-    )
-  }
-
-  if (!runSeesImages(run)) return cannotSeeRejection("the clip's frames")
-
-  /**
-   * ⚠ 计划**在服务端复算**：客户端说它按 0/中/末抽的，这里自己算一遍再逐帧对
-   * 时间戳（`persistVideoFrameSet` 内部做的正是这件事）。少了这一次复算，
-   * 「三帧站在哪儿」就只是客户端的一句承诺 —— 而评审卡上那三个标签全靠它。
-   */
-  const frameSet = await persistVideoFrameSet({
-    userId,
-    sourceVideoUrl: result.url,
-    durationSeconds: submitted.durationSeconds,
-    frames: submitted.frames,
-    plan: planVideoEndpointFrames(submitted.durationSeconds),
-  })
-
-  const frames = frameSet.frames.map((frame, index) => ({
-    t: frame.timestampSeconds,
-    url: frame.url,
-    label: FRAME_LABELS[index] ?? FRAME_LABELS[FRAME_LABELS.length - 1],
-  }))
-
-  const notes = await Promise.all(
-    frames.map(async (frame) =>
-      completeAssistantTextWithContextRetry({
-        signal: run.signal,
-        systemPrompt: buildVideoFrameSystemPrompt(run.request, run.persona),
-        buildUserPrompt: () =>
-          buildVideoFramePrompt(run, goal, frame.label, frame.t),
-        route: run.route,
-        contextCompactionTargetLength:
-          OPERATOR_CONTEXT_COMPACTION_TARGET_LENGTH,
-        modelId: run.modelId,
-        // ⭐ 唯一真的「看」的那三下，喂进去的是**转存后的静态帧**，不是 mp4。
-        imageData: frame.url,
-        callLog: { purpose: 'videoFrame', domain: run.request.domain },
-        cacheKey: operatorCacheKey(run, 'videoFrame'),
-      }),
-    ),
-  )
-
-  const raw = await completeAssistantTextWithContextRetry({
-    signal: run.signal,
-    systemPrompt: buildVideoCritiqueSystemPrompt(run.request, run.persona),
-    callLog: { purpose: 'videoCritique', domain: run.request.domain },
-    cacheKey: operatorCacheKey(run, 'videoCritique'),
-    buildUserPrompt: () =>
-      buildVideoCritiquePrompt(
-        run,
-        goal,
-        result.modelLabel,
-        frames.map((frame, index) => ({
-          label: frame.label,
-          t: frame.t,
-          note: notes[index] ?? '',
-        })),
-      ),
-    route: run.route,
-    contextCompactionTargetLength: OPERATOR_CONTEXT_COMPACTION_TARGET_LENGTH,
-    modelId: run.modelId,
-    responseFormat: 'json_object',
-  })
-
-  const critique = parseVideoCritiqueJson(raw)
-  if (!critique) {
-    return reject(
-      REJECT.critiqueFailed,
-      'The frame review did not come back in a readable shape. Do not pretend you watched the clip.',
-    )
-  }
-
-  const advice = critique.advice?.trim() || null
-
-  return {
-    kind: 'read',
-    payload: {
-      videoUrl: result.url,
-      ...(result.thumbnailUrl ? { thumbnailUrl: result.thumbnailUrl } : {}),
-      ...(result.modelLabel ? { modelLabel: result.modelLabel } : {}),
-      goal: goal ? clamp(goal, LIMITS.maxCritiqueGoalChars) : null,
-    },
-    run: async () => ({
-      result: {
-        frames,
-        verdicts: critique.verdicts,
-        advice,
-      },
-      observation: `critique_result — you watched ${frames.length} frames of the clip (${frames
-        .map((frame) => `${frame.label} @ ${frame.t}s`)
-        .join(', ')}):\n${critique.verdicts
-        .map(
-          (verdict) => `  ${SEVERITY_MARKS[verdict.severity]} ${verdict.text}`,
-        )
-        .join('\n')}${
-        advice ? `\n  next: ${advice}` : ''
-      }\nNow change the form to act on what you saw — the creator presses generate again themselves.`,
-    }),
-  }
-}
-
-/**
- * 看图那一跳每张图前面的那行字。⚠ 不标的话几张图挨着送进去，模型会把参考读成
- * 成图（2026-10-09 马尔福画布：黑袍那张被评成「领口有绿色拼色」，绿的是参考里
- * 那身斯莱特林制服）。
- */
-function critiqueImageLabels(
-  run: OperatorRun,
-  references: readonly string[],
-): string[] {
-  const items = run.request.snapshot.references?.items ?? []
-  return [
-    'IMAGE 1 — THE RESULT you are judging. Describe and judge only this picture.',
-    ...references.map((url, index) => {
-      const label = items.find((item) => item.url === url)?.label
-      return `IMAGE ${index + 2} — reference @Image${index + 1}${label ? ` "${label}"` : ''}: a source the creator mounted, not the result. Use it only to compare identity and style.`
-    }),
-  ]
-}
-
-/**
- * ⚠ 只剩旧内核在用（v2 开关）：v3 看片 / 看图由主模型自己看（`assistant-v3-watch.service.ts`
- * / `assistant-v3-look.service.ts`），⛔ 别再从 v3 引它。删旧内核时一起删。
- */
-async function planCritiqueResult(
-  run: OperatorRun,
-  args: { goal?: string; targetIds?: string[] },
-  userId: string,
-): Promise<ToolPlan> {
-  const target = resolveCritiqueTarget(run, args.targetIds)
-  if (target.kind === 'ambiguous') {
-    return {
-      kind: 'choice',
-      question:
-        CRITIQUE_CHOICE_QUESTIONS[
-          resolveResponseLanguage(run.request, run.persona)
-        ],
-      options: target.options,
-    }
-  }
-  if (target.kind === 'none') {
-    return reject(
-      REJECT.noResultToCritique,
-      'Nothing is attached for you to look at: the creator did not @ any picture this turn. Ask them which picture you should look at.',
-    )
-  }
-  if (target.kind === 'unknown') {
-    return reject(
-      REJECT.unknownAsset,
-      'That target was not one of the pictures the creator referenced this turn. You may only look at pictures they @-mentioned.',
-    )
-  }
-  const result = target.result
-
-  if (
-    (run.request.domain === 'image' || run.request.domain === 'lora') &&
-    run.state.referenceUrls.includes(result.url)
-  ) {
-    return reject(
-      REJECT.referenceAnalysisRequired,
-      'This is a mounted source reference, not the new result. Use analyze_references to extract its features and role; do not grade it against the intended new picture.',
-    )
-  }
-
-  const goal =
-    args.goal?.trim() ||
-    result.prompt?.trim() ||
-    run.state.prompt.trim() ||
-    null
-
-  /**
-   * 视频域走另一条实现（第二期）：抽帧 → 逐帧看 → 汇总。
-   * ⚠ 目标解析、歧义反问、准入名单那几条闸**共用上面同一段** —— 换了域不换判据。
-   */
-  if (run.request.domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.video) {
-    return planVideoCritique(run, result, goal, userId)
-  }
-
-  // 这一轮那一家看得见图就用它；看不见就直说（⛔ 不借别家，owner 2026-10-15）。
-  if (!runSeesImages(run)) return cannotSeeRejection('the picture')
-
-  const references = run.state.referenceUrls.filter((url): url is string =>
-    Boolean(url),
-  )
-  const raw = await completeAssistantTextWithContextRetry({
-    signal: run.signal,
-    systemPrompt: buildCritiqueSystemPrompt(run.request, run.persona),
-    callLog: { purpose: 'critique', domain: run.request.domain },
-    cacheKey: operatorCacheKey(run, 'critique'),
-    buildUserPrompt: () => buildCritiquePrompt(run, goal, result.modelLabel),
-    route: run.route,
-    contextCompactionTargetLength: OPERATOR_CONTEXT_COMPACTION_TARGET_LENGTH,
-    modelId: run.modelId,
-    // ⭐ 唯一真的「看」的那一下。地址来自 `result`，模型碰不到它。
-    imageData: references.length ? [result.url, ...references] : result.url,
-    ...(references.length
-      ? { imageLabels: critiqueImageLabels(run, references) }
-      : {}),
-    imageDetail: 'high',
-    responseFormat: 'json_object',
-  })
-  // ⚠ 唯一真的「看」的那一下（切片 X）。
-
-  const critique = parseCritiqueJson(raw)
-  if (!critique) {
-    return reject(
-      REJECT.critiqueFailed,
-      'The vision pass did not come back in a readable shape. Do not pretend you saw the picture.',
-    )
-  }
-
-  const advice = critique.advice?.trim() || null
-  const payload = {
-    imageUrl: result.url,
-    ...(result.thumbnailUrl ? { thumbnailUrl: result.thumbnailUrl } : {}),
-    ...(result.modelLabel ? { modelLabel: result.modelLabel } : {}),
-    goal: goal ? clamp(goal, LIMITS.maxCritiqueGoalChars) : null,
-  }
-
-  return {
-    kind: 'read',
-    payload,
-    run: async () => ({
-      result: {
-        findings: critique.findings,
-        advice,
-      },
-      observation: `critique_result — you looked at the picture:\n${critique.findings
-        .map(
-          (finding) => `  ${SEVERITY_MARKS[finding.severity]} ${finding.text}`,
-        )
-        .join('\n')}${
-        critique.offCard.length
-          ? `\n  also off (not on the card — say these in your reply too):\n${critique.offCard
-              .map(
-                (check) => `  ${SEVERITY_MARKS[check.severity]} ${check.text}`,
-              )
-              .join('\n')}`
-          : ''
-      }${
-        advice ? `\n  next: ${advice}` : ''
-      }\nNow change the form to act on what you saw — the creator presses generate again themselves.`,
-    }),
-  }
-}
-
 // ─── 项目规则（§10，拍板 23）────────────────────────────────────
 
 /**
@@ -7451,255 +6793,6 @@ function planReadProjectRules(
 
       return { result: { rules }, observation }
     },
-  }
-}
-
-/**
- * 记一条规则。
- *
- * ⚠ 它是全表**唯一一条后果落在服务端**的改动型工具（其余每一条都只是吐一个 op
- * 让客户端应用）。所以**写发生在规划期** —— 与 `critique_result` 的视觉那一跳
- * 同一个位置，理由也一样：`payload` 里那条 `ruleId` 是库里刚写出来的那一行，
- * 而 `payload` 必须在第一个 `running` 事件里就是真的。先吐 `running` 再去写，
- * 日志上那一条就得先带着一个假 id，撤销拿它什么都删不掉。
- * ⚠ 上限撞到时在这里拒，⛔ 不静默丢弃、也不挤掉最老的一条。
- */
-/**
- * **这条「规则」其实是一张卡吗**（2026-09-12 实测第 9 步）。
- *
- * ⭐ 起因：用户说「以后图1这个男角色固定穿藏青水手服，双马尾」，模型把它当成
- * 项目规则存了进去 —— 用户丢掉的是一张能复用、能常挂、能挂参考图的角色卡，
- * 换来一行永远拼在系统提示里的句子。提示词里已经写清了边界（见两条 hint），
- * 但**提示词从来不是闸**：这里是那道闸。
- *
- * ⚠ 判据故意要求**两半都在**：一个主体（角色 / 画风 / 品牌）+ 一件属于它的属性
- * （穿什么 / 头发 / 配色 / 笔触）。只有一半就放行 —— 「以后别用同人图当依据」里
- * 有「图」没有属性，它是规矩；「统一用暖色调」有属性没主体，⛔ 不去猜它说的是谁。
- * ⚠ 只对普通规则（`note`）生效：来源名单那两种已经被 token 那把刀收过了。
- */
-const CONTEXT_CARD_SETTING_SUBJECTS: readonly {
-  kind: (typeof CARD_KIND)[keyof typeof CARD_KIND]
-  subject: RegExp
-  attribute: RegExp
-}[] = [
-  {
-    kind: CARD_KIND.character,
-    subject: /@?image\s*\d|图\s*\d|角色|人物|主角|character/i,
-    attribute:
-      /穿|服装|衣服|制服|水手服|裙|发型|头发|马尾|瞳|眼睛|长相|外貌|身高|体型|outfit|wears?|hair|eyes|appearance/i,
-  },
-  {
-    kind: CARD_KIND.style,
-    subject: /画风|风格|art\s*style|style/i,
-    attribute:
-      /色调|配色|笔触|线条|质感|光影|渲染|palette|colou?rs?|brush|lighting|texture/i,
-  },
-  {
-    kind: CARD_KIND.brand,
-    subject: /品牌|logo|标志|brand/i,
-    attribute:
-      /主色|配色|色值|字体|禁止|不能用|colou?rs?|font|typeface|forbidden/i,
-  },
-]
-
-/** ⚠ 只在「以后 / 一律 / 固定」这类**长期**措辞出现时才改判：一次性的指令不是设定。 */
-const CONTEXT_CARD_SETTING_STANDING =
-  /以后|今后|一律|固定|永远|始终|每次|一直|统一|from now on|always|every time/i
-
-function detectContextCardSetting(
-  text: string,
-): { kind: (typeof CARD_KIND)[keyof typeof CARD_KIND]; name: string } | null {
-  if (!CONTEXT_CARD_SETTING_STANDING.test(text)) return null
-  for (const probe of CONTEXT_CARD_SETTING_SUBJECTS) {
-    if (!probe.subject.test(text) || !probe.attribute.test(text)) continue
-    return { kind: probe.kind, name: guessContextCardName(text) }
-  }
-  return null
-}
-
-/**
- * 草稿卡的**名字**。
- *
- * ⚠ 取的是「长期措辞之前那一段」（「以后图1这个男角色固定…」→「图1这个男角色」），
- * ⛔ 不编一个用户没说过的名字：这张卡要摆到他面前让他点头，名字编错了他只会点
- * 「不用」。取不出来就整句截断 —— 难看但真。
- */
-function guessContextCardName(text: string): string {
-  const head = text.split(/[，,。；;、\n]/)[0]?.trim() ?? text.trim()
-  const stripped = head
-    .replace(
-      /^(以后|今后|一律|永远|始终|每次|一直|记一下|记住|请)+[，,：:]?/,
-      '',
-    )
-    .split(/固定|一律|永远|始终|总是|都要|都是|统一/)[0]
-    ?.trim()
-  const name = stripped && stripped.length > 0 ? stripped : head
-  return clamp(name || text.trim(), CARD_LIMITS.maxNameChars)
-}
-
-async function planAddProjectRule(
-  run: OperatorRun,
-  args: {
-    text: string
-    scope?: AssistantOperatorDomain
-    kind?: ProjectRuleKindId
-  },
-  userId: string,
-): Promise<ToolPlan> {
-  const scope = args.scope ?? null
-  const kind = args.kind ?? PROJECT_RULE_KIND_IDS.note
-  /**
-   * ⭐ 来源名单那两种的 `text` 是**来源 id 或域名**（§9.3），所以过的是同一把刀
-   * （`ProjectRuleSourceTokenSchema`）。⚠ 在**规划器**拒而不是 schema 拒：
-   * 规划器拒 = 模型读得到理由还能改口（「只信官方站」→ 问用户要那个域名），
-   * schema 拒 = 这一轮整个作废（文件头注 ②）。
-   */
-  let text = args.text.trim()
-  if (isProjectRuleSourceKind(kind)) {
-    const token = ProjectRuleSourceTokenSchema.safeParse(text)
-    if (!token.success) {
-      return reject(
-        REJECT.unknownValue,
-        `A ${kind} rule holds ONE source id (${ASSISTANT_RESEARCH_SOURCES.join(' / ')}) or ONE domain (e.g. danbooru.donmai.us) — not a sentence. Ask the creator which site they mean, or record it as a plain rule instead.`,
-      )
-    }
-    text = token.data
-  }
-
-  /**
-   * ⭐ **设定不是规矩**（2026-09-12 实测第 9 步）——「以后图1这个男角色固定穿
-   * 藏青水手服」这类话改判成**提议一张上下文卡**，⛔ 不硬存成规则。
-   * ⚠ 这一跳直接结束本轮（`confirmContextCard` 会吐一帧确认卡并停流），所以
-   * 放在查重与写库**之前**：库里不该留下那条被改判的规则。
-   */
-  if (kind === PROJECT_RULE_KIND_IDS.note) {
-    const setting = detectContextCardSetting(text)
-    if (setting)
-      return {
-        kind: 'confirmContextCard',
-        card: {
-          kind: setting.kind,
-          name: setting.name,
-          // ⚠ 摘要与正文都是**用户的原话**：这张卡的全部价值就在这句是他说的。
-          summary: clamp(text, CARD_LIMITS.maxSummaryChars),
-          body: clamp(text, CARD_LIMITS.maxBodyChars),
-        },
-      }
-  }
-
-  /**
-   * ⚠ 同一句话记两遍**在这里拒**：`executedStepKeys` 按参数比对，模型换一个标点
-   * 就绕过去了 —— 而「上一步好像没生效，再记一次」正是它最爱做的事。
-   */
-  for (const existing of run.ruleIndex.values()) {
-    if (existing.text.trim() === text) {
-      return reject(
-        REJECT.repeatedStep,
-        `That rule is already recorded (id=${existing.id}). Cite it instead of writing it again.`,
-      )
-    }
-  }
-
-  if (kind === PROJECT_RULE_KIND_IDS.note) {
-    return planAddRuleMemory(run, { text, scope }, userId)
-  }
-
-  let rule: ProjectRule
-  try {
-    rule = await addProjectRule(userId, {
-      text,
-      scope,
-      kind,
-      source: PROJECT_RULE_SOURCE_IDS.assistant,
-    })
-  } catch (error) {
-    if (error instanceof ProjectRuleLimitError) {
-      return reject(
-        REJECT.ruleLimitReached,
-        `The creator already has ${error.limit} source-list entries — the most this app keeps. Tell them plainly that an old one has to go before a new one fits; do not pick which.`,
-      )
-    }
-    throw error
-  }
-
-  run.ruleIndex.set(rule.id, rule)
-
-  return {
-    kind: 'mutate',
-    payload: {
-      ruleId: rule.id,
-      scope: rule.scope,
-      text: rule.text,
-      kind: rule.kind,
-      source: rule.source,
-      createdAt: rule.createdAt,
-    },
-    inverse: { ruleId: rule.id },
-    observation: `add_project_rule recorded "${rule.text}" (id=${rule.id}) as ${rule.kind}. It now applies to ${rule.scope ?? 'every workbench'}. Source lists take effect from the NEXT turn (this turn already picked its sources) — say so instead of promising it applies right now. Do not record it again.`,
-    // 后果已经落在库里了 —— 客户端这一步没有任何表单字段要改。
-    apply: () => {},
-  }
-}
-
-/**
- * 普通规矩**记进记忆**（助手设置 B：规矩并进记忆）—— 来源 `assistant`、类别
- * `rule`，与每轮结账记下的那些同一张表、同一份每域上限与淘汰。来源名单那两种
- * 仍住项目规则表（它们是闸，不是一句话）。
- *
- * ⚠ 隐身或「让助手记住」关着时**不记**：两颗开关说的都是「别再记新的」。
- * 模型读到理由该把话转给用户 —— 想留下就自己去记忆页写（你写的那一栏不受开关管）。
- * ⚠ 超长**在这里拒**而不是截：截断改的是用户的原话，而规则薄卡要显示的正是原话。
- */
-async function planAddRuleMemory(
-  run: OperatorRun,
-  args: { text: string; scope: AssistantOperatorDomain | null },
-  userId: string,
-): Promise<ToolPlan> {
-  if (run.request.incognito === true || !run.persona.memoryCapture) {
-    return reject(
-      REJECT.memoryOff,
-      'Memory is off right now (incognito, or "let the assistant remember" is switched off), so nothing new is saved. Tell the creator in one line; they can write the rule themselves under Assistant settings → Memory. Do not retry.',
-    )
-  }
-  if (args.text.length > ASSISTANT_MEMORY_LIMITS.maxTextChars) {
-    return reject(
-      REJECT.ruleTooLong,
-      `A rule holds at most ${ASSISTANT_MEMORY_LIMITS.maxTextChars} characters. Shorten it to the creator's own key words — keep their wording, drop the rest — and record it again.`,
-    )
-  }
-
-  const { memory, created } = await addAssistantRuleMemory(userId, {
-    text: args.text,
-    scope: args.scope
-      ? memoryScopeForDomain(args.scope)
-      : ASSISTANT_MEMORY_SCOPE_IDS.global,
-    projectId: requestProjectId(run.request),
-    characterCardId: chatMemoryCardId(run.request, run.persona),
-  })
-  const rule = memoryAsRule(memory)
-  run.ruleIndex.set(rule.id, rule)
-  /** 记忆里已经有同一句（哪怕是结账时记下的）—— 引用那一条，⛔ 不存第二行。 */
-  if (!created) {
-    return reject(
-      REJECT.repeatedStep,
-      `That rule is already recorded (id=${rule.id}). Cite it instead of writing it again.`,
-    )
-  }
-
-  return {
-    kind: 'mutate',
-    payload: {
-      ruleId: rule.id,
-      scope: rule.scope,
-      text: rule.text,
-      kind: rule.kind,
-      source: rule.source,
-      createdAt: rule.createdAt,
-    },
-    inverse: { ruleId: rule.id },
-    observation: `add_project_rule recorded "${rule.text}" (id=${rule.id}) in the creator's memory. It now applies to ${memory.projectId ? 'this canvas project only' : (rule.scope ?? 'every workbench')}. Do not record it again.`,
-    // 后果已经落在库里了 —— 客户端这一步没有任何表单字段要改。
-    apply: () => {},
   }
 }
 
@@ -8599,97 +7692,6 @@ async function planCanvasApply(
   }
 }
 
-function planCanvasPlanRerun(
-  run: OperatorRun,
-  args: { target: string; includeSelf?: boolean },
-): ToolPlan {
-  const canvas = run.state.canvas
-  if (!canvas) {
-    return reject(
-      REJECT.noSuchControl,
-      'There is no board here. This tool only works on the node canvas.',
-    )
-  }
-  if (!canvasNodeIds(canvas).has(args.target)) {
-    return reject(
-      REJECT.noSuchControl,
-      `No card on the board has the id ${args.target}.`,
-    )
-  }
-  return {
-    kind: 'read',
-    payload: args,
-    /**
-     * ⚠ 名单由**客户端**沿边算（`lib/node-downstream.ts`）——服务端手上那份快照
-     * 是分层的，折叠的镜里没有边，算出来的闭包会漏。所以这一步在服务端只是
-     * 「这个起点成立」，名单回填由客户端补进 step 的 `result`。
-     */
-    run: async () => ({
-      result: { nodeIds: [] as string[] },
-      observation: `Asked the board which cards downstream of ${args.target} are now out of date. The creator sees the list; nothing ran and nothing was spent.`,
-    }),
-  }
-}
-
-/**
- * **看片**（剪辑台 v2 第 2 片 2b）：截几帧交给能看图的模型，文字观察交回主模型。
- * ⚠ 换算与地址只按快照（`editDesk`），⛔ 服务端不读库 —— 见 `assistant-edit-look.service`。
- */
-function planCanvasLookAt(
-  run: OperatorRun,
-  args: AssistantOperatorCanvasLookAtArgs,
-  userId: string,
-): ToolPlan {
-  const canvas = run.state.canvas
-  if (!canvas) {
-    return reject(
-      REJECT.noSuchControl,
-      'There is no board here. This tool only works on the node canvas.',
-    )
-  }
-  const planned = planEditDeskFrames(canvas.editDesk, args)
-  if (!planned.ok) return reject(REJECT.noSuchControl, planned.reason)
-  if (!runSeesImages(run)) return cannotSeeRejection('the footage')
-  return {
-    kind: 'read',
-    payload: args,
-    run: async () => {
-      const looked = await lookAtEditFrames({
-        userId,
-        apiKeyId: run.apiKeyId,
-        modelId: run.modelId,
-        plans: planned.plans,
-        ...(args.question ? { question: args.question } : {}),
-      })
-      if (!looked) {
-        return {
-          result: { viewed: 0, missed: planned.plans.length },
-          observation:
-            'canvas_look_at could NOT look at the frames this time (the look failed). Tell the creator plainly that you could not see the footage; do not guess what is in it.',
-        }
-      }
-      const observation = [
-        `canvas_look_at looked at ${planned.subject}: ${looked.viewed} of ${looked.frames.length} frame(s) seen.`,
-        ...looked.frames.map(
-          (frame, index) =>
-            `  ${index + 1}. ${frame.label} — ${frame.seen ?? `no frame: ${frame.missed}`}`,
-        ),
-        ...(looked.answer
-          ? [`Answer to "${args.question}": ${looked.answer}`]
-          : []),
-        'These are still frames: they cannot show motion, flicker or sound. Tell the creator what you saw in your own words.',
-      ].join('\n')
-      return {
-        result: {
-          viewed: looked.viewed,
-          missed: looked.frames.length - looked.viewed,
-        },
-        observation,
-      }
-    },
-  }
-}
-
 /**
  * 画布那一枪（node-canvas-v2 §13.2.1）—— 与 `planRequestGeneration` 同一条纪律：
  * **一律出生成确认卡**，扳机在卡上（创作者自己按），扣的是那张画布卡
@@ -8915,88 +7917,6 @@ function dedupeStrings(values: readonly string[]): string[] {
   return [...new Set(values)]
 }
 
-function planListContextCards(
-  run: OperatorRun,
-  args: { kind?: ContextCardKindId },
-  userId: string,
-): ToolPlan {
-  const kind = args.kind ?? null
-
-  return {
-    kind: 'read',
-    payload: { kind },
-    run: async () => {
-      const cards = await listContextCards(userId, {
-        kind,
-        limit: CARD_LIMITS.maxReadResults,
-      })
-      for (const card of cards) run.contextCardIndex.set(card.id, card)
-
-      const observation =
-        cards.length === 0
-          ? 'list_context_cards found NO context cards for this creator. Do not invent one, and do not cite a card id.'
-          : `list_context_cards → ${cards.length} card(s):\n${cards
-              .map(
-                (card) =>
-                  `  - id=${card.id} · ${card.kind} · "${card.name}" · ${
-                    card.summary || 'no summary'
-                  } · ${card.images.length} reference image(s)${
-                    card.negative ? ' · has hard negatives' : ''
-                  }`,
-              )
-              .join('\n')}`
-
-      return {
-        result: { cards: cards.map(toContextCardDigest) },
-        observation,
-      }
-    },
-  }
-}
-
-/**
- * **提议一张卡**（v2 §8.1）—— ⛔ 一行库都不写。
- *
- * ⭐ 它做的全部事情是把模型写的草稿原样交出去，由流循环吐成一帧
- * `confirm(contextCard)`。落库那一跳由用户在卡上点「存这张卡」时经
- * `/api/context-cards` 完成 —— 那条路上带着用户自己的 Clerk 会话。
- * ⛔ 别在这里「顺手」写一行 `status: proposed`：助手能往用户的长期记忆里写字
- * 而不经过人，正是 §8.1 那条 ⛔ 说的后门。
- * 仅在显式提议时查询同类已确认卡去重，卡片不再自动注入其他工作区。
- * ⚠ 但**已经存过的那张不再提议**（2026-09-12 真机 bug）：用户说「记一下：以后
- * 这个男主角固定穿…」→ 存下 → 之后每问一句别的，模型一开流又提同一张卡，正事
- * 一件不办。同 `kind` 同名（trim 后不分大小写）且**已确认**时回一条 observation
- * 把它挡回去，⛔ 不吐 confirm 帧、⛔ 也不停流。
- */
-async function planProposeContextCard(
-  run: OperatorRun,
-  card: AssistantOperatorContextCardDraft,
-  userId: string,
-): Promise<ToolPlan> {
-  const cards = await listContextCards(userId, { kind: card.kind })
-  for (const existing of cards) run.contextCardIndex.set(existing.id, existing)
-  const wanted = card.name.trim().toLowerCase()
-  const existing = [...run.contextCardIndex.values()].find(
-    (candidate) =>
-      candidate.kind === card.kind &&
-      candidate.status === CONTEXT_CARD_STATUS_IDS.confirmed &&
-      candidate.name.trim().toLowerCase() === wanted,
-  )
-  if (existing) {
-    return {
-      kind: 'read',
-      // ⚠ 载荷仍是那份草稿：这条工具的 step 契约只认它（`readStep` 那一格）。
-      payload: card,
-      run: async () => ({
-        // ⚠ `offered: false` = 这一下**没有**变成一张确认卡摆到用户面前。
-        result: { offered: false },
-        observation: `propose_context_card did NOT ask again: the creator already keeps a confirmed ${existing.kind} card named "${existing.name}" (id=${existing.id}). Do not propose it again in this conversation. Read it with read_context_card if you need its contents, and get on with what the creator just asked for.`,
-      }),
-    }
-  }
-  return { kind: 'confirmContextCard', card }
-}
-
 /**
  * **提议一份角色设定**（卡片助手 C2，owner 09-27）—— ⛔ 一行库都不写。
  *
@@ -9174,198 +8094,6 @@ function planProposeCharacterImages(
 }
 
 /**
- * **对一下设定和外观**（卡片助手 S14，owner 09-27：用户说了才对，衣服不算矛盾）。
- * ⚠ 只能对**打开着的那一位**：卡上的图地址只随打开那一位的快照来（只给看图用）。
- */
-function planCheckCharacterLook(
-  run: OperatorRun,
-  args: { characterId: string },
-  userId: string,
-): ToolPlan {
-  const open = run.state.cards?.open
-  if (!open || open.id !== args.characterId) {
-    return {
-      kind: 'read',
-      payload: args,
-      run: async () => ({
-        result: { viewed: 0, conflicts: [] },
-        observation: `check_character_look did NOT look at anything: only the character that is open on the page can be checked${open ? ` (open now: ${open.name}, id=${open.id})` : ' and none is open'}. Ask the creator to open them first.`,
-      }),
-    }
-  }
-  if (!runSeesImages(run))
-    return cannotSeeRejection(`${open.name}'s card images`)
-  return {
-    kind: 'read',
-    payload: args,
-    run: async () => {
-      const images = open.cardImageUrls?.length
-        ? open.cardImageUrls
-        : open.primaryImageUrl
-          ? [open.primaryImageUrl]
-          : []
-      const result = await checkCharacterLook({
-        userId,
-        apiKeyId: run.apiKeyId,
-        modelId: run.modelId,
-        character: {
-          name: open.name,
-          work: open.work,
-          look: open.look,
-          identity: open.identity,
-          backstory: open.backstory,
-          tags: open.tags,
-        },
-        imageUrls: images,
-      })
-      if (!result) {
-        return {
-          result: { viewed: 0, conflicts: [] },
-          observation:
-            'check_character_look could NOT look at the images this time (the look failed). Tell the creator plainly that the check did not run; do not guess.',
-        }
-      }
-      if (result.viewed === 0) {
-        return {
-          result,
-          observation: `${open.name} has no images on the card, so there is nothing to compare. Say so.`,
-        }
-      }
-      const observation =
-        result.conflicts.length === 0
-          ? `check_character_look viewed ${result.viewed} image(s) of ${open.name}: the written look, profile and tags do not contradict them. Say so in one line. (Outfits were not compared — a character can own many.)`
-          : `check_character_look viewed ${result.viewed} image(s) of ${open.name} and found ${result.conflicts.length} contradiction(s):\n${result.conflicts
-              .map(
-                (conflict, index) =>
-                  `  ${index + 1}. [${conflict.field}] text says "${conflict.claim}" — images${conflict.images.length ? ` ${conflict.images.join(', ')}` : ''} show "${conflict.seen}"`,
-              )
-              .join(
-                '\n',
-              )}\nTell the creator each one in a line (「设定里说……，但图上是……」). For look / identity / backstory, offer the corrected text with ask/propose_character_profile (field "look" is the one-line appearance; source 「对照卡上的图」), changing only the contradicting words. For tags, name the tag to change — you cannot edit tags. Never treat an outfit difference as a contradiction.`
-      return { result, observation }
-    },
-  }
-}
-
-/**
- * 读一张卡的全文。
- *
- * ⚠ 正文按 `CARD_LIMITS.maxBodyInToolChars` 截 —— 与 `read_url` 的截段同一条判据：
- * 整篇进工具环 = 之后每一步都要重付一次这段上下文的钱。
- * ⚠ 参考图**逐张带上它的分工**（sheet 是身份证据 / closeup 是部件细节 /
- * reference 只是口味）：owner 在 `VIDEO-LESSONS` 里记下的那次失败，起因正是三张
- * 图被一视同仁地全挂上。
- * ⚠ 读到就是读到 —— **这一步不挂任何东西**，挂图是之后那条 `mount_reference`。
- */
-function planReadContextCard(
-  run: OperatorRun,
-  args: { cardId: string },
-  userId: string,
-): ToolPlan {
-  return {
-    kind: 'read',
-    payload: { cardId: args.cardId },
-    run: async () => {
-      const card = await getContextCard(userId, args.cardId)
-      if (!card) {
-        return {
-          result: null,
-          observation: `read_context_card found no card with id=${args.cardId}. Call list_context_cards and use an id from that list — never invent one.`,
-        }
-      }
-      run.contextCardIndex.set(card.id, card)
-
-      const body = clamp(card.body, CARD_LIMITS.maxBodyInToolChars)
-      const images =
-        card.images.length === 0
-          ? '  (no reference images on this card)'
-          : card.images
-              .map(
-                (image) =>
-                  `  - [${image.role}] ${image.url}${
-                    image.sourceRef ? ` (source: ${image.sourceRef})` : ''
-                  }`,
-              )
-              .join('\n')
-
-      return {
-        result: card,
-        observation: `read_context_card → ${card.kind} card "${card.name}"
-${body || '(no body written)'}
-${card.negative ? `HARD NEGATIVES for this card: ${card.negative}` : 'This card carries no hard negatives.'}
-REFERENCE IMAGES — mount the ones you need with mount_reference; reading this card mounted nothing:
-${images}`,
-      }
-    },
-  }
-}
-
-/**
- * **按编号翻证据本**（v2 §7.3，commit #12）。
- *
- * ── 三道闸，逐条有理由 ────────────────────────────────────────────
- *  ① **没有会话 id 就没有证据本**：编号是会话内自增的，没有会话就没有那本账 ——
- *     这不是故障，是这条线程还没落过库（第一轮）。说清楚比含糊地回空有用。
- *  ② **每轮上限**：翻旧账不花钱，但照样一步一次 LLM 往返，而一轮只有 `maxSteps`
- *     步。⛔ 不封顶的表现是整轮步数烧在翻账上、表单一个字没写。
- *  ③ **一个号都没翻到 = 拒**（`unknownEvidenceRef`）：编了一个号与「那条过期了」
- *     在这一层长得一样，而下一步该做的事是同一件 —— 回到注入段里真的印着的那几个
- *     号。⚠ 翻到一部分就**不拒**：把翻到的给出去，missing 在观察里说明。
- *
- * ⛔ 它不去打任何外部源：翻旧账要是会触发一次新检索，那就不是翻旧账了。
- */
-async function planRecallEvidence(
-  run: OperatorRun,
-  args: { refs: string[] },
-  userId: string,
-): Promise<ToolPlan> {
-  const conversationId = run.request.conversationId
-  if (!conversationId) {
-    return reject(
-      REJECT.unknownEvidenceRef,
-      'This conversation has no evidence book yet — nothing has been filed under a number. Work from what is in front of you, or research it now.',
-    )
-  }
-  if (run.evidenceRecalls >= RECALL_LIMITS.maxCallsPerTurn) {
-    return reject(
-      REJECT.evidenceRecallsExhausted,
-      `You have already opened the evidence book ${RECALL_LIMITS.maxCallsPerTurn} times this turn. Work with what those pieces gave you and move on to the form.`,
-    )
-  }
-
-  const refs = [...new Set(args.refs)].slice(0, RECALL_LIMITS.maxRefsPerCall)
-  const { items, missing } = await recallAssistantEvidence({
-    userId,
-    conversationId,
-    refs,
-  })
-  if (items.length === 0) {
-    return reject(
-      REJECT.unknownEvidenceRef,
-      `${missing.join(' ')} ${missing.length > 1 ? 'are' : 'is'} not in this conversation's evidence book. Use only the numbers printed in "WHAT EARLIER ROUNDS SETTLED" — a number you did not read there does not exist.`,
-    )
-  }
-
-  run.evidenceRecalls += 1
-  const observation = `recall_evidence(${refs.join(' ')}) → ${items.length} piece(s) from this conversation's evidence book:\n${items
-    .map(
-      (item) =>
-        `  ${item.ref} [${item.source}${item.excerptKind === 'answer_fragment' ? ' · search model answer fragment, not a source quote' : item.excerptKind === 'source_excerpt' ? ' · source excerpt' : ''}] ${item.title}\n     ${item.body}`,
-    )
-    .join('\n')}${
-    missing.length > 0
-      ? `\nNot in the book: ${missing.join(' ')} — do not cite those, and do not go looking for them.`
-      : ''
-  }`
-
-  return {
-    kind: 'read',
-    payload: { refs },
-    run: async () => ({ result: { items, missing }, observation }),
-  }
-}
-
-/**
  * `unmount_lora` / `set_lora_weight` 被 `malformedArgs` 拒时，**把现在挂着的那些列出来**
  * （2026-09-12 真机：两条各首发一次 `loraId: expected string, received undefined`，
  * 模型第二次才带上 id）。一句「loraId: Required」不可教 —— 它缺的不是形状是**那个 id**。
@@ -9490,12 +8218,6 @@ export async function planTool(
   switch (tool) {
     case TOOL.readState:
       return planReadState(run, parsed.data as AssistantOperatorReadStateArgs)
-    case TOOL.analyzeReferences:
-      return planAnalyzeReferences(
-        run,
-        userId,
-        parsed.data as { imageIndices?: number[] },
-      )
     case TOOL.searchAssets:
       return planSearchAssets(
         run,
@@ -9504,18 +8226,6 @@ export async function planTool(
           kind?: AssistantOperatorSearchKind
           limit?: number
         },
-        userId,
-      )
-    case TOOL.listAssetFolders:
-      return planListAssetFolders(
-        run,
-        parsed.data as { query: string; limit?: number },
-        userId,
-      )
-    case TOOL.inspectAssetFolder:
-      return planInspectAssetFolder(
-        run,
-        parsed.data as { folderId: string; instruction?: string },
         userId,
       )
     case TOOL.searchWebImages:
@@ -9544,8 +8254,6 @@ export async function planTool(
       )
     case TOOL.readUrl:
       return planReadUrl(run, parsed.data as { url: string; focus?: string })
-    case TOOL.recallEvidence:
-      return planRecallEvidence(run, parsed.data as { refs: string[] }, userId)
     case TOOL.searchWebVideos:
       return planSearchWebVideos(
         run,
@@ -9631,16 +8339,8 @@ export async function planTool(
       )
     case TOOL.setSound:
       return planSetSound(run, parsed.data as { enabled: boolean })
-    case TOOL.primeGenerate:
-      return planPrimeGenerate(run, parsed.data as { label?: string })
     case TOOL.requestGeneration:
       return planRequestGeneration(run, parsed.data as { label?: string })
-    case TOOL.critiqueResult:
-      return planCritiqueResult(
-        run,
-        parsed.data as { goal?: string; targetIds?: string[] },
-        userId,
-      )
     case TOOL.importUserUrl:
       return planImportUserUrl(run, parsed.data as { url: string })
     case TOOL.searchLoras:
@@ -9678,36 +8378,12 @@ export async function planTool(
         parsed.data as { scope?: AssistantOperatorDomain },
         userId,
       )
-    case TOOL.addProjectRule:
-      return planAddProjectRule(
-        run,
-        parsed.data as {
-          text: string
-          scope?: AssistantOperatorDomain
-          kind?: ProjectRuleKindId
-        },
-        userId,
-      )
-    case TOOL.listContextCards:
-      return planListContextCards(
-        run,
-        parsed.data as { kind?: ContextCardKindId },
-        userId,
-      )
-    case TOOL.readContextCard:
-      return planReadContextCard(run, parsed.data as { cardId: string }, userId)
     case TOOL.showLoraPicks:
       return planShowLoraPicks(run, parsed.data as { candidateIds: string[] })
     case TOOL.planLoraSetup:
       return planLoraSetup(
         run,
         parsed.data as Parameters<typeof planLoraSetup>[1],
-      )
-    case TOOL.proposeContextCard:
-      return planProposeContextCard(
-        run,
-        parsed.data as AssistantOperatorContextCardDraft,
-        userId,
       )
     case TOOL.setReviewState:
       return planSetReviewState(
@@ -9765,17 +8441,6 @@ export async function planTool(
         (parsed.data as { ops: NodeAssistantOpV4[] }).ops,
         userId,
       )
-    case TOOL.canvasPlanRerun:
-      return planCanvasPlanRerun(
-        run,
-        parsed.data as { target: string; includeSelf?: boolean },
-      )
-    case TOOL.canvasLookAt:
-      return planCanvasLookAt(
-        run,
-        parsed.data as AssistantOperatorCanvasLookAtArgs,
-        userId,
-      )
     case TOOL.canvasGenerate:
       return planCanvasGenerate(run, parsed.data as { target: string })
     case TOOL.proposeCharacterProfile:
@@ -9788,14 +8453,25 @@ export async function planTool(
         run,
         parsed.data as AssistantOperatorCharacterImagesDraft,
       )
-    case TOOL.checkCharacterLook:
-      return planCheckCharacterLook(
-        run,
-        parsed.data as { characterId: string },
-        userId,
-      )
     // 新内核改库（第 4b 步）自己落、自己出步骤，⛔ 不经这里。
     case TOOL.libraryWrite:
+    /**
+     * 旧内核才有的那几条（11-10 删掉实现）：新内核一处都不会把它们传进来（`kernel.ts`、`bench.ts`、
+     * `library.ts` 与 v3 各服务里都没写到），前端只靠这些名字画历史里的过程行，所以名字留着。
+     */
+    case TOOL.addProjectRule:
+    case TOOL.analyzeReferences:
+    case TOOL.canvasLookAt:
+    case TOOL.canvasPlanRerun:
+    case TOOL.checkCharacterLook:
+    case TOOL.critiqueResult:
+    case TOOL.inspectAssetFolder:
+    case TOOL.listAssetFolders:
+    case TOOL.listContextCards:
+    case TOOL.primeGenerate:
+    case TOOL.proposeContextCard:
+    case TOOL.readContextCard:
+    case TOOL.recallEvidence:
       return reject(REJECT.noSuchControl, `${tool} is not planned here.`)
     default:
       return assertNever(tool)
@@ -10620,62 +9296,6 @@ function operatorConversation(
 }
 
 /**
- * 看图那一跳的系统提示（P3-C）。
- *
- * ⚠ 与规划器的系统提示**分开**：这一跳是一次只看图、只出评价的补全（同一家、同一个
- * 型号 —— 「全跟助手」），它没有工具表。把工具表塞给它只会让它去调一个它这一跳根本
- * 没有的工具。
- */
-function buildCritiqueSystemPrompt(
-  request: AssistantOperatorRequest,
-  persona: AssistantPersona,
-): string {
-  const language =
-    RESPONSE_LANGUAGE_LABELS[resolveResponseLanguage(request, persona)]
-
-  return `You are looking at a picture that ANTEI just produced for its creator, and judging it against what they were going for.
-
-The FIRST attached image is the result to assess. Any remaining images are source references in the supplied CURRENT REFERENCE ORDER. Compare the result with their assigned identity, pose and style features. Source references are evidence, never failed results. Do not require a source character sheet to depict the requested new pose or background.
-
-Be the kind of second pair of eyes a working art director is: concrete, specific to THIS picture, and willing to say the uncomfortable thing. Name what you actually see — a hand with six fingers, a horizon that tilts, a face that lost the reference's jawline. Vague praise is worse than silence.
-
-WORK FROM A CHECKLIST, NOT AN IMPRESSION. First write down what you see, then judge every check against it.
-
-"seen" — before judging anything: one line per panel (one line for a single picture). For each person in it: who they are, where their eyes point (into the camera, or at whom), what their hands do, what they wear and its colours, how many heads tall they are, and how the face and body are drawn. Only what is visible; no verdicts yet.
-
-"always" — these ${CRITIQUE_ALWAYS_CHECKS.length} whole-picture checks, every time, one item each, in this order. Look at every person for each of them; in a grid, across all panels:
-${CRITIQUE_ALWAYS_CHECKS.map((check, index) => `${index + 1}. ${check}`).join('\n')}
-
-"checks" — then every explicit requirement in the prompt it was made from and in the project's standing notes: how many people and who, where each one stands, who looks at whom, the action of each beat, framing, text — and anything the creator singled out this turn. In a grid of panels (a storyboard, a 3×3 sheet), go panel by panel and name the panel (panel 1 = top-left, in reading order).
-
-RULES:
-- At most ${LIMITS.maxCritiqueChecks} items in "checks", one requirement each. "check" names the requirement; "text" is one short sentence in ${language} saying what you see for it.
-- "severity" is one of ${ASSISTANT_OPERATOR_VERDICT_SEVERITIES.map((value) => `"${value}"`).join(' / ')} and the three are NOT interchangeable:
-  · "${SEVERITY.fail}" — that requirement did NOT land: it is missing or wrong in the picture.
-  · "${SEVERITY.warn}" — it DID land, but something about it is visibly off: a smeared hand on an otherwise right pose, a colour that drifted, an edge that frayed.
-  · "${SEVERITY.pass}" — it landed, with nothing worth flagging.
-  Never pass something that breaks the prompt, a standing note or a reference.
-- "advice" is one sentence about what to change next time — a prompt or a setting, not a pep talk. Use null when the picture is genuinely good enough.
-- Judge only what is visible. You cannot see the generation settings, and you must never claim you changed anything.
-
-OUTPUT — one strict-JSON object and nothing else, no prose around it, no code fence:
-{"seen":["panel 1: ..."],"always":[{"check":"...","severity":"${SEVERITY.warn}","text":"..."}],"checks":[{"check":"...","severity":"${SEVERITY.fail}","text":"..."},{"check":"...","severity":"${SEVERITY.pass}","text":"..."}],"advice":"..."}`
-}
-
-/**
- * 看图每次都要判的整张图那几项（v3 S5）。⭐ 来自 owner 对马尔福九宫格的五条：
- * 动漫脸配 3D 身体、比例、五个人对着镜头、学院色穿早了、第一格又伸手 —— 前四条
- * 是整张图的毛病，提示词里不一定写，模型逐条核提示词时就漏了（回放 T20）。
- */
-const CRITIQUE_ALWAYS_CHECKS = [
-  "Rendering style — say how the faces are drawn (eye size, ink outlines, flat or modelled shading) and how the bodies and the set are drawn. Faces, bodies and set must be ONE style, the project's look; anime faces (oversized eyes, outlines, flat shading) on 3D-rendered bodies or sets fail.",
-  'Proportions — say how many heads tall the main people are and compare it with the ages the prompt states (children of 10–12 are about six heads tall; four heads or less reads as chibi and fails unless the look asks for it); people of the same age are the same size side by side.',
-  'Eyes — for each person in each panel, where their eyes point; count who looks into the camera. Anyone looking into the camera when nothing asks for it fails.',
-  'Outfits — clothes and their colours against the references and the standing notes, including colours or insignia that should not be there.',
-  'Hands and limbs — finger count and shape, broken or missing limbs. (What a hand is doing belongs to that beat in "checks".)',
-] as const
-
-/**
  * 同一会话、同一用途的调用共用一把缓存键（OpenAI `prompt_cache_key`）：它们前缀相同
  * （同一份系统提示 + 同一段对话），路由到同一处缓存才命中得了（2026-10-09 一天实测：
  * 输入只有 15% 走缓存）。⚠ 只发哈希，⛔ 不把用户 id 交给 provider。
@@ -10696,155 +9316,6 @@ export function operatorCacheKey(run: OperatorRun, purpose: string): string {
 }
 
 /**
- * 看图那几跳（看成图、逐帧、汇总）只带创作者这一轮那句话（2026-10-09 一天实测：
- * 看图每次平均 4.85 万 token，大头是整段对话）。要评的目标已经在 goal 里，更早的
- * 对话只会让它评着评着去答别的。
- */
-function creatorAskSection(run: OperatorRun): string[] {
-  const latest = latestUserMessage(run.request).trim()
-  return latest
-    ? [
-        `WHAT THE CREATOR ASKED THIS TURN:\n${clamp(latest, LIMITS.maxMessageChars)}`,
-      ]
-    : []
-}
-
-function buildCritiquePrompt(
-  run: OperatorRun,
-  goal: string | null,
-  modelLabel: string | undefined,
-): string {
-  const sections: string[] = [
-    goal
-      ? `WHAT THIS PICTURE WAS SUPPOSED TO BE:\n${goal}`
-      : 'WHAT THIS PICTURE WAS SUPPOSED TO BE: the creator never wrote it down — judge it on its own craft instead.',
-  ]
-  if (modelLabel) sections.push(`MADE BY: ${modelLabel}`)
-  if (run.request.domain === 'image' || run.request.domain === 'lora') {
-    sections.push(
-      `CURRENT REFERENCE ORDER (after the first/result image):\n${run.state.referenceUrls
-        .filter(Boolean)
-        .map((url, index) => `@Image${index + 1}: ${url}`)
-        .join('\n')}`,
-    )
-    if (run.referenceAnalysis?.brief)
-      sections.push(
-        `REFERENCE BRIEF:\n${JSON.stringify(run.referenceAnalysis.brief)}`,
-      )
-  }
-
-  return `${[...sections, ...creatorAskSection(run)].join('\n\n')}\n\nReply with ONE JSON object.`
-}
-
-/**
- * 逐帧那一跳的系统提示（第二期）。
- *
- * ⚠ **不要 JSON**：这一跳的产物是给下一跳（汇总）读的一段描述，不是给客户端渲染
- * 的结构。硬要 JSON 只会多一处解析失败点，而失败在这里的代价是整段片子评不了。
- * ⚠ 每一帧都告诉它**自己站在哪儿**（start / mid / end）：同一张画面在「起手」和
- * 「末帧」两个位置上要看的东西不同（前者看构图与身份，后者看有没有到 endState）。
- */
-function buildVideoFrameSystemPrompt(
-  request: AssistantOperatorRequest,
-  persona: AssistantPersona,
-): string {
-  const language =
-    RESPONSE_LANGUAGE_LABELS[resolveResponseLanguage(request, persona)]
-
-  return `You are looking at ONE still frame taken from a clip ANTEI just produced for its creator.
-
-Describe only what is visibly in THIS frame, in ${language}, in at most three short sentences: the subject and who/what it is, the pose and where the motion is, the framing, and anything visibly broken (melted hands, a face that changed, text that turned to mush).
-
-RULES:
-- Do NOT guess what happens before or after this frame — you are only shown this one.
-- Do NOT judge the clip yet and do NOT give advice. Another pass compares the frames.
-- No JSON, no lists, no preamble. Just the description.`
-}
-
-function buildVideoFramePrompt(
-  run: OperatorRun,
-  goal: string | null,
-  label: string,
-  timestampSeconds: number,
-): string {
-  const sections: string[] = [
-    `THIS FRAME IS THE "${label}" FRAME, taken at ${timestampSeconds}s of the clip.`,
-    goal
-      ? `WHAT THE CLIP WAS SUPPOSED TO BE:\n${goal}`
-      : 'WHAT THE CLIP WAS SUPPOSED TO BE: the creator never wrote it down — describe the frame on its own terms.',
-  ]
-
-  return [...sections, ...creatorAskSection(run)].join('\n\n')
-}
-
-/**
- * 汇总那一跳的系统提示（第二期）。
- *
- * ⭐ 评审维度对齐 owner 的 EVA 复核三段（**否定 / 异常 / 建议**，§7）：`verdicts`
- * 里 `severity:'fail'` 是「否定」、`severity:'warn'` 是「异常」，`advice` 是「建议」。
- * ⚠ 「异常」此前**没有通道**（契约只有 `ok:boolean`），于是「做到了但有瑕疵」只能
- * 二选一地说谎。⛔ 别把它退回布尔：卡片按这三档分三段渲染。
- * ⚠ 三个必答问题写死在这里，因为它们正是三帧的语义：动作有没有**冻住**、
- * 身份有没有**漂**、末帧到没到 **endState**。少问一条，那一帧就白抽了。
- */
-function buildVideoCritiqueSystemPrompt(
-  request: AssistantOperatorRequest,
-  persona: AssistantPersona,
-): string {
-  const language =
-    RESPONSE_LANGUAGE_LABELS[resolveResponseLanguage(request, persona)]
-
-  return `You are judging a clip ANTEI just produced for its creator. You did not watch it play — you were shown three still frames (start, middle, end) and their descriptions, and you judge the clip from what changes between them.
-
-Be the kind of second pair of eyes a working director is: concrete, specific to THIS clip, willing to say the uncomfortable thing. Vague praise is worse than silence.
-
-THREE QUESTIONS YOU MUST ANSWER, one verdict each, in this order:
-1. MOTION — did anything actually move? If the three frames are near-identical, the clip is a breathing still image and that is a failure, not a style.
-2. IDENTITY — does the subject stay the same person/object across the three frames? Name the drift you see (a face that resets, clothing that changes colour, a limb that grows).
-3. END STATE — does the end frame arrive where the creator was going? If they described an ending, judge against it; otherwise judge whether the clip lands somewhere instead of cutting mid-gesture.
-
-RULES:
-- Between ${1} and ${LIMITS.maxCritiqueFindings} verdicts, one short sentence each, in ${language}.
-- "severity" is one of ${ASSISTANT_OPERATOR_VERDICT_SEVERITIES.map((value) => `"${value}"`).join(' / ')} and the three are NOT interchangeable:
-  · "${SEVERITY.fail}" — that dimension did NOT land: nothing moved, the subject became someone else, the clip stops nowhere.
-  · "${SEVERITY.warn}" — it DID land, but with a visible flaw: the motion is there but stutters, the face holds but the hands melt for a beat, the end arrives but half a gesture early. Use this instead of forcing a landed-with-a-flaw dimension into pass or fail.
-  · "${SEVERITY.pass}" — it landed, with nothing worth flagging.
-  Do not mark everything one way.
-- "advice" is one sentence about what to change next — a prompt, a first/last frame, or a setting, not a pep talk. Use null when the clip is genuinely good enough.
-- Judge only what the frames show. You cannot see the frames between them, and you must never claim you changed anything.
-
-OUTPUT — one strict-JSON object and nothing else, no prose around it, no code fence:
-{"verdicts":[{"severity":"${SEVERITY.pass}","text":"..."},{"severity":"${SEVERITY.warn}","text":"..."},{"severity":"${SEVERITY.fail}","text":"..."}],"advice":"..."}`
-}
-
-function buildVideoCritiquePrompt(
-  run: OperatorRun,
-  goal: string | null,
-  modelLabel: string | undefined,
-  frames: readonly { label: string; t: number; note: string }[],
-): string {
-  const sections: string[] = [
-    goal
-      ? `WHAT THIS CLIP WAS SUPPOSED TO BE:\n${goal}`
-      : 'WHAT THIS CLIP WAS SUPPOSED TO BE: the creator never wrote it down — judge it on its own craft instead.',
-  ]
-  if (modelLabel) sections.push(`MADE BY: ${modelLabel}`)
-  sections.push(
-    `WHAT EACH FRAME SHOWS:\n${frames
-      .map(
-        (frame) =>
-          `[${frame.label} @ ${frame.t}s] ${clamp(
-            frame.note.trim(),
-            LIMITS.maxMessageChars,
-          )}`,
-      )
-      .join('\n\n')}`,
-  )
-
-  return `${[...sections, ...creatorAskSection(run)].join('\n\n')}\n\nReply with ONE JSON object.`
-}
-
-/**
  * 剥掉围栏，把模型这一轮的输出还原成候选 JSON 串。
  * `responseFormat:'json_object'` 只在部分 provider 上是硬保证，剩下那些照样会给你
  * 包一层 ```json —— 这十行是那一档的代价。
@@ -10857,126 +9328,6 @@ function jsonCandidates(raw: string): string[] {
     trimmed,
     trimmed.match(/\{[\s\S]*\}/)?.[0],
   ].filter((candidate): candidate is string => Boolean(candidate))
-}
-
-/**
- * 看图那一跳的产出 → 卡上的几条 + 卡上放不下的那几条（P3-C；v3 S5 改清单）。
- * 解不出来 = 一条被拒的步，不是抛错。
- *
- * ⭐ 模型先交一整张清单（`always` 五项 + `checks` 逐条要求），卡上那四条由
- * **服务端**挑：没做到的在前、有瑕疵的其次，还有空位才放一条做到了的。⛔ 不让模型自己从清单里挑 —— 回放
- * T20 里它每次挑的子集都不一样，漏掉的正是 owner 指出的那几条。
- * ⚠ 清单里一项坏了只丢那一项；模型偶尔照旧交 `findings`，那一份也收。
- */
-function parseCritiqueJson(
-  raw: string,
-):
-  | (AssistantOperatorCritique & { offCard: AssistantOperatorCritiqueCheck[] })
-  | null {
-  for (const candidate of jsonCandidates(raw)) {
-    let value: unknown
-    try {
-      value = JSON.parse(candidate) as unknown
-    } catch {
-      continue
-    }
-    const checklist = critiqueFromChecks(value)
-    if (checklist) return checklist
-    const parsed = AssistantOperatorCritiqueSchema.safeParse(value)
-    if (parsed.success) return { ...parsed.data, offCard: [] }
-  }
-  return null
-}
-
-const CRITIQUE_SEVERITY_ORDER: readonly AssistantOperatorVerdictSeverity[] = [
-  SEVERITY.fail,
-  SEVERITY.warn,
-  SEVERITY.pass,
-]
-
-function critiqueFromChecks(
-  value: unknown,
-):
-  | (AssistantOperatorCritique & { offCard: AssistantOperatorCritiqueCheck[] })
-  | null {
-  if (!value || typeof value !== 'object') return null
-  const { always, checks, advice } = value as {
-    always?: unknown
-    checks?: unknown
-    advice?: unknown
-  }
-  if (!Array.isArray(checks) && !Array.isArray(always)) return null
-  const seen = new Set<string>()
-  // ⭐ 整张图那几项排在逐条要求前面：同一档里先上卡（回放 T20：卡上四条全被逐格
-  //   动作占满，画风 / 比例 / 视线一条都没上）。
-  const parsed = [
-    ...(Array.isArray(always)
-      ? always.slice(0, CRITIQUE_ALWAYS_CHECKS.length)
-      : []),
-    ...(Array.isArray(checks) ? checks.slice(0, LIMITS.maxCritiqueChecks) : []),
-  ].flatMap((item: unknown) => {
-    const record =
-      item && typeof item === 'object' ? (item as Record<string, unknown>) : {}
-    const check = AssistantOperatorCritiqueCheckSchema.safeParse({
-      ...record,
-      ...(typeof record.check === 'string'
-        ? { check: clamp(record.check, LIMITS.maxCritiqueCheckChars) }
-        : {}),
-      ...(typeof record.text === 'string'
-        ? { text: clamp(record.text, LIMITS.maxCritiqueFindingChars) }
-        : {}),
-    })
-    if (!check.success || seen.has(check.data.text)) return []
-    seen.add(check.data.text)
-    return [check.data]
-  })
-  if (parsed.length === 0) return null
-  const ranked = CRITIQUE_SEVERITY_ORDER.flatMap((severity) =>
-    parsed.filter((check) => check.severity === severity),
-  )
-  const problems = ranked.filter((check) => check.severity !== SEVERITY.pass)
-  const onCard = (problems.length ? problems : ranked).slice(
-    0,
-    LIMITS.maxCritiqueFindings,
-  )
-  const firstPass = ranked.find((check) => check.severity === SEVERITY.pass)
-  if (
-    onCard.length < LIMITS.maxCritiqueFindings &&
-    problems.length &&
-    firstPass
-  )
-    onCard.push(firstPass)
-  const adviceText =
-    typeof advice === 'string'
-      ? clamp(advice.trim(), LIMITS.maxCritiqueAdviceChars) || null
-      : null
-  return {
-    findings: onCard.map(({ severity, text }) => ({ severity, text })),
-    advice: adviceText,
-    offCard: problems.slice(LIMITS.maxCritiqueFindings),
-  }
-}
-
-/**
- * 汇总那一跳的 JSON（第二期）。形状与 `parseCritiqueJson` 逐字同构，
- * ⚠ 只是 schema 换成视频那份（`verdicts` 而不是 `findings`，⛔ 别合并成一个
- * 带可选字段的宽 schema —— 那样两个域都能过，而卡片分不出该画哪一种）。
- * ⚠ `frames` 由服务端填，模型这一跳**碰不到帧地址**（与图片档的 `imageUrl` 同源），
- * 所以这里只解析 `verdicts` + `advice`。
- */
-function parseVideoCritiqueJson(
-  raw: string,
-): Omit<AssistantOperatorVideoCritique, 'frames'> | null {
-  const schema = AssistantOperatorVideoCritiqueSchema.omit({ frames: true })
-  for (const candidate of jsonCandidates(raw)) {
-    try {
-      const parsed = schema.safeParse(JSON.parse(candidate) as unknown)
-      if (parsed.success) return parsed.data
-    } catch {
-      // 下一个候选
-    }
-  }
-  return null
 }
 
 // ─── 工具环 ─────────────────────────────────────────────────────

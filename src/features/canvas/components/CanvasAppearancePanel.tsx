@@ -280,6 +280,7 @@ export function CanvasAppearancePanel({
                       </span>
                     </div>
                     <Slider
+                      look="thumb"
                       min={10}
                       max={100}
                       step={1}

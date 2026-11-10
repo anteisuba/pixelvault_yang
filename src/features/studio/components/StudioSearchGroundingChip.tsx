@@ -4,7 +4,7 @@ import { useTranslations } from 'next-intl'
 import * as Toolbar from '@radix-ui/react-toolbar'
 
 import { Globe } from '@/components/icons'
-import { useStudioChipClasses } from '@/components/business/studio-shared/primitives/tool-surface'
+import { useStudioChipClasses } from '@/components/ui/chip'
 import { useStudioSearchGrounding } from '@/features/studio/hooks/use-studio-search-grounding'
 import { cn } from '@/lib/utils'
 

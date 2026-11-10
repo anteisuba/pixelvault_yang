@@ -129,29 +129,24 @@ describe('证据本（真库）', () => {
     expect(bodyOf(secondRef)).toBe('second')
   })
 
-  // 本机 PGlite 把多条连接排在一个后端上：事务里一条语句报错后，后面的查询会拿到空结果，
-  // 测不出真回滚。只在 CI 的真 Postgres（TEST_DATABASE_URL）上跑这一条。
-  it.skipIf(!process.env.TEST_DATABASE_URL)(
-    '多条 ResearchRun 中途写坏整批回滚，返回的空编号不会指向部分记录',
-    async () => {
-      const { args, runs } = await setup()
-      const input = args()
+  it('多条 ResearchRun 中途写坏整批回滚，返回的空编号不会指向部分记录', async () => {
+    const { args, runs } = await setup()
+    const input = args()
 
-      expect(
-        await appendAssistantEvidenceBook({
-          ...input,
-          entries: [
-            input.entries[0]!,
-            { ...input.entries[0]!, items: [UNWRITABLE] },
-          ],
-        }),
-      ).toEqual({ refs: [], researchRunIds: [] })
-      expect(await runs()).toEqual([])
+    expect(
+      await appendAssistantEvidenceBook({
+        ...input,
+        entries: [
+          input.entries[0]!,
+          { ...input.entries[0]!, items: [UNWRITABLE] },
+        ],
+      }),
+    ).toEqual({ refs: [], researchRunIds: [] })
+    expect(await runs()).toEqual([])
 
-      // 回滚后编号从头数：下一次还是 #e1。
-      expect((await appendAssistantEvidenceBook(input)).refs).toEqual(['#e1'])
-    },
-  )
+    // 回滚后编号从头数：下一次还是 #e1。
+    expect((await appendAssistantEvidenceBook(input)).refs).toEqual(['#e1'])
+  })
 
   it('别人的会话写不进去：回空编号，库里不多一行', async () => {
     const { args } = await setup()

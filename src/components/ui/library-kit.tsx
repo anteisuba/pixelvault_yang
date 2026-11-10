@@ -2,13 +2,14 @@
 
 import type { ReactNode } from 'react'
 
-import { Check, ChevronDown, Plus, Search } from '@/components/icons'
+import { Check, ChevronDown, Plus } from '@/components/icons'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { SearchField } from '@/components/ui/search-field'
 import { useLibraryRailOpen } from '@/hooks/use-library-rail'
 import { cn } from '@/lib/utils'
 
@@ -40,7 +41,7 @@ export function LibraryToolbar({
   )
 }
 
-/** 搜索框 `SearchField`：浅灰药丸，没边。 */
+/** 库顶上的搜索框：长相在 `ui/search-field.tsx`（ui-spec §9「搜索框」）。 */
 export function LibrarySearch({
   value,
   onChange,
@@ -57,19 +58,14 @@ export function LibrarySearch({
   maxLength?: number
 }) {
   return (
-    <label className="flex h-9 min-w-0 items-center gap-2 rounded-full bg-muted px-3.5 text-muted-foreground focus-within:shadow-focus coarse:h-11">
-      <Search className="size-3.75 shrink-0" aria-hidden />
-      <input
-        type="search"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        onKeyDown={onKeyDown}
-        placeholder={placeholder}
-        aria-label={label}
-        maxLength={maxLength}
-        className="min-w-0 flex-1 bg-transparent text-2sm text-foreground outline-none placeholder:text-muted-foreground"
-      />
-    </label>
+    <SearchField
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      label={label}
+      onKeyDown={onKeyDown}
+      maxLength={maxLength}
+    />
   )
 }
 

@@ -9,7 +9,7 @@ import {
   studioColumnChipClass,
   studioColumnChipOpenClass,
   useStudioChipClasses,
-} from '@/components/business/studio-shared/primitives/tool-surface'
+} from '@/components/ui/chip'
 import { cn } from '@/lib/utils'
 
 /**

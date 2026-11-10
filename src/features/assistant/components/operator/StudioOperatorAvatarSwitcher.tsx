@@ -25,7 +25,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
-import { studioOutlineChipClass } from '@/components/business/studio-shared/primitives/tool-surface'
+import { studioOutlineChipClass } from '@/components/ui/chip'
 import { useAssistantPersona } from '@/hooks/use-assistant-persona'
 import { useChatCharacters } from '@/hooks/use-chat-characters'
 import { useOperatorChatMode, usePersonaSwitch } from '@/hooks/use-chat-persona'

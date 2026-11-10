@@ -297,7 +297,7 @@ export function AudioPlayer({
           onClick={togglePlay}
           aria-label={isPlaying ? t('pause') : t('play')}
           className={cn(
-            'flex shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm shadow-primary/20 transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            'flex shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             compact ? 'size-8' : 'size-10',
           )}
         >

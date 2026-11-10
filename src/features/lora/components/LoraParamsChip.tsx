@@ -132,7 +132,6 @@ export function LoraParamsChip({
       label,
       <div className="flex min-w-0 flex-1 items-center gap-3">
         <Slider
-          look="bar"
           aria-label={t('generate.advanced.sliderLabel', { label })}
           min={range.min}
           max={range.max}

@@ -6,11 +6,11 @@ import { useTranslations } from 'next-intl'
 
 import { Plus } from '@/components/icons'
 import { AssetSelectorDialog } from '@/features/assets'
+import { useStudioChipClasses } from '@/components/ui/chip'
 import {
   StudioToolPopoverContent,
   StudioToolSurface,
   StudioToolSurfaceTrigger,
-  useStudioChipClasses,
 } from '@/components/business/studio-shared/primitives/tool-surface'
 import { useStudioForm } from '@/contexts/studio-context'
 import type { UseStudioVideoAssetsReturn } from '@/hooks/use-studio-video-assets'

@@ -62,19 +62,21 @@ import { MainModelPicker } from '@/components/business/studio-shared/pickers'
 import { ImageRecipeImportChip } from '@/components/business/studio-shared/image-recipe/ImageRecipeImportChip'
 import {
   StudioChipLookProvider,
-  StudioToolSurface,
-  StudioToolSurfaceTrigger,
   studioOutlineChipClass,
   studioOutlineChipCompactClass,
   studioOutlineChipCompactLabelClass,
   studioOutlineChipSetClass,
+  studioToolRowClass,
+  useStudioChipClasses,
+} from '@/components/ui/chip'
+import {
+  StudioToolSurface,
+  StudioToolSurfaceTrigger,
   studioToolPopoverBaseClass,
   studioToolPopoverMaxHeightClass,
   studioToolPopoverPaddingClass,
   studioToolPopoverWidthClass,
-  studioToolRowClass,
   studioToolSurfaceMobileClass,
-  useStudioChipClasses,
   useStudioChipPopoverMotion,
 } from '@/components/business/studio-shared/primitives/tool-surface'
 import { useStudioToolRow } from '@/components/business/studio-shared/primitives/use-studio-tool-row'

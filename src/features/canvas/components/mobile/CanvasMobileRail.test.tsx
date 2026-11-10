@@ -133,7 +133,7 @@ describe('CanvasMobileRail', () => {
 
   it('分段控件切到「图」时列表换成图片行，⛔ 镜头卡不再渲染', () => {
     const { container } = renderRail()
-    fireEvent.click(container.querySelector('[data-mobile-list-tab="images"]')!)
+    fireEvent.click(screen.getByRole('tab', { name: 'tab.images' }))
     expect(container.querySelectorAll('[data-mobile-shot-card]')).toHaveLength(
       0,
     )
@@ -152,7 +152,7 @@ describe('CanvasMobileRail', () => {
 
   it('画布上的角色卡：名字和图现读角色库，点了去角色页，⛔ 不开出图抽屉', async () => {
     const { container } = renderRail()
-    fireEvent.click(container.querySelector('[data-mobile-list-tab="images"]')!)
+    fireEvent.click(screen.getByRole('tab', { name: 'tab.images' }))
     const row = container.querySelector('[data-mobile-media-row="char-1"]')!
     // 角色库那一跳回来之前，行上是节点自己存的旧名字。
     await waitFor(() => expect(row).toHaveTextContent('Denia'))

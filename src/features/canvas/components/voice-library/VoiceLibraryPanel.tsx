@@ -25,7 +25,7 @@ import { Mic, Search } from '@/components/icons'
 
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import {
   VOICE_LIBRARY_DATED_TAB_IDS,
   VOICE_LIBRARY_PANEL_WIDTH,
@@ -261,27 +261,19 @@ export function VoiceLibraryPanel({
                 className="h-9 border-0 px-0 shadow-none focus-visible:ring-0"
               />
             </div>
-            <ToggleGroup
-              type="single"
-              variant="segmented"
-              aria-label={t('tabsLabel')}
+            <LiquidSegmented<VoiceLibraryTabId>
+              size="row"
+              ariaLabel={t('tabsLabel')}
               value={tab}
-              onValueChange={(next) => {
-                if (!next) return
-                setTab(next as VoiceLibraryTabId)
+              onChange={(next) => {
+                setTab(next)
                 setTabSwitched(true)
               }}
-            >
-              {VOICE_LIBRARY_TAB_IDS.map((id) => (
-                <ToggleGroupItem
-                  key={id}
-                  value={id}
-                  data-voice-library-tab={id}
-                >
-                  {t(`tabs.${id}`)}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
+              items={VOICE_LIBRARY_TAB_IDS.map((id) => ({
+                value: id,
+                label: t(`tabs.${id}`),
+              }))}
+            />
           </div>
 
           {/* 按页签换一块新列表淡进来（⛔ 不做退场叠放：两份列表同时在就会把框撑高）。 */}

@@ -157,22 +157,22 @@
 - **对话消息 `Message`**：你的话放 `bubble` 气泡；助手纯文字、不套框；过程行（图片台 · 做了什么）是灰色小字；回复下面的动作按钮用白药丸。和角色聊天（她用自己的口吻说话那一档）例外：她的话一句一个描边气泡、逐句冒出来（owner 2026-11-04 定 A，`StudioOperatorChatBubbles`）。对话里唯一一排药丸是角色库页报的「她缺什么」；空对话的起手药丸 ⛔（11-04 删）。
 - **助手卡 `AssistantCard`**：柔影白卡（`card`）。出图确认卡里：参考图、提示词、模型、比例张数、去图片台、生成；提问卡、出错、排队用同一个外框。
 - **语音消息 `VoiceMessage`**：白药丸柔影，黑色播放钮，播过的波形变黑；点了才播、可以重听。
-- **输入框 `Composer`**：只留左下角「+」加图（台上的「参考图」药丸收进去），点开同一个菜单：最近的图、从素材挑、上传、@ 角色或素材。加进来的参考图在字上面排一行（48，悬停出 ×）。台上和对话里一样。代码：「+」= `ReferenceImageChip` 描边外观，参考图一行 = `ImageAttachmentPreviewStrip` 的 composer 变体（左下角「图\_N」）；台上的参数药丸统一用 `tool-surface.tsx` 的 `studioOutlineChip*`（`fill` 底、开着 `fill-strong`、⛔ 描边 / 强调色）。视频台的素材、LoRA 台的参考图也是这一颗「+」（owner 2026-11-04）。工具行上常用的几颗（从图读串 · 模板 · 角色 · 查资料 · 先搜再画 · 负面）留在外面、⛔ 不收进「+」，四个台同一条带字规则：**这一行放得下就带字，放不下才收成图标**，量的是这一行自己（`use-studio-tool-row.ts` + `group/toolrow`），⛔ 每台写死一个容器门槛。对话输入框：规格行（输入框上方那一行模型 · 比例 · 张数）只在开着台时画，首页没台不画（`face.specLine`）；「看图再改 N 轮」住在「思考」卡底，工具行上只留 ＋ · 模型 · 思考 · 发送。没选模型的药丸写「选模型」。
+- **输入框 `Composer`**：只留左下角「+」加图（台上的「参考图」药丸收进去），点开同一个菜单：最近的图、从素材挑、上传、@ 角色或素材。加进来的参考图在字上面排一行（48，悬停出 ×）。台上和对话里一样。代码：「+」= `ReferenceImageChip` 描边外观，参考图一行 = `ImageAttachmentPreviewStrip` 的 composer 变体（左下角「图\_N」）；台上的参数药丸统一用 `ui/chip.tsx` 的 `studioOutlineChip*`（`fill` 底、开着 `fill-strong`、⛔ 描边 / 强调色）。视频台的素材、LoRA 台的参考图也是这一颗「+」（owner 2026-11-04）。工具行上常用的几颗（从图读串 · 模板 · 角色 · 查资料 · 先搜再画 · 负面）留在外面、⛔ 不收进「+」，四个台同一条带字规则：**这一行放得下就带字，放不下才收成图标**，量的是这一行自己（`use-studio-tool-row.ts` + `group/toolrow`），⛔ 每台写死一个容器门槛。对话输入框：规格行（输入框上方那一行模型 · 比例 · 张数）只在开着台时画，首页没台不画（`face.specLine`）；「看图再改 N 轮」住在「思考」卡底，工具行上只留 ＋ · 模型 · 思考 · 发送。没选模型的药丸写「选模型」。
 
 ### 按钮
 
 - **按钮 `Button`**（照 Fish Audio）：主钮黑色实心药丸、字加粗（生成、交给助手）；其余白药丸，`raise` + `soft`；红色实心删除键只在弹窗里。
 - **图标键 `IconButton`**（㉟）：32 的白圆（`raise` + `soft`）：弹窗右上 ×、← 返回、查看器右上收藏 / 更多 / 关闭。盖在图上、视频上的用黑半透明圆底 + 白图标。
-- **药丸 `Chip`**（㉕）：输入框底下的参数药丸、模型药丸、规格药丸，台上、画布卡、助手确认卡同一颗：浅灰（`fill`）无边，和搜索框一家；点开时深一档（`fill-strong`，⛔ 变黑），弹层照菜单。参数药丸没设的只放图标，设了才写名字（「三视图」），⛔ 设好了换强调色。模型药丸写「型号 + 渠道」+ 箭头；规格药丸「3:4 · 1K · 4 张」。对话里的过程药丸 24 高（台图标 13 + 台名），点了开那个台。LoRA 药丸见 §9 LoRA 台。⛔ 药丸上写说明；⛔ 描边药丸（「+ LoRA」除外）。
+- **药丸 `Chip`**（㉕）：输入框底下的参数药丸、模型药丸、规格药丸，台上、画布卡、助手确认卡同一颗：浅灰（`fill`）无边，和搜索框一家；点开时深一档（`fill-strong`，⛔ 变黑），弹层照菜单。参数药丸没设的只放图标，设了才写名字（「三视图」），⛔ 设好了换强调色。模型药丸写「型号 + 渠道」+ 箭头；规格药丸「3:4 · 1K · 4 张」。对话里的过程药丸 24 高（台图标 13 + 台名），点了开那个台。LoRA 药丸见 §9 LoRA 台。⛔ 药丸上写说明；⛔ 描边药丸（「+ LoRA」除外）。代码里是 `ui/chip.tsx`（类名 `studioOutlineChip*`、外观 `StudioChipLookProvider` / `useStudioChipClasses`）；弹层仍在 `studio-shared/primitives/tool-surface.tsx`。
 - **收藏 `Bookmark`**（⑳）：书签，没收藏线框、收藏了填黑；图格角上悬停才出（没收藏黑半透明圆底 + 白线框，收藏了白圆底 + 黑书签），查看器、库里同一颗。代码里是 `FavoriteBookmark`（`ui/favorite-bookmark.tsx`），⛔ 红心。
 - **复制 `CopyButton`**（㉑）：只放复制图标，点了变勾 1.5 秒变回；⛔ 另弹提示。代码里是 `CopyButton`（`ui/copy-button.tsx`）。
 
 ### 输入
 
-- **搜索框 `SearchField`**：浅灰药丸，没边。
-- **切换条 `Segmented`**（⑦）：浅灰轨道（`fill-strong`），选中的是浮起来的白格（`raise` + `seg`）；滑动手感照 `liquid-segmented`。比例、清晰度、张数、库里最常用的那一项筛选都用它。
+- **搜索框 `SearchField`**：浅灰药丸，没边。代码里是 `ui/search-field.tsx` 的 `SearchField`，库顶上的 `LibrarySearch` 用的就是它；各台自己写的搜索框随各自那一台换。
+- **切换条 `Segmented`**（⑦）：浅灰轨道（`fill-strong`），选中的是浮起来的白格（`raise` + `seg`）；滑动手感照 `liquid-segmented`。比例、清晰度、张数、库里最常用的那一项筛选都用它。代码里只有 `ui/liquid-segmented.tsx` 的 `LiquidSegmented` 一份（`toggle-group.tsx`、`tabs.tsx` 2026-11-10 已删）。
 - **开关 `Switch`**：32×20，关着 `fill-strong` 轨道，开着黑色 `primary`，圆钮 16 `knob` + `seg`；多数放在一行里（图标 + 名字 + 开关，36 高，整行能点）。⛔ 旁边写「开启后……」；⛔ 用勾选框代替。代码里 `switch.tsx` 换皮。
-- **滑杆 `Slider`**：黑色胖条，没有钮，黑色那段就是值，按住哪里拖哪里，值写在右边（等宽）；拖过头的橡皮筋照 `RUBBER_BAND`。用在 LoRA 权重、步数 / CFG、引导强度这类参数行。
+- **滑杆 `Slider`**：黑色胖条，没有钮，黑色那段就是值，按住哪里拖哪里，值写在右边（等宽）；拖过头的橡皮筋照 `RUBBER_BAND`。用在 LoRA 权重、步数 / CFG、引导强度这类参数行。代码里是 `ui/slider.tsx` 的缺省外观（参数行的 `ui/param-slider.tsx` 跟着它）；不是参数行的那几处（画笔粗细、时间线缩放、视频拖帧、音量、时长、画布背景透明度）暂留 `look="thumb"` 细条 + 圆钮，换不换等 owner 定。
 - **比例 `RatioPicker`**（㉚）：规格药丸点开后一排切换条，每格一个小框 + 比例字；清晰度、张数同一种，一个弹层里只有这一种控件。
 - **标签框 `TagTextField`**（㉘）：标签是一段逗号隔开的字，⛔ 一个个框；删就像删字（拖选 ⌫、⌘A、双击选整个标签、⌥⌫ 删前一个标签）。权重写在字里、浅灰（`blue hair:1.2`），光标停在标签上 ⌘↑ / ⌘↓ ±0.05，发出去时自动换成各家写法（NAI `{}` / PixAI `()`），⛔ 界面上出现原生写法。光标所在的标签底下淡淡一块 `fill-strong`。补全、⌘ + 点看详情照旧。只看的地方也写成字。代码里是 `StudioTagTextField`（编辑动作在 `lib/tag-text-editing.ts`），存储（`parseTagChips` / `serializeTagChips`）不动；LoRA 触发词不在此列。
 - **上传 / 拖放 `DropZone`**（㉞）：拖着停在一块上，那一块描一圈黑虚线、铺浅灰，中间写松手去哪（「松手加到参考图」）；输入框、素材库、LoRA 训练集等十几处同一个；传的时候那一格走「边即进度」。代码：盖在宿主上的那一层是 `ui/drop-overlay.tsx`（`DropOverlay`，文案在 `DropZone` 命名空间）；本身就是虚线框的落点（LoRA 训练集、挑图框上传键、视频台素材提示）停上去换成 `border-foreground bg-muted`。
@@ -257,3 +257,4 @@
 
 - 2026-10-25 · 首版：规范页第 6 版 + 样件 E v24（v23 由 owner 10-25 定稿，v24 只补暗房浮层里浅底块升一档）。文中代码标识符（`StudioLibraryOverlay`、`LookupRows`、`LoraWorkbench` 一族、`ModelPickerPopover`、`FavoriteHeart`、`ConfirmDeleteButton`、`IconDefaults.tsx`、`lora-base-models.ts` 等）当日在 `src/` 核过存在；`react-resizable-panels` 当日未安装。
 - 2026-10-25 · 第 1 个代码 PR（地基）：token、按钮 / 开关 / 切换条 / 提示 / 弹窗换皮；`FavoriteHeart` → `FavoriteBookmark`、`ConfirmDeleteButton` 删掉改 `ConfirmDialog`、`CopyPromptButton` → `CopyButton`、`Spinner` 换三点、`EmptyState` 换柔影白卡；§0 表收掉已改的行，§11 改成绿了就合。
+- 2026-11-10 · 地基第 1 步（补齐原语层）：药丸类名搬到 `ui/chip.tsx`、新增 `ui/search-field.tsx`、滑杆缺省改胖条、切换条只剩 `liquid-segmented`（删 `toggle-group.tsx` / `tabs.tsx` / `card.tsx`）；§9 对应几段补了「代码里」。当日在 `src/` 核过这些文件名与导出名。

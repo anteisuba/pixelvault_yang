@@ -6,7 +6,7 @@
  * 只是容器：白面（`bg-popover`）+ `shadow-node-menu` + 14px 圆角，右对齐贴在
  * chip 上，Esc / 点外关闭。**内容由调用方传**——画面 / 模型 / 音色 / 视频参数
  * 四种弹层长得不一样，⛔ 不在这里 switch 出四个变体。分段控件用
- * `ToggleGroup variant="segmented"`（ui-defaults §3.1），⛔ 不拿一排 chip 冒充单选。
+ * `LiquidSegmented`（ui-spec §9「切换条」），⛔ 不拿一排 chip 冒充单选。
  *
  * 底座是 `ResponsivePopover`：细指针锚定弹层、触屏紧凑态自动换成底部 vaul 抽屉
  * （ui-defaults §6「锚定 Popover → 触屏紧凑态抽屉」）。⛔ 不在这里手写第二条

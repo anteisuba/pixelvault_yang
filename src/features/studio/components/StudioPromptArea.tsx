@@ -76,7 +76,7 @@ import {
   studioOutlineChipCompactLabelClass,
   studioOutlineChipSetClass,
   studioToolRowClass,
-} from '@/components/business/studio-shared/primitives/tool-surface'
+} from '@/components/ui/chip'
 import { useStudioToolRow } from '@/components/business/studio-shared/primitives/use-studio-tool-row'
 
 const STUDIO_FLOATING_SURFACE_SELECTOR = [

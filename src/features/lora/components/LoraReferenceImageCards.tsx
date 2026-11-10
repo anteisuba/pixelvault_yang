@@ -6,11 +6,11 @@ import { useTranslations } from 'next-intl'
 
 import { AssetSelectorDialog } from '@/features/assets'
 import { ImagePickerPopoverBody } from '@/components/business/studio-shared/ImagePickerPopoverBody'
+import { useStudioChipClasses } from '@/components/ui/chip'
 import {
   StudioToolPopoverContent,
   StudioToolSurface,
   StudioToolSurfaceTrigger,
-  useStudioChipClasses,
 } from '@/components/business/studio-shared/primitives/tool-surface'
 import { ParamSlider } from '@/components/ui/param-slider'
 import { Slider } from '@/components/ui/slider'
@@ -231,8 +231,6 @@ export function LoraReferenceImageCards({
                         min={strengthConfig.min}
                         max={strengthConfig.max}
                         step={strengthConfig.step}
-                        trackClassName="data-[orientation=horizontal]:h-1 bg-surface-fill-track"
-                        thumbClassName="size-3.5 border-0 bg-background shadow-sm ring-1 ring-foreground/20"
                       />
                       <span className="min-w-8 text-right font-mono font-semibold tabular-nums text-foreground">
                         {strength.toFixed(2)}

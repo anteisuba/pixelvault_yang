@@ -21,7 +21,7 @@ import {
   Square,
 } from '@/components/icons'
 import { AvatarDisc, StudioOperatorAvatarSwitcher } from '@/features/assistant'
-import { studioOutlineChipClass } from '@/components/business/studio-shared/primitives/tool-surface'
+import { studioOutlineChipClass } from '@/components/ui/chip'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 import { VoicePickerDialog } from '@/components/business/voices/VoicePickerDialog'
 import { Button } from '@/components/ui/button'

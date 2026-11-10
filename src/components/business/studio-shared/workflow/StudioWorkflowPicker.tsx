@@ -9,7 +9,6 @@ import {
   type WorkflowMediaGroup,
 } from '@/constants/workflows'
 import { useStudioContext } from '@/contexts/studio-context'
-import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 
 interface StudioWorkflowPickerProps {
@@ -53,24 +52,24 @@ export function StudioWorkflowPicker({
             onClick={() => setSelectedWorkflowId(workflow.id)}
             className="group min-w-56 shrink-0 text-left outline-none sm:min-w-0"
           >
-            <Card
+            <div
               className={cn(
-                'h-full gap-0 overflow-hidden border py-0 shadow-none transition-all duration-300 ease-out',
+                'flex h-full flex-col overflow-hidden rounded-xl border text-card-foreground transition-all duration-300 ease-out',
                 'group-hover:-translate-y-0.5 group-hover:border-primary/35 group-focus-visible:ring-2 group-focus-visible:ring-ring/50',
                 selected
                   ? 'border-primary/50 bg-primary/5 shadow-md shadow-primary/5'
                   : 'border-border/60 bg-card/90',
               )}
             >
-              <CardContent className="grid gap-2 px-4 py-4">
+              <div className="grid gap-2 px-4 py-4">
                 <div className="text-sm font-semibold leading-tight text-foreground">
                   {copy.name}
                 </div>
                 <p className="text-xs leading-5 text-muted-foreground">
                   {copy.description}
                 </p>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </button>
         )
       })}

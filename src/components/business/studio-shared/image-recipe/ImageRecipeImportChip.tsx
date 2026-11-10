@@ -10,7 +10,7 @@ import {
   studioOutlineChipClass,
   studioOutlineChipCompactClass,
   studioOutlineChipCompactLabelClass,
-} from '@/components/business/studio-shared/primitives/tool-surface'
+} from '@/components/ui/chip'
 
 /** 工具行「从图读串」：挑一张图（上传 / 素材库）→ 勾选框（拖到舞台上是另一条进法，落到同一个框）。 */
 export function ImageRecipeImportChip({ disabled }: { disabled?: boolean }) {

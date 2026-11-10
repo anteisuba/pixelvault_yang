@@ -32,10 +32,11 @@ interface SliderProps extends React.ComponentProps<
    */
   stretch?: boolean
   /**
-   * `bar` = 规范里的滑杆（ui-spec §9「滑杆」）：黑色胖条，没有钮，黑色那段就是值，按住
-   * 哪里拖哪里。缺省是旧的细条 + 圆钮，还没改到的宿主照旧。
+   * `bar`（缺省）= 规范里的滑杆（ui-spec §9「滑杆」）：黑色胖条，没有钮，黑色那段就是值，
+   * 按住哪里拖哪里；参数行都是它。`thumb` = 旧的细条 + 圆钮，只留给不是参数行的那几处
+   * （画笔粗细、时间线缩放、视频拖帧这类），它们换不换等 owner 定。
    */
-  look?: 'default' | 'bar'
+  look?: 'bar' | 'thumb'
 }
 
 function Slider({
@@ -48,7 +49,7 @@ function Slider({
   trackClassName,
   rangeClassName,
   stretch = true,
-  look = 'default',
+  look = 'bar',
   orientation,
   onPointerDown,
   onPointerMove,

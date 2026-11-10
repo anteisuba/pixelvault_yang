@@ -45,10 +45,12 @@ import {
 import { ResponsivePopoverContent } from '@/components/ui/responsive-popover'
 import { Switch } from '@/components/ui/switch'
 import {
-  StudioToolSurface,
-  StudioToolSurfaceTrigger,
   studioOutlineChipClass,
   studioOutlineChipOpenClass,
+} from '@/components/ui/chip'
+import {
+  StudioToolSurface,
+  StudioToolSurfaceTrigger,
   studioToolPopoverBaseClass,
   studioToolPopoverMaxHeightClass,
   studioToolSurfaceMobileClass,

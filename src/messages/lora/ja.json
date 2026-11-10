@@ -113,6 +113,7 @@
     "coverPreviewPrevious": "前の画像",
     "coverPreviewNext": "次の画像",
     "tabs": {
+      "label": "セクション",
       "generate": "生成",
       "library": "ライブラリ",
       "mine": "マイ LoRA",

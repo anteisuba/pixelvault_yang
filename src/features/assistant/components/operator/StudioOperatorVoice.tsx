@@ -11,7 +11,7 @@ import {
 import { ChevronDown, Play, Square, Volume2 } from '@/components/icons'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 import { VoicePickerDialog } from '@/components/business/voices/VoicePickerDialog'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import {
   playOperatorVoice,
   retryOperatorReply,
@@ -116,22 +116,19 @@ export function StudioOperatorVoiceStrip() {
             </span>
             <ChevronDown className="size-3 shrink-0" aria-hidden />
           </button>
-          <ToggleGroup
-            type="single"
-            variant="segmented"
+          <LiquidSegmented<StudioOperatorVoiceModelId>
+            semantics="radio"
+            size="row"
+            fill
+            ariaLabel={t('model')}
             value={modelId}
-            onValueChange={(next) => {
-              if (next) setModel(next as StudioOperatorVoiceModelId)
-            }}
-            aria-label={t('model')}
-            className="w-52 shrink-0 bg-card"
-          >
-            {STUDIO_OPERATOR_VOICE.modelIds.map((id, index) => (
-              <ToggleGroupItem key={id} value={id}>
-                {t(`models.${MODEL_LABEL_KEYS[index]}`)}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
+            onChange={setModel}
+            items={STUDIO_OPERATOR_VOICE.modelIds.map((id, index) => ({
+              value: id,
+              label: t(`models.${MODEL_LABEL_KEYS[index]}`),
+            }))}
+            className="w-52"
+          />
         </div>
       </div>
       <VoicePickerDialog

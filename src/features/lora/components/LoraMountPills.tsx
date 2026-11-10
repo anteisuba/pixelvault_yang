@@ -14,8 +14,8 @@ import {
 } from '@/components/ui/popover'
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
+import { studioOutlineChipOpenClass } from '@/components/ui/chip'
 import {
-  studioOutlineChipOpenClass,
   studioToolPopoverBaseClass,
   useStudioChipPopoverMotion,
 } from '@/components/business/studio-shared/primitives/tool-surface'
@@ -253,7 +253,6 @@ function LoraPill({
           </span>
           {loraScaleConfig ? (
             <Slider
-              look="bar"
               aria-label={t('spine.weightBarLabel', { name: asset.name })}
               min={loraScaleConfig.min}
               max={loraScaleConfig.max}

@@ -20,6 +20,7 @@ import { Input } from '@/components/ui/input'
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
 import { SlidersHorizontal } from '@/components/icons'
+import { useStudioChipClasses } from '@/components/ui/chip'
 import {
   StudioToolSurface,
   StudioToolSurfaceTrigger,
@@ -28,7 +29,6 @@ import {
   studioToolPopoverBaseClass,
   studioToolPopoverPaddingClass,
   studioToolPopoverWidthClass,
-  useStudioChipClasses,
   useStudioChipPopoverMotion,
 } from '@/components/business/studio-shared/primitives/tool-surface'
 import { ResponsivePopoverContent } from '@/components/ui/responsive-popover'

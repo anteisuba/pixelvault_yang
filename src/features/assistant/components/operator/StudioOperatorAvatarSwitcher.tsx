@@ -30,7 +30,7 @@ import { useAssistantPersona } from '@/hooks/use-assistant-persona'
 import { useChatCharacters } from '@/hooks/use-chat-characters'
 import { useOperatorChatMode, usePersonaSwitch } from '@/hooks/use-chat-persona'
 import { useStudioOperatorActions } from '@/features/assistant/hooks/use-studio-operator-actions'
-import { useStudioOperatorState } from '@/hooks/use-studio-operator-store'
+import { useStudioOperatorSelector } from '@/hooks/use-studio-operator-store'
 import { cn } from '@/lib/utils'
 
 /** 收起 / 展开时飞来飞去的那一颗（对话头 ↔ 台左上角）。 */
@@ -86,7 +86,9 @@ export function AvatarDisc({
  * 正看着以前的聊天（只读）时画那个角色。
  */
 export function StudioOperatorCurrentAvatar() {
-  const { chatCharacter } = useStudioOperatorState()
+  const chatCharacter = useStudioOperatorSelector(
+    (state) => state.chatCharacter,
+  )
   const { persona } = useAssistantPersona()
   const characters = useChatCharacters(chatCharacter !== null)
   const chatMode = useOperatorChatMode()
@@ -128,7 +130,9 @@ export function StudioOperatorAvatarSwitcher({
   const [open, setOpen] = useState(false)
   const { persona } = useAssistantPersona()
   const characters = useChatCharacters(open)
-  const { chatCharacter } = useStudioOperatorState()
+  const chatCharacter = useStudioOperatorSelector(
+    (state) => state.chatCharacter,
+  )
   const operatorActions = useStudioOperatorActions()
   const personaSwitch = usePersonaSwitch()
   const currentId = persona.character?.id ?? null

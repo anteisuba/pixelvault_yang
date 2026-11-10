@@ -42,7 +42,7 @@ import {
   addOperatorMention,
   registerOperatorMentions,
   takeOperatorMentionInbox,
-  useStudioOperatorState,
+  useStudioOperatorSelector,
 } from '@/hooks/use-studio-operator-store'
 import { toOperatorAttachment } from '@/features/assistant/hooks/use-studio-operator-upload'
 import { parseDroppedAssetIds } from '@/lib/asset-dnd'
@@ -329,7 +329,8 @@ export function useAssistantMentionComposer({
 }: UseAssistantMentionComposerInput): UseAssistantMentionComposerResult {
   const t = useTranslations('StudioOperator.mention')
   const tReference = useTranslations('StudioPromptArea.referenceMention')
-  const { mentions: registry, mentionInbox } = useStudioOperatorState()
+  const registry = useStudioOperatorSelector((state) => state.mentions)
+  const mentionInbox = useStudioOperatorSelector((state) => state.mentionInbox)
   const omit = useMemo(
     () => new Set(host.mentions?.omit ?? []),
     [host.mentions?.omit],

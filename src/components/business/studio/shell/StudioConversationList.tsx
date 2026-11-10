@@ -54,7 +54,7 @@ import { useMyProfile } from '@/hooks/use-my-profile'
 import { useNavIndicator } from '@/hooks/use-nav-indicator'
 import { useStudioConversationActivity } from '@/hooks/use-studio-conversation-activity'
 import { useStudioConversationBenchOverrides } from '@/hooks/use-studio-conversation-bench'
-import { useStudioOperatorState } from '@/hooks/use-studio-operator-store'
+import { useStudioOperatorSelector } from '@/hooks/use-studio-operator-store'
 import { useStudioRailExpanded } from '@/hooks/use-studio-rail-expanded'
 import { Link, usePathname } from '@/i18n/navigation'
 import {
@@ -104,7 +104,7 @@ export function StudioConversationList({ className }: { className?: string }) {
   const pathname = usePathname()
   const kind = studioShellRouteKind(pathname)
   const openCategory = libraryCategoryFromPath(pathname)
-  const { sessionId } = useStudioOperatorState()
+  const sessionId = useStudioOperatorSelector((state) => state.sessionId)
   const [expanded, setExpanded] = useStudioRailExpanded()
   const [librariesOpen, setLibrariesOpen] = useState(false)
   const librarySlot = useContext(StudioLibraryTargetContext)

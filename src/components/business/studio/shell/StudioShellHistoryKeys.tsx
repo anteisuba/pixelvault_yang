@@ -27,7 +27,7 @@ import {
 import { useChatPersona } from '@/hooks/use-chat-persona'
 import { useStudioOperatorActions } from '@/features/assistant/hooks'
 import { useStudioOperatorHistoryView } from '@/hooks/use-studio-operator-history'
-import { useStudioOperatorState } from '@/hooks/use-studio-operator-store'
+import { useStudioOperatorSelector } from '@/hooks/use-studio-operator-store'
 import { usePathname, useRouter } from '@/i18n/navigation'
 import { studioShellRouteKind } from '@/lib/studio-shell-route'
 import type { AssistantConversationSummary } from '@/types/assistant-conversation'
@@ -48,7 +48,7 @@ export function useShellWorkHistory() {
   const kind = studioShellRouteKind(pathname)
   const actions = useStudioOperatorActions()
   const view = useStudioOperatorHistoryView()
-  const { status } = useStudioOperatorState()
+  const status = useStudioOperatorSelector((state) => state.status)
   const working = view !== null && status === 'working'
   const inPlace = view !== null && (kind === 'home' || kind === 'bench')
 
@@ -197,7 +197,9 @@ const PERSONA_SWAP_TRANSITION = {
 export function StudioShellPersonaKey() {
   const t = useTranslations('StudioShell')
   const chatPersona = useChatPersona()
-  const { chatCharacter } = useStudioOperatorState()
+  const chatCharacter = useStudioOperatorSelector(
+    (state) => state.chatCharacter,
+  )
   const name = chatCharacter?.name ?? chatPersona.name
   const reduceMotion = useReducedMotion()
 

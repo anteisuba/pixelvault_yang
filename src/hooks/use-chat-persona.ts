@@ -10,7 +10,7 @@ import { useChatCharacters } from '@/hooks/use-chat-characters'
 import {
   resolveOperatorChatMode,
   switchOperatorChatMode,
-  useStudioOperatorState,
+  useStudioOperatorSelector,
 } from '@/hooks/use-studio-operator-store'
 import { useRouter } from '@/i18n/navigation'
 import { withAssistantCharacter } from '@/types/assistant-persona'
@@ -89,10 +89,21 @@ export function usePersonaSwitch() {
  * 正看着以前的聊天（只读）也不出现。切了就粘在这段对话上，换台、刷新都不变。
  */
 export function useOperatorChatMode() {
-  const state = useStudioOperatorState()
+  // ⚠ 只订阅用到的四格（11-10 卡顿：外壳与头像都挂着它，订阅整份就跟着每段增量重渲）。
+  const chatMode = useStudioOperatorSelector((state) => state.chatMode)
+  const sessionSurface = useStudioOperatorSelector(
+    (state) => state.sessionSurface,
+  )
+  const domain = useStudioOperatorSelector((state) => state.domain)
+  const chatCharacter = useStudioOperatorSelector(
+    (state) => state.chatCharacter,
+  )
   const { persona } = useAssistantPersona()
   const character = persona.character
-  const mode = resolveOperatorChatMode(state, character !== null)
+  const mode = resolveOperatorChatMode(
+    { chatMode, sessionSurface, domain },
+    character !== null,
+  )
   const toggle = useCallback(() => {
     if (!character) return
     switchOperatorChatMode(
@@ -104,7 +115,7 @@ export function useOperatorChatMode() {
   }, [character, mode])
   return {
     mode,
-    available: character !== null && state.chatCharacter === null,
+    available: character !== null && chatCharacter === null,
     toggle,
   }
 }

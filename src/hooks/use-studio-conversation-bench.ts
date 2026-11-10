@@ -4,7 +4,7 @@ import { useEffect, useSyncExternalStore } from 'react'
 import { useSearchParams } from 'next/navigation'
 
 import { STUDIO_CONVERSATION_QUERY } from '@/constants/routes'
-import { useStudioOperatorState } from '@/hooks/use-studio-operator-store'
+import { useStudioOperatorSelector } from '@/hooks/use-studio-operator-store'
 import { usePathname } from '@/i18n/navigation'
 import { setAssistantConversationBenchAPI } from '@/lib/api-client'
 import {
@@ -63,7 +63,7 @@ export function conversationBenchOf(
 export function useStudioConversationBenchSync(): void {
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const { sessionId } = useStudioOperatorState()
+  const sessionId = useStudioOperatorSelector((state) => state.sessionId)
   const kind = studioShellRouteKind(pathname)
   const urlId =
     kind === 'home'

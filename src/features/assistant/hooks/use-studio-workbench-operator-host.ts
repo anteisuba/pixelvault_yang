@@ -39,7 +39,7 @@ import { setOperatorGenerationLabel } from '@/lib/studio-operator-label'
 import {
   setOperatorPrimed,
   setOperatorReviewState,
-  useStudioOperatorState,
+  useStudioOperatorSelector,
 } from '@/hooks/use-studio-operator-store'
 import { useRouter } from '@/i18n/navigation'
 import { revertAssistantAssetWriteAPI } from '@/lib/api-client/assistant-operator'
@@ -641,8 +641,16 @@ export function useStudioWorkbenchOperatorHost({
   )
 
   /** **这一批的在飞读数**（v2 §6.3）—— 结果卡的生成中态读它，见 `toOperatorResultRun`。 */
-  const { threadScope, localThreadId, pendingResultId } =
-    useStudioOperatorState()
+  /**
+   * ⚠ 只订阅这三格（11-10 卡顿）：订阅整份的话，流式时每一段增量都把整个工作台重渲一遍。
+   */
+  const threadScope = useStudioOperatorSelector((state) => state.threadScope)
+  const localThreadId = useStudioOperatorSelector(
+    (state) => state.localThreadId,
+  )
+  const pendingResultId = useStudioOperatorSelector(
+    (state) => state.pendingResultId,
+  )
   const resultRun = useMemo<StudioOperatorResultRun | undefined>(
     () =>
       threadScope && pendingResultId

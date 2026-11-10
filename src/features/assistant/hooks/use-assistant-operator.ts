@@ -132,6 +132,7 @@ import {
   setOperatorPlannedSteps,
   startOperatorResumePlan,
   setOperatorStatus,
+  useStudioOperatorSelector,
   useStudioOperatorState,
   takeOperatorQueue,
   upsertOperatorStep,
@@ -958,7 +959,9 @@ export function useAssistantOperator(
   const host = useStudioOperatorHost()
   const { domain, buildSnapshot, setOpen } = host
   const router = useRouter()
-  const { localThreadId } = useStudioOperatorState()
+  const localThreadId = useStudioOperatorSelector(
+    (state) => state.localThreadId,
+  )
   const workspaceKey = assistantWorkspaceKey(host.workspace, host.projectId)
   const isCurrentThread = useCallback(() => {
     const current = getOperatorState()
@@ -2377,7 +2380,7 @@ export function useAssistantOperator(
   useEffect(() => {
     hostRef.current = host
   }, [host])
-  const { benchOpen } = useStudioOperatorState()
+  const benchOpen = useStudioOperatorSelector((state) => state.benchOpen)
   useEffect(() => {
     if (!benchOpen) return
     const arrive = (): boolean => {

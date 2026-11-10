@@ -31,7 +31,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { useStudioOperatorState } from '@/hooks/use-studio-operator-store'
+import { useStudioOperatorSelector } from '@/hooks/use-studio-operator-store'
 import { useRouter } from '@/i18n/navigation'
 import { shellEnter, shellLeave } from '@/lib/studio-shell-motion'
 import {
@@ -87,7 +87,7 @@ export function useStudioBenchMotion({
 }) {
   const router = useRouter()
   const reduceMotion = useReducedMotion()
-  const { sessionId } = useStudioOperatorState()
+  const sessionId = useStudioOperatorSelector((state) => state.sessionId)
   const previous = useRef<{ bench: boolean; id: string | undefined } | null>(
     null,
   )

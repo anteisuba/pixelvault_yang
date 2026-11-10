@@ -83,7 +83,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import {
   setOperatorIncognito,
-  useStudioOperatorState,
+  useStudioOperatorSelector,
 } from '@/hooks/use-studio-operator-store'
 import { useStudioConversationActivity } from '@/hooks/use-studio-conversation-activity'
 import { AssistantAvatarGlyph } from '@/features/assistant/components/operator/AssistantAvatarGlyph'
@@ -246,7 +246,7 @@ export function StudioOperatorHeader({
    * 胶囊读、被驱动 hook 在事件处理器里同步读。穿成 prop 等于让面板与外壳各转发
    * 一次同一个布尔。
    */
-  const { incognito } = useStudioOperatorState()
+  const incognito = useStudioOperatorSelector((state) => state.incognito)
   /** 要删的那一段（owner 10-27：删除弹窗确认）；弹窗挂在菜单外面，点垃圾桶菜单就关了。 */
   const [deleteTarget, setDeleteTarget] = useState<{ id: string } | null>(null)
   /** 标题▾ 与历史图标共开的那一个菜单（见头注），⛔ 不是两个实例。 */

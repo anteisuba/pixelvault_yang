@@ -589,8 +589,12 @@ describe('正文与占位行', () => {
 
       vi.setSystemTime(13_500)
       act(() => store.appendOperatorStreamingMessage('run-1:msg-0', '图3'))
-      expect(result.current.entries[0]).toMatchObject({ thoughtMs: 3_500 })
-      expect(result.current.entries[0]).not.toHaveProperty('pendingSince')
+      expect(store.getOperatorState().entries[0]).toMatchObject({
+        thoughtMs: 3_500,
+      })
+      expect(store.getOperatorState().entries[0]).not.toHaveProperty(
+        'pendingSince',
+      )
 
       vi.setSystemTime(20_000)
       act(() => store.appendOperatorStreamingMessage('run-1:msg-0', '是夜景'))
@@ -676,7 +680,7 @@ describe('正文与占位行', () => {
     const result = readState()
     act(() => store.appendOperatorPending('run-1:msg-0'))
     act(() => store.appendOperatorStreamingMessage('run-1:msg-0', '图3是'))
-    expect(result.current.entries).toEqual([
+    expect(store.getOperatorState().entries).toEqual([
       {
         kind: 'message',
         id: 'run-1:msg-0',
@@ -688,7 +692,7 @@ describe('正文与占位行', () => {
     act(() =>
       store.appendOperatorStreamingMessage('run-1:msg-0', '风格化 3D。'),
     )
-    expect(result.current.entries).toEqual([
+    expect(store.getOperatorState().entries).toEqual([
       {
         kind: 'message',
         id: 'run-1:msg-0',
@@ -709,16 +713,15 @@ describe('正文与占位行', () => {
   })
 
   it('restart：新一稿换掉还在流的旧稿，⛔ 不接在后面', () => {
-    const result = readState()
     act(() => store.appendOperatorStreamingMessage('run-1:msg-0', '第一稿'))
     act(() =>
       store.appendOperatorStreamingMessage('run-1:msg-0', '第二稿', true),
     )
-    expect(result.current.entries).toEqual([
+    expect(store.getOperatorState().entries).toEqual([
       { kind: 'message', id: 'run-1:msg-0', text: '第二稿', streaming: true },
     ])
     act(() => store.appendOperatorStreamingMessage('run-1:msg-0', '继续'))
-    expect(result.current.entries).toEqual([
+    expect(store.getOperatorState().entries).toEqual([
       {
         kind: 'message',
         id: 'run-1:msg-0',
@@ -726,6 +729,38 @@ describe('正文与占位行', () => {
         streaming: true,
       },
     ])
+  })
+
+  it('⭐ 增量攒到下一帧才通知界面；别的写入先把它一起通知掉（11-06 长对话卡死）', () => {
+    vi.useFakeTimers()
+    try {
+      const renders = vi.fn()
+      const { result } = renderHook(() => {
+        renders()
+        return store.useStudioOperatorState()
+      })
+      act(() => store.appendOperatorStreamingMessage('run-1:msg-0', '一'))
+      renders.mockClear()
+      act(() => {
+        for (const piece of ['二', '三', '四'])
+          store.appendOperatorStreamingMessage('run-1:msg-0', piece)
+      })
+      expect(renders).not.toHaveBeenCalled()
+      expect(store.getOperatorState().entries[0]).toMatchObject({
+        text: '一二三四',
+      })
+      act(() => vi.advanceTimersByTime(16))
+      expect(renders).toHaveBeenCalledTimes(1)
+      expect(result.current.entries[0]).toMatchObject({ text: '一二三四' })
+
+      act(() => store.appendOperatorStreamingMessage('run-1:msg-0', '五'))
+      act(() => store.finalizeOperatorMessage('run-1:msg-0', '一二三四五'))
+      expect(renders).toHaveBeenCalledTimes(2)
+      act(() => vi.advanceTimersByTime(16))
+      expect(renders).toHaveBeenCalledTimes(2)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('⛔ 占位行被顶走时不静默丢字 —— 新建一条装它', () => {

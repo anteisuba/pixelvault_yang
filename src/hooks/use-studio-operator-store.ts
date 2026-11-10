@@ -370,10 +370,33 @@ let state: StudioOperatorState = {
 let entrySeq = 0
 const listeners = new Set<() => void>()
 
-function emit(next: StudioOperatorState): void {
+/**
+ * 正文 / 思考的增量**攒到下一帧才通知**（11-06 真机：长对话里每个增量整面板重渲约 21ms，DeepSeek
+ * 的思考一块就来几百个，主线程一卡几十秒、页面「无响应」）。状态当场就是新的（`getOperatorState`
+ * 读得到），只是界面一帧最多画一次；任何别的写入都先把攒着的这一次一起通知掉。
+ */
+const COALESCE_MS = 16
+let pendingNotify: ReturnType<typeof setTimeout> | null = null
+
+function notify(): void {
+  if (pendingNotify !== null) {
+    clearTimeout(pendingNotify)
+    pendingNotify = null
+  }
+  for (const listener of listeners) listener()
+}
+
+function emit(
+  next: StudioOperatorState,
+  options: { coalesce?: boolean } = {},
+): void {
   state = next
   if (next.threadScope) threads.set(next.threadScope, next)
-  for (const listener of listeners) listener()
+  if (!options.coalesce) {
+    notify()
+    return
+  }
+  pendingNotify ??= setTimeout(notify, COALESCE_MS)
 }
 
 function updateThread(
@@ -411,6 +434,20 @@ function getServerSnapshot(): StudioOperatorState {
 
 export function useStudioOperatorState(): StudioOperatorState {
   return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
+}
+
+/**
+ * 只订阅状态里的一格：那一格没变就⛔ 重渲（11-06：外壳 / 左栏只读对话编号，却跟着每一段增量整棵
+ * 重画，长对话里输出时画面发涩）。⚠ 选出来的要是原值或 store 里原样的那个引用，⛔ 现拼新对象。
+ */
+export function useStudioOperatorSelector<T>(
+  select: (state: StudioOperatorState) => T,
+): T {
+  return useSyncExternalStore(
+    subscribe,
+    () => select(state),
+    () => select(INITIAL_STATE),
+  )
 }
 
 /**
@@ -736,10 +773,13 @@ export function appendOperatorStreamingMessage(
     appendOperatorEntry(entry)
     return
   }
-  emit({
-    ...state,
-    entries: state.entries.map((item, i) => (i === index ? entry : item)),
-  })
+  emit(
+    {
+      ...state,
+      entries: state.entries.map((item, i) => (i === index ? entry : item)),
+    },
+    { coalesce: true },
+  )
 }
 
 export function finalizeOperatorMessage(
@@ -882,10 +922,13 @@ export function appendOperatorThinking(
     appendOperatorEntry(entry)
     return
   }
-  emit({
-    ...state,
-    entries: state.entries.map((item, i) => (i === index ? entry : item)),
-  })
+  emit(
+    {
+      ...state,
+      entries: state.entries.map((item, i) => (i === index ? entry : item)),
+    },
+    { coalesce: true },
+  )
 }
 
 /**

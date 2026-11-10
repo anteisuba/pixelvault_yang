@@ -7,7 +7,7 @@ import { STUDIO_CONVERSATION_QUERY } from '@/constants/routes'
 import { usePathname, useRouter } from '@/i18n/navigation'
 import type { UseStudioOperatorHistoryResult } from '@/hooks/use-studio-operator-history'
 import type { StudioOperatorActions } from '@/features/assistant/hooks'
-import { useStudioOperatorState } from '@/hooks/use-studio-operator-store'
+import { useStudioOperatorSelector } from '@/hooks/use-studio-operator-store'
 import {
   conversationIdFromPath,
   studioConversationHref,
@@ -35,7 +35,7 @@ export function useStudioConversationUrl({
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const router = useRouter()
-  const { sessionId } = useStudioOperatorState()
+  const sessionId = useStudioOperatorSelector((state) => state.sessionId)
   const kind = studioShellRouteKind(pathname)
   const queryId = searchParams.get(STUDIO_CONVERSATION_QUERY)
   /** 地址里说的是哪一段：`null` = 首页（新对话）；`undefined` = 地址没说（台上没带 `?c=`、整页）。 */

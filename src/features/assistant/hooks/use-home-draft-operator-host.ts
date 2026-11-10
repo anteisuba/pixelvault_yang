@@ -18,7 +18,7 @@ import {
 } from '@/hooks/use-default-image-model'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { buildStudioDraft, writeStudioDraft } from '@/hooks/use-studio-draft'
-import { useStudioOperatorState } from '@/hooks/use-studio-operator-store'
+import { useStudioOperatorSelector } from '@/hooks/use-studio-operator-store'
 import { useStudioWorkbenchOperatorHost } from '@/features/assistant/hooks/use-studio-workbench-operator-host'
 import { useRouter } from '@/i18n/navigation'
 import { studioBenchHref } from '@/lib/studio-shell-route'
@@ -43,7 +43,10 @@ export function useHomeDraftOperatorHost(): StudioOperatorHost {
   const { modelOptions, selectedModel } = useImageModelOptions()
   const { userId } = useAuth()
   const router = useRouter()
-  const { sessionId, localThreadId } = useStudioOperatorState()
+  const sessionId = useStudioOperatorSelector((state) => state.sessionId)
+  const localThreadId = useStudioOperatorSelector(
+    (state) => state.localThreadId,
+  )
   const tModels = useTranslations('Models')
 
   // 起手的型号：图片台上次用的那个（两台各记一份，先认自然语言台）→ 有 key 里最便宜的 → 第一个。

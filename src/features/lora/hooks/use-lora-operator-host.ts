@@ -53,7 +53,7 @@ import {
   nextOperatorEntryId,
   setOperatorPrimed,
   setOperatorReviewState,
-  useStudioOperatorState,
+  useStudioOperatorSelector,
 } from '@/hooks/use-studio-operator-store'
 import {
   LORA_BASE_MODELS,
@@ -688,8 +688,16 @@ export function useLoraOperatorHost(
 
   const results = input.results ?? NO_RESULTS
   const activeRun = input.activeRun
-  const { threadScope, localThreadId, pendingResultId } =
-    useStudioOperatorState()
+  /**
+   * ⚠ 只订阅这三格（11-10 卡顿）：订阅整份的话，流式时每一段增量都把整个工作台重渲一遍。
+   */
+  const threadScope = useStudioOperatorSelector((state) => state.threadScope)
+  const localThreadId = useStudioOperatorSelector(
+    (state) => state.localThreadId,
+  )
+  const pendingResultId = useStudioOperatorSelector(
+    (state) => state.pendingResultId,
+  )
   const resultRun = useMemo(
     () =>
       threadScope && pendingResultId

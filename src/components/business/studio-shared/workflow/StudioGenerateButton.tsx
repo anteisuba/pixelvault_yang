@@ -8,7 +8,7 @@ import { Spinner } from '@/components/ui/spinner'
 import { resolveGenerationProgress } from '@/lib/generation-progress'
 import {
   setOperatorPrimed,
-  useStudioOperatorState,
+  useStudioOperatorSelector,
 } from '@/hooks/use-studio-operator-store'
 import { cn } from '@/lib/utils'
 
@@ -75,7 +75,7 @@ export function StudioGenerateButton({
   stopLabel,
   className,
 }: StudioGenerateButtonProps) {
-  const { primed: isOperatorPrimed } = useStudioOperatorState()
+  const isOperatorPrimed = useStudioOperatorSelector((state) => state.primed)
   const reducedMotion = Boolean(useReducedMotion())
 
   if (variant === 'round') {

@@ -8,7 +8,7 @@ import { GENERATION_REVIEW_STATE_IDS } from '@/constants/assistant-operator'
 import { STUDIO_ASSISTANT_RECENT_ASSETS } from '@/constants/studio'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
-import { useStudioOperatorState } from '@/hooks/use-studio-operator-store'
+import { useStudioOperatorSelector } from '@/hooks/use-studio-operator-store'
 import { fetchGalleryImages } from '@/lib/api-client'
 import { getImageFileFromDataTransfer } from '@/lib/image-input'
 import { cn } from '@/lib/utils'
@@ -56,7 +56,7 @@ export function ImagePickerPopoverBody({
 }: ImagePickerPopoverBodyProps) {
   const [assets, setAssets] = useState<GenerationRecord[] | null>(null)
   /** 审核态住操作员 store（切片 Y）—— 这里只读，⛔ 不在选择器里改它。 */
-  const { reviewStates } = useStudioOperatorState()
+  const reviewStates = useStudioOperatorSelector((state) => state.reviewStates)
   const [isDragOver, setIsDragOver] = useState(false)
 
   useEffect(() => {

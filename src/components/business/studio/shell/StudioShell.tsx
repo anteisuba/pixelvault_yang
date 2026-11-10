@@ -74,7 +74,7 @@ import {
   useStudioOperatorHistoryView,
   type StudioOperatorHistoryRestore,
 } from '@/hooks/use-studio-operator-history'
-import { useStudioOperatorState } from '@/hooks/use-studio-operator-store'
+import { useStudioOperatorSelector } from '@/hooks/use-studio-operator-store'
 import { setStudioShellAvatar } from '@/hooks/use-studio-shell-avatar'
 import { useStudioShellSplit } from '@/hooks/use-studio-shell-split'
 import { usePathname, useRouter } from '@/i18n/navigation'
@@ -307,7 +307,7 @@ export function StudioShell({
 function StudioConversationUrlSync() {
   const history = useStudioOperatorHistoryView()
   const actions = useStudioOperatorActions()
-  const { sessionId } = useStudioOperatorState()
+  const sessionId = useStudioOperatorSelector((state) => state.sessionId)
   useStudioConversationUrl({ history, actions })
   useStudioConversationBenchSync()
   useEffect(() => {
@@ -363,10 +363,11 @@ function StudioShellStage({
   const contentRef = useRef<HTMLDivElement | null>(null)
   const bench = kind === 'bench'
   const activeId = bench ? activeBenchId(benchPathname) : undefined
-  const { history: chatHistory, entries: chatEntries } =
-    useStudioOperatorState()
-  const hasChat =
-    chatHistory.length > 0 || chatEntries.some((entry) => entry.kind === 'user')
+  const hasChat = useStudioOperatorSelector(
+    (state) =>
+      state.history.length > 0 ||
+      state.entries.some((entry) => entry.kind === 'user'),
+  )
   /**
    * 从首页点进台（用户 10-25）：这段对话聊过 → 对话和台并排；还没聊过 → 台直接全屏
    *（对话收起，头像在台左上角）。⚠ 只在「没台 → 有台」那一下定，进台之后照用户自己拖的。

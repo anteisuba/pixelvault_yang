@@ -68,7 +68,7 @@ import {
   isCharacterCardNode,
   resolveMentionsToSlots,
 } from '@/lib/node-mentions-to-slots'
-import { flashAssistantTouchedNode } from '@/features/canvas/hooks/node-ingest-dom'
+import { flashAssistantTouchedNodes } from '@/features/canvas/hooks/node-ingest-dom'
 import {
   buildCanvasOperatorSnapshot,
   readCanvasNodeGenerationState,
@@ -186,10 +186,20 @@ function toCanvasMentionCandidate(
   }
 }
 
-/** 排到下一帧再闪（理由见 `canvasApply` 里那段注释）。 */
-function flashNode(nodeId: string): void {
-  if (typeof window === 'undefined') return
-  window.requestAnimationFrame(() => flashAssistantTouchedNode(nodeId))
+/** 排到下一帧再闪（理由见 `canvasApply` 里那段注释）；一批一起闪，只重排一次。 */
+function flashNodes(nodeIds: readonly string[]): void {
+  if (typeof window === 'undefined' || nodeIds.length === 0) return
+  window.requestAnimationFrame(() => flashAssistantTouchedNodes(nodeIds))
+}
+
+/** 这条 op 改的是哪张卡（新建的按批内别名换成真 id）；说不出 = `null`。 */
+function touchedNodeOf(
+  op: NodeAssistantOpV4,
+  createdRefs: Readonly<Record<string, string>> = {},
+): string | null {
+  const touched =
+    'target' in op ? op.target : 'scriptNodeId' in op ? op.scriptNodeId : null
+  return typeof touched === 'string' ? (createdRefs[touched] ?? touched) : null
 }
 
 export function useCanvasOperatorHost({
@@ -453,23 +463,6 @@ export function useCanvasOperatorHost({
     [],
   )
 
-  const flashTouched = useCallback(
-    (
-      op: NodeAssistantOpV4,
-      createdRefs: Readonly<Record<string, string>> = {},
-    ): void => {
-      const touched =
-        'target' in op
-          ? op.target
-          : 'scriptNodeId' in op
-            ? op.scriptNodeId
-            : null
-      if (typeof touched === 'string')
-        flashNode(createdRefs[touched] ?? touched)
-    },
-    [],
-  )
-
   const canvasApplyOps = useCallback(
     (
       stepId: string,
@@ -490,14 +483,19 @@ export function useCanvasOperatorHost({
       landedStepIdsRef.current.push(stepId)
       createdRefsByStepRef.current.set(stepId, result.createdRefs)
       const failed = new Set(result.failures.map((failure) => failure.index))
-      ops.forEach((op, index) => {
-        if (!failed.has(index)) flashTouched(op, result.createdRefs)
-      })
-      // 新建的卡也闪一下 —— 它们是这一批里最该被看见的那几张。
-      for (const created of result.createdNodeIds) flashNode(created)
+      // 改到的卡与新建的卡（这一批里最该被看见的那几张）一起闪，⛔ 一张一次重排。
+      flashNodes([
+        ...ops.flatMap((op, index) => {
+          const touched = failed.has(index)
+            ? null
+            : touchedNodeOf(op, result.createdRefs)
+          return touched ? [touched] : []
+        }),
+        ...result.createdNodeIds,
+      ])
       return { applied: result.applied, failures: result.failures }
     },
-    [dispatchBatch, promptInputSyncFor, flashTouched],
+    [dispatchBatch, promptInputSyncFor],
   )
 
   const canvasApply = useCallback(
@@ -526,10 +524,11 @@ export function useCanvasOperatorHost({
        * 它身上。新建出来的那几面镜闪不到（id 是执行器现铸的），⛔ 不为它去差集
        * 算一遍图：一整排卡凭空出现本来就比闪一下更响（§13.5 `add_node` 同理）。
        */
-      flashTouched(op)
+      const touched = touchedNodeOf(op)
+      if (touched) flashNodes([touched])
       return true
     },
-    [applyOp, promptInputSyncFor, flashTouched],
+    [applyOp, promptInputSyncFor],
   )
 
   const canvasApplyError = useCallback(

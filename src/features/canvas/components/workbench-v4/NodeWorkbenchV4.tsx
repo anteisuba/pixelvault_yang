@@ -128,7 +128,7 @@ import {
   type NodeWorkflowRemoteChange,
 } from '@/features/canvas/hooks/use-node-workflow-store'
 import {
-  flashAssistantTouchedNode,
+  flashAssistantTouchedNodes,
   prefersReducedMotion,
 } from '@/features/canvas/hooks/node-ingest-dom'
 import { changedNodeIds } from '@/lib/node-state-diff'
@@ -439,9 +439,7 @@ function NodeWorkbenchV4Inner() {
       for (const listener of deskRemoteListenersRef.current) listener(change)
       const touched = changedNodeIds(change.before, change.after)
       if (touched.length === 0) return
-      window.requestAnimationFrame(() => {
-        for (const nodeId of touched) flashAssistantTouchedNode(nodeId)
-      })
+      window.requestAnimationFrame(() => flashAssistantTouchedNodes(touched))
     }
     return () => {
       remoteChangeRef.current = null

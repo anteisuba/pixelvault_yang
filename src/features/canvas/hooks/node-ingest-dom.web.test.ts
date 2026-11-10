@@ -5,6 +5,7 @@ import { EASE_STANDARD_CSS, NODE_DROP_FADE_MOTION } from '@/constants/motion'
 import {
   fadeInNodeCards,
   flashAssistantTouchedNode,
+  flashAssistantTouchedNodes,
 } from '@/features/canvas/hooks/node-ingest-dom'
 
 const TOUCH_CLASS = 'node-assistant-touched'
@@ -50,6 +51,20 @@ describe('flashAssistantTouchedNode', () => {
   /** ⚠ 卡不在 DOM 里（折叠的镜 / 手机镜头带）时静默跳过，⛔ 不抛。 */
   it('⛔ 画布上没有这张卡时什么都不做', () => {
     expect(() => flashAssistantTouchedNode('missing')).not.toThrow()
+  })
+})
+
+describe('flashAssistantTouchedNodes', () => {
+  it('⭐ 一批卡一起闪，整批只强制重排一次（11-10 卡顿）', () => {
+    const cards = ['a', 'b', 'c'].map((id) => mountNode(id))
+    const reads = vi.fn(() => 0)
+    for (const card of cards)
+      Object.defineProperty(card, 'offsetWidth', { get: reads })
+    flashAssistantTouchedNodes(['a', 'b', 'c', 'b', 'missing'])
+    expect(cards.every((card) => card.classList.contains(TOUCH_CLASS))).toBe(
+      true,
+    )
+    expect(reads).toHaveBeenCalledTimes(1)
   })
 })
 

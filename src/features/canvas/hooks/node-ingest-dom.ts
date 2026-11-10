@@ -358,16 +358,30 @@ function findNodeCardSurface(nodeId: string): HTMLElement | null {
  *   不是失败，面板里那行「已改 N 项」照样说得清。
  */
 export function flashAssistantTouchedNode(nodeId: string): void {
-  const el = findNodeCardSurface(nodeId)
-  if (!el) return
-  el.classList.remove(ASSISTANT_TOUCH_CLASS)
-  void el.offsetWidth
-  el.classList.add(ASSISTANT_TOUCH_CLASS)
-  el.addEventListener(
-    'animationend',
-    () => el.classList.remove(ASSISTANT_TOUCH_CLASS),
-    { once: true },
-  )
+  flashAssistantTouchedNodes([nodeId])
+}
+
+/**
+ * 一批节点一起闪（11-10 卡顿）：先全部摘、**只强制重排一次**、再全部挂。
+ * ⚠ 逐张调 `flashAssistantTouchedNode` 的话，每一张都在同一帧里强制重排整张画布一次 ——
+ *   助手一批改几十张卡时主线程一下卡掉几百毫秒。
+ */
+export function flashAssistantTouchedNodes(nodeIds: readonly string[]): void {
+  const elements = [...new Set(nodeIds)].flatMap((nodeId) => {
+    const el = findNodeCardSurface(nodeId)
+    return el ? [el] : []
+  })
+  if (elements.length === 0) return
+  for (const el of elements) el.classList.remove(ASSISTANT_TOUCH_CLASS)
+  void elements[0]!.offsetWidth
+  for (const el of elements) {
+    el.classList.add(ASSISTANT_TOUCH_CLASS)
+    el.addEventListener(
+      'animationend',
+      () => el.classList.remove(ASSISTANT_TOUCH_CLASS),
+      { once: true },
+    )
+  }
 }
 
 /* ─── 落物：新卡逐张淡入（摆放与连线 · 动效表）────────────────────────── */

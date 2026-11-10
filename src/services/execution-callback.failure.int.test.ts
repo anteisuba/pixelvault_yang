@@ -174,25 +174,21 @@ describe('handleExecutionCallback · 回执不合格 / 落库失败', () => {
     await expectNothingWritten()
   })
 
-  // 事务里撞外键报错后 PGlite 的连接偶发变成不可查询（回滚那一拍报 connection error），只在真 Postgres 上跑。
-  it.skipIf(!process.env.TEST_DATABASE_URL)(
-    '事务里写到一半失败（角色卡已不在）：整笔回滚，任务判失败',
-    async () => {
-      const job = await seedJob(me.id, {
-        metadata: { outputType: 'VIDEO', characterCardIds: ['deleted-card'] },
-      })
+  it('事务里写到一半失败（角色卡已不在）：整笔回滚，任务判失败', async () => {
+    const job = await seedJob(me.id, {
+      metadata: { outputType: 'VIDEO', characterCardIds: ['deleted-card'] },
+    })
 
-      const result = await sendCallback(job.id, 'result', VIDEO_RESULT)
+    const result = await sendCallback(job.id, 'result', VIDEO_RESULT)
 
-      expect(result.action).toBe('failed')
-      expect(await reload(job.id)).toMatchObject({
-        status: 'FAILED',
-        generationId: null,
-        errorCode: 'storage_upload_failed',
-      })
-      await expectNothingWritten()
-    },
-  )
+    expect(result.action).toBe('failed')
+    expect(await reload(job.id)).toMatchObject({
+      status: 'FAILED',
+      generationId: null,
+      errorCode: 'storage_upload_failed',
+    })
+    await expectNothingWritten()
+  })
 })
 
 describe('handleExecutionCallback · 与别的回执抢跑', () => {

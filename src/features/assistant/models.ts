@@ -61,23 +61,34 @@ export interface NextModel {
     stable: string
     creator: string
   }): string | SystemModelMessage[]
-  messages(messages: ModelMessage[]): ModelMessage[]
+  /**
+   * `historyEnd`：前面几条是之前几轮的历史（逐轮原样重放）。Claude 在它末尾多打一个断点，
+   * 下一轮第一步就能接着用这一段的缓存（11-10）；别家按前缀自动缓存，不用管。
+   */
+  messages(messages: ModelMessage[], historyEnd?: number): ModelMessage[]
   /** 第一次调用就被拒（4xx）时换成的那一份；没有 = 已经是最保守的接法。 */
   readonly fallback: NextModel | null
 }
 
 /**
- * Claude 的缓存断点（同 v3 的做法，⚠ 上限 4 个）：系统提示两段各一个、最后一条消息一个。
+ * Claude 的缓存断点（⚠ 上限 4 个）：系统提示两段各一个、之前几轮历史的末尾一个、最后一条消息一个。
  * 新内核每一步都把上一步的完整回复接在后面，前缀逐字不变，最后一条那一处每步往后挪。
+ * ⭐ 历史末尾那一个（11-10）：新一轮第一步时，上一轮的工具步已经压成文字重放，最后一条那一处必然落空；
+ *   历史是逐轮原样重放的，下一轮同一段前缀还在，这个断点让它们第一步就命中（之前只命中系统提示）。
  */
 const ANTHROPIC_CACHE_POINT = {
   anthropic: { cacheControl: { type: 'ephemeral' } },
 } as const
 
-function withLastCachePoint(messages: ModelMessage[]): ModelMessage[] {
+function withCachePoints(
+  messages: ModelMessage[],
+  historyEnd?: number,
+): ModelMessage[] {
   const last = messages.length - 1
+  const historyLast =
+    historyEnd !== undefined && historyEnd > 0 ? historyEnd - 1 : -1
   return messages.map((message, index) =>
-    index === last
+    index === last || index === historyLast
       ? {
           ...message,
           providerOptions: {
@@ -105,7 +116,7 @@ const anthropicShape = {
       providerOptions: ANTHROPIC_CACHE_POINT,
     },
   ],
-  messages: withLastCachePoint,
+  messages: withCachePoints,
 }
 
 const plainShape = {

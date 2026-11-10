@@ -172,6 +172,7 @@ import {
   buildNextSystemPrompt,
   chatCharacterOf,
   chatReminder,
+  worldNotesSection,
 } from '@/features/assistant/prompt'
 import {
   BUILTIN_SKILLS,
@@ -902,9 +903,28 @@ async function* runNextTurn(
     const called = renderCalledSkills(latestUserText, skills)
     // 上一轮在网上找到的（`#n`）：冻进板子，「交给她」交回来的号才认得出（11-06）。
     const priorFinds = carriedWebFinds(request.priorFinds ?? [])
+    /**
+     * 这一轮才有的几段（11-10 从系统提示挪过来）：新对话第一句「上次停在哪」、聊天时想起的见闻与话题小结、
+     * 这几句碰到的世界书条目。⛔ 放进系统提示：它们每轮都变，一变就连带后面整段历史的缓存作废；
+     * 接力那几跳还读不到见闻，连一轮之内的缓存都接不上。
+     */
+    const turnContext = [
+      renderAssistantLastTime(lastTime),
+      renderFindingsRecall(findings) + renderOutingDigestsRecall(digests),
+      chat ? worldNotesSection(persona) : '',
+    ]
+      .map((part) => part.trim())
+      .filter(Boolean)
     messages = [
       openingUserMessage(
-        [bench, priorFindsText(priorFinds), called, voice, reminder]
+        [
+          ...turnContext,
+          bench,
+          priorFindsText(priorFinds),
+          called,
+          voice,
+          reminder,
+        ]
           .filter(Boolean)
           .join('\n\n'),
         pictures,
@@ -1032,9 +1052,6 @@ async function* runNextTurn(
     accountName: user.displayName ?? user.username ?? null,
     language,
     skillsNote: skillsSettingsNote(skills),
-    lastTime: renderAssistantLastTime(lastTime),
-    findings:
-      renderFindingsRecall(findings) + renderOutingDigestsRecall(digests),
     stickers: stickers?.section ?? '',
   })
   recording.turn = {
@@ -1137,13 +1154,16 @@ async function* runNextTurn(
       const result = streamText({
         model: model.model,
         system: model.system(system),
-        messages: model.messages([
-          ...history,
-          ...(await hydratePictures(
-            pairProviderToolParts(messages),
-            loadBytes,
-          )),
-        ]),
+        messages: model.messages(
+          [
+            ...history,
+            ...(await hydratePictures(
+              pairProviderToolParts(messages),
+              loadBytes,
+            )),
+          ],
+          history.length,
+        ),
         tools: {
           ...assistantNextTools(model.strictTools),
           ...model.nativeTools,

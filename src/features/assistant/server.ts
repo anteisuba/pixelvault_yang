@@ -46,6 +46,11 @@ export {
   searchMentionLibraryForClerkId,
 } from './services/assistant-mention.service'
 export { resolveMemoryChanges } from './services/assistant-operator-round.service'
+export {
+  pictureWriteArgs,
+  type PictureIds,
+  writePictures,
+} from './services/assistant-picture-write.service'
 export { uploadAssistantAvatar } from './services/assistant-persona-avatar.service'
 export {
   getAssistantPersona,

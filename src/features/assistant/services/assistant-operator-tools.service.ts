@@ -69,10 +69,6 @@ import { planRequestGeneration } from '@/features/assistant/services/assistant-o
 import { planReadProjectRules } from '@/features/assistant/services/assistant-operator-memory.service'
 import {
   planSetReviewState,
-  planTagAsset,
-  planFavoriteAsset,
-  planCreateFolder,
-  planAddToFolder,
   planProposeCharacterProfile,
   planProposeCharacterImages,
 } from '@/features/assistant/services/assistant-operator-assets.service'
@@ -376,30 +372,6 @@ export async function planTool(
         },
         userId,
       )
-    /**
-     * 素材库四条（§10）—— 它们**不吃 `run`**：准入是库（按 userId），⛔ 不是本轮
-     * 检索名单，判据与 `set_review_state` 逐字同源（见那四个函数的组头注）。
-     */
-    case TOOL.tagAsset:
-      return planTagAsset(
-        parsed.data as { assetIds: string[]; tags: string[] },
-        userId,
-      )
-    case TOOL.favoriteAsset:
-      return planFavoriteAsset(
-        parsed.data as { assetIds: string[]; value: boolean },
-        userId,
-      )
-    case TOOL.createFolder:
-      return planCreateFolder(
-        parsed.data as { name: string; parentId?: string },
-        userId,
-      )
-    case TOOL.addToFolder:
-      return planAddToFolder(
-        parsed.data as { assetIds: string[]; targetFolderId: string },
-        userId,
-      )
     // ── 画布三条（进度表 22）────────────────────────────────────
     case TOOL.canvasApply:
       const noOp = run.state.canvas
@@ -436,6 +408,11 @@ export async function planTool(
       )
     // 新内核改库（第 4b 步）自己落、自己出步骤，⛔ 不经这里。
     case TOOL.libraryWrite:
+    // 图片那几类（打标签 / 收藏 / 文件夹）站内与 MCP 共用 `assistant-picture-write.service.ts`，⛔ 不经这里。
+    case TOOL.tagAsset:
+    case TOOL.favoriteAsset:
+    case TOOL.createFolder:
+    case TOOL.addToFolder:
     /**
      * 旧内核才有的那几条（11-10 删掉实现）：新内核一处都不会把它们传进来（`kernel.ts`、`bench.ts`、
      * `library.ts` 与 v3 各服务里都没写到），前端只靠这些名字画历史里的过程行，所以名字留着。
@@ -459,12 +436,8 @@ export async function planTool(
   }
 }
 
-/** 新内核任何台都能用的素材库那几条（准入按 userId 查库，与台无关）。 */
+/** 新内核任何台都能用的那条库里写操作（标审核态：准入按 userId 查库，与台无关）。 */
 const NEXT_KERNEL_LIBRARY_TOOLS: ReadonlySet<AssistantOperatorTool> = new Set([
-  TOOL.tagAsset,
-  TOOL.favoriteAsset,
-  TOOL.createFolder,
-  TOOL.addToFolder,
   TOOL.setReviewState,
 ])
 

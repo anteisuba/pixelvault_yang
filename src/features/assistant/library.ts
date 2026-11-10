@@ -1,7 +1,6 @@
 import 'server-only'
 
 import {
-  ASSISTANT_ASSET_WRITE_LIMITS,
   ASSISTANT_OPERATOR_CARDS_LIMITS,
   ASSISTANT_OPERATOR_TOOL_IDS as TOOL,
   ASSISTANT_SETTINGS_WRITE_KEYS,
@@ -24,7 +23,6 @@ import {
   editMemory,
   favoriteLora,
   findOwnCharacter,
-  findOwnFolder,
   forgetMemory,
   linkLoraToCharacter,
   rememberMemory,
@@ -43,7 +41,12 @@ import {
 import {
   refused,
   runOldTool,
+  runPlanned,
 } from '@/features/assistant/services/assistant-v3-bench.service'
+import {
+  pictureWriteArgs,
+  writePictures,
+} from '@/features/assistant/services/assistant-picture-write.service'
 import { requestProjectId } from '@/features/assistant/services/assistant-operator-memory.service'
 import { readPinnedFields } from '@/features/cards/server'
 import { pickV3WebImage } from '@/features/assistant/services/assistant-v3-finds.service'
@@ -593,69 +596,27 @@ export async function* runLibraryChange(
   switch (change.op) {
     case OP.tagPictures:
     case OP.favoritePictures:
-    case OP.putInFolder: {
-      const tool =
-        change.op === OP.tagPictures
-          ? TOOL.tagAsset
-          : change.op === OP.favoritePictures
-            ? TOOL.favoriteAsset
-            : TOOL.addToFolder
-      if (!change.pictures?.length)
-        return yield* fail(tool, need(change.op, 'pictures'))
-      if (
-        change.pictures.length > ASSISTANT_ASSET_WRITE_LIMITS.maxAssetsPerWrite
-      )
-        return yield* fail(
-          tool,
-          `At most ${ASSISTANT_ASSET_WRITE_LIMITS.maxAssetsPerWrite} pictures at a time.`,
-        )
-      const resolved = await picturesOf(context, change.pictures)
-      if (!resolved.ok) return yield* fail(tool, resolved.error)
-      const assetIds = resolved.pictures.map((picture) => picture.generationId)
-      if (change.op === OP.tagPictures) {
-        if (!change.tags?.length)
-          return yield* fail(tool, need(change.op, 'tags'))
-        return inNextWords(
-          yield* runOldTool(
-            context,
-            tool,
-            `${title} ${change.tags.join(' ')}`,
-            {
-              assetIds,
-              tags: change.tags,
-            },
-          ),
-        )
-      }
-      if (change.op === OP.favoritePictures)
-        return inNextWords(
-          yield* runOldTool(context, tool, title, {
-            assetIds,
-            value: change.value !== false,
-          }),
-        )
-      if (!change.folder) return yield* fail(tool, need(change.op, 'folder'))
-      const folder = await findOwnFolder(owner.userId, change.folder)
-      if (!folder.ok) return yield* fail(tool, folder.error)
-      return inNextWords(
-        yield* runOldTool(context, tool, `${title}「${folder.name}」`, {
-          assetIds,
-          targetFolderId: folder.id,
-        }),
-      )
-    }
+    case OP.putInFolder:
     case OP.newFolder: {
-      const tool = TOOL.createFolder
-      if (!change.name) return yield* fail(tool, need(change.op, 'name'))
-      const parent = change.folder
-        ? await findOwnFolder(owner.userId, change.folder)
-        : null
-      if (parent && !parent.ok) return yield* fail(tool, parent.error)
-      return inNextWords(
-        yield* runOldTool(context, tool, `${title}「${change.name}」`, {
-          name: change.name,
-          ...(parent?.ok ? { parentId: parent.id } : {}),
-        }),
+      // 与 MCP 同一条路（`assistant-picture-write.service.ts`）；站内多认这一轮 @ 进来的图。
+      const write = await pictureWriteArgs(owner.userId, change, (names) =>
+        picturesOf(context, names).then((resolved) =>
+          resolved.ok
+            ? {
+                ok: true as const,
+                ids: resolved.pictures.map((picture) => picture.generationId),
+              }
+            : resolved,
+        ),
+      )
+      if (!write.ok) return yield* fail(write.tool, write.error)
+      const subject = !write.subject
+        ? ''
+        : write.tool === TOOL.tagAsset
+          ? ` ${write.subject}`
+          : `「${write.subject}」`
+      return yield* runPlanned(context, write.tool, `${title}${subject}`, () =>
+        writePictures(write.tool, write.args, owner.userId),
       )
     }
     case OP.verdict: {

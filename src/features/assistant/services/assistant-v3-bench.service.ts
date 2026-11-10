@@ -24,7 +24,9 @@ import {
   type AssistantV3LoraWriteEntry,
 } from '@/types/assistant-v3'
 import type { AssistantOperatorEvent } from '@/types/assistant-operator'
+import type { ToolPlan } from '@/features/assistant/services/assistant-operator-run.service'
 import {
+  planGuarded,
   planSafely,
   rejectedStep,
   sayAboveCard,
@@ -164,6 +166,23 @@ export async function* runOldTool(
       tool,
       title,
       await planSafely(context, tool, args),
+    ),
+  )
+}
+
+/** 同 `runOldTool`，但这一步怎么规划由调用方给（不经 `planTool`）。 */
+export async function* runPlanned(
+  context: V3Context,
+  tool: AssistantOperatorTool,
+  title: string,
+  plan: () => Promise<ToolPlan>,
+): AsyncGenerator<AssistantOperatorEvent, V3Outcome> {
+  return inV3Words(
+    yield* settlePlan(
+      context,
+      tool,
+      title,
+      await planGuarded(context, tool, plan),
     ),
   )
 }

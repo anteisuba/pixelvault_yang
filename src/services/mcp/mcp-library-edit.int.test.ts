@@ -109,6 +109,39 @@ describe('MCP edit', () => {
     expect(await tagsOf(row.id)).toEqual([])
   })
 
+  it('⛔ 一张都没动就不算做成：已带着的标签再打 / 已在夹里的再放，回不成、不给撤销码（与站内同一条，11-10）', async () => {
+    const { row, tag } = await seedPicture(owner.userId, 3)
+    const folder = await db.project.create({
+      data: { userId: owner.userId, name: '冬装' },
+    })
+
+    const first = await editForMcp(owner, {
+      changes: [
+        { op: 'tag_pictures', pictures: [tag], tags: ['rain'] },
+        { op: 'put_in_folder', pictures: [tag], folder: '冬装' },
+      ],
+    })
+    expect(first.map((result) => result.ok)).toEqual([true, true])
+    expect(first[1]!.said).toContain('冬装')
+
+    const again = await editForMcp(owner, {
+      changes: [
+        { op: 'tag_pictures', pictures: [tag], tags: ['rain'] },
+        { op: 'put_in_folder', pictures: [tag], folder: '冬装' },
+      ],
+    })
+    expect(again).toMatchObject([
+      { op: 'tag_pictures', ok: false },
+      { op: 'put_in_folder', ok: false },
+    ])
+    expect(again.every((result) => result.undo === undefined)).toBe(true)
+    expect(again[0]!.said).toContain('already carry those tags')
+    expect(await tagsOf(row.id)).toEqual(['rain'])
+    expect(
+      await db.projectItem.count({ where: { projectId: folder.id } }),
+    ).toBe(1)
+  })
+
   it('不是她的图：拒，库里不动', async () => {
     const stranger = await createTestUser()
     const { row, tag } = await seedPicture(stranger.id, 9)

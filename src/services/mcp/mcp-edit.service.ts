@@ -1,33 +1,25 @@
 import 'server-only'
 
 import { resolvePicture } from '@/features/assistant/server'
-import {
-  AssetFolderLimitError,
-  addAssetsToFolder,
-  createAssetFolder,
-  revertAssistantAssetWrite,
-  setAssetFavorites,
-  tagAssets,
-} from '@/features/assets/server'
+import { revertAssistantAssetWrite } from '@/features/assets/server'
 import {
   createCharacter,
   createLook,
   favoriteLora,
-  findOwnFolder,
   linkLoraToCharacter,
+  pictureWriteArgs,
   savePrompt,
   setLoraCover,
   updatePrompt,
   writeCharacterProfile,
   writeLook,
+  writePictures,
   type LibraryWriteOutcome,
   type LibraryWriteOwner,
+  type PictureIds,
 } from '@/features/assistant/server'
 import type { McpTokenOwner } from '@/services/mcp/mcp-token.service'
-import {
-  ASSISTANT_ASSET_WRITE_LIMITS,
-  ASSISTANT_OPERATOR_TOOL_IDS as TOOL,
-} from '@/constants/assistant-operator'
+import { ASSISTANT_OPERATOR_TOOL_IDS as TOOL } from '@/constants/assistant-operator'
 import {
   AssistantAssetWriteRevertSchema,
   type AssistantAssetWriteRevert,
@@ -36,7 +28,7 @@ import type { McpEditChange, McpEditInput, McpUndoInput } from '@/types/mcp'
 
 /**
  * 改库（`docs/references/mcp.md` §4.3 ②）：站内助手 edit 改库那几种的同一批写函数，
- * ⛔ 不另写一套写库。每条各自成败；做成的那条带一个撤销码（就是站内撤销用的那份 `inverse`，
+ * ⛔ 不另写一套写库；图片那几类连换算与回执也与站内同一条（`pictureWriteArgs` / `writePictures`）。每条各自成败；做成的那条带一个撤销码（就是站内撤销用的那份 `inverse`，
  * base64url 包一层），`undo` 原样交回 `revertAssistantAssetWrite` —— 撤销按 userId 收敛，
  * 码被改过也只碰得到她自己的东西。
  */
@@ -107,6 +99,20 @@ async function picturesOf(
     : { ok: true, pictures }
 }
 
+/** 图片那几类只要 id（`pictureWriteArgs` 的认图回调）。 */
+async function pictureIdsOf(
+  owner: McpTokenOwner,
+  names: readonly string[],
+): Promise<PictureIds> {
+  const resolved = await picturesOf(owner, names)
+  return resolved.ok
+    ? {
+        ok: true,
+        ids: resolved.pictures.map((picture) => picture.generationId),
+      }
+    : { ok: false, error: resolved.said }
+}
+
 async function runChange(
   owner: McpTokenOwner,
   change: McpEditChange,
@@ -119,85 +125,29 @@ async function runChange(
   switch (op) {
     case 'tag_pictures':
     case 'favorite_pictures':
-    case 'put_in_folder': {
-      if (!change.pictures?.length) return need(op, 'pictures')
-      if (
-        change.pictures.length > ASSISTANT_ASSET_WRITE_LIMITS.maxAssetsPerWrite
+    case 'put_in_folder':
+    case 'new_folder': {
+      // 与站内助手同一条路（`assistant-picture-write.service.ts`）：同样的必填、上限与回执。
+      const write = await pictureWriteArgs(owner.userId, change, (names) =>
+        pictureIdsOf(owner, names),
       )
+      if (!write.ok) return { ok: false, said: write.error }
+      const plan = await writePictures(write.tool, write.args, owner.userId)
+      if (plan.kind !== 'mutate')
         return {
           ok: false,
-          said: `At most ${ASSISTANT_ASSET_WRITE_LIMITS.maxAssetsPerWrite} pictures at a time.`,
+          said:
+            plan.kind === 'rejected' && plan.detail
+              ? plan.detail
+              : 'Nothing was changed.',
         }
-      const resolved = await picturesOf(owner, change.pictures)
-      if (!resolved.ok) return resolved
-      const ids = resolved.pictures.map((picture) => picture.generationId)
-      if (op === 'tag_pictures') {
-        const tags = change.tags ?? []
-        if (!tags.length) return need(op, 'tags')
-        /**
-         * 超过上限照实拒（11-10）：与站内打标签同一条，⛔ 悄悄只留前几个 —— 那样回执说「打上了」，
-         * 后面几个却没打，调用方不会知道。（`tags` 这一格别的改法也用，所以上限只在这里拦。）
-         */
-        if (tags.length > ASSISTANT_ASSET_WRITE_LIMITS.maxTagsPerWrite)
-          return {
-            ok: false,
-            said: `At most ${ASSISTANT_ASSET_WRITE_LIMITS.maxTagsPerWrite} tags at a time.`,
-          }
-        const { entries } = await tagAssets(owner.userId, ids, tags)
-        return {
-          ok: true,
-          said: `Tagged ${entries.length} of ${ids.length} pictures with ${tags.join(', ')}.`,
-          revert: { tool: TOOL.tagAsset, entries },
-        }
-      }
-      if (op === 'favorite_pictures') {
-        const value = change.value !== false
-        const { entries } = await setAssetFavorites(owner.userId, ids, value)
-        return {
-          ok: true,
-          said: `${value ? 'Favourited' : 'Unfavourited'} ${entries.length} pictures.`,
-          revert: { tool: TOOL.favoriteAsset, entries },
-        }
-      }
-      if (!change.folder) return need(op, 'folder')
-      const folder = await findOwnFolder(owner.userId, change.folder)
-      if (!folder.ok) return { ok: false, said: folder.error }
-      const added = await addAssetsToFolder(owner.userId, ids, folder.id)
-      if (!added)
-        return { ok: false, said: `${change.folder}: no such folder.` }
       return {
         ok: true,
-        said: `Put ${added.added.length} pictures into「${added.folderName}」.`,
-        revert: {
-          tool: TOOL.addToFolder,
-          folderId: folder.id,
-          assetIds: added.added,
-        },
-      }
-    }
-    case 'new_folder': {
-      if (!change.name) return need(op, 'name')
-      const parent = change.folder
-        ? await findOwnFolder(owner.userId, change.folder)
-        : null
-      if (parent && !parent.ok) return { ok: false, said: parent.error }
-      try {
-        const created = await createAssetFolder(owner.userId, {
-          name: change.name,
-          parentId: parent?.ok ? parent.id : null,
-        })
-        return {
-          ok: true,
-          said: `Made the folder「${created.name}」.`,
-          revert: { tool: TOOL.createFolder, folderId: created.folderId },
-        }
-      } catch (error) {
-        if (error instanceof AssetFolderLimitError)
-          return {
-            ok: false,
-            said: `They already have ${error.limit} folders, the most there can be.`,
-          }
-        throw error
+        said: plan.observation,
+        revert: AssistantAssetWriteRevertSchema.parse({
+          tool: write.tool,
+          ...(plan.inverse as object),
+        }),
       }
     }
     case 'character_profile':

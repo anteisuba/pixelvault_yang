@@ -348,7 +348,8 @@ export function planSafely(
   )
 }
 
-async function planGuarded(
+/** 规划一步：抛错收成 `toolFailed` 的一条红行（缺 key / 额度这类要用户动手的照旧上抛）。 */
+export async function planGuarded(
   context: V3Context,
   tool: AssistantOperatorTool,
   plan: () => Promise<ToolPlan>,

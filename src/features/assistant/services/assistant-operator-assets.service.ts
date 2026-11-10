@@ -110,6 +110,8 @@ export async function planSetReviewState(
  * ⚠ 准入是**库**（按 userId），⛔ 不是本轮检索名单 —— 与 `set_review_state` 同源：
  * 这四条一个字都改不了别人的东西，而「上一轮那几张收一下」恰恰是最常见的用法。
  * 一件都够不着时按 `unknownAsset` 拒；够得着一部分就动那一部分并**如实说出来**。
+ * ⭐ 11-10 起只经 `assistant-picture-write.service.ts`（站内 edit 与 MCP 共用一条），⛔ 不再经 `planTool`；
+ *   回执因此两边都读得懂：说图、说 find / put_in_folder / new_folder，⛔ 不提旧工具名。
  */
 export async function planTagAsset(
   args: { assetIds: string[]; tags: string[] },
@@ -121,7 +123,7 @@ export async function planTagAsset(
     return reject(
       REJECT.unknownAsset,
       skipped > 0
-        ? 'None of those ids belong to this creator, or every one of them is already carrying those tags. Use ids that came back from search_assets, or say plainly that the tags were already there.'
+        ? "None of those pictures could be tagged: they are not the creator's, already at the tag limit, or already carry those tags. Say which instead of tagging again."
         : 'They already carry those tags — say so instead of tagging again.',
     )
   }
@@ -134,9 +136,9 @@ export async function planTagAsset(
       assetIds: entries.map((entry) => entry.assetId),
     },
     inverse: { entries },
-    observation: `tag_asset put ${tags.map((tag) => `"${tag}"`).join(', ')} on ${entries.length} asset(s)${
+    observation: `Tagged ${entries.length} picture(s) with ${tags.map((tag) => `"${tag}"`).join(', ')}${
       skipped > 0
-        ? `; ${skipped} were skipped (not this creator's, or already at the tag limit) — say so`
+        ? `; ${skipped} were skipped (not the creator's, or already at the tag limit) — say so`
         : ''
     }. Do not tag them again.`,
     // 后果已经落在库里了 —— 客户端这一步没有任何表单字段要改。
@@ -153,7 +155,7 @@ export async function planFavoriteAsset(
   if (entries.length === 0) {
     return reject(
       REJECT.unknownAsset,
-      'None of those ids belong to this creator. Use ids that came back from search_assets, or ones you produced earlier in this session.',
+      "None of those pictures are the creator's. Use picture numbers from find.",
     )
   }
 
@@ -166,7 +168,7 @@ export async function planFavoriteAsset(
     },
     // ⚠ 原值**逐条**在这里，⛔ 不是一个「取反」的开关（§10）。
     inverse: { entries },
-    observation: `favorite_asset ${args.value ? 'starred' : 'unstarred'} ${changed} asset(s)${
+    observation: `${args.value ? 'Favourited' : 'Unfavourited'} ${changed} picture(s)${
       changed < entries.length
         ? `; ${entries.length - changed} were already that way`
         : ''
@@ -214,11 +216,11 @@ export async function planCreateFolder(
       parentId: folder.parentId,
     },
     inverse: { folderId: folder.folderId },
-    observation: `create_folder made an EMPTY folder "${folder.name}" (id=${folder.folderId})${
+    observation: `Made an EMPTY folder "${folder.name}"${
       args.parentId && !folder.parentId
-        ? ' at the top level — the parent id you gave is not one of their folders'
+        ? ' at the top level — the parent folder you gave is not one of theirs'
         : ''
-    }. Use add_to_folder with that id to actually put anything into it.`,
+    }. Put pictures into it with put_in_folder.`,
     apply: () => {},
   }
 }
@@ -235,14 +237,14 @@ export async function planAddToFolder(
   if (!filed) {
     return reject(
       REJECT.unknownFolder,
-      'No folder of theirs has that id. Call list_asset_folders to get a real one, or make one with create_folder first.',
+      'No folder of theirs is called that. Use find to see their folders, or make one with new_folder first.',
     )
   }
 
   if (filed.added.length === 0) {
     return reject(
       REJECT.unknownAsset,
-      `None of those ids belong to this creator, or every one of them is already in "${filed.folderName}". Say which it is instead of adding again.`,
+      `None of those pictures were added: they are not the creator's, or already in "${filed.folderName}". Say which instead of adding again.`,
     )
   }
 
@@ -255,7 +257,7 @@ export async function planAddToFolder(
     },
     // ⚠ 只记**这一步新放进去**的那几张：撤销 = 从这个夹里拿出它们（§10）。
     inverse: { folderId: args.targetFolderId, assetIds: filed.added },
-    observation: `add_to_folder put ${filed.added.length} asset(s) into "${filed.folderName}"${
+    observation: `Put ${filed.added.length} picture(s) into "${filed.folderName}"${
       filed.added.length < args.assetIds.length
         ? `; ${args.assetIds.length - filed.added.length} were skipped (not this creator's, or already there) — say so`
         : ''

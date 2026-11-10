@@ -417,8 +417,7 @@
       "state": {
         "submitting": "确认中…",
         "confirmed": "已确认 · {time}",
-        "cancelled": "已取消 · {time}",
-        "auto": "已自动生成 · {time}"
+        "cancelled": "已取消 · {time}"
       },
       "contextCard": {
         "title": "记住这张卡？",
@@ -488,7 +487,6 @@
         "accept": "放大",
         "dismiss": "先不要",
         "accepted": "已开始放大 · {time}",
-        "autoAccepted": "自动生成开着，已直接放大 · {time}",
         "acceptedText": "放大{names}",
         "declinedText": "先不放大{names}",
         "question": "要把{names}放大到 4K 吗？"
@@ -540,8 +538,6 @@
       "moveWorkAccepted": "{subject}",
       "moveWorkDeclined": "{subject}",
       "moveWorkDroppedReferences": "有 {subject} 张参考图没带过去（超过上限或还没传完）。",
-      "spendHeld": "这批大约 {subject}，这句话里加起来超过你设的出图上限，等你确认再出。",
-      "spendUnknownHeld": "这批估不出价钱，等你确认再出。",
       "autoReview": "自己看图再改 · 第 {subject} 轮"
     },
     "attach": {
@@ -1105,8 +1101,7 @@
         "length": "长度 {value}",
         "language": "语言 {value}",
         "nextStep": "下一步建议 {value}",
-        "myWords": "用我的词 {value}",
-        "spendLimit": "出图上限 {value}"
+        "myWords": "用我的词 {value}"
       }
     },
     "tone": {
@@ -1142,16 +1137,6 @@
     "myWords": {
       "label": "用我的词",
       "hint": "沿用我在提示词里的说法"
-    },
-    "spendLimit": {
-      "label": "出图上限",
-      "hint": "一句话里助手出的图加起来不超过这个数就直接出，超了先给你看价钱。NovelAI 和免费线路不算钱。",
-      "option": {
-        "0": "每次都问",
-        "50": "$0.5",
-        "100": "$1",
-        "300": "$3"
-      }
     },
     "memory": {
       "caption": "助手记忆按工作台分别保存。需要在所有工作台共用的记忆，可以在这里明确共享。",

@@ -128,7 +128,6 @@ function personaRow(routeModel: string) {
     nextStepHint: ASSISTANT_PERSONA_DEFAULTS.nextStepHint,
     useMyWords: ASSISTANT_PERSONA_DEFAULTS.useMyWords,
     memoryCapture: ASSISTANT_PERSONA_DEFAULTS.memoryCapture,
-    spendLimitPoints: ASSISTANT_PERSONA_DEFAULTS.spendLimitPoints,
     addressUserAs: null,
   }
 }

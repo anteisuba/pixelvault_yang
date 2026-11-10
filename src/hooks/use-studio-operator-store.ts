@@ -173,7 +173,7 @@ export interface StudioOperatorState {
   mentionInbox: readonly string[]
   /**
    * **出完图自己看、再改几轮**（owner 2026-10-29）：一批落地后助手自己看图、对着要求改一次再出，
-   * 最多这么多轮；0 = 出完就停。按 `threadScope` 记在本机。再出照样过钱闸（`lib/assistant-spend-gate.ts`）。
+   * 最多这么多轮；0 = 出完就停。按 `threadScope` 记在本机。再出照样摆确认卡等创作者按。
    */
   autoReviewRounds: number
   /** 用户、工作区和项目共同决定的作用域；null 时不得持久化。 */
@@ -1359,21 +1359,6 @@ function withDomainMark(
   ]
 }
 
-/**
- * 助手自己出图的上限（点，助手设置里那一格；`lib/assistant-spend-gate.ts`）。
- * ⭐ 外壳拉 persona 一次、写进来一次，驱动 hook 在扣扳机时同步读 —— ⛔ 别在驱动 hook
- *   里再调一次 `useAssistantPersona()`（那会多开一个 GET）。不跟线程走：换线程照旧。
- */
-let spendLimitPoints: number = ASSISTANT_PERSONA_DEFAULTS.spendLimitPoints
-
-export function setOperatorSpendLimit(points: number): void {
-  spendLimitPoints = points
-}
-
-export function getOperatorSpendLimit(): number {
-  return spendLimitPoints
-}
-
 /** 出完图自己再改几轮 —— 跟着工作台走，见 `autoReviewRounds` 头注。 */
 export function setOperatorAutoReviewRounds(rounds: number): void {
   const next = Math.max(
@@ -1607,8 +1592,6 @@ export function setOperatorConfirm(
  */
 export function resolveOperatorConfirm(
   status: StudioOperatorConfirmStatus,
-  /** 自动生成开关替你按下的那一次（D12 S-C）。 */
-  options: { auto?: boolean } = {},
 ): void {
   const confirm = state.confirm
   if (!confirm) return
@@ -1626,7 +1609,6 @@ export function resolveOperatorConfirm(
       ...(status === STUDIO_OPERATOR_CONFIRM_STATUS_IDS.submitting
         ? {}
         : { decidedAt: new Date().toISOString() }),
-      ...(options.auto ? { auto: true } : {}),
     },
   })
 }

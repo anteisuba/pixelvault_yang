@@ -386,17 +386,16 @@ function isScreenName(name: string): boolean {
   return key === ASSISTANT_NEXT_HANDLE_PREFIXES.screen || key === 'screen'
 }
 
+/** 生成一律等创作者自己按（owner 11-10：「生成前需要用户确认」，原「出图上限」钱闸已删）。 */
+const SPENDING_LINE =
+  '\nSPENDING: every batch waits on a confirm card that shows the price; nothing is generated or spent until the creator presses it.'
+
 function renderBenchBody(
   context: V3Context,
   attachedNames: readonly string[],
   latestUserText: string,
   aliases: string,
 ): string {
-  const limitPoints = context.prepared.persona.spendLimitPoints
-  const autoGenerate =
-    limitPoints > 0
-      ? `\nSPENDING: generate starts at once while this message's batches add up to at most ${limitPoints / 100} USD (NovelAI and the platform's own runner are free); a batch over that, or one with no known price, waits on a confirm card that shows the price.`
-      : "\nSPENDING: they asked to confirm every paid batch — generate puts a confirm card with the price in front of them (NovelAI and the platform's own runner are free and start at once)."
   if (context.face === ASSISTANT_V3_FACE_IDS.home)
     return HOME_BOARD.concat(aliases ? `\n${aliases}` : '')
   if (isHomeDraft(context))
@@ -414,11 +413,11 @@ function renderBenchBody(
         'use these names with look and edit add_reference',
       )}`
       .concat(aliases ? `\n${aliases}` : '')
-      .concat(autoGenerate)
+      .concat(SPENDING_LINE)
   if (context.face === ASSISTANT_V3_FACE_IDS.canvas)
     return renderCanvasBoard(context, attachedNames, latestUserText)
       .concat(aliases ? `\n${aliases}` : '')
-      .concat(autoGenerate)
+      .concat(SPENDING_LINE)
   const snapshot = currentSnapshot(context)
   const text =
     context.face === ASSISTANT_V3_FACE_IDS.lora
@@ -451,7 +450,7 @@ function renderBenchBody(
       'use these names with look and edit add_reference',
     )
     .concat(aliases ? `\n${aliases}` : '')
-    .concat(autoGenerate)
+    .concat(SPENDING_LINE)
 }
 
 const NOTHING_TO_DO = 'Nothing was changed.'

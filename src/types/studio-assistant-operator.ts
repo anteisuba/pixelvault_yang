@@ -533,11 +533,6 @@ export type StudioOperatorConfirmPrompt = {
   status: StudioOperatorConfirmStatus
   /** 已确认 / 已取消那一态的时刻（ISO 串）—— 卡上「已确认 · 11:24」写它。 */
   decidedAt?: string
-  /**
-   * 这一张是**自动生成开关**替你按下的（D12 S-C）—— 收起那一行写「已自动生成」。
-   * ⚠ 扳机仍在客户端：服务端没有任何工具能建 generation。
-   */
-  auto?: boolean
 } & (
   | {
       kind: typeof ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.multistep

@@ -417,8 +417,7 @@
       "state": {
         "submitting": "Confirming…",
         "confirmed": "Confirmed · {time}",
-        "cancelled": "Cancelled · {time}",
-        "auto": "Auto-generated · {time}"
+        "cancelled": "Cancelled · {time}"
       },
       "contextCard": {
         "title": "Save this card?",
@@ -488,7 +487,6 @@
         "accept": "Upscale",
         "dismiss": "Not now",
         "accepted": "Upscaling started · {time}",
-        "autoAccepted": "Auto-generate is on, so it started right away · {time}",
         "acceptedText": "Upscale {names}",
         "declinedText": "Don't upscale {names} for now",
         "question": "Upscale {names} to 4K?"
@@ -540,8 +538,6 @@
       "moveWorkAccepted": "{subject}",
       "moveWorkDeclined": "{subject}",
       "moveWorkDroppedReferences": "{subject} reference image(s) were left behind (over the limit or not uploaded yet).",
-      "spendHeld": "This batch is about {subject} — together with this message's earlier ones it's over your spend limit, so it waits for you to confirm.",
-      "spendUnknownHeld": "The price of this batch is unknown. Confirm it to run.",
       "autoReview": "Reviewing the pictures and trying again · round {subject}"
     },
     "attach": {
@@ -1105,8 +1101,7 @@
         "length": "Length {value}",
         "language": "Language {value}",
         "nextStep": "Next step {value}",
-        "myWords": "My words {value}",
-        "spendLimit": "Spend limit {value}"
+        "myWords": "My words {value}"
       }
     },
     "tone": {
@@ -1142,16 +1137,6 @@
     "myWords": {
       "label": "Use my words",
       "hint": "Keep the wording I use in my prompts"
-    },
-    "spendLimit": {
-      "label": "Spend limit",
-      "hint": "Within one message the assistant generates on its own up to this amount; past it, it shows you the price first. NovelAI and free routes don't count.",
-      "option": {
-        "0": "Always ask",
-        "50": "$0.5",
-        "100": "$1",
-        "300": "$3"
-      }
     },
     "memory": {
       "caption": "Assistant memories stay in their own workspace. You can explicitly share a memory across all workbenches.",

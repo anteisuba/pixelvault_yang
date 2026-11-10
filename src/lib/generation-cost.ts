@@ -16,7 +16,7 @@ import {
 } from '@/constants/video-options'
 
 /**
- * 一批生成大约多少钱 —— 工作台成本预览（`StudioCostPreview`）与助手钱闸（`assistant-spend-gate`）
+ * 一批生成大约多少钱 —— 工作台成本预览（`StudioCostPreview`）与助手确认卡上的价钱
  * 读的同一个算式。⚠ 单价是参考价，不是计费依据（见 `unit-prices.ts` 文件头）。
  *
  * ⚠ 平台点数（`p-platform-credits`）上线后由 `lib/credits` 的 `estimatePoints` 接手，这里并过去。

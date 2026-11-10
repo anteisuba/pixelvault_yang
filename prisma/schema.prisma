@@ -788,6 +788,7 @@ model AssistantPersona {
   memoryCapture     Boolean        @default(true)
   /// 助手自己出图的上限（点，1 点 = $0.01）：一句话里加起来不超过它就直接出，超了停在确认卡上。
   /// 0 = 每次都问（不花钱的线路照样直接出）。默认 100 = $1（owner 11-02）。
+  // 11-10 起不读不写：生成一律等创作者自己确认（原「出图上限」钱闸已删）；删列另做迁移。
   spendLimitPoints  Int            @default(100)
   /// ⚠ 已停用（11-02 删掉「先出计划」）：代码不再读写，列留着免一次删列迁移。
   planMode          String         @default("auto")

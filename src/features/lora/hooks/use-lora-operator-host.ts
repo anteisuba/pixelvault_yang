@@ -148,7 +148,7 @@ export interface UseLoraOperatorHostInput {
    */
   results?: readonly StudioOperatorResultItem[]
   /**
-   * 出图那一枪（§6 花钱档）：生成确认卡上按「生成」、或自动生成开关替你按。
+   * 出图那一枪（§6 花钱档）：创作者在生成确认卡上按「生成」。
    * `blockedReason` = 出图键这会儿按不下去的原因（`''` = 说不出原因），`null` = 能按。
    */
   generate?: {

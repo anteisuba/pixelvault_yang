@@ -146,16 +146,7 @@ export function StudioOperatorUpscaleCard({
       hint={t('confirm.upscale.hint')}
       acceptLabel={t('confirm.upscale.accept')}
       dismissLabel={t('confirm.upscale.dismiss')}
-      acceptedLabel={(time) =>
-        t(
-          prompt.auto
-            ? 'confirm.upscale.autoAccepted'
-            : 'confirm.upscale.accepted',
-          {
-            time,
-          },
-        )
-      }
+      acceptedLabel={(time) => t('confirm.upscale.accepted', { time })}
       subject={names}
       onAccept={onAccept}
       onDismiss={onDismiss}

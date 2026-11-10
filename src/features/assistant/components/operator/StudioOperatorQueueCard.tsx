@@ -188,13 +188,9 @@ export function StudioOperatorQueueCard({
           data-testid="operator-confirm-state"
           className="px-3 pb-3 pt-1.5 text-xs text-muted-foreground"
         >
-          {confirm.auto
-            ? t('confirm.state.auto', {
-                time: confirm.decidedAt ? formatTime(confirm.decidedAt) : '',
-              })
-            : t('confirm.state.confirmed', {
-                time: confirm.decidedAt ? formatTime(confirm.decidedAt) : '',
-              })}
+          {t('confirm.state.confirmed', {
+            time: confirm.decidedAt ? formatTime(confirm.decidedAt) : '',
+          })}
           <span className="text-muted-foreground/70">
             {' · '}
             {t('confirm.batch.summary', { count: chosen.length })}

@@ -2,6 +2,8 @@
 
 施工单 `p-assistant-autonomy`（`p-assistant-modes` 反问模式并入；`p-assistant-undo` 撤回随这份设计）。2026-11-01 出稿，11-02 全部做完。
 
+> ⚠ **11-10 owner 推翻钱闸：「生成前需要用户确认」，所有台都不自动按。** 每一批都停在确认卡上等你按（NovelAI、平台 Modal 这种不另花钱的也一样）；`lib/assistant-spend-gate.ts`、宿主 `generationPoints()`、设置页「出图上限」与三语文案都已删掉，台面 SPENDING 那一行改成「每批都等你确认」。`AssistantPersona.spendLimitPoints` 列留着不读，删列另做迁移。下文关于门槛的记录保留作历史。
+
 ## 已定（owner 11-01）
 
 - 助手像一个懂你的朋友：拿得准直接做完，不问；拿不准先问一句「这样可以吗」，你说不行就换方案。⛔ 每步出方案等点头。

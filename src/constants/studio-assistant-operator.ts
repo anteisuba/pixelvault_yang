@@ -428,13 +428,6 @@ export const STUDIO_OPERATOR_SYSTEM_CODES = [
    */
   'loraSetupDismissed',
   /**
-   * **钱闸没替你按**（`p-assistant-autonomy`，owner 11-01）：这一批加上这句话里出过的超过门槛
-   * （`ASSISTANT_SPEND_LIMITS`），卡留着等你按，这一行写这批多少钱。⛔ 不静默。
-   */
-  'spendHeld',
-  /** 同上，但估不出价（型号没标价 / 还没配 key）：先问一次。 */
-  'spendUnknownHeld',
-  /**
    * **助手自己看图再改了一轮**（owner 2026-10-29）——「自己看图再改 · 第 1/1 轮」。
    * 这一行同时是替创作者说的那句「看看这批」（`userText`），模型据此看图、对着要求改。
    */

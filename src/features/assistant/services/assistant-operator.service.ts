@@ -8692,7 +8692,7 @@ function planCanvasLookAt(
 
 /**
  * 画布那一枪（node-canvas-v2 §13.2.1）—— 与 `planRequestGeneration` 同一条纪律：
- * **一律出生成确认卡**，扳机在卡上（或本会话的自动生成开关），扣的是那张画布卡
+ * **一律出生成确认卡**，扳机在卡上（创作者自己按），扣的是那张画布卡
  * 自己的生成键（客户端 `canvas.generate`）。
  *
  * ⛔ 别规划成 `mutate`：改动型出流就是 `done`，客户端 `applyOperatorStep` 当场落地

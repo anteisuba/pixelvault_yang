@@ -67,7 +67,6 @@ const VALID_PERSONA = {
   nextStepHint: false,
   useMyWords: true,
   memoryCapture: true,
-  spendLimitPoints: 100,
   addressUserAs: null,
 }
 

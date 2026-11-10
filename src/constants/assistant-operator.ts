@@ -2048,8 +2048,8 @@ export const ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN: Record<
     ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight,
     ASSISTANT_OPERATOR_TOOL_IDS.setLoraParameters,
     /**
-     * 花钱档（§6，owner 2026-09-29「接上生成开关」）：搭好之后出一张。照样一律出
-     * 生成确认卡；自动生成开关开着时由客户端替你按 —— 扳机仍在客户端。
+     * 花钱档（§6）：搭好之后出一张。一律出生成确认卡，由创作者自己按（owner 11-10：
+     * 所有台都不替你按）。
      */
     ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration,
   ],
@@ -3249,7 +3249,7 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
   [ASSISTANT_OPERATOR_TOOL_IDS.primeGenerate]:
     "arm the generate button on the workbench so it is one click away, with the price shown. This does NOT generate anything and never spends the creator's credits. Use it only when the creator says they will press generate themselves or only wants the form set up; otherwise finish with request_generation.",
   [ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration]:
-    'put a confirm card in the chat for the current form: model, count and specs, and the creator confirms it (or their auto-generate switch confirms it for them). You never spend their credits yourself. Use it as the LAST step once the form is ready and what they asked for is a picture or a clip (「出一张…」, 「准备生成」 count). Call it once per round; never call it to "see what happens". Always pass "label": a short name for what comes out, a few words in the creator\'s language naming the subject and the change (e.g. 「西装校服三视图」) — it becomes the picture\'s name in their library; never start it with a reference token.',
+    'put a confirm card in the chat for the current form: model, count and specs, and the creator confirms it. You never spend their credits yourself. Use it as the LAST step once the form is ready and what they asked for is a picture or a clip (「出一张…」, 「准备生成」 count). Call it once per round; never call it to "see what happens". Always pass "label": a short name for what comes out, a few words in the creator\'s language naming the subject and the change (e.g. 「西装校服三视图」) — it becomes the picture\'s name in their library; never start it with a reference token.',
   /**
    * ⚠ 「归属票是唯一凭证」那句已作废（拍板 4 推翻，2026-09-06）：`@` 指定的任意
    * 一张一律可看。⛔ 但**名单仍然是硬闸**：`targetIds` 只能是这一轮 `@` 上来的那

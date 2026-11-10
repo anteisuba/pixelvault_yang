@@ -417,8 +417,7 @@
       "state": {
         "submitting": "確定中…",
         "confirmed": "確定済み · {time}",
-        "cancelled": "キャンセル済み · {time}",
-        "auto": "自動生成済み · {time}"
+        "cancelled": "キャンセル済み · {time}"
       },
       "contextCard": {
         "title": "このカードを保存しますか？",
@@ -488,7 +487,6 @@
         "accept": "拡大する",
         "dismiss": "今はしない",
         "accepted": "拡大を開始しました · {time}",
-        "autoAccepted": "自動生成がオンなので、そのまま拡大しました · {time}",
         "acceptedText": "{names}を拡大",
         "declinedText": "{names}は今は拡大しない",
         "question": "{names}を 4K に拡大しますか？"
@@ -540,8 +538,6 @@
       "moveWorkAccepted": "{subject}",
       "moveWorkDeclined": "{subject}",
       "moveWorkDroppedReferences": "参照画像 {subject} 枚は持っていけませんでした（上限超過、またはアップロード未完了）。",
-      "spendHeld": "このバッチは約 {subject}。この依頼の合計が生成の上限を超えるので、確認を待ちます。",
-      "spendUnknownHeld": "このバッチの料金が見積もれません。確認してから実行します。",
       "autoReview": "自分で見直して再生成 · {subject} 回目"
     },
     "attach": {
@@ -1105,8 +1101,7 @@
         "length": "長さ {value}",
         "language": "言語 {value}",
         "nextStep": "次の一手 {value}",
-        "myWords": "自分の言葉 {value}",
-        "spendLimit": "生成の上限 {value}"
+        "myWords": "自分の言葉 {value}"
       }
     },
     "tone": {
@@ -1142,16 +1137,6 @@
     "myWords": {
       "label": "自分の言葉を使う",
       "hint": "プロンプトで使った言い方をそのまま使う"
-    },
-    "spendLimit": {
-      "label": "生成の上限",
-      "hint": "ひとつの依頼でアシスタントが生成する分がこの額までなら、そのまま生成します。超えるときは先に金額を見せます。NovelAI と無料ルートは数えません。",
-      "option": {
-        "0": "毎回聞く",
-        "50": "$0.5",
-        "100": "$1",
-        "300": "$3"
-      }
     },
     "memory": {
       "caption": "アシスタントの記憶はワークベンチごとに分かれています。すべてのワークベンチで使う記憶は、ここで明示的に共有できます。",

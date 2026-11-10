@@ -82,7 +82,6 @@ interface PersonaRow {
   nextStepHint: boolean
   useMyWords: boolean
   memoryCapture: boolean
-  spendLimitPoints: number
   addressUserAs: string | null
 }
 
@@ -231,7 +230,6 @@ function toPersona(row: PersonaRow | null): AssistantPersona {
     nextStepHint: row.nextStepHint,
     useMyWords: row.useMyWords,
     memoryCapture: row.memoryCapture,
-    spendLimitPoints: row.spendLimitPoints,
     addressUserAs: row.addressUserAs,
     /**
      * 预设字形：选的是预设就是那一款；选的是图时它是图加载不出来时的回落。
@@ -283,7 +281,6 @@ const PERSONA_SELECT = {
   nextStepHint: true,
   useMyWords: true,
   memoryCapture: true,
-  spendLimitPoints: true,
   addressUserAs: true,
 } as const
 
@@ -720,7 +717,6 @@ export async function upsertAssistantPersona(
     nextStepHint: input.nextStepHint,
     useMyWords: input.useMyWords,
     memoryCapture: input.memoryCapture,
-    spendLimitPoints: input.spendLimitPoints,
     addressUserAs: input.addressUserAs,
   }
 

@@ -41,7 +41,6 @@ const STORED_ROW = {
   nextStepHint: true,
   useMyWords: false,
   memoryCapture: true,
-  spendLimitPoints: 100,
   /** ⚠ 这一行五格对不上任何一档（§11.1）→ 读回来是 `null` = 自定义。 */
   addressUserAs: '阿羊',
 }
@@ -69,7 +68,6 @@ const STORED_PERSONA = {
   nextStepHint: STORED_ROW.nextStepHint,
   useMyWords: STORED_ROW.useMyWords,
   memoryCapture: STORED_ROW.memoryCapture,
-  spendLimitPoints: STORED_ROW.spendLimitPoints,
   addressUserAs: STORED_ROW.addressUserAs,
 }
 
@@ -90,7 +88,6 @@ const BASE_UPDATE: UpdateAssistantPersonaRequest = {
   nextStepHint: false,
   useMyWords: true,
   memoryCapture: true,
-  spendLimitPoints: 100,
   addressUserAs: null,
 }
 

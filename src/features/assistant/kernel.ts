@@ -216,8 +216,8 @@ import {
  *  · 思考档整轮用创作者选的那一档；
  *  · 工具入参宽进（`parseToolInput`），读不懂才回一句哪一格不对，⛔ 不按家族判死。
  *
- * ⛔ 钱闸不变：`generate` 只出确认卡；扳机在浏览器——一句话里加起来不超过门槛就由浏览器替创作者按
- *   （`lib/assistant-spend-gate.ts`），超了或估不出价才等创作者按。出完图助手自己看一轮再说下一步。
+ * ⛔ 钱闸不变：`generate` 只出确认卡，扳机在创作者手上（owner 11-10：所有台都不替你按）。
+ *   出完图助手自己看一轮再说下一步。
  */
 
 const EMPTY_REPLY: Record<PromptAssistantResponseLanguage, string> = {

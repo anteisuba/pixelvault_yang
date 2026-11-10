@@ -390,13 +390,9 @@ export function StudioOperatorConfirmCard({
             data-testid="operator-confirm-state"
             className="shrink-0 text-muted-foreground"
           >
-            {confirm.auto
-              ? t('confirm.state.auto', {
-                  time: confirm.decidedAt ? formatTime(confirm.decidedAt) : '',
-                })
-              : t(`confirm.state.${confirm.status}`, {
-                  time: confirm.decidedAt ? formatTime(confirm.decidedAt) : '',
-                })}
+            {t(`confirm.state.${confirm.status}`, {
+              time: confirm.decidedAt ? formatTime(confirm.decidedAt) : '',
+            })}
           </span>
           <span className="min-w-0 truncate text-muted-foreground/70">
             {/* ⚠ 卡那一支写的是**卡名 + 存没存下**：状态那一格只说得出时刻。 */}

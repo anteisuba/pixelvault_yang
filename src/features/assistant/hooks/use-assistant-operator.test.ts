@@ -59,8 +59,10 @@ function doneStepEvent(id: string): AssistantOperatorEvent {
 
 const streamAssistantOperatorAPI = vi.hoisted(() => vi.fn())
 
+const stopAssistantTurnAPI = vi.hoisted(() => vi.fn())
 vi.mock('@/lib/api-client/assistant-operator', () => ({
   streamAssistantOperatorAPI,
+  stopAssistantTurnAPI,
 }))
 
 /** 开台换页（第 9e 步）。 */
@@ -4412,5 +4414,41 @@ describe('收下设定之后能撤销', () => {
     expect(store.getOperatorState().entries.at(-1)).toMatchObject({
       code: 'characterWriteUndoFailed',
     })
+  })
+})
+
+describe('回合托管：明说的停才停服务端那一轮（11-11）', () => {
+  it('⏹ 发停止请求（带 open 帧给的轮号）', async () => {
+    const { result } = render()
+    act(() => result.current.send('画一张海报'))
+    await settle()
+    streams[0].emit({ type: ASSISTANT_OPERATOR_EVENTS.open, turnId: 'turn-9' })
+    await settle()
+    act(() => result.current.stop())
+    await settle()
+    expect(stopAssistantTurnAPI).toHaveBeenCalledWith('turn-9')
+  })
+
+  it('⛔ 面板卸载（刷新、关页）不发：那一轮照样跑完', async () => {
+    const { result, unmount } = render()
+    act(() => result.current.send('画一张海报'))
+    await settle()
+    streams[0].emit({ type: ASSISTANT_OPERATOR_EVENTS.open, turnId: 'turn-9' })
+    await settle()
+    unmount()
+    expect(stopAssistantTurnAPI).not.toHaveBeenCalled()
+  })
+
+  it('这一跳停在接力点之后，接下一跳 ⛔ 把同号的轮停掉', async () => {
+    const { result } = render()
+    act(() => result.current.send('画一张海报'))
+    await settle()
+    streams[0].emit({ type: ASSISTANT_OPERATOR_EVENTS.open, turnId: 'turn-9' })
+    streams[0].emit({ type: 'stopped', reason: 'awaiting_confirm' })
+    streams[0].close()
+    await settle()
+    act(() => result.current.send('接着来'))
+    await settle()
+    expect(stopAssistantTurnAPI).not.toHaveBeenCalled()
   })
 })

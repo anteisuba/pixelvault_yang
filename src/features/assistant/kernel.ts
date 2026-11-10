@@ -336,6 +336,7 @@ export async function* runAssistantNext(
           turnOptions,
           recording,
           options.routeModel,
+          options.turnId,
         ),
     )) {
       outcome = turnOutcomeOf(event, recording, outcome)
@@ -385,6 +386,13 @@ function turnOutcomeOf(
 }
 
 /** 浏览器带回来的接力条：v3 形状的本轮记录，只有板子那一条、只带轮号。 */
+/** 这一跳接的是哪一轮（浏览器带回来的接力条上的轮号）；新开的一轮回 `null`。 */
+export function relayTurnIdOf(
+  request: AssistantOperatorRequest,
+): string | null {
+  return relayTokenOf(request)?.id ?? null
+}
+
 function relayTokenOf(request: AssistantOperatorRequest) {
   const head = request.v3?.transcript?.[0]
   return head?.type === ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.board && head.turn
@@ -646,6 +654,7 @@ async function* runNextTurn(
   options: OperatorTurnOptions,
   recording: NextTurnRecording,
   routeModel?: AssistantRouteModel,
+  requestedTurnId?: string,
 ): AsyncIterable<AssistantOperatorEvent> {
   const signal = options.signal
   if (signal.aborted) {
@@ -771,7 +780,7 @@ async function* runNextTurn(
       userId: clerkId,
       turnId: token.id,
     })
-  const turnId = saved?.turnId ?? randomUUID()
+  const turnId = saved?.turnId ?? requestedTurnId ?? randomUUID()
   const hop = saved
     ? Math.min(saved.hop + 1, ASSISTANT_TURN_RECORD_LIMITS.maxHops)
     : 1

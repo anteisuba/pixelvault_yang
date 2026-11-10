@@ -123,6 +123,11 @@ export interface AssistantOperatorRunOptions {
   now?: () => number
   /** 压过 persona 的文本模型（见 `PrepareOperatorTurnOptions.routeModel`）。路由不传。 */
   routeModel?: AssistantRouteModel
+  /**
+   * 这一轮的号由路由定（回合托管，11-11）：路由要拿它写事件日志、在 `open` 帧里交给前端。
+   * 接力那一跳以存下的轮状态为准；缺席 = 内核自己生成。
+   */
+  turnId?: string
 }
 
 /** 工具环本体收到的那一份：signal 已经并进了时间预算的硬线。 */

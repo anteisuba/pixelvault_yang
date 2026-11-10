@@ -170,7 +170,10 @@ import {
   captureTurnClips,
   resolveTurnClips,
 } from '@/lib/assistant-pointed-clips'
-import { streamAssistantOperatorAPI } from '@/lib/api-client/assistant-operator'
+import {
+  stopAssistantTurnAPI,
+  streamAssistantOperatorAPI,
+} from '@/lib/api-client/assistant-operator'
 import { addCharacterExampleAPI } from '@/lib/api-client/cards'
 import { importWebImageAPI } from '@/lib/api-client/web-image-import'
 /** ⚠ Hard Rule 3：写库走 api-client，⛔ 组件与 hook 里不 `fetch`。 */
@@ -1037,6 +1040,17 @@ export function useAssistantOperator(
 
   const abortRef = useRef<AbortController | null>(null)
   /**
+   * 服务端这一轮的号（回合托管开着时 `open` 帧带来；跑到停点就清）。
+   * ⭐ 回合托管下浏览器断开 ⛔ 再算停：⏹、插话、换台、新会话这几样**明说的停**要另发一句
+   *   `stopAssistantTurnAPI`；面板卸载（刷新、关页）⛔ 发 —— 那一轮照样跑完，回来能接上。
+   */
+  const turnIdRef = useRef<string | null>(null)
+  const stopServerTurn = useCallback(() => {
+    const turnId = turnIdRef.current
+    turnIdRef.current = null
+    if (turnId) void stopAssistantTurnAPI(turnId)
+  }, [])
+  /**
    * 「下一条消息是一次改计划」（§3.1 ⑤）。
    *
    * ⚠ 走 ref 不走 state：它只在 `send()` 里被读一次然后清掉，进 state 只会多一次
@@ -1135,6 +1149,7 @@ export function useAssistantOperator(
         searchWithGrok,
       } = options
       const timeZone = browserTimeZone()
+      stopServerTurn()
       abortRef.current?.abort()
       const controller = new AbortController()
       abortRef.current = controller
@@ -1482,6 +1497,14 @@ export function useAssistantOperator(
       try {
         for await (const event of result.events) {
           if (!isCurrentRun()) break
+          if (event.type === ASSISTANT_OPERATOR_EVENTS.open && event.turnId)
+            turnIdRef.current = event.turnId
+          if (
+            event.type === ASSISTANT_OPERATOR_EVENTS.stopped ||
+            event.type === ASSISTANT_OPERATOR_EVENTS.done ||
+            event.type === ASSISTANT_OPERATOR_EVENTS.error
+          )
+            turnIdRef.current = null
           /**
            * ⚠ **下一帧一到就把占位行的闸撤掉**：连着跑的工具步之间不许闪一行
            * 三点（见 `schedulePendingAfterStep` 头注）。已经挂出去的那条不在这里
@@ -2125,6 +2148,7 @@ export function useAssistantOperator(
       router,
       tError,
       isCurrentThread,
+      stopServerTurn,
       workspaceKey,
     ],
   )
@@ -2347,6 +2371,7 @@ export function useAssistantOperator(
 
   const stop = useCallback(() => {
     if (!isCurrentThread()) return
+    stopServerTurn()
     abortRef.current?.abort()
     abortRef.current = null
     setOperatorStatus('idle')
@@ -2366,7 +2391,7 @@ export function useAssistantOperator(
       id: nextOperatorEntryId('sys'),
       code: 'stopped',
     })
-  }, [isCurrentThread])
+  }, [isCurrentThread, stopServerTurn])
 
   /**
    * **覆盖三选点下「覆盖 / 追加」—— 立刻写进表单**（owner 09-24：点完还要想很久，
@@ -3822,8 +3847,9 @@ export function useAssistantOperator(
   useEffect(() => {
     if (benchKeyRef.current === benchKey) return
     benchKeyRef.current = benchKey
+    stopServerTurn()
     abortRef.current?.abort()
-  }, [benchKey])
+  }, [benchKey, stopServerTurn])
 
   /** 新会话。 */
   const newThread = useCallback(() => {
@@ -3834,9 +3860,10 @@ export function useAssistantOperator(
       current.localThreadId !== localThreadId
     )
       return
+    stopServerTurn()
     abortRef.current?.abort()
     resetOperatorThread()
-  }, [scope, localThreadId])
+  }, [scope, localThreadId, stopServerTurn])
 
   const regenerate = useCallback(() => {
     if (!isCurrentThread()) return

@@ -348,6 +348,8 @@ export const API_ENDPOINTS = {
    * 与 `PROMPT_ASSISTANT_STREAM` 并存而不是替代它：那条流的载荷是文本增量。
    */
   STUDIO_ASSISTANT_OPERATOR: '/api/studio/assistant-operator',
+  /** 停下一轮（回合托管：浏览器断开不再停，⏹ / 插话走这里落停止标记）。 */
+  STUDIO_ASSISTANT_OPERATOR_STOP: '/api/studio/assistant-operator/stop',
   /** 左边列表那几段对话的封面 / 进度圈 / 小点（第 9f 步 9f-3）。 */
   STUDIO_CONVERSATION_ACTIVITY: '/api/studio/conversation-activity',
   /** 助手输入框 `@` 的素材库检索（多字段 + 文件夹下钻，只读）。 */

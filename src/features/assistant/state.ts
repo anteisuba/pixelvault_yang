@@ -87,7 +87,8 @@ const memory = new Map<string, { value: string; expiresAt: number }>()
 let client: Redis | null = null
 let identity = ''
 
-function redis(): Redis | null {
+/** 助手这一层共用的 Upstash 客户端（轮状态、回合事件日志）；没配就是 `null`，调用方退回进程内存。 */
+export function assistantRedis(): Redis | null {
   const url = process.env.UPSTASH_REDIS_REST_URL
   const token = process.env.UPSTASH_REDIS_REST_TOKEN
   if (!url || !token) return null
@@ -134,7 +135,7 @@ export async function saveTurnState(
     return false
   }
   const key = keyOf(userId, state.turnId)
-  const store = redis()
+  const store = assistantRedis()
   if (store) {
     try {
       await store.set(key, value, { ex: TTL_SECONDS })
@@ -160,7 +161,7 @@ export async function loadTurnState(
   turnId: string,
 ): Promise<NextTurnState | null> {
   const key = keyOf(userId, turnId)
-  const store = redis()
+  const store = assistantRedis()
   if (store) {
     try {
       const value = await store.get<string>(key)

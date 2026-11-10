@@ -4,8 +4,7 @@ import { randomBytes } from 'node:crypto'
 
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import { AssistantOperatorRequestSchema } from '@/types/assistant-operator'
-import { runAssistantNext } from '@/features/assistant/server'
-import { toAssistantOperatorSseResponse } from '@/lib/assistant-operator-stream'
+import { assistantTurnResponse } from '@/features/assistant/server'
 import { isGenerationError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 import { rateLimit } from '@/lib/rate-limit'
@@ -101,10 +100,11 @@ async function handlePost(request: NextRequest): Promise<Response> {
     // 所有人、所有台都走新内核（第 9c 步，owner 10-23）；旧内核 v2 / v3 已删。
     // ⚠ 工具环是惰性的（async generator）：它到成帧器 `for await` 才开始跑，所以
     //    `open` 帧一定排在第一次 LLM 往返之前。别在这里先 await 一下"预热"。
-    return toAssistantOperatorSseResponse({
-      routeName,
+    return assistantTurnResponse({
+      clerkId,
+      request: parsed.data,
       signal: request.signal,
-      events: (signal) => runAssistantNext(clerkId, parsed.data, { signal }),
+      routeName,
     })
   } catch (error) {
     // 只有「还没开始出流」的失败会落到这里。流开始之后再挂，是成帧器补的

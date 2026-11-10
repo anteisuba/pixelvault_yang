@@ -38,6 +38,7 @@ import {
   LORA_SNAPSHOT,
 } from '@/test/assistant-bench/kernel-harness'
 import { resetDatabase } from '@/test/int/db'
+import { readActiveTurn, readTurnEvents } from '@/features/assistant/turn-log'
 
 import { POST } from './route'
 
@@ -123,5 +124,45 @@ describe('POST /api/studio/assistant-operator · 一律新内核', () => {
     expect(response.status).toBe(200)
     expect(JSON.stringify(await framesOf(response))).toContain('看到了。')
     expect(fakeModels.main.doStreamCalls).toHaveLength(1)
+  })
+})
+
+describe('回合托管开着（ASSISTANT_DETACHED_TURNS，11-11）', () => {
+  beforeEach(() => {
+    vi.stubEnv('ASSISTANT_DETACHED_TURNS', 'true')
+    vi.stubEnv('UPSTASH_REDIS_REST_URL', '')
+    vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', '')
+  })
+
+  it('open 帧带轮号；每一帧写进事件日志；跑完这段会话就不再挂着「在跑的轮」', async () => {
+    fakeModels.main = scriptedModel([textTurn('看到了。')])
+    const user = await db.user.findFirstOrThrow()
+    const conversationId = (
+      await db.assistantConversation.create({
+        data: {
+          userId: user.id,
+          surface: 'IMAGE_STUDIO',
+          messages: [],
+        },
+      })
+    ).id
+    const response = await POST(
+      createPOST(PATH, { ...body('image'), conversationId }),
+    )
+    const frames = (await framesOf(response)) as {
+      type: string
+      turnId?: string
+    }[]
+    const turnId = frames[0]?.turnId
+    expect(frames[0]).toMatchObject({ type: 'open' })
+    expect(turnId).toEqual(expect.any(String))
+
+    const owner = user.clerkId
+    const logged = await readTurnEvents(owner, turnId!, 0)
+    expect(logged.map((item) => item.event.type)).toContain('message')
+    expect(logged.at(-1)?.event).toMatchObject({ type: 'done' })
+    await vi.waitFor(async () =>
+      expect(await readActiveTurn(owner, conversationId)).toBeNull(),
+    )
   })
 })

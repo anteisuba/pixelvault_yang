@@ -252,3 +252,85 @@ describe('操作员流成帧器', () => {
     expect(sawAbort).toBe(true)
   })
 })
+
+describe('成帧器 · 脱离浏览器跑完（回合托管，11-11）', () => {
+  const tick = () => new Promise((resolve) => setTimeout(resolve, 5))
+
+  it('⭐ 浏览器断开之后这一轮照样跑完，每一帧照样交给 onEvent；open 帧带轮号', async () => {
+    const seen: AssistantOperatorEvent[] = []
+    let sawAbort = false
+    let kept: Promise<void> | null = null
+    const response = toAssistantOperatorSseResponse({
+      routeName: 'test',
+      turnId: 'turn-1',
+      detach: {
+        stop: new AbortController().signal,
+        keepAlive: (run) => {
+          kept = run
+        },
+      },
+      onEvent: (event) => {
+        seen.push(event)
+      },
+      events: async function* (signal) {
+        for (const text of ['一', '二', '三']) {
+          await tick()
+          if (signal.aborted) sawAbort = true
+          yield { type: ASSISTANT_OPERATOR_EVENTS.message, text }
+        }
+        yield { type: ASSISTANT_OPERATOR_EVENTS.done }
+      },
+    })
+
+    const reader = response.body!.getReader()
+    const first = new TextDecoder().decode((await reader.read()).value)
+    expect(first).toContain('"turnId":"turn-1"')
+    await reader.cancel()
+
+    expect(kept).not.toBeNull()
+    await kept
+    expect(sawAbort).toBe(false)
+    expect(seen.map((event) => event.type)).toEqual([
+      'message',
+      'message',
+      'message',
+      'done',
+    ])
+  })
+
+  it('停止标记一落，这一轮就停（生成器拿到的 signal 被 abort）', async () => {
+    const stop = new AbortController()
+    let kept: Promise<void> | null = null
+    let aborted = false
+    const response = toAssistantOperatorSseResponse({
+      routeName: 'test',
+      detach: { stop: stop.signal, keepAlive: (run) => (kept = run) },
+      events: async function* (signal) {
+        yield { type: ASSISTANT_OPERATOR_EVENTS.message, text: '一' }
+        stop.abort()
+        await tick()
+        aborted = signal.aborted
+      },
+    })
+    await readFrames(response)
+    await kept
+    expect(aborted).toBe(true)
+  })
+
+  it('没开脱离：浏览器一断就停（与以前相同）', async () => {
+    let aborted = false
+    const upstream = new AbortController()
+    const response = toAssistantOperatorSseResponse({
+      routeName: 'test',
+      signal: upstream.signal,
+      events: async function* (signal) {
+        yield { type: ASSISTANT_OPERATOR_EVENTS.message, text: '一' }
+        upstream.abort()
+        await tick()
+        aborted = signal.aborted
+      },
+    })
+    await readFrames(response)
+    expect(aborted).toBe(true)
+  })
+})

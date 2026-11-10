@@ -115,6 +115,21 @@ export interface AssistantOperatorSseOptions {
   signal?: AbortSignal
   /** 出错日志里的路由名。 */
   routeName: string
+  /** 写进 `open` 帧的轮号（回合托管开着时）。 */
+  turnId?: string
+  /**
+   * **脱离浏览器跑完**（回合托管，11-11）：浏览器断开 ⛔ 再 abort，只认 `stop`（停止标记）；
+   * 整轮交给 `keepAlive`（路由传 `after`），响应结束后函数照样活到这一轮的停点。
+   */
+  detach?: {
+    keepAlive(run: Promise<void>): void
+    stop: AbortSignal
+  }
+  /**
+   * 每一帧（`open` 除外）都过一遍，**浏览器断开之后也照样过**：路由拿它写事件日志。
+   * 按到达顺序一帧一帧等完再交下一帧（序号要和帧序一致）；它抛的错只记日志。
+   */
+  onEvent?(event: AssistantOperatorEvent): Promise<void> | void
 }
 
 export function toAssistantOperatorSseResponse(
@@ -122,7 +137,22 @@ export function toAssistantOperatorSseResponse(
 ): Response {
   const controller = new AbortController()
   const abort = () => controller.abort()
-  options.signal?.addEventListener('abort', abort, { once: true })
+  // 脱离模式只认停止标记；否则浏览器一断就停（见 `detach` 头注）。
+  const stopSignal = options.detach ? options.detach.stop : options.signal
+  stopSignal?.addEventListener('abort', abort, { once: true })
+  /** 写日志排成一条队，帧序 = 序号序。 */
+  let logged: Promise<void> = Promise.resolve()
+  const log = (event: AssistantOperatorEvent) => {
+    const onEvent = options.onEvent
+    if (!onEvent) return
+    logged = logged
+      .then(() => onEvent(event))
+      .catch((error: unknown) => {
+        logger.warn(`${options.routeName} turn log failed`, {
+          error: error instanceof Error ? error.message : String(error),
+        })
+      })
+  }
 
   /**
    * ⚠ 提到闭包外面，因为 `cancel` 也要写它：客户端断开之后 `close()` 会抛
@@ -134,6 +164,7 @@ export function toAssistantOperatorSseResponse(
   const stream = new ReadableStream<Uint8Array>({
     async start(streamController) {
       const send = (event: AssistantOperatorEvent) => {
+        if (event.type !== ASSISTANT_OPERATOR_EVENTS.open) log(event)
         if (closed) return
         streamController.enqueue(
           ENCODER.encode(encodeSseEvent(event.type, event)),
@@ -141,7 +172,10 @@ export function toAssistantOperatorSseResponse(
       }
 
       // ⭐ 第一件事，任何 await 之前。见文件头注。
-      send({ type: ASSISTANT_OPERATOR_EVENTS.open })
+      send({
+        type: ASSISTANT_OPERATOR_EVENTS.open,
+        ...(options.turnId ? { turnId: options.turnId } : {}),
+      })
 
       /**
        * 心跳：模型在想的那段时间里一个字节都不出，中间层（CDN / 代理）会把一条静默
@@ -157,42 +191,47 @@ export function toAssistantOperatorSseResponse(
         }
       }, ASSISTANT_OPERATOR_HEARTBEAT_MS)
 
-      try {
-        for await (const event of options.events(controller.signal)) {
-          if (controller.signal.aborted) break
+      const run = (async () => {
+        try {
+          for await (const event of options.events(controller.signal)) {
+            if (controller.signal.aborted) break
+            send(event)
+          }
+        } catch (error) {
+          // 已经吐出去的 step 留在客户端；这里补一帧结构化的错误尾巴，而不是把流
+          // 打断 —— 打断的话客户端只拿到一个读流异常，errorCode / i18nKey 全丢。
+          const event = toErrorEvent(error)
+          /**
+           * ⚠ `traceId` **与帧里那一份是同一个值**：日志这一行和用户屏幕上那八位
+           * 是同一次失败的两端，⛔ 别在这里另生成一个。
+           * ⚠ `stack` 只进日志（`lib/logger` 递归脱敏），⛔ 不进帧。
+           */
+          logger.error(`${options.routeName} operator stream failed`, {
+            ...(event.traceId ? { traceId: event.traceId } : {}),
+            error: error instanceof Error ? error.message : String(error),
+            ...(error instanceof Error && error.stack
+              ? { stack: error.stack }
+              : {}),
+          })
           send(event)
+        } finally {
+          clearInterval(heartbeat)
+          stopSignal?.removeEventListener('abort', abort)
+          if (!closed) {
+            closed = true
+            streamController.close()
+          }
+          await logged
         }
-      } catch (error) {
-        // 已经吐出去的 step 留在客户端；这里补一帧结构化的错误尾巴，而不是把流
-        // 打断 —— 打断的话客户端只拿到一个读流异常，errorCode / i18nKey 全丢。
-        const event = toErrorEvent(error)
-        /**
-         * ⚠ `traceId` **与帧里那一份是同一个值**：日志这一行和用户屏幕上那八位
-         * 是同一次失败的两端，⛔ 别在这里另生成一个。
-         * ⚠ `stack` 只进日志（`lib/logger` 递归脱敏），⛔ 不进帧。
-         */
-        logger.error(`${options.routeName} operator stream failed`, {
-          ...(event.traceId ? { traceId: event.traceId } : {}),
-          error: error instanceof Error ? error.message : String(error),
-          ...(error instanceof Error && error.stack
-            ? { stack: error.stack }
-            : {}),
-        })
-        send(event)
-      } finally {
-        clearInterval(heartbeat)
-        options.signal?.removeEventListener('abort', abort)
-        if (!closed) {
-          closed = true
-          streamController.close()
-        }
-      }
+      })()
+      options.detach?.keepAlive(run)
+      await run
     },
     cancel() {
-      // 客户端断了。abort 之后 `for await` 会 break，生成器的 `finally` 随之执行；
-      // 流本身已经由 cancel 关掉了，所以这里先把闸标上，别再 enqueue / close。
+      // 客户端断了。流本身已经由 cancel 关掉了，所以这里先把闸标上，别再 enqueue / close。
+      // 脱离模式下这一轮照样跑完（只认停止标记）；否则 abort，`for await` 随之 break。
       closed = true
-      controller.abort()
+      if (!options.detach) controller.abort()
     },
   })
 

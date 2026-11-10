@@ -208,3 +208,20 @@ export async function revertAssistantAssetWriteAPI(
     return null
   }
 }
+
+/**
+ * ⏹ / 插话：停下服务端这一轮（回合托管开着时；浏览器断开不再算停）。
+ * ⚠ 不等、不报错：停不下来最多再跑到下一个停点，界面上照旧当它停了。
+ */
+export async function stopAssistantTurnAPI(turnId: string): Promise<void> {
+  try {
+    await apiFetch(API_ENDPOINTS.STUDIO_ASSISTANT_OPERATOR_STOP, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ turnId }),
+      keepalive: true,
+    })
+  } catch {
+    // 见头注。
+  }
+}

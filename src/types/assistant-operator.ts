@@ -4823,8 +4823,21 @@ export type AssistantOperatorCritiqueStep = Extract<
 
 // ─── ③ 事件 ─────────────────────────────────────────────────────
 
+/** ⏹ / 插话：停下这一轮（回合托管，11-11）。 */
+export const AssistantTurnStopRequestSchema = z.object({
+  turnId: z.string().min(1).max(80),
+})
+export type AssistantTurnStopRequest = z.infer<
+  typeof AssistantTurnStopRequestSchema
+>
+
 export const AssistantOperatorOpenEventSchema = z.object({
   type: z.literal(ASSISTANT_OPERATOR_EVENTS.open),
+  /**
+   * 这一轮的号（回合托管，11-11）：浏览器断了之后靠它找回事件日志、发停止。
+   * 缺席 = 服务端没开回合托管（开关关着）。
+   */
+  turnId: z.string().min(1).max(80).optional(),
 })
 
 /**

@@ -202,6 +202,12 @@ export const ASSISTANT_NEXT_LORA_PARAM_KEYS: Readonly<Record<string, string>> =
 export const ASSISTANT_NEXT_PROMPT_VERSION =
   'next-2026-11-10-confirm-every-batch'
 
+/** 回合托管（11-11）：多久查一次停止标记、正在写的那段话多久存一次草稿。 */
+export const ASSISTANT_TURN_LOG = {
+  stopPollMs: 1_000,
+  draftWriteMs: 1_000,
+} as const
+
 export const ASSISTANT_NEXT_LIMITS = {
   /**
    * 一轮最多喂给模型多少输入 token（含缓存命中；画布接力、时间到了接力的各跳算同一轮，owner 11-10）。

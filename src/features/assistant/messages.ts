@@ -85,13 +85,19 @@ export function unloadedPictureText(label: string): string {
   return `(${which} did NOT load — you have not seen it. Do not describe it or guess its look, style, artists or tags from its name; tell the creator you could not see it and ask them to @ it again.)`
 }
 
-/** 留在眼前的图：从最后往前数 `max` 张；更早的换成一行字。 */
+/**
+ * 留在眼前的图：超过 `max` 张就把最早的那几张换成一行字。
+ * ⭐ 按块换（11-10）：一次换掉最早的 `chunk` 张的整数倍，之后每攒满 `chunk` 张新图才再换一块。
+ *   原来是「永远留最后 `max` 张」，每多一张新图那条线就往后挪一张，前面那条消息跟着变，每一步都把
+ *   缓存前缀打断；现在块与块之间前缀不动，眼前始终留 `max - chunk + 1` 到 `max` 张。
+ */
 export async function hydratePictures(
   messages: readonly ModelMessage[],
   load: PictureLoader,
   max: number = ASSISTANT_NEXT_LIMITS.maxPicturesInContext,
+  chunk: number = ASSISTANT_NEXT_LIMITS.pictureClearChunk,
 ): Promise<ModelMessage[]> {
-  let remaining = messages.reduce(
+  const total = messages.reduce(
     (count, message) =>
       count +
       (message.role === 'user' && Array.isArray(message.content)
@@ -99,6 +105,10 @@ export async function hydratePictures(
         : 0),
     0,
   )
+  const step = Math.max(1, Math.min(chunk, max))
+  const dropped =
+    total <= max ? 0 : (Math.floor((total - max - 1) / step) + 1) * step
+  let seen = 0
   const out: ModelMessage[] = []
   for (const message of messages) {
     if (message.role !== 'user' || !Array.isArray(message.content)) {
@@ -115,8 +125,8 @@ export async function hydratePictures(
         content.push(part)
         continue
       }
-      const kept = remaining <= max
-      remaining -= 1
+      const kept = seen >= dropped
+      seen += 1
       if (!kept) {
         content.push({
           type: 'text',

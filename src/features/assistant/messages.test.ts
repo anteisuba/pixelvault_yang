@@ -50,10 +50,39 @@ describe('图留在眼前', () => {
         { url: 'https://cdn.test/new-2.png', label: 'n2' },
       ]),
     ]
-    await hydratePictures(messages, load, 2)
+    await hydratePictures(messages, load, 2, 1)
     expect(load.mock.calls.map(([url]) => url)).toEqual([
       'https://cdn.test/new-1.png',
       'https://cdn.test/new-2.png',
+    ])
+  })
+
+  it('⭐ 按块换：新图一张张进来时清除点不跟着挪，攒满一块才跳（11-10：缓存前缀）', async () => {
+    const load = vi.fn(async (url: string) => bytes(url))
+    const looked = (count: number): ModelMessage[] =>
+      Array.from({ length: count }, (_, index) =>
+        lookedPicturesMessage([
+          { url: `https://cdn.test/${index + 1}.png`, label: `p${index + 1}` },
+        ]),
+      )
+    const keptOf = async (count: number) =>
+      (await hydratePictures(looked(count), load, 4, 2)).map((message) =>
+        (message.content as { type: string }[]).some(
+          (part) => part.type === 'image',
+        ),
+      )
+    // 上限 4、一块 2：第 5 张进来一次换掉最早 2 张；第 6 张进来那条线不动；第 7 张再跳一块。
+    expect(await keptOf(4)).toEqual([true, true, true, true])
+    expect(await keptOf(5)).toEqual([false, false, true, true, true])
+    expect(await keptOf(6)).toEqual([false, false, true, true, true, true])
+    expect(await keptOf(7)).toEqual([
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
     ])
   })
 })

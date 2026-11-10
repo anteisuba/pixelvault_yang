@@ -224,6 +224,11 @@ export const ASSISTANT_NEXT_LIMITS = {
   /** 一次 `look` 最多摆几张；一轮里一共留几张在模型眼前（多出的旧图只剩一行字）。 */
   maxLookPictures: 4,
   maxPicturesInContext: 16,
+  /**
+   * 超过上限时一次换掉最早的几张（11-10）：按块清，清除点每攒满这么多张新图才往后跳一次，
+   * 中间几步前缀不动、缓存吃得到。⚠ 不大于 `maxPicturesInContext`。
+   */
+  pictureClearChunk: 8,
   /** 一次 `edit` 最多几条改动、一条提示词改动最多几处 find/replace。 */
   maxEditOps: 20,
   maxFindReplace: 30,

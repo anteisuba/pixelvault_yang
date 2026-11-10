@@ -42,6 +42,7 @@ export {
   toLlmTextUnreachableError,
   toLlmTextUpstreamTimeoutError,
   resolveLlmTextRoute,
+  toLlmTextRoute,
 } from '@/services/llm/llm-core'
 export { getOpenAiChatBaseUrl } from '@/services/llm/llm-openai'
 export {

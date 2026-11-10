@@ -902,7 +902,18 @@ export async function resolveLlmTextRoute(
     )
   }
 
-  const adapterType = specificKey.adapterType as AI_ADAPTER_TYPES
+  return toLlmTextRoute(specificKey)
+}
+
+/**
+ * 已经读出来的那一行 key → 文本线路（不再查库）。手上已经有 key 行的调用方
+ * （`resolveAssistantRoute` 挑 key 时一并读了密文）直接用它，省一次按 id 重查。
+ */
+export function toLlmTextRoute(key: {
+  adapterType: string
+  encryptedKey: string
+}): ResolvedLlmTextRoute {
+  const adapterType = key.adapterType as AI_ADAPTER_TYPES
   if (!isLlmTextAdapter(adapterType)) {
     throw new Error(
       `The selected API key does not support text completion (requires ${LLM_TEXT_PROVIDER_NAMES}). Please bind a compatible key.`,
@@ -915,7 +926,7 @@ export async function resolveLlmTextRoute(
       label: LLM_TEXT_LABELS[adapterType],
       baseUrl: getBaseUrlForAdapter(adapterType),
     },
-    apiKey: decryptApiKey(specificKey.encryptedKey),
+    apiKey: decryptApiKey(key.encryptedKey),
   }
 }
 

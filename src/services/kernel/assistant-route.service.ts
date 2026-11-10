@@ -20,6 +20,7 @@ import {
 import { getAssistantRouteModelByUserId } from '@/features/assistant/server'
 import {
   resolveLlmTextRoute,
+  toLlmTextRoute,
   type ResolvedLlmTextRoute,
 } from '@/services/llm-text.service'
 
@@ -64,10 +65,19 @@ export interface ResolveAssistantRouteOptions {
   questionTurn?: boolean
 }
 
-/** 五家里有活着的 key 的那几家，每家最新那一把（与旧的自动优先级同一条判据）。 */
+interface AssistantKeyRow {
+  id: string
+  adapterType: string
+  encryptedKey: string
+}
+
+/**
+ * 五家里有活着的 key 的那几家，每家最新那一把（与旧的自动优先级同一条判据）。
+ * 密文一并读出来，挑中之后直接组线路，⛔ 不再按 id 重查一次（11-10：每轮省一次往返）。
+ */
 async function newestKeyByProvider(
   userId: string,
-): Promise<Map<AI_ADAPTER_TYPES, string>> {
+): Promise<Map<AI_ADAPTER_TYPES, AssistantKeyRow>> {
   const keys = await db.userApiKey.findMany({
     where: {
       userId,
@@ -75,12 +85,12 @@ async function newestKeyByProvider(
       adapterType: { in: [...ASSISTANT_PROVIDER_ORDER] },
     },
     orderBy: { createdAt: 'desc' },
-    select: { id: true, adapterType: true },
+    select: { id: true, adapterType: true, encryptedKey: true },
   })
-  const byProvider = new Map<AI_ADAPTER_TYPES, string>()
+  const byProvider = new Map<AI_ADAPTER_TYPES, AssistantKeyRow>()
   for (const key of keys) {
     const adapterType = key.adapterType as AI_ADAPTER_TYPES
-    if (!byProvider.has(adapterType)) byProvider.set(adapterType, key.id)
+    if (!byProvider.has(adapterType)) byProvider.set(adapterType, key)
   }
   return byProvider
 }
@@ -102,8 +112,8 @@ export async function resolveAssistantRoute(
       'No assistant model has a key yet (Gemini, DeepSeek, OpenAI, Claude or Grok). Nothing ran.',
     )
   }
-  const apiKeyId = keys.get(picked.adapterType)
-  if (!apiKeyId) {
+  const key = keys.get(picked.adapterType)
+  if (!key) {
     throw new AssistantModelKeyMissingError(picked.adapterType, picked.modelId)
   }
   const fastModelId =
@@ -115,8 +125,8 @@ export async function resolveAssistantRoute(
     : null
   const model = fastEntry ?? picked
   return {
-    route: await resolveLlmTextRoute(userId, apiKeyId),
-    apiKeyId,
+    route: toLlmTextRoute(key),
+    apiKeyId: key.id,
     modelId: model.modelId,
     modelLabel: model.label,
     auto: !pinned,

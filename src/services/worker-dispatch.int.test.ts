@@ -5,7 +5,6 @@
  */
 import {
   afterAll,
-  afterEach,
   beforeAll,
   beforeEach,
   describe,
@@ -53,9 +52,6 @@ beforeAll(() => {
 afterAll(() => {
   vi.unstubAllEnvs()
   vi.unstubAllGlobals()
-})
-afterEach(() => {
-  vi.useRealTimers()
 })
 
 let me: Awaited<ReturnType<typeof createTestUser>>
@@ -194,18 +190,15 @@ describe('建任务 / 派发（真库，假 Worker）', () => {
   })
 
   it('Worker 5xx（送没送到不知道）：outbox 放回待补发，不抛', async () => {
-    vi.useFakeTimers({ toFake: ['setTimeout'] })
     worker.status = 503
     const job = await seedJob()
     const outbox = await seedOutbox(job.id)
 
-    // 产品里 5xx 会隔 DISPATCH_RETRY_DELAY_MS 再试一次：假时钟一路推过去，不真等
-    let settled = false
-    const pending = dispatchWorkerRunDurably(runContext(job.id)).finally(() => {
-      settled = true
+    // 5xx 隔 DISPATCH_RETRY_DELAY_MS（250ms）再试一次，真等。⛔ 别换假时钟：假 setTimeout 会把
+    // pg 连接池的连接超时一起快进，负载高时误报「timeout exceeded when trying to connect」。
+    expect(await dispatchWorkerRunDurably(runContext(job.id))).toEqual({
+      delivered: false,
     })
-    while (!settled) await vi.advanceTimersByTimeAsync(50)
-    expect(await pending).toEqual({ delivered: false })
     expect(worker.requests).toHaveLength(EXECUTION_WORKER.DISPATCH_MAX_ATTEMPTS)
     expect(await outboxOf(outbox.id)).toMatchObject({
       status: 'PENDING',

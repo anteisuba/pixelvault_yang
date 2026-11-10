@@ -91,6 +91,24 @@ describe('MCP edit', () => {
     expect(await tagsOf(row.id)).toEqual([])
   })
 
+  it('⛔ 一次超过 5 个标签：拒并说上限，一个都不打（与站内同一条，11-10）', async () => {
+    const { row, tag } = await seedPicture(owner.userId, 2)
+
+    const [result] = await editForMcp(owner, {
+      changes: [
+        {
+          op: 'tag_pictures',
+          pictures: [tag],
+          tags: ['a', 'b', 'c', 'd', 'e', 'f'],
+        },
+      ],
+    })
+
+    expect(result).toMatchObject({ op: 'tag_pictures', ok: false })
+    expect(result!.said).toContain('At most 5 tags at a time')
+    expect(await tagsOf(row.id)).toEqual([])
+  })
+
   it('不是她的图：拒，库里不动', async () => {
     const stranger = await createTestUser()
     const { row, tag } = await seedPicture(stranger.id, 9)

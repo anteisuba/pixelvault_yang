@@ -132,11 +132,17 @@ async function runChange(
       if (!resolved.ok) return resolved
       const ids = resolved.pictures.map((picture) => picture.generationId)
       if (op === 'tag_pictures') {
-        const tags = (change.tags ?? []).slice(
-          0,
-          ASSISTANT_ASSET_WRITE_LIMITS.maxTagsPerWrite,
-        )
+        const tags = change.tags ?? []
         if (!tags.length) return need(op, 'tags')
+        /**
+         * 超过上限照实拒（11-10）：与站内打标签同一条，⛔ 悄悄只留前几个 —— 那样回执说「打上了」，
+         * 后面几个却没打，调用方不会知道。（`tags` 这一格别的改法也用，所以上限只在这里拦。）
+         */
+        if (tags.length > ASSISTANT_ASSET_WRITE_LIMITS.maxTagsPerWrite)
+          return {
+            ok: false,
+            said: `At most ${ASSISTANT_ASSET_WRITE_LIMITS.maxTagsPerWrite} tags at a time.`,
+          }
         const { entries } = await tagAssets(owner.userId, ids, tags)
         return {
           ok: true,

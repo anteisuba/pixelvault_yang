@@ -27,7 +27,7 @@ import {
   buildCreatorSection,
   buildPersonaStyleSection,
   RESPONSE_LANGUAGE_LABELS,
-} from '@/features/assistant/services/assistant-operator.service'
+} from '@/features/assistant/services/assistant-operator-prompt.service'
 import { buildAssistantV3CanvasGuideSection } from '@/features/assistant/services/assistant-v3-guides.service'
 import { renderAssistantV3HistorySummary } from '@/lib/assistant-v3-history'
 import { todayFor, untilFromExpiresAt } from '@/lib/memory-until'

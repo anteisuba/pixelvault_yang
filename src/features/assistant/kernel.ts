@@ -109,15 +109,17 @@ import {
 import {
   closeRoundV3,
   closeRoundV3BeforeStop,
-  operatorCacheKey,
   prepareOperatorTurn,
   requestProjectId,
-  resolveResponseLanguage,
   runWithOperatorTimeBudget,
   toStepEvent,
   type AssistantOperatorRunOptions,
   type OperatorTurnOptions,
 } from '@/features/assistant/services/assistant-operator.service'
+import {
+  operatorCacheKey,
+  resolveResponseLanguage,
+} from '@/features/assistant/services/assistant-operator-prompt.service'
 import { isFatalOperatorToolError } from '@/features/assistant/services/assistant-operator-run.service'
 import { loadPicture } from '@/features/assistant/services/assistant-v3-look.service'
 import { refused } from '@/features/assistant/services/assistant-v3-bench.service'

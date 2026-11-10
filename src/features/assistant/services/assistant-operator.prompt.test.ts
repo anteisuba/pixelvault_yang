@@ -7,7 +7,7 @@ import { ASSISTANT_PERSONA_DEFAULTS } from '@/constants/assistant-persona'
 import {
   buildCreatorSection,
   buildPersonaStyleSection,
-} from '@/features/assistant/services/assistant-operator.service'
+} from '@/features/assistant/services/assistant-operator-prompt.service'
 
 const persona = { ...ASSISTANT_PERSONA_DEFAULTS }
 

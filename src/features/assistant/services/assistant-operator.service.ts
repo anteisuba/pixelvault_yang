@@ -11302,6 +11302,17 @@ function memoryWriteScopeForRequest(
       ? ASSISTANT_MEMORY_SCOPE_IDS.cards
       : null
   const scope = memoryScopeForDomain(request.domain)
+  /**
+   * ⛔ 图片 / 视频 / LoRA 三台不在后台抽（owner 11-10）：新内核只把「关于你」、角色、画布项目
+   * 那几份放进提示，这三台写进自己域的那几条再也进不了提示，抽一次只是白花创作者的 key。
+   * 创作者在这三台明说「记住」照旧由 `remember` 记进「关于你」。
+   */
+  if (
+    scope === ASSISTANT_MEMORY_SCOPE_IDS.image ||
+    scope === ASSISTANT_MEMORY_SCOPE_IDS.video ||
+    scope === ASSISTANT_MEMORY_SCOPE_IDS.lora
+  )
+    return null
   return scope === ASSISTANT_MEMORY_SCOPE_IDS.global ? null : scope
 }
 

@@ -79,6 +79,32 @@ async function prepare(
   return prepared
 }
 
+/**
+ * 后台抽记忆只在角色页 / 画布 / 角色聊天还跑（owner 11-10：图片 / 视频 / LoRA 三台不抽），
+ * 抽记忆那几组用角色页那张脸。
+ */
+async function prepareCards(
+  extra: Partial<AssistantOperatorRequest> = {},
+  options: { skipPriorRounds?: boolean } = {},
+) {
+  await db.assistantConversation.update({
+    where: { id: conversationId },
+    data: { surface: 'CARDS' },
+  })
+  return prepare(
+    {
+      domain: 'cards',
+      snapshot: {
+        prompt: '',
+        availableModels: [],
+        cards: { total: 0, characters: [], open: null },
+      },
+      ...extra,
+    },
+    options,
+  )
+}
+
 /** `after` 收下的那几样 —— 等它们跑完（Vercel 上函数也是等它们跑完才退）。 */
 async function settleAfter() {
   await Promise.all(
@@ -111,7 +137,7 @@ const storedRounds = async () =>
 
 describe('v3 收尾 · 后台抽记忆', () => {
   it('⭐ 不起结账那一跳；记忆在后台抽，收尾不等它', async () => {
-    const { run } = await prepare()
+    const { run } = await prepareCards()
     look(run)
     let release: (raw: string) => void = () => undefined
     fakeLlm.queue = [
@@ -138,7 +164,7 @@ describe('v3 收尾 · 后台抽记忆', () => {
     await settleAfter()
     expect(await memories()).toMatchObject([
       {
-        scope: 'IMAGE',
+        scope: 'CARDS',
         kind: 'PREFERENCE',
         source: 'ASSISTANT',
         text: '偏好横构图 16:9',
@@ -148,7 +174,7 @@ describe('v3 收尾 · 后台抽记忆', () => {
   })
 
   it('这一轮的那一家、那个型号、那把 key（全跟助手），low 档；材料里有这一轮的账本与收尾那句', async () => {
-    const { run } = await prepare()
+    const { run } = await prepareCards()
     look(run)
     fakeLlm.queue = [MEMORIES]
 
@@ -166,7 +192,7 @@ describe('v3 收尾 · 后台抽记忆', () => {
   })
 
   it('⛔ 不换同一家的快档：选了 Claude Opus，抽记忆也用 Opus', async () => {
-    const { run } = await prepare()
+    const { run } = await prepareCards()
     run.route = { ...run.route, adapterType: AI_ADAPTER_TYPES.ANTHROPIC }
     run.modelId = LLM_TEXT_MODEL_IDS.CLAUDE_OPUS_5_5
     look(run)
@@ -182,7 +208,7 @@ describe('v3 收尾 · 后台抽记忆', () => {
   })
 
   it('⛔ 隐身开着：后台那一跳不起，一条都不写；证据记录照常', async () => {
-    const { run } = await prepare({ incognito: true })
+    const { run } = await prepareCards({ incognito: true })
     look(run)
     run.evidenceRefs.push('#e1')
 
@@ -198,7 +224,7 @@ describe('v3 收尾 · 后台抽记忆', () => {
     await db.assistantPersona.create({
       data: { userId: user.id, memoryCapture: false },
     })
-    const off = await prepare()
+    const off = await prepareCards()
     look(off.run)
     await close(off.run)
     await settleAfter()
@@ -208,7 +234,7 @@ describe('v3 收尾 · 后台抽记忆', () => {
       where: { userId: user.id },
       data: { memoryCapture: true },
     })
-    const empty = await prepare()
+    const empty = await prepareCards()
     await close(empty.run, { closingMessage: '你好呀。' })
     await settleAfter()
 
@@ -218,7 +244,7 @@ describe('v3 收尾 · 后台抽记忆', () => {
 
   it('抽记忆失败：只记一行，⛔ 不抛', async () => {
     const warn = vi.spyOn(logger, 'warn')
-    const { run } = await prepare()
+    const { run } = await prepareCards()
     look(run)
     fakeLlm.queue = [new Error('provider down')]
 
@@ -233,7 +259,7 @@ describe('v3 收尾 · 后台抽记忆', () => {
   })
 
   it('以确认卡收：一步都没跑成就不收；跑过的把那条待办记进原料，一次运行只收一次', async () => {
-    const idle = await prepare()
+    const idle = await prepareCards()
     expect(
       await closeRoundV3BeforeStop(idle.run, {
         clerkId: user.clerkId,
@@ -243,7 +269,7 @@ describe('v3 收尾 · 后台抽记忆', () => {
     ).toBeUndefined()
     expect(fakeLlm.calls).toEqual([])
 
-    const { run } = await prepare()
+    const { run } = await prepareCards()
     look(run)
     fakeLlm.fallback = MEMORIES
     await closeRoundV3BeforeStop(run, {
@@ -269,7 +295,7 @@ describe('v3 收尾 · 改已有的记忆（P3）', () => {
     return db.assistantMemory.create({
       data: {
         userId: user.id,
-        scope: 'IMAGE',
+        scope: 'CARDS',
         kind,
         text,
         updatedAt: new Date(updatedAt),
@@ -289,7 +315,7 @@ describe('v3 收尾 · 改已有的记忆（P3）', () => {
       '主角叫小林',
       '2026-09-01T08:00:00.000Z',
     )
-    const { run } = await prepare()
+    const { run } = await prepareCards()
     look(run)
     fakeLlm.queue = [
       JSON.stringify({
@@ -325,7 +351,7 @@ describe('v3 收尾 · 改已有的记忆（P3）', () => {
       '主角叫小林',
       '2026-09-01T08:00:00.000Z',
     )
-    const { run } = await prepare()
+    const { run } = await prepareCards()
     look(run)
     fakeLlm.queue = [JSON.stringify({ memories: [], forget: [] })]
 
@@ -385,18 +411,7 @@ describe('v3 收尾 · 记进哪一份', () => {
   })
 
   it('⭐ 角色页记进自己的 cards 域（⛔ 不往全局漏）', async () => {
-    await db.assistantConversation.update({
-      where: { id: conversationId },
-      data: { surface: 'CARDS' },
-    })
-    const { run } = await prepare({
-      domain: 'cards',
-      snapshot: {
-        prompt: '',
-        availableModels: [],
-        cards: { total: 0, characters: [], open: null },
-      },
-    })
+    const { run } = await prepareCards()
     look(run)
     fakeLlm.fallback = MEMORIES
 
@@ -406,6 +421,20 @@ describe('v3 收尾 · 记进哪一份', () => {
     expect(await memories()).toMatchObject([
       { scope: 'CARDS', characterCardId: null, text: '偏好横构图 16:9' },
     ])
+  })
+
+  it('⛔ 图片 / 视频 / LoRA 三台：后台那一跳不起（owner 11-10：这三台的记忆不再进提示）', async () => {
+    for (const domain of ['image', 'video', 'lora'] as const) {
+      const { run } = await prepare({ domain, conversationId: undefined })
+      look(run)
+      fakeLlm.fallback = MEMORIES
+
+      await close(run)
+      await settleAfter()
+      expect(fakeLlm.calls, domain).toEqual([])
+    }
+
+    expect(await memories()).toEqual([])
   })
 })
 

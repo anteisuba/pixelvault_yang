@@ -110,12 +110,12 @@ import {
   closeRoundV3,
   closeRoundV3BeforeStop,
   prepareOperatorTurn,
-  requestProjectId,
   runWithOperatorTimeBudget,
   toStepEvent,
   type AssistantOperatorRunOptions,
   type OperatorTurnOptions,
 } from '@/features/assistant/services/assistant-operator.service'
+import { requestProjectId } from '@/features/assistant/services/assistant-operator-memory.service'
 import {
   operatorCacheKey,
   resolveResponseLanguage,

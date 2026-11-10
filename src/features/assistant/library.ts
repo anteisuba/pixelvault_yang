@@ -44,7 +44,7 @@ import {
   refused,
   runOldTool,
 } from '@/features/assistant/services/assistant-v3-bench.service'
-import { requestProjectId } from '@/features/assistant/services/assistant-operator.service'
+import { requestProjectId } from '@/features/assistant/services/assistant-operator-memory.service'
 import { readPinnedFields } from '@/features/cards/server'
 import { pickV3WebImage } from '@/features/assistant/services/assistant-v3-finds.service'
 import {

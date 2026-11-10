@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>工作台方向 · 对比 1：字号与疏密</title>
+    <style>
+      :root {
+        --ground: #e6e7ea;
+        --panel: #ffffff;
+        --fill: #f3f4f6;
+        --fill-strong: #eceef1;
+        --line: rgba(16, 18, 24, 0.07);
+        --line-strong: rgba(16, 18, 24, 0.14);
+        --ink: #101216;
+        --ink-2: #454a52;
+        --ink-3: #5d626b;
+        --bubble: #f0f1f4;
+        --ring: 0 0 0 1px rgba(16, 18, 24, 0.06), 0 1px 2px rgba(16, 18, 24, 0.04);
+        --seg: 0 0 0 0.5px rgba(16, 18, 24, 0.04), 0 2px 6px rgba(16, 18, 24, 0.1);
+        --sans: 'Geist', 'PingFang SC', 'Noto Sans SC', system-ui, sans-serif;
+        --mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+        /* 字号 A：现在的写法。六档挤在 10–16，几乎全是 500 */
+        --t-head: 14px;
+        --w-head: 500;
+        --t-read: 16px;
+        --lh-read: 1.5;
+        --t-chat: 14px;
+        --t-ui: 13px;
+        --w-ui: 500;
+        --t-meta: 11px;
+        --w-meta: 500;
+        --c-meta: var(--ink-3);
+        --t-label: 11px;
+        --w-body: 400;
+
+        /* 疏密 A：现在的写法。间距都在 12 以内 */
+        --pad-stage: 16px;
+        --gap-section: 12px;
+        --gap-tile: 8px;
+        --gap-cap: 6px;
+        --pad-comp: 14px 16px 12px;
+        --gap-comp: 10px;
+        --gap-row: 6px;
+        --gap-msg: 12px;
+        --pad-chat: 12px;
+      }
+      body.type-b {
+        /* 字号 B：只留四档，档与档差得开；字重只用 400 和 600 */
+        --t-head: 20px;
+        --w-head: 600;
+        --t-read: 15px;
+        --lh-read: 1.7;
+        --t-chat: 15px;
+        --t-ui: 13px;
+        --w-ui: 400;
+        --t-meta: 11px;
+        --w-meta: 400;
+        --t-label: 11px;
+      }
+      body.space-b {
+        /* 疏密 B：同样的东西，间距放开一档到两档 */
+        --pad-stage: 32px;
+        --gap-section: 28px;
+        --gap-tile: 16px;
+        --gap-cap: 10px;
+        --pad-comp: 20px 20px 16px;
+        --gap-comp: 16px;
+        --gap-row: 10px;
+        --gap-msg: 22px;
+        --pad-chat: 20px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--ground);
+        color: var(--ink);
+        font-family: var(--sans);
+        font-size: var(--t-ui);
+        -webkit-font-smoothing: antialiased;
+      }
+      button {
+        font: inherit;
+        color: inherit;
+        border: 0;
+        background: none;
+        cursor: pointer;
+      }
+
+      /* 顶上的开关，不属于被比较的画面 */
+      .switch {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px 20px;
+        padding: 10px 16px;
+        background: #101216;
+        color: #fff;
+        font-size: 13px;
+      }
+      .switch .group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .switch .seg {
+        display: inline-flex;
+        padding: 2px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.14);
+      }
+      .switch .seg button {
+        height: 28px;
+        padding: 0 14px;
+        border-radius: 999px;
+        color: rgba(255, 255, 255, 0.72);
+      }
+      .switch .seg button[aria-pressed='true'] {
+        background: #fff;
+        color: #101216;
+        font-weight: 600;
+      }
+      .switch kbd {
+        font-family: var(--mono);
+        font-size: 11px;
+        opacity: 0.6;
+      }
+      .switch .hint {
+        margin-left: auto;
+        opacity: 0.6;
+        font-size: 12px;
+      }
+
+      /* 白板 */
+      .board {
+        display: flex;
+        margin: 8px;
+        min-height: calc(100vh - 64px);
+        border-radius: 20px;
+        background: var(--panel);
+        box-shadow: var(--ring);
+        overflow: hidden;
+      }
+      .chat {
+        display: none;
+        width: 380px;
+        flex: none;
+        flex-direction: column;
+        border-right: 1px solid var(--line);
+      }
+      @media (min-width: 1040px) {
+        .chat {
+          display: flex;
+        }
+      }
+      .chat-head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        height: 52px;
+        padding: 0 var(--pad-chat);
+        font-size: 14px;
+        font-weight: 600;
+      }
+      .avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: var(--fill-strong);
+        display: grid;
+        place-items: center;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--ink-2);
+      }
+      .thread {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: var(--gap-msg);
+        padding: var(--pad-chat);
+        font-size: var(--t-chat);
+        line-height: var(--lh-read);
+        font-weight: var(--w-body);
+      }
+      .me {
+        align-self: flex-end;
+        max-width: 85%;
+        padding: 8px 14px;
+        border-radius: 18px;
+        background: var(--bubble);
+      }
+      .step {
+        font-size: var(--t-meta);
+        font-weight: var(--w-meta);
+        color: var(--c-meta);
+      }
+
+      .bench {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: var(--gap-section);
+        padding: var(--pad-stage);
+      }
+      .stage {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: var(--gap-section);
+        min-height: 0;
+      }
+      .stage-head {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+      }
+      .stage-head h1 {
+        margin: 0;
+        font-size: var(--t-head);
+        font-weight: var(--w-head);
+        letter-spacing: -0.01em;
+      }
+      .meta {
+        font-size: var(--t-meta);
+        font-weight: var(--w-meta);
+        color: var(--c-meta);
+      }
+      .mono {
+        font-family: var(--mono);
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: var(--gap-tile);
+      }
+      @media (max-width: 520px) {
+        .grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+      .tile {
+        display: flex;
+        flex-direction: column;
+        gap: var(--gap-cap);
+        min-width: 0;
+      }
+      .tile .img {
+        position: relative;
+        aspect-ratio: 3 / 4;
+        border-radius: 12px;
+        background: var(--fill-strong) center / cover no-repeat;
+        overflow: hidden;
+      }
+      .tile .tag {
+        position: absolute;
+        left: 8px;
+        bottom: 8px;
+        height: 20px;
+        padding: 0 6px;
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.88);
+        font-family: var(--mono);
+        font-size: var(--t-label);
+        line-height: 20px;
+      }
+      .tile .name {
+        font-size: var(--t-ui);
+        font-weight: var(--w-ui);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      body.type-b .tile .name {
+        font-weight: 600;
+      }
+
+      .composer {
+        display: flex;
+        flex-direction: column;
+        gap: var(--gap-comp);
+        padding: var(--pad-comp);
+        border: 1px solid var(--line-strong);
+        border-radius: 16px;
+      }
+      .prompt {
+        margin: 0;
+        font-size: var(--t-read);
+        line-height: var(--lh-read);
+        font-weight: var(--w-body);
+      }
+      .ref {
+        padding: 1px 5px;
+        border-radius: 6px;
+        background: rgba(51, 70, 232, 0.1);
+        color: #3346e8;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: var(--gap-row);
+      }
+      .row .chip {
+        display: block;
+        min-width: 0;
+        line-height: 32px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .row .chip.round,
+      .row .go {
+        flex: none;
+      }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 32px;
+        padding: 0 12px;
+        border-radius: 999px;
+        background: var(--fill);
+        color: var(--ink-2);
+        font-size: var(--t-ui);
+        font-weight: var(--w-ui);
+        white-space: nowrap;
+      }
+      .chip.set {
+        color: var(--ink);
+      }
+      .chip.round {
+        width: 32px;
+        padding: 0;
+        justify-content: center;
+      }
+      @media (max-width: 720px) {
+        .chip.narrow-hide {
+          display: none;
+        }
+      }
+      .go {
+        margin-left: auto;
+        height: 32px;
+        padding: 0 16px;
+        border-radius: 999px;
+        background: var(--ink);
+        color: #fff;
+        font-size: 13px;
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="switch" role="toolbar" aria-label="对比开关">
+      <div class="group">
+        <span>字号</span>
+        <span class="seg" data-var="type">
+          <button aria-pressed="true" data-v="a">A 现在</button>
+          <button aria-pressed="false" data-v="b">B 拉开</button>
+        </span>
+        <kbd>1 / 2</kbd>
+      </div>
+      <div class="group">
+        <span>疏密</span>
+        <span class="seg" data-var="space">
+          <button aria-pressed="true" data-v="a">A 现在</button>
+          <button aria-pressed="false" data-v="b">B 放开</button>
+        </span>
+        <kbd>3 / 4</kbd>
+      </div>
+      <span class="hint">每次只切一项，画面其余不变</span>
+    </div>
+
+    <div class="board">
+      <aside class="chat">
+        <div class="chat-head">
+          <span class="avatar">A</span>
+          <span>橘猫馆长</span>
+        </div>
+        <div class="thread">
+          <div class="me">画一只在美术馆值夜班的橘猫，四个模型各来一张</div>
+          <div class="step">图片台 · 用 4 个模型各出了 1 张</div>
+          <div>四张都出来了。图_3 的灯光最像闭馆以后，图_1 的猫表情最好。</div>
+          <div class="me">用图_3 的光，换成图_1 那只猫</div>
+          <div class="step">图片台 · 改了提示词，挂上 图_1、图_3</div>
+          <div>提示词改好了，放在右边输入框里。你看一眼再生成。</div>
+        </div>
+      </aside>
+
+      <main class="bench">
+        <section class="stage">
+          <div class="stage-head">
+            <h1>橘猫馆长</h1>
+            <span class="meta">4 张 · 刚刚</span>
+          </div>
+          <div class="grid">
+            <div class="tile">
+              <div
+                class="img"
+                style="background-image: url(../home-v6/media/production/quad/quad-gpt-image-2.webp)"
+              >
+                <span class="tag">图_1</span>
+              </div>
+              <div class="name">GPT Image 2</div>
+              <div class="meta mono">3:4 · 1K · $0.04</div>
+            </div>
+            <div class="tile">
+              <div
+                class="img"
+                style="background-image: url(../home-v6/media/production/quad/quad-flux-2-pro.webp)"
+              >
+                <span class="tag">图_2</span>
+              </div>
+              <div class="name">FLUX.2 Pro</div>
+              <div class="meta mono">3:4 · 1K · $0.03</div>
+            </div>
+            <div class="tile">
+              <div
+                class="img"
+                style="background-image: url(../home-v6/media/production/quad/quad-gemini-3-pro.webp)"
+              >
+                <span class="tag">图_3</span>
+              </div>
+              <div class="name">Gemini 3 Pro Image</div>
+              <div class="meta mono">3:4 · 1K · $0.13</div>
+            </div>
+            <div class="tile">
+              <div
+                class="img"
+                style="background-image: url(../home-v6/media/production/quad/quad-seedream-5-0.webp)"
+              >
+                <span class="tag">图_4</span>
+              </div>
+              <div class="name">Seedream 5.0</div>
+              <div class="meta mono">3:4 · 1K · $0.03</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="composer">
+          <p class="prompt">
+            闭馆后的美术馆大厅，一只戴着馆长名牌的橘猫坐在长椅上，看着墙上的大幅油画。用
+            <span class="ref">@图3</span> 的顶灯和冷暖对比，猫照
+            <span class="ref">@图1</span> 的表情。
+          </p>
+          <div class="row">
+            <button class="chip round" aria-label="加图">＋</button>
+            <button class="chip set">GPT Image 2 · OpenAI ▾</button>
+            <button class="chip set mono">3:4 · 1K · 4 张</button>
+            <button class="chip">模板</button>
+            <button class="chip">角色</button>
+            <button class="chip narrow-hide">改图</button>
+            <button class="go">生成</button>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script>
+      const set = (name, v) => {
+        document.body.classList.toggle(name + '-b', v === 'b')
+        document
+          .querySelectorAll(`.seg[data-var="${name}"] button`)
+          .forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === v)))
+      }
+      document.querySelectorAll('.seg').forEach((seg) => {
+        seg.addEventListener('click', (e) => {
+          const b = e.target.closest('button')
+          if (b) set(seg.dataset.var, b.dataset.v)
+        })
+      })
+      addEventListener('keydown', (e) => {
+        const m = { 1: ['type', 'a'], 2: ['type', 'b'], 3: ['space', 'a'], 4: ['space', 'b'] }[e.key]
+        if (m) set(m[0], m[1])
+      })
+      const q = new URLSearchParams(location.search)
+      if (q.get('type')) set('type', q.get('type'))
+      if (q.get('space')) set('space', q.get('space'))
+    </script>
+  </body>
+</html>

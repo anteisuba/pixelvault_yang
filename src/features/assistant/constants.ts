@@ -206,6 +206,10 @@ export const ASSISTANT_NEXT_PROMPT_VERSION =
 export const ASSISTANT_TURN_LOG = {
   stopPollMs: 1_000,
   draftWriteMs: 1_000,
+  /** 补放时有一跳在跑：每隔多久再看一次日志与草稿。 */
+  replayPollMs: 1_000,
+  /** 一次补放请求最多等多久（补放路由 `maxDuration` 800 秒内留出余量）；到了就收，页面再接一次。 */
+  replayBudgetMs: 760_000,
 } as const
 
 export const ASSISTANT_NEXT_LIMITS = {

@@ -21,6 +21,8 @@ const NO_LLM_HAND_WRITTEN = new Set([
   'image/edit-stream/route.ts',
   'internal/execution/sweep/route.ts',
   'node-workflow/upload-reference-video/route.ts',
+  // 回合托管的补放：只读 Redis 里的事件日志，长时长是为了陪还在跑的那一轮跑完。
+  'studio/assistant-operator/turns/[turnId]/route.ts',
   'upload-image/file/route.ts',
   'voices/route.ts',
   'voices/transcribe/route.ts',

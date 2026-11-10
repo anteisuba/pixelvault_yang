@@ -1,8 +1,13 @@
 import 'server-only'
 
-import { ASSISTANT_OPERATOR_EVENTS } from '@/constants/assistant-operator'
 import {
+  ASSISTANT_OPERATOR_EVENTS,
+  ASSISTANT_OPERATOR_STOP_REASONS,
+} from '@/constants/assistant-operator'
+import {
+  AssistantActiveTurnSchema,
   AssistantOperatorEventSchema,
+  type AssistantActiveTurn,
   type AssistantOperatorEvent,
 } from '@/types/assistant-operator'
 import { logger } from '@/lib/logger'
@@ -58,6 +63,8 @@ const activeKey = (owner: string, conversationId: string) =>
   `${PREFIX}:active:${owner}:${conversationId}`
 const stopKey = (owner: string, turnId: string) =>
   `${PREFIX}:stop:${owner}:${turnId}`
+const runningKey = (owner: string, turnId: string) =>
+  `${PREFIX}:running:${owner}:${turnId}`
 
 /** 这一帧进不进日志（增量不进，见头注）。 */
 export function isLoggedTurnEvent(event: AssistantOperatorEvent): boolean {
@@ -65,6 +72,15 @@ export function isLoggedTurnEvent(event: AssistantOperatorEvent): boolean {
   if (event.type === ASSISTANT_OPERATOR_EVENTS.thinking && event.delta)
     return false
   return true
+}
+
+/** 停在接力点（`time_budget` / `canvas_sync`）：这一轮还有下一跳要接，写的是同一份日志。 */
+export function isRelayStop(event: AssistantOperatorEvent | null): boolean {
+  return (
+    event?.type === ASSISTANT_OPERATOR_EVENTS.stopped &&
+    (event.reason === ASSISTANT_OPERATOR_STOP_REASONS.timeBudget ||
+      event.reason === ASSISTANT_OPERATOR_STOP_REASONS.canvasSync)
+  )
 }
 
 function warn(what: string, error: unknown) {
@@ -173,23 +189,34 @@ export async function readTurnDraft(
   return typeof value === 'string' ? value : null
 }
 
-/** 这段会话此刻在跑的轮（开跑写、终态删）。 */
+/**
+ * 这段会话此刻在跑的轮（开跑写、终态删），连同它的锚点（见请求上的 `turnAnchor`）。
+ * ⚠ 接力那一跳不带锚点：同一轮已经记着的那个留着，⛔ 被抹成 `null`。
+ */
 export async function markActiveTurn(
   owner: string,
   conversationId: string,
   turnId: string,
+  anchor: string | null,
 ): Promise<void> {
   const key = activeKey(owner, conversationId)
+  const kept =
+    anchor === null
+      ? await readActiveTurn(owner, conversationId).then((active) =>
+          active?.turnId === turnId ? active.anchor : null,
+        )
+      : anchor
+  const value: AssistantActiveTurn = { turnId, anchor: kept }
   const store = assistantRedis()
   if (store) {
     try {
-      await store.set(key, turnId, { ex: TTL_SECONDS })
+      await store.set(key, JSON.stringify(value), { ex: TTL_SECONDS })
     } catch (error) {
       warn('mark active failed', error)
     }
     return
   }
-  memorySet(key, turnId, TTL_SECONDS)
+  memorySet(key, JSON.stringify(value), TTL_SECONDS)
 }
 
 /** 只删还是这一轮的标记：插话后新一轮已经写了自己的号，⛔ 被旧一轮收尾时抹掉。 */
@@ -199,7 +226,7 @@ export async function clearActiveTurn(
   turnId: string,
 ): Promise<void> {
   const key = activeKey(owner, conversationId)
-  if ((await readActiveTurn(owner, conversationId)) !== turnId) return
+  if ((await readActiveTurn(owner, conversationId))?.turnId !== turnId) return
   const store = assistantRedis()
   if (store) {
     try {
@@ -215,20 +242,70 @@ export async function clearActiveTurn(
 export async function readActiveTurn(
   owner: string,
   conversationId: string,
-): Promise<string | null> {
+): Promise<AssistantActiveTurn | null> {
   const key = activeKey(owner, conversationId)
   const store = assistantRedis()
+  let raw: unknown = null
   if (store) {
     try {
-      const value = await store.get<string>(key)
-      return typeof value === 'string' ? value : null
+      raw = await store.get(key)
     } catch (error) {
       warn('read active failed', error)
       return null
     }
+  } else {
+    raw = memoryGet(key)
   }
-  const value = memoryGet(key)
-  return typeof value === 'string' ? value : null
+  if (raw === null || raw === undefined) return null
+  try {
+    // Upstash 会把存进去的 JSON 串自动解析回对象；内存里是原串。
+    const value = typeof raw === 'string' ? JSON.parse(raw) : raw
+    const parsed = AssistantActiveTurnSchema.safeParse(value)
+    return parsed.success ? parsed.data : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * 这一轮此刻**有一跳正在跑**（开跳写、这一跳收尾删）。补放靠它判「日志停在接力点上，是下一跳
+ * 还没开（该由回来的页面接着发），还是已经在跑（等着收新帧）」。
+ */
+export async function markTurnRunning(
+  owner: string,
+  turnId: string,
+  running: boolean,
+): Promise<void> {
+  const key = runningKey(owner, turnId)
+  const store = assistantRedis()
+  if (store) {
+    try {
+      if (running) await store.set(key, '1', { ex: TTL_SECONDS })
+      else await store.del(key)
+    } catch (error) {
+      warn('mark running failed', error)
+    }
+    return
+  }
+  if (running) memorySet(key, '1', TTL_SECONDS)
+  else memory.delete(key)
+}
+
+export async function turnRunning(
+  owner: string,
+  turnId: string,
+): Promise<boolean> {
+  const key = runningKey(owner, turnId)
+  const store = assistantRedis()
+  if (store) {
+    try {
+      return (await store.get(key)) !== null
+    } catch (error) {
+      warn('running read failed', error)
+      return false
+    }
+  }
+  return memoryGet(key) !== null
 }
 
 /** ⏹ / 插话：落一个停止标记，跑着的那一轮在下一次查的时候停下。 */

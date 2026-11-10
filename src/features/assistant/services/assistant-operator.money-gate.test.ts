@@ -660,6 +660,24 @@ describe('⛔ 助手工具环的钱闸', () => {
     }
   })
 
+  it('回合托管（脱离浏览器跑 / 日志 / 补放 / 停止 / 接回）都不具备生成、扣费或上传能力', () => {
+    for (const path of [
+      'src/features/assistant/turn-run.ts',
+      'src/features/assistant/turn-log.ts',
+      'src/features/assistant/turn-replay.ts',
+      'src/app/api/studio/assistant-operator/stop/route.ts',
+      'src/app/api/studio/assistant-operator/active/route.ts',
+      'src/app/api/studio/assistant-operator/turns/[turnId]/route.ts',
+    ]) {
+      const source = readFileSync(join(process.cwd(), path), 'utf8')
+      for (const identifier of FORBIDDEN_IDENTIFIERS)
+        expect(
+          source.includes(identifier),
+          `${path} 里出现了 ${identifier}`,
+        ).toBe(false)
+    }
+  })
+
   it('查库只有一处，且一定按 userId 收敛（不许翻别人的库）', () => {
     const callSites = [...SOURCE.matchAll(/getPublicGenerationPage\(/g)]
     // 一处 import + 一处调用

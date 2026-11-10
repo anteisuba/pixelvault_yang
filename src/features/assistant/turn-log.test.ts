@@ -7,10 +7,12 @@ import {
   clearActiveTurn,
   isLoggedTurnEvent,
   markActiveTurn,
+  markTurnRunning,
   readActiveTurn,
   readTurnDraft,
   readTurnEvents,
   requestTurnStop,
+  turnRunning,
   turnStopRequested,
   writeTurnDraft,
 } from './turn-log'
@@ -71,12 +73,41 @@ describe('回合事件日志（回合托管第 1 片）', () => {
   it('在跑的轮：⛔ 被旧一轮收尾抹掉新一轮的号', async () => {
     const older = nextTurn()
     const newer = nextTurn()
-    await markActiveTurn('user-a', 'conv-1', older)
-    await markActiveTurn('user-a', 'conv-1', newer)
+    await markActiveTurn('user-a', 'conv-1', older, 'u-1')
+    await markActiveTurn('user-a', 'conv-1', newer, 'u-2')
     await clearActiveTurn('user-a', 'conv-1', older)
-    expect(await readActiveTurn('user-a', 'conv-1')).toBe(newer)
+    expect(await readActiveTurn('user-a', 'conv-1')).toEqual({
+      turnId: newer,
+      anchor: 'u-2',
+    })
     await clearActiveTurn('user-a', 'conv-1', newer)
     expect(await readActiveTurn('user-a', 'conv-1')).toBeNull()
+  })
+
+  it('接力那一跳不带锚点：同一轮记着的锚点留着；换了一轮就不沿用', async () => {
+    const id = nextTurn()
+    await markActiveTurn('user-a', 'conv-2', id, 'u-7')
+    await markActiveTurn('user-a', 'conv-2', id, null)
+    expect(await readActiveTurn('user-a', 'conv-2')).toEqual({
+      turnId: id,
+      anchor: 'u-7',
+    })
+    const other = nextTurn()
+    await markActiveTurn('user-a', 'conv-2', other, null)
+    expect(await readActiveTurn('user-a', 'conv-2')).toEqual({
+      turnId: other,
+      anchor: null,
+    })
+  })
+
+  it('「有一跳在跑」开跳写、收尾删，只认这个人', async () => {
+    const id = nextTurn()
+    expect(await turnRunning('user-a', id)).toBe(false)
+    await markTurnRunning('user-a', id, true)
+    expect(await turnRunning('user-a', id)).toBe(true)
+    expect(await turnRunning('user-b', id)).toBe(false)
+    await markTurnRunning('user-a', id, false)
+    expect(await turnRunning('user-a', id)).toBe(false)
   })
 
   it('停止标记只停这一个人的这一轮', async () => {

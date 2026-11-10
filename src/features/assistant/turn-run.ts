@@ -3,10 +3,7 @@ import 'server-only'
 import { randomUUID } from 'node:crypto'
 import { after } from 'next/server'
 
-import {
-  ASSISTANT_OPERATOR_EVENTS,
-  ASSISTANT_OPERATOR_STOP_REASONS,
-} from '@/constants/assistant-operator'
+import { ASSISTANT_OPERATOR_EVENTS } from '@/constants/assistant-operator'
 import type {
   AssistantOperatorEvent,
   AssistantOperatorRequest,
@@ -18,7 +15,9 @@ import {
   appendTurnEvent,
   clearActiveTurn,
   isLoggedTurnEvent,
+  isRelayStop,
   markActiveTurn,
+  markTurnRunning,
   turnStopRequested,
   writeTurnDraft,
 } from '@/features/assistant/turn-log'
@@ -62,7 +61,14 @@ export function assistantTurnResponse({
       if (requested) stop.abort()
     })
   }, ASSISTANT_TURN_LOG.stopPollMs)
-  if (conversationId) void markActiveTurn(clerkId, conversationId, turnId)
+  void markTurnRunning(clerkId, turnId, true)
+  if (conversationId)
+    void markActiveTurn(
+      clerkId,
+      conversationId,
+      turnId,
+      request.turnAnchor ?? null,
+    )
 
   let draft = ''
   let draftSavedAt = 0
@@ -77,6 +83,7 @@ export function assistantTurnResponse({
         const settled = run.finally(async () => {
           clearInterval(poll)
           await writeTurnDraft(clerkId, turnId, null)
+          await markTurnRunning(clerkId, turnId, false)
           if (conversationId && !isRelayStop(last))
             await clearActiveTurn(clerkId, conversationId, turnId)
         })
@@ -107,13 +114,4 @@ export function assistantTurnResponse({
     events: (runSignal) =>
       runAssistantNext(clerkId, request, { signal: runSignal, turnId }),
   })
-}
-
-/** 停在接力点：还有下一跳要接。 */
-function isRelayStop(event: AssistantOperatorEvent | null): boolean {
-  return (
-    event?.type === ASSISTANT_OPERATOR_EVENTS.stopped &&
-    (event.reason === ASSISTANT_OPERATOR_STOP_REASONS.timeBudget ||
-      event.reason === ASSISTANT_OPERATOR_STOP_REASONS.canvasSync)
-  )
 }

@@ -1776,6 +1776,21 @@ export function loadOperatorThread(args: {
  * ⚠ `surface` 只在**第一次**落库时定下来（线程起始域），之后原样带回去 ——
  * 见 `sessionSurface` 的头注。
  */
+/**
+ * 接回一轮之前（回合托管第 3 片）：载回来的历史截到这一轮开跑时的锚点为止 —— 锚点之后的那半轮
+ * 是防抖存进去的，整轮马上要从日志补放，⛔ 留着就显示两遍。锚点不在历史里（那一轮还没存过）就不动。
+ * `null` = 开跑时线程是空的：历史里全是这一轮的。
+ */
+export function truncateOperatorHistoryAfter(anchorId: string | null): void {
+  const at =
+    anchorId === null
+      ? -1
+      : state.history.findIndex((entry) => entry.id === anchorId)
+  if (anchorId !== null && at < 0) return
+  if (at === state.history.length - 1) return
+  emit({ ...state, history: state.history.slice(0, at + 1) })
+}
+
 export function setOperatorSession(
   /** `null` = 那一行没了（别处删了），下一次保存整份新建。 */
   sessionId: string | null,

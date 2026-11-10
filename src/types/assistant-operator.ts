@@ -2118,6 +2118,11 @@ export const AssistantOperatorRequestSchema = z.object({
    */
   conversationId: z.string().uuid().optional(),
   /**
+   * 回合托管的**锚点**（11-11）：发这一轮那一刻线程里最后一条会落库的条目 id。刷新回来接这一轮时，
+   * 历史截到它为止再整轮补放 —— 防抖存进去的那半轮 ⛔ 显示两遍。只在新一轮发；接力那一跳 ⛔ 发。
+   */
+  turnAnchor: z.string().min(1).max(160).optional(),
+  /**
    * **这一轮开着隐身**（56a · ⋯ 菜单那颗开关）—— 开着时这一轮**一条记忆都不写**。
    *
    * ⚠ 它作用于**当前会话**而不是账号：用户为一件事临时不想被记，不该变成他此后
@@ -4830,6 +4835,22 @@ export const AssistantTurnStopRequestSchema = z.object({
 export type AssistantTurnStopRequest = z.infer<
   typeof AssistantTurnStopRequestSchema
 >
+
+/** 这段会话此刻有没有在跑的轮（回合托管第 3 片：刷新回来先问一句）。 */
+export const AssistantActiveTurnQuerySchema = z.object({
+  conversationId: z.string().uuid(),
+})
+export const AssistantActiveTurnSchema = z.object({
+  turnId: z.string().min(1).max(80),
+  /** 见请求上的 `turnAnchor`；`null` = 开跑时线程还是空的。 */
+  anchor: z.string().min(1).max(160).nullable(),
+})
+export type AssistantActiveTurn = z.infer<typeof AssistantActiveTurnSchema>
+
+/** 补放：序号 `after` 之后的帧（0 = 整轮）。 */
+export const AssistantTurnReplayQuerySchema = z.object({
+  after: z.coerce.number().int().min(0).default(0),
+})
 
 export const AssistantOperatorOpenEventSchema = z.object({
   type: z.literal(ASSISTANT_OPERATOR_EVENTS.open),

@@ -350,6 +350,10 @@ export const API_ENDPOINTS = {
   STUDIO_ASSISTANT_OPERATOR: '/api/studio/assistant-operator',
   /** 停下一轮（回合托管：浏览器断开不再停，⏹ / 插话走这里落停止标记）。 */
   STUDIO_ASSISTANT_OPERATOR_STOP: '/api/studio/assistant-operator/stop',
+  /** 这段会话有没有在跑的轮（回合托管：刷新回来先问一句）。 */
+  STUDIO_ASSISTANT_OPERATOR_ACTIVE: '/api/studio/assistant-operator/active',
+  /** 接回一轮：后面接 `/<turnId>?after=N`，补放日志并接着推。 */
+  STUDIO_ASSISTANT_OPERATOR_TURNS: '/api/studio/assistant-operator/turns',
   /** 左边列表那几段对话的封面 / 进度圈 / 小点（第 9f 步 9f-3）。 */
   STUDIO_CONVERSATION_ACTIVITY: '/api/studio/conversation-activity',
   /** 助手输入框 `@` 的素材库检索（多字段 + 文件夹下钻，只读）。 */

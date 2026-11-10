@@ -136,6 +136,7 @@ import {
   upsertOperatorStep,
   resolveOperatorChatMode,
   settleOperatorChatMode,
+  truncateOperatorHistoryAfter,
 } from '@/hooks/use-studio-operator-store'
 import { getCachedAssistantCharacter } from '@/hooks/use-assistant-persona'
 import {
@@ -171,9 +172,13 @@ import {
   resolveTurnClips,
 } from '@/lib/assistant-pointed-clips'
 import {
+  getActiveAssistantTurnAPI,
+  replayAssistantTurnAPI,
   stopAssistantTurnAPI,
   streamAssistantOperatorAPI,
+  type AssistantOperatorStreamApiResponse,
 } from '@/lib/api-client/assistant-operator'
+import { markStepApplied, wasStepApplied } from '@/lib/assistant-applied-steps'
 import { addCharacterExampleAPI } from '@/lib/api-client/cards'
 import { importWebImageAPI } from '@/lib/api-client/web-image-import'
 /** ⚠ Hard Rule 3：写库走 api-client，⛔ 组件与 hook 里不 `fetch`。 */
@@ -206,6 +211,7 @@ import {
   historyToOperatorMessages,
   historyToPriorSteps,
   readOperatorReferenceProfiles,
+  toOperatorHistoryEntry,
 } from '@/lib/studio-operator-history'
 import {
   readOperatorWrittenText,
@@ -245,6 +251,7 @@ import type {
 } from '@/types/assistant-operator'
 import type { AssistantV3Transcript } from '@/types/assistant-v3'
 import type { AssistantMention } from '@/types/assistant-mention'
+import type { StudioOperatorHistoryEntry } from '@/types/studio-operator-history'
 import type {
   StudioOperatorAttachment,
   StudioOperatorErrorTrace,
@@ -785,6 +792,26 @@ interface RunOptions {
   searchWithGrok?: boolean
   /** 开台换过来的那一跳（第 9e 步）：占位行写「正在想」，⛔ 不写「正在画布上落地」。 */
   benchArrival?: boolean
+  /**
+   * **接回**（回合托管第 3 片）：刷新 / 回来时这段会话还有一轮在服务端跑 —— ⛔ 发请求，改读它的
+   * 事件日志（整轮补放，再接着收）。事件处理与实时那条是同一套。
+   */
+  reattach?: { turnId: string }
+}
+
+/** 这次页面加载已经问过「还有没有在跑的轮」的会话（回合托管第 3 片，每段只问一次）。 */
+const askedActiveTurns = new Set<string>()
+
+/** 线程里最后一条会落库的条目 id（回合托管的锚点；见 `run` 里那一段）。 */
+function lastPersistedEntryId(state: {
+  history: readonly StudioOperatorHistoryEntry[]
+  entries: readonly StudioOperatorThreadEntry[]
+}): string | undefined {
+  for (let index = state.entries.length - 1; index >= 0; index -= 1) {
+    const kept = toOperatorHistoryEntry(state.entries[index])
+    if (kept) return kept.id
+  }
+  return state.history.at(-1)?.id
 }
 
 /** 创作者浏览器的时区（联网时 Claude / GPT 偏向当地结果）；取不到就不发。 */
@@ -1150,6 +1177,16 @@ export function useAssistantOperator(
       } = options
       const timeZone = browserTimeZone()
       stopServerTurn()
+      // 接回的那一轮：⏹ / 插话要停的就是它（实时那条由 `open` 帧带来，这里先认上）。
+      if (options.reattach) turnIdRef.current = options.reattach.turnId
+      /**
+       * 回合托管的锚点：此刻线程里最后一条会落库的条目（通常就是你刚说的那句）。⚠ 要在挂占位行
+       * 之前取；接力那一跳（`runKey` 由上一跳带来）与接回 ⛔ 带 —— 那一轮的锚点服务端已经记着。
+       */
+      const turnAnchor =
+        options.runKey || options.reattach
+          ? undefined
+          : lastPersistedEntryId(getOperatorState())
       abortRef.current?.abort()
       const controller = new AbortController()
       abortRef.current = controller
@@ -1167,7 +1204,11 @@ export function useAssistantOperator(
        * （2026-08-30 真机实测）。见 `operatorStepEntryId` 的头注。
        */
       const runKey = options.runKey ?? nextOperatorEntryId('run')
-      const continuationPrefix = options.runKey
+      /**
+       * ⚠ `let`：接回时一条补放流里可能跨好几跳（实时那边是每跳一次 `run`）—— 换跳时照实时那边
+       * 的算法换前缀，步号与正文 id 和实时那一份逐字相同（防重复应用按它认）。
+       */
+      let continuationPrefix = options.runKey
         ? `continuation-${options.canvasSteps ?? 0}:`
         : ''
 
@@ -1291,190 +1332,211 @@ export function useAssistantOperator(
         }, STUDIO_OPERATOR_STREAMING.pendingAfterStepMs)
       }
 
-      /**
-       * ⭐ **载回来的历史也进上下文**（P4-B）：不带它的下场是「用户看得见自己
-       * 三分钟前说的话，助手却完全失忆」—— 刷新之后第一句就要重新自我介绍。
-       * 旧助手线（`use-assistant-conversation`）也是把历史原样带回上下文的。
-       * ⚠ 只带最后几条对白（`historyToOperatorMessages` 自己截），显示是全部。
-       */
-      const { entries, history, sessionId } = getOperatorState()
-      const mentionedAssets = buildMentionedAssets(entries)
-      const messages = [
-        ...historyToOperatorMessages(history),
-        ...buildMessages(entries),
-      ]
-      if (messages.length === 0) {
-        setOperatorStatus('idle')
-        return
-      }
-
-      const priorFinds = collectOperatorPriorFinds(entries)
-      const latestMessage = messages.findLast(
-        (message) => message.role === 'user',
-      )?.content
-      /** ⭐ `@` 到的卡按 id 给宿主（画布据此展开那几张、给文本卡全文），⛔ 不按名字。 */
-      const pointedMentions = lastUserMentions(entries)
-      const mentionedNodeIds = pointedMentions.flatMap((mention) =>
-        mention.nodeId ? [mention.nodeId] : [],
-      )
-      const snapshot = buildSnapshot(
-        latestMessage || mentionedNodeIds.length
-          ? {
-              ...(latestMessage ? { latestMessage } : {}),
-              ...(mentionedNodeIds.length ? { mentionedNodeIds } : {}),
-            }
-          : undefined,
-      )
-      const libraryView = readLibraryView()
-      const authoredByAssistant = buildAuthoredByAssistant(
-        entries,
-        snapshot,
-        getOperatorState().changes,
-      )
-
-      /**
-       * ⭐ **v3 看片的帧生产者**（看图期第二段，owner 2026-10-15）：被指着的片子（@ / 📎，最多
-       *   `maxClips` 段，整轮在模型眼前）与视频台上只是挂着的参考视频（`video-N`，`look` 它才
-       *   摆，见 `lib/assistant-pointed-clips.ts`）在请求发出去之前按片长抽好帧。
-       * ⚠ 快照要先拍：视频台挂着的那几段从快照里读（与板子上的 `video-N` 同一份）。
-       * ⚠ 接力（画布 canvas_sync / 时间预算）把上一跳的那一份原样带回来，⛔ 不重抽、不重复
-       *   系统行。被指着的抽帧失败不拦这一轮：照样发（Gemini 还能看片子本体），线程里留一行原因。
-       */
       let videoClips = options.videoClips
-      if (!videoClips) {
-        const turnClips = resolveTurnClips({
-          mentions: pointedMentions,
-          attachments: lastUserAttachments(entries),
-          referenceVideos: snapshot.videoReferences?.items,
-        })
-        if (turnClips.pointed.length || turnClips.mounted.length) {
-          setOperatorCapturingFrames(true)
-          try {
-            const captured = await captureTurnClips(turnClips)
-            if (!isCurrentRun()) return
-            videoClips = captured.videoClips
-            for (const reason of captured.failures)
+      /**
+       * 开流：新一轮 / 接力发请求；**接回**（回合托管第 3 片）只读这一轮的日志 —— 请求那一侧在
+       * 刷新之前已经发过了，⛔ 再发一遍。回 `null` = 这一轮不跑了（已收尾）。
+       */
+      const openStream =
+        async (): Promise<AssistantOperatorStreamApiResponse | null> => {
+          if (options.reattach)
+            return replayAssistantTurnAPI(options.reattach.turnId, {
+              signal: controller.signal,
+            })
+          /**
+           * ⭐ **载回来的历史也进上下文**（P4-B）：不带它的下场是「用户看得见自己
+           * 三分钟前说的话，助手却完全失忆」—— 刷新之后第一句就要重新自我介绍。
+           * 旧助手线（`use-assistant-conversation`）也是把历史原样带回上下文的。
+           * ⚠ 只带最后几条对白（`historyToOperatorMessages` 自己截），显示是全部。
+           */
+          const { entries, history, sessionId } = getOperatorState()
+          const mentionedAssets = buildMentionedAssets(entries)
+          const messages = [
+            ...historyToOperatorMessages(history),
+            ...buildMessages(entries),
+          ]
+          if (messages.length === 0) {
+            setOperatorStatus('idle')
+            return null
+          }
+
+          const priorFinds = collectOperatorPriorFinds(entries)
+          const latestMessage = messages.findLast(
+            (message) => message.role === 'user',
+          )?.content
+          /** ⭐ `@` 到的卡按 id 给宿主（画布据此展开那几张、给文本卡全文），⛔ 不按名字。 */
+          const pointedMentions = lastUserMentions(entries)
+          const mentionedNodeIds = pointedMentions.flatMap((mention) =>
+            mention.nodeId ? [mention.nodeId] : [],
+          )
+          const snapshot = buildSnapshot(
+            latestMessage || mentionedNodeIds.length
+              ? {
+                  ...(latestMessage ? { latestMessage } : {}),
+                  ...(mentionedNodeIds.length ? { mentionedNodeIds } : {}),
+                }
+              : undefined,
+          )
+          const libraryView = readLibraryView()
+          const authoredByAssistant = buildAuthoredByAssistant(
+            entries,
+            snapshot,
+            getOperatorState().changes,
+          )
+
+          /**
+           * ⭐ **v3 看片的帧生产者**（看图期第二段，owner 2026-10-15）：被指着的片子（@ / 📎，最多
+           *   `maxClips` 段，整轮在模型眼前）与视频台上只是挂着的参考视频（`video-N`，`look` 它才
+           *   摆，见 `lib/assistant-pointed-clips.ts`）在请求发出去之前按片长抽好帧。
+           * ⚠ 快照要先拍：视频台挂着的那几段从快照里读（与板子上的 `video-N` 同一份）。
+           * ⚠ 接力（画布 canvas_sync / 时间预算）把上一跳的那一份原样带回来，⛔ 不重抽、不重复
+           *   系统行。被指着的抽帧失败不拦这一轮：照样发（Gemini 还能看片子本体），线程里留一行原因。
+           */
+          if (!videoClips) {
+            const turnClips = resolveTurnClips({
+              mentions: pointedMentions,
+              attachments: lastUserAttachments(entries),
+              referenceVideos: snapshot.videoReferences?.items,
+            })
+            if (turnClips.pointed.length || turnClips.mounted.length) {
+              setOperatorCapturingFrames(true)
+              try {
+                const captured = await captureTurnClips(turnClips)
+                if (!isCurrentRun()) return null
+                videoClips = captured.videoClips
+                for (const reason of captured.failures)
+                  appendOperatorEntry({
+                    kind: 'system',
+                    id: nextOperatorEntryId('sys'),
+                    code: 'videoFramesFailed',
+                    subject: reason,
+                  })
+              } finally {
+                if (isCurrentRun()) setOperatorCapturingFrames(false)
+              }
+              if (!isCurrentRun()) return null
+            }
+            if (turnClips.overflow > 0)
               appendOperatorEntry({
                 kind: 'system',
                 id: nextOperatorEntryId('sys'),
-                code: 'videoFramesFailed',
-                subject: reason,
+                code: 'clipsOverCap',
+                count: ASSISTANT_V3_CLIP_LIMITS.maxClips,
               })
-          } finally {
-            if (isCurrentRun()) setOperatorCapturingFrames(false)
           }
-          if (!isCurrentRun()) return
+
+          return streamAssistantOperatorAPI(
+            {
+              messages,
+              ...(turnAnchor ? { turnAnchor } : {}),
+              mediaAttachments: lastUserMedia(entries),
+              domain,
+              workspaceKey,
+              snapshot,
+              ...(domain === 'canvas'
+                ? {
+                    stepBudget:
+                      ASSISTANT_OPERATOR_LIMITS.maxCanvasSteps - canvasSteps,
+                  }
+                : {}),
+              referenceProfiles: readOperatorReferenceProfiles(
+                entries,
+                history,
+              ),
+              /**
+               * ⭐ **这两格现在的字是助手自己上一轮写的**（2026-09-12 实测第 1 组 ②）：
+               * 服务端据此跳过覆盖三选 —— 它只活一轮，跨轮那一半的真值在这里。
+               * ⚠ 空数组不发：一个恒在的空键读起来像「我查过了，两格都是他写的」。
+               */
+              ...(authoredByAssistant.length ? { authoredByAssistant } : {}),
+              /**
+               * ⚠ 历史里的步也算「刚才做过什么」，⛔ 别只给本次会话的：刷新之后
+               * 助手会把用户上次撤销掉的改动原样再做一遍（拍板 18 的反面）。
+               * 上限由 `buildPriorSteps` 那一刀统一截（取最后 N 条）。
+               */
+              priorSteps: buildPriorSteps(
+                entries,
+                historyToPriorSteps(history),
+              ),
+              /**
+               * ⭐ **`@` 引用的那几张图**（§7，拍板 4 推翻的落点）：它同时是
+               * `critique_result.targetIds` 的**准入名单** —— 服务端只认这张名单里的
+               * 目标。⛔ 别指望服务端去解析消息里那句 `[attached: …]`：那是给模型读的
+               * 展示文本，当成权限清单用就是一条提示词注入的路。
+               */
+              ...(mentionedAssets.length ? { mentionedAssets } : {}),
+              ...(pointedMentions.length
+                ? {
+                    mentions: pointedMentions
+                      .slice(0, ASSISTANT_MENTION_LIMITS.maxPerMessage)
+                      .map(toMentionRef),
+                  }
+                : {}),
+              /** 库开着时报一句开着哪个库、点开了谁（`readLibraryView`）：「这个角色」才认得出。 */
+              ...(libraryView ? { libraryView } : {}),
+              /**
+               * ⭐ **这一轮属于哪段会话**（v2 §7.5 / §7.6，commit #12）—— 结账写库与
+               * 下一轮注入唯一的落点：服务端零会话态，会话的身份一直由客户端持有
+               * （`sessionId` 就是 `upsertAssistantConversation` 回来的那个 id）。
+               * ⚠ **缺席是常态而不是故障**：这条线程还没落过库（新会话的第一轮 ——
+               *   落库发生在这一轮说完话之后的那次 upsert）。那一轮的结论记录照旧算、
+               *   照旧随 `done` 下发，只是不落库，下一轮起才开始接得上。
+               * ⛔ 别为此在发请求前抢先建一条会话：那会给「说了一句就关掉」的用户在
+               *   历史列表里留一条空线程。
+               */
+              ...(sessionId ? { conversationId: sessionId } : {}),
+              /**
+               * ⭐ **隐身**（56a · ⋯ 菜单）—— 开着时服务端这一轮一条记忆都不写。
+               * ⚠ 每轮上送、⛔ 不落库：它作用于**当前会话**，不是账号级设置。
+               * ⚠ 关着时**整个键不发**：一个恒在的 `incognito: false` 读起来像
+               *   「用户特意关掉了隐身」，而绝大多数轮次里他从没碰过这颗开关。
+               */
+              ...(getOperatorState().incognito ? { incognito: true } : {}),
+              // 🔊 开着（②c-2）：她这一轮会被念出来，服务端教她写语气提示（只在聊天时用）。
+              ...(getOperatorVoicePrefs().on
+                ? {
+                    chatVoice: {
+                      expressive:
+                        getOperatorVoicePrefs().modelId ===
+                        AI_MODELS.FISH_AUDIO_DRAMA_3,
+                    },
+                  }
+                : {}),
+              // 聊天会话（附录L）：每轮带上和谁聊，服务端按这张卡扮演。
+              ...(getOperatorState().chatCharacter
+                ? { chatCharacterId: getOperatorState().chatCharacter?.id }
+                : {}),
+              // 聊天 / 工作那一档（名字旁那枚胶囊）：开口这一刻定下来，之后换台不跟着变。
+              chatMode: settledChatMode(),
+              ...(searchWithGrok ? { searchWithGrok: true as const } : {}),
+              ...(timeZone ? { timeZone } : {}),
+              ...(videoClips?.length ? { videoClips } : {}),
+              ...(confirmations?.length ? { confirmations } : {}),
+              ...(planAnswers?.length ? { planAnswers } : {}),
+              ...(planApproved === undefined ? {} : { planApproved }),
+              /**
+               * ⭐ **断点续跑**（第三期）：前几步的既成事实。⛔ 它不放宽钱闸 ——
+               * 剩下的步里但凡有一步要生成，`confirm` 照出（owner 定）。
+               */
+              ...(resumeFrom ? { resumeFrom } : {}),
+              responseLanguage: toResponseLanguage(locale),
+              ...(options.v3Transcript
+                ? { v3: { transcript: options.v3Transcript } }
+                : {}),
+              /**
+               * ⭐ **上一轮找到的图与视频**（`#n`，搜索期第三片）：「用 #2」「放第二个」跨轮还能落到
+               *   同一张。只在 v3 的新一轮发 —— 接力那一跳的板子已经冻着这一份；空的不发。
+               */
+              ...(!options.v3Transcript && priorFinds.length
+                ? { priorFinds }
+                : {}),
+            },
+            { signal: controller.signal },
+          )
         }
-        if (turnClips.overflow > 0)
-          appendOperatorEntry({
-            kind: 'system',
-            id: nextOperatorEntryId('sys'),
-            code: 'clipsOverCap',
-            count: ASSISTANT_V3_CLIP_LIMITS.maxClips,
-          })
-      }
+      const result = await openStream()
 
-      const result = await streamAssistantOperatorAPI(
-        {
-          messages,
-          mediaAttachments: lastUserMedia(entries),
-          domain,
-          workspaceKey,
-          snapshot,
-          ...(domain === 'canvas'
-            ? {
-                stepBudget:
-                  ASSISTANT_OPERATOR_LIMITS.maxCanvasSteps - canvasSteps,
-              }
-            : {}),
-          referenceProfiles: readOperatorReferenceProfiles(entries, history),
-          /**
-           * ⭐ **这两格现在的字是助手自己上一轮写的**（2026-09-12 实测第 1 组 ②）：
-           * 服务端据此跳过覆盖三选 —— 它只活一轮，跨轮那一半的真值在这里。
-           * ⚠ 空数组不发：一个恒在的空键读起来像「我查过了，两格都是他写的」。
-           */
-          ...(authoredByAssistant.length ? { authoredByAssistant } : {}),
-          /**
-           * ⚠ 历史里的步也算「刚才做过什么」，⛔ 别只给本次会话的：刷新之后
-           * 助手会把用户上次撤销掉的改动原样再做一遍（拍板 18 的反面）。
-           * 上限由 `buildPriorSteps` 那一刀统一截（取最后 N 条）。
-           */
-          priorSteps: buildPriorSteps(entries, historyToPriorSteps(history)),
-          /**
-           * ⭐ **`@` 引用的那几张图**（§7，拍板 4 推翻的落点）：它同时是
-           * `critique_result.targetIds` 的**准入名单** —— 服务端只认这张名单里的
-           * 目标。⛔ 别指望服务端去解析消息里那句 `[attached: …]`：那是给模型读的
-           * 展示文本，当成权限清单用就是一条提示词注入的路。
-           */
-          ...(mentionedAssets.length ? { mentionedAssets } : {}),
-          ...(pointedMentions.length
-            ? {
-                mentions: pointedMentions
-                  .slice(0, ASSISTANT_MENTION_LIMITS.maxPerMessage)
-                  .map(toMentionRef),
-              }
-            : {}),
-          /** 库开着时报一句开着哪个库、点开了谁（`readLibraryView`）：「这个角色」才认得出。 */
-          ...(libraryView ? { libraryView } : {}),
-          /**
-           * ⭐ **这一轮属于哪段会话**（v2 §7.5 / §7.6，commit #12）—— 结账写库与
-           * 下一轮注入唯一的落点：服务端零会话态，会话的身份一直由客户端持有
-           * （`sessionId` 就是 `upsertAssistantConversation` 回来的那个 id）。
-           * ⚠ **缺席是常态而不是故障**：这条线程还没落过库（新会话的第一轮 ——
-           *   落库发生在这一轮说完话之后的那次 upsert）。那一轮的结论记录照旧算、
-           *   照旧随 `done` 下发，只是不落库，下一轮起才开始接得上。
-           * ⛔ 别为此在发请求前抢先建一条会话：那会给「说了一句就关掉」的用户在
-           *   历史列表里留一条空线程。
-           */
-          ...(sessionId ? { conversationId: sessionId } : {}),
-          /**
-           * ⭐ **隐身**（56a · ⋯ 菜单）—— 开着时服务端这一轮一条记忆都不写。
-           * ⚠ 每轮上送、⛔ 不落库：它作用于**当前会话**，不是账号级设置。
-           * ⚠ 关着时**整个键不发**：一个恒在的 `incognito: false` 读起来像
-           *   「用户特意关掉了隐身」，而绝大多数轮次里他从没碰过这颗开关。
-           */
-          ...(getOperatorState().incognito ? { incognito: true } : {}),
-          // 🔊 开着（②c-2）：她这一轮会被念出来，服务端教她写语气提示（只在聊天时用）。
-          ...(getOperatorVoicePrefs().on
-            ? {
-                chatVoice: {
-                  expressive:
-                    getOperatorVoicePrefs().modelId ===
-                    AI_MODELS.FISH_AUDIO_DRAMA_3,
-                },
-              }
-            : {}),
-          // 聊天会话（附录L）：每轮带上和谁聊，服务端按这张卡扮演。
-          ...(getOperatorState().chatCharacter
-            ? { chatCharacterId: getOperatorState().chatCharacter?.id }
-            : {}),
-          // 聊天 / 工作那一档（名字旁那枚胶囊）：开口这一刻定下来，之后换台不跟着变。
-          chatMode: settledChatMode(),
-          ...(searchWithGrok ? { searchWithGrok: true as const } : {}),
-          ...(timeZone ? { timeZone } : {}),
-          ...(videoClips?.length ? { videoClips } : {}),
-          ...(confirmations?.length ? { confirmations } : {}),
-          ...(planAnswers?.length ? { planAnswers } : {}),
-          ...(planApproved === undefined ? {} : { planApproved }),
-          /**
-           * ⭐ **断点续跑**（第三期）：前几步的既成事实。⛔ 它不放宽钱闸 ——
-           * 剩下的步里但凡有一步要生成，`confirm` 照出（owner 定）。
-           */
-          ...(resumeFrom ? { resumeFrom } : {}),
-          responseLanguage: toResponseLanguage(locale),
-          ...(options.v3Transcript
-            ? { v3: { transcript: options.v3Transcript } }
-            : {}),
-          /**
-           * ⭐ **上一轮找到的图与视频**（`#n`，搜索期第三片）：「用 #2」「放第二个」跨轮还能落到
-           *   同一张。只在 v3 的新一轮发 —— 接力那一跳的板子已经冻着这一份；空的不发。
-           */
-          ...(!options.v3Transcript && priorFinds.length ? { priorFinds } : {}),
-        },
-        { signal: controller.signal },
-      )
-
-      if (!isCurrentRun()) return
+      if (!result || !isCurrentRun()) return
       if (!result.success) {
         cancelPendingAfterStep()
         dropOperatorPending(messageEntryId())
@@ -1497,6 +1559,24 @@ export function useAssistantOperator(
       try {
         for await (const event of result.events) {
           if (!isCurrentRun()) break
+          /**
+           * 接回时补放流跨过一个接力点、下一跳的帧到了（回合托管第 3 片）：照实时那边新起一次 `run`
+           * 的样子换跳 —— 前缀、正文序号、这一跳的画布账从头算。停在接力点上没有后续的，走下面
+           * 收尾那段照常接着发下一跳。
+           */
+          if (
+            options.reattach &&
+            canvasSync &&
+            event.type !== ASSISTANT_OPERATOR_EVENTS.stopped
+          ) {
+            canvasSync = false
+            canvasApplied = false
+            canvasNeedsInputSync = false
+            continuationPrefix = `continuation-${canvasSteps}:`
+            messageSeq = 0
+            deltaEntryIds = []
+            appendOperatorPending(messageEntryId(), 'landing')
+          }
           if (event.type === ASSISTANT_OPERATOR_EVENTS.open && event.turnId)
             turnIdRef.current = event.turnId
           if (
@@ -1787,14 +1867,34 @@ export function useAssistantOperator(
               const resumeMark = resumeMarkFor(step)
               if (resumeStepId && resumeMark)
                 markOperatorResumeStep(resumeStepId, resumeMark)
+              /**
+               * 接回时补放到的这一步，刷新之前已经在这个标签页落过（回合托管第 3 片）：⛔ 再落一遍。
+               * 画布那一跳照样算「落了」：接力要带着新快照接着跑。
+               */
+              const turnId = turnIdRef.current
+              const alreadyApplied =
+                Boolean(options.reattach) &&
+                turnId !== null &&
+                step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done &&
+                wasStepApplied(turnId, step.id)
+              if (
+                alreadyApplied &&
+                (step.tool === ASSISTANT_OPERATOR_TOOL_IDS.canvasApply ||
+                  step.tool === ASSISTANT_OPERATOR_TOOL_IDS.canvasBatch)
+              )
+                canvasApplied = true
               // ⭐ 只在 `done` 那一次应用：`running` 也应用就会改两遍
               //    （append 类的会追加两次，而那是看得见的）。
               // ⚠ `status === 'done'` 同时把类型收窄成「应用过的那一支」——
               //    被拒的那支是 `status: 'error'`，它没有 payload / inverse。
-              if (step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done) {
+              if (
+                step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done &&
+                !alreadyApplied
+              ) {
                 const field = flushSync(() =>
                   applyOperatorStep(step, applyContext),
                 )
+                if (turnId) markStepApplied(turnId, step.id)
                 // 记住了一条偏好：头像顶一下（owner 2026-10-07 动效第 3 批）。
                 if (
                   step.tool === ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule &&
@@ -2068,6 +2168,8 @@ export function useAssistantOperator(
         const resume = getOperatorState().resume
         runRef.current?.({
           ...options,
+          // 接回的那一轮停在接力点上：下一跳是真发请求（同一个轮号随接力条带过去）。
+          reattach: undefined,
           runKey,
           canvasSteps,
           planApproved: true,
@@ -3837,6 +3939,35 @@ export function useAssistantOperator(
   // 面板卸载（切模态 / 离开工作台）时把在飞的流掐掉：留着它会继续往一个不存在
   // 的面板里应用 op —— 表单被改而线程已经没了。
   useEffect(() => () => abortRef.current?.abort(), [])
+
+  /**
+   * **接回进行中的那一轮**（回合托管第 3 片）：载回来一段会话（刷新、从列表点开）而线程是闲的，
+   * 就问一句它还有没有一轮在服务端跑；有就把历史截到那一轮的锚点、整轮补放、再接着收。
+   * ⚠ 每段会话这次页面加载只问一次；问的时候你已经开口了 / 换了会话就作罢。回合托管关着时服务端
+   *   从不记「在跑的轮」，这里永远问不到。
+   */
+  const sessionId = useStudioOperatorSelector((state) => state.sessionId)
+  useEffect(() => {
+    if (!sessionId || !isCurrentThread() || askedActiveTurns.has(sessionId))
+      return
+    const before = getOperatorState()
+    if (before.status !== 'idle' || before.entries.length > 0) return
+    askedActiveTurns.add(sessionId)
+    void getActiveAssistantTurnAPI(sessionId).then((active) => {
+      const now = getOperatorState()
+      if (
+        !active ||
+        !isCurrentThread() ||
+        now.sessionId !== sessionId ||
+        now.localThreadId !== before.localThreadId ||
+        now.status !== 'idle' ||
+        now.entries.length > 0
+      )
+        return
+      truncateOperatorHistoryAfter(active.anchor)
+      void run({ reattach: { turnId: active.turnId } })
+    })
+  }, [sessionId, isCurrentThread, run])
   /**
    * ⭐ 同一条规矩在 `/studio` 外壳里（第 9f 步）：面板只挂一份、换台不卸载，于是「换了台」
    *   由登记号说 —— 离开那个台就把在飞的流掐掉（开台那一跳早已收尾，掐了也没事）。

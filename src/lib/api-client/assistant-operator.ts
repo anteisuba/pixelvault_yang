@@ -19,7 +19,9 @@ import { getErrorPayload } from '@/lib/api-client/shared'
 import { getThrownErrorFields } from '@/lib/api-client/error-fields'
 import { parseSseStream } from '@/lib/sse'
 import {
+  AssistantActiveTurnSchema,
   AssistantOperatorEventSchema,
+  type AssistantActiveTurn,
   type AssistantAssetWriteRevert,
   type AssistantAssetWriteRevertResult,
   type AssistantOperatorEvent,
@@ -135,13 +137,60 @@ export async function streamAssistantOperatorAPI(
   request: AssistantOperatorRequest,
   options: { signal?: AbortSignal } = {},
 ): Promise<AssistantOperatorStreamApiResponse> {
-  try {
-    const response = await apiFetch(API_ENDPOINTS.STUDIO_ASSISTANT_OPERATOR, {
+  return openOperatorStream(() =>
+    apiFetch(API_ENDPOINTS.STUDIO_ASSISTANT_OPERATOR, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(request),
       signal: options.signal,
-    })
+    }),
+  )
+}
+
+/**
+ * 接回一轮（回合托管第 3 片）：补放这一轮的事件日志，还在跑就接着收。出的流与 `streamAssistantOperatorAPI`
+ * 同形，调用方用同一套事件处理。
+ */
+export async function replayAssistantTurnAPI(
+  turnId: string,
+  options: { after?: number; signal?: AbortSignal } = {},
+): Promise<AssistantOperatorStreamApiResponse> {
+  const params = new URLSearchParams({ after: String(options.after ?? 0) })
+  return openOperatorStream(() =>
+    apiFetch(
+      `${API_ENDPOINTS.STUDIO_ASSISTANT_OPERATOR_TURNS}/${encodeURIComponent(turnId)}?${params}`,
+      { signal: options.signal, cache: 'no-store' },
+    ),
+  )
+}
+
+/** 这段会话此刻在跑的轮；没有、或问不到都回 `null`（⛔ 抛：接不回就当没有，页面照常可用）。 */
+export async function getActiveAssistantTurnAPI(
+  conversationId: string,
+): Promise<AssistantActiveTurn | null> {
+  try {
+    const params = new URLSearchParams({ conversationId })
+    const response = await apiFetch(
+      `${API_ENDPOINTS.STUDIO_ASSISTANT_OPERATOR_ACTIVE}?${params}`,
+      { cache: 'no-store' },
+    )
+    if (!response.ok) return null
+    const body = (await response.json()) as {
+      success?: boolean
+      data?: { active?: unknown }
+    }
+    const parsed = AssistantActiveTurnSchema.safeParse(body.data?.active)
+    return parsed.success ? parsed.data : null
+  } catch {
+    return null
+  }
+}
+
+async function openOperatorStream(
+  open: () => Promise<Response>,
+): Promise<AssistantOperatorStreamApiResponse> {
+  try {
+    const response = await open()
 
     if (!response.ok) {
       const payload = await getErrorPayload(response)

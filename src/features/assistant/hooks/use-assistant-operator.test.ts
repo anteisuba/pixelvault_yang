@@ -60,9 +60,14 @@ function doneStepEvent(id: string): AssistantOperatorEvent {
 const streamAssistantOperatorAPI = vi.hoisted(() => vi.fn())
 
 const stopAssistantTurnAPI = vi.hoisted(() => vi.fn())
+/** 回合托管第 3 片：刷新回来问「还有没有在跑的轮」、接回补放。默认没有。 */
+const getActiveAssistantTurnAPI = vi.hoisted(() => vi.fn())
+const replayAssistantTurnAPI = vi.hoisted(() => vi.fn())
 vi.mock('@/lib/api-client/assistant-operator', () => ({
   streamAssistantOperatorAPI,
   stopAssistantTurnAPI,
+  getActiveAssistantTurnAPI,
+  replayAssistantTurnAPI,
 }))
 
 /** 开台换页（第 9e 步）。 */
@@ -374,6 +379,15 @@ beforeEach(async () => {
   canvasGenerationState.current = null
   hostSnapshot.current = { prompt: '', availableModels: [] }
   streams.length = 0
+  sessionStorage.clear()
+  getActiveAssistantTurnAPI.mockResolvedValue(null)
+  replayAssistantTurnAPI.mockImplementation(
+    (_turnId: string, options: { signal?: AbortSignal } = {}) => {
+      const stream = createFakeStream(options.signal)
+      streams.push(stream)
+      return Promise.resolve({ success: true, events: stream.events })
+    },
+  )
   streamAssistantOperatorAPI.mockImplementation(
     (_request: unknown, options: { signal?: AbortSignal } = {}) => {
       const stream = createFakeStream(options.signal)
@@ -4450,5 +4464,161 @@ describe('回合托管：明说的停才停服务端那一轮（11-11）', () =>
     act(() => result.current.send('接着来'))
     await settle()
     expect(stopAssistantTurnAPI).not.toHaveBeenCalled()
+  })
+})
+
+describe('回合托管第 3 片：刷新回来接回进行中的那一轮', () => {
+  const SESSION = '6f1c2a3e-0b4d-4c5e-8f9a-1b2c3d4e5f60'
+
+  function loadThread() {
+    store.loadOperatorThread({
+      history: [
+        { kind: 'user', id: 'u-1', text: '先画一张', attachments: [] },
+        { kind: 'message', id: 'm-1', text: '画好了' },
+        { kind: 'user', id: 'u-2', text: '把提示词写成夜景', attachments: [] },
+        // 防抖存进去的那半轮：接回时整轮补放，⛔ 留着就显示两遍。
+        { kind: 'message', id: 'm-2', text: '我先看看' },
+      ],
+      sessionId: SESSION,
+      sessionSurface: null,
+    })
+  }
+
+  function setPromptDone(): AssistantOperatorEvent {
+    return {
+      type: ASSISTANT_OPERATOR_EVENTS.step,
+      step: {
+        id: 'step-1',
+        title: '写入正向提示词',
+        tool: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+        verb: 'apply',
+        status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+        payload: { mode: 'replace', value: '夜景' },
+        inverse: { value: '' },
+      },
+    }
+  }
+
+  it('新一轮的请求带锚点 = 你刚说的那句；接力那一跳 ⛔ 带', async () => {
+    const { result } = render()
+    act(() => result.current.send('画一张海报'))
+    await settle()
+    const request = streamAssistantOperatorAPI.mock.calls[0][0]
+    const userEntry = store
+      .getOperatorState()
+      .entries.find((entry) => entry.kind === 'user')
+    expect(request.turnAnchor).toBe(userEntry?.id)
+  })
+
+  it('有在跑的轮：历史截到锚点、读日志补放（⛔ 再发请求）、⏹ 停的就是它', async () => {
+    getActiveAssistantTurnAPI.mockResolvedValue({
+      turnId: 'turn-5',
+      anchor: 'u-2',
+    })
+    loadThread()
+    const { result } = render()
+    await settle()
+
+    expect(getActiveAssistantTurnAPI).toHaveBeenCalledWith(SESSION)
+    expect(replayAssistantTurnAPI).toHaveBeenCalledWith(
+      'turn-5',
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    )
+    expect(streamAssistantOperatorAPI).not.toHaveBeenCalled()
+    expect(store.getOperatorState().history.map((entry) => entry.id)).toEqual([
+      'u-1',
+      'm-1',
+      'u-2',
+    ])
+    expect(store.getOperatorState().status).toBe('working')
+
+    streams[0].emit({ type: ASSISTANT_OPERATOR_EVENTS.open, turnId: 'turn-5' })
+    streams[0].emit({
+      type: ASSISTANT_OPERATOR_EVENTS.message,
+      text: '我先看看',
+    })
+    await settle()
+    act(() => result.current.stop())
+    await settle()
+    expect(stopAssistantTurnAPI).toHaveBeenCalledWith('turn-5')
+  })
+
+  it('补放到这个标签页刷新前已经落过的那一步：⛔ 再落；没落过的照落', async () => {
+    sessionStorage.setItem(
+      'antei:assistant-applied-steps',
+      JSON.stringify(['turn-5:step-1']),
+    )
+    getActiveAssistantTurnAPI.mockResolvedValue({
+      turnId: 'turn-5',
+      anchor: 'u-2',
+    })
+    loadThread()
+    render()
+    await settle()
+    streams[0].emit({ type: ASSISTANT_OPERATOR_EVENTS.open, turnId: 'turn-5' })
+    streams[0].emit(setPromptDone())
+    await settle()
+    expect(dispatch).not.toHaveBeenCalledWith({
+      type: 'SET_PROMPT',
+      payload: '夜景',
+    })
+    streams[0].emit({ type: ASSISTANT_OPERATOR_EVENTS.done })
+    streams[0].close()
+    await settle()
+    expect(store.getOperatorState().status).toBe('idle')
+  })
+
+  it('实时那一轮落下的步记进本标签页（刷新后补放据此跳过）', async () => {
+    const { result } = render()
+    act(() => result.current.send('把提示词写成夜景'))
+    await settle()
+    streams[0].emit({ type: ASSISTANT_OPERATOR_EVENTS.open, turnId: 'turn-7' })
+    streams[0].emit(setPromptDone())
+    await settle()
+    expect(dispatch).toHaveBeenCalledWith({
+      type: 'SET_PROMPT',
+      payload: '夜景',
+    })
+    expect(
+      JSON.parse(sessionStorage.getItem('antei:assistant-applied-steps')!),
+    ).toContain('turn-7:step-1')
+  })
+
+  it('补放跨过接力点：下一跳的步号换前缀；停在接力点上的由这里接着真发请求', async () => {
+    getActiveAssistantTurnAPI.mockResolvedValue({
+      turnId: 'turn-6',
+      anchor: 'u-2',
+    })
+    loadThread()
+    render()
+    await settle()
+    streams[0].emit({ type: ASSISTANT_OPERATOR_EVENTS.open, turnId: 'turn-6' })
+    const transcript = [{ type: 'board', text: 'bench' }] as never
+    streams[0].emit(doneStepEvent('step-1'))
+    streams[0].emit({ type: 'transcript', transcript })
+    streams[0].emit({ type: 'stopped', reason: 'time_budget' })
+    streams[0].emit(doneStepEvent('step-1'))
+    streams[0].emit({ type: 'transcript', transcript })
+    streams[0].emit({ type: 'stopped', reason: 'time_budget' })
+    streams[0].close()
+    await settle()
+
+    const stepIds = store
+      .getOperatorState()
+      .entries.filter((entry) => entry.kind === 'step')
+      .map((entry) => entry.id)
+    expect(new Set(stepIds).size).toBe(2)
+    // 日志停在接力点、下一跳没人发：这里接着真发（⛔ 再读日志）。
+    expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(1)
+    expect(replayAssistantTurnAPI).toHaveBeenCalledTimes(1)
+  })
+
+  it('没有在跑的轮 / 你已经开口了：⛔ 接', async () => {
+    loadThread()
+    render()
+    await settle()
+    expect(getActiveAssistantTurnAPI).toHaveBeenCalledWith(SESSION)
+    expect(replayAssistantTurnAPI).not.toHaveBeenCalled()
+    expect(store.getOperatorState().history).toHaveLength(4)
   })
 })

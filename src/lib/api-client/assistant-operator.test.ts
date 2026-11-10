@@ -1,7 +1,11 @@
 import { describe, expect, it, vi, afterEach } from 'vitest'
 
-import { ASSISTANT_OPERATOR_EVENTS } from '@/constants/assistant-operator'
+import {
+  ASSISTANT_OPERATOR_EVENTS,
+  ASSISTANT_OPERATOR_HEARTBEAT_MS,
+} from '@/constants/assistant-operator'
 import { API_ENDPOINTS } from '@/constants/config'
+import { STUDIO_OPERATOR_STREAMING } from '@/constants/studio-assistant-operator'
 import {
   readAssistantOperatorStream,
   streamAssistantOperatorAPI,
@@ -89,6 +93,39 @@ describe('readAssistantOperatorStream', () => {
       expect(events.map((event) => event.type)).toEqual(['open', 'error'])
       expect(events[1]).toMatchObject({ errorCode: 'STREAM_INTERRUPTED' })
       expect(cancel).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+  it('只有心跳在走 → 不算断流（默认阈值至少盖住三个心跳周期）', async () => {
+    expect(
+      STUDIO_OPERATOR_STREAMING.streamIdleTimeoutMs,
+    ).toBeGreaterThanOrEqual(ASSISTANT_OPERATOR_HEARTBEAT_MS * 3)
+    vi.useFakeTimers()
+    try {
+      const encoder = new TextEncoder()
+      let push: ((text: string) => void) | undefined
+      let finish: (() => void) | undefined
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          push = (text) => controller.enqueue(encoder.encode(text))
+          finish = () => controller.close()
+        },
+      })
+      const events: AssistantOperatorEvent[] = []
+      const done = (async () => {
+        for await (const event of readAssistantOperatorStream(body)) {
+          events.push(event)
+        }
+      })()
+      for (let beat = 0; beat < 8; beat += 1) {
+        await vi.advanceTimersByTimeAsync(ASSISTANT_OPERATOR_HEARTBEAT_MS)
+        push?.(': ping\n\n')
+      }
+      push?.(encodeSseEvent('done', { type: 'done' }))
+      finish?.()
+      await done
+      expect(events).toEqual([{ type: 'done' }])
     } finally {
       vi.useRealTimers()
     }

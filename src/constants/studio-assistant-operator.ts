@@ -515,10 +515,11 @@ export const STUDIO_OPERATOR_STREAMING = {
   thinkingTickMs: 500,
   /**
    * **多久一个字节都没来就当断流**（2026-10-17：连接被吊住时「正在想」会一直数）。
-   * ⚠ 必须大于服务端路由的 `maxDuration`（300 s）：服务端到点前自己收尾，平台到点
-   *   杀函数也会断连接 —— 过了这个数还在等，只可能是连接死了。
+   * 服务端从 `open` 起每 `ASSISTANT_OPERATOR_HEARTBEAT_MS`（15 s）发一行心跳，模型在想、
+   * 开轮在准备时都照发 —— 四个心跳周期一个字节都没来，只可能是连接死了（11-10 由 330 s 收到 60 s）。
+   * ⚠ 必须保持在心跳间隔的 3 倍以上，否则网络抖一下就误判断流。
    */
-  streamIdleTimeoutMs: 330_000,
+  streamIdleTimeoutMs: 60_000,
 } as const
 
 /**

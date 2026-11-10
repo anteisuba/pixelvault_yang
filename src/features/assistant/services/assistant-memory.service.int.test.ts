@@ -26,6 +26,7 @@ import {
   listStandingRuleMemories,
   recordAssistantMemories,
   restoreAssistantMemory,
+  memorySearchTerms,
   searchAssistantMemories,
   touchAssistantMemories,
   updateAssistantMemory,
@@ -920,8 +921,35 @@ describe('clearAssistantMemories（真库）', () => {
 })
 
 /** P3 读取：助手翻记忆（`search_library kind "memories"`）。 */
+describe('memorySearchTerms（翻记忆的检索词）', () => {
+  it('拉丁按词，中日韩文两字一组，单个字留它自己，「16:9」整个留着', () => {
+    expect(memorySearchTerms('马尔福的发色, Wide 16:9')).toEqual([
+      '马尔',
+      '尔福',
+      '福的',
+      '的发',
+      '发色',
+      'Wide',
+      '16:9',
+    ])
+    expect(memorySearchTerms('猫')).toEqual(['猫'])
+    expect(memorySearchTerms('Rossi的tag')).toEqual(['Rossi', 'tag', '的'])
+    expect(memorySearchTerms('  ')).toEqual([])
+  })
+
+  it('检索词有上限', () => {
+    // 40 个各不相同的汉字连成一句 → 39 组两字，只留前 maxSearchTerms 组。
+    const sentence = Array.from({ length: 40 }, (_, index) =>
+      String.fromCharCode(0x4e00 + index),
+    ).join('')
+    expect(memorySearchTerms(sentence)).toHaveLength(
+      ASSISTANT_MEMORY_LIMITS.maxSearchTerms,
+    )
+  })
+})
+
 describe('searchAssistantMemories（真库）', () => {
-  it('按词翻（任一个词，大小写不敏感），当前域 + global、活着的，两种来源都翻', async () => {
+  it('按词翻（任一个词，大小写不敏感），当前域 + global、活着的，两种来源都翻；含中的词多的排前', async () => {
     const wide = await mem({ text: '偏好横构图' })
     const ratio = await mem({
       scope: 'GLOBAL',
@@ -938,7 +966,21 @@ describe('searchAssistantMemories（真库）', () => {
       query: '横构图, 16:9, wide',
     })
 
-    expect(ids(found)).toEqual([english.id, ratio.id, wide.id])
+    // 「横构图」切成 横构 · 构图，两个都含的那条排第一；其余各中一个，按最近改过的排。
+    expect(ids(found)).toEqual([wide.id, english.id, ratio.id])
+  })
+
+  it('⭐ 中文整句也翻得到：按两字一组切，不要求原句一字不差（11-10）', async () => {
+    const hair = await mem({ text: '马尔福是铂金色的头发' })
+    const outfit = await mem({ text: '马尔福常穿黑袍' })
+    await mem({ text: '偏好冷色调' })
+
+    const found = await searchAssistantMemories(userId, {
+      scope: ASSISTANT_MEMORY_SCOPE_IDS.image,
+      query: '马尔福的头发是什么颜色',
+    })
+
+    expect(ids(found)).toEqual([hair.id, outfit.id])
   })
 
   it('空查询 = 最近的那批', async () => {

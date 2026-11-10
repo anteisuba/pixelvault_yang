@@ -117,6 +117,10 @@ export const ASSISTANT_MEMORY_LIMITS = {
   maxSearchResults: 20,
   /** 翻记忆的查询最多认几个词（多了就是在复述整句话）。 */
   maxSearchWords: 8,
+  /** 中文按两字一组切之后最多拿几个检索词去查（`memorySearchTerms`）。 */
+  maxSearchTerms: 24,
+  /** 有查询时先按最近改过的捞这么多条，再按含中的词数排、留前 `maxSearchResults` 条。 */
+  maxSearchCandidates: 100,
 } as const
 
 /**

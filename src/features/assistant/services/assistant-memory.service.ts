@@ -790,12 +790,46 @@ export async function listAssistantMemoriesForReview(
     .filter((memory): memory is AssistantMemory => memory !== null)
 }
 
+/** 中日韩文字（连在一起的这些按两字一组切）。 */
+const CJK_RUN =
+  /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]+/gu
+
+/**
+ * 翻记忆的查询 → 检索词（11-10）。
+ *
+ * 拉丁照旧按空白 / 标点切成词；连在一起的中日韩文按**两字一组**切（「马尔福的发色」→ 马尔 · 尔福 ·
+ * 福的 · 的发 · 发色）：整句当一个词时，只有原句一字不差的那条才翻得到。只有一个字的留那一个字。
+ * ⚠ `:` 不当分隔符：「16:9」要整个留着。
+ */
+export function memorySearchTerms(query: string): string[] {
+  const terms = new Set<string>()
+  const words = query
+    .split(/[\s,，、;；。！？!?]+/)
+    .map((word) => word.trim())
+    .filter(Boolean)
+    .slice(0, ASSISTANT_MEMORY_LIMITS.maxSearchWords)
+  for (const word of words) {
+    for (const rest of word.split(CJK_RUN)) {
+      if (rest.trim()) terms.add(rest.trim())
+    }
+    for (const run of word.match(CJK_RUN) ?? []) {
+      const chars = [...run]
+      if (chars.length === 1) terms.add(run)
+      for (let index = 0; index + 1 < chars.length; index += 1)
+        terms.add(chars[index]! + chars[index + 1]!)
+    }
+  }
+  return [...terms].slice(0, ASSISTANT_MEMORY_LIMITS.maxSearchTerms)
+}
+
 /**
  * 助手**翻记忆**（P3 读取：`search_library kind "memories"`）—— 每轮只注入最近改过的那几条，
  * 剩下的靠它翻。当前域 + global（画布只本项目），你写的与助手记的都翻。
  *
- * ⚠ 匹配只做「含其中任一个词」（大小写不敏感），⛔ 不做向量 / 相似度：一行最多 200 字，
- *   措辞对不上就让模型换个词再翻，或者空着查询看最近的那批。
+ * ⚠ 匹配只做「含其中任一个检索词」（大小写不敏感，`memorySearchTerms`），⛔ 不做向量 / 相似度：
+ *   一行最多 200 字，措辞对不上就让模型换个词再翻，或者空着查询看最近的那批。
+ * ⭐ 含中的词多的排前面，一样多按最近改过的（11-10）：中文按两字一组切之后，单靠「含任一个」
+ *   会把只沾上一个「的发」的那条也排到前头。
  * ⭐ 翻到的**助手记的**刷新 `lastUsedAt`：真被用到才算用过（淘汰读它），⛔ 注入不再算。
  */
 export async function searchAssistantMemories(
@@ -807,22 +841,18 @@ export async function searchAssistantMemories(
     query: string
   },
 ): Promise<AssistantMemory[]> {
-  const words = options.query
-    .split(/[\s,，、;；]+/)
-    .map((word) => word.trim())
-    .filter(Boolean)
-    .slice(0, ASSISTANT_MEMORY_LIMITS.maxSearchWords)
+  const terms = memorySearchTerms(options.query)
   const rows = await db.assistantMemory.findMany({
     where: {
       userId,
       AND: [
         promptWhere(options.scope, options.projectId, options.characterCardId),
         liveWhere(),
-        ...(words.length
+        ...(terms.length
           ? [
               {
-                OR: words.map((word) => ({
-                  text: { contains: word, mode: 'insensitive' as const },
+                OR: terms.map((term) => ({
+                  text: { contains: term, mode: 'insensitive' as const },
                 })),
               },
             ]
@@ -830,12 +860,23 @@ export async function searchAssistantMemories(
       ],
     },
     orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }],
-    take: ASSISTANT_MEMORY_LIMITS.maxSearchResults,
+    take: terms.length
+      ? ASSISTANT_MEMORY_LIMITS.maxSearchCandidates
+      : ASSISTANT_MEMORY_LIMITS.maxSearchResults,
     select: MEMORY_SELECT,
   })
+  const hits = (memory: AssistantMemory) => {
+    const text = memory.text.toLowerCase()
+    return terms.filter((term) => text.includes(term.toLowerCase())).length
+  }
   const memories = rows
     .map(toMemory)
     .filter((memory): memory is AssistantMemory => memory !== null)
+    .map((memory, order) => ({ memory, order, hits: hits(memory) }))
+    // 已经按最近改过的排好：命中一样多时保持这个先后。
+    .sort((a, b) => b.hits - a.hits || a.order - b.order)
+    .slice(0, ASSISTANT_MEMORY_LIMITS.maxSearchResults)
+    .map(({ memory }) => memory)
   const used = memories
     .filter((memory) => memory.source === ASSISTANT_MEMORY_SOURCE_IDS.assistant)
     .map((memory) => memory.id)

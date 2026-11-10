@@ -4,11 +4,16 @@ import type {
   AssistantOperatorBenchOpen,
   AssistantOperatorEvent,
   AssistantOperatorRoundSummary,
+  AssistantOperatorStep,
 } from '@/types/assistant-operator'
 import type { StudioOperatorThreadEntry } from '@/types/studio-assistant-operator'
+import type { StudioOperatorResumePlan } from '@/types/studio-operator-resume'
 import {
+  canvasBatchFailureDetail,
   deltaStartsNewMessage,
   finalMessagePlan,
+  resumeMarkFor,
+  resumeStepIdFor,
   stoppedOutcome,
   thinkingStartsNewMessage,
 } from '@/lib/studio-operator-frames'
@@ -217,5 +222,96 @@ describe('stopped 帧落成什么', () => {
       roundSummary: null,
       status: 'idle',
     })
+  })
+})
+
+describe('一步落在续跑记录的哪一格、记什么（拆前端第 3 片）', () => {
+  const plan = (
+    ...steps: [label: string, state: 'pending' | 'done' | 'failed'][]
+  ) =>
+    ({
+      planId: 'plan-1',
+      domain: 'image',
+      steps: steps.map(([label, state], index) => ({
+        id: `p-${index + 1}`,
+        label,
+        state,
+      })),
+    }) as unknown as StudioOperatorResumePlan
+
+  it('同名且唯一的那一格优先；对不上名字才取第一个还没结论的', () => {
+    const resume = plan(
+      ['写提示词', 'done'],
+      ['连接参考图', 'failed'],
+      ['设定模型', 'pending'],
+    )
+    // 重做已经完成的那一项：⛔ 勾掉后面失败的那一项。
+    expect(resumeStepIdFor(resume, '写提示词')).toBe('p-1')
+    expect(resumeStepIdFor(resume, '别的事')).toBe('p-2')
+    expect(resumeStepIdFor(null, '写提示词')).toBeNull()
+  })
+
+  it('同名的有两格：不猜，取第一个还没结论的', () => {
+    const resume = plan(['改图', 'done'], ['改图', 'pending'])
+    expect(resumeStepIdFor(resume, '改图')).toBe('p-2')
+  })
+
+  const step = (fields: Record<string, unknown>) =>
+    ({
+      id: 'step-1',
+      title: '写提示词',
+      tool: 'set_prompt',
+      verb: 'set',
+      ...fields,
+    }) as unknown as AssistantOperatorStep
+
+  it('在跑的不记；被拒记拒绝理由码；跳过的（重复步 / 时间到被掐 / 草稿）不占一格', () => {
+    expect(resumeMarkFor(step({ status: 'running' }))).toBeNull()
+    expect(
+      resumeMarkFor(
+        step({
+          status: 'error',
+          error: { reason: 'noSuchControl', detail: 'x' },
+        }),
+      ),
+    ).toEqual({ state: 'failed', reason: 'noSuchControl' })
+    expect(
+      resumeMarkFor(
+        step({ status: 'error', error: { reason: 'repeatedStep' } }),
+      ),
+    ).toBeNull()
+    expect(
+      resumeMarkFor(step({ status: 'error', error: { reason: 'timeBudget' } })),
+    ).toBeNull()
+    expect(
+      resumeMarkFor(
+        step({
+          status: 'error',
+          draft: true,
+          error: { reason: 'noSuchControl' },
+        }),
+      ),
+    ).toBeNull()
+  })
+
+  it('做成的记 done，带这一步的产物 id', () => {
+    expect(
+      resumeMarkFor(
+        step({
+          status: 'done',
+          payload: { text: 'a cat', mode: 'replace' },
+          inverse: { text: '' },
+        }),
+      ),
+    ).toEqual({ state: 'done', artifactIds: [] })
+  })
+
+  it('一批画布改动只落了一部分：写清几条落了、哪几条没落、为什么', () => {
+    expect(
+      canvasBatchFailureDetail(
+        [{ op: 'add_node' }, { op: 'connect' }, { op: 'set_prompt' }],
+        [{ index: 1, reason: 'slot full' }],
+      ),
+    ).toBe('2 of 3 landed. Not landed: ops[1] connect — slot full')
   })
 })

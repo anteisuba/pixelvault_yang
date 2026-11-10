@@ -1,19 +1,28 @@
-import { ASSISTANT_OPERATOR_STOP_REASONS } from '@/constants/assistant-operator'
+import {
+  ASSISTANT_OPERATOR_LIMITS,
+  ASSISTANT_OPERATOR_STEP_STATUS_IDS,
+  ASSISTANT_OPERATOR_STOP_REASONS,
+} from '@/constants/assistant-operator'
+import { STUDIO_OPERATOR_SKIPPED_REJECT_REASONS } from '@/constants/studio-assistant-operator'
 import type {
   AssistantOperatorBenchOpen,
   AssistantOperatorEvent,
   AssistantOperatorRoundSummary,
+  AssistantOperatorStep,
 } from '@/types/assistant-operator'
 import type {
   StudioOperatorStatus,
   StudioOperatorThreadEntry,
 } from '@/types/studio-assistant-operator'
+import type { StudioOperatorResumePlan } from '@/types/studio-operator-resume'
+import { collectStepArtifacts } from '@/lib/studio-operator-artifacts'
+import { firstUnfinishedStepId } from '@/lib/studio-operator-resume'
 
 /**
- * 流里那几种**只改时间线**的帧该怎么落 —— 纯函数层（拆前端第 2 片，11-10）。
+ * 流里的帧该怎么落 —— 纯函数层（拆前端第 2、3 片，11-10）。
  *
  * ⭐ 这里只做**判断**：正文这一段写回此刻那条还是另起一条、定稿写进哪几条、`stopped`
- *   帧落成什么。读写状态仓库、念出来、改 run 闭包里的变量，全在 `use-assistant-operator`
+ *   帧落成什么、一步落在续跑记录的哪一格、记什么。读写状态仓库、念出来、改 run 闭包里的变量，全在 `use-assistant-operator`
  *   那一侧，按这里的结论去做。
  *
  * ⚠ 正文按序号认条目（`runKey:…msg-N`），序号只在这一段**已经被别的条目压在下面**时才进位：
@@ -173,4 +182,59 @@ export function stoppedOutcome(
           ? 'awaitingConfirm'
           : 'idle',
   }
+}
+
+/**
+ * 这一步落在续跑记录的哪一格（第三期）：同名且唯一的计划项优先 —— 重做已完成的那一项不能勾掉
+ * 后面失败的那一项；没有明确对应项时取第一个还没结论的。没有续跑记录回 `null`。
+ */
+export function resumeStepIdFor(
+  resume: StudioOperatorResumePlan | null,
+  title: string,
+): string | null {
+  if (!resume) return null
+  const matching = resume.steps.filter((item) => item.label === title)
+  return matching.length === 1 ? matching[0]!.id : firstUnfinishedStepId(resume)
+}
+
+export type ResumeMark =
+  | { state: 'done'; artifactIds: string[] }
+  /** ⚠ 存**拒绝理由码**，面板按词表说人话（D12 C11）：`error.detail` 是写给模型看的原文，⛔ 不给用户看。 */
+  | { state: 'failed'; reason: string }
+
+/**
+ * 这一步给续跑记录那一格记什么；`null` = 不记。
+ * ⚠ `running` 不记：三态里没有那一档，记了刷新之后会变成一句「这一步做完了」—— 而它并没有。
+ * ⚠ 跳过的那一步（同轮重复、退回重写的草稿）不占一格：它什么都没做，也不是失败 —— 占了的话
+ *   下一格的勾就错位一整格。
+ */
+export function resumeMarkFor(step: AssistantOperatorStep): ResumeMark | null {
+  if (step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.running) return null
+  if (step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.error) {
+    if (
+      step.draft === true ||
+      STUDIO_OPERATOR_SKIPPED_REJECT_REASONS.includes(step.error.reason)
+    )
+      return null
+    return { state: 'failed', reason: step.error.reason }
+  }
+  return {
+    state: 'done',
+    artifactIds: collectStepArtifacts(step).map((artifact) => artifact.id),
+  }
+}
+
+/**
+ * 一批画布改动只落了一部分：逐条写哪几条没落、为什么。它随 priorSteps 进下一次请求，模型只补那几条。
+ */
+export function canvasBatchFailureDetail(
+  ops: readonly { op?: string }[],
+  failures: readonly { index: number; reason: string }[],
+): string {
+  return `${ops.length - failures.length} of ${ops.length} landed. Not landed: ${failures
+    .map(
+      (failure) =>
+        `ops[${failure.index}] ${ops[failure.index]?.op ?? '?'} — ${failure.reason}`,
+    )
+    .join('; ')}`.slice(0, ASSISTANT_OPERATOR_LIMITS.maxReasonChars)
 }

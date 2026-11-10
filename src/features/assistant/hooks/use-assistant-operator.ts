@@ -86,7 +86,6 @@ import {
   STUDIO_OPERATOR_BENCH_OPEN_TIMEOUT_MS,
   STUDIO_OPERATOR_CONFIRM_STATUS_IDS,
   STUDIO_OPERATOR_FIELD_IDS,
-  STUDIO_OPERATOR_SKIPPED_REJECT_REASONS,
   STUDIO_OPERATOR_STREAMING,
   type StudioOperatorField,
   type StudioOperatorGenerateKnob,
@@ -166,7 +165,6 @@ import {
   toMentionRef,
 } from '@/lib/assistant-mention'
 import { buildCanvasGenerationRequest } from '@/lib/studio-operator-canvas-snapshot'
-import { collectStepArtifacts } from '@/lib/studio-operator-artifacts'
 import { collectOperatorPriorFinds } from '@/lib/studio-operator-timeline'
 import {
   captureTurnClips,
@@ -212,13 +210,15 @@ import {
 } from '@/lib/studio-operator-authorship'
 import {
   failedResumeStep,
-  firstUnfinishedStepId,
   hasUnfinishedSteps,
   toResumeFrom,
 } from '@/lib/studio-operator-resume'
 import {
+  canvasBatchFailureDetail,
   deltaStartsNewMessage,
   finalMessagePlan,
+  resumeMarkFor,
+  resumeStepIdFor,
   stoppedOutcome,
   thinkingStartsNewMessage,
 } from '@/lib/studio-operator-frames'
@@ -1753,60 +1753,17 @@ export function useAssistantOperator(
                   ? deltaEntryIds
                   : [],
               )
-              const resume = getOperatorState().resume
-              const matchingSteps = resume?.steps.filter(
-                (item) => item.label === step.title,
-              )
-              const resumeStepId =
-                matchingSteps?.length === 1
-                  ? matchingSteps[0].id
-                  : resume
-                    ? firstUnfinishedStepId(resume)
-                    : null
               /**
-               * ⭐ **续跑记录跟着走**（第三期）：这一步有结论了，把计划里第一个
-               * 还没有结论的那一格填掉。
-               *
-               * 同名且唯一的计划项优先；重做已完成项不能勾掉后面的失败项。
-               * 没有明确对应项时才取第一个未完成项。
-               * ⚠ `running` 不落：三态里没有那一档，落了它刷新之后会变成一句
-               *   「这一步做完了」——而它并没有。
+               * ⭐ **续跑记录跟着走**（第三期）：这一步有结论了，把计划里对应的那一格填掉
+               * （哪一格、记什么见 `resumeStepIdFor` / `resumeMarkFor`）。
                */
-              if (
-                step.status !== ASSISTANT_OPERATOR_STEP_STATUS_IDS.running &&
-                // ⚠ 跳过的那一步（同轮重复）不占计划里的一格：它什么都没做，
-                //   也不是失败 —— 占了的话下一格的勾就错位一整格。
-                !(
-                  step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.error &&
-                  (step.draft === true ||
-                    STUDIO_OPERATOR_SKIPPED_REJECT_REASONS.includes(
-                      step.error.reason,
-                    ))
-                )
-              ) {
-                if (resumeStepId) {
-                  if (
-                    step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.error
-                  ) {
-                    /**
-                     * ⚠ 存的是**拒绝理由码**，面板按词表说人话（D12 C11）：
-                     * `error.detail` 是写给模型看的原文（常是英文纠错指令），
-                     * ⛔ 不给用户看。
-                     */
-                    markOperatorResumeStep(resumeStepId, {
-                      state: 'failed',
-                      reason: step.error.reason,
-                    })
-                  } else {
-                    markOperatorResumeStep(resumeStepId, {
-                      state: 'done',
-                      artifactIds: collectStepArtifacts(step).map(
-                        (artifact) => artifact.id,
-                      ),
-                    })
-                  }
-                }
-              }
+              const resumeStepId = resumeStepIdFor(
+                getOperatorState().resume,
+                step.title,
+              )
+              const resumeMark = resumeMarkFor(step)
+              if (resumeStepId && resumeMark)
+                markOperatorResumeStep(resumeStepId, resumeMark)
               // ⭐ 只在 `done` 那一次应用：`running` 也应用就会改两遍
               //    （append 类的会追加两次，而那是看得见的）。
               // ⚠ `status === 'done'` 同时把类型收窄成「应用过的那一支」——
@@ -1838,20 +1795,12 @@ export function useAssistantOperator(
                       ? (applyContext.canvas?.getBatchFailures?.() ?? [])
                       : []
                   if (failures.length > 0) {
-                    const ops =
+                    const detail = canvasBatchFailureDetail(
                       step.tool === ASSISTANT_OPERATOR_TOOL_IDS.canvasBatch
                         ? step.payload.ops
-                        : []
-                    const detail =
-                      `${ops.length - failures.length} of ${ops.length} landed. Not landed: ${failures
-                        .map(
-                          (failure) =>
-                            `ops[${failure.index}] ${ops[failure.index]?.op ?? '?'} — ${failure.reason}`,
-                        )
-                        .join('; ')}`.slice(
-                        0,
-                        ASSISTANT_OPERATOR_LIMITS.maxReasonChars,
-                      )
+                        : [],
+                      failures,
+                    )
                     if (resumeStepId)
                       markOperatorResumeStep(resumeStepId, {
                         state: 'failed',

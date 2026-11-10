@@ -4847,6 +4847,19 @@ export const AssistantActiveTurnSchema = z.object({
 })
 export type AssistantActiveTurn = z.infer<typeof AssistantActiveTurnSchema>
 
+/**
+ * 新会话的第一轮：发请求时会话还没落库，会话号在这一轮途中才到手 —— 到手时告诉服务端这一轮属于哪段会话
+ * （回合托管第 4 片），刷新才接得回来。
+ */
+export const AssistantTurnLinkRequestSchema = z.object({
+  turnId: z.string().min(1).max(80),
+  conversationId: z.string().uuid(),
+  anchor: z.string().min(1).max(160).nullable(),
+})
+export type AssistantTurnLinkRequest = z.infer<
+  typeof AssistantTurnLinkRequestSchema
+>
+
 /** 补放：序号 `after` 之后的帧（0 = 整轮）。 */
 export const AssistantTurnReplayQuerySchema = z.object({
   after: z.coerce.number().int().min(0).default(0),

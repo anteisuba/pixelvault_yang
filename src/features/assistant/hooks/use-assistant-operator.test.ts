@@ -63,11 +63,13 @@ const stopAssistantTurnAPI = vi.hoisted(() => vi.fn())
 /** 回合托管第 3 片：刷新回来问「还有没有在跑的轮」、接回补放。默认没有。 */
 const getActiveAssistantTurnAPI = vi.hoisted(() => vi.fn())
 const replayAssistantTurnAPI = vi.hoisted(() => vi.fn())
+const linkAssistantTurnAPI = vi.hoisted(() => vi.fn())
 vi.mock('@/lib/api-client/assistant-operator', () => ({
   streamAssistantOperatorAPI,
   stopAssistantTurnAPI,
   getActiveAssistantTurnAPI,
   replayAssistantTurnAPI,
+  linkAssistantTurnAPI,
 }))
 
 /** 开台换页（第 9e 步）。 */
@@ -188,6 +190,8 @@ const hostWorkspace = vi.hoisted(() => ({ current: 'image-natural' }))
  * ⚠ 会变的那几格写成 getter —— 用例中途改 `hostDomain` / `generationControls` 等，
  *   hook 下一次读宿主就看到新值（与真台「每次现读」同一条）。
  */
+const hostReady = { current: true }
+
 function testHost(): HostModule['StudioOperatorHost'] {
   const canvas = {
     applyOp: canvasApply,
@@ -256,6 +260,8 @@ function testHost(): HostModule['StudioOperatorHost'] {
     get generationControls() {
       return generationControls.current ?? undefined
     },
+    // 回合托管第 4 片：画布项目还没水化完时为 false（接回要等它）。
+    ready: hostReady.current,
     apply,
   } as unknown as HostModule['StudioOperatorHost']
 }
@@ -380,6 +386,7 @@ beforeEach(async () => {
   hostSnapshot.current = { prompt: '', availableModels: [] }
   streams.length = 0
   sessionStorage.clear()
+  hostReady.current = true
   getActiveAssistantTurnAPI.mockResolvedValue(null)
   replayAssistantTurnAPI.mockImplementation(
     (_turnId: string, options: { signal?: AbortSignal } = {}) => {
@@ -4620,5 +4627,76 @@ describe('回合托管第 3 片：刷新回来接回进行中的那一轮', () =
     expect(getActiveAssistantTurnAPI).toHaveBeenCalledWith(SESSION)
     expect(replayAssistantTurnAPI).not.toHaveBeenCalled()
     expect(store.getOperatorState().history).toHaveLength(4)
+  })
+})
+
+describe('回合托管第 4 片：画布等载好再接；新会话第一轮补关联', () => {
+  const SESSION = '6f1c2a3e-0b4d-4c5e-8f9a-1b2c3d4e5f60'
+
+  it('宿主还没载好（画布项目没水化）：先不问；载好了再接', async () => {
+    hostReady.current = false
+    getActiveAssistantTurnAPI.mockResolvedValue({
+      turnId: 'turn-8',
+      anchor: null,
+    })
+    store.loadOperatorThread({
+      history: [{ kind: 'user', id: 'u-1', text: '画三张卡', attachments: [] }],
+      sessionId: SESSION,
+      sessionSurface: null,
+    })
+    const { rerender } = render()
+    await settle()
+    expect(getActiveAssistantTurnAPI).not.toHaveBeenCalled()
+
+    hostReady.current = true
+    rerender()
+    await settle()
+    expect(getActiveAssistantTurnAPI).toHaveBeenCalledWith(SESSION)
+    expect(replayAssistantTurnAPI).toHaveBeenCalledWith(
+      'turn-8',
+      expect.anything(),
+    )
+    // 锚点为空 = 开跑时线程是空的：历史里全是这一轮的，整轮补放。
+    expect(store.getOperatorState().history).toEqual([])
+  })
+
+  it('新会话的第一轮途中拿到会话号：补一句「这一轮属于它」（带锚点）', async () => {
+    const { result } = render()
+    act(() => result.current.send('画一张海报'))
+    await settle()
+    streams[0].emit({ type: ASSISTANT_OPERATOR_EVENTS.open, turnId: 'turn-9' })
+    await settle()
+    expect(linkAssistantTurnAPI).not.toHaveBeenCalled()
+
+    act(() => {
+      store.setOperatorSession(SESSION, null)
+    })
+    await settle()
+    const userEntry = store
+      .getOperatorState()
+      .entries.find((entry) => entry.kind === 'user')
+    expect(linkAssistantTurnAPI).toHaveBeenCalledTimes(1)
+    expect(linkAssistantTurnAPI).toHaveBeenCalledWith({
+      turnId: 'turn-9',
+      conversationId: SESSION,
+      anchor: userEntry?.id,
+    })
+    // 问「在跑的轮」那一支 ⛔ 走：自己这一轮正跑着。
+    expect(getActiveAssistantTurnAPI).not.toHaveBeenCalled()
+  })
+
+  it('请求里已经带着会话号：⛔ 再补', async () => {
+    store.loadOperatorThread({
+      history: [{ kind: 'user', id: 'u-1', text: '先画一张', attachments: [] }],
+      sessionId: SESSION,
+      sessionSurface: null,
+    })
+    const { result } = render()
+    await settle()
+    act(() => result.current.send('再来一张'))
+    await settle()
+    streams[0].emit({ type: ASSISTANT_OPERATOR_EVENTS.open, turnId: 'turn-10' })
+    await settle()
+    expect(linkAssistantTurnAPI).not.toHaveBeenCalled()
   })
 })

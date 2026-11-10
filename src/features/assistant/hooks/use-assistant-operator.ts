@@ -173,6 +173,7 @@ import {
 } from '@/lib/assistant-pointed-clips'
 import {
   getActiveAssistantTurnAPI,
+  linkAssistantTurnAPI,
   replayAssistantTurnAPI,
   stopAssistantTurnAPI,
   streamAssistantOperatorAPI,
@@ -1078,6 +1079,25 @@ export function useAssistantOperator(
     if (turnId) void stopAssistantTurnAPI(turnId)
   }, [])
   /**
+   * 这一轮的锚点，以及服务端知不知道它属于哪段会话（回合托管第 4 片）。新会话的第一轮发请求时还没有
+   * 会话号（会话在这一轮途中才防抖落库）：会话号到手时补一句 `linkAssistantTurnAPI`，刷新才接得回。
+   */
+  const liveTurnRef = useRef<{ anchor: string | null; linked: boolean }>({
+    anchor: null,
+    linked: true,
+  })
+  const linkLiveTurn = useCallback(() => {
+    const turnId = turnIdRef.current
+    const conversationId = getOperatorState().sessionId
+    if (!turnId || !conversationId || liveTurnRef.current.linked) return
+    liveTurnRef.current.linked = true
+    void linkAssistantTurnAPI({
+      turnId,
+      conversationId,
+      anchor: liveTurnRef.current.anchor,
+    })
+  }, [])
+  /**
    * 「下一条消息是一次改计划」（§3.1 ⑤）。
    *
    * ⚠ 走 ref 不走 state：它只在 `send()` 里被读一次然后清掉，进 state 只会多一次
@@ -1187,6 +1207,12 @@ export function useAssistantOperator(
         options.runKey || options.reattach
           ? undefined
           : lastPersistedEntryId(getOperatorState())
+      if (options.reattach) liveTurnRef.current = { anchor: null, linked: true }
+      else if (!options.runKey)
+        liveTurnRef.current = {
+          anchor: turnAnchor ?? null,
+          linked: Boolean(getOperatorState().sessionId),
+        }
       abortRef.current?.abort()
       const controller = new AbortController()
       abortRef.current = controller
@@ -1577,8 +1603,11 @@ export function useAssistantOperator(
             deltaEntryIds = []
             appendOperatorPending(messageEntryId(), 'landing')
           }
-          if (event.type === ASSISTANT_OPERATOR_EVENTS.open && event.turnId)
+          if (event.type === ASSISTANT_OPERATOR_EVENTS.open && event.turnId) {
             turnIdRef.current = event.turnId
+            // 会话号在开跑前已经到手、请求里却没带（发出去之后才落库）：现在补上。
+            linkLiveTurn()
+          }
           if (
             event.type === ASSISTANT_OPERATOR_EVENTS.stopped ||
             event.type === ASSISTANT_OPERATOR_EVENTS.done ||
@@ -2250,6 +2279,7 @@ export function useAssistantOperator(
       router,
       tError,
       isCurrentThread,
+      linkLiveTurn,
       stopServerTurn,
       workspaceKey,
     ],
@@ -3947,9 +3977,16 @@ export function useAssistantOperator(
    *   从不记「在跑的轮」，这里永远问不到。
    */
   const sessionId = useStudioOperatorSelector((state) => state.sessionId)
+  /** 宿主的工作面载好了才接（画布要等项目水化：早落的改动会被载回来的那一份整份盖掉）。 */
+  const hostReady = host.ready !== false
   useEffect(() => {
-    if (!sessionId || !isCurrentThread() || askedActiveTurns.has(sessionId))
+    if (!sessionId || !isCurrentThread()) return
+    // 自己这一轮跑着时会话号才到手（新会话的第一轮）：告诉服务端这一轮属于它。
+    if (getOperatorState().status === 'working') {
+      linkLiveTurn()
       return
+    }
+    if (!hostReady || askedActiveTurns.has(sessionId)) return
     const before = getOperatorState()
     if (before.status !== 'idle' || before.entries.length > 0) return
     askedActiveTurns.add(sessionId)
@@ -3967,7 +4004,7 @@ export function useAssistantOperator(
       truncateOperatorHistoryAfter(active.anchor)
       void run({ reattach: { turnId: active.turnId } })
     })
-  }, [sessionId, isCurrentThread, run])
+  }, [hostReady, sessionId, isCurrentThread, linkLiveTurn, run])
   /**
    * ⭐ 同一条规矩在 `/studio` 外壳里（第 9f 步）：面板只挂一份、换台不卸载，于是「换了台」
    *   由登记号说 —— 离开那个台就把在飞的流掐掉（开台那一跳早已收尾，掐了也没事）。

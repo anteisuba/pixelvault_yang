@@ -65,6 +65,8 @@ const stopKey = (owner: string, turnId: string) =>
   `${PREFIX}:stop:${owner}:${turnId}`
 const runningKey = (owner: string, turnId: string) =>
   `${PREFIX}:running:${owner}:${turnId}`
+const conversationKey = (owner: string, turnId: string) =>
+  `${PREFIX}:conversation:${owner}:${turnId}`
 
 /** 这一帧进不进日志（增量不进，见头注）。 */
 export function isLoggedTurnEvent(event: AssistantOperatorEvent): boolean {
@@ -306,6 +308,54 @@ export async function turnRunning(
     }
   }
   return memoryGet(key) !== null
+}
+
+/**
+ * 新会话的第一轮途中才拿到会话号（回合托管第 4 片）：记下这一轮属于哪段会话、标成那段会话在跑的轮。
+ * ⚠ 只认还在跑的轮；记完再看一眼 —— 夹在中间收尾了就把刚写的标记撤掉（收尾那一侧先清「在跑」、
+ *   再按这里记的会话号清标记，两边各查一次，⛔ 留下一个过期的「在跑」让刷新把跑完的一轮再补放一遍）。
+ */
+export async function linkRunningTurn(
+  owner: string,
+  link: { turnId: string; conversationId: string; anchor: string | null },
+): Promise<boolean> {
+  if (!(await turnRunning(owner, link.turnId))) return false
+  const key = conversationKey(owner, link.turnId)
+  const store = assistantRedis()
+  if (store) {
+    try {
+      await store.set(key, link.conversationId, { ex: TTL_SECONDS })
+    } catch (error) {
+      warn('link failed', error)
+      return false
+    }
+  } else {
+    memorySet(key, link.conversationId, TTL_SECONDS)
+  }
+  await markActiveTurn(owner, link.conversationId, link.turnId, link.anchor)
+  if (await turnRunning(owner, link.turnId)) return true
+  await clearActiveTurn(owner, link.conversationId, link.turnId)
+  return false
+}
+
+/** 上面记下的会话号（请求本身没带会话号的那一轮，收尾时据此清「在跑的轮」）。 */
+export async function readLinkedConversation(
+  owner: string,
+  turnId: string,
+): Promise<string | null> {
+  const key = conversationKey(owner, turnId)
+  const store = assistantRedis()
+  if (store) {
+    try {
+      const value = await store.get<string>(key)
+      return typeof value === 'string' ? value : null
+    } catch (error) {
+      warn('linked read failed', error)
+      return null
+    }
+  }
+  const value = memoryGet(key)
+  return typeof value === 'string' ? value : null
 }
 
 /** ⏹ / 插话：落一个停止标记，跑着的那一轮在下一次查的时候停下。 */

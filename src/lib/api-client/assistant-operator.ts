@@ -22,6 +22,7 @@ import {
   AssistantActiveTurnSchema,
   AssistantOperatorEventSchema,
   type AssistantActiveTurn,
+  type AssistantTurnLinkRequest,
   type AssistantAssetWriteRevert,
   type AssistantAssetWriteRevertResult,
   type AssistantOperatorEvent,
@@ -183,6 +184,24 @@ export async function getActiveAssistantTurnAPI(
     return parsed.success ? parsed.data : null
   } catch {
     return null
+  }
+}
+
+/**
+ * 新会话的第一轮途中拿到了会话号：告诉服务端这一轮属于哪段会话（回合托管第 4 片），刷新才接得回。
+ * ⚠ 不等、不报错：记不上最多是这一轮刷新接不回，与没有回合托管时一样。
+ */
+export async function linkAssistantTurnAPI(
+  link: AssistantTurnLinkRequest,
+): Promise<void> {
+  try {
+    await apiFetch(API_ENDPOINTS.STUDIO_ASSISTANT_OPERATOR_ACTIVE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(link),
+    })
+  } catch {
+    // 见头注。
   }
 }
 

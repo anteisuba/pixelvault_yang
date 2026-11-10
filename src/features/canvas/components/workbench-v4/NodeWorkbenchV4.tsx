@@ -1904,6 +1904,7 @@ function NodeWorkbenchV4Inner() {
     open: assistantOpen,
     setOpen: setAssistantOpen,
     onLocate: locateNode,
+    ready: store.isHydrated,
   })
 
   /**

@@ -3,7 +3,7 @@ export { ASSISTANT_NEXT_EDIT_OPS, ASSISTANT_NEXT_FIND_KINDS } from './constants'
 export { runAssistantNext } from './kernel'
 export { assistantTurnResponse } from './turn-run'
 export { assistantTurnReplayResponse } from './turn-replay'
-export { readActiveTurn, requestTurnStop } from './turn-log'
+export { linkRunningTurn, readActiveTurn, requestTurnStop } from './turn-log'
 export {
   createAssistantConversationShare,
   deleteAssistantConversation,

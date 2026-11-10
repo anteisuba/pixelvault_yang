@@ -18,6 +18,7 @@ import {
   isRelayStop,
   markActiveTurn,
   markTurnRunning,
+  readLinkedConversation,
   turnStopRequested,
   writeTurnDraft,
 } from '@/features/assistant/turn-log'
@@ -83,9 +84,12 @@ export function assistantTurnResponse({
         const settled = run.finally(async () => {
           clearInterval(poll)
           await writeTurnDraft(clerkId, turnId, null)
+          // ⚠ 先清「在跑」再读途中记下的会话号：与 `linkRunningTurn` 两边各查一次，⛔ 漏清。
           await markTurnRunning(clerkId, turnId, false)
-          if (conversationId && !isRelayStop(last))
-            await clearActiveTurn(clerkId, conversationId, turnId)
+          const owning =
+            conversationId ?? (await readLinkedConversation(clerkId, turnId))
+          if (owning && !isRelayStop(last))
+            await clearActiveTurn(clerkId, owning, turnId)
         })
         try {
           after(settled)

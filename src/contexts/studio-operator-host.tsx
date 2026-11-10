@@ -238,6 +238,12 @@ export interface StudioOperatorHost {
    */
   collapseOnOutsidePointer?: boolean
   /**
+   * **落笔的手接上了没有**（回合托管第 4 片，11-11）：`false` = 宿主的工作面还在载（画布项目还没水化）。
+   * 刷新回来接回进行中的那一轮要等它：补放里没落过的改动要落到**载好的**工作面上 —— 早落了会被
+   * 水化回来的那一份整份盖掉。缺席 = 一挂上就接好了（工作台、LoRA 台的表单本来就在）。
+   */
+  ready?: boolean
+  /**
    * **头像与面板落在视口哪两个角**（D7b ④ · 头像开关，owner 2026-09-20）。
    *
    * ⭐ 与 `collapseOnOutsidePointer` 同一条判据：这是**宿主的性质**不是域的性质。

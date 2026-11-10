@@ -6,9 +6,11 @@ import {
   appendTurnEvent,
   clearActiveTurn,
   isLoggedTurnEvent,
+  linkRunningTurn,
   markActiveTurn,
   markTurnRunning,
   readActiveTurn,
+  readLinkedConversation,
   readTurnDraft,
   readTurnEvents,
   requestTurnStop,
@@ -98,6 +100,41 @@ describe('回合事件日志（回合托管第 1 片）', () => {
       turnId: other,
       anchor: null,
     })
+  })
+
+  it('第一轮途中补关联：还在跑就记成这段会话在跑的轮、记下会话号；不在跑就什么都不留', async () => {
+    const running = nextTurn()
+    await markTurnRunning('user-a', running, true)
+    expect(
+      await linkRunningTurn('user-a', {
+        turnId: running,
+        conversationId: 'conv-3',
+        anchor: 'u-1',
+      }),
+    ).toBe(true)
+    expect(await readActiveTurn('user-a', 'conv-3')).toEqual({
+      turnId: running,
+      anchor: 'u-1',
+    })
+    expect(await readLinkedConversation('user-a', running)).toBe('conv-3')
+
+    const finished = nextTurn()
+    expect(
+      await linkRunningTurn('user-a', {
+        turnId: finished,
+        conversationId: 'conv-4',
+        anchor: 'u-1',
+      }),
+    ).toBe(false)
+    expect(await readActiveTurn('user-a', 'conv-4')).toBeNull()
+    // ⛔ 别人的在跑的轮也关联不上。
+    expect(
+      await linkRunningTurn('user-b', {
+        turnId: running,
+        conversationId: 'conv-5',
+        anchor: null,
+      }),
+    ).toBe(false)
   })
 
   it('「有一跳在跑」开跳写、收尾删，只认这个人', async () => {

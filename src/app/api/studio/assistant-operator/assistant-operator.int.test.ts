@@ -38,7 +38,11 @@ import {
   LORA_SNAPSHOT,
 } from '@/test/assistant-bench/kernel-harness'
 import { resetDatabase } from '@/test/int/db'
-import { readActiveTurn, readTurnEvents } from '@/features/assistant/turn-log'
+import {
+  linkRunningTurn,
+  readActiveTurn,
+  readTurnEvents,
+} from '@/features/assistant/turn-log'
 
 import { POST } from './route'
 
@@ -164,5 +168,25 @@ describe('回合托管开着（ASSISTANT_DETACHED_TURNS，11-11）', () => {
     await vi.waitFor(async () =>
       expect(await readActiveTurn(owner, conversationId)).toBeNull(),
     )
+  })
+
+  it('新会话的第一轮（请求没带会话号）跑完之后才补关联：⛔ 留下一个过期的「在跑的轮」', async () => {
+    fakeModels.main = scriptedModel([textTurn('看到了。')])
+    const user = await db.user.findFirstOrThrow()
+    const frames = (await framesOf(
+      await POST(createPOST(PATH, body('image'))),
+    )) as { type: string; turnId?: string }[]
+    const turnId = frames[0]!.turnId!
+    const conversationId = '6f1c2a3e-0b4d-4c5e-8f9a-1b2c3d4e5f61'
+    await vi.waitFor(async () =>
+      expect(
+        await linkRunningTurn(user.clerkId, {
+          turnId,
+          conversationId,
+          anchor: 'u-1',
+        }),
+      ).toBe(false),
+    )
+    expect(await readActiveTurn(user.clerkId, conversationId)).toBeNull()
   })
 })

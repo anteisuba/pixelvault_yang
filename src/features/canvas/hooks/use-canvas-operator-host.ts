@@ -123,6 +123,8 @@ export interface UseCanvasOperatorHostInput {
   setOpen(open: boolean): void
   /** 改动清单点一行：镜头移到这张卡并让卡面闪一下（方向 B）。 */
   onLocate(nodeId: string): void
+  /** 项目载好了没有（图引擎水化完）：接回进行中的那一轮要等它（见宿主的 `ready`）。 */
+  ready: boolean
 }
 
 const CANVAS_MENTION_KIND: Record<
@@ -219,6 +221,7 @@ export function useCanvasOperatorHost({
   open,
   setOpen,
   onLocate,
+  ready,
 }: UseCanvasOperatorHostInput): StudioOperatorHost {
   const [referenceState, setReferenceState] = useState({
     projectId,
@@ -704,6 +707,7 @@ export function useCanvasOperatorHost({
        * 先收 expanded 再收 open）。⛔ 别再往画布上加第三条收起路。
        */
       collapseOnOutsidePointer: false,
+      ready,
       /** 画布的参考列表就是助手上下文，附图照旧挂上去（见宿主类型头注）。 */
       attachmentsMountReferences: true,
       mentions: mentionSources,
@@ -753,6 +757,7 @@ export function useCanvasOperatorHost({
       onLocate,
       nodes,
       mentionSources,
+      ready,
     ],
   )
 }

@@ -94,6 +94,7 @@ describe('useCanvasOperatorHost', () => {
         open: true,
         setOpen: vi.fn(),
         onLocate: vi.fn(),
+        ready: true,
       }),
     )
 
@@ -142,6 +143,7 @@ describe('useCanvasOperatorHost', () => {
         open: true,
         setOpen: vi.fn(),
         onLocate: vi.fn(),
+        ready: true,
       }),
     )
     expect(result.current.collapseOnOutsidePointer).toBe(false)
@@ -170,6 +172,7 @@ describe('useCanvasOperatorHost', () => {
         open: true,
         setOpen: vi.fn(),
         onLocate: vi.fn(),
+        ready: true,
       }),
     )
     expect(result.current.anchor).toEqual({
@@ -214,6 +217,7 @@ describe('useCanvasOperatorHost 的 face（D7b ③）', () => {
           open: true,
           setOpen: vi.fn(),
           onLocate: vi.fn(),
+          ready: true,
         }),
       { initialProps: { ids: selectedNodeIds, name: projectName } },
     )
@@ -274,6 +278,7 @@ describe('canvas assistant image references', () => {
           open: true,
           setOpen: vi.fn(),
           onLocate: vi.fn(),
+          ready: true,
         }),
       { initialProps: { nodes, projectId: 'project-a' } },
     )
@@ -556,6 +561,7 @@ describe('assistant prompt input review boundary', () => {
         open: true,
         setOpen: vi.fn(),
         onLocate: vi.fn(),
+        ready: true,
       }),
     )
     return { ...hook, nodes, edges, applyOp, undo }

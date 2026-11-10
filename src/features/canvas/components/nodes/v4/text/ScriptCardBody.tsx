@@ -74,7 +74,7 @@ export function ScriptCardBody({
       )}
 
       {shots.length === 0 ? (
-        <p className="px-5 py-4 text-sm leading-relaxed text-muted-foreground">
+        <p className="px-5 py-4 text-2sm leading-relaxed text-muted-foreground">
           {t('empty')}
         </p>
       ) : (
@@ -91,7 +91,7 @@ export function ScriptCardBody({
                 data-script-shot-row
                 data-changed={changed ? 'true' : undefined}
                 className={cn(
-                  'flex items-center gap-2 rounded-md bg-muted px-2 py-1.5 text-sm',
+                  'flex items-center gap-2 rounded-md bg-muted px-2 py-1.5 text-2sm',
                   // 「已变」：虚线 + 一句话，⛔ 不只靠颜色（forbidden.md 那条）。
                   changed && 'border border-dashed border-status-warning',
                 )}
@@ -116,7 +116,7 @@ export function ScriptCardBody({
             )
           })}
           {overflow > 0 && (
-            <li className="px-2 py-1 text-xs text-muted-foreground">
+            <li className="px-2 py-1 text-2xs text-muted-foreground">
               {t('more', { count: overflow })}
             </li>
           )}

@@ -74,10 +74,10 @@ export function TextAssistantBar({
       className={cn(
         'nodrag nopan inline-flex shrink-0 items-center',
         documentBar
-          ? 'h-7 rounded-full bg-surface-fill px-2.5 text-xs text-foreground hover:bg-surface-fill-hover'
+          ? 'h-7 rounded-full bg-surface-fill px-2.5 text-2sm text-foreground hover:tint-hover'
           : 'min-h-6 rounded-md border px-2 py-0.5 text-2xs',
         'transition-colors duration-fast ease-standard motion-reduce:transition-none',
-        'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+        ' focus-visible:outline-none focus-visible:shadow-focus',
         documentBar
           ? action === id && 'bg-surface-fill-track'
           : action === id
@@ -100,7 +100,7 @@ export function TextAssistantBar({
       triggerEmptyLabel={t('assist.model')}
       className={cn(
         'shrink-0',
-        documentBar && 'border-0 bg-surface-fill hover:bg-surface-fill-hover',
+        documentBar && 'border-0 bg-surface-fill hover:tint-hover',
       )}
       {...(openKeySettings ? { onManageChannels: openKeySettings } : {})}
     />

@@ -107,17 +107,17 @@ const ToolbarCell = forwardRef<
       }}
       className={cn(
         'nodrag nopan flex items-center transition-[background-color,transform] duration-spring-press ease-spring-press active:scale-96',
-        'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+        ' focus-visible:outline-none focus-visible:shadow-focus',
         'disabled:pointer-events-none disabled:opacity-50',
         action.primary
           ? // 带字的黑胶囊：与 34 格同高，字 12、图标 16。
-            'mr-1 h-8.5 gap-1.5 rounded-full bg-foreground pr-3.25 pl-2.75 text-2sm font-medium text-background hover:bg-foreground/85'
+            'mr-1 h-8.5 gap-1.5 rounded-full bg-foreground pr-3.25 pl-2.75 text-2sm font-semibold text-background hover:tint-hover'
           : // 34px 格（`NODE_V4_CHROME.toolbarCellSize`）= size-8.5；圆角 10px = rounded-lg。
             cn(
               'size-8.5 justify-center rounded-lg',
               action.danger
-                ? 'text-status-risk hover:bg-status-risk-surface'
-                : 'text-foreground hover:bg-surface-fill-hover',
+                ? 'text-status-risk hover:tint-hover'
+                : 'text-foreground hover:tint-hover',
               action.active && 'bg-surface-fill-hover',
             ),
         className,

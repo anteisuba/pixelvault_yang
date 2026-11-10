@@ -720,7 +720,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
   const templateChip = promptTemplate ? (
     <span
       data-prompt-template-chip={promptTemplate}
-      className="inline-flex h-5 items-center gap-0.5 rounded-md bg-surface-fill-track pr-0.5 pl-1.5 text-xs font-medium text-foreground"
+      className="inline-flex h-5 items-center gap-0.5 rounded-md bg-surface-fill-track pr-0.5 pl-1.5 text-2xs text-foreground"
     >
       {tImage(`template.${promptTemplate}.name`)}
       <button
@@ -732,7 +732,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
           setPromptTemplate(undefined)
           promptInputRef.current?.focus()
         }}
-        className="nodrag nopan flex size-4 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none"
+        className="nodrag nopan flex size-4 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none"
       >
         <X aria-hidden className="size-3" />
       </button>
@@ -1153,7 +1153,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
                 type="button"
                 data-node-empty-upload
                 onClick={() => fileRef.current?.click()}
-                className="nodrag nopan inline-flex h-7 items-center justify-center gap-1.25 rounded-full bg-surface-fill-hover px-2.75 text-xs text-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill-track focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                className="nodrag nopan inline-flex h-7 items-center justify-center gap-1.25 rounded-full bg-surface-fill-hover px-2.75 text-2sm text-foreground transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus"
               >
                 <Upload aria-hidden className="size-3.5" />
                 {t('chrome.emptyUpload')}
@@ -1162,7 +1162,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
                 type="button"
                 data-node-empty-library
                 onClick={() => setAssetPicker(true)}
-                className="nodrag nopan inline-flex h-7 items-center justify-center gap-1.25 rounded-full bg-surface-fill-hover px-2.75 text-xs text-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill-track focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                className="nodrag nopan inline-flex h-7 items-center justify-center gap-1.25 rounded-full bg-surface-fill-hover px-2.75 text-2sm text-foreground transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus"
               >
                 <ImageIcon aria-hidden className="size-3.5" />
                 {t('chrome.emptyLibrary')}
@@ -1256,7 +1256,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
                         selectVersion(version)
                         setBatchPick(null)
                       }}
-                      className="relative overflow-hidden rounded-lg ring-1 ring-border transition-[box-shadow,transform] duration-fast ease-standard hover:ring-2 hover:ring-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none active:scale-96"
+                      className="relative overflow-hidden rounded-lg ring-1 ring-border transition-[box-shadow,transform] duration-fast ease-standard hover:ring-2 hover:ring-foreground focus-visible:outline-none focus-visible:shadow-focus active:scale-96"
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
@@ -1274,7 +1274,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
               <div
                 role="status"
                 data-storyboard-splitting
-                className="absolute inset-0 flex items-center justify-center gap-2 bg-background/60 text-xs text-foreground motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-base"
+                className="absolute inset-0 flex items-center justify-center gap-2 bg-background/60 text-2xs text-foreground motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-base"
               >
                 <Spinner className="size-4" aria-hidden />
                 {tImage('storyboard.splitting')}
@@ -1284,7 +1284,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
               <div
                 role="status"
                 data-storyboard-issue
-                className="absolute inset-x-2 bottom-2 flex flex-wrap items-center gap-1.5 rounded-xl border border-border/60 bg-popover px-2.5 py-1.5 text-xs text-foreground shadow-float motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1 motion-safe:duration-base"
+                className="absolute inset-x-2 bottom-2 flex flex-wrap items-center gap-1.5 rounded-xl border border-border/60 bg-popover px-2.5 py-1.5 text-2xs text-foreground shadow-float motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1 motion-safe:duration-base"
                 onDoubleClick={(event) => event.stopPropagation()}
               >
                 <span className="mr-auto">
@@ -1296,14 +1296,14 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
                 <button
                   type="button"
                   onClick={() => storyboard.split(id, 3)}
-                  className="h-7 rounded-lg border border-border px-2 text-xs transition-colors duration-fast hover:bg-surface-fill-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-96"
+                  className="h-7 rounded-lg border border-border px-2 text-2sm transition-colors duration-fast hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus active:scale-96"
                 >
                   3×3
                 </button>
                 <button
                   type="button"
                   onClick={() => storyboard.split(id, 2)}
-                  className="h-7 rounded-lg border border-border px-2 text-xs transition-colors duration-fast hover:bg-surface-fill-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-96"
+                  className="h-7 rounded-lg border border-border px-2 text-2sm transition-colors duration-fast hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus active:scale-96"
                 >
                   2×2
                 </button>
@@ -1311,7 +1311,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
                   type="button"
                   aria-label={tImage('storyboard.dismiss')}
                   onClick={() => storyboard.dismissIssue(id)}
-                  className="grid size-7 place-items-center rounded-lg text-muted-foreground transition-colors duration-fast hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="grid size-7 place-items-center rounded-lg text-muted-foreground transition-colors duration-fast hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus"
                 >
                   <X className="size-3.5" aria-hidden />
                 </button>
@@ -1333,7 +1333,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
           <div
             data-image-surface="uploading"
             role="status"
-            className="flex flex-col items-center justify-center gap-2 rounded-node bg-surface-fill-track text-sm text-muted-foreground"
+            className="flex flex-col items-center justify-center gap-2 rounded-node bg-surface-fill-track text-2sm text-muted-foreground"
             style={{ height: emptyCardHeight(width) }}
           >
             <Spinner className="size-5" aria-hidden />

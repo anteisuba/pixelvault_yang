@@ -117,7 +117,7 @@ export function MentionPicker({
         ) : null}
         {groups.map((group) => (
           <li key={group.label}>
-            <p className="px-2 pt-1.5 pb-1 text-3xs tracking-node-sec text-muted-foreground">
+            <p className="px-2 pt-1.5 pb-1 text-2xs tracking-node-sec text-muted-foreground">
               {group.label}
             </p>
             <ul className="flex flex-col">

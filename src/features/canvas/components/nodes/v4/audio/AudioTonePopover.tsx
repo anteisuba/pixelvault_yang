@@ -50,7 +50,7 @@ function TagRow({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <span className="text-3xs tracking-node-sec text-muted-foreground">
+      <span className="text-2xs tracking-node-sec text-muted-foreground">
         {label}
       </span>
       <div className="flex flex-wrap gap-1">
@@ -65,12 +65,12 @@ function TagRow({
               onClick={() => onChange(active ? null : tag.label)}
               className={cn(
                 'nodrag nopan rounded-full px-2.5 py-1 text-2xs transition-colors duration-fast ease-standard',
-                'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+                ' focus-visible:outline-none focus-visible:shadow-focus',
                 active
                   ? // 选中 = 反色（画板 `.grp span.on`）。对比度 `contrast-check`
                     // 2026-09-10：`primary-foreground` 对 `primary` = 18.68。
                     'bg-primary text-primary-foreground'
-                  : 'bg-surface-fill text-foreground hover:bg-surface-fill-hover',
+                  : 'bg-surface-fill text-foreground hover:tint-hover',
               )}
             >
               {tag.label}
@@ -111,10 +111,8 @@ export function AudioTonePopover({ onInsert }: AudioTonePopoverProps) {
   return (
     <div className="flex flex-col gap-2.5" data-audio-tone-popover>
       <div className="flex items-center justify-between gap-2">
-        <span className="text-2sm font-medium tracking-node-body">
-          {t('title')}
-        </span>
-        <span className="text-3xs text-muted-foreground">{t('hint')}</span>
+        <span className="text-2sm tracking-node-body">{t('title')}</span>
+        <span className="text-2xs text-muted-foreground">{t('hint')}</span>
       </div>
 
       <TagRow
@@ -133,7 +131,7 @@ export function AudioTonePopover({ onInsert }: AudioTonePopoverProps) {
       />
 
       <div className="flex flex-col gap-1.5">
-        <span className="text-3xs tracking-node-sec text-muted-foreground">
+        <span className="text-2xs tracking-node-sec text-muted-foreground">
           {t('intensityLabel')}
         </span>
         {/* A1 分段条（owner 2026-10-08 画布换皮）。 */}
@@ -176,7 +174,7 @@ export function AudioTonePopover({ onInsert }: AudioTonePopoverProps) {
         className={cn(
           'nodrag nopan h-8.5 rounded-lg bg-primary text-2sm text-primary-foreground',
           'transition-[background-color,transform] duration-spring-press ease-spring-press active:scale-96',
-          'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+          ' focus-visible:outline-none focus-visible:shadow-focus',
           'disabled:pointer-events-none disabled:opacity-50',
         )}
       >

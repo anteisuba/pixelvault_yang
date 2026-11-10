@@ -37,7 +37,7 @@ export function EditDeskIconButton({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        'grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground transition-[color,background-color,transform] duration-fast ease-standard hover:bg-muted hover:text-foreground active:scale-96 disabled:pointer-events-none disabled:opacity-40 motion-reduce:active:scale-100',
+        'grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground transition-[color,background-color,transform] duration-fast ease-standard hover:tint-hover hover:text-foreground active:scale-96 disabled:pointer-events-none disabled:opacity-40 motion-reduce:active:scale-100',
         active && 'bg-muted text-foreground',
       )}
     >

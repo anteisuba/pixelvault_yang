@@ -220,13 +220,13 @@ function PullBody({
   return (
     <div className="flex min-w-0 flex-col gap-4">
       <ResponsiveDialogHeader className="gap-1 p-0 text-left">
-        <ResponsiveDialogTitle className="text-base">
+        <ResponsiveDialogTitle className="text-md">
           {t('title', {
             name: source.name,
             duration: durationSec > 0 ? formatPullClock(durationSec) : '',
           })}
           {done ? (
-            <span className="ml-2 text-sm font-normal text-muted-foreground">
+            <span className="ml-2 text-2sm font-normal text-muted-foreground">
               {t('cutCount', { count: ranges.length })}
             </span>
           ) : null}
@@ -312,7 +312,7 @@ function PullBody({
             />
           ) : null}
           <ResponsiveDialogFooter className="flex-row items-center justify-between gap-3 p-0 sm:justify-between">
-            <p className="min-w-0 text-xs text-muted-foreground">
+            <p className="min-w-0 text-2xs text-muted-foreground">
               {done ? (read ? t('footRead') : t('footDone')) : t('footRunning')}
             </p>
             <div className="flex shrink-0 items-center gap-2">
@@ -422,7 +422,7 @@ function PullProgress({
   return (
     <div data-testid="shot-pull-progress" className="flex flex-col gap-1.5">
       {showDownload && running ? (
-        <p className="flex items-center gap-1 text-xs text-muted-foreground">
+        <p className="flex items-center gap-1 text-2xs text-muted-foreground">
           <span className="tabular-nums">
             {t('download', {
               loaded: megabytes(running.loadedBytes),
@@ -435,7 +435,7 @@ function PullProgress({
           <span>{t('downloadOnce')}</span>
         </p>
       ) : null}
-      <p className="text-sm tabular-nums">
+      <p className="text-2sm tabular-nums">
         {running?.phase === 'analyze'
           ? t('analyzing', {
               done: formatPullClock(running.processedSec),
@@ -494,7 +494,7 @@ function PullOptions({
         />
         <span
           data-testid="shot-pull-counts"
-          className="text-xs tabular-nums text-muted-foreground"
+          className="text-2xs tabular-nums text-muted-foreground"
         >
           {counts ? t('grain.counts', counts) : t('grain.later')}
         </span>
@@ -531,7 +531,7 @@ function OptionRow({
 }) {
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-      <span className="w-20 shrink-0 text-sm font-medium">{label}</span>
+      <span className="w-20 shrink-0 text-md font-semibold">{label}</span>
       {children}
     </div>
   )
@@ -554,8 +554,8 @@ function PullNotice({
       data-testid={testId}
       className="flex flex-col gap-2 rounded-xl bg-surface-fill px-4 py-3.5"
     >
-      <p className="text-sm font-semibold">{title}</p>
-      <p className="text-sm text-muted-foreground">{body}</p>
+      <p className="text-md font-semibold">{title}</p>
+      <p className="text-2sm text-muted-foreground">{body}</p>
       {children ? (
         <div className="mt-1 flex items-center justify-end gap-2">
           {children}

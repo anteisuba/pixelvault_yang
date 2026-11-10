@@ -274,7 +274,7 @@ function PaneMenuLayer({
             role="menuitem"
             data-testid={`shell-pane-menu-${entry.kind}`}
             onClick={() => onAdd(entry.intentId)}
-            className="flex h-8 w-full items-center gap-2.5 rounded-lg px-2.5 text-sm transition-colors hover:bg-node-panel-inner"
+            className="flex h-8 w-full items-center gap-2.5 rounded-lg px-2.5 text-2sm transition-colors hover:tint-hover"
           >
             <Icon className="size-4 shrink-0 text-node-muted" aria-hidden />
             <span>{t(entry.kind)}</span>
@@ -289,7 +289,7 @@ function PaneMenuLayer({
         role="menuitem"
         data-testid="shell-pane-menu-upload"
         onClick={onUpload}
-        className="flex h-8 w-full items-center gap-2.5 rounded-lg px-2.5 text-sm transition-colors hover:bg-node-panel-inner"
+        className="flex h-8 w-full items-center gap-2.5 rounded-lg px-2.5 text-2sm transition-colors hover:tint-hover"
       >
         <Upload className="size-4 shrink-0 text-node-muted" aria-hidden />
         <span>{t('uploadMenu')}</span>
@@ -305,7 +305,7 @@ function PaneMenuLayer({
           role="menuitem"
           data-testid={`shell-pane-menu-${row.key}`}
           onClick={row.run}
-          className="flex h-8 w-full items-center gap-2.5 rounded-lg px-2.5 text-sm transition-colors hover:bg-node-panel-inner"
+          className="flex h-8 w-full items-center gap-2.5 rounded-lg px-2.5 text-2sm transition-colors hover:tint-hover"
         >
           <span>{row.label}</span>
           <kbd className="ml-auto rounded border border-node-panel-inner px-1.5 text-2xs text-node-muted">

@@ -837,7 +837,7 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
                   event.stopPropagation()
                   openFilePicker(null)
                 }}
-                className="nodrag nopan inline-flex h-7 items-center justify-center gap-1.25 rounded-full bg-surface-fill-hover px-2.75 text-xs text-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill-track focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                className="nodrag nopan inline-flex h-7 items-center justify-center gap-1.25 rounded-full bg-surface-fill-hover px-2.75 text-2sm text-foreground transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus"
               >
                 <Upload aria-hidden className="size-3.5" />
                 {t('chrome.emptyUpload')}
@@ -849,7 +849,7 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
                   event.stopPropagation()
                   openLibrary(null)
                 }}
-                className="nodrag nopan inline-flex h-7 items-center justify-center gap-1.25 rounded-full bg-surface-fill-hover px-2.75 text-xs text-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill-track focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                className="nodrag nopan inline-flex h-7 items-center justify-center gap-1.25 rounded-full bg-surface-fill-hover px-2.75 text-2sm text-foreground transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus"
               >
                 <ImageIcon aria-hidden className="size-3.5" />
                 {t('chrome.emptyLibrary')}
@@ -1075,7 +1075,7 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
                   }}
                   // 连点两下别被读成「双击 = 快速看」。
                   onDoubleClick={(event) => event.stopPropagation()}
-                  className="nodrag nopan absolute bottom-2 left-2 flex size-6.5 items-center justify-center rounded-full surface-glass focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                  className="nodrag nopan absolute bottom-2 left-2 flex size-6.5 items-center justify-center rounded-full surface-glass focus-visible:outline-none focus-visible:shadow-focus"
                 >
                   {previewPlaying ? (
                     <Pause aria-hidden className="size-3.5" />
@@ -1098,7 +1098,7 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
                     setSoundOn(next)
                   }}
                   onDoubleClick={(event) => event.stopPropagation()}
-                  className="nodrag nopan absolute top-2 right-2 flex size-6.5 items-center justify-center rounded-full surface-glass focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                  className="nodrag nopan absolute top-2 right-2 flex size-6.5 items-center justify-center rounded-full surface-glass focus-visible:outline-none focus-visible:shadow-focus"
                 >
                   {soundOn ? (
                     <Volume2 aria-hidden className="size-3.5" />

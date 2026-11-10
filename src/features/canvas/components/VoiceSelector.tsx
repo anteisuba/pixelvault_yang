@@ -313,10 +313,10 @@ export const VoiceSelector = memo(function VoiceSelector({
           type="button"
           onClick={() => handleTabChange('public')}
           className={cn(
-            'flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-all',
+            'flex-1 rounded-md px-3 py-1.5 text-2xs transition-all',
             tab === 'public'
               ? 'bg-foreground text-background'
-              : 'text-muted-foreground hover:bg-muted/30',
+              : 'text-muted-foreground hover:tint-hover',
           )}
         >
           {t('voiceMarket')}
@@ -325,10 +325,10 @@ export const VoiceSelector = memo(function VoiceSelector({
           type="button"
           onClick={() => handleTabChange('favorites')}
           className={cn(
-            'flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-all',
+            'flex-1 rounded-md px-3 py-1.5 text-2xs transition-all',
             tab === 'favorites'
               ? 'bg-foreground text-background'
-              : 'text-muted-foreground hover:bg-muted/30',
+              : 'text-muted-foreground hover:tint-hover',
           )}
         >
           {t('voiceFavorites')}
@@ -337,10 +337,10 @@ export const VoiceSelector = memo(function VoiceSelector({
           type="button"
           onClick={() => handleTabChange('cloned')}
           className={cn(
-            'flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-all',
+            'flex-1 rounded-md px-3 py-1.5 text-2xs transition-all',
             tab === 'cloned'
               ? 'bg-foreground text-background'
-              : 'text-muted-foreground hover:bg-muted/30',
+              : 'text-muted-foreground hover:tint-hover',
           )}
         >
           {t('voiceCloned')}
@@ -372,7 +372,7 @@ export const VoiceSelector = memo(function VoiceSelector({
             <Select value={source} onValueChange={handleSourceChange}>
               <SelectTrigger
                 size="sm"
-                className="w-full border-border/60 text-xs sm:w-32"
+                className="w-full border-border/60 text-2xs sm:w-32"
                 aria-label={t('voiceSourceFilter')}
               >
                 <SelectValue />
@@ -389,7 +389,7 @@ export const VoiceSelector = memo(function VoiceSelector({
             <Select value={language} onValueChange={handleLanguageChange}>
               <SelectTrigger
                 size="sm"
-                className="w-full border-border/60 text-xs sm:w-32"
+                className="w-full border-border/60 text-2xs sm:w-32"
                 aria-label={t('voiceLanguageFilter')}
               >
                 <SelectValue />
@@ -405,7 +405,7 @@ export const VoiceSelector = memo(function VoiceSelector({
             <Select value={sortBy} onValueChange={handleSortChange}>
               <SelectTrigger
                 size="sm"
-                className="w-full border-border/60 text-xs sm:w-32"
+                className="w-full border-border/60 text-2xs sm:w-32"
                 aria-label={t('voiceSortFilter')}
               >
                 <SelectValue />
@@ -432,13 +432,13 @@ export const VoiceSelector = memo(function VoiceSelector({
             <Spinner size="lg" className="text-muted-foreground" />
           </div>
         ) : listError ? (
-          <div className="flex items-start gap-2 rounded-lg border border-status-risk/30 bg-status-risk-surface px-3 py-3 text-xs text-status-risk">
+          <div className="flex items-start gap-2 rounded-lg border border-status-risk/30 bg-status-risk-surface px-3 py-3 text-2xs text-status-risk">
             <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
             <span>{listError}</span>
           </div>
         ) : isLocalCardsTab ? (
           localVoiceCards.length === 0 ? (
-            <div className="py-8 text-center text-xs text-muted-foreground">
+            <div className="py-8 text-center text-2xs text-muted-foreground">
               {search.trim()
                 ? t('voiceNoResults')
                 : tab === 'cloned'
@@ -462,7 +462,7 @@ export const VoiceSelector = memo(function VoiceSelector({
                     'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-all',
                     isSelected
                       ? 'border border-primary/30 bg-primary/10'
-                      : 'border border-transparent hover:bg-muted/30',
+                      : 'border border-transparent hover:tint-hover',
                   )}
                 >
                   <button
@@ -497,7 +497,7 @@ export const VoiceSelector = memo(function VoiceSelector({
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="truncate text-sm font-medium text-foreground">
+                        <span className="truncate text-md font-semibold text-foreground">
                           {card.name}
                         </span>
                         <span className="shrink-0 rounded-full bg-muted/60 px-1.5 py-0.5 text-2xs text-muted-foreground">
@@ -535,7 +535,7 @@ export const VoiceSelector = memo(function VoiceSelector({
                       <button
                         type="button"
                         onClick={() => handleSampleToggle(card.id)}
-                        className="shrink-0 rounded-md p-1 text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                        className="shrink-0 rounded-md p-1 text-muted-foreground hover:tint-hover hover:text-foreground"
                       >
                         {playingVoiceId === card.id ? (
                           <Pause className="size-3.5" />
@@ -561,8 +561,8 @@ export const VoiceSelector = memo(function VoiceSelector({
                     className={cn(
                       'shrink-0 rounded-md p-1 disabled:pointer-events-none disabled:opacity-50',
                       tab === 'cloned'
-                        ? 'text-muted-foreground hover:bg-status-risk-surface hover:text-status-risk'
-                        : 'text-primary hover:bg-muted/60',
+                        ? 'text-muted-foreground hover:tint-hover hover:text-status-risk'
+                        : 'text-primary hover:tint-hover',
                     )}
                   >
                     {isPending ? (
@@ -583,7 +583,7 @@ export const VoiceSelector = memo(function VoiceSelector({
             })
           )
         ) : publicVoiceAssets.length === 0 ? (
-          <div className="py-8 text-center text-xs text-muted-foreground">
+          <div className="py-8 text-center text-2xs text-muted-foreground">
             {t('voiceNoResults')}
           </div>
         ) : (
@@ -606,7 +606,7 @@ export const VoiceSelector = memo(function VoiceSelector({
                   'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-all',
                   isSelected
                     ? 'bg-primary/10 border border-primary/30'
-                    : 'border border-transparent hover:bg-muted/30',
+                    : 'border border-transparent hover:tint-hover',
                 )}
               >
                 <button
@@ -617,7 +617,7 @@ export const VoiceSelector = memo(function VoiceSelector({
                   {/* Avatar / icon */}
                   <div
                     className={cn(
-                      'flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full text-xs font-semibold',
+                      'flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full text-2sm font-semibold',
                       isSelected
                         ? 'bg-primary text-primary-foreground'
                         : 'bg-muted/60 text-muted-foreground',
@@ -644,7 +644,7 @@ export const VoiceSelector = memo(function VoiceSelector({
                   {/* Info */}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="truncate text-sm font-medium text-foreground">
+                      <span className="truncate text-md font-semibold text-foreground">
                         {asset.title}
                       </span>
                       <span className="shrink-0 rounded-full bg-muted/60 px-1.5 py-0.5 text-2xs text-muted-foreground">
@@ -688,7 +688,7 @@ export const VoiceSelector = memo(function VoiceSelector({
                     <button
                       type="button"
                       onClick={() => handleSampleToggle(asset.id)}
-                      className="shrink-0 rounded-md p-1 text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                      className="shrink-0 rounded-md p-1 text-muted-foreground hover:tint-hover hover:text-foreground"
                     >
                       {isPlaying ? (
                         <Pause className="size-3.5" />
@@ -712,7 +712,7 @@ export const VoiceSelector = memo(function VoiceSelector({
                     void handleToggleFavorite(asset)
                   }}
                   className={cn(
-                    'shrink-0 rounded-md p-1 text-muted-foreground hover:bg-muted/60 hover:text-foreground disabled:pointer-events-none disabled:opacity-50',
+                    'shrink-0 rounded-md p-1 text-muted-foreground hover:tint-hover hover:text-foreground disabled:pointer-events-none disabled:opacity-50',
                     savedVoiceCard && 'text-primary hover:text-primary',
                   )}
                 >
@@ -736,13 +736,13 @@ export const VoiceSelector = memo(function VoiceSelector({
 
       {/* Pagination */}
       {isPublicTab && totalPages > 1 && (
-        <div className="flex shrink-0 items-center justify-between border-t border-border/40 pt-2 text-xs text-muted-foreground">
+        <div className="flex shrink-0 items-center justify-between border-t border-border/40 pt-2 text-2xs text-muted-foreground">
           <Button
             variant="secondary"
             size="sm"
             disabled={page <= 1}
             onClick={() => setPage(page - 1)}
-            className="h-7 text-xs"
+            className="h-7 text-2sm"
           >
             {t('voicePrev')}
           </Button>
@@ -758,7 +758,7 @@ export const VoiceSelector = memo(function VoiceSelector({
             size="sm"
             disabled={page >= totalPages}
             onClick={() => setPage(page + 1)}
-            className="h-7 text-xs"
+            className="h-7 text-2sm"
           >
             {t('voiceNext')}
           </Button>
@@ -767,11 +767,10 @@ export const VoiceSelector = memo(function VoiceSelector({
 
       {/* Selected indicator */}
       {selectedVoiceLabel && (
-        <div className="flex items-center gap-2 rounded-lg bg-primary/5 px-3 py-2 text-xs">
+        <div className="flex items-center gap-2 rounded-lg bg-primary/5 px-3 py-2 text-2xs">
           <Check className="size-3.5 text-primary" />
           <span className="text-foreground">
-            {t('voiceSelected')}:{' '}
-            <span className="font-medium">{selectedVoiceLabel}</span>
+            {t('voiceSelected')}: <span className="">{selectedVoiceLabel}</span>
           </span>
         </div>
       )}

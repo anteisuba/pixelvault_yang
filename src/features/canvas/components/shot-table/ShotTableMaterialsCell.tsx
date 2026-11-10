@@ -186,7 +186,7 @@ export function ShotTableMaterialsCell({
                     title={entry.name}
                     aria-label={entry.name}
                     onClick={() => add(entry)}
-                    className="relative size-full overflow-hidden rounded-lg transition-transform duration-fast hover:scale-103 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="relative size-full overflow-hidden rounded-lg transition-transform duration-fast hover:scale-103 focus-visible:outline-none focus-visible:shadow-focus"
                   >
                     <TileFace item={entry} role={entry.kindRole} large />
                   </button>
@@ -209,7 +209,7 @@ export function ShotTableMaterialsCell({
                 type="button"
                 data-testid="shot-table-material-pick-more"
                 onClick={() => setPicking(true)}
-                className="flex size-16 flex-col items-center justify-center gap-0.5 rounded-lg border border-dashed border-border px-1 text-center text-3xs leading-tight text-muted-foreground transition-colors duration-fast hover:border-highlight hover:bg-highlight-soft hover:text-highlight"
+                className="flex size-16 flex-col items-center justify-center gap-0.5 rounded-lg border border-dashed border-border px-1 text-center text-2xs leading-tight text-muted-foreground transition-colors duration-fast hover:border-highlight hover:tint-hover hover:text-highlight"
               >
                 <Plus className="size-4" aria-hidden />
                 <span>{t.rich('pickMore', { br: () => <br /> })}</span>
@@ -243,7 +243,7 @@ function PickView({
   return (
     <div className="w-38" data-testid="shot-table-material-picks">
       {sections.length === 0 ? (
-        <p className="py-1 text-xs text-muted-foreground">{t('pickEmpty')}</p>
+        <p className="py-1 text-2xs text-muted-foreground">{t('pickEmpty')}</p>
       ) : (
         sections.map((section, index) => (
           <section
@@ -251,7 +251,7 @@ function PickView({
             data-testid={`shot-table-material-picks-${section.id}`}
             className={cn(index > 0 && 'mt-2.5')}
           >
-            <h4 className="mb-1.5 text-xs font-bold">{section.label}</h4>
+            <h4 className="mb-1.5 text-2xs font-bold">{section.label}</h4>
             <div className="grid grid-cols-2 gap-2">
               {section.items.map((entry) => (
                 <button
@@ -262,7 +262,7 @@ function PickView({
                   title={t('pickAdd', { name: entry.name, shotNo })}
                   aria-label={t('pickAdd', { name: entry.name, shotNo })}
                   onClick={() => onPick(entry)}
-                  className="group flex w-18 flex-col gap-1 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="group flex w-18 flex-col gap-1 rounded-lg text-left focus-visible:outline-none focus-visible:shadow-focus"
                 >
                   <span className="relative block size-18 overflow-hidden rounded-lg transition-transform duration-fast group-hover:scale-103">
                     <TileFace item={entry} role={entry.kindRole} large />
@@ -382,7 +382,7 @@ function MaterialTile({
                 title={t('replaceWith', { name: entry.name })}
                 aria-label={t('replaceWith', { name: entry.name })}
                 onClick={() => pick(() => onReplace(entry))}
-                className="relative size-13 overflow-hidden rounded-lg transition-transform duration-fast hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="relative size-13 overflow-hidden rounded-lg transition-transform duration-fast hover:scale-105 focus-visible:outline-none focus-visible:shadow-focus"
               >
                 <TileFace item={entry} role={entry.kindRole} />
               </button>
@@ -481,7 +481,7 @@ function Hero({
         </span>
       )}
       <span className="absolute inset-x-2 bottom-2 flex">
-        <span className="inline-flex h-6 min-w-0 items-center rounded-full bg-media-chip px-2.5 text-xs font-semibold text-on-media-chip">
+        <span className="inline-flex h-6 min-w-0 items-center rounded-full bg-media-chip px-2.5 text-2sm font-semibold text-on-media-chip">
           <span className="truncate">{item.name}</span>
         </span>
       </span>
@@ -515,7 +515,7 @@ function SlotButton({
       aria-label={swapLabel ? `${label} · ${swapLabel}` : label}
       onClick={onClick}
       className={cn(
-        'relative flex h-14 flex-col items-center justify-center gap-1 rounded-xl border text-sm font-semibold transition-colors duration-fast',
+        'relative flex h-14 flex-col items-center justify-center gap-1 rounded-xl border text-md font-semibold transition-colors duration-fast',
         active
           ? 'border-foreground bg-foreground text-background'
           : 'border-border text-foreground hover:border-foreground',
@@ -566,7 +566,7 @@ function IconAction({
       title={label}
       onClick={onClick}
       className={cn(
-        'flex size-9 items-center justify-center rounded-lg transition-colors duration-fast hover:bg-surface-fill',
+        'flex size-9 items-center justify-center rounded-lg transition-colors duration-fast hover:tint-hover',
         destructive ? 'text-destructive' : 'text-foreground',
       )}
     >

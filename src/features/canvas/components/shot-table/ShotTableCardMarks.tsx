@@ -49,7 +49,7 @@ function Marks({
         <span
           data-testid="shot-table-drop-hint"
           data-drop={dropping}
-          className="pointer-events-none absolute top-full left-0 mt-2 whitespace-nowrap rounded-full bg-foreground px-3 py-1 text-xs font-semibold text-background"
+          className="pointer-events-none absolute top-full left-0 mt-2 whitespace-nowrap rounded-full bg-foreground px-3 py-1 text-2sm font-semibold text-background"
           // 提示跟着屏幕走、不跟画布缩放（与卡名同一个做法）。
           style={{
             transform: `scale(${1 / scale})`,

@@ -211,7 +211,7 @@ export function TextNodeV4({ id, data, selected }: NodeProps) {
             <span
               aria-hidden
               data-text-mark
-              className="shrink-0 px-0.5 text-xs font-semibold"
+              className="shrink-0 px-0.5 text-2xs font-semibold"
             >
               T
             </span>

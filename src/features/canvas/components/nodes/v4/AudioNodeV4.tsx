@@ -834,7 +834,7 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
                     )
                   }}
                   className={cn(
-                    'nodrag nopan ml-auto min-w-0 shrink truncate rounded-sm px-0.5 tabular-nums transition-colors duration-fast ease-standard hover:bg-surface-fill-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+                    'nodrag nopan ml-auto min-w-0 shrink truncate rounded-sm px-0.5 tabular-nums transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus',
                     shotLinkMismatch
                       ? 'text-status-warning'
                       : 'text-muted-foreground hover:text-foreground',
@@ -858,7 +858,7 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
                 event.stopPropagation()
                 fileRef.current?.click()
               }}
-              className="nodrag nopan inline-flex h-7 shrink-0 items-center justify-center gap-1.25 rounded-full bg-surface-fill-hover px-2.75 text-xs text-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill-track focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              className="nodrag nopan inline-flex h-7 shrink-0 items-center justify-center gap-1.25 rounded-full bg-surface-fill-hover px-2.75 text-2sm text-foreground transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus"
             >
               <Upload aria-hidden className="size-3.5" />
               {t('chrome.emptyUpload')}
@@ -870,12 +870,12 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
                 event.stopPropagation()
                 setVoiceLibrary(true)
               }}
-              className="nodrag nopan inline-flex h-7 shrink-0 items-center justify-center gap-1.25 rounded-full bg-surface-fill-hover px-2.75 text-xs text-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill-track focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              className="nodrag nopan inline-flex h-7 shrink-0 items-center justify-center gap-1.25 rounded-full bg-surface-fill-hover px-2.75 text-2sm text-foreground transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus"
             >
               <AudioLines aria-hidden className="size-3.5" />
               {tAudio('emptyVoiceLibrary')}
             </button>
-            <span className="text-xs text-muted-foreground/75">
+            <span className="text-2xs text-muted-foreground/75">
               {tAudio('emptyNextStep')}
             </span>
           </div>
@@ -944,10 +944,10 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
                     className={cn(
                       'nodrag nopan flex size-8.5 shrink-0 items-center justify-center rounded-full',
                       'transition-colors duration-fast ease-standard',
-                      'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+                      ' focus-visible:outline-none focus-visible:shadow-focus',
                       playing
                         ? 'bg-primary text-primary-foreground'
-                        : 'bg-surface-fill text-foreground hover:bg-surface-fill-hover',
+                        : 'bg-surface-fill text-foreground hover:tint-hover',
                     )}
                   >
                     {playing ? (
@@ -969,7 +969,7 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
                 <span
                   data-audio-duration
                   data-known={seconds > 0 ? 'true' : 'false'}
-                  className="w-9.5 shrink-0 text-right font-mono text-xs tabular-nums text-muted-foreground"
+                  className="w-9.5 shrink-0 text-right font-mono text-2xs tabular-nums text-muted-foreground"
                 >
                   {seconds <= 0
                     ? tAudio('durationUnknown')

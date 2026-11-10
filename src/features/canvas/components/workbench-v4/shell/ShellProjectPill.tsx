@@ -146,7 +146,7 @@ export function ShellProjectList({
                     className="shrink-0 rounded-md bg-node-panel-soft"
                   />
                   <span className="flex min-w-0 flex-col">
-                    <span className="truncate text-sm text-node-foreground">
+                    <span className="truncate text-2sm text-node-foreground">
                       {project.name}
                     </span>
                     <span className="truncate text-2xs text-node-muted">
@@ -220,7 +220,7 @@ export function ShellProjectList({
           onDone?.()
           onCreateProject()
         }}
-        className="flex h-8 w-full shrink-0 items-center gap-2.5 rounded-lg px-2.5 text-sm text-node-foreground transition-colors hover:bg-node-panel-inner"
+        className="flex h-8 w-full shrink-0 items-center gap-2.5 rounded-lg px-2.5 text-2sm text-node-foreground transition-colors hover:tint-hover"
       >
         <Plus className="size-4 shrink-0 text-node-muted" aria-hidden />
         <span>{t('new')}</span>

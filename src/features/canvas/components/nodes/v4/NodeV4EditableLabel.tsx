@@ -125,7 +125,7 @@ export function NodeV4EditableLabel({
         onKeyDown={handleKeyDown}
         aria-label={ariaLabel}
         data-node-rename-input
-        className="nodrag nopan nowheel h-6 min-w-0 rounded-md border bg-background px-1 text-xs"
+        className="nodrag nopan nowheel h-6 min-w-0 rounded-md border bg-background px-1 text-2sm"
       />
     )
   }

@@ -44,14 +44,14 @@ export function EditDeskRenderStatus({
     <div
       data-testid="edit-desk-render-bar"
       role="status"
-      className="flex min-w-0 items-center gap-3 text-xs"
+      className="flex min-w-0 items-center gap-3 text-2xs"
     >
       <span
         data-testid="edit-desk-render-status"
         title={failed ? (job.error ?? undefined) : undefined}
         className={cn(
           'truncate tabular-nums',
-          failed ? 'font-medium text-foreground' : 'text-muted-foreground',
+          failed ? ' text-foreground' : 'text-muted-foreground',
         )}
       >
         {done
@@ -84,7 +84,7 @@ export function EditDeskRenderStatus({
           type="button"
           data-testid="edit-desk-render-download"
           onClick={() => job.url && onDownload(job.url)}
-          className="inline-flex h-7 shrink-0 items-center rounded-lg bg-primary px-3 text-2xs font-medium text-primary-foreground"
+          className="inline-flex h-7 shrink-0 items-center rounded-lg bg-primary px-3 text-2xs font-semibold text-primary-foreground"
         >
           {t('download')}
         </button>
@@ -95,7 +95,7 @@ export function EditDeskRenderStatus({
           type="button"
           data-testid="edit-desk-render-cancel"
           onClick={onCancel}
-          className="inline-flex h-7 shrink-0 items-center rounded-lg px-2 text-muted-foreground transition-colors duration-fast hover:bg-muted hover:text-foreground"
+          className="inline-flex h-7 shrink-0 items-center rounded-lg px-2 text-muted-foreground transition-colors duration-fast hover:tint-hover hover:text-foreground"
         >
           {t('cancel')}
         </button>
@@ -105,7 +105,7 @@ export function EditDeskRenderStatus({
           aria-label={t('dismiss')}
           data-testid="edit-desk-render-dismiss"
           onClick={onClear}
-          className="inline-flex size-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors duration-fast hover:bg-muted"
+          className="inline-flex size-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors duration-fast hover:tint-hover"
         >
           <X className="size-3.5" aria-hidden />
         </button>
@@ -134,7 +134,7 @@ export function EditDeskResumeStatus({
     <div
       data-testid="edit-desk-resume-bar"
       role="status"
-      className="flex min-w-0 items-center gap-2 text-xs"
+      className="flex min-w-0 items-center gap-2 text-2xs"
     >
       <span className="truncate text-muted-foreground">
         {t('resume', { name: job.name })}
@@ -143,7 +143,7 @@ export function EditDeskResumeStatus({
         type="button"
         data-testid="edit-desk-resume-continue"
         onClick={onResume}
-        className="inline-flex h-7 shrink-0 items-center rounded-full bg-primary px-3 text-2xs font-medium text-primary-foreground"
+        className="inline-flex h-7 shrink-0 items-center rounded-full bg-primary px-3 text-2xs font-semibold text-primary-foreground"
       >
         {t('resumeContinue')}
       </button>
@@ -151,7 +151,7 @@ export function EditDeskResumeStatus({
         type="button"
         data-testid="edit-desk-resume-restart"
         onClick={onDismiss}
-        className="inline-flex h-7 shrink-0 items-center rounded-full px-2.5 text-2xs text-muted-foreground transition-colors duration-fast hover:bg-surface-fill hover:text-foreground"
+        className="inline-flex h-7 shrink-0 items-center rounded-full px-2.5 text-2xs text-muted-foreground transition-colors duration-fast hover:tint-hover hover:text-foreground"
       >
         {t('resumeRestart')}
       </button>

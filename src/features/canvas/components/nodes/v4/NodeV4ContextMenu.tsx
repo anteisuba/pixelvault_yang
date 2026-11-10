@@ -240,8 +240,8 @@ export function NodeV4ContextMenu({
             className={cn(
               'flex min-h-7.5 w-full items-center rounded-lg px-2.5 text-left text-2sm tracking-node-body transition-colors duration-fast ease-standard disabled:opacity-40',
               item.danger
-                ? 'text-destructive hover:bg-destructive hover:text-primary-foreground'
-                : 'hover:bg-primary hover:text-primary-foreground',
+                ? 'text-destructive hover:tint-hover hover:text-primary-foreground'
+                : 'hover:tint-hover hover:text-primary-foreground',
             )}
           >
             {item.label}

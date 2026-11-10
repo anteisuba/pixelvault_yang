@@ -136,29 +136,30 @@ describe('readAssistantOperatorStream', () => {
         encodeSseEvent(ASSISTANT_OPERATOR_EVENTS.open, {
           type: ASSISTANT_OPERATOR_EVENTS.open,
         }),
-        encodeSseEvent(ASSISTANT_OPERATOR_EVENTS.plan, {
-          type: ASSISTANT_OPERATOR_EVENTS.plan,
-          steps: [
-            { id: 'plan-1', label: '读工作台' },
-            { id: 'plan-2', label: '搜素材' },
-          ],
+        encodeSseEvent(ASSISTANT_OPERATOR_EVENTS.message, {
+          type: ASSISTANT_OPERATOR_EVENTS.message,
+          text: '读一下工作台',
         }),
         encodeSseEvent(ASSISTANT_OPERATOR_EVENTS.done, {
           type: ASSISTANT_OPERATOR_EVENTS.done,
         }),
       ]),
     )
-    expect(events.map((event) => event.type)).toEqual(['open', 'plan', 'done'])
+    expect(events.map((event) => event.type)).toEqual([
+      'open',
+      'message',
+      'done',
+    ])
   })
 
   it('坏载荷报告中断，不把后续回答当成成功回执', async () => {
     const events = await collect(
       toStream([
-        'event: plan\ndata: {不是 JSON\n\n',
-        encodeSseEvent(ASSISTANT_OPERATOR_EVENTS.plan, {
-          type: ASSISTANT_OPERATOR_EVENTS.plan,
-          // steps 必须 min(1) —— 这一帧过不了 schema，同样只丢它自己
-          steps: [],
+        'event: message\ndata: {不是 JSON\n\n',
+        encodeSseEvent(ASSISTANT_OPERATOR_EVENTS.messageDelta, {
+          type: ASSISTANT_OPERATOR_EVENTS.messageDelta,
+          // delta 必须 min(1) —— 这一帧过不了 schema，同样只丢它自己
+          delta: '',
         }),
         encodeSseEvent(ASSISTANT_OPERATOR_EVENTS.message, {
           type: ASSISTANT_OPERATOR_EVENTS.message,

@@ -257,7 +257,7 @@ Owner 已选择三方向原型中的 A 并授权修复。关键切片为四张�
 | `stopped`         | `stopped`       | 保留                     | 与 `done` 分开，UI 才说得出为什么停                                                                                                                                                                                              |
 | `error`           | `error`         | 保留                     | 形态与 `AssistantStreamErrorFrame` 一致                                                                                                                                                                                          |
 
-**收敛结果：14 → 10**（`open` / `plan` / `step` / `ask` / `confirm` / `message` / `rule_hit` / `done` / `stopped` / `error`；`stopped` 与 `error` 分开，UI 才说得出是主动停还是出错）。**56b 切片 3 起是 11**：`message_delta` 以新载荷回来（见上表那一行）。
+**收敛结果：14 → 10**（`open` / `plan` / `step` / `ask` / `confirm` / `message` / `rule_hit` / `done` / `stopped` / `error`；`stopped` 与 `error` 分开，UI 才说得出是主动停还是出错）。**56b 切片 3 起是 11**：`message_delta` 以新载荷回来（见上表那一行）。**11-10 删掉 `plan` 与 `rule_hit`**：新内核早就不发这两帧，阶段只随多步确认卡来；现行帧名以 `ASSISTANT_OPERATOR_EVENTS` 为准。
 
 ### 3.2 五类卡片
 

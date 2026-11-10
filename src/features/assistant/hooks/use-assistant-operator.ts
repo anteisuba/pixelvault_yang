@@ -1229,43 +1229,6 @@ export function useAssistantOperator(
       let canvasNeedsInputSync = false
       let canvasSteps = options.canvasSteps ?? 0
       let v3Transcript: AssistantV3Transcript | null = null
-      let pendingPlanSteps: readonly string[] | null = null
-      /**
-       * ⭐ **接着跑同一份计划的那几轮不再落计划**（D12 S9）：点「开始」之后、答完
-       * 中途的问题之后、续跑之后，模型常把剩下的几步再排一遍 —— 落下去就是同一份
-       * 活出现两三张计划，而且新那份会顶掉记着进度的续跑记录。
-       */
-      const continuesPlan = Boolean(
-        options.runKey ||
-        options.planApproved ||
-        resumeFrom ||
-        options.planAnswers?.length ||
-        options.confirmations?.length,
-      )
-      const flushPlanEntry = () => {
-        if (!pendingPlanSteps) return
-        if (continuesPlan && getOperatorState().resume) {
-          pendingPlanSteps = null
-          return
-        }
-        const planId = nextOperatorEntryId('plan')
-        appendOperatorEntry({
-          kind: 'plan',
-          id: planId,
-          steps: pendingPlanSteps,
-        })
-        /**
-         * ⭐ **续跑记录就落在这里**（第三期）：这一帧的含义正是「这份计划要开跑
-         * 了」——出卡那一支根本走不到这儿（卡还钉着，一步都没开始），而不出卡与
-         * 点过「开始」两条路都从这里过。⛔ 别改到 `approvePlan` 里去落：
-         * 那样「步数不够、没出卡」的那一类多步计划一份记录都不会有。
-         * ⚠ 续跑那一轮**不重落**：记录里前几步的 done 就是它存在的全部理由。
-         */
-        if (!resumeFrom) {
-          startOperatorResumePlan({ planId, labels: pendingPlanSteps })
-        }
-        pendingPlanSteps = null
-      }
 
       /**
        * ⭐ **收尾之前的那条占位行**（owner 2026-09-07）。
@@ -1548,35 +1511,7 @@ export function useAssistantOperator(
             dropOperatorPending(messageEntryId())
             settleOperatorStreaming()
           }
-          /**
-           * 攒着的计划**最多只等一帧**（第 2 件）：多步确认帧紧挨着 `plan` 发，
-           * 所以别的帧一到就说明这一轮不会有卡了 —— 立刻落成折叠行。
-           * ⛔ 不拖到流末尾再落：那样它会排在这一轮所有工具步的后面，读起来像
-           * 「干完之后才想起来规划」。
-           * ⚠ `confirm` 不在这里落：多步那一支要把这份清单收进卡里（见下面），
-           *   生成那一支自己会补一次 `flushPlanEntry()`。
-           */
-          if (
-            event.type !== ASSISTANT_OPERATOR_EVENTS.plan &&
-            event.type !== ASSISTANT_OPERATOR_EVENTS.confirm
-          ) {
-            flushPlanEntry()
-          }
           switch (event.type) {
-            /**
-             * ⭐ **计划帧不再无条件落条目**（2026-09-06 面板轮，第 2 件）。
-             *
-             * 由来：一轮里同一份计划会出现两次 —— 一条 `kind:'plan'` 的清单卡，
-             * 外加钉在流末尾那张待确认的计划卡。两张卡列的是同一串阶段，用户读到
-             * 的是「它规划了两遍」。
-             * ⚠ 所以这里只**攒着**：多步确认帧紧跟在下一帧（服务端那一侧写死的
-             * 顺序），由它来收 —— 出卡 = 这份
-             * 清单归卡，条目不落；不出卡 = 落成一行折叠。
-             */
-            case ASSISTANT_OPERATOR_EVENTS.plan:
-              setOperatorPlannedSteps(event.steps.length)
-              pendingPlanSteps = event.steps.map((step) => step.label)
-              break
             /**
              * **问题卡**（v2 §3.2 / §3.4）—— 三个来源一帧到齐，**一张卡收全**。
              *
@@ -1589,7 +1524,6 @@ export function useAssistantOperator(
              * ⚠ ⛔ 不用像 v1 那样掐流：停流已经由服务端那一帧 `stopped` 说了。
              */
             case ASSISTANT_OPERATOR_EVENTS.ask: {
-              flushPlanEntry()
               setOpen(true)
               setOperatorQuestion({
                 id: nextOperatorEntryId('question'),
@@ -1603,8 +1537,7 @@ export function useAssistantOperator(
             }
             /**
              * **确认卡**（v2 §3.3）—— 两种来源，**一张卡**（`kind` 判别）：
-             *  · `multistep` → 这一轮攒着的那份计划归它，⛔ 别再落一条
-             *    `kind:'plan'` 条目（同一份阶段出现两遍 = 「它规划了两遍」）；
+             *  · `multistep` → 卡上列着这一轮要走的几步，点「开始」才落计划条目；
              *  · `generate`  → 生成确认卡，⚠ 点「确认生成」由客户端扣扳机（§5）。
              * ⚠ 状态分两档写：多步是「一整轮还没开始跑」（`awaitingPlan`），
              *   生成是「有一件事等你拍板」（`awaitingConfirm`）——图标轨那一行
@@ -1615,7 +1548,6 @@ export function useAssistantOperator(
                 event.confirm.kind ===
                 ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.multistep
               ) {
-                pendingPlanSteps = null
                 setOperatorConfirm({
                   id: nextOperatorEntryId('confirm'),
                   kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.multistep,
@@ -1635,7 +1567,6 @@ export function useAssistantOperator(
                  * ⚠ 写库那一跳**不等**：卡当场就该在，写成功与否只决定
                  * 「存这张卡」走翻面还是走新建。
                  */
-                flushPlanEntry()
                 setOpen(true)
                 const contextCardEntryId = nextOperatorEntryId('confirm')
                 setOperatorConfirm({
@@ -1660,7 +1591,6 @@ export function useAssistantOperator(
                 event.confirm.kind ===
                 ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.loraSetup
               ) {
-                flushPlanEntry()
                 setOpen(true)
                 setOperatorConfirm({
                   id: nextOperatorEntryId('confirm'),
@@ -1680,7 +1610,6 @@ export function useAssistantOperator(
                 event.confirm.kind ===
                 ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.characterProfile
               ) {
-                flushPlanEntry()
                 setOpen(true)
                 setOperatorConfirm({
                   id: nextOperatorEntryId('confirm'),
@@ -1699,7 +1628,6 @@ export function useAssistantOperator(
                 event.confirm.kind ===
                 ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.characterImages
               ) {
-                flushPlanEntry()
                 setOpen(true)
                 setOperatorConfirm({
                   id: nextOperatorEntryId('confirm'),
@@ -1715,7 +1643,6 @@ export function useAssistantOperator(
                 event.confirm.kind ===
                 ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.upscale
               ) {
-                flushPlanEntry()
                 setOpen(true)
                 setOperatorConfirm({
                   id: nextOperatorEntryId('confirm'),
@@ -1726,7 +1653,6 @@ export function useAssistantOperator(
                 setOperatorStatus('awaitingConfirm')
                 break
               }
-              flushPlanEntry()
               setOperatorConfirm({
                 id: nextOperatorEntryId('confirm'),
                 kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate,
@@ -2083,33 +2009,6 @@ export function useAssistantOperator(
               break
             }
             /**
-             * **规则薄卡**（§2.21 / §10，拍板 23）—— 时间线里插一条，⛔ 不是一步。
-             * 原文与日期是服务端从规则表里查出来的原话（见事件 schema 头注）。
-             */
-            case ASSISTANT_OPERATOR_EVENTS.ruleHit: {
-              /**
-               * ⚠ **一条规则在这段对话里只画一次**（2026-09-12 实测第 9 步）：
-               * 服务端只在**一轮之内**去重（`emittedRuleHits`），而同一条规则
-               * 下一轮照样会命中 —— 用户读到的是同一张薄卡在时间线上出现两次、
-               * 三次。⛔ 不在服务端跨轮去重：那要给流一份会话态，而「运行中的一轮
-               * 不许留痕」是那条流的前提（§7.2）。这里按 `ruleId` 认就够了。
-               */
-              const seen = getOperatorState().entries.some(
-                (entry) =>
-                  entry.kind === 'rule' && entry.ruleId === event.ruleId,
-              )
-              if (seen) break
-              appendOperatorEntry({
-                kind: 'rule',
-                id: nextOperatorEntryId('rule'),
-                ruleId: event.ruleId,
-                text: event.text,
-                source: event.source,
-                createdAt: event.createdAt,
-              })
-              break
-            }
-            /**
              * ⚠ **`awaitingPlan` 不被这一帧降级**：计划卡 / 问题卡那两支自己已经
              * 把状态说清楚了，而服务端只会笼统地说一句 `awaiting_confirm` ——
              * 盖过去的表现是图标轨上「待你定」变成「待确认」，而两者的下一步动作
@@ -2206,9 +2105,7 @@ export function useAssistantOperator(
         }
       } catch {
         if (!isCurrentRun()) return
-        // 攒着的那份计划比丢掉更糟 —— 先落地，再谈这是不是一次 abort。
         cancelPendingAfterStep()
-        flushPlanEntry()
         dropOperatorPending(messageEntryId())
         settleOperatorStreaming()
         /**
@@ -2226,7 +2123,6 @@ export function useAssistantOperator(
 
       if (!isCurrentRun()) return
       cancelPendingAfterStep()
-      flushPlanEntry()
       dropOperatorPending(messageEntryId())
       settleOperatorStreaming()
       if (controller.signal.aborted) return

@@ -42,8 +42,8 @@ describe('操作员流成帧器', () => {
       routeName: 'test',
       events: async function* () {
         yield {
-          type: ASSISTANT_OPERATOR_EVENTS.plan,
-          steps: [{ id: 'plan-1', label: 'a' }],
+          type: ASSISTANT_OPERATOR_EVENTS.message,
+          text: 'a',
         } as AssistantOperatorEvent
         yield {
           type: ASSISTANT_OPERATOR_EVENTS.done,
@@ -59,7 +59,7 @@ describe('操作员流成帧器', () => {
     const frames = await readFrames(response)
     expect(frames.map((frame) => frame.event)).toEqual([
       ASSISTANT_OPERATOR_EVENTS.open,
-      ASSISTANT_OPERATOR_EVENTS.plan,
+      ASSISTANT_OPERATOR_EVENTS.message,
       ASSISTANT_OPERATOR_EVENTS.done,
     ])
     for (const frame of frames) {

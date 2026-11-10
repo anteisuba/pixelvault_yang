@@ -1291,13 +1291,6 @@ describe('事件契约', () => {
     const events: unknown[] = [
       { type: ASSISTANT_OPERATOR_EVENTS.open },
       {
-        type: ASSISTANT_OPERATOR_EVENTS.plan,
-        steps: [
-          { id: 'plan-1', label: '查素材' },
-          { id: 'plan-2', label: '填表单' },
-        ],
-      },
-      {
         type: ASSISTANT_OPERATOR_EVENTS.step,
         step: buildStep(ASSISTANT_OPERATOR_TOOL_IDS.setPrompt),
       },
@@ -1362,20 +1355,18 @@ describe('事件契约', () => {
    * ⚠ 断的是**集合相等**而不是「这十个都在」：后者放得过一条偷偷留下来的旧帧，
    * 而收敛这件事的全部意义就是「没有第十一个」。
    */
-  it('⭐ 事件联合恰好十三帧，一个不多一个不少', () => {
+  it('⭐ 事件联合恰好十一帧，一个不多一个不少', () => {
     const names = AssistantOperatorEventSchema.options
       .map((option) => option.shape.type.value)
       .sort()
     expect(names).toEqual(
       [
         'open',
-        'plan',
         'step',
         'ask',
         'confirm',
         'message',
         'message_delta',
-        'rule_hit',
         'done',
         'stopped',
         'error',
@@ -1398,6 +1389,15 @@ describe('事件契约', () => {
    */
   it('⛔ v1 那四个帧名全部不在联合里', () => {
     const gone = [
+      // 11-10 删的两帧：服务端早就不发了（阶段只随多步确认卡来，规则不再贴薄卡）。
+      { type: 'plan', steps: [{ id: 'plan-1', label: '查素材' }] },
+      {
+        type: 'rule_hit',
+        ruleId: 'rule-1',
+        text: '主角的耳环永远在左边',
+        source: 'creator',
+        createdAt: '2026-08-14T02:00:00.000Z',
+      },
       { type: 'plan_request', steps: [], questions: [], estimate: {} },
       { type: 'spend_request', tier: 'spend', request: {} },
       { type: 'confirm_request', tier: 'overwrite', field: 'prompt' },

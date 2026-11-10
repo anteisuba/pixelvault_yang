@@ -4828,26 +4828,21 @@ export const AssistantOperatorOpenEventSchema = z.object({
 })
 
 /**
- * **这一轮打算分几步**（v2 §3.1：`plan` 与计划请求帧合并）。
+ * **多步确认卡上的阶段列表**（v2 §3.3）。
  *
- * ⚠ 只剩阶段列表：待定项整体搬去了 `ask`（问题卡），预估随决策 8 删掉，
- * 服务端观察到的「出卡理由」也一起没了。多步确认要不要出，v2 §3.3 交给模型判
- * （`AssistantOperatorTurnSchema.confirmPlan`），⛔ 不再有步数死阈值。
  * ⚠ 步骤带 `id` 而不是裸字符串：多步确认卡与续跑记录都要按格指认某一步，
  * 而序号会随重规划变。
+ * （11-10：单独的 `plan` 帧已删 —— 服务端早就不发了，阶段只随多步确认卡来。）
  */
-export const AssistantOperatorPlanEventSchema = z.object({
-  type: z.literal(ASSISTANT_OPERATOR_EVENTS.plan),
-  steps: z
-    .array(
-      z.object({
-        id: IdSchema,
-        label: z.string().trim().min(1).max(LIMITS.maxPlanItemChars),
-      }),
-    )
-    .min(1)
-    .max(LIMITS.maxPlanItems),
-})
+const AssistantOperatorPlanStepsSchema = z
+  .array(
+    z.object({
+      id: IdSchema,
+      label: z.string().trim().min(1).max(LIMITS.maxPlanItemChars),
+    }),
+  )
+  .min(1)
+  .max(LIMITS.maxPlanItems)
 
 export const AssistantOperatorStepEventSchema = z.object({
   type: z.literal(ASSISTANT_OPERATOR_EVENTS.step),
@@ -4898,23 +4893,6 @@ export const AssistantOperatorThinkingEventSchema = z.object({
   delta: z.string().min(1).max(LIMITS.maxMessageChars).optional(),
   /** 这一段想完了：想了多久（ms）。 */
   ms: z.number().int().nonnegative().optional(),
-})
-
-/**
- * 助手引用了一条项目规则（§10，拍板 23）—— 规则薄卡收的就是它。
- *
- * ⚠ 载荷里的 `text` / `createdAt` **由服务端填**（模型只给 id），所以这里可以、
- * 也必须写成必填：薄卡上要显示的是用户当时写下的原话与日期，不是模型的转述。
- * ⚠ 它没有 step id：引用一条规则不是一步，见 `ASSISTANT_OPERATOR_EVENTS.ruleHit`。
- */
-export const AssistantOperatorRuleHitEventSchema = z.object({
-  type: z.literal(ASSISTANT_OPERATOR_EVENTS.ruleHit),
-  ruleId: IdSchema,
-  /** 规则原文，逐字。 */
-  text: z.string().trim().min(1).max(RULE_LIMITS.maxTextChars),
-  source: ProjectRuleSchema.shape.source,
-  /** ISO 串 —— 薄卡上那行「记于 YYYY-MM-DD」取它的日期段。 */
-  createdAt: z.string(),
 })
 
 /**
@@ -5071,7 +5049,7 @@ export const AssistantOperatorConfirmEventSchema = z.object({
   confirm: z.discriminatedUnion('kind', [
     z.object({
       kind: z.literal(ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.multistep),
-      steps: AssistantOperatorPlanEventSchema.shape.steps,
+      steps: AssistantOperatorPlanStepsSchema,
     }),
     z.object({
       kind: z.literal(ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate),
@@ -5219,14 +5197,12 @@ export type AssistantOperatorErrorEvent = z.infer<
 
 export const AssistantOperatorEventSchema = z.discriminatedUnion('type', [
   AssistantOperatorOpenEventSchema,
-  AssistantOperatorPlanEventSchema,
   AssistantOperatorStepEventSchema,
   AssistantOperatorAskEventSchema,
   AssistantOperatorConfirmEventSchema,
   AssistantOperatorMessageEventSchema,
   AssistantOperatorMessageDeltaEventSchema,
   AssistantOperatorThinkingEventSchema,
-  AssistantOperatorRuleHitEventSchema,
   AssistantOperatorDoneEventSchema,
   AssistantOperatorStoppedEventSchema,
   AssistantOperatorErrorEventSchema,
@@ -5241,10 +5217,6 @@ export type AssistantOperatorEvent = z.infer<
 export type AssistantOperatorStepEvent = z.infer<
   typeof AssistantOperatorStepEventSchema
 >
-/** 计划帧（§3.1）—— 多步确认卡与续跑记录读的是同一份阶段列表。 */
-export type AssistantOperatorPlanEvent = z.infer<
-  typeof AssistantOperatorPlanEventSchema
->
 /** 问题卡（§3.2）收的那一帧。 */
 export type AssistantOperatorAskEvent = z.infer<
   typeof AssistantOperatorAskEventSchema
@@ -5252,10 +5224,6 @@ export type AssistantOperatorAskEvent = z.infer<
 /** 确认卡（§3.3 两种来源）收的那一帧。 */
 export type AssistantOperatorConfirmEvent = z.infer<
   typeof AssistantOperatorConfirmEventSchema
->
-/** 规则薄卡（§2.21 / §4.2）收的那一帧。 */
-export type AssistantOperatorRuleHitEvent = z.infer<
-  typeof AssistantOperatorRuleHitEventSchema
 >
 export type AssistantOperatorPriorStep = z.infer<
   typeof AssistantOperatorPriorStepSchema

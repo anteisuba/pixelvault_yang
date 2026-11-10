@@ -768,12 +768,10 @@ describe('useAssistantOperator 的四条收尾路径', () => {
     const { result } = render()
     act(() => result.current.send('建卡并连接参考图'))
     await settle()
-    streams[0].emit({
-      type: 'plan',
-      steps: ['新建正面全身立绘节点', '连接参考图', '设定生成模型'].map(
-        (label, index) => ({ id: `plan-${index}`, label }),
-      ),
-    })
+    await approvedPlan(
+      result,
+      labeledSteps('新建正面全身立绘节点', '连接参考图', '设定生成模型'),
+    )
     const createdStep = {
       id: 'step-1',
       title: '新建正面全身立绘节点',
@@ -788,11 +786,11 @@ describe('useAssistantOperator 的四条收尾路径', () => {
       },
       inverse: { op: 'delete', nodeRef: 'add_node' },
     } as const
-    streams[0].emit({ type: 'step', step: createdStep })
-    streams[0].emit({ type: 'stopped', reason: 'canvas_sync' })
-    streams[0].close()
+    streams[1].emit({ type: 'step', step: createdStep })
+    streams[1].emit({ type: 'stopped', reason: 'canvas_sync' })
+    streams[1].close()
     await settle()
-    streams[1].emit({
+    streams[2].emit({
       type: 'step',
       step: {
         id: 'step-1',
@@ -803,19 +801,19 @@ describe('useAssistantOperator 的四条收尾路径', () => {
         error: { reason: 'noSuchControl' },
       },
     })
-    streams[1].emit({ type: 'step', step: { ...createdStep, id: 'step-2' } })
-    streams[1].emit({ type: 'stopped', reason: 'canvas_sync' })
-    streams[1].close()
+    streams[2].emit({ type: 'step', step: { ...createdStep, id: 'step-2' } })
+    streams[2].emit({ type: 'stopped', reason: 'canvas_sync' })
+    streams[2].close()
     await settle()
 
     expect(
       store.getOperatorState().resume?.steps.map((step) => step.state),
     ).toEqual(['done', 'failed', 'pending'])
     expect(
-      streamAssistantOperatorAPI.mock.calls[2][0].resumeFrom.completedSteps,
+      streamAssistantOperatorAPI.mock.calls[3][0].resumeFrom.completedSteps,
     ).toHaveLength(1)
-    streams[2].emit({ type: 'done' })
-    streams[2].close()
+    streams[3].emit({ type: 'done' })
+    streams[3].close()
     await settle()
   })
 
@@ -894,16 +892,13 @@ describe('useAssistantOperator 的四条收尾路径', () => {
     const { result } = render()
     act(() => result.current.send('布置三个节点'))
     await settle()
+    await approvedPlan(
+      result,
+      labeledSteps('创建节点1', '创建节点2', '创建节点3'),
+    )
 
     for (let index = 0; index < 3; index += 1) {
-      streams[index].emit({
-        type: 'plan',
-        steps: [1, 2, 3].map((number) => ({
-          id: `plan-${number}`,
-          label: `创建节点${number}`,
-        })),
-      })
-      streams[index].emit({
+      streams[index + 1].emit({
         type: 'step',
         step: {
           id: 'step-1',
@@ -920,19 +915,19 @@ describe('useAssistantOperator 的四条收尾路径', () => {
           inverse: { op: 'delete', nodeRef: 'add_node' },
         },
       })
-      streams[index].emit({ type: 'stopped', reason: 'canvas_sync' })
-      streams[index].close()
+      streams[index + 1].emit({ type: 'stopped', reason: 'canvas_sync' })
+      streams[index + 1].close()
       await settle()
       expect(
-        streamAssistantOperatorAPI.mock.calls[index + 1]?.[0],
+        streamAssistantOperatorAPI.mock.calls[index + 2]?.[0],
       ).toMatchObject({
         stepBudget: 15 - index,
       })
       expect(
-        JSON.stringify(streamAssistantOperatorAPI.mock.calls[index + 1]?.[0]),
+        JSON.stringify(streamAssistantOperatorAPI.mock.calls[index + 2]?.[0]),
       ).toContain(`node-${index + 1}`)
       expect(
-        streamAssistantOperatorAPI.mock.calls[index + 1]?.[0].resumeFrom
+        streamAssistantOperatorAPI.mock.calls[index + 2]?.[0].resumeFrom
           .completedSteps,
       ).toHaveLength(index + 1)
     }
@@ -944,11 +939,8 @@ describe('useAssistantOperator 的四条收尾路径', () => {
     expect(steps).toHaveLength(3)
     expect(new Set(steps.map((entry) => entry.runKey)).size).toBe(1)
     expect(new Set(steps.map((entry) => entry.id)).size).toBe(3)
-    expect(
-      store.getOperatorState().entries.filter((entry) => entry.kind === 'plan'),
-    ).toHaveLength(1)
-    streams[3].emit({ type: 'done' })
-    streams[3].close()
+    streams[4].emit({ type: 'done' })
+    streams[4].close()
     await settle()
   })
 
@@ -1099,11 +1091,8 @@ describe('useAssistantOperator 的四条收尾路径', () => {
     const { result } = render()
     act(() => result.current.send('按参考保持角色身份'))
     await settle()
-    streams[0].emit({
-      type: 'plan',
-      steps: [{ id: 'prompt-plan', label: '写角色提示词' }],
-    })
-    streams[0].emit({
+    await approvedPlan(result, labeledSteps('写角色提示词'))
+    streams[1].emit({
       type: 'step',
       step: {
         id: 'step-1',
@@ -1120,11 +1109,11 @@ describe('useAssistantOperator 的四条收尾路径', () => {
         inverse: { op: 'set_prompt', nodeRef: 'target' },
       },
     })
-    streams[0].emit({ type: 'stopped', reason: 'canvas_sync' })
-    streams[0].close()
+    streams[1].emit({ type: 'stopped', reason: 'canvas_sync' })
+    streams[1].close()
     await settle()
-    expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(2)
-    expect(streamAssistantOperatorAPI.mock.calls[1][0]).toMatchObject({
+    expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(3)
+    expect(streamAssistantOperatorAPI.mock.calls[2][0]).toMatchObject({
       stepBudget: ASSISTANT_OPERATOR_LIMITS.maxCanvasSteps - 1,
       priorSteps: [
         expect.objectContaining({
@@ -1135,14 +1124,14 @@ describe('useAssistantOperator 的四条收尾路径', () => {
       ],
     })
     expect(
-      streamAssistantOperatorAPI.mock.calls[1][0].resumeFrom,
+      streamAssistantOperatorAPI.mock.calls[2][0].resumeFrom,
     ).toBeUndefined()
     expect(store.getOperatorState().resume?.steps[0]?.state).toBe('failed')
     expect(store.getOperatorState().changes).toEqual({})
 
     canvasInputSync.current = false
     canvasApply.mockReturnValue(true)
-    streams[1].emit({
+    streams[2].emit({
       type: 'step',
       step: {
         id: 'step-1',
@@ -1159,14 +1148,14 @@ describe('useAssistantOperator 的四条收尾路径', () => {
         inverse: { op: 'disconnect', nodeRef: 'target' },
       },
     })
-    streams[1].emit({ type: 'stopped', reason: 'canvas_sync' })
-    streams[1].close()
+    streams[2].emit({ type: 'stopped', reason: 'canvas_sync' })
+    streams[2].close()
     await settle()
-    expect(streamAssistantOperatorAPI.mock.calls[2][0]).toMatchObject({
+    expect(streamAssistantOperatorAPI.mock.calls[3][0]).toMatchObject({
       stepBudget: ASSISTANT_OPERATOR_LIMITS.maxCanvasSteps - 2,
     })
-    streams[2].emit({ type: 'done' })
-    streams[2].close()
+    streams[3].emit({ type: 'done' })
+    streams[3].close()
     await settle()
   })
 
@@ -1442,11 +1431,9 @@ describe('useAssistantOperator 的四条收尾路径', () => {
       result.current.send('画一张海报')
     })
     await settle()
-    streams[0].emit({
-      type: ASSISTANT_OPERATOR_EVENTS.plan,
-      steps: planSteps(3),
+    act(() => {
+      store.setOperatorPlannedSteps(3)
     })
-    await settle()
     expect(store.getOperatorState().plannedSteps).toBe(3)
 
     act(() => {
@@ -1655,6 +1642,30 @@ function planSteps(steps: number) {
   }))
 }
 
+/** 带名字的计划阶段（画布那几条按步骤标题对上计划格）。 */
+function labeledSteps(...labels: string[]) {
+  return labels.map((label, index) => ({ id: `plan-${index + 1}`, label }))
+}
+
+/**
+ * 计划开跑：多步确认卡摆出来、点「开始」—— 续跑记录只在这一刻落。
+ * ⚠ 之后的帧都在**下一条流**里：「开始」= 带 `planApproved` 重发。
+ */
+async function approvedPlan(
+  result: ReturnType<typeof render>['result'],
+  steps: ReturnType<typeof labeledSteps>,
+): Promise<void> {
+  streams[0].emit({
+    type: ASSISTANT_OPERATOR_EVENTS.confirm,
+    confirm: { kind: 'multistep', steps },
+  })
+  await settle()
+  act(() => {
+    result.current.approvePlan()
+  })
+  await settle()
+}
+
 /** 多步确认帧（v2 §3.3 第一种来源）—— 判在服务端，客户端只管摆卡。 */
 function multistepConfirmEvent(steps = 3): AssistantOperatorEvent {
   return {
@@ -1717,24 +1728,6 @@ describe('计划卡（v2 §3.3 多步确认）', () => {
     expect(state.confirm?.status).toBe('idle')
   })
 
-  it('没有确认帧的那一轮 ⛔ 不出卡，直接接着跑', async () => {
-    const { result } = render()
-    act(() => {
-      result.current.send('把提示词改一下')
-    })
-    await settle()
-
-    streams[0].emit({
-      type: ASSISTANT_OPERATOR_EVENTS.plan,
-      steps: planSteps(2),
-    })
-    streams[0].emit(doneStepEvent('step-1'))
-    await settle()
-
-    expect(store.getOperatorState().confirm).toBeNull()
-    expect(store.getOperatorState().status).toBe('working')
-  })
-
   /** ⭐ 「先问我」开关与人设的「先出计划」都已删（11-02）：请求里不再有 `forcePlan`。 */
   it('⛔ 请求体不再带 forcePlan', async () => {
     const { result } = render()
@@ -1752,47 +1745,6 @@ describe('计划卡（v2 §3.3 多步确认）', () => {
     streams[0].emit(multistepConfirmEvent(1))
     await settle()
     expect(store.getOperatorState().status).toBe('awaitingPlan')
-  })
-
-  it('⭐ 出卡的那一轮 ⛔ 不再落 `plan` 条目 —— 同一份阶段只出现一次（第 2 件）', async () => {
-    const { result } = render()
-    act(() => {
-      result.current.send('把这张改成三步')
-    })
-    await settle()
-    streams[0].emit({
-      type: ASSISTANT_OPERATOR_EVENTS.plan,
-      steps: planSteps(3),
-    })
-    streams[0].emit(multistepConfirmEvent(3))
-    await settle()
-
-    const state = store.getOperatorState()
-    expect(state.confirm).not.toBeNull()
-    // 阶段清单归卡了 —— 流里⛔ 不再有第二份。
-    expect(state.entries.some((entry) => entry.kind === 'plan')).toBe(false)
-    // 计数照旧（顶部进度带按它画）。
-    expect(state.plannedSteps).toBe(3)
-  })
-
-  it('⭐ 不出卡的那一轮，攒着的计划落成一条 `plan` 条目（第 2 件）', async () => {
-    const { result } = render()
-    act(() => {
-      result.current.send('把提示词改一下')
-    })
-    await settle()
-    streams[0].emit({
-      type: ASSISTANT_OPERATOR_EVENTS.plan,
-      steps: planSteps(2),
-    })
-    streams[0].emit(doneStepEvent('step-1'))
-    await settle()
-
-    const state = store.getOperatorState()
-    expect(state.confirm).toBeNull()
-    expect(state.entries.filter((entry) => entry.kind === 'plan')).toHaveLength(
-      1,
-    )
   })
 
   it('「开始」带 planApproved 重发，并把卡换成一张逐项打勾的计划（D12 S9）', async () => {
@@ -1846,7 +1798,7 @@ describe('计划卡（v2 §3.3 多步确认）', () => {
     expect(streams).toHaveLength(2)
   })
 
-  it('⭐ 点过「开始」的那一轮⛔ 不再立起新的待确认卡（服务端零会话态会再摆一帧）', async () => {
+  it('⭐ 点过「开始」之后，续跑那一轮的步打在批准时落的那张计划上', async () => {
     // 面板挂上时按域给续跑记录定范围（`StudioOperatorPanel`）—— 计划的勾靠它。
     const { result } = render()
     act(() => {
@@ -1861,11 +1813,6 @@ describe('计划卡（v2 §3.3 多步确认）', () => {
     })
     await settle()
 
-    // 续跑那条流里服务端又摆了一遍同样的计划 —— 这一轮**已经批过了**。
-    streams[1].emit({
-      type: ASSISTANT_OPERATOR_EVENTS.plan,
-      steps: planSteps(3),
-    })
     streams[1].emit(doneStepEvent('step-2'))
     await settle()
 
@@ -1873,8 +1820,7 @@ describe('计划卡（v2 §3.3 多步确认）', () => {
     // ⛔ 没有被一张新的待确认卡顶掉。
     expect(state.confirm).toBeNull()
     expect(state.status).toBe('working')
-    // ⭐ 计划只有批准时落的那一张（D12 S9），服务端再摆一遍的那份不再落；
-    //   做完的那一步打在同一张上。
+    // ⭐ 计划只有批准时落的那一张（D12 S9），做完的那一步打在同一张上。
     const plans = state.entries.filter((entry) => entry.kind === 'plan')
     expect(plans).toHaveLength(1)
     expect(plans[0]).toMatchObject({ progress: ['done', 'pending', 'pending'] })
@@ -2586,62 +2532,7 @@ describe('生成确认卡（v2 §3.3 / §5）', () => {
   })
 })
 
-describe('规则薄卡与歧义反问（§10 / §7）', () => {
-  it('rule_hit → 时间线插一条规则条目（原文/日期原样，⛔ 不是一步）', async () => {
-    const { result } = render()
-    act(() => {
-      result.current.send('按老规矩来')
-    })
-    await settle()
-
-    streams[0].emit({
-      type: ASSISTANT_OPERATOR_EVENTS.ruleHit,
-      ruleId: 'rule-1',
-      text: '主角的耳环永远在左边',
-      source: 'creator',
-      createdAt: '2026-08-14T02:00:00.000Z',
-    })
-    await settle()
-
-    const rule = store
-      .getOperatorState()
-      .entries.find((entry) => entry.kind === 'rule')
-    expect(rule).toMatchObject({
-      ruleId: 'rule-1',
-      text: '主角的耳环永远在左边',
-      createdAt: '2026-08-14T02:00:00.000Z',
-    })
-  })
-
-  /**
-   * 2026-09-12 实测第 9 步：同一条规则的薄卡在后续轮次的时间线里又画了一遍。
-   * 服务端只在**一轮之内**去重（`emittedRuleHits`），跨轮那一半在这里认。
-   */
-  it('同一条规则只画一次 —— 下一轮再命中不重复插条', async () => {
-    const { result } = render()
-    act(() => {
-      result.current.send('按老规矩来')
-    })
-    await settle()
-
-    const hit = {
-      type: ASSISTANT_OPERATOR_EVENTS.ruleHit,
-      ruleId: 'rule-1',
-      text: '主角的耳环永远在左边',
-      source: 'creator',
-      createdAt: '2026-08-14T02:00:00.000Z',
-    } as const
-    streams[0].emit(hit)
-    await settle()
-    streams[0].emit(hit)
-    await settle()
-
-    expect(
-      store.getOperatorState().entries.filter((entry) => entry.kind === 'rule')
-        .length,
-    ).toBe(1)
-  })
-
+describe('歧义反问（§7）', () => {
   it('ask（选项全带 assetUrl）→ 摆卡；点一张 = 插 @chip + 带 mentionedAssets 重发', async () => {
     const { result } = render()
     act(() => {
@@ -3286,40 +3177,6 @@ describe('正文流式累积与占位行', () => {
   }
 
   /**
-   * ⭐ **§13.1 时间线重复消息** —— 正文只有 `message` 一个来源，⛔ 不追加。
-   *
-   * 🔬 旧行为：正文先由 `message_delta` 累积成一条，计划帧插在中间把序号顶掉
-   * 一位，随后的定稿帧于是**另起一条** —— 同一段分析回复在计划的上下各出现一次
-   * （owner 真机「帮我看看这张参考」）。删掉增量之后这条路必须只落一条。
-   */
-  it('⭐ 计划帧插在正文之前：时间线里只有一条正文', async () => {
-    const { result } = render()
-    act(() => {
-      result.current.send('帮我看看这张参考')
-    })
-    await settle()
-
-    streams[0].emit({
-      type: ASSISTANT_OPERATOR_EVENTS.plan,
-      steps: planSteps(2),
-    })
-    await settle()
-
-    streams[0].emit({
-      type: ASSISTANT_OPERATOR_EVENTS.message,
-      text: '这张参考是暖调人像。',
-    })
-    await settle()
-
-    const messages = store
-      .getOperatorState()
-      .entries.filter((entry) => entry.kind === 'message')
-    expect(messages.map((entry) => entry.text)).toEqual([
-      '这张参考是暖调人像。',
-    ])
-  })
-
-  /**
    * ⭐ **同一条正文来两帧就覆盖**（§13.1 验收「按 id 覆盖，⛔ 不追加」）：
    * 这一段还钉在线程末尾时，第二帧写回的是**同一条条目**。
    */
@@ -3875,22 +3732,14 @@ describe('断点续跑', () => {
     localStorage.clear()
   })
 
-  /** 计划直接开跑（不出卡）的那一支 —— `plan` 帧之后紧跟一个别的帧。 */
-  function startPlan(steps: number): void {
-    streams[0].emit({
-      type: ASSISTANT_OPERATOR_EVENTS.plan,
-      steps: planSteps(steps),
-    })
-  }
-
   it('⭐ 计划一开跑就落一份续跑记录（每步 pending）', async () => {
     const { result } = render()
     act(() => {
       result.current.send('分三步做')
     })
     await settle()
-    startPlan(3)
-    streams[0].emit(doneStepEvent('step-1'))
+    await approvedPlan(result, planSteps(3))
+    streams[1].emit(doneStepEvent('step-1'))
     await settle()
 
     const resume = store.getOperatorState().resume
@@ -3909,10 +3758,10 @@ describe('断点续跑', () => {
       result.current.send('分三步做')
     })
     await settle()
-    startPlan(3)
-    streams[0].emit(doneStepEvent('step-1'))
+    await approvedPlan(result, planSteps(3))
+    streams[1].emit(doneStepEvent('step-1'))
     await settle()
-    streams[0].fail(new Error('boom'))
+    streams[1].fail(new Error('boom'))
     await settle()
 
     act(() => {
@@ -3920,7 +3769,7 @@ describe('断点续跑', () => {
     })
     await settle()
 
-    const sent = streamAssistantOperatorAPI.mock.calls[1]?.[0]
+    const sent = streamAssistantOperatorAPI.mock.calls.at(-1)?.[0]
     expect(sent.planApproved).toBe(true)
     expect(sent.resumeFrom.completedSteps).toHaveLength(1)
     expect(sent.resumeFrom.completedSteps[0].label).toBe('第 1 步')
@@ -3932,9 +3781,9 @@ describe('断点续跑', () => {
       result.current.send('分三步做')
     })
     await settle()
-    startPlan(3)
+    await approvedPlan(result, planSteps(3))
     await settle()
-    streams[0].fail(new Error('boom'))
+    streams[1].fail(new Error('boom'))
     await settle()
     expect(nextResumeStepNumber(store.getOperatorState().resume!)).toBe(1)
     const callsBefore = streamAssistantOperatorAPI.mock.calls.length
@@ -3960,10 +3809,10 @@ describe('断点续跑', () => {
       result.current.send('查一下这种画风怎么描述')
     })
     await settle()
-    startPlan(3)
-    streams[0].emit(doneStepEvent('step-1'))
-    streams[0].emit({ type: ASSISTANT_OPERATOR_EVENTS.done })
-    streams[0].close()
+    await approvedPlan(result, planSteps(3))
+    streams[1].emit(doneStepEvent('step-1'))
+    streams[1].emit({ type: ASSISTANT_OPERATOR_EVENTS.done })
+    streams[1].close()
     await settle()
 
     expect(store.getOperatorState().resume).toBeNull()
@@ -3975,13 +3824,13 @@ describe('断点续跑', () => {
       result.current.send('分三步做')
     })
     await settle()
-    startPlan(3)
-    streams[0].emit(doneStepEvent('step-1'))
-    streams[0].emit({
+    await approvedPlan(result, planSteps(3))
+    streams[1].emit(doneStepEvent('step-1'))
+    streams[1].emit({
       type: ASSISTANT_OPERATOR_EVENTS.stopped,
       reason: 'awaiting_confirm',
     })
-    streams[0].close()
+    streams[1].close()
     await settle()
 
     const resume = store.getOperatorState().resume
@@ -3995,11 +3844,11 @@ describe('断点续跑', () => {
       result.current.send('分两步做')
     })
     await settle()
-    startPlan(2)
-    streams[0].emit(doneStepEvent('step-1'))
-    streams[0].emit(doneStepEvent('step-2'))
-    streams[0].emit({ type: 'done' })
-    streams[0].close()
+    await approvedPlan(result, planSteps(2))
+    streams[1].emit(doneStepEvent('step-1'))
+    streams[1].emit(doneStepEvent('step-2'))
+    streams[1].emit({ type: 'done' })
+    streams[1].close()
     await settle()
 
     expect(store.getOperatorState().resume).toBeNull()

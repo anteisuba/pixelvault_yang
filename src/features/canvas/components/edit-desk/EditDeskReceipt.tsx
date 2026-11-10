@@ -169,7 +169,7 @@ function ReceiptToast({
       }}
       transition={reduceMotion ? { duration: 0 } : stack}
       style={{ x: '-50%', zIndex: EDIT_RECEIPT_MOTION.max - depth }}
-      className="pointer-events-auto absolute bottom-0 left-0 inline-flex h-9 origin-bottom items-center gap-2 whitespace-nowrap rounded-xl bg-foreground px-3.5 text-xs text-background ring-1 ring-background/15"
+      className="pointer-events-auto absolute bottom-0 left-0 inline-flex h-9 origin-bottom items-center gap-2 whitespace-nowrap rounded-xl bg-foreground px-3.5 text-2sm text-background ring-1 ring-background/15"
     >
       {receipt.kind === 'error' ? (
         <span aria-hidden className="w-3.5 text-center font-bold">

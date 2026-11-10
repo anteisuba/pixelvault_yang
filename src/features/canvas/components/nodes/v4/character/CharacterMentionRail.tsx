@@ -102,8 +102,8 @@ export function CharacterMentionRail({
                     expanded
                       ? 'size-11 rounded-lg'
                       : 'size-12 rounded-node-thumb',
-                    'transition-colors duration-fast ease-standard hover:bg-surface-fill-hover',
-                    'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+                    'transition-colors duration-fast ease-standard hover:tint-hover',
+                    ' focus-visible:outline-none focus-visible:shadow-focus',
                     'disabled:pointer-events-none disabled:opacity-60',
                   )}
                 >
@@ -122,7 +122,7 @@ export function CharacterMentionRail({
                   ) : null}
                   <span
                     aria-hidden
-                    className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-foreground px-1 text-3xs font-semibold text-background tabular-nums"
+                    className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-foreground px-1 text-2xs font-semibold text-background tabular-nums"
                   >
                     {picks.length}
                   </span>
@@ -131,15 +131,15 @@ export function CharacterMentionRail({
             >
               <div className="flex flex-col gap-2 pt-1">
                 <div className="flex items-center gap-2 px-2">
-                  <span className="truncate text-sm font-medium">
+                  <span className="truncate text-md font-semibold">
                     {card.name}
                   </span>
-                  <span className="ml-auto shrink-0 text-xs text-muted-foreground">
+                  <span className="ml-auto shrink-0 text-2xs text-muted-foreground">
                     {t('count', { count: picks.length })}
                   </span>
                 </div>
                 {capacity === null ? null : (
-                  <p className="px-2 text-xs text-muted-foreground">
+                  <p className="px-2 text-2xs text-muted-foreground">
                     {t('limit', {
                       max: capacity,
                       used: usedImages + pickedTotal,

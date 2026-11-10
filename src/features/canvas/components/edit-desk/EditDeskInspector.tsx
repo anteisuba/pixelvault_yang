@@ -72,10 +72,10 @@ import { useEditDeskContinue } from './use-edit-desk-continue'
  * 底样（不可点、没有悬停），可点的再加 `CHIP_ACTIVE`，改过的（不是默认值）加 `CHIP_SET`。
  */
 const CHIP =
-  'inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md px-2 text-xs text-foreground'
+  'inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md px-2 text-2sm text-foreground'
 const CHIP_ACTIVE =
-  'transition-colors duration-fast hover:bg-muted disabled:pointer-events-none disabled:opacity-40'
-const CHIP_SET = 'font-medium'
+  'transition-colors duration-fast hover:tint-hover disabled:pointer-events-none disabled:opacity-40'
+const CHIP_SET = ''
 /** 键里的值（「入 0:06.0」里那个 0:06.0）。改过的键里值也转成墨色。 */
 const CHIP_VALUE = 'font-mono not-italic tabular-nums text-muted-foreground'
 const CHIP_VALUE_SET = 'text-foreground'
@@ -112,7 +112,7 @@ export function EditDeskInspector({
   return (
     <div
       data-testid="edit-desk-inspector"
-      className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden whitespace-nowrap text-xs text-muted-foreground"
+      className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden whitespace-nowrap text-2xs text-muted-foreground"
     >
       {textClip ? (
         <TextClipFields clip={textClip} desk={desk} onEditText={onEditText} />
@@ -122,7 +122,7 @@ export function EditDeskInspector({
         <>
           {row.source.exists ? (
             <span
-              className="mr-1 max-w-36 shrink-0 truncate font-medium text-foreground/80"
+              className="mr-1 max-w-36 shrink-0 truncate text-foreground/80"
               title={editRowName(row)}
             >
               {selection.track === EDIT_TRACK_IDS.video
@@ -396,7 +396,7 @@ function DeleteKey({ onRemove }: { onRemove(): void }) {
         CHIP,
         'justify-center overflow-hidden whitespace-nowrap transition-colors duration-fast',
         phase === 'idle'
-          ? 'px-0 hover:bg-muted'
+          ? 'px-0 hover:tint-hover'
           : 'bg-foreground px-2.5 text-background',
       )}
     >
@@ -493,9 +493,9 @@ function TextClipFields({
         data-testid="edit-desk-text-edit"
         title={t('editInPreview')}
         onClick={() => onEditText(clip.id)}
-        className={cn(CHIP, CHIP_ACTIVE, 'mr-1 max-w-44 font-medium')}
+        className={cn(CHIP, CHIP_ACTIVE, 'mr-1 max-w-44')}
       >
-        <span className="grid size-4.5 shrink-0 place-items-center rounded-sm bg-primary text-3xs font-semibold text-primary-foreground">
+        <span className="grid size-4.5 shrink-0 place-items-center rounded-sm bg-primary text-2xs font-semibold text-primary-foreground">
           T
         </span>
         <span className="truncate">{firstLine}</span>

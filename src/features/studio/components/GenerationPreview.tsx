@@ -297,10 +297,10 @@ export const GenerationPreview = memo(function GenerationPreview({
         <div className="flex size-9 items-center justify-center rounded-full bg-primary/10 sm:size-10">
           <Sparkles className="size-4 text-primary/60 sm:size-5" />
         </div>
-        <p className="mt-3 text-sm font-medium text-foreground sm:mt-4">
+        <p className="mt-3 text-md font-semibold text-foreground sm:mt-4">
           {t('emptyStateTitle')}
         </p>
-        <p className="mt-1 text-center text-sm leading-6 text-muted-foreground">
+        <p className="mt-1 text-center text-2sm leading-6 text-muted-foreground">
           {t('emptyStateHint')}
         </p>
       </div>
@@ -549,7 +549,7 @@ export const GenerationPreview = memo(function GenerationPreview({
                 ? 'studio-gif-result-badge'
                 : 'studio-svg-result-badge'
             }
-            className="pointer-events-none absolute top-3 left-3 rounded-full bg-background/85 px-2 py-0.5 font-mono text-2xs font-medium text-foreground shadow-sm backdrop-blur-sm"
+            className="pointer-events-none absolute top-3 left-3 rounded-full bg-background/85 px-2 py-0.5 font-mono text-2xs font-semibold text-foreground shadow-media-action backdrop-blur-sm"
           >
             {isGifResult ? tSvg('gifBadge') : tSvg('badge')}
           </span>
@@ -601,7 +601,7 @@ export const GenerationPreview = memo(function GenerationPreview({
           <AudioPlayer src={generation.url} segments={audioSegments} />
         </div>
         {generation.duration && (
-          <p className="text-xs text-muted-foreground">
+          <p className="text-2xs text-muted-foreground">
             {formatDuration(generation.duration)}
           </p>
         )}
@@ -646,7 +646,7 @@ export const GenerationPreview = memo(function GenerationPreview({
           data-testid="studio-video-result-badge"
           // ⚠ `right-4` + `w-fit` + `truncate` 一起给：型号名可以很长，而 9:16 的
           //    播放器只有 200 出头的宽 —— 不封边它会横着捅出画面。
-          className="pointer-events-none absolute inset-x-4 top-4 w-fit max-w-full truncate rounded-full bg-background/85 px-2.5 py-1 font-mono text-2xs tabular-nums text-foreground shadow-sm backdrop-blur-sm"
+          className="pointer-events-none absolute inset-x-4 top-4 w-fit max-w-full truncate rounded-full bg-background/85 px-2.5 py-1 font-mono text-2xs tabular-nums text-foreground shadow-media-action backdrop-blur-sm"
         >
           {videoBadgeParts.join(' · ')}
         </span>
@@ -942,7 +942,7 @@ export const GenerationPreview = memo(function GenerationPreview({
             }}
           >
             <DrawerHeader>
-              <DrawerTitle className="text-base">
+              <DrawerTitle className="text-md font-semibold">
                 {t('toolDrawerTitle')}
               </DrawerTitle>
             </DrawerHeader>
@@ -1030,7 +1030,7 @@ function CanvasToolButton({
         'group/btn relative flex size-9 items-center justify-center rounded-lg border border-border/40 bg-background/80 transition-all',
         disabled
           ? 'opacity-40 cursor-not-allowed'
-          : 'hover:border-primary/30 hover:bg-primary/5 hover:text-primary active:scale-95',
+          : 'hover:border-primary/30 hover:tint-hover hover:text-primary active:scale-95',
       )}
       style={{
         transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)',

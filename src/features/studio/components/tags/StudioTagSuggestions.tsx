@@ -127,8 +127,8 @@ export function StudioTagSuggestions({
               onPointerDown={(event) => event.preventDefault()}
               onClick={() => onPick(result)}
               className={cn(
-                'flex min-h-11 w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors duration-fast ease-standard lg:min-h-0 lg:text-2xs',
-                index === activeIndex ? 'bg-accent' : 'hover:bg-accent/60',
+                'flex min-h-11 w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors duration-fast ease-standard lg:min-h-0 lg:text-2sm',
+                index === activeIndex ? 'bg-accent' : 'hover:tint-hover',
               )}
             >
               {result.tag.confidence !== 'official' && (
@@ -148,7 +148,7 @@ export function StudioTagSuggestions({
                 {result.tag.promptText}
               </span>
               {result.tag.label !== result.tag.promptText ? (
-                <span className="shrink-0 truncate text-3xs text-muted-foreground">
+                <span className="shrink-0 truncate text-2xs text-muted-foreground">
                   {result.tag.label}
                 </span>
               ) : null}

@@ -69,7 +69,7 @@ export function CapabilitySelectControl({
       <SelectTrigger
         size="sm"
         aria-label={label}
-        className="h-7 w-full font-mono text-xs coarse:h-11"
+        className="h-7 w-full font-mono text-2sm coarse:h-11"
       >
         {/* 换了一档 = 值字糊一下换掉。 */}
         <BlurSwap swapKey={value} className="min-w-0">
@@ -78,7 +78,7 @@ export function CapabilitySelectControl({
       </SelectTrigger>
       <SelectContent>
         {items.map((item) => (
-          <SelectItem key={item.value} value={item.value} className="text-xs">
+          <SelectItem key={item.value} value={item.value} className="text-2sm">
             {item.label}
           </SelectItem>
         ))}

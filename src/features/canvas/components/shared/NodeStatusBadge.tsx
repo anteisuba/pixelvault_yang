@@ -36,7 +36,7 @@ export function NodeStatusBadge({ status }: NodeStatusBadgeProps) {
   return (
     <span
       className={cn(
-        'inline-flex h-7 -rotate-2 items-center gap-1.5 rounded-none border px-2.5 text-xs font-semibold uppercase tracking-nav-dense',
+        'inline-flex h-7 -rotate-2 items-center gap-1.5 rounded-none border px-2.5 text-2sm font-semibold uppercase tracking-nav-dense',
         STATUS_COLORS[status],
       )}
     >

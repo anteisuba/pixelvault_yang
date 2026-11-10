@@ -84,7 +84,7 @@ export function VersionDots({
             onClick={() => onSelect(index)}
             className={cn(
               // 12px 按键相邻，中央各 6px 圆点的可见间距正好 6px；高度保持 24px 命中区。
-              'flex h-6 w-3 shrink-0 items-center justify-center focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+              'flex h-6 w-3 shrink-0 items-center justify-center focus-visible:outline-none focus-visible:shadow-focus',
             )}
           >
             <motion.span

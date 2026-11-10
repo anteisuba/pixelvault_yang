@@ -426,7 +426,7 @@ export function TakeCompareOverlay({
         <span aria-hidden className="h-full w-0.5 bg-white" />
         <span
           aria-hidden
-          className="absolute top-1/2 size-6 -translate-y-1/2 rounded-full bg-white shadow-md"
+          className="absolute top-1/2 size-6 -translate-y-1/2 rounded-full bg-knob shadow-seg"
         />
       </motion.span>
     </div>

@@ -215,7 +215,7 @@ export function WireframeModelPreview({
     >
       <div ref={containerRef} className="size-full" />
       {state !== 'ready' && (
-        <div className="absolute inset-0 flex items-center justify-center bg-neutral-950/90 text-sm text-neutral-300">
+        <div className="absolute inset-0 flex items-center justify-center bg-neutral-950/90 text-2sm text-neutral-300">
           {state === 'loading'
             ? progressPercent > 0
               ? `${loadingLabel} ${progressPercent}%`

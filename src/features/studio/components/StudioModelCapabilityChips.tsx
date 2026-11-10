@@ -129,9 +129,7 @@ export function StudioModelCapabilityChips({
       // 助手改到专属那一格时整行闪一次（进度表 21）。
       data-assistant-field="capabilities"
     >
-      <span className="text-2xs font-medium text-muted-foreground/70">
-        {sectionLabel}
-      </span>
+      <span className="text-2xs text-muted-foreground/70">{sectionLabel}</span>
       <div
         className={cn(
           'flex items-center gap-1.5',
@@ -200,7 +198,7 @@ export function ModelCapabilityControlPanel({
 }
 
 const chipBaseClass =
-  'inline-flex h-7 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 text-2sm transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none'
+  'inline-flex h-7 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 text-2sm transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none'
 const chipIdleClass = 'border-border bg-background text-foreground'
 const chipSetClass = 'border-foreground bg-foreground text-background'
 const chipMutedClass = 'border-border bg-muted text-muted-foreground'
@@ -327,7 +325,7 @@ function CapabilityControlBody({
           aria-label={label}
           className="min-w-0 flex-1"
         />
-        <span className="w-9 shrink-0 text-right font-mono text-xs text-muted-foreground tabular-nums">
+        <span className="w-9 shrink-0 text-right font-mono text-2sm text-muted-foreground tabular-nums">
           {shown}
         </span>
       </div>
@@ -372,7 +370,7 @@ function CapabilityRow({
       <div className="flex min-w-0 items-center gap-3">
         <span
           title={hint}
-          className="w-16 shrink-0 cursor-help text-xs leading-tight text-foreground"
+          className="w-16 shrink-0 cursor-help text-2sm leading-tight text-foreground"
         >
           {label}
         </span>

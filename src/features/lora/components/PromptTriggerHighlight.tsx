@@ -225,7 +225,7 @@ export function PromptTriggerHighlight({
         'lora-trigger-backdrop',
         // ⚠ 字号必须与压在上面的 textarea 逐字一致（含 <768 的 iOS 防缩放档
         // `text-base md:text-sm`），否则高亮块和真实文字错位。
-        'lora-prompt-layout pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words text-base leading-relaxed text-transparent md:text-sm',
+        'lora-prompt-layout pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words text-base leading-relaxed text-transparent md:text-md md:leading-reading',
         className,
       )}
     >

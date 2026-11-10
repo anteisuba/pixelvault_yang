@@ -79,7 +79,8 @@ describe('Studio chip primitives', () => {
     expect(studioToolTriggerClass).toContain('sm:h-9')
     expect(studioToolTriggerClass).toContain('rounded-full')
     expect(studioToolTriggerClass).toContain('px-3.5')
-    expect(studioToolTriggerClass).toContain('font-medium')
+    // 规范 §4：药丸 13 / 400，⛔ 500（owner 2026-11-11）
+    expect(studioToolTriggerClass).not.toContain('font-medium')
     expect(studioToolTriggerClass).toContain('duration-fast')
     expect(studioToolTriggerClass).toContain('ease-standard')
     // 规范 §9 药丸：开着 = 深一档填充，⛔ 强调色 / 描边

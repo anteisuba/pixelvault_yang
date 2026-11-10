@@ -154,7 +154,7 @@ export function VoiceLibraryPanel({
       <div
         key={clip.id}
         data-voice-library-row={clip.id}
-        className="flex min-h-14 items-center gap-3 rounded-xl px-2.5 transition-colors duration-fast hover:bg-surface-fill"
+        className="flex min-h-14 items-center gap-3 rounded-xl px-2.5 transition-colors duration-fast hover:tint-hover"
       >
         {/* 头像就是试听键（声音库方向 A）：封面 / 首字（没有封面的嗓子）/ 波形（录音）。 */}
         <VoiceAvatarButton
@@ -177,14 +177,14 @@ export function VoiceLibraryPanel({
           buttonProps={{ 'data-voice-library-preview': clip.id }}
         />
         <div className="flex min-w-0 flex-1 flex-col">
-          <span className="truncate text-sm text-foreground">{clip.name}</span>
+          <span className="truncate text-2sm text-foreground">{clip.name}</span>
           {clip.subtitle ? (
-            <span className="truncate text-xs text-muted-foreground">
+            <span className="truncate text-2xs text-muted-foreground">
               {clip.subtitle}
             </span>
           ) : null}
         </div>
-        <span className="w-9 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
+        <span className="w-9 shrink-0 text-right text-2xs tabular-nums text-muted-foreground">
           {duration ?? t('durationUnknown')}
         </span>
         <button
@@ -193,7 +193,7 @@ export function VoiceLibraryPanel({
           disabled={landingId !== null}
           aria-busy={landingId === clip.id}
           onClick={() => landClip(clip)}
-          className="flex min-h-7 shrink-0 items-center gap-1.5 rounded-full bg-primary px-3 text-xs font-medium text-primary-foreground transition-[opacity,transform] duration-fast hover:opacity-90 active:scale-96 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-60"
+          className="flex min-h-7 shrink-0 items-center gap-1.5 rounded-full bg-primary px-3 text-2sm font-semibold text-primary-foreground transition-[opacity,transform] duration-fast hover:opacity-90 active:scale-96 focus-visible:outline-none focus-visible:shadow-focus disabled:opacity-60"
         >
           {landingId === clip.id ? <Spinner size="sm" /> : null}
           {t('use')}
@@ -205,9 +205,9 @@ export function VoiceLibraryPanel({
             disabled={!clip.voiceId}
             onClick={() => onSetVoice(clip)}
             className={cn(
-              'flex min-h-7 shrink-0 items-center rounded-full border border-border px-3 text-xs text-foreground',
+              'flex min-h-7 shrink-0 items-center rounded-full border border-border px-3 text-2sm text-foreground',
               'transition-[border-color,transform] duration-fast hover:border-foreground/40 active:scale-96',
-              'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+              ' focus-visible:outline-none focus-visible:shadow-focus',
               'disabled:pointer-events-none disabled:opacity-40',
             )}
           >
@@ -232,12 +232,12 @@ export function VoiceLibraryPanel({
             data-voice-library-footer
             className="flex items-center justify-between gap-3"
           >
-            <p className="text-3xs text-muted-foreground">{t('footerHint')}</p>
+            <p className="text-2xs text-muted-foreground">{t('footerHint')}</p>
             <button
               type="button"
               data-voice-library-clone
               onClick={() => setCloneOpen(true)}
-              className="flex min-h-8.5 shrink-0 items-center gap-2 rounded-lg bg-surface-fill px-3 text-2sm text-foreground transition-colors duration-fast hover:bg-surface-fill-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              className="flex min-h-8.5 shrink-0 items-center gap-2 rounded-lg bg-surface-fill px-3 text-2sm text-foreground transition-colors duration-fast hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus"
             >
               <Mic aria-hidden className="size-4" />
               {t('clone')}
@@ -303,7 +303,7 @@ export function VoiceLibraryPanel({
                 <Fragment key={section.group}>
                   <span
                     data-voice-library-group={section.group}
-                    className="px-2 pt-2 pb-1 text-3xs text-muted-foreground"
+                    className="px-2 pt-2 pb-1 text-2xs text-muted-foreground"
                   >
                     {t(`dateGroups.${section.group}`)}
                   </span>

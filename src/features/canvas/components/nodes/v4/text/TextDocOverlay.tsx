@@ -147,7 +147,7 @@ export function TextDocOverlay({
           type="button"
           data-text-doc-download
           onClick={onDownload}
-          className="flex h-7 shrink-0 items-center rounded-full bg-surface-fill px-3 text-xs text-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          className="flex h-7 shrink-0 items-center rounded-full bg-surface-fill px-3 text-2sm text-foreground transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus"
         >
           {t('toolbar.download')}
         </button>

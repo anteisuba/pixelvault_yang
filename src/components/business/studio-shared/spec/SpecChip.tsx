@@ -143,7 +143,7 @@ function SpecSection({
           className={cn(
             compact
               ? 'text-2xs leading-4 font-normal text-muted-foreground'
-              : 'text-2xs font-medium text-muted-foreground/70',
+              : 'text-2xs text-muted-foreground/70',
           )}
           style={compact ? { letterSpacing: '0.02em' } : undefined}
         >
@@ -159,7 +159,7 @@ function SpecSection({
       <div className={cn('flex', compact && (terminal ? 'mb-0.5' : 'mb-3'))}>
         {children}
       </div>
-      {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
+      {hint ? <p className="text-2xs text-muted-foreground">{hint}</p> : null}
     </div>
   )
 }
@@ -462,7 +462,7 @@ export function SpecChip({
           className={cn(
             'nodrag nopan touch-target-y inline-flex h-8 min-w-0 items-center gap-1.5 rounded-full px-3 text-2sm transition-[background-color,color,box-shadow] duration-fast ease-standard',
             compact &&
-              'h-7 gap-1 border-0 bg-surface-fill px-2.5 text-xs transition-colors duration-fast hover:bg-surface-fill-hover',
+              'h-7 gap-1 border-0 bg-surface-fill px-2.5 text-2sm transition-colors duration-fast hover:bg-surface-fill-hover',
             'focus-visible:outline-none focus-visible:shadow-focus',
             'disabled:pointer-events-none disabled:opacity-45',
             compact

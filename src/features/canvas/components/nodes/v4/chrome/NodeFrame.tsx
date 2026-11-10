@@ -131,7 +131,7 @@ function NodeFrameLayer({
           <h2
             className={cn(
               'min-w-0 truncate font-semibold tracking-node-title',
-              documentFrame ? 'text-sm' : 'text-md',
+              documentFrame ? 'text-2sm' : 'text-md',
             )}
           >
             {title}
@@ -144,7 +144,7 @@ function NodeFrameLayer({
             aria-label={t('close')}
             data-node-frame-close
             onClick={onClose}
-            className="flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors duration-fast hover:bg-surface-fill hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            className="flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors duration-fast hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus"
           >
             <X aria-hidden className="size-4" />
           </button>

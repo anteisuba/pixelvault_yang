@@ -18,7 +18,7 @@ import { cn } from '@/lib/utils'
  * `focus` 环（ui-spec.md §8）。
  */
 const buttonVariants = cva(
-  "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full text-2sm font-medium whitespace-nowrap transition-[background-color,color,box-shadow,scale] duration-fast ease-standard outline-none focus-visible:shadow-focus active:scale-98 motion-reduce:active:scale-100 disabled:pointer-events-none disabled:opacity-45 aria-invalid:ring-2 aria-invalid:ring-destructive/30 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full text-2sm whitespace-nowrap transition-[background-color,color,box-shadow,scale] duration-fast ease-standard outline-none focus-visible:shadow-focus active:scale-98 motion-reduce:active:scale-100 disabled:pointer-events-none disabled:opacity-45 aria-invalid:ring-2 aria-invalid:ring-destructive/30 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
@@ -32,7 +32,7 @@ const buttonVariants = cva(
       },
       size: {
         default: 'touch-target-y h-9 px-4 has-[>svg]:px-3.5',
-        xs: "touch-target-y h-6 gap-1 px-2.5 text-xs has-[>svg]:px-2 [&_svg:not([class*='size-'])]:size-3",
+        xs: "touch-target-y h-6 gap-1 px-2.5 text-2xs has-[>svg]:px-2 [&_svg:not([class*='size-'])]:size-3",
         sm: 'touch-target-y h-8 px-3.5 has-[>svg]:px-3',
         lg: 'h-10 px-5 has-[>svg]:px-4',
         icon: 'touch-target size-9',

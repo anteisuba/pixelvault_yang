@@ -193,11 +193,11 @@ export function CastDock({
       </label>
 
       {nodes.length === 0 ? (
-        <p className="px-1 py-6 text-center text-xs text-node-subtle">
+        <p className="px-1 py-6 text-center text-2xs text-node-subtle">
           {t('empty')}
         </p>
       ) : groups.length === 0 ? (
-        <p className="px-1 py-6 text-center text-xs text-node-subtle">
+        <p className="px-1 py-6 text-center text-2xs text-node-subtle">
           {t('noResults')}
         </p>
       ) : (
@@ -228,10 +228,10 @@ export function CastDock({
                       aria-label={t('locateNode', { name: entry.name })}
                       aria-current={entry.node.selected ? 'true' : undefined}
                       className={cn(
-                        'group flex min-h-11 w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
+                        'group flex min-h-11 w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors focus-visible:outline-none focus-visible:shadow-focus',
                         entry.node.selected
                           ? 'bg-node-panel-inner'
-                          : 'hover:bg-node-panel-inner/70',
+                          : 'hover:tint-hover',
                       )}
                     >
                       <span
@@ -257,7 +257,7 @@ export function CastDock({
 
                       <span className="min-w-0 flex-1">
                         <span
-                          className="block truncate text-xs font-medium"
+                          className="block truncate text-2xs"
                           style={{ color: 'var(--canvas-ink)' }}
                         >
                           {entry.name}

@@ -209,9 +209,9 @@ export function StudioGenerateButton({
       className={cn(
         variant === 'pill'
           ? 'flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-full bg-primary px-4 text-2sm font-semibold text-primary-foreground'
-          : 'flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-primary text-sm font-medium text-primary-foreground shadow-sm',
+          : 'flex h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-2sm font-semibold text-primary-foreground',
         'transition-[background-color,transform,box-shadow] duration-fast ease-standard',
-        'hover:shadow-md active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
+        'hover:tint-hover active:scale-[0.98] focus-visible:outline-none focus-visible:shadow-focus',
         // 挡住时降到次级填充。按钮上写着缺什么，就没有「点一下才知道」这层
         // 信息了，所以不必再用满强度的实心黑去引诱点击 —— 整屏唯一的最高强调
         // 留给真正能出图的那一刻。文字仍用 foreground 满强度：降的是底不是字，

@@ -140,7 +140,7 @@ function QuickLookLayer({
           />
         )}
         {readout && (
-          <span className="text-xs tabular-nums text-muted-foreground">
+          <span className="text-2xs tabular-nums text-muted-foreground">
             {readout}
           </span>
         )}
@@ -151,7 +151,7 @@ function QuickLookLayer({
               aria-label={t('download')}
               data-quick-look-download
               onClick={onDownload}
-              className="flex size-8.5 items-center justify-center rounded-lg text-foreground transition-colors duration-fast hover:bg-surface-fill-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              className="flex size-8.5 items-center justify-center rounded-lg text-foreground transition-colors duration-fast hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus"
             >
               <Download aria-hidden className="size-4" />
             </button>
@@ -161,7 +161,7 @@ function QuickLookLayer({
             aria-label={t('close')}
             data-quick-look-close
             onClick={onClose}
-            className="flex size-8.5 items-center justify-center rounded-lg text-foreground transition-colors duration-fast hover:bg-surface-fill-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            className="flex size-8.5 items-center justify-center rounded-lg text-foreground transition-colors duration-fast hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus"
           >
             <X aria-hidden className="size-4" />
           </button>

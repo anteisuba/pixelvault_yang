@@ -394,7 +394,7 @@ function ShellAddPanel({
   const tAdd = useTranslations('StudioNode.shell.add')
   const tNode = useTranslations('StudioNode')
   const rowClass =
-    'flex h-8 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-sm text-node-foreground transition-colors hover:bg-node-panel-inner focus-visible:bg-node-panel-inner focus-visible:outline-none'
+    'flex h-8 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-2sm text-node-foreground transition-colors hover:tint-hover focus-visible:bg-node-panel-inner focus-visible:outline-none'
 
   return (
     <div
@@ -484,7 +484,7 @@ function ShellCardsPanel({
 
   if (!loaded && cards.length === 0) {
     return (
-      <p className="px-3 py-6 text-center text-xs text-node-muted">
+      <p className="px-3 py-6 text-center text-2xs text-node-muted">
         {t('loading')}
       </p>
     )
@@ -492,13 +492,13 @@ function ShellCardsPanel({
   if (cards.length === 0) {
     return (
       <div className="flex flex-col items-center gap-2.5 px-3 py-8 text-center">
-        <p className="text-xs text-node-foreground">{t('cardsEmpty')}</p>
+        <p className="text-2xs text-node-foreground">{t('cardsEmpty')}</p>
         <p className="text-2xs text-node-muted">{t('cardsEmptyHint')}</p>
         <a
           href={`/${locale}${cardManagementPath()}`}
           target="_blank"
           rel="noopener"
-          className="inline-flex h-8 items-center rounded-full border border-border bg-background px-3.5 text-xs font-medium text-foreground transition-colors duration-fast hover:bg-surface-fill"
+          className="inline-flex h-8 items-center rounded-full border border-border bg-background px-3.5 text-2sm text-foreground transition-colors duration-fast hover:tint-hover"
         >
           {t('cardsOpenRoster')} ↗
         </a>
@@ -523,7 +523,7 @@ function ShellCardsPanel({
             onClick={() => onPlaceCharacter(card)}
             style={{ height: CANVAS_SHELL_LAYOUT.nodeRowHeightPx }}
             className={cn(
-              'flex items-center gap-2.5 rounded-lg px-2 text-left transition-colors hover:bg-node-panel-inner focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+              'flex items-center gap-2.5 rounded-lg px-2 text-left transition-colors hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus',
               onCanvas && 'bg-node-panel-inner',
             )}
           >
@@ -548,7 +548,7 @@ function ShellCardsPanel({
               ) : null}
             </span>
             <span className="flex min-w-0 flex-1 flex-col">
-              <span className="truncate text-xs text-node-foreground">
+              <span className="truncate text-2xs text-node-foreground">
                 {card.name}
               </span>
               <span className="truncate text-2xs text-node-muted">
@@ -626,7 +626,7 @@ function ShellLibraryPanel({
           type="button"
           data-testid="shell-library-upload"
           onClick={onUpload}
-          className="rounded-md px-2 py-1 text-xs text-node-foreground hover:bg-node-panel-inner focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="rounded-md px-2 py-1 text-2xs text-node-foreground hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus"
         >
           {t('libraryUpload')}
         </button>
@@ -636,7 +636,7 @@ function ShellLibraryPanel({
           <button
             type="button"
             data-testid="shell-library-folders"
-            className="flex min-h-9 w-full items-center gap-2 rounded-lg border border-node-panel-inner px-2 text-left text-xs text-node-foreground hover:bg-node-panel-inner focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex min-h-9 w-full items-center gap-2 rounded-lg border border-node-panel-inner px-2 text-left text-2sm text-node-foreground hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus"
           >
             <FolderOpen className="size-3.5 shrink-0" aria-hidden />
             <span className="min-w-0 flex-1 truncate">
@@ -647,12 +647,12 @@ function ShellLibraryPanel({
         </PopoverTrigger>
         <PopoverContent align="start" className="flex max-h-96 flex-col p-2">
           {foldersLoading ? (
-            <p className="p-2 text-xs text-muted-foreground">{t('loading')}</p>
+            <p className="p-2 text-2xs text-muted-foreground">{t('loading')}</p>
           ) : foldersError ? (
             <button
               type="button"
               onClick={() => void refresh()}
-              className="rounded-md p-2 text-sm text-status-risk"
+              className="rounded-md p-2 text-2sm text-status-risk"
             >
               {t('libraryLoadFailed')}
             </button>
@@ -670,7 +670,7 @@ function ShellLibraryPanel({
           )}
           <Link
             href={ROUTES.ASSETS}
-            className="mt-2 shrink-0 rounded-md border-t border-border px-2 py-3 text-xs text-muted-foreground hover:text-foreground"
+            className="mt-2 shrink-0 rounded-md border-t border-border px-2 py-3 text-2xs text-muted-foreground hover:text-foreground"
           >
             {t('libraryManageFolders')}
           </Link>
@@ -698,16 +698,18 @@ function ShellLibraryPanel({
         <button
           type="button"
           onClick={retry}
-          className="rounded-lg px-2 py-4 text-xs text-status-risk"
+          className="rounded-lg px-2 py-4 text-2xs text-status-risk"
         >
           {t('libraryLoadFailed')}
         </button>
       ) : isLoading && records.length === 0 ? (
-        <p className="py-6 text-center text-xs text-node-muted">
+        <p className="py-6 text-center text-2xs text-node-muted">
           {t('loading')}
         </p>
       ) : records.length === 0 ? (
-        <p className="py-6 text-center text-xs text-node-muted">{t('empty')}</p>
+        <p className="py-6 text-center text-2xs text-node-muted">
+          {t('empty')}
+        </p>
       ) : (
         <div className="grid grid-cols-3 gap-1.5">
           {records.map((record) => {

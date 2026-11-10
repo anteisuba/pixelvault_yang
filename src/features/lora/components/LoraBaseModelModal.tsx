@@ -147,7 +147,7 @@ export function LoraBaseModelModal({
         className={cn(
           'flex min-h-22 overflow-hidden rounded-xl border p-0 text-left',
           'transition-[background-color,border-color,box-shadow] duration-fast ease-linear',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background',
+          'focus-visible:outline-none focus-visible:shadow-focus',
           selected
             ? 'border-primary bg-primary/5 ring-1 ring-primary/40'
             : 'border-border/60 bg-card hover:border-border',
@@ -166,7 +166,7 @@ export function LoraBaseModelModal({
         </span>
         <span className="flex min-w-0 flex-1 flex-col gap-1 px-2.5 py-2.5">
           <span className="flex items-start justify-between gap-2">
-            <span className="min-w-0 flex-1 text-xs font-semibold leading-snug text-foreground">
+            <span className="min-w-0 flex-1 text-2xs font-semibold leading-snug text-foreground">
               {baseName(b)}
             </span>
             <Check
@@ -182,21 +182,21 @@ export function LoraBaseModelModal({
           </span>
           <span className="mt-auto flex flex-wrap items-center gap-1">
             {isRecommended(b) ? (
-              <span className="rounded-full border border-primary/30 bg-primary/10 px-1.5 py-px text-3xs font-medium text-foreground">
+              <span className="rounded-full border border-primary/30 bg-primary/10 px-1.5 py-px text-2xs font-semibold text-foreground">
                 {t('baseModal.recommended')}
               </span>
             ) : null}
             {b.distilled ? (
-              <span className="rounded-full border border-border/60 px-1.5 py-px text-3xs font-medium text-muted-foreground">
+              <span className="rounded-full border border-border/60 px-1.5 py-px text-2xs text-muted-foreground">
                 {t('baseModal.fast')}
               </span>
             ) : null}
             {!b.available ? (
-              <span className="text-3xs text-muted-foreground/70">
+              <span className="text-2xs text-muted-foreground/70">
                 {t('spine.comingSoon')}
               </span>
             ) : incompatible ? (
-              <span className="text-3xs text-status-warning">
+              <span className="text-2xs text-status-warning">
                 {t('baseModal.incompatible')}
               </span>
             ) : null}
@@ -210,7 +210,7 @@ export function LoraBaseModelModal({
     <>
       <div className="flex items-center gap-3 border-b border-border px-4 py-3">
         <div className="flex min-w-0 flex-1 flex-col">
-          <span className="text-sm font-semibold text-foreground">
+          <span className="text-md font-semibold text-foreground">
             {t('baseModal.title')}
           </span>
           <span className="text-2xs text-muted-foreground">
@@ -220,7 +220,7 @@ export function LoraBaseModelModal({
           </span>
         </div>
         {hasMountedLora ? (
-          <label className="flex shrink-0 cursor-pointer items-center gap-1.5 text-xs text-muted-foreground">
+          <label className="flex shrink-0 cursor-pointer items-center gap-1.5 text-2xs text-muted-foreground">
             <Switch
               checked={onlyCompatible}
               onCheckedChange={setOnlyCompatible}
@@ -234,7 +234,7 @@ export function LoraBaseModelModal({
           type="button"
           onClick={() => onOpenChange(false)}
           aria-label={t('baseModal.close')}
-          className="grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors duration-fast hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors duration-fast hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus"
         >
           <X className="size-4" aria-hidden />
         </button>
@@ -262,7 +262,7 @@ export function LoraBaseModelModal({
                   transition={moveTransition}
                   className="space-y-1.5"
                 >
-                  <p className="text-2xs font-medium tracking-wide text-muted-foreground">
+                  <p className="text-2xs tracking-wide text-muted-foreground">
                     {group === 'dit'
                       ? t('spine.baseGroupDit')
                       : t('spine.baseGroupSdxl')}

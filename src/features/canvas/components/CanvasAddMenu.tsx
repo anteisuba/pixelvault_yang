@@ -260,19 +260,19 @@ export function CanvasAddMenu({
           type="button"
           role="menuitem"
           onClick={onUpload}
-          className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-node-foreground transition-colors hover:bg-node-panel-inner focus-visible:bg-node-panel-inner focus-visible:outline-none"
+          className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-2sm text-node-foreground transition-colors hover:tint-hover focus-visible:bg-node-panel-inner focus-visible:outline-none"
         >
           <Upload className="size-4 shrink-0 text-node-muted" />
-          <span className="font-medium">{t('addCatalog.upload')}</span>
+          <span className="">{t('addCatalog.upload')}</span>
         </button>
         <button
           type="button"
           role="menuitem"
           onClick={onPickFromLibrary}
-          className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-node-foreground transition-colors hover:bg-node-panel-inner focus-visible:bg-node-panel-inner focus-visible:outline-none"
+          className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-2sm text-node-foreground transition-colors hover:tint-hover focus-visible:bg-node-panel-inner focus-visible:outline-none"
         >
           <Images className="size-4 shrink-0 text-node-muted" />
-          <span className="font-medium">{t('addCatalog.pickFromLibrary')}</span>
+          <span className="">{t('addCatalog.pickFromLibrary')}</span>
         </button>
       </div>
 
@@ -299,12 +299,12 @@ export function CanvasAddMenu({
                   onClick={() => onSelect(item.id)}
                   className={cn(
                     'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors',
-                    'hover:bg-node-panel-inner focus-visible:bg-node-panel-inner focus-visible:outline-none',
+                    'hover:tint-hover focus-visible:bg-node-panel-inner focus-visible:outline-none',
                   )}
                 >
                   <Icon className="size-4 shrink-0 text-node-muted" />
                   <span className="min-w-0">
-                    <span className="block text-sm font-medium text-node-foreground">
+                    <span className="block text-md font-semibold text-node-foreground">
                       {t(`addCatalog.items.${item.labelKey}.label`)}
                     </span>
                   </span>

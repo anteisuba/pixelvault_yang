@@ -394,7 +394,7 @@ export function ShotTable({
             <button
               type="button"
               data-testid="shot-table-columns"
-              className="nodrag inline-flex h-8 shrink-0 items-center gap-1 rounded-lg px-2.5 text-2sm text-muted-foreground transition-colors duration-fast hover:bg-surface-fill hover:text-foreground"
+              className="nodrag inline-flex h-8 shrink-0 items-center gap-1 rounded-lg px-2.5 text-2sm text-muted-foreground transition-colors duration-fast hover:tint-hover hover:text-foreground"
             >
               <Columns className="size-4 shrink-0" aria-hidden />
               <span>{t('columnsMenu')}</span>
@@ -405,7 +405,7 @@ export function ShotTable({
             {SHOTLIST_OPTIONAL_COLUMNS.map((column) => (
               <label
                 key={column}
-                className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-surface-fill"
+                className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-2sm hover:tint-hover"
               >
                 <input
                   type="checkbox"
@@ -423,7 +423,7 @@ export function ShotTable({
         <span className="min-w-0 flex-1" aria-hidden />
         <span
           data-testid="shot-table-summary"
-          className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground"
+          className="shrink-0 font-mono text-2xs tabular-nums text-muted-foreground"
         >
           {t('summary', {
             shots: summary.shots,
@@ -436,7 +436,7 @@ export function ShotTable({
             <button
               type="button"
               data-testid="shot-table-pull"
-              className="nodrag inline-flex h-8 shrink-0 items-center gap-1 rounded-lg px-2.5 text-2sm text-muted-foreground transition-colors duration-fast hover:bg-surface-fill hover:text-foreground"
+              className="nodrag inline-flex h-8 shrink-0 items-center gap-1 rounded-lg px-2.5 text-2sm text-muted-foreground transition-colors duration-fast hover:tint-hover hover:text-foreground"
             >
               <Film className="size-4 shrink-0" aria-hidden />
               <span>{t('pullButton')}</span>
@@ -447,7 +447,7 @@ export function ShotTable({
           type="button"
           data-testid="shot-table-add-shot"
           onClick={onAddShot}
-          className="nodrag inline-flex h-8 shrink-0 items-center gap-1 rounded-lg bg-primary pl-2 pr-3 text-2sm font-medium text-primary-foreground transition-colors duration-fast hover:bg-primary/90"
+          className="nodrag inline-flex h-8 shrink-0 items-center gap-1 rounded-lg bg-primary pl-2 pr-3 text-2sm font-semibold text-primary-foreground transition-colors duration-fast hover:tint-hover"
         >
           <Plus className="size-4 shrink-0" aria-hidden />
           <span>{t('addShot')}</span>
@@ -457,7 +457,9 @@ export function ShotTable({
 
       {rows.length === 0 ? (
         <div data-testid="shot-table-empty" className="px-6 py-8">
-          <p className="mb-4 text-sm text-muted-foreground">{t('emptyLead')}</p>
+          <p className="mb-4 text-2sm text-muted-foreground">
+            {t('emptyLead')}
+          </p>
           <div className="grid grid-cols-3 gap-3">
             {SHOT_TABLE_SOURCES.map((source) => {
               const live =
@@ -469,12 +471,12 @@ export function ShotTable({
                   data-testid={`shot-table-source-${source}`}
                   disabled={!live}
                   onClick={source === 'write' ? onAddShot : undefined}
-                  className="nodrag flex flex-col items-start gap-1 rounded-xl border border-border px-4 py-3.5 text-left transition-colors duration-fast hover:bg-surface-fill disabled:pointer-events-none disabled:opacity-40"
+                  className="nodrag flex flex-col items-start gap-1 rounded-xl border border-border px-4 py-3.5 text-left transition-colors duration-fast hover:tint-hover disabled:pointer-events-none disabled:opacity-40"
                 >
-                  <span className="text-sm font-semibold">
+                  <span className="text-md font-semibold">
                     {t(`sources.${source}.title`)}
                   </span>
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-2xs text-muted-foreground">
                     {t(`sources.${source}.hint`)}
                   </span>
                 </button>
@@ -494,9 +496,9 @@ export function ShotTable({
           </div>
         </div>
       ) : (
-        <table className="w-full border-collapse text-sm">
+        <table className="w-full border-collapse text-2sm">
           <thead>
-            <tr className="border-b border-border text-left text-xs text-muted-foreground">
+            <tr className="border-b border-border text-left text-2xs text-muted-foreground">
               <Th>{t('columns.shotNo')}</Th>
               <Th>{t('columns.frame')}</Th>
               <Th>{t('columns.size')}</Th>
@@ -626,7 +628,7 @@ function landingIndex(
 }
 
 function Th({ children }: { readonly children: ReactNode }) {
-  return <th className="whitespace-nowrap px-3 py-2 font-medium">{children}</th>
+  return <th className="whitespace-nowrap px-3 py-2">{children}</th>
 }
 
 function ShotTableRowView({
@@ -697,7 +699,7 @@ function ShotTableRowView({
       )}
     >
       {/* 最左一格兼作入口的锚：素材卡的线落在这一行的左缘正中。 */}
-      <td className="relative px-3 py-2.5 font-mono text-xs tabular-nums text-muted-foreground">
+      <td className="relative px-3 py-2.5 font-mono text-2xs tabular-nums text-muted-foreground">
         {row.draft ? (
           <span
             data-testid="shot-table-draft-mark"
@@ -760,7 +762,7 @@ function ShotTableRowView({
             type="button"
             data-testid="shot-table-merge-up"
             onClick={onMergeUp}
-            className="nodrag absolute -top-3 left-3 z-10 inline-flex h-6 items-center gap-1 rounded-full border border-border bg-card px-2 text-xs text-foreground opacity-0 shadow-soft transition-opacity duration-fast hover:bg-surface-fill focus-visible:opacity-100 group-hover/row:opacity-100"
+            className="nodrag absolute -top-3 left-3 z-10 inline-flex h-6 items-center gap-1 rounded-full border border-border bg-card px-2 text-2sm text-foreground opacity-0 shadow-soft transition-opacity duration-fast hover:tint-hover focus-visible:opacity-100 group-hover/row:opacity-100"
           >
             <ArrowUp className="size-3" aria-hidden />
             {t('mergeUp')}
@@ -827,7 +829,7 @@ function ShotTableRowView({
                 onSpec({ durationLocked: row.durationLocked ? null : true })
               }
               className={cn(
-                'nodrag inline-flex size-7 items-center justify-center rounded-md transition-colors duration-fast hover:bg-surface-fill',
+                'nodrag inline-flex size-7 items-center justify-center rounded-md transition-colors duration-fast hover:tint-hover',
                 row.durationLocked
                   ? 'text-foreground'
                   : 'text-muted-foreground',
@@ -864,7 +866,7 @@ function ShotTableRowView({
           aria-label={t('locate')}
           title={t('locate')}
           onClick={onLocate}
-          className="nodrag inline-flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors duration-fast hover:bg-surface-fill hover:text-foreground"
+          className="nodrag inline-flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors duration-fast hover:tint-hover hover:text-foreground"
         >
           <Locate className="size-4" aria-hidden />
         </button>
@@ -940,7 +942,7 @@ function FrameThumb({
         <div className="size-full rounded-md border border-dashed border-border" />
       )}
       {row.generating ? (
-        <span className="absolute inset-x-0 bottom-0 bg-background/80 px-1.5 py-0.5 text-center text-xs text-muted-foreground">
+        <span className="absolute inset-x-0 bottom-0 bg-background/80 px-1.5 py-0.5 text-center text-2xs text-muted-foreground">
           {generatingLabel}
         </span>
       ) : null}
@@ -1011,7 +1013,7 @@ function SizePicker({
           type="button"
           data-testid="shot-table-size"
           className={cn(
-            'nodrag inline-flex h-7 items-center gap-1 whitespace-nowrap rounded-md border border-transparent px-1.5 text-sm transition-colors duration-fast hover:bg-surface-fill',
+            'nodrag inline-flex h-7 items-center gap-1 whitespace-nowrap rounded-md border border-transparent px-1.5 text-2sm transition-colors duration-fast hover:tint-hover',
             !value && 'text-muted-foreground',
             draftClassName,
           )}
@@ -1034,7 +1036,7 @@ function SizePicker({
               setOpen(false)
             }}
             className={cn(
-              'flex w-full rounded-md px-2 py-1.5 text-left text-sm hover:bg-surface-fill',
+              'flex w-full rounded-md px-2 py-1.5 text-left text-2sm hover:tint-hover',
               size === value && 'font-semibold',
             )}
           >
@@ -1048,7 +1050,7 @@ function SizePicker({
               onChange(null)
               setOpen(false)
             }}
-            className="flex w-full rounded-md px-2 py-1.5 text-left text-sm text-muted-foreground hover:bg-surface-fill"
+            className="flex w-full rounded-md px-2 py-1.5 text-left text-2sm text-muted-foreground hover:tint-hover"
           >
             {t('sizeClear')}
           </button>
@@ -1196,7 +1198,7 @@ function PillInput({
   onCommit(next: string): void
 }) {
   return (
-    <label className="nodrag inline-flex h-8 min-w-0 shrink-0 items-center gap-1.5 rounded-full border border-border px-3 text-xs text-muted-foreground">
+    <label className="nodrag inline-flex h-8 min-w-0 shrink-0 items-center gap-1.5 rounded-full border border-border px-3 text-2sm text-muted-foreground">
       <span className="shrink-0">{label}</span>
       <CellInput
         testId={testId}

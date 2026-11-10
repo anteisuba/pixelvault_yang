@@ -106,7 +106,7 @@ export function TextCardBody({
         ) : empty ? (
           <div data-text-empty className="flex flex-col items-center gap-2.5">
             <span className="text-2sm text-muted-foreground">{emptyLabel}</span>
-            <span className="text-xs text-muted-foreground/75">
+            <span className="text-2xs text-muted-foreground/75">
               {emptyAssistLabel}
             </span>
           </div>
@@ -139,7 +139,7 @@ export function TextCardBody({
           className={cn(
             'nodrag nopan absolute right-1.5 bottom-1.5 size-2.5 cursor-ns-resize',
             'border-r-2 border-b-2 border-border',
-            'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+            ' focus-visible:outline-none focus-visible:shadow-focus',
           )}
           onDoubleClick={(event) => event.stopPropagation()}
           onPointerDown={(event) => {

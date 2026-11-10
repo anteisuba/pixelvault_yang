@@ -160,7 +160,7 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
           <StudioPanelHeader icon={<Key className="size-3.5 text-primary" />}>
             {tPanels('civitai')}
             {civitai.hasToken && (
-              <span className="ml-1 rounded-full bg-primary/10 px-2 py-0.5 text-3xs text-primary">
+              <span className="ml-1 rounded-full bg-primary/10 px-2 py-0.5 text-2xs text-primary">
                 {t('tokenSaved')}
               </span>
             )}
@@ -181,7 +181,7 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
                 }
                 placeholder={t('tokenPlaceholder')}
                 // ⚠ <768 必须 ≥16px：iOS 对小于 16px 的可聚焦输入框会自动放大整页。
-                className="w-full rounded-md border border-border/60 bg-background px-2.5 py-2 font-mono text-base focus:border-primary/40 focus:outline-none md:text-xs"
+                className="w-full rounded-md border border-border/60 bg-background px-2.5 py-2 font-mono text-base focus:border-primary/40 focus:outline-none md:text-2sm"
               />
               <div className="flex gap-2">
                 {/* 存好了写在键上（输入框随即清空，键在结果态下不跟着变灰）。 */}
@@ -189,7 +189,7 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
                   feedback={tokenSavedFeedback}
                   onClick={handleSaveToken}
                   disabled={!state.tokenInput.trim() && !tokenSavedFeedback}
-                  className="rounded-md bg-primary px-3 py-1.5 text-xs text-primary-foreground disabled:opacity-40"
+                  className="rounded-md bg-primary px-3 py-1.5 text-2sm text-primary-foreground disabled:opacity-40"
                 >
                   {t('save')}
                 </FeedbackButton>
@@ -197,7 +197,7 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
                   <button
                     type="button"
                     onClick={() => civitai.remove()}
-                    className="rounded-md border border-status-risk/40 px-3 py-1.5 text-xs text-status-risk hover:bg-status-risk-surface"
+                    className="rounded-md border border-status-risk/40 px-3 py-1.5 text-2sm text-status-risk hover:tint-hover"
                   >
                     {t('removeToken')}
                   </button>

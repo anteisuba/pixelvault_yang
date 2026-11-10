@@ -51,7 +51,7 @@ export interface ImageFrameChipProps {
 }
 
 const moreTierClass =
-  'inline-flex h-11 min-w-11 items-center justify-center rounded-lg border px-2.5 text-xs transition-colors duration-fast ease-standard md:h-7.5'
+  'inline-flex h-11 min-w-11 items-center justify-center rounded-lg border px-2.5 text-2sm transition-colors duration-fast ease-standard md:h-7.5'
 const moreTierActiveClass = 'border-foreground bg-foreground text-background'
 const moreTierIdleClass =
   'border-border bg-background text-foreground hover:border-foreground/40'
@@ -131,7 +131,7 @@ export function ImageFrameChip({
         compact ? undefined : (
           <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-1.5">
-              <span className="flex items-center justify-between gap-2 text-2xs font-medium text-muted-foreground/70">
+              <span className="flex items-center justify-between gap-2 text-2xs text-muted-foreground/70">
                 {tSpec('moreItem.batchCount')}
                 {promptTemplate ? (
                   <span className="font-normal">
@@ -174,7 +174,7 @@ export function ImageFrameChip({
             {readout ? (
               <p
                 data-image-frame-readout
-                className="text-xs tabular-nums text-muted-foreground"
+                className="text-2xs tabular-nums text-muted-foreground"
               >
                 {readout}
               </p>
@@ -185,7 +185,7 @@ export function ImageFrameChip({
                   type="button"
                   aria-expanded={templateOpen}
                   onClick={() => setTemplateOpen((open) => !open)}
-                  className="self-start rounded-md text-2xs text-muted-foreground underline-offset-4 transition-colors duration-fast hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="self-start rounded-md text-2xs text-muted-foreground underline-offset-4 transition-colors duration-fast hover:text-foreground hover:underline focus-visible:outline-none focus-visible:shadow-focus"
                 >
                   {templateOpen
                     ? t('template.fullTextHide')

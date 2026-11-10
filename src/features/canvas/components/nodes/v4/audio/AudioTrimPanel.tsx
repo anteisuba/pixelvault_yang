@@ -489,7 +489,7 @@ export function AudioTrimPanel({
                   isStart
                     ? '-translate-x-1/2 justify-start'
                     : 'translate-x-1/2 justify-end',
-                  'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+                  ' focus-visible:outline-none focus-visible:shadow-focus',
                 )}
               >
                 <span
@@ -515,7 +515,7 @@ export function AudioTrimPanel({
           {/* 窗顶居中那颗选区时长（画板 `8.1s`）。 */}
           <span
             data-audio-trim-selection
-            className="-top-0.5 -translate-x-1/2 absolute left-1/2 rounded-xs bg-card px-1 text-xs font-semibold tabular-nums text-foreground"
+            className="-top-0.5 -translate-x-1/2 absolute left-1/2 rounded-xs bg-card px-1 text-2xs font-semibold tabular-nums text-foreground"
           >
             {formatAudioTrimDuration(selectionSec)}
           </span>
@@ -532,8 +532,8 @@ export function AudioTrimPanel({
           onClick={togglePreview}
           className={cn(
             'flex size-7.5 shrink-0 items-center justify-center rounded-full',
-            'bg-surface-fill text-foreground transition-colors duration-fast hover:bg-surface-fill-hover',
-            'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+            'bg-surface-fill text-foreground transition-colors duration-fast hover:tint-hover',
+            ' focus-visible:outline-none focus-visible:shadow-focus',
             'disabled:pointer-events-none disabled:opacity-50',
           )}
         >
@@ -545,14 +545,14 @@ export function AudioTrimPanel({
         </button>
         <span
           data-audio-trim-clock
-          className="text-xs tabular-nums text-foreground"
+          className="text-2xs tabular-nums text-foreground"
         >
           {formatAudioClock(Math.max(0, playhead - startSec))} /{' '}
           {formatAudioClock(selectionSec)}
         </span>
         <span
           data-audio-trim-range
-          className="ml-1.5 text-xs tabular-nums text-muted-foreground"
+          className="ml-1.5 text-2xs tabular-nums text-muted-foreground"
         >
           {t('range', {
             start: formatAudioClock(startSec),
@@ -568,7 +568,7 @@ export function AudioTrimPanel({
           data-audio-trim-confirm
           disabled={!canConfirm}
           onClick={() => onConfirm({ startSec, endSec })}
-          className="flex h-8 shrink-0 items-center rounded-full bg-primary px-4.5 text-2sm font-medium text-primary-foreground transition-opacity duration-fast hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+          className="flex h-8 shrink-0 items-center rounded-full bg-primary px-4.5 text-2sm font-semibold text-primary-foreground transition-opacity duration-fast hover:opacity-90 focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none disabled:opacity-50"
         >
           {busy ? t('confirming') : t('confirm')}
         </button>

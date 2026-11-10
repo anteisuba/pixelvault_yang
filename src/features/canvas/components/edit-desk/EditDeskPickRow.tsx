@@ -24,9 +24,9 @@ export function PickHeader({
 }) {
   return (
     <div className="flex items-baseline justify-between gap-3 px-2 pt-1 pb-1.5">
-      <b className="shrink-0 text-xs font-semibold text-foreground">{title}</b>
+      <b className="shrink-0 text-2xs font-semibold text-foreground">{title}</b>
       {hint ? (
-        <span className="min-w-0 truncate text-xs text-muted-foreground">
+        <span className="min-w-0 truncate text-2xs text-muted-foreground">
           {hint}
         </span>
       ) : null}
@@ -85,10 +85,10 @@ export function PickRow({
       onPointerEnter={onHover}
       onFocus={onHover}
       className={cn(
-        'flex h-8 w-full items-center gap-2.5 rounded-lg px-2 text-left text-xs text-foreground',
+        'flex h-8 w-full items-center gap-2.5 rounded-lg px-2 text-left text-2sm text-foreground',
         'transition-colors duration-fast ease-standard motion-reduce:transition-none',
         'hover:outline hover:outline-1 hover:outline-border',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        'focus-visible:outline-none focus-visible:shadow-focus',
         selected && 'bg-muted',
         className,
       )}

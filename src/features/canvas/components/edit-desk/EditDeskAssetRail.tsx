@@ -190,11 +190,11 @@ export function EditDeskAssetRail({
               'grid w-13 justify-items-center gap-0.5 rounded-lg pb-1.5 pt-2 transition-colors duration-fast',
               active
                 ? 'bg-card text-foreground'
-                : 'text-muted-foreground hover:bg-card/60 hover:text-foreground',
+                : 'text-muted-foreground hover:tint-hover hover:text-foreground',
             )}
           >
             <Icon className="size-4.5" aria-hidden />
-            <span className="w-full truncate text-3xs leading-tight">
+            <span className="w-full truncate text-2xs leading-tight">
               {t(`panels.short.${panel}`)}
             </span>
           </button>
@@ -250,7 +250,7 @@ export function EditDeskAssetPanel({
       className="flex max-h-full flex-col gap-2.5 overflow-y-auto rounded-2xl border border-border bg-card p-3 shadow-float"
     >
       <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-foreground">
+        <span className="text-2xs font-semibold text-foreground">
           {t(`panels.${activePanel}`)}
         </span>
         {draggablePanel ? (
@@ -280,7 +280,7 @@ export function EditDeskAssetPanel({
             type="button"
             data-testid="edit-desk-add-caption"
             onClick={onAddCaption}
-            className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg bg-muted text-xs text-foreground transition-colors duration-fast hover:bg-accent"
+            className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg bg-muted text-2sm text-foreground transition-colors duration-fast hover:tint-hover"
           >
             <Type className="size-3.5 shrink-0" aria-hidden />
             {t('panels.addCaption')}
@@ -315,10 +315,8 @@ function TextRow({ node }: { readonly node: NodeV4 }) {
       data-testid={`edit-desk-text-${node.id}`}
       className="flex flex-col gap-0.5 rounded-lg bg-muted px-2 py-1.5"
     >
-      <span className="truncate text-2xs font-medium text-foreground">
-        {data.name}
-      </span>
-      <span className="truncate text-3xs text-muted-foreground">
+      <span className="truncate text-2xs text-foreground">{data.name}</span>
+      <span className="truncate text-2xs text-muted-foreground">
         {firstLineOf(body)}
       </span>
     </div>
@@ -417,7 +415,7 @@ function AssetTile({
           </div>
         )}
         {duration > 0 ? (
-          <span className="canvas-glass absolute bottom-1 right-1 rounded-full px-1.5 text-3xs leading-4 tabular-nums">
+          <span className="canvas-glass absolute bottom-1 right-1 rounded-full px-1.5 text-2xs leading-4 tabular-nums">
             {formatEditDurationShort(duration)}
           </span>
         ) : null}
@@ -693,7 +691,7 @@ function LibraryTile({ record }: { readonly record: GenerationRecord }) {
           </div>
         )}
         {duration > 0 ? (
-          <span className="canvas-glass absolute bottom-1 right-1 rounded-full px-1.5 text-3xs leading-4 tabular-nums">
+          <span className="canvas-glass absolute bottom-1 right-1 rounded-full px-1.5 text-2xs leading-4 tabular-nums">
             {formatEditDurationShort(duration)}
           </span>
         ) : null}

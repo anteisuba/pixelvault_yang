@@ -58,7 +58,7 @@ function toCapabilityParams(
 }
 
 const iconButtonClass =
-  'flex size-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill-hover hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50'
+  'flex size-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors duration-fast ease-standard hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none disabled:opacity-50'
 
 export function ImageAdvancedChip({
   model,
@@ -125,7 +125,7 @@ export function ImageAdvancedChip({
           data-image-advanced
           data-changed={changed ? 'true' : undefined}
           className={cn(
-            'nodrag nopan relative flex size-7.5 shrink-0 items-center justify-center rounded-full bg-surface-fill text-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=open]:bg-surface-fill-track',
+            'nodrag nopan relative flex size-7.5 shrink-0 items-center justify-center rounded-full bg-surface-fill text-foreground transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none disabled:opacity-50 data-[state=open]:bg-surface-fill-track',
           )}
         >
           <Settings2 aria-hidden className="size-4" />
@@ -143,7 +143,7 @@ export function ImageAdvancedChip({
         {seedSupported ? (
           <div data-image-advanced-seed className="flex flex-col gap-1">
             <div className="flex items-center gap-2">
-              <span className="w-16 shrink-0 text-xs text-foreground">
+              <span className="w-16 shrink-0 text-2xs text-foreground">
                 {t('seed')}
               </span>
               <Input
@@ -210,7 +210,7 @@ export function ImageAdvancedChip({
         ) : null}
         {negativeSupported ? (
           <label data-image-advanced-negative className="flex flex-col gap-1.5">
-            <span className="text-xs text-foreground">{t('negative')}</span>
+            <span className="text-2xs text-foreground">{t('negative')}</span>
             <Textarea
               value={negative}
               rows={2}

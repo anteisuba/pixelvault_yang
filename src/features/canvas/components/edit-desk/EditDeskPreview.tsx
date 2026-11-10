@@ -333,7 +333,7 @@ export function EditDeskPreview({
             type="button"
             data-testid="edit-desk-stage-open-materials"
             onClick={onOpenMaterials}
-            className="h-9 rounded-full border border-border bg-muted px-4 text-2sm transition-colors duration-fast hover:bg-surface-fill"
+            className="h-9 rounded-full border border-border bg-muted px-4 text-2sm transition-colors duration-fast hover:tint-hover"
           >
             {t('stageEmptyAction')}
           </button>
@@ -393,7 +393,7 @@ export function EditDeskPreview({
         })}
         {url ? null : (
           <div className="flex size-full items-center justify-center">
-            <p className="text-xs text-white/70">
+            <p className="text-2xs text-white/70">
               {/* 播放头下有段、来源卡还没片子（续拍的占位，4c）≠ 播放头下没有段。 */}
               {row?.source.exists
                 ? t('continue.previewPending')
@@ -450,7 +450,7 @@ export function EditDeskPreview({
         {generatingTake ? (
           <span
             data-testid="edit-desk-preview-generating"
-            className="pointer-events-none absolute left-3 top-3 flex items-center gap-2 rounded-full bg-white/95 pl-2 pr-3 text-xs leading-6 text-neutral-900"
+            className="pointer-events-none absolute left-3 top-3 flex items-center gap-2 rounded-full bg-white/95 pl-2 pr-3 text-2xs leading-6 text-neutral-900"
           >
             <Spinner size="sm" aria-hidden />
             {t('retake.previewGenerating', { n: generatingTake })}

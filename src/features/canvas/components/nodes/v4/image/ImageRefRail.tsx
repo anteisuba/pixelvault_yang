@@ -147,7 +147,7 @@ export function ImageRefRail({
                     // 撑出滚动行的竖向溢出 —— Windows 常驻滚动条上就是右边、下面各一条。
                     'nodrag nopan relative block shrink-0 bg-surface-fill',
                     frame ? 'size-11 rounded-lg' : 'size-12 rounded-node-thumb',
-                    'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+                    ' focus-visible:outline-none focus-visible:shadow-focus',
                     'disabled:pointer-events-none disabled:opacity-60',
                   )}
                 >
@@ -173,7 +173,7 @@ export function ImageRefRail({
                     <span
                       aria-hidden
                       data-image-rail-badge
-                      className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-3xs font-medium text-primary-foreground tabular-nums"
+                      className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-2xs font-semibold text-primary-foreground tabular-nums"
                     >
                       {item.index}
                     </span>
@@ -211,7 +211,7 @@ export function ImageRefRail({
                   title={item.error}
                   aria-label={tImage('rail.uploadFailed', { name: item.name })}
                   className={cn(
-                    'nodrag nopan flex shrink-0 items-center justify-center border border-dashed border-destructive text-destructive focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+                    'nodrag nopan flex shrink-0 items-center justify-center border border-dashed border-destructive text-destructive focus-visible:outline-none focus-visible:shadow-focus',
                     frame ? 'size-11 rounded-lg' : 'size-12 rounded-node-thumb',
                   )}
                 >

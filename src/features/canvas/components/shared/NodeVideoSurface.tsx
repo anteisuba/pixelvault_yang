@@ -124,7 +124,7 @@ export function NodeVideoSurface({
         onClick={() => setIsMuted((muted) => !muted)}
         aria-label={isMuted ? t('unmute') : t('mute')}
         title={isMuted ? t('unmute') : t('mute')}
-        className="nodrag absolute bottom-2 left-2 z-canvas-selection flex size-8 items-center justify-center rounded-full bg-node-canvas/80 text-node-foreground backdrop-blur transition-colors hover:bg-node-canvas"
+        className="nodrag absolute bottom-2 left-2 z-canvas-selection flex size-8 items-center justify-center rounded-full bg-node-canvas/80 text-node-foreground backdrop-blur transition-colors hover:tint-hover"
       >
         {isMuted ? (
           <VolumeX className="size-4" />

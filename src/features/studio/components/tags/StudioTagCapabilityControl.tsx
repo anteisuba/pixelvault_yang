@@ -64,9 +64,9 @@ export function StudioTagCapabilityControl({
     <div className="flex flex-col gap-1.5" data-assistant-field="capabilities">
       {hideLabel ? null : (
         <div className="flex items-baseline justify-between gap-2">
-          <span className="text-2xs font-medium">{label}</span>
+          <span className="text-2xs">{label}</span>
           {onlyForNote ? (
-            <span className="text-3xs text-muted-foreground">
+            <span className="text-2xs text-muted-foreground">
               {onlyForNote}
             </span>
           ) : null}
@@ -114,7 +114,7 @@ export function StudioTagCapabilityControl({
               } as AdvancedParams)
             }
           />
-          <span className="self-end font-mono text-3xs tabular-nums text-muted-foreground">
+          <span className="self-end font-mono text-2xs tabular-nums text-muted-foreground">
             {String(value).length} / {chip.maxLength}
           </span>
         </div>

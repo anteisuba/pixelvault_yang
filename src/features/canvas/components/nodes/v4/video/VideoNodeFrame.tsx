@@ -186,7 +186,7 @@ export function VideoNodeFrame({
       titleExtra={
         <span
           data-video-frame-headline
-          className="shrink-0 font-mono text-xs text-muted-foreground"
+          className="shrink-0 font-mono text-2xs text-muted-foreground"
         >
           {headline}
         </span>
@@ -205,11 +205,11 @@ export function VideoNodeFrame({
               }
             }}
             className={cn(
-              'inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-xs transition duration-fast ease-standard active:scale-96',
-              'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+              'inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-2sm transition duration-fast ease-standard active:scale-96',
+              ' focus-visible:outline-none focus-visible:shadow-focus',
               assistOpen
                 ? 'bg-foreground text-background'
-                : 'bg-surface-fill text-foreground hover:bg-surface-fill-hover',
+                : 'bg-surface-fill text-foreground hover:tint-hover',
             )}
           >
             <Sparkles aria-hidden className="size-3.5" />
@@ -217,7 +217,7 @@ export function VideoNodeFrame({
           </button>
           <span
             data-video-frame-readout
-            className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground/75"
+            className="min-w-0 flex-1 truncate font-mono text-2xs text-muted-foreground/75"
           >
             {footerReadout}
           </span>
@@ -232,7 +232,7 @@ export function VideoNodeFrame({
               // 先存会把新正文写到旧卡上、旧卡的字和它的产物对不上。空卡原地生成时，
               // 卡的发送路径自己会把草稿落库。
               onClick={() => onRegenerate()}
-              className="inline-flex h-7.5 items-center gap-1.5 rounded-full bg-primary px-3 text-xs font-medium text-primary-foreground transition duration-fast ease-standard hover:opacity-90 active:scale-96 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+              className="inline-flex h-7.5 items-center gap-1.5 rounded-full bg-primary px-3 text-2sm font-semibold text-primary-foreground transition duration-fast ease-standard hover:opacity-90 active:scale-96 focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none disabled:opacity-50"
             >
               {/* 没片时写「生成」，有片才是「重新生成」：换字 120 交叉淡入，键宽跟着
                   slot 弹簧变（动效表 · 主键换字），⛔ 按钮跳宽。宽度量的是新字自己
@@ -264,7 +264,7 @@ export function VideoNodeFrame({
                   </motion.span>
                 </AnimatePresence>
               </motion.span>
-              <kbd className="rounded-sm border border-primary-foreground/35 px-1 font-sans text-3xs">
+              <kbd className="rounded-sm border border-primary-foreground/35 px-1 font-sans text-2xs">
                 {tVideo('frame.regenerateShortcut')}
               </kbd>
             </button>
@@ -300,7 +300,7 @@ export function VideoNodeFrame({
         {failureMessage && (
           <p
             role="alert"
-            className="rounded-xl border border-status-risk/30 bg-status-risk-surface p-4 text-sm leading-relaxed break-words"
+            className="rounded-xl border border-status-risk/30 bg-status-risk-surface p-4 text-2sm leading-relaxed break-words"
           >
             {t('generateDesk.failed', { reason: failureMessage })}
           </p>
@@ -345,7 +345,7 @@ export function VideoNodeFrame({
                   data-video-player="empty"
                   className="flex h-62.5 w-full flex-col items-center justify-center gap-3 rounded-node-bar bg-surface-workbench"
                 >
-                  <span className="text-sm text-muted-foreground">
+                  <span className="text-2sm text-muted-foreground">
                     {t('player.empty')}
                   </span>
                   <span className="flex items-center gap-2">
@@ -353,7 +353,7 @@ export function VideoNodeFrame({
                       type="button"
                       data-video-frame-upload
                       onClick={onUpload}
-                      className="inline-flex h-7.5 items-center gap-1.5 rounded-full bg-surface-fill px-3 text-xs text-foreground transition duration-fast ease-standard hover:bg-surface-fill-hover active:scale-96 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                      className="inline-flex h-7.5 items-center gap-1.5 rounded-full bg-surface-fill px-3 text-2sm text-foreground transition duration-fast ease-standard hover:tint-hover active:scale-96 focus-visible:outline-none focus-visible:shadow-focus"
                     >
                       <Upload aria-hidden className="size-3.5" />
                       {tVideo('frame.upload')}
@@ -362,7 +362,7 @@ export function VideoNodeFrame({
                       type="button"
                       data-video-frame-library
                       onClick={onLibrary}
-                      className="inline-flex h-7.5 items-center gap-1.5 rounded-full bg-surface-fill px-3 text-xs text-foreground transition duration-fast ease-standard hover:bg-surface-fill-hover active:scale-96 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                      className="inline-flex h-7.5 items-center gap-1.5 rounded-full bg-surface-fill px-3 text-2sm text-foreground transition duration-fast ease-standard hover:tint-hover active:scale-96 focus-visible:outline-none focus-visible:shadow-focus"
                     >
                       <Library aria-hidden className="size-3.5" />
                       {tVideo('frame.library')}
@@ -393,7 +393,7 @@ export function VideoNodeFrame({
                     type="button"
                     data-video-frame-ref-add
                     aria-label={tVideo('frame.referenceAdd')}
-                    className="flex size-11 shrink-0 items-center justify-center rounded-lg border border-dashed border-foreground/24 text-muted-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                    className="flex size-11 shrink-0 items-center justify-center rounded-lg border border-dashed border-foreground/24 text-muted-foreground transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus"
                     whileTap={reduce ? undefined : { scale: 0.96 }}
                     transition={SPRING.press}
                   >
@@ -445,7 +445,7 @@ export function VideoNodeFrame({
                 ) : null}
               </DropdownMenuPrimitive.Root>
             ) : null}
-            <span className="ml-1 shrink-0 text-xs text-muted-foreground/75">
+            <span className="ml-1 shrink-0 text-2xs text-muted-foreground/75">
               {tVideo('frame.referenceHint')}
             </span>
           </div>
@@ -469,7 +469,7 @@ export function VideoNodeFrame({
             onRegenerate()
           }}
           // 说明直接写在纸上（方向 A：⛔ 描边框里套框），与上面一道细线隔开。
-          className="min-h-17.5 border-t pt-3.5 text-sm leading-5.5 tracking-node-body"
+          className="min-h-17.5 border-t pt-3.5 text-2sm leading-5.5 tracking-node-body"
         >
           <MentionInput
             variant="canvas"
@@ -487,7 +487,7 @@ export function VideoNodeFrame({
               if (!editorRef.current) return
               onMentionSelect(candidate, editorRef.current)
             }}
-            className="min-h-10 w-full p-0 text-sm leading-5.5"
+            className="min-h-10 w-full p-0 text-2sm leading-5.5"
           />
         </div>
       </div>

@@ -127,9 +127,9 @@ export function ShotPullReadOption({
           onChange={(event) => toggle(event.target.checked)}
           className="size-3.5 shrink-0 accent-primary"
         />
-        <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-          <span className="font-medium">{t('title')}</span>
-          <span className="rounded-full bg-surface-fill px-2 py-0.5 text-xs text-muted-foreground">
+        <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-2sm">
+          <span className="">{t('title')}</span>
+          <span className="rounded-full bg-surface-fill px-2 py-0.5 text-2sm text-muted-foreground">
             {t('needs')}
           </span>
         </span>
@@ -147,10 +147,10 @@ export function ShotPullReadOption({
                   aria-pressed={ticked}
                   onClick={() => toggleField(field)}
                   className={cn(
-                    'inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-xs transition-colors duration-fast',
+                    'inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-2sm transition-colors duration-fast',
                     ticked
                       ? 'border-foreground/20 bg-surface-fill text-foreground'
-                      : 'border-border text-muted-foreground hover:bg-surface-fill',
+                      : 'border-border text-muted-foreground hover:tint-hover',
                   )}
                 >
                   <span
@@ -169,14 +169,14 @@ export function ShotPullReadOption({
               )
             })}
           </div>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-2xs text-muted-foreground">
             {t('note', { size: SHOT_READ.batchShots, batches })}
           </p>
         </div>
       ) : !keyId ? (
         <p
           data-testid="shot-pull-read-no-key"
-          className="pl-6 text-xs text-muted-foreground"
+          className="pl-6 text-2xs text-muted-foreground"
         >
           {t('noKey')}
         </p>

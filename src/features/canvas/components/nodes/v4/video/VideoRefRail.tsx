@@ -220,7 +220,7 @@ export function VideoRefRail({
                           expanded
                             ? 'size-11 rounded-lg'
                             : 'size-12 rounded-node-thumb',
-                          'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+                          ' focus-visible:outline-none focus-visible:shadow-focus',
                           'disabled:pointer-events-none disabled:opacity-60',
                         )}
                       >
@@ -257,7 +257,7 @@ export function VideoRefRail({
                         <span
                           aria-hidden
                           data-video-rail-badge
-                          className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-3xs font-medium text-primary-foreground tabular-nums"
+                          className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-2xs font-semibold text-primary-foreground tabular-nums"
                         >
                           {tVideo(`rail.badge.${item.group}`, {
                             index: item.index,
@@ -269,7 +269,7 @@ export function VideoRefRail({
                             aria-hidden
                             data-video-rail-role={item.slot}
                             className={cn(
-                              'absolute bottom-0 left-0 rounded-tr-md bg-black/70 px-1.25 text-3xs text-white',
+                              'absolute bottom-0 left-0 rounded-tr-md bg-black/70 px-1.25 text-2xs text-white',
                               expanded
                                 ? 'rounded-bl-lg'
                                 : 'rounded-bl-node-thumb',
@@ -339,7 +339,7 @@ export function VideoRefRail({
                           name: item.name,
                         })}
                         className={cn(
-                          'nodrag nopan flex shrink-0 items-center justify-center border border-dashed border-destructive text-destructive focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+                          'nodrag nopan flex shrink-0 items-center justify-center border border-dashed border-destructive text-destructive focus-visible:outline-none focus-visible:shadow-focus',
                           expanded
                             ? 'size-11 rounded-lg'
                             : 'size-12 rounded-node-thumb',

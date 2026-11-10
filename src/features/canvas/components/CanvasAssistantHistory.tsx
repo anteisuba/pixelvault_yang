@@ -51,7 +51,7 @@ export function CanvasAssistantHistoryPanel({
         />
       </div>
       {filtered.length === 0 ? (
-        <div className="rounded-xl bg-node-panel-inner px-3 py-6 text-center text-xs text-node-muted">
+        <div className="rounded-xl bg-node-panel-inner px-3 py-6 text-center text-2xs text-node-muted">
           {t('empty')}
         </div>
       ) : (
@@ -67,12 +67,12 @@ export function CanvasAssistantHistoryPanel({
                 type="button"
                 onClick={() => onSelect(session.id)}
                 className={cn(
-                  'flex w-full flex-col gap-0.5 rounded-lg px-2.5 py-2 text-left text-node-muted transition-colors duration-fast ease-standard hover:bg-node-panel-inner hover:text-node-foreground',
+                  'flex w-full flex-col gap-0.5 rounded-lg px-2.5 py-2 text-left text-node-muted transition-colors duration-fast ease-standard hover:tint-hover hover:text-node-foreground',
                   session.id === activeSessionId &&
                     'bg-node-panel-inner text-node-foreground',
                 )}
               >
-                <span className="truncate text-sm font-medium">
+                <span className="truncate text-md font-semibold">
                   {session.title}
                 </span>
                 <span className="text-2xs tabular-nums text-node-muted">

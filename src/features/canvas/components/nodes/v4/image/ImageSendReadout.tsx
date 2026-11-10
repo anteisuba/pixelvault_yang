@@ -38,7 +38,7 @@ export interface ImageSendReadoutProps {
 }
 
 const readoutClass =
-  'nodrag nopan h-7 shrink-0 rounded-full px-2 text-xs tabular-nums transition-colors duration-fast ease-standard hover:bg-surface-fill-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=open]:bg-surface-fill-track'
+  'nodrag nopan h-7 shrink-0 rounded-full px-2 text-2sm tabular-nums transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none disabled:opacity-50 data-[state=open]:bg-surface-fill-track'
 
 export function ImageSendReadout({
   unit,
@@ -102,10 +102,8 @@ export function ImageSendReadout({
         </button>
       }
     >
-      <div className="flex flex-col gap-1.5 text-xs">
-        <span className="font-medium text-foreground">
-          {t('estimateTitle')}
-        </span>
+      <div className="flex flex-col gap-1.5 text-2xs">
+        <span className=" text-foreground">{t('estimateTitle')}</span>
         <span className="text-foreground tabular-nums">
           {t('estimateDetail', {
             unit: formatUnitPriceAmount(unit),

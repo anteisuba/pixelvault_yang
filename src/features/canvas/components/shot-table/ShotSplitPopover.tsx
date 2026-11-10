@@ -86,7 +86,7 @@ function SplitBody({
 
   return (
     <div className="flex flex-col gap-2.5">
-      <p className="font-mono text-xs tabular-nums text-muted-foreground">
+      <p className="font-mono text-2xs tabular-nums text-muted-foreground">
         {title}
       </p>
       <video
@@ -117,7 +117,9 @@ function SplitBody({
         className="w-full accent-primary"
       />
       <div className="flex items-center justify-between gap-2">
-        <span className="text-xs text-muted-foreground">{t('split.hint')}</span>
+        <span className="text-2xs text-muted-foreground">
+          {t('split.hint')}
+        </span>
         <Button
           size="sm"
           data-testid="shot-split-action"

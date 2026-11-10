@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>工作台方向 · 对比 4：标签台的标签字号</title>
+    <style>
+      :root {
+        --ground: #e9e6e0;
+        --panel: #ffffff;
+        --fill: #f5f3ef;
+        --fill-strong: #eeebe5;
+        --ink: #171411;
+        --ink-2: #4b463f;
+        --ink-3: #655f57;
+        --card: 0 0 0 1px rgba(16, 18, 24, 0.05), 0 2px 6px rgba(16, 18, 24, 0.05),
+          0 12px 28px rgba(16, 18, 24, 0.08);
+        --sans: 'Geist', 'PingFang SC', 'Noto Sans SC', system-ui, sans-serif;
+        --mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+        --t-tag: 11px;
+        --lh-tag: 20px;
+      }
+      body.s-b {
+        --t-tag: 13px;
+        --lh-tag: 22px;
+      }
+      body.s-c {
+        --t-tag: 15px;
+        --lh-tag: 25px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--ground);
+        color: var(--ink);
+        font-family: var(--sans);
+        font-size: 13px;
+        -webkit-font-smoothing: antialiased;
+      }
+      button {
+        font: inherit;
+        color: inherit;
+        border: 0;
+        background: none;
+      }
+      .switch {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px 18px;
+        padding: 10px 16px;
+        background: #101216;
+        color: #fff;
+      }
+      .seg {
+        display: inline-flex;
+        padding: 2px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.14);
+      }
+      .seg button {
+        height: 28px;
+        padding: 0 12px;
+        border-radius: 999px;
+        color: rgba(255, 255, 255, 0.72);
+        cursor: pointer;
+      }
+      .seg button[aria-pressed='true'] {
+        background: #fff;
+        color: #101216;
+        font-weight: 600;
+      }
+      kbd {
+        font-family: var(--mono);
+        font-size: 11px;
+        opacity: 0.55;
+      }
+      .hint {
+        opacity: 0.6;
+        font-size: 12px;
+      }
+
+      .board {
+        display: flex;
+        flex-direction: column;
+        gap: 28px;
+        max-width: 980px;
+        margin: 8px auto;
+        padding: 32px;
+        min-height: calc(100vh - 70px);
+        border-radius: 20px;
+        background: var(--panel);
+      }
+      .stage {
+        flex: 1;
+        display: grid;
+        place-items: center;
+        font-size: 20px;
+        font-weight: 600;
+      }
+      .composer {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding: 14px 16px 12px;
+        border-radius: 16px;
+        background: var(--panel);
+        box-shadow: var(--card);
+      }
+      .tabs {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .tab {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 28px;
+        padding: 0 10px;
+        border-radius: 999px;
+        font-size: 13px;
+        color: var(--ink-2);
+      }
+      .tab.on {
+        background: var(--fill-strong);
+        color: var(--ink);
+        font-weight: 600;
+      }
+      .tab small,
+      .neg small {
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--ink-3);
+      }
+      .neg {
+        margin-left: auto;
+        font-size: 13px;
+        color: var(--ink-3);
+      }
+      .tags {
+        margin: 0;
+        font-size: var(--t-tag);
+        line-height: var(--lh-tag);
+        word-break: break-word;
+      }
+      .tags .w {
+        color: var(--ink-3);
+      }
+      .tags .cur {
+        border-radius: 4px;
+        background: var(--fill-strong);
+      }
+      .note {
+        font-size: 11px;
+        color: var(--ink-3);
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+      }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 32px;
+        padding: 0 12px;
+        border-radius: 999px;
+        background: var(--fill);
+        color: var(--ink-2);
+        white-space: nowrap;
+      }
+      .chip.icon {
+        width: 32px;
+        padding: 0;
+        justify-content: center;
+      }
+      .free {
+        margin-left: auto;
+        color: var(--ink-3);
+        font-size: 11px;
+      }
+      .go {
+        width: 32px;
+        height: 32px;
+        border-radius: 999px;
+        background: var(--ink);
+        color: #fff;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="switch" role="toolbar" aria-label="对比开关">
+      <span>标签字号</span>
+      <span class="seg">
+        <button aria-pressed="true" data-v="a">A 11 现在</button>
+        <button aria-pressed="false" data-v="b">B 13</button>
+        <button aria-pressed="false" data-v="c">C 15 规范原文</button>
+      </span>
+      <kbd>1 / 2 / 3</kbd>
+      <span class="hint">只变输入框里的标签，其余照已定的</span>
+    </div>
+
+    <div class="board">
+      <div class="stage">想画什么？</div>
+      <section class="composer">
+        <div class="tabs">
+          <span class="tab on">整体 <small>38</small></span>
+          <span class="tab">角色 1 <small>9</small></span>
+          <span class="tab">＋ 加角色</span>
+          <span class="neg">负向 <small>12</small></span>
+        </div>
+        <p class="tags">
+          1girl, solo, long hair, pink hair, cat ears, animal ear fluff, ahoge, hair between eyes,
+          purple eyes, maid, maid headdress, black dress, white apron, frilled apron, puffy short
+          sleeves, <span class="w">holding tray:1.1</span>, teacup, smile, open mouth, looking at
+          viewer, upper body, indoors, cafe, window, sunlight, bokeh, depth of field,
+          <span class="w">artist:wlop:0.6</span>, <span class="w">artist:ask (askzy):0.8</span>,
+          soft lighting, warm colors, detailed eyes, masterpiece, best quality, amazing quality,
+          very aesthetic, absurdres, <span class="cur">newest</span>
+        </p>
+        <span class="note">NAI 官方建议 · NovelAI Diffusion V4.5 Full · 不保证角色还原</span>
+        <div class="row">
+          <button class="chip icon">＋</button>
+          <button class="chip">从图读串</button>
+          <button class="chip">模板</button>
+          <button class="chip">查资料</button>
+          <button class="chip">改图</button>
+          <button class="chip">构图</button>
+          <span class="free">Opus 订阅免费</span>
+          <button class="chip">NovelAI Diffusion V4.5 ▾</button>
+          <button class="chip">1:1 · 1 张 ▾</button>
+          <button class="chip">Euler a · 28 步</button>
+          <button class="go">↑</button>
+        </div>
+      </section>
+    </div>
+
+    <script>
+      const set = (v) => {
+        document.body.classList.toggle('s-b', v === 'b')
+        document.body.classList.toggle('s-c', v === 'c')
+        document
+          .querySelectorAll('.seg button')
+          .forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === v)))
+      }
+      document.querySelector('.seg').addEventListener('click', (e) => {
+        const b = e.target.closest('button')
+        if (b) set(b.dataset.v)
+      })
+      addEventListener('keydown', (e) => {
+        const v = { 1: 'a', 2: 'b', 3: 'c' }[e.key]
+        if (v) set(v)
+      })
+      const q = new URLSearchParams(location.search).get('s')
+      if (q) set(q)
+    </script>
+  </body>
+</html>

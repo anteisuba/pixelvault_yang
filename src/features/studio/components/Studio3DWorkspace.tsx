@@ -80,8 +80,25 @@ import { StageStepperBar } from '@/components/business/StageStepperBar'
 import { WireframeModelPreview } from '@/components/business/WireframeModelPreview'
 import { MainModelPicker } from '@/components/business/studio-shared/pickers'
 import { Button } from '@/components/ui/button'
+import {
+  studioOutlineChipClass,
+  studioOutlineChipOpenClass,
+} from '@/components/ui/chip'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Label } from '@/components/ui/label'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
 import {
   Select,
   SelectContent,
@@ -237,7 +254,7 @@ function RodinAngleSlot({
           className="object-cover"
           sizes="80px"
         />
-        <span className="absolute bottom-0 left-0 right-0 bg-background/80 py-0.5 text-center text-2xs font-medium text-foreground backdrop-blur-sm">
+        <span className="absolute bottom-0 left-0 right-0 bg-background/80 py-0.5 text-center text-2xs text-foreground backdrop-blur-sm">
           {label}
         </span>
         <button
@@ -246,7 +263,7 @@ function RodinAngleSlot({
             e.stopPropagation()
             onRemove()
           }}
-          className="absolute right-0.5 top-0.5 hidden rounded-sm bg-background/80 p-0.5 text-foreground hover:bg-background group-hover:flex"
+          className="absolute right-0.5 top-0.5 hidden rounded-sm bg-background/80 p-0.5 text-foreground hover:tint-hover group-hover:flex"
         >
           <X className="h-3 w-3" />
         </button>
@@ -261,9 +278,7 @@ function RodinAngleSlot({
       className="flex aspect-square flex-col items-center justify-center gap-1 rounded-md border border-dashed border-border/60 text-muted-foreground transition-colors hover:border-primary/60 hover:text-foreground"
     >
       <ImageIcon className="h-3.5 w-3.5" />
-      <span className="text-2xs font-medium uppercase tracking-wide">
-        {label}
-      </span>
+      <span className="text-2xs uppercase tracking-wide">{label}</span>
     </button>
   )
 }
@@ -279,6 +294,8 @@ export function Studio3DWorkspace({
   const tModels = useTranslations('Models')
   const isMobile = useIsMobile()
   const [settingsOpen, setSettingsOpen] = useState(false)
+  /** 桌面输入框里「参数」那颗药丸的弹层。 */
+  const [paramsOpen, setParamsOpen] = useState(false)
   // Rodin「高级设置」收合行（ui-spec §9）：默认收着。
   const [rodinAdvancedOpen, setRodinAdvancedOpen] = useState(false)
   const rodinAdvancedId = useId()
@@ -1148,7 +1165,7 @@ export function Studio3DWorkspace({
       : Boolean(sourceImage) && sourceQualityIssues.length === 0
   const generateBar = (
     <div className={styles.generateBar}>
-      <div className="flex flex-wrap items-center justify-between gap-1 text-xs text-muted-foreground">
+      <div className="flex flex-wrap items-center justify-between gap-1 text-2xs text-muted-foreground">
         <span>{t('estimatedCost')}</span>
         <span>
           {t('creditAmount', {
@@ -1160,7 +1177,7 @@ export function Studio3DWorkspace({
         </span>
       </div>
       {isRodin && (
-        <p className="text-xs text-muted-foreground">
+        <p className="text-2xs text-muted-foreground">
           {t('estimatedMinutes', {
             minutes: Math.round(RODIN_TIER_ESTIMATED_SECONDS[rodinTier] / 60),
           })}
@@ -1194,11 +1211,8 @@ export function Studio3DWorkspace({
       </Button>
     </div>
   )
-  const settingsFields = (
-    <div className={styles.fields}>
-      {!isMobile && (
-        <h2 className="text-sm font-semibold">{t('settingsTitle')}</h2>
-      )}
+  const modelButton = (
+    <>
       <button
         type="button"
         className={styles.modelButton}
@@ -1206,10 +1220,10 @@ export function Studio3DWorkspace({
         aria-label={t('changeModelButton')}
       >
         <span className="min-w-0 text-left">
-          <span className="block truncate text-sm font-medium">
+          <span className="block truncate text-2sm font-semibold">
             {tModels(`${getModelMessageKey(selectedModelId)}.label`)}
           </span>
-          <span className="mt-1 block text-xs text-muted-foreground">
+          <span className="mt-1 block text-2xs text-muted-foreground">
             {selectedModel?.adapterType === AI_ADAPTER_TYPES.HYPER3D_RODIN
               ? 'Hyper3D'
               : selectedModel?.adapterType === AI_ADAPTER_TYPES.FAL
@@ -1219,7 +1233,10 @@ export function Studio3DWorkspace({
         </span>
         <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
       </button>
-
+    </>
+  )
+  const modeField = (
+    <>
       {isRodin && (
         <div className={styles.field}>
           <Label htmlFor="rodin-input-mode">{t('rodinModeLabel')}</Label>
@@ -1240,7 +1257,10 @@ export function Studio3DWorkspace({
           </Select>
         </div>
       )}
-
+    </>
+  )
+  const textPromptField = (
+    <>
       {/* Text-to-3D mode: prompt is the primary input, surface it
               prominently right under the mode picker. In image/mesh modes
               prompt stays in the Advanced section as supplementary guidance. */}
@@ -1248,7 +1268,7 @@ export function Studio3DWorkspace({
         <div className="flex flex-col gap-1.5">
           <Label
             htmlFor="rodin-prompt-top"
-            className="flex items-center gap-1 text-xs uppercase tracking-wider text-muted-foreground"
+            className="flex items-center gap-1 text-2xs uppercase tracking-wider text-muted-foreground"
           >
             {t('rodinPromptLabel')}
             <span className="text-2xs normal-case tracking-normal text-status-warning">
@@ -1265,12 +1285,15 @@ export function Studio3DWorkspace({
           />
         </div>
       )}
-
+    </>
+  )
+  const sourceField = (
+    <>
       {/* Compact image picker. Hidden entirely in text-to-3D mode
               (Rodin only) — text mode has no source image at all. */}
       {!(isRodin && rodinTextMode) && (
         <div className="flex flex-col gap-2">
-          <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+          <Label className="text-2xs uppercase tracking-wider text-muted-foreground">
             {t('sourceImageLabel')}
           </Label>
           {sourceImage ? (
@@ -1287,7 +1310,7 @@ export function Studio3DWorkspace({
                 <button
                   type="button"
                   onClick={handleClearSource}
-                  className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-background/85 text-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-background"
+                  className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-background/85 text-foreground shadow-media-action backdrop-blur-sm transition-colors hover:tint-hover"
                   aria-label={t('removeSourceImageLabel')}
                 >
                   <X className="size-3" />
@@ -1295,11 +1318,11 @@ export function Studio3DWorkspace({
               </div>
               <div className="flex min-w-0 flex-1 flex-col justify-center gap-2">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-foreground">
+                  <p className="truncate text-2sm font-semibold text-foreground">
                     {sourceImage.prompt || t('sourceImageLabel')}
                   </p>
                   {sourceImage.width > 0 && sourceImage.height > 0 && (
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-2xs text-muted-foreground">
                       {sourceImage.width}×{sourceImage.height}
                     </p>
                   )}
@@ -1353,7 +1376,7 @@ export function Studio3DWorkspace({
                 size="sm"
                 onClick={handleUploadClick}
                 disabled={uploading || isGenerating}
-                className="w-full text-xs text-muted-foreground"
+                className="w-full text-2xs text-muted-foreground"
               >
                 <Upload className="size-3.5" />
                 {uploading ? t('uploading') : t('uploadButton')}
@@ -1371,8 +1394,8 @@ export function Studio3DWorkspace({
       )}
 
       {sourceImage && sourceQualityIssues.length > 0 && (
-        <div className="rounded-lg border border-status-risk/40 bg-status-risk-surface p-3 text-xs leading-5 text-status-risk">
-          <div className="mb-1 flex items-center gap-1.5 font-medium">
+        <div className="rounded-lg border border-status-risk/40 bg-status-risk-surface p-3 text-2xs leading-5 text-status-risk">
+          <div className="mb-1 flex items-center gap-1.5">
             <AlertTriangle className="size-3.5" />
             <span>{t('sourceQualityBlocked')}</span>
           </div>
@@ -1383,7 +1406,10 @@ export function Studio3DWorkspace({
           </ul>
         </div>
       )}
-
+    </>
+  )
+  const paramFields = (
+    <>
       {/*
        * Multi-view section — model selector always visible for HunyuanV3;
        * generation controls only appear once a source image is chosen.
@@ -1391,7 +1417,7 @@ export function Studio3DWorkspace({
       {supportsMultiViewInput && (
         <div className="rounded-lg border border-border/60 bg-background/60 p-3">
           <div className="mb-2 flex items-center justify-between gap-2">
-            <Label className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-muted-foreground">
+            <Label className="flex items-center gap-1.5 text-2xs uppercase tracking-wider text-muted-foreground">
               <Wand2 className="size-3" />
               {t('multiViewLabel')}
             </Label>
@@ -1399,7 +1425,7 @@ export function Studio3DWorkspace({
               value={selectedMultiViewModelId}
               onValueChange={(v) => setSelectedMultiViewModelId(v)}
             >
-              <SelectTrigger className="h-6 w-auto max-w-[150px] rounded-full px-2 text-xs">
+              <SelectTrigger className="h-6 w-auto max-w-[150px] rounded-full px-2 text-2sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -1468,7 +1494,7 @@ export function Studio3DWorkspace({
                           key={gen.id}
                           onClick={() => setMultiViewLightboxIndex(index)}
                           className={cn(
-                            'relative aspect-square overflow-hidden rounded-md ring-1 transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                            'relative aspect-square overflow-hidden rounded-md ring-1 transition-opacity hover:opacity-90 focus:outline-none focus-visible:shadow-focus',
                             isFront ? 'ring-2 ring-primary' : 'ring-border/40',
                           )}
                         >
@@ -1485,7 +1511,7 @@ export function Studio3DWorkspace({
                               <Check className="size-2.5" />
                             </div>
                           )}
-                          <span className="absolute bottom-0 left-0 right-0 bg-background/80 py-0.5 text-center text-2xs font-medium text-foreground backdrop-blur-sm">
+                          <span className="absolute bottom-0 left-0 right-0 bg-background/80 py-0.5 text-center text-2xs text-foreground backdrop-blur-sm">
                             {label}
                           </span>
                         </button>
@@ -1504,7 +1530,7 @@ export function Studio3DWorkspace({
                       void handleGenerate4Views({ force: true })
                     }}
                     disabled={isGeneratingViews}
-                    className="h-8 w-full rounded-full text-xs"
+                    className="h-8 w-full rounded-full text-2sm"
                   >
                     {isGeneratingViews ? (
                       <>
@@ -1547,7 +1573,7 @@ export function Studio3DWorkspace({
                   variant="ghost"
                   size="sm"
                   onClick={() => setManualMultiViewOpen((open) => !open)}
-                  className="h-8 justify-start rounded-full px-2 text-xs"
+                  className="h-8 justify-start rounded-full px-2 text-2sm"
                 >
                   <Upload className="mr-1.5 size-3" />
                   {manualMultiViewOpen
@@ -1581,14 +1607,14 @@ export function Studio3DWorkspace({
                                 <ImageIcon className="size-4" />
                               </div>
                             )}
-                            <span className="absolute bottom-0 left-0 right-0 bg-background/80 py-0.5 text-center text-2xs font-medium text-foreground backdrop-blur-sm">
+                            <span className="absolute bottom-0 left-0 right-0 bg-background/80 py-0.5 text-center text-2xs text-foreground backdrop-blur-sm">
                               {label}
                             </span>
                             {manualImage && (
                               <button
                                 type="button"
                                 onClick={() => handleRemoveManualView(view)}
-                                className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-background/85 text-foreground shadow-sm backdrop-blur-sm hover:bg-background"
+                                className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-background/85 text-foreground shadow-media-action backdrop-blur-sm hover:tint-hover"
                                 aria-label={t('manualViewRemoveLabel', {
                                   view: label,
                                 })}
@@ -1642,7 +1668,7 @@ export function Studio3DWorkspace({
           <div className="rounded-lg border border-border/60 bg-background/60 p-3">
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between gap-2">
-                <Label htmlFor="enable-pbr" className="text-sm font-medium">
+                <Label htmlFor="enable-pbr" className="text-2sm">
                   {t('enablePbrLabel')}
                 </Label>
                 <Switch
@@ -1652,7 +1678,7 @@ export function Studio3DWorkspace({
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                <Label className="text-2xs uppercase tracking-wider text-muted-foreground">
                   {t('faceCountLabel')}
                 </Label>
                 <Select
@@ -1675,7 +1701,7 @@ export function Studio3DWorkspace({
           </div>
           <div className="rounded-lg border border-border/60 bg-background/60 p-3">
             <div className="flex items-center justify-between gap-2">
-              <Label htmlFor="prep-3d-hunyuan" className="text-sm font-medium">
+              <Label htmlFor="prep-3d-hunyuan" className="text-2sm">
                 {t('prep3DLabel')}
               </Label>
               <Switch
@@ -1694,7 +1720,7 @@ export function Studio3DWorkspace({
           <div className="rounded-lg border border-border/60 bg-background/60 p-3">
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-2">
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                <Label className="text-2xs uppercase tracking-wider text-muted-foreground">
                   {t('trellisResolutionLabel')}
                 </Label>
                 <Select
@@ -1718,7 +1744,7 @@ export function Studio3DWorkspace({
                 </Select>
               </div>
               <div className="flex flex-col gap-2">
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                <Label className="text-2xs uppercase tracking-wider text-muted-foreground">
                   {t('trellisTextureLabel')}
                 </Label>
                 <Select
@@ -1744,7 +1770,7 @@ export function Studio3DWorkspace({
             </div>
           </div>
           <div className="rounded-lg border border-border/60 bg-background/60 p-3">
-            <Label className="mb-2 block text-xs uppercase tracking-wider text-muted-foreground">
+            <Label className="mb-2 block text-2xs uppercase tracking-wider text-muted-foreground">
               {t('trellisDecimationLabel')}
             </Label>
             <Select
@@ -1765,7 +1791,7 @@ export function Studio3DWorkspace({
           </div>
           <div className="rounded-lg border border-border/60 bg-background/60 p-3">
             <div className="flex items-center justify-between gap-2">
-              <Label htmlFor="trellis-remesh" className="text-sm font-medium">
+              <Label htmlFor="trellis-remesh" className="text-2sm">
                 {t('trellisRemeshLabel')}
               </Label>
               <Switch
@@ -1777,7 +1803,7 @@ export function Studio3DWorkspace({
           </div>
           <div className="rounded-lg border border-border/60 bg-background/60 p-3">
             <div className="flex items-center justify-between gap-2">
-              <Label htmlFor="prep-3d-trellis" className="text-sm font-medium">
+              <Label htmlFor="prep-3d-trellis" className="text-2sm">
                 {t('prep3DLabel')}
               </Label>
               <Switch
@@ -1795,7 +1821,7 @@ export function Studio3DWorkspace({
         <div className="flex flex-col gap-2">
           <div className="rounded-lg border border-border/60 bg-background/60 p-3">
             <div className="flex items-center justify-between gap-2">
-              <Label htmlFor="remove-bg" className="text-sm font-medium">
+              <Label htmlFor="remove-bg" className="text-2sm">
                 {t('removeBackgroundLabel')}
               </Label>
               <Switch
@@ -1807,7 +1833,7 @@ export function Studio3DWorkspace({
           </div>
           <div className="rounded-lg border border-border/60 bg-background/60 p-3">
             <div className="flex items-center justify-between gap-2">
-              <Label htmlFor="prep-3d-triposr" className="text-sm font-medium">
+              <Label htmlFor="prep-3d-triposr" className="text-2sm">
                 {t('prep3DLabel')}
               </Label>
               <Switch
@@ -1873,7 +1899,7 @@ export function Studio3DWorkspace({
               aria-expanded={rodinAdvancedOpen}
               aria-controls={rodinAdvancedId}
               onClick={() => setRodinAdvancedOpen((open) => !open)}
-              className="flex min-h-9 w-full items-center gap-2 rounded-md text-left text-sm text-muted-foreground transition-colors duration-fast ease-linear hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none coarse:min-h-11"
+              className="flex min-h-9 w-full items-center gap-2 rounded-md text-left text-2sm text-muted-foreground transition-colors duration-fast ease-linear hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus coarse:min-h-11"
             >
               <ChevronRight
                 aria-hidden
@@ -1895,7 +1921,7 @@ export function Studio3DWorkspace({
                   Drop to 2 columns on very narrow inspector (mobile portrait)
                   so each chip still reads cleanly; 4 columns at md+. */}
                 <div className="rounded-lg border border-border/60 bg-background/60 p-3">
-                  <Label className="mb-2 block text-xs uppercase tracking-wider text-muted-foreground">
+                  <Label className="mb-2 block text-2xs uppercase tracking-wider text-muted-foreground">
                     {t('rodinMeshModeLabel')}
                   </Label>
                   <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
@@ -1919,7 +1945,7 @@ export function Studio3DWorkspace({
                                 : 'border-border/60 text-muted-foreground hover:border-border hover:text-foreground',
                             )}
                           >
-                            <span className="text-xs font-semibold leading-tight">
+                            <span className="text-2xs font-semibold leading-tight">
                               {faceLabel}
                             </span>
                             <span className="text-2xs leading-tight opacity-80">
@@ -1936,7 +1962,7 @@ export function Studio3DWorkspace({
 
                 {/* Material card — segmented + HighPack switch */}
                 <div className="rounded-lg border border-border/60 bg-background/60 p-3">
-                  <Label className="mb-2 block text-xs uppercase tracking-wider text-muted-foreground">
+                  <Label className="mb-2 block text-2xs uppercase tracking-wider text-muted-foreground">
                     {t('rodinMaterialLabel')}
                   </Label>
                   <div className="flex gap-0.5 rounded-md bg-muted/50 p-0.5">
@@ -1946,7 +1972,7 @@ export function Studio3DWorkspace({
                         type="button"
                         onClick={() => setRodinMaterial(mat)}
                         className={cn(
-                          'flex-1 rounded px-2 py-1 text-xs font-medium transition-colors',
+                          'flex-1 rounded px-2 py-1 text-2xs transition-colors',
                           rodinMaterial === mat
                             ? 'bg-primary text-primary-foreground'
                             : 'text-muted-foreground hover:text-foreground',
@@ -1964,7 +1990,7 @@ export function Studio3DWorkspace({
                     />
                     <Label
                       htmlFor="rodin-highpack"
-                      className="flex-1 cursor-pointer text-xs font-medium"
+                      className="flex-1 cursor-pointer text-2xs"
                     >
                       {t('rodinHighPackLabel')}
                     </Label>
@@ -1976,7 +2002,7 @@ export function Studio3DWorkspace({
                 {/* T12: Input Images — cross/compass layout */}
                 {sourceImage && (
                   <div className="rounded-lg border border-border/60 bg-background/60 p-3">
-                    <Label className="mb-2 block text-xs uppercase tracking-wider text-muted-foreground">
+                    <Label className="mb-2 block text-2xs uppercase tracking-wider text-muted-foreground">
                       {t('rodinAdditionalImagesLabel')}
                     </Label>
                     {/* 3×3 grid: cross shape — Front center, Back top, Left/Right sides, LFrt bottom-left */}
@@ -2017,7 +2043,7 @@ export function Studio3DWorkspace({
                           className="object-cover"
                           sizes="80px"
                         />
-                        <span className="absolute bottom-0 left-0 right-0 bg-background/80 py-0.5 text-center text-2xs font-medium text-foreground backdrop-blur-sm">
+                        <span className="absolute bottom-0 left-0 right-0 bg-background/80 py-0.5 text-center text-2xs text-foreground backdrop-blur-sm">
                           {t('viewFront')}
                         </span>
                       </div>
@@ -2069,7 +2095,7 @@ export function Studio3DWorkspace({
 
                 {/* Geometry instruction card — faithful vs creative */}
                 <div className="rounded-lg border border-border/60 bg-background/60 p-3">
-                  <Label className="mb-2 block text-xs uppercase tracking-wider text-muted-foreground">
+                  <Label className="mb-2 block text-2xs uppercase tracking-wider text-muted-foreground">
                     {t('rodinGeometryInstructModeLabel')}
                   </Label>
                   <div className="flex gap-0.5 rounded-md bg-muted/50 p-0.5">
@@ -2079,7 +2105,7 @@ export function Studio3DWorkspace({
                         type="button"
                         onClick={() => setRodinGeometryInstructMode(mode)}
                         className={cn(
-                          'flex-1 rounded px-2 py-1 text-xs font-medium transition-colors',
+                          'flex-1 rounded px-2 py-1 text-2xs transition-colors',
                           rodinGeometryInstructMode === mode
                             ? 'bg-primary text-primary-foreground'
                             : 'text-muted-foreground hover:text-foreground',
@@ -2095,7 +2121,7 @@ export function Studio3DWorkspace({
 
                 {/* Texture quality card — 5-way segmented */}
                 <div className="rounded-lg border border-border/60 bg-background/60 p-3">
-                  <Label className="mb-2 block text-xs uppercase tracking-wider text-muted-foreground">
+                  <Label className="mb-2 block text-2xs uppercase tracking-wider text-muted-foreground">
                     {t('rodinTextureModeLabel')}
                   </Label>
                   <div className="flex gap-0.5 rounded-md bg-muted/50 p-0.5">
@@ -2105,7 +2131,7 @@ export function Studio3DWorkspace({
                         type="button"
                         onClick={() => setRodinTextureMode(mode)}
                         className={cn(
-                          'flex-1 rounded px-1 py-1 text-2xs font-medium capitalize transition-colors',
+                          'flex-1 rounded px-1 py-1 text-2xs capitalize transition-colors',
                           rodinTextureMode === mode
                             ? 'bg-primary text-primary-foreground'
                             : 'text-muted-foreground hover:text-foreground',
@@ -2128,7 +2154,7 @@ export function Studio3DWorkspace({
                       />
                       <Label
                         htmlFor="rodin-tapose"
-                        className="flex-1 cursor-pointer text-xs"
+                        className="flex-1 cursor-pointer text-2xs"
                       >
                         {t('rodinTAPoseLabel')}
                       </Label>
@@ -2141,7 +2167,7 @@ export function Studio3DWorkspace({
                       />
                       <Label
                         htmlFor="rodin-hd-texture"
-                        className="flex-1 cursor-pointer text-xs"
+                        className="flex-1 cursor-pointer text-2xs"
                       >
                         {t('rodinHdTextureLabel')}
                       </Label>
@@ -2154,7 +2180,7 @@ export function Studio3DWorkspace({
                       />
                       <Label
                         htmlFor="rodin-texture-delight"
-                        className="flex-1 cursor-pointer text-xs"
+                        className="flex-1 cursor-pointer text-2xs"
                       >
                         {t('rodinTextureDelightLabel')}
                       </Label>
@@ -2167,7 +2193,7 @@ export function Studio3DWorkspace({
                       />
                       <Label
                         htmlFor="rodin-use-original-alpha"
-                        className="flex-1 cursor-pointer text-xs"
+                        className="flex-1 cursor-pointer text-2xs"
                       >
                         {t('rodinUseOriginalAlphaLabel')}
                       </Label>
@@ -2180,7 +2206,7 @@ export function Studio3DWorkspace({
                       />
                       <Label
                         htmlFor="rodin-preview-render"
-                        className="flex-1 cursor-pointer text-xs"
+                        className="flex-1 cursor-pointer text-2xs"
                       >
                         {t('rodinPreviewRenderLabel')}
                       </Label>
@@ -2200,7 +2226,7 @@ export function Studio3DWorkspace({
                       />
                       <Label
                         htmlFor="rodin-is-micro"
-                        className="flex-1 cursor-pointer text-xs"
+                        className="flex-1 cursor-pointer text-2xs"
                       >
                         {t('rodinIsMicroLabel')}
                       </Label>
@@ -2213,7 +2239,7 @@ export function Studio3DWorkspace({
                     <div className="flex flex-col gap-1">
                       <Label
                         htmlFor="rodin-prompt"
-                        className="text-xs uppercase tracking-wider text-muted-foreground"
+                        className="text-2xs uppercase tracking-wider text-muted-foreground"
                       >
                         {t('rodinPromptLabel')}
                       </Label>
@@ -2233,7 +2259,7 @@ export function Studio3DWorkspace({
                     <div className="flex flex-col gap-1">
                       <Label
                         htmlFor="rodin-seed"
-                        className="text-xs uppercase tracking-wider text-muted-foreground"
+                        className="text-2xs uppercase tracking-wider text-muted-foreground"
                       >
                         {t('rodinSeedLabel')}
                       </Label>
@@ -2250,7 +2276,7 @@ export function Studio3DWorkspace({
                     <div className="flex flex-col gap-1">
                       <Label
                         htmlFor="rodin-quality-override"
-                        className="text-xs uppercase tracking-wider text-muted-foreground"
+                        className="text-2xs uppercase tracking-wider text-muted-foreground"
                       >
                         {t('rodinQualityOverrideLabel')}
                       </Label>
@@ -2270,7 +2296,7 @@ export function Studio3DWorkspace({
 
                   {/* Bbox condition (W / H / L) */}
                   <div className="flex flex-col gap-1">
-                    <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                    <Label className="text-2xs uppercase tracking-wider text-muted-foreground">
                       {t('rodinBboxLabel')}
                     </Label>
                     <div className="grid grid-cols-3 gap-1.5">
@@ -2304,7 +2330,7 @@ export function Studio3DWorkspace({
                 {/* Rodin BYOK key selector (optional) */}
                 {rodinActiveKeys.length > 1 && (
                   <div className="rounded-lg border border-border/60 bg-background/60 p-3">
-                    <Label className="mb-2 block text-xs uppercase tracking-wider text-muted-foreground">
+                    <Label className="mb-2 block text-2xs uppercase tracking-wider text-muted-foreground">
                       {t('apiKeyDropdownLabel')}
                     </Label>
                     <Select
@@ -2317,7 +2343,7 @@ export function Studio3DWorkspace({
                             (k) => k.id === selectedRodinKeyId,
                           )
                           return sel ? (
-                            <span className="font-medium">{sel.label}</span>
+                            <span className="">{sel.label}</span>
                           ) : (
                             <span className="text-muted-foreground">
                               {t('apiKeyDropdownPlaceholder')}
@@ -2329,8 +2355,8 @@ export function Studio3DWorkspace({
                         {rodinActiveKeys.map((k) => (
                           <SelectItem key={k.id} value={k.id}>
                             <div className="flex flex-col gap-0.5">
-                              <span className="font-medium">{k.label}</span>
-                              <span className="font-mono text-xs text-muted-foreground">
+                              <span className="">{k.label}</span>
+                              <span className="font-mono text-2xs text-muted-foreground">
                                 {k.maskedKey}
                               </span>
                             </div>
@@ -2345,13 +2371,251 @@ export function Studio3DWorkspace({
           </div>
         </div>
       )}
+    </>
+  )
+  // ── 桌面：和图像 / 标签 / 视频同一副（owner 2026-11-11 小样 5 选 B）──
+  // 预览铺满舞台，下面一张浮起的输入框；参考图进「＋」、模式 / 参数 / 模型各一颗药丸。
+  const generationCost = isRodin
+    ? RODIN_TIER_CREDITS[rodinTier] +
+      (rodinHighPack ? RODIN_HIGHPACK_EXTRA_CREDITS : 0)
+    : (selectedModel?.cost ?? 0)
+  const paramsSummary = isRodin
+    ? `${rodinTier.replace('Gen-2.5-', '')} · ${rodinGeometryFileFormat.toUpperCase()}`
+    : null
+  const rodinModeLabel =
+    rodinMode === 'text'
+      ? t('rodinModeTextLabel')
+      : rodinMode === 'mesh_first'
+        ? t('rodinModeMeshFirstLabel')
+        : t('rodinModeImageLabel')
+  const composer = (
+    <section
+      aria-label={t('settingsTitle')}
+      className="flex shrink-0 flex-col gap-3 rounded-16 bg-card px-4 pt-3.5 pb-3 shadow-card"
+    >
+      {isRodin && rodinTextMode ? (
+        <textarea
+          id="rodin-prompt-top"
+          value={rodinPrompt}
+          onChange={(e) => setRodinPrompt(e.target.value)}
+          placeholder={t('rodinTextPromptPlaceholder')}
+          aria-label={t('rodinPromptLabel')}
+          rows={2}
+          className="max-h-36 min-h-12 w-full resize-none bg-transparent text-md leading-reading text-foreground outline-none placeholder:text-muted-foreground"
+        />
+      ) : sourceImage ? (
+        <div className="flex items-center gap-3">
+          <div className="relative size-12 shrink-0 overflow-hidden rounded-md">
+            <Image
+              src={sourceImage.url}
+              alt={t('sourceImageLabel')}
+              fill
+              unoptimized
+              className="object-cover"
+              sizes="48px"
+            />
+            <button
+              type="button"
+              onClick={handleClearSource}
+              className="absolute right-0.5 top-0.5 grid size-5 place-items-center rounded-full bg-black/55 text-white transition-colors duration-fast hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus"
+              aria-label={t('removeSourceImageLabel')}
+            >
+              <X className="size-3" />
+            </button>
+          </div>
+          <div className="min-w-0">
+            <p className="truncate text-2sm text-foreground">
+              {sourceImage.prompt || t('sourceImageLabel')}
+            </p>
+            {sourceImage.width > 0 && sourceImage.height > 0 && (
+              <p className="font-mono text-2xs text-muted-foreground">
+                {sourceImage.width}×{sourceImage.height}
+              </p>
+            )}
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setPickerOpen(true)}
+          disabled={uploading || isGenerating}
+          className="min-h-12 w-full text-left text-md leading-reading text-muted-foreground transition-colors duration-fast hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus"
+        >
+          {t('sourceImagePlaceholder')}
+        </button>
+      )}
+      {sourceImage && sourceQualityIssues.length > 0 && (
+        <div className="flex items-start gap-1.5 text-2xs leading-5 text-status-risk">
+          <AlertTriangle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+          <span>
+            {t('sourceQualityBlocked')} · {sourceQualityIssues.join(' · ')}
+          </span>
+        </div>
+      )}
+      <div className="flex flex-wrap items-center gap-1.5">
+        {!(isRodin && rodinTextMode) && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                aria-label={t('sourceImageLabel')}
+                disabled={uploading || isGenerating}
+                className={cn(
+                  studioOutlineChipClass,
+                  'w-8 justify-center px-0',
+                )}
+              >
+                {uploading ? (
+                  <Spinner size="sm" />
+                ) : (
+                  <Plus className="size-4" />
+                )}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent side="top" align="start">
+              <DropdownMenuItem onSelect={() => setPickerOpen(true)}>
+                <FolderOpen className="size-4" />
+                {t('selectFromAssets')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={handleUploadClick}>
+                <Upload className="size-4" />
+                {t('uploadButton')}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+        {isRodin && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                aria-label={`${t('rodinModeLabel')} · ${rodinModeLabel}`}
+                className={cn(studioOutlineChipClass, 'text-foreground')}
+              >
+                {rodinModeLabel}
+                <ChevronDown className="size-3.5" aria-hidden />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent side="top" align="start">
+              <DropdownMenuRadioGroup
+                value={rodinMode}
+                onValueChange={(value) =>
+                  setRodinMode(value as typeof rodinMode)
+                }
+              >
+                <DropdownMenuRadioItem value="image">
+                  {t('rodinModeImageLabel')}
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="text">
+                  {t('rodinModeTextLabel')}
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="mesh_first">
+                  {t('rodinModeMeshFirstLabel')}
+                </DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+        <Popover open={paramsOpen} onOpenChange={setParamsOpen}>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              aria-label={
+                paramsSummary
+                  ? `${t('settingsTitle')} · ${paramsSummary}`
+                  : t('settingsTitle')
+              }
+              className={cn(
+                studioOutlineChipClass,
+                paramsSummary ? 'text-foreground' : 'w-8 justify-center px-0',
+                paramsOpen && studioOutlineChipOpenClass,
+              )}
+            >
+              <SlidersHorizontal className="size-3.5" aria-hidden />
+              {paramsSummary}
+            </button>
+          </PopoverTrigger>
+          <PopoverContent
+            side="top"
+            align="start"
+            className="flex max-h-(--radix-popover-content-available-height) w-80 flex-col gap-4 overflow-y-auto p-4"
+            // 多视角的灯箱挂在 body 上：点它不算点弹层外面，⛔ 把弹层连同灯箱一起收掉。
+            onInteractOutside={(event) => {
+              if (multiViewLightboxIndex >= 0) event.preventDefault()
+            }}
+          >
+            {paramFields}
+          </PopoverContent>
+        </Popover>
+        <span className="ml-auto font-mono text-2xs text-muted-foreground">
+          {isRodin
+            ? `${t('estimatedMinutes', {
+                minutes: Math.round(
+                  RODIN_TIER_ESTIMATED_SECONDS[rodinTier] / 60,
+                ),
+              })} · `
+            : ''}
+          {t('creditAmount', { credits: generationCost })}
+        </span>
+        <button
+          type="button"
+          onClick={() => setModelPickerOpen(true)}
+          aria-label={t('changeModelButton')}
+          className={cn(studioOutlineChipClass, 'max-w-60 text-foreground')}
+        >
+          <span className="truncate">
+            {tModels(`${getModelMessageKey(selectedModelId)}.label`)}
+          </span>
+          <ChevronDown className="size-3.5 shrink-0" aria-hidden />
+        </button>
+        <Button
+          type="button"
+          size="sm"
+          disabled={
+            isGenerating || (!generationKeyMissing && !hasGenerationInput)
+          }
+          onClick={() => {
+            if (generationKeyMissing) {
+              setQuickSetupOpen(true)
+              return
+            }
+            setParamsOpen(false)
+            void handleGenerate()
+          }}
+        >
+          {isGenerating ? <Spinner size="sm" /> : null}
+          {isGenerating
+            ? t('generating')
+            : generationKeyMissing
+              ? t('setupApiKeyButton')
+              : !hasGenerationInput
+                ? isRodin && rodinTextMode
+                  ? t('enterPromptToGenerate')
+                  : t('selectImageToGenerate')
+                : t('generateButton')}
+        </Button>
+      </div>
+    </section>
+  )
+
+  // 手机：参数照旧收在抽屉里，一整列（手机端等电脑端做完再定，ui-spec §1）。
+  const settingsFields = (
+    <div className={styles.fields}>
+      {modelButton}
+      {modeField}
+      {textPromptField}
+      {sourceField}
+      {paramFields}
     </div>
   )
 
   return (
     <div className={styles.root}>
       <h1 className="sr-only">{t('title')}</h1>
-      <div className={styles.workspace}>
+      <div
+        className={styles.workspace}
+        data-layout={isMobile ? undefined : 'stack'}
+      >
         <main className={styles.canvas}>
           {/* 台顶第一行（壳收起对话时头像落在这一行）：⛔ 角标字，留空行。 */}
           <div data-bench-header className={styles.stageHeader} />
@@ -2418,7 +2682,7 @@ export function Studio3DWorkspace({
                 <button
                   slot="ar-button"
                   type="button"
-                  className="absolute bottom-24 right-6 inline-flex items-center gap-1.5 rounded-full bg-foreground px-3 py-1.5 text-xs font-medium text-background shadow-sm hover:bg-foreground/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                  className="absolute bottom-24 right-6 inline-flex items-center gap-1.5 rounded-full bg-foreground px-3 py-1.5 text-2sm font-semibold text-background shadow-media-action hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus"
                 >
                   <Box className="size-3.5" />
                   {t('openInAR')}
@@ -2470,7 +2734,7 @@ export function Studio3DWorkspace({
                     <Sparkles className="mr-1.5 size-3.5" />
                     {t('refineLabel')}
                     {hunyuanCost && (
-                      <span className="ml-1.5 text-xs opacity-70">
+                      <span className="ml-1.5 text-2xs opacity-70">
                         · {t('creditAmount', { credits: hunyuanCost })}
                       </span>
                     )}
@@ -2502,7 +2766,7 @@ export function Studio3DWorkspace({
                 )}
               </div>
               {isDisplayingMeshOnlyPreview && (
-                <div className="absolute left-1/2 top-6 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-status-warning/40 bg-status-warning-surface px-3 py-1.5 text-xs font-medium text-status-warning shadow-sm backdrop-blur-sm">
+                <div className="absolute left-1/2 top-6 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-status-warning/40 bg-status-warning-surface px-3 py-1.5 text-2sm text-status-warning shadow-soft backdrop-blur-sm">
                   <Box className="size-3.5" />
                   <span>{t('rodinMeshOnlyPreviewBadge')}</span>
                 </div>
@@ -2525,7 +2789,7 @@ export function Studio3DWorkspace({
                 loadingLabel={t('viewerLoading')}
                 className="h-full w-full"
               />
-              <div className="absolute left-1/2 top-6 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-status-applied/40 bg-status-applied-surface px-3 py-1.5 text-xs font-medium text-status-applied shadow-sm backdrop-blur-sm">
+              <div className="absolute left-1/2 top-6 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-status-applied/40 bg-status-applied-surface px-3 py-1.5 text-2sm text-status-applied shadow-soft backdrop-blur-sm">
                 <Check className="size-3.5" />
                 <span>{t('provisionalSavingLabel')}</span>
               </div>
@@ -2592,7 +2856,8 @@ export function Studio3DWorkspace({
                   <Button
                     key={view}
                     variant="ghost"
-                    className="min-h-11 rounded-xl px-4"
+                    size="sm"
+                    className="h-7 rounded-full px-3"
                     onClick={() =>
                       setCameraView((current) => ({
                         view,
@@ -2615,13 +2880,13 @@ export function Studio3DWorkspace({
           {error && !isGenerating && (
             <div
               role="alert"
-              className="absolute inset-x-4 bottom-4 mx-auto max-w-lg space-y-3 rounded-2xl border border-destructive/30 bg-background p-4 shadow-sm"
+              className="absolute inset-x-4 bottom-4 mx-auto max-w-lg space-y-3 rounded-20 bg-card p-5 shadow-card"
             >
-              <p className="text-sm font-medium">
+              <p className="text-md font-semibold">
                 {t('generationFailedTitle')}
               </p>
-              <p className="text-sm text-muted-foreground">{error}</p>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-2sm text-muted-foreground">{error}</p>
+              <p className="text-2xs text-muted-foreground">
                 {t('draftPreserved')}
               </p>
               <Button
@@ -2695,14 +2960,18 @@ export function Studio3DWorkspace({
           )}
         </main>
 
-        {!isMobile && (
-          <aside className={styles.settings}>
-            {settingsFields}
-            {generateBar}
-          </aside>
-        )}
+        {!isMobile && composer}
       </div>
 
+      {!isMobile && (
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleFileChange}
+        />
+      )}
       {isMobile && (
         <>
           <div className={styles.mobileBar}>

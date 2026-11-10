@@ -31,7 +31,7 @@ export function StudioTagCarryNote({
   return (
     <p
       role="status"
-      className="flex items-center gap-1.5 text-3xs text-muted-foreground"
+      className="flex items-center gap-1.5 text-2xs text-muted-foreground"
     >
       {status === 'translating' ? (
         <>
@@ -48,7 +48,7 @@ export function StudioTagCarryNote({
           <button
             type="button"
             onClick={onRetry}
-            className="rounded-sm font-medium text-foreground underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="rounded-sm text-foreground underline-offset-2 hover:underline focus-visible:outline-none focus-visible:shadow-focus"
           >
             {t('retry')}
           </button>

@@ -43,7 +43,7 @@ import {
 } from './lookup/lookup-kinds'
 
 const PHONE_ICON_BUTTON_CLASS =
-  'grid size-11 shrink-0 place-items-center rounded-xl text-foreground/75 transition-colors duration-fast ease-linear active:bg-surface-fill focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+  'grid size-11 shrink-0 place-items-center rounded-xl text-foreground/75 transition-colors duration-fast ease-linear active:bg-surface-fill focus-visible:outline-none focus-visible:shadow-focus'
 
 /** 五个页签：四类查询 + 收藏（owner 2026-09-28：收藏单独一页，按类别分段）。 */
 type LookupTab = DanbooruCatalogKind | 'favorites'
@@ -297,13 +297,13 @@ export function StudioDanbooruPanel({
     <>
       {searchField}
       {listTitle ? (
-        <div className="flex min-h-6.5 shrink-0 items-center gap-2">
+        <div className="flex min-h-7 shrink-0 items-center gap-2">
           <span className="flex min-w-0 flex-1 items-baseline gap-2.5">
             <b className="truncate text-2sm font-semibold text-foreground">
               {listTitle}
             </b>
             {phone && !loadingList && candidates.length ? (
-              <span className="shrink-0 text-xs text-muted-foreground">
+              <span className="shrink-0 text-2xs text-muted-foreground">
                 {t('pickHint')}
               </span>
             ) : null}
@@ -318,7 +318,7 @@ export function StudioDanbooruPanel({
                   [activeKind]: current[activeKind] + 1,
                 }))
               }}
-              className="inline-flex h-6.5 shrink-0 items-center gap-1.5 rounded-lg px-2 text-2sm font-medium text-foreground/75 transition-colors duration-fast ease-linear hover:bg-surface-fill focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+              className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-lg px-2 text-2sm text-foreground/75 transition-colors duration-fast ease-linear hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none"
             >
               <RefreshCw className="size-3" aria-hidden />
               {t('reroll')}
@@ -338,7 +338,7 @@ export function StudioDanbooruPanel({
         >
           {styleSections(activeKind, candidates).map((section) => (
             <section key={section.key} className="flex flex-col gap-1.5">
-              <b className="flex min-h-6.5 items-center text-2sm font-semibold text-foreground">
+              <b className="flex min-h-7 items-center text-2sm font-semibold text-foreground">
                 {t('section', {
                   kind: t(section.label),
                   count: section.items.length,
@@ -380,7 +380,7 @@ export function StudioDanbooruPanel({
             key={`${kind}:${section.key}`}
             className="flex flex-col gap-1.5"
           >
-            <b className="flex min-h-6.5 items-center text-2sm font-semibold text-foreground">
+            <b className="flex min-h-7 items-center text-2sm font-semibold text-foreground">
               {t('section', {
                 kind: t(section.label),
                 count: section.items.length,

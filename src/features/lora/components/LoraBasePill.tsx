@@ -158,7 +158,7 @@ export function LoraBasePill({
                     }}
                     className={cn(
                       'flex h-12 w-full items-center gap-2.5 rounded-lg px-2 text-left text-2sm transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:shadow-focus disabled:cursor-not-allowed',
-                      selected ? 'bg-muted' : 'hover:bg-muted/60',
+                      selected ? 'bg-muted' : 'hover:tint-hover',
                       (incompatible || !base.available) &&
                         'text-muted-foreground',
                     )}
@@ -178,17 +178,17 @@ export function LoraBasePill({
                     <span
                       className={cn(
                         'min-w-0 truncate',
-                        selected && 'font-medium text-foreground',
+                        selected && ' text-foreground',
                       )}
                     >
                       {name}
                     </span>
                     {base.distilled ? (
-                      <span className="shrink-0 rounded-full bg-muted px-1.5 py-px text-3xs text-muted-foreground">
+                      <span className="shrink-0 rounded-full bg-muted px-1.5 py-px text-2xs text-muted-foreground">
                         {t('baseModal.fast')}
                       </span>
                     ) : null}
-                    <span className="ml-auto shrink-0 text-xs text-muted-foreground">
+                    <span className="ml-auto shrink-0 text-2xs text-muted-foreground">
                       {selected ? (
                         <Check
                           className="size-3.5 text-foreground"

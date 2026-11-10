@@ -665,58 +665,59 @@
      规范名 → 这里的老名字：panel = --background / --card · float = --popover ·
      fill = --muted · ink = --foreground · ink-3 = --muted-foreground ·
      line / line-strong = --border / --input · 当前那一行 row-selected = --accent。
-     ⚠ 对比度（WCAG 2.x，2026-10-25 逐对算）：
-       ink #101216：对 panel 18.75 · fill 17.04 · fill-strong 16.13 · ground 15.16
-       ink-2 #454a52：对 panel 8.92 · fill-strong 7.67
-       ink-3 #5d626b：对 panel 6.13 · fill 5.57 · fill-strong 5.28 · ground 4.96
-       danger #b3261e 对白 6.54（白字对它同值）；highlight #3346e8 对白 6.60 · 对 fill 6.00 */
+     色温（owner 2026-11-11）：灰偏暖、明度不变；panel / raise / float 仍是纯白。
+     ⚠ 对比度（WCAG 2.x，2026-11-11 逐对算）：
+       ink #171411：对 panel 18.35 · fill 16.56 · fill-strong 15.42 · ground 14.73
+       ink-2 #4b463f：对 panel 9.35 · fill 8.43 · fill-strong 7.85 · ground 7.50
+       ink-3 #655f57：对 panel 6.31 · fill 5.69 · fill-strong 5.30 · ground 5.07
+       danger #b3261e 对白 6.54（白字对它同值）；highlight #3346e8 对白 6.60 · 对 fill 5.95 */
   --background: #ffffff;
-  --foreground: #101216;
+  --foreground: #171411;
 
   --card: #ffffff;
-  --card-foreground: #101216;
+  --card-foreground: #171411;
   --popover: #ffffff;
-  --popover-foreground: #101216;
+  --popover-foreground: #171411;
 
-  --primary: #101216;
+  --primary: #171411;
   --primary-foreground: #ffffff;
 
-  --secondary: #f3f4f6;
-  --secondary-foreground: #101216;
+  --secondary: #f5f3ef;
+  --secondary-foreground: #171411;
 
-  --muted: #f3f4f6;
-  --muted-foreground: #5d626b;
+  --muted: #f5f3ef;
+  --muted-foreground: #655f57;
 
   --accent: var(--row-selected);
-  --accent-foreground: #101216;
+  --accent-foreground: #171411;
 
   /* = danger（规范里红色只有这一个）。 */
   --destructive: #b3261e;
 
-  --border: rgb(16 18 24 / 0.07);
-  --input: rgb(16 18 24 / 0.14);
+  --border: rgb(28 22 14 / 0.08);
+  --input: rgb(28 22 14 / 0.15);
   /* 焦点环的颜色 = highlight（ui-spec.md §8）。 */
   --ring: var(--highlight);
 
   /* 界面规范新加的那几色（意思见 ui-spec.md §3.3 那张表）。 */
-  --fill-strong: #eceef1;
+  --fill-strong: #eeebe5;
   --raise: #ffffff;
-  --row-selected: #eef0f3;
+  --row-selected: #f0ede8;
   --hover-overlay: rgb(128 128 128 / 0.13);
-  --ink-2: #454a52;
+  --ink-2: #4b463f;
   --on-primary-soft: rgb(255 255 255 / 0.16);
   --on-primary-line: rgb(255 255 255 / 0.36);
   --highlight: #3346e8;
   --on-highlight: #ffffff;
   --highlight-soft: rgb(51 70 232 / 0.1);
-  --bubble: #f0f1f4;
+  --bubble: #f2efea;
   --media-chip: rgb(255 255 255 / 0.88);
-  --on-media-chip: #101216;
+  --on-media-chip: #171411;
   --knob: #ffffff;
-  --scrim: rgb(16 18 24 / 0.32);
-  --grid-line: rgb(16 18 24 / 0.1);
-  --viewport-top: #fafbfc;
-  --viewport-bottom: #e3e6eb;
+  --scrim: rgb(23 20 17 / 0.32);
+  --grid-line: rgb(28 22 14 / 0.1);
+  --viewport-top: #fbfaf8;
+  --viewport-bottom: #e8e4dd;
   --on-danger: #ffffff;
   --danger-on-primary: #e06c65;
 
@@ -748,28 +749,28 @@
 
   /* 壳 = 规范的 ground（白板之间露出来的缝）。层次：ground → panel → fill →
      fill-strong，浮起来的另有 raise / float（ui-spec.md §3.2）。 */
-  --surface-sunken: #e6e7ea;
+  --surface-sunken: #e9e6e0;
 
   /* ── 应用壳「分段浮岛」— 施工基准 docs/references/pages/app-shell.md §4 ──
-     壳底跟着 --surface-sunken 走（2026-10-25 换成规范的 ground #e6e7ea），
-     对比度在 #e6e7ea 上重算过（WCAG 2.x 公式）。
+     壳底跟着 --surface-sunken 走（2026-10-25 换成规范的 ground #e9e6e0），
+     对比度在 #e9e6e0 上重算过（WCAG 2.x 公式）。
      ⚠ hover 与 active 必须反极性 —— accent 往暗走、active-surface 往亮走。
      两者同向时只有 1.1:1（算过），等于把「hover 任一项都长得像当前项」
      这个 bug 换身浅色衣服重犯一遍。 */
   --sidebar: var(--surface-sunken); /* 壳底，主卡浮在它上面 */
-  --sidebar-foreground: #454c55; /* 未选中标签 7.02:1 */
-  --sidebar-subtle: #555d67; /* 段标题 11px 大写 5.40:1 */
-  --sidebar-primary: #0b0e12; /* 激活墨 / 竖条 / focus 环 15.64:1 */
+  --sidebar-foreground: #4b463f; /* 未选中标签 7.5:1 */
+  --sidebar-subtle: #5e5850; /* 段标题 11px 大写 5.64:1 */
+  --sidebar-primary: #14110e; /* 激活墨 / 竖条 / focus 环 15.1:1 */
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: rgb(11 14 18 / 0.055); /* hover：往暗 */
-  --sidebar-accent-strong: rgb(11 14 18 / 0.09); /* pressed */
-  --sidebar-accent-foreground: #0b0e12;
+  --sidebar-accent: rgb(20 17 14 / 0.055); /* hover：往暗 */
+  --sidebar-accent-strong: rgb(20 17 14 / 0.09); /* pressed */
+  --sidebar-accent-foreground: #14110e;
   /* 激活浮片。⚠ 对壳底只有 1.24:1 —— 浅壳里「面对面」物理上到不了 3:1
      （试到 #dce1e8 也只有 1.31），所以它只做材质、不承重状态语义。
      承重的是 --sidebar-primary 的竖条与墨色跃迁。 */
   --sidebar-active-surface: #ffffff;
-  --sidebar-border: rgb(11 14 18 / 0.08); /* 卡描边，材质用，不是功能边界 */
-  --sidebar-ring: #0b0e12;
+  --sidebar-border: rgb(20 17 14 / 0.08); /* 卡描边，材质用，不是功能边界 */
+  --sidebar-ring: #14110e;
   /* 菜单项到分组边缘的内沟。激活竖条贴在这条沟的外侧，所以两处必须同源。
      展开 / 收起同一档（owner 2026-10-08 侧栏原型 v1：收展时图标不动）——
      收起 40 = 4 + 32 + 4，`AppSidebar` 的分组 `px-1` 与它同值。 */

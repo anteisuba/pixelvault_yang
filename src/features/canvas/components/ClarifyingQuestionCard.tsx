@@ -122,7 +122,7 @@ export function ClarifyingQuestionCard({
         const answer = getAnswer(question.id)
         return (
           <div key={question.id} className="space-y-2">
-            <p className="text-sm leading-5 text-node-foreground">
+            <p className="text-2sm leading-5 text-node-foreground">
               {question.question}
             </p>
             <div className="flex flex-wrap gap-1.5">
@@ -134,7 +134,7 @@ export function ClarifyingQuestionCard({
                     type="button"
                     onClick={() => toggleOption(question, option.id)}
                     className={cn(
-                      'flex items-center gap-1 rounded-full border px-2.5 py-1 text-2xs font-medium transition-colors',
+                      'flex items-center gap-1 rounded-full border px-2.5 py-1 text-2xs transition-colors',
                       selected
                         ? 'border-node-edge bg-node-panel-inner text-node-foreground'
                         : 'border-node-panel-inner text-node-muted hover:border-node-edge hover:text-node-foreground',
@@ -152,7 +152,7 @@ export function ClarifyingQuestionCard({
                 onValueChange={(next) => setCustom(question.id, next)}
                 aria-label={t('clarify.customPlaceholder')}
                 placeholder={t('clarify.customPlaceholder')}
-                className="h-8 w-full rounded-lg border border-node-panel-inner bg-node-panel px-2.5 text-xs leading-5 text-node-foreground outline-none placeholder:text-node-subtle focus-visible:border-node-edge"
+                className="h-8 w-full rounded-lg border border-node-panel-inner bg-node-panel px-2.5 text-2sm leading-5 text-node-foreground outline-none placeholder:text-node-subtle focus-visible:border-node-edge"
               />
             ) : null}
             {question.allowSkip ? (
@@ -178,7 +178,7 @@ export function ClarifyingQuestionCard({
         type="button"
         onClick={handleSubmit}
         disabled={!allAnswered || isSubmitting}
-        className="flex h-9 w-full items-center justify-center gap-1.5 rounded-xl bg-node-foreground text-xs font-semibold text-node-canvas transition-colors hover:bg-node-foreground/90 disabled:bg-node-panel-inner disabled:text-node-subtle"
+        className="flex h-9 w-full items-center justify-center gap-1.5 rounded-xl bg-node-foreground text-2sm font-semibold text-node-canvas transition-colors hover:tint-hover disabled:bg-node-panel-inner disabled:text-node-subtle"
       >
         <SendHorizontal className="size-3.5" />
         {t('clarify.submit')}

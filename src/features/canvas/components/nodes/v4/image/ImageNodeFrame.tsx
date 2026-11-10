@@ -182,7 +182,7 @@ export function ImageNodeFrame({
       titleExtra={
         <span
           data-image-frame-headline
-          className="truncate font-mono text-xs text-muted-foreground"
+          className="truncate font-mono text-2xs text-muted-foreground"
         >
           {headline}
         </span>
@@ -193,7 +193,7 @@ export function ImageNodeFrame({
           data-image-frame-download
           aria-label={t('toolbar.download')}
           onClick={onDownload}
-          className="flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          className="flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus"
         >
           <Download aria-hidden className="size-4" />
         </button>
@@ -206,10 +206,10 @@ export function ImageNodeFrame({
             aria-expanded={assistOpen}
             onClick={() => setAssistOpen((value) => !value)}
             className={cn(
-              'inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-xs transition-colors duration-fast ease-standard focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+              'inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-2sm transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:shadow-focus',
               assistOpen
                 ? 'bg-foreground text-background'
-                : 'bg-surface-fill text-foreground hover:bg-surface-fill-hover',
+                : 'bg-surface-fill text-foreground hover:tint-hover',
             )}
           >
             <Sparkles aria-hidden className="size-3.5" />
@@ -217,7 +217,7 @@ export function ImageNodeFrame({
           </button>
           <span
             data-image-frame-readout
-            className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground/75"
+            className="min-w-0 flex-1 truncate font-mono text-2xs text-muted-foreground/75"
           >
             {footerReadout}
           </span>
@@ -233,10 +233,10 @@ export function ImageNodeFrame({
               // 先存会把新正文写到旧卡上、旧卡的字和它的产物对不上。空卡原地生成时，
               // 卡的发送路径自己会把草稿落库。
               onClick={() => onRegenerate()}
-              className="inline-flex h-7.5 items-center gap-1.5 rounded-full bg-primary px-3 text-xs font-medium text-primary-foreground transition-opacity duration-fast ease-standard hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+              className="inline-flex h-7.5 items-center gap-1.5 rounded-full bg-primary px-3 text-2sm font-semibold text-primary-foreground transition-opacity duration-fast ease-standard hover:opacity-90 focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none disabled:opacity-50"
             >
               {tVideo('frame.regenerate')}
-              <kbd className="rounded-sm border border-primary-foreground/35 px-1 font-sans text-3xs">
+              <kbd className="rounded-sm border border-primary-foreground/35 px-1 font-sans text-2xs">
                 {tVideo('frame.regenerateShortcut')}
               </kbd>
             </button>
@@ -291,7 +291,7 @@ export function ImageNodeFrame({
                   })}
                   aria-current={index === versionIndex ? 'true' : undefined}
                   className={cn(
-                    'size-1.5 rounded-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+                    'size-1.5 rounded-full focus-visible:outline-none focus-visible:shadow-focus',
                     index === versionIndex ? 'bg-card' : 'bg-card/55',
                   )}
                 />
@@ -328,7 +328,7 @@ export function ImageNodeFrame({
                   type="button"
                   data-image-frame-add-ref
                   aria-label={tImage('add.canvas')}
-                  className="flex size-11 shrink-0 items-center justify-center rounded-lg border border-dashed border-foreground/24 text-muted-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                  className="flex size-11 shrink-0 items-center justify-center rounded-lg border border-dashed border-foreground/24 text-muted-foreground transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus"
                 >
                   <Plus aria-hidden className="size-4" />
                 </button>
@@ -340,7 +340,7 @@ export function ImageNodeFrame({
                 {refAddMenu}
               </DropdownMenuContent>
             </DropdownMenu>
-            <span className="ml-1 truncate text-xs text-muted-foreground/75">
+            <span className="ml-1 truncate text-2xs text-muted-foreground/75">
               {tImage('frame.dropOrPaste')}
             </span>
           </div>
@@ -357,7 +357,7 @@ export function ImageNodeFrame({
             commit()
             onRegenerate()
           }}
-          className="min-h-17.5 border-t pt-3.5 text-sm leading-5.5"
+          className="min-h-17.5 border-t pt-3.5 text-2sm leading-5.5"
         >
           <MentionInput
             variant="canvas"
@@ -372,7 +372,7 @@ export function ImageNodeFrame({
               if (editorRef.current)
                 onMentionSelect(candidate, editorRef.current)
             }}
-            className="min-h-14 w-full p-0 text-sm leading-5.5"
+            className="min-h-14 w-full p-0 text-2sm leading-5.5"
           />
         </div>
       </div>

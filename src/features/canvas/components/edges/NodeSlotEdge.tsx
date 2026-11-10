@@ -222,7 +222,7 @@ export function NodeSlotEdge({
                 aria-label={t('slotDisconnect')}
                 data-node-edge-disconnect
                 onClick={disconnect}
-                className="flex size-3.5 items-center justify-center rounded-full bg-surface-fill text-foreground transition-colors duration-fast hover:bg-surface-fill-hover"
+                className="flex size-3.5 items-center justify-center rounded-full bg-surface-fill text-foreground transition-colors duration-fast hover:tint-hover"
               >
                 <X aria-hidden className="size-2.5" />
               </button>
@@ -248,7 +248,7 @@ export function NodeSlotEdge({
                       data-node-edge-role-option={candidate}
                       onClick={() => changeSlot(candidate)}
                       className={cn(
-                        'whitespace-nowrap rounded-lg px-2.5 py-1.5 text-left text-xs transition-colors duration-fast hover:bg-accent',
+                        'whitespace-nowrap rounded-lg px-2.5 py-1.5 text-left text-2xs transition-colors duration-fast hover:tint-hover',
                         candidate === slot && 'bg-accent',
                       )}
                     >

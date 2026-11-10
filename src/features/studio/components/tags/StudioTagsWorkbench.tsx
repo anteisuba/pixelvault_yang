@@ -99,7 +99,7 @@ export function StudioTagsStage({
           <h2
             ref={focusHeading}
             tabIndex={-1}
-            className="text-base font-medium outline-none"
+            className="text-md font-semibold outline-none"
           >
             {t(key)}
           </h2>

@@ -255,7 +255,7 @@ export function StudioTagsComposer({
       {imageUpload.isUploading ? (
         <div
           role="status"
-          className="flex items-center gap-2 text-sm text-muted-foreground"
+          className="flex items-center gap-2 text-2sm text-muted-foreground"
         >
           <Spinner aria-hidden="true" className="size-4 shrink-0" />
           {tImageUpload('uploading')}
@@ -304,10 +304,10 @@ export function StudioTagsComposer({
             type="button"
             onClick={onExpand}
             aria-label={t('compactExpand')}
-            className="flex min-h-11 w-full min-w-0 items-center gap-2 rounded-xl bg-muted/60 px-3 text-left text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex min-h-11 w-full min-w-0 items-center gap-2 rounded-xl bg-muted/60 px-3 text-left text-md focus-visible:outline-none focus-visible:shadow-focus"
           >
             {characters.mode ? (
-              <span className="shrink-0 text-sm font-medium">
+              <span className="shrink-0 text-md font-semibold">
                 {activeIndex === null
                   ? t('wholeTab')
                   : t('workbench.characterNumber', { number: activeIndex + 1 })}
@@ -324,7 +324,7 @@ export function StudioTagsComposer({
                 : t('placeholder')}
             </span>
             {imageUpload.referenceEntries.length > 0 ? (
-              <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+              <span className="shrink-0 text-2xs text-muted-foreground tabular-nums">
                 {t('compactReferences', {
                   count: imageUpload.referenceEntries.length,
                 })}
@@ -398,7 +398,7 @@ export function StudioTagsComposer({
                       })}
                       onClick={() => characters.remove(activeIndex)}
                       className={cn(
-                        'touch-target-y grid size-7 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors duration-fast ease-standard hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50',
+                        'touch-target-y grid size-7 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors duration-fast ease-standard hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus disabled:opacity-50',
                       )}
                     >
                       <X className="size-3.5" aria-hidden />
@@ -462,7 +462,7 @@ export function StudioTagsComposer({
                   aria-expanded={negativeOpen}
                   aria-controls={negativeOpen ? negativeId : undefined}
                   onClick={() => setNegativeOpen((open) => !open)}
-                  className="flex min-h-11 items-center gap-2 rounded-md text-sm text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="flex min-h-11 items-center gap-2 rounded-md text-2sm text-muted-foreground focus-visible:outline-none focus-visible:shadow-focus"
                 >
                   <ChevronDown
                     aria-hidden
@@ -574,14 +574,14 @@ export function StudioTagsComposer({
                       contentClassName="w-80"
                       disabled={isGenerating}
                       triggerVariantOnly
-                      className="h-8 max-w-40 gap-1 border-transparent bg-transparent pr-2 pl-2.5 font-medium hover:border-transparent active:bg-muted data-[active=true]:bg-muted"
+                      className="h-8 max-w-40 gap-1 border-transparent bg-transparent pr-2 pl-2.5 hover:border-transparent active:bg-muted data-[active=true]:bg-muted"
                     />
                   </span>
                   <span data-assistant-field="specs" className="shrink-0">
                     {/* 与图片台手机同一颗：只写比例，张数在生成键角标上。 */}
                     <StudioSpecChip
                       disabled={isGenerating}
-                      triggerClassName="border-transparent px-2.5 font-medium hover:border-transparent active:bg-muted"
+                      triggerClassName="border-transparent px-2.5 hover:border-transparent active:bg-muted"
                       popoverAlign="end"
                     />
                   </span>
@@ -703,7 +703,7 @@ export function StudioTagsComposer({
                     // ⚠ 单选 chip 写「型号名 · 版本」，宽屏用它自己的 240（⛔ 压到 192 把名字挤成
                     //   「Novel… Diffusion V5 …」）；工具行放不下、收成图标时才收到 144，保证一行不折。
                     className={cn(
-                      'h-8 font-medium group-data-compact/toolrow:max-w-36',
+                      'h-8 group-data-compact/toolrow:max-w-36',
                       runModels.length > 0 && studioOutlineChipSetClass,
                     )}
                   />
@@ -872,7 +872,7 @@ function TagCapabilityChip({
       >
         <div className="flex flex-col gap-4">
           {mobile ? (
-            <h2 className="text-base font-medium">{t('mobileParameters')}</h2>
+            <h2 className="text-md font-semibold">{t('mobileParameters')}</h2>
           ) : null}
           <StudioTagsControlColumn placement="popover" compact />
         </div>

@@ -99,18 +99,20 @@ export const StudioWorkbenchLayout = memo(function StudioWorkbenchLayout({
             （`STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR`），改这里必须改那边。 */}
         <div data-bench-header className="flex h-9 shrink-0 items-center" />
         {/* 舞台直接落在白板上（ui-spec §1 板里不再套卡，与 LoRA 台同一副），⛔ `.workbench-card`。 */}
-        <div className="studio-workbench-stage studio-scroll-area relative flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto">
+        {/* 舞台和输入框之间 28（ui-spec §5 疏密）：行距 12 + 这里 16。行距本身不动，助手锚点按它对齐舞台顶边。 */}
+        <div className="studio-workbench-stage studio-scroll-area relative flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto lg:mb-4">
           {stage}
         </div>
         {params ? (
           // `@container/composer`：工具行左组 chip 按这张卡的宽度收成图标
           // （`StudioChipClasses.compact`）。
           // `data-studio-composer`：「做同款」的配方落进来时这张卡顶一下（`landRecipeInComposer`）。
-          // 白板上一圈细边（与 LoRA 台输入框同一副），⛔ 浮起的投影。
+          // 柔影白卡（`card`，与 LoRA / 配音台输入框同一副）：一屏里只有要动手的这一处浮起来
+          // （ui-spec §9「输入框」，owner 2026-11-11），⛔ 一圈细边。
           <div
             ref={composerCardRef}
             data-studio-composer=""
-            className="@container/composer relative shrink-0 rounded-16 border border-border bg-card px-4 pt-3.5 pb-3"
+            className="@container/composer relative shrink-0 rounded-16 bg-card px-4 pt-3.5 pb-3 shadow-card"
           >
             {composerOverlay}
             <div className={paramsClassName}>{params}</div>

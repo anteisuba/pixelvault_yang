@@ -42,7 +42,7 @@ export function NodeCanvasEmptyGuide({
         <Button
           type="button"
           onClick={onChatOutline}
-          className="rounded-full bg-node-foreground text-node-canvas hover:bg-node-foreground/90"
+          className="rounded-full bg-node-foreground text-node-canvas hover:tint-hover"
         >
           {t('chatOutline')}
         </Button>
@@ -52,7 +52,7 @@ export function NodeCanvasEmptyGuide({
           type="button"
           variant="ghost"
           onClick={onAddNode}
-          className="rounded-full text-node-muted hover:bg-node-panel-inner hover:text-node-foreground"
+          className="rounded-full text-node-muted hover:tint-hover hover:text-node-foreground"
         >
           <Plus className="size-4" aria-hidden />
           {t('addNode')}

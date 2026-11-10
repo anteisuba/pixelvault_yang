@@ -192,7 +192,7 @@ function LoraPill({
           })}
           title={asset.name}
           className={cn(
-            'inline-flex h-8 min-w-0 max-w-56 shrink-0 items-center gap-1.5 rounded-full bg-muted pr-3 pl-1 text-2sm font-medium text-foreground transition-[background-color,opacity] duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none',
+            'inline-flex h-8 min-w-0 max-w-56 shrink-0 items-center gap-1.5 rounded-full bg-muted pr-3 pl-1 text-2sm text-foreground transition-[background-color,opacity] duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none',
             open && studioOutlineChipOpenClass,
             !enabled && 'opacity-50',
             fresh &&
@@ -201,7 +201,7 @@ function LoraPill({
         >
           {cover('size-6 rounded-full')}
           <span className="min-w-0 truncate">{asset.name}</span>
-          <span className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground">
+          <span className="shrink-0 font-mono text-2xs tabular-nums text-muted-foreground">
             {scale.toFixed(1)}
           </span>
           {bad ? (
@@ -227,10 +227,10 @@ function LoraPill({
         <div className="flex min-w-0 items-center gap-2.5">
           {cover('size-9 rounded-md')}
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-foreground">
+            <p className="truncate text-md font-semibold text-foreground">
               {asset.name}
             </p>
-            <p className="truncate text-xs text-muted-foreground">
+            <p className="truncate text-2xs text-muted-foreground">
               {t(`pill.${SOURCE_LABEL_KEYS[asset.source]}`)} · {family}
             </p>
           </div>
@@ -243,7 +243,7 @@ function LoraPill({
           />
         </div>
         {bad ? (
-          <p className="text-xs text-status-warning">
+          <p className="text-2xs text-status-warning">
             {t('spine.incompatibleLine', { family })}
           </p>
         ) : null}
@@ -266,7 +266,7 @@ function LoraPill({
           ) : (
             <span className="flex-1" />
           )}
-          <span className="w-9 shrink-0 text-right font-mono text-xs tabular-nums text-foreground">
+          <span className="w-9 shrink-0 text-right font-mono text-2xs tabular-nums text-foreground">
             {scale.toFixed(2)}
           </span>
         </div>
@@ -279,7 +279,7 @@ function LoraPill({
               {triggers.map((word) => (
                 <span
                   key={word}
-                  className="max-w-full truncate rounded-sm bg-highlight-soft px-1.5 py-0.5 font-mono text-xs text-highlight"
+                  className="max-w-full truncate rounded-sm bg-highlight-soft px-1.5 py-0.5 font-mono text-2xs text-highlight"
                 >
                   {word}
                 </span>
@@ -294,7 +294,7 @@ function LoraPill({
               setOpen(false)
               onRemove()
             }}
-            className="rounded-full px-2 py-1 text-2sm text-ink-2 transition-colors duration-fast hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus"
+            className="rounded-full px-2 py-1 text-2sm text-ink-2 transition-colors duration-fast hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus"
           >
             {t('pill.remove')}
           </button>

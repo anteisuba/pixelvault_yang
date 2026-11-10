@@ -812,7 +812,6 @@
     "presetComingSoonTooltip": "Training isn't available for this model yet. Use FLUX-D for now.",
     "presetFooterIdle": "Pick a preset above to pre-fill the form — you can always override.",
     "presetRailTitle": "Presets",
-    "presetRailSubtitle": "Click a card to pre-fill the form",
     "historyOutputHint": "Finished LoRAs are saved to My assets. Add them from the library's My LoRAs tab.",
     "presetSelectedLabel": "Preset: {name}",
     "presetClear": "Clear preset",

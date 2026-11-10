@@ -112,7 +112,7 @@ export function StudioInpaintMaskChip({ disabled }: { disabled?: boolean }) {
                 mask && chip.set,
               )
             : cn(
-                'inline-flex h-7 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 text-2sm transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none',
+                'inline-flex h-7 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 text-2sm transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none',
                 unavailable
                   ? 'border-border bg-muted text-muted-foreground'
                   : mask

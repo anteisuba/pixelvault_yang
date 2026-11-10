@@ -171,12 +171,12 @@ export function AudioVoiceChip({
       />
       <button
         type="button"
-        className="nodrag nopan min-w-0 flex-1 text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        className="nodrag nopan min-w-0 flex-1 text-left focus-visible:outline-none focus-visible:shadow-focus"
         onClick={onSelect}
       >
         <span className="block truncate text-2sm text-foreground">{name}</span>
         {subtitle ? (
-          <span className="block truncate text-3xs text-muted-foreground">
+          <span className="block truncate text-2xs text-muted-foreground">
             {subtitle}
           </span>
         ) : null}
@@ -229,11 +229,11 @@ export function AudioVoiceChip({
             // 与画布里另外几颗 chip 同一档（28 高、12 字、按下 0.96）。
             // `relative overflow-hidden`：换名时旧名退场脱开排版（popLayout），按这颗
             // chip 定位，比新名长的那截不伸出 chip 外。
-            'nodrag nopan relative inline-flex h-7 overflow-hidden shrink-0 items-center gap-1.5 rounded-full border pr-2.5 text-xs',
+            'nodrag nopan relative inline-flex h-7 overflow-hidden shrink-0 items-center gap-1.5 rounded-full border pr-2.5 text-2sm',
             cover ? 'pl-1.5' : 'pl-2.5',
             'transition-[border-color,color,transform] duration-fast ease-standard active:scale-96',
             'hover:border-foreground/40 hover:text-foreground',
-            'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+            ' focus-visible:outline-none focus-visible:shadow-focus',
             'disabled:pointer-events-none disabled:opacity-60',
             // 选过音色 = 深一档（画板：选中的 chip 边与字都是前景色）。
             voiceId
@@ -280,7 +280,7 @@ export function AudioVoiceChip({
         <div className="-mx-1 max-h-64 overflow-y-auto px-1">
           <p
             data-audio-voice-section="mine"
-            className="px-1 py-1 text-3xs tracking-node-sec text-muted-foreground"
+            className="px-1 py-1 text-2xs tracking-node-sec text-muted-foreground"
           >
             {t('mine')}
           </p>
@@ -304,7 +304,7 @@ export function AudioVoiceChip({
             setOpen(false)
             onOpenLibrary()
           }}
-          className="nodrag nopan flex min-h-8.5 items-center rounded-lg px-1.5 text-2sm text-muted-foreground transition-colors duration-fast hover:bg-surface-fill-hover hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          className="nodrag nopan flex min-h-8.5 items-center rounded-lg px-1.5 text-2sm text-muted-foreground transition-colors duration-fast hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus"
         >
           {t('more')}
         </button>
@@ -312,7 +312,7 @@ export function AudioVoiceChip({
         {/* ── prosody：语速 + 音量（⛔ 不是标记，见文件头注）───────────── */}
         <div className="flex flex-col gap-2 border-t border-border pt-2">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-3xs tracking-node-sec text-muted-foreground">
+            <span className="text-2xs tracking-node-sec text-muted-foreground">
               {t('speed')}
             </span>
             {/* A1 分段条（与工作台规格弹层同一颗，owner 2026-10-08 画布换皮）。 */}

@@ -212,7 +212,7 @@ export function LoraResultStage({
                   type="button"
                   onClick={() => onOpen(shown.id)}
                   aria-label={t('generate.resultPreviewLabel')}
-                  className="absolute inset-0 z-10 cursor-zoom-in focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                  className="absolute inset-0 z-10 cursor-zoom-in focus-visible:outline-none focus-visible:shadow-focus"
                 />
                 <MediaTileShade className="z-10" />
                 <MediaTileActions
@@ -274,7 +274,7 @@ export function LoraResultStage({
                   aria-label={t('generate.resultShowLabel')}
                   className={cn(
                     MEDIA_TILE_CLASS,
-                    'aspect-3/4 h-16 shrink-0 transition-opacity duration-fast ease-standard hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
+                    'aspect-3/4 h-16 shrink-0 transition-opacity duration-fast ease-standard hover:opacity-80 focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none',
                   )}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -293,7 +293,7 @@ export function LoraResultStage({
         <p
           data-testid="lora-generating-eta"
           role="status"
-          className="text-center text-xs text-muted-foreground"
+          className="text-center text-2xs text-muted-foreground"
         >
           {eta}
         </p>

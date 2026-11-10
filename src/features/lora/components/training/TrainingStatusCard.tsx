@@ -61,10 +61,8 @@ export function TrainingStatusCard({
       role="status"
       aria-live="polite"
       className={cn(
-        'rounded-2xl border p-4 animate-in fade-in slide-in-from-top-1 duration-300',
-        isFailed
-          ? 'border-status-risk/30 bg-status-risk-surface'
-          : 'border-primary/25 bg-primary/5',
+        // 柔影白卡；状态色只给图标和一句话，⛔ 整块染色（ui-spec §3.1）。
+        'rounded-20 bg-card p-4 shadow-card animate-in fade-in slide-in-from-top-1 duration-300',
         className,
       )}
     >
@@ -88,7 +86,7 @@ export function TrainingStatusCard({
 
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex items-baseline gap-2">
-            <h3 className="text-sm font-semibold tracking-tight text-foreground">
+            <h3 className="text-2sm font-semibold text-foreground">
               {isFailed
                 ? t('statusCardFailedTitle')
                 : isTraining
@@ -96,7 +94,7 @@ export function TrainingStatusCard({
                   : t('statusCardQueuedTitle')}
             </h3>
             {isTraining ? (
-              <span className="inline-flex font-mono text-xs tabular-nums text-muted-foreground">
+              <span className="inline-flex font-mono text-2xs tabular-nums text-muted-foreground">
                 <RollingNumber value={pct} />%
               </span>
             ) : null}
@@ -132,7 +130,7 @@ export function TrainingStatusCard({
                 <button
                   type="button"
                   onClick={() => onRestoreConfig(job)}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:border-primary/40 hover:bg-muted/40"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background px-3 py-1.5 text-2sm text-foreground transition-colors hover:border-primary/40 hover:tint-hover"
                 >
                   <RotateCcw className="size-3" aria-hidden />
                   {t('statusCardRestore')}
@@ -140,7 +138,7 @@ export function TrainingStatusCard({
                 <button
                   type="button"
                   onClick={onDismiss}
-                  className="rounded-full px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+                  className="rounded-full px-3 py-1.5 text-2sm text-muted-foreground transition-colors hover:text-foreground"
                 >
                   {t('statusCardDismiss')}
                 </button>

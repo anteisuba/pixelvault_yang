@@ -116,7 +116,7 @@ export function CanvasImageEditWorkspace({
         preventOutsideDismiss
       >
         <ResponsiveDialogHeader className="min-h-11 justify-center border-b border-node-panel-inner px-4 py-2.5 text-left">
-          <ResponsiveDialogTitle className="text-sm font-semibold text-node-foreground">
+          <ResponsiveDialogTitle className="text-md font-semibold text-node-foreground">
             {t('title')}
           </ResponsiveDialogTitle>
           <ResponsiveDialogDescription className="sr-only">

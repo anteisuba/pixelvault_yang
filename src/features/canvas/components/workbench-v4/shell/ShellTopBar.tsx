@@ -97,7 +97,7 @@ export function ShellTopBar({
           data-testid="shell-edit-desk"
           onClick={onOpenEditDesk}
           style={{ height: CANVAS_SHELL_LAYOUT.pillHeightPx }}
-          className="canvas-glass pointer-events-auto inline-flex items-center gap-1.5 rounded-full px-3 text-xs text-node-foreground"
+          className="canvas-glass pointer-events-auto inline-flex items-center gap-1.5 rounded-full px-3 text-2sm text-node-foreground"
         >
           <Scissors className="size-4 shrink-0" aria-hidden />
           <span>{t('editDesk')}</span>

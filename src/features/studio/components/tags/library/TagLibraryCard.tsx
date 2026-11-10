@@ -58,7 +58,7 @@ export function TagLibraryCard({
       <button
         type="button"
         onClick={onOpen}
-        className="group flex w-full flex-col gap-1.5 rounded-xl p-1 text-left transition-colors duration-fast ease-linear hover:bg-surface-fill focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+        className="group flex w-full flex-col gap-1.5 rounded-xl p-1 text-left transition-colors duration-fast ease-linear hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none"
       >
         <span className="relative block aspect-3/4 w-full overflow-hidden rounded-lg bg-muted">
           {previews[0] ? (
@@ -82,18 +82,21 @@ export function TagLibraryCard({
           <span
             title={label}
             className={cn(
-              'truncate text-2sm font-medium text-foreground',
+              'truncate text-2sm text-foreground',
               kind === 'artist' && 'font-mono',
             )}
           >
             {label}
           </span>
           {local ? (
-            <span title={local} className="truncate text-xs text-foreground/80">
+            <span
+              title={local}
+              className="truncate text-2xs text-foreground/80"
+            >
               {local}
             </span>
           ) : null}
-          <span className="truncate text-xs text-muted-foreground">
+          <span className="truncate text-2xs text-muted-foreground">
             {kind === 'character' && work
               ? t('rowWork', { work: displayDanbooruTag(work), posts })
               : posts}

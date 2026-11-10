@@ -130,7 +130,7 @@ export function EditDeskSeamPopover({
                     EDIT_PICK_CLOSE_DELAY_MS,
                   )
                 }}
-                className="flex h-8 w-full items-center rounded-lg px-2 text-left text-xs text-muted-foreground transition-colors duration-fast hover:text-foreground hover:outline hover:outline-1 hover:outline-border"
+                className="flex h-8 w-full items-center rounded-lg px-2 text-left text-2sm text-muted-foreground transition-colors duration-fast hover:text-foreground hover:outline hover:outline-1 hover:outline-border"
               >
                 {t('seam.hardCut')}
               </button>
@@ -159,7 +159,7 @@ function DurationRow({
   )
   return (
     <div className="flex h-10 items-center justify-between gap-2.5 px-2">
-      <span className="group/hint relative text-xs text-foreground">
+      <span className="group/hint relative text-2xs text-foreground">
         <span className="cursor-help underline decoration-transparent decoration-dotted underline-offset-4 transition-colors duration-fast group-hover/hint:decoration-muted-foreground">
           {t('duration')}
         </span>

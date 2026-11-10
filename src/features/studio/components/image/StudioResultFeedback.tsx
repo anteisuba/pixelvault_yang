@@ -82,10 +82,10 @@ export function StudioResultFeedback({
       {evaluation !== null && (
         <div className="rounded-md border border-border/60 bg-background/60 px-3 py-2">
           <div className="mb-2 flex items-center justify-between gap-3">
-            <span className="text-xs font-medium text-muted-foreground">
+            <span className="text-2xs text-muted-foreground">
               {t('overallScore')}
             </span>
-            <span className="text-xs font-semibold text-foreground">
+            <span className="text-2sm font-semibold text-foreground">
               {evaluation.overall.toFixed(1)}/10
             </span>
           </div>
@@ -112,10 +112,10 @@ export function StudioResultFeedback({
               data-active={active}
               onClick={() => handleToggle(tag)}
               className={cn(
-                'h-8 rounded-full border-border/60 bg-background/70 px-3 text-xs shadow-none',
+                'h-8 rounded-full border-border/60 bg-background/70 px-3 text-2sm shadow-none',
                 'hover:border-primary/30 hover:text-primary',
                 active &&
-                  'border-primary/40 bg-primary/10 text-primary hover:bg-primary/10',
+                  'border-primary/40 bg-primary/10 text-primary hover:tint-hover',
               )}
             >
               <Icon className="size-3" />

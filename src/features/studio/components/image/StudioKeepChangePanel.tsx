@@ -77,9 +77,7 @@ export function StudioKeepChangePanel({
 
         <div className="flex-1 space-y-5 overflow-y-auto px-4 pb-4">
           <div className="space-y-2">
-            <p className="text-xs font-medium text-muted-foreground">
-              {t('keepSection')}
-            </p>
+            <p className="text-2xs text-muted-foreground">{t('keepSection')}</p>
             <div className="flex flex-wrap gap-1.5">
               {DIMENSIONS.map((tag) => {
                 const active = keepTags.includes(tag)
@@ -94,7 +92,7 @@ export function StudioKeepChangePanel({
                     data-active={active}
                     onClick={() => toggleKeep(tag)}
                     className={cn(
-                      'h-8 rounded-full border-border/60 bg-background/70 px-3 text-xs shadow-none',
+                      'h-8 rounded-full border-border/60 bg-background/70 px-3 text-2sm shadow-none',
                       active && 'border-primary/40 bg-primary/10 text-primary',
                     )}
                   >
@@ -106,7 +104,7 @@ export function StudioKeepChangePanel({
           </div>
 
           <div className="space-y-2">
-            <p className="text-xs font-medium text-muted-foreground">
+            <p className="text-2xs text-muted-foreground">
               {t('changeSection')}
             </p>
             <div className="flex flex-wrap gap-1.5">
@@ -125,7 +123,7 @@ export function StudioKeepChangePanel({
                     disabled={keepActive}
                     onClick={() => toggleChange(tag)}
                     className={cn(
-                      'h-8 rounded-full border-border/60 bg-background/70 px-3 text-xs shadow-none',
+                      'h-8 rounded-full border-border/60 bg-background/70 px-3 text-2sm shadow-none',
                       active && 'border-primary/40 bg-primary/10 text-primary',
                     )}
                   >
@@ -139,7 +137,7 @@ export function StudioKeepChangePanel({
           <div className="space-y-2">
             <label
               htmlFor="studio-keep-change-free-text"
-              className="text-xs font-medium text-muted-foreground"
+              className="text-2xs text-muted-foreground"
             >
               {t('freeText')}
             </label>

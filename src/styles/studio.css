@@ -26,18 +26,20 @@
   @media (min-width: 768px) {
     .studio-layout-v2 {
       --studio-generation-media-max-height: 72vh;
+      /* 疏密（ui-spec §5，owner 2026-11-11）：舞台内距 32。只在图像 / 标签 / 视频这一副台里
+         放开，LoRA 台（lora.css）与其余工作台仍读脊柱的 18。 */
+      --workbench-pad: 2rem;
 
       min-height: var(--screen-h, 100svh);
     }
   }
 
   /* `StudioWorkbenchLayout` 根行的显式高度（替代 Tailwind `h-svh`，见组件里的
-     `lg:flex-basis` 坑注释）。地台加了 18px padding 之后单纯的 100svh 会把
-     `.workbench-ground` 撑穿、多出一条整页滚动条 —— 两侧 padding 各 18px，这里
-     扣掉 2.25rem 对账。 */
+     `lg:flex-basis` 坑注释）。地台的上下内边距会把 `.workbench-ground` 撑穿、多出
+     一条整页滚动条 —— 这里按 `--workbench-pad` 扣掉上下两份对账。 */
   @media (min-width: 768px) {
     .studio-workbench-shell {
-      height: calc(var(--screen-h, 100svh) - 2.25rem);
+      height: calc(var(--screen-h, 100svh) - 2 * var(--workbench-pad));
     }
   }
 

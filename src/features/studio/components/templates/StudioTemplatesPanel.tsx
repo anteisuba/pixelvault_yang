@@ -107,7 +107,7 @@ const NAME_PLACEHOLDER_KEY = {
 
 /** 手机上那几颗键 44px（ui-defaults §6）；头部两颗是图标键。 */
 const PHONE_ICON_BUTTON_CLASS =
-  'grid size-11 shrink-0 place-items-center rounded-xl text-foreground/75 transition-colors duration-fast ease-linear active:bg-surface-fill focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+  'grid size-11 shrink-0 place-items-center rounded-xl text-foreground/75 transition-colors duration-fast ease-linear active:bg-surface-fill focus-visible:outline-none focus-visible:shadow-focus'
 
 /** 「存下当前」要用的那一份：这一台此刻的提示词、模型与参数。 */
 export interface StudioTemplateSaveContext {
@@ -538,7 +538,7 @@ export function StudioTemplatesPanel({
   const searchField = (
     <label
       className={cn(
-        'flex min-w-0 items-center gap-2 rounded-lg bg-surface-fill px-3 text-muted-foreground',
+        'flex min-w-0 items-center gap-2 rounded-full bg-muted px-3 text-muted-foreground',
         phone ? 'h-11 w-full shrink-0' : 'h-9 w-64',
       )}
     >
@@ -619,7 +619,8 @@ export function StudioTemplatesPanel({
             ref={heading}
             id={`${STUDIO_TEMPLATES_PANEL_ID}-title`}
             tabIndex={-1}
-            className="mr-auto truncate text-md font-semibold outline-none"
+            // 标题不让位，窄了缩的是搜索框（`min-w-0`）。
+            className="mr-auto shrink-0 whitespace-nowrap text-xl font-semibold outline-none"
           >
             {title}
           </h2>
@@ -660,14 +661,14 @@ export function StudioTemplatesPanel({
           <div
             className={cn(
               'grid min-h-0 flex-1 auto-rows-min grid-cols-2 content-start overflow-y-auto px-px pb-1.5 @2xl/templates:grid-cols-3 @4xl/templates:grid-cols-4 @6xl/templates:grid-cols-5',
-              phone ? '-mx-1 gap-2' : '-mx-1.5 gap-2.5',
+              phone ? '-mx-1 gap-2' : '-mx-1.5 gap-4',
             )}
           >
             {/* 左上那张「当前提示词」：生成满意了，一键存下。 */}
             <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-slow ease-standard motion-reduce:animate-none">
               <div
                 className={cn(
-                  'flex h-full flex-col gap-2 rounded-xl border p-1.5 pb-2.5 transition-colors duration-base ease-linear',
+                  'flex h-full flex-col gap-2.5 rounded-xl border p-1.5 pb-2.5 transition-colors duration-base ease-linear',
                   saved
                     ? 'border-transparent bg-surface-fill'
                     : 'border-dashed border-border',
@@ -683,7 +684,7 @@ export function StudioTemplatesPanel({
                       ? t('savedTitle', { name: savedFor?.name ?? '' })
                       : t(tags ? 'nowTags' : 'nowImage')}
                   </span>
-                  <span className="line-clamp-2 text-xs text-muted-foreground">
+                  <span className="line-clamp-2 text-2xs text-muted-foreground">
                     {saved
                       ? t(lastCover ? 'savedWithCover' : 'savedNoCover')
                       : currentPrompt ||
@@ -704,7 +705,7 @@ export function StudioTemplatesPanel({
                     disabled={!canSave}
                     onClick={saveNow}
                     className={cn(
-                      'rounded-lg bg-foreground px-3 text-2sm font-medium text-background transition-opacity duration-fast ease-linear hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-40',
+                      'rounded-full bg-foreground px-3 text-2sm font-semibold text-background transition-opacity duration-fast ease-linear hover:opacity-90 focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none disabled:opacity-40',
                       // 手机：整宽 36px（画板「模板 C · 手机」）。
                       phone ? 'h-9 w-full' : 'ml-0.5 h-7.5 self-start',
                     )}
@@ -748,7 +749,7 @@ export function StudioTemplatesPanel({
 
             {!isLoading && !error && scoped.length === 0 ? (
               <div className="col-span-full flex flex-col items-center gap-2.5 py-12 text-center">
-                <b className="text-sm font-semibold">{t(EMPTY_KEY[kind])}</b>
+                <b className="text-md font-semibold">{t(EMPTY_KEY[kind])}</b>
                 <span className="text-2sm text-muted-foreground">
                   {t(EMPTY_HINT_KEY[kind])}
                 </span>
@@ -808,9 +809,7 @@ export function StudioTemplatesPanel({
                         className={cn(
                           'group/card relative rounded-xl transition-colors duration-fast ease-linear',
                           phone ? 'p-1' : 'p-1.5',
-                          menuOpen
-                            ? 'bg-surface-fill'
-                            : 'hover:bg-surface-fill',
+                          menuOpen ? 'bg-surface-fill' : 'hover:tint-hover',
                         )}
                       >
                         {renaming === recipe.id ? (
@@ -851,7 +850,7 @@ export function StudioTemplatesPanel({
                                 onBlur={() => commitRename(recipe)}
                                 className="h-7 w-full rounded-md border border-foreground bg-background px-2 text-base font-semibold outline-none md:text-2sm"
                               />
-                              <span className="text-xs text-muted-foreground">
+                              <span className="text-2xs text-muted-foreground">
                                 {t('renameHint')}
                               </span>
                             </span>
@@ -863,7 +862,7 @@ export function StudioTemplatesPanel({
                               data-template-apply={recipe.id}
                               aria-label={t('apply', { name })}
                               onClick={() => onApply(recipe)}
-                              className="flex w-full flex-col gap-2 rounded-lg text-left transition-transform duration-fast ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-98 motion-reduce:transition-none"
+                              className="flex w-full flex-col gap-2 rounded-lg text-left transition-transform duration-fast ease-standard focus-visible:outline-none focus-visible:shadow-focus active:scale-98 motion-reduce:transition-none"
                             >
                               <TemplateCover
                                 url={recipe.coverThumbnailUrl ?? null}
@@ -872,13 +871,13 @@ export function StudioTemplatesPanel({
                                 <span className="truncate text-2sm font-semibold">
                                   {name}
                                 </span>
-                                <span className="truncate text-xs text-muted-foreground">
+                                <span className="truncate text-2xs text-muted-foreground">
                                   {recipe.compiledPrompt}
                                 </span>
                               </span>
                             </button>
                             {lora ? (
-                              <span className="pointer-events-none absolute left-3 top-3 rounded-md bg-black/75 px-1.5 font-mono text-3xs font-semibold leading-5 text-white">
+                              <span className="pointer-events-none absolute left-3 top-3 rounded-md bg-black/75 px-1.5 font-mono text-2xs font-semibold leading-5 text-white">
                                 {t('lora')}
                               </span>
                             ) : null}
@@ -895,7 +894,7 @@ export function StudioTemplatesPanel({
                                   aria-label={t('more', { name })}
                                   className={cn(
                                     // 触屏没有悬停：⋯ 常驻，命中区补到 44（-inset-2）。
-                                    'absolute right-3 top-3 grid size-7 place-items-center rounded-lg bg-card/95 text-foreground/75 shadow-sm transition-opacity duration-fast ease-linear hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring coarse:opacity-100 coarse:before:absolute coarse:before:-inset-2',
+                                    'absolute right-3 top-3 grid size-7 place-items-center rounded-lg bg-card/95 text-foreground/75 shadow-media-action transition-opacity duration-fast ease-linear hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:shadow-focus coarse:opacity-100 coarse:before:absolute coarse:before:-inset-2',
                                     menuOpen
                                       ? 'opacity-100'
                                       : 'opacity-0 group-hover/card:opacity-100',
@@ -950,12 +949,12 @@ export function StudioTemplatesPanel({
 
           {/* 手机上 ⛔ 没有这一行（画板「模板 C · 手机」）。 */}
           {phone ? null : (
-            <div className="flex shrink-0 items-center justify-between gap-3 text-xs text-muted-foreground">
+            <div className="flex shrink-0 items-center justify-between gap-3 text-2xs text-muted-foreground">
               <span className="truncate">{t(FOOT_KEY[kind])}</span>
               <button
                 type="button"
                 onClick={() => router.push(ROUTES.PROMPTS)}
-                className="inline-flex shrink-0 items-center gap-1 rounded-sm text-foreground/75 transition-colors duration-fast ease-linear hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="inline-flex shrink-0 items-center gap-1 rounded-sm text-foreground/75 transition-colors duration-fast ease-linear hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus"
               >
                 {t('manage')}
                 <ArrowUpRight className="size-3" aria-hidden />
@@ -981,7 +980,7 @@ export function StudioTemplatesPanel({
               )}
             >
               <label className="flex flex-col gap-1.5">
-                <span className="text-xs font-semibold text-foreground/75">
+                <span className="text-2sm font-semibold text-foreground/75">
                   {t('nameLabel')}
                 </span>
                 <input
@@ -998,7 +997,7 @@ export function StudioTemplatesPanel({
                 />
               </label>
               <label className="flex flex-col gap-1.5">
-                <span className="text-xs font-semibold text-foreground/75">
+                <span className="text-2sm font-semibold text-foreground/75">
                   {t(tags ? 'tagsLabel' : 'promptLabel')}
                 </span>
                 <textarea
@@ -1016,13 +1015,13 @@ export function StudioTemplatesPanel({
               </label>
               {/* 手机：取消 / 保存各占一半、44px；那句说明只在缺模型时出现。 */}
               {phone && !save.modelId ? (
-                <span className="text-xs text-muted-foreground">
+                <span className="text-2xs text-muted-foreground">
                   {t('modelMissing')}
                 </span>
               ) : null}
               <div className="flex items-center gap-2">
                 {phone ? null : (
-                  <span className="mr-auto text-xs text-muted-foreground">
+                  <span className="mr-auto text-2xs text-muted-foreground">
                     {save.modelId ? t('formNote') : t('modelMissing')}
                   </span>
                 )}

@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils'
  */
 
 export const studioToolTriggerClass = cn(
-  'relative inline-flex h-11 items-center gap-2 rounded-full bg-muted px-3.5 text-2sm font-medium text-ink-2 transition-[background-color,color,box-shadow] duration-fast ease-standard sm:h-9',
+  'relative inline-flex h-11 items-center gap-2 rounded-full bg-muted px-3.5 text-2sm text-ink-2 transition-[background-color,color,box-shadow] duration-fast ease-standard sm:h-9',
   'hover:tint-hover hover:text-foreground',
   'focus-visible:outline-none focus-visible:shadow-focus',
   'disabled:pointer-events-none disabled:opacity-45',
@@ -24,7 +24,7 @@ export const studioChipActiveClass = 'bg-fill-strong text-foreground'
  * 开着（舞台上那块面板 / 剧本弹窗在）时换 `studioColumnChipOpenClass`。
  */
 export const studioColumnChipClass =
-  'flex h-9 items-center gap-2 rounded-full bg-muted px-3 text-2sm font-medium text-ink-2 transition-[background-color,color,box-shadow] duration-fast ease-standard hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none disabled:opacity-45'
+  'flex h-9 items-center gap-2 rounded-full bg-muted px-3 text-2sm text-ink-2 transition-[background-color,color,box-shadow] duration-fast ease-standard hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none disabled:opacity-45'
 export const studioColumnChipOpenClass = 'bg-fill-strong text-foreground'
 
 /**
@@ -46,7 +46,7 @@ export const StudioChipLookProvider = StudioChipLookContext.Provider
  * 点开时深一档（`fill-strong`，⛔ 变黑）；设好了写名字、字变正文色（⛔ 换强调色）。
  */
 export const studioOutlineChipClass = cn(
-  'touch-target-y relative inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-muted px-3 text-2sm font-medium text-ink-2 transition-[background-color,color,box-shadow] duration-fast ease-standard [&_svg:not([class*=size-])]:size-3.75',
+  'touch-target-y relative inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-muted px-3 text-2sm text-ink-2 transition-[background-color,color,box-shadow] duration-fast ease-standard [&_svg:not([class*=size-])]:size-3.75',
   'hover:tint-hover hover:text-foreground',
   'focus-visible:outline-none focus-visible:shadow-focus',
   'disabled:pointer-events-none disabled:opacity-45',

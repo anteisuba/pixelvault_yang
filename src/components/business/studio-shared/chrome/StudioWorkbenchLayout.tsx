@@ -99,7 +99,8 @@ export const StudioWorkbenchLayout = memo(function StudioWorkbenchLayout({
             （`STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR`），改这里必须改那边。 */}
         <div data-bench-header className="flex h-9 shrink-0 items-center" />
         {/* 舞台直接落在白板上（ui-spec §1 板里不再套卡，与 LoRA 台同一副），⛔ `.workbench-card`。 */}
-        <div className="studio-workbench-stage studio-scroll-area relative flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto">
+        {/* 舞台和输入框之间 28（ui-spec §5 疏密）：行距 12 + 这里 16。行距本身不动，助手锚点按它对齐舞台顶边。 */}
+        <div className="studio-workbench-stage studio-scroll-area relative flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto lg:mb-4">
           {stage}
         </div>
         {params ? (

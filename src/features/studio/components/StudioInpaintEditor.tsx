@@ -487,7 +487,7 @@ export const StudioInpaintEditor = memo(function StudioInpaintEditor({
         )}
       />
       {renderComposer && !hasSelection && tool !== 'whole' ? (
-        <p className="text-xs text-muted-foreground">
+        <p className="text-2xs text-muted-foreground">
           {t(tool === 'box' ? 'boxHint' : 'brushHint')}
         </p>
       ) : null}
@@ -565,16 +565,16 @@ export const StudioInpaintEditor = memo(function StudioInpaintEditor({
    */
   const toolIconClass = (pressed: boolean) =>
     cn(
-      'touch-target-y grid size-9 shrink-0 place-items-center rounded-full transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40 motion-reduce:transition-none',
+      'touch-target-y grid size-9 shrink-0 place-items-center rounded-full transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none disabled:opacity-40 motion-reduce:transition-none',
       pressed
         ? 'bg-primary text-primary-foreground'
-        : 'text-foreground/75 hover:bg-muted',
+        : 'text-foreground/75 hover:tint-hover',
     )
   const toolbar = (
     <div
       role="toolbar"
       aria-label={t('title')}
-      className="flex max-w-full shrink-0 items-center gap-0.5 overflow-x-auto rounded-full border border-border bg-card p-1 shadow-md"
+      className="flex max-w-full shrink-0 items-center gap-0.5 overflow-x-auto rounded-full bg-raise p-1 shadow-soft"
     >
       {toolItems.map(({ id, label, Icon }) => (
         <button
@@ -618,7 +618,7 @@ export const StudioInpaintEditor = memo(function StudioInpaintEditor({
               >
                 <div className="flex items-center justify-between gap-3">
                   <Label htmlFor="inpaint-brush-size">{t('brushSize')}</Label>
-                  <span className="font-mono text-xs tabular-nums text-muted-foreground">
+                  <span className="font-mono text-2xs tabular-nums text-muted-foreground">
                     {brushSize}px
                   </span>
                 </div>
@@ -740,7 +740,7 @@ export const StudioInpaintEditor = memo(function StudioInpaintEditor({
             <div className="space-y-3 rounded-lg border border-border bg-card p-4">
               <div className="flex items-center justify-between gap-3">
                 <Label htmlFor="inpaint-brush-size">{t('brushSize')}</Label>
-                <span className="text-xs text-muted-foreground">
+                <span className="text-2xs text-muted-foreground">
                   {brushSize}px
                 </span>
               </div>
@@ -759,7 +759,7 @@ export const StudioInpaintEditor = memo(function StudioInpaintEditor({
               />
             </div>
           ) : (
-            <p className="rounded-lg border border-border bg-card p-4 text-xs text-muted-foreground">
+            <p className="rounded-lg border border-border bg-card p-4 text-2xs text-muted-foreground">
               {t(tool === 'whole' ? 'wholeHint' : 'boxHint')}
             </p>
           )}

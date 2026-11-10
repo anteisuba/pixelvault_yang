@@ -129,16 +129,16 @@ export function StudioCardPicker() {
       <header className="flex flex-col gap-2.5 border-b border-border/40 px-4 py-3">
         <div className="flex items-center gap-2">
           <UserRound className="size-4 text-muted-foreground" />
-          <h2 className="text-sm font-semibold">{t('characters')}</h2>
+          <h2 className="text-md font-semibold">{t('characters')}</h2>
           {characters.activeCardIds.length > 0 ? (
             <>
-              <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium tabular-nums">
+              <span className="rounded-full bg-muted px-2 py-0.5 text-2xs tabular-nums">
                 {characters.activeCardIds.length}
               </span>
               <button
                 type="button"
                 onClick={() => characters.setActiveCardIds([])}
-                className="ml-auto text-xs text-muted-foreground transition-colors duration-fast hover:text-foreground"
+                className="ml-auto text-2sm text-muted-foreground transition-colors duration-fast hover:text-foreground"
               >
                 {t('clearCharacters')}
               </button>
@@ -152,11 +152,11 @@ export function StudioCardPicker() {
             onChange={(event) => setQuery(event.target.value)}
             placeholder={t('searchCharactersPlaceholder')}
             // ⚠ <768 必须 ≥16px：iOS 对小于 16px 的可聚焦输入框会自动放大整页。
-            className="h-9 w-full rounded-lg border border-border/60 bg-background pl-9 pr-3 text-base outline-none transition-colors focus:border-primary/35 focus:ring-2 focus:ring-primary/15 md:text-sm"
+            className="h-9 w-full rounded-lg border border-border/60 bg-background pl-9 pr-3 text-base outline-none transition-colors focus:border-primary/35 focus:ring-2 focus:ring-primary/15 md:text-2sm"
           />
         </div>
         <p
-          className="text-xs text-muted-foreground"
+          className="text-2xs text-muted-foreground"
           data-testid="card-picker-limit"
         >
           {noReferences
@@ -177,17 +177,17 @@ export function StudioCardPicker() {
           </div>
         ) : visible.length === 0 ? (
           query.trim() ? (
-            <p className="px-3 py-10 text-center text-sm text-muted-foreground">
+            <p className="px-3 py-10 text-center text-2sm text-muted-foreground">
               {t('cardSearchEmpty')}
             </p>
           ) : (
             <div className="flex flex-col items-center gap-3 px-3 py-10 text-center">
-              <p className="max-w-72 text-sm leading-6 text-muted-foreground">
+              <p className="max-w-72 text-2sm leading-6 text-muted-foreground">
                 {t('noCharacterCards')}
               </p>
               <Link
                 href={cardManagementPath()}
-                className="inline-flex h-8 items-center gap-1.5 rounded-md bg-foreground px-3 text-xs font-semibold text-background transition-colors hover:bg-foreground/90"
+                className="inline-flex h-8 items-center gap-1.5 rounded-md bg-foreground px-3 text-2sm font-semibold text-background transition-colors hover:tint-hover"
               >
                 {t('openCardManagement')}
                 <ArrowUpRight className="size-3.5" aria-hidden />
@@ -209,7 +209,7 @@ export function StudioCardPicker() {
                   data-testid="card-picker-character"
                   className={cn(
                     'rounded-xl transition-colors duration-fast',
-                    active ? 'bg-muted/60' : 'hover:bg-muted/35',
+                    active ? 'bg-muted/60' : 'hover:tint-hover',
                   )}
                 >
                   <button
@@ -231,10 +231,10 @@ export function StudioCardPicker() {
                       ) : null}
                     </span>
                     <span className="flex min-w-0 flex-1 flex-col">
-                      <span className="truncate text-sm font-medium">
+                      <span className="truncate text-2sm font-semibold">
                         {card.name}
                       </span>
-                      <span className="truncate text-xs text-muted-foreground">
+                      <span className="truncate text-2xs text-muted-foreground">
                         {[
                           work ?? t('originalWork'),
                           look.isDefault
@@ -277,7 +277,7 @@ export function StudioCardPicker() {
                           aria-pressed={item.id === look.id}
                           onClick={() => switchLook(card, item.id)}
                           className={cn(
-                            'rounded-full px-2.5 py-0.5 text-xs transition-colors duration-fast coarse:min-h-11',
+                            'rounded-full px-2.5 py-0.5 text-2sm transition-colors duration-fast coarse:min-h-11',
                             item.id === look.id
                               ? 'bg-foreground text-background'
                               : 'bg-background text-muted-foreground hover:text-foreground',

@@ -74,7 +74,7 @@ function LineText({ text, muted }: { text: string; muted?: boolean }) {
       )}
     >
       {cues.length ? (
-        <span className="mr-1.5 font-mono text-xs text-muted-foreground">
+        <span className="mr-1.5 font-mono text-2xs text-muted-foreground">
           {cues.join(' ')}
         </span>
       ) : null}
@@ -175,7 +175,7 @@ export function VoiceBench() {
   return (
     <div
       data-testid="voice-bench"
-      className="flex h-page min-h-0 w-full flex-col gap-3 p-3"
+      className="flex h-page min-h-0 w-full flex-col gap-3 p-3 lg:p-8"
     >
       <div data-bench-header className="flex h-9 shrink-0 items-center">
         {voice.characterCardId ? (
@@ -216,7 +216,7 @@ export function VoiceBench() {
           <div
             ref={listRef}
             data-testid="voice-bench-lines"
-            className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto"
+            className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto lg:mb-4"
           >
             {bench.loading ? (
               <div className="grid flex-1 place-items-center">
@@ -324,7 +324,7 @@ export function VoiceBench() {
                 aria-label={t('speak')}
                 title={t('speak')}
                 data-testid="voice-bench-speak"
-                className="touch-target grid size-8 shrink-0 place-items-center rounded-full bg-foreground text-background transition-[background-color,color,transform] duration-fast ease-standard hover:bg-foreground/90 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none disabled:cursor-not-allowed disabled:bg-surface-fill-track disabled:text-muted-foreground"
+                className="touch-target grid size-8 shrink-0 place-items-center rounded-full bg-foreground text-background transition-[background-color,color,transform] duration-fast ease-standard hover:tint-hover active:scale-95 focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none disabled:cursor-not-allowed disabled:bg-surface-fill-track disabled:text-muted-foreground"
               >
                 <ArrowUp className="size-4" aria-hidden />
               </button>
@@ -398,7 +398,7 @@ function CueMenu({ onPick }: { onPick(tag: string): void }) {
       >
         {VOICE_CUE_GROUPS.map((group) => (
           <section key={group.id} className="flex flex-col gap-1.5">
-            <h3 className="text-xs text-muted-foreground">
+            <h3 className="text-2xs text-muted-foreground">
               {t(`cueGroups.${group.id}`)}
             </h3>
             <div className="flex flex-wrap gap-1">
@@ -411,7 +411,7 @@ function CueMenu({ onPick }: { onPick(tag: string): void }) {
                     onPick(cue.tag)
                     setOpen(false)
                   }}
-                  className="h-7 rounded-full bg-muted px-2.5 text-2sm text-foreground transition-colors duration-fast ease-standard hover:bg-fill-strong focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none"
+                  className="h-7 rounded-full bg-muted px-2.5 text-2sm text-foreground transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none"
                 >
                   {t(`cues.${cue.id}`)}
                 </button>
@@ -470,7 +470,7 @@ function ChipMenu({
 
 function RowAvatar({ url, name }: { url: string | null; name: string }) {
   return (
-    <span className="size-6.5 shrink-0">
+    <span className="size-7 shrink-0">
       <AvatarDisc url={url} name={name} />
     </span>
   )
@@ -554,7 +554,7 @@ function PendingRow({
       <RowAvatar url={avatarUrl} name={name} />
       <LineText text={item.text} muted />
       {item.status === 'pending' ? (
-        <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1.5 text-2xs text-muted-foreground">
           <Spinner size="sm" />
           {t('pending')}
         </span>

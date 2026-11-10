@@ -83,18 +83,29 @@ async function mount() {
   await settle()
 }
 
-const modeSelect = () =>
-  screen.getByRole('combobox', { name: T('rodinModeLabel') })
 const promptField = () =>
   screen.getByLabelText(new RegExp(T('rodinPromptLabel')))
 
-/** 输入模式是 Radix 下拉：点开触发器，再点那一项。 */
+/**
+ * 桌面的输入模式是输入框里的一颗药丸（owner 2026-11-11 小样 5 选 B）：Radix 菜单按下就开，
+ * 再点那一项。
+ */
 function pickMode(mode: 'text' | 'image') {
-  fireEvent.click(modeSelect())
+  const trigger = screen.getByRole('button', {
+    name: new RegExp(`^${T('rodinModeLabel')}`),
+  })
+  fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false })
   fireEvent.click(
-    screen.getByRole('option', {
+    screen.getByRole('menuitemradio', {
       name: T(mode === 'text' ? 'rodinModeTextLabel' : 'rodinModeImageLabel'),
     }),
+  )
+}
+
+/** 桌面的参数（质量 / 格式 / 高级）收在「参数」那颗药丸的弹层里。 */
+function openParams() {
+  fireEvent.click(
+    screen.getByRole('button', { name: new RegExp(`^${T('settingsTitle')}`) }),
   )
 }
 
@@ -113,9 +124,10 @@ describe('Studio3DWorkspace 布局与生成', () => {
     Element.prototype.scrollIntoView = vi.fn()
   })
 
-  it('格式放在外面，几何参数收进「高级设置」；没参考图时生成键不可点', async () => {
+  it('格式在参数弹层里，几何参数再收进「高级设置」；没参考图时生成键不可点', async () => {
     setup()
     await mount()
+    openParams()
     const advancedToggle = screen.getByRole('button', {
       name: T('rodinAdvancedSectionLabel'),
     })

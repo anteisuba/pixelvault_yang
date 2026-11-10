@@ -19,6 +19,8 @@ import { Switch } from '@/components/ui/switch'
 import {
   studioOutlineChipClass,
   studioOutlineChipOpenClass,
+} from '@/components/ui/chip'
+import {
   studioToolPopoverBaseClass,
   useStudioChipPopoverMotion,
 } from '@/components/business/studio-shared/primitives/tool-surface'

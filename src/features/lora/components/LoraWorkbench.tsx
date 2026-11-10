@@ -139,6 +139,7 @@ import {
 } from '@/components/ui/dialog'
 import { Drawer, DrawerContent, DrawerTitle } from '@/components/ui/drawer'
 import { Input } from '@/components/ui/input'
+import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import {
   Select,
   SelectContent,
@@ -150,7 +151,6 @@ import { Slider } from '@/components/ui/slider'
 import { Spinner } from '@/components/ui/spinner'
 import { ImageAttachmentPreviewStrip } from '@/components/business/ImageAttachmentPreviewStrip'
 import { Switch } from '@/components/ui/switch'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { buildSourceMatchedLoraPrompt } from '@/features/lora/lib/lora-source-match-prompt'
 import { getLoraAssetSourceUrl } from '@/features/lora/lib/lora-asset-source-url'
 import { resolveGeneratingStageKey } from '@/lib/generation-progress'
@@ -251,7 +251,7 @@ import {
   studioOutlineChipClass,
   studioOutlineChipOpenClass,
   studioToolRowClass,
-} from '@/components/business/studio-shared/primitives/tool-surface'
+} from '@/components/ui/chip'
 import { useStudioToolRow } from '@/components/business/studio-shared/primitives/use-studio-tool-row'
 import {
   buildSavedModelOptionsForModels,
@@ -365,19 +365,9 @@ export function LoraWorkbench() {
     openLibraryOverlay(legacyLibrarySection === LORA_WORKBENCH_SECTIONS.MINE)
   }, [legacyLibrarySection, openLibraryOverlay, setActiveSection])
 
-  const handleTabChange = useCallback(
-    (value: string) => {
-      if (isLoraWorkbenchSection(value)) {
-        setActiveSection(value)
-      }
-    },
-    [setActiveSection],
-  )
-
   // owner 2026-08-07：「我的」从库内的 公开/我的 segmented 提升为一等 tab（改名
   // 「收藏」），公开那半随之取消——库 tab 本身就是公开源，不必再给一个二选一。
   // 于是 section 与 tab 值一一对应，不再需要把 mine 折回 community。
-  const tabValue = activeSection
   const isLibrary =
     activeSection === LORA_WORKBENCH_SECTIONS.COMMUNITY ||
     activeSection === LORA_WORKBENCH_SECTIONS.MINE
@@ -523,34 +513,30 @@ export function LoraWorkbench() {
         <div className="lora-ground flex min-h-0 flex-1 flex-col">
           <div className="workbench-card lora-card flex min-w-0 flex-1 flex-col">
             <div className="lora-bar flex w-full shrink-0 items-center gap-2 border-b border-border">
-              <Tabs value={tabValue} onValueChange={handleTabChange}>
-                <TabsList variant="line" className="h-8">
-                  <TabsTrigger
-                    value={LORA_WORKBENCH_SECTIONS.GENERATE}
-                    className="px-3 text-sm"
-                  >
-                    {t('tabs.generate')}
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value={LORA_WORKBENCH_SECTIONS.COMMUNITY}
-                    className="px-3 text-sm"
-                  >
-                    {t('tabs.library')}
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value={LORA_WORKBENCH_SECTIONS.MINE}
-                    className="px-3 text-sm"
-                  >
-                    {t('tabs.favorites')}
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value={LORA_WORKBENCH_SECTIONS.TRAIN}
-                    className="px-3 text-sm"
-                  >
-                    {t('tabs.train')}
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
+              <LiquidSegmented
+                size="row"
+                ariaLabel={t('tabs.label')}
+                value={activeSection}
+                onChange={setActiveSection}
+                items={[
+                  {
+                    value: LORA_WORKBENCH_SECTIONS.GENERATE,
+                    label: t('tabs.generate'),
+                  },
+                  {
+                    value: LORA_WORKBENCH_SECTIONS.COMMUNITY,
+                    label: t('tabs.library'),
+                  },
+                  {
+                    value: LORA_WORKBENCH_SECTIONS.MINE,
+                    label: t('tabs.favorites'),
+                  },
+                  {
+                    value: LORA_WORKBENCH_SECTIONS.TRAIN,
+                    label: t('tabs.train'),
+                  },
+                ]}
+              />
             </div>
 
             <div

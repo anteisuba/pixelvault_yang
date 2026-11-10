@@ -53,11 +53,13 @@ import {
   OPENAI_GPT_IMAGE_EDIT_COMPLEXITY_DEFAULT,
 } from '@/constants/provider-capabilities'
 import {
+  studioOutlineChipClass,
+  studioOutlineChipOpenClass,
+} from '@/components/ui/chip'
+import {
   StudioToolSurface,
   StudioToolSurfaceTrigger,
   StudioToolPopoverContent,
-  studioOutlineChipClass,
-  studioOutlineChipOpenClass,
 } from '@/components/business/studio-shared/primitives/tool-surface'
 import { ImageEditOptionsSchema, type ImageEditOptions } from '@/types'
 import { logger } from '@/lib/logger'

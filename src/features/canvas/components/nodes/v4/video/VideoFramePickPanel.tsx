@@ -118,6 +118,7 @@ export function VideoFramePickPanel({
         )}
       </button>
       <Slider
+        look="thumb"
         data-video-frame-pick-scrub
         aria-label={tPick('scrub')}
         min={0}

@@ -13,13 +13,15 @@ import { useState } from 'react'
 import { Popover, PopoverTrigger } from '@/components/ui/popover'
 import { CHIP_POPOVER } from '@/constants/motion'
 import {
-  StudioChipBadge,
   StudioChipLookProvider,
+  studioChipActiveClass,
+  studioToolTriggerClass,
+} from '@/components/ui/chip'
+import {
+  StudioChipBadge,
   StudioToolPopoverContent,
   StudioToolSurface,
   StudioToolSurfaceTrigger,
-  studioChipActiveClass,
-  studioToolTriggerClass,
 } from './tool-surface'
 import { DESKTOP_WIDTH, MOBILE_WIDTH, setViewportWidth } from '@/test/viewport'
 

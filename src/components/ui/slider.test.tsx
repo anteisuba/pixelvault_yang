@@ -66,3 +66,32 @@ describe('Slider · 拖过头的橡皮筋（owner 2026-10-08 B）', () => {
     expect(track.style.transform).toBe('')
   })
 })
+
+describe('Slider · 外观（ui-spec §9「滑杆」）', () => {
+  function renderLook(look?: 'bar' | 'thumb') {
+    const { container } = render(
+      <Slider min={0} max={10} value={[5]} aria-label="步数" look={look} />,
+    )
+    return {
+      track: container.querySelector(
+        '[data-slot="slider-track"]',
+      ) as HTMLElement,
+      thumb: container.querySelector(
+        '[data-slot="slider-thumb"]',
+      ) as HTMLElement,
+    }
+  }
+
+  it('缺省是胖条：轨道 16 高，钮不画出来', () => {
+    const { track, thumb } = renderLook()
+    expect(track.className).toContain('data-[orientation=horizontal]:h-4')
+    expect(thumb.className).not.toContain('border')
+    expect(thumb.className).not.toContain('bg-background')
+  })
+
+  it('look="thumb" 留着细条 + 圆钮', () => {
+    const { track, thumb } = renderLook('thumb')
+    expect(track.className).not.toContain('data-[orientation=horizontal]:h-4')
+    expect(thumb.className).toContain('bg-background')
+  })
+})

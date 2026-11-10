@@ -82,7 +82,11 @@ const groups = () =>
   )
 const rows = () => document.querySelectorAll('[data-voice-library-row]')
 const openTab = (tab: string) =>
-  fireEvent.click(document.querySelector(`[data-voice-library-tab="${tab}"]`)!)
+  fireEvent.click(
+    screen.getByRole('tab', {
+      name: message(`StudioNode.v4.audio.library.tabs.${tab}`),
+    }),
+  )
 
 beforeEach(() => {
   vi.clearAllMocks()

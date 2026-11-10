@@ -9,7 +9,7 @@ import { getCapabilityConfig } from '@/constants/provider-capabilities'
 import { useStudioData, useStudioForm } from '@/contexts/studio-context'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { cn } from '@/lib/utils'
-import { useStudioChipClasses } from '@/components/business/studio-shared/primitives/tool-surface'
+import { useStudioChipClasses } from '@/components/ui/chip'
 import type { AdvancedParams } from '@/types'
 import { StudioInpaintEditor } from '@/features/studio/components/StudioInpaintEditor'
 import {

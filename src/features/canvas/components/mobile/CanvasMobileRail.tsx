@@ -40,7 +40,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 
 import { useBrokenThumbs } from '../nodes/v4/chrome/NodeMediaMissing'
 import { toStudioModelOption } from '../nodes/v4/image/image-node-model'
@@ -185,27 +185,17 @@ export function CanvasMobileRail({
       </header>
 
       <div className="shrink-0 px-3.5 pb-2">
-        <ToggleGroup
-          type="single"
-          variant="segmented"
+        <LiquidSegmented<NodeMobileListId>
+          size="row"
+          fill
+          ariaLabel={t('listLabel')}
           value={list}
-          onValueChange={(next) => {
-            if (next) setList(next as NodeMobileListId)
-          }}
-          aria-label={t('listLabel')}
-          className="w-full"
-        >
-          {NODE_MOBILE_LISTS.map((id) => (
-            <ToggleGroupItem
-              key={id}
-              value={id}
-              data-mobile-list-tab={id}
-              className="min-h-9 flex-1"
-            >
-              {t(`tab.${id}`)}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
+          onChange={setList}
+          items={NODE_MOBILE_LISTS.map((id) => ({
+            value: id,
+            label: t(`tab.${id}`),
+          }))}
+        />
       </div>
 
       <div

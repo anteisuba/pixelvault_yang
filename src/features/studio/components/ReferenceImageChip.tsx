@@ -17,12 +17,12 @@ import { ImagePickerPopoverBody } from '@/components/business/studio-shared/Imag
 import { useStudioData, useStudioForm } from '@/contexts/studio-context'
 import { cn } from '@/lib/utils'
 import type { GenerationRecord } from '@/types'
+import { useStudioChipClasses } from '@/components/ui/chip'
 import {
   StudioChipBadge,
   StudioToolPopoverContent,
   StudioToolSurface,
   StudioToolSurfaceTrigger,
-  useStudioChipClasses,
 } from '@/components/business/studio-shared/primitives/tool-surface'
 
 interface ReferenceImageChipProps {

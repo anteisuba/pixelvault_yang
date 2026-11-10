@@ -625,6 +625,7 @@ export const StudioInpaintEditor = memo(function StudioInpaintEditor({
                 <Slider
                   // 边画边调 / 看的范围，⛔ 拖过头的橡皮筋（owner 2026-10-08）。
                   stretch={false}
+                  look="thumb"
                   id="inpaint-brush-size"
                   min={5}
                   max={50}
@@ -746,6 +747,7 @@ export const StudioInpaintEditor = memo(function StudioInpaintEditor({
               <Slider
                 // 边画边调 / 看的范围，⛔ 拖过头的橡皮筋（owner 2026-10-08）。
                 stretch={false}
+                look="thumb"
                 id="inpaint-brush-size"
                 min={5}
                 max={50}

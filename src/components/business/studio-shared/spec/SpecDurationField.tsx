@@ -123,6 +123,7 @@ export function SpecDurationField({
           </span>
         </div>
         <Slider
+          look="thumb"
           data-spec-duration-slider
           aria-label={t('durationLabel')}
           aria-valuetext={t('durationSeconds', { seconds: current })}

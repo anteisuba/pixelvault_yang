@@ -451,6 +451,7 @@ function GainSlider({
     <label className={CHIP}>
       <span>{label}</span>
       <Slider
+        look="thumb"
         data-testid="edit-desk-gain"
         aria-label={label}
         className="w-24"

@@ -113,6 +113,7 @@
     "coverPreviewPrevious": "Previous image",
     "coverPreviewNext": "Next image",
     "tabs": {
+      "label": "Sections",
       "generate": "Generate",
       "library": "Library",
       "mine": "My LoRAs",

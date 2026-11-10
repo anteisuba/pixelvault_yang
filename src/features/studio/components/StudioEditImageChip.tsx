@@ -6,7 +6,7 @@ import * as Toolbar from '@radix-ui/react-toolbar'
 
 import { cn } from '@/lib/utils'
 
-import { useStudioChipClasses } from '@/components/business/studio-shared/primitives/tool-surface'
+import { useStudioChipClasses } from '@/components/ui/chip'
 
 interface StudioEditImageChipProps {
   disabled?: boolean

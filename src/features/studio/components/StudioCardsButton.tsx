@@ -7,10 +7,8 @@ import * as Toolbar from '@radix-ui/react-toolbar'
 import { useStudioData } from '@/contexts/studio-context'
 import { cn } from '@/lib/utils'
 
-import {
-  StudioChipBadge,
-  useStudioChipClasses,
-} from '@/components/business/studio-shared/primitives/tool-surface'
+import { useStudioChipClasses } from '@/components/ui/chip'
+import { StudioChipBadge } from '@/components/business/studio-shared/primitives/tool-surface'
 
 interface StudioCardsButtonProps {
   disabled?: boolean

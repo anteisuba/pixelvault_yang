@@ -346,6 +346,17 @@ interface StudioOperatorPanelProps {
 }
 
 /**
+ * 回车直接发吗（owner 11-10）：触屏为主的设备（手机 / 平板）上回车换行、点发送键才发 ——
+ * 软键盘的回车太容易误触，长消息也要能分段（Claude、ChatGPT 的手机端同样如此）。
+ */
+function enterSends(): boolean {
+  return (
+    typeof window.matchMedia !== 'function' ||
+    !window.matchMedia('(pointer: coarse)').matches
+  )
+}
+
+/**
  * 没有缩略图时画的那枚字形 —— 碎图标比没有图更糟。
  * 附件 chip 与 @chip 共用它（两处画法不一致就是两处各写一遍的味道）。
  */
@@ -3311,7 +3322,11 @@ export function StudioOperatorPanel({
                   if (event.nativeEvent.isComposing || event.keyCode === 229)
                     return
                   if (!mentionMenu.open && skillMenu.onKeyDown(event)) return
-                  if (event.key === 'Enter' && !event.shiftKey) {
+                  if (
+                    event.key === 'Enter' &&
+                    !event.shiftKey &&
+                    enterSends()
+                  ) {
                     event.preventDefault()
                     submit(draft)
                   }

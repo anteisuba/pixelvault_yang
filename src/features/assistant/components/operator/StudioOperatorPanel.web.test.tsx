@@ -27,6 +27,7 @@ import {
   runIdleTasksImmediately,
   submitQuickSetup,
 } from '@/test/api-keys'
+import { MOBILE_WIDTH, setViewportWidth } from '@/test/viewport'
 
 /**
  * **接线闸**：五类卡真的出现在它们该在的地方（v2 §3.2 / §3.4）。
@@ -2659,5 +2660,30 @@ describe('StudioOperatorPanel · 步数用完', () => {
     fireEvent.click(screen.getByTestId('operator-out-of-steps-stop'))
     expect(screen.queryByTestId('operator-out-of-steps')).toBeNull()
     expect(send).not.toHaveBeenCalled()
+  })
+})
+
+describe('StudioOperatorPanel · 回车（owner 11-10）', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('⭐ 触屏上回车是换行，⛔ 不发；点发送键才发', () => {
+    setViewportWidth(MOBILE_WIDTH, { touch: true })
+    renderPanel()
+    const editor = screen.getByRole('combobox', { name: editorName })
+    typeInto(editor, '第一行')
+    const enter = fireEvent.keyDown(editor, { key: 'Enter' })
+    expect(enter).toBe(true)
+    expect(send).not.toHaveBeenCalled()
+  })
+
+  it('有鼠标的桌面上回车照旧直接发', () => {
+    setViewportWidth(1440)
+    renderPanel()
+    const editor = screen.getByRole('combobox', { name: editorName })
+    typeInto(editor, '画一只猫')
+    fireEvent.keyDown(editor, { key: 'Enter' })
+    expect(send).toHaveBeenCalledTimes(1)
   })
 })

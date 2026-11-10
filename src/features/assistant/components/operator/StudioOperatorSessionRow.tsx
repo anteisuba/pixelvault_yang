@@ -302,6 +302,8 @@ export function StudioOperatorSessionRow({
               onKeyDown={(event) => {
                 if (event.key === 'Enter') event.currentTarget.blur()
                 if (event.key === 'Escape') {
+                  // 只取消改名：⛔ 让这一下冒到外层把助手面板收起（Esc 收起，owner 11-10）。
+                  event.preventDefault()
                   cancelledRef.current = true
                   event.currentTarget.blur()
                 }

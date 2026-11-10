@@ -7,7 +7,7 @@
  * ⭐ 本来该由 `verify-real` 在真机上读这几个数（面板宽 · inset 24 · 头像 36），
  * ⛔ 静态检查不冒称视觉验证，但这几个**数**必须有机器守着。
  */
-import { act, fireEvent, screen } from '@testing-library/react'
+import { act, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
@@ -266,6 +266,29 @@ describe('StudioOperatorDock · 桌面外壳', () => {
     clickOutside()
     expect(DOCK_HOST.open).toBe(true)
     expect(avatar().getAttribute('aria-pressed')).toBe('true')
+  })
+
+  it('⭐ Esc 收起面板（owner 11-10）；面板里有人先接住那一下（preventDefault）时⛔ 不收', async () => {
+    renderDock()
+    await settleDock()
+    const editor = within(panel()).getByRole('combobox')
+    editor.addEventListener('keydown', (event) => event.preventDefault(), {
+      once: true,
+    })
+    fireEvent.keyDown(editor, { key: 'Escape' })
+    expect(DOCK_HOST.open).toBe(true)
+    fireEvent.keyDown(editor, { key: 'Escape' })
+    expect(DOCK_HOST.open).toBe(false)
+  })
+
+  it('输入法组字时的 Esc 是取消组字，⛔ 不收', async () => {
+    renderDock()
+    await settleDock()
+    fireEvent.keyDown(within(panel()).getByRole('combobox'), {
+      key: 'Escape',
+      keyCode: 229,
+    })
+    expect(DOCK_HOST.open).toBe(true)
   })
 
   it('点头像展开；展开态再点一次收起（同一颗按钮两件事）', async () => {

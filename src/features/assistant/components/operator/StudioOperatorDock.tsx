@@ -180,6 +180,19 @@ const LIQUID_CONTENT_VARS = {
   '--liquid-blur': `${LIQUID_TIMING.blurPx}px`,
 } as CSSProperties
 
+/**
+ * Esc 收起助手（owner 11-10）。面板里的弹层、菜单、改写框自己先收那一下（它们 `preventDefault`），
+ * 这里只接没人接住的；输入法还在组字时那一下是取消组字，⛔ 不算。正在生成也只收起、⛔ 不打断。
+ */
+function collapseOnEscape(collapse: () => void) {
+  return (event: ReactKeyboardEvent) => {
+    if (event.key !== 'Escape' || event.defaultPrevented) return
+    if (event.nativeEvent.isComposing || event.keyCode === 229) return
+    event.preventDefault()
+    collapse()
+  }
+}
+
 function writeRatio(ratio: number): void {
   if (storedRatio === ratio) return
   storedRatio = ratio
@@ -1096,6 +1109,9 @@ export function StudioOperatorDock({
           data-testid="operator-panel"
           data-open="true"
           data-variant="column"
+          {...(onCollapseColumn
+            ? { onKeyDown: collapseOnEscape(onCollapseColumn) }
+            : {})}
           className="assistant-type flex size-full min-h-0 min-w-0 flex-col bg-card"
         >
           {panel}
@@ -1181,6 +1197,7 @@ export function StudioOperatorDock({
             data-testid="operator-panel"
             data-open={open ? 'true' : 'false'}
             data-phase={phase}
+            onKeyDown={collapseOnEscape(() => setOpen(false))}
             /**
              * ⚠ **宽高是常数**（D7b 铁律）：收放只动 `clip-path` 的两条内缩（形状那段
              * 头注），⛔ 别把宽高改回过渡的量 —— 动 width/height 每一帧都要重排整棵面板，

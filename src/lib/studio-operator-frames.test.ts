@@ -210,8 +210,8 @@ describe('stopped 帧落成什么', () => {
     ).toMatchObject({ kind: 'settle', status: null })
   })
 
-  it('步数用完：亮「继续」，状态回 idle', () => {
-    expect(stoppedOutcome(stopped('max_steps'), base)).toEqual({
+  it('用量到上限：亮「继续」，状态回 idle', () => {
+    expect(stoppedOutcome(stopped('token_budget'), base)).toEqual({
       kind: 'settle',
       outOfSteps: true,
       roundSummary: null,

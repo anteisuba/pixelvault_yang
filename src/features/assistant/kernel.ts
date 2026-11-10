@@ -37,6 +37,7 @@ import {
   type AssistantV3Tool,
 } from '@/constants/assistant-v3'
 import { getGenerationErrorI18nKey } from '@/constants/generation-errors'
+import { EXECUTION_WORKER } from '@/constants/execution'
 import type { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   AssistantModelCallError,
@@ -376,6 +377,8 @@ function turnOutcomeOf(
       return TURN_OUTCOME.relay
     case ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm:
       return TURN_OUTCOME.awaitingConfirm
+    case ASSISTANT_OPERATOR_STOP_REASONS.tokenBudget:
+      return TURN_OUTCOME.tokenBudget
     default:
       return TURN_OUTCOME.aborted
   }
@@ -854,6 +857,8 @@ async function* runNextTurn(
     modelId,
   })
   run.stepSeq = saved?.stepSeq ?? 0
+  /** 这一轮到此为止喂给模型的输入 token（接力各跳累计，到 `maxTurnInputTokens` 就停下）。 */
+  let turnInputTokens = saved?.inputTokens ?? 0
 
   let model: NextModel = resolved
   while (saved && model.path !== saved.modelPath && model.fallback)
@@ -1087,6 +1092,7 @@ async function* runNextTurn(
       attachedNames,
       latestUserText,
       stepSeq: run.stepSeq,
+      inputTokens: turnInputTokens,
       history: pinnedHistory,
       ...(pending ? { pending } : {}),
     })
@@ -1104,6 +1110,23 @@ async function* runNextTurn(
       yield {
         type: ASSISTANT_OPERATOR_EVENTS.stopped,
         reason: ASSISTANT_OPERATOR_STOP_REASONS.aborted,
+      }
+      return
+    }
+    /**
+     * 花费上限（owner 11-10）：这一轮喂给模型的输入 token 到顶就停在这里，出「继续 / 先到这里」，
+     * ⛔ 不自动续跑。查的是**下一步之前**：已经说完、做完的那几步都留着。
+     */
+    if (turnInputTokens >= ASSISTANT_NEXT_LIMITS.maxTurnInputTokens) {
+      logger.warn('assistant turn reached its input budget', {
+        userId: user.id,
+        turnId,
+        hop,
+        inputTokens: turnInputTokens,
+      })
+      yield {
+        type: ASSISTANT_OPERATOR_EVENTS.stopped,
+        reason: ASSISTANT_OPERATOR_STOP_REASONS.tokenBudget,
       }
       return
     }
@@ -1310,6 +1333,19 @@ async function* runNextTurn(
         ...(usage.inputTokenDetails.cacheWriteTokens === undefined
           ? {}
           : { cacheWriteTokens: usage.inputTokenDetails.cacheWriteTokens }),
+      })
+      turnInputTokens += usage.inputTokens ?? 0
+      // 这一步要了几个工具、哪几种：只读工具要不要并行跑，先量一周再定（owner 11-10）。
+      callLog.note({
+        toolCalls: calls.length,
+        webSearches: searches.size,
+        ...(calls.length
+          ? {
+              tools: [...new Set(calls.map((call) => call.toolName))]
+                .join(',')
+                .slice(0, EXECUTION_WORKER.LLM_CALL_LOG_MAX_STRING),
+            }
+          : {}),
       })
       callLog.finish('ok')
     } catch (error) {

@@ -40,6 +40,8 @@ export interface NextTurnState {
   readonly latestUserText: string
   /** 时间线上的步号接着往下排。 */
   readonly stepSeq: number
+  /** 这一轮到上一跳为止喂给模型的输入 token（花费上限按它累计，`maxTurnInputTokens`）。 */
+  readonly inputTokens?: number
   /** 第一跳定下的之前几轮：带最后几轮、接哪一份摘要（第 6 步）。接力那几跳照它，逐字不变。 */
   readonly history?: {
     readonly turns: number

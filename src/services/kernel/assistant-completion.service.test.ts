@@ -17,7 +17,10 @@ import {
   expectSelectedProviderOnly,
   providerUsesOf,
 } from '@/test/selected-provider-only'
-import { completeAssistantTextWithContextRetry } from './assistant-completion.service'
+import {
+  completeAssistantTextWithContextRetry,
+  startCallLog,
+} from './assistant-completion.service'
 
 const workerFetch =
   vi.fn<(url: string, init?: RequestInit) => Promise<Response>>()
@@ -204,6 +207,33 @@ describe('assistant llm call 日志（每次请求一行，只记录）', () => 
           inputTokens: 26000,
           outputTokens: 12000,
           llmMs: expect.any(Number),
+        }),
+      ])
+    } finally {
+      consoleLog.mockRestore()
+    }
+  })
+
+  it('调用方补的几格（主循环：这一步要了几个工具、哪几种）一起进那一行（11-10）', () => {
+    const consoleLog = vi.spyOn(console, 'log').mockImplementation(() => {})
+    try {
+      const log = startCallLog(
+        {
+          callLog: { purpose: 'next', step: 2 },
+          route: options.route,
+          modelId: 'deepseek-v4.1-flash',
+        },
+        1,
+      )
+      log.note({ toolCalls: 2, tools: 'find,look', webSearches: 1 })
+      log.finish('ok')
+      expect(loggedCalls(consoleLog)).toEqual([
+        expect.objectContaining({
+          purpose: 'next',
+          step: 2,
+          toolCalls: 2,
+          tools: 'find,look',
+          webSearches: 1,
         }),
       ])
     } finally {

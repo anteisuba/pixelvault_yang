@@ -164,7 +164,7 @@ export function stoppedOutcome(
   return {
     kind: 'settle',
     outOfSteps:
-      timeUp || event.reason === ASSISTANT_OPERATOR_STOP_REASONS.maxSteps,
+      timeUp || event.reason === ASSISTANT_OPERATOR_STOP_REASONS.tokenBudget,
     roundSummary: event.roundSummary ?? null,
     status:
       context.status === 'awaitingPlan'

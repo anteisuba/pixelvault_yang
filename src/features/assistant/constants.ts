@@ -204,6 +204,11 @@ export const ASSISTANT_NEXT_PROMPT_VERSION =
 
 export const ASSISTANT_NEXT_LIMITS = {
   /**
+   * 一轮最多喂给模型多少输入 token（含缓存命中；画布接力、时间到了接力的各跳算同一轮，owner 11-10）。
+   * 11-03→11-08 实测 82 轮：中位 4.6 万、p90 12 万、最大 39 万 —— 定在最大的约 2.5 倍，只拦失控。
+   */
+  maxTurnInputTokens: 1_000_000,
+  /**
    * 带给模型的之前几轮（第 6 步）：最近这么多条、这么多字以内，起点按 `historyBlockTurns` 轮一块滑
    * （两次滑动之间逐字不变，缓存吃得到）。滑出去的那几轮由后台写成摘要接在系统提示里
    * （v3 那一套，`lib/assistant-v3-history`）—— 平常几轮的对话碰不到这条线，一次都不写。

@@ -300,6 +300,74 @@ describe('新内核主循环', () => {
     expect(events.at(-1)).toMatchObject({ type: 'done' })
   })
 
+  /** 这一次调用报 `inputTokens` 这么多（假模型默认只报 10）。 */
+  const costing = (
+    parts: ReturnType<typeof toolTurn>,
+    inputTokens: number,
+  ): ReturnType<typeof toolTurn> => {
+    const last = parts.at(-1)!
+    return [
+      ...parts.slice(0, -1),
+      {
+        ...last,
+        ...(last.type === 'finish'
+          ? {
+              usage: {
+                inputTokens: {
+                  total: inputTokens,
+                  noCache: inputTokens,
+                  cacheRead: undefined,
+                  cacheWrite: undefined,
+                },
+                outputTokens: { total: 5, text: 5, reasoning: undefined },
+              },
+            }
+          : {}),
+      },
+    ]
+  }
+
+  it('⭐ 花费上限（owner 11-10）：这一轮输入 token 到顶就停在下一步之前，亮「继续」，⛔ 不再调模型', async () => {
+    fakeModels.main = scriptedModel([
+      costing(toolTurn(editPrompt), 1_000_000),
+      textTurn('不该走到这里。'),
+    ])
+    const events = await run(imageRequest('把女孩换成男孩'))
+    expect(events.at(-1)).toMatchObject({
+      type: 'stopped',
+      reason: 'token_budget',
+    })
+    expect(fakeModels.main.doStreamCalls).toHaveLength(1)
+    // 已经做完的那一步留着。
+    expect(stepsOf(events).some((step) => step.status === 'done')).toBe(true)
+    const records = await turnRecords(user.id, (rows) =>
+      rows.some((row) => row.outcome === 'token_budget'),
+    )
+    expect(records.map((row) => row.outcome)).toContain('token_budget')
+  })
+
+  it('接力的各跳算同一轮：上一跳用掉的 token 跟着接力条带过去', async () => {
+    fakeModels.main = scriptedModel([costing(toolTurn(editPrompt), 600_000)])
+    const hop1 = await run(imageRequest('把女孩换成男孩'), SOFT_NOW)
+    expect(hop1.at(-1)).toMatchObject({
+      type: 'stopped',
+      reason: 'time_budget',
+    })
+
+    fakeModels.main = scriptedModel([
+      costing(toolTurn({ ...editPrompt, id: 'call_2' }), 600_000),
+      textTurn('不该走到这里。'),
+    ])
+    const hop2 = await run(
+      imageRequest('把女孩换成男孩', { v3: { transcript: relayOf(hop1) } }),
+    )
+    expect(hop2.at(-1)).toMatchObject({
+      type: 'stopped',
+      reason: 'token_budget',
+    })
+    expect(fakeModels.main.doStreamCalls).toHaveLength(1)
+  })
+
   it('过了软线：存好这一轮、交接力条；下一次请求从原处接着跑', async () => {
     fakeModels.main = scriptedModel([toolTurn(editPrompt)])
     const hop1 = await run(imageRequest('把女孩换成男孩'), SOFT_NOW)

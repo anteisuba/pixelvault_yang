@@ -1516,8 +1516,11 @@ export const ASSISTANT_OPERATOR_STOP_REASONS = {
    */
   benchOpen: 'bench_open',
   canvasSync: 'canvas_sync',
-  /** 撞到步数上限。**不自动续跑** —— 台账 AH：这条链没有幂等键，不做任何自动重试。 */
-  maxSteps: 'max_steps',
+  /**
+   * 这一轮喂给模型的输入 token 到上限了（`ASSISTANT_NEXT_LIMITS.maxTurnInputTokens`，owner 11-10）。
+   * **不自动续跑**：出「继续 / 先到这里」，等创作者点。（11-10 替掉了早就没人发的 `max_steps`。）
+   */
+  tokenBudget: 'token_budget',
   /**
    * 这一次请求的时间用到头了（`ASSISTANT_OPERATOR_TIME_BUDGET`），在平台按路由
    * `maxDuration` 杀函数之前自己收尾。画布照 `canvas_sync` 那样自动接下一次请求；其他域出「继续」。

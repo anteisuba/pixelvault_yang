@@ -169,7 +169,7 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
 
 - **记什么**：每一跳收尾（`runAssistantV3` 的 `finally`）交一份草稿给 `recordAssistantTurn`（`features/assistant/services/assistant-turn-record.service.ts`），写进 `AssistantTurnRecord`：开轮时的快照、本轮记录、请求里回放要用的那几样、这一轮那一家 / 型号 / key 的 id、系统提示的 sha256 与 `ASSISTANT_V3_PROMPT_VERSION`（改了系统提示的固定段落就把它往前拨）。⛔ 不等、不抛：写不进只记一行警告。表、上限、保留见 `database.md`「助手每轮的过程记录」。
 - **一轮一行**：板子那一条带 `turn: { id, hop }`（`AssistantV3TranscriptBoardEntrySchema`）。开轮服务端发号，接力时前端原样带回、服务端加一跳；号 ⛔ 不进模型看的东西（板子给模型的只有 `text` / `images` / `clips`，回放「接力前缀逐字不变」照样过）。老客户端带回来的记录没有号：另起一个号、跳数记 2，这一行就不会把已落了改动的快照当开轮的存。
-- **怎么收的**（`outcome`）：`done` 那一帧分不出来的几种由 `runV3Turn` 当场写下 —— `quiet`（改动已落、收尾空回复，回放末尾补一条空回复）、`empty`（连着两次空回复，补两条）、`content_filter`、`same_failure`；停下的按原因记 `awaiting_confirm` / `max_steps` / `relay`（画布接力、时间预算）/ `aborted`；抛错记 `error` 与错误码。
+- **怎么收的**（`outcome`）：`done` 那一帧分不出来的几种由 `runV3Turn` 当场写下 —— `quiet`（改动已落、收尾空回复，回放末尾补一条空回复）、`empty`（连着两次空回复，补两条）、`content_filter`、`same_failure`；停下的按原因记 `awaiting_confirm` / `token_budget`（这一轮输入 token 到 100 万上限，接力各跳累计，owner 11-10）/ `relay`（画布接力、时间预算）/ `aborted`；抛错记 `error` 与错误码。
 - **不记**：隐身那一轮（与结账不写记忆同一颗开关）；交回旧内核的、开跑前就失败的（缺 key、没有画布 —— 没造出模型、没冻板子）。
 - **转回回放题**：`src/test/assistant-replay/from-turn-record.ts`（纯函数，⛔ 不连库）把导出的一行变成起始画布 + 题目草稿，补不出来的列在 `gaps`。回放基线每一题都对账自己写下的那一行（`graders.ts` 的 `gradeTurnRecord`）。
 

@@ -78,9 +78,14 @@ export function startCallLog(
 ) {
   const startedAt = Date.now()
   let usage: LlmTextUsage | null = null
+  let noted: Record<string, string | number> = {}
   return {
     onUsage(next: LlmTextUsage) {
       usage = next
+    },
+    /** 调用方补几格（主循环：这一步要了几个工具、哪几种）。 */
+    note(next: Record<string, string | number>) {
+      noted = { ...noted, ...next }
     },
     finish(outcome: CallOutcome) {
       const entry = {
@@ -93,6 +98,7 @@ export function startCallLog(
         llmMs: Date.now() - startedAt,
         usageReported: usage !== null,
         ...usage,
+        ...noted,
       }
       logger.info('assistant llm call', entry)
       shipCallLog(entry)

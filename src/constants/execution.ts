@@ -119,6 +119,8 @@ export const EXECUTION_WORKER = {
   /** 助手 LLM 调用日志：app → worker，写进 Workers Logs（留 7 天）。 */
   LLM_CALL_LOG_PATH: '/logs/llm-call',
   LLM_CALL_LOG_TIMEOUT_MS: 5_000,
+  /** 一格字符串最长多少（worker 那边 `LLM_CALL_LOG_MAX_STRING`，超了整条不收）。 */
+  LLM_CALL_LOG_MAX_STRING: 120,
   /** 认图（PixAI Tagger）：app → worker → Modal `/tag`，同步等结果。 */
   TAG_IMAGE_PATH: '/tag-image',
   /** 出图后的小图：app → worker（Cloudflare Images）→ R2。见 workers/execution/src/lib/image-derivatives.ts。 */

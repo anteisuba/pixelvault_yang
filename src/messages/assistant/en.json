@@ -962,7 +962,7 @@
       "hint": "How many times she reviews the pictures and tries again on her own. Click to change"
     },
     "outOfSteps": {
-      "note": "This turn ran out of steps. Everything that already landed is kept.",
+      "note": "This turn reached its usage limit and stopped here. Everything that already landed is kept.",
       "continue": "Continue",
       "stop": "Stop here",
       "continuePrompt": "Continue"

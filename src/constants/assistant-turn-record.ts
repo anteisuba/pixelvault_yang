@@ -55,6 +55,8 @@ export const ASSISTANT_TURN_RECORD_OUTCOME_IDS = {
   awaitingConfirm: 'awaiting_confirm',
   /** 步数用完。 */
   maxSteps: 'max_steps',
+  /** 这一轮的输入 token 到上限（owner 11-10，`ASSISTANT_NEXT_LIMITS.maxTurnInputTokens`）。 */
+  tokenBudget: 'token_budget',
   /** 创作者按了停 / 连接断了。 */
   aborted: 'aborted',
   /** 抛错收场（`errorCode`）。 */
@@ -71,6 +73,7 @@ export const ASSISTANT_TURN_RECORD_OUTCOMES = [
   ASSISTANT_TURN_RECORD_OUTCOME_IDS.sameFailure,
   ASSISTANT_TURN_RECORD_OUTCOME_IDS.awaitingConfirm,
   ASSISTANT_TURN_RECORD_OUTCOME_IDS.maxSteps,
+  ASSISTANT_TURN_RECORD_OUTCOME_IDS.tokenBudget,
   ASSISTANT_TURN_RECORD_OUTCOME_IDS.aborted,
   ASSISTANT_TURN_RECORD_OUTCOME_IDS.error,
   ASSISTANT_TURN_RECORD_OUTCOME_IDS.relay,

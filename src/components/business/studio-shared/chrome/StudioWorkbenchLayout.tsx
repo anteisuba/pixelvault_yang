@@ -106,11 +106,12 @@ export const StudioWorkbenchLayout = memo(function StudioWorkbenchLayout({
           // `@container/composer`：工具行左组 chip 按这张卡的宽度收成图标
           // （`StudioChipClasses.compact`）。
           // `data-studio-composer`：「做同款」的配方落进来时这张卡顶一下（`landRecipeInComposer`）。
-          // 白板上一圈细边（与 LoRA 台输入框同一副），⛔ 浮起的投影。
+          // 柔影白卡（`card`，与 LoRA / 配音台输入框同一副）：一屏里只有要动手的这一处浮起来
+          // （ui-spec §9「输入框」，owner 2026-11-11），⛔ 一圈细边。
           <div
             ref={composerCardRef}
             data-studio-composer=""
-            className="@container/composer relative shrink-0 rounded-16 border border-border bg-card px-4 pt-3.5 pb-3"
+            className="@container/composer relative shrink-0 rounded-16 bg-card px-4 pt-3.5 pb-3 shadow-card"
           >
             {composerOverlay}
             <div className={paramsClassName}>{params}</div>

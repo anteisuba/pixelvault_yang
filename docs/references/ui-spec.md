@@ -10,7 +10,6 @@
 | ---------------------------------------------- | -------------------------------------------------------------------------------------- |
 | §5 selected 用强调色边                         | 图格选中只靠右上角的勾，⛔ 铺色、⛔ 描边（⑪）；当前那一行用 `row-selected` / `fill`    |
 | §1 字号档表（十一档）、字重「400 · 500 · 600」 | §4：应用内只有四档字号（20 / 15 / 13 / 11）、两种字重（400 / 600）（owner 2026-11-11） |
-| §2.1 脊柱现值（冷灰）                          | §3.3：素档偏暖的那几行（owner 2026-11-11）                                             |
 
 2026-10-25 第 1 个代码 PR（地基：token + 小件）已把展示槽、浅底层次、强调色、圆角、阴影、图标 / 转圈、hover / 焦点、空态、删除确认、收藏这几行改进 ui-defaults，表里只剩还没改到的。
 
@@ -106,7 +105,7 @@
 - `highlight`、状态色、`hover-overlay`、九种阴影不动。
 - 暗房不动：暗房的字本来就是米白，近黑的面带不带暖看不出来。
 - 对比度（WCAG，新值实算）：`ink` 对 `panel` 18.35 · `fill` 16.56 · `fill-strong` 15.42；`ink-2` 对 `panel` 9.35 · `fill` 8.43 · `fill-strong` 7.85；`ink-3` 对 `panel` 6.31 · `fill` 5.69 · `fill-strong` 5.30 · `bubble` 5.50；`highlight` 对 `fill` 5.95 · `fill-strong` 5.55；`on-primary` 对 `primary` 18.35；`success` 对 `fill` 4.89、`warning` 对 `fill` 5.24、`danger` 对 `fill` 5.90。状态色的字 ⛔ 直接放在 `ground` 上（`success` 只有 4.35）。
-- ⚠ 代码还没跟：`globals.css` 的 `:root` 仍是 10-25 的冷灰值。落地时这几行一起换，并同步 ui-defaults §2.1。
+- 代码：2026-11-11 已落进 `globals.css` 的 `:root`（左栏那组 `--sidebar-*` 一起换暖，对 `ground` 7.50 / 5.64 / 15.10）。
 
 ## 4. 字
 
@@ -284,3 +283,4 @@
 - 2026-10-25 · 第 1 个代码 PR（地基）：token、按钮 / 开关 / 切换条 / 提示 / 弹窗换皮；`FavoriteHeart` → `FavoriteBookmark`、`ConfirmDeleteButton` 删掉改 `ConfirmDialog`、`CopyPromptButton` → `CopyButton`、`Spinner` 换三点、`EmptyState` 换柔影白卡；§0 表收掉已改的行，§11 改成绿了就合。
 - 2026-11-10 · 地基第 1 步（补齐原语层）：药丸类名搬到 `ui/chip.tsx`、新增 `ui/search-field.tsx`、滑杆缺省改胖条、切换条只剩 `liquid-segmented`（删 `toggle-group.tsx` / `tabs.tsx` / `card.tsx`）；§9 对应几段补了「代码里」。当日在 `src/` 核过这些文件名与导出名。
 - 2026-11-11 · 方向四项（owner 看小样 `compare-1` / `compare-2` 后定）：加「整体目标」五句；§4 字号收成四档两种字重；§3.3 素档色温偏暖（对比度当日实算）；§5 加疏密、台输入框用 `card`。只改了本文，`globals.css` 与 `src/` 未动；ui-defaults 的对应段落记在 §0 冲突表里，落地时一起改。
+- 2026-11-11 · 色温落地：`globals.css` 素档按 §3.3 换值；台输入框（图像 / 标签 / 视频的 `StudioWorkbenchLayout`、LoRA、配音）换成 `card`。字号和疏密还没进代码。没有看过运行中的画面。

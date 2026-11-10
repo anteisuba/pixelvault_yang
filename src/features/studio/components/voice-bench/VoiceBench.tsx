@@ -268,7 +268,7 @@ export function VoiceBench() {
               event.preventDefault()
               submit()
             }}
-            className="flex shrink-0 flex-col gap-2.5 rounded-16 py-2.5 pr-3 pl-4 shadow-ring"
+            className="flex shrink-0 flex-col gap-2.5 rounded-16 py-2.5 pr-3 pl-4 shadow-card"
           >
             <textarea
               ref={inputRef}

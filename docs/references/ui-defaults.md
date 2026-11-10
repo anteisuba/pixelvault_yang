@@ -70,6 +70,8 @@
 | 已应用/警告/风险 | `--status-applied` / `--status-warning` / `--status-risk`，各带 `-surface` 浅底（risk 除外） | 绿 #16794c · 琥珀 #a04f00 · 红 #b3261e；对比度见 globals.css 注释                 |
 | 模态             | `bg-modality-image` / `-video` / `-audio`（**只给 prompts 域**，见 §2.3）                    | 紫 292 / 蓝 255 / 玫瑰 10，低饱和                                                 |
 
+**素档的值 2026-11-11 起偏暖（owner 定，值与对比度见 ui-spec.md §3.3）；上表「现值」一列是 09-03 的来历，真值以 `globals.css` 为准。**
+
 **两档外观：素（默认）/ 暗房（owner 2026-10-24）。** 上表是素档的值；暗房的值只写在 `globals.css` 的 `.dark` 一块（色板 = 9f 方向 E 样件的暗房：壳 `#060607` · 面板 `#111214` · 次级面 `#191a1d` / `#1f2023` · 字 `#ecebe7` / `#8e8c86`，对比度逐对算过、写在那块注释里），组件**不认外观、只用 token**。
 
 - 换档在头像菜单「外观」一行，只记在本机（`src/lib/theme.ts`，localStorage `pv:theme`），⛔ 进账号、⛔「跟随系统」。

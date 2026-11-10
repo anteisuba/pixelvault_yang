@@ -4273,7 +4273,7 @@ function GenerateBranch({
               : undefined
           }
           className={cn(
-            '@container/composer relative flex shrink-0 flex-col gap-2.5 rounded-16 border border-border bg-card px-3.5 pt-3 pb-3 transition-[border-color] duration-fast',
+            '@container/composer relative flex shrink-0 flex-col gap-2.5 rounded-16 border border-transparent bg-card px-3.5 pt-3 pb-3 shadow-card transition-[border-color] duration-fast',
             composerExpanded && 'border-foreground/40',
             referencesSupported &&
               imageUpload.isDragging &&

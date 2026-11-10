@@ -200,15 +200,18 @@ export function LoraParamsChip({
   ) =>
     row(
       label,
-      <LiquidSegmented
-        ariaLabel={ariaLabel}
-        size="row"
-        semantics="radio"
-        fill
-        value={value}
-        items={items}
-        onChange={onChange}
-      />,
+      // 撑满的是标签右边剩下那一段，⛔ 整行宽（`fill` 是 `w-full`，直接放进行里会被标签推出弹层）。
+      <div className="min-w-0 flex-1">
+        <LiquidSegmented
+          ariaLabel={ariaLabel}
+          size="row"
+          semantics="radio"
+          fill
+          value={value}
+          items={items}
+          onChange={onChange}
+        />
+      </div>,
     )
 
   return (

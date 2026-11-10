@@ -1,0 +1,221 @@
+import { describe, expect, it } from 'vitest'
+
+import type {
+  AssistantOperatorBenchOpen,
+  AssistantOperatorEvent,
+  AssistantOperatorRoundSummary,
+} from '@/types/assistant-operator'
+import type { StudioOperatorThreadEntry } from '@/types/studio-assistant-operator'
+import {
+  deltaStartsNewMessage,
+  finalMessagePlan,
+  stoppedOutcome,
+  thinkingStartsNewMessage,
+} from '@/lib/studio-operator-frames'
+
+const message = (
+  id: string,
+  text: string,
+  streaming?: boolean,
+): StudioOperatorThreadEntry => ({
+  kind: 'message',
+  id,
+  text,
+  ...(streaming !== undefined ? { streaming } : {}),
+})
+
+/** 压在正文下面的随便一条（工具步、联网那一步……这里用一条用户消息代替）。 */
+const below: StudioOperatorThreadEntry = {
+  kind: 'user',
+  id: 'u-1',
+  text: '接着说',
+  attachments: [],
+}
+
+type StoppedEvent = Extract<AssistantOperatorEvent, { type: 'stopped' }>
+const stopped = (
+  reason: StoppedEvent['reason'],
+  extra: Partial<StoppedEvent> = {},
+): StoppedEvent => ({ type: 'stopped', reason, ...extra })
+
+const base = {
+  onCanvas: false,
+  canvasChanged: false,
+  hasTranscript: false,
+  status: 'working' as const,
+}
+
+describe('正文增量：写回此刻那条还是另起一条', () => {
+  it('那条还没出现 / 还在线程末尾 → 写回它', () => {
+    expect(deltaStartsNewMessage([], 'm-0', false)).toBe(false)
+    expect(
+      deltaStartsNewMessage([message('m-0', '我', true)], 'm-0', false),
+    ).toBe(false)
+  })
+
+  it('⭐ 已经被别的条目压在下面 → 另起一条（2026-09-30 旁白 + 收尾重复那一次）', () => {
+    expect(
+      deltaStartsNewMessage(
+        [message('m-0', '我查一下', true), below],
+        'm-0',
+        false,
+      ),
+    ).toBe(true)
+  })
+
+  it('restart：还在流的旧稿就地换掉，已经定稿的那段另起一条', () => {
+    expect(
+      deltaStartsNewMessage([message('m-0', '旧稿', true)], 'm-0', true),
+    ).toBe(false)
+    expect(deltaStartsNewMessage([message('m-0', '定稿')], 'm-0', true)).toBe(
+      true,
+    )
+    expect(deltaStartsNewMessage([message('m-0', '定稿')], 'm-0', false)).toBe(
+      false,
+    )
+  })
+})
+
+describe('思考帧：写进此刻那条占位行还是另起一条', () => {
+  it('那条还没出现 / 还在流 → 写进它', () => {
+    expect(thinkingStartsNewMessage([], 'm-0')).toBe(false)
+    expect(thinkingStartsNewMessage([message('m-0', '', true)], 'm-0')).toBe(
+      false,
+    )
+  })
+
+  it('已经收成回执，或被压在下面 → 另起一条', () => {
+    expect(thinkingStartsNewMessage([message('m-0', '答完了')], 'm-0')).toBe(
+      true,
+    )
+    expect(
+      thinkingStartsNewMessage([message('m-0', '', true), below], 'm-0'),
+    ).toBe(true)
+  })
+})
+
+describe('定稿帧写进哪几条', () => {
+  it('⭐ 增量已经把这一段写全（中间被联网那一步隔成两条）→ 就地定稿那几条，⛔ 不另起', () => {
+    const entries = [
+      message('m-0', '先说一句。', true),
+      below,
+      message('m-1', '查到了。 ', true),
+    ]
+    expect(
+      finalMessagePlan(entries, ['m-0', 'm-1'], 'm-1', '先说一句。查到了。'),
+    ).toEqual({
+      kind: 'streamed',
+      entries: [
+        { id: 'm-0', text: '先说一句。' },
+        { id: 'm-1', text: '查到了。' },
+      ],
+    })
+  })
+
+  it('拼不上（增量丢了 / 改写过）→ 写此刻那一条；它被压在下面就先进一位', () => {
+    const entries = [message('m-0', '半句', true), below]
+    expect(finalMessagePlan(entries, ['m-0'], 'm-0', '完全不同的一段')).toEqual(
+      {
+        kind: 'single',
+        startsNew: true,
+      },
+    )
+    expect(
+      finalMessagePlan([message('m-0', '半句', true)], ['m-0'], 'm-0', '整段'),
+    ).toEqual({ kind: 'single', startsNew: false })
+  })
+
+  it('这一次调用没有增量（回放、老内核）→ 直接写此刻那一条', () => {
+    expect(finalMessagePlan([], [], 'm-0', '你好')).toEqual({
+      kind: 'single',
+      startsNew: false,
+    })
+  })
+})
+
+describe('stopped 帧落成什么', () => {
+  const summary = {
+    roundIndex: 0,
+    createdAt: '2026-11-10T00:00:00.000Z',
+    facts: ['挂上了两张参考'],
+    decisions: [],
+    todos: [],
+  } as unknown as AssistantOperatorRoundSummary
+
+  it('开台：交给那个台', () => {
+    const open = {
+      workspace: 'image-natural',
+    } as unknown as AssistantOperatorBenchOpen
+    expect(stoppedOutcome(stopped('bench_open', { open }), base)).toEqual({
+      kind: 'benchOpen',
+      open,
+    })
+  })
+
+  it('画布同步：落了改动或是新内核就接力，什么都没落的旧内核不接', () => {
+    const onCanvas = { ...base, onCanvas: true }
+    expect(stoppedOutcome(stopped('canvas_sync'), onCanvas)).toEqual({
+      kind: 'relay',
+      relay: false,
+    })
+    expect(
+      stoppedOutcome(stopped('canvas_sync'), {
+        ...onCanvas,
+        canvasChanged: true,
+      }),
+    ).toEqual({ kind: 'relay', relay: true })
+    expect(
+      stoppedOutcome(stopped('canvas_sync'), {
+        ...onCanvas,
+        hasTranscript: true,
+      }),
+    ).toEqual({ kind: 'relay', relay: true })
+  })
+
+  it('时间用到头：画布与新内核接力；别的台收尾并亮「继续」', () => {
+    expect(
+      stoppedOutcome(stopped('time_budget'), { ...base, onCanvas: true }),
+    ).toEqual({ kind: 'relay', relay: true })
+    expect(
+      stoppedOutcome(stopped('time_budget'), { ...base, hasTranscript: true }),
+    ).toEqual({ kind: 'relay', relay: true })
+    expect(stoppedOutcome(stopped('time_budget'), base)).toEqual({
+      kind: 'settle',
+      outOfSteps: true,
+      roundSummary: null,
+      status: 'idle',
+    })
+  })
+
+  it('停在确认卡上：带结论块、状态进 awaitingConfirm', () => {
+    expect(
+      stoppedOutcome(
+        stopped('awaiting_confirm', { roundSummary: summary }),
+        base,
+      ),
+    ).toEqual({
+      kind: 'settle',
+      outOfSteps: false,
+      roundSummary: summary,
+      status: 'awaitingConfirm',
+    })
+  })
+
+  it('⛔ awaitingPlan 不被这一帧降级成「待确认」', () => {
+    expect(
+      stoppedOutcome(stopped('awaiting_confirm'), {
+        ...base,
+        status: 'awaitingPlan',
+      }),
+    ).toMatchObject({ kind: 'settle', status: null })
+  })
+
+  it('步数用完：亮「继续」，状态回 idle', () => {
+    expect(stoppedOutcome(stopped('max_steps'), base)).toEqual({
+      kind: 'settle',
+      outOfSteps: true,
+      roundSummary: null,
+      status: 'idle',
+    })
+  })
+})

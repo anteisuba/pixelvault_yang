@@ -52,7 +52,6 @@ import {
   ASSISTANT_OPERATOR_REJECT_REASON_IDS,
   ASSISTANT_OPERATOR_RESUME_STEP_STATE_IDS,
   ASSISTANT_OPERATOR_STEP_STATUS_IDS,
-  ASSISTANT_OPERATOR_STOP_REASONS,
   ASSISTANT_OPERATOR_TOOL_IDS,
   ASSISTANT_OPERATOR_WRITE_MODES,
   GENERATION_REVIEW_STATE_IDS,
@@ -217,6 +216,12 @@ import {
   hasUnfinishedSteps,
   toResumeFrom,
 } from '@/lib/studio-operator-resume'
+import {
+  deltaStartsNewMessage,
+  finalMessagePlan,
+  stoppedOutcome,
+  thinkingStartsNewMessage,
+} from '@/lib/studio-operator-frames'
 import { mergeNegativePrompt } from '@/features/lora/core'
 import type { PromptAssistantResponseLanguage } from '@/types'
 import { AssistantLoraParametersSchema } from '@/types/assistant-operator'
@@ -1663,30 +1668,16 @@ export function useAssistantOperator(
             }
             /**
              * **正文的一小段增量**（56b 切片 3）—— 追加到那条 `streaming` 气泡
-             * 后面，⛔ 不覆盖。定稿仍旧只由下面那一帧说了算。
-             *
-             * ⚠ 进位判据与定稿帧**同一条**：「这一段已经被别的条目压在下面」。
-             * 🔬 2026-09-30 真机：模型在工具轮先写了一句旁白（「我查一下…」），
-             * 旁白流进了气泡，工具步随后压在它下面；收尾轮的增量若还写回那条，
-             * 正文就接在旁白后面，定稿再另起一条 —— 同一段回答出现两遍。
+             * 后面，⛔ 不覆盖；什么时候另起一条见 `deltaStartsNewMessage`。
+             * 定稿仍旧只由下面那一帧说了算。
              */
             case ASSISTANT_OPERATOR_EVENTS.messageDelta: {
-              const entries = getOperatorState().entries
-              const index = entries.findIndex(
-                (entry) =>
-                  entry.kind === 'message' && entry.id === messageEntryId(),
-              )
-              const entry = index >= 0 ? entries[index] : undefined
-              /**
-               * `restart`：这一步重写了一份新稿。还在流的旧稿就地换掉；已经定稿
-               * 的那段不动，新稿另起一条。
-               */
               if (
-                index >= 0 &&
-                (index !== entries.length - 1 ||
-                  (event.restart &&
-                    entry?.kind === 'message' &&
-                    !entry.streaming))
+                deltaStartsNewMessage(
+                  getOperatorState().entries,
+                  messageEntryId(),
+                  event.restart === true,
+                )
               )
                 messageSeq += 1
               if (event.restart) deltaEntryIds = []
@@ -1701,73 +1692,44 @@ export function useAssistantOperator(
               )
               break
             }
-            /**
-             * 模型在想（10-27）：摘要与秒数写进此刻那条占位行。进位判据同正文增量：那一格已经被
-             * 压在下面、或已经收成回执（不再 `streaming`），这一段就是新的一段。
-             */
+            /** 模型在想（10-27）：摘要与秒数写进此刻那条占位行（另起一条见 `thinkingStartsNewMessage`）。 */
             case ASSISTANT_OPERATOR_EVENTS.thinking: {
-              const entries = getOperatorState().entries
-              const index = entries.findIndex(
-                (entry) =>
-                  entry.kind === 'message' && entry.id === messageEntryId(),
-              )
-              const entry = index >= 0 ? entries[index] : undefined
               if (
-                entry?.kind === 'message' &&
-                (index !== entries.length - 1 || !entry.streaming)
+                thinkingStartsNewMessage(
+                  getOperatorState().entries,
+                  messageEntryId(),
+                )
               )
                 messageSeq += 1
               appendOperatorThinking(messageEntryId(), event.delta, event.ms)
               break
             }
             /**
-             * 正文的**定稿来源**（v2 §3.1 / §13.1）—— 按条目 id **覆盖**，
-             * ⛔ 不追加。
-             *
-             * 🔬 那条 bug 的形状：这一段字已经落进线程，紧跟着来一帧 `plan`，
-             * 服务端随后又发一次定稿 —— 序号在中间进了一位，于是同一段分析回复
-             * 在计划的上下各出现一次。
-             * ⭐ 所以进位的判据是「这一段**已经被别的条目压在下面**」而不是
-             * 「又来了一帧」：压在下面 = 后面的字属于新的一段（写回上面那条读起来
-             * 像时间倒流）；还在线程末尾 = 就是同一段，覆盖它。
+             * 正文的**定稿来源**（v2 §3.1 / §13.1）—— 按条目 id **覆盖**，⛔ 不追加；
+             * 写进哪几条见 `finalMessagePlan`。
              */
             case ASSISTANT_OPERATOR_EVENTS.message: {
-              const entries = getOperatorState().entries
-              /**
-               * ⭐ 增量已经把这一段写全了（中间可能被一步联网隔成两条）：就地定稿那几条，
-               * ⛔ 不另起一条。拼起来对不上（少见：增量丢了 / 改写过）才走下面的覆盖。
-               */
-              const streamed = deltaEntryIds.flatMap((id) => {
-                const entry = entries.find(
-                  (item) => item.kind === 'message' && item.id === id,
-                )
-                return entry?.kind === 'message' ? [entry] : []
-              })
+              const final = finalMessagePlan(
+                getOperatorState().entries,
+                deltaEntryIds,
+                messageEntryId(),
+                event.text,
+              )
               deltaEntryIds = []
-              if (
-                streamed.length > 0 &&
-                streamed
-                  .map((entry) => entry.text)
-                  .join('')
-                  .trim() === event.text.trim()
-              ) {
-                for (const entry of streamed) {
+              if (final.kind === 'streamed') {
+                for (const entry of final.entries) {
                   finalizeOperatorMessage(
                     entry.id,
-                    entry.text.trim(),
+                    entry.text,
                     event.chat === true,
                     event.spoken === true,
                   )
                   dropOperatorPending(entry.id)
                 }
-                speakIfVoiceOn(event, streamed.at(-1)!.id)
+                speakIfVoiceOn(event, final.entries.at(-1)!.id)
                 break
               }
-              const index = entries.findIndex(
-                (entry) =>
-                  entry.kind === 'message' && entry.id === messageEntryId(),
-              )
-              if (index >= 0 && index !== entries.length - 1) messageSeq += 1
+              if (final.startsNew) messageSeq += 1
               finalizeOperatorMessage(
                 messageEntryId(),
                 event.text,
@@ -2008,64 +1970,27 @@ export function useAssistantOperator(
               }
               break
             }
-            /**
-             * ⚠ **`awaitingPlan` 不被这一帧降级**：计划卡 / 问题卡那两支自己已经
-             * 把状态说清楚了，而服务端只会笼统地说一句 `awaiting_confirm` ——
-             * 盖过去的表现是图标轨上「待你定」变成「待确认」，而两者的下一步动作
-             * 完全不同（见 `StudioOperatorStatus` 的头注）。
-             */
+            // 判据见 `stoppedOutcome`（`lib/studio-operator-frames.ts`）。
             case ASSISTANT_OPERATOR_EVENTS.stopped: {
               terminalReceived = true
-              if (
-                event.reason === ASSISTANT_OPERATOR_STOP_REASONS.benchOpen &&
-                event.open
-              ) {
-                benchOpenTarget = event.open
+              const outcome = stoppedOutcome(event, {
+                onCanvas: domain === 'canvas',
+                canvasChanged: canvasApplied || canvasNeedsInputSync,
+                hasTranscript: v3Transcript !== null,
+                status: getOperatorState().status,
+              })
+              if (outcome.kind === 'benchOpen') {
+                benchOpenTarget = outcome.open
                 break
               }
-              if (
-                domain === 'canvas' &&
-                event.reason === ASSISTANT_OPERATOR_STOP_REASONS.canvasSync
-              ) {
-                /**
-                 * ⚠ 新内核（收到过本轮记录）**落没落都接力**：落地失败的原因作为工具
-                 * 结果交回模型，由它改了再来；旧内核这里直接收尾，模型永远不知道没落。
-                 */
-                canvasSync =
-                  canvasApplied || canvasNeedsInputSync || v3Transcript !== null
+              if (outcome.kind === 'relay') {
+                canvasSync = outcome.relay
                 break
               }
-              /**
-               * ⭐ **这一次请求的时间用到头了**（服务端在平台 300 秒杀函数之前自己收的尾）。
-               * 画布照 `canvas_sync` 接下一次请求，⚠ 不看这次有没有落 op —— 收尾不是因为
-               * 要同步画布，是时间到了；其他域没有接力，出「继续 / 先到这里」。
-               */
-              if (event.reason === ASSISTANT_OPERATOR_STOP_REASONS.timeBudget) {
-                // 新内核：所有台都接力（服务端交了接力条才接，没交就照常收尾）。
-                if (domain === 'canvas' || v3Transcript !== null) {
-                  canvasSync = true
-                  break
-                }
-                setOperatorOutOfSteps(true)
-              }
-              /**
-               * ⭐ **停在确认卡 / 问题卡上的那一轮也带结论**（2026-09-12 实测
-               * 第 2 组）：生成确认之后用户点的是生成键，⛔ 不再开一轮 —— 不收
-               * 这一份，整个生成轮次在时间线上就没有结论块。
-               * ⚠ 判据与 `done` 那一支逐字相同：缺席是常态，⛔ 不画空块。
-               */
-              if (event.roundSummary) {
-                appendOperatorRoundSummary(event.roundSummary)
-              }
-              if (event.reason === ASSISTANT_OPERATOR_STOP_REASONS.maxSteps) {
-                setOperatorOutOfSteps(true)
-              }
-              if (getOperatorState().status === 'awaitingPlan') break
-              setOperatorStatus(
-                event.reason === ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm
-                  ? 'awaitingConfirm'
-                  : 'idle',
-              )
+              if (outcome.outOfSteps) setOperatorOutOfSteps(true)
+              if (outcome.roundSummary)
+                appendOperatorRoundSummary(outcome.roundSummary)
+              if (outcome.status) setOperatorStatus(outcome.status)
               break
             }
             /**

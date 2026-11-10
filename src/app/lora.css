@@ -78,6 +78,12 @@
 .domain-lora.lora-bench {
   background: transparent;
 }
+/* 舞台内距 32（ui-spec §5 疏密，owner 2026-11-11），和图像 / 标签 / 视频台同一档。 */
+@media (min-width: 768px) {
+  .domain-lora.lora-bench {
+    --workbench-pad: 2rem;
+  }
+}
 
 /* 桌面库（ui-spec §9 库）：库骨架直接落在白板上，和酒馆 / 标签 / 音色同一处起点 ——
    ⛔ 铺工作台灰（当前行的 `fill` 底与搜索框会融进去）、⛔ 地台外距（左栏会多挪 18）。
@@ -172,7 +178,8 @@
     margin-top var(--lora-motion) var(--lora-motion-ease),
     opacity var(--duration-base) linear 80ms;
 }
-/* 提示词平时露 2 行、写字时封顶 4 行：高度随同一根曲线；截断时下沿渐隐。 */
+/* 提示词平时露 2 行、写字时封顶 4 行（15 / 1.7：2 × 25.5 + 上下 12 = 64，4 行 = 114，
+   JSX 里的 `max-h-16` / `max-h-28.5`）：高度随同一根曲线；截断时下沿渐隐。 */
 .domain-lora .lora-prompt-slim {
   transition: max-height var(--lora-motion) var(--lora-motion-ease);
 }
@@ -245,8 +252,9 @@
 
 .domain-lora .lora-prompt-input {
   field-sizing: content;
-  min-height: 1.6em;
-  max-height: 6.4em;
+  min-height: 1.7em;
+  /* 封顶 4 行：桌面提示词 15 / 1.7（ui-spec §4，owner 2026-11-11）。 */
+  max-height: 6.8em;
   overflow-y: auto;
 }
 

@@ -211,7 +211,7 @@ export function LoraRecipeViewer({
   )
   const codeBlock = (text: string, copyKey: string) => (
     <div className="group/code relative rounded-lg bg-muted/60 px-2.5 py-2 ring-1 ring-inset ring-border/60">
-      <p className="max-h-40 overflow-y-auto whitespace-pre-wrap break-words font-mono text-xs leading-5 text-foreground">
+      <p className="max-h-40 overflow-y-auto whitespace-pre-wrap break-words font-mono text-2xs leading-5 text-foreground">
         {text}
       </p>
       <FeedbackButton
@@ -219,7 +219,7 @@ export function LoraRecipeViewer({
         onClick={() => void copy(text, copyKey)}
         aria-label={t('sourceRecipeCopy')}
         title={t('sourceRecipeCopy')}
-        className="absolute right-1.5 top-1.5 grid size-6 place-items-center rounded-md bg-card text-muted-foreground opacity-0 shadow-sm hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover/code:opacity-100 coarse:opacity-100 data-[feedback]:opacity-100"
+        className="absolute right-1.5 top-1.5 grid size-6 place-items-center rounded-md bg-card text-muted-foreground opacity-0 shadow-media-action hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:shadow-focus group-hover/code:opacity-100 coarse:opacity-100 data-[feedback]:opacity-100"
       >
         <Copy className="size-3.5" aria-hidden />
       </FeedbackButton>
@@ -317,7 +317,7 @@ export function LoraRecipeViewer({
                   type="button"
                   onClick={goPrev}
                   aria-label={t('sourceRecipePrev')}
-                  className="absolute left-4 top-1/2 grid size-10 -translate-y-1/2 place-items-center rounded-full bg-card text-foreground/75 shadow-float transition-colors duration-fast hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="absolute left-4 top-1/2 grid size-10 -translate-y-1/2 place-items-center rounded-full bg-card text-foreground/75 shadow-float transition-colors duration-fast hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus"
                 >
                   <ChevronLeft className="size-4" aria-hidden />
                 </button>
@@ -325,7 +325,7 @@ export function LoraRecipeViewer({
                   type="button"
                   onClick={goNext}
                   aria-label={t('sourceRecipeNext')}
-                  className="absolute right-4 top-1/2 grid size-10 -translate-y-1/2 place-items-center rounded-full bg-card text-foreground/75 shadow-float transition-colors duration-fast hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="absolute right-4 top-1/2 grid size-10 -translate-y-1/2 place-items-center rounded-full bg-card text-foreground/75 shadow-float transition-colors duration-fast hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus"
                 >
                   <ChevronRight className="size-4" aria-hidden />
                 </button>
@@ -341,7 +341,7 @@ export function LoraRecipeViewer({
                       aria-current={i === index ? 'true' : undefined}
                       onClick={() => onIndexChange(i)}
                       className={cn(
-                        'relative h-11.5 w-8.5 shrink-0 overflow-hidden rounded-md bg-muted transition-[opacity,box-shadow] duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                        'relative h-11.5 w-8.5 shrink-0 overflow-hidden rounded-md bg-muted transition-[opacity,box-shadow] duration-fast focus-visible:outline-none focus-visible:shadow-focus',
                         i === index
                           ? 'opacity-100 ring-2 ring-foreground ring-offset-2 ring-offset-surface-workbench'
                           : 'opacity-55 hover:opacity-80',
@@ -376,7 +376,7 @@ export function LoraRecipeViewer({
               <b className="text-2sm font-semibold text-foreground">
                 {t('viewer.title')}
               </b>
-              <span className="font-mono text-xs tabular-nums text-muted-foreground">
+              <span className="font-mono text-2xs tabular-nums text-muted-foreground">
                 {index + 1} / {total}
               </span>
               <button
@@ -384,7 +384,7 @@ export function LoraRecipeViewer({
                 autoFocus
                 onClick={onClose}
                 aria-label={t('sourceRecipeClose')}
-                className="ml-auto grid size-7.5 place-items-center rounded-full bg-muted text-foreground/75 transition-colors duration-fast hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="ml-auto grid size-8 place-items-center rounded-full bg-muted text-foreground/75 transition-colors duration-fast hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus"
               >
                 <X className="size-3.5" aria-hidden />
               </button>
@@ -409,7 +409,7 @@ export function LoraRecipeViewer({
                 {recipe.checkpoint
                   ? row(
                       t('viewer.base'),
-                      <span className="break-all font-mono text-xs text-foreground">
+                      <span className="break-all font-mono text-2xs text-foreground">
                         {recipe.checkpoint}
                       </span>,
                     )
@@ -417,7 +417,7 @@ export function LoraRecipeViewer({
                 {sampling
                   ? row(
                       t('viewer.sampling'),
-                      <span className="font-mono text-xs text-foreground">
+                      <span className="font-mono text-2xs text-foreground">
                         {sampling}
                       </span>,
                     )
@@ -425,7 +425,7 @@ export function LoraRecipeViewer({
                 {sizeLine
                   ? row(
                       t('viewer.size'),
-                      <span className="font-mono text-xs tabular-nums text-foreground">
+                      <span className="font-mono text-2xs tabular-nums text-foreground">
                         {sizeLine}
                       </span>,
                     )
@@ -433,7 +433,7 @@ export function LoraRecipeViewer({
 
                 {extras.length > 0 ? (
                   <div className="flex flex-col gap-2">
-                    <h5 className="text-xs font-semibold text-foreground/80">
+                    <h5 className="text-2xs font-semibold text-foreground/80">
                       {t('viewer.extras')}
                     </h5>
                     {extras.map((extra) => {
@@ -464,7 +464,7 @@ export function LoraRecipeViewer({
                             </small>
                           ) : null}
                           {mounted ? (
-                            <span className="inline-flex h-7 shrink-0 items-center gap-1 rounded-full px-2.5 text-xs text-muted-foreground">
+                            <span className="inline-flex h-7 shrink-0 items-center gap-1 rounded-full px-2.5 text-2sm text-muted-foreground">
                               <Check className="size-3" aria-hidden />
                               {t('viewer.mounted')}
                             </span>
@@ -475,12 +475,12 @@ export function LoraRecipeViewer({
                               )}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex h-7 shrink-0 items-center px-2.5 text-xs text-muted-foreground underline underline-offset-2 transition-colors duration-fast hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                              className="inline-flex h-7 shrink-0 items-center px-2.5 text-2sm text-muted-foreground underline underline-offset-2 transition-colors duration-fast hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus"
                             >
                               {tExtra('recipeExtraSearchLink')}
                             </a>
                           ) : status === 'incompatible' ? (
-                            <span className="inline-flex h-7 shrink-0 items-center px-2.5 text-xs text-muted-foreground">
+                            <span className="inline-flex h-7 shrink-0 items-center px-2.5 text-2sm text-muted-foreground">
                               {tExtra('recipeExtraIncompatible')}
                             </span>
                           ) : onApplyRecipe ? (
@@ -503,7 +503,7 @@ export function LoraRecipeViewer({
                                 })
                               }
                               className={cn(
-                                'inline-flex h-7 shrink-0 items-center gap-1 rounded-full border px-2.5 text-xs transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                                'inline-flex h-7 shrink-0 items-center gap-1 rounded-full border px-2.5 text-2sm transition-colors duration-fast focus-visible:outline-none focus-visible:shadow-focus',
                                 included
                                   ? 'border-foreground/15 bg-card text-foreground'
                                   : 'border-dashed border-border text-muted-foreground',
@@ -538,13 +538,13 @@ export function LoraRecipeViewer({
                     onApplyRecipe(recipe, includeSeed, selectedExtras)
                     onClose()
                   }}
-                  className="inline-flex h-8.5 items-center gap-1.5 rounded-full bg-primary px-3.5 text-2sm font-semibold text-primary-foreground transition-[background-color,transform] duration-fast hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[.98]"
+                  className="inline-flex h-8.5 items-center gap-1.5 rounded-full bg-primary px-3.5 text-2sm font-semibold text-primary-foreground transition-[background-color,transform] duration-fast hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus active:scale-[.98]"
                 >
                   <Wand2 className="size-3.5" aria-hidden />
                   {t('sourceRecipeRemake')}
                 </button>
                 {recipe.seed !== undefined ? (
-                  <label className="inline-flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground">
+                  <label className="inline-flex cursor-pointer items-center gap-1.5 text-2xs text-muted-foreground">
                     <input
                       type="checkbox"
                       checked={includeSeed}
@@ -570,7 +570,7 @@ export function LoraRecipeViewer({
                       'sourceRecipeCopied',
                     )
                   }
-                  className="inline-flex h-8 items-center gap-1.5 rounded-full border border-border px-3 text-xs text-foreground hover:border-foreground/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="inline-flex h-8 items-center gap-1.5 rounded-full border border-border px-3 text-2sm text-foreground hover:border-foreground/30 focus-visible:outline-none focus-visible:shadow-focus"
                 >
                   <Copy className="size-3.5" aria-hidden />
                   {t('sourceRecipeCopyRecipe')}
@@ -580,7 +580,7 @@ export function LoraRecipeViewer({
                 href={sourceUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex h-8 items-center gap-1.5 rounded-full border border-border px-3 text-xs text-foreground transition-colors duration-fast hover:border-foreground/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="inline-flex h-8 items-center gap-1.5 rounded-full border border-border px-3 text-2sm text-foreground transition-colors duration-fast hover:border-foreground/30 focus-visible:outline-none focus-visible:shadow-focus"
               >
                 <ArrowUpRight className="size-3.5" aria-hidden />
                 {t('communityOpenSource')}

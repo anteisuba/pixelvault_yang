@@ -120,7 +120,7 @@ export function LoraSourceImagePreviewStrip({
                     n: idx + 1,
                   })}
                   className={cn(
-                    'shrink-0 cursor-zoom-in overflow-hidden outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                    'shrink-0 cursor-zoom-in overflow-hidden outline-none transition-shadow focus-visible:shadow-focus',
                     band
                       ? 'rounded-lg bg-muted hover:ring-2 hover:ring-foreground/15'
                       : 'rounded-md border border-border/60 hover:border-primary/40',
@@ -147,8 +147,8 @@ export function LoraSourceImagePreviewStrip({
       ) : null}
 
       {hasDescription && band ? (
-        <div className="flex min-w-0 items-start gap-2.5 text-xs">
-          <span className="shrink-0 pt-px font-medium text-muted-foreground">
+        <div className="flex min-w-0 items-start gap-2.5 text-2xs">
+          <span className="shrink-0 pt-px text-muted-foreground">
             {t('descriptionShort')}
           </span>
           <p
@@ -167,7 +167,7 @@ export function LoraSourceImagePreviewStrip({
             type="button"
             onClick={() => setDescriptionOpen((open) => !open)}
             aria-expanded={descriptionOpen}
-            className="shrink-0 font-medium text-foreground underline-offset-3 hover:underline"
+            className="shrink-0 text-foreground underline-offset-3 hover:underline"
           >
             {descriptionOpen
               ? t('descriptionCollapse')
@@ -186,7 +186,7 @@ export function LoraSourceImagePreviewStrip({
       ) : hasDescription ? (
         <div className="rounded-md border border-dashed border-border/70 p-2.5">
           <div className="flex items-center justify-between gap-2">
-            <p className="text-2xs font-medium text-muted-foreground">
+            <p className="text-2xs text-muted-foreground">
               {t('descriptionLabel')}
             </p>
             <FeedbackButton
@@ -213,7 +213,7 @@ export function LoraSourceImagePreviewStrip({
       >
         <DialogContent
           closeLabel={t('sourceImagePreviewClose')}
-          className="w-auto max-w-[min(92vw,720px)] gap-0 rounded-2xl border-border/60 bg-background/95 p-3 shadow-2xl backdrop-blur-md sm:max-w-[min(92vw,720px)]"
+          className="w-auto max-w-[min(92vw,720px)] gap-0 rounded-24 border-0 bg-popover p-3 shadow-pop sm:max-w-[min(92vw,720px)]"
           onCloseAutoFocus={(event) => {
             event.preventDefault()
             previewTriggerRef.current?.focus()

@@ -105,9 +105,7 @@ export function LoraCollocationStatusBar({
           )}
           aria-hidden
         />
-        <span className="shrink-0 font-medium text-foreground">
-          {t('label')}
-        </span>
+        <span className="shrink-0 text-foreground">{t('label')}</span>
         <span className="min-w-0 flex-1 truncate text-muted-foreground">
           {isPending ? (
             <span className="text-foreground">
@@ -170,11 +168,9 @@ export function LoraCollocationStatusBar({
         <div inert={!(expanded && hasDetail)}>
           <div className="space-y-2.5 border-t border-border px-3 py-2.5">
             {isAssistant ? (
-              <p className="font-medium text-foreground">
-                {t('willChangeAssistant')}
-              </p>
+              <p className=" text-foreground">{t('willChangeAssistant')}</p>
             ) : recipeApplied && recipeName ? (
-              <p className="font-medium text-foreground">
+              <p className=" text-foreground">
                 {t('willChange', { name: recipeName })}
               </p>
             ) : null}
@@ -239,7 +235,7 @@ export function LoraCollocationStatusBar({
                 <button
                   type="button"
                   onClick={onApplyPending}
-                  className="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 font-medium text-primary-foreground transition-colors hover:bg-primary/90 active:scale-[0.98]"
+                  className="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 font-semibold text-primary-foreground transition-colors hover:tint-hover active:scale-[0.98]"
                 >
                   <Check className="size-3" aria-hidden />
                   {t('apply')}
@@ -281,7 +277,7 @@ export function LoraCollocationChip({
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex h-8 min-w-0 shrink items-center gap-1.75 rounded-full px-2.5 text-2sm whitespace-nowrap text-muted-foreground transition-colors duration-fast ease-linear animate-in fade-in-0 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="inline-flex h-8 min-w-0 shrink items-center gap-1.75 rounded-full px-2.5 text-2sm whitespace-nowrap text-muted-foreground transition-colors duration-fast ease-linear animate-in fade-in-0 hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus"
     >
       <span
         aria-hidden
@@ -366,7 +362,7 @@ export function LoraCollocationBar({
 
   return (
     <>
-      <div className="flex h-6.5 min-w-0 items-center gap-2 text-2sm text-muted-foreground">
+      <div className="flex h-7 min-w-0 items-center gap-2 text-2sm text-muted-foreground">
         <span
           aria-hidden
           className={cn(
@@ -438,12 +434,12 @@ export function LoraCollocationBar({
                     ? tc('willChangeAssistant')
                     : tc('willChange', { name: recipeName ?? '' })}
                   {recipeLine.length > 0 ? (
-                    <span className="mt-0.5 block font-mono text-xs text-foreground/80">
+                    <span className="mt-0.5 block font-mono text-2xs text-foreground/80">
                       {recipeLine.join(' · ')}
                     </span>
                   ) : null}
                   {keptLabels.length > 0 ? (
-                    <span className="mt-0.5 block text-xs">
+                    <span className="mt-0.5 block text-2xs">
                       {tc('keptUnchanged', { items: keptLabels.join(' · ') })}
                     </span>
                   ) : null}

@@ -282,7 +282,7 @@ export function PromptTagAutocomplete({
       style={{ top: position.top, left: position.left, width: position.width }}
       // 标准浮层 token（bg-popover/border-border/text-muted-foreground）：
       // 有意脱离 .studio-composer 的纸面反相作用域，见文件头注释。
-      className="fixed z-30 mt-1 max-h-40 overflow-y-auto rounded-12 bg-popover p-1 text-xs shadow-pop"
+      className="fixed z-30 mt-1 max-h-40 overflow-y-auto rounded-12 bg-popover p-1 text-2xs shadow-pop"
     >
       {results.map((result, index) => {
         const tier = getPromptTagPopularityTier(result.tag.popularity)
@@ -302,7 +302,7 @@ export function PromptTagAutocomplete({
             }}
             className={cn(
               'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors',
-              isActive ? 'bg-muted' : 'hover:bg-muted',
+              isActive ? 'bg-muted' : 'hover:tint-hover',
             )}
           >
             <span

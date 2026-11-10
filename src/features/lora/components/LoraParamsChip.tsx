@@ -256,7 +256,7 @@ export function LoraParamsChip({
           {error ? (
             <p
               role="alert"
-              className="rounded-md bg-status-risk-surface px-2.5 py-2 text-xs text-status-risk"
+              className="rounded-md bg-status-risk-surface px-2.5 py-2 text-2xs text-status-risk"
             >
               {error}
             </p>
@@ -319,7 +319,7 @@ export function LoraParamsChip({
           {upscaleNote ? (
             <p
               className={cn(
-                'text-xs',
+                'text-2xs',
                 upscaleNote.warn
                   ? 'text-status-warning'
                   : 'text-muted-foreground',
@@ -329,7 +329,7 @@ export function LoraParamsChip({
             </p>
           ) : null}
           {hiresNote ? (
-            <p className="text-xs text-muted-foreground">{hiresNote}</p>
+            <p className="text-2xs text-muted-foreground">{hiresNote}</p>
           ) : null}
         </div>
       </ResponsivePopoverContent>

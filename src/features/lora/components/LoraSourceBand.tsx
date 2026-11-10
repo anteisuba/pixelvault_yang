@@ -160,10 +160,10 @@ export function LoraSourceBand({
                   title={group.name}
                   onClick={() => onSelectGroup(group.id)}
                   className={cn(
-                    'inline-flex h-7 max-w-44 shrink-0 items-center gap-1.5 rounded-full py-0.5 pr-2.5 pl-0.5 text-xs transition-colors duration-fast focus-visible:outline-none focus-visible:shadow-focus',
+                    'inline-flex h-7 max-w-44 shrink-0 items-center gap-1.5 rounded-full py-0.5 pr-2.5 pl-0.5 text-2sm transition-colors duration-fast focus-visible:outline-none focus-visible:shadow-focus',
                     active
-                      ? 'bg-muted font-medium text-foreground'
-                      : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
+                      ? 'bg-muted text-foreground'
+                      : 'text-muted-foreground hover:tint-hover hover:text-foreground',
                   )}
                 >
                   {group.cover ? (
@@ -192,7 +192,7 @@ export function LoraSourceBand({
             })}
           </div>
           {count !== null ? (
-            <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+            <span className="shrink-0 text-2xs tabular-nums text-muted-foreground">
               {t('groupCount', { count })}
             </span>
           ) : null}

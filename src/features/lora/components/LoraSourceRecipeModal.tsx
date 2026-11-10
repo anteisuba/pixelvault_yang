@@ -260,7 +260,7 @@ export function LoraSourceRecipeModal({
         <DialogClose asChild>
           <button
             type="button"
-            className="absolute right-3 top-3 z-10 inline-flex h-10 items-center gap-1.5 rounded-full border border-white/15 bg-black/70 px-3 text-sm font-medium text-white shadow-lg backdrop-blur-md transition-colors hover:bg-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-black sm:hidden"
+            className="absolute right-3 top-3 z-10 inline-flex h-10 items-center gap-1.5 rounded-full border border-white/15 bg-black/70 px-3 text-2sm text-white shadow-media-action backdrop-blur-md transition-colors hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus sm:hidden"
             aria-label={t('coverPreviewBack')}
           >
             <ChevronLeft className="size-4" aria-hidden />
@@ -313,7 +313,7 @@ export function LoraSourceRecipeModal({
                 type="button"
                 onClick={goPrev}
                 aria-label={t('sourceRecipePrev')}
-                className="absolute left-3 top-1/2 inline-flex size-9 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-black/55 text-white backdrop-blur-md transition-colors hover:bg-black/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+                className="absolute left-3 top-1/2 inline-flex size-9 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-black/55 text-white backdrop-blur-md transition-colors hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus"
               >
                 <ChevronLeft className="size-5" aria-hidden />
               </button>
@@ -321,11 +321,11 @@ export function LoraSourceRecipeModal({
                 type="button"
                 onClick={goNext}
                 aria-label={t('sourceRecipeNext')}
-                className="absolute right-3 top-1/2 inline-flex size-9 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-black/55 text-white backdrop-blur-md transition-colors hover:bg-black/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+                className="absolute right-3 top-1/2 inline-flex size-9 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-black/55 text-white backdrop-blur-md transition-colors hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus"
               >
                 <ChevronRight className="size-5" aria-hidden />
               </button>
-              <span className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-black/55 px-2.5 py-0.5 text-xs font-medium text-white backdrop-blur-md">
+              <span className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-black/55 px-2.5 py-0.5 text-2sm text-white backdrop-blur-md">
                 {index + 1} / {total}
               </span>
             </>
@@ -340,7 +340,7 @@ export function LoraSourceRecipeModal({
               <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
                 <div className="space-y-1">
                   <RecipeSourceBadge source={recipe.source} />
-                  <h3 className="text-base font-semibold leading-tight text-foreground">
+                  <h3 className="text-md font-semibold leading-tight text-foreground">
                     {assetName}
                   </h3>
                 </div>
@@ -350,7 +350,7 @@ export function LoraSourceRecipeModal({
                   仅 generate variant（library variant 不承担做同款）。 */}
                 {variant === 'generate' && onApplyRecipe ? (
                   <div className="space-y-1.5 rounded-lg border border-border/60 bg-muted/25 p-2.5">
-                    <p className="flex items-center gap-1.5 text-2xs font-medium text-foreground">
+                    <p className="flex items-center gap-1.5 text-2xs text-foreground">
                       <Wand2 className="size-3" aria-hidden />
                       {t('sourceRecipeRestoreTitle')}
                     </p>
@@ -432,10 +432,10 @@ export function LoraSourceRecipeModal({
                 ) : null}
 
                 <div className="space-y-1.5">
-                  <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
+                  <p className="text-2xs uppercase tracking-wide text-muted-foreground">
                     {t('sourceRecipeModelSection')}
                   </p>
-                  <dl className="space-y-1 text-xs">
+                  <dl className="space-y-1 text-2xs">
                     <RecipeRow
                       label={t('sourceRecipeBaseModel')}
                       value={baseModelFamily}
@@ -450,10 +450,10 @@ export function LoraSourceRecipeModal({
                 </div>
 
                 <div className="space-y-1.5">
-                  <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
+                  <p className="text-2xs uppercase tracking-wide text-muted-foreground">
                     {t('sourceRecipeParamsSection')}
                   </p>
-                  <dl className="space-y-1 text-xs">
+                  <dl className="space-y-1 text-2xs">
                     {size ? (
                       <RecipeRow label={t('sourceRecipeSize')} value={size} />
                     ) : null}
@@ -494,7 +494,7 @@ export function LoraSourceRecipeModal({
                     Library / Generate 共用 modal，两边都展示（不限做同款）。 */}
                 {hasExtraLoras ? (
                   <div className="space-y-1.5">
-                    <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
+                    <p className="text-2xs uppercase tracking-wide text-muted-foreground">
                       {t('sourceRecipeExtraLorasSection', {
                         count: extraLoras.length,
                       })}
@@ -576,7 +576,7 @@ export function LoraSourceRecipeModal({
 
                 {tags && tags.length > 0 ? (
                   <div className="space-y-1.5">
-                    <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
+                    <p className="text-2xs uppercase tracking-wide text-muted-foreground">
                       {t('sourceRecipeTags')}
                     </p>
                     <div className="flex flex-wrap gap-1.5">
@@ -687,7 +687,7 @@ function RecipeSourceBadge({
   const t = useTranslations('LoraWorkbench')
   if (source === 'ai_inferred') {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-status-warning-surface px-1.5 py-0.5 text-2xs font-medium text-status-warning">
+      <span className="inline-flex items-center gap-1 rounded-full bg-status-warning-surface px-1.5 py-0.5 text-2xs text-status-warning">
         <Wand2 className="size-2.5" aria-hidden />
         {t('sourceRecipeInferredBadge')}
       </span>
@@ -695,14 +695,14 @@ function RecipeSourceBadge({
   }
   if (source === 'community_image') {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-muted px-1.5 py-0.5 text-2xs font-medium text-muted-foreground">
+      <span className="inline-flex items-center gap-1 rounded-full bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground">
         <Users className="size-2.5" aria-hidden />
         {t('sourceRecipeCommunityBadge')}
       </span>
     )
   }
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-status-applied-surface px-1.5 py-0.5 text-2xs font-medium text-status-applied">
+    <span className="inline-flex items-center gap-1 rounded-full bg-status-applied-surface px-1.5 py-0.5 text-2xs text-status-applied">
       <Sparkles className="size-2.5" aria-hidden />
       {t('sourceRecipeModelBadge')}
     </span>
@@ -726,13 +726,13 @@ function RecipeField({
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
+        <p className="text-2xs uppercase tracking-wide text-muted-foreground">
           {label}
         </p>
         <FeedbackButton
           feedback={copyFeedback}
           onClick={onCopy}
-          className="inline-flex items-center gap-1 rounded-full text-2xs font-medium text-muted-foreground hover:text-foreground"
+          className="inline-flex items-center gap-1 rounded-full text-2xs text-muted-foreground hover:text-foreground"
         >
           <Copy className="size-3" aria-hidden />
           {copyLabel}

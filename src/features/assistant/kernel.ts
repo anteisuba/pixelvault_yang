@@ -770,25 +770,25 @@ async function* runNextTurn(
 
   const { turns, latest } = splitAssistantV3History(request.messages)
   const latestUserText = saved?.latestUserText ?? latest
-  // 和她聊天（4c）：拿你这句话想起她最近逛到的、对得上的几条见闻；隐身不读。
-  const findings =
+  // 三样互不依赖，一起读（11-10：原来串行三次往返）。
+  const [findings, digests, stickers] = await Promise.all([
+    // 和她聊天（4c）：拿你这句话想起她最近逛到的、对得上的几条见闻；隐身不读。
     chat && !saved && request.incognito !== true
-      ? await recallFindings({
+      ? recallFindings({
           userId: user.id,
           cardId: chat.id,
           text: latestUserText,
         })
-      : []
-  // 出门话题的小结（带出处）：最近一两份，和见闻一起进召回；隐身不读。
-  const digests =
+      : [],
+    // 出门话题的小结（带出处）：最近一两份，和见闻一起进召回；隐身不读。
     chat && !saved && request.incognito !== true
-      ? await recallOutingDigests({ userId: user.id, cardId: chat.id })
-      : []
-  // 4d：她手上能发的表情包（只在和她聊天时）。
-  const stickers =
+      ? recallOutingDigests({ userId: user.id, cardId: chat.id })
+      : [],
+    // 4d：她手上能发的表情包（只在和她聊天时）。
     chat && request.incognito !== true
-      ? await loadChatStickers(user.id, chat.id).catch(() => null)
-      : null
+      ? loadChatStickers(user.id, chat.id).catch(() => null)
+      : null,
+  ])
   // 和她聊天：你每说第 8 句，响应发完之后学一次你的说法（原在聊天页，用户 10-26 并进对话）。
   if (chat && !saved && request.incognito !== true) {
     learnPhrasesAfterTurn({

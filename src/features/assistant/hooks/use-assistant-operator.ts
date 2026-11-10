@@ -806,6 +806,10 @@ export interface UseAssistantOperatorResult {
   ): void
   /** ⏹ —— 彻底叫停（拍板 13）。**连队列一起清**：叫停的是「接下来的一切」。 */
   stop(): void
+  /**
+   * 出错了「重试」（owner 11-10：原地重跑，不留气泡）—— 上一轮接着跑一遍，线程里 ⛔ 不多一句「你说的」。
+   */
+  retry(): void
   /** 撤回一条还没轮到的排队消息（§3.1 ㉔）—— 丢弃不发，线程里留一行交代。 */
   cancelQueued(id: string): void
   /**
@@ -2213,7 +2217,7 @@ export function useAssistantOperator(
          */
         if (controller.signal.aborted) return
         appendStreamInterrupted()
-        setOperatorStatus('error', null)
+        setOperatorStatus('error', tError('streamInterrupted'))
         return
       }
 
@@ -2528,6 +2532,23 @@ export function useAssistantOperator(
     })
     void run()
   }, [operatorState, canvasTargets, run])
+
+  /**
+   * **出错了「重试」**（owner 11-10：原地重跑，不留气泡）。原来是以你的名义发一句「刚才中断了，接着把上一条
+   * 做完」，线程里多出一个你的气泡。现在那句话挂在一行不画的系统行上（`userText`，与答题回执同一做法）：
+   * 模型照样知道「接着做完、已经落下的别重做」，时间线上什么都不多。
+   */
+  const retry = useCallback(() => {
+    if (!isCurrentThread()) return
+    if (getOperatorState().status === 'working') return
+    appendOperatorEntry({
+      kind: 'system',
+      id: nextOperatorEntryId('sys'),
+      code: 'retried',
+      userText: tError('retryPrompt'),
+    })
+    void run()
+  }, [isCurrentThread, run, tError])
 
   /**
    * 撤回一条还没轮到的排队消息（§3.1 ㉔）。
@@ -4099,6 +4120,7 @@ export function useAssistantOperator(
     domain,
     send,
     stop,
+    retry,
     cancelQueued,
     answerQuestion,
     acceptRecommendedQuestions,

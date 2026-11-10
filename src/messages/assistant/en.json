@@ -499,6 +499,7 @@
       "stopped": "You stopped the current work",
       "interrupted": "Your message changed the assistant's direction.",
       "streamInterrupted": "The connection dropped before this turn finished.",
+      "retried": "Retried",
       "benchOpenMissed": "Couldn't open that bench, so the assistant stopped here.",
       "revertRound": "You reverted this round's {count, plural, one {# change} other {# changes}} (the assistant knows)",
       "revertFailed": "A change could not be reverted. The remaining changes are preserved; please try again.",

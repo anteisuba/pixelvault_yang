@@ -351,6 +351,7 @@ const onSelectRouteModel = vi.fn().mockResolvedValue(true)
 const onSelectReasoningEffort = vi.fn().mockResolvedValue(true)
 
 const send = vi.fn()
+const retry = vi.fn()
 const changeAttachments = vi.fn()
 let initialAttachments: readonly StudioOperatorAttachment[] = []
 
@@ -378,6 +379,7 @@ function PanelBody({
         {
           domain: 'image',
           send,
+          retry,
           stop: vi.fn(),
           cancelQueued: vi.fn(),
           answerQuestion,
@@ -768,9 +770,8 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
     expect(openQuickSetup()).not.toBeNull()
     expect(send).not.toHaveBeenCalled()
     submitQuickSetup('verify')
-    await vi.waitFor(() =>
-      expect(send).toHaveBeenCalledWith('error.retryPrompt'),
-    )
+    await vi.waitFor(() => expect(retry).toHaveBeenCalledTimes(1))
+    expect(send).not.toHaveBeenCalled()
     expect(keysApi.create).toHaveBeenCalledWith(
       expect.objectContaining({
         adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
@@ -779,13 +780,30 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
     )
   })
 
-  it('⭐ 其他错误给「重试」：发一句接着做完，⛔ 不原样重放上一条', () => {
+  it('⭐ 其他错误给「重试」：原地重跑，⛔ 不以你的名义发一句（owner 11-10）', () => {
     renderPanel()
     act(() => store.setOperatorStatus('error', 'boom', null, 'INTERNAL'))
-    const retry = screen.getByTestId('operator-error-action-retry')
-    expect(retry).toHaveTextContent('error.retry')
-    fireEvent.click(retry)
-    expect(send).toHaveBeenCalledWith('error.retryPrompt')
+    const button = screen.getByTestId('operator-error-action-retry')
+    expect(button).toHaveTextContent('error.retry')
+    fireEvent.click(button)
+    expect(retry).toHaveBeenCalledTimes(1)
+    expect(send).not.toHaveBeenCalled()
+  })
+
+  it('⭐ 断流：红条挂着时只说一句，断流那一行等红条收起才露出来（11-10）', () => {
+    renderPanel()
+    act(() => {
+      store.appendOperatorEntry({
+        kind: 'system',
+        id: 'sys-interrupted',
+        code: 'streamInterrupted',
+      })
+      store.setOperatorStatus('error', 'error.streamInterrupted')
+    })
+    expect(screen.queryByText('system.streamInterrupted')).toBeNull()
+    expect(screen.getByText('error.streamInterrupted')).toBeInTheDocument()
+    act(() => store.setOperatorStatus('idle'))
+    expect(screen.getByText('system.streamInterrupted')).toBeInTheDocument()
   })
 
   it('⭐ 错误条带「换个模型」：点下去打开输入框底下那颗模型 chip 的选单（§9.1）', () => {

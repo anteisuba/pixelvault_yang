@@ -484,23 +484,35 @@ export function StudioOperatorPanel({
     chatCharacter,
   } = useStudioOperatorState()
   /**
-   * ⚠ 两类条目**留在数据里、不画**（owner 2026-09-24：小字「没什么有用的信息」）：
+   * ⚠ 几类条目**留在数据里、不画**（owner 2026-09-24：小字「没什么有用的信息」）：
    *  · 没开跑的计划（「计划 · N 步」）—— 在跑的那种画成打勾清单，照画；
    *  · 答题回执（「校服款式 · 西式学院制服」）—— 它的 `userText` 仍进对话，
-   *    模型照样记得用户选过什么；选了什么，助手下一句正文会说。
+   *    模型照样记得用户选过什么；选了什么，助手下一句正文会说；
+   *  · 重试那一行（owner 11-10：原地重跑，不留气泡）—— 同上，只给模型那句「接着做完」；
+   *  · 红条还挂着时的断流那一行：它和红条说的是同一件事，只画红条（11-10）。红条消失后它照画，
+   *    刷新之后也在（落库，断流才量得到）。
    */
-  const entries = useMemo(
-    () =>
-      mergeOperatorSystemRuns(
-        allEntries.filter(
-          (entry): boolean =>
-            entry.kind !== 'domainMark' &&
-            !(entry.kind === 'plan' && !entry.progress) &&
-            !(entry.kind === 'system' && entry.code === 'questionAnswered'),
-        ),
+  const entries = useMemo(() => {
+    const last = allEntries.at(-1)
+    const liveInterrupt =
+      status === 'error' &&
+      last?.kind === 'system' &&
+      last.code === 'streamInterrupted'
+        ? last
+        : null
+    return mergeOperatorSystemRuns(
+      allEntries.filter(
+        (entry): boolean =>
+          entry !== liveInterrupt &&
+          entry.kind !== 'domainMark' &&
+          !(entry.kind === 'plan' && !entry.progress) &&
+          !(
+            entry.kind === 'system' &&
+            (entry.code === 'questionAnswered' || entry.code === 'retried')
+          ),
       ),
-    [allEntries],
-  )
+    )
+  }, [allEntries, status])
   const historyEntries = useMemo(
     () =>
       mergeOperatorSystemRuns(
@@ -509,7 +521,10 @@ export function StudioOperatorPanel({
             entry.kind !== 'domainMark' &&
             // 计划与答题回执不画（与实时线程同一条规矩，见 `entries` 头注）。
             entry.kind !== 'plan' &&
-            !(entry.kind === 'system' && entry.code === 'questionAnswered') &&
+            !(
+              entry.kind === 'system' &&
+              (entry.code === 'questionAnswered' || entry.code === 'retried')
+            ) &&
             // 跳过的重复步不进过程（与实时线程同一条规矩，见 `blocks` 那一处）。
             !(
               entry.kind === 'step' &&
@@ -542,6 +557,7 @@ export function StudioOperatorPanel({
     domain,
     send,
     stop,
+    retry,
     cancelQueued,
     newThread,
     regenerate,
@@ -2831,11 +2847,11 @@ export function StudioOperatorPanel({
                                   onClick: () => setKeySetup(errorKeySetup),
                                 }
                               : {
-                                  /* ⭐ 出错了就地重试（2026-10-14）：发一句「接着做完」，
-                                     ⛔ 不原样重放上一条 —— 中途落下的改动还在，重放会重做一遍。 */
+                                  /* ⭐ 出错了就地重试：接着跑上一轮（「接着做完、落下的别重做」只给模型看），
+                                     ⛔ 不在对话里替你说一句（owner 11-10：原地重跑，不留气泡）。 */
                                   id: 'retry',
                                   label: t('error.retry'),
-                                  onClick: () => send(t('error.retryPrompt')),
+                                  onClick: retry,
                                 },
                             /* §9.1「换个模型」：打开输入框底下那颗模型 chip 的选单，
                                ⛔ 不另起一张选模型的面板（缺 key 的模型照旧就地弹配置）。 */
@@ -3488,7 +3504,7 @@ export function StudioOperatorPanel({
           {...(keySetup.kind === 'pinnedModel'
             ? {
                 selectStudioModel: false,
-                onVerified: () => send(t('error.retryPrompt')),
+                onVerified: retry,
               }
             : {})}
         />

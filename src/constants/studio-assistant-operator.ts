@@ -278,6 +278,10 @@ export const STUDIO_OPERATOR_SYSTEM_CODES = [
    * （`docs/references/assistant-durable-turns.md` §1）。
    */
   'streamInterrupted',
+  /**
+   * 出错后点了「重试」（owner 11-10：原地重跑，不留气泡）—— **不画**，只带 `userText` 那句「接着做完」给模型。
+   */
+  'retried',
   /** 助手开了别的台，等了半分钟那个台都没打开（第 9e 步）：这一轮停在这里。 */
   'benchOpenMissed',
   /**

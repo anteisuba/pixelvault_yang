@@ -499,6 +499,7 @@
       "stopped": "你叫停了当前工作",
       "interrupted": "你插话了 —— 助手已转向",
       "streamInterrupted": "这一轮还没跑完，连接就断了。",
+      "retried": "已重试",
       "benchOpenMissed": "没能打开那个台，这一轮先停在这里。",
       "revertRound": "你还原了这一轮的 {count} 处改动（助手已知晓）",
       "revertFailed": "有一处改动没能还原，剩余改动已保留，请重试。",

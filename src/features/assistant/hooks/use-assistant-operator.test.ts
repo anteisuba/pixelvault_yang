@@ -701,6 +701,32 @@ describe('useAssistantOperator 的四条收尾路径', () => {
     )
   })
 
+  it('⭐ 重试：原地接着跑，⛔ 线程里不多一句你说的；「接着做完」那句照样给模型（owner 11-10）', async () => {
+    const { result } = render()
+    act(() => result.current.send('看一眼'))
+    await settle()
+    streams[0].emit(doneStepEvent('read-1'))
+    streams[0].close()
+    await settle()
+    expect(store.getOperatorState().status).toBe('error')
+    const usersBefore = store
+      .getOperatorState()
+      .entries.filter((entry) => entry.kind === 'user').length
+
+    act(() => result.current.retry())
+    await settle()
+
+    expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(2)
+    expect(
+      store.getOperatorState().entries.filter((entry) => entry.kind === 'user'),
+    ).toHaveLength(usersBefore)
+    const messages = streamAssistantOperatorAPI.mock.calls[1][0].messages
+    expect(messages.at(-1)).toMatchObject({
+      role: 'user',
+      content: 'i18n:retryPrompt',
+    })
+  })
+
   it('画布收到 time_budget 就照 canvas_sync 接下一次请求，哪怕这次没落 op', async () => {
     hostDomain.current = 'canvas'
     const { result } = render()

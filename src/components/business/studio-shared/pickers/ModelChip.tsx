@@ -128,9 +128,10 @@ export function ModelChip({
           swapKey={`${modelLabel}:${variantLabel ?? ''}`}
           className="min-w-0 gap-2"
         >
-          <span className="truncate">{modelLabel}</span>
+          {/* 窄了先截后半段：前半段是家族名（NovelAI），截成「No…」就认不出是谁了。 */}
+          <span className="shrink-0">{modelLabel}</span>
           {variantLabel ? (
-            <span className="truncate text-muted-foreground">
+            <span className="min-w-0 truncate text-muted-foreground">
               {variantLabel}
             </span>
           ) : null}

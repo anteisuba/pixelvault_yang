@@ -245,7 +245,7 @@ function CastArrowLabel({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={timing(DURATION.fast)}
-      className="absolute z-10 h-5.5 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full bg-foreground px-2 text-2xs leading-5.5 text-background"
+      className="absolute z-10 h-6 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full bg-foreground px-2 text-2xs leading-5.5 text-background"
       style={{ left, top }}
     >
       {children}
@@ -268,7 +268,7 @@ function CastBubble({ slot, line }: { slot: Slot; line: string }) {
         transition: timing(DURATION.fast, 0, EASE_IN),
       }}
       transition={timing(DURATION.base)}
-      className="pointer-events-none absolute z-10 flex max-w-60 origin-bottom -translate-x-1/2 -translate-y-full items-center gap-1.5 rounded-xl bg-background/95 px-2.5 py-1.5 text-xs shadow-md ring-1 ring-border"
+      className="pointer-events-none absolute z-10 flex max-w-60 origin-bottom -translate-x-1/2 -translate-y-full items-center gap-1.5 rounded-xl bg-background/95 px-2.5 py-1.5 text-2xs shadow-pop ring-1 ring-border"
       style={{ left, top }}
     >
       <ChatCircleText
@@ -314,7 +314,7 @@ interface Gesture {
 }
 
 const pillClass =
-  'inline-flex h-7.5 items-center gap-1.5 whitespace-nowrap rounded-full bg-background/90 px-3 text-xs ring-1 ring-border'
+  'inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-full bg-background/90 px-3 text-2sm ring-1 ring-border'
 
 /**
  * 舞台人物层（NAI 位置关系与台词 C「舞台预演」第 ② 片 · 最小可试版）。
@@ -803,7 +803,7 @@ export function StudioTagCastStage({
             {ghost && dragIndex !== null ? (
               <span
                 aria-hidden
-                className="absolute grid size-7.5 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 border-dashed border-muted-foreground font-mono text-xs font-semibold text-muted-foreground opacity-40"
+                className="absolute grid size-8 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 border-dashed border-muted-foreground font-mono text-2xs font-semibold text-muted-foreground opacity-40"
                 style={{ left: percent(ghost.x), top: percent(ghost.y) }}
               >
                 {dragIndex + 1}
@@ -828,19 +828,19 @@ export function StudioTagCastStage({
                     onPointerCancel={endGesture}
                     onKeyDown={(event) => onDotKeyDown(event, index)}
                     className={cn(
-                      'pointer-events-auto absolute grid size-11 -translate-x-1/2 -translate-y-1/2 touch-none place-items-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:size-8',
+                      'pointer-events-auto absolute grid size-11 -translate-x-1/2 -translate-y-1/2 touch-none place-items-center rounded-full focus-visible:outline-none focus-visible:shadow-focus lg:size-8',
                       dragging ? 'z-30 cursor-grabbing' : 'z-20',
                       !dragging && !isGenerating && 'cursor-grab',
                     )}
                   >
                     <span
                       className={cn(
-                        'relative grid size-7.5 place-items-center rounded-full border-2 font-mono text-xs font-semibold tabular-nums transition-[scale,border-color,color,box-shadow,background-color] duration-fast ease-standard motion-reduce:transition-none',
+                        'relative grid size-8 place-items-center rounded-full border-2 font-mono text-2xs font-semibold tabular-nums transition-[scale,border-color,color,box-shadow,background-color] duration-fast ease-standard motion-reduce:transition-none',
                         manual
-                          ? 'border-foreground bg-background text-foreground shadow-md'
+                          ? 'border-foreground bg-background text-foreground shadow-soft'
                           : 'border-dashed border-muted-foreground bg-background/90 text-muted-foreground',
                         editing && 'scale-112 ring-4 ring-foreground/10',
-                        dragging && 'scale-120 shadow-lg ring-6',
+                        dragging && 'scale-120 shadow-pop ring-6',
                         character.enabled === false && 'opacity-40',
                       )}
                     >
@@ -862,7 +862,7 @@ export function StudioTagCastStage({
 
             {/* 画面文字不定位置：画框左上角挂一枚小标签。 */}
             {sceneTexts.length ? (
-              <span className="absolute top-2.5 left-2.5 z-20 inline-flex h-6.5 max-w-3/4 items-center gap-1.5 rounded-full bg-background/95 px-2.5 text-xs ring-1 ring-border">
+              <span className="absolute top-2.5 left-2.5 z-20 inline-flex h-7 max-w-3/4 items-center gap-1.5 rounded-full bg-background/95 px-2.5 text-2sm ring-1 ring-border">
                 <Type className="size-3 shrink-0" aria-hidden />
                 {t(`sceneKinds.${sceneTexts[0].kind}`)}
                 <span className="truncate text-muted-foreground">
@@ -887,7 +887,7 @@ export function StudioTagCastStage({
               aria-pressed={layerOn}
               onClick={() => setLayerOn((on) => !on)}
               className={cn(
-                'pointer-events-auto inline-flex h-7.5 items-center gap-1.5 whitespace-nowrap rounded-full px-3 text-xs font-medium transition-colors duration-base ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                'pointer-events-auto inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-full px-3 text-2sm transition-colors duration-base ease-standard focus-visible:outline-none focus-visible:shadow-focus',
                 visible
                   ? 'bg-foreground text-background'
                   : 'bg-background/70 text-muted-foreground ring-1 ring-border',
@@ -912,7 +912,7 @@ export function StudioTagCastStage({
                   }
                   className={cn(
                     pillClass,
-                    'pointer-events-auto transition-colors duration-fast ease-standard hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                    'pointer-events-auto transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus',
                   )}
                 >
                   <span className="font-semibold">{t('manualStatus')}</span>
@@ -935,10 +935,10 @@ export function StudioTagCastStage({
                   onClick={() => setShowGrid((on) => !on)}
                   className={cn(
                     pillClass,
-                    'pointer-events-auto transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                    'pointer-events-auto transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:shadow-focus',
                     showGrid
                       ? 'bg-foreground text-background ring-0'
-                      : 'hover:bg-muted',
+                      : 'hover:tint-hover',
                   )}
                 >
                   <Grid2x2 className="size-3.5" aria-hidden />

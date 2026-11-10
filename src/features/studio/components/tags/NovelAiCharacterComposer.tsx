@@ -122,7 +122,7 @@ export function NovelAiCharacterComposer({
                       novelAiGridCellCenter(row),
                     )
                   }
-                  className="border-b border-r border-border/50 transition-colors duration-fast ease-standard last:border-r-0 hover:bg-accent/60 disabled:pointer-events-none"
+                  className="border-b border-r border-border/50 transition-colors duration-fast ease-standard last:border-r-0 hover:tint-hover disabled:pointer-events-none"
                 />
               )
             })}
@@ -172,7 +172,7 @@ export function NovelAiCharacterComposer({
               if (ratio) place(index, ratio.x, ratio.y)
             }}
             className={cn(
-              'absolute grid size-11 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border bg-background font-mono text-xs tabular-nums lg:size-6.5 lg:text-3xs',
+              'absolute grid size-11 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border bg-background font-mono text-xs tabular-nums lg:size-6.5 lg:text-2xs',
               mode === 'free' &&
                 'cursor-grab touch-none active:cursor-grabbing',
               activeIndex === index
@@ -182,7 +182,7 @@ export function NovelAiCharacterComposer({
           >
             {index + 1}
             {/* 名字跟着圆点走（取这位的第一格标签）：板上就认得出谁是谁。 */}
-            <span className="pointer-events-none absolute top-full left-1/2 mt-1 max-w-28 -translate-x-1/2 truncate font-sans text-3xs text-muted-foreground lg:top-1/2 lg:left-full lg:mt-0 lg:ml-2 lg:translate-x-0 lg:-translate-y-1/2">
+            <span className="pointer-events-none absolute top-full left-1/2 mt-1 max-w-28 -translate-x-1/2 truncate font-sans text-2xs text-muted-foreground lg:top-1/2 lg:left-full lg:mt-0 lg:ml-2 lg:translate-x-0 lg:-translate-y-1/2">
               {character.prompt.split(',')[0]?.trim() || t('unnamed')}
             </span>
           </button>

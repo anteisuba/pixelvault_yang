@@ -30,7 +30,7 @@ function promptToLookTags(prompt: string) {
 }
 
 const itemClass =
-  'flex h-9 w-full items-center justify-between gap-2 rounded-md px-2 text-left text-2xs transition-colors duration-fast ease-standard hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50'
+  'flex h-9 w-full items-center justify-between gap-2 rounded-md px-2 text-left text-2xs transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus disabled:opacity-50'
 
 /**
  * 角色页签 ⋯ 里排在「这次出场」前面的几项（owner 11-01 定，稿 tag-studio-ui/q1b 第 3 格）：
@@ -99,7 +99,7 @@ export function StudioTagCharacterMenuExtra({
   return (
     <>
       <label className="flex flex-col gap-1 px-2 pb-1">
-        <span className="text-3xs text-muted-foreground">{t('rename')}</span>
+        <span className="text-2xs text-muted-foreground">{t('rename')}</span>
         <input
           value={name}
           maxLength={60}
@@ -112,12 +112,12 @@ export function StudioTagCharacterMenuExtra({
               commitName()
             }
           }}
-          className="h-8 rounded-md border border-border bg-background px-2 text-2xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="h-8 rounded-md border border-border bg-background px-2 text-2xs outline-none focus-visible:shadow-focus"
         />
       </label>
       {card && card.looks.length > 1 ? (
         <div className="flex flex-col gap-0.5">
-          <span className="px-2 pt-1 text-3xs text-muted-foreground">
+          <span className="px-2 pt-1 text-2xs text-muted-foreground">
             {t('swapLook')}
           </span>
           <div className="flex flex-wrap gap-1 px-2 pb-1">
@@ -139,9 +139,9 @@ export function StudioTagCharacterMenuExtra({
                     })
                   }}
                   className={cn(
-                    'h-7 rounded-full border border-border px-2.5 text-2xs transition-colors duration-fast ease-standard hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                    'h-7 rounded-full border border-border px-2.5 text-2xs transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus',
                     on &&
-                      'border-foreground bg-foreground text-background hover:bg-foreground',
+                      'border-foreground bg-foreground text-background hover:tint-hover',
                   )}
                 >
                   {label}
@@ -160,7 +160,7 @@ export function StudioTagCharacterMenuExtra({
           className={itemClass}
         >
           {t('updateLook', { look: lookLabel(look, card.looks, tLooks) })}
-          <span className="text-3xs text-muted-foreground">{t('edited')}</span>
+          <span className="text-2xs text-muted-foreground">{t('edited')}</span>
         </button>
       ) : null}
       {card ? (
@@ -187,7 +187,7 @@ export function StudioTagCharacterMenuExtra({
                   void saveAsNewLook()
                 }
               }}
-              className="h-8 min-w-0 flex-1 rounded-md border border-border bg-background px-2 text-2xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="h-8 min-w-0 flex-1 rounded-md border border-border bg-background px-2 text-2xs outline-none focus-visible:shadow-focus"
             />
             <button
               type="button"

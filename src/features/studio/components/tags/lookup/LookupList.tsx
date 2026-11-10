@@ -90,11 +90,11 @@ export function LookupRowButton({
         kind === 'character' ? row.previews[0] : null,
       )}
       className={cn(
-        'flex w-full items-center gap-3 rounded-xl p-1.5 text-left transition-colors duration-fast ease-linear focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
+        'flex w-full items-center gap-3 rounded-xl p-1.5 text-left transition-colors duration-fast ease-linear focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none',
         phone && 'min-h-14',
         row.selected
           ? 'bg-surface-fill'
-          : 'hover:bg-surface-fill-hover active:bg-surface-fill-hover',
+          : 'hover:tint-hover active:bg-surface-fill-hover',
       )}
     >
       {kind === 'character' ? (
@@ -104,7 +104,7 @@ export function LookupRowButton({
         <span className="truncate text-2sm font-semibold text-foreground">
           {row.label}
         </span>
-        <span className="truncate text-xs text-muted-foreground">
+        <span className="truncate text-2xs text-muted-foreground">
           {row.sub}
         </span>
       </span>
@@ -195,8 +195,8 @@ export function LookupSay({
       role="status"
       className="flex animate-in flex-col items-start gap-1.5 px-0.5 pt-2.5 fade-in-0 duration-base ease-linear motion-reduce:animate-none"
     >
-      <b className="text-sm font-semibold text-foreground">{title}</b>
-      <span className="text-xs leading-5 text-muted-foreground">{text}</span>
+      <b className="text-md font-semibold text-foreground">{title}</b>
+      <span className="text-2xs leading-5 text-muted-foreground">{text}</span>
       {action ? (
         <Button
           type="button"
@@ -214,7 +214,7 @@ export function LookupSay({
           href={link.href}
           target="_blank"
           rel="noreferrer"
-          className="mt-0.5 inline-flex items-center gap-1 text-xs text-foreground/80 hover:text-foreground"
+          className="mt-0.5 inline-flex items-center gap-1 text-2xs text-foreground/80 hover:text-foreground"
         >
           {link.label}
           <ExternalLink className="size-3" aria-hidden />

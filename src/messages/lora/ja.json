@@ -733,7 +733,6 @@
   },
   "LoraTraining": {
     "title": "LoRA学習",
-    "description": "画像を使って、自分用の LoRA を学習させます。Replicate の API キーが必要です。",
     "name": "モデル名",
     "namePlaceholder": "例: マイキャラクター",
     "triggerWord": "トリガーワード",

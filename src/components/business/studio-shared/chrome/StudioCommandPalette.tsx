@@ -20,7 +20,12 @@ import { isMissingKeyModelOption } from '@/hooks/use-split-model-options'
 import { useVideoModelOptions } from '@/hooks/use-video-model-options'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { getProviderLabel } from '@/constants/providers'
-import { LoraTrainingDialog } from '@/features/lora'
+import { ROUTES } from '@/constants/routes'
+import {
+  LORA_WORKBENCH_SEARCH_PARAM,
+  LORA_WORKBENCH_SECTIONS,
+} from '@/constants/lora'
+import { useRouter } from '@/i18n/navigation'
 import { DialogTitle } from '@/components/ui/dialog'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 
@@ -30,7 +35,7 @@ import { QuickSetupDialog } from '@/components/business/studio-shared/setup/Quic
  */
 export const StudioCommandPalette = memo(function StudioCommandPalette() {
   const [open, setOpen] = useState(false)
-  const [loraOpen, setLoraOpen] = useState(false)
+  const router = useRouter()
   const { state, dispatch } = useStudioForm()
   const { modelOptions: imageModelOptions } = useImageModelOptions()
   const { modelOptions: videoModelOptions } = useVideoModelOptions(
@@ -171,7 +176,10 @@ export const StudioCommandPalette = memo(function StudioCommandPalette() {
             <CommandItem
               onSelect={() => {
                 setOpen(false)
-                setLoraOpen(true)
+                // 训练只有一个入口：训练页（owner 2026-11-11，⛔ 再开弹窗）
+                router.push(
+                  `${ROUTES.STUDIO_LORA}?${LORA_WORKBENCH_SEARCH_PARAM}=${LORA_WORKBENCH_SECTIONS.TRAIN}`,
+                )
               }}
               className="studio-command-item"
             >
@@ -182,9 +190,6 @@ export const StudioCommandPalette = memo(function StudioCommandPalette() {
         </CommandList>
       </CommandDialog>
 
-      {/* LoRA Training Dialog — opened via command palette */}
-      {/* LoRA Training Dialog — opened via command palette */}
-      <LoraTrainingDialog open={loraOpen} onOpenChange={setLoraOpen} />
       {keySetupOption ? (
         <QuickSetupDialog
           open

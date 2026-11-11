@@ -733,7 +733,6 @@
   },
   "LoraTraining": {
     "title": "训练 LoRA",
-    "description": "用你的图片训练自定义 LoRA 模型。需要 Replicate API Key。",
     "name": "模型名称",
     "namePlaceholder": "例如：我的角色",
     "triggerWord": "触发词",

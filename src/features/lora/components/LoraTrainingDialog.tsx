@@ -34,13 +34,6 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog'
-import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -1241,62 +1234,5 @@ function TrainingImageTile({
         <X className="size-3" />
       </button>
     </div>
-  )
-}
-
-interface LoraTrainingDialogProps {
-  characterCardId?: string
-  /** 从哪套造型发起 + 先放进训练图的那几张（角色④）。 */
-  characterLookId?: string
-  initialImageUrls?: readonly string[]
-  trigger?: React.ReactNode
-  /** Controlled open state (optional — uses internal state if omitted) */
-  open?: boolean
-  /** Callback when open state changes (required when `open` is provided) */
-  onOpenChange?: (open: boolean) => void
-}
-
-export function LoraTrainingDialog({
-  characterCardId,
-  characterLookId,
-  initialImageUrls,
-  trigger,
-  open: controlledOpen,
-  onOpenChange,
-}: LoraTrainingDialogProps) {
-  const t = useTranslations('LoraTraining')
-
-  const [internalOpen, setInternalOpen] = useState(false)
-  const open = controlledOpen ?? internalOpen
-  const setOpen = onOpenChange ?? setInternalOpen
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      {controlledOpen === undefined && (
-        <DialogTrigger asChild>
-          {trigger ?? (
-            <Button variant="secondary" size="sm" className="gap-1.5">
-              <Sparkles className="size-3.5" />
-              {t('title')}
-            </Button>
-          )}
-        </DialogTrigger>
-      )}
-      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{t('title')}</DialogTitle>
-          <p className="text-2sm text-muted-foreground">{t('description')}</p>
-        </DialogHeader>
-
-        <div className="pt-2">
-          <LoraTrainingForm
-            characterCardId={characterCardId}
-            characterLookId={characterLookId}
-            initialImageUrls={initialImageUrls}
-            onSubmitted={() => setOpen(false)}
-          />
-        </div>
-      </DialogContent>
-    </Dialog>
   )
 }

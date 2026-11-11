@@ -4620,6 +4620,33 @@ describe('回合托管第 3 片：刷新回来接回进行中的那一轮', () =
     expect(replayAssistantTurnAPI).toHaveBeenCalledTimes(1)
   })
 
+  it('补放跨过接力点之后，第二跳里刷新前落过的步照样 ⛔ 再落（11-11 真机：画布重复落卡）', async () => {
+    sessionStorage.setItem(
+      'antei:assistant-applied-steps',
+      JSON.stringify(['turn-11:continuation-1:step-1']),
+    )
+    getActiveAssistantTurnAPI.mockResolvedValue({
+      turnId: 'turn-11',
+      anchor: 'u-2',
+    })
+    loadThread()
+    render()
+    await settle()
+    const transcript = [{ type: 'board', text: 'bench' }] as never
+    streams[0].emit({ type: ASSISTANT_OPERATOR_EVENTS.open, turnId: 'turn-11' })
+    streams[0].emit(doneStepEvent('step-1'))
+    streams[0].emit({ type: 'transcript', transcript })
+    streams[0].emit({ type: 'stopped', reason: 'time_budget' })
+    streams[0].emit(setPromptDone())
+    streams[0].emit({ type: ASSISTANT_OPERATOR_EVENTS.done })
+    streams[0].close()
+    await settle()
+    expect(dispatch).not.toHaveBeenCalledWith({
+      type: 'SET_PROMPT',
+      payload: '夜景',
+    })
+  })
+
   it('没有在跑的轮 / 你已经开口了：⛔ 接', async () => {
     loadThread()
     render()
@@ -4658,6 +4685,24 @@ describe('回合托管第 4 片：画布等载好再接；新会话第一轮补�
     )
     // 锚点为空 = 开跑时线程是空的：历史里全是这一轮的，整轮补放。
     expect(store.getOperatorState().history).toEqual([])
+  })
+
+  it('同一段会话被载入两次（画布水化途中）：第二次载入照样再问（11-11 真机）', async () => {
+    const load = () =>
+      store.loadOperatorThread({
+        history: [
+          { kind: 'user', id: 'u-1', text: '画三张卡', attachments: [] },
+        ],
+        sessionId: SESSION,
+        sessionSurface: null,
+      })
+    load()
+    render()
+    await settle()
+    expect(getActiveAssistantTurnAPI).toHaveBeenCalledTimes(1)
+    act(() => load())
+    await settle()
+    expect(getActiveAssistantTurnAPI).toHaveBeenCalledTimes(2)
   })
 
   it('新会话的第一轮途中拿到会话号：补一句「这一轮属于它」（带锚点）', async () => {

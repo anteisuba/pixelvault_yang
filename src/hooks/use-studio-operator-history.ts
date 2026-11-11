@@ -534,6 +534,12 @@ export function useStudioOperatorHistory({
     const before = getOperatorState()
     const restoreLatest = scope !== null && !hydratedScopes.has(scope)
     if (scope) hydratedScopes.add(scope)
+    /**
+     * 这一遍走到「载不载」那一步了没有。⚠ 画布刷新时项目号会在水化途中变一次（占位 → 真项目），
+     * 这个 effect 因此连跑两遍：第一遍记下「已水化」却在列表回来前被作废 —— 不撤回的话第二遍
+     * 以为载过了，地址里那段对话就永远载不回来（11-11 真机：画布刷新后面板是空的）。
+     */
+    let restoreDecided = false
     const listFresh =
       sameScope &&
       Date.now() - (lastListedAt.current?.at ?? 0) <
@@ -564,9 +570,15 @@ export function useStudioOperatorHistory({
             current.localThreadId !== before.localThreadId ||
             current.entries.length > 0 ||
             current.sessionId
-          )
+          ) {
+            restoreDecided = true
             return
-          await applyConversation(latest.id, latest.chatCharacter)
+          }
+          // ⚠ 载到一半被作废（回 false）不算数：交给下一遍重来。
+          restoreDecided = await applyConversation(
+            latest.id,
+            latest.chatCharacter,
+          )
         } catch {
           if (isActive(epoch)) setError(t('loadFailed'))
         } finally {
@@ -577,6 +589,8 @@ export function useStudioOperatorHistory({
       lifecycle.current += 1
       mountedScope.current = null
       loadIntent.current += 1
+      if (scope && restoreLatest && !restoreDecided)
+        hydratedScopes.delete(scope)
     }
   }, [
     applyConversation,

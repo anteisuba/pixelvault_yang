@@ -800,7 +800,7 @@ interface RunOptions {
   reattach?: { turnId: string }
 }
 
-/** 这次页面加载已经问过「还有没有在跑的轮」的会话（回合托管第 3 片，每段只问一次）。 */
+/** 已经问过「还有没有在跑的轮」的那几次载入（本地线程号；回合托管第 3 片）。 */
 const askedActiveTurns = new Set<string>()
 
 /** 线程里最后一条会落库的条目 id（回合托管的锚点；见 `run` 里那一段）。 */
@@ -1598,6 +1598,11 @@ export function useAssistantOperator(
             canvasSync = false
             canvasApplied = false
             canvasNeedsInputSync = false
+            /**
+             * ⚠ 接力帧那一下把轮号清了（实时那边下一跳自带 `open` 帧再认上；补放流只有开头一个
+             *   `open`）—— 这里认回来，⛔ 第二跳起的步应用闸全失效（11-11 真机：画布重复落了两张卡）。
+             */
+            turnIdRef.current = options.reattach.turnId
             continuationPrefix = `continuation-${canvasSteps}:`
             messageSeq = 0
             deltaEntryIds = []
@@ -3973,8 +3978,9 @@ export function useAssistantOperator(
   /**
    * **接回进行中的那一轮**（回合托管第 3 片）：载回来一段会话（刷新、从列表点开）而线程是闲的，
    * 就问一句它还有没有一轮在服务端跑；有就把历史截到那一轮的锚点、整轮补放、再接着收。
-   * ⚠ 每段会话这次页面加载只问一次；问的时候你已经开口了 / 换了会话就作罢。回合托管关着时服务端
-   *   从不记「在跑的轮」，这里永远问不到。
+   * ⚠ 每载入一次（本地线程号）只问一次；问的时候你已经开口了 / 换了会话就作罢。⚠ 按本地线程号
+   *   记、⛔ 按会话号记：画布水化途中同一段会话会被载入两次，第一次问回来时线程已经换了、作罢，
+   *   按会话号记的话第二次就再也不问（11-11 真机）。回合托管关着时服务端从不记「在跑的轮」，这里永远问不到。
    */
   const sessionId = useStudioOperatorSelector((state) => state.sessionId)
   /** 宿主的工作面载好了才接（画布要等项目水化：早落的改动会被载回来的那一份整份盖掉）。 */
@@ -3986,10 +3992,10 @@ export function useAssistantOperator(
       linkLiveTurn()
       return
     }
-    if (!hostReady || askedActiveTurns.has(sessionId)) return
+    if (!hostReady || askedActiveTurns.has(localThreadId)) return
     const before = getOperatorState()
     if (before.status !== 'idle' || before.entries.length > 0) return
-    askedActiveTurns.add(sessionId)
+    askedActiveTurns.add(localThreadId)
     void getActiveAssistantTurnAPI(sessionId).then((active) => {
       const now = getOperatorState()
       if (
@@ -4004,7 +4010,7 @@ export function useAssistantOperator(
       truncateOperatorHistoryAfter(active.anchor)
       void run({ reattach: { turnId: active.turnId } })
     })
-  }, [hostReady, sessionId, isCurrentThread, linkLiveTurn, run])
+  }, [hostReady, sessionId, localThreadId, isCurrentThread, linkLiveTurn, run])
   /**
    * ⭐ 同一条规矩在 `/studio` 外壳里（第 9f 步）：面板只挂一份、换台不卸载，于是「换了台」
    *   由登记号说 —— 离开那个台就把在飞的流掐掉（开台那一跳早已收尾，掐了也没事）。

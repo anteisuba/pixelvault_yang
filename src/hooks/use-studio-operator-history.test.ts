@@ -598,6 +598,46 @@ describe('会话按画布项目分（D12 U7）', () => {
   })
 })
 
+describe('画布刷新：项目号在水化途中变一次（11-11 真机）', () => {
+  it('第一遍被作废、列表还没回来：⛔ 记成已载过 —— 地址里那段对话照样载回来', async () => {
+    let releaseFirst: (value: unknown) => void = () => {}
+    listMock
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            releaseFirst = resolve
+          }),
+      )
+      .mockResolvedValue({ success: true, data: [] })
+    getMock.mockResolvedValue({
+      success: true,
+      data: {
+        id: 'conv-7',
+        surface: 'NODE_CANVAS',
+        messages: [],
+        rounds: [],
+      },
+    })
+    const rendered = renderHook(
+      ({ projectId }: { projectId: string }) =>
+        historyHook.useStudioOperatorHistory({
+          userId: 'user-1',
+          workspace: 'canvas',
+          projectId,
+          restore: { id: 'conv-7' },
+        }),
+      { initialProps: { projectId: 'placeholder-project' } },
+    )
+    rendered.rerender({ projectId: 'real-project' })
+    await act(async () => {
+      releaseFirst({ success: true, data: [] })
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    expect(getMock).toHaveBeenCalledWith({ id: 'conv-7', operatorOnly: true })
+    expect(store.getOperatorState().sessionId).toBe('conv-7')
+  })
+})
+
 /**
  * 卡片助手（第五张脸，owner 09-26）：会话单独一份，只在角色页里看得到。
  */

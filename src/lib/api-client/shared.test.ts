@@ -87,6 +87,108 @@ describe('downloadRemoteAsset', () => {
     expect(assign).not.toHaveBeenCalled()
   })
 
+  describe('on iPhone', () => {
+    const share = vi.fn<(data: ShareData) => Promise<void>>()
+
+    beforeEach(() => {
+      vi.stubGlobal('navigator', {
+        userAgent:
+          'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15',
+        platform: 'iPhone',
+        maxTouchPoints: 5,
+        share,
+        canShare: () => true,
+      })
+    })
+
+    it('fetches our CDN copy and opens the share sheet instead of downloading', async () => {
+      share.mockResolvedValue(undefined)
+      fetchMock
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              success: true,
+              data: { downloadUrl: PRESIGNED_URL },
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          ),
+        )
+        .mockResolvedValueOnce(
+          new Response('bytes', {
+            status: 200,
+            headers: { 'Content-Type': 'video/mp4' },
+          }),
+        )
+
+      const result = await downloadRemoteAsset(ASSET_URL, 'video.mp4')
+
+      expect(result.success).toBe(true)
+      expect(fetchMock).toHaveBeenLastCalledWith(
+        `${ASSET_URL}?pv-cors=1`,
+        expect.objectContaining({ mode: 'cors' }),
+      )
+      const [shared] = share.mock.calls[0]?.[0].files ?? []
+      expect(shared?.name).toBe('video.mp4')
+      expect(shared?.type).toBe('video/mp4')
+      expect(assign).not.toHaveBeenCalled()
+    })
+
+    it('treats a dismissed share sheet as done, not as a failure', async () => {
+      share.mockRejectedValue(new DOMException('cancel', 'AbortError'))
+      fetchMock.mockResolvedValue(
+        new Response('bytes', {
+          status: 200,
+          headers: { 'Content-Type': 'image/png' },
+        }),
+      )
+
+      const result = await downloadRemoteAsset(
+        'https://v3b.fal.media/files/b/x/upscaled.png',
+        'upscaled.png',
+      )
+
+      expect(result.success).toBe(true)
+      expect(share).toHaveBeenCalledTimes(1)
+    })
+
+    it('falls back to the file download when the CDN copy cannot be read', async () => {
+      fetchMock
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              success: true,
+              data: { downloadUrl: PRESIGNED_URL },
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          ),
+        )
+        .mockRejectedValueOnce(new TypeError('Load failed'))
+
+      const result = await downloadRemoteAsset(ASSET_URL, 'video.mp4')
+
+      expect(result.success).toBe(true)
+      expect(share).not.toHaveBeenCalled()
+      expect(assign).toHaveBeenCalledWith(PRESIGNED_URL)
+    })
+
+    it('keeps audio as a file download', async () => {
+      fetchMock.mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            success: true,
+            data: { downloadUrl: PRESIGNED_URL },
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        ),
+      )
+
+      await downloadRemoteAsset(ASSET_URL, 'voice.mp3')
+
+      expect(share).not.toHaveBeenCalled()
+      expect(assign).toHaveBeenCalledWith(PRESIGNED_URL)
+    })
+  })
+
   it('surfaces the endpoint error payload', async () => {
     fetchMock.mockResolvedValue(
       new Response(

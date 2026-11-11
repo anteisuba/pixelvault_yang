@@ -13,6 +13,12 @@ import {
   type ApiErrorFields,
 } from '@/lib/api-client/error-fields'
 import { apiFetch } from '@/lib/api-client/api-fetch'
+import {
+  fetchCdnFile,
+  saveFileToPhotos,
+  shouldSaveToPhotos,
+  toPhotoFile,
+} from '@/lib/save-to-photos'
 
 interface ApiErrorPayload {
   error?: string
@@ -162,6 +168,8 @@ export async function downloadRemoteAsset(
   errorCode?: string
   i18nKey?: string
 }> {
+  // iPhone / iPad：下载只会落进「文件」，图片和视频改走分享面板存进相册。
+  const savingToPhotos = shouldSaveToPhotos(fileName)
   try {
     const response = await apiFetch(
       `${API_ENDPOINTS.DOWNLOAD}?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(fileName)}`,
@@ -186,11 +194,21 @@ export async function downloadRemoteAsset(
       if (!downloadUrl) {
         return { success: false, error: 'Download URL missing in response' }
       }
+      if (savingToPhotos) {
+        const file = await fetchCdnFile(url, fileName)
+        if (file && (await saveFileToPhotos(file))) return { success: true }
+      }
       triggerDirectDownload(downloadUrl)
       return { success: true }
     }
 
     const blob = await response.blob()
+    if (
+      savingToPhotos &&
+      (await saveFileToPhotos(toPhotoFile(blob, fileName)))
+    ) {
+      return { success: true }
+    }
     triggerBlobDownload(blob, fileName)
     return { success: true }
   } catch (error) {

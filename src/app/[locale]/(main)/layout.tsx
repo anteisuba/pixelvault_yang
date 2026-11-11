@@ -3,6 +3,7 @@ import { NextIntlClientProvider } from 'next-intl'
 import { getMessages, getTranslations } from 'next-intl/server'
 
 import { AuthArrivalToast } from '@/components/business/auth/AuthArrivalToast'
+import { SaveToPhotosHost } from '@/components/business/SaveToPhotosHost'
 import { SvgToPngDialogHost } from '@/components/business/SvgToPngDialogHost'
 import { AppRail } from '@/components/layout/AppRail'
 import { AppSidebar } from '@/components/layout/AppSidebar'
@@ -70,6 +71,7 @@ export default async function MainLayout({
         <Toaster />
         {/* 全站唯一的「转 PNG」弹窗：结果卡的转 PNG 与 SVG 当输入的拦截共用。 */}
         <SvgToPngDialogHost />
+        <SaveToPhotosHost />
         {/* After the Toaster on purpose: sibling effects run in order, so the
             bar is subscribed before the first「已登录」is pushed. */}
         <AuthArrivalToast />

@@ -113,7 +113,9 @@
     "signedIn": "ログインしました",
     "characterCardImported": "{name} を取り込みました",
     "characterCardImportFailed": "カードを取り込めませんでした。もう一度お試しください。",
-    "characterCardDuplicated": "{name} として複製しました"
+    "characterCardDuplicated": "{name} として複製しました",
+    "saveToPhotosReady": "保存の準備ができました",
+    "saveToPhotos": "写真に保存"
   },
   "Projects": {
     "title": "プロジェクト",

@@ -113,7 +113,9 @@
     "signedIn": "Signed in",
     "characterCardImported": "Imported {name}",
     "characterCardImportFailed": "Couldn't import that card. Try again.",
-    "characterCardDuplicated": "Copied as {name}"
+    "characterCardDuplicated": "Copied as {name}",
+    "saveToPhotosReady": "Ready to save",
+    "saveToPhotos": "Save to Photos"
   },
   "Projects": {
     "title": "Projects",

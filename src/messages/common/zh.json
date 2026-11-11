@@ -113,7 +113,9 @@
     "signedIn": "已登录",
     "characterCardImported": "已导入 {name}",
     "characterCardImportFailed": "这张卡没导进来，再试一次",
-    "characterCardDuplicated": "已复制成 {name}"
+    "characterCardDuplicated": "已复制成 {name}",
+    "saveToPhotosReady": "已准备好，点一下存进相册",
+    "saveToPhotos": "存到相册"
   },
   "Projects": {
     "title": "项目",

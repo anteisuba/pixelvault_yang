@@ -139,6 +139,21 @@ describe('setGenerationVisibility', () => {
 
   it.each([
     [{ prompt: 'loli, nude' }, 'CONTENT_NOT_PUBLISHABLE'],
+    [{ prompt: '1girl, adult woman, nsfw' }, 'CONTENT_NOT_PUBLISHABLE'],
+    [
+      {
+        prompt: '2girls, bedroom',
+        recipe: {
+          advancedParams: {
+            novelAiLayout: {
+              positioning: 'auto',
+              characters: [{ prompt: 'girl, naked', position: 'C3' }],
+            },
+          },
+        },
+      },
+      'CONTENT_NOT_PUBLISHABLE',
+    ],
     [
       { prompt: 'Taipei 101', searchGrounded: true },
       'SEARCH_GROUNDED_NOT_PUBLISHABLE',

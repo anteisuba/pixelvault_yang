@@ -50,6 +50,7 @@ function makeKey(overrides: Partial<UserApiKeyRecord>): UserApiKeyRecord {
     label: overrides.label ?? 'My OpenAI key',
     maskedKey: overrides.maskedKey ?? 'sk-****1234',
     isActive: overrides.isActive ?? true,
+    isDefault: false,
     createdAt: overrides.createdAt ?? new Date('2026-01-01'),
   }
 }

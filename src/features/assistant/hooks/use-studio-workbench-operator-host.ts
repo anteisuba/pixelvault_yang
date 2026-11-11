@@ -33,6 +33,7 @@ import { useStudioOperatorFace } from '@/features/assistant/hooks/use-studio-ope
 import { useModelPickerMemory } from '@/hooks/use-model-picker-memory'
 import { getModelVariant } from '@/constants/models'
 import { foldChannels } from '@/lib/group-models-for-picker'
+import { findOptionById, findOptionByModelId } from '@/lib/model-options'
 import { toModelChannelCandidate } from '@/lib/pick-default-model-option'
 import { resolveModelChannel } from '@/lib/resolve-model-channel'
 import { setOperatorGenerationLabel } from '@/lib/studio-operator-label'
@@ -309,15 +310,14 @@ export function useStudioWorkbenchOperatorHost({
         if (latest.current.state.outputType === 'video') {
           const options = latest.current.videoModels.modelOptions
           return (
-            options.find((option) => option.optionId === modelId)?.optionId ??
-            options.find((option) => option.modelId === modelId)?.optionId ??
+            findOptionById(options, modelId)?.optionId ??
+            findOptionByModelId(options, modelId)?.optionId ??
             null
           )
         }
         return (
-          latest.current.imageModels.modelOptions.find(
-            (option) => option.modelId === modelId,
-          )?.optionId ?? null
+          findOptionByModelId(latest.current.imageModels.modelOptions, modelId)
+            ?.optionId ?? null
         )
       },
       /**

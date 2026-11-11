@@ -18,6 +18,7 @@ import {
   deleteApiKey,
   verifyApiKey,
 } from '@/lib/api-client'
+import { defaultKeyGroupOf } from '@/constants/providers'
 import { ApiClientError } from '@/lib/api-client/error-fields'
 import { deferToIdle } from '@/lib/defer-to-idle'
 import { useErrorText } from '@/hooks/use-error-text'
@@ -248,6 +249,11 @@ export interface UseApiKeysReturn {
   create: (data: CreateApiKeyRequest) => Promise<boolean>
   update: (id: string, data: UpdateApiKeyRequest) => Promise<boolean>
   remove: (id: string) => Promise<boolean>
+  /**
+   * 把这把设成它那一组的默认（字节两站算一组）。成功不弹提示、同组旧默认就地清掉；
+   * 失败返回 false，由调用方就地说（设置页那一行出红字）。
+   */
+  setDefault: (id: string) => Promise<boolean>
   verify: (id: string) => Promise<ApiKeyHealthStatus>
   refresh: () => Promise<void>
 }
@@ -475,6 +481,27 @@ export function useApiKeys({
     [errText, t, userId],
   )
 
+  const setDefault = useCallback(
+    async (id: string): Promise<boolean> => {
+      const response = await updateApiKey(id, { isDefault: true })
+      if (!response.success || !response.data) return false
+      const target = response.data
+      const group = new Set(defaultKeyGroupOf(target.adapterType))
+      const apply = (prev: UserApiKeyRecord[]) =>
+        prev.map((key) =>
+          key.id === id
+            ? target
+            : key.isDefault && group.has(key.adapterType)
+              ? { ...key, isDefault: false }
+              : key,
+        )
+      setKeys(apply)
+      if (userId) updateCachedApiKeys(userId, apply)
+      return true
+    },
+    [userId],
+  )
+
   return {
     keys,
     isLoading,
@@ -486,6 +513,7 @@ export function useApiKeys({
     create,
     update,
     remove,
+    setDefault,
     verify: verifyOne,
     refresh: fetchKeys,
   }

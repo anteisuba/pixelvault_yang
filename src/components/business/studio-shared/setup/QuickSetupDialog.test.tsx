@@ -2,6 +2,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { API_ENDPOINTS } from '@/constants/config'
+import { AI_MODELS } from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { ROUTES } from '@/constants/routes'
 import { message as M } from '@/test/app-harness'
@@ -102,5 +103,30 @@ describe('QuickSetupDialog', () => {
     const onOpenChange = renderDialog()
     fireEvent.click(screen.getByText(M('QuickSetup.manageAllKeys')))
     expect(onOpenChange).toHaveBeenCalledWith(false)
+  })
+
+  describe('字节 key', () => {
+    const renderArk = (modelId: string) =>
+      renderWithStudio(
+        <QuickSetupDialog
+          open
+          onOpenChange={vi.fn()}
+          modelId={modelId}
+          modelLabel="ByteDance"
+          adapterType={AI_ADAPTER_TYPES.VOLCENGINE}
+          optionId={`workspace:${modelId}`}
+        />,
+      )
+    const stationOnly = M('QuickSetup.bytedanceStationOnly.volcengine')
+
+    it('只在国内站的型号：说清要一把国内站的 key', () => {
+      renderArk(AI_MODELS.SEEDREAM_50_VOLCENGINE)
+      expect(screen.getByText(stationOnly)).toBeInTheDocument()
+    })
+
+    it('两站都有的型号：不提站点（哪站的 key 都行）', () => {
+      renderArk(AI_MODELS.SEEDREAM_50_PRO_VOLCENGINE)
+      expect(screen.queryByText(stationOnly)).toBeNull()
+    })
   })
 })

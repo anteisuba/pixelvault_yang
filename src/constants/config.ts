@@ -611,7 +611,7 @@ export const ANTHROPIC_API = {
   MODELS_PATH: '/models',
   /**
    * Beta header that unlocks `fallbacks: 'default'` on `/messages`. Claude
-   * Fable 5.1 runs safety classifiers that can decline a request (HTTP 200 +
+   * Fable 5.2 runs safety classifiers that can decline a request (HTTP 200 +
    * `stop_reason: 'refusal'`); with this header the API re-runs a declined
    * request on an Opus-tier model server-side instead of stopping. The
    * `'default'` scalar form needs exactly this header value — the array form
@@ -654,7 +654,7 @@ export const LLM_TEXT_MODEL_IDS = {
   DEEPSEEK_FLASH: 'deepseek-flash',
   CLAUDE_OPUS_5_5: 'claude-opus-5-5',
   CLAUDE_SONNET_5_5: 'claude-sonnet-5-5',
-  CLAUDE_FABLE_5_1: 'claude-fable-5-1',
+  CLAUDE_FABLE_5_2: 'claude-fable-5-2',
   // 2026-10-07 发布：$0.10/$0.50 per MTok（≤100K 提示），Sonnet 5.5 的二十分之一。
   CLAUDE_HAIKU_5_5: 'claude-haiku-5-5',
   XAI_GROK_4_7: 'grok-4.7',
@@ -673,7 +673,7 @@ export const LLM_TEXT_DEFAULT_MAX_TOKENS = {
   ANTHROPIC: 16_000,
   // Streaming Claude requests (today only the assistant kernel's AI SDK call,
   // via `ASSISTANT_V3_MAX_OUTPUT_TOKENS.anthropic`) get the wide ceiling: Sonnet 5.5 / Opus 5.5 /
-  // Fable 5.1 output up to 128K and streaming has no HTTP-timeout reason to
+  // Fable 5.2 output up to 128K and streaming has no HTTP-timeout reason to
   // stay low. 16K was cutting operator turns off mid-JSON once adaptive
   // thinking ran long (2026-10-07 production `ASSISTANT_OUTPUT_TRUNCATED`).
   ANTHROPIC_STREAM: 64_000,

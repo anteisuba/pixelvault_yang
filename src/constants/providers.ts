@@ -37,7 +37,7 @@ export enum AI_ADAPTER_TYPES {
    * versa. Key storage is keyed by adapterType, so one type per station.
    */
   MINIMAX_CN = 'minimax_cn',
-  /** Claude Messages API — BYOK assistant: Opus 5.5 and Fable 5.1. */
+  /** Claude Messages API — BYOK assistant: Opus 5.5 and Fable 5.2. */
   ANTHROPIC = 'anthropic',
   /** Grok 4.7 — BYOK text/image input through Chat Completions. */
   XAI = 'xai',
@@ -68,6 +68,9 @@ export const PROVIDER_CHANNEL_SHORT_LABELS: Partial<
 > = {
   [AI_ADAPTER_TYPES.MINIMAX]: 'Global',
   [AI_ADAPTER_TYPES.MINIMAX_CN]: 'China',
+  // 字节两站合一：目录里一个型号只剩一站（`foldBytedanceStations`），行上不分站。
+  [AI_ADAPTER_TYPES.VOLCENGINE]: 'ByteDance',
+  [AI_ADAPTER_TYPES.BYTEPLUS]: 'ByteDance',
 }
 
 export const AI_ADAPTER_TYPE_OPTIONS = [
@@ -272,6 +275,34 @@ export const ADAPTER_CUSTOM_MODEL_EXAMPLES: Record<AI_ADAPTER_TYPES, string> = {
   [AI_ADAPTER_TYPES.RUNNER]: 'waiIllustriousSDXL_v150',
 }
 
+/**
+ * 字节 Ark 两站：火山（cn）与 BytePlus（intl）同一套协议，key 不通用。owner
+ * 2026-11-11 定设置里合成一种「字节 key」，保存时按数组顺序探测是哪一站
+ * （`docs/design/bytedance-channel.md`）。内部仍按两种 adapter 存。
+ */
+export const BYTEDANCE_ARK_ADAPTERS = [
+  AI_ADAPTER_TYPES.VOLCENGINE,
+  AI_ADAPTER_TYPES.BYTEPLUS,
+] as const
+
+export function isBytedanceArkAdapter(adapterType: AI_ADAPTER_TYPES): boolean {
+  return (BYTEDANCE_ARK_ADAPTERS as readonly AI_ADAPTER_TYPES[]).includes(
+    adapterType,
+  )
+}
+
+/** 「默认 key」在哪一组里唯一：字节两站算一组，其余每家自成一组。 */
+export function defaultKeyGroupOf(
+  adapterType: AI_ADAPTER_TYPES,
+): readonly AI_ADAPTER_TYPES[] {
+  return isBytedanceArkAdapter(adapterType)
+    ? BYTEDANCE_ARK_ADAPTERS
+    : [adapterType]
+}
+
+/** 字节两站合成一行时的名字（设置页 key 行；选择器渠道行见 `PROVIDER_CHANNEL_SHORT_LABELS`）。 */
+export const BYTEDANCE_CHANNEL_LABEL = 'ByteDance'
+
 export const getDefaultProviderConfig = (
   adapterType: AI_ADAPTER_TYPES,
 ): ProviderConfig => DEFAULT_PROVIDER_CONFIGS[adapterType]
@@ -289,6 +320,10 @@ export interface ProviderGuide {
   url: string
   steps: string
 }
+
+/** 字节 key 一种填法（owner 2026-11-11）：哪站的 key 都行，保存时认站。 */
+const BYTEDANCE_KEY_STEPS =
+  'Sign in to 火山方舟 (China) or BytePlus ModelArk (Global) → API Key 管理 / API Key management → Create API Key, then paste it here. Either station works — we detect which one it belongs to.'
 
 export const ADAPTER_API_GUIDES: Record<AI_ADAPTER_TYPES, ProviderGuide> = {
   [AI_ADAPTER_TYPES.HUGGINGFACE]: {
@@ -334,13 +369,11 @@ export const ADAPTER_API_GUIDES: Record<AI_ADAPTER_TYPES, ProviderGuide> = {
   },
   [AI_ADAPTER_TYPES.VOLCENGINE]: {
     url: 'https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey',
-    steps:
-      'Sign in → 火山方舟控制台 → API Key 管理 → Create API Key. 模型需要创建推理接入点 (endpoint), 将 endpoint ID (ep-xxx) 作为自定义模型 ID 使用。',
+    steps: BYTEDANCE_KEY_STEPS,
   },
   [AI_ADAPTER_TYPES.BYTEPLUS]: {
     url: 'https://docs.byteplus.com/en/docs/ModelArk/1520757',
-    steps:
-      'Sign in to BytePlus ModelArk → API Key management → Create API Key. BytePlus keys are not interchangeable with VolcEngine China keys.',
+    steps: BYTEDANCE_KEY_STEPS,
   },
   [AI_ADAPTER_TYPES.FISH_AUDIO]: {
     url: 'https://fish.audio/zh-CN/app/api-keys/',

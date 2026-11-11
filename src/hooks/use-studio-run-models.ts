@@ -6,6 +6,7 @@ import { getModelFamily } from '@/constants/models'
 import { getPromptDialect } from '@/constants/prompt-dialects'
 import { useStudioForm } from '@/contexts/studio-context'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
+import { findOptionById } from '@/lib/model-options'
 import type { StudioModelOption } from '@/types/model-option'
 
 export interface UseStudioRunModelsReturn {
@@ -28,9 +29,6 @@ export function useStudioRunModels(): UseStudioRunModelsReturn {
   const { modelOptions } = useImageModelOptions()
 
   const runModels = useMemo(() => {
-    const byId = new Map(
-      modelOptions.map((option) => [option.optionId, option]),
-    )
     const ids = [
       ...(state.selectedOptionId ? [state.selectedOptionId] : []),
       ...state.extraModelOptionIds,
@@ -39,7 +37,8 @@ export function useStudioRunModels(): UseStudioRunModelsReturn {
     return (
       ids
         .filter((id) => (seen.has(id) ? false : (seen.add(id), true)))
-        .map((id) => byId.get(id))
+        // 换了字节默认站后旧站的 id 落到另一站同款（`findOptionById`）。
+        .map((id) => findOptionById(modelOptions, id))
         .filter((option): option is StudioModelOption => Boolean(option))
         /**
          * ⛔ **不跨方言**（D10 ② Q3）：两台各自只跑本方言的模型。跨台留下来的

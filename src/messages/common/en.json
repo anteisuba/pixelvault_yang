@@ -258,6 +258,10 @@
   },
   "QuickSetup": {
     "channelPick": "Pick a provider: whose key are you adding?",
+    "bytedanceStationOnly": {
+      "volcengine": "This model is only on the China station (VolcEngine Ark), so it needs a China-station key.",
+      "byteplus": "This model is only on the Global station (BytePlus), so it needs a Global-station key."
+    },
     "ideogramGuide": "Sign in to Ideogram → API Keys → Create key.",
     "title": "Set up {model}",
     "description": "Get your API key in 2 minutes to unlock this model.",

@@ -258,6 +258,10 @@
   },
   "QuickSetup": {
     "channelPick": "どのプロバイダーのキーを設定しますか？",
+    "bytedanceStationOnly": {
+      "volcengine": "このモデルは中国サイト（火山方舟）のみです。中国サイトのキーが必要です。",
+      "byteplus": "このモデルはグローバルサイト（BytePlus）のみです。グローバルサイトのキーが必要です。"
+    },
     "ideogramGuide": "Ideogram にログイン → API Keys → Create key でキーを作成。",
     "title": "{model} を設定",
     "description": "2分でAPIキーを取得して、このモデルを使えるようにします。",

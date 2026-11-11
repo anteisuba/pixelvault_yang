@@ -88,6 +88,7 @@ function makeKey(over: Partial<UserApiKeyRecord>): UserApiKeyRecord {
     label: over.label ?? 'Test key',
     maskedKey: over.maskedKey ?? '****1234',
     isActive: over.isActive ?? true,
+    isDefault: false,
     createdAt: over.createdAt ?? new Date('2026-01-01'),
   }
 }

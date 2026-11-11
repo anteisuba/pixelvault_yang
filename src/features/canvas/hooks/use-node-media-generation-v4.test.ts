@@ -18,8 +18,8 @@ import {
 const NOW = '2026-09-07T00:00:00.000Z'
 const MODEL = {
   optionId: 'opt',
-  modelId: 'seedance-2.5',
-  adapterType: 'fal',
+  modelId: 'seedance-2.5-volcengine',
+  adapterType: 'volcengine',
   apiKeyId: 'key-1',
 } as NodeV4Data extends { model?: infer M } ? NonNullable<M> : never
 
@@ -136,7 +136,7 @@ describe('planV4Generation · 视频', () => {
 
   it('挂了参考项 → 端点换成该型号的**参考变体**（spec §5 推出来的模式）', () => {
     // 这张图上挂着角色卡（参考图）与语音 —— 推出来的模式是「全能参考」。
-    expect(plan.modelId).toBe('seedance-2.5-reference')
+    expect(plan.modelId).toBe('seedance-2.5-reference-volcengine')
   })
 
   it('只有首 / 尾帧 → 留在关键帧端点，⛔ 不偷偷换到参考端点', () => {
@@ -147,7 +147,7 @@ describe('planV4Generation · 视频', () => {
         edge('e2', 'last', 'shot', NODE_SLOT_IDS.lastFrame),
       ],
     })!
-    expect(keyframeOnly.modelId).toBe('seedance-2.5')
+    expect(keyframeOnly.modelId).toBe('seedance-2.5-volcengine')
   })
 
   it('Seedance 2.5 不接受 3s：吸附到 4s，1080p 原样带过去', () => {
@@ -419,7 +419,7 @@ describe('planV4Generation · 镜头里 @她（画布用角色 ④ 第 2 片）'
     expect(plan.characterImagePicks).toEqual({
       denia: [{ generationId: 'g_1' }],
     })
-    expect(plan.modelId).toBe('seedance-2.5-reference')
+    expect(plan.modelId).toBe('seedance-2.5-reference-volcengine')
     expect(plan.prompt).toContain('Denia 在雨里回头')
     expect(plan.prompt).not.toContain('@Denia')
   })
@@ -455,8 +455,8 @@ describe('planV4Generation · 镜头里 @她（画布用角色 ④ 第 2 片）'
 describe('preflightV4Plan · 发送前校验（owner 09-28：不发送 + 说清哪项超了多少）', () => {
   const SEEDANCE_20 = {
     optionId: 'opt',
-    modelId: 'seedance-2.0',
-    adapterType: 'fal',
+    modelId: 'seedance-2.0-volcengine',
+    adapterType: 'volcengine',
     apiKeyId: 'key-1',
   } as typeof MODEL
   const DENIA = {
@@ -504,7 +504,7 @@ describe('preflightV4Plan · 发送前校验（owner 09-28：不发送 + 说清�
 
   it('发送合同是这一枪的端点：2.0 参考档 9/3/3、合计 12，时长 2–15s', () => {
     const plan = planV4Generation('s20', shotWithImages(2))!
-    expect(plan.modelId).toBe('seedance-2.0-reference')
+    expect(plan.modelId).toBe('seedance-2.0-reference-volcengine')
     expect(plan.referenceSlots).toMatchObject({
       images: 9,
       videos: 3,
@@ -563,7 +563,7 @@ describe('preflightV4Plan · 发送前校验（owner 09-28：不发送 + 说清�
 
   const base: V4GenerationPlan = {
     kind: 'video',
-    modelId: 'seedance-2.0-reference',
+    modelId: 'seedance-2.0-reference-volcengine',
     prompt: 'x',
     issues: [],
     referenceImages: ['https://cdn/a.png'],

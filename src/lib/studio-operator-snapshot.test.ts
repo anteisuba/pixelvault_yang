@@ -468,7 +468,8 @@ describe('buildImageOperatorSnapshot', () => {
     })
     expect(snapshot.availableModels[0]?.channels).toEqual([
       { id: `workspace:${PLAIN}`, label: 'fal.ai' },
-      { id: `saved:${PLAIN}-byteplus`, label: 'BytePlus' },
+      // 字节两站合一后渠道行一律写 ByteDance（PROVIDER_CHANNEL_SHORT_LABELS）。
+      { id: `saved:${PLAIN}-byteplus`, label: 'ByteDance' },
     ])
     expect(snapshot.model).toMatchObject({
       id: PLAIN,

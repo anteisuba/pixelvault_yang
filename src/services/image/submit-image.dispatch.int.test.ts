@@ -122,7 +122,7 @@ describe('submitImageGeneration · 派发', () => {
 
     await submitImageGeneration(me.clerkId, {
       ...INPUT,
-      modelId: AI_MODELS.SEEDREAM_50_PRO,
+      modelId: AI_MODELS.RECRAFT_V4_PRO,
     })
 
     const sent = dispatched()
@@ -154,7 +154,7 @@ describe('submitImageGeneration · 派发', () => {
     await expect(
       submitImageGeneration(me.clerkId, {
         ...INPUT,
-        modelId: AI_MODELS.SEEDREAM_50_PRO,
+        modelId: AI_MODELS.RECRAFT_V4_PRO,
       }),
     ).rejects.toMatchObject({ code: 'MISSING_API_KEY', status: 400 })
     expect(await db.generationJob.count()).toBe(0)
@@ -490,11 +490,12 @@ describe('submitImageGeneration · LoRA 与 Runner', () => {
   })
 
   it('作者关了下载的 LoRA：点名拦下，⛔ 建任务 / 传参考图 / 派发（托管路由也拦）', async () => {
-    await seedAssistantKey(me.id, AI_ADAPTER_TYPES.FAL)
+    // 要一个收参考图的托管路由：fal 的 Seedream 已退役（2026-11-11），用火山那条。
+    await seedAssistantKey(me.id, AI_ADAPTER_TYPES.VOLCENGINE)
     civitai.set(2266398, { usageControl: 'Generation', name: 'Ananta' })
     const request = {
       ...INPUT,
-      modelId: AI_MODELS.SEEDREAM_50_PRO,
+      modelId: AI_MODELS.SEEDREAM_50_PRO_VOLCENGINE,
       referenceImages: ['data:image/png;base64,cmVm'],
       advancedParams: { loras: [LORA(2266398)] },
     }
@@ -516,7 +517,7 @@ describe('submitImageGeneration · LoRA 与 Runner', () => {
 
     const result = await submitImageGeneration(me.clerkId, {
       ...INPUT,
-      modelId: AI_MODELS.SEEDREAM_50_PRO,
+      modelId: AI_MODELS.RECRAFT_V4_PRO,
       advancedParams: { loras: [LORA(2266398)] },
     })
 

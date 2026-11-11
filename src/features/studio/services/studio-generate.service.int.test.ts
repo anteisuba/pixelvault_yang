@@ -143,7 +143,7 @@ describe('compileAndGenerate prompt limits', () => {
     // 此前它们全部被那个借来的 2000 拦着。
     await compileAndGenerate(me.clerkId, {
       ...QUICK_INPUT,
-      modelId: AI_MODELS.SEEDREAM_50_PRO,
+      modelId: AI_MODELS.RECRAFT_V4_PRO,
       freePrompt: 'a'.repeat(2932),
     })
 

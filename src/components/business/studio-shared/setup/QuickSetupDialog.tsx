@@ -4,7 +4,11 @@ import { useState, useCallback, useEffect } from 'react'
 import { Check, ExternalLink, XCircle } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
-import { AI_ADAPTER_TYPES, getAdapterApiGuide } from '@/constants/providers'
+import {
+  AI_ADAPTER_TYPES,
+  getAdapterApiGuide,
+  isBytedanceArkAdapter,
+} from '@/constants/providers'
 import { ROUTES } from '@/constants/routes'
 import { API_KEY_ADAPTER_OPTIONS } from '@/constants/api-keys'
 import { createApiKey, deleteApiKey } from '@/lib/api-client'
@@ -23,6 +27,7 @@ import { BlurSwap } from '@/components/ui/blur-swap'
 import { Spinner } from '@/components/ui/spinner'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
+import { getBytedanceStationTwin } from '@/lib/bytedance-stations'
 import { useErrorText } from '@/hooks/use-error-text'
 
 /** 同一个型号可以配哪几家的 key（弹窗顶上那一排）。 */
@@ -189,6 +194,11 @@ export function QuickSetupDialog({
   const errText = useErrorText()
 
   const guide = getAdapterApiGuide(adapterType)
+  // 字节 key 哪站都能填、保存时认站；只有这个型号只在一站上时要说清是哪一站。
+  const bytedanceStationOnly =
+    isBytedanceArkAdapter(adapterType) && !getBytedanceStationTwin(modelId)
+      ? adapterType
+      : null
   const providerConfig = getDefaultProviderConfig(adapterType)
 
   // Prefill the label with the model name so a user who doesn't care about
@@ -386,6 +396,11 @@ export function QuickSetupDialog({
                 ? t('ideogramGuide')
                 : guide.steps}
             </p>
+            {bytedanceStationOnly ? (
+              <p className="text-2xs font-medium text-foreground">
+                {t(`bytedanceStationOnly.${bytedanceStationOnly}`)}
+              </p>
+            ) : null}
           </div>
 
           {/* Step 2: Input key */}

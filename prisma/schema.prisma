@@ -442,6 +442,8 @@ model UserApiKey {
   encryptedKey   String
   maskedKey      String   @default("****")
   isActive       Boolean  @default(true)
+  /// 一家有多把 key 时用户指定的那一把（字节两站合一 owner 2026-11-11）。没有标记 = 最新那把。
+  isDefault      Boolean  @default(false)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

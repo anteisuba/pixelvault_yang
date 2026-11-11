@@ -60,7 +60,7 @@ A single operator engine shared by the image, LoRA, video and canvas workspaces.
 
 - **Discuss first, act when told.** Questions get answers; instructions get changes; real conflicts get a short multiple-choice question.
 - **Five verbs:** look (inspect references and results), research (web search with cited sources), ask, apply (edit prompts, models, specs, canvas nodes) and request generation — which always stops at a confirmation card, because only you can start a paid generation.
-- **Bring your own planner model:** Claude (Opus 5.5 / Sonnet 5.5 / Fable 5.1), OpenAI GPT-6 family, Gemini 3.x Flash, DeepSeek and Grok.
+- **Bring your own planner model:** Claude (Opus 5.5 / Sonnet 5.5 / Fable 5.2), OpenAI GPT-6 family, Gemini 3.x Flash, DeepSeek and Grok.
 - Round summaries and optional long-term memory carry decisions across turns without replaying the whole history.
 
 ### Library

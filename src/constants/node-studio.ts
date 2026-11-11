@@ -335,8 +335,8 @@ export const NODE_STUDIO_ASSISTANT_ROUTE_MODELS = [
   },
   {
     adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
-    modelId: LLM_TEXT_MODEL_IDS.CLAUDE_FABLE_5_1,
-    label: 'Claude Fable 5.1',
+    modelId: LLM_TEXT_MODEL_IDS.CLAUDE_FABLE_5_2,
+    label: 'Claude Fable 5.2',
   },
   {
     adapterType: AI_ADAPTER_TYPES.ANTHROPIC,

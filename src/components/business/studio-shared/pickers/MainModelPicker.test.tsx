@@ -39,14 +39,15 @@ vi.mock('@/i18n/navigation', () => ({
 
 const ok = (data: unknown) => Response.json({ success: true, data })
 
-const FAL_KEY: UserApiKeyRecord = {
-  id: 'fal-1',
-  modelId: AI_MODELS.SEEDREAM_50_PRO,
-  adapterType: AI_ADAPTER_TYPES.FAL,
-  providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
-  label: 'fal',
-  maskedKey: 'fal-****',
+const ARK_KEY: UserApiKeyRecord = {
+  id: 'ark-1',
+  modelId: AI_MODELS.SEEDREAM_50_PRO_VOLCENGINE,
+  adapterType: AI_ADAPTER_TYPES.VOLCENGINE,
+  providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.VOLCENGINE),
+  label: 'ark',
+  maskedKey: 'ark-****',
   isActive: true,
+  isDefault: false,
   createdAt: new Date('2026-01-01'),
 }
 
@@ -125,9 +126,9 @@ describe('MainModelPicker 分发器', () => {
   })
 
   it('每个模态都是同一颗统一触发器：名与型号两格（D2 ④「五处宿主同一形状」）', async () => {
-    keys = [FAL_KEY]
+    keys = [ARK_KEY]
     renderWithStudio(
-      <MainModelPicker modality="image" value="key:fal-1" onChange={vi.fn()} />,
+      <MainModelPicker modality="image" value="key:ark-1" onChange={vi.fn()} />,
     )
     await rendered()
     const chip = screen.getByRole('button', { name: /Seedream/ })

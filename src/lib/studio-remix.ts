@@ -6,6 +6,7 @@ import type {
   GenerationSnapshot,
 } from '@/types'
 import { GenerationSnapshotSchema } from '@/types'
+import { findOptionByModelId } from '@/lib/model-options'
 
 type SupportedStudioAspectRatio = (typeof STUDIO_IMAGE_ASPECT_RATIOS)[number]
 
@@ -72,8 +73,7 @@ function resolveOptionId(
   }
 
   const modelId = snapshot?.modelId ?? generation.model
-  const matchedOption = options.find((option) => option.modelId === modelId)
-  return matchedOption?.optionId ?? null
+  return findOptionByModelId(options, modelId)?.optionId ?? null
 }
 
 export function getGenerationPromptPreview(

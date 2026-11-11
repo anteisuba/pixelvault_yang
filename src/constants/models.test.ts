@@ -66,13 +66,13 @@ describe('models', () => {
   })
 
   it('recommends Seedance 2.5 first while preserving its channel order', () => {
+    // fal 那条 2026-11-11 退役（字节只走官方两站）。
     expect(
       getAvailableVideoModels()
-        .slice(0, 3)
+        .slice(0, 2)
         .map((model) => model.id),
     ).toEqual([
       AI_MODELS.SEEDANCE_25_VOLCENGINE,
-      AI_MODELS.SEEDANCE_25,
       AI_MODELS.SEEDANCE_25_BYTEPLUS,
     ])
   })

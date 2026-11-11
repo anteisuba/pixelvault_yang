@@ -2411,6 +2411,8 @@ export const UpdateApiKeySchema = z.object({
   label: z.string().min(1).max(50).optional(),
   isActive: z.boolean().optional(),
   keyValue: z.string().trim().min(10).optional(),
+  /** 只能设成默认；换默认 = 把另一把设成默认，服务端清掉同组旧标记。 */
+  isDefault: z.literal(true).optional(),
 })
 export type UpdateApiKeyRequest = z.infer<typeof UpdateApiKeySchema>
 
@@ -2423,6 +2425,7 @@ export interface UserApiKeyRecord {
   maskedKey: string
   credentialGroupId?: string
   isActive: boolean
+  isDefault: boolean
   createdAt: Date
 }
 

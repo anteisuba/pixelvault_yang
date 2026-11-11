@@ -75,7 +75,9 @@ interface Setup {
 /** 真工作台：摆好模态、模型、提示词、张数 / 时长、参考图，再渲染 composer。 */
 async function renderComposer({
   video = false,
-  model = video ? AI_MODELS.SEEDANCE_20 : AI_MODELS.OPENAI_GPT_IMAGE_2,
+  model = video
+    ? AI_MODELS.SEEDANCE_20_VOLCENGINE
+    : AI_MODELS.OPENAI_GPT_IMAGE_2,
   extra = [],
   prompt = '',
   batch,
@@ -329,7 +331,7 @@ describe('StudioMobileComposer · 视频档', () => {
         void studio.current.generation.generate({
           mode: 'video',
           video: {
-            modelId: AI_MODELS.SEEDANCE_20,
+            modelId: AI_MODELS.SEEDANCE_20_VOLCENGINE,
             prompt: 'a cat walks',
             aspectRatio: '16:9',
             duration: 5,

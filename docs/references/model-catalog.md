@@ -5,7 +5,7 @@
 
 ## 当前文本与音乐路由（2026-10-01）
 
-OpenAI 助手与规划默认 GPT-6.1 Sol，增强与自动问答仍用 GPT-6 Luna，Astra 保留。DeepSeek 默认 V4.1 Flash（`deepseek-flash`），显式 V4 Pro 保留。Claude 默认 Opus 5.5，Sonnet 5.5 与 Fable 5.1 可选；Grok 使用 4.7。Eleven Music 已升级为 v2.5（`music_v2_5`），提示词最多 4100 字符，保存身份仍为 `eleven-music-v2`。下方历史审计不代表现行路由；契约与来源见 [providers](providers.md#文本模型升级verified-2026-10-01)。
+OpenAI 助手与规划默认 GPT-6.1 Sol，增强与自动问答仍用 GPT-6 Luna，Astra 保留。DeepSeek 默认 V4.1 Flash（`deepseek-flash`），显式 V4 Pro 保留。Claude 默认 Opus 5.5，Sonnet 5.5 与 Fable 5.2 可选；Grok 使用 4.7。Eleven Music 已升级为 v2.5（`music_v2_5`），提示词最多 4100 字符，保存身份仍为 `eleven-music-v2`。下方历史审计不代表现行路由；契约与来源见 [providers](providers.md#文本模型升级verified-2026-10-01)。
 
 2026-10-01 官方动态核验：[Claude Sonnet 5.5](https://platform.claude.com/docs/en/models/sonnet-5-5/overview) 已按 owner 选择接入为可选文本模型；[Gemini 4 Argon](https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-4-argon/) 已公布，但公告仅向受信任网络防御合作方逐步开放，付费 API 仍为后续计划。公开 [Gemini 模型目录](https://ai.google.dev/gemini-api/docs/models) 尚无 Gemini 4 API 型号，不据公告猜测 `gemini-4-pro` ID。
 

@@ -12,7 +12,7 @@ import { api, type Envelope } from './helpers'
  */
 
 const FAKE_WORKER = process.env.FAKE_WORKER_URL ?? 'http://localhost:4010'
-const MODEL_ID = 'seedream-5.0-lite'
+const MODEL_ID = 'recraft-v4-pro'
 const KEY_VALUE = 'fal-e2e-not-a-real-key'
 
 /** 测试账号上一把 fal 的 key（重跑时复用上一次存的）。 */

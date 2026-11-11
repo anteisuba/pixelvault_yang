@@ -473,16 +473,16 @@ describe('视频台桌面（没有参考轨）', () => {
   })
 
   it('换到只收一张图的型号：尾帧这次不发，⛔ 还缩在右下角、说明也不提尾帧', async () => {
-    // Seedance 2.0（fal）：只有首帧那一格。⚠ 不另挂参考图 —— 挂了参考图发送口会换到参考端点，
-    //   那一端收多张图，尾帧就作为参考图照发了。
-    await videoStage(AI_MODELS.SEEDANCE_20, FIRST, LAST, false)
+    // Kling V3 Pro：只有首帧那一格（原先用的 fal Seedance 2.0 已于 2026-11-11 退役，
+    //   官方两站的 Seedance 关键帧档都收首尾帧）。⚠ 不另挂参考图 —— 挂了参考图发送口会换到参考端点。
+    await videoStage(AI_MODELS.KLING_V3_PRO, FIRST, LAST, false)
     expect(screen.getByAltText(SLOTS('firstFrame'))).toBeInTheDocument()
     expect(screen.queryByAltText(SLOTS('lastFrame'))).toBeNull()
     expect(screen.getByText(posterLine('firstOnly'))).toBeInTheDocument()
   })
 
   it('没挂首帧：走正常的结果区，⛔ 把参考图铺上来', async () => {
-    await videoStage(AI_MODELS.SEEDANCE_20, null, null)
+    await videoStage(AI_MODELS.SEEDANCE_20_VOLCENGINE, null, null)
     expect(screen.queryByAltText(EDIT('sourceAlt'))).toBeNull()
     expect(screen.queryByAltText(SLOTS('firstFrame'))).toBeNull()
   })

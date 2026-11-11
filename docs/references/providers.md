@@ -120,7 +120,7 @@
 - OpenAI：助手／默认文本／剧本规划使用 `gpt-6.1-sol`，增强与自动问答使用 `gpt-6-luna`，选择器保留 `gpt-6-astra`。原生调用继续 Chat Completions，Gateway 字符串同步为 `openai/gpt-6.1-sol`。6.1 Sol 不支持 `none/minimal` 推理档；当前原生调用不发送原生 tools 或这两种推理档，JSON 与 SSE 沿用现有路径。
 - DeepSeek：助手、规划与通用文本默认 `deepseek-flash`（V4.1 Flash），显式 `deepseek-v4-pro` 继续可用并保持纯文本。无型号请求的能力闸与实际默认模型一致。
 - DeepSeek 自带联网（2026-10-14 接入，**未实测**）：走 Anthropic 兼容入口 `{baseUrl 去掉 /v1}/anthropic/v1/messages`（头 `x-api-key` + `anthropic-version`，不带 beta 头），工具 `web_search_20250305` 只给 `max_uses`。依据：[Anthropic 兼容字段表](https://api-docs.deepseek.com/zh-cn/guides/anthropic_api) 把 `server_tool_use` / `web_search_tool_result` 标为支持；第三方用法文章说该入口可用。失败或没调用时 `research-fanout` 退回 Serper（`via: 'serper-fallback'`），线上首次实测后把结论写回这里。走 Cloudflare AI Gateway 时改道为 `…/deepseek/anthropic/v1/messages`。
-- Claude：助手默认 `claude-opus-5-5`，可选 `claude-sonnet-5-5` 与 `claude-fable-5-1`。三者均保持自适应思考，不发送禁用 thinking、非默认采样参数、强制 tool choice 或 assistant prefill；保留 Messages 的 token 预算、JSON 系统指令与官方 `fallbacks: "default"` 契约。默认 effort 分别为 medium / high / high；Sonnet 复用原生 Messages、图片输入、结构化 JSON、流式与搜索路径。Fable 的数据保留限制不推定适用于其他型号。
+- Claude：助手默认 `claude-opus-5-5`，可选 `claude-sonnet-5-5` 与 `claude-fable-5-2`。三者均保持自适应思考，不发送禁用 thinking、非默认采样参数、强制 tool choice 或 assistant prefill；保留 Messages 的 token 预算、JSON 系统指令与官方 `fallbacks: "default"` 契约。默认 effort 分别为 medium / high / high；Sonnet 复用原生 Messages、图片输入、结构化 JSON、流式与搜索路径。Fable 的数据保留限制不推定适用于其他型号。
 - 2026-11-01 新增两档可选（不改任何默认）：`gpt-6.1-terra`（10-26 发布，$1/$5，1.05M 上下文 / 128K 输出，看图 ✓，推理档含 none~max）与 `gemini-4-argon`（9-30 发布，Gemini 4 目前唯一一档；⚠ 无免费档，$2/$10 推出价到 11-30，12-01 起 $4/$20；65,536 默认输出，thinkingLevel 三档）。进助手选择器、增强选择器、结构化输出名单、v3 输出上限表；规划器（每家一条）不动。依据：[GPT-6.1 Terra](https://developers.openai.com/api/docs/models/gpt-6.1-terra)、[Gemini 4 Argon](https://ai.google.dev/gemini-api/docs/models/gemini-4-argon)、[Gemini 价格](https://ai.google.dev/gemini-api/docs/pricing)。**真实 API 未联调**。
 - Grok：增强／助手统一 `grok-4.7`，沿用 Chat Completions、`reasoning_effort: "low"`、`max_completion_tokens` 与长首包等待。4.7 Fast 不在公共 API 上，不加入目录。
 - 模型名称沿用共享路由常量，en/ja/zh 使用同一官方名称；未增加翻译键。BYOK、平台权限和站内额度不变。
@@ -189,6 +189,8 @@ adapter / Worker 抛错
 - Kling 换原生 = **新 provider 工程**（区域/资质/API 形态都不同），不是改 endpoint 字符串。
 
 ## 逐 provider 现状速览
+
+- **字节模型 2026-11-11 收成一个渠道**（owner 定，设计 [bytedance-channel](../design/bytedance-channel.md)）：fal 的 Seedream 5.0 Pro / Lite 与 Seedance 2.0 / 2.0 Fast / 2.5（含 reference）8 条进 `RETIRED_MODEL_IDS`，字节只走官方火山 / BytePlus。设置里只有一种「字节 key」，保存时按 `BYTEDANCE_ARK_ADAPTERS` 顺序打各站 `/models` 认站，内部仍存两种 adapter；两站都有 key 时 `UserApiKey.isDefault` 标默认（`pickDefaultApiKey`：标过的 › 最新）。目录在 `withProviderKeyCoverage` 里折两站（`foldBytedanceStations`）：同款（`X_VOLCENGINE` ↔ `X_BYTEPLUS`）只留默认站那条，单站型号照留；旧站 optionId 由 `findOptionById` / `findOptionByModelId` 落到同款。Seedream 路由权重与 bestFor 平移到两站 Pro / Lite。Worker 里 fal Seedance 的请求构造未删（不再有新请求走到）。
 
 - **FLUX 整条线 2026-11-02 下架**（owner：效果一般）：FLUX.2 Pro / Pro Edit / Flash、Kontext Max 进 `RETIRED_MODEL_IDS`，条目留着让旧作品能解析；3D 多视角默认改 GPT Image 2；商品 / 写实不再指定专门模型（owner 11-02：不要 Seedream 自动推荐）。画布编辑入口里的 FLUX 端点（`flux-pro/v1/fill` 局部重绘、物体替换的 kontext / flux-2-pro edit 执行 id）属编辑工具，没动。
 

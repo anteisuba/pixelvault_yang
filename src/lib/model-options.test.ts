@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  AI_MODELS,
   getAvailableImageModels,
   getAvailableVideoModels,
 } from '@/constants/models'
 import {
+  AI_ADAPTER_TYPES,
   AI_ADAPTER_TYPE_OPTIONS,
-  type AI_ADAPTER_TYPES,
   type ProviderConfig,
 } from '@/constants/providers'
 import {
@@ -19,6 +20,10 @@ import {
 } from '@/lib/group-models-for-picker'
 import {
   buildSavedModelOptionsForModels,
+  findOptionById,
+  findOptionByModelId,
+  findSelectedModel,
+  foldBytedanceStations,
   mergeModelOptionsWithPreferredSavedRoutes,
   withProviderKeyCoverage,
 } from '@/lib/model-options'
@@ -39,6 +44,7 @@ function makeKey(
     label: `${overrides.id} key`,
     maskedKey: 'sk-****1234',
     isActive: true,
+    isDefault: false,
     createdAt: new Date('2026-01-01'),
   }
 }
@@ -299,5 +305,95 @@ describe('一条路只留一个 optionId', () => {
         ),
       )
     expect(pointable).toBe(true)
+  })
+})
+
+describe('字节两站合一（foldBytedanceStations / findOptionById）', () => {
+  const workspace = (modelId: string, adapterType: AI_ADAPTER_TYPES) =>
+    ({
+      optionId: `workspace:${modelId}`,
+      modelId,
+      adapterType,
+      providerConfig: { label: adapterType, baseUrl: 'https://example.com' },
+      requestCount: 1,
+      isBuiltIn: true,
+      sourceType: 'workspace',
+    }) as StudioModelOption
+  const catalog = [
+    workspace(
+      AI_MODELS.SEEDREAM_50_PRO_VOLCENGINE,
+      AI_ADAPTER_TYPES.VOLCENGINE,
+    ),
+    workspace(AI_MODELS.SEEDREAM_50_PRO_BYTEPLUS, AI_ADAPTER_TYPES.BYTEPLUS),
+    workspace(AI_MODELS.SEEDREAM_50_VOLCENGINE, AI_ADAPTER_TYPES.VOLCENGINE),
+    workspace(AI_MODELS.SEEDREAM_50_PRO, AI_ADAPTER_TYPES.FAL),
+  ]
+  const arkKey = (
+    id: string,
+    adapterType: AI_ADAPTER_TYPES,
+    extra: Partial<UserApiKeyRecord> = {},
+  ) => ({ ...makeKey({ id, modelId: 'x', adapterType }), ...extra })
+  const ids = (options: readonly StudioModelOption[]) =>
+    options.map((option) => option.modelId)
+
+  it('没有字节 key：留国内站，海外站同款折掉；别家不动', () => {
+    expect(ids(foldBytedanceStations(catalog, []))).toEqual([
+      AI_MODELS.SEEDREAM_50_PRO_VOLCENGINE,
+      AI_MODELS.SEEDREAM_50_VOLCENGINE,
+      AI_MODELS.SEEDREAM_50_PRO,
+    ])
+  })
+
+  it('只有海外站 key：留海外站；只在国内站有的型号照留', () => {
+    const keys = [arkKey('intl', AI_ADAPTER_TYPES.BYTEPLUS)]
+    expect(ids(foldBytedanceStations(catalog, keys))).toEqual([
+      AI_MODELS.SEEDREAM_50_PRO_BYTEPLUS,
+      AI_MODELS.SEEDREAM_50_VOLCENGINE,
+      AI_MODELS.SEEDREAM_50_PRO,
+    ])
+  })
+
+  it('两站都有 key：跟标为默认的那把走，不跟新旧走', () => {
+    const keys = [
+      arkKey('cn', AI_ADAPTER_TYPES.VOLCENGINE, { isDefault: true }),
+      arkKey('intl', AI_ADAPTER_TYPES.BYTEPLUS, {
+        createdAt: new Date('2026-11-10'),
+      }),
+    ]
+    expect(ids(foldBytedanceStations(catalog, keys))).toContain(
+      AI_MODELS.SEEDREAM_50_PRO_VOLCENGINE,
+    )
+    expect(ids(foldBytedanceStations(catalog, keys))).not.toContain(
+      AI_MODELS.SEEDREAM_50_PRO_BYTEPLUS,
+    )
+  })
+
+  it('withProviderKeyCoverage 也折（所有目录都经过它）', () => {
+    const keys = [arkKey('intl', AI_ADAPTER_TYPES.BYTEPLUS)]
+    const covered = withProviderKeyCoverage([...catalog], keys)
+    expect(ids(covered)).not.toContain(AI_MODELS.SEEDREAM_50_PRO_VOLCENGINE)
+    expect(
+      covered.find(
+        (option) => option.modelId === AI_MODELS.SEEDREAM_50_PRO_BYTEPLUS,
+      )?.providerKeyId,
+    ).toBe('intl')
+  })
+
+  it('换了默认站后，存下来的旧站选择落到同款上；找不到的不乱落', () => {
+    const folded = foldBytedanceStations(catalog, [
+      arkKey('intl', AI_ADAPTER_TYPES.BYTEPLUS),
+    ])
+    expect(
+      findOptionById(
+        folded,
+        `workspace:${AI_MODELS.SEEDREAM_50_PRO_VOLCENGINE}`,
+      )?.modelId,
+    ).toBe(AI_MODELS.SEEDREAM_50_PRO_BYTEPLUS)
+    expect(
+      findOptionByModelId(folded, AI_MODELS.SEEDREAM_50_PRO_VOLCENGINE)
+        ?.modelId,
+    ).toBe(AI_MODELS.SEEDREAM_50_PRO_BYTEPLUS)
+    expect(findOptionById(folded, 'key:gone')).toBeUndefined()
+    expect(findSelectedModel(folded, 'key:gone')).toBe(folded[0])
   })
 })

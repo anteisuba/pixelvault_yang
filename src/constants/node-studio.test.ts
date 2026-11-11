@@ -24,7 +24,7 @@ describe('resolveAssistantModelId', () => {
 
   it.each([
     LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5,
-    LLM_TEXT_MODEL_IDS.CLAUDE_FABLE_5_1,
+    LLM_TEXT_MODEL_IDS.CLAUDE_FABLE_5_2,
   ])(
     'defaults to Opus 5.5 while preserving an explicit %s selection',
     (modelId) => {

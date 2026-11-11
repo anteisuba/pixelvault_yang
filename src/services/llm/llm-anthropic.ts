@@ -62,7 +62,7 @@ const AnthropicResponseUsageSchema = z.object({
 
 /**
  * Claude (Anthropic) text completion — the Messages API, NOT an
- * OpenAI-compatible drop-in. Models: Opus 5.5, Sonnet 5.5, and Fable 5.1.
+ * OpenAI-compatible drop-in. Models: Opus 5.5, Sonnet 5.5, and Fable 5.2.
  * Deliberate differences from the branches above
  * (docs/references/pages/assistant-shell.md):
  *  1. `max_tokens` is required on every request — `providerManagedOutput`
@@ -88,7 +88,7 @@ const AnthropicResponseUsageSchema = z.object({
  *     `stop_details` is informational and may be null.
  *  6. Images use native URL/base64 blocks. Web search uses the separate
  *     `anthropicNativeWebSearch` path; video input and inline grounding throw.
- *  7. Fable 5.1 requires 30-day data retention on the key's organization; a
+ *  7. Fable 5.2 requires 30-day data retention on the key's organization; a
  *     zero-data-retention org gets a 400 on every request, which surfaces
  *     through `toLlmTextProviderError` like any other 400.
  */
@@ -139,7 +139,7 @@ function buildAnthropicMessagesRequest(input: LlmTextInput): {
     ? input.jsonSchema
     : undefined
   // ⚠ Anthropic has NO `response_format`, and **assistant-turn prefill returns
-  // a 400 on Fable 5.1** (removed across the 4.6+ family) — so the usual
+  // a 400 on Fable 5.2** (removed across the 4.6+ family) — so the usual
   // "prefill a `{`" trick is not available here; don't reintroduce it.
   // With a caller schema the API constrains the output (`output_config.format`).
   // Schemaless `'json_object'` callers still get the system-prompt

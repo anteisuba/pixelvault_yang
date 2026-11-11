@@ -141,7 +141,7 @@ import {
 
 const NOW = '2026-09-10T00:00:00.000Z'
 /** 目录里真实存在的一个视频模型 —— 档位与声音开关都读它的能力表。 */
-const MODEL_ID = 'seedance-2.0'
+const MODEL_ID = 'seedance-2.0-volcengine'
 
 function videoNode(id: string, data: Record<string, unknown> = {}): NodeV4 {
   return {
@@ -324,7 +324,7 @@ const READY = {
   videoThumbnailUrl: 'https://cdn.test/a.png',
   durationSec: 7,
   params: { duration: '7', aspectRatio: '16:9', resolution: '1080p' },
-  model: { optionId: 'opt_a', modelId: MODEL_ID, adapterType: 'fal' },
+  model: { optionId: 'opt_a', modelId: MODEL_ID, adapterType: 'volcengine' },
 }
 /** 档位和模型都齐、但还没出过片：再按生成就在本卡上出（有片的卡会长新卡，§1 第 18 条）。 */
 const READY_EMPTY = { params: READY.params, model: READY.model }
@@ -910,7 +910,7 @@ describe('画面弹层（spec §5）', () => {
   it('Seedance 2.5 把存量 3s 吸附成 4s，1080p 在档上原样留着', () => {
     const snapped = videoEffectiveParams(
       { duration: '3', resolution: '1080p', aspectRatio: '9:16' },
-      'seedance-2.5',
+      'seedance-2.5-volcengine',
     )
     expect(snapped.duration).toBe('4')
     expect(snapped.resolution).toBe('1080p')
@@ -925,7 +925,8 @@ describe('画面弹层（spec §5）', () => {
 
   it('540p 不在 Seedance 2.5 档上：等距时向下吸到 480p', () => {
     expect(
-      videoEffectiveParams({ resolution: '540p' }, 'seedance-2.5').resolution,
+      videoEffectiveParams({ resolution: '540p' }, 'seedance-2.5-volcengine')
+        .resolution,
     ).toBe('480p')
   })
 
@@ -985,8 +986,11 @@ describe('画面弹层（spec §5）', () => {
     const capacity = videoRailCapacity({
       optionId: 'opt_a',
       modelId: MODEL_ID,
-      adapterType: 'fal',
-      providerConfig: { label: 'fal', baseUrl: 'https://fal.run' },
+      adapterType: 'volcengine',
+      providerConfig: {
+        label: 'VolcEngine',
+        baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
+      },
     } as never)
     // Seedance 2.0 的参考变体：图 9 · 视频 3 · 语音 3（send-plan 的
     // `SEEDANCE_20_REFERENCE_SLOTS`）。
@@ -1003,10 +1007,11 @@ describe('画面弹层（spec §5）', () => {
         aspectRatio: '16:9',
         resolution: '1080p',
       }),
-    ).toBe('1920×1080 · 7s · $4.77')
+    ).toBe('1920×1080 · 7s · $2.44')
     // 480p 这一档 fal 没标价 —— 报尺寸与时长，⛔ 不拿 720p 的数去顶。
+    // （fal Seedance 2.0 已退役，价表仍在，正好是「缺价」的样本；火山 480p 有价。）
     expect(
-      videoFrameReadout(MODEL_ID, {
+      videoFrameReadout('seedance-2.0', {
         duration: '7',
         aspectRatio: '9:16',
         resolution: '480p',
@@ -1043,7 +1048,7 @@ describe('画面弹层（spec §5）', () => {
           { label: '语音', current: 1, limit: null },
         ],
       ),
-    ).toBe('1920×1080 · 7s · $4.77 · 图 4/9 · 视频 2/3 · 语音 1')
+    ).toBe('1920×1080 · 7s · $2.44 · 图 4/9 · 视频 2/3 · 语音 1')
   })
 
   // ⭐ 2026-09-18（第 12 项）：弹层换成共用的 `SpecChip` —— 比例 / 清晰度 / 时长
@@ -1304,8 +1309,11 @@ describe('参数 chip 永不为空（spec §5）', () => {
   const option = (optionId: string, extra: Record<string, unknown> = {}) => ({
     optionId,
     modelId: MODEL_ID,
-    adapterType: 'fal',
-    providerConfig: { label: 'fal', baseUrl: 'https://fal.run' },
+    adapterType: 'volcengine',
+    providerConfig: {
+      label: 'VolcEngine',
+      baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
+    },
     sourceType: 'workspace',
     requestCount: 0,
     ...extra,

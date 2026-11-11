@@ -5,9 +5,13 @@ import { db } from '@/lib/db'
 import type { Prisma } from '@/lib/generated/prisma/client'
 import { encryptApiKey, decryptApiKey } from '@/lib/crypto'
 import {
+  ADAPTER_CUSTOM_MODEL_EXAMPLES,
   AI_ADAPTER_TYPES,
+  BYTEDANCE_ARK_ADAPTERS,
+  defaultKeyGroupOf,
   getDefaultProviderConfig,
   isAiAdapterType,
+  isBytedanceArkAdapter,
   type ProviderConfig,
 } from '@/constants/providers'
 import {
@@ -20,7 +24,11 @@ import { logger } from '@/lib/logger'
 import { safeFetch } from '@/lib/url-guard'
 import { ProviderConfigSchema } from '@/types'
 import { ideogramAdapter } from '@/services/providers/ideogram.adapter'
-import type { UserApiKeyRecord, ApiKeyVerifyResult } from '@/types'
+import type {
+  ApiKeyVerifyResult,
+  UpdateApiKeyRequest,
+  UserApiKeyRecord,
+} from '@/types'
 
 export interface ResolvedApiKeyValue {
   id: string
@@ -129,6 +137,7 @@ export async function listUserApiKeys(
       maskedKey: API_KEY_MASK,
       credentialGroupId,
       isActive: r.isActive,
+      isDefault: r.isDefault,
       createdAt: r.createdAt,
     }
   })
@@ -194,6 +203,14 @@ export async function createApiKey(
   label: string,
   keyValue: string,
 ): Promise<UserApiKeyRecord> {
+  if (isBytedanceArkAdapter(adapterType)) {
+    const station = await detectBytedanceArkStation(keyValue)
+    if (station && station !== adapterType) {
+      adapterType = station
+      providerConfig = getDefaultProviderConfig(station)
+      modelId = ADAPTER_CUSTOM_MODEL_EXAMPLES[station]
+    }
+  }
   const encryptedKey = encryptApiKey(keyValue)
   const maskedKeyValue = API_KEY_MASK
   const providerConfigJson = toProviderConfigJson(providerConfig)
@@ -238,6 +255,7 @@ export async function createApiKey(
     label: record.label,
     maskedKey: API_KEY_MASK,
     isActive: record.isActive,
+    isDefault: record.isDefault,
     createdAt: record.createdAt,
   }
 }
@@ -245,7 +263,7 @@ export async function createApiKey(
 export async function updateApiKey(
   id: string,
   userId: string,
-  data: { label?: string; isActive?: boolean; keyValue?: string },
+  data: UpdateApiKeyRequest,
 ): Promise<UserApiKeyRecord> {
   const existing = await db.userApiKey.findUnique({ where: { id } })
   if (!existing || existing.userId !== userId) {
@@ -260,10 +278,28 @@ export async function updateApiKey(
     updatePayload.maskedKey = API_KEY_MASK
   }
 
-  const updated = await db.userApiKey.update({
-    where: { id },
-    data: updatePayload,
-  })
+  if (data.isDefault) updatePayload.isDefault = true
+
+  const updated = data.isDefault
+    ? await db.$transaction(async (tx) => {
+        await tx.userApiKey.updateMany({
+          where: {
+            userId,
+            adapterType: {
+              in: [
+                ...defaultKeyGroupOf(
+                  normalizeAdapterType(existing.adapterType),
+                ),
+              ],
+            },
+            isDefault: true,
+            NOT: { id },
+          },
+          data: { isDefault: false },
+        })
+        return tx.userApiKey.update({ where: { id }, data: updatePayload })
+      })
+    : await db.userApiKey.update({ where: { id }, data: updatePayload })
 
   const normalizedAdapterType = normalizeAdapterType(updated.adapterType)
 
@@ -278,6 +314,7 @@ export async function updateApiKey(
     label: updated.label,
     maskedKey: API_KEY_MASK,
     isActive: updated.isActive,
+    isDefault: updated.isDefault,
     createdAt: updated.createdAt,
   }
 }
@@ -288,6 +325,24 @@ export async function deleteApiKey(id: string, userId: string): Promise<void> {
     throw new Error('API key not found or access denied')
   }
   await db.userApiKey.delete({ where: { id } })
+}
+
+/**
+ * 一把字节 key 属于哪一站：按 `BYTEDANCE_ARK_ADAPTERS` 顺序打各站 `/models`，
+ * 先通的那站。都不通返回 null —— 调用方照用户提交的那站存，随后的验证会显示失败。
+ */
+async function detectBytedanceArkStation(
+  keyValue: string,
+): Promise<AI_ADAPTER_TYPES | null> {
+  for (const station of BYTEDANCE_ARK_ADAPTERS) {
+    const result = await verifyAdapterKey(
+      station,
+      keyValue,
+      getDefaultProviderConfig(station),
+    )
+    if (result.ok) return station
+  }
+  return null
 }
 
 // ─── Lightweight auth verification per adapter ───────────────────

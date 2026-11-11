@@ -46,15 +46,15 @@ function seedConfig(
 
 describe('读配置（真库）', () => {
   it('列全部按 sortOrder；按 id 读，没有回 null', async () => {
-    await seedConfig('seedream-5.0-pro', { sortOrder: 2 })
+    await seedConfig('recraft-v4-pro', { sortOrder: 2 })
     await seedConfig('veo-3.1', { sortOrder: 1 })
     expect((await getAllModelConfigs()).map((c) => c.modelId)).toEqual([
       'veo-3.1',
-      'seedream-5.0-pro',
+      'recraft-v4-pro',
     ])
     expect(await getModelConfigById('missing-model')).toBeNull()
-    expect(await getModelConfigById('seedream-5.0-pro')).toMatchObject({
-      modelId: 'seedream-5.0-pro',
+    expect(await getModelConfigById('recraft-v4-pro')).toMatchObject({
+      modelId: 'recraft-v4-pro',
       adapterType: 'fal',
     })
   })
@@ -101,7 +101,7 @@ describe('getResolvedModelOption（真库）', () => {
   })
 
   it('库里的执行参数盖在内置模型上', async () => {
-    await seedConfig('seedream-5.0-pro', {
+    await seedConfig('recraft-v4-pro', {
       externalModelId: 'fal-ai/flux-pro/new-version',
       adapterType: 'replicate',
       cost: 7,
@@ -111,8 +111,8 @@ describe('getResolvedModelOption（真库）', () => {
         baseUrl: 'https://api.replicate.com',
       },
     })
-    expect(await getResolvedModelOption('seedream-5.0-pro')).toMatchObject({
-      id: 'seedream-5.0-pro',
+    expect(await getResolvedModelOption('recraft-v4-pro')).toMatchObject({
+      id: 'recraft-v4-pro',
       externalModelId: 'fal-ai/flux-pro/new-version',
       adapterType: 'replicate',
       cost: 7,
@@ -127,16 +127,16 @@ describe('getResolvedModelOption（真库）', () => {
 
 describe('改配置（真库）', () => {
   it('只改给了的那几格；健康状态带上检查时间', async () => {
-    await seedConfig('seedream-5.0-pro', { cost: 3 })
-    const updated = await updateModelConfig('seedream-5.0-pro', {
+    await seedConfig('recraft-v4-pro', { cost: 3 })
+    const updated = await updateModelConfig('recraft-v4-pro', {
       available: false,
     })
     expect(updated).toMatchObject({ available: false, cost: 3 })
 
-    await updateModelHealthStatus('seedream-5.0-pro', 'degraded')
+    await updateModelHealthStatus('recraft-v4-pro', 'degraded')
     await updateModelHealthStatus('not-in-db', 'degraded')
     const row = await db.modelConfig.findUniqueOrThrow({
-      where: { modelId: 'seedream-5.0-pro' },
+      where: { modelId: 'recraft-v4-pro' },
     })
     expect(row).toMatchObject({
       available: false,

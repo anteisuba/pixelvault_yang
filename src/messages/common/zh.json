@@ -258,6 +258,10 @@
   },
   "QuickSetup": {
     "channelPick": "先选一家：配哪家的 key？",
+    "bytedanceStationOnly": {
+      "volcengine": "这个型号只在国内站（火山方舟），需要一把国内站的 key。",
+      "byteplus": "这个型号只在海外站（BytePlus），需要一把海外站的 key。"
+    },
     "ideogramGuide": "登录 Ideogram → API Keys → Create key，创建密钥。",
     "title": "设置 {model}",
     "description": "2 分钟获取 API key，解锁该模型。",

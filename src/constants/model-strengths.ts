@@ -307,6 +307,8 @@ export const MODEL_STRENGTHS: Partial<Record<AI_MODELS, ModelStrength>> = {
   },
   // ── Seedream (ByteDance) ────────────────────────────────────────
   // 同一个模型三个站：fal / 火山方舟 / BytePlus ModelArk。方言同源，逐条只补站点差异。
+  // 2026-11-11 fal 两条退役（RETIRED_MODEL_IDS），路由权重与 bestFor 平移到两站
+  // 的 Pro / Lite；fal 条目留着给历史生成解析方言。
   // 来源 https://www.volcengine.com/docs/82379/1829186
   [AI_MODELS.SEEDREAM_50_PRO]: {
     bestFor: ['general', 'cinematic', 'landscape', 'portrait', 'text-in-image'],
@@ -342,11 +344,24 @@ export const MODEL_STRENGTHS: Partial<Record<AI_MODELS, ModelStrength>> = {
     editHint: SEEDREAM_EDIT_DIALECT,
   },
   [AI_MODELS.SEEDREAM_50_PRO_VOLCENGINE]: {
-    bestFor: ['general', 'cinematic', 'portrait', 'chinese-text-in-image'],
+    bestFor: [
+      'general',
+      'cinematic',
+      'landscape',
+      'portrait',
+      'text-in-image',
+      'chinese-text-in-image',
+    ],
     promptStyle: 'natural-language',
     negativePrompt: 'supported',
     enhanceHint: `Seedream 5.0 Pro on 火山方舟 (cn station) — single-image only (text-to-image, one-image edit, multi-reference), so do not ask it for a panel set; use the base 5.0 id for that. Dense layout and typography instructions pay off. ${SEEDREAM_PROMPT_SYNTAX}`,
     editHint: SEEDREAM_EDIT_DIALECT,
+    routerWeights: {
+      referenceFit: 0.72,
+      costEfficiency: 0.6,
+      latency: 0.65,
+      health: 0.88,
+    },
   },
   [AI_MODELS.SEEDREAM_50_LITE_VOLCENGINE]: {
     bestFor: ['general', 'landscape', 'portrait'],
@@ -354,13 +369,25 @@ export const MODEL_STRENGTHS: Partial<Record<AI_MODELS, ModelStrength>> = {
     negativePrompt: 'supported',
     enhanceHint: `Seedream 5.0 Lite on 火山方舟 (cn station) — the cheap tier; keep prompts short and concrete, Chinese or English. ${SEEDREAM_PROMPT_SYNTAX}`,
     editHint: SEEDREAM_EDIT_DIALECT,
+    routerWeights: {
+      referenceFit: 0.65,
+      costEfficiency: 0.85,
+      latency: 0.8,
+      health: 0.86,
+    },
   },
   [AI_MODELS.SEEDREAM_50_PRO_BYTEPLUS]: {
-    bestFor: ['general', 'cinematic', 'portrait', 'text-in-image'],
+    bestFor: ['general', 'cinematic', 'landscape', 'portrait', 'text-in-image'],
     promptStyle: 'natural-language',
     negativePrompt: 'supported',
     enhanceHint: `Seedream 5.0 Pro on BytePlus ModelArk (international station) — same model and same dialect as the 火山 entry, different keys and region. Dense layout and typography instructions pay off. ${SEEDREAM_PROMPT_SYNTAX}`,
     editHint: SEEDREAM_EDIT_DIALECT,
+    routerWeights: {
+      referenceFit: 0.72,
+      costEfficiency: 0.6,
+      latency: 0.65,
+      health: 0.88,
+    },
   },
   [AI_MODELS.SEEDREAM_50_LITE_BYTEPLUS]: {
     bestFor: ['general', 'landscape', 'portrait'],
@@ -368,6 +395,12 @@ export const MODEL_STRENGTHS: Partial<Record<AI_MODELS, ModelStrength>> = {
     negativePrompt: 'supported',
     enhanceHint: `Seedream 5.0 Lite on BytePlus ModelArk (international station) — the cheap tier; keep prompts short and concrete. ${SEEDREAM_PROMPT_SYNTAX}`,
     editHint: SEEDREAM_EDIT_DIALECT,
+    routerWeights: {
+      referenceFit: 0.65,
+      costEfficiency: 0.85,
+      latency: 0.8,
+      health: 0.86,
+    },
   },
   // 4.5 两条已退役（RETIRED_MODEL_IDS），条目保留是为了历史生成还能解析出方言。
   [AI_MODELS.SEEDREAM_45]: {

@@ -152,7 +152,7 @@ const WORKFLOW_STUDIO_DEFAULT_OVERRIDES: Partial<
       // slot; Seedream 5.0 Pro brings native text in 14 languages.
       AI_MODELS.RECRAFT_V4_PRO,
       AI_MODELS.OPENAI_GPT_IMAGE_2,
-      AI_MODELS.SEEDREAM_50_PRO,
+      AI_MODELS.SEEDREAM_50_PRO_VOLCENGINE,
     ],
   },
   [WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO]: {
@@ -161,8 +161,8 @@ const WORKFLOW_STUDIO_DEFAULT_OVERRIDES: Partial<
     recommendedModelIds: [
       // VEO_31 removed 2026-07-26 (retired). HappyHorse v1.1 takes the slot —
       // it sits in the arena top 5 alongside Seedance 2.0.
-      AI_MODELS.SEEDANCE_20_FAST,
-      AI_MODELS.SEEDANCE_20,
+      AI_MODELS.SEEDANCE_20_FAST_VOLCENGINE,
+      AI_MODELS.SEEDANCE_20_VOLCENGINE,
       AI_MODELS.HAPPYHORSE_10,
       // 2026-08-25：Wan 3.0 —— 720p 每秒最便宜的 premium 档，且是目录里唯一
       // 单次能出 30 秒的模型，短片场景正好吃到。
@@ -173,8 +173,8 @@ const WORKFLOW_STUDIO_DEFAULT_OVERRIDES: Partial<
   [WORKFLOW_IDS.CHARACTER_TO_VIDEO]: {
     openPanel: 'refImage',
     recommendedModelIds: [
-      AI_MODELS.SEEDANCE_20_FAST,
-      AI_MODELS.SEEDANCE_20,
+      AI_MODELS.SEEDANCE_20_FAST_VOLCENGINE,
+      AI_MODELS.SEEDANCE_20_VOLCENGINE,
       AI_MODELS.KLING_V3_PRO,
     ],
   },

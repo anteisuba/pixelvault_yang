@@ -444,7 +444,7 @@ export const ASSISTANT_V3_MAX_OUTPUT_TOKENS = {
     // https://platform.claude.com/docs/en/about-claude/models/overview —「Max output 128K tokens」（四个都是）
     [LLM_TEXT_MODEL_IDS.CLAUDE_OPUS_5_5]: 128_000,
     [LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5]: 128_000,
-    [LLM_TEXT_MODEL_IDS.CLAUDE_FABLE_5_1]: 128_000,
+    [LLM_TEXT_MODEL_IDS.CLAUDE_FABLE_5_2]: 128_000,
     [LLM_TEXT_MODEL_IDS.CLAUDE_HAIKU_5_5]: 128_000,
     // https://developers.openai.com/api/docs/models/gpt-6.1-sol（/gpt-6-astra、/gpt-6-luna）—「128,000 max output tokens」
     [LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_1_SOL]: 128_000,

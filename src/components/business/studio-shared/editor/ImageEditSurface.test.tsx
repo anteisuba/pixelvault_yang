@@ -48,6 +48,7 @@ function makeKey(
     label: 'Test key',
     maskedKey: 'test-****',
     isActive: true,
+    isDefault: false,
     createdAt: new Date('2026-01-01'),
   }
 }

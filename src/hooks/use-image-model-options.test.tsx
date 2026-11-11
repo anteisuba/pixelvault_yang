@@ -16,6 +16,8 @@ import {
   getAvailableImageModels,
   IMAGE_KIND,
 } from '@/constants/models'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { getBytedanceStationTwin } from '@/lib/bytedance-stations'
 
 // 默认型号自动补位只在 `/studio/image` 路由上开火；这里只关心目录与切换后的值。
 vi.mock('next/navigation', () => ({
@@ -95,8 +97,15 @@ describe('useImageModelOptions', () => {
     const loraBases = getAvailableImageModels(IMAGE_KIND.LORA_BASE).map(
       (m) => m.id,
     )
+    // 没有字节 key：两站同款只留国内站那条（foldBytedanceStations）。
     expect(listed).toEqual(
-      getAvailableImageModels(IMAGE_KIND.GENERATE).map((m) => m.id),
+      getAvailableImageModels(IMAGE_KIND.GENERATE)
+        .filter(
+          (m) =>
+            m.adapterType !== AI_ADAPTER_TYPES.BYTEPLUS ||
+            !getBytedanceStationTwin(m.id),
+        )
+        .map((m) => m.id),
     )
     expect(loraBases.length).toBeGreaterThan(0)
     expect(listed.some((id) => (loraBases as string[]).includes(id))).toBe(

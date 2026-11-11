@@ -44,6 +44,7 @@ const RODIN_KEY: UserApiKeyRecord = {
   label: 'Rodin',
   maskedKey: 'rodin-****',
   isActive: true,
+  isDefault: false,
   createdAt: new Date('2026-01-01'),
 }
 

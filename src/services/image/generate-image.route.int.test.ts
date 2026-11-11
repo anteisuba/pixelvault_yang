@@ -143,7 +143,7 @@ describe('resolveGenerationRoute · 型号目录', () => {
     await seedAssistantKey(me.id, AI_ADAPTER_TYPES.FAL)
     await db.modelConfig.create({
       data: {
-        modelId: AI_MODELS.SEEDREAM_50_PRO,
+        modelId: AI_MODELS.RECRAFT_V4_PRO,
         externalModelId: 'fal-ai/seedream',
         adapterType: AI_ADAPTER_TYPES.FAL,
         providerConfig: JSON.parse(
@@ -154,7 +154,7 @@ describe('resolveGenerationRoute · 型号目录', () => {
     })
 
     await expect(
-      resolveGenerationRoute(me.id, { modelId: AI_MODELS.SEEDREAM_50_PRO }),
+      resolveGenerationRoute(me.id, { modelId: AI_MODELS.RECRAFT_V4_PRO }),
     ).rejects.toMatchObject({ code: 'UNSUPPORTED_MODEL' })
   })
 
@@ -162,7 +162,7 @@ describe('resolveGenerationRoute · 型号目录', () => {
     const key = await seedAssistantKey(me.id, AI_ADAPTER_TYPES.REPLICATE)
     await db.modelConfig.create({
       data: {
-        modelId: AI_MODELS.SEEDREAM_50_PRO,
+        modelId: AI_MODELS.RECRAFT_V4_PRO,
         externalModelId: 'owner/flux-new-version',
         adapterType: AI_ADAPTER_TYPES.REPLICATE,
         providerConfig: JSON.parse(
@@ -173,7 +173,7 @@ describe('resolveGenerationRoute · 型号目录', () => {
     })
 
     const route = await resolveGenerationRoute(me.id, {
-      modelId: AI_MODELS.SEEDREAM_50_PRO,
+      modelId: AI_MODELS.RECRAFT_V4_PRO,
       apiKeyId: key.id,
     })
 

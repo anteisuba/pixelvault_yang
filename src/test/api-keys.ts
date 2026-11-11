@@ -26,6 +26,7 @@ export function apiKeyRecord(
     label: `${adapterType} key`,
     maskedKey: 'sk-****1234',
     isActive: true,
+    isDefault: false,
     createdAt: new Date('2026-01-01'),
     ...overrides,
   }

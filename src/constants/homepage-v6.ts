@@ -86,7 +86,10 @@ export const HOME_V6_WALL_PINNED: readonly string[] = []
  * 人工黑名单：这里列出的 generation id 永远不上首页作品墙，即使它是最新的公开作品。
  * 用于把不适合当门面的公开作品挡在首屏之外，不需要把它从画廊里撤下来。
  */
-export const HOME_V6_WALL_BLOCKLIST: readonly string[] = []
+export const HOME_V6_WALL_BLOCKLIST: readonly string[] = [
+  // 2026-11-11 存量盘点（scripts/audit-public-content.ts）：按现行公开闸会被拦
+  '6ee4492b-49de-43d3-b4a6-4a142009d0da',
+]
 
 /** 作品墙四列往上走的快慢（乘窗口高）。 */
 export const HOME_V6_WALL_SPEED = [0.12, 0.34, 0.2, 0.44] as const

@@ -282,7 +282,7 @@ describe('NovelAI 能力闸', () => {
 
   it('非 NovelAI 型号带 NovelAI 专属参数：拒', async () => {
     await expect(
-      nai(AI_MODELS.SEEDREAM_50_PRO, { ucPreset: 'heavy' }),
+      nai(AI_MODELS.RECRAFT_V4_PRO, { ucPreset: 'heavy' }),
     ).rejects.toMatchObject({
       message: 'Unsupported ucPreset for the selected model',
     })

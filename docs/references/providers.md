@@ -190,6 +190,8 @@ adapter / Worker 抛错
 
 ## 逐 provider 现状速览
 
+- **字节模型 2026-11-11 收成一个渠道**（owner 定，设计 [bytedance-channel](../design/bytedance-channel.md)）：fal 的 Seedream 5.0 Pro / Lite 与 Seedance 2.0 / 2.0 Fast / 2.5（含 reference）8 条进 `RETIRED_MODEL_IDS`，字节只走官方火山 / BytePlus。设置里只有一种「字节 key」，保存时按 `BYTEDANCE_ARK_ADAPTERS` 顺序打各站 `/models` 认站，内部仍存两种 adapter；两站都有 key 时 `UserApiKey.isDefault` 标默认（`pickDefaultApiKey`：标过的 › 最新）。目录在 `withProviderKeyCoverage` 里折两站（`foldBytedanceStations`）：同款（`X_VOLCENGINE` ↔ `X_BYTEPLUS`）只留默认站那条，单站型号照留；旧站 optionId 由 `findOptionById` / `findOptionByModelId` 落到同款。Seedream 路由权重与 bestFor 平移到两站 Pro / Lite。Worker 里 fal Seedance 的请求构造未删（不再有新请求走到）。
+
 - **FLUX 整条线 2026-11-02 下架**（owner：效果一般）：FLUX.2 Pro / Pro Edit / Flash、Kontext Max 进 `RETIRED_MODEL_IDS`，条目留着让旧作品能解析；3D 多视角默认改 GPT Image 2；商品 / 写实不再指定专门模型（owner 11-02：不要 Seedream 自动推荐）。画布编辑入口里的 FLUX 端点（`flux-pro/v1/fill` 局部重绘、物体替换的 kontext / flux-2-pro edit 执行 id）属编辑工具，没动。
 
 | adapter           | 用途                                                                         | 错误/接入特点（已核验口径）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |

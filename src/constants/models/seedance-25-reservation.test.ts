@@ -69,9 +69,11 @@ describe('Seedance 2.5 contract', () => {
     }
   })
 
-  it('is live', () => {
+  it('is live on the two official stations; the fal resale is retired', () => {
+    // owner 2026-11-11：字节模型只走火山 / BytePlus，fal 两条留作历史解析。
+    const falIds = new Set<string>(CHANNELS[0].ids)
     for (const id of SEEDANCE_25_IDS) {
-      expect(byId.get(id)?.available).toBe(true)
+      expect(byId.get(id)?.available, id).toBe(!falIds.has(id))
     }
   })
 

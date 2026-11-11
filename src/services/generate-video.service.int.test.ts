@@ -31,6 +31,8 @@ const REF_DATA_URL = 'data:image/png;base64,cmVm'
 let me: Awaited<ReturnType<typeof createTestUser>>
 let worker: FakeExecutionWorker
 let falKeyId: string
+/** 字节只走官方站（fal 的 Seedance 2026-11-11 退役）—— 参考视频 / 音频那几条用火山。 */
+let arkKeyId: string
 
 function request(
   overrides: Partial<GenerateVideoRequest> = {},
@@ -66,6 +68,7 @@ beforeEach(async () => {
   fakeBucket.reset()
   me = await createTestUser()
   falKeyId = (await seedAssistantKey(me.id, AI_ADAPTER_TYPES.FAL)).id
+  arkKeyId = (await seedAssistantKey(me.id, AI_ADAPTER_TYPES.VOLCENGINE)).id
   vi.stubEnv('NEXT_PUBLIC_APP_URL', 'http://localhost:3000')
   worker = installFakeExecutionWorker({ instanceId: 'wf-job-1' })
 })
@@ -168,7 +171,8 @@ describe('submitVideoGeneration · 派发', () => {
     await submitVideoGeneration(
       me.clerkId,
       request({
-        modelId: AI_MODELS.SEEDANCE_20_FAST_REFERENCE,
+        modelId: AI_MODELS.SEEDANCE_20_FAST_REFERENCE_VOLCENGINE,
+        apiKeyId: arkKeyId,
         workflowId: WORKFLOW_IDS.CHARACTER_TO_VIDEO,
         referenceImage: REF_DATA_URL,
         videoUrls: [
@@ -194,7 +198,8 @@ describe('submitVideoGeneration · 派发', () => {
     await submitVideoGeneration(
       me.clerkId,
       request({
-        modelId: AI_MODELS.SEEDANCE_20_FAST_REFERENCE,
+        modelId: AI_MODELS.SEEDANCE_20_FAST_REFERENCE_VOLCENGINE,
+        apiKeyId: arkKeyId,
         workflowId: WORKFLOW_IDS.CHARACTER_TO_VIDEO,
         referenceImage: REF_DATA_URL,
       }),
@@ -441,7 +446,8 @@ describe('submitVideoGeneration · Worker 出岔子', () => {
       submitVideoGeneration(
         me.clerkId,
         request({
-          modelId: AI_MODELS.SEEDANCE_20_FAST_REFERENCE,
+          modelId: AI_MODELS.SEEDANCE_20_FAST_REFERENCE_VOLCENGINE,
+          apiKeyId: arkKeyId,
           referenceImage: REF_DATA_URL,
           videoUrls: ['https://cdn.example.com/clip-a.mp4'],
         }),

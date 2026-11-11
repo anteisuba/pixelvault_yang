@@ -74,11 +74,19 @@ describe('video node modes', () => {
     // 这条是「用户只看见 Seedance 2.0、端点由模式挑」的核心验证：同一个型号 +
     // 同一个渠道，换模式必须落到**不同的** AI_MODELS 条目。
     expect(
-      resolveVideoModelId('seedance-2.0', AI_ADAPTER_TYPES.FAL, 'keyframe'),
-    ).toBe(AI_MODELS.SEEDANCE_20)
+      resolveVideoModelId(
+        'seedance-2.0',
+        AI_ADAPTER_TYPES.BYTEPLUS,
+        'keyframe',
+      ),
+    ).toBe(AI_MODELS.SEEDANCE_20_BYTEPLUS)
     expect(
-      resolveVideoModelId('seedance-2.0', AI_ADAPTER_TYPES.FAL, 'multimodal'),
-    ).toBe(AI_MODELS.SEEDANCE_20_REFERENCE)
+      resolveVideoModelId(
+        'seedance-2.0',
+        AI_ADAPTER_TYPES.BYTEPLUS,
+        'multimodal',
+      ),
+    ).toBe(AI_MODELS.SEEDANCE_20_REFERENCE_BYTEPLUS)
 
     expect(
       resolveVideoModelId(
@@ -95,8 +103,12 @@ describe('video node modes', () => {
       ),
     ).toBe(AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE)
     expect(
-      resolveVideoModelId('seedance-2.5', AI_ADAPTER_TYPES.FAL, 'keyframe'),
-    ).toBe(AI_MODELS.SEEDANCE_25)
+      resolveVideoModelId(
+        'seedance-2.5',
+        AI_ADAPTER_TYPES.BYTEPLUS,
+        'keyframe',
+      ),
+    ).toBe(AI_MODELS.SEEDANCE_25_BYTEPLUS)
     expect(
       resolveVideoModelId(
         'seedance-2.5',

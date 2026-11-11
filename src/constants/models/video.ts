@@ -39,7 +39,9 @@ export const VIDEO_MODEL_OPTIONS: ModelOption[] = [
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
     externalModelId: 'bytedance/seedance-2.0/fast/text-to-video',
     outputType: 'VIDEO',
-    available: true,
+    // Retired 2026-11-11（owner：字节模型只走官方火山 / BytePlus，fal 转售下架）—
+    // entry kept so archived generations still resolve a label. See RETIRED_MODEL_IDS.
+    available: false,
     officialUrl:
       'https://fal.ai/models/bytedance/seedance-2.0/fast/text-to-video',
     timeoutMs: 300_000,
@@ -57,7 +59,9 @@ export const VIDEO_MODEL_OPTIONS: ModelOption[] = [
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
     externalModelId: 'bytedance/seedance-2.0/text-to-video',
     outputType: 'VIDEO',
-    available: true,
+    // Retired 2026-11-11（owner：字节模型只走官方火山 / BytePlus，fal 转售下架）—
+    // entry kept so archived generations still resolve a label. See RETIRED_MODEL_IDS.
+    available: false,
     officialUrl: 'https://fal.ai/models/bytedance/seedance-2.0/text-to-video',
     timeoutMs: 300_000,
     qualityTier: 'premium',
@@ -219,7 +223,9 @@ export const VIDEO_MODEL_OPTIONS: ModelOption[] = [
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
     externalModelId: 'bytedance/seedance-2.0/fast/reference-to-video',
     outputType: 'VIDEO',
-    available: true,
+    // Retired 2026-11-11（owner：字节模型只走官方火山 / BytePlus，fal 转售下架）—
+    // entry kept so archived generations still resolve a label. See RETIRED_MODEL_IDS.
+    available: false,
     officialUrl:
       'https://fal.ai/models/bytedance/seedance-2.0/fast/reference-to-video',
     timeoutMs: 300_000,
@@ -237,7 +243,9 @@ export const VIDEO_MODEL_OPTIONS: ModelOption[] = [
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
     externalModelId: 'bytedance/seedance-2.0/reference-to-video',
     outputType: 'VIDEO',
-    available: true,
+    // Retired 2026-11-11（owner：字节模型只走官方火山 / BytePlus，fal 转售下架）—
+    // entry kept so archived generations still resolve a label. See RETIRED_MODEL_IDS.
+    available: false,
     officialUrl:
       'https://fal.ai/models/bytedance/seedance-2.0/reference-to-video',
     timeoutMs: 300_000,
@@ -390,7 +398,9 @@ export const VIDEO_MODEL_OPTIONS: ModelOption[] = [
     externalModelId: 'bytedance/seedance-2.5/text-to-video',
     i2vModelId: 'bytedance/seedance-2.5/image-to-video',
     outputType: 'VIDEO',
-    available: true,
+    // Retired 2026-11-11（owner：字节模型只走官方火山 / BytePlus，fal 转售下架）—
+    // entry kept so archived generations still resolve a label. See RETIRED_MODEL_IDS.
+    available: false,
     officialUrl: 'https://fal.ai/models/bytedance/seedance-2.5/text-to-video',
     timeoutMs: 300_000,
     qualityTier: 'premium',
@@ -403,7 +413,9 @@ export const VIDEO_MODEL_OPTIONS: ModelOption[] = [
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
     externalModelId: 'bytedance/seedance-2.5/reference-to-video',
     outputType: 'VIDEO',
-    available: true,
+    // Retired 2026-11-11（owner：字节模型只走官方火山 / BytePlus，fal 转售下架）—
+    // entry kept so archived generations still resolve a label. See RETIRED_MODEL_IDS.
+    available: false,
     officialUrl:
       'https://fal.ai/models/bytedance/seedance-2.5/reference-to-video',
     timeoutMs: 300_000,

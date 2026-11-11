@@ -35,18 +35,19 @@ function opt(
  * 往目录里加同系列新代次时，这里跟着加。
  */
 const ALL_OPTIONS = [
-  AI_MODELS.SEEDANCE_20,
-  AI_MODELS.SEEDANCE_20_FAST,
-  AI_MODELS.SEEDANCE_20_REFERENCE,
-  AI_MODELS.SEEDANCE_20_FAST_REFERENCE,
+  // 第二条渠道用 BytePlus（fal 的字节条目 2026-11-11 退役）。
+  AI_MODELS.SEEDANCE_20_BYTEPLUS,
+  AI_MODELS.SEEDANCE_20_FAST_BYTEPLUS,
+  AI_MODELS.SEEDANCE_20_REFERENCE_BYTEPLUS,
+  AI_MODELS.SEEDANCE_20_FAST_REFERENCE_BYTEPLUS,
   AI_MODELS.SEEDANCE_20_VOLCENGINE,
   AI_MODELS.SEEDANCE_20_FAST_VOLCENGINE,
   AI_MODELS.SEEDANCE_20_REFERENCE_VOLCENGINE,
   AI_MODELS.SEEDANCE_20_FAST_REFERENCE_VOLCENGINE,
   AI_MODELS.SEEDANCE_25_VOLCENGINE,
   AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE,
-  AI_MODELS.SEEDANCE_25,
-  AI_MODELS.SEEDANCE_25_REFERENCE,
+  AI_MODELS.SEEDANCE_25_BYTEPLUS,
+  AI_MODELS.SEEDANCE_25_REFERENCE_BYTEPLUS,
   AI_MODELS.KLING_V3_PRO,
   AI_MODELS.GEMINI_OMNI_FLASH,
 ].map((id) => opt(id))
@@ -89,8 +90,8 @@ describe('resolveVideoModelForMode', () => {
   })
 
   it('保住渠道 —— 换端点不换供应商', () => {
-    expect(resolved(AI_MODELS.SEEDANCE_20, 'multimodal')).toBe(
-      AI_MODELS.SEEDANCE_20_REFERENCE,
+    expect(resolved(AI_MODELS.SEEDANCE_20_BYTEPLUS, 'multimodal')).toBe(
+      AI_MODELS.SEEDANCE_20_REFERENCE_BYTEPLUS,
     )
     expect(resolved(AI_MODELS.SEEDANCE_20_VOLCENGINE, 'multimodal')).toBe(
       AI_MODELS.SEEDANCE_20_REFERENCE_VOLCENGINE,
@@ -144,13 +145,18 @@ describe('pickDefaultVideoModel', () => {
   })
 
   it('优先用户自带 key 的那个渠道', () => {
-    const withSavedFal = ALL_OPTIONS.map((o) =>
-      o.modelId === AI_MODELS.SEEDANCE_25 ? opt(o.modelId, 'saved') : o,
+    const withSavedBytePlus = ALL_OPTIONS.map((o) =>
+      o.modelId === AI_MODELS.SEEDANCE_25_BYTEPLUS
+        ? opt(o.modelId, 'saved')
+        : o,
     )
     expect(
-      pickDefaultVideoModel(DEFAULT_VIDEO_VARIANT, 'keyframe', withSavedFal)
-        ?.modelId,
-    ).toBe(AI_MODELS.SEEDANCE_25)
+      pickDefaultVideoModel(
+        DEFAULT_VIDEO_VARIANT,
+        'keyframe',
+        withSavedBytePlus,
+      )?.modelId,
+    ).toBe(AI_MODELS.SEEDANCE_25_BYTEPLUS)
   })
 
   it('默认型号在这一档无解时，退到该档下任意一条能跑的', () => {

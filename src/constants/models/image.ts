@@ -185,7 +185,9 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
     externalModelId: 'bytedance/seedream/v5/pro/text-to-image',
     outputType: 'IMAGE',
-    available: true,
+    // Retired 2026-11-11（owner：字节模型只走官方火山 / BytePlus，fal 转售下架）—
+    // entry kept so archived generations still resolve a label. See RETIRED_MODEL_IDS.
+    available: false,
     officialUrl:
       'https://fal.ai/models/bytedance/seedream/v5/pro/text-to-image',
     qualityTier: 'premium',
@@ -200,7 +202,9 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
     externalModelId: 'fal-ai/bytedance/seedream/v5/lite/text-to-image',
     outputType: 'IMAGE',
-    available: true,
+    // Retired 2026-11-11（owner：字节模型只走官方火山 / BytePlus，fal 转售下架）—
+    // entry kept so archived generations still resolve a label. See RETIRED_MODEL_IDS.
+    available: false,
     officialUrl:
       'https://fal.ai/models/fal-ai/bytedance/seedream/v5/lite/text-to-image',
     qualityTier: 'standard',

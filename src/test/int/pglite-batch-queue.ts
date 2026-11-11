@@ -5,6 +5,75 @@ const BATCH_MESSAGES = new Set(
   ['P', 'B', 'D', 'E', 'C', 'H'].map((type) => type.charCodeAt(0)),
 )
 const SYNC = new Uint8Array([0x53, 0, 0, 0, 4])
+const ERROR_RESPONSE = 'E'.charCodeAt(0)
+const READY_FOR_QUERY = 'Z'.charCodeAt(0)
+
+/**
+ * 扩展协议一段里报错（如 Bind 时 jsonb 收到 `\u0000`）：PGlite 当场回 ErrorResponse +
+ * ReadyForQuery，到 Sync 又回一个 ReadyForQuery。真 Postgres 只在 Sync 回那一个。多出来的
+ * 那个让 node-postgres 的应答错一格 —— 下一条查询「成功」却拿到空结果（回滚后会话查不到、
+ * 回执判「运行不存在」）。这里把 Sync 之前、报错之后的 ReadyForQuery 丢掉。
+ *
+ * 回包按块到达，一条消息可能跨块：`skip` 记上一块没走完的字节；块边界切在消息头里时
+ * 放弃过滤（`lost`），原样透传。
+ */
+type ReplyFilterState = { sawError: boolean; skip: number; lost: boolean }
+
+function dropEarlyReadyForQuery(
+  data: Uint8Array,
+  state: ReplyFilterState,
+): Uint8Array {
+  if (state.lost) return data
+  const view = new DataView(data.buffer, data.byteOffset, data.byteLength)
+  const kept: Uint8Array[] = []
+  let offset = Math.min(state.skip, data.length)
+  state.skip -= offset
+  if (offset > 0) kept.push(data.subarray(0, offset))
+  while (offset < data.length) {
+    const length = offset + 5 <= data.length ? view.getInt32(offset + 1) : -1
+    if (length < 4) {
+      state.lost = true
+      kept.push(data.subarray(offset))
+      break
+    }
+    const end = offset + 1 + length
+    if (end > data.length) {
+      state.skip = end - data.length
+      kept.push(data.subarray(offset))
+      break
+    }
+    const type = data[offset]
+    if (type === ERROR_RESPONSE) state.sawError = true
+    if (!(type === READY_FOR_QUERY && state.sawError)) {
+      kept.push(data.subarray(offset, end))
+    }
+    offset = end
+  }
+  if (kept.length === 1 && kept[0]!.length === data.length) return data
+  const out = new Uint8Array(kept.reduce((sum, part) => sum + part.length, 0))
+  let at = 0
+  for (const part of kept) {
+    out.set(part, at)
+    at += part.length
+  }
+  return out
+}
+
+function containsSync(message: Uint8Array): boolean {
+  const view = new DataView(
+    message.buffer,
+    message.byteOffset,
+    message.byteLength,
+  )
+  let offset = 0
+  while (offset + 5 <= message.length) {
+    if (message[offset] === SYNC[0]) return true
+    const length = view.getInt32(offset + 1)
+    if (length < 4) return false
+    offset += 1 + length
+  }
+  return false
+}
 
 type Pending = {
   handlerId: number
@@ -88,10 +157,20 @@ export class PGliteBatchQueue {
 
   private async run(item: Pending): Promise<void> {
     let bytes = 0
+    // 消息里自带 Sync 时，最后那个 ReadyForQuery 是 Sync 的应答，不能丢。
+    const inBatch =
+      BATCH_MESSAGES.has(item.message[0] ?? 0) && !containsSync(item.message)
+    const errorState: ReplyFilterState = {
+      sawError: false,
+      skip: 0,
+      lost: false,
+    }
     try {
       await this.db.runExclusive(() =>
         this.db.execProtocolRawStream(item.message, {
-          onRawData: (data) => {
+          onRawData: (raw) => {
+            const data = inBatch ? dropEarlyReadyForQuery(raw, errorState) : raw
+            if (data.length === 0) return
             bytes += data.length
             item.onData(data)
           },

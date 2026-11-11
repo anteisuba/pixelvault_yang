@@ -37,7 +37,7 @@ export enum AI_ADAPTER_TYPES {
    * versa. Key storage is keyed by adapterType, so one type per station.
    */
   MINIMAX_CN = 'minimax_cn',
-  /** Claude Messages API — BYOK assistant: Opus 5.5 and Fable 5.1. */
+  /** Claude Messages API — BYOK assistant: Opus 5.5 and Fable 5.2. */
   ANTHROPIC = 'anthropic',
   /** Grok 4.7 — BYOK text/image input through Chat Completions. */
   XAI = 'xai',

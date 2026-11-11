@@ -1812,7 +1812,7 @@ describe('llmTextCompletion - Claude (Anthropic)', () => {
       maxTokens: LLM_TEXT_DEFAULT_MAX_TOKENS.ANTHROPIC + 1,
     })
 
-    // Fable 5.1 always thinks and `max_tokens` caps thinking + answer
+    // Fable 5.2 always thinks and `max_tokens` caps thinking + answer
     // together, so a budget sized for a non-thinking adapter is raised to
     // the floor. Larger explicit budgets pass through untouched.
     const first = JSON.parse(fetchMock.mock.calls[0]?.[1]?.body as string)
@@ -1910,7 +1910,7 @@ describe('llmTextCompletion - Claude (Anthropic)', () => {
         output_config?: unknown
       }
 
-      // ⚠ Regression guard: an assistant-turn prefill **400s on Fable 5.1**, so
+      // ⚠ Regression guard: an assistant-turn prefill **400s on Fable 5.2**, so
       // JSON mode must never add one. The instruction rides the system prompt.
       expect(payload.messages).toEqual([
         { role: 'user', content: 'Write a script outline.' },
@@ -1969,7 +1969,7 @@ describe('llmTextCompletion - Claude (Anthropic)', () => {
   it.each([
     LLM_TEXT_MODEL_IDS.CLAUDE_OPUS_5_5,
     LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5,
-    LLM_TEXT_MODEL_IDS.CLAUDE_FABLE_5_1,
+    LLM_TEXT_MODEL_IDS.CLAUDE_FABLE_5_2,
   ])(
     'sends supported thinking and fallback parameters for %s',
     async (modelId) => {
@@ -1998,7 +1998,7 @@ describe('llmTextCompletion - Claude (Anthropic)', () => {
         maxTokens: 2000,
       })
 
-      // ⚠ Regression guard: Fable 5.1 rejects `thinking: {type:'disabled'}` and
+      // ⚠ Regression guard: Fable 5.2 rejects `thinking: {type:'disabled'}` and
       // `budget_tokens` with a 400 — the field must be absent. The refusal
       // fallback is the `'default'` scalar, which needs exactly the
       // `-2026-07-01` beta header (the array form uses a different one).

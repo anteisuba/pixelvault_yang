@@ -281,7 +281,7 @@ export const LLM_TEXT_PROVIDER_ERROR_CODES = {
   /** 连不上厂商，或连接中途断了（fetch failed / ECONNRESET / 连接被关）。不是 key 的问题。 */
   unreachable: 'PROVIDER_UNREACHABLE',
   /**
-   * The provider's safety classifiers declined the request (Claude Fable 5.1:
+   * The provider's safety classifiers declined the request (Claude Fable 5.2:
    * HTTP 200 + `stop_reason: 'refusal'`, even after the server-side fallback
    * chain). Retrying the same prompt won't help.
    */

@@ -1,5 +1,7 @@
 'use client'
 
+import { useSyncExternalStore } from 'react'
+
 import { useAuth } from '@clerk/nextjs'
 import { useLocale, useTranslations } from 'next-intl'
 
@@ -40,7 +42,14 @@ export function HomeV6Topbar() {
   const { isLoaded, isSignedIn } = useAuth()
   const { openAuth } = useAuthDialog()
 
-  const isIn = isLoaded && isSignedIn
+  /* 服务端没有登录态，首帧一律按「登录」画；页面接管以后再按登录态换字，
+     不然已登录的人一打开首页就是一次 hydration 不匹配。 */
+  const hydrated = useSyncExternalStore(
+    noopSubscribe,
+    () => true,
+    () => false,
+  )
+  const isIn = hydrated && isLoaded && isSignedIn
 
   return (
     <header className="topbar">
@@ -81,3 +90,5 @@ export function HomeV6Topbar() {
     </header>
   )
 }
+
+const noopSubscribe = () => () => {}

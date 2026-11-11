@@ -173,7 +173,8 @@ export function mountStage(
     const t = el(
       'figure',
       'tile',
-      `<img src="${src}" alt="${esc(alt)}" decoding="async" loading="lazy">`,
+      // ⛔ lazy：这几张躺在被 transform 推到窗口外的对话里，直接跳到 ⑤ 时懒加载来不及触发
+      `<img src="${src}" alt="${esc(alt)}" decoding="async">`,
     )
     thread.append(t)
     return t
@@ -417,7 +418,8 @@ export function mountStage(
   })
   /* 世界坐标（电脑）：左列 角色 / 分镜 / 三句台词，中间两列 镜头图 → 片段，右边成片 */
   const WW = 1140
-  const WH = 610
+  /** 全图高：英文、日文的分镜卡换行后变高，台词节点跟着往下排，全图也跟着变高（placeNodes 里算）。 */
+  let WH = 610
   const POS: Record<string, [number, number, number]> = {
     cast: [20, 16, 210],
     script: [20, 128, 210],
@@ -452,6 +454,15 @@ export function mountStage(
       s.top = y + 'px'
       s.width = w + 'px'
     }
+    // 三句台词排在分镜卡下面：英文、日文的分镜句会换行，卡片比中文高
+    const scriptBottom = N.script.e.offsetTop + N.script.e.offsetHeight
+    let bottom = 0
+    HOME_V6_FILM_LINES.forEach((_, j) => {
+      const e = N['aud' + j].e
+      e.style.top = Math.max(338, scriptBottom + 24) + j * 84 + 'px'
+      bottom = e.offsetTop + e.offsetHeight
+    })
+    WH = Math.max(610, bottom + 16)
     const port = (n: Node, r: boolean): [number, number] => [
       n.e.offsetLeft + (r ? n.e.offsetWidth : 0),
       n.e.offsetTop + n.cd.offsetTop + n.cd.offsetHeight / 2,
@@ -928,6 +939,11 @@ export function mountStage(
 
   let queued = false
   let raf = 0
+  // 网页字体载入后字宽会变，节点高度跟着变：重新摆一次
+  void document.fonts?.ready.then(() => {
+    cvMode = ''
+    onScroll()
+  })
   function measure() {
     queued = false
     if (still) return apply(1)

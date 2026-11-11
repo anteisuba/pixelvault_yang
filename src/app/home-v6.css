@@ -4,13 +4,7 @@
 .home-v6 {
   --paper: #fff;
   --dim: #655f57;
-  --mono: var(
-    --font-geist-mono,
-    ui-monospace,
-    SFMono-Regular,
-    Menlo,
-    monospace
-  );
+  --mono: var(--font-stack-mono);
 }
 .home-v6 {
   --ground: #f6f1e7;
@@ -35,9 +29,22 @@
 }
 .home-v6 {
   color: var(--ink);
+  font-family: var(--font-stack-sans);
   font-size: 16px;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+}
+/* 日文页整段换日文字面：按首页自己的 data-locale 换，不靠 <html lang>（根 layout 跨客户端跳转不重渲染），
+   不然汉字会按中文字形画（直、戸、角这类最明显） */
+.home-v6[data-locale='ja'] {
+  font-family:
+    var(--font-geist), var(--font-noto-sans-jp), 'Hiragino Sans',
+    'Yu Gothic UI', ui-sans-serif, system-ui, sans-serif;
+}
+.home-v6[data-locale='ja'] .tc,
+.home-v6[data-locale='ja'] .cd.text p span {
+  font-family:
+    var(--font-geist-mono), ui-monospace, var(--font-noto-sans-jp), monospace;
 }
 .home-v6 button {
   font: inherit;
@@ -279,9 +286,12 @@
 }
 .home-v6 .cd.text p {
   font-size: 13px;
-  line-height: 1.65;
+  line-height: 1.5;
   color: #171411;
-  white-space: nowrap;
+  /* 英文和日文的分镜句比中文长：换行，序号挂在左边 */
+  padding-left: 16px;
+  text-indent: -16px;
+  margin-bottom: 3px;
   will-change: opacity;
 }
 .home-v6 .cd.text p span {
@@ -696,8 +706,9 @@
 .home-v6 .vchip span {
   min-width: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 .home-v6 .vchip.playing {
   background: var(--ink);
@@ -1077,9 +1088,11 @@
   font-size: clamp(15px, calc(var(--ch) * 0.15), 26px);
   font-weight: 500;
   line-height: 1.35;
-  white-space: nowrap;
+  /* 英文、日文的台词比中文长：最多两行，不截成省略号 */
   overflow: hidden;
-  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 .home-v6 .voice .wave {
   display: flex;

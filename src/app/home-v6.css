@@ -297,6 +297,7 @@
 .home-v6 .cd.text p span {
   display: inline-block;
   width: 16px;
+  text-indent: 0;
   font:
     11px ui-monospace,
     Menlo,

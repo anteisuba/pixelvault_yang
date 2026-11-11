@@ -313,10 +313,10 @@
       "headline": ["Say it once.", "She does the rest."],
       "hint": "Scroll",
       "me": [
-        "A ginger cat curator in round glasses at a museum front desk, a name badge that reads “Curator”, framed paintings behind, warm light, shallow depth of field",
-        "A girl holding a black book, in an off-white coat. Try a few art styles",
-        "Three lines for tonight’s show: a gentle woman’s voice, a boy, and a narrator",
-        "Make a 30-second short: a rainy day, two people sharing one umbrella home",
+        "A ginger cat curator in round glasses at a museum front desk, warm light",
+        "A girl in an off-white coat with a black book. Try a few styles",
+        "Three lines for tonight’s show: a woman, a boy, a narrator",
+        "A 30-second short: rain, two people, one umbrella",
         "Can someone else keep me company today?",
         "What do you think of this one?"
       ],
@@ -340,17 +340,12 @@
         ],
         "char": [
           "Sure, I’ll go get Little Whale~",
-          "…Mm. I’m Little Whale. I talk slowly. I draw fast."
+          "…Mm. I’m Little Whale. Slow talker. Fast drawer."
         ]
       },
       "wallAlt": "A work from the gallery",
       "shotAlt": "Her picture no. {n}",
-      "loraStyles": [
-        "Flat line art",
-        "Line art",
-        "Figure-ish",
-        "Figure finish"
-      ],
+      "loraStyles": ["Flat color", "Line art", "Semi-3D", "Figurine"],
       "loraAlt": "The same picture, {style}",
       "play": "Play: {text}",
       "stop": "Stop",
@@ -360,11 +355,11 @@
         "castSub": "Lead · look locked",
         "scriptLabel": "Storyboard · The Umbrella",
         "script": [
-          "At the shoe lockers, she watches the rain",
-          "He opens the umbrella, tilts it her way",
-          "They walk up a slope lined with hydrangeas",
-          "In the arcade, the lamps come on one by one",
-          "They part at the corner; she turns and waves"
+          "She watches the rain.",
+          "He tilts the umbrella her way.",
+          "Up the hydrangea slope.",
+          "The arcade lamps come on.",
+          "At the corner, she waves."
         ],
         "seconds": "30 s",
         "shotCount": "5 shots",
@@ -414,7 +409,7 @@
         },
         "pro": "When she reaches for it",
         "con": "When she doesn’t",
-        "guide": "…I pick which one. Hover one to see what it has made.",
+        "guide": "…I pick which one. Linger on one to see what it’s made.",
         "loraSub": "Not a model. It rides on one.",
         "sampleAlt": "Made with {name}",
         "langs": "Language",
@@ -425,13 +420,13 @@
             "say": "…For a long list of asks, it’s the one I trust."
           },
           "gemini": {
-            "pro": "Editing. What you didn’t ask it to change barely moves, and the same person stays recognisable in a new scene.",
-            "con": "Big changes, like day to night or blending several pictures into one. The seams can show.",
+            "pro": "Editing. What you didn’t ask to change stays put, and faces stay recognisable.",
+            "con": "Big changes, like day to night or merging pictures. The seams show.",
             "say": "…For edits I go to it. It leaves the rest alone."
           },
           "seedream": {
             "pro": "Text and layout in the picture. Posters, signs, Chinese lettering.",
-            "con": "Small, dense text, like infographics or interfaces. The fine print comes out wrong.",
+            "con": "Small, dense text like infographics. The fine print goes wrong.",
             "say": "…Any lettering on a poster, I hand to it."
           },
           "novelai": {
@@ -446,7 +441,7 @@
           },
           "seedance": {
             "pro": "Shots where someone speaks. The lips match, and the sound comes with it.",
-            "con": "One long take. It runs a dozen seconds or so, and with a long line the lips drift by the end.",
+            "con": "Long takes. Past a dozen seconds, the lips start to drift.",
             "say": "…When someone has to talk, I go to it."
           },
           "wan": {
@@ -455,7 +450,7 @@
             "say": "…For one long take, I go to it."
           },
           "minimax": {
-            "pro": "Working from references: hand it the person, the camera move and the voice together. The sharpest picture, too.",
+            "pro": "Working from references: the person, the camera move, the voice. Sharpest picture, too.",
             "con": "Big motion and physics. Seedance does that better.",
             "say": "…When you have references, I go to it."
           },

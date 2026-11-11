@@ -1,0 +1,505 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>工作台方向 · 对比 8：填字框</title>
+    <style>
+      :root {
+        --ink: #171411;
+        --ink-2: #4b463f;
+        --ink-3: #655f57;
+        --fill: #f5f3ef;
+        --fill-strong: #eeebe5;
+        --ground: #e9e6e0;
+        --danger: #b3261e;
+        --hl: #3346e8;
+        --sans: 'Geist', 'PingFang SC', 'Noto Sans SC', system-ui, sans-serif;
+        --mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+        --focus: 0 0 0 2px #fff, 0 0 0 4px var(--hl);
+
+        /* A：现在的 ui/input.tsx —— 描边、圆角 8、shadow-xs、14 号、焦点 3px 半透明光圈 */
+        --f-bg: transparent;
+        --f-bg-hover: transparent;
+        --f-border: 1px solid rgb(28 22 14 / 0.15);
+        --f-border-hover: 1px solid rgb(28 22 14 / 0.15);
+        --f-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+        --f-radius: 8px;
+        --f-radius-area: 8px;
+        --f-size: 14px;
+        --f-focus: 0 0 0 3px rgb(51 70 232 / 0.5);
+        --f-focus-border: 1px solid var(--hl);
+        --f-err-border: 1px solid var(--danger);
+        --f-err-shadow: 0 0 0 3px rgb(179 38 30 / 0.2);
+      }
+      body.b {
+        /* B：和搜索框一家 —— 浅灰底、没边、单行全圆、多行圆角 16、13 号，焦点同搜索框 */
+        --f-bg: var(--fill);
+        --f-bg-hover: var(--fill-strong);
+        --f-border: 1px solid transparent;
+        --f-border-hover: 1px solid transparent;
+        --f-shadow: none;
+        --f-radius: 9999px;
+        --f-radius-area: 16px;
+        --f-size: 13px;
+        --f-focus: var(--focus);
+        --f-focus-border: 1px solid transparent;
+        --f-err-border: 1px solid var(--danger);
+        --f-err-shadow: none;
+      }
+      body.c {
+        /* C：白底细边 —— 一圈细边、圆角 12、没影、13 号，焦点同搜索框 */
+        --f-bg: #fff;
+        --f-bg-hover: #fff;
+        --f-border: 1px solid rgb(28 22 14 / 0.15);
+        --f-border-hover: 1px solid rgb(28 22 14 / 0.28);
+        --f-shadow: none;
+        --f-radius: 12px;
+        --f-radius-area: 12px;
+        --f-size: 13px;
+        --f-focus: var(--focus);
+        --f-focus-border: 1px solid rgb(28 22 14 / 0.15);
+        --f-err-border: 1px solid var(--danger);
+        --f-err-shadow: none;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        color: var(--ink);
+        font-family: var(--sans);
+        font-size: 13px;
+        -webkit-font-smoothing: antialiased;
+        background: var(--ground);
+      }
+      button {
+        font: inherit;
+        color: inherit;
+        border: 0;
+        background: none;
+        cursor: pointer;
+      }
+
+      /* 顶上开关 */
+      .switch {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px 18px;
+        padding: 10px 16px;
+        background: #101216;
+        color: #fff;
+      }
+      .seg {
+        display: inline-flex;
+        flex-wrap: wrap;
+        padding: 2px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.14);
+      }
+      .seg button {
+        height: 28px;
+        padding: 0 12px;
+        border-radius: 999px;
+        color: rgba(255, 255, 255, 0.72);
+      }
+      .seg button[aria-pressed='true'] {
+        background: #fff;
+        color: #101216;
+        font-weight: 600;
+      }
+      kbd {
+        font-family: var(--mono);
+        font-size: 11px;
+        opacity: 0.55;
+      }
+      .hint {
+        opacity: 0.6;
+        font-size: 12px;
+      }
+
+      .page {
+        max-width: 1120px;
+        margin: 0 auto;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .board {
+        border-radius: 20px;
+        background: #fff;
+        padding: 32px;
+      }
+      .cap {
+        margin: 0 0 20px;
+        font-size: 11px;
+        color: var(--ink-3);
+      }
+      h2 {
+        margin: 0 0 4px;
+        font-size: 20px;
+        line-height: 1.3;
+        font-weight: 600;
+      }
+
+      /* 填字框本身 —— 三个方向只换上面的变量 */
+      .field {
+        display: block;
+        width: 100%;
+        height: 36px;
+        padding: 0 14px;
+        font: inherit;
+        font-size: var(--f-size);
+        color: var(--ink);
+        background: var(--f-bg);
+        border: var(--f-border);
+        border-radius: var(--f-radius);
+        box-shadow: var(--f-shadow);
+        outline: none;
+        transition:
+          background 0.15s,
+          border-color 0.15s,
+          box-shadow 0.15s,
+          border-radius 0.2s;
+      }
+      textarea.field {
+        height: auto;
+        min-height: 112px;
+        padding: 10px 14px;
+        line-height: 1.6;
+        resize: none;
+        border-radius: var(--f-radius-area);
+      }
+      .field.mono {
+        font-family: var(--mono);
+      }
+      .field::placeholder {
+        color: var(--ink-3);
+      }
+      .field:hover {
+        background: var(--f-bg-hover);
+        border: var(--f-border-hover);
+      }
+      .field:focus-visible,
+      .field.is-focus {
+        border: var(--f-focus-border);
+        box-shadow: var(--f-focus);
+        background: var(--f-bg);
+      }
+      .field.is-err {
+        border: var(--f-err-border);
+        box-shadow: var(--f-err-shadow);
+      }
+      .field:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      label.lab {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .group {
+        margin-bottom: 24px;
+      }
+      .err-line {
+        margin-top: 6px;
+        font-size: 11px;
+        color: var(--danger);
+      }
+      .note {
+        margin-top: 6px;
+        font-size: 11px;
+        color: var(--ink-3);
+      }
+
+      /* 训练页：两栏 */
+      .train {
+        display: grid;
+        grid-template-columns: 7fr 5fr;
+        gap: 48px;
+        align-items: start;
+      }
+      .search {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        height: 36px;
+        padding: 0 14px;
+        border-radius: 999px;
+        background: var(--fill);
+        color: var(--ink-3);
+        margin-bottom: 28px;
+      }
+      .search input {
+        flex: 1;
+        min-width: 0;
+        border: 0;
+        outline: none;
+        background: transparent;
+        font: inherit;
+        color: var(--ink);
+      }
+      .search input::placeholder {
+        color: var(--ink-3);
+      }
+      .search:focus-within {
+        box-shadow: var(--focus);
+      }
+      .tag {
+        font-size: 11px;
+        color: var(--ink-3);
+        margin-bottom: 6px;
+      }
+      .segtrack {
+        display: inline-flex;
+        padding: 2px;
+        border-radius: 999px;
+        background: var(--fill);
+      }
+      .segtrack span {
+        height: 28px;
+        padding: 0 14px;
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        color: var(--ink-2);
+      }
+      .segtrack span.on {
+        background: #fff;
+        color: var(--ink);
+        font-weight: 600;
+        box-shadow:
+          0 0 0 1px rgba(16, 18, 24, 0.04),
+          0 1px 2px rgba(16, 18, 24, 0.08);
+      }
+      .row-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        height: 44px;
+        border-radius: 10px;
+        padding: 0 8px;
+        margin: 0 -8px;
+      }
+      .row-item .dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 99px;
+        background: #2f8f4e;
+      }
+      .row-item .name {
+        flex: 1;
+      }
+      .row-item .meta {
+        font-size: 11px;
+        color: var(--ink-3);
+        font-family: var(--mono);
+      }
+      .btn {
+        height: 36px;
+        padding: 0 18px;
+        border-radius: 999px;
+        background: var(--ink);
+        color: #fff;
+        font-weight: 600;
+      }
+      .btn.ghost {
+        background: transparent;
+        color: var(--ink);
+        font-weight: 400;
+      }
+
+      /* 弹窗 */
+      .scrim {
+        position: relative;
+        border-radius: 20px;
+        padding: 48px 16px;
+        background:
+          linear-gradient(rgb(23 20 17 / 0.32), rgb(23 20 17 / 0.32)),
+          linear-gradient(135deg, #f1eee9, #ddd8cf);
+        display: grid;
+        place-items: center;
+      }
+      .dialog {
+        width: 100%;
+        max-width: 420px;
+        border-radius: 18px;
+        background: #fff;
+        padding: 20px;
+        box-shadow:
+          0 0 0 1px rgba(16, 18, 24, 0.05),
+          0 12px 32px rgba(16, 18, 24, 0.14);
+      }
+      .dialog h3 {
+        margin: 0 0 20px;
+        font-size: 15px;
+        font-weight: 600;
+      }
+      .dialog .group {
+        margin-bottom: 16px;
+      }
+      .actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 20px;
+      }
+
+      /* 五种状态 */
+      .states {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 16px;
+      }
+
+      @media (max-width: 760px) {
+        .board {
+          padding: 20px;
+        }
+        .train {
+          grid-template-columns: 1fr;
+          gap: 28px;
+        }
+        .states {
+          grid-template-columns: 1fr 1fr;
+        }
+        /* 手机上填字框 16 号，iOS 聚焦不放大 */
+        .field {
+          font-size: 16px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="switch" role="toolbar" aria-label="对比开关">
+      <span>填字框</span>
+      <span class="seg">
+        <button aria-pressed="true" data-v="a">A 现在：描边 · 圆角 8</button>
+        <button aria-pressed="false" data-v="b">B 跟搜索框一家：浅灰底 · 没边</button>
+        <button aria-pressed="false" data-v="c">C 白底细边 · 圆角 12</button>
+      </span>
+      <kbd>1 / 2 / 3</kbd>
+      <span class="hint">只换填字框；搜索框、切换条、按钮三个方向都一样。框都能点进去打字</span>
+    </div>
+
+    <main class="page">
+      <!-- 训练页：填字框最多的地方 -->
+      <section class="board">
+        <h2>训练 LoRA</h2>
+        <p class="cap">LoRA 台 · 训练页（左表单、右记录）。顶上那条是库页的搜索框，作对照</p>
+
+        <div class="tag">搜索框（已定，不变）</div>
+        <label class="search">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" />
+            <path d="m20 20-3.5-3.5" />
+          </svg>
+          <input placeholder="搜 LoRA、作者、触发词" />
+        </label>
+
+        <div class="train">
+          <div>
+            <div class="group">
+              <label class="lab" for="n1">名字</label>
+              <input id="n1" class="field is-err" value="水彩 v3" />
+              <div class="err-line">这个名字已经有了，换一个</div>
+            </div>
+            <div class="group">
+              <label class="lab" for="n2">触发词</label>
+              <input id="n2" class="field" placeholder="比如 wtrclr_style" />
+            </div>
+            <div class="group">
+              <label class="lab">训练类型</label>
+              <div class="segtrack"><span class="on">人物</span><span>画风</span></div>
+            </div>
+            <div class="group">
+              <label class="lab" for="n3">备注</label>
+              <textarea id="n3" class="field" placeholder="这批图的来源、想要的效果……">
+淡彩、留白多，纸张纹理要保留。主体不要太满，背景偏冷。</textarea
+              >
+            </div>
+            <div style="display: flex; justify-content: flex-end">
+              <button class="btn">开始训练</button>
+            </div>
+          </div>
+
+          <aside>
+            <label class="lab">训练记录</label>
+            <div class="row-item"><span class="dot"></span><span class="name">铅笔速写 v2</span><span class="meta">11-09</span></div>
+            <div class="row-item"><span class="dot"></span><span class="name">橘猫馆长</span><span class="meta">11-06</span></div>
+            <div class="row-item"><span class="dot"></span><span class="name">夜景霓虹</span><span class="meta">10-30</span></div>
+            <p class="note">训练好的 LoRA 进「我的资源」，在库里可以挂上用。</p>
+          </aside>
+        </div>
+      </section>
+
+      <!-- 配 key 弹窗 -->
+      <section class="scrim">
+        <div class="dialog" role="dialog" aria-label="配 key">
+          <h3>配置 fal.ai 的 key</h3>
+          <div class="group">
+            <label class="lab" for="k1">API Key</label>
+            <input id="k1" class="field mono is-focus" value="fal_8c2e••••••••••••41d7" />
+          </div>
+          <div class="group">
+            <label class="lab" for="k2">备注名</label>
+            <input id="k2" class="field" placeholder="比如：工作室账号" />
+            <div class="note">只给你自己看，区分多把 key。</div>
+          </div>
+          <div class="actions">
+            <button class="btn ghost">取消</button>
+            <button class="btn">验证并保存</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 五种状态并排 -->
+      <section class="board">
+        <h2>五种状态</h2>
+        <p class="cap">同一个框：空 · 有字 · 聚焦 · 出错 · 不能填</p>
+        <div class="states">
+          <div><div class="tag">空</div><input class="field" placeholder="触发词" /></div>
+          <div><div class="tag">有字</div><input class="field" value="wtrclr_style" /></div>
+          <div><div class="tag">聚焦</div><input class="field is-focus" value="wtrclr_" /></div>
+          <div>
+            <div class="tag">出错</div>
+            <input class="field is-err" value="水彩 v3" />
+            <div class="err-line">名字重了</div>
+          </div>
+          <div><div class="tag">不能填</div><input class="field" value="训练中，改不了" disabled /></div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const set = (v) => {
+        document.body.classList.toggle('b', v === 'b')
+        document.body.classList.toggle('c', v === 'c')
+        document
+          .querySelectorAll('.seg button')
+          .forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === v)))
+      }
+      document.querySelector('.seg').addEventListener('click', (e) => {
+        const b = e.target.closest('button')
+        if (b) set(b.dataset.v)
+      })
+      addEventListener('keydown', (e) => {
+        if (e.target.closest('input, textarea')) return
+        if (e.key === '1') set('a')
+        if (e.key === '2') set('b')
+        if (e.key === '3') set('c')
+      })
+      const q = new URLSearchParams(location.search).get('v')
+      if (q) set(q)
+    </script>
+  </body>
+</html>

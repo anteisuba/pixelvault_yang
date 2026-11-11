@@ -217,7 +217,6 @@ export const VoiceTrainer = memo(function VoiceTrainer({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder={t('voiceTrainNamePlaceholder')}
-          className="h-9 text-sm"
           maxLength={100}
         />
       </div>
@@ -291,7 +290,7 @@ export const VoiceTrainer = memo(function VoiceTrainer({
           value={transcript}
           onChange={(e) => setTranscript(e.target.value)}
           placeholder={t('voiceTrainTranscriptPlaceholder')}
-          className="min-h-[80px] resize-y text-xs"
+          className="min-h-20 resize-y"
         />
         <p className="text-2xs text-muted-foreground">
           {t('voiceTrainTranscriptHint')}

@@ -351,7 +351,6 @@ function SkillEditor({
           maxLength={ASSISTANT_SKILL_LIMITS.maxNameChars}
           placeholder={t('skills.namePlaceholder')}
           onChange={(event) => setName(event.target.value)}
-          className="h-10 rounded-lg text-base md:text-md coarse:h-11"
         />
       </label>
       <label className="flex flex-col gap-1">
@@ -364,7 +363,6 @@ function SkillEditor({
           maxLength={ASSISTANT_SKILL_LIMITS.maxDescriptionChars}
           placeholder={t('skills.descriptionPlaceholder')}
           onChange={(event) => setDescription(event.target.value)}
-          className="min-h-16 rounded-lg"
         />
       </label>
       <label className="flex flex-col gap-1">
@@ -380,7 +378,7 @@ function SkillEditor({
           maxLength={ASSISTANT_SKILL_LIMITS.maxBodyChars}
           placeholder={t('skills.bodyPlaceholder')}
           onChange={(event) => setBody(event.target.value)}
-          className="min-h-48 rounded-lg font-mono text-2sm"
+          className="min-h-48 font-mono"
         />
       </label>
       {error ? (

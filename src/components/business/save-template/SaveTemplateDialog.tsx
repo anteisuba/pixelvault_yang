@@ -9,6 +9,7 @@ import { lookLabel } from '@/lib/character-looks'
 import { cn } from '@/lib/utils'
 import { Check, Plus } from '@/components/icons'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import {
   Dialog,
   DialogContent,
@@ -182,11 +183,10 @@ function SaveTemplateBody({
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           <label className="flex flex-col gap-1">
             <span className="text-3xs text-muted-foreground">{t('name')}</span>
-            <input
+            <Input
               value={name}
               maxLength={200}
               onChange={(event) => setName(event.target.value)}
-              className="h-9 rounded-md border border-border bg-background px-2.5 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
           </label>
           <div className="flex flex-col gap-1">
@@ -246,7 +246,7 @@ function SaveTemplateBody({
                   ) : null
                 ) : (
                   <span className="flex items-center gap-1">
-                    <input
+                    <Input
                       autoFocus
                       value={newLook}
                       maxLength={CHARACTER_CARD.LOOK_LABEL_MAX_LENGTH}
@@ -262,7 +262,7 @@ function SaveTemplateBody({
                           setNewLook(null)
                         }
                       }}
-                      className="h-7 w-28 rounded-full border border-border bg-background px-2.5 text-2xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className="h-7 w-28 px-2.5"
                     />
                     <button
                       type="button"

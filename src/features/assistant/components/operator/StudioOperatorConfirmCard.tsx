@@ -526,7 +526,7 @@ export function StudioOperatorConfirmCard({
                     onChange={(event) =>
                       homeDraft.setPrompt(event.target.value)
                     }
-                    className="max-h-40 min-h-16 bg-background text-2sm"
+                    className="max-h-40 min-h-16"
                   />
                   {homeDraft.references.length > 0 ? (
                     <div className="flex flex-wrap gap-1.5">

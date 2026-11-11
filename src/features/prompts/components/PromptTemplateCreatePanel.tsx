@@ -408,7 +408,7 @@ export function PromptTemplateCreatePanel({
                                 setCompiledPrompt(event.target.value)
                               }
                               placeholder={t('createPromptPlaceholder')}
-                              className="min-h-40 resize-y rounded-xl leading-6"
+                              className="min-h-40 resize-y leading-6"
                             />
                           </div>
 

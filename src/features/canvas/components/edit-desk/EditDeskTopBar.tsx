@@ -28,6 +28,7 @@ import type { EditProject } from '@/types/node-workflow'
 
 import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import { RollingText } from '@/components/ui/rolling-text'
+import { Input } from '@/components/ui/input'
 import {
   Popover,
   PopoverContent,
@@ -108,7 +109,7 @@ export function EditDeskTopBar({
 
       <div className="flex min-w-0 shrink items-center gap-2.5">
         {editing ? (
-          <input
+          <Input
             ref={inputRef}
             data-testid="edit-desk-name-input"
             value={draft}
@@ -123,7 +124,7 @@ export function EditDeskTopBar({
               }
               event.stopPropagation()
             }}
-            className="h-7 max-w-56 rounded-md border border-input bg-card px-2 text-base font-semibold lg:text-sm text-foreground outline-none"
+            className="h-7 max-w-56 px-2.5 font-semibold"
           />
         ) : (
           <button

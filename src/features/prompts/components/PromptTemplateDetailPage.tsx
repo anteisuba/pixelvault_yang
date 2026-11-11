@@ -605,7 +605,7 @@ export function PromptTemplateDetailPage({
                           compiledPrompt: event.target.value,
                         })
                       }
-                      className="min-h-40 resize-y rounded-xl font-mono leading-5"
+                      className="min-h-40 resize-y font-mono leading-5"
                     />
                   </label>
                   <label className="flex flex-col gap-2">
@@ -619,7 +619,7 @@ export function PromptTemplateDetailPage({
                         })
                       }
                       placeholder={t('createNegativePromptPlaceholder')}
-                      className="min-h-24 resize-y rounded-xl font-mono leading-5"
+                      className="min-h-24 resize-y font-mono leading-5"
                     />
                   </label>
                 </>

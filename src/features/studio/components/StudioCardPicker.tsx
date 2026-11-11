@@ -14,6 +14,7 @@ import {
   UserRound,
 } from '@/components/icons'
 import { Spinner } from '@/components/ui/spinner'
+import { Input } from '@/components/ui/input'
 import { CharacterImagePickGrid } from '@/features/cards'
 import { useStudioData } from '@/contexts/studio-context'
 import { Link } from '@/i18n/navigation'
@@ -147,12 +148,12 @@ export function StudioCardPicker() {
         </div>
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground/60" />
-          <input
+          <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder={t('searchCharactersPlaceholder')}
             // ⚠ <768 必须 ≥16px：iOS 对小于 16px 的可聚焦输入框会自动放大整页。
-            className="h-9 w-full rounded-lg border border-border/60 bg-background pl-9 pr-3 text-base outline-none transition-colors focus:border-primary/35 focus:ring-2 focus:ring-primary/15 md:text-2sm"
+            className="pl-9 pr-3"
           />
         </div>
         <p

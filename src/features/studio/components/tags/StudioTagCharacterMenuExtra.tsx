@@ -10,6 +10,7 @@ import { lookLabel } from '@/lib/character-looks'
 import { parseTagChips, serializeTagChips } from '@/lib/tag-composer'
 import { useCharacterCards } from '@/features/cards/hooks'
 import { lookTagsText, seedLabel } from './StudioTagAddCharacter'
+import { Input } from '@/components/ui/input'
 
 /** 两份标签原文是不是同一串（空格、空格子、权重写法不算差别）。 */
 export function sameTags(a: string, b: string) {
@@ -100,7 +101,7 @@ export function StudioTagCharacterMenuExtra({
     <>
       <label className="flex flex-col gap-1 px-2 pb-1">
         <span className="text-2xs text-muted-foreground">{t('rename')}</span>
-        <input
+        <Input
           value={name}
           maxLength={60}
           placeholder={fallbackName}
@@ -112,7 +113,7 @@ export function StudioTagCharacterMenuExtra({
               commitName()
             }
           }}
-          className="h-8 rounded-md border border-border bg-background px-2 text-2xs outline-none focus-visible:shadow-focus"
+          className="h-8 px-2.5"
         />
       </label>
       {card && card.looks.length > 1 ? (
@@ -175,7 +176,7 @@ export function StudioTagCharacterMenuExtra({
           </button>
         ) : (
           <div className="flex items-center gap-1 px-2 py-1">
-            <input
+            <Input
               autoFocus
               value={newLook}
               maxLength={CHARACTER_CARD.LOOK_LABEL_MAX_LENGTH}
@@ -187,7 +188,7 @@ export function StudioTagCharacterMenuExtra({
                   void saveAsNewLook()
                 }
               }}
-              className="h-8 min-w-0 flex-1 rounded-md border border-border bg-background px-2 text-2xs outline-none focus-visible:shadow-focus"
+              className="h-8 min-w-0 flex-1 px-2.5"
             />
             <button
               type="button"

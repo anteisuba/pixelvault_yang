@@ -558,7 +558,7 @@ function ModelFacetPopover({
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         placeholder={searchPlaceholder}
-        className="picker-row-in mb-1 h-8 rounded-lg coarse:h-11 border-0 bg-muted shadow-none"
+        className="picker-row-in mb-1 h-8 coarse:h-11"
       />
       <div className="studio-scrollbar max-h-64 overflow-y-auto">
         {visible.length === 0 ? (

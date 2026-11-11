@@ -26,6 +26,7 @@ import {
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import { BlurSwap } from '@/components/ui/blur-swap'
 import { Spinner } from '@/components/ui/spinner'
+import { Input } from '@/components/ui/input'
 import {
   ASSET_BROWSER_PAGE_SIZE,
   ASSET_GRID_AUDIO_ASPECT_RATIO,
@@ -630,7 +631,7 @@ function AssetPickerBrowserContent({
               搜索框里，两者不混（§8.2）。 */}
           <div className="relative mb-2 shrink-0">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-            <input
+            <Input
               type="search"
               defaultValue={filters.search}
               placeholder={t('search')}
@@ -640,7 +641,7 @@ function AssetPickerBrowserContent({
                 event.preventDefault()
                 applySearch((event.target as HTMLInputElement).value)
               }}
-              className="h-8 w-full rounded-lg border border-border/60 bg-background/40 pl-8 pr-2 text-base md:text-xs text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-foreground/40"
+              className="h-8 pl-8 pr-2"
             />
           </div>
 

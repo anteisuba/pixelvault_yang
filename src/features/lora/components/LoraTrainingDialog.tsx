@@ -557,10 +557,6 @@ export function LoraTrainingForm({
             placeholder={t('namePlaceholder')}
             maxLength={LORA_TRAINING.NAME_MAX_LENGTH}
             aria-invalid={submitFieldError === 'name' || undefined}
-            className={cn(
-              submitFieldError === 'name' &&
-                'border-destructive focus-visible:ring-destructive/30',
-            )}
           />
         </div>
 

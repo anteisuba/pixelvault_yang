@@ -12,7 +12,7 @@ interface LegalPageProps {
 }
 
 /**
- * Renders a legal document (privacy / terms) in the ivory "white hall" surface.
+ * Renders a legal document (privacy / terms / guidelines) in the ivory "white hall" surface.
  * Title, intro and the `sections` array come from the `Legal` i18n namespace so
  * all copy stays in `src/messages/*`. Server component — no client state.
  */

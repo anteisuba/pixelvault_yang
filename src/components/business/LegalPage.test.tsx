@@ -66,7 +66,20 @@ describe('LegalPage', () => {
     }
   })
 
-  it('exposes exactly the privacy and terms docs', () => {
-    expect([...LEGAL_DOCS]).toEqual(['privacy', 'terms'])
+  it('renders the content guidelines for every configured locale', () => {
+    for (const locale of ['en', 'zh', 'ja'] as const) {
+      const messages = loadMessages(locale)
+      const { unmount } = render(
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          <LegalPage doc="guidelines" />
+        </NextIntlClientProvider>,
+      )
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
+      unmount()
+    }
+  })
+
+  it('exposes exactly the privacy, terms and guidelines docs', () => {
+    expect([...LEGAL_DOCS]).toEqual(['privacy', 'terms', 'guidelines'])
   })
 })

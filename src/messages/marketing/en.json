@@ -4,7 +4,7 @@
     "updatedLabel": "Last updated",
     "privacy": {
       "title": "Privacy Policy",
-      "updated": "October 15, 2026",
+      "updated": "November 11, 2026",
       "intro": "ANTEI is a bring-your-own-key AI gallery. This policy explains what we store, what leaves our servers, who processes it on our behalf, and the control you have over it.",
       "sections": [
         {
@@ -26,6 +26,10 @@
         {
           "heading": "What we send to AI providers",
           "body": "When you generate, the prompt and any reference material for that job are sent to the provider you selected, for example OpenAI, Google, fal.ai, ByteDance, ElevenLabs or Fish Audio. What they do with it is governed by their own policies, and some providers retain inputs for a period for abuse monitoring. We do not send them your account email or your archive."
+        },
+        {
+          "heading": "What you make public",
+          "body": "Works you make public, together with your display name, avatar and bio, can be seen by anyone, including visitors who are not signed in and search engines. A work’s prompt is shown only if you separately choose to make the prompt public. When you switch a work back to private we stop showing it, but we cannot recall copies others have already saved."
         },
         {
           "heading": "Service providers we use",
@@ -73,7 +77,7 @@
         },
         {
           "heading": "Children",
-          "body": "ANTEI is not intended for children under 13, or under 16 in the European Economic Area and the United Kingdom, and we do not knowingly collect their data. If you believe a child has created an account, write to privacy@antei.app and we will remove it."
+          "body": "ANTEI is not intended for children under 13, or under 16 in the European Economic Area and the United Kingdom, and we do not knowingly collect their data. If you believe a child has created an account, write to xiuruisu@gmail.com and we will remove it."
         },
         {
           "heading": "Security",
@@ -85,14 +89,14 @@
         },
         {
           "heading": "Contact",
-          "body": "Data questions, access requests and deletion requests: privacy@antei.app."
+          "body": "Data questions, access requests and deletion requests: xiuruisu@gmail.com."
         }
       ]
     },
     "terms": {
       "title": "Terms of Service",
-      "updated": "August 2, 2026",
-      "intro": "These terms cover your use of ANTEI. By creating an account or using the service you agree to them. If you do not agree, do not use ANTEI.",
+      "updated": "November 11, 2026",
+      "intro": "These terms cover your use of ANTEI. By creating an account or using the service you agree to them. If you do not agree, do not use ANTEI. What may be published to the gallery is set out in the Content Guidelines.",
       "sections": [
         {
           "heading": "The service",
@@ -130,11 +134,11 @@
         },
         {
           "heading": "Mature content",
-          "body": "ANTEI can surface and generate adult material where a model and its licence permit it. Those features are for users aged 18 or over, are off by default, and remain subject to the prohibitions above without exception. Enabling them is a statement that you are of age in your jurisdiction."
+          "body": "ANTEI can surface and generate adult material where a model and its licence permit it. That material is for users aged 18 or over who are of age in their jurisdiction, and remains subject to the prohibitions above without exception. Using it is a statement that you are of age where you live. Mature content stays in your own library and cannot be made public: the gallery and ANTEI’s own pages are for all ages."
         },
         {
           "heading": "Your content and your outputs",
-          "body": "You keep the rights you already hold in the prompts, reference images and files you bring. As between you and us we claim no ownership of what you generate. We need a limited licence to run the service: to store your files, transmit them to the provider you selected, and display them back to you in your archive, canvas and any surfaces you choose to publish."
+          "body": "You keep the rights you already hold in the prompts, reference images and files you bring. As between you and us we claim no ownership of what you generate. We need a limited licence to run the service: to store your files, transmit them to the provider you selected, and display them back to you in your archive, canvas and any surfaces you choose to publish. When you make a work public, you agree that anyone can see it: it appears in the ANTEI gallery and on your creator page, and we may feature it on ANTEI’s own pages, such as the homepage, without payment. You can switch a work back to private at any time, and we will take it down from those places within a reasonable time. We cannot recall copies that others have already saved or shared."
         },
         {
           "heading": "Model and LoRA licences",
@@ -146,7 +150,7 @@
         },
         {
           "heading": "Reporting and takedowns",
-          "body": "If something on ANTEI infringes your rights or depicts you without consent, write to legal@antei.app with the location of the material and enough detail to identify it. We remove material that breaks these terms and act on valid infringement notices. We may reinstate material if a complaint turns out to be unfounded."
+          "body": "If something on ANTEI infringes your rights or depicts you without consent, write to xiuruisu@gmail.com with the location of the material and enough detail to identify it. We remove material that breaks these terms and act on valid infringement notices. We may reinstate material if a complaint turns out to be unfounded."
         },
         {
           "heading": "Suspension and termination",
@@ -170,7 +174,7 @@
         },
         {
           "heading": "Governing law and disputes",
-          "body": "These terms are governed by the law of the operator’s principal place of business, and disputes go to the courts there. If you are a consumer, mandatory protections and courts available to you where you live are unaffected. Talk to us first at legal@antei.app; most issues are faster to fix than to litigate."
+          "body": "These terms are governed by the law of the operator’s principal place of business, and disputes go to the courts there. If you are a consumer, mandatory protections and courts available to you where you live are unaffected. Talk to us first at xiuruisu@gmail.com; most issues are faster to fix than to litigate."
         },
         {
           "heading": "Changes to these terms",
@@ -178,7 +182,63 @@
         },
         {
           "heading": "Contact",
-          "body": "Questions about these terms, takedowns and account issues: legal@antei.app. Questions about data: privacy@antei.app."
+          "body": "Questions about these terms, takedowns, your account or your data: xiuruisu@gmail.com."
+        }
+      ]
+    },
+    "guidelines": {
+      "title": "Content Guidelines",
+      "updated": "November 11, 2026",
+      "intro": "These guidelines explain what you can do on ANTEI and what you can make public. They supplement the Terms of Service; where the two differ, the Terms of Service apply.",
+      "sections": [
+        {
+          "heading": "Your library is yours; the gallery is everyone’s",
+          "body": "What you generate and upload stays in your own library by default, where nobody else can see it. When you make a work public it appears in the ANTEI gallery and on your creator page, and it may be featured on ANTEI’s own pages, such as the homepage. Public means anyone can see it; if you don’t want it seen, don’t make it public. You can switch a work back to private at any time, and we will take it down from those places."
+        },
+        {
+          "heading": "Never allowed, anywhere",
+          "body": "Whether public or not, whichever model or key you use, the following may not be generated, uploaded or shared on ANTEI:",
+          "items": [
+            "Sexual content involving minors, or anything that sexualises a person under 18, real or generated, in any art style.",
+            "Sexual or intimate imagery of an identifiable real person made or shared without their consent.",
+            "Content that impersonates a real person or organisation to deceive, defraud or influence an election.",
+            "Content that harasses or threatens a person or group, or incites violence against them.",
+            "Malware, credential theft, and anything meant to get around safety or age restrictions."
+          ]
+        },
+        {
+          "heading": "What can be published to the gallery",
+          "body": "The gallery and ANTEI’s own pages are for all ages. Public works may not contain the following. Where the Terms of Service allow it, such content can stay in your own library; it just cannot be made public:",
+          "items": [
+            "Nudity or sexual content, including strongly suggestive poses or clothing.",
+            "Gory or cruel violence, or real images of death or injury.",
+            "Content that promotes hatred of, or discrimination against, a group.",
+            "Content that promotes self-harm, suicide or drug use."
+          ]
+        },
+        {
+          "heading": "Real people",
+          "body": "Public works should not show an identifiable real person unless it is you, or you have that person’s consent. This applies to public figures too."
+        },
+        {
+          "heading": "Other people’s work, characters and LoRAs",
+          "body": "Drawing characters you love and making fan works is fine, but don’t pass yourself off as the original creator or bring in someone else’s work as your own. Models, base models and LoRAs carry their authors’ licences: some forbid commercial use, some require credit, and those licences bind you directly. When a rights holder asks us to take something down, we will."
+        },
+        {
+          "heading": "Images made with search",
+          "body": "Works generated with Google Search turned on are for your eyes only and cannot be made public. This is Google’s requirement for such images, and the product blocks it."
+        },
+        {
+          "heading": "Posting elsewhere",
+          "body": "Your works are AI-generated. When you post them on other platforms, label them as AI-generated wherever local law or that platform requires it."
+        },
+        {
+          "heading": "Reporting and enforcement",
+          "body": "If you see content that breaks these guidelines, or someone has used your work or your likeness without consent, email xiuruisu@gmail.com with a link to the work. Depending on the case we take the work down, warn the author, or close the account for serious or repeated violations. Anything under “Never allowed, anywhere” leads to closure without notice."
+        },
+        {
+          "heading": "Changes",
+          "body": "We update these guidelines as the product changes. The date at the top reflects the current version."
         }
       ]
     }

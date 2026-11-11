@@ -41,15 +41,15 @@ canonical 指向别的 URL，等于告诉搜索引擎「我是那一页的副本
 
 ## 覆盖现状（2026-09-20 实测）
 
-| 页面                 | canonical      | hreflang | og:url        |
-| -------------------- | -------------- | -------- | ------------- |
-| `/`                  | 自指           | ✅       | = canonical   |
-| `/gallery`           | 自指（不带参） | ✅       | = canonical   |
-| `/gallery/[id]`      | 自指           | ✅       | = canonical   |
-| `/u/[username]`      | 自指（规范化） | ✅       | = canonical   |
-| `/u/me`              | → `/u/<name>`  | 故意没有 | → `/u/<name>` |
-| `/privacy`・`/terms` | 自指           | ✅       | = canonical   |
-| noindex 那一批       | 故意没有       | 没有     | 没有          |
+| 页面                                | canonical      | hreflang | og:url        |
+| ----------------------------------- | -------------- | -------- | ------------- |
+| `/`                                 | 自指           | ✅       | = canonical   |
+| `/gallery`                          | 自指（不带参） | ✅       | = canonical   |
+| `/gallery/[id]`                     | 自指           | ✅       | = canonical   |
+| `/u/[username]`                     | 自指（规范化） | ✅       | = canonical   |
+| `/u/me`                             | → `/u/<name>`  | 故意没有 | → `/u/<name>` |
+| `/privacy`・`/terms`・`/guidelines` | 自指           | ✅       | = canonical   |
+| noindex 那一批                      | 故意没有       | 没有     | 没有          |
 
 ## Last Verified
 

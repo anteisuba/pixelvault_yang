@@ -1117,4 +1117,5 @@ export const HOME_V4_ROUTES = {
   studio: ROUTES.STUDIO_IMAGE,
   terms: ROUTES.TERMS,
   privacy: ROUTES.PRIVACY,
+  guidelines: ROUTES.GUIDELINES,
 } as const

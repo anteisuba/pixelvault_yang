@@ -92,8 +92,9 @@ export function HomeV4Finale({ active }: HomeV4FinaleProps) {
           {' · '}
           <Link href={HOME_V4_ROUTES.privacy}>{t('foot.privacy')}</Link>
           {' · '}
-          {/* No route for the guidelines yet — plain text until one exists. */}
-          {t('v4.finale.guidelines')}
+          <Link href={HOME_V4_ROUTES.guidelines}>
+            {t('v4.finale.guidelines')}
+          </Link>
         </span>
       </div>
     </div>

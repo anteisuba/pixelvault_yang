@@ -12,6 +12,7 @@ export const ROUTES = {
   /** Legal / display-surface pages */
   PRIVACY: '/privacy',
   TERMS: '/terms',
+  GUIDELINES: '/guidelines',
 
   /** Auth pages */
   SIGN_IN: '/sign-in',

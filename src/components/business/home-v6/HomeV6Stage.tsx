@@ -2,11 +2,8 @@
 
 import { useEffect, useRef } from 'react'
 
-import {
-  mountStage,
-  type HomeV6StageCopy,
-  type HomeV6WallShot,
-} from '@/lib/home-v6/stage-engine'
+import type { HomeV6WallShot } from '@/constants/homepage-v6'
+import { mountStage, type HomeV6StageCopy } from '@/lib/home-v6/stage-engine'
 
 export interface HomeV6StageText {
   headline: readonly [string, string]

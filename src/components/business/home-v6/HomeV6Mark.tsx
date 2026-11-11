@@ -1,5 +1,5 @@
 /**
- * 名单里一行的品牌标。OpenAI / Gemini 的路径照搬自 v4 首页（`HomeV4ModelLogo`，⛔ 重画别人的标）；
+ * 名单里一行的品牌标。OpenAI / Gemini 的路径照搬自 v4 首页当年用的官方标（⛔ 重画别人的标）；
  * 其余是 `public/homepage/v6/marks/` 里的文件（来源见同目录 `_manifest.md`）；LoRA 不是品牌，是一个叠层小图标。
  */
 import { HOME_V6_MARK_FILES, type HomeV6MarkKey } from '@/constants/homepage-v6'

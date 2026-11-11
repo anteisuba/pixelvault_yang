@@ -4,13 +4,16 @@ import '@/app/auth.css'
 import { useLocale, useTranslations } from 'next-intl'
 
 import { ROUTES } from '@/constants/routes'
-import { HOME_V6_VOICE_LINES, type HomeV6Seg } from '@/constants/homepage-v6'
-import type { HomeV4ShowcaseShot } from '@/constants/homepage-v4'
+import {
+  HOME_V6_VOICE_LINES,
+  type HomeV6Seg,
+  type HomeV6WallShot,
+} from '@/constants/homepage-v6'
 import { Link } from '@/i18n/navigation'
 import type { HomeV6StageCopy } from '@/lib/home-v6/stage-engine'
 import { AuthDialogProvider } from '@/components/business/auth/AuthDialog'
-import { HomeV4Topbar } from '@/components/business/home-v4/HomeV4Topbar'
 
+import { HomeV6Topbar } from './HomeV6Topbar'
 import { HomeV6Lineup, type HomeV6LineupCopy } from './HomeV6Lineup'
 import { HomeV6Stage, type HomeV6StageText } from './HomeV6Stage'
 
@@ -24,6 +27,7 @@ interface HomeV6Messages extends Omit<HomeV6StageCopy, 'voices' | 'lines'> {
   lineup: HomeV6LineupCopy
   footer: {
     worksTitle: string
+    /** 「…<g>ANTEI 画廊</g>…」：<g> 里那段链到画廊。 */
     works: string
     aiTitle: string
     ai: string
@@ -36,14 +40,14 @@ interface HomeV6Messages extends Omit<HomeV6StageCopy, 'voices' | 'lines'> {
 
 interface HomeV6ShellProps {
   /** 作品墙：公开画廊里最新的公开作品，页面在服务端取好传进来。 */
-  shots?: readonly HomeV4ShowcaseShot[]
+  shots?: readonly HomeV6WallShot[]
 }
 
 /**
  * 首页 v6「她 + 一个窗口」。施工图：`docs/references/pages/home.md` §v6。
  *
  * 服务端组件：大标题、你说的话、名单、页脚都在首个 HTML 里；舞台（`HomeV6Stage`）
- * 和名单（`HomeV6Lineup`）各是一个客户端边界。顶栏沿用 v4 那条浮岛。
+ * 和名单（`HomeV6Lineup`）各是一个客户端边界。顶栏是 v4 留下来的那条浮岛（`HomeV6Topbar`）。
  */
 export function HomeV6Shell({ shots = [] }: HomeV6ShellProps) {
   const locale = useLocale()
@@ -74,15 +78,14 @@ export function HomeV6Shell({ shots = [] }: HomeV6ShellProps) {
     canvas: m.canvas,
     char: m.char,
   }
-  const wall = shots.map(({ src, w, h }) => ({ src, w, h }))
   const f = m.footer
 
   return (
     <AuthDialogProvider>
       <div className="home-v6" data-locale={locale}>
-        <HomeV4Topbar />
+        <HomeV6Topbar />
         <main>
-          <HomeV6Stage text={text} copy={copy} shots={wall} locale={lang} />
+          <HomeV6Stage text={text} copy={copy} shots={shots} locale={lang} />
           <HomeV6Lineup copy={m.lineup} locale={lang} />
           <footer className="foot">
             <div className="side">
@@ -93,7 +96,17 @@ export function HomeV6Shell({ shots = [] }: HomeV6ShellProps) {
               <div className="notes">
                 <div>
                   <h3>{f.worksTitle}</h3>
-                  <p>{f.works}</p>
+                  <p>
+                    {f.works.split(/<g>|<\/g>/).map((part, i) =>
+                      i === 1 ? (
+                        <Link href={ROUTES.GALLERY} key={i}>
+                          {part}
+                        </Link>
+                      ) : (
+                        part
+                      ),
+                    )}
+                  </p>
                 </div>
                 <div>
                   <h3>{f.aiTitle}</h3>

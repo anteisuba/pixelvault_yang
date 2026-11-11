@@ -5,7 +5,7 @@ import { AuthDialogProvider } from '@/components/business/auth/AuthDialog'
 import { message, renderWithApp } from '@/test/app-harness'
 import { text } from '@/test/i18n-text'
 
-import { HomeV4Topbar } from './HomeV4Topbar'
+import { HomeV6Topbar } from './HomeV6Topbar'
 
 // 边界：Clerk（登录态 + 登录窗里那套流程）、路由跳转。登录窗本身是真的。
 const mockAuth = vi.hoisted(() => ({ isLoaded: true, isSignedIn: true }))
@@ -54,14 +54,14 @@ beforeAll(() => {
 })
 
 function renderTopbar() {
-  return renderWithApp(<HomeV4Topbar />, { inner: AuthDialogProvider })
+  return renderWithApp(<HomeV6Topbar />, { inner: AuthDialogProvider })
 }
 
 /**
  * 首页顶栏**不承载应用壳的 chrome**（owner 2026-09-20）：没有齿轮、没有头像，
  * 右端有且只有一颗入口按钮，文案随登录态变。
  */
-describe('HomeV4Topbar 浮岛胶囊：一颗门', () => {
+describe('HomeV6Topbar 浮岛胶囊：一颗门', () => {
   it('已登录：唯一的按钮是「进入工作台」', () => {
     mockAuth.isLoaded = true
     mockAuth.isSignedIn = true

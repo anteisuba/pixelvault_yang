@@ -3,6 +3,9 @@
  * 施工图：`docs/references/pages/home.md` §v6。文案在 `Homepage.v6.*`。
  */
 
+const P = '/homepage/production'
+const V6 = '/homepage/v6'
+
 /** 每段占多少屏的滚动距离（vh）。换段的那一下算在后一段的开头。 */
 export const HOME_V6_LEN = {
   wall: 130,
@@ -25,11 +28,68 @@ export type HomeV6Seg = (typeof HOME_V6_SEGS)[number]
 export const HOME_V6_TRACK_VH =
   HOME_V6_LEN.wall + HOME_V6_SEGS.reduce((n, k) => n + HOME_V6_LEN[k], 0)
 
+/* ─── 第一屏作品墙 ───────────────────────────────────────────── */
+
+/**
+ * 墙上一格的图。服务端取数（`homepage-showcase.service.ts`）、客户端演出共用的契约，
+ * 所以住在常量里而不是 `server-only` 的服务里。`id` 只作 key，不打印。
+ */
+export interface HomeV6WallShot {
+  id: string
+  src: string
+  /** 原图宽高，按它排瀑布；兜底的静态图没有，按 3:4 算。 */
+  w?: number
+  h?: number
+}
+
+/**
+ * 兜底墙：构建期取不到数、查询失败、或库里合格作品不足时用它补满（v4 首页留下的十二张自带图）。
+ */
+export const HOME_V6_WALL_FALLBACK: readonly HomeV6WallShot[] = [
+  'hero-01-luna-moth',
+  'hero-02-desert-observatory',
+  'hero-03-black-clay',
+  'hero-04-risograph-laundry',
+  'hero-05-frost-flower',
+  'hero-06-watch-robot',
+  'hero-07-snow-train',
+  'hero-08-glacial-river',
+  'hero-09-ruby-chair',
+  'hero-10-cenote-diver',
+]
+  .map((k) => ({ id: k, src: `/homepage/v4/${k}-480.webp`, w: 480, h: 640 }))
+  .concat(
+    ['umbrella-kf5-farewell', 'umbrella-kf3-hydrangea'].map((k) => ({
+      id: k,
+      src: `${P}/umbrella/${k}.webp`,
+      w: 16,
+      h: 9,
+    })),
+  )
+
+export const HOME_V6_WALL = {
+  /** 墙至少要这么多张，不够用兜底补齐。 */
+  MIN_TOTAL: 12,
+  /** 一次最多下发几张。 */
+  POOL_LIMIT: 24,
+  /** 先按最新捞多少行，再在服务端筛掉横图。 */
+  QUERY_LIMIT: 72,
+} as const
+
+/**
+ * 人工置顶：这里列出的 generation id 排在墙的最前面，顺序即本数组顺序（详情页 URL 末段）。
+ * 置顶跳过竖版筛选，但不跳过公开性检查。
+ */
+export const HOME_V6_WALL_PINNED: readonly string[] = []
+
+/**
+ * 人工黑名单：这里列出的 generation id 永远不上首页作品墙，即使它是最新的公开作品。
+ * 用于把不适合当门面的公开作品挡在首屏之外，不需要把它从画廊里撤下来。
+ */
+export const HOME_V6_WALL_BLOCKLIST: readonly string[] = []
+
 /** 作品墙四列往上走的快慢（乘窗口高）。 */
 export const HOME_V6_WALL_SPEED = [0.12, 0.34, 0.2, 0.44] as const
-
-const P = '/homepage/production'
-const V6 = '/homepage/v6'
 
 export const HOME_V6_ASSETS = {
   her: `${V6}/her.webp`,

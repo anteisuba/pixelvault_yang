@@ -18,6 +18,7 @@ import {
   HOME_V6_WALL_SPEED,
   type HomeV6Seg,
   type HomeV6Voice,
+  type HomeV6WallShot,
 } from '@/constants/homepage-v6'
 
 import { mountHer, type HerHandle, type HerMood } from './her-rig'
@@ -65,12 +66,6 @@ export interface HomeV6StageCopy {
     whaleWhen: string
     whaleQuote: string
   }
-}
-
-export interface HomeV6WallShot {
-  src: string
-  w?: number
-  h?: number
 }
 
 interface StageOptions {

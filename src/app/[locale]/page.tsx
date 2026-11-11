@@ -5,7 +5,7 @@ import { ROUTES } from '@/constants/routes'
 import { HomeV6Shell } from '@/components/business/home-v6/HomeV6Shell'
 import type { AppLocale } from '@/i18n/routing'
 import { pageAddress } from '@/lib/page-address'
-import { getHomeV4ShowcaseShots } from '@/services/homepage-showcase.service'
+import { getHomeV6WallShots } from '@/services/homepage-showcase.service'
 
 // Marketing homepage is auth-agnostic on the server — the auth-aware CTA is
 // resolved client-side via Clerk's useUser(). This lets the page be served
@@ -51,7 +51,7 @@ export default async function LocalizedRootPage({
   // server, so the stage stays a pure renderer and the shots ship inside the
   // first HTML response. Locale-independent, so the three prerenders share it;
   // the service never throws — it falls back to the bundled strip.
-  const showcaseShots = await getHomeV4ShowcaseShots()
+  const showcaseShots = await getHomeV6WallShots()
 
   return <HomeV6Shell shots={showcaseShots} />
 }

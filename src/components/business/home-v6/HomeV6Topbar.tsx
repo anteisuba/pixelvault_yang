@@ -3,7 +3,7 @@
 import { useAuth } from '@clerk/nextjs'
 import { useLocale, useTranslations } from 'next-intl'
 
-import { HOME_V4_ROUTES } from '@/constants/homepage-v4'
+import { ROUTES } from '@/constants/routes'
 import { Link, usePathname, useRouter } from '@/i18n/navigation'
 import { LOCALES } from '@/i18n/routing'
 import { useAuthDialog } from '@/components/business/auth/AuthDialog'
@@ -26,11 +26,11 @@ import { useAuthDialog } from '@/components/business/auth/AuthDialog'
  * 主页在哪」各多出一个答案。
  *
  * 右端因此只剩**一颗入口按钮**，文案随登录态换：未登录「登录」（现有 Clerk
- * 入口），已登录「进入工作台」（`HOME_V4_ROUTES.studio`，⛔ 不手写路径）。
+ * 入口），已登录「进入工作台」（`ROUTES.STUDIO_IMAGE`，⛔ 不手写路径）。
  * 它在 Clerk 解析出来之前就按「登录」画出来 —— 边缘缓存的营销页不必等鉴权，
  * 而 Clerk 会把已登录访客自己转走。
  */
-export function HomeV4Topbar() {
+export function HomeV6Topbar() {
   const tAuth = useTranslations('Auth')
   const tCommon = useTranslations('Common')
   const tLocale = useTranslations('LocaleSwitcher')
@@ -44,7 +44,7 @@ export function HomeV4Topbar() {
 
   return (
     <header className="topbar">
-      <Link href={HOME_V4_ROUTES.home} className="logo">
+      <Link href={ROUTES.HOME} className="logo">
         {tCommon('brand')}
       </Link>
 
@@ -70,7 +70,7 @@ export function HomeV4Topbar() {
         className="login"
         onClick={() => {
           if (isIn) {
-            router.push(HOME_V4_ROUTES.studio)
+            router.push(ROUTES.STUDIO_IMAGE)
             return
           }
           openAuth()

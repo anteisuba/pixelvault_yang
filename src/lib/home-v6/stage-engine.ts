@@ -217,6 +217,7 @@ export function mountStage(
   }
   let playing: Voice | null = null
   let rafTick = 0
+  const blobUrls: string[] = []
   const voices: Voice[] = HOME_V6_VOICES.map((key, j) => {
     const text = copy.voices[key]
     const e = el(
@@ -238,9 +239,21 @@ export function mountStage(
           0.65 * Math.abs(Math.sin(i * 1.7 + j * 2.1) * Math.cos(i * 0.37 + j)),
       ),
     )
+    const audio = new Audio(src)
+    audio.preload = 'none'
+    // 画波形那次下载就留给播放用：点播放从内存里放，⛔ 再走一次网络（线上第一次带 Range 的请求可能等好几秒）
     fetch(src)
-      .then((r) => r.arrayBuffer())
-      .then((buf) => new AudioContext().decodeAudioData(buf))
+      .then((r) => r.blob())
+      .then((blob) => {
+        if (audio.paused && audio.currentTime === 0) {
+          blobUrls.push((audio.src = URL.createObjectURL(blob)))
+        }
+        return blob.arrayBuffer()
+      })
+      .then((buf) => {
+        const ctx = new AudioContext()
+        return ctx.decodeAudioData(buf).finally(() => ctx.close())
+      })
       .then((a) => {
         const d = a.getChannelData(0)
         const step = Math.floor(d.length / HOME_V6_BARS)
@@ -255,8 +268,6 @@ export function mountStage(
         setHeights(peaks.map((v) => Math.sqrt(v / top)))
       })
       .catch(() => {})
-    const audio = new Audio(src)
-    audio.preload = 'none'
     return { el: e, bars, audio, text, shown: 0 }
   })
   function paintPlayed(v: Voice) {
@@ -968,6 +979,7 @@ export function mountStage(
     cancelAnimationFrame(rafTick)
     cleanups.forEach((fn) => fn())
     voices.forEach((v) => v.audio.pause())
+    blobUrls.forEach((u) => URL.revokeObjectURL(u))
     filmV.pause()
     her?.destroy()
     page.classList.remove('sea', 'still')

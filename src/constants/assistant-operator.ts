@@ -36,6 +36,12 @@ import { PROMPT_TEXT_GUARD_MAX_CHARS } from '@/constants/config'
  * 没有它这条路由和 2026-08-24 那次生产事故是同一个形状。
  * 值共用一个常量，别抄字符串 —— 抄了就是两个「open」，客户端只认其中一个。
  */
+/** 「我的想法」（助手思考过程 C）：一句多长、一次开口最多几句（多的截掉，⛔ 整段丢）。 */
+export const ASSISTANT_OPERATOR_THOUGHT_LIMITS = {
+  maxLineChars: 300,
+  maxLinesPerCall: 6,
+} as const
+
 export const ASSISTANT_OPERATOR_EVENTS = {
   /** 开流握手，载荷为空。由成帧器发，service 不产。 */
   open: ASSISTANT_STREAM_EVENTS.open,
@@ -93,6 +99,12 @@ export const ASSISTANT_OPERATOR_EVENTS = {
    * ⚠ 不给摘要的型号也会在开口时发一帧只带 `ms` 的 —— 回执的秒数一律以服务端量的为准。
    */
   thinking: 'thinking',
+  /**
+   * **「我的想法」里的一句**（助手思考过程 C，owner 11-11）：主模型每次开口先写的第一人称想法，
+   * 服务端从正文里截出来一句一帧发。只进「我的想法」（平时收着，点开才看），⛔ 进正文。
+   * 决定那几个词用 `**…**` 包着，用到的记忆 / 规矩挂在句尾 `〔记忆·…〕`，界面据此加深、挂标签。
+   */
+  thought: 'thought',
   /** 正常收尾。 */
   done: 'done',
   /** 未跑完就停了 —— 载荷带 `reason`，与 `done` 分开是为了让 UI 说得出为什么。 */

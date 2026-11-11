@@ -114,6 +114,7 @@ import {
   finalizeOperatorMessage,
   appendOperatorStreamingMessage,
   appendOperatorThinking,
+  appendOperatorThought,
   getOperatorReviewState,
   getOperatorState,
   nextOperatorEntryId,
@@ -210,6 +211,7 @@ import {
   describeChatModeSwitch,
   describeDomainSwitch,
   historyToOperatorMessages,
+  withOperatorThoughts,
   historyToPriorSteps,
   readOperatorReferenceProfiles,
   toOperatorHistoryEntry,
@@ -352,7 +354,12 @@ function buildMessages(
        * ⛔ 渲染那一侧不动：那一行归它自己判要不要画。
        */
       if (!entry.text.trim()) continue
-      messages.push({ role: 'assistant', content: entry.text })
+      messages.push({
+        role: 'assistant',
+        content: entry.chat
+          ? entry.text
+          : withOperatorThoughts(entry.text, entry.thoughts),
+      })
     } else if (entry.kind === 'system' && entry.userText) {
       /**
        * ⭐ **答过的题也是用户说过的话**（v2 §3.4 落账规则，2026-09-12 真机 bug）。
@@ -1642,6 +1649,11 @@ export function useAssistantOperator(
             // ⛔ 思考帧同理：它写的也是这条占位行（想的时候那一行）。
             event.type !== ASSISTANT_OPERATOR_EVENTS.thinking &&
             /**
+             * ⛔「我的想法」那几句同理（助手思考过程 C）：挂的就是这条占位行。算进来的话占位行先收成
+             *   回执、正文另起一条 —— 想法挂在没字的那条上，落库时整条丢掉（11-11 真机：刷新后没了）。
+             */
+            event.type !== ASSISTANT_OPERATOR_EVENTS.thought &&
+            /**
              * ⛔ `open` **不算「它开口了」**：那一帧是成帧器在模型开口之前就发的
              * 握手（见 `lib/assistant-operator-stream.ts` 头注），它到达时模型还
              * 一个字都没写。把它算进来的表现是占位行闪一下就没了 —— 2026-09-06
@@ -1841,6 +1853,10 @@ export function useAssistantOperator(
               appendOperatorThinking(messageEntryId(), event.delta, event.ms)
               break
             }
+            // 「我的想法」里的一句（助手思考过程 C）：挂在这一段正文上，⛔ 进正文。
+            case ASSISTANT_OPERATOR_EVENTS.thought:
+              appendOperatorThought(messageEntryId(), event.line)
+              break
             /**
              * 正文的**定稿来源**（v2 §3.1 / §13.1）—— 按条目 id **覆盖**，⛔ 不追加；
              * 写进哪几条见 `finalMessagePlan`。

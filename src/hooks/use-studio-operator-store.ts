@@ -701,13 +701,15 @@ export function appendOperatorPending(
   })
 }
 
-/** 这一条攒下的思考摘要 —— 正文增量 / 定稿重建条目时带着走。 */
+/** 这一条攒下的思考摘要与「我的想法」—— 正文增量 / 定稿重建条目时带着走。 */
 function thinkingOf(
   current: StudioOperatorThreadEntry | undefined,
-): Pick<StudioOperatorMessageEntry, 'thinking'> {
-  return current?.kind === 'message' && current.thinking
-    ? { thinking: current.thinking }
-    : {}
+): Pick<StudioOperatorMessageEntry, 'thinking' | 'thoughts'> {
+  if (current?.kind !== 'message') return {}
+  return {
+    ...(current.thinking ? { thinking: current.thinking } : {}),
+    ...(current.thoughts?.length ? { thoughts: current.thoughts } : {}),
+  }
 }
 
 /**
@@ -853,6 +855,7 @@ export function dropOperatorPending(id: string): void {
   if (
     current.kind === 'message' &&
     (current.thinking ||
+      current.thoughts?.length ||
       (thoughtMs !== undefined &&
         thoughtMs >= STUDIO_OPERATOR_STREAMING.thinkingRevealMs))
   ) {
@@ -875,6 +878,40 @@ export function dropOperatorPending(id: string): void {
     return
   }
   emit({ ...state, entries: state.entries.filter((_, i) => i !== index) })
+}
+
+/**
+ * 「我的想法」里又写完一句（助手思考过程 C）：挂在这一段正文上（还没开口就挂在占位行上）。
+ * ⚠ 找不到那条就新建一条空正文挂上去，⛔ 丢掉这一句。
+ */
+export function appendOperatorThought(id: string, line: string): void {
+  const index = state.entries.findIndex(
+    (item) => item.kind === 'message' && item.id === id,
+  )
+  const current = index >= 0 ? state.entries[index] : undefined
+  if (current && current.kind !== 'message') return
+  const base: StudioOperatorMessageEntry = current ?? {
+    kind: 'message',
+    id,
+    text: '',
+    streaming: true,
+    pendingSince: Date.now(),
+  }
+  const entry: StudioOperatorMessageEntry = {
+    ...base,
+    thoughts: [...(base.thoughts ?? []), line],
+  }
+  if (index < 0) {
+    appendOperatorEntry(entry)
+    return
+  }
+  emit(
+    {
+      ...state,
+      entries: state.entries.map((item, i) => (i === index ? entry : item)),
+    },
+    { coalesce: true },
+  )
 }
 
 /**

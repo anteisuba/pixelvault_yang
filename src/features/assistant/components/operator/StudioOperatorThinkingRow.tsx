@@ -9,9 +9,8 @@
  *  · 之后：一颗呼吸点 + 扫光字「正在想…」+ 已等秒数。
  *  · `≥ thinkingSlowMs`：下面多一句慢提示（「比平时久一点」）—— 让人知道不是卡死了。
  *  · 画布接力那一跳（`landing`）：字换成「正在画布上落地…」。
- *  · 思考摘要流过来了（owner 2026-10-27 定 B 一行 + ② 足迹）：呼吸点换成一排短线，每想完一步
- *    落一道、正在想的那道在呼吸，后面只露最新一步的小标题（换标题由糊变清）+ 秒数。
- *    ⛔ 不铺摘要正文（owner：不想看到一大段）。
+ *  · 思考摘要流过来时 ⛔ 露小标题（11-11 助手思考过程 C 取代 10-27 的「足迹」：想的时候只有
+ *    「正在想 · N 秒」，⛔ 露任何一句过程）；摘要只在答完后点开「想了 N 秒」时看。
  *
  * ⚠ 秒数是**本地计时**（`since` 由 store 在占位行挂上那一刻写下）：⛔ 不进 store、
  *   ⛔ 不每半秒 emit 一次整份状态 —— 只有这一行在跳。
@@ -27,7 +26,6 @@ import { useTranslations } from 'next-intl'
 import { DURATION, EASE_STANDARD } from '@/constants/motion'
 import { STUDIO_OPERATOR_STREAMING } from '@/constants/studio-assistant-operator'
 import { ChevronRight } from '@/components/icons'
-import { BlurSwap } from '@/components/ui/blur-swap'
 import {
   operatorThoughtSteps,
   type OperatorThoughtStep,
@@ -94,14 +92,11 @@ export function useElapsedSince(since: number | undefined): number | null {
 export function StudioOperatorThinkingRow({
   since,
   landing = false,
-  thinking,
 }: {
   /** 占位行挂上的那一刻（ms）。 */
   since?: number
   /** 画布接力那一跳。 */
   landing?: boolean
-  /** 到此刻为止的思考摘要（`thinking` 帧攒的）。 */
-  thinking?: string
 }) {
   const t = useTranslations('StudioOperator.streaming')
   /**
@@ -113,44 +108,6 @@ export function StudioOperatorThinkingRow({
     elapsed === null || elapsed >= STUDIO_OPERATOR_STREAMING.thinkingRevealMs
   const slow =
     elapsed !== null && elapsed >= STUDIO_OPERATOR_STREAMING.thinkingSlowMs
-  const steps = useMemo(
-    () => (thinking && !landing ? operatorThoughtSteps(thinking) : []),
-    [thinking, landing],
-  )
-  const current = steps.at(-1)
-
-  if (current) {
-    return (
-      <p
-        data-testid="operator-message-pending"
-        data-revealed="true"
-        className="flex h-6 min-w-0 items-center gap-2 text-xs"
-      >
-        <ThoughtTrail count={steps.length} live />
-        {/* 按第几步换：没有小标题的摘要，标题是这段的第一句、边流边长，⛔ 每来一片糊一次。 */}
-        <BlurSwap
-          swapKey={String(steps.length)}
-          className="min-w-0 shrink text-ink-2"
-        >
-          <span
-            data-testid="operator-message-thinking-title"
-            className="truncate"
-          >
-            {current.title}
-          </span>
-        </BlurSwap>
-        {elapsed !== null ? (
-          <span
-            data-testid="operator-message-pending-seconds"
-            className="shrink-0 font-mono tabular-nums text-muted-foreground"
-          >
-            {t('seconds', { count: Math.floor(elapsed / 1000) })}
-          </span>
-        ) : null}
-      </p>
-    )
-  }
-
   return (
     <div className="flex min-w-0 flex-col">
       <p

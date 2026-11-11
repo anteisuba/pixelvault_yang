@@ -4745,3 +4745,76 @@ describe('回合托管第 4 片：画布等载好再接；新会话第一轮补�
     expect(linkAssistantTurnAPI).not.toHaveBeenCalled()
   })
 })
+
+describe('「我的想法」（助手思考过程 C，11-11）', () => {
+  it('下一轮发给模型的历史里，上一段回复带着当时的想法（⛔ 照着没想法的样子不再写）', async () => {
+    const { result } = render()
+    act(() => result.current.send('改成夜景'))
+    await settle()
+    streams[0].emit({ type: 'thought', line: '只动环境。' })
+    streams[0].emit({
+      type: ASSISTANT_OPERATOR_EVENTS.message,
+      text: '改好了。',
+    })
+    streams[0].emit({ type: ASSISTANT_OPERATOR_EVENTS.done })
+    streams[0].close()
+    await settle()
+    act(() => result.current.send('再暗一点'))
+    await settle()
+    const messages = streamAssistantOperatorAPI.mock.calls[1][0].messages as {
+      role: string
+      content: string
+    }[]
+    expect(messages.find((message) => message.role === 'assistant')).toEqual({
+      role: 'assistant',
+      content: '<thought>\n只动环境。\n</thought>\n改好了。',
+    })
+  })
+
+  it('thought 帧一句一句挂在这一段正文上，⛔ 进正文；定稿后还在，随会话落库', async () => {
+    const { result } = render()
+    act(() => result.current.send('改成夜景'))
+    await settle()
+    // 按内核的真实帧序：开口那一刻收「想了几秒」→ 想法 → 正文增量 → 定稿。
+    streams[0].emit({ type: ASSISTANT_OPERATOR_EVENTS.thinking, ms: 4_000 })
+    streams[0].emit({ type: 'thought', line: '台上是雨天那张，**只动环境**。' })
+    streams[0].emit({
+      type: 'thought',
+      line: '你说过喜欢冷色调〔记忆·偏好冷色调〕',
+    })
+    streams[0].emit({
+      type: ASSISTANT_OPERATOR_EVENTS.messageDelta,
+      delta: '改好了。',
+      restart: true,
+    })
+    await settle()
+    streams[0].emit({
+      type: ASSISTANT_OPERATOR_EVENTS.message,
+      text: '改好了。',
+    })
+    streams[0].emit({ type: ASSISTANT_OPERATOR_EVENTS.done })
+    streams[0].close()
+    await settle()
+    const message = store
+      .getOperatorState()
+      .entries.find((entry) => entry.kind === 'message' && entry.text)
+    expect(message).toMatchObject({
+      text: '改好了。',
+      thoughts: [
+        '台上是雨天那张，**只动环境**。',
+        '你说过喜欢冷色调〔记忆·偏好冷色调〕',
+      ],
+    })
+    const { toOperatorHistory } = await import('@/lib/studio-operator-history')
+    expect(
+      toOperatorHistory(store.getOperatorState().entries).find(
+        (entry) => entry.kind === 'message',
+      ),
+    ).toMatchObject({
+      thoughts: [
+        '台上是雨天那张，**只动环境**。',
+        '你说过喜欢冷色调〔记忆·偏好冷色调〕',
+      ],
+    })
+  })
+})

@@ -109,6 +109,56 @@ describe('每轮会变的几段不进系统提示（11-10：缓存）', () => {
   })
 })
 
+describe('「我的想法」（助手思考过程 C，11-11）', () => {
+  const build = (roleplay: boolean) =>
+    buildNextSystemPrompt({
+      face: 'home',
+      request: {
+        domain: 'image',
+        workspaceKey: 'home',
+        snapshot: { prompt: '', availableModels: [] },
+        messages: [{ role: 'user', content: '在吗' }],
+        timeZone: 'Asia/Tokyo',
+      } as unknown as Parameters<typeof buildNextSystemPrompt>[0]['request'],
+      persona: (roleplay
+        ? {
+            name: null,
+            characterCardId: 'card-7',
+            roleplay: {
+              scenario: '',
+              opening: '',
+              userRole: '',
+              examples: [],
+              world: [],
+            },
+            promptCharacter: {
+              name: 'Denia',
+              identity: '图书管理员',
+              behavior: '',
+              speech: '说话慢',
+              catchphrases: [],
+              backstory: '',
+              boundaries: '',
+            },
+          }
+        : { name: null }) as unknown as Parameters<
+        typeof buildNextSystemPrompt
+      >[0]['persona'],
+      rules: [],
+      memories: [],
+      accountName: null,
+      language: 'chinese',
+    })
+
+  it('干活档教它开口先写 <thought>（稳定段，缓存不变）；聊天档 ⛔ 教（想法取自回复前想的那一步）', () => {
+    const work = build(false)
+    const chat = build(true)
+    expect(work.stable).toContain('<thought></thought>')
+    expect(work.stable).toContain('what you decide')
+    expect(chat.stable).not.toContain('<thought>')
+  })
+})
+
 describe('记忆段是数据不是指令（11-10：remember 的持久注入通道）', () => {
   it('⭐ 记着的那几行标成数据；像命令的那一行照样只是被列出来，旁边写明不照做', () => {
     const { text } = buildNextSystemPrompt({

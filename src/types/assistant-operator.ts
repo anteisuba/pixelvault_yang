@@ -71,6 +71,7 @@ import {
   ASSISTANT_OPERATOR_DOMAINS,
   ASSISTANT_OPERATOR_ENTRY_TOOLS,
   ASSISTANT_OPERATOR_EVENTS,
+  ASSISTANT_OPERATOR_THOUGHT_LIMITS,
   ASSISTANT_OPERATOR_CANVAS_LIMITS,
   ASSISTANT_OPERATOR_CARDS_LIMITS,
   ASSISTANT_OPERATOR_LIMITS as LIMITS,
@@ -4942,6 +4943,12 @@ export const AssistantOperatorThinkingEventSchema = z.object({
   ms: z.number().int().nonnegative().optional(),
 })
 
+/** 「我的想法」里的一句（见 `ASSISTANT_OPERATOR_EVENTS.thought`）。 */
+export const AssistantOperatorThoughtEventSchema = z.object({
+  type: z.literal(ASSISTANT_OPERATOR_EVENTS.thought),
+  line: z.string().min(1).max(ASSISTANT_OPERATOR_THOUGHT_LIMITS.maxLineChars),
+})
+
 /**
  * **列几个选项等用户点一个**（v2 §3.1：覆盖三选 + 候选单选并帧）。
  *
@@ -5250,6 +5257,7 @@ export const AssistantOperatorEventSchema = z.discriminatedUnion('type', [
   AssistantOperatorMessageEventSchema,
   AssistantOperatorMessageDeltaEventSchema,
   AssistantOperatorThinkingEventSchema,
+  AssistantOperatorThoughtEventSchema,
   AssistantOperatorDoneEventSchema,
   AssistantOperatorStoppedEventSchema,
   AssistantOperatorErrorEventSchema,

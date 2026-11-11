@@ -29,6 +29,7 @@ import {
   ASSISTANT_OPERATOR_TOOL_IDS,
   ASSISTANT_OPERATOR_TOOLS,
   ASSISTANT_OPERATOR_LIMITS as LIMITS,
+  ASSISTANT_OPERATOR_THOUGHT_LIMITS,
   ASSISTANT_PLAN_CARD_LIMITS as PLAN_LIMITS,
   type AssistantOperatorDomain,
   type AssistantOperatorTool,
@@ -633,6 +634,17 @@ export function toOperatorHistoryEntry(
           : {}),
         ...(entry.chat ? { chat: true as const } : {}),
         ...(entry.spoken ? { spoken: true as const } : {}),
+        ...(entry.thoughts?.length
+          ? {
+              thoughts: entry.thoughts.slice(
+                0,
+                ASSISTANT_OPERATOR_THOUGHT_LIMITS.maxLinesPerCall,
+              ),
+              ...(entry.thoughtMs === undefined
+                ? {}
+                : { thoughtMs: Math.round(entry.thoughtMs) }),
+            }
+          : {}),
       }
     }
     case 'plan': {
@@ -983,7 +995,12 @@ export function historyToOperatorMessages(
         content: `${entry.text}${attachmentNote}${describeMentionNote(entry.mentions ?? [])}`,
       })
     } else if (entry.kind === 'message') {
-      messages.push({ role: 'assistant', content: entry.text })
+      messages.push({
+        role: 'assistant',
+        content: entry.chat
+          ? entry.text
+          : withOperatorThoughts(entry.text, entry.thoughts),
+      })
     } else if (entry.kind === 'system' && entry.userText) {
       /**
        * ⭐ 答过的题**回到对话里**（§3.4 落账规则）—— 与 `buildMessages` 逐字
@@ -1044,4 +1061,18 @@ export function historyToPriorSteps(
     })
   }
   return steps
+}
+
+/**
+ * 进对白的那一段回复，带上她当时写的「我的想法」（助手思考过程 C，11-11）。
+ * 🔬 11-11 实跑：历史里的回复只有正文时，模型照着前几轮的样子不再写想法 —— 让它看到的格式前后一致。
+ * ⚠ 只给模型看：服务端照旧从开口那段截下来，⛔ 进正文。
+ * ⚠ 和角色聊天的回复（`chat`）⛔ 带：那一档的想法取自回复前想的那一步，主模型不写；带上反倒教它照着写一份。
+ */
+export function withOperatorThoughts(
+  text: string,
+  thoughts: readonly string[] | undefined,
+): string {
+  if (!thoughts?.length) return text
+  return `<thought>\n${thoughts.join('\n')}\n</thought>\n${text}`
 }

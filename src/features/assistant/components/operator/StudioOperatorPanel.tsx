@@ -1232,6 +1232,7 @@ export function StudioOperatorPanel({
       entry: StudioOperatorMessageEntry,
     ): StudioOperatorAbsorbedThought => ({
       ...(entry.thinking ? { thinking: entry.thinking } : {}),
+      ...(entry.thoughts?.length ? { thoughts: entry.thoughts } : {}),
       ...(entry.thoughtMs === undefined ? {} : { thoughtMs: entry.thoughtMs }),
       ...(entry.streaming && !entry.text && entry.pendingSince !== undefined
         ? { pendingSince: entry.pendingSince }
@@ -1758,6 +1759,7 @@ export function StudioOperatorPanel({
           [...absorbed.before, ...absorbed.after].some(
             (item) =>
               item.thinking ||
+              item.thoughts?.length ||
               (item.thoughtMs ?? 0) >=
                 STUDIO_OPERATOR_STREAMING.thinkingRevealMs,
           ),

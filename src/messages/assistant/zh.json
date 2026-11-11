@@ -873,7 +873,9 @@
       "landing": "正在画布上落地…",
       "seconds": "{count} 秒",
       "slow": "比平时久一点，还在等模型回话",
-      "thought": "想了 {count} 秒"
+      "thought": "想了 {count} 秒",
+      "thinkingNow": "正在想",
+      "myThoughts": "我的想法"
     },
     "question": {
       "step": "{step} / {total}",

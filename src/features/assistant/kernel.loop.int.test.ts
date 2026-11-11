@@ -155,6 +155,28 @@ describe('新内核主循环', () => {
     )
   })
 
+  it('「我的想法」：开口那段 <thought> 一句一帧发 thought，⛔ 进正文增量与定稿', async () => {
+    fakeModels.main = scriptedModel([
+      textTurn(
+        '<thought>\n台上是雨天那张，**只动环境**。\n你说过喜欢冷色调〔记忆·偏好冷色调〕\n</thought>\n改好了。',
+      ),
+    ])
+    const events = await run(imageRequest('改成夜景'))
+    expect(
+      events.flatMap((event) => (event.type === 'thought' ? [event.line] : [])),
+    ).toEqual([
+      '台上是雨天那张，**只动环境**。',
+      '你说过喜欢冷色调〔记忆·偏好冷色调〕',
+    ])
+    const deltas = events
+      .flatMap((event) => (event.type === 'message_delta' ? [event.delta] : []))
+      .join('')
+    expect(deltas).toBe('改好了。')
+    expect(events.find((event) => event.type === 'message')).toMatchObject({
+      text: '改好了。',
+    })
+  })
+
   it('改提示词：落一步，结果接回给模型，模型说完收尾；过程记录落一行', async () => {
     fakeModels.main = scriptedModel([
       toolTurn(editPrompt),

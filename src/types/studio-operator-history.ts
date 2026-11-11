@@ -7,6 +7,7 @@ import {
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS,
   ASSISTANT_OPERATOR_DOMAINS,
   ASSISTANT_OPERATOR_LIMITS as LIMITS,
+  ASSISTANT_OPERATOR_THOUGHT_LIMITS,
   ASSISTANT_PLAN_CARD_LIMITS,
 } from '@/constants/assistant-operator'
 import {
@@ -120,6 +121,16 @@ export const StudioOperatorHistoryEntrySchema = z.discriminatedUnion('kind', [
     chat: z.literal(true).optional().catch(undefined),
     /** 用着角色说的：正文藏掉方括号语气提示。 */
     spoken: z.literal(true).optional().catch(undefined),
+    /** 「我的想法」（助手思考过程 C）：一句一项；坏了就当没写。 */
+    thoughts: z
+      .array(
+        z.string().min(1).max(ASSISTANT_OPERATOR_THOUGHT_LIMITS.maxLineChars),
+      )
+      .max(ASSISTANT_OPERATOR_THOUGHT_LIMITS.maxLinesPerCall)
+      .optional()
+      .catch(undefined),
+    /** 想了多久（ms）——只跟着「我的想法」一起存，载回来那一行照样写秒数。 */
+    thoughtMs: z.number().int().nonnegative().optional().catch(undefined),
   }),
   z.object({
     kind: z.literal('plan'),

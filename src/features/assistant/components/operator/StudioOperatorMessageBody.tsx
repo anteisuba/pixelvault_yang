@@ -56,7 +56,9 @@ import {
 import {
   StudioOperatorThinkingRow,
   StudioOperatorThoughtReceipt,
+  useElapsedSince,
 } from './StudioOperatorThinkingRow'
+import { StudioOperatorThoughts } from './StudioOperatorThoughts'
 import { StudioOperatorChatBubbles } from './StudioOperatorChatBubbles'
 import { StudioOperatorChatVoice } from './StudioOperatorVoice'
 import { withFindRefs } from './StudioOperatorFindRef'
@@ -365,8 +367,13 @@ export function StudioOperatorCollapsibleText({
   findRefs = NO_FIND_REFS,
   pendingSince,
   pendingPhase,
-  thinking,
+  thoughts,
+  entryId,
 }: {
+  /** 「我的想法」（助手思考过程 C）：有就把「正在想」那一行换成可点开的那一行。 */
+  thoughts?: readonly string[]
+  /** 这一条的 id（「我的想法」开没开按它记）。 */
+  entryId?: string
   references?: readonly NamedImageReference[]
   /** 正文里的 `#n` 认哪张卡（搜索期第三片）。 */
   findRefs?: ReadonlyMap<number, OperatorFindRef>
@@ -375,8 +382,6 @@ export function StudioOperatorCollapsibleText({
   pendingSince?: number
   /** `landing` = 画布接力那一跳（「正在画布上落地…」）。 */
   pendingPhase?: 'landing'
-  /** 还空着时，到此刻为止的思考摘要（10-27）—— 那一行露最新一步的小标题。 */
-  thinking?: string
   /**
    * 这一条**还没有字**（发送即回显的占位行）—— 空正文时画「正在想…」那一行。
    * 有字且仍 streaming = 收尾轮还在写，不折叠。
@@ -456,11 +461,18 @@ export function StudioOperatorCollapsibleText({
    * ⛔ 不转圈、⛔ 不上骨架；第一个字一到就让位给正文。详见 `StudioOperatorThinkingRow`。
    */
   if (!text && streaming) {
+    if (thoughts?.length && entryId && pendingPhase !== 'landing')
+      return (
+        <LiveThoughts
+          entryId={entryId}
+          lines={thoughts}
+          {...(pendingSince === undefined ? {} : { since: pendingSince })}
+        />
+      )
     return (
       <StudioOperatorThinkingRow
         {...(pendingSince === undefined ? {} : { since: pendingSince })}
         landing={pendingPhase === 'landing'}
-        {...(thinking ? { thinking } : {})}
       />
     )
   }
@@ -524,6 +536,27 @@ export function StudioOperatorCollapsibleText({
  * 「图_1215」只剩字，普通正文却有图）。实时线程与历史回放共用这一颗。
  * ⚠ 与 `StudioOperatorCollapsibleText` 同一个 hook、同一个替换函数，⛔ 别另写一套规则。
  */
+/** 想的时候那一行（有「我的想法」）：秒数从占位行挂上那一刻数，同「正在想」那一行。 */
+function LiveThoughts({
+  entryId,
+  lines,
+  since,
+}: {
+  entryId: string
+  lines: readonly string[]
+  since?: number
+}) {
+  const elapsed = useElapsedSince(since)
+  return (
+    <StudioOperatorThoughts
+      entryId={entryId}
+      lines={lines}
+      live
+      seconds={elapsed === null ? null : Math.floor(elapsed / 1000)}
+    />
+  )
+}
+
 export function StudioOperatorChatText({
   text,
   streaming,
@@ -605,7 +638,20 @@ export function StudioOperatorMessageBody({
   return (
     <div className="flex min-w-0 flex-col gap-2">
       {/* 想完的回执：正文上方；工具步之前那一段只想没说的，这一条就只有它（10-27）。 */}
-      {!thoughtAbsorbed && (entry.text || !entry.streaming) ? (
+      {!thoughtAbsorbed &&
+      (entry.text || !entry.streaming) &&
+      entry.thoughts?.length ? (
+        <StudioOperatorThoughts
+          entryId={entry.id}
+          lines={entry.thoughts}
+          live={false}
+          seconds={
+            entry.thoughtMs === undefined
+              ? null
+              : Math.round(entry.thoughtMs / 1000)
+          }
+        />
+      ) : !thoughtAbsorbed && (entry.text || !entry.streaming) ? (
         <StudioOperatorThoughtReceipt
           {...(entry.thoughtMs === undefined
             ? {}
@@ -631,7 +677,8 @@ export function StudioOperatorMessageBody({
             ? {}
             : { pendingSince: entry.pendingSince })}
           {...(entry.pendingPhase ? { pendingPhase: entry.pendingPhase } : {})}
-          {...(entry.thinking ? { thinking: entry.thinking } : {})}
+          {...(entry.thoughts?.length ? { thoughts: entry.thoughts } : {})}
+          entryId={entry.id}
           sources={sources}
           activeCite={activeCite}
           onPickCitation={pickCitation}

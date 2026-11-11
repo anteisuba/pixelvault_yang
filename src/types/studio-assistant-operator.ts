@@ -89,6 +89,11 @@ export interface StudioOperatorMessageEntry {
    */
   thinking?: string
   /**
+   * 「我的想法」（助手思考过程 C，owner 11-11）：主模型开口先写的第一人称几句，一句一项（`thought` 帧）。
+   * 平时收着，点开才看；随会话落库（刷新后照样点得开）。
+   */
+  thoughts?: readonly string[]
+  /**
    * 聊天会话里「重新生成」留下的各版（附录L 第二片），`text` 永远是 `versions[versionIndex]`。
    * 缺席 = 只有这一版。⚠ 进下一轮对白的只有 `text`（用户左右切到哪版，她就接着哪版说）。
    */

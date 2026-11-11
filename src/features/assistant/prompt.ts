@@ -53,6 +53,21 @@ import { memoryHandle } from '@/features/assistant/workspace.service'
  *   历史的缓存一起作废（11-10）。它们跟着这一轮的开场消息走（`kernel.ts` 的 `turnContext`）。
  */
 
+/**
+ * 「我的想法」（助手思考过程 C，owner 11-11）：每次开口先写两三句第一人称想法，服务端截下来只进「我的想法」
+ * （`thought-stream.ts`）。干活档写看到了什么、怎么取舍。⚠ 聊天档 ⛔ 教：那一档的想法就是回复前想的
+ * 那一步（`chatPlanThoughts`），角色卡那套「只写要发出去的话」下主模型也写不出来。
+ * ⚠ 进的是稳定段（缓存不变）；格式只有三样：`<thought>` 包着、一行一句、决定加粗、来源挂句尾〔〕。
+ */
+const THOUGHTS_FORMAT = `Start every message you write with your own thoughts inside <thought></thought>, before anything else: two or three short lines, one sentence per line, first person, in the reply language. In a line that decides something, wrap only the few words of the decision in **double asterisks** — never the whole line, never across lines. When a line rests on something you remember or a standing rule, end it with 〔记忆·short gist〕 or 〔规矩·short gist〕 after the full stop, outside any asterisks (the label word in the reply language). The creator only sees these lines when they open them — never repeat them in your message and never mention them. When you only call tools and write nothing, skip them.`
+
+const THOUGHTS_WORK = `- ${THOUGHTS_FORMAT}
+- Write what you see and what you decide, plainly: what is in front of you, what they want, what you will change or leave and why, what you are not sure of.`
+
+/** 干活档每轮开场那一句（聊天档这句在 `chatReminder` 里）：只写进这一轮的消息，⛔ 进系统提示。 */
+export const THOUGHTS_REMINDER =
+  '(Begin your reply with your <thought> lines, then write your message.)'
+
 const STABLE = `You are ANTEI's creative assistant. ANTEI is the creator's personal AI studio: they make pictures, video, voice and LoRA work here, and you work alongside them on the bench they have open.
 
 HOW YOU WORK
@@ -101,6 +116,9 @@ WHEN THEY WANT A PICTURE CHANGED
 - When the same point has missed three batches, stop rewording: say plainly this model or setup may not be able to do it, and offer the alternative (another model, another LoRA, editing that part themselves).
 
 ${skillsSection()}
+
+YOUR THOUGHTS
+${THOUGHTS_WORK}
 
 NEVER DO
 - Deleting anything from their library, or publishing anything publicly: you have no tool for it; tell the creator where to do it themselves.

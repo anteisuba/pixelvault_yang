@@ -32,6 +32,7 @@ import {
   StudioOperatorCollapsibleText,
   StudioOperatorUserText,
 } from '@/features/assistant/components/operator/StudioOperatorMessageBody'
+import { StudioOperatorThoughts } from './StudioOperatorThoughts'
 import { describeSystemSubjects } from '@/lib/studio-operator-timeline'
 import { cn } from '@/lib/utils'
 import type {
@@ -80,6 +81,19 @@ export function StudioOperatorHistoryItem({
            一条 8 行的正文此前整条铺开，既没有折叠开关也没有那颗测试锚 ——
            而历史恰恰是最需要折的地方（几十轮堆在一起）。 */
         <div className="flex min-w-0 flex-col gap-1">
+          {/* 「我的想法」（助手思考过程 C）随会话落库：载回来照样点得开（想了几秒不落库，不写秒数）。 */}
+          {entry.thoughts?.length ? (
+            <StudioOperatorThoughts
+              entryId={entry.id}
+              lines={entry.thoughts}
+              live={false}
+              seconds={
+                entry.thoughtMs === undefined
+                  ? null
+                  : Math.round(entry.thoughtMs / 1000)
+              }
+            />
+          ) : null}
           {entry.chat ? (
             <StudioOperatorChatText
               text={entry.text}

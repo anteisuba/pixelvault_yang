@@ -17,6 +17,7 @@ import {
   ASSISTANT_OPERATOR_LIMITS,
   ASSISTANT_OPERATOR_STEP_STATUS_IDS as STATUS,
   ASSISTANT_OPERATOR_STOP_REASONS,
+  ASSISTANT_OPERATOR_THOUGHT_LIMITS,
   ASSISTANT_OPERATOR_TOOL_IDS,
   ASSISTANT_OPERATOR_TOOL_VERBS,
 } from '@/constants/assistant-operator'
@@ -70,6 +71,11 @@ import {
   type AssistantTurnDraft,
 } from '@/features/assistant/services/assistant-turn-record.service'
 import { listNextAssistantMemoriesForPrompt } from '@/features/assistant/services/assistant-memory.service'
+import {
+  chatPlanThoughts,
+  createThoughtSplitter,
+  type ThoughtSplit,
+} from '@/features/assistant/thought-stream'
 import {
   LLM_TEXT_PROVIDER_ERROR_CODES,
   isLlmTextNetworkError,
@@ -177,6 +183,7 @@ import {
   buildNextSystemPrompt,
   chatCharacterOf,
   chatReminder,
+  THOUGHTS_REMINDER,
   worldNotesSection,
 } from '@/features/assistant/prompt'
 import {
@@ -846,6 +853,16 @@ async function* runNextTurn(
     yield { type: ASSISTANT_OPERATOR_EVENTS.done }
     return
   }
+  // 聊天档的「我的想法」= 刚才想的那一步（`chatPlanThoughts` 头注），挂在她这一段回复上。
+  if (mood)
+    for (const line of chatPlanThoughts(mood.plan, language).slice(
+      0,
+      ASSISTANT_OPERATOR_THOUGHT_LIMITS.maxLinesPerCall,
+    ))
+      yield {
+        type: ASSISTANT_OPERATOR_EVENTS.thought,
+        line: line.slice(0, ASSISTANT_OPERATOR_THOUGHT_LIMITS.maxLineChars),
+      }
   // 口味提炼（第 2 批）：攒够了新的「留下 / 否掉」才真的跑；隐身、不让记都不跑。
   if (!saved && request.incognito !== true && persona.memoryCapture)
     distillTasteAfterTurn({ userId: user.id, assistant: { route, modelId } })
@@ -907,8 +924,11 @@ async function* runNextTurn(
           })),
         ]
       : []
-    // 「别出戏」放在这一轮的消息里（⛔ 进系统提示：每轮都变会废掉缓存）。
-    const reminder = chat ? chatReminder(persona, mood) : null
+    /**
+     * 「别出戏」放在这一轮的消息里（⛔ 进系统提示：每轮都变会废掉缓存）。干活档换成一句「先写想法」
+     * （助手思考过程 C）：🔬 11-11 实跑，只在系统提示里教时，「一句话就行」那种短问它就跳过不写。
+     */
+    const reminder = chat ? chatReminder(persona, mood) : THOUGHTS_REMINDER
     // 会被念出来（聊天页开着声音）：方括号语气提示的写法，和薄管子同一段（⛔ 进系统提示：开关随时会变）。
     const voice = request.chatVoice
       ? `HOW YOUR VOICE SOUNDS\n${voiceCueRules(request.chatVoice.expressive)}\n- These cues are not stage directions: they are allowed, and they are how the voice gets its feeling.${
@@ -1185,6 +1205,34 @@ async function* runNextTurn(
       thinkingSince = null
       return { type: ASSISTANT_OPERATOR_EVENTS.thinking, ms }
     }
+    /**
+     * 「我的想法」与正文分流（助手思考过程 C）：开口先写的 `<thought>` 一句一帧发出去，⛔ 进 `reply`
+     * （定稿帧、接力条里的那段话都只认正文）。⚠ 模型自己那条 assistant 消息里照样留着这段 —— 同一轮
+     * 后面几步它看得见自己刚才怎么想的。
+     */
+    const splitter = createThoughtSplitter({
+      maxLineChars: ASSISTANT_OPERATOR_THOUGHT_LIMITS.maxLineChars,
+    })
+    let thoughtLines = 0
+    const splitOut = function* (
+      split: ThoughtSplit,
+    ): Generator<AssistantOperatorEvent> {
+      for (const line of split.thoughts) {
+        if (thoughtLines >= ASSISTANT_OPERATOR_THOUGHT_LIMITS.maxLinesPerCall)
+          break
+        thoughtLines += 1
+        yield { type: ASSISTANT_OPERATOR_EVENTS.thought, line }
+      }
+      if (!split.reply) return
+      reply += split.reply
+      yield {
+        type: ASSISTANT_OPERATOR_EVENTS.messageDelta,
+        delta: split.reply,
+        ...(restart ? { restart: true as const } : {}),
+        ...chatReply,
+      }
+      restart = false
+    }
     let response: { messages: ModelMessage[] }
     try {
       const result = streamText({
@@ -1245,14 +1293,7 @@ async function* runNextTurn(
             if (!part.text) break
             const thought = thoughtFrame()
             if (thought) yield thought
-            reply += part.text
-            yield {
-              type: ASSISTANT_OPERATOR_EVENTS.messageDelta,
-              delta: part.text,
-              ...(restart ? { restart: true as const } : {}),
-              ...chatReply,
-            }
-            restart = false
+            yield* splitOut(splitter.push(part.text))
             break
           }
           case 'tool-call': {
@@ -1316,6 +1357,7 @@ async function* runNextTurn(
           case 'finish': {
             const thought = thoughtFrame()
             if (thought) yield thought
+            yield* splitOut(splitter.end())
             if (!reply && calls.length === 0)
               filtered = part.finishReason === 'content-filter'
             break

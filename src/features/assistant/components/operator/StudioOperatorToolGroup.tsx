@@ -14,6 +14,7 @@ import {
   ThoughtTrail,
   useElapsedSince,
 } from '@/features/assistant/components/operator/StudioOperatorThinkingRow'
+import { StudioOperatorThoughtLines } from '@/features/assistant/components/operator/StudioOperatorThoughts'
 
 /**
  * 并进这一行的那几段「想」（owner 10-30「只留『想了 N 秒』这一行」）：工具步前面那段只想没说的、
@@ -21,6 +22,8 @@ import {
  */
 export interface StudioOperatorAbsorbedThought {
   thinking?: string
+  /** 「我的想法」（助手思考过程 C）：有就展开时列这几句，⛔ 列思考摘要。 */
+  thoughts?: readonly string[]
   thoughtMs?: number
   pendingSince?: number
 }
@@ -46,8 +49,17 @@ function stepsOf(
   thoughts: readonly StudioOperatorAbsorbedThought[],
 ): OperatorThoughtStep[] {
   return thoughts.flatMap((item) =>
-    item.thinking ? operatorThoughtSteps(item.thinking) : [],
+    !item.thoughts?.length && item.thinking
+      ? operatorThoughtSteps(item.thinking)
+      : [],
   )
+}
+
+/** 并进来那几段的「我的想法」（一句一项，按先后）。 */
+function linesOf(
+  thoughts: readonly StudioOperatorAbsorbedThought[],
+): readonly string[] {
+  return thoughts.flatMap((item) => item.thoughts ?? [])
 }
 
 export function StudioOperatorToolGroup({
@@ -65,6 +77,8 @@ export function StudioOperatorToolGroup({
   const t = useTranslations('StudioOperator')
   const before = useMemo(() => stepsOf(thoughtsBefore), [thoughtsBefore])
   const after = useMemo(() => stepsOf(thoughtsAfter), [thoughtsAfter])
+  const linesBefore = useMemo(() => linesOf(thoughtsBefore), [thoughtsBefore])
+  const linesAfter = useMemo(() => linesOf(thoughtsAfter), [thoughtsAfter])
   /** 后面那一跳还在想（第一个字没到）：这一行接着写「正在想… N 秒」。 */
   const pending = thoughtsAfter.find((item) => item.pendingSince !== undefined)
   const elapsed = useElapsedSince(pending?.pendingSince)
@@ -124,7 +138,8 @@ export function StudioOperatorToolGroup({
             {running
               ? (runningTitle ?? t('toolGroup.running'))
               : pending
-                ? (after.at(-1)?.title ?? t('streaming.thinking'))
+                ? // 想的时候 ⛔ 露过程（11-11 助手思考过程 C）：只写「正在想…」。
+                  t('streaming.thinking')
                 : seconds > 0
                   ? t('streaming.thought', { count: seconds })
                   : t('toolGroup.details', { count: total })}
@@ -155,6 +170,9 @@ export function StudioOperatorToolGroup({
         {trailing}
       </div>
       <div id={detailsId} hidden={!open}>
+        {linesBefore.length ? (
+          <StudioOperatorThoughtLines lines={linesBefore} live={false} />
+        ) : null}
         {before.length ? (
           <ol data-testid="operator-tool-group-thoughts">
             {before.map((step, index) => (
@@ -163,6 +181,12 @@ export function StudioOperatorToolGroup({
           </ol>
         ) : null}
         <div className="mt-1.5 flex min-w-0 flex-col gap-1.5">{children}</div>
+        {linesAfter.length ? (
+          <StudioOperatorThoughtLines
+            lines={linesAfter}
+            live={Boolean(pending)}
+          />
+        ) : null}
         {after.length ? (
           <ol data-testid="operator-tool-group-thoughts-after">
             {after.map((step, index) => (

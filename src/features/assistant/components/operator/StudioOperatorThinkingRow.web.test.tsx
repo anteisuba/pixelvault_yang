@@ -115,14 +115,12 @@ describe('思考摘要（10-27 B 一行 + ② 足迹）', () => {
   const SUMMARY =
     '**Understanding the request**\nSwitch to 3:4.\n\n**Planning the edit**\nOne edit is enough.'
 
-  it('想的时候：一步一道短线，只露最新一步的小标题，⛔ 铺正文', () => {
-    render(<StudioOperatorThinkingRow since={START} thinking={SUMMARY} />)
+  it('想的时候（11-11 C 取代足迹）：只有「正在想… N 秒」，⛔ 露任何一句过程', () => {
+    render(<StudioOperatorThinkingRow since={START} />)
+    advance(STUDIO_OPERATOR_STREAMING.thinkingRevealMs)
     const row = screen.getByTestId('operator-message-pending')
-    expect(
-      screen.getByTestId('operator-message-thinking-title').textContent,
-    ).toBe('Planning the edit')
-    expect(row.textContent).not.toContain('One edit is enough')
-    expect(row.querySelectorAll('.h-0\\.75')).toHaveLength(2)
+    expect(row.textContent).toContain('thinking')
+    expect(screen.queryByTestId('operator-message-thinking-title')).toBeNull()
   })
 
   it('想完：前面留短线，点开一步一行（小标题 + 一句）', () => {

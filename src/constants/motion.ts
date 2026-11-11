@@ -531,3 +531,14 @@ export const EASE_POP: [number, number, number, number] = [0.2, 0.9, 0.3, 1.1]
 export const EASE_POP_STRONG: [number, number, number, number] = [
   0.2, 0.9, 0.3, 1.25,
 ]
+
+/**
+ * 「我的想法」（助手思考过程 C，owner 11-11 画板动效表）：开着时一句想法由糊变清冒出来、「正在想」换成
+ * 「我的想法」由糊变清；点开 / 收起整段走 `DURATION.slow`（开 `EASE_STANDARD`、收 `EASE_IN`），箭头
+ * 转 90° 走 `DURATION.fast`。减少动效一律直接到位。
+ */
+export const THOUGHT_MOTION = {
+  lineInS: 0.24,
+  labelSwapS: 0.2,
+  blurPx: 3,
+} as const

@@ -873,7 +873,9 @@
       "landing": "Landing it on the canvas…",
       "seconds": "{count}s",
       "slow": "Taking longer than usual — still waiting on the model",
-      "thought": "Thought for {count}s"
+      "thought": "Thought for {count}s",
+      "thinkingNow": "Thinking",
+      "myThoughts": "My thoughts"
     },
     "question": {
       "step": "{step} / {total}",

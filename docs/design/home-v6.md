@@ -176,6 +176,7 @@
 | 17  | 模型名单停上去展开素材、离开收起，四家图标补上；画布拿掉剪辑台，成片在节点里放                                                                                                                                                                             | 第 50 轮     | 展开的手感对不对？画布去掉剪辑台后结尾够不够？       | owner 看了：成片别跟滚动走，模型的图重出（第 51 轮）             |
 | 18  | 成片改成自己播，画布段缩到 320vh；模型素材换成按各自长处重出的图，素材条加高                                                                                                                                                                               | 第 51、52 轮 | 新图有没有把各模型的长处说出来？                     | owner 看了：顶栏和页脚要改（第 54 轮）                           |
 | 19  | 顶栏换成产品首页那条；页脚精简、去语言切换；链到条款、隐私、内容准则（草稿）                                                                                                                                                                               | 第 54 轮     | 可以开始替换产品首页了吗？                           | 做好了，等 owner 看                                              |
+| 20  | 实装进 `src/`、替换 v4；英日文逐屏适配；存量公开作品盘点后撤下 1 件；2026-11-11 上线（release `edb4f9aea`，随后 `b1948b225` 带上助手计时日志）                                                                                                             | 第 55–60 轮  | 线上首页还有哪里不对？                               | 已上线，CI 两条都过；等 owner 在线上看                           |
 
 小样 11 在 `.claude/mockups/home-v6/scroll-11.html`，<http://localhost:8899/mockups/home-v6/scroll-11.html>；以后接着在它上面做。小样自己的工具条挪到了右下角。
 
@@ -202,10 +203,11 @@
 ## 相关文件
 
 - `.claude/mockups/home-v6/`：三方向 `directions.html`、进度单 `progress.html`、制作单 `production-sheet.md`、头像 `her/her.webp`。
-- [`references/pages/home.md`](../references/pages/home.md)：v4（线上）与 v5 施工图。
+- [`references/pages/home.md`](../references/pages/home.md)：v6 施工图（2026-11-11 起线上就是 v6）。
 - [`references/product.md`](../references/product.md)：2026-11-01 的定位「一个有灵魂的 AI 助手，替你做创作，你随时能改」。
 - 施工单里相关的一项是 `u-audit-home`（挂起）。本文没有改施工单。
 
 ## Last Verified
 
 - 2026-11-10 · 首版。第 2 轮的数字当日用 `grep` 和 `git log` 在仓库里量过；第 6、7 轮的结果是 owner 贴回对话的原文；头像四色是用 `sharp` 从 `her/her.webp` 量的。
+- 2026-11-11 · 上线。合并后的 main 上 tsc / lint 过、全量 vitest 10961 过、手机 e2e 28 过；`edb4f9aea` 的 main 与 release CI 均 success；`curl` 线上 `/zh` `/en` `/ja` 均返回 v6，`/en` 带新英文文案，`/zh/guidelines` 200。

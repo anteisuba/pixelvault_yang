@@ -17,14 +17,14 @@ primitive → semantic → domain/component → page
 
 ## CSS 与 token 现状
 
-- 入口：`src/app/globals.css`（全局枢纽，@theme inline + 语义变量 + 脊柱组件 / 工具类，**唯一挂根 `layout.tsx` 的样式表**）+ 域皮肤 `src/app/canvas.css` / `src/app/home-v4.css` / `src/app/legal.css` / `src/app/lora.css` / `src/app/auth.css`（域内局部，令牌一律写在域根上**不准写 `:root`**）。
+- 入口：`src/app/globals.css`（全局枢纽，@theme inline + 语义变量 + 脊柱组件 / 工具类，**唯一挂根 `layout.tsx` 的样式表**）+ 域皮肤 `src/app/canvas.css` / `src/app/home-v6.css` / `src/app/legal.css` / `src/app/lora.css` / `src/app/auth.css`（域内局部，令牌一律写在域根上**不准写 `:root`**）。
 - **全站生效的域样式在 `src/styles/`**（2026-11-01 `u-css-split` 从 globals.css 拆出，3906 → 1574 行，顺手删了 60 条没人用的死样式）：`studio` · `assistant` · `editorial` · `search-grounding` · `toast` · `clerk` · `command-palette` · `app-shell-nav` · `lora-shared`。它们由 `globals.css` **在原位置** `@import`（Tailwind 把它们内联进同一个编译入口，`@apply` / `@utility` / 层序照旧），所以拆分前后编译出的规则一条不差、先后不变。改哪个域的样式只开那一个文件；新加的域样式放进对应文件，⛔ 写回 globals.css。令牌（`@theme` / `:root` / `.dark`）、工作台脊柱 `.workbench-*`、全局工具类与减弱动效收尾块留在 globals.css。
-- **域皮肤只由自己的域入口 import**，不进根 layout：`canvas.css` + `@xyflow/react/dist/style.css` → `src/app/[locale]/(main)/studio/node/layout.tsx`（2026-09-03 从根 layout / `globals.css` 的 `@import` 下沉，此前那 173 KB 皮肤进每一个路由的首屏 CSS）；`home-v4.css` → `HomeV4Shell.tsx`；`lora.css` → `LoraWorkbench.tsx`；`legal.css` → `LegalPage.tsx`（`not-found.tsx` 2026-10-08 起走空态模板，不再引 legal.css）。
+- **域皮肤只由自己的域入口 import**，不进根 layout：`canvas.css` + `@xyflow/react/dist/style.css` → `src/app/[locale]/(main)/studio/node/layout.tsx`（2026-09-03 从根 layout / `globals.css` 的 `@import` 下沉，此前那 173 KB 皮肤进每一个路由的首屏 CSS）；`home-v6.css` → `HomeV6Shell.tsx`；`lora.css` → `LoraWorkbench.tsx`；`legal.css` → `LegalPage.tsx`（`not-found.tsx` 2026-10-08 起走空态模板，不再引 legal.css）。
 - ⚠ **canvas.css 泄漏的那一小部分留在 `globals.css` 脊柱上**（皮肤当年写 `:root` 的代价，2026-09-03 下沉时按真实消费者逐条查证后拆分，别搬回去也别两边各留一份）：
   - 8 个 `--node-*` 定值（`panel` / `panel-inner` / `panel-soft` / `foreground` / `muted` / `edge` / `focus-ring` / `shadow`）——`studio-shared/editor/ImageEditSurface`、`studio-shared/pickers/CanvasRoutePicker`在画布路由之外读它们。
   - （`.node-canvas-panel-motion` 已无消费者，2026-11-01 拆分时删掉。）
   - 其余 `--node-*` / `--canvas-*` / `.domain-canvas *` / `.node-card-*` 等仍住 canvas.css；`@theme inline` 的 `--color-node-*` 映射照旧留在 `globals.css`（Tailwind 编译入口只有一个）。
-- 首页域皮肤 2026-08-28 从 `home-v3.css` 换成 `home-v4.css`（`.home-v4` 翻页站），v3 的皮肤 + 20 个 `HomeV3*` 组件 + `constants/home-v3.ts` 已整体删除。此前 2026-07-27 曾从 `homepage.css`（`.homepage-*`）换到 v3。
+- 首页域皮肤 2026-11-11 从 `home-v4.css` 换成 `home-v6.css`（`.home-v6`「她 + 一个窗口」），v4 的皮肤、组件、`constants/homepage-v4.ts` 已整体删除。更早 2026-08-28 从 `home-v3.css` 换成 `home-v4.css`（`.home-v4` 翻页站），v3 的皮肤 + 20 个 `HomeV3*` 组件 + `constants/home-v3.ts` 已整体删除。此前 2026-07-27 曾从 `homepage.css`（`.homepage-*`）换到 v3。
 - 外观两档（2026-10-24）：默认素，根 `<html>` 没有 `.dark`；用户选了暗房，`(main)` 里 `<html>` 挂 `.dark`（`src/lib/theme.ts`，见 `ui-defaults.md` §2.1）。`.dark` 自带 `color-scheme: dark`；域皮肤的暗档写 `.dark .domain-*`。
 - **Tailwind 4：无 `tailwind.config.ts`**，token 扩展一律在 `globals.css` 的 `@theme inline`（2026-07-10 核验；CLAUDE.md 旧口径已修正）。
 - ⚠ globals.css 首行仍 `@import` Fontshare Satoshi，但全 src 无任何 `Satoshi` font-family 引用（字体栈已迁 Geist）——死引用，已立清理任务。
@@ -35,7 +35,7 @@ primitive → semantic → domain/component → page
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------- |
 | Semantic（脊柱，锁死） | `bg-background` / `bg-muted` / `bg-surface-sunken`（壳底）/ `bg-card` / `border-border` / `text-muted-foreground`… | 全站唯一浅底三层与文字语义，域不覆盖（ui-defaults.md §2，2026-09-03） |
 | Domain                 | `sidebar-*` · `node-*` · `--surface-composer` · `--width-studio-*`                                                 | 只在所属域使用；当前值不外溢为全站默认                                |
-| Page                   | `.home-v4` 域内令牌（首页域）                                                                                      | 留在页内；第二个页面需要同模式时仍先分别验证                          |
+| Page                   | `.home-v6` 域内令牌（首页域）                                                                                      | 留在页内；第二个页面需要同模式时仍先分别验证                          |
 | Utility                | `max-w-content` / `max-w-gallery` · `text-3xs` / `text-2xs` / `text-nav`                                           | 共享尺度工具，不表达品牌性格                                          |
 
 - `editorial-*` 类族（globals.css 33 处）：跨 prompts / 详情页 / 路由态的陈列面模式；职责混合（壳/hero/panel/metric 混在一起），提取或改动前按页确认。
@@ -139,7 +139,7 @@ StudioBottomDock · StudioCanvas · **StudioResizableLayout（导出 `StudioFlow
 
 ## Source of Truth
 
-- `src/app/globals.css` · `src/app/home-v4.css` · `src/app/canvas.css` · `src/i18n/fonts.ts` · `src/i18n/routing.ts`
+- `src/app/globals.css` · `src/app/home-v6.css` · `src/app/canvas.css` · `src/i18n/fonts.ts` · `src/i18n/routing.ts`
 - `src/hooks/use-mobile.ts` · `src/app/[locale]/(main)/layout.tsx` · `src/components/{ui,layout,business}/`
 - 历史详版（含逐行 source 引用）：`git show cddc4384:docs/design/system/<文件>`（css-and-tokens / layout-shell / components / i18n-accessibility / current-ui-inventory）
 

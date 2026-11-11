@@ -1,6 +1,6 @@
-# 首页施工图 — marketing home（v6 她 + 一个窗口 · 施工中 / v4 翻页站 · 线上）
+# 首页施工图 — marketing home（v6 她 + 一个窗口）
 
-> **施工基准：§v6（2026-11-11 定稿，同日开工）。** 线上仍是 v4「翻页站」（2026-08-28 上线）。v5「片场」（09-30）没有施工就被 v6 取代，原文从 git 历史取。v6 切换上线那一次删掉 v4 全部实现与本文 v4 各节。
+> **施工基准：§v6（2026-11-11 定稿并施工，本地已替换 v4；线上要等 owner 说「上线」）。** v4「翻页站」（2026-08-28 上线）的实现和本文 v4 各节已删除，v5「片场」（09-30）没有施工，原文都从 git 历史取。
 > 改首页只看本文。**⛔ 不要照 §「已退役」以外的旧文档施工。**
 > v6 是 57 轮讨论定下来的，每一条的来历、owner 原话和还没定的事在 [`docs/design/home-v6.md`](../../design/home-v6.md)（讨论记录 + 进度表）。本节只写施工要照做的。全貌看小样 19：`.claude/mockups/home-v6/scroll-19.html`（起 `mockup-server` 后打开 `http://localhost:8899/mockups/home-v6/scroll-19.html`）。owner 2026-11-11「按这个顺序开始」，按本节改 `src/`。
 
@@ -103,7 +103,7 @@
   - 视频：各一段片子，展开就播（静音、循环）。
   - 声音：三个声线 × 三种语言，点了才播。
 - 优缺点文案是查过 2026 年评测后写的（第 53 轮，来源在讨论记录里），⛔ 写会过期的数字（秒数、分辨率、语言数）。
-- 图标：OpenAI / Gemini / ByteDance 用 `HomeV4ModelLogo.tsx` 里现成的路径；NovelAI、MiniMax、Fish Audio 用 lobe-icons（MIT，同 `public/homepage/production/models/brand/SOURCES.md` 的来源）；Wan 用官网 favicon；LoRA 是自画的叠层小图标。
+- 图标：OpenAI / Gemini / ByteDance 用 v4 首页当年的官方标路径（现在在 `HomeV6Mark.tsx`）；NovelAI、MiniMax、Fish Audio 用 lobe-icons（MIT，同 `public/homepage/production/models/brand/SOURCES.md` 的来源）；Wan 用官网 favicon；LoRA 是自画的叠层小图标。
 - 素材：小样里在 `.claude/mockups/home-v6/samples/`、`nai-*.jpg`，都是 512px 预览，施工时从图库换原图（编号见讨论记录第 47、49、52 轮）。
 
 ### 她
@@ -124,9 +124,10 @@
 
 ### 顶栏
 
-- 用现成的 `HomeV4Topbar`（第 54 轮 owner：「直接用本地做好的那个」）：居中胶囊，宽 `min(100vw − 28px, max(50vw, 560px))`，半透明白底加模糊，钉在视口最上面；左边 ANTEI，右边语言切换和一颗门。
+- 用 v4 留下来的那条（`HomeV6Topbar`，第 54 轮 owner：「直接用本地做好的那个」）：居中胶囊，宽 `min(100vw − 28px, max(50vw, 560px))`，半透明白底加模糊，钉在视口最上面；左边 ANTEI，右边语言切换和一颗门。
 - 门的文案和行为照旧：未登录「登录」（打开 `AuthDialog`），已登录「进入工作台」（路由常量，⛔ 手写路径）。按钮在 Clerk 解析出来之前就画出来。
-- ⛔ 舞台里再放「开始」；⛔ 头像、齿轮、额度（理由见下面「顶栏浮岛」一节）。
+- ⛔ 舞台里再放「开始」；⛔ 头像、齿轮、额度、key 数、红点（owner 2026-09-20）：设置只有一个门（登录后侧栏最底，`settings.md` §入口 D3），个人主页也是壳里的东西；营销首页是未登录访客的门厅，把壳的 chrome 搬过来只会让「设置在哪」各多出一个答案。
+- 服务端没有登录态，首帧一律画「登录」，页面接管后再按登录态换字（不然已登录的人一打开就是一次 hydration 不匹配）。
 
 ### 页脚
 
@@ -173,100 +174,22 @@
 
 每片验证：`npm run lint`、`npm run typecheck`、定向 vitest、`npx playwright test e2e/landing.spec.ts e2e/visual.spec.ts`，并在实物上从头滚到尾。
 
-## 以下是 v4（线上）
-
-### 结构：13 竖页 × 5 横向站
-
-页面固定在视口内，保持原有布局和竖直翻页。功能页上下滚动直接换段；模型分类内上下滚动逐个浏览，首尾边界再换分类。画布演示不占用滚轮。
-
-| #    | 页         | 组        | 说明                                                                        |
-| ---- | ---------- | --------- | --------------------------------------------------------------------------- |
-| 1    | `opening`  | `opening` | 口径行 + 两行标题 + 10 张真实归档结果 + 供应商跑马灯                        |
-| 2–7  | 六个功能页 | `feature` | `image` 01 / `lora` 02 / `audio` 03 / `video` 04 / `canvas` 05 / `vault` 06 |
-| 8–12 | 五个模型站 | `models`  | `modelsImage` / `modelsLora` / `modelsVideo` / `modelsAudio` / `models3d`   |
-| 13   | `finale`   | `finale`  | CTA + 页脚三链                                                              |
-
-**模型站逐个浏览**：上下滚轮、方向键和手势一次切换一个模型，越过首尾才进入相邻分类。保留模型按钮和目录直达，型号与数量以 `HOME_V4_STATIONS` 为准。返回时保留上次选择。
-
-- 05 画布参照视频区的时间轴演示：进入后自动打出对话、出现剧本卡、逐行生成分镜、逐个出现节点、绘制连线，最后播放成片并停留。顶部三步是进度标记，不需要手动切换或点击播放按钮；离开后重置，下次进入重播。减少动态效果时直接显示最终状态并暂停视频。
-- 滚轮按像素／行／页统一换算，忽略缩放手势与以横向为主的滚动，方向反转或一段停顿后清空积累量。
-
-⚠ **曾经有第 14 页「价目清单」**（四栏列全目录与单价），2026-08-28 owner 看实物后整页删除（「这个页面不需要。之前的设计页面也没有这个」）。随它一起退役的还有 topbar 的「定价」跳转——**目标页没了就不留链接**。要恢复得先有页面。
-
-### 事实出处
-
-| 东西                      | 唯一出处                                                                 |
-| ------------------------- | ------------------------------------------------------------------------ |
-| 引擎参数 / 页表 / 站表    | `src/constants/homepage-v4.ts`                                           |
-| 皮肤                      | `src/app/home-v4.css`（全部规则挂 `.home-v4` 下）                        |
-| 组件                      | `src/components/business/home-v4/`                                       |
-| 图片资产                  | `public/homepage/v4/`（清单见同目录 `_manifest.md`）                     |
-| 文案                      | `src/messages/marketing/{en,ja,zh}.json` 的 `Homepage.v4.*` + 6 个顶层键 |
-| 口径数字（模型/供应商数） | `HOMEPAGE_MODEL_COUNTS`（`src/constants/homepage.ts`，实时数目录）       |
-
-**动效时钟只有一份。** `HOME_V4_ENGINE`（`PAGE_MS: 850` / `LOCK_MS: 900` / `WHEEL_THRESHOLD: 46` / `TOUCH_THRESHOLD_PX: 52`）由 `HomeV4Shell` 作为 CSS 自定义属性推到域根；`home-v4.css` 里的同名值只是 fallback。**改时长改常量，不要改 CSS**，否则两个钟会漂。
-
-### 翻页与模型切换（2026-09-22）
-
-owner 确认首页整体设计不变，仅修上下滚动。竖向翻页保留整页位移和输入锁；移除前后景错速、滚轮驱动的站内连续 scrub，以及模型背景的独立位移。模型切换使用既有淡入淡出；每次滚动完成一整步，不将画面停在两模型之间。减少动态效果模式继续取消过渡。
-
-### 硬约束
-
-1. **服务端优先**：`page.tsx` → `HomeV4Shell`（server）→ `HomeV4Deck`（唯一 client 边界）。标题、模型名、页表都在首个 HTML 响应里，页面保持 `revalidate = 3600` 可边缘缓存。
-2. **域内自足**：`.home-v4` 之外不声明域 token。画布皮肤曾经这样漏进两个助手 dock。
-3. **CJK 选面用 `.home-v4[data-locale='ja']`，不要用 `:root[lang^='ja']`**——`<html lang>` 由根 layout 写，客户端导航时不重渲染，切到日文后 `lang` 还停在旧值，日文会被 Noto Sans SC 的简体字形画出来。域根自己带 `data-locale`，随语段重渲染，零脚本就对。（`<html lang>` 本身的陈旧影响读屏，由 `src/components/layout/LocaleHtmlSync.tsx` 单独补。）
-4. **模型阵容走真目录**，不手抄清单：名称 `MODEL_MESSAGE_KEYS`，供应商 `getProviderLabel`。首页宣传产品跑不了的模型是硬伤，而手抄的清单必然腐烂。
-5. **动画库**：首页域是全项目唯一允许 GSAP 的地方，且必须动态导入不进主 chunk；app 内部一律 `motion`（见 CLAUDE.md 动画库分工）。
-6. **媒体按页懒挂载**：二十五张模型页从首屏起全部挂载，所以 `<img src>` / `<video src>` / `poster` 一律走 `near`（当前页 ±1 步，纵横都算）；离开这一格的页**不持有任何源**。`preload="none"` 只挡下载，持有 `src` 的 `<video>` 仍是浏览器要跟踪的媒体元素。⛔ 不要用 `loading="lazy"` 代替——deck 用 transform 移动页面，浏览器的视口启发式把二十五页都算在屏内。
-7. **中文排版三条**（都踩过）：标题行高 ≥1.14（1.0 会重叠，CJK 字身满高）；`max-width: Nem` 按容器自己字号算，别拿它约束大标题；必须 `word-break: keep-all; line-break: strict`，否则中文会在任意两字间断行。判断行距**不要看 `getClientRects`**——它算回退字体的完整 ascent+descent，会误报重叠。
-
-### 功能页 01 · 图片 / 02 · LoRA
-
-- **≥1100px 左栏标题**（owner 2026-09-11 定）：`HomeV4FnFrame` 的 `rail` 把标题放进左栏（`clamp(260px, 22vw, 320px)`），工作台放宽到 939px 并吃满整屏高度；`.page-inner.rail` 用 `safe center` + 顶部 84px，溢出只往下走，标题永远在浮岛（底 67px）下面。起因：1470×803 下这两页工作台比屏幕还高，居中把溢出上下平分，标题钻进浮岛。其余四页内容够矮，保持居中。
-- 01 图片：四宫格 2×2 方图，宽度取 `min(580px, 屏高 − 187px, 工作台内宽 − 327px)`，输入列 314px，图片是页面主对象。「N 个模型」chips 作为 `aside` 进左栏，1100px 以下回到工作台下方。`next/image` 桌面 `sizes` 为 290px。
-- 02 LoRA：出图 3:4，列宽取 `min(220px, (屏高 − 213px) × 3/8, (面板内宽 − 431px) / 2)`；机架定高 363px，库列上限随屏高在 150–286px 之间收。`sizes` 为 220px。
-- 1100px 以下沿用居中堆叠：工作台 860px、四宫格 500px。`≤768px` 改为输入区在上、四宫格在下，四宫格宽度回落到 100%，不得沿用桌面固定宽度造成横向溢出。
-
-### 顶栏浮岛
-
-**首页顶栏不承载应用壳的 chrome**（owner 2026-09-20 真机后定）。顶栏三件：品牌 · 语言切换 · **一颗入口按钮**。
-
-入口按钮**两态**，文案随登录态换，位置与样式不变（顶栏既有的黑丸胶囊档，与语言切换同高）：
-
-- **未登录** = 「登录」（`Auth.open`，走现有 Clerk 入口）。它在 Clerk 解析出来之前就画出来，边缘缓存的营销页不必等鉴权——这条规则没变。
-- **已登录** = 「进入工作台」（`Auth.enterStudio` → `HOME_V4_ROUTES.studio`，⛔ 不手写路径）。
-
-⛔ 右端**既没有齿轮也没有头像**：设置只有一个门（登录后侧栏最底，`settings.md` §入口 D3），个人主页同样是壳里的东西。营销首页是未登录访客的门厅——把壳的 chrome 搬过来，只会让「设置在哪」「我的主页在哪」各多出一个答案。
-⛔ 右端不显额度、不显 key 数、不挂红点：那些只在 `/settings` 里。品牌、语言、这一颗门之外，顶栏不再有第四件东西。
-
 ### 测试
 
-- `src/components/business/home-v4/home-v4.test.ts` —— 页表形状（13 页、id 唯一、opening 首 finale 末、站序）、资产存在性、三语键齐（含模板字面量拼出来的那批：`completeness.test.ts` 只看写死的字符串，看不见它们）。
-- `HomeV4Deck.test.tsx` / `HomeV4Fn.test.tsx` / `HomeV4Model.test.tsx` —— 翻页引擎与锁、功能页时间线、模型页与详情面板。
-- 媒体懒挂载：`HomeV4Model.test.tsx` 的「fetches nothing for a page that is not near」守远页的 `<img src>` / `<video src>` / `poster` 三者皆空。
-- 末页可达：`HomeV4Deck.test.tsx` 的「jumps straight to the finale from the rail, from anywhere」守跨十页、跨模型站的目录跳转不被锁或单步逻辑截断。
-- 翻页错速：`home-v4.test.ts` 的「home v4 · 翻页错速」守常量关系、CSS 只读变量、媒体查询闸门与「不写裸 `[data-layer]`」；`HomeV4Fn.test.tsx` 守六页各有一个 copy 层和至少一个 demo 层，且演示时不写行内 `transform`。
-- `src/i18n/messages-split.test.ts` —— `Homepage` / `Auth` 命名空间的消费者白名单。**新增读这两个命名空间的组件必须登记**，否则 `(main)` 的 provider 会把字串丢掉，线上直接渲染出 key。
+- `src/components/business/home-v6/HomeV6Topbar.test.tsx` —— 顶栏一颗门的两态、语言切换。
+- `src/i18n/messages-split.test.ts` —— `Homepage` / `Auth` / `Legal` 命名空间的消费者白名单。**新增读这些命名空间的组件必须登记**，否则 `(main)` 的 provider 会把字串丢掉，线上直接渲染出 key。
+- `src/i18n/completeness.test.ts` —— 三语键齐；`t.raw('v6')` 一次取整个对象也算存在。
+- `src/services/homepage-showcase.int.test.ts` —— 作品墙取数（真库）：门槛、竖图、置顶、补齐、兜底。
+- `e2e/mobile.spec.ts`「homepage stage fits a phone」、`e2e/landing.spec.ts`、`e2e/visual.spec.ts`（`homepage.png` 基线 v6 上线前要重拍）。
+- 舞台引擎和她的动画（`src/lib/home-v6/`）只有实物验证，没有单测：位置全由滚动算，靠在浏览器里逐段滚过去看。英日文排版用「每段停下来、找出超出所在卡片或被截成省略号的文字」的脚本扫过（1470 / 1024 / 375 × en / ja）。
 
 ### 相邻域
 
-登录页（`/sign-in` `/sign-up`）**不共享**本域皮肤：它有自己的 `src/app/auth.css`（`.auth-surface`），文案挂自己的 `Auth` 命名空间，载体 `AuthCard.tsx` 与 `AuthDialog` 是同一张卡。首页顶栏的登录按钮登录前后长得一样、只换目标，为的是边缘缓存的页面不必等 Clerk 才能画。卡里的流程、动效、Google 一键框（挂在首页的 `AuthDialogProvider` 里）与 Clerk 后台设置见 [`auth.md`](auth.md)。
-
-### 已知缺口
-
-- 页脚「资源 / 公司」类链接在 v3 时代是 `#` 死链；v4 页脚只保留 tagline + 条款 + 隐私三条真链，那批占位**已随 v3 删除**，没有恢复计划。
-- 音频站只有 2 个模型，与图片站的 7 个并排时横轴明显短；等音频域把模型接上，不为此改版式。
-- 英 / 日排版未逐页真机复核过（三语文案齐全，键有测试守）。
-- **09-20 owner 报的三件「闪烁 / 卡死」均未复现**，都发生在 dev server 正在热更新（控制台连续 `[Fast Refresh] rebuilding / done`）、且 revert 中途 messages 与代码不同步（`MISSING_MESSAGE: Homepage.v4.nav.stationPages` 等）的那一小时里：
-  - 目录闪烁——`nav.dots` 上挂 MutationObserver，空闲 3 秒 0 次变更、换页只 2 次；100ms 采样 13 颗点的 computed `opacity`，3 秒只有一种状态。DOM 与样式层面都没有抖动源。⚠ 唯一确实存在的是**渲染次数**：站内滚轮 scrub 每个 wheel 事件都 `setModelTransition`，整个 `HomeV4Deck`（含目录）重渲染一次；但属性与样式不变，React 不碰 DOM，所以这不是闪烁的来源，**没有为此加 memo**。
-  - 视频切换闪烁——模型页 `key={model.key}` 恒定、站内所有页常驻挂载，切模型不会卸载重建 `<video>`；首屏 7 个 `<video>` 里 6 个 `readyState 0`，切到视频站时只有 1 个在播。同样未复现。
-  - 末页空白 / 点不动——jsdom 回归测试证明目录点可以从任意页（含模型站）一步跳到第 13 页，`LOCK_MS` 与「一次只翻一页」都不截断跨页跳转，收尾页到位即渲染自己的内容。owner 截图里的空白与当时 `Homepage.v4.*` 键缺失吻合。
-  - 内存不是原因：13 页全挂时 usedJSHeap 117–126MB，到末页不涨。
-  - **若刷新后仍能复现任何一条，需要 owner 从控制台提供**：`performance.memory` 读数、`[Fast Refresh]` 是否还在刷、以及闪烁时 `nav.dots` 的 MutationObserver 是否有记录。
-- 769–1099px 宽且屏高不足时，01 / 02 仍走居中堆叠，溢出会把标题推进浮岛（Chrome 1024×768 实测标题顶 38px，浮岛底 67px）；左栏只覆盖 ≥1100px。
+登录页（`/sign-in` `/sign-up`）**不共享**本域皮肤：它有自己的 `src/app/auth.css`（`.auth-surface`），文案挂自己的 `Auth` 命名空间，载体 `AuthCard.tsx` 与 `AuthDialog` 是同一张卡。卡里的流程、Google 一键框（挂在首页的 `AuthDialogProvider` 里）与 Clerk 后台设置见 [`auth.md`](auth.md)。条款三页（`/terms` `/privacy` `/guidelines`）是 `LegalPage` 的 `legal.css`。
 
 ## Last Verified
 
+- 2026-11-11 · v6 施工并替换 v4（提交 `0c87a1c4b` `4f6bf0870` `a9832c4c0` `18cb757ab`）：本地 3000 上 zh / en / ja 从第一屏滚到页脚看过；英日文在 1470 / 1024 / 375 三档逐段扫过，无溢出、无省略号截断、无横向滚动；日文页用 Noto Sans JP。没做：e2e（本机 Playwright 浏览器未装）、`homepage.png` 视觉基线、减少动态效果实物、作品墙存量盘点。
 - 2026-11-11 · v6 定稿写入本文（第 36 轮讨论之后），替掉 v5「片场」一节。数字照小样 10 `.claude/mockups/home-v6/scroll-10.html` 的实现核对过；没有施工，`src/` 未动。
 
 - 2026-09-20 · 模型站错速与 `<video src>` 懒挂载落地；目录闪烁 / 视频闪烁 / 末页卡死三件在 owner 的 Chrome 上实测未复现（见「已知缺口」）。

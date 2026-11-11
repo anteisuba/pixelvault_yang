@@ -106,6 +106,20 @@ export function startCallLog(
   }
 }
 
+/**
+ * 一跳收尾的那一行（11-11「等第一个字太久」）：这一跳怎么收的、几次模型调用、总共多久，以及开跑前
+ * 准备 / 聊天先想一步 / 第一段正文各等了多久。与每次调用那一行走同一条路进 Workers Logs
+ * （worker 只认这一种消息，所以用 `purpose: 'turnEnd'` 区分；⛔ 为它另开一条路、另部署 worker）。
+ * 只有数，没有内容。
+ */
+export function logAssistantTurnEnd(
+  entry: Record<string, string | number | boolean | undefined>,
+): void {
+  const line = { purpose: 'turnEnd', ...entry }
+  logger.info('assistant turn end', line)
+  shipCallLog(line)
+}
+
 /** ⛔ 不等、不抛：日志发不出去绝不能拖慢或弄坏这次回答。 */
 function shipCallLog(entry: Parameters<typeof sendLlmCallLogToWorker>[0]) {
   const pending = sendLlmCallLogToWorker(entry).catch((error: unknown) => {

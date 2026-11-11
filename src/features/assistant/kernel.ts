@@ -108,7 +108,10 @@ import {
 import { reflectOnChat, shouldReflect } from '@/features/cards/server'
 import { planChatTurn } from '@/features/cards/server'
 import { loadAssistantSkills } from '@/features/assistant/services/assistant-skill.service'
-import { startCallLog } from '@/services/kernel/assistant-completion.service'
+import {
+  logAssistantTurnEnd,
+  startCallLog,
+} from '@/services/kernel/assistant-completion.service'
 import {
   loadAssistantV3HistorySummaries,
   scheduleAssistantV3HistorySummary,
@@ -320,9 +323,38 @@ async function nextMemories(
   }
 }
 
+/** 模型「开始出东西」的那几种分片（量第一个分片等了多久）。 */
+const OPENING_PARTS: ReadonlySet<string> = new Set([
+  'reasoning-delta',
+  'text-delta',
+  'tool-input-start',
+  'tool-call',
+])
+
 interface NextTurnRecording {
   turn?: Omit<AssistantTurnDraft, 'request' | 'outcome' | 'errorCode'>
   ending?: AssistantTurnRecordOutcome
+  /**
+   * 这一跳的计时与规模（11-11「等第一个字太久」）：收尾时打一行 `turnEnd`，线上才看得到
+   * 「准备 / 先想一步 / 第一个字」各花了多久（原来只有每次模型调用的总时长）。
+   */
+  timing: {
+    startedAt: number
+    /** 开跑到第一次模型调用发出去（含下面的先想一步）。 */
+    prepMs?: number
+    /** 聊天档回之前想的那一步（没想 = 缺席）。 */
+    planMs?: number
+    /** 开跑到第一段正文发给浏览器。 */
+    firstTextMs?: number
+    calls: number
+    inputTokens: number
+    turn?: string
+    hop?: number
+    domain?: string
+    adapterType?: string
+    modelId?: string
+    chat?: boolean
+  }
 }
 
 export async function* runAssistantNext(
@@ -330,7 +362,9 @@ export async function* runAssistantNext(
   request: AssistantOperatorRequest,
   options: AssistantOperatorRunOptions = {},
 ): AsyncIterable<AssistantOperatorEvent> {
-  const recording: NextTurnRecording = {}
+  const recording: NextTurnRecording = {
+    timing: { startedAt: Date.now(), calls: 0, inputTokens: 0 },
+  }
   let outcome: AssistantTurnRecordOutcome = TURN_OUTCOME.aborted
   let errorCode: string | undefined
   try {
@@ -366,6 +400,14 @@ export async function* runAssistantNext(
         request,
         outcome,
         ...(errorCode ? { errorCode } : {}),
+      })
+    // 只有数，没有内容：隐身那一轮也打。还没走到模型那一步就收了的（请求坏了）不打。
+    const { startedAt, ...timing } = recording.timing
+    if (timing.domain)
+      logAssistantTurnEnd({
+        ...timing,
+        outcome,
+        wallMs: Date.now() - startedAt,
       })
   }
 }
@@ -748,6 +790,32 @@ async function* runNextTurn(
   const language = resolveResponseLanguage(request, persona)
 
   const token = relayTokenOf(request)
+  /**
+   * 回之前先想一步（10-31 owner「聊天加入这三层」）：你这句让她什么心情、怎么对你、回不回。只在聊天、
+   * 只在新开的一轮想（接力那几跳照第一跳）；没想出来就照常回。
+   * ⭐ 新开的一轮**立刻起**，和下面两批读取并着跑（11-11：它是一次模型调用，原来排在两批读取后面
+   *   串着等）。带接力条的那一跳要先读回轮状态才知道还要不要想，照旧放后面。
+   */
+  const promptCharacter = chat ? sanitizePromptCharacter(persona) : null
+  const planStartedAt = Date.now()
+  const startPlan = () =>
+    chat && promptCharacter
+      ? planChatTurn({
+          userId: user.id,
+          cardId: chat.id,
+          name: persona.name ?? promptCharacter.name,
+          character: promptCharacter,
+          messages: request.messages,
+          assistant: { route, modelId },
+          signal,
+          save: request.incognito !== true,
+        }).finally(() => {
+          recording.timing.planMs = Date.now() - planStartedAt
+        })
+      : null
+  const earlyPlan = token ? null : startPlan()
+  // 下面的读取先抛了的话这个 promise 没人等：接住，⛔ 冒成未处理的拒绝（真等它时照样抛）。
+  earlyPlan?.catch(() => undefined)
   const historyOwner = {
     userId: user.id,
     clerkId,
@@ -791,6 +859,14 @@ async function* runNextTurn(
   const hop = saved
     ? Math.min(saved.hop + 1, ASSISTANT_TURN_RECORD_LIMITS.maxHops)
     : 1
+  Object.assign(recording.timing, {
+    turn: turnId.slice(0, 8),
+    hop,
+    domain: request.domain,
+    adapterType: route.adapterType,
+    modelId,
+    chat: Boolean(chat),
+  })
 
   const { turns, latest } = splitAssistantV3History(request.messages)
   const latestUserText = saved?.latestUserText ?? latest
@@ -829,24 +905,8 @@ async function* runNextTurn(
       conversationId: request.conversationId,
     })
   }
-  /**
-   * 回之前先想一步（10-31 owner「聊天加入这三层」）：你这句让她什么心情、怎么对你、回不回。只在聊天、
-   * 只在新开的一轮想（接力那几跳照第一跳）；没想出来就照常回。
-   */
-  const promptCharacter = chat ? sanitizePromptCharacter(persona) : null
-  const mood =
-    chat && !saved && promptCharacter
-      ? await planChatTurn({
-          userId: user.id,
-          cardId: chat.id,
-          name: persona.name ?? promptCharacter.name,
-          character: promptCharacter,
-          messages: request.messages,
-          assistant: { route, modelId },
-          signal,
-          save: request.incognito !== true,
-        })
-      : null
+  // 先想的那一步（上面已经起了）；接力条丢了的那一跳（带条却读不回状态）在这里补想。
+  const mood = earlyPlan ? await earlyPlan : saved ? null : await startPlan()
   // 她决定不回（owner 10-31：界面上什么都不显示，你再发一句她连着前面一起看）。
   if (mood?.plan.reply === 'none') {
     recording.ending = TURN_OUTCOME.quiet
@@ -1174,6 +1234,11 @@ async function* runNextTurn(
       return
     }
 
+    const callStartedAt = Date.now()
+    recording.timing.prepMs ??= callStartedAt - recording.timing.startedAt
+    recording.timing.calls += 1
+    /** 模型这一次什么时候开始出东西（思考摘要 / 字 / 工具调用，谁先到算谁）。 */
+    let firstChunkAt: number | null = null
     const callLog = startCallLog(
       {
         callLog: {
@@ -1225,6 +1290,7 @@ async function* runNextTurn(
       }
       if (!split.reply) return
       reply += split.reply
+      recording.timing.firstTextMs ??= Date.now() - recording.timing.startedAt
       yield {
         type: ASSISTANT_OPERATOR_EVENTS.messageDelta,
         delta: split.reply,
@@ -1272,6 +1338,8 @@ async function* runNextTurn(
       })
       for await (const part of result.fullStream) {
         chunks += 1
+        if (firstChunkAt === null && OPENING_PARTS.has(part.type))
+          firstChunkAt = Date.now()
         switch (part.type) {
           case 'reasoning-delta':
             if (!part.text) break
@@ -1386,8 +1454,15 @@ async function* runNextTurn(
           : { cacheWriteTokens: usage.inputTokenDetails.cacheWriteTokens }),
       })
       turnInputTokens += usage.inputTokens ?? 0
+      recording.timing.inputTokens += usage.inputTokens ?? 0
       // 这一步要了几个工具、哪几种：只读工具要不要并行跑，先量一周再定（owner 11-10）。
+      // 11-11 加：第一个分片等了多久、属于哪一轮哪一跳（按轮归拢，原来只能按时间猜）。
       callLog.note({
+        turn: turnId.slice(0, 8),
+        hop,
+        ...(firstChunkAt === null
+          ? {}
+          : { ttftMs: firstChunkAt - callStartedAt }),
         toolCalls: calls.length,
         webSearches: searches.size,
         ...(calls.length

@@ -50,6 +50,7 @@ vi.mock('@/services/llm-text.service', async (importOriginal) => ({
 import { after } from 'next/server'
 
 import { db } from '@/lib/db'
+import { logger } from '@/lib/logger'
 import { assistantV3TurnFingerprint } from '@/lib/assistant-v3-history'
 import {
   fakeModels,
@@ -278,6 +279,91 @@ describe('记忆与之前几轮（第 6 步）', () => {
     expect(JSON.stringify(stored.historySummary)).toContain(
       '他说起了冬天的图书馆',
     )
+  })
+
+  it('聊天一轮：先想的那一步成「我的想法」；两行日志带上计时（11-11 等第一个字）', async () => {
+    const card = await malfoyCard()
+    sideModel.chatPlan = {
+      mood: '别扭',
+      intensity: 2,
+      why: '他突然跑来打招呼',
+      stance: '嘴上嫌弃',
+      reply: 'full',
+    }
+    fakeModels.main = scriptedModel([textTurn('哼，又是你。')])
+    const info = vi.spyOn(logger, 'info')
+    const events = await run(
+      imageRequest('你好呀', { chatCharacterId: card.id }),
+    )
+    const logged = [...info.mock.calls]
+    info.mockRestore()
+
+    expect(
+      events.flatMap((event) => (event.type === 'thought' ? [event.line] : [])),
+    ).toEqual([
+      '他突然跑来打招呼.',
+      'I feel **别扭 (2/3)**.',
+      'So **嘴上嫌弃**.',
+    ])
+    const line = (message: string) =>
+      logged.find(([text]) => text === message)?.[1] as
+        | Record<string, unknown>
+        | undefined
+    // 每次模型调用那一行：属于哪一轮哪一跳、第一个分片等了多久。
+    expect(line('assistant llm call')).toMatchObject({
+      purpose: 'next',
+      hop: 1,
+      turn: expect.stringMatching(/^[0-9a-f-]{8}$/),
+      ttftMs: expect.any(Number),
+    })
+    // 一跳收尾那一行：怎么收的、几次调用，以及准备 / 先想一步 / 第一段正文各等了多久。
+    const end = line('assistant turn end')
+    expect(end).toMatchObject({
+      purpose: 'turnEnd',
+      outcome: 'done',
+      chat: true,
+      hop: 1,
+      calls: 1,
+      prepMs: expect.any(Number),
+      planMs: expect.any(Number),
+      firstTextMs: expect.any(Number),
+      wallMs: expect.any(Number),
+    })
+    expect(end?.turn).toBe(line('assistant llm call')?.turn)
+    // 发给 worker 的一行最多 24 格（多了整行拒收）。
+    expect(
+      Object.keys(line('assistant llm call') ?? {}).length,
+    ).toBeLessThanOrEqual(24)
+    expect(Object.keys(end ?? {}).length).toBeLessThanOrEqual(24)
+  })
+
+  it('带着接力条却读不回轮状态的那一跳：当成新开的一轮，照样先想一步', async () => {
+    const card = await malfoyCard()
+    sideModel.chatPlan = {
+      mood: '别扭',
+      intensity: 1,
+      why: '',
+      stance: '嘴上嫌弃',
+      reply: 'full',
+    }
+    fakeModels.main = scriptedModel([textTurn('哼。')])
+    await run(
+      imageRequest('你好呀', {
+        chatCharacterId: card.id,
+        v3: {
+          transcript: [
+            {
+              type: 'board',
+              text: 'bench',
+              turn: { id: '00000000-0000-4000-8000-000000000000', hop: 1 },
+            },
+          ],
+        },
+      } as never),
+    )
+    expect(
+      sideModel.calls.filter((call) => call.purpose === 'character-chat-mood'),
+    ).toHaveLength(1)
   })
 
   it('她决定不回（10-31 三层）：⛔ 调主模型、⛔ 发任何字，只收尾', async () => {

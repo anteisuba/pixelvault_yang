@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>首页 v6 · 小样 4 · 出图接配音</title>
+<style>
+  /* 小样 4（docs/design/home-v6.md 第 19 轮）：把「出图」和「说话」两段连起来，看两段之间怎么接。
+     布局照已定的小样 3：她一直在左下角，奶油底，你那一句先是最大的字、再收成气泡。
+     第二段用现有的三条真实配音（晴、磊、旁白），点了才播；她自己的声音还没做，所以这里是她替你配音。
+     除了点播放，其余变化只由滚动位置算。 */
+  :root { --ground:#f6f1e7; --ink:#1b1a18; --ink2:#6a665f; --line:rgba(27,26,24,.1); --card:#fff; --bubble:rgba(27,26,24,.07); }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html, body { background:var(--ground); }
+  body { color:var(--ink); font:16px/1.6 -apple-system,"PingFang SC","Hiragino Sans GB","Noto Sans SC",sans-serif; -webkit-font-smoothing:antialiased; }
+  button { font:inherit; color:inherit; cursor:pointer; }
+
+  /* 小样自己的工具条，不属于设计 */
+  .tools { position:fixed; z-index:20; top:12px; left:12px; display:flex; align-items:center; gap:10px; padding:6px 12px; border-radius:999px; background:rgba(27,26,24,.86); color:#fff; font-size:12px; }
+  .tools b { font-weight:600; }
+  .tools output { font:12px ui-monospace,Menlo,monospace; min-width:3.2em; text-align:right; opacity:.8; }
+
+  .track { height:860vh; position:relative; }
+  .stage { --S:min(58svh, 44vw); --edge:5vw; position:sticky; top:0; height:100vh; height:100svh; overflow:hidden; }
+
+  .her { position:absolute; left:0; bottom:0; width:var(--S); aspect-ratio:1; transform:translate(-10%, 10%); }
+  .say { position:absolute; z-index:3; left:calc(var(--S) * .3); bottom:calc(var(--S) * .85); max-width:min(16em, 42vw - var(--S) * .3 - 24px); background:var(--card); border-radius:20px 20px 20px 6px; padding:10px 18px; box-shadow:0 0 0 1px var(--line), 0 8px 24px rgba(60,40,30,.07); font-size:clamp(16px, 1.25vw, 19px); will-change:transform, opacity; }
+  .say.swap { animation:swap .22s ease-out; }
+  @keyframes swap { from { translate:0 5px; } to { translate:0 0; } }
+
+  .me { position:absolute; right:var(--edge); max-width:16em; background:var(--bubble); border-radius:1.05em; padding:.55em .9em; line-height:1.5; font-weight:500; word-break:keep-all; overflow-wrap:anywhere; will-change:top, font-size, opacity, transform; }
+
+  .works { position:absolute; inset:0; pointer-events:none; }
+  .voices { position:absolute; left:42vw; right:var(--edge); top:27svh; bottom:8svh; }
+  .tile { position:absolute; overflow:hidden; background:var(--bubble); will-change:left, top, width, height, opacity, filter; }
+  .tile img { display:block; width:100%; height:100%; object-fit:cover; }
+  .tile .check { position:absolute; top:10px; right:10px; width:30px; height:30px; border-radius:50%; background:var(--ink); color:#fff; display:grid; place-items:center; font-size:15px; opacity:0; transform:scale(.6); }
+
+  /* 语音消息：白卡、黑色播放钮，播过的波形变黑 */
+  .voices { display:flex; flex-direction:column; justify-content:center; align-items:flex-end; gap:16px; pointer-events:none; }
+  .voice { width:min(600px, 100%); display:grid; grid-template-columns:auto minmax(0, 1fr) auto; align-items:center; gap:16px; background:var(--card); border-radius:28px; padding:14px 16px 14px 14px; box-shadow:0 0 0 1px var(--line), 0 8px 24px rgba(60,40,30,.07); will-change:transform, opacity; }
+  .voice.live { pointer-events:auto; }
+  .voices.wide { align-items:stretch; gap:20px; right:auto; bottom:auto; }
+  .voices.wide .voice { width:100%; gap:20px; padding:20px 22px 20px 20px; border-radius:36px; }
+  .voices.wide .voice img { width:72px; height:72px; }
+  .voices.wide .voice .txt { font-size:clamp(18px, 1.45vw, 22px); }
+  .voices.wide .voice .wave { height:42px; margin-top:10px; }
+  .voices.wide .voice .play { width:64px; height:64px; }
+  .voices.wide .voice .play svg { width:24px; height:24px; }
+  .voice img { width:56px; height:56px; border-radius:50%; object-fit:cover; background:var(--bubble); display:block; }
+  .voice .txt { font-size:clamp(16px, 1.35vw, 20px); font-weight:500; line-height:1.4; }
+  .voice .wave { display:flex; align-items:center; gap:3px; height:30px; margin-top:8px; }
+  .voice .wave i { flex:1 1 0; min-width:2px; max-width:5px; border-radius:2px; background:var(--ink); opacity:.22; transform:scaleY(0); transform-origin:50% 50%; }
+  .voice .wave i.on { transform:scaleY(1); }
+  .voice .wave i.played { opacity:1; }
+  .voice .play { width:52px; height:52px; border-radius:50%; border:0; background:var(--ink); color:#fff; display:grid; place-items:center; }
+  .voice .play svg { width:20px; height:20px; fill:currentColor; }
+  .voice .play .pause, .voice.playing .play .tri { display:none; }
+  .voice.playing .play .pause { display:block; }
+  .voice .play:focus-visible { outline:2px solid #3346e8; outline-offset:3px; }
+
+  .hint { position:absolute; left:0; right:0; bottom:22px; text-align:center; font-size:13px; color:var(--ink2); pointer-events:none; }
+
+  .next { min-height:70svh; display:flex; flex-direction:column; justify-content:center; gap:14px; padding:64px max(6vw, 20px); border-top:1px solid var(--line); }
+  .next h2 { font-size:clamp(24px, 3vw, 40px); font-weight:650; }
+  .next p { color:var(--ink2); max-width:56ch; }
+  .next .ask { color:var(--ink); background:var(--card); border-radius:16px; padding:14px 18px; box-shadow:0 0 0 1px var(--line); max-width:56ch; }
+
+  @media (max-width:760px) {
+    .stage { --S:min(33svh, 64vw); --edge:16px; }
+    .say { left:calc(var(--S) * .3); bottom:calc(var(--S) * .86); max-width:calc(100vw - var(--S) * .3 - 16px); font-size:15px; padding:8px 14px; }
+    .me { max-width:13em; word-break:normal; }
+    .voices { left:16px; top:22svh; bottom:calc(var(--S) * 1.12); }
+    .voices { gap:10px; }
+    .voice { gap:10px; padding:10px 12px 10px 10px; border-radius:22px; }
+    .voice img { width:40px; height:40px; }
+    .voice .play { width:42px; height:42px; }
+    .voice .wave { height:22px; margin-top:4px; }
+  }
+  /* 减少动态效果：不钉、不推进，直接停在第二段的结果 */
+  .still .track { height:auto; }
+  .still .stage { position:relative; }
+  .still .hint { display:none; }
+</style>
+</head>
+<body>
+<div class="tools" aria-label="小样工具条"><b>小样 4</b><output id="pct">0%</output></div>
+
+<main>
+  <section class="track" id="track">
+    <div class="stage" id="stage">
+      <div class="me" id="me1">戴圆眼镜的橘猫馆长，坐在挂满画的美术馆前台，午后的光</div>
+      <div class="works" id="works"></div>
+      <div class="me" id="me2">给今晚的画展配三句：温柔的女声，少年，再来一段旁白</div>
+      <div class="voices" id="voices"></div>
+      <div class="her" id="her"></div>
+      <div class="say" id="say">嗯嗯，我看看。</div>
+      <div class="hint" id="hint">往下滚</div>
+    </div>
+  </section>
+
+  <section class="next">
+    <h2>下一段：她陪你聊天</h2>
+    <p>还没做。这个小样是「出图」和「配音」两段连起来。配音用的是首页现有的三条真实语音，她自己的声音还没录。</p>
+    <p class="ask">看完请回答一个问题：从出图换到配音的那一下，你觉得接得上吗？</p>
+  </section>
+</main>
+
+<script src="her.js"></script>
+<script>
+const SHOTS = ['flux-2-pro', 'gemini-3-pro', 'gpt-image-2', 'seedream-5-0'].map(k => `media/production/quad/quad-${k}.webp`)
+const PICK = 1
+const VOICES = [
+  ['qing', '今晚的画展，八点开始。'],
+  ['lei', '好，我把海报再改一版。'],
+  ['ke', '而此刻，馆里的灯一盏盏亮了。'],
+]
+const BARS = 44
+const SPLIT = 420 / 760 // 前 420vh 是出图，后 340vh 是配音
+
+const $ = id => document.getElementById(id)
+const root = document.documentElement
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v))
+const seg = (p, a, b) => clamp((p - a) / (b - a))
+const ease = t => t * t * (3 - 2 * t)
+const mix = (a, b, t) => a + (b - a) * t
+
+const works = $('works')
+SHOTS.forEach((src, i) => {
+  const t = document.createElement('figure'); t.className = 'tile'
+  t.innerHTML = `<img src="${src}" alt="她出的第 ${i + 1} 张图" decoding="async"><span class="check" aria-hidden="true">✓</span>`
+  works.append(t)
+})
+const tiles = [...works.children]
+
+/* 三条语音：波形从真实音频里量；量不到就用一组固定的高低 */
+const voices = VOICES.map(([key, text], j) => {
+  const el = document.createElement('div'); el.className = 'voice'
+  el.innerHTML = `<img src="media/production/voice/avatar-${key}.webp" alt=""><div><div class="txt">${text}</div><div class="wave" aria-hidden="true">${'<i></i>'.repeat(BARS)}</div></div>
+    <button class="play" aria-label="播放：${text}"><svg class="tri" viewBox="0 0 20 20"><path d="M6 3.5v13l11-6.5z"/></svg><svg class="pause" viewBox="0 0 20 20"><path d="M5 3h3.6v14H5zM11.4 3H15v14h-3.6z"/></svg></button>`
+  $('voices').append(el)
+  const bars = [...el.querySelectorAll('.wave i')]
+  const src = `media/production/voice/voice-${key}-zh.mp3`
+  const setHeights = hs => bars.forEach((b, i) => { b.style.height = Math.round(mix(14, 100, hs[i])) + '%' })
+  setHeights(bars.map((_, i) => 0.35 + 0.65 * Math.abs(Math.sin(i * 1.7 + j * 2.1) * Math.cos(i * 0.37 + j))))
+  fetch(src).then(r => r.arrayBuffer()).then(buf => new (window.AudioContext || window.webkitAudioContext)().decodeAudioData(buf)).then(a => {
+    const d = a.getChannelData(0), step = Math.floor(d.length / BARS), peaks = []
+    for (let i = 0; i < BARS; i++) { let m = 0; for (let k = i * step; k < (i + 1) * step; k += 32) m = Math.max(m, Math.abs(d[k])); peaks.push(m) }
+    const top = Math.max(...peaks) || 1; setHeights(peaks.map(v => Math.sqrt(v / top)))
+  }).catch(() => {})
+  const audio = new Audio(src); audio.preload = 'none'
+  return { el, bars, audio, shown: 0 }
+})
+let playing = null
+function paintPlayed(v) { const k = v.audio.duration ? v.audio.currentTime / v.audio.duration : 0; v.bars.forEach((b, i) => b.classList.toggle('played', v === playing && i / BARS < k)) }
+function tick() { if (!playing) return; paintPlayed(playing); requestAnimationFrame(tick) }
+function stop(v) { v.audio.pause(); v.audio.currentTime = 0; v.el.classList.remove('playing'); if (playing === v) playing = null; paintPlayed(v); v.el.querySelector('.play').setAttribute('aria-label', '播放：' + v.el.querySelector('.txt').textContent) }
+voices.forEach(v => {
+  v.el.querySelector('.play').onclick = () => {
+    if (playing === v) { stop(v); mood = ''; return measure() }
+    if (playing) stop(playing)
+    playing = v; v.el.classList.add('playing'); v.el.querySelector('.play').setAttribute('aria-label', '停止')
+    v.audio.play().then(() => { her.act('hum'); tick() }).catch(() => stop(v))
+  }
+  v.audio.onended = () => { stop(v); mood = ''; measure() }
+})
+
+const her = Her.mount($('her'), { transparent: true })
+let mood = '', line = ''
+function setMood(m) { if (playing) return; if (m !== mood) { mood = m; her.mood(m) } }
+function setLine(text) {
+  if (text === line) return
+  line = text; const el = $('say'); el.textContent = text
+  el.classList.remove('swap'); void el.offsetWidth; el.classList.add('swap')
+}
+
+/* 四张图的排法。屏幕够宽时：先在你那一句下面排成 2×2，她挑中的那张长满这块高度，
+   其余三张在它右边排成一列。屏幕不够宽（含手机）时：一排四张 → 大图 + 右边一列。
+   坐标都相对舞台左上角 */
+function rects(narrow) {
+  const stage = $('stage'), me = $('me1')
+  const vw = stage.clientWidth, vh = stage.clientHeight, S = $('her').offsetWidth
+  const edge = narrow ? 16 : vw * 0.05, g = narrow ? 8 : 14
+  /* 宽屏：图整块放在你那一句的正下方，和它共用右边那条线，从气泡底下一直排到屏幕底 */
+  const top = me.offsetTop + me.offsetHeight + g, ZH = vh - Math.max(20, vh * 0.03) - top
+  const BW = ZH * 0.75, zth = (ZH - 2 * g) / 3, ztw = zth * 0.75, bigX = vw - edge - ztw - g - BW
+  if (!narrow && ZH >= vh * 0.45 && bigX >= S * 0.9 + 40) {
+    const h = (ZH - g) / 2, w = h * 0.75, gx = vw - edge - (2 * w + g)
+    const row = tiles.map((_, i) => ({ x: gx + (i % 2) * (w + g), y: top + (i >> 1) * (h + g), w, h }))
+    let j = 0
+    const fin = tiles.map((_, i) => i === PICK ? { x: bigX, y: top, w: BW, h: ZH } : { x: vw - edge - ztw, y: top + (j++) * (zth + g), w: ztw, h: zth })
+    return { row, fin, wide: { x: bigX, y: top, w: vw - edge - bigX, h: ZH } }
+  }
+  const ax = narrow ? 16 : vw * 0.42, ay = vh * (narrow ? 0.22 : 0.27)
+  const W = vw - edge - ax, H = vh - ay - (narrow ? S * 1.12 : vh * 0.08)
+  const w = Math.min((W - 3 * g) / 4, H * 0.75), h = w * 4 / 3
+  const rowX = ax + W - (4 * w + 3 * g), rowY = ay + (H - h) / 2
+  const row = tiles.map((_, i) => ({ x: rowX + i * (w + g), y: rowY, w, h }))
+  const bigH = Math.min(H, (W - g / 2)), bigW = bigH * 0.75, th = (bigH - 2 * g) / 3, tw = th * 0.75
+  const fx = ax + W - (bigW + g + tw), fy = ay + (H - bigH) / 2
+  let j = 0
+  const fin = tiles.map((_, i) => i === PICK ? { x: fx, y: fy, w: bigW, h: bigH } : { x: fx + bigW + g, y: fy + (j++) * (th + g), w: tw, h: th })
+  return { row, fin, wide: null }
+}
+
+/* 你那一句：m 是从「最大的字」收成「右上角气泡」的进度 */
+function placeMe(el, m, narrow) {
+  const big = narrow ? 26 : clamp(innerWidth * 0.036, 30, 56)
+  el.style.fontSize = mix(big, narrow ? 16 : 19, m).toFixed(1) + 'px'
+  el.style.top = mix(narrow ? 22 : 33, narrow ? 12 : 9, m).toFixed(2) + 'svh'
+}
+
+function apply(p) {
+  const narrow = innerWidth <= 760
+  const a = clamp(p / SPLIT), b = clamp((p - SPLIT) / (1 - SPLIT)) // a：出图那一段；b：配音那一段
+  $('pct').textContent = Math.round(p * 100) + '%'
+  $('hint').style.opacity = (1 - seg(a, 0.02, 0.07)).toFixed(3)
+
+  /* —— 第一段：出图（时间表同小样 3）—— */
+  const out = ease(seg(b, 0, 0.09)) // 换段：第一段的东西往上退场
+  const me1 = $('me1')
+  placeMe(me1, ease(seg(a, 0.08, 0.22)), narrow)
+  me1.style.opacity = (1 - out).toFixed(3); me1.style.transform = `translateY(${(-out * 60).toFixed(1)}px)`
+  works.style.opacity = (1 - out).toFixed(3); works.style.transform = `translateY(${(-out * 60).toFixed(1)}px)`
+
+  const { row, fin, wide } = rects(narrow)
+  const vbox = $('voices'); vbox.classList.toggle('wide', !!wide)
+  ;['left', 'top', 'width', 'height'].forEach((key, n) => { vbox.style[key] = wide ? [wide.x, wide.y, wide.w, wide.h][n].toFixed(1) + 'px' : '' })
+  const k = ease(seg(a, 0.66, 0.82))
+  let done = 0
+  tiles.forEach((t, i) => {
+    const r = ease(seg(a, 0.28 + i * 0.07, 0.37 + i * 0.07)), picked = i === PICK
+    if (r >= 1) done++
+    const A = row[i], B = fin[i]
+    const kx = picked ? k : k * k, ky = picked ? k : 1 - (1 - k) ** 2
+    t.style.left = mix(A.x, B.x, kx).toFixed(1) + 'px'
+    t.style.top = (mix(A.y, B.y, ky) + (1 - r) * 18).toFixed(1) + 'px'
+    t.style.width = mix(A.w, B.w, k).toFixed(1) + 'px'
+    t.style.height = mix(A.h, B.h, k).toFixed(1) + 'px'
+    t.style.borderRadius = mix(12, picked ? 20 : 10, k).toFixed(1) + 'px'
+    t.style.opacity = (r * (picked ? 1 : mix(1, 0.85, k))).toFixed(3)
+    t.style.filter = r < 1 ? `blur(${((1 - r) * 14).toFixed(1)}px)` : 'none'
+    t.style.zIndex = picked ? 2 : 1
+    const c = t.querySelector('.check'); c.style.opacity = picked ? k.toFixed(3) : 0; c.style.transform = `scale(${mix(0.6, 1, picked ? k : 0).toFixed(3)})`
+  })
+
+  /* —— 第二段：配音 —— */
+  const me2 = $('me2'), in2 = ease(seg(b, 0.09, 0.17))
+  placeMe(me2, ease(seg(b, 0.21, 0.33)), narrow)
+  me2.style.opacity = in2.toFixed(3); me2.style.transform = `translateY(${((1 - in2) * 48).toFixed(1)}px)`
+  let made = 0
+  voices.forEach((v, j) => {
+    const r = ease(seg(b, 0.38 + j * 0.12, 0.47 + j * 0.12))
+    v.el.style.opacity = r.toFixed(3); v.el.style.transform = `translateY(${((1 - r) * 22).toFixed(1)}px)`
+    v.el.classList.toggle('live', r > 0.9)
+    const n = Math.round(BARS * seg(b, 0.42 + j * 0.12, 0.54 + j * 0.12))
+    if (n !== v.shown) { v.shown = n; v.bars.forEach((x, i) => x.classList.toggle('on', i < n)) }
+    if (n >= BARS) made++
+    if (r < 0.5 && playing === v) stop(v)
+  })
+
+  /* —— 她的气泡和表情 —— */
+  const say = $('say')
+  const s = b > 0 ? ease(seg(b, 0.33, 0.38)) * 1 + (1 - ease(seg(b, 0, 0.06))) * (b < 0.2 ? 1 : 0) : ease(seg(a, 0.21, 0.26))
+  say.style.opacity = clamp(s).toFixed(3); say.style.transform = `translateY(${((1 - clamp(s)) * 10).toFixed(1)}px)`
+  if (b <= 0) {
+    if (a < 0.2) setMood(a < 0.08 ? 'idle' : 'read')
+    else if (a < 0.27) { setMood('read'); setLine('嗯嗯，我看看。') }
+    else if (a < 0.595) { setMood('work'); setLine(done ? `画画中 · ${done}/4` : '好，这就画。') }
+    else if (a < 0.66) { setMood('wow'); setLine('出来了！') }
+    else if (a < 0.9) { setMood('ask'); setLine('第 2 张的光最好，用它？') }
+    else { setMood('happy'); setLine('要改哪里，说一声就行。') }
+  } else if (b < 0.17) setMood('idle')
+  else if (b < 0.37) { setMood('read'); if (b > 0.22) setLine('三个声音，好。') }
+  else if (b < 0.78) { setMood('work'); setLine(`配音中 · ${Math.min(made + 1, 3)}/3`) }
+  else { setMood('happy'); setLine('配好了，点一下听听。') }
+}
+
+const track = $('track')
+const still = matchMedia('(prefers-reduced-motion: reduce)').matches
+let queued = false
+function measure() {
+  queued = false
+  if (still) return apply(1)
+  const total = track.offsetHeight - innerHeight
+  apply(total > 0 ? clamp((scrollY - track.offsetTop) / total) : 0)
+}
+function onScroll() { if (!queued) { queued = true; requestAnimationFrame(measure) } }
+if (still) root.classList.add('still')
+addEventListener('scroll', onScroll, { passive: true })
+addEventListener('resize', onScroll)
+measure()
+</script>
+</body>
+</html>

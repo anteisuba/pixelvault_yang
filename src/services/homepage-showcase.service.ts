@@ -63,7 +63,7 @@ function isPortrait(row: ShowcaseRow): boolean {
 
 function toShot(row: ShowcaseRow): HomeV4ShowcaseShot | null {
   if (!row.thumbnailUrl) return null
-  return { id: row.id, src: row.thumbnailUrl }
+  return { id: row.id, src: row.thumbnailUrl, w: row.width, h: row.height }
 }
 
 /**
@@ -137,7 +137,7 @@ function padWithStatics(shots: HomeV4ShowcaseShot[]): HomeV4ShowcaseShot[] {
 
 const cachedShowcaseShots = cacheableFn(
   fetchShowcaseShots,
-  ['home:showcase:v1'],
+  ['home:showcase:v2'],
   { tags: [CACHE_TAGS.galleryPublic], revalidate: 300 },
 )
 

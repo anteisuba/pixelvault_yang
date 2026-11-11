@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>她 · 表情与行为</title>
+<style>
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:#f6f3ec; color:#141416; font:14px/1.6 -apple-system,"PingFang SC",sans-serif; padding:28px 16px 64px; }
+  h1 { font-size:22px; font-weight:600; text-align:center; }
+  .sub { text-align:center; color:#6b6c72; margin-top:4px; }
+  .stage { display:flex; gap:32px; justify-content:center; align-items:flex-start; flex-wrap:wrap; margin-top:24px; }
+  .live { display:flex; flex-direction:column; align-items:center; gap:14px; }
+  .face { width:min(360px,80vw); aspect-ratio:1; border-radius:84px; background:#fff; box-shadow:0 18px 40px rgba(0,0,0,.1); overflow:hidden; }
+  .bubble { background:#fff; border-radius:16px; padding:8px 14px; box-shadow:0 0 0 1px rgba(0,0,0,.06); min-height:40px; max-width:360px; }
+  .panel { width:min(420px,100%); display:flex; flex-direction:column; gap:16px; }
+  .group h3 { font-size:12px; color:#6b6c72; font-weight:500; margin-bottom:6px; }
+  .row { display:flex; flex-wrap:wrap; gap:6px; }
+  .row button { border:0; border-radius:999px; padding:7px 14px; background:#fff; box-shadow:0 0 0 1px rgba(0,0,0,.08); cursor:pointer; font:inherit; }
+  .row button.on { background:#141416; color:#fff; }
+  .row button.go { background:#141416; color:#fff; }
+  .notes { font-size:13px; color:#55565c; background:#fff; border-radius:14px; padding:12px 14px; box-shadow:0 0 0 1px rgba(0,0,0,.05); }
+  .notes li { margin-left:18px; }
+</style>
+</head>
+<body>
+<h1>她 · 表情与行为</h1>
+<p class="sub">原图本体，全部由代码驱动。把鼠标移来移去、停在她身上、或者 20 秒不动试试</p>
+<div class="stage">
+  <div class="live">
+    <div class="bubble" id="bubble">嗨，我是 ANTEI～</div>
+    <div class="face" id="live"></div>
+  </div>
+  <div class="panel">
+    <div class="group"><h3>情绪（首页演示按节拍切）</h3><div class="row" id="moods"></div></div>
+    <div class="group"><h3>性格</h3><div class="row" id="tones"></div></div>
+    <div class="group"><h3>待机小动作（平时随机自己做）</h3><div class="row" id="acts"></div></div>
+    <div class="group"><h3>连起来看</h3><div class="row"><button class="go" id="show">表演一遍</button><button id="say">说一句</button><button id="sleep">让她睡着</button></div></div>
+    <ul class="notes">
+      <li>平时两只眼都睁着；左眼是把右眼沿脸的中线镜像过去画的，原图那只眨眼留给「得意」和「眨眼」小动作。</li>
+      <li>她一直在看你的鼠标；鼠标停在她身上会害羞（^ ^、ω 嘴、脸红、耳朵摇）。</li>
+      <li>20 秒没动静会打瞌睡（眼皮打架、点头、冒 z），一动鼠标就被吓醒。</li>
+      <li>眼镜常戴。性格换的是她有多活泼：友好花样最多、动作最大；专业动作收一半、不哼歌不害羞；简洁半垂眼、平嘴、几乎不做小动作。</li>
+      <li>干活中头顶转圈、出图冒星星、失败委屈（八字眼、眼里含水、汗）、等太久嘟嘴（&gt; &lt;、鼓腮、冒气）。</li>
+    </ul>
+  </div>
+</div>
+<script src="her.js"></script>
+<script>
+const MOODS = { idle:'待机', happy:'开心', gulp:'接住', read:'读卡', think:'想事情', work:'干活中', wow:'冒星星', ask:'等你点头', talk:'说话', proud:'做完得意', sad:'委屈', pout:'嘟嘴', sleepy:'犯困' }
+const TONES = { friendly:'友好', pro:'专业', terse:'简洁' }
+const ACTS = { look:'东张西望', flick:'抖耳朵', double:'连眨两下', hum:'哼歌', wink:'眨眼', shy:'害羞', tilt:'歪头' }
+const her = Her.mount(document.getElementById('live'))
+const sleep = ms => new Promise(r => setTimeout(r, ms))
+const bubble = document.getElementById('bubble')
+function buttons(id, map, fn, sticky) {
+  const box = document.getElementById(id)
+  Object.entries(map).forEach(([k, v], i) => {
+    const b = document.createElement('button'); b.textContent = v; if (sticky && !i) b.classList.add('on')
+    b.onclick = () => { if (sticky) [...box.children].forEach(x => x.classList.toggle('on', x === b)); fn(k) }
+    box.append(b)
+  })
+}
+buttons('moods', MOODS, m => her.mood(m), true)
+buttons('tones', TONES, t => her.tone(t), true)
+buttons('acts', ACTS, a => her.act(a))
+async function say(text, after = 'idle') {
+  bubble.textContent = ''; her.mood('talk')
+  for (const ch of text) { bubble.textContent += ch; her.mouth(ch); await sleep(70) }
+  her.mood(after)
+}
+document.getElementById('say').onclick = () => say('画好啦，四张里第 2 张的光最好看！要不要再来一组？', 'proud')
+document.getElementById('sleep').onclick = () => her.sleep()
+/* 一轮真的：接住卡 → 扫着读 → 低头干活 → 出图冒星星 → 抬头等你点头 → 你点头了 */
+let showing = false
+document.getElementById('show').onclick = async () => {
+  if (showing) return; showing = true
+  her.mood('idle'); bubble.textContent = '（你拖来一张卡）'; await sleep(900)
+  her.mood('gulp'); bubble.textContent = '！接住了'; await sleep(1000)
+  her.mood('read'); bubble.textContent = '「雨夜，站台，她回头」……'; await sleep(2200)
+  her.mood('work')
+  for (let i = 1; i <= 4; i++) { bubble.textContent = `画画中 · ${i}/4`; await sleep(800) }
+  her.mood('wow'); bubble.textContent = '出来了！'; await sleep(1500)
+  await say('第 2 张的光最好看，就用它？', 'ask'); await sleep(1800)
+  bubble.textContent = '（你点了点头）'; her.mood('happy'); await sleep(1700)
+  her.mood('idle'); bubble.textContent = '嗨，我是 ANTEI～'
+  showing = false
+}
+</script>
+</body>
+</html>

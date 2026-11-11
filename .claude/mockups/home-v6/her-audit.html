@@ -1,0 +1,36 @@
+<!doctype html><meta charset="utf-8"><title>她 · 逐个检查</title>
+<style>
+body{margin:0;background:#f6f3ec;font:13px/1.5 -apple-system,"PingFang SC",sans-serif;color:#141416;padding:16px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:16px}
+.t{background:#fff;border-radius:14px;padding:10px;box-shadow:0 0 0 1px rgba(0,0,0,.06)}
+.t b{display:block;margin-bottom:6px}
+.f{width:336px;height:336px}
+.f canvas{image-rendering:pixelated}
+/* ?crop=1：只看眼睛和嘴（2000 坐标 380–1420 × 1100–1680），按 ?zoom= 倍放大 */
+.crop{position:relative;overflow:hidden}
+.crop .f{position:absolute}
+</style>
+<p>首页头像真实分辨率（?res=，默认 336 = 168px × 2 倍屏）渲染后原样放大看；每格是 still 模式，不眨眼不乱动。?crop=1 只看眼睛和嘴，?zoom= 放大倍数，?only=happy,proud 只看这几种。</p>
+<div class="grid" id="g"></div>
+<script>document.write('<script src="her.js?v='+Date.now()+'"><\/script>')</script><script>
+const q = new URLSearchParams(location.search), res = +q.get('res') || 336
+const crop = q.get('crop') === '1', zoom = +q.get('zoom') || 4
+const only = q.get('only') ? q.get('only').split(',') : null
+const CASES = [['idle','friendly'],['happy','friendly'],['gulp','friendly'],['think','friendly'],['talk','friendly'],['proud','friendly'],['sleepy','friendly'],['read','friendly'],['work','friendly'],['wow','friendly'],['ask','friendly'],['sad','friendly'],['pout','friendly'],['idle','pro'],['idle','terse']]
+  .filter(([m, t]) => !only || only.includes(m) || only.includes(t))
+const X0 = 380, Y0 = 1100, CW = 1040, CH = 580
+if (crop) document.getElementById('g').style.gridTemplateColumns = '1fr'
+for (const [m, t] of CASES) {
+  const box = document.createElement('div'); box.className = 't'
+  box.innerHTML = `<b>${m} · ${t}</b><div class="${crop ? 'crop' : ''}"><div class="f"></div></div>`
+  document.getElementById('g').append(box)
+  const f = box.querySelector('.f')
+  if (crop) {
+    const side = res * zoom, s = side / 2000
+    Object.assign(f.style, { width: side + 'px', height: side + 'px', left: -X0 * s + 'px', top: -Y0 * s + 'px' })
+    Object.assign(f.parentElement.style, { width: CW * s + 'px', height: CH * s + 'px' })
+  }
+  const h = Her.mount(f, { still: true, res })
+  h.tone(t); h.mood(m)
+}
+</script>

@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>首页 v6 · 小样 3 · 她贴边、图放大</title>
+<style>
+  /* 小样 3（docs/design/home-v6.md 第 16 轮）：还是聊天的顺序（你一句 → 她 → 出图），改的是布局。
+     小样 2 的问题：她和四张图一样大，排成五个方块；整组东西飘在屏幕中间；图只有缩略图大小。
+     这里：她放大、贴在左下角、去掉白框；你那一句在第一屏是最大的字，往下滚才收成气泡；
+     四张图出来后，她挑中的那张长成大图，其余三张收成一列小图。所有变化只由滚动位置算。 */
+  :root { --ground:#f6f1e7; --ink:#1b1a18; --ink2:#6a665f; --line:rgba(27,26,24,.1); --card:#fff; --bubble:rgba(27,26,24,.07); }
+  :root[data-ground="white"] { --ground:#ffffff; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html, body { background:var(--ground); }
+  body { color:var(--ink); font:16px/1.6 -apple-system,"PingFang SC","Hiragino Sans GB","Noto Sans SC",sans-serif; -webkit-font-smoothing:antialiased; }
+  button { font:inherit; color:inherit; cursor:pointer; }
+
+  /* 小样自己的工具条，不属于设计 */
+  .tools { position:fixed; z-index:20; top:12px; left:12px; display:flex; flex-wrap:wrap; align-items:center; gap:8px 10px; padding:6px 8px 6px 12px; border-radius:18px; background:rgba(27,26,24,.86); color:#fff; font-size:12px; max-width:calc(100vw - 24px); }
+  .tools b { font-weight:600; }
+  .tools output { font:12px ui-monospace,Menlo,monospace; min-width:3.2em; text-align:right; opacity:.8; }
+  .tools .seg { display:flex; background:rgba(255,255,255,.14); border-radius:999px; padding:2px; }
+  .tools .seg button { border:0; background:transparent; color:#fff; border-radius:999px; padding:3px 10px; font-size:12px; white-space:nowrap; }
+  .tools .seg button[aria-pressed="true"] { background:#fff; color:#1b1a18; }
+
+  .track { height:520vh; position:relative; }
+  .stage { --S:min(58svh, 44vw); --edge:5vw; position:sticky; top:0; height:100vh; height:100svh; overflow:hidden; }
+
+  /* 她：没有框，左边和下边伸出屏幕一点，原图被裁掉的发尾正好藏在屏幕外 */
+  .her { position:absolute; left:0; bottom:0; width:var(--S); aspect-ratio:1; transform:translate(-10%, calc(10% + var(--rise, 0%))); will-change:transform; }
+  /* 她的话放在她头顶：从她嘴边往上读，而且整条在左半边，碰不到右边的图 */
+  .say { position:absolute; z-index:3; left:calc(var(--S) * .3); bottom:calc(var(--S) * .85); max-width:min(16em, 42vw - var(--S) * .3 - 24px); background:var(--card); border-radius:20px 20px 20px 6px; padding:10px 18px; box-shadow:0 0 0 1px var(--line), 0 8px 24px rgba(60,40,30,.07); font-size:clamp(16px, 1.25vw, 19px); will-change:transform, opacity; }
+  .say.swap { animation:swap .22s ease-out; }
+  @keyframes swap { from { translate:0 5px; } to { translate:0 0; } }
+
+  /* 你那一句：字号和位置跟着滚动走；宽度按 em 算，缩小时换行位置不变 */
+  .me { position:absolute; right:var(--edge); max-width:16em; background:var(--bubble); border-radius:1.05em; padding:.55em .9em; line-height:1.5; font-weight:500; word-break:keep-all; overflow-wrap:anywhere; will-change:top, font-size; }
+
+  .works { position:absolute; inset:0; pointer-events:none; }
+  .tile { position:absolute; overflow:hidden; background:var(--bubble); will-change:left, top, width, height, opacity, filter; }
+  .tile img { display:block; width:100%; height:100%; object-fit:cover; }
+  .tile .check { position:absolute; top:10px; right:10px; width:30px; height:30px; border-radius:50%; background:var(--ink); color:#fff; display:grid; place-items:center; font-size:15px; opacity:0; transform:scale(.6); }
+  .hint { position:absolute; left:0; right:0; bottom:22px; text-align:center; font-size:13px; color:var(--ink2); pointer-events:none; }
+
+  .next { min-height:70svh; display:flex; flex-direction:column; justify-content:center; gap:14px; padding:64px max(6vw, 20px); border-top:1px solid var(--line); }
+  .next h2 { font-size:clamp(24px, 3vw, 40px); font-weight:650; }
+  .next p { color:var(--ink2); max-width:56ch; }
+  .next .ask { color:var(--ink); background:var(--card); border-radius:16px; padding:14px 18px; box-shadow:0 0 0 1px var(--line); max-width:56ch; }
+
+  @media (max-width:760px) {
+    .stage { --S:min(33svh, 64vw); --edge:16px; }
+    .say { left:calc(var(--S) * .3); bottom:calc(var(--S) * .86); max-width:calc(100vw - var(--S) * .3 - 16px); font-size:15px; padding:8px 14px; }
+    .me { max-width:13em; word-break:normal; }
+  }
+  /* 减少动态效果：不钉、不推进，直接给结果 */
+  .still .track { height:auto; }
+  .still .stage { position:relative; }
+  .still .hint { display:none; }
+</style>
+</head>
+<body>
+<div class="tools" aria-label="小样工具条">
+  <b>小样 3</b><output id="pct">0%</output>
+  <div class="seg" role="group" aria-label="底色">
+    <button data-g="cream" aria-pressed="true">奶油底</button>
+    <button data-g="white" aria-pressed="false">白底</button>
+  </div>
+  <div class="seg" role="group" aria-label="她什么时候出现">
+    <button data-h="start" aria-pressed="true">她一开始就在</button>
+    <button data-h="rise" aria-pressed="false">滚了才出现</button>
+  </div>
+</div>
+
+<main>
+  <section class="track" id="track">
+    <div class="stage" id="stage">
+      <div class="me" id="me">戴圆眼镜的橘猫馆长，坐在挂满画的美术馆前台，午后的光</div>
+      <div class="works" id="works"></div>
+      <div class="her" id="her"></div>
+      <div class="say" id="say">嗯嗯，我看看。</div>
+      <div class="hint" id="hint">往下滚</div>
+    </div>
+  </section>
+
+  <section class="next">
+    <h2>下一段：她开口说话</h2>
+    <p>还没做。这个小样只有出图这一段。</p>
+    <p class="ask">看完请回答一个问题：滚这一段的时候，你是想接着往下滚，还是想跳过去？</p>
+  </section>
+</main>
+
+<script src="her.js"></script>
+<script>
+const SHOTS = ['flux-2-pro', 'gemini-3-pro', 'gpt-image-2', 'seedream-5-0'].map(k => `media/production/quad/quad-${k}.webp`)
+const PICK = 1
+
+const $ = id => document.getElementById(id)
+const root = document.documentElement
+const works = $('works')
+SHOTS.forEach((src, i) => {
+  const t = document.createElement('figure'); t.className = 'tile'
+  t.innerHTML = `<img src="${src}" alt="她出的第 ${i + 1} 张图" decoding="async"><span class="check" aria-hidden="true">✓</span>`
+  works.append(t)
+})
+const tiles = [...works.children]
+const her = Her.mount($('her'), { transparent: true })
+
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v))
+const seg = (p, a, b) => clamp((p - a) / (b - a))
+const ease = t => t * t * (3 - 2 * t)
+const back = t => 1 + 2.2 * (t - 1) ** 3 + 1.2 * (t - 1) ** 2
+const mix = (a, b, t) => a + (b - a) * t
+
+let mood = '', line = ''
+function setMood(m) { if (m !== mood) { mood = m; her.mood(m) } }
+function setLine(text) {
+  if (text === line) return
+  line = text; const el = $('say'); el.textContent = text
+  el.classList.remove('swap'); void el.offsetWidth; el.classList.add('swap')
+}
+
+/* 四张图的排法。屏幕够宽时：先在你那一句下面排成 2×2，她挑中的那张长满这块高度，
+   其余三张在它右边排成一列。屏幕不够宽（含手机）时：一排四张 → 大图 + 右边一列。
+   坐标都相对舞台左上角 */
+function rects(narrow) {
+  const stage = $('stage'), me = $('me')
+  const vw = stage.clientWidth, vh = stage.clientHeight, S = $('her').offsetWidth
+  const edge = narrow ? 16 : vw * 0.05, g = narrow ? 8 : 14
+  /* 宽屏：图整块放在你那一句的正下方，和它共用右边那条线，从气泡底下一直排到屏幕底 */
+  const top = me.offsetTop + me.offsetHeight + g, ZH = vh - Math.max(20, vh * 0.03) - top
+  const BW = ZH * 0.75, zth = (ZH - 2 * g) / 3, ztw = zth * 0.75, bigX = vw - edge - ztw - g - BW
+  if (!narrow && ZH >= vh * 0.45 && bigX >= S * 0.9 + 40) {
+    const h = (ZH - g) / 2, w = h * 0.75, gx = vw - edge - (2 * w + g)
+    const row = tiles.map((_, i) => ({ x: gx + (i % 2) * (w + g), y: top + (i >> 1) * (h + g), w, h }))
+    let j = 0
+    const fin = tiles.map((_, i) => i === PICK ? { x: bigX, y: top, w: BW, h: ZH } : { x: vw - edge - ztw, y: top + (j++) * (zth + g), w: ztw, h: zth })
+    return { row, fin, wide: { x: bigX, y: top, w: vw - edge - bigX, h: ZH } }
+  }
+  const ax = narrow ? 16 : vw * 0.42, ay = vh * (narrow ? 0.22 : 0.27)
+  const W = vw - edge - ax, H = vh - ay - (narrow ? S * 1.12 : vh * 0.08)
+  const w = Math.min((W - 3 * g) / 4, H * 0.75), h = w * 4 / 3
+  const rowX = ax + W - (4 * w + 3 * g), rowY = ay + (H - h) / 2
+  const row = tiles.map((_, i) => ({ x: rowX + i * (w + g), y: rowY, w, h }))
+  const bigH = Math.min(H, (W - g / 2)), bigW = bigH * 0.75, th = (bigH - 2 * g) / 3, tw = th * 0.75
+  const fx = ax + W - (bigW + g + tw), fy = ay + (H - bigH) / 2
+  let j = 0
+  const fin = tiles.map((_, i) => i === PICK ? { x: fx, y: fy, w: bigW, h: bigH } : { x: fx + bigW + g, y: fy + (j++) * (th + g), w: tw, h: th })
+  return { row, fin, wide: null }
+}
+
+/* 整段的时间表，p 是 0–1 的滚动进度 */
+function apply(p) {
+  const narrow = innerWidth <= 760
+  $('pct').textContent = Math.round(p * 100) + '%'
+  $('hint').style.opacity = (1 - seg(p, 0.02, 0.07)).toFixed(3)
+
+  // 0–0.08 第一屏：你那一句是最大的字。0.08–0.22 它收成右上角的一个气泡
+  const m = ease(seg(p, 0.08, 0.22)), me = $('me')
+  const big = narrow ? 26 : clamp(innerWidth * 0.036, 30, 56)
+  me.style.fontSize = mix(big, narrow ? 16 : 19, m).toFixed(1) + 'px'
+  me.style.top = mix(narrow ? 22 : 33, narrow ? 12 : 9, m).toFixed(2) + 'svh'
+
+  // 「滚了才出现」：0.08–0.22 她从屏幕下面升上来
+  const rise = root.dataset.her === 'rise' ? (1 - back(seg(p, 0.08, 0.22))) * 105 : 0
+  $('her').style.setProperty('--rise', rise.toFixed(1) + '%')
+
+  // 0.21–0.26 她的第一句
+  const s = ease(seg(p, 0.21, 0.26)), say = $('say')
+  say.style.opacity = s.toFixed(3); say.style.transform = `translateY(${((1 - s) * 10).toFixed(1)}px)`
+
+  // 0.28–0.58 四张图一张张由糊变清；0.66–0.82 挑中的那张长大，其余收成一列
+  const { row, fin } = rects(narrow)
+  const k = ease(seg(p, 0.66, 0.82))
+  let done = 0
+  tiles.forEach((t, i) => {
+    const r = ease(seg(p, 0.28 + i * 0.07, 0.37 + i * 0.07)), picked = i === PICK
+    if (r >= 1) done++
+    const a = row[i], b = fin[i]
+    const kx = picked ? k : k * k, ky = picked ? k : 1 - (1 - k) ** 2
+    t.style.left = mix(a.x, b.x, kx).toFixed(1) + 'px'
+    t.style.top = (mix(a.y, b.y, ky) + (1 - r) * 18).toFixed(1) + 'px'
+    t.style.width = mix(a.w, b.w, k).toFixed(1) + 'px'
+    t.style.height = mix(a.h, b.h, k).toFixed(1) + 'px'
+    t.style.borderRadius = mix(12, picked ? 20 : 10, k).toFixed(1) + 'px'
+    t.style.opacity = (r * (picked ? 1 : mix(1, 0.85, k))).toFixed(3)
+    t.style.filter = r < 1 ? `blur(${((1 - r) * 14).toFixed(1)}px)` : 'none'
+    t.style.zIndex = picked ? 2 : 1
+    const c = t.querySelector('.check'); c.style.opacity = picked ? k.toFixed(3) : 0; c.style.transform = `scale(${mix(0.6, 1, picked ? k : 0).toFixed(3)})`
+  })
+
+  // 她的表情和那句话，只看走到哪一段
+  if (p < 0.2) setMood(p < 0.08 ? 'idle' : 'read')
+  else if (p < 0.27) { setMood('read'); setLine('嗯嗯，我看看。') }
+  else if (p < 0.595) { setMood('work'); setLine(done ? `画画中 · ${done}/4` : '好，这就画。') }
+  else if (p < 0.66) { setMood('wow'); setLine('出来了！') }
+  else if (p < 0.9) { setMood('ask'); setLine('第 2 张的光最好，用它？') }
+  else { setMood('happy'); setLine('要改哪里，说一声就行。') }
+}
+
+const track = $('track')
+const still = matchMedia('(prefers-reduced-motion: reduce)').matches
+let queued = false
+function measure() {
+  queued = false
+  if (still) return apply(1)
+  const total = track.offsetHeight - innerHeight
+  apply(total > 0 ? clamp((scrollY - track.offsetTop) / total) : 0)
+}
+function onScroll() { if (!queued) { queued = true; requestAnimationFrame(measure) } }
+if (still) root.classList.add('still')
+root.dataset.her = 'start'
+addEventListener('scroll', onScroll, { passive: true })
+addEventListener('resize', onScroll)
+measure()
+
+function wire(attr, key) {
+  const all = document.querySelectorAll(`.tools [data-${attr}]`)
+  all.forEach(b => b.onclick = () => { root.dataset[key] = b.dataset[attr]; all.forEach(x => x.setAttribute('aria-pressed', x === b)); measure() })
+}
+wire('g', 'ground'); wire('h', 'her')
+</script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+<!doctype html><meta charset="utf-8"><title>她 · 放大检查</title>
+<style>body{margin:0;background:#fff}#f{width:1600px;height:1600px}#f canvas{image-rendering:pixelated}</style>
+<div id="f"></div><script src="her.js"></script><script>
+/* ?mood= &tone= &res=（按真实头像分辨率渲染再放大看；首页头像 168px × 2 倍屏 ≈ 336） */
+const q=new URLSearchParams(location.search), h=Her.mount(document.getElementById('f'),{still:true,res:+q.get('res')||0})
+h.tone(q.get('tone')||'friendly'); h.mood(q.get('mood')||'idle')
+</script>

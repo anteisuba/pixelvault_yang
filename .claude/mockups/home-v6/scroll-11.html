@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>首页 v6 · 小样 11 · 顶栏、她能做的、回话挂她头顶</title>
+<style>
+  /* 小样 11（第 39 轮）：在小样 10 上改三处。
+     ① 顶栏：v4 那条浮岛（名字 · 语言 · 一颗门）放在最上面、横跨整屏宽，和窗口同款的白色；窗口从它下面开始；
+        它就是常驻的入口，所以第一屏的大「开始」和名字旁的小「开始」都去掉。
+     ② 左栏「她能做的」：第一屏那句话淡掉后，同一位置换成一列 画图 · 换画风 · 配音，滚到哪段哪项亮，点了跳过去。
+     ③ 她的回话挪出窗口、挂在她头顶，尖角朝下指着她；窗口里只剩你那一句和结果，内容区往上多出一条回话的高度。
+     小样 10（第 36 轮）：在小样 9 上加结尾。「开始」不再淡掉，往下滚时缩成名字旁的小按钮一直留在左上；
+     三段演完，钉住的舞台松开，下面接页脚声明：作品署名、AI 生成说明、模型名归属、条款 / 隐私 / 内容准则、语言、©。
+     小样 9（第 34 轮）：在小样 8 上换掉她的台词。owner 选了性格 A「元气，有偏心」：
+     每段开头答应一句；干活时不说话、只靠表情；结束时说一句有自己偏好的话。去掉「画画中 · 2/4」这类进度字。
+     以下是小样 8 的说明：
+     小样 8（docs/design/home-v6.md 进度阶段 4，第 32 轮）。在小样 7 的布局上加第一屏：
+     左上：名字、一句话、一个入口；左下：她；右边窗口里是一面作品墙（画廊里挑出来的 17 张公开作品）。
+     往下滚：作品墙的四列以不同的速度往上走（视差），然后整条对话往上推，第一段从下面进来——和段与段之间换场是同一个动作。
+     你那一句不再先放大字（第 31 轮去掉了第一屏的大字和输入框），进来时已经是气泡。
+     除了点播放和作品墙第一次载入时由糊变清，其余变化只由滚动位置算。 */
+  :root { --ground:#f6f1e7; --ink:#1b1a18; --ink2:#6a665f; --line:rgba(27,26,24,.1); --card:#fff; --bubble:#efebe4; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html, body { background:var(--ground); }
+  body { color:var(--ink); font:16px/1.6 -apple-system,"PingFang SC","Hiragino Sans GB","Noto Sans SC",sans-serif; -webkit-font-smoothing:antialiased; }
+  button { font:inherit; color:inherit; cursor:pointer; }
+
+  /* 小样自己的工具条，不属于设计 */
+  .tools { position:fixed; z-index:20; bottom:8px; right:8px; display:flex; align-items:center; gap:10px; padding:4px 10px; border-radius:999px; background:rgba(27,26,24,.78); color:#fff; font-size:11px; }
+  .tools b { font-weight:600; }
+  .tools output { font:11px ui-monospace,Menlo,monospace; min-width:3em; text-align:right; opacity:.8; }
+
+  .track { height:980vh; position:relative; }
+  .stage { position:sticky; top:0; height:100vh; height:100svh; overflow:hidden; }
+
+  /* 她：原图的左边和下边是裁开的，所以贴着屏幕左下角，往外伸出一成藏住裁口 */
+  .her { position:absolute; left:0; bottom:0; z-index:3; transform:translate(-10%, 10%); }
+
+  /* 窗口：产品白板的长相——白底、圆角 20、一圈很淡的边 */
+  .win { position:absolute; background:var(--card); border-radius:20px; overflow:hidden; box-shadow:0 0 0 1px rgba(16,18,24,.06), 0 1px 2px rgba(16,18,24,.04), 0 24px 60px rgba(70,45,20,.07); }
+  .thread { position:absolute; left:0; top:0; width:100%; will-change:transform; }
+  .hint { position:absolute; z-index:2; left:0; right:0; bottom:16px; text-align:center; font-size:13px; color:var(--ink2); pointer-events:none; }
+
+  /* 左上：名字、一句话、入口。名字一直在，另外两样往下滚时淡掉 */
+  /* ① 顶栏：和窗口同款的白色小板，圆角全圆 */
+  .nav { position:absolute; z-index:5; height:56px; display:flex; align-items:center; gap:12px; padding:0 10px 0 22px; background:var(--card); border-radius:999px; box-shadow:0 0 0 1px rgba(16,18,24,.06), 0 1px 2px rgba(16,18,24,.04), 0 12px 30px rgba(70,45,20,.06); }
+  .nav .mark { font-size:18px; font-weight:700; letter-spacing:-.01em; margin-right:auto; }
+  .nav .langs { display:flex; gap:2px; }
+  .nav .langs button { border:0; background:transparent; border-radius:999px; height:32px; min-width:38px; padding:0 8px; font:12px ui-monospace,Menlo,monospace; letter-spacing:.06em; color:var(--ink2); }
+  .nav .langs button[aria-pressed="true"] { background:var(--ink); color:#fff; }
+  .nav .go { border:0; border-radius:999px; background:var(--ink); color:#fff; font-size:14px; font-weight:600; height:40px; padding:0 18px; white-space:nowrap; }
+  /* 左栏：第一屏是那一句话，往下滚换成「她能做的」 */
+  .id { position:absolute; z-index:4; }
+  .id h1 { font-size:clamp(28px, 3.1vw, 46px); line-height:1.2; font-weight:650; letter-spacing:-.01em; word-break:keep-all; will-change:opacity, transform; }
+  .caps { position:absolute; left:0; top:0; list-style:none; display:flex; flex-direction:column; gap:6px; opacity:0; }
+  .caps li button { border:0; background:transparent; display:flex; align-items:center; gap:12px; padding:4px 0; font-size:clamp(20px, 1.9vw, 28px); font-weight:650; color:var(--ink); opacity:.28; transition:opacity .2s; }
+  .caps li button::before { content:''; width:8px; height:8px; border-radius:50%; background:var(--ink); transform:scale(0); transition:transform .2s; }
+  .caps li.on button { opacity:1; }
+  .caps li.on button::before { transform:scale(1); }
+  /* ③ 她的回话：挂在她头顶，左下角收尖朝着她 */
+  .say { position:absolute; z-index:4; background:var(--card); border-radius:18px 18px 18px 6px; padding:10px 18px; box-shadow:0 0 0 1px var(--line), 0 8px 24px rgba(60,40,30,.07); font-size:17px; line-height:1.5; will-change:transform, opacity; opacity:0; }
+  /* 作品墙：四列瀑布，图片第一次载入时由糊变清，左上往右下错开 */
+  #wall { position:absolute; left:0; top:0; width:100%; overflow:hidden; }
+  .wcol { position:absolute; top:0; will-change:transform; }
+  .wt { position:absolute; left:0; width:100%; overflow:hidden; border-radius:12px; background:#f3f1ec; }
+  .wt img { display:block; width:100%; height:100%; object-fit:cover; opacity:0; filter:blur(14px); transition:opacity .5s, filter .5s; }
+  .wt img.ok { opacity:1; filter:none; }
+  .fadebot { position:absolute; left:0; right:0; bottom:0; height:120px; background:linear-gradient(rgba(255,255,255,0), #fff 78%); pointer-events:none; }
+  @media (prefers-reduced-motion: reduce) { .wt img { transition:none; } }
+
+  /* 你说的话 */
+  .me { position:absolute; max-width:min(16em, calc(100% - 32px)); background:var(--bubble); border-radius:1.05em; padding:.55em .9em; line-height:1.5; font-weight:500; word-break:keep-all; overflow-wrap:anywhere; will-change:left, top, font-size; }
+  /* 她的回话：左上角收尖，朝着窗口外的她 */
+  .rep { position:absolute; background:var(--card); border-radius:6px 18px 18px 18px; padding:9px 16px; box-shadow:0 0 0 1px var(--line); font-size:16px; line-height:1.5; max-width:calc(100% - 32px); will-change:transform, opacity; }
+  .swap { animation:swap .22s ease-out; }
+  @keyframes swap { from { translate:0 5px; } to { translate:0 0; } }
+
+  .tile { position:absolute; overflow:hidden; background:#f3f1ec; border-radius:16px; will-change:left, top, width, height, opacity, filter; }
+  .tile img { display:block; width:100%; height:100%; object-fit:cover; }
+  .tile .tag { position:absolute; left:10px; top:10px; background:rgba(27,26,24,.86); color:#fff; font-size:12px; line-height:1; padding:6px 10px; border-radius:999px; white-space:nowrap; }
+  .tile .ly { position:absolute; inset:0; background:#fff; will-change:clip-path; }
+  .tile .wipe { position:absolute; top:0; bottom:0; width:3px; margin-left:-1.5px; background:#fff; box-shadow:0 0 0 1px rgba(27,26,24,.18), 0 0 18px rgba(27,26,24,.35); opacity:0; }
+
+  /* LoRA 右半的 2×2：还没刷到的格子是浅灰占位，刷完一种填上一格；当前那一格描一圈黑 */
+  .sty { position:absolute; overflow:hidden; border-radius:14px; background:#f3f1ec; }
+  .sty img { display:block; width:100%; height:100%; object-fit:cover; transition:opacity .25s; }
+  .sty span { position:absolute; left:8px; top:8px; background:rgba(27,26,24,.86); color:#fff; font-size:11px; line-height:1; padding:5px 8px; border-radius:999px; white-space:nowrap; transition:opacity .25s; }
+  .sty.empty img, .sty.empty span { opacity:0; }
+  .sty.on { box-shadow:0 0 0 2px var(--ink); }
+
+  /* 语音消息 */
+  .voices { --ch:120px; position:absolute; display:flex; flex-direction:column; gap:14px; }
+  .voice { height:var(--ch); display:grid; grid-template-columns:auto minmax(0, 1fr) auto; align-items:center; gap:calc(var(--ch) * .14); background:var(--card); border-radius:calc(var(--ch) * .3); padding:0 calc(var(--ch) * .16) 0 calc(var(--ch) * .14); box-shadow:0 0 0 1px var(--line), 0 6px 18px rgba(60,40,30,.05); will-change:transform, opacity; pointer-events:none; }
+  .voice.live { pointer-events:auto; }
+  .voice img { width:calc(var(--ch) * .56); height:calc(var(--ch) * .56); border-radius:50%; object-fit:cover; background:#f3f1ec; display:block; }
+  .voice .txt { font-size:clamp(15px, calc(var(--ch) * .15), 26px); font-weight:500; line-height:1.35; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .voice .wave { display:flex; align-items:center; gap:calc(var(--ch) * .02); height:calc(var(--ch) * .26); margin-top:calc(var(--ch) * .06); }
+  .voice .wave i { flex:1 1 0; min-width:2px; max-width:7px; border-radius:3px; background:var(--ink); opacity:.22; transform:scaleY(0); }
+  .voice .wave i.on { transform:scaleY(1); }
+  .voice .wave i.played { opacity:1; }
+  .voice .play { width:calc(var(--ch) * .44); height:calc(var(--ch) * .44); border-radius:50%; border:0; background:var(--ink); color:#fff; display:grid; place-items:center; }
+  .voice .play svg { width:40%; height:40%; fill:currentColor; }
+  .voice .play .pause, .voice.playing .play .tri { display:none; }
+  .voice.playing .play .pause { display:block; }
+  .voice .play:focus-visible { outline:2px solid #3346e8; outline-offset:3px; }
+
+  /* 页脚：左栏对齐她那一列，右栏对齐窗口左边（--wl 由版面算好写到根上） */
+  .foot { display:grid; grid-template-columns:var(--wl, 40%) minmax(0, 1fr); padding:56px 28px 40px; border-top:1px solid var(--line); color:var(--ink2); font-size:13px; line-height:1.7; }
+  .foot .side { padding-left:4px; }
+  .foot .side .mark { color:var(--ink); font-size:13px; font-weight:650; letter-spacing:.24em; }
+  .foot .main { display:flex; flex-direction:column; gap:22px; max-width:760px; }
+  .foot h3 { font-size:13px; font-weight:600; color:var(--ink); margin-bottom:4px; }
+  .foot .row { display:flex; flex-wrap:wrap; align-items:center; gap:6px 18px; }
+  .foot a, .foot .lang button { color:var(--ink); text-decoration:none; }
+  .foot a:hover { text-decoration:underline; }
+  .foot .muted { color:var(--ink2); }
+  .foot .lang { display:flex; gap:4px; background:rgba(27,26,24,.06); border-radius:999px; padding:3px; }
+  .foot .lang button { border:0; background:transparent; border-radius:999px; padding:4px 12px; font-size:13px; }
+  .foot .lang button[aria-pressed="true"] { background:#fff; box-shadow:0 0 0 1px var(--line); }
+  @media (max-width:760px) { .foot { grid-template-columns:1fr; gap:24px; padding:40px 20px 32px; } }
+
+  @media (max-width:760px) {
+    .rep { font-size:15px; padding:8px 14px; }
+    .voice .txt { font-size:14px; white-space:normal; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+    .tile { border-radius:12px; }
+    .tile .tag { font-size:10px; padding:4px 7px; left:6px; top:6px; }
+  }
+  /* 减少动态效果：不钉、不推进，直接停在最后一段的结果 */
+  .still .track { height:auto; }
+  .still .stage { position:relative; }
+  .still .hint { display:none; }
+</style>
+</head>
+<body>
+<div class="tools" aria-label="小样工具条"><b>小样 11</b><output id="pct">0%</output></div>
+
+<main>
+  <section class="track" id="track">
+    <div class="stage" id="stage">
+      <nav class="nav" id="nav" aria-label="顶栏">
+        <span class="mark">ANTEI</span>
+        <span class="langs" role="group" aria-label="语言"><button type="button" aria-pressed="false">EN</button><button type="button" aria-pressed="false">JA</button><button type="button" aria-pressed="true">ZH</button></span>
+        <button class="go" id="go" type="button">开始</button>
+      </nav>
+      <div class="id" id="id">
+        <h1 id="headline">说一句，<br />她替你做完。</h1>
+        <ol class="caps" id="caps" aria-label="她能做的">
+          <li><button type="button" data-seg="0">画图</button></li>
+          <li><button type="button" data-seg="1">换画风</button></li>
+          <li><button type="button" data-seg="2">配音</button></li>
+        </ol>
+      </div>
+      <div class="say" id="say">好嘞，马上画！</div>
+      <div class="win" id="win">
+        <div class="thread" id="thread">
+          <div id="wall"></div>
+          <div class="me" id="me0">戴圆眼镜的橘猫馆长，坐在挂满画的美术馆前台，午后的光</div>
+          <div class="me" id="me1">抱着黑皮书的女孩，米白大衣。换几种画风看看</div>
+          <div class="me" id="me2">给今晚的画展配三句：温柔的女声，少年，再来一段旁白</div>
+          <div class="voices" id="voices"></div>
+        </div>
+        <div class="fadebot" id="fadebot"></div>
+        <div class="hint" id="hint">往下滚</div>
+      </div>
+      <div class="her" id="her"></div>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <div class="side"><div class="mark">ANTEI</div><button class="go" type="button" style="margin-top:14px;border:0;border-radius:999px;background:var(--ink);color:#fff;font-size:13px;font-weight:600;padding:6px 14px">开始</button></div>
+    <div class="main">
+      <div>
+        <h3>页面上的作品</h3>
+        <p>都来自 ANTEI 画廊里公开的作品，作者 <a href="#">@xiuruisu</a>、<a href="#">@yining120224</a>。点开作品可以看到作者和它是怎么做出来的。</p>
+      </div>
+      <div>
+        <h3>AI 生成说明</h3>
+        <p>页面上的图片和声音都是用 AI 生成的。ANTEI 接入各家的模型，帮你把想法做出来；生成的作品归你所有，使用时请遵守内容准则。</p>
+      </div>
+      <div>
+        <h3>模型名称</h3>
+        <p>GPT Image、Gemini、FLUX、Seedream、Illustrious、Anima、Fish Audio 等名称和商标属于各自的公司。ANTEI 通过它们开放的接口提供服务，和这些公司没有隶属关系。</p>
+      </div>
+      <div class="row">
+        <a href="#">服务条款</a><a href="#">隐私政策</a><span class="muted">内容准则（还没有页面）</span>
+        <span class="lang" role="group" aria-label="语言"><button aria-pressed="true">中文</button><button aria-pressed="false">日本語</button><button aria-pressed="false">English</button></span>
+      </div>
+      <p class="muted">© 2026 ANTEI</p>
+    </div>
+  </footer>
+</main>
+
+<script src="her.js"></script>
+<script>
+const $ = id => document.getElementById(id)
+const root = document.documentElement
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v))
+const seg = (p, a, b) => clamp((p - a) / (b - a))
+const ease = t => t * t * (3 - 2 * t)
+const mix = (a, b, t) => a + (b - a) * t
+
+/* 三段各占多少屏的滚动距离（vh）。换段的那一下算在后一段的开头 */
+const LEN = { wall: 130, shots: 260, lora: 340, voice: 260 }
+const TOTAL = LEN.wall + LEN.shots + LEN.lora + LEN.voice
+/* 画廊里挑出来的 17 张公开作品（2026-11-10 从本机开发服务的 /api/images 拉的，去掉了非全年龄、上传的、太糊的） */
+const WALL = [{"src":"https://cdn.anteisuba.com/generations/8e3b7e40-c662-487b-b29f-7e16dd563e64/image/2026-03-27_fae38732e501147dbe906438.preview.webp","w":1792,"h":1024},{"src":"https://cdn.anteisuba.com/generations/8e3b7e40-c662-487b-b29f-7e16dd563e64/image/2026-04-09_e93ce3d5f024937fee34a809.preview.webp","w":1024,"h":1024},{"src":"https://cdn.anteisuba.com/generations/223df7bf-b4f2-4f67-b0d1-df423d663103/image/2026-05-22_970b76faf815302a8b1125d9.preview.webp","w":1024,"h":1024},{"src":"https://cdn.anteisuba.com/generations/223df7bf-b4f2-4f67-b0d1-df423d663103/image/2026-05-17_be6b473b19d95b3880ebb4fc.preview.webp","w":1024,"h":1024},{"src":"https://cdn.anteisuba.com/generations/223df7bf-b4f2-4f67-b0d1-df423d663103/image/2026-11-03_ec85cd25f09c1d0a2c37eb00.preview.webp","w":1024,"h":1024},{"src":"https://cdn.anteisuba.com/generations/8e3b7e40-c662-487b-b29f-7e16dd563e64/image/2026-03-27_7dc782d8adb522ba6084c813.preview.webp","w":1024,"h":1024},{"src":"https://cdn.anteisuba.com/generations/223df7bf-b4f2-4f67-b0d1-df423d663103/image/2026-05-17_45ce7282522644c3bcc089ea.preview.webp","w":1024,"h":768},{"src":"https://cdn.anteisuba.com/generations/8e3b7e40-c662-487b-b29f-7e16dd563e64/image/2026-03-26_d056e934a8d11ee192902b4a.preview.webp","w":1024,"h":1024},{"src":"https://cdn.anteisuba.com/generations/223df7bf-b4f2-4f67-b0d1-df423d663103/image/2026-05-24_a930d05f7a798eaf6f64600e.preview.webp","w":1024,"h":1024},{"src":"https://cdn.anteisuba.com/generations/8e3b7e40-c662-487b-b29f-7e16dd563e64/image/2026-03-27_bc3b255dd9fd2a4f9fc64a41.preview.webp","w":1024,"h":1024},{"src":"https://cdn.anteisuba.com/generations/223df7bf-b4f2-4f67-b0d1-df423d663103/image/2026-08-30_8746a7def498a3ddd6592e1b.preview.webp","w":1536,"h":1024},{"src":"https://cdn.anteisuba.com/generations/223df7bf-b4f2-4f67-b0d1-df423d663103/image/2026-05-17_e3b69a0717c4eb15113a09f0.preview.webp","w":1024,"h":1024},{"src":"https://cdn.anteisuba.com/generations/8e3b7e40-c662-487b-b29f-7e16dd563e64/image/2026-05-18_46bdb761fbbb18751f45942a.preview.webp","w":1024,"h":1024},{"src":"https://cdn.anteisuba.com/generations/223df7bf-b4f2-4f67-b0d1-df423d663103/image/2026-03-25_8f237f701b753fc678754df6.preview.webp","w":1024,"h":1024},{"src":"https://cdn.anteisuba.com/generations/8e3b7e40-c662-487b-b29f-7e16dd563e64/image/2026-03-26_de633aa8d8b74c6944c25cfd.preview.webp","w":768,"h":1024},{"src":"https://cdn.anteisuba.com/generations/223df7bf-b4f2-4f67-b0d1-df423d663103/image/2026-05-24_aefc2841abe389c4ae33dda9.preview.webp","w":1024,"h":1024},{"src":"https://cdn.anteisuba.com/generations/8e3b7e40-c662-487b-b29f-7e16dd563e64/image/2026-04-09_7e7677b63a01bbf49fcc7f2b.preview.webp","w":1328,"h":800}]
+const SPEED = [0.12, 0.34, 0.2, 0.44] // 往下滚时四列各自往上走的快慢（乘窗口高）
+
+const SHOTS = ['flux-2-pro', 'gemini-3-pro', 'gpt-image-2', 'seedream-5-0'].map(k => `media/production/quad/quad-${k}.webp`)
+const STYLES = ['扁平线稿', '偏线稿', '偏手办', '手办质感']
+const VOICES = [['qing', '今晚的画展，八点开始。'], ['lei', '好，我把海报再改一版。'], ['ke', '而此刻，馆里的灯一盏盏亮了。']]
+const BARS = 44
+
+const win = $('win'), thread = $('thread'), wallEl = $('wall')
+const wcols = [0, 1, 2, 3].map(() => { const c = document.createElement('div'); c.className = 'wcol'; wallEl.append(c); return c })
+const wtiles = WALL.concat(WALL).map((x, i) => {
+  const t = document.createElement('figure'); t.className = 'wt'
+  const img = new Image(); img.alt = '画廊里的作品'; img.decoding = 'async'
+  img.onload = () => setTimeout(() => img.classList.add('ok'), matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 70 * (i % WALL.length))
+  img.src = x.src; t.append(img); return { t, ...x }
+})
+function tile(src, alt) {
+  const t = document.createElement('figure'); t.className = 'tile'
+  t.innerHTML = `<img src="${src}" alt="${alt}" decoding="async">`
+  thread.append(t); return t
+}
+const shots = SHOTS.map((src, i) => tile(src, `她出的第 ${i + 1} 张图`))
+
+/* LoRA：四种画风叠在同一张卡里，上面几层用 clip-path 从左往右露出来 */
+const lora = document.createElement('figure'); lora.className = 'tile'
+lora.innerHTML = STYLES.map((s, i) => `<div class="ly"><img src="media/production/lora/lora-body-${i + 1}.webp" alt="同一张图，${s}" decoding="async"><span class="tag">${s}</span></div>`).join('') + '<i class="wipe" aria-hidden="true"></i>'
+thread.append(lora)
+const layers = [...lora.querySelectorAll('.ly')], wipeLine = lora.querySelector('.wipe')
+const stys = STYLES.map((s, i) => {
+  const el = document.createElement('div'); el.className = 'sty'
+  el.innerHTML = `<img src="media/production/lora/lora-body-${i + 1}.webp" alt=""><span>${s}</span>`
+  thread.append(el); return el
+})
+
+/* 三条语音：波形从真实音频里量；量不到就用一组固定的高低 */
+let playing = null
+const voices = VOICES.map(([key, text], j) => {
+  const el = document.createElement('div'); el.className = 'voice'
+  el.innerHTML = `<img src="media/production/voice/avatar-${key}.webp" alt=""><div><div class="txt">${text}</div><div class="wave" aria-hidden="true">${'<i></i>'.repeat(BARS)}</div></div>
+    <button class="play" aria-label="播放：${text}"><svg class="tri" viewBox="0 0 20 20"><path d="M6 3.5v13l11-6.5z"/></svg><svg class="pause" viewBox="0 0 20 20"><path d="M5 3h3.6v14H5zM11.4 3H15v14h-3.6z"/></svg></button>`
+  $('voices').append(el)
+  const bars = [...el.querySelectorAll('.wave i')], src = `media/production/voice/voice-${key}-zh.mp3`
+  const setHeights = hs => bars.forEach((b, i) => { b.style.height = Math.round(mix(14, 100, hs[i])) + '%' })
+  setHeights(bars.map((_, i) => 0.35 + 0.65 * Math.abs(Math.sin(i * 1.7 + j * 2.1) * Math.cos(i * 0.37 + j))))
+  fetch(src).then(r => r.arrayBuffer()).then(buf => new (window.AudioContext || window.webkitAudioContext)().decodeAudioData(buf)).then(a => {
+    const d = a.getChannelData(0), step = Math.floor(d.length / BARS), peaks = []
+    for (let i = 0; i < BARS; i++) { let m = 0; for (let k = i * step; k < (i + 1) * step; k += 32) m = Math.max(m, Math.abs(d[k])); peaks.push(m) }
+    const top = Math.max(...peaks) || 1; setHeights(peaks.map(v => Math.sqrt(v / top)))
+  }).catch(() => {})
+  const audio = new Audio(src); audio.preload = 'none'
+  return { el, bars, audio, text, shown: 0 }
+})
+function paintPlayed(v) { const k = v.audio.duration ? v.audio.currentTime / v.audio.duration : 0; v.bars.forEach((b, i) => b.classList.toggle('played', v === playing && i / BARS < k)) }
+function tick() { if (!playing) return; paintPlayed(playing); requestAnimationFrame(tick) }
+function stop(v) { v.audio.pause(); v.audio.currentTime = 0; v.el.classList.remove('playing'); if (playing === v) playing = null; paintPlayed(v); v.el.querySelector('.play').setAttribute('aria-label', '播放：' + v.text) }
+voices.forEach(v => {
+  v.el.querySelector('.play').onclick = () => {
+    if (playing === v) { stop(v); mood = ''; return measure() }
+    if (playing) stop(playing)
+    playing = v; v.el.classList.add('playing'); v.el.querySelector('.play').setAttribute('aria-label', '停止')
+    v.audio.play().then(() => { her.act('hum'); tick() }).catch(() => stop(v))
+  }
+  v.audio.onended = () => { stop(v); mood = ''; measure() }
+})
+
+const her = Her.mount($('her'), { transparent: true })
+let mood = ''
+function setMood(m) { if (playing) return; if (m !== mood) { mood = m; her.mood(m) } }
+const shown = new Map()
+function setText(el, text) {
+  if (shown.get(el) === text) return
+  shown.set(el, text); el.textContent = text
+  el.classList.remove('swap'); void el.offsetWidth; el.classList.add('swap')
+}
+const px = v => v.toFixed(1) + 'px'
+function box(el, x, y, w, h) { el.style.left = px(x); el.style.top = px(y); if (w != null) { el.style.width = px(w); el.style.height = px(h) } }
+function fade(el, o, dy = 0) { el.style.opacity = clamp(o).toFixed(3); el.style.transform = dy ? `translateY(${dy.toFixed(1)}px)` : '' }
+
+/* 版面：S 是她的大小；窗口从她右边一点开始到屏幕右边，上下各留 P。
+   窗口里每一段占一屏窗口高（第 k 段从 k×H 开始），自上而下：你说的话（右）→ 她的回话（左）→ 内容区 */
+function layout() {
+  const vw = innerWidth, vh = $('stage').clientHeight, narrow = vw <= 760
+  const P = narrow ? 12 : 28
+  const S = narrow ? Math.min(vh * 0.28, vw * 0.52) : Math.min(vh * 0.75, vw * 0.36)
+  $('her').style.width = $('her').style.height = px(S)
+  // 顶栏：放在最上面、横跨整屏宽（owner 第 39 轮要放在上面中间）；窗口和左栏都从它下面开始
+  const nav = $('nav'), idEl = $('id'), wl0 = narrow ? P : S * 0.9 + 8
+  box(nav, P, P, vw - 2 * P, 56)
+  const idTop = P + 56 + (narrow ? 18 : 40)
+  box(idEl, P + 6, idTop); idEl.style.width = px(narrow ? vw - 2 * P - 12 : wl0 - 12 - P - 6)
+  const wl = wl0, wt = narrow ? idTop + idEl.querySelector('h1').offsetHeight + 16 : P + 56 + 12, wr = vw - P, wb = narrow ? vh - S * 0.9 - 6 : vh - P
+  // 她头顶的回话：电脑上在左栏、她头顶上方；手机上在她右边
+  const say = $('say')
+  say.style.maxWidth = px(narrow ? vw - S * 0.85 - 12 : wl0 - 12 - P - 6)
+  if (narrow) { say.style.left = px(S * 0.85); say.style.bottom = px(S * 0.32); say.style.top = '' }
+  else { say.style.left = px(P + 6); say.style.bottom = px(S * 0.8); say.style.top = '' }
+  const W = wr - wl, H = wb - wt
+  box(win, wl, wt, W, H)
+  document.documentElement.style.setProperty('--wl', narrow ? '100%' : px(wl - 28))
+  const pad = narrow ? 16 : 28, g = narrow ? 8 : 14, fs = narrow ? 15 : 18
+  const band = [0, 1, 2].map(k => { const e = $('me' + k), keep = e.style.fontSize; e.style.fontSize = fs + 'px'; const h = e.offsetHeight; e.style.fontSize = keep; return h })
+  const aTop = band.map(h => pad + h + g) // 回话挪出了窗口：内容区紧跟在你那一句下面
+  // 作品墙：手机两列、电脑四列；每张放进当前最矮的那一列
+  wallEl.style.height = px(H)
+  const n = narrow ? 2 : 4, wp = 12, wg = 10, cw = (W - 2 * wp - (n - 1) * wg) / n, hs = new Array(n).fill(wp)
+  wcols.forEach((c, k) => { c.style.display = k < n ? '' : 'none'; c.style.left = px(wp + k * (cw + wg)); c.style.width = px(cw) })
+  wtiles.forEach(x => {
+    const k = hs.indexOf(Math.min(...hs)), h = cw * Math.min(x.h / x.w, 1.5)
+    if (x.t.parentNode !== wcols[k]) wcols[k].append(x.t)
+    x.t.style.top = px(hs[k]); x.t.style.height = px(h); hs[k] += h + wg
+  })
+  return { narrow, n, W, H, pad, g, fs, iw: W - 2 * pad, aTop, aH: aTop.map(t => H - pad - t) }
+}
+
+function apply(p) {
+  const L = layout(), { W, H, pad, g, iw } = L
+  const y = p * TOTAL
+  const w0 = clamp(y / LEN.wall), y1 = y - LEN.wall
+  const a = clamp(y1 / LEN.shots), b = clamp((y1 - LEN.shots) / LEN.lora), c = clamp((y1 - LEN.shots - LEN.lora) / LEN.voice)
+  $('pct').textContent = Math.round(p * 100) + '%'
+  $('hint').style.opacity = $('fadebot').style.opacity = (1 - seg(w0, 0.02, 0.12)).toFixed(3)
+
+  /* 第一屏：四列以不同的速度往上走（视差）；一句话和入口淡掉，名字留着 */
+  wcols.forEach((col, k) => { col.style.transform = `translateY(${(-w0 * H * SPEED[k]).toFixed(1)}px)` })
+  const idOut = ease(seg(w0, 0.15, 0.42))
+  fade($('headline'), 1 - idOut, -idOut * (L.narrow ? 8 : 30)) // 手机上顶栏贴得近，只上移一点
+  const caps = $('caps'), capsIn = L.narrow ? 0 : ease(seg(w0, 0.48, 0.75))
+  fade(caps, capsIn, (1 - capsIn) * 24); caps.style.pointerEvents = capsIn > 0.5 ? '' : 'none'
+  const cur = c > 0.12 ? 2 : b > 0.12 ? 1 : 0
+  ;[...caps.children].forEach((li, i) => li.classList.toggle('on', i === cur))
+
+  // 换段：整条对话往上推一屏窗口高，上一段出去、下一段进来是同一个动作
+  const s = ease(seg(w0, 0.35, 1)) + ease(seg(b, 0, 0.12)) + ease(seg(c, 0, 0.12))
+  thread.style.transform = `translateY(${(-s * H).toFixed(1)}px)`
+
+  /* 你说的话：三段进来时都已经是气泡，挂在各自那一屏的右上 */
+  ;[0, 1, 2].forEach(k => { const e = $('me' + k); e.style.fontSize = px(L.fs); box(e, W - pad - e.offsetWidth, (k + 1) * H + pad) })
+
+  /* 她的回话 */
+  const sayIn = c > 0 ? ease(seg(c, 0.16, 0.22)) : b > 0 ? ease(seg(b, 0.16, 0.22)) : y1 > 0 ? ease(seg(a, 0.06, 0.12)) : 0
+  fade($('say'), sayIn, (1 - sayIn) * 10)
+
+  /* ① 出图：长带。电脑上同时看得见两张、正好撑满内容区的宽；手机上一张。每出一张带子往左走一格 */
+  {
+    const top = H + L.aTop[0], AH = L.aH[0], slots = L.narrow ? 1 : 2
+    const w = (iw - (slots - 1) * g) / slots, h = Math.min(AH, w * 4 / 3)
+    const rs = shots.map((_, i) => ease(seg(a, 0.18 + i * 0.15, 0.32 + i * 0.15)))
+    const cam = rs.slice(slots).reduce((n, r) => n + r, 0)
+    shots.forEach((t, i) => {
+      const x = pad + (i - cam) * (w + g)
+      box(t, x, top + (1 - rs[i]) * 18, w, h)
+      t.style.opacity = (rs[i] * clamp((x - pad) / (w + g) + 1)).toFixed(3)
+      t.style.filter = rs[i] < 1 ? `blur(${((1 - rs[i]) * 14).toFixed(1)}px)` : 'none'
+    })
+    L.made = rs.filter(r => r >= 1).length
+  }
+
+  /* ② LoRA：左半是那一张图，一道线从左刷到右换画风；右半是四种画风的 2×2，刷完一种填上一格。
+        手机上放不下右半，只留那一张 */
+  {
+    const top = 2 * H + L.aTop[1], AH = L.aH[1], twoCol = !L.narrow
+    const w = twoCol ? (iw - g) / 2 : iw, h = Math.min(AH, w * 4 / 3)
+    const r0 = ease(seg(b, 0.24, 0.32))
+    box(lora, pad, top + (1 - r0) * 18, w, h)
+    lora.style.opacity = r0.toFixed(3)
+    lora.style.filter = r0 < 1 ? `blur(${((1 - r0) * 14).toFixed(1)}px)` : 'none'
+    const wipes = [0, 1, 2].map(n => seg(b, 0.38 + n * 0.19, 0.52 + n * 0.19))
+    layers.forEach((ly, i) => { if (i) ly.style.clipPath = `inset(0 ${((1 - wipes[i - 1]) * 100).toFixed(2)}% 0 0)` })
+    const live = wipes.findIndex(t => t > 0 && t < 1)
+    wipeLine.style.opacity = live < 0 ? 0 : 1
+    if (live >= 0) wipeLine.style.left = (wipes[live] * 100).toFixed(2) + '%'
+    const cur = live >= 0 ? live + 1 : wipes.filter(t => t >= 1).length
+    const gx = pad + w + g, cw = (w - g) / 2, ch = (h - g) / 2
+    stys.forEach((el, i) => {
+      const done = i === 0 ? r0 : wipes[i - 1] >= 1 ? 1 : 0
+      box(el, gx + (i % 2) * (cw + g), top + (i >> 1) * (ch + g), cw, ch)
+      el.style.opacity = twoCol ? (0.12 + 0.88 * ease(done)).toFixed(3) : 0
+      el.classList.toggle('on', twoCol && i === cur && done > 0)
+      el.classList.toggle('empty', done < 1)
+    })
+    L.lora = { cur, live }
+  }
+
+  /* ③ 配音：三张语音卡排满内容区 */
+  {
+    const vb = $('voices'), top = 3 * H + L.aTop[2], AH = L.aH[2]
+    vb.style.setProperty('--ch', px(Math.min(L.narrow ? 92 : 150, (AH - 2 * g) / 3)))
+    vb.style.gap = px(g)
+    box(vb, pad, top, iw, AH)
+    let voiced = 0
+    voices.forEach((v, j) => {
+      const r = ease(seg(c, 0.28 + j * 0.13, 0.37 + j * 0.13))
+      fade(v.el, r, (1 - r) * 22)
+      v.el.classList.toggle('live', r > 0.9)
+      const n = Math.round(BARS * seg(c, 0.32 + j * 0.13, 0.44 + j * 0.13))
+      if (n !== v.shown) { v.shown = n; v.bars.forEach((x, i) => x.classList.toggle('on', i < n)) }
+      if (n >= BARS) voiced++
+      if (r < 0.5 && playing === v) stop(v)
+    })
+    L.voiced = voiced
+  }
+
+  /* 她的表情和回话，只看走到哪一段。台词：开头答应一句，干活时不出声，结束时说一句有偏好的话 */
+  const LINES = {
+    shots: ['好嘞，马上画！', '出来啦！第二只最像馆长，就是看起来有点凶～'],
+    lora: ['换画风？交给我！', '同一个她，四种画风！我偷偷最喜欢线稿那张。'],
+    voice: ['三个声音，没问题！', '配好啦，旁白那句我念了三遍才满意，快点开听！'],
+  }
+  if (c > 0.12) {
+    if (c < 0.28) { setMood('read'); setText($('say'), LINES.voice[0]) }
+    else if (c < 0.8) { setMood('work'); setText($('say'), LINES.voice[0]) }
+    else { setMood('proud'); setText($('say'), LINES.voice[1]) }
+  } else if (b > 0.12) {
+    if (b < 0.32) { setMood('read'); setText($('say'), LINES.lora[0]) }
+    else if (b < 0.95) { setMood(L.lora.live >= 0 ? 'work' : 'happy'); setText($('say'), LINES.lora[0]) }
+    else { setMood('proud'); setText($('say'), LINES.lora[1]) }
+  } else if (y1 <= 0) {
+    setMood(w0 < 0.35 ? 'happy' : 'read')
+  } else {
+    if (a < 0.18) { setMood('read'); setText($('say'), LINES.shots[0]) }
+    else if (a < 0.84) { setMood('work'); setText($('say'), LINES.shots[0]) }
+    else { setMood('wow'); setText($('say'), LINES.shots[1]) }
+  }
+}
+
+const track = $('track')
+const still = matchMedia('(prefers-reduced-motion: reduce)').matches
+let queued = false
+function measure() {
+  queued = false
+  if (still) return apply(1)
+  const total = track.offsetHeight - innerHeight
+  apply(total > 0 ? clamp((scrollY - track.offsetTop) / total) : 0)
+}
+function onScroll() { if (!queued) { queued = true; requestAnimationFrame(measure) } }
+if (still) root.classList.add('still')
+document.querySelectorAll('#caps [data-seg]').forEach(btn => btn.onclick = () => {
+  const k = +btn.dataset.seg, at = [LEN.wall, LEN.wall + LEN.shots + LEN.lora * 0.14, LEN.wall + LEN.shots + LEN.lora + LEN.voice * 0.14][k] / TOTAL
+  const tr = $('track'); scrollTo({ top: tr.offsetTop + (tr.offsetHeight - innerHeight) * at, behavior: still ? 'auto' : 'smooth' })
+})
+addEventListener('scroll', onScroll, { passive: true })
+addEventListener('resize', onScroll)
+measure()
+</script>
+</body>
+</html>

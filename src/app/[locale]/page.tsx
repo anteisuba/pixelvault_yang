@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 
 import { ROUTES } from '@/constants/routes'
-import { HomeV4Shell } from '@/components/business/home-v4/HomeV4Shell'
+import { HomeV6Shell } from '@/components/business/home-v6/HomeV6Shell'
 import type { AppLocale } from '@/i18n/routing'
 import { pageAddress } from '@/lib/page-address'
 import { getHomeV4ShowcaseShots } from '@/services/homepage-showcase.service'
@@ -48,10 +48,10 @@ export default async function LocalizedRootPage({
   await params
 
   // The opening's wall is the public gallery's latest work. Read here, on the
-  // server, so the deck stays a pure renderer and the shots ship inside the
+  // server, so the stage stays a pure renderer and the shots ship inside the
   // first HTML response. Locale-independent, so the three prerenders share it;
   // the service never throws — it falls back to the bundled strip.
   const showcaseShots = await getHomeV4ShowcaseShots()
 
-  return <HomeV4Shell shots={showcaseShots} />
+  return <HomeV6Shell shots={showcaseShots} />
 }

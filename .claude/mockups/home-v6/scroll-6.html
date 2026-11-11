@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>首页 v6 · 小样 6 · 出图、LoRA、配音</title>
+<style>
+  /* 小样 6（docs/design/home-v6.md 第 23 轮）：到现在定下来的东西连成一页，三段：
+     ① 出图：四张大图连成一条长带，跟着滚动往左走。没有「她挑一张」那一步（owner 第 23 轮去掉）。
+     ② LoRA：一张图，一道线从左刷到右，刷过的地方换成另一种画风，连刷三次（owner 第 24 轮）。
+        你只说一句，不再一句句下指令。用的是首页现有的四张 LoRA 图（同一套挂载、同一个种子，只动画风权重）。
+     ③ 配音：三条真实语音，点了才播。
+     她一直在左下角；你那一句的气泡、奶油底照已定。除了点播放，其余变化只由滚动位置算。 */
+  :root { --ground:#f6f1e7; --ink:#1b1a18; --ink2:#6a665f; --line:rgba(27,26,24,.1); --card:#fff; --bubble:rgba(27,26,24,.07); }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html, body { background:var(--ground); }
+  body { color:var(--ink); font:16px/1.6 -apple-system,"PingFang SC","Hiragino Sans GB","Noto Sans SC",sans-serif; -webkit-font-smoothing:antialiased; }
+  button { font:inherit; color:inherit; cursor:pointer; }
+
+  /* 小样自己的工具条，不属于设计 */
+  .tools { position:fixed; z-index:20; top:12px; left:12px; display:flex; align-items:center; gap:10px; padding:6px 12px; border-radius:999px; background:rgba(27,26,24,.86); color:#fff; font-size:12px; }
+  .tools b { font-weight:600; }
+  .tools output { font:12px ui-monospace,Menlo,monospace; min-width:3.2em; text-align:right; opacity:.8; }
+  .tools .seg { display:flex; background:rgba(255,255,255,.14); border-radius:999px; padding:2px; }
+  .tools .seg button { border:0; background:transparent; color:#fff; border-radius:999px; padding:3px 10px; font-size:12px; white-space:nowrap; }
+  .tools .seg button[aria-pressed="true"] { background:#fff; color:#1b1a18; }
+
+  .track { height:1060vh; position:relative; }
+  .stage { --S:min(58svh, 44vw); --edge:5vw; position:sticky; top:0; height:100vh; height:100svh; overflow:hidden; }
+
+  .her { position:absolute; left:0; bottom:0; width:var(--S); aspect-ratio:1; transform:translate(-10%, 10%); }
+  .say { position:absolute; z-index:6; left:calc(var(--S) * .3); bottom:calc(var(--S) * .85); max-width:min(16em, 42vw - var(--S) * .3 - 24px); background:var(--card); border-radius:20px 20px 20px 6px; padding:10px 18px; box-shadow:0 0 0 1px var(--line), 0 8px 24px rgba(60,40,30,.07); font-size:clamp(16px, 1.25vw, 19px); will-change:transform, opacity; }
+  .swap { animation:swap .22s ease-out; }
+  @keyframes swap { from { translate:0 5px; } to { translate:0 0; } }
+
+  /* 你那一句：样子照已定，不改 */
+  .me { position:absolute; z-index:5; right:var(--edge); max-width:16em; background:var(--bubble); border-radius:1.05em; padding:.55em .9em; line-height:1.5; font-weight:500; word-break:keep-all; overflow-wrap:anywhere; will-change:top, font-size, opacity, transform; }
+
+  .layer { position:absolute; inset:0; pointer-events:none; }
+  .tile { position:absolute; overflow:hidden; background:var(--bubble); will-change:left, top, width, height, opacity, filter; }
+  .tile img { display:block; width:100%; height:100%; object-fit:cover; }
+  .tile .tag { position:absolute; left:10px; top:10px; background:rgba(27,26,24,.86); color:#fff; font-size:12px; line-height:1; padding:6px 10px; border-radius:999px; white-space:nowrap; }
+  /* LoRA：四种画风叠在同一张卡里，上面的几层用 clip-path 从左往右露出来 */
+  .tile .ly { position:absolute; inset:0; will-change:clip-path; overflow:hidden; background:#fff; }
+  .tile .wipe { position:absolute; top:0; bottom:0; width:3px; margin-left:-1.5px; background:#fff; box-shadow:0 0 0 1px rgba(27,26,24,.18), 0 0 18px rgba(27,26,24,.35); opacity:0; }
+
+  /* 语音消息：白卡、黑色播放钮，播过的波形变黑 */
+  .voices { --ch:120px; position:absolute; display:flex; flex-direction:column; justify-content:center; gap:16px; pointer-events:none; }
+  .voice { height:var(--ch); display:grid; grid-template-columns:auto minmax(0, 1fr) auto; align-items:center; gap:calc(var(--ch) * .14); background:var(--card); border-radius:calc(var(--ch) * .3); padding:0 calc(var(--ch) * .16) 0 calc(var(--ch) * .14); box-shadow:0 0 0 1px var(--line), 0 8px 24px rgba(60,40,30,.07); will-change:transform, opacity; }
+  .voice.live { pointer-events:auto; }
+  .voice img { width:calc(var(--ch) * .56); height:calc(var(--ch) * .56); border-radius:50%; object-fit:cover; background:var(--bubble); display:block; }
+  .voice .txt { font-size:clamp(15px, calc(var(--ch) * .15), 28px); font-weight:500; line-height:1.35; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .voice .wave { display:flex; align-items:center; gap:calc(var(--ch) * .02); height:calc(var(--ch) * .26); margin-top:calc(var(--ch) * .06); }
+  .voice .wave i { flex:1 1 0; min-width:2px; max-width:7px; border-radius:3px; background:var(--ink); opacity:.22; transform:scaleY(0); }
+  .voice .wave i.on { transform:scaleY(1); }
+  .voice .wave i.played { opacity:1; }
+  .voice .play { width:calc(var(--ch) * .44); height:calc(var(--ch) * .44); border-radius:50%; border:0; background:var(--ink); color:#fff; display:grid; place-items:center; }
+  .voice .play svg { width:40%; height:40%; fill:currentColor; }
+  .voice .play .pause, .voice.playing .play .tri { display:none; }
+  .voice.playing .play .pause { display:block; }
+  .voice .play:focus-visible { outline:2px solid #3346e8; outline-offset:3px; }
+
+  .hint { position:absolute; left:0; right:0; bottom:22px; text-align:center; font-size:13px; color:var(--ink2); pointer-events:none; }
+
+  .next { min-height:70svh; display:flex; flex-direction:column; justify-content:center; gap:14px; padding:64px max(6vw, 20px); border-top:1px solid var(--line); }
+  .next h2 { font-size:clamp(24px, 3vw, 40px); font-weight:650; }
+  .next p { color:var(--ink2); max-width:56ch; }
+  .next .ask { color:var(--ink); background:var(--card); border-radius:16px; padding:14px 18px; box-shadow:0 0 0 1px var(--line); max-width:56ch; }
+
+  @media (max-width:760px) {
+    .stage { --S:min(33svh, 64vw); --edge:16px; }
+    .say { left:calc(var(--S) * .3); bottom:calc(var(--S) * .86); max-width:calc(100vw - var(--S) * .3 - 16px); font-size:15px; padding:8px 14px; }
+    .me { max-width:13em; word-break:normal; }
+    .voices { gap:10px; }
+    .voice .txt { white-space:normal; }
+    .tools { flex-wrap:wrap; border-radius:18px; max-width:calc(100vw - 24px); }
+    .tile .tag { font-size:10px; padding:4px 7px; left:6px; top:6px; }
+  }
+  /* 减少动态效果：不钉、不推进，直接停在最后一段的结果 */
+  .still .track { height:auto; }
+  .still .stage { position:relative; }
+  .still .hint { display:none; }
+</style>
+</head>
+<body>
+<div class="tools" aria-label="小样工具条"><b>小样 6</b><output id="pct">0%</output></div>
+
+<main>
+  <section class="track" id="track">
+    <div class="stage" id="stage">
+      <div class="me" id="me1">戴圆眼镜的橘猫馆长，坐在挂满画的美术馆前台，午后的光</div>
+      <div class="me" id="me2">抱着黑皮书的女孩，米白大衣。换几种画风看看</div>
+      <div class="me" id="me3">给今晚的画展配三句：温柔的女声，少年，再来一段旁白</div>
+      <div class="layer" id="shots"></div>
+      <div class="layer" id="loras"></div>
+      <div class="voices" id="voices"></div>
+      <div class="her" id="her"></div>
+      <div class="say" id="say">嗯嗯，我看看。</div>
+      <div class="hint" id="hint">往下滚</div>
+    </div>
+  </section>
+
+  <section class="next">
+    <h2>下一段：她陪你聊天</h2>
+    <p>还没做。这个小样是出图、LoRA、配音三段连起来。配音用的是首页现有的三条真实语音，她自己的声音还没录。</p>
+    <p class="ask">看完请回答一个问题：LoRA 那一段一张图刷过去换画风，是你要的样子吗？</p>
+  </section>
+</main>
+
+<script src="her.js"></script>
+<script>
+const $ = id => document.getElementById(id)
+const root = document.documentElement
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v))
+const seg = (p, a, b) => clamp((p - a) / (b - a))
+const ease = t => t * t * (3 - 2 * t)
+const mix = (a, b, t) => a + (b - a) * t
+const G = 14
+
+/* 三段各占多少屏的滚动距离 */
+const LEN = { shots: 300, lora: 380, voice: 300 }
+const TOTAL = LEN.shots + LEN.lora + LEN.voice
+
+const SHOTS = ['flux-2-pro', 'gemini-3-pro', 'gpt-image-2', 'seedream-5-0'].map(k => `media/production/quad/quad-${k}.webp`)
+/* 同一套挂载、同一个种子，只动画风权重：扁平线稿 2 → 0.1，手办质感 0.1 → 2 */
+const LORAS = ['扁平线稿', '偏线稿', '偏手办', '手办质感']
+const VOICES = [['qing', '今晚的画展，八点开始。'], ['lei', '好，我把海报再改一版。'], ['ke', '而此刻，馆里的灯一盏盏亮了。']]
+const BARS = 44
+
+function makeTile(layer, src, alt, tag) {
+  const t = document.createElement('figure'); t.className = 'tile'
+  t.innerHTML = `<img src="${src}" alt="${alt}" decoding="async">${tag ? `<span class="tag">${tag}</span>` : ''}`
+  layer.append(t); return t
+}
+const shots = SHOTS.map((src, i) => makeTile($('shots'), src, `她出的第 ${i + 1} 张图`))
+const lora = document.createElement('figure'); lora.className = 'tile'
+lora.innerHTML = LORAS.map((tag, i) => `<div class="ly"><img src="media/production/lora/lora-body-${i + 1}.webp" alt="同一张图，${tag}" decoding="async"><span class="tag">${tag}</span></div>`).join('') + '<i class="wipe" aria-hidden="true"></i>'
+$('loras').append(lora)
+const loraLayers = [...lora.querySelectorAll('.ly')], wipeLine = lora.querySelector('.wipe')
+
+/* 三条语音：波形从真实音频里量；量不到就用一组固定的高低 */
+let playing = null
+const voices = VOICES.map(([key, text], j) => {
+  const el = document.createElement('div'); el.className = 'voice'
+  el.innerHTML = `<img src="media/production/voice/avatar-${key}.webp" alt=""><div><div class="txt">${text}</div><div class="wave" aria-hidden="true">${'<i></i>'.repeat(BARS)}</div></div>
+    <button class="play" aria-label="播放：${text}"><svg class="tri" viewBox="0 0 20 20"><path d="M6 3.5v13l11-6.5z"/></svg><svg class="pause" viewBox="0 0 20 20"><path d="M5 3h3.6v14H5zM11.4 3H15v14h-3.6z"/></svg></button>`
+  $('voices').append(el)
+  const bars = [...el.querySelectorAll('.wave i')], src = `media/production/voice/voice-${key}-zh.mp3`
+  const setHeights = hs => bars.forEach((b, i) => { b.style.height = Math.round(mix(14, 100, hs[i])) + '%' })
+  setHeights(bars.map((_, i) => 0.35 + 0.65 * Math.abs(Math.sin(i * 1.7 + j * 2.1) * Math.cos(i * 0.37 + j))))
+  fetch(src).then(r => r.arrayBuffer()).then(buf => new (window.AudioContext || window.webkitAudioContext)().decodeAudioData(buf)).then(a => {
+    const d = a.getChannelData(0), step = Math.floor(d.length / BARS), peaks = []
+    for (let i = 0; i < BARS; i++) { let m = 0; for (let k = i * step; k < (i + 1) * step; k += 32) m = Math.max(m, Math.abs(d[k])); peaks.push(m) }
+    const top = Math.max(...peaks) || 1; setHeights(peaks.map(v => Math.sqrt(v / top)))
+  }).catch(() => {})
+  const audio = new Audio(src); audio.preload = 'none'
+  return { el, bars, audio, text, shown: 0 }
+})
+function paintPlayed(v) { const k = v.audio.duration ? v.audio.currentTime / v.audio.duration : 0; v.bars.forEach((b, i) => b.classList.toggle('played', v === playing && i / BARS < k)) }
+function tick() { if (!playing) return; paintPlayed(playing); requestAnimationFrame(tick) }
+function stop(v) { v.audio.pause(); v.audio.currentTime = 0; v.el.classList.remove('playing'); if (playing === v) playing = null; paintPlayed(v); v.el.querySelector('.play').setAttribute('aria-label', '播放：' + v.text) }
+voices.forEach(v => {
+  v.el.querySelector('.play').onclick = () => {
+    if (playing === v) { stop(v); mood = ''; return measure() }
+    if (playing) stop(playing)
+    playing = v; v.el.classList.add('playing'); v.el.querySelector('.play').setAttribute('aria-label', '停止')
+    v.audio.play().then(() => { her.act('hum'); tick() }).catch(() => stop(v))
+  }
+  v.audio.onended = () => { stop(v); mood = ''; measure() }
+})
+
+const her = Her.mount($('her'), { transparent: true })
+let mood = ''
+function setMood(m) { if (playing) return; if (m !== mood) { mood = m; her.mood(m) } }
+const shown = new Map()
+function setText(el, text) {
+  if (shown.get(el) === text) return
+  shown.set(el, text); el.textContent = text
+  el.classList.remove('swap'); void el.offsetWidth; el.classList.add('swap')
+}
+function fade(el, o, dy = 0) { el.style.opacity = clamp(o).toFixed(3); el.style.transform = dy ? `translateY(${dy.toFixed(1)}px)` : '' }
+function put(t, r, o) {
+  t.style.left = r.x.toFixed(1) + 'px'; t.style.top = r.y.toFixed(1) + 'px'
+  t.style.width = r.w.toFixed(1) + 'px'; t.style.height = r.h.toFixed(1) + 'px'
+  t.style.opacity = clamp(o).toFixed(3)
+}
+const lerpRect = (a, b, t) => ({ x: mix(a.x, b.x, t), y: mix(a.y, b.y, t), w: mix(a.w, b.w, t), h: mix(a.h, b.h, t) })
+
+/* 你那一句：m 是从「最大的字」收成「右上角气泡」的进度 */
+function placeMe(el, m, narrow) {
+  const big = narrow ? 26 : clamp(innerWidth * 0.036, 30, 56)
+  el.style.fontSize = mix(big, narrow ? 16 : 19, m).toFixed(1) + 'px'
+  el.style.top = mix(narrow ? 22 : 33, narrow ? 12 : 9, m).toFixed(2) + 'svh'
+}
+
+/* 图和语音都放在你那一句下面这一块：从气泡底到屏幕底（手机上到她头顶），左边到她为止，右边和气泡对齐。
+   w × h 是一张大图的尺寸；xr 是贴着右边那条线的位置；minX 是往左最远还完整看得见的位置。
+   bx / bw 是「两张大图并排」占的那一块：LoRA 和配音也照这一块的大小放，三段一样大 */
+function zone(narrow) {
+  const st = $('stage'), me = $('me1'), vw = st.clientWidth, vh = st.clientHeight, S = $('her').offsetWidth
+  const right = vw - (narrow ? 16 : vw * 0.05), left = narrow ? 16 : S * 0.9 + 20
+  const top = me.offsetTop + me.offsetHeight + (narrow ? 8 : G)
+  const bottom = narrow ? vh - S * 1.12 : vh - Math.max(20, vh * 0.03)
+  const H = Math.max(80, bottom - top), W = right - left
+  const h = Math.min(H, W / 0.75), w = h * 0.75, xr = right - w
+  const fit = Math.floor((xr - left) / (w + G))
+  const bx = fit >= 1 ? xr - (w + G) : left
+  return { left, right, top, H, W, w, h, xr, minX: xr - fit * (w + G), bx, bw: right - bx, narrow }
+}
+
+function apply(p) {
+  const narrow = innerWidth <= 760
+  const y = p * TOTAL
+  const a = clamp(y / LEN.shots), b = clamp((y - LEN.shots) / LEN.lora), c = clamp((y - LEN.shots - LEN.lora) / LEN.voice)
+  $('pct').textContent = Math.round(p * 100) + '%'
+  $('hint').style.opacity = (1 - seg(a, 0.03, 0.1)).toFixed(3)
+
+  /* —— ① 出图：长带 —— */
+  placeMe($('me1'), ease(seg(a, 0.11, 0.31)), narrow)
+  const Z = zone(narrow)
+  const outA = ease(seg(b, 0, 0.08))
+  fade($('me1'), 1 - outA, -outA * 60)
+  const rs = shots.map((_, i) => ease(seg(a, 0.4 + i * 0.1, 0.53 + i * 0.1)))
+  const cam = rs[1] + rs[2] + rs[3] // 每来一张，带子往左走一格
+  shots.forEach((t, i) => {
+    const x = Z.xr + (i - cam) * (Z.w + G)
+    put(t, { x, y: Z.top + (Z.H - Z.h) / 2 + (1 - rs[i]) * 18 - outA * 60, w: Z.w, h: Z.h }, rs[i] * clamp((x - (Z.minX - 60)) / 60) * (1 - outA))
+    t.style.borderRadius = '20px'
+    t.style.filter = rs[i] < 1 ? `blur(${((1 - rs[i]) * 14).toFixed(1)}px)` : 'none'
+  })
+  const made = rs.filter(r => r >= 1).length
+
+  /* —— ② LoRA：一张图，一道线从左刷到右，刷过的地方换成下一种画风 —— */
+  const outB = ease(seg(c, 0, 0.08)), inB = ease(seg(b, 0.08, 0.16))
+  const me2 = $('me2')
+  placeMe(me2, ease(seg(b, 0.18, 0.28)), narrow)
+  fade(me2, inB * (1 - outB), (1 - inB) * 48 - outB * 60)
+  const r0 = ease(seg(b, 0.3, 0.4))
+  // 只放一张（owner 第 26 轮）：全身，和出图那一段的一张大图一样大，贴着右边那条线
+  put(lora, { x: Z.xr, y: Z.top + (Z.H - Z.h) / 2 + (1 - r0) * 18 - outB * 60, w: Z.w, h: Z.h }, r0 * (1 - outB))
+  lora.style.borderRadius = '20px'
+  lora.style.filter = r0 < 1 ? `blur(${((1 - r0) * 14).toFixed(1)}px)` : 'none'
+  // 三次刷：0.46–0.60、0.64–0.78、0.82–0.96。匀速，线走到哪里看得清
+  const wipes = [1, 2, 3].map(n => seg(b, 0.46 + (n - 1) * 0.18, 0.6 + (n - 1) * 0.18))
+  loraLayers.forEach((ly, i) => { if (i) ly.style.clipPath = `inset(0 ${((1 - wipes[i - 1]) * 100).toFixed(2)}% 0 0)` })
+  const live = wipes.findIndex(t => t > 0 && t < 1)
+  wipeLine.style.opacity = live < 0 ? 0 : 1
+  if (live >= 0) wipeLine.style.left = (wipes[live] * 100).toFixed(2) + '%'
+  const styled = wipes.filter(t => t >= 1).length // 已经刷完几次
+
+  /* —— ③ 配音 —— */
+  const me3 = $('me3'), inC = ease(seg(c, 0.08, 0.16))
+  placeMe(me3, ease(seg(c, 0.2, 0.32)), narrow)
+  fade(me3, inC, (1 - inC) * 48)
+  const vbox = $('voices'), vgap = narrow ? 10 : 16
+  vbox.style.left = Z.bx.toFixed(1) + 'px'; vbox.style.width = Z.bw.toFixed(1) + 'px'
+  vbox.style.top = Z.top.toFixed(1) + 'px'; vbox.style.height = Z.H.toFixed(1) + 'px'
+  vbox.style.setProperty('--ch', Math.min(200, (Z.H - 2 * vgap) / 3).toFixed(1) + 'px') // 一张卡的高度
+  let voiced = 0
+  voices.forEach((v, j) => {
+    const r = ease(seg(c, 0.38 + j * 0.12, 0.47 + j * 0.12))
+    fade(v.el, r, (1 - r) * 22)
+    v.el.classList.toggle('live', r > 0.9)
+    const n = Math.round(BARS * seg(c, 0.42 + j * 0.12, 0.54 + j * 0.12))
+    if (n !== v.shown) { v.shown = n; v.bars.forEach((x, i) => x.classList.toggle('on', i < n)) }
+    if (n >= BARS) voiced++
+    if (r < 0.5 && playing === v) stop(v)
+  })
+
+  /* —— 她的气泡和表情，只看走到哪一段 —— */
+  const say = $('say')
+  let on
+  if (c > 0) on = ease(seg(c, 0.33, 0.38)) + (c < 0.2 ? 1 - ease(seg(c, 0, 0.06)) : 0)
+  else if (b > 0) on = ease(seg(b, 0.28, 0.33)) + (b < 0.2 ? 1 - ease(seg(b, 0, 0.06)) : 0)
+  else on = ease(seg(a, 0.3, 0.37))
+  fade(say, on, (1 - clamp(on)) * 10)
+  if (c > 0) {
+    if (c < 0.17) setMood('idle')
+    else if (c < 0.37) { setMood('read'); if (c > 0.22) setText(say, '三个声音，好。') }
+    else if (c < 0.78) { setMood('work'); setText(say, `配音中 · ${Math.min(voiced + 1, 3)}/3`) }
+    else { setMood('happy'); setText(say, '配好了，点一下听听。') }
+  } else if (b > 0) {
+    if (b < 0.17) setMood('idle')
+    else if (b < 0.4) { setMood(b < 0.3 ? 'read' : 'work'); if (b > 0.22) setText(say, '好，先来线稿。') }
+    else if (b < 0.96) { setMood(live >= 0 ? 'work' : 'happy'); setText(say, ['这是扁平线稿。', '换一种。', '再换一种。', '再换一种。'][live >= 0 ? live + 1 : styled]) }
+    else { setMood('wow'); setText(say, '同一张图，四种画风。') }
+  } else {
+    if (a < 0.28) setMood(a < 0.11 ? 'idle' : 'read')
+    else if (a < 0.39) { setMood('read'); setText(say, '嗯嗯，我看看。') }
+    else if (a < 0.85) { setMood('work'); setText(say, made ? `画画中 · ${made}/4` : '好，这就画。') }
+    else if (a < 0.93) { setMood('wow'); setText(say, '出来了！') }
+    else { setMood('happy'); setText(say, '要改哪里，说一声就行。') }
+  }
+}
+
+const track = $('track')
+const still = matchMedia('(prefers-reduced-motion: reduce)').matches
+let queued = false
+function measure() {
+  queued = false
+  if (still) return apply(1)
+  const total = track.offsetHeight - innerHeight
+  apply(total > 0 ? clamp((scrollY - track.offsetTop) / total) : 0)
+}
+function onScroll() { if (!queued) { queued = true; requestAnimationFrame(measure) } }
+if (still) root.classList.add('still')
+addEventListener('scroll', onScroll, { passive: true })
+addEventListener('resize', onScroll)
+measure()
+</script>
+</body>
+</html>

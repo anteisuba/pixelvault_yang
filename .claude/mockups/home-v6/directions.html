@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>首页 v6 三方向</title>
+<style>
+  :root { --bg:#f4f3ef; --ink:#121214; --ink2:#55565c; --line:rgba(0,0,0,.08); --card:#fff; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--ink); font:15px/1.6 -apple-system,"PingFang SC","Noto Sans SC",sans-serif; -webkit-font-smoothing:antialiased; }
+  .tabs { position:sticky; top:0; z-index:9; display:flex; gap:6px; padding:12px 16px; background:rgba(244,243,239,.86); backdrop-filter:blur(12px); border-bottom:1px solid var(--line); overflow-x:auto; }
+  .tabs button { border:0; background:transparent; padding:8px 14px; border-radius:999px; font:inherit; font-size:14px; color:var(--ink2); cursor:pointer; white-space:nowrap; }
+  .tabs button.on { background:var(--ink); color:#fff; }
+  .tabs .replay { margin-left:auto; background:#fff; box-shadow:0 0 0 1px var(--line); color:var(--ink); }
+  .dir { display:none; } .dir.on { display:block; }
+  .note { max-width:1080px; margin:0 auto; padding:28px 16px 64px; display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:16px; }
+  .note div { background:#fff; border-radius:16px; padding:16px 18px; box-shadow:0 0 0 1px var(--line); font-size:14px; color:var(--ink2); }
+  .note h4 { font-size:13px; color:var(--ink); margin-bottom:6px; }
+  .ph { border-radius:12px; background:linear-gradient(135deg,var(--a,#c9b8a6),var(--b,#6d5a4c)); position:relative; overflow:hidden; }
+  .ph::after { content:attr(data-l); position:absolute; left:8px; bottom:6px; font:500 11px ui-monospace,monospace; color:rgba(255,255,255,.85); }
+  .in { opacity:0; transform:translateY(10px); transition:opacity .5s cubic-bezier(.22,1,.36,1), transform .5s cubic-bezier(.22,1,.36,1); }
+  .in.show { opacity:1; transform:none; }
+  @media (prefers-reduced-motion:reduce){ .in{transition:none;opacity:1;transform:none} }
+
+  /* ── A 一段对话 ── */
+  #A .stage { min-height:calc(100svh - 58px); display:flex; flex-direction:column; align-items:center; padding:48px 16px 24px; }
+  #A h1 { font-size:clamp(28px,4vw,44px); line-height:1.2; font-weight:600; text-align:center; letter-spacing:-.01em; }
+  #A .sub { color:var(--ink2); margin-top:8px; text-align:center; }
+  #A .chat { width:min(680px,100%); margin-top:32px; display:flex; flex-direction:column; gap:14px; }
+  #A .me { align-self:flex-end; background:#e8e7e2; border-radius:18px; padding:10px 14px; max-width:80%; }
+  #A .her { display:flex; gap:10px; align-items:flex-start; }
+  #A .av { width:28px; height:28px; border-radius:50%; background:linear-gradient(135deg,#f0c9a8,#b4785a); flex:none; }
+  #A .proc { font-size:12px; color:var(--ink2); }
+  #A .grid4 { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-top:8px; }
+  #A .grid4 .ph { aspect-ratio:3/4; }
+  #A .grid4 .ph.pick { outline:2px solid #3346e8; outline-offset:2px; }
+  #A .vid { aspect-ratio:16/9; margin-top:8px; }
+  #A .composer { width:min(680px,100%); margin-top:auto; padding-top:24px; }
+  #A .box { background:#fff; border-radius:22px; padding:14px 16px; box-shadow:0 6px 24px rgba(0,0,0,.06),0 0 0 1px var(--line); display:flex; align-items:center; gap:10px; }
+  #A .box span { flex:1; color:#8a8b90; }
+  #A .box b { background:var(--ink); color:#fff; border-radius:999px; padding:8px 16px; font-weight:500; font-size:14px; }
+
+  /* ── B 她做 · 你改 ── */
+  #B .stage { min-height:calc(100svh - 58px); display:grid; grid-template-columns:minmax(300px,380px) 1fr; }
+  #B .left { padding:40px 28px; display:flex; flex-direction:column; gap:14px; border-right:1px solid var(--line); background:#fff; }
+  #B h1 { font-size:clamp(26px,2.8vw,36px); line-height:1.2; font-weight:600; }
+  #B .msg { font-size:14px; } #B .msg.me { align-self:flex-end; background:#efeee9; padding:8px 12px; border-radius:14px; }
+  #B .msg.sys { color:var(--ink2); font-size:12px; }
+  #B .board { position:relative; background-image:radial-gradient(rgba(0,0,0,.13) 1px,transparent 1px); background-size:18px 18px; overflow:hidden; }
+  #B .node { position:absolute; width:170px; background:#fff; border-radius:12px; padding:8px; box-shadow:0 0 0 1px rgba(0,0,0,.05),0 12px 32px rgba(0,0,0,.12); font-size:12px; }
+  #B .node .ph { aspect-ratio:4/3; margin-top:6px; }
+  #B .node.edit { box-shadow:0 0 0 2px var(--ink),0 12px 32px rgba(0,0,0,.12); }
+  #B .cursor { position:absolute; width:18px; height:18px; transition:left .8s cubic-bezier(.22,1,.36,1), top .8s cubic-bezier(.22,1,.36,1); z-index:3; }
+  #B svg.wires { position:absolute; inset:0; width:100%; height:100%; }
+  #B svg path { fill:none; stroke:#8e8c86; stroke-width:1.6; stroke-dasharray:400; stroke-dashoffset:400; transition:stroke-dashoffset .9s ease; }
+  #B svg path.show { stroke-dashoffset:0; }
+  @media (max-width:760px){ #B .stage{grid-template-columns:1fr; grid-template-rows:auto 420px} #B .left{border-right:0;border-bottom:1px solid var(--line)} }
+
+  /* ── C 换灵魂 ── */
+  #C .stage { min-height:calc(100svh - 58px); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:40px 16px; gap:22px; background:radial-gradient(ellipse at 50% 30%,#fff 0,var(--bg) 70%); transition:background .6s; }
+  #C .who { width:min(300px,64vw); aspect-ratio:3/4; border-radius:28px; transition:background .6s, transform .6s cubic-bezier(.22,1,.36,1); }
+  #C .line { font-size:clamp(20px,2.4vw,28px); font-weight:500; text-align:center; min-height:2.6em; max-width:640px; transition:opacity .25s, filter .25s; }
+  #C .line.swap { opacity:0; filter:blur(6px); }
+  #C .ring { display:flex; gap:10px; }
+  #C .ring button { width:52px; height:52px; border-radius:50%; border:0; cursor:pointer; outline:2px solid transparent; outline-offset:3px; transition:outline-color .2s, transform .2s; }
+  #C .ring button.on { outline-color:var(--ink); transform:scale(1.06); }
+  #C .works { display:flex; gap:8px; } #C .works .ph { width:72px; aspect-ratio:3/4; transition:background .6s; }
+  #C .name { font-size:13px; color:var(--ink2); }
+</style>
+</head>
+<body>
+<nav class="tabs">
+  <button data-d="A" class="on">A · 一段对话</button>
+  <button data-d="B">B · 她做，你改</button>
+  <button data-d="C">C · 换一个灵魂</button>
+  <button class="replay" id="replay">重播</button>
+</nav>
+
+<!-- A -->
+<section class="dir on" id="A">
+  <div class="stage">
+    <h1 class="in">说一句，她替你做完。</h1>
+    <p class="sub in">ANTEI 是一个有灵魂的 AI 助手 · 接 23 个模型 · 你随时能改</p>
+    <div class="chat">
+      <div class="me in">雨夜车站，一个撑伞的女孩回头，做成 5 秒的片子</div>
+      <div class="her in"><i class="av"></i><div><div class="proc">图片台 · NAI v4.5 · 4 张</div>先出了四张定妆，第 2 张的伞和光最对，我用它往下做。<div class="grid4"><i class="ph" data-l="图_1"></i><i class="ph pick" data-l="图_2" style="--a:#9fb0c8;--b:#3e4a63"></i><i class="ph" data-l="图_3" style="--a:#b8a8c9;--b:#4f3f63"></i><i class="ph" data-l="图_4" style="--a:#a8c9bd;--b:#3f6355"></i></div></div></div>
+      <div class="her in"><i class="av"></i><div><div class="proc">配音间 · Fish Audio · 「等很久了吗」</div><div class="proc">视频台 · Seedance · 首帧 = 图_2 · 5 秒</div>好了。要换成白天，或者让她先开口？<i class="ph vid" data-l="成片 · 5s" style="--a:#7d8db0;--b:#1f2638;display:block"></i></div></div>
+    </div>
+    <div class="composer in"><div class="box"><span>和她说…</span><b>开始</b></div></div>
+  </div>
+  <div class="note">
+    <div><h4>点子</h4>首屏不是介绍，是一段正在发生的对话：你的一句话 → 她出图、挑图、配音、出片。模型名只以「过程行」灰字出现，介绍模型 = 她在用它们。往下滚是第二、三段对话（LoRA 定角色、看你给的参考图），最后是阵容网格。</div>
+    <div><h4>结构</h4>单栏居中，正常滚动；末尾输入框就是 CTA（点了未登录弹登录，登录后带着这句话进 /studio）。手机天然成立：就是一个聊天页。</div>
+    <div><h4>优点 / 风险</h4>和登录后的 /studio 首页一模一样的骨架，门厅 = 预演。风险：像 ChatGPT 的营销页，需要靠真作品撑辨识度；对话得是真跑出来的录像，不能编。</div>
+  </div>
+</section>
+
+<!-- B -->
+<section class="dir" id="B">
+  <div class="stage">
+    <div class="left">
+      <h1 class="in">她做，你随时改。</h1>
+      <div class="msg me in">拍一段雨夜车站的三镜短片</div>
+      <div class="msg in">我先搭镜头表：定妆 → 三个分镜 → 配音 → 成片。</div>
+      <div class="msg sys in" id="bEdit">你改了「镜 2」：伞换成红色</div>
+      <div class="msg in" id="bReply">收到，镜 2 和成片我重出，其余不动。</div>
+    </div>
+    <div class="board" id="board">
+      <svg class="wires"><path id="w1" d="M200 110 C 260 110, 260 70, 320 70"/><path id="w2" d="M200 110 C 260 110, 260 230, 320 230"/><path id="w3" d="M490 150 C 540 150, 540 160, 580 160"/></svg>
+      <div class="node in" style="left:30px;top:50px">定妆 · NAI v4.5<i class="ph" data-l="图_2" style="--a:#9fb0c8;--b:#3e4a63;display:block"></i></div>
+      <div class="node in" style="left:320px;top:20px">镜 1 · 远景<i class="ph" data-l="镜1" style="--a:#8fa0b8;--b:#2e3a53;display:block"></i></div>
+      <div class="node in" id="n2" style="left:320px;top:180px">镜 2 · 近景<i class="ph" id="n2img" data-l="镜2" style="--a:#a0b0c4;--b:#38445a;display:block"></i></div>
+      <div class="node in" style="left:580px;top:100px">成片 · Seedance<i class="ph" id="finalimg" data-l="15s" style="--a:#7d8db0;--b:#1f2638;display:block"></i></div>
+      <svg class="cursor" id="cur" viewBox="0 0 24 24" style="left:700px;top:380px"><path d="M3 2l7 19 2.5-7.5L20 11z" fill="#121214" stroke="#fff" stroke-width="1.5"/></svg>
+    </div>
+  </div>
+  <div class="note">
+    <div><h4>点子</h4>讲定位后半句「你随时能改」。左边她在说，右边画布上节点一张张长出来、连线；中途一只「你的手」（光标）点开镜 2 改了一个词，她只重出受影响的那两张。</div>
+    <div><h4>结构</h4>桌面左右分屏、右侧是真画布的缩小版；往下滚换三个场景（出图改词 / LoRA 换角色 / 换音色）。手机：上面对话、下面画布小窗。</div>
+    <div><h4>优点 / 风险</h4>唯一能把「可控」演出来的方向，和画布镜头表主线一致。风险：画面信息多，首屏一眼读懂难度最高；画布节点长相还在 p-canvas-nodes 里变，首页会跟着改。</div>
+  </div>
+</section>
+
+<!-- C -->
+<section class="dir" id="C">
+  <div class="stage" id="cStage">
+    <i class="who" id="who"></i>
+    <div class="name" id="cName">默认助手</div>
+    <p class="line" id="cLine">我叫 ANTEI。你说想做什么，我来画、来配音、来剪。</p>
+    <div class="works"><i class="ph" data-l="作品"></i><i class="ph" data-l="作品"></i><i class="ph" data-l="作品"></i><i class="ph" data-l="作品"></i></div>
+    <div class="ring" id="ring"></div>
+  </div>
+  <div class="note">
+    <div><h4>点子</h4>讲定位前半句「有灵魂」。首屏是一个人，不是一个工具；点下面的头像换角色，她的样子、说话口吻、声音（点了播一句）、她替你画出的作品一起换。</div>
+    <div><h4>结构</h4>人物居中舞台 + 一排可换的灵魂；往下滚才讲「她的四只手」（图 / 视频 / 声音 / 文字，各一屏真结果 + 用到的模型）和阵容。手机：同一屏竖排，头像一排横滑。</div>
+    <div><h4>优点 / 风险</h4>辨识度最高，没有别家这样讲。风险：角色素材要真且全年龄；「会聊天的朋友」容易被看成陪聊产品，创作能力要在第二屏立刻接上。</div>
+  </div>
+</section>
+
+<script>
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches
+const wait = ms => new Promise(r => setTimeout(r, reduce ? 0 : ms))
+let run = 0
+async function play(id){
+  const my = ++run
+  const root = document.getElementById(id)
+  const items = [...root.querySelectorAll('.in')]
+  items.forEach(el => el.classList.remove('show'))
+  if (id === 'B') resetB()
+  for (const el of items){
+    if (my !== run) return
+    if (id === 'B' && el.id === 'bEdit'){ await editB(); if (my !== run) return }
+    el.classList.add('show')
+    if (id === 'B' && el.classList.contains('node')) wiresFor(el)
+    await wait(id === 'A' ? 900 : 650)
+  }
+}
+function resetB(){
+  document.querySelectorAll('#B path').forEach(p => p.classList.remove('show'))
+  document.getElementById('n2').classList.remove('edit')
+  document.getElementById('n2img').style.cssText = '--a:#a0b0c4;--b:#38445a;display:block'
+  document.getElementById('finalimg').style.cssText = '--a:#7d8db0;--b:#1f2638;display:block'
+  document.getElementById('cur').style.cssText = 'left:700px;top:380px'
+}
+function wiresFor(el){
+  const t = el.textContent
+  if (t.startsWith('镜 1')) document.getElementById('w1').classList.add('show')
+  if (t.startsWith('镜 2')) document.getElementById('w2').classList.add('show')
+  if (t.startsWith('成片')) document.getElementById('w3').classList.add('show')
+}
+async function editB(){
+  const cur = document.getElementById('cur')
+  cur.style.left = '400px'; cur.style.top = '250px'
+  await wait(900)
+  document.getElementById('n2').classList.add('edit')
+  document.getElementById('n2img').style.cssText = '--a:#e0a0a0;--b:#7a2c2c;display:block'
+  await wait(500)
+  document.getElementById('finalimg').style.cssText = '--a:#c08a8a;--b:#3a1f24;display:block'
+}
+const souls = [
+  { n:'默认助手', l:'我叫 ANTEI。你说想做什么，我来画、来配音、来剪。', a:'#f0c9a8', b:'#b4785a', bg:'#f4f3ef' },
+  { n:'Denia · 你的角色', l:'今天画我吗？上次那套黑袍我还想再穿一次。', a:'#2e2e3a', b:'#8a8fb0', bg:'#e9e9f1' },
+  { n:'雾岛 · 你的角色', l:'雨停之前，给我拍一段吧。我念台词，你来剪。', a:'#9fb0c8', b:'#3e4a63', bg:'#e6edf2' },
+  { n:'阿柚 · 你的角色', l:'好耶！这回想要水彩还是赛璐璐？我都会～', a:'#ffd1a8', b:'#e0786a', bg:'#f7ece4' },
+]
+const ring = document.getElementById('ring')
+souls.forEach((s, i) => {
+  const b = document.createElement('button')
+  b.setAttribute('aria-label', s.n)
+  b.style.background = `linear-gradient(135deg,${s.a},${s.b})`
+  b.onclick = () => setSoul(i)
+  ring.append(b)
+})
+function setSoul(i){
+  const s = souls[i]
+  ;[...ring.children].forEach((b, j) => b.classList.toggle('on', j === i))
+  document.getElementById('who').style.background = `linear-gradient(160deg,${s.a},${s.b})`
+  document.getElementById('cStage').style.background = `radial-gradient(ellipse at 50% 30%,#fff 0,${s.bg} 70%)`
+  document.querySelectorAll('#C .works .ph').forEach((p, k) => p.style.cssText = `--a:${s.a};--b:${s.b};filter:hue-rotate(${k*14}deg)`)
+  const line = document.getElementById('cLine'), name = document.getElementById('cName')
+  line.classList.add('swap')
+  setTimeout(() => { line.textContent = s.l; name.textContent = s.n; line.classList.remove('swap') }, reduce ? 0 : 250)
+}
+setSoul(0)
+let cTimer
+document.querySelectorAll('.tabs [data-d]').forEach(btn => btn.onclick = () => {
+  document.querySelectorAll('.tabs [data-d]').forEach(b => b.classList.toggle('on', b === btn))
+  document.querySelectorAll('.dir').forEach(d => d.classList.toggle('on', d.id === btn.dataset.d))
+  start(btn.dataset.d)
+})
+function start(id){
+  clearInterval(cTimer)
+  if (id === 'C'){ let k = 0; if (!reduce) cTimer = setInterval(() => setSoul(++k % souls.length), 3200) }
+  else play(id)
+}
+document.getElementById('replay').onclick = () => start(document.querySelector('.tabs .on').dataset.d)
+start('A')
+</script>
+</body>
+</html>

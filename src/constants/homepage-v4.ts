@@ -133,6 +133,9 @@ export const HOME_V4_STRIP_SPARES = [
 export interface HomeV4ShowcaseShot {
   id: string
   src: string
+  /** 原图宽高。v6 作品墙按它排瀑布；兜底的静态图没有，按 3:4 算。 */
+  w?: number
+  h?: number
 }
 
 export const HOME_V4_SHOWCASE = {

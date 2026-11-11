@@ -48,8 +48,12 @@ const ALLOWED_CONSUMERS: Readonly<Record<string, readonly string[]>> = {
     'components/business/home-v4/HomeV4ModelSheet.tsx',
     'components/business/home-v4/HomeV4ModelStrip.tsx',
     'components/business/home-v4/HomeV4Opening.tsx',
+    'components/business/home-v6/HomeV6Shell.tsx',
   ],
-  Legal: ['components/business/LegalPage.tsx'],
+  Legal: [
+    'components/business/LegalPage.tsx',
+    'components/business/home-v6/HomeV6Shell.tsx',
+  ],
   // Server-only: consumed via `getTranslations` inside `generateMetadata`,
   // which never crosses the client boundary.
   Metadata: [],

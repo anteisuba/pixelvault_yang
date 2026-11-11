@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>她 · 全身</title>
+<style>
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:#f6f3ec; color:#141416; font:14px/1.6 -apple-system,"PingFang SC",sans-serif; padding:32px 16px 64px; }
+  h1 { font-size:22px; font-weight:600; text-align:center; }
+  .sub { text-align:center; color:#6b6c72; margin-top:4px; }
+  .row { display:flex; gap:20px; justify-content:center; flex-wrap:wrap; margin-top:28px; }
+  .card { width:min(320px,100%); background:#fff; border-radius:28px; box-shadow:0 0 0 1px rgba(0,0,0,.05),0 14px 36px rgba(0,0,0,.06); padding:16px 16px 18px; display:flex; flex-direction:column; align-items:center; }
+  .fig { position:relative; width:100%; aspect-ratio:2400/3760; cursor:pointer; }
+  .fig > * { position:absolute; }
+  .fig svg { inset:0; width:100%; height:100%; overflow:visible; pointer-events:none; }
+  .fig .head { left:14.583%; top:-1.596%; width:83.333%; height:53.191%; }
+  .card b { font-size:16px; margin-top:6px; }
+  .card p { font-size:13px; color:#6b6c72; text-align:center; margin-top:2px; }
+  .btns { display:flex; gap:6px; margin-top:12px; }
+  .btns button { border:0; border-radius:999px; padding:6px 13px; background:#f1efea; cursor:pointer; font:inherit; font-size:13px; }
+  .all { display:flex; justify-content:center; margin-top:22px; }
+  .all button { border:0; border-radius:999px; padding:10px 20px; background:#141416; color:#fff; font:inherit; font-weight:600; cursor:pointer; }
+</style>
+</head>
+<body>
+<h1>她 · 全身</h1>
+<p class="sub">头就是头像原图（会眨眼、跟着鼠标看、有表情），下面接代码画的身子，三套衣服并排。点她挥手</p>
+<div class="row" id="row"></div>
+<div class="all"><button id="allWave">一起挥手</button></div>
+
+<script src="her.js?v=2"></script>
+<script>
+/* 头像同色：发 · 发暗部 · 皮肤 · 眼 · 腮红 · 耳内 · 眼镜 */
+const C = { hair:'#f7b5c3', hairD:'#eba1b4', skin:'#fdf1e4', eye:'#d46c8c', eyeL:'#e48aa6', blush:'#f9d0c9', inner:'#fdf0e2', glass:'#8a5a6c', line:'#c95f80' }
+
+const OUTFITS = [
+  { key:'maid', name:'小女仆', note:'黑白经典款，粉色只留在头发和领结',
+    dress:'#3b3542', cuff:'#fff', apron:'#fff', sock:'#fff', shoe:'#3b3542', tail:'#e9b949' },
+  { key:'painter', name:'小画师', note:'奶白罩衫 + 牛仔围裙沾颜料，手里一支笔',
+    dress:'#fbf3e6', cuff:'#fbf3e6', apron:'#5d7ba6', sock:'#6a4d48', shoe:'#8a6150', tail:'#5d7ba6' },
+  { key:'hoodie', name:'大卫衣', note:'奶白宽卫衣袖子盖手，粉白条纹袜',
+    dress:'#f3eee4', cuff:'#f3eee4', apron:'#e7dfd0', sock:'#fff', shoe:'#fff', tail:'#f5b5c4' },
+]
+
+const scallop = (x0, x1, y, r, fill) => {
+  let d = `M${x0} ${y}`
+  for (let x = x0; x < x1; x += r * 2) d += ` a${r} ${r} 0 0 0 ${r * 2} 0`
+  return `<path d="${d} L${x1} ${y - r} L${x0} ${y - r}Z" fill="${fill}"/>`
+}
+const arm = (o, paw) => `
+  <path d="M-13 0 C-17 30 -15 55 -11 68 L11 68 C14 50 14 25 13 0Z" fill="${o.dress}"/>
+  ${paw ? `<path d="M-13 62 C-14 80 14 80 13 62Z" fill="${o.cuff}"/>`
+        : `<rect x="-12" y="60" width="24" height="9" rx="4" fill="${o.cuff}"/><circle cy="78" r="10" fill="${C.skin}"/>`}`
+
+function outfit(o) {
+  if (o.key === 'maid') return {
+    back: '',
+    body: `
+      <path d="M152 388 C135 420 118 450 112 470 C150 480 250 480 288 470 C282 450 265 420 248 388Z" fill="${o.dress}"/>
+      ${scallop(112, 288, 482, 8, '#fff')}
+      <path d="M155 310 C150 340 150 370 152 392 L248 392 C250 370 250 340 245 310 C230 302 170 302 155 310Z" fill="${o.dress}"/>
+      <path d="M176 322 L224 322 L228 394 L172 394Z" fill="#fff"/>
+      <path d="M170 392 C162 420 156 444 154 462 Q200 472 246 462 C244 444 238 420 230 392Z" fill="#fff"/>
+      ${scallop(154, 246, 468, 6, '#fff')}
+      <path d="M200 312 L168 306 C166 322 180 330 200 322Z M200 312 L232 306 C234 322 220 330 200 322Z" fill="#fff"/>
+      <path d="M200 318 L184 308 L184 328Z M200 318 L216 308 L216 328Z" fill="${C.eye}"/><circle cx="200" cy="318" r="5" fill="${C.line}"/>`,
+    head: headband(),
+  }
+  if (o.key === 'painter') return {
+    back: '',
+    body: `
+      <path d="M152 388 C138 420 124 450 118 474 C150 484 250 484 282 474 C276 450 262 420 248 388Z" fill="${o.dress}"/>
+      <path d="M155 310 C150 340 150 370 152 392 L248 392 C250 370 250 340 245 310 C230 302 170 302 155 310Z" fill="${o.dress}"/>
+      <path d="M174 330 L226 330 L230 394 C238 420 242 444 244 466 Q200 476 156 466 C158 444 162 420 170 394Z" fill="${o.apron}"/>
+      <path d="M174 330 L162 312 M226 330 L238 312" stroke="${o.apron}" stroke-width="5" stroke-linecap="round"/>
+      <rect x="184" y="404" width="32" height="24" rx="5" fill="#4d6890"/>
+      <path d="M190 404 l2 -14 M198 404 l1 -18 M206 404 l-1 -12" stroke="#8a6150" stroke-width="3" stroke-linecap="round"/>
+      <circle cx="182" cy="350" r="5" fill="#f2c94c"/><circle cx="216" cy="372" r="4" fill="${C.hair}"/><circle cx="222" cy="446" r="5" fill="#fbf3e6"/><circle cx="176" cy="438" r="3.5" fill="#f2c94c"/>
+      <path d="M200 306 C180 302 166 310 168 322 C182 326 194 320 200 312 C206 320 218 326 232 322 C234 310 220 302 200 306Z" fill="#fff"/>`,
+    head: '',
+    hand: `<path d="M0 78 L-6 128" stroke="#8a6150" stroke-width="5" stroke-linecap="round"/><path d="M-6 126 C-12 134 -8 146 -4 148 C0 142 2 132 -6 126Z" fill="${C.hair}"/>`,
+  }
+  return {
+    back: `<path d="M150 300 C150 278 250 278 250 300 C250 318 150 318 150 300Z" fill="#e7dfd0"/>`,
+    body: `
+      <path d="M150 310 C140 350 138 400 140 440 C170 452 230 452 260 440 C262 400 260 350 250 310 C230 300 170 300 150 310Z" fill="${o.dress}"/>
+      <rect x="140" y="430" width="120" height="14" rx="7" fill="#e7dfd0"/>
+      <path d="M176 384 Q200 376 224 384 L226 412 Q200 418 174 412Z" fill="#e7dfd0"/>
+      <g fill="${C.hair}"><ellipse cx="200" cy="400" rx="7" ry="6"/><circle cx="190" cy="390" r="3"/><circle cx="200" cy="387" r="3"/><circle cx="210" cy="390" r="3"/></g>
+      <path d="M188 316 L186 346 M212 316 L214 346" stroke="${C.hair}" stroke-width="3" stroke-linecap="round"/>
+      <circle cx="186" cy="348" r="3.5" fill="${C.hair}"/><circle cx="214" cy="348" r="3.5" fill="${C.hair}"/>`,
+    head: '',
+    paw: true,
+  }
+}
+
+function legs(o) {
+  const stripes = o.key === 'hoodie'
+  const leg = x => `
+    <rect x="${x - 9}" y="${stripes ? 440 : 470}" width="18" height="${stripes ? 92 : 62}" rx="8" fill="${o.key === 'maid' ? '#f7e3d2' : o.sock}"/>
+    ${o.key === 'maid' ? `<rect x="${x - 9}" y="500" width="18" height="32" rx="6" fill="#fff"/>${scallop(x - 9, x + 9, 504, 3, '#fff')}` : ''}
+    ${stripes ? [0,1,2,3,4,5].map(i => `<rect x="${x - 9}" y="${448 + i * 14}" width="18" height="6" fill="${C.hair}"/>`).join('') : ''}
+    <path d="M${x - 13} 546 C${x - 14} 528 ${x + 14} 526 ${x + 15} 540 L${x + 15} 546Z" fill="${o.shoe}" ${o.shoe === '#fff' ? 'stroke="#e2dccf" stroke-width="2"' : ''}/>`
+  return leg(184) + leg(216)
+}
+
+/* 女仆头饰：沿头顶的弧画在头像那层（2000 坐标），跟着她歪头 */
+function headband() {
+  const P = [[330, 720], [860, 150], [1460, 780]], q = (t, i) => (1 - t) ** 2 * P[0][i] + 2 * t * (1 - t) * P[1][i] + t * t * P[2][i]
+  let band = '', frill = ''
+  for (let i = 0; i <= 12; i++) {
+    const t = .08 + i / 12 * .84, x = q(t, 0), y = q(t, 1)
+    const dx = 2 * (1 - t) * (P[1][0] - P[0][0]) + 2 * t * (P[2][0] - P[1][0]), dy = 2 * (1 - t) * (P[1][1] - P[0][1]) + 2 * t * (P[2][1] - P[1][1]), n = Math.hypot(dx, dy)
+    frill += `<circle cx="${x + dy / n * 40}" cy="${y - dx / n * 40}" r="44" fill="#fff"/>`
+    band += `${i ? 'L' : 'M'}${x} ${y} `
+  }
+  return `<g>${frill}<path d="${band}" fill="none" stroke="#fff" stroke-width="64" stroke-linecap="round"/><path d="${band}" fill="none" stroke="#3b3542" stroke-width="16" stroke-linecap="round" opacity=".9"/></g>`
+}
+
+/* 头像原图 2000×2000：左边从 y=827 往下、底边 x<361 被裁掉，后面补一团同色头发接上；
+   下巴最低点约 (950, 1758)。身子沿用 400 坐标，放大 8 倍挂在下巴下面（约 2.3 头身） */
+const S = 'translate(950 1740) scale(8) translate(-200 -300)'
+const HAIR_EXT = `M14 826 C-130 860 -250 1040 -246 1260 C-242 1400 -170 1460 -186 1590 C-204 1760 -150 1930 -20 2030 C80 2104 236 2112 330 2040 C300 2020 300 1990 361 1984 L14 1984Z`
+
+function back(o, f) {
+  return `<svg viewBox="-350 60 2400 3760" xmlns="http://www.w3.org/2000/svg">
+  <ellipse cx="950" cy="3720" rx="520" ry="60" fill="rgba(0,0,0,.06)"/>
+  <path d="${HAIR_EXT}" fill="${C.hair}"/>
+  <g transform="${S}">
+    <g data-p="tail"><path d="M232 440 C290 450 326 410 312 364 C306 344 318 330 332 340" fill="none" stroke="${C.hair}" stroke-width="16" stroke-linecap="round"/>
+      <circle cx="234" cy="440" r="7" fill="${o.tail}"/></g>
+    ${f.back}
+    ${legs(o)}
+    <g transform="translate(152 318) rotate(14)">${arm(o, f.paw)}</g>
+    ${f.body}
+    <rect x="186" y="280" width="28" height="30" fill="${C.skin}"/>
+  </g></svg>`
+}
+function front(o, f) {
+  return `<svg viewBox="-350 60 2400 3760" xmlns="http://www.w3.org/2000/svg">
+  <path d="${HAIR_EXT}" fill="${C.hair}"/>
+  <g transform="${S}"><g transform="translate(248 318)"><g data-p="armR" transform="rotate(-14)">${arm(o, f.paw)}${f.hand || ''}</g></g></g></svg>`
+}
+
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches
+const rigs = []
+const row = document.getElementById('row')
+OUTFITS.forEach((o, i) => {
+  const f = outfit(o)
+  const card = document.createElement('div'); card.className = 'card'
+  card.innerHTML = `<div class="fig">${back(o, f)}<div class="head"></div>${front(o, f)}</div><b>${o.name}</b><p>${o.note}</p><div class="btns"><button data-a="wave">挥手</button><button data-a="hop">跳一下</button><button data-a="wink">得意</button></div>`
+  row.append(card)
+  const fig = card.querySelector('.fig')
+  const her = Her.mount(fig.querySelector('.head'), { transparent: true, extra: f.head || '' })
+  const rig = { fig, her, tail: fig.querySelector('[data-p="tail"]'), armR: fig.querySelector('[data-p="armR"]'), phase: i * 1.7, wave: -1e9, hop: -1e9 }
+  rigs.push(rig)
+  fig.onclick = () => act(rig, 'wave')
+  card.querySelectorAll('button').forEach(b => b.onclick = () => act(rig, b.dataset.a))
+})
+document.getElementById('allWave').onclick = () => rigs.forEach((r, i) => setTimeout(() => act(r, 'wave'), i * 120))
+
+function act(r, a) {
+  const now = performance.now()
+  if (a === 'wave') { r.wave = now; r.hop = now + 80; r.her.mood('happy'); setTimeout(() => r.her.mood('idle'), 1500) }
+  if (a === 'hop') r.hop = now
+  if (a === 'wink') { r.her.mood('proud'); setTimeout(() => r.her.mood('idle'), 1600) }
+}
+
+const ease = t => t < 0 ? 0 : t > 1 ? 1 : 1 - Math.pow(1 - t, 3)
+const tr = (el, v) => el && el.setAttribute('transform', v)
+function frame(now) {
+  for (const r of rigs) {
+    const t = reduce ? 0 : now / 1000 + r.phase
+    /* 整个人一起轻轻上下；跳的时候落地压扁一下 */
+    let y = Math.sin(t * 2) * .35, sq = 1
+    const hopT = (now - r.hop) / 520
+    if (hopT >= 0 && hopT < 1) { y -= Math.sin(hopT * Math.PI) * 4; sq = hopT < .12 || hopT > .88 ? .97 : 1.02 }
+    r.fig.style.transform = `translateY(${y}%) scale(${2 - sq}, ${sq})`
+    r.fig.style.transformOrigin = '50% 99%'
+    tr(r.tail, `rotate(${Math.sin(t * 1.8) * 9} 232 440)`)
+    /* 挥手：抬起 → 摆三下 → 放下 */
+    const wt = (now - r.wave) / 1500
+    let rot = -14
+    if (wt >= 0 && wt < 1) {
+      const up = wt < .18 ? ease(wt / .18) : wt > .82 ? 1 - ease((wt - .82) / .18) : 1
+      rot = -14 + up * -112 + (wt > .18 && wt < .82 ? Math.sin((wt - .18) / .64 * Math.PI * 6) * 16 : 0)
+    }
+    tr(r.armR, `rotate(${rot})`)
+  }
+  requestAnimationFrame(frame)
+}
+requestAnimationFrame(frame)
+</script>
+</body>
+</html>

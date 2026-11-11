@@ -84,7 +84,9 @@ describe('getHomeV4ShowcaseShots（真库）', () => {
 
     const shots = await getHomeV4ShowcaseShots()
     expect(shots).toHaveLength(MIN_TOTAL)
-    expect(shots[0]).toEqual({ id: newest, src: thumb(newest) })
+    expect(shots[0]).toMatchObject({ id: newest, src: thumb(newest) })
+    expect(shots[0]?.w).toBeGreaterThan(0)
+    expect(shots[0]?.h).toBeGreaterThan(0)
     const ids = shots.map((shot) => shot.id)
     for (const id of [...hidden, noThumb.id]) expect(ids).not.toContain(id)
   })

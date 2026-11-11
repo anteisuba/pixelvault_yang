@@ -1030,6 +1030,174 @@
       "tagline": "Generate, archive and reuse in one place. Every result keeps its key settings.",
       "privacy": "Privacy policy",
       "terms": "Terms of service"
+    },
+    "v6": {
+      "headline": ["Say it once.", "She does the rest."],
+      "hint": "Scroll",
+      "me": [
+        "A ginger cat curator in round glasses at a museum front desk, a name badge that reads “Curator”, framed paintings behind, warm light, shallow depth of field",
+        "A girl holding a black book, in an off-white coat. Try a few art styles",
+        "Three lines for tonight’s show: a gentle woman’s voice, a boy, and a narrator",
+        "Make a 30-second short: a rainy day, two people sharing one umbrella home",
+        "Can someone else keep me company today?",
+        "What do you think of this one?"
+      ],
+      "sys": "ANTEI is taking a break. Little Whale is here.",
+      "lines": {
+        "shots": [
+          "On it, drawing now!",
+          "Done! The second one looks most like a curator. Just a little grumpy~"
+        ],
+        "lora": [
+          "New styles? Leave it to me!",
+          "Same her, four styles! Secretly the line art one is my favourite."
+        ],
+        "voice": [
+          "Three voices, no problem!",
+          "All voiced! I read the narrator three times till I liked it. Go listen!"
+        ],
+        "canvas": [
+          "On it, storyboard first!",
+          "Done! The hydrangeas in shot three are my favourite~"
+        ],
+        "char": [
+          "Sure, I’ll go get Little Whale~",
+          "…Mm. I’m Little Whale. I talk slowly. I draw fast."
+        ]
+      },
+      "wallAlt": "A work from the gallery",
+      "shotAlt": "Her picture no. {n}",
+      "loraStyles": [
+        "Flat line art",
+        "Line art",
+        "Figure-ish",
+        "Figure finish"
+      ],
+      "loraAlt": "The same picture, {style}",
+      "play": "Play: {text}",
+      "stop": "Stop",
+      "canvas": {
+        "castLabel": "Character",
+        "castName": "Xiaoman",
+        "castSub": "Lead · look locked",
+        "scriptLabel": "Storyboard · The Umbrella",
+        "script": [
+          "At the shoe lockers, she watches the rain",
+          "He opens the umbrella, tilts it her way",
+          "They walk up a slope lined with hydrangeas",
+          "In the arcade, the lamps come on one by one",
+          "They part at the corner; she turns and waves"
+        ],
+        "seconds": "30 s",
+        "shotCount": "5 shots",
+        "shotChip": "Image",
+        "clipChip": "▶ 6 s",
+        "shotDone": "Image ✓",
+        "clipDone": "Clip 6 s ✓",
+        "shotLabel": "Shot {n} · {name}",
+        "shotNames": [
+          "Lockers",
+          "One umbrella",
+          "Hydrangea slope",
+          "Arcade",
+          "Corner"
+        ],
+        "clipLabel": "Clip {n}",
+        "lineLabel": "Line · {who}",
+        "who": {
+          "qing": "Woman",
+          "lei": "Boy",
+          "ke": "Narrator"
+        },
+        "filmLabel": "Final cut · The Umbrella",
+        "caps": [
+          "School’s out. Still raining.",
+          "“Walk with me.”",
+          "Hydrangeas all the way.",
+          "The arcade lights come on.",
+          "“See you tomorrow.”"
+        ]
+      },
+      "char": {
+        "picAlt": "Her second picture",
+        "herName": "ANTEI",
+        "herWhen": "said last time",
+        "whaleName": "Little Whale",
+        "whaleWhen": "says now",
+        "whaleQuote": "…Mm. It sits so steady. Like a rock in the sea. I like it."
+      },
+      "lineup": {
+        "title": "She picks the model",
+        "sub": "You just say it. She decides which one.",
+        "groups": {
+          "image": "Images",
+          "video": "Video",
+          "audio": "Voice"
+        },
+        "pro": "When she reaches for it",
+        "con": "When she doesn’t",
+        "guide": "…I pick which one. Hover one to see what it has made.",
+        "loraSub": "Not a model. It rides on one.",
+        "sampleAlt": "Made with {name}",
+        "langs": "Language",
+        "rows": {
+          "gpt": {
+            "pro": "A long, detailed brief where nothing can be missed. Editing, too.",
+            "con": "When you’re in a hurry or need a lot at once. It’s slow, and it costs more.",
+            "say": "…For a long list of asks, it’s the one I trust."
+          },
+          "gemini": {
+            "pro": "Editing. What you didn’t ask it to change barely moves, and the same person stays recognisable in a new scene.",
+            "con": "Big changes, like day to night or blending several pictures into one. The seams can show.",
+            "say": "…For edits I go to it. It leaves the rest alone."
+          },
+          "seedream": {
+            "pro": "Text and layout in the picture. Posters, signs, Chinese lettering.",
+            "con": "Small, dense text, like infographics or interfaces. The fine print comes out wrong.",
+            "say": "…Any lettering on a poster, I hand to it."
+          },
+          "novelai": {
+            "pro": "Anime. Several characters in one frame without their looks bleeding together.",
+            "con": "Photos or realism. It only draws anime, and it needs your own NovelAI subscription.",
+            "say": "…For anime, I play favourites. This one."
+          },
+          "lora": {
+            "pro": "When the same person has to look the same every time, or you’ve settled on a style.",
+            "con": "It only fits its own family of models. Switch families and it won’t load.",
+            "say": "…It isn’t a model. It’s how I remember a person, or a style."
+          },
+          "seedance": {
+            "pro": "Shots where someone speaks. The lips match, and the sound comes with it.",
+            "con": "One long take. It runs a dozen seconds or so, and with a long line the lips drift by the end.",
+            "say": "…When someone has to talk, I go to it."
+          },
+          "wan": {
+            "pro": "One shot that has to run long. Orbit, push in: it follows the camera.",
+            "con": "Dialogue that needs lip sync. It sometimes cuts on its own, too.",
+            "say": "…For one long take, I go to it."
+          },
+          "minimax": {
+            "pro": "Working from references: hand it the person, the camera move and the voice together. The sharpest picture, too.",
+            "con": "Big motion and physics. Seedance does that better.",
+            "say": "…When you have references, I go to it."
+          },
+          "fish": {
+            "pro": "Reading lines. Write the emotion right into the line, and clone a voice.",
+            "con": "One very long read needs tuning in parts, and the stock voices are fewer than elsewhere.",
+            "say": "…Every voice here is this one."
+          }
+        }
+      },
+      "footer": {
+        "worksTitle": "Works on this page",
+        "works": "All from public works in the ANTEI gallery.",
+        "aiTitle": "AI-generated",
+        "ai": "The images, video and voices on this page are made with AI.",
+        "namesTitle": "Model names",
+        "names": "GPT Image, Gemini, Seedream, NovelAI, Seedance, Wan, MiniMax and Fish Audio names and marks belong to their companies. ANTEI uses their public APIs and is not affiliated with them.",
+        "nav": "Legal",
+        "guidelines": "Content Guidelines"
+      }
     }
   },
   "Auth": {

@@ -51,6 +51,8 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getChipZoomMotion } from '@/components/business/studio-shared/primitives/tool-surface'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { useErrorText } from '@/hooks/use-error-text'
 import {
   SaveTemplateDialog,
@@ -818,7 +820,7 @@ export function StudioTemplatesPanel({
                               url={recipe.coverThumbnailUrl ?? null}
                             />
                             <span className="flex min-w-0 flex-col gap-0.5 px-0.5 pb-0.5">
-                              <input
+                              <Input
                                 type="text"
                                 aria-label={t('renameLabel')}
                                 value={draft}
@@ -848,7 +850,7 @@ export function StudioTemplatesPanel({
                                   event.currentTarget.blur()
                                 }}
                                 onBlur={() => commitRename(recipe)}
-                                className="h-7 w-full rounded-md border border-foreground bg-background px-2 text-base font-semibold outline-none md:text-2sm"
+                                className="h-7 px-2.5 font-semibold"
                               />
                               <span className="text-2xs text-muted-foreground">
                                 {t('renameHint')}
@@ -983,34 +985,28 @@ export function StudioTemplatesPanel({
                 <span className="text-2sm font-semibold text-foreground/75">
                   {t('nameLabel')}
                 </span>
-                <input
+                <Input
                   type="text"
                   value={formName}
                   maxLength={200}
                   autoFocus
                   onChange={(event) => setFormName(event.target.value)}
                   placeholder={t(NAME_PLACEHOLDER_KEY[kind])}
-                  className={cn(
-                    'rounded-lg border border-border bg-background px-3 text-base outline-none focus-visible:border-foreground focus-visible:ring-3 focus-visible:ring-muted md:text-2sm',
-                    phone ? 'h-11' : 'h-9',
-                  )}
+                  className={phone ? 'h-11' : undefined}
                 />
               </label>
               <label className="flex flex-col gap-1.5">
                 <span className="text-2sm font-semibold text-foreground/75">
                   {t(tags ? 'tagsLabel' : 'promptLabel')}
                 </span>
-                <textarea
+                <Textarea
                   value={formPrompt}
                   rows={8}
                   onChange={(event) => setFormPrompt(event.target.value)}
                   placeholder={t(
                     tags ? 'tagsPlaceholder' : 'promptPlaceholder',
                   )}
-                  className={cn(
-                    'resize-none rounded-lg border border-border bg-background px-3 py-2.5 text-base leading-5 outline-none focus-visible:border-foreground focus-visible:ring-3 focus-visible:ring-muted md:text-2sm',
-                    phone && 'h-40',
-                  )}
+                  className={cn('resize-none leading-5', phone && 'h-40')}
                 />
               </label>
               {/* 手机：取消 / 保存各占一半、44px；那句说明只在缺模型时出现。 */}

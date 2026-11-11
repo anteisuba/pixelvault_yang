@@ -182,6 +182,8 @@ function listSourceFiles(dir: string): string[] {
 function messageKeyExists(
   messages: Record<string, unknown>,
   keyPath: string,
+  /** `t.raw(key)` 可以取整个对象（首页 v6 一次取 `Homepage.v6`），叶子和对象都算存在。 */
+  allowObject = false,
 ): boolean {
   let current: unknown = messages
   for (const part of keyPath.split('.')) {
@@ -191,7 +193,7 @@ function messageKeyExists(
     current = current[part]
   }
 
-  return !isRecord(current)
+  return allowObject || !isRecord(current)
 }
 
 function getStringValue(expression: ts.Expression | undefined): string | null {
@@ -405,7 +407,7 @@ function scanStaticTranslationUsage(
       const fullKey = translator.namespace
         ? `${translator.namespace}.${key}`
         : key
-      if (messageKeyExists(messages, fullKey)) {
+      if (messageKeyExists(messages, fullKey, methodName === 'raw')) {
         continue
       }
 

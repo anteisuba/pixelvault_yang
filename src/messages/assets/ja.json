@@ -99,7 +99,7 @@
     "bulkPublishShort": "公開",
     "bulkPublishConfirm": "{count}件の素材を公開ギャラリーに公開しますか？",
     "bulkPublishSuccess": "{count} 件の素材をギャラリーに公開しました",
-    "bulkPublishBlocked": "{count} 件はプロンプトに未成年を示す語と性的な語が両方含まれているため、公開しませんでした",
+    "bulkPublishBlocked": "{count} 件はプロンプトに成人向けの内容が含まれるため、公開しませんでした（公開ギャラリーは全年齢向けです）",
     "bulkPublishFailed": "公開に失敗しました",
     "bulkPublishView": "ギャラリーで見る",
     "bulkFavorite": "お気に入り",

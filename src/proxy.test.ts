@@ -209,7 +209,7 @@ describe('proxy internal execution routes', () => {
     expect(authChecks()).toBe(0)
   })
 
-  it('lets a signed-out reader open the terms and the privacy policy', async () => {
+  it('lets a signed-out reader open the terms, the privacy policy and the content guidelines', async () => {
     // The auth card's "by continuing you agree to our terms" links point here.
     // While these were protected, following one bounced the reader to sign-in —
     // the screen that had just asked them to agree.
@@ -218,6 +218,7 @@ describe('proxy internal execution routes', () => {
       '/zh/privacy',
       '/en/terms',
       '/ja/privacy',
+      '/zh/guidelines',
     ]) {
       await middleware(
         {

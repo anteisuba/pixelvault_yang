@@ -21,6 +21,7 @@ import {
 } from '@/lib/folder-tree'
 import { cn } from '@/lib/utils'
 import type { ProjectRecord } from '@/types'
+import { Input } from '@/components/ui/input'
 
 /**
  * picker 的文件夹导航栏 —— `docs/references/pages/assets.md` §8.1。
@@ -141,13 +142,13 @@ export function AssetPickerFolderNav({
     >
       <div className="relative p-1.5 md:px-3 md:pt-3.5 md:pb-1.5">
         <Search className="pointer-events-none absolute left-3.5 top-1/2 size-3 -translate-y-1/2 text-muted-foreground md:left-6.5 md:size-3.5" />
-        <input
+        <Input
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder={t('folderSearch')}
           aria-label={t('folderSearch')}
-          className="h-11 w-full rounded-md border border-border/60 bg-background/40 pl-7 pr-1.5 text-base text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-foreground/40 md:h-9 md:rounded-full md:border-0 md:bg-muted md:pl-9 md:text-2sm md:focus-visible:shadow-focus"
+          className="h-11 pl-7 pr-1.5 md:h-9 md:pl-9"
         />
       </div>
 

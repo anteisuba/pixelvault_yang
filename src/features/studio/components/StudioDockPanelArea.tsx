@@ -28,6 +28,7 @@ import {
   useButtonFeedback,
 } from '@/components/ui/feedback-button'
 import { Spinner } from '@/components/ui/spinner'
+import { Input } from '@/components/ui/input'
 import {
   StudioPanelHeader,
   studioDialogBaseClass,
@@ -170,7 +171,7 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
           </ResponsiveDialogDescription>
           <div className={DIALOG_BODY}>
             <div className="flex flex-col gap-2">
-              <input
+              <Input
                 type="password"
                 value={state.tokenInput}
                 onChange={(e) =>
@@ -181,7 +182,7 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
                 }
                 placeholder={t('tokenPlaceholder')}
                 // ⚠ <768 必须 ≥16px：iOS 对小于 16px 的可聚焦输入框会自动放大整页。
-                className="w-full rounded-md border border-border/60 bg-background px-2.5 py-2 font-mono text-base focus:border-primary/40 focus:outline-none md:text-2sm"
+                className="font-mono"
               />
               <div className="flex gap-2">
                 {/* 存好了写在键上（输入框随即清空，键在结果态下不跟着变灰）。 */}

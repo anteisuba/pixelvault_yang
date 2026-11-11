@@ -72,7 +72,7 @@ export function StudioOperatorReplyActions({
               save()
             }
           }}
-          className="max-h-72 text-sm"
+          className="max-h-72"
         />
         <div className="flex justify-end gap-1">
           <button

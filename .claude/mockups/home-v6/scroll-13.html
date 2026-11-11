@@ -1,0 +1,846 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>首页 v6 · 小样 13 · 画布三拍、换角色、模型展台</title>
+<style>
+  /* 小样 13（第 43 轮）：owner 第 42 轮否了小样 12 的四处，这里重做。
+     ① 左栏「她能做的」删掉，左栏只留她和她的话。
+     ④ 画布三拍：写分镜、摆节点（角色卡 / 分镜 / 镜头图 / 片段 / 台词，带连线，镜头先贴近再拉远）→ 剪辑台升起（预览 + 三条轨）→ 成片跟着滚动逐帧走。
+        手机上照产品做成一条镜头带。故事用站内自产的《借伞》。
+     ⑤ 换角色发生在她身上：她退场 → 整页底色被刷成小鲸的颜色 → 小鲸从同一位置出来，话是一个字一个字出来的；
+        窗口里同一张图，ANTEI 上次说的和小鲸现在说的并排。
+     ⑥ 模型不再是卡片墙：图片 / 声音 / 视频三个展台，点名字换内容，各带三条事实（照搬产品里模型说明的原话）。
+     小样 12（第 41 轮）：在小样 11 上加三块（owner 第 40 轮）。
+     ④ 画布：五个镜头摆上画布，连线汇到一支成片（借伞短片占位，正式要用前三段的素材真做一支）。
+     ⑤ 角色：她把位置让给另一个娘化角色「小鲸」，长相和说话语气一起换（小鲸的形象还没画，先用她的图换色占位）。
+     ⑥ 模型阵容：舞台松开后正常滚动的一段，图片 / 声音 / 视频三组；视频卡鼠标放上去才播。
+     小样 11（第 39 轮）：在小样 10 上改三处。
+     ① 顶栏：v4 那条浮岛（名字 · 语言 · 一颗门）放在最上面、横跨整屏宽，和窗口同款的白色；窗口从它下面开始；
+        它就是常驻的入口，所以第一屏的大「开始」和名字旁的小「开始」都去掉。
+     ② 左栏「她能做的」：第一屏那句话淡掉后，同一位置换成一列 画图 · 换画风 · 配音，滚到哪段哪项亮，点了跳过去。
+     ③ 她的回话挪出窗口、挂在她头顶，尖角朝下指着她；窗口里只剩你那一句和结果，内容区往上多出一条回话的高度。
+     小样 10（第 36 轮）：在小样 9 上加结尾。「开始」不再淡掉，往下滚时缩成名字旁的小按钮一直留在左上；
+     三段演完，钉住的舞台松开，下面接页脚声明：作品署名、AI 生成说明、模型名归属、条款 / 隐私 / 内容准则、语言、©。
+     小样 9（第 34 轮）：在小样 8 上换掉她的台词。owner 选了性格 A「元气，有偏心」：
+     每段开头答应一句；干活时不说话、只靠表情；结束时说一句有自己偏好的话。去掉「画画中 · 2/4」这类进度字。
+     以下是小样 8 的说明：
+     小样 8（docs/design/home-v6.md 进度阶段 4，第 32 轮）。在小样 7 的布局上加第一屏：
+     左上：名字、一句话、一个入口；左下：她；右边窗口里是一面作品墙（画廊里挑出来的 17 张公开作品）。
+     往下滚：作品墙的四列以不同的速度往上走（视差），然后整条对话往上推，第一段从下面进来——和段与段之间换场是同一个动作。
+     你那一句不再先放大字（第 31 轮去掉了第一屏的大字和输入框），进来时已经是气泡。
+     除了点播放和作品墙第一次载入时由糊变清，其余变化只由滚动位置算。 */
+  :root { --ground:#f6f1e7; --ink:#1b1a18; --ink2:#6a665f; --line:rgba(27,26,24,.1); --card:#fff; --bubble:#efebe4; --ground1:#f6f1e7; --ground2:#e6eff5; }
+  html.sea { --ground:var(--ground2); }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html, body { background:var(--ground); }
+  body { color:var(--ink); font:16px/1.6 -apple-system,"PingFang SC","Hiragino Sans GB","Noto Sans SC",sans-serif; -webkit-font-smoothing:antialiased; }
+  button { font:inherit; color:inherit; cursor:pointer; }
+
+  /* 小样自己的工具条，不属于设计 */
+  .tools { position:fixed; z-index:20; bottom:8px; right:8px; display:flex; align-items:center; gap:10px; padding:4px 10px; border-radius:999px; background:rgba(27,26,24,.78); color:#fff; font-size:11px; }
+  .tools b { font-weight:600; }
+  .tools output { font:11px ui-monospace,Menlo,monospace; min-width:3em; text-align:right; opacity:.8; }
+
+  .track { height:1570vh; position:relative; }
+  .stage { position:sticky; top:0; height:100vh; height:100svh; overflow:hidden; background:var(--ground1); }
+  /* ⑤ 换角色：整页底色从左往右被刷成另一种颜色，和 LoRA 那一段是同一种刷法 */
+  .tide { position:absolute; inset:0; z-index:0; background:var(--ground2); clip-path:inset(0 100% 0 0); pointer-events:none; }
+  .tideline { position:absolute; top:0; bottom:0; width:3px; margin-left:-1.5px; z-index:6; background:#fff; box-shadow:0 0 0 1px rgba(27,26,24,.14), 0 0 24px rgba(40,90,130,.4); opacity:0; pointer-events:none; }
+  .stage.seab .me { background:#dfe8ee; }
+
+  /* 她：原图的左边和下边是裁开的，所以贴着屏幕左下角，往外伸出一成藏住裁口 */
+  .her { position:absolute; left:0; bottom:0; z-index:3; transform:translate(-10%, 10%); will-change:transform; }
+
+  /* 窗口：产品白板的长相——白底、圆角 20、一圈很淡的边 */
+  .win { position:absolute; background:var(--card); border-radius:20px; overflow:hidden; box-shadow:0 0 0 1px rgba(16,18,24,.06), 0 1px 2px rgba(16,18,24,.04), 0 24px 60px rgba(70,45,20,.07); }
+  .thread { position:absolute; left:0; top:0; width:100%; will-change:transform; }
+  .hint { position:absolute; z-index:2; left:0; right:0; bottom:16px; text-align:center; font-size:13px; color:var(--ink2); pointer-events:none; }
+
+  /* 左上：名字、一句话、入口。名字一直在，另外两样往下滚时淡掉 */
+  /* ① 顶栏：和窗口同款的白色小板，圆角全圆 */
+  .nav { position:absolute; z-index:5; height:56px; display:flex; align-items:center; gap:12px; padding:0 10px 0 22px; background:var(--card); border-radius:999px; box-shadow:0 0 0 1px rgba(16,18,24,.06), 0 1px 2px rgba(16,18,24,.04), 0 12px 30px rgba(70,45,20,.06); }
+  .nav .mark { font-size:18px; font-weight:700; letter-spacing:-.01em; margin-right:auto; }
+  .nav .langs { display:flex; gap:2px; }
+  .nav .langs button { border:0; background:transparent; border-radius:999px; height:32px; min-width:38px; padding:0 8px; font:12px ui-monospace,Menlo,monospace; letter-spacing:.06em; color:var(--ink2); }
+  .nav .langs button[aria-pressed="true"] { background:var(--ink); color:#fff; }
+  .nav .go { border:0; border-radius:999px; background:var(--ink); color:#fff; font-size:14px; font-weight:600; height:40px; padding:0 18px; white-space:nowrap; }
+  /* 左栏：第一屏是那一句话，往下滚换成「她能做的」 */
+  .id { position:absolute; z-index:4; }
+  .id h1 { font-size:clamp(28px, 3.1vw, 46px); line-height:1.2; font-weight:650; letter-spacing:-.01em; word-break:keep-all; will-change:opacity, transform; }
+  /* ④ 画布：点阵底的视口，里面是一张能缩放平移的世界；节点卡照工作台现在的长相（圆角 18、两层柔影） */
+  .cv { position:absolute; overflow:hidden; border-radius:16px; background-color:#f7f5f0; background-image:radial-gradient(rgba(28,22,14,.14) 1px, transparent 1.2px); }
+  .world { position:absolute; left:0; top:0; transform-origin:0 0; will-change:transform; }
+  .world svg { position:absolute; left:0; top:0; overflow:visible; pointer-events:none; }
+  .world path { fill:none; stroke:#655f57; stroke-width:1.6; stroke-dasharray:1; stroke-dashoffset:1; }
+  .world path.soft { stroke:#bdb6aa; }
+  .nd { position:absolute; display:flex; flex-direction:column; gap:6px; will-change:opacity, transform; }
+  .nd .nm { font-size:13px; line-height:1.1; color:#4b463f; white-space:nowrap; }
+  .nd .port { position:absolute; width:8px; height:8px; margin:-4px; border-radius:50%; background:#fff; box-shadow:0 0 0 1.5px #655f57; }
+  .cd { position:relative; border-radius:18px; background:#fff; padding:10px; box-shadow:0 0 0 1px rgba(16,18,24,.05), 0 2px 6px rgba(16,18,24,.05), 0 12px 28px rgba(16,18,24,.08); }
+  .cd.media { padding:0; overflow:hidden; }
+  .cd.media img { display:block; width:100%; aspect-ratio:16 / 9; object-fit:cover; }
+  .chip { display:inline-flex; align-items:center; height:22px; padding:0 9px; border-radius:999px; background:#f5f3ef; color:#4b463f; font-size:11px; line-height:1; white-space:nowrap; }
+  .cd.media .chip { position:absolute; left:6px; bottom:6px; background:rgba(23,20,17,.78); color:#fff; }
+  .cd.media .chip.r { left:auto; right:6px; background:#fff; color:#171411; }
+  .cd .dots { position:absolute; right:8px; bottom:14px; display:flex; gap:3px; }
+  .cd .dots i { width:5px; height:5px; border-radius:50%; background:rgba(255,255,255,.5); }
+  .cd .dots i.on { background:#fff; }
+  .cd.text p { font-size:13px; line-height:1.65; color:#171411; white-space:nowrap; will-change:opacity; }
+  .cd.text p span { display:inline-block; width:16px; font:11px ui-monospace,Menlo,monospace; color:#8a847b; }
+  .cd .meta { margin-top:8px; display:flex; gap:6px; }
+  .cd.cast { display:flex; align-items:center; gap:10px; }
+  .cd.cast .face { width:44px; height:44px; border-radius:50%; background:#eee url(media/production/umbrella/umbrella-kf1-entrance.webp) 58% 16% / 520% no-repeat; flex:none; }
+  .cd.cast b { display:block; font-size:14px; line-height:1.3; }
+  .cd.cast span { font-size:11px; color:#655f57; }
+  .cd.audio { display:flex; align-items:center; gap:8px; padding:8px 10px; }
+  .cd.audio img { width:28px; height:28px; border-radius:50%; flex:none; }
+  .wv { flex:1; display:flex; align-items:center; gap:2px; height:22px; min-width:0; }
+  .wv i { flex:1 1 0; border-radius:2px; background:#171411; opacity:.55; }
+  .nd .ln { font-size:14px; line-height:1.5; color:#171411; }
+  .nd > .meta { display:flex; gap:6px; }
+  .nd .port { display:none; }
+  .nd .port.r { left:100%; }
+  .cv:not(.rail) .only-rail, .cv.rail .no-rail, .cv.rail .port { display:none !important; }
+  /* 剪辑台：从下面升上来盖住画布。上面是预览，下面是画面 / 台词 / 字幕三条轨 */
+  .desk { position:absolute; inset:0; background:#fff; display:flex; flex-direction:column; gap:10px; padding:12px; will-change:transform; }
+  .desk .top { display:flex; align-items:center; gap:8px; font-size:12px; color:#655f57; }
+  .desk .top b { color:#171411; font-size:15px; font-weight:600; margin-right:auto; }
+  .desk .pv { position:relative; flex:1 1 0; min-height:0; border-radius:12px; overflow:hidden; background:#14120f; display:grid; place-items:center; }
+  .desk .pv video { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; }
+  .desk .cap { position:absolute; left:0; right:0; bottom:9%; text-align:center; color:#fff; font-size:clamp(13px, 1.5vw, 20px); font-weight:600; text-shadow:0 1px 3px rgba(0,0,0,.8); }
+  .desk .tc { position:absolute; right:10px; top:10px; font:11px ui-monospace,Menlo,monospace; color:#fff; background:rgba(0,0,0,.5); border-radius:999px; padding:4px 8px; }
+  .tl { --lh:44px; position:relative; flex:none; display:grid; grid-template-columns:40px minmax(0, 1fr); gap:6px 0; align-items:center; font-size:11px; color:#655f57; }
+  .tl .lane { position:relative; border-radius:8px; background:#f5f3ef; }
+  .tl .ruler { position:relative; height:12px; font:10px ui-monospace,Menlo,monospace; }
+  .tl .ruler span { position:absolute; top:0; transform:translateX(-50%); }
+  .tl .ruler span:first-child { transform:none; }
+  .tl .ruler span:last-child { transform:translateX(-100%); }
+  .tl .clip { position:absolute; top:0; bottom:0; border-radius:8px; overflow:hidden; }
+  .tl .clip.v { background-size:auto 100%; background-repeat:repeat-x; box-shadow:inset 0 0 0 1px rgba(16,18,24,.16); }
+  .tl .clip.a, .tl .clip.c { background:#fff; box-shadow:inset 0 0 0 1px rgba(16,18,24,.16); display:flex; align-items:center; gap:4px; padding:0 6px; color:#171411; white-space:nowrap; transition:background .15s, color .15s; }
+  .tl .clip.a img { width:16px; height:16px; border-radius:50%; flex:none; }
+  .tl .clip.c span { overflow:hidden; text-overflow:ellipsis; }
+  .tl .clip.on { background:#171411; color:#fff; }
+  .tl .clip.on .wv i { background:#fff; }
+  .tl .heads { position:absolute; left:40px; right:0; top:0; bottom:0; pointer-events:none; }
+  .tl .head { position:absolute; top:0; bottom:0; width:2px; margin-left:-1px; background:#e0492f; }
+  .tl .head::before { content:''; position:absolute; left:-4px; top:-2px; width:10px; height:10px; border-radius:50%; background:#e0492f; }
+  /* ⑤ 换角色：窗口里同一张图，两个人各说一句 */
+  .sys { position:absolute; left:0; width:100%; height:20px; display:flex; align-items:center; gap:12px; padding:0 28px; font-size:13px; line-height:20px; color:var(--ink2); white-space:nowrap; }
+  .sys::before, .sys::after { content:''; flex:1; height:1px; background:var(--line); }
+  .note { position:absolute; display:flex; gap:12px; align-items:flex-start; padding:14px 16px; border-radius:18px; background:#fff; box-shadow:0 0 0 1px var(--line); will-change:opacity, transform; }
+  .note .av { width:44px; height:44px; border-radius:50%; flex:none; object-fit:cover; background:#f3f1ec; }
+  .note .av.sea { background:#a9cdeb; }
+  .note b { display:block; font-size:13px; font-weight:600; }
+  .note b span { font-weight:400; color:var(--ink2); margin-left:6px; }
+  .note q { display:block; margin-top:4px; font-size:clamp(15px, 1.4vw, 20px); line-height:1.5; quotes:none; min-height:1.5em; }
+  .note.old { background:#faf8f4; }
+  .note.old q { color:var(--ink2); }
+  .her2 { position:absolute; left:0; bottom:0; z-index:3; opacity:0; pointer-events:none; mix-blend-mode:multiply; will-change:transform; }
+  .her2 img { display:block; width:100%; height:100%; animation:bob 4.6s ease-in-out infinite; }
+  .her2 .ph { position:absolute; inset:16% 6% -4% 12%; border-radius:48% 48% 36% 36%; background:#a9cdeb; display:grid; place-items:center; text-align:center; font-size:13px; line-height:1.6; color:#24506e; }
+  @keyframes bob { 50% { translate:0 -1.4%; } }
+  @media (prefers-reduced-motion: reduce) { .her2 img { animation:none; } }
+  .say.whale { background:#f4f9fc; letter-spacing:.04em; }
+  /* ⑥ 模型展台：左栏对齐她那一列，右栏对齐窗口左边 */
+  .lineup { display:grid; grid-template-columns:var(--wl, 40%) minmax(0, 1fr); padding:88px 28px 40px; }
+  .lineup h2 { font-size:clamp(24px, 2.4vw, 34px); font-weight:650; line-height:1.25; padding-left:6px; position:sticky; top:40px; }
+  .lineup .main { display:flex; flex-direction:column; gap:72px; }
+  .show h3 { font-size:13px; font-weight:600; color:var(--ink2); letter-spacing:.04em; }
+  .show .claim { font-size:clamp(20px, 1.9vw, 28px); font-weight:650; line-height:1.3; margin:2px 0 18px; }
+  .show .body { display:grid; gap:24px; align-items:start; }
+  .show.img .body { grid-template-columns:min(46%, 54vh) minmax(0, 1fr); }
+  .show.vid .body { grid-template-columns:minmax(0, 1.5fr) minmax(0, 1fr); }
+  .show.vox .body { grid-template-columns:minmax(0, 1.5fr) minmax(0, 1fr); }
+  .frame { position:relative; border-radius:20px; overflow:hidden; background:#e3ded4; }
+  .show.img .frame { aspect-ratio:3 / 4; }
+  .show.vid .frame { aspect-ratio:16 / 9; background:#14120f; }
+  .frame img, .frame video { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+  .frame img { transition:opacity .3s; }
+  .frame img.off { opacity:0; }
+  .frame .ph { position:absolute; left:10px; top:10px; background:rgba(27,26,24,.78); color:#fff; font-size:11px; padding:4px 9px; border-radius:999px; }
+  .frame .q { position:absolute; left:10px; right:10px; bottom:10px; background:rgba(255,255,255,.94); border-radius:12px; padding:8px 12px; font-size:13px; line-height:1.5; }
+  .frame .q small { display:block; font-size:11px; color:var(--ink2); }
+  .frame .pp { position:absolute; left:50%; top:50%; width:64px; height:64px; margin:-32px; border-radius:50%; border:0; background:rgba(255,255,255,.94); display:grid; place-items:center; transition:opacity .2s; }
+  .frame .pp svg { width:38%; height:38%; fill:#171411; }
+  .frame .pp .pause { display:none; }
+  .frame.playing .pp { opacity:0; }
+  .picks { display:flex; flex-direction:column; border-bottom:1px solid var(--line); }
+  .pick { display:block; width:100%; text-align:left; border:0; border-top:1px solid var(--line); background:transparent; padding:14px 0; opacity:.42; transition:opacity .2s; }
+  .pick:hover { opacity:.75; }
+  .pick[aria-pressed="true"] { opacity:1; }
+  .pick b { display:block; font-size:clamp(17px, 1.5vw, 22px); font-weight:650; line-height:1.3; }
+  .pick .one { display:block; font-size:14px; color:var(--ink2); }
+  .pick ul { display:none; list-style:none; margin-top:10px; }
+  .pick[aria-pressed="true"] ul { display:block; }
+  .pick li { position:relative; padding-left:16px; font-size:14px; line-height:1.9; }
+  .pick li::before { content:''; position:absolute; left:2px; top:.85em; width:5px; height:5px; border-radius:50%; background:var(--ink); }
+  .pick:focus-visible, .frame .pp:focus-visible, .lo button:focus-visible, .vx button:focus-visible { outline:2px solid #3346e8; outline-offset:3px; }
+  .lo { margin-top:18px; }
+  .lo p { font-size:14px; margin-bottom:8px; }
+  .lo p small { color:var(--ink2); font-size:13px; margin-left:6px; }
+  .lo .row { display:flex; gap:8px; }
+  .lo button { position:relative; width:60px; aspect-ratio:3 / 4; border:0; padding:0; border-radius:10px; overflow:hidden; background:#e3ded4; opacity:.6; }
+  .lo button img { width:100%; height:100%; object-fit:cover; display:block; }
+  .lo button[aria-pressed="true"] { opacity:1; box-shadow:0 0 0 2px var(--ink); }
+  .vx { display:flex; flex-direction:column; gap:10px; }
+  .vx .langs { display:flex; gap:4px; align-self:flex-start; background:rgba(27,26,24,.06); border-radius:999px; padding:3px; margin-bottom:4px; }
+  .vx .langs button { border:0; background:transparent; border-radius:999px; padding:5px 14px; font-size:13px; }
+  .vx .langs button[aria-pressed="true"] { background:#fff; box-shadow:0 0 0 1px var(--line); }
+  .vrow { display:grid; grid-template-columns:auto auto minmax(0, 1fr) auto; align-items:center; gap:14px; padding:12px 16px 12px 12px; border-radius:20px; background:#fff; box-shadow:0 0 0 1px var(--line); }
+  .vrow img { width:52px; height:52px; border-radius:50%; display:block; }
+  .vrow b { font-size:16px; font-weight:600; white-space:nowrap; }
+  .vrow .wv { height:30px; }
+  .vrow .wv i { opacity:.25; }
+  .vrow.playing .wv i { opacity:1; animation:beat .9s ease-in-out infinite; animation-delay:calc(var(--i) * -70ms); }
+  @keyframes beat { 50% { transform:scaleY(.45); } }
+  .vrow button { width:44px; height:44px; border-radius:50%; border:0; background:var(--ink); color:#fff; display:grid; place-items:center; }
+  .vrow button svg { width:40%; height:40%; fill:currentColor; }
+  .vrow .pause, .vrow.playing .tri { display:none; }
+  .vrow.playing .pause { display:block; }
+  .facts { border-top:1px solid var(--line); }
+  .facts ul { list-style:none; }
+  .facts b { display:block; font-size:clamp(17px, 1.5vw, 22px); font-weight:650; padding-top:14px; }
+  .facts .one { display:block; font-size:14px; color:var(--ink2); margin-bottom:10px; }
+  .facts li { position:relative; padding-left:16px; font-size:14px; line-height:1.9; }
+  .facts li::before { content:''; position:absolute; left:2px; top:.85em; width:5px; height:5px; border-radius:50%; background:var(--ink); }
+  @media (max-width:760px) {
+    .lineup { grid-template-columns:1fr; gap:28px; padding:56px 16px 24px; }
+    .lineup .main { gap:56px; }
+    .show .body, .show.img .body, .show.vid .body, .show.vox .body { grid-template-columns:1fr; gap:16px; }
+    .show.img .frame { max-width:78%; }
+    .vrow { gap:10px; padding:10px 12px 10px 10px; }
+    .vrow img { width:40px; height:40px; }
+    .tl { --lh:30px; grid-template-columns:30px minmax(0, 1fr); font-size:10px; }
+    .tl .heads { left:30px; }
+    .tl .clip.c { padding:0 4px; font-size:9px; }
+    .desk { padding:8px; gap:6px; }
+    .note { padding:10px 12px; gap:8px; }
+    .note .av { width:32px; height:32px; }
+  }
+
+  /* ③ 她的回话：挂在她头顶，左下角收尖朝着她 */
+  .say { position:absolute; z-index:4; background:var(--card); border-radius:18px 18px 18px 6px; padding:10px 18px; box-shadow:0 0 0 1px var(--line), 0 8px 24px rgba(60,40,30,.07); font-size:17px; line-height:1.5; will-change:transform, opacity; opacity:0; }
+  /* 作品墙：四列瀑布，图片第一次载入时由糊变清，左上往右下错开 */
+  #wall { position:absolute; left:0; top:0; width:100%; overflow:hidden; }
+  .wcol { position:absolute; top:0; will-change:transform; }
+  .wt { position:absolute; left:0; width:100%; overflow:hidden; border-radius:12px; background:#f3f1ec; }
+  .wt img { display:block; width:100%; height:100%; object-fit:cover; opacity:0; filter:blur(14px); transition:opacity .5s, filter .5s; }
+  .wt img.ok { opacity:1; filter:none; }
+  .fadebot { position:absolute; left:0; right:0; bottom:0; height:120px; background:linear-gradient(rgba(255,255,255,0), #fff 78%); pointer-events:none; }
+  @media (prefers-reduced-motion: reduce) { .wt img { transition:none; } }
+
+  /* 你说的话 */
+  .me { transition:background .3s; position:absolute; max-width:min(16em, calc(100% - 32px)); background:var(--bubble); border-radius:1.05em; padding:.55em .9em; line-height:1.5; font-weight:500; word-break:keep-all; overflow-wrap:anywhere; will-change:left, top, font-size; }
+  /* 她的回话：左上角收尖，朝着窗口外的她 */
+  .rep { position:absolute; background:var(--card); border-radius:6px 18px 18px 18px; padding:9px 16px; box-shadow:0 0 0 1px var(--line); font-size:16px; line-height:1.5; max-width:calc(100% - 32px); will-change:transform, opacity; }
+  .swap { animation:swap .22s ease-out; }
+  @keyframes swap { from { translate:0 5px; } to { translate:0 0; } }
+
+  .tile { position:absolute; overflow:hidden; background:#f3f1ec; border-radius:16px; will-change:left, top, width, height, opacity, filter; }
+  .tile img { display:block; width:100%; height:100%; object-fit:cover; }
+  .tile .tag { position:absolute; left:10px; top:10px; background:rgba(27,26,24,.86); color:#fff; font-size:12px; line-height:1; padding:6px 10px; border-radius:999px; white-space:nowrap; }
+  .tile .ly { position:absolute; inset:0; background:#fff; will-change:clip-path; }
+  .tile .wipe { position:absolute; top:0; bottom:0; width:3px; margin-left:-1.5px; background:#fff; box-shadow:0 0 0 1px rgba(27,26,24,.18), 0 0 18px rgba(27,26,24,.35); opacity:0; }
+
+  /* LoRA 右半的 2×2：还没刷到的格子是浅灰占位，刷完一种填上一格；当前那一格描一圈黑 */
+  .sty { position:absolute; overflow:hidden; border-radius:14px; background:#f3f1ec; }
+  .sty img { display:block; width:100%; height:100%; object-fit:cover; transition:opacity .25s; }
+  .sty span { position:absolute; left:8px; top:8px; background:rgba(27,26,24,.86); color:#fff; font-size:11px; line-height:1; padding:5px 8px; border-radius:999px; white-space:nowrap; transition:opacity .25s; }
+  .sty.empty img, .sty.empty span { opacity:0; }
+  .sty.on { box-shadow:0 0 0 2px var(--ink); }
+
+  /* 语音消息 */
+  .voices { --ch:120px; position:absolute; display:flex; flex-direction:column; gap:14px; }
+  .voice { height:var(--ch); display:grid; grid-template-columns:auto minmax(0, 1fr) auto; align-items:center; gap:calc(var(--ch) * .14); background:var(--card); border-radius:calc(var(--ch) * .3); padding:0 calc(var(--ch) * .16) 0 calc(var(--ch) * .14); box-shadow:0 0 0 1px var(--line), 0 6px 18px rgba(60,40,30,.05); will-change:transform, opacity; pointer-events:none; }
+  .voice.live { pointer-events:auto; }
+  .voice img { width:calc(var(--ch) * .56); height:calc(var(--ch) * .56); border-radius:50%; object-fit:cover; background:#f3f1ec; display:block; }
+  .voice .txt { font-size:clamp(15px, calc(var(--ch) * .15), 26px); font-weight:500; line-height:1.35; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .voice .wave { display:flex; align-items:center; gap:calc(var(--ch) * .02); height:calc(var(--ch) * .26); margin-top:calc(var(--ch) * .06); }
+  .voice .wave i { flex:1 1 0; min-width:2px; max-width:7px; border-radius:3px; background:var(--ink); opacity:.22; transform:scaleY(0); }
+  .voice .wave i.on { transform:scaleY(1); }
+  .voice .wave i.played { opacity:1; }
+  .voice .play { width:calc(var(--ch) * .44); height:calc(var(--ch) * .44); border-radius:50%; border:0; background:var(--ink); color:#fff; display:grid; place-items:center; }
+  .voice .play svg { width:40%; height:40%; fill:currentColor; }
+  .voice .play .pause, .voice.playing .play .tri { display:none; }
+  .voice.playing .play .pause { display:block; }
+  .voice .play:focus-visible { outline:2px solid #3346e8; outline-offset:3px; }
+
+  /* 页脚：左栏对齐她那一列，右栏对齐窗口左边（--wl 由版面算好写到根上） */
+  .foot { display:grid; grid-template-columns:var(--wl, 40%) minmax(0, 1fr); padding:56px 28px 40px; border-top:1px solid var(--line); color:var(--ink2); font-size:13px; line-height:1.7; }
+  .foot .side { padding-left:4px; }
+  .foot .side .mark { color:var(--ink); font-size:13px; font-weight:650; letter-spacing:.24em; }
+  .foot .main { display:flex; flex-direction:column; gap:22px; max-width:760px; }
+  .foot h3 { font-size:13px; font-weight:600; color:var(--ink); margin-bottom:4px; }
+  .foot .row { display:flex; flex-wrap:wrap; align-items:center; gap:6px 18px; }
+  .foot a, .foot .lang button { color:var(--ink); text-decoration:none; }
+  .foot a:hover { text-decoration:underline; }
+  .foot .muted { color:var(--ink2); }
+  .foot .lang { display:flex; gap:4px; background:rgba(27,26,24,.06); border-radius:999px; padding:3px; }
+  .foot .lang button { border:0; background:transparent; border-radius:999px; padding:4px 12px; font-size:13px; }
+  .foot .lang button[aria-pressed="true"] { background:#fff; box-shadow:0 0 0 1px var(--line); }
+  @media (max-width:760px) { .foot { grid-template-columns:1fr; gap:24px; padding:40px 20px 32px; } }
+
+  @media (max-width:760px) {
+    .rep { font-size:15px; padding:8px 14px; }
+    .voice .txt { font-size:14px; white-space:normal; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+    .tile { border-radius:12px; }
+    .tile .tag { font-size:10px; padding:4px 7px; left:6px; top:6px; }
+  }
+  /* 减少动态效果：不钉、不推进，直接停在最后一段的结果 */
+  .still .track { height:auto; }
+  .still .stage { position:relative; }
+  .still .hint { display:none; }
+</style>
+</head>
+<body>
+<div class="tools" aria-label="小样工具条"><b>小样 13</b><output id="pct">0%</output></div>
+
+<main>
+  <section class="track" id="track">
+    <div class="stage" id="stage">
+      <div class="tide" id="tide"></div><i class="tideline" id="tideline"></i>
+      <nav class="nav" id="nav" aria-label="顶栏">
+        <span class="mark">ANTEI</span>
+        <span class="langs" role="group" aria-label="语言"><button type="button" aria-pressed="false">EN</button><button type="button" aria-pressed="false">JA</button><button type="button" aria-pressed="true">ZH</button></span>
+        <button class="go" id="go" type="button">开始</button>
+      </nav>
+      <div class="id" id="id">
+        <h1 id="headline">说一句，<br />她替你做完。</h1>
+      </div>
+      <div class="her2" id="her2"><div class="ph">小鲸<br>形象等你确认生成</div></div>
+      <div class="say" id="say">好嘞，马上画！</div>
+      <div class="win" id="win">
+        <div class="thread" id="thread">
+          <div id="wall"></div>
+          <div class="me" id="me0">戴圆眼镜的橘猫馆长，坐在挂满画的美术馆前台，午后的光</div>
+          <div class="me" id="me1">抱着黑皮书的女孩，米白大衣。换几种画风看看</div>
+          <div class="me" id="me2">给今晚的画展配三句：温柔的女声，少年，再来一段旁白</div>
+          <div class="me" id="me3">做一支 30 秒的短片：下雨天，两个人撑一把伞回家</div>
+          <div class="me" id="me4">今天换个人陪我吧</div>
+          <div class="sys" id="sys">ANTEI 去休息了，小鲸来了</div>
+          <div class="me" id="me5">这张你觉得怎么样？</div>
+          <div class="voices" id="voices"></div>
+        </div>
+        <div class="fadebot" id="fadebot"></div>
+        <div class="hint" id="hint">往下滚</div>
+      </div>
+      <div class="her" id="her"></div>
+    </div>
+  </section>
+
+  <section class="lineup" aria-label="她会用的模型">
+    <div class="side"><h2>她会用的<br />模型</h2></div>
+    <div class="main" id="lineup"></div>
+  </section>
+
+  <footer class="foot">
+    <div class="side"><div class="mark">ANTEI</div><button class="go" type="button" style="margin-top:14px;border:0;border-radius:999px;background:var(--ink);color:#fff;font-size:13px;font-weight:600;padding:6px 14px">开始</button></div>
+    <div class="main">
+      <div>
+        <h3>页面上的作品</h3>
+        <p>都来自 ANTEI 画廊里公开的作品，作者 <a href="#">@xiuruisu</a>、<a href="#">@yining120224</a>。点开作品可以看到作者和它是怎么做出来的。</p>
+      </div>
+      <div>
+        <h3>AI 生成说明</h3>
+        <p>页面上的图片和声音都是用 AI 生成的。ANTEI 接入各家的模型，帮你把想法做出来；生成的作品归你所有，使用时请遵守内容准则。</p>
+      </div>
+      <div>
+        <h3>模型名称</h3>
+        <p>GPT Image、Gemini、FLUX、Seedream、Illustrious、Anima、Fish Audio 等名称和商标属于各自的公司。ANTEI 通过它们开放的接口提供服务，和这些公司没有隶属关系。</p>
+      </div>
+      <div class="row">
+        <a href="#">服务条款</a><a href="#">隐私政策</a><span class="muted">内容准则（还没有页面）</span>
+        <span class="lang" role="group" aria-label="语言"><button aria-pressed="true">中文</button><button aria-pressed="false">日本語</button><button aria-pressed="false">English</button></span>
+      </div>
+      <p class="muted">© 2026 ANTEI</p>
+    </div>
+  </footer>
+</main>
+
+<script src="her.js"></script>
+<script>
+const $ = id => document.getElementById(id)
+const root = document.documentElement
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v))
+const seg = (p, a, b) => clamp((p - a) / (b - a))
+const ease = t => t * t * (3 - 2 * t)
+const mix = (a, b, t) => a + (b - a) * t
+
+/* 三段各占多少屏的滚动距离（vh）。换段的那一下算在后一段的开头 */
+const LEN = { wall: 130, shots: 240, lora: 300, voice: 240, canvas: 360, char: 300 }
+const SEGS = ['shots', 'lora', 'voice', 'canvas', 'char']
+const TOTAL = LEN.wall + SEGS.reduce((n, k) => n + LEN[k], 0)
+/* 画布那段的故事：站内自产的《借伞》（五张关键帧 + 一支 30 秒成片） */
+const KF = ['entrance', 'shared', 'hydrangea', 'arcade', 'farewell'].map((k, i) => `media/production/umbrella/umbrella-kf${i + 1}-${k}.webp`)
+const SHOTN = ['鞋柜前', '同伞', '绣球坡道', '商店街', '路口']
+const SCRIPT = ['鞋柜前，她看着外面的雨', '他撑开伞，往这边偏了偏', '两人走过开满绣球的坡道', '商店街，灯一盏盏亮起来', '路口分开，她回头挥手']
+const CAPS = ['放学了，雨还没停。', '「一起走吧。」', '绣球花开了一路。', '商店街的灯亮了。', '「明天见。」']
+const WHO = { qing: '女声', lei: '少年', ke: '旁白' }
+const SAYS = [[1, 'lei'], [2, 'ke'], [4, 'qing']] // 台词挂在第几个镜头上、谁念
+/* 模型展台：只放 owner 点名的；每条事实照搬产品里模型说明（src/messages/models/zh.json）和 v4 模型站的原话 */
+const QUAD = '戴圆眼镜的橘猫馆长，坐在挂满画的美术馆前台，午后的光'
+const IMGS = [
+  { n: 'GPT Image 2', one: '最能读懂复杂指令', facts: ['OpenAI 的旗舰图像模型', '生成和改图都能做', '一长串要求，一次读懂'], src: 'media/production/quad/quad-gpt-image-2.webp' },
+  { n: 'Gemini 3 Pro Image', one: '又快又稳的主力', facts: ['2–5 秒出一张', '工作室品质，最高 4K', '改图时控制最细'], src: 'media/production/quad/quad-gemini-3-pro.webp' },
+  { n: 'Seedream 5.0', one: '懂排版，懂中文', facts: ['14 种语言的字直接画进图里', '先想清楚再画', '可以边生成边联网查资料'], src: 'media/production/quad/quad-seedream-5-0.webp' },
+  { n: 'NovelAI V5', one: '动漫专精', facts: ['多个角色同画不串', '整页漫画一把出', '用你自己的 NovelAI 订阅'], src: 'media/v4/model-novelai-v5.webp', ph: '占位：NAI 的同题图还没出，先放它的代表作' },
+]
+const VIDS = [
+  { n: 'Seedance 2.0', one: '导演级镜头', facts: ['自带声音，口型对得上', '一次 4–15 秒', '图和声音可以一起当参考'], poster: 'media/v4/model-seedance.webp', src: 'media/production/models/video/model-seedance.mp4' },
+  { n: 'Wan 3.0', one: '一次拍得最长', facts: ['单次最长 30 秒', '自带原生音频', '首帧、尾帧都能指定'], poster: 'media/v4/model-wan-30.jpg', src: 'media/production/models/video/model-wan30.mp4' },
+  { n: 'MiniMax H3', one: '2K 画面', facts: ['2K', '原生立体声', '一次 4–15 秒'], poster: 'media/v4/model-minimax-h3.webp', src: 'media/production/models/video/model-minimax.mp4' },
+]
+const VOX = [['qing', '温柔的女声'], ['lei', '少年'], ['ke', '旁白']]
+/* 画廊里挑出来的 17 张公开作品（2026-11-10 从本机开发服务的 /api/images 拉的，去掉了非全年龄、上传的、太糊的） */
+const WALL = [{"src":"https://cdn.anteisuba.com/generations/8e3b7e40-c662-487b-b29f-7e16dd563e64/image/2026-03-27_fae38732e501147dbe906438.preview.webp","w":1792,"h":1024},{"src":"https://cdn.anteisuba.com/generations/8e3b7e40-c662-487b-b29f-7e16dd563e64/image/2026-04-09_e93ce3d5f024937fee34a809.preview.webp","w":1024,"h":1024},{"src":"https://cdn.anteisuba.com/generations/223df7bf-b4f2-4f67-b0d1-df423d663103/image/2026-05-22_970b76faf815302a8b1125d9.preview.webp","w":1024,"h":1024},{"src":"https://cdn.anteisuba.com/generations/223df7bf-b4f2-4f67-b0d1-df423d663103/image/2026-05-17_be6b473b19d95b3880ebb4fc.preview.webp","w":1024,"h":1024},{"src":"https://cdn.anteisuba.com/generations/223df7bf-b4f2-4f67-b0d1-df423d663103/image/2026-11-03_ec85cd25f09c1d0a2c37eb00.preview.webp","w":1024,"h":1024},{"src":"https://cdn.anteisuba.com/generations/8e3b7e40-c662-487b-b29f-7e16dd563e64/image/2026-03-27_7dc782d8adb522ba6084c813.preview.webp","w":1024,"h":1024},{"src":"https://cdn.anteisuba.com/generations/223df7bf-b4f2-4f67-b0d1-df423d663103/image/2026-05-17_45ce7282522644c3bcc089ea.preview.webp","w":1024,"h":768},{"src":"https://cdn.anteisuba.com/generations/8e3b7e40-c662-487b-b29f-7e16dd563e64/image/2026-03-26_d056e934a8d11ee192902b4a.preview.webp","w":1024,"h":1024},{"src":"https://cdn.anteisuba.com/generations/223df7bf-b4f2-4f67-b0d1-df423d663103/image/2026-05-24_a930d05f7a798eaf6f64600e.preview.webp","w":1024,"h":1024},{"src":"https://cdn.anteisuba.com/generations/8e3b7e40-c662-487b-b29f-7e16dd563e64/image/2026-03-27_bc3b255dd9fd2a4f9fc64a41.preview.webp","w":1024,"h":1024},{"src":"https://cdn.anteisuba.com/generations/223df7bf-b4f2-4f67-b0d1-df423d663103/image/2026-08-30_8746a7def498a3ddd6592e1b.preview.webp","w":1536,"h":1024},{"src":"https://cdn.anteisuba.com/generations/223df7bf-b4f2-4f67-b0d1-df423d663103/image/2026-05-17_e3b69a0717c4eb15113a09f0.preview.webp","w":1024,"h":1024},{"src":"https://cdn.anteisuba.com/generations/8e3b7e40-c662-487b-b29f-7e16dd563e64/image/2026-05-18_46bdb761fbbb18751f45942a.preview.webp","w":1024,"h":1024},{"src":"https://cdn.anteisuba.com/generations/223df7bf-b4f2-4f67-b0d1-df423d663103/image/2026-03-25_8f237f701b753fc678754df6.preview.webp","w":1024,"h":1024},{"src":"https://cdn.anteisuba.com/generations/8e3b7e40-c662-487b-b29f-7e16dd563e64/image/2026-03-26_de633aa8d8b74c6944c25cfd.preview.webp","w":768,"h":1024},{"src":"https://cdn.anteisuba.com/generations/223df7bf-b4f2-4f67-b0d1-df423d663103/image/2026-05-24_aefc2841abe389c4ae33dda9.preview.webp","w":1024,"h":1024},{"src":"https://cdn.anteisuba.com/generations/8e3b7e40-c662-487b-b29f-7e16dd563e64/image/2026-04-09_7e7677b63a01bbf49fcc7f2b.preview.webp","w":1328,"h":800}]
+const SPEED = [0.12, 0.34, 0.2, 0.44] // 往下滚时四列各自往上走的快慢（乘窗口高）
+
+const SHOTS = ['flux-2-pro', 'gemini-3-pro', 'gpt-image-2', 'seedream-5-0'].map(k => `media/production/quad/quad-${k}.webp`)
+const STYLES = ['扁平线稿', '偏线稿', '偏手办', '手办质感']
+const VOICES = [['qing', '今晚的画展，八点开始。'], ['lei', '好，我把海报再改一版。'], ['ke', '而此刻，馆里的灯一盏盏亮了。']]
+const BARS = 44
+
+const win = $('win'), thread = $('thread'), wallEl = $('wall')
+const wcols = [0, 1, 2, 3].map(() => { const c = document.createElement('div'); c.className = 'wcol'; wallEl.append(c); return c })
+const wtiles = WALL.concat(WALL).map((x, i) => {
+  const t = document.createElement('figure'); t.className = 'wt'
+  const img = new Image(); img.alt = '画廊里的作品'; img.decoding = 'async'
+  img.onload = () => setTimeout(() => img.classList.add('ok'), matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 70 * (i % WALL.length))
+  img.src = x.src; t.append(img); return { t, ...x }
+})
+function tile(src, alt) {
+  const t = document.createElement('figure'); t.className = 'tile'
+  t.innerHTML = `<img src="${src}" alt="${alt}" decoding="async">`
+  thread.append(t); return t
+}
+const shots = SHOTS.map((src, i) => tile(src, `她出的第 ${i + 1} 张图`))
+
+/* LoRA：四种画风叠在同一张卡里，上面几层用 clip-path 从左往右露出来 */
+const lora = document.createElement('figure'); lora.className = 'tile'
+lora.innerHTML = STYLES.map((s, i) => `<div class="ly"><img src="media/production/lora/lora-body-${i + 1}.webp" alt="同一张图，${s}" decoding="async"><span class="tag">${s}</span></div>`).join('') + '<i class="wipe" aria-hidden="true"></i>'
+thread.append(lora)
+const layers = [...lora.querySelectorAll('.ly')], wipeLine = lora.querySelector('.wipe')
+const stys = STYLES.map((s, i) => {
+  const el = document.createElement('div'); el.className = 'sty'
+  el.innerHTML = `<img src="media/production/lora/lora-body-${i + 1}.webp" alt=""><span>${s}</span>`
+  thread.append(el); return el
+})
+
+/* 三条语音：波形从真实音频里量；量不到就用一组固定的高低 */
+let playing = null
+const voices = VOICES.map(([key, text], j) => {
+  const el = document.createElement('div'); el.className = 'voice'
+  el.innerHTML = `<img src="media/production/voice/avatar-${key}.webp" alt=""><div><div class="txt">${text}</div><div class="wave" aria-hidden="true">${'<i></i>'.repeat(BARS)}</div></div>
+    <button class="play" aria-label="播放：${text}"><svg class="tri" viewBox="0 0 20 20"><path d="M6 3.5v13l11-6.5z"/></svg><svg class="pause" viewBox="0 0 20 20"><path d="M5 3h3.6v14H5zM11.4 3H15v14h-3.6z"/></svg></button>`
+  $('voices').append(el)
+  const bars = [...el.querySelectorAll('.wave i')], src = `media/production/voice/voice-${key}-zh.mp3`
+  const setHeights = hs => bars.forEach((b, i) => { b.style.height = Math.round(mix(14, 100, hs[i])) + '%' })
+  setHeights(bars.map((_, i) => 0.35 + 0.65 * Math.abs(Math.sin(i * 1.7 + j * 2.1) * Math.cos(i * 0.37 + j))))
+  fetch(src).then(r => r.arrayBuffer()).then(buf => new (window.AudioContext || window.webkitAudioContext)().decodeAudioData(buf)).then(a => {
+    const d = a.getChannelData(0), step = Math.floor(d.length / BARS), peaks = []
+    for (let i = 0; i < BARS; i++) { let m = 0; for (let k = i * step; k < (i + 1) * step; k += 32) m = Math.max(m, Math.abs(d[k])); peaks.push(m) }
+    const top = Math.max(...peaks) || 1; setHeights(peaks.map(v => Math.sqrt(v / top)))
+  }).catch(() => {})
+  const audio = new Audio(src); audio.preload = 'none'
+  return { el, bars, audio, text, shown: 0 }
+})
+function paintPlayed(v) { const k = v.audio.duration ? v.audio.currentTime / v.audio.duration : 0; v.bars.forEach((b, i) => b.classList.toggle('played', v === playing && i / BARS < k)) }
+function tick() { if (!playing) return; paintPlayed(playing); requestAnimationFrame(tick) }
+function stop(v) { v.audio.pause(); v.audio.currentTime = 0; v.el.classList.remove('playing'); if (playing === v) playing = null; paintPlayed(v); v.el.querySelector('.play').setAttribute('aria-label', '播放：' + v.text) }
+voices.forEach(v => {
+  v.el.querySelector('.play').onclick = () => {
+    if (playing === v) { stop(v); mood = ''; return measure() }
+    if (playing) stop(playing)
+    playing = v; v.el.classList.add('playing'); v.el.querySelector('.play').setAttribute('aria-label', '停止')
+    v.audio.play().then(() => { her.act('hum'); tick() }).catch(() => stop(v))
+  }
+  v.audio.onended = () => { stop(v); mood = ''; measure() }
+})
+
+/* ④ 画布：一张世界（节点 + 连线）放在视口里，镜头的缩放和位置跟着滚动走 */
+const mk = (cls, html = '') => { const e = document.createElement('div'); e.className = cls; e.innerHTML = html; return e }
+const wave = (n, seed) => `<span class="wv" aria-hidden="true">${Array.from({ length: n }, (_, i) => `<i style="--i:${i};height:${Math.round(28 + 72 * Math.abs(Math.sin(i * 1.7 + seed * 2.1) * Math.cos(i * 0.37 + seed)))}%"></i>`).join('')}</span>`
+const cv = mk('cv'), world = mk('world'); cv.append(world); thread.append(cv)
+const SVGNS = 'http://www.w3.org/2000/svg'
+const wsvg = document.createElementNS(SVGNS, 'svg'); wsvg.setAttribute('class', 'no-rail'); world.append(wsvg)
+const N = {}
+function node(key, name, cls, inner, extra = '', tail = '') {
+  const e = mk('nd ' + extra, `<span class="nm">${name}</span><div class="cd ${cls}">${inner}</div>${tail}<i class="port l"></i><i class="port r"></i>`)
+  world.append(e); return (N[key] = { e, cd: e.querySelector('.cd'), pl: e.querySelector('.port.l'), pr: e.querySelector('.port.r') })
+}
+node('cast', '角色', 'cast', '<i class="face"></i><div><b>小满</b><span>女主 · 长相已锁定</span></div>', 'no-rail')
+node('script', '分镜 · 借伞', 'text', SCRIPT.map((t, i) => `<p><span>${i + 1}</span>${t}</p>`).join('') + '<div class="meta"><span class="chip">30 秒</span><span class="chip">5 个镜头</span></div>')
+KF.forEach((src, i) => {
+  node('img' + i, `镜头 ${i + 1} · ${SHOTN[i]}`, 'media', `<img src="${src}" alt="" decoding="async"><span class="chip">图</span><span class="dots"><i></i><i class="on"></i><i></i></span>`, '', `<p class="ln only-rail">${SCRIPT[i]}</p><div class="meta only-rail"><span class="chip">图 ✓</span><span class="chip">片段 6 秒 ✓</span></div>`)
+  node('vid' + i, `片段 ${i + 1}`, 'media', `<img src="${src}" alt="" decoding="async"><span class="chip">▶ 6 秒</span>`, 'no-rail')
+})
+SAYS.forEach(([, key], j) => node('aud' + j, `台词 · ${WHO[key]}`, 'audio', `<img src="media/production/voice/avatar-${key}.webp" alt="">${wave(18, j)}`, 'no-rail'))
+node('out', '成片 · 借伞', 'media', `<img src="${KF[4]}" alt="" decoding="async"><span class="chip">30 秒</span><span class="chip r">进剪辑台 →</span>`, 'no-rail')
+const WIRES = []
+function wire(a, b, t0, t1, soft) { const p = document.createElementNS(SVGNS, 'path'); p.setAttribute('pathLength', '1'); if (soft) p.setAttribute('class', 'soft'); wsvg.append(p); WIRES.push({ p, a, b, t0, t1 }) }
+KF.forEach((_, i) => wire('cast', 'img' + i, 0.27 + i * 0.03, 0.32 + i * 0.03, true))
+SAYS.forEach((_, j) => wire('aud' + j, 'out', 0.56, 0.63, true))
+KF.forEach((_, i) => {
+  wire('script', 'img' + i, 0.26 + i * 0.03, 0.31 + i * 0.03)
+  wire('img' + i, 'vid' + i, 0.40 + i * 0.025, 0.44 + i * 0.025)
+  wire('vid' + i, 'out', 0.54 + i * 0.01, 0.60 + i * 0.01)
+})
+/* 世界坐标（电脑）：左列 角色 / 分镜 / 三句台词，中间两列 镜头图 → 片段，右边成片 */
+const WW = 1140, WH = 610
+const POS = { cast: [20, 16, 210], script: [20, 128, 210], out: [730, 185, 390] }
+KF.forEach((_, i) => { POS['img' + i] = [300, 12 + i * 118, 150]; POS['vid' + i] = [510, 12 + i * 118, 150] })
+SAYS.forEach((_, j) => { POS['aud' + j] = [20, 338 + j * 84, 210] })
+let cvMode = ''
+function placeNodes(rail, cw) {
+  const mode = rail ? 'rail' + cw : 'graph'
+  if (mode === cvMode) return
+  cvMode = mode; cv.classList.toggle('rail', rail)
+  if (rail) { // 手机：一条镜头带，分镜卡在最前面
+    ['script', ...KF.map((_, i) => 'img' + i)].forEach((k, n) => { const st = N[k].e.style; st.left = (16 + n * (cw + 12)) + 'px'; st.top = '14px'; st.width = cw + 'px' })
+    return
+  }
+  for (const k in POS) { const [x, y, w] = POS[k], st = N[k].e.style; st.left = x + 'px'; st.top = y + 'px'; st.width = w + 'px' }
+  const port = (n, r) => [n.e.offsetLeft + (r ? n.e.offsetWidth : 0), n.e.offsetTop + n.cd.offsetTop + n.cd.offsetHeight / 2]
+  WIRES.forEach(({ p, a, b }) => {
+    const [x1, y1] = port(N[a], 1), [x2, y2] = port(N[b], 0), dx = Math.max(28, (x2 - x1) * 0.5)
+    p.setAttribute('d', `M${x1} ${y1} C${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`)
+    for (const [n, el] of [[N[a], N[a].pr], [N[b], N[b].pl]]) { el.style.display = 'block'; el.style.top = (n.cd.offsetTop + n.cd.offsetHeight / 2) + 'px' }
+  })
+}
+/* 剪辑台 */
+const desk = mk('desk', `<div class="top"><b>剪辑台 · 借伞</b><span class="chip">5 个片段</span><span class="chip">3 句台词</span><span class="chip">30 秒</span></div>
+  <div class="pv"><video muted playsinline preload="none" poster="${KF[0]}" src="media/production/umbrella/umbrella-film-30s.mp4"></video><div class="cap" id="cap"></div><span class="tc" id="tc">00:00 / 00:30</span></div>
+  <div class="tl"><span></span><div class="ruler">${[0, 10, 20, 30].map(t => `<span style="left:${t / 30 * 100}%">${t} 秒</span>`).join('')}</div>
+    <span>画面</span><div class="lane" style="height:var(--lh)">${KF.map((src, i) => `<div class="clip v" style="left:calc(${i * 20}% + 1px);width:calc(20% - 2px);background-image:url(${src})"></div>`).join('')}</div>
+    <span>台词</span><div class="lane" style="height:calc(var(--lh) * .6)">${SAYS.map(([shot, key], j) => `<div class="clip a" data-a="${shot * 20 + 3}" style="left:${shot * 20 + 3}%;width:13%"><img src="media/production/voice/avatar-${key}.webp" alt="">${wave(9, j)}</div>`).join('')}</div>
+    <span>字幕</span><div class="lane" style="height:calc(var(--lh) * .52)">${CAPS.map((c, i) => `<div class="clip c" style="left:calc(${i * 20}% + 3px);width:calc(20% - 6px)"><span>${c}</span></div>`).join('')}</div>
+    <div class="heads"><i class="head" id="head"></i></div></div>`)
+cv.append(desk)
+const filmV = desk.querySelector('video'), capClips = [...desk.querySelectorAll('.clip.c')], sayClips = [...desk.querySelectorAll('.clip.a')]
+
+/* ⑤ 换角色：窗口里同一张图，ANTEI 上次说的和小鲸现在说的 */
+const WHALE = '' // 小鲸的图出来以后把路径填在这里
+if (WHALE) $('her2').innerHTML = `<img src="${WHALE}" alt="小鲸">`
+const WHALE_Q = '……嗯。它坐得好稳，像一块礁石。我喜欢。'
+const chPic = tile(SHOTS[1], '她出的第二张图')
+const noteA = mk('note old', '<img class="av" src="her/her.webp" alt=""><div><b>ANTEI<span>上次说</span></b><q>出来啦！第二只最像馆长，就是看起来有点凶～</q></div>')
+const noteB = mk('note', `${WHALE ? `<img class="av" src="${WHALE}" alt="">` : '<span class="av sea"></span>'}<div><b>小鲸<span>现在说</span></b><q id="whaleq"></q></div>`)
+thread.append(noteA, noteB)
+
+/* ⑥ 模型展台 */
+const factList = f => `<ul>${f.map(x => `<li>${x}</li>`).join('')}</ul>`
+const pickRow = (m, i) => `<button class="pick" type="button" aria-pressed="${i === 0}" data-i="${i}"><b>${m.n}</b><span class="one">${m.one}</span>${factList(m.facts)}</button>`
+const PLAY = '<svg class="tri" viewBox="0 0 20 20"><path d="M6 3.5v13l11-6.5z"/></svg><svg class="pause" viewBox="0 0 20 20"><path d="M5 3h3.6v14H5zM11.4 3H15v14h-3.6z"/></svg>'
+$('lineup').innerHTML = `
+  <div class="show img"><h3>图片</h3><p class="claim">同一句话，换个模型就是另一张</p><div class="body">
+    <div class="frame" id="imgFrame">${IMGS.map((m, i) => `<img src="${m.src}" alt="${m.n} 画的" class="${i ? 'off' : ''}" loading="lazy">`).join('')}${STYLES.map((t, i) => `<img src="media/production/lora/lora-body-${i + 1}.webp" alt="挂上 LoRA：${t}" class="off" loading="lazy">`).join('')}<span class="ph" id="imgPh" hidden></span><div class="q"><small id="imgBy"></small><span id="imgQ"></span></div></div>
+    <div><div class="picks" id="imgPicks">${IMGS.map(pickRow).join('')}</div>
+      <div class="lo"><p>再挂一个 LoRA<small>同一个人，换画风</small></p><div class="row" id="loRow">${STYLES.map((t, i) => `<button type="button" aria-pressed="false" aria-label="${t}" data-i="${i}"><img src="media/production/lora/lora-body-${i + 1}.webp" alt="" loading="lazy"></button>`).join('')}</div></div></div>
+  </div></div>
+  <div class="show vox"><h3>声音</h3><p class="claim">三个声线，三种语言，点了就听</p><div class="body">
+    <div class="vx" id="vx"><div class="langs" role="group" aria-label="语言">${[['zh', '中文'], ['ja', '日本語'], ['en', 'English']].map(([k, t], i) => `<button type="button" data-l="${k}" aria-pressed="${i === 0}">${t}</button>`).join('')}</div>
+      ${VOX.map(([k, who], j) => `<div class="vrow" data-k="${k}"><img src="media/production/voice/avatar-${k}.webp" alt=""><b>${who}</b>${wave(40, j)}<button type="button" aria-label="播放：${who}">${PLAY}</button></div>`).join('')}</div>
+    <div class="facts"><b>Fish Audio S2.1</b><span class="one">台词主力</span>${factList(['83 种语言', '情绪直接写进台词：[开心]、[好奇]', '可以克隆声音'])}</div>
+  </div></div>
+  <div class="show vid"><h3>视频</h3><p class="claim">要长，要声音，还是要 2K</p><div class="body">
+    <div class="frame" id="vidFrame"><video muted loop playsinline preload="none"></video><span class="ph" id="vidBy"></span><button class="pp" type="button" aria-label="播放">${PLAY}</button></div>
+    <div class="picks" id="vidPicks">${VIDS.map(pickRow).join('')}</div>
+  </div></div>`
+function showImg(i, lora) {
+  const k = lora ? IMGS.length + i : i, m = IMGS[i]
+  $('imgFrame').querySelectorAll('img').forEach((im, n) => im.classList.toggle('off', n !== k))
+  $('imgPicks').querySelectorAll('.pick').forEach((b, n) => b.setAttribute('aria-pressed', !lora && n === i))
+  $('loRow').querySelectorAll('button').forEach((b, n) => b.setAttribute('aria-pressed', !!lora && n === i))
+  $('imgBy').textContent = lora ? `挂上 LoRA · ${STYLES[i]}` : `${m.n} 画的`
+  $('imgQ').textContent = lora ? '抱着黑皮书的女孩，米白大衣' : m.ph ? '' : QUAD
+  const note = lora ? '占位：LoRA 这一组是另一张图' : m.ph || ''
+  $('imgPh').hidden = !note; $('imgPh').textContent = note
+}
+$('imgPicks').querySelectorAll('.pick').forEach((b, i) => { b.onclick = () => showImg(i); b.onpointerenter = ev => ev.pointerType === 'mouse' && showImg(i) })
+$('loRow').querySelectorAll('button').forEach((b, i) => { b.onclick = () => showImg(i, true) })
+showImg(0)
+let vxLang = 'zh', vxNow = null
+const vxAudio = new Audio()
+function vxStop() { vxAudio.pause(); if (vxNow) vxNow.classList.remove('playing'); vxNow = null }
+vxAudio.onended = vxStop
+$('vx').querySelectorAll('.vrow').forEach(row => {
+  row.querySelector('button').onclick = () => {
+    if (vxNow === row) return vxStop()
+    vxStop(); if (playing) stop(playing)
+    vxAudio.src = `media/production/voice/voice-${row.dataset.k}-${vxLang}.mp3`
+    vxNow = row; row.classList.add('playing')
+    vxAudio.play().catch(vxStop)
+  }
+})
+$('vx').querySelectorAll('.langs button').forEach(b => { b.onclick = () => { vxLang = b.dataset.l; vxStop(); $('vx').querySelectorAll('.langs button').forEach(x => x.setAttribute('aria-pressed', x === b)) } })
+const vidV = $('vidFrame').querySelector('video')
+function showVid(i, go) {
+  const m = VIDS[i]
+  $('vidPicks').querySelectorAll('.pick').forEach((b, n) => b.setAttribute('aria-pressed', n === i))
+  if (vidV.dataset.i !== String(i)) { vidV.dataset.i = i; vidV.poster = m.poster; vidV.src = m.src }
+  $('vidBy').textContent = m.n
+  if (go) vidV.play().then(() => $('vidFrame').classList.add('playing')).catch(() => {})
+  else { vidV.pause(); $('vidFrame').classList.remove('playing') }
+}
+$('vidPicks').querySelectorAll('.pick').forEach((b, i) => { b.onclick = () => showVid(i, true) })
+$('vidFrame').querySelector('.pp').onclick = () => showVid(+vidV.dataset.i, vidV.paused)
+vidV.onclick = () => showVid(+vidV.dataset.i, vidV.paused)
+showVid(0, false)
+
+const her = Her.mount($('her'), { transparent: true })
+let mood = ''
+function setMood(m) { if (playing) return; if (m !== mood) { mood = m; her.mood(m) } }
+const shown = new Map()
+function setText(el, text) {
+  if (shown.get(el) === text) return
+  shown.set(el, text); el.textContent = text
+  el.classList.remove('swap'); void el.offsetWidth; el.classList.add('swap')
+}
+const px = v => v.toFixed(1) + 'px'
+function typeText(el, text, t) { const part = text.slice(0, Math.round(text.length * clamp(t))); if (el.textContent !== part) el.textContent = part }
+function box(el, x, y, w, h) { el.style.left = px(x); el.style.top = px(y); if (w != null) { el.style.width = px(w); el.style.height = px(h) } }
+function fade(el, o, dy = 0) { el.style.opacity = clamp(o).toFixed(3); el.style.transform = dy ? `translateY(${dy.toFixed(1)}px)` : '' }
+
+/* 版面：S 是她的大小；窗口从她右边一点开始到屏幕右边，上下各留 P。
+   窗口里每一段占一屏窗口高（第 k 段从 k×H 开始），自上而下：你说的话（右）→ 她的回话（左）→ 内容区 */
+function layout() {
+  const vw = innerWidth, vh = $('stage').clientHeight, narrow = vw <= 760
+  const P = narrow ? 12 : 28
+  const S = narrow ? Math.min(vh * 0.28, vw * 0.52) : Math.min(vh * 0.75, vw * 0.36)
+  $('her').style.width = $('her').style.height = px(S)
+  $('her2').style.width = $('her2').style.height = px(S)
+  // 顶栏：放在最上面、横跨整屏宽（owner 第 39 轮要放在上面中间）；窗口和左栏都从它下面开始
+  const nav = $('nav'), idEl = $('id'), wl0 = narrow ? P : S * 0.9 + 8
+  box(nav, P, P, vw - 2 * P, 56)
+  const idTop = P + 56 + (narrow ? 18 : 40)
+  box(idEl, P + 6, idTop); idEl.style.width = px(narrow ? vw - 2 * P - 12 : wl0 - 12 - P - 6)
+  const wl = wl0, wt = narrow ? idTop + idEl.querySelector('h1').offsetHeight + 16 : P + 56 + 12, wr = vw - P, wb = narrow ? vh - S * 0.9 - 6 : vh - P
+  // 她头顶的回话：电脑上在左栏、她头顶上方；手机上在她右边
+  const say = $('say')
+  say.style.maxWidth = px(narrow ? vw - S * 0.85 - 12 : wl0 - 12 - P - 6)
+  if (narrow) { say.style.left = px(S * 0.85); say.style.bottom = px(S * 0.32); say.style.top = '' }
+  else { say.style.left = px(P + 6); say.style.bottom = px(S * 0.8); say.style.top = '' }
+  const W = wr - wl, H = wb - wt
+  box(win, wl, wt, W, H)
+  document.documentElement.style.setProperty('--wl', narrow ? '100%' : px(wl - 28))
+  const pad = narrow ? 16 : 28, g = narrow ? 8 : 14, fs = narrow ? 15 : 18
+  const band = [0, 1, 2, 3, 4, 5].map(k => { const e = $('me' + k), keep = e.style.fontSize; e.style.fontSize = fs + 'px'; const h = e.offsetHeight; e.style.fontSize = keep; return h })
+  const aTop = band.slice(0, 5).map(h => pad + h + g) // 回话挪出了窗口：内容区紧跟在你那一句下面
+  aTop[4] = pad + band[4] + 40 + band[5] + g // 换角色那一段：你一句、一行「换人了」、你再一句
+  // 作品墙：手机两列、电脑四列；每张放进当前最矮的那一列
+  wallEl.style.height = px(H)
+  const n = narrow ? 2 : 4, wp = 12, wg = 10, cw = (W - 2 * wp - (n - 1) * wg) / n, hs = new Array(n).fill(wp)
+  wcols.forEach((c, k) => { c.style.display = k < n ? '' : 'none'; c.style.left = px(wp + k * (cw + wg)); c.style.width = px(cw) })
+  wtiles.forEach(x => {
+    const k = hs.indexOf(Math.min(...hs)), h = cw * Math.min(x.h / x.w, 1.5)
+    if (x.t.parentNode !== wcols[k]) wcols[k].append(x.t)
+    x.t.style.top = px(hs[k]); x.t.style.height = px(h); hs[k] += h + wg
+  })
+  return { narrow, n, W, H, pad, g, fs, band, iw: W - 2 * pad, aTop, aH: aTop.map(t => H - pad - t) }
+}
+
+function apply(p) {
+  const L = layout(), { W, H, pad, g, iw } = L
+  const y = p * TOTAL
+  const w0 = clamp(y / LEN.wall), y1 = y - LEN.wall
+  const Pg = {}; let off = 0
+  SEGS.forEach(k => { Pg[k] = clamp((y1 - off) / LEN[k]); off += LEN[k] })
+  const a = Pg.shots, b = Pg.lora, c = Pg.voice, d = Pg.canvas, e = Pg.char
+  $('pct').textContent = Math.round(p * 100) + '%'
+  $('hint').style.opacity = $('fadebot').style.opacity = (1 - seg(w0, 0.02, 0.12)).toFixed(3)
+
+  /* 第一屏：四列以不同的速度往上走（视差）；一句话和入口淡掉，名字留着 */
+  wcols.forEach((col, k) => { col.style.transform = `translateY(${(-w0 * H * SPEED[k]).toFixed(1)}px)` })
+  const idOut = ease(seg(w0, 0.15, 0.42))
+  fade($('headline'), 1 - idOut, -idOut * (L.narrow ? 8 : 30)) // 手机上顶栏贴得近，只上移一点
+
+  // 换段：整条对话往上推一屏窗口高，上一段出去、下一段进来是同一个动作
+  const s = ease(seg(w0, 0.35, 1)) + [b, c, d, e].reduce((n, t) => n + ease(seg(t, 0, 0.12)), 0)
+  thread.style.transform = `translateY(${(-s * H).toFixed(1)}px)`
+
+  /* 你说的话：三段进来时都已经是气泡，挂在各自那一屏的右上 */
+  ;[0, 1, 2, 3, 4].forEach(k => { const m = $('me' + k); m.style.fontSize = px(L.fs); box(m, W - pad - m.offsetWidth, (k + 1) * H + pad) })
+  { const m = $('me5'), r = ease(seg(e, 0.48, 0.53)); m.style.fontSize = px(L.fs); box(m, W - pad - m.offsetWidth, 5 * H + pad + L.band[4] + 40); fade(m, r, (1 - r) * 10)
+    const sy = $('sys'); sy.style.top = px(5 * H + pad + L.band[4] + 10); sy.style.opacity = ease(seg(e, 0.30, 0.35)).toFixed(3) }
+
+  /* 她的回话 */
+  const sayIn = e > 0 ? (e < 0.32 ? ease(seg(e, 0.13, 0.17)) * (1 - ease(seg(e, 0.20, 0.25))) : ease(seg(e, 0.40, 0.44))) : d > 0 ? ease(seg(d, 0.16, 0.22)) : c > 0 ? ease(seg(c, 0.16, 0.22)) : b > 0 ? ease(seg(b, 0.16, 0.22)) : y1 > 0 ? ease(seg(a, 0.06, 0.12)) : 0
+  fade($('say'), sayIn, (1 - sayIn) * 10); $('say').classList.toggle('whale', e >= 0.32)
+
+  /* ① 出图：长带。电脑上同时看得见两张、正好撑满内容区的宽；手机上一张。每出一张带子往左走一格 */
+  {
+    const top = H + L.aTop[0], AH = L.aH[0], slots = L.narrow ? 1 : 2
+    const w = (iw - (slots - 1) * g) / slots, h = Math.min(AH, w * 4 / 3)
+    const rs = shots.map((_, i) => ease(seg(a, 0.18 + i * 0.15, 0.32 + i * 0.15)))
+    const cam = rs.slice(slots).reduce((n, r) => n + r, 0)
+    shots.forEach((t, i) => {
+      const x = pad + (i - cam) * (w + g)
+      box(t, x, top + (1 - rs[i]) * 18, w, h)
+      t.style.opacity = (rs[i] * clamp((x - pad) / (w + g) + 1)).toFixed(3)
+      t.style.filter = rs[i] < 1 ? `blur(${((1 - rs[i]) * 14).toFixed(1)}px)` : 'none'
+    })
+    L.made = rs.filter(r => r >= 1).length
+  }
+
+  /* ② LoRA：左半是那一张图，一道线从左刷到右换画风；右半是四种画风的 2×2，刷完一种填上一格。
+        手机上放不下右半，只留那一张 */
+  {
+    const top = 2 * H + L.aTop[1], AH = L.aH[1], twoCol = !L.narrow
+    const w = twoCol ? (iw - g) / 2 : iw, h = Math.min(AH, w * 4 / 3)
+    const r0 = ease(seg(b, 0.24, 0.32))
+    box(lora, pad, top + (1 - r0) * 18, w, h)
+    lora.style.opacity = r0.toFixed(3)
+    lora.style.filter = r0 < 1 ? `blur(${((1 - r0) * 14).toFixed(1)}px)` : 'none'
+    const wipes = [0, 1, 2].map(n => seg(b, 0.38 + n * 0.19, 0.52 + n * 0.19))
+    layers.forEach((ly, i) => { if (i) ly.style.clipPath = `inset(0 ${((1 - wipes[i - 1]) * 100).toFixed(2)}% 0 0)` })
+    const live = wipes.findIndex(t => t > 0 && t < 1)
+    wipeLine.style.opacity = live < 0 ? 0 : 1
+    if (live >= 0) wipeLine.style.left = (wipes[live] * 100).toFixed(2) + '%'
+    const cur = live >= 0 ? live + 1 : wipes.filter(t => t >= 1).length
+    const gx = pad + w + g, cw = (w - g) / 2, ch = (h - g) / 2
+    stys.forEach((el, i) => {
+      const done = i === 0 ? r0 : wipes[i - 1] >= 1 ? 1 : 0
+      box(el, gx + (i % 2) * (cw + g), top + (i >> 1) * (ch + g), cw, ch)
+      el.style.opacity = twoCol ? (0.12 + 0.88 * ease(done)).toFixed(3) : 0
+      el.classList.toggle('on', twoCol && i === cur && done > 0)
+      el.classList.toggle('empty', done < 1)
+    })
+    L.lora = { cur, live }
+  }
+
+  /* ③ 配音：三张语音卡排满内容区 */
+  {
+    const vb = $('voices'), top = 3 * H + L.aTop[2], AH = L.aH[2]
+    vb.style.setProperty('--ch', px(Math.min(L.narrow ? 92 : 150, (AH - 2 * g) / 3)))
+    vb.style.gap = px(g)
+    box(vb, pad, top, iw, AH)
+    let voiced = 0
+    voices.forEach((v, j) => {
+      const r = ease(seg(c, 0.28 + j * 0.13, 0.37 + j * 0.13))
+      fade(v.el, r, (1 - r) * 22)
+      v.el.classList.toggle('live', r > 0.9)
+      const n = Math.round(BARS * seg(c, 0.32 + j * 0.13, 0.44 + j * 0.13))
+      if (n !== v.shown) { v.shown = n; v.bars.forEach((x, i) => x.classList.toggle('on', i < n)) }
+      if (n >= BARS) voiced++
+      if (r < 0.5 && playing === v) stop(v)
+    })
+    L.voiced = voiced
+  }
+
+  /* ④ 画布三拍：写分镜、摆节点（镜头先贴近左上，再拉远看全图）→ 剪辑台升起 → 成片跟着滚动逐帧走。手机上是一条镜头带 */
+  {
+    const top = 4 * H + L.aTop[3], AH = L.aH[3], rail = L.narrow, cw = Math.round(Math.min(240, iw * 0.7))
+    box(cv, pad, top, iw, AH)
+    cv.style.opacity = ease(seg(d, 0.12, 0.18)).toFixed(3)
+    placeNodes(rail, cw)
+    let k, tx, ty
+    if (rail) {
+      const z = ease(seg(d, 0.24, 0.6)), ww = 16 + 6 * (cw + 12) + 4
+      k = 1; tx = -z * Math.max(0, ww - iw); ty = Math.max(0, (AH - N.img0.e.offsetHeight - 28) / 2)
+    } else {
+      const kf = Math.min(iw / WW, AH / WH), k0 = Math.min(iw / 500, AH / 340), z = ease(seg(d, 0.30, 0.56))
+      k = mix(k0, kf, z); tx = iw / 2 - mix(250, WW / 2, z) * k; ty = AH / 2 - mix(170, WH / 2, z) * k
+    }
+    world.style.transform = `translate(${tx.toFixed(1)}px, ${ty.toFixed(1)}px) scale(${k.toFixed(4)})`
+    cv.style.backgroundSize = `${(18 * k).toFixed(2)}px ${(18 * k).toFixed(2)}px`
+    cv.style.backgroundPosition = `${tx.toFixed(1)}px ${ty.toFixed(1)}px`
+    const show = (key, t0, t1, blur) => {
+      const st = N[key].e.style, r = ease(seg(d, t0, t1))
+      st.opacity = r.toFixed(3); st.transform = r < 1 ? `translateY(${((1 - r) * 12).toFixed(1)}px)` : ''
+      st.filter = blur && r < 1 ? `blur(${((1 - r) * 10).toFixed(1)}px)` : 'none'
+    }
+    show('cast', 0.16, 0.21); show('script', 0.18, 0.23)
+    N.script.cd.querySelectorAll('p').forEach((p, i) => { p.style.opacity = seg(d, 0.215 + i * 0.012, 0.235 + i * 0.012).toFixed(2) })
+    KF.forEach((_, i) => {
+      if (rail) return show('img' + i, 0.2 + i * 0.02, 0.26 + i * 0.02, true)
+      show('img' + i, 0.29 + i * 0.03, 0.36 + i * 0.03, true); show('vid' + i, 0.43 + i * 0.025, 0.49 + i * 0.025, true)
+    })
+    SAYS.forEach((_, j) => show('aud' + j, 0.5 + j * 0.02, 0.55 + j * 0.02))
+    show('out', 0.57, 0.63)
+    WIRES.forEach(w => { w.p.style.strokeDashoffset = (1 - ease(seg(d, w.t0, w.t1))).toFixed(3) })
+    const up = ease(seg(d, 0.64, 0.74))
+    desk.style.transform = `translateY(${((1 - up) * 101).toFixed(2)}%)`
+    const t = seg(d, 0.76, 0.96), sec = t * 30, shot = Math.min(4, Math.floor(t * 5)), on = d > 0.75
+    $('head').style.left = (t * 100).toFixed(2) + '%'
+    $('tc').textContent = `00:${String(Math.floor(sec)).padStart(2, '0')} / 00:30`
+    $('cap').textContent = on ? CAPS[shot] : ''
+    capClips.forEach((c, i) => c.classList.toggle('on', on && i === shot))
+    sayClips.forEach(c => { const a = +c.dataset.a; c.classList.toggle('on', on && t * 100 >= a && t * 100 <= a + 13) })
+    if (d > 0.3 && filmV.preload !== 'auto') { filmV.preload = 'auto'; filmV.load() }
+    if (filmV.readyState >= 1 && !filmV.seeking) { const want = Math.min((filmV.duration || 30) - 0.1, sec); if (Math.abs(filmV.currentTime - want) > 0.04) filmV.currentTime = want }
+  }
+
+  /* ⑤ 换角色：她退场 → 整页底色从左往右被刷成小鲸的颜色 → 小鲸从同一位置出来；窗口里同一张图两个人各说一句 */
+  {
+    const top = 5 * H + L.aTop[4], AH = L.aH[4]
+    const out = ease(seg(e, 0.20, 0.28)), wp = seg(e, 0.24, 0.36), inn = ease(seg(e, 0.32, 0.42))
+    $('her').style.transform = `translate(${(-10 - 70 * out).toFixed(1)}%, ${(10 + 70 * out).toFixed(1)}%)`
+    $('her').style.visibility = out >= 1 ? 'hidden' : ''
+    $('her2').style.transform = `translate(${(-10 - 70 * (1 - inn)).toFixed(1)}%, ${(10 + 70 * (1 - inn)).toFixed(1)}%)`
+    $('her2').style.opacity = inn > 0 ? 1 : 0
+    $('tide').style.clipPath = `inset(0 ${((1 - wp) * 100).toFixed(2)}% 0 0)`
+    $('tideline').style.opacity = wp > 0 && wp < 1 ? 1 : 0
+    $('tideline').style.left = (wp * 100).toFixed(2) + '%'
+    root.classList.toggle('sea', wp >= 1); $('stage').classList.toggle('seab', wp > 0.8)
+    const w = L.narrow ? iw * 0.42 : (iw - g) / 2, h = Math.min(AH, w * 4 / 3), pw = h * 3 / 4
+    const r0 = ease(seg(e, 0.52, 0.60)), ra = ease(seg(e, 0.58, 0.64)), rb = ease(seg(e, 0.64, 0.68))
+    box(chPic, pad, top + (1 - r0) * 18, pw, h)
+    chPic.style.opacity = r0.toFixed(3); chPic.style.filter = r0 < 1 ? `blur(${((1 - r0) * 14).toFixed(1)}px)` : 'none'
+    const nx = pad + pw + g, nw = iw - pw - g
+    box(noteA, nx, top); noteA.style.width = px(nw); fade(noteA, ra, (1 - ra) * 14)
+    box(noteB, nx, top + noteA.offsetHeight + g); noteB.style.width = px(nw); fade(noteB, rb, (1 - rb) * 14)
+    typeText($('whaleq'), WHALE_Q, seg(e, 0.68, 0.86))
+  }
+
+  /* 她的表情和回话，只看走到哪一段。台词：开头答应一句，干活时不出声，结束时说一句有偏好的话 */
+  const LINES = {
+    shots: ['好嘞，马上画！', '出来啦！第二只最像馆长，就是看起来有点凶～'],
+    lora: ['换画风？交给我！', '同一个她，四种画风！我偷偷最喜欢线稿那张。'],
+    voice: ['三个声音，没问题！', '配好啦，旁白那句我念了三遍才满意，快点开听！'],
+    canvas: ['好嘞，先写分镜！', '剪好啦！我最喜欢第三个镜头的绣球花～'],
+    char: ['好呀，我去叫小鲸～', '……嗯，我是小鲸。说话慢，画画不慢。'],
+  }
+  if (e > 0.12) {
+    if (e < 0.32) { setMood('happy'); setText($('say'), LINES.char[0]) }
+    else { typeText($('say'), LINES.char[1], seg(e, 0.39, 0.50)); shown.set($('say'), $('say').textContent) }
+  } else if (d > 0.12) {
+    if (d < 0.24) { setMood('read'); setText($('say'), LINES.canvas[0]) }
+    else if (d < 0.9) { setMood('work'); setText($('say'), LINES.canvas[0]) }
+    else { setMood('proud'); setText($('say'), LINES.canvas[1]) }
+  } else if (c > 0.12) {
+    if (c < 0.28) { setMood('read'); setText($('say'), LINES.voice[0]) }
+    else if (c < 0.8) { setMood('work'); setText($('say'), LINES.voice[0]) }
+    else { setMood('proud'); setText($('say'), LINES.voice[1]) }
+  } else if (b > 0.12) {
+    if (b < 0.32) { setMood('read'); setText($('say'), LINES.lora[0]) }
+    else if (b < 0.95) { setMood(L.lora.live >= 0 ? 'work' : 'happy'); setText($('say'), LINES.lora[0]) }
+    else { setMood('proud'); setText($('say'), LINES.lora[1]) }
+  } else if (y1 <= 0) {
+    setMood(w0 < 0.35 ? 'happy' : 'read')
+  } else {
+    if (a < 0.18) { setMood('read'); setText($('say'), LINES.shots[0]) }
+    else if (a < 0.84) { setMood('work'); setText($('say'), LINES.shots[0]) }
+    else { setMood('wow'); setText($('say'), LINES.shots[1]) }
+  }
+}
+
+const track = $('track')
+const still = matchMedia('(prefers-reduced-motion: reduce)').matches
+let queued = false
+function measure() {
+  queued = false
+  if (still) return apply(1)
+  const total = track.offsetHeight - innerHeight
+  apply(total > 0 ? clamp((scrollY - track.offsetTop) / total) : 0)
+}
+function onScroll() { if (!queued) { queued = true; requestAnimationFrame(measure) } }
+if (still) root.classList.add('still')
+addEventListener('scroll', onScroll, { passive: true })
+addEventListener('resize', onScroll)
+measure()
+</script>
+</body>
+</html>

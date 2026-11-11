@@ -479,10 +479,11 @@ export const StudioInpaintEditor = memo(function StudioInpaintEditor({
         maxLength={1000}
         onChange={(event) => setPrompt(event.target.value)}
         placeholder={t('promptPlaceholder')}
+        bare={Boolean(renderComposer)}
         className={cn(
           'resize-none',
           renderComposer
-            ? 'min-h-10 max-h-36 border-0 bg-transparent p-0 text-base shadow-none focus-visible:ring-0'
+            ? 'min-h-10 max-h-36 md:text-md md:leading-reading'
             : 'min-h-24',
         )}
       />

@@ -29,6 +29,7 @@ import {
 } from '@/components/ui/select'
 import { Spinner } from '@/components/ui/spinner'
 import { Switch } from '@/components/ui/switch'
+import { Input } from '@/components/ui/input'
 import { useErrorText } from '@/hooks/use-error-text'
 
 /**
@@ -210,7 +211,7 @@ function DisplayNameField() {
             ? t('preferences.saved')
             : ''}
       </span>
-      <input
+      <Input
         type="text"
         value={value}
         disabled={mark === 'saving'}
@@ -223,7 +224,7 @@ function DisplayNameField() {
           if (event.key === 'Enter') event.currentTarget.blur()
           if (event.key === 'Escape') setDraft(null)
         }}
-        className="h-8 w-44 rounded-md border border-border bg-background px-2.5 text-right text-base lg:text-xs coarse:h-11 transition-colors duration-fast focus:border-ring focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+        className="h-8 w-44 px-2.5 text-right"
       />
     </span>
   )

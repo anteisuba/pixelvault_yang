@@ -82,37 +82,19 @@ test.describe('Mobile Responsive', () => {
     })
   }
 
-  test('homepage LoRA feature fits a short mobile viewport', async ({
+  test('homepage stage fits a phone without sideways scroll', async ({
     page,
   }) => {
-    await page.setViewportSize({ width: 701, height: 781 })
+    await page.setViewportSize({ width: 375, height: 812 })
     await page.goto(localizedPath(ROUTES.HOME), {
       waitUntil: 'domcontentloaded',
     })
 
-    const pageIndex = page.getByRole('button', { name: 'Page index' })
-    await expect(page.locator('html')).toHaveClass(/home-v4-locked/)
-    await expect(pageIndex).toBeVisible()
-    await pageIndex.click()
-    await expect(page.locator('.mtoc')).toHaveClass(/\bon\b/)
-
-    const loraPage = page
-      .locator('.mtoc')
-      .getByRole('button', { name: /^03\s*LoRA$/ })
-    await expect(loraPage).toBeVisible()
-    await loraPage.click()
-
-    const feature = page.locator(
-      'section[data-name="lora"][data-pos="on"] .imgfn',
+    await expect(page.locator('.home-v6 .win')).toBeVisible()
+    await expect(page.locator('.home-v6 h1')).toBeVisible()
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - window.innerWidth,
     )
-    await expect(feature).toBeVisible()
-    await expect
-      .poll(async () => {
-        const bounds = await feature.boundingBox()
-        return Boolean(
-          bounds && bounds.y >= 0 && bounds.y + bounds.height <= 781,
-        )
-      })
-      .toBe(true)
+    expect(overflow).toBeLessThanOrEqual(0)
   })
 })

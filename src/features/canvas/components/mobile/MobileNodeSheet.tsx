@@ -60,6 +60,7 @@ import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import { NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS } from '@/constants/node-studio'
 import { SearchGroundingRail } from '@/components/business/studio-shared/search-grounding/SearchGroundingRail'
 import { SearchGroundingSlot } from '@/components/business/studio-shared/search-grounding/SearchGroundingSlot'
+import { Textarea } from '@/components/ui/textarea'
 import { useNodeSearchGrounding } from '@/features/canvas/hooks/use-node-search-grounding'
 import { isShotNode } from './mobile-rail-model'
 
@@ -430,13 +431,13 @@ function TextSheetBody({ node }: { readonly node: NodeV4 }) {
     <div className="flex flex-col gap-3">
       <SheetHeadline name={data.name} versionIndex={0} versionCount={0} />
       {/* 文本卡就是一只文本框：失焦即存（与全屏文档同一条 `onEditText`）。 */}
-      <textarea
+      <Textarea
         defaultValue={data.body}
         placeholder={tText('empty')}
         aria-label={data.name}
         data-mobile-text-body
         onBlur={(event) => canvas.onEditText(node.id, event.target.value)}
-        className="min-h-40 w-full resize-none rounded-lg border border-border bg-card p-3 text-base leading-relaxed text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        className="min-h-40 resize-none"
       />
       <TextAssistantBar nodeId={node.id} />
     </div>

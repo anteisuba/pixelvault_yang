@@ -1,0 +1,930 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>工作台方向 · 对比 10：布局 B 里的助手</title>
+    <style>
+      :root {
+        --ground: #ece9e3;
+        --panel: #fff;
+        --fill: #f5f3ef;
+        --fill-strong: #eeebe5;
+        --ink: #171411;
+        --ink-2: #4b463f;
+        --ink-3: #655f57;
+        --line: rgb(28 22 14 / 0.08);
+        --hl: #3346e8;
+        --card:
+          0 0 0 1px rgba(16, 18, 24, 0.05), 0 2px 6px rgba(16, 18, 24, 0.05),
+          0 12px 28px rgba(16, 18, 24, 0.08);
+        --pop:
+          0 0 0 1px rgba(16, 18, 24, 0.05), 0 12px 32px rgba(16, 18, 24, 0.14);
+        --sans: 'Geist', 'PingFang SC', 'Noto Sans SC', system-ui, sans-serif;
+        --mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: var(--sans);
+        font-size: 13px;
+        color: var(--ink);
+        background: #d9d5ce;
+        -webkit-font-smoothing: antialiased;
+      }
+      button {
+        font: inherit;
+        color: inherit;
+        border: 0;
+        background: none;
+        cursor: pointer;
+      }
+      .switch {
+        position: sticky;
+        top: 0;
+        z-index: 30;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px 16px;
+        padding: 10px 16px;
+        background: #101216;
+        color: #fff;
+      }
+      .seg {
+        display: inline-flex;
+        flex-wrap: wrap;
+        padding: 2px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.14);
+      }
+      .seg button {
+        height: 28px;
+        padding: 0 12px;
+        border-radius: 999px;
+        color: rgba(255, 255, 255, 0.72);
+      }
+      .seg button[aria-pressed='true'] {
+        background: #fff;
+        color: #101216;
+        font-weight: 600;
+      }
+      kbd {
+        font-family: var(--mono);
+        font-size: 11px;
+        opacity: 0.55;
+      }
+      .hint {
+        font-size: 12px;
+        opacity: 0.6;
+      }
+      .page {
+        max-width: 1240px;
+        margin: 0 auto;
+        padding: 16px;
+        display: grid;
+        gap: 14px;
+      }
+      .idea {
+        display: none;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+        gap: 16px 32px;
+        padding: 20px 24px;
+        border-radius: 20px;
+        background: var(--panel);
+      }
+      body[data-v='a'] .idea.a,
+      body[data-v='b'] .idea.b,
+      body[data-v='c'] .idea.c {
+        display: grid;
+      }
+      .idea h2 {
+        margin: 0 0 6px;
+        font-size: 20px;
+        line-height: 1.3;
+        font-weight: 600;
+      }
+      .idea p {
+        margin: 0;
+        font-size: 15px;
+        line-height: 1.7;
+        color: var(--ink-2);
+      }
+      .lab {
+        font-size: 11px;
+        color: var(--ink-3);
+        margin-bottom: 6px;
+      }
+      table.map {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      table.map td {
+        padding: 5px 0;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+      table.map td:first-child {
+        width: 34%;
+        color: var(--ink-3);
+        padding-right: 12px;
+      }
+      .try {
+        font-size: 11px;
+        color: var(--ink-3);
+        margin-top: 10px;
+      }
+
+      /* 应用框：按桌面 1208 × 720 画，窄窗整框等比缩小 */
+      .appwrap {
+        overflow: hidden;
+      }
+      .app {
+        position: relative;
+        width: 1208px;
+        height: 720px;
+        display: flex;
+        border-radius: 20px;
+        background: var(--ground);
+        overflow: hidden;
+        padding: 8px 8px 8px 0;
+        transform-origin: top left;
+      }
+      .rail {
+        width: 56px;
+        flex: none;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        padding-top: 6px;
+      }
+      .rail .r {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        display: grid;
+        place-items: center;
+        font-size: 11px;
+        color: var(--ink-2);
+      }
+      .rail .r.on {
+        background: #fff;
+        color: var(--ink);
+        font-weight: 600;
+        box-shadow: 0 1px 2px rgba(16, 18, 24, 0.08);
+      }
+      .rail .new {
+        width: 36px;
+        height: 36px;
+        border-radius: 999px;
+        background: var(--ink);
+        color: #fff;
+        font-size: 18px;
+        margin: 4px 0 8px;
+        display: grid;
+        place-items: center;
+      }
+      .board {
+        flex: 1;
+        min-width: 0;
+        position: relative;
+        display: flex;
+        border-radius: 20px;
+        background: var(--panel);
+        overflow: hidden;
+        box-shadow: 0 0 0 1px rgba(16, 18, 24, 0.04);
+      }
+      .stage {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        padding: 24px 32px 32px;
+        gap: 24px;
+      }
+      .top {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        height: 36px;
+      }
+      .top .t {
+        font-size: 20px;
+        font-weight: 600;
+        margin-right: auto;
+      }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 28px;
+        padding: 0 11px;
+        border-radius: 999px;
+        background: var(--fill);
+        color: var(--ink-2);
+        font-size: 13px;
+        white-space: nowrap;
+      }
+      .chip.strong {
+        background: var(--fill-strong);
+        color: var(--ink);
+      }
+      .icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 999px;
+        display: grid;
+        place-items: center;
+        color: var(--ink-2);
+        font-size: 15px;
+        flex: none;
+      }
+      .icon:hover,
+      .chip:hover {
+        background: var(--fill-strong);
+      }
+      .send {
+        width: 32px;
+        height: 32px;
+        border-radius: 999px;
+        background: var(--ink);
+        color: #fff;
+        display: grid;
+        place-items: center;
+        flex: none;
+      }
+      .avatar {
+        width: 28px;
+        height: 28px;
+        border-radius: 999px;
+        background: radial-gradient(
+          circle at 40% 35%,
+          #ffd9e4 0 22%,
+          #f2a3bd 23% 55%,
+          #b986c9 56%
+        );
+        flex: none;
+        position: relative;
+      }
+      .avatar.big {
+        width: 44px;
+        height: 44px;
+      }
+      .avatar .dot {
+        position: absolute;
+        top: -1px;
+        right: -1px;
+        width: 9px;
+        height: 9px;
+        border-radius: 999px;
+        background: var(--hl);
+        box-shadow: 0 0 0 2px #fff;
+      }
+      .who {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        height: 36px;
+        padding: 0 10px 0 4px;
+        border-radius: 999px;
+        font-weight: 600;
+        font-size: 15px;
+      }
+      .who:hover {
+        background: var(--fill);
+      }
+      .grid4 {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 16px;
+      }
+      .tile {
+        aspect-ratio: 3 / 4;
+        border-radius: 12px;
+        background: var(--fill) center / cover no-repeat;
+      }
+      .composer {
+        border-radius: 16px;
+        background: #fff;
+        box-shadow: var(--card);
+        padding: 14px 18px 12px;
+        display: grid;
+        gap: 10px;
+      }
+      .composer .ph {
+        font-size: 15px;
+        line-height: 1.7;
+        color: var(--ink-3);
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .grow {
+        flex: 1;
+      }
+      .muted {
+        color: var(--ink-3);
+      }
+      .small {
+        font-size: 11px;
+      }
+      .results {
+        flex: 1;
+        display: grid;
+        gap: 10px;
+        align-content: start;
+      }
+
+      /* 抽屉 */
+      .drawer {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        bottom: 8px;
+        width: 400px;
+        border-radius: 20px;
+        background: #fff;
+        box-shadow: var(--pop);
+        display: flex;
+        flex-direction: column;
+        transform: translateX(calc(100% + 16px));
+        transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+        z-index: 5;
+      }
+      .app.open .drawer {
+        transform: none;
+      }
+      /* C：台顶那一行（她是谁）始终露着，抽屉从它下面开始 */
+      body[data-v='c'] .drawer {
+        top: 72px;
+      }
+      .dhead {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 10px 10px 0 12px;
+        height: 52px;
+      }
+      .dbody {
+        flex: 1;
+        overflow: auto;
+        padding: 16px 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .bubble-me {
+        align-self: flex-end;
+        max-width: 85%;
+        padding: 10px 14px;
+        border-radius: 18px;
+        background: #f2efea;
+        font-size: 15px;
+        line-height: 1.7;
+      }
+      .say {
+        font-size: 15px;
+        line-height: 1.7;
+      }
+      .proc {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 24px;
+        padding: 0 10px;
+        border-radius: 999px;
+        background: var(--fill);
+        font-size: 11px;
+        color: var(--ink-2);
+      }
+      .specline {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 0 16px 6px;
+        font-size: 13px;
+        color: var(--ink-2);
+      }
+      .drawer .composer {
+        margin: 0 12px 12px;
+      }
+      .menu {
+        position: absolute;
+        z-index: 8;
+        width: 260px;
+        border-radius: 12px;
+        background: #fff;
+        box-shadow: var(--pop);
+        padding: 6px;
+        display: none;
+      }
+      .menu.show {
+        display: block;
+      }
+      .menu .mi {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        height: 36px;
+        padding: 0 10px;
+        border-radius: 8px;
+        font-size: 13px;
+      }
+      .menu .mi:hover {
+        background: var(--fill);
+      }
+      .menu .sep {
+        height: 1px;
+        background: var(--line);
+        margin: 4px 6px;
+      }
+      .menu .segm {
+        display: flex;
+        padding: 2px;
+        border-radius: 999px;
+        background: var(--fill-strong);
+        margin: 4px 6px 6px;
+      }
+      .menu .segm span {
+        flex: 1;
+        height: 28px;
+        display: grid;
+        place-items: center;
+        border-radius: 999px;
+        font-size: 13px;
+        color: var(--ink-2);
+      }
+      .menu .segm span.on {
+        background: #fff;
+        color: var(--ink);
+        font-weight: 600;
+        box-shadow: 0 1px 2px rgba(16, 18, 24, 0.08);
+      }
+      .sw {
+        margin-left: auto;
+        width: 28px;
+        height: 18px;
+        border-radius: 999px;
+        background: var(--ink);
+        position: relative;
+      }
+      .sw::after {
+        content: '';
+        position: absolute;
+        top: 2px;
+        left: 12px;
+        width: 14px;
+        height: 14px;
+        border-radius: 999px;
+        background: #fff;
+      }
+      .mlab {
+        font-size: 11px;
+        color: var(--ink-3);
+        padding: 6px 10px 2px;
+      }
+      .v {
+        display: none !important;
+      }
+      body[data-v='a'] .v.a,
+      body[data-v='b'] .v.b,
+      body[data-v='c'] .v.c {
+        display: flex !important;
+      }
+      @media (max-width: 860px) {
+        .idea {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body data-v="a">
+    <div class="switch" role="toolbar" aria-label="对比开关">
+      <span>布局 B 里的助手</span>
+      <span class="seg">
+        <button aria-pressed="true" data-v="a">A 原样搬进抽屉</button>
+        <button aria-pressed="false" data-v="b">B 头部收进她的名字</button>
+        <button aria-pressed="false" data-v="c">
+          C 她是谁放台顶，抽屉只管对话
+        </button>
+      </span>
+      <kbd>1 / 2 / 3 · 空格开关抽屉</kbd>
+      <span class="hint"
+        >功能一样都不少，只比放在哪儿。点头像 / 名字开关抽屉，点带 ▾
+        的看菜单</span
+      >
+    </div>
+
+    <main class="page">
+      <section class="idea a">
+        <div>
+          <h2>A 原样搬进抽屉</h2>
+          <p>
+            现在的助手面板整块放进右边抽屉，头上六样、规格行、输入框都照旧。台右上角只留一颗她的头像，点它开关。
+          </p>
+          <div class="try">
+            好处：一样不改，最好落地。代价：400
+            宽的头上挤六样；规格行和台上的药丸是同一套设置的两处显示。
+          </div>
+        </div>
+        <div>
+          <div class="lab">每一样去哪儿</div>
+          <table class="map">
+            <tr>
+              <td>记录（时钟）</td>
+              <td>抽屉头，照旧</td>
+            </tr>
+            <tr>
+              <td>换人（Aemeath ▾）</td>
+              <td>抽屉头，照旧</td>
+            </tr>
+            <tr>
+              <td>聊天 / 工作</td>
+              <td>抽屉头，照旧</td>
+            </tr>
+            <tr>
+              <td>朗读（喇叭）</td>
+              <td>抽屉头，照旧</td>
+            </tr>
+            <tr>
+              <td>⋯（助手设置 · 隐身）</td>
+              <td>抽屉头，照旧</td>
+            </tr>
+            <tr>
+              <td>收起</td>
+              <td>抽屉头最右 ×；台右上角头像也能关</td>
+            </tr>
+            <tr>
+              <td>规格行（模型 · 比例 · 张数）</td>
+              <td>留着，和台上药丸同步</td>
+            </tr>
+            <tr>
+              <td>输入框（＋ · 文本模型 · 思考 · 发送）</td>
+              <td>照旧</td>
+            </tr>
+          </table>
+        </div>
+      </section>
+      <section class="idea b">
+        <div>
+          <h2>B 头部收进她的名字</h2>
+          <p>
+            抽屉头只剩三样：记录、她的名字 ▾、收起。换人、聊天 /
+            工作、朗读、助手设置、隐身都收进名字下面那个菜单。规格行去掉，设置只在台上。
+          </p>
+          <div class="try">
+            好处：抽屉头干净，台和抽屉不出现两套设置。代价：聊天 /
+            工作、朗读要多点一下才切得到。
+          </div>
+        </div>
+        <div>
+          <div class="lab">每一样去哪儿</div>
+          <table class="map">
+            <tr>
+              <td>记录（时钟）</td>
+              <td>抽屉头最左，照旧</td>
+            </tr>
+            <tr>
+              <td>换人</td>
+              <td>名字 ▾ 菜单第一组</td>
+            </tr>
+            <tr>
+              <td>聊天 / 工作</td>
+              <td>名字 ▾ 菜单里一条切换条；名字旁小字写着现在是哪档</td>
+            </tr>
+            <tr>
+              <td>朗读</td>
+              <td>名字 ▾ 菜单里一行开关</td>
+            </tr>
+            <tr>
+              <td>⋯（助手设置 · 隐身）</td>
+              <td>名字 ▾ 菜单最后两行</td>
+            </tr>
+            <tr>
+              <td>收起</td>
+              <td>抽屉头最右 ×；台右上角头像也能关</td>
+            </tr>
+            <tr>
+              <td>规格行</td>
+              <td>去掉，设置只在台上</td>
+            </tr>
+            <tr>
+              <td>输入框</td>
+              <td>照旧</td>
+            </tr>
+          </table>
+        </div>
+      </section>
+      <section class="idea c">
+        <div>
+          <h2>C 她是谁放台顶，抽屉只管对话</h2>
+          <p>
+            「现在陪你的是谁、她在聊天还是干活、开不开朗读」是全局的，抽屉关着也该看得见，所以放在台顶右上角：她的头像
+            + 名字 ▾ + 一颗聊天 / 工作。抽屉头只管这段对话：标题
+            ▾（就是记录）和收起。
+          </p>
+          <div class="try">
+            好处：抽屉关着也知道是谁、在哪档；抽屉头最轻。代价：台顶多一组东西，七个台的台顶都要留这块地方。
+          </div>
+        </div>
+        <div>
+          <div class="lab">每一样去哪儿</div>
+          <table class="map">
+            <tr>
+              <td>记录</td>
+              <td>抽屉头：这段对话的标题 ▾，点开就是记录 + 新对话</td>
+            </tr>
+            <tr>
+              <td>换人</td>
+              <td>台顶右上：名字 ▾</td>
+            </tr>
+            <tr>
+              <td>聊天 / 工作</td>
+              <td>台顶右上：名字旁一颗药丸</td>
+            </tr>
+            <tr>
+              <td>朗读</td>
+              <td>台顶名字 ▾ 菜单里一行开关</td>
+            </tr>
+            <tr>
+              <td>⋯（助手设置 · 隐身）</td>
+              <td>台顶名字 ▾ 菜单最后两行</td>
+            </tr>
+            <tr>
+              <td>收起</td>
+              <td>抽屉头最右 ×；点台顶的头像也能开关</td>
+            </tr>
+            <tr>
+              <td>规格行</td>
+              <td>去掉，设置只在台上</td>
+            </tr>
+            <tr>
+              <td>输入框</td>
+              <td>照旧</td>
+            </tr>
+          </table>
+        </div>
+      </section>
+
+      <div class="appwrap">
+        <div class="app open" id="app">
+          <nav class="rail" aria-label="左栏">
+            <div class="new">+</div>
+            <div class="r">对话</div>
+            <div class="r on">图</div>
+            <div class="r">标签</div>
+            <div class="r">LoRA</div>
+            <div class="r">配音</div>
+            <div class="r">视频</div>
+            <div class="r">3D</div>
+            <div class="r">画布</div>
+          </nav>
+          <div class="board">
+            <div class="stage">
+              <div class="top">
+                <span class="t">图</span>
+                <!-- A / B：台顶只有头像 -->
+                <button class="v a b toggle" aria-label="开关助手">
+                  <span class="avatar"><span class="dot"></span></span>
+                </button>
+                <!-- C：她是谁放台顶 -->
+                <span class="v c row" style="gap: 6px">
+                  <button class="chip strong">工作</button>
+                  <button class="who" data-menu="m-c">
+                    <span class="avatar toggle"><span class="dot"></span></span
+                    >Aemeath ▾
+                  </button>
+                </span>
+              </div>
+              <div class="results">
+                <div class="row" style="justify-content: space-between">
+                  <span>橘猫馆长，闭馆后在美术馆巡夜，油画感</span>
+                  <span class="small muted">Seedream 5 · 3:4</span>
+                </div>
+                <div class="grid4">
+                  <div
+                    class="tile"
+                    style="
+                      background-image: url(../home-v6/media/production/quad/quad-gemini-3-pro.webp);
+                    "
+                  ></div>
+                  <div
+                    class="tile"
+                    style="
+                      background-image: url(../home-v6/media/production/quad/quad-seedream-5-0.webp);
+                    "
+                  ></div>
+                  <div
+                    class="tile"
+                    style="
+                      background-image: url(../home-v6/media/production/quad/quad-flux-2-pro.webp);
+                    "
+                  ></div>
+                  <div
+                    class="tile"
+                    style="
+                      background-image: url(../home-v6/media/production/quad/quad-gpt-image-2.webp);
+                    "
+                  ></div>
+                </div>
+              </div>
+              <div class="composer">
+                <div class="ph">描述画面</div>
+                <div class="row">
+                  <span class="chip">+</span>
+                  <span class="chip">✦ 帮我写</span>
+                  <span class="chip">从图读串</span>
+                  <span class="chip">模板</span>
+                  <span class="chip">角色</span>
+                  <span class="chip">负面</span>
+                  <span class="grow"></span>
+                  <span class="chip">Seedream 5</span>
+                  <span class="chip">3:4 · 4 张</span>
+                  <span class="send">↑</span>
+                </div>
+              </div>
+            </div>
+
+            <aside class="drawer" aria-label="助手">
+              <!-- A 头部：六样照旧 -->
+              <div class="dhead v a">
+                <button class="icon" aria-label="记录">⟲</button>
+                <button class="who">
+                  <span class="avatar"></span>Aemeath ▾
+                </button>
+                <button class="chip">✎ 工作</button>
+                <span class="grow"></span>
+                <button class="icon" aria-label="朗读">🔈</button>
+                <button class="icon" aria-label="更多">⋯</button>
+                <button class="icon toggle" aria-label="收起">×</button>
+              </div>
+              <!-- B 头部：记录 · 名字 ▾ · 收起 -->
+              <div class="dhead v b">
+                <button class="icon" aria-label="记录">⟲</button>
+                <button class="who" data-menu="m-b">
+                  <span class="avatar"></span>Aemeath<span
+                    class="small muted"
+                    style="font-weight: 400"
+                    >· 工作</span
+                  >
+                  ▾
+                </button>
+                <span class="grow"></span>
+                <button class="icon toggle" aria-label="收起">×</button>
+              </div>
+              <!-- C 头部：对话标题 ▾ · 收起 -->
+              <div class="dhead v c">
+                <button class="who" style="font-size: 13px">
+                  橘猫馆长巡夜 ▾
+                </button>
+                <span class="grow"></span>
+                <button class="icon toggle" aria-label="收起">×</button>
+              </div>
+
+              <div class="dbody">
+                <div class="bubble-me">这组太亮了，想要更像夜里</div>
+                <div class="row">
+                  <span class="avatar"></span
+                  ><span class="proc">改了台上的提示词</span>
+                </div>
+                <div class="say">
+                  把灯光改成只剩展柜的暖光，窗外月光偏冷。台上那句我已经改好，你按生成就行。
+                </div>
+              </div>
+
+              <div class="specline v a">
+                <span>▣</span>图 · Seedream 5 · 3:4 · 4 张
+              </div>
+              <div class="composer">
+                <div class="ph">和她说</div>
+                <div class="row">
+                  <span class="chip">+</span>
+                  <span class="chip">DeepSeek V4.1 Flash</span>
+                  <span class="chip">思考</span>
+                  <span class="grow"></span>
+                  <span class="send">↑</span>
+                </div>
+              </div>
+            </aside>
+
+            <!-- B 的名字菜单（抽屉头） -->
+            <div class="menu" id="m-b" style="top: 56px; right: 160px">
+              <div class="mlab">现在陪你的</div>
+              <div class="mi">
+                <span class="avatar"></span><b>Aemeath</b
+                ><span class="grow"></span>✓
+              </div>
+              <div class="mi">
+                <span class="avatar" style="background: #c9c3ba"></span>工作助手
+              </div>
+              <div class="mi">
+                <span
+                  class="avatar"
+                  style="background: radial-gradient(circle, #b8d4f0, #6a7fb5)"
+                ></span
+                >Denia
+              </div>
+              <div class="segm">
+                <span>聊天</span><span class="on">工作</span>
+              </div>
+              <div class="mi">朗读回复<span class="sw"></span></div>
+              <div class="sep"></div>
+              <div class="mi">助手设置</div>
+              <div class="mi">隐身</div>
+            </div>
+            <!-- C 的名字菜单（台顶） -->
+            <div class="menu" id="m-c" style="top: 64px; right: 24px">
+              <div class="mlab">现在陪你的</div>
+              <div class="mi">
+                <span class="avatar"></span><b>Aemeath</b
+                ><span class="grow"></span>✓
+              </div>
+              <div class="mi">
+                <span class="avatar" style="background: #c9c3ba"></span>工作助手
+              </div>
+              <div class="mi">
+                <span
+                  class="avatar"
+                  style="background: radial-gradient(circle, #b8d4f0, #6a7fb5)"
+                ></span
+                >Denia
+              </div>
+              <div class="sep"></div>
+              <div class="mi">朗读回复<span class="sw"></span></div>
+              <div class="mi">助手设置</div>
+              <div class="mi">隐身</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <script>
+      const app = document.getElementById('app')
+      const closeMenus = () =>
+        document
+          .querySelectorAll('.menu')
+          .forEach((m) => m.classList.remove('show'))
+      document.addEventListener('click', (e) => {
+        const menuBtn = e.target.closest('[data-menu]')
+        const t = e.target.closest('.toggle')
+        if (t && !(menuBtn && !e.target.closest('.avatar'))) {
+          app.classList.toggle('open')
+          closeMenus()
+          return
+        }
+        if (menuBtn) {
+          const m = document.getElementById(menuBtn.dataset.menu)
+          const was = m.classList.contains('show')
+          closeMenus()
+          if (!was) m.classList.add('show')
+          return
+        }
+        if (!e.target.closest('.menu')) closeMenus()
+      })
+      const set = (v) => {
+        document.body.dataset.v = v
+        closeMenus()
+        document
+          .querySelectorAll('.seg button')
+          .forEach((b) =>
+            b.setAttribute('aria-pressed', String(b.dataset.v === v)),
+          )
+      }
+      document.querySelector('.seg').addEventListener('click', (e) => {
+        const b = e.target.closest('button')
+        if (b) set(b.dataset.v)
+      })
+      addEventListener('keydown', (e) => {
+        if (['1', '2', '3'].includes(e.key))
+          set({ 1: 'a', 2: 'b', 3: 'c' }[e.key])
+        if (e.key === ' ') {
+          e.preventDefault()
+          app.classList.toggle('open')
+        }
+        if (e.key === 'Escape') closeMenus()
+      })
+      function fit() {
+        const w = document.querySelector('.appwrap')
+        const avail = document.querySelector('.page').clientWidth - 32
+        const k = Math.min(1, avail / 1208)
+        app.style.transform = k < 1 ? `scale(${k})` : ''
+        w.style.height = 720 * k + 'px'
+      }
+      addEventListener('resize', fit)
+      fit()
+      const q = new URLSearchParams(location.search)
+      if (q.get('v')) set(q.get('v'))
+      if (q.get('closed')) app.classList.remove('open')
+      if (q.get('menu'))
+        document.getElementById(q.get('menu')).classList.add('show')
+    </script>
+  </body>
+</html>

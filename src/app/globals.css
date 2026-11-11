@@ -902,7 +902,7 @@
      画布域的域内变量 + 全部 .node-* 类/keyframe 住 src/app/canvas.css，自
      2026-09-03 起**只由画布路由**（`src/app/[locale]/(main)/studio/node/
      layout.tsx`）import，不再挂根 layout —— 那一份 173 KB 皮肤原本进每个路由
-     的首屏 CSS。域皮肤各去自己的 <domain>.css（canvas / home-v4 / lora /
+     的首屏 CSS。域皮肤各去自己的 <domain>.css（canvas / home-v6 / lora /
      voiceroom / legal / auth）；域内 chat 不改本文件脊柱段。@theme inline 的
      --color-node-* 映射保留在本文件（Tailwind 编译入口只有一个）。
 

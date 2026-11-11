@@ -215,7 +215,7 @@ export function ProfileEditModal({
                     setUsername(event.target.value.toLowerCase())
                   }
                   maxLength={PROFILE.USERNAME_MAX_LENGTH}
-                  className="border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
+                  bare
                   placeholder={t('usernamePlaceholder')}
                   autoComplete="username"
                 />

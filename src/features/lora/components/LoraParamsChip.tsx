@@ -149,7 +149,8 @@ export function LoraParamsChip({
           onChange={(event) => onChange(event.target.value)}
           placeholder={String(range.fallback)}
           aria-label={label}
-          className="h-7 w-11 shrink-0 border-0 bg-transparent px-0 text-right font-mono tabular-nums shadow-none placeholder:text-muted-foreground md:text-xs"
+          bare
+          className="h-7 w-11 shrink-0 text-right font-mono tabular-nums"
         />
       </div>,
     )
@@ -302,7 +303,7 @@ export function LoraParamsChip({
                 onChange={(event) => onSeedChange(event.target.value.trim())}
                 inputMode="numeric"
                 aria-label={t('generate.advanced.seed')}
-                className="h-8 min-w-0 flex-1 border-0 bg-muted px-2.5 font-mono tabular-nums shadow-none md:text-xs"
+                className="h-8 min-w-0 flex-1 px-2.5 font-mono tabular-nums"
               />
             </div>
           ) : null}

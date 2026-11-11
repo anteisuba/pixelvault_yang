@@ -1,0 +1,1131 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>工作台方向 · 对比 9：布局与交互</title>
+    <style>
+      :root {
+        --ground: #ece9e3;
+        --panel: #fff;
+        --fill: #f5f3ef;
+        --fill-strong: #eeebe5;
+        --ink: #171411;
+        --ink-2: #4b463f;
+        --ink-3: #655f57;
+        --line: rgb(28 22 14 / 0.08);
+        --hl: #3346e8;
+        --card:
+          0 0 0 1px rgba(16, 18, 24, 0.05), 0 2px 6px rgba(16, 18, 24, 0.05),
+          0 12px 28px rgba(16, 18, 24, 0.08);
+        --pop:
+          0 0 0 1px rgba(16, 18, 24, 0.05), 0 12px 32px rgba(16, 18, 24, 0.14);
+        --sans: 'Geist', 'PingFang SC', 'Noto Sans SC', system-ui, sans-serif;
+        --mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+        --m: '../home-v6/media/production';
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: var(--sans);
+        font-size: 13px;
+        color: var(--ink);
+        background: #d9d5ce;
+        -webkit-font-smoothing: antialiased;
+      }
+      button,
+      input,
+      textarea {
+        font: inherit;
+        color: inherit;
+      }
+      button {
+        border: 0;
+        background: none;
+        cursor: pointer;
+      }
+
+      /* 顶上开关 */
+      .switch {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px 16px;
+        padding: 10px 16px;
+        background: #101216;
+        color: #fff;
+      }
+      .seg {
+        display: inline-flex;
+        flex-wrap: wrap;
+        padding: 2px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.14);
+      }
+      .seg button {
+        height: 28px;
+        padding: 0 12px;
+        border-radius: 999px;
+        color: rgba(255, 255, 255, 0.72);
+      }
+      .seg button[aria-pressed='true'] {
+        background: #fff;
+        color: #101216;
+        font-weight: 600;
+      }
+      kbd {
+        font-family: var(--mono);
+        font-size: 11px;
+        opacity: 0.55;
+      }
+      .hint {
+        font-size: 12px;
+        opacity: 0.6;
+      }
+
+      .page {
+        max-width: 1240px;
+        margin: 0 auto;
+        padding: 16px;
+        display: grid;
+        gap: 14px;
+      }
+      .idea {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 16px 32px;
+        padding: 20px 24px;
+        border-radius: 20px;
+        background: var(--panel);
+      }
+      .idea h2 {
+        margin: 0 0 6px;
+        font-size: 20px;
+        line-height: 1.3;
+        font-weight: 600;
+      }
+      .idea p {
+        margin: 0;
+        font-size: 15px;
+        line-height: 1.7;
+        color: var(--ink-2);
+      }
+      .idea ul {
+        margin: 0;
+        padding-left: 18px;
+        font-size: 13px;
+        line-height: 1.7;
+        color: var(--ink-2);
+      }
+      .idea .lab {
+        font-size: 11px;
+        color: var(--ink-3);
+        margin-bottom: 4px;
+      }
+      .try {
+        font-size: 11px;
+        color: var(--ink-3);
+        margin-top: 8px;
+      }
+
+      /* 应用框 */
+      .app {
+        position: relative;
+        display: flex;
+        height: 720px;
+        border-radius: 20px;
+        background: var(--ground);
+        overflow: hidden;
+        padding: 8px 8px 8px 0;
+      }
+      .rail {
+        width: 56px;
+        flex: none;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        padding-top: 6px;
+      }
+      .rail .r {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        display: grid;
+        place-items: center;
+        font-size: 11px;
+        color: var(--ink-2);
+        position: relative;
+      }
+      .rail .r.on {
+        background: #fff;
+        color: var(--ink);
+        font-weight: 600;
+        box-shadow: 0 1px 2px rgba(16, 18, 24, 0.08);
+      }
+      .rail .new {
+        width: 36px;
+        height: 36px;
+        border-radius: 999px;
+        background: var(--ink);
+        color: #fff;
+        font-size: 18px;
+        margin: 4px 0 8px;
+        display: grid;
+        place-items: center;
+      }
+      .rail .sep {
+        width: 20px;
+        height: 1px;
+        background: rgba(23, 20, 17, 0.12);
+        margin: 6px 0;
+      }
+      .rail .count {
+        position: absolute;
+        left: 60px;
+        white-space: nowrap;
+        font-size: 11px;
+        color: var(--ink-3);
+      }
+      .board {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        border-radius: 20px;
+        background: var(--panel);
+        overflow: hidden;
+        box-shadow: 0 0 0 1px rgba(16, 18, 24, 0.04);
+      }
+
+      /* 通用件 */
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 28px;
+        padding: 0 11px;
+        border-radius: 999px;
+        background: var(--fill);
+        color: var(--ink-2);
+        font-size: 13px;
+        white-space: nowrap;
+      }
+      .chip.strong {
+        background: var(--fill-strong);
+        color: var(--ink);
+      }
+      .chip.on {
+        background: var(--ink);
+        color: #fff;
+      }
+      .send {
+        width: 32px;
+        height: 32px;
+        border-radius: 999px;
+        background: var(--ink);
+        color: #fff;
+        display: grid;
+        place-items: center;
+        flex: none;
+      }
+      .composer {
+        border-radius: 16px;
+        background: #fff;
+        box-shadow: var(--card);
+        padding: 14px 18px 12px;
+        display: grid;
+        gap: 10px;
+      }
+      .composer textarea {
+        border: 0;
+        outline: none;
+        resize: none;
+        background: transparent;
+        font-size: 15px;
+        line-height: 1.7;
+        min-height: 26px;
+        width: 100%;
+      }
+      .composer textarea::placeholder {
+        color: var(--ink-3);
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .grow {
+        flex: 1;
+      }
+      .muted {
+        color: var(--ink-3);
+      }
+      .small {
+        font-size: 11px;
+      }
+      .mono {
+        font-family: var(--mono);
+      }
+      .grid4 {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 16px;
+      }
+      .tile {
+        aspect-ratio: 3 / 4;
+        border-radius: 12px;
+        background: var(--fill) center / cover no-repeat;
+        position: relative;
+        overflow: hidden;
+      }
+      .tile.loading {
+        background: linear-gradient(
+          100deg,
+          var(--fill) 30%,
+          #faf9f6 50%,
+          var(--fill) 70%
+        );
+        background-size: 300% 100%;
+        animation: shimmer 1.2s linear infinite;
+      }
+      @keyframes shimmer {
+        to {
+          background-position: -150% 0;
+        }
+      }
+      .tile .acts {
+        position: absolute;
+        inset: auto 8px 8px 8px;
+        display: flex;
+        gap: 4px;
+        opacity: 0;
+        transition: opacity 0.15s;
+      }
+      .tile:hover .acts {
+        opacity: 1;
+      }
+      .tile .acts span {
+        height: 24px;
+        padding: 0 9px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.92);
+        font-size: 11px;
+        display: inline-flex;
+        align-items: center;
+      }
+      .avatar {
+        width: 28px;
+        height: 28px;
+        border-radius: 999px;
+        background: radial-gradient(circle at 35% 35%, #f6c9d8, #9b7fd0);
+        flex: none;
+      }
+      .bubble-me {
+        align-self: flex-end;
+        max-width: 80%;
+        padding: 10px 14px;
+        border-radius: 18px;
+        background: #f2efea;
+        font-size: 15px;
+        line-height: 1.7;
+      }
+      .say {
+        font-size: 15px;
+        line-height: 1.7;
+        color: var(--ink);
+      }
+      .proc {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 24px;
+        padding: 0 10px;
+        border-radius: 999px;
+        background: var(--fill);
+        font-size: 11px;
+        color: var(--ink-2);
+      }
+
+      /* 方向切换 */
+      .dir {
+        display: none;
+      }
+      body[data-v='a'] .dir.a,
+      body[data-v='b'] .dir.b,
+      body[data-v='c'] .dir.c {
+        display: grid;
+      }
+      body[data-v='a'] .app.a,
+      body[data-v='b'] .app.b,
+      body[data-v='c'] .app.c {
+        display: flex;
+      }
+      .app.a,
+      .app.b,
+      .app.c {
+        display: none;
+      }
+      .appwrap {
+        display: none;
+      }
+      body[data-v='a'] .appwrap.a,
+      body[data-v='b'] .appwrap.b,
+      body[data-v='c'] .appwrap.c {
+        display: block;
+      }
+
+      /* A：她就是输入框 */
+      .a .chat {
+        width: 380px;
+        flex: none;
+        display: flex;
+        flex-direction: column;
+        border-right: 1px solid var(--line);
+      }
+      .a .msgs {
+        flex: 1;
+        overflow: auto;
+        padding: 20px 20px 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .a .chat .composer {
+        margin: 0 12px 12px;
+      }
+      .a .stage {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        padding: 24px 32px 32px;
+        gap: 20px;
+        overflow: auto;
+      }
+      .a .settings {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .a .settings .t {
+        font-size: 20px;
+        font-weight: 600;
+        margin-right: auto;
+      }
+      .direct {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11px;
+        color: var(--ink-2);
+      }
+      .sw {
+        width: 28px;
+        height: 18px;
+        border-radius: 999px;
+        background: var(--fill-strong);
+        position: relative;
+        transition: background 0.15s;
+      }
+      .sw::after {
+        content: '';
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 14px;
+        height: 14px;
+        border-radius: 999px;
+        background: #fff;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+        transition: left 0.15s;
+      }
+      .sw.on {
+        background: var(--ink);
+      }
+      .sw.on::after {
+        left: 12px;
+      }
+
+      /* B：台为主，她在旁边 */
+      .b .stage {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        padding: 32px;
+        gap: 28px;
+      }
+      .b .top {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .b .top .t {
+        font-size: 20px;
+        font-weight: 600;
+        margin-right: auto;
+      }
+      .b .results {
+        flex: 1;
+        overflow: auto;
+        display: grid;
+        gap: 28px;
+        align-content: start;
+      }
+      .b .help {
+        display: none;
+        border-radius: 12px;
+        background: var(--fill);
+        padding: 10px 12px;
+        font-size: 13px;
+        line-height: 1.6;
+        color: var(--ink-2);
+      }
+      .b .help.show {
+        display: block;
+      }
+      .b .help b {
+        color: var(--ink);
+        font-weight: 600;
+      }
+      .drawer {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        bottom: 8px;
+        width: 360px;
+        border-radius: 20px;
+        background: #fff;
+        box-shadow: var(--pop);
+        display: flex;
+        flex-direction: column;
+        transform: translateX(calc(100% + 16px));
+        transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+        z-index: 5;
+      }
+      .drawer.open {
+        transform: none;
+      }
+      .drawer .msgs {
+        flex: 1;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        overflow: auto;
+      }
+      .drawer .composer {
+        margin: 0 12px 12px;
+      }
+      .drawer .head {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 14px 16px 0;
+      }
+
+      /* C：一条流 */
+      .c .stage {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+      }
+      .c .bar {
+        padding: 20px 32px 16px;
+        display: grid;
+        gap: 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      .c .stream {
+        flex: 1;
+        overflow: auto;
+        padding: 24px 32px 32px;
+        display: grid;
+        gap: 28px;
+        align-content: start;
+      }
+      .group {
+        display: grid;
+        gap: 10px;
+      }
+      .group .gh {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+      }
+      .group .gp {
+        font-size: 13px;
+        color: var(--ink);
+        flex: 1;
+        min-width: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .group .grid4 {
+        grid-template-columns: repeat(4, minmax(0, 160px));
+      }
+      .c .tabs {
+        display: flex;
+        gap: 6px;
+      }
+
+      @media (max-width: 860px) {
+        .idea {
+          grid-template-columns: 1fr;
+        }
+      }
+      /* 应用框按桌面 1208 宽画，窄窗整框等比缩小，摆法不变 */
+      .app {
+        width: 1208px;
+        transform-origin: top left;
+      }
+      .appwrap {
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body data-v="a">
+    <div class="switch" role="toolbar" aria-label="对比开关">
+      <span>布局</span>
+      <span class="seg">
+        <button aria-pressed="true" data-v="a">A 她就是输入框</button>
+        <button aria-pressed="false" data-v="b">B 台为主，她在旁边</button>
+        <button aria-pressed="false" data-v="c">C 一条流</button>
+      </span>
+      <kbd>1 / 2 / 3</kbd>
+      <span class="hint"
+        >同一件事：画橘猫馆长四张，再改一次。皮肤三版一样，只比摆法和用法。输入框能打字，回车出一组</span
+      >
+    </div>
+
+    <main class="page">
+      <!-- ===== 想法说明 ===== -->
+      <section class="idea dir a">
+        <div>
+          <h2>A 她就是输入框</h2>
+          <p>
+            整个产品只有一个输入框：对话。台变成对话旁边的「舞台」，只放她做出来的东西和这次的设置，不再收字。像
+            Claude 的对话 + 右边面板。
+          </p>
+          <div class="try">
+            试：在左边输入框里写一句回车；或者打开「照原话出」，她就不改写、原样去出。
+          </div>
+        </div>
+        <div>
+          <div class="lab">跟现在比</div>
+          <ul>
+            <li>台上那个输入框没了，一屏只剩一个地方打字（解 U1）</li>
+            <li>
+              模型、比例、张数、LoRA
+              变成舞台顶上那一排设置，对话和台用同一套（解 U6）
+            </li>
+            <li>
+              左栏只剩 对话 · 图 · 视频 · 声音 · 我的；标签 / LoRA
+              是「图」里的写法和挂件（解 U2）
+            </li>
+            <li>代价：想自己一字一字写提示词的人，要多开一个「照原话出」</li>
+          </ul>
+        </div>
+      </section>
+      <section class="idea dir b">
+        <div>
+          <h2>B 台为主，她在旁边</h2>
+          <p>
+            台是主角，整块白板都给台；输入框只有台上那一个，里面一颗「帮我写」，点了她就地把这句改好。要聊天再从右上角叫她出来，从右边滑出，不占位置。像
+            Krea。
+          </p>
+          <div class="try">
+            试：写一句，点「帮我写」看她改；点右上角头像叫她出来。
+          </div>
+        </div>
+        <div>
+          <div class="lab">跟现在比</div>
+          <ul>
+            <li>对话不再常驻在台左边，一屏只有台的输入框（解 U1）</li>
+            <li>工具行常年放得下，六颗都带字（解 U4）</li>
+            <li>
+              标签 / LoRA 变成输入框里的「写法」和「+ LoRA」，图只有一个台（解
+              U2）
+            </li>
+            <li>代价：助手退成配角，和现在「助手为核」的路线方向不同</li>
+          </ul>
+        </div>
+      </section>
+      <section class="idea dir c">
+        <div>
+          <h2>C 一条流</h2>
+          <p>
+            不分台。顶上一条输入框，切图 / 视频 / 声音 /
+            3D；下面是你做过的所有东西，按那一句归成一组，最新的在上面。画廊、素材是这条流的筛选。像
+            Midjourney 的 Create。
+          </p>
+          <div class="try">
+            试：顶上写一句回车，新的一组出在最上面；每组悬停有「再来 /
+            做成视频」。
+          </div>
+        </div>
+        <div>
+          <div class="lab">跟现在比</div>
+          <ul>
+            <li>
+              七个台、画廊、素材合成一页，左栏只剩 创作 · 我的 · 库（解 U2）
+            </li>
+            <li>首页就是这条流，来了就看到最近做的（解 U3）</li>
+            <li>出图、找旧图、再用旧图在同一页做完</li>
+            <li>
+              代价：画布、剪辑这类长活儿放不进一条流，要另开；助手也要从右上角叫
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- ===== A ===== -->
+      <div class="appwrap a">
+        <div class="app a">
+          <nav class="rail" aria-label="左栏">
+            <div class="new">+</div>
+            <div class="r on">对话</div>
+            <div class="sep"></div>
+            <div class="r">图</div>
+            <div class="r">视频</div>
+            <div class="r">声音</div>
+            <div class="sep"></div>
+            <div class="r">我的</div>
+          </nav>
+          <div class="board">
+            <div class="chat">
+              <div class="msgs" id="a-msgs">
+                <div class="bubble-me">
+                  橘猫馆长，闭馆后在美术馆巡夜，油画感
+                </div>
+                <div class="row">
+                  <span class="avatar"></span
+                  ><span class="proc">图 · Seedream 5 · 3:4 · 4 张</span>
+                </div>
+                <div class="say">
+                  出好了四张，在右边。想换个时间点或者角度就直接说。
+                </div>
+              </div>
+              <div class="composer">
+                <textarea
+                  id="a-in"
+                  rows="1"
+                  placeholder="说你想要的画面"
+                ></textarea>
+                <div class="row">
+                  <span class="chip">+</span>
+                  <span class="chip">思考</span>
+                  <span class="grow"></span>
+                  <label class="direct"
+                    ><span
+                      class="sw"
+                      id="a-direct"
+                      role="switch"
+                      aria-checked="false"
+                      tabindex="0"
+                    ></span
+                    >照原话出</label
+                  >
+                  <button class="send" id="a-send" aria-label="发送">↑</button>
+                </div>
+              </div>
+            </div>
+            <div class="stage">
+              <div class="settings">
+                <span class="t">橘猫馆长巡夜</span>
+                <span class="chip strong">图</span>
+                <span class="chip">Seedream 5</span>
+                <span class="chip">3:4 · 4 张</span>
+                <span class="chip">+ LoRA</span>
+                <span class="chip">写法：自然语言</span>
+              </div>
+              <div id="a-results" style="display: grid; gap: 28px"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== B ===== -->
+      <div class="appwrap b">
+        <div class="app b">
+          <nav class="rail" aria-label="左栏">
+            <div class="new">+</div>
+            <div class="r on">图</div>
+            <div class="r">视频</div>
+            <div class="r">声音</div>
+            <div class="r">3D</div>
+            <div class="r">画布</div>
+            <div class="sep"></div>
+            <div class="r">我的</div>
+            <div class="r">库</div>
+          </nav>
+          <div class="board">
+            <div class="stage">
+              <div class="top">
+                <span class="t">图</span>
+                <span class="small muted">对话 3 段</span>
+                <button
+                  class="avatar"
+                  id="b-ask"
+                  aria-label="叫她出来"
+                ></button>
+              </div>
+              <div class="results" id="b-results"></div>
+              <div class="composer">
+                <div class="help" id="b-help"></div>
+                <textarea id="b-in" rows="1" placeholder="描述画面"></textarea>
+                <div class="row">
+                  <span class="chip">+</span>
+                  <button class="chip" id="b-write">✦ 帮我写</button>
+                  <span class="chip">从图读串</span>
+                  <span class="chip">模板</span>
+                  <span class="chip">角色</span>
+                  <span class="chip">写法：自然语言</span>
+                  <span class="chip">+ LoRA</span>
+                  <span class="grow"></span>
+                  <span class="chip">Seedream 5</span>
+                  <span class="chip">3:4 · 4 张</span>
+                  <button class="send" id="b-send" aria-label="生成">↑</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <aside class="drawer" id="b-drawer" aria-label="助手">
+            <div class="head">
+              <span class="avatar"></span><b>ANTEI</b><span class="grow"></span
+              ><button class="chip" id="b-close">收起</button>
+            </div>
+            <div class="msgs">
+              <div class="bubble-me">这组太亮了，想要更像夜里</div>
+              <div class="say">
+                把灯光改成只剩展柜的暖光，窗外月光偏冷。我改好了输入框里那句，你看一下再出。
+              </div>
+            </div>
+            <div class="composer">
+              <textarea rows="1" placeholder="和她说"></textarea>
+              <div class="row">
+                <span class="chip">+</span><span class="grow"></span
+                ><button class="send">↑</button>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </div>
+
+      <!-- ===== C ===== -->
+      <div class="appwrap c">
+        <div class="app c">
+          <nav class="rail" aria-label="左栏">
+            <div class="new">+</div>
+            <div class="r on">创作</div>
+            <div class="r">画布</div>
+            <div class="sep"></div>
+            <div class="r">我的</div>
+            <div class="r">库</div>
+          </nav>
+          <div class="board">
+            <div class="stage">
+              <div class="bar">
+                <div class="composer">
+                  <textarea
+                    id="c-in"
+                    rows="1"
+                    placeholder="描述画面"
+                  ></textarea>
+                  <div class="row">
+                    <span class="chip">+</span>
+                    <span class="chip on">图</span>
+                    <span class="chip">视频</span>
+                    <span class="chip">声音</span>
+                    <span class="chip">3D</span>
+                    <span class="grow"></span>
+                    <span class="chip">Seedream 5</span>
+                    <span class="chip">3:4 · 4 张</span>
+                    <button class="send" id="c-send" aria-label="生成">
+                      ↑
+                    </button>
+                  </div>
+                </div>
+                <div class="tabs">
+                  <span class="chip strong">全部</span>
+                  <span class="chip">收藏</span>
+                  <span class="chip">上传的</span>
+                  <span class="chip">视频</span>
+                  <span class="grow"></span>
+                  <button class="avatar" aria-label="叫她出来"></button>
+                </div>
+              </div>
+              <div class="stream" id="c-stream"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <script>
+      const M = '../home-v6/media/production'
+      const SETS = [
+        [
+          'quad/quad-gemini-3-pro.webp',
+          'quad/quad-seedream-5-0.webp',
+          'quad/quad-flux-2-pro.webp',
+          'quad/quad-gpt-image-2.webp',
+        ],
+        [
+          'hero/hero-01-luna-moth.webp',
+          'hero/hero-05-frost-flower.webp',
+          'hero/hero-09-ruby-chair.webp',
+          'hero/hero-03-black-clay.webp',
+        ],
+        [
+          'hero/hero-07-snow-train.webp',
+          'hero/hero-02-desert-observatory.webp',
+          'hero/hero-08-glacial-river.webp',
+          'hero/hero-06-watch-robot.webp',
+        ],
+        [
+          'image/character-style-real-v1.webp',
+          'image/character-swap-crimson-v1.webp',
+          'image/character-style-sprite-v1.webp',
+          'image/character-swap-base-v1.webp',
+        ],
+      ]
+      let setIdx = 1
+
+      function tiles(set, loading, acts) {
+        const g = document.createElement('div')
+        g.className = 'grid4'
+        set.forEach((src) => {
+          const t = document.createElement('div')
+          t.className = 'tile' + (loading ? ' loading' : '')
+          if (!loading) t.style.backgroundImage = `url(${M}/${src})`
+          if (acts) {
+            const a = document.createElement('div')
+            a.className = 'acts'
+            acts.forEach((x) => {
+              const s = document.createElement('span')
+              s.textContent = x
+              a.append(s)
+            })
+            t.append(a)
+          }
+          g.append(t)
+        })
+        return g
+      }
+      function fill(grid, set, acts) {
+        setTimeout(() => {
+          grid.querySelectorAll('.tile').forEach((t, i) => {
+            t.classList.remove('loading')
+            t.style.backgroundImage = `url(${M}/${set[i]})`
+          })
+        }, 1200)
+      }
+      function nextSet() {
+        const s = SETS[setIdx % SETS.length]
+        setIdx++
+        return s
+      }
+      function groupEl(prompt, set, loading, meta) {
+        const g = document.createElement('div')
+        g.className = 'group'
+        const h = document.createElement('div')
+        h.className = 'gh'
+        const p = document.createElement('span')
+        p.className = 'gp'
+        p.textContent = prompt
+        const m = document.createElement('span')
+        m.className = 'small muted'
+        m.textContent = meta
+        h.append(p, m)
+        const grid = tiles(set, loading, ['再来', '变体', '做成视频'])
+        g.append(h, grid)
+        return { g, grid }
+      }
+
+      // ---- A ----
+      const aRes = document.getElementById('a-results')
+      aRes.append(
+        groupEl(
+          '橘猫馆长，闭馆后在美术馆巡夜，油画感',
+          SETS[0],
+          false,
+          'Seedream 5 · 3:4',
+        ).g,
+      )
+      let aDirect = false
+      const aSw = document.getElementById('a-direct')
+      const toggleA = () => {
+        aDirect = !aDirect
+        aSw.classList.toggle('on', aDirect)
+        aSw.setAttribute('aria-checked', String(aDirect))
+      }
+      aSw.addEventListener('click', toggleA)
+      aSw.addEventListener('keydown', (e) => {
+        if (e.key === ' ' || e.key === 'Enter') {
+          e.preventDefault()
+          toggleA()
+        }
+      })
+      function sendA() {
+        const inp = document.getElementById('a-in')
+        const text = inp.value.trim() || '换成清晨，馆长在窗边打盹'
+        inp.value = ''
+        const msgs = document.getElementById('a-msgs')
+        const me = document.createElement('div')
+        me.className = 'bubble-me'
+        me.textContent = text
+        const proc = document.createElement('div')
+        proc.className = 'row'
+        proc.innerHTML =
+          '<span class="avatar"></span><span class="proc">' +
+          (aDirect ? '照原话 · ' : '') +
+          '图 · Seedream 5 · 3:4 · 4 张</span>'
+        msgs.append(me, proc)
+        msgs.scrollTop = msgs.scrollHeight
+        const set = nextSet()
+        const { g, grid } = groupEl(
+          aDirect ? text : text + '（她补了光线和构图）',
+          set,
+          true,
+          'Seedream 5 · 3:4',
+        )
+        aRes.prepend(g)
+        fill(grid, set)
+        setTimeout(() => {
+          const say = document.createElement('div')
+          say.className = 'say'
+          say.textContent = '好了，新的一组在右边最上面。'
+          msgs.append(say)
+          msgs.scrollTop = msgs.scrollHeight
+        }, 1300)
+      }
+      document.getElementById('a-send').addEventListener('click', sendA)
+      document.getElementById('a-in').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault()
+          sendA()
+        }
+      })
+
+      // ---- B ----
+      const bRes = document.getElementById('b-results')
+      bRes.append(
+        groupEl(
+          '橘猫馆长，闭馆后在美术馆巡夜，油画感',
+          SETS[0],
+          false,
+          'Seedream 5 · 3:4',
+        ).g,
+      )
+      const bIn = document.getElementById('b-in')
+      const bHelp = document.getElementById('b-help')
+      document.getElementById('b-write').addEventListener('click', () => {
+        const base = bIn.value.trim() || '橘猫馆长巡夜'
+        bHelp.innerHTML =
+          '她改成：<b>' +
+          base +
+          '，闭馆后的展厅只亮着展柜暖光，月光从高窗斜进来，厚涂油画笔触，低机位</b>　<span class="muted">回车用这句 · Esc 不用</span>'
+        bHelp.classList.add('show')
+        bIn.focus()
+      })
+      function sendB() {
+        let text = bIn.value.trim() || '橘猫馆长巡夜，清晨版'
+        if (bHelp.classList.contains('show')) {
+          text = bHelp.querySelector('b').textContent
+          bHelp.classList.remove('show')
+        }
+        bIn.value = ''
+        const set = nextSet()
+        const { g, grid } = groupEl(text, set, true, 'Seedream 5 · 3:4')
+        bRes.prepend(g)
+        fill(grid, set)
+      }
+      document.getElementById('b-send').addEventListener('click', sendB)
+      bIn.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault()
+          sendB()
+        }
+        if (e.key === 'Escape') bHelp.classList.remove('show')
+      })
+      const drawer = document.getElementById('b-drawer')
+      document
+        .getElementById('b-ask')
+        .addEventListener('click', () => drawer.classList.add('open'))
+      document
+        .getElementById('b-close')
+        .addEventListener('click', () => drawer.classList.remove('open'))
+
+      // ---- C ----
+      const cStream = document.getElementById('c-stream')
+      ;[
+        [
+          '橘猫馆长，闭馆后在美术馆巡夜，油画感',
+          SETS[0],
+          '图 · Seedream 5 · 刚才',
+        ],
+        ['雪夜列车穿过冰川，胶片质感', SETS[2], '图 · FLUX 2 · 今天 14:20'],
+        ['角色换装：红色风衣版', SETS[3], '图 · GPT Image 2 · 昨天'],
+      ].forEach(([p, s, m]) => cStream.append(groupEl(p, s, false, m).g))
+      function sendC() {
+        const inp = document.getElementById('c-in')
+        const text = inp.value.trim() || '橘猫馆长巡夜，清晨版'
+        inp.value = ''
+        const set = nextSet()
+        const { g, grid } = groupEl(text, set, true, '图 · Seedream 5 · 刚刚')
+        cStream.prepend(g)
+        cStream.scrollTop = 0
+        fill(grid, set)
+      }
+      document.getElementById('c-send').addEventListener('click', sendC)
+      document.getElementById('c-in').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault()
+          sendC()
+        }
+      })
+
+      // ---- 切换 ----
+      const set = (v) => {
+        document.body.dataset.v = v
+        document
+          .querySelectorAll('.seg button')
+          .forEach((b) =>
+            b.setAttribute('aria-pressed', String(b.dataset.v === v)),
+          )
+      }
+      document.querySelector('.seg').addEventListener('click', (e) => {
+        const b = e.target.closest('button')
+        if (b) set(b.dataset.v)
+      })
+      addEventListener('keydown', (e) => {
+        if (e.target.closest('input, textarea, [role=switch]')) return
+        if (['1', '2', '3'].includes(e.key))
+          set({ 1: 'a', 2: 'b', 3: 'c' }[e.key])
+      })
+      function fit() {
+        document.querySelectorAll('.appwrap').forEach((w) => {
+          const app = w.firstElementChild
+          const avail = document.querySelector('.page').clientWidth - 32
+          const k = Math.min(1, avail / 1208)
+          app.style.transform = k < 1 ? `scale(${k})` : ''
+          w.style.height = 720 * k + 'px'
+        })
+      }
+      addEventListener('resize', fit)
+      fit()
+      const q = new URLSearchParams(location.search).get('v')
+      if (q) set(q)
+    </script>
+  </body>
+</html>

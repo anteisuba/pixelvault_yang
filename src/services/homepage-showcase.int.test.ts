@@ -8,24 +8,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 vi.mock('server-only', () => ({}))
 
 import {
-  HOME_V4_SHOWCASE,
-  HOME_V4_SHOWCASE_BLOCKLIST,
-  HOME_V4_SHOWCASE_PINNED,
-  HOME_V4_STRIP,
-  HOME_V4_STRIP_SPARES,
-} from '@/constants/homepage-v4'
+  HOME_V6_WALL,
+  HOME_V6_WALL_BLOCKLIST,
+  HOME_V6_WALL_FALLBACK,
+  HOME_V6_WALL_PINNED,
+} from '@/constants/homepage-v6'
 import { db } from '@/lib/db'
-import { getHomeV4ShowcaseShots } from '@/services/homepage-showcase.service'
+import { getHomeV6WallShots } from '@/services/homepage-showcase.service'
 import { createTestUser, resetDatabase } from '@/test/int/db'
 import { seedGeneration } from '@/test/int/seed-generation'
 
-const MIN_TOTAL = HOME_V4_SHOWCASE.CELL_COUNT + HOME_V4_SHOWCASE.SPARE_COUNT
-const STATIC_SRCS = [
-  ...HOME_V4_STRIP.map((shot) => shot.src),
-  ...HOME_V4_STRIP_SPARES,
-]
-const pinned = HOME_V4_SHOWCASE_PINNED as string[]
-const blocklist = HOME_V4_SHOWCASE_BLOCKLIST as string[]
+const MIN_TOTAL = HOME_V6_WALL.MIN_TOTAL
+const STATIC_SRCS = HOME_V6_WALL_FALLBACK.map((shot) => shot.src)
+const pinned = HOME_V6_WALL_PINNED as string[]
+const blocklist = HOME_V6_WALL_BLOCKLIST as string[]
 
 let me: Awaited<ReturnType<typeof createTestUser>>
 
@@ -69,7 +65,7 @@ async function seedShots(n: number): Promise<string[]> {
   return ids.reverse()
 }
 
-describe('getHomeV4ShowcaseShots（真库）', () => {
+describe('getHomeV6WallShots（真库）', () => {
   it('最新的公开作品在前，用缩略图；不公开 / 没完成 / 不是图 / 没缩略图的不上墙', async () => {
     const [newest] = await seedShots(MIN_TOTAL)
     const hidden = [
@@ -82,9 +78,11 @@ describe('getHomeV4ShowcaseShots（真库）', () => {
       createdAt: new Date(Date.UTC(2027, 0, 1)),
     })
 
-    const shots = await getHomeV4ShowcaseShots()
+    const shots = await getHomeV6WallShots()
     expect(shots).toHaveLength(MIN_TOTAL)
-    expect(shots[0]).toEqual({ id: newest, src: thumb(newest) })
+    expect(shots[0]).toMatchObject({ id: newest, src: thumb(newest) })
+    expect(shots[0]?.w).toBeGreaterThan(0)
+    expect(shots[0]?.h).toBeGreaterThan(0)
     const ids = shots.map((shot) => shot.id)
     for (const id of [...hidden, noThumb.id]) expect(ids).not.toContain(id)
   })
@@ -92,7 +90,7 @@ describe('getHomeV4ShowcaseShots（真库）', () => {
   it('横图不上墙，方图算竖图', async () => {
     const wide = await seedShot({ width: 1920, height: 1080 })
     const square = await seedShot({ width: 1024, height: 1024 })
-    const ids = (await getHomeV4ShowcaseShots()).map((shot) => shot.id)
+    const ids = (await getHomeV6WallShots()).map((shot) => shot.id)
     expect(ids).not.toContain(wide)
     expect(ids).toContain(square)
   })
@@ -101,7 +99,7 @@ describe('getHomeV4ShowcaseShots（真库）', () => {
     const ids = await seedShots(MIN_TOTAL)
     blocklist.push(ids[1])
     pinned.push(ids[1])
-    const shown = (await getHomeV4ShowcaseShots()).map((shot) => shot.id)
+    const shown = (await getHomeV6WallShots()).map((shot) => shot.id)
     expect(shown).not.toContain(ids[1])
     expect(shown[0]).toBe(ids[0])
   })
@@ -118,7 +116,7 @@ describe('getHomeV4ShowcaseShots（真库）', () => {
     await seedShots(MIN_TOTAL)
     pinned.push(b, wide, secret, a)
 
-    const shown = (await getHomeV4ShowcaseShots()).map((shot) => shot.id)
+    const shown = (await getHomeV6WallShots()).map((shot) => shot.id)
     expect(shown.slice(0, 3)).toEqual([b, wide, a])
     expect(shown).not.toContain(secret)
     expect(shown.filter((id) => id === a)).toHaveLength(1)
@@ -126,24 +124,22 @@ describe('getHomeV4ShowcaseShots（真库）', () => {
 
   it('库里作品不够：先放真作品，后面用自带素材补满', async () => {
     const ids = await seedShots(3)
-    const shots = await getHomeV4ShowcaseShots()
+    const shots = await getHomeV6WallShots()
     expect(shots.length).toBeGreaterThanOrEqual(MIN_TOTAL)
     expect(shots.slice(0, 3).map((shot) => shot.id)).toEqual(ids)
     for (const shot of shots.slice(3)) expect(STATIC_SRCS).toContain(shot.src)
   })
 
   it('作品很多：最多下发 POOL_LIMIT 张', async () => {
-    await seedShots(HOME_V4_SHOWCASE.POOL_LIMIT + 4)
-    expect(await getHomeV4ShowcaseShots()).toHaveLength(
-      HOME_V4_SHOWCASE.POOL_LIMIT,
-    )
+    await seedShots(HOME_V6_WALL.POOL_LIMIT + 4)
+    expect(await getHomeV6WallShots()).toHaveLength(HOME_V6_WALL.POOL_LIMIT)
   })
 
   it('库挂了：整面墙用自带素材，不抛', async () => {
     vi.spyOn(db.generation, 'findMany').mockRejectedValueOnce(
       new Error('ECONNREFUSED'),
     )
-    const shots = await getHomeV4ShowcaseShots()
+    const shots = await getHomeV6WallShots()
     expect(shots.map((shot) => shot.src)).toEqual(STATIC_SRCS)
   })
 })

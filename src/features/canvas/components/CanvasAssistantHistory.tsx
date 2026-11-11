@@ -47,7 +47,7 @@ export function CanvasAssistantHistoryPanel({
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder={t('search')}
-          className="h-9 border-node-panel-inner bg-node-panel-inner pl-8 text-node-foreground placeholder:text-node-muted"
+          className="bg-node-panel-inner pl-8 text-node-foreground placeholder:text-node-muted hover:bg-node-panel-inner focus-visible:bg-node-panel-inner"
         />
       </div>
       {filtered.length === 0 ? (

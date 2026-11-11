@@ -3,7 +3,6 @@
  *（见 docs/design/features-migration.md）。hook 走 `@/features/lora/hooks`。
  */
 export { LoraSourceRecipeModal } from './components/LoraSourceRecipeModal'
-export { LoraTrainingDialog } from './components/LoraTrainingDialog'
 export { LoraWorkbench } from './components/LoraWorkbench'
 export {
   LoraCoverPreviewDialog,

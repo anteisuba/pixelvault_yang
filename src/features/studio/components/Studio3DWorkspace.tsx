@@ -108,6 +108,8 @@ import {
 } from '@/components/ui/select'
 import { Spinner } from '@/components/ui/spinner'
 import { Switch } from '@/components/ui/switch'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { useIsMobile } from '@/hooks/use-mobile'
 import {
@@ -1275,13 +1277,13 @@ export function Studio3DWorkspace({
               {t('rodinPromptRequiredBadge')}
             </span>
           </Label>
-          <textarea
+          <Textarea
             id="rodin-prompt-top"
             value={rodinPrompt}
             onChange={(e) => setRodinPrompt(e.target.value)}
             placeholder={t('rodinTextPromptPlaceholder')}
             rows={4}
-            className="w-full resize-none rounded-md border border-border/60 bg-background px-3 py-2 text-base md:text-xs leading-5 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+            className="resize-none leading-5"
           />
         </div>
       )}
@@ -2243,13 +2245,13 @@ export function Studio3DWorkspace({
                       >
                         {t('rodinPromptLabel')}
                       </Label>
-                      <textarea
+                      <Textarea
                         id="rodin-prompt"
                         value={rodinPrompt}
                         onChange={(e) => setRodinPrompt(e.target.value)}
                         placeholder={t('rodinPromptPlaceholder')}
                         rows={2}
-                        className="w-full resize-none rounded-md border border-border/60 bg-background px-2 py-1.5 text-base md:text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                        className="resize-none"
                       />
                     </div>
                   )}
@@ -2263,14 +2265,14 @@ export function Studio3DWorkspace({
                       >
                         {t('rodinSeedLabel')}
                       </Label>
-                      <input
+                      <Input
                         id="rodin-seed"
                         type="number"
                         inputMode="numeric"
                         value={rodinSeedInput}
                         onChange={(e) => setRodinSeedInput(e.target.value)}
                         placeholder="-1"
-                        className="h-8 rounded-md border border-border/60 bg-background px-2 text-base md:text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                        className="h-8 px-2.5"
                       />
                     </div>
                     <div className="flex flex-col gap-1">
@@ -2280,7 +2282,7 @@ export function Studio3DWorkspace({
                       >
                         {t('rodinQualityOverrideLabel')}
                       </Label>
-                      <input
+                      <Input
                         id="rodin-quality-override"
                         type="number"
                         inputMode="numeric"
@@ -2289,7 +2291,7 @@ export function Studio3DWorkspace({
                           setRodinQualityOverrideInput(e.target.value)
                         }
                         placeholder={t('rodinQualityOverridePlaceholder')}
-                        className="h-8 rounded-md border border-border/60 bg-background px-2 text-base md:text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                        className="h-8 px-2.5"
                       />
                     </div>
                   </div>
@@ -2300,29 +2302,29 @@ export function Studio3DWorkspace({
                       {t('rodinBboxLabel')}
                     </Label>
                     <div className="grid grid-cols-3 gap-1.5">
-                      <input
+                      <Input
                         type="number"
                         inputMode="decimal"
                         value={rodinBboxWidth}
                         onChange={(e) => setRodinBboxWidth(e.target.value)}
                         placeholder="W"
-                        className="h-8 rounded-md border border-border/60 bg-background px-2 text-base md:text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                        className="h-8 px-2.5"
                       />
-                      <input
+                      <Input
                         type="number"
                         inputMode="decimal"
                         value={rodinBboxHeight}
                         onChange={(e) => setRodinBboxHeight(e.target.value)}
                         placeholder="H"
-                        className="h-8 rounded-md border border-border/60 bg-background px-2 text-base md:text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                        className="h-8 px-2.5"
                       />
-                      <input
+                      <Input
                         type="number"
                         inputMode="decimal"
                         value={rodinBboxLength}
                         onChange={(e) => setRodinBboxLength(e.target.value)}
                         placeholder="L"
-                        className="h-8 rounded-md border border-border/60 bg-background px-2 text-base md:text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                        className="h-8 px-2.5"
                       />
                     </div>
                   </div>

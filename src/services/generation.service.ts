@@ -1264,6 +1264,7 @@ export async function toggleGenerationVisibility(
       id: true,
       userId: true,
       prompt: true,
+      recipe: true,
       isPublic: true,
       isPromptPublic: true,
       isFeatured: true,
@@ -1327,6 +1328,7 @@ export async function setGenerationVisibility(
       id: true,
       userId: true,
       prompt: true,
+      recipe: true,
       isFeatured: true,
       searchGrounded: true,
     },
@@ -1750,7 +1752,7 @@ export async function batchUpdateVisibility(
   if (field === 'isPublic' && value) {
     const owned = await db.generation.findMany({
       where: { id: { in: ids }, userId },
-      select: { id: true, prompt: true, searchGrounded: true },
+      select: { id: true, prompt: true, recipe: true, searchGrounded: true },
     })
     blockedIds = owned
       .filter((row) => getPublishBlockedErrorCode(row) !== null)

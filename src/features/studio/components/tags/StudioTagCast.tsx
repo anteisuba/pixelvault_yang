@@ -44,6 +44,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { ResponsivePopoverContent } from '@/components/ui/responsive-popover'
 import { Switch } from '@/components/ui/switch'
+import { Input } from '@/components/ui/input'
 import {
   studioOutlineChipClass,
   studioOutlineChipOpenClass,
@@ -202,7 +203,7 @@ function InteractionPicker({
         })}
       </div>
       <div className="flex items-center gap-1.5">
-        <input
+        <Input
           value={custom}
           maxLength={NOVELAI_INTERACTION_TAG_MAX_CHARS}
           onChange={(event) => setCustom(event.target.value)}
@@ -214,7 +215,7 @@ function InteractionPicker({
           }}
           placeholder={t('pickCustom')}
           aria-label={t('pickCustom')}
-          className="h-9 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 text-base outline-none placeholder:text-muted-foreground/60 focus-visible:border-foreground md:text-2xs"
+          className="min-w-0 flex-1"
         />
         <button
           type="button"

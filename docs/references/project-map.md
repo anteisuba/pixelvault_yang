@@ -35,7 +35,7 @@ flowchart TB
 角色 / 风格 / 背景 / 音色关联"]
   REUSE --> PROMPTS["配方 /prompts
 当前仍有个人与灵感双页签"]
-  PUBLIC --> HOME["首页 HomeV4
+  PUBLIC --> HOME["首页 HomeV6
 展示能力 → 创作入口"]
   PUBLIC --> GALLERY["画廊 /gallery + 主页 /u
 公开作品 / 配方发现"]
@@ -87,7 +87,7 @@ flowchart LR
 | 37 剪辑台“等 spec”                                            | 已有时间线 UI、提交 / 轮询 / 取消接口、render-video Worker 与完成回画布逻辑                | 部分落地；[导出生命周期](../../src/components/business/node/edit-desk/use-edit-desk-render.ts)、[渲染 Worker](../../workers/render-video/src/index.ts)                                                                             |
 | 剪辑台的助手剪片                                              | 2026-10-07 起助手经 `canvas_apply` 剪辑 op 直接改时间线，快照带 `editDesk`；旧排片提案已删 | [画布快照](../../src/lib/studio-operator-canvas-snapshot.ts)、[时间线快照](../../src/lib/edit-timeline-snapshot.ts)                                                                                                                |
 | E7 总结仍写 33 → 34；34 明细已完成                            | 训练分支已抽出 TrainWizard，仍在 LoRA 的 section=train 内                                  | 34 的拆分已落，不能误写成新增独立路由；[TrainWizard](../../src/components/business/studio/lora/training/TrainWizard.tsx)                                                                                                           |
-| E9 仍是“首页 B 等设计”                                        | 首页入口使用 HomeV4Shell；B 已撤回，09-22 又去掉 v4 的前后景错速                           | 不应继续推进已撤回的 B；[HomeV4Shell](../../src/components/business/home-v4/HomeV4Shell.tsx)                                                                                                                                       |
+| E9 仍是“首页 B 等设计”                                        | 首页入口 2026-11-11 换成 HomeV6Shell（v6「她 + 一个窗口」），v4 已删除                     | B 早已撤回；[HomeV6Shell](../../src/components/business/home-v6/HomeV6Shell.tsx)                                                                                                                                                   |
 
 仍一致的主要缺口：35 卡片总线未贯通；剪辑台助手排片回程未接。剧本投影已有 ScriptCardBody 与 project_script，不能把“卡片总线未做”扩大成“剧本节点完全未做”。[剧本卡](../../src/components/business/node/nodes/v4/text/ScriptCardBody.tsx)
 

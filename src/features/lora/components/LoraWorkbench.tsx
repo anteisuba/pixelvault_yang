@@ -2705,7 +2705,7 @@ function GenerateBranch({
                     inputMode="numeric"
                     placeholder={t('generate.advanced.modelDefault')}
                     aria-label={t('generate.advanced.seed')}
-                    className="h-8 border-border bg-transparent font-mono text-base md:text-xs"
+                    className="h-8 font-mono"
                   />
                   <Button
                     type="button"
@@ -2749,7 +2749,7 @@ function GenerateBranch({
                     onChange={(event) => setRunnerSteps(event.target.value)}
                     placeholder={t('generate.advanced.modelDefault')}
                     aria-label={t('generate.advanced.steps')}
-                    className="h-8 w-24 shrink-0 border-border bg-transparent text-base md:w-16 md:text-xs"
+                    className="h-8 w-24 shrink-0 md:w-16"
                   />
                 </div>
               </label>
@@ -2776,7 +2776,7 @@ function GenerateBranch({
                     onChange={(event) => setRunnerCfg(event.target.value)}
                     placeholder={t('generate.advanced.modelDefault')}
                     aria-label={t('generate.advanced.cfg')}
-                    className="h-8 w-24 shrink-0 border-border bg-transparent text-base md:w-16 md:text-xs"
+                    className="h-8 w-24 shrink-0 md:w-16"
                   />
                 </div>
               </label>
@@ -2793,7 +2793,7 @@ function GenerateBranch({
                 >
                   <SelectTrigger
                     aria-label={t('generate.advanced.sampler')}
-                    className="h-8 border-border bg-transparent text-base md:text-xs"
+                    className="h-8"
                   >
                     <SelectValue />
                   </SelectTrigger>
@@ -2822,7 +2822,7 @@ function GenerateBranch({
                 >
                   <SelectTrigger
                     aria-label={t('generate.advanced.scheduler')}
-                    className="h-8 border-border bg-transparent text-base md:text-xs"
+                    className="h-8"
                   >
                     <SelectValue />
                   </SelectTrigger>
@@ -2851,7 +2851,7 @@ function GenerateBranch({
                     onChange={(event) => setRunnerWidth(event.target.value)}
                     placeholder={String(previewDimensions.width)}
                     aria-label={t('generate.advanced.width')}
-                    className="h-8 border-border bg-transparent text-base md:text-xs"
+                    className="h-8"
                   />
                 </label>
 
@@ -2866,7 +2866,7 @@ function GenerateBranch({
                     onChange={(event) => setRunnerHeight(event.target.value)}
                     placeholder={String(previewDimensions.height)}
                     aria-label={t('generate.advanced.height')}
-                    className="h-8 border-border bg-transparent text-base md:text-xs"
+                    className="h-8"
                   />
                 </label>
               </div>
@@ -4055,7 +4055,7 @@ function GenerateBranch({
           onChange={(event) => setRunnerWidth(event.target.value)}
           placeholder={String(previewDimensions.width)}
           aria-label={t('generate.advanced.width')}
-          className="h-8 w-24 border-border bg-transparent font-mono text-2sm tabular-nums"
+          className="h-8 w-24 font-mono tabular-nums"
         />
         <span aria-hidden className="text-muted-foreground">
           ×
@@ -4069,7 +4069,7 @@ function GenerateBranch({
           onChange={(event) => setRunnerHeight(event.target.value)}
           placeholder={String(previewDimensions.height)}
           aria-label={t('generate.advanced.height')}
-          className="h-8 w-24 border-border bg-transparent font-mono text-2sm tabular-nums"
+          className="h-8 w-24 font-mono tabular-nums"
         />
       </div>
       {runnerDimensionError ? (
@@ -5759,7 +5759,7 @@ function MineToolbar({
           value={query}
           onChange={(e) => onQueryChange(e.target.value)}
           placeholder={t('myLorasSearchPlaceholder')}
-          className="h-9 pl-9 pr-9 text-base md:text-xs"
+          className="pl-9 pr-9"
         />
         {query ? (
           <button

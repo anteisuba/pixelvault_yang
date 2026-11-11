@@ -1,0 +1,598 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>首页 v6 · 首屏以下</title>
+<style>
+  :root { --bg:#f6f3ec; --ink:#141416; --ink2:#55565c; --ink3:#6b6c72; --line:rgba(20,20,22,.08); --panel:#fff; --ease:cubic-bezier(.22,1,.36,1); --spring:cubic-bezier(.34,1.4,.64,1); }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html { scroll-behavior:smooth; }
+  body { background:var(--bg); color:var(--ink); font:15px/1.6 -apple-system,"PingFang SC","Noto Sans SC",sans-serif; -webkit-font-smoothing:antialiased; overflow-x:hidden; }
+  img, video { display:block; }
+  button, input { font:inherit; color:inherit; }
+  h2 { font-size:clamp(26px,3.2vw,38px); line-height:1.22; font-weight:600; word-break:keep-all; line-break:strict; }
+  .lead { color:var(--ink2); margin-top:6px; }
+
+  /* 顶栏：品牌 · 三个方向 · 一颗门 */
+  .top { position:fixed; z-index:40; top:14px; left:50%; transform:translateX(-50%); width:min(780px,calc(100% - 24px)); display:flex; align-items:center; gap:8px; padding:6px 6px 6px 18px; background:rgba(255,255,255,.86); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border-radius:999px; box-shadow:0 0 0 1px var(--line),0 8px 24px rgba(0,0,0,.05); }
+  .top b { font-weight:700; letter-spacing:.02em; margin-right:auto; }
+  .dirs { display:flex; gap:2px; background:#efece5; border-radius:999px; padding:3px; }
+  .dirs a { text-decoration:none; color:var(--ink2); font-size:13px; padding:6px 12px; border-radius:999px; white-space:nowrap; }
+  .dirs a.on { background:var(--ink); color:#fff; }
+  .dirs a i { font-style:normal; font-weight:700; margin-right:5px; }
+  .top .door { background:var(--ink); color:#fff; border:0; border-radius:999px; padding:9px 16px; font-weight:600; font-size:14px; cursor:pointer; }
+  @media (max-width:640px) { .dirs a span { display:none } .dirs a i { margin:0 } .dirs a { padding:6px 13px } }
+
+  /* 首屏（简版，只为了滚下去的手感） */
+  .hero { height:86svh; min-height:520px; display:flex; flex-direction:column; align-items:center; justify-content:center; position:relative; }
+  .hero .hint { position:absolute; bottom:22px; font-size:13px; color:var(--ink3); display:flex; flex-direction:column; align-items:center; gap:6px; }
+  .hero .hint i { width:1px; height:30px; background:var(--ink3); transform-origin:top; animation:drip 1.8s var(--ease) infinite; }
+  @keyframes drip { 0% { transform:scaleY(0) } 50% { transform:scaleY(1); opacity:1 } 100% { transform:scaleY(1); opacity:0 } }
+
+  /* 她：一个本体在几个座位之间飞（FLIP），座位决定大小与气泡朝向 */
+  .her { display:flex; flex-direction:column; align-items:center; gap:10px; }
+  .bubble { max-width:min(420px,80vw); background:var(--panel); border-radius:18px; padding:9px 15px; box-shadow:0 0 0 1px var(--line),0 6px 20px rgba(0,0,0,.05); font-size:15px; min-height:42px; transition:opacity .2s, filter .2s; }
+  .bubble.swap { opacity:0; filter:blur(6px); }
+  .bubble:empty { opacity:0; }
+  .face { --fs:168px; width:var(--fs); height:var(--fs); border-radius:calc(var(--fs) * .26); overflow:hidden; background:#fff; box-shadow:0 14px 34px rgba(0,0,0,.12); flex:none; transform-origin:0 0; cursor:pointer; border:0; padding:0; position:relative; }
+  .face .puppet { display:block; width:100%; height:100%; }
+  .face.hungry { box-shadow:0 0 0 4px #fff,0 0 0 6px var(--ink),0 18px 40px rgba(0,0,0,.18); }
+  .face.eat { animation:eat .5s var(--spring); }
+  @keyframes eat { 40% { scale:.9 } 100% { scale:1 } }
+
+  .sheet-veil { position:fixed; inset:0; background:rgba(16,18,24,.32); opacity:0; pointer-events:none; transition:opacity .35s var(--ease); z-index:50; }
+  .sheet-veil.on { opacity:1; pointer-events:auto; }
+  .sheet { position:fixed; left:50%; bottom:0; width:min(640px,100%); max-height:88svh; overflow:auto; transform:translate(-50%,104%); background:#fff; border-radius:24px 24px 0 0; padding:18px 22px 28px; z-index:51; transition:transform .42s var(--spring); }
+  .sheet.on { transform:translate(-50%,0); }
+  .sheet .grab { width:36px; height:4px; border-radius:2px; background:#ddd; margin:0 auto 14px; }
+  .sheet .media { aspect-ratio:16/9; border-radius:14px; overflow:hidden; background:#eee; }
+  .sheet .media img, .sheet .media video { width:100%; height:100%; object-fit:cover; }
+  .sheet h3 { margin-top:14px; font-size:21px; }
+  .sheet .pos { color:var(--ink2); font-size:14px; margin-top:2px; }
+  .sheet .pm { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:14px; font-size:13px; }
+  .sheet .pm h4 { font-size:12px; color:var(--ink3); font-weight:500; margin-bottom:4px; }
+  .sheet .pm li { list-style:none; padding-left:14px; position:relative; margin-bottom:4px; }
+  .sheet .pm li::before { content:''; position:absolute; left:0; top:.6em; width:6px; height:6px; border-radius:50%; background:#7bc29a; }
+  .sheet .pm .minus li::before { background:#e39a8f; }
+  .sheet .fare { margin-top:12px; font-size:12px; color:var(--ink3); }
+  @media (max-width:640px) { .sheet { max-height:100svh; height:100svh; border-radius:0; } .sheet .pm { grid-template-columns:1fr; } }
+
+  .chips { display:flex; flex-wrap:wrap; gap:6px; }
+  .chips span { background:#f1efea; border-radius:999px; padding:3px 10px; font-size:12px; color:var(--ink2); }
+
+  /* ── 收尾（三个方向共用骨架，差别在她怎么接） ── */
+  .finale { padding:120px 20px 40px; display:flex; flex-direction:column; align-items:center; text-align:center; gap:18px; min-height:80svh; justify-content:center; }
+  .finale .slot { min-height:180px; display:flex; align-items:flex-end; justify-content:center; }
+  .ask { display:flex; gap:8px; width:min(560px,100%); background:#fff; border-radius:999px; padding:6px 6px 6px 20px; box-shadow:0 0 0 1px var(--line),0 10px 30px rgba(0,0,0,.06); transition:box-shadow .3s var(--ease); }
+  .ask:focus-within { box-shadow:0 0 0 2px var(--ink),0 10px 30px rgba(0,0,0,.08); }
+  .ask input { flex:1; min-width:0; border:0; outline:0; background:none; font-size:16px; }
+  .ask button, .go { background:var(--ink); color:#fff; border:0; border-radius:999px; padding:11px 22px; font-weight:600; cursor:pointer; white-space:nowrap; }
+  .finale .small { font-size:13px; color:var(--ink3); }
+  footer { display:flex; justify-content:center; gap:18px; padding:40px 16px 32px; font-size:12px; color:var(--ink3); }
+
+  /* 动效表 */
+  details.motion { width:min(980px,calc(100% - 32px)); margin:0 auto 40px; background:#fff; border-radius:16px; box-shadow:0 0 0 1px var(--line); font-size:13px; }
+  details.motion summary { cursor:pointer; padding:14px 18px; font-weight:600; }
+  details.motion table { width:100%; border-collapse:collapse; }
+  details.motion td, details.motion th { text-align:left; padding:8px 18px; border-top:1px solid var(--line); vertical-align:top; }
+  details.motion th { color:var(--ink3); font-weight:500; font-size:12px; }
+  .wrapx { overflow-x:auto; }
+
+  /* ════ A · 她陪你逛 ════ */
+  .A.lineup { max-width:1200px; margin:0 auto; padding:96px 24px 40px; }
+  .A .cat { margin-top:44px; }
+  .A .cat h3 { font-size:15px; font-weight:600; margin-bottom:12px; display:flex; gap:8px; align-items:baseline; }
+  .A .cat h3 small { font:500 12px ui-monospace,monospace; color:var(--ink3); }
+  .A .row { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:14px; }
+  .A .card { border:0; padding:0; background:#fff; border-radius:16px; overflow:hidden; text-align:left; cursor:pointer; box-shadow:0 0 0 1px var(--line); transition:transform .4s var(--ease), box-shadow .4s var(--ease), opacity .3s; }
+  .A .card .img { aspect-ratio:4/3; overflow:hidden; background:#e7e3da; position:relative; }
+  .A .card img, .A .card video { width:100%; height:100%; object-fit:cover; transition:transform .4s var(--ease); }
+  .A .card video { position:absolute; inset:0; opacity:0; transition:opacity .4s; }
+  .A .card.playing video { opacity:1; }
+  .A .card .tx { padding:10px 14px 14px; }
+  .A .card .tx b { font-weight:600; font-size:14px; display:block; }
+  .A .card .tx span { font-size:12px; color:var(--ink3); display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden; }
+  .A .card.lit { transform:translateY(-4px); box-shadow:0 0 0 2px var(--ink),0 16px 34px rgba(0,0,0,.1); }
+  .A .card.lit img { transform:scale(1.03); }
+  .A .row.dim .card:not(.lit) { opacity:.55; }
+  /* 角落里的她：桌面左下，手机底部居中 */
+  .dock { position:fixed; left:24px; bottom:24px; z-index:30; pointer-events:none; }
+  .dock .her { pointer-events:auto; }
+  .her[data-at=dock] { flex-direction:row-reverse; align-items:flex-end; gap:10px; }
+  .her[data-at=dock] .face { --fs:72px; }
+  .her[data-at=dock] .bubble { max-width:min(340px,calc(100vw - 130px)); border-bottom-left-radius:6px; font-size:14px; }
+  .her[data-at=finale] .face { --fs:128px; }
+  @media (max-width:760px) {
+    .A.lineup { padding:84px 0 40px; }
+    .A.lineup > h2, .A.lineup > .lead, .A .cat h3 { padding:0 16px; }
+    .A .row { display:flex; overflow-x:auto; scroll-snap-type:x mandatory; gap:12px; padding:0 16px 6px; scrollbar-width:none; }
+    .A .row::-webkit-scrollbar { display:none; }
+    .A .card { flex:0 0 78%; scroll-snap-align:center; }
+    .dock { left:12px; right:12px; bottom:12px; }
+    .her[data-at=dock] .face { --fs:56px; }
+    .her[data-at=dock] .bubble { font-size:13px; }
+  }
+
+  /* ════ B · 拖给她试 ════ */
+  .B.lineup { max-width:1240px; margin:0 auto; padding:96px 24px 40px; display:grid; grid-template-columns:minmax(0,1fr) 420px; column-gap:32px; align-items:start; }
+  .B .head { grid-column:1; grid-row:1; }
+  .B .wall { grid-column:1; grid-row:2; }
+  .B .stage { grid-column:2; grid-row:1 / span 2; }
+  .B .shelf { margin-top:30px; }
+  .B .shelf h3 { font-size:14px; font-weight:600; margin-bottom:10px; display:flex; gap:8px; align-items:baseline; }
+  .B .shelf h3 small { font:500 12px ui-monospace,monospace; color:var(--ink3); }
+  .B .tools { display:flex; flex-wrap:wrap; gap:12px; }
+  .B .tool { width:112px; touch-action:none; user-select:none; -webkit-user-select:none; cursor:grab; transition:transform .5s var(--spring), opacity .3s; }
+  .B .tool .pic { width:112px; height:112px; border-radius:14px; overflow:hidden; background:#e7e3da; box-shadow:0 8px 18px rgba(0,0,0,.1); transform:rotate(var(--r)); transition:transform .35s var(--spring), box-shadow .3s; }
+  .B .tool .pic img { width:100%; height:100%; object-fit:cover; pointer-events:none; }
+  .B .tool .nm { font-size:12px; font-weight:600; margin-top:7px; line-height:1.3; }
+  .B .tool:hover .pic { transform:rotate(0) translateY(-3px); box-shadow:0 14px 26px rgba(0,0,0,.14); }
+  .B .tool.dragging { cursor:grabbing; transition:none; z-index:20; position:relative; }
+  .B .tool.dragging .pic { transform:scale(1.08); }
+  .B .tool.used .pic { box-shadow:0 0 0 2px #fff,0 0 0 4px var(--ink); }
+  .B .stage { position:sticky; top:84px; background:#fff; border-radius:24px; box-shadow:0 0 0 1px var(--line),0 18px 40px rgba(0,0,0,.06); padding:18px; display:flex; flex-direction:column; gap:12px; }
+  .B .stage .slot { display:flex; justify-content:flex-start; }
+  .her[data-at=stage] { flex-direction:row-reverse; align-items:center; gap:12px; width:100%; }
+  .her[data-at=stage] .face { --fs:84px; box-shadow:0 8px 20px rgba(0,0,0,.1); }
+  .her[data-at=stage] .bubble { box-shadow:none; background:#f4f2ed; font-size:14px; max-width:none; flex:1; }
+  .B .proc { font-size:12px; color:var(--ink3); min-height:18px; display:flex; gap:6px; align-items:center; }
+  .dots { display:inline-flex; gap:3px; } .dots i { width:4px; height:4px; border-radius:50%; background:var(--ink3); animation:dot 1s infinite; } .dots i:nth-child(2) { animation-delay:.15s } .dots i:nth-child(3) { animation-delay:.3s }
+  @keyframes dot { 50% { opacity:.25 } }
+  .B .result { aspect-ratio:4/3; border-radius:16px; overflow:hidden; background:repeating-linear-gradient(45deg,#f1efea 0 10px,#ece9e2 10px 20px); position:relative; display:flex; align-items:center; justify-content:center; color:var(--ink3); font-size:13px; text-align:center; padding:0; }
+  .B .result .hint { padding:0 30px; }
+  .B .result img, .B .result video { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:0; filter:blur(16px); transform:scale(1.04); transition:opacity .6s var(--ease), filter .6s var(--ease), transform .6s var(--ease); }
+  .B .result .show { opacity:1; filter:none; transform:none; }
+  .B .result.drop { box-shadow:inset 0 0 0 2px var(--ink); }
+  .B .meta { font-size:13px; color:var(--ink2); display:flex; flex-direction:column; gap:8px; min-height:64px; }
+  .B .meta .pm { display:flex; gap:14px; flex-wrap:wrap; font-size:12px; }
+  .B .meta .pm span::before { content:'＋ '; color:#3f9a68; } .B .meta .pm span.m::before { content:'－ '; color:#c4675a; }
+  .B .try { align-self:flex-start; opacity:0; transform:translateY(6px); transition:opacity .4s var(--ease), transform .4s var(--ease); pointer-events:none; }
+  .B .try.show { opacity:1; transform:none; pointer-events:auto; }
+  .ghost { position:fixed; z-index:45; width:112px; height:112px; border-radius:14px; overflow:hidden; pointer-events:none; box-shadow:0 14px 30px rgba(0,0,0,.2); }
+  .ghost img { width:100%; height:100%; object-fit:cover; }
+  @media (max-width:900px) {
+    .B.lineup { display:block; padding:76px 0 40px; }
+    .B .head, .B .shelf h3 { padding:0 16px; }
+    .B .head { margin-bottom:14px; }
+    .B .stage { top:78px; margin:0 12px 6px; z-index:10; padding:12px; border-radius:20px; gap:8px; outline:14px solid var(--bg); display:grid; grid-template-columns:auto 1fr; grid-template-areas:"her her" "res meta"; }
+    .B .stage .slot { grid-area:her; }
+    .B .result { grid-area:res; width:132px; aspect-ratio:1; border-radius:12px; }
+    .B .result .hint { padding:0 8px; font-size:11px; }
+    .B .meta { grid-area:meta; min-height:0; font-size:12px; }
+    .B .meta .pm, .B .proc { display:none; }
+    .B .try { display:none; }
+    .her[data-at=stage] .face { --fs:52px; }
+    .her[data-at=stage] .bubble { font-size:13px; padding:7px 12px; min-height:0; }
+    .B .tools { flex-wrap:nowrap; overflow-x:auto; padding:0 16px 6px; scrollbar-width:none; }
+    .B .tools::-webkit-scrollbar { display:none; }
+    .B .tool { flex:0 0 96px; width:96px; touch-action:auto; } .B .tool .pic { width:96px; height:96px; }
+  }
+
+  /* ════ C · 你说她挑 ════ */
+  .C.lineup { max-width:1120px; margin:0 auto; padding:96px 24px 40px; }
+  .C .needs { display:flex; flex-wrap:wrap; gap:8px; margin-top:26px; }
+  .C .need { border:0; background:#fff; border-radius:999px; padding:8px 15px; font-size:14px; cursor:pointer; box-shadow:0 0 0 1px var(--line); position:relative; overflow:hidden; transition:background .3s, color .3s, transform .3s var(--spring); }
+  .C .need:hover { transform:translateY(-1px); }
+  .C .need.on { background:var(--ink); color:#fff; }
+  .C .need .bar { position:absolute; left:0; bottom:0; height:2px; width:0; background:rgba(255,255,255,.7); }
+  .C .need.on.auto .bar { animation:bar var(--cycle) linear forwards; }
+  @keyframes bar { to { width:100% } }
+  .C .pick { margin-top:26px; display:grid; grid-template-columns:300px minmax(0,1fr); gap:28px; align-items:start; }
+  .C .pick .slot { display:flex; justify-content:center; position:sticky; top:96px; }
+  .her[data-at=chooser] .face { --fs:120px; }
+  .her[data-at=chooser] .bubble { font-size:15px; max-width:300px; }
+  .C .card { background:#fff; border-radius:22px; overflow:hidden; box-shadow:0 0 0 1px var(--line),0 18px 40px rgba(0,0,0,.06); perspective:1200px; }
+  .C .card .media { aspect-ratio:16/10; position:relative; overflow:hidden; background:#e7e3da; }
+  .C .card .media > * { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; transition:opacity .55s var(--ease), transform .7s var(--ease), filter .55s var(--ease); }
+  .C .card .media .out { opacity:0; transform:scale(1.04); filter:blur(10px); }
+  .C .card .info { padding:16px 20px 20px; display:flex; flex-direction:column; gap:8px; }
+  .C .card .info .who { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+  .C .card .info b { font-size:22px; font-weight:600; }
+  .C .card .info .cat { font:500 11px ui-monospace,monospace; color:var(--ink3); }
+  .C .card .info p { color:var(--ink2); }
+  .C .alts { display:flex; flex-wrap:wrap; gap:6px; align-items:center; font-size:13px; color:var(--ink3); }
+  .C .alts button { border:0; background:#f1efea; border-radius:999px; padding:4px 11px; font-size:12px; cursor:pointer; }
+  .C .info.swap > * { opacity:0; transform:translateY(6px); }
+  .C .info > * { transition:opacity .35s var(--ease), transform .35s var(--ease); }
+  .C .allbtn { margin-top:26px; border:0; background:none; font-size:14px; font-weight:600; cursor:pointer; display:inline-flex; gap:6px; align-items:center; }
+  .C .allbtn i { font-style:normal; transition:transform .4s var(--ease); display:inline-block; }
+  .C .allbtn.open i { transform:rotate(90deg); }
+  .C .all { display:grid; grid-template-rows:0fr; transition:grid-template-rows .55s var(--ease); }
+  .C .all.open { grid-template-rows:1fr; }
+  .C .all > div { overflow:hidden; }
+  .C .allgrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; padding-top:16px; }
+  .C .mini { border:0; padding:0; background:#fff; border-radius:12px; overflow:hidden; text-align:left; cursor:pointer; box-shadow:0 0 0 1px var(--line); }
+  .C .mini img { width:100%; aspect-ratio:1; object-fit:cover; }
+  .C .mini div { padding:6px 10px 9px; font-size:12px; font-weight:600; line-height:1.3; }
+  .C .mini small { display:block; font-weight:400; color:var(--ink3); font-size:11px; }
+  @media (max-width:760px) {
+    .C.lineup { padding:84px 0 40px; }
+    .C.lineup > h2, .C.lineup > .lead, .C .allbtn, .C .all { padding:0 16px; }
+    .C .needs { flex-wrap:nowrap; overflow-x:auto; padding:0 16px 4px; scrollbar-width:none; }
+    .C .needs::-webkit-scrollbar { display:none; }
+    .C .need { flex:none; }
+    .C .pick { grid-template-columns:1fr; gap:14px; padding:0 16px; }
+    .C .pick .slot { position:static; }
+    .her[data-at=chooser] { flex-direction:row-reverse; align-items:center; gap:12px; width:100%; }
+    .her[data-at=chooser] .face { --fs:64px; }
+    .her[data-at=chooser] .bubble { font-size:14px; max-width:none; flex:1; }
+    .C .allgrid { grid-template-columns:repeat(2,1fr); }
+  }
+  @media (prefers-reduced-motion:reduce) { *,*::before,*::after { animation:none !important; transition:none !important; } html { scroll-behavior:auto; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <b>ANTEI</b>
+  <nav class="dirs" id="dirs">
+    <a href="?d=a"><i>A</i><span>她陪你逛</span></a>
+    <a href="?d=b"><i>B</i><span>拖给她试</span></a>
+    <a href="?d=c"><i>C</i><span>你说她挑</span></a>
+  </nav>
+  <button class="door">进入工作台</button>
+</header>
+
+<!-- 她：唯一的本体，在座位之间搬家 -->
+<div class="her" id="her" data-at="hero">
+  <div class="bubble" id="bubble"></div>
+  <button class="face" id="face" aria-label="她"><span class="puppet" id="puppet"></span></button>
+</div>
+
+<section class="hero" data-seat="hero">
+  <div class="slot" id="seat-hero"></div>
+  <p class="hint">往下滑<i></i></p>
+</section>
+
+<!-- ════ A ════ -->
+<section class="A lineup" data-dir="a" data-seat="dock">
+  <h2>她手里有 23 个模型</h2>
+  <p class="lead" id="leadA">把鼠标停在一张上，她告诉你它擅长什么、不擅长什么。</p>
+  <div id="catsA"></div>
+</section>
+<div class="dock" data-dir="a" id="seat-dock"></div>
+
+<!-- ════ B ════ -->
+<section class="B lineup" data-dir="b" data-seat="stage">
+  <div class="head"><h2>挑一个模型，拖给她</h2><p class="lead" id="leadB">她当场用它做一样给你看。23 个，随便挑。</p></div>
+  <aside class="stage" id="stageB">
+    <div class="slot" id="seat-stage"></div>
+    <div class="proc" id="procB"></div>
+    <div class="result" id="resultB"><span class="hint">拖一个过来，或者点一下</span></div>
+    <div class="meta" id="metaB"></div>
+    <button class="go try" id="tryB">用它开始</button>
+  </aside>
+  <div class="wall" id="shelvesB"></div>
+</section>
+
+<!-- ════ C ════ -->
+<section class="C lineup" data-dir="c" data-seat="chooser">
+  <h2>你想做什么？她来挑。</h2>
+  <p class="lead">23 个模型各有所长。说要什么，她直接告诉你用哪个、为什么。</p>
+  <div class="needs" id="needsC"></div>
+  <div class="pick">
+    <div class="slot" id="seat-chooser"></div>
+    <div class="card">
+      <div class="media" id="mediaC"></div>
+      <div class="info" id="infoC"></div>
+    </div>
+  </div>
+  <button class="allbtn" id="allBtnC">全部 23 个 <i>›</i></button>
+  <div class="all" id="allC"><div><div class="allgrid" id="allGridC"></div></div></div>
+</section>
+
+<section class="finale" data-seat="finale">
+  <div class="slot" id="seat-finale"></div>
+  <h2 id="finTitle">和她说第一句。</h2>
+  <form class="ask" id="ask"><input id="askIn" placeholder="比如：给我的猫画一张赛博朋克海报" autocomplete="off"><button>开始</button></form>
+  <p class="small" id="finSmall">说完直接进工作台，她接着做。</p>
+</section>
+<footer><span>条款</span><span>隐私</span><span>内容准则</span></footer>
+
+<details class="motion" id="motion"><summary>动效表</summary><div class="wrapx"><table id="motionT"></table></div></details>
+
+<div class="sheet-veil" id="veil"></div>
+<div class="sheet" id="sheet"></div>
+
+<script src="lineup-data.js"></script>
+<script src="her.js"></script>
+<script>
+const D = (new URLSearchParams(location.search).get('d') || 'a').toLowerCase()
+document.querySelectorAll('[data-dir]').forEach(el => { if (el.dataset.dir !== D) el.remove() })
+document.querySelectorAll('#dirs a').forEach(a => a.classList.toggle('on', a.getAttribute('href') === '?d=' + D))
+
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches
+const wait = ms => new Promise(r => setTimeout(r, reduce ? 0 : ms))
+const phone = () => matchMedia('(max-width:760px)').matches
+const $ = id => document.getElementById(id)
+const M = window.LINEUP, byKey = Object.fromEntries(M.map(m => [m.key, m]))
+const CATS = [...new Set(M.map(m => m.cat))]
+const short = m => m.pos.split(/[：:]/)[0]
+const tail = m => { const i = m.pos.search(/[：:]/); return i < 0 ? m.pos : m.pos.slice(i + 1) }
+
+/* ── 她 ── */
+const herEl = $('her'), face = $('face'), bubble = $('bubble')
+const her = Her.mount($('puppet'))
+let typingRun = 0
+async function say(text, after = 'idle') {
+  const my = ++typingRun
+  bubble.classList.add('swap'); await wait(160); if (my !== typingRun) return
+  bubble.textContent = ''; bubble.classList.remove('swap'); her.mood('talk')
+  for (const ch of text) { if (my !== typingRun) return; bubble.textContent += ch; her.mouth(ch); await wait(42) }
+  if (my === typingRun) her.mood(after)
+}
+function hush() { typingRun++ }
+
+/* 座位：页面中线落在哪一节，她就坐到那一节的座位上；搬家用 FLIP（只动 transform） */
+let seat = null
+function moveTo(name) {
+  if (name === seat) return
+  const el = $('seat-' + name); if (!el) return
+  const first = seat ? face.getBoundingClientRect() : null
+  seat = name; herEl.dataset.at = name; el.append(herEl)
+  const last = face.getBoundingClientRect()
+  if (!reduce && first) {
+    const s = first.width / last.width
+    face.style.transition = 'none'
+    face.style.transform = `translate(${first.left - last.left}px,${first.top - last.top}px) scale(${s})`
+    bubble.classList.add('swap')
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      face.style.transition = 'transform .62s var(--spring)'; face.style.transform = ''
+      setTimeout(() => bubble.classList.remove('swap'), 380)
+    }))
+  }
+  onSeat(name)
+}
+const seats = [...document.querySelectorAll('[data-seat]')]
+function pickSeat() {
+  const y = innerHeight * .5
+  for (const s of seats) { const r = s.getBoundingClientRect(); if (r.top <= y && r.bottom >= y) return s.dataset.seat }
+  return seat
+}
+let ticking = false
+addEventListener('scroll', () => { if (!ticking) { ticking = true; requestAnimationFrame(() => { ticking = false; moveTo(pickSeat()); onScroll() }) } }, { passive: true })
+addEventListener('resize', () => moveTo(pickSeat()))
+
+/* 底部详情面板（A 用，C 的「全部」也用） */
+const sheet = $('sheet'), veil = $('veil')
+function openSheet(m) {
+  sheet.innerHTML = `<div class="grab"></div><div class="media">${m.clip ? `<video src="${m.clip}" poster="${m.img}" muted autoplay loop playsinline></video>` : `<img src="${m.img}" alt="">`}</div>
+    <h3>${m.name}</h3><p class="pos">${m.pos}</p><div class="chips" style="margin-top:10px">${m.tags.map(t => `<span>${t}</span>`).join('')}</div>
+    <div class="pm"><div><h4>强在哪</h4><ul>${m.plus.map(x => `<li>${x}</li>`).join('')}</ul></div><div class="minus"><h4>弱在哪</h4><ul>${m.minus.map(x => `<li>${x}</li>`).join('')}</ul></div></div>
+    <p class="fare">${m.fare}</p>`
+  sheet.classList.add('on'); veil.classList.add('on')
+}
+function closeSheet() { sheet.classList.remove('on'); veil.classList.remove('on'); setTimeout(() => sheet.querySelector('video')?.pause(), 400) }
+veil.onclick = closeSheet
+addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet() })
+let sy0 = 0; sheet.addEventListener('touchstart', e => { sy0 = e.touches[0].clientY }, { passive: true })
+sheet.addEventListener('touchend', e => { if (e.changedTouches[0].clientY - sy0 > 80 && sheet.scrollTop <= 0) closeSheet() })
+
+/* 收尾：输入框里打字时她在听；回车她接住 */
+const askIn = $('askIn')
+askIn.addEventListener('input', () => { if (seat === 'finale') her.mood(askIn.value ? 'read' : 'idle'); onAskInput?.(askIn.value) })
+$('ask').addEventListener('submit', async e => {
+  e.preventDefault()
+  if (!askIn.value.trim()) { askIn.focus(); her.pop('nod'); return say('先随便说一句嘛～', 'ask') }
+  her.mood('wow'); await wait(500)
+  await say('好，我记下了！进去就开工。', 'happy')
+  await wait(600); alert('原型：未登录弹登录卡；已登录带着这句话进 /studio，她直接开始做')
+})
+let onAskInput = null
+
+const HELLO = '嗨，我是 ANTEI～往下看看我手里有什么'
+let onSeat = () => {}, onScroll = () => {}
+
+/* ════════ A · 她陪你逛 ════════ */
+if (D === 'a') {
+  $('leadA').textContent = phone() ? '滑到哪一张，她就讲哪一张。点开看强弱和价格。' : '把鼠标停在一张上，她告诉你它擅长什么。点开看强弱和价格。'
+  $('catsA').innerHTML = CATS.map(c => {
+    const list = M.filter(m => m.cat === c)
+    return `<div class="cat"><h3>${c}<small>${list.length}</small></h3><div class="row">${list.map(m => `
+      <button class="card" data-k="${m.key}"><div class="img"><img loading="lazy" src="${m.img}" alt="">${m.clip ? `<video muted loop playsinline preload="none" data-src="${m.clip}"></video>` : ''}</div>
+      <div class="tx"><b>${m.name}</b><span>${short(m)}</span></div></button>`).join('')}</div></div>`
+  }).join('')
+  const cards = [...document.querySelectorAll('.A .card')]
+  let lit = null, litTimer = 0, playing = null
+  function play(card) {
+    if (playing && playing !== card) { playing.classList.remove('playing'); playing.querySelector('video')?.pause() }
+    const v = card?.querySelector('video'); playing = v ? card : null
+    if (v) { if (!v.src) v.src = v.dataset.src; v.currentTime = 0; v.play().then(() => card.classList.add('playing')).catch(() => {}) }
+  }
+  function light(card) {
+    if (card === lit) return
+    lit?.classList.remove('lit'); lit?.parentElement.classList.remove('dim')
+    lit = card; clearTimeout(litTimer)
+    if (!card) { play(null); return }
+    card.classList.add('lit'); card.parentElement.classList.add('dim'); play(card)
+    hush(); her.mood('read')
+    litTimer = setTimeout(() => { const m = byKey[card.dataset.k]; say(`${m.name}，${tail(m)}`, 'idle') }, 380)
+  }
+  cards.forEach(c => {
+    c.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse') light(c) })
+    c.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse' && lit === c) light(null) })
+    c.onclick = () => { const m = byKey[c.dataset.k]; openSheet(m); say('想用它？进去跟我说一声就好。', 'ask') }
+  })
+  /* 手机：离屏幕中间最近的那张算「看着的」 */
+  function nearest() {
+    const cx = innerWidth / 2, cy = innerHeight * .42; let best = null, bd = 1e9
+    for (const c of cards) { const r = c.getBoundingClientRect(); if (r.bottom < 80 || r.top > innerHeight - 140) continue; const d = Math.hypot(r.left + r.width / 2 - cx, (r.top + r.height / 2 - cy) * 1.6); if (d < bd) { bd = d; best = c } }
+    return best
+  }
+  let settle = 0
+  onScroll = () => { if (!phone() || seat !== 'dock') return; clearTimeout(settle); settle = setTimeout(() => light(nearest()), 260) }
+  document.querySelectorAll('.A .row').forEach(r => r.addEventListener('scroll', onScroll, { passive: true }))
+  onSeat = s => {
+    if (s === 'hero') { light(null); say(HELLO) }
+    if (s === 'dock') { her.pop('hop'); say(phone() ? '我陪你逛～滑到哪张我讲哪张。' : '我陪你逛～鼠标停到哪张，我讲哪张。'); if (phone()) onScroll() }
+    if (s === 'finale') { light(null); say('看完啦？跟我说第一句吧。', 'ask') }
+  }
+}
+
+/* ════════ B · 拖给她试 ════════ */
+if (D === 'b') {
+  const ROT = ['-4deg', '3deg', '-2deg', '5deg', '-5deg', '2deg']
+  $('shelvesB').innerHTML = CATS.map(c => {
+    const list = M.filter(m => m.cat === c)
+    return `<div class="shelf"><h3>${c}<small>${list.length}</small></h3><div class="tools">${list.map((m, i) => `
+      <div class="tool" data-k="${m.key}" style="--r:${ROT[(i + c.length) % ROT.length]}"><div class="pic"><img src="${m.img}" alt="" loading="lazy"></div><div class="nm">${m.name}</div></div>`).join('')}</div></div>`
+  }).join('')
+  const proc = $('procB'), result = $('resultB'), meta = $('metaB'), tryB = $('tryB')
+  let busy = false, used = 0
+  const hit = (x, y) => { for (const el of [face, result]) { const r = el.getBoundingClientRect(); if (x > r.left - 20 && x < r.right + 20 && y > r.top - 20 && y < r.bottom + 20) return true } return false }
+  document.querySelectorAll('.B .tool').forEach(el => {
+    let sx, sy, moved = false, down = false, ghost = null
+    el.addEventListener('pointerdown', e => { if (busy) return; down = true; moved = false; sx = e.clientX; sy = e.clientY; if (e.pointerType === 'mouse') el.setPointerCapture(e.pointerId) })
+    el.addEventListener('pointermove', e => {
+      if (!down || e.pointerType !== 'mouse') return
+      const dx = e.clientX - sx, dy = e.clientY - sy
+      if (!moved && Math.hypot(dx, dy) > 6) {
+        moved = true; el.classList.add('dragging')
+        const r = el.querySelector('.pic').getBoundingClientRect()
+        ghost = document.createElement('div'); ghost.className = 'ghost'; ghost.innerHTML = el.querySelector('.pic').innerHTML
+        Object.assign(ghost.style, { left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px' }); document.body.append(ghost)
+        el.style.opacity = .35
+      }
+      if (moved) {
+        ghost.style.transform = `translate(${dx}px,${dy}px) rotate(${dx * .02}deg)`
+        const near = hit(e.clientX, e.clientY)
+        if (near !== face.classList.contains('hungry')) { face.classList.toggle('hungry', near); result.classList.toggle('drop', near); her.mood(near ? 'gulp' : 'idle') }
+      }
+    })
+    el.addEventListener('pointercancel', () => { down = false })
+    el.addEventListener('pointerup', async e => {
+      if (!down) return; down = false; el.classList.remove('dragging')
+      const near = moved && hit(e.clientX, e.clientY)
+      face.classList.remove('hungry'); result.classList.remove('drop')
+      if (moved && ghost) {
+        if (near) {
+          const f = face.getBoundingClientRect(), g = ghost.getBoundingClientRect()
+          ghost.style.transition = 'transform .38s cubic-bezier(.5,0,.75,0), opacity .38s'
+          ghost.style.transform += ` translate(${f.left + f.width / 2 - g.left - g.width / 2}px,${f.top + f.height / 2 - g.top - g.height / 2}px) scale(.15)`
+          ghost.style.opacity = 0
+        } else { ghost.style.transition = 'transform .45s var(--spring), opacity .3s'; ghost.style.transform = ''; }
+        const gg = ghost; setTimeout(() => gg.remove(), 450); ghost = null; el.style.opacity = ''
+      }
+      if (!moved || near) feed(el)
+      else her.mood('idle')
+    })
+  })
+  async function feed(el) {
+    if (busy) return; busy = true
+    const m = byKey[el.dataset.k]; el.classList.add('used')
+    face.classList.remove('eat'); void face.offsetWidth; face.classList.add('eat')
+    hush(); bubble.classList.add('swap'); her.mood('gulp'); tryB.classList.remove('show')
+    result.querySelectorAll('img,video').forEach(x => { x.classList.remove('show'); setTimeout(() => x.remove(), 600) })
+    result.querySelector('.hint')?.remove()
+    meta.innerHTML = ''
+    proc.innerHTML = `<span class="dots"><i></i><i></i><i></i></span><span>${m.cat}台 · ${m.name}</span>`
+    await wait(380); her.mood('work')
+    await wait(phone() ? 700 : 1000)
+    const node = m.clip ? Object.assign(document.createElement('video'), { src: m.clip, poster: m.img, muted: true, loop: true, playsInline: true, autoplay: true }) : Object.assign(new Image(), { src: m.img, alt: '' })
+    result.append(node)
+    await new Promise(r => { if (node.tagName === 'IMG' && !node.complete) node.onload = node.onerror = r; else r() })
+    requestAnimationFrame(() => node.classList.add('show'))
+    proc.querySelector('.dots')?.remove(); her.mood('wow')
+    meta.innerHTML = `<div class="chips">${m.tags.map(t => `<span>${t}</span>`).join('')}</div><div class="pm"><span>${m.plus[0]}</span><span class="m">${m.minus[0]}</span></div>`
+    await wait(700)
+    await say(m.pos, 'ask')
+    used++; tryB.textContent = `用 ${m.name} 开始`; tryB.classList.add('show'); busy = false
+  }
+  tryB.onclick = () => alert('原型：带着这个模型进 /studio，已选好')
+  if (matchMedia('(max-width:900px)').matches) { $('leadB').textContent = '点一个，她当场用它做一样给你看。23 个，随便挑。'; result.querySelector('.hint').textContent = '点下面任意一个' }
+  onSeat = s => {
+    if (s === 'hero') say(HELLO)
+    if (s === 'stage') say(used ? '再丢一个给我试试？' : (phone() ? '点一个模型，我当场用它做给你看！' : '挑一个拖给我，我当场用它做给你看！'), 'ask')
+    if (s === 'finale') say(used ? `刚才那几个都能用，说一句我们就开工。` : '一个都没试？那直接跟我说你想做什么吧。', 'ask')
+  }
+}
+
+/* ════════ C · 你说她挑 ════════ */
+if (D === 'c') {
+  const NEEDS = [
+    ['带字的海报', 'gpt', /海报|文字|字体|排版|poster/i], ['改一处，别的不动', 'gemini', /改|换|局部|修|p图/i], ['产品质感', 'flux', /产品|质感|电商|商品/i],
+    ['中文字和国风', 'seedream', /国风|中文|古风|书法/i], ['LOGO 与矢量', 'recraft', /logo|标志|矢量|图标/i], ['日系角色、多人同框', 'novelai', /日系|动漫|二次元|多人|漫画/i],
+    ['给角色挂 LoRA', 'wai', /lora|角色|同一个人|立绘/i], ['铅笔线稿', 'pencil', /线稿|铅笔|草图/i], ['首帧 + 配音一起进', 'seedance', /视频|片子|短片|动起来|镜头/i],
+    ['自然走路跟拍', 'minimax', /走|跟拍|步态/i], ['镜头环绕', 'kling', /环绕|绕|旋转/i], ['快节奏蒙太奇', 'horse', /蒙太奇|快剪|节奏/i],
+    ['克隆一副嗓子', 'fish', /配音|声音|嗓|音色|说话|朗读/i], ['音效和配乐', 'eleven', /音效|配乐|音乐|bgm/i], ['一张图出 3D', 'hunyuan', /3d|手办|模型|立体/i], ['白模到上色', 'rodin', /白模|上色|贴图/i],
+  ]
+  const CYCLE = 4600
+  const needsEl = $('needsC'), media = $('mediaC'), info = $('infoC')
+  needsEl.style.setProperty('--cycle', CYCLE + 'ms')
+  needsEl.innerHTML = NEEDS.map(([t], i) => `<button class="need" data-i="${i}">${t}<i class="bar"></i></button>`).join('')
+  const needBtns = [...needsEl.children]
+  let cur = -1, auto = true, autoT = 0, inView = false
+  async function choose(i, fromUser) {
+    if (i === cur) return; cur = i
+    const [, key] = NEEDS[i], m = byKey[key]
+    needBtns.forEach((b, j) => { b.classList.toggle('on', j === i); b.classList.toggle('auto', auto && j === i) })
+    const b = needBtns[i], nr = needsEl.getBoundingClientRect(), br = b.getBoundingClientRect()
+    if (needsEl.scrollWidth > needsEl.clientWidth) needsEl.scrollTo({ left: needsEl.scrollLeft + br.left - nr.left - nr.width / 2 + br.width / 2, behavior: reduce ? 'auto' : 'smooth' })
+    hush(); her.mood('think')
+    const old = [...media.children]; old.forEach(x => { x.classList.add('out'); setTimeout(() => x.remove(), 700) })
+    const node = m.clip ? Object.assign(document.createElement('video'), { src: m.clip, poster: m.img, muted: true, loop: true, playsInline: true, autoplay: true }) : Object.assign(new Image(), { src: m.img, alt: '' })
+    node.classList.add('out'); media.append(node)
+    info.classList.add('swap')
+    await wait(300)
+    requestAnimationFrame(() => node.classList.remove('out'))
+    const alts = M.filter(x => x.cat === m.cat && x.key !== key).slice(0, 3)
+    info.innerHTML = `<div class="who"><b>${m.name}</b><span class="cat">${m.cat}</span></div><p>${m.pos}</p><div class="chips">${m.tags.map(t => `<span>${t}</span>`).join('')}</div>
+      <div class="alts">也可以：${alts.map(a => `<button data-k="${a.key}">${a.name}</button>`).join('')}</div>`
+    info.querySelectorAll('.alts button').forEach(b => b.onclick = () => { stopAuto(); openSheet(byKey[b.dataset.k]) })
+    requestAnimationFrame(() => info.classList.remove('swap'))
+    say(`这个交给 ${m.name}。${short(m)}。`, 'ask')
+  }
+  function stopAuto() { auto = false; clearTimeout(autoT); needBtns.forEach(b => b.classList.remove('auto')) }
+  function tick() { clearTimeout(autoT); if (!auto || !inView) return; autoT = setTimeout(() => { choose((cur + 1) % NEEDS.length); tick() }, CYCLE) }
+  needBtns.forEach((b, i) => b.onclick = () => { stopAuto(); choose(i, true) })
+  $('allGridC').innerHTML = M.map(m => `<button class="mini" data-k="${m.key}"><img loading="lazy" src="${m.img}" alt=""><div>${m.name}<small>${m.cat}</small></div></button>`).join('')
+  document.querySelectorAll('.C .mini').forEach(b => b.onclick = () => { stopAuto(); openSheet(byKey[b.dataset.k]) })
+  $('allBtnC').onclick = () => { const o = $('allC').classList.toggle('open'); $('allBtnC').classList.toggle('open', o) }
+  onSeat = s => {
+    if (s === 'hero') say(HELLO)
+    if (s === 'chooser') { inView = true; if (cur < 0) choose(0); tick() }
+    else { inView = false; clearTimeout(autoT) }
+    if (s === 'finale') say('说说你想做什么，我当场告诉你用哪个。', 'ask')
+  }
+  /* 收尾：边打字边猜 */
+  let guessT = 0
+  onAskInput = v => {
+    clearTimeout(guessT)
+    guessT = setTimeout(() => {
+      const hit = NEEDS.find(n => n[2].test(v)); if (!hit) return
+      const m = byKey[hit[1]]; her.mood('wow'); say(`这个我会用 ${m.name}！`, 'read')
+    }, 450)
+  }
+  $('finTitle').textContent = '说说你想做什么。'
+  askIn.placeholder = '比如：给奶茶店做一张带字的海报'
+}
+
+/* 动效表（每个方向一张） */
+const MOTION = {
+  a: [['她从首屏飞进角落', '620ms · 弹簧 (.34,1.4,.64,1)', '头像位移 + 缩放（FLIP，只动 transform）；气泡先糊掉 160ms，落位后再打字', '不跟着滚动逐帧插值'],
+      ['停在一张卡上', '进 400ms ease-out；380ms 后她开口', '卡上浮 4px + 2px 墨色描边，同排其余卡降到 55%；她先「读」再说', '划过就走的不说话（380ms 防抖）'],
+      ['视频类卡', '悬停即播，淡入 400ms', '原地播预览；同一时刻只播一支', '手机按「离屏幕中间最近」那张播'],
+      ['手机滑动', '停下 260ms 后判定', '离屏幕中间最近的卡点亮、她讲它', '滑动途中不换话'],
+      ['点卡 → 详情', '弹簧 420ms，开合对称', '底部面板升起，背后压暗；手机全屏、下拉关', '关闭不许瞬切'],
+      ['滚到收尾', '同第一行', '她从角落飞回正中（128px），说「跟我说第一句」', '—'],
+      ['在输入框打字', '即时', '她换成「读」（听你说）；回车冒星星 → 开心', '不自动提交']],
+  b: [['她从首屏飞进舞台', '620ms · 弹簧', '头像缩到 84px 坐进右侧舞台（手机吸顶 52px）', '—'],
+      ['拖起一个模型', '跟手，无缓动', '原位留 35% 残影；拖到她或结果框 20px 内，她「接住」脸 + 黑色描边', '手机不拖，点一下就喂'],
+      ['松手喂给她', '380ms ease-in 飞入 + 缩到 15%', '她嚼一下（500ms 弹簧）→ 干活转圈 1s → 冒星星', '没拖到就 450ms 弹回原位'],
+      ['结果长出来', '600ms ease-out', '从模糊 16px、放大 4% 到清晰；视频类自动静音循环播', '同一时刻只播一支'],
+      ['她讲这个模型', '700ms 后开口，42ms/字', '说定位句，下面挂三个标签 + 一强一弱', '—'],
+      ['「用它开始」', '400ms ease-out', '按钮升起，带着这个模型进工作台', '没喂过不出现'],
+      ['滚到收尾', '同第一行', '她回到正中，按刚才试没试过说不同的话', '—']],
+  c: [['她从首屏坐到左边', '620ms · 弹簧', '头像 120px 坐在左栏，吸顶跟着走（手机 64px 横排）', '—'],
+      ['自动轮播需求', '每 4.6s 换一个；进度条线性走满', '需求按钮变黑，底边一条白线走完就换下一个', '离开这一节就停；用户点过一次就再也不自动'],
+      ['换一个需求', '旧图 700ms 淡出放大 4% + 模糊；新图 550ms 落清晰', '她先「想」，300ms 后右边卡换图、文字从下 6px 升起', '不翻转卡片（试过，晃眼）'],
+      ['她报模型', '42ms/字', '「这个交给 X。它的定位」；下面「也可以」列同类前三', '—'],
+      ['全部 23 个', '展开 550ms ease-out（grid-rows 0fr→1fr）', '小图网格从按钮下方展开；点一个开详情面板', '收起同样有动效'],
+      ['收尾打字猜模型', '停手 450ms 后猜', '命中关键词她冒星星说「这个我会用 X」', '猜不到就不说话']],
+}
+$('motionT').innerHTML = '<tr><th>动作</th><th>时长 · 曲线</th><th>动什么</th><th>⛔</th></tr>' + MOTION[D].map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('')
+
+moveTo('hero')
+</script>
+</body>
+</html>

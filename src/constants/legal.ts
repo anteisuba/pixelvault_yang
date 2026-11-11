@@ -5,13 +5,14 @@ import { ROUTES } from '@/constants/routes'
  * (title / intro / sections[] per doc); this file only owns the doc ids and
  * their routes so the page + footer stay type-safe.
  */
-export const LEGAL_DOCS = ['privacy', 'terms'] as const
+export const LEGAL_DOCS = ['privacy', 'terms', 'guidelines'] as const
 
 export type LegalDoc = (typeof LEGAL_DOCS)[number]
 
 export const LEGAL_DOC_ROUTES: Record<LegalDoc, string> = {
   privacy: ROUTES.PRIVACY,
   terms: ROUTES.TERMS,
+  guidelines: ROUTES.GUIDELINES,
 }
 
 /**

@@ -13,9 +13,9 @@ import { useLocale } from 'next-intl'
  * server-rendered page had, and everything keyed off it went stale with it:
  * screen-reader pronunciation, `:lang()` rules, and font selection.
  *
- * The marketing home no longer depends on this — it picks its CJK face off its
- * own `data-locale` (`.home-v4[data-locale='ja']`) precisely because the root
- * `lang` could not be trusted mid-session. Accessibility still can only read
+ * The marketing home no longer depends on this — it carries its own
+ * `data-locale` (`.home-v6[data-locale]`) precisely because the root `lang`
+ * could not be trusted mid-session. Accessibility still can only read
  * `lang`, so keeping it correct remains this component's job.
  *
  * Mounted from `[locale]/layout.tsx`, which *does* re-render when the locale

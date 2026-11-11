@@ -823,7 +823,8 @@ export function ImageEditSurface({
       maxLength={500}
       onChange={(event) => setPrompt(event.target.value)}
       placeholder={t('editPromptPlaceholder')}
-      className="field-sizing-content min-h-10 max-h-36 resize-none border-0 bg-transparent p-0 text-base shadow-none focus-visible:ring-0"
+      bare
+      className="min-h-10 max-h-36 resize-none md:text-md md:leading-reading"
     />
   )
   // 源图：按舞台给的高度上限等比放下（`.studio-edit-media`，与局部重绘 / 物体替换
@@ -973,7 +974,8 @@ export function ImageEditSurface({
                     value={extractPrompt}
                     disabled={isRunning}
                     placeholder={t('extract.promptPlaceholder')}
-                    className="min-h-16 max-h-36 resize-none border-0 bg-transparent p-0 text-base shadow-none focus-visible:ring-0"
+                    bare
+                    className="min-h-16 max-h-36 resize-none md:text-md md:leading-reading"
                     onChange={(event) => {
                       setExtractPrompt(event.target.value)
                       setExtractPreset(null)

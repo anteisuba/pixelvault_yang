@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>首页 v6 · 小样 1 · 滚动推进</title>
+<style>
+  /* 小样 1（docs/design/home-v6.md）：回答待定 C「演示改成滚动推进合不合适」、D「暖奶油底对不对」。
+     整段是一条 620vh 的轨道，里面一块钉住的舞台；页面上所有变化都只由滚动位置算出来，没有自动播放。 */
+  :root { --ground:#f6f1e7; --ink:#1b1a18; --ink2:#6a665f; --line:rgba(27,26,24,.1); --card:#fff; --rose:#d86e8d; }
+  :root[data-ground="white"] { --ground:#ffffff; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html { background:var(--ground); }
+  body { background:var(--ground); color:var(--ink); font:16px/1.6 -apple-system,"PingFang SC","Hiragino Sans GB","Noto Sans SC",sans-serif; -webkit-font-smoothing:antialiased; }
+  button { font:inherit; color:inherit; cursor:pointer; }
+
+  /* 小样自己的工具条，不属于设计 */
+  .tools { position:fixed; z-index:20; top:12px; left:12px; display:flex; align-items:center; gap:10px; padding:6px 8px 6px 12px; border-radius:999px; background:rgba(27,26,24,.86); color:#fff; font-size:12px; }
+  .tools b { font-weight:600; }
+  .tools output { font:12px ui-monospace,Menlo,monospace; min-width:3.2em; text-align:right; opacity:.8; }
+  .tools .seg { display:flex; background:rgba(255,255,255,.14); border-radius:999px; padding:2px; }
+  .tools .seg button { border:0; background:transparent; color:#fff; border-radius:999px; padding:3px 10px; font-size:12px; }
+  .tools .seg button[aria-pressed="true"] { background:#fff; color:#1b1a18; }
+
+  .track { height:620vh; position:relative; }
+  .stage { position:sticky; top:0; height:100vh; height:100svh; overflow:hidden; }
+
+  /* 她：尺寸不变，位置和大小只走 transform */
+  .her { position:absolute; left:0; top:0; width:var(--her); will-change:transform; transform:translate(calc(var(--x) * 1vw - 50%), calc(var(--y) * 1svh - 50%)) scale(var(--s)); --her:min(42svh, 340px); --x:50; --y:40; --s:1; }
+  .face { width:100%; aspect-ratio:1; border-radius:26%; background:var(--card); overflow:hidden; box-shadow:0 0 0 1px var(--line), 0 18px 40px rgba(60,40,30,.1); }
+  .say { margin:14px auto 0; width:max-content; max-width:min(30ch, 78vw); background:var(--card); border-radius:18px; padding:8px 16px; box-shadow:0 0 0 1px var(--line); font-size:15px; text-align:center; }
+  .say.swap { animation:swap .22s ease-out; }
+  /* 只动位置：页面没在出帧时（标签页在后台）动画会停在第一帧，从透明起步的话那句话就看不见了 */
+  @keyframes swap { from { transform:translateY(5px); } to { transform:none; } }
+
+  .hello { position:absolute; left:0; right:0; top:68svh; text-align:center; font-size:clamp(34px, 6.2vw, 84px); line-height:1.16; font-weight:650; letter-spacing:-.01em; word-break:keep-all; will-change:transform, opacity; }
+  .hint { position:absolute; left:0; right:0; bottom:22px; text-align:center; font-size:13px; color:var(--ink2); }
+
+  .panel { position:absolute; left:44vw; right:6vw; top:13svh; bottom:9svh; display:flex; flex-direction:column; gap:18px; justify-content:center; }
+  .panel > * { flex-shrink:0; }
+  .kicker { font-size:clamp(30px, 4.4vw, 60px); line-height:1.16; font-weight:650; word-break:keep-all; will-change:transform, opacity; }
+  .composer { align-self:flex-start; max-width:100%; background:var(--card); border-radius:22px; padding:14px 18px; box-shadow:0 0 0 1px var(--line), 0 6px 24px rgba(60,40,30,.06); font-size:clamp(16px, 1.5vw, 20px); line-height:1.6; min-height:60px; }
+  .composer .caret { display:inline-block; width:2px; height:1.1em; background:var(--ink); vertical-align:-.18em; margin-left:2px; }
+  .composer.sent { background:rgba(27,26,24,.07); box-shadow:none; border-radius:18px; padding:8px 14px; font-size:15px; min-height:0; }
+  .composer.sent .caret { display:none; }
+  .proc { font:12px ui-monospace,Menlo,monospace; color:var(--ink2); }
+  .grid { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:12px; }
+  .tile { position:relative; will-change:transform, opacity, filter; }
+  .tile img { display:block; width:100%; aspect-ratio:3/4; object-fit:cover; border-radius:12px; background:rgba(27,26,24,.07); }
+  .tile small { display:block; margin-top:6px; font:11px ui-monospace,Menlo,monospace; color:var(--ink2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .tile .check { position:absolute; top:8px; right:8px; width:26px; height:26px; border-radius:50%; background:var(--ink); color:#fff; display:grid; place-items:center; font-size:14px; opacity:0; transform:scale(.6); }
+  .tile.pick img { box-shadow:0 0 0 3px var(--ground), 0 0 0 5px var(--ink); }
+
+  .next { min-height:70svh; display:flex; flex-direction:column; justify-content:center; gap:14px; padding:64px max(6vw, 20px); border-top:1px solid var(--line); }
+  .next h2 { font-size:clamp(24px, 3vw, 40px); font-weight:650; }
+  .next p { color:var(--ink2); max-width:56ch; }
+  .next .ask { color:var(--ink); background:var(--card); border-radius:16px; padding:14px 18px; box-shadow:0 0 0 1px var(--line); max-width:56ch; }
+
+  /* 文字的三种写法（工具条「文字」）：a 原样；b 去掉大标题和过程行；c 提示词当主角，发出去后缩成图注。
+     b、c 里图是主角，电脑上排成 2×2 放大 */
+  [data-text="b"] .kicker, [data-text="b"] .proc, [data-text="c"] .kicker, [data-text="c"] .proc { display:none; }
+  [data-text="c"] .composer, [data-text="c"] .composer.sent { background:none; box-shadow:none; border-radius:0; padding:0; min-height:0; font-weight:550; line-height:1.4; max-width:20em; }
+  [data-text="c"] .composer.sent { font-weight:400; color:var(--ink2); }
+  @media (min-width:761px) {
+    [data-text="b"] .grid, [data-text="c"] .grid { grid-template-columns:repeat(2, minmax(0, min(22svh, 20vw))); gap:14px; }
+  }
+
+  @media (max-width:760px) {
+    .tools { flex-wrap:wrap; border-radius:18px; right:12px; }
+    .her { --her:min(30svh, 220px); }
+    .hello { top:62svh; }
+    .panel { left:16px; right:16px; top:40svh; bottom:3svh; justify-content:flex-start; gap:12px; }
+    .grid { gap:8px; }
+    .say { font-size:14px; }
+  }
+  /* 减少动态效果：不钉、不推进，直接给结果 */
+  .still .track { height:auto; }
+  .still .stage { position:relative; }
+  .still .hint { display:none; }
+</style>
+</head>
+<body>
+<div class="tools" aria-label="小样工具条">
+  <b>小样 1</b><output id="pct">0%</output>
+  <div class="seg" role="group" aria-label="底色">
+    <button data-g="cream" aria-pressed="true">奶油底</button>
+    <button data-g="white" aria-pressed="false">白底</button>
+  </div>
+  <div class="seg" role="group" aria-label="文字">
+    <button data-t="a" aria-pressed="false">原样</button>
+    <button data-t="b" aria-pressed="false">少字</button>
+    <button data-t="c" aria-pressed="true">字变图注</button>
+  </div>
+</div>
+
+<main>
+  <section class="track" id="track">
+    <div class="stage">
+      <h1 class="hello" id="hello">说一句，<br />她替你做完。</h1>
+      <div class="her" id="her">
+        <div class="face" id="face"></div>
+        <div class="say" id="say">嗨，我是 ANTEI。</div>
+      </div>
+      <div class="panel" id="panel">
+        <h2 class="kicker" id="kicker">她帮你画。</h2>
+        <div class="composer" id="composer"><span id="typed"></span><i class="caret"></i></div>
+        <div class="proc" id="proc">图片台 · 四个模型各出一张</div>
+        <div class="grid" id="grid"></div>
+      </div>
+      <div class="hint" id="hint">往下滚</div>
+    </div>
+  </section>
+
+  <section class="next">
+    <h2>下一段：她开口说话</h2>
+    <p>还没做。这个小样只有「她帮你画」一段，用来试滚动推进这种方式。四张图是现有的橘猫素材，画风和她不是一套，这次先不管。</p>
+    <p class="ask">看完请回答一个问题：滚这一段的时候，你是想接着往下滚，还是想跳过去？</p>
+  </section>
+</main>
+
+<script src="her.js"></script>
+<script>
+const PROMPT = '戴圆眼镜的橘猫馆长，坐在挂满画的美术馆前台，午后的光'
+const SHOTS = [
+  ['media/production/quad/quad-flux-2-pro.webp', 'FLUX 2 Pro'],
+  ['media/production/quad/quad-gemini-3-pro.webp', 'Gemini 3 Pro'],
+  ['media/production/quad/quad-gpt-image-2.webp', 'GPT Image 2'],
+  ['media/production/quad/quad-seedream-5-0.webp', 'Seedream 5.0'],
+]
+const PICK = 1
+
+const $ = id => document.getElementById(id)
+const root = document.documentElement
+const grid = $('grid')
+SHOTS.forEach(([src, name], i) => {
+  const t = document.createElement('figure'); t.className = 'tile'
+  t.innerHTML = `<img src="${src}" alt="${name} 出的图" decoding="async"><span class="check" aria-hidden="true">✓</span><small>图_${i + 1} · ${name}</small>`
+  grid.append(t)
+})
+const tiles = [...grid.children]
+const her = Her.mount($('face'))
+
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v))
+const seg = (p, a, b) => clamp((p - a) / (b - a))
+const ease = t => t * t * (3 - 2 * t)
+const mix = (a, b, t) => a + (b - a) * t
+const show = (el, t, dy = 16) => { el.style.opacity = t.toFixed(3); el.style.transform = `translateY(${((1 - t) * dy).toFixed(1)}px)` }
+
+let mood = '', line = ''
+function setMood(m) { if (m !== mood) { mood = m; her.mood(m) } }
+function setLine(text) {
+  if (text === line) return
+  line = text; const el = $('say'); el.textContent = text
+  el.classList.remove('swap'); void el.offsetWidth; el.classList.add('swap')
+}
+
+/* 整段的时间表，p 是 0–1 的滚动进度 */
+function apply(p) {
+  const narrow = innerWidth <= 760
+  $('pct').textContent = Math.round(p * 100) + '%'
+
+  // 0.00–0.12 开场停住；0.12–0.24 她让到一边，标题退场
+  const move = ease(seg(p, 0.12, 0.24))
+  const h = $('her').style
+  h.setProperty('--x', mix(50, narrow ? 50 : 23, move))
+  h.setProperty('--y', mix(narrow ? 34 : 38, narrow ? 19 : 46, move))
+  h.setProperty('--s', mix(1, narrow ? 0.74 : 0.9, move))
+  const hello = $('hello'); hello.style.opacity = (1 - seg(p, 0.1, 0.19)).toFixed(3); hello.style.transform = `translateY(${(-seg(p, 0.1, 0.19) * 40).toFixed(1)}px)`
+  $('hint').style.opacity = (1 - seg(p, 0.01, 0.05)).toFixed(3)
+
+  // 0.18–0.26 「她帮你画」进场
+  show($('kicker'), ease(seg(p, 0.18, 0.26)), 24)
+
+  // 0.24–0.42 提示词跟着滚动一个字一个字出来；0.44 发出去
+  show($('composer'), ease(seg(p, 0.23, 0.27)))
+  const n = Math.round(PROMPT.length * seg(p, 0.26, 0.42))
+  $('typed').textContent = PROMPT.slice(0, n)
+  $('composer').classList.toggle('sent', p >= 0.44)
+  show($('proc'), ease(seg(p, 0.45, 0.49)), 8)
+  // 「字变图注」：打字时提示词是这一屏最大的东西，发出去后跟着滚动缩成图上面的一行小字
+  if (root.dataset.text === 'c') {
+    const big = narrow ? 22 : clamp(innerWidth * 0.028, 24, 40)
+    $('composer').style.fontSize = mix(big, 15, ease(seg(p, 0.42, 0.49))).toFixed(1) + 'px'
+  } else $('composer').style.fontSize = ''
+
+  // 0.50–0.74 四张图一张张由糊变清
+  let done = 0
+  tiles.forEach((t, i) => {
+    const r = ease(seg(p, 0.5 + i * 0.055, 0.58 + i * 0.055))
+    if (r >= 1) done++
+    // 0.76–0.86 她挑中一张，其余退后
+    const k = ease(seg(p, 0.76, 0.86)), picked = i === PICK
+    t.style.opacity = (r * (picked ? 1 : mix(1, 0.34, k))).toFixed(3)
+    t.style.filter = r < 1 ? `blur(${((1 - r) * 14).toFixed(1)}px)` : 'none'
+    t.style.transform = `translateY(${((1 - r) * 18).toFixed(1)}px) scale(${(picked ? mix(1, 1.06, k) : mix(1, 0.97, k)).toFixed(3)})`
+    t.classList.toggle('pick', picked && k > 0.5)
+    const c = t.querySelector('.check'); c.style.opacity = picked ? k.toFixed(3) : 0; c.style.transform = `scale(${mix(0.6, 1, picked ? k : 0).toFixed(3)})`
+  })
+
+  // 她的表情和那句话，只看走到哪一段
+  if (p < 0.24) { setMood('idle'); setLine('嗨，我是 ANTEI。') }
+  else if (p < 0.44) { setMood('read'); setLine('嗯嗯，我在听。') }
+  else if (p < 0.715) { setMood('work'); setLine(done ? `画画中 · ${done}/4` : '好，这就画。') }
+  else if (p < 0.76) { setMood('wow'); setLine('出来了！') }
+  else if (p < 0.92) { setMood('ask'); setLine('第 2 张的光最好，用它？') }
+  else { setMood('happy'); setLine('要改哪里，说一声就行。') }
+}
+
+const track = $('track')
+const still = matchMedia('(prefers-reduced-motion: reduce)').matches
+let queued = false
+function measure() {
+  queued = false
+  if (still) return apply(1)
+  const total = track.offsetHeight - innerHeight
+  apply(total > 0 ? clamp((scrollY - track.offsetTop) / total) : 0)
+}
+function onScroll() { if (!queued) { queued = true; requestAnimationFrame(measure) } }
+if (still) root.classList.add('still')
+addEventListener('scroll', onScroll, { passive: true })
+addEventListener('resize', onScroll)
+measure()
+
+document.querySelectorAll('.tools [data-g]').forEach(b => b.onclick = () => {
+  root.dataset.ground = b.dataset.g
+  document.querySelectorAll('.tools [data-g]').forEach(x => x.setAttribute('aria-pressed', x === b))
+})
+root.dataset.text = 'c'
+document.querySelectorAll('.tools [data-t]').forEach(b => b.onclick = () => {
+  root.dataset.text = b.dataset.t
+  document.querySelectorAll('.tools [data-t]').forEach(x => x.setAttribute('aria-pressed', x === b))
+  measure()
+})
+measure()
+</script>
+</body>
+</html>

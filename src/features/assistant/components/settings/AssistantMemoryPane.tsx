@@ -305,7 +305,6 @@ function MemorySection({
           event.preventDefault()
           void submit()
         }}
-        className="h-10 rounded-lg text-base md:text-md coarse:h-11"
       />
 
       {errorText ? (
@@ -535,7 +534,7 @@ function MemoryRow({
                 finish()
               }
             }}
-            className="h-9 flex-1 rounded-lg text-base md:text-md coarse:h-11"
+            className="flex-1"
           />
           <DropdownMenu open={scopeOpen} onOpenChange={setScopeOpen}>
             <DropdownMenuTrigger asChild>

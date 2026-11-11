@@ -733,7 +733,6 @@
   },
   "LoraTraining": {
     "title": "Train LoRA",
-    "description": "Train a custom LoRA model from your images. Uses your Replicate API key.",
     "name": "Model name",
     "namePlaceholder": "e.g. My Character",
     "triggerWord": "Trigger word",

@@ -519,7 +519,6 @@ export function AssistantPersonaPane({
                   onKeyDown={(event) => {
                     if (event.key === 'Enter') event.currentTarget.blur()
                   }}
-                  className="h-10 rounded-lg text-base md:text-md coarse:h-11"
                 />
               </label>
               <label className="flex min-w-0 flex-col gap-1.5">
@@ -542,7 +541,6 @@ export function AssistantPersonaPane({
                   onKeyDown={(event) => {
                     if (event.key === 'Enter') event.currentTarget.blur()
                   }}
-                  className="h-10 rounded-lg text-base md:text-md coarse:h-11"
                 />
               </label>
             </div>
@@ -644,7 +642,6 @@ export function AssistantPersonaPane({
                     onKeyDown={(event) => {
                       if (event.key === 'Enter') event.currentTarget.blur()
                     }}
-                    className="h-10 rounded-lg text-base md:text-md coarse:h-11"
                   />
                   {customToneValue.trim() ? null : (
                     <p className="text-2sm text-muted-foreground">

@@ -11,6 +11,7 @@ import { lookLabel } from '@/lib/character-looks'
 import { ChevronDown, ChevronRight, Plus } from '@/components/icons'
 import { ResponsivePopoverContent } from '@/components/ui/responsive-popover'
 import { Spinner } from '@/components/ui/spinner'
+import { Input } from '@/components/ui/input'
 import {
   StudioToolSurface,
   StudioToolSurfaceTrigger,
@@ -143,13 +144,13 @@ function AddCharacterBody({
 
   return (
     <div className="flex flex-col gap-1">
-      <input
+      <Input
         autoFocus
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         placeholder={t('searchPlaceholder')}
         aria-label={t('searchPlaceholder')}
-        className="h-8 rounded-md border border-border bg-background px-2.5 text-2xs outline-none focus-visible:shadow-focus"
+        className="h-8 px-2.5"
       />
       <div className="flex max-h-72 flex-col gap-0.5 overflow-y-auto">
         <span className="px-2 pt-1.5 pb-0.5 text-2xs text-muted-foreground">

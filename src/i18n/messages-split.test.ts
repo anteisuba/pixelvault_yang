@@ -30,26 +30,16 @@ const ALLOWED_CONSUMERS: Readonly<Record<string, readonly string[]>> = {
     'components/business/auth/AuthCard.tsx',
     'components/business/auth/AuthDialog.tsx',
     'components/business/auth/AuthFlow.tsx',
-    'components/business/home-v4/HomeV4Topbar.tsx',
+    'components/business/home-v6/HomeV6Topbar.tsx',
   ],
   // Read as a plain JSON import in `app/global-error.tsx`, which renders
   // outside every locale layout and therefore outside every provider.
   GlobalError: [],
-  Homepage: [
-    'components/business/home-v4/HomeV4Deck.tsx',
-    'components/business/home-v4/HomeV4Finale.tsx',
-    'components/business/home-v4/HomeV4FnAudio.tsx',
-    'components/business/home-v4/HomeV4FnCanvas.tsx',
-    'components/business/home-v4/HomeV4FnImage.tsx',
-    'components/business/home-v4/HomeV4FnLora.tsx',
-    'components/business/home-v4/HomeV4FnVault.tsx',
-    'components/business/home-v4/HomeV4FnVideo.tsx',
-    'components/business/home-v4/HomeV4ModelPage.tsx',
-    'components/business/home-v4/HomeV4ModelSheet.tsx',
-    'components/business/home-v4/HomeV4ModelStrip.tsx',
-    'components/business/home-v4/HomeV4Opening.tsx',
+  Homepage: ['components/business/home-v6/HomeV6Shell.tsx'],
+  Legal: [
+    'components/business/LegalPage.tsx',
+    'components/business/home-v6/HomeV6Shell.tsx',
   ],
-  Legal: ['components/business/LegalPage.tsx'],
   // Server-only: consumed via `getTranslations` inside `generateMetadata`,
   // which never crosses the client boundary.
   Metadata: [],

@@ -78,6 +78,7 @@ import {
   studioToolRowClass,
 } from '@/components/ui/chip'
 import { useStudioToolRow } from '@/components/business/studio-shared/primitives/use-studio-tool-row'
+import { Textarea } from '@/components/ui/textarea'
 
 const STUDIO_FLOATING_SURFACE_SELECTOR = [
   '[data-studio-tool-popover]',
@@ -914,7 +915,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
               inert={!negativePromptExpanded}
             >
               <div className="pt-1.5">
-                <textarea
+                <Textarea
                   id="studio-negative-prompt-input"
                   aria-label={tPromptArea('negativePromptLabel')}
                   value={state.advancedParams.negativePrompt ?? ''}
@@ -933,7 +934,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
                   rows={2}
                   disabled={isGenerating}
                   // ⚠ 见提示词框那条：<768 必须 ≥16px，否则 iOS 聚焦即放大。
-                  className="h-[46px] w-full resize-none rounded-lg border border-border bg-background px-2.5 py-2 text-base outline-none md:text-2xs transition-colors duration-fast ease-standard placeholder:text-muted-foreground/60 focus:border-primary/40 focus:ring-2 focus:ring-primary/10 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="h-12 min-h-0 resize-none"
                 />
               </div>
             </div>

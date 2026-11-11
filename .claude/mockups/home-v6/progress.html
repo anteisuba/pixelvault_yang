@@ -1,0 +1,117 @@
+<title>首页 v6 改动进度</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+  /* 版式：顶部一条总进度 + 四种状态的数量；下面按主题分组，每组一列行，行 = 状态点 + 一句话 + 状态标签 */
+  :root {
+    --bg:#f3f4f7; --panel:#ffffff; --fg:#17181c; --fg2:#5a5d68; --line:rgba(23,24,28,.09);
+    --rose:#c2456f; --done:#2f8f63; --go:#2f62c9; --ask:#b8741a; --wait:#7a7d89;
+    --done-bg:#e3f3ea; --go-bg:#e4ecfb; --ask-bg:#fbefd9; --wait-bg:#eceef2;
+    --sans:-apple-system,"PingFang SC","Hiragino Sans GB","Noto Sans SC","Microsoft YaHei",sans-serif;
+    --mono:ui-monospace,"SF Mono",Menlo,monospace;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg:#15161a; --panel:#1e2026; --fg:#eceef3; --fg2:#a2a6b3; --line:rgba(236,238,243,.1);
+    --rose:#f08aa9; --done:#6fd0a0; --go:#8fb2ff; --ask:#f0b862; --wait:#9a9eab;
+    --done-bg:#1d3329; --go-bg:#1f2b47; --ask-bg:#3a2e17; --wait-bg:#2a2c33; color-scheme:dark } }
+  :root[data-theme="dark"] {
+    --bg:#15161a; --panel:#1e2026; --fg:#eceef3; --fg2:#a2a6b3; --line:rgba(236,238,243,.1);
+    --rose:#f08aa9; --done:#6fd0a0; --go:#8fb2ff; --ask:#f0b862; --wait:#9a9eab;
+    --done-bg:#1d3329; --go-bg:#1f2b47; --ask-bg:#3a2e17; --wait-bg:#2a2c33; color-scheme:dark }
+  * { box-sizing:border-box; margin:0; }
+  body { background:var(--bg); color:var(--fg); font:15px/1.6 var(--sans); -webkit-font-smoothing:antialiased;
+    padding-block:36px 64px; padding-left:max(16px, env(safe-area-inset-left, 0px)); padding-right:max(16px, env(safe-area-inset-right, 0px)); }
+  main { max-width:860px; margin:0 auto; display:flex; flex-direction:column; gap:28px; }
+  h1 { font-size:26px; font-weight:650; letter-spacing:-.01em; text-wrap:balance; }
+  .sub { color:var(--fg2); margin-top:4px; }
+  .bar { display:flex; height:10px; border-radius:99px; overflow:hidden; background:var(--wait-bg); margin-top:18px; }
+  .bar i { display:block; }
+  .legend { display:flex; flex-wrap:wrap; gap:8px 18px; margin-top:12px; font-size:13px; color:var(--fg2); }
+  .legend b { font:600 15px var(--mono); color:var(--fg); margin-right:4px; font-variant-numeric:tabular-nums; }
+  .dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; vertical-align:1px; }
+  section h2 { font-size:16px; font-weight:650; display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+  section h2 small { font:500 12px var(--mono); color:var(--fg2); font-variant-numeric:tabular-nums; }
+  section h2 em { font-style:normal; font-size:12px; font-weight:500; color:var(--rose); }
+  .rows { margin-top:10px; background:var(--panel); border-radius:14px; box-shadow:0 0 0 1px var(--line); }
+  .row { display:flex; gap:12px; align-items:flex-start; padding:11px 14px; border-top:1px solid var(--line); }
+  .row:first-child { border-top:0; }
+  .row .dot { margin:8px 0 0; flex:none; }
+  .row .tx { flex:1; min-width:0; }
+  .row .tx span { display:block; font-size:13px; color:var(--fg2); }
+  .tag { flex:none; font-size:12px; font-weight:600; padding:2px 9px; border-radius:99px; margin-top:2px; white-space:nowrap; }
+  .done .dot, .dot.done { background:var(--done); } .done .tag { background:var(--done-bg); color:var(--done); }
+  .go .dot, .dot.go { background:var(--go); } .go .tag { background:var(--go-bg); color:var(--go); }
+  .ask .dot, .dot.ask { background:var(--ask); } .ask .tag { background:var(--ask-bg); color:var(--ask); }
+  .wait .dot, .dot.wait { background:var(--wait); } .wait .tag { background:var(--wait-bg); color:var(--wait); }
+  .done .tx b { font-weight:500; color:var(--fg2); }
+  .row .tx b { font-weight:600; }
+  .note { font-size:13px; color:var(--fg2); }
+</style>
+<main>
+  <header>
+    <h1>首页 v6 改动进度</h1>
+    <p class="sub">2026-11-10 · 审计后整理。全部在原型里，还没进正式代码。</p>
+    <div class="bar" id="bar"></div>
+    <div class="legend" id="legend"></div>
+  </header>
+  <div id="groups" style="display:flex;flex-direction:column;gap:28px"></div>
+  <p class="note">「可以开工」= 不需要你再决定，也不缺素材。「等你定」= 方向要你点头。「等素材」= 要先在站内跑出图、视频或声音。</p>
+</main>
+<script>
+const S = { done:'已完成', go:'可以开工', ask:'等你定', wait:'等素材' }
+const G = [
+  ['字太多', '你点名的，建议先做', [
+    ['go', '首屏只留一句大标题', '删掉底部那行小字，「拖给她」不写出来'],
+    ['go', '她的话砍到半句', '招呼、演示结论都缩短，少等打字'],
+    ['go', '橘猫段不贴提示词，她只说一句', '四块胸牌同时放大，从 20 秒降到 3 秒'],
+    ['go', '清单只留名字和小图', '23 句点评收进点开后的卡片，强弱各留一条'],
+    ['go', '删掉解释界面的小字', '「点她换性格」「说完直接进工作台」等'],
+  ]],
+  ['她：像活的', '', [
+    ['ask', '瞳孔会动', '目光跟鼠标、跟卡片、跟字；现在全靠摇头'],
+    ['ask', '演戏时别缩小', '点卡后她缩到 96px，表情看不清'],
+    ['go', '拖起卡片她就跟着看', '现在只有拖到她身边才有反应'],
+    ['go', '用页面时不犯困', '滚动、看演示、打字都算「在用」'],
+    ['go', '换性格后把话重说一遍', '现在名字换了、气泡还是旧语气'],
+    ['ask', '换座位不要凭空冒出', '到清单那段她也该有话说'],
+  ]],
+  ['她：有灵魂', '', [
+    ['ask', '台词有立场', '有偏好、有口头禅、会吐槽，不只是正确的介绍'],
+    ['ask', '性格别做成设置项', '「点她换性格」换一种出现方式'],
+    ['wait', '她出现在自己的作品里', '要先跑全身定妆，四张卡换成她'],
+    ['wait', '她有自己的声音', '配音卡现在用的是别人的嗓子'],
+  ]],
+  ['画面细节', '', [
+    ['go', '左眼高光方向', '镜像过去的，光源对不上'],
+    ['go', '嘴和眼镜的线条', '矢量线太均匀，和手绘线不搭'],
+    ['go', '漫画符号', '系统字体，贴边被圆角裁掉'],
+    ['go', '闭眼的弧度', '现在是一道直线'],
+    ['ask', '四个没用上的表情', '委屈、嘟嘴、得意、想事情放哪'],
+  ]],
+  ['宣传页', '', [
+    ['ask', '成品放大', '短片和好图现在藏在点卡之后'],
+    ['ask', '讲清「为什么是 ANTEI」', '23 个模型别家也能列'],
+    ['ask', '首屏中间放主入口', '现在只有右上角一颗'],
+    ['ask', '上下两段统一成一种语言', '首屏散落卡片，下面规整网格'],
+    ['wait', '四张卡的画风统一', '日系动画、立绘、头像混在一起'],
+    ['ask', '演示别写死', '永远选第 2 张、永远选 FLUX'],
+  ]],
+  ['原型没接 / 工程', '进正式代码时做', [
+    ['go', '语言切换', '三个按钮还没接'],
+    ['go', '入口按钮', '「自己试试」「进入工作台」还是提示框'],
+    ['go', '加载成本', '2000×2000 原图，打开要算半秒'],
+    ['go', '不支持 WebGL 时的样子', '现在退成静态图，没有表情'],
+  ]],
+  ['已完成', '', [
+    ['done', '线抠干净', '闭眼、^ ^ 眼时不再露出旧眼睛轮廓'],
+    ['done', '六个新表情', '读卡、干活、冒星星、等你点头、委屈、嘟嘴'],
+    ['done', '演示按真实一轮走', '接住 → 读 → 干活 → 冒星星 → 等你点头'],
+    ['done', '首屏以下三段', '橘猫四图、23 个模型清单、输入框'],
+    ['done', '她在中间、功能在两边', '窗格宽度和手机上都保持这个构图'],
+    ['done', '演示能回去', '「← 回去换一样」，Esc 也行'],
+  ]],
+]
+const all = G.flatMap(g => g[2]), n = k => all.filter(r => r[0] === k).length
+document.getElementById('bar').innerHTML = Object.keys(S).map(k => `<i class="dot ${k}" style="width:${n(k) / all.length * 100}%;height:auto;border-radius:0;margin:0"></i>`).join('')
+document.getElementById('legend').innerHTML = Object.entries(S).map(([k, v]) => `<span><i class="dot ${k}"></i><b>${n(k)}</b>${v}</span>`).join('') + `<span>共 <b>${all.length}</b>项</span>`
+document.getElementById('groups').innerHTML = G.map(([t, hint, rows]) => `<section><h2>${t}<small>${rows.length} 项</small>${hint ? `<em>${hint}</em>` : ''}</h2><div class="rows">${rows.map(([k, a, b]) => `<div class="row ${k}"><i class="dot"></i><div class="tx"><b>${a}</b><span>${b}</span></div><span class="tag">${S[k]}</span></div>`).join('')}</div></section>`).join('')
+</script>

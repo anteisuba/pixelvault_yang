@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/responsive-dialog'
 import { BlurSwap } from '@/components/ui/blur-swap'
 import { Spinner } from '@/components/ui/spinner'
+import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import { useErrorText } from '@/hooks/use-error-text'
 
@@ -392,7 +393,7 @@ export function QuickSetupDialog({
             <label htmlFor="quick-setup-key" className="text-sm font-medium">
               {t('step2')}
             </label>
-            <input
+            <Input
               id="quick-setup-key"
               type="password"
               value={keyValue}
@@ -401,7 +402,6 @@ export function QuickSetupDialog({
                 if (step === 'error') setStep('guide')
               }}
               placeholder={t('keyPlaceholder')}
-              className="flex h-10 w-full rounded-lg border border-border/60 bg-background px-3 py-2 text-sm placeholder:text-muted-foreground/50 focus:border-primary/40 focus:outline-none focus:ring-1 focus:ring-primary/20"
               disabled={step === 'verifying' || step === 'success'}
             />
           </div>
@@ -414,7 +414,7 @@ export function QuickSetupDialog({
               >
                 {t('anthropicWorkspaceId')}
               </label>
-              <input
+              <Input
                 id="quick-setup-anthropic-workspace"
                 type="text"
                 value={anthropicWorkspaceId}
@@ -425,7 +425,7 @@ export function QuickSetupDialog({
                 placeholder="wrkspc_..."
                 autoComplete="off"
                 spellCheck={false}
-                className="flex h-10 w-full rounded-lg border border-border/60 bg-background px-3 py-2 font-mono text-sm placeholder:text-muted-foreground/50 focus:border-primary/40 focus:outline-none focus:ring-1 focus:ring-primary/20"
+                className="font-mono"
                 disabled={step === 'verifying' || step === 'success'}
               />
               <p className="text-2xs text-muted-foreground/70">
@@ -441,7 +441,7 @@ export function QuickSetupDialog({
             <label htmlFor="quick-setup-label" className="text-sm font-medium">
               {t('step3')}
             </label>
-            <input
+            <Input
               id="quick-setup-label"
               type="text"
               value={labelValue}
@@ -450,7 +450,6 @@ export function QuickSetupDialog({
                 if (step === 'error') setStep('guide')
               }}
               placeholder={t('labelPlaceholder')}
-              className="flex h-10 w-full rounded-lg border border-border/60 bg-background px-3 py-2 text-sm placeholder:text-muted-foreground/50 focus:border-primary/40 focus:outline-none focus:ring-1 focus:ring-primary/20"
               disabled={step === 'verifying' || step === 'success'}
               maxLength={64}
             />

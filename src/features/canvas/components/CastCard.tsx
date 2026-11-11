@@ -200,7 +200,7 @@ export function CastCard({
         // 注释），删掉零副作用。选中态从旧 --node-paint 绿环改成 canvas-card
         // 自带的 data-selected 蓝环（--canvas-accent），与全域「选中=强调蓝」
         // 语义统一，不再单独留一份绿色选中语义。
-        'canvas-card group relative flex h-36 w-full shrink-0 cursor-pointer flex-col items-center gap-1 p-1.5 pt-2 text-center hover:-translate-y-0.5 hover:rotate-0 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
+        'canvas-card group relative flex h-36 w-full shrink-0 cursor-pointer flex-col items-center gap-1 p-1.5 pt-2 text-center hover:-translate-y-0.5 hover:rotate-0 active:scale-95 focus-visible:outline-none focus-visible:shadow-focus',
         tiltClass,
       )}
     >

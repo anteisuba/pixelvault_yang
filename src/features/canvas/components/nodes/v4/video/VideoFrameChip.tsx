@@ -90,7 +90,7 @@ export function VideoFrameChip({
           {referenceNote ? (
             <p
               data-video-reference-note
-              className="text-3xs text-muted-foreground"
+              className="text-2xs text-muted-foreground"
             >
               {referenceNote}
             </p>
@@ -98,7 +98,7 @@ export function VideoFrameChip({
           {readout ? (
             <p
               data-video-frame-readout
-              className="text-xs tabular-nums text-muted-foreground"
+              className="text-2xs tabular-nums text-muted-foreground"
             >
               {readout}
             </p>

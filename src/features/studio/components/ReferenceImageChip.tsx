@@ -198,7 +198,7 @@ export function ReferenceImageCountLine() {
   const totalEntries = imageUpload.referenceEntries.length
   return (
     <div className="flex items-baseline gap-2">
-      <span className="text-sm font-medium">{t('referenceLabel')}</span>
+      <span className="text-2sm font-semibold">{t('referenceLabel')}</span>
       <span className="text-2xs tabular-nums text-muted-foreground">
         {Number.isFinite(imageUpload.maxImages) && imageUpload.maxImages > 0
           ? t('attachedOfMax', {

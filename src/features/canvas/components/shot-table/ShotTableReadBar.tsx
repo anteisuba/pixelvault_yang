@@ -79,7 +79,7 @@ export function ShotTableReadBar({
         data-testid="shot-table-read-bar"
         data-status="reading"
         role="status"
-        className="flex h-9 shrink-0 items-center gap-2 border-b border-border bg-surface-fill px-3.5 text-xs"
+        className="flex h-9 shrink-0 items-center gap-2 border-b border-border bg-surface-fill px-3.5 text-2sm"
       >
         <span
           aria-hidden
@@ -121,7 +121,7 @@ export function ShotTableReadBar({
       data-testid="shot-table-read-bar"
       data-status="failed"
       role="alert"
-      className="flex min-h-9 shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-b border-border bg-status-risk-surface px-3.5 py-1.5 text-xs"
+      className="flex min-h-9 shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-b border-border bg-status-risk-surface px-3.5 py-1.5 text-2sm"
     >
       <span
         aria-hidden
@@ -211,8 +211,8 @@ function BarButton({
       className={cn(
         'nodrag inline-flex h-6 shrink-0 items-center rounded-md px-2 font-semibold transition-colors duration-fast',
         quiet
-          ? 'text-muted-foreground hover:bg-surface-fill-hover hover:text-foreground'
-          : 'border border-border bg-card text-foreground hover:bg-surface-fill-hover',
+          ? 'text-muted-foreground hover:tint-hover hover:text-foreground'
+          : 'border border-border bg-card text-foreground hover:tint-hover',
       )}
     >
       {children}

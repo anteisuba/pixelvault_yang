@@ -186,7 +186,7 @@ function IngestGhostPortalV4({
   return createPortal(
     <div
       role="status"
-      className="pointer-events-none fixed z-canvas-drag -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-full border border-node-status-failed/60 bg-card px-3 py-1.5 text-xs font-semibold text-node-status-failed shadow-node-card"
+      className="pointer-events-none fixed z-canvas-drag -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-full border border-node-status-failed/60 bg-card px-3 py-1.5 text-2sm font-semibold text-node-status-failed shadow-node-card"
       style={{ left: dragState.reason.x, top: dragState.reason.y - 8 }}
     >
       {dragState.reason.text}
@@ -241,8 +241,8 @@ function IngestSlotChooserV4({
               type="button"
               onClick={() => onPick(candidate.slot)}
               className={cn(
-                'flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium',
-                'transition-colors duration-spring-press ease-spring-press hover:bg-accent',
+                'flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-2sm',
+                'transition-colors duration-spring-press ease-spring-press hover:tint-hover',
                 full ? 'text-node-status-failed' : 'text-card-foreground',
               )}
             >

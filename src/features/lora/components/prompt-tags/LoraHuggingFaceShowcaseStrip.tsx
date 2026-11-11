@@ -45,7 +45,7 @@ export function LoraHuggingFaceShowcaseStrip({
   return (
     <div className={cn('space-y-2.5', !band && 'mt-2.5')}>
       {band ? null : (
-        <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
+        <p className="text-2xs uppercase tracking-wide text-muted-foreground">
           {t('showcaseTitle')}
         </p>
       )}
@@ -72,7 +72,7 @@ export function LoraHuggingFaceShowcaseStrip({
                 n: idx + 1,
               })}
               className={cn(
-                'shrink-0 cursor-zoom-in overflow-hidden outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                'shrink-0 cursor-zoom-in overflow-hidden outline-none transition-shadow focus-visible:shadow-focus',
                 band
                   ? 'rounded-lg bg-muted hover:ring-2 hover:ring-foreground/15'
                   : 'rounded-md border border-border/60 hover:border-primary/40',

@@ -457,7 +457,7 @@ export function CanvasOpProposalCard({
                         'rounded-lg border px-2 py-0.5 text-2xs transition-colors',
                         choice === option
                           ? 'border-node-foreground bg-node-foreground text-node-canvas'
-                          : 'border-node-panel-inner bg-node-panel-soft text-node-foreground hover:bg-node-panel-inner',
+                          : 'border-node-panel-inner bg-node-panel-soft text-node-foreground hover:tint-hover',
                       )}
                     >
                       {t(`overwriteChoice.${option}`)}
@@ -540,7 +540,7 @@ export function CanvasOpProposalCard({
             size="sm"
             disabled={contentRunning || chosenOverwriteOps.length === 0}
             onClick={() => void handleApplyOverwrites()}
-            className="h-8 shrink-0 rounded-lg bg-node-foreground px-3 text-2xs text-node-canvas hover:bg-node-foreground/90"
+            className="h-8 shrink-0 rounded-lg bg-node-foreground px-3 text-2xs text-node-canvas hover:tint-hover"
           >
             {contentRunning ? <Spinner size="sm" /> : null}
             {t('apply', { count: chosenOverwriteOps.length })}

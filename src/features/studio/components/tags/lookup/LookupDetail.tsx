@@ -49,13 +49,13 @@ function ShotZoom({
             fallback={shot.thumbUrl}
             alt={shot.alt}
             onClick={onClose}
-            className="max-h-[80svh] max-w-full cursor-zoom-out rounded-xl object-contain shadow-lg"
+            className="max-h-[80svh] max-w-full cursor-zoom-out rounded-xl object-contain shadow-pop"
           />
           <a
             href={shot.href}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-1 rounded-md px-1 text-2sm text-foreground/75 transition-colors duration-fast ease-linear hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="inline-flex items-center gap-1 rounded-md px-1 text-2sm text-foreground/75 transition-colors duration-fast ease-linear hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus"
           >
             {shot.hrefLabel}
             <ExternalLink className="size-3" aria-hidden />
@@ -100,7 +100,7 @@ export function LookupShots({
               onClick={() => setZoomed(shot)}
               className={cn(
                 box,
-                'cursor-zoom-in focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                'cursor-zoom-in focus-visible:outline-none focus-visible:shadow-focus',
               )}
             >
               <ThirdPartyImage
@@ -130,7 +130,7 @@ export function LookupShots({
             type="button"
             onClick={() => setZoomed(shot)}
             // 矮屏左右排时贴顶，与右边「要加入的标签」同一条顶边。
-            className="flex h-full min-w-0 flex-1 cursor-zoom-in items-center justify-center rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring short:items-start"
+            className="flex h-full min-w-0 flex-1 cursor-zoom-in items-center justify-center rounded-xl focus-visible:outline-none focus-visible:shadow-focus short:items-start"
           >
             {/* ⚠ 不用 next/image 的 fill：要的是图自己的比例，不是一个固定框 —— 图框就是图，
                 圆角才落在图上。 */}
@@ -174,7 +174,7 @@ export function LookupFavoriteButton({
       title={label}
       onClick={onToggle}
       className={cn(
-        'grid shrink-0 place-items-center rounded-lg transition-colors duration-fast ease-linear hover:bg-surface-fill focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
+        'grid shrink-0 place-items-center rounded-lg transition-colors duration-fast ease-linear hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none',
         phone ? 'size-11' : 'size-7',
         on ? 'text-foreground' : 'text-muted-foreground',
       )}
@@ -235,7 +235,7 @@ export function LookupHead({
             <span
               key={line}
               className={cn(
-                'truncate text-xs leading-5 text-muted-foreground',
+                'truncate text-2xs leading-5 text-muted-foreground',
                 index > 0 && 'short:hidden',
               )}
             >
@@ -248,7 +248,7 @@ export function LookupHead({
         target="_blank"
         rel="noreferrer"
         aria-label={link.aria}
-        className="mt-1.5 inline-flex shrink-0 items-center gap-1 text-xs text-foreground/75 hover:text-foreground short:mt-0"
+        className="mt-1.5 inline-flex shrink-0 items-center gap-1 text-2xs text-foreground/75 hover:text-foreground short:mt-0"
       >
         {link.label}
         <ExternalLink className="size-3" aria-hidden />
@@ -264,7 +264,7 @@ export function LookupAbout({ text }: { text: string }) {
   return (
     <p
       title={text}
-      className="line-clamp-3 shrink-0 text-xs leading-5 text-muted-foreground"
+      className="line-clamp-3 shrink-0 text-2xs leading-5 text-muted-foreground"
     >
       {text}
     </p>
@@ -283,7 +283,7 @@ export function LookupSection({
 }) {
   return (
     <section className="flex flex-col gap-2.5">
-      <div className="flex items-baseline gap-2 text-xs font-semibold text-foreground/80">
+      <div className="flex items-baseline gap-2 text-2xs font-semibold text-foreground/80">
         {title}
         {hint ? (
           <span className="font-normal text-muted-foreground/70">{hint}</span>
@@ -316,8 +316,8 @@ export function LookupTagToggle({
       aria-pressed={on}
       onClick={onToggle}
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-full border whitespace-nowrap transition-colors duration-fast ease-linear focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
-        phone ? 'h-9 px-3.25 text-sm' : 'h-7.5 px-2.75 text-xs',
+        'inline-flex items-center gap-1.5 rounded-full border whitespace-nowrap transition-colors duration-fast ease-linear focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none',
+        phone ? 'h-9 px-3.25 text-2sm' : 'h-8 px-2.75 text-2sm',
         main && 'font-semibold',
         on
           ? 'border-foreground bg-foreground text-background'
@@ -328,7 +328,7 @@ export function LookupTagToggle({
       {count ? (
         <small
           className={cn(
-            'font-mono text-3xs tabular-nums',
+            'font-mono text-2xs tabular-nums',
             on ? 'text-background/60' : 'text-muted-foreground/70',
           )}
         >
@@ -342,9 +342,9 @@ export function LookupTagToggle({
 /** 画师「常画的」：只是参考，⛔ 不是按钮。 */
 export function LookupRef({ text, count }: { text: string; count: string }) {
   return (
-    <span className="inline-flex h-6.5 items-center gap-1.25 rounded-lg bg-muted px-2.25 text-xs whitespace-nowrap text-foreground/80">
+    <span className="inline-flex h-7 items-center gap-1.25 rounded-lg bg-muted px-2.25 text-2xs whitespace-nowrap text-foreground/80">
       {text}
-      <small className="font-mono text-3xs tabular-nums text-muted-foreground/70">
+      <small className="font-mono text-2xs tabular-nums text-muted-foreground/70">
         {count}
       </small>
     </span>
@@ -374,13 +374,13 @@ export function LookupAddButton({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        'inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full font-semibold whitespace-nowrap transition-colors duration-base ease-linear focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-default motion-reduce:transition-none',
-        phone ? 'h-11 w-full px-4 text-sm' : 'h-9 min-w-33 px-4 text-2sm',
+        'inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full font-semibold whitespace-nowrap transition-colors duration-base ease-linear focus-visible:outline-none focus-visible:shadow-focus disabled:cursor-default motion-reduce:transition-none',
+        phone ? 'h-11 w-full px-4 text-2sm' : 'h-9 min-w-33 px-4 text-2sm',
         disabled
           ? 'bg-muted text-muted-foreground/70'
           : done
             ? 'bg-muted text-foreground'
-            : 'bg-foreground text-background hover:bg-foreground/85',
+            : 'bg-foreground text-background hover:tint-hover',
       )}
     >
       {label}
@@ -412,10 +412,7 @@ export function LookupDetailSkeleton({ label }: { label: string }) {
         </div>
         <div className="flex flex-wrap content-start gap-1.5 short:flex-1">
           {['w-24', 'w-20', 'w-22', 'w-18', 'w-28', 'w-21'].map((width) => (
-            <span
-              key={width}
-              className={cn(bar, 'h-7.5 rounded-full', width)}
-            />
+            <span key={width} className={cn(bar, 'h-8 rounded-full', width)} />
           ))}
         </div>
       </div>
@@ -426,7 +423,7 @@ export function LookupDetailSkeleton({ label }: { label: string }) {
 /** 右栏还没东西（或这一个没读出来）：一句话。 */
 export function LookupBlank({ text }: { text?: string }) {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-2.5 text-center text-xs text-muted-foreground/70">
+    <div className="flex flex-1 flex-col items-center justify-center gap-2.5 text-center text-2xs text-muted-foreground/70">
       {text ? <span>{text}</span> : null}
     </div>
   )

@@ -53,7 +53,7 @@ const WHEEL_STEP_PX = 40
 const WHEEL_COOLDOWN_MS = 180
 
 const tabClass =
-  'relative inline-flex h-7 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-2xs whitespace-nowrap transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none'
+  'relative inline-flex h-7 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-2xs whitespace-nowrap transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none'
 
 /**
  * 标签台 A 的那一排页签（owner 2026-10-09「一个框 + 一排页签」）：
@@ -145,9 +145,7 @@ export function StudioTagPageTabs({
     return () => row.removeEventListener('wheel', listener)
   }, [])
   const tabTone = (on: boolean) =>
-    on
-      ? 'font-medium text-foreground'
-      : 'text-muted-foreground hover:text-foreground'
+    on ? ' text-foreground' : 'text-muted-foreground hover:text-foreground'
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -280,7 +278,7 @@ function TabPreview({
 
 function Count({ value }: { value: number }) {
   return (
-    <span className="relative font-mono text-3xs tabular-nums text-muted-foreground">
+    <span className="relative font-mono text-2xs tabular-nums text-muted-foreground">
       {value}
     </span>
   )
@@ -322,7 +320,7 @@ function CharacterMenu({
             type="button"
             disabled={disabled}
             aria-label={t('tabs.more', { who })}
-            className="absolute top-1/2 right-1 grid size-6 -translate-y-1/2 place-items-center rounded-md text-muted-foreground transition-colors duration-fast ease-standard hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:bg-background data-[state=open]:text-foreground"
+            className="absolute top-1/2 right-1 grid size-6 -translate-y-1/2 place-items-center rounded-md text-muted-foreground transition-colors duration-fast ease-standard hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus data-[state=open]:bg-background data-[state=open]:text-foreground"
           >
             <MoreHorizontal className="size-3.5" aria-hidden />
           </button>
@@ -369,7 +367,7 @@ function CharacterMenu({
                 setOpen(false)
                 setConfirmOpen(true)
               }}
-              className="flex h-9 items-center justify-start rounded-md px-2 text-2xs text-status-risk hover:bg-status-risk-surface focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              className="flex h-9 items-center justify-start rounded-md px-2 text-2xs text-status-risk hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus"
             >
               {t('tabs.remove', { who })}
             </button>

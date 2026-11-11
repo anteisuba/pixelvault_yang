@@ -46,7 +46,7 @@ export function TextTagChip({ subtype, role, onRoleChange }: TextTagChipProps) {
           type="button"
           data-text-tag-chip
           aria-label={t('tag.title')}
-          className="nodrag nopan flex size-5 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors duration-fast hover:bg-surface-fill-hover hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          className="nodrag nopan flex size-5 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors duration-fast hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus"
         >
           <Tag aria-hidden className="size-4" />
         </button>
@@ -54,7 +54,7 @@ export function TextTagChip({ subtype, role, onRoleChange }: TextTagChipProps) {
     >
       <div className="flex flex-col gap-3">
         <div className="flex items-baseline justify-between gap-3">
-          <span className="text-3xs tracking-node-sec text-muted-foreground">
+          <span className="text-2xs tracking-node-sec text-muted-foreground">
             {t('tag.subtype')}
           </span>
           <span data-text-subtype className="text-2sm text-foreground">
@@ -62,7 +62,7 @@ export function TextTagChip({ subtype, role, onRoleChange }: TextTagChipProps) {
           </span>
         </div>
         <div className="flex flex-col gap-1.5">
-          <span className="text-3xs tracking-node-sec text-muted-foreground">
+          <span className="text-2xs tracking-node-sec text-muted-foreground">
             {t('tag.role')}
           </span>
           {/* A1 分段条（owner 2026-10-08 画布换皮）。 */}

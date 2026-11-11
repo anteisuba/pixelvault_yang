@@ -104,7 +104,7 @@ function TagLibraryPhone() {
   const pickLine = adder ? (
     <p
       data-testid="library-pick-target"
-      className="ml-auto truncate text-sm text-muted-foreground"
+      className="ml-auto truncate text-2sm text-muted-foreground"
     >
       {tShell('pickFor', { bench: adder.benchLabel })}
     </p>
@@ -153,7 +153,7 @@ function TagLibraryPhone() {
                 [TAG_LIBRARY_PARAM.of]: null,
               })
             }
-            className="-ml-1.5 inline-flex h-9 items-center gap-1 rounded-lg pl-1 pr-2.5 text-sm text-muted-foreground transition-colors duration-fast ease-linear hover:bg-surface-fill hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="-ml-1.5 inline-flex h-9 items-center gap-1 rounded-lg pl-1 pr-2.5 text-2sm text-muted-foreground transition-colors duration-fast ease-linear hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus"
           >
             <ChevronLeft className="size-4" aria-hidden />
             {tLibrary('back')}

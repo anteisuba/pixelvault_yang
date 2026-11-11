@@ -87,8 +87,8 @@ export function ModelChip({
       className={cn(
         'touch-target-y',
         compact
-          ? 'inline-flex h-7 min-w-0 max-w-60 items-center gap-1 rounded-full bg-surface-fill px-2.5 text-xs text-foreground hover:bg-surface-fill-hover data-[active=true]:bg-surface-fill-track'
-          : 'inline-flex h-8 min-w-0 max-w-60 items-center gap-1 rounded-full pl-3 pr-2.5 text-2sm font-medium',
+          ? 'inline-flex h-7 min-w-0 max-w-60 items-center gap-1 rounded-full bg-surface-fill px-2.5 text-2sm text-foreground hover:bg-surface-fill-hover data-[active=true]:bg-surface-fill-track'
+          : 'inline-flex h-8 min-w-0 max-w-60 items-center gap-1 rounded-full pl-3 pr-2.5 text-2sm',
         'transition-[background-color,color,box-shadow] duration-fast ease-standard motion-reduce:transition-none',
         compact
           ? 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
@@ -114,7 +114,7 @@ export function ModelChip({
             transition={{ duration: DURATION.fast, ease: EASE_STANDARD }}
             className="inline-flex min-w-0 items-center gap-1 truncate"
           >
-            <span className="truncate font-medium">{modelLabel}</span>
+            <span className="truncate">{modelLabel}</span>
             {variantLabel ? (
               <span className="truncate text-muted-foreground">
                 {variantLabel}
@@ -128,9 +128,10 @@ export function ModelChip({
           swapKey={`${modelLabel}:${variantLabel ?? ''}`}
           className="min-w-0 gap-2"
         >
-          <span className="truncate font-medium">{modelLabel}</span>
+          {/* 窄了先截后半段：前半段是家族名（NovelAI），截成「No…」就认不出是谁了。 */}
+          <span className="shrink-0">{modelLabel}</span>
           {variantLabel ? (
-            <span className="truncate text-muted-foreground">
+            <span className="min-w-0 truncate text-muted-foreground">
               {variantLabel}
             </span>
           ) : null}

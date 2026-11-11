@@ -292,7 +292,7 @@ function RetakeBarBody({
               <p
                 role="alert"
                 data-testid="edit-desk-retake-failed"
-                className="mr-3.5 rounded-lg bg-muted px-2.5 py-1.5 text-xs leading-5 text-foreground"
+                className="mr-3.5 rounded-lg bg-muted px-2.5 py-1.5 text-2xs leading-5 text-foreground"
               >
                 {t('failed', { n: nextTake, reason: composer.failureMessage })}
               </p>

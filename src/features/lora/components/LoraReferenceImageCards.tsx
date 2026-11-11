@@ -206,7 +206,7 @@ export function LoraReferenceImageCards({
               headerSlot={
                 <div className="flex flex-col gap-2.5">
                   <div className="flex items-baseline gap-2">
-                    <span className="text-sm font-medium">
+                    <span className="text-md font-semibold">
                       {t('referenceLabel')}
                     </span>
                     <span className="text-2xs tabular-nums text-muted-foreground">
@@ -221,7 +221,7 @@ export function LoraReferenceImageCards({
                   </div>
                   {/* 参考强度只在真有能用的参考图时出现（§3.2.3）。 */}
                   {enabledCount > 0 ? (
-                    <div className="flex items-center gap-2.5 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-2.5 text-2xs text-muted-foreground">
                       <span className="shrink-0">{t('referenceStrength')}</span>
                       <Slider
                         aria-label={t('referenceStrength')}
@@ -249,7 +249,7 @@ export function LoraReferenceImageCards({
 
   return (
     <div className="space-y-2">
-      <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
+      <p className="text-2xs uppercase tracking-wide text-muted-foreground">
         {t('referenceLabel')}
       </p>
       <input
@@ -289,7 +289,7 @@ export function LoraReferenceImageCards({
                     aria-label={t('previewReferenceImage', {
                       index: index + 1,
                     })}
-                    className="size-full cursor-zoom-in focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/60"
+                    className="size-full cursor-zoom-in focus-visible:outline-none focus-visible:shadow-focus"
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
@@ -310,7 +310,7 @@ export function LoraReferenceImageCards({
                     type="button"
                     onClick={() => imageUpload.removeReferenceImage(index)}
                     aria-label={t('removeReferenceImage', { index: index + 1 })}
-                    className="absolute right-1.5 top-1.5 z-10 flex size-6 items-center justify-center rounded-full border border-black/10 bg-white/90 text-neutral-800 opacity-0 shadow-sm transition-opacity hover:bg-white focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 group-hover:opacity-100"
+                    className="absolute right-1.5 top-1.5 z-10 flex size-6 items-center justify-center rounded-full border border-black/10 bg-white/90 text-neutral-800 opacity-0 shadow-media-action transition-opacity hover:tint-hover focus-visible:opacity-100 focus-visible:outline-none focus-visible:shadow-focus group-hover:opacity-100"
                   >
                     <X className="size-3.5" aria-hidden />
                   </button>
@@ -327,7 +327,7 @@ export function LoraReferenceImageCards({
                   className="flex aspect-square w-full flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-border text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground disabled:opacity-50"
                 >
                   <Plus className="size-5" aria-hidden />
-                  <span className="text-2xs font-medium">{t('add')}</span>
+                  <span className="text-2xs">{t('add')}</span>
                 </button>
               </PopoverTrigger>
               <PopoverContent align="start" side="bottom" className="w-72">
@@ -356,7 +356,7 @@ export function LoraReferenceImageCards({
             <button
               type="button"
               disabled={disabled}
-              className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border py-3 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border py-3 text-2xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground disabled:opacity-50"
             >
               {/* CD 装配栏：空态点明三条来路（上传 / 粘贴 / 素材库）。 */}
               <ImageIcon className="size-3.5" aria-hidden />
@@ -377,7 +377,7 @@ export function LoraReferenceImageCards({
       >
         <DialogContent
           closeLabel={t('closeReferencePreview')}
-          className="w-auto max-w-5xl gap-0 rounded-2xl border-border/60 bg-background/95 p-3 shadow-2xl backdrop-blur-md sm:max-w-5xl"
+          className="w-auto max-w-5xl gap-0 rounded-24 border-0 bg-popover p-3 shadow-pop sm:max-w-5xl"
         >
           <DialogTitle className="sr-only">
             {previewIndex === null

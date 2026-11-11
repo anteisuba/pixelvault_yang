@@ -106,8 +106,8 @@ export function VideoFramePickPanel({
         onClick={onTogglePlay}
         className={cn(
           'flex size-7.5 shrink-0 items-center justify-center rounded-full',
-          'bg-surface-fill text-foreground transition-colors duration-fast hover:bg-surface-fill-hover',
-          'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+          'bg-surface-fill text-foreground transition-colors duration-fast hover:tint-hover',
+          ' focus-visible:outline-none focus-visible:shadow-focus',
           'disabled:pointer-events-none disabled:opacity-50',
         )}
       >
@@ -140,7 +140,7 @@ export function VideoFramePickPanel({
       />
       <span
         data-video-frame-pick-clock
-        className="shrink-0 text-xs tabular-nums text-foreground"
+        className="shrink-0 text-2xs tabular-nums text-foreground"
       >
         {formatPickClock(sec)}
         <span className="text-muted-foreground">
@@ -156,7 +156,7 @@ export function VideoFramePickPanel({
         data-video-frame-pick-confirm
         disabled={busy || total <= 0}
         onClick={onConfirm}
-        className="flex h-8 shrink-0 items-center rounded-full bg-primary px-4.5 text-2sm font-medium text-primary-foreground transition-opacity duration-fast hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+        className="flex h-8 shrink-0 items-center rounded-full bg-primary px-4.5 text-2sm font-semibold text-primary-foreground transition-opacity duration-fast hover:opacity-90 focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none disabled:opacity-50"
       >
         {busy ? tPick('confirming') : tPick('confirm')}
       </button>

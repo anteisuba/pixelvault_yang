@@ -97,7 +97,7 @@ export function VersionStrip({
             onClick={() => onSelect(index)}
             className={cn(
               'relative size-10 shrink-0 overflow-hidden rounded-lg transition-[box-shadow,transform] duration-fast ease-standard active:scale-96',
-              'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+              ' focus-visible:outline-none focus-visible:shadow-focus',
               active
                 ? 'ring-2 ring-foreground'
                 : 'ring-1 ring-border hover:ring-foreground/40',

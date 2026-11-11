@@ -189,7 +189,7 @@ export function TagLibraryDesk() {
   const sectioned = sections.map((section) =>
     section.title ? (
       <section key={section.key} className="flex flex-col gap-1.5">
-        <b className="flex min-h-6.5 items-center text-2sm font-semibold text-foreground">
+        <b className="flex min-h-7 items-center text-2sm font-semibold text-foreground">
           {section.title}
         </b>
         {rowsOf(section)}
@@ -384,7 +384,7 @@ export function TagLibraryDesk() {
           <div className="flex shrink-0 pb-2">
             <p
               data-testid="library-pick-target"
-              className="ml-auto truncate text-sm text-muted-foreground"
+              className="ml-auto truncate text-2sm text-muted-foreground"
             >
               {tShell('pickFor', { bench: adder.benchLabel })}
             </p>

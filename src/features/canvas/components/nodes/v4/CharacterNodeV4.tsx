@@ -206,14 +206,14 @@ export function CharacterNodeV4({ id, data, selected }: NodeProps) {
       data-character-face="deleted"
       className="flex size-full flex-col items-center justify-center gap-2.5 bg-surface-fill-track px-4 text-center"
     >
-      <p className="text-sm leading-5 text-foreground/80">{t('deleted')}</p>
+      <p className="text-2sm leading-5 text-foreground/80">{t('deleted')}</p>
       <button
         type="button"
         onClick={(event) => {
           event.stopPropagation()
           removeFromCanvas()
         }}
-        className="nodrag nopan inline-flex h-8 items-center rounded-full border border-border bg-background px-3.5 text-xs font-medium transition-colors duration-fast ease-standard hover:bg-surface-fill focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        className="nodrag nopan inline-flex h-8 items-center rounded-full border border-border bg-background px-3.5 text-2sm transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus"
       >
         {tMissing('remove')}
       </button>
@@ -223,15 +223,15 @@ export function CharacterNodeV4({ id, data, selected }: NodeProps) {
       data-character-face="no-images"
       className="flex size-full flex-col items-center justify-center gap-2 bg-surface-fill-track px-6 text-center"
     >
-      <p className="text-sm leading-5 text-foreground/80">{t('noImages')}</p>
-      <p className="text-xs text-muted-foreground">{t('noImagesHint')}</p>
+      <p className="text-2sm leading-5 text-foreground/80">{t('noImages')}</p>
+      <p className="text-2xs text-muted-foreground">{t('noImagesHint')}</p>
       <button
         type="button"
         onClick={(event) => {
           event.stopPropagation()
           openInCharacterPage()
         }}
-        className="nodrag nopan mt-0.5 inline-flex h-8 items-center gap-1 rounded-full border border-border bg-background px-3.5 text-xs font-medium transition-colors duration-fast ease-standard hover:bg-surface-fill focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        className="nodrag nopan mt-0.5 inline-flex h-8 items-center gap-1 rounded-full border border-border bg-background px-3.5 text-2sm transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus"
       >
         {t('addImages')}
         <ArrowUpRight aria-hidden className="size-3.5" />
@@ -383,7 +383,7 @@ export function CharacterNodeV4({ id, data, selected }: NodeProps) {
                                 onDoubleClick={(event) =>
                                   event.stopPropagation()
                                 }
-                                className="nodrag nopan group/tile relative aspect-4/5 overflow-hidden rounded-lg bg-surface-fill-track focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                                className="nodrag nopan group/tile relative aspect-4/5 overflow-hidden rounded-lg bg-surface-fill-track focus-visible:outline-none focus-visible:shadow-focus"
                               >
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
@@ -394,11 +394,11 @@ export function CharacterNodeV4({ id, data, selected }: NodeProps) {
                                   className="size-full object-cover"
                                 />
                                 {tile.primary ? (
-                                  <span className="absolute left-1 top-1 rounded-full bg-background/90 px-1.5 text-3xs">
+                                  <span className="absolute left-1 top-1 rounded-full bg-background/90 px-1.5 text-2xs">
                                     {tRoster('primary')}
                                   </span>
                                 ) : null}
-                                <span className="pointer-events-none absolute inset-x-1 bottom-1 rounded-full bg-background/90 py-0.5 text-center text-3xs opacity-0 transition-opacity duration-fast ease-standard group-hover/tile:opacity-100 group-focus-visible/tile:opacity-100">
+                                <span className="pointer-events-none absolute inset-x-1 bottom-1 rounded-full bg-background/90 py-0.5 text-center text-2xs opacity-0 transition-opacity duration-fast ease-standard group-hover/tile:opacity-100 group-focus-visible/tile:opacity-100">
                                   {t('placeImage')}
                                 </span>
                               </button>
@@ -416,7 +416,7 @@ export function CharacterNodeV4({ id, data, selected }: NodeProps) {
                       ) : (
                         <div className="flex flex-col gap-3">
                           {fields.length === 0 ? (
-                            <p className="text-sm text-muted-foreground">
+                            <p className="text-2sm text-muted-foreground">
                               {t('noText')}
                             </p>
                           ) : (
@@ -430,7 +430,7 @@ export function CharacterNodeV4({ id, data, selected }: NodeProps) {
                                 </span>
                                 <p
                                   className={cn(
-                                    'whitespace-pre-line text-sm leading-6',
+                                    'whitespace-pre-line text-2sm leading-6',
                                     field.key === 'backstory' && 'line-clamp-4',
                                   )}
                                 >

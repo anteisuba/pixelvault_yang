@@ -100,7 +100,7 @@ export function EditDeskTopBar({
         type="button"
         data-testid="edit-desk-back"
         onClick={onBack}
-        className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg pl-1.5 pr-3 text-2sm text-muted-foreground transition-colors duration-fast hover:bg-surface-fill hover:text-foreground"
+        className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg pl-1.5 pr-3 text-2sm text-muted-foreground transition-colors duration-fast hover:tint-hover hover:text-foreground"
       >
         <ChevronLeft className="size-4 shrink-0" aria-hidden />
         <span>{t('back')}</span>
@@ -133,7 +133,7 @@ export function EditDeskTopBar({
               setDraft(project.name)
               setEditing(true)
             }}
-            className="max-w-56 truncate rounded-md px-1 text-sm font-semibold text-foreground transition-colors duration-fast hover:bg-surface-fill"
+            className="max-w-56 truncate rounded-md px-1 text-md font-semibold text-foreground transition-colors duration-fast hover:tint-hover"
           >
             {project.name}
           </button>
@@ -141,7 +141,7 @@ export function EditDeskTopBar({
         {status ?? (
           <span
             data-testid="edit-desk-readout"
-            className="font-mono text-xs tabular-nums text-muted-foreground"
+            className="font-mono text-2xs tabular-nums text-muted-foreground"
           >
             {/* 成片时长变了只滚变了的那几位（样片 K）。 */}
             <RollingText
@@ -173,7 +173,7 @@ export function EditDeskTopBar({
           type="button"
           data-testid="edit-desk-export"
           onClick={onExport}
-          className="ml-1.5 inline-flex h-8 items-center rounded-full bg-primary px-4 text-2sm font-medium text-primary-foreground transition-transform duration-fast active:scale-[.98] motion-reduce:transition-none"
+          className="ml-1.5 inline-flex h-8 items-center rounded-full bg-primary px-4 text-2sm font-semibold text-primary-foreground transition-transform duration-fast active:scale-[.98] motion-reduce:transition-none"
         >
           {t('export')}
         </button>
@@ -207,7 +207,7 @@ function ShortcutPresetPopover({
           aria-label={t('title')}
           title={t('title')}
           data-testid="edit-desk-shortcuts"
-          className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors duration-fast hover:bg-surface-fill hover:text-foreground"
+          className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors duration-fast hover:tint-hover hover:text-foreground"
         >
           <Keyboard className="size-4" aria-hidden />
         </button>
@@ -235,14 +235,14 @@ function ShortcutPresetPopover({
               <dt className="text-foreground">{t(`actions.${action}`)}</dt>
               <dd
                 data-testid={`edit-desk-shortcut-${action}`}
-                className="justify-self-end rounded-md border border-border px-1.5 py-px font-mono text-3xs text-muted-foreground"
+                className="justify-self-end rounded-md border border-border px-1.5 py-px font-mono text-2xs text-muted-foreground"
               >
                 {keys[action]}
               </dd>
             </Fragment>
           ))}
         </dl>
-        <p className="text-3xs text-muted-foreground">{t('finalCutHint')}</p>
+        <p className="text-2xs text-muted-foreground">{t('finalCutHint')}</p>
       </PopoverContent>
     </Popover>
   )

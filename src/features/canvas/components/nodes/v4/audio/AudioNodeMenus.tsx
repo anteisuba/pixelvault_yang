@@ -55,7 +55,7 @@ export function AudioAddMenuItems({
       <DropdownMenuItem
         data-audio-add="upload"
         onSelect={onUpload}
-        className="h-9.5 cursor-pointer gap-2.5 rounded-lg px-2.5 text-2sm text-foreground hover:bg-surface-fill focus:bg-surface-fill"
+        className="h-9.5 cursor-pointer gap-2.5 rounded-lg px-2.5 text-2sm text-foreground hover:tint-hover focus:bg-surface-fill"
       >
         <Upload aria-hidden className="size-4" />
         {t('add.upload')}
@@ -66,7 +66,7 @@ export function AudioAddMenuItems({
       <DropdownMenuItem
         data-audio-add="library"
         onSelect={onAssetLibrary}
-        className="h-9.5 cursor-pointer gap-2.5 rounded-lg px-2.5 text-2sm text-foreground hover:bg-surface-fill focus:bg-surface-fill"
+        className="h-9.5 cursor-pointer gap-2.5 rounded-lg px-2.5 text-2sm text-foreground hover:tint-hover focus:bg-surface-fill"
       >
         <ImageIcon aria-hidden className="size-4" />
         {t('add.library')}
@@ -74,7 +74,7 @@ export function AudioAddMenuItems({
       <DropdownMenuItem
         data-audio-add="voices"
         onSelect={onVoiceLibrary}
-        className="h-9.5 cursor-pointer gap-2.5 rounded-lg px-2.5 text-2sm text-foreground hover:bg-surface-fill focus:bg-surface-fill"
+        className="h-9.5 cursor-pointer gap-2.5 rounded-lg px-2.5 text-2sm text-foreground hover:tint-hover focus:bg-surface-fill"
       >
         <AudioLines aria-hidden className="size-4" />
         {t('add.voiceLibrary')}
@@ -102,7 +102,7 @@ export function AudioAddMenuItems({
       ) : (
         <div
           data-audio-add-empty
-          className="px-2.5 pb-2 text-xs text-muted-foreground/75"
+          className="px-2.5 pb-2 text-2xs text-muted-foreground/75"
         >
           {tNode('addCanvasEmpty')}
         </div>
@@ -168,7 +168,7 @@ export function AudioMoreMenuItems({
         <>
           <DropdownMenuSeparator />
           <DropdownMenuLabel data-audio-more="source">
-            <span className="block text-3xs font-normal text-muted-foreground">
+            <span className="block text-2xs font-normal text-muted-foreground">
               {tAudio('more.source')}
             </span>
             <span className="block truncate text-2xs font-normal text-foreground">

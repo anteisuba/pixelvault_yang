@@ -46,11 +46,11 @@ export function VideoAudioToggle({
       onClick={() => onChange(!value)}
       className={cn(
         'nodrag nopan flex size-7 shrink-0 items-center justify-center rounded-full transition-colors duration-fast ease-standard',
-        'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+        ' focus-visible:outline-none focus-visible:shadow-focus',
         'disabled:pointer-events-none disabled:opacity-50',
         value
-          ? 'text-foreground hover:bg-surface-fill'
-          : 'text-muted-foreground hover:bg-surface-fill hover:text-foreground',
+          ? 'text-foreground hover:tint-hover'
+          : 'text-muted-foreground hover:tint-hover hover:text-foreground',
       )}
     >
       <Icon aria-hidden className="size-4.5" />

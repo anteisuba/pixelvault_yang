@@ -715,12 +715,12 @@ export const StudioCanvas = memo(function StudioCanvas({
                   <img
                     src={videoPoster.last}
                     alt={tSlots('lastFrame')}
-                    className="absolute right-3 bottom-3 w-1/5 animate-in rounded-lg object-cover shadow-md ring-2 ring-background fade-in-0 duration-base ease-linear motion-reduce:animate-none"
+                    className="absolute right-3 bottom-3 w-1/5 animate-in rounded-lg object-cover shadow-media-action ring-2 ring-background fade-in-0 duration-base ease-linear motion-reduce:animate-none"
                   />
                 ) : null}
               </div>
             </div>
-            <p className="shrink-0 text-xs text-muted-foreground">
+            <p className="shrink-0 text-2xs text-muted-foreground">
               {tSlots.rich(
                 videoPoster.last ? 'poster.withLast' : 'poster.firstOnly',
                 {

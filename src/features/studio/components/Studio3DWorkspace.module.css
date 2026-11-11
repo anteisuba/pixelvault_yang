@@ -22,23 +22,20 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  border-radius: 1rem;
+  /* 视频 / 3D 预览区圆角 14，底是 3D 预览台的径向渐变（ui-spec §3.3 / §5）。 */
+  border-radius: 0.875rem;
   background: radial-gradient(
     ellipse at 50% 60%,
-    var(--background),
-    var(--muted) 65%
+    var(--viewport-top),
+    var(--viewport-bottom) 70%
   );
   padding: 1rem;
 }
-.settings {
-  order: -1;
-  display: flex;
-  width: 17.5rem;
-  flex: none;
+/* 桌面：舞台在上、输入框在下，和图像 / 标签 / 视频同一副（owner 2026-11-11 小样 5 选 B）。
+   预览到输入框 28（ui-spec §5 疏密）。 */
+.workspace[data-layout='stack'] {
   flex-direction: column;
-  overflow: hidden;
-  /* 平铺在白板上（ui-spec §1「板里不再套卡」）：⛔ 自己的底 / 边 / 圆角，只留与预览之间一道细线。 */
-  border-inline-end: 1px solid var(--border);
+  gap: 1.75rem;
 }
 /* 台顶第一行：只给壳认位置（收起对话时头像落在这一行），⛔ 角标字。 */
 .stageHeader {
@@ -115,22 +112,15 @@
   gap: 0.25rem;
   padding: 0.375rem;
   transform: translateX(-50%);
-  border: 1px solid var(--border);
-  border-radius: 1.125rem;
-  background: color-mix(in srgb, var(--background) 80%, transparent);
-  backdrop-filter: blur(18px);
-  box-shadow: 0 8px 28px color-mix(in srgb, var(--foreground) 6%, transparent);
+  /* 画布 / 预览上浮着的条一律白条柔影（ui-spec §9 画布工具条），全圆。 */
+  border-radius: 9999px;
+  background: var(--raise);
+  box-shadow: var(--elevation-soft);
   white-space: nowrap;
 }
 @media (prefers-reduced-motion: reduce) {
   .modelObject {
     transition: none;
-  }
-}
-@media (prefers-reduced-transparency: reduce) {
-  .viewTools {
-    background: var(--background);
-    backdrop-filter: none;
   }
 }
 .fields {
@@ -168,7 +158,8 @@
 @media (min-width: 768px) {
   .root {
     height: var(--screen-h, 100svh);
-    padding: 1.25rem;
+    /* 舞台内距 32（ui-spec §5 疏密）。 */
+    padding: 2rem;
   }
 }
 @media (pointer: coarse) {

@@ -43,7 +43,7 @@ export function seedLabel(
 }
 
 const rowClass =
-  'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-2xs transition-colors duration-fast ease-standard hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+  'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-2xs transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus'
 
 /**
  * 「＋ 加角色 ▾」（owner 11-01 定 A 细化，稿 tag-studio-ui/q1b）：一个搜索框同时搜
@@ -74,7 +74,7 @@ export function StudioTagAddCharacter({
           type="button"
           disabled={disabled || full}
           aria-label={t('trigger')}
-          className="relative inline-flex h-7 shrink-0 items-center gap-1 rounded-full border border-dashed border-border px-2.5 text-2xs whitespace-nowrap text-muted-foreground transition-colors duration-fast ease-standard hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40 data-[state=open]:bg-muted data-[state=open]:text-foreground"
+          className="relative inline-flex h-7 shrink-0 items-center gap-1 rounded-full border border-dashed border-border px-2.5 text-2xs whitespace-nowrap text-muted-foreground transition-colors duration-fast ease-standard hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus disabled:opacity-40 data-[state=open]:bg-muted data-[state=open]:text-foreground"
         >
           <Plus className="size-3.5" aria-hidden />
           {t('trigger')}
@@ -149,10 +149,10 @@ function AddCharacterBody({
         onChange={(event) => setQuery(event.target.value)}
         placeholder={t('searchPlaceholder')}
         aria-label={t('searchPlaceholder')}
-        className="h-8 rounded-md border border-border bg-background px-2.5 text-2xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="h-8 rounded-md border border-border bg-background px-2.5 text-2xs outline-none focus-visible:shadow-focus"
       />
       <div className="flex max-h-72 flex-col gap-0.5 overflow-y-auto">
-        <span className="px-2 pt-1.5 pb-0.5 text-3xs text-muted-foreground">
+        <span className="px-2 pt-1.5 pb-0.5 text-2xs text-muted-foreground">
           {t('mine')}
         </span>
         {isLoading && cards.length === 0 ? (
@@ -190,13 +190,13 @@ function AddCharacterBody({
                       className="size-6 shrink-0 rounded-md object-cover"
                     />
                   ) : (
-                    <span className="grid size-6 shrink-0 place-items-center rounded-md bg-muted text-3xs">
+                    <span className="grid size-6 shrink-0 place-items-center rounded-md bg-muted text-2xs">
                       {card.name.slice(0, 1)}
                     </span>
                   )}
                   <span className="flex min-w-0 flex-1 flex-col">
                     <span className="truncate">{card.name}</span>
-                    <span className="text-3xs text-muted-foreground">
+                    <span className="text-2xs text-muted-foreground">
                       {t('looks', { count: card.looks.length })}
                     </span>
                   </span>
@@ -222,7 +222,7 @@ function AddCharacterBody({
                         <span className="truncate">
                           {lookLabel(look, card.looks, tLooks)}
                         </span>
-                        <span className="text-3xs text-muted-foreground">
+                        <span className="text-2xs text-muted-foreground">
                           {t('tagCount', { count: look.tags.length })}
                         </span>
                       </button>
@@ -235,7 +235,7 @@ function AddCharacterBody({
         )}
         {text.length >= 2 ? (
           <>
-            <span className="px-2 pt-2 pb-0.5 text-3xs text-muted-foreground">
+            <span className="px-2 pt-2 pb-0.5 text-2xs text-muted-foreground">
               {t('library')}
             </span>
             {library.loading && candidates.length === 0 ? (
@@ -269,13 +269,13 @@ function AddCharacterBody({
                   >
                     <span className="flex min-w-0 flex-1 flex-col">
                       <span className="truncate">{readable}</span>
-                      <span className="truncate text-3xs text-muted-foreground">
+                      <span className="truncate text-2xs text-muted-foreground">
                         {[local, candidate.work?.replace(/_/g, ' ')]
                           .filter(Boolean)
                           .join(' · ')}
                       </span>
                     </span>
-                    <span className="font-mono text-3xs tabular-nums text-muted-foreground">
+                    <span className="font-mono text-2xs tabular-nums text-muted-foreground">
                       {candidate.count}
                     </span>
                   </button>

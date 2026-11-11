@@ -32,7 +32,7 @@ export const studioDialogBodyClass = cn(
   'overflow-y-auto',
   studioDialogBodyPaddingClass,
 )
-export const studioDialogHeaderClass = `flex items-center gap-2 border-b border-border/40 ${studioDialogHeaderPaddingClass} text-sm font-medium`
+export const studioDialogHeaderClass = `flex items-center gap-2 border-b border-border/40 ${studioDialogHeaderPaddingClass} text-md font-semibold`
 
 interface StudioPanelHeaderProps extends React.ComponentProps<
   typeof ResponsiveDialogTitle
@@ -305,7 +305,7 @@ export function StudioToolPopoverContent({
  * 是漂移的起点。选中态用 `studioChipActiveClass`。
  */
 export const studioSegButtonClass =
-  'inline-flex min-w-14 flex-1 items-center justify-center gap-1.5 rounded-full border border-transparent px-3 py-1.5 text-xs font-medium transition-colors duration-fast ease-standard'
+  'inline-flex min-w-14 flex-1 items-center justify-center gap-1.5 rounded-full border border-transparent px-3 py-1.5 text-2sm transition-colors duration-fast ease-standard'
 export const studioSegInactiveClass =
   'border border-border/60 text-muted-foreground hover:border-primary/30 hover:text-foreground'
 

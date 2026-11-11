@@ -375,10 +375,10 @@ export function NodePromptBar({
           data-prompt-bar-add
           disabled={generating}
           className={cn(
-            'nodrag nopan flex size-7.5 shrink-0 items-center justify-center rounded-full text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50',
+            'nodrag nopan flex size-7.5 shrink-0 items-center justify-center rounded-full text-foreground focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none disabled:opacity-50',
             addOpen
               ? 'bg-surface-fill-track'
-              : 'bg-surface-fill hover:bg-surface-fill-hover',
+              : 'bg-surface-fill hover:tint-hover',
           )}
           whileTap={reduceMotion ? undefined : { scale: 0.96 }}
           transition={SPRING.press}
@@ -439,7 +439,7 @@ export function NodePromptBar({
       aria-label={t('cancel')}
       data-prompt-bar-cancel
       onClick={() => onCancel?.()}
-      className="nodrag nopan flex size-7.5 shrink-0 items-center justify-center rounded-full bg-surface-fill-track text-foreground hover:bg-status-risk-surface hover:text-status-risk focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+      className="nodrag nopan flex size-7.5 shrink-0 items-center justify-center rounded-full bg-surface-fill-track text-foreground hover:tint-hover hover:text-status-risk focus-visible:outline-none focus-visible:shadow-focus"
       whileTap={reduceMotion ? undefined : { scale: 0.96 }}
       transition={SPRING.press}
     >
@@ -455,7 +455,7 @@ export function NodePromptBar({
       disabled={value.trim().length === 0}
       onClick={blockedLabel ? onBlockedClick : onSubmit}
       className={cn(
-        'nodrag nopan flex size-7.5 shrink-0 items-center justify-center rounded-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none',
+        'nodrag nopan flex size-7.5 shrink-0 items-center justify-center rounded-full focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none',
         compact ? 'disabled:opacity-100' : 'disabled:opacity-50',
         // 挡住时降到次级填充 + warning 描边（与工作台生成键同一条规矩：降的是底
         // 不是字）。
@@ -675,7 +675,7 @@ export function NodePromptBar({
         {overflowing && (
           <span
             data-prompt-bar-count
-            className="shrink-0 text-xs tabular-nums text-muted-foreground"
+            className="shrink-0 text-2xs tabular-nums text-muted-foreground"
           >
             {t('charCount', { count: value.length })}
           </span>

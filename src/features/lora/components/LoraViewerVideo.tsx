@@ -81,7 +81,7 @@ export function LoraViewerVideo({
           type="button"
           onClick={toggle}
           aria-label={playing ? t('pause') : t('play')}
-          className="grid size-7 shrink-0 place-items-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-background"
+          className="grid size-7 shrink-0 place-items-center rounded-full focus-visible:outline-none focus-visible:shadow-focus"
         >
           {playing ? (
             <Pause weight="fill" className="size-3.5" aria-hidden />

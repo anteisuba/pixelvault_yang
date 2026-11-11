@@ -212,7 +212,7 @@ export function StudioTagsControlColumn({
           model.modelId,
         ).capabilities.includes('seed'),
       ) ? (
-        <label className="flex flex-col gap-2 text-sm">
+        <label className="flex flex-col gap-2 text-2sm">
           {t('workbench.seed')}
           <Input
             type="number"
@@ -278,11 +278,13 @@ function ControlCard({
             : 'flex items-baseline justify-between gap-2'
         }
       >
-        <h3 className={hideTitle ? 'sr-only' : 'shrink-0 text-2xs font-medium'}>
+        <h3
+          className={hideTitle ? 'sr-only' : 'shrink-0 text-2xs font-semibold'}
+        >
           {title}
         </h3>
         {note ? (
-          <span className="text-3xs text-muted-foreground">{note}</span>
+          <span className="text-2xs text-muted-foreground">{note}</span>
         ) : null}
       </div>
       {children}
@@ -331,7 +333,7 @@ function ResolutionCard({
         <span className="font-mono tabular-nums">
           {width}×{height}
         </span>
-        <span className="truncate text-3xs text-muted-foreground">
+        <span className="truncate text-2xs text-muted-foreground">
           {free && state.advancedParams.novelAiReferenceMode !== 'precise'
             ? t('opusFree')
             : t('opusMetered')}

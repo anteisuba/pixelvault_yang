@@ -188,7 +188,7 @@ export function LoraAssetCard({
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  className="inline-flex size-7 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm transition-colors hover:bg-black/60"
+                  className="inline-flex size-7 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm transition-colors hover:tint-hover"
                   aria-label={t('assetActionsLabel')}
                   title={t('assetActionsLabel')}
                 >
@@ -272,7 +272,7 @@ export function LoraAssetCard({
           recentlyTrained ? (
             // 7 天内训练完成的 trained 资产 —— 放底部左角，让位给顶部的
             // 类型徽标 + 操作菜单。
-            <span className="absolute bottom-1.5 left-1.5 inline-flex items-center gap-1 rounded-full bg-primary/90 px-1.5 py-0.5 text-2xs font-medium text-primary-foreground shadow-sm backdrop-blur-sm">
+            <span className="absolute bottom-1.5 left-1.5 inline-flex items-center gap-1 rounded-full bg-primary/90 px-1.5 py-0.5 text-2xs font-semibold text-primary-foreground shadow-media-action backdrop-blur-sm">
               <Sparkles weight="fill" className="size-2.5" aria-hidden />
               {t('recentlyTrainedBadge')}
             </span>
@@ -282,9 +282,7 @@ export function LoraAssetCard({
 
       <div className="mt-1.5 min-w-0 space-y-1.5">
         <div className="min-w-0">
-          <p className="truncate text-xs font-medium text-foreground">
-            {asset.name}
-          </p>
+          <p className="truncate text-2xs text-foreground">{asset.name}</p>
           <p className="truncate text-2xs text-muted-foreground">
             <span className="font-mono">{asset.triggerWord}</span>
           </p>
@@ -294,10 +292,10 @@ export function LoraAssetCard({
           type="button"
           onClick={handleUse}
           className={cn(
-            'inline-flex w-full items-center justify-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors',
+            'inline-flex w-full items-center justify-center gap-1 rounded-md px-2.5 py-1.5 text-2xs transition-colors',
             alreadyInStack
               ? 'bg-muted text-muted-foreground'
-              : 'bg-foreground text-background hover:bg-foreground/85',
+              : 'bg-foreground text-background hover:tint-hover',
           )}
           aria-label={alreadyInStack ? t('alreadyInUse') : t('use')}
         >

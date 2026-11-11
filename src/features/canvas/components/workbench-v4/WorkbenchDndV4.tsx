@@ -369,7 +369,7 @@ export function WorkbenchUploadStatus({
       role="status"
       aria-live="polite"
       data-canvas-upload-status
-      className="pointer-events-none fixed bottom-20 left-1/2 z-50 flex w-72 max-w-full -translate-x-1/2 flex-col gap-2 rounded-xl border bg-popover p-3 text-sm text-popover-foreground shadow-lg"
+      className="pointer-events-none fixed bottom-20 left-1/2 z-50 flex w-72 max-w-full -translate-x-1/2 flex-col gap-2 rounded-12 bg-popover p-3 text-2sm text-popover-foreground shadow-pop"
     >
       {items.map((item) => (
         <div key={item.id} className="flex min-w-0 items-center gap-2">

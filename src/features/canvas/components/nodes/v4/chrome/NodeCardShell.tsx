@@ -156,7 +156,7 @@ export function NodeCardShell({
       <div data-node-card-name-space className="absolute inset-x-0 top-0">
         <div
           data-node-card-name
-          className="flex min-w-0 items-center gap-1 px-0.75 pb-1.5 text-xs leading-4"
+          className="flex min-w-0 items-center gap-1 px-0.75 pb-1.5 text-2sm leading-4"
           style={{
             width: `${zoom * 100}%`,
             transform: `scale(${1 / zoom})`,

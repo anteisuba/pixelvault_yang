@@ -422,7 +422,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
                 <div
                   ref={videoDropZoneRef}
                   role="status"
-                  className="flex h-12 shrink-0 animate-in items-center gap-2 rounded-12 border-2 border-dashed border-foreground bg-muted px-3.5 text-2sm font-medium text-foreground fade-in-0 duration-fast ease-linear motion-reduce:animate-none"
+                  className="flex h-12 shrink-0 animate-in items-center gap-2 rounded-12 border-2 border-dashed border-foreground bg-muted px-3.5 text-2sm font-semibold text-foreground fade-in-0 duration-fast ease-linear motion-reduce:animate-none"
                 >
                   <Download className="size-4 shrink-0" aria-hidden />
                   {tSlots('drop.here')}
@@ -466,7 +466,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
               {imageUpload.isUploading && (
                 <div
                   role="status"
-                  className="flex items-center gap-2 py-1 text-sm text-muted-foreground"
+                  className="flex items-center gap-2 py-1 text-2sm text-muted-foreground"
                 >
                   <Spinner aria-hidden="true" className="size-4 shrink-0" />
                   {tImageUpload('uploading')}
@@ -490,7 +490,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
                 disabled={isGenerating}
                 onPaste={videoPaste}
                 onSubmit={submitFromComposer}
-                className="min-h-12 max-h-36 overflow-y-auto px-0.5 py-0.5 font-sans text-base leading-6 transition-[min-height] duration-spring-slot ease-spring-slot focus-within:min-h-18 motion-reduce:transition-none md:text-sm"
+                className="min-h-12 max-h-36 overflow-y-auto px-0.5 py-0.5 font-sans text-base leading-6 lg:text-md lg:leading-reading transition-[min-height] duration-spring-slot ease-spring-slot focus-within:min-h-18 motion-reduce:transition-none md:text-sm"
               />
             ) : (
               <StudioReferencePromptInput
@@ -498,7 +498,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
                 disabled={isGenerating}
                 onPaste={handlePromptPaste}
                 onSubmit={submitFromComposer}
-                className="min-h-12 max-h-36 overflow-y-auto px-0.5 py-0.5 font-sans text-base leading-6 transition-[min-height] duration-spring-slot ease-spring-slot focus-within:min-h-18 motion-reduce:transition-none md:text-sm"
+                className="min-h-12 max-h-36 overflow-y-auto px-0.5 py-0.5 font-sans text-base leading-6 lg:text-md lg:leading-reading transition-[min-height] duration-spring-slot ease-spring-slot focus-within:min-h-18 motion-reduce:transition-none md:text-sm"
               />
             )}
           </div>
@@ -517,7 +517,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
             >
               <label
                 htmlFor="studio-negative-prompt-input"
-                className="shrink-0 pt-0.5 text-2xs font-medium text-muted-foreground"
+                className="shrink-0 pt-0.5 text-2xs text-muted-foreground"
               >
                 {tPromptArea('negativePromptLabel')}
               </label>
@@ -648,7 +648,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
                       //   用它自己的 240 宽，⛔ 压到 192 把名字挤成「Seed… 2…」——
                       //   助手展开、输入框变窄时也不压（画板：让位时收的是左边那几颗的字）。
                       className={cn(
-                        'h-8 font-medium',
+                        'h-8',
                         state.selectedOptionId && studioOutlineChipSetClass,
                       )}
                     />
@@ -679,7 +679,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
                       popoverAlign="end"
                       contentClassName="w-80"
                       className={cn(
-                        'h-8 max-w-48 font-medium group-data-compact/toolrow:max-w-36',
+                        'h-8 max-w-48 group-data-compact/toolrow:max-w-36',
                         runModels.length > 0 && studioOutlineChipSetClass,
                       )}
                     />
@@ -782,7 +782,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
         />
         {/* 提示词 —— 参数栏里它是一块独立的输入区，不再和发送键挤一行 */}
         <div className="flex flex-col gap-1.5">
-          <span className="text-2xs font-medium text-muted-foreground/70">
+          <span className="text-2xs text-muted-foreground/70">
             {tForm('promptLabel')}
           </span>
           <div
@@ -812,7 +812,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
             {imageUpload.isUploading && (
               <div
                 role="status"
-                className="flex items-center gap-2 px-1 py-2 text-sm text-muted-foreground"
+                className="flex items-center gap-2 px-1 py-2 text-2sm text-muted-foreground"
               >
                 <Spinner aria-hidden="true" className="size-4 shrink-0" />
                 {tImageUpload('uploading')}
@@ -824,7 +824,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
                 disabled={isGenerating}
                 onPaste={handlePromptPaste}
                 onSubmit={handleGenerate}
-                className="min-h-20 max-h-56 overflow-y-auto px-1 py-1 font-sans text-base leading-6 md:text-sm"
+                className="min-h-20 max-h-56 overflow-y-auto px-1 py-1 font-sans text-base leading-6 md:text-md md:leading-reading"
               />
             ) : (
               <PromptInputTextarea
@@ -834,7 +834,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
                 onPaste={handlePromptPaste}
                 // ⚠ `text-base` 在 <768 是硬要求：iOS Safari 对小于 16px 的可聚焦
                 //    输入框会自动放大整页。桌面照旧 14px。
-                className="min-h-20 px-1 py-1 font-sans text-base leading-5 disabled:opacity-100 md:text-sm"
+                className="min-h-20 px-1 py-1 font-sans text-base leading-5 disabled:opacity-100 md:text-md md:leading-reading"
               />
             )}
           </div>
@@ -876,9 +876,9 @@ export const StudioPromptArea = memo(function StudioPromptArea({
             aria-expanded={negativePromptExpanded}
             aria-controls="studio-negative-prompt-input"
             onClick={() => setNegativePromptExpanded((open) => !open)}
-            className="flex w-full items-center gap-2 rounded-lg border border-border bg-background px-2.5 py-[7px] text-left transition-colors duration-fast ease-standard hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background coarse:min-h-11"
+            className="flex w-full items-center gap-2 rounded-lg border border-border bg-background px-2.5 py-[7px] text-left transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus coarse:min-h-11"
           >
-            <span className="shrink-0 text-2xs font-medium text-muted-foreground/70">
+            <span className="shrink-0 text-2xs text-muted-foreground/70">
               {tPromptArea('negativePromptLabel')}
             </span>
             {/* ⚠ 预览只在**收起**时出现：展开后下面的输入框已经把同一句
@@ -976,7 +976,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
               这 288px 的栏宽约束）。 */}
         {isImageMode && (
           <div className="flex flex-col gap-1.5" data-assistant-field="model">
-            <span className="flex items-center text-2xs font-medium text-muted-foreground/70">
+            <span className="flex items-center text-2xs text-muted-foreground/70">
               {tForm('modelLabel')}
               {runModels.length > 1 ? (
                 <span className="ml-auto font-normal tabular-nums">
@@ -987,7 +987,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
             {runModels.map((option) => (
               <div
                 key={option.optionId}
-                className="flex h-8 items-center gap-2 rounded-md border border-border/60 bg-background pl-2.5 pr-1.5 text-xs"
+                className="flex h-8 items-center gap-2 rounded-md border border-border/60 bg-background pl-2.5 pr-1.5 text-2sm"
               >
                 <span className="min-w-0 flex-1 truncate">
                   {getTranslatedModelLabel(tModels, option.modelId)}
@@ -999,7 +999,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
                   type="button"
                   onClick={() => handleRemoveRunModel(option.optionId)}
                   aria-label={t('modelRemove')}
-                  className="grid size-5 shrink-0 place-items-center rounded-sm text-muted-foreground transition-colors duration-fast ease-standard hover:bg-muted hover:text-foreground"
+                  className="grid size-5 shrink-0 place-items-center rounded-sm text-muted-foreground transition-colors duration-fast ease-standard hover:tint-hover hover:text-foreground"
                 >
                   <X className="size-3" />
                 </button>
@@ -1042,7 +1042,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
             音频没有规格这一说（时长/变体归音效自己的浮层，切片 D）。 */}
         {isImageMode ? (
           <div className="flex flex-col gap-1.5" data-assistant-field="specs">
-            <span className="text-2xs font-medium text-muted-foreground/70">
+            <span className="text-2xs text-muted-foreground/70">
               {t('specLabel')}
             </span>
             <StudioSpecChip

@@ -99,12 +99,12 @@ export function ShotPullSourcePicker({
         data-testid="shot-pull-picker"
         className="nodrag w-80 p-1.5"
       >
-        <p className="px-2 pb-1.5 pt-1 text-sm font-semibold">
+        <p className="px-2 pb-1.5 pt-1 text-md font-semibold">
           {t('pull.picker.title')}
         </p>
         {sources.length > 0 ? (
           <>
-            <p className="px-2 pb-1 text-xs text-muted-foreground">
+            <p className="px-2 pb-1 text-2xs text-muted-foreground">
               {t('pull.picker.canvas')}
             </p>
             <ul className="flex max-h-64 flex-col overflow-y-auto">
@@ -115,7 +115,7 @@ export function ShotPullSourcePicker({
                     data-testid="shot-pull-picker-clip"
                     data-node-id={item.id}
                     onClick={() => pick(item.id)}
-                    className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition-colors duration-fast hover:bg-surface-fill"
+                    className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition-colors duration-fast hover:tint-hover"
                   >
                     <span className="relative aspect-video w-16 shrink-0 overflow-hidden rounded-md bg-surface-fill">
                       {item.poster ? (
@@ -133,8 +133,8 @@ export function ShotPullSourcePicker({
                       )}
                     </span>
                     <span className="flex min-w-0 flex-1 flex-col">
-                      <span className="truncate text-sm">{item.name}</span>
-                      <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <span className="truncate text-2sm">{item.name}</span>
+                      <span className="flex items-center gap-1.5 text-2xs text-muted-foreground">
                         {item.reference ? (
                           <span className="rounded-sm bg-surface-fill px-1 text-foreground">
                             {t('refBadge')}
@@ -176,7 +176,7 @@ export function ShotPullSourcePicker({
             }}
           />
         ) : null}
-        <p className="px-2 pb-1 pt-1.5 text-xs text-muted-foreground">
+        <p className="px-2 pb-1 pt-1.5 text-2xs text-muted-foreground">
           {t('pull.picker.note')}
         </p>
       </PopoverContent>
@@ -200,7 +200,7 @@ function PickerAction({
       type="button"
       data-testid={testId}
       onClick={onClick}
-      className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left text-sm transition-colors duration-fast hover:bg-surface-fill"
+      className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left text-2sm transition-colors duration-fast hover:tint-hover"
     >
       <span className="text-muted-foreground">{icon}</span>
       <span>{label}</span>

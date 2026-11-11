@@ -66,7 +66,7 @@ export function StudioDialectJumpHint({
         close()
         router.push(PROMPT_DIALECT_ROUTES[targetDialect])
       }}
-      className="mt-1 flex w-full items-center gap-2 rounded-md border-t border-border px-2.5 pb-1 pt-2 text-left text-xs text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="mt-1 flex w-full items-center gap-2 rounded-md border-t border-border px-2.5 pb-1 pt-2 text-left text-2xs text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus"
     >
       <span className="min-w-0 flex-1 truncate">
         {t(targetDialect === 'tags' ? 'jumpToTags' : 'jumpToNatural', {

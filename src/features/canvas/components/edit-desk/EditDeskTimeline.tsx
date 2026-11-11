@@ -856,7 +856,7 @@ export function EditDeskTimeline({
                 data-testid="edit-desk-zoom-fit"
                 aria-pressed={zoom <= EDIT_TIMELINE_ZOOM.min}
                 onClick={() => setZoom(EDIT_TIMELINE_ZOOM.min)}
-                className="ml-1 h-7 rounded-md px-2 text-xs text-muted-foreground transition-colors duration-fast hover:bg-muted hover:text-foreground aria-pressed:text-foreground @max-4xl/composer:hidden"
+                className="ml-1 h-7 rounded-md px-2 text-2sm text-muted-foreground transition-colors duration-fast hover:tint-hover hover:text-foreground aria-pressed:text-foreground @max-4xl/composer:hidden"
               >
                 {t('zoom.fit')}
               </button>
@@ -981,7 +981,7 @@ export function EditDeskTimeline({
                       className="pointer-events-none absolute bottom-0 top-0 z-10 w-px bg-foreground/20"
                       style={{ left: scale.toPx(hoverSec) }}
                     >
-                      <span className="absolute left-1/2 top-0 -translate-x-1/2 whitespace-nowrap rounded-md bg-muted-foreground px-1.5 font-mono text-3xs leading-5 text-background">
+                      <span className="absolute left-1/2 top-0 -translate-x-1/2 whitespace-nowrap rounded-md bg-muted-foreground px-1.5 font-mono text-2xs leading-5 text-background">
                         {formatEditClock(hoverSec, true)}
                       </span>
                     </span>
@@ -1003,7 +1003,7 @@ export function EditDeskTimeline({
                       onPointerDown={startScrub}
                       style={{ scaleX: gripStretch }}
                       className={cn(
-                        'pointer-events-auto absolute top-0 cursor-ew-resize touch-none select-none whitespace-nowrap rounded-md bg-primary px-1.5 font-mono text-3xs leading-5 text-primary-foreground',
+                        'pointer-events-auto absolute top-0 cursor-ew-resize touch-none select-none whitespace-nowrap rounded-md bg-primary px-1.5 font-mono text-2xs leading-5 text-primary-foreground',
                         scale.toPx(desk.playheadSec) < 28
                           ? 'left-0'
                           : 'left-1/2 -translate-x-1/2',
@@ -1087,7 +1087,7 @@ function Ruler({
           style={{ left: scale.toPx(at) }}
         >
           <i className="absolute bottom-0 left-0 h-2 w-px bg-muted-foreground/50" />
-          <span className="absolute bottom-1.5 left-1 whitespace-nowrap font-mono text-3xs text-muted-foreground/70">
+          <span className="absolute bottom-1.5 left-1 whitespace-nowrap font-mono text-2xs text-muted-foreground/70">
             {formatEditClock(at)}
           </span>
         </span>
@@ -1682,7 +1682,7 @@ function TextClipView({
           cut && !own && 'opacity-30',
         )}
       >
-        <span className="shrink-0 font-mono text-3xs font-semibold text-muted-foreground">
+        <span className="shrink-0 font-mono text-2xs font-semibold text-muted-foreground">
           T
         </span>
         <span className="truncate">{firstLine}</span>
@@ -2218,11 +2218,11 @@ function ClipView({
             </span>
           )
         ) : isMusic ? (
-          <span className="pointer-events-none absolute left-1.5 top-1 max-w-3/4 truncate text-3xs leading-4 text-muted-foreground">
+          <span className="pointer-events-none absolute left-1.5 top-1 max-w-3/4 truncate text-2xs leading-4 text-muted-foreground">
             {sourceName}
           </span>
         ) : (
-          <span className="pointer-events-none absolute inset-y-0 left-2 right-2 flex items-center truncate text-2xs font-medium text-foreground/85">
+          <span className="pointer-events-none absolute inset-y-0 left-2 right-2 flex items-center truncate text-2xs text-foreground/85">
             {sourceName}
           </span>
         )}
@@ -2269,7 +2269,7 @@ function ClipView({
               event.stopPropagation()
               desk.openRetake(track, clip.id)
             }}
-            className="absolute right-1.5 top-1 z-10 grid size-4 place-items-center rounded-full bg-foreground font-mono text-3xs font-bold text-background animate-in fade-in duration-200"
+            className="absolute right-1.5 top-1 z-10 grid size-4 place-items-center rounded-full bg-foreground font-mono text-2xs font-bold text-background animate-in fade-in duration-200"
           >
             !
           </button>
@@ -2293,7 +2293,7 @@ function ClipView({
                 event.stopPropagation()
                 desk.select({ track, clipId: clip.id })
               }}
-              className="absolute right-1.5 top-1 z-10 flex items-center gap-1 rounded-sm bg-white/90 px-1.5 font-mono text-3xs leading-4 tabular-nums text-neutral-800 transition-colors duration-fast hover:bg-white"
+              className="absolute right-1.5 top-1 z-10 flex items-center gap-1 rounded-sm bg-white/90 px-1.5 font-mono text-2xs leading-4 tabular-nums text-neutral-800 transition-colors duration-fast hover:tint-hover"
             >
               <RollingText text={`${takes.n}/${takes.count}`} />
               {takes.fresh ? (
@@ -2486,10 +2486,10 @@ function SeamMark({
           }}
           className={cn(
             'absolute z-20 grid cursor-pointer place-items-center transition duration-fast motion-reduce:transition-none',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            'focus-visible:outline-none focus-visible:shadow-focus',
             set
               ? 'rounded-md bg-foreground text-background ring-2 ring-background hover:scale-110'
-              : 'rounded-full bg-background text-foreground shadow-md ring-1 ring-border',
+              : 'rounded-full bg-raise text-foreground shadow-seg',
             // 硬切：平时透明（照样点得到、接得住拖放），停上去 / 弹层开着 / 拖转场预设时才出。
             !set &&
               !over &&

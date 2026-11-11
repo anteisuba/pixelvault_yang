@@ -255,7 +255,9 @@ export function StudioTagTextField({
   /** 两层共用：字号、行高、内边距、折行，差一点淡灰就对不上字。 */
   const textLayer = cn(
     'whitespace-pre-wrap break-words text-base leading-6',
-    form ? 'font-mono md:text-xs md:leading-5' : 'md:text-2xs md:leading-5',
+    form
+      ? 'font-mono md:text-2sm md:leading-5'
+      : 'md:text-md md:leading-reading', // 输入框里的标签 = 提示词 15 / 1.7（ui-spec §4，owner 2026-11-11 小样 4 选 C）
     bare || composer ? 'py-1.5' : 'p-2',
   )
 
@@ -308,7 +310,7 @@ export function StudioTagTextField({
           <span
             className={
               form
-                ? 'text-xs font-semibold text-muted-foreground'
+                ? 'text-2xs font-semibold text-muted-foreground'
                 : 'text-sm font-medium lg:text-2xs'
             }
           >
@@ -317,7 +319,7 @@ export function StudioTagTextField({
           <span
             className={cn(
               'truncate text-muted-foreground',
-              form ? 'text-2xs' : 'text-xs lg:text-3xs',
+              form ? 'text-2xs' : 'text-xs lg:text-2xs',
             )}
           >
             {note ?? t('tagCount', { count: chips.length })}
@@ -415,7 +417,7 @@ export function StudioTagTextField({
         </div>
       </div>
       {novelAiModel && official.active && query ? (
-        <p role="status" className="text-3xs text-muted-foreground">
+        <p role="status" className="text-2xs text-muted-foreground">
           {official.loading
             ? t('officialTagsLoading')
             : official.error

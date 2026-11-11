@@ -74,9 +74,9 @@ function GlassButton({
         'nodrag nopan flex size-6.5 items-center justify-center rounded-lg',
         paper
           ? 'text-card transition hover:opacity-75'
-          : 'text-foreground transition-colors hover:bg-surface-fill-hover',
+          : 'text-foreground transition-colors hover:tint-hover',
         'duration-fast ease-standard',
-        'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+        ' focus-visible:outline-none focus-visible:shadow-focus',
         'disabled:pointer-events-none disabled:opacity-50',
       )}
     >
@@ -170,7 +170,7 @@ export function VideoPlayer({
           aria-label={t('play')}
           onClick={togglePlay}
           className={cn(
-            'nodrag nopan absolute top-1/2 left-1/2 flex size-13 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+            'nodrag nopan absolute top-1/2 left-1/2 flex size-13 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full focus-visible:outline-none focus-visible:shadow-focus',
             paper
               ? 'bg-card/90 text-foreground'
               : 'surface-glass shadow-node-chrome',
@@ -228,7 +228,7 @@ export function VideoPlayer({
         <span
           data-video-clock
           className={cn(
-            'shrink-0 text-3xs tabular-nums',
+            'shrink-0 text-2xs tabular-nums',
             paper
               ? 'font-mono text-card'
               : 'rounded-full px-1.75 py-0.5 surface-glass',

@@ -87,10 +87,10 @@ export function EditDeskExportDialog({
               <label
                 key={id}
                 className={cn(
-                  'flex h-9 items-center gap-2 rounded-md px-2 text-xs',
+                  'flex h-9 items-center gap-2 rounded-md px-2 text-2sm',
                   disabled
                     ? 'text-muted-foreground opacity-60'
-                    : 'text-foreground hover:bg-muted',
+                    : 'text-foreground hover:tint-hover',
                 )}
               >
                 <input
@@ -109,7 +109,7 @@ export function EditDeskExportDialog({
           })}
         </fieldset>
 
-        <label className="flex h-9 items-center justify-between rounded-md px-2 text-xs">
+        <label className="flex h-9 items-center justify-between rounded-md px-2 text-2sm">
           <span>{t('toCanvas')}</span>
           <input
             type="checkbox"
@@ -120,7 +120,7 @@ export function EditDeskExportDialog({
           />
         </label>
 
-        <label className="flex h-9 items-center justify-between rounded-md px-2 text-xs">
+        <label className="flex h-9 items-center justify-between rounded-md px-2 text-2sm">
           <span>{t('resolution')}</span>
           <select
             data-testid="edit-desk-export-resolution"
@@ -128,7 +128,7 @@ export function EditDeskExportDialog({
             onChange={(event) =>
               onResolutionChange(event.target.value as EditResolution)
             }
-            className="h-7 rounded-md border border-input bg-background px-1.5 text-xs"
+            className="h-7 rounded-md border border-input bg-background px-1.5 text-2sm"
           >
             {EDIT_RESOLUTIONS.map((option) => (
               <option key={option} value={option}>
@@ -144,7 +144,7 @@ export function EditDeskExportDialog({
             data-testid="edit-desk-export-confirm"
             disabled={submitting}
             onClick={() => onExport({ range, toCanvas })}
-            className="inline-flex h-9 items-center rounded-lg bg-primary px-4 text-xs font-medium text-primary-foreground disabled:opacity-60"
+            className="inline-flex h-9 items-center rounded-lg bg-primary px-4 text-2sm font-semibold text-primary-foreground disabled:opacity-60"
           >
             {t('confirm')}
           </button>

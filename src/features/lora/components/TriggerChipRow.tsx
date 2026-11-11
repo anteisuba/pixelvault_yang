@@ -70,7 +70,7 @@ export function TriggerChipRow({
             )}
           >
             <span className="max-w-20 truncate">{entry.name}</span>
-            <span className="shrink-0 font-mono text-3xs opacity-80">
+            <span className="shrink-0 font-mono text-2xs opacity-80">
               {entry.triggerWord}
             </span>
           </button>

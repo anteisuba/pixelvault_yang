@@ -11,7 +11,6 @@ import {
   LoraTrainingHistorySidebar,
 } from '@/features/lora/components/LoraTrainingDialog'
 import { PresetGrid } from '@/features/lora/components/training/PresetGrid'
-import { cn } from '@/lib/utils'
 
 // Lazy-loaded so the Vaul-backed Drawer doesn't bloat the desktop SSR
 // payload. Mobile-only entry point.
@@ -23,66 +22,23 @@ const MobileTrainingSheet = dynamic(
   { ssr: false },
 )
 
-interface PresetRailPanelProps {
-  presetId: LoraTrainingPresetId | null
-  onSelect: (preset: { id: LoraTrainingPresetId }) => void
-  /**
-   * 'rail' (default): xl+ 右侧 sticky 列,内部用 compact 2-col grid。
-   * 'panel': 折叠在主区下方占满宽度,sticky 关闭,内部用 wide 2/3-col grid
-   * 以利用横向空间。
-   */
-  variant?: 'rail' | 'panel'
-}
-
 /**
- * Wrapper around PresetGrid. Adds the "Presets" heading + subtitle that
- * the standalone grid doesn't render. In 'rail' variant applies the
- * sticky / scroll constraints shared with the history rail so the two
- * columns visually balance at xl+ breakpoints. In 'panel' variant
- * renders as a static full-width block — used when the form column
- * doesn't have horizontal room for a third rail.
+ * 预设：一行小标题 + 一格格预设，平铺在白板上（owner 2026-11-11 小样 6 选 B「平铺」：
+ * ⛔ 卡框、⛔ 说明句、⛔ 步骤编号——先后由上下顺序说）。
  */
-function PresetRailPanel({
+function PresetPanel({
   presetId,
   onSelect,
-  variant = 'rail',
-}: PresetRailPanelProps) {
+}: {
+  presetId: LoraTrainingPresetId | null
+  onSelect: (preset: { id: LoraTrainingPresetId }) => void
+}) {
   const t = useTranslations('LoraTraining')
   return (
-    <aside
-      className={cn(
-        'rounded-2xl border border-border bg-card p-4',
-        variant === 'rail' &&
-          'xl:max-h-[calc(100svh-7rem)] xl:sticky xl:top-4 xl:overflow-y-auto',
-      )}
-    >
-      <div className="mb-3 space-y-0.5">
-        <h3 className="text-sm font-semibold tracking-tight">
-          {t('presetRailTitle')}
-        </h3>
-        <p className="text-2xs text-muted-foreground">
-          {t('presetRailSubtitle')}
-        </p>
-      </div>
-      <PresetGrid
-        layout={variant === 'rail' ? 'compact' : 'wide'}
-        selectedId={presetId}
-        onSelect={onSelect}
-      />
-    </aside>
-  )
-}
-
-// S8（CD 训练台）：主列步骤编号——训练是有先后的流程（先选预设再填表），编号
-// 让顺序一眼可读。绝对定位在卡片左上角外沿，不挤占卡片内容宽度。
-function StepBadge({ n }: { n: number }) {
-  return (
-    <span
-      aria-hidden
-      className="absolute -left-1 -top-1 z-10 inline-flex size-5 items-center justify-center rounded-full border border-border bg-background font-mono text-2xs font-semibold text-muted-foreground shadow-sm"
-    >
-      {n}
-    </span>
+    <section className="flex flex-col gap-2.5">
+      <h3 className="text-md font-semibold">{t('presetRailTitle')}</h3>
+      <PresetGrid layout="wide" selectedId={presetId} onSelect={onSelect} />
+    </section>
   )
 }
 
@@ -95,8 +51,8 @@ function StepBadge({ n }: { n: number }) {
  * 训练页对稿（lora-domain-wireframes.md §6）：稿子是两栏——左表单，右
  * 提交卡+训练任务列表，没有独立的历史/预设侧栏。以前是三栏（历史 240px·
  * 表单·预设 280px，xl 才三栏，md..xl- 退成两栏+预设折下面），现在统一
- * 收成两栏：左表单，右边把预设 + 训练任务列表堆在一起——功能都留着，
- * 只是不再各占一条独立的常驻侧栏。
+ * 收成两栏：左边预设 + 表单，右边训练记录。2026-11-11 起平铺在白板上（小样 6 选 B），
+ * ⛔ 卡框。
  */
 export function TrainWizard() {
   const isMobile = useIsMobile()
@@ -104,45 +60,30 @@ export function TrainWizard() {
   const { presetId, presetPanelRef, selectPreset, clearPreset, requestPreset } =
     useLoraTrainWizard()
 
-  // S8（CD 训练台-组建）：主列 = 有编号的两步——① 选择预设（一键填好类型/底模/
-  // 触发词）② 填表单（上传训练图 + 配置 + 提交）。预设从右侧栏移到主列顶部，
-  // 因为它是流程第一步、不是参考资料；右栏只留训练历史 + 产物去向说明。
+  // 主列：预设在上（一键填好类型 / 底模 / 触发词）、表单在下；右栏只留训练记录 + 产物去向。
   const formColumn = (
-    <div className="space-y-4">
-      <div className="relative" ref={presetPanelRef}>
-        <StepBadge n={1} />
-        <PresetRailPanel
-          presetId={presetId}
-          onSelect={selectPreset}
-          variant="panel"
-        />
+    <div className="space-y-7">
+      <div ref={presetPanelRef}>
+        <PresetPanel presetId={presetId} onSelect={selectPreset} />
       </div>
-      <div className="relative">
-        <StepBadge n={2} />
-        <div className="rounded-2xl border border-border bg-card p-5 sm:p-6">
-          <LoraTrainingForm
-            hideRecentJobs
-            showEmptyState
-            selectedPresetId={presetId}
-            onPresetClear={clearPreset}
-            onRequestPreset={requestPreset}
-          />
-        </div>
-      </div>
+      <LoraTrainingForm
+        hideRecentJobs
+        showEmptyState
+        selectedPresetId={presetId}
+        onPresetClear={clearPreset}
+        onRequestPreset={requestPreset}
+      />
     </div>
   )
 
   const sideColumn = (
-    <div className="flex flex-col gap-4">
-      <aside className="rounded-2xl border border-border bg-card p-4">
-        <LoraTrainingHistorySidebar />
-        {/* CD：训练产物去向——完成的 LoRA 进「我的资源」，在库 modal 的「我的」
-            tab 可挂载（把训练与生成两侧连起来）。 */}
-        <p className="mt-3 border-t border-border/60 pt-3 text-2xs leading-relaxed text-muted-foreground">
-          {tTraining('historyOutputHint')}
-        </p>
-      </aside>
-    </div>
+    <aside className="flex flex-col gap-3">
+      <LoraTrainingHistorySidebar />
+      {/* CD：训练产物去向——完成的 LoRA 进「我的资源」，在库里可挂载（把训练与生成两侧连起来）。 */}
+      <p className="text-2xs leading-relaxed text-muted-foreground">
+        {tTraining('historyOutputHint')}
+      </p>
+    </aside>
   )
 
   if (isMobile) {
@@ -156,9 +97,9 @@ export function TrainWizard() {
     )
   }
 
-  // Desktop: always 2 columns from md+ — form 7fr, presets+history 5fr.
+  // 桌面：两栏平铺，表单 7 份、训练记录 5 份，中间留 48。
   return (
-    <section className="mx-auto grid max-w-7xl gap-4 md:grid-cols-12 md:items-start">
+    <section className="mx-auto grid max-w-7xl gap-12 md:grid-cols-12 md:items-start">
       <div className="md:col-span-7">{formColumn}</div>
       <div className="md:col-span-5">{sideColumn}</div>
     </section>

@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>工作台方向 · 对比 5：3D 台的摆法</title>
+    <style>
+      :root {
+        --ground: #e9e6e0;
+        --panel: #ffffff;
+        --fill: #f5f3ef;
+        --fill-strong: #eeebe5;
+        --line: rgba(28, 22, 14, 0.08);
+        --ink: #171411;
+        --ink-2: #4b463f;
+        --ink-3: #655f57;
+        --vp-top: #fbfaf8;
+        --vp-bottom: #e8e4dd;
+        --card: 0 0 0 1px rgba(16, 18, 24, 0.05), 0 2px 6px rgba(16, 18, 24, 0.05),
+          0 12px 28px rgba(16, 18, 24, 0.08);
+        --soft: 0 0 0 1px rgba(16, 18, 24, 0.06), 0 1px 2px rgba(16, 18, 24, 0.08),
+          0 2px 6px rgba(16, 18, 24, 0.05);
+        --sans: 'Geist', 'PingFang SC', 'Noto Sans SC', system-ui, sans-serif;
+        --mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--ground);
+        color: var(--ink);
+        font-family: var(--sans);
+        font-size: 13px;
+        -webkit-font-smoothing: antialiased;
+      }
+      button {
+        font: inherit;
+        color: inherit;
+        border: 0;
+        background: none;
+        cursor: pointer;
+      }
+      .switch {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px 18px;
+        padding: 10px 16px;
+        background: #101216;
+        color: #fff;
+      }
+      .seg {
+        display: inline-flex;
+        padding: 2px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.14);
+      }
+      .seg button {
+        height: 28px;
+        padding: 0 12px;
+        border-radius: 999px;
+        color: rgba(255, 255, 255, 0.72);
+      }
+      .seg button[aria-pressed='true'] {
+        background: #fff;
+        color: #101216;
+        font-weight: 600;
+      }
+      kbd {
+        font-family: var(--mono);
+        font-size: 11px;
+        opacity: 0.55;
+      }
+      .hint {
+        opacity: 0.6;
+        font-size: 12px;
+      }
+
+      .board {
+        display: flex;
+        margin: 8px;
+        height: calc(100vh - 66px);
+        min-height: 520px;
+        border-radius: 20px;
+        background: var(--panel);
+        overflow: hidden;
+      }
+      .chat {
+        width: 260px;
+        flex: none;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        gap: 14px;
+        padding: 20px;
+        border-right: 1px solid var(--line);
+        font-size: 15px;
+        line-height: 1.7;
+      }
+      @media (max-width: 900px) {
+        .chat {
+          display: none;
+        }
+      }
+      .me {
+        align-self: flex-end;
+        padding: 8px 14px;
+        border-radius: 18px;
+        background: #f2efea;
+      }
+      .bench {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        padding: 32px;
+        gap: 28px;
+      }
+      body.b .bench {
+        flex-direction: column;
+      }
+
+      /* 预览台：两种摆法共用 */
+      .viewport {
+        position: relative;
+        flex: 1;
+        min-width: 0;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 20px;
+        padding-bottom: 40px;
+        border-radius: 14px;
+        background: radial-gradient(ellipse at 50% 60%, var(--vp-top), var(--vp-bottom) 70%);
+      }
+      .figure {
+        position: relative;
+        width: 140px;
+        height: 200px;
+        transform: rotate(-8deg);
+        filter: drop-shadow(14px 22px 14px rgba(23, 20, 17, 0.13));
+      }
+      .figure i {
+        position: absolute;
+        border: 1px solid rgba(23, 20, 17, 0.1);
+        background: linear-gradient(120deg, #fff, #d9d4cc);
+      }
+      .figure .h {
+        width: 68px;
+        height: 68px;
+        left: 36px;
+        border-radius: 45% 45% 40% 40%;
+      }
+      .figure .b {
+        top: 58px;
+        left: 25px;
+        width: 92px;
+        height: 104px;
+        border-radius: 45% 45% 20% 20%;
+      }
+      .figure .s {
+        bottom: 14px;
+        left: -6px;
+        width: 150px;
+        height: 18px;
+        border: 0;
+        border-radius: 50%;
+        background: linear-gradient(#f5f3ef, #bdb6ab);
+      }
+      .open {
+        height: 32px;
+        padding: 0 14px;
+        border-radius: 999px;
+        background: #fff;
+        box-shadow: var(--soft);
+      }
+      .views {
+        position: absolute;
+        left: 50%;
+        bottom: 16px;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 2px;
+        padding: 4px;
+        border-radius: 999px;
+        background: #fff;
+        box-shadow: var(--soft);
+      }
+      .views button {
+        white-space: nowrap;
+        height: 28px;
+        padding: 0 12px;
+        border-radius: 999px;
+        color: var(--ink-2);
+      }
+
+      /* A：现在 —— 左边一整列表单 */
+      .form {
+        display: none;
+        width: 280px;
+        flex: none;
+        flex-direction: column;
+        gap: 18px;
+        padding-right: 24px;
+        border-right: 1px solid var(--line);
+        overflow: hidden;
+      }
+      body:not(.b) .form {
+        display: flex;
+      }
+      .form h3 {
+        margin: 0;
+        font-size: 15px;
+        font-weight: 600;
+      }
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .field label {
+        font-size: 11px;
+        color: var(--ink-3);
+      }
+      .select {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 36px;
+        padding: 0 12px;
+        border-radius: 999px;
+        background: var(--fill);
+      }
+      .select.tall {
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: center;
+        height: 52px;
+        border-radius: 12px;
+      }
+      .select.tall small {
+        color: var(--ink-3);
+        font-size: 11px;
+      }
+      .drop {
+        display: grid;
+        place-items: center;
+        height: 92px;
+        border: 1px dashed var(--line);
+        border-radius: 12px;
+        color: var(--ink-2);
+      }
+      .form .foot {
+        margin-top: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding-top: 14px;
+        border-top: 1px solid var(--line);
+      }
+      .form .foot .meta {
+        display: flex;
+        justify-content: space-between;
+        color: var(--ink-3);
+        font-size: 11px;
+      }
+      .go-wide {
+        height: 40px;
+        border-radius: 999px;
+        background: var(--ink);
+        color: #fff;
+        font-weight: 600;
+      }
+
+      /* B：和图像 / 标签 / 视频同一副 —— 预览铺满，下面一张浮起的输入框 */
+      .composer {
+        display: none;
+        flex-direction: column;
+        gap: 14px;
+        padding: 14px 16px 12px;
+        border-radius: 16px;
+        background: var(--panel);
+        box-shadow: var(--card);
+      }
+      body.b .composer {
+        display: flex;
+      }
+      .refs {
+        display: flex;
+        gap: 8px;
+      }
+      .ref {
+        width: 48px;
+        height: 48px;
+        border-radius: 8px;
+        background: var(--fill-strong) center / cover no-repeat;
+      }
+      .composer p {
+        margin: 0;
+        color: var(--ink-3);
+        font-size: 15px;
+        line-height: 1.7;
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+      }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 32px;
+        padding: 0 12px;
+        border-radius: 999px;
+        background: var(--fill);
+        color: var(--ink-2);
+        white-space: nowrap;
+      }
+      .chip.icon {
+        width: 32px;
+        padding: 0;
+        justify-content: center;
+      }
+      .cost {
+        margin-left: auto;
+        color: var(--ink-3);
+        font-family: var(--mono);
+        font-size: 11px;
+      }
+      .go {
+        height: 32px;
+        padding: 0 16px;
+        border-radius: 999px;
+        background: var(--ink);
+        color: #fff;
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="switch" role="toolbar" aria-label="对比开关">
+      <span>3D 台</span>
+      <span class="seg">
+        <button aria-pressed="true" data-v="a">A 现在：左边表单</button>
+        <button aria-pressed="false" data-v="b">B 和其余台同一副</button>
+      </span>
+      <kbd>1 / 2</kbd>
+      <span class="hint">参数一样多，只是放的地方不同</span>
+    </div>
+
+    <div class="board">
+      <aside class="chat">
+        <div class="me">把图_3 那只橘猫做成 3D，要能下载</div>
+        <div>挂上了，参考图就是图_3。用 Rodin，大概 4 分钟。</div>
+      </aside>
+      <main class="bench">
+        <section class="form">
+          <h3>模型设置</h3>
+          <div class="select tall">Rodin Gen-2.5 <small>Hyper3D</small></div>
+          <div class="field">
+            <label>输入模式</label>
+            <div class="select">图生 3D <span>▾</span></div>
+          </div>
+          <div class="field">
+            <label>参考图片</label>
+            <div class="drop">＋ 从素材选择</div>
+          </div>
+          <div class="field">
+            <label>质量</label>
+            <div class="select">High · 0.5 积分 <span>▾</span></div>
+          </div>
+          <div class="field">
+            <label>导出格式</label>
+            <div class="select">GLB <span>▾</span></div>
+          </div>
+          <div>› 高级设置</div>
+          <div class="foot">
+            <div class="meta"><span>预计费用</span><span>0.5 积分</span></div>
+            <div class="meta"><span>约 4 分钟</span></div>
+            <button class="go-wide">生成</button>
+          </div>
+        </section>
+
+        <section class="viewport">
+          <div class="figure"><i class="h"></i><i class="b"></i><i class="s"></i></div>
+          <button class="open">打开已有 3D</button>
+          <div class="views">
+            <button>正面</button><button>侧面</button><button>复位</button>
+          </div>
+        </section>
+
+        <section class="composer">
+          <div class="refs">
+            <div
+              class="ref"
+              style="background-image: url(../home-v6/media/production/quad/quad-gemini-3-pro.webp)"
+            ></div>
+          </div>
+          <p>想做成什么样（可不写）…</p>
+          <div class="row">
+            <button class="chip icon">＋</button>
+            <button class="chip">图生 3D ▾</button>
+            <button class="chip">高级</button>
+            <span class="cost">约 4 分钟 · 0.5 积分</span>
+            <button class="chip">Rodin Gen-2.5 ▾</button>
+            <button class="chip">High · GLB ▾</button>
+            <button class="go">生成</button>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script>
+      const set = (v) => {
+        document.body.classList.toggle('b', v === 'b')
+        document
+          .querySelectorAll('.seg button')
+          .forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === v)))
+      }
+      document.querySelector('.seg').addEventListener('click', (e) => {
+        const b = e.target.closest('button')
+        if (b) set(b.dataset.v)
+      })
+      addEventListener('keydown', (e) => {
+        if (e.key === '1') set('a')
+        if (e.key === '2') set('b')
+      })
+      const q = new URLSearchParams(location.search).get('v')
+      if (q) set(q)
+    </script>
+  </body>
+</html>

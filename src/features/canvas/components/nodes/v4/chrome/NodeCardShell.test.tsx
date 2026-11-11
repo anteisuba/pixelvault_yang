@@ -72,13 +72,13 @@ describe('NodeCardShell', () => {
     ).toContain('text-foreground')
   })
 
-  it('30% 与放大时名字都反向缩放为屏幕 12px，宽度跟卡的屏幕宽度一致', () => {
+  it('30% 与放大时名字都反向缩放为屏幕 13px，宽度跟卡的屏幕宽度一致', () => {
     flowZoom.value = 0.3
     const { container, rerender } = setup()
     const name = container.querySelector('[data-node-card-name]') as HTMLElement
     expect(name.style.transform).toBe(`scale(${1 / 0.3})`)
     expect(name.style.width).toBe('30%')
-    expect(name.className).toContain('text-xs')
+    expect(name.className).toContain('text-2sm')
     expect(name.className).toContain('leading-4')
     expect(name.parentElement?.className).toContain('absolute')
     expect(container.firstElementChild?.getAttribute('style')).toContain(

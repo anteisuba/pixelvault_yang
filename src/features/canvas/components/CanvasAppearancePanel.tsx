@@ -80,7 +80,7 @@ export function CanvasAppearancePanel({
             // CanvasImageSelectionToolbar 的每颗图标钮）：视觉尺寸 36 不动，
             // 触屏下用伪元素上下各撑 4px 补到 44。桌面 fine pointer 走 32/36
             // 底线，本来就合规，所以不加常驻高度。
-            className="relative inline-flex h-9 items-center gap-1.5 rounded-full border border-node-paint/40 bg-node-panel-soft pl-1.5 pr-2.5 text-xs font-semibold text-node-foreground shadow-sm transition-colors hover:border-node-paint hover:bg-node-panel-inner coarse:before:absolute coarse:before:-inset-y-1 coarse:before:inset-x-0 coarse:before:content-['']"
+            className="relative inline-flex h-9 items-center gap-1.5 rounded-full border border-node-paint/40 bg-node-panel-soft pl-1.5 pr-2.5 text-2sm font-semibold text-node-foreground shadow-soft transition-colors hover:border-node-paint hover:tint-hover coarse:before:absolute coarse:before:-inset-y-1 coarse:before:inset-x-0 coarse:before:content-['']"
           >
             <span
               className="relative flex size-6 items-center justify-center overflow-hidden rounded-full border border-node-edge/50 shadow-inner"
@@ -116,11 +116,11 @@ export function CanvasAppearancePanel({
           mobileClassName="space-y-5 pb-5"
         >
           <div className="border-b border-node-paint/20 bg-node-panel-soft/60 px-4 py-3">
-            <p className="flex items-center gap-2 text-sm font-semibold text-node-foreground">
+            <p className="flex items-center gap-2 text-md font-semibold text-node-foreground">
               <Palette className="size-4 text-node-paint" />
               {t('title')}
             </p>
-            <p className="mt-0.5 text-xs leading-5 text-node-muted">
+            <p className="mt-0.5 text-2xs leading-5 text-node-muted">
               {t('description')}
             </p>
           </div>
@@ -132,7 +132,7 @@ export function CanvasAppearancePanel({
             >
               <Label
                 id="canvas-color-label"
-                className="text-xs text-node-muted"
+                className="text-2xs text-node-muted"
               >
                 {t('colorLabel')}
               </Label>
@@ -151,7 +151,7 @@ export function CanvasAppearancePanel({
                         updateAppearance({ backgroundColor: color })
                       }
                       className={cn(
-                        'relative size-9 rounded-full border-2 outline-none transition-transform hover:scale-105 focus-visible:ring-2 focus-visible:ring-node-paint',
+                        'relative size-9 rounded-full border-2 outline-none transition-transform hover:scale-105 focus-visible:shadow-focus',
                         selected
                           ? 'border-node-paint ring-2 ring-node-paint/40'
                           : 'border-node-edge/50',
@@ -195,7 +195,7 @@ export function CanvasAppearancePanel({
               <div className="flex items-center justify-between gap-3">
                 <Label
                   id="canvas-image-label"
-                  className="text-xs text-node-muted"
+                  className="text-2xs text-node-muted"
                 >
                   {t('imageLabel')}
                 </Label>
@@ -205,7 +205,7 @@ export function CanvasAppearancePanel({
                     size="sm"
                     variant="ghost"
                     onClick={() => updateAppearance({ image: undefined })}
-                    className="h-7 rounded-lg px-2 text-2xs text-node-muted hover:bg-node-panel-inner hover:text-node-status-failed"
+                    className="h-7 rounded-lg px-2 text-2xs text-node-muted hover:tint-hover hover:text-node-status-failed"
                   >
                     <Trash2 className="size-3.5" />
                     {t('removeImage')}
@@ -234,7 +234,7 @@ export function CanvasAppearancePanel({
                 type="button"
                 variant="secondary"
                 onClick={() => setAssetDialogOpen(true)}
-                className="h-9 w-full rounded-xl border-node-paint/30 bg-node-panel-soft text-xs text-node-foreground hover:border-node-paint/50 hover:bg-node-panel-inner"
+                className="h-9 w-full rounded-xl border-node-paint/30 bg-node-panel-soft text-2sm text-node-foreground hover:border-node-paint/50 hover:tint-hover"
               >
                 <ImagePlus className="size-4" />
                 {resolved.image ? t('replaceImage') : t('chooseImage')}
@@ -304,7 +304,7 @@ export function CanvasAppearancePanel({
               type="button"
               variant="ghost"
               onClick={() => onChange(undefined)}
-              className="h-8 w-full rounded-xl text-xs text-node-muted hover:bg-node-panel-inner hover:text-node-foreground"
+              className="h-8 w-full rounded-xl text-2sm text-node-muted hover:tint-hover hover:text-node-foreground"
             >
               <RotateCcw className="size-3.5" />
               {t('restoreDefault')}

@@ -249,7 +249,7 @@ function StudioVideoSpecChip({
         ? {
             more: (
               <div className="flex min-h-11 items-center justify-between gap-2">
-                <span className="text-2xs font-medium text-muted-foreground/70">
+                <span className="text-2xs text-muted-foreground/70">
                   {tVideo('generateAudioLabel')}
                 </span>
                 <Switch

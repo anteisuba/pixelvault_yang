@@ -115,11 +115,9 @@ export const StudioCostPreview = memo(function StudioCostPreview({
   return (
     <div className="flex flex-col gap-0.5">
       <div className="flex items-baseline justify-between gap-2 text-2xs">
-        <span className="font-medium text-muted-foreground/70">
-          {t('costLabel')}
-        </span>
+        <span className="text-muted-foreground/70">{t('costLabel')}</span>
         {pricedCount > 0 ? (
-          <span className="font-medium tabular-nums text-foreground">
+          <span className="tabular-nums text-foreground">
             {/* ⭐ 「起」的判据是**有没有加数没进这个和**，不是「有没有未标价的」。
                 台账 M 加了「有区间」这一档之后，只看 `unpricedCount` 会让一个
                 少了加数的和印成等号 —— 正是这行注释原本要防的那个错。 */}

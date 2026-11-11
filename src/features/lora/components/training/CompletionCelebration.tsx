@@ -60,8 +60,9 @@ export function CompletionCelebration({
       role="status"
       aria-live="polite"
       className={cn(
-        // 白卡 + 细边（站内白底中性灰），⛔ 渐变 / 闪光装饰：完成的信号交给绿勾。
-        'relative overflow-hidden rounded-2xl border border-border bg-card p-5',
+        // 柔影白卡（ui-spec §9「助手卡」那一种），训练页上唯一浮起来的东西（小样 6 选 B）；
+        // ⛔ 渐变 / 闪光装饰：完成的信号交给绿勾。
+        'relative overflow-hidden rounded-20 bg-card p-5 shadow-card',
         className,
       )}
     >
@@ -69,7 +70,7 @@ export function CompletionCelebration({
         type="button"
         onClick={onDismiss}
         aria-label={t('completionDismiss')}
-        className="absolute right-3 top-3 rounded-full p-1 text-muted-foreground transition-colors hover:bg-background/60 hover:text-foreground"
+        className="absolute right-3 top-3 rounded-full p-1 text-muted-foreground transition-colors hover:tint-hover hover:text-foreground"
       >
         <span aria-hidden>×</span>
       </button>
@@ -79,14 +80,14 @@ export function CompletionCelebration({
           <CheckCircle2 className="size-5" aria-hidden />
         </div>
         <div className="min-w-0 space-y-1">
-          <h3 className="text-base font-semibold tracking-tight text-foreground">
+          <h3 className="text-md font-semibold text-foreground">
             {t('completionTitle')}
           </h3>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-2sm text-muted-foreground">
             {t('completionBody', { name: job.name })}
           </p>
           {job.triggerWord ? (
-            <p className="rounded-md bg-muted px-2 py-1 text-xs text-foreground">
+            <p className="rounded-md bg-muted px-2 py-1 text-2xs text-foreground">
               {t('completionTriggerHint', { triggerWord: job.triggerWord })}
             </p>
           ) : null}

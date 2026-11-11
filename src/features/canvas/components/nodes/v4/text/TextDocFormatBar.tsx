@@ -35,7 +35,7 @@ export interface TextDocFormatBarProps {
 const CELL_CLASS = cn(
   'flex h-7.5 w-8 shrink-0 items-center justify-center rounded-lg text-2sm font-semibold text-foreground',
   'transition-[background-color,transform] duration-spring-press ease-spring-press active:scale-96',
-  'hover:bg-surface-fill-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+  'hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus',
 )
 
 export function TextDocFormatBar({

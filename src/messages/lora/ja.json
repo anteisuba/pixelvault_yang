@@ -812,7 +812,6 @@
     "presetComingSoonTooltip": "このモデルの学習はまだ利用できません。現在は FLUX-D をお使いください。",
     "presetFooterIdle": "上のプリセットを選ぶとフォームが自動入力されます — 後で上書きも可能。",
     "presetRailTitle": "プリセット",
-    "presetRailSubtitle": "カードを選ぶとフォームを自動入力",
     "historyOutputHint": "学習した LoRA は「マイアセット」に保存されます。ライブラリの「マイ LoRA」から追加して使えます。",
     "presetSelectedLabel": "プリセット：{name}",
     "presetClear": "プリセットを解除",

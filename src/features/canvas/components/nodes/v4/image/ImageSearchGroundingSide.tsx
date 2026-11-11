@@ -61,8 +61,8 @@ export function ImageSearchGroundingSide({
         onClick={onSelect}
         aria-label={t('expand')}
         className={cn(
-          'node-search-fold nodrag nopan absolute top-40 right-full mr-2.5 inline-flex h-6.5 items-center gap-1.25 rounded-full bg-card px-2.5 text-xs whitespace-nowrap text-foreground shadow-card ring-1 ring-border',
-          'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+          'node-search-fold nodrag nopan absolute top-40 right-full mr-2.5 inline-flex h-6.5 items-center gap-1.25 rounded-full bg-card px-2.5 text-2sm whitespace-nowrap text-foreground shadow-card ring-1 ring-border',
+          ' focus-visible:outline-none focus-visible:shadow-focus',
         )}
       >
         <Globe className="size-3.25 text-muted-foreground" aria-hidden />

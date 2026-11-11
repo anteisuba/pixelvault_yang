@@ -260,7 +260,7 @@ export const CompareGrid = memo(function CompareGrid({
               duration: LIQUID_TIMING.swapInS,
               ease: EASE_STANDARD,
             }}
-            className="inline-flex h-7 items-center rounded-full bg-foreground px-3 font-mono text-xs tabular-nums text-background"
+            className="inline-flex h-7 items-center rounded-full bg-foreground px-3 font-mono text-2xs tabular-nums text-background"
           >
             <BlurSwap swapKey={String(doneCount)}>
               {tOperator('result.generating', {
@@ -284,7 +284,7 @@ export const CompareGrid = memo(function CompareGrid({
         </div>
       )}
       <div
-        className="studio-result-row flex flex-col gap-5"
+        className="studio-result-row flex flex-col gap-7"
         role="listbox"
         aria-label={t('variantSelectWinner')}
       >
@@ -295,11 +295,11 @@ export const CompareGrid = memo(function CompareGrid({
           const takes = row.items.length
 
           return (
-            <div key={row.modelId} className="flex flex-col gap-2">
+            <div key={row.modelId} className="flex flex-col gap-2.5">
               {/* 行首条：模型名长在图外面。旧版把它做成压在图上的徽章，
                   那正是右上角三按钮相撞的另一半原因。 */}
               <div className="flex items-center gap-2.5">
-                <span className="text-sm font-medium text-foreground">
+                <span className="text-md font-semibold text-foreground">
                   {modelLabel}
                 </span>
                 {takes > 1 ? (
@@ -316,7 +316,7 @@ export const CompareGrid = memo(function CompareGrid({
                   各自长宽比推」的横排（`--studio-tile-h`），在 375 宽的手机上
                   一行只放得下一张。src/styles/studio.css 里那条 `<1024` 的媒体查询把它换成
                   真栅格（<640 两列 / 640–1023 三列），桌面 ≥1024 一个像素不变。 */}
-              <div className="studio-result-tiles flex flex-wrap items-start gap-3">
+              <div className="studio-result-tiles flex flex-wrap items-start gap-4">
                 {row.items.map((item, takeIndex) => {
                   const isCompleted =
                     item.status === 'completed' && item.generation != null
@@ -444,7 +444,7 @@ export const CompareGrid = memo(function CompareGrid({
                       {item.status === 'cancelled' && (
                         <div className="flex size-full flex-col items-center justify-center gap-2 px-4 text-muted-foreground">
                           <Ban className="size-5 text-muted-foreground/60" />
-                          <p className="text-center text-xs">
+                          <p className="text-center text-2xs">
                             {tCancel('cancelled')}
                           </p>
                         </div>
@@ -554,7 +554,7 @@ export const CompareGrid = memo(function CompareGrid({
           className="studio-touch-actions sticky bottom-0 z-20 mt-4 flex flex-wrap items-center gap-2 border-t border-border/60 bg-background/95 py-3 backdrop-blur-sm"
         >
           <div className="mr-auto flex min-w-0 items-center gap-2.5">
-            <span className="truncate text-sm font-medium">
+            <span className="truncate text-2sm font-semibold">
               {isBuiltInModel(focusedGeneration.model)
                 ? tModels(
                     `${getModelMessageKey(focusedGeneration.model)}.label`,

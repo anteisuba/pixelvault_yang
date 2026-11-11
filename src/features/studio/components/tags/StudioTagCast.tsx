@@ -67,7 +67,7 @@ import {
  */
 
 const ghostClass =
-  'inline-flex h-7 shrink-0 items-center gap-1 rounded-full px-2.5 text-2xs text-muted-foreground transition-colors duration-fast ease-standard hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50'
+  'inline-flex h-7 shrink-0 items-center gap-1 rounded-full px-2.5 text-2xs text-muted-foreground transition-colors duration-fast ease-standard hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none disabled:opacity-50'
 const pillClass = cn(studioOutlineChipClass, 'h-7 gap-1 px-2.5 text-2xs')
 const fieldClass =
   'flex h-8 min-w-0 max-w-xl flex-1 items-center gap-1.5 rounded-lg bg-muted px-3'
@@ -93,7 +93,7 @@ function CastRow({
   if (mobile) {
     return (
       <div className="flex flex-col gap-1.5">
-        {label ? <span className="text-sm font-medium">{label}</span> : null}
+        {label ? <span className="text-md font-semibold">{label}</span> : null}
         <div className="flex min-w-0 flex-wrap items-center gap-1.5">
           {children}
         </div>
@@ -121,14 +121,14 @@ function TextCount({ mobile = false }: { mobile?: boolean }) {
     >
       <span
         className={cn(
-          'font-mono text-3xs tabular-nums',
+          'font-mono text-2xs tabular-nums',
           problem ? 'font-semibold text-destructive' : 'text-muted-foreground',
         )}
       >
         {t('textCount', { count: plan.length, max: maxChars })}
       </span>
       {problem?.kind === 'latinOnly' ? (
-        <span className="text-3xs text-destructive">{t('latinOnly')}</span>
+        <span className="text-2xs text-destructive">{t('latinOnly')}</span>
       ) : null}
     </span>
   )
@@ -184,18 +184,16 @@ function InteractionPicker({
                 onPick(preset.tag, 'mutual' in preset && preset.mutual)
               }
               className={cn(
-                'flex min-h-11 min-w-0 flex-col items-start justify-center gap-0.5 rounded-lg border px-2.5 py-1.5 text-left transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:min-h-0',
+                'flex min-h-11 min-w-0 flex-col items-start justify-center gap-0.5 rounded-lg border px-2.5 py-1.5 text-left transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:shadow-focus lg:min-h-0',
                 selected
                   ? 'border-foreground ring-3 ring-muted'
                   : 'border-border hover:border-foreground/40',
               )}
             >
-              <span className="text-2xs font-medium">
-                {t(`actions.${preset.key}`)}
-              </span>
+              <span className="text-2xs">{t(`actions.${preset.key}`)}</span>
               <span
                 title={preset.tag}
-                className="max-w-full truncate font-mono text-3xs text-muted-foreground"
+                className="max-w-full truncate font-mono text-2xs text-muted-foreground"
               >
                 {preset.tag}
               </span>
@@ -292,7 +290,7 @@ function InteractionChip({
             type="button"
             disabled={disabled}
             data-interaction-slot={slot}
-            className="inline-flex items-center gap-1.5 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-full focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none disabled:opacity-50"
           >
             <span className={cn(pillClass, open && studioOutlineChipOpenClass)}>
               <Hand className="size-3.5 text-muted-foreground" aria-hidden />
@@ -368,7 +366,7 @@ function InteractionChip({
         disabled={disabled}
         aria-label={t('removeInteraction', { action: label })}
         onClick={onRemove}
-        className="touch-target-y grid size-6 place-items-center rounded-full text-muted-foreground transition-colors duration-fast ease-standard hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+        className="touch-target-y grid size-6 place-items-center rounded-full text-muted-foreground transition-colors duration-fast ease-standard hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus disabled:opacity-50"
       >
         <X className="size-3" aria-hidden />
       </button>
@@ -508,7 +506,7 @@ export function StudioTagCharacterExtras({
               <button
                 type="button"
                 onClick={() => c.select(item.from)}
-                className="underline underline-offset-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="underline underline-offset-2 hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus"
               >
                 {t('editOn', { who: t('who', { number: item.from + 1 }) })}
               </button>
@@ -704,7 +702,7 @@ export function StudioTagSceneTexts({
             disabled={disabled}
             aria-label={t('removeSceneText')}
             onClick={() => write(items.filter((_, i) => i !== slot))}
-            className="touch-target-y grid size-6 place-items-center rounded-full text-muted-foreground transition-colors duration-fast ease-standard hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+            className="touch-target-y grid size-6 place-items-center rounded-full text-muted-foreground transition-colors duration-fast ease-standard hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus disabled:opacity-50"
           >
             <X className="size-3" aria-hidden />
           </button>
@@ -753,9 +751,9 @@ function HintRow({
 }
 
 const hintActionClass =
-  'h-6 rounded-full bg-foreground px-2.5 text-2xs font-medium text-background transition-opacity duration-fast ease-standard hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+  'h-6 rounded-full bg-foreground px-2.5 text-2xs font-semibold text-background transition-opacity duration-fast ease-standard hover:opacity-90 focus-visible:outline-none focus-visible:shadow-focus'
 const hintQuietClass =
-  'h-6 rounded-full px-2 text-2xs hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+  'h-6 rounded-full px-2 text-2xs hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus'
 
 /**
  * 人数提示，挂在正向标签正下方：整体页 = ≥2 人而还写着 `1girl` / `solo` 这类单人

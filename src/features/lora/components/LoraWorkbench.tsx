@@ -480,7 +480,7 @@ export function LoraWorkbench() {
                   onClick={() =>
                     setActiveSection(DEFAULT_LORA_WORKBENCH_SECTION)
                   }
-                  className="inline-flex h-8 items-center gap-1 rounded-full pr-3 pl-2 text-2sm font-medium text-foreground transition-colors duration-fast hover:bg-muted focus-visible:outline-none focus-visible:shadow-focus"
+                  className="inline-flex h-8 items-center gap-1 rounded-full pr-3 pl-2 text-2sm text-foreground transition-colors duration-fast hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus"
                 >
                   <ChevronLeft className="size-4" aria-hidden />
                   {t('trainTitle')}
@@ -2652,7 +2652,7 @@ function GenerateBranch({
         type="button"
         aria-expanded={advancedOpen}
         onClick={() => setAdvancedOpen((open) => !open)}
-        className="flex w-full items-center gap-2 py-1 text-left text-xs font-medium text-foreground"
+        className="flex w-full items-center gap-2 py-1 text-left text-2xs text-foreground"
       >
         {/* CD 装配栏参数行：图标 + 生效值摘要（1024×1360 · Steps 30 · CFG 7 ·
             采样器）+ 收合角标——不再挂「Runner 参数」标题，值本身就是标题；缺省
@@ -2693,7 +2693,7 @@ function GenerateBranch({
 
             {/* 窄栏 reflow：单列堆叠（原 sm:grid-cols-2 lg:grid-cols-4）。 */}
             <div className="grid grid-cols-1 gap-2">
-              <label className="space-y-1 text-2xs font-medium text-muted-foreground">
+              <label className="space-y-1 text-2xs text-muted-foreground">
                 <span>{t('generate.advanced.seed')}</span>
                 <div className="flex gap-1.5">
                   <Input
@@ -2724,7 +2724,7 @@ function GenerateBranch({
                 </div>
               </label>
 
-              <label className="space-y-1 text-2xs font-medium text-muted-foreground">
+              <label className="space-y-1 text-2xs text-muted-foreground">
                 <span>{t('generate.advanced.steps')}</span>
                 {/* CD：well 内滑杆。滑杆负责快调，数字框保留精确输入（也是
                     「手改参数进请求」那条测试的抓手）。留空=底模默认，此时滑杆
@@ -2754,7 +2754,7 @@ function GenerateBranch({
                 </div>
               </label>
 
-              <label className="space-y-1 text-2xs font-medium text-muted-foreground">
+              <label className="space-y-1 text-2xs text-muted-foreground">
                 <span>{t('generate.advanced.cfg')}</span>
                 <div className="flex items-center gap-2">
                   <Slider
@@ -2781,7 +2781,7 @@ function GenerateBranch({
                 </div>
               </label>
 
-              <label className="space-y-1 text-2xs font-medium text-muted-foreground">
+              <label className="space-y-1 text-2xs text-muted-foreground">
                 <span>{t('generate.advanced.sampler')}</span>
                 <Select
                   value={runnerSampler || RUNNER_DEFAULT_SELECT_VALUE}
@@ -2810,7 +2810,7 @@ function GenerateBranch({
                 </Select>
               </label>
 
-              <label className="space-y-1 text-2xs font-medium text-muted-foreground">
+              <label className="space-y-1 text-2xs text-muted-foreground">
                 <span>{t('generate.advanced.scheduler')}</span>
                 <Select
                   value={runnerScheduler || RUNNER_DEFAULT_SELECT_VALUE}
@@ -2840,7 +2840,7 @@ function GenerateBranch({
               </label>
 
               <div className="grid grid-cols-2 gap-2">
-                <label className="space-y-1 text-2xs font-medium text-muted-foreground">
+                <label className="space-y-1 text-2xs text-muted-foreground">
                   <span>{t('generate.advanced.width')}</span>
                   <Input
                     type="number"
@@ -2855,7 +2855,7 @@ function GenerateBranch({
                   />
                 </label>
 
-                <label className="space-y-1 text-2xs font-medium text-muted-foreground">
+                <label className="space-y-1 text-2xs text-muted-foreground">
                   <span>{t('generate.advanced.height')}</span>
                   <Input
                     type="number"
@@ -2889,7 +2889,7 @@ function GenerateBranch({
             <div className="rounded-lg border border-border p-2.5">
               <div className="flex flex-col gap-2">
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs font-medium text-foreground">
+                  <p className="text-2xs text-foreground">
                     {t('generate.advanced.postprocess')}
                   </p>
                   <p className="text-2xs text-muted-foreground">
@@ -3050,7 +3050,7 @@ function GenerateBranch({
   const mobileGenerateFailure =
     isMobile && generateError ? (
       <div className="w-full space-y-2 rounded-lg border border-status-risk/40 bg-status-risk-surface p-3 text-left">
-        <p className="flex items-start gap-1.5 text-xs text-destructive">
+        <p className="flex items-start gap-1.5 text-2xs text-destructive">
           <AlertCircle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
           <span className="min-w-0">{generateError}</span>
         </p>
@@ -3063,7 +3063,7 @@ function GenerateBranch({
           type="button"
           variant="secondary"
           size="sm"
-          className="h-11 w-full text-sm"
+          className="h-11 w-full text-2sm"
           disabled={!canGenerate}
           onClick={() => handleGenerateClick()}
         >
@@ -3172,7 +3172,7 @@ function GenerateBranch({
           <DialogClose asChild>
             <button
               type="button"
-              className="absolute right-3 top-3 z-10 inline-flex h-10 items-center gap-1.5 rounded-full border border-white/15 bg-black/70 px-3 text-sm font-medium text-white shadow-lg backdrop-blur-md transition-colors hover:bg-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-black sm:hidden"
+              className="absolute right-3 top-3 z-10 inline-flex h-10 items-center gap-1.5 rounded-full border border-white/15 bg-black/70 px-3 text-2sm text-white shadow-media-action backdrop-blur-md transition-colors hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus sm:hidden"
               aria-label={t('coverPreviewBack')}
             >
               <ChevronLeft className="size-4" aria-hidden />
@@ -3375,7 +3375,7 @@ function GenerateBranch({
                         onFillPrompt={setPrompt}
                       />
                     ) : (
-                      <p className="rounded-lg border border-dashed border-border/60 px-3 py-6 text-center text-xs text-muted-foreground">
+                      <p className="rounded-lg border border-dashed border-border/60 px-3 py-6 text-center text-2xs text-muted-foreground">
                         {t('generate.recommendEmpty')}
                       </p>
                     )
@@ -3423,7 +3423,7 @@ function GenerateBranch({
                       descriptionText={mined.descriptionText}
                     />
                   ) : !hasLora ? null : ( // 来源区留空 + 锁高 grid-rows auto 让 row1 收拢，composer 得更多高。 // 不再重复「去库添加」banner（与侧边栏重复，owner 2026-07-25）。 // 无 LoRA 时来源区留空——「＋添加 LoRA」入口已在左装配栏，中栏
-                    <p className="rounded-lg border border-dashed border-border/60 px-3 py-6 text-center text-xs text-muted-foreground">
+                    <p className="rounded-lg border border-dashed border-border/60 px-3 py-6 text-center text-2xs text-muted-foreground">
                       {t('generate.recommendEmpty')}
                     </p>
                   )}
@@ -3534,7 +3534,7 @@ function GenerateBranch({
                     // 的 `--ink-3`。
                     <div className="flex size-full flex-col items-center justify-center gap-2 p-3 text-center">
                       {mobileGenerateFailure ?? (
-                        <p className="text-xs text-muted-foreground/60">
+                        <p className="text-2xs text-muted-foreground/60">
                           {t('generate.resultEmptyHint')}
                         </p>
                       )}
@@ -3584,7 +3584,7 @@ function GenerateBranch({
                       onClick={() =>
                         handleAskAssistantAboutResult(displayedResultUrl)
                       }
-                      className="absolute right-2 top-2 z-10 flex size-7 items-center justify-center rounded-full bg-background/80 text-muted-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-background hover:text-primary focus-visible:bg-background focus-visible:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                      className="absolute right-2 top-2 z-10 flex size-7 items-center justify-center rounded-full bg-background/80 text-muted-foreground shadow-media-action backdrop-blur-sm transition-colors hover:tint-hover hover:text-primary focus-visible:bg-background focus-visible:text-primary focus-visible:outline-none focus-visible:shadow-focus"
                     >
                       <Bot className="size-3.5" aria-hidden />
                     </button>
@@ -3599,7 +3599,7 @@ function GenerateBranch({
                   <p
                     data-testid="lora-generating-eta"
                     role="status"
-                    className="animate-in fade-in-0 text-center text-xs text-muted-foreground duration-base ease-standard motion-reduce:animate-none"
+                    className="animate-in fade-in-0 text-center text-2xs text-muted-foreground duration-base ease-standard motion-reduce:animate-none"
                   >
                     {isRunnerColdStart
                       ? t(
@@ -3668,7 +3668,7 @@ function GenerateBranch({
                           )}
                           style={{ backgroundImage: `url(${item.url})` }}
                         >
-                          <span className="absolute inset-x-0 bottom-0 truncate bg-black/55 px-1 py-0.5 text-left text-3xs leading-tight text-white/90">
+                          <span className="absolute inset-x-0 bottom-0 truncate bg-black/55 px-1 py-0.5 text-left text-2xs leading-tight text-white/90">
                             {item.scale != null
                               ? `s${item.scale.toFixed(2)}`
                               : ''}
@@ -3700,7 +3700,7 @@ function GenerateBranch({
               className="lora-composer shrink-0 space-y-2.5 border-t border-border px-2.5 py-2.5 lg:px-4 lg:py-3"
             >
               {isMountingExtras && (
-                <p role="status" className="text-sm text-muted-foreground">
+                <p role="status" className="text-2sm text-muted-foreground">
                   {t('sourceRecipeMounting')}
                 </p>
               )}
@@ -3721,7 +3721,7 @@ function GenerateBranch({
                     <span className="text-2xs text-muted-foreground">
                       {t('spine.baseModel')}
                     </span>
-                    <span className="truncate text-sm font-semibold text-foreground">
+                    <span className="truncate text-md font-semibold text-foreground">
                       {selectedBase
                         ? selectedBase.translationKey
                           ? t(`spine.${selectedBase.translationKey}`)
@@ -3821,7 +3821,7 @@ function GenerateBranch({
                     // `.lora-prompt-input`（lora.css）：field-sizing: content 让它
                     // 跟着内容从一行长到约 4 行封顶，超过封顶内部滚动——不用 JS 量
                     // 高度，`field-sizing` 不支持的浏览器退回单行高度（不会更糟）。
-                    className="lora-prompt-layout lora-prompt-input relative block w-full resize-none bg-transparent text-base leading-relaxed text-foreground outline-none placeholder:text-muted-foreground md:text-sm"
+                    className="lora-prompt-layout lora-prompt-input relative block w-full resize-none bg-transparent text-base leading-relaxed text-foreground outline-none placeholder:text-muted-foreground md:text-md md:leading-reading"
                   />
                   <PromptTagAutocomplete
                     textareaRef={promptTextareaRef}
@@ -3939,7 +3939,7 @@ function GenerateBranch({
                 固定钉底的输入条，多一行文字在窄屏会把它顶出卡/视口。 */}
               {/* S2精修①-B：Runner 高级参数已迁到左装配栏（runnerParamsPanel）。 */}
               {generateError ? (
-                <p role="alert" className="text-xs text-destructive">
+                <p role="alert" className="text-2xs text-destructive">
                   {generateError}
                 </p>
               ) : null}
@@ -4027,7 +4027,7 @@ function GenerateBranch({
         descriptionText={mined.descriptionText}
       />
     ) : (
-      <p className="pb-1 text-xs text-muted-foreground">
+      <p className="pb-1 text-2xs text-muted-foreground">
         {t('generate.band.empty')}
       </p>
     )
@@ -4042,7 +4042,7 @@ function GenerateBranch({
     runnerDimensionError === null
   const exactSizeFields = isRunnerBase ? (
     <div className="flex flex-col gap-1.5">
-      <span className="text-2xs font-medium text-muted-foreground/70">
+      <span className="text-2xs text-muted-foreground/70">
         {t('generate.exactSizeLabel')}
       </span>
       <div className="flex items-center gap-2">
@@ -4055,7 +4055,7 @@ function GenerateBranch({
           onChange={(event) => setRunnerWidth(event.target.value)}
           placeholder={String(previewDimensions.width)}
           aria-label={t('generate.advanced.width')}
-          className="h-8 w-24 border-border bg-transparent font-mono text-xs tabular-nums"
+          className="h-8 w-24 border-border bg-transparent font-mono text-2sm tabular-nums"
         />
         <span aria-hidden className="text-muted-foreground">
           ×
@@ -4069,15 +4069,15 @@ function GenerateBranch({
           onChange={(event) => setRunnerHeight(event.target.value)}
           placeholder={String(previewDimensions.height)}
           aria-label={t('generate.advanced.height')}
-          className="h-8 w-24 border-border bg-transparent font-mono text-xs tabular-nums"
+          className="h-8 w-24 border-border bg-transparent font-mono text-2sm tabular-nums"
         />
       </div>
       {runnerDimensionError ? (
-        <p role="alert" className="text-xs text-status-risk">
+        <p role="alert" className="text-2xs text-status-risk">
           {runnerDimensionError}
         </p>
       ) : (
-        <p className="text-xs text-muted-foreground">
+        <p className="text-2xs text-muted-foreground">
           {t('generate.exactSizeHint', {
             max: selectedBase?.family === 'anima-dit' ? 1536 : 2048,
           })}
@@ -4137,7 +4137,7 @@ function GenerateBranch({
       <section
         ref={stageRightRef}
         aria-label={t('stageLabel')}
-        className="relative flex min-h-0 flex-1 flex-col"
+        className="relative flex min-h-0 flex-1 flex-col lg:mb-4"
       >
         <LoraResultStage
           round={resultRound}
@@ -4273,7 +4273,7 @@ function GenerateBranch({
               : undefined
           }
           className={cn(
-            '@container/composer relative flex shrink-0 flex-col gap-2.5 rounded-16 border border-border bg-card px-3.5 pt-3 pb-3 transition-[border-color] duration-fast',
+            '@container/composer relative flex shrink-0 flex-col gap-2.5 rounded-16 border border-transparent bg-card px-3.5 pt-3 pb-3 shadow-card transition-[border-color] duration-fast',
             composerExpanded && 'border-foreground/40',
             referencesSupported &&
               imageUpload.isDragging &&
@@ -4288,7 +4288,7 @@ function GenerateBranch({
           />
           {runnerBudgetBlocked ? runnerBudgetNote : null}
           {isMountingExtras ? (
-            <p role="status" className="text-xs text-muted-foreground">
+            <p role="status" className="text-2xs text-muted-foreground">
               {t('sourceRecipeMounting')}
             </p>
           ) : null}
@@ -4367,7 +4367,7 @@ function GenerateBranch({
               {imageUpload.isUploading ? (
                 <p
                   role="status"
-                  className="flex items-center gap-2 text-xs text-muted-foreground"
+                  className="flex items-center gap-2 text-2xs text-muted-foreground"
                 >
                   <Spinner aria-hidden="true" className="size-3.5 shrink-0" />
                   {tImageUpload('uploading')}
@@ -4391,7 +4391,7 @@ function GenerateBranch({
               text={prompt}
               phrases={triggerHighlightPhrases}
               backdropRef={promptBackdropRef}
-              className="text-md leading-6 md:text-md"
+              className="text-md leading-reading md:text-md md:leading-reading"
             />
             <textarea
               id="lora-prompt"
@@ -4415,10 +4415,10 @@ function GenerateBranch({
               placeholder={t('generate.promptPlaceholder')}
               rows={2}
               className={cn(
-                'lora-prompt-layout lora-prompt-slim relative block min-h-15 w-full resize-none bg-transparent text-md leading-6 text-foreground outline-none field-sizing-content placeholder:text-muted-foreground/70',
+                'lora-prompt-layout lora-prompt-slim relative block min-h-16 w-full resize-none bg-transparent text-md leading-reading text-foreground outline-none field-sizing-content placeholder:text-muted-foreground/70',
                 composerExpanded
-                  ? 'max-h-27 overflow-y-auto'
-                  : 'max-h-15 cursor-text overflow-y-hidden',
+                  ? 'max-h-28.5 overflow-y-auto'
+                  : 'max-h-16 cursor-text overflow-y-hidden',
               )}
             />
             <PromptTagAutocomplete
@@ -4438,7 +4438,7 @@ function GenerateBranch({
             }
           >
             <div inert={missingTriggers.length === 0 || !composerExpanded}>
-              <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-xs">
+              <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-2xs">
                 <span className="mr-0.5 text-muted-foreground">
                   {t('spine.triggerWords')}
                 </span>
@@ -4453,7 +4453,7 @@ function GenerateBranch({
                     title={t('generate.triggerAdd', {
                       word: entry.triggerWord,
                     })}
-                    className="inline-flex h-6.5 min-w-0 max-w-64 items-center gap-1 rounded-full border border-dashed border-foreground/25 px-2.5 text-muted-foreground transition-colors duration-fast hover:border-foreground/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="inline-flex h-7 min-w-0 max-w-64 items-center gap-1 rounded-full border border-dashed border-foreground/25 px-2.5 text-muted-foreground transition-colors duration-fast hover:border-foreground/50 hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus"
                   >
                     <Plus className="size-3 shrink-0" aria-hidden />
                     <span className="truncate font-mono">
@@ -4474,7 +4474,7 @@ function GenerateBranch({
               <div className="flex items-start gap-2.5 rounded-xl border border-border/60 bg-muted/30 px-2.5 py-2">
                 <label
                   htmlFor="lora-negative-prompt"
-                  className="shrink-0 pt-0.5 text-2xs font-medium text-muted-foreground"
+                  className="shrink-0 pt-0.5 text-2xs text-muted-foreground"
                 >
                   {t('generate.negativePromptLabel')}
                 </label>
@@ -4513,7 +4513,7 @@ function GenerateBranch({
                     negativePromptTextareaRef.current?.focus(),
                   )
                 }}
-                className="flex h-5.5 w-full min-w-0 cursor-text items-center gap-2.5 text-left text-2sm whitespace-nowrap text-muted-foreground"
+                className="flex h-6 w-full min-w-0 cursor-text items-center gap-2.5 text-left text-2sm whitespace-nowrap text-muted-foreground"
               >
                 <span className="shrink-0 font-semibold text-foreground/70">
                   {t('generate.negativeShort')}
@@ -4786,7 +4786,7 @@ function LoraSpineBar({
           onClick={onToggleCollapsed}
           aria-label={t('spine.expandAssembly')}
           title={t('spine.expandAssembly')}
-          className="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:tint-hover hover:text-foreground"
         >
           <PanelLeftOpen className="size-4" aria-hidden />
         </button>
@@ -4877,7 +4877,7 @@ function LoraSpineBar({
         >
           <Plus className="size-4" aria-hidden />
         </button>
-        <span className="text-center text-3xs leading-tight text-muted-foreground">
+        <span className="text-center text-2xs leading-tight text-muted-foreground">
           {t('spine.mountedCount', { count: stack.items.length })}
         </span>
       </div>
@@ -4895,7 +4895,7 @@ function LoraSpineBar({
       {/* CD 装配栏：面板标题（「装配栏」）+ 折叠开关同行；下面按 底模 → LoRA 栈 →
           添加 → 触发词 的顺序（先定底模·再挂 LoRA）。 */}
       <div className="flex w-full items-center gap-2">
-        <span className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
+        <span className="text-2xs uppercase tracking-wide text-muted-foreground">
           {t('spine.assemblyTitle')}
         </span>
         <button
@@ -4903,7 +4903,7 @@ function LoraSpineBar({
           onClick={onToggleCollapsed}
           aria-label={t('spine.collapseAssembly')}
           title={t('spine.collapseAssembly')}
-          className="-mr-1 ml-auto flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="-mr-1 ml-auto flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:tint-hover hover:text-foreground"
         >
           <PanelLeftClose className="size-3.5" aria-hidden />
         </button>
@@ -4941,7 +4941,7 @@ function LoraSpineBar({
             <span className="min-w-0 flex-1">
               {selectedBase ? (
                 <>
-                  <span className="block truncate text-xs font-semibold text-foreground">
+                  <span className="block truncate text-2xs font-semibold text-foreground">
                     {baseDisplayName(selectedBase)}
                   </span>
                   {/* CD：族 · 通道合成一行 meta。300px 窄栏放不下「Runner · 唯一
@@ -4954,7 +4954,7 @@ function LoraSpineBar({
                   </span>
                 </>
               ) : (
-                <span className="text-xs text-muted-foreground">
+                <span className="text-2xs text-muted-foreground">
                   {t('spine.baseModelPending')}
                 </span>
               )}
@@ -4968,7 +4968,7 @@ function LoraSpineBar({
             <button
               type="button"
               onClick={onRequestKeySetup}
-              className="inline-flex items-center gap-1 rounded-full border border-status-warning/40 bg-status-warning-surface px-2 py-1 text-2xs font-medium text-status-warning transition-colors hover:bg-status-warning-surface"
+              className="inline-flex items-center gap-1 rounded-full border border-status-warning/40 bg-status-warning-surface px-2 py-1 text-2xs text-status-warning transition-colors hover:tint-hover"
             >
               <Key className="size-3" aria-hidden />
               {tSetup('needsKey')}
@@ -4976,7 +4976,7 @@ function LoraSpineBar({
           ) : null}
         </>
       ) : (
-        <span className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-border/60 px-2.5 py-1 text-xs text-muted-foreground">
+        <span className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-border/60 px-2.5 py-1 text-2xs text-muted-foreground">
           {t('spine.baseModelPending')}
         </span>
       )}
@@ -5110,7 +5110,7 @@ function LoraSpineBar({
                 {/* B10-8：长名（Civitai 全名带 | 段）截断，全名进 title；停用划删。 */}
                 <span
                   className={cn(
-                    'min-w-0 flex-1 truncate text-xs font-medium',
+                    'min-w-0 flex-1 truncate text-2xs',
                     enabled
                       ? 'text-foreground'
                       : 'text-muted-foreground line-through',
@@ -5146,7 +5146,7 @@ function LoraSpineBar({
                   type="button"
                   onClick={() => stack.remove(item.asset.id)}
                   aria-label={t('spine.removeLora', { name: item.asset.name })}
-                  className="inline-flex size-5 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  className="inline-flex size-5 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:tint-hover hover:text-foreground"
                 >
                   <X className="size-3.5" aria-hidden />
                 </button>
@@ -5179,7 +5179,7 @@ function LoraSpineBar({
           )
         })
       ) : (
-        <span className="text-xs text-muted-foreground">
+        <span className="text-2xs text-muted-foreground">
           {t('spine.empty')}
         </span>
       )}
@@ -5190,7 +5190,7 @@ function LoraSpineBar({
         <button
           type="button"
           onClick={onAddLora}
-          className="flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg border border-dashed border-border/60 py-2.5 text-xs text-muted-foreground transition-colors hover:border-border hover:text-foreground"
+          className="flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg border border-dashed border-border/60 py-2.5 text-2xs text-muted-foreground transition-colors hover:border-border hover:text-foreground"
         >
           <Plus className="size-3.5" aria-hidden />
           {t('spine.addLoraFull')}
@@ -5198,7 +5198,7 @@ function LoraSpineBar({
         <button
           type="button"
           onClick={onPickFromCharacter}
-          className="flex shrink-0 items-center justify-center gap-1.5 rounded-lg border border-dashed border-border/60 px-3 py-2.5 text-xs text-muted-foreground transition-colors hover:border-border hover:text-foreground"
+          className="flex shrink-0 items-center justify-center gap-1.5 rounded-lg border border-dashed border-border/60 px-3 py-2.5 text-2xs text-muted-foreground transition-colors hover:border-border hover:text-foreground"
         >
           <User className="size-3.5" aria-hidden />
           {t('characterLoras.pickEntry')}
@@ -5227,7 +5227,7 @@ function LoraSpineBar({
                   })}
                   title={entry.name}
                   className={cn(
-                    'inline-flex items-center gap-1 rounded-full border px-2 py-1 font-mono text-2xs font-medium transition-colors',
+                    'inline-flex items-center gap-1 rounded-full border px-2 py-1 font-mono text-2xs transition-colors',
                     isDisabled
                       ? 'border-dashed border-border text-muted-foreground/60 line-through'
                       : 'border-primary/25 bg-primary/10 text-foreground hover:border-primary/40',
@@ -5292,7 +5292,7 @@ function LoraOftenMountedWithRow({
         return (
           <span key={key} className="inline-flex items-center gap-1">
             {idx > 0 ? <span aria-hidden>·</span> : null}
-            <span className="font-medium text-foreground/80">
+            <span className=" text-foreground/80">
               {extraLoraLabel(extra)} ×{count}
             </span>
             {status === 'mounted' ? (
@@ -5476,7 +5476,7 @@ function MyLoraBranch({
             {activeOriginalCount === 0 ? (
               <EmptyHint text={t(activeSectionEmptyKey)} />
             ) : activeAssets.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-border/60 bg-card/30 px-6 py-10 text-center text-sm text-muted-foreground">
+              <div className="rounded-2xl border border-dashed border-border/60 bg-card/30 px-6 py-10 text-center text-2sm text-muted-foreground">
                 {t('myLorasSearchEmpty', { query: query.trim() })}
               </div>
             ) : (
@@ -5550,14 +5550,14 @@ function RecommendFavoritesRow({
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2.5">
-        <span className="text-xs text-muted-foreground">
+        <span className="text-2xs text-muted-foreground">
           {t('recommendFavoriteTitle')}
         </span>
         <span className="h-px flex-1 bg-border/60" aria-hidden />
         <button
           type="button"
           onClick={() => onSwitchSection(LORA_WORKBENCH_SECTIONS.COMMUNITY)}
-          className="inline-flex shrink-0 items-center gap-0.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+          className="inline-flex shrink-0 items-center gap-0.5 text-2xs text-muted-foreground transition-colors hover:text-foreground"
         >
           {t('recommendFavoriteGoLibrary')}
           <ArrowUpRight className="size-3" aria-hidden />
@@ -5669,9 +5669,9 @@ function SectionToggleButton({
       aria-selected={active}
       onClick={onClick}
       className={cn(
-        'group inline-flex h-8 items-center gap-2 rounded-full px-4 text-sm font-medium transition-colors',
+        'group inline-flex h-8 items-center gap-2 rounded-full px-4 text-2sm transition-colors',
         active
-          ? 'bg-background text-foreground shadow-sm'
+          ? 'bg-raise text-foreground shadow-seg'
           : 'text-muted-foreground hover:text-foreground',
       )}
     >
@@ -5706,14 +5706,14 @@ function MineHeader({ totalCount, isLoading, onRefresh }: MineHeaderProps) {
             {t('myLorasTitle')}
           </h2>
           {!isLoading && totalCount > 0 ? (
-            <span className="text-sm tabular-nums text-muted-foreground">
+            <span className="text-2sm tabular-nums text-muted-foreground">
               {totalCount}
             </span>
           ) : null}
         </div>
         {/* Subtitle hidden on mobile — title is self-explanatory and we
             want the cards above the fold. */}
-        <p className="hidden text-sm text-muted-foreground sm:block">
+        <p className="hidden text-2sm text-muted-foreground sm:block">
           {t('myLorasSubtitle')}
         </p>
       </div>
@@ -5765,7 +5765,7 @@ function MineToolbar({
           <button
             type="button"
             onClick={() => onQueryChange('')}
-            className="absolute right-2 top-1/2 inline-flex size-5 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="absolute right-2 top-1/2 inline-flex size-5 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:tint-hover hover:text-foreground"
             aria-label={t('clearSearch')}
           >
             <X className="size-3" aria-hidden />
@@ -5804,10 +5804,10 @@ function ErrorBlock({ error, onRetry }: ErrorBlockProps) {
         aria-hidden
       />
       <div className="min-w-0 flex-1 space-y-0.5">
-        <p className="text-sm font-medium text-foreground">
+        <p className="text-md font-semibold text-foreground">
           {t('myLorasErrorTitle')}
         </p>
-        <p className="text-xs text-muted-foreground">{error}</p>
+        <p className="text-2xs text-muted-foreground">{error}</p>
       </div>
       <Button
         type="button"
@@ -5912,7 +5912,7 @@ function EmptyHint({ text }: { text: string }) {
   // section-empty 是迷你版。dashed 给人「未实现 / 占位」的暗示，
   // 这里我们要的是「这格暂时是空的，不要紧」。
   return (
-    <div className="rounded-2xl border border-border/60 bg-card/40 px-4 py-8 text-center text-sm text-muted-foreground">
+    <div className="rounded-2xl border border-border/60 bg-card/40 px-4 py-8 text-center text-2sm text-muted-foreground">
       {text}
     </div>
   )

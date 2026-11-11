@@ -49,7 +49,7 @@ export function MobileTrainingSheet({
         <button
           type="button"
           className={cn(
-            'fixed bottom-4 left-1/2 z-30 inline-flex -translate-x-1/2 items-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-medium text-primary-foreground shadow-lg transition-all active:scale-[0.97]',
+            'fixed bottom-4 left-1/2 z-30 inline-flex -translate-x-1/2 items-center gap-2 rounded-full bg-primary px-5 py-3 text-md font-semibold text-primary-foreground shadow-bar transition-all active:scale-[0.97]',
             className,
           )}
           style={{

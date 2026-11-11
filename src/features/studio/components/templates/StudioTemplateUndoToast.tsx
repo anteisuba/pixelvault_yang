@@ -69,7 +69,7 @@ export function StudioTemplateUndoToast({
           onUndo()
           setLeaving(true)
         }}
-        className="h-7 shrink-0 rounded-full bg-background/15 px-3 text-xs font-semibold transition-colors duration-fast ease-linear hover:bg-background/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-background/60"
+        className="h-7 shrink-0 rounded-full bg-background/15 px-3 text-2sm font-semibold transition-colors duration-fast ease-linear hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus"
       >
         {t('undo')}
       </button>

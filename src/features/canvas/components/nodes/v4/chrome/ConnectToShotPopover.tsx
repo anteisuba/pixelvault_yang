@@ -125,18 +125,18 @@ export function ConnectToShotPopover({
         type="button"
         data-connect-to-shot-new
         onClick={onNew}
-        className="flex h-8.5 items-center gap-2.5 rounded-lg px-2.5 text-2sm text-foreground transition-colors duration-fast hover:bg-surface-fill focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        className="flex h-8.5 items-center gap-2.5 rounded-lg px-2.5 text-2sm text-foreground transition-colors duration-fast hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus"
       >
         <Plus aria-hidden className="size-4 shrink-0" />
         {t('new')}
-        <span className="ml-auto text-3xs text-muted-foreground">
+        <span className="ml-auto text-2xs text-muted-foreground">
           {t('newHint')}
         </span>
       </button>
 
       <span aria-hidden className="mx-1.5 my-1 h-px bg-border" />
 
-      <span className="px-2.5 py-1 text-3xs text-muted-foreground">
+      <span className="px-2.5 py-1 text-2xs text-muted-foreground">
         {t('listLabel')}
       </span>
 
@@ -157,7 +157,7 @@ export function ConnectToShotPopover({
                 key={target.id}
                 data-connect-to-shot-row={target.id}
                 data-slot={slot}
-                className="flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 transition-colors duration-fast hover:bg-surface-fill"
+                className="flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 transition-colors duration-fast hover:tint-hover"
               >
                 <button
                   type="button"
@@ -167,7 +167,7 @@ export function ConnectToShotPopover({
                     slot: tSlots(slot),
                   })}
                   onClick={() => onConnect(target.id, slot)}
-                  className="flex min-w-0 flex-1 items-center gap-2.5 text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                  className="flex min-w-0 flex-1 items-center gap-2.5 text-left focus-visible:outline-none focus-visible:shadow-focus"
                 >
                   {thumbs.usable(target.thumbnailUrl) ? (
                     <Image
@@ -197,7 +197,7 @@ export function ConnectToShotPopover({
                     <span className="truncate text-2xs text-foreground">
                       {target.name}
                     </span>
-                    <span className="truncate text-3xs tabular-nums text-muted-foreground">
+                    <span className="truncate text-2xs tabular-nums text-muted-foreground">
                       {target.durationLabel ?? t('durationUnknown')}
                     </span>
                   </span>
@@ -205,7 +205,7 @@ export function ConnectToShotPopover({
                 {occupied ? (
                   <span
                     data-connect-to-shot-occupied={slot}
-                    className="shrink-0 text-3xs text-muted-foreground"
+                    className="shrink-0 text-2xs text-muted-foreground"
                   >
                     {t('occupied', { slot: tSlots(slot) })}
                   </span>
@@ -229,10 +229,10 @@ export function ConnectToShotPopover({
                           }))
                         }
                         className={cn(
-                          'rounded-md px-2 py-1 text-3xs transition-colors duration-fast',
-                          'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+                          'rounded-md px-2 py-1 text-2xs transition-colors duration-fast',
+                          ' focus-visible:outline-none focus-visible:shadow-focus',
                           frame === slot
-                            ? 'bg-card font-semibold text-foreground shadow-sm'
+                            ? 'bg-raise font-semibold text-foreground shadow-seg'
                             : 'text-muted-foreground hover:text-foreground',
                         )}
                       >

@@ -91,7 +91,7 @@ export function NodeFrameProgress({
             style={{ width: `${percent}%` }}
           />
         </span>
-        <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+        <span className="shrink-0 text-2xs tabular-nums text-muted-foreground">
           {percent}%
         </span>
       </div>

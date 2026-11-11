@@ -61,7 +61,7 @@ export function StageStepperBar({
   return (
     <div
       className={cn(
-        'pointer-events-none flex flex-col items-center gap-2 rounded-2xl border border-white/10 bg-neutral-950/85 px-4 py-3 text-neutral-100 shadow-lg backdrop-blur-md',
+        'pointer-events-none flex flex-col items-center gap-2 rounded-2xl border border-white/10 bg-neutral-950/85 px-4 py-3 text-neutral-100 shadow-pop backdrop-blur-md',
         className,
       )}
       role="progressbar"
@@ -74,7 +74,7 @@ export function StageStepperBar({
             <div key={step.key} className="flex flex-1 items-center gap-2">
               <div
                 className={cn(
-                  'flex size-5 shrink-0 items-center justify-center rounded-full border text-3xs font-medium leading-none',
+                  'flex size-5 shrink-0 items-center justify-center rounded-full border text-2xs leading-none',
                   s === 'done' &&
                     'border-status-applied/40 bg-status-applied text-background',
                   s === 'active' &&
@@ -89,7 +89,7 @@ export function StageStepperBar({
               </div>
               <span
                 className={cn(
-                  'text-xs font-medium tracking-wide',
+                  'text-2xs tracking-wide',
                   s === 'pending' ? 'text-white/40' : 'text-white/90',
                 )}
               >
@@ -109,7 +109,7 @@ export function StageStepperBar({
       </div>
       {(detail ||
         (totalElapsedSeconds !== undefined && totalElapsedSeconds > 0)) && (
-        <div className="flex w-full items-center justify-between text-3xs text-neutral-400">
+        <div className="flex w-full items-center justify-between text-2xs text-neutral-400">
           <span>{detail ?? ''}</span>
           {totalElapsedSeconds !== undefined && totalElapsedSeconds > 0 && (
             <span>

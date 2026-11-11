@@ -108,7 +108,7 @@ export function NodeMediaMissing({
     >
       {problem === 'checking' ? null : (
         <>
-          <p className="text-sm leading-5 text-foreground/80">
+          <p className="text-2sm leading-5 text-foreground/80">
             {t(`${problem}.${kind}`)}
           </p>
           <button
@@ -119,7 +119,7 @@ export function NodeMediaMissing({
               else onRetry()
             }}
             onDoubleClick={(event) => event.stopPropagation()}
-            className="nodrag nopan inline-flex h-8 shrink-0 items-center rounded-full border border-border bg-background px-3.5 text-xs font-medium text-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            className="nodrag nopan inline-flex h-8 shrink-0 items-center rounded-full border border-border bg-background px-3.5 text-2sm text-foreground transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus"
           >
             {gone
               ? t(scope === 'version' ? 'removeVersion' : 'remove')

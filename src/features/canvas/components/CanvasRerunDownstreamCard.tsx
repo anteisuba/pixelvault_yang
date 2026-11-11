@@ -63,7 +63,7 @@ export function CanvasRerunDownstreamCard({
               data-testid="canvas-rerun-downstream-item"
               data-paid={entry.paid ? 'true' : 'false'}
               onClick={() => onFocusNode(entry.id)}
-              className="flex w-full items-center gap-2 rounded-lg px-1.5 py-1 text-left text-2xs text-node-muted transition-colors hover:bg-node-panel-soft hover:text-node-foreground"
+              className="flex w-full items-center gap-2 rounded-lg px-1.5 py-1 text-left text-2xs text-node-muted transition-colors hover:tint-hover hover:text-node-foreground"
             >
               {/* 序号 = 重跑顺序（近的先跑），⛔ 不是「第几镜」。 */}
               <span className="shrink-0 font-mono tabular-nums text-node-subtle">

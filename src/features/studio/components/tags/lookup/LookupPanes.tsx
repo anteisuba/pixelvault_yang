@@ -159,7 +159,7 @@ export function TagPane({
       items={addBar.targetItems}
     />
   ) : (
-    <span className="truncate text-xs text-muted-foreground">
+    <span className="truncate text-2xs text-muted-foreground">
       <b className="font-semibold text-foreground">{texts.whole}</b>
       {' · '}
       {texts.noComposition}
@@ -177,7 +177,7 @@ export function TagPane({
               .map((line) => (
                 <span
                   key={line}
-                  className="text-xs leading-5 text-muted-foreground"
+                  className="text-2xs leading-5 text-muted-foreground"
                 >
                   {line}
                 </span>
@@ -189,7 +189,7 @@ export function TagPane({
         {addBar ? (
           <div className="flex shrink-0 flex-col gap-2.5 border-t border-border/60 pt-2.5">
             <div className="flex items-center gap-2.5 overflow-x-auto">
-              <span className="shrink-0 text-xs font-semibold text-foreground/80">
+              <span className="shrink-0 text-2xs font-semibold text-foreground/80">
                 {texts.addTo}
               </span>
               {where}
@@ -221,7 +221,7 @@ export function TagPane({
       </div>
       {addBar ? (
         <div className="flex shrink-0 items-center gap-2.5">
-          <span className="shrink-0 text-xs font-semibold text-foreground/80">
+          <span className="shrink-0 text-2xs font-semibold text-foreground/80">
             {texts.addTo}
           </span>
           <div className="min-w-0 overflow-x-auto">{where}</div>
@@ -278,7 +278,7 @@ export function StylePane({
     </LookupSection>
   )
   const where = (
-    <span className="truncate text-xs text-muted-foreground">
+    <span className="truncate text-2xs text-muted-foreground">
       <b className="font-semibold text-foreground">{texts.whole}</b>
       {' · '}
       {texts.where}
@@ -294,7 +294,7 @@ export function StylePane({
             {lines.map((line) => (
               <span
                 key={line}
-                className="text-xs leading-5 text-muted-foreground"
+                className="text-2xs leading-5 text-muted-foreground"
               >
                 {line}
               </span>
@@ -306,7 +306,7 @@ export function StylePane({
         {add ? (
           <div className="flex shrink-0 flex-col gap-2.5 border-t border-border/60 pt-2.5">
             <div className="flex items-center gap-2.5">
-              <span className="shrink-0 text-xs font-semibold text-foreground/80">
+              <span className="shrink-0 text-2xs font-semibold text-foreground/80">
                 {texts.addTo}
               </span>
               {where}
@@ -337,7 +337,7 @@ export function StylePane({
       </div>
       {add ? (
         <div className="flex shrink-0 items-center gap-2.5">
-          <span className="shrink-0 text-xs font-semibold text-foreground/80">
+          <span className="shrink-0 text-2xs font-semibold text-foreground/80">
             {texts.addTo}
           </span>
           {where}

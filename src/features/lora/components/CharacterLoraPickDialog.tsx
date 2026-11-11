@@ -46,13 +46,13 @@ export function CharacterLoraPicker({
 
   return (
     <div className="flex flex-col gap-3">
-      <Title className="flex items-center gap-1.5 text-base font-semibold">
+      <Title className="flex items-center gap-1.5 text-md font-semibold">
         {current ? (
           <button
             type="button"
             onClick={() => setCharacterId(null)}
             aria-label={t('back')}
-            className="-ml-1 grid size-7 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="-ml-1 grid size-7 place-items-center rounded-md text-muted-foreground hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus"
           >
             <ChevronLeft className="size-4" aria-hidden />
           </button>
@@ -70,7 +70,7 @@ export function CharacterLoraPicker({
             {loraSections(current).map((section) => (
               <section key={section.id ?? 'all'} className="flex flex-col">
                 {section.showTitle ? (
-                  <p className="px-2 pb-1 text-xs text-muted-foreground">
+                  <p className="px-2 pb-1 text-2xs text-muted-foreground">
                     {section.look
                       ? lookLabel(section.look, current.looks, tLooks)
                       : tLooks('allLooks')}
@@ -85,7 +85,7 @@ export function CharacterLoraPicker({
                           type="button"
                           disabled={mounted}
                           onClick={() => onPick(current, lora)}
-                          className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left text-sm transition-colors duration-fast hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default disabled:hover:bg-transparent"
+                          className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left text-2sm transition-colors duration-fast hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus disabled:cursor-default disabled:hover:bg-transparent"
                         >
                           <Cover
                             url={lora.coverImageUrl}
@@ -94,7 +94,7 @@ export function CharacterLoraPicker({
                           <span className="min-w-0 flex-1 truncate">
                             {lora.name}
                           </span>
-                          <span className="shrink-0 text-xs text-muted-foreground">
+                          <span className="shrink-0 text-2xs text-muted-foreground">
                             {mounted ? (
                               <Check
                                 className="size-4"
@@ -113,7 +113,7 @@ export function CharacterLoraPicker({
             ))}
           </div>
         ) : withLoras.length === 0 ? (
-          <p className="py-10 text-center text-sm text-muted-foreground">
+          <p className="py-10 text-center text-2sm text-muted-foreground">
             {t('emptyCharacters')}
           </p>
         ) : (
@@ -123,13 +123,13 @@ export function CharacterLoraPicker({
                 <button
                   type="button"
                   onClick={() => setCharacterId(group.characterCardId)}
-                  className="flex w-full flex-col items-center gap-1.5 rounded-lg p-2 text-sm transition-colors duration-fast hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="flex w-full flex-col items-center gap-1.5 rounded-lg p-2 text-2sm transition-colors duration-fast hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus"
                 >
                   <Cover url={group.coverUrl} rounded="rounded-full" large />
                   <span className="w-full truncate text-center">
                     {group.name}
                   </span>
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-2xs text-muted-foreground">
                     {t('loraCount', { count: group.loras.length })}
                   </span>
                 </button>

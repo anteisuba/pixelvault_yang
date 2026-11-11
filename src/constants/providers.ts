@@ -68,6 +68,9 @@ export const PROVIDER_CHANNEL_SHORT_LABELS: Partial<
 > = {
   [AI_ADAPTER_TYPES.MINIMAX]: 'Global',
   [AI_ADAPTER_TYPES.MINIMAX_CN]: 'China',
+  // 字节两站合一：目录里一个型号只剩一站（`foldBytedanceStations`），行上不分站。
+  [AI_ADAPTER_TYPES.VOLCENGINE]: 'ByteDance',
+  [AI_ADAPTER_TYPES.BYTEPLUS]: 'ByteDance',
 }
 
 export const AI_ADAPTER_TYPE_OPTIONS = [
@@ -297,7 +300,7 @@ export function defaultKeyGroupOf(
     : [adapterType]
 }
 
-/** 字节两站合成一行时的名字（设置页 key 行、选择器渠道行）。 */
+/** 字节两站合成一行时的名字（设置页 key 行；选择器渠道行见 `PROVIDER_CHANNEL_SHORT_LABELS`）。 */
 export const BYTEDANCE_CHANNEL_LABEL = 'ByteDance'
 
 export const getDefaultProviderConfig = (

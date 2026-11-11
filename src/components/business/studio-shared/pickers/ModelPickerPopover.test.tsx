@@ -624,7 +624,7 @@ describe('ModelPickerPopover — 渠道面板', () => {
     fireEvent.mouseEnter(row('seedream-5.0-pro'))
     const volc = within(channelPanel() as HTMLElement)
       .getAllByRole('option')
-      .find((el) => /火山|VolcEngine/i.test(el.textContent ?? ''))
+      .find((el) => /ByteDance/.test(el.textContent ?? ''))
     fireEvent.click(volc as HTMLElement)
     expect(onChange).toHaveBeenCalledTimes(1)
     expect(onChange.mock.calls[0][0].optionId).toBe(
@@ -1024,7 +1024,7 @@ describe('ModelPickerPopover — 行 → 过渡区 → 渠道面板走得过去'
       expect(channelPanel()).not.toBeNull()
       const volc = within(channelPanel() as HTMLElement)
         .getAllByRole('option')
-        .find((el) => /火山|VolcEngine/i.test(el.textContent ?? ''))
+        .find((el) => /ByteDance/.test(el.textContent ?? ''))
       expect(volc).toBeDefined()
     } finally {
       vi.useRealTimers()

@@ -5,9 +5,15 @@ import {
   isBuiltInModel,
   type ModelOption,
 } from '@/constants/models'
-import type { AI_ADAPTER_TYPES } from '@/constants/providers'
+import {
+  BYTEDANCE_ARK_ADAPTERS,
+  isBytedanceArkAdapter,
+  type AI_ADAPTER_TYPES,
+} from '@/constants/providers'
 import type { StudioModelOption } from '@/types/model-option'
 import type { ApiKeyHealthStatus, UserApiKeyRecord } from '@/types'
+import { getBytedanceStationTwin } from '@/lib/bytedance-stations'
+import { pickDefaultApiKey } from '@/lib/pick-default-api-key'
 
 const API_KEY_HEALTH_PRIORITY: Record<ApiKeyHealthStatus, number> = {
   available: 0,
@@ -106,13 +112,41 @@ export function withProviderKeyCoverage<T extends StudioModelOption>(
   options: T[],
   keys: UserApiKeyRecord[],
 ): T[] {
+  const stationOptions = foldBytedanceStations(options, keys)
   const keyByAdapter = pickActiveKeyPerAdapter(keys)
-  if (keyByAdapter.size === 0) return options
+  if (keyByAdapter.size === 0) return stationOptions
 
-  return options.map((option) => {
+  return stationOptions.map((option) => {
     if (option.sourceType === 'saved') return option
     const providerKey = keyByAdapter.get(option.adapterType)
     return providerKey ? { ...option, providerKeyId: providerKey.id } : option
+  })
+}
+
+/**
+ * 字节两站合一（owner 2026-11-11，`docs/design/bytedance-channel.md`）：同一型号
+ * 两站各有一条时**只留默认站那条**，另一站只留它独有的型号。默认站 = 字节 key
+ * 里标为默认的那把所在的站（`pickDefaultApiKey`）；一把字节 key 都没有时按
+ * `BYTEDANCE_ARK_ADAPTERS` 第一站。
+ *
+ * ⭐ 折在目录这一层：选择器、出图名单、算钱、助手换模型读的都是这一份，跑哪站
+ * 与显示哪站永远一致。存下来的旧站 optionId 由 `findOptionById` 落到同款上。
+ */
+export function foldBytedanceStations<T extends StudioModelOption>(
+  options: readonly T[],
+  keys: readonly UserApiKeyRecord[],
+): T[] {
+  const arkKeys = keys.filter(
+    (key) => key.isActive && isBytedanceArkAdapter(key.adapterType),
+  )
+  const defaultStation =
+    pickDefaultApiKey(arkKeys)?.adapterType ?? BYTEDANCE_ARK_ADAPTERS[0]
+  const present = new Set(options.map((option) => option.modelId))
+  return options.filter((option) => {
+    if (!isBytedanceArkAdapter(option.adapterType)) return true
+    if (option.adapterType === defaultStation) return true
+    const twin = getBytedanceStationTwin(option.modelId)
+    return !twin || !present.has(twin)
   })
 }
 
@@ -210,11 +244,43 @@ export function mergeModelOptionsWithPreferredSavedRoutes(
 /**
  * Find the selected model from options, falling back to first option.
  */
-export function findSelectedModel<T extends { optionId: string }>(
-  options: T[],
-  selectedOptionId: string,
+export function findSelectedModel<
+  T extends { optionId: string; modelId: string },
+>(options: T[], selectedOptionId: string): T | undefined {
+  return findOptionById(options, selectedOptionId) ?? options[0]
+}
+
+const WORKSPACE_OPTION_PREFIX = 'workspace:'
+
+/**
+ * 按 modelId 找目录里那一条。字节被折掉的那站（`foldBytedanceStations`）落到它在
+ * 另一站的同款 —— 助手点名、重跑旧生成拿着的可能是旧站的 id。
+ */
+export function findOptionByModelId<T extends { modelId: string }>(
+  options: readonly T[],
+  modelId: string,
 ): T | undefined {
-  return options.find((o) => o.optionId === selectedOptionId) ?? options[0]
+  const exact = options.find((option) => option.modelId === modelId)
+  if (exact) return exact
+  const twin = getBytedanceStationTwin(modelId)
+  return twin ? options.find((option) => option.modelId === twin) : undefined
+}
+
+/**
+ * 按 optionId 找。存下来的 `workspace:<字节型号>` 在换了默认站之后已被折掉，
+ * 落到另一站的同款，⛔ 不悄悄丢掉用户选过的型号。
+ */
+export function findOptionById<T extends { optionId: string; modelId: string }>(
+  options: readonly T[],
+  optionId: string,
+): T | undefined {
+  const exact = options.find((option) => option.optionId === optionId)
+  if (exact) return exact
+  if (!optionId.startsWith(WORKSPACE_OPTION_PREFIX)) return undefined
+  const twin = getBytedanceStationTwin(
+    optionId.slice(WORKSPACE_OPTION_PREFIX.length),
+  )
+  return twin ? options.find((option) => option.modelId === twin) : undefined
 }
 
 /**

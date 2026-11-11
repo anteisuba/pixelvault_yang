@@ -80,6 +80,7 @@ export function apiKeyRecord(
     label,
     maskedKey: '••••••••',
     isActive: true,
+    isDefault: false,
     createdAt: new Date('2026-09-01T00:00:00Z'),
   }
 }

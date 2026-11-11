@@ -9,8 +9,8 @@
  * 🟢 You can import this file directly.
  */
 import type * as runtime from "@prisma/client/runtime/client"
-import type * as $Enums from "../enums"
-import type * as Prisma from "../internal/prismaNamespace"
+import type * as $Enums from "../enums.ts"
+import type * as Prisma from "../internal/prismaNamespace.ts"
 
 /**
  * Model UserApiKey
@@ -33,6 +33,7 @@ export type UserApiKeyMinAggregateOutputType = {
   encryptedKey: string | null
   maskedKey: string | null
   isActive: boolean | null
+  isDefault: boolean | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -46,6 +47,7 @@ export type UserApiKeyMaxAggregateOutputType = {
   encryptedKey: string | null
   maskedKey: string | null
   isActive: boolean | null
+  isDefault: boolean | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -60,6 +62,7 @@ export type UserApiKeyCountAggregateOutputType = {
   encryptedKey: number
   maskedKey: number
   isActive: number
+  isDefault: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -75,6 +78,7 @@ export type UserApiKeyMinAggregateInputType = {
   encryptedKey?: true
   maskedKey?: true
   isActive?: true
+  isDefault?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -88,6 +92,7 @@ export type UserApiKeyMaxAggregateInputType = {
   encryptedKey?: true
   maskedKey?: true
   isActive?: true
+  isDefault?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -102,6 +107,7 @@ export type UserApiKeyCountAggregateInputType = {
   encryptedKey?: true
   maskedKey?: true
   isActive?: true
+  isDefault?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -189,6 +195,7 @@ export type UserApiKeyGroupByOutputType = {
   encryptedKey: string
   maskedKey: string
   isActive: boolean
+  isDefault: boolean
   createdAt: Date
   updatedAt: Date
   _count: UserApiKeyCountAggregateOutputType | null
@@ -224,6 +231,7 @@ export type UserApiKeyWhereInput = {
   encryptedKey?: Prisma.StringFilter<"UserApiKey"> | string
   maskedKey?: Prisma.StringFilter<"UserApiKey"> | string
   isActive?: Prisma.BoolFilter<"UserApiKey"> | boolean
+  isDefault?: Prisma.BoolFilter<"UserApiKey"> | boolean
   createdAt?: Prisma.DateTimeFilter<"UserApiKey"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"UserApiKey"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
@@ -239,6 +247,7 @@ export type UserApiKeyOrderByWithRelationInput = {
   encryptedKey?: Prisma.SortOrder
   maskedKey?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
+  isDefault?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   user?: Prisma.UserOrderByWithRelationInput
@@ -258,6 +267,7 @@ export type UserApiKeyWhereUniqueInput = Prisma.AtLeast<{
   encryptedKey?: Prisma.StringFilter<"UserApiKey"> | string
   maskedKey?: Prisma.StringFilter<"UserApiKey"> | string
   isActive?: Prisma.BoolFilter<"UserApiKey"> | boolean
+  isDefault?: Prisma.BoolFilter<"UserApiKey"> | boolean
   createdAt?: Prisma.DateTimeFilter<"UserApiKey"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"UserApiKey"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
@@ -273,6 +283,7 @@ export type UserApiKeyOrderByWithAggregationInput = {
   encryptedKey?: Prisma.SortOrder
   maskedKey?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
+  isDefault?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.UserApiKeyCountOrderByAggregateInput
@@ -293,6 +304,7 @@ export type UserApiKeyScalarWhereWithAggregatesInput = {
   encryptedKey?: Prisma.StringWithAggregatesFilter<"UserApiKey"> | string
   maskedKey?: Prisma.StringWithAggregatesFilter<"UserApiKey"> | string
   isActive?: Prisma.BoolWithAggregatesFilter<"UserApiKey"> | boolean
+  isDefault?: Prisma.BoolWithAggregatesFilter<"UserApiKey"> | boolean
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"UserApiKey"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"UserApiKey"> | Date | string
 }
@@ -306,6 +318,7 @@ export type UserApiKeyCreateInput = {
   encryptedKey: string
   maskedKey?: string
   isActive?: boolean
+  isDefault?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutUserApiKeysInput
@@ -321,6 +334,7 @@ export type UserApiKeyUncheckedCreateInput = {
   encryptedKey: string
   maskedKey?: string
   isActive?: boolean
+  isDefault?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -334,6 +348,7 @@ export type UserApiKeyUpdateInput = {
   encryptedKey?: Prisma.StringFieldUpdateOperationsInput | string
   maskedKey?: Prisma.StringFieldUpdateOperationsInput | string
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDefault?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutUserApiKeysNestedInput
@@ -349,6 +364,7 @@ export type UserApiKeyUncheckedUpdateInput = {
   encryptedKey?: Prisma.StringFieldUpdateOperationsInput | string
   maskedKey?: Prisma.StringFieldUpdateOperationsInput | string
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDefault?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -363,6 +379,7 @@ export type UserApiKeyCreateManyInput = {
   encryptedKey: string
   maskedKey?: string
   isActive?: boolean
+  isDefault?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -376,6 +393,7 @@ export type UserApiKeyUpdateManyMutationInput = {
   encryptedKey?: Prisma.StringFieldUpdateOperationsInput | string
   maskedKey?: Prisma.StringFieldUpdateOperationsInput | string
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDefault?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -390,6 +408,7 @@ export type UserApiKeyUncheckedUpdateManyInput = {
   encryptedKey?: Prisma.StringFieldUpdateOperationsInput | string
   maskedKey?: Prisma.StringFieldUpdateOperationsInput | string
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDefault?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -420,6 +439,7 @@ export type UserApiKeyCountOrderByAggregateInput = {
   encryptedKey?: Prisma.SortOrder
   maskedKey?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
+  isDefault?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -433,6 +453,7 @@ export type UserApiKeyMaxOrderByAggregateInput = {
   encryptedKey?: Prisma.SortOrder
   maskedKey?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
+  isDefault?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -446,6 +467,7 @@ export type UserApiKeyMinOrderByAggregateInput = {
   encryptedKey?: Prisma.SortOrder
   maskedKey?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
+  isDefault?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -501,6 +523,7 @@ export type UserApiKeyCreateWithoutUserInput = {
   encryptedKey: string
   maskedKey?: string
   isActive?: boolean
+  isDefault?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -514,6 +537,7 @@ export type UserApiKeyUncheckedCreateWithoutUserInput = {
   encryptedKey: string
   maskedKey?: string
   isActive?: boolean
+  isDefault?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -557,6 +581,7 @@ export type UserApiKeyScalarWhereInput = {
   encryptedKey?: Prisma.StringFilter<"UserApiKey"> | string
   maskedKey?: Prisma.StringFilter<"UserApiKey"> | string
   isActive?: Prisma.BoolFilter<"UserApiKey"> | boolean
+  isDefault?: Prisma.BoolFilter<"UserApiKey"> | boolean
   createdAt?: Prisma.DateTimeFilter<"UserApiKey"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"UserApiKey"> | Date | string
 }
@@ -570,6 +595,7 @@ export type UserApiKeyCreateManyUserInput = {
   encryptedKey: string
   maskedKey?: string
   isActive?: boolean
+  isDefault?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -583,6 +609,7 @@ export type UserApiKeyUpdateWithoutUserInput = {
   encryptedKey?: Prisma.StringFieldUpdateOperationsInput | string
   maskedKey?: Prisma.StringFieldUpdateOperationsInput | string
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDefault?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -596,6 +623,7 @@ export type UserApiKeyUncheckedUpdateWithoutUserInput = {
   encryptedKey?: Prisma.StringFieldUpdateOperationsInput | string
   maskedKey?: Prisma.StringFieldUpdateOperationsInput | string
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDefault?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -609,6 +637,7 @@ export type UserApiKeyUncheckedUpdateManyWithoutUserInput = {
   encryptedKey?: Prisma.StringFieldUpdateOperationsInput | string
   maskedKey?: Prisma.StringFieldUpdateOperationsInput | string
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDefault?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -625,6 +654,7 @@ export type UserApiKeySelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   encryptedKey?: boolean
   maskedKey?: boolean
   isActive?: boolean
+  isDefault?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -640,6 +670,7 @@ export type UserApiKeySelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ex
   encryptedKey?: boolean
   maskedKey?: boolean
   isActive?: boolean
+  isDefault?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -655,6 +686,7 @@ export type UserApiKeySelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ex
   encryptedKey?: boolean
   maskedKey?: boolean
   isActive?: boolean
+  isDefault?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -670,11 +702,12 @@ export type UserApiKeySelectScalar = {
   encryptedKey?: boolean
   maskedKey?: boolean
   isActive?: boolean
+  isDefault?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type UserApiKeyOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "modelId" | "adapterType" | "providerConfig" | "label" | "encryptedKey" | "maskedKey" | "isActive" | "createdAt" | "updatedAt", ExtArgs["result"]["userApiKey"]>
+export type UserApiKeyOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "modelId" | "adapterType" | "providerConfig" | "label" | "encryptedKey" | "maskedKey" | "isActive" | "isDefault" | "createdAt" | "updatedAt", ExtArgs["result"]["userApiKey"]>
 export type UserApiKeyInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
 }
@@ -700,6 +733,10 @@ export type $UserApiKeyPayload<ExtArgs extends runtime.Types.Extensions.Internal
     encryptedKey: string
     maskedKey: string
     isActive: boolean
+    /**
+     * 一家有多把 key 时用户指定的那一把（字节两站合一 owner 2026-11-11）。没有标记 = 最新那把。
+     */
+    isDefault: boolean
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["userApiKey"]>
@@ -1135,6 +1172,7 @@ export interface UserApiKeyFieldRefs {
   readonly encryptedKey: Prisma.FieldRef<"UserApiKey", 'String'>
   readonly maskedKey: Prisma.FieldRef<"UserApiKey", 'String'>
   readonly isActive: Prisma.FieldRef<"UserApiKey", 'Boolean'>
+  readonly isDefault: Prisma.FieldRef<"UserApiKey", 'Boolean'>
   readonly createdAt: Prisma.FieldRef<"UserApiKey", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"UserApiKey", 'DateTime'>
 }

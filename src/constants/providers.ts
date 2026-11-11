@@ -272,6 +272,34 @@ export const ADAPTER_CUSTOM_MODEL_EXAMPLES: Record<AI_ADAPTER_TYPES, string> = {
   [AI_ADAPTER_TYPES.RUNNER]: 'waiIllustriousSDXL_v150',
 }
 
+/**
+ * 字节 Ark 两站：火山（cn）与 BytePlus（intl）同一套协议，key 不通用。owner
+ * 2026-11-11 定设置里合成一种「字节 key」，保存时按数组顺序探测是哪一站
+ * （`docs/design/bytedance-channel.md`）。内部仍按两种 adapter 存。
+ */
+export const BYTEDANCE_ARK_ADAPTERS = [
+  AI_ADAPTER_TYPES.VOLCENGINE,
+  AI_ADAPTER_TYPES.BYTEPLUS,
+] as const
+
+export function isBytedanceArkAdapter(adapterType: AI_ADAPTER_TYPES): boolean {
+  return (BYTEDANCE_ARK_ADAPTERS as readonly AI_ADAPTER_TYPES[]).includes(
+    adapterType,
+  )
+}
+
+/** 「默认 key」在哪一组里唯一：字节两站算一组，其余每家自成一组。 */
+export function defaultKeyGroupOf(
+  adapterType: AI_ADAPTER_TYPES,
+): readonly AI_ADAPTER_TYPES[] {
+  return isBytedanceArkAdapter(adapterType)
+    ? BYTEDANCE_ARK_ADAPTERS
+    : [adapterType]
+}
+
+/** 字节两站合成一行时的名字（设置页 key 行、选择器渠道行）。 */
+export const BYTEDANCE_CHANNEL_LABEL = 'ByteDance'
+
 export const getDefaultProviderConfig = (
   adapterType: AI_ADAPTER_TYPES,
 ): ProviderConfig => DEFAULT_PROVIDER_CONFIGS[adapterType]
@@ -289,6 +317,10 @@ export interface ProviderGuide {
   url: string
   steps: string
 }
+
+/** 字节 key 一种填法（owner 2026-11-11）：哪站的 key 都行，保存时认站。 */
+const BYTEDANCE_KEY_STEPS =
+  'Sign in to 火山方舟 (China) or BytePlus ModelArk (Global) → API Key 管理 / API Key management → Create API Key, then paste it here. Either station works — we detect which one it belongs to.'
 
 export const ADAPTER_API_GUIDES: Record<AI_ADAPTER_TYPES, ProviderGuide> = {
   [AI_ADAPTER_TYPES.HUGGINGFACE]: {
@@ -334,13 +366,11 @@ export const ADAPTER_API_GUIDES: Record<AI_ADAPTER_TYPES, ProviderGuide> = {
   },
   [AI_ADAPTER_TYPES.VOLCENGINE]: {
     url: 'https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey',
-    steps:
-      'Sign in → 火山方舟控制台 → API Key 管理 → Create API Key. 模型需要创建推理接入点 (endpoint), 将 endpoint ID (ep-xxx) 作为自定义模型 ID 使用。',
+    steps: BYTEDANCE_KEY_STEPS,
   },
   [AI_ADAPTER_TYPES.BYTEPLUS]: {
     url: 'https://docs.byteplus.com/en/docs/ModelArk/1520757',
-    steps:
-      'Sign in to BytePlus ModelArk → API Key management → Create API Key. BytePlus keys are not interchangeable with VolcEngine China keys.',
+    steps: BYTEDANCE_KEY_STEPS,
   },
   [AI_ADAPTER_TYPES.FISH_AUDIO]: {
     url: 'https://fish.audio/zh-CN/app/api-keys/',

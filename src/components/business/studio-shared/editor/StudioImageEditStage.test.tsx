@@ -49,6 +49,7 @@ const GEMINI_KEY: UserApiKeyRecord = {
   label: 'Gemini',
   maskedKey: 'test-****',
   isActive: true,
+  isDefault: false,
   createdAt: new Date('2026-01-01'),
 }
 

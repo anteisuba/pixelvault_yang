@@ -9,7 +9,10 @@ import { ChevronRight, Plus, Trash2 } from '@/components/icons'
 import { API_KEY_MASK } from '@/constants/api-keys'
 import { formatUnitPriceAmount } from '@/constants/models/unit-prices'
 import { DURATION, EASE_STANDARD, springTransition } from '@/constants/motion'
-import type { AI_ADAPTER_TYPES } from '@/constants/providers'
+import {
+  isBytedanceArkAdapter,
+  type AI_ADAPTER_TYPES,
+} from '@/constants/providers'
 import { KEY_SETUP_QUERY } from '@/constants/routes'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import {
@@ -19,6 +22,7 @@ import {
 } from '@/features/settings/hooks/use-provider-key-rows'
 import { useMonthlyUsage } from '@/features/settings/hooks/use-monthly-usage'
 import { useSlowLoadingNotice } from '@/hooks/use-slow-loading-notice'
+import { pickDefaultApiKey } from '@/lib/pick-default-api-key'
 import { usePathname, useRouter } from '@/i18n/navigation'
 import type { ApiKeyHealthStatus } from '@/types'
 import { cn } from '@/lib/utils'
@@ -62,7 +66,9 @@ export function SettingsKeysSection() {
   /** 地址栏要求直接配哪一家 —— 开关就由地址栏说了算，⛔ 不再拷一份进 state。 */
   const setupAdapter = searchParams.get(KEY_SETUP_QUERY)
   const urlSetupRow = setupAdapter
-    ? rows.find((row) => row.adapterType === setupAdapter)
+    ? rows.find((row) =>
+        (row.adapterTypes as readonly string[]).includes(setupAdapter),
+      )
     : undefined
   const closeUrlSetup = useCallback(() => {
     const next = new URLSearchParams(searchParams.toString())
@@ -124,11 +130,7 @@ export function SettingsKeysSection() {
                   row={row}
                   healthMap={healthMap}
                   verifiedAtMap={verifiedAtMap}
-                  spendUsd={
-                    providers.find(
-                      (provider) => provider.adapterType === row.adapterType,
-                    )?.estimatedCostUsd ?? null
-                  }
+                  spendUsd={rowSpendUsd(row, providers)}
                   isExpanded={expanded === row.adapterType}
                   onToggleExpanded={() =>
                     setExpanded((current) =>
@@ -172,6 +174,24 @@ export function SettingsKeysSection() {
   )
 }
 
+/** 这一行本月花了多少：字节两站合一行，两站的账加在一起；哪站都没记过账 = null。 */
+function rowSpendUsd(
+  row: ProviderKeyRow,
+  providers: readonly {
+    adapterType: string
+    estimatedCostUsd: number | null
+  }[],
+): number | null {
+  const spends = providers
+    .filter((provider) =>
+      (row.adapterTypes as readonly string[]).includes(provider.adapterType),
+    )
+    .map((provider) => provider.estimatedCostUsd)
+    .filter((amount): amount is number => amount !== null)
+  if (spends.length === 0) return null
+  return spends.reduce((sum, amount) => sum + amount, 0)
+}
+
 const STATE_DOT: Record<ProviderKeyState, string> = {
   healthy: 'bg-status-applied',
   invalid: 'bg-destructive',
@@ -203,6 +223,12 @@ function ProviderRow({
   const format = useFormatter()
   const reduceMotion = useReducedMotion()
   const grow = springTransition('slot', reduceMotion)
+
+  // 「默认」只在字节一行、且两把以上时出（owner 2026-11-11 选 A）。
+  const defaultKeyId =
+    isBytedanceArkAdapter(row.adapterType) && row.keys.length > 1
+      ? pickDefaultApiKey(row.keys)?.id
+      : undefined
 
   const lastVerifiedAt = row.keys
     .map((key) => verifiedAtMap[key.id])
@@ -298,6 +324,16 @@ function ProviderRow({
                     <KeyLine
                       id={key.id}
                       label={key.label}
+                      station={
+                        isBytedanceArkAdapter(key.adapterType)
+                          ? t(`keys.station.${key.adapterType}`)
+                          : undefined
+                      }
+                      isDefault={
+                        defaultKeyId === undefined
+                          ? undefined
+                          : defaultKeyId === key.id
+                      }
                       status={healthMap[key.id]}
                       verifiedAt={verifiedAtMap[key.id]}
                     />
@@ -368,18 +404,34 @@ function RowAction({
 function KeyLine({
   id,
   label,
+  station,
+  isDefault,
   status,
   verifiedAt,
 }: {
   id: string
   label: string
+  /** 字节 key 属于哪一站（国内站 / 海外站）；别家不写。 */
+  station?: string
+  /** 这一行要不要出「默认」：undefined = 不出；true = 小标；false = 「设为默认」。 */
+  isDefault?: boolean
   status: ApiKeyHealthStatus | undefined
   verifiedAt: number | undefined
 }) {
   const t = useTranslations('Settings')
   const format = useFormatter()
-  const { remove, verify } = useApiKeysContext()
+  const reduceMotion = useReducedMotion()
+  const { remove, verify, setDefault } = useApiKeysContext()
   const [isBusy, setIsBusy] = useState(false)
+  const [defaultFailed, setDefaultFailed] = useState(false)
+
+  const handleSetDefault = useCallback(async () => {
+    setIsBusy(true)
+    setDefaultFailed(false)
+    const ok = await setDefault(id)
+    setDefaultFailed(!ok)
+    setIsBusy(false)
+  }, [id, setDefault])
 
   const handleVerify = useCallback(async () => {
     setIsBusy(true)
@@ -407,6 +459,9 @@ function KeyLine({
         aria-hidden
       />
       <span className="min-w-16 font-medium">{label}</span>
+      {station ? (
+        <span className="text-muted-foreground">{station}</span>
+      ) : null}
       <span className="font-mono text-muted-foreground">{API_KEY_MASK}</span>
       <span className="flex-1 text-muted-foreground">
         {verifiedAt === undefined
@@ -415,6 +470,29 @@ function KeyLine({
               stamp: format.relativeTime(new Date(verifiedAt), new Date()),
             })}
       </span>
+      {isDefault === true ? (
+        <motion.span
+          key="default-badge"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{
+            duration: reduceMotion ? 0 : DURATION.fast,
+            ease: EASE_STANDARD,
+          }}
+          className="rounded-full bg-foreground px-2 py-0.5 text-2xs font-semibold text-background"
+        >
+          {t('keys.defaultBadge')}
+        </motion.span>
+      ) : isDefault === false ? (
+        <button
+          type="button"
+          onClick={() => void handleSetDefault()}
+          disabled={isBusy}
+          className="inline-flex min-h-8 items-center coarse:min-h-11 font-mono text-muted-foreground transition-colors duration-fast hover:text-foreground disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {t('keys.setDefault')}
+        </button>
+      ) : null}
       <button
         type="button"
         onClick={() => void handleVerify()}
@@ -440,6 +518,11 @@ function KeyLine({
         confirmLabel={t('keys.deleteDialog.confirm')}
         onConfirm={handleDelete}
       />
+      {defaultFailed ? (
+        <p role="alert" className="basis-full pl-4.5 text-destructive">
+          {t('keys.setDefaultFailed')}
+        </p>
+      ) : null}
     </div>
   )
 }

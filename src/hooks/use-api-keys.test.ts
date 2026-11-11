@@ -46,6 +46,7 @@ function keyRecord(id: string): UserApiKeyRecord {
     label: 'NovelAI',
     maskedKey: 'pst-…abcd',
     isActive: true,
+    isDefault: false,
     createdAt: new Date('2026-10-01T00:00:00Z'),
   }
 }

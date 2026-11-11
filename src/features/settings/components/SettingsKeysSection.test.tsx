@@ -74,7 +74,7 @@ async function mountWith(
   await waitFor(() =>
     expect(server.requests.map((r) => r.path)).toContain('/api/api-keys'),
   )
-  return view
+  return { ...view, server }
 }
 
 /** 行的可读快照：provider 名 + 状态一句。 */
@@ -142,6 +142,114 @@ describe('SettingsKeysSection', () => {
     expect(screen.getByText('personal')).toBeInTheDocument()
     expect(screen.getByText('work')).toBeInTheDocument()
     expect(screen.getByText(t('addAnother'))).toBeInTheDocument()
+  })
+
+  describe('字节：两站合成一行（owner 2026-11-11）', () => {
+    const cn = {
+      ...apiKeyRecord('ark-cn', AI_ADAPTER_TYPES.VOLCENGINE, 'cn key'),
+      createdAt: new Date('2026-11-01T00:00:00Z'),
+    }
+    const intl = {
+      ...apiKeyRecord('ark-intl', AI_ADAPTER_TYPES.BYTEPLUS, 'intl key'),
+      createdAt: new Date('2026-11-05T00:00:00Z'),
+    }
+    const health = { 'ark-cn': 'available', 'ark-intl': 'available' } as const
+
+    async function openBytedance(
+      keys: UserApiKeyRecord[],
+      onPut: () => Response = () =>
+        Response.json({ success: false }, { status: 500 }),
+    ) {
+      const view = await mountWith(keys, health)
+      view.server.on('PUT', '/api/api-keys/:id', onPut)
+      fireEvent.click(
+        await screen.findByRole('button', {
+          name: t('toggleKeys', { provider: 'ByteDance' }),
+        }),
+      )
+      return view
+    }
+
+    const lineOf = (label: string) =>
+      screen.getByText(label).parentElement as HTMLElement
+
+    it('只有一行 ByteDance，两把 key 各标站点；没人标过时最新那把是默认', async () => {
+      await openBytedance([cn, intl])
+
+      expect(
+        screen.queryByRole('button', {
+          name: t('toggleKeys', {
+            provider: providerName(AI_ADAPTER_TYPES.BYTEPLUS),
+          }),
+        }),
+      ).toBeNull()
+      expect(
+        within(lineOf('cn key')).getByText(t('station.volcengine')),
+      ).toBeInTheDocument()
+      expect(
+        within(lineOf('intl key')).getByText(t('defaultBadge')),
+      ).toBeInTheDocument()
+      expect(
+        within(lineOf('cn key')).getByRole('button', { name: t('setDefault') }),
+      ).toBeInTheDocument()
+    })
+
+    it('只有一把时只标站点，不出默认', async () => {
+      await openBytedance([intl])
+
+      expect(
+        within(lineOf('intl key')).getByText(t('station.byteplus')),
+      ).toBeInTheDocument()
+      expect(screen.queryByText(t('defaultBadge'))).toBeNull()
+      expect(screen.queryByRole('button', { name: t('setDefault') })).toBeNull()
+    })
+
+    it('设为默认：小标换到那一把，不弹提示', async () => {
+      const view = await openBytedance([cn, intl], () =>
+        Response.json({ success: true, data: { ...cn, isDefault: true } }),
+      )
+
+      fireEvent.click(
+        within(lineOf('cn key')).getByRole('button', { name: t('setDefault') }),
+      )
+
+      await waitFor(() =>
+        expect(
+          within(lineOf('cn key')).getByText(t('defaultBadge')),
+        ).toBeInTheDocument(),
+      )
+      expect(
+        within(lineOf('intl key')).getByRole('button', {
+          name: t('setDefault'),
+        }),
+      ).toBeInTheDocument()
+      expect(screen.queryByRole('alert')).toBeNull()
+      expect(view.server.requests).toContainEqual({
+        method: 'PUT',
+        path: '/api/api-keys/ark-cn',
+      })
+    })
+
+    it('没设成：小标留在原处，那一行出红字', async () => {
+      const view = await openBytedance([cn, intl], () =>
+        Response.json({ success: false, error: 'boom' }, { status: 500 }),
+      )
+
+      fireEvent.click(
+        within(lineOf('cn key')).getByRole('button', { name: t('setDefault') }),
+      )
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        t('setDefaultFailed'),
+      )
+      expect(
+        within(lineOf('intl key')).getByText(t('defaultBadge')),
+      ).toBeInTheDocument()
+      expect(view.server.requests).toContainEqual({
+        method: 'PUT',
+        path: '/api/api-keys/ark-cn',
+      })
+    })
   })
 
   it('没有 key 时每家都是「未配置」，没有任何一行写着可用', async () => {

@@ -7,12 +7,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 vi.mock('server-only', () => ({}))
 
 import { API_KEY_MASK } from '@/constants/api-keys'
-import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import {
+  ADAPTER_CUSTOM_MODEL_EXAMPLES,
+  AI_ADAPTER_TYPES,
+  getDefaultProviderConfig,
+} from '@/constants/providers'
 import { decryptApiKey, encryptApiKey } from '@/lib/crypto'
 import { db } from '@/lib/db'
 import {
   createApiKey,
   listUserApiKeys,
+  updateApiKey,
   verifyApiKey,
 } from '@/services/apiKey.service'
 import { createTestUser, resetDatabase } from '@/test/int/db'
@@ -97,12 +102,94 @@ describe('createApiKey（真库）', () => {
       label: 'Fish Audio',
       maskedKey: API_KEY_MASK,
       isActive: true,
+      isDefault: false,
       createdAt: first.createdAt,
     })
     const rows = await db.userApiKey.findMany({ where: { userId: me.id } })
     expect(rows).toHaveLength(1)
     expect(rows[0].encryptedKey).not.toContain('fish-api-key')
     expect(decryptApiKey(rows[0].encryptedKey)).toBe('fish-api-key-5678')
+  })
+})
+
+describe('字节 key：保存时认站（真库，假网络）', () => {
+  const saveArk = () =>
+    createApiKey(
+      me.id,
+      ADAPTER_CUSTOM_MODEL_EXAMPLES[AI_ADAPTER_TYPES.VOLCENGINE],
+      AI_ADAPTER_TYPES.VOLCENGINE,
+      getDefaultProviderConfig(AI_ADAPTER_TYPES.VOLCENGINE),
+      '字节',
+      'ark-test-key-1234',
+    )
+
+  it('国内站通：存成火山', async () => {
+    const saved = await saveArk()
+    expect(saved.adapterType).toBe(AI_ADAPTER_TYPES.VOLCENGINE)
+    expect(net.calls.map((call) => call.url)).toEqual([
+      `${getDefaultProviderConfig(AI_ADAPTER_TYPES.VOLCENGINE).baseUrl}/models`,
+    ])
+  })
+
+  it('国内站不认、海外站通：存成 BytePlus，地址与样例型号跟着换', async () => {
+    net.respond = () => {
+      const last = net.calls.at(-1)?.url ?? ''
+      return new Response(null, {
+        status: last.includes('volces.com') ? 401 : 200,
+      })
+    }
+    const saved = await saveArk()
+    expect(saved).toMatchObject({
+      adapterType: AI_ADAPTER_TYPES.BYTEPLUS,
+      modelId: ADAPTER_CUSTOM_MODEL_EXAMPLES[AI_ADAPTER_TYPES.BYTEPLUS],
+      providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.BYTEPLUS),
+    })
+  })
+
+  it('两站都不通：照提交的那站存，留给验证报失败', async () => {
+    net.respond = () => new Response(null, { status: 401 })
+    const saved = await saveArk()
+    expect(saved.adapterType).toBe(AI_ADAPTER_TYPES.VOLCENGINE)
+  })
+})
+
+describe('updateApiKey：设为默认（真库）', () => {
+  it('字节两站算一组：设一把为默认，另一站的旧默认清掉；别家的默认不动', async () => {
+    const cn = await seedKey('ark-cn-key-1234', {
+      adapterType: AI_ADAPTER_TYPES.VOLCENGINE,
+    })
+    const intl = await seedKey('ark-intl-key-1234', {
+      adapterType: AI_ADAPTER_TYPES.BYTEPLUS,
+    })
+    const fal = await seedKey('fal-key-1234')
+    await db.userApiKey.updateMany({
+      where: { id: { in: [cn.id, fal.id] } },
+      data: { isDefault: true },
+    })
+
+    const updated = await updateApiKey(intl.id, me.id, { isDefault: true })
+
+    expect(updated.isDefault).toBe(true)
+    const rows = await db.userApiKey.findMany({
+      where: { userId: me.id },
+      select: { id: true, isDefault: true },
+    })
+    expect(Object.fromEntries(rows.map((r) => [r.id, r.isDefault]))).toEqual({
+      [cn.id]: false,
+      [intl.id]: true,
+      [fal.id]: true,
+    })
+  })
+
+  it('别人的 key：拒绝，不改任何标记', async () => {
+    const mine = await seedKey('ark-cn-key-1234', {
+      adapterType: AI_ADAPTER_TYPES.VOLCENGINE,
+    })
+    await expect(
+      updateApiKey(mine.id, other.id, { isDefault: true }),
+    ).rejects.toThrow()
+    const row = await db.userApiKey.findUnique({ where: { id: mine.id } })
+    expect(row?.isDefault).toBe(false)
   })
 })
 

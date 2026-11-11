@@ -6,8 +6,11 @@ import { ACTIVE_API_KEY_ADAPTER_OPTIONS } from '@/constants/api-keys'
 import { getAvailableModels } from '@/constants/models'
 import {
   ADAPTER_CUSTOM_MODEL_EXAMPLES,
+  BYTEDANCE_CHANNEL_LABEL,
+  defaultKeyGroupOf,
   getDefaultProviderConfig,
   getProviderLabel,
+  isBytedanceArkAdapter,
   type AI_ADAPTER_TYPES,
 } from '@/constants/providers'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
@@ -25,7 +28,13 @@ export type ProviderKeyState =
   | 'unconfigured'
 
 export interface ProviderKeyRow {
+  /** 这一行的代表 adapter（面 1 用它存 key）。 */
   adapterType: AI_ADAPTER_TYPES
+  /**
+   * 这一行收了哪几种 adapter 的 key —— 字节两站合成一行（owner 2026-11-11），
+   * 其余每家只有自己。`?setup=` 深链与月度花费都按它对。
+   */
+  adapterTypes: readonly AI_ADAPTER_TYPES[]
   label: string
   /** 这把 key 解锁几个内置模型。 */
   modelCount: number
@@ -90,28 +99,41 @@ export function useProviderKeyRows(): ProviderKeyRowsResult {
       }
     }
 
-    return ACTIVE_API_KEY_ADAPTER_OPTIONS.map((adapterType) => {
-      const activeKeys = keys.filter(
-        (key) => key.adapterType === adapterType && key.isActive,
-      )
-      return {
-        adapterType,
-        label: getProviderLabel(
-          activeKeys[0]?.providerConfig ??
-            getDefaultProviderConfig(adapterType),
-        ),
-        modelCount: coverage.get(adapterType) ?? 0,
-        sampleModelId:
-          sampleModel.get(adapterType) ??
-          ADAPTER_CUSTOM_MODEL_EXAMPLES[adapterType],
-        state: resolveState(activeKeys, healthMap),
-        keys: activeKeys,
-      } satisfies ProviderKeyRow
-    }).sort(
-      (left, right) =>
-        STATE_ORDER[left.state] - STATE_ORDER[right.state] ||
-        left.label.localeCompare(right.label),
+    // 一组只出一行：字节两站由组里第一站代表，后面那站不再单出。
+    const rowAdapters = ACTIVE_API_KEY_ADAPTER_OPTIONS.filter(
+      (adapterType) => defaultKeyGroupOf(adapterType)[0] === adapterType,
     )
+    return rowAdapters
+      .map((adapterType) => {
+        const adapterTypes = defaultKeyGroupOf(adapterType)
+        const activeKeys = keys.filter(
+          (key) => adapterTypes.includes(key.adapterType) && key.isActive,
+        )
+        return {
+          adapterType,
+          adapterTypes,
+          label: isBytedanceArkAdapter(adapterType)
+            ? BYTEDANCE_CHANNEL_LABEL
+            : getProviderLabel(
+                activeKeys[0]?.providerConfig ??
+                  getDefaultProviderConfig(adapterType),
+              ),
+          // 两站是同一批型号各上一份，取多的那站，⛔ 相加（会把一个型号数两遍）。
+          modelCount: Math.max(
+            ...adapterTypes.map((type) => coverage.get(type) ?? 0),
+          ),
+          sampleModelId:
+            sampleModel.get(adapterType) ??
+            ADAPTER_CUSTOM_MODEL_EXAMPLES[adapterType],
+          state: resolveState(activeKeys, healthMap),
+          keys: activeKeys,
+        } satisfies ProviderKeyRow
+      })
+      .sort(
+        (left, right) =>
+          STATE_ORDER[left.state] - STATE_ORDER[right.state] ||
+          left.label.localeCompare(right.label),
+      )
   }, [keys, healthMap])
 
   const invalidKeyCount = useMemo(

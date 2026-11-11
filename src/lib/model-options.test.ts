@@ -39,6 +39,7 @@ function makeKey(
     label: `${overrides.id} key`,
     maskedKey: 'sk-****1234',
     isActive: true,
+    isDefault: false,
     createdAt: new Date('2026-01-01'),
   }
 }

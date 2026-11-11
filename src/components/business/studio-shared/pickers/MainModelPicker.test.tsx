@@ -47,6 +47,7 @@ const FAL_KEY: UserApiKeyRecord = {
   label: 'fal',
   maskedKey: 'fal-****',
   isActive: true,
+  isDefault: false,
   createdAt: new Date('2026-01-01'),
 }
 

@@ -222,7 +222,7 @@ export function ShellHistoryMenu({
           }}
         >
           {search ? (
-            <div className="flex h-9 items-center gap-2 px-2.25 text-muted-foreground">
+            <div className="flex h-9 coarse:h-11 items-center gap-2 px-2.25 text-muted-foreground">
               <Search className="size-4 shrink-0" aria-hidden />
               <input
                 value={query}
@@ -239,7 +239,7 @@ export function ShellHistoryMenu({
             data-testid={`${testId}-new`}
             disabled={newDisabled}
             onSelect={onNew}
-            className="h-9 gap-2 px-2.25 font-medium"
+            className="h-9 coarse:h-11 gap-2 px-2.25 font-medium"
           >
             <Plus className="size-4" aria-hidden />
             <span className="min-w-0 truncate">{newLabel}</span>
@@ -298,7 +298,7 @@ export function ShellHistoryMenu({
                 event.preventDefault()
                 setShowAll(true)
               }}
-              className="mt-1 h-9 justify-center text-2sm text-muted-foreground"
+              className="mt-1 h-9 coarse:h-11 justify-center text-2sm text-muted-foreground"
             >
               {search.allLabel}
             </DropdownMenuItem>

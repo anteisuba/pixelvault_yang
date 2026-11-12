@@ -401,6 +401,7 @@ export const StudioMobileComposer = memo(function StudioMobileComposer({
               {!isVideo ? (
                 <StudioModelCapabilityChips
                   variant="single"
+                  iconOnly
                   disabled={isGenerating}
                   triggerClassName={capabilityGhostClass}
                 />

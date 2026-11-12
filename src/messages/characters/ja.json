@@ -70,7 +70,7 @@
     "importCard": "カードを取り込む",
     "importCardHint": "SillyTavern のキャラクターカード（PNG / JSON）を取り込みます。ここにドロップしても OK。",
     "tabRoster": "マイキャラ",
-    "tabLibrary": "カードライブラリ",
+    "tabLibrary": "ライブラリ",
     "librarySearchPlaceholder": "検索",
     "librarySort": "並び替え",
     "librarySortPopular": "人気",

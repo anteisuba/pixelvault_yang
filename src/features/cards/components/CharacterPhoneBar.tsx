@@ -86,7 +86,7 @@ export function CharacterPhoneBar({
                   onTabChange(item.id)
                 }}
                 className={cn(
-                  'touch-target-y relative h-9 rounded-full px-3.5 text-base transition-colors duration-fast ease-standard',
+                  'touch-target-y relative h-9 rounded-full px-3 text-md whitespace-nowrap transition-colors duration-fast ease-standard',
                   active
                     ? 'font-semibold text-foreground'
                     : 'font-medium text-muted-foreground',

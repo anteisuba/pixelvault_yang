@@ -31,6 +31,7 @@ import {
 import { SidebarInset } from '@/components/ui/sidebar'
 import { Link, usePathname, useRouter } from '@/i18n/navigation'
 import {
+  useLastChatPath,
   useLastStudioToolId,
   useMobileReturnPath,
   useRecordMobileNav,
@@ -87,6 +88,7 @@ function MobileTab({
   const t = useTranslations()
   const tMobile = useTranslations('MobileNav')
   const reduceMotion = useReducedMotion()
+  const lastChatPath = useLastChatPath()
   const Icon = item.icon
   // 底栏五格、一格 54 宽：「我的主页」叫「我的」（v10 稿），角色叫短名（英 Cast、日 キャラ）。
   const label =
@@ -95,7 +97,8 @@ function MobileTab({
       : t(item.labelKey)
   return (
     <Link
-      href={item.href}
+      // 「对话」回到上次那段（`useLastChatPath`），其余格子照条目走。
+      href={item.id === 'chat' ? (lastChatPath ?? item.href) : item.href}
       onClick={onPress}
       aria-current={active ? 'page' : undefined}
       className={cn(TAB_CLASS, active && 'font-semibold text-foreground')}

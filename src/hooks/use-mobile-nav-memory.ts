@@ -3,10 +3,12 @@
 import { useEffect, useSyncExternalStore } from 'react'
 
 import {
+  MOBILE_NAV_LAST_CHAT_STORAGE_KEY,
   MOBILE_NAV_LAST_TOOL_STORAGE_KEY,
   MOBILE_NAV_RETURN_STORAGE_KEY,
   activeShellTool,
   isStudioBenchPath,
+  isStudioChatPath,
 } from '@/constants/navigation'
 
 /**
@@ -63,7 +65,19 @@ export function useMobileReturnPath(): string | null {
   )
 }
 
-/** 跟着路由记：在工作台就记工具，不在就记这一页（工作台 ← 的去处）。 */
+/**
+ * 底栏「对话」回到哪：上次停在的那段对话（`/studio/c/<编号>`）；没有 = null（去 `/studio`
+ * 开新的）。⛔ 每点一次底栏就开一段新对话、刚才聊到哪找不回来；新对话从「记录」里开。
+ */
+export function useLastChatPath(): string | null {
+  return useSyncExternalStore(
+    subscribe,
+    () => read(MOBILE_NAV_LAST_CHAT_STORAGE_KEY),
+    () => null,
+  )
+}
+
+/** 跟着路由记：在工作台就记工具，不在就记这一页（工作台 ← 的去处）；对话页另记一份。 */
 export function useRecordMobileNav(pathname: string): void {
   useEffect(() => {
     if (isStudioBenchPath(pathname)) {
@@ -71,6 +85,8 @@ export function useRecordMobileNav(pathname: string): void {
       if (tool) write(MOBILE_NAV_LAST_TOOL_STORAGE_KEY, tool.id)
       return
     }
+    if (isStudioChatPath(pathname))
+      write(MOBILE_NAV_LAST_CHAT_STORAGE_KEY, pathname)
     write(MOBILE_NAV_RETURN_STORAGE_KEY, pathname)
   }, [pathname])
 }

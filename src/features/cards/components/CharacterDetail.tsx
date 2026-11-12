@@ -463,7 +463,7 @@ function ImageBand({
                 <span className="absolute left-2 top-2 rounded-full bg-background/90 px-2 text-2xs">
                   {slot.isPrimary ? t('primary') : t('onCard')}
                 </span>
-                <div className="absolute inset-x-2 bottom-2 flex translate-y-1 justify-center gap-1 opacity-0 transition duration-fast ease-standard group-focus-within/tile:translate-y-0 group-focus-within/tile:opacity-100 group-hover/tile:translate-y-0 group-hover/tile:opacity-100 pointer-coarse:translate-y-0 pointer-coarse:opacity-100 motion-reduce:transition-none">
+                <div className="absolute inset-x-2 bottom-2 flex translate-y-1 flex-wrap justify-center gap-1 opacity-0 transition duration-fast ease-standard group-focus-within/tile:translate-y-0 group-focus-within/tile:opacity-100 group-hover/tile:translate-y-0 group-hover/tile:opacity-100 pointer-coarse:translate-y-0 pointer-coarse:opacity-100 motion-reduce:transition-none">
                   <TileAction
                     onClick={() =>
                       setPicking({ kind: 'replace', slotId: slot.id })
@@ -564,7 +564,8 @@ function TileAction({
     <button
       type="button"
       onClick={onClick}
-      className="rounded-full bg-background/95 px-2.5 py-0.5 text-2xs shadow-xs transition-colors duration-fast hover:bg-background"
+      // 窄卡（手机两张并排）放不下三颗就换行，⛔ 把「移除」折成「移 / 除」。
+      className="whitespace-nowrap rounded-full bg-background/95 px-2.5 py-0.5 text-2xs shadow-xs transition-colors duration-fast hover:bg-background"
     >
       {children}
     </button>

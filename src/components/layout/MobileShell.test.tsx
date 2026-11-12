@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   MOBILE_CREATE_LONG_PRESS_MS,
   MOBILE_NAV_LAST_TOOL_STORAGE_KEY,
+  MOBILE_NAV_LAST_CHAT_STORAGE_KEY,
   MOBILE_NAV_RETURN_STORAGE_KEY,
 } from '@/constants/navigation'
 
@@ -71,6 +72,16 @@ describe('MobileShell 底栏（P3 · v10）', () => {
       'aria-current',
       'page',
     )
+  })
+
+  it('「对话」回到上次那段对话，没有记录才去开新的', () => {
+    window.localStorage.setItem(
+      MOBILE_NAV_LAST_CHAT_STORAGE_KEY,
+      '/studio/c/abc',
+    )
+    render(<MobileShell />)
+    const bar = screen.getByRole('navigation', { name: 'MobileNav:tabs.label' })
+    expect(bar.querySelector('a')).toHaveAttribute('href', '/studio/c/abc')
   })
 
   it('提示词不上底栏', () => {
@@ -166,7 +177,8 @@ describe('MobileShell 工作台顶栏', () => {
     nav.pathname = '/studio/c/abc'
     render(<MobileShell />)
     const bar = screen.getByRole('navigation', { name: 'MobileNav:tabs.label' })
-    expect(bar.querySelector('a[href="/studio"]')).toHaveAttribute(
+    // 记下了这段对话，「对话」那一格也就指回它。
+    expect(bar.querySelector('a[href="/studio/c/abc"]')).toHaveAttribute(
       'aria-current',
       'page',
     )

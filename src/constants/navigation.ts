@@ -227,6 +227,7 @@ function pickGoItems(ids: readonly string[]): readonly ShellNavItem[] {
 /** 手机底栏的本地记忆（`hooks/use-mobile-nav-memory.ts`）。 */
 export const MOBILE_NAV_LAST_TOOL_STORAGE_KEY = 'pv:mobile-nav:last-tool'
 export const MOBILE_NAV_RETURN_STORAGE_KEY = 'pv:mobile-nav:return'
+export const MOBILE_NAV_LAST_CHAT_STORAGE_KEY = 'pv:mobile-nav:last-chat'
 
 /** 长按 ＋ 多久算长按（直接进上次的工具）。 */
 export const MOBILE_CREATE_LONG_PRESS_MS = 450

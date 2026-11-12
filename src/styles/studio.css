@@ -13,7 +13,9 @@
     /* 初始预留值；挂载后按 composer 的实际高度同步。 */
     --studio-mobile-composer-height: 7rem;
 
-    min-height: calc(var(--screen-h, 100svh) - 3.5rem);
+    min-height: calc(
+      var(--screen-h, 100svh) - var(--mobile-chrome-height, 3.5rem)
+    );
     flex-direction: column;
     position: relative;
   }
@@ -83,7 +85,7 @@
      有输入条时整台定高、只让舞台卡自己滚 —— 否则内容一长整页在滚，舞台卡照样从
      灰条后面穿过去。 */
   .studio-layout-v2:has(.studio-mobile-composer) {
-    height: calc(var(--screen-h, 100svh) - 3.5rem);
+    height: calc(var(--screen-h, 100svh) - var(--mobile-chrome-height, 3.5rem));
   }
 
   .studio-mobile-stage {
@@ -96,7 +98,11 @@
   .studio-tags-mobile-composer {
     bottom: var(--keyboard-inset, 0px);
     max-height: calc(
-      (var(--screen-h, 100svh) - var(--keyboard-inset, 0px) - 3.5rem) / 2
+      (
+          var(--screen-h, 100svh) - var(--keyboard-inset, 0px) -
+            var(--mobile-chrome-height, 3.5rem)
+        ) /
+        2
     );
     padding-bottom: max(var(--keyboard-safe-area-bottom, 0px), 0.75rem);
   }
@@ -110,7 +116,7 @@
     height: max(
       10rem,
       calc(
-        var(--screen-h, 100svh) - 7.5rem -
+        var(--screen-h, 100svh) - var(--mobile-chrome-height, 3.5rem) - 4rem -
           var(--studio-mobile-composer-height) - var(--keyboard-inset, 0px)
       )
     );
@@ -121,7 +127,7 @@
      头部与搜索不跟着页面滚走，只有卡片网格在里面滚。 */
   .studio-mobile-stage-panel {
     height: calc(
-      var(--screen-h, 100svh) - 3.5rem - 1.5rem -
+      var(--screen-h, 100svh) - var(--mobile-chrome-height, 3.5rem) - 1.5rem -
         var(--studio-mobile-composer-height, 7rem)
     );
   }

@@ -66,7 +66,9 @@
  * 不属于 domain-lora 的 App 顶栏，`h-dvh` 会把这段也算进来、把卡片顶出视口
  * 底部造成整页滚动（真机验证发现）。≥768 是侧栏壳，没有顶栏，回到满高。 */
 .domain-lora.lora-locked-height {
-  height: calc(var(--screen-h, 100svh) - 3.5rem);
+  /* 顶栏实高（44 + 刘海安全区）由手机壳写进 `--mobile-chrome-height`，⛔ 写死 3.5rem：
+     装到主屏（standalone）时刘海那一截没扣，整页会多滚一段。 */
+  height: calc(var(--screen-h, 100svh) - var(--mobile-chrome-height, 3.5rem));
 }
 @media (min-width: 768px) {
   .domain-lora.lora-locked-height {
@@ -98,6 +100,8 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
+  /* 手机：卡底让出 Home 条（桌面 env() 为 0）。 */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 .domain-lora .lora-bar {

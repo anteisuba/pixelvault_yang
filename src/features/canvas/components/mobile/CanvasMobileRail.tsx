@@ -201,7 +201,8 @@ export function CanvasMobileRail({
       <div
         data-mobile-rail-list={list}
         // 底部留出 FAB 的位置 + 安全区，⛔ 不让最后一张卡被 FAB 压住。
-        className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3.5 pb-28"
+        // 卡片 `shrink-0`：竖排 flex 里默认会被压到装得下为止，封面被挤扁、底部被裁（2026-11-12）。
+        className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3.5 pt-1 pb-28 *:shrink-0"
         style={{ paddingBottom: 'calc(7rem + env(safe-area-inset-bottom))' }}
       >
         {rows.length === 0 ? (

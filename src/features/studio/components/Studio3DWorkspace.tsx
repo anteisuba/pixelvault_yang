@@ -2982,6 +2982,7 @@ export function Studio3DWorkspace({
               variant="secondary"
               onClick={() => setSettingsOpen(true)}
               aria-expanded={settingsOpen}
+              className="min-h-11 rounded-xl"
             >
               <SlidersHorizontal className="size-4" />
               {t('settingsTitle')}

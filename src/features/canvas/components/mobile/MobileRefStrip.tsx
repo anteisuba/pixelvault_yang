@@ -98,7 +98,7 @@ export function MobileRefStrip({
     <div
       data-mobile-ref-strip
       // 条内横滑**不带动列表**：`touch-pan-x` 把纵向手势留给外层。
-      className="flex touch-pan-x items-center gap-2 overflow-x-auto px-3 pb-3 pt-2.5"
+      className="scrollbar-none flex touch-pan-x items-center gap-2 overflow-x-auto px-3 pb-3 pt-2.5"
     >
       {VIDEO_RAIL_GROUPS.map((group, groupIndex) => {
         const groupItems = items.filter((item) => item.group === group)

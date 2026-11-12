@@ -266,6 +266,7 @@
         "description": "使用局部重绘、超分、去背景和提取元素编辑生成图片。"
       },
       "lora": { "title": "LoRA 台 — ANTEI" },
+      "model3d": { "title": "3D 台 — ANTEI" },
       "node": {
         "title": "画布 — ANTEI",
         "description": "在一个可视化画布上创建并编排图片、视频与音频工作流。"

@@ -266,6 +266,7 @@
         "description": "Edit generated images with inpaint, super resolution, background removal, and element extraction."
       },
       "lora": { "title": "LoRA Studio — ANTEI" },
+      "model3d": { "title": "3D Studio — ANTEI" },
       "node": {
         "title": "Canvas — ANTEI",
         "description": "Create and orchestrate image, video, and audio workflows on one visual canvas."

@@ -266,6 +266,7 @@
         "description": "インペイント、超解像、背景除去、要素抽出で生成画像を編集。"
       },
       "lora": { "title": "LoRA スタジオ — ANTEI" },
+      "model3d": { "title": "3D スタジオ — ANTEI" },
       "node": {
         "title": "キャンバス — ANTEI",
         "description": "1つのビジュアルキャンバスで画像・動画・音声のワークフローを作成・編成します。"

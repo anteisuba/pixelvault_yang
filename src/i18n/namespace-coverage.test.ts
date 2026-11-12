@@ -704,13 +704,21 @@ const KNOWN_DYNAMIC_NAMESPACE_SITES: Readonly<
     namespaces: ['Navbar', 'StudioTools', 'StudioNode'],
   },
   'components/layout/MobileShell.tsx': {
-    // bottom-bar tab, ＋ panel rows, studio top bar (2026-10-10)
+    // bottom-bar tab, studio top bar (2026-11-12)
     reason:
-      'Same `SHELL_NAV_*` tables as AppSidebar, read three times (bottom-bar ' +
-      'tab label, the ＋ panel tool rows, the studio top-bar tool switcher). ' +
-      'See `src/constants/navigation.ts`.',
-    calls: ['useTranslations()', 'useTranslations()', 'useTranslations()'],
-    namespaces: ['Navbar', 'StudioTools'],
+      'Same `SHELL_NAV_*` tables as AppSidebar, read twice (bottom-bar tab ' +
+      'label — `MobileNav.tabs.chat` for the chat tab — and the studio ' +
+      'top-bar current tool). See `src/constants/navigation.ts`.',
+    calls: ['useTranslations()', 'useTranslations()'],
+    namespaces: ['Navbar', 'StudioTools', 'MobileNav'],
+  },
+  'components/layout/MobileToolSheet.tsx': {
+    // tool tile in the create / switch sheet (2026-11-12)
+    reason:
+      'Renders `SHELL_NAV_TOOLS` via `t(item.labelKey)`; every labelKey is ' +
+      '`StudioTools.tools.<id>.label`. See `src/constants/navigation.ts`.',
+    calls: ['useTranslations()'],
+    namespaces: ['StudioTools'],
   },
   'components/business/studio-shared/workflow/StudioWorkflowPicker.tsx': {
     // line 32 as of 2026-08-25

@@ -966,7 +966,7 @@ export function StudioOperatorUserText({
         data-testid="operator-user-text"
         /* ui-spec §9 Message（owner 11-04）：你的那一句是冷灰 `bubble` 气泡，右上角收成小圆角。
            ⛔ 别再用输入条那块象牙料（09-25 旧版）—— 气泡色只认 `bubble` 这一格。 */
-        className="w-fit max-w-full whitespace-pre-wrap rounded-2xl rounded-tr-sm bg-bubble px-3 py-2 text-md leading-reading text-foreground"
+        className="w-fit max-w-full whitespace-pre-wrap rounded-2xl rounded-tr-sm bg-bubble px-3 py-2 text-md leading-reading text-foreground max-md:max-w-5/6"
       >
         {node}
         {trailing.length ? (

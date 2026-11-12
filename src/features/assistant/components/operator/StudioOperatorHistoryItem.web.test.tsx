@@ -33,6 +33,21 @@ const LONG =
   ['一', '二', '三', '四', '五', '六', '七', '八'].join('。\n') + '。'
 
 describe('StudioOperatorHistoryItem', () => {
+  it('念给你听的那段载回来也洗掉念法记号（11-12 手机：历史里露出「[soft tone]」）', () => {
+    render(
+      <StudioOperatorHistoryItem
+        entry={{
+          kind: 'message',
+          id: 'h4',
+          text: '[soft tone] 在呢。',
+          spoken: true,
+        }}
+      />,
+    )
+    expect(screen.queryByText(/soft tone/)).toBeNull()
+    expect(screen.getByText(/在呢/)).toBeTruthy()
+  })
+
   it('她在聊天的那段（②c-2）：一行一个气泡，整段直接摆出来、⛔ 不折', () => {
     render(
       <StudioOperatorHistoryItem

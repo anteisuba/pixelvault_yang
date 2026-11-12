@@ -43,16 +43,17 @@ export function StudioOperatorVoiceKey() {
       aria-label={on ? t('turnOff') : t('turnOn')}
       onClick={() => setOn(!on)}
       className={cn(
-        'flex h-8 shrink-0 items-center gap-1.5 overflow-hidden rounded-full px-2 text-2sm font-medium transition-[width,background-color,color] duration-spring-expand ease-spring-expand focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none',
+        'touch-target flex h-8 shrink-0 items-center gap-1.5 overflow-hidden rounded-full px-2 max-md:overflow-visible text-2sm font-medium transition-[width,background-color,color] duration-spring-expand ease-spring-expand focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none',
         on
-          ? 'w-18 bg-primary text-primary-foreground'
+          ? 'w-18 bg-primary text-primary-foreground max-md:w-8'
           : 'w-8 text-muted-foreground hover:bg-surface-fill hover:text-foreground',
       )}
     >
       <Volume2 className="size-4 shrink-0" aria-hidden />
+      {/* 手机上开着只是一颗实心黑圆：拉长成胶囊会把顶栏的名字挤没（日文「おしゃべり」+「音声」）。 */}
       <span
         className={cn(
-          'whitespace-nowrap transition-[opacity,transform] delay-75 duration-base ease-standard motion-reduce:transition-none',
+          'whitespace-nowrap transition-[opacity,transform] delay-75 duration-base ease-standard motion-reduce:transition-none max-md:hidden',
           on ? 'opacity-100' : '-translate-x-1 opacity-0',
         )}
       >
@@ -102,14 +103,16 @@ export function StudioOperatorVoiceStrip() {
               />
             ))}
           </span>
-          <span className="min-w-0 flex-1 truncate text-foreground">
+          {/* 手机上一行放不下这句 + 嗓子 + 三档（375 宽它被挤成 0）：顶上「语音」胶囊和跳动的声波
+              已经说了在念，这句只在宽屏上写，嗓子键吃掉剩下的宽。 */}
+          <span className="min-w-0 flex-1 truncate text-foreground max-md:hidden">
             {t('speaking', { name: voice.personaName })}
           </span>
           <button
             type="button"
             data-testid="operator-voice-pick"
             onClick={() => setPicking(true)}
-            className="flex h-8 max-w-40 shrink-0 items-center gap-1 rounded-full bg-card px-3 text-2sm text-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none"
+            className="touch-target-y flex h-8 max-w-40 shrink-0 items-center gap-1 rounded-full bg-card px-3 text-2sm text-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none max-md:max-w-none max-md:min-w-0 max-md:flex-1 max-md:justify-between"
           >
             <span className="truncate">
               {voice.voiceName ?? t('pickVoice')}
@@ -127,7 +130,7 @@ export function StudioOperatorVoiceStrip() {
               value: id,
               label: t(`models.${MODEL_LABEL_KEYS[index]}`),
             }))}
-            className="w-52"
+            className="w-52 shrink-0 max-md:w-44"
           />
         </div>
       </div>
@@ -159,7 +162,7 @@ export function StudioOperatorChatVoice({
   const retry = () => retryOperatorReply(entryId)
 
   const action =
-    'flex h-7 w-fit items-center gap-1 rounded-full border border-border bg-card px-2.5 text-xs text-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none'
+    'touch-target-y flex h-7 w-fit items-center gap-1 rounded-full border border-border bg-card px-2.5 text-xs text-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none'
 
   return (
     <div data-testid="operator-chat-voice" data-status={voice.status}>

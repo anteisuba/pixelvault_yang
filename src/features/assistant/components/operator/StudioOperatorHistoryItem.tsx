@@ -33,6 +33,7 @@ import {
   StudioOperatorUserText,
 } from '@/features/assistant/components/operator/StudioOperatorMessageBody'
 import { StudioOperatorThoughts } from './StudioOperatorThoughts'
+import { withoutVoiceCuesInProse } from '@/lib/chat-voice'
 import { describeSystemSubjects } from '@/lib/studio-operator-timeline'
 import { cn } from '@/lib/utils'
 import type {
@@ -102,7 +103,10 @@ export function StudioOperatorHistoryItem({
             />
           ) : (
             <StudioOperatorCollapsibleText
-              text={entry.text}
+              // 念给你听的那段带着 `[soft tone]` 之类的念法记号：载回来也要洗掉（同实时线程）。
+              text={
+                entry.spoken ? withoutVoiceCuesInProse(entry.text) : entry.text
+              }
               references={references}
             />
           )}

@@ -173,6 +173,7 @@
     "last": "上次",
     "back": "返回",
     "switchTool": "切换工具",
+    "sheetHint": "选一个台，往下拖可以收起",
     "tabs": {
       "label": "主导航",
       "chat": "对话",

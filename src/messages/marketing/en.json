@@ -247,6 +247,7 @@
     "chat": { "title": "Chat — ANTEI" },
     "loraLibrary": { "title": "LoRA models — ANTEI" },
     "tagLibrary": { "title": "Tag library — ANTEI" },
+    "tavernLibrary": { "title": "Tavern — ANTEI" },
     "title": "ANTEI | Personal AI Gallery",
     "description": "Generate images, videos, and audio with Gemini, FLUX, and other top AI models — then archive every result in one personal gallery.",
     "keywords": "AI image generator, AI art, Gemini image, FLUX AI, personal AI gallery, AI video generator, text to image",

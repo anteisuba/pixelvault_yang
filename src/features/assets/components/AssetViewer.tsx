@@ -308,10 +308,16 @@ function AssetViewerAside({
           }
           disabled={actions.isFavoriting}
           aria-pressed={isLiked}
-          className={VIEWER_OUTLINE_PILL}
+          className={cn(
+            VIEWER_OUTLINE_PILL,
+            'max-md:w-8.5 max-md:justify-center max-md:px-0',
+          )}
         >
           <FavoriteBookmark saved={isLiked} />
-          {isLiked ? t('viewer.favorited') : t('detailFavorite')}
+          {/* 手机上一排放不下五样（英 / 日文会把「更多」挤到第二行）：收藏只留书签。 */}
+          <span className="max-md:sr-only">
+            {isLiked ? t('viewer.favorited') : t('detailFavorite')}
+          </span>
         </FeedbackButton>
         <button
           type="button"

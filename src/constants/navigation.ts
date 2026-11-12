@@ -3,7 +3,10 @@ import {
   type CanvasShellPanelId,
 } from '@/constants/canvas-shell'
 import { ROUTES } from '@/constants/routes'
-import { STUDIO_LIBRARY_CATEGORY_IDS } from '@/constants/studio-shell'
+import {
+  STUDIO_LIBRARY_CATEGORY_IDS,
+  STUDIO_LIBRARY_TAB_IDS,
+} from '@/constants/studio-shell'
 
 import {
   Archive,
@@ -244,13 +247,15 @@ export const MOBILE_EDGE_SWIPE = {
 
 /**
  * 手机「我的」那一格进的是 `/settings` 一级列表（iOS 稿 owner 2026-10-16：设置页取消，
- * 内容全部摊在「我的」上），主页与提示词都从那张列表点进去，所以连它们一起算激活。
+ * 内容全部摊在「我的」上），主页、提示词与「库」那几页都从那张列表点进去，所以连它们一起算激活。
  * 桌面侧栏那一项照旧去 `/u/me`。
  */
 const MOBILE_ME_TAB_PATHS = [
   ROUTES.SETTINGS,
   ROUTES.MY_PROFILE,
   ROUTES.PROMPTS,
+  // 「我的」里那组「库」（2026-11-12）：进去以后底栏照旧亮着「我的」。
+  ...STUDIO_LIBRARY_TAB_IDS.map((id) => `${ROUTES.LIBRARY}/${id}`),
 ] as const
 
 /**

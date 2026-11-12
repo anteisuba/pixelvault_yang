@@ -712,6 +712,15 @@ const KNOWN_DYNAMIC_NAMESPACE_SITES: Readonly<
     calls: ['useTranslations()', 'useTranslations()'],
     namespaces: ['Navbar', 'StudioTools', 'MobileNav'],
   },
+  'features/settings/components/SettingsIndexView.tsx': {
+    // 「库」rows on the phone Me page (2026-11-12)
+    reason:
+      'Renders `STUDIO_LIBRARY_ITEMS` (filtered to `STUDIO_LIBRARY_TAB_IDS`) ' +
+      'via `t(item.labelKey)`; those labelKeys are all `Navbar.links.*`. See ' +
+      '`src/constants/navigation.ts`.',
+    calls: ['useTranslations()'],
+    namespaces: ['Navbar'],
+  },
   'components/layout/MobileToolSheet.tsx': {
     // tool tile in the create / switch sheet (2026-11-12)
     reason:

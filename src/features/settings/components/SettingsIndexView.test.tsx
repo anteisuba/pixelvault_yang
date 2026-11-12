@@ -98,7 +98,7 @@ describe('SettingsIndexView（手机一级列表）', () => {
     expect(screen.queryByText(/把失效/)).toBeNull()
   })
 
-  it('是手机的「我的」：资料、提示词、各节、偏好就地展开、退出放最后', async () => {
+  it('是手机的「我的」：资料、提示词、库、各节、偏好就地展开、退出放最后', async () => {
     const { container } = await renderIndex()
 
     expect(await screen.findByText('YINIG')).toBeInTheDocument()
@@ -108,6 +108,11 @@ describe('SettingsIndexView（手机一级列表）', () => {
     expect(hrefs).toEqual([
       '/u/me',
       '/library/prompts',
+      // 「库」那一组：底栏放不下，手机从这里进（同电脑左栏「库」）。
+      '/library/lora',
+      '/library/tavern',
+      '/library/tags',
+      '/library/voices',
       '/settings/keys',
       '/settings/usage',
       '/settings/assistant',

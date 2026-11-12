@@ -14,7 +14,9 @@ import {
   type Icon,
 } from '@/components/icons'
 
+import { STUDIO_LIBRARY_ITEMS } from '@/constants/navigation'
 import { ROUTES, safeReturnPath, settingsPath } from '@/constants/routes'
+import { STUDIO_LIBRARY_TAB_IDS } from '@/constants/studio-shell'
 import {
   SETTINGS_DEFAULT_SECTION,
   SETTINGS_SECTION_IDS,
@@ -29,6 +31,10 @@ import { Link, useRouter } from '@/i18n/navigation'
 import { ProfileAvatar } from '@/components/layout/ProfileAvatar'
 import { SettingsPreferenceRows } from '@/features/settings/components/SettingsPreferencesSection'
 import { SettingsSignOutButton } from '@/features/settings/components/SettingsShell'
+
+const LIBRARY_ROWS = STUDIO_LIBRARY_ITEMS.filter((item) =>
+  (STUDIO_LIBRARY_TAB_IDS as readonly string[]).includes(item.id),
+)
 
 const GROUP_CLASS =
   'mt-4 divide-y divide-border overflow-hidden rounded-xl border border-border bg-card'
@@ -49,6 +55,7 @@ const ROW_CLASS =
 export function SettingsIndexView() {
   const t = useTranslations('Settings')
   const tMobile = useTranslations('MobileNav')
+  const tRoot = useTranslations()
   const router = useRouter()
   const searchParams = useSearchParams()
   const from = safeReturnPath(searchParams.get('from'))
@@ -89,6 +96,20 @@ export function SettingsIndexView() {
             label={tMobile('me.prompts')}
           />
         </li>
+      </ul>
+
+      {/* 「库」那一组（LoRA 模型 · 酒馆 · 标签词库 · 音色，同电脑左栏，`STUDIO_LIBRARY_TAB_IDS`）：
+          底栏放不下，手机上从这里进 —— 之前音色管理页在手机上没有入口（2026-11-12）。 */}
+      <ul className={GROUP_CLASS}>
+        {LIBRARY_ROWS.map((item) => (
+          <li key={item.id}>
+            <HubRow
+              href={item.href}
+              icon={item.icon}
+              label={tRoot(item.labelKey)}
+            />
+          </li>
+        ))}
       </ul>
 
       <SectionGroup

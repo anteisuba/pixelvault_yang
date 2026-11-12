@@ -3218,7 +3218,8 @@ export function StudioOperatorPanel({
                     animate={{ width: showStop ? 'auto' : SEND_BUTTON_SIZE_PX }}
                     transition={reducedMotion ? { duration: 0 } : SPRING.slot}
                     className={cn(
-                      'flex h-8 shrink-0 items-center justify-center overflow-hidden whitespace-nowrap rounded-full bg-foreground text-background transition-[background-color,color,transform] duration-fast ease-standard hover:bg-foreground/90 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none disabled:cursor-not-allowed disabled:bg-surface-fill-track disabled:text-muted-foreground',
+                      // 触屏补到 44（`touch-target`）：拉长时裁字放在里面那层，键自己 ⛔ `overflow-hidden`（会把命中区一起裁掉）。
+                      'touch-target flex h-8 shrink-0 items-center justify-center whitespace-nowrap rounded-full bg-foreground text-background transition-[background-color,color,transform] duration-fast ease-standard hover:bg-foreground/90 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none disabled:cursor-not-allowed disabled:bg-surface-fill-track disabled:text-muted-foreground',
                       showStop && 'px-3.5',
                     )}
                   >
@@ -3226,7 +3227,7 @@ export function StudioOperatorPanel({
                       swapKey={
                         showStop ? 'stop' : uploading ? 'uploading' : 'send'
                       }
-                      className="gap-1.5"
+                      className="min-w-0 max-w-full gap-1.5 overflow-hidden"
                     >
                       {showStop ? (
                         <>

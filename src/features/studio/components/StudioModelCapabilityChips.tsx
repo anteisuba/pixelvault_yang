@@ -63,6 +63,11 @@ interface StudioModelCapabilityChipsProps {
   variant?: 'section' | 'single'
   /** `single` 那颗触发器的宿主外观（手机输入框卡里收成无边幽灵丸）。 */
   triggerClassName?: string
+  /**
+   * 只画图标（名字照旧给读屏）：手机输入条那一行窄，⛔ 让「Model extras」这类长名字把模型名
+   * 挤成一个字母（2026-11-12 英文实测）。
+   */
+  iconOnly?: boolean
 }
 
 export function StudioModelCapabilityChips({
@@ -70,6 +75,7 @@ export function StudioModelCapabilityChips({
   scroll = false,
   variant = 'section',
   triggerClassName,
+  iconOnly = false,
 }: StudioModelCapabilityChipsProps) {
   const { state, dispatch } = useStudioForm()
   const { imageUpload } = useStudioData()
@@ -118,6 +124,7 @@ export function StudioModelCapabilityChips({
         sectionLabel={sectionLabel}
         scopeNotes={scopeNotes}
         triggerClassName={triggerClassName}
+        iconOnly={iconOnly}
         onParamsChange={onParamsChange}
       />
     )
@@ -464,6 +471,7 @@ function CapabilitySingleChip({
   sectionLabel,
   scopeNotes,
   triggerClassName,
+  iconOnly,
   onParamsChange,
 }: {
   chips: CapabilityChip[]
@@ -473,6 +481,7 @@ function CapabilitySingleChip({
   sectionLabel: string
   scopeNotes: ReadonlyMap<string, string>
   triggerClassName?: string
+  iconOnly: boolean
   onParamsChange: (next: AdvancedParams) => void
 }) {
   const t = useTranslations('StudioCapabilityChips')
@@ -507,7 +516,7 @@ function CapabilitySingleChip({
         >
           <SlidersHorizontal className="size-4 shrink-0" aria-hidden />
           {/* 换模型清回默认 / 改了某项 = 字糊一下换掉，⛔ 跳字。 */}
-          <BlurSwap swapKey={chipText}>{chipText}</BlurSwap>
+          {iconOnly ? null : <BlurSwap swapKey={chipText}>{chipText}</BlurSwap>}
         </button>
       </StudioToolSurfaceTrigger>
       <ResponsivePopoverContent

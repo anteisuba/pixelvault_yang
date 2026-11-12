@@ -17,8 +17,10 @@ export async function generateMetadata({
 }: Studio3DPageProps): Promise<Metadata> {
   const { locale } = await params
   const t = await getTranslations({ locale, namespace: 'Model3DGenerate' })
+  const tMeta = await getTranslations({ locale, namespace: 'Metadata' })
   return {
-    title: t('title'),
+    // 和其他台同一种标题（「3D 台 — ANTEI」），⛔ 只写页内大标题那句。
+    title: tMeta('studio.model3d.title'),
     description: t('description'),
     robots: 'noindex, nofollow',
   }

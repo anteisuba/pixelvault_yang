@@ -451,7 +451,7 @@ export function LoraLibraryDetailPage({
               onClick={() => onMount(current)}
               aria-busy={mountingId === current.id || undefined}
               className={cn(
-                'inline-flex h-8.5 items-center justify-center coarse:h-11 gap-1.5 rounded-full bg-foreground px-4 text-2sm font-semibold text-background max-md:flex-1 transition-opacity duration-fast ease-linear hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                'inline-flex h-8.5 items-center justify-center coarse:h-11 gap-1.5 whitespace-nowrap rounded-full bg-foreground px-4 text-2sm font-semibold text-background max-md:flex-1 transition-opacity duration-fast ease-linear hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                 mountingId === current.id && 'opacity-70',
               )}
             >
@@ -468,11 +468,18 @@ export function LoraLibraryDetailPage({
               type="button"
               aria-pressed={favorited}
               onClick={() => onToggleFavorite(current)}
-              className={cn(ghost, favorited && 'border-transparent bg-muted')}
+              className={cn(
+                ghost,
+                // 手机只留书签（名字给读屏）：日文「お気に入り」会把主钮挤成两行（2026-11-12）。
+                'max-md:w-11 max-md:justify-center max-md:px-0',
+                favorited && 'border-transparent bg-muted',
+              )}
             >
               {/* 收藏一律是书签（ui-spec §9 ⑳），⛔ 心。 */}
               <FavoriteBookmark saved={favorited} className="size-3.5" />
-              {favorited ? t('favorited') : t('favorite')}
+              <span className="max-md:sr-only">
+                {favorited ? t('favorited') : t('favorite')}
+              </span>
             </button>
           ) : null}
           {current.modelPageUrl ? (

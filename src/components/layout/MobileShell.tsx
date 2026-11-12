@@ -116,7 +116,7 @@ function MobileTab({
       ) : null}
       <Icon />
       {/* ⛔ `truncate`：差两三像素的字（日文「ギャラリー」）宁可贴着格边，也别截成「ギャラ…」。 */}
-      <span className="relative whitespace-nowrap">{label}</span>
+      <span className="relative whitespace-nowrap tracking-tight">{label}</span>
     </Link>
   )
 }
@@ -275,7 +275,7 @@ function MobileTabBar({ pathname }: { pathname: string }) {
         aria-label={tMobile('tabs.label')}
         data-scrolled-away={scrolledAway || undefined}
         className={cn(
-          'pointer-events-none fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 px-4 pb-safe-inset-bottom transition-transform duration-base ease-standard motion-reduce:transition-none lg:hidden',
+          'pointer-events-none fixed inset-x-0 bottom-0 z-40 flex items-center gap-2 px-4 pb-safe-inset-bottom transition-transform duration-base ease-standard motion-reduce:transition-none lg:hidden',
           scrolledAway && 'translate-y-full',
         )}
       >
@@ -284,7 +284,7 @@ function MobileTabBar({ pathname }: { pathname: string }) {
           initial={reduceMotion ? false : { y: '140%' }}
           animate={{ y: 0 }}
           transition={springTransition('slot', reduceMotion)}
-          className="flex min-w-0 flex-1 items-center gap-3"
+          className="flex min-w-0 flex-1 items-center gap-2"
         >
           {/* iOS 26 式浮起的胶囊：五个去处；＋ 是旁边单独一颗黑圆键（iOS 稿 B）。 */}
           <div className="pointer-events-auto relative mb-2 h-15 min-w-0 flex-1 rounded-full border border-border p-1 shadow-pop surface-glass">

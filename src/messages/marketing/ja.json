@@ -247,6 +247,7 @@
     "chat": { "title": "チャット — ANTEI" },
     "loraLibrary": { "title": "LoRA モデル — ANTEI" },
     "tagLibrary": { "title": "タグ辞典 — ANTEI" },
+    "tavernLibrary": { "title": "酒場 — ANTEI" },
     "title": "ANTEI | パーソナルAIギャラリー",
     "description": "Gemini・FLUXなど主要AIモデルで画像・動画・音声を生成し、すべての結果をひとつの個人ギャラリーに永久保存。",
     "keywords": "AI画像生成, AIアート, Gemini画像, FLUX AI, パーソナルAIギャラリー, AI動画生成, テキストから画像",
@@ -266,6 +267,7 @@
         "description": "インペイント、超解像、背景除去、要素抽出で生成画像を編集。"
       },
       "lora": { "title": "LoRA スタジオ — ANTEI" },
+      "model3d": { "title": "3D スタジオ — ANTEI" },
       "node": {
         "title": "キャンバス — ANTEI",
         "description": "1つのビジュアルキャンバスで画像・動画・音声のワークフローを作成・編成します。"

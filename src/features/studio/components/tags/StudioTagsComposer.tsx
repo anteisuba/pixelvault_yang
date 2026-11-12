@@ -845,13 +845,12 @@ function TagCapabilityChip({
           )}
         >
           <SlidersHorizontal className="size-4 shrink-0" aria-hidden />
-          <span className="truncate">
-            {mobile
-              ? t('parameters')
-              : otherSet > 0
-                ? `${summary} +${otherSet}`
-                : summary}
-          </span>
+          {/* 手机只留图标（名字在 aria-label 里），把那一行让给模型名（2026-11-12 英文实测）。 */}
+          {mobile ? null : (
+            <span className="truncate">
+              {otherSet > 0 ? `${summary} +${otherSet}` : summary}
+            </span>
+          )}
         </button>
       </StudioToolSurfaceTrigger>
       <ResponsivePopoverContent

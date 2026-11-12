@@ -69,7 +69,7 @@
     "emptyField": "Not written yet",
     "importCard": "Import card",
     "importCardHint": "Import a SillyTavern character card (PNG or JSON). You can also drop it here.",
-    "tabRoster": "My characters",
+    "tabRoster": "Mine",
     "tabLibrary": "Card library",
     "librarySearchPlaceholder": "Search",
     "librarySort": "Sort",

@@ -17,8 +17,8 @@ export async function generateMetadata({
   params,
 }: LibraryTavernPageProps): Promise<Metadata> {
   const { locale } = await params
-  const t = await getTranslations({ locale, namespace: 'Navbar.links' })
-  return { title: t('tavern'), robots: 'noindex, nofollow' }
+  const t = await getTranslations({ locale, namespace: 'Metadata' })
+  return { title: t('tavernLibrary.title'), robots: 'noindex, nofollow' }
 }
 
 /** `/library/tavern`：酒馆库（chub.ai 公开卡，用户 10-25 从角色库拆出来）。 */

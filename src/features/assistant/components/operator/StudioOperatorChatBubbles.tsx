@@ -10,8 +10,9 @@ import { cn } from '@/lib/utils'
 /** 表情包裸图的边长（与 `size-30` 同一个数）。 */
 const STICKER_SIZE_PX = 120
 
+/** 手机上一边最多占 5/6：长句撑满一整列就成了卡片，不像在聊天（你的那句同一条）。 */
 const BUBBLE_CLASS =
-  'w-fit max-w-full whitespace-pre-wrap rounded-2xl rounded-tl-sm border border-border bg-card px-3 py-2 text-md leading-reading text-foreground'
+  'w-fit max-w-full whitespace-pre-wrap rounded-2xl rounded-tl-sm border border-border bg-card px-3 py-2 text-md leading-reading text-foreground max-md:max-w-5/6'
 
 /** 还在写的那段里**已经写完**的几行（最后一行换了行才算完）；写完了 = 全部。 */
 function finishedBubbles(text: string, streaming: boolean): string[] {

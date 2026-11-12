@@ -133,7 +133,7 @@ export function StudioOperatorThoughts({
         data-testid="operator-thoughts-toggle"
         aria-expanded={open}
         onClick={toggle}
-        className="flex h-6 w-fit items-center gap-1.5 rounded-sm text-xs text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+        className="touch-target-y flex h-6 w-fit items-center gap-1.5 rounded-sm text-xs text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
       >
         {live ? (
           <span

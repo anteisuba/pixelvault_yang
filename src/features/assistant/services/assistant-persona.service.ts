@@ -17,6 +17,7 @@ import {
 import { CHARACTER_PERSONA_LIMITS } from '@/constants/cards/character-card'
 import { CHARACTER_REFLECTION } from '@/constants/cards/character-reflection'
 import { slotsCoverUrl } from '@/lib/card-bus'
+import { hasPersonaProfile } from '@/lib/character-persona-fields'
 import { withoutStageDirections } from '@/lib/chat-voice'
 import { ApiRequestError } from '@/lib/errors'
 import { readTavernAuthorNotes, readTavernWorldBook } from '@/lib/tavern-card'
@@ -97,11 +98,6 @@ function readCharacterProfile(
   return parsed.success ? parsed.data : null
 }
 
-/** 角色设定里那段「说话方式」（去掉首尾空白）；没写 / 读不出来是空串。 */
-function readCharacterSpeech(card: PersonaCharacterRow | null): string {
-  return readCharacterProfile(card)?.speech.trim() ?? ''
-}
-
 /**
  * 角色设定 → 进系统提示的那几格（附录J ①）。一格都没写就是 `null`（只剩名字的角色
  * 不值得一整段）。`speech` 由调用方按「语气跟不跟角色走」决定给不给。
@@ -148,12 +144,16 @@ function toCharacter(
   card: PersonaCharacterRow | null,
 ): AssistantPersonaCharacter | null {
   if (!card || card.isDeleted) return null
+  const profile = readCharacterProfile(card)
+  const speech = profile?.speech.trim() ?? ''
   return {
     id: card.id,
     /** ⚠ 与助手名字同一档上限 —— 角色名更长时截断，⛔ 不让整份 persona 读不出来。 */
     name: card.name.slice(0, ASSISTANT_PERSONA_LIMITS.maxNameChars),
     faceUrl: slotsCoverUrl(readSlots(card)),
-    hasSpeech: readCharacterSpeech(card).length > 0,
+    hasSpeech: speech.length > 0,
+    // 与聊天那一轮同一个判据（`toChatPersona` 拿不到 `promptCharacter` 就照工作答）。
+    hasProfile: hasPersonaProfile(profile),
   }
 }
 

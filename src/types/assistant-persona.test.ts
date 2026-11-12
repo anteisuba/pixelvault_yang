@@ -266,7 +266,13 @@ describe('AssistantPersona 助手设置 B 的几格', () => {
       ...FULL,
       avatarUrl: 'https://cdn.test/x.png',
       uploadedAvatarUrl: 'https://cdn.test/y.png',
-      character: { id: 'c', name: 'X', faceUrl: null, hasSpeech: false },
+      character: {
+        id: 'c',
+        name: 'X',
+        faceUrl: null,
+        hasSpeech: false,
+        hasProfile: false,
+      },
     })
     expect(parsed.success).toBe(true)
     expect(parsed.data).not.toHaveProperty('avatarUrl')

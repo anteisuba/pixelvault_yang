@@ -9,6 +9,26 @@ export type PersonaTextPart = Exclude<
   'look'
 >
 
+/**
+ * 设定写了没有：身份 / 行为 / 口吻 / 口头禅 / 背景 / 边界任一格有字。和角色聊天演不演得出来就看它
+ * （全空 = 服务端照工作口吻答，助手头上说出原因）。
+ */
+export function hasPersonaProfile(
+  persona: Partial<CharacterPersona> | null | undefined,
+): boolean {
+  if (!persona) return false
+  return (
+    [
+      persona.identity,
+      persona.behavior,
+      persona.speech,
+      persona.backstory,
+      persona.boundaries,
+    ].some((text) => Boolean(text?.trim())) ||
+    (persona.catchphrases ?? []).some((phrase) => Boolean(phrase.trim()))
+  )
+}
+
 /** 一行一项：去空行、截长、限条数。 */
 function lines(text: string, chars: number, max: number): string[] {
   return text

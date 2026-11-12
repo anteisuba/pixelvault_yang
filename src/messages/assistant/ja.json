@@ -982,7 +982,9 @@
       "rewriteCancel": "やめる",
       "previousVersion": "前の版",
       "nextVersion": "次の版",
-      "versionOf": "{index} / {total}"
+      "versionOf": "{index} / {total}",
+      "noProfile": "{name}はまだ設定がないため、チャットは作業モードの口調で返します。",
+      "noProfileAction": "設定を書く"
     },
     "mode": {
       "pickCharacter": "アシスタントの人格を切り替え",

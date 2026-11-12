@@ -24,6 +24,7 @@ import { useCharacterCards } from '@/features/cards/hooks'
 import type { UseAssistantPersonaAutosaveValue } from '@/hooks/use-assistant-persona'
 import { Link } from '@/i18n/navigation'
 import { characterCoverUrl } from '@/lib/card-bus'
+import { hasPersonaProfile } from '@/lib/character-persona-fields'
 import { cn } from '@/lib/utils'
 import {
   withAssistantCharacter,
@@ -73,6 +74,7 @@ interface CharacterOption {
   name: string
   faceUrl: string | null
   hasSpeech: boolean
+  hasProfile: boolean
 }
 
 function readFileAsDataUrl(file: File): Promise<string> {
@@ -161,6 +163,7 @@ export function AssistantPersonaPane({
     name: card.name.slice(0, ASSISTANT_PERSONA_LIMITS.maxNameChars),
     faceUrl: characterCoverUrl(card),
     hasSpeech: Boolean(card.persona?.speech?.trim()),
+    hasProfile: hasPersonaProfile(card.persona),
   }))
   /**
    * 正在用的角色：服务端读回来的那份为准；刚在下拉里选、还没落库的那一拍用

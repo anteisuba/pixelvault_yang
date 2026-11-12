@@ -29,9 +29,18 @@
  *   第二次实现「自传头像优先于预设」那套判断。
  */
 
+import { useTranslations } from 'next-intl'
+
+import { ASSISTANT_CHAT_MODE_IDS } from '@/constants/assistant-protocol'
+import { cardManagementPath } from '@/constants/routes'
 import { AssistantTimelineAvatar } from '@/features/assistant/components/operator/TimelineAvatar'
 import type { StudioOperatorFace } from '@/contexts/studio-operator-host'
-import type { AssistantPersona } from '@/types/assistant-persona'
+import { useOperatorChatMode } from '@/hooks/use-chat-persona'
+import { Link } from '@/i18n/navigation'
+import type {
+  AssistantPersona,
+  AssistantPersonaCharacter,
+} from '@/types/assistant-persona'
 
 interface StudioOperatorEmptyStateProps {
   /** 这个宿主那张脸 —— 空态只读 `emptyLine` 一格（药丸归输入区那一排）。 */
@@ -68,8 +77,42 @@ export function StudioOperatorEmptyState({
         {face.emptyLine}
       </p>
 
+      {persona?.character && !persona.character.hasProfile ? (
+        <NoProfileHint character={persona.character} />
+      ) : null}
+
       {/* 下留白 44（画板）。 */}
       <span aria-hidden className="w-px min-h-0 shrink grow basis-11" />
     </div>
+  )
+}
+
+/**
+ * 「聊天」胶囊开着、她却一格设定都没写（owner 2026-11-12：胶囊留着，说出原因）：服务端这时照工作口吻答，
+ * 不说一句就像聊天坏了。给一个去角色页补设定的入口。
+ */
+function NoProfileHint({
+  character,
+}: {
+  character: AssistantPersonaCharacter
+}) {
+  const t = useTranslations('StudioOperator.chat')
+  const chatMode = useOperatorChatMode()
+  if (!chatMode.available || chatMode.mode !== ASSISTANT_CHAT_MODE_IDS.chat) {
+    return null
+  }
+  return (
+    <p
+      data-testid="operator-empty-no-profile"
+      className="mt-1.5 max-w-95 shrink-0 text-xs leading-relaxed text-muted-foreground"
+    >
+      {t('noProfile', { name: character.name })}{' '}
+      <Link
+        href={cardManagementPath({ character: character.id })}
+        className="touch-target-y font-medium text-foreground underline underline-offset-2"
+      >
+        {t('noProfileAction')}
+      </Link>
+    </p>
   )
 }

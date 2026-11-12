@@ -88,9 +88,11 @@ function MobileTab({
   const tMobile = useTranslations('MobileNav')
   const reduceMotion = useReducedMotion()
   const Icon = item.icon
-  // 底栏格子窄：「我的主页」在这里叫「我的」（v10 稿）。
+  // 底栏五格、一格 54 宽：「我的主页」叫「我的」（v10 稿），角色叫短名（英 Cast、日 キャラ）。
   const label =
-    item.id === 'profile' ? tMobile('tabs.profile') : t(item.labelKey)
+    item.id === 'profile' || item.id === 'cards'
+      ? tMobile(`tabs.${item.id}`)
+      : t(item.labelKey)
   return (
     <Link
       href={item.href}
@@ -107,7 +109,8 @@ function MobileTab({
         />
       ) : null}
       <Icon />
-      <span className="relative max-w-full truncate">{label}</span>
+      {/* ⛔ `truncate`：差两三像素的字（日文「ギャラリー」）宁可贴着格边，也别截成「ギャラ…」。 */}
+      <span className="relative whitespace-nowrap">{label}</span>
     </Link>
   )
 }

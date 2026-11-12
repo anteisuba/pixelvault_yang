@@ -14,6 +14,13 @@ import './globals.css'
 export const metadata: Metadata = {
   title: HOMEPAGE_METADATA.title,
   description: HOMEPAGE_METADATA.description,
+  // iPhone「添加到主屏幕」后全屏打开（配 `app/manifest.ts`）。状态栏 `default` = 白底黑字：
+  // 页面从状态栏下面开始，顶部安全区为 0，⛔ 和顶栏自己的 `pt-safe-inset-top` 叠出一截空白。
+  appleWebApp: {
+    capable: true,
+    title: 'ANTEI',
+    statusBarStyle: 'default',
+  },
 }
 
 // 移动端软键盘弹出问题的一半修法（另一半是把所有可聚焦控件的字号钉在 16px，

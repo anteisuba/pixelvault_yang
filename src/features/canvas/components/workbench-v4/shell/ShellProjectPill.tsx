@@ -253,7 +253,7 @@ export function ShellProjectPill({
           data-testid="shell-project-pill"
           aria-label={t('open')}
           style={{ height: CANVAS_SHELL_LAYOUT.pillHeightPx }}
-          className="canvas-glass pointer-events-auto inline-flex items-center gap-2 rounded-full pl-2.5 pr-3 text-node-foreground"
+          className="touch-target-y canvas-glass pointer-events-auto inline-flex items-center gap-2 rounded-full pl-2.5 pr-3 text-node-foreground"
         >
           <span
             data-testid="shell-project-save-dot"

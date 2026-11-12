@@ -134,7 +134,8 @@ export function AssistantSettings({
   if (variant === 'page') {
     return (
       <section className="flex flex-col gap-5">
-        <h2 className="text-xl font-semibold">
+        {/* 手机顶栏已写着「助手」（`SettingsShell`）：这里只留给读屏。 */}
+        <h2 className="text-xl font-semibold max-lg:sr-only">
           {tSettings('sections.assistant')}
         </h2>
         <div className="flex items-center gap-3">

@@ -48,7 +48,10 @@ export function SettingsPreferencesSection() {
 
   return (
     <section>
-      <h2 className="text-xl font-semibold">{t('sections.preferences')}</h2>
+      {/* 手机顶栏已写着分区名（`SettingsShell`）：这里只留给读屏，⛔ 叠两个同名标题。 */}
+      <h2 className="text-xl font-semibold max-lg:sr-only">
+        {t('sections.preferences')}
+      </h2>
       <SettingsPreferenceRows className="mt-3" />
     </section>
   )

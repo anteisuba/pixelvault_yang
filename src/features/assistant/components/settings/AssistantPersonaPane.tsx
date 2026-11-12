@@ -497,7 +497,7 @@ export function AssistantPersonaPane({
               ) : null}
             </div>
 
-            <div className="grid grid-cols-1 gap-3 @xs:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 @sm:grid-cols-2">
               <label className="flex min-w-0 flex-col gap-1.5">
                 <span className="text-2sm font-medium text-muted-foreground">
                   {t('name.label')}

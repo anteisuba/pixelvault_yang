@@ -47,7 +47,7 @@
     "usage": {
       "loading": "正在读取用量…",
       "empty": "本月还没有请求。",
-      "columnProvider": "provider",
+      "columnProvider": "服务商",
       "columnRequests": "本月次数",
       "columnCost": "估算花费",
       "runnerLabel": "Runner · 自托管",

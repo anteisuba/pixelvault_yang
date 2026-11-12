@@ -23,11 +23,16 @@ import {
 } from '@/types/danbooru-catalog'
 import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 
-import { LookupBlank, LookupDetailSkeleton } from '../lookup/LookupDetail'
+import {
+  LookupBlank,
+  LookupDetailSkeleton,
+  LookupFavoriteButton,
+} from '../lookup/LookupDetail'
 import { LookupDetailPane } from '../lookup/LookupDetailPane'
 import { LookupSay } from '../lookup/LookupList'
 import {
   KIND_TEXT,
+  kindLabelKey,
   shownData,
   styleSections,
   type LookupItem,
@@ -144,22 +149,32 @@ function TagLibraryPhone() {
     const missing = detail.data && !found
     return (
       <div className="flex h-full min-h-0 flex-col gap-3 p-4">
-        <div className="flex h-9 shrink-0 items-center gap-3">
+        {/* 和台上「查资料」的手机详情同一行：‹ · 名字 · 类型 · 收藏（⛔ 只有一个「返回」、名字丢了）。 */}
+        <div className="-ml-2 flex h-11 shrink-0 items-center gap-1">
           <button
             type="button"
+            aria-label={tLibrary('back')}
             onClick={() =>
               navigate({
                 [TAG_LIBRARY_PARAM.tag]: null,
                 [TAG_LIBRARY_PARAM.of]: null,
               })
             }
-            className="-ml-1.5 inline-flex h-9 items-center gap-1 rounded-lg pl-1 pr-2.5 text-2sm text-muted-foreground transition-colors duration-fast ease-linear hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus"
+            className="grid size-11 shrink-0 place-items-center rounded-xl text-foreground/75 transition-colors duration-fast ease-linear active:bg-surface-fill focus-visible:outline-none focus-visible:shadow-focus"
           >
             <ChevronLeft className="size-4" aria-hidden />
-            {tLibrary('back')}
           </button>
-          {pickLine}
+          <h2 className="min-w-0 flex-1 truncate text-md font-semibold">
+            {name}
+          </h2>
+          {found ? (
+            <span className="inline-flex h-5 shrink-0 items-center rounded-md bg-muted px-1.75 text-2xs font-semibold text-foreground/75">
+              {t(kindLabelKey(of, openTag))}
+            </span>
+          ) : null}
+          {favorite ? <LookupFavoriteButton phone {...favorite} /> : null}
         </div>
+        {pickLine}
         <div className="flex min-h-0 flex-1 flex-col">
           {missing ? (
             <LookupSay

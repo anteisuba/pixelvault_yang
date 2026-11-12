@@ -2286,6 +2286,8 @@ export function KreaAssetBrowser({
             </div>
             <main
               ref={scrollElementRef}
+              // 手机底栏认这个容器：回到这一格时还原滚到哪、再点一下回顶部（`MobileShell`）。
+              data-mobile-scroll-root={isPickerMode ? undefined : ''}
               className={cn(
                 'studio-scrollbar assets-scroll-gutter min-h-0 flex-1 overflow-x-hidden overflow-y-auto pb-4 max-md:touch-pan-y',
                 // 最后一行能滑到底栏上面。

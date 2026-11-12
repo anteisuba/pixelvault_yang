@@ -15,8 +15,9 @@ import { cn } from '@/lib/utils'
  */
 
 /** 格子本身：圆角 12、先铺 `fill` 等图。宿主自己给宽高 / 比例。 */
+// 触屏按下缩一点（ui-defaults §4「按钮 / 卡片按压」），松手弹回；鼠标照旧只有悬停。
 export const MEDIA_TILE_CLASS =
-  'group/tile relative isolate overflow-hidden rounded-12 bg-muted'
+  'group/tile relative isolate overflow-hidden rounded-12 bg-muted transition-[scale] duration-fast ease-standard coarse:active:scale-[.98] motion-reduce:transition-none'
 
 /** 悬停变暗那一层（盖在媒体上、动作下面）。 */
 export function MediaTileShade({ className }: { className?: string }) {

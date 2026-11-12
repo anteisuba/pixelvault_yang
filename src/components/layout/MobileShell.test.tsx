@@ -84,6 +84,20 @@ describe('MobileShell 底栏（P3 · v10）', () => {
     expect(bar.querySelector('a')).toHaveAttribute('href', '/studio/c/abc')
   })
 
+  it('点已经在的那一格回到顶部，⛔ 原地再导航；点别的格照常导航', () => {
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+    render(<MobileShell />)
+    const bar = screen.getByRole('navigation', { name: 'MobileNav:tabs.label' })
+    const current = bar.querySelector('a[href="/library/assets"]')!
+    const other = bar.querySelector('a[href="/gallery"]')!
+
+    // fireEvent 返回 false = 默认动作被拦下（不导航）。
+    expect(fireEvent.click(current)).toBe(false)
+    expect(scrollTo).toHaveBeenCalledWith(expect.objectContaining({ top: 0 }))
+    expect(fireEvent.click(other)).toBe(true)
+    scrollTo.mockRestore()
+  })
+
   it('提示词不上底栏', () => {
     render(<MobileShell />)
     expect(document.querySelector('a[href="/library/prompts"]')).toBeNull()

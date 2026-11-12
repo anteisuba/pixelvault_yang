@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/library-kit'
 import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import type { GalleryFilters } from '@/hooks/use-gallery'
+import { useWindowScrollAway } from '@/hooks/use-window-scroll-away'
 import { toastError } from '@/lib/toast'
 import { cn } from '@/lib/utils'
 
@@ -53,6 +54,7 @@ export const GalleryHeader = memo(function GalleryHeader({
   const t = useTranslations('GalleryPage')
   const tFilters = useTranslations('GalleryPage.filters')
   const { isSignedIn } = useAuth()
+  const scrolledAway = useWindowScrollAway()
   const [searchInput, setSearchInput] = useState(filters.search)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -109,7 +111,13 @@ export const GalleryHeader = memo(function GalleryHeader({
 
   return (
     // 吸顶：白底盖住滚过去的图（外壳里吸在白板顶，单独打开吸在窗口顶）。
-    <div className="sticky top-0 z-30 -mt-3 bg-background pt-3 pb-1">
+    // 手机上和底栏一起「往下滑收起、往上滑回来」，图多露一截（窗口滚动才有，外壳里不动）。
+    <div
+      className={cn(
+        'sticky top-0 z-30 -mt-3 bg-background pt-3 pb-1 transition-transform duration-base ease-standard motion-reduce:transition-none',
+        scrolledAway && 'max-md:-translate-y-full',
+      )}
+    >
       <h1 className="sr-only">{t('feedEyebrow')}</h1>
       <LibraryToolbar
         search={

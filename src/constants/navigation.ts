@@ -233,6 +233,16 @@ export const MOBILE_NAV_LAST_CHAT_STORAGE_KEY = 'pv:mobile-nav:last-chat'
 export const MOBILE_CREATE_LONG_PRESS_MS = 450
 
 /**
+ * 台上从屏幕左缘往右划 = 返回（只在装到主屏、没有浏览器自带返回手势时接）：
+ * 起手离左缘不超过 `edgePx`，往右划够 `triggerPx`，上下偏不超过 `slopPx`。
+ */
+export const MOBILE_EDGE_SWIPE = {
+  edgePx: 24,
+  triggerPx: 72,
+  slopPx: 48,
+} as const
+
+/**
  * 手机「我的」那一格进的是 `/settings` 一级列表（iOS 稿 owner 2026-10-16：设置页取消，
  * 内容全部摊在「我的」上），主页与提示词都从那张列表点进去，所以连它们一起算激活。
  * 桌面侧栏那一项照旧去 `/u/me`。

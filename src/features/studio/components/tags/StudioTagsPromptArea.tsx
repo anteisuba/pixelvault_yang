@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from 'react'
 import { STUDIO_PROMPT_SCROLL_ANCHOR_ID } from '@/constants/studio-mobile'
+import { useStudioGen } from '@/contexts/studio-context'
 import { useStudioMobileComposerHeight } from '@/features/studio/hooks/use-studio-mobile-composer-height'
 import { cn } from '@/lib/utils'
 import { StudioTagsComposer } from './StudioTagsComposer'
@@ -32,6 +33,16 @@ export const StudioTagsPromptArea = memo(function StudioTagsPromptArea({
    * 点摘要展开；点舞台、打开面板时收回去。展开时盖在舞台上，⛔ 不把图挤小。
    */
   const [expanded, setExpanded] = useState(false)
+  /**
+   * 按下生成就收回一行摘要：舞台整块让给进度和出来的图（2026-11-12 手机实测：展开着生成，
+   * 进度框和结果只剩上半截）。渲染期按「刚开始跑」修正，⛔ 晚一帧。
+   */
+  const { isGenerating } = useStudioGen()
+  const [wasGenerating, setWasGenerating] = useState(isGenerating)
+  if (wasGenerating !== isGenerating) {
+    setWasGenerating(isGenerating)
+    if (isGenerating) setExpanded(false)
+  }
   /** 点摘要展开后，编辑区挂上的那一拍把焦点交给标签输入。 */
   const focusOnExpand = useRef(false)
   useStudioMobileComposerHeight(composerRef, expanded)

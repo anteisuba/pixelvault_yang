@@ -225,7 +225,7 @@ function PickItem({
       aria-current={current ? 'true' : undefined}
       data-testid={testId}
       onSelect={onSelect}
-      className="h-10 px-1.5"
+      className="h-10 px-1.5 coarse:h-12"
     >
       <span
         className={cn(

@@ -104,37 +104,18 @@ describe('VoicesPage · desktop library', () => {
 describe('VoicesPage · phone', () => {
   beforeEach(() => setViewportWidth(MOBILE_WIDTH, { touch: true }))
 
-  it('lands on 我的收藏 on a phone', async () => {
+  // 手机和桌面同一副库骨架：左栏收成顶上一条切换条（2026-11-12 手机端）。
+  it('lands on 全部 with the section switch instead of the rail', async () => {
     await renderPage()
-    expect(
-      await screen.findByRole('tab', { name: '我的收藏 2' }),
-    ).toHaveAttribute('aria-selected', 'true')
-  })
-
-  it('shows my saved voices with counts and who uses them', async () => {
-    await renderPage()
-    fireEvent.click(await screen.findByRole('tab', { name: '我的收藏 2' }))
-    expect(screen.getByRole('tab', { name: '我的收藏 2' })).toHaveAttribute(
+    // 下面还有一条语言筛选也以「全部」开头：只在分区那一条里找。
+    const sections = await screen.findByRole('tablist', { name: '音色' })
+    expect(within(sections).getByRole('tab', { name: '全部' })).toHaveAttribute(
       'aria-selected',
       'true',
     )
+    expect(screen.getByRole('tab', { name: '收藏 2' })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: '我的克隆 1' })).toBeInTheDocument()
     expect(await screen.findByText('Warm')).toBeInTheDocument()
-    expect(await screen.findByText('角色：Denia')).toBeInTheDocument()
-    // 搜索框只在「找音色」出现。
-    expect(screen.queryByRole('searchbox')).not.toBeInTheDocument()
-  })
-
-  it('switches tabs through the shared library kernel', async () => {
-    await renderPage()
-    fireEvent.click(await screen.findByRole('tab', { name: '我的收藏 2' }))
-    fireEvent.click(screen.getByRole('tab', { name: '找音色' }))
-    expect(screen.getByRole('tab', { name: '找音色' })).toHaveAttribute(
-      'aria-selected',
-      'true',
-    )
-    // 切到公开库就去拉公开库。
-    await vi.waitFor(() => expect(api.listVoicesAPI).toHaveBeenCalled())
   })
 
   it('lists cloned voices on the cloned tab', async () => {

@@ -247,7 +247,8 @@ export function StudioOperatorSessionRow({
         data-session-id={session.id}
         {...(current ? { 'aria-current': 'true' as const } : {})}
         className={cn(
-          compact ? 'h-9' : 'h-11',
+          // 触屏上紧凑行也补到 44（手机「记录」下拉），鼠标照旧 36。
+          compact ? 'h-9 coarse:h-11' : 'h-11',
           'group/row relative flex items-center gap-2 rounded-md pr-1.5 pl-2.25 transition-[background-color,box-shadow] duration-fast ease-linear motion-reduce:transition-none',
           editing
             ? 'bg-background ring-1 ring-surface-fill-track ring-inset'

@@ -366,7 +366,8 @@ export function PromptTemplateDetailPage({
       }
       className="absolute inset-0 z-20 flex flex-col bg-card"
     >
-      <header className="flex shrink-0 items-center gap-3 border-b border-border/70 py-3 pl-3 pr-5">
+      {/* 手机：名字一行，动作换到下面一整行（「使用」撑满），⛔ 把名字挤没（同 LoRA 详情，2026-11-12）。 */}
+      <header className="flex shrink-0 flex-wrap items-center gap-3 border-b border-border/70 py-3 pl-3 pr-5 max-md:gap-y-2.5 max-md:pr-3">
         <button
           type="button"
           autoFocus
@@ -376,7 +377,7 @@ export function PromptTemplateDetailPage({
         >
           <ChevronLeft aria-hidden className="size-4" />
         </button>
-        <div className="flex min-w-0 flex-col gap-1">
+        <div className="flex min-w-0 flex-col gap-1 max-md:flex-1">
           <h2 className="truncate text-lg font-semibold leading-5.5 text-foreground">
             {title}
           </h2>
@@ -397,7 +398,7 @@ export function PromptTemplateDetailPage({
           </div>
         </div>
         {editing ? null : (
-          <div className="ml-auto flex shrink-0 items-center gap-2">
+          <div className="ml-auto flex shrink-0 items-center gap-2 max-md:ml-0 max-md:w-full max-md:*:first:flex-1">
             {source ? (
               <PromptTemplateUseMenu
                 source={source}
@@ -455,7 +456,7 @@ export function PromptTemplateDetailPage({
       <div className="flex min-h-0 flex-1 gap-6 overflow-hidden p-5 max-lg:flex-col max-lg:overflow-y-auto">
         <section
           aria-label={t('generatedAssets')}
-          className="flex min-h-0 min-w-0 flex-1 flex-col gap-3"
+          className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 max-lg:flex-none"
         >
           {loadState === 'loading' ? (
             <div className="min-h-64 flex-1 rounded-xl bg-muted" />
@@ -482,7 +483,8 @@ export function PromptTemplateDetailPage({
                   <div
                     role="listbox"
                     aria-label={t('generatedAssets')}
-                    className="flex min-w-0 gap-2 overflow-x-auto"
+                    // 留出选中那圈（2px + 2px 间隔）的位置，⛔ 被横滚裁掉半边。
+                    className="scrollbar-none -m-1 flex min-w-0 gap-2 overflow-x-auto p-1"
                   >
                     {generations.map((generation, index) => (
                       <button
@@ -514,7 +516,8 @@ export function PromptTemplateDetailPage({
               ) : null}
             </>
           ) : (
-            <div className="grid min-h-64 flex-1 place-items-center rounded-xl bg-muted text-2sm text-muted-foreground">
+            // 手机上没出过图就是一行字，⛔ 占一块 256 高的空灰框把提示词压到下面。
+            <div className="grid min-h-64 flex-1 place-items-center rounded-xl bg-muted text-2sm text-muted-foreground max-lg:h-14 max-lg:min-h-0 max-lg:flex-none">
               <span className="inline-flex items-center gap-2">
                 <ImageOff aria-hidden className="size-4" />
                 {t('noWorks')}

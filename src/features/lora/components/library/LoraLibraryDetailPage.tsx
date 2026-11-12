@@ -14,7 +14,6 @@ import {
   Check,
   ChevronLeft,
   Copy,
-  Heart,
   MoreHorizontal,
   Plus,
 } from '@/components/icons'
@@ -28,6 +27,7 @@ import {
   LoraRecipeViewer,
   type LoraRecipeViewerOrigin,
 } from '@/features/lora/components/LoraRecipeViewer'
+import { FavoriteBookmark } from '@/components/ui/favorite-bookmark'
 import { useLoraStage } from '@/features/lora/components/lora-stage-context'
 import { useLoraBenchHandoff } from '@/contexts/studio-library-pick'
 import { useActiveLoraStack } from '@/features/lora/hooks/use-active-lora-stack'
@@ -390,7 +390,8 @@ export function LoraLibraryDetailPage({
       }
       className="absolute inset-0 z-20 flex flex-col bg-card"
     >
-      <header className="flex shrink-0 items-center gap-3 border-b border-border/70 py-3 pl-3 pr-5">
+      {/* 手机上一行放不下：名字一行，动作换到下面一整行（主钮撑满），⛔ 挤出屏幕右边（2026-11-12）。 */}
+      <header className="flex shrink-0 flex-wrap items-center gap-3 border-b border-border/70 py-3 pl-3 pr-5 max-md:gap-y-2.5 max-md:pr-3">
         <button
           type="button"
           autoFocus
@@ -400,7 +401,7 @@ export function LoraLibraryDetailPage({
         >
           <ChevronLeft className="size-4" aria-hidden />
         </button>
-        <div className="flex min-w-0 flex-col gap-1">
+        <div className="flex min-w-0 flex-col gap-1 max-md:flex-1">
           <h2 className="truncate text-lg font-semibold leading-5.5 text-foreground">
             {current.name}
           </h2>
@@ -435,7 +436,7 @@ export function LoraLibraryDetailPage({
             </span>
           </div>
         </div>
-        <div className="relative ml-auto flex shrink-0 items-center gap-2">
+        <div className="relative ml-auto flex shrink-0 items-center gap-2 max-md:ml-0 max-md:w-full">
           {mounted && !handoff ? (
             <span
               aria-disabled="true"
@@ -450,7 +451,7 @@ export function LoraLibraryDetailPage({
               onClick={() => onMount(current)}
               aria-busy={mountingId === current.id || undefined}
               className={cn(
-                'inline-flex h-8.5 items-center coarse:h-11 gap-1.5 rounded-full bg-foreground px-4 text-2sm font-semibold text-background transition-opacity duration-fast ease-linear hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                'inline-flex h-8.5 items-center justify-center coarse:h-11 gap-1.5 rounded-full bg-foreground px-4 text-2sm font-semibold text-background max-md:flex-1 transition-opacity duration-fast ease-linear hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                 mountingId === current.id && 'opacity-70',
               )}
             >
@@ -469,11 +470,8 @@ export function LoraLibraryDetailPage({
               onClick={() => onToggleFavorite(current)}
               className={cn(ghost, favorited && 'border-transparent bg-muted')}
             >
-              <Heart
-                weight={favorited ? 'fill' : 'bold'}
-                className="size-3.5"
-                aria-hidden
-              />
+              {/* 收藏一律是书签（ui-spec §9 ⑳），⛔ 心。 */}
+              <FavoriteBookmark saved={favorited} className="size-3.5" />
               {favorited ? t('favorited') : t('favorite')}
             </button>
           ) : null}
@@ -712,7 +710,7 @@ export function LoraLibraryDetailPage({
                         aria-pressed={key === currentKey}
                         onClick={() => setSelectedKey(key)}
                         className={cn(
-                          'flex h-9 items-center gap-2 rounded-lg px-2.5 text-left text-2sm transition-colors duration-fast ease-linear focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                          'flex h-9 coarse:h-11 items-center gap-2 rounded-lg px-2.5 text-left text-2sm transition-colors duration-fast ease-linear focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                           key === currentKey ? 'bg-muted' : 'hover:bg-muted/50',
                         )}
                       >
@@ -796,7 +794,7 @@ export function LoraLibraryDetailPage({
                           key={word}
                           type="button"
                           onClick={() => void copy(`trigger:${word}`, word)}
-                          className="inline-flex h-7 max-w-full cursor-copy items-center gap-1.5 rounded-full bg-muted px-2.5 font-mono text-xs text-foreground transition-colors duration-fast ease-linear hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          className="touch-target-y inline-flex h-7 max-w-full cursor-copy items-center gap-1.5 rounded-full bg-muted px-2.5 font-mono text-xs text-foreground transition-colors duration-fast ease-linear hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         >
                           <span className="truncate">
                             {copied === `trigger:${word}` ? tb('copied') : word}
@@ -814,7 +812,7 @@ export function LoraLibraryDetailPage({
                         onClick={() =>
                           void copy('triggers', triggers.join(', '))
                         }
-                        className="self-start text-xs text-muted-foreground transition-colors duration-fast ease-linear hover:text-foreground"
+                        className="touch-target-y self-start text-xs text-muted-foreground transition-colors duration-fast ease-linear hover:text-foreground"
                       >
                         {copied === 'triggers' ? tb('copied') : tb('copyAll')}
                       </button>
@@ -895,7 +893,7 @@ export function LoraLibraryDetailPage({
                       }
                       target="_blank"
                       rel="noreferrer"
-                      className="ml-auto shrink-0 text-xs text-muted-foreground transition-colors duration-fast ease-linear hover:text-foreground"
+                      className="touch-target-y ml-auto shrink-0 text-xs text-muted-foreground transition-colors duration-fast ease-linear hover:text-foreground"
                     >
                       {tb('authorHome')}
                     </a>
@@ -918,7 +916,7 @@ export function LoraLibraryDetailPage({
                     type="button"
                     aria-expanded={aboutOpen}
                     onClick={() => setAboutOpen((open) => !open)}
-                    className="self-start text-xs text-muted-foreground transition-colors duration-fast ease-linear hover:text-foreground"
+                    className="touch-target-y self-start text-xs text-muted-foreground transition-colors duration-fast ease-linear hover:text-foreground"
                   >
                     {aboutOpen ? tb('collapse') : tb('expandAll')}
                   </button>

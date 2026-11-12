@@ -138,7 +138,8 @@ export function AssetTile({
       style={{ width, height }}
       data-asset-tile-id={generation.id}
       // 图格 `MediaTile`（ui-spec §9）：干净无框、没边没影；悬停图变暗、左下出动作。
-      className="group group/tile relative shrink-0 rounded-12"
+      // 触屏按下缩一点，松手弹回（同 `MEDIA_TILE_CLASS`）。
+      className="group group/tile relative shrink-0 rounded-12 transition-[scale] duration-fast ease-standard coarse:active:scale-[.98] motion-reduce:transition-none"
     >
       {/* 媒体层：整块不接指针（点它落到下面那颗「打开」上）。 */}
       <span

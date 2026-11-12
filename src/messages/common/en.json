@@ -173,6 +173,7 @@
     "last": "Last",
     "back": "Back",
     "switchTool": "Switch tool",
+    "sheetHint": "Pick a studio. Drag down to close.",
     "tabs": {
       "label": "Main navigation",
       "chat": "Chat",

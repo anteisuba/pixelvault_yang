@@ -4,14 +4,14 @@ import {
   useEffect,
   useRef,
   useState,
-  type FormEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react'
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import { motion, useAnimate, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
 import {
   MOBILE_CREATE_LONG_PRESS_MS,
+  MOBILE_EDGE_SWIPE,
   MOBILE_TABS,
   SHELL_NAV_TOOLS,
   activeShellTool,
@@ -19,17 +19,13 @@ import {
   isStudioBenchPath,
   type ShellNavItem,
 } from '@/constants/navigation'
-import { CHIP_POPOVER, springTransition } from '@/constants/motion'
-import { ROUTES, studioImageGeneratePath } from '@/constants/routes'
-import { ArrowLeft, ArrowUp, ChevronDown, Plus } from '@/components/icons'
-import {
-  ResponsiveMenu,
-  ResponsiveMenuContent,
-  ResponsiveMenuItem,
-  ResponsiveMenuTrigger,
-} from '@/components/ui/responsive-menu'
+import { motionTransition, springTransition } from '@/constants/motion'
+import { ROUTES } from '@/constants/routes'
+import { ArrowLeft, ChevronDown, Plus } from '@/components/icons'
 import { SidebarInset } from '@/components/ui/sidebar'
+import { MobileToolSheet } from '@/components/layout/MobileToolSheet'
 import { Link, usePathname, useRouter } from '@/i18n/navigation'
+import { routing } from '@/i18n/routing'
 import {
   useLastChatPath,
   useLastStudioToolId,
@@ -41,7 +37,9 @@ import {
   useMobileTabBarActionsHost,
 } from '@/hooks/use-mobile-tabbar-actions'
 import { useKeyboardInset } from '@/hooks/use-keyboard-inset'
+import { MOBILE_BREAKPOINT } from '@/hooks/use-mobile'
 import { useMobileTabBarHidden } from '@/hooks/use-mobile-tabbar-hidden'
+import { useWindowScrollAway } from '@/hooks/use-window-scroll-away'
 import { useToastLift } from '@/hooks/use-toast-lift'
 import { isStudioShellPath } from '@/lib/studio-shell-route'
 import { cn } from '@/lib/utils'
@@ -51,7 +49,7 @@ import { cn } from '@/lib/utils'
  * 手机稿 v10 定稿，`docs/references/pages/app-shell.md` §6）。
  *
  * - **页面上**：浮起的胶囊底栏 `对话 · 素材 · 画廊 · 角色 · 我的` + 右边一颗黑圆 ＋（手机 iOS 稿，
- *   owner 2026-10-16 选 B；「对话」2026-11-12 加在最前，对话页也带底栏）。＋ 点开是新建面板（顶上一句话出图 + 4 列工具格（七个台：4 + 3），上次用的
+ *   owner 2026-10-16 选 B；「对话」2026-11-12 加在最前，对话页也带底栏）。＋ 拉起一张底部卡（`MobileToolSheet`：顶上一句话出图 + 七个台，上次用的
  *   那个标「上次」），长按 ＋ 直接进上次的工具。
  * - **台里**（`/studio/**` 除了对话页）：底栏收起，顶上一条 `← · 图片 ▾ · （助手）`。
  *   ← 回到进来之前那一页；中间就地换工具；右端那一格留给助手头像（它自己 fixed 上来）。
@@ -83,7 +81,8 @@ function MobileTab({
 }: {
   item: ShellNavItem
   active: boolean
-  onPress: () => void
+  /** `again` = 点的是已经在的那一格（回到顶部，⛔ 再导航一次）；`href` = 这一下去哪。 */
+  onPress: (again: boolean, href: string | null) => void
 }) {
   const t = useTranslations()
   const tMobile = useTranslations('MobileNav')
@@ -99,7 +98,11 @@ function MobileTab({
     <Link
       // 「对话」回到上次那段（`useLastChatPath`），其余格子照条目走。
       href={item.id === 'chat' ? (lastChatPath ?? item.href) : item.href}
-      onClick={onPress}
+      onClick={(event) => {
+        // 点已经在的那一格 = 回到顶部（iOS 底栏的习惯），⛔ 原地再导航一次。
+        if (active) event.preventDefault()
+        onPress(active, event.currentTarget.getAttribute('href'))
+      }}
       aria-current={active ? 'page' : undefined}
       className={cn(TAB_CLASS, active && 'font-semibold text-foreground')}
     >
@@ -118,117 +121,84 @@ function MobileTab({
   )
 }
 
-/** ＋ 面板：从 ＋ 长出来（缩放 + 由糊变清，原点在按钮那一侧）。 */
-function CreatePanel({
-  pathname,
-  onClose,
-}: {
-  pathname: string
-  onClose: () => void
-}) {
-  const t = useTranslations()
-  const tMobile = useTranslations('MobileNav')
-  const router = useRouter()
-  const reduceMotion = useReducedMotion()
-  const lastToolId = useLastStudioToolId()
-  const [prompt, setPrompt] = useState('')
+/**
+ * 底栏每一格各记各的滚动位置（iOS 底栏的习惯）：画廊滚到一半去素材，再点「画廊」回到刚才那里，
+ * ⛔ 回到顶上重新翻。滚的是窗口；自己有滚动容器的页给那个容器挂 `data-mobile-scroll-root`。
+ * 只在**点格子**进来时还原 —— 页里的链接、后退照旧由路由自己定。
+ */
+const MOBILE_SCROLL_ROOT_SELECTOR = '[data-mobile-scroll-root]'
+const tabScrollTop = new Map<string, number>()
+/** 内容是异步长出来的：最多追这么多帧（约 3 秒，素材页要现取），手一碰屏幕就停。 */
+const TAB_SCROLL_RESTORE_FRAMES = 180
 
-  const submit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    const text = prompt.trim()
-    if (!text) return
-    onClose()
-    router.push(studioImageGeneratePath(text))
+function mobileScrollRoot(): HTMLElement | null {
+  return document.querySelector<HTMLElement>(MOBILE_SCROLL_ROOT_SELECTOR)
+}
+
+function readScrollTop(): number {
+  const root = mobileScrollRoot()
+  return root ? root.scrollTop : window.scrollY
+}
+
+/** 点已经在的那一格：回到顶部（减少动效时直接到位）。 */
+function scrollPageToTop(reduceMotion: boolean | null) {
+  const behavior: ScrollBehavior = reduceMotion ? 'auto' : 'smooth'
+  mobileScrollRoot()?.scrollTo({ top: 0, behavior })
+  window.scrollTo({ top: 0, behavior })
+}
+
+function useTabScrollMemory(pathname: string): (href: string | null) => void {
+  const pending = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (pending.current !== pathname) return
+    pending.current = null
+    const target = tabScrollTop.get(pathname) ?? 0
+    if (target <= 0) return
+    let frame = 0
+    let tries = 0
+    let settled = 0
+    let cancelled = false
+    const cancel = () => {
+      cancelled = true
+    }
+    const step = () => {
+      if (cancelled) return
+      const root = mobileScrollRoot()
+      const max = root
+        ? root.scrollHeight - root.clientHeight
+        : document.documentElement.scrollHeight - window.innerHeight
+      if (max >= target - 1) {
+        // `instant`：根上开着平滑滚动（`data-scroll-behavior`），还原要一下到位。
+        ;(root ?? window).scrollTo({ top: target, behavior: 'instant' })
+      }
+      settled = Math.abs(readScrollTop() - target) < 2 ? settled + 1 : 0
+      if (settled < 3 && ++tries < TAB_SCROLL_RESTORE_FRAMES)
+        frame = requestAnimationFrame(step)
+    }
+    frame = requestAnimationFrame(step)
+    window.addEventListener('touchstart', cancel, { passive: true })
+    window.addEventListener('wheel', cancel, { passive: true })
+    return () => {
+      cancelAnimationFrame(frame)
+      window.removeEventListener('touchstart', cancel)
+      window.removeEventListener('wheel', cancel)
+    }
+  }, [pathname])
+
+  return (href) => {
+    // 点下去那一刻记住这一页滚到哪 —— ⛔ 边滚边记：换页时高度先变、窗口被夹回 0，记下的是 0。
+    tabScrollTop.set(pathname, readScrollTop())
+    // 链接带着语言前缀（`/zh/gallery`），`usePathname` 不带：去掉第一段比对。
+    pending.current = href ? stripLocale(href) : null
   }
+}
 
-  return (
-    <>
-      {/* 点面板外面任何地方都收起（不吞掉底栏：它在面板下面一层之上）。 */}
-      <div
-        aria-hidden
-        className="fixed inset-0 z-30 lg:hidden"
-        onPointerDown={onClose}
-      />
-      <motion.div
-        role="dialog"
-        aria-label={tMobile('create')}
-        initial={
-          reduceMotion
-            ? { opacity: 0 }
-            : {
-                opacity: 0,
-                scale: CHIP_POPOVER.fromScale,
-                filter: `blur(${CHIP_POPOVER.blurPx}px)`,
-              }
-        }
-        animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
-        exit={
-          reduceMotion
-            ? { opacity: 0 }
-            : {
-                opacity: 0,
-                scale: CHIP_POPOVER.fromScale,
-                filter: `blur(${CHIP_POPOVER.blurPx}px)`,
-              }
-        }
-        transition={springTransition('slot', reduceMotion)}
-        onKeyDown={(event) => {
-          if (event.key === 'Escape') onClose()
-        }}
-        className="fixed inset-x-3 bottom-mobile-tabbar z-40 mb-2 origin-bottom-right rounded-2xl border border-border bg-popover p-2 text-popover-foreground shadow-pop lg:hidden"
-      >
-        <form
-          onSubmit={submit}
-          className="flex items-center gap-2 rounded-xl bg-muted px-3 py-1.5"
-        >
-          {/* 16px 字号：iOS 低于它聚焦会整页放大。 */}
-          <input
-            value={prompt}
-            onChange={(event) => setPrompt(event.target.value)}
-            placeholder={tMobile('quickPlaceholder')}
-            aria-label={tMobile('quickPlaceholder')}
-            enterKeyHint="go"
-            className="min-w-0 flex-1 bg-transparent text-base text-foreground outline-hidden placeholder:text-muted-foreground"
-          />
-          <button
-            type="submit"
-            aria-label={tMobile('quickGo')}
-            disabled={!prompt.trim()}
-            className="flex size-8 shrink-0 items-center justify-center rounded-full bg-foreground text-background transition-opacity duration-fast ease-standard disabled:opacity-30"
-          >
-            <ArrowUp className="size-4" />
-          </button>
-        </form>
-
-        <ul className="mt-2 grid grid-cols-4 gap-1">
-          {SHELL_NAV_TOOLS.map((item) => {
-            const Icon = item.icon
-            const isActive = isShellNavItemActive(item, pathname)
-            return (
-              <li key={item.id}>
-                <Link
-                  href={item.href}
-                  onClick={onClose}
-                  aria-current={isActive ? 'page' : undefined}
-                  className="relative flex h-19 flex-col items-center justify-center gap-1.5 rounded-xl text-xs text-foreground transition-colors duration-fast ease-standard active:bg-muted aria-[current=page]:bg-muted"
-                >
-                  <Icon className="size-6 shrink-0" />
-                  <span className="max-w-full truncate px-1">
-                    {t(item.labelKey)}
-                  </span>
-                  {item.id === lastToolId ? (
-                    <span className="absolute right-1.5 top-1.5 rounded-full bg-muted px-1.5 text-3xs font-medium text-muted-foreground">
-                      {tMobile('last')}
-                    </span>
-                  ) : null}
-                </Link>
-              </li>
-            )
-          })}
-        </ul>
-      </motion.div>
-    </>
-  )
+function stripLocale(href: string): string {
+  const path = href.split('?')[0]
+  const [, first, ...rest] = path.split('/')
+  if (!(routing.locales as readonly string[]).includes(first)) return path
+  return `/${rest.join('/')}`
 }
 
 /** 页面上那条底栏。 */
@@ -251,8 +221,9 @@ function MobileTabBar({ pathname }: { pathname: string }) {
   // 页面往下滑时收起（借给动作栏、＋面板开着时不收）；软键盘起来时也让开 ——
   // 打字时底栏夹在输入框和键盘之间只会挡字（对话页、搜索框）。
   const keyboardOpen = useKeyboardInset() > 0
+  const windowAway = useWindowScrollAway()
   const scrolledAway =
-    (useMobileTabBarHidden() || keyboardOpen) && !lent && !open
+    (useMobileTabBarHidden() || windowAway || keyboardOpen) && !lent && !open
   // 刚点的那一格（记下点时在哪一页）：灰块先滑过去，地址一换就交回给路由判定。
   const [pressedTabAt, setPressedTab] = useState<{
     id: string
@@ -261,6 +232,7 @@ function MobileTabBar({ pathname }: { pathname: string }) {
   const pressedTab = pressedTabAt?.at === pathname ? pressedTabAt : null
 
   useToastLift(barRef)
+  const restoreTarget = useTabScrollMemory(pathname)
 
   useEffect(
     () => () => {
@@ -291,11 +263,12 @@ function MobileTabBar({ pathname }: { pathname: string }) {
 
   return (
     <>
-      <AnimatePresence>
-        {open ? (
-          <CreatePanel pathname={pathname} onClose={() => setOpen(false)} />
-        ) : null}
-      </AnimatePresence>
+      <MobileToolSheet
+        open={open}
+        onOpenChange={setOpen}
+        pathname={pathname}
+        mode="create"
+      />
 
       <nav
         ref={barRef}
@@ -306,68 +279,120 @@ function MobileTabBar({ pathname }: { pathname: string }) {
           scrolledAway && 'translate-y-full',
         )}
       >
-        {/* iOS 26 式浮起的胶囊：四个去处；＋ 是旁边单独一颗黑圆键（iOS 稿 B）。 */}
-        <div className="pointer-events-auto relative mb-2 h-15 min-w-0 flex-1 rounded-full border border-border p-1 shadow-pop surface-glass">
-          <div
-            inert={lent}
-            className={cn(
-              'grid h-full grid-cols-5 items-stretch transition-[opacity,filter] duration-fast ease-standard motion-reduce:transition-none',
-              lent && 'pointer-events-none opacity-0 blur-xs',
-            )}
-          >
-            {MOBILE_TABS.map((item) => (
-              <MobileTab
-                key={item.id}
-                item={item}
-                active={
-                  pressedTab
-                    ? pressedTab.id === item.id
-                    : isShellNavItemActive(item, pathname)
-                }
-                onPress={() => setPressedTab({ id: item.id, at: pathname })}
-              />
-            ))}
-          </div>
-          <div
-            ref={setActionsHost}
-            className={cn(
-              'absolute inset-0 transition-[opacity,filter] duration-fast ease-standard motion-reduce:transition-none',
-              lent ? 'delay-100' : 'pointer-events-none opacity-0 blur-xs',
-            )}
-          />
-        </div>
-        <button
-          type="button"
-          aria-label={open ? tMobile('close') : tMobile('create')}
-          aria-expanded={open}
-          aria-haspopup="dialog"
-          onPointerDown={startPress}
-          onPointerUp={cancelPress}
-          onPointerLeave={cancelPress}
-          onPointerCancel={cancelPress}
-          onContextMenu={(event) => event.preventDefault()}
-          onClick={() => {
-            if (longPressed.current) {
-              longPressed.current = false
-              return
-            }
-            setOpen(!open)
-          }}
-          className="pointer-events-auto mb-2 flex size-15 shrink-0 select-none items-center justify-center rounded-full bg-foreground text-background shadow-pop transition-transform duration-fast ease-standard active:scale-95"
+        {/* 从台回来（或刚打开）时底栏从下面升上来：和台顶栏滑进来是一对。 */}
+        <motion.div
+          initial={reduceMotion ? false : { y: '140%' }}
+          animate={{ y: 0 }}
+          transition={springTransition('slot', reduceMotion)}
+          className="flex min-w-0 flex-1 items-center gap-3"
         >
-          {/* ＋ 转 45° 就是 ×：同一个元素变形，不换图标。 */}
-          <motion.span
-            aria-hidden
-            animate={{ rotate: open ? 45 : 0 }}
-            transition={springTransition('slot', reduceMotion)}
-            className="flex"
+          {/* iOS 26 式浮起的胶囊：五个去处；＋ 是旁边单独一颗黑圆键（iOS 稿 B）。 */}
+          <div className="pointer-events-auto relative mb-2 h-15 min-w-0 flex-1 rounded-full border border-border p-1 shadow-pop surface-glass">
+            <div
+              inert={lent}
+              className={cn(
+                'grid h-full grid-cols-5 items-stretch transition-[opacity,filter] duration-fast ease-standard motion-reduce:transition-none',
+                lent && 'pointer-events-none opacity-0 blur-xs',
+              )}
+            >
+              {MOBILE_TABS.map((item) => (
+                <MobileTab
+                  key={item.id}
+                  item={item}
+                  active={
+                    pressedTab
+                      ? pressedTab.id === item.id
+                      : isShellNavItemActive(item, pathname)
+                  }
+                  onPress={(again, href) => {
+                    if (again) {
+                      scrollPageToTop(reduceMotion)
+                      return
+                    }
+                    setPressedTab({ id: item.id, at: pathname })
+                    restoreTarget(href)
+                  }}
+                />
+              ))}
+            </div>
+            <div
+              ref={setActionsHost}
+              className={cn(
+                'absolute inset-0 transition-[opacity,filter] duration-fast ease-standard motion-reduce:transition-none',
+                lent ? 'delay-100' : 'pointer-events-none opacity-0 blur-xs',
+              )}
+            />
+          </div>
+          <button
+            type="button"
+            aria-label={open ? tMobile('close') : tMobile('create')}
+            aria-expanded={open}
+            aria-haspopup="dialog"
+            onPointerDown={startPress}
+            onPointerUp={cancelPress}
+            onPointerLeave={cancelPress}
+            onPointerCancel={cancelPress}
+            onContextMenu={(event) => event.preventDefault()}
+            onClick={() => {
+              if (longPressed.current) {
+                longPressed.current = false
+                return
+              }
+              setOpen(!open)
+            }}
+            className="pointer-events-auto mb-2 flex size-15 shrink-0 select-none items-center justify-center rounded-full bg-foreground text-background shadow-pop transition-transform duration-fast ease-standard active:scale-95"
           >
-            <Plus className="size-6" />
-          </motion.span>
-        </button>
+            {/* ＋ 转 45° 就是 ×：同一个元素变形，不换图标。 */}
+            <motion.span
+              aria-hidden
+              animate={{ rotate: open ? 45 : 0 }}
+              transition={springTransition('slot', reduceMotion)}
+              className="flex"
+            >
+              <Plus className="size-6" />
+            </motion.span>
+          </button>
+        </motion.div>
       </nav>
     </>
   )
+}
+
+/**
+ * 台上左缘右划 = 返回（owner 2026-11-03 手机方向「左缘右滑或 ‹ 回对话」）。只在装到主屏
+ * （standalone）时接：浏览器里 Safari 自己有这个手势，再接一遍会退两次。
+ */
+function useEdgeSwipeBack(href: string) {
+  const router = useRouter()
+  useEffect(() => {
+    const standalone =
+      window.matchMedia?.('(display-mode: standalone)').matches ||
+      (navigator as Navigator & { standalone?: boolean }).standalone === true
+    if (!standalone) return
+    let start: { x: number; y: number } | null = null
+    const down = (event: TouchEvent) => {
+      const touch = event.touches[0]
+      start =
+        event.touches.length === 1 && touch.clientX <= MOBILE_EDGE_SWIPE.edgePx
+          ? { x: touch.clientX, y: touch.clientY }
+          : null
+    }
+    const up = (event: TouchEvent) => {
+      if (!start) return
+      const touch = event.changedTouches[0]
+      const dx = touch.clientX - start.x
+      const dy = Math.abs(touch.clientY - start.y)
+      start = null
+      if (dx >= MOBILE_EDGE_SWIPE.triggerPx && dy <= MOBILE_EDGE_SWIPE.slopPx)
+        router.push(href)
+    }
+    window.addEventListener('touchstart', down, { passive: true })
+    window.addEventListener('touchend', up, { passive: true })
+    return () => {
+      window.removeEventListener('touchstart', down)
+      window.removeEventListener('touchend', up)
+    }
+  }, [href, router])
 }
 
 /**
@@ -379,8 +404,14 @@ function MobileStudioBar({ pathname }: { pathname: string }) {
   const t = useTranslations()
   const tMobile = useTranslations('MobileNav')
   const returnPath = useMobileReturnPath()
+  const reduceMotion = useReducedMotion()
   const current = activeShellTool(pathname) ?? SHELL_NAV_TOOLS[0]
   const CurrentIcon = current.icon
+  useEdgeSwipeBack(returnPath ?? ROUTES.STUDIO)
+  // 记下在哪个台打开的：换了台（卡里的链接）自然就收起。
+  const [switchingAt, setSwitchingAt] = useState<string | null>(null)
+  const switching = switchingAt === pathname
+  const setSwitching = (next: boolean) => setSwitchingAt(next ? pathname : null)
 
   return (
     <header className="fixed inset-x-0 top-0 z-40 box-content flex h-11 items-center bg-background px-1 pt-safe-inset-top lg:hidden">
@@ -392,52 +423,35 @@ function MobileStudioBar({ pathname }: { pathname: string }) {
         <ArrowLeft className="size-5" />
       </Link>
 
-      <div className="flex min-w-0 flex-1 justify-center">
-        <ResponsiveMenu>
-          <ResponsiveMenuTrigger asChild>
-            <button
-              type="button"
-              aria-label={tMobile('switchTool')}
-              className="flex h-8 min-w-0 items-center coarse:h-11 gap-1.5 rounded-full px-3 text-sm font-semibold text-foreground transition-colors duration-fast ease-standard active:bg-muted data-[state=open]:bg-muted"
-            >
-              <CurrentIcon className="size-4 shrink-0" />
-              <span className="truncate">{t(current.labelKey)}</span>
-              <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
-            </button>
-          </ResponsiveMenuTrigger>
-          <ResponsiveMenuContent
-            label={tMobile('switchTool')}
-            align="center"
-            sideOffset={6}
-            collisionPadding={8}
-            motionPreset="grow"
-            className="w-48 rounded-xl p-1.5 shadow-pop"
-          >
-            {SHELL_NAV_TOOLS.map((item) => {
-              const Icon = item.icon
-              const isActive = item.id === current.id
-              return (
-                <ResponsiveMenuItem
-                  key={item.id}
-                  asChild
-                  className={cn(
-                    'h-10 gap-3 rounded-lg',
-                    isActive && 'bg-muted',
-                  )}
-                >
-                  <Link
-                    href={item.href}
-                    aria-current={isActive ? 'page' : undefined}
-                  >
-                    <Icon className="size-4" />
-                    {t(item.labelKey)}
-                  </Link>
-                </ResponsiveMenuItem>
-              )
-            })}
-          </ResponsiveMenuContent>
-        </ResponsiveMenu>
-      </div>
+      {/* 进台时台名从右边滑进来（「推进来」的那一下），换台时也一样：key 跟着台走。 */}
+      <motion.div
+        key={current.id}
+        initial={reduceMotion ? false : { x: 24, opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        transition={springTransition('slot', reduceMotion)}
+        className="flex min-w-0 flex-1 justify-center"
+      >
+        {/* 点台名拉起和 ＋ 同一张卡换台（owner 2026-11-03 手机方向），⛔ 另起一个下拉菜单。 */}
+        <button
+          type="button"
+          aria-label={tMobile('switchTool')}
+          aria-haspopup="dialog"
+          aria-expanded={switching}
+          onClick={() => setSwitching(true)}
+          className="flex h-8 min-w-0 items-center coarse:h-11 gap-1.5 rounded-full px-3 text-sm font-semibold text-foreground transition-colors duration-fast ease-standard active:bg-muted aria-expanded:bg-muted"
+        >
+          <CurrentIcon className="size-4 shrink-0" />
+          <span className="truncate">{t(current.labelKey)}</span>
+          <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
+        </button>
+      </motion.div>
+
+      <MobileToolSheet
+        open={switching}
+        onOpenChange={setSwitching}
+        pathname={pathname}
+        mode="switch"
+      />
 
       {/* 右端留给**助手头像**：它是工作台上那颗持久 fixed 的开关，落在这一格上。 */}
       <span className="size-9 shrink-0 coarse:size-11" aria-hidden />
@@ -462,13 +476,28 @@ export function MobileShell() {
  */
 export function MobileShellInset({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const bench = isStudioBenchPath(pathname)
+  const reduceMotion = useReducedMotion()
+  const [scope, animate] = useAnimate<HTMLElement>()
+  // 页 ⇄ 台：主区淡一下换过去（顶栏 / 底栏各自滑进来）。只动透明度 ——
+  // ⛔ transform：主区里一堆 fixed 的输入条会跟着位移（transform 会变成它们的定位框）。
+  const benchBefore = useRef(bench)
+  useEffect(() => {
+    if (benchBefore.current === bench) return
+    benchBefore.current = bench
+    if (reduceMotion || !scope.current) return
+    if (
+      !window.matchMedia?.(`(max-width: ${MOBILE_BREAKPOINT - 0.02}px)`).matches
+    )
+      return
+    void animate(scope.current, { opacity: [0, 1] }, motionTransition('base'))
+  }, [animate, bench, reduceMotion, scope])
   return (
     <SidebarInset
+      ref={scope}
       id="main-content"
       className={cn(
-        isStudioBenchPath(pathname)
-          ? 'mobile-inset-topbar'
-          : 'mobile-inset-tabbar',
+        bench ? 'mobile-inset-topbar' : 'mobile-inset-tabbar',
         // ≥768 侧栏让给外壳的左栏（第 9f 步）：主卡不再浮起。设置页自己画同一副白板（ui-spec §1）。
         (isStudioShellPath(pathname) || isSettingsPath(pathname)) &&
           'lg:rounded-none lg:border-l-0 lg:shadow-none',

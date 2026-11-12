@@ -147,7 +147,7 @@ export const GalleryHeader = memo(function GalleryHeader({
         }
       />
       {/* coarse 下上下让出 10px 再负边距抵回：横滚行会把页签的 44 命中区裁回 31（u-audit-mobile）。 */}
-      <div className="mt-3 flex min-w-0 overflow-x-auto coarse:mt-0.5 coarse:-mb-2.5 coarse:py-2.5">
+      <div className="scrollbar-none mt-3 flex min-w-0 overflow-x-auto coarse:mt-0.5 coarse:-mb-2.5 coarse:py-2.5">
         <LiquidSegmented
           ariaLabel={t('viewLabel')}
           semantics="tabs"

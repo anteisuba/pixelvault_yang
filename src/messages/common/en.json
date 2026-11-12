@@ -175,6 +175,7 @@
     "switchTool": "Switch tool",
     "tabs": {
       "label": "Main navigation",
+      "chat": "Chat",
       "profile": "Me"
     },
     "me": {

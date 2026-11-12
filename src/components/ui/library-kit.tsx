@@ -32,11 +32,13 @@ export function LibraryToolbar({
   className?: string
 }) {
   return (
-    <div className={cn('flex min-w-0 items-center gap-2', className)}>
-      <div className="min-w-0 max-w-90 flex-1">{search}</div>
+    // 搜索框保底 160：放不下时药丸换到下一行（手机上曾被挤到 23px，连占位字都看不见）。
+    <div className={cn('flex min-w-0 flex-wrap items-center gap-2', className)}>
+      <div className="min-w-40 max-w-90 flex-1">{search}</div>
       {pills}
-      <span className="flex-1" />
-      {end}
+      {end ? (
+        <div className="ml-auto flex shrink-0 items-center gap-2">{end}</div>
+      ) : null}
     </div>
   )
 }

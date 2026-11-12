@@ -99,7 +99,7 @@ export default async function PromptsPage({
     </main>
   )
 
-  // 桌面：库同一副骨架（ui-spec §9）；没登录还走手机那一页的「去工作台」。
+  // 库同一副骨架（ui-spec §9），手机桌面一样；没登录还走那一页的「去工作台」。
   if (!clerkId) return phone
   return (
     <PromptLibraryShell
@@ -107,7 +107,6 @@ export default async function PromptsPage({
       recipes={recipes}
       createInitialOpen={query?.create === '1'}
       createInitialValues={createInitialValues}
-      phone={phone}
     />
   )
 }

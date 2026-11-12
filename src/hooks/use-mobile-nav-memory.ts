@@ -6,7 +6,7 @@ import {
   MOBILE_NAV_LAST_TOOL_STORAGE_KEY,
   MOBILE_NAV_RETURN_STORAGE_KEY,
   activeShellTool,
-  isStudioPath,
+  isStudioBenchPath,
 } from '@/constants/navigation'
 
 /**
@@ -66,7 +66,7 @@ export function useMobileReturnPath(): string | null {
 /** 跟着路由记：在工作台就记工具，不在就记这一页（工作台 ← 的去处）。 */
 export function useRecordMobileNav(pathname: string): void {
   useEffect(() => {
-    if (isStudioPath(pathname)) {
+    if (isStudioBenchPath(pathname)) {
       const tool = activeShellTool(pathname)
       if (tool) write(MOBILE_NAV_LAST_TOOL_STORAGE_KEY, tool.id)
       return

@@ -1,8 +1,5 @@
 'use client'
 
-import type { ReactNode } from 'react'
-
-import { useIsMobile } from '@/hooks/use-mobile'
 import type { AppLocale } from '@/i18n/routing'
 
 import { PromptLibraryDesk } from './PromptLibraryDesk'
@@ -14,20 +11,16 @@ interface PromptLibraryShellProps {
   recipes: PromptTemplateListItem[]
   createInitialOpen?: boolean
   createInitialValues?: PromptTemplateCreateInitialValues
-  /** 手机那一页（灰底地台 + 白卡，等手机端整体重设计）。 */
-  phone: ReactNode
 }
 
-/** 提示词库：桌面换库骨架（`PromptLibraryDesk`），手机照旧。 */
-export function PromptLibraryShell({
-  phone,
-  ...desk
-}: PromptLibraryShellProps) {
-  const isMobile = useIsMobile()
-  if (isMobile) return phone
+/**
+ * 提示词库：手机和桌面同一副库骨架（`PromptLibraryDesk`）。手机上左栏收掉、「收藏」收成药丸，
+ * 和画廊 / 素材长得一样（2026-11-12 手机端重排，替掉灰底地台 + 白卡那一版）。
+ */
+export function PromptLibraryShell(props: PromptLibraryShellProps) {
   return (
-    <main className="flex h-page flex-col bg-background pt-3 pr-5.5 text-foreground">
-      <PromptLibraryDesk {...desk} />
+    <main className="flex h-page flex-col bg-background px-4 pt-3 text-foreground md:pr-5.5 md:pl-0">
+      <PromptLibraryDesk {...props} />
     </main>
   )
 }

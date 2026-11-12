@@ -244,6 +244,9 @@
     }
   },
   "Metadata": {
+    "chat": { "title": "对话 — ANTEI" },
+    "loraLibrary": { "title": "LoRA 模型 — ANTEI" },
+    "tagLibrary": { "title": "标签词库 — ANTEI" },
     "title": "ANTEI | 个人 AI 画廊",
     "description": "使用 Gemini、FLUX 等顶级 AI 模型生成图像、视频和音频，并将每次结果永久归档到同一个个人画廊中。",
     "keywords": "AI 图像生成, AI 绘画, Gemini 图像, FLUX AI, 个人 AI 画廊, AI 视频生成, 文字生成图片",
@@ -262,6 +265,7 @@
         "title": "图片编辑 — ANTEI",
         "description": "使用局部重绘、超分、去背景和提取元素编辑生成图片。"
       },
+      "lora": { "title": "LoRA 台 — ANTEI" },
       "node": {
         "title": "画布 — ANTEI",
         "description": "在一个可视化画布上创建并编排图片、视频与音频工作流。"

@@ -2079,7 +2079,9 @@ function NodeWorkbenchV4Inner() {
             storyboard={storyboard}
             videoTrim={videoTrim}
           >
-            <div className="node-workbench-v4 relative size-full">
+            {/* 手机上台框只是一块普通的流（没有高），镜头带是 `absolute inset-0`：
+                高要自己按整屏扣掉顶栏拿（`h-page`），⛔ `size-full`（= 0 高，整屏白）。 */}
+            <div className="node-workbench-v4 relative h-page w-full">
               <WorkbenchUploadStatus items={dnd.pendingUploads} />
               <CanvasMobileRail
                 key={store.currentProject.id}

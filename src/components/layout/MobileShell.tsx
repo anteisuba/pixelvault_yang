@@ -16,7 +16,7 @@ import {
   SHELL_NAV_TOOLS,
   activeShellTool,
   isShellNavItemActive,
-  isStudioPath,
+  isStudioBenchPath,
   type ShellNavItem,
 } from '@/constants/navigation'
 import { CHIP_POPOVER, springTransition } from '@/constants/motion'
@@ -39,6 +39,7 @@ import {
   useMobileTabBarActionsActive,
   useMobileTabBarActionsHost,
 } from '@/hooks/use-mobile-tabbar-actions'
+import { useKeyboardInset } from '@/hooks/use-keyboard-inset'
 import { useMobileTabBarHidden } from '@/hooks/use-mobile-tabbar-hidden'
 import { useToastLift } from '@/hooks/use-toast-lift'
 import { isStudioShellPath } from '@/lib/studio-shell-route'
@@ -48,10 +49,10 @@ import { cn } from '@/lib/utils'
  * 手机（<768）的导航壳 —— 方向 P3「底栏」（owner 2026-10-07 选 P3，2026-10-09
  * 手机稿 v10 定稿，`docs/references/pages/app-shell.md` §6）。
  *
- * - **页面上**：浮起的胶囊底栏 `素材 · 画廊 · 角色 · 我的` + 右边一颗黑圆 ＋（手机 iOS 稿，
- *   owner 2026-10-16 选 B）。＋ 点开是新建面板（顶上一句话出图 + 3×2 六个工具，上次用的
+ * - **页面上**：浮起的胶囊底栏 `对话 · 素材 · 画廊 · 角色 · 我的` + 右边一颗黑圆 ＋（手机 iOS 稿，
+ *   owner 2026-10-16 选 B；「对话」2026-11-12 加在最前，对话页也带底栏）。＋ 点开是新建面板（顶上一句话出图 + 4 列工具格（七个台：4 + 3），上次用的
  *   那个标「上次」），长按 ＋ 直接进上次的工具。
- * - **工作台里**（`/studio/**`）：底栏收起，顶上一条 `← · 图片 ▾ · （助手）`。
+ * - **台里**（`/studio/**` 除了对话页）：底栏收起，顶上一条 `← · 图片 ▾ · （助手）`。
  *   ← 回到进来之前那一页；中间就地换工具；右端那一格留给助手头像（它自己 fixed 上来）。
  *
  * ⚠ 768–1023 是平板，走桌面侧栏（owner 2026-10-09 平板 = 缩小版电脑），不走这个壳。
@@ -193,7 +194,7 @@ function CreatePanel({
           </button>
         </form>
 
-        <ul className="mt-2 grid grid-cols-3 gap-1">
+        <ul className="mt-2 grid grid-cols-4 gap-1">
           {SHELL_NAV_TOOLS.map((item) => {
             const Icon = item.icon
             const isActive = isShellNavItemActive(item, pathname)
@@ -241,8 +242,11 @@ function MobileTabBar({ pathname }: { pathname: string }) {
   const [actionsHost, setActionsHost] = useState<HTMLDivElement | null>(null)
   useMobileTabBarActionsHost(actionsHost)
   const lent = useMobileTabBarActionsActive()
-  // 页面往下滑时收起（借给动作栏、＋面板开着时不收）。
-  const scrolledAway = useMobileTabBarHidden() && !lent && !open
+  // 页面往下滑时收起（借给动作栏、＋面板开着时不收）；软键盘起来时也让开 ——
+  // 打字时底栏夹在输入框和键盘之间只会挡字（对话页、搜索框）。
+  const keyboardOpen = useKeyboardInset() > 0
+  const scrolledAway =
+    (useMobileTabBarHidden() || keyboardOpen) && !lent && !open
   // 刚点的那一格（记下点时在哪一页）：灰块先滑过去，地址一换就交回给路由判定。
   const [pressedTabAt, setPressedTab] = useState<{
     id: string
@@ -301,7 +305,7 @@ function MobileTabBar({ pathname }: { pathname: string }) {
           <div
             inert={lent}
             className={cn(
-              'grid h-full grid-cols-4 items-stretch transition-[opacity,filter] duration-fast ease-standard motion-reduce:transition-none',
+              'grid h-full grid-cols-5 items-stretch transition-[opacity,filter] duration-fast ease-standard motion-reduce:transition-none',
               lent && 'pointer-events-none opacity-0 blur-xs',
             )}
           >
@@ -375,7 +379,7 @@ function MobileStudioBar({ pathname }: { pathname: string }) {
   return (
     <header className="fixed inset-x-0 top-0 z-40 box-content flex h-11 items-center bg-background px-1 pt-safe-inset-top lg:hidden">
       <Link
-        href={returnPath ?? ROUTES.ASSETS}
+        href={returnPath ?? ROUTES.STUDIO}
         aria-label={tMobile('back')}
         className="flex size-9 shrink-0 items-center coarse:size-11 justify-center rounded-full text-foreground transition-colors duration-fast ease-standard active:bg-muted"
       >
@@ -439,7 +443,7 @@ export function MobileShell() {
   const pathname = usePathname()
   useRecordMobileNav(pathname)
 
-  return isStudioPath(pathname) ? (
+  return isStudioBenchPath(pathname) ? (
     <MobileStudioBar pathname={pathname} />
   ) : (
     <MobileTabBar pathname={pathname} />
@@ -456,7 +460,9 @@ export function MobileShellInset({ children }: { children: React.ReactNode }) {
     <SidebarInset
       id="main-content"
       className={cn(
-        isStudioPath(pathname) ? 'mobile-inset-topbar' : 'mobile-inset-tabbar',
+        isStudioBenchPath(pathname)
+          ? 'mobile-inset-topbar'
+          : 'mobile-inset-tabbar',
         // ≥768 侧栏让给外壳的左栏（第 9f 步）：主卡不再浮起。设置页自己画同一副白板（ui-spec §1）。
         (isStudioShellPath(pathname) || isSettingsPath(pathname)) &&
           'lg:rounded-none lg:border-l-0 lg:shadow-none',

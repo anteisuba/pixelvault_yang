@@ -53,6 +53,7 @@ export function TavernLibraryDesk() {
         <div className="mt-3 min-h-0 flex-1 overflow-y-auto pb-6 coarse:mt-1.5 coarse:pt-1.5">
           <CharacterLibrary
             library={library}
+            sortChips={false}
             importingPath={importing}
             onImport={(fullPath) => void importFromLibrary(fullPath)}
           />

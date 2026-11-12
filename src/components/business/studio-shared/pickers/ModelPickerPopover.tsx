@@ -731,7 +731,8 @@ export function ModelPickerPopover({
       const picked = rows.find(
         (row) => row.getAttribute('aria-selected') === 'true',
       )
-      if (picked) picked.scrollIntoView({ block: 'center' })
+      // jsdom 没有 scrollIntoView（单测里那一帧会抛）：没有就不滚。
+      if (picked) picked.scrollIntoView?.({ block: 'center' })
       else if (rows.length === 0 && tries++ < 20)
         frame = requestAnimationFrame(align)
     }

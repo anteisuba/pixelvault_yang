@@ -227,10 +227,30 @@ export function VoicesLibraryDesk({
       <VoiceLibrarySectionRail
         library={library}
         onSelect={select}
-        className="pt-0.5"
+        className="pt-0.5 max-md:hidden"
       />
 
       <div className="flex min-w-0 flex-1 flex-col">
+        {/* 手机没有左栏：「全部 · 收藏 · 我的克隆」收成顶上一条切换条（2026-11-12 手机端，同提示词库）。 */}
+        <div className="mb-3 flex shrink-0 md:hidden">
+          <LiquidSegmented
+            ariaLabel={t('title')}
+            semantics="tabs"
+            value={library.tab}
+            items={[
+              { value: 'public' as const, label: tLib('all') },
+              {
+                value: 'favorites' as const,
+                label: `${tLib('favorites')} ${library.favorites.length}`,
+              },
+              {
+                value: 'cloned' as const,
+                label: `${tLib('cloned')} ${library.cloned.length}`,
+              },
+            ]}
+            onChange={select}
+          />
+        </div>
         <VoiceLibraryFilters library={library} />
         <div className="mt-3 min-h-0 flex-1 overflow-y-auto pb-6">{body}</div>
       </div>

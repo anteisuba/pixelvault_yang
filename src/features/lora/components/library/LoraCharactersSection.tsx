@@ -60,7 +60,7 @@ export function LoraCharactersSection({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="self-start text-xs text-muted-foreground transition-colors duration-fast ease-linear hover:text-foreground"
+        className="touch-target-y self-start text-xs text-muted-foreground transition-colors duration-fast ease-linear hover:text-foreground"
       >
         {t('addToCharacter')}
       </button>

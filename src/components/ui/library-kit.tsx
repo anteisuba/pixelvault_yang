@@ -32,11 +32,19 @@ export function LibraryToolbar({
   className?: string
 }) {
   return (
-    <div className={cn('flex min-w-0 items-center gap-2', className)}>
-      <div className="min-w-0 max-w-90 flex-1">{search}</div>
-      {pills}
-      <span className="flex-1" />
-      {end}
+    // 搜索框保底 144（手机上曾被挤到 23px，连占位字都看不见）。手机上药丸收成一组：放得下
+    // 就排在搜索右边，放不下整组换到下一行、横着滚（⛔ 散成两三行）。≥768 那一组 `contents`，
+    // 照旧「搜索 · 药丸 ……… 排序」。coarse 上下让出 6px 再抵回：横滚行会裁掉 44 的命中区。
+    <div className={cn('flex min-w-0 flex-wrap items-center gap-2', className)}>
+      <div className="min-w-36 max-w-90 flex-1">{search}</div>
+      <div className="scrollbar-none ml-auto flex min-w-0 max-w-full items-center gap-2 overflow-x-auto *:shrink-0 coarse:-my-1.5 coarse:py-1.5 md:contents">
+        {pills}
+        {end ? (
+          <div className="flex items-center gap-2 md:ml-auto md:shrink-0">
+            {end}
+          </div>
+        ) : null}
+      </div>
     </div>
   )
 }

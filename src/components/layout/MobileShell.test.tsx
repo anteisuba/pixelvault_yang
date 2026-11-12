@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   MOBILE_CREATE_LONG_PRESS_MS,
   MOBILE_NAV_LAST_TOOL_STORAGE_KEY,
+  MOBILE_NAV_LAST_CHAT_STORAGE_KEY,
   MOBILE_NAV_RETURN_STORAGE_KEY,
 } from '@/constants/navigation'
 
@@ -51,13 +52,14 @@ function createButton() {
 }
 
 describe('MobileShell 底栏（P3 · v10）', () => {
-  it('页面上是五格底栏：素材 · 画廊 · ＋ · 角色 · 我的', () => {
+  it('页面上是底栏：对话 · 素材 · 画廊 · 角色 · 我的 + ＋', () => {
     render(<MobileShell />)
     const bar = screen.getByRole('navigation', { name: 'MobileNav:tabs.label' })
     const hrefs = [...bar.querySelectorAll('a')].map((a) =>
       a.getAttribute('href'),
     )
     expect(hrefs).toEqual([
+      '/studio',
       '/library/assets',
       '/gallery',
       '/library/cards',
@@ -70,6 +72,16 @@ describe('MobileShell 底栏（P3 · v10）', () => {
       'aria-current',
       'page',
     )
+  })
+
+  it('「对话」回到上次那段对话，没有记录才去开新的', () => {
+    window.localStorage.setItem(
+      MOBILE_NAV_LAST_CHAT_STORAGE_KEY,
+      '/studio/c/abc',
+    )
+    render(<MobileShell />)
+    const bar = screen.getByRole('navigation', { name: 'MobileNav:tabs.label' })
+    expect(bar.querySelector('a')).toHaveAttribute('href', '/studio/c/abc')
   })
 
   it('提示词不上底栏', () => {
@@ -143,7 +155,7 @@ describe('MobileShell 工作台顶栏', () => {
     ).toContain('StudioTools.tools.video.label')
   })
 
-  it('← 回到进工作台之前那一页；没有记录回素材', () => {
+  it('← 回到进工作台之前那一页；没有记录回对话', () => {
     window.localStorage.setItem(MOBILE_NAV_RETURN_STORAGE_KEY, '/library/cards')
     nav.pathname = '/studio/image'
     const { unmount } = render(<MobileShell />)
@@ -157,7 +169,22 @@ describe('MobileShell 工作台顶栏', () => {
     render(<MobileShell />)
     expect(screen.getByLabelText('MobileNav:back')).toHaveAttribute(
       'href',
-      '/library/assets',
+      '/studio',
+    )
+  })
+
+  it('对话页带底栏、不是台：「对话」那一格亮着，也记成 ← 的去处', () => {
+    nav.pathname = '/studio/c/abc'
+    render(<MobileShell />)
+    const bar = screen.getByRole('navigation', { name: 'MobileNav:tabs.label' })
+    // 记下了这段对话，「对话」那一格也就指回它。
+    expect(bar.querySelector('a[href="/studio/c/abc"]')).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
+    expect(screen.queryByLabelText('MobileNav:back')).toBeNull()
+    expect(window.localStorage.getItem(MOBILE_NAV_RETURN_STORAGE_KEY)).toBe(
+      '/studio/c/abc',
     )
   })
 

@@ -716,6 +716,30 @@ export function ModelPickerPopover({
     )
   }, [panelRowId, open, inline])
 
+  /**
+   * 打开时把选中那一行滚进视野：型号多、选中的又排在后面时，一打开只看得见别家
+   * （手机弹层只露 6 行，2026-11-12 实测）。只在打开那一下对一次，⛔ 选着选着列表跳。
+   * 按行上的 `aria-selected` 找 —— 多选（图片台一轮跑几家）时没有单个 `selectedRow`。
+   */
+  useEffect(() => {
+    if (!open) return
+    // 弹层内容晚几帧才挂上（portal + 进场动效）：等到行出现再对，最多等 20 帧。
+    let frame = 0
+    let tries = 0
+    const align = () => {
+      const rows = Array.from(rowRefs.current.values())
+      const picked = rows.find(
+        (row) => row.getAttribute('aria-selected') === 'true',
+      )
+      // jsdom 没有 scrollIntoView（单测里那一帧会抛）：没有就不滚。
+      if (picked) picked.scrollIntoView?.({ block: 'center' })
+      else if (rows.length === 0 && tries++ < 20)
+        frame = requestAnimationFrame(align)
+    }
+    frame = requestAnimationFrame(align)
+    return () => cancelAnimationFrame(frame)
+  }, [open])
+
   const measureRow = (rowId: string) => {
     const row = rowRefs.current.get(rowId)
     const surface = surfaceRef.current

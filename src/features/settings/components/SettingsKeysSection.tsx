@@ -94,7 +94,10 @@ export function SettingsKeysSection() {
 
   return (
     <section>
-      <h2 className="text-xl font-semibold">{t('sections.keys')}</h2>
+      {/* 手机顶栏已写着分区名（`SettingsShell`）：这里只留给读屏，⛔ 叠两个同名标题。 */}
+      <h2 className="text-xl font-semibold max-lg:sr-only">
+        {t('sections.keys')}
+      </h2>
 
       {showSkeleton ? (
         <ul
@@ -251,7 +254,7 @@ function ProviderRow({
 
   return (
     <div className="border-t border-border">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 py-3 text-sm">
+      <div className="flex items-center gap-3 py-3 text-sm">
         <span
           data-testid="provider-state-dot"
           data-state={row.state}
@@ -261,29 +264,35 @@ function ProviderRow({
           )}
           aria-hidden
         />
-        <span className="min-w-28 font-medium">{row.label}</span>
-        {row.modelCount > 0 ? (
-          <span className="min-w-16 text-xs text-muted-foreground">
-            {tCommon('modelCount', { count: row.modelCount })}
+        {/* 桌面一行排成几列；手机名字独占一行，型号数 · 状态 · 本月花费排在下面一行
+            （⛔ 挤成几根窄列、「已配置 · 未校验」折成两行）。 */}
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-0.5">
+          <span className="min-w-28 font-medium max-lg:basis-full">
+            {row.label}
           </span>
-        ) : null}
-        <span
-          className={cn(
-            'flex-1 text-xs',
-            row.state === 'invalid'
-              ? 'text-destructive'
-              : 'text-muted-foreground',
-          )}
-        >
-          {statusText}
-        </span>
-        {spendUsd !== null ? (
-          <span className="text-xs text-muted-foreground">
-            {t('keys.monthlySpend', {
-              amount: formatUnitPriceAmount(spendUsd),
-            })}
+          {row.modelCount > 0 ? (
+            <span className="min-w-16 text-xs text-muted-foreground max-lg:min-w-0">
+              {tCommon('modelCount', { count: row.modelCount })}
+            </span>
+          ) : null}
+          <span
+            className={cn(
+              'text-xs lg:flex-1',
+              row.state === 'invalid'
+                ? 'text-destructive'
+                : 'text-muted-foreground',
+            )}
+          >
+            {statusText}
           </span>
-        ) : null}
+          {spendUsd !== null ? (
+            <span className="text-xs text-muted-foreground">
+              {t('keys.monthlySpend', {
+                amount: formatUnitPriceAmount(spendUsd),
+              })}
+            </span>
+          ) : null}
+        </div>
         <RowAction
           state={row.state}
           isExpanded={isExpanded}

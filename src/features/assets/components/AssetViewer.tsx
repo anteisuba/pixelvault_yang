@@ -294,7 +294,7 @@ function AssetViewerAside({
         <button
           type="button"
           onClick={actions.remix}
-          className="inline-flex h-8.5 shrink-0 items-center gap-1.5 rounded-full bg-primary px-3.5 text-2sm font-semibold text-primary-foreground transition-[background-color,transform] duration-fast hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[.98]"
+          className="touch-target-y inline-flex h-8.5 shrink-0 items-center gap-1.5 rounded-full bg-primary px-3.5 text-2sm font-semibold text-primary-foreground transition-[background-color,transform] duration-fast hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[.98]"
         >
           <Plus className="size-3.5" aria-hidden />
           {t('detailRemix')}
@@ -363,7 +363,7 @@ function AssetViewerAside({
               type="button"
               aria-label={t('viewer.more')}
               title={t('viewer.more')}
-              className="grid size-8.5 shrink-0 place-items-center rounded-full text-foreground/75 transition-colors duration-fast hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="touch-target grid size-8.5 shrink-0 place-items-center rounded-full text-foreground/75 transition-colors duration-fast hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <MoreHorizontal className="size-4" aria-hidden />
             </button>

@@ -175,6 +175,8 @@
     "switchTool": "ツールを切り替え",
     "tabs": {
       "label": "メインナビゲーション",
+      "chat": "チャット",
+      "cards": "キャラ",
       "profile": "マイ"
     },
     "me": {

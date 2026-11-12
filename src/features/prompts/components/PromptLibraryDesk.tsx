@@ -24,7 +24,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { EmptyState } from '@/components/ui/empty-state'
+import { FavoriteBookmark } from '@/components/ui/favorite-bookmark'
 import {
+  LIBRARY_PILL_CLASS,
   LibraryGrid,
   LibraryNewTile,
   LibraryPillSelect,
@@ -54,6 +56,7 @@ import { useRouter } from '@/i18n/navigation'
 import type { AppLocale } from '@/i18n/routing'
 import { setRecipeFavoriteAPI } from '@/lib/api-client/recipes'
 import { withWordMatches } from '@/lib/search-words'
+import { cn } from '@/lib/utils'
 import { parseTagChips } from '@/lib/tag-composer'
 import { screenItemProps } from '@/lib/assistant-screen-scan'
 
@@ -272,7 +275,7 @@ export function PromptLibraryDesk({
 
   return (
     <div className="flex min-h-0 flex-1 gap-8">
-      <LibraryRail label={t('pageTitle')} className="pt-0.5">
+      <LibraryRail label={t('pageTitle')} className="pt-0.5 max-md:hidden">
         <LibraryRailRow
           icon={<LayoutGrid aria-hidden />}
           label={t('typeFilterAll')}
@@ -302,18 +305,35 @@ export function PromptLibraryDesk({
               />
             }
             end={
-              <LibraryPillSelect
-                label={t('sortLabel')}
-                value={sort}
-                options={[
-                  { value: 'recent', label: t('sortRecent') },
-                  { value: 'created', label: t('sortCreated') },
-                ]}
-                onChange={setSort}
-              />
+              <>
+                {/* 手机没有左栏：「全部 / 收藏」收成一颗书签药丸（同画廊）。 */}
+                <button
+                  type="button"
+                  onClick={() => setFavoritesOnly((on) => !on)}
+                  aria-pressed={favoritesOnly}
+                  className={cn(
+                    LIBRARY_PILL_CLASS,
+                    'md:hidden',
+                    favoritesOnly && 'bg-fill-strong',
+                  )}
+                >
+                  <FavoriteBookmark saved={favoritesOnly} />
+                  {t('library.favorites')}
+                </button>
+                <LibraryPillSelect
+                  label={t('sortLabel')}
+                  value={sort}
+                  options={[
+                    { value: 'recent', label: t('sortRecent') },
+                    { value: 'created', label: t('sortCreated') },
+                  ]}
+                  onChange={setSort}
+                />
+              </>
             }
           />
-          <div className="mt-3 flex shrink-0">
+          {/* 七档在手机上放不下：横着滚（coarse 上下让出 10px 再抵回，保住 44 命中区，同画廊）。 */}
+          <div className="scrollbar-none mt-3 flex min-w-0 shrink-0 overflow-x-auto coarse:mt-0.5 coarse:-mb-2.5 coarse:py-2.5">
             <LiquidSegmented
               ariaLabel={t('typeFilterShort')}
               value={type}

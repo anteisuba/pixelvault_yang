@@ -464,11 +464,14 @@ export function CharacterLibrary({
   library,
   importingPath,
   onImport,
+  sortChips = true,
 }: {
   library: UseChubLibraryReturn
   /** 正在建成角色的那一张（一次一张）。 */
   importingPath: string | null
   onImport(fullPath: string): void
+  /** 手机顶上那排排序 chip。酒馆页顶上已有「标签 · 排序」药丸（`CharacterLibraryToolbar`），⛔ 再画一遍。 */
+  sortChips?: boolean
 }) {
   const t = useTranslations('CharacterRoster')
   const isMobile = useIsMobile()
@@ -492,7 +495,7 @@ export function CharacterLibrary({
   return (
     <div className="flex flex-col gap-4">
       {/* 手机：排序是胶囊下面一排 chip，来源说明在最底下一句（iOS 稿）。桌面不写说明（ui-spec §9：库里不写解释句）。 */}
-      {isMobile ? <LibrarySortChips library={library} /> : null}
+      {isMobile && sortChips ? <LibrarySortChips library={library} /> : null}
 
       {status === 'loading' ? (
         <div aria-busy>

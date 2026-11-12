@@ -1547,10 +1547,16 @@
   .home-v6 .topbar {
     padding-left: 16px;
   }
+  /* 手机：三颗语言键与「进入工作台」都补到 40（手指点得中，2026-11-12）。 */
   .home-v6 .topbar .locales a {
-    min-height: 36px;
+    min-height: 40px;
+    min-width: 40px;
     display: flex;
     align-items: center;
+    justify-content: center;
     padding: 4px 7px;
+  }
+  .home-v6 .topbar .login {
+    min-height: 40px;
   }
 }

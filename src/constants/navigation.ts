@@ -10,6 +10,7 @@ import {
   AudioLines,
   BookOpen,
   Box,
+  ChatCircle,
   FileText,
   FolderOpen,
   FolderTree,
@@ -226,6 +227,7 @@ function pickGoItems(ids: readonly string[]): readonly ShellNavItem[] {
 /** 手机底栏的本地记忆（`hooks/use-mobile-nav-memory.ts`）。 */
 export const MOBILE_NAV_LAST_TOOL_STORAGE_KEY = 'pv:mobile-nav:last-tool'
 export const MOBILE_NAV_RETURN_STORAGE_KEY = 'pv:mobile-nav:return'
+export const MOBILE_NAV_LAST_CHAT_STORAGE_KEY = 'pv:mobile-nav:last-chat'
 
 /** 长按 ＋ 多久算长按（直接进上次的工具）。 */
 export const MOBILE_CREATE_LONG_PRESS_MS = 450
@@ -241,24 +243,50 @@ const MOBILE_ME_TAB_PATHS = [
   ROUTES.PROMPTS,
 ] as const
 
-export const MOBILE_TABS: readonly ShellNavItem[] = pickGoItems(
-  MOBILE_TAB_IDS,
-).map((item) =>
-  item.id === 'profile'
-    ? {
-        ...item,
-        href: ROUTES.SETTINGS,
-        activePaths: MOBILE_ME_TAB_PATHS,
-        match: 'prefix',
-      }
-    : item,
-)
-
 /**
- * 工作台路由（`/studio/**`）：手机上底栏收起，换成顶上一条「← · 图片 ▾」。
+ * 手机底栏第一格「对话」（2026-11-12 手机端重排）：助手是这个产品的主角，手机上却只能从台右上角
+ * 的头像叫出来。对话页（`/studio`、`/studio/c/<编号>`）是一页，带底栏；进台才换顶栏。
  */
+const MOBILE_CHAT_TAB: ShellNavItem = {
+  id: 'chat',
+  href: ROUTES.STUDIO,
+  icon: ChatCircle,
+  labelKey: 'MobileNav.tabs.chat',
+  // 前缀连台一起认没关系：台上没有底栏。
+  match: 'prefix',
+}
+
+export const MOBILE_TABS: readonly ShellNavItem[] = [
+  MOBILE_CHAT_TAB,
+  ...pickGoItems(MOBILE_TAB_IDS).map((item) =>
+    item.id === 'profile'
+      ? {
+          ...item,
+          href: ROUTES.SETTINGS,
+          activePaths: MOBILE_ME_TAB_PATHS,
+          match: 'prefix' as const,
+        }
+      : item,
+  ),
+]
+
+/** `/studio/**`：桌面上整片归外壳（第 9f 步）。 */
 export function isStudioPath(pathname: string): boolean {
   return pathname === ROUTES.STUDIO || pathname.startsWith(`${ROUTES.STUDIO}/`)
+}
+
+/** 对话页：`/studio` 与 `/studio/c/<编号>`（手机上是带底栏的一页，不是台）。 */
+export function isStudioChatPath(pathname: string): boolean {
+  return (
+    pathname === ROUTES.STUDIO ||
+    pathname === ROUTES.STUDIO_CONVERSATION ||
+    pathname.startsWith(`${ROUTES.STUDIO_CONVERSATION}/`)
+  )
+}
+
+/** 台（`/studio/**` 里除了对话页）：手机上底栏收起，换成顶上一条「← · 图片 ▾」。 */
+export function isStudioBenchPath(pathname: string): boolean {
+  return isStudioPath(pathname) && !isStudioChatPath(pathname)
 }
 
 /**

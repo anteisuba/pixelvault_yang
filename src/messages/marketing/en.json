@@ -244,6 +244,9 @@
     }
   },
   "Metadata": {
+    "chat": { "title": "Chat — ANTEI" },
+    "loraLibrary": { "title": "LoRA models — ANTEI" },
+    "tagLibrary": { "title": "Tag library — ANTEI" },
     "title": "ANTEI | Personal AI Gallery",
     "description": "Generate images, videos, and audio with Gemini, FLUX, and other top AI models — then archive every result in one personal gallery.",
     "keywords": "AI image generator, AI art, Gemini image, FLUX AI, personal AI gallery, AI video generator, text to image",
@@ -262,6 +265,7 @@
         "title": "Image Edit — ANTEI",
         "description": "Edit generated images with inpaint, super resolution, background removal, and element extraction."
       },
+      "lora": { "title": "LoRA Studio — ANTEI" },
       "node": {
         "title": "Canvas — ANTEI",
         "description": "Create and orchestrate image, video, and audio workflows on one visual canvas."

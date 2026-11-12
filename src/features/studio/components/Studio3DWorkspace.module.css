@@ -1,6 +1,7 @@
 .root {
   display: flex;
-  height: calc(var(--screen-h, 100svh) - 5.75rem);
+  /* 手机：整屏扣掉台的顶栏（同 `h-page`），⛔ 写死 5.75rem —— 底下会白空一截。 */
+  height: calc(var(--screen-h, 100svh) - var(--mobile-chrome-height, 3rem));
   min-height: 0;
   flex-direction: column;
   padding: 0.75rem;
@@ -145,7 +146,8 @@
 .mobileBar {
   display: flex;
   flex: none;
-  align-items: center;
+  /* 和生成键底边对齐（费用那两行只在右边那一栏上面），⛔ 浮在半中间。 */
+  align-items: flex-end;
   gap: 0.75rem;
   padding-bottom: var(--keyboard-safe-area-bottom, 0px);
 }

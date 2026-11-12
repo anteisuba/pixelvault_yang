@@ -263,7 +263,9 @@ export default async function ImageDetailPage({
           <div className="space-y-5 p-5 sm:p-6">
             {/* 页面唯一的 h1：与 <title> / JSON-LD `name` 同一个 `seo.headline`
                 （seo.md「作品详情页的文字」）。应用内页面 h1 走正文槽加粗。 */}
-            <h1 className="text-2xl font-semibold leading-tight text-foreground">
+            {/* 标题就是提示词开头：手机上收成 20 号两行（全文就在下面「提示词」里），⛔ 四行粗体压住图下。
+                `line-clamp` 只截显示，搜索引擎照样读到整句。 */}
+            <h1 className="line-clamp-2 text-xl font-semibold leading-tight text-foreground lg:line-clamp-none lg:text-2xl">
               {seo.headline}
             </h1>
             <div className="flex items-start justify-between gap-4">

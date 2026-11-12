@@ -28,7 +28,10 @@ export function SettingsUsageSection() {
 
   return (
     <section>
-      <h2 className="text-xl font-semibold">{t('sections.usage')}</h2>
+      {/* 手机顶栏已写着分区名（`SettingsShell`）：这里只留给读屏，⛔ 叠两个同名标题。 */}
+      <h2 className="text-xl font-semibold max-lg:sr-only">
+        {t('sections.usage')}
+      </h2>
 
       {isLoading ? (
         <div className="mt-3 flex items-center gap-2 border-t border-border py-6 text-sm text-muted-foreground">
@@ -41,16 +44,25 @@ export function SettingsUsageSection() {
         </p>
       ) : (
         <div className="mt-3 overflow-x-auto">
-          <table className="w-full min-w-96 border-collapse text-sm">
+          <table className="w-full border-collapse text-sm lg:min-w-96">
             <thead>
               <tr className="text-2xs text-muted-foreground">
-                <th scope="col" className="px-3.5 py-2 text-left font-normal">
+                <th
+                  scope="col"
+                  className="px-2 py-2 lg:px-3.5 text-left font-normal"
+                >
                   {t('usage.columnProvider')}
                 </th>
-                <th scope="col" className="px-3.5 py-2 text-right font-normal">
+                <th
+                  scope="col"
+                  className="px-2 py-2 lg:px-3.5 text-right font-normal"
+                >
                   {t('usage.columnRequests')}
                 </th>
-                <th scope="col" className="px-3.5 py-2 text-right font-normal">
+                <th
+                  scope="col"
+                  className="px-2 py-2 lg:px-3.5 text-right font-normal"
+                >
                   {t('usage.columnCost')}
                 </th>
               </tr>
@@ -61,11 +73,11 @@ export function SettingsUsageSection() {
                   key={provider.adapterType}
                   className="border-t border-border"
                 >
-                  <td className="px-3.5 py-2.5">{provider.label}</td>
-                  <td className="px-3.5 py-2.5 text-right font-mono text-xs">
+                  <td className="px-2 py-2.5 lg:px-3.5">{provider.label}</td>
+                  <td className="px-2 py-2.5 lg:px-3.5 text-right font-mono text-xs">
                     <CountUp value={provider.requests} format={formatCount} />
                   </td>
-                  <td className="px-3.5 py-2.5 text-right font-mono text-xs">
+                  <td className="px-2 py-2.5 lg:px-3.5 text-right font-mono text-xs">
                     {provider.estimatedCostUsd === null ? null : (
                       <CountUp
                         value={provider.estimatedCostUsd}
@@ -77,8 +89,10 @@ export function SettingsUsageSection() {
               ))}
               {showRunner ? (
                 <tr className="border-t border-border">
-                  <td className="px-3.5 py-2.5">{t('usage.runnerLabel')}</td>
-                  <td className="px-3.5 py-2.5 text-right font-mono text-xs">
+                  <td className="px-2 py-2.5 lg:px-3.5">
+                    {t('usage.runnerLabel')}
+                  </td>
+                  <td className="px-2 py-2.5 lg:px-3.5 text-right font-mono text-xs">
                     {runner.exempt
                       ? runner.used
                       : t('usage.runnerQuota', {
@@ -86,7 +100,7 @@ export function SettingsUsageSection() {
                           limit: runner.limit,
                         })}
                   </td>
-                  <td className="px-3.5 py-2.5 text-right font-mono text-xs">
+                  <td className="px-2 py-2.5 lg:px-3.5 text-right font-mono text-xs">
                     {t('usage.runnerCost', {
                       date: format.dateTime(resetDate, {
                         month: '2-digit',
@@ -97,14 +111,14 @@ export function SettingsUsageSection() {
                 </tr>
               ) : null}
               <tr className="border-t border-border font-medium">
-                <td className="px-3.5 py-2.5">{t('usage.total')}</td>
-                <td className="px-3.5 py-2.5 text-right font-mono text-xs">
+                <td className="px-2 py-2.5 lg:px-3.5">{t('usage.total')}</td>
+                <td className="px-2 py-2.5 lg:px-3.5 text-right font-mono text-xs">
                   <CountUp
                     value={totalRequests + (showRunner ? runner.used : 0)}
                     format={formatCount}
                   />
                 </td>
-                <td className="px-3.5 py-2.5 text-right font-mono text-xs">
+                <td className="px-2 py-2.5 lg:px-3.5 text-right font-mono text-xs">
                   {totalEstimatedCostUsd === null ? null : (
                     <CountUp
                       value={totalEstimatedCostUsd}

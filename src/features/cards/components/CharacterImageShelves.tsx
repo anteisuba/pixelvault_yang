@@ -266,7 +266,10 @@ function TileAction({
     <button
       type="button"
       onClick={onClick}
-      className={cn(MEDIA_TILE_PILL_CLASS, 'h-6 px-2.5 text-2xs')}
+      className={cn(
+        MEDIA_TILE_PILL_CLASS,
+        'h-6 whitespace-nowrap px-2.5 text-2xs',
+      )}
     >
       {children}
     </button>

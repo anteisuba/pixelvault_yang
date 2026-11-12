@@ -982,7 +982,9 @@
       "rewriteCancel": "算了",
       "previousVersion": "上一版",
       "nextVersion": "下一版",
-      "versionOf": "{index} / {total}"
+      "versionOf": "{index} / {total}",
+      "noProfile": "{name}还没写设定，聊天先按工作的口吻回。",
+      "noProfileAction": "去写设定"
     },
     "mode": {
       "pickCharacter": "换助手人设",

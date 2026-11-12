@@ -48,7 +48,13 @@ const ok = (data: unknown) => Response.json({ success: true, data })
 const HARU = {
   ...ASSISTANT_PERSONA_DEFAULTS,
   name: '晴',
-  character: { id: 'c1', name: '晴', faceUrl: null, hasSpeech: true },
+  character: {
+    id: 'c1',
+    name: '晴',
+    faceUrl: null,
+    hasSpeech: true,
+    hasProfile: true,
+  },
 }
 
 function renderBench() {

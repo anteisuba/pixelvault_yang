@@ -414,6 +414,7 @@ describe('用角色（真库）', () => {
         name: 'Denia',
         faceUrl: 'https://cdn.test/denia.png',
         hasSpeech: true,
+        hasProfile: true,
       },
       nameFromCharacter: true,
       toneFromCharacter: true,

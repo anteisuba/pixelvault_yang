@@ -70,6 +70,8 @@ export const AssistantPersonaCharacterSchema = z.object({
   faceUrl: z.string().url().nullable(),
   /** 角色设定里写了「说话方式」没有。 */
   hasSpeech: z.boolean(),
+  /** 设定写了至少一格（身份 / 行为 / 口吻 / 口头禅 / 背景 / 边界）：没写的角色聊天时退回工作口吻。 */
+  hasProfile: z.boolean(),
 })
 
 export type AssistantPersonaCharacter = z.infer<

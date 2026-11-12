@@ -982,7 +982,9 @@
       "rewriteCancel": "Cancel",
       "previousVersion": "Previous version",
       "nextVersion": "Next version",
-      "versionOf": "{index} / {total}"
+      "versionOf": "{index} / {total}",
+      "noProfile": "{name} has no profile yet, so chat replies in work mode.",
+      "noProfileAction": "Add a profile"
     },
     "mode": {
       "pickCharacter": "Switch assistant persona",

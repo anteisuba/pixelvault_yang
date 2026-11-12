@@ -115,7 +115,9 @@ jobs:
 
   e2e-smoke:
     name: E2E Smoke
-    runs-on: ubuntu-latest
+    # 钉 24.04：ubuntu-latest 2026-11-12 换成 26.04，Playwright 还装不了 Chromium（「does not
+    # support chromium on ubuntu26.04-x64」）。Playwright 支持 26.04 之后改回 latest。
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     # L4 冒烟（docs/references/testing.md「测试标准」）：一次性 Postgres + 生产构建 + Clerk
     # 开发实例的测试账号，把每个台、每个库页打开一遍。⛔ 不连线上库、不用线上 key。

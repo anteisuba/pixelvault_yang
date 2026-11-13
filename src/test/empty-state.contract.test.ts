@@ -40,7 +40,6 @@ const LANDING_POINTS = [
   'src/features/cards/components/CharacterMemoryPane.tsx',
   'src/features/cards/components/CharacterRoster.tsx',
   // 角色页右栏「最近」：她还没出过门 / 没读出来（方向 B，owner 2026-10-28）。
-  'src/features/cards/components/CharacterRecent.tsx',
   'src/features/cards/components/CharacterRecentDiary.tsx',
   'src/features/canvas/components/NodeCanvasEmptyGuide.tsx',
   'src/features/assistant/components/settings/AssistantHerPane.tsx',

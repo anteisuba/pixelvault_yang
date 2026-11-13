@@ -569,6 +569,22 @@ export const MODEL_UNIT_PRICES: Partial<Record<AI_MODELS, ModelUnitPrice>> = {
     verifiedAt: '2026-08-28',
   },
 
+  // ── Seedream 5.5（两站）· 与 5.0 Pro 同理取 2K 高档位 ──────────────────
+  [AI_MODELS.SEEDREAM_55_VOLCENGINE]: {
+    amount: 0.032,
+    unit: 'image',
+    source:
+      '火山方舟模型价格页 图片生成模型表：doubao-seedream-5-5 输出图 2.61M < P ≤ 4.63M 0.23 元/张 ÷ 7.1 ≈ $0.0324（≤ 2.61M 档 0.13 元产品发不出去）。输入图 0.05 元/张未计入',
+    verifiedAt: '2026-11-13',
+  },
+  [AI_MODELS.SEEDREAM_55_BYTEPLUS]: {
+    amount: 0.035,
+    unit: 'image',
+    source:
+      'BytePlus ModelArk Pricing 图片生成表：dola-seedream-5-5-261028 输出图 1536²×1.05² < P ≤ 2048²×1.05² $0.035/张（低档 $0.020 产品发不出去）。输入图 $0.008/张未计入',
+    verifiedAt: '2026-11-13',
+  },
+
   // ── Gemini（Google AI）─────────────────────────────────────────────────
   // 官方 pricing 页。三条互相校验：同一张 1K 图都是 1120 output tokens，
   // 乘各自的图片输出费率正好对上官方自己给的每张价 —— $120/$60/$30 每百万 token。

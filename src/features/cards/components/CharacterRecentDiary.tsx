@@ -261,7 +261,12 @@ export function CharacterRecentDiary({
 
   const head = (
     <div className="flex shrink-0 flex-wrap items-center gap-3">
-      <h2 className="text-2sm font-semibold">{t('activityTitle')}</h2>
+      {/* 手机顶上的切换条已经写着「小房间」，⛔ 再来一行栏头。 */}
+      <h2
+        className={cn('text-2sm font-semibold', lead ? 'sr-only' : undefined)}
+      >
+        {t('activityTitle')}
+      </h2>
       <LiquidSegmented
         items={filters}
         value={filter}
@@ -388,7 +393,7 @@ function DiaryAction({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className="h-7 shrink-0 rounded-full px-2 text-xs text-muted-foreground transition-colors duration-fast hover:text-foreground hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus disabled:opacity-45"
+      className="touch-target-y h-7 shrink-0 rounded-full px-2 text-xs text-muted-foreground transition-colors duration-fast hover:text-foreground hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus disabled:opacity-45"
     >
       {children}
     </button>
@@ -413,7 +418,7 @@ function FoldRow({
           type="button"
           aria-expanded={open}
           onClick={() => setOpen((value) => !value)}
-          className="flex min-w-0 flex-1 items-center gap-2 py-0.5 text-left text-2sm font-medium"
+          className="touch-target-y flex min-w-0 flex-1 items-center gap-2 py-0.5 text-left text-2sm font-medium"
         >
           <span className="truncate">{summary}</span>
           <ChevronRight

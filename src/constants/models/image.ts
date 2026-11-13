@@ -40,7 +40,12 @@ export function resolveImageKind(model: ModelOption): ImageKind {
  */
 export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
   {
+    // 2026-11-13 owner：图片生成只留 GPT / Gemini / Seedream 三家。Ideogram 4.5
+    // 退出生成选择器，但精准编辑 / 局部重绘 / 物体替换仍走它（image-edit.service），
+    // 所以标 `edit` 而不进 RETIRED_MODEL_IDS——退役会让编辑入口一起提交失败。
     id: AI_MODELS.IDEOGRAM_45,
+    imageKind: IMAGE_KIND.EDIT,
+    requiresReferenceImage: true,
     cost: 3,
     adapterType: AI_ADAPTER_TYPES.IDEOGRAM,
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.IDEOGRAM),
@@ -289,6 +294,32 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     styleTag: 'artistic',
   },
   {
+    // Seedream 5.5 — 两站模型列表 2026-11-13 核实。同 5.0 Pro 一样只出单图、
+    // 最高 2K（≤ 2048²×1.05²），价格约是 Pro 的四成（见 unit-prices.ts）。
+    id: AI_MODELS.SEEDREAM_55_VOLCENGINE,
+    cost: 1,
+    adapterType: AI_ADAPTER_TYPES.VOLCENGINE,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.VOLCENGINE),
+    externalModelId: 'doubao-seedream-5-5-261028',
+    outputType: 'IMAGE',
+    available: true,
+    officialUrl: 'https://docs.volcengine.com/docs/ark/model-list?lang=zh',
+    qualityTier: 'premium',
+    styleTag: 'artistic',
+  },
+  {
+    id: AI_MODELS.SEEDREAM_55_BYTEPLUS,
+    cost: 1,
+    adapterType: AI_ADAPTER_TYPES.BYTEPLUS,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.BYTEPLUS),
+    externalModelId: 'dola-seedream-5-5-261028',
+    outputType: 'IMAGE',
+    available: true,
+    officialUrl: 'https://docs.byteplus.com/en/docs/modelark/seedream-5-5',
+    qualityTier: 'premium',
+    styleTag: 'artistic',
+  },
+  {
     // ⚠ No vendor prefix on this one — BytePlus serves Lite as the bare
     // `seedream-5-0-lite-260128`. Only Seedream also available in eu-west-1.
     id: AI_MODELS.SEEDREAM_50_LITE_BYTEPLUS,
@@ -346,15 +377,15 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     maxPromptChars: 1000,
   },
   {
+    // 2026-11-13 owner：图片只留 GPT / Gemini / Seedream 三家，Recraft 退役；
+    // entry kept so archived generations still resolve a label. See RETIRED_MODEL_IDS.
     id: AI_MODELS.RECRAFT_V4_PRO,
     cost: 2,
     adapterType: AI_ADAPTER_TYPES.FAL,
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
-    // V4.1 (2026-05-14) — direct successor to V4, same API shape. Kept in the
-    // catalog because Recraft is the only vector/SVG-capable model here.
     externalModelId: 'fal-ai/recraft/v4.1/pro/text-to-image',
     outputType: 'IMAGE',
-    available: true,
+    available: false,
     officialUrl: 'https://fal.ai/models/fal-ai/recraft/v4.1/pro/text-to-image',
     qualityTier: 'premium',
     styleTag: 'design',

@@ -42,6 +42,7 @@ beforeEach(async () => {
   me = await createTestUser()
   await seedAssistantKey(me.id, AI_ADAPTER_TYPES.FAL)
   await seedAssistantKey(me.id, AI_ADAPTER_TYPES.GEMINI)
+  await seedAssistantKey(me.id, AI_ADAPTER_TYPES.VOLCENGINE)
   vi.stubEnv('EXECUTION_WORKER_BASE_URL', 'https://worker.test')
   vi.stubEnv('INTERNAL_CALLBACK_SECRET', 'test-secret')
   workerCalls = []
@@ -143,7 +144,7 @@ describe('compileAndGenerate prompt limits', () => {
     // 此前它们全部被那个借来的 2000 拦着。
     await compileAndGenerate(me.clerkId, {
       ...QUICK_INPUT,
-      modelId: AI_MODELS.RECRAFT_V4_PRO,
+      modelId: AI_MODELS.SEEDREAM_55_VOLCENGINE,
       freePrompt: 'a'.repeat(2932),
     })
 

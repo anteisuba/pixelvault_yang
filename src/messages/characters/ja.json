@@ -53,6 +53,7 @@
     "primary": "メイン",
     "makePrimary": "メインにする",
     "removeImage": "外す",
+    "imageActions": "この画像（{label}）",
     "replaceImage": "差し替え",
     "addImage": "画像を追加",
     "addImageHint": "画像は素材ライブラリから、どのフォルダからでも選べます。新しい画像は選ぶ画面でアップロードします。",

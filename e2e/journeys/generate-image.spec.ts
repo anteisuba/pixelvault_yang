@@ -12,25 +12,25 @@ import { api, type Envelope } from './helpers'
  */
 
 const FAKE_WORKER = process.env.FAKE_WORKER_URL ?? 'http://localhost:4010'
-const MODEL_ID = 'recraft-v4-pro'
-const KEY_VALUE = 'fal-e2e-not-a-real-key'
+const MODEL_ID = 'gpt-image-2'
+const KEY_VALUE = 'openai-e2e-not-a-real-key'
 
-/** 测试账号上一把 fal 的 key（重跑时复用上一次存的）。 */
-async function ensureFalKey(page: Page): Promise<string> {
+/** 测试账号上一把 OpenAI 的 key（重跑时复用上一次存的）。 */
+async function ensureOpenAIKey(page: Page): Promise<string> {
   const listed = await api<Array<{ id: string; adapterType: string }>>(
     page,
     'GET',
     '/api/api-keys',
   )
   expect(listed.success, `列 key 失败：${listed.error}`).toBe(true)
-  const existing = listed.data?.find((key) => key.adapterType === 'fal')
+  const existing = listed.data?.find((key) => key.adapterType === 'openai')
   if (existing) return existing.id
 
   const created = await api<{ id: string }>(page, 'POST', '/api/api-keys', {
-    adapterType: 'fal',
-    providerConfig: { label: 'fal', baseUrl: 'https://fal.run' },
+    adapterType: 'openai',
+    providerConfig: { label: 'OpenAI', baseUrl: 'https://api.openai.com/v1' },
     modelId: MODEL_ID,
-    label: 'e2e fal',
+    label: 'e2e openai',
     keyValue: KEY_VALUE,
   })
   expect(created.success, `存 key 失败：${created.error}`).toBe(true)
@@ -39,7 +39,7 @@ async function ensureFalKey(page: Page): Promise<string> {
 
 test('出一张图 → 状态报完成 → 库里看得到', async ({ page }) => {
   await page.goto('/en/studio/image')
-  const apiKeyId = await ensureFalKey(page)
+  const apiKeyId = await ensureOpenAIKey(page)
 
   const prompt = `e2e red square ${Date.now()}`
   const submitted = await api<{ jobId: string }>(

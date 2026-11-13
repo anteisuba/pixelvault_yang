@@ -130,7 +130,7 @@ export function CharacterLookStrip({
               aria-pressed={look.id === active.id}
               onClick={() => onSelect(look.id)}
               className={cn(
-                'shrink-0 rounded-full px-3 py-0.5 text-xs transition-colors duration-fast coarse:min-h-11',
+                'shrink-0 rounded-full px-3 py-0.5 text-xs transition-colors duration-fast coarse:min-h-11 coarse:min-w-11',
                 look.id === active.id
                   ? 'bg-background text-foreground shadow-xs'
                   : 'text-muted-foreground hover:text-foreground',
@@ -221,7 +221,7 @@ function StripAction({
     <button
       type="button"
       onClick={onClick}
-      className="transition-colors duration-fast hover:text-foreground coarse:min-h-11"
+      className="transition-colors duration-fast hover:text-foreground coarse:min-h-11 coarse:min-w-11"
     >
       {children}
     </button>

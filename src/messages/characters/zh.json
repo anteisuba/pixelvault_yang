@@ -53,6 +53,7 @@
     "primary": "主图",
     "makePrimary": "设为主图",
     "removeImage": "移除",
+    "imageActions": "这张图（{label}）",
     "replaceImage": "换一张",
     "addImage": "添加图片",
     "addImageHint": "图都从素材库来，可以跨文件夹挑；新图在挑图时上传。",

@@ -956,7 +956,7 @@ function WhiteButton({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className="h-8 shrink-0 rounded-full bg-muted px-3.5 text-2sm font-medium transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus disabled:opacity-45 motion-reduce:transition-none"
+      className="touch-target-y h-8 shrink-0 rounded-full bg-muted px-3.5 text-2sm font-medium transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus disabled:opacity-45 motion-reduce:transition-none"
     >
       {children}
     </button>
@@ -1023,7 +1023,14 @@ function RunningNow({
   )
 }
 
-export function OutingCard({ growth: data }: { growth: Growth }) {
+export function OutingCard({
+  growth: data,
+  variant = 'card',
+}: {
+  growth: Growth
+  /** `row`：手机小房间顶上一行（⛔ 白卡 + 投影，屏幕矮，一张卡就吃掉一截）。 */
+  variant?: 'card' | 'row'
+}) {
   const t = useTranslations('CharacterRoster.recent')
   const tOuting = useTranslations('CharacterRoster.recent.outing')
   const format = useFormatter()
@@ -1055,7 +1062,11 @@ export function OutingCard({ growth: data }: { growth: Growth }) {
   return (
     <section
       aria-label={tOuting('title')}
-      className="rounded-20 bg-card px-4.5 py-3.5 shadow-card"
+      className={
+        variant === 'row'
+          ? 'border-b border-border pb-3'
+          : 'rounded-20 bg-card px-4.5 py-3.5 shadow-card'
+      }
       data-testid="character-outing-card"
     >
       {outing.running ? (

@@ -21,6 +21,11 @@ import type {
 import { ChevronLeft, Mic, Play, Plus, Square } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
+import {
+  ResponsiveMenu,
+  ResponsiveMenuContent,
+  ResponsiveMenuItem,
+} from '@/components/ui/responsive-menu'
 import { AssetSelectorDialog } from '@/features/assets'
 import {
   CharacterInlineField,
@@ -89,10 +94,18 @@ type SaveLook = (patch: Partial<CharacterLookDraft>) => Promise<boolean>
 export function CharacterDetailHeader({
   lead,
   onBack,
+  title,
+  action,
 }: {
   /** 最左边那颗助手头像（库整页里才有，角色大项目 ①）。 */
   lead?: ReactNode
   onBack(): void
+  /**
+   * 手机详情的导航条（11-13 owner「不要照搬电脑」）：‹ 只留箭头，跟着她的头像 + 名字，右边一颗小「和她聊」——
+   * ⛔ 底部常驻一整条黑钮（连同让底栏的空白吃掉 120 多高）。
+   */
+  title?: ReactNode
+  action?: ReactNode
 }) {
   const t = useTranslations('CharacterRoster')
   return (
@@ -101,11 +114,19 @@ export function CharacterDetailHeader({
       <button
         type="button"
         onClick={onBack}
-        className="flex items-center gap-0.5 rounded-full py-1 coarse:min-h-11 pr-2 text-2sm text-muted-foreground transition-colors duration-fast hover:text-foreground"
+        aria-label={title ? t('title') : undefined}
+        className={cn(
+          'flex shrink-0 items-center gap-0.5 rounded-full py-1 coarse:min-h-11 text-2sm text-muted-foreground transition-colors duration-fast hover:text-foreground',
+          title ? 'touch-target -ml-1 px-1' : 'pr-2',
+        )}
       >
-        <ChevronLeft className="size-4" aria-hidden />
-        {t('title')}
+        <ChevronLeft className={title ? 'size-5' : 'size-4'} aria-hidden />
+        {title ? null : t('title')}
       </button>
+      {title ? (
+        <div className="flex min-w-0 flex-1 items-center gap-2">{title}</div>
+      ) : null}
+      {action}
     </>
   )
 }
@@ -402,6 +423,7 @@ function ImageBand({
   const [picking, setPicking] = useState<
     { kind: 'add' } | { kind: 'replace'; slotId: string } | null
   >(null)
+  const [menuSlotId, setMenuSlotId] = useState<string | null>(null)
   const usage = useCharacterCardUsage(card.id, true)
   const madeCount = usage.total ?? card.generationCount
   const slots = look.referenceSlots
@@ -413,6 +435,7 @@ function ImageBand({
     { id: 'made', label: t('imagesMade', { count: madeCount }) },
   ]
   const showCard = scope !== 'made'
+  const menuSlot = slots.find((slot) => slot.id === menuSlotId) ?? null
   const madeImages = scope === 'card' ? [] : usage.generations
 
   return (
@@ -434,7 +457,7 @@ function ImageBand({
               aria-pressed={scope === item.id}
               onClick={() => setScope(item.id)}
               className={cn(
-                'truncate rounded-full px-3 py-0.5 text-xs transition-colors duration-fast',
+                'touch-target-y truncate rounded-full px-3 py-0.5 text-xs transition-colors duration-fast',
                 scope === item.id
                   ? 'bg-background text-foreground shadow-xs'
                   : 'text-muted-foreground hover:text-foreground',
@@ -449,9 +472,16 @@ function ImageBand({
       <div className="flex min-h-0 flex-1 gap-2.5 overflow-x-auto overflow-y-hidden pb-1.5">
         {showCard
           ? slots.map((slot) => (
-              <figure
+              // 手机：点一张，从底下升起「换一张 · 设为主图 · 移除」（11-13 owner「看着挤」）。
+              // ⛔ 每张图上常驻两三颗小白钮：两张并排时一屏六七颗，点中靠运气。
+              <button
                 key={slot.id}
-                className="group/tile relative aspect-4/5 h-full shrink-0 overflow-hidden rounded-xl bg-muted"
+                type="button"
+                onClick={() => setMenuSlotId(slot.id)}
+                aria-label={t('imageActions', {
+                  label: slot.isPrimary ? t('primary') : t('onCard'),
+                })}
+                className="relative aspect-4/5 h-full shrink-0 overflow-hidden rounded-xl bg-muted transition-transform duration-fast ease-standard active:scale-[.98] focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none"
               >
                 <Image
                   src={slot.url}
@@ -463,34 +493,7 @@ function ImageBand({
                 <span className="absolute left-2 top-2 rounded-full bg-background/90 px-2 text-2xs">
                   {slot.isPrimary ? t('primary') : t('onCard')}
                 </span>
-                <div className="absolute inset-x-2 bottom-2 flex translate-y-1 flex-wrap justify-center gap-1 opacity-0 transition duration-fast ease-standard group-focus-within/tile:translate-y-0 group-focus-within/tile:opacity-100 group-hover/tile:translate-y-0 group-hover/tile:opacity-100 pointer-coarse:translate-y-0 pointer-coarse:opacity-100 motion-reduce:transition-none">
-                  <TileAction
-                    onClick={() =>
-                      setPicking({ kind: 'replace', slotId: slot.id })
-                    }
-                  >
-                    {t('replaceImage')}
-                  </TileAction>
-                  {slot.isPrimary ? null : (
-                    <TileAction
-                      onClick={() =>
-                        void save({ slots: makePrimary(slots, slot.id) })
-                      }
-                    >
-                      {t('makePrimary')}
-                    </TileAction>
-                  )}
-                  {slots.length > 1 ? (
-                    <TileAction
-                      onClick={() =>
-                        void save({ slots: removeSlot(slots, slot.id) })
-                      }
-                    >
-                      {t('removeImage')}
-                    </TileAction>
-                  ) : null}
-                </div>
-              </figure>
+              </button>
             ))
           : null}
         {madeImages.map((generation) => (
@@ -529,6 +532,46 @@ function ImageBand({
         </p>
       ) : null}
 
+      <ResponsiveMenu
+        open={menuSlot !== null}
+        onOpenChange={(open) => {
+          if (!open) setMenuSlotId(null)
+        }}
+      >
+        <ResponsiveMenuContent
+          label={t('imageActions', {
+            label: menuSlot?.isPrimary ? t('primary') : t('onCard'),
+          })}
+        >
+          <ResponsiveMenuItem
+            onSelect={() => {
+              if (menuSlot) setPicking({ kind: 'replace', slotId: menuSlot.id })
+            }}
+          >
+            {t('replaceImage')}
+          </ResponsiveMenuItem>
+          {menuSlot && !menuSlot.isPrimary ? (
+            <ResponsiveMenuItem
+              onSelect={() =>
+                void save({ slots: makePrimary(slots, menuSlot.id) })
+              }
+            >
+              {t('makePrimary')}
+            </ResponsiveMenuItem>
+          ) : null}
+          {menuSlot && slots.length > 1 ? (
+            <ResponsiveMenuItem
+              variant="destructive"
+              onSelect={() =>
+                void save({ slots: removeSlot(slots, menuSlot.id) })
+              }
+            >
+              {t('removeImage')}
+            </ResponsiveMenuItem>
+          ) : null}
+        </ResponsiveMenuContent>
+      </ResponsiveMenu>
+
       <AssetSelectorDialog
         open={picking !== null}
         onOpenChange={(open) => {
@@ -550,25 +593,6 @@ function ImageBand({
         }}
       />
     </section>
-  )
-}
-
-function TileAction({
-  onClick,
-  children,
-}: {
-  onClick(): void
-  children: string
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      // 窄卡（手机两张并排）放不下三颗就换行，⛔ 把「移除」折成「移 / 除」。
-      className="whitespace-nowrap rounded-full bg-background/95 px-2.5 py-0.5 text-2xs shadow-xs transition-colors duration-fast hover:bg-background"
-    >
-      {children}
-    </button>
   )
 }
 
@@ -649,7 +673,7 @@ function CharacterVoiceField({
           type="button"
           data-testid="character-voice-pick"
           onClick={() => setPicking(true)}
-          className="h-7 rounded-full px-2 transition-colors duration-fast ease-standard hover:bg-background/70 hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none"
+          className="touch-target-y h-7 rounded-full px-2 transition-colors duration-fast ease-standard hover:bg-background/70 hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none"
         >
           {card.voiceCardId ? t('voiceChange') : t('voicePick')}
         </button>

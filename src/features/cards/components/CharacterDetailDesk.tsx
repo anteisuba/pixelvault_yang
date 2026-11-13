@@ -159,12 +159,51 @@ export function CharacterDetailDesk({
   )
 }
 
+/** 手机详情导航条中间那一块：她的头像 28 + 名字（长名截断）。 */
+export function CharacterPhoneTitle({ card }: { card: CharacterCardRecord }) {
+  const cover = characterCoverUrl(card)
+  return (
+    <>
+      <span className="relative grid size-7 shrink-0 place-items-center overflow-hidden rounded-full bg-muted text-xs font-semibold text-ink-2">
+        {cover ? (
+          <Image
+            src={cover}
+            alt=""
+            fill
+            sizes="28px"
+            className="object-cover"
+          />
+        ) : (
+          card.name.slice(0, 1)
+        )}
+      </span>
+      <h2 className="min-w-0 truncate text-md font-semibold">{card.name}</h2>
+    </>
+  )
+}
+
+/** 手机详情导航条右边那颗「和她聊」（这一页唯一的黑钮，缩成药丸放顶上）。 */
+export function CharacterChatPill({ cardId }: { cardId: string }) {
+  const t = useTranslations('CharacterRoster')
+  const personaSwitch = usePersonaSwitch()
+  return (
+    <button
+      type="button"
+      onClick={() => void personaSwitch.switchTo(cardId, { goHome: true })}
+      className="touch-target-y h-8 shrink-0 rounded-full bg-primary px-3.5 text-2sm font-semibold whitespace-nowrap text-primary-foreground transition-transform duration-fast ease-standard hover:tint-hover active:scale-[.98] focus-visible:outline-none focus-visible:shadow-focus"
+    >
+      {t('recent.chatWith')}
+    </button>
+  )
+}
+
 type PhonePane = 'recent' | 'her' | 'memory' | 'stickers'
 
 /**
  * **手机的角色详情**（11-13 手机端）：顶上一条四段切换「小房间 · 她 · 记忆 · 表情包」，内容与电脑页签同一套
  * （小房间 = `CharacterRecentDiary`，出门卡放在它最上面跟着滚；记忆、表情包同电脑那两页）；「她」是原样的
- * 详情正文（`body`：造型 · 图片 · 设定 · 她的 LoRA）。底下一条「和她聊」让开底栏。
+ * 详情正文（`body`：造型 · 图片 · 设定 · 她的 LoRA）。「和她聊」在顶上导航条（`CharacterChatPill`），
+ * ⛔ 底部常驻黑条：内容区本来就停在底栏上面，再让一次底栏就白空出 68。
  * ⛔ 手机另写一套小房间：以前的手机版落后电脑一代，也没有记忆和表情包的入口。
  */
 export function CharacterDetailPhone({
@@ -178,7 +217,6 @@ export function CharacterDetailPhone({
   const growth = useCharacterGrowth(cardId)
   const stickers = useCharacterStickers(cardId)
   const memories = useCharacterMemories(cardId)
-  const personaSwitch = usePersonaSwitch()
   const [pane, setPane] = useState<PhonePane>('recent')
   const panes = [
     { value: 'recent', label: t('detailTabs.recent') },
@@ -189,7 +227,7 @@ export function CharacterDetailPhone({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="shrink-0 px-4 pb-3">
+      <div className="shrink-0 px-4 pb-2">
         <LiquidSegmented
           items={panes}
           value={pane}
@@ -209,7 +247,7 @@ export function CharacterDetailPhone({
               growth={growth}
               stickers={stickers}
               memories={memories}
-              lead={<OutingCard growth={growth} />}
+              lead={<OutingCard growth={growth} variant="row" />}
             />
           </div>
         ) : pane === 'memory' ? (
@@ -221,16 +259,6 @@ export function CharacterDetailPhone({
             <CharacterStickersPane stickers={stickers} />
           </div>
         )}
-      </div>
-      {/* 详情铺到底栏后面：「和她聊」那一条让开底栏。 */}
-      <div className="shrink-0 px-4 pt-2 pb-mobile-tabbar">
-        <button
-          type="button"
-          onClick={() => void personaSwitch.switchTo(cardId, { goHome: true })}
-          className="h-12 w-full rounded-full bg-primary px-4 text-md font-semibold text-primary-foreground transition-transform duration-fast hover:tint-hover active:scale-[.98]"
-        >
-          {t('recent.chatWith')}
-        </button>
       </div>
     </div>
   )

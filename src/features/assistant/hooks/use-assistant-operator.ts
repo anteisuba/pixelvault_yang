@@ -71,7 +71,6 @@ import {
   ASSISTANT_MENTION_SCOPE_IDS,
 } from '@/constants/assistant-mention'
 import { getAssistantRouteModelEntry } from '@/constants/assistant-persona'
-import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import {
   AI_ADAPTER_TYPES,
   getDefaultProviderConfig,

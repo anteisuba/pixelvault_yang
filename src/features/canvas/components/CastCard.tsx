@@ -7,10 +7,7 @@ import { useTranslations } from 'next-intl'
 
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import { NODE_STUDIO_CAST_DOCK } from '@/constants/node-studio'
-import {
-  NODE_MEDIA_KIND_IDS,
-  NODE_V4_IMAGE_SUBTYPE_IDS,
-} from '@/constants/node-types'
+import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import {
   countPulseInitial,
   countPulseTransition,

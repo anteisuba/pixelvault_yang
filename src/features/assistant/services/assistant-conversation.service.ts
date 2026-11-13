@@ -14,7 +14,6 @@ import {
 import { db } from '@/lib/db'
 import { ApiRequestError } from '@/lib/errors'
 import { ensureUser } from '@/services/user.service'
-import type { AssistantWorkspace } from '@/types/assistant-workspace'
 import { ASSISTANT_ROUND_SUMMARY_LIMITS } from '@/constants/assistant-operator'
 import { CARD_EXTENSIONS } from '@/constants/cards/character-card'
 import { logger } from '@/lib/logger'

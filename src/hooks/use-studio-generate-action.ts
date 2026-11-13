@@ -630,7 +630,6 @@ export function useStudioGenerateAction() {
       canGenerate,
       isVideoMode,
       selectedModel,
-      state.prompt,
       state.promptDialect,
       state.imageBatchCount,
       runModels,

@@ -161,15 +161,15 @@ const canvasBatchFailures = vi.hoisted(() => ({
 const canvasGenerate = vi.hoisted(() => vi.fn())
 /** 画布那张卡放大到 4K（`StudioOperatorCanvasContext.upscale`，P6）。 */
 const canvasUpscale = vi.hoisted(() =>
-  vi.fn(
-    async (
-      _nodeId: string,
-    ): Promise<
+  vi.fn<
+    (
+      nodeId: string,
+    ) => Promise<
       | { status: 'done' }
       | { status: 'missingKey' }
       | { status: 'failed'; reason: string }
-    > => ({ status: 'done' }),
-  ),
+    >
+  >(async () => ({ status: 'done' })),
 )
 const canvasGenerationState = vi.hoisted(() => ({
   enabled: false,

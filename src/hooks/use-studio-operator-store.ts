@@ -18,7 +18,6 @@
 
 import { useSyncExternalStore } from 'react'
 
-import { ASSISTANT_PERSONA_DEFAULTS } from '@/constants/assistant-persona'
 import {
   ASSISTANT_MENTION_LIMITS,
   ASSISTANT_MENTION_SCOPE_IDS,

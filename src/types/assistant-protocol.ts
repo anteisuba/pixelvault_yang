@@ -114,7 +114,7 @@ function normalizeAskPayload(raw: unknown): unknown {
 }
 
 /** `[[ask]]` 块的载荷。 */
-const AssistantAskBlockSchema = z.preprocess(
+export const AssistantAskBlockSchema = z.preprocess(
   normalizeAskPayload,
   z.object({
     questions: z
@@ -133,7 +133,7 @@ const AssistantAskBlockSchema = z.preprocess(
  * `adjust` 允许缺省 —— 模型偶尔只写 satisfied，那时用本地化兜底文案比整块判 invalid
  * 好：判 invalid 会让整轮回复退化成没有收敛入口的散文，正是这条协议要消灭的形态。
  */
-const AssistantNextStepSchema = z.object({
+export const AssistantNextStepSchema = z.object({
   satisfied: ClarifyTextSchema,
   adjust: ClarifyTextSchema.optional(),
 })
@@ -216,7 +216,7 @@ export const AssistantLoraPickSchema = z.object({
 })
 export type AssistantLoraPick = z.infer<typeof AssistantLoraPickSchema>
 
-const AssistantLoraBlockSchema = z.object({
+export const AssistantLoraBlockSchema = z.object({
   picks: z
     .array(AssistantLoraPickSchema)
     .min(1)

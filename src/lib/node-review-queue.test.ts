@@ -13,7 +13,6 @@ import {
 import type {
   NodeV4,
   NodeV4ImageData,
-  NodeWorkflowNode,
   NodeWorkflowNodeData,
 } from '@/types/node-workflow'
 

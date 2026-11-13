@@ -851,6 +851,9 @@ function GenerateBranch({
   // 主动提示：选中底模时拉全站月度额度，让用户点前就知道「本月剩余 N/300」而不是
   // 撞上限才弹错。底模全是 Runner（09-17 托管通道退役）。
   const isRunnerBase = selectedBase != null
+  const isDitBase =
+    selectedBase != null &&
+    getLoraBaseArchitectureGroup(selectedBase.family) === 'dit'
   const { usage: runnerUsage } = useRunnerUsage(isRunnerBase)
 
   const baseModelId = selectedBase?.providerModelId ?? null
@@ -1317,18 +1320,8 @@ function GenerateBranch({
     if (exactWidth && exactHeight && !runnerParameterError) {
       return { width: exactWidth, height: exactHeight }
     }
-    return getRunnerPreviewDimensions(
-      aspectRatio,
-      selectedBase != null &&
-        getLoraBaseArchitectureGroup(selectedBase.family) === 'dit',
-    )
-  }, [
-    aspectRatio,
-    runnerHeight,
-    runnerParameterError,
-    runnerWidth,
-    selectedBase?.family,
-  ])
+    return getRunnerPreviewDimensions(aspectRatio, isDitBase)
+  }, [aspectRatio, isDitBase, runnerHeight, runnerParameterError, runnerWidth])
   const upscaleFinalWidth = previewDimensions.width * 4
   const upscaleFinalHeight = previewDimensions.height * 4
   const upscaleOutputIsLarge =
@@ -2387,16 +2380,12 @@ function GenerateBranch({
     (ratio: AspectRatio) => {
       setAspectRatio(ratio)
       if (isRunnerBase) {
-        const dimensions = getRunnerPreviewDimensions(
-          ratio,
-          selectedBase != null &&
-            getLoraBaseArchitectureGroup(selectedBase.family) === 'dit',
-        )
+        const dimensions = getRunnerPreviewDimensions(ratio, isDitBase)
         setRunnerWidth(String(dimensions.width))
         setRunnerHeight(String(dimensions.height))
       }
     },
-    [isRunnerBase, selectedBase?.family],
+    [isDitBase, isRunnerBase],
   )
 
   // 主入口已经挪到「选底模」（见 handleSelectBase）。这里只是兜底：万一用户

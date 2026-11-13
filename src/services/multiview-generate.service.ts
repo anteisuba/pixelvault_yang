@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto'
 
 import { z } from 'zod'
 
-import { AI_MODELS, getModelById } from '@/constants/models'
+import { getModelById } from '@/constants/models'
 import { MODEL_3D_MULTIVIEW_MODEL_IDS } from '@/constants/model-3d-generation'
 import {
   GENERATED_VIEW_ANGLES,

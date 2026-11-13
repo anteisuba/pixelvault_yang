@@ -69,7 +69,9 @@ describe('StudioOperatorErrorBar', () => {
   })
 
   it('「复制详情」把人话、短码与原始 message 一起进剪贴板', async () => {
-    const writeText = vi.fn(async (_text: string) => undefined)
+    const writeText = vi.fn<(text: string) => Promise<undefined>>(
+      async () => undefined,
+    )
     Object.defineProperty(navigator, 'clipboard', {
       value: { writeText },
       configurable: true,

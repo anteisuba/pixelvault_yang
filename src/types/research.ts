@@ -264,7 +264,7 @@ export type { ResearchRunStatus } from '@/constants/research'
  * ⚠ 证据本体**不**进这里，也不进 `AssistantConversation.messages`（§3.6 验收）：
  * 消息里只存 `researchRunId`，要看证据从 `ResearchRun` 水合。
  */
-const ResearchReceiptSchema = z.object({
+export const ResearchReceiptSchema = z.object({
   runId: z.string().trim().min(1).max(120).nullable(),
   grounded: z.boolean(),
   status: ResearchRunStatusSchema,

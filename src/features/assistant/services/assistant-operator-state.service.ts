@@ -153,6 +153,12 @@ export function canvasFullNode(
     position,
     ...rest
   } = node
+  void [
+    _referenceUrls,
+    _referencePromptContext,
+    _reviewContextComplete,
+    _imageUrl,
+  ]
   /**
    * 末尾的 Reference roles 图例由 app 每次写词时重算（见 planCanvasApply），⛔ 不给
    * 模型看正文：2026-10-08 真机它读回来见到这段中文图例和自己写的不一样，就改一遍、

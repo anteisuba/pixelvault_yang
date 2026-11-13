@@ -23,7 +23,6 @@ import {
   NODE_DROP_FADE_MOTION,
   NODE_EDGE_SIGNING_MOTION,
 } from '@/constants/motion'
-import { NODE_STUDIO_INGEST_MAGNET } from '@/constants/node-studio'
 
 // Exported — S5d 融合动画补齐 reuses these to locate a canvas node's card
 // element for the fusion gesture's own bite/flight beats (the workbench

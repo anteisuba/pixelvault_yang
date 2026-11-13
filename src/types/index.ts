@@ -2729,7 +2729,7 @@ const AssistantWorkbenchRunSchema = z.object({
   hasSelection: z.boolean().optional(),
 })
 
-const AssistantWorkbenchStateSchema = z.object({
+export const AssistantWorkbenchStateSchema = z.object({
   /** 编辑器里的正面 / 负面提示词。 */
   prompt: z.string().optional(),
   negativePrompt: z.string().optional(),

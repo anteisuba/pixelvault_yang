@@ -91,6 +91,7 @@ async function openedRow(
 async function oldRecord(createdAt: Date, turnId: string) {
   const row = await theRowOrOpen()
   const { id: _id, createdAt: _created, turnId: _turn, ...rest } = row
+  void [_id, _created, _turn]
   return db.assistantTurnRecord.create({
     data: {
       ...rest,
@@ -412,6 +413,7 @@ async function strangerRow(strangerId: string) {
     where: { userId },
   })
   const { id: _id, createdAt: _created, ...rest } = row
+  void [_id, _created]
   return {
     ...rest,
     userId: strangerId,

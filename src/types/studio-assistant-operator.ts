@@ -15,8 +15,6 @@
 import type { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type { AssistantMention } from '@/types/assistant-mention'
 import type { StudioOperatorResumeStep } from '@/types/studio-operator-resume'
-import type { ContextCardKindId } from '@/constants/context-cards'
-import type { ContextCardImage } from '@/types/context-cards'
 import type {
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS,
   ProjectRuleSourceId,

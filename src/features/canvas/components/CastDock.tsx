@@ -109,7 +109,6 @@ export function CastDock({
   onSelectNode,
 }: CastDockProps) {
   const t = useTranslations('StudioNode.castDock')
-  const tStudio = useTranslations('StudioNode')
   // ③d-4 起 RF store 里只有 v4 节点，⛔ 不再兼容 v3 形状。
   const nodes = useNodes<NodeV4>()
   const edges = useEdges<NodeWorkflowEdgeV4>()

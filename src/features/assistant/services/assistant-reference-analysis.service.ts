@@ -214,6 +214,7 @@ export async function analyzeOperatorReferences({
         )
       // 只附了这一张：模型写回的编号不论是几，结论都属于它。
       const { imageIndex: _imageIndex, ...facts } = first
+      void _imageIndex
       return { url: urls[index]!, facts }
     }
     const results: Array<Awaited<ReturnType<typeof analyzeOne>>> = []

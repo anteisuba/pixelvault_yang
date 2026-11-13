@@ -1212,11 +1212,12 @@
   }
 }
 @media (max-width: 760px) {
+  /* 手机卡窄：英 / 日文的台词两行装不下会被截成省略号，放三行（卡高 92：3×19 + 波形 30 正好装下） */
   .home-v6 .voice .txt {
     font-size: 14px;
     white-space: normal;
     display: -webkit-box;
-    -webkit-line-clamp: 2;
+    -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
   }
   .home-v6 .tile {

@@ -128,6 +128,20 @@ export interface StudioOperatorModelChipProps {
   inDialog?: boolean
 }
 
+/**
+ * 卡一打开，列表滚到选中那一行（放中间）：模型多，选中的常在第三、四组，⛔ 打开先看见一串不相干的。
+ * 只改列表自己的 scrollTop（⛔ `scrollIntoView`：会连带滚页面）；模块级函数 = ref 只在挂上时跑一次。
+ */
+function centerCheckedRow(list: HTMLDivElement | null) {
+  const row = list?.querySelector<HTMLElement>('[aria-checked="true"]')
+  if (!list || !row) return
+  const top =
+    row.getBoundingClientRect().top -
+    list.getBoundingClientRect().top +
+    list.scrollTop
+  list.scrollTop = top - (list.clientHeight - row.offsetHeight) / 2
+}
+
 export function StudioOperatorModelChip({
   value,
   onChange,
@@ -333,6 +347,7 @@ export function StudioOperatorModelChip({
             </label>
           ) : null}
           <div
+            ref={centerCheckedRow}
             role="menu"
             aria-label={t('label')}
             data-testid="operator-model-chip-menu"
@@ -404,7 +419,7 @@ export function StudioOperatorModelChip({
                       data-testid={`operator-model-option-${model.modelId}`}
                       onClick={() => handlePick(model)}
                       className={cn(
-                        'flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-2sm text-foreground transition-colors duration-fast ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                        'flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-2sm text-foreground transition-colors duration-fast ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring coarse:min-h-11',
                         isSelected && 'bg-muted font-medium',
                       )}
                     >

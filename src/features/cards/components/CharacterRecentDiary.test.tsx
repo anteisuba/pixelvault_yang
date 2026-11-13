@@ -215,6 +215,7 @@ function diary(
   options: {
     stickers?: ReturnType<typeof stickersOf>
     memories?: ReturnType<typeof memoriesOf>
+    lead?: ReactElement
   } = {},
 ) {
   return renderWithKeys(
@@ -222,6 +223,7 @@ function diary(
       stickers={options.stickers ?? stickersOf()}
       growth={hook}
       memories={options.memories ?? memoriesOf()}
+      {...(options.lead ? { lead: options.lead } : {})}
     />,
   )
 }
@@ -492,5 +494,61 @@ describe('CharacterRecentDiary（第 ③ 步 + 小房间活动记录）', () => 
     expect(screen.getByText('熟了会拖长音')).toBeTruthy()
     fireEvent.click(screen.getByText('revert'))
     expect(hook.revert).toHaveBeenCalledWith('r1')
+  })
+  it('收了工的一趟一条：挂它起止之间的见闻，写用了几点；一条没带回也有一条', () => {
+    diary(
+      hookOf(
+        growthOf({
+          outing: {
+            running: null,
+            recent: [
+              run({ startedAt: today(8), endedAt: today(10) }),
+              run({
+                id: 'r0',
+                startedAt: daysBack(1),
+                endedAt: daysBack(1),
+                usedTokens: 20_000,
+                kept: 0,
+                endReason: 'nothing',
+              }),
+            ],
+            frequentSites: [],
+          },
+        }),
+      ),
+    )
+    expect(
+      screen.getByText('runSummary|sourceBilibili · sourceDanbooru'),
+    ).toBeTruthy()
+    expect(screen.getByText('· findingCount|2 · runPoints|12')).toBeTruthy()
+    expect(
+      screen.getByText('· findingCount|0 · runPoints|2 · end.nothing'),
+    ).toBeTruthy()
+  })
+
+  it('她逛来的表情在「全部」里按天一条，点一张拉黑；你上传的不进记录', () => {
+    const rows = stickersOf([
+      sticker('s1'),
+      sticker('s2', { fromCreator: true }),
+    ])
+    diary(hookOf(growthOf()), { stickers: rows })
+    // 折着的一行，点开才看到那几张。
+    fireEvent.click(screen.getByText('gotStickers|1'))
+    fireEvent.click(screen.getByLabelText('blockSticker'))
+    expect(rows.setBlocked).toHaveBeenCalledWith('s1', true)
+  })
+
+  it('手机（lead）：出门卡在最上面，筛选条跟在它后面，和记录在同一个滚动区里', () => {
+    diary(hookOf(growthOf()), {
+      lead: <div data-testid="outing-lead">lead</div>,
+    })
+    const lead = screen.getByTestId('outing-lead')
+    const filters = screen.getByRole('tablist')
+    const scroller = lead.closest('.overflow-y-auto')
+    expect(scroller).not.toBeNull()
+    expect(scroller?.contains(filters)).toBe(true)
+    expect(
+      lead.compareDocumentPosition(filters) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
   })
 })

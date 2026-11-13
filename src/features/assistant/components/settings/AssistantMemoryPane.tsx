@@ -516,7 +516,8 @@ function MemoryRow({
           finish()
         }}
       >
-        <div className="flex items-center gap-2">
+        {/* 窄（手机）：输入框占满一行、范围下拉放下面；并排时输入框不到 200 宽，长记忆只看得见一截。 */}
+        <div className="flex flex-col items-start gap-2 @md:flex-row @md:items-center">
           <Input
             autoFocus
             value={draft}
@@ -534,7 +535,7 @@ function MemoryRow({
                 finish()
               }
             }}
-            className="flex-1"
+            className="w-full @md:w-auto @md:flex-1"
           />
           <DropdownMenu open={scopeOpen} onOpenChange={setScopeOpen}>
             <DropdownMenuTrigger asChild>
@@ -602,53 +603,57 @@ function MemoryRow({
   }
 
   return (
-    <div className="group flex min-h-11 items-center gap-3 coarse:min-h-13">
+    // 窄（手机）：正文占满一行，下面一小行放范围 · 来源 · 时间，「删」靠右；
+    // 一行塞三列的话正文只剩 100 来宽，一条记忆折成十几行（11-13 手机）。宽了照旧一行。
+    <div className="group flex min-h-11 flex-col pb-1.5 coarse:min-h-13 @md:flex-row @md:items-center @md:gap-3 @md:pb-0">
       <button
         type="button"
         onClick={startEdit}
         aria-label={t('memory.edit', { text: memory.text })}
-        className="min-w-0 flex-1 cursor-text rounded-md py-2.75 text-left text-sm leading-5.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        className="min-w-0 cursor-text rounded-md pt-2.75 pb-1 text-left text-sm leading-5.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none @md:flex-1 @md:py-2.75"
       >
         {memory.text}
       </button>
-      <span className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
-        {memory.scope !== ASSISTANT_MEMORY_SCOPE_IDS.global ? (
-          <span className="inline-flex h-5 items-center rounded-md bg-surface-fill px-1.5 text-2xs whitespace-nowrap text-foreground/75">
-            {scopeLabel}
-          </span>
-        ) : null}
-        {/* 就地改完：这一格先写「✓ 已保存」，停一下再换回时间，字由糊变清换进来
+      <div className="flex items-center gap-2 @md:contents">
+        <span className="flex min-w-0 flex-1 items-center gap-2 text-xs text-muted-foreground @md:flex-none @md:shrink-0">
+          {memory.scope !== ASSISTANT_MEMORY_SCOPE_IDS.global ? (
+            <span className="inline-flex h-5 items-center rounded-md bg-surface-fill px-1.5 text-2xs whitespace-nowrap text-foreground/75">
+              {scopeLabel}
+            </span>
+          ) : null}
+          {/* 就地改完：这一格先写「✓ 已保存」，停一下再换回时间，字由糊变清换进来
             （原型：结果写在原地，⛔ 不弹提示）。 */}
-        <BlurSwap swapKey={justSaved ? 'saved' : 'meta'} className="gap-1">
-          {justSaved ? (
-            <>
-              <Check className="size-3.5 text-foreground" aria-hidden />
-              <span role="status" className="text-foreground">
-                {t('memory.saved')}
-              </span>
-            </>
-          ) : (
-            <MemoryMeta memory={memory} />
-          )}
-        </BlurSwap>
-      </span>
-      <ConfirmDialog
-        title={t('memory.deleteTitle')}
-        description={tFeedback('deleteDialog.irreversible')}
-        cancelLabel={tFeedback('deleteDialog.cancel')}
-        confirmLabel={tFeedback('deleteDialog.confirm')}
-        onConfirm={onDelete}
-        trigger={
-          <button
-            type="button"
-            aria-label={t('memory.deleteAria')}
-            data-testid="assistant-memory-delete"
-            className="h-7 shrink-0 rounded-lg px-2.5 text-2sm text-status-risk opacity-0 group-hover:opacity-100 hover:bg-status-risk-surface focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none data-[state=open]:opacity-100 coarse:h-9 coarse:opacity-100"
-          >
-            {t('memory.delete')}
-          </button>
-        }
-      />
+          <BlurSwap swapKey={justSaved ? 'saved' : 'meta'} className="gap-1">
+            {justSaved ? (
+              <>
+                <Check className="size-3.5 text-foreground" aria-hidden />
+                <span role="status" className="text-foreground">
+                  {t('memory.saved')}
+                </span>
+              </>
+            ) : (
+              <MemoryMeta memory={memory} />
+            )}
+          </BlurSwap>
+        </span>
+        <ConfirmDialog
+          title={t('memory.deleteTitle')}
+          description={tFeedback('deleteDialog.irreversible')}
+          cancelLabel={tFeedback('deleteDialog.cancel')}
+          confirmLabel={tFeedback('deleteDialog.confirm')}
+          onConfirm={onDelete}
+          trigger={
+            <button
+              type="button"
+              aria-label={t('memory.deleteAria')}
+              data-testid="assistant-memory-delete"
+              className="h-7 shrink-0 rounded-lg px-2.5 text-2sm text-status-risk opacity-0 group-hover:opacity-100 hover:bg-status-risk-surface focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none data-[state=open]:opacity-100 coarse:h-9 coarse:opacity-100"
+            >
+              {t('memory.delete')}
+            </button>
+          }
+        />
+      </div>
     </div>
   )
 }

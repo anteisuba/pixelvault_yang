@@ -30,8 +30,10 @@ import {
   CharacterDetailHeader,
   CharacterDraftBody,
 } from '@/features/cards/components/CharacterDetail'
-import { CharacterDetailDesk } from '@/features/cards/components/CharacterDetailDesk'
-import { CharacterDetailSplit } from '@/features/cards/components/CharacterRecent'
+import {
+  CharacterDetailDesk,
+  CharacterDetailPhone,
+} from '@/features/cards/components/CharacterDetailDesk'
 import { CharacterLibrary } from '@/features/cards/components/CharacterLibrary'
 import { CharacterPhoneBar } from '@/features/cards/components/CharacterPhoneBar'
 import {
@@ -624,7 +626,7 @@ export function CharacterRoster() {
               )}
             >
               {isMobile ? (
-                <CharacterDetailSplit
+                <CharacterDetailPhone
                   key={detailCard.id}
                   cardId={detailCard.id}
                   body={<CharacterDetailBody {...detailProps(detailCard)} />}

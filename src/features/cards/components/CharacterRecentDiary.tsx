@@ -175,11 +175,14 @@ export function CharacterRecentDiary({
   growth: data,
   stickers,
   memories,
+  lead,
 }: {
   growth: Growth
   stickers: Stickers
   /** 观点的钉住 / 沉睡住在记忆那份里（观点本质是带前缀的记忆）。 */
   memories: Memories
+  /** 手机：出门卡放在记录最上面、跟着一起滚走（电脑的出门卡在左栏）。 */
+  lead?: ReactNode
 }) {
   const t = useTranslations('CharacterRoster.recent')
   const filters = useRecentFilters()
@@ -256,23 +259,34 @@ export function CharacterRecentDiary({
   } as const
   const copy = confirmCopy[pending?.kind ?? 'journal']
 
+  const head = (
+    <div className="flex shrink-0 flex-wrap items-center gap-3">
+      <h2 className="text-2sm font-semibold">{t('activityTitle')}</h2>
+      <LiquidSegmented
+        items={filters}
+        value={filter}
+        onChange={setFilter}
+        ariaLabel={t('filterLabel')}
+        size="sm"
+      />
+    </div>
+  )
+
   return (
     <section
       aria-label={t('activityTitle')}
       className="flex h-full flex-col gap-3"
       data-testid="character-recent-diary"
     >
-      <div className="flex shrink-0 flex-wrap items-center gap-3">
-        <h2 className="text-2sm font-semibold">{t('activityTitle')}</h2>
-        <LiquidSegmented
-          items={filters}
-          value={filter}
-          onChange={setFilter}
-          ariaLabel={t('filterLabel')}
-          size="sm"
-        />
-      </div>
+      {lead ? null : head}
       <div className="min-h-0 flex-1 overflow-y-auto pb-12">
+        {/* 手机：出门卡 → 筛选 → 记录，一起滚（屏幕矮，⛔ 两块钉在顶上吃掉一截）。 */}
+        {lead ? (
+          <div className="flex flex-col gap-4 pb-5">
+            {lead}
+            {head}
+          </div>
+        ) : null}
         {days.length === 0 ? (
           <p className="py-8 text-center text-2sm text-muted-foreground">
             {filter === 'all' ? t('diaryEmpty') : t('nothingHere')}

@@ -1,58 +1,33 @@
 'use client'
 
-import { useMemo, useState, type ReactNode } from 'react'
-import { motion, useReducedMotion } from 'motion/react'
+import { useState, type ReactNode } from 'react'
 import { useFormatter, useTranslations } from 'next-intl'
-import { toast } from 'sonner'
 
-import {
-  ArrowUpRight,
-  Ban,
-  ChevronRight,
-  Home,
-  Plus,
-  X,
-} from '@/components/icons'
-import { CHARACTER_REVISION_SOURCE_IDS } from '@/constants/cards'
-import { CHARACTER_STICKERS } from '@/constants/character-browse'
-import { DURATION, EASE_STANDARD } from '@/constants/motion'
+import { ArrowUpRight, Ban, ChevronRight, X } from '@/components/icons'
 import type {
   CharacterFindingEntry,
   CharacterGrowth,
-  CharacterJournalEntry,
   CharacterOpinionEntry,
   CharacterOutingRun,
   CharacterRevisionEntry,
 } from '@/types/character-growth'
 import type { CharacterStickerRecord } from '@/types/character-sticker'
 import {
-  OutingCard,
   SOURCE_KEYS,
   tokensToPoints,
   useOutingSourceLabel,
 } from '@/features/cards/components/CharacterOutingCard'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { EmptyState } from '@/components/ui/empty-state'
-import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import {
   OutingDigest,
   digestLinesOf,
   useSiteName,
 } from '@/features/cards/components/CharacterOutingDigest'
-import { Spinner } from '@/components/ui/spinner'
-import {
-  useCharacterGrowth,
-  useCharacterStickers,
-} from '@/features/cards/hooks'
-import { usePersonaSwitch } from '@/hooks/use-chat-persona'
-import { useIsMobile } from '@/hooks/use-mobile'
 import { cn } from '@/lib/utils'
 
 /**
- * **角色页右栏「小房间」**（方向 B，`docs/references/pages/cards.md` §2.2–§2.3；11-05 由「最近」改名）：
- * 出门卡 → 筛选切换条 → 按天分组的活动记录。记录里五种事件：出门（同一天带回的见闻折成一条）· 收了表情 ·
- * 观点 · 改动（能撤回）· 日记。筛到「表情」时整栏换成她的表情包格子（能上传一张）。
- * 筛选项与电脑的 `CharacterRecentDiary` 同一份（`useRecentFilters`）。
+ * **「小房间」活动记录的零件**（`docs/references/pages/cards.md` §2.2–§2.3）：筛选项、按天 / 按趟分组、
+ * 时间与日期标签，以及一条条事件（出门 · 观点 · 改动 · 表情）。整栏由 `CharacterRecentDiary` 拼，
+ * 电脑与手机同一份（11-13 起手机也用它，旧的手机整栏已删）。
  *
  * ⭐ 一趟出门一条（第 ⑤ 步起有 `CharacterOuting`）：那一趟起止之间看到的见闻挂在它下面，一条没带回也
  *   照样有一条；有这张表之前的见闻按天折成一趟。单站失败不画（后台不记）。
@@ -60,8 +35,6 @@ import { cn } from '@/lib/utils'
  *   见闻折在小结底下；没小结照旧。
  */
 
-type Growth = ReturnType<typeof useCharacterGrowth>
-type Stickers = ReturnType<typeof useCharacterStickers>
 export type RecentFilter =
   | 'all'
   | 'finding'
@@ -69,7 +42,6 @@ export type RecentFilter =
   | 'journal'
   | 'revision'
   | 'sticker'
-type Filter = RecentFilter
 
 /** 小房间的筛选项（顺序与文案电脑 / 手机共用）。 */
 export function useRecentFilters() {
@@ -98,18 +70,6 @@ export function daysAgo(iso: string): number {
     (startOfDay(new Date()) - startOfDay(new Date(iso))) / MS_PER_DAY,
   )
 }
-
-type RiverEvent =
-  | {
-      kind: 'outing'
-      at: string
-      findings: CharacterFindingEntry[]
-      run: CharacterOutingRun | null
-    }
-  | { kind: 'stickers'; at: string; stickers: CharacterStickerRecord[] }
-  | { kind: 'opinion'; at: string; opinion: CharacterOpinionEntry }
-  | { kind: 'journal'; at: string; journal: CharacterJournalEntry }
-  | { kind: 'revision'; at: string; revision: CharacterRevisionEntry }
 
 /** 同一天的几样折成一条，时间 = 那天最早的那一样。 */
 function byDay<T>(rows: readonly T[], at: (row: T) => string) {
@@ -148,54 +108,6 @@ export function groupOutings(growth: CharacterGrowth) {
   for (const { items, at } of byDay([...left], (row) => row.seenAt))
     outings.push({ at, findings: items, run: null })
   return outings
-}
-
-/**
- * 一天一组，组内新的在上；见闻一趟一条（`groupOutings`）。她逛来的表情（⛔ 你上传的）只在「全部」
- * 里按天出一条「收了 N 张表情」。
- */
-function buildRiver(
-  growth: CharacterGrowth,
-  filter: Filter,
-  stickers: readonly CharacterStickerRecord[],
-) {
-  const show = (kind: Exclude<Filter, 'all'>) =>
-    filter === 'all' || filter === kind
-  const events: RiverEvent[] = []
-  if (show('finding')) {
-    for (const outing of groupOutings(growth))
-      events.push({ kind: 'outing', ...outing })
-  }
-  if (filter === 'all') {
-    const found = stickers.filter((row) => !row.fromCreator)
-    for (const { items, at } of byDay(found, (row) => row.createdAt)) {
-      events.push({ kind: 'stickers', at, stickers: items })
-    }
-  }
-  if (show('opinion')) {
-    for (const opinion of growth.opinions) {
-      events.push({ kind: 'opinion', at: opinion.createdAt, opinion })
-    }
-  }
-  if (show('journal')) {
-    for (const journal of growth.journals) {
-      events.push({ kind: 'journal', at: journal.createdAt, journal })
-    }
-  }
-  if (show('revision')) {
-    for (const revision of growth.revisions) {
-      events.push({ kind: 'revision', at: revision.createdAt, revision })
-    }
-  }
-  events.sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0))
-  const days: { key: string; at: string; events: RiverEvent[] }[] = []
-  for (const event of events) {
-    const key = dayKey(event.at)
-    const last = days.at(-1)
-    if (last?.key === key) last.events.push(event)
-    else days.push({ key, at: event.at, events: [event] })
-  }
-  return days
 }
 
 export function DayLabel({ iso }: { iso: string }) {
@@ -598,51 +510,6 @@ export function OpinionEvent({
   )
 }
 
-export function RevisionEvent({
-  revision,
-  reverting,
-  onRevert,
-}: {
-  revision: CharacterRevisionEntry
-  reverting: boolean
-  onRevert(): void
-}) {
-  const t = useTranslations('CharacterRoster.recent')
-  const label = useFieldLabel()
-  const reverted = revision.revertedAt !== null
-  const why =
-    revision.reason ??
-    (revision.source === CHARACTER_REVISION_SOURCE_IDS.chat
-      ? t('fromChat')
-      : null)
-  return (
-    <>
-      <div className="flex flex-wrap items-center gap-x-2 text-2sm">
-        <span className="font-medium">
-          {t('changedField', {
-            field: revision.fields.map(label).join('、'),
-          })}
-        </span>
-        {why ? (
-          <span className="text-xs text-muted-foreground">{why}</span>
-        ) : null}
-        <span className="ml-auto">
-          {reverted ? (
-            <span className="px-2 text-xs text-muted-foreground">
-              {t('reverted')}
-            </span>
-          ) : (
-            <Ghost disabled={reverting} onClick={onRevert}>
-              {t('revert')}
-            </Ghost>
-          )}
-        </span>
-      </div>
-      <RevisionDiff revision={revision} />
-    </>
-  )
-}
-
 /** 一条改动的改前 / 改后（撤回过的反着划）。 */
 export function RevisionDiff({
   revision,
@@ -730,451 +597,6 @@ export function StickerTile({
       >
         <X aria-hidden className="size-3" />
       </button>
-    </div>
-  )
-}
-
-function StickerGrid({
-  stickers,
-  onToggle,
-  onDelete,
-}: {
-  stickers: Stickers
-  onToggle(sticker: CharacterStickerRecord): void
-  onDelete(sticker: CharacterStickerRecord): void
-}) {
-  const t = useTranslations('CharacterRoster.recent')
-  const [uploading, setUploading] = useState(false)
-  const rows = stickers.stickers
-  if (!rows)
-    return (
-      <div className="flex justify-center py-16">
-        <Spinner className="text-muted-foreground" />
-      </div>
-    )
-  const upload = async (file: File | undefined) => {
-    if (!file) return
-    setUploading(true)
-    const result = await stickers.upload(file)
-    setUploading(false)
-    if (!result.ok)
-      toast.error(
-        t(
-          result.reason === 'tooLarge'
-            ? 'uploadTooLarge'
-            : result.reason === 'notAnImage'
-              ? 'uploadNotImage'
-              : 'uploadFailed',
-        ),
-      )
-  }
-  return (
-    <section aria-label={t('stickersTitle')} className="flex flex-col gap-3">
-      <div className="flex items-baseline gap-2">
-        <h3 className="text-2sm font-semibold">{t('stickersTitle')}</h3>
-        <span className="font-mono text-xs text-muted-foreground tabular-nums">
-          {rows.length} / {CHARACTER_STICKERS.perCard}
-        </span>
-        <span className="ml-auto text-xs text-muted-foreground">
-          {t('stickerHint')}
-        </span>
-      </div>
-      <ul className="grid grid-cols-4 gap-2 md:grid-cols-6">
-        <li>
-          <label
-            className={cn(
-              'grid aspect-square w-full cursor-pointer place-items-center rounded-12 border border-dashed border-input text-ink-2 transition-colors duration-fast hover:tint-hover focus-within:shadow-focus',
-              uploading && 'pointer-events-none opacity-45',
-            )}
-          >
-            <span className="flex flex-col items-center gap-1 text-xs">
-              {uploading ? (
-                <Spinner size="sm" />
-              ) : (
-                <Plus aria-hidden className="size-4" />
-              )}
-              {t('uploadSticker')}
-            </span>
-            <input
-              type="file"
-              accept="image/png,image/jpeg,image/webp,image/gif"
-              className="sr-only"
-              onChange={(event) => {
-                void upload(event.target.files?.[0])
-                event.target.value = ''
-              }}
-            />
-          </label>
-        </li>
-        {rows.map((sticker) => (
-          <li key={sticker.id}>
-            <StickerTile
-              sticker={sticker}
-              size="grid"
-              onToggle={() => onToggle(sticker)}
-              onDelete={() => onDelete(sticker)}
-            />
-          </li>
-        ))}
-      </ul>
-      {rows.length === 0 ? (
-        <p className="text-2sm text-muted-foreground">{t('stickersEmpty')}</p>
-      ) : null}
-    </section>
-  )
-}
-
-/* ── 整栏 ───────────────────────────────────────────────────────────── */
-
-type Pending =
-  | { kind: 'finding'; id: string }
-  | { kind: 'opinion'; id: string }
-  | { kind: 'sticker'; id: string }
-  | null
-
-export function CharacterRecent({
-  growth: data,
-  stickers,
-  header,
-  reducedMotion,
-  showTitle = true,
-}: {
-  growth: Growth
-  stickers: Stickers
-  /** 栏头右边（电脑是「和她聊」；手机由外面另放）。 */
-  header?: ReactNode
-  reducedMotion: boolean
-  /** 手机顶上的切换条已经写着「小房间」，⛔ 再来一行栏头。 */
-  showTitle?: boolean
-}) {
-  const t = useTranslations('CharacterRoster.recent')
-  const [filter, setFilter] = useState<Filter>('all')
-  const [opened, setOpened] = useState<Record<string, boolean>>({})
-  const [pending, setPending] = useState<Pending>(null)
-  const growth = data.growth
-  const days = useMemo(
-    () => (growth ? buildRiver(growth, filter, stickers.stickers ?? []) : []),
-    [filter, growth, stickers.stickers],
-  )
-  /** 最新那一趟出门默认展开，其余折着（owner 2026-10-28）。 */
-  const newestOuting = useMemo(() => {
-    for (const day of days) {
-      const outing = day.events.find((event) => event.kind === 'outing')
-      if (outing) return outing.at
-    }
-    return null
-  }, [days])
-
-  const confirmDelete = async () => {
-    if (!pending) return
-    const ok =
-      pending.kind === 'finding'
-        ? (await data.removeFinding(pending.id)).ok
-        : pending.kind === 'opinion'
-          ? (await data.removeOpinion(pending.id)).ok
-          : await stickers.remove(pending.id)
-    setPending(null)
-    if (!ok) toast.error(t('deleteFailed'))
-  }
-
-  const toggleSticker = (sticker: CharacterStickerRecord) =>
-    void stickers.setBlocked(sticker.id, !sticker.isBlocked).then((ok) => {
-      if (!ok) toast.error(t('saveFailed'))
-    })
-  const askDeleteSticker = (sticker: CharacterStickerRecord) =>
-    setPending({ kind: 'sticker', id: sticker.id })
-
-  const filters = useRecentFilters()
-
-  const neverOut =
-    growth !== null &&
-    !growth.outing.running &&
-    growth.outing.recent.length === 0 &&
-    growth.findings.length === 0
-
-  return (
-    <section aria-label={t('title')} className="flex min-h-0 flex-1 flex-col">
-      {showTitle ? (
-        <header className="flex h-13 shrink-0 items-center gap-2 px-6">
-          <h2 className="text-sm font-semibold">{t('title')}</h2>
-          <div className="ml-auto flex items-center gap-2">{header}</div>
-        </header>
-      ) : null}
-      <div
-        className={cn(
-          'min-h-0 flex-1 overflow-y-auto px-4 pb-12 md:px-6 desk:px-10',
-        )}
-      >
-        <div className="mx-auto flex max-w-190 flex-col gap-4">
-          {data.isLoading && !growth ? (
-            <div className="flex justify-center py-16">
-              <Spinner className="text-muted-foreground" />
-            </div>
-          ) : !growth ? (
-            <EmptyState
-              tone="error"
-              icon={<Home aria-hidden />}
-              title={t('loadFailed')}
-              action={
-                <button
-                  type="button"
-                  onClick={() => void data.reload()}
-                  className="h-9 rounded-full bg-primary px-4 text-2sm font-semibold text-primary-foreground hover:tint-hover"
-                >
-                  {t('retry')}
-                </button>
-              }
-            />
-          ) : (
-            <>
-              <OutingCard growth={data} />
-              {neverOut ? (
-                <EmptyState
-                  icon={<Home aria-hidden />}
-                  title={t('neverOutTitle')}
-                  description={t('neverOutHint')}
-                  className="mx-0 max-w-none"
-                />
-              ) : null}
-              <LiquidSegmented
-                items={filters}
-                value={filter}
-                onChange={setFilter}
-                ariaLabel={t('filterLabel')}
-                size="row"
-                className="self-start"
-              />
-              {filter === 'sticker' ? (
-                <StickerGrid
-                  stickers={stickers}
-                  onToggle={toggleSticker}
-                  onDelete={askDeleteSticker}
-                />
-              ) : days.length === 0 ? (
-                <p className="py-8 text-center text-2sm text-muted-foreground">
-                  {t('nothingHere')}
-                </p>
-              ) : (
-                days.map((day) => (
-                  <div key={day.key} className="flex flex-col gap-3">
-                    <DayLabel iso={day.at} />
-                    {day.events.map((event) => {
-                      const key = `${event.kind}:${event.at}`
-                      // 有小结的趟：小结摊开、见闻折在它底下；没小结的最新一趟照旧摊见闻。
-                      const open =
-                        event.kind === 'outing'
-                          ? (opened[event.at] ??
-                            (event.at === newestOuting &&
-                              digestLinesOf(event.run).length === 0))
-                          : true
-                      return (
-                        <motion.div
-                          key={key}
-                          layout={reducedMotion ? false : 'position'}
-                          transition={{
-                            duration: DURATION.base,
-                            ease: EASE_STANDARD,
-                          }}
-                          className="flex gap-3"
-                        >
-                          <span className="w-14 shrink-0">
-                            <Clock iso={event.at} />
-                          </span>
-                          <div className="flex min-w-0 flex-1 flex-col gap-2.5 border-b border-border pb-4">
-                            {event.kind === 'outing' ? (
-                              <OutingEvent
-                                findings={event.findings}
-                                run={event.run}
-                                open={open}
-                                latest={event.at === newestOuting}
-                                onToggle={() =>
-                                  setOpened((prev) => ({
-                                    ...prev,
-                                    [event.at]: !open,
-                                  }))
-                                }
-                                onDelete={(finding) =>
-                                  setPending({
-                                    kind: 'finding',
-                                    id: finding.id,
-                                  })
-                                }
-                              />
-                            ) : event.kind === 'stickers' ? (
-                              <>
-                                <p className="text-2sm font-medium">
-                                  {t('gotStickers', {
-                                    count: event.stickers.length,
-                                  })}
-                                </p>
-                                <div className="flex flex-wrap items-center gap-2">
-                                  {event.stickers.map((sticker) => (
-                                    <StickerTile
-                                      key={sticker.id}
-                                      sticker={sticker}
-                                      size="row"
-                                      onToggle={() => toggleSticker(sticker)}
-                                      onDelete={() => askDeleteSticker(sticker)}
-                                    />
-                                  ))}
-                                  <span className="text-xs text-muted-foreground">
-                                    {t('stickerHint')}
-                                  </span>
-                                </div>
-                              </>
-                            ) : event.kind === 'opinion' ? (
-                              <OpinionEvent
-                                opinion={event.opinion}
-                                onSave={async (text) => {
-                                  const result = await data.editOpinion(
-                                    event.opinion.id,
-                                    text,
-                                  )
-                                  if (!result.ok) toast.error(t('saveFailed'))
-                                  return result.ok
-                                }}
-                                onDelete={() =>
-                                  setPending({
-                                    kind: 'opinion',
-                                    id: event.opinion.id,
-                                  })
-                                }
-                              />
-                            ) : event.kind === 'revision' ? (
-                              <RevisionEvent
-                                revision={event.revision}
-                                reverting={
-                                  data.revertingId === event.revision.id
-                                }
-                                onRevert={() =>
-                                  void data.revert(event.revision.id)
-                                }
-                              />
-                            ) : (
-                              <>
-                                <p className="text-2sm font-medium">
-                                  {t('wroteJournal')}
-                                </p>
-                                <p className="whitespace-pre-wrap text-md leading-reading">
-                                  {event.journal.text}
-                                </p>
-                              </>
-                            )}
-                          </div>
-                        </motion.div>
-                      )
-                    })}
-                  </div>
-                ))
-              )}
-            </>
-          )}
-        </div>
-      </div>
-      <ConfirmDialog
-        open={pending !== null}
-        onOpenChange={(open) => {
-          if (!open) setPending(null)
-        }}
-        title={
-          pending?.kind === 'opinion'
-            ? t('deleteOpinionTitle')
-            : pending?.kind === 'sticker'
-              ? t('deleteStickerTitle')
-              : t('deleteFindingTitle')
-        }
-        description={
-          pending?.kind === 'opinion'
-            ? t('deleteOpinionBody')
-            : pending?.kind === 'sticker'
-              ? t('deleteStickerBody')
-              : t('deleteFindingBody')
-        }
-        cancelLabel={t('cancel')}
-        confirmLabel={t('delete')}
-        onConfirm={() => void confirmDelete()}
-      />
-    </section>
-  )
-}
-
-/**
- * **详情两栏**（方向 B）：左「她」（`body`，原样的详情正文）· 右「最近」。768 起并排（平板左栏 300，
- * 1024 起 380）；手机顶上一条「她 · 最近」切换，默认「最近」。
- */
-export function CharacterDetailSplit({
-  cardId,
-  body,
-}: {
-  cardId: string
-  body: ReactNode
-}) {
-  const t = useTranslations('CharacterRoster.recent')
-  const growth = useCharacterGrowth(cardId)
-  const stickers = useCharacterStickers(cardId)
-  const personaSwitch = usePersonaSwitch()
-  const isMobile = useIsMobile()
-  const reducedMotion = useReducedMotion() ?? false
-  const [pane, setPane] = useState<'her' | 'recent'>('recent')
-  const chat = (
-    <button
-      type="button"
-      onClick={() => void personaSwitch.switchTo(cardId, { goHome: true })}
-      className={cn(
-        'rounded-full bg-primary px-4 font-semibold text-primary-foreground transition-transform duration-fast hover:tint-hover active:scale-[.98]',
-        isMobile ? 'h-12 w-full text-md' : 'h-8 text-2sm',
-      )}
-    >
-      {t('chatWith')}
-    </button>
-  )
-
-  if (isMobile) {
-    return (
-      <div className="flex h-full flex-col">
-        <div className="flex shrink-0 justify-center px-4 pb-2">
-          <LiquidSegmented
-            items={[
-              { value: 'her', label: t('paneHer') },
-              { value: 'recent', label: t('title') },
-            ]}
-            value={pane}
-            onChange={setPane}
-            ariaLabel={t('paneLabel')}
-            size="md"
-            fill
-            className="w-50"
-          />
-        </div>
-        <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
-          {pane === 'her' ? (
-            body
-          ) : (
-            <CharacterRecent
-              growth={growth}
-              stickers={stickers}
-              reducedMotion={reducedMotion}
-              showTitle={false}
-            />
-          )}
-        </div>
-        {/* 详情铺到底栏后面：「和她聊」那一条让开底栏。 */}
-        <div className="shrink-0 px-4 pb-mobile-tabbar pt-2">{chat}</div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="flex h-full">
-      <div className="h-full w-75 shrink-0 border-r border-border desk:w-95">
-        {body}
-      </div>
-      <CharacterRecent
-        growth={growth}
-        stickers={stickers}
-        reducedMotion={reducedMotion}
-        header={chat}
-      />
     </div>
   )
 }

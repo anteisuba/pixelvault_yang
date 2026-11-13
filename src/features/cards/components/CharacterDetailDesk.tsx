@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import Image from 'next/image'
 import { useLocale, useTranslations } from 'next-intl'
 
@@ -52,7 +52,7 @@ type PaneProps = Parameters<typeof CharacterPersonPane>[0]
  *   「她在意的东西」（第 ④ 步）·「现在」（出门调查，第 ⑤ 步）。⛔ 分割线、⛔「用她 ▾」。
  * ⭐ 右边页签：小房间（活动记录，11-05 由「最近」改名）· 人物 · 图片 · 模板（11-01）· LoRA · 记忆（第 ⑦ 步）· 表情包。各页内容先原样搬过来，
  *   后面几步一页一页改。
- * ⚠ 手机照旧走 `CharacterDetailSplit`（手机归整体重设计）。
+ * 手机见下面的 `CharacterDetailPhone`（同一套页签内容，换成顶上四段切换）。
  */
 export function CharacterDetailDesk({
   onDelete,
@@ -155,6 +155,83 @@ export function CharacterDetailDesk({
           void onDelete()
         }}
       />
+    </div>
+  )
+}
+
+type PhonePane = 'recent' | 'her' | 'memory' | 'stickers'
+
+/**
+ * **手机的角色详情**（11-13 手机端）：顶上一条四段切换「小房间 · 她 · 记忆 · 表情包」，内容与电脑页签同一套
+ * （小房间 = `CharacterRecentDiary`，出门卡放在它最上面跟着滚；记忆、表情包同电脑那两页）；「她」是原样的
+ * 详情正文（`body`：造型 · 图片 · 设定 · 她的 LoRA）。底下一条「和她聊」让开底栏。
+ * ⛔ 手机另写一套小房间：以前的手机版落后电脑一代，也没有记忆和表情包的入口。
+ */
+export function CharacterDetailPhone({
+  cardId,
+  body,
+}: {
+  cardId: string
+  body: ReactNode
+}) {
+  const t = useTranslations('CharacterRoster')
+  const growth = useCharacterGrowth(cardId)
+  const stickers = useCharacterStickers(cardId)
+  const memories = useCharacterMemories(cardId)
+  const personaSwitch = usePersonaSwitch()
+  const [pane, setPane] = useState<PhonePane>('recent')
+  const panes = [
+    { value: 'recent', label: t('detailTabs.recent') },
+    { value: 'her', label: t('recent.paneHer') },
+    { value: 'memory', label: t('detailTabs.memory') },
+    { value: 'stickers', label: t('detailTabs.stickers') },
+  ] as const
+
+  return (
+    <div className="flex h-full flex-col">
+      <div className="shrink-0 px-4 pb-3">
+        <LiquidSegmented
+          items={panes}
+          value={pane}
+          onChange={setPane}
+          ariaLabel={t('detailTabs.label')}
+          size="md"
+          fill
+          className="w-full"
+        />
+      </div>
+      <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+        {pane === 'her' ? (
+          body
+        ) : pane === 'recent' ? (
+          <div className="h-full px-4">
+            <CharacterRecentDiary
+              growth={growth}
+              stickers={stickers}
+              memories={memories}
+              lead={<OutingCard growth={growth} />}
+            />
+          </div>
+        ) : pane === 'memory' ? (
+          <div className="h-full px-4">
+            <CharacterMemoryPane memories={memories} />
+          </div>
+        ) : (
+          <div className="h-full overflow-y-auto px-4 pb-12">
+            <CharacterStickersPane stickers={stickers} />
+          </div>
+        )}
+      </div>
+      {/* 详情铺到底栏后面：「和她聊」那一条让开底栏。 */}
+      <div className="shrink-0 px-4 pt-2 pb-mobile-tabbar">
+        <button
+          type="button"
+          onClick={() => void personaSwitch.switchTo(cardId, { goHome: true })}
+          className="h-12 w-full rounded-full bg-primary px-4 text-md font-semibold text-primary-foreground transition-transform duration-fast hover:tint-hover active:scale-[.98]"
+        >
+          {t('recent.chatWith')}
+        </button>
+      </div>
     </div>
   )
 }

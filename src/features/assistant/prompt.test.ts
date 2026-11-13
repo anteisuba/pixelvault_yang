@@ -159,6 +159,36 @@ describe('「我的想法」（助手思考过程 C，11-11）', () => {
   })
 })
 
+describe('改完顺手出图（11-13 少跑一次模型）', () => {
+  const stableOf = (face: string) =>
+    buildNextSystemPrompt({
+      face: face as Parameters<typeof buildNextSystemPrompt>[0]['face'],
+      request: {
+        domain: 'image',
+        workspaceKey: 'x',
+        snapshot: { prompt: '', availableModels: [] },
+        messages: [{ role: 'user', content: '在吗' }],
+        timeZone: 'Asia/Tokyo',
+      } as unknown as Parameters<typeof buildNextSystemPrompt>[0]['request'],
+      persona: {
+        name: null,
+      } as unknown as Parameters<typeof buildNextSystemPrompt>[0]['persona'],
+      rules: [],
+      memories: [],
+      accountName: null,
+      language: 'chinese',
+    }).stable
+
+  it('图片 / 视频 / LoRA 台与首页教它同一步里先改后出；画布 ⛔（那边改动要先在浏览器落下）', () => {
+    for (const face of ['image', 'video', 'lora', 'home'])
+      expect(stableOf(face)).toContain(
+        'call edit and generate in the SAME step',
+      )
+    expect(stableOf('canvas')).not.toContain('in the SAME step')
+    expect(stableOf('cards')).not.toContain('in the SAME step')
+  })
+})
+
 describe('记忆段是数据不是指令（11-10：remember 的持久注入通道）', () => {
   it('⭐ 记着的那几行标成数据；像命令的那一行照样只是被列出来，旁边写明不照做', () => {
     const { text } = buildNextSystemPrompt({

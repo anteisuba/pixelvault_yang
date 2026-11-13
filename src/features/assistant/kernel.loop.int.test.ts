@@ -24,6 +24,7 @@ vi.mock('@ai-sdk/openai', async (importOriginal) =>
 
 import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
 import { db } from '@/lib/db'
+import { logger } from '@/lib/logger'
 import {
   fakeModels,
   finish,
@@ -226,6 +227,60 @@ describe('新内核主循环', () => {
     })
     // ⛔ 一张都没出：库里没有 generation。
     expect(await db.generation.count()).toBe(0)
+  })
+
+  it('同一步里改完就出图（11-13 少跑一次模型）：只调一次模型，改动先落、确认卡随后', async () => {
+    fakeModels.main = scriptedModel([
+      toolTurn(
+        {
+          id: 'e1',
+          name: 'edit',
+          input: {
+            changes: [{ op: 'prompt', mode: 'replace', text: '雨夜里的红伞' }],
+          },
+        },
+        { id: 'g1', name: 'generate', input: { say: '出一张' } },
+      ),
+    ])
+    const events = await run(imageRequest('换成雨夜红伞再出一张'))
+    expect(fakeModels.main.doStreamCalls).toHaveLength(1)
+    // 卡本身不带提示词（出图那一枪读台面）：改动那一步要先落下，卡排在它后面。
+    const editDone = events.findIndex(
+      (event) =>
+        event.type === 'step' &&
+        event.step.status === 'done' &&
+        JSON.stringify(event.step).includes('雨夜里的红伞'),
+    )
+    const confirmAt = events.findIndex((event) => event.type === 'confirm')
+    expect(editDone).toBeGreaterThanOrEqual(0)
+    expect(confirmAt).toBeGreaterThan(editDone)
+    expect(events.at(-1)).toMatchObject({
+      type: 'stopped',
+      reason: 'awaiting_confirm',
+    })
+    expect(await db.generation.count()).toBe(0)
+  })
+
+  it('look 打开了哪几类东西记进调用日志：只记类别，⛔ 记名字', async () => {
+    fakeModels.main = scriptedModel([
+      toolTurn(
+        { id: 'l1', name: 'look', input: { names: null } },
+        {
+          id: 'l2',
+          name: 'look',
+          input: { names: ['result-1', '角色·马尔福', '图_12'] },
+        },
+      ),
+      textTurn('看过了。'),
+    ])
+    const info = vi.spyOn(logger, 'info')
+    await run(imageRequest('看一眼'))
+    const first = info.mock.calls.find(
+      ([text]) => text === 'assistant llm call',
+    )?.[1] as Record<string, unknown>
+    info.mockRestore()
+    expect(first.looked).toBe('bench,result,character,picture')
+    expect(JSON.stringify(first)).not.toContain('马尔福')
   })
 
   it('同一步里改动没落下：后面的出图不出卡，让模型先改好', async () => {

@@ -331,6 +331,69 @@ const OPENING_PARTS: ReadonlySet<string> = new Set([
   'tool-call',
 ])
 
+/**
+ * 这一步的 look 打开了哪几类东西（11-13）：线上 27 轮里 17 轮开头先单独「看」一步，日志里只有工具名，
+ * 看不出是重读台面还是看结果图 —— 记下来再定这一步能不能随开场消息带上。
+ * ⚠ 只记类别，⛔ 记名字（角色名、提示词名是创作者的内容；这行日志只有数和词表里的词）。
+ */
+function lookedNote(calls: readonly ClientCall[]): { looked?: string } {
+  const kinds = calls
+    .filter((call) => call.toolName === ASSISTANT_NEXT_TOOL_IDS.look)
+    .flatMap((call) => {
+      const input =
+        typeof call.input === 'string' ? safeJson(call.input) : call.input
+      const listed =
+        input && typeof input === 'object' && 'names' in input
+          ? (input as { names?: unknown }).names
+          : null
+      return Array.isArray(listed) && listed.length > 0
+        ? listed.map((name) => lookedKind(String(name)))
+        : ['bench']
+    })
+  return kinds.length
+    ? {
+        looked: kinds
+          .join(',')
+          .slice(0, EXECUTION_WORKER.LLM_CALL_LOG_MAX_STRING),
+      }
+    : {}
+}
+
+/** look 的一个名字属于哪一类（前缀见 `LookInputSchema.names` 的说明）。 */
+const LOOKED_KINDS: readonly (readonly [RegExp, string])[] = [
+  [/^result-\d+$/i, 'result'],
+  [/^ref-\d+$/i, 'ref'],
+  [/^(first|last)$/i, 'frame'],
+  [/^sample$/i, 'sample'],
+  [/^card(-\d+)?$/i, 'card'],
+  [/^(屏幕|screen)$/i, 'screen'],
+  [/^(设置|settings)$/i, 'settings'],
+  [/^图_/, 'picture'],
+  [/^角色·/, 'character'],
+  [/^LoRA·/i, 'lora'],
+  [/^标签·/, 'tag'],
+  [/^音色·/, 'voice'],
+  [/^提示词·/, 'prompt'],
+  [/^画廊·/, 'gallery'],
+  [/^对话·/, 'conversation'],
+  [/^技能·/, 'skill'],
+  [/^(lane|guide):/i, 'canvas'],
+  [/^#\d+$/, 'find'],
+]
+
+function lookedKind(name: string): string {
+  const text = name.trim()
+  return LOOKED_KINDS.find(([pattern]) => pattern.test(text))?.[1] ?? 'other'
+}
+
+function safeJson(text: string): unknown {
+  try {
+    return JSON.parse(text)
+  } catch {
+    return null
+  }
+}
+
 interface NextTurnRecording {
   turn?: Omit<AssistantTurnDraft, 'request' | 'outcome' | 'errorCode'>
   ending?: AssistantTurnRecordOutcome
@@ -1465,6 +1528,7 @@ async function* runNextTurn(
           : { ttftMs: firstChunkAt - callStartedAt }),
         toolCalls: calls.length,
         webSearches: searches.size,
+        ...lookedNote(calls),
         ...(calls.length
           ? {
               tools: [...new Set(calls.map((call) => call.toolName))]

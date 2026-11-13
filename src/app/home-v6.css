@@ -62,6 +62,15 @@
   height: 100svh;
   overflow: hidden;
   background: var(--ground1);
+  /* 她的大小 S，和 stage-engine.ts layout() 同一条公式：首帧（JS 接管前）就按开场版面排好，接管时不跳 */
+  --S: min(75vh, 36vw);
+  --S: min(75svh, 36vw);
+}
+@media (max-width: 760px) {
+  .home-v6 .stage {
+    --S: min(28vh, 52vw);
+    --S: min(28svh, 52vw);
+  }
 }
 .home-v6 .tide {
   position: absolute;
@@ -92,12 +101,19 @@
   position: absolute;
   left: 0;
   bottom: 0;
+  width: var(--S);
+  height: var(--S);
   z-index: 3;
   transform: translate(-10%, 10%);
   will-change: transform;
 }
 .home-v6 .win {
   position: absolute;
+  left: calc(var(--S) * 0.9 + 8px);
+  top: 96px;
+  width: calc(100vw - var(--S) * 0.9 - 36px);
+  height: calc(100vh - 124px);
+  height: calc(100svh - 124px);
   background: var(--card);
   border-radius: 20px;
   overflow: hidden;
@@ -126,7 +142,25 @@
 }
 .home-v6 .id {
   position: absolute;
+  left: 34px;
+  top: 124px;
+  width: calc(var(--S) * 0.9 - 38px);
   z-index: 4;
+}
+@media (max-width: 760px) {
+  .home-v6 .id {
+    left: 18px;
+    top: 86px;
+    width: calc(100vw - 36px);
+  }
+  /* 窄屏窗口顶在标题下面：标题两行 28px × 1.2 + 16 */
+  .home-v6 .win {
+    left: 12px;
+    top: 169px;
+    width: calc(100vw - 24px);
+    height: calc(100vh - var(--S) * 0.9 - 175px);
+    height: calc(100svh - var(--S) * 0.9 - 175px);
+  }
 }
 .home-v6 .id h1 {
   font-size: clamp(28px, 3.1vw, 46px);
@@ -951,6 +985,11 @@
   .home-v6 .wt img {
     transition: none;
   }
+}
+.home-v6 .me,
+.home-v6 .sys {
+  /* JS 接管前先放在窗口外，接管后按段写 top */
+  top: 100vh;
 }
 .home-v6 .me {
   transition: background 0.3s;

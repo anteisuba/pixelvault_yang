@@ -530,6 +530,21 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
 // add an entry keyed by model ID (AI_MODELS enum value).
 // Only specified fields are overridden; unspecified fall through to adapter.
 
+const SEEDREAM_55_CAPABILITIES: Partial<CapabilityConfig> = {
+  maxReferenceImages: 10,
+  capabilities: [
+    'seed',
+    'guidanceScale',
+    'resolution',
+    'imageAnalysis',
+    'background',
+    'layerDecomposition',
+  ],
+  resolutionOptions: ['2K'],
+  backgroundOptions: VOLCENGINE_SEEDREAM_BACKGROUND_OPTIONS,
+  referenceDependentCapabilities: ['layerDecomposition'],
+}
+
 export const MODEL_CAPABILITY_OVERRIDES: Partial<
   Record<string, Partial<CapabilityConfig>>
 > = {
@@ -834,6 +849,13 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
       'layerDecomposition',
     ] as const,
   },
+  // Seedream 5.5（BytePlus 教程 2026-11-13）：参考图同样上限 10；透明底文生图
+  // 也成立、图生图收至多 10 张且不要求输入带 alpha，所以 `background` **不**
+  // 进 referenceDependentCapabilities —— 服务端的「恰好 1 张」前置也按这张表判。
+  // 图层拆分仍要一张待拆分图。最高 2K（≤ 2048²×1.05²），不给 4K。
+  // https://docs.byteplus.com/en/docs/modelark/seedream-5-5
+  [AI_MODELS.SEEDREAM_55_VOLCENGINE]: SEEDREAM_55_CAPABILITIES,
+  [AI_MODELS.SEEDREAM_55_BYTEPLUS]: SEEDREAM_55_CAPABILITIES,
   [AI_MODELS.SEEDREAM_50_LITE]: {
     maxReferenceImages: FAL_SEEDREAM_MAX_REFERENCE_IMAGES,
     referenceImageMode: 'native' as const,

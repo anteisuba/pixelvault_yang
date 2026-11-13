@@ -402,6 +402,41 @@ export const MODEL_STRENGTHS: Partial<Record<AI_MODELS, ModelStrength>> = {
       health: 0.86,
     },
   },
+  // 5.5（2026-11-09 发布）：多轮编辑一致性、文生图透明底、小字渲染。
+  // 来源 https://docs.byteplus.com/en/docs/modelark/seedream-5-5
+  [AI_MODELS.SEEDREAM_55_VOLCENGINE]: {
+    bestFor: [
+      'general',
+      'cinematic',
+      'landscape',
+      'portrait',
+      'text-in-image',
+      'chinese-text-in-image',
+    ],
+    promptStyle: 'natural-language',
+    negativePrompt: 'supported',
+    enhanceHint: `Seedream 5.5 on 火山方舟 (cn station) — single-image only. Strongest Seedream for repeated edits of the same subject and for small text; for an edit, say what to change and what to keep. Chinese prompts are first-class. ${SEEDREAM_PROMPT_SYNTAX}`,
+    editHint: SEEDREAM_EDIT_DIALECT,
+    routerWeights: {
+      referenceFit: 0.75,
+      costEfficiency: 0.8,
+      latency: 0.65,
+      health: 0.85,
+    },
+  },
+  [AI_MODELS.SEEDREAM_55_BYTEPLUS]: {
+    bestFor: ['general', 'cinematic', 'landscape', 'portrait', 'text-in-image'],
+    promptStyle: 'natural-language',
+    negativePrompt: 'supported',
+    enhanceHint: `Seedream 5.5 on BytePlus ModelArk (international station) — same model and dialect as the 火山 entry. Strongest Seedream for repeated edits of the same subject and for small text; for an edit, say what to change and what to keep. ${SEEDREAM_PROMPT_SYNTAX}`,
+    editHint: SEEDREAM_EDIT_DIALECT,
+    routerWeights: {
+      referenceFit: 0.75,
+      costEfficiency: 0.8,
+      latency: 0.65,
+      health: 0.85,
+    },
+  },
   // 4.5 两条已退役（RETIRED_MODEL_IDS），条目保留是为了历史生成还能解析出方言。
   [AI_MODELS.SEEDREAM_45]: {
     bestFor: ['general', 'cinematic', 'landscape', 'portrait'],

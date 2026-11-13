@@ -94,3 +94,90 @@ describe('火山出图契约', () => {
     expect(put).toHaveBeenCalledTimes(2)
   })
 })
+
+describe('火山出图请求 · Seedream 5.5', () => {
+  async function sentBody(
+    externalModelId: string,
+    referenceImages: string[],
+    advancedParams: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
+    const fetchMock = vi.fn(async (url: string, _init?: RequestInit) =>
+      url.endsWith('/images/generations')
+        ? Response.json({ data: [{ url: 'https://ark.example/out.png' }] })
+        : new Response('pixels', { headers: { 'content-type': 'image/png' } }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    const context = parseImageRunContext({
+      runId: 'job',
+      workflowId: 'IMAGE_QUEUE',
+      providerId: 'volcengine',
+      apiKeyId: 'key',
+      callbackUrl: 'https://app.example/callback',
+      resolveKeyUrl: 'https://app.example/key',
+      timeoutMs: 600000,
+      maxAttempts: 1,
+      pollIntervalMs: 3000,
+      providerInput: {
+        prompt: 'a sticker',
+        modelId: 'seedream-5.5-volcengine',
+        externalModelId,
+        aspectRatio: '1:1',
+        referenceImages,
+        advancedParams,
+        outputStorageKey: 'image/result.png',
+      },
+    })!
+    const env = {
+      R2_PUBLIC_URL: 'https://cdn.example',
+      GENERATION_BUCKET: { put: vi.fn(async () => undefined) },
+    } as unknown as Parameters<typeof generateVolcEngineImage>[0]
+    await generateVolcEngineImage(env, context, 'k')
+    const call = fetchMock.mock.calls.find(([url]) =>
+      url.endsWith('/images/generations'),
+    )!
+    return JSON.parse(String(call[1]!.body)) as Record<string, unknown>
+  }
+
+  it('5.5 文生图也发透明底，5.0 Pro 没有参考图就不发', async () => {
+    const v55 = await sentBody('doubao-seedream-5-5-261028', [], {
+      background: 'transparent',
+    })
+    expect(v55).toMatchObject({
+      background: 'transparent',
+      output_format: 'png',
+    })
+
+    const pro = await sentBody('dola-seedream-5-0-pro-260628', [], {
+      background: 'transparent',
+    })
+    expect(pro.background).toBeUndefined()
+  })
+
+  it('5.5 图层拆分钉住 max_images，图层数不超过 16', async () => {
+    const body = await sentBody(
+      'dola-seedream-5-5-261028',
+      ['https://cdn.example/source.png'],
+      { layerDecomposition: true },
+    )
+    expect(body).toMatchObject({
+      layer_decomposition: true,
+      layer_decomposition_options: { max_images: 17 },
+    })
+  })
+
+  it('5.5 参考图上限 10、像素上限同 Pro', async () => {
+    const refs = Array.from(
+      { length: 12 },
+      (_, i) => `https://cdn.example/${i}.png`,
+    )
+    const body = await sentBody('doubao-seedream-5-5-261028', refs, {
+      resolution: '4K',
+    })
+    const images = (body.content as { type: string }[]).filter(
+      (part) => part.type === 'image_url',
+    )
+    expect(images).toHaveLength(10)
+    const [w, h] = String(body.size).split('x').map(Number)
+    expect(w * h).toBeLessThanOrEqual(4_624_220)
+  })
+})

@@ -124,6 +124,14 @@
       "label": "Seedream 5.0 Lite（BytePlus）",
       "description": "BytePlus ModelArk（Ark 国際リージョン）直接 API 経由の Seedream 5.0 バリュー版 — 米ドル建て。"
     },
+    "seedream55Volcengine": {
+      "label": "Seedream 5.5（VolcEngine）",
+      "description": "VolcEngine（Ark）直接 API 経由の Seedream 5.5 — 複数回の編集がより安定し、テキストからでも透過背景を出力。価格は 5.0 Pro の約 4 割。単一画像のみ。"
+    },
+    "seedream55Byteplus": {
+      "label": "Seedream 5.5（BytePlus）",
+      "description": "BytePlus ModelArk（Ark 国際リージョン）直接 API 経由の Seedream 5.5 — 米ドル建て。複数回の編集がより安定し、テキストからでも透過背景を出力。単一画像のみ。"
+    },
     "novelaiV45Full": {
       "label": "NovelAI Diffusion V4.5 Full",
       "description": "前世代の NovelAI Full。複数キャラとテキスト描画に対応。Opus の標準サイズは回数無制限。自分の NovelAI トークンを使う。"

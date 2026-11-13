@@ -46,15 +46,15 @@ function seedConfig(
 
 describe('读配置（真库）', () => {
   it('列全部按 sortOrder；按 id 读，没有回 null', async () => {
-    await seedConfig('recraft-v4-pro', { sortOrder: 2 })
+    await seedConfig('gpt-image-2', { sortOrder: 2 })
     await seedConfig('veo-3.1', { sortOrder: 1 })
     expect((await getAllModelConfigs()).map((c) => c.modelId)).toEqual([
       'veo-3.1',
-      'recraft-v4-pro',
+      'gpt-image-2',
     ])
     expect(await getModelConfigById('missing-model')).toBeNull()
-    expect(await getModelConfigById('recraft-v4-pro')).toMatchObject({
-      modelId: 'recraft-v4-pro',
+    expect(await getModelConfigById('gpt-image-2')).toMatchObject({
+      modelId: 'gpt-image-2',
       adapterType: 'fal',
     })
   })
@@ -101,7 +101,7 @@ describe('getResolvedModelOption（真库）', () => {
   })
 
   it('库里的执行参数盖在内置模型上', async () => {
-    await seedConfig('recraft-v4-pro', {
+    await seedConfig('gpt-image-2', {
       externalModelId: 'fal-ai/flux-pro/new-version',
       adapterType: 'replicate',
       cost: 7,
@@ -111,8 +111,8 @@ describe('getResolvedModelOption（真库）', () => {
         baseUrl: 'https://api.replicate.com',
       },
     })
-    expect(await getResolvedModelOption('recraft-v4-pro')).toMatchObject({
-      id: 'recraft-v4-pro',
+    expect(await getResolvedModelOption('gpt-image-2')).toMatchObject({
+      id: 'gpt-image-2',
       externalModelId: 'fal-ai/flux-pro/new-version',
       adapterType: 'replicate',
       cost: 7,
@@ -127,16 +127,16 @@ describe('getResolvedModelOption（真库）', () => {
 
 describe('改配置（真库）', () => {
   it('只改给了的那几格；健康状态带上检查时间', async () => {
-    await seedConfig('recraft-v4-pro', { cost: 3 })
-    const updated = await updateModelConfig('recraft-v4-pro', {
+    await seedConfig('gpt-image-2', { cost: 3 })
+    const updated = await updateModelConfig('gpt-image-2', {
       available: false,
     })
     expect(updated).toMatchObject({ available: false, cost: 3 })
 
-    await updateModelHealthStatus('recraft-v4-pro', 'degraded')
+    await updateModelHealthStatus('gpt-image-2', 'degraded')
     await updateModelHealthStatus('not-in-db', 'degraded')
     const row = await db.modelConfig.findUniqueOrThrow({
-      where: { modelId: 'recraft-v4-pro' },
+      where: { modelId: 'gpt-image-2' },
     })
     expect(row).toMatchObject({
       available: false,

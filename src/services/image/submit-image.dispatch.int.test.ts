@@ -117,16 +117,15 @@ describe('submitImageGeneration · 派发', () => {
     })
   })
 
-  it('FAL 文生图：Worker 拿到最终的 R2 key，长轮询', async () => {
-    await seedAssistantKey(me.id, AI_ADAPTER_TYPES.FAL)
-
+  // fal 已没有在架的图片生成型号（Recraft 2026-11-13 退役），长轮询用 Runner 钉。
+  it('长轮询的 adapter（Runner）：Worker 拿到最终的 R2 key，长轮询', async () => {
     await submitImageGeneration(me.clerkId, {
       ...INPUT,
-      modelId: AI_MODELS.RECRAFT_V4_PRO,
+      modelId: AI_MODELS.ANIMA_PENCIL_XL_RUNNER,
     })
 
     const sent = dispatched()
-    expect(sent.providerId).toBe(AI_ADAPTER_TYPES.FAL)
+    expect(sent.providerId).toBe(AI_ADAPTER_TYPES.RUNNER)
     expect(sent.maxAttempts).toBeGreaterThan(1)
     expect(sent.providerInput.outputStorageKey).toEqual(
       expect.stringMatching(new RegExp(`^generations/.*${me.id}`)),
@@ -154,7 +153,7 @@ describe('submitImageGeneration · 派发', () => {
     await expect(
       submitImageGeneration(me.clerkId, {
         ...INPUT,
-        modelId: AI_MODELS.RECRAFT_V4_PRO,
+        modelId: AI_MODELS.SEEDREAM_55_VOLCENGINE,
       }),
     ).rejects.toMatchObject({ code: 'MISSING_API_KEY', status: 400 })
     expect(await db.generationJob.count()).toBe(0)
@@ -325,11 +324,10 @@ describe('submitImageGeneration · 参考图与遮罩', () => {
 describe('submitImageGeneration · 种子（派发前先定）', () => {
   const seedOf = () => dispatched().providerInput.advancedParams?.seed
 
-  it('FAL 用户留随机：替她定一颗，记在任务上，⛔ 改她的参数', async () => {
-    await seedAssistantKey(me.id, AI_ADAPTER_TYPES.FAL)
+  it('Runner 用户留随机：替她定一颗，记在任务上，⛔ 改她的参数', async () => {
     await submitImageGeneration(me.clerkId, {
       ...INPUT,
-      modelId: AI_MODELS.RECRAFT_V4_PRO,
+      modelId: AI_MODELS.ANIMA_PENCIL_XL_RUNNER,
       advancedParams: { seed: -1 },
     })
     const seed = seedOf()
@@ -341,10 +339,9 @@ describe('submitImageGeneration · 种子（派发前先定）', () => {
   })
 
   it('她填了种子：原样发，什么都不替她定', async () => {
-    await seedAssistantKey(me.id, AI_ADAPTER_TYPES.FAL)
     await submitImageGeneration(me.clerkId, {
       ...INPUT,
-      modelId: AI_MODELS.RECRAFT_V4_PRO,
+      modelId: AI_MODELS.ANIMA_PENCIL_XL_RUNNER,
       advancedParams: { seed: 42 },
     })
     expect(seedOf()).toBe(42)
@@ -512,12 +509,12 @@ describe('submitImageGeneration · LoRA 与 Runner', () => {
   })
 
   it('Civitai 连不上：判不了 ≠ 拦下，照常派发', async () => {
-    await seedAssistantKey(me.id, AI_ADAPTER_TYPES.FAL)
+    await seedAssistantKey(me.id, AI_ADAPTER_TYPES.VOLCENGINE)
     civitaiDown = true
 
     const result = await submitImageGeneration(me.clerkId, {
       ...INPUT,
-      modelId: AI_MODELS.RECRAFT_V4_PRO,
+      modelId: AI_MODELS.SEEDREAM_55_VOLCENGINE,
       advancedParams: { loras: [LORA(2266398)] },
     })
 

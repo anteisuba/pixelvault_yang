@@ -7,12 +7,13 @@ owner 2026-11-11 定：**fal 转售去掉，火山（cn）与 BytePlus（intl）
 - 选择器已有「型号 → 渠道」两层（`MODEL_VARIANTS` + `foldChannels` + `resolveModelChannel`），owner 2026-09-17 定「没有自动」：多渠道型号要用户手选一条。渠道行的折叠键是 `adapterType + keyId`（`channelKeyOf`）。
 - 字节型号三条渠道并排，`available: true` 的条目 27 个：
 
-| 型号 | fal | 火山 cn | BytePlus intl |
-| --- | --- | --- | --- |
-| Seedream 5.0 Pro | ✓ | `doubao-seedream-5-0-pro-260628` | `dola-seedream-5-0-pro-260628` |
-| Seedream 5.0 Lite | ✓ | `doubao-seedream-5-0-lite-260128` | `seedream-5-0-lite-260128` |
-| Seedream 5.0（基础款） | — | `doubao-seedream-5-0-260128` | 无 |
-| Seedance 2.0 / 2.0 Fast / 2.5（各含 reference 端点） | ✓ | ✓ | ✓ |
+| 型号                                                 | fal | 火山 cn                           | BytePlus intl                  |
+| ---------------------------------------------------- | --- | --------------------------------- | ------------------------------ |
+| Seedream 5.0 Pro                                     | ✓   | `doubao-seedream-5-0-pro-260628`  | `dola-seedream-5-0-pro-260628` |
+| Seedream 5.0 Lite                                    | ✓   | `doubao-seedream-5-0-lite-260128` | `seedream-5-0-lite-260128`     |
+| Seedream 5.0（基础款）                               | —   | `doubao-seedream-5-0-260128`      | 无                             |
+| Seedream 5.5（2026-11-13 接入）                      | —   | `doubao-seedream-5-5-261028`      | `dola-seedream-5-5-261028`     |
+| Seedance 2.0 / 2.0 Fast / 2.5（各含 reference 端点） | ✓   | ✓                                 | ✓                              |
 
 - 火山与 BytePlus 同一套 Ark 协议，Worker 共用 `providers/volcengine`；key 都是 `ark-...` 但不通用。验证都是 `GET {baseUrl}/models`（`apiKey.service.ts`）。
 - key 存 `UserApiKey`（`adapterType` + `providerConfig` JSON），同一 adapter 取最新一把（`findActiveKeyForAdapter`）。
@@ -34,4 +35,4 @@ owner 2026-11-11 定：**fal 转售去掉，火山（cn）与 BytePlus（intl）
 ## 顺带发现（官网 2026-11-11 核实）
 
 - 两站都已上线、项目还没接：Seedream 5.0 Flash（`doubao-seedream-5-0-flash-260915` / `dola-seedream-5-0-flash-260915`）、Seedance 2.0 mini（`doubao-seedance-2-0-mini-260615` / `dreamina-seedance-2-0-mini-260615`）。
-- Seedream 5.5：Seed 官方 2026-11-09 发布（原生 RGBA 透明图、100 轮编辑不漂色、小字排版），Pro 版「随后」。两站模型列表与 fal 都还没有 API 型号。
+- Seedream 5.5：Seed 官方 2026-11-09 发布，2026-11-13 两站模型列表已上架，同日接入（`SEEDREAM_55_VOLCENGINE` / `SEEDREAM_55_BYTEPLUS`）。

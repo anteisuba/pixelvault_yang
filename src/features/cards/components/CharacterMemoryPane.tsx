@@ -291,9 +291,10 @@ function RowShell({
   className?: string
 }) {
   return (
+    // 手机：钉住 · 改 · 删除换到下一行靠右，正文吃满一行（三列并排时正文只剩 100 来宽，11-13 手机）。
     <div
       className={cn(
-        'group flex items-start gap-3 rounded-xl bg-muted/60 px-3 py-2.5',
+        'group flex flex-wrap items-start gap-x-3 rounded-xl bg-muted/60 px-3 py-2.5 md:flex-nowrap',
         className,
       )}
     >
@@ -301,7 +302,9 @@ function RowShell({
         {label}
       </span>
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">{children}</div>
-      <div className="flex shrink-0 items-center">{actions}</div>
+      <div className="flex shrink-0 items-center max-md:-mb-1 max-md:basis-full max-md:justify-end">
+        {actions}
+      </div>
     </div>
   )
 }
@@ -317,7 +320,7 @@ function RowAction({
     <button
       type="button"
       onClick={onClick}
-      className="h-7 rounded-full px-2 text-xs text-muted-foreground transition-colors duration-fast hover:text-foreground hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus"
+      className="touch-target-y h-7 rounded-full px-2 text-xs text-muted-foreground transition-colors duration-fast hover:text-foreground hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus"
     >
       {children}
     </button>

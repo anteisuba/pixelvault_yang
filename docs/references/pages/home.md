@@ -108,7 +108,9 @@
 
 ### 她
 
-- 现在只有一张头像原图（`.claude/mockups/home-v6/her/her.webp`，2000×2000，左边和下边是裁开的）。表情和动作由 `.claude/mockups/home-v6/her.js` 驱动（WebGL 网格变形 + SVG 叠层），施工时搬进首页域的一个客户端组件；不支持 WebGL 时退成静态图。
+- 只有一张头像原图（`public/homepage/v6/her.webp`，2000×2000，左边和下边是裁开的）。表情和动作由 `src/lib/home-v6/her-rig.ts` 驱动（WebGL 网格变形 + SVG 叠层）。
+- 原图不在浏览器里处理：`node scripts/bake-home-her.mjs` 离线烘出底 / 五官层 / 静态图（`her-base` / `her-parts` / `her-still.webp`）和三种取样色（`her-colors.ts`）。换原图或改了画法就重跑。
+- 首帧就有她：骨架和静态图在首个 HTML 里，底和五官层预加载；WebGL 画出第一帧再撤掉静态图。不支持 WebGL 时一直是静态图。
 - 表情跟着进度切：第一屏 `happy` → 推进时 `read` → 干活时 `work` → 每段结束 `wow` / `proud`；播语音时 `hum`。
 - 性格：**元气，有偏心**。台词只有两种时刻，干活时不出声：
 

@@ -1,9 +1,13 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
+import { preload } from 'react-dom'
 
-import type { HomeV6WallShot } from '@/constants/homepage-v6'
+import { HOME_V6_ASSETS, type HomeV6WallShot } from '@/constants/homepage-v6'
+import { herMarkup } from '@/lib/home-v6/her-rig'
 import { mountStage, type HomeV6StageCopy } from '@/lib/home-v6/stage-engine'
+
+const HER_MARKUP = herMarkup(HOME_V6_ASSETS.her.still, true)
 
 export interface HomeV6StageText {
   headline: readonly [string, string]
@@ -29,6 +33,9 @@ interface HomeV6StageProps {
  */
 export function HomeV6Stage({ text, copy, shots, locale }: HomeV6StageProps) {
   const ref = useRef<HTMLElement>(null)
+  // 底和五官层跟 JS 并行下载，挂载时不用再等
+  preload(HOME_V6_ASSETS.her.base, { as: 'image' })
+  preload(HOME_V6_ASSETS.her.parts, { as: 'image' })
 
   useEffect(() => {
     const track = ref.current
@@ -69,7 +76,13 @@ export function HomeV6Stage({ text, copy, shots, locale }: HomeV6StageProps) {
             {text.hint}
           </div>
         </div>
-        <div className="her" data-k="her" aria-hidden="true" />
+        {/* 她的骨架和静态图直接进首个 HTML：首帧就在，WebGL 画好第一帧再换成会动的 */}
+        <div
+          className="her"
+          data-k="her"
+          aria-hidden="true"
+          dangerouslySetInnerHTML={{ __html: HER_MARKUP }}
+        />
       </div>
     </section>
   )

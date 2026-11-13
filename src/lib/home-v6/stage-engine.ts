@@ -514,7 +514,7 @@ export function mountStage(
   const noteA = el(
     'div',
     'note old',
-    `<img class="av" src="${HOME_V6_ASSETS.her}" alt=""><div><b>${esc(ch.herName)}<span>${esc(ch.herWhen)}</span></b><q>${esc(copy.lines.shots[1])}</q></div>`,
+    `<img class="av" src="${HOME_V6_ASSETS.her.still}" alt=""><div><b>${esc(ch.herName)}<span>${esc(ch.herWhen)}</span></b><q>${esc(copy.lines.shots[1])}</q></div>`,
   )
   const noteB = el(
     'div',
@@ -526,7 +526,7 @@ export function mountStage(
 
   /* 她 */
   const her: HerHandle | null = mountHer(herHost, {
-    src: HOME_V6_ASSETS.her,
+    ...HOME_V6_ASSETS.her,
     transparent: true,
   })
   let mood: HerMood | null = null

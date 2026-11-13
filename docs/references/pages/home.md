@@ -108,7 +108,9 @@
 
 ### 她
 
-- 现在只有一张头像原图（`.claude/mockups/home-v6/her/her.webp`，2000×2000，左边和下边是裁开的）。表情和动作由 `.claude/mockups/home-v6/her.js` 驱动（WebGL 网格变形 + SVG 叠层），施工时搬进首页域的一个客户端组件；不支持 WebGL 时退成静态图。
+- 只有一张头像原图（`public/homepage/v6/her.webp`，2000×2000，左边和下边是裁开的）。表情和动作由 `src/lib/home-v6/her-rig.ts` 驱动（WebGL 网格变形 + SVG 叠层）。
+- 原图不在浏览器里处理：`node scripts/bake-home-her.mjs` 离线烘出底 / 五官层 / 静态图（`her-base` / `her-parts` / `her-still.webp`）和三种取样色（`her-colors.ts`）。换原图或改了画法就重跑。
+- 首帧就有她：骨架和静态图在首个 HTML 里，底和五官层预加载；WebGL 画出第一帧再撤掉静态图。不支持 WebGL 时一直是静态图。
 - 表情跟着进度切：第一屏 `happy` → 推进时 `read` → 干活时 `work` → 每段结束 `wow` / `proud`；播语音时 `hum`。
 - 性格：**元气，有偏心**。台词只有两种时刻，干活时不出声：
 
@@ -146,7 +148,7 @@
 
 ### 工程约束
 
-1. 服务端优先：标题、台词、名单、页脚文案都在首个 HTML 里；舞台和名单各一个客户端边界；保持 `revalidate = 3600`。
+1. 服务端优先：标题、台词、名单、页脚文案都在首个 HTML 里；舞台和名单各一个客户端边界；保持 `revalidate = 3600`。开场版面（她的大小、标题、窗口位置）同时写在 `home-v6.css` 和 `stage-engine.ts` 的 `layout()` 里，首帧就排好，JS 接管时不跳；改一边要同步另一边。
 2. 滚动推进用原生滚动 + `position: sticky` + 一个按 rAF 合帧的滚动进度；不需要 GSAP。只动 `transform` / `opacity` / `clip-path` / `filter`。
 3. 视频 ⛔ 用滚动拖进度（09-20 owner 否过；第 51 轮再次确认）；滚动推进页面上的图文动画是 v6 定下的做法，两者不冲突。
 4. 图片走 CDN 预览图、按距离加载；作品墙首屏那几张优先，其余懒加载；片子 `preload="none"`，快到了才加载。

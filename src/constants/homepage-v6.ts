@@ -95,7 +95,12 @@ export const HOME_V6_WALL_BLOCKLIST: readonly string[] = [
 export const HOME_V6_WALL_SPEED = [0.12, 0.34, 0.2, 0.44] as const
 
 export const HOME_V6_ASSETS = {
-  her: `${V6}/her.webp`,
+  /** 她：原图 her.webp 只是烘焙源，页面用 scripts/bake-home-her.mjs 烘出来的这三张。 */
+  her: {
+    still: `${V6}/her-still.webp`,
+    base: `${V6}/her-base.webp`,
+    parts: `${V6}/her-parts.webp`,
+  },
   whale: `${V6}/whale.webp`,
   /** ① 四张同题图（同一句提示词）。第二张是 ⑤ 里两个人点评的那张。 */
   shots: ['flux-2-pro', 'gemini-3-pro', 'gpt-image-2', 'seedream-5-0'].map(

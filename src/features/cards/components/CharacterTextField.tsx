@@ -149,7 +149,7 @@ export function CharacterTextField({
           type="button"
           aria-label={t('editField', { field: label })}
           onClick={() => setEditing(true)}
-          className="h-7 rounded-full px-2 transition-colors duration-fast ease-standard hover:bg-background/70 hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none"
+          className="touch-target-y h-7 rounded-full px-2 transition-colors duration-fast ease-standard hover:bg-background/70 hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none"
         >
           {t('editAction')}
         </button>

@@ -320,7 +320,7 @@ function RowAction({
     <button
       type="button"
       onClick={onClick}
-      className="touch-target-y h-7 rounded-full px-2 text-xs text-muted-foreground transition-colors duration-fast hover:text-foreground hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus"
+      className="touch-target-y h-7 rounded-full px-2 text-xs coarse:min-w-11 text-muted-foreground transition-colors duration-fast hover:text-foreground hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus"
     >
       {children}
     </button>

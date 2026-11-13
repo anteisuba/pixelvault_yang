@@ -31,8 +31,10 @@ import {
   CharacterDraftBody,
 } from '@/features/cards/components/CharacterDetail'
 import {
+  CharacterChatPill,
   CharacterDetailDesk,
   CharacterDetailPhone,
+  CharacterPhoneTitle,
 } from '@/features/cards/components/CharacterDetailDesk'
 import { CharacterLibrary } from '@/features/cards/components/CharacterLibrary'
 import { CharacterPhoneBar } from '@/features/cards/components/CharacterPhoneBar'
@@ -467,6 +469,12 @@ export function CharacterRoster() {
               <CharacterDetailHeader
                 lead={assistantAvatar}
                 onBack={closeDetail}
+                {...(isMobile
+                  ? {
+                      title: <CharacterPhoneTitle card={selected} />,
+                      action: <CharacterChatPill cardId={selected.id} />,
+                    }
+                  : {})}
               />
             ) : null}
           </motion.div>

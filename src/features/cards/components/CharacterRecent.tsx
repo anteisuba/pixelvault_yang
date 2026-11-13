@@ -257,7 +257,7 @@ export function OutingEvent({
             type="button"
             aria-expanded={digestOpen}
             onClick={() => setDigestToggled(!digestOpen)}
-            className="flex w-full flex-wrap items-center gap-x-2 py-0.5 text-left text-2sm font-medium"
+            className="touch-target-y flex w-full flex-wrap items-center gap-x-2 py-0.5 text-left text-2sm font-medium"
           >
             {summary}
             <Chevron open={digestOpen} />
@@ -379,7 +379,7 @@ function OutingFindings({
         type="button"
         aria-expanded={open}
         onClick={onToggle}
-        className="flex w-full flex-wrap items-center gap-x-2 py-0.5 text-left text-2sm font-medium"
+        className="touch-target-y flex w-full flex-wrap items-center gap-x-2 py-0.5 text-left text-2sm font-medium"
       >
         {summary}
         <Chevron open={open} />

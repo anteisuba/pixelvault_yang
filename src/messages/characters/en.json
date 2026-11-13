@@ -53,6 +53,7 @@
     "primary": "Main",
     "makePrimary": "Make main",
     "removeImage": "Remove",
+    "imageActions": "This image ({label})",
     "replaceImage": "Replace",
     "addImage": "Add image",
     "addImageHint": "Images come from your asset library, from any folder. Upload new ones while picking.",

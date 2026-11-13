@@ -228,6 +228,7 @@ describe('models', () => {
         .map((model) => model.id)
 
     expect(idsOfKind(IMAGE_KIND.EDIT)).toEqual([
+      AI_MODELS.IDEOGRAM_45,
       AI_MODELS.FLUX_2_PRO_EDIT,
       AI_MODELS.FLUX_KONTEXT_MAX,
     ])

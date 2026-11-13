@@ -726,13 +726,15 @@ export async function resolveImageRouteAndValidate(
       )
     }
 
-    // 火山 Ark 的透明底前置：「仅支持图生图场景，且只支持输入 1 张带透明通道
-    // 的图片」。0 张和 ≥2 张都不成立 —— worker 侧遇到这两种情况会**不发**
-    // `background`，这里再把它变成一条能读懂的错误，而不是让用户拿到一张
-    // 默默不透明的图。图片格式（必须带 alpha）只有 provider 能判，交给它报。
+    // 火山 Ark 5.0 Pro 的透明底前置：「仅支持图生图场景，且只支持输入 1 张带
+    // 透明通道的图片」。0 张和 ≥2 张都不成立 —— worker 侧遇到这两种情况会
+    // **不发** `background`，这里再把它变成一条能读懂的错误，而不是让用户拿到
+    // 一张默默不透明的图。图片格式（必须带 alpha）只有 provider 能判，交给它报。
+    // 哪些模型有这条前置由能力表的 referenceDependentCapabilities 声明（OpenAI、
+    // Seedream 5.5 文生图就能透明，不声明）。
     // https://www.volcengine.com/docs/82379/1541523
     if (
-      resolvedRoute.adapterType !== AI_ADAPTER_TYPES.OPENAI &&
+      config.referenceDependentCapabilities?.includes('background') &&
       input.advancedParams?.background === VOLCENGINE_TRANSPARENT_BACKGROUND &&
       refCount !== 1
     ) {

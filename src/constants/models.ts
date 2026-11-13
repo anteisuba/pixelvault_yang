@@ -53,6 +53,8 @@ export const MODEL_MESSAGE_KEYS: Record<string, string> = {
   [AI_MODELS.SEEDREAM_50_PRO_VOLCENGINE]: 'seedream50ProVolcengine',
   [AI_MODELS.SEEDREAM_50_PRO_BYTEPLUS]: 'seedream50ProByteplus',
   [AI_MODELS.SEEDREAM_50_LITE_BYTEPLUS]: 'seedream50LiteByteplus',
+  [AI_MODELS.SEEDREAM_55_VOLCENGINE]: 'seedream55Volcengine',
+  [AI_MODELS.SEEDREAM_55_BYTEPLUS]: 'seedream55Byteplus',
   [AI_MODELS.GEMINI_FLASH_LITE_IMAGE]: 'geminiFlashLiteImage',
   [AI_MODELS.GEMINI_NANO_BANANA_21]: 'geminiNanoBanana21',
   [AI_MODELS.NOVELAI_V45_FULL]: 'novelaiV45Full',
@@ -173,6 +175,9 @@ export const RETIRED_MODEL_IDS = [
   AI_MODELS.SEEDANCE_20_FAST_REFERENCE,
   AI_MODELS.SEEDANCE_25,
   AI_MODELS.SEEDANCE_25_REFERENCE,
+  // ─── 2026-11-13 owner：图片只留 GPT / Gemini / Seedream 三家 ─────────────
+  // Ideogram 4.5 不在这里：它转成 `imageKind: edit`，编辑工具还在用。
+  AI_MODELS.RECRAFT_V4_PRO,
 ] as const satisfies readonly AI_MODELS[]
 
 const RETIRED_MODEL_ID_SET = new Set<string>(RETIRED_MODEL_IDS)
@@ -237,6 +242,8 @@ export const MODEL_FAMILIES: Record<string, string> = {
   [AI_MODELS.SEEDREAM_50_PRO_VOLCENGINE]: 'Seedream',
   [AI_MODELS.SEEDREAM_50_PRO_BYTEPLUS]: 'Seedream',
   [AI_MODELS.SEEDREAM_50_LITE_BYTEPLUS]: 'Seedream',
+  [AI_MODELS.SEEDREAM_55_VOLCENGINE]: 'Seedream',
+  [AI_MODELS.SEEDREAM_55_BYTEPLUS]: 'Seedream',
   [AI_MODELS.GEMINI_FLASH_LITE_IMAGE]: 'Gemini',
   [AI_MODELS.GEMINI_NANO_BANANA_21]: 'Gemini',
   [AI_MODELS.IDEOGRAM_3]: 'Ideogram',
@@ -389,6 +396,8 @@ export const MODEL_VARIANTS: Record<string, string> = {
   [AI_MODELS.SEEDREAM_50_LITE_VOLCENGINE]: 'seedream-5.0-lite',
   [AI_MODELS.SEEDREAM_50_LITE_BYTEPLUS]: 'seedream-5.0-lite',
   [AI_MODELS.SEEDREAM_50_VOLCENGINE]: 'seedream-5.0',
+  [AI_MODELS.SEEDREAM_55_VOLCENGINE]: 'seedream-5.5',
+  [AI_MODELS.SEEDREAM_55_BYTEPLUS]: 'seedream-5.5',
   // 单型号系列 —— 第二层会被跳过
   [AI_MODELS.VEO_31]: 'veo-3.1',
   [AI_MODELS.GEMINI_OMNI_FLASH]: 'gemini-omni-flash',

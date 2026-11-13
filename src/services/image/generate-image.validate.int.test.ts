@@ -109,6 +109,20 @@ describe('Seedream 透明背景', () => {
     })
   })
 
+  // 5.5 文生图就能出透明底、图生图收多张且不要 alpha（BytePlus 教程 2026-11-13）。
+  it.each([
+    ['no reference image', [] as string[]],
+    ['two reference images', ['https://a/1.png', 'https://a/2.png']],
+  ])('5.5 %s：放行', async (_label, refs) => {
+    await expect(
+      validate({
+        modelId: AI_MODELS.SEEDREAM_55_VOLCENGINE,
+        referenceImages: refs,
+        advancedParams: { background: 'transparent' },
+      }),
+    ).resolves.toMatchObject(routeOf(AI_MODELS.SEEDREAM_55_VOLCENGINE))
+  })
+
   it('不透明背景、没有参考图：照常放行', async () => {
     await expect(
       pro({ advancedParams: { background: 'opaque' } }),
@@ -282,7 +296,7 @@ describe('NovelAI 能力闸', () => {
 
   it('非 NovelAI 型号带 NovelAI 专属参数：拒', async () => {
     await expect(
-      nai(AI_MODELS.RECRAFT_V4_PRO, { ucPreset: 'heavy' }),
+      nai(AI_MODELS.SEEDREAM_55_VOLCENGINE, { ucPreset: 'heavy' }),
     ).rejects.toMatchObject({
       message: 'Unsupported ucPreset for the selected model',
     })

@@ -140,21 +140,23 @@ describe('resolveGenerationRoute · 型号目录', () => {
   })
 
   it('库里的目录把型号标成下架：立即拒', async () => {
-    await seedAssistantKey(me.id, AI_ADAPTER_TYPES.FAL)
+    await seedAssistantKey(me.id, AI_ADAPTER_TYPES.VOLCENGINE)
     await db.modelConfig.create({
       data: {
-        modelId: AI_MODELS.RECRAFT_V4_PRO,
-        externalModelId: 'fal-ai/seedream',
-        adapterType: AI_ADAPTER_TYPES.FAL,
+        modelId: AI_MODELS.SEEDREAM_55_VOLCENGINE,
+        externalModelId: 'doubao-seedream-5-5-261028',
+        adapterType: AI_ADAPTER_TYPES.VOLCENGINE,
         providerConfig: JSON.parse(
-          JSON.stringify(getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL)),
+          JSON.stringify(getDefaultProviderConfig(AI_ADAPTER_TYPES.VOLCENGINE)),
         ),
         available: false,
       },
     })
 
     await expect(
-      resolveGenerationRoute(me.id, { modelId: AI_MODELS.RECRAFT_V4_PRO }),
+      resolveGenerationRoute(me.id, {
+        modelId: AI_MODELS.SEEDREAM_55_VOLCENGINE,
+      }),
     ).rejects.toMatchObject({ code: 'UNSUPPORTED_MODEL' })
   })
 
@@ -162,7 +164,7 @@ describe('resolveGenerationRoute · 型号目录', () => {
     const key = await seedAssistantKey(me.id, AI_ADAPTER_TYPES.REPLICATE)
     await db.modelConfig.create({
       data: {
-        modelId: AI_MODELS.RECRAFT_V4_PRO,
+        modelId: AI_MODELS.SEEDREAM_55_VOLCENGINE,
         externalModelId: 'owner/flux-new-version',
         adapterType: AI_ADAPTER_TYPES.REPLICATE,
         providerConfig: JSON.parse(
@@ -173,7 +175,7 @@ describe('resolveGenerationRoute · 型号目录', () => {
     })
 
     const route = await resolveGenerationRoute(me.id, {
-      modelId: AI_MODELS.RECRAFT_V4_PRO,
+      modelId: AI_MODELS.SEEDREAM_55_VOLCENGINE,
       apiKeyId: key.id,
     })
 

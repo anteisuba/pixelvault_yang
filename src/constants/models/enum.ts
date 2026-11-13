@@ -69,6 +69,14 @@ export enum AI_MODELS {
    * The only Seedream also served from eu-west-1 (Pro is ap-southeast only).
    */
   SEEDREAM_50_LITE_BYTEPLUS = 'seedream-5.0-lite-byteplus',
+  /**
+   * Seedream 5.5 — released 2026-11-09, on both 字节 stations as a twin pair
+   * (火山 `doubao-seedream-5-5-261028` · BytePlus `dola-seedream-5-5-261028`).
+   * Single-image only like 5.0 Pro; adds transparent output for text-to-image
+   * and up to 99 layers in layer decomposition.
+   */
+  SEEDREAM_55_VOLCENGINE = 'seedream-5.5-volcengine',
+  SEEDREAM_55_BYTEPLUS = 'seedream-5.5-byteplus',
   /** Nano Banana 2 Lite — ultra-low-latency Gemini image tier. */
   GEMINI_FLASH_LITE_IMAGE = 'gemini-3.1-flash-lite-image',
   /** Nano Banana 2.1 — GA 2026-10-06, Google's successor to 3.1 Flash Image. */

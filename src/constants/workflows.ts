@@ -148,9 +148,8 @@ const WORKFLOW_STUDIO_DEFAULT_OVERRIDES: Partial<
   [WORKFLOW_IDS.POSTER_LAYOUT]: {
     openPanel: 'modelSelector',
     recommendedModelIds: [
-      // IDEOGRAM_3 removed 2026-07-26 (retired). Recraft keeps the vector/design
-      // slot; Seedream 5.0 Pro brings native text in 14 languages.
-      AI_MODELS.RECRAFT_V4_PRO,
+      // 2026-11-13 Recraft 退役（图片只留三家）。Seedream 5.0 Pro brings
+      // native text in 14 languages.
       AI_MODELS.OPENAI_GPT_IMAGE_2,
       AI_MODELS.SEEDREAM_50_PRO_VOLCENGINE,
     ],

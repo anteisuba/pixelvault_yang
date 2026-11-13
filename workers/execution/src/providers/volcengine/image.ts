@@ -43,7 +43,7 @@ export const VOLCENGINE_MAX_TOTAL_PIXELS = 4096 * 4096
 export const VOLCENGINE_SIZE_EDGE_STEP = 16
 
 export function volcEngineMaxTotalPixels(externalModelId: string): number {
-  return /seedream-\d+-\d+-pro/.test(externalModelId)
+  return isVolcEngineSeedreamLayerModel(externalModelId)
     ? VOLCENGINE_PRO_MAX_TOTAL_PIXELS
     : VOLCENGINE_MAX_TOTAL_PIXELS
 }
@@ -113,19 +113,38 @@ export function getVolcEngineImageSize(aspectRatio: string): {
  * https://www.volcengine.com/docs/82379/1541523
  */
 export function volcEngineMaxReferenceImages(externalModelId: string): number {
-  return isVolcEngineSeedream50Pro(externalModelId) ? 10 : 14
+  return isVolcEngineSeedreamLayerModel(externalModelId) ? 10 : 14
 }
 
 /**
- * `background` (transparent output) and `layer_decomposition` are both listed
- * under "模型支持: Seedream 5.0 pro" only — Lite / 4.5 / 4.0 reject them.
- * Matches both stations' ids: 火山 `doubao-seedream-5-0-pro-*` and BytePlus
- * `dola-seedream-5-0-pro-*`.
+ * `background` (transparent output) and `layer_decomposition` are listed for
+ * Seedream 5.0 pro and 5.5 only — Lite / 4.5 / 4.0 reject them. Both share the
+ * 10-image reference cap and the 2048²×1.05² pixel ceiling. Matches both
+ * stations' ids: 火山 `doubao-seedream-5-0-pro-*` / `doubao-seedream-5-5-*`
+ * and BytePlus `dola-…`.
  * https://www.volcengine.com/docs/82379/1541523
+ * https://docs.byteplus.com/en/docs/modelark/seedream-5-5
  */
-export function isVolcEngineSeedream50Pro(externalModelId: string): boolean {
-  return /seedream-5-0-pro/.test(externalModelId)
+export function isVolcEngineSeedreamLayerModel(
+  externalModelId: string,
+): boolean {
+  return /seedream-5-0-pro|seedream-5-5/.test(externalModelId)
 }
+
+/**
+ * 5.5 makes transparent output from text too and takes up to 10 references
+ * without needing alpha in them; 5.0 pro wants exactly one alpha PNG.
+ */
+export function isVolcEngineSeedream55(externalModelId: string): boolean {
+  return /seedream-5-5/.test(externalModelId)
+}
+
+/**
+ * 5.5 returns up to `max_images` artifacts (base + layers; default 30, range
+ * [2, 100]). Pin it so the layer count stays within what the callback schema
+ * and the canvas take (`VOLCENGINE_SEEDREAM_MAX_LAYERS`, the 5.0 pro cap).
+ */
+export const VOLCENGINE_SEEDREAM_55_MAX_LAYER_IMAGES = 17
 
 /**
  * Ark reports each output's pixel size as `"<width>x<height>"`. In layer mode
@@ -208,9 +227,9 @@ export async function generateVolcEngineImage(
   const guidanceScale = readNumberField(advancedParams, 'guidanceScale')
   if (guidanceScale != null) body.guidance_scale = guidanceScale
 
-  // `background: "transparent"` is Seedream 5.0 pro only, and the doc pins
-  // three preconditions: image-to-image only, exactly one input image, and an
-  // input that actually carries an alpha channel. We can check the first two
+  // `background: "transparent"` on Seedream 5.0 pro has three preconditions:
+  // image-to-image only, exactly one input image, and an input that actually
+  // carries an alpha channel (5.5 drops all three). We can check the first two
   // here; the third is the provider's to reject. Failing either of ours means
   // the field is simply not sent (an opaque image beats a 400), while the app's
   // validation layer turns the same situation into a readable error up front.
@@ -219,11 +238,13 @@ export async function generateVolcEngineImage(
   // `output_format: "jpeg"` is an error, so pin png explicitly rather than
   // relying on a default that a future body change could stomp.
   // https://www.volcengine.com/docs/82379/1541523
+  const externalModelId = context.providerInput.externalModelId
+  const referenceCount = getImageReferenceInputs(context).length
   const background = readStringField(advancedParams, 'background')
   if (
     background === 'transparent' &&
-    isVolcEngineSeedream50Pro(context.providerInput.externalModelId) &&
-    getImageReferenceInputs(context).length === 1
+    (isVolcEngineSeedream55(externalModelId) ||
+      (isVolcEngineSeedreamLayerModel(externalModelId) && referenceCount === 1))
   ) {
     body.background = 'transparent'
     body.output_format = 'png'
@@ -236,9 +257,16 @@ export async function generateVolcEngineImage(
   // https://www.volcengine.com/docs/82379/1541523
   const wantsLayers =
     readBooleanField(advancedParams, 'layerDecomposition') === true &&
-    isVolcEngineSeedream50Pro(context.providerInput.externalModelId) &&
-    getImageReferenceInputs(context).length === 1
-  if (wantsLayers) body.layer_decomposition = true
+    isVolcEngineSeedreamLayerModel(externalModelId) &&
+    referenceCount === 1
+  if (wantsLayers) {
+    body.layer_decomposition = true
+    if (isVolcEngineSeedream55(externalModelId)) {
+      body.layer_decomposition_options = {
+        max_images: VOLCENGINE_SEEDREAM_55_MAX_LAYER_IMAGES,
+      }
+    }
+  }
 
   // 火山 Ark (cn-beijing) and BytePlus ModelArk (ap-southeast) expose the
   // identical /images/generations contract, so one function serves both —

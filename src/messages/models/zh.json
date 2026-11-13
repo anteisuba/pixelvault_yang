@@ -124,6 +124,14 @@
       "label": "Seedream 5.0 Lite（BytePlus）",
       "description": "经 BytePlus ModelArk（方舟国际站）直连的 Seedream 5.0 实惠档 — 美元计价。"
     },
+    "seedream55Volcengine": {
+      "label": "Seedream 5.5（火山引擎）",
+      "description": "经火山方舟（Ark）直连的 Seedream 5.5 — 多轮编辑更稳，文生图也能出透明底，价格约为 5.0 Pro 的四成；只出单图。"
+    },
+    "seedream55Byteplus": {
+      "label": "Seedream 5.5（BytePlus）",
+      "description": "经 BytePlus ModelArk（方舟国际站）直连的 Seedream 5.5 — 美元计价；多轮编辑更稳，文生图也能出透明底；只出单图。"
+    },
     "novelaiV45Full": {
       "label": "NovelAI Diffusion V4.5 Full",
       "description": "上一代 NovelAI Full，支持多角色和文字渲染。Opus 默认尺寸仍不限次数。使用你自己的 NovelAI token。"

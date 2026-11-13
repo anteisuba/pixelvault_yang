@@ -124,6 +124,14 @@
       "label": "Seedream 5.0 Lite (BytePlus)",
       "description": "The lower-cost Seedream 5.0 option via BytePlus ModelArk's international API, billed in USD."
     },
+    "seedream55Volcengine": {
+      "label": "Seedream 5.5 (VolcEngine)",
+      "description": "Seedream 5.5 via VolcEngine (Ark) direct API — steadier multi-turn edits and transparent backgrounds even from text, at about 40% of 5.0 Pro's price. Single images only."
+    },
+    "seedream55Byteplus": {
+      "label": "Seedream 5.5 (BytePlus)",
+      "description": "Seedream 5.5 via BytePlus ModelArk's international API, billed in USD — steadier multi-turn edits and transparent backgrounds even from text. Single images only."
+    },
     "novelaiV45Full": {
       "label": "NovelAI Diffusion V4.5 Full",
       "description": "Previous NovelAI Full model with multi-character prompting and text rendering. Unlimited on Opus at default size. Bring your own NovelAI token."

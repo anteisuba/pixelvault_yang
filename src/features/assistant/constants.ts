@@ -203,6 +203,32 @@ export const ASSISTANT_NEXT_PROMPT_VERSION =
   'next-2026-11-10-confirm-every-batch'
 
 /** 回合托管（11-11）：多久查一次停止标记、正在写的那段话多久存一次草稿。 */
+/**
+ * DeepSeek 自带的联网与读链接（2026-11-13 应用 API）：官方的工具名，与 `@ai-sdk/anthropic` 认的
+ * 那两个名字（转换见 `deepseek-native-tools.ts`）。只有 `deepseek-flash` 支持。
+ */
+export const ASSISTANT_DEEPSEEK_NATIVE_TOOLS: {
+  readonly searchTool: string
+  readonly readTool: string
+  readonly sdkSearchName: string
+  readonly sdkFetchName: string
+  readonly serverBlockTypes: readonly string[]
+  readonly clientAliases: Readonly<Record<string, string>>
+} = {
+  searchTool: 'deepseek_web_search',
+  readTool: 'deepseek_read_url',
+  sdkSearchName: 'web_search',
+  sdkFetchName: 'web_fetch',
+  serverBlockTypes: [
+    'server_tool_use',
+    'web_search_tool_result',
+    'web_fetch_tool_result',
+  ],
+  // 带上自带工具后 DeepSeek 把 `find` / `open` / `search` 当保留名（2026-11-14 实测 400）；
+  // 我们撞上的两个在路上换个名字，回来再换回去。
+  clientAliases: { find: 'studio_find', open: 'studio_open' },
+}
+
 export const ASSISTANT_TURN_LOG = {
   stopPollMs: 1_000,
   draftWriteMs: 1_000,

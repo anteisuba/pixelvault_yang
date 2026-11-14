@@ -1009,9 +1009,19 @@ async function* runNextTurn(
   /** 这一轮到此为止喂给模型的输入 token（接力各跳累计，到 `maxTurnInputTokens` 就停下）。 */
   let turnInputTokens = saved?.inputTokens ?? 0
 
+  // 接力：上一跳已经退到哪条接法就接着用哪条。上一跳的接法不在这条退路上（做到一半换了型号）
+  // 就从头一条起，⛔ 不一路退到最保守那条。
   let model: NextModel = resolved
-  while (saved && model.path !== saved.modelPath && model.fallback)
-    model = model.fallback
+  if (saved)
+    for (
+      let candidate: NextModel | null | undefined = resolved;
+      candidate;
+      candidate = candidate.fallback
+    )
+      if (candidate.path === saved.modelPath) {
+        model = candidate
+        break
+      }
 
   const transcript: AssistantV3Transcript = saved ? [...saved.transcript] : []
   let messages: ModelMessage[]

@@ -503,15 +503,26 @@ describe('新内核主循环', () => {
     expect(sent).toContain('"tool-result"')
   })
 
-  it('新接法被厂商拒了（400）：整轮换成保守接法再试', async () => {
-    fakeModels.main = scriptedModel([
-      new APICallError({
-        message: 'unknown tool type',
-        url: 'https://api.test',
-        requestBodyValues: {},
-        statusCode: 400,
-      }),
-    ])
+  // DeepSeek flash 的退路有三级：自带联网 + 读链接 → 旧联网（这两条在假模型里都是 `main`）→ 对话接口。
+  const unknownTool = () =>
+    new APICallError({
+      message: 'unknown tool type',
+      url: 'https://api.test',
+      requestBodyValues: {},
+      statusCode: 400,
+    })
+
+  it('新工具被厂商拒了（400）：退回旧联网那条接着跑，不用退到对话接口', async () => {
+    fakeModels.main = scriptedModel([unknownTool(), textTurn('好。')])
+    fakeModels.fallback = scriptedModel([textTurn('不该到这里。')])
+    const events = await run(imageRequest('你好'))
+    expect(fakeModels.main.doStreamCalls).toHaveLength(2)
+    expect(fakeModels.fallback.doStreamCalls).toHaveLength(0)
+    expect(events.at(-1)).toMatchObject({ type: 'done' })
+  })
+
+  it('两条新接法都被厂商拒了（400）：整轮换成保守接法再试', async () => {
+    fakeModels.main = scriptedModel([unknownTool(), unknownTool()])
     fakeModels.fallback = scriptedModel([textTurn('好。')])
     const events = await run(imageRequest('你好'))
     expect(fakeModels.fallback.doStreamCalls).toHaveLength(1)
@@ -594,7 +605,8 @@ describe('新内核主循环', () => {
         requestBodyValues: {},
         statusCode: 400,
       })
-    fakeModels.main = scriptedModel([rejected()])
+    // 三级退路每一级都被拒（前两级在假模型里都是 `main`）。
+    fakeModels.main = scriptedModel([rejected(), rejected()])
     fakeModels.fallback = scriptedModel([rejected()])
     await expect(run(imageRequest('你好'))).rejects.toMatchObject({
       errorCode: 'PROVIDER_ERROR',

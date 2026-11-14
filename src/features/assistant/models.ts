@@ -19,13 +19,14 @@ import {
   ASSISTANT_V3_MAX_OUTPUT_TOKENS,
   assistantV3VerifiedOutputCap,
 } from '@/constants/assistant-v3'
-import { AI_PROVIDER_ENDPOINTS } from '@/constants/config'
+import { AI_PROVIDER_ENDPOINTS, LLM_TEXT_MODEL_IDS } from '@/constants/config'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   getOpenAiChatBaseUrl,
   type ResolvedLlmTextRoute,
 } from '@/services/llm-text.service'
 import { aiGatewayFetch } from '@/lib/ai-gateway'
+import { withDeepSeekNativeTools } from '@/features/assistant/deepseek-native-tools'
 
 /**
  * 新内核的模型接法（接口与搜索调研：/mnt/project-files/assistant-reliability/model-interfaces.md）。
@@ -320,7 +321,7 @@ function deepSeekModel(
     fetch: aiGatewayFetch,
     baseURL: `${base.replace(/\/v1$/, '')}/anthropic/v1`,
   })
-  return {
+  const searchPath: NextModel = {
     model: anthropic(modelId),
     path: 'deepseek-anthropic+search',
     nativeTools: {
@@ -332,6 +333,32 @@ function deepSeekModel(
     ...plainShape,
     providerOptions: () => ({}),
     fallback: chatPath,
+  }
+  // 官方入口上的 flash 才有新工具；代理端点、别的型号照旧走上面那条。
+  if (
+    base !== AI_PROVIDER_ENDPOINTS.DEEPSEEK ||
+    modelId !== LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH
+  )
+    return searchPath
+  /**
+   * ⭐ 2026-11-13 的应用 API：自带联网（一次多个词、会自己打开页面）+ 读你贴的链接（以前这条路读不了
+   * 链接）。SDK 不认这两种工具，`withDeepSeekNativeTools` 在请求与回流两头各转一下；11-14 用真 key
+   * 测过能和我们的工具同开、交回工具结果后照常往下跑。被拒就退回上面那条旧联网。
+   */
+  const native = createAnthropic({
+    apiKey: route.apiKey,
+    fetch: withDeepSeekNativeTools(aiGatewayFetch),
+    baseURL: `${base.replace(/\/v1$/, '')}/anthropic/v1`,
+  })
+  return {
+    ...searchPath,
+    model: native(modelId),
+    path: 'deepseek-anthropic+native',
+    nativeTools: {
+      web_search: native.tools.webSearch_20250305({}),
+      web_fetch: native.tools.webFetch_20250910({}),
+    },
+    fallback: searchPath,
   }
 }
 

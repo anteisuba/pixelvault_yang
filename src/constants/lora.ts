@@ -131,6 +131,18 @@ export const CIVITAI_MODEL_SEARCH_URL = 'https://civitai.com/search/models'
 //      只有 `/api/v1/model-versions/:id` 有。
 export const CIVITAI_USAGE_CONTROL_DOWNLOAD = 'Download'
 
+// Civitai 上「能当 LoRA 挂」的模型类型。LoCon / DoRA 是 LoRA 的变体，ComfyUI
+// 的 LoraLoader 和 fal 的 loras 参数一样吃；只认 `LORA` 会让「做同款」把它们
+// 判成「Civitai 上没有」（2026-11-15 owner 真机：StarSigilArt 是 LoCon，库里
+// 搜得到、补挂却报没有）。值是 Civitai REST `types=` 的写法；meilisearch 与
+// 图 meta 里的 type 比对一律按小写。
+export const CIVITAI_LORA_MODEL_TYPES = ['LORA', 'LoCon', 'DoRA'] as const
+export const CIVITAI_LORA_MODEL_TYPE_KEYS: ReadonlySet<string> = new Set([
+  ...CIVITAI_LORA_MODEL_TYPES.map((type) => type.toLowerCase()),
+  // A1111 / Civitai 图 meta 的 resources 把 LyCORIS 家族记成 `lycoris`。
+  'lycoris',
+])
+
 // §4.2「常与它同挂」：聚合当前分组全部来源图配方的 extraLoras 共现计数，
 // 取 Top N 且计数 ≥ 最小阈值——单例噪音（只在一张图里出现过一次）不显示。
 export const LORA_OFTEN_MOUNTED_MIN_COUNT = 2

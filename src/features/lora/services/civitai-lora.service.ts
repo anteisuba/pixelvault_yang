@@ -4,6 +4,8 @@ import { z } from 'zod'
 
 import {
   CIVITAI_BASE_MODEL_FAMILY_MEMBERS,
+  CIVITAI_LORA_MODEL_TYPE_KEYS,
+  CIVITAI_LORA_MODEL_TYPES,
   CIVITAI_MODEL_VERSION_IMAGE_MAX_NSFW_LEVEL,
   CIVITAI_NAMED_BASE_MODEL_MEMBER_SET,
   CIVITAI_USAGE_CONTROL_DOWNLOAD,
@@ -644,7 +646,7 @@ export function acceptedBaseModelNames(
 function buildCivitaiSearchFilters(
   baseModelFamily: string | null | undefined,
 ): string[] {
-  const filters = ['type = LoRA']
+  const filters = [`type IN [${CIVITAI_LORA_MODEL_TYPES.join(', ')}]`]
   // 'other' 兜底桶：meilisearch 支持 NOT IN，直接把所有 named family 成员
   // 取补集（REST 路径做不到这点，见 appendBaseModelFamilyParams）。
   if (baseModelFamily === 'other') {
@@ -759,7 +761,9 @@ async function resolveCivitaiLoraByNameStem(
 
   for (const query of queries) {
     const url = new URL(CIVITAI_MODELS_API)
-    url.searchParams.set('types', 'LORA')
+    for (const type of CIVITAI_LORA_MODEL_TYPES) {
+      url.searchParams.append('types', type)
+    }
     url.searchParams.set('limit', String(CIVITAI_RESOLVE_SEARCH_LIMIT))
     url.searchParams.set('query', query)
 
@@ -829,7 +833,7 @@ async function resolveCivitaiLoraByWebSearchNameStem(
   const seenVersionIds = new Set<number>()
   for (const result of parsed.data.results) {
     for (const hit of result.hits ?? []) {
-      if (hit.type && hit.type.toUpperCase() !== 'LORA') continue
+      if (hit.type && !isCivitaiLoraModelType(hit.type)) continue
       for (const version of hit.versions ?? []) {
         if (!baseModelMatchesCandidate(version.baseModel, baseModelFamily)) {
           continue
@@ -1228,6 +1232,11 @@ function toFileSizeBytes(sizeKB: number | undefined): number | null {
   return Math.round(sizeKB * 1024)
 }
 
+/** LORA / LoCon / DoRA / lycoris（大小写不敏感）都算能挂的 LoRA。 */
+function isCivitaiLoraModelType(type: string | null | undefined): boolean {
+  return CIVITAI_LORA_MODEL_TYPE_KEYS.has((type ?? '').trim().toLowerCase())
+}
+
 function toLibraryItem(
   model: z.infer<typeof CivitaiModelSchema>,
   // 默认放到 XXX：resolve-by-hash / by-name 是"挂载用户指定的这把 LoRA"，
@@ -1236,7 +1245,7 @@ function toLibraryItem(
   // 库 B 详情页的「版本」：指定映射哪一个版本；不给 = 第一个能下载的。
   pickedVersion?: z.infer<typeof CivitaiModelVersionSchema>,
 ): CivitaiLoraLibraryItem | null {
-  if (model.type.toUpperCase() !== 'LORA') return null
+  if (!isCivitaiLoraModelType(model.type)) return null
 
   const version = pickedVersion ?? pickUsableModelVersion(model)
   if (!version) return null
@@ -1850,7 +1859,7 @@ function resolveRecipeLoraSignals({
       ? civitaiResources?.find(
           (r) =>
             r.modelVersionId === targetModelVersionId &&
-            (r.type ?? 'lora').toLowerCase() === 'lora',
+            isCivitaiLoraModelType(r.type ?? 'lora'),
         )
       : undefined
 
@@ -1883,7 +1892,7 @@ function resolveRecipeLoraSignals({
   const seenNames = new Set<string>()
   const seenVersionIds = new Set<number>()
   for (const r of resources ?? []) {
-    if (r === matchedResource || (r.type ?? '').toLowerCase() !== 'lora') {
+    if (r === matchedResource || !isCivitaiLoraModelType(r.type)) {
       continue
     }
     const repairedName = r.name
@@ -1904,7 +1913,7 @@ function resolveRecipeLoraSignals({
   }
   for (const r of civitaiResources ?? []) {
     if (r === matchedByVersion) continue
-    if ((r.type ?? '').toLowerCase() !== 'lora') continue
+    if (!isCivitaiLoraModelType(r.type)) continue
     if (r.modelVersionId === undefined) continue
     if (
       targetModelVersionId !== null &&
@@ -1920,7 +1929,7 @@ function resolveRecipeLoraSignals({
   // 按名字去重（正文里已写过的不重复算）。
   const additionalTags: PromptLoraTag[] = (additionalResources ?? []).flatMap(
     (r) =>
-      r.name && (r.type ?? 'lora').toLowerCase() === 'lora'
+      r.name && isCivitaiLoraModelType(r.type ?? 'lora')
         ? [
             {
               name: stripLoraFolderPath(repairUtf8Mojibake(r.name)),

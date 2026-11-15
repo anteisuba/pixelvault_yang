@@ -1516,6 +1516,37 @@ describe('resolveCivitaiLoraByReference', () => {
     expect(item?.id).toBe('civitai:122359:135867')
   })
 
+  // 2026-11-15 owner 真机：StarSigilArt ckxl rf（version 2793270）在 Civitai 上
+  // 是 `LoCon`，库里搜得到、「做同款」补挂却报「Civitai 上没有」——LoCon / DoRA
+  // 是 LoRA 变体，挂法一样，必须解析得出来。
+  it.each(['LoCon', 'DoRA'])(
+    'resolves %s references as mountable LoRAs',
+    async (type) => {
+      mockFetch.mockResolvedValueOnce(
+        jsonResponse({
+          ...VERSION_PAYLOAD,
+          model: { name: 'StarSigilArt ckxl rf', type },
+        }),
+      )
+      const item = await resolveCivitaiLoraByReference({
+        modelVersionId: 135867,
+      })
+      expect(item?.id).toBe('civitai:122359:135867')
+    },
+  )
+
+  it('searches LoCon / DoRA alongside LORA when resolving by name', async () => {
+    mockFetch.mockResolvedValue(jsonResponse({ items: [] }))
+    await resolveCivitaiLoraByReference({ name: 'ssa-000034' })
+    const restCall = mockFetch.mock.calls.find((call) =>
+      String(call[0]).includes('/api/v1/models?'),
+    )
+    expect(restCall).toBeDefined()
+    expect(new URL(String(restCall?.[0])).searchParams.getAll('types')).toEqual(
+      ['LORA', 'LoCon', 'DoRA'],
+    )
+  })
+
   it('returns null for non-LoRA references and missing input', async () => {
     mockFetch.mockResolvedValueOnce(
       jsonResponse({
@@ -1784,7 +1815,7 @@ describe('resolveCivitaiLoraByReference', () => {
       q: 'detailed hand focus style illustrious XL v1.1',
       limit: 50,
       filter: [
-        'type = LoRA',
+        'type IN [LORA, LoCon, DoRA]',
         'versions.baseModel IN ["Illustrious", "NoobAI"]',
       ],
     })

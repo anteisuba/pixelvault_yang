@@ -55,6 +55,10 @@ import type {
   StudioOperatorThreadEntry,
 } from '@/types/studio-assistant-operator'
 import {
+  describeSilentTurn,
+  type SilentTurnStep,
+} from '@/lib/studio-operator-silent-turn'
+import {
   StudioOperatorHistoryEntrySchema,
   type StudioOperatorHistoryEntry,
   type StudioOperatorPending,
@@ -976,7 +980,29 @@ export function historyToOperatorMessages(
   history: readonly StudioOperatorHistoryEntry[],
 ): AssistantOperatorMessage[] {
   const messages: AssistantOperatorMessage[] = []
+  // 只动手不开口的那一轮补一行 —— 与 `buildMessages` 同一条判据（刷新前后模型读到的要一样）。
+  // ⚠ 结果卡不落库，所以载回来的这一侧只数步、不数批。
+  let replied = false
+  let silentSteps: SilentTurnStep[] = []
+  const flushSilentTurn = () => {
+    const note = replied ? null : describeSilentTurn(silentSteps, 0)
+    if (note) messages.push({ role: 'assistant', content: note })
+    replied = false
+    silentSteps = []
+  }
   for (const entry of history) {
+    if (entry.kind === 'user' || (entry.kind === 'system' && entry.userText)) {
+      flushSilentTurn()
+    }
+    if (entry.kind === 'step' && ASSISTANT_OPERATOR_TOOL_SET.has(entry.tool)) {
+      silentSteps.push({
+        tool: entry.tool as AssistantOperatorTool,
+        title: entry.title,
+        undone: entry.undone,
+      })
+    } else if (entry.kind === 'message') {
+      replied = true
+    }
     if (entry.kind === 'user') {
       const attachmentNote =
         entry.attachments.length > 0
@@ -1029,6 +1055,7 @@ export function historyToOperatorMessages(
       })
     }
   }
+  flushSilentTurn()
   return messages.slice(-STUDIO_OPERATOR_HISTORY.replayMessages)
 }
 

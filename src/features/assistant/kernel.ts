@@ -172,6 +172,12 @@ import {
   ASSISTANT_NEXT_TOOL_IDS,
 } from '@/features/assistant/constants'
 import {
+  ASK_ONLY_REFUSAL,
+  ASK_ONLY_TURN_REMINDER,
+  isAllowedInAskOnlyTurn,
+  wantsAskOnlyTurn,
+} from '@/features/assistant/ask-gate'
+import {
   clearOldToolResults,
   historyMessages,
   hydratePictures,
@@ -1022,6 +1028,9 @@ async function* runNextTurn(
           called,
           voice,
           reminder,
+          !chat && wantsAskOnlyTurn(latestUserText)
+            ? ASK_ONLY_TURN_REMINDER
+            : null,
         ]
           .filter(Boolean)
           .join('\n\n'),
@@ -1997,6 +2006,12 @@ async function* runTool(
   if (chatCharacterOf(context.prepared.persona)) {
     const refused = chatModeRefusal(call)
     if (refused) return refused
+  }
+  if (
+    wantsAskOnlyTurn(latestUserText) &&
+    !isAllowedInAskOnlyTurn(call.toolName)
+  ) {
+    return { output: ASK_ONLY_REFUSAL, error: true }
   }
   switch (call.toolName) {
     case ASSISTANT_NEXT_TOOL_IDS.find: {

@@ -601,6 +601,28 @@ describe('历史 → 下一轮的语境', () => {
     ])
   })
 
+  it('刷新后：只动手不开口的那一轮补一行（2026-11-16 真机：三条用户话挨着）', () => {
+    const silent: StudioOperatorHistoryEntry[] = [
+      { kind: 'user', id: 'u1', text: '画面多余', attachments: [] },
+      {
+        kind: 'step',
+        id: 's1',
+        tool: 'set_prompt',
+        title: '改写「S01 首帧」',
+        status: 'done',
+        undone: false,
+      },
+      { kind: 'user', id: 'u2', text: '完全没修到', attachments: [] },
+    ]
+    const messages = historyToOperatorMessages(silent)
+    expect(messages.map((message) => message.role)).toEqual([
+      'user',
+      'assistant',
+      'user',
+    ])
+    expect(messages[1]?.content).toContain('改写「S01 首帧」')
+  })
+
   it('对白只回放最后几条 —— 显示是全部，进上下文的是账单', () => {
     const many: StudioOperatorHistoryEntry[] = Array.from(
       { length: STUDIO_OPERATOR_HISTORY.replayMessages + 5 },

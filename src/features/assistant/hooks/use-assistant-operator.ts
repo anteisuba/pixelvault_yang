@@ -169,6 +169,10 @@ import {
 import { buildCanvasGenerationRequest } from '@/lib/studio-operator-canvas-snapshot'
 import { collectOperatorPriorFinds } from '@/lib/studio-operator-timeline'
 import {
+  describeSilentTurn,
+  type SilentTurnStep,
+} from '@/lib/studio-operator-silent-turn'
+import {
   captureTurnClips,
   resolveTurnClips,
 } from '@/lib/assistant-pointed-clips'
@@ -328,7 +332,32 @@ function buildMessages(
   entries: readonly StudioOperatorThreadEntry[],
 ): AssistantOperatorMessage[] {
   const messages: AssistantOperatorMessage[] = []
+  // 上一句用户话之后：助手开没开口、动了哪些步、出了几批（只动手不开口的那一轮要补一行）。
+  let replied = false
+  let silentSteps: SilentTurnStep[] = []
+  let silentBatches = 0
+  const flushSilentTurn = () => {
+    const note = replied ? null : describeSilentTurn(silentSteps, silentBatches)
+    if (note) messages.push({ role: 'assistant', content: note })
+    replied = false
+    silentSteps = []
+    silentBatches = 0
+  }
   for (const entry of entries) {
+    if (entry.kind === 'user' || (entry.kind === 'system' && entry.userText)) {
+      flushSilentTurn()
+    }
+    if (entry.kind === 'step') {
+      if (entry.step.status !== ASSISTANT_OPERATOR_STEP_STATUS_IDS.running) {
+        silentSteps.push({
+          tool: entry.step.tool,
+          title: entry.step.title,
+          undone: entry.undone,
+        })
+      }
+    } else if (entry.kind === 'result') {
+      silentBatches += 1
+    }
     if (entry.kind === 'user') {
       const attachmentNote =
         entry.attachments.length > 0
@@ -354,6 +383,7 @@ function buildMessages(
        * ⛔ 渲染那一侧不动：那一行归它自己判要不要画。
        */
       if (!entry.text.trim()) continue
+      replied = true
       messages.push({
         role: 'assistant',
         content: entry.chat
@@ -394,6 +424,7 @@ function buildMessages(
       })
     }
   }
+  flushSilentTurn()
   return messages
 }
 

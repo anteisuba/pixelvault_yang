@@ -72,10 +72,17 @@ jobs:
           NODE_ENV: test
 
   integration-test:
-    name: Integration Tests
+    name: Integration Tests (${{ matrix.shard }}/4)
     runs-on: ubuntu-latest
-    # 158 个文件单线程真库约 8–9 分钟（11-04 慢机 9 分钟被 10 分钟上限掐断），留余量。
+    # 拆四片并行（2026-11-16）：int project 是 fileParallelism: false，159 个文件单线程
+    # 共用一个库要 10–11 分钟，是整轮 CI 最慢的 job（其它都 ≤5 分钟）。service 容器每个
+    # matrix 实例各起一份，每片天然有自己的一次性库，global-setup / vitest 配置不用改。
+    # 上限保留 20 分钟（11-04 单 job 时慢机被 10 分钟上限掐断过）。
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     # L2a 真库测试（*.int.test.ts，docs/references/testing.md「测试标准」）：一次性
     # Postgres 16，global-setup 先把 prisma/migrations 全部执行一遍再跑。
     services:
@@ -108,7 +115,7 @@ jobs:
         run: npm run prisma:generate
 
       - name: Run integration tests
-        run: npx vitest run --project int --reporter=verbose
+        run: npx vitest run --project int --reporter=verbose --shard=${{ matrix.shard }}/4
         env:
           NODE_ENV: test
           TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/antei_test
@@ -119,6 +126,10 @@ jobs:
     # support chromium on ubuntu26.04-x64」）。Playwright 支持 26.04 之后改回 latest。
     runs-on: ubuntu-24.04
     timeout-minutes: 25
+    # Dependabot 触发的 PR 读不到仓库 secrets，Clerk key 为空，下面「Refuse production
+    # Clerk keys」必挂（2026-11-16 查：近两周 Dependabot 的 14 次 CI 全红）。跳过它的 PR；
+    # 依赖升级合进 main 后的 push 仍会跑 E2E。没有 job needs 本 job。
+    if: github.actor != 'dependabot[bot]'
     # L4 冒烟（docs/references/testing.md「测试标准」）：一次性 Postgres + 生产构建 + Clerk
     # 开发实例的测试账号，把每个台、每个库页打开一遍。⛔ 不连线上库、不用线上 key。
     services:

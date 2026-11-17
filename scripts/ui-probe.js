@@ -228,27 +228,86 @@
   }
 
   /**
-   * 命中区可能由绝对定位的伪元素补足（`.touch-target-y` 的 ::before 撑到 44px），
-   * 它不改 getBoundingClientRect —— 不算进去就会把已修好的按钮一直报成太小。
+   * 命中区可能由绝对定位的伪元素补足（`.touch-target` / `.touch-target-y` 的
+   * ::before 在 `pointer: coarse` 下撑到 44px），它不改 getBoundingClientRect ——
+   * 不算进去就会把已修好的按钮一直报成太小。
+   * Chromium 对伪元素的 getComputedStyle 返回布局后的像素值（`max(100%, 44px)`
+   * → `44px`），所以直接读宽高取 max。
+   * ⚠ `pointer-events: none` 的伪元素不吃点击，只是装饰，不算命中区。
+   * 局限：祖先 `overflow: hidden` 会裁掉外扩、相邻控件会盖住外扩的那一条 ——
+   * 这里只量「声明出来的」命中区，不保证每个像素都点得中。
    */
   const hitSize = (el, r) => {
     let { width, height } = r
     for (const pseudo of ['::before', '::after']) {
       const cs = getComputedStyle(el, pseudo)
       if (cs.content === 'none' || cs.position !== 'absolute') continue
+      if (cs.pointerEvents === 'none') continue
       width = Math.max(width, parseFloat(cs.width) || 0)
       height = Math.max(height, parseFloat(cs.height) || 0)
     }
     return { width, height }
   }
 
+  const IMPLICIT_ROLE = {
+    BUTTON: 'button',
+    A: 'link',
+    SELECT: 'combobox',
+    TEXTAREA: 'textbox',
+  }
+
+  /** 角色：显式 role 优先，否则按标签推（input 按 type）。 */
+  const roleOf = (el) => {
+    const explicit = el.getAttribute('role')
+    if (explicit) return explicit
+    if (el.tagName === 'INPUT') {
+      const type = (el.getAttribute('type') || 'text').toLowerCase()
+      if (type === 'checkbox' || type === 'radio') return type
+      if (type === 'range') return 'slider'
+      if (['button', 'submit', 'reset', 'file'].includes(type)) return 'button'
+      return 'textbox'
+    }
+    return IMPLICIT_ROLE[el.tagName] || el.tagName.toLowerCase()
+  }
+
+  /**
+   * 无障碍名（近似）：aria-label → aria-labelledby → <label for> → title →
+   * 子元素 img 的 alt → 首行文字。数字一律换成 #，让「3 张」「12 张」这类随数据
+   * 变的名字收敛成同一个键。
+   */
+  const nameOf = (el) => {
+    const byIds = (el.getAttribute('aria-labelledby') || '')
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((id) => document.getElementById(id)?.textContent || '')
+      .join(' ')
+    const forLabel =
+      el.id && el.labels && el.labels.length ? el.labels[0].textContent : ''
+    const raw =
+      el.getAttribute('aria-label') ||
+      byIds ||
+      forLabel ||
+      el.getAttribute('title') ||
+      el.querySelector('img[alt]')?.getAttribute('alt') ||
+      (el.innerText || '').trim().split('\n')[0] ||
+      el.getAttribute('placeholder') ||
+      ''
+    return raw.replace(/\s+/g, ' ').trim().replace(/\d+/g, '#').slice(0, 60)
+  }
+
+  /** 视觉隐藏（sr-only 那种 1px 裁切）的控件：真正被点的是它的 label，不算。 */
+  const isVisuallyHidden = (r) => r.width <= 1 && r.height <= 1
+
   const findSmallTapTargets = (els) =>
     els
       .map((el) => ({ el, r: rectOf(el) }))
+      .filter(({ r }) => !isVisuallyHidden(r))
       .map(({ el, r }) => ({ el, r, hit: hitSize(el, r) }))
       .filter(({ hit }) => hit.width < MIN_TAP_PX || hit.height < MIN_TAP_PX)
       .map(({ el, r, hit }) => ({
         element: idOf(el),
+        role: roleOf(el),
+        name: nameOf(el),
         rect: round(r),
         hit: { w: Math.round(hit.width), h: Math.round(hit.height) },
       }))
@@ -273,6 +332,8 @@
     return {
       root: idOf(root),
       viewport: { w: innerWidth, h: innerHeight },
+      // touch-target 的外扩只在 coarse 下生效：false 时 smallTapTargets 不代表手机真实命中区。
+      pointerCoarse: matchMedia('(pointer: coarse)').matches,
       counted: { interactive: els.length, badges: badges.length },
       occluded: findOccluded(els),
       overlap: findOverlaps([...els, ...badges]),

@@ -8,6 +8,13 @@ import {
   MOCK_EXEMPT,
   TEST_STANDARD_SYNTAX_RULES,
 } from './scripts/test-standard/rules.mjs'
+import {
+  RAW_BUTTON_BASELINE_GLOBS,
+  RAW_BUTTON_EXEMPT,
+  RAW_BUTTON_FILES,
+  RAW_BUTTON_SCOPE_IGNORES,
+  UI_STANDARD_PLUGIN,
+} from './scripts/ui-standard/rules.mjs'
 
 // 域边界（f-boundary，2026-11-02）。规矩见 docs/design/features-migration.md：
 // 业务按域住在 src/features/<域>/，域外只走四个入口——
@@ -272,6 +279,19 @@ const eslintConfig = defineConfig([
     rules: {
       'no-restricted-syntax': ['error', ...TEST_STANDARD_SYNTAX_RULES],
     },
+  },
+  // ─── 手写按钮门（触屏命中区，2026-11-16）──────────────────────────
+  // 基线 scripts/ui-standard/raw-button-baseline.json 只减不增；自带规则 id，
+  // 不和上面两块的 no-restricted-syntax 互相替换（见 rules.mjs 头注）。
+  { plugins: { antei: UI_STANDARD_PLUGIN } },
+  {
+    files: RAW_BUTTON_FILES,
+    ignores: [
+      ...RAW_BUTTON_SCOPE_IGNORES,
+      ...RAW_BUTTON_EXEMPT,
+      ...RAW_BUTTON_BASELINE_GLOBS,
+    ],
+    rules: { 'antei/no-raw-button': 'error' },
   },
   // Override default ignores of eslint-config-next.
   globalIgnores([

@@ -3,6 +3,33 @@ import path from 'node:path'
 
 import type { Page } from '@playwright/test'
 
+/**
+ * L4 冒烟要打开的每个台、每个库页（smoke.spec.ts 与 tap-targets.spec.ts 共用）。
+ * ⭐ 新页面 / 新台 / 新库页：在这里加一行。
+ */
+export const SMOKE_PAGES = [
+  '/en/studio',
+  '/en/studio/image',
+  '/en/studio/image/tags',
+  '/en/studio/video',
+  '/en/studio/audio',
+  '/en/studio/3d',
+  '/en/studio/edit',
+  '/en/studio/lora',
+  '/en/studio/node',
+  '/en/library/assets',
+  '/en/library/cards',
+  '/en/library/voices',
+  '/en/library/prompts',
+  '/en/library/lora',
+  '/en/library/gallery',
+  '/en/library/tags',
+  '/en/library/tavern',
+  '/en/settings',
+  '/zh/studio/image',
+  '/ja/studio/image',
+] as const
+
 export interface Envelope<T> {
   success: boolean
   data?: T

@@ -249,6 +249,8 @@ async function checkPage(
       smallTapTargets:
         viewportKey === 'mobile' ? probe.smallTapTargets : undefined,
     }
+    // touch-target 外扩只在 coarse 下生效；手机视口若不是 coarse，命中区量的是桌面值。
+    if (viewportKey === 'mobile') result.pointerCoarse = probe.pointerCoarse
   } catch (error) {
     result.error = String(error).split('\n')[0]
     await page

@@ -3,44 +3,23 @@ import path from 'node:path'
 
 import { expect, test } from '@playwright/test'
 
+import { SMOKE_PAGES } from './helpers'
+
 /**
  * L4 冒烟（docs/references/testing.md「测试标准」）：登录的测试账号把每个台、每个库页打开一遍。
  * 红的条件：页面抛了没接住的异常、落到错误页 / 404、自家 `/api` 回 5xx。
  * 502 / 503 不算：那是「外面的服务连不上 / 没配」（CI 里没有 Fish Audio、Civitai 索引这些），
  * 自家接口按约定就该回这两个、界面照常显示；500 等其它 5xx 才是自家代码出错。
- * ⭐ 新页面 / 新台 / 新库页：在这里加一行。
+ * ⭐ 新页面 / 新台 / 新库页：在 helpers.ts 的 SMOKE_PAGES 加一行（触屏命中区报告也跟着量）。
  * 每页的截图 + 无障碍树（`e2e/.pages/`）CI 每次都传成 artifact「e2e-pages」：写主流程用例前
  * 先看这一份找按钮 / 输入框的名字，不用登录本机去点。
  */
 /** 外部服务不可用时自家接口按约定回的状态码。 */
 const UPSTREAM_UNAVAILABLE = new Set([502, 503])
 
-const PAGES = [
-  '/en/studio',
-  '/en/studio/image',
-  '/en/studio/image/tags',
-  '/en/studio/video',
-  '/en/studio/audio',
-  '/en/studio/3d',
-  '/en/studio/edit',
-  '/en/studio/lora',
-  '/en/studio/node',
-  '/en/library/assets',
-  '/en/library/cards',
-  '/en/library/voices',
-  '/en/library/prompts',
-  '/en/library/lora',
-  '/en/library/gallery',
-  '/en/library/tags',
-  '/en/library/tavern',
-  '/en/settings',
-  '/zh/studio/image',
-  '/ja/studio/image',
-] as const
-
 const PAGES_DIR = path.join(__dirname, '..', '.pages')
 
-for (const route of PAGES) {
+for (const route of SMOKE_PAGES) {
   test(`打开不崩：${route}`, async ({ page }) => {
     const crashes: string[] = []
     const serverErrors: string[] = []

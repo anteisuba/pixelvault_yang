@@ -7,7 +7,7 @@
 BASE=$(git merge-base HEAD origin/main 2>/dev/null || true)
 if [ -z "$BASE" ]; then
   echo "⚠️  No origin/main merge-base; running full checks"
-  npx tsc --noEmit && npm run lint && npx vitest run --maxWorkers=2 || exit 1
+  npx tsc --noEmit && npm run lint && npx vitest run --project node --project dom --maxWorkers=2 || exit 1
   exit 0
 fi
 
@@ -31,10 +31,11 @@ if [ -n "$LINT_FILES" ]; then
 fi
 
 # 依赖 / 测试配置变了，影响面算不准 → 全量。
+# 只跑 node + dom：int 项目本机走 PGlite 起手即断、永远过不了，由 CI 的 Integration Tests job 负责。
 if echo "$CHANGED" | grep -qE '^(package(-lock)?\.json|vitest\.config\.ts|tsconfig\.json)$'; then
-  npx vitest run --maxWorkers=2 || { echo "❌ Tests failed"; exit 1; }
+  npx vitest run --project node --project dom --maxWorkers=2 || { echo "❌ Tests failed"; exit 1; }
 else
-  npx vitest run --changed "$BASE" --passWithNoTests --maxWorkers=2 || { echo "❌ Tests failed"; exit 1; }
+  npx vitest run --project node --project dom --changed "$BASE" --passWithNoTests --maxWorkers=2 || { echo "❌ Tests failed"; exit 1; }
 fi
 
 echo "✅ Related checks passed (full suite runs in CI; Vercel waits for it)"

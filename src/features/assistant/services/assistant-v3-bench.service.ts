@@ -447,7 +447,7 @@ export async function* executeBenchLook(
     )
     if (!asset)
       unknown.push(
-        `Could not see "${image}": it is not a picture or clip attached to this message, a mounted reference or a result on the stage (result-N). If it is an older result, ask the creator to @ it.`,
+        `Could not see "${image}": it is not a picture or clip attached to this message, a mounted reference or a result on the stage (result-N). If it is one of their pictures, find pictures to get its number (图_N) and look it by that — do not ask the creator to @ it.`,
       )
     else targets.push({ url: asset.url, label: asset.label ?? image })
   }

@@ -79,10 +79,12 @@ function isStoredPicture(part: unknown): part is ImagePart & { image: string } {
 /**
  * 图没下载下来时放在原位的那行字。⭐ 写死「你没看到」：只写「could not be loaded」时，模型
  * 常照着图名或前文把画风、画师串、外观编出来（评测 r-eval-fabrication 11-02 的主要一类编造）。
+ * ⛔ 不叫创作者「再 @ 一次」（owner 11-17）：样图、LoRA 封面、她的库和最近出的图都是助手自己开的，
+ *   下不来是我们这边下载的事，她 @ 了走的还是同一条下载路。
  */
 export function unloadedPictureText(label: string): string {
   const which = label ? `「${label}」` : 'this picture'
-  return `(${which} did NOT load — you have not seen it. Do not describe it or guess its look, style, artists or tags from its name; tell the creator you could not see it and ask them to @ it again.)`
+  return `(${which} did NOT load — you have not seen it. Do not describe it or guess its look, style, artists or tags from its name; tell the creator plainly it would not load on our side. Do not ask them to @ or attach it: you open their pictures, LoRAs, tags and library yourself, so attaching it changes nothing.)`
 }
 
 /**

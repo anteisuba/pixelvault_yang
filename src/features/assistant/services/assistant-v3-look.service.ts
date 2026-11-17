@@ -15,6 +15,7 @@ import {
 } from '@/constants/assistant-v3'
 import { ASSISTANT_IMAGE_LIMITS } from '@/constants/assistant'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { RESEARCH_USER_AGENT } from '@/constants/research'
 import { logger } from '@/lib/logger'
 import type { AssistantOperatorEvent } from '@/types/assistant-operator'
 import {
@@ -109,6 +110,10 @@ export function loadPicture(
   const loading = (async (): Promise<V3Picture | null> => {
     try {
       const { buffer } = await fetchAsBuffer(url, {
+        // ⭐ 带项目自己的礼仪 UA（11-17）：Danbooru 样图（`cdn.donmai.us`）的 Cloudflare 对 Node
+        //   默认 UA 回 403 质询页，助手 look 标签的样图一张都看不到；带上就 200（标签库代取同一做法）。
+        //   ⛔ 不伪装浏览器，⛔ 不放用户信息 —— 这串字会发给任意图床。
+        headers: { 'User-Agent': RESEARCH_USER_AGENT },
         maxBytes: cache.maxBytes,
         signal,
       })
@@ -431,7 +436,7 @@ export async function* executeV3Look(
   lines.push(...clips.lines)
   if (failed.length)
     lines.push(
-      `Could not load ${quoted(failed.map((item) => item.target.label))}: it did not download, is too large, or is not a PNG, JPEG or WEBP picture. You have NOT seen it: do not describe it, and do not guess its look, style, artists or tags from its name or from other pictures. Tell the creator you could not see it and ask them to @ it again; write nothing into the prompt that comes from it.`,
+      `Could not load ${quoted(failed.map((item) => item.target.label))}: it did not download, is too large, or is not a PNG, JPEG or WEBP picture. You have NOT seen it: do not describe it, and do not guess its look, style, artists or tags from its name or from other pictures. Tell the creator plainly that it would not load on our side; do not ask them to @ or attach it — their pictures, LoRAs, tags and library you open yourself, so attaching it changes nothing. Write nothing into the prompt that comes from it.`,
     )
   if (skipped.length)
     lines.push(

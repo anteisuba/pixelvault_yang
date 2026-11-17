@@ -1177,7 +1177,7 @@ async function* executeLook(
     const url = asset?.url ?? own
     if (!url) {
       notes.push(
-        `Could not see ${node ? nameOf(context, card) : `"${card}"`}: no picture of it reached you. If it has an output, ask the creator to @ it in their message.`,
+        `Could not see ${node ? nameOf(context, card) : `"${card}"`}: no picture of it reached you. If it has an output, find pictures to get its number (图_N) and look it by that — do not ask the creator to @ it.`,
       )
       continue
     }

@@ -36,6 +36,9 @@ describe('图留在眼前', () => {
     const unloaded = content.find((part) => part.text?.includes('did NOT load'))
     expect(unloaded?.text).toContain('「图2」')
     expect(unloaded?.text).toContain('you have not seen it')
+    // ⛔ 不叫创作者再 @（owner 11-17）：图是助手自己开的，@ 了走的还是同一条下载路。
+    expect(unloaded?.text).toContain('Do not ask them to @')
+    expect(unloaded?.text).not.toMatch(/ask them to @ it again/)
     expect(content.some((part) => part.text === '[picture: 图1]')).toBe(true)
   })
 

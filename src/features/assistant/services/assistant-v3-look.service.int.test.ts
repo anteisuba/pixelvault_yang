@@ -6,6 +6,7 @@ import {
   ASSISTANT_V3_LIMITS,
 } from '@/constants/assistant-v3'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { RESEARCH_USER_AGENT } from '@/constants/research'
 import type { AssistantOperatorEvent } from '@/types/assistant-operator'
 
 vi.mock('server-only', () => ({}))
@@ -142,6 +143,13 @@ describe('v3 look · Denia 自己看', () => {
     )
     expect(fetchAsBuffer).toHaveBeenCalledTimes(
       ASSISTANT_V3_LIMITS.maxLookCards,
+    )
+    // Danbooru 样图的 Cloudflare 对 Node 默认 UA 回 403（11-17）：下图一律带项目礼仪 UA。
+    expect(fetchAsBuffer).toHaveBeenCalledWith(
+      targets[0]!.url,
+      expect.objectContaining({
+        headers: { 'User-Agent': RESEARCH_USER_AGENT },
+      }),
     )
     expect(outcome).toMatchObject({
       kind: 'result',

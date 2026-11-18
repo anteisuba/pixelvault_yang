@@ -88,7 +88,8 @@ export function StudioOperatorSpecLine({
         side="top"
         align="start"
         label={t('specLine.adjust')}
-        className="w-72 rounded-xl border-assistant-line-strong p-0 assistant-glass-overlay shadow-assistant-overlay"
+        // 浮层实底（ui-spec「浮层 · 菜单」）：用 Popover 原语自带的底色 / 圆角 / 阴影。
+        className="w-72 p-0"
         mobileClassName="px-0"
       >
         <div

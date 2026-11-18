@@ -22,7 +22,6 @@ import type {
 import type {
   StudioOperatorConfirmStatus,
   StudioOperatorField,
-  StudioOperatorGenerateKnob,
   StudioOperatorSystemCode,
 } from '@/constants/studio-assistant-operator'
 import type {
@@ -549,8 +548,6 @@ export type StudioOperatorConfirmPrompt = {
   | {
       kind: typeof ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate
       request: AssistantOperatorGenerationRequest
-      /** 卡一出来就展开的那颗（失败行「换个模型」→ 模型那颗）。 */
-      openKnob?: StudioOperatorGenerateKnob
     }
   /**
    * 助手提议记一张上下文卡（v2 §8.1）—— 卡上摆的是**草稿本身**（档 / 名字 /
@@ -644,16 +641,14 @@ export interface StudioOperatorGenerationControls {
 }
 
 /**
- * **首页那份小配方**（第 9g 步，owner 10-24）：没开台时确认卡就是一张小表单 —— 旋钮之外，
- * 提示词与参考图也摆在卡上直接改（台上那两格这时看不见），外加「去图片台接着改」。
+ * **首页那份小配方**（第 9g 步，owner 10-24）：没开台时确认卡把提示词与参考图**只读**摆出来
+ * （台上那两格这时看不见），外加「去图片台接着改」。11-18 起卡只做摘要，⛔ 卡上不再能改。
  * ⭐ 与 `StudioOperatorGenerationControls` 同一条：值住在表单里，卡上一个字都不存。
- * ⚠ 缺席 = 台开着（台上看得见提示词与参考图），卡照旧只有旋钮。
+ * ⚠ 缺席 = 台开着（台上看得见提示词与参考图）。
  */
 export interface StudioOperatorGenerationDraft {
   prompt: string
-  setPrompt(prompt: string): void
   references: readonly { url: string; name?: string }[]
-  removeReference(url: string): void
   /** 带着这份配方开图片台（提示词 / 模型 / 比例 / 参考图原样带过去）。 */
   openBench(): void
   /**

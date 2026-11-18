@@ -58,6 +58,24 @@ const DOMAIN_SPEC_LINE: Readonly<Record<AssistantOperatorDomain, boolean>> = {
 }
 
 /**
+ * 出的图在不在舞台上（owner 11-18）：在 = 对话里只留一行引用；首页 / 角色页没有舞台，照旧整张。
+ * ⛔ 不给回落，同上。
+ * ⚠ 画布暂记 false：那一行要「点一下定位」，可结果条目不带节点 id（`StudioOperatorResultEntry`），
+ *   画布的 `focusNode` 只活在 `NodeWorkbenchV4` 里、手机档还直接不动 —— 标 true 就是一颗点了没反应
+ *   的死按钮。等结果条目带上节点 id、画布对外给出定位入口再翻。
+ */
+const DOMAIN_RESULTS_ON_STAGE: Readonly<
+  Record<AssistantOperatorDomain, boolean>
+> = {
+  [ASSISTANT_PROTOCOL_DOMAIN_IDS.image]: true,
+  [ASSISTANT_PROTOCOL_DOMAIN_IDS.video]: true,
+  [ASSISTANT_PROTOCOL_DOMAIN_IDS.lora]: true,
+  [ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas]: false,
+  [ASSISTANT_PROTOCOL_DOMAIN_IDS.cards]: false,
+  [ASSISTANT_PROTOCOL_DOMAIN_IDS.home]: false,
+}
+
+/**
  * 拼出这个宿主那张脸。
  *
  * @param domain 这个宿主此刻在哪个域（⚠ 工作台会随模态在 image / video 间变）。
@@ -75,6 +93,7 @@ export function useStudioOperatorFace(
       emptyLine: t(`face.${domain}.empty`),
       inputPlaceholder: t(`face.${domain}.placeholder`),
       specLine: DOMAIN_SPEC_LINE[domain],
+      resultsOnStage: DOMAIN_RESULTS_ON_STAGE[domain],
     }),
     [contextLine, domain, t],
   )

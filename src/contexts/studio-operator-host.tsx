@@ -98,6 +98,11 @@ export interface StudioOperatorFace {
    * 那一行说的是「台上此刻怎么出」，没台就是噪音；首页出图的型号 / 比例在生成卡上照样能改。
    */
   specLine: boolean
+  /**
+   * 出的图摆在舞台上（工作台 / 画布，owner 11-18）：对话里只留一行引用（小缩略图 +「已出图，在右边」，
+   * 点一下定位舞台上那张），⛔ 不再整张再画一遍。没有舞台的宿主（首页 / 角色页）照旧在对话里出整张。
+   */
+  resultsOnStage: boolean
 }
 
 /** 宿主自己带进 `@` 菜单的那几组（见 `StudioOperatorHost.mentions`）。 */

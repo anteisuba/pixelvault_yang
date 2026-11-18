@@ -81,7 +81,8 @@ export function isRelayStop(event: AssistantOperatorEvent | null): boolean {
   return (
     event?.type === ASSISTANT_OPERATOR_EVENTS.stopped &&
     (event.reason === ASSISTANT_OPERATOR_STOP_REASONS.timeBudget ||
-      event.reason === ASSISTANT_OPERATOR_STOP_REASONS.canvasSync)
+      event.reason === ASSISTANT_OPERATOR_STOP_REASONS.canvasSync ||
+      event.reason === ASSISTANT_OPERATOR_STOP_REASONS.benchSync)
   )
 }
 

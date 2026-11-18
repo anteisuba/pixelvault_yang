@@ -7,6 +7,7 @@ import {
 import {
   ASSISTANT_OPERATOR_EVENTS,
   ASSISTANT_OPERATOR_LIMITS,
+  ASSISTANT_OPERATOR_STEP_STATUS_IDS,
   ASSISTANT_OPERATOR_TOOL_IDS,
 } from '@/constants/assistant-operator'
 import {
@@ -107,6 +108,12 @@ import {
   imageBenchPriceLine,
   renderImageBenchNow,
 } from '@/features/assistant/bench-state'
+import {
+  isBenchReadbackStep,
+  readBackBench,
+  toBenchReadbackRequest,
+  type BenchReadbackRequest,
+} from '@/features/assistant/bench-readback'
 import { renderLibraryView } from '@/features/assistant/library-view'
 import { renderVoiceBenchView } from '@/features/assistant/voice-bench-view'
 import {
@@ -237,6 +244,11 @@ export interface BenchResult {
   readonly canvas?: CanvasBatch
   /** 开台（第 9e 步）：去哪。循环存好这一跳、停在 `bench_open`，到了新台再补结果。 */
   readonly opening?: BenchOpening
+  /**
+   * 工作台：这次 edit 交给浏览器落到表单上的那几格（`bench-readback.ts`）。循环存好这一跳、停在
+   * `bench_sync`，下一跳按落下之后的真实快照读回再补结果。⛔ 别当场按服务端那份说「改好了」。
+   */
+  readonly readback?: readonly BenchReadbackRequest[]
 }
 
 /** 附图全名（`图_1553·masterpi`）和模型写的名字是不是同一张：全名一样，或只写了「·」前的编号。 */
@@ -1081,9 +1093,37 @@ async function* applyChange(
   )
 }
 
+/** 有表单可读回的那几张脸（画布有自己的 `canvas_sync`，角色页 / 首页聊天没有表单）。 */
+const READBACK_FACES: ReadonlySet<string> = new Set([
+  ASSISTANT_V3_FACE_IDS.image,
+  ASSISTANT_V3_FACE_IDS.video,
+  ASSISTANT_V3_FACE_IDS.lora,
+])
+
+/** 原样转发一段步骤流，顺手记下交给浏览器落表单的那几步（读回用）。 */
+async function* tapReadback<T>(
+  steps: AsyncGenerator<AssistantOperatorEvent, T>,
+  into: BenchReadbackRequest[],
+): AsyncGenerator<AssistantOperatorEvent, T> {
+  for (;;) {
+    const next = await steps.next()
+    if (next.done) return next.value
+    const event = next.value
+    if (
+      event.type === ASSISTANT_OPERATOR_EVENTS.step &&
+      event.step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done &&
+      isBenchReadbackStep(event.step)
+    )
+      into.push(toBenchReadbackRequest(event.step))
+    yield event
+  }
+}
+
 /**
  * edit：按顺序一条一条落，每条当场就有结果；一条不成不拦后面的（各自说清哪一条怎么了）。
  * 停在卡上（角色页的提议卡、LoRA 台的搭配卡等）就不再往下。
+ * ⭐ 工作台上交给浏览器落表单的那几格记进 `readback`：循环停在 `bench_sync`，下一跳按落下之后的
+ *   真实快照读回（`bench-readback.ts`），⛔ 这里不替表单说「现在是什么样」。
  */
 export async function* runEdit(
   context: V3Context,
@@ -1091,6 +1131,12 @@ export async function* runEdit(
 ): AsyncGenerator<AssistantOperatorEvent, BenchResult> {
   if (context.face === ASSISTANT_V3_FACE_IDS.canvas)
     return yield* runCanvasEdit(context, changes)
+  const readback: BenchReadbackRequest[] = []
+  const tapping = READBACK_FACES.has(context.face)
+  const apply = (change: EditChange, partner?: EditChange) =>
+    tapping
+      ? tapReadback(applyChange(context, change, partner), readback)
+      : applyChange(context, change, partner)
   const lines: string[] = []
   let failed = 0
   let total = 0
@@ -1098,13 +1144,18 @@ export async function* runEdit(
     const label = `${at + 1}. ${change.op}${partner ? ` + ${partner.key ?? ''}` : ''}`
     if (change.op !== OP.applyRecipe) {
       total += 1
-      const result = yield* applyChange(context, change, partner)
+      const result = yield* apply(change, partner)
       if (result.error) failed += 1
       lines.push(
         `${label} — ${result.error ? 'not done: ' : ''}${result.output}`,
       )
       if (result.stop)
-        return { output: lines.join('\n'), error: false, stop: true }
+        return {
+          output: lines.join('\n'),
+          error: false,
+          stop: true,
+          ...(readback.length ? { readback } : {}),
+        }
       continue
     }
     if (!opsOf(context).includes(OP.applyRecipe)) {
@@ -1125,7 +1176,7 @@ export async function* runEdit(
     lines.push(`${label} ${recipe.tag}:`)
     for (const { change: part, partner } of pairLoraSize(recipe.changes)) {
       total += 1
-      const result = yield* applyChange(context, part, partner)
+      const result = yield* apply(part, partner)
       if (result.error) failed += 1
       lines.push(
         `   · ${part.op} — ${result.error ? 'not done: ' : ''}${result.output}`,
@@ -1136,17 +1187,44 @@ export async function* runEdit(
     if (recipe.changes.length === 0 && recipe.notes.length === 0)
       lines.push('   · nothing to change: the bench already matches.')
   }
-  // 图片台 / 标签台：回执末尾写落下之后的真值与价钱；有没落成的先点名（11-17 真机）。
-  if (context.face === ASSISTANT_V3_FACE_IDS.image) {
-    if (failed > 0)
-      lines.unshift(
-        `NOT everything landed: ${failed} of ${total} change${total === 1 ? '' : 's'} did not happen (lines marked "not done" below). Tell the creator which ones did not change and why; never say they did.`,
-      )
+  // 图片台 / 标签台：有没落成的先点名（11-17 真机）。
+  if (context.face === ASSISTANT_V3_FACE_IDS.image && failed > 0)
+    lines.unshift(
+      `NOT everything landed: ${failed} of ${total} change${total === 1 ? '' : 's'} did not happen (lines marked "not done" below). Tell the creator which ones did not change and why; never say they did.`,
+    )
+  // 交给浏览器落表单的：「现在是什么样」等下一跳按真实快照读回（循环停在 `bench_sync`）。
+  if (readback.length)
+    return {
+      output: lines.join('\n'),
+      error: total > 0 && failed === total,
+      readback,
+    }
+  // 一格表单都没动（全被拒 / 只改了库）：台上就是这一跳的快照，当场写。
+  if (context.face === ASSISTANT_V3_FACE_IDS.image)
     lines.push(
       renderImageBenchNow(context.prepared.run.state, context.request.snapshot),
     )
-  }
   return { output: lines.join('\n'), error: total > 0 && failed === total }
+}
+
+/**
+ * `bench_sync` 下一跳补上的那一段：按落下之后的真实快照读回（实际值、对不上的原因），图片台再写
+ * 「BENCH NOW」与价钱（`run.state` 这一跳由新快照起的，就是表单此刻的样子）。
+ */
+export function benchReadbackOutput(
+  context: V3Context,
+  requested: readonly BenchReadbackRequest[],
+): { output: string; mismatched: number } {
+  const read = readBackBench({
+    requested,
+    snapshot: context.request.snapshot,
+    priorSteps: context.request.priorSteps ?? [],
+  })
+  const now =
+    context.face === ASSISTANT_V3_FACE_IDS.image
+      ? `\n${renderImageBenchNow(context.prepared.run.state, context.request.snapshot)}`
+      : ''
+  return { output: `${read.text}${now}`, mismatched: read.mismatched }
 }
 
 /**

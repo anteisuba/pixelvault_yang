@@ -39,6 +39,7 @@ import {
   IMAGE_SNAPSHOT,
   imageRequest,
   kernelUser,
+  landedRequest,
   relayOf,
   payloadOf,
   stepsOf,
@@ -199,41 +200,66 @@ describe('新内核主循环', () => {
     expect(events.some((event) => event.type === 'thought')).toBe(false)
   })
 
-  it('改提示词：落一步，结果接回给模型，模型说完收尾；过程记录落一行', async () => {
+  it('改提示词：落一步就停下等浏览器落（bench_sync）；落完那一跳带读回接给模型，模型说完收尾', async () => {
     fakeModels.main = scriptedModel([
       toolTurn(editPrompt),
       textTurn('改好了。'),
     ])
-    const events = await run(imageRequest('把女孩换成男孩'))
-    const steps = stepsOf(events)
+    const request = imageRequest('把女孩换成男孩')
+    const hop1 = await run(request)
+    const steps = stepsOf(hop1)
     expect(steps.map((step) => [step.tool, step.status])).toEqual([
       ['set_prompt', 'running'],
       ['set_prompt', 'done'],
     ])
     expect(JSON.stringify(payloadOf(steps[1]!))).toContain('a boy in a garden')
-    // 每次调用开口那一刻收一帧思考秒数（10-27）：工具调用前一帧、说话前一帧。
-    expect(events.map((event) => event.type)).toEqual([
+    // ⭐ 11-18 改完读回：改了表单就交接力条停下，⛔ 不当场按服务端那份说「改好了」。
+    expect(hop1.map((event) => event.type)).toEqual([
       'thinking',
       'step',
       'step',
-      'thinking',
-      'message_delta',
-      'message',
-      'done',
+      'transcript',
+      'stopped',
     ])
+    expect(hop1.at(-1)).toMatchObject({ reason: 'bench_sync' })
+    expect(fakeModels.main.doStreamCalls).toHaveLength(1)
+
+    const hop2 = await run(
+      landedRequest(hop1, request, { prompt: 'a boy in a garden' }),
+    )
+    expect(hop2.at(-1)).toMatchObject({ type: 'done' })
     const calls = fakeModels.main.doStreamCalls
     expect(calls).toHaveLength(2)
-    // 第二次调用：前一步的整段回复原样在前，工具结果接在后面。
+    // 第二次调用：前一步的整段回复原样在前，工具结果（含读回）接在后面。
     expect(calls[1]!.prompt.map((message) => message.role)).toEqual([
       'system',
       'user',
       'assistant',
       'tool',
     ])
-    expect(promptOf(calls[1]!)).toContain('1. prompt —')
-    const [record] = await turnRecords(user.id)
-    expect(record).toMatchObject({ outcome: 'done', hops: 1 })
-    expect(record!.promptVersion).toMatch(/^next-/)
+    const sent = promptOf(calls[1]!)
+    expect(sent).toContain('1. prompt —')
+    expect(sent).toContain('READ BACK FROM THE BENCH')
+    expect(sent).toContain('everything landed as requested')
+    const records = await turnRecords(user.id, (rows) =>
+      rows.some((row) => row.hops === 2),
+    )
+    expect(records[0]).toMatchObject({ outcome: 'done', hops: 2 })
+    expect(records[0]!.promptVersion).toMatch(/^next-/)
+  })
+
+  it('⭐ 落完台上没变（11-18 真机 16:9 → 仍 1:1）：读回写「请求 X，实际 Y」，⛔ 不说改好了', async () => {
+    fakeModels.main = scriptedModel([
+      toolTurn(editPrompt),
+      textTurn('没改成。'),
+    ])
+    const request = imageRequest('把女孩换成男孩')
+    const hop1 = await run(request)
+    // 浏览器那头落下之后，表单上的提示词还是原样。
+    await run(landedRequest(hop1, request))
+    const sent = promptOf(fakeModels.main.doStreamCalls[1]!)
+    expect(sent).toMatch(/prompt: NOT CHANGED AS ASKED — requested .*boy/)
+    expect(sent).toContain('actually a girl in a garden')
   })
 
   it('出图：只出确认卡、停下等创作者（钱闸不变）', async () => {
@@ -284,7 +310,11 @@ describe('新内核主循环', () => {
     expect(promptOf(fakeModels.main.doStreamCalls[1]!)).toContain(
       'changes.0.op',
     )
-    expect(events.at(-1)).toMatchObject({ type: 'done' })
+    // 改对了那一次落了表单 → 停下等浏览器落（读回见上一条）。
+    expect(events.at(-1)).toMatchObject({
+      type: 'stopped',
+      reason: 'bench_sync',
+    })
   })
 
   it('同一调用失败后原样再来、中间没做成任何一步：不跑，告诉模型别再试（软拦，不断回合）', async () => {
@@ -309,7 +339,10 @@ describe('新内核主循环', () => {
       toolTurn({ id: 'bad2', name: 'edit', input: bad }),
       textTurn('好了。'),
     ])
-    await run(imageRequest('改一下'))
+    const request = imageRequest('改一下')
+    const hop1 = await run(request)
+    // 做成的那一步落了表单 → 停一跳等浏览器落，再接着跑。
+    await run(landedRequest(hop1, request, { prompt: 'a boy in a garden' }))
     expect(promptOf(fakeModels.main.doStreamCalls[3]!)).not.toContain(
       'Not run: you made this exact call already',
     )
@@ -341,7 +374,10 @@ describe('新内核主循环', () => {
     )
     expect(results).toHaveLength(1)
     expect(JSON.stringify(results)).toContain('not a valid JSON object')
-    expect(events.at(-1)).toMatchObject({ type: 'done' })
+    expect(events.at(-1)).toMatchObject({
+      type: 'stopped',
+      reason: 'bench_sync',
+    })
   })
 
   /** 这一次调用报 `inputTokens` 这么多（假模型默认只报 10）。 */
@@ -376,14 +412,20 @@ describe('新内核主循环', () => {
       costing(toolTurn(editPrompt), 1_000_000),
       textTurn('不该走到这里。'),
     ])
-    const events = await run(imageRequest('把女孩换成男孩'))
+    const request = imageRequest('把女孩换成男孩')
+    const hop1 = await run(request)
+    // 改了表单先停一跳等浏览器落（11-18）；落完那一跳在调模型之前就撞上限。
+    expect(hop1.at(-1)).toMatchObject({ reason: 'bench_sync' })
+    const events = await run(
+      landedRequest(hop1, request, { prompt: 'a boy in a garden' }),
+    )
     expect(events.at(-1)).toMatchObject({
       type: 'stopped',
       reason: 'token_budget',
     })
     expect(fakeModels.main.doStreamCalls).toHaveLength(1)
     // 已经做完的那一步留着。
-    expect(stepsOf(events).some((step) => step.status === 'done')).toBe(true)
+    expect(stepsOf(hop1).some((step) => step.status === 'done')).toBe(true)
     const records = await turnRecords(user.id, (rows) =>
       rows.some((row) => row.outcome === 'token_budget'),
     )
@@ -392,18 +434,28 @@ describe('新内核主循环', () => {
 
   it('接力的各跳算同一轮：上一跳用掉的 token 跟着接力条带过去', async () => {
     fakeModels.main = scriptedModel([costing(toolTurn(editPrompt), 600_000)])
-    const hop1 = await run(imageRequest('把女孩换成男孩'), SOFT_NOW)
+    const request = imageRequest('把女孩换成男孩')
+    const hop1 = await run(request, SOFT_NOW)
+    // 改了表单那一步先停在 bench_sync（11-18），一样是接力。
     expect(hop1.at(-1)).toMatchObject({
       type: 'stopped',
-      reason: 'time_budget',
+      reason: 'bench_sync',
     })
 
     fakeModels.main = scriptedModel([
-      costing(toolTurn({ ...editPrompt, id: 'call_2' }), 600_000),
+      // 这一跳的调用不落表单（读不懂的入参），走完它才轮到下一步之前那道上限。
+      costing(
+        toolTurn({
+          id: 'call_2',
+          name: 'edit',
+          input: { changes: [{ op: 'paint' }] },
+        }),
+        600_000,
+      ),
       textTurn('不该走到这里。'),
     ])
     const hop2 = await run(
-      imageRequest('把女孩换成男孩', { v3: { transcript: relayOf(hop1) } }),
+      landedRequest(hop1, request, { prompt: 'a boy in a garden' }),
     )
     expect(hop2.at(-1)).toMatchObject({
       type: 'stopped',
@@ -413,7 +465,14 @@ describe('新内核主循环', () => {
   })
 
   it('过了软线：存好这一轮、交接力条；下一次请求从原处接着跑', async () => {
-    fakeModels.main = scriptedModel([toolTurn(editPrompt)])
+    // ⚠ 用一次不落表单的调用（读不懂的入参）：落表单的 edit 会先停在 bench_sync（11-18）。
+    fakeModels.main = scriptedModel([
+      toolTurn({
+        id: 'bad',
+        name: 'edit',
+        input: { changes: [{ op: 'paint' }] },
+      }),
+    ])
     const hop1 = await run(imageRequest('把女孩换成男孩'), SOFT_NOW)
     expect(hop1.at(-1)).toMatchObject({
       type: 'stopped',

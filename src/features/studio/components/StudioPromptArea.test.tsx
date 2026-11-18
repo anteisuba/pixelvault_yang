@@ -91,6 +91,7 @@ const EMPTY_OPERATOR_HOST: StudioOperatorHost = {
     emptyLine: '',
     inputPlaceholder: '',
     specLine: true,
+    resultsOnStage: true,
   },
   buildSnapshot: () => ({ prompt: '', availableModels: [] }),
   results: [],

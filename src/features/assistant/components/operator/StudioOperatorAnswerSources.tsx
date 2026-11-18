@@ -322,7 +322,8 @@ export function StudioOperatorAnswerSources({
             <DropdownMenuContent
               side="top"
               align="end"
-              className="w-44 rounded-xl border-assistant-line-strong p-1.5 assistant-glass-overlay shadow-assistant-overlay"
+              // 浮层实底（ui-spec「浮层 · 菜单」）：用 DropdownMenuContent 自带的底色 / 圆角 / 阴影。
+              className="w-44"
             >
               {onDeepResearch ? (
                 <DropdownMenuItem

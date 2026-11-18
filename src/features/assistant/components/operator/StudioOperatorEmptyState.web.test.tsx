@@ -28,6 +28,7 @@ const FACE: StudioOperatorFace = {
   emptyLine: '说你想要的画面，我来写提示词、挑模型、配参考。',
   inputPlaceholder: '描述画面，或把参考图挂进来…',
   specLine: true,
+  resultsOnStage: false,
 }
 
 function renderEmpty(

@@ -20,19 +20,20 @@
  * 确认 / 取消之后卡**留在原地**换成「已确认 · 11:24」/「已取消 · 11:22」。
  * 理由：它是这一轮里的一次决定，抹掉它等于时间线上少了一段因果。
  *
- * ── 四颗旋钮：就地可换（#9 / §5.1）────────────────────────────────
- * ⭐ **卡自己不存任何一份参数**（§5.2「工作台是真值，卡是它的一个可编辑视图」）：
- * 读数来自宿主现算的 `controls`，改一下立刻经 `onAdjust` 写回工作台，下一帧
- * `controls` 自己变过来。⛔ 别为「点下去要立刻看见」加一个乐观 `useState` ——
- * 那就是卡自己攒一份参数，而 §5.2 那段「为什么立刻写回」讲的正是它的下场。
- * ⚠ 宿主不给 `controls` 时（LoRA 装配台）退回**只读读数**，⛔ 不摆一颗点了没
- * 反应的下拉（那比不摆更坏）。
- * ⚠ 某颗旋钮的候选表为空 = 这个模型没有它（视频档大量如此），那一颗**不画**。
+ * ── 只做摘要：「要改什么：旧值 → 新值」（owner 11-18）──────────────────
+ * 同一个值以前有三处能改（工作台 / 跟她说 / 卡上的旋钮下拉），卡上那一处删掉：卡只列这一枪
+ * 要用的几格，这一轮助手动过的写「旧值 → 新值」（旧值 = `origins`，第一次动之前的值），
+ * 没动过的只写现值；底下只有「确认 / 取消」。要改就在工作台上改，或者跟她说。
+ * ⭐ 新值一律读宿主现算的 `controls`（工作台是真值），⛔ 卡上不存一份参数。
+ * ⚠ 宿主不给 `controls` 时（LoRA 装配台）回落到 `request` 那份读数。
+ * ⚠ 某颗的候选表为空 = 这个模型没有它（视频档大量如此），那一行**不画**。
+ * ⚠ 首页那份小配方（没开台）：提示词与参考图只读摆出来，「去图片台接着改」留着（那是去
+ *   完整表单的唯一入口，不是改值的控件）；型号没配 key 时按「确认」先就地配（Hard Rule 8）。
  */
 
 import { useState } from 'react'
 import Image from 'next/image'
-import { Check, ChevronDown, ChevronUp, Plus, X } from '@/components/icons'
+import { ArrowRight } from '@/components/icons'
 import { motion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
@@ -45,18 +46,12 @@ import {
   STUDIO_OPERATOR_GENERATE_KNOB_IDS,
   type StudioOperatorGenerateKnob,
 } from '@/constants/studio-assistant-operator'
-import {
-  ResponsivePopover,
-  ResponsivePopoverContent,
-  ResponsivePopoverTrigger,
-} from '@/components/ui/responsive-popover'
-import { SearchGroundingSlot } from '@/components/business/studio-shared/search-grounding/SearchGroundingSlot'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 import type { StudioOperatorSearchGroundingControl } from '@/contexts/studio-operator-host'
 import { BlurSwap, useBlurSwapIn } from '@/components/ui/blur-swap'
 import { Spinner } from '@/components/ui/spinner'
-import { Textarea } from '@/components/ui/textarea'
 import { getTranslatedModelLabel } from '@/lib/model-options'
+import type { StudioOperatorKnobOrigins } from '@/lib/studio-operator-confirm-origins'
 import {
   buildCanvasGenerationRequest,
   type CanvasNodeGenerationState,
@@ -108,27 +103,20 @@ interface StudioOperatorConfirmCardProps {
   /** 「已确认 · 11:24」里那个时刻怎么写 —— 面板给（`useFormatter` 在那一层）。 */
   formatTime(iso: string): string
   /**
-   * 四颗旋钮的**真值视图**（§5.2）。缺席 = 这个宿主上它们是只读读数。
+   * 几格的**真值**（§5.2，宿主现算）。缺席 = 回落到 `request` 那份读数。
    */
   controls?: StudioOperatorGenerationControls
+  /** 这一轮助手动过的那几颗、动之前是什么（「旧值 → 新值」的旧值）。 */
+  origins?: StudioOperatorKnobOrigins
   canGenerate?: boolean
   canvasState?: CanvasNodeGenerationState | null
   /**
-   * 就地换一颗（§5.2 第二行）—— 返回换模型顺手回落掉的那几颗，卡据此写
-   * 「已按 X 调整」那一行（§5.1）。
-   */
-  onAdjust?(
-    knob: StudioOperatorGenerateKnob,
-    value: string,
-  ): readonly StudioOperatorGenerateKnob[]
-  /**
-   * 「先搜再画」—— 就是图片台那一份开关（B 定稿）。缺席 = 这个宿主没有这一颗；
-   * 画布那一枪（`canvasNode`）不走这里（那是卡自己的参数）。
+   * 「先搜再画」—— 只读：开着就在摘要里写一格（开关在工作台上）。画布那一枪不走这里。
    */
   searchGrounding?: StudioOperatorSearchGroundingControl
   /**
-   * 首页那份小配方（第 9g 步）：没开台时提示词与参考图也在卡上改，外加「去图片台接着改」；
-   * 型号没配 key 时按「出图」先就地配。缺席 = 台开着，卡照旧只有旋钮。
+   * 首页那份小配方（第 9g 步）：没开台时提示词与参考图只读摆出来，外加「去图片台接着改」；
+   * 型号没配 key 时按「确认」先就地配。缺席 = 台开着。
    */
   draft?: StudioOperatorGenerationDraft
 }
@@ -155,8 +143,8 @@ export function StudioOperatorConfirmCard({
   onRetry,
   formatTime,
   controls,
+  origins = {},
   canGenerate = true,
-  onAdjust,
   searchGrounding,
   draft,
 }: StudioOperatorConfirmCardProps) {
@@ -166,20 +154,6 @@ export function StudioOperatorConfirmCard({
   const tCards = useTranslations('ContextCards')
   /** 模型显示名与模型选择器同一张词表（`Models.<key>.label`）。 */
   const tModels = useTranslations('Models')
-  /**
-   * 哪一颗的下拉开着 —— 一次只开一颗（画板「模型下拉展开」那一张）。
-   * ⚠ 这是**弹层开合**，不是参数：参数一个字都不住在卡里（见文件头注）。
-   */
-  const [openKnob, setOpenKnob] = useState<StudioOperatorGenerateKnob | null>(
-    // 失败行「换个模型」出的卡：模型那颗一出来就展开（P4 第 2 项）。
-    confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate
-      ? (confirm.openKnob ?? null)
-      : null,
-  )
-  /** 上一次换模型顺手回落掉的那几颗（§5.1「已按 X 调整」那一行）。 */
-  const [adjusted, setAdjusted] = useState<
-    readonly StudioOperatorGenerateKnob[]
-  >([])
   /** 首页那份配方的型号没配 key：按「出图」先弹这一窗（Hard Rule 8）。 */
   const [keySetupOpen, setKeySetupOpen] = useState(false)
   const decided =
@@ -243,10 +217,29 @@ export function StudioOperatorConfirmCard({
   const canvasNode = generate?.request.canvasNode
   /** 首页那份小配方只管工作台那一枪；画布那一枪是卡自己的参数。 */
   const homeDraft = generate && !canvasNode ? (draft ?? null) : null
-  /** 工作台那一枪才有这一颗；模型不支持时按钮与槽一起收（宽 / 高 → 0）。 */
-  const searchAvailable =
-    Boolean(generate && !canvasNode && searchGrounding?.available) && !busy
-  const searchOn = searchAvailable && Boolean(searchGrounding?.on)
+  /** 工作台那一枪才有这一格；开着才写（开关在工作台上，卡上只读）。 */
+  const searchOn = Boolean(
+    generate && !canvasNode && searchGrounding?.available && searchGrounding.on,
+  )
+  /** 旧值的显示名：没设写「模型默认」，模型按工作台的模型表 / 词表翻，张数写「N 张」。 */
+  const originLabel = (
+    knob: StudioOperatorGenerateKnob,
+    value: string | null,
+  ) =>
+    value === null
+      ? t('confirm.generate.modelDefault')
+      : knob === STUDIO_OPERATOR_GENERATE_KNOB_IDS.model
+        ? (controls?.models.find((model) => model.id === value)?.label ??
+          getTranslatedModelLabel(tModels, value))
+        : knob === STUDIO_OPERATOR_GENERATE_KNOB_IDS.count
+          ? countLabel(Number(value))
+          : value
+  /** 这一颗这一轮动过、且现值与动之前不一样：返回旧值的显示名；否则 `null`（只写现值）。 */
+  const fromOf = (knob: KnobSpec): string | null => {
+    if (!(knob.id in origins)) return null
+    const origin = origins[knob.id] ?? null
+    return origin === knob.current ? null : originLabel(knob.id, origin)
+  }
   /**
    * ⚠ 读数空的也不画（2026-09-12 实测第 5 步）：该模型有清晰度档、而工作台那一格
    * 还没有值时，一颗什么都没写的旋钮比没有这颗旋钮更难读（判据在
@@ -339,16 +332,6 @@ export function StudioOperatorConfirmCard({
           : []),
       ]
     : []
-
-  /**
-   * 点中一项 —— **立刻写回工作台**（§5.2 第二行），⛔ 卡上不留一份乐观值。
-   * 换模型返回回落掉的那几颗；换别的返回空数组，那句「已按 X 调整」顺手清掉
-   * （用户已经自己接管了那一格）。
-   */
-  const pick = (knob: StudioOperatorGenerateKnob, value: string) => {
-    setOpenKnob(null)
-    setAdjusted(onAdjust?.(knob, value) ?? [])
-  }
 
   return (
     <section
@@ -510,24 +493,21 @@ export function StudioOperatorConfirmCard({
               {t('confirm.multistep.stoppable')}
             </p>
           ) : (
-            /* ⭐ 四颗旋钮就地可换（§5.1）—— 候选表空的那一颗**不画**（这个模型
-               没有它）。⛔ 不摆一颗点了没反应的下拉，那比不摆更坏。 */
+            /* ⭐ 只读摘要（owner 11-18）：一行一格「名 · 旧值 → 新值」，这一轮没动过的只写现值。
+               ⛔ 不摆下拉 / 输入框 —— 要改去工作台上改，或者跟她说。 */
             <div className="flex flex-col gap-1 px-3 py-2">
               {homeDraft ? (
                 <div
                   data-testid="operator-confirm-draft"
                   className="mb-1 flex flex-col gap-1.5"
                 >
-                  <Textarea
+                  <p
                     data-testid="operator-confirm-draft-prompt"
                     aria-label={t('confirm.generate.prompt')}
-                    value={homeDraft.prompt}
-                    disabled={busy}
-                    onChange={(event) =>
-                      homeDraft.setPrompt(event.target.value)
-                    }
-                    className="max-h-40 min-h-16"
-                  />
+                    className="line-clamp-4 whitespace-pre-wrap text-2sm leading-relaxed text-foreground"
+                  >
+                    {homeDraft.prompt}
+                  </p>
                   {homeDraft.references.length > 0 ? (
                     <div className="flex flex-wrap gap-1.5">
                       {homeDraft.references.map((reference) => (
@@ -544,18 +524,6 @@ export function StudioOperatorConfirmCard({
                             unoptimized
                             className="object-cover"
                           />
-                          <button
-                            type="button"
-                            data-testid="operator-confirm-draft-reference-remove"
-                            aria-label={t('confirm.generate.removeReference')}
-                            disabled={busy}
-                            onClick={() =>
-                              homeDraft.removeReference(reference.url)
-                            }
-                            className="absolute right-0.5 top-0.5 flex size-4 items-center justify-center rounded-full bg-foreground/70 text-background transition-colors duration-fast ease-standard hover:bg-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none"
-                          >
-                            <X className="size-2.5" aria-hidden />
-                          </button>
                         </div>
                       ))}
                     </div>
@@ -574,112 +542,40 @@ export function StudioOperatorConfirmCard({
                         : knob.id
                     }`,
                   )
-                  if (knob.options.length === 0) {
-                    return (
-                      <div
-                        key={knob.id}
-                        data-testid="operator-confirm-knob"
-                        data-knob={knob.id}
-                        className="flex items-center gap-1 rounded-md border border-border bg-muted px-2.5 py-1"
-                      >
-                        <span className="sr-only">{label}</span>
-                        <span className="text-2sm text-foreground">
-                          {knob.value}
-                        </span>
-                      </div>
-                    )
-                  }
-                  const open = openKnob === knob.id
+                  const from = fromOf(knob)
                   return (
-                    <ResponsivePopover
+                    <div
                       key={knob.id}
-                      open={open}
-                      onOpenChange={(next) =>
-                        setOpenKnob(next ? knob.id : null)
-                      }
+                      data-testid="operator-confirm-knob"
+                      data-knob={knob.id}
+                      data-changed={from !== null || undefined}
+                      className="flex min-w-0 items-center gap-1.5 rounded-md border border-border bg-muted px-2.5 py-1 text-2sm"
                     >
-                      <ResponsivePopoverTrigger asChild>
-                        <button
-                          type="button"
-                          data-testid="operator-confirm-knob"
-                          data-knob={knob.id}
-                          data-open={open || undefined}
-                          disabled={busy}
-                          aria-label={label}
-                          className={cn(
-                            'flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-2sm transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none',
-                            open
-                              ? 'border-foreground bg-foreground font-medium text-background'
-                              : 'border-border bg-muted text-foreground hover:bg-accent',
-                          )}
-                        >
-                          {/* 调了一档：值糊着换（工作台那一格同时由光标走过去闪一下）。 */}
-                          <BlurSwap
-                            swapKey={knob.value}
-                            className="max-w-40 truncate"
+                      <span className="shrink-0 text-muted-foreground">
+                        {label}
+                      </span>
+                      {from !== null ? (
+                        <>
+                          <span
+                            data-testid="operator-confirm-knob-from"
+                            className="max-w-40 truncate text-muted-foreground"
                           >
-                            {knob.value}
-                          </BlurSwap>
-                          {open ? (
-                            <ChevronUp
-                              className="size-3 shrink-0"
-                              aria-hidden
-                            />
-                          ) : (
-                            <ChevronDown
-                              className="size-3 shrink-0 text-muted-foreground"
-                              aria-hidden
-                            />
-                          )}
-                        </button>
-                      </ResponsivePopoverTrigger>
-                      <ResponsivePopoverContent
-                        /* ⚠ 向**上**弹（D12 C7 根因）：往下弹会正好盖住「确认生成 /
-                           先不要」那一行 —— 菜单开着时去点「先不要」，点中的是被盖在
-                           下面的那一项（真机：模型被换成列表第一项、规格跟着回落，
-                           还记成「你在确认卡上改的」）。 */
-                        side="top"
-                        align="start"
-                        label={label}
-                        className="w-60 p-0"
-                        mobileClassName="px-0"
+                            {from}
+                          </span>
+                          <ArrowRight
+                            className="size-3 shrink-0 text-muted-foreground"
+                            aria-hidden
+                          />
+                        </>
+                      ) : null}
+                      {/* 工作台那一格变了（创作者或她改的）：值糊着换。 */}
+                      <BlurSwap
+                        swapKey={knob.value}
+                        className="max-w-40 truncate text-foreground"
                       >
-                        <div
-                          role="menu"
-                          aria-label={label}
-                          data-testid="operator-confirm-knob-menu"
-                          data-knob={knob.id}
-                          className="flex max-h-72 flex-col gap-0.5 overflow-y-auto p-1.5"
-                        >
-                          {knob.options.map((option) => {
-                            const active = option.value === knob.current
-                            return (
-                              <button
-                                key={option.value}
-                                type="button"
-                                role="menuitemradio"
-                                aria-checked={active}
-                                data-testid="operator-confirm-knob-option"
-                                data-value={option.value}
-                                onClick={() => pick(knob.id, option.value)}
-                                className={cn(
-                                  'flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-2sm text-foreground transition-colors duration-fast ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                                  active && 'bg-muted font-medium',
-                                )}
-                              >
-                                <span className="truncate">{option.label}</span>
-                                {active ? (
-                                  <Check
-                                    className="size-3.5 shrink-0 text-foreground"
-                                    aria-hidden
-                                  />
-                                ) : null}
-                              </button>
-                            )
-                          })}
-                        </div>
-                      </ResponsivePopoverContent>
-                    </ResponsivePopover>
+                        {knob.value}
+                      </BlurSwap>
+                    </div>
                   )
                 })}
                 {extraSpecs.map((spec) => (
@@ -692,64 +588,19 @@ export function StudioOperatorConfirmCard({
                     <span className="text-foreground">{spec.value}</span>
                   </div>
                 ))}
-                {/* 「＋ 先搜再画」：开了就让位给下面那道虚线槽（B 定稿）。 */}
-                {generate && !canvasNode && searchGrounding ? (
-                  <span
-                    data-open={searchAvailable && !searchOn ? 'true' : 'false'}
-                    aria-hidden={!(searchAvailable && !searchOn)}
-                    inert={!(searchAvailable && !searchOn)}
-                    className={cn(
-                      'search-sources-slot shrink-0',
-                      !(searchAvailable && !searchOn) && '-ml-1.5',
-                    )}
+                {/* 「先搜再画」开着：只读写一格（开关在工作台上）。 */}
+                {searchOn ? (
+                  <div
+                    data-testid="operator-confirm-search-grounding"
+                    className="flex items-center rounded-md border border-border bg-muted px-2.5 py-1 text-2sm text-foreground"
                   >
-                    <span className="-m-0.5 flex p-0.5">
-                      <button
-                        type="button"
-                        data-testid="operator-confirm-search-grounding"
-                        onClick={() => searchGrounding.setOn(true)}
-                        className="flex items-center gap-1.5 rounded-md border border-dashed border-border bg-card px-2.5 py-1 text-2sm whitespace-nowrap text-muted-foreground transition-colors duration-fast ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      >
-                        <Plus className="size-3.5" aria-hidden />
-                        {tSearch('toggle')}
-                      </button>
-                    </span>
-                  </span>
+                    {tSearch('toggle')}
+                  </div>
                 ) : null}
               </div>
-              {generate && !canvasNode && searchGrounding ? (
-                <SearchGroundingSlot
-                  open={searchOn}
-                  stacked
-                  description={tSearch('slotConfirm')}
-                  onTurnOff={() => searchGrounding.setOn(false)}
-                  className="mt-1"
-                />
-              ) : null}
               {canvasState !== undefined && !canvasState?.model ? (
                 <p className="text-2xs text-muted-foreground">
                   {t('confirm.generate.nodeUnavailable')}
-                </p>
-              ) : null}
-              {/* ⚠ 换模型让别的值不合法时**就地说一句**，⛔ 不弹二次确认（§5.1）。 */}
-              {adjusted.length > 0 ? (
-                <p
-                  data-testid="operator-confirm-adjusted"
-                  className="text-2xs text-muted-foreground"
-                >
-                  {t('confirm.generate.adjusted', {
-                    fields: adjusted
-                      .map((knob) =>
-                        t(
-                          `confirm.generate.${
-                            knob === STUDIO_OPERATOR_GENERATE_KNOB_IDS.count
-                              ? 'countLabel'
-                              : knob
-                          }`,
-                        ),
-                      )
-                      .join(' · '),
-                  })}
                 </p>
               ) : null}
             </div>

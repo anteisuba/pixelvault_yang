@@ -444,8 +444,10 @@ export function StudioOperatorHeader({
                 )
                   event.preventDefault()
               }}
-              /* ── 三层玻璃③：**浮层**（§12.1）。唯一真正半透 + 模糊的一层，
-               配强投影；14px 圆角走区间上限一侧。
+              /* ── 浮层实底（11-18）：ui-spec「浮层 · 菜单」= `float` + `pop`、圆角 12，与「更多」菜单
+               同一身 —— 底色 / 圆角 / 阴影全用 `DropdownMenuContent` 自带的
+               `bg-popover rounded-12 shadow-pop`。画板 D7c 原先画的是半透 + 模糊的玻璃，
+               与 ui-spec 冲突，以 ui-spec 为准（⛔ 别再盖 `assistant-glass-overlay`）。
                ⚠ 宽 300 / 内边距 5（画板 `DesignD7cShell`「历史下拉」）。
                ⚠ **开合动效**（画板动效表前两行）：开 = 淡入 + 下移 4px，
                  ⛔ 不缩放整张菜单（`zoom-in-100` 把原语那档 95 顶掉）；
@@ -455,7 +457,7 @@ export function StudioOperatorHeader({
                ⚠ 降级写 `motion-reduce:animate-none` 不是 `transition-none`：
                  开合走的是 `animate-in` / `animate-out`（keyframes），⛔ 关过渡
                  关不掉动画。 */
-              className="max-h-[60svh] w-75 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl p-1.25 assistant-glass-overlay shadow-assistant-overlay duration-fast data-[side=bottom]:slide-in-from-top-1 data-[state=closed]:ease-linear data-[state=closed]:zoom-out-100 data-[state=open]:zoom-in-100 motion-reduce:animate-none"
+              className="max-h-[60svh] w-75 max-w-[calc(100vw-2rem)] overflow-y-auto p-1.25 duration-fast data-[side=bottom]:slide-in-from-top-1 data-[state=closed]:ease-linear data-[state=closed]:zoom-out-100 data-[state=open]:zoom-in-100 motion-reduce:animate-none"
             >
               <DropdownMenuLabel className="px-2.25 pb-1 pt-1.5 text-2xs font-normal text-muted-foreground">
                 {t('history.heading')}
@@ -628,11 +630,13 @@ export function StudioOperatorHeader({
               <MoreHorizontal className="size-4" aria-hidden />
             </button>
           </DropdownMenuTrigger>
-          {/* ── 三层玻璃③：**浮层**（§12.1），与历史下拉同一层。 */}
+          {/* ── 浮层：实底（ui-spec「浮层 · 菜单」= `float` + `pop`，owner 11-18：毛玻璃半透明字难读）。
+              底色 / 圆角 / 阴影全用 `DropdownMenuContent` 自带的 `bg-popover rounded-12 shadow-pop`，
+              ⛔ 别再盖 `assistant-glass-overlay`（它把底色换成半透明的 `--assistant-overlay`）。 */}
           <DropdownMenuContent
             align="end"
             {...{ [STUDIO_OPERATOR_KEEP_OPEN_ATTR]: '' }}
-            className="w-56 rounded-xl assistant-glass-overlay shadow-assistant-overlay"
+            className="w-56"
           >
             <DropdownMenuItem
               data-testid="operator-assistant-settings"

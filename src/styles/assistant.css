@@ -284,11 +284,12 @@
   }
 }
 
-/* ── 助手面板玻璃仪表的两个材质工具类（pages/assistant-shell-v2.md §12.1）──
-   `assistant-glass-panel`：面板本体，86% 白 + 轻模糊（18px，比浮层的 24px 浅
-   一档 —— 它铺的面积最大，模糊越重滚动时越贵）。
-   `assistant-glass-overlay`：临时浮层，92% 白 + 24px 模糊 + 饱和提升。
-   ⚠ **低端机回落**：`backdrop-filter` 不支持时两者都退回**不透明**面 ——
+/* ── 助手面板玻璃仪表的材质工具类（pages/assistant-shell-v2.md §12.1）──
+   `assistant-glass-panel`：面板本体，86% 白 + 轻模糊（18px —— 它铺的面积最大，
+   模糊越重滚动时越贵）。
+   ⛔ 浮层（菜单 / 下拉 / 弹层）不再有玻璃类：11-18 起一律实底，照 ui-spec「浮层 · 菜单」
+   用原语自带的 `bg-popover rounded-12 shadow-pop`（原 `assistant-glass-overlay` 已删）。
+   ⚠ **低端机回落**：`backdrop-filter` 不支持时退回**不透明**面 ——
    半透明而不模糊的结果是底下的字直接透上来，那比没有玻璃更糟。
    ⛔ 卡片层不在这里：它是 `bg-card` + `border-border`，不带模糊。 */
 @utility assistant-glass-panel {
@@ -312,18 +313,6 @@
       var(--font-geist), 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei',
       var(--font-noto-sans-sc), ui-sans-serif, system-ui, sans-serif;
     font-family: var(--font-stack-sans);
-  }
-}
-
-@utility assistant-glass-overlay {
-  background-color: var(--popover);
-
-  @supports (
-    (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
-  ) {
-    background-color: var(--assistant-overlay);
-    -webkit-backdrop-filter: saturate(180%) blur(24px);
-    backdrop-filter: saturate(180%) blur(24px);
   }
 }
 

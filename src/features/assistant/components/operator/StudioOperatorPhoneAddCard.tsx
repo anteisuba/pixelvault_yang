@@ -103,7 +103,8 @@ export function StudioOperatorPhoneAddCard({
           side="top"
           align="start"
           label={t('label')}
-          className="w-56 rounded-xl border-assistant-line-strong p-1.5 assistant-glass-overlay shadow-assistant-overlay"
+          // 浮层实底（ui-spec「浮层 · 菜单」）：用 Popover 原语自带的底色 / 圆角 / 阴影。
+          className="w-56 p-1.5"
         >
           <div
             role="menu"

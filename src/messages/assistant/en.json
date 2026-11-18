@@ -393,11 +393,9 @@
         "enabled": "On",
         "disabled": "Off",
         "nodeUnavailable": "The target node or model is unavailable. Select it again.",
-        "adjusted": "Adjusted for this model: {fields}",
         "knobStepTitle": "Changed on the confirm card",
         "knobStepReason": "You changed this on the confirm card",
         "prompt": "Prompt",
-        "removeReference": "Remove this reference",
         "openBench": "Keep editing on the image bench"
       },
       "batch": {
@@ -712,7 +710,9 @@
       "generating": "Generating · {done} / {total}",
       "generatingVideo": "Generating video",
       "rerun": "One more set",
-      "useAsReference": "Use as reference"
+      "useAsReference": "Use as reference",
+      "onStage": "{count, plural, one {Image ready} other {# images ready}}, on the right",
+      "onStageVideo": "Video ready, on the right"
     },
     "error": {
       "generic": "The assistant didn't finish this request",
@@ -739,7 +739,8 @@
       "addProviderKey": "Add {provider} key",
       "retry": "Retry",
       "retryPrompt": "That got cut off. Finish my last request, without redoing what already landed.",
-      "switchModel": "Try another model"
+      "switchModel": "Try another model",
+      "switchModelHint": "To use another model, change it on the bench or tell me which one, then hit Retry."
     },
     "assistantSettings": "Assistant settings",
     "rule": {
@@ -871,7 +872,7 @@
     "streaming": {
       "pending": "The assistant is thinking",
       "thinking": "Thinking…",
-      "landing": "Landing it on the canvas…",
+      "landing": "Applying the change…",
       "seconds": "{count}s",
       "slow": "Taking longer than usual — still waiting on the model",
       "thought": "Thought for {count}s",

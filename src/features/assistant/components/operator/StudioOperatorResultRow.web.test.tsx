@@ -101,6 +101,51 @@ function renderCard(patch: Partial<StudioOperatorResultEntry> = {}) {
   return { ...handlers, entry, view }
 }
 
+describe('StudioOperatorResultRow 成品在舞台上（11-18）', () => {
+  function renderOnStage(
+    patch: Partial<StudioOperatorResultEntry> = {},
+    found = true,
+  ) {
+    const onLocate = vi.fn(() => found)
+    render(
+      <StudioOperatorResultRow
+        entry={buildEntry(patch)}
+        onRerun={vi.fn()}
+        onUseAsReference={vi.fn()}
+        onStage
+        onLocate={onLocate}
+      />,
+    )
+    return onLocate
+  }
+
+  it('只留一行引用：⛔ 不画大格，点一下定位到舞台上那张', () => {
+    const onLocate = renderOnStage()
+    expect(screen.queryByTestId('operator-result-tile')).toBeNull()
+    expect(screen.queryByTestId('operator-result-rerun')).toBeNull()
+    const locate = screen.getByTestId('operator-result-locate')
+    expect(locate).toHaveTextContent('onStage')
+    fireEvent.click(locate)
+    expect(onLocate).toHaveBeenCalledWith(items[0])
+    // 找到了：仍是一行。
+    expect(screen.queryByTestId('operator-result-tile')).toBeNull()
+  })
+
+  it('⭐ 舞台上找不到这张（换了一批）：就地展开成整张卡，⛔ 不是点了没反应', () => {
+    renderOnStage({}, false)
+    fireEvent.click(screen.getByTestId('operator-result-locate'))
+    expect(screen.queryByTestId('operator-result-locate')).toBeNull()
+    expect(screen.getAllByTestId('operator-result-tile')).toHaveLength(3)
+  })
+
+  it('生成中：只写进度那一句，没有占位格', () => {
+    renderOnStage({ items: [], completed: 1, total: 3, storedAt: undefined })
+    expect(screen.getByTestId('operator-result-progress')).toBeInTheDocument()
+    expect(screen.queryByTestId('operator-result-placeholder')).toBeNull()
+    expect(screen.queryByTestId('operator-result-locate')).toBeNull()
+  })
+})
+
 describe('StudioOperatorResultRow', () => {
   it('生成中：占位格数 = 本次张数，读数写「{done} / {total}」', () => {
     renderCard({ items: [], completed: 1, total: 3, storedAt: undefined })

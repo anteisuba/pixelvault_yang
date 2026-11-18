@@ -2194,9 +2194,8 @@ describe('生成确认卡（v2 §3.3 / §5）', () => {
   })
 
   /**
-   * ⭐ #9（§5.2）：卡上那四颗旋钮就地可换。
-   * 钉两行规则 —— 第二行「卡上改一项立刻写回工作台」、第四行「点确认用工作台
-   * **此刻**的值触发，⛔ 不用卡上缓存的那一份」。
+   * ⭐ §5.2：工作台是真值。确认卡上的旋钮 11-18 已删（卡只做摘要），改值只剩工作台与
+   * 输入框上方的规格行；点确认用工作台**此刻**的值触发，⛔ 不用卡出现那一刻的载荷。
    */
   describe('就地改参数（§5.2）', () => {
     const CONTROLS = {
@@ -2222,21 +2221,17 @@ describe('生成确认卡（v2 §3.3 / §5）', () => {
       },
     }
 
-    it('改一颗 → 立刻 dispatch 到工作台，并在登记簿上记一格（✦ 亮起来）', async () => {
+    it('规格行改一颗 → 立刻 dispatch 到工作台，⛔ 不进登记簿（是创作者自己改的）', async () => {
       generationControls.current = CONTROLS
       const { result } = render()
       act(() => {
-        result.current.adjustGeneration('count', '4')
+        result.current.setGenerationKnob('count', '4')
       })
       expect(dispatch).toHaveBeenCalledWith({
         type: 'SET_IMAGE_BATCH_COUNT',
         payload: 4,
       })
-      expect(store.getOperatorState().changes.count).toBeDefined()
-      // 撤销的本钱是**改之前**那个数。
-      expect(
-        store.getOperatorState().changes.count?.firstInverse,
-      ).toMatchObject({ inverse: { count: 2 } })
+      expect(store.getOperatorState().changes.count).toBeUndefined()
     })
 
     it('⭐ 换模型 → 不合法的比例 / 清晰度就地回落，回落掉的那几颗报给卡', async () => {
@@ -2244,7 +2239,7 @@ describe('生成确认卡（v2 §3.3 / §5）', () => {
       const { result } = render()
       let adjusted: readonly string[] = []
       act(() => {
-        adjusted = result.current.adjustGeneration('model', 'flux-2-flash')
+        adjusted = result.current.setGenerationKnob('model', 'flux-2-flash')
       })
       expect(adjusted).toEqual(['aspect', 'resolution', 'count'])
       expect(dispatch).toHaveBeenCalledWith({
@@ -2289,7 +2284,7 @@ describe('生成确认卡（v2 §3.3 / §5）', () => {
     it('⚠ 宿主不给 controls（LoRA 装配台）→ 改参数是 no-op', async () => {
       const { result } = render()
       act(() => {
-        expect(result.current.adjustGeneration('count', '4')).toEqual([])
+        expect(result.current.setGenerationKnob('count', '4')).toEqual([])
       })
       expect(dispatch).not.toHaveBeenCalled()
     })

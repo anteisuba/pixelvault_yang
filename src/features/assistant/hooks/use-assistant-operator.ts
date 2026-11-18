@@ -239,6 +239,7 @@ import {
   thinkingStartsNewMessage,
 } from '@/lib/studio-operator-frames'
 import { mergeNegativePrompt } from '@/features/lora/core'
+import { isBenchReadbackStep } from '@/features/assistant/bench-readback'
 import type { PromptAssistantResponseLanguage } from '@/types'
 import { AssistantLoraParametersSchema } from '@/types/assistant-operator'
 import type {
@@ -279,6 +280,13 @@ import type {
  * 🔊 开着、这段是用着角色的她说的（②c-2）：念出来。聊天整段念；开着台只念开头和收尾两段，
  * 中间的正文只出字（`splitSpokenSegments`）。
  */
+/**
+ * 表单没收这一步时写进步骤的原因 —— 给模型看的（随 priorSteps 进 `bench_sync` 读回那一跳），
+ * 界面上那一行照旧按 `rejectReason` 走三语词表。
+ */
+const BENCH_FORM_REFUSED =
+  'the bench form refused this value when it was applied (not a value the form accepts, or the model is not on the list), so nothing changed there'
+
 /** 这一轮在哪一档：还没定就按现在站在哪儿定下来（之后换台不跟着变）。 */
 function settledChatMode() {
   const mode = resolveOperatorChatMode(
@@ -916,19 +924,6 @@ export interface UseAssistantOperatorResult {
    */
   resumePlan(): void
   /**
-   * **生成确认卡上就地改一颗旋钮**（v2 §5.2 第二行，commit #9）。
-   *
-   * ⭐ **立刻写回工作台**，走的是助手改参数那同一条 op 通道（`applyOperatorStep`
-   * + 登记簿 + `inverse`）—— ⛔ 卡自己不攒参数。理由是 §5.2 那段「为什么卡上改
-   * 立刻写回」：卡攒一份的话，用户点确认前看着 3:2、出来的是 16:9。
-   * ⚠ 宿主没给 `generationControls` 时是 no-op（卡上那几颗本来就是只读读数）。
-   * @returns 换模型顺手回落掉的那几颗（卡上「已按 X 调整」写它），没有就是空数组。
-   */
-  adjustGeneration(
-    knob: StudioOperatorGenerateKnob,
-    value: string,
-  ): readonly StudioOperatorGenerateKnob[]
-  /**
    * 输入框上方规格行就地改一颗（D12 B6）—— 同一条写回通道，⛔ 不进登记簿。
    * @returns 换模型顺手回落掉的那几颗。
    */
@@ -993,11 +988,7 @@ export interface UseAssistantOperatorResult {
    *
    * ⚠ ⛔ 不直接扣扳机：花钱这件事只有确认卡一个入口（见实现处头注）。
    */
-  rerunGeneration(
-    request: AssistantOperatorGenerationRequest,
-    /** 卡一出来就展开的那颗（失败行「换个模型」）。 */
-    openKnob?: StudioOperatorGenerateKnob,
-  ): void
+  rerunGeneration(request: AssistantOperatorGenerationRequest): void
   /**
    * ＋新对话（拍板 10）—— 只清线程，改动与撤销本钱留着。
    * ⚠ 撤销 / 还原**不在这个接口里**：它们有两个宿主（日志条 + 参数栏的 ✦），
@@ -1975,6 +1966,30 @@ export function useAssistantOperator(
                   applyOperatorStep(step, applyContext),
                 )
                 if (turnId) markStepApplied(turnId, step.id)
+                /**
+                 * 表单没收（值收不窄 / 模型认不出）：以前在非画布台上是静默的，步照旧标「做完」
+                 * （11-18 真机「说改成 16:9，台上仍是 1:1」）。现在标成被拒、写清原因 —— 它随
+                 * priorSteps 进 `bench_sync` 那一跳，读回时当作「实际没改」的原因交给模型。
+                 */
+                if (field === null && isBenchReadbackStep(step)) {
+                  if (resumeStepId)
+                    markOperatorResumeStep(resumeStepId, {
+                      state: 'failed',
+                      reason: BENCH_FORM_REFUSED,
+                    })
+                  upsertOperatorStep(
+                    {
+                      ...step,
+                      status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.error,
+                      error: {
+                        reason:
+                          ASSISTANT_OPERATOR_REJECT_REASON_IDS.unknownValue,
+                        detail: BENCH_FORM_REFUSED,
+                      },
+                    },
+                    runKey,
+                  )
+                }
                 // 记住了一条偏好：头像顶一下（owner 2026-10-07 动效第 3 批）。
                 if (
                   step.tool === ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule &&
@@ -3021,22 +3036,18 @@ export function useAssistantOperator(
    *   还是上一次的名字（判据与 `applyOperatorStep` 里那一处逐字同源）。
    */
   /**
-   * **卡上就地改一颗旋钮**（v2 §5.2 第二行，commit #9）。
+   * **输入框上方规格行就地改一颗**（D12 B6）。
    *
    * ⭐ 走的是助手改参数**同一条通道**：`buildGenerationKnobSteps` 造 step →
-   * `applyOperatorStep` 落表单 → `recordOperatorChange` 记账。三件事缺一不可 ——
-   * 少了最后一件，参数栏上那颗 ✦ 不亮（§5.2 第二行后半「工作台控件同步高亮一拍」），
-   * 而且「先不要」之后用户没有任何入口撤掉刚才改的那几格（§5.2 第五行）。
-   * ⚠ ⛔ 不往时间线里插日志条：这不是助手做的一步，插进去等于在「它做了什么」
-   *   里混进「我做了什么」。登记簿那一格的 `reason` 里写清是谁改的。
-   * ⚠ 换模型可能一次落三条（模型 + 规格 + 张数，§5.1 回落）—— 逐条记账，
-   *   因为登记簿按**字段**存。
+   * `applyOperatorStep` 落表单。⛔ 不进登记簿：这是用户自己在改工作台，不是助手做的一步，
+   * 记进去就会在参数栏上亮一颗「助手改过」的 ✦。
+   * ⚠ 确认卡上那几颗旋钮 11-18 已删（卡只做摘要），这里只剩规格行一个入口。
+   * ⚠ 换模型可能一次落三条（模型 + 规格 + 张数，§5.1 回落）。
    */
-  const applyGenerationKnob = useCallback(
+  const setGenerationKnob = useCallback(
     (
       knob: StudioOperatorGenerateKnob,
       value: string,
-      record: boolean,
     ): readonly StudioOperatorGenerateKnob[] => {
       if (!isCurrentThread()) return []
       const controls = host.generationControls
@@ -3067,14 +3078,6 @@ export function useAssistantOperator(
         const field = applyOperatorStep(step, applyContext)
         if (field && field !== STUDIO_OPERATOR_FIELD_IDS.canvasNodes)
           touched.push(field)
-        if (!field || !record) continue
-        recordOperatorChange({
-          field,
-          stepId: step.id,
-          reason: step.reason ?? tConfirm('generate.knobStepReason'),
-          firstInverse: step,
-          previousLabel: describeOperatorInverse(step),
-        })
       }
       if (touched.length > 0 && typeof window !== 'undefined')
         window.requestAnimationFrame(() => {
@@ -3083,21 +3086,6 @@ export function useAssistantOperator(
       return adjusted
     },
     [applyContext, domain, host.generationControls, tConfirm, isCurrentThread],
-  )
-  const adjustGeneration = useCallback(
-    (knob: StudioOperatorGenerateKnob, value: string) =>
-      applyGenerationKnob(knob, value, true),
-    [applyGenerationKnob],
-  )
-  /**
-   * **输入框上方规格行就地改一颗**（D12 B6）—— 与确认卡同一条写回通道，
-   * ⛔ 但不进登记簿：这是用户自己在改工作台，不是助手做的一步，记进去就会
-   * 在参数栏上亮一颗「助手改过」的 ✦。
-   */
-  const setGenerationKnob = useCallback(
-    (knob: StudioOperatorGenerateKnob, value: string) =>
-      applyGenerationKnob(knob, value, false),
-    [applyGenerationKnob],
   )
 
   const confirmGeneration = useCallback(
@@ -3982,17 +3970,13 @@ export function useAssistantOperator(
    *   绕过它的表现是「点一下『再来一组』，credits 就没了」。
    */
   const rerunGeneration = useCallback(
-    (
-      request: AssistantOperatorGenerationRequest,
-      openKnob?: StudioOperatorGenerateKnob,
-    ) => {
+    (request: AssistantOperatorGenerationRequest) => {
       if (!isCurrentThread()) return
       setOperatorConfirm({
         id: nextOperatorEntryId('confirm'),
         kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate,
         request,
         status: STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle,
-        ...(openKnob ? { openKnob } : {}),
       })
     },
     [isCurrentThread],
@@ -4151,7 +4135,6 @@ export function useAssistantOperator(
     declinePlan,
     revisePlan,
     resumePlan,
-    adjustGeneration,
     setGenerationKnob,
     confirmGeneration,
     cancelGeneration,

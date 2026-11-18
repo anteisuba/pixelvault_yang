@@ -29,7 +29,7 @@
  * 直接抛 —— 那条路由故意不挂 `<StudioProvider>`。
  */
 
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { motion, useReducedMotion } from 'motion/react'
 import Image from 'next/image'
 import { useFormatter, useTranslations } from 'next-intl'
@@ -42,6 +42,7 @@ import {
 } from '@/constants/motion'
 import { STUDIO_OPERATOR_RESULT_STAGGER } from '@/constants/studio-assistant-operator'
 import { BlurSwap } from '@/components/ui/blur-swap'
+import { Button } from '@/components/ui/button'
 import { openOperatorLightbox } from '@/features/assistant/components/operator/StudioOperatorLightbox'
 import {
   SearchGroundingRail,
@@ -64,7 +65,20 @@ interface StudioOperatorResultRowProps {
   /** 「用它当参考」—— 多张时挂的是第一张（画板上那两颗按钮没有分格）。 */
   /** `from` = 被挂上去的那一格（给「飞进输入框」那一下当起点），可缺。 */
   onUseAsReference(item: StudioOperatorResultItem, from?: HTMLElement): void
+  /**
+   * 成品摆在舞台上（宿主脸 `resultsOnStage`，owner 11-18）：这里只画**一行引用**（小缩略图 +
+   * 「已出图，在右边」），点一下交给 `onLocate` 定位舞台上那张。缺席 = 没有舞台（首页 / 角色页），整张照画。
+   */
+  onStage?: boolean
+  /**
+   * 定位舞台上那张；回 `false` = 舞台上已经没有它（换了一批 / 宿主没有可定位的目标），
+   * 这一行就**就地展开成整张结果卡**，⛔ 不留一颗点了没反应的按钮。
+   */
+  onLocate?(item: StudioOperatorResultItem): boolean
 }
+
+/** 一行引用里最多摆几枚小缩略图（多了只是噪音，数字写在字里）。 */
+const ON_STAGE_THUMBS = 3
 
 /**
  * 比例串（「3:4」）→ CSS `aspect-ratio`。读不出来就按 3:2（D12 P3：单张按输入区
@@ -223,10 +237,14 @@ export function StudioOperatorResultRow({
   searchGrounding,
   onRerun,
   onUseAsReference,
+  onStage = false,
+  onLocate,
 }: StudioOperatorResultRowProps) {
   const t = useTranslations('StudioOperator.result')
   const format = useFormatter()
   const gridRef = useRef<HTMLDivElement>(null)
+  /** 定位落空（舞台上找不到这张）后就地展开成整张卡。 */
+  const [expanded, setExpanded] = useState(false)
   const { items, total, completed } = entry
   const generating = items.length === 0
   const aspect = toAspect(entry.request?.specs.aspectRatio)
@@ -242,6 +260,70 @@ export function StudioOperatorResultRow({
   const grid = count > 1 ? 'grid grid-cols-2 gap-1.5' : 'flex max-w-sm'
   const ghost =
     'inline-flex h-7 items-center rounded-md border border-border bg-card px-2.5 text-xs text-foreground transition-colors duration-fast ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none'
+
+  /**
+   * 成品在舞台上：一行引用，⛔ 不再整张画第二遍（owner 11-18）。生成中只写进度那一句
+   * （占位格舞台上已经有了）。
+   */
+  if (onStage && !expanded)
+    return (
+      <div
+        data-testid="operator-result-row"
+        data-generating={generating}
+        data-on-stage="true"
+        className="flex min-w-0 items-center"
+      >
+        {generating ? (
+          <p
+            data-testid="operator-result-progress"
+            className="text-xs text-muted-foreground"
+          >
+            <BlurSwap swapKey={String(completed)}>
+              {isVideo
+                ? t('generatingVideo')
+                : t('generating', { done: completed, total })}
+            </BlurSwap>
+          </p>
+        ) : (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            data-testid="operator-result-locate"
+            onClick={() => {
+              const first = items[0]
+              if (!first || !onLocate?.(first)) setExpanded(true)
+            }}
+            className="min-w-0 gap-2 px-1.5 text-xs"
+          >
+            <span className="flex shrink-0 gap-1" aria-hidden>
+              {items.slice(0, ON_STAGE_THUMBS).map((item) => (
+                <span
+                  key={item.id}
+                  className="relative size-6 overflow-hidden rounded-sm bg-muted"
+                >
+                  {item.outputType === 'VIDEO' ? null : (
+                    <Image
+                      src={item.thumbnailUrl ?? item.url}
+                      alt=""
+                      fill
+                      sizes="24px"
+                      unoptimized
+                      className="object-cover"
+                    />
+                  )}
+                </span>
+              ))}
+            </span>
+            <span className="min-w-0 truncate">
+              {isVideo
+                ? t('onStageVideo')
+                : t('onStage', { count: items.length })}
+            </span>
+          </Button>
+        )}
+      </div>
+    )
 
   return (
     <div

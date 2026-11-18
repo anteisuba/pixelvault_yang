@@ -352,6 +352,8 @@ export const CompareGrid = memo(function CompareGrid({
                           flyTileFromGenerate(el, items.indexOf(item))
                       }}
                       role="option"
+                      // 助手对话里那一行引用点一下定位、选中这一格（`locateStudioStageGeneration`）。
+                      data-stage-generation-id={item.generation?.id}
                       aria-selected={isFocused}
                       aria-disabled={!isCompleted}
                       aria-label={`${modelLabel} ${takeIndex + 1}/${takes}`}

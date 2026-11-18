@@ -185,6 +185,7 @@ export function LoraResultStage({
           <div
             key={shown.id}
             data-testid="lora-result-main"
+            data-stage-generation-id={shown.id}
             className={cn(MEDIA_TILE_CLASS, 'h-full w-fit max-w-full')}
           >
             <motion.img
@@ -271,6 +272,7 @@ export function LoraResultStage({
                 <button
                   type="button"
                   onClick={() => setPicked({ id: item.id, newestId })}
+                  data-stage-generation-id={item.id}
                   aria-label={t('generate.resultShowLabel')}
                   className={cn(
                     MEDIA_TILE_CLASS,

@@ -167,6 +167,12 @@ export function stoppedOutcome(
       kind: 'relay',
       relay: context.canvasChanged || context.hasTranscript,
     }
+  // 工作台改了表单：落完带着真实快照接下一跳（edit 的结果在那一跳按表单读回）。
+  if (
+    event.reason === ASSISTANT_OPERATOR_STOP_REASONS.benchSync &&
+    context.hasTranscript
+  )
+    return { kind: 'relay', relay: true }
   const timeUp = event.reason === ASSISTANT_OPERATOR_STOP_REASONS.timeBudget
   if (timeUp && (context.onCanvas || context.hasTranscript))
     return { kind: 'relay', relay: true }

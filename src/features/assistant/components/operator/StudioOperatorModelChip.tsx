@@ -325,8 +325,9 @@ export function StudioOperatorModelChip({
           side={inDialog ? 'bottom' : 'top'}
           align="start"
           label={t('label')}
-          /* 三层玻璃③：**浮层**（§12.1）。 */
-          className="w-64 rounded-xl border-assistant-line-strong p-0 assistant-glass-overlay shadow-assistant-overlay"
+          /* 浮层实底（ui-spec「浮层 · 菜单」，11-18 起不再是毛玻璃）：用 Popover 原语自带的
+             `bg-popover rounded-12 shadow-pop`。 */
+          className="w-64 p-0"
           mobileClassName="px-0"
         >
           {searchable ? (

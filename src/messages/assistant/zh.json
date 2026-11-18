@@ -393,11 +393,9 @@
         "enabled": "开启",
         "disabled": "关闭",
         "nodeUnavailable": "目标节点或模型不可用，请重新选择。",
-        "adjusted": "已按该模型调整：{fields}",
         "knobStepTitle": "在确认卡上改了参数",
         "knobStepReason": "你在确认卡上改的",
         "prompt": "提示词",
-        "removeReference": "拿掉这张参考图",
         "openBench": "去图片台接着改"
       },
       "batch": {
@@ -712,7 +710,9 @@
       "generating": "正在出图 · {done} / {total}",
       "generatingVideo": "正在生成视频",
       "rerun": "再来一组",
-      "useAsReference": "用它当参考"
+      "useAsReference": "用它当参考",
+      "onStage": "已出图 {count} 张，在右边",
+      "onStageVideo": "视频已生成，在右边"
     },
     "error": {
       "generic": "助手这一轮没跑完",
@@ -739,7 +739,8 @@
       "addProviderKey": "配置 {provider} Key",
       "retry": "重试",
       "retryPrompt": "刚才中断了，接着把上一条做完（已经落下的别重做）。",
-      "switchModel": "换个模型"
+      "switchModel": "换个模型",
+      "switchModelHint": "想换模型：在工作台上换，或直接告诉我换成哪个，再点「重试」。"
     },
     "assistantSettings": "助手设置",
     "rule": {
@@ -871,7 +872,7 @@
     "streaming": {
       "pending": "助手正在思考",
       "thinking": "正在想…",
-      "landing": "正在画布上落地…",
+      "landing": "正在把改动落下去…",
       "seconds": "{count} 秒",
       "slow": "比平时久一点，还在等模型回话",
       "thought": "想了 {count} 秒",

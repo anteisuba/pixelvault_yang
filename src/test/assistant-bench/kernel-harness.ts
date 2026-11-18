@@ -82,6 +82,22 @@ export function relayOf(
   return relay.transcript
 }
 
+/**
+ * 工作台上改了表单的 edit 停在 `bench_sync`（11-18 改完读回）：浏览器落完，带着接力条与
+ * **落下之后从表单现读的快照**发下一跳。`snapshot` 只写落下之后变了的那几格。
+ */
+export function landedRequest(
+  hop: readonly AssistantOperatorEvent[],
+  request: AssistantOperatorRequest,
+  snapshot: Record<string, unknown> = {},
+): AssistantOperatorRequest {
+  return {
+    ...request,
+    v3: { ...request.v3, transcript: relayOf(hop) },
+    snapshot: { ...request.snapshot, ...snapshot },
+  } as AssistantOperatorRequest
+}
+
 export function stepsOf(events: readonly AssistantOperatorEvent[]) {
   return events.flatMap((event) => (event.type === 'step' ? [event.step] : []))
 }

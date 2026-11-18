@@ -34,6 +34,8 @@ import { StudioOperatorLoraSetupCard } from './StudioOperatorLoraSetupCard'
 import { StudioOperatorResultRow } from './StudioOperatorResultRow'
 import { StudioOperatorOldChatBar } from './StudioOperatorOldChatBar'
 import { flyImageToComposer } from '@/lib/fly-to-composer'
+import { operatorTurnKnobOrigins } from '@/lib/studio-operator-confirm-origins'
+import { locateStudioStageGeneration } from '@/lib/studio-stage-focus'
 import {
   Fragment,
   useCallback,
@@ -86,7 +88,6 @@ import {
 } from '@/constants/node-assistant-ops'
 import {
   STUDIO_OPERATOR_CONFIRM_STATUS_IDS,
-  STUDIO_OPERATOR_GENERATE_KNOB_IDS,
   STUDIO_OPERATOR_HISTORY_OPEN_ROUNDS,
   STUDIO_OPERATOR_LIBRARY_PAGE_SIZE,
   STUDIO_OPERATOR_SHELL,
@@ -564,6 +565,11 @@ export function StudioOperatorPanel({
    * ⚠ 算在这里（紧跟两份条目）而不是用到它的地方：跟着滚那条 effect 的依赖列
    * 要读它，而依赖列是**渲染期**求值的 —— 定义在下面会撞 TDZ。
    */
+  /** 确认卡「旧值 → 新值」的旧值（这一轮助手动过的那几格，动之前是什么）。 */
+  const confirmOrigins = useMemo(
+    () => operatorTurnKnobOrigins(allEntries),
+    [allEntries],
+  )
   const threadEmpty = entries.length === 0 && historyEntries.length === 0
   /** 和她聊的新会话：她卡上的开场白摆在空态的位置上（发第一句时才接进线程，见 hook 头注）。 */
   const greeting = useOperatorGreeting(threadEmpty)
@@ -589,7 +595,6 @@ export function StudioOperatorPanel({
     approvePlan,
     declinePlan,
     revisePlan,
-    adjustGeneration,
     setGenerationKnob,
     confirmGeneration,
     saveContextCard,
@@ -1552,7 +1557,8 @@ export function StudioOperatorPanel({
             {...(operatorHost.generationDraft
               ? { draft: operatorHost.generationDraft }
               : {})}
-            onAdjust={adjustGeneration}
+            /* 「旧值 → 新值」的旧值：这一轮助手第一次动那一格之前的值。 */
+            origins={confirmOrigins}
           />
         )}
       </StudioOperatorTimelineRow>
@@ -2087,6 +2093,16 @@ export function StudioOperatorPanel({
                   target.request && rerunGeneration(target.request)
                 }
                 onUseAsReference={useResultAsReference}
+                /* 成品在舞台上（脸说了算，⛔ 不按域分叉）：对话里只留一行引用，点一下定位。 */
+                onStage={operatorHost.face.resultsOnStage}
+                onLocate={(item) => {
+                  /* 手机上面板是接近满屏的底部 Sheet，舞台被它盖着：先收起再定位，
+                     否则滚过去、选中了也看不见（= 点了没反应）。Sheet 是 `modal={false}`，
+                     不锁 body 滚动，滚动与收起同一拍做。找不到就不收：结果行自己就地展开。 */
+                  const found = locateStudioStageGeneration(item.id)
+                  if (found && isMobile) operatorHost.setOpen(false)
+                  return found
+                }}
               />
             </StudioOperatorTimelineRow>
           </Fragment>
@@ -2102,9 +2118,8 @@ export function StudioOperatorPanel({
               data-failed={entry.retry ? 'true' : undefined}
               className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-relaxed text-muted-foreground"
             >
-              {/* P4 第 2 项：生成失败只一行 —— 红点 + 原因 +「重试」「换个模型」，
-                  ⛔ 不套框。两颗都出一张新的生成确认卡（钱闸照旧），「换个模型」
-                  那张一出来就展开模型那颗。 */}
+              {/* P4 第 2 项：生成失败只一行 —— 红点 + 原因 +「重试」，⛔ 不套框。
+                  「重试」出一张新的生成确认卡（钱闸照旧）；底下一句写明怎么换模型。 */}
               {entry.retry ? (
                 <span
                   aria-hidden
@@ -2141,19 +2156,16 @@ export function StudioOperatorPanel({
                   >
                     {t('error.retry')}
                   </button>
-                  <button
-                    type="button"
-                    data-testid="operator-generation-switch-model"
-                    onClick={() =>
-                      rerunGeneration(
-                        entry.retry!,
-                        STUDIO_OPERATOR_GENERATE_KNOB_IDS.model,
-                      )
-                    }
-                    className={FAIL_ACTION_CLASS}
-                  >
-                    {t('error.switchModel')}
-                  </button>
+                </span>
+              ) : null}
+              {/* 「换个模型」11-18 随确认卡上的旋钮一起删（卡只做摘要）：换模型的路只剩工作台 /
+                  跟助手说，这一句把路写明，⛔ 失败行不能是死胡同。 */}
+              {entry.retry ? (
+                <span
+                  data-testid="operator-generation-switch-hint"
+                  className="basis-full"
+                >
+                  {t('error.switchModelHint')}
                 </span>
               ) : null}
               {/* 收下的设定 / 挂上的图也能退（`p-assistant-undo`）：撤一次就摘掉。 */}

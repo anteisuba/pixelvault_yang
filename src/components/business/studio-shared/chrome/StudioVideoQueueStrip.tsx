@@ -238,6 +238,8 @@ export const StudioVideoQueueStrip = memo(function StudioVideoQueueStrip({
                 <button
                   type="button"
                   onClick={() => onFocus(item.id)}
+                  // 助手那一行「已出图」定位到这一条：点它 = 把这条放上播放器（`locateStudioStageGeneration`）。
+                  data-stage-generation-id={item.generation?.id}
                   aria-pressed={item.id === focusedItemId}
                   className="min-h-11 shrink-0 rounded-lg px-3 text-xs text-muted-foreground transition-colors duration-fast ease-standard active:bg-muted"
                 >
@@ -338,6 +340,7 @@ export const StudioVideoQueueStrip = memo(function StudioVideoQueueStrip({
                 <button
                   type="button"
                   onClick={() => onFocus(item.id)}
+                  data-stage-generation-id={item.generation?.id}
                   aria-pressed={isFocused}
                   aria-label={t('viewTake', { index: index + 1 })}
                   className={cn(

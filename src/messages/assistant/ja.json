@@ -393,11 +393,9 @@
         "enabled": "オン",
         "disabled": "オフ",
         "nodeUnavailable": "対象ノードまたはモデルを利用できません。選択し直してください。",
-        "adjusted": "このモデルに合わせて調整しました：{fields}",
         "knobStepTitle": "確認カードで変更",
         "knobStepReason": "確認カードであなたが変更しました",
         "prompt": "プロンプト",
-        "removeReference": "この参考画像を外す",
         "openBench": "画像台で続きを編集"
       },
       "batch": {
@@ -712,7 +710,9 @@
       "generating": "生成中 · {done} / {total}",
       "generatingVideo": "動画を生成中",
       "rerun": "もう一組",
-      "useAsReference": "これを参照にする"
+      "useAsReference": "これを参照にする",
+      "onStage": "{count} 枚できました（右側）",
+      "onStageVideo": "動画ができました（右側）"
     },
     "error": {
       "generic": "アシスタントの作業が完了しませんでした",
@@ -739,7 +739,8 @@
       "addProviderKey": "{provider} のキーを追加",
       "retry": "再試行",
       "retryPrompt": "途中で止まりました。前の依頼の続きをお願いします（反映済みの分はやり直さないで）。",
-      "switchModel": "別のモデルにする"
+      "switchModel": "別のモデルにする",
+      "switchModelHint": "モデルを変えるなら、ワークベンチで切り替えるか、どれにするか教えてください。そのあと「再試行」を押してください。"
     },
     "assistantSettings": "アシスタント設定",
     "rule": {
@@ -871,7 +872,7 @@
     "streaming": {
       "pending": "アシスタントが考えています",
       "thinking": "考えています…",
-      "landing": "キャンバスに反映しています…",
+      "landing": "変更を反映しています…",
       "seconds": "{count} 秒",
       "slow": "いつもより時間がかかっています。モデルの応答を待っています",
       "thought": "{count} 秒考えました",

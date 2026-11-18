@@ -33,7 +33,8 @@ import { studioBenchHref } from '@/lib/studio-shell-route'
  *   - 型号：两种方言都列，表单方言跟着选中的型号走（NAI 也能在首页出，owner 10-24）；
  *     起手按图片台上次用的那个（`pickDefaultImageModelOptionId`），都没有 key 就先摆第一个，
  *     按出图时就地配 key（`keySetup`，Hard Rule 8）。
- *   - 卡上直接改提示词与参考图（台看不见），「去图片台接着改」把整份配方记成那一台的草稿再开台。
+ *   - 卡上只读摆出提示词与参考图（台看不见；11-18 起卡只做摘要），「去图片台接着改」把整份配方
+ *     记成那一台的草稿再开台。
  *   - 换一段对话就清空：上一段的提示词与参考图不跟到新的一段里。
  */
 export function useHomeDraftOperatorHost(): StudioOperatorHost {
@@ -136,14 +137,7 @@ export function useHomeDraftOperatorHost(): StudioOperatorHost {
   const generationDraft = useMemo(
     (): StudioOperatorGenerationDraft => ({
       prompt: state.prompt,
-      setPrompt: (prompt) => dispatch({ type: 'SET_PROMPT', payload: prompt }),
       references: imageUpload.referenceEntries,
-      removeReference: (url) => {
-        const index = imageUpload.referenceEntries.findIndex(
-          (entry) => entry.url === url,
-        )
-        if (index >= 0) imageUpload.removeReferenceImage(index)
-      },
       openBench,
       keySetup: keyless
         ? {
@@ -159,7 +153,14 @@ export function useHomeDraftOperatorHost(): StudioOperatorHost {
           }
         : null,
     }),
-    [dispatch, imageUpload, keyless, openBench, state.prompt, tModels],
+    [
+      dispatch,
+      imageUpload.referenceEntries,
+      keyless,
+      openBench,
+      state.prompt,
+      tModels,
+    ],
   )
 
   return useMemo(() => ({ ...host, generationDraft }), [generationDraft, host])

@@ -177,6 +177,8 @@ const HOST_SPEC = vi.hoisted(() => ({
   noReferences: false,
   /** 脸上「画不画规格行」—— 首页（没开台）是 false。 */
   specLine: true,
+  /** 出的图在舞台上（对话里只留一行引用）—— 默认按没有舞台的宿主测整张结果卡。 */
+  resultsOnStage: false,
 }))
 
 /** 宿主契约（真 `StudioOperatorHostProvider` 往下给）；按 `HOST_SPEC` 现拼。 */
@@ -191,6 +193,7 @@ function buildHost() {
       emptyLine: '说你想要的画面，我来写提示词、挑模型、配参考。',
       inputPlaceholder: '描述画面，或把参考图挂进来…',
       specLine: HOST_SPEC.specLine,
+      resultsOnStage: HOST_SPEC.resultsOnStage,
     },
     ...(HOST_SPEC.controls ? { generationControls: HOST_SPEC.controls } : {}),
     ...(HOST_SPEC.mountsReferences ? { attachmentsMountReferences: true } : {}),
@@ -1208,7 +1211,7 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
     expect(older).not.toContainElement(screen.getByText('第三轮'))
   })
 
-  it('生成失败只一行：红点 + 原因 +「重试」「换个模型」，两颗都出新确认卡（P4 第 2 项）', () => {
+  it('生成失败只一行：红点 + 原因 +「重试」出新确认卡（「换个模型」11-18 随卡上旋钮一起删）', () => {
     const request = {
       model: { id: 'seedream-4', label: 'Seedream 4' },
       count: 1,
@@ -1227,8 +1230,11 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
     expect(line.className).not.toContain('border')
     fireEvent.click(screen.getByTestId('operator-generation-retry'))
     expect(rerunGeneration).toHaveBeenLastCalledWith(request)
-    fireEvent.click(screen.getByTestId('operator-generation-switch-model'))
-    expect(rerunGeneration).toHaveBeenLastCalledWith(request, 'model')
+    expect(screen.queryByTestId('operator-generation-switch-model')).toBeNull()
+    // ⛔ 不是死胡同：一句话写明怎么换模型。
+    expect(
+      screen.getByTestId('operator-generation-switch-hint'),
+    ).toHaveTextContent('error.switchModelHint')
   })
 
   it('② 确认卡（生成）四颗旋钮在场；点「确认生成」走 `confirmGeneration`', () => {

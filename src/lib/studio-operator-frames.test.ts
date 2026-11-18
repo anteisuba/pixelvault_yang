@@ -177,6 +177,12 @@ describe('stopped 帧落成什么', () => {
     ).toEqual({ kind: 'relay', relay: true })
   })
 
+  it('工作台改了表单（bench_sync）：新内核接力，带着落下之后的快照去读回', () => {
+    expect(
+      stoppedOutcome(stopped('bench_sync'), { ...base, hasTranscript: true }),
+    ).toEqual({ kind: 'relay', relay: true })
+  })
+
   it('时间用到头：画布与新内核接力；别的台收尾并亮「继续」', () => {
     expect(
       stoppedOutcome(stopped('time_budget'), { ...base, onCanvas: true }),

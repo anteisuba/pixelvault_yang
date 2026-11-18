@@ -37,6 +37,7 @@ import {
   IMAGE_SNAPSHOT,
   imageRequest,
   kernelUser,
+  landedRequest,
   LORA_SNAPSHOT,
   payloadOf,
   stepsOf,
@@ -253,20 +254,30 @@ describe('第 4 步：各台的改法', () => {
       }),
       textTurn('套好了。'),
     ])
-    const events = await run(
-      imageRequest('套用图_12的配方', {
-        snapshot: {
-          ...IMAGE_SNAPSHOT,
-          capabilities: [
-            {
-              key: 'guidanceScale',
-              kind: 'slider',
-              value: null,
-              available: true,
-            },
-          ],
-        },
-      } as Partial<AssistantOperatorRequest>),
+    const request = imageRequest('套用图_12的配方', {
+      snapshot: {
+        ...IMAGE_SNAPSHOT,
+        capabilities: [
+          {
+            key: 'guidanceScale',
+            kind: 'slider',
+            value: null,
+            available: true,
+          },
+        ],
+      },
+    } as Partial<AssistantOperatorRequest>)
+    const events = await run(request)
+    // 改了表单 → 停下等浏览器落（11-18 改完读回）；落完那一跳才把回执交给模型。
+    expect(events.at(-1)).toMatchObject({
+      type: 'stopped',
+      reason: 'bench_sync',
+    })
+    await run(
+      landedRequest(events, request, {
+        prompt: '1girl, red hair',
+        negativePrompt: 'lowres',
+      }),
     )
     const steps = doneSteps(events)
     const tools = steps.map((step) => step.tool)
@@ -283,6 +294,8 @@ describe('第 4 步：各台的改法', () => {
     expect(results).toContain('图_12')
     expect(results).toContain('they only go on the LoRA bench')
     expect(results).toContain('uploaded picture')
+    // ⭐ 读回按落下之后的快照写。
+    expect(results).toContain('READ BACK FROM THE BENCH')
   })
 
   it('套用配方：查不到那张图就只回这一条', async () => {

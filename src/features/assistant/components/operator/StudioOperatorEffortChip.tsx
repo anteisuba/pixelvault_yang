@@ -92,7 +92,8 @@ export function StudioOperatorEffortChip({
         side="top"
         align="start"
         label={t('label')}
-        className="w-64 rounded-xl border-assistant-line-strong p-0 assistant-glass-overlay shadow-assistant-overlay"
+        // 浮层实底（ui-spec「浮层 · 菜单」）：用 Popover 原语自带的底色 / 圆角 / 阴影。
+        className="w-64 p-0"
         mobileClassName="px-0"
       >
         <div

@@ -1527,6 +1527,12 @@ export const ASSISTANT_OPERATOR_STOP_REASONS = {
    * 准备好，带着接力条与新台面接着发下一次。
    */
   benchOpen: 'bench_open',
+  /**
+   * 工作台（图片 / 标签 / 视频 / LoRA 台、首页小配方）上改了表单：浏览器落完、带着**落下之后的
+   * 真实快照**接下一跳，edit 的结果按那份快照读回再交给模型（11-18 真机：说「已改成 16:9」，
+   * 台上仍是 1:1 —— 回执写的是服务端自己记的那份，从没问过表单）。同 `canvas_sync` 的接力。
+   */
+  benchSync: 'bench_sync',
   canvasSync: 'canvas_sync',
   /**
    * 这一轮喂给模型的输入 token 到上限了（`ASSISTANT_NEXT_LIMITS.maxTurnInputTokens`，owner 11-10）。

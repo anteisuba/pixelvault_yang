@@ -13,8 +13,8 @@ import { STUDIO_OPERATOR_CONFIRM_STATUS_IDS } from '@/constants/studio-assistant
 import { ASSISTANT_OPERATOR_CONFIRM_KIND_IDS } from '@/constants/assistant-operator'
 import { AI_MODELS, getModelMessageKey } from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
-import type { StudioOperatorGenerateKnob } from '@/constants/studio-assistant-operator'
 import type { CanvasNodeGenerationState } from '@/lib/studio-operator-canvas-snapshot'
+import type { StudioOperatorKnobOrigins } from '@/lib/studio-operator-confirm-origins'
 import { ApiKeysProvider } from '@/contexts/api-keys-context'
 import {
   apiKeyRecord,
@@ -34,8 +34,8 @@ import type {
  * 钉五件事：
  *  ① 多步：一行动作串 + 「开始 / 一步一步来」两颗，各自走各自的回调；
  *  ② 生成 · 默认态：四颗旋钮读数在场；
- *  ②' #9 起：给了 `controls` 就是**可换的下拉**，改一下立刻经 `onAdjust` 写回，
- *     换模型回落时就地写一行「已按 X 调整」；⛔ 卡上不留任何一份自攒的参数；
+ *  ②' 11-18 起卡只做摘要：读数一律只读，这一轮助手动过的写「旧值 → 新值」，
+ *     ⛔ 没有下拉 / 输入框（同一个值不再有第三处能改）；
  *  ③ 确认中：两颗按钮都不可点（同一帧里连点 = 两枪）；
  *  ④ 已确认 · 时间：整卡收成一行，⛔ 两颗按钮整个不画；
  *  ⑤ 已取消 · 时间：写「没有执行」，且只有这一格长「再来一次」。
@@ -199,10 +199,7 @@ function renderCard(
       on: boolean
       setOn: (on: boolean) => void
     }
-    onAdjust?: (
-      knob: StudioOperatorGenerateKnob,
-      value: string,
-    ) => readonly StudioOperatorGenerateKnob[]
+    origins?: StudioOperatorKnobOrigins
     draft?: StudioOperatorGenerationDraft
   } = {},
 ) {
@@ -274,15 +271,6 @@ it('画布确认卡跟随目标节点参数变化，展示画质与模型默认�
   view.rerenderCanvas(null)
   expect(screen.getByTestId('operator-confirm-primary')).toBeDisabled()
 })
-
-/** 打开某一颗旋钮的下拉，返回它列出来的那几项。 */
-function openKnob(knob: StudioOperatorGenerateKnob): HTMLElement[] {
-  const trigger = screen
-    .getAllByTestId('operator-confirm-knob')
-    .find((node) => node.dataset.knob === knob)
-  fireEvent.click(trigger!)
-  return screen.getAllByTestId('operator-confirm-knob-option')
-}
 
 describe('StudioOperatorConfirmCard', () => {
   /**
@@ -511,56 +499,65 @@ describe('StudioOperatorConfirmCard', () => {
     expect(model).not.toHaveTextContent('gpt-image-2.5-flare')
   })
 
-  it('四颗各自是下拉，当前项打勾；点一项就走 onAdjust（比例 / 张数 / 分辨率）', () => {
-    const onAdjust = vi.fn(() => [])
-    renderCard(GENERATE, { controls: CONTROLS, onAdjust })
-
-    const aspects = openKnob('aspect')
-    expect(aspects.map((node) => node.dataset.value)).toEqual(['3:2', '1:1'])
-    expect(aspects[0]).toHaveAttribute('aria-checked', 'true')
-    fireEvent.click(aspects[1]!)
-    expect(onAdjust).toHaveBeenLastCalledWith('aspect', '1:1')
-
-    const counts = openKnob('count')
-    expect(counts.map((node) => node.dataset.value)).toEqual(['1', '2', '4'])
-    fireEvent.click(counts[2]!)
-    expect(onAdjust).toHaveBeenLastCalledWith('count', '4')
-
-    const resolutions = openKnob('resolution')
-    fireEvent.click(resolutions[1]!)
-    expect(onAdjust).toHaveBeenLastCalledWith('resolution', '2048')
-  })
-
-  it('失败行「换个模型」出的卡：模型那颗一出来就展开（P4 第 2 项）', () => {
-    renderCard({ ...GENERATE, openKnob: 'model' } as ConfirmCardPrompt, {
-      controls: CONTROLS,
-    })
+  it('⭐ 只做摘要（11-18）：每一格都是只读读数，⛔ 没有下拉、没有可点的旋钮', () => {
+    renderCard(GENERATE, { controls: CONTROLS })
+    const knobs = screen.getAllByTestId('operator-confirm-knob')
+    for (const knob of knobs) {
+      expect(knob.tagName).not.toBe('BUTTON')
+      fireEvent.click(knob)
+    }
+    expect(screen.queryByTestId('operator-confirm-knob-menu')).toBeNull()
+    expect(screen.queryByRole('menuitemradio')).toBeNull()
+    // 卡上能点的只剩「确认 / 取消」。
     expect(
       screen
-        .getAllByTestId('operator-confirm-knob-option')
-        .map((node) => node.dataset.value),
-    ).toEqual(['flux-2-flash', 'seedream-4'])
+        .getAllByRole('button')
+        .map((node) => node.dataset.testid)
+        .sort(),
+    ).toEqual(['operator-confirm-primary', 'operator-confirm-secondary'])
   })
 
-  it('⭐ 换模型：下拉列当前域全部模型，点中就写回，并就地写一行「已按 X 调整」', () => {
-    const onAdjust = vi.fn(() => ['aspect', 'resolution'] as const)
-    renderCard(GENERATE, { controls: CONTROLS, onAdjust })
-    expect(screen.queryByTestId('operator-confirm-adjusted')).toBeNull()
-
-    const models = openKnob('model')
-    expect(models.map((node) => node.dataset.value)).toEqual([
-      'flux-2-flash',
-      'seedream-4',
-    ])
-    expect(models[0]).toHaveAttribute('aria-checked', 'true')
-    fireEvent.click(models[1]!)
-    expect(onAdjust).toHaveBeenCalledWith('model', 'seedream-4')
-    expect(screen.getByTestId('operator-confirm-adjusted')).toHaveTextContent(
-      'confirm.generate.adjusted:confirm.generate.aspect · confirm.generate.resolution',
+  it('⭐ 这一轮助手动过的那几格写「旧值 → 新值」，没动过的只写现值', () => {
+    renderCard(GENERATE, {
+      controls: CONTROLS,
+      origins: { aspect: '1:1', count: '1', model: 'seedream-4' },
+    })
+    const byKnob = (id: string) =>
+      screen
+        .getAllByTestId('operator-confirm-knob')
+        .find((node) => node.dataset.knob === id)!
+    expect(byKnob('aspect')).toHaveAttribute('data-changed', 'true')
+    expect(byKnob('aspect')).toHaveTextContent('1:13:2')
+    expect(byKnob('count')).toHaveTextContent(
+      'confirm.generate.count:1confirm.generate.count:3',
     )
-    // ⛔ 卡上不自攒参数：读数仍是 controls 那一份（宿主还没回灌）。
-    const knobs = screen.getAllByTestId('operator-confirm-knob')
-    expect(knobs[0]).toHaveTextContent('FLUX 2 Flash')
+    // 旧模型写显示名（工作台模型表里有它）。
+    expect(byKnob('model')).toHaveTextContent('Seedream 4')
+    // 分辨率这一轮没动过：只写现值，不画箭头。
+    expect(byKnob('resolution')).not.toHaveAttribute('data-changed')
+    expect(
+      byKnob('resolution').querySelector(
+        '[data-testid="operator-confirm-knob-from"]',
+      ),
+    ).toBeNull()
+  })
+
+  it('动过又改回原值：不画箭头（旧值 = 新值不算一次修改）', () => {
+    renderCard(GENERATE, {
+      controls: CONTROLS,
+      origins: { aspect: '3:2' },
+    })
+    expect(screen.queryByTestId('operator-confirm-knob-from')).toBeNull()
+  })
+
+  it('旧值是「没设」：写「模型默认」', () => {
+    renderCard(GENERATE, {
+      controls: CONTROLS,
+      origins: { resolution: null },
+    })
+    expect(screen.getByTestId('operator-confirm-knob-from')).toHaveTextContent(
+      'confirm.generate.modelDefault',
+    )
   })
 
   it('⚠ 候选表为空的那一颗**不画**（这个模型没有它）', () => {
@@ -607,57 +604,37 @@ describe('StudioOperatorConfirmCard', () => {
     )
   })
 
-  it('⚠ 没有 controls（LoRA 装配台）：退回只读读数，⛔ 没有下拉可点', () => {
-    const onAdjust = vi.fn(() => [])
-    renderCard(GENERATE, { onAdjust })
-    fireEvent.click(
+  it('⚠ 没有 controls（LoRA 装配台）：读数回落到载荷那一份', () => {
+    renderCard(GENERATE)
+    expect(
       screen
         .getAllByTestId('operator-confirm-knob')
-        .find((node) => node.dataset.knob === 'model')!,
-    )
-    expect(screen.queryByTestId('operator-confirm-knob-option')).toBeNull()
-    expect(onAdjust).not.toHaveBeenCalled()
-  })
-
-  it('⚠ 「确认中」时旋钮也点不动（同一帧里改参数 = 与那一枪赛跑）', () => {
-    const onAdjust = vi.fn(() => [])
-    renderCard(
-      { ...GENERATE, status: STUDIO_OPERATOR_CONFIRM_STATUS_IDS.submitting },
-      { controls: CONTROLS, onAdjust },
-    )
-    const trigger = screen
-      .getAllByTestId('operator-confirm-knob')
-      .find((node) => node.dataset.knob === 'model')!
-    expect(trigger).toBeDisabled()
+        .map((node) => node.dataset.knob),
+    ).toContain('model')
+    expect(screen.queryByTestId('operator-confirm-knob-menu')).toBeNull()
   })
 })
 
 describe('StudioOperatorConfirmCard 先搜再画（B 定稿）', () => {
-  it('支持且关着：旋钮行末一颗「＋ 先搜再画」，点了写回工作台那一份开关', () => {
-    const setOn = vi.fn()
+  it('关着：卡上不画（开关在工作台上，卡只读）', () => {
     renderCard(GENERATE, {
       controls: CONTROLS,
-      searchGrounding: { available: true, on: false, setOn },
+      searchGrounding: { available: true, on: false, setOn: vi.fn() },
     })
-    const add = screen.getByTestId('operator-confirm-search-grounding')
-    expect(add.closest('[data-open]')).toHaveAttribute('data-open', 'true')
-    fireEvent.click(add)
-    expect(setOn).toHaveBeenCalledWith(true)
+    expect(screen.queryByTestId('operator-confirm-search-grounding')).toBeNull()
   })
 
-  it('开着：按钮收起，虚线槽长出来，× 关掉', () => {
+  it('开着：摘要里写一格「先搜再画」，⛔ 没有可点的开关', () => {
     const setOn = vi.fn()
     renderCard(GENERATE, {
       controls: CONTROLS,
       searchGrounding: { available: true, on: true, setOn },
     })
-    expect(
-      screen
-        .getByTestId('operator-confirm-search-grounding')
-        .closest('[data-open]'),
-    ).toHaveAttribute('data-open', 'false')
-    fireEvent.click(screen.getByRole('button', { name: 'turnOff' }))
-    expect(setOn).toHaveBeenCalledWith(false)
+    const cell = screen.getByTestId('operator-confirm-search-grounding')
+    expect(cell).toHaveTextContent('toggle')
+    expect(cell.tagName).not.toBe('BUTTON')
+    fireEvent.click(cell)
+    expect(setOn).not.toHaveBeenCalled()
   })
 
   it('画布那一枪不画这一颗（那是卡自己的参数）', () => {
@@ -686,31 +663,26 @@ describe('StudioOperatorConfirmCard 首页那份小配方（9g）', () => {
   ): StudioOperatorGenerationDraft {
     return {
       prompt: '夕阳下的猫',
-      setPrompt: vi.fn(),
       references: [{ url: 'https://cdn.example.com/ref.png', name: '图_1' }],
-      removeReference: vi.fn(),
       openBench: vi.fn(),
       keySetup: null,
       ...overrides,
     }
   }
 
-  it('卡上能改提示词、拿掉参考图、去图片台接着改', () => {
+  it('提示词与参考图只读摆出来（11-18 卡只做摘要），「去图片台接着改」留着', () => {
     const draft = makeDraft()
     renderCard(GENERATE, { controls: CONTROLS, draft })
     const prompt = screen.getByTestId('operator-confirm-draft-prompt')
-    expect(prompt).toHaveValue('夕阳下的猫')
-    fireEvent.change(prompt, { target: { value: '雨里的猫' } })
-    expect(draft.setPrompt).toHaveBeenCalledWith('雨里的猫')
+    expect(prompt).toHaveTextContent('夕阳下的猫')
+    expect(prompt.tagName).not.toBe('TEXTAREA')
+    expect(screen.queryByRole('textbox')).toBeNull()
     expect(
       screen.getAllByTestId('operator-confirm-draft-reference'),
     ).toHaveLength(1)
-    fireEvent.click(
-      screen.getByTestId('operator-confirm-draft-reference-remove'),
-    )
-    expect(draft.removeReference).toHaveBeenCalledWith(
-      'https://cdn.example.com/ref.png',
-    )
+    expect(
+      screen.queryByTestId('operator-confirm-draft-reference-remove'),
+    ).toBeNull()
     fireEvent.click(screen.getByTestId('operator-confirm-open-bench'))
     expect(draft.openBench).toHaveBeenCalled()
   })

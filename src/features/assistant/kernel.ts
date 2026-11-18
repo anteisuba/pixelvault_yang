@@ -156,6 +156,7 @@ import {
 import {
   benchContext,
   benchFaceOf,
+  benchReadbackOutput,
   isHomeDraftSnapshot,
   boardEntry,
   renderBench,
@@ -212,8 +213,10 @@ import {
   loadTurnState,
   saveTurnState,
   type NextTurnState,
+  type PendingBenchEdit,
   type PendingCanvasEdit,
 } from '@/features/assistant/state'
+import type { BenchReadbackRequest } from '@/features/assistant/bench-readback'
 import {
   AskInputSchema,
   assistantNextTools,
@@ -272,6 +275,12 @@ const NOT_RUN_AFTER_STOP =
 /** 画布：同一步里前面的 edit 还在落，板子还不是新的样子。 */
 const NOT_RUN_WHILE_BOARD_CHANGES =
   'Not run: an edit earlier in this step is still landing on the board. Call it again in your next step if you still need it.'
+/** 工作台：同一步里 edit 之后的别的调用 —— 等表单读回了再说（出图更不能拿没读回的配方出）。 */
+const NOT_RUN_WHILE_BENCH_LANDS =
+  'Not run: an edit earlier in this step is still landing on the bench; its result will read back what the form really shows. Call it again in your next step if you still need it.'
+/** 工作台那一批交出去了、接力条没存下：落没落这一跳不知道。 */
+const BENCH_LANDING_UNKNOWN =
+  'Sent to the bench; whether the form took these values is NOT known yet. Do not tell the creator they changed — say you set them and ask them to check, or look at the bench again in the next step.'
 /** 画布那一批交出去了、接力条没存下：落没落这一跳不知道。 */
 const LANDING_UNKNOWN =
   'BOARD — sent to the board; whether it landed is not known yet. Look at the cards you changed before you build on them.'
@@ -432,6 +441,7 @@ function turnOutcomeOf(
   switch (event.reason) {
     case ASSISTANT_OPERATOR_STOP_REASONS.timeBudget:
     case ASSISTANT_OPERATOR_STOP_REASONS.canvasSync:
+    case ASSISTANT_OPERATOR_STOP_REASONS.benchSync:
       return TURN_OUTCOME.relay
     case ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm:
       return TURN_OUTCOME.awaitingConfirm
@@ -1125,6 +1135,29 @@ async function* runNextTurn(
           : { type: 'text', value: output },
       }
     })
+    // 工作台：上一跳交给浏览器落表单的那几次 edit，这一跳按落下之后的真实快照读回再交结果。
+    const readBack: ToolResultPart[] = (saved.pending.bench ?? []).map(
+      (edit) => {
+        const read = benchReadbackOutput(context, edit.requested)
+        const output = `${edit.lines}\n${read.output}`
+        const error = edit.error || read.mismatched > 0
+        transcript.push({
+          type: ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.result,
+          id: edit.toolCallId.slice(0, ASSISTANT_V3_LIMITS.maxCallIdChars),
+          tool: transcriptTool(edit.toolName),
+          output: output.slice(0, ASSISTANT_V3_LIMITS.maxEntryChars),
+          error,
+        })
+        return {
+          type: 'tool-result',
+          toolCallId: edit.toolCallId,
+          toolName: edit.toolName,
+          output: error
+            ? { type: 'error-text', value: output }
+            : { type: 'text', value: output },
+        }
+      },
+    )
     // 开台（第 9e 步）：到了新台，这次 open 的结果就是新台的板子。
     const opened: ToolResultPart[] = []
     const open = saved.pending.open
@@ -1152,7 +1185,7 @@ async function* runNextTurn(
       ...messages,
       {
         role: 'tool',
-        content: [...saved.pending.results, ...landed, ...opened],
+        content: [...saved.pending.results, ...landed, ...readBack, ...opened],
       },
       ...(saved.pending.looked.length && context.seesImages
         ? [lookedPicturesMessage(saved.pending.looked)]
@@ -1696,6 +1729,12 @@ async function* runNextTurn(
       lines: string
       batch: CanvasBatch
     }[] = []
+    /** 工作台：这一步里交给浏览器落表单的那几次 edit（落完按真实快照读回再交结果）。 */
+    const benchEdits: {
+      call: ClientCall
+      result: BenchResult
+      requested: readonly BenchReadbackRequest[]
+    }[] = []
     /** 开台（第 9e 步）：这一步里那次 open（排在最后跑，存好再停）。 */
     // ⚠ 写成 `as`：它在 `land` 里被赋值，按声明的 null 收窄后面就读不到了。
     let opening = null as { call: ClientCall; opening: BenchOpening } | null
@@ -1765,6 +1804,11 @@ async function* runNextTurn(
         call.toolName !== ASSISTANT_NEXT_TOOL_IDS.edit
       )
         return { output: NOT_RUN_WHILE_BOARD_CHANGES, error: true }
+      if (
+        benchEdits.length > 0 &&
+        call.toolName !== ASSISTANT_NEXT_TOOL_IDS.edit
+      )
+        return { output: NOT_RUN_WHILE_BENCH_LANDS, error: true }
       const failedBefore = failedCalls.get(keyOf(call))
       if (failedBefore && failedBefore.okCount === okCount)
         return {
@@ -1783,7 +1827,16 @@ async function* runNextTurn(
         opening = { call, opening: result.opening }
         return
       }
-      settle(call, result)
+      // 工作台改了表单：结果等浏览器落完、按真实快照读回再交（停在 `bench_sync`）。
+      if (result.readback?.length && !result.stop)
+        benchEdits.push({ call, result, requested: result.readback })
+      else if (result.readback?.length)
+        // 停在卡上（等创作者）：这一轮不再接下一跳，落没落如实说不知道。
+        settle(call, {
+          ...result,
+          output: `${result.output}\n${BENCH_LANDING_UNKNOWN}`,
+        })
+      else settle(call, result)
       if (result.error)
         failedCalls.set(keyOf(call), { output: result.output, okCount })
       else okCount += 1
@@ -1833,6 +1886,37 @@ async function* runNextTurn(
       for (const item of gated)
         if (item.refused) settle(item.call, item.refused)
         else land(item.call, ran[next++]!)
+    }
+    if (benchEdits.length > 0) {
+      const pending: PendingBenchEdit[] = benchEdits.map((edit) => ({
+        toolCallId: edit.call.toolCallId,
+        toolName: edit.call.toolName,
+        lines: edit.result.output,
+        error: edit.result.error,
+        requested: edit.requested,
+      }))
+      // 交给浏览器落：存好这一步（结果待补），交接力条，停在 bench_sync；下一跳按真实快照读回。
+      const kept =
+        !stopped && !opening
+          ? await keepState({ results, looked, canvas: [], bench: pending })
+          : false
+      if (kept) {
+        yield {
+          type: ASSISTANT_OPERATOR_EVENTS.transcript,
+          transcript: relayToken(turnId, hop),
+        }
+        yield {
+          type: ASSISTANT_OPERATOR_EVENTS.stopped,
+          reason: ASSISTANT_OPERATOR_STOP_REASONS.benchSync,
+        }
+        return
+      }
+      // 存不下 / 这一步停在卡上：浏览器照样落，结果写「还不知道」。
+      for (const edit of benchEdits)
+        settle(edit.call, {
+          ...edit.result,
+          output: `${edit.result.output}\n${BENCH_LANDING_UNKNOWN}`,
+        })
     }
     if (boardEdits.length > 0) {
       const settleBoard = (

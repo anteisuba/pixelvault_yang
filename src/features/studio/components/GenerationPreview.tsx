@@ -912,8 +912,12 @@ export const GenerationPreview = memo(function GenerationPreview({
 
     return (
       <>
+        {/* 两种摆法都挂 `data-stage-generation-id`：手机上助手那一行「已出图」也要定位得到（11-18）。 */}
         {fillStage ? (
-          <div className="flex min-h-0 flex-1 gap-2">
+          <div
+            data-stage-generation-id={generation.id}
+            className="flex min-h-0 flex-1 gap-2"
+          >
             <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
               {searchRail}
               {previewContent}
@@ -940,7 +944,7 @@ export const GenerationPreview = memo(function GenerationPreview({
             ) : null}
           </div>
         ) : (
-          <div className="space-y-2">
+          <div data-stage-generation-id={generation.id} className="space-y-2">
             {searchRail}
             {previewContent}
 
@@ -1009,7 +1013,11 @@ export const GenerationPreview = memo(function GenerationPreview({
   // ── Desktop layout: image + right tool column ─────────────────────
   return (
     <>
-      <div className={cn('flex gap-3', fillStage && 'min-h-0 flex-1')}>
+      <div
+        // 助手对话里那一行「已出图，在右边」点一下定位到这里（`locateStudioStageGeneration`）。
+        data-stage-generation-id={generation.id}
+        className={cn('flex gap-3', fillStage && 'min-h-0 flex-1')}
+      >
         <div
           className={cn('min-w-0 flex-1', fillStage && 'flex min-h-0 flex-col')}
         >

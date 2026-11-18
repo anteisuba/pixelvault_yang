@@ -11,6 +11,7 @@ import type {
   AssistantV3PictureRef,
   AssistantV3Transcript,
 } from '@/types/assistant-v3'
+import type { BenchReadbackRequest } from '@/features/assistant/bench-readback'
 import type { CanvasBatch } from '@/features/assistant/canvas'
 import type { BenchOpening } from '@/features/assistant/open'
 
@@ -57,7 +58,19 @@ export interface NextTurnState {
     readonly looked: AssistantV3PictureRef[]
     readonly canvas: readonly PendingCanvasEdit[]
     readonly open?: PendingOpen
+    /** 工作台：停在 `bench_sync` 时交给浏览器落表单的那几次 edit（下一跳按真实快照读回）。 */
+    readonly bench?: readonly PendingBenchEdit[]
   }
+}
+
+export interface PendingBenchEdit {
+  readonly toolCallId: string
+  readonly toolName: string
+  /** 服务端当场那几行（每一条改动规划成了什么、被拒的为什么）。 */
+  readonly lines: string
+  /** 这几行里有没有被拒的（读回全对上也照旧算失败）。 */
+  readonly error: boolean
+  readonly requested: readonly BenchReadbackRequest[]
 }
 
 export interface PendingOpen {

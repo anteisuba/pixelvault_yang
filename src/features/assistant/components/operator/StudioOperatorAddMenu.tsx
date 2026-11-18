@@ -91,8 +91,9 @@ export function StudioOperatorAddMenu({
         align="start"
         label={t('label')}
         onCloseAutoFocus={(event) => event.preventDefault()}
-        /* 三层玻璃③：浮层（与模型 / 思考 chip 同一身）。 */
-        className="w-64 rounded-xl border-assistant-line-strong p-0 assistant-glass-overlay shadow-assistant-overlay"
+        /* 浮层实底（ui-spec「浮层 · 菜单」= `float` + `pop`，11-18 起不再是毛玻璃）：
+           底色 / 圆角 / 阴影用 Popover 原语自带的 `bg-popover rounded-12 shadow-pop`。 */
+        className="w-64 p-0"
         mobileClassName="px-0"
       >
         <div

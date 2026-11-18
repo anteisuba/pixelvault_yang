@@ -9,7 +9,7 @@ import type {
   AssistantOperatorSnapshot,
 } from '@/types/assistant-operator'
 
-import { renderBench, runEdit } from './bench'
+import { benchReadbackOutput, renderBench, runEdit } from './bench'
 
 /**
  * 11-17 真机（生产 `/zh/studio/image`，Seedream 5.0 Lite · 火山）：
@@ -38,6 +38,28 @@ function imageBenchSnapshot(): AssistantOperatorSnapshot {
     },
     count: { value: 1, options: [1, 2, 4] },
   } as AssistantOperatorSnapshot
+}
+
+/** 浏览器落完之后带回来的那份快照（只改动过的几格）。 */
+function landedSnapshot(change: {
+  aspectRatio?: string
+  prompt?: string
+  count?: number
+}): AssistantOperatorSnapshot {
+  const base = imageBenchSnapshot()
+  return {
+    ...base,
+    prompt: change.prompt ?? base.prompt,
+    specs: base.specs
+      ? {
+          ...base.specs,
+          aspectRatio: change.aspectRatio ?? base.specs.aspectRatio,
+        }
+      : base.specs,
+    count: base.count
+      ? { ...base.count, value: change.count ?? base.count.value }
+      : base.count,
+  }
 }
 
 function imageBenchContext(
@@ -110,8 +132,29 @@ describe('图片台 edit：回给模型的是台上落下后的真值（11-17）
     )
     expect(done).toBeDefined()
     expect(context.prepared.run.state.aspectRatio).toBe('16:9')
-    // 回执里写的是落下之后的样子。
-    expect(result.output).toContain('aspect ratio 16:9')
+    // 11-18：当场不替表单说「现在是什么样」—— 交给浏览器落的那一格记进 readback。
+    expect(result.output).not.toContain('BENCH NOW')
+    expect(result.readback?.map((entry) => entry.tool)).toEqual(['set_specs'])
+    // 下一跳：浏览器带回落下之后的快照，按它读回。
+    const landed = imageBenchContext(landedSnapshot({ aspectRatio: '16:9' }))
+    const read = benchReadbackOutput(landed, result.readback ?? [])
+    expect(read.mismatched).toBe(0)
+    expect(read.output).toContain('aspect ratio: 16:9 (as requested)')
+    expect(read.output).toContain('aspect ratio 16:9')
+  })
+
+  it('浏览器落完台上仍是 1:1（11-18 真机）：读回写「请求 16:9，实际 1:1」，不说改好了', async () => {
+    const context = imageBenchContext()
+    const { result } = await drain(
+      runEdit(context, [{ op: 'specs', aspectRatio: '16:9' }]),
+    )
+    const stale = imageBenchContext(imageBenchSnapshot())
+    const read = benchReadbackOutput(stale, result.readback ?? [])
+    expect(read.mismatched).toBe(1)
+    expect(read.output).toMatch(
+      /aspect ratio: NOT CHANGED AS ASKED — requested 16:9, actually 1:1/,
+    )
+    expect(read.output).toContain('aspect ratio 1:1')
   })
 
   it('一条没落成：回执点名没改成、为什么、台上现在是多少', async () => {
@@ -131,10 +174,17 @@ describe('图片台 edit：回给模型的是台上落下后的真值（11-17）
     expect(result.output).toMatch(
       /2\. specs — not done: .*"21:9" is not an option.*stays 1:1/,
     )
-    expect(result.output).toContain('aspect ratio 1:1')
+    // 提示词交给浏览器落：读回下一跳做；比例当场被拒，不在 readback 里。
+    expect(result.readback?.map((entry) => entry.tool)).toEqual(['set_prompt'])
     expect(context.prepared.run.state.prompt).toBe(
       '一只橘猫趴在窗台上，午后阳光。',
     )
+    const landed = imageBenchContext(
+      landedSnapshot({ prompt: '一只橘猫趴在窗台上，午后阳光。' }),
+    )
+    const read = benchReadbackOutput(landed, result.readback ?? [])
+    expect(read.mismatched).toBe(0)
+    expect(read.output).toContain('aspect ratio 1:1')
   })
 
   it('改完的回执带上这一批的估价（与出图键旁那个数同一个算式）', async () => {
@@ -142,8 +192,10 @@ describe('图片台 edit：回给模型的是台上落下后的真值（11-17）
     const { result } = await drain(
       runEdit(context, [{ op: 'count', count: 2 }]),
     )
-    expect(result.output).toContain('2 per run')
-    expect(result.output).toMatch(/about \$0\.0[0-9]+ per run/)
+    const landed = imageBenchContext(landedSnapshot({ count: 2 }))
+    const read = benchReadbackOutput(landed, result.readback ?? [])
+    expect(read.output).toContain('2 per run')
+    expect(read.output).toMatch(/about \$0\.0[0-9]+ per run/)
   })
 
   it('板子上直接印价钱，并说清问价不必调 generate', () => {

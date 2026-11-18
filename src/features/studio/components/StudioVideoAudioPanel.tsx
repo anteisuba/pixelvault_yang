@@ -210,7 +210,7 @@ export function StudioVideoAudioPanel() {
             >
               <div className="flex items-center gap-2">
                 <Music2 className="size-4 shrink-0 text-muted-foreground" />
-                <span className="min-w-0 flex-1 truncate text-xs font-medium">
+                <span className="min-w-0 flex-1 truncate text-2sm font-semibold">
                   {/* `@AudioN` 的 N 就是这里的序号 —— 用户在提示词里写的引用要
                       对得上，所以序号必须显示出来。 */}
                   {t('slotBadge', { index: index + 1 })} · {ref.fileName}

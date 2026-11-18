@@ -5,6 +5,7 @@ import { memo, useRef } from 'react'
 import { STUDIO_MOBILE_STAGE_CLASS } from '@/constants/studio-mobile'
 import { useToastLift } from '@/hooks/use-toast-lift'
 import { cn } from '@/lib/utils'
+import { STUDIO_COMPOSER_CARD_CLASS } from './studio-composer-card'
 
 interface StudioWorkbenchLayoutProps {
   /**
@@ -112,7 +113,10 @@ export const StudioWorkbenchLayout = memo(function StudioWorkbenchLayout({
           <div
             ref={composerCardRef}
             data-studio-composer=""
-            className="@container/composer relative shrink-0 rounded-16 bg-card px-4 pt-3.5 pb-3 shadow-card"
+            className={cn(
+              '@container/composer relative shrink-0',
+              STUDIO_COMPOSER_CARD_CLASS,
+            )}
           >
             {composerOverlay}
             <div className={paramsClassName}>{params}</div>

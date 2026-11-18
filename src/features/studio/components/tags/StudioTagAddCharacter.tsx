@@ -75,7 +75,7 @@ export function StudioTagAddCharacter({
           type="button"
           disabled={disabled || full}
           aria-label={t('trigger')}
-          className="relative inline-flex h-7 shrink-0 items-center gap-1 rounded-full border border-dashed border-border px-2.5 text-2xs whitespace-nowrap text-muted-foreground transition-colors duration-fast ease-standard hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus disabled:opacity-40 data-[state=open]:bg-muted data-[state=open]:text-foreground"
+          className="relative inline-flex h-8 shrink-0 items-center gap-1 rounded-full border border-dashed border-border px-2.5 text-2xs whitespace-nowrap text-muted-foreground transition-colors duration-fast ease-standard hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus disabled:opacity-40 data-[state=open]:bg-muted data-[state=open]:text-foreground"
         >
           <Plus className="size-3.5" aria-hidden />
           {t('trigger')}

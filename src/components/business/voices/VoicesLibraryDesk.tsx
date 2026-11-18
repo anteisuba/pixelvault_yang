@@ -203,7 +203,7 @@ export function VoicesLibraryDesk({
         {publicVoices.map(renderAsset)}
       </LibraryGrid>
       {empty && needle ? (
-        <p className="py-10 text-center text-sm text-muted-foreground">
+        <p className="py-10 text-center text-2sm text-muted-foreground">
           {t('emptyPublic')}
         </p>
       ) : null}
@@ -432,7 +432,7 @@ export function VoiceLibraryTile({
           />
         ) : null}
         {taken && takenLabel ? (
-          <span className="pointer-events-none absolute top-2 right-2 z-20 inline-flex h-5.5 items-center rounded-full bg-media-chip px-2 text-2xs font-medium text-on-media-chip">
+          <span className="pointer-events-none absolute top-2 right-2 z-20 inline-flex h-5.5 items-center rounded-full bg-media-chip px-2 text-2xs font-semibold text-on-media-chip">
             {takenLabel}
           </span>
         ) : null}

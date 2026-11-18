@@ -329,7 +329,7 @@ export function QuickSetupDialog({
         <div className="space-y-4 pt-2">
           {channelChoices && channelChoices.length > 1 && onChannelChange ? (
             <div className="space-y-2">
-              <p id="quick-setup-channel" className="text-sm font-medium">
+              <p id="quick-setup-channel" className="text-2sm font-semibold">
                 {t('channelPick')}
               </p>
               <div
@@ -353,7 +353,7 @@ export function QuickSetupDialog({
                         onChannelChange(choice.id)
                       }}
                       className={cn(
-                        'inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs transition-colors duration-fast ease-standard focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-50',
+                        'inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-2sm transition-colors duration-fast ease-standard focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-50',
                         checked
                           ? 'border-foreground bg-foreground text-background'
                           : 'border-border/60 text-foreground hover:bg-muted',
@@ -381,12 +381,12 @@ export function QuickSetupDialog({
 
           {/* Step 1: Guide */}
           <div className="rounded-lg border border-border/60 bg-muted/30 p-3 space-y-2">
-            <p className="text-sm font-medium">{t('step1')}</p>
+            <p className="text-2sm font-semibold">{t('step1')}</p>
             <a
               href={guide.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+              className="inline-flex items-center gap-1.5 text-2sm text-primary hover:underline"
             >
               {providerConfig.label}
               <ExternalLink className="size-3.5" />
@@ -397,7 +397,7 @@ export function QuickSetupDialog({
                 : guide.steps}
             </p>
             {bytedanceStationOnly ? (
-              <p className="text-2xs font-medium text-foreground">
+              <p className="text-2xs font-semibold text-foreground">
                 {t(`bytedanceStationOnly.${bytedanceStationOnly}`)}
               </p>
             ) : null}
@@ -405,7 +405,7 @@ export function QuickSetupDialog({
 
           {/* Step 2: Input key */}
           <div className="space-y-2">
-            <label htmlFor="quick-setup-key" className="text-sm font-medium">
+            <label htmlFor="quick-setup-key" className="text-2sm font-semibold">
               {t('step2')}
             </label>
             <Input
@@ -425,7 +425,7 @@ export function QuickSetupDialog({
             <div className="space-y-2">
               <label
                 htmlFor="quick-setup-anthropic-workspace"
-                className="text-sm font-medium"
+                className="text-2sm font-semibold"
               >
                 {t('anthropicWorkspaceId')}
               </label>
@@ -453,7 +453,10 @@ export function QuickSetupDialog({
               that share the same provider (e.g. a personal + a work Gemini
               account). Defaults to the model name. */}
           <div className="space-y-2">
-            <label htmlFor="quick-setup-label" className="text-sm font-medium">
+            <label
+              htmlFor="quick-setup-label"
+              className="text-2sm font-semibold"
+            >
               {t('step3')}
             </label>
             <Input
@@ -475,7 +478,7 @@ export function QuickSetupDialog({
 
           {/* Error message */}
           {step === 'error' && (
-            <div className="flex items-center gap-2 text-sm text-destructive">
+            <div className="flex items-center gap-2 text-2sm text-destructive">
               <XCircle className="size-4 shrink-0" />
               <span>{errorMsg}</span>
             </div>
@@ -492,7 +495,7 @@ export function QuickSetupDialog({
               step === 'success'
             }
             className={cn(
-              'flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-[background-color,color,transform] duration-fast ease-standard motion-reduce:transition-none',
+              'flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-2sm font-semibold transition-[background-color,color,transform] duration-fast ease-standard motion-reduce:transition-none',
               step === 'verifying' || step === 'success'
                 ? 'bg-foreground text-background'
                 : keyValue.trim().length >= 10
@@ -536,7 +539,7 @@ export function QuickSetupDialog({
             <a
               href={ROUTES.SETTINGS_KEYS}
               onClick={() => onOpenChange(false)}
-              className="text-xs text-muted-foreground transition-colors hover:text-foreground"
+              className="text-2xs text-muted-foreground transition-colors hover:text-foreground"
             >
               {t('manageAllKeys')}
             </a>

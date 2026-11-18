@@ -86,7 +86,7 @@ export function PromptFilterMenu<T extends string>({
                   onChange(option.value)
                   setOpen(false)
                 }}
-                className="flex h-8.5 items-center gap-2 rounded-lg px-2.5 text-left text-2sm text-foreground transition-colors duration-fast ease-linear hover:bg-muted focus-visible:bg-muted focus-visible:outline-none active:bg-muted max-md:h-12 max-md:text-base"
+                className="flex h-8 items-center gap-2 rounded-lg px-2.5 text-left text-2sm text-foreground transition-colors duration-fast ease-linear hover:bg-muted focus-visible:bg-muted focus-visible:outline-none active:bg-muted max-md:h-12 max-md:text-base"
               >
                 <span className="min-w-0 flex-1 truncate">{option.label}</span>
                 {selected ? (

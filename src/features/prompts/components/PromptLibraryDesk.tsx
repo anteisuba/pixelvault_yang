@@ -293,6 +293,8 @@ export function PromptLibraryDesk({
       </LibraryRail>
 
       <div className="relative flex min-w-0 flex-1 flex-col">
+        {/* 页名：库顶上那一排已经写着「提示词」，这里只给读屏（与画廊 / 素材 / 声音同一种写法）。 */}
+        <h1 className="sr-only">{t('pageTitle')}</h1>
         <div inert={openItem !== null} className="flex min-h-0 flex-1 flex-col">
           <LibraryToolbar
             className="shrink-0"
@@ -347,7 +349,7 @@ export function PromptLibraryDesk({
           <div className="mt-3 min-h-0 flex-1 overflow-y-auto pb-6">
             {body}
             {shown.length === 0 && (needle || type !== 'ALL') ? (
-              <p className="py-10 text-center text-sm text-muted-foreground">
+              <p className="py-10 text-center text-2sm text-muted-foreground">
                 {needle
                   ? t('emptyQuery', { query: query.trim() })
                   : t('emptyType', { type: typeLabel(type) })}
@@ -450,7 +452,7 @@ function PromptLibraryTile({
         ) : (
           <p
             aria-hidden
-            className="absolute inset-0 line-clamp-8 overflow-hidden whitespace-pre-wrap break-words p-3 text-xs leading-5 text-ink-2"
+            className="absolute inset-0 line-clamp-8 overflow-hidden whitespace-pre-wrap break-words p-3 text-2xs leading-4 text-ink-2"
           >
             {recipe.compiledPrompt}
           </p>

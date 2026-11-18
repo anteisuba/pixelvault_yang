@@ -68,8 +68,8 @@ import {
  */
 
 const ghostClass =
-  'inline-flex h-7 shrink-0 items-center gap-1 rounded-full px-2.5 text-2xs text-muted-foreground transition-colors duration-fast ease-standard hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none disabled:opacity-50'
-const pillClass = cn(studioOutlineChipClass, 'h-7 gap-1 px-2.5 text-2xs')
+  'inline-flex h-8 shrink-0 items-center gap-1 rounded-full px-2.5 text-2xs text-muted-foreground transition-colors duration-fast ease-standard hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none disabled:opacity-50'
+const pillClass = cn(studioOutlineChipClass, 'gap-1 px-2.5 text-2xs')
 const fieldClass =
   'flex h-8 min-w-0 max-w-xl flex-1 items-center gap-1.5 rounded-lg bg-muted px-3'
 /** 手机上给输入框留够宽度，同一行放不下时让「加一条」折到下一行，而不是把字挤没。 */
@@ -367,7 +367,7 @@ function InteractionChip({
         disabled={disabled}
         aria-label={t('removeInteraction', { action: label })}
         onClick={onRemove}
-        className="touch-target-y grid size-6 place-items-center rounded-full text-muted-foreground transition-colors duration-fast ease-standard hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus disabled:opacity-50"
+        className="touch-target-y grid size-8 place-items-center rounded-full text-muted-foreground transition-colors duration-fast ease-standard hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus disabled:opacity-50"
       >
         <X className="size-3" aria-hidden />
       </button>
@@ -703,7 +703,7 @@ export function StudioTagSceneTexts({
             disabled={disabled}
             aria-label={t('removeSceneText')}
             onClick={() => write(items.filter((_, i) => i !== slot))}
-            className="touch-target-y grid size-6 place-items-center rounded-full text-muted-foreground transition-colors duration-fast ease-standard hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus disabled:opacity-50"
+            className="touch-target-y grid size-8 place-items-center rounded-full text-muted-foreground transition-colors duration-fast ease-standard hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus disabled:opacity-50"
           >
             <X className="size-3" aria-hidden />
           </button>
@@ -752,9 +752,9 @@ function HintRow({
 }
 
 const hintActionClass =
-  'h-6 rounded-full bg-foreground px-2.5 text-2xs font-semibold text-background transition-opacity duration-fast ease-standard hover:opacity-90 focus-visible:outline-none focus-visible:shadow-focus'
+  'h-8 rounded-full bg-foreground px-3 text-2xs font-semibold text-background transition-opacity duration-fast ease-standard hover:opacity-90 focus-visible:outline-none focus-visible:shadow-focus'
 const hintQuietClass =
-  'h-6 rounded-full px-2 text-2xs hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus'
+  'h-8 rounded-full px-2 text-2xs hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus'
 
 /**
  * 人数提示，挂在正向标签正下方：整体页 = ≥2 人而还写着 `1girl` / `solo` 这类单人

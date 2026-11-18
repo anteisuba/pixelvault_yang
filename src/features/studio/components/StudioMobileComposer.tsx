@@ -57,10 +57,10 @@ import { useStudioSearchGrounding } from '@/features/studio/hooks/use-studio-sea
  * 模型那颗是共用的 `MainModelPicker`（与标签台手机同一副收边）。
  */
 const modelGhostClass =
-  'h-8 max-w-40 gap-1 border-transparent bg-transparent pr-2 pl-2.5 font-medium hover:border-transparent active:bg-muted data-[active=true]:bg-muted'
+  'h-8 max-w-40 gap-1 border-transparent bg-transparent pr-2 pl-2.5 hover:border-transparent active:bg-muted data-[active=true]:bg-muted'
 /** 规格那颗是共用的 `SpecChip`，只在这里把它的描边收掉（闪烁提示的底色照旧）。 */
 const specGhostClass =
-  'border-transparent px-2.5 font-medium hover:border-transparent active:bg-muted'
+  'border-transparent px-2.5 hover:border-transparent active:bg-muted'
 /** 模型参数那颗是共用的单颗专属 chip，同样收成幽灵丸。 */
 const capabilityGhostClass =
   'h-8 gap-1 px-2.5 text-2sm text-foreground hover:bg-transparent active:bg-muted'
@@ -421,7 +421,7 @@ export const StudioMobileComposer = memo(function StudioMobileComposer({
             className={cn(
               'touch-target relative flex h-9 shrink-0 items-center justify-center gap-1 rounded-full bg-primary text-primary-foreground',
               // 图片是 36 圆键；视频那颗要装下时长，所以按内容伸缩。
-              isVideo ? 'px-3 text-sm font-medium tabular-nums' : 'w-9',
+              isVideo ? 'px-3 text-2sm font-semibold tabular-nums' : 'w-9',
               'transition-[background-color,transform] duration-fast ease-standard active:scale-[0.98]',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
               // 挡住时降到次级填充 —— 与桌面那颗同一条规矩：降的是底不是字。

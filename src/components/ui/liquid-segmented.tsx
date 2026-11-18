@@ -40,11 +40,12 @@ interface LiquidSegmentedProps<T extends string> {
   /** 单独禁用某几项（仍然画出来，灰着）。 */
   disabledValues?: readonly T[]
   /**
-   * `sm` = 工具行那一档（11px）；`md` = 设置页里的一行选择（14px，触屏 44px 高）；
-   * `row` = 与 32px 高的筛选键、按钮排成一行（整颗正好 32px）；
-   * `xs` = 弹层里一行参数的那一档（「专属」A1，owner 2026-10-07）：左右内边距收窄，
-   * 六个选项能在 260px 里排开。
-   * `stack` = 图形在上、字在下的方块格（规格弹层的比例，owner 2026-10-08 选「分段条」）。
+   * 字一律 13（ui-spec §4 `ui`），当前那一格 600、其余 400；高度照 §5：
+   * `sm`（缺省）= 切换条本档，整颗 36（库的筛选条、规格弹层、工具行）；
+   * `md` = 同样 36，触屏撑到 44（设置页、角色页里的一行选择）；
+   * `row` = 小号切换条，整颗 32：与 32 高的药丸、按钮排成一行，或弹层里的一行参数（§9 LoraParams / TagPicker）；
+   * `xs` = 小号切换条，整颗 32、左右内距收窄（「专属」A1，owner 2026-10-07：六个选项要在 264 宽里排开），触屏 44。
+   * `stack` = 图形在上、字在下的方块格（规格弹层的比例，owner 2026-10-08 选「分段条」），字是 11 的等宽小字（§4 `mono-label`）。
    */
   size?: 'xs' | 'sm' | 'md' | 'row' | 'stack'
   /**
@@ -69,15 +70,16 @@ function measure(items: Map<string, HTMLButtonElement>, target: string) {
     : null
 }
 
+// 一律定高（轨道上下各 3px）：36 = 30 + 6，32 = 26 + 6。⛔ 靠行高撑 —— 字号一换高度就跟着漂。
 const ITEM_CLASS = {
-  xs: 'shrink-0 whitespace-nowrap rounded-full px-2 py-1 text-2xs font-medium coarse:py-3',
-  // coarse:min-w-11：一个字的格（「库」）只有 39 宽，相邻格又不能横向外扩（会盖住邻格）。
-  sm: 'shrink-0 whitespace-nowrap rounded-full px-3.5 py-1 text-2xs font-medium coarse:min-w-11',
-  md: 'shrink-0 whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-medium coarse:py-3',
-  // 定高而不是靠行高撑：和同一行 32px 的按钮对齐。
-  row: 'inline-flex h-6.5 shrink-0 items-center justify-center whitespace-nowrap rounded-full px-3 text-2sm font-medium',
+  xs: 'inline-flex h-6.5 shrink-0 items-center justify-center whitespace-nowrap rounded-full px-2.5 text-2sm coarse:h-9.5',
+  // coarse:min-w-11：一个字的格（「库」）太窄，相邻格又不能横向外扩（会盖住邻格）。
+  sm: 'inline-flex h-7.5 shrink-0 items-center justify-center whitespace-nowrap rounded-full px-3.5 text-2sm coarse:min-w-11',
+  md: 'inline-flex h-7.5 shrink-0 items-center justify-center whitespace-nowrap rounded-full px-4 text-2sm coarse:h-9.5',
+  // 和同一行 32px 的药丸、按钮对齐。
+  row: 'inline-flex h-6.5 shrink-0 items-center justify-center whitespace-nowrap rounded-full px-3 text-2sm',
   stack:
-    'flex min-w-0 flex-col items-center justify-center gap-1 whitespace-nowrap rounded-lg px-1 py-1.5 font-mono text-2xs font-medium',
+    'flex min-w-0 flex-col items-center justify-center gap-1 whitespace-nowrap rounded-lg px-1 py-1.5 font-mono text-2xs',
 } as const
 
 /**
@@ -226,12 +228,15 @@ export function LiquidSegmented<T extends string>({
             }}
             className={cn(
               ITEM_CLASS[size],
-              // sm / row 的格子只有 25–26px 高，又不能像 xs / md 那样 coarse 下撑高
+              // sm / row 的格子只有 26–30px 高，又不能像 xs / md 那样 coarse 下撑高
               // （工具行、32px 按钮行会被撑乱）—— 只补看不见的 44px 命中区。
               (size === 'sm' || size === 'row') && 'touch-target-y',
               fill && 'flex-1 text-center',
-              'relative text-ink-2 transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline-none disabled:pointer-events-none disabled:opacity-45 aria-disabled:cursor-not-allowed aria-disabled:opacity-45 aria-disabled:hover:text-ink-2',
-              item.value === value && 'text-foreground',
+              // 撑满时多出来的宽度均分给每格，最窄处才吃到内距：六档「专属」在 264 宽里也排得开。
+              fill && size === 'xs' && 'px-1.5',
+              'relative font-normal text-ink-2 transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline-none disabled:pointer-events-none disabled:opacity-45 aria-disabled:cursor-not-allowed aria-disabled:opacity-45 aria-disabled:hover:text-ink-2',
+              // 当前那一格 600（ui-spec §4 `ui-strong`「当前那一项」），其余 400。
+              item.value === value && 'font-semibold text-foreground',
             )}
           >
             {item.icon}

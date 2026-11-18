@@ -387,7 +387,7 @@ export function StudioTagsComposer({
                   // 由 `touch-target-y` 补到 44，⛔ 不把丸画大。
                   className={cn(
                     studioOutlineChipClass,
-                    'touch-target-y h-7 border-dashed px-2.5 text-muted-foreground',
+                    'touch-target-y border-dashed px-2.5 text-muted-foreground',
                   )}
                 >
                   <Plus className="size-3.5" aria-hidden />
@@ -413,7 +413,7 @@ export function StudioTagsComposer({
                       })}
                       onClick={() => characters.remove(activeIndex)}
                       className={cn(
-                        'touch-target-y grid size-7 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors duration-fast ease-standard hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus disabled:opacity-50',
+                        'touch-target-y grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors duration-fast ease-standard hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus disabled:opacity-50',
                       )}
                     >
                       <X className="size-3.5" aria-hidden />

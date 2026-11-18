@@ -60,7 +60,7 @@ export function SpecDurationField({
         className={cn(
           compact
             ? 'text-2xs font-normal text-muted-foreground'
-            : 'text-2xs font-medium text-muted-foreground/70',
+            : 'text-2xs text-muted-foreground/70',
         )}
         style={compact ? { letterSpacing: '0.02em' } : undefined}
       >
@@ -95,7 +95,6 @@ export function SpecDurationField({
             semantics="radio"
             size="sm"
             fill
-            className="h-8"
           />
         </div>
       </div>

@@ -58,7 +58,7 @@ export function CharacterRecentCards({
 
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-sm font-semibold">{t('recent.overviewTitle')}</h2>
+      <h2 className="text-md font-semibold">{t('recent.overviewTitle')}</h2>
       <div className="grid max-w-225 grid-cols-2 gap-2.5 desk:grid-cols-3">
         {items.map(({ row, card }) => {
           const cover = characterCoverUrl(card)
@@ -84,10 +84,10 @@ export function CharacterRecentCards({
                 )}
               </span>
               <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span className="truncate text-2sm font-medium">
+                <span className="truncate text-2sm font-semibold">
                   {[card.name, action(row), when(row.at)].join(' · ')}
                 </span>
-                <span className="truncate text-xs text-muted-foreground">
+                <span className="truncate text-2xs text-muted-foreground">
                   {what(row)}
                 </span>
               </span>

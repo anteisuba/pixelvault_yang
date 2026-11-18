@@ -75,6 +75,7 @@ import { GENERATED_VIEW_ANGLES } from '@/constants/three-d-ready-prompt'
 import { CLIENT_UPLOAD_MAX_BYTES } from '@/constants/uploads'
 import { AssetSelectorDialog } from '@/features/assets'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
+import { STUDIO_COMPOSER_CARD_CLASS } from '@/components/business/studio-shared/chrome/studio-composer-card'
 import { ModelViewer } from '@/components/business/ModelViewer'
 import { StageStepperBar } from '@/components/business/StageStepperBar'
 import { WireframeModelPreview } from '@/components/business/WireframeModelPreview'
@@ -1427,7 +1428,7 @@ export function Studio3DWorkspace({
               value={selectedMultiViewModelId}
               onValueChange={(v) => setSelectedMultiViewModelId(v)}
             >
-              <SelectTrigger className="h-6 w-auto max-w-[150px] rounded-full px-2 text-2sm">
+              <SelectTrigger className="h-8 w-auto max-w-37.5 rounded-full px-3 text-2sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -1631,7 +1632,7 @@ export function Studio3DWorkspace({
                             size="sm"
                             onClick={() => handleManualViewUploadClick(view)}
                             disabled={uploadingManualView !== null}
-                            className="h-7 rounded-full px-2 text-2xs"
+                            className="rounded-full px-2 text-2xs"
                           >
                             {isUploading ? (
                               <Spinner size="sm" className="mr-1" />
@@ -2393,7 +2394,7 @@ export function Studio3DWorkspace({
   const composer = (
     <section
       aria-label={t('settingsTitle')}
-      className="flex shrink-0 flex-col gap-3 rounded-16 bg-card px-4 pt-3.5 pb-3 shadow-card"
+      className={cn('flex shrink-0 flex-col gap-3', STUDIO_COMPOSER_CARD_CLASS)}
     >
       {isRodin && rodinTextMode ? (
         <textarea

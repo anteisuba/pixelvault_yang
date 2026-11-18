@@ -175,7 +175,7 @@ export const StudioVideoQueueStrip = memo(function StudioVideoQueueStrip({
               <div className="flex min-w-0 flex-1 flex-col gap-1">
                 <span
                   className={cn(
-                    'truncate text-xs font-medium',
+                    'truncate text-2sm font-semibold',
                     item.status === 'failed'
                       ? 'text-destructive'
                       : 'text-foreground',
@@ -277,9 +277,7 @@ export const StudioVideoQueueStrip = memo(function StudioVideoQueueStrip({
   return (
     <div className="mt-4 flex items-start gap-3 border-t border-border/60 pt-3">
       <div className="flex shrink-0 flex-col gap-1">
-        <span className="text-2xs font-medium text-muted-foreground/70">
-          {t('label')}
-        </span>
+        <span className="text-2xs text-muted-foreground/70">{t('label')}</span>
         <span className="font-mono text-2xs tabular-nums text-muted-foreground">
           {t('concurrency', {
             running: runningCount,
@@ -366,7 +364,7 @@ export const StudioVideoQueueStrip = memo(function StudioVideoQueueStrip({
                   item.status === 'failed'
                     ? 'text-destructive'
                     : isFocused
-                      ? 'font-medium text-foreground'
+                      ? 'font-semibold text-foreground'
                       : 'text-muted-foreground',
                 )}
                 title={

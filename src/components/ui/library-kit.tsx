@@ -79,7 +79,7 @@ export function LibrarySearch({
 
 /** 药丸（筛选 / 排序的触发键）：浅灰无边，点开深一档；设了写选中的值，⛔ 换强调色。触屏命中区 44（ui-defaults）。 */
 export const LIBRARY_PILL_CLASS =
-  'inline-flex h-8 coarse:h-11 shrink-0 items-center gap-1 rounded-full bg-muted px-3 text-2sm font-medium text-foreground transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus data-[state=open]:bg-fill-strong [&>svg]:size-3.5 [&>svg]:text-ink-2'
+  'inline-flex h-8 coarse:h-11 shrink-0 items-center gap-1 rounded-full bg-muted px-3 text-2sm text-foreground transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus data-[state=open]:bg-fill-strong [&>svg]:size-3.5 [&>svg]:text-ink-2'
 
 /** 单选药丸（排序、底模、分级…）：点开是菜单，当前那一项带勾。 */
 export function LibraryPillSelect<T extends string>({
@@ -177,7 +177,7 @@ export function LibraryRailRow({
       aria-current={active ? 'true' : undefined}
       onClick={onSelect}
       className={cn(
-        'relative flex h-8.5 w-full shrink-0 items-center gap-2 rounded-lg px-2 text-left text-2sm transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:shadow-focus',
+        'relative flex h-8 w-full shrink-0 items-center gap-2 rounded-lg px-2 text-left text-2sm transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:shadow-focus',
         active
           ? cn(
               'bg-muted font-semibold text-foreground',
@@ -236,7 +236,7 @@ export function LibraryNewTile({
     <button
       type="button"
       onClick={onClick}
-      className="flex aspect-3/4 w-full flex-col items-center justify-center gap-1.5 rounded-12 border border-dashed border-input text-xs text-ink-2 transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus"
+      className="flex aspect-3/4 w-full flex-col items-center justify-center gap-1.5 rounded-12 border border-dashed border-input text-2sm text-ink-2 transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus"
     >
       <span aria-hidden className="[&_svg]:size-4.5">
         {icon ?? <Plus />}

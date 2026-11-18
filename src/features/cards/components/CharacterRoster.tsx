@@ -588,7 +588,7 @@ export function CharacterRoster() {
             }
           >
             {deskOverview ? (
-              <div className="flex shrink-0 items-center gap-3 pb-5">
+              <div className="flex shrink-0 flex-col gap-4 pb-5">
                 <CharacterOverviewHeader
                   lead={assistantAvatar}
                   query={query}

@@ -220,7 +220,7 @@ export function AssetTile({
                 {audioCaption}
               </span>
               {durationLabel ? (
-                <span className="flex shrink-0 items-center gap-1 text-3xs text-muted-foreground tabular-nums">
+                <span className="flex shrink-0 items-center gap-1 text-2xs text-muted-foreground tabular-nums">
                   <Mic className="size-2.5" />
                   {durationLabel}
                 </span>
@@ -349,7 +349,7 @@ function Model3DTileMedia({
       aria-hidden
     >
       <Box className="size-5" />
-      <span className="text-3xs font-medium">{t('sidebarModel3D')}</span>
+      <span className="text-2xs">{t('sidebarModel3D')}</span>
     </span>
   )
 }
@@ -408,7 +408,7 @@ function VideoTileMedia({
         aria-hidden
       >
         <Film className="size-5" />
-        <span className="text-3xs font-medium">{t('sidebarVideos')}</span>
+        <span className="text-2xs">{t('sidebarVideos')}</span>
       </span>
 
       {isNearViewport ? (

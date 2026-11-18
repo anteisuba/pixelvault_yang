@@ -51,7 +51,7 @@ export function ImageCardActions({
         onClick={onLike}
         disabled={isLikePending}
         aria-pressed={liked}
-        className="flex h-8 min-w-8 items-center justify-center gap-1 rounded-full bg-background/95 px-2 text-xs text-foreground shadow-sm transition-colors duration-fast hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none"
+        className="flex h-8 min-w-8 items-center justify-center gap-1 rounded-full bg-background/95 px-2 text-2xs text-foreground shadow-sm transition-colors duration-fast hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none"
         aria-label={liked ? unlikeLabel : likeLabel}
       >
         <FavoriteBookmark saved={liked} />

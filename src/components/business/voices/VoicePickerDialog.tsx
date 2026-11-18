@@ -184,11 +184,11 @@ function VoicePickerBody({
       <Spinner size="lg" className="text-muted-foreground" />
     </div>
   ) : library.error && empty ? (
-    <p role="alert" className="py-10 text-center text-sm text-status-risk">
+    <p role="alert" className="py-10 text-center text-2sm text-status-risk">
       {library.error}
     </p>
   ) : empty && (library.tab !== 'cloned' || needle) ? (
-    <p className="py-10 text-center text-sm text-muted-foreground">
+    <p className="py-10 text-center text-2sm text-muted-foreground">
       {needle ? t('emptyPublic') : t('emptyFavorites')}
     </p>
   ) : (

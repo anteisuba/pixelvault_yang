@@ -1787,16 +1787,16 @@ export function KreaAssetBrowser({
   /** ≥768 顶栏选择条里的内容（窄屏是底部浮条，见文件尾）。 */
   const selectionBarContent = (
     <>
-      <span className="flex items-center gap-1.5 pr-1 text-xs">
+      <span className="flex items-center gap-1.5 pr-1 text-2sm">
         {t('selectedPrefix')}
         <RollingNumber
           value={selectedIds.size}
-          className="font-mono text-xs font-medium"
+          className="font-mono text-2sm font-semibold"
         />
       </span>
       <span
         className={cn(
-          'ml-2 text-xs text-muted-foreground transition-[opacity,filter] duration-fast ease-standard motion-reduce:transition-none',
+          'ml-2 text-2xs text-muted-foreground transition-[opacity,filter] duration-fast ease-standard motion-reduce:transition-none',
           selectedIds.size > 0 && 'opacity-0 blur-xs',
         )}
       >
@@ -1848,7 +1848,7 @@ export function KreaAssetBrowser({
       <button
         type="button"
         onClick={exitSelectionMode}
-        className="ml-1 inline-flex h-7 items-center rounded-full bg-foreground px-3.5 text-xs font-medium text-background transition-opacity duration-fast hover:opacity-90"
+        className="ml-1 inline-flex h-8 items-center rounded-full bg-foreground px-3.5 text-2sm font-semibold text-background transition-opacity duration-fast hover:opacity-90"
       >
         {t('selectDone')}
       </button>
@@ -1927,7 +1927,7 @@ export function KreaAssetBrowser({
           aria-label={t('folderScopeChip', { name: scopeTitle })}
           onClick={revealFolders}
           className={cn(
-            'ml-1.5 inline-flex h-8 min-w-0 max-w-44 items-center gap-1.5 overflow-hidden rounded-full border border-border bg-background pl-1.5 pr-2.5 text-xs font-medium whitespace-nowrap text-foreground transition-[max-width,margin,padding,opacity,visibility,background-color,filter] duration-slow ease-standard hover:bg-muted motion-reduce:transition-none max-md:ml-0 coarse:h-11',
+            'ml-1.5 inline-flex h-8 min-w-0 max-w-44 items-center gap-1.5 overflow-hidden rounded-full border border-border bg-background pl-1.5 pr-2.5 text-2sm whitespace-nowrap text-foreground transition-[max-width,margin,padding,opacity,visibility,background-color,filter] duration-slow ease-standard hover:bg-muted motion-reduce:transition-none max-md:ml-0 coarse:h-11',
             'max-md:h-9 max-md:max-w-52 max-md:gap-2 max-md:border-transparent max-md:bg-transparent max-md:px-2.5 max-md:text-base max-md:font-semibold max-md:active:bg-muted',
             railOpen && 'md:invisible md:ml-0 md:max-w-0 md:px-0 md:opacity-0',
             selectionMode &&
@@ -2342,7 +2342,7 @@ export function KreaAssetBrowser({
                     }}
                   />
                 ) : (
-                  <h2 className="flex min-w-0 items-baseline gap-1.5 text-base font-semibold text-foreground max-md:hidden">
+                  <h2 className="flex min-w-0 items-baseline gap-1.5 text-md font-semibold text-foreground max-md:hidden">
                     <span className="truncate">{scopeTitle}</span>
                     <RollingNumber
                       value={total}
@@ -2511,7 +2511,7 @@ export function KreaAssetBrowser({
                                 ) : (
                                   <UploadCloud className="size-4.5" />
                                 )}
-                                <span className="text-xs">
+                                <span className="text-2sm">
                                   {t('uploadButton')}
                                 </span>
                               </button>
@@ -2797,7 +2797,7 @@ export function KreaAssetBrowser({
         ref={dragGhostRef}
         aria-hidden="true"
         style={{ position: 'fixed', left: '-9999px', top: '-9999px' }}
-        className="pointer-events-none rounded-lg bg-foreground px-3 py-1.5 text-xs font-medium text-background shadow-lg"
+        className="pointer-events-none rounded-lg bg-foreground px-3 py-1.5 text-2xs font-semibold text-background shadow-lg"
       />
       {/* ─── 手机多选：底栏本身换成四格动作（手机稿 v10）──────────── */}
       {/* 选中的全是「先搜再画」出的图：「发布」置灰，原因浮在底栏上沿。 */}
@@ -2949,7 +2949,7 @@ function ScopeNameInput({
         }
       }}
       onBlur={(event) => finish(event.currentTarget.value)}
-      className="h-8.5 min-w-0 rounded-lg bg-background px-2 text-base font-semibold text-foreground outline-none ring-2 ring-inset ring-foreground"
+      className="h-8 min-w-0 rounded-lg bg-background px-2 text-md font-semibold text-foreground outline-none ring-2 ring-inset ring-foreground"
     />
   )
 }

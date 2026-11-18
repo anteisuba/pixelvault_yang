@@ -153,6 +153,8 @@ export function TagPane({
   )
   const where = !addBar ? null : addBar.composition ? (
     <LiquidSegmented
+      // ui-spec §9 TagPicker：「加到」是小号切换条。
+      size="row"
       ariaLabel={texts.targets}
       value={addBar.targetValue}
       onChange={addBar.onTarget}

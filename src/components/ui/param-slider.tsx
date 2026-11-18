@@ -38,15 +38,15 @@ export function ParamSlider({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <span className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+        <span className="flex items-center gap-1.5 text-2sm font-semibold text-foreground">
           {label}
           {labelAccessory}
         </span>
-        <span className="min-w-12 text-right font-mono text-sm text-muted-foreground">
+        <span className="min-w-12 text-right font-mono text-2sm text-muted-foreground">
           {formatValue ? formatValue(value) : value}
         </span>
       </div>
-      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+      {hint && <p className="text-2xs text-muted-foreground">{hint}</p>}
       <Slider
         min={min}
         max={max}

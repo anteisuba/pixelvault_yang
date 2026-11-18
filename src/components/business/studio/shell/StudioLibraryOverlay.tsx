@@ -229,12 +229,12 @@ function StudioLibraryFrame({
         ) : null}
         {pageItem ? (
           // 不算库的那几样（用户 10-25）：画廊 / 素材 / 角色 / 提示词各从左栏点开，整页，顶上只写名字。
-          <h2 className="min-w-0 truncate px-2 text-sm font-semibold text-foreground">
+          <h2 className="min-w-0 truncate px-2 text-md font-semibold text-foreground">
             {tAll(pageItem.labelKey)}
           </h2>
         ) : category === 'profile' ? (
           // 同素材 / 角色 / 提示词：顶上只写名字（owner 2026-11-05 去掉「去库里管理」）。
-          <h2 className="min-w-0 truncate px-2 text-sm font-semibold text-foreground">
+          <h2 className="min-w-0 truncate px-2 text-md font-semibold text-foreground">
             {tAll('Navbar.links.profile')}
           </h2>
         ) : (

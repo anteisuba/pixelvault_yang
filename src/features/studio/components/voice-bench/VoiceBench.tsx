@@ -24,6 +24,7 @@ import {
 import { AvatarDisc, StudioOperatorAvatarSwitcher } from '@/features/assistant'
 import { studioOutlineChipClass } from '@/components/ui/chip'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
+import { STUDIO_COMPOSER_CARD_CLASS } from '@/components/business/studio-shared/chrome/studio-composer-card'
 import { VoicePickerDialog } from '@/components/business/voices/VoicePickerDialog'
 import { Button } from '@/components/ui/button'
 import {
@@ -66,7 +67,7 @@ const ROW_CLASS =
   'flex min-h-12 items-center gap-2.5 rounded-12 bg-muted px-3 py-2'
 
 const ROUND_KEY_CLASS =
-  'grid size-7 shrink-0 place-items-center rounded-full transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none [&>svg]:size-3.5'
+  'grid size-8 shrink-0 place-items-center rounded-full transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none [&>svg]:size-3.5'
 
 /** 一句台词的字：句首方括号语气灰色等宽摆前面，正文照常。 */
 function LineText({ text, muted }: { text: string; muted?: boolean }) {
@@ -296,7 +297,11 @@ export function VoiceBench() {
               event.preventDefault()
               submit()
             }}
-            className="flex shrink-0 flex-col gap-2.5 rounded-16 py-2.5 pr-3 pl-4 shadow-card"
+            // 外框与其它台同一份（ui-spec §9「输入框」）。
+            className={cn(
+              'flex shrink-0 flex-col gap-2.5',
+              STUDIO_COMPOSER_CARD_CLASS,
+            )}
           >
             <textarea
               ref={inputRef}
@@ -466,7 +471,7 @@ function CueMenu({
                     onPick(cue.tag)
                     setOpen(false)
                   }}
-                  className="h-7 rounded-full bg-muted px-2.5 text-2sm text-foreground transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none"
+                  className="h-8 rounded-full bg-muted px-3 text-2sm text-foreground transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none"
                 >
                   {t(`cues.${cue.id}`)}
                 </button>
@@ -531,7 +536,7 @@ function ChipMenu({
 
 function RowAvatar({ url, name }: { url: string | null; name: string }) {
   return (
-    <span className="size-7 shrink-0">
+    <span className="size-8 shrink-0">
       <AvatarDisc url={url} name={name} />
     </span>
   )
@@ -604,7 +609,7 @@ function PendingRow({
 }) {
   const t = useTranslations('VoiceBench')
   const action = (label: string, onClick: () => void): ReactNode => (
-    <Button size="xs" variant="secondary" onClick={onClick}>
+    <Button size="sm" variant="secondary" onClick={onClick}>
       {label}
     </Button>
   )

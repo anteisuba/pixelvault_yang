@@ -274,7 +274,7 @@ function GalleryViewerAside({
             ) : (
               <span
                 aria-hidden
-                className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-xs font-semibold text-muted-foreground"
+                className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-2xs font-semibold text-muted-foreground"
               >
                 {creatorName.charAt(0).toUpperCase()}
               </span>
@@ -283,7 +283,7 @@ function GalleryViewerAside({
               <b className="truncate text-2sm font-semibold text-foreground">
                 {creatorName}
               </b>
-              <small className="truncate text-xs text-muted-foreground">
+              <small className="truncate text-2xs text-muted-foreground">
                 @{creator.username}
               </small>
             </span>
@@ -309,7 +309,7 @@ function GalleryViewerAside({
           <button
             type="button"
             onClick={remix}
-            className="touch-target-y inline-flex h-8.5 shrink-0 items-center gap-1.5 rounded-full bg-primary px-3.5 text-2sm font-semibold text-primary-foreground transition-[background-color,transform] duration-fast hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[.98]"
+            className="touch-target-y inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-primary px-3.5 text-2sm font-semibold text-primary-foreground transition-[background-color,transform] duration-fast hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[.98]"
           >
             <Plus className="size-3.5" aria-hidden />
             {t('remix')}
@@ -359,7 +359,7 @@ function GalleryViewerAside({
               type="button"
               aria-label={t('more')}
               title={t('more')}
-              className="touch-target grid size-8.5 shrink-0 place-items-center rounded-full text-foreground/75 transition-colors duration-fast hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="touch-target grid size-8 shrink-0 place-items-center rounded-full text-foreground/75 transition-colors duration-fast hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <MoreHorizontal className="size-4" aria-hidden />
             </button>
@@ -433,7 +433,7 @@ function GalleryViewerAside({
           {promptPublic
             ? row(
                 t('negative'),
-                <span className="break-words font-mono text-xs leading-5 text-foreground">
+                <span className="break-words font-mono text-2sm leading-5 text-foreground">
                   {generation.negativePrompt?.trim() || '—'}
                 </span>,
               )
@@ -441,7 +441,7 @@ function GalleryViewerAside({
           {generation.model
             ? row(
                 tCard('modelLabel'),
-                <span className="break-all font-mono text-xs leading-5 text-foreground">
+                <span className="break-all font-mono text-2sm leading-5 text-foreground">
                   {getTranslatedModelLabel(tModels, generation.model)}
                 </span>,
               )
@@ -449,14 +449,14 @@ function GalleryViewerAside({
           {sizeLine
             ? row(
                 tDetail('dimensionsLabel'),
-                <span className="font-mono text-xs leading-5 tabular-nums text-foreground">
+                <span className="font-mono text-2sm leading-5 tabular-nums text-foreground">
                   {sizeLine}
                 </span>,
               )
             : null}
           {row(
             t('publishedAt'),
-            <span className="text-xs leading-5 text-foreground">
+            <span className="text-2sm leading-5 text-foreground">
               {format.dateTime(new Date(generation.createdAt), {
                 month: 'long',
                 day: 'numeric',

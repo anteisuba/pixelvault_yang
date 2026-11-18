@@ -317,7 +317,7 @@ function LoraPill({
               setOpen(false)
               onRemove()
             }}
-            className="rounded-full px-2 py-1 text-2sm text-ink-2 transition-colors duration-fast hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus"
+            className="inline-flex h-8 items-center rounded-full px-3 text-2sm text-ink-2 transition-colors duration-fast hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus"
           >
             {t('pill.remove')}
           </button>

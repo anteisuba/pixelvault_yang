@@ -72,12 +72,12 @@ export function VoiceAvatar({
       ) : fallback === 'letter' ? (
         <span
           className={cn(
-            'font-medium text-foreground',
+            'font-semibold text-foreground',
             size === 'tile'
               ? 'text-xl'
               : size === 'library'
-                ? 'text-sm'
-                : 'text-3xs',
+                ? 'text-md'
+                : 'text-2xs',
           )}
         >
           {Array.from(name.trim())[0] ?? ''}

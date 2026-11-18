@@ -192,7 +192,7 @@ function PopoverHeader({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
       data-slot="popover-header"
-      className={cn('flex flex-col gap-1 text-sm', className)}
+      className={cn('flex flex-col gap-1 text-2sm', className)}
       {...props}
     />
   )
@@ -202,7 +202,7 @@ function PopoverTitle({ className, ...props }: React.ComponentProps<'h2'>) {
   return (
     <div
       data-slot="popover-title"
-      className={cn('font-medium', className)}
+      className={cn('font-semibold', className)}
       {...props}
     />
   )

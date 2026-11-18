@@ -160,7 +160,7 @@ export function LoraSourceBand({
                   title={group.name}
                   onClick={() => onSelectGroup(group.id)}
                   className={cn(
-                    'inline-flex h-7 max-w-44 shrink-0 items-center gap-1.5 rounded-full py-0.5 pr-2.5 pl-0.5 text-2sm transition-colors duration-fast focus-visible:outline-none focus-visible:shadow-focus',
+                    'inline-flex h-8 max-w-44 shrink-0 items-center gap-1.5 rounded-full py-0.5 pr-2.5 pl-0.5 text-2sm transition-colors duration-fast focus-visible:outline-none focus-visible:shadow-focus',
                     active
                       ? 'bg-muted text-foreground'
                       : 'text-muted-foreground hover:tint-hover hover:text-foreground',

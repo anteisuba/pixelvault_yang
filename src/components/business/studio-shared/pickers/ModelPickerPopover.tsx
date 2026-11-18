@@ -1145,7 +1145,9 @@ export function ModelPickerPopover({
             !sheet && 'hover:outline hover:outline-1 hover:outline-border',
           )}
         >
-          <span className="min-w-0 flex-1 truncate font-medium">{primary}</span>
+          <span className="min-w-0 flex-1 truncate font-semibold">
+            {primary}
+          </span>
           {secondary ? (
             <span
               className={cn(

@@ -99,6 +99,7 @@ import { useStudioGenerationSession } from '@/contexts/studio-generation-session
 import { CommunitySourceBranch } from '@/features/lora/components/library/LoraLibraryTabs'
 import { LoraBenchLibraryPanel } from '@/features/lora/components/library/LoraBenchLibraryPanel'
 import { BenchLibrarySheet } from '@/components/business/studio-shared/chrome/BenchLibrarySheet'
+import { STUDIO_COMPOSER_CARD_CLASS } from '@/components/business/studio-shared/chrome/studio-composer-card'
 import { useCivitaiMinedPrompts } from '@/features/lora/hooks/use-civitai-mined-prompts'
 import { useHuggingFaceLoraShowcase } from '@/features/lora/hooks/use-huggingface-lora-showcase'
 import { useRunnerUsage } from '@/features/lora/hooks/use-runner-usage'
@@ -4325,8 +4326,9 @@ function GenerateBranch({
               : undefined
           }
           className={cn(
-            '@container/composer relative flex shrink-0 flex-col gap-2.5 rounded-16 border border-transparent bg-card px-3.5 pt-3 pb-3 shadow-card transition-[border-color] duration-fast',
-            composerExpanded && 'border-foreground/40',
+            // 外框与其它台同一份（ui-spec §9「输入框」：⛔ 一圈细边，展开时也不描边）。
+            '@container/composer relative flex shrink-0 flex-col gap-2.5',
+            STUDIO_COMPOSER_CARD_CLASS,
             referencesSupported &&
               imageUpload.isDragging &&
               'ring-2 ring-primary/35 ring-offset-2 ring-offset-background',
@@ -4508,7 +4510,7 @@ function GenerateBranch({
                     title={t('generate.triggerAdd', {
                       word: entry.triggerWord,
                     })}
-                    className="inline-flex h-7 min-w-0 max-w-64 items-center gap-1 rounded-full border border-dashed border-foreground/25 px-2.5 text-muted-foreground transition-colors duration-fast hover:border-foreground/50 hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus"
+                    className="inline-flex h-8 min-w-0 max-w-64 items-center gap-1 rounded-full border border-dashed border-foreground/25 px-2.5 text-muted-foreground transition-colors duration-fast hover:border-foreground/50 hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus"
                   >
                     <Plus className="size-3 shrink-0" aria-hidden />
                     <span className="truncate font-mono">

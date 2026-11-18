@@ -214,7 +214,8 @@
 }
 .fields label {
   color: var(--foreground);
-  font-size: 0.75rem;
-  font-weight: 500;
+  /* ui-spec §4 `ui-strong`：13 / 600（同 `ui/label.tsx`）。 */
+  font-size: 0.8125rem;
+  font-weight: 600;
   letter-spacing: normal;
 }

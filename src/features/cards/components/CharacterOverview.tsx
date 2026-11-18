@@ -9,7 +9,7 @@ import { LIQUID_SPRING } from '@/constants/motion'
 import type { CharacterCardRecord } from '@/types'
 import { ASSISTANT_LIBRARY_SCREEN_LIMIT } from '@/types/assistant-operator'
 import type { CharacterRecentActivity } from '@/types/character-growth'
-import { Search } from '@/components/icons'
+import { LibrarySearch, LibraryToolbar } from '@/components/ui/library-kit'
 import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import { CharacterRecentCards } from '@/features/cards/components/CharacterRecentCards'
 import { useReportLibraryScreen } from '@/hooks/use-library-view'
@@ -361,7 +361,7 @@ export function CharacterOverview({
         </>
       )}
       {isMobile && onLongPress ? (
-        <p className="mt-6 text-center text-xs text-muted-foreground">
+        <p className="mt-6 text-center text-2xs text-muted-foreground">
           {t('phone.longPressHint')}
         </p>
       ) : null}
@@ -385,9 +385,9 @@ function Section({
   return (
     <section className="mt-7 flex flex-col gap-3 max-md:mt-4 max-md:gap-2.5">
       <div className="flex items-baseline gap-2.5 max-md:gap-2">
-        <h2 className="text-base font-semibold max-md:text-lg">{title}</h2>
+        <h2 className="text-md font-semibold max-md:text-lg">{title}</h2>
         {hint ? (
-          <span className="text-xs text-muted-foreground">{hint}</span>
+          <span className="text-2xs text-muted-foreground">{hint}</span>
         ) : null}
       </div>
       {children}
@@ -450,7 +450,7 @@ function WorkChip({
       {count !== undefined ? (
         <span
           className={cn(
-            'font-mono text-xs tabular-nums',
+            'font-mono text-2xs tabular-nums',
             active
               ? 'text-primary-foreground/70 max-md:text-background/60'
               : 'text-muted-foreground',
@@ -525,8 +525,8 @@ function CharacterTile({
             </span>
           ) : null}
           <span className="flex min-w-0 flex-col">
-            <span className="truncate text-sm font-semibold">{name}</span>
-            <span className="truncate text-xs text-muted-foreground">
+            <span className="truncate text-2sm font-semibold">{name}</span>
+            <span className="truncate text-2xs text-muted-foreground">
               {meta}
             </span>
           </span>
@@ -556,8 +556,8 @@ function CharacterTile({
           />
         ) : null}
         <span className="absolute inset-x-0 bottom-0 flex flex-col bg-linear-to-t from-foreground/60 to-transparent px-4 pb-3 pt-10 text-background">
-          <span className="truncate text-base font-semibold">{name}</span>
-          <span className="truncate text-xs opacity-85">{meta}</span>
+          <span className="truncate text-md font-semibold">{name}</span>
+          <span className="truncate text-2xs opacity-85">{meta}</span>
         </span>
         {rank !== null ? (
           <span
@@ -642,8 +642,8 @@ function WorkShelf({
             ) : null,
           )}
         </span>
-        <span className="text-sm font-semibold">{group.label}</span>
-        <span className="text-xs text-muted-foreground">{summary}</span>
+        <span className="text-2sm font-semibold">{group.label}</span>
+        <span className="text-2xs text-muted-foreground">{summary}</span>
       </button>
     )
   }
@@ -686,15 +686,16 @@ function WorkShelf({
           ) : null,
         )}
       </span>
-      <span className="font-semibold">{group.label}</span>
-      <span className="text-xs text-muted-foreground">{summary}</span>
+      <span className="text-2sm font-semibold">{group.label}</span>
+      <span className="text-2xs text-muted-foreground">{summary}</span>
     </button>
   )
 }
 
 /**
- * 总览顶上那一行（桌面，角色大项目 ① 样件 O4）：助手头像 ·「角色」· 搜索 · 导入 · 新角色。
- * ⛔ 计数（让布局说话）。手机是 `CharacterPhoneBar`。
+ * 总览顶上（桌面，角色大项目 ① 样件 O4）：第一行助手头像 ·「角色」……… 导入 · 新角色；
+ * 搜索放在内容区左上，和其余库同一颗 `LibrarySearch`（`LibraryToolbar`，最宽 360）。
+ * ⛔ 计数（让布局说话）。手机是 `CharacterPhoneBar`。宿主给一个竖排容器。
  */
 export function CharacterOverviewHeader({
   lead,
@@ -711,21 +712,21 @@ export function CharacterOverviewHeader({
   const t = useTranslations('CharacterRoster')
   return (
     <>
-      {lead}
-      <h1 className="text-sm font-semibold">{t('title')}</h1>
-      <label className="ml-auto flex h-9 w-72 min-w-0 items-center gap-2 rounded-full bg-muted px-3.5 text-2sm text-muted-foreground focus-within:shadow-focus">
-        <Search className="size-4 shrink-0" aria-hidden />
-        <input
-          id="character-search"
-          type="search"
-          value={query}
-          onChange={(event) => onQueryChange(event.target.value)}
-          placeholder={t('searchPlaceholder')}
-          aria-label={t('searchPlaceholder')}
-          className="min-w-0 flex-1 bg-transparent text-foreground outline-none placeholder:text-muted-foreground"
-        />
-      </label>
-      <div className="flex shrink-0 gap-2">{actions}</div>
+      <div className="flex items-center gap-3">
+        {lead}
+        <h1 className="text-md font-semibold">{t('title')}</h1>
+        <div className="ml-auto flex shrink-0 gap-2">{actions}</div>
+      </div>
+      <LibraryToolbar
+        search={
+          <LibrarySearch
+            value={query}
+            onChange={onQueryChange}
+            placeholder={t('searchPlaceholder')}
+            label={t('searchPlaceholder')}
+          />
+        }
+      />
     </>
   )
 }

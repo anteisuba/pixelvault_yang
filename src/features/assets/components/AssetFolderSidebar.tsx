@@ -612,7 +612,7 @@ export function AssetFolderSidebar({
 
   const iconButton =
     'grid shrink-0 place-items-center rounded-lg text-muted-foreground transition-colors duration-fast hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none'
-  const iconSize = touch ? 'size-11' : library ? 'size-6' : 'size-8'
+  const iconSize = touch ? 'size-11' : 'size-8'
 
   const searchButton = (
     <button
@@ -799,7 +799,7 @@ export function AssetFolderSidebar({
             {isLoading && folders.length === 0 ? (
               <div aria-hidden className="space-y-1">
                 {[0, 1, 2, 3].map((index) => (
-                  <div key={index} className="h-8.5 rounded-lg bg-muted/60" />
+                  <div key={index} className="h-8 rounded-lg bg-muted/60" />
                 ))}
               </div>
             ) : null}
@@ -831,7 +831,7 @@ export function AssetFolderSidebar({
         ? createPortal(
             <motion.div
               aria-hidden
-              className="pointer-events-none fixed left-0 top-0 z-50 flex h-8.5 max-w-60 items-center gap-2 rounded-lg bg-background pl-2 pr-3 text-2sm font-medium text-foreground shadow-float"
+              className="pointer-events-none fixed left-0 top-0 z-50 flex h-8 max-w-60 items-center gap-2 rounded-lg bg-background pl-2 pr-3 text-2sm text-foreground shadow-float"
               style={{ x: ghostX, y: ghostY }}
               initial={reducedMotion ? false : { scale: 1 }}
               animate={{
@@ -935,7 +935,7 @@ function SmartRow({
       onClick={onSelect}
       className={cn(
         'relative flex w-full items-center gap-2 rounded-lg pl-1 pr-2 text-left text-2sm transition-colors duration-fast',
-        touch ? 'h-11' : 'h-8.5',
+        touch ? 'h-11' : 'h-8',
         active
           ? cn(
               'bg-muted font-semibold text-foreground',
@@ -1223,7 +1223,7 @@ function FolderRow({
             }}
             className={cn(
               'group/row relative flex select-none items-center gap-2 rounded-lg pr-1 text-2sm transition-[background-color,box-shadow,scale] duration-fast',
-              touch ? 'h-11' : 'h-8.5',
+              touch ? 'h-11' : 'h-8',
               editing
                 ? 'bg-background ring-2 ring-inset ring-foreground'
                 : isDropTarget || folderDropInto
@@ -1273,7 +1273,7 @@ function FolderRow({
                 onDoubleClick={menu.onRename}
                 className={cn(
                   'flex h-full min-w-0 flex-1 items-center gap-2 text-left text-foreground',
-                  active ? 'font-semibold' : 'font-medium',
+                  active && 'font-semibold',
                 )}
               >
                 <FolderCover url={folder.coverUrl} />
@@ -1294,8 +1294,8 @@ function FolderRow({
               <span
                 data-folder-nodrag
                 className={cn(
-                  'relative flex h-6 shrink-0 items-center justify-end',
-                  touch ? 'gap-1' : 'min-w-6',
+                  'relative flex h-8 shrink-0 items-center justify-end',
+                  touch ? 'gap-1' : 'min-w-8',
                 )}
               >
                 {typeof count === 'number' ? (
@@ -1325,7 +1325,7 @@ function FolderRow({
                         'grid shrink-0 place-items-center rounded-md text-foreground transition-opacity duration-fast focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
                         touch
                           ? 'size-9'
-                          : 'absolute right-0 size-6 opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100',
+                          : 'absolute right-0 size-8 opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100',
                         menuOpen &&
                           'bg-background opacity-100 ring-1 ring-border',
                       )}
@@ -1383,7 +1383,7 @@ function FolderNameInput({
       }}
       onBlur={(event) => finish(event.currentTarget.value)}
       className={cn(
-        'h-6 min-w-0 flex-1 bg-transparent font-medium text-foreground outline-none',
+        'h-6 min-w-0 flex-1 bg-transparent text-foreground outline-none',
         touch ? 'text-base' : 'text-2sm',
       )}
     />

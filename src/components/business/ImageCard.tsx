@@ -167,7 +167,7 @@ export const ImageCard = memo(function ImageCard({
             href={creatorHref}
             onClick={(e) => e.stopPropagation()}
             aria-label={t('creatorProfileLabel', { name: creatorName })}
-            className="pointer-events-none absolute bottom-2.5 left-2.5 z-10 inline-flex h-7 max-w-48 items-center gap-1.5 rounded-full bg-black/55 pl-1 pr-2.5 text-xs font-semibold text-white translate-y-2 opacity-0 backdrop-blur-md transition-[opacity,translate] duration-spring-slot ease-spring-slot group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:translate-y-0 group-focus-within:opacity-100 motion-reduce:translate-y-0 motion-reduce:transition-opacity motion-reduce:duration-fast motion-reduce:ease-linear focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 coarse:hidden"
+            className="pointer-events-none absolute bottom-2.5 left-2.5 z-10 inline-flex h-7 max-w-48 items-center gap-1.5 rounded-full bg-black/55 pl-1 pr-2.5 text-2xs font-semibold text-white translate-y-2 opacity-0 backdrop-blur-md transition-[opacity,translate] duration-spring-slot ease-spring-slot group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:translate-y-0 group-focus-within:opacity-100 motion-reduce:translate-y-0 motion-reduce:transition-opacity motion-reduce:duration-fast motion-reduce:ease-linear focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 coarse:hidden"
           >
             {creator.avatarUrl ? (
               <Image
@@ -181,7 +181,7 @@ export const ImageCard = memo(function ImageCard({
             ) : (
               <span
                 aria-hidden="true"
-                className="flex size-5 shrink-0 items-center justify-center rounded-full bg-white/20 text-3xs"
+                className="flex size-5 shrink-0 items-center justify-center rounded-full bg-white/20 text-2xs"
               >
                 {creatorInitial}
               </span>

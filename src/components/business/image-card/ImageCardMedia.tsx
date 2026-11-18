@@ -177,7 +177,7 @@ export function ImageCardMedia({
       {generation.referenceImageUrl && (
         // 中性玻璃角标（与右上角图层角标同一块）。悬停 / 键盘进到这一格才出（owner 2026-11-05：
         // 静态卡面只有图）；触屏没有悬停，不画。
-        <span className="pointer-events-none absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-black/50 px-2 py-1 text-xs text-white opacity-0 shadow-sm backdrop-blur-md transition-opacity duration-fast ease-standard group-hover:opacity-100 group-focus-within:opacity-100 coarse:hidden">
+        <span className="pointer-events-none absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-black/50 px-2 py-1 text-2xs text-white opacity-0 shadow-sm backdrop-blur-md transition-opacity duration-fast ease-standard group-hover:opacity-100 group-focus-within:opacity-100 coarse:hidden">
           <ImageIcon className="size-3" />
           {referenceImageLabel}
         </span>
@@ -185,7 +185,7 @@ export function ImageCardMedia({
       {layerBadgeLabel && (
         // 图层拆分产物（进度表 62）。⚠ 放右上角而不是左上角：参考图角标已经
         // 占着左上，而这两件事经常同时成立（图层拆分本来就必须挂参考图）。
-        <span className="absolute right-3 top-3 flex items-center gap-1.5 rounded-full bg-black/50 px-2 py-1 text-xs text-white shadow-sm backdrop-blur-md">
+        <span className="absolute right-3 top-3 flex items-center gap-1.5 rounded-full bg-black/50 px-2 py-1 text-2xs text-white shadow-sm backdrop-blur-md">
           <Layers className="size-3" />
           {layerBadgeLabel}
         </span>
@@ -194,7 +194,7 @@ export function ImageCardMedia({
         // SVG 矢量作品（svg-output mockup ②）：与视频时长同一档机器串角标。
         <span
           data-testid="image-card-svg-badge"
-          className="pointer-events-none absolute bottom-3 right-3 rounded-full bg-black/50 px-2 py-0.5 font-mono text-3xs font-medium text-white backdrop-blur-md"
+          className="pointer-events-none absolute bottom-3 right-3 rounded-full bg-black/50 px-2 py-0.5 font-mono text-2xs font-semibold text-white backdrop-blur-md"
         >
           SVG
         </span>
@@ -203,7 +203,7 @@ export function ImageCardMedia({
         // GIF 动图：与 SVG 角标同位同档。
         <span
           data-testid="image-card-gif-badge"
-          className="pointer-events-none absolute bottom-3 right-3 rounded-full bg-black/50 px-2 py-0.5 font-mono text-3xs font-medium text-white backdrop-blur-md"
+          className="pointer-events-none absolute bottom-3 right-3 rounded-full bg-black/50 px-2 py-0.5 font-mono text-2xs font-semibold text-white backdrop-blur-md"
         >
           GIF
         </span>
@@ -215,9 +215,9 @@ export function ImageCardMedia({
             <Play className="ml-0.5 size-3.5" fill="currentColor" />
           </span>
           {generation.duration != null && (
-            // 时长是机器串（ui-defaults §1 等宽槽判据）：角标档 `text-3xs` +
-            // 等宽 + `tabular-nums`，⛔ 不用 `text-xs` 那一档。
-            <span className="absolute bottom-3 right-3 rounded-full bg-black/50 px-2 py-0.5 font-mono text-3xs tabular-nums text-white backdrop-blur-md">
+            // 时长是机器串（ui-defaults §1 等宽槽判据）：`mono-label` 11（ui-spec §4，
+            // 10 那一档已并进 11）+ 等宽 + `tabular-nums`。
+            <span className="absolute bottom-3 right-3 rounded-full bg-black/50 px-2 py-0.5 font-mono text-2xs tabular-nums text-white backdrop-blur-md">
               0:{String(Math.round(generation.duration)).padStart(2, '0')}
             </span>
           )}

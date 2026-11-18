@@ -205,7 +205,9 @@ export function StudioMobileAddSheet({
                 >
                   <ChevronLeft className="size-4" aria-hidden />
                 </button>
-                <span className="text-sm font-medium">{activePage.label}</span>
+                <span className="text-md font-semibold">
+                  {activePage.label}
+                </span>
               </div>
               {activePage.page}
             </div>

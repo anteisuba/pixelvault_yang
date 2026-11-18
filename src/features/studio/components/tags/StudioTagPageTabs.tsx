@@ -53,7 +53,7 @@ const WHEEL_STEP_PX = 40
 const WHEEL_COOLDOWN_MS = 180
 
 const tabClass =
-  'relative inline-flex h-7 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-2xs whitespace-nowrap transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none'
+  'relative inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-2xs whitespace-nowrap transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none'
 
 /**
  * 标签台 A 的那一排页签（owner 2026-10-09「一个框 + 一排页签」）：

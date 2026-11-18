@@ -311,17 +311,12 @@ export function StudioTagTextField({
             className={
               form
                 ? 'text-2xs font-semibold text-muted-foreground'
-                : 'text-sm font-medium lg:text-2xs'
+                : 'text-2sm font-semibold lg:text-2xs'
             }
           >
             {label}
           </span>
-          <span
-            className={cn(
-              'truncate text-muted-foreground',
-              form ? 'text-2xs' : 'text-xs lg:text-2xs',
-            )}
-          >
+          <span className="truncate text-2xs text-muted-foreground">
             {note ?? t('tagCount', { count: chips.length })}
           </span>
         </div>

@@ -340,7 +340,7 @@ export function StudioGeneratingProgress({
           <p
             aria-hidden
             className={cn(
-              'font-medium tracking-tight tabular-nums text-foreground',
+              'font-semibold tracking-tight tabular-nums text-foreground',
               isFull
                 ? 'text-3xl @max-4xs/progress:text-xl'
                 : 'text-2xl @max-4xs/progress:text-lg',

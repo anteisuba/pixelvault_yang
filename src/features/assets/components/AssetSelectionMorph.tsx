@@ -129,7 +129,7 @@ export function SelectionLink({
       type="button"
       {...props}
       className={cn(
-        'inline-flex h-6.5 items-center gap-1 rounded-full px-2.5 text-xs text-muted-foreground',
+        'inline-flex h-8 items-center gap-1 rounded-full px-2.5 text-2sm text-muted-foreground',
         'transition-[color,background-color,opacity] duration-fast ease-standard motion-reduce:transition-none',
         'hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-35',
         'data-[state=open]:bg-muted data-[state=open]:text-foreground',

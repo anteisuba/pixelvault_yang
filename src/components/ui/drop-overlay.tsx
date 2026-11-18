@@ -21,7 +21,7 @@ export function DropOverlay({ active, label, className }: DropOverlayProps) {
       data-drop-overlay
       data-active={active}
       className={cn(
-        'pointer-events-none absolute inset-0 z-30 flex items-center justify-center rounded-12 border-2 border-dashed border-foreground bg-muted/90 px-4 text-center text-2sm font-medium text-foreground',
+        'pointer-events-none absolute inset-0 z-30 flex items-center justify-center rounded-12 border-2 border-dashed border-foreground bg-muted/90 px-4 text-center text-2sm font-semibold text-foreground',
         'transition duration-spring-slot ease-spring-slot motion-reduce:transition-none',
         active ? 'scale-100 opacity-100' : 'scale-98 opacity-0',
         className,

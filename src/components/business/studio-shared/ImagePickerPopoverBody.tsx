@@ -117,9 +117,9 @@ export function ImagePickerPopoverBody({
           if (file) onDropFile(file)
         }}
         className={cn(
-          'flex min-h-16 w-full flex-col items-center justify-center gap-1 rounded-12 border border-dashed border-border px-3 py-3 text-xs text-muted-foreground transition-colors hover:tint-hover hover:text-foreground',
+          'flex min-h-16 w-full flex-col items-center justify-center gap-1 rounded-12 border border-dashed border-border px-3 py-3 text-2xs text-muted-foreground transition-colors hover:tint-hover hover:text-foreground',
           isDragOver &&
-            'border-2 border-foreground bg-muted font-medium text-foreground',
+            'border-2 border-foreground bg-muted font-semibold text-foreground',
         )}
       >
         <UploadCloud className="size-4" />
@@ -127,7 +127,7 @@ export function ImagePickerPopoverBody({
       </button>
 
       <div className="space-y-1.5">
-        <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
+        <p className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
           {recentLabel}
         </p>
         {assets === null ? (

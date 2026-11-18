@@ -358,7 +358,6 @@ export function SpecChip({
             size="sm"
             fill
             reselect
-            className="h-8"
           />
         </SpecSection>
       ) : null}
@@ -379,7 +378,6 @@ export function SpecChip({
               semantics="radio"
               size="sm"
               fill
-              className="h-8"
             />
           </div>
         </SpecSection>
@@ -417,7 +415,6 @@ export function SpecChip({
             semantics="radio"
             size="sm"
             fill
-            className="h-8"
           />
         </SpecSection>
       ) : null}

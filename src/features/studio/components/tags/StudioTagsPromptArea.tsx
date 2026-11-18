@@ -12,6 +12,7 @@ import { STUDIO_PROMPT_SCROLL_ANCHOR_ID } from '@/constants/studio-mobile'
 import { useStudioGen } from '@/contexts/studio-context'
 import { useStudioMobileComposerHeight } from '@/features/studio/hooks/use-studio-mobile-composer-height'
 import { cn } from '@/lib/utils'
+import { STUDIO_MOBILE_COMPOSER_CARD_CLASS } from '@/components/business/studio-shared/chrome/studio-composer-card'
 import { StudioTagsComposer } from './StudioTagsComposer'
 import type { TagWorkbenchPanel } from './StudioTagsWorkbench'
 
@@ -84,7 +85,9 @@ export const StudioTagsPromptArea = memo(function StudioTagsPromptArea({
       {overlay}
       <div
         className={cn(
-          'flex min-h-0 flex-1 flex-col rounded-2xl bg-card px-3 pt-2 shadow-float',
+          // 外框与图片台手机输入卡同一份；底边 8 由 `StudioTagsComposer` 手机工具行自带的 `pb-2` 给。
+          'flex min-h-0 flex-1 flex-col',
+          STUDIO_MOBILE_COMPOSER_CARD_CLASS,
           restoring &&
             'animate-in fade-in-40 duration-base ease-standard motion-reduce:animate-none',
         )}

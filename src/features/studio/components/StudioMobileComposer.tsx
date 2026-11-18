@@ -48,6 +48,7 @@ import { StudioModelCapabilityChips } from '@/features/studio/components/StudioM
 import { StudioSpecChip } from '@/features/studio/components/StudioSpecChip'
 import { MainModelPicker } from '@/components/business/studio-shared/pickers/MainModelPicker'
 import { StudioVideoAssetRail } from '@/components/business/studio-shared/chrome/StudioVideoAssetRail'
+import { STUDIO_MOBILE_COMPOSER_CARD_CLASS } from '@/components/business/studio-shared/chrome/studio-composer-card'
 import { SearchGroundingSlot } from '@/components/business/studio-shared/search-grounding/SearchGroundingSlot'
 import { useStudioSearchGrounding } from '@/features/studio/hooks/use-studio-search-grounding'
 
@@ -248,7 +249,10 @@ export const StudioMobileComposer = memo(function StudioMobileComposer({
         maxHeight={STUDIO_MOBILE_PROMPT_MAX_HEIGHT}
         onSubmit={handleGenerate}
         role="group"
-        className="flex flex-col gap-1.5 rounded-2xl border-0 bg-card px-3 pt-2.5 pb-2 shadow-float"
+        className={cn(
+          'flex flex-col gap-1.5 pb-2',
+          STUDIO_MOBILE_COMPOSER_CARD_CLASS,
+        )}
       >
         {isVideo ? null : (
           <SearchGroundingSlot

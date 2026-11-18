@@ -10,6 +10,7 @@ import { Spinner } from '@/components/ui/spinner'
 import { useImageUpload } from '@/hooks/use-image-upload'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { cn } from '@/lib/utils'
+import { STUDIO_MOBILE_COMPOSER_CARD_CLASS } from '../chrome/studio-composer-card'
 import {
   StudioImageEditStage,
   type StudioImageEditTarget,
@@ -228,7 +229,10 @@ export function StudioImageEditWorkspace({
         >
           <div
             ref={setComposerContainer}
-            className="min-h-0 overflow-y-auto rounded-2xl bg-card px-3 pt-2.5 pb-2 shadow-float"
+            className={cn(
+              'min-h-0 overflow-y-auto pb-2',
+              STUDIO_MOBILE_COMPOSER_CARD_CLASS,
+            )}
           />
         </div>
       ) : null,

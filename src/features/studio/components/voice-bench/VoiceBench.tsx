@@ -24,7 +24,7 @@ import {
 import { AvatarDisc, StudioOperatorAvatarSwitcher } from '@/features/assistant'
 import { studioOutlineChipClass } from '@/components/ui/chip'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
-import { STUDIO_COMPOSER_CARD_CLASS } from '@/components/business/studio-shared/chrome/studio-composer-card'
+import { STUDIO_COMPOSER_CARD_RESPONSIVE_CLASS } from '@/components/business/studio-shared/chrome/studio-composer-card'
 import { VoicePickerDialog } from '@/components/business/voices/VoicePickerDialog'
 import { Button } from '@/components/ui/button'
 import {
@@ -43,7 +43,6 @@ import {
 import { Spinner } from '@/components/ui/spinner'
 import { useAssistantPersona } from '@/hooks/use-assistant-persona'
 import { useErrorText } from '@/hooks/use-error-text'
-import { useIsMobile } from '@/hooks/use-mobile'
 import {
   playOperatorVoice,
   stopOperatorVoice,
@@ -100,12 +99,6 @@ export function VoiceBench() {
   const t = useTranslations('VoiceBench')
   const tv = useTranslations('StudioOperator.voice')
   const errText = useErrorText()
-  /**
-   * 手机（<768）照图片 / 标签 / 视频台的手机骨架：灰底地台上「舞台一张白卡 + 输入框另一张白卡」
-   * （工作台脊柱 `.workbench-card`，owner 2026-10-04「像 PC 一样上下两张卡」）。
-   * 桌面不动：台面直接落在白板上（ui-spec §1「板里不再套卡」）。
-   */
-  const isMobile = useIsMobile()
   const voice = usePersonaVoice()
   const { persona } = useAssistantPersona()
   const bench = useVoiceBench(
@@ -210,11 +203,12 @@ export function VoiceBench() {
   return (
     <div
       data-testid="voice-bench"
-      className={cn(
-        'flex h-page min-h-0 w-full flex-col gap-3 p-3 lg:p-8',
-        // 地台灰与内距 / 行距同脊柱手机档（`--workbench-pad` / `--workbench-gap` = 10）。
-        isMobile && 'gap-2.5 bg-surface-workbench p-2.5',
-      )}
+      // 手机（<768）照图片 / 标签 / 视频台的手机骨架：灰底地台上「舞台一张白卡 + 输入框另一张白卡」
+      // （owner 2026-10-04「像 PC 一样上下两张卡」）；桌面台面直接落在白板上（ui-spec §1「板里不再套卡」）。
+      // ⚠ 两档只由 CSS 断点分（`max-lg:` / `lg:` = 768，与 `useIsMobile` 同界），⛔ 用 `useIsMobile()` 挑类：
+      //   它首帧恒 false，手机上会先画一帧无卡的桌面样式再跳成有卡。
+      // 手机地台灰与内距 / 行距同脊柱手机档（`--workbench-pad` / `--workbench-gap` = 10）。
+      className="flex h-page min-h-0 w-full flex-col gap-2.5 p-2.5 max-lg:bg-surface-workbench lg:gap-3 lg:p-8"
     >
       <div data-bench-header className="flex h-9 shrink-0 items-center">
         {voice.characterCardId ? (
@@ -255,10 +249,9 @@ export function VoiceBench() {
           <div
             ref={listRef}
             data-testid="voice-bench-lines"
-            className={cn(
-              'flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto lg:mb-4',
-              isMobile && 'workbench-card p-3',
-            )}
+            // 手机这一块是白卡：值与脊柱 `.workbench-card` 同源（圆角 / 投影读同一对变量，
+            // 边 / 底同 token）—— `.workbench-card` 是 components 层的类、挂不了 `max-lg:`，故逐项写。
+            className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto max-lg:relative max-lg:min-w-0 max-lg:rounded-(--workbench-card-radius) max-lg:border max-lg:border-border max-lg:bg-card max-lg:p-3 max-lg:shadow-(--workbench-card-shadow) lg:mb-4"
           >
             {bench.loading ? (
               <div className="grid flex-1 place-items-center">
@@ -311,10 +304,11 @@ export function VoiceBench() {
               event.preventDefault()
               submit()
             }}
-            // 外框与其它台同一份（ui-spec §9「输入框」）。
+            // 外框与其它台同一份（ui-spec §9「输入框」）：手机是图片台手机输入卡那一副，≥768 换回桌面那副；
+            // `pb-2` 只在手机生效（桌面被 `lg:p-4.5` 盖掉）。
             className={cn(
-              'flex shrink-0 flex-col gap-2.5',
-              STUDIO_COMPOSER_CARD_CLASS,
+              'flex shrink-0 flex-col gap-2.5 pb-2',
+              STUDIO_COMPOSER_CARD_RESPONSIVE_CLASS,
             )}
           >
             <textarea

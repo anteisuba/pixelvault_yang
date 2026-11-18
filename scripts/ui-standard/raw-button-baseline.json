@@ -58,7 +58,6 @@
   "src/features/assistant/components/operator/RuleChip.tsx",
   "src/features/assistant/components/operator/StudioOperatorAddMenu.tsx",
   "src/features/assistant/components/operator/StudioOperatorAnswerSources.tsx",
-  "src/features/assistant/components/operator/StudioOperatorAvatarSwitcher.tsx",
   "src/features/assistant/components/operator/StudioOperatorChangedCards.tsx",
   "src/features/assistant/components/operator/StudioOperatorCharacterImagesCard.tsx",
   "src/features/assistant/components/operator/StudioOperatorCharacterProfileCard.tsx",

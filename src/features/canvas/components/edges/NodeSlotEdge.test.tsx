@@ -70,6 +70,16 @@ describe('NodeSlotEdge（spec §1.13）', () => {
     ])
   })
 
+  it('备注卡连出去的线：胶囊写「备注·不发送」而不是槽名', () => {
+    renderEdge({
+      slot: NODE_SLOT_IDS.text,
+      endpointSelected: true,
+      noteOnly: true,
+    })
+    expect(screen.getByText('edgeNoteOnly')).toBeInTheDocument()
+    expect(screen.queryByText('slots.text')).toBeNull()
+  })
+
   it('语音 / 文本边只写槽名，⛔ 没有改角色那一层', () => {
     const { container } = renderEdge({
       slot: NODE_SLOT_IDS.voice,

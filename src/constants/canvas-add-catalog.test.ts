@@ -4,6 +4,7 @@ import {
   CANVAS_ADD_CATALOG,
   CANVAS_ADD_GROUP_IDS,
   CANVAS_ADD_INTENT_IDS,
+  findCanvasAddCatalogItemByV4,
   getCanvasAddCatalogItem,
 } from '@/constants/canvas-add-catalog'
 import {
@@ -24,9 +25,20 @@ describe('canvas add catalog', () => {
     ])
   })
 
-  it('11 项，id 唯一，且每一项都落在自己那一组的 kind 上', () => {
+  it('10 项（语音 / 音色已并成一项），id 唯一，且每一项都落在自己那一组的 kind 上', () => {
     const items = CANVAS_ADD_CATALOG.flatMap((group) => group.items)
-    expect(items).toHaveLength(11)
+    expect(items).toHaveLength(10)
+    // 一个 v4 身份只对应菜单里一项 —— 两项同身份时反查表后写覆盖先写，
+    // 所有 `audio.voice` 卡都被叫成「音色」。
+    expect(
+      new Set(items.map((item) => `${item.v4.kind}.${item.v4.subtype}`)).size,
+    ).toBe(items.length)
+    expect(
+      findCanvasAddCatalogItemByV4(
+        NODE_MEDIA_KIND_IDS.audio,
+        NODE_V4_AUDIO_SUBTYPE_IDS.voice,
+      )?.id,
+    ).toBe(CANVAS_ADD_INTENT_IDS.audioVoice)
     expect(new Set(items.map((item) => item.id)).size).toBe(items.length)
     // 分组 id 就是 kind —— 分错组等于菜单说的和建出来的不是一件事。
     for (const group of CANVAS_ADD_CATALOG) {

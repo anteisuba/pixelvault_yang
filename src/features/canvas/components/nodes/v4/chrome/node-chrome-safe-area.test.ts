@@ -10,7 +10,6 @@ import {
 const base: NodeChromeLayoutInput = {
   viewport: { width: 1440, height: 900 },
   card: { x: 500, y: 300, width: 320, height: 180 },
-  zoom: 1,
   safeLeft: 72,
   content: { width: 640, height: 100 },
   position: 'bottom',
@@ -22,15 +21,24 @@ describe('节点浮层安全区 · mock.html after', () => {
       ...base,
       viewport: { width: 1383, height: 900 },
       card: { x: 79.09, y: 298.88, width: 286.65, height: 161.24 },
-      zoom: 0.9,
     })
     expect(layout.left).toBe(72)
     expect(57 + layout.left).toBe(129)
     expect(layout.top).toBeCloseTo(470.12)
-    expect(layout.scale).toBe(0.9)
   })
 
-  it('侧栏打开时左界改为 346，缩放仍按 0.6–1', () => {
+  it('浮层屏幕恒 1 倍：输出里没有缩放，夹位用的是浮层原尺寸', () => {
+    const layout = layoutNodeChrome({
+      ...base,
+      // 13% 适应下的一张卡：屏幕上只有 42×23，浮层仍按 640×100 夹位。
+      card: { x: 700, y: 400, width: 42, height: 23 },
+    })
+    expect(layout).not.toHaveProperty('scale')
+    expect(layout.left).toBe(721 - 320)
+    expect(layout.top).toBe(400 + 23 + 10)
+  })
+
+  it('侧栏打开时左界改为 346', () => {
     const closed = layoutNodeChrome({ ...base, card: { ...base.card, x: 0 } })
     const opened = layoutNodeChrome({
       ...base,
@@ -39,25 +47,21 @@ describe('节点浮层安全区 · mock.html after', () => {
     })
     expect(closed.left).toBe(72)
     expect(opened.left).toBe(346)
-    expect(layoutNodeChrome({ ...base, zoom: 0.3 }).scale).toBe(0.6)
-    expect(layoutNodeChrome({ ...base, zoom: 1.5 }).scale).toBe(1)
   })
 
-  it('缩放后的实际栏高决定下界，左/右夹位也使用缩放后的宽度', () => {
+  it('栏高决定下界，左/右夹位用栏宽（均为屏幕 1 倍）', () => {
     const bottom = layoutNodeChrome({
       ...base,
       card: { x: 500, y: 790, width: 100, height: 50 },
-      zoom: 0.6,
       content: { width: 300, height: 100 },
     })
     const right = layoutNodeChrome({
       ...base,
       card: { x: 1300, y: 300, width: 100, height: 50 },
-      zoom: 0.6,
       content: { width: 300, height: 100 },
     })
-    expect(bottom.top).toBe(764)
-    expect(right.left).toBe(1244)
+    expect(bottom.top).toBe(724)
+    expect(right.left).toBe(1124)
   })
 
   it('顶部先留卡名 22 和空隙 8，再夹在上界 64；底部夹在 H−76', () => {

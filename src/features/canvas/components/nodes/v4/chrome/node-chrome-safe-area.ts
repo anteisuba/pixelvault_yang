@@ -8,10 +8,9 @@ export interface NodeChromeLayoutInput {
     readonly width: number
     readonly height: number
   }
-  readonly zoom: number
   /** 安全区左界（`canvasShellSafeLeftPx`）。 */
   readonly safeLeft: number
-  /** 浮层未经画布缩放时的布局尺寸。 */
+  /** 浮层的布局尺寸（屏幕像素；浮层恒为 1 倍，⛔ 不跟画布缩放）。 */
   readonly content: { readonly width: number; readonly height: number }
   readonly position: 'top' | 'bottom'
 }
@@ -19,7 +18,6 @@ export interface NodeChromeLayoutInput {
 export interface NodeChromeLayout {
   readonly left: number
   readonly top: number
-  readonly scale: number
   readonly originX: number
   readonly originY: '0' | '100%'
   readonly visible: boolean
@@ -29,21 +27,24 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max)
 }
 
-/** 与 node-polish-2/mock.html 的 layoutChrome 保持相同的逐帧夹位顺序。 */
+/**
+ * 与 node-polish-2/mock.html 的 layoutChrome 保持相同的逐帧夹位顺序。
+ *
+ * ⚠ 2026-11-18：浮层**恒为屏幕 1 倍**，⛔ 不再按画布缩放（原 09-29 是 0.6–1）。
+ * 初始适应常落在 13% 左右，那时工具条与提示词栏缩到 0.6，字小到读不清、键小到点不准；
+ * 锚点（贴卡居中）与夹进安全区不变，只是尺寸不再跟 zoom 走。
+ */
 export function layoutNodeChrome({
   viewport,
   card,
-  zoom,
   safeLeft,
   content,
   position,
 }: NodeChromeLayoutInput): NodeChromeLayout {
-  const scale = clamp(zoom, 0.6, 1)
   const safeTop = 64
   const safeRight = viewport.width - 16
   const safeBottom = viewport.height - 76
-  const width = content.width * scale
-  const height = content.height * scale
+  const { width, height } = content
   const cardCenterX = card.x + card.width / 2
 
   const visible = !(
@@ -70,8 +71,7 @@ export function layoutNodeChrome({
   return {
     left,
     top,
-    scale,
-    originX: clamp((cardCenterX - left) / scale, 0, content.width),
+    originX: clamp(cardCenterX - left, 0, content.width),
     originY: position === 'top' ? '100%' : '0',
     visible,
   }

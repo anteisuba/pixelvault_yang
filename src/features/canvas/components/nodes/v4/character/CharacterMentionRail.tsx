@@ -6,6 +6,8 @@
  * 一位一格，与轨上的参考图同一种长相（48 缩略 + 下面一行名字）：缩略是她的主图，
  * 角标是这一镜带几张（近黑实底，与参考图的序号角标区分开）。点开 = 勾图面板，与工作台
  * 「角色」弹层同一个格子（`CharacterImagePickGrid`）。
+ * ⭐ 她有好几套造型时（11-17），勾图面板顶上一排造型：点一套 = 换成那套的主图；用哪套 =
+ *   挑的图属于哪套（`lookIdOfPicks`），出图时随 `characterLookIds` 送去 —— ⛔ 不另存一份造型。
  * ⚠ 她从这一排消失的唯一方式是正文里删掉 `@她` —— 这里不给「移除」。
  */
 
@@ -15,9 +17,15 @@ import { useTranslations } from 'next-intl'
 
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import type { CharacterImagePick } from '@/types'
+import { Button } from '@/components/ui/button'
 import { CharacterImagePickGrid } from '@/features/cards'
 import { characterCoverUrl, defaultLook } from '@/lib/card-bus'
-import type { NodeCharacterMention } from '@/lib/node-character-mentions'
+import { lookLabel } from '@/lib/character-looks'
+import {
+  lookIdOfPicks,
+  lookPrimaryPicks,
+  type NodeCharacterMention,
+} from '@/lib/node-character-mentions'
 import { cn } from '@/lib/utils'
 
 import { ChipPopover } from '../chrome'
@@ -43,6 +51,7 @@ export function CharacterMentionRail({
   expanded?: boolean
 }) {
   const t = useTranslations('StudioNode.v4.characterMention')
+  const tLooks = useTranslations('CharacterLooks')
   const canvas = useNodeV4Canvas()
   const [openId, setOpenId] = useState<string | null>(null)
   if (mentions.length === 0) return null
@@ -146,9 +155,42 @@ export function CharacterMentionRail({
                     })}
                   </p>
                 )}
+                {card.looks.length > 1 ? (
+                  <div
+                    role="group"
+                    aria-label={tLooks('title')}
+                    className="flex flex-wrap gap-1 px-2"
+                  >
+                    {card.looks.map((look) => {
+                      const current =
+                        (lookIdOfPicks(card, picks) ?? defaultLook(card).id) ===
+                        look.id
+                      return (
+                        <Button
+                          key={look.id}
+                          type="button"
+                          size="xs"
+                          variant={current ? 'default' : 'secondary'}
+                          aria-pressed={current}
+                          disabled={look.referenceSlots.length === 0}
+                          onClick={() =>
+                            setPicks(card.id, lookPrimaryPicks(card, look.id))
+                          }
+                          className="rounded-full text-2sm"
+                        >
+                          {lookLabel(look, card.looks, tLooks)}
+                        </Button>
+                      )
+                    })}
+                  </div>
+                ) : null}
                 <CharacterImagePickGrid
                   card={card}
-                  look={defaultLook(card)}
+                  look={
+                    card.looks.find(
+                      (look) => look.id === lookIdOfPicks(card, picks),
+                    ) ?? defaultLook(card)
+                  }
                   picks={picks}
                   remaining={remaining}
                   onChange={(next) => setPicks(card.id, next)}

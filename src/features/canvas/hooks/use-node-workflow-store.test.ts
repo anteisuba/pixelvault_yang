@@ -366,3 +366,73 @@ describe('isNewerVersion', () => {
     expect(isNewerVersion(V1, V1)).toBe(false)
   })
 })
+
+describe('useNodeWorkflowStore · 本地新建、服务端还没有行的项目（owner 2026-11-18）', () => {
+  function created(id: string, name: string) {
+    return {
+      success: true,
+      data: { ...record(V1, { version: 4, nodes: [], edges: [] }), id, name },
+    }
+  }
+
+  it('水化前建的项目：列表一回来就补建一次，⛔ 不再永远只在本地', async () => {
+    let resolveList: (value: unknown) => void = () => {}
+    api.list.mockReturnValue(
+      new Promise((resolve) => {
+        resolveList = resolve
+      }),
+    )
+    api.create.mockResolvedValue(created('p_new', '新画布'))
+    const view = renderHook(() =>
+      useNodeWorkflowStore({ defaultProjectName: '未命名', clerkId: 'user_1' }),
+    )
+    await flush()
+    act(() => {
+      view.result.current.createProject('新画布')
+    })
+    expect(api.create).not.toHaveBeenCalled()
+
+    resolveList({ success: true, data: [record(V1)] })
+    await flush()
+    await flush()
+
+    expect(api.create).toHaveBeenCalledTimes(1)
+    expect(api.create.mock.calls[0]?.[0]).toMatchObject({ name: '新画布' })
+    expect(
+      view.result.current.projects.some((project) => project.id === 'p_new'),
+    ).toBe(true)
+    // 已有项目一个字都没写（⛔ 不碰存量项目的写入闸）。
+    expect(api.update).not.toHaveBeenCalled()
+  })
+
+  it('建行失败：常驻提示带「重试」，点了再建一次；成功后撤掉提示', async () => {
+    const view = await renderHydratedStore()
+    api.create.mockResolvedValueOnce({ success: false, error: 'boom' })
+    act(() => {
+      view.result.current.createProject('新画布')
+    })
+    await flush()
+
+    const call = toastMock.error.mock.calls.find(
+      ([message]) => message === 'cloudCreateFailed',
+    )
+    expect(call).toBeDefined()
+    const options = call?.[1] as {
+      id: string
+      action: { label: string; onClick: () => void }
+    }
+    expect(options.action.label).toBe('cloudCreateRetry')
+
+    api.create.mockResolvedValueOnce(created('p_new', '新画布'))
+    act(() => {
+      options.action.onClick()
+    })
+    await flush()
+
+    expect(api.create).toHaveBeenCalledTimes(2)
+    expect(toastMock.dismiss).toHaveBeenCalledWith(options.id)
+    expect(
+      view.result.current.projects.some((project) => project.id === 'p_new'),
+    ).toBe(true)
+  })
+})

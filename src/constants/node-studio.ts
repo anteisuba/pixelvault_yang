@@ -61,10 +61,11 @@ export const NODE_STUDIO_CANVAS = {
   // 下限放宽到 30% 方便看全局；上限放到 200% 基准之上留手动继续放大的余量。
   minZoom: 0.3,
   maxZoom: 4,
-  // A3: 「适应画布」按钮/自动 fit 的独立放大上限——与上面手动滚轮上限
-  // (maxZoom) 分开，让 fitView 稳定停在 200% 舒适档，不因为 maxZoom 提到 4
-  // 而在节点很少时把画布怼到 400%。
-  fitViewMaxZoom: 2,
+  // 「适应」的放大上限——底栏「适应」、Shift+1、打开项目时的自动适应、「回到内容」
+  // **共用这一个**（`fitCanvasProject`）。与手动滚轮上限 (maxZoom) 分开：节点很少时
+  // 停在 100%，⛔ 怼到 400%。下限就是上面的 minZoom（⛔ 自动适应低于手动下限：
+  // 2026-11-18 之前打开项目会落到 13%，一滚轮就跳回 30%）。
+  fitViewMaxZoom: 1,
   // Separate a stationary click from an intentional node move. React Flow's
   // zero default fires drag-start on pointer-down, which makes "click opens
   // contextual UI, drag only repositions" impossible to distinguish.
@@ -822,7 +823,8 @@ export const NODE_V4_NAME = {
  */
 export const NODE_V4_SUBTYPE_LABELS: Record<string, string> = {
   'text.script': '剧本',
-  'text.shotNote': '分镜',
+  // 与添加菜单同名（「备注」：只给自己看的便签，永不发给模型）。
+  'text.shotNote': '备注',
   'text.rule': '规则',
   'image.character': '角色',
   'image.background': '背景',
@@ -1532,21 +1534,20 @@ export const NODE_V4_OUTPUT_VERSION = {
 } as const
 
 /**
- * 图片**估价**的质量系数（S3b，spec §3 画面弹层底部那一行）。
+ * 画面弹层里画质档的**显示顺序**（全仓能力表 `qualityOptions` 出现过的那几档之并集，
+ * OpenAI 家 `auto|low|medium|high|xhigh|max`）。灰掉哪几档由每个模型的能力表决定。
  *
- * ⚠ 是给用户「点之前心里有数」的估算，⛔ 不是账单也不是闸：真扣多少由服务端按
- * 实际用量算。⛔ 也不新造档位词表 —— 键就是能力表 `qualityOptions` 里出现过的
- * 那几档（OpenAI 家 `auto|low|medium|high|xhigh|max`），能力表加一档时这里补一个
- * 系数即可。
+ * ⚠ 只是档位词表，⛔ 不带价钱系数：估价统一走 `lib/generation-cost` 的
+ * `estimateGenerationCost`（按档读 `unit-prices.ts` 的真单价）。
  */
-export const NODE_V4_IMAGE_QUALITY_COST = {
-  auto: 1,
-  low: 0.5,
-  medium: 1,
-  high: 2,
-  xhigh: 3,
-  max: 4,
-} as const
+export const NODE_V4_IMAGE_QUALITY_TIERS = [
+  'auto',
+  'low',
+  'medium',
+  'high',
+  'xhigh',
+  'max',
+] as const
 
 /**
  * 手机端**镜头带视图**（node-canvas-v2 §7.x，画板 `MobileCanvas.dc.html` 方向 A）。

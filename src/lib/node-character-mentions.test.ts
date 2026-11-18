@@ -4,6 +4,8 @@ import type { CharacterCardRecord } from '@/types'
 
 import {
   defaultCharacterPicks,
+  lookIdOfPicks,
+  lookPrimaryPicks,
   mentionedCharacters,
   stripCharacterMentionMarks,
 } from './node-character-mentions'
@@ -59,5 +61,43 @@ describe('画布卡提示词里的 @她', () => {
     expect(stripCharacterMentionMarks('@Denia 拿着 @图1', mentions)).toBe(
       'Denia 拿着 @图1',
     )
+  })
+})
+
+describe('画布选造型（11-17）：用哪套 = 挑的图属于哪套', () => {
+  const LIN = {
+    id: 'lin',
+    name: 'Lin',
+    looks: [
+      {
+        id: 'lin-main',
+        isDefault: true,
+        tags: [],
+        referenceSlots: [{ id: 'm1', url: 'u/m1', isPrimary: true }],
+      },
+      {
+        id: 'lin-battle',
+        isDefault: false,
+        tags: [],
+        referenceSlots: [
+          { id: 'b1', url: 'u/b1', isPrimary: false },
+          { id: 'b2', url: 'u/b2', isPrimary: true },
+        ],
+      },
+    ],
+  } as unknown as CharacterCardRecord
+
+  it('挑的是战斗那套的图 → 那套；默认那套 / 只挑了用她出的 → null', () => {
+    expect(lookIdOfPicks(LIN, [{ slotId: 'b1' }])).toBe('lin-battle')
+    expect(lookIdOfPicks(LIN, [{ generationId: 'g1' }, { slotId: 'b2' }])).toBe(
+      'lin-battle',
+    )
+    expect(lookIdOfPicks(LIN, [{ slotId: 'm1' }])).toBeNull()
+    expect(lookIdOfPicks(LIN, [{ generationId: 'g1' }])).toBeNull()
+  })
+
+  it('换造型 = 那套的主图 1 张', () => {
+    expect(lookPrimaryPicks(LIN, 'lin-battle')).toEqual([{ slotId: 'b2' }])
+    expect(lookPrimaryPicks(LIN, null)).toEqual([{ slotId: 'm1' }])
   })
 })

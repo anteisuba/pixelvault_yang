@@ -152,9 +152,10 @@ describe('migrateNodeWorkflowStateToV4', () => {
   it('每个 legacy type 都映到 §9.3 表上的那一格', () => {
     const { state } = migrateNodeWorkflowStateToV4(fullFixture(), { now: NOW })
     const byId = new Map(state.nodes.map((n) => [n.id, n.data]))
+    // 带 scriptRef 的 shotText 是镜头内容，落 script（shotNote = 备注·不发送，11-18）。
     expect(byId.get('n_text')).toMatchObject({
       kind: 'text',
-      subtype: 'shotNote',
+      subtype: 'script',
     })
     expect(byId.get('n_script')).toMatchObject({
       kind: 'text',
@@ -256,6 +257,50 @@ describe('migrateNodeWorkflowStateToV4', () => {
     const migrated = migrateNodeWorkflowStateToV4(state, { now: NOW })
     expect(migrated.state.edges[0]?.slot).toBe('lastFrame')
     expect(JSON.stringify(migrated.state)).not.toContain('imageCategory')
+  })
+
+  it('图片卡的反向词与种子并进 params.advanced（发送与「专属」chip 只读那里）', () => {
+    const state: V3State = {
+      nodes: [
+        node('i', NODE_TYPE_IDS.image, {
+          role: NODE_IMAGE_ROLE_IDS.shot,
+          negativePrompt: 'blurry, watermark',
+          seed: 42,
+          aspectRatio: '16:9',
+        }),
+      ],
+      edges: [],
+    }
+    const migrated = migrateNodeWorkflowStateToV4(state, { now: NOW })
+    expect(NodeWorkflowStateV4Schema.safeParse(migrated.state).success).toBe(
+      true,
+    )
+    const data = migrated.state.nodes[0]!.data
+    expect(data.kind).toBe('image')
+    if (data.kind !== 'image') return
+    expect(data.params).toEqual({
+      aspectRatio: '16:9',
+      advanced: { negativePrompt: 'blurry, watermark', seed: 42 },
+    })
+    expect('negativePrompt' in data).toBe(false)
+  })
+
+  it('视频卡的反向词与种子仍落原位（视频发送读顶层 / params.seed）', () => {
+    const state: V3State = {
+      nodes: [
+        node('v', NODE_TYPE_IDS.seedance, {
+          negativePrompt: 'blurry',
+          seed: 7,
+        }),
+      ],
+      edges: [],
+    }
+    const data = migrateNodeWorkflowStateToV4(state, { now: NOW }).state
+      .nodes[0]!.data
+    expect(data.kind).toBe('video')
+    if (data.kind !== 'video') return
+    expect(data.negativePrompt).toBe('blurry')
+    expect(data.params?.seed).toBe(7)
   })
 
   it('名字创建即持久化，同名自动追加序号，镜号进名字', () => {

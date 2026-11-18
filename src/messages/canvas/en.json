@@ -4,7 +4,7 @@
       "title": "Empty canvas — start here",
       "subtitle": "Tell me the story and the assistant lays the nodes out for you.",
       "chatOutline": "Plan the outline with the assistant",
-      "addNode": "Add a node manually (character / background / shot / image…)"
+      "addNode": "Add a node manually (script / character / background / shot still / shot…)"
     },
     "appearance": {
       "trigger": "Set canvas appearance",
@@ -95,12 +95,8 @@
           "helper": "Upload, paste, pick from assets, or generate with AI later."
         },
         "audioVoice": {
-          "label": "Voice line",
-          "helper": "The audio for one spoken line — generated or uploaded."
-        },
-        "audioTimbre": {
-          "label": "Timbre",
-          "helper": "A reusable voice. Connect it to a shot or character to set how they sound."
+          "label": "Voice / timbre",
+          "helper": "A piece of audio, generated or uploaded. Into a shot it's a spoken line; into a timbre port it sets how someone sounds."
         },
         "videoShot": {
           "label": "Shot",
@@ -796,9 +792,14 @@
       "cloudSaveFailed": "Can't reach the cloud — recent canvas changes aren't saved. Keep this tab open and check your connection.",
       "v3UpgradeReadOnly": "This project's legacy data hasn't been backed up yet, so the canvas is read-only to avoid overwriting the original. Refresh to retry; contact support if it keeps failing.",
       "cloudSaveRejected": "The cloud rejected this save — recent canvas changes aren't saved. This is not a connection problem; the details are below.",
+      "cloudSaveInvalidNode": "The {field} on card “{name}” isn't valid, so recent canvas changes haven't been saved to the cloud yet. Fix it and saving resumes automatically.",
+      "cloudSaveInvalidNodeTooLong": "The {field} on card “{name}” is over {maximum} characters, so recent canvas changes haven't been saved to the cloud yet. Shorten it and saving resumes automatically.",
+      "cloudSaveInvalidProject": "The project's {field} isn't valid, so recent canvas changes haven't been saved to the cloud yet.",
       "conflict": "This canvas was saved elsewhere (another tab or device) with newer changes, so saving here is paused.",
       "conflictLoadLatest": "Load latest",
       "conflictSaveAsCopy": "Save as copy",
+      "cloudCreateFailed": "The new canvas “{name}” isn't saved to the cloud yet — changes only live in this browser.",
+      "cloudCreateRetry": "Retry",
       "conflictLoadFailed": "Couldn't load the latest version. Check your connection and try again."
     },
     "quickEdit": {
@@ -971,6 +972,7 @@
       "versionPrev": "Previous version",
       "versionNext": "Next version",
       "slotDisconnect": "Disconnect",
+      "edgeNoteOnly": "Note · not sent",
       "slotEmpty": "Empty",
       "changedBadge": "Changed this turn",
       "blocked": "Rejected: {reason}",
@@ -1069,8 +1071,10 @@
         "slot": {
           "belowMin": "{slot} isn't filled yet",
           "currentMissing": "Pick which version {slot} should use",
-          "blockedSource": "{slot} holds an asset marked as unusable — swap it out or disconnect it"
+          "blockedSource": "{slot} holds an asset marked as unusable — swap it out or disconnect it",
+          "emptySource": "\"{name}\" is wired into {slot} but has nothing in it yet — generate or upload it first, or disconnect it"
         },
+        "unnamed": "an unnamed card",
         "tooMany": {
           "image": "{count, plural, one {# reference image} other {# reference images}}; this model takes at most {max}",
           "video": "{count, plural, one {# reference video} other {# reference videos}}; this model takes at most {max}",
@@ -1088,6 +1092,16 @@
           "total": "This model doesn't take references"
         },
         "audioOnly": "This model can't take reference audio on its own — add an image or a video",
+        "empty": {
+          "image": "Describe the picture you want first, or connect a reference image",
+          "video": "Describe how this shot should play first, or connect an image",
+          "audio": "Write the line to be spoken first"
+        },
+        "timbre": {
+          "model": "This model can't use the timbre reference “{name}” — disconnect it or switch to a Fish speech model",
+          "transcript": "The timbre reference “{name}” has no transcript — write what that clip says on its card, then send",
+          "voice": "A voice is already picked on this card, so the timbre reference “{name}” would be ignored — clear the voice or disconnect the timbre"
+        },
         "clipTooLong": {
           "video": "“{name}” runs {seconds}s; this model takes reference videos up to {limit}s each",
           "audio": "“{name}” runs {seconds}s; this model takes reference audio up to {limit}s each"
@@ -1101,9 +1115,19 @@
           "audio": "Reference audio adds up to {seconds}s; this model takes at most {max}s"
         }
       },
+      "selectionRun": {
+        "title": "Run these {count} cards together?",
+        "priceAll": "Estimated total: {amount}.",
+        "pricePartial": "Estimated {amount} for the cards we can price; {unpriced} more can't be estimated.",
+        "priceNone": "None of these cards can be priced in advance.",
+        "order": "Connected cards wait for their upstream result, and are skipped if it doesn't arrive. Up to {limit} run at once.",
+        "cancel": "Cancel",
+        "confirm": "Run {count}"
+      },
       "generateDesk": {
         "failed": "Generation failed: {reason}",
         "noModel": "Pick a model first",
+        "noNodeSelected": "Select a card first",
         "noGenerate": "Create a connected node to generate from this text."
       },
       "renameNode": "Rename node",
@@ -1269,7 +1293,7 @@
         },
         "subtypes": {
           "script": "Script",
-          "shotNote": "Shot note",
+          "shotNote": "Note",
           "rule": "Rule"
         },
         "doc": {
@@ -1592,6 +1616,7 @@
           "aspectRatio": "Aspect ratio",
           "resolution": "Resolution",
           "generateAudio": "Generate audio",
+          "sendAdjusted": "References attached, sent via the reference endpoint: {changes}",
           "generateAudioHint": "Generate audio with the video. Turn off for a silent video.",
           "audioSuffix": "with audio",
           "regenerate": "Regenerate",
@@ -1731,10 +1756,6 @@
       }
     },
     "rerunDownstream": {
-      "title": "Changed “{origin}”. {count} connected nodes need to run again.",
-      "free": "no credits",
-      "estimate": "Would spend credits on: {summary}",
-      "noCost": "None of these spend credits",
       "menu": "Rerun affected nodes",
       "ask": "I changed “{name}”. Show me which nodes depend on it before running them again."
     },
@@ -1832,7 +1853,8 @@
         "tidy": "Tidy layout",
         "undo": "Undo",
         "redo": "Redo",
-        "zoom": "Zoom {percent}%"
+        "zoom": "Zoom {percent}%",
+        "backToContent": "Back to content"
       },
       "assistantDock": {
         "collapse": "Collapse assistant",

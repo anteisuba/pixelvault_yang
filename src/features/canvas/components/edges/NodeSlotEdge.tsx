@@ -66,6 +66,8 @@ export interface NodeSlotEdgeData extends Record<string, unknown> {
   readonly dimmed?: boolean
   /** 参考片 → 表（H4a mock ①）：标成参考、还没拉过 = 虚线。 */
   readonly dashed?: boolean
+  /** 源是备注卡（`text.shotNote`）：线只是便签关联，胶囊写「备注·不发送」。 */
+  readonly noteOnly?: boolean
 }
 
 export function NodeSlotEdge({
@@ -213,8 +215,11 @@ export function NodeSlotEdge({
                   {t(`slots.${slot}`)}
                 </button>
               ) : (
-                <span className="px-0.5 text-2xs text-foreground">
-                  {t(`slots.${slot}`)}
+                <span
+                  className="px-0.5 text-2xs text-foreground"
+                  {...(edgeData.noteOnly ? { 'data-node-edge-note': '' } : {})}
+                >
+                  {edgeData.noteOnly ? t('edgeNoteOnly') : t(`slots.${slot}`)}
                 </span>
               )}
               <button

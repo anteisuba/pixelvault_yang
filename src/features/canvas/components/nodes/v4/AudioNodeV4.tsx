@@ -151,6 +151,7 @@ import {
 } from './NodeV4Context'
 import { NodeV4ContextMenu } from './NodeV4ContextMenu'
 import { useNodeGrow } from './node-grow'
+import { NodeKeySetupDialog, useNodeKeyGate } from './use-node-key-gate'
 import { triggerNodeV4Download } from './NodeV4SelectionToolbar'
 
 /** 「生镜头」那一批里指代新建镜头的别名（只在这一批之内有效）。 */
@@ -326,11 +327,13 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
       ...(source.apiKeyId ? { apiKeyId: source.apiKeyId } : {}),
     }
   }, [modelOptions])
+  const effectiveModel = audioData.model ?? defaultModel
+  // 缺 key 闸（Hard Rule 8）：与图 / 视频卡同一份 —— 点发送就地开 `QuickSetupDialog`。
+  const keyGate = useNodeKeyGate({ modelOptions, effectiveModel })
   // 出口「+」：有声音才长下游镜头卡、接进语音槽（§1 第 18 条尾句）。
   const grow = useNodeGrow(node, Boolean(audioData.url))
   if (!node) return null
 
-  const effectiveModel = audioData.model ?? defaultModel
   const audioKind = resolveAudioNodeKind({
     ...audioData,
     model: effectiveModel,
@@ -390,18 +393,32 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
       profile: patch,
     })
 
-  const submitPrompt = () => {
+  /**
+   * `keyVerified`：刚在 `QuickSetupDialog` 里配好 key（渲染闭包里的 `missingKey` 还没
+   * 刷新）。`model`：弹窗里换了一家，这一枪走那一家。
+   */
+  const submitPrompt = (
+    options: {
+      readonly keyVerified?: boolean
+      readonly model?: NodeWorkflowModelSelection
+    } = {},
+  ) => {
     if (draft.trim().length === 0 || generating) return
+    if (keyGate.missingKey && !options.keyVerified) {
+      keyGate.openKeySetup()
+      return
+    }
+    const sendModel = options.model ?? effectiveModel
     if (draft !== currentPrompt) canvas.onSetPrompt(id, draft)
-    if (!audioData.model && effectiveModel)
-      canvas.onSetModel(id, effectiveModel)
+    if (sendModel && (options.model || !audioData.model))
+      canvas.onSetModel(id, sendModel)
     // 读 op 之后的图：`set_prompt` 刚把新写的 @ 落成连线（见 `readGraph`）。
     const graph = canvas.readGraph()
     const nodes = graph.nodes.map((item) =>
-      item.id === id && effectiveModel
+      item.id === id && sendModel
         ? ({
             ...item,
-            data: { ...item.data, model: effectiveModel },
+            data: { ...item.data, model: sendModel },
           } as NodeV4)
         : item,
     )
@@ -429,7 +446,14 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
           },
         },
       )
-      .then(() => setStartedAt(null))
+      .then((result) => {
+        setStartedAt(null)
+        // 没有可用模型：与图 / 视频卡同一句（`generateDesk.noModel`）。这张卡卡面上
+        // 没有失败区，所以用 toast 说出来 —— 之前是一声不吭。
+        if (!result.success && result.error === 'noPlan') {
+          toast.info(t('generateDesk.noModel'))
+        }
+      })
   }
 
   const togglePlay = () => {
@@ -1072,7 +1096,7 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
               safeLeftPx={canvas.safeLeftPx}
               value={draft}
               onValueChange={setDraft}
-              onSubmit={submitPrompt}
+              onSubmit={() => submitPrompt()}
               // 多渠道型号没选渠道 = 这一枪发不出去（D2 Q1：没有「自动」渠道）。
               // 按钮上写「先选渠道」，点了打开这张卡的选择器并定位到那一行。
               {...(channelGate.blocked
@@ -1080,7 +1104,12 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
                     blockedLabel: tPicker('pickChannel'),
                     onBlockedClick: channelGate.requestPick,
                   }
-                : {})}
+                : keyGate.missingKey
+                  ? {
+                      blockedLabel: t('image.send.needsKeyLabel'),
+                      onBlockedClick: keyGate.openKeySetup,
+                    }
+                  : {})}
               generating={generating}
               onCancel={() => setStartedAt(null)}
               placeholder={
@@ -1319,6 +1348,12 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
           />
         ) : null}
       </AnimatePresence>
+      <NodeKeySetupDialog
+        gate={keyGate}
+        onVerified={(model) =>
+          submitPrompt({ keyVerified: true, ...(model ? { model } : {}) })
+        }
+      />
     </div>
   )
 }

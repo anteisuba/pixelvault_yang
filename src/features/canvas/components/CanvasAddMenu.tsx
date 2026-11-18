@@ -8,7 +8,6 @@ import {
   type ComponentType,
 } from 'react'
 import {
-  AudioLines,
   Clapperboard,
   FileText,
   Film,
@@ -70,7 +69,8 @@ export const CANVAS_ADD_INTENT_ICONS: Record<
   [CANVAS_ADD_INTENT_IDS.imageBackground]: Mountain,
   [CANVAS_ADD_INTENT_IDS.imageResult]: ImagePlus,
   [CANVAS_ADD_INTENT_IDS.audioVoice]: Mic2,
-  [CANVAS_ADD_INTENT_IDS.audioTimbre]: AudioLines,
+  // 菜单里已并进「语音 / 音色」，只为助手载荷的别名留一个图标位。
+  [CANVAS_ADD_INTENT_IDS.audioTimbre]: Mic2,
   [CANVAS_ADD_INTENT_IDS.videoShot]: Video,
   [CANVAS_ADD_INTENT_IDS.videoClip]: Film,
 }

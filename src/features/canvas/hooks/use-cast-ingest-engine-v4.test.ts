@@ -176,7 +176,7 @@ describe('useCastIngestEngineV4 · 落点三态', () => {
     expect(view.result.current.dragState.pendingChoice).toBeNull()
   })
 
-  it('拖一张图到镜头卡 → 直接落**参考**（spec §5 · 2026-09-10 定稿），不问', () => {
+  it('拖一张图到空镜头卡 → 直接落**首帧**（owner 2026-11-18；首帧有了才进参考），不问', () => {
     const card = mountCard('shot')
     stubHitTest(card)
     const { view, onConnect } = renderEngine([image, shot])
@@ -186,7 +186,7 @@ describe('useCastIngestEngineV4 · 落点三态', () => {
     expect(onConnect).toHaveBeenCalledWith(
       'img',
       'shot',
-      NODE_SLOT_IDS.reference,
+      NODE_SLOT_IDS.firstFrame,
     )
     expect(view.result.current.dragState.pendingChoice).toBeNull()
   })

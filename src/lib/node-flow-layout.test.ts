@@ -7,7 +7,13 @@ import type {
   NodeWorkflowStateV4,
 } from '@/types/node-workflow'
 
-import { placeNewCards, placeRowBeside, tidyByFlow } from './node-flow-layout'
+import {
+  placeInArea,
+  placeNearPoint,
+  placeNewCards,
+  placeRowBeside,
+  tidyByFlow,
+} from './node-flow-layout'
 
 const NOW = '2026-09-29T00:00:00.000Z'
 const SIZE = { width: 300, height: 200 }
@@ -306,5 +312,117 @@ describe('placeNewCards（助手新建的卡找空位）', () => {
     expect(at(next, 'fresh').x).toBeGreaterThan(
       SIZE.width * 2 + NODE_V4_CARD.derivedGap,
     )
+  })
+})
+
+describe('placeNearPoint（手动加卡：指的点空着就落那里，否则找最近空位）', () => {
+  it('空画布：恰好落在指的点上', () => {
+    expect(placeNearPoint([], { x: 100, y: 50 }, [SIZE])).toEqual([
+      { x: 100, y: 50 },
+    ])
+  })
+
+  it('同一个点连加两张：第二张让开，⛔ 两张叠成一张', () => {
+    const [first] = placeNearPoint([], { x: 0, y: 0 }, [SIZE])
+    const [second] = placeNearPoint([{ ...first!, ...SIZE }], { x: 0, y: 0 }, [
+      SIZE,
+    ])
+    const gap = NODE_V4_CARD.derivedGap
+    const overlaps =
+      second!.x < first!.x + SIZE.width + gap &&
+      first!.x < second!.x + SIZE.width + gap &&
+      second!.y < first!.y + SIZE.height + gap &&
+      first!.y < second!.y + SIZE.height + gap
+    expect(overlaps).toBe(false)
+  })
+})
+
+describe('placeInArea · 在可见区里找空位（owner 2026-11-18）', () => {
+  const area = { left: 0, top: 0, right: 1200, bottom: 800 }
+  const options = { padTop: 50, padBottom: 100, step: 20 }
+
+  it('首选点空着 = 就落那里', () => {
+    expect(placeInArea([], { x: 400, y: 200 }, SIZE, area, options)).toEqual({
+      x: 400,
+      y: 200,
+    })
+  })
+
+  it('首选点压到卡 = 取可见区里最近的空位，卡连同上下留白都在区域里', () => {
+    const occupied = [{ x: 350, y: 150, width: 400, height: 300 }]
+    const at = placeInArea(occupied, { x: 400, y: 200 }, SIZE, area, options)
+    expect(at).not.toBeNull()
+    if (!at) return
+    expect(at.x).toBeGreaterThanOrEqual(area.left)
+    expect(at.x + SIZE.width).toBeLessThanOrEqual(area.right)
+    expect(at.y - options.padTop).toBeGreaterThanOrEqual(area.top)
+    expect(at.y + SIZE.height + options.padBottom).toBeLessThanOrEqual(
+      area.bottom,
+    )
+    const gap = NODE_V4_CARD.derivedGap
+    const hit =
+      at.x < 350 + 400 + gap &&
+      350 < at.x + SIZE.width + gap &&
+      at.y < 150 + 300 + gap &&
+      150 < at.y + SIZE.height + gap
+    expect(hit).toBe(false)
+  })
+
+  it('不压被挡住的块（小地图）', () => {
+    const avoid = [{ x: 900, y: 500, width: 300, height: 300 }]
+    const at = placeInArea([], { x: 900, y: 500 }, SIZE, area, {
+      ...options,
+      avoid,
+    })
+    expect(at).not.toBeNull()
+    if (!at) return
+    const footprintBottom = at.y + SIZE.height + options.padBottom
+    const inside =
+      at.x < 1200 && at.x + SIZE.width > 900 && footprintBottom > 500
+    expect(inside).toBe(false)
+  })
+
+  it('区域里放不下 = null（调用方往外放再挪镜头）', () => {
+    expect(
+      placeInArea([], { x: 0, y: 0 }, SIZE, { ...area, bottom: 300 }, options),
+    ).toBeNull()
+    const full = [{ x: -100, y: -100, width: 1400, height: 1000 }]
+    expect(placeInArea(full, { x: 0, y: 0 }, SIZE, area, options)).toBeNull()
+  })
+})
+
+describe('整理 · 叠在同一点的散卡（真机测试项目的形状，2026-11-18 核实）', () => {
+  it('镜头图 / 语音 / 角色 / 背景叠在同一点、互不相连：整理后两两不重叠', () => {
+    const at = { x: 500, y: 500 }
+    const stacked: NodeV4[] = [
+      { kind: 'image', subtype: 'shot' },
+      { kind: 'audio', subtype: 'voice' },
+      { kind: 'image', subtype: 'character' },
+      { kind: 'image', subtype: 'background' },
+      { kind: 'video', subtype: 'shot' },
+    ].map((data, index) => ({
+      id: `s${index}`,
+      position: at,
+      data: {
+        ...data,
+        name: `s${index}`,
+        status: 'idle',
+        createdAt: NOW,
+      } as NodeV4['data'],
+    }))
+    const next = tidyByFlow({ version: 4, nodes: stacked, edges: [] }, sizeOf)
+    const rects = next.nodes.map((node) => ({ ...node.position, ...SIZE }))
+    for (let i = 0; i < rects.length; i += 1) {
+      for (let j = i + 1; j < rects.length; j += 1) {
+        const a = rects[i]
+        const b = rects[j]
+        const overlap =
+          a.x < b.x + b.width &&
+          b.x < a.x + a.width &&
+          a.y < b.y + b.height &&
+          b.y < a.y + a.height
+        expect(overlap).toBe(false)
+      }
+    }
   })
 })

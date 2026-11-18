@@ -20,10 +20,16 @@ import { useCallback } from 'react'
 import {
   getNodeV4Ports,
   getNodeV4Slot,
+  NODE_SLOT_IDS,
   type NodeSlotId,
 } from '@/constants/node-slots'
-import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
+import {
+  NODE_MEDIA_KIND_IDS,
+  NODE_V4_IMAGE_SUBTYPE_IDS,
+  NODE_V4_VIDEO_SUBTYPE_IDS,
+} from '@/constants/node-types'
 import { defaultMentionSlot } from '@/lib/node-mentions-to-slots'
+import { readSlotSources } from '@/lib/node-slot-payload'
 import {
   canConnect,
   NODE_CONNECT_REJECT_REASON_IDS,
@@ -182,15 +188,51 @@ export function planV4IngestDrop(
 
   // 视频卡是唯一有默认落点的目标（spec §5 · 2026-09-10 owner 定稿；镜头卡与片段卡
   // 同一套入口，owner 2026-09-29）：「连线 / 拖放 / 上传 / 素材库都落进参考轨」，图默认
-  // 作**参考**，首帧 / 尾帧是图的角色，挂上去之后在轨上点图改。⛔ 这不是「按端口表顺序
+  // 作**参考**，首帧 / 尾帧是图的角色，挂上去之后在轨上点图改 —— 2026-11-18 起空镜头的
+  // 第一张画面图先当首帧（`preferredVideoDropSlot`）。⛔ 这不是「按端口表顺序
   // 取第一个」—— 落点走的是与 @ 引用同一张默认表（`defaultMentionSlot`）。
   if (target.data.kind === NODE_MEDIA_KIND_IDS.video) {
-    const preferred = defaultMentionSlot(source.data.kind, target)
+    const preferred = preferredVideoDropSlot(
+      source,
+      target,
+      candidates.map((candidate) => candidate.slot),
+      edges,
+      nodes,
+    )
     const hit = candidates.find((candidate) => candidate.slot === preferred)
     if (hit) return { kind: 'single', candidate: hit }
   }
 
   return { kind: 'choose', candidates }
+}
+
+/**
+ * 图片落到**镜头卡**上：首帧空着就当首帧，首帧有了才进参考（owner 2026-11-18，改
+ * 09-10「一律进参考轨」那条默认）。空镜头拖进第一张图几乎总是「从这张开拍」。
+ *
+ * ⚠ 只认镜头卡（`video.shot`）与「画面」类图（镜头图 / 生成图 / 外来参考图）：
+ * 角色 / 背景是**身份**素材，照旧进参考；片段卡不生成，首帧对它没意义。
+ * ⚠ 首帧是轮播口（容量 1 但可挂多张、只有当前那张生效），`openSlots` 里永远有它；
+ * 「空着」要读这张卡首帧上实际挂着几张（绑定优先、边表兜底，与发送同一份读法）。
+ */
+function preferredVideoDropSlot(
+  source: NodeV4,
+  target: NodeV4,
+  openSlots: readonly NodeSlotId[],
+  edges: readonly NodeWorkflowEdgeV4[],
+  nodes: readonly NodeV4[],
+): NodeSlotId | undefined {
+  if (
+    target.data.subtype === NODE_V4_VIDEO_SUBTYPE_IDS.shot &&
+    source.data.kind === NODE_MEDIA_KIND_IDS.image &&
+    source.data.subtype !== NODE_V4_IMAGE_SUBTYPE_IDS.character &&
+    source.data.subtype !== NODE_V4_IMAGE_SUBTYPE_IDS.background &&
+    openSlots.includes(NODE_SLOT_IDS.firstFrame) &&
+    readSlotSources(target, NODE_SLOT_IDS.firstFrame, edges, nodes).length === 0
+  ) {
+    return NODE_SLOT_IDS.firstFrame
+  }
+  return defaultMentionSlot(source.data.kind, target)
 }
 
 /* ═════════════════════════════════════════════════════════════════════════
@@ -238,7 +280,10 @@ export function planV4ConnectDrop(
         : NODE_CONNECT_REJECT_REASON_IDS.unknownSlot,
     }
   }
-  const preferred = defaultMentionSlot(source.data.kind, target)
+  const preferred =
+    target.data.kind === NODE_MEDIA_KIND_IDS.video
+      ? preferredVideoDropSlot(source, target, evaluation.slots, edges, nodes)
+      : defaultMentionSlot(source.data.kind, target)
   if (preferred && evaluation.slots.includes(preferred)) {
     return { kind: 'connect', slot: preferred }
   }

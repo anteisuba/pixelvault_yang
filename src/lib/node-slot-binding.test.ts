@@ -514,4 +514,72 @@ describe('文本槽按角色算容量（C1 契约修正 2）', () => {
       ).role,
     ).toBe(NODE_SLOT_TEXT_ROLE_IDS.style)
   })
+
+  it('备注卡先连上不占剧本那一格：随后连的剧本仍落 script', () => {
+    const first = connectIntoSlot(
+      { ...textScene(), nodes: [...textScene().nodes, textNode('t_note')] },
+      {
+        source: 't_note',
+        target: 'v_02',
+        slot: NODE_SLOT_IDS.text,
+        edgeId: 'e1',
+        now: NOW,
+      },
+    )
+    expect(first.ok).toBe(true)
+    if (!first.ok) return
+    const second = connectIntoSlot(first.state, {
+      source: 't_script',
+      target: 'v_02',
+      slot: NODE_SLOT_IDS.text,
+      edgeId: 'e2',
+      now: NOW,
+    })
+    expect(second.ok).toBe(true)
+    if (!second.ok) return
+    const versions =
+      second.state.nodes.find((n) => n.id === 'v_02')?.data.slots?.text
+        ?.versions ?? []
+    expect(versions.find((v) => v.edgeId === 'e2')?.role).toBe(
+      NODE_SLOT_TEXT_ROLE_IDS.script,
+    )
+  })
+
+  it('图片卡的文本口与视频卡同一份：剧本 + 规则两条都留在槽里', () => {
+    const state: NodeWorkflowStateV4 = {
+      version: 4,
+      nodes: [
+        imageNode('i_a'),
+        textNode('t_script', 'script'),
+        textNode('t_rule', 'rule'),
+      ],
+      edges: [],
+    }
+    const first = connectIntoSlot(state, {
+      source: 't_script',
+      target: 'i_a',
+      slot: NODE_SLOT_IDS.text,
+      edgeId: 'e1',
+      now: NOW,
+    })
+    expect(first.ok).toBe(true)
+    if (!first.ok) return
+    const second = connectIntoSlot(first.state, {
+      source: 't_rule',
+      target: 'i_a',
+      slot: NODE_SLOT_IDS.text,
+      edgeId: 'e2',
+      now: NOW,
+    })
+    expect(second.ok).toBe(true)
+    if (!second.ok) return
+    expect(second.addedAsVersion).toBe(false)
+    const versions =
+      second.state.nodes.find((n) => n.id === 'i_a')?.data.slots?.text
+        ?.versions ?? []
+    expect(versions.map((v) => v.role)).toEqual([
+      NODE_SLOT_TEXT_ROLE_IDS.script,
+      NODE_SLOT_TEXT_ROLE_IDS.style,
+    ])
+  })
 })

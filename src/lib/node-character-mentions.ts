@@ -28,6 +28,41 @@ export function defaultCharacterPicks(
   return primary ? [{ slotId: primary.id }] : []
 }
 
+/**
+ * 这几张挑的图属于哪套造型（11-17 画布选造型）：认第一张**卡上的**图所在那套；默认造型 /
+ * 只挑了「用她出的」/ 认不出 = `null`（服务端用默认造型）。
+ *
+ * ⭐ 造型不另存一份：画布节点只存 `characterPicks`，挑了哪套的图就是用哪套 —— 服务端按
+ *   `characterLookIds` 在**那一套**的参考槽里认槽 id（`loadCardBusCharacters`），文字
+ *   （外观 / 标签）也换成那套的。
+ */
+export function lookIdOfPicks(
+  card: CharacterCardRecord,
+  picks: readonly CharacterImagePick[],
+): string | null {
+  for (const pick of picks) {
+    if (!('slotId' in pick)) continue
+    const look = card.looks.find((item) =>
+      item.referenceSlots.some((slot) => slot.id === pick.slotId),
+    )
+    if (look) return look.isDefault ? null : look.id
+  }
+  return null
+}
+
+/** 那套造型的主图 1 张（没有图 = 空）。 */
+export function lookPrimaryPicks(
+  card: CharacterCardRecord,
+  lookId: string | null,
+): CharacterImagePick[] {
+  const look =
+    (lookId && card.looks.find((item) => item.id === lookId)) ||
+    defaultLook(card)
+  const primary =
+    look.referenceSlots.find((slot) => slot.isPrimary) ?? look.referenceSlots[0]
+  return primary ? [{ slotId: primary.id }] : []
+}
+
 /** 正文里 @ 了角色库里的哪几位（按出场先后、去重；同名的只认第一位）。 */
 export function mentionedCharacters(
   prompt: string,

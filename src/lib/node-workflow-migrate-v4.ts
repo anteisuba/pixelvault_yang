@@ -141,13 +141,11 @@ export function resolveV4Identity(node: V3Node): V4Identity | null {
 
   switch (node.type) {
     case NODE_TYPE_IDS.shotText:
-      return {
-        kind: text,
-        subtype:
-          node.data.scriptRef !== undefined
-            ? NODE_V4_TEXT_SUBTYPE_IDS.shotNote
-            : NODE_V4_TEXT_SUBTYPE_IDS.script,
-      }
+      // v3 的 shotText（含剧本投影出来、带 `scriptRef` 的那几张）在 v3 里**一律发给
+      // 模型**——它是镜头内容，不是便签。v4 的 `shotNote` 已定为「备注·不发送」
+      // （owner 2026-11-18），所以这里一律落 `script`，⛔ 落成 shotNote 让镜头文字
+      // 在升级后静默不发。
+      return { kind: text, subtype: NODE_V4_TEXT_SUBTYPE_IDS.script }
     case NODE_TYPE_IDS.shot:
       return { kind: image, subtype: NODE_V4_IMAGE_SUBTYPE_IDS.shot }
     case NODE_TYPE_IDS.characterImage:
@@ -456,7 +454,21 @@ function buildNodeData(
           : {}),
         ...(hasParams ? { params } : {}),
       } as NodeV4Data
-    default:
+    default: {
+      // 图片卡的反向词与种子只住 `params.advanced`（「专属」chip 读写、发送也只读
+      // 那里，见 `ImageAdvancedChip` / `planV4Generation`）。⛔ 不写顶层
+      // `negativePrompt` / `params.seed`：那两格图片卡上没人读，写进去 = 迁移后
+      // 静默失效。
+      const { seed, ...imageParams } = params
+      const negativePrompt = readString(node.data.negativePrompt)
+      const advanced = {
+        ...(negativePrompt ? { negativePrompt } : {}),
+        ...(seed === undefined ? {} : { seed }),
+      }
+      const imageParamsWithAdvanced = {
+        ...imageParams,
+        ...(Object.keys(advanced).length > 0 ? { advanced } : {}),
+      }
       return {
         ...base,
         kind: NODE_MEDIA_KIND_IDS.image,
@@ -472,14 +484,14 @@ function buildNodeData(
         ...(readString(node.data.prompt)
           ? { prompt: readString(node.data.prompt) }
           : {}),
-        ...(readString(node.data.negativePrompt)
-          ? { negativePrompt: readString(node.data.negativePrompt) }
-          : {}),
         ...(readString(node.data.characterName)
           ? { characterName: readString(node.data.characterName) }
           : {}),
-        ...(hasParams ? { params } : {}),
+        ...(Object.keys(imageParamsWithAdvanced).length > 0
+          ? { params: imageParamsWithAdvanced }
+          : {}),
       } as NodeV4Data
+    }
   }
 }
 

@@ -301,6 +301,12 @@ describe('generation errors · 失败原因要具体（owner 09-24）', () => {
     )
   })
 
+  it('内部原因码（noPlan 这种驼峰词）不当服务商原话贴出来（真机 11-18）', () => {
+    expect(getGenerationErrorMessage(t, { error: 'noPlan' }, 'fallback')).toBe(
+      'generation.unknown',
+    )
+  })
+
   it('BytePlus 的 usage limit、火山的未开通都归到具体原因', () => {
     expect(
       getGenerationErrorMessage(

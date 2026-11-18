@@ -305,3 +305,15 @@ describe('NodePromptBar — 未选渠道闸门（D2 Q1）', () => {
     expect(onBlockedClick).not.toHaveBeenCalled()
   })
 })
+
+describe('NodePromptBar · Esc 一次退一层', () => {
+  it('没开候选：Esc = 离开输入框，并标记已处理（画中框 / 取消选中留给下一下）', () => {
+    setup()
+    const box = screen.getByLabelText('提示词')
+    box.focus()
+    expect(document.activeElement).toBe(box)
+    const handled = !fireEvent.keyDown(box, { key: 'Escape' })
+    expect(handled).toBe(true)
+    expect(document.activeElement).not.toBe(box)
+  })
+})

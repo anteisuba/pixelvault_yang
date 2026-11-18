@@ -43,7 +43,6 @@ export function NodeChromeLayer({
     return {
       width: state.width ?? 0,
       height: state.height ?? 0,
-      zoom,
       cardX: panX + nodeX * zoom,
       cardY: panY + nodeY * zoom + NAME_ROW_HEIGHT,
       cardWidth: nodeWidth * zoom,
@@ -83,7 +82,6 @@ export function NodeChromeLayer({
       width: geometry.cardWidth,
       height: geometry.cardHeight,
     },
-    zoom: geometry.zoom,
     safeLeft: safeLeftPx,
     content: contentSize,
     position,
@@ -102,12 +100,17 @@ export function NodeChromeLayer({
       isVisible={present}
       position={position}
       style={{
-        transform: `translate(${layout.left}px, ${layout.top}px) scale(${layout.scale})`,
+        // 屏幕恒 1 倍（`layoutNodeChrome` 头注）：只平移，⛔ 不 scale。
+        transform: `translate(${layout.left}px, ${layout.top}px)`,
         transformOrigin: '0 0',
         visibility: visible ? 'visible' : 'hidden',
       }}
     >
-      <div ref={contentRef} data-node-chrome-scale={layout.scale}>
+      <div
+        ref={contentRef}
+        data-node-chrome-left={layout.left}
+        data-node-chrome-top={layout.top}
+      >
         <AnimatePresence onExitComplete={() => setPresent(false)}>
           {show ? (
             <motion.div

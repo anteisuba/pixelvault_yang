@@ -26,7 +26,10 @@ import {
   type NodeSlotOutputId,
   type NodeSlotTextRole,
 } from '@/constants/node-slots'
-import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
+import {
+  NODE_MEDIA_KIND_IDS,
+  NODE_V4_TEXT_SUBTYPE_IDS,
+} from '@/constants/node-types'
 import { NODE_V4_SLOT_VERSION } from '@/constants/node-studio'
 import {
   canConnect,
@@ -105,7 +108,22 @@ export function resolveEdgeTextRole(
   })
 }
 
-/** 某个槽在**某个角色**下占了几条边。 */
+/**
+ * 「备注」卡（`text.shotNote`）：只给自己看的便签，**永不进任何生成请求**
+ * （添加菜单的说法「不作为约束发给模型」，owner 2026-11-18 定）。连线仍允许 ——
+ * 当作便签关联，线标签写「备注·不发送」（`NodeSlotEdge`），也不占文本口的容量。
+ */
+export function isTextNoteNode(data: NodeV4Data): boolean {
+  return (
+    data.kind === NODE_MEDIA_KIND_IDS.text &&
+    data.subtype === NODE_V4_TEXT_SUBTYPE_IDS.shotNote
+  )
+}
+
+/**
+ * 某个槽在**某个角色**下占了几条边。⚠ 备注卡的线不算：它不发送，占着剧本那一格
+ * 会让真正的剧本被挤去「风格」。
+ */
 export function getSlotRoleOccupancy(
   target: NodeV4,
   slot: NodeSlotId,
@@ -113,13 +131,15 @@ export function getSlotRoleOccupancy(
   nodes: readonly NodeV4[],
   role: NodeSlotTextRole,
 ): number {
-  return edges.filter(
-    (edge) =>
-      edge.target === target.id &&
-      edge.slot === slot &&
+  return edges.filter((edge) => {
+    if (edge.target !== target.id || edge.slot !== slot) return false
+    const source = nodes.find((node) => node.id === edge.source)
+    if (source && isTextNoteNode(source.data)) return false
+    return (
       (resolveEdgeTextRole(edge, target, nodes) ??
-        NODE_SLOT_TEXT_ROLE_FALLBACK) === role,
-  ).length
+        NODE_SLOT_TEXT_ROLE_FALLBACK) === role
+    )
+  }).length
 }
 
 export interface SlotConnectRolePlan {

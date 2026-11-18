@@ -66,6 +66,14 @@ function isProgramErrorText(detail: string): boolean {
 }
 
 /**
+ * 我们自己的内部原因码（`noPlan` / `notSent` 这种驼峰单词）不是服务商原话：⛔ 不贴
+ * 「服务商返回：」。真机 11-18 空镜头卡卡面写过「服务商返回：noPlan」。
+ */
+function isInternalCodeText(detail: string): boolean {
+  return /^[a-z]+(?:[A-Z][a-z0-9]*)+$/.test(detail)
+}
+
+/**
  * 一般接口的失败结果 → 一句话。
  *
  * 只认结构化字段：后端 / api-client 给的 `i18nKey`，否则调用方那句本地化的 fallback。
@@ -209,7 +217,9 @@ export function getGenerationErrorMessage(
    */
   const detail = payload.error?.trim()
   // ⚠ 我们自己的程序异常（`TypeError: …`）不是「服务商返回」—— 那种照旧走通用那句。
-  const isProgramError = detail ? isProgramErrorText(detail) : false
+  const isProgramError = detail
+    ? isProgramErrorText(detail) || isInternalCodeText(detail)
+    : false
   if (
     detail &&
     !isProgramError &&

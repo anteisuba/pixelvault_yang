@@ -60,8 +60,10 @@ import { applyNodeMediaPatch } from '@/lib/node-media-patch'
 import { reconcileStateSlots } from '@/lib/node-slot-binding'
 import {
   estimateCardSize,
+  placeNearPoint,
   placeRowBeside,
   tidyByFlow,
+  type FlowLayoutRect,
 } from '@/lib/node-flow-layout'
 import { readVideoRail, remapVideoRailMentions } from '@/lib/video-node-rail'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
@@ -271,6 +273,16 @@ export interface NodeGraphV4 {
     cards: readonly NodeGraphV4CardShape[],
     side?: 'right' | 'left',
   ): readonly { readonly x: number; readonly y: number }[] | undefined
+  /**
+   * 手动加卡落在哪：指的点（左上角）空着就落那里，压到别的卡就找最近的空位
+   * （`placeNearPoint`）。⚠ 只算坐标，⛔ 不改图。
+   */
+  placeNear(
+    point: { readonly x: number; readonly y: number },
+    cards: readonly NodeGraphV4CardShape[],
+  ): readonly { readonly x: number; readonly y: number }[]
+  /** 图上每张卡的占位（量到的尺寸，没量到按收起态估）。只读，⛔ 不改图。 */
+  occupiedRects(): readonly FlowLayoutRect[]
   /** 最近一次整理的滑动起点（没整理过 = `null`）。 */
   readonly layoutSlide: NodeGraphV4LayoutSlide | null
   setModel(nodeId: string, model: NodeWorkflowModelSelection): void
@@ -1031,6 +1043,34 @@ export function useNodeGraphV4({
     [rendered.nodes],
   )
 
+  const occupiedRects = useCallback((): readonly FlowLayoutRect[] => {
+    const measured = new Map(
+      rendered.nodes.map((node) => [node.id, node.measured] as const),
+    )
+    return stateRef.current.nodes.map((node) => {
+      const size = measured.get(node.id)
+      return {
+        ...node.position,
+        ...(size?.width && size.height
+          ? { width: size.width, height: size.height }
+          : estimateCardSize(node)),
+      }
+    })
+  }, [rendered.nodes])
+
+  const placeNear = useCallback(
+    (
+      point: { readonly x: number; readonly y: number },
+      cards: readonly NodeGraphV4CardShape[],
+    ) =>
+      placeNearPoint(
+        occupiedRects(),
+        point,
+        cards.map((card) => estimateCardSize({ data: card })),
+      ),
+    [occupiedRects],
+  )
+
   const tidyLayout = useCallback(() => {
     const before = stateRef.current
     // 尺寸用 ReactFlow 量到的（卡片高矮不一）；还没量到的按收起态估。
@@ -1236,6 +1276,8 @@ export function useNodeGraphV4({
     moveShotTable,
     tidyLayout,
     placeBeside,
+    placeNear,
+    occupiedRects,
     layoutSlide,
     setModel,
     setMedia,

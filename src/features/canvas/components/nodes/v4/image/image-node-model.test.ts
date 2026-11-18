@@ -6,6 +6,7 @@ import {
   formatUnitPriceAmount,
   getModelUnitPriceByStringId,
 } from '@/constants/models/unit-prices'
+import { estimateGenerationCost } from '@/lib/generation-cost'
 
 import {
   IMAGE_COUNT_OPTIONS,
@@ -66,20 +67,43 @@ describe('画面弹层的档位：不支持的**禁用不隐藏**', () => {
   })
 })
 
-describe('估价 = 单价 × 张数 × 质量系数', () => {
+describe('估价 = 与工作台同一个算式（estimateGenerationCost）', () => {
   const priced = Object.keys(AI_MODELS)
     .map((key) => AI_MODELS[key as keyof typeof AI_MODELS])
-    .find((id) => getModelUnitPriceByStringId(id)?.unit === 'image')!
-  const unit = getModelUnitPriceByStringId(priced)!.amount
+    .find(
+      (id) =>
+        getModelUnitPriceByStringId(id)?.unit === 'image' &&
+        estimateGenerationCost([{ modelId: id }], {
+          kind: 'image',
+          perModelCount: 1,
+        }).pricedCount === 1,
+    )!
+  const unit = estimateGenerationCost([{ modelId: priced }], {
+    kind: 'image',
+    perModelCount: 1,
+  }).total
 
-  it('默认一张 auto 档 = 单价本身', () => {
+  it('默认一张 = 工作台那一张的价', () => {
     expect(imageCostEstimate(priced)).toBeCloseTo(unit)
   })
 
-  it('四张 high 档 = 单价 × 4 × 2', () => {
-    expect(
-      imageCostEstimate(priced, { count: 4, quality: 'high' }),
-    ).toBeCloseTo(unit * 8)
+  it('GPT Image 2 按比例 + 画质读真单价，与工作台逐分相同（⛔ 不再乘自编系数）', () => {
+    const basis = {
+      kind: 'image' as const,
+      perModelCount: 4,
+      aspectRatio: '16:9',
+      quality: 'high',
+    }
+    const workbench = estimateGenerationCost(
+      [{ modelId: openai.modelId }],
+      basis,
+    )
+    const card = imageCostEstimate(openai.modelId, {
+      count: 4,
+      aspectRatio: '16:9',
+      quality: 'high',
+    })
+    expect(card).toBe(workbench.pricedCount === 1 ? workbench.total : null)
   })
 
   it('缺单价返回 null，⛔ 不写「$0」', () => {
@@ -89,7 +113,11 @@ describe('估价 = 单价 × 张数 × 质量系数', () => {
 
   it('读数行带的是**算完之后**的那个数，USD 格式化沿用单价那一层', () => {
     const readout = imageFrameReadout('16:9', priced, { count: 2 })
-    expect(readout).toBe(`1792×1024 · ${formatUnitPriceAmount(unit * 2)}`)
+    const estimate = imageCostEstimate(priced, {
+      count: 2,
+      aspectRatio: '16:9',
+    })!
+    expect(readout).toBe(`1792×1024 · ${formatUnitPriceAmount(estimate)}`)
   })
 })
 

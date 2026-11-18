@@ -17,9 +17,12 @@ vi.mock('motion/react', () => ({
   }),
 }))
 
+import { NODE_STUDIO_CANVAS } from '@/constants/node-studio'
+
 import {
   animateCanvasMove,
   fitCanvasProject,
+  isCanvasContentLost,
   locateCanvasNode,
 } from './node-canvas-camera'
 
@@ -72,7 +75,7 @@ describe('fitCanvasProject', () => {
     expect(single.zoom).toBe(1)
   })
 
-  it('centers an empty project at 100% and fits wide graphs below manual minZoom', () => {
+  it('centers an empty project at 100%; a wide graph stops at manual minZoom and stays centered', () => {
     expect(fitCanvasProject(stage, [], 1)).toEqual({
       x: 691.5,
       y: 450,
@@ -83,8 +86,19 @@ describe('fitCanvasProject', () => {
       [{ x: 0, y: 0, width: 5000, height: 202 }],
       1,
     )
-    expect(wide.zoom).toBeCloseTo(1183 / 5000)
-    expect(wide.zoom).toBeLessThan(0.3)
+    // 2026-11-18 之前这里是 1183/5000≈0.24（打开项目 13% 的来源）；现在与底栏「适应」
+    // 同一个下限 NODE_STUDIO_CANVAS.minZoom。
+    expect(wide.zoom).toBe(NODE_STUDIO_CANVAS.minZoom)
+    expect(wide.x + 2500 * wide.zoom).toBeCloseTo(stage.width / 2)
+  })
+
+  it('caps at fitViewMaxZoom for a lone small card', () => {
+    const tiny = fitCanvasProject(
+      stage,
+      [{ x: 0, y: 0, width: 100, height: 80 }],
+      1,
+    )
+    expect(tiny.zoom).toBe(NODE_STUDIO_CANVAS.fitViewMaxZoom)
   })
 
   it('uses the mock 24px world-space name allowance when height limits fit', () => {
@@ -95,6 +109,33 @@ describe('fitCanvasProject', () => {
     )
     expect(target.zoom).toBeCloseTo(400 / 1024)
     expect(target.y + 22).toBeCloseTo(109.375)
+  })
+})
+
+describe('isCanvasContentLost（「回到内容」出不出）', () => {
+  const card = { x: 100, y: 100, width: 320, height: 202 }
+
+  it('空画布不算丢', () => {
+    expect(isCanvasContentLost(stage, { x: 0, y: 0, zoom: 1 }, [])).toBe(false)
+  })
+
+  it('有一张在视口里（含贴边一像素）就不算丢', () => {
+    expect(isCanvasContentLost(stage, { x: 0, y: 0, zoom: 1 }, [card])).toBe(
+      false,
+    )
+    // 卡右边缘正好落在 x=0
+    expect(isCanvasContentLost(stage, { x: -420, y: 0, zoom: 1 }, [card])).toBe(
+      false,
+    )
+  })
+
+  it('全部平移 / 缩放出视口 = 丢了', () => {
+    expect(
+      isCanvasContentLost(stage, { x: -5000, y: 0, zoom: 1 }, [card]),
+    ).toBe(true)
+    expect(
+      isCanvasContentLost(stage, { x: 0, y: 2000, zoom: 0.5 }, [card]),
+    ).toBe(true)
   })
 })
 

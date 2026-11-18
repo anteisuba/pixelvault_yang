@@ -59,10 +59,7 @@ import {
   CANVAS_SHELL_UPLOAD_ACCEPT,
   canvasShellSafeLeftPx,
 } from '@/constants/canvas-shell'
-import {
-  getCanvasAddCatalogItem,
-  type CanvasAddIntentId,
-} from '@/constants/canvas-add-catalog'
+import { type CanvasAddIntentId } from '@/constants/canvas-add-catalog'
 import {
   NODE_STUDIO_CANVAS,
   NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS,
@@ -78,8 +75,19 @@ import { estimateCardSize, placeRowBeside } from '@/lib/node-flow-layout'
 import { isPullSourceNode, planShotPull } from '@/lib/shot-pull-plan'
 import type { ShotReadTarget } from '@/lib/shot-read-plan'
 import { DEFAULT_LOCALE, isAppLocale } from '@/i18n/routing'
+import { usePathname } from '@/i18n/navigation'
+import { studioShellRouteKind } from '@/lib/studio-shell-route'
 import type { ShotDetectRange } from '@/lib/shot-detect/scenes'
 import { pendingJobPatch, settledJobPatch } from '@/lib/node-media-patch'
+import { CANVAS_SELECTION_RUN_MAX_CONCURRENT_NODES } from '@/constants/config'
+import { formatUnitPriceAmount } from '@/constants/models/unit-prices'
+import { estimateCanvasNodeCost } from '@/lib/canvas-generation-cost'
+import { readCanvasNodeGenerationState } from '@/lib/studio-operator-canvas-snapshot'
+import {
+  buildSelectionRunDeps,
+  runSelectionInOrder,
+  summarizeSelectionCost,
+} from '@/lib/node-selection-run'
 import { buildAssistantSetModelPatch } from '@/lib/node-assistant-op-patch'
 import {
   NODE_MEDIA_KIND_IDS,
@@ -132,6 +140,11 @@ import {
   prefersReducedMotion,
 } from '@/features/canvas/hooks/node-ingest-dom'
 import { changedNodeIds } from '@/lib/node-state-diff'
+import {
+  listStaleNodeIds,
+  readUpstreamFingerprint,
+  type UpstreamFingerprint,
+} from '@/lib/node-stale-upstream'
 import { readCanvasImageEditHandoff } from '@/lib/canvas-image-edit-handoff'
 import { canvasCapabilityRuntime } from '@/lib/canvas-capability-runtime'
 import type { StudioOperatorCanvasUpscaleOutcome } from '@/lib/studio-operator-apply'
@@ -148,6 +161,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
 import {
   StudioChipDensityProvider,
@@ -162,6 +176,7 @@ import {
 import type { ShotPullReadChoice } from '../shot-table/ShotPullReadOption'
 import { flashNodeCard } from '../nodes/v4/chrome/node-card-flash'
 import { useKeepCanvasCenterOnYield } from './use-keep-canvas-center-on-yield'
+import { useCanvasAddInView } from './use-canvas-add-in-view'
 import {
   animateCanvasMove,
   fitCanvasProject,
@@ -202,6 +217,7 @@ import {
 } from '@/contexts/studio-operator-host'
 import { useCanvasOperatorHost } from '@/features/canvas/hooks/use-canvas-operator-host'
 import { ShellBottomBar } from './shell/ShellBottomBar'
+import { CanvasBackToContent } from './shell/CanvasBackToContent'
 import { ShellPaneMenu, ShellQuickAdd } from './shell/ShellCanvasMenus'
 import { ShellCommandPalette } from './shell/ShellCommandPalette'
 import { ShellSidePanels } from './shell/ShellSidePanels'
@@ -209,6 +225,9 @@ import { ShellProjectList, ShellProjectPill } from './shell/ShellProjectPill'
 import { CanvasAssistantHistoryPanel } from '../CanvasAssistantHistory'
 import { useStudioOperatorHistoryView } from '@/hooks/use-studio-operator-history'
 import { ShellTopBar } from './shell/ShellTopBar'
+
+/** 多选运行里上游没出结果、这张没发 —— 卡上那句（`Errors.generation.*`）。 */
+const UPSTREAM_NOT_READY_I18N_KEY = 'generation.upstream_not_ready'
 
 /**
  * 文本卡的两个派生动作各建哪一类卡（§8）。
@@ -825,105 +844,207 @@ function NodeWorkbenchV4Inner() {
   const reviewMode = useNodeReviewMode({ nodes: graph.nodes, focusNode })
 
   /* ── 生成 ────────────────────────────────────────────────────────────── */
-  const generateNodes = useCallback(
-    (nodeIds: readonly string[]) => {
-      if (nodeIds.length === 0) {
-        toast.info(tV4('generateDesk.noModel'))
-        return
-      }
-      for (const nodeId of nodeIds) {
-        const node = graph.nodes.find((candidate) => candidate.id === nodeId)
-        // 文本节点没有生成落点（只能派生）—— 说清楚而不是静默跳过。
-        if (node?.data.kind === NODE_MEDIA_KIND_IDS.text) {
-          toast.info(tV4('generateDesk.noGenerate'))
-          continue
-        }
-        const statusBefore = node?.data.status ?? NODE_STATUS_IDS.idle
-        graph.setRunState(nodeId, NODE_STATUS_IDS.running)
-        // 有没有哪一枪真的发出去回来过（没有 = 连计划都没出，失败要在这里钉上卡）。
-        let shotsBack = 0
-        void generation
-          .generateNode(
-            nodeId,
-            {
-              nodes: graph.nodes,
-              edges: graph.edges,
-              shotlist: graph.state.shotlist,
-            },
-            {
-              // 落 job id = **持久化**「有一单在飞」。刷新 / 轮询窗口关掉之后，
-              // `useNodeGenerationReconcileV4` 就是靠它把结果取回来的。一张卡
-              // 一次出多张时几单各记一格（`pendingJobPatch`），⛔ 互相盖掉。
-              onJobCreated: (jobId, shot) =>
-                graph.setMedia(nodeId, pendingJobPatch(shot, jobId)),
-              // ⚠ 回填写在 `onEach` 而不是 `.then`：张数 > 1 时是并行的 N 枪，
-              // `.then` 只拿得到一枪。
-              onEach: (result, shot) => {
-                shotsBack += 1
-                if (result.success) {
-                  graph.setMedia(nodeId, {
-                    url: result.mediaUrl,
-                    generationId: result.generation.id,
-                    ...settledJobPatch(shot),
-                    imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.generated,
-                    ...(result.thumbnailUrl
-                      ? { videoThumbnailUrl: result.thumbnailUrl }
-                      : {}),
-                  })
-                  return
-                }
-                // ⚠ `pending` 不是失败：轮询窗口关了而 worker 还在跑。job id 留着，
-                // 交给回填 hook —— ⛔ 不在这里把它标成 failed。
-                if (result.pending) return
+  /**
+   * 「已变」（卡名旁小点）：上游自本卡上次生成后变过。派生、不落库 —— 快照只在
+   * 这次会话里，按项目清空（`node-stale-upstream` 头注）。
+   */
+  const [upstreamSnapshots, setUpstreamSnapshots] = useState<
+    ReadonlyMap<string, UpstreamFingerprint>
+  >(() => new Map())
+  const [snapshotProjectId, setSnapshotProjectId] = useState(
+    store.currentProject.id,
+  )
+  if (snapshotProjectId !== store.currentProject.id) {
+    setSnapshotProjectId(store.currentProject.id)
+    setUpstreamSnapshots(new Map())
+  }
+  const staleNodeIds = useMemo(
+    () => listStaleNodeIds(graph.nodes, graph.edges, upstreamSnapshots),
+    [graph.nodes, graph.edges, upstreamSnapshots],
+  )
+
+  /**
+   * 跑一张卡；`true` = 出了结果（多选运行里它的下游可以接着发）。
+   *
+   * ⚠ 图读 `graph.readState()`（同步的最新那份），⛔ 不读闭包里的 `graph.nodes`：
+   * 多选运行里下游是在上游回填**之后**才发的，闭包里那份还是点下运行那一刻的旧图，
+   * 装配出来的首帧会是上游的旧图或空槽。
+   */
+  const runNodeGeneration = useCallback(
+    (nodeId: string): Promise<boolean> => {
+      const latest = graph.readState()
+      // 「已变」的会话快照：这一枪发出去时上游各交付了什么（`node-stale-upstream`）。
+      const upstreamAtSend = readUpstreamFingerprint(
+        nodeId,
+        latest.edges,
+        latest.nodes,
+      )
+      const node = latest.nodes.find((candidate) => candidate.id === nodeId)
+      const statusBefore = node?.data.status ?? NODE_STATUS_IDS.idle
+      graph.setRunState(nodeId, NODE_STATUS_IDS.running)
+      // 有没有哪一枪真的发出去回来过（没有 = 连计划都没出，失败要在这里钉上卡）。
+      let shotsBack = 0
+      return generation
+        .generateNode(
+          nodeId,
+          {
+            nodes: latest.nodes,
+            edges: latest.edges,
+            shotlist: latest.shotlist,
+          },
+          {
+            // 落 job id = **持久化**「有一单在飞」。刷新 / 轮询窗口关掉之后，
+            // `useNodeGenerationReconcileV4` 就是靠它把结果取回来的。一张卡
+            // 一次出多张时几单各记一格（`pendingJobPatch`），⛔ 互相盖掉。
+            onJobCreated: (jobId, shot) =>
+              graph.setMedia(nodeId, pendingJobPatch(shot, jobId)),
+            // ⚠ 回填写在 `onEach` 而不是 `.then`：张数 > 1 时是并行的 N 枪，
+            // `.then` 只拿得到一枪。
+            onEach: (result, shot) => {
+              shotsBack += 1
+              if (result.success) {
                 graph.setMedia(nodeId, {
+                  url: result.mediaUrl,
+                  generationId: result.generation.id,
                   ...settledJobPatch(shot),
-                  generationFailure: {
-                    error: result.error,
-                    ...(result.errorCode
-                      ? { errorCode: result.errorCode }
-                      : {}),
-                    ...(result.i18nKey ? { i18nKey: result.i18nKey } : {}),
-                  },
+                  imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.generated,
+                  ...(result.thumbnailUrl
+                    ? { videoThumbnailUrl: result.thumbnailUrl }
+                    : {}),
                 })
-              },
-            },
-          )
-          .then((result) => {
-            // ⚠ 发送前校验拦下的不是失败：没发出去、没扣钱，提示已在生成入口弹过。
-            // 运行态回到发之前，⛔ 不写 `generationFailure`（owner 09-28：不改卡）。
-            if (!result.success && 'blocked' in result) {
-              graph.setRunState(nodeId, statusBefore)
-              return
-            }
-            // 媒体与运行态已经一枪一枪落在 `onEach` 里；这里只把整次的结果说出来。
-            if (result.success) {
-              graph.setRunState(nodeId, NODE_STATUS_IDS.done)
-              return
-            }
-            if (result.pending) return
-            toast.error(
-              tV4('generateDesk.failed', {
-                reason: errText.generation(
-                  result,
-                  tErrors('common.unexpected'),
-                ),
-              }),
-            )
-            if (shotsBack === 0) {
+                return
+              }
+              // ⚠ `pending` 不是失败：轮询窗口关了而 worker 还在跑。job id 留着，
+              // 交给回填 hook —— ⛔ 不在这里把它标成 failed。
+              if (result.pending) return
               graph.setMedia(nodeId, {
-                mediaJobId: undefined,
+                ...settledJobPatch(shot),
                 generationFailure: {
                   error: result.error,
                   ...(result.errorCode ? { errorCode: result.errorCode } : {}),
                   ...(result.i18nKey ? { i18nKey: result.i18nKey } : {}),
                 },
               })
-            }
-            graph.setRunState(nodeId, NODE_STATUS_IDS.failed)
-          })
-      }
+            },
+          },
+        )
+        .then((result) => {
+          // ⚠ 发送前校验拦下的不是失败：没发出去、没扣钱，提示已在生成入口弹过。
+          // 运行态回到发之前，⛔ 不写 `generationFailure`（owner 09-28：不改卡）。
+          if (!result.success && 'blocked' in result) {
+            graph.setRunState(nodeId, statusBefore)
+            return false
+          }
+          // 媒体与运行态已经一枪一枪落在 `onEach` 里；这里只把整次的结果说出来。
+          if (result.success) {
+            graph.setRunState(nodeId, NODE_STATUS_IDS.done)
+            setUpstreamSnapshots((previous) =>
+              new Map(previous).set(nodeId, upstreamAtSend),
+            )
+            return true
+          }
+          // 还在跑（轮询窗口关了）：结果没回来，下游不能拿它装配。
+          if (result.pending) return false
+          // 没出计划 = 没选模型（文本卡在 `generateNodes` 就筛掉了）。与图 / 视频卡
+          // 同一句（`generateDesk.noModel`）；⛔ 内部代号 `noPlan` 不进任何文案。
+          if (result.error === 'noPlan') {
+            const noModel = tV4('generateDesk.noModel')
+            toast.info(noModel)
+            graph.setMedia(nodeId, {
+              mediaJobId: undefined,
+              generationFailure: { error: noModel },
+            })
+            graph.setRunState(nodeId, statusBefore)
+            return false
+          }
+          toast.error(
+            tV4('generateDesk.failed', {
+              reason: errText.generation(result, tErrors('common.unexpected')),
+            }),
+          )
+          if (shotsBack === 0) {
+            graph.setMedia(nodeId, {
+              mediaJobId: undefined,
+              generationFailure: {
+                error: result.error,
+                ...(result.errorCode ? { errorCode: result.errorCode } : {}),
+                ...(result.i18nKey ? { i18nKey: result.i18nKey } : {}),
+              },
+            })
+          }
+          graph.setRunState(nodeId, NODE_STATUS_IDS.failed)
+          return false
+        })
     },
     [errText, graph, generation, tErrors, tV4],
+  )
+
+  /**
+   * 跑一批（`lib/node-selection-run.ts`）：选中集合里有上下游关系时下游等上游出结果
+   * 再发；上游没出结果的下游不发、卡上写明原因；同时最多跑
+   * `CANVAS_SELECTION_RUN_MAX_CONCURRENT_NODES` 张。
+   */
+  const runSelection = useCallback(
+    (nodeIds: readonly string[]) => {
+      void runSelectionInOrder({
+        nodeIds,
+        deps: buildSelectionRunDeps(nodeIds, graph.readState().edges),
+        limit: CANVAS_SELECTION_RUN_MAX_CONCURRENT_NODES,
+        run: runNodeGeneration,
+        onSkip: (nodeId) => {
+          graph.setMedia(nodeId, {
+            generationFailure: { i18nKey: UPSTREAM_NOT_READY_I18N_KEY },
+          })
+          graph.setRunState(nodeId, NODE_STATUS_IDS.failed)
+        },
+      })
+    },
+    [graph, runNodeGeneration],
+  )
+
+  /** 多选运行等确认的那一批（> 1 张时先给总价与张数，确认了才发）。 */
+  const [pendingSelectionRun, setPendingSelectionRun] = useState<
+    readonly string[] | null
+  >(null)
+  const pendingSelectionRunSummary = useMemo(() => {
+    if (!pendingSelectionRun) return null
+    const nodes = graph.readState().nodes
+    const costs = pendingSelectionRun.map((id) => {
+      const node = nodes.find((candidate) => candidate.id === id)
+      return node
+        ? estimateCanvasNodeCost(readCanvasNodeGenerationState(node))
+        : null
+    })
+    return {
+      count: pendingSelectionRun.length,
+      ...summarizeSelectionCost(costs),
+    }
+  }, [graph, pendingSelectionRun])
+
+  const generateNodes = useCallback(
+    (nodeIds: readonly string[]) => {
+      if (nodeIds.length === 0) {
+        toast.info(tV4('generateDesk.noNodeSelected'))
+        return
+      }
+      const nodes = graph.readState().nodes
+      // 文本节点没有生成落点（只能派生）—— 说清楚而不是静默跳过。
+      const runnable = nodeIds.filter(
+        (id) =>
+          nodes.find((candidate) => candidate.id === id)?.data.kind !==
+          NODE_MEDIA_KIND_IDS.text,
+      )
+      if (runnable.length < nodeIds.length) {
+        toast.info(tV4('generateDesk.noGenerate'))
+      }
+      if (runnable.length === 0) return
+      if (runnable.length === 1) {
+        runSelection(runnable)
+        return
+      }
+      setPendingSelectionRun(runnable)
+    },
+    [graph, runSelection, tV4],
   )
 
   /**
@@ -1038,32 +1159,37 @@ function NodeWorkbenchV4Inner() {
    * 三条加节点路的**同一个**落点函数（S7：没有常驻加号）。⚠ 身份读
    * `CANVAS_ADD_CATALOG` 的 `intent.v4`，⛔ 不在任一条路上另推一遍。
    */
+  /**
+   * 落点 + 选中 + 镜头（owner 2026-11-18 真机：第二张落到底栏后面、视口外）：先在
+   * 看得见的那一块里找空位，一屏放不下才往外放并把镜头挪过去；落下即选中。见
+   * `use-canvas-add-in-view.ts` 头注。
+   */
+  const revealNewCard = useCallback(
+    (target: Viewport) => animateCameraTo(beginCameraMove(), target),
+    [animateCameraTo, beginCameraMove],
+  )
+  const addInView = useCanvasAddInView({
+    graph,
+    readStage: readCameraStage,
+    getViewport,
+    safeLeftPx,
+    revealViewport: revealNewCard,
+  })
+  const { addIntent, selectWhenReady } = addInView
   const addNodeFromIntent = useCallback(
     (intentId: CanvasAddIntentId, position?: XYPosition) => {
-      const item = getCanvasAddCatalogItem(intentId)
-      const nodeId = graph.addNode(item.v4.kind, item.v4.subtype, {
-        ...(position ? { position } : {}),
-      })
+      const nodeId = addIntent(intentId, position)
       setQuickAdd(null)
       setPaneMenu(null)
       if (nodeId) lastCreatedRef.current = [nodeId]
     },
-    [graph],
+    [addIntent],
   )
 
-  /** 键盘 T/I/A/V 与 ⌘K 的落点：视口中心（没有指针位置可用）。 */
+  /** 底栏「+」面板 / 键盘 T/I/A/V / ⌘K：没有指针位置，落在**可见区**中央。 */
   const addNodeAtViewportCenter = useCallback(
-    (intentId: CanvasAddIntentId) => {
-      const rect = canvasRef.current?.getBoundingClientRect()
-      const center = rect
-        ? screenToFlowPosition({
-            x: rect.left + rect.width / 2,
-            y: rect.top + rect.height / 2,
-          })
-        : undefined
-      addNodeFromIntent(intentId, center)
-    },
-    [addNodeFromIntent, screenToFlowPosition],
+    (intentId: CanvasAddIntentId) => addNodeFromIntent(intentId),
+    [addNodeFromIntent],
   )
 
   /**
@@ -1142,9 +1268,9 @@ function NodeWorkbenchV4Inner() {
    */
   /**
    * 左栏点一位 = 落下**并选中**（画板 L3）。⚠ 新节点要等渲染层在下一次提交里派生
-   * 出来才选得上 —— 同一个事件里选，会被派生那一步覆盖成未选。
+   * 出来才选得上 —— 同一个事件里选，会被派生那一步覆盖成未选（`selectWhenReady`，
+   * 与加节点那几条路共用 `useCanvasAddInView` 里的同一个待选位）。
    */
-  const pendingSelectRef = useRef<string | null>(null)
   const placeCharacter = useCallback(
     (card: CharacterCardRecord) => {
       const existing = graph.nodes.find(
@@ -1184,26 +1310,11 @@ function NodeWorkbenchV4Inner() {
       )
       if (nodeId) {
         lastCreatedRef.current = [nodeId]
-        pendingSelectRef.current = nodeId
+        selectWhenReady(nodeId)
       }
     },
-    [focusNode, graph, screenToFlowPosition],
+    [focusNode, graph, screenToFlowPosition, selectWhenReady],
   )
-  useEffect(() => {
-    const id = pendingSelectRef.current
-    if (!id || !graph.nodes.some((node) => node.id === id)) return
-    pendingSelectRef.current = null
-    graph.onRfNodesChange([
-      ...graph.selectedNodeIds
-        .filter((selected) => selected !== id)
-        .map((selected) => ({
-          id: selected,
-          type: 'select' as const,
-          selected: false,
-        })),
-      { id, type: 'select', selected: true },
-    ])
-  }, [graph])
 
   /**
    * 角色页「用她 ▾ → 放进画布」的深链：`?project=<id|new>&character=<id>`（画板 S5）。
@@ -1297,9 +1408,38 @@ function NodeWorkbenchV4Inner() {
     uploadInputRef.current?.click()
   }, [])
 
+  /**
+   * 「适应」：底栏那颗、Shift+1、「回到内容」都走这里，与打开项目时的自动适应**同一个
+   * 算式**（`fitCanvasProject`），⛔ 不再各用一套参数（见那里的头注）。
+   */
   const fitAllNodes = useCallback(() => {
-    fitCameraNodes([], NODE_STUDIO_CANVAS.fitViewMaxZoom)
-  }, [fitCameraNodes])
+    const sequence = beginCameraMove()
+    whenCameraReady(sequence, () => {
+      const stage = readCameraStage()
+      if (!stage) return false
+      const nodes = cameraGraphRef.current.nodes.map((node) =>
+        readCameraNode(node.id),
+      )
+      if (nodes.length === 0) return true
+      if (nodes.some((node) => node === null)) return false
+      animateCameraTo(
+        sequence,
+        fitCanvasProject(
+          stage,
+          nodes as CanvasCameraNode[],
+          getViewport().zoom,
+        ),
+      )
+      return true
+    })
+  }, [
+    animateCameraTo,
+    beginCameraMove,
+    getViewport,
+    readCameraNode,
+    readCameraStage,
+    whenCameraReady,
+  ])
 
   useWorkbenchShortcutsV4({
     graph,
@@ -1324,6 +1464,16 @@ function NodeWorkbenchV4Inner() {
   const [editMode, setEditMode] = useState(
     () => searchParams.get(EDIT_DESK_MODE_PARAM) === EDIT_DESK_MODE_VALUE,
   )
+  /**
+   * 剪辑台此刻是否真的画出来。从外壳里点开库（画廊 / 素材 / 我的主页…）是软跳转 + 拦截
+   * 路由：画布留在 `children` 里**不卸载**，库在 `@library` 那一格叠上来（见 `(shell)/layout.tsx`）。
+   * 而台面是 portal 到 body 的 `fixed inset-0 z-canvas-workspace` —— 不卸掉它就盖在库上面，
+   * 地址栏已经是 /library/… 屏幕上还是剪辑台（2026-11-17 生产实测）。库叠着时卸掉台面；
+   * `editMode` 不清：后退回画布时那条历史记录本来就带 `?mode=edit`，台面原样回来。
+   */
+  const pathname = usePathname()
+  const editDeskVisible =
+    editMode && studioShellRouteKind(pathname) !== 'library'
   /** 「进剪辑台」带进来的那几张卡（台面开起来就先追加进 V 轨）。 */
   const [editDeskSeed, setEditDeskSeed] = useState<readonly string[]>([])
 
@@ -2045,6 +2195,47 @@ function NodeWorkbenchV4Inner() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {pendingSelectionRunSummary ? (
+        <ConfirmDialog
+          open
+          onOpenChange={(open) => {
+            if (!open) setPendingSelectionRun(null)
+          }}
+          variant="default"
+          title={tV4('selectionRun.title', {
+            count: pendingSelectionRunSummary.count,
+          })}
+          description={[
+            pendingSelectionRunSummary.unpriced ===
+            pendingSelectionRunSummary.count
+              ? tV4('selectionRun.priceNone')
+              : pendingSelectionRunSummary.unpriced > 0
+                ? tV4('selectionRun.pricePartial', {
+                    amount: formatUnitPriceAmount(
+                      pendingSelectionRunSummary.total,
+                    ),
+                    unpriced: pendingSelectionRunSummary.unpriced,
+                  })
+                : tV4('selectionRun.priceAll', {
+                    amount: formatUnitPriceAmount(
+                      pendingSelectionRunSummary.total,
+                    ),
+                  }),
+            tV4('selectionRun.order', {
+              limit: CANVAS_SELECTION_RUN_MAX_CONCURRENT_NODES,
+            }),
+          ].join(' ')}
+          cancelLabel={tV4('selectionRun.cancel')}
+          confirmLabel={tV4('selectionRun.confirm', {
+            count: pendingSelectionRunSummary.count,
+          })}
+          onConfirm={() => {
+            const ids = pendingSelectionRun
+            setPendingSelectionRun(null)
+            if (ids) runSelection(ids)
+          }}
+        />
+      ) : null}
     </>
   )
 
@@ -2072,6 +2263,7 @@ function NodeWorkbenchV4Inner() {
         <NodeCanvasActionsProvider value={actions}>
           <NodeV4Provider
             graph={graph}
+            changedNodeIds={staleNodeIds}
             modelOptionsByKind={modelOptionsByKind}
             pendingUploads={dnd.pendingUploads}
             onFocusNode={focusNode}
@@ -2108,7 +2300,7 @@ function NodeWorkbenchV4Inner() {
                   dnd.dropFilesAtFlow(files, looseAreaSpawn(graph.nodes.length))
                 }
               />
-              {editMode ? (
+              {editDeskVisible ? (
                 <EditDesk
                   readOnly
                   state={graph.state}
@@ -2162,6 +2354,7 @@ function NodeWorkbenchV4Inner() {
           >
             <NodeV4Provider
               graph={graph}
+              changedNodeIds={staleNodeIds}
               safeLeftPx={safeLeftPx}
               modelOptionsByKind={modelOptionsByKind}
               pendingUploads={dnd.pendingUploads}
@@ -2308,11 +2501,13 @@ function NodeWorkbenchV4Inner() {
                     onUndo={graph.undo}
                     onRedo={graph.redo}
                     onTidyLayout={graph.tidyLayout}
+                    onFitView={fitAllNodes}
                     activePanel={activePanel}
                     onTogglePanel={(panel) =>
                       setActivePanel(activePanel === panel ? null : panel)
                     }
                   />
+                  <CanvasBackToContent onFitView={fitAllNodes} />
                   <ShellQuickAdd
                     at={quickAdd?.screen ?? null}
                     onAdd={(intentId) =>
@@ -2397,7 +2592,7 @@ function NodeWorkbenchV4Inner() {
                 </motion.div>
                 {/* 剪辑台盖在外壳**之上**（S8）：画布留在 DOM 里只是被盖住，
                   退出时视口与选择原样还在。 */}
-                {editMode ? (
+                {editDeskVisible ? (
                   <EditDesk
                     state={graph.state}
                     projectId={store.currentProject.id}

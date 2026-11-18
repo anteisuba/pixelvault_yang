@@ -32,6 +32,28 @@ describe('NodeToolbar', () => {
     expect(button.textContent).toBe('')
   })
 
+  it('每颗图标键都有 aria-label 与悬停标签；带字主动作字即标签，⛔ 不再套', () => {
+    render(
+      <NodeToolbar
+        ariaLabel="工具条"
+        groups={[
+          [action('continue', { primary: true })],
+          [
+            action('trim'),
+            action('more', { menu: <DropdownMenuItem>x</DropdownMenuItem> }),
+          ],
+        ]}
+      />,
+    )
+    for (const name of ['trim', 'more']) {
+      const button = screen.getByRole('button', { name })
+      // Radix TooltipTrigger 在键上留 `data-state`。
+      expect(button.getAttribute('data-state')).not.toBeNull()
+    }
+    const primary = screen.getByRole('button', { name: 'continue' })
+    expect(primary.textContent).toBe('continue')
+  })
+
   // ⚠ 回归闸：`ToolbarCell` 曾把 `{...rest}` 展开在 `onClick` **之后**，
   // Radix `Tooltip.Trigger` 自带的 onClick 把动作整个盖掉——真机上工具条每个键
   // 都点不动（2026-09-10）。这一条必须用**真的** Tooltip 壳跑，桩掉就测不到。

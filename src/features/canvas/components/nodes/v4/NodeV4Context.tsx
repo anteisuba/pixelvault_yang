@@ -84,7 +84,10 @@ export interface NodeV4CanvasContextValue {
   readonly edges: readonly NodeWorkflowEdgeV4[]
   /** 正在拖线的源节点 id（`null` = 没在拖）。决定哪些入口槽点亮。 */
   readonly draggingFrom: string | null
-  /** 助手这一轮改动过的节点 —— §7 变更高亮。 */
+  /**
+   * 「已变」：上游自本卡上次生成后变过的卡（卡名旁小点，派生不落库，
+   * `lib/node-stale-upstream.ts`）。
+   */
   readonly changedNodeIds: readonly string[]
   /** 就地展开的那一个节点（同一时刻最多一个，§2.3）。 */
   readonly expandedNodeId: string | null

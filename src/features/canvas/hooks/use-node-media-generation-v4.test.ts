@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
 import { NODE_SLOT_IDS, NODE_SLOT_OUTPUT_IDS } from '@/constants/node-slots'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { V4_SLOT_ISSUE_IDS } from '@/lib/node-slot-payload'
+import { clampImageSpecToModel } from '@/lib/spec-chip-model'
+import {
+  describeVideoSendAdjust,
+  videoEffectiveParams,
+} from '@/features/canvas/components/nodes/v4/video/video-node-model'
 import type { CharacterCardRecord } from '@/types'
 import type {
   NodeV4,
@@ -10,6 +16,7 @@ import type {
 } from '@/types/node-workflow'
 
 import {
+  findV4EmptyContent,
   planV4Generation,
   preflightV4Plan,
   type V4GenerationPlan,
@@ -71,9 +78,10 @@ const voice = node('v', {
   url: 'https://cdn/v.mp3',
   ownerName: '阿岚',
 })
+// 剧本 = `script`（`shotNote` 是备注，不发送 —— owner 2026-11-18）。
 const script = node('t1', {
   kind: 'text',
-  subtype: 'shotNote',
+  subtype: 'script',
   body: '她回头',
   defaultRole: 'script',
 })
@@ -122,8 +130,11 @@ describe('planV4Generation · 视频', () => {
     expect(plan.aspectRatio).toBe('16:9')
     expect(plan.resolution).toBe('1080p')
     expect(plan.duration).toBe(8)
-    expect(plan.seed).toBe(7)
-    expect(plan.negativePrompt).toBe('模糊')
+  })
+
+  it('视频卡上看不见的反向词 / 种子（v3 迁移遗留）不发出去', () => {
+    expect(plan).not.toHaveProperty('seed')
+    expect(plan).not.toHaveProperty('negativePrompt')
   })
 
   it('三类文本分流：剧本进正文，风格约束排在最后', () => {
@@ -184,6 +195,79 @@ describe('planV4Generation · 视频', () => {
       edges: [edge('e1', 'char', 'veo', NODE_SLOT_IDS.reference)],
     })!
     expect(plan31.modelId).toBe('veo-3.1')
+  })
+
+  it('新卡没存过参数：发出去的就是 chip 上那份 —— 5s、目录默认清晰度、出声（与视频工作台同源）', () => {
+    const fresh = node('fresh', {
+      kind: 'video',
+      subtype: 'shot',
+      prompt: '缓推',
+      model: MODEL,
+    })
+    const planFresh = planV4Generation('fresh', {
+      nodes: [fresh],
+      edges: [],
+    })!
+    const shown = videoEffectiveParams(undefined, planFresh.modelId)
+    expect(planFresh.duration).toBe(Number(shown.duration))
+    expect(planFresh.duration).toBe(5)
+    expect(planFresh.generateAudio).toBe(true)
+    expect(shown.generateAudio).toBe(true)
+    expect(planFresh.resolution).toBe(shown.resolution)
+    expect(planFresh.aspectRatio).toBe('16:9')
+  })
+
+  it('声音开关关着 → 请求里就是 false（⛔ 不再留空让服务端按默认出声）', () => {
+    const muted = node('muted', {
+      kind: 'video',
+      subtype: 'shot',
+      prompt: '缓推',
+      model: MODEL,
+      params: { generateAudio: false },
+    })
+    expect(
+      planV4Generation('muted', { nodes: [muted], edges: [] })!.generateAudio,
+    ).toBe(false)
+  })
+})
+
+describe('describeVideoSendAdjust（挂参考换端点、档被吸走时那一行）', () => {
+  it('列出变了的档；没变就 null', () => {
+    expect(
+      describeVideoSendAdjust(
+        { duration: '5', resolution: '720p', aspectRatio: '16:9' },
+        { duration: '4', resolution: '1080p', aspectRatio: '16:9' },
+      ),
+    ).toBe('5s → 4s · 720p → 1080p')
+    expect(
+      describeVideoSendAdjust({ duration: '5' }, { duration: '5' }),
+    ).toBeNull()
+  })
+})
+
+describe('图 · 切过模型的卡：比例 / 清晰度按当前模型收档', () => {
+  it('火山只有 2K/4K：存着的 1K 发 2K（chip 同一份），不发旧档', () => {
+    const card = node('c', {
+      kind: 'image',
+      subtype: 'shot',
+      model: Object.assign({}, MODEL, {
+        adapterType: 'volcengine',
+        modelId: 'seedream-4.5-volcengine',
+      }),
+      prompt: '海报',
+      params: { resolution: '1K', aspectRatio: '1:1' },
+    })
+    const plan = planV4Generation('c', { nodes: [card], edges: [] })!
+    expect(plan.imageResolution).toBe('2K')
+    expect(plan.aspectRatio).toBe('1:1')
+    expect(
+      clampImageSpecToModel({
+        adapterType: AI_ADAPTER_TYPES.VOLCENGINE,
+        modelId: 'seedream-4.5-volcengine',
+        aspectRatio: '1:1',
+        resolution: '1K',
+      }),
+    ).toEqual({ aspectRatio: '1:1', resolution: '2K' })
   })
 })
 
@@ -361,6 +445,83 @@ describe('planV4Generation · 其余分支', () => {
     expect(plan.prompt).toBe('她回头')
   })
 
+  describe('音：timbre 音色参考边（Fish references = 音频 + 原文成对）', () => {
+    const FISH = {
+      optionId: 'opt',
+      apiKeyId: 'key-1',
+      modelId: 'fish-audio-s2-pro',
+      adapterType: 'fish_audio',
+    } as typeof MODEL
+    const donor = node('donor', {
+      kind: 'audio',
+      subtype: 'voice',
+      name: '晴的样音',
+      url: 'https://cdn/donor.mp3',
+      prompt: '[强·愤怒]今天天气真好',
+    })
+    const graphFor = (out: NodeV4, extra: NodeV4[] = [donor]) => ({
+      nodes: [out, script, ...extra],
+      edges: [
+        edge('a', 't1', 'out', NODE_SLOT_IDS.text),
+        edge('b', extra[0]!.id, 'out', NODE_SLOT_IDS.timbre),
+      ],
+    })
+
+    it('Fish 型号 + 供体有原文 → referenceAudioUrl/referenceText 发出去', () => {
+      const out = node('out', { kind: 'audio', subtype: 'voice', model: FISH })
+      const plan = planV4Generation('out', graphFor(out))!
+      expect(plan.referenceAudioUrl).toBe('https://cdn/donor.mp3')
+      expect(plan.referenceText).toBe('今天天气真好')
+      expect(plan.timbreBlocked).toBeUndefined()
+      expect(preflightV4Plan(plan)).toEqual([])
+    })
+
+    it('型号不吃参考音频 → 拦下并点名供体，⛔ 不静默丢', () => {
+      const out = node('out', {
+        kind: 'audio',
+        subtype: 'voice',
+        model: {
+          optionId: 'opt',
+          apiKeyId: 'key-1',
+          modelId: 'elevenlabs-sfx-v2',
+          adapterType: 'elevenlabs',
+        } as typeof MODEL,
+      })
+      const plan = planV4Generation('out', graphFor(out))!
+      expect(plan.referenceAudioUrl).toBeUndefined()
+      expect(preflightV4Plan(plan)).toEqual([
+        { kind: 'timbre', reason: 'model', name: '晴的样音' },
+      ])
+    })
+
+    it('卡上另选了声音 → Fish 会忽略 references，要用户二选一', () => {
+      const out = node('out', {
+        kind: 'audio',
+        subtype: 'voice',
+        model: FISH,
+        voiceProfile: { voiceId: 'fish_morning' },
+      })
+      const plan = planV4Generation('out', graphFor(out))!
+      expect(plan.referenceAudioUrl).toBeUndefined()
+      expect(plan.timbreBlocked).toEqual({ reason: 'voice', name: '晴的样音' })
+    })
+
+    it('供体没有原文 → 拦下（API 拒半对）', () => {
+      const silent = node('silent', {
+        kind: 'audio',
+        subtype: 'voice',
+        name: '上传的样音',
+        url: 'https://cdn/s.mp3',
+      })
+      const out = node('out', { kind: 'audio', subtype: 'voice', model: FISH })
+      const plan = planV4Generation('out', graphFor(out, [silent]))!
+      expect(plan.timbreBlocked).toEqual({
+        reason: 'transcript',
+        name: '上传的样音',
+      })
+    })
+  })
+
   it('合并节点少于 2 条片段 → 计划里带 belowMin，调用方必须先看它', () => {
     const clip = node('c1', {
       kind: 'video',
@@ -437,7 +598,38 @@ describe('planV4Generation · 镜头里 @她（画布用角色 ④ 第 2 片）'
       { characterCards: [DENIA] },
     )!
     expect(plan.characterImagePicks).toEqual({ denia: [{ slotId: 's_main' }] })
+    expect(plan.characterLookIds).toBeUndefined()
     expect(plan.prompt).toBe('Denia 的半身')
+  })
+
+  it('挑的是别的造型的图：随 characterLookIds 送那套（11-17，不再恒用默认造型）', () => {
+    const withQ = {
+      ...DENIA,
+      looks: [
+        ...DENIA.looks,
+        {
+          id: 'denia-q',
+          isDefault: false,
+          tags: [],
+          referenceSlots: [
+            { id: 's_q', url: 'https://cdn/q.png', isPrimary: true },
+          ],
+        },
+      ],
+    } as unknown as CharacterCardRecord
+    const still = node('stq', {
+      kind: 'image',
+      subtype: 'shot',
+      prompt: '@Denia 的半身',
+      model: MODEL,
+      characterPicks: { denia: [{ slotId: 's_q' }] },
+    })
+    const plan = planV4Generation(
+      'stq',
+      { nodes: [still], edges: [] },
+      { characterCards: [withQ] },
+    )!
+    expect(plan.characterLookIds).toEqual({ denia: 'denia-q' })
   })
 
   it('没给角色库：不认 @，行为与从前一样', () => {
@@ -665,5 +857,71 @@ describe('preflightV4Plan · 发送前校验（owner 09-28：不发送 + 说清�
       ),
     }
     expect(preflightV4Plan(imagePlan)).toEqual([{ kind: 'slot', issue }])
+  })
+})
+
+describe('findV4EmptyContent · 空卡不发（真机 11-18：空镜头卡 ⌘↵ 被标失败、写 noPlan）', () => {
+  it('视频镜头卡：没写、没接、没挂 → empty·video（没选模型也先说这一句）', () => {
+    const blank = node('b', { kind: 'video', subtype: 'shot' })
+    expect(findV4EmptyContent('b', { nodes: [blank], edges: [] })).toEqual({
+      kind: 'empty',
+      media: 'video',
+    })
+  })
+
+  it('视频：只有镜头表（景别 / 运镜）不算内容', () => {
+    const blank = node('b', {
+      kind: 'video',
+      subtype: 'shot',
+      model: MODEL,
+      shot: { size: 'close_up', move: '缓慢推近' },
+    })
+    expect(
+      findV4EmptyContent('b', {
+        nodes: [blank],
+        edges: [],
+        shotlist: { look: '冷蓝夜色' },
+      }),
+    ).toEqual({ kind: 'empty', media: 'video' })
+  })
+
+  it('视频：接了一张首帧 / 写了一句 / 上游剧本接进来，都不算空', () => {
+    const withFrame = node('b', { kind: 'video', subtype: 'shot' })
+    expect(
+      findV4EmptyContent('b', {
+        nodes: [first, withFrame],
+        edges: [edge('e', 'first', 'b', NODE_SLOT_IDS.firstFrame)],
+      }),
+    ).toBeNull()
+    expect(
+      findV4EmptyContent('b', { nodes: [withFrame], edges: [] }, '她回头'),
+    ).toBeNull()
+    expect(
+      findV4EmptyContent('b', {
+        nodes: [script, withFrame],
+        edges: [edge('e', 't1', 'b', NODE_SLOT_IDS.text)],
+      }),
+    ).toBeNull()
+  })
+
+  it('图片卡与语音卡各用各的说法；文本卡不归这里管', () => {
+    const image = node('i', { kind: 'image', subtype: 'shot' })
+    const audio = node('a', { kind: 'audio', subtype: 'voice' })
+    const nodes = [image, audio, script]
+    expect(findV4EmptyContent('i', { nodes, edges: [] })).toEqual({
+      kind: 'empty',
+      media: 'image',
+    })
+    expect(findV4EmptyContent('a', { nodes, edges: [] })).toEqual({
+      kind: 'empty',
+      media: 'audio',
+    })
+    expect(findV4EmptyContent('t1', { nodes, edges: [] })).toBeNull()
+    expect(
+      findV4EmptyContent('i', {
+        nodes: [character, image],
+        edges: [edge('e', 'char', 'i', NODE_SLOT_IDS.reference)],
+      }),
+    ).toBeNull()
   })
 })

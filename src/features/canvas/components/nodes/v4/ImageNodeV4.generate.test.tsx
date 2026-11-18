@@ -562,6 +562,59 @@ describe('发送', () => {
     expect(context.onApplyBatch).not.toHaveBeenCalled()
   })
 
+  it('自己没写字、正文全在连进来的剧本里：失败后照样给「重试」，发的是剧本（owner 2026-11-18）', async () => {
+    api.studioGenerateAPI.mockReturnValue(new Promise(() => {}))
+    const script = {
+      id: 't_1',
+      position: { x: 0, y: 0 },
+      data: {
+        kind: 'text',
+        subtype: 'script',
+        name: '剧本',
+        body: '雨夜站台，她回头',
+        status: 'idle',
+        createdAt: NOW,
+      },
+    } as NodeV4
+    const failedCard = imageNode('i_1', {
+      subtype: 'shot',
+      model: selection(GPT),
+      generationFailure: { error: 'boom' },
+    })
+    const context = harness([script, failedCard], {
+      selectedNodeIds: ['i_1'],
+      edges: [
+        {
+          id: 'e_script',
+          source: 't_1',
+          sourceHandle: 'out',
+          target: 'i_1',
+          slot: NODE_SLOT_IDS.text,
+        },
+      ],
+    })
+    renderImage(context)
+    fireEvent.click(screen.getByRole('button', { name: 'rail.retry' }))
+    await waitFor(() =>
+      expect(lastSubmit()?.freePrompt).toContain('雨夜站台，她回头'),
+    )
+  })
+
+  it('自己没写字、也没连任何文本：失败卡不给「重试」（发不出去的键 = 死按钮）', () => {
+    const context = harness(
+      [
+        imageNode('i_1', {
+          subtype: 'shot',
+          model: selection(GPT),
+          generationFailure: { error: 'boom' },
+        }),
+      ],
+      { selectedNodeIds: ['i_1'] },
+    )
+    renderImage(context)
+    expect(screen.queryByRole('button', { name: 'rail.retry' })).toBeNull()
+  })
+
   it('发送读 op 之后的图：刚 @ 出来的参考连线这一枪就带上', async () => {
     api.studioGenerateAPI.mockReturnValue(new Promise(() => {}))
     const shot = imageNode('i_1', {

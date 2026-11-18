@@ -75,6 +75,9 @@ function NodeFrameLayer({
     if (closing) return
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
+      // Esc 一次只退一层：框里的下拉 / 弹层（Radix 在捕获阶段关自己并 preventDefault）、
+      // 提示词栏的 @ / 候选与失焦先吃掉这一下，⛔ 不连框一起关。
+      if (event.defaultPrevented || event.isComposing) return
       event.preventDefault()
       onClose()
     }

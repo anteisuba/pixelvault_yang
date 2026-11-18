@@ -395,43 +395,29 @@ describe('三条路汇到同一份 reconcileStateSlots', () => {
       now: NOW,
     })
 
-    // ③ 拖入。⚠ 镜头卡的默认落点是**参考**（spec §5 · 2026-09-10 定稿），
-    // 所以这一路比的是「同样落参考」的那两份，⛔ 不是把它掰回首帧。
+    // ③ 拖入。⚠ 空镜头卡拖进第一张画面图先当**首帧**（owner 2026-11-18 改了
+    // 09-10「一律进参考」那条默认，`preferredVideoDropSlot`），所以三条路这里落同一格。
     const drop = planV4IngestDrop(platform, shot, base.edges, base.nodes)
     expect(drop).toMatchObject({
       kind: 'single',
-      candidate: { slot: NODE_SLOT_IDS.reference },
+      candidate: { slot: NODE_SLOT_IDS.firstFrame },
     })
     const viaDrop = connectIntoSlot(base, {
       source: platform.id,
       target: shot.id,
-      slot: NODE_SLOT_IDS.reference,
-      edgeId: 'e-same',
-      now: NOW,
-    })
-    const viaConnectReference = connectIntoSlot(base, {
-      source: platform.id,
-      target: shot.id,
-      slot: NODE_SLOT_IDS.reference,
+      slot: NODE_SLOT_IDS.firstFrame,
       edgeId: 'e-same',
       now: NOW,
     })
 
     expect(viaMention.ok && viaConnect.ok && viaDrop.ok).toBe(true)
-    if (
-      !viaMention.ok ||
-      !viaConnect.ok ||
-      !viaDrop.ok ||
-      !viaConnectReference.ok
-    ) {
-      return
-    }
+    if (!viaMention.ok || !viaConnect.ok || !viaDrop.ok) return
     const slotsOf = (state: NodeWorkflowStateV4) =>
       reconcileStateSlots(state, { now: NOW }).nodes.find(
         (item) => item.id === shot.id,
       )?.data.slots
     expect(slotsOf(viaMention.state)).toEqual(slotsOf(viaConnect.state))
-    expect(slotsOf(viaDrop.state)).toEqual(slotsOf(viaConnectReference.state))
+    expect(slotsOf(viaDrop.state)).toEqual(slotsOf(viaConnect.state))
   })
 })
 

@@ -544,6 +544,12 @@ export function NodePromptBar({
             return
           }
         }
+        // 没有候选时 Esc = 离开输入框（一层）；下一下才轮到画中框 / 取消选中。
+        if (event.key === 'Escape' && !event.nativeEvent.isComposing) {
+          event.preventDefault()
+          event.currentTarget.blur()
+          return
+        }
         // 光标在最前面按退格：摘掉开头那颗 chip（它不是正文里的字，退不掉）。
         if (
           event.key === 'Backspace' &&

@@ -22,7 +22,11 @@ import { Check, ChevronDown } from '@/components/icons'
 
 import { ParamSlider } from '@/components/ui/param-slider'
 import { LiquidSegmented } from '@/components/ui/liquid-segmented'
-import { TTS_SPEED_RANGE, TTS_VOLUME_RANGE } from '@/constants/audio-options'
+import {
+  TTS_SPEED_RANGE,
+  TTS_SPEED_STEPS,
+  TTS_VOLUME_RANGE,
+} from '@/constants/audio-options'
 import { motionTransition } from '@/constants/motion'
 import { useVoiceLibrary } from '@/hooks/use-voice-library'
 import { useVoiceCover } from '@/hooks/use-voice-cover'
@@ -42,9 +46,6 @@ import { ChipPopover } from '../chrome'
 
 /** 画板宽。 */
 const VOICE_POPOVER_WIDTH = 300
-
-/** 语速三档（画板 0.8 / 1.0 / 1.2）—— 值域仍在 `TTS_SPEED_RANGE` 之内。 */
-export const VOICE_SPEED_STEPS = [0.8, TTS_SPEED_RANGE.default, 1.2] as const
 
 export interface AudioVoiceChipProps {
   /** 当前音色（Fish 的 `reference_id`）。 */
@@ -317,7 +318,7 @@ export function AudioVoiceChip({
             </span>
             {/* A1 分段条（与工作台规格弹层同一颗，owner 2026-10-08 画布换皮）。 */}
             <LiquidSegmented
-              items={VOICE_SPEED_STEPS.map((step) => ({
+              items={TTS_SPEED_STEPS.map((step) => ({
                 value: String(step),
                 label: `${step.toFixed(1)}×`,
               }))}

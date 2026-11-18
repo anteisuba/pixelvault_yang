@@ -14,7 +14,10 @@
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 
-import { buildImageSpecChipModel } from '@/lib/spec-chip-model'
+import {
+  buildImageSpecChipModel,
+  clampImageSpecToModel,
+} from '@/lib/spec-chip-model'
 import { wrapImagePromptTemplate } from '@/lib/image-prompt-templates'
 import { cn } from '@/lib/utils'
 import { SpecChip } from '@/components/business/studio-shared/spec'
@@ -85,14 +88,23 @@ export function ImageFrameChip({
     model && model.adapterType in ADAPTER_CAPABILITIES
       ? (model.adapterType as AI_ADAPTER_TYPES)
       : undefined
-  const specModel = buildImageSpecChipModel({
+  // 显示 = 发送：存着的旧档按当前模型收档（`clampImageSpecToModel`，发送层同一份）。
+  // 之前认不出的档 chip 上干脆不写，发送却照原样发出去。
+  const shown = clampImageSpecToModel({
     adapterType,
     modelId: model?.modelId,
     aspectRatio: aspectRatio ?? null,
     resolution: resolution ?? null,
   })
-  const readout = imageFrameReadout(aspectRatio, modelId, {
+  const specModel = buildImageSpecChipModel({
+    adapterType,
+    modelId: model?.modelId,
+    aspectRatio: shown.aspectRatio ?? null,
+    resolution: shown.resolution ?? null,
+  })
+  const readout = imageFrameReadout(shown.aspectRatio, modelId, {
     ...(quality ? { quality } : {}),
+    ...(shown.resolution ? { resolution: shown.resolution } : {}),
     ...(effectiveCount === undefined ? {} : { count: effectiveCount }),
   })
 
@@ -101,9 +113,9 @@ export function ImageFrameChip({
       model={specModel}
       ariaLabel={t('frame.title')}
       resolutionLabel={tSpec('imageResolutionLabel')}
-      aspectRatio={aspectRatio ?? null}
+      aspectRatio={shown.aspectRatio ?? null}
       onAspectRatioChange={onAspectRatioChange}
-      resolution={resolution ?? null}
+      resolution={shown.resolution ?? null}
       onResolutionChange={onResolutionChange}
       disabled={disabled}
       data-testid="image-frame-chip"

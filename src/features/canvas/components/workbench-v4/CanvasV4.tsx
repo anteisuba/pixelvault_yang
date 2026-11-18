@@ -65,6 +65,7 @@ import {
   resolveNodeEdgeVisibility,
 } from '@/lib/node-edge-tier'
 import { isNodeWorkflowGenerating } from '@/lib/node-workflow-edge-visual'
+import { isTextNoteNode } from '@/lib/node-slot-binding'
 import {
   filmMaterialShots,
   isFilmMaterialNode,
@@ -531,6 +532,8 @@ export function CanvasV4({
         ...(isRoleChangeableEdge(sourceData.kind, edge.slot)
           ? { roleChangeable: true }
           : {}),
+        // 备注卡连出去的线只是便签关联：胶囊写「备注·不发送」。
+        ...(isTextNoteNode(sourceData) ? { noteOnly: true } : {}),
         ...(signingPhase === 'drawing' ? { justSigned: true } : {}),
         ...(signingPhase === 'fading' && !underlyingShouldRender
           ? { signingFadeOut: true }

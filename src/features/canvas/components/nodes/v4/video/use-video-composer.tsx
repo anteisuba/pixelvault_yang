@@ -24,14 +24,17 @@ import { PROGRESS_TICK_MS } from '@/constants/generation-progress'
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import { NODE_SLOT_IDS } from '@/constants/node-slots'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
-import { useNodeMediaGenerationV4 } from '@/features/canvas/hooks/use-node-media-generation-v4'
+import {
+  resolveNodeVideoSendModelId,
+  useNodeMediaGenerationV4,
+} from '@/features/canvas/hooks/use-node-media-generation-v4'
 import { cancelGenerationsAPI, checkVideoStatusAPI } from '@/lib/api-client'
 import type { NodeCharacterMention } from '@/lib/node-character-mentions'
 import { getGenerationErrorMessage } from '@/lib/api-error-message'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { readOutputIndex, readOutputVersions } from '@/lib/node-output-versions'
 import { shouldRetakeAsNewCard } from '@/lib/node-retake'
-import { readSlotSources } from '@/lib/node-slot-payload'
+import { buildV4VideoPayload, readSlotSources } from '@/lib/node-slot-payload'
 import { pickDefaultModelOption } from '@/lib/pick-default-model-option'
 import {
   nextPromptDraft,
@@ -64,6 +67,7 @@ import { useNodeV4Canvas } from '../NodeV4Context'
 import { forkRetake } from '../retake-autostart'
 import { buildMentionCandidates, buildMentionTokens } from '../NodeV4Mentions'
 import { toStudioModelOption } from '../image/image-node-model'
+import { NodeKeySetupDialog, useNodeKeyGate } from '../use-node-key-gate'
 import { VideoAudioToggle } from './VideoAudioToggle'
 import type { VideoSlotCandidate } from './VideoNodeMenus'
 import { VideoFrameChip } from './VideoFrameChip'
@@ -72,6 +76,7 @@ import {
   type VideoRailBinding,
 } from './use-video-rail-binding'
 import {
+  describeVideoSendAdjust,
   videoEffectiveParams,
   videoSupportsGeneratedAudio,
   videoVersions,
@@ -106,6 +111,8 @@ export interface VideoSubmitOptions {
   readonly asNewCard?: boolean
   /** 这一枪用的模型（含线路）：新卡起跑时由旧卡交过来，盖过本卡的默认。 */
   readonly model?: NodeWorkflowModelSelection
+  /** 刚在 `QuickSetupDialog` 里配好 key —— 渲染闭包里的 `missingKey` 还没刷新。 */
+  readonly keyVerified?: boolean
 }
 
 export interface VideoComposer extends Omit<
@@ -156,6 +163,11 @@ export interface VideoComposer extends Omit<
   readonly modelLabel: string | undefined
   readonly effectiveModel: NodeWorkflowModelSelection | undefined
   readonly effectiveParams: ReturnType<typeof videoEffectiveParams>
+  /** 挂 / 摘参考让档被吸走时的一行说明（卡上提示词栏顶上）；没变就 `undefined`。 */
+  readonly sendAdjustNote: string | undefined
+  /** 缺 key 闸（与图 / 声音卡同一份 `use-node-key-gate`）：宿主拿来写发送键。 */
+  readonly missingKey: boolean
+  openKeySetup(): void
 }
 
 export function useVideoComposer({
@@ -337,9 +349,41 @@ export function useVideoComposer({
   }, [modelOptions])
 
   const effectiveModel = videoData.model ?? defaultModel
+  // 缺 key 闸（Hard Rule 8）：点发送就地开 `QuickSetupDialog`，验证过才发。
+  const keyGate = useNodeKeyGate({ modelOptions, effectiveModel })
   const modelId = effectiveModel?.modelId
-  /** 生效的参数 = 存着的 + 这个模型的默认档（⛔ chip 上不留空）。 */
-  const effectiveParams = videoEffectiveParams(videoData.params, modelId)
+  /**
+   * 这一枪**真走的端点**：挂了参考项就是该型号的参考变体（与 `planV4Generation`
+   * 同一个解析 `resolveNodeVideoSendModelId`）。chip 的档位表与读数都按它算 ——
+   * 之前 chip 按卡上那条端点算、发送时按变体再吸一次，chip 上写 5s 实际发 4s。
+   */
+  const sendModelId = effectiveModel
+    ? resolveNodeVideoSendModelId(
+        effectiveModel,
+        buildV4VideoPayload({
+          nodeId: id,
+          nodes: canvas.nodes,
+          edges: canvas.edges,
+        }),
+        characterMentions.mentions.reduce(
+          (total, mention) => total + mention.picks.length,
+          0,
+        ),
+      )
+    : undefined
+  /** 生效的参数 = 存着的 + 这个端点的默认档（⛔ chip 上不留空）= 发出去的那份。 */
+  const effectiveParams = videoEffectiveParams(videoData.params, sendModelId)
+  /** 换了端点、档被吸走了：卡上一行说明（`describeVideoSendAdjust`）。 */
+  const sendAdjust =
+    sendModelId && sendModelId !== modelId
+      ? describeVideoSendAdjust(
+          videoEffectiveParams(videoData.params, modelId),
+          effectiveParams,
+        )
+      : null
+  const sendAdjustNote = sendAdjust
+    ? tVideo('frame.sendAdjusted', { changes: sendAdjust })
+    : undefined
   // 读数上写的是**型号名**，⛔ 不是落库的那串 id —— 与模型 chip 同一份译名表。
   const modelLabel = modelId
     ? getTranslatedModelLabel(tModels, modelId)
@@ -501,6 +545,10 @@ export function useVideoComposer({
     options: VideoSubmitOptions = {},
   ): Promise<VideoSubmitOutcome> | null => {
     if (draft.trim().length === 0 || generating) return null
+    if (keyGate.missingKey && !options.keyVerified) {
+      keyGate.openKeySetup()
+      return null
+    }
     const sendModel = options.model ?? effectiveModel
     if (
       options.asNewCard &&
@@ -521,7 +569,8 @@ export function useVideoComposer({
       !videoData.params ||
       videoData.params.duration !== effectiveParams.duration ||
       videoData.params.resolution !== effectiveParams.resolution ||
-      videoData.params.aspectRatio !== effectiveParams.aspectRatio
+      videoData.params.aspectRatio !== effectiveParams.aspectRatio ||
+      videoData.params.generateAudio !== effectiveParams.generateAudio
     ) {
       canvas.onSetParams(id, effectiveParams)
     }
@@ -597,7 +646,8 @@ export function useVideoComposer({
         if (result.error === 'noPlan') {
           canvas.onSetMedia(id, {
             mediaJobId: undefined,
-            generationFailure: { error: tVideo('frame.pickModel') },
+            // 三张卡同一句（`generateDesk.noModel`）。
+            generationFailure: { error: tNode('generateDesk.noModel') },
           })
           return { status: 'failed' }
         }
@@ -675,7 +725,8 @@ export function useVideoComposer({
     <VideoFrameChip
       key="frame"
       params={effectiveParams}
-      modelId={modelId}
+      // 档位表跟**这一枪真走的端点**（参考变体与关键帧端点的档不一样）。
+      modelId={sendModelId}
       readoutGroups={railReadoutGroups}
       {...(rail.capacity.referenceUnavailable
         ? { referenceNote: tVideo('rail.referenceUnavailable') }
@@ -691,7 +742,7 @@ export function useVideoComposer({
    * 声音开关 —— ⛔ 不进 chip 也不进规格弹层：chip 答「下一版长什么样」，出不出声
    * 是这一枪的开关（画板「声音开关保留图标不进 chip」）。
    */
-  const audioToggle = videoSupportsGeneratedAudio(modelId) ? (
+  const audioToggle = videoSupportsGeneratedAudio(sendModelId) ? (
     <VideoAudioToggle
       value={Boolean(effectiveParams.generateAudio)}
       disabled={generating}
@@ -752,6 +803,22 @@ export function useVideoComposer({
     selfUploading: rail.selfUploading,
     uploadProgress: rail.uploadProgress,
     backfillMedia: rail.backfillMedia,
-    overlays: rail.overlays,
+    overlays: (
+      <>
+        {rail.overlays}
+        <NodeKeySetupDialog
+          gate={keyGate}
+          onVerified={(model) =>
+            void submitPrompt({
+              keyVerified: true,
+              ...(model ? { model } : {}),
+            })
+          }
+        />
+      </>
+    ),
+    sendAdjustNote,
+    missingKey: keyGate.missingKey,
+    openKeySetup: keyGate.openKeySetup,
   }
 }

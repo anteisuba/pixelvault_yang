@@ -16,14 +16,12 @@ import { NODE_SLOT_IDS, getNodeV4Ports } from '@/constants/node-slots'
 import { NODE_MEDIA_KIND_IDS, type NodeV4Subtype } from '@/constants/node-types'
 import {
   NODE_V4_CARD,
-  NODE_V4_IMAGE_QUALITY_COST,
+  NODE_V4_IMAGE_QUALITY_TIERS,
   resolveReferenceAssetLimit,
 } from '@/constants/node-studio'
 import { readOutputVersions } from '@/lib/node-output-versions'
-import {
-  formatUnitPriceAmount,
-  getModelUnitPriceByStringId,
-} from '@/constants/models/unit-prices'
+import { estimateGenerationCost } from '@/lib/generation-cost'
+import { formatUnitPriceAmount } from '@/constants/models/unit-prices'
 import type {
   NodeV4ImageData,
   NodeWorkflowModelOption,
@@ -102,9 +100,8 @@ function optionsFrom(
 }
 
 /** 全仓出现过的质量档之并集 —— 灰掉哪几档由每个模型的能力表决定。 */
-export const IMAGE_QUALITY_TIERS = Object.keys(
-  NODE_V4_IMAGE_QUALITY_COST,
-) as readonly string[]
+export const IMAGE_QUALITY_TIERS: readonly string[] =
+  NODE_V4_IMAGE_QUALITY_TIERS
 
 /**
  * 能力表查询。⚠ 先问 adapter 在不在表里：`getCapabilityConfig` 直接下标一个
@@ -133,24 +130,30 @@ export const IMAGE_COUNT_OPTIONS: readonly ImageSpecOption[] =
   IMAGE_BATCH_COUNTS.map((count) => ({ value: String(count), disabled: false }))
 
 /**
- * 这一次大概花多少：**单价 × 张数 × 质量系数**。
+ * 这一次大概花多少 —— **与工作台、助手确认卡同一个算式**（`estimateGenerationCost`：
+ * 按比例 / 清晰度 / 画质读 `unit-prices.ts` 的真单价）。⛔ 卡上不另写一份系数表。
  *
- * ⚠ 系数是**估价**不是账单：真正扣多少由服务端按实际用量算（`generate` 那条 op
- * 仍是唯一扣 credit 的地方）。所以这里给的是一个让用户「点之前心里有数」的数，
- * ⛔ 不拿它去做任何闸。缺单价时返回 `null` —— ⛔ 不写「$0」。
+ * ⚠ 是**估价**不是账单：真正扣多少由服务端按实际用量算（`generate` 那条 op 仍是
+ * 唯一扣 credit 的地方）。钉不死一个数（缺价、区间价）时返回 `null` —— ⛔ 不写「$0」。
  */
 export function imageCostEstimate(
   modelId: string | undefined,
-  params: { readonly quality?: string; readonly count?: number } = {},
+  params: {
+    readonly quality?: string
+    readonly count?: number
+    readonly aspectRatio?: string
+    readonly resolution?: string
+  } = {},
 ): number | null {
-  const price = modelId ? getModelUnitPriceByStringId(modelId) : null
-  if (!price || price.unit !== 'image') return null
-  const count = params.count ?? 1
-  const multiplier =
-    NODE_V4_IMAGE_QUALITY_COST[
-      (params.quality ?? '') as keyof typeof NODE_V4_IMAGE_QUALITY_COST
-    ] ?? 1
-  return price.amount * count * multiplier
+  if (!modelId) return null
+  const estimate = estimateGenerationCost([{ modelId }], {
+    kind: 'image',
+    perModelCount: params.count ?? 1,
+    ...(params.aspectRatio ? { aspectRatio: params.aspectRatio } : {}),
+    ...(params.resolution ? { resolution: params.resolution } : {}),
+    ...(params.quality ? { quality: params.quality } : {}),
+  })
+  return estimate.pricedCount === 1 ? estimate.total : null
 }
 
 /**
@@ -164,11 +167,18 @@ export function imageCostEstimate(
 export function imageFrameReadout(
   aspectRatio: string | undefined,
   modelId: string | undefined,
-  params: { readonly quality?: string; readonly count?: number } = {},
+  params: {
+    readonly quality?: string
+    readonly count?: number
+    readonly resolution?: string
+  } = {},
 ): string {
   const size = IMAGE_SIZES[(aspectRatio ?? '') as AspectRatio]
   const dimension = size ? `${size.width}×${size.height}` : null
-  const estimate = imageCostEstimate(modelId, params)
+  const estimate = imageCostEstimate(modelId, {
+    ...params,
+    ...(aspectRatio ? { aspectRatio } : {}),
+  })
   // ⚠ USD 的格式化沿用 `formatUnitPriceAmount`，⛔ 不在这里自己拼 `$`：
   // 单价那一层已经决定了小数位与币种。
   const priceText = estimate === null ? null : formatUnitPriceAmount(estimate)

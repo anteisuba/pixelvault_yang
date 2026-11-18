@@ -39,25 +39,35 @@ vi.mock('../NodeV4Context', () => ({
 import { NodeChromeLayer } from './NodeChromeLayer'
 import { REDUCED_GROW_FROM_EDGE } from './chrome-motion'
 
-function scaleAt(value: number): string | null {
+function anchorAt(value: number) {
   zoom.value = value
   const { container, unmount } = render(
     <NodeChromeLayer show position={Position.Bottom}>
       <span>bar</span>
     </NodeChromeLayer>,
   )
-  const scale = container
-    .querySelector('[data-node-chrome-scale]')
-    ?.getAttribute('data-node-chrome-scale')
+  const host = container.querySelector('[data-node-chrome-left]')
+  const result = {
+    left: Number(host?.getAttribute('data-node-chrome-left')),
+    top: Number(host?.getAttribute('data-node-chrome-top')),
+    scaled: container.querySelector('[data-node-chrome-scale]') !== null,
+  }
   unmount()
-  return scale ?? null
+  return result
 }
 
-describe('工具条 / 提示词栏跟着画布缩放（owner 2026-09-29）', () => {
-  it('缩小时一起缩，到 0.6 为止；放大不超过 1', () => {
-    expect(scaleAt(0.8)).toBe('0.8')
-    expect(scaleAt(0.3)).toBe('0.6')
-    expect(scaleAt(1.5)).toBe('1')
+describe('工具条 / 提示词栏屏幕恒 1 倍、锚在卡上（2026-11-18）', () => {
+  it('缩放只改锚点位置，⛔ 不改浮层大小', () => {
+    // jsdom 没有布局：浮层量出 0×0，left = 卡中心 x，top = 卡底 + 10。
+    // 卡 (500,300) 320×202，卡名行 22 屏幕像素不随缩放。
+    const far = anchorAt(0.3)
+    expect(far.scaled).toBe(false)
+    expect(far.left).toBeCloseTo((500 + 160) * 0.3)
+    expect(far.top).toBeCloseTo((300 + 202) * 0.3 + 10)
+
+    const near = anchorAt(1.5)
+    expect(near.scaled).toBe(false)
+    expect(near.left).toBeCloseTo((500 + 160) * 1.5)
   })
 })
 

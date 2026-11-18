@@ -75,7 +75,6 @@ export type CanvasAddLabelKey =
   | 'imageBackground'
   | 'imageResult'
   | 'audioVoice'
-  | 'audioTimbre'
   | 'videoShot'
   | 'videoClip'
 
@@ -166,17 +165,6 @@ const CATALOG_ITEMS: readonly CanvasAddCatalogItem[] = [
     },
   },
   {
-    id: CANVAS_ADD_INTENT_IDS.audioTimbre,
-    group: CANVAS_ADD_GROUP_IDS.audio,
-    labelKey: 'audioTimbre',
-    // 「音色」建出来的仍是一个 `audio.voice` 节点 —— 音色是它的**用法**（连进
-    // `timbre` 口），不是第四个子型。⛔ 不为一个用法造一个子型。
-    v4: {
-      kind: NODE_MEDIA_KIND_IDS.audio,
-      subtype: NODE_V4_AUDIO_SUBTYPE_IDS.voice,
-    },
-  },
-  {
     id: CANVAS_ADD_INTENT_IDS.videoShot,
     group: CANVAS_ADD_GROUP_IDS.video,
     labelKey: 'videoShot',
@@ -214,10 +202,27 @@ const CATALOG_ITEM_BY_ID = new Map(
   CATALOG_ITEMS.map((item) => [item.id, item] as const),
 )
 
+/**
+ * 菜单里已并掉、但助手 / MCP 载荷仍认的意图 → 并入的那一项。
+ *
+ * 「音色」与「语音」建出来是**同一个** `audio.voice` 节点（音色是它连进 `timbre`
+ * 口的用法，不是子型）。菜单里两项并存时，反查表 `CATALOG_ITEM_BY_V4` 后写的覆盖
+ * 先写的 → 所有 `audio.voice` 卡都被叫成「音色」（owner 2026-11-18 合并）。
+ * ⚠ `audio.timbre` 仍留在 `NODE_ASSISTANT_ADD_INTENTS`：存量对话 / 外部 MCP 客户端
+ * 发来的这个 id 继续能建卡，⛔ 不因菜单合并让旧载荷解析失败。
+ */
+const MERGED_INTENT_ALIASES: Partial<
+  Record<CanvasAddIntentId, CanvasAddIntentId>
+> = {
+  [CANVAS_ADD_INTENT_IDS.audioTimbre]: CANVAS_ADD_INTENT_IDS.audioVoice,
+}
+
 export function getCanvasAddCatalogItem(
   intentId: CanvasAddIntentId,
 ): CanvasAddCatalogItem {
-  const item = CATALOG_ITEM_BY_ID.get(intentId)
+  const item = CATALOG_ITEM_BY_ID.get(
+    MERGED_INTENT_ALIASES[intentId] ?? intentId,
+  )
   if (!item) {
     throw new Error(`Unknown canvas add intent: ${intentId}`)
   }

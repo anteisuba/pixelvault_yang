@@ -4,7 +4,7 @@
       "title": "空画布 — 从这里开始",
       "subtitle": "聊聊故事，助手帮你把节点铺上。",
       "chatOutline": "跟助手聊大纲",
-      "addNode": "手动加节点（角色 / 背景 / 镜头 / 图像…）"
+      "addNode": "手动加节点（剧本 / 角色 / 背景 / 镜头图 / 镜头…）"
     },
     "appearance": {
       "trigger": "设置画布外观",
@@ -95,12 +95,8 @@
           "helper": "上传、粘贴、从素材选择，或稍后用 AI 生成。"
         },
         "audioVoice": {
-          "label": "语音",
-          "helper": "这一句台词的音频：生成或上传。"
-        },
-        "audioTimbre": {
-          "label": "音色",
-          "helper": "可复用的声音身份，连到镜头或角色上定下他怎么说话。"
+          "label": "语音 / 音色",
+          "helper": "一段声音：生成或上传。连进镜头是台词，连进音色口就定下他怎么说话。"
         },
         "videoShot": {
           "label": "镜头",
@@ -796,9 +792,14 @@
       "cloudSaveFailed": "连不上云端，最近的画布改动没有保存。请保持此标签页打开并检查网络连接。",
       "v3UpgradeReadOnly": "这个项目的旧版数据还没备份成功，为避免覆盖原件，画布暂时只读。请刷新重试；若仍失败，请联系支持。",
       "cloudSaveRejected": "云端拒绝了这次保存，最近的画布改动没有保存。这不是网络问题——详情见下方错误信息。",
+      "cloudSaveInvalidNode": "「{name}」这张卡的 {field} 不合规，画布改动先没往云端存。改好它就会自动保存。",
+      "cloudSaveInvalidNodeTooLong": "「{name}」这张卡的 {field} 超过 {maximum} 字，画布改动先没往云端存。删短一点就会自动保存。",
+      "cloudSaveInvalidProject": "项目里的 {field} 不合规，画布改动先没往云端存。",
       "conflict": "这个画布在别处（另一个标签页或设备）存过更新的版本，这里的改动已暂停保存。",
       "conflictLoadLatest": "载入最新",
       "conflictSaveAsCopy": "另存为副本",
+      "cloudCreateFailed": "新画布「{name}」还没存到云端，现在的改动只在这个浏览器里。",
+      "cloudCreateRetry": "重试",
       "conflictLoadFailed": "没取到最新的版本，请检查网络后再试。"
     },
     "quickEdit": {
@@ -971,6 +972,7 @@
       "versionPrev": "上一版",
       "versionNext": "下一版",
       "slotDisconnect": "断开",
+      "edgeNoteOnly": "备注·不发送",
       "slotEmpty": "空",
       "changedBadge": "本轮有改动",
       "blocked": "已判失败：{reason}",
@@ -1069,8 +1071,10 @@
         "slot": {
           "belowMin": "{slot}还没填够",
           "currentMissing": "{slot}还没选当前用哪一版",
-          "blockedSource": "{slot}里有一张标成不能用的素材，换掉或断开"
+          "blockedSource": "{slot}里有一张标成不能用的素材，换掉或断开",
+          "emptySource": "「{name}」还没有内容，接在{slot}口上：先让它出图 / 上传，或断开这条线"
         },
+        "unnamed": "未命名的卡",
         "tooMany": {
           "image": "参考图 {count} 张，这个模型最多收 {max} 张",
           "video": "参考视频 {count} 段，这个模型最多收 {max} 段",
@@ -1088,6 +1092,16 @@
           "total": "这个模型不收参考素材"
         },
         "audioOnly": "这个模型不能只带参考音频，再挂一张图或一段视频",
+        "empty": {
+          "image": "先写想要什么画面，或接一张参考图",
+          "video": "先写这个镜头怎么拍，或接一张图",
+          "audio": "先写要念的台词"
+        },
+        "timbre": {
+          "model": "这个模型不吃音色参考「{name}」，断开音色线或换 Fish 语音模型",
+          "transcript": "音色参考「{name}」没有原话：在那张卡上写下这段音频说的话再发",
+          "voice": "卡上已选了声音，音色参考「{name}」会被忽略：清掉声音或断开音色线"
+        },
         "clipTooLong": {
           "video": "「{name}」{seconds} 秒，这个模型的参考视频单段最长 {limit} 秒",
           "audio": "「{name}」{seconds} 秒，这个模型的参考音频单段最长 {limit} 秒"
@@ -1101,9 +1115,19 @@
           "audio": "参考音频加起来 {seconds} 秒，这个模型最多 {max} 秒"
         }
       },
+      "selectionRun": {
+        "title": "一起跑这 {count} 张卡？",
+        "priceAll": "预计共 {amount}。",
+        "pricePartial": "估得出价的共 {amount}，另有 {unpriced} 张估不出价。",
+        "priceNone": "这几张都估不出价。",
+        "order": "连着的卡会等上游出结果再发，上游没出结果的不发；同时最多跑 {limit} 张。",
+        "cancel": "取消",
+        "confirm": "跑 {count} 张"
+      },
       "generateDesk": {
         "failed": "生成失败：{reason}",
         "noModel": "先选一个模型",
+        "noNodeSelected": "先选一个节点",
         "noGenerate": "文本节点没有生成，只能派生"
       },
       "renameNode": "重命名节点",
@@ -1269,7 +1293,7 @@
         },
         "subtypes": {
           "script": "剧本",
-          "shotNote": "镜头说明",
+          "shotNote": "备注",
           "rule": "规则"
         },
         "doc": {
@@ -1592,6 +1616,7 @@
           "aspectRatio": "比例",
           "resolution": "清晰度",
           "generateAudio": "生成声音",
+          "sendAdjusted": "挂了参考，走参考端点：{changes}",
           "generateAudioHint": "模型自带音轨；关了只出画面",
           "audioSuffix": "有声",
           "regenerate": "重新生成",
@@ -1731,10 +1756,6 @@
       }
     },
     "rerunDownstream": {
-      "title": "改了「{origin}」→ 下游 {count} 个要重跑",
-      "free": "不花积分",
-      "estimate": "预估会花积分的：{summary}",
-      "noCost": "这一批都不花积分",
       "menu": "重跑下游",
       "ask": "我把「{name}」改了，只重跑它的下游，先给我名单。"
     },
@@ -1832,7 +1853,8 @@
         "tidy": "整理布局",
         "undo": "撤销",
         "redo": "重做",
-        "zoom": "缩放 {percent}%"
+        "zoom": "缩放 {percent}%",
+        "backToContent": "回到内容"
       },
       "assistantDock": {
         "collapse": "收起助手",

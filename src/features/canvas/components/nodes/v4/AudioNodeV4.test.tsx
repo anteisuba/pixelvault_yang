@@ -740,13 +740,43 @@ describe('选中态：工具条与提示词栏', () => {
     ).toBe('promptPlaceholderMusic')
   })
 
+  it('缺 key：发送键写「先配 key」，回车就地开配置弹窗、⛔ 不发（与图卡同一份闸）', async () => {
+    const context = harness(
+      [audioNode('a_1', { url: 'https://cdn.test/v.mp3' })],
+      {
+        selectedNodeIds: ['a_1'],
+        modelOptionsByKind: {
+          // 平台位、没有 providerKeyId → key 名单回来后确定跑不起来。
+          audio: [modelOption('opt_fish', AI_MODELS.FISH_AUDIO_S2_PRO)],
+        },
+      },
+    )
+    renderAudio(context, 'a_1', true)
+    await waitFor(() =>
+      expect(
+        document.querySelector('[data-prompt-bar-blocked="true"]'),
+      ).toHaveAttribute('aria-label', 'image.send.needsKeyLabel'),
+    )
+    const input = document.querySelector('[data-prompt-bar-input]')!
+    fireEvent.change(input, { target: { value: '真正的告别' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
+    expect(sent.generate).toHaveLength(0)
+  })
+
   it('回车 = 发一次生成', async () => {
     const context = harness(
       [audioNode('a_1', { url: 'https://cdn.test/v.mp3', durationSec: 7 })],
       {
         selectedNodeIds: ['a_1'],
         modelOptionsByKind: {
-          audio: [modelOption('opt_fish', AI_MODELS.FISH_AUDIO_S2_PRO)],
+          // 配好了 key 的那一条（缺 key 的平台位会先开配置弹窗，见上一条）。
+          audio: [
+            modelOption('opt_fish', AI_MODELS.FISH_AUDIO_S2_PRO, {
+              sourceType: 'saved',
+              apiKeyId: 'key_fish',
+            }),
+          ],
         },
       },
     )

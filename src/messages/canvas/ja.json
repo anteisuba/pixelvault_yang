@@ -4,7 +4,7 @@
       "title": "空のキャンバス — ここから",
       "subtitle": "物語を聞かせてください。アシスタントがノードを並べます。",
       "chatOutline": "アシスタントと構成を相談",
-      "addNode": "ノードを手動で追加（キャラ / 背景 / ショット / 画像…）"
+      "addNode": "ノードを手動で追加（脚本 / キャラクター / 背景 / カットの静止画 / カット…）"
     },
     "appearance": {
       "trigger": "キャンバスの外観を設定",
@@ -95,12 +95,8 @@
           "helper": "アップロード・貼り付け・素材から選択、あとで AI 生成も可。"
         },
         "audioVoice": {
-          "label": "ボイス",
-          "helper": "このセリフの音声。生成またはアップロード。"
-        },
-        "audioTimbre": {
-          "label": "声色",
-          "helper": "繰り返し使える声。カットやキャラクターにつないで、声を指定できます。"
+          "label": "ボイス / 声色",
+          "helper": "音声を生成またはアップロード。カットにつなぐとセリフ、声色ポートにつなぐと声の指定になります。"
         },
         "videoShot": {
           "label": "カット",
@@ -796,9 +792,14 @@
       "cloudSaveFailed": "クラウドに接続できません。最近のキャンバスの変更は保存されていません。このタブを開いたまま、接続を確認してください。",
       "v3UpgradeReadOnly": "このプロジェクトの旧データのバックアップがまだ成功していないため、原本の上書きを防ぐためキャンバスは読み取り専用です。再読み込みして再試行してください。解消しない場合はサポートにご連絡ください。",
       "cloudSaveRejected": "クラウドがこの保存を拒否しました。最近のキャンバスの変更は保存されていません。接続の問題ではありません。詳細は下記をご覧ください。",
+      "cloudSaveInvalidNode": "カード「{name}」の {field} が不正なため、最近のキャンバスの変更はまだクラウドに保存されていません。直すと自動で保存が再開します。",
+      "cloudSaveInvalidNodeTooLong": "カード「{name}」の {field} が {maximum} 文字を超えているため、最近のキャンバスの変更はまだクラウドに保存されていません。短くすると自動で保存が再開します。",
+      "cloudSaveInvalidProject": "プロジェクトの {field} が不正なため、最近のキャンバスの変更はまだクラウドに保存されていません。",
       "conflict": "このキャンバスは別の場所（別のタブや端末）で新しい版が保存されたため、ここでの保存を一時停止しました。",
       "conflictLoadLatest": "最新を読み込む",
       "conflictSaveAsCopy": "コピーとして保存",
+      "cloudCreateFailed": "新しいキャンバス「{name}」はまだクラウドに保存されていません。変更はこのブラウザ内にだけあります。",
+      "cloudCreateRetry": "再試行",
       "conflictLoadFailed": "最新の版を取得できませんでした。接続を確認して再試行してください。"
     },
     "quickEdit": {
@@ -971,6 +972,7 @@
       "versionPrev": "前の版",
       "versionNext": "次の版",
       "slotDisconnect": "切断",
+      "edgeNoteOnly": "メモ・送信しない",
       "slotEmpty": "空",
       "changedBadge": "今回の変更あり",
       "blocked": "不採用：{reason}",
@@ -1069,8 +1071,10 @@
         "slot": {
           "belowMin": "{slot}がまだ足りません",
           "currentMissing": "{slot}で使うバージョンを選んでください",
-          "blockedSource": "{slot}に使用不可の素材があります。差し替えるか接続を外してください"
+          "blockedSource": "{slot}に使用不可の素材があります。差し替えるか接続を外してください",
+          "emptySource": "「{name}」は{slot}につながっていますが、まだ中身がありません。先に生成・アップロードするか、接続を外してください"
         },
+        "unnamed": "名前のないカード",
         "tooMany": {
           "image": "参考画像が {count} 枚あります。このモデルは最大 {max} 枚です",
           "video": "参考動画が {count} 本あります。このモデルは最大 {max} 本です",
@@ -1088,6 +1092,16 @@
           "total": "このモデルは参考素材を受け付けません"
         },
         "audioOnly": "このモデルは参考音声だけでは送れません。画像か動画を追加してください",
+        "empty": {
+          "image": "まず欲しい画面を書くか、参考画像をつないでください",
+          "video": "まずこのショットの撮り方を書くか、画像をつないでください",
+          "audio": "まず読み上げるセリフを書いてください"
+        },
+        "timbre": {
+          "model": "このモデルは音色参照「{name}」を使えません。接続を外すか Fish の音声モデルに切り替えてください",
+          "transcript": "音色参照「{name}」に原文がありません。そのカードに音声の内容を書いてから送ってください",
+          "voice": "このカードでは声が選ばれているため、音色参照「{name}」は無視されます。声を外すか音色の接続を外してください"
+        },
         "clipTooLong": {
           "video": "「{name}」は {seconds} 秒です。このモデルの参考動画は 1 本 {limit} 秒までです",
           "audio": "「{name}」は {seconds} 秒です。このモデルの参考音声は 1 本 {limit} 秒までです"
@@ -1101,9 +1115,19 @@
           "audio": "参考音声の合計が {seconds} 秒です。このモデルは合計 {max} 秒までです"
         }
       },
+      "selectionRun": {
+        "title": "この {count} 枚のカードをまとめて実行しますか？",
+        "priceAll": "合計の見込み：{amount}。",
+        "pricePartial": "見積もれるカードの合計は {amount}。ほかに {unpriced} 枚は見積もれません。",
+        "priceNone": "どのカードも事前に見積もれません。",
+        "order": "つながったカードは上流の結果を待ってから送信し、結果が出なければ送信しません。同時に最大 {limit} 枚まで実行します。",
+        "cancel": "キャンセル",
+        "confirm": "{count} 枚を実行"
+      },
       "generateDesk": {
         "failed": "生成に失敗：{reason}",
         "noModel": "まずモデルを選択",
+        "noNodeSelected": "まずカードを選択",
         "noGenerate": "このテキストから生成するには、つながるノードを作ってください"
       },
       "renameNode": "ノード名を変更",
@@ -1269,7 +1293,7 @@
         },
         "subtypes": {
           "script": "脚本",
-          "shotNote": "カット説明",
+          "shotNote": "メモ",
           "rule": "ルール"
         },
         "doc": {
@@ -1592,6 +1616,7 @@
           "aspectRatio": "比率",
           "resolution": "解像度",
           "generateAudio": "音声を生成",
+          "sendAdjusted": "参照ありのため参照エンドポイントで送信：{changes}",
           "generateAudioHint": "動画と一緒に音声を生成します。オフにすると音声なしの動画になります。",
           "audioSuffix": "音声あり",
           "regenerate": "再生成",
@@ -1731,10 +1756,6 @@
       }
     },
     "rerunDownstream": {
-      "title": "「{origin}」を変更しました。影響する{count}件のノードが再実行の対象です",
-      "free": "クレジット不要",
-      "estimate": "クレジットが必要：{summary}",
-      "noCost": "このバッチはクレジットを使いません",
       "menu": "影響するノードを再実行",
       "ask": "「{name}」を変更しました。影響を受けるノードを、再実行する前に一覧で見せてください。"
     },
@@ -1832,7 +1853,8 @@
         "tidy": "レイアウト整理",
         "undo": "元に戻す",
         "redo": "やり直す",
-        "zoom": "ズーム {percent}%"
+        "zoom": "ズーム {percent}%",
+        "backToContent": "コンテンツに戻る"
       },
       "assistantDock": {
         "collapse": "アシスタントを閉じる",

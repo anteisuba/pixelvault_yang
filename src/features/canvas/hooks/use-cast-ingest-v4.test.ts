@@ -168,11 +168,21 @@ describe('previewV4SlotCapacity · 张口预览的 n/m', () => {
 })
 
 describe('planV4IngestDrop · 这一投落哪个槽', () => {
-  it('拖一张图到镜头卡 = 落进参考（spec §5 · 2026-09-10 定稿），⛔ 不再问首帧还是尾帧', () => {
-    // 镜头卡是**唯一**有默认落点的目标：图默认作参考，首 / 尾是它的角色，
-    // 挂上去之后在参考轨上点图改。
-    const plan = planV4IngestDrop(first, shot, [], nodes)
-    expect(plan).toMatchObject({
+  it('拖一张图到镜头卡：首帧空着 = 当首帧，首帧有了 = 进参考（owner 2026-11-18），⛔ 不问', () => {
+    // 镜头卡是**唯一**有默认落点的目标。空镜头拖进第一张图几乎总是「从这张开拍」。
+    expect(planV4IngestDrop(first, shot, [], nodes)).toMatchObject({
+      kind: 'single',
+      candidate: { slot: NODE_SLOT_IDS.firstFrame },
+    })
+    const filled = [edge('ef', 'first', 'shot', NODE_SLOT_IDS.firstFrame)]
+    expect(planV4IngestDrop(refImage, shot, filled, allNodes)).toMatchObject({
+      kind: 'single',
+      candidate: { slot: NODE_SLOT_IDS.reference },
+    })
+  })
+
+  it('角色 / 背景图落到空镜头：仍进参考（身份素材，⛔ 不当首帧）', () => {
+    expect(planV4IngestDrop(character, shot, [], nodes)).toMatchObject({
       kind: 'single',
       candidate: { slot: NODE_SLOT_IDS.reference },
     })
@@ -238,11 +248,19 @@ describe('planV4IngestDrop · 这一投落哪个槽', () => {
 })
 
 describe('planV4ConnectDrop · 落线 / 整卡落卡（S6e，spec §1.13）', () => {
-  it('槽由来源 kind 定：图 → 参考、语音 → 语音、文本 → 说明', () => {
+  it('槽由来源 kind 定：图 → 首帧空着当首帧、否则参考，语音 → 语音、文本 → 说明', () => {
     expect(planV4ConnectDrop(first, shot, [], nodes)).toEqual({
       kind: 'connect',
-      slot: NODE_SLOT_IDS.reference,
+      slot: NODE_SLOT_IDS.firstFrame,
     })
+    expect(
+      planV4ConnectDrop(
+        refImage,
+        shot,
+        [edge('ef', 'first', 'shot', NODE_SLOT_IDS.firstFrame)],
+        allNodes,
+      ),
+    ).toEqual({ kind: 'connect', slot: NODE_SLOT_IDS.reference })
     expect(planV4ConnectDrop(mutedVoice, shot, [], nodes)).toEqual({
       kind: 'connect',
       slot: NODE_SLOT_IDS.voice,

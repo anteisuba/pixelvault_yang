@@ -171,6 +171,9 @@ export function useWorkbenchShortcutsV4({
       if (event.isComposing) return
 
       if (event.key === 'Escape') {
+        // 一次只退一层：卡里的弹层 / 下拉 / 画中框 / 提示词栏候选已经吃掉这一下
+        // （它们都 preventDefault），⛔ 别再顺手把选中也清掉。
+        if (event.defaultPrevented) return
         if (isTypingTarget(event.target)) return
         if (latest.current.onEscape?.()) return
         g.clearSelection()

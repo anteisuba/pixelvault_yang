@@ -28,7 +28,7 @@ import {
   type NodeSlotTextRole,
 } from '@/constants/node-slots'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
-import { resolveEdgeTextRole } from '@/lib/node-slot-binding'
+import { isTextNoteNode, resolveEdgeTextRole } from '@/lib/node-slot-binding'
 import { compileVoiceMarkup } from '@/lib/voice-markup'
 import type {
   NodeV4,
@@ -153,6 +153,8 @@ export function readTextSegments(
   let script: string | undefined
 
   for (const source of sources) {
+    // 备注只是便签关联，⛔ 不拼进提示词。
+    if (isTextNoteNode(source.node.data)) continue
     const body = readBody(source.node)
     if (!body) continue
     switch (source.role ?? NODE_SLOT_TEXT_ROLE_FALLBACK) {
@@ -436,8 +438,16 @@ export interface V4AudioPayload {
   /** `prosody.speed` / `prosody.volume`。 */
   readonly speed?: number
   readonly volume?: number
-  /** 音色参考（`timbre` 槽的当前版）。 */
-  readonly timbreUrl?: string
+  /**
+   * 音色参考（`timbre` 槽的当前版）：那段音频 + 它说的原话（供体卡的台词去掉语气
+   * 标记）。⚠ Fish 的克隆（`references`）**要求音频与原文成对**，所以原文跟着走；
+   * 原文为空时由发送侧判「发不了」，⛔ 不在这里编一句。
+   */
+  readonly timbre?: {
+    readonly url: string
+    readonly name: string
+    readonly transcript?: string
+  }
   readonly text: SlotTextSegments
 }
 
@@ -467,12 +477,25 @@ export function buildV4AudioPayload(params: {
       text: { style: [], character: [] },
     }
   }
-  const timbreUrl = readSlotSources(
+  const timbreSource = readSlotSources(
     node,
     NODE_SLOT_IDS.timbre,
     edges,
     nodes,
-  ).map((source) => readNodeUrl(source.node.data))[0]
+  )[0]
+  const timbreUrl = timbreSource && readNodeUrl(timbreSource.node.data)
+  const timbreTranscript =
+    timbreSource && timbreSource.node.data.kind === NODE_MEDIA_KIND_IDS.audio
+      ? compileVoiceMarkup(timbreSource.node.data.prompt ?? '').plainText
+      : ''
+  const timbre =
+    timbreSource && timbreUrl
+      ? {
+          url: timbreUrl,
+          name: timbreSource.node.data.name,
+          ...(timbreTranscript ? { transcript: timbreTranscript } : {}),
+        }
+      : undefined
   const text = readTextSegments(node, edges, nodes)
   const rawPrompt = composeSlotPrompt({
     ...(params.ownPrompt ? { ownPrompt: params.ownPrompt } : {}),
@@ -492,7 +515,7 @@ export function buildV4AudioPayload(params: {
     ...(profile?.voiceId ? { voiceId: profile.voiceId } : {}),
     ...(profile?.speed === undefined ? {} : { speed: profile.speed }),
     ...(profile?.volume === undefined ? {} : { volume: profile.volume }),
-    ...(timbreUrl ? { timbreUrl } : {}),
+    ...(timbre ? { timbre } : {}),
     text,
   }
 }
@@ -528,6 +551,11 @@ export const V4_SLOT_ISSUE_IDS = {
   currentMissing: 'currentMissing',
   /** 当前版指向的素材已判失败。 */
   blockedSource: 'blockedSource',
+  /**
+   * 线连着、上游那张媒体卡却还没有产物（没出图 / 没上传）。⛔ 不静默跳过这条线照发
+   * ——那会出一张「没带首帧」的片子还照样扣钱（spec §1 第 15 条「不静默失败」）。
+   */
+  emptySource: 'emptySource',
 } as const
 
 export type V4SlotIssueId =
@@ -542,6 +570,9 @@ export interface V4SlotIssue {
    * 专属键 `StudioNode.v4.slotIssue.belowMin`（三语，带 `{slot}` 参数）。
    */
   readonly i18nKey?: string
+  /** `emptySource`：是哪张上游卡（点名用）。 */
+  readonly sourceNodeId?: string
+  readonly sourceName?: string
 }
 
 const SLOT_ISSUE_I18N: Record<V4SlotIssueId, string> = {
@@ -550,6 +581,7 @@ const SLOT_ISSUE_I18N: Record<V4SlotIssueId, string> = {
     'StudioNode.v4.connectRejected.blockedSource',
   [V4_SLOT_ISSUE_IDS.currentMissing]:
     'StudioNode.v4.connectRejected.blockedVersion',
+  [V4_SLOT_ISSUE_IDS.emptySource]: 'StudioNode.v4.preflight.slot.emptySource',
 }
 
 /**
@@ -595,6 +627,19 @@ export function validateV4Slots(
       })
     ) {
       add(spec.slot, V4_SLOT_ISSUE_IDS.blockedSource)
+    }
+    // 上游媒体卡还没有产物：装配层取不到 URL 会跳过它，所以要在这里点名拦下。
+    // ⚠ 只看媒体卡（文本走 `text` 槽，空正文本来就不进提示词，不算「缺产物」）。
+    for (const source of sources) {
+      if (source.node.data.kind === NODE_MEDIA_KIND_IDS.text) continue
+      if (readNodeUrl(source.node.data)) continue
+      issues.push({
+        slot: spec.slot,
+        issue: V4_SLOT_ISSUE_IDS.emptySource,
+        i18nKey: SLOT_ISSUE_I18N[V4_SLOT_ISSUE_IDS.emptySource],
+        sourceNodeId: source.node.id,
+        sourceName: source.node.data.name,
+      })
     }
     if (sources.length < spec.min) {
       add(spec.slot, V4_SLOT_ISSUE_IDS.belowMin)

@@ -50,6 +50,16 @@ describe('NodeFrame', () => {
     expect(onClose).toHaveBeenCalled()
   })
 
+  it('Esc 一次一层：框里的弹层 / 输入框已经吃掉这一下（preventDefault）→ 框不关', () => {
+    const { onClose } = setup()
+    const inner = screen.getByText('正文')
+    inner.addEventListener('keydown', (event) => event.preventDefault())
+    fireEvent.keyDown(inner, { key: 'Escape' })
+    expect(onClose).not.toHaveBeenCalled()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
   it('点框外收起，点框内不收', () => {
     const { onClose } = setup()
     fireEvent.pointerDown(screen.getByText('正文'))

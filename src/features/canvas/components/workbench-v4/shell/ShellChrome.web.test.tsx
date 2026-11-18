@@ -469,6 +469,20 @@ describe('ShellSidePanels · 液态开合', () => {
   })
 })
 
+/**
+ * 图标键三件套（任务 10）：有 aria-label、有悬停标签（Radix `TooltipTrigger` 在键上
+ * 留 `data-state`），且标签是 i18n key（本文件 `useTranslations` 桩成「原样回 key」，
+ * key 在三语里存不存在由 `src/i18n/completeness.test.ts` 的静态扫描兜）。
+ */
+function expectEveryIconButtonLabelled(root: HTMLElement) {
+  const buttons = Array.from(root.querySelectorAll('button'))
+  expect(buttons.length).toBeGreaterThan(0)
+  for (const button of buttons) {
+    expect(button.getAttribute('aria-label'), button.outerHTML).toBeTruthy()
+    expect(button.getAttribute('data-state'), button.outerHTML).not.toBeNull()
+  }
+}
+
 describe('加节点三条路 · 都落在同一份意图表上', () => {
   it('双击空白：五颗小图标（四类 + 上传），点即落卡', () => {
     const onAdd = vi.fn()
@@ -484,6 +498,7 @@ describe('加节点三条路 · 都落在同一份意图表上', () => {
     expect(
       screen.getByTestId('shell-quick-add').querySelectorAll('button'),
     ).toHaveLength(5)
+    expectEveryIconButtonLabelled(screen.getByTestId('shell-quick-add'))
     fireEvent.click(screen.getByTestId('shell-quick-add-image'))
     expect(onAdd).toHaveBeenCalledWith(CANVAS_ADD_INTENT_IDS.imageResult)
     fireEvent.click(screen.getByTestId('shell-quick-add-upload'))
@@ -582,6 +597,7 @@ describe('ShellBottomBar · 无加号', () => {
       onUndo: vi.fn(),
       onRedo: vi.fn(),
       onTidyLayout: vi.fn(),
+      onFitView: vi.fn(),
       activePanel,
       onTogglePanel: vi.fn(),
     }
@@ -602,8 +618,11 @@ describe('ShellBottomBar · 无加号', () => {
     expect(bar.querySelectorAll('button').length - deskEntries.length).toBe(8)
     expect(screen.queryByTestId('shell-bottom-cards')).toBeNull()
     expect(screen.queryByTestId('shell-bottom-desk-history')).toBeNull()
+    expectEveryIconButtonLabelled(bar)
     fireEvent.click(screen.getByTestId('shell-tool-select'))
-    expect(screen.getByTestId('shell-fit-view')).toBeTruthy()
+    // 「适应」走工作台传进来的同一个算式，⛔ 不再直接调 RF `fitView`。
+    fireEvent.click(screen.getByTestId('shell-fit-view'))
+    expect(props.onFitView).toHaveBeenCalledOnce()
     expect(props.onUndo).not.toHaveBeenCalled()
   })
 })

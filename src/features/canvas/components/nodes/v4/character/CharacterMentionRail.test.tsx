@@ -125,6 +125,45 @@ describe('参考轨上的 @她（画布用角色 ④ 第 2 片）', () => {
     expect((await openPicker())[1]!.hasAttribute('disabled')).toBe(true)
   })
 
+  it('好几套造型：点一套 = 换成那套主图（op 照旧走 set_character_picks）；格子跟着列那套', async () => {
+    const LIN = {
+      ...DENIA,
+      looks: [
+        ...DENIA.looks,
+        {
+          id: 'denia-q',
+          label: 'Q版',
+          isDefault: false,
+          tags: [],
+          referenceSlots: [
+            { id: 's_q', url: 'https://cdn/q.png', isPrimary: true },
+          ],
+        },
+      ],
+    } as unknown as CharacterCardRecord
+    const { onApplyOp } = renderRail({
+      mentions: [{ card: LIN, picks: [{ slotId: 's_q' }] }],
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'chipLabel:Denia/1' }))
+    const q = await screen.findByRole('button', { name: 'Q版' })
+    expect(q.getAttribute('aria-pressed')).toBe('true')
+    await waitFor(() =>
+      expect(
+        screen
+          .getAllByTestId('card-picker-image')[0]!
+          .querySelector('img')
+          ?.getAttribute('src'),
+      ).toBe('https://cdn/q.png'),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'default' }))
+    expect(onApplyOp).toHaveBeenCalledWith({
+      op: NODE_ASSISTANT_OP_V4_IDS.setCharacterPicks,
+      target: 'shot-1',
+      characterId: 'denia',
+      picks: [{ slotId: 's_main' }],
+    })
+  })
+
   it('上限没公布（null）：不卡、不写上限那一行', async () => {
     renderRail({ capacity: null, usedImages: 9 })
     expect((await openPicker())[1]!.hasAttribute('disabled')).toBe(false)

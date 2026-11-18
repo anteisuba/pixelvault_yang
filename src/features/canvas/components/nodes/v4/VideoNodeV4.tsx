@@ -261,6 +261,9 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
     uploadProgress,
     backfillMedia,
     overlays,
+    missingKey,
+    openKeySetup,
+    sendAdjustNote,
   } = useVideoComposer({
     id,
     videoData,
@@ -1292,6 +1295,17 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
                   </>
                 ) : null
               }
+              // 挂 / 摘参考换了端点、档被吸走：chip 已写发出去的值，这一行说为什么变。
+              slotRow={
+                sendAdjustNote ? (
+                  <p
+                    data-video-send-adjust
+                    className="px-1 text-2xs text-muted-foreground"
+                  >
+                    {sendAdjustNote}
+                  </p>
+                ) : null
+              }
               value={draft}
               onValueChange={setDraft}
               onSubmit={submitAsNewCard}
@@ -1302,7 +1316,13 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
                     blockedLabel: tPicker('pickChannel'),
                     onBlockedClick: channelGate.requestPick,
                   }
-                : {})}
+                : missingKey
+                  ? {
+                      // 缺 key：就地开 `QuickSetupDialog`（与图 / 声音卡同一份闸）。
+                      blockedLabel: t('image.send.needsKeyLabel'),
+                      onBlockedClick: openKeySetup,
+                    }
+                  : {})}
               generating={generating}
               onCancel={cancelGeneration}
               placeholder={

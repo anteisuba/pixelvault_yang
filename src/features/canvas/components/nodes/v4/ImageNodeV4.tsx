@@ -32,13 +32,6 @@ import { useTranslations } from 'next-intl'
 import { Spinner } from '@/components/ui/spinner'
 
 import { useModelChannelGate } from '@/hooks/use-model-channel-gate'
-import { isMissingKeyModelOption } from '@/hooks/use-split-model-options'
-import {
-  findModelChannelSiblings,
-  findRunnableSiblingChannel,
-  pickCheapestChannel,
-} from '@/lib/model-channel-fallback'
-import { useApiKeysContextOptional } from '@/contexts/api-keys-context'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Download,
@@ -80,7 +73,6 @@ import {
 import { renameStableNodeName } from '@/lib/node-display-name'
 import { shouldRetakeAsNewCard } from '@/lib/node-retake'
 import { pickDefaultModelOption } from '@/lib/pick-default-model-option'
-import { getTranslatedModelLabel } from '@/lib/model-options'
 import type { ImagePromptTemplateId } from '@/constants/image-prompt-templates'
 import { hasCapability } from '@/constants/provider-capabilities'
 import { isAiAdapterType } from '@/constants/providers'
@@ -149,7 +141,10 @@ import { CharacterMentionRail } from './character/CharacterMentionRail'
 import { useImagePromptMentions } from './image/use-image-prompt-mentions'
 import { cn } from '@/lib/utils'
 import { ModelPickerPopover } from '@/components/business/studio-shared/pickers/ModelPickerPopover'
-import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
+import { NodeKeySetupDialog, useNodeKeyGate } from './use-node-key-gate'
+import { clampImageSpecToModel } from '@/lib/spec-chip-model'
+import { readTextSegments } from '@/lib/node-slot-payload'
+import type { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { splitVersionOp, useNodeV4Canvas } from './NodeV4Context'
 import {
   forkRetake,
@@ -226,67 +221,19 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
     return source ? toNodeModelSelection(source) : undefined
   }, [modelOptions])
   const effectiveModel = imageData.model ?? defaultModel
-  // 缺 key 闸（Hard Rule 8）：名单回来、而这张卡的型号确定跑不起来 —— 发送键左边写
-  // 「先配 key」，点发送就地开 `QuickSetupDialog`，验证过才发。
-  const apiKeys = useApiKeysContextOptional()
-  const selectedOption = effectiveModel
-    ? modelOptions.find((option) => option.optionId === effectiveModel.optionId)
-    : undefined
-  const missingKey = selectedOption
-    ? isMissingKeyModelOption(
-        toStudioModelOption(selectedOption),
-        apiKeys?.hasLoaded ?? false,
-      )
-    : false
-  // 卡上那家没 key、同型号另一家配好了：发送键旁写「fal 没 key，改走 火山」，
-  // 点一下才切（owner 2026-10-15：⛔ 偷偷换厂商）。
-  const studioModelOptions = useMemo(
-    () => modelOptions.map(toStudioModelOption),
-    [modelOptions],
-  )
-  const channelFallback =
-    missingKey && selectedOption
-      ? findRunnableSiblingChannel(studioModelOptions, selectedOption.optionId)
-      : null
+  // 缺 key 闸（Hard Rule 8）：图 / 视频 / 声音三张卡同一份（`use-node-key-gate`）。
+  const keyGate = useNodeKeyGate({ modelOptions, effectiveModel })
+  /** 这一枪真发的比例 / 清晰度（按当前模型收档）—— chip、估价、发送三处同一份。 */
+  const sendSpec = clampImageSpecToModel({
+    adapterType: effectiveModel?.adapterType as AI_ADAPTER_TYPES | undefined,
+    modelId: effectiveModel?.modelId,
+    aspectRatio: imageData.params?.aspectRatio ?? null,
+    resolution: imageData.params?.resolution ?? null,
+  })
+  const { missingKey, channelFallback, openKeySetup } = keyGate
   const switchToFallback = () => {
-    const target = channelFallback
-      ? modelOptions.find(
-          (option) => option.optionId === channelFallback.fallback.channelId,
-        )
-      : undefined
-    if (target) canvas.onSetModel(id, toNodeModelSelection(target))
+    if (keyGate.fallbackModel) canvas.onSetModel(id, keyGate.fallbackModel)
   }
-  // 多厂商一家都没配：配 key 弹窗顶上让他挑配哪家，默认单价最低的那家。
-  const keySetupChoices = useMemo(() => {
-    if (!missingKey || !selectedOption || channelFallback) return null
-    const siblings = findModelChannelSiblings(
-      studioModelOptions,
-      selectedOption.optionId,
-    )
-    return siblings && siblings.channels.length > 1 ? siblings.channels : null
-  }, [missingKey, selectedOption, channelFallback, studioModelOptions])
-  const [keySetupOpen, setKeySetupOpen] = useState(false)
-  /** 弹窗里挑的那一家；null = 卡上那一家。 */
-  const [keySetupChannelId, setKeySetupChannelId] = useState<string | null>(
-    null,
-  )
-  const keySetupOption = (() => {
-    if (!selectedOption) return undefined
-    const channelId =
-      keySetupChannelId ??
-      (keySetupChoices
-        ? pickCheapestChannel(keySetupChoices)?.channelId
-        : undefined)
-    return (
-      modelOptions.find((option) => option.optionId === channelId) ??
-      selectedOption
-    )
-  })()
-  const openKeySetup = () => {
-    setKeySetupChannelId(null)
-    setKeySetupOpen(true)
-  }
-  const tModels = useTranslations('Models')
   // 「先搜再画」跟卡存（`params.searchGrounding`），只对支持的型号出现。
   const searchGroundingAvailable = Boolean(
     effectiveModel?.modelId && supportsSearchGrounding(effectiveModel.modelId),
@@ -684,6 +631,12 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
 
   /** 这一枪发几张（模板钉死）—— 发送读数与 `submitPrompt` 同一个数。 */
   const submitCount = imageSubmitCount(imageData.params ?? {})
+  /** 估价口径（与工作台同一个算式，`imageCostEstimate` → `estimateGenerationCost`）。 */
+  const costParams = {
+    ...(imageData.params?.quality ? { quality: imageData.params.quality } : {}),
+    ...(sendSpec.aspectRatio ? { aspectRatio: sendSpec.aspectRatio } : {}),
+    ...(sendSpec.resolution ? { resolution: sendSpec.resolution } : {}),
+  }
   const promptTemplate = imageData.params?.promptTemplate
   /** `/` 模板挂上 / 摘掉（§3）：存在卡的参数上，⛔ 模板文本进正文。 */
   const setPromptTemplate = (next: ImagePromptTemplateId | undefined) => {
@@ -740,6 +693,23 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
   ) : null
 
   /**
+   * 这一枪有没有东西可发：自己的正文，或连进来的剧本 / 角色 / 风格文本（G4 把它们拼进
+   * 提示词）。⚠ 助手铺的镜头图常常自己没写字、正文全在上游剧本里 —— 只看草稿时这种卡
+   * 用 ⌘↵ 能发、失败后却没有「重试」（owner 2026-11-18）。
+   */
+  const upstreamText = node
+    ? readTextSegments(node, canvas.edges, canvas.nodes)
+    : undefined
+  const canSend =
+    draft.trim().length > 0 ||
+    Boolean(
+      upstreamText &&
+      (upstreamText.script ||
+        upstreamText.character.length > 0 ||
+        upstreamText.style.length > 0),
+    )
+
+  /**
    * `keyVerified`：刚在 `QuickSetupDialog` 里配好 key —— 渲染闭包里的 `missingKey`
    * 还没刷新。`model`：弹窗里换了一家，这一枪走那一家（闭包里的还是旧的）。
    * `inPlace`：失败卡上的「重试」—— 补的是这张卡没出成的那一枪，⛔ 另长新卡。
@@ -751,7 +721,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
       readonly inPlace?: boolean
     } = {},
   ) => {
-    if (draft.trim().length === 0 || generating) return
+    if (!canSend || generating) return
     if (missingKey && !options.keyVerified) {
       openKeySetup()
       return
@@ -931,7 +901,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
   ]
 
   // 失败就地说（加载态 A · owner「画布与工作台都就地说」）：线停住变灰，中间一句
-  // 原因 +「重试」—— ⛔ 红框。草稿是空的就不给重试键（发不出去的键 = 死按钮）。
+  // 原因 +「重试」—— ⛔ 红框。没东西可发（`canSend` 假）就不给重试键（发不出去的键 = 死按钮）。
   // ⚠ 条件用这个布尔；带重试回调的那个对象只在传给进度层时现拼（回调读 ref，
   //   ⛔ 拿它当渲染期的判断条件）。
   const failed = Boolean(
@@ -1131,7 +1101,8 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
                       }),
                       shortMessage: t('statuses.failed'),
                       retryLabel: tImage('rail.retry'),
-                      ...(draft.trim()
+                      // 能发就给重试（与发送同一个判据 `canSend`）。
+                      ...(canSend
                         ? { onRetry: () => submitPrompt({ inPlace: true }) }
                         : {}),
                     }
@@ -1384,9 +1355,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
                 : {})}
             readout={
               <ImageSendReadout
-                unit={imageCostEstimate(effectiveModel?.modelId, {
-                  quality: imageData.params?.quality,
-                })}
+                unit={imageCostEstimate(effectiveModel?.modelId, costParams)}
                 count={submitCount}
                 missingKey={missingKey}
                 onSetupKey={openKeySetup}
@@ -1397,7 +1366,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
                         to: channelFallback.fallback.label,
                         unit: imageCostEstimate(
                           channelFallback.fallback.option.modelId,
-                          { quality: imageData.params?.quality },
+                          costParams,
                         ),
                       },
                       onSwitch: switchToFallback,
@@ -1479,44 +1448,17 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
         }}
       />
       {acceptsRefs ? refs.overlays : null}
-      {keySetupOpen && keySetupOption ? (
-        <QuickSetupDialog
-          open
-          onOpenChange={(next) => {
-            if (!next) setKeySetupOpen(false)
-          }}
-          modelId={keySetupOption.modelId}
-          modelLabel={getTranslatedModelLabel(tModels, keySetupOption.modelId)}
-          adapterType={keySetupOption.adapterType}
-          optionId={keySetupOption.optionId}
-          selectStudioModel={false}
-          {...(keySetupChoices
-            ? {
-                channelChoices: keySetupChoices.map((channel) => {
-                  const unit = imageCostEstimate(channel.option.modelId)
-                  return {
-                    id: channel.channelId,
-                    label: channel.label,
-                    price: unit === null ? null : formatUnitPriceAmount(unit),
-                  }
-                }),
-                channelId: keySetupOption.optionId,
-                onChannelChange: setKeySetupChannelId,
-              }
-            : {})}
-          // 验证过就把这一枪发出去 —— 用户点的是「发送」，配 key 只是半路的一步。
-          // 弹窗里换了一家：这一枪走那一家，卡也落到那一家。
-          onVerified={() => {
-            setKeySetupOpen(false)
-            submitPrompt({
-              keyVerified: true,
-              ...(keySetupOption.optionId !== selectedOption?.optionId
-                ? { model: toNodeModelSelection(keySetupOption) }
-                : {}),
-            })
-          }}
-        />
-      ) : null}
+      <NodeKeySetupDialog
+        gate={keyGate}
+        // 验证过就把这一枪发出去；弹窗里换了一家：这一枪走那一家，卡也落到那一家。
+        onVerified={(model) =>
+          submitPrompt({ keyVerified: true, ...(model ? { model } : {}) })
+        }
+        priceOf={(modelId) => {
+          const unit = imageCostEstimate(modelId, costParams)
+          return unit === null ? null : formatUnitPriceAmount(unit)
+        }}
+      />
 
       <AnimatePresence>
         {expanded && imageData.url && !media.problem ? (

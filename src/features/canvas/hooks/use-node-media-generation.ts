@@ -99,6 +99,8 @@ interface NodeMediaGenerationInput {
    */
   characterCardIds?: string[]
   characterImagePicks?: Record<string, CharacterImagePick[]>
+  /** 每位用哪套造型（缺 = 默认造型）。 */
+  characterLookIds?: Record<string, string>
 }
 
 type NodeMediaGenerationResult =
@@ -189,6 +191,9 @@ export function useNodeMediaGeneration(): UseNodeMediaGenerationValue {
             ...(input.characterImagePicks
               ? { characterImagePicks: input.characterImagePicks }
               : {}),
+            ...(input.characterLookIds
+              ? { characterLookIds: input.characterLookIds }
+              : {}),
           })
 
           if (!response.success || !response.data) {
@@ -238,6 +243,9 @@ export function useNodeMediaGeneration(): UseNodeMediaGenerationValue {
               : {}),
             ...(input.characterImagePicks
               ? { characterImagePicks: input.characterImagePicks }
+              : {}),
+            ...(input.characterLookIds
+              ? { characterLookIds: input.characterLookIds }
               : {}),
           })
 

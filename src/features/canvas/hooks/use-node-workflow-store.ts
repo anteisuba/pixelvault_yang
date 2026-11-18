@@ -44,6 +44,7 @@ import {
 } from '@/lib/api-client'
 import { logger } from '@/lib/logger'
 import { mergeAdoptedProjects } from '@/lib/node-workflow-adopt-merge'
+import { findNodeWorkflowSaveIssue } from '@/lib/node-workflow-save-check'
 import { migrateRetireFusedNodes } from '@/lib/node-workflow-migrate-fused-nodes'
 import { migrateRetirePlanner } from '@/lib/node-workflow-migrate-planner'
 import { migrateImageRoles } from '@/lib/node-workflow-migrate-image-roles'
@@ -84,6 +85,8 @@ export const SERVER_WRITE_DEBOUNCE_MS = 5000
 
 /** 保存冲突那条常驻提示的 id 前缀（按项目一条，重复叫只刷新不叠加）。 */
 const CONFLICT_TOAST_ID_PREFIX = 'node-workflow-conflict:'
+/** 「新画布还没存到云端」那条常驻提示的 id 前缀（每个项目一条，建成即撤）。 */
+const CREATE_TOAST_ID_PREFIX = 'node-workflow-create:'
 
 /**
  * Which server call failed. Only ever a log field, but named here so the
@@ -793,6 +796,16 @@ export function useNodeWorkflowStore({
    * 都留着，不合并。
    */
   const serverConfirmedProjectIds = useRef<Set<string>>(new Set())
+  /**
+   * 本会话**本地新建**、服务端还没有行的项目（建的时候服务端还没水化 / 建行失败）。
+   * 水化完成后补建；失败弹带「重试」的提示（owner 2026-11-18）。⚠ 只收本会话亲手
+   * 新建的 id —— 本地独有的旧项目多半是别处删掉的残留，⛔ 不替它们补建（那会把删掉
+   * 的画布复活），也 ⛔ 不碰存量项目的写入闸（`serverConfirmedProjectIds`）。
+   */
+  const pendingServerCreateIds = useRef<Set<string>>(new Set())
+  /** 正在建行的本地 id —— 补建与「重试」撞在一起时 ⛔ 不发第二个 POST。 */
+  const creatingProjectIds = useRef<Set<string>>(new Set())
+  const retryPendingCreatesRef = useRef<() => void>(() => {})
   /** 「未确认所以跳过写入」每个项目只警告一次。 */
   const warnedUnconfirmedProjectIds = useRef<Set<string>>(new Set())
   /** 「这个项目的空，是用户自己删空的」。服务端的空覆盖闸靠它放行。 */
@@ -883,6 +896,8 @@ export function useNodeWorkflowStore({
     hasServerMigrationAttempted.current = false
     // 换账号 = 换一整套项目 id。
     serverConfirmedProjectIds.current = new Set()
+    pendingServerCreateIds.current = new Set()
+    creatingProjectIds.current = new Set()
     warnedUnconfirmedProjectIds.current = new Set()
     locallyClearedProjectIds.current = new Set()
     editedBeforeServerHydration.current = new Set()
@@ -1069,6 +1084,10 @@ export function useNodeWorkflowStore({
 
         // ⚠ 只在**整批**都上去了之后才做下面那步替换。
         if (!migrationFailed) {
+          // 迁移已经把本地每个项目都建了一遍 —— 待补建的那几个 ⛔ 不再建第二次。
+          for (const project of localSnapshot.projects) {
+            pendingServerCreateIds.current.delete(project.id)
+          }
           const refetch = await listNodeWorkflowProjectsAPI()
           if (cancelled) return
           if (refetch.success && refetch.data && refetch.data.length > 0) {
@@ -1104,6 +1123,46 @@ export function useNodeWorkflowStore({
   const writeChainRef = useRef<Map<string, Promise<boolean>>>(new Map())
 
   /**
+   * 发出去之前先用服务端同一份 schema 过一遍（`findNodeWorkflowSaveIssue`）：不合规就
+   * **不发**，toast 点名哪张卡哪个字段。同一处问题只说一次（自动保存每 5s 一枪，⛔ 不
+   * 每枪弹一次）；问题消失后清掉，下次再出问题照常说。
+   */
+  const reportedSaveIssueRef = useRef<string | null>(null)
+  const checkStateBeforeSave = useCallback(
+    (projectId: string, state: NodeWorkflowStateV4): boolean => {
+      const issue = findNodeWorkflowSaveIssue(state)
+      if (!issue) {
+        reportedSaveIssueRef.current = null
+        return true
+      }
+      const signature = `${projectId}:${issue.nodeId ?? ''}:${issue.field}`
+      logger.warn('[node-workflow] skipped server write: state fails schema', {
+        projectId,
+        ...issue,
+      })
+      if (reportedSaveIssueRef.current === signature) return false
+      reportedSaveIssueRef.current = signature
+      const t = tToastsRef.current
+      toast.error(
+        issue.nodeId === undefined
+          ? t('cloudSaveInvalidProject', { field: issue.field })
+          : issue.maximum === undefined
+            ? t('cloudSaveInvalidNode', {
+                name: issue.nodeName ?? issue.nodeId,
+                field: issue.field,
+              })
+            : t('cloudSaveInvalidNodeTooLong', {
+                name: issue.nodeName ?? issue.nodeId,
+                field: issue.field,
+                maximum: issue.maximum,
+              }),
+      )
+      return false
+    },
+    [],
+  )
+
+  /**
    * 把一个项目的 state 写回服务端 —— 自动保存与「立即保存」共用这一条（⛔ 不留第二条
    * 不带版本号的写法）。成功：记下新版本与这一份 state；409：别处改过 → 停写、让用户选。
    */
@@ -1112,6 +1171,7 @@ export function useNodeWorkflowStore({
       const send = async (): Promise<boolean> => {
         // 排队期间可能已经判了冲突 / 只读：⛔ 那之后一个字都不写。
         if (readOnlyRef.current[projectId]) return false
+        if (!checkStateBeforeSave(projectId, state)) return false
         const baseUpdatedAt = serverVersionRef.current.get(projectId)
         pendingWritesRef.current += 1
         setPendingServerWrites((count) => count + 1)
@@ -1148,7 +1208,7 @@ export function useNodeWorkflowStore({
       writeChainRef.current.set(projectId, next)
       return next
     },
-    [reportServerWriteFailure],
+    [checkStateBeforeSave, reportServerWriteFailure],
   )
 
   // Debounced server write — pushes the CURRENT project's state up every
@@ -1236,19 +1296,39 @@ export function useNodeWorkflowStore({
    */
   const createProjectOnServer = useCallback(
     (project: NodeWorkflowProjectV4) => {
+      if (creatingProjectIds.current.has(project.id)) return
+      creatingProjectIds.current.add(project.id)
+      const toastId = `${CREATE_TOAST_ID_PREFIX}${project.id}`
       void createNodeWorkflowProjectAPI({
         name: project.name,
         state: project.state,
       }).then((response) => {
+        creatingProjectIds.current.delete(project.id)
         if (!response.success || !response.data) {
-          reportServerWriteFailure(
-            SERVER_WRITE_OPERATIONS.create,
-            response.error,
-            response.status,
+          logger.error('[node-workflow] server persist failed', {
+            operation: SERVER_WRITE_OPERATIONS.create,
+            error: response.error,
+            status: response.status,
+          })
+          // 留着等补建；每个项目一条常驻提示（同 id 覆盖），点「重试」再建一次。
+          pendingServerCreateIds.current.add(project.id)
+          toast.error(
+            tToastsRef.current('cloudCreateFailed', { name: project.name }),
+            {
+              id: toastId,
+              duration: Number.POSITIVE_INFINITY,
+              // 服务端原话只进日志（上面那条 logger），⛔ 不进 toast。
+              action: {
+                label: tToastsRef.current('cloudCreateRetry'),
+                onClick: () => retryPendingCreatesRef.current(),
+              },
+            },
           )
           return
         }
 
+        pendingServerCreateIds.current.delete(project.id)
+        toast.dismiss(toastId)
         const serverId = response.data.id
         serverConfirmedProjectIds.current.add(serverId)
         serverVersionRef.current.set(serverId, response.data.updatedAt)
@@ -1267,7 +1347,7 @@ export function useNodeWorkflowStore({
         }))
       })
     },
-    [reportServerWriteFailure, setWorkflowStorage],
+    [setWorkflowStorage],
   )
 
   const createProject = useCallback(
@@ -1285,6 +1365,10 @@ export function useNodeWorkflowStore({
 
       if (canCallServerNow()) {
         createProjectOnServer(project)
+      } else {
+        // 服务端还没水化：先记下，水化完成后补建（⚠ 以前这里什么都不做，这个项目
+        // 永远只在本地，写入闸又只放行服务端确认过的 id —— 改动一个字都存不上去）。
+        pendingServerCreateIds.current.add(project.id)
       }
 
       return project.id
@@ -1296,6 +1380,29 @@ export function useNodeWorkflowStore({
       setWorkflowStorage,
     ],
   )
+
+  /**
+   * 补建：把待建的本地项目按**当前**那份 state 建行。项目已被删 / 已确认的直接划掉。
+   * 水化完成时自动跑一次；建行失败的提示里「重试」也走这里。
+   */
+  const flushPendingServerCreates = useCallback(() => {
+    if (!canCallServerNow()) return
+    for (const id of [...pendingServerCreateIds.current]) {
+      const project = storageRef.current.projects.find((p) => p.id === id)
+      if (!project || serverConfirmedProjectIds.current.has(id)) {
+        pendingServerCreateIds.current.delete(id)
+        continue
+      }
+      createProjectOnServer(project)
+    }
+  }, [canCallServerNow, createProjectOnServer])
+  useEffect(() => {
+    retryPendingCreatesRef.current = flushPendingServerCreates
+  }, [flushPendingServerCreates])
+  useEffect(() => {
+    if (!isHydrated) return
+    flushPendingServerCreates()
+  }, [flushPendingServerCreates, isHydrated])
 
   const duplicateProject = useCallback(
     (id: string, name: string): string | null => {
@@ -1318,6 +1425,9 @@ export function useNodeWorkflowStore({
 
       if (canCallServerNow()) {
         createProjectOnServer(project)
+      } else {
+        // 同 `createProject`：水化前复制出来的项目也等水化后补建。
+        pendingServerCreateIds.current.add(project.id)
       }
 
       return project.id

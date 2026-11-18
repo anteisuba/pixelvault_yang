@@ -93,7 +93,7 @@ const refClip = node('clip', {
 })
 const script = node('t-script', {
   kind: 'text',
-  subtype: 'shotNote',
+  subtype: 'script',
   body: '她回头',
   defaultRole: 'script',
 })
@@ -105,7 +105,7 @@ const style = node('t-style', {
 })
 const characterText = node('t-char', {
   kind: 'text',
-  subtype: 'shotNote',
+  subtype: 'script',
   body: '阿岚：短发',
   defaultRole: 'character',
 })
@@ -414,6 +414,7 @@ describe('buildV4ImagePayload / buildV4AudioPayload / buildV4MergeClipUrls', () 
       kind: 'audio',
       subtype: 'voice',
       url: 'https://cdn/timbre.mp3',
+      prompt: '[强·愤怒]我还在这里',
     })
     const payload = buildV4AudioPayload({
       nodeId: 'v-out',
@@ -423,8 +424,28 @@ describe('buildV4ImagePayload / buildV4AudioPayload / buildV4MergeClipUrls', () 
         edge('b', 'timbre', 'v-out', NODE_SLOT_IDS.timbre),
       ],
     })
-    expect(payload.timbreUrl).toBe('https://cdn/timbre.mp3')
+    // 原文 = 供体台词去掉语气标记（Fish 克隆要音频与原文成对）。
+    expect(payload.timbre).toEqual({
+      url: 'https://cdn/timbre.mp3',
+      name: timbre.data.name,
+      transcript: '我还在这里',
+    })
     expect(payload.prompt).toBe('她回头')
+  })
+
+  it('音：音色供体没有台词时不编原文', () => {
+    const voiceNode = node('v-out', { kind: 'audio', subtype: 'voice' })
+    const timbre = node('timbre', {
+      kind: 'audio',
+      subtype: 'voice',
+      url: 'https://cdn/timbre.mp3',
+    })
+    const payload = buildV4AudioPayload({
+      nodeId: 'v-out',
+      nodes: [voiceNode, timbre],
+      edges: [edge('b', 'timbre', 'v-out', NODE_SLOT_IDS.timbre)],
+    })
+    expect(payload.timbre?.transcript).toBeUndefined()
   })
 
   it('音：行内语气标记在装配层编译，音色与 prosody 一起出（S5）', () => {
@@ -554,5 +575,95 @@ describe('validateV4Slots · 缺槽的说法', () => {
 
   it('填满的镜头没有任何问题', () => {
     expect(validateV4Slots(shot, edges, nodes)).toEqual([])
+  })
+
+  it('首帧连了一张还没出图的卡 → emptySource，点名是哪张卡、哪个口', () => {
+    const blank = node('blank', {
+      kind: 'image',
+      subtype: 'shot',
+      name: '空镜 3',
+    })
+    const issues = validateV4Slots(
+      shot,
+      [edge('e1', 'blank', 'shot', NODE_SLOT_IDS.firstFrame)],
+      [blank, shot],
+    )
+    expect(issues).toEqual([
+      {
+        slot: NODE_SLOT_IDS.firstFrame,
+        issue: V4_SLOT_ISSUE_IDS.emptySource,
+        i18nKey: 'StudioNode.v4.preflight.slot.emptySource',
+        sourceNodeId: 'blank',
+        sourceName: '空镜 3',
+      },
+    ])
+  })
+
+  it('备注（text.shotNote）连进文本口：照样连着，但一个字都不进提示词', () => {
+    const note = node('t-note', {
+      kind: 'text',
+      subtype: 'shotNote',
+      body: '记得问导演要不要下雨',
+      defaultRole: 'script',
+    })
+    const noteEdges = [edge('e1', 't-note', 'shot', NODE_SLOT_IDS.text)]
+    const payload = buildV4VideoPayload({
+      nodeId: 'shot',
+      nodes: [note, shot],
+      edges: noteEdges,
+      ownPrompt: '她回头',
+    })
+    expect(payload.prompt).toBe('她回头')
+    expect(payload.text).toEqual({ style: [], character: [] })
+    expect(validateV4Slots(shot, noteEdges, [note, shot])).toEqual([])
+  })
+
+  it('图片卡 / 语音卡文本口按角色分开算：剧本 + 两条规则全都生效，顺序同视频卡', () => {
+    const img = node('img', { kind: 'image', subtype: 'shot' })
+    const voice = node('voice', { kind: 'audio', subtype: 'voice' })
+    const rule2 = node('t-rule2', {
+      kind: 'text',
+      subtype: 'rule',
+      body: '冷色调',
+    })
+    for (const target of [img, voice]) {
+      const graph = [script, style, rule2, target]
+      const wires = [
+        edge('e1', 't-script', target.id, NODE_SLOT_IDS.text),
+        edge('e2', 't-style', target.id, NODE_SLOT_IDS.text),
+        edge('e3', 't-rule2', target.id, NODE_SLOT_IDS.text),
+      ]
+      expect(readTextSegments(target, wires, graph)).toEqual({
+        script: '她回头',
+        style: ['胶片颗粒', '冷色调'],
+        character: [],
+      })
+    }
+    const imagePayload = buildV4ImagePayload({
+      nodeId: 'img',
+      nodes: [script, style, rule2, img],
+      edges: [
+        edge('e1', 't-script', 'img', NODE_SLOT_IDS.text),
+        edge('e2', 't-style', 'img', NODE_SLOT_IDS.text),
+        edge('e3', 't-rule2', 'img', NODE_SLOT_IDS.text),
+      ],
+      ownPrompt: '近景',
+    })
+    expect(imagePayload.prompt).toBe('她回头\n\n近景\n\n胶片颗粒\n\n冷色调')
+  })
+
+  it('空文本卡连进文本口不算缺产物（空正文本来就不进提示词）', () => {
+    const emptyText = node('t-empty', {
+      kind: 'text',
+      subtype: 'script',
+      body: '',
+    })
+    expect(
+      validateV4Slots(
+        shot,
+        [edge('e1', 't-empty', 'shot', NODE_SLOT_IDS.text)],
+        [emptyText, shot],
+      ),
+    ).toEqual([])
   })
 })

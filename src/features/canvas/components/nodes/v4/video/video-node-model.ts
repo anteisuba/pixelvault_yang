@@ -10,11 +10,10 @@
  * 时弹层不会莫名变矮一截，用户看得见「这个模型没有 4K」。
  */
 
-import {
-  formatUnitPriceAmount,
-  getVideoUnitPricePerSecond,
-} from '@/constants/models/unit-prices'
+import { formatUnitPriceAmount } from '@/constants/models/unit-prices'
+import { estimateGenerationCost } from '@/lib/generation-cost'
 import { getModelById } from '@/constants/models'
+import { VIDEO_GENERATION } from '@/constants/config'
 import { getVideoModelSendContract } from '@/constants/video-model-send-plan'
 import {
   getVideoModelCapabilities,
@@ -100,34 +99,74 @@ export function videoSupportsGeneratedAudio(
 }
 
 /**
- * 新卡的默认参数（画板：参数 chip 永不为空）。
- *
- * 时长取模型能力表首档，比例优先 `16:9`，清晰度优先模型声明的默认档。
- * 未声明默认清晰度时优先 `720p`，模型没有该档时退到能力表首档。
+ * 新卡的默认参数 —— 与视频工作台**同一份来源**（owner 2026-11-18）：
+ * - 时长 `VIDEO_GENERATION.DEFAULT_DURATION`（5s），吸到模型自己的档上；
+ * - 比例 `VIDEO_GENERATION.DEFAULT_ASPECT_RATIO`，模型没有就退到能力表首档；
+ * - 清晰度：工作台不发（`videoResolution: null`），服务端落到目录的
+ *   `videoDefaults.resolution`（`generate-video.service`）。卡上写的就是那一档 ——
+ *   目录没声明就**不填**，chip 不编一个服务端不会用的档；
+ * - 声音：工作台没设过 = 目录 `videoDefaults.generateAudio ?? true`（
+ *   `use-studio-video-audio`）。卡上开关显示什么就发什么 —— 之前显示「关」、请求里
+ *   却不带这个字段（服务端按目录默认出声），开关与结果相反。只给发得出这个字段的端点填。
  */
 export function videoDefaultParams(
   modelId: string | undefined,
 ): NodeV4GenerationParams {
   if (!modelId) return {}
   const capabilities = getVideoModelCapabilities(modelId)
-  const durations = [...(capabilities.supportedDurations ?? [])].sort(
-    (a, b) => a - b,
-  )
   const ratios = capabilities.supportedAspectRatios ?? []
   const resolutions = capabilities.supportedResolutions ?? []
-  const pick = (preferred: string, all: readonly string[]) =>
-    all.includes(preferred) ? preferred : all[0]
-  const duration = durations[0]
-  const aspectRatio = pick('16:9', ratios)
-  const resolution = pick(
-    getModelById(modelId)?.videoDefaults?.resolution ?? '720p',
-    resolutions,
+  const catalog = getModelById(modelId)?.videoDefaults
+  const duration = snapVideoDuration(modelId, VIDEO_GENERATION.DEFAULT_DURATION)
+  const aspectRatio = (ratios as readonly string[]).includes(
+    VIDEO_GENERATION.DEFAULT_ASPECT_RATIO,
   )
+    ? VIDEO_GENERATION.DEFAULT_ASPECT_RATIO
+    : ratios[0]
+  const resolution = catalog?.resolution
+    ? resolutions.length === 0 ||
+      (resolutions as readonly string[]).includes(catalog.resolution)
+      ? catalog.resolution
+      : snapVideoResolution(modelId, catalog.resolution as VideoResolution)
+    : undefined
   return {
-    ...(duration === undefined ? {} : { duration: String(duration) }),
+    duration: String(duration),
     ...(aspectRatio ? { aspectRatio } : {}),
     ...(resolution ? { resolution } : {}),
+    ...(videoSupportsGeneratedAudio(modelId)
+      ? { generateAudio: catalog?.generateAudio ?? true }
+      : {}),
   }
+}
+
+/**
+ * 挂 / 摘参考让这一枪换了端点（关键帧 ↔ 参考变体），两个端点的档位表不同 → 时长 /
+ * 清晰度被吸到了别的档。返回卡上那一行说明里的变化（`5s → 4s · 720p → 1080p`）；
+ * 没变就 `null`。chip 上写的已经是 `sent` 那一份 —— 这一行只解释「为什么变了」。
+ */
+export function describeVideoSendAdjust(
+  picked: NodeV4GenerationParams,
+  sent: NodeV4GenerationParams,
+): string | null {
+  const changes: string[] = []
+  if (picked.duration && sent.duration && picked.duration !== sent.duration) {
+    changes.push(`${picked.duration}s → ${sent.duration}s`)
+  }
+  if (
+    picked.resolution &&
+    sent.resolution &&
+    picked.resolution !== sent.resolution
+  ) {
+    changes.push(`${picked.resolution} → ${sent.resolution}`)
+  }
+  if (
+    picked.aspectRatio &&
+    sent.aspectRatio &&
+    picked.aspectRatio !== sent.aspectRatio
+  ) {
+    changes.push(`${picked.aspectRatio} → ${sent.aspectRatio}`)
+  }
+  return changes.length > 0 ? changes.join(' · ') : null
 }
 
 /** 存量卡上缺的档补上默认 —— 显示与发送读的是同一份。 */
@@ -249,6 +288,7 @@ function parseAspectRatio(value: string | undefined): [number, number] | null {
 /**
  * 这一次大概花多少：**每秒单价 × 时长**。
  *
+ * 与工作台、助手确认卡同一个算式（`estimateGenerationCost`）。
  * ⚠ 每秒单价按**用户选中的那一档清晰度**取（`getVideoUnitPricePerSecond`）——
  * 没核实过的档它返回 null，这里就跟着返回 null，⛔ 不拿 720p 的数去顶 1080p
  * （那会把 Seedance 2.0 说便宜 2.25 倍）。这是**估价**不是账单：真正扣多少由服务端
@@ -261,8 +301,12 @@ export function videoCostEstimate(
   const seconds = readDurationSeconds(params)
   const resolution = readResolution(params)
   if (!modelId || seconds === null || resolution === null) return null
-  const perSecond = getVideoUnitPricePerSecond(modelId, resolution)
-  return perSecond === null ? null : perSecond * seconds
+  const estimate = estimateGenerationCost([{ modelId }], {
+    kind: 'video',
+    durationSeconds: seconds,
+    resolution,
+  })
+  return estimate.pricedCount === 1 ? estimate.total : null
 }
 
 /**

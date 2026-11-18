@@ -175,11 +175,21 @@ const TEXT_SOURCE_SLOT: NodeSlotSpec = {
   sourceKinds: ANY_KIND,
 }
 
-const SINGLE_TEXT_SLOT: NodeSlotSpec = {
+/**
+ * 文本口——四类会生成的卡**同一份**（owner 2026-11-18）：剧本 0..1、风格（规则）与
+ * 角色描述 0..N，按角色分开算容量。⚠ 以前图片 / 音频卡用的是容量 1 的轮播口，
+ * 连了「剧本」再连「规则」只有当前那条生效、另一条静默不发。
+ */
+const TEXT_SLOT: NodeSlotSpec = {
   slot: NODE_SLOT_IDS.text,
   min: 0,
-  max: 1,
+  max: null,
   sourceKinds: [NODE_MEDIA_KIND_IDS.text],
+  byRole: {
+    [NODE_SLOT_TEXT_ROLE_IDS.script]: { min: 0, max: 1 },
+    [NODE_SLOT_TEXT_ROLE_IDS.style]: { min: 0, max: null },
+    [NODE_SLOT_TEXT_ROLE_IDS.character]: { min: 0, max: null },
+  },
 }
 
 const IMAGE_REFERENCE_SLOT: NodeSlotSpec = {
@@ -202,7 +212,7 @@ export interface NodeV4PortSpec {
 }
 
 const IMAGE_GENERATED_PORTS: NodeV4PortSpec = {
-  inputs: [IMAGE_REFERENCE_SLOT, SINGLE_TEXT_SLOT],
+  inputs: [IMAGE_REFERENCE_SLOT, TEXT_SLOT],
   outputs: [NODE_SLOT_OUTPUT_IDS.out],
 }
 
@@ -245,17 +255,7 @@ const VIDEO_V4_PORTS = {
       max: null,
       sourceKinds: [NODE_MEDIA_KIND_IDS.audio],
     },
-    {
-      slot: NODE_SLOT_IDS.text,
-      min: 0,
-      max: null,
-      sourceKinds: [NODE_MEDIA_KIND_IDS.text],
-      byRole: {
-        [NODE_SLOT_TEXT_ROLE_IDS.script]: { min: 0, max: 1 },
-        [NODE_SLOT_TEXT_ROLE_IDS.style]: { min: 0, max: null },
-        [NODE_SLOT_TEXT_ROLE_IDS.character]: { min: 0, max: null },
-      },
-    },
+    TEXT_SLOT,
   ],
   outputs: [NODE_SLOT_OUTPUT_IDS.out, NODE_SLOT_OUTPUT_IDS.tailFrame],
 } as const satisfies NodeV4PortSpec
@@ -288,7 +288,7 @@ export const NODE_V4_PORTS = {
         max: null,
         sourceKinds: [NODE_MEDIA_KIND_IDS.audio],
       },
-      SINGLE_TEXT_SLOT,
+      TEXT_SLOT,
     ],
     outputs: [NODE_SLOT_OUTPUT_IDS.out],
   },
@@ -305,7 +305,7 @@ export const NODE_V4_PORTS = {
 
   [`${NODE_MEDIA_KIND_IDS.audio}.${NODE_V4_AUDIO_SUBTYPE_IDS.voice}`]: {
     inputs: [
-      SINGLE_TEXT_SLOT,
+      TEXT_SLOT,
       {
         slot: NODE_SLOT_IDS.timbre,
         min: 0,
@@ -316,7 +316,7 @@ export const NODE_V4_PORTS = {
     outputs: [NODE_SLOT_OUTPUT_IDS.out],
   },
   [`${NODE_MEDIA_KIND_IDS.audio}.${NODE_V4_AUDIO_SUBTYPE_IDS.ambience}`]: {
-    inputs: [SINGLE_TEXT_SLOT],
+    inputs: [TEXT_SLOT],
     outputs: [NODE_SLOT_OUTPUT_IDS.out],
   },
 

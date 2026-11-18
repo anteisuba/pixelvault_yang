@@ -142,6 +142,107 @@ function nearestFreeRow(
 }
 
 /**
+ * **手动加卡落位**：＋菜单 / 双击 / 右键 / ⌘K / 键盘 T·I·A·V 指了一个点（左上角），
+ * 那里空着就落那里；压到别的卡就从这一列往下、往右几列找最近的空位（与 `placeNewCards`
+ * 同一套 `nearestFreeRow`）。⚠ 以前直接落在指的点上，连点两次加号两张卡叠成一张。
+ *
+ * 纯函数：`occupied` 是图上已有卡的占位，尺寸由调用方量好。
+ */
+export function placeNearPoint(
+  occupied: readonly FlowLayoutRect[],
+  point: { readonly x: number; readonly y: number },
+  sizes: readonly FlowLayoutSize[],
+): { readonly x: number; readonly y: number }[] {
+  if (sizes.length === 0) return []
+  const gap = NODE_V4_CARD.derivedGap
+  // 锚点是一条贴在指定点左边 `gap` 处的零宽线 —— `placeRowBeside` 往它右边 `gap` 落，
+  // 不撞就恰好落在指的点上。
+  return nearestFreeRow(
+    occupied,
+    { x: point.x - gap, y: point.y, width: 0, height: 0 },
+    sizes,
+    'right',
+  )
+}
+
+/** 画布坐标里的一块区域（左上 / 右下）。 */
+export interface FlowLayoutArea {
+  readonly left: number
+  readonly top: number
+  readonly right: number
+  readonly bottom: number
+}
+
+export interface PlaceInAreaOptions {
+  /** 卡上方还要留出的高度（卡名行 + 工具条，已换算成画布单位）。 */
+  readonly padTop: number
+  /** 卡下方还要留出的高度（提示词栏，已换算成画布单位）。 */
+  readonly padBottom: number
+  /** 区域里被浮层挡住的块（小地图）：卡连同上下留白都不许压上去。 */
+  readonly avoid?: readonly FlowLayoutRect[]
+  /** 网格步长（画布单位）。 */
+  readonly step: number
+}
+
+/**
+ * **在一块可见区域里找空位**（owner 2026-11-18 真机：从底栏「+」连加两张，第二张落到
+ * 底栏后面、视口外）。卡连同它上下的工具条 / 提示词栏都要在 `area` 里，⛔ 压已有卡、
+ * ⛔ 压 `avoid`。取离 `preferred`（卡的左上角）最近的一格；区域里放不下 = `null`，
+ * 由调用方退回 `placeNearPoint` 往外放再挪镜头。
+ *
+ * 纯函数；网格扫描 —— 视口一屏几千格 × 卡数，加卡这一下够用。
+ */
+export function placeInArea(
+  occupied: readonly FlowLayoutRect[],
+  preferred: { readonly x: number; readonly y: number },
+  size: FlowLayoutSize,
+  area: FlowLayoutArea,
+  options: PlaceInAreaOptions,
+): { readonly x: number; readonly y: number } | null {
+  const { padTop, padBottom, avoid = [], step } = options
+  const gap = NODE_V4_CARD.derivedGap
+  const minX = area.left
+  const maxX = area.right - size.width
+  const minY = area.top + padTop
+  const maxY = area.bottom - size.height - padBottom
+  if (maxX < minX || maxY < minY || step <= 0) return null
+  const fits = (x: number, y: number) => {
+    const card = { x, y, width: size.width, height: size.height }
+    if (occupied.some((rect) => collides(rect, card, gap))) return false
+    const footprint = {
+      x,
+      y: y - padTop,
+      width: size.width,
+      height: size.height + padTop + padBottom,
+    }
+    return !avoid.some((rect) => collides(rect, footprint, 0))
+  }
+  const clamp = (value: number, min: number, max: number) =>
+    Math.min(Math.max(value, min), max)
+  const startX = clamp(preferred.x, minX, maxX)
+  const startY = clamp(preferred.y, minY, maxY)
+  if (fits(startX, startY)) return { x: startX, y: startY }
+  // 以首选点为原点的网格（首选点本身在格上），夹到区域里。
+  const xs = new Set<number>([minX, maxX])
+  for (let x = startX; x >= minX; x -= step) xs.add(x)
+  for (let x = startX + step; x <= maxX; x += step) xs.add(x)
+  const ys = new Set<number>([minY, maxY])
+  for (let y = startY; y >= minY; y -= step) ys.add(y)
+  for (let y = startY + step; y <= maxY; y += step) ys.add(y)
+  let best: { x: number; y: number } | null = null
+  let bestDistance = Infinity
+  for (const x of xs) {
+    for (const y of ys) {
+      const distance = Math.hypot(x - preferred.x, y - preferred.y)
+      if (distance >= bestDistance || !fits(x, y)) continue
+      best = { x, y }
+      bestDistance = distance
+    }
+  }
+  return best
+}
+
+/**
  * **新卡落位**：一批里新建、没给坐标的散卡（助手 `add_node`）。跟已有卡连着的落在那张
  * 卡旁边 —— 喂进它的放左边、从它接出来的放右边；没连线的在散卡区找第一行空位。落在
  * 同一处的几张排成一行，整行一起找空位（v3 回放 T18：按格子排压在已有卡上）。

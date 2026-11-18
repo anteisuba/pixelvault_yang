@@ -1164,12 +1164,8 @@ export const NodeV4ImageDataSchema = z.object({
   url: z.string().trim().min(1).max(4000).optional(),
   model: NodeWorkflowModelSelectionSchema.optional(),
   prompt: z.string().max(NODE_V4_PROMPT_MAX_LENGTH).optional(),
-  negativePrompt: z
-    .string()
-    .trim()
-    .min(1)
-    .max(NODE_V4_PROMPT_MAX_LENGTH)
-    .optional(),
+  // ⚠ 图片卡**没有**顶层 `negativePrompt`：反向词只住 `params.advanced.negativePrompt`
+  // （「专属」chip 读写、发送只读那里）。迁移也写进那里（`node-workflow-migrate-v4`）。
   params: NodeV4GenerationParamsSchema.optional(),
   sourceRef: NodeV4SourceRefSchema.optional(),
   /**

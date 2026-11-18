@@ -2,14 +2,18 @@
 
 /**
  * 底栏（S7 §7 · 画板 `ChromeOverview.dc.html` 底部胶囊）：
- * 选择 / 手 · 缩放% · 适配 · 整理 ‖ 撤销 / 重做 ‖ 角色 / 素材库。**没有加号**。
+ * 选择 / 手 · 缩放% · 适配 · 整理 ‖ 撤销 / 重做 ‖ 角色 / 素材库。
+ * ⚠ ≥1024（`lg:`）的 `/studio` 外壳里末尾还会长出侧栏那几格（`SHELL_CANVAS_DESK_BOTTOM_ENTRIES`，
+ * 第一颗就是「添加节点」的加号）；768–1023 这一段它们是藏着的。
  *
  * ⭐ 角色 / 素材库两颗（owner 2026-10-08）：侧栏「画布」下面只留原型四格，这两格搬到
  *   底栏（= `SHELL_CANVAS_BOTTOM_ENTRIES`，侧栏那张列表没收走的格子）。点一颗打开的仍是侧栏旁边**同一块**左侧面板（`ShellSidePanels`，开着哪格是
  *   `use-canvas-shell-panel` 那一份），再点收起；按钮就是底栏这一颗，⛔ 不另起样式。
  *
- * ⚠ 相机动作直接用 ReactFlow 自己的 `zoomIn/zoomOut/fitView`，⛔ 不另存一份缩放
- * state：真值在 RF store 里，存第二份必然漂。
+ * ⚠ 缩放直接用 ReactFlow 自己的 `zoomIn/zoomOut`，⛔ 不另存一份缩放 state：真值在
+ * RF store 里，存第二份必然漂。「适应」例外：走工作台传进来的 `onFitView`，与打开
+ * 项目时的自动适应同一个算式（2026-11-18 之前这里用 RF `fitView`，参数与自动适应
+ * 两套，同一张图打开 13%、点适应 30%）。
  *
  * 选择 / 手是一对分段：选中底块在两颗之间滑（分段 thumb 走 slot 弹簧，motion canon），
  * ⛔ 不是两颗各自瞬间换底色。
@@ -42,7 +46,6 @@ import {
 import { useStudioOperatorYield } from '@/features/assistant/hooks'
 import { useToastLift } from '@/hooks/use-toast-lift'
 import {
-  NODE_STUDIO_CANVAS,
   NODE_STUDIO_TOOL_MODE_IDS,
   type NodeStudioToolMode,
 } from '@/constants/node-studio'
@@ -57,6 +60,8 @@ export interface ShellBottomBarProps {
   onUndo(): void
   onRedo(): void
   onTidyLayout(): void
+  /** 「适应」：与打开项目时的自动适应同一个算式（`fitCanvasProject`）。 */
+  onFitView(): void
   /** 左侧面板开着哪一格（底栏的角色 / 素材库按它亮）。 */
   readonly activePanel: CanvasShellPanelId | null
   /** 点角色 / 素材库：没开 = 打开那一格，开着 = 收起。 */
@@ -71,12 +76,13 @@ export function ShellBottomBar({
   onUndo,
   onRedo,
   onTidyLayout,
+  onFitView,
   activePanel,
   onTogglePanel,
 }: ShellBottomBarProps) {
   const t = useTranslations('StudioNode.shell.bottom')
   const tPanels = useTranslations('StudioNode.shell.panels')
-  const { zoomIn, zoomOut, fitView } = useReactFlow()
+  const { zoomIn, zoomOut } = useReactFlow()
   const zoom = useStore((state) => state.transform[2])
   const percent = Math.round(zoom * 100)
   const reduce = useReducedMotion()
@@ -153,9 +159,7 @@ export function ShellBottomBar({
         icon={Frame}
         label={t('fit')}
         testId="shell-fit-view"
-        onClick={() =>
-          void fitView({ maxZoom: NODE_STUDIO_CANVAS.fitViewMaxZoom })
-        }
+        onClick={onFitView}
       />
       <ShellIconButton
         icon={Grid2x2}

@@ -21,22 +21,20 @@ import type { z } from 'zod'
 
 import type { AspectRatio } from '@/constants/config'
 import { supportsSearchGrounding } from '@/constants/models'
+import { audioModelAcceptsReferenceAudio } from '@/constants/models/audio'
+import { TTS_REFERENCE_TEXT_MAX_CHARS } from '@/constants/audio-options'
 import {
   NODE_MEDIA_KIND_IDS,
   NODE_V4_VIDEO_SUBTYPE_IDS,
 } from '@/constants/node-types'
 import type { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
-  getVideoModelCapabilities,
-  snapVideoDuration,
-  snapVideoResolution,
-} from '@/constants/video-model-capabilities'
-import {
   getVideoModelSendContract,
   type ReferenceClipSeconds,
   type VideoReferenceSlots,
 } from '@/constants/video-model-send-plan'
 import { resolveVideoSendModelId } from '@/constants/video-node-modes'
+import { videoEffectiveParams } from '@/features/canvas/components/nodes/v4/video/video-node-model'
 import type { VideoResolution } from '@/constants/video-options'
 import { useNodeMediaGeneration } from '@/features/canvas/hooks/use-node-media-generation'
 import {
@@ -49,6 +47,7 @@ import { defaultLook } from '@/lib/card-bus'
 import { probeMediaDuration } from '@/lib/media-probe'
 import { listPromptLoraNames } from '@/lib/prompt-weight-syntax'
 import { pruneIncompatibleCapabilityValues } from '@/lib/model-capability-chips'
+import { clampImageSpecToModel } from '@/lib/spec-chip-model'
 import {
   buildV4AudioPayload,
   buildV4ImagePayload,
@@ -71,6 +70,7 @@ import {
 } from '@/types'
 import { useCharacterLibrary } from '@/features/cards/hooks'
 import {
+  lookIdOfPicks,
   mentionedCharacters,
   stripCharacterMentionMarks,
   type NodeCharacterMention,
@@ -96,11 +96,9 @@ export interface V4GenerationPlan {
   /** 产物在素材库里的名字用卡名（见 `NodeMediaGenerationInput.displayLabel`）。 */
   readonly displayLabel?: string
   readonly prompt: string
-  readonly negativePrompt?: string
   readonly aspectRatio?: AspectRatio
   readonly resolution?: VideoResolution
   readonly duration?: number | 'auto'
-  readonly seed?: number
   readonly generateAudio?: boolean
   /** 图片画质档 —— 走 `advancedParams.quality`（服务端 `AdvancedParamsSchema`）。 */
   readonly quality?: string
@@ -125,6 +123,21 @@ export interface V4GenerationPlan {
   readonly voiceId?: string
   readonly speed?: number
   readonly volume?: number
+  /**
+   * 音频：`timbre` 槽连进来的音色参考（Fish `references`：音频 + 原文成对）。
+   * 只在 `timbreBlocked` 为空时出现 —— 两者互斥。
+   */
+  readonly referenceAudioUrl?: string
+  readonly referenceText?: string
+  /**
+   * 音频：连了音色参考却发不出去的原因（型号不吃 / 供体没原文 / 卡上另选了声音
+   * —— Fish 有 `reference_id` 时会忽略 `references`）。发送前校验据此拦下，
+   * ⛔ 不静默丢掉这条边。
+   */
+  readonly timbreBlocked?: {
+    readonly reason: V4TimbreBlockReason
+    readonly name: string
+  }
   readonly referenceImages?: readonly string[]
   readonly audioUrls?: readonly string[]
   readonly audioBindings?: readonly { url: string; characterName?: string }[]
@@ -134,6 +147,8 @@ export interface V4GenerationPlan {
   readonly characterImagePicks?: Readonly<
     Record<string, readonly CharacterImagePick[]>
   >
+  /** 每位用哪套造型（缺 = 默认造型）；由挑的图推出来（`lookIdOfPicks`）。 */
+  readonly characterLookIds?: Readonly<Record<string, string>>
   /** 空数组 = 可以发。⚠ 调用方**必须**看它：`clip` 少于 2 条这类问题在服务端只会
    *  变成一句泛泛的失败。 */
   readonly issues: readonly V4SlotIssue[]
@@ -153,6 +168,45 @@ export interface V4GenerationPlan {
   }[]
 }
 
+/** 音色参考发不出去的三种原因（文案键 `preflight.timbre.<reason>`）。 */
+export type V4TimbreBlockReason = 'model' | 'transcript' | 'voice'
+
+/**
+ * 音频卡的音色参考 → 这一次能不能发、发什么。**纯函数**。
+ *
+ * 判据（全部来自后端实况，不是猜的）：
+ * - 型号：只有 Fish 说话型号吃 `references`（`audioModelAcceptsReferenceAudio`）；
+ * - 原文：Fish 要音频与原文成对，API schema 也拒半对（`GenerateAudioRequestSchema` 的 refine）；
+ * - 声音：卡上选了声音（`voiceId`）时 Fish 走 `reference_id`，`references` 被忽略 ——
+ *   两样都给等于静默丢一样，所以要用户二选一。
+ */
+export function resolveTimbreReference(
+  modelId: string,
+  timbre:
+    | {
+        readonly url: string
+        readonly name: string
+        readonly transcript?: string
+      }
+    | undefined,
+  voiceId: string | undefined,
+):
+  | { readonly referenceAudioUrl: string; readonly referenceText: string }
+  | { readonly timbreBlocked: { reason: V4TimbreBlockReason; name: string } }
+  | null {
+  if (!timbre) return null
+  const blocked = (reason: V4TimbreBlockReason) => ({
+    timbreBlocked: { reason, name: timbre.name },
+  })
+  if (!audioModelAcceptsReferenceAudio(modelId)) return blocked('model')
+  if (voiceId) return blocked('voice')
+  if (!timbre.transcript) return blocked('transcript')
+  return {
+    referenceAudioUrl: timbre.url,
+    referenceText: timbre.transcript.slice(0, TTS_REFERENCE_TEXT_MAX_CHARS),
+  }
+}
+
 /** 参考视频 / 音频的一段：给人看的名字 + 时长（不知道 = undefined，不拦）。 */
 export interface V4PreflightClip {
   readonly name: string
@@ -164,6 +218,11 @@ export interface V4PreflightClip {
  * （owner 2026-09-28）。
  */
 export type V4PreflightBlocker =
+  | {
+      /** 卡上什么都没有：没写、没接上游、没挂参考 —— 发出去也只是一张空单。 */
+      readonly kind: 'empty'
+      readonly media: 'image' | 'video' | 'audio'
+    }
   | { readonly kind: 'slot'; readonly issue: V4SlotIssue }
   | {
       readonly kind: 'tooMany'
@@ -175,6 +234,11 @@ export type V4PreflightBlocker =
       readonly characterNames?: readonly string[]
     }
   | { readonly kind: 'audioOnly' }
+  | {
+      readonly kind: 'timbre'
+      readonly reason: V4TimbreBlockReason
+      readonly name: string
+    }
   | {
       readonly kind: 'clipTooLong' | 'clipTooShort'
       readonly media: 'video' | 'audio'
@@ -196,7 +260,7 @@ export type V4PreflightBlocker =
  * ⚠ 与卡上那颗只读的模式 chip（`videoSendMode`）是同一条推法的两侧：一处给人看，
  * 一处决定发哪个端点。⛔ 不许两处各推各的。
  */
-function resolveNodeVideoSendModelId(
+export function resolveNodeVideoSendModelId(
   model: { readonly modelId: string; readonly adapterType: AI_ADAPTER_TYPES },
   payload: {
     readonly imageUrls: readonly string[]
@@ -220,6 +284,49 @@ function parseDuration(value: string | undefined): number | 'auto' | undefined {
   if (value === 'auto') return 'auto'
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : undefined
+}
+
+/**
+ * 这张卡有没有任何可发的内容。**纯函数**。没有 → 一条 `empty` 拦截（不发、不改卡）。
+ *
+ * 判据 = 送出载荷：自己写的 + 上游接进来的文字，以及参考图 / 视频 / 语音。
+ * ⚠ 在 `planV4Generation` **之前**判：空卡多半也还没选模型，先说「写点什么」比
+ *   先说「选模型」更接近用户下一步要做的事。
+ * ⚠ 镜头表的景别 / 运镜 / 风格**不算内容**：只有它们时发出去的是一句
+ *   「Shot size: …」，不是这个镜头要拍的东西。
+ */
+export function findV4EmptyContent(
+  nodeId: string,
+  graph: V4GenerateGraph,
+  prompt?: string,
+): V4PreflightBlocker | null {
+  const node = graph.nodes.find((candidate) => candidate.id === nodeId)
+  if (!node) return null
+  const data = node.data
+  if (data.kind === NODE_MEDIA_KIND_IDS.text) return null
+  const ownPrompt = prompt ?? data.prompt
+  const args = {
+    nodeId,
+    nodes: graph.nodes,
+    edges: graph.edges,
+    ...(ownPrompt ? { ownPrompt } : {}),
+  }
+  if (data.kind === NODE_MEDIA_KIND_IDS.video) {
+    const payload = buildV4VideoPayload(args)
+    const empty =
+      !payload.prompt.trim() &&
+      payload.imageUrls.length === 0 &&
+      payload.videoUrls.length === 0 &&
+      payload.audioBindings.length === 0
+    return empty ? { kind: 'empty', media: 'video' } : null
+  }
+  if (data.kind === NODE_MEDIA_KIND_IDS.audio) {
+    const payload = buildV4AudioPayload(args)
+    return payload.prompt.trim() ? null : { kind: 'empty', media: 'audio' }
+  }
+  const payload = buildV4ImagePayload(args)
+  const empty = !payload.prompt.trim() && payload.referenceUrls.length === 0
+  return empty ? { kind: 'empty', media: 'image' } : null
 }
 
 /**
@@ -260,6 +367,13 @@ export function planV4Generation(
   const pickedCharacters = characters.filter(
     (character) => character.picks.length > 0,
   )
+  // 用哪套造型 = 挑的图属于哪套（11-17）；默认造型不送。
+  const characterLookIds = Object.fromEntries(
+    characters.flatMap((character) => {
+      const lookId = lookIdOfPicks(character.card, character.picks)
+      return lookId ? [[character.card.id, lookId] as const] : []
+    }),
+  )
   const displayLabel = data.name?.trim()
   const base = {
     modelId: data.model.modelId,
@@ -278,6 +392,7 @@ export function planV4Generation(
           ),
         }
       : {}),
+    ...(Object.keys(characterLookIds).length > 0 ? { characterLookIds } : {}),
     issues,
   }
   const toModelPrompt = (prompt: string) =>
@@ -297,25 +412,13 @@ export function planV4Generation(
       payload,
       characterImageCount,
     )
-    const capabilities = getVideoModelCapabilities(sendModelId)
-    const requestedDuration = parseDuration(data.params?.duration)
-    const duration =
-      typeof requestedDuration === 'number'
-        ? snapVideoDuration(sendModelId, requestedDuration)
-        : requestedDuration
-    const requestedResolution = data.params?.resolution as
-      | VideoResolution
-      | undefined
-    const resolution = requestedResolution
-      ? snapVideoResolution(sendModelId, requestedResolution)
-      : requestedResolution
-    const requestedRatio = data.params?.aspectRatio as AspectRatio | undefined
-    const aspectRatio =
-      requestedRatio &&
-      capabilities.supportedAspectRatios &&
-      !capabilities.supportedAspectRatios.includes(requestedRatio)
-        ? capabilities.supportedAspectRatios[0]
-        : requestedRatio
+    // 发出去的档 = 卡上 chip 显示的那份（`videoEffectiveParams`，按**这一枪真走的
+    // 端点**吸附 + 补默认）。⛔ 在这里另算一遍：之前这里只吸附、不补默认，chip 写
+    // 「5s · 有声」而请求里没有时长 / 声音字段，服务端按自己的默认出片。
+    const sendParams = videoEffectiveParams(data.params, sendModelId)
+    const duration = parseDuration(sendParams.duration)
+    const resolution = sendParams.resolution as VideoResolution | undefined
+    const aspectRatio = sendParams.aspectRatio as AspectRatio | undefined
     return {
       ...base,
       // ⭐ **端点按推出来的模式选**（spec §5「不设模式页签」）：挂了参考项就走
@@ -333,14 +436,15 @@ export function planV4Generation(
               graph.shotlist,
             )
           : toModelPrompt(payload.prompt),
-      ...(data.negativePrompt ? { negativePrompt: data.negativePrompt } : {}),
+      // ⛔ 不发反向词 / 种子：视频卡上没有这两格的输入框（v4 唯一的写者是 v3
+      // 迁移），用户看不见的旧值不许影响出片。哪天视频详情真开了这两格，再按模型
+      // 能力接回来。
       ...(aspectRatio ? { aspectRatio } : {}),
       ...(resolution ? { resolution } : {}),
       ...(duration === undefined ? {} : { duration }),
-      ...(data.params?.seed === undefined ? {} : { seed: data.params.seed }),
-      ...(data.params?.generateAudio === undefined
+      ...(sendParams.generateAudio === undefined
         ? {}
-        : { generateAudio: data.params.generateAudio }),
+        : { generateAudio: sendParams.generateAudio }),
       referenceImages: payload.imageUrls,
       referenceSlots: getVideoModelSendContract(
         sendModelId,
@@ -372,10 +476,16 @@ export function planV4Generation(
     })
     // ⚠ `payload.prompt` 已经是**编译后**的台词（`[very angry]…`，编译在
     // `buildV4AudioPayload` 里）。音色与 prosody 是 Fish 的正交字段，跟着一起送。
+    const timbre = resolveTimbreReference(
+      data.model.modelId,
+      payload.timbre,
+      payload.voiceId,
+    )
     return {
       ...base,
       kind: 'audio',
       prompt: payload.prompt,
+      ...(timbre ?? {}),
       ...(payload.voiceId ? { voiceId: payload.voiceId } : {}),
       ...(payload.speed === undefined ? {} : { speed: payload.speed }),
       ...(payload.volume === undefined ? {} : { volume: payload.volume }),
@@ -394,6 +504,12 @@ export function planV4Generation(
   const template = data.params?.promptTemplate
   const modelPrompt = toModelPrompt(payload.prompt)
   const count = imageSubmitCount(data.params ?? {})
+  const imageSpec = clampImageSpecToModel({
+    adapterType: data.model.adapterType as AI_ADAPTER_TYPES,
+    modelId: data.model.modelId,
+    aspectRatio: data.params?.aspectRatio ?? null,
+    resolution: data.params?.resolution ?? null,
+  })
   const shotPrompts =
     template === 'sequence4'
       ? Array.from({ length: count }, (_, shot) =>
@@ -407,13 +523,13 @@ export function planV4Generation(
       ? wrapImagePromptTemplate(template, modelPrompt)
       : modelPrompt,
     ...(shotPrompts ? { shotPrompts } : {}),
-    ...(data.params?.aspectRatio
-      ? { aspectRatio: data.params.aspectRatio as AspectRatio }
+    // 比例 / 清晰度按**当前模型**收档（`clampImageSpecToModel`，与卡上 chip 同一份）：
+    // 切过模型的卡，存着的旧档 ⛔ 原样发出去。
+    ...(imageSpec.aspectRatio
+      ? { aspectRatio: imageSpec.aspectRatio as AspectRatio }
       : {}),
     ...(data.params?.quality ? { quality: data.params.quality } : {}),
-    ...(data.params?.resolution
-      ? { imageResolution: data.params.resolution }
-      : {}),
+    ...(imageSpec.resolution ? { imageResolution: imageSpec.resolution } : {}),
     ...(data.params?.searchGrounding === true &&
     supportsSearchGrounding(data.model.modelId)
       ? { searchGrounding: true }
@@ -530,6 +646,9 @@ export function preflightV4Plan(
     kind: 'slot' as const,
     issue,
   }))
+  if (plan.timbreBlocked) {
+    blockers.push({ kind: 'timbre', ...plan.timbreBlocked })
+  }
   const slots = plan.referenceSlots
   if (plan.kind !== 'video' || !slots) return blockers
 
@@ -643,9 +762,12 @@ export function useNodeMediaGenerationV4() {
     (blocker: V4PreflightBlocker): string => {
       const seconds = (value: number) => Math.round(value * 10) / 10
       switch (blocker.kind) {
+        case 'empty':
+          return t(`preflight.empty.${blocker.media}`)
         case 'slot':
           return t(`preflight.slot.${blocker.issue.issue}`, {
             slot: t(`slots.${blocker.issue.slot}`),
+            name: blocker.issue.sourceName?.trim() || t('preflight.unnamed'),
           })
         case 'tooMany':
           // 上限是 0 = 这个端点压根不收这类参考（关键帧档挂了视频）：说「不收」，
@@ -667,6 +789,10 @@ export function useNodeMediaGenerationV4() {
               })
         case 'audioOnly':
           return t('preflight.audioOnly')
+        case 'timbre':
+          return t(`preflight.timbre.${blocker.reason}`, {
+            name: blocker.name,
+          })
         case 'clipTooLong':
         case 'clipTooShort':
           return t(`preflight.${blocker.kind}.${blocker.media}`, {
@@ -706,21 +832,12 @@ export function useNodeMediaGenerationV4() {
         ): void
       } = {},
     ) => {
-      const plan = planV4Generation(nodeId, graph, {
-        ...(options.prompt ? { prompt: options.prompt } : {}),
-        characterCards,
-      })
-      if (!plan) return { success: false as const, error: 'noPlan' }
       // ⭐ 发送前校验（owner 2026-09-28）：没过就**不发、不扣钱、不改卡**，一闪而过
       // 的提示说清哪一项、差多少。⚠ 在这里拦而不是在各个调用方：卡片提示词栏、
       // 快捷键、助手、审阅重跑都走这一个入口，拦在调用方总会漏一条。
       // ⚠ 被拦下时**不叫 `onEach`**：调用方的失败分支都写在那里（会把错误钉在卡上），
       //   而这不是一次失败的生成 —— 它根本没发出去。
-      const blockers = preflightV4Plan(
-        plan,
-        await resolvePreflightClips(plan, graph.nodes),
-      )
-      if (blockers.length > 0) {
+      const block = (blockers: V4PreflightBlocker[]) => {
         const first = describeBlocker(blockers[0]!)
         toast.warning(
           blockers.length > 1
@@ -736,6 +853,25 @@ export function useNodeMediaGenerationV4() {
           blocked: blockers,
         }
       }
+      // 空卡（没写、没接、没挂）：⛔ 不进失败态、⛔ 不出「服务商返回」—— 真机 11-18
+      // 空镜头卡 ⌘↵ 被标成失败，卡面写「服务商返回：noPlan」。
+      // 覆写正文为空串时与 `planV4Generation` 同一口径：退回卡上存的那份。
+      const empty = findV4EmptyContent(
+        nodeId,
+        graph,
+        options.prompt || undefined,
+      )
+      if (empty) return block([empty])
+      const plan = planV4Generation(nodeId, graph, {
+        ...(options.prompt ? { prompt: options.prompt } : {}),
+        characterCards,
+      })
+      if (!plan) return { success: false as const, error: 'noPlan' }
+      const blockers = preflightV4Plan(
+        plan,
+        await resolvePreflightClips(plan, graph.nodes),
+      )
+      if (blockers.length > 0) return block(blockers)
       // 画布没有能挂 LoRA 的模型：正文里的 `<lora:…>` 服务端发之前会拿掉，先照实说一句。
       if (plan.kind === 'image') {
         const loraNames = listPromptLoraNames(plan.prompt)
@@ -796,16 +932,18 @@ export function useNodeMediaGenerationV4() {
             ...(plan.aspectRatio ? { aspectRatio: plan.aspectRatio } : {}),
             ...(plan.resolution ? { resolution: plan.resolution } : {}),
             ...(plan.duration === undefined ? {} : { duration: plan.duration }),
-            ...(plan.seed === undefined ? {} : { seed: plan.seed }),
             ...(plan.generateAudio === undefined
               ? {}
               : { generateAudio: plan.generateAudio }),
             ...(plan.voiceId ? { voiceId: plan.voiceId } : {}),
+            ...(plan.referenceAudioUrl && plan.referenceText
+              ? {
+                  referenceAudioUrl: plan.referenceAudioUrl,
+                  referenceText: plan.referenceText,
+                }
+              : {}),
             ...(plan.speed === undefined ? {} : { speed: plan.speed }),
             ...(plan.volume === undefined ? {} : { volume: plan.volume }),
-            ...(plan.negativePrompt
-              ? { negativePrompt: plan.negativePrompt }
-              : {}),
             ...(plan.referenceImages?.length
               ? { referenceImages: [...plan.referenceImages] }
               : {}),
@@ -829,6 +967,9 @@ export function useNodeMediaGenerationV4() {
                     ),
                   ),
                 }
+              : {}),
+            ...(plan.characterLookIds
+              ? { characterLookIds: { ...plan.characterLookIds } }
               : {}),
             ...(Object.keys(shotParams).length > 0
               ? { advancedParams: shotParams }

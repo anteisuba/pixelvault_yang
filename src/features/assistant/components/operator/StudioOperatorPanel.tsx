@@ -116,6 +116,8 @@ import {
 } from '@/features/assistant/components/operator/StudioOperatorChangedCards'
 import { StudioOperatorHistoryItem } from '@/features/assistant/components/operator/StudioOperatorHistoryItem'
 import { StudioOperatorVoiceStrip } from '@/features/assistant/components/operator/StudioOperatorVoice'
+import { StudioOperatorChatModeBenchHint } from '@/features/assistant/components/operator/StudioOperatorAvatarSwitcher'
+import { useOperatorChatMode } from '@/hooks/use-chat-persona'
 import {
   StudioOperatorChatMark,
   StudioOperatorDomainMark,
@@ -129,7 +131,10 @@ import {
   ASSISTANT_MENTION_LIMITS,
   ASSISTANT_MENTION_SCOPE_IDS,
 } from '@/constants/assistant-mention'
-import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
+import {
+  ASSISTANT_CHAT_MODE_IDS,
+  ASSISTANT_PROTOCOL_DOMAIN_IDS,
+} from '@/constants/assistant-protocol'
 import {
   MentionInput,
   type MentionInputHandle,
@@ -485,6 +490,17 @@ export function StudioOperatorPanel({
     chatCharacter,
     sessionId: threadSessionId,
   } = useStudioOperatorState()
+  /**
+   * 聊天档那一句占位（用户 11-18）：她这一档只陪你聊，「让她帮你改…」那句会骗人。
+   * 只看档位，⛔ 按域分叉（域上的那句仍是宿主那张脸的）。
+   */
+  const chatMode = useOperatorChatMode()
+  const chattingPlaceholder =
+    chatMode.available && chatMode.mode === ASSISTANT_CHAT_MODE_IDS.chat
+      ? t('chat.placeholder', {
+          name: persona?.character?.name ?? persona?.name ?? '',
+        })
+      : null
   /**
    * ⚠ 几类条目**留在数据里、不画**（owner 2026-09-24：小字「没什么有用的信息」）：
    *  · 没开跑的计划（「计划 · N 步」）—— 在跑的那种画成打勾清单，照画；
@@ -3043,6 +3059,12 @@ export function StudioOperatorPanel({
               />
             )}
 
+            {/* 台上停在聊天档：先说一句、给一颗「切到工作」（用户 11-18），⛔ 等她拒绝一轮才知道。
+                「在台上」与规格行同一个判据（`face.specLine`，首页那张脸不画）。 */}
+            {operatorHost.face.specLine ? (
+              <StudioOperatorChatModeBenchHint />
+            ) : null}
+
             {/* ── 输入区（D12 A 定稿 · T-A）：**一个边框** = 文字 + 工具行 ──────────
           ⭐ 工具行：裸图标（上传 · 素材库）· 助手模型灰字 · 圆形发送键，
             跟 Claude 的输入区同形。⛔ 不再有「+」（U2：提及 = 直接打 `@`，指定来源
@@ -3223,8 +3245,9 @@ export function StudioOperatorPanel({
                     : working
                       ? t('placeholderWorking')
                       : /* 空闲那一句**四处各写各的**（D7b ③）——这是输入区唯一的
-                           文案差异，⛔ 别把它也做成四套输入区。 */
-                        operatorHost.face.inputPlaceholder
+                           文案差异，⛔ 别把它也做成四套输入区。聊天档另一句（见上）。 */
+                        (chattingPlaceholder ??
+                        operatorHost.face.inputPlaceholder)
                 }
                 className="max-h-40 min-h-9 w-full resize-none overflow-y-auto overscroll-contain bg-transparent px-1 py-1 text-md leading-reading outline-none placeholder:text-muted-foreground/70"
               />

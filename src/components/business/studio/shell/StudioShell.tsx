@@ -92,6 +92,12 @@ import { cn } from '@/lib/utils'
 const SHELL_BOARD_CLASS =
   'bench-screen-h relative min-w-0 lg:my-2 lg:mr-2 lg:flex-1 lg:rounded-20 lg:bg-background lg:shadow-ring'
 
+/** 对话 | 台 之间那根线的宽（`StudioShellDivider` 的 `w-px`）：「拉」时台要多走这一截。 */
+const SHELL_DIVIDER_PX = 1
+
+/** 「拉」的兜底：比动画多等这么久还没播完（后台标签页）就直接落定（同 `shellLeave`）。 */
+const SHELL_PULL_GRACE_MS = 150
+
 /**
  * 这次页面加载一进来载回哪一段 —— 地址说了算：首页 = 新对话；`/studio/c/<编号>` 与
  * `?c=<编号>` = 那一段；直接进台、地址里没带 = 最近那一段（与改动之前一致）。
@@ -174,6 +180,11 @@ export function StudioShell({
   /** 库里左上那颗助手头像叫出了对话（对话从左边出来）；库收掉就复位。 */
   const [libraryAssistantOpen, setLibraryAssistantOpen] = useState(false)
   if (!libraryOpen && libraryAssistantOpen) setLibraryAssistantOpen(false)
+  /** 稳定引用：对话那一栏按它记住 Dock 元素，外壳每次重渲 ⛔ 拖着整块面板一起重渲。 */
+  const closeLibraryAssistant = useCallback(
+    () => setLibraryAssistantOpen(false),
+    [],
+  )
   const cameFromShell = base !== null
   const libraryContext = useMemo(
     () => ({
@@ -266,9 +277,7 @@ export function StudioShell({
                         libraryAssistantOpen={libraryAssistantOpen}
                         libraryLayer={libraryLayer}
                         benchNavRef={benchNavRef}
-                        onCloseLibraryAssistant={() =>
-                          setLibraryAssistantOpen(false)
-                        }
+                        onCloseLibraryAssistant={closeLibraryAssistant}
                       >
                         {children}
                       </StudioShellStage>
@@ -394,8 +403,19 @@ function StudioShellStage({
   /** 拖过头、松手就会收起的那一边（变淡提示）。 */
   const [collapsePreview, setCollapsePreview] =
     useState<StudioShellCollapseSide>(null)
-  /** 「拉」：对话栏宽在 0 和记住的宽之间走这一段。 */
+  /**
+   * 「拉」：对话收起 / 展开那一段（用户 11-18 真机：工作台分一到三步跳过去）。
+   * ⭐ 只动 transform（WAAPI，合成线程跑，主线程忙也不掉帧）：这一段里对话栏浮起来、
+   *   宽钉在原宽，台那一列按「收完」的宽排一次，两块用同一段时长、同一条缓动一起平移；
+   *   ⛔ 再动对话栏的 `width` —— 那是每帧一次整块台（大图 / 视频 / 3D）的重排。
+   *   台的重排只剩一次：收起在起步那一帧（台已被平移到原位，看不出），展开在落定那一帧。
+   */
   const [pulling, setPulling] = useState<'collapse' | 'expand' | null>(null)
+  /** 回调里读（⛔ 进依赖：回调一变，记住的 Dock 元素就跟着重渲）。 */
+  const pullingRef = useRef(pulling)
+  useLayoutEffect(() => {
+    pullingRef.current = pulling
+  }, [pulling])
   /** 拖过头收台：台退出去、回到只有对话之后，再把对话栏记住的宽放回按下那一刻的。 */
   const restoreAfterClose = useRef<number | null>(null)
   useEffect(() => {
@@ -403,13 +423,6 @@ function StudioShellStage({
     setConversationPx(restoreAfterClose.current)
     restoreAfterClose.current = null
   }, [bench, setConversationPx])
-
-  /**
-   * 「拉」的那一段里对话正文按开着时的宽钉住、贴右边（用户 10-27 嫌卡）：栏宽在变，
-   * 里面的字 ⛔ 跟着一帧帧重新换行，整块像滑出去 / 滑进来。
-   */
-  const openWidth = useRef<number | null>(null)
-  const [pinnedPx, setPinnedPx] = useState<number | null>(null)
 
   /** 头像飞的那一拍（用户 10-27：⛔ 消失又出现）：起飞时量好原位，替身追到落点。 */
   const [flight, setFlight] = useState<StudioShellAvatarFlightPlan | null>(null)
@@ -422,48 +435,91 @@ function StudioShellStage({
     [],
   )
 
-  const collapseConversation = () => {
+  /** 点下去这一拍就起步（⛔ 等两帧 rAF / 等面板排版）：只记一个状态，平移在下面的 layout effect 里挂。 */
+  const collapseConversation = useCallback(() => {
+    if (pullingRef.current) return
     if (reduceMotion) {
       setConversationCollapsed(true)
       return
     }
     takeOff('header', 'bench')
-    openWidth.current = conversationRef.current?.offsetWidth || null
-    setPinnedPx(openWidth.current)
     setPulling('collapse')
-    window.setTimeout(() => {
-      setConversationCollapsed(true)
-      setPulling(null)
-      setPinnedPx(null)
-    }, SHELL_MOTION.pullMs)
-  }
+  }, [reduceMotion, setConversationCollapsed, takeOff])
   const expandConversation = useCallback(() => {
+    if (pullingRef.current) return
     setConversationCollapsed(false)
     if (reduceMotion) return
     takeOff('bench', 'header')
-    // 还没在这台上开过对话（进台就收着）：按记住的宽、给台留够最小宽估一个。
-    const stageWidth = stageRef.current?.clientWidth
-    setPinnedPx(
-      openWidth.current ??
-        (stageWidth
-          ? Math.max(
-              STUDIO_SHELL_SPLIT.minConversationPx,
-              Math.min(
-                split.conversationPx,
-                stageWidth - STUDIO_SHELL_SPLIT.minBenchPx,
-              ),
-            )
-          : null),
-    )
     setPulling('expand')
-    // 先按 0 宽画一帧，下一帧再放回记住的宽，宽的过渡才有起点；走完那一段再松开钉住的宽。
-    requestAnimationFrame(() =>
-      requestAnimationFrame(() => {
-        setPulling(null)
-        window.setTimeout(() => setPinnedPx(null), SHELL_MOTION.pullMs)
-      }),
+  }, [reduceMotion, setConversationCollapsed, takeOff])
+
+  /**
+   * 「拉」的那两条平移。对话栏这一段里是浮起来的（宽 = 开着时的宽，与在流里时同一条
+   * `maxWidth`），台那一列铺满白板；两块一起走 `shift` = 栏宽 + 分隔线。
+   * · 收起：栏 0 → −shift，台 +shift → 0（起步那一帧台已按收完的宽排好，平移把它放回原位）。
+   * · 展开：栏 −shift → 0，台 0 → +shift（落定那一帧台才按并排的宽重排，同一帧撤掉平移）。
+   * ⚠ `fill: 'forwards'` 把终点钉住，直到 `pulling` 回到 null 的那次提交里（cleanup）才撤 ——
+   *   ⛔ 先撤平移再换布局，中间闪一帧。
+   * ⚠ 没有 `element.animate`（jsdom）就直接落到终点。
+   */
+  useLayoutEffect(() => {
+    if (!pulling) return
+    const section = conversationRef.current
+    const column = columnRef.current
+    const finish = () => {
+      if (pulling === 'collapse') setConversationCollapsed(true)
+      setPulling(null)
+    }
+    if (
+      !section ||
+      !column ||
+      typeof section.animate !== 'function' ||
+      typeof column.animate !== 'function'
+    ) {
+      finish()
+      return
+    }
+    const shift = section.offsetWidth + SHELL_DIVIDER_PX
+    const [from, to] = pulling === 'collapse' ? [0, -shift] : [-shift, 0]
+    const timing: KeyframeAnimationOptions = {
+      duration: SHELL_MOTION.pullMs,
+      easing: EASE_STANDARD_CSS,
+      fill: 'forwards',
+    }
+    const slide = (element: HTMLElement, a: number, b: number) =>
+      element.animate(
+        [
+          { transform: `translate3d(${a}px, 0, 0)` },
+          { transform: `translate3d(${b}px, 0, 0)` },
+        ],
+        timing,
+      )
+    const animations = [
+      slide(section, from, to),
+      slide(column, from + shift, to + shift),
+    ]
+    let live = true
+    const settle = () => {
+      if (!live) return
+      live = false
+      finish()
+    }
+    void Promise.all(animations.map((animation) => animation.finished)).then(
+      settle,
+      // 中途被撤（卸载 / 换台）：⛔ 再落状态。
+      () => undefined,
     )
-  }, [reduceMotion, setConversationCollapsed, split.conversationPx, takeOff])
+    // 后台标签页里动画时间线可能停着不回调：最多等时长再多一拍，⛔ 卡在半路。
+    const fallback = window.setTimeout(
+      settle,
+      SHELL_MOTION.pullMs + SHELL_PULL_GRACE_MS,
+    )
+    return () => {
+      live = false
+      window.clearTimeout(fallback)
+      for (const animation of animations) animation.cancel()
+    }
+  }, [pulling, setConversationCollapsed])
 
   // 库是整页（ui-spec §9）：盖满白板；叫出助手时对话按记住的宽贴在左边、库往右让。
   const conversationHidden =
@@ -507,10 +563,33 @@ function StudioShellStage({
   }, [libraryChatLeaving])
   const libraryChatShown = libraryChat || libraryChatLeaving
   const libraryLeft = libraryChat ? conversationWidth : '0px'
-  const pullTransition =
+  /** 拖过头变淡那一下；「拉」本身走上面的 transform，⛔ 宽的过渡。 */
+  const previewTransition =
     dragging || reduceMotion
       ? undefined
-      : `width ${SHELL_MOTION.pullMs}ms ${EASE_STANDARD_CSS}, opacity ${DURATION_MS.fast}ms ${EASE_STANDARD_CSS}`
+      : `opacity ${DURATION_MS.fast}ms ${EASE_STANDARD_CSS}`
+  /**
+   * 对话栏浮起来（贴白板左边、宽照旧）：「拉」的那一段，以及收着的时候 ——
+   * 收着时 ⛔ `display: none`，只是看不见（`invisible`，读屏与 Tab 都够不着）：
+   * 面板一直排着版，点展开那一拍直接起步，⛔ 先等整块面板从零排一遍（用户 11-18：空档 0.4–1.2 秒）。
+   */
+  const conversationFloating =
+    bench && !libraryOpen && (conversationHidden || pulling !== null)
+  /**
+   * 对话那一栏的 Dock 元素按「收起」回调记住：外壳为「拉」/ 头像飞重渲几次，
+   * ⛔ 每次都把整块面板（时间线、输入区）跟着重渲一遍 —— 点下去到起步的空档就在这里。
+   */
+  const collapseColumn = libraryChatShown
+    ? onCloseLibraryAssistant
+    : bench
+      ? collapseConversation
+      : undefined
+  const dock = useMemo(
+    () => (
+      <StudioOperatorDock variant="column" onCollapseColumn={collapseColumn} />
+    ),
+    [collapseColumn],
+  )
 
   return (
     <div
@@ -535,7 +614,8 @@ function StudioShellStage({
           bench
             ? 'hidden lg:flex lg:shrink-0 lg:overflow-hidden'
             : 'flex h-page flex-1',
-          conversationHidden && 'lg:hidden',
+          conversationFloating && 'lg:absolute lg:inset-y-0 lg:left-0',
+          conversationHidden && pulling === null && 'lg:invisible',
           libraryOpen && !libraryChatShown && 'lg:hidden',
           libraryChatShown &&
             'lg:flex lg:flex-none lg:border-r lg:border-border',
@@ -545,14 +625,15 @@ function StudioShellStage({
             ? { width: conversationWidth }
             : bench
               ? {
-                  width: pulling ? 0 : conversationWidth,
+                  width: conversationWidth,
                   // 与拖线同一条规矩：放不下两边最小宽时（平板竖拿）对话保住 320，台让。
+                  // 浮起来时同一条 `maxWidth`（百分比同样按白板算），宽与在流里时逐像素相同。
                   maxWidth: `max(${STUDIO_SHELL_SPLIT.minConversationPx}px, calc(100% - ${STUDIO_SHELL_SPLIT.minBenchPx}px))`,
                   opacity:
                     collapsePreview === 'conversation'
                       ? SHELL_MOTION.collapsePreviewOpacity
                       : undefined,
-                  transition: pullTransition,
+                  transition: previewTransition,
                 }
               : undefined
         }
@@ -560,27 +641,14 @@ function StudioShellStage({
         {shellDock ? (
           <div
             data-testid="studio-shell-conversation-body"
-            className={cn(
-              'flex min-h-0 min-w-0 flex-1 flex-col',
-              pinnedPx !== null && 'lg:absolute lg:inset-y-0 lg:right-0',
-            )}
-            style={pinnedPx !== null ? { width: `${pinnedPx}px` } : undefined}
+            className="flex min-h-0 min-w-0 flex-1 flex-col"
           >
-            <StudioOperatorDock
-              variant="column"
-              onCollapseColumn={
-                libraryChatShown
-                  ? onCloseLibraryAssistant
-                  : bench
-                    ? collapseConversation
-                    : undefined
-              }
-            />
+            {dock}
           </div>
         ) : null}
       </section>
 
-      {bench && !conversationHidden && !libraryOpen ? (
+      {bench && !conversationHidden && !libraryOpen && pulling === null ? (
         <StudioShellDivider
           stageRef={stageRef}
           conversationRef={conversationRef}
@@ -609,7 +677,7 @@ function StudioShellStage({
             collapsePreview === 'bench'
               ? SHELL_MOTION.collapsePreviewOpacity
               : undefined,
-          transition: pullTransition,
+          transition: previewTransition,
         }}
       >
         {bench && avatarDocked ? (

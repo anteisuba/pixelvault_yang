@@ -26,6 +26,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import { Button } from '@/components/ui/button'
 import { studioOutlineChipClass } from '@/components/ui/chip'
 import { useAssistantPersona } from '@/hooks/use-assistant-persona'
 import { useChatCharacters } from '@/hooks/use-chat-characters'
@@ -293,5 +294,36 @@ export function StudioOperatorChatModeChip() {
         </motion.span>
       </AnimatePresence>
     </button>
+  )
+}
+
+/**
+ * 台上、聊天档时输入框上方那一行（用户 11-18）：角色页「和她聊」的会话跟到台上，面板停在聊天档，
+ * 叫她改台子她只会回「切到工作」—— 这里先说一句，点「切到工作」= 点头上那枚胶囊（同一个 `toggle`）。
+ * ⛔ 自动替用户切档、⛔ 改两档本身的行为。挂不挂在台上由面板判（规格行同一个判据）。
+ */
+export function StudioOperatorChatModeBenchHint() {
+  const t = useTranslations('StudioOperator.chat')
+  const { mode, available, toggle } = useOperatorChatMode()
+  const { persona } = useAssistantPersona()
+  if (!available || mode !== ASSISTANT_CHAT_MODE_IDS.chat) return null
+  const name = persona.character?.name ?? persona.name ?? ''
+  return (
+    <p
+      data-testid="operator-chat-bench-hint"
+      className="flex shrink-0 flex-wrap items-center gap-x-1.5 px-4 pb-1.5 text-xs leading-relaxed text-muted-foreground"
+    >
+      <span>{t('benchHint', { name })}</span>
+      <Button
+        type="button"
+        variant="link"
+        size="xs"
+        data-testid="operator-chat-bench-hint-switch"
+        onClick={toggle}
+        className="h-auto px-0 text-xs font-medium underline underline-offset-2"
+      >
+        {t('benchHintAction')}
+      </Button>
+    </p>
   )
 }

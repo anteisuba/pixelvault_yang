@@ -929,22 +929,22 @@
       "noModel": "未选模型",
       "image": {
         "empty": "说你想要的画面，我来写提示词、挑模型、配参考。",
-        "placeholder": "描述画面，或把参考图挂进来…",
+        "placeholder": "让她帮你：改提示词、换模型、挂参考…",
         "context": "{model} · {ratio} · {count} 张"
       },
       "video": {
         "empty": "给我一张图或一句话，我来让它动起来。",
-        "placeholder": "描述镜头，或挂一张首帧…",
+        "placeholder": "让她帮你：写镜头、换模型、挂首帧…",
         "context": "{model} · {seconds} 秒 · {ratio}"
       },
       "lora": {
         "empty": "告诉我想出什么图，我来帮你挑 LoRA、写触发词、调权重。",
-        "placeholder": "想出什么图？",
+        "placeholder": "让她帮你：挑 LoRA、写触发词、调权重…",
         "context": "{base} · 挂了 {count} 个"
       },
       "canvas": {
         "empty": "从剧本、参考图或一句话开始，我把它排成分镜、连成片。",
-        "placeholder": "继续说，或把素材挂进来…",
+        "placeholder": "让她帮你：排分镜、加节点、连起来…",
         "context": "{project} · 选中 {count} 个节点"
       },
       "cards": {
@@ -986,6 +986,9 @@
       "versionOf": "{index} / {total}",
       "noProfile": "{name}还没写设定，聊天先按工作的口吻回。",
       "noProfileAction": "去写设定",
+      "placeholder": "和{name}聊聊…",
+      "benchHint": "现在是聊天，{name}只陪你聊，不动台上的东西。",
+      "benchHintAction": "切到工作",
       "greetingUserFallback": "你"
     },
     "mode": {

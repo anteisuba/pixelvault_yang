@@ -929,22 +929,22 @@
       "noModel": "No model yet",
       "image": {
         "empty": "Tell me the picture you want — I will write the prompt, pick the model, set the references.",
-        "placeholder": "Describe the shot, or drop a reference in…",
+        "placeholder": "Ask her to rewrite the prompt, switch models, add references…",
         "context": "{model} · {ratio} · {count} images"
       },
       "video": {
         "empty": "Give me an image or a sentence and I will make it move.",
-        "placeholder": "Describe the shot, or attach a first frame…",
+        "placeholder": "Ask her to write the shot, switch models, set a first frame…",
         "context": "{model} · {seconds}s · {ratio}"
       },
       "lora": {
         "empty": "Tell me what you want to see — I will pick the LoRAs, write the triggers, tune the weights.",
-        "placeholder": "What do you want to make?",
+        "placeholder": "Ask her to pick LoRAs, write triggers, tune weights…",
         "context": "{base} · {count} mounted"
       },
       "canvas": {
         "empty": "Start from a script, a reference or a sentence — I will board it and wire it together.",
-        "placeholder": "Keep going, or drop material in…",
+        "placeholder": "Ask her to board the shots, add nodes, wire them up…",
         "context": "{project} · {count} nodes selected"
       },
       "cards": {
@@ -986,6 +986,9 @@
       "versionOf": "{index} / {total}",
       "noProfile": "{name} has no profile yet, so chat replies in work mode.",
       "noProfileAction": "Add a profile",
+      "placeholder": "Chat with {name}…",
+      "benchHint": "This is chat — {name} just talks and won't touch the bench.",
+      "benchHintAction": "Switch to work",
       "greetingUserFallback": "you"
     },
     "mode": {

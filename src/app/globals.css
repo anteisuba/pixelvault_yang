@@ -1446,9 +1446,10 @@ html:lang(ja) {
 }
 
 /* 对话收起时头像浮在台左上角（ui-spec §1）：台顶那一行往右让出头像的位置，⛔ 被它压住。
-   每个台的顶上第一行挂 `data-bench-header`；让位跟头像飞过来同一拍滑过去（owner 10-25 定 A）。 */
+   每个台的顶上第一行挂 `data-bench-header`；让位跟头像飞过来同一拍滑过去（owner 10-25 定 A）。
+   ⚠ 时长 = 外壳「拉」那一段（`SHELL_MOTION.pullMs` = `--duration-slow`），⛔ 比台和头像先到。 */
 [data-bench-header] {
-  transition: padding-inline-start var(--duration-base) var(--ease-standard);
+  transition: padding-inline-start var(--duration-slow) var(--ease-standard);
 }
 @media (prefers-reduced-motion: reduce) {
   [data-bench-header] {

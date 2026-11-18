@@ -45,15 +45,16 @@ export function StudioOperatorVoiceKey() {
       className={cn(
         'touch-target flex h-8 shrink-0 items-center gap-1.5 overflow-hidden rounded-full px-2 max-md:overflow-visible text-2sm font-medium transition-[width,background-color,color] duration-spring-expand ease-spring-expand focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none',
         on
-          ? 'w-18 bg-primary text-primary-foreground max-md:w-8'
+          ? 'w-18 bg-primary text-primary-foreground max-md:w-8 @max-md/operator-head:w-8'
           : 'w-8 text-muted-foreground hover:bg-surface-fill hover:text-foreground',
       )}
     >
       <Volume2 className="size-4 shrink-0" aria-hidden />
-      {/* 手机上开着只是一颗实心黑圆：拉长成胶囊会把顶栏的名字挤没（日文「おしゃべり」+「音声」）。 */}
+      {/* 手机上、以及对话头窄于 28rem 时（外壳那一栏默认 400，用户 11-18：名字被挤成「Ae…」）
+          开着只是一颗实心圆：拉长成胶囊会把顶栏的名字挤没（日文「おしゃべり」+「音声」）。 */}
       <span
         className={cn(
-          'whitespace-nowrap transition-[opacity,transform] delay-75 duration-base ease-standard motion-reduce:transition-none max-md:hidden',
+          'whitespace-nowrap transition-[opacity,transform] delay-75 duration-base ease-standard motion-reduce:transition-none max-md:hidden @max-md/operator-head:hidden',
           on ? 'opacity-100' : '-translate-x-1 opacity-0',
         )}
       >
@@ -83,8 +84,10 @@ export function StudioOperatorVoiceStrip() {
       data-open={open}
       className="operator-voice-strip shrink-0"
     >
-      <div>
-        <div className="mx-4 mb-2 flex h-11 items-center gap-2 rounded-full bg-primary/10 pr-1.5 pl-3 text-2sm">
+      {/* `@container/voice-strip`：按面板自己的宽收（外壳那一栏默认 400）。窄时那句话不写、
+          嗓子键让宽；还放不下（长音色名 / 日文档位）就整条横着滚，⛔ 第三档被右边缘切掉（用户 11-18）。 */}
+      <div className="@container/voice-strip">
+        <div className="mx-4 mb-2 flex h-11 scrollbar-none items-center gap-2 overflow-x-auto rounded-full bg-primary/10 pr-1.5 pl-3 text-2sm">
           <span
             aria-hidden
             className="flex h-3.5 shrink-0 items-center gap-0.5 text-primary"
@@ -111,7 +114,7 @@ export function StudioOperatorVoiceStrip() {
           <span
             data-testid="operator-voice-status"
             className={cn(
-              'min-w-0 flex-1 truncate max-md:hidden',
+              'min-w-0 flex-1 truncate max-md:hidden @max-lg/voice-strip:hidden',
               voiced ? 'text-foreground' : 'text-muted-foreground',
             )}
           >
@@ -123,7 +126,7 @@ export function StudioOperatorVoiceStrip() {
             type="button"
             data-testid="operator-voice-pick"
             onClick={() => setPicking(true)}
-            className="touch-target-y flex h-8 max-w-40 shrink-0 items-center gap-1 rounded-full bg-card px-3 text-2sm text-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none max-md:max-w-none max-md:min-w-0 max-md:flex-1 max-md:justify-between"
+            className="touch-target-y flex h-8 max-w-40 min-w-16 shrink items-center gap-1 rounded-full bg-card px-3 text-2sm text-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none max-md:max-w-none max-md:min-w-0 max-md:flex-1 max-md:justify-between @max-lg/voice-strip:max-w-none @max-lg/voice-strip:flex-1 @max-lg/voice-strip:justify-between"
           >
             <span className="truncate">
               {voice.voiceName ?? t('pickVoice')}

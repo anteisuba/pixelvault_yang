@@ -929,22 +929,22 @@
       "noModel": "モデル未選択",
       "image": {
         "empty": "欲しい画を言ってください。プロンプト・モデル・参考はこちらで用意します。",
-        "placeholder": "画を説明するか、参考画像を入れて…",
+        "placeholder": "プロンプト直し・モデル替え・参考付けを彼女に頼む…",
         "context": "{model} · {ratio} · {count} 枚"
       },
       "video": {
         "empty": "画像か一言をもらえれば、動かします。",
-        "placeholder": "カットを説明するか、最初のフレームを…",
+        "placeholder": "カット作り・モデル替え・最初のフレームを彼女に頼む…",
         "context": "{model} · {seconds}秒 · {ratio}"
       },
       "lora": {
         "empty": "作りたい画を教えてください。LoRA 選び・トリガー・重みまで一緒に。",
-        "placeholder": "どんな画を作りますか？",
+        "placeholder": "LoRA 選び・トリガー・重み調整を彼女に頼む…",
         "context": "{base} · {count} 個装着"
       },
       "canvas": {
         "empty": "脚本でも参考画像でも一言でも。絵コンテに並べて、つないで仕上げます。",
-        "placeholder": "続けて話すか、素材を入れて…",
+        "placeholder": "絵コンテ・ノード追加・つなぎを彼女に頼む…",
         "context": "{project} · {count} 個のノードを選択中"
       },
       "cards": {
@@ -986,6 +986,9 @@
       "versionOf": "{index} / {total}",
       "noProfile": "{name}はまだ設定がないため、チャットは作業モードの口調で返します。",
       "noProfileAction": "設定を書く",
+      "placeholder": "{name}とおしゃべり…",
+      "benchHint": "いまはおしゃべり中。{name}は台の上を操作しません。",
+      "benchHintAction": "作業に切り替え",
       "greetingUserFallback": "あなた"
     },
     "mode": {

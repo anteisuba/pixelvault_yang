@@ -35,10 +35,22 @@ const ease = cubicBezier(...EASE_STANDARD)
 /** 台角那颗 = `size-8`。 */
 const STUDIO_SHELL_EXPAND_CHAT_PX = 32
 
-/** 落点跟着走的那一块：对话头那颗在对话正文里，台角那颗在台那一列里。 */
+/**
+ * 落点跟着走的那一块：对话头那颗在对话栏里，台角那颗在台那一列里。
+ * 「拉」的那一段这两块都只被平移（`StudioShell`），走完各自的平移都回到 0。
+ */
 const MOVER: Record<StudioShellAvatarSpot, string> = {
-  header: '[data-testid="studio-shell-conversation-body"]',
+  header: '[data-testid="studio-shell-conversation"]',
   bench: '[data-testid="studio-shell-bench-column"]',
+}
+
+/** 这一块此刻被平移了多少：画出来的左缘减去它在布局里的左缘（`offsetLeft` 不含 transform）。 */
+function translateXOf(element: HTMLElement): number {
+  const parent = element.offsetParent
+  if (!(parent instanceof HTMLElement)) return 0
+  const laidOut =
+    parent.getBoundingClientRect().left + parent.clientLeft + element.offsetLeft
+  return element.getBoundingClientRect().left - laidOut
 }
 
 /**
@@ -65,8 +77,8 @@ function measureBenchCorner(
 }
 
 /**
- * 落点**走完之后**会在哪：那一块此刻在滑，滑完它的左边贴到对话栏的左边（收起：台那一列顶上来；
- * 展开：贴右的正文随栏变宽退回原位）。⛔ 直接追落点此刻的位置 —— 一开始会先往反方向冲。
+ * 落点**走完之后**会在哪：那一块此刻在平移，滑完平移归 0（收起：台那一列；展开：对话栏）。
+ * ⛔ 直接追落点此刻的位置 —— 一开始会先往反方向冲。
  */
 function measureLanding(
   root: HTMLElement | null,
@@ -76,14 +88,8 @@ function measureLanding(
   const anchor =
     (spot === 'bench' ? measureBenchCorner(mover) : null) ??
     measureStudioShellAvatar(root, spot)
-  const section = root?.querySelector<HTMLElement>(
-    '[data-testid="studio-shell-conversation"]',
-  )
-  // 收完那一拍对话栏 `display: none`，台那一列已经顶到位，不用再挪。
-  if (!anchor || !mover || !section || section.offsetParent === null)
-    return anchor
-  const shift =
-    mover.getBoundingClientRect().left - section.getBoundingClientRect().left
+  if (!anchor || !mover) return anchor
+  const shift = translateXOf(mover)
   return new DOMRect(
     anchor.left - shift,
     anchor.top,

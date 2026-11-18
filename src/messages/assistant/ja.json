@@ -292,7 +292,18 @@
       "tagUnknown": "{list}{more, plural, =0 {} other { ほか #件}}は見つからなかったため、そのまま残しました。",
       "tagListSeparator": "、",
       "tagSentenceSeparator": "",
-      "negativeFolded": "{model} にはネガティブプロンプト欄がないため、本文に書き込みました。"
+      "negativeFolded": "{model} にはネガティブプロンプト欄がないため、本文に書き込みました。",
+      "refusedValue": {
+        "head": "{field}を {requested} にできませんでした",
+        "tail": "：いまは {current}、選べるのは {options}",
+        "notSet": "未設定",
+        "separator": "、",
+        "field": {
+          "aspectRatio": "比率",
+          "resolution": "解像度",
+          "count": "枚数"
+        }
+      }
     },
     "checkpoint": {
       "summary": "{fields}を変更",

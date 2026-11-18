@@ -1591,21 +1591,29 @@ export function StudioOperatorPanel({
       const roundSteps = entries.flatMap((entry) =>
         entry.kind === 'step' && entry.runKey === block.runKey ? [entry] : [],
       )
-      const blocker = roundSteps.findLast(
-        (item, index) =>
-          item.step.status === 'error' &&
-          !item.step.draft &&
-          !STUDIO_OPERATOR_SKIPPED_REJECT_REASONS.includes(
-            item.step.error.reason,
-          ) &&
-          !roundSteps
-            .slice(index + 1)
-            .some(
-              (later) =>
-                later.step.tool === item.step.tool &&
-                later.step.status === 'done',
-            ),
-      )?.step
+      /** 收尾时还作数的失败：不是草稿、不是「跳过」、之后同一种工具也没再做成。 */
+      const stillFailed = (item: (typeof roundSteps)[number], index: number) =>
+        item.step.status === 'error' &&
+        !item.step.draft &&
+        !STUDIO_OPERATOR_SKIPPED_REJECT_REASONS.includes(
+          item.step.error.reason,
+        ) &&
+        !roundSteps
+          .slice(index + 1)
+          .some(
+            (later) =>
+              later.step.tool === item.step.tool &&
+              later.step.status === 'done',
+          )
+      const blocker = roundSteps.findLast(stillFailed)?.step
+      /** 被拒的那几格（11-18 真机）：逐条写「比例要 7:3，没改成 · 仍是 1:1，可选 …」。 */
+      const refusedValues = roundSteps.flatMap((item, index) =>
+        item.step.status === 'error' &&
+        item.step.error.value &&
+        stillFailed(item, index)
+          ? [item.step.error.value]
+          : [],
+      )
       const running = block.steps.some(
         (item) =>
           item.step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.running,
@@ -1769,17 +1777,45 @@ export function StudioOperatorPanel({
             roundDone &&
             lastToolsBlock === block.steps[0]?.id &&
             blocker?.status === 'error' ? (
-              <p>
-                <span className="text-status-risk">
-                  {blocker.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt
-                    ? t('toolGroup.promptUnchanged')
-                    : t('toolGroup.blocked')}
-                </span>
-                <span className="text-muted-foreground">
-                  {'：'}
-                  {t(`reject.${blocker.error.reason}`)}
-                </span>
-              </p>
+              /* 被拒的那几格每格一行：哪一格、要的什么（红）· 仍是什么、能选哪些（灰）；
+                 最后那条失败不是改值（没有 `value`）时照旧再写它那一行。 */
+              <>
+                {refusedValues.map((value, index) => (
+                  <p
+                    key={`${value.field}:${index}`}
+                    data-testid="operator-refused-value"
+                  >
+                    <span className="text-status-risk">
+                      {t('toolGroup.refusedValue.head', {
+                        field: t(`toolGroup.refusedValue.field.${value.field}`),
+                        requested: value.requested,
+                      })}
+                    </span>
+                    <span className="text-muted-foreground">
+                      {t('toolGroup.refusedValue.tail', {
+                        current:
+                          value.current ?? t('toolGroup.refusedValue.notSet'),
+                        options: value.options.join(
+                          t('toolGroup.refusedValue.separator'),
+                        ),
+                      })}
+                    </span>
+                  </p>
+                ))}
+                {blocker.error.value ? null : (
+                  <p>
+                    <span className="text-status-risk">
+                      {blocker.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt
+                        ? t('toolGroup.promptUnchanged')
+                        : t('toolGroup.blocked')}
+                    </span>
+                    <span className="text-muted-foreground">
+                      {'：'}
+                      {t(`reject.${blocker.error.reason}`)}
+                    </span>
+                  </p>
+                )}
+              </>
             ) : null
           }
         >

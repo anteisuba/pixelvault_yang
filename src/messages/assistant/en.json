@@ -292,7 +292,18 @@
       "tagUnknown": "Not found, kept as written: {list}{more, plural, =0 {} other { and # more}}.",
       "tagListSeparator": ", ",
       "tagSentenceSeparator": " ",
-      "negativeFolded": "{model} has no negative-prompt field, so this went into the prompt."
+      "negativeFolded": "{model} has no negative-prompt field, so this went into the prompt.",
+      "refusedValue": {
+        "head": "{field} {requested} didn't apply",
+        "tail": ": still {current}, options are {options}",
+        "notSet": "not set",
+        "separator": ", ",
+        "field": {
+          "aspectRatio": "Aspect ratio",
+          "resolution": "Resolution",
+          "count": "Count"
+        }
+      }
     },
     "checkpoint": {
       "summary": "changed {fields}",

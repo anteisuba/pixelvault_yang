@@ -1767,6 +1767,49 @@ describe('StudioOperatorPanel · 空调查卡与重复 checkpoint', () => {
     expect(screen.getAllByTestId('operator-log-item')).toHaveLength(2)
   })
 
+  it('11-18 真机：要的值被拒 → 红字逐格写「哪一格要什么，没改成 · 仍是 · 可选」，⛔ 不只一句笼统的「操作未完成」', () => {
+    pushStep('run-1', {
+      id: 'ratio',
+      title: '改比例',
+      tool: 'set_specs',
+      verb: 'apply',
+      status: 'error',
+      error: {
+        reason: 'unknownValue',
+        value: {
+          field: 'aspectRatio',
+          requested: '7:3',
+          current: '1:1',
+          options: ['1:1', '16:9'],
+        },
+      },
+    })
+    pushStep('run-1', {
+      id: 'count',
+      title: '改张数',
+      tool: 'set_count',
+      verb: 'apply',
+      status: 'error',
+      error: {
+        reason: 'unknownValue',
+        value: {
+          field: 'count',
+          requested: '9',
+          current: '1',
+          options: ['1', '2', '4'],
+        },
+      },
+    })
+    renderPanel()
+    const blocker = screen.getByTestId('operator-tool-group-blocker')
+    const lines = screen.getAllByTestId('operator-refused-value')
+    expect(lines).toHaveLength(2)
+    expect(lines[0]).toHaveTextContent('toolGroup.refusedValue.head')
+    expect(lines[0]).toHaveTextContent('toolGroup.refusedValue.tail')
+    // 每条都带着值了，就不再补那句笼统的「操作未完成：这个值不在可选档位里」。
+    expect(blocker).not.toHaveTextContent('toolGroup.blocked')
+  })
+
   it('⭐ 一轮被正文劈成两个工具块时，checkpoint 只出**一张**', () => {
     pushStep('run-1', {
       id: 'step-1',

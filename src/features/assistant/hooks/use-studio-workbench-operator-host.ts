@@ -246,6 +246,23 @@ export function useStudioWorkbenchOperatorHost({
     items: readonly StudioOperatorResultItem[]
     winnerId: string | null
   }>({ items: [], winnerId: null })
+  /**
+   * 模型在**界面上叫什么**（2026-09-12 实测第 5 步：卡上写着 `gpt-image-2.5-flare`）。
+   *
+   * ⭐ 词表就是模型选择器读的那一张（`Models.<key>.label`），⛔ 不另抄一份：
+   * 卡上写的名字与工作台上那颗选择器写的必须是同一个词。快照也走它（11-18 真机：读回里
+   * 印出了 `gemini-3.1-flash-lite-image`）—— 助手对人说的、读回写的都是这个名字。
+   * ⚠ 自定义模型（非内置）没有条目 —— 回 `undefined`，由纯函数层回落到
+   * `displayLabel` / id。
+   */
+  const tModels = useTranslations('Models')
+  const modelLabelOf = useCallback(
+    (option: { modelId: string; displayLabel?: string }) =>
+      isBuiltInModel(option.modelId)
+        ? tModels(`${getModelMessageKey(option.modelId)}.label`)
+        : undefined,
+    [tModels],
+  )
   const buildSnapshot = useCallback((): AssistantOperatorSnapshot => {
     const current = latest.current.state
     /**
@@ -280,6 +297,7 @@ export function useStudioWorkbenchOperatorHost({
           modelOptions: latest.current.videoModels.modelOptions,
           selectedModel: latest.current.videoModels.selectedModel,
           references,
+          labelOf: modelLabelOf,
         }),
       )
     }
@@ -291,9 +309,10 @@ export function useStudioWorkbenchOperatorHost({
         runModels: latest.current.runModels,
         references,
         otherModelOptions: latest.current.otherImageModels,
+        labelOf: modelLabelOf,
       }),
     )
-  }, [domain])
+  }, [domain, modelLabelOf])
 
   const apply = useMemo<StudioOperatorApplyContext>(
     () => ({
@@ -663,24 +682,8 @@ export function useStudioWorkbenchOperatorHost({
     [activeRun, results, threadScope, localThreadId, pendingResultId],
   )
 
-  /**
-   * 模型在**界面上叫什么**（2026-09-12 实测第 5 步：卡上写着 `gpt-image-2.5-flare`）。
-   *
-   * ⭐ 词表就是模型选择器读的那一张（`Models.<key>.label`），⛔ 不另抄一份：
-   * 卡上写的名字与工作台上那颗选择器写的必须是同一个词。
-   * ⚠ 自定义模型（非内置）没有条目 —— 回 `undefined`，由纯函数层回落到
-   * `displayLabel` / id。
-   */
   /** 脸上那些字（`face.*`）—— ⚠ 与 `tModels` 分开：命名空间不同。 */
   const t = useTranslations('StudioOperator')
-  const tModels = useTranslations('Models')
-  const modelLabelOf = useCallback(
-    (option: { modelId: string; displayLabel?: string }) =>
-      isBuiltInModel(option.modelId)
-        ? tModels(`${getModelMessageKey(option.modelId)}.label`)
-        : undefined,
-    [tModels],
-  )
 
   /**
    * **生成确认卡那四颗旋钮的真值**（v2 §5.2 第一 / 第三行，commit #9）。

@@ -296,6 +296,73 @@ describe('新内核主循环', () => {
     expect(events.at(-1)).toMatchObject({ type: 'done' })
   })
 
+  it('11-18 真机「比例 7:3、9 张、写提示词，准备生成」：要的值被拒，接力那一跳照样不出确认卡、她先讲清再问', async () => {
+    fakeModels.main = scriptedModel([
+      toolTurn({
+        id: 'e1',
+        name: 'edit',
+        input: {
+          changes: [
+            { op: 'prompt', mode: 'replace', text: '一只橘猫跳上窗台' },
+            { op: 'specs', aspectRatio: '7:3' },
+            { op: 'count', count: 9 },
+          ],
+        },
+      }),
+      toolTurn({ id: 'g1', name: 'generate', input: { say: '出图' } }),
+      textTurn(
+        '比例要 7:3 没改成，仍是 1:1，可选 1:1、16:9；张数要 9 也没改成，仍是 1 张，可选 1、2、4。按哪个来？',
+      ),
+    ])
+    const request = imageRequest(
+      '把比例改成 7:3，张数改成 9 张，提示词写『一只橘猫跳上窗台』。然后准备生成，我要先看确认卡。',
+    )
+    const hop1 = await run(request)
+    expect(hop1.at(-1)).toMatchObject({ type: 'stopped', reason: 'bench_sync' })
+    // 被拒的两步带着「哪一格 · 要的 · 仍是 · 可选」（面板按它逐条写）。
+    const refused = stepsOf(hop1).flatMap((step) =>
+      step.status === 'error' && step.error.value ? [step.error.value] : [],
+    )
+    expect(refused.map((value) => value.field)).toEqual([
+      'aspectRatio',
+      'count',
+    ])
+
+    const hop2 = await run(
+      landedRequest(hop1, request, { prompt: '一只橘猫跳上窗台' }),
+    )
+    // ⭐ 确定性的闸：接力那一跳的 generate 不出卡，回合以她那句话收尾。
+    expect(hop2.find((event) => event.type === 'confirm')).toBeUndefined()
+    expect(promptOf(fakeModels.main.doStreamCalls[2]!)).toContain(
+      'did not land on the bench',
+    )
+    expect(
+      hop2.some(
+        (event) => event.type === 'message' && event.text.includes('按哪个来'),
+      ),
+    ).toBe(true)
+    expect(hop2.at(-1)).toMatchObject({ type: 'done' })
+  })
+
+  it('改的都落成了：接力那一跳照常出确认卡', async () => {
+    fakeModels.main = scriptedModel([
+      toolTurn({
+        id: 'e1',
+        name: 'edit',
+        input: { changes: [{ op: 'count', count: 2 }] },
+      }),
+      toolTurn({ id: 'g1', name: 'generate', input: { say: '出图' } }),
+    ])
+    const request = imageRequest('张数改成 2，然后出图')
+    const hop1 = await run(request)
+    const hop2 = await run(
+      landedRequest(hop1, request, {
+        count: { value: 2, options: [1, 2, 4] },
+      }),
+    )
+    expect(hop2.find((event) => event.type === 'confirm')).toBeTruthy()
+  })
+
   it('读不懂的入参回一句哪一格不对，模型改了再来（⛔ 不判死）', async () => {
     fakeModels.main = scriptedModel([
       toolTurn({

@@ -9,7 +9,12 @@ import type {
   AssistantOperatorSnapshot,
 } from '@/types/assistant-operator'
 
-import { benchReadbackOutput, renderBench, runEdit } from './bench'
+import {
+  ASK_ABOUT_UNLANDED,
+  benchReadbackOutput,
+  renderBench,
+  runEdit,
+} from './bench'
 
 /**
  * 11-17 真机（生产 `/zh/studio/image`，Seedream 5.0 Lite · 火山）：
@@ -185,6 +190,46 @@ describe('图片台 edit：回给模型的是台上落下后的真值（11-17）
     const read = benchReadbackOutput(landed, result.readback ?? [])
     expect(read.mismatched).toBe(0)
     expect(read.output).toContain('aspect ratio 1:1')
+  })
+
+  it('要的值被拒（11-18 真机 7:3 / 9 张）：记下几格没落成、被拒步带上「哪一格 · 要的 · 仍是 · 可选」、回执叫她先问', async () => {
+    const context = imageBenchContext()
+    const { result, events } = await drain(
+      runEdit(context, [
+        { op: 'prompt', mode: 'replace', text: '一只橘猫跳上窗台' },
+        { op: 'specs', aspectRatio: '7:3' },
+        { op: 'count', count: 9 },
+      ]),
+    )
+    // 半成：不是全军覆没（error=false），但两格没落成。
+    expect(result.error).toBe(false)
+    expect(result.unlanded).toBe(2)
+    expect(result.output).toContain(ASK_ABOUT_UNLANDED)
+    const values = events.flatMap((event) =>
+      event.type === 'step' &&
+      event.step.status === 'error' &&
+      event.step.error.value
+        ? [event.step.error.value]
+        : [],
+    )
+    expect(values).toEqual([
+      expect.objectContaining({
+        field: 'aspectRatio',
+        requested: '7:3',
+        current: '1:1',
+      }),
+      expect.objectContaining({ field: 'count', requested: '9' }),
+    ])
+    expect(values[0]?.options).toContain('16:9')
+    expect(values[1]?.options.length).toBeGreaterThan(0)
+  })
+
+  it('全都落成：不记 unlanded、回执里没有「先问」那一句', async () => {
+    const { result } = await drain(
+      runEdit(imageBenchContext(), [{ op: 'count', count: 2 }]),
+    )
+    expect(result.unlanded).toBeUndefined()
+    expect(result.output).not.toContain(ASK_ABOUT_UNLANDED)
   })
 
   it('改完的回执带上这一批的估价（与出图键旁那个数同一个算式）', async () => {

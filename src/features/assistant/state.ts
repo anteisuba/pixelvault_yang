@@ -61,6 +61,11 @@ export interface NextTurnState {
     /** 工作台：停在 `bench_sync` 时交给浏览器落表单的那几次 edit（下一跳按真实快照读回）。 */
     readonly bench?: readonly PendingBenchEdit[]
   }
+  /**
+   * 这一轮里创作者要的表单值有没落成的（被拒 / 读回对不上）：接力那几跳照旧不发起生成确认
+   * （`kernel.ts` 的 `NOT_RUN_UNLANDED_REQUEST`）。⛔ 只记在跳里会在 `bench_sync` 那一停丢掉。
+   */
+  readonly unlanded?: true
 }
 
 export interface PendingBenchEdit {

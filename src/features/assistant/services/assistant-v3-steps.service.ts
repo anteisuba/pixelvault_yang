@@ -21,6 +21,7 @@ import type { PromptAssistantResponseLanguage } from '@/types'
 import type {
   AssistantOperatorCanvasNode,
   AssistantOperatorEvent,
+  AssistantOperatorRejectedValue,
   AssistantOperatorRequest,
 } from '@/types/assistant-operator'
 import type {
@@ -382,6 +383,7 @@ export function* rejectedStep(
   reason: AssistantOperatorRejectReason,
   detail: string,
   draft: boolean,
+  value?: AssistantOperatorRejectedValue,
 ): Generator<AssistantOperatorEvent, V3Outcome> {
   yield toStepEvent({
     ...nextStep(context, tool, title),
@@ -389,6 +391,7 @@ export function* rejectedStep(
     error: {
       reason,
       detail: detail.slice(0, ASSISTANT_OPERATOR_LIMITS.maxReasonChars),
+      ...(value ? { value } : {}),
     },
     ...(draft ? { draft: true } : {}),
   })
@@ -424,6 +427,7 @@ export async function* settlePlan(
         plan.reason,
         plan.detail ?? plan.reason,
         plan.quiet === true,
+        plan.value,
       )
     case 'read': {
       const step = nextStep(context, tool, title)

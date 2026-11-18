@@ -287,6 +287,11 @@ export interface ImageOperatorSnapshotInput {
    * （第 9e 步「开台」）。缺席 = 没有对面那一台。
    */
   otherModelOptions?: readonly StudioModelOption[]
+  /**
+   * 模型的**显示名**（见 `labelOfOption`）—— 快照里每个 `label` 都走它（11-18 真机：读回里
+   * 印出了 `gemini-3.1-flash-lite-image`，内置模型没有 `displayLabel` 就回落成 id）。
+   */
+  labelOf?: (option: StudioModelOption) => string | undefined
 }
 
 /**
@@ -359,6 +364,7 @@ export function buildImageOperatorSnapshot({
   runModels,
   references,
   otherModelOptions,
+  labelOf,
 }: ImageOperatorSnapshotInput): AssistantOperatorSnapshot {
   /**
    * NovelAI 角色构图 —— 与界面同一个判据（`useNovelAiCharacters`：这一轮里第一个
@@ -388,13 +394,13 @@ export function buildImageOperatorSnapshot({
     otherModelOptions ?? [],
   ).map((option) => ({
     id: option.modelId,
-    label: clampLabel(option.displayLabel ?? option.modelId),
+    label: labelOfOption(option, labelOf),
   }))
   const availableModels = imageRunnableOptions(modelOptions).map((option) => {
     const channels = channelsOf(option.modelId, modelOptions)
     return {
       id: option.modelId,
-      label: clampLabel(option.displayLabel ?? option.modelId),
+      label: labelOfOption(option, labelOf),
       ...(channels ? { channels } : {}),
     }
   })
@@ -429,7 +435,7 @@ export function buildImageOperatorSnapshot({
     .slice(0, ASSISTANT_OPERATOR_LIMITS.maxAvailableModels)
     .map((option) => ({
       id: option.modelId,
-      label: clampLabel(option.displayLabel ?? option.modelId),
+      label: labelOfOption(option, labelOf),
     }))
 
   return {
@@ -438,9 +444,7 @@ export function buildImageOperatorSnapshot({
     model: selectedModel
       ? {
           id: selectedModel.modelId,
-          label: clampLabel(
-            selectedModel.displayLabel ?? selectedModel.modelId,
-          ),
+          label: labelOfOption(selectedModel, labelOf),
           ...(channelsOf(selectedModel.modelId, modelOptions)
             ? {
                 channels: channelsOf(selectedModel.modelId, modelOptions),
@@ -515,6 +519,8 @@ export interface VideoOperatorSnapshotInput {
   modelOptions: readonly StudioModelOption[]
   selectedModel: StudioModelOption | undefined
   references: StudioOperatorSnapshotReferences
+  /** 模型的显示名（同图片档 `labelOf`）。 */
+  labelOf?: (option: StudioModelOption) => string | undefined
 }
 
 /**
@@ -558,6 +564,7 @@ export function buildVideoOperatorSnapshot({
   modelOptions,
   selectedModel,
   references,
+  labelOf,
 }: VideoOperatorSnapshotInput): AssistantOperatorSnapshot {
   /**
    * ⚠ **不按 modelId 去重**：一个型号在几条渠道上就是几行，那正是这一档要给的
@@ -565,7 +572,7 @@ export function buildVideoOperatorSnapshot({
    */
   const availableModels = videoRunnableOptions(modelOptions).map((option) => ({
     id: option.optionId,
-    label: describeVideoOption(option),
+    label: describeVideoOption(option, labelOf),
     // 目录 id —— 换模型时按它查新模型的写法规则（选项 id 查不到）。
     catalogId: option.modelId,
   }))
@@ -652,7 +659,7 @@ export function buildVideoOperatorSnapshot({
     model: selectedModel
       ? {
           id: selectedModel.optionId,
-          label: describeVideoOption(selectedModel),
+          label: describeVideoOption(selectedModel, labelOf),
           catalogId: selectedModel.modelId,
         }
       : null,

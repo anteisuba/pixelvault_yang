@@ -33,6 +33,7 @@ import {
   GENERATION_REVIEW_STATE_IDS as REVIEW,
   ASSISTANT_RESEARCH_LIMITS as RESEARCH_LIMITS,
   ASSISTANT_OPERATOR_REJECT_REASON_IDS as REJECT,
+  ASSISTANT_OPERATOR_REJECTED_FIELD_IDS as REJECTED_FIELD,
   isAssistantOperatorToolInDomain,
   ASSISTANT_OPERATOR_TOOL_IDS as TOOL,
   ASSISTANT_RESEARCH_SOURCE_IDS,
@@ -3219,6 +3220,12 @@ export function planSetSpecs(
     return reject(
       REJECT.unknownValue,
       `aspectRatio "${args.aspectRatio}" is not an option for this model (options: ${specs?.aspectRatioOptions.join(', ') || 'none'}); the aspect ratio stays ${run.state.aspectRatio ?? '(not set)'}.`,
+      {
+        field: REJECTED_FIELD.aspectRatio,
+        requested: args.aspectRatio,
+        current: run.state.aspectRatio,
+        options: specs?.aspectRatioOptions ?? [],
+      },
     )
   }
   const tierless = hasNoResolutionTiers(run.request.snapshot)
@@ -3239,6 +3246,12 @@ export function planSetSpecs(
     return reject(
       REJECT.unknownValue,
       `resolution "${args.resolution}" is not an option for this model (options: ${specs.resolutionOptions.join(', ')}); nothing changed, the aspect ratio stays ${run.state.aspectRatio ?? '(not set)'}.`,
+      {
+        field: REJECTED_FIELD.resolution,
+        requested: args.resolution,
+        current: run.state.resolution,
+        options: specs.resolutionOptions,
+      },
     )
   }
   const resolution = tierless ? 'auto' : args.resolution
@@ -3565,7 +3578,13 @@ export function planSetCount(
   if (!options.includes(args.count)) {
     return reject(
       REJECT.unknownValue,
-      `count ${args.count} — options are ${options.join(', ')}`,
+      `count ${args.count} is not an option (options: ${options.join(', ')}); the count stays ${run.state.count ?? 1}.`,
+      {
+        field: REJECTED_FIELD.count,
+        requested: String(args.count),
+        current: run.state.count === null ? null : String(run.state.count),
+        options: options.map(String),
+      },
     )
   }
 

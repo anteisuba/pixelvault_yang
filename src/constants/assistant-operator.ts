@@ -3084,6 +3084,17 @@ export const ASSISTANT_OPERATOR_REJECT_REASON_IDS = {
 } as const
 
 /**
+ * 一条被拒的改值**改的是哪一格**（11-18 真机：红字只写「这个值不在可选档位里」，用户不知道
+ * 是哪一格、要的是什么、现在还是什么、能选哪些）。被拒步带上它，面板按它逐条说「比例要 7:3，
+ * 仍是 1:1，可选 …」。⚠ 只收表单上有档位表的那几格 —— 其余的拒绝照旧只有理由。
+ */
+export const ASSISTANT_OPERATOR_REJECTED_FIELD_IDS = {
+  aspectRatio: 'aspectRatio',
+  resolution: 'resolution',
+  count: 'count',
+} as const
+
+/**
  * 评审卡上一条结论的**严重度**（owner 2026-09-07 定的评审三段：否定 / 异常 / 建议）。
  *
  * ⭐ 它**取代了原来那个 `ok: boolean`**，⛔ 不是在它旁边多一格（工程原则 1）：

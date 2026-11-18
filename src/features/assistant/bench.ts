@@ -7,8 +7,10 @@ import {
 import {
   ASSISTANT_OPERATOR_EVENTS,
   ASSISTANT_OPERATOR_LIMITS,
+  ASSISTANT_OPERATOR_REJECT_REASON_IDS,
   ASSISTANT_OPERATOR_STEP_STATUS_IDS,
   ASSISTANT_OPERATOR_TOOL_IDS,
+  type AssistantOperatorRejectReason,
 } from '@/constants/assistant-operator'
 import {
   ASSISTANT_V3_CARDS_EDIT_OP_IDS,
@@ -249,6 +251,12 @@ export interface BenchResult {
    * `bench_sync`，下一跳按落下之后的真实快照读回再补结果。⛔ 别当场按服务端那份说「改好了」。
    */
   readonly readback?: readonly BenchReadbackRequest[]
+  /**
+   * 工作台：这次 edit 里**创作者要的表单值被拒了几格**（不在档位里 / 没这个模型 / 没这一格）。
+   * 循环据此这一轮不再发起生成确认（`NOT_RUN_UNLANDED_REQUEST`）—— ⛔ 只靠 `error`（全军覆没才
+   * 是 true）就会漏掉「提示词写成了、比例被拒」这种半成（11-18 真机：7:3 / 9 张被拒照样弹了卡）。
+   */
+  readonly unlanded?: number
 }
 
 /** 附图全名（`图_1553·masterpi`）和模型写的名字是不是同一张：全名一样，或只写了「·」前的编号。 */
@@ -1100,21 +1108,45 @@ const READBACK_FACES: ReadonlySet<string> = new Set([
   ASSISTANT_V3_FACE_IDS.lora,
 ])
 
-/** 原样转发一段步骤流，顺手记下交给浏览器落表单的那几步（读回用）。 */
+/** 有被拒的那几格时，edit 结果最后一行（与循环里那道生成闸同一件事，先说给模型）。 */
+export const ASK_ABOUT_UNLANDED =
+  'Generate is OFF for the rest of this turn: a value the creator asked for was refused. In your reply, name each refused field with the value they asked for, the value it still has, and the options it does take (use the display names shown above, never ids), then ask which option to use. Do not pick a substitute yourself and do not call generate — wait for their answer.'
+
+/** 这几种拒绝 = 创作者要的那一格没改成（要的值不在档位里 / 没有这个模型 / 台上没这一格）。 */
+const UNLANDED_REJECT_REASONS: ReadonlySet<AssistantOperatorRejectReason> =
+  new Set([
+    ASSISTANT_OPERATOR_REJECT_REASON_IDS.unknownValue,
+    ASSISTANT_OPERATOR_REJECT_REASON_IDS.unknownModel,
+    ASSISTANT_OPERATOR_REJECT_REASON_IDS.noSuchControl,
+  ])
+
+/**
+ * 原样转发一段步骤流，顺手记下交给浏览器落表单的那几步（读回用），和被拒的那几格（`unlanded`）。
+ * ⚠ 退回重写的草稿（`draft`）不算：那是同一步里换个写法再来，不是创作者要的值落不下。
+ */
 async function* tapReadback<T>(
   steps: AsyncGenerator<AssistantOperatorEvent, T>,
   into: BenchReadbackRequest[],
+  refused: { count: number },
 ): AsyncGenerator<AssistantOperatorEvent, T> {
   for (;;) {
     const next = await steps.next()
     if (next.done) return next.value
     const event = next.value
-    if (
-      event.type === ASSISTANT_OPERATOR_EVENTS.step &&
-      event.step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done &&
-      isBenchReadbackStep(event.step)
-    )
-      into.push(toBenchReadbackRequest(event.step))
+    if (event.type === ASSISTANT_OPERATOR_EVENTS.step) {
+      const step = event.step
+      if (
+        step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done &&
+        isBenchReadbackStep(step)
+      )
+        into.push(toBenchReadbackRequest(step))
+      else if (
+        step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.error &&
+        !step.draft &&
+        UNLANDED_REJECT_REASONS.has(step.error.reason)
+      )
+        refused.count += 1
+    }
     yield event
   }
 }
@@ -1132,11 +1164,13 @@ export async function* runEdit(
   if (context.face === ASSISTANT_V3_FACE_IDS.canvas)
     return yield* runCanvasEdit(context, changes)
   const readback: BenchReadbackRequest[] = []
+  const refused = { count: 0 }
   const tapping = READBACK_FACES.has(context.face)
   const apply = (change: EditChange, partner?: EditChange) =>
     tapping
-      ? tapReadback(applyChange(context, change, partner), readback)
+      ? tapReadback(applyChange(context, change, partner), readback, refused)
       : applyChange(context, change, partner)
+  const unlanded = () => (refused.count > 0 ? { unlanded: refused.count } : {})
   const lines: string[] = []
   let failed = 0
   let total = 0
@@ -1155,6 +1189,7 @@ export async function* runEdit(
           error: false,
           stop: true,
           ...(readback.length ? { readback } : {}),
+          ...unlanded(),
         }
       continue
     }
@@ -1192,19 +1227,26 @@ export async function* runEdit(
     lines.unshift(
       `NOT everything landed: ${failed} of ${total} change${total === 1 ? '' : 's'} did not happen (lines marked "not done" below). Tell the creator which ones did not change and why; never say they did.`,
     )
+  // 创作者要的值被拒了：这一轮不再出图（循环那道闸），先问清按哪个可选值来。
+  if (refused.count > 0) lines.push(ASK_ABOUT_UNLANDED)
   // 交给浏览器落表单的：「现在是什么样」等下一跳按真实快照读回（循环停在 `bench_sync`）。
   if (readback.length)
     return {
       output: lines.join('\n'),
       error: total > 0 && failed === total,
       readback,
+      ...unlanded(),
     }
   // 一格表单都没动（全被拒 / 只改了库）：台上就是这一跳的快照，当场写。
   if (context.face === ASSISTANT_V3_FACE_IDS.image)
     lines.push(
       renderImageBenchNow(context.prepared.run.state, context.request.snapshot),
     )
-  return { output: lines.join('\n'), error: total > 0 && failed === total }
+  return {
+    output: lines.join('\n'),
+    error: total > 0 && failed === total,
+    ...unlanded(),
+  }
 }
 
 /**

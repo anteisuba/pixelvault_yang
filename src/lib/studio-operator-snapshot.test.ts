@@ -330,6 +330,18 @@ describe('buildImageOperatorSnapshot', () => {
     )
   })
 
+  it('11-18 真机：内置模型没有 displayLabel 时按 `labelOf`（选择器那张词表）写显示名，⛔ 不回落成 id', () => {
+    const bare = option(PLAIN)
+    const labelOf = () => 'Seedream 5.0 Pro'
+    const snapshot = buildImage(bare, { labelOf })
+    expect(snapshot.model?.label).toBe('Seedream 5.0 Pro')
+    expect(snapshot.availableModels).toEqual([
+      expect.objectContaining({ id: PLAIN, label: 'Seedream 5.0 Pro' }),
+    ])
+    // 没给词表照旧回落到 id（自定义模型那一档）。
+    expect(buildImage(bare).model?.label).toBe(PLAIN)
+  })
+
   it('形状不变：按 modelId 去重、给 specs 与 count、⛔ 不带任何视频节', () => {
     const onWorkspace = option(PLAIN, { displayLabel: 'Seedream 5.0 Pro' })
     const saved = { ...onWorkspace, optionId: `saved:${PLAIN}` }

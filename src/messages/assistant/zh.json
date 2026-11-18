@@ -292,7 +292,18 @@
       "tagUnknown": "{list}{more, plural, =0 { } other { 等 # 个}}没查到，原样保留。",
       "tagListSeparator": "，",
       "tagSentenceSeparator": "",
-      "negativeFolded": "{model} 没有负面提示词这一栏，所以写进了正文。"
+      "negativeFolded": "{model} 没有负面提示词这一栏，所以写进了正文。",
+      "refusedValue": {
+        "head": "{field}要 {requested}，没改成",
+        "tail": "：仍是 {current}，可选 {options}",
+        "notSet": "未设置",
+        "separator": "、",
+        "field": {
+          "aspectRatio": "比例",
+          "resolution": "清晰度",
+          "count": "张数"
+        }
+      }
     },
     "checkpoint": {
       "summary": "改了{fields}",

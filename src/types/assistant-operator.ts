@@ -78,6 +78,7 @@ import {
   ASSISTANT_OPERATOR_CRITIQUE_FRAME_LABELS,
   ASSISTANT_OPERATOR_REFERENCE_SLOTS,
   ASSISTANT_OPERATOR_REJECT_REASON_IDS,
+  ASSISTANT_OPERATOR_REJECTED_FIELD_IDS,
   ASSISTANT_OPERATOR_RESUME_LIMITS as RESUME_LIMITS,
   ASSISTANT_OPERATOR_SEARCH_KINDS,
   ASSISTANT_OPERATOR_STEP_STATUS_IDS,
@@ -4861,6 +4862,22 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
 ])
 
 /**
+ * 被拒的那一格：要的什么、台上仍是什么、能选哪些（面板逐条写给用户，11-18 真机）。
+ * `current: null` = 那一格没设过（交给模型默认）。
+ */
+export const AssistantOperatorRejectedValueSchema = z.object({
+  field: z.enum(ASSISTANT_OPERATOR_REJECTED_FIELD_IDS),
+  requested: z.string().max(LIMITS.maxParamValueChars),
+  current: z.string().max(LIMITS.maxParamValueChars).nullable(),
+  options: z
+    .array(z.string().max(LIMITS.maxParamValueChars))
+    .max(LIMITS.maxSpecOptions),
+})
+export type AssistantOperatorRejectedValue = z.infer<
+  typeof AssistantOperatorRejectedValueSchema
+>
+
+/**
  * 被规划器拒掉的一步。
  *
  * **有意让它出现在日志流里**而不是静默丢掉：模型编了个不存在的模型 id 时，用户
@@ -4874,6 +4891,7 @@ export const AssistantOperatorRejectedStepSchema = z.object({
   error: z.object({
     reason: AssistantOperatorRejectReasonSchema,
     detail: z.string().max(LIMITS.maxReasonChars).optional(),
+    value: AssistantOperatorRejectedValueSchema.optional(),
   }),
   /** 退回重写的草稿（同一步还没结束）：进时间线和 priorSteps，但不算这一轮的失败。 */
   draft: z.literal(true).optional(),

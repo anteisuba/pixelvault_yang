@@ -16,6 +16,7 @@ import type {
   AssistantOperatorCharacterProfileDraft,
   AssistantOperatorCharacterImagesProposal,
   AssistantOperatorLoraSetupConfirm,
+  AssistantOperatorRejectedValue,
 } from '@/types/assistant-operator'
 import type { ReferenceAnalysis } from '@/types/assistant-reference-analysis'
 import {
@@ -577,6 +578,8 @@ export type ToolPlan =
       kind: 'rejected'
       reason: AssistantOperatorRejectReason
       detail?: string
+      /** 被拒的那一格（有档位表的几格才给）：面板逐条写「要 X，仍是 Y，可选 …」。 */
+      value?: AssistantOperatorRejectedValue
       /**
        * 退回重写的草稿：进时间线但标成 `draft`（不算失败），也进下一次请求的
        * priorSteps —— 接力 / 插话之后模型才知道上次为什么没写成（2026-10-08）。
@@ -686,11 +689,26 @@ export type ToolPlan =
 export function reject(
   reason: AssistantOperatorRejectReason,
   detail?: string,
+  value?: AssistantOperatorRejectedValue,
 ): ToolPlan {
   return {
     kind: 'rejected',
     reason,
     ...(detail ? { detail: clamp(detail, LIMITS.maxReasonChars) } : {}),
+    ...(value ? { value: clampRejectedValue(value) } : {}),
+  }
+}
+
+/** 同 `detail` 的理由：这几格下游要过 `step` 帧的 schema，超长当场抛。 */
+function clampRejectedValue(
+  value: AssistantOperatorRejectedValue,
+): AssistantOperatorRejectedValue {
+  const short = (text: string) => clamp(text, LIMITS.maxParamValueChars)
+  return {
+    field: value.field,
+    requested: short(value.requested),
+    current: value.current === null ? null : short(value.current),
+    options: value.options.slice(0, LIMITS.maxSpecOptions).map(short),
   }
 }
 

@@ -299,6 +299,15 @@ const OPEN_NOT_KEPT =
 const NOT_RUN_REPEATED_FAILURE =
   'Not run: you made this exact call already this turn, it failed, and nothing has gone through since — it would fail the same way. Do not repeat it: change what the failure points at, or tell the creator plainly what did not work. It failed with: '
 
+/**
+ * 这一轮里创作者要的表单值有没落成的（规划器拒了 / 浏览器落下后读回对不上）→ 这一轮不发起生成
+ * 确认（11-18 真机：「比例 7:3、9 张，准备生成」两格都被拒，她一句话没说就弹了确认卡，卡上是旧值）。
+ * ⭐ 确定性的闸，⛔ 不只靠提示词：没落成的先讲清、问按哪个可选值来，创作者答了（下一轮）再出图。
+ * 软拦：不记红行（那几格的红行已经在了），只把话说给模型。
+ */
+const NOT_RUN_UNLANDED_REQUEST =
+  'Not shown: earlier this turn a value the creator asked for did not land on the bench, so the confirmation would show old values. Do not call generate again this turn. Reply now: for each refused field say what they asked for, what it still is, and which options it takes (display names, never ids), and ask which option to use.'
+
 const NOT_RUN_AFTER_FAILED_EDIT =
   'Not shown: an edit earlier in this step did not land, so the bench is not what you meant to generate. Fix that edit first, then call generate again.'
 
@@ -1108,6 +1117,8 @@ async function* runNextTurn(
     )
       context.transcript.push(entry)
   seedV3WebFinds(run, transcript)
+  /** 这一轮里创作者要的表单值有没落成的（接力那几跳接着记，见 `NOT_RUN_UNLANDED_REQUEST`）。 */
+  let unlanded = saved?.unlanded === true
   // 画布：上一跳交给浏览器落的那一批，这一跳按落没落、新画面补上结果，再接着跑。
   if (saved?.pending) {
     const landed: ToolResultPart[] = saved.pending.canvas.map((edit) => {
@@ -1141,6 +1152,7 @@ async function* runNextTurn(
         const read = benchReadbackOutput(context, edit.requested)
         const output = `${edit.lines}\n${read.output}`
         const error = edit.error || read.mismatched > 0
+        if (read.mismatched > 0) unlanded = true
         transcript.push({
           type: ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.result,
           id: edit.toolCallId.slice(0, ASSISTANT_V3_LIMITS.maxCallIdChars),
@@ -1241,6 +1253,7 @@ async function* runNextTurn(
       inputTokens: turnInputTokens,
       history: pinnedHistory,
       ...(pending ? { pending } : {}),
+      ...(unlanded ? { unlanded: true as const } : {}),
     })
   let emptyRetried = false
   let unpairedRetried = false
@@ -1797,6 +1810,8 @@ async function* runNextTurn(
       if (stopped) return { output: NOT_RUN_AFTER_STOP, error: true }
       if (opening) return { output: NOT_RUN_AFTER_OPEN, error: true }
       if (afterFinds) return { output: afterFinds, error: true }
+      if (unlanded && call.toolName === ASSISTANT_NEXT_TOOL_IDS.generate)
+        return { output: NOT_RUN_UNLANDED_REQUEST, error: true }
       if (editFailed && call.toolName === ASSISTANT_NEXT_TOOL_IDS.generate)
         return { output: NOT_RUN_AFTER_FAILED_EDIT, error: true }
       if (
@@ -1844,6 +1859,7 @@ async function* runNextTurn(
       if (result.stop) stopped = true
       if (result.error && call.toolName === ASSISTANT_NEXT_TOOL_IDS.edit)
         editFailed = true
+      if ((result.unlanded ?? 0) > 0) unlanded = true
     }
     /**
      * 连着的 find / look 一起跑（`concurrent-tools.ts` 头注）；其余照原顺序一个一个跑。
@@ -1892,7 +1908,8 @@ async function* runNextTurn(
         toolCallId: edit.call.toolCallId,
         toolName: edit.call.toolName,
         lines: edit.result.output,
-        error: edit.result.error,
+        // 半成（有几格被拒）也算失败：结果按 error-text 交，模型不会当成「都改好了」。
+        error: edit.result.error || (edit.result.unlanded ?? 0) > 0,
         requested: edit.requested,
       }))
       // 交给浏览器落：存好这一步（结果待补），交接力条，停在 bench_sync；下一跳按真实快照读回。

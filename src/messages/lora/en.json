@@ -249,9 +249,9 @@
       "emptyTitle": "What do you want to make?",
       "starterDescription": "Mount a LoRA to lock a character or style, then describe the picture.",
       "starterExamples": {
-        "a": "1girl, solo, upper body, smile, looking at viewer, outdoors",
-        "b": "full body, standing, city street, night, neon lights",
-        "c": "portrait, close-up, soft lighting, simple background"
+        "a": "1girl, smile, upper body",
+        "b": "full body, neon city, night",
+        "c": "portrait, soft lighting"
       },
       "busy": "Generating",
       "assistantBusy": "The bench is still busy (generating, or mounting recipe LoRAs) — ask again once it is done",

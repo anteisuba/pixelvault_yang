@@ -12,7 +12,7 @@ export interface StudioStarterExample {
   readonly text: string
 }
 
-interface StudioStarterStateProps {
+export interface StudioStarterStateProps {
   /** 一句标题（ui-spec §4 `head` 20 / 600，桌面原位不动）。 */
   title: string
   /** 一行：这个台能做什么。 */

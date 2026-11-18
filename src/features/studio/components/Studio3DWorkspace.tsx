@@ -74,6 +74,7 @@ import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { GENERATED_VIEW_ANGLES } from '@/constants/three-d-ready-prompt'
 import { CLIENT_UPLOAD_MAX_BYTES } from '@/constants/uploads'
 import { AssetSelectorDialog } from '@/features/assets'
+import { StudioOperatorBenchDock } from '@/features/assistant'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 import { STUDIO_COMPOSER_CARD_RESPONSIVE_CLASS } from '@/components/business/studio-shared/chrome/studio-composer-card'
 import { StudioStarterState } from '@/components/business/studio-shared/chrome/StudioStarterState'
@@ -3122,6 +3123,8 @@ export function Studio3DWorkspace({
         }
         optionId={`workspace:3d:multiview:${selectedMultiViewModelId}`}
       />
+      {/* 手机（<768）右上头像：3D 台没有可让助手改的表单，挂首页那张脸（没台规则），桌面由外壳那一栏挂。 */}
+      <StudioOperatorBenchDock benchless />
     </div>
   )
 }

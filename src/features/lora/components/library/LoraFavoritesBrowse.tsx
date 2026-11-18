@@ -13,7 +13,7 @@ import {
   isCivitaiBaseModelGeneratable,
   isLoraNsfwFilter,
 } from '@/constants/lora'
-import { useLoraBenchHandoff } from '@/contexts/studio-library-pick'
+import { useSendToLoraBench } from '@/contexts/studio-library-pick'
 import { useActiveLoraStack } from '@/features/lora/hooks/use-active-lora-stack'
 import { useCivitaiDownloadGate } from '@/features/lora/hooks/use-civitai-download-gate'
 import { useHandMentionToAssistant } from '@/features/assistant/hooks'
@@ -121,7 +121,7 @@ export function LoraFavoritesBrowse({
   const format = useFormatter()
   const hand = useHandMentionToAssistant()
   const stack = useActiveLoraStack()
-  const handoff = useLoraBenchHandoff()
+  const sendToBench = useSendToLoraBench()
   const { ensureMountable } = useCivitaiDownloadGate()
   const [storedNsfwFilter] = useLocalPreference(LORA_LIBRARY_NSFW_STORAGE_KEY)
   const nsfwFilter =
@@ -227,16 +227,22 @@ export function LoraFavoritesBrowse({
   }, [activeFamily, expansion, sort, source, trimmedQuery])
 
   // 连版本号一起认：收藏记录与详情页取回的版本条目是同一把，但 id / 链接写法不同。
-  const isMounted = useCallback(
+  /** 已挂着的那一条在栈里的 id（台认领按它找）；没挂 = `null`。 */
+  const mountedIdOf = useCallback(
     (target: { id: string; loraUrl: string; modelVersionId?: number }) =>
-      stack.items.some(
+      stack.items.find(
         (entry) =>
           entry.asset.id === target.id ||
           entry.asset.loraUrl === target.loraUrl ||
           (!!target.modelVersionId &&
             entry.asset.modelVersionId === target.modelVersionId),
-      ),
+      )?.asset.id ?? null,
     [stack.items],
+  )
+  const isMounted = useCallback(
+    (target: { id: string; loraUrl: string; modelVersionId?: number }) =>
+      mountedIdOf(target) !== null,
+    [mountedIdOf],
   )
   const favoriteFor = useCallback(
     (item: CivitaiLoraLibraryItem) =>
@@ -254,15 +260,22 @@ export function LoraFavoritesBrowse({
       const version =
         target && target.modelVersionId !== asset.modelVersionId ? target : null
       if (mountingId) return
+      // 台没开：去台上，台落地后说「已挂上 XXX」（带撤销与触发词，与库页同一处认领）。
+      // 台开着（`sendToBench` 为 null）留在原地。
       if (!version) {
+        const already = mountedIdOf(asset)
         for (const item of characterMountList(asset)) {
           if (!isMounted(item)) stack.push(item)
         }
-        handoff?.()
+        sendToBench?.({
+          assetId: already ?? asset.id,
+          newlyMounted: already === null,
+        })
         return
       }
-      if (isMounted(version)) {
-        handoff?.()
+      const already = mountedIdOf(version)
+      if (already) {
+        sendToBench?.({ assetId: already, newlyMounted: false })
         return
       }
       setMountingId(version.id)
@@ -276,7 +289,7 @@ export function LoraFavoritesBrowse({
           return
         }
         stack.push(version)
-        handoff?.()
+        sendToBench?.({ assetId: version.id, newlyMounted: true })
       } finally {
         setMountingId(null)
       }
@@ -284,9 +297,10 @@ export function LoraFavoritesBrowse({
     [
       characterMountList,
       ensureMountable,
-      handoff,
       isMounted,
+      mountedIdOf,
       mountingId,
+      sendToBench,
       stack,
       t,
     ],

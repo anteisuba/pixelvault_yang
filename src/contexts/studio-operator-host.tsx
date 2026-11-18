@@ -96,6 +96,7 @@ export interface StudioOperatorFace {
   /**
    * 画不画规格行（输入框上方那一行）。⭐ 没开台（首页）不画（owner 2026-11-04）：
    * 那一行说的是「台上此刻怎么出」，没台就是噪音；首页出图的型号 / 比例在生成卡上照样能改。
+   * 例外（owner 11-18）：首页那份小配方动过（`generationDraft.edited`）就画同一条摘要，点它开图片台。
    */
   specLine: boolean
   /**

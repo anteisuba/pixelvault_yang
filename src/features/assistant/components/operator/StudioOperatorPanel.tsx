@@ -3074,7 +3074,17 @@ export function StudioOperatorPanel({
                   </button>
                 ))}
               </div>
-            ) : !operatorHost.face.specLine ? null : (
+            ) : !operatorHost.face.specLine ? (
+              /* 首页（没台）：平时不画；那份小配方动过就画同一条摘要，点它带着配方开图片台（owner 11-18）。 */
+              operatorHost.generationDraft?.edited ? (
+                <StudioOperatorSpecLine
+                  domainIcon={operatorHost.face.domainIcon}
+                  domainName={t(`domainName.${domain}`)}
+                  text={operatorHost.face.contextLine()}
+                  onOpenBench={operatorHost.generationDraft.openBench}
+                />
+              ) : null
+            ) : (
               <StudioOperatorSpecLine
                 domainIcon={operatorHost.face.domainIcon}
                 domainName={t(`domainName.${domain}`)}

@@ -664,6 +664,7 @@ describe('StudioOperatorConfirmCard 首页那份小配方（9g）', () => {
     return {
       prompt: '夕阳下的猫',
       references: [{ url: 'https://cdn.example.com/ref.png', name: '图_1' }],
+      edited: true,
       openBench: vi.fn(),
       keySetup: null,
       ...overrides,

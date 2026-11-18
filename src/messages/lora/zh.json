@@ -249,9 +249,9 @@
       "emptyTitle": "想画什么？",
       "starterDescription": "挂上 LoRA 锁定角色或画风，再写一句画面。",
       "starterExamples": {
-        "a": "1girl, solo, upper body, smile, looking at viewer, outdoors",
-        "b": "full body, standing, city street, night, neon lights",
-        "c": "portrait, close-up, soft lighting, simple background"
+        "a": "1girl, smile, upper body",
+        "b": "full body, neon city, night",
+        "c": "portrait, soft lighting"
       },
       "busy": "出图中",
       "assistantBusy": "装配台这会儿还在忙（出图或补挂配方 LoRA），忙完再让助手生成",

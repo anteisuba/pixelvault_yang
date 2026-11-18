@@ -15,6 +15,10 @@ import {
   MediaTileActions,
   MediaTileShade,
 } from '@/components/ui/media-tile'
+import {
+  StudioStarterState,
+  type StudioStarterStateProps,
+} from '@/components/business/studio-shared/chrome/StudioStarterState'
 import { Spinner } from '@/components/ui/spinner'
 import { DURATION, EASE_STANDARD, RESULT_REVEAL } from '@/constants/motion'
 import { setStudioStageFocus } from '@/lib/studio-stage-focus'
@@ -52,8 +56,11 @@ interface LoraResultStageProps {
   onAskAssistant: (url: string) => void
   /** 「存成模板」（pages/prompts.md）：这一张出图那一刻的整套；记不着整套的格子不给。 */
   templateSaveFor: (id: string) => LoraResultTemplateSave | undefined
-  /** 还没出过图时台面中间那一句（起手屏只有这一句）。 */
-  hint: string
+  /**
+   * 还没出过图时台面中间的起手屏（11-18 起与手机、图片 / 视频台共用 `StudioStarterState`）：
+   * 标题 + 一行说明 + 起手例子，点例子只填进提示词。
+   */
+  starter: StudioStarterStateProps
   /** Runner 线路生成中的耗时预估。 */
   eta: string | null
 }
@@ -89,7 +96,7 @@ export function LoraResultStage({
   onOpen,
   onAskAssistant,
   templateSaveFor,
-  hint,
+  starter,
   eta,
 }: LoraResultStageProps) {
   const t = useTranslations('LoraWorkbench')
@@ -122,13 +129,13 @@ export function LoraResultStage({
 
   if (!pendingTile && round.length === 0) {
     return (
-      // 起手屏一句话（ui-spec §2，owner 11-04）：与图片 / 视频台同一副字。
-      <h2
+      // 起手屏（ui-spec §2 / §4 `head`）：与手机、图片 / 视频台同一个组件同一副字。
+      <div
         data-testid="lora-result-card"
-        className="grid min-h-0 flex-1 place-items-center text-center text-xl font-semibold text-foreground"
+        className="flex min-h-0 flex-1 flex-col"
       >
-        {hint}
-      </h2>
+        <StudioStarterState {...starter} />
+      </div>
     )
   }
 

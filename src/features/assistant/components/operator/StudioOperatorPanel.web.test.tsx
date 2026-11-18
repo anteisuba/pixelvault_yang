@@ -1,6 +1,13 @@
 // ⚠ 用 `fireEvent` 不是 `user-event`：本仓没装 `@testing-library/user-event`。
 import { useState } from 'react'
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from '@testing-library/react'
 import {
   afterEach,
   beforeEach,
@@ -178,6 +185,8 @@ const HOST_SPEC = vi.hoisted(() => ({
   specLine: true,
   /** 出的图在舞台上（对话里只留一行引用）—— 默认按没有舞台的宿主测整张结果卡。 */
   resultsOnStage: false,
+  /** 首页那份小配方（`generationDraft`）；`null` = 宿主不带。 */
+  draft: null as null | { edited: boolean; openBench: () => void },
 }))
 
 /** 宿主契约（真 `StudioOperatorHostProvider` 往下给）；按 `HOST_SPEC` 现拼。 */
@@ -195,6 +204,16 @@ function buildHost() {
       resultsOnStage: HOST_SPEC.resultsOnStage,
     },
     ...(HOST_SPEC.controls ? { generationControls: HOST_SPEC.controls } : {}),
+    ...(HOST_SPEC.draft
+      ? {
+          generationDraft: {
+            prompt: '',
+            references: [],
+            keySetup: null,
+            ...HOST_SPEC.draft,
+          },
+        }
+      : {}),
     ...(HOST_SPEC.mountsReferences ? { attachmentsMountReferences: true } : {}),
     buildSnapshot: () => ({
       prompt: '',
@@ -2197,6 +2216,29 @@ describe('StudioOperatorPanel · 输入框上方的药丸', () => {
     expect(screen.queryByTestId('operator-spec-line')).toBeNull()
     expect(screen.getByTestId('operator-input-area')).toBeTruthy()
     HOST_SPEC.specLine = true
+  })
+
+  it('⭐ 首页那份小配方动过：输入框上方画同一条摘要，点它带着配方开图片台（owner 11-18）', () => {
+    HOST_SPEC.specLine = false
+    const openBench = vi.fn()
+    HOST_SPEC.draft = { edited: false, openBench }
+    try {
+      // 没动过：首页照旧不画。
+      renderPanel()
+      expect(screen.queryByTestId('operator-spec-line')).toBeNull()
+      cleanup()
+      HOST_SPEC.draft = { edited: true, openBench }
+      renderPanel()
+      const line = screen.getByTestId('operator-spec-line')
+      expect(line).toHaveTextContent('Seedream 5.0 Pro · 1:1 · 4 张')
+      expect(line.dataset.action).toBe('open-bench')
+      fireEvent.click(line)
+      expect(openBench).toHaveBeenCalledTimes(1)
+      expect(screen.queryByTestId('operator-spec-menu')).toBeNull()
+    } finally {
+      HOST_SPEC.specLine = true
+      HOST_SPEC.draft = null
+    }
   })
 
   it('⭐ 库页报了药丸才画；点一颗直接发送，且逐颗错开入场', () => {

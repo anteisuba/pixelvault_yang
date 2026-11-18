@@ -7,7 +7,11 @@ import { useTranslations } from 'next-intl'
 import { getModelMessageKey, isBuiltInModel } from '@/constants/models'
 import { getPromptDialect } from '@/constants/prompt-dialects'
 import { ROUTES } from '@/constants/routes'
-import { useStudioData, useStudioForm } from '@/contexts/studio-context'
+import {
+  STUDIO_INITIAL_FORM_STATE,
+  useStudioData,
+  useStudioForm,
+} from '@/contexts/studio-context'
 import type { StudioOperatorHost } from '@/contexts/studio-operator-host'
 import type { StudioOperatorGenerationDraft } from '@/types/studio-assistant-operator'
 import {
@@ -134,10 +138,22 @@ export function useHomeDraftOperatorHost(): StudioOperatorHost {
     selectedModel && !selectedModel.keyId && !selectedModel.providerKeyId
       ? selectedModel
       : null
+  /**
+   * 这份配方动过没有（owner 11-18：首页只要有草稿，输入框上方就要看得见）。⚠ 只改了比例、
+   * 提示词还空着也算 —— 真机就是「改成 16:9」之后页面上哪儿都看不见。
+   */
+  const edited =
+    state.prompt.trim().length > 0 ||
+    imageUpload.referenceEntries.length > 0 ||
+    state.modelSelectionTouched ||
+    state.aspectRatio !== STUDIO_INITIAL_FORM_STATE.aspectRatio ||
+    state.imageBatchCount !== STUDIO_INITIAL_FORM_STATE.imageBatchCount ||
+    Boolean(state.advancedParams.resolution)
   const generationDraft = useMemo(
     (): StudioOperatorGenerationDraft => ({
       prompt: state.prompt,
       references: imageUpload.referenceEntries,
+      edited,
       openBench,
       keySetup: keyless
         ? {
@@ -155,6 +171,7 @@ export function useHomeDraftOperatorHost(): StudioOperatorHost {
     }),
     [
       dispatch,
+      edited,
       imageUpload.referenceEntries,
       keyless,
       openBench,

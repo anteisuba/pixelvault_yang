@@ -21,7 +21,11 @@ import {
   Sparkles,
   Square,
 } from '@/components/icons'
-import { AvatarDisc, StudioOperatorAvatarSwitcher } from '@/features/assistant'
+import {
+  AvatarDisc,
+  StudioOperatorAvatarSwitcher,
+  StudioOperatorBenchDock,
+} from '@/features/assistant'
 import { studioOutlineChipClass } from '@/components/ui/chip'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 import { STUDIO_COMPOSER_CARD_RESPONSIVE_CLASS } from '@/components/business/studio-shared/chrome/studio-composer-card'
@@ -433,6 +437,8 @@ export function VoiceBench() {
           }}
         />
       ) : null}
+      {/* 手机（<768）右上头像：配音台没有可改的表单，挂首页那张脸（没台规则），桌面由外壳那一栏挂。 */}
+      <StudioOperatorBenchDock benchless />
     </div>
   )
 }

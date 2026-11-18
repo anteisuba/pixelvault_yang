@@ -22,7 +22,7 @@ import {
   isHuggingFaceSocialThumbnailCoverUrl,
 } from '@/constants/lora'
 import { getCompatibleBases } from '@/features/lora/constants/lora-base-models'
-import { useLoraBenchHandoff } from '@/contexts/studio-library-pick'
+import { useSendToLoraBench } from '@/contexts/studio-library-pick'
 import { useActiveLoraStack } from '@/features/lora/hooks/use-active-lora-stack'
 import { useHuggingFaceLoraLibraryWithUrl } from '@/features/lora/hooks/use-huggingface-lora-library-url'
 import { useHuggingFaceShowcaseCover } from '@/features/lora/hooks/use-huggingface-showcase-cover'
@@ -186,7 +186,7 @@ export function LoraHuggingFaceBrowse({
   const tb = useTranslations('LoraWorkbench.browse')
   const format = useFormatter()
   const stack = useActiveLoraStack()
-  const handoff = useLoraBenchHandoff()
+  const sendToBench = useSendToLoraBench()
   const stage = useLoraStage()
   const library = useHuggingFaceLoraLibraryWithUrl({
     accumulate: true,
@@ -230,8 +230,12 @@ export function LoraHuggingFaceBrowse({
 
   const mountFile = useCallback(
     (repo: HuggingFaceLoraSearchItem, file: HuggingFaceLoraFile) => {
-      if (isMounted({ loraUrl: file.downloadUrl })) {
-        handoff?.()
+      // 台没开：去台上，台落地后说「已挂上 XXX」（带撤销与触发词，与库页同一处认领）。
+      const already = stack.items.find(
+        (entry) => entry.asset.loraUrl === file.downloadUrl,
+      )
+      if (already) {
+        sendToBench?.({ assetId: already.asset.id, newlyMounted: false })
         return
       }
       // 没有可用底模的家族：去 Hugging Face 看，⛔ 挂上一个注定失败的。
@@ -244,10 +248,11 @@ export function LoraHuggingFaceBrowse({
         })
         return
       }
-      stack.push(fileToLibraryItem(repo, file, retrievedAtFor(repo.repoId)))
-      handoff?.()
+      const item = fileToLibraryItem(repo, file, retrievedAtFor(repo.repoId))
+      stack.push(item)
+      sendToBench?.({ assetId: item.id, newlyMounted: true })
     },
-    [handoff, isMounted, retrievedAtFor, stack, t],
+    [retrievedAtFor, sendToBench, stack, t],
   )
   const toggleFavorite = useCallback(
     (repo: HuggingFaceLoraSearchItem, file: HuggingFaceLoraFile) => {

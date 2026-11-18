@@ -12,7 +12,7 @@
  */
 
 import { useState, type ComponentType } from 'react'
-import { Check, ChevronDown } from '@/components/icons'
+import { Check, ChevronDown, ChevronRight } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import {
@@ -35,6 +35,11 @@ interface StudioOperatorSpecLineProps {
   text: string
   controls?: StudioOperatorGenerationControls
   onPick?(knob: StudioOperatorGenerateKnob, value: string): void
+  /**
+   * 首页那份小配方（owner 11-18）：没有台可以就地调，点这一行 = 带着配方开图片台。
+   * 给了它就不弹档位浮层（`controls` / `onPick` 不看）。
+   */
+  onOpenBench?(): void
 }
 
 export function StudioOperatorSpecLine({
@@ -43,6 +48,7 @@ export function StudioOperatorSpecLine({
   text,
   controls,
   onPick,
+  onOpenBench,
 }: StudioOperatorSpecLineProps) {
   const t = useTranslations('StudioOperator')
   const [open, setOpen] = useState(false)
@@ -58,6 +64,22 @@ export function StudioOperatorSpecLine({
       <span className="min-w-0 truncate">{text}</span>
     </>
   )
+
+  if (onOpenBench) {
+    return (
+      <button
+        type="button"
+        data-testid="operator-spec-line"
+        data-action="open-bench"
+        onClick={onOpenBench}
+        className="mx-4 mb-1.5 flex h-5.5 min-w-0 shrink-0 items-center gap-1.5 self-start rounded-sm text-xs text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+      >
+        {content}
+        <span className="sr-only">{t('confirm.generate.openBench')}</span>
+        <ChevronRight className="size-3 shrink-0" aria-hidden />
+      </button>
+    )
+  }
 
   if (!onPick || knobs.length === 0) {
     return (

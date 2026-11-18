@@ -47,10 +47,10 @@
      `--surface-fill*` 是 HIG 填充式控件的三档面（填充输入 / inset 分组 /
      分段控件底 / 轨道），三档全部由 `--foreground` color-mix 派生，⛔ 无新色相。 */
   --color-surface-glass: var(--surface-glass);
-  /* 助手面板的两层玻璃面（§12.1）。卡片那一层**不是**新面：它就是脊柱的
-     `--card`（白 + `border-border`），⛔ 不为「卡片层」再造一个颜色 token。 */
+  /* 助手面板的玻璃面（§12.1）。卡片那一层**不是**新面：它就是脊柱的
+     `--card`（白 + `border-border`），⛔ 不为「卡片层」再造一个颜色 token；
+     浮层用 Popover 原语自带的 `bg-popover`（原 `--assistant-overlay` 零消费者，11-18 删）。 */
   --color-assistant-panel: var(--assistant-panel);
-  --color-assistant-overlay: var(--assistant-overlay);
   --color-assistant-line-strong: var(--assistant-line-strong);
   --color-surface-fill: var(--surface-fill);
   --color-surface-fill-hover: var(--surface-fill-hover);
@@ -793,8 +793,8 @@
         读字优先于透视 —— 86% 的白 + 轻 backdrop 模糊。
      ② **卡片**：就是 `--card`（纯白）+ `border-border`，⛔ 不另造 token；
         卡与卡是并列关系，靠极细描边分，不靠阴影落差。
-     ③ **浮层** `--assistant-overlay`：唯一允许真正半透 + 模糊的一层，
-        92% 的白 —— 它叠在①上面，比面板**更实**才读得出「我盖在什么上面」。
+     ③ **浮层**：原 `--assistant-overlay`（92% 白半透）已删（11-18，零消费者），
+        浮层一律用 Popover 原语自带的实底 `bg-popover`（ui-spec「浮层 · 菜单」）。
      ⚠ 对比度（contrast-check，2026-09-11，逐对算过）：
      ① 面板 86% 白合成后 —— 工作台底 #f4f4f1 上 = #fdfdfd、壳底 #ebebeb 上 =
         #fcfcfc：`--foreground`(#0a0a0a) 19.46 / 19.30 ·
@@ -807,7 +807,6 @@
      ⚠ 低端机 / 不支持 backdrop-filter 的浏览器由下方 `@utility` 里的
      `@supports` 回落成**不透明**面 —— 半透明而不模糊 = 底下的字直接透上来。 */
   --assistant-panel: color-mix(in oklab, var(--card) 86%, transparent);
-  --assistant-overlay: color-mix(in oklab, var(--popover) 92%, transparent);
   /* **要你动手的那张卡**的描边（问题 / 确认 / 输入区 / 结论编辑）——比脊柱的
      `--border`(92.2%) 深一档。三层玻璃靠明度与描边分层，而「并列的卡」与「当下
      挡路的卡」之间的那一档差别只能由描边说（阴影会糊，§12.1）。

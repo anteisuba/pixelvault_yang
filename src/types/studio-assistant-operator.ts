@@ -636,6 +636,11 @@ export interface StudioOperatorGenerationControls {
 export interface StudioOperatorGenerationDraft {
   prompt: string
   references: readonly { url: string; name?: string }[]
+  /**
+   * 这份配方被动过（提示词 / 参考图 / 比例 / 张数 / 清晰度 / 型号任一离开起手值）。
+   * 为真时首页输入框上方画那条配方摘要（与台上规格行同一个组件），点它 = `openBench`（owner 11-18）。
+   */
+  edited: boolean
   /** 带着这份配方开图片台（提示词 / 模型 / 比例 / 参考图原样带过去）。 */
   openBench(): void
   /**

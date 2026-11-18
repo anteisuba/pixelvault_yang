@@ -27,7 +27,12 @@ function props(
     onOpen: vi.fn(),
     onAskAssistant: vi.fn(),
     templateSaveFor: () => undefined,
-    hint: 'hint',
+    starter: {
+      title: 'hint',
+      description: 'what this bench does',
+      examples: [{ id: 'a', text: '1girl, smile' }],
+      onPickExample: vi.fn(),
+    },
     eta: null,
     ...overrides,
   }
@@ -103,9 +108,25 @@ describe('LoraResultStage（摆法 B：这一轮正中，之前的缩成一条�
     expect(screen.getByRole('progressbar')).toBeInTheDocument()
   })
 
-  it('says the one-line hint when nothing has been made yet', () => {
-    render(<LoraResultStage {...props({ round: [] })} />)
-    expect(screen.getByText('hint')).toBeInTheDocument()
+  it('shows the shared starter (title + line + examples) when nothing has been made yet', () => {
+    const onPickExample = vi.fn()
+    render(
+      <LoraResultStage
+        {...props({
+          round: [],
+          starter: {
+            title: 'hint',
+            description: 'what this bench does',
+            examples: [{ id: 'a', text: '1girl, smile' }],
+            onPickExample,
+          },
+        })}
+      />,
+    )
+    expect(screen.getByRole('heading', { name: 'hint' })).toBeInTheDocument()
+    expect(screen.getByTestId('studio-starter')).toBeInTheDocument()
     expect(screen.queryByRole('listitem')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '1girl, smile' }))
+    expect(onPickExample).toHaveBeenCalledWith('1girl, smile')
   })
 })

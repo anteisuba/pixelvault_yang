@@ -908,6 +908,16 @@ function GenerateBranch({
   // 触发词写在正文里（owner 2026-09-28「直接放到提示词框那边」）：看得见的那份就是
   // 发出去的那份，⛔ 出图时不再往正文前面偷偷拼一遍 —— 看不见就会自己再写一次。
   const [prompt, setPrompt] = useState('')
+  // 起手屏（StudioStarterState）手机桌面同一份：点例子只填进提示词。
+  const starter = {
+    title: t('generate.emptyTitle'),
+    description: t('generate.starterDescription'),
+    examples: LORA_STARTER_EXAMPLE_IDS.map((id) => ({
+      id,
+      text: t(`generate.starterExamples.${id}`),
+    })),
+    onPickExample: setPrompt,
+  }
   // 正文里写着 `<lora:名字:0.8>`、你库里有这一把 → 直接挂上、拿掉那段字（owner
   // 2026-10-17「自动挂上」）。库里没有的留在正文，出图时说一句，服务端发之前拿掉。
   // ⚠ 盯 `prompt` 而不是输入框事件：手打、粘贴、助手写、配方回灌都从这里过。
@@ -3677,13 +3687,7 @@ function GenerateBranch({
                         // 起手屏共用一份（StudioStarterState）：点例子只填进提示词。
                         <StudioStarterState
                           className="px-0 py-0"
-                          title={t('generate.emptyTitle')}
-                          description={t('generate.starterDescription')}
-                          examples={LORA_STARTER_EXAMPLE_IDS.map((id) => ({
-                            id,
-                            text: t(`generate.starterExamples.${id}`),
-                          }))}
-                          onPickExample={setPrompt}
+                          {...starter}
                         />
                       )}
                     </div>
@@ -4344,7 +4348,7 @@ function GenerateBranch({
                 }
               : undefined
           }}
-          hint={t('generate.emptyTitle')}
+          starter={starter}
           eta={
             isGenerating && isRunnerBase
               ? isRunnerColdStart

@@ -652,6 +652,35 @@ export function StudioOperatorPanel({
   const [keySetup, setKeySetup] = useState<AssistantKeySetupTarget | null>(null)
   /** 模型 chip 的选单 —— 错误条那颗「换个模型」从这里打开（§9.1）。 */
   const [modelPickerOpen, setModelPickerOpen] = useState(false)
+  /**
+   * 等第一个字太久时那颗「换个更快的模型重试」（11-18）：停下这一轮、打开同一个模型选单，
+   * 选好（存上了）就原地重跑 —— 等于失败行的「换个模型」+「重试」连着点。
+   * ⚠ 只认这一次：自己点开 chip、或已经开始新的一轮，都把这个约定作废（⛔ 换个模型就莫名重跑）。
+   */
+  const retryOnSwitchRef = useRef(false)
+  const switchModelAndRetry = useCallback(() => {
+    stop()
+    retryOnSwitchRef.current = true
+    setModelPickerOpen(true)
+  }, [stop])
+  const selectRouteModel = useCallback(
+    async (next: AssistantRouteModel) => {
+      const ok = await onSelectRouteModel(next)
+      if (retryOnSwitchRef.current) {
+        retryOnSwitchRef.current = false
+        if (ok) retry()
+      }
+      return ok
+    },
+    [onSelectRouteModel, retry],
+  )
+  const changeModelPickerOpen = useCallback((next: boolean) => {
+    if (next) retryOnSwitchRef.current = false
+    setModelPickerOpen(next)
+  }, [])
+  useEffect(() => {
+    if (status === 'working') retryOnSwitchRef.current = false
+  }, [status])
   /** 回形针那颗按钮背后的文件选择器（上传三通道的第一条）。 */
   const uploadInputRef = useRef<HTMLInputElement>(null)
   const threadRef = useRef<HTMLDivElement>(null)
@@ -1968,6 +1997,9 @@ export function StudioOperatorPanel({
           <StudioOperatorMessageBody
             entry={entry}
             thoughtAbsorbed={thoughtAbsorbed}
+            {...(entry.streaming && !entry.text
+              ? { onSwitchModel: switchModelAndRetry }
+              : {})}
             references={messageImageReferences.get(entry.id)}
             findRefs={findRefs.byMessage.get(entry.id)}
             {...(found
@@ -3333,9 +3365,9 @@ export function StudioOperatorPanel({
                   {/* 助手用的文本模型（§4.5）：选中即写 `AssistantPersona.routeModel`。 */}
                   <StudioOperatorModelChip
                     value={persona?.routeModel ?? ASSISTANT_ROUTE_MODEL_AUTO}
-                    onChange={onSelectRouteModel}
+                    onChange={selectRouteModel}
                     open={modelPickerOpen}
-                    onOpenChange={setModelPickerOpen}
+                    onOpenChange={changeModelPickerOpen}
                     searchable={isMobile}
                   />
                   <StudioOperatorEffortChip

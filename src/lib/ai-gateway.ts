@@ -1,5 +1,7 @@
 import 'server-only'
 
+import { AsyncLocalStorage } from 'node:async_hooks'
+
 import { Agent } from 'undici'
 
 import { AI_GATEWAY_PROVIDER_ROUTES } from '@/constants/config'
@@ -52,6 +54,50 @@ const NO_SILENCE_TIMEOUT_DISPATCHER = new Agent({
 type NodeRequestInit = RequestInit & { dispatcher: Agent }
 
 /**
+ * 一次模型调用里真正发出去几次 HTTP、各回了什么、最后那次多久回头（11-18「首页首句等两分钟」）。
+ * AI SDK 自己的重发（`maxRetries`，429 / 5xx 会按 `retry-after` 等）在我们日志里看不见：
+ * 没有这几格就分不清「厂商首字慢」和「被拒了在退避重发」。只有数。
+ */
+export interface AiFetchTrace {
+  /** 每次请求一格：HTTP 状态码，连不上 / 被掐 = `'net'`。几格 = 发了几次。 */
+  statuses: Array<number | 'net'>
+  /** 从开始量到最后一次请求拿到响应头（含之前每次重发与退避）。 */
+  headersMs: number | null
+  readonly startedAt: number
+}
+
+const fetchTraceStore = new AsyncLocalStorage<AiFetchTrace>()
+
+/** 在 `run` 里发出的 `aiGatewayFetch`（含 SDK 稍后的重发）都记进同一份 trace。 */
+export function withAiFetchTrace<T>(run: () => T): {
+  result: T
+  trace: AiFetchTrace
+} {
+  const trace: AiFetchTrace = {
+    statuses: [],
+    headersMs: null,
+    startedAt: Date.now(),
+  }
+  return { result: fetchTraceStore.run(trace, run), trace }
+}
+
+function traced(response: Promise<Response>): Promise<Response> {
+  const trace = fetchTraceStore.getStore()
+  if (!trace) return response
+  return response.then(
+    (value) => {
+      trace.statuses.push(value.status)
+      trace.headersMs = Date.now() - trace.startedAt
+      return value
+    },
+    (error: unknown) => {
+      trace.statuses.push('net')
+      throw error
+    },
+  )
+}
+
+/**
  * 给 AI SDK 的 `fetch`：助手新内核直接用 AI SDK 发请求、不过 `llm-core` 那个 fetch，
  * 没有这个就绕开了网关（日志 / 限流 / 重试都没留下）。改道规则与 `routeThroughAiGateway` 同一套。
  */
@@ -61,7 +107,7 @@ export const aiGatewayFetch: typeof fetch = (input, init) => {
       ...init,
       dispatcher: NO_SILENCE_TIMEOUT_DISPATCHER,
     }
-    return fetch(input, passthrough)
+    return traced(fetch(input, passthrough))
   }
   const routed = routeThroughAiGateway(String(input), init?.headers)
   const routedInit: NodeRequestInit = {
@@ -69,5 +115,5 @@ export const aiGatewayFetch: typeof fetch = (input, init) => {
     headers: routed.headers,
     dispatcher: NO_SILENCE_TIMEOUT_DISPATCHER,
   }
-  return fetch(routed.endpoint, routedInit)
+  return traced(fetch(routed.endpoint, routedInit))
 }

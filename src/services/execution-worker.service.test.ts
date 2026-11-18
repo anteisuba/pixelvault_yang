@@ -155,4 +155,15 @@ describe('execution-worker.service', () => {
 
     expect(fetchMock).not.toHaveBeenCalled()
   })
+
+  it('skips the llm call log for a local dev worker', async () => {
+    vi.stubEnv('NODE_ENV', 'development')
+    vi.stubEnv('EXECUTION_WORKER_BASE_URL', 'http://localhost:8787')
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    await sendLlmCallLogToWorker({ purpose: 'step' })
+
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
 })

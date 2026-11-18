@@ -886,6 +886,7 @@
       "landing": "変更を反映しています…",
       "seconds": "{count} 秒",
       "slow": "いつもより時間がかかっています。モデルの応答を待っています",
+      "switchModel": "速いモデルに替えてやり直す",
       "thought": "{count} 秒考えました",
       "thinkingNow": "考えています",
       "myThoughts": "考えたこと"

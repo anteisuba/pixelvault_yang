@@ -91,6 +91,8 @@ interface StudioOperatorMessageBodyProps {
    * 等第一个字时也⛔ 画「正在想…」—— 那一行已经在写了。
    */
   thoughtAbsorbed?: boolean
+  /** 等第一个字太久时的出口「换个更快的模型重试」（见 `StudioOperatorThinkingRow`）。 */
+  onSwitchModel?: () => void
   references?: readonly NamedImageReference[]
   entry: StudioOperatorMessageEntry
   /**
@@ -376,7 +378,10 @@ export function StudioOperatorCollapsibleText({
   pendingPhase,
   thoughts,
   entryId,
+  onSwitchModel,
 }: {
+  /** 等第一个字太久时的出口（见 `StudioOperatorThinkingRow`）。 */
+  onSwitchModel?: () => void
   /** 「我的想法」（助手思考过程 C）：有就把「正在想」那一行换成可点开的那一行。 */
   thoughts?: readonly string[]
   /** 这一条的 id（「我的想法」开没开按它记）。 */
@@ -480,6 +485,7 @@ export function StudioOperatorCollapsibleText({
       <StudioOperatorThinkingRow
         {...(pendingSince === undefined ? {} : { since: pendingSince })}
         landing={pendingPhase === 'landing'}
+        {...(onSwitchModel ? { onSwitchModel } : {})}
       />
     )
   }
@@ -650,6 +656,7 @@ export function StudioOperatorMessageBody({
   references = NO_REFERENCES,
   findRefs,
   thoughtAbsorbed = false,
+  onSwitchModel,
 }: StudioOperatorMessageBodyProps) {
   const t = useTranslations('StudioOperator')
   /**
@@ -712,6 +719,7 @@ export function StudioOperatorMessageBody({
             : { pendingSince: entry.pendingSince })}
           {...(entry.pendingPhase ? { pendingPhase: entry.pendingPhase } : {})}
           {...(entry.thoughts?.length ? { thoughts: entry.thoughts } : {})}
+          {...(onSwitchModel ? { onSwitchModel } : {})}
           entryId={entry.id}
           sources={sources}
           activeCite={activeCite}

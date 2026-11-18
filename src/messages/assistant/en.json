@@ -886,6 +886,7 @@
       "landing": "Applying the change…",
       "seconds": "{count}s",
       "slow": "Taking longer than usual — still waiting on the model",
+      "switchModel": "Retry with a faster model",
       "thought": "Thought for {count}s",
       "thinkingNow": "Thinking",
       "myThoughts": "My thoughts"

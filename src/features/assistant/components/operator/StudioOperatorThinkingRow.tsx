@@ -26,6 +26,7 @@ import { useTranslations } from 'next-intl'
 import { DURATION, EASE_STANDARD } from '@/constants/motion'
 import { STUDIO_OPERATOR_STREAMING } from '@/constants/studio-assistant-operator'
 import { ChevronRight } from '@/components/icons'
+import { Button } from '@/components/ui/button'
 import {
   operatorThoughtSteps,
   type OperatorThoughtStep,
@@ -92,11 +93,17 @@ export function useElapsedSince(since: number | undefined): number | null {
 export function StudioOperatorThinkingRow({
   since,
   landing = false,
+  onSwitchModel,
 }: {
   /** 占位行挂上的那一刻（ms）。 */
   since?: number
   /** 画布接力那一跳。 */
   landing?: boolean
+  /**
+   * 等太久（`thinkingSwitchModelMs`）时的出口：停下 + 换模型 + 原地重跑（宿主给）。缺席 = 不出。
+   * ⚠ 落地那一跳不出：那时模型已经答完，等的是浏览器落表单。
+   */
+  onSwitchModel?: () => void
 }) {
   const t = useTranslations('StudioOperator.streaming')
   /**
@@ -108,6 +115,11 @@ export function StudioOperatorThinkingRow({
     elapsed === null || elapsed >= STUDIO_OPERATOR_STREAMING.thinkingRevealMs
   const slow =
     elapsed !== null && elapsed >= STUDIO_OPERATOR_STREAMING.thinkingSlowMs
+  const offerSwitch =
+    onSwitchModel !== undefined &&
+    !landing &&
+    elapsed !== null &&
+    elapsed >= STUDIO_OPERATOR_STREAMING.thinkingSwitchModelMs
   return (
     <div className="flex min-w-0 flex-col">
       <p
@@ -144,6 +156,18 @@ export function StudioOperatorThinkingRow({
         >
           {t('slow')}
         </p>
+      ) : null}
+      {offerSwitch ? (
+        <Button
+          type="button"
+          variant="secondary"
+          size="xs"
+          data-testid="operator-message-switch-model"
+          onClick={onSwitchModel}
+          className="mt-1.5 w-fit"
+        >
+          {t('switchModel')}
+        </Button>
       ) : null}
     </div>
   )

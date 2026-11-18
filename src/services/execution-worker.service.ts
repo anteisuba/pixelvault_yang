@@ -307,11 +307,14 @@ export async function tagImageViaWorker(
 /**
  * 助手 LLM 调用的那一行日志转给 execution worker，存进 Workers Logs —— Vercel Hobby 的
  * 运行时日志只留 1 小时（2026-10-08）。没配 worker 时什么都不做；失败照常抛，调用方吞掉。
+ * 本机开发指着本机 worker（`shouldUseInlineExecutionFallback`）也不发（11-18）：本机 `wrangler dev`
+ * 不进 Workers Logs，同一行 dev 终端已经打过；worker 多半没起，每次都报一行 `fetch failed` 只是噪声。
  */
 export async function sendLlmCallLogToWorker(
   entry: Record<string, string | number | boolean | null | undefined>,
 ): Promise<void> {
   if (!isExecutionWorkerDispatchConfigured()) return
+  if (shouldUseInlineExecutionFallback()) return
   const body = JSON.stringify(entry)
   const url = `${getWorkerBaseUrl()}${EXECUTION_WORKER.LLM_CALL_LOG_PATH}`
 

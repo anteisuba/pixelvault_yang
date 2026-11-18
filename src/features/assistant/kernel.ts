@@ -43,6 +43,7 @@ import {
   ProviderError,
 } from '@/lib/errors'
 import { logger } from '@/lib/logger'
+import { type AiFetchTrace, withAiFetchTrace } from '@/lib/ai-gateway'
 import { voiceCueRules } from '@/lib/chat-voice'
 import { openCharacterImages } from '@/lib/assistant-v3-cards-board'
 import { carriedWebFinds } from '@/lib/assistant-web-finds'
@@ -355,6 +356,23 @@ const OPENING_PARTS: ReadonlySet<string> = new Set([
   'tool-input-start',
   'tool-call',
 ])
+
+/**
+ * 调用日志里的 HTTP 那两格：`httpStatuses` 不止一格 = SDK 被拒后退避重发过（看是 429 还是 5xx）；
+ * `headersMs` 远小于 `ttftMs` = 厂商早就接了单、慢在出第一个分片（11-18「首页首句等两分钟」）。
+ * ⚠ worker 一行最多收 24 格（`LLM_CALL_LOG_MAX_FIELDS`），这里只加两格。
+ */
+function fetchTraceNote(
+  trace: AiFetchTrace | null,
+): Record<string, string | number> {
+  if (!trace || trace.statuses.length === 0) return {}
+  return {
+    httpStatuses: trace.statuses
+      .join(',')
+      .slice(0, EXECUTION_WORKER.LLM_CALL_LOG_MAX_STRING),
+    ...(trace.headersMs === null ? {} : { headersMs: trace.headersMs }),
+  }
+}
 
 interface NextTurnRecording {
   turn?: Omit<AssistantTurnDraft, 'request' | 'outcome' | 'errorCode'>
@@ -1392,43 +1410,43 @@ async function* runNextTurn(
       if (thought) yield thought
     }
     let response: { messages: ModelMessage[] }
+    /** 这一次真正发了几次 HTTP、各回了什么（SDK 的重发 / 退避都在这里现形，11-18）。 */
+    let fetchTrace: AiFetchTrace | null = null
     try {
-      const result = streamText({
-        model: model.model,
-        system: model.system(system),
-        messages: model.messages(
-          [
-            ...history,
-            ...(await hydratePictures(
-              pairProviderToolParts(messages),
-              loadBytes,
-            )),
-          ],
-          history.length,
-        ),
-        tools: {
-          ...assistantNextTools(model.strictTools),
-          ...model.nativeTools,
-        },
-        toolChoice: 'auto',
-        maxRetries: 2,
-        ...(model.maxOutputTokens === undefined
-          ? {}
-          : { maxOutputTokens: model.maxOutputTokens }),
-        /**
-         * ⛔ 这一次调用**不设静默时限**（owner 11-05：思考过程不许被打断）。推理模型想完之前、厂商
-         * 自己联网 / 读网页 / 跑整理代码的时候，流上可以很久一个分片都没有（Claude 的 `ping` 被 SDK
-         * 吞掉），按「多久没分片」掐一定误杀 —— 11-05 让角色去推特查热点，第二轮联网被 90 秒看门狗
-         * 掐掉、原样重问又被掐，报成「AI 提供商超时」。真卡死的连接交给整次请求的时间预算（`hardMs`）
-         * 收尾、接力重做。
-         */
-        abortSignal: signal,
-        ...(model.headers ? { headers: model.headers(cacheKey) } : {}),
-        providerOptions: model.providerOptions(
-          cacheKey,
-          persona.reasoningEffort,
-        ),
-      })
+      const hydrated = await hydratePictures(
+        pairProviderToolParts(messages),
+        loadBytes,
+      )
+      const { result, trace } = withAiFetchTrace(() =>
+        streamText({
+          model: model.model,
+          system: model.system(system),
+          messages: model.messages([...history, ...hydrated], history.length),
+          tools: {
+            ...assistantNextTools(model.strictTools),
+            ...model.nativeTools,
+          },
+          toolChoice: 'auto',
+          maxRetries: 2,
+          ...(model.maxOutputTokens === undefined
+            ? {}
+            : { maxOutputTokens: model.maxOutputTokens }),
+          /**
+           * ⛔ 这一次调用**不设静默时限**（owner 11-05：思考过程不许被打断）。推理模型想完之前、厂商
+           * 自己联网 / 读网页 / 跑整理代码的时候，流上可以很久一个分片都没有（Claude 的 `ping` 被 SDK
+           * 吞掉），按「多久没分片」掐一定误杀 —— 11-05 让角色去推特查热点，第二轮联网被 90 秒看门狗
+           * 掐掉、原样重问又被掐，报成「AI 提供商超时」。真卡死的连接交给整次请求的时间预算（`hardMs`）
+           * 收尾、接力重做。
+           */
+          abortSignal: signal,
+          ...(model.headers ? { headers: model.headers(cacheKey) } : {}),
+          providerOptions: model.providerOptions(
+            cacheKey,
+            persona.reasoningEffort,
+          ),
+        }),
+      )
+      fetchTrace = trace
       for await (const part of result.fullStream) {
         chunks += 1
         if (firstChunkAt === null && OPENING_PARTS.has(part.type))
@@ -1562,6 +1580,7 @@ async function* runNextTurn(
         ...(firstChunkAt === null
           ? {}
           : { ttftMs: firstChunkAt - callStartedAt }),
+        ...fetchTraceNote(fetchTrace),
         toolCalls: calls.length,
         webSearches: searches.size,
         ...(calls.length
@@ -1574,6 +1593,7 @@ async function* runNextTurn(
       })
       callLog.finish('ok')
     } catch (error) {
+      callLog.note(fetchTraceNote(fetchTrace))
       callLog.finish(signal.aborted ? 'aborted' : 'error')
       if (signal.aborted) {
         yield {

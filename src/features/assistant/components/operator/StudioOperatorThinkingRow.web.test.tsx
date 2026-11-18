@@ -78,6 +78,36 @@ describe('StudioOperatorThinkingRow', () => {
     expect(screen.getByTestId('operator-message-slow').textContent).toBe('slow')
   })
 
+  it('等过 30 秒给出口「换个更快的模型重试」，点了交给宿主', () => {
+    const onSwitchModel = vi.fn()
+    render(
+      <StudioOperatorThinkingRow since={START} onSwitchModel={onSwitchModel} />,
+    )
+    advance(STUDIO_OPERATOR_STREAMING.thinkingSwitchModelMs - 500)
+    expect(screen.queryByTestId('operator-message-switch-model')).toBeNull()
+    advance(500)
+    const button = screen.getByTestId('operator-message-switch-model')
+    expect(button.textContent).toBe('switchModel')
+    act(() => button.click())
+    expect(onSwitchModel).toHaveBeenCalledTimes(1)
+  })
+
+  it('没有宿主动作、或是落地那一跳：⛔ 出换模型', () => {
+    const { unmount } = render(<StudioOperatorThinkingRow since={START} />)
+    advance(STUDIO_OPERATOR_STREAMING.thinkingSwitchModelMs)
+    expect(screen.queryByTestId('operator-message-switch-model')).toBeNull()
+    unmount()
+    render(
+      <StudioOperatorThinkingRow
+        since={Date.now()}
+        landing
+        onSwitchModel={() => {}}
+      />,
+    )
+    advance(STUDIO_OPERATOR_STREAMING.thinkingSwitchModelMs)
+    expect(screen.queryByTestId('operator-message-switch-model')).toBeNull()
+  })
+
   it('画布接力那一跳写「正在画布上落地…」', () => {
     render(<StudioOperatorThinkingRow since={START} landing />)
     advance(STUDIO_OPERATOR_STREAMING.thinkingRevealMs)

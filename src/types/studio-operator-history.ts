@@ -119,6 +119,8 @@ export const StudioOperatorHistoryEntrySchema = z.discriminatedUnion('kind', [
     versionIndex: z.number().int().min(0).optional().catch(undefined),
     /** 她在聊天（②c-2）：一行一个气泡。 */
     chat: z.literal(true).optional().catch(undefined),
+    /** 她卡上的开场白（新聊天的第一句）：`*动作*` 照原样显示。 */
+    greeting: z.literal(true).optional().catch(undefined),
     /** 用着角色说的：正文藏掉方括号语气提示。 */
     spoken: z.literal(true).optional().catch(undefined),
     /** 「我的想法」（助手思考过程 C）：一句一项；坏了就当没写。 */

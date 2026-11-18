@@ -3,109 +3,74 @@ import type { PromptAssistantResponseLanguage } from '@/types'
 import type { ChatPlan } from '@/types/chat-mood'
 
 /**
- * 「我的想法」（助手思考过程 C，owner 11-11）：主模型每次开口先写一段 `<thought>…</thought>`，
- * 一行一句，第一人称。这里把流过来的字切成两路 —— 想法一句一句交出去（只进「我的想法」），
- * 其余照旧是正文。⚠ 想法 ⛔ 进正文、⛔ 进定稿帧、⛔ 进接力条里的那段话。
+ * 「我的想法」（助手思考过程 C，owner 11-11）的两个来源：
+ *  · 干活档 = **模型原生的思考摘要**（11-17 起；Claude adaptive `display: summarized`、Gemini
+ *    `includeThoughts` 等由 SDK 以 `reasoning-delta` 流出）。⛔ 再让模型在正文开头手写 `<thought>`：
+ *    思考付两份输出 token，步中间再写的那段还会原样漏进正文、素材标题与语音。
+ *    没有原生思考的接法 = 不显示想法（只剩「想了 N 秒」的计时）。
+ *  · 聊天档 = 回复之前想的那一步（`chatPlanThoughts`）。
  *
- * 规则：
- *  · 只认**开头**那一段（前面只许有空白）；开头不是 `<thought>` 就整段都是正文，原样放行。
- *  · 开头可能还没到齐（`<th` 卡在一个分片末尾）：先攒着，能判了再放。
- *  · 想法里一行一句，换行就交一句；`</thought>` 之后的才是正文（去掉开头的空白）。
- *  · 流结束时想法还没闭合：攒着的那句照样交出去，正文为空（宁可少一句话，⛔ 把想法当正文发出去）。
+ * 这里把思考摘要的字流切成「我的想法」里的一句一句：
+ *  · 一行一句（空行不算）；独占一行的加粗小标题（`**Planning the edit**`）和它下面那一行并成一句
+ *    （小标题加深、正文照常 —— 「我的想法」那一栏本来就把 `**…**` 画成加深）。
+ *  · 半行先攒着，换行才交；一段思考结束（`end`）把攒着的都交出去。
+ *  · 一句太长截到上限（带省略号）。
  */
 
-const OPEN = '<thought>'
-const CLOSE = '</thought>'
-
-export interface ThoughtSplit {
-  /** 这一下能放给正文的字（可能为空）。 */
-  readonly reply: string
-  /** 这一下写完的几句想法（已去空白、去空行）。 */
-  readonly thoughts: readonly string[]
+export interface ReasoningLines {
+  /** 又流来一段思考摘要：交出这一下写完的几句。 */
+  push(text: string): string[]
+  /** 这一段思考结束（开口 / 调工具 / 流结束）：把攒着的都交出去。 */
+  end(): string[]
 }
 
-export interface ThoughtSplitter {
-  push(text: string): ThoughtSplit
-  /** 流结束：把攒着的都交出去。 */
-  end(): ThoughtSplit
-}
+const HEADING = /^\*\*[^*\n]+\*\*$/
 
-export function createThoughtSplitter(
+export function createReasoningLines(
   options: { maxLineChars?: number } = {},
-): ThoughtSplitter {
+): ReasoningLines {
   const maxLineChars = options.maxLineChars ?? 400
-  let mode: 'probe' | 'thought' | 'reply' = 'probe'
   let buffer = ''
-  let trimReplyStart = false
+  /** 等下一行来并在一起的小标题。 */
+  let heading: string | null = null
 
-  const line = (text: string) => text.trim().slice(0, maxLineChars)
-  const lines = (text: string) =>
-    text
-      .split('\n')
-      .map(line)
-      .filter((item) => item.length > 0)
+  const clip = (line: string) =>
+    line.length > maxLineChars ? `${line.slice(0, maxLineChars - 1)}…` : line
 
-  const toReply = (text: string): string => {
-    if (!trimReplyStart) return text
-    const trimmed = text.replace(/^\s+/, '')
-    if (trimmed) trimReplyStart = false
-    return trimmed
-  }
-
-  const drainThought = (): ThoughtSplit => {
-    const close = buffer.indexOf(CLOSE)
-    if (close >= 0) {
-      const thoughts = lines(buffer.slice(0, close))
-      const rest = buffer.slice(close + CLOSE.length)
-      buffer = ''
-      mode = 'reply'
-      trimReplyStart = true
-      return { reply: toReply(rest), thoughts }
+  const take = (raw: string): string[] => {
+    const line = raw.trim()
+    if (!line) return []
+    if (HEADING.test(line)) {
+      const out = heading ? [clip(heading)] : []
+      heading = line
+      return out
     }
-    // 还没闭合：交出写完的整行，留下最后半行（⚠ 半行里可能是没到齐的 `</thou`）。
-    const lastBreak = buffer.lastIndexOf('\n')
-    if (lastBreak < 0) return { reply: '', thoughts: [] }
-    const thoughts = lines(buffer.slice(0, lastBreak))
-    buffer = buffer.slice(lastBreak + 1)
-    return { reply: '', thoughts }
+    if (heading) {
+      const merged = `${heading} ${line}`
+      heading = null
+      return [clip(merged)]
+    }
+    return [clip(line)]
   }
 
   return {
     push(text) {
-      if (!text) return { reply: '', thoughts: [] }
-      if (mode === 'reply') return { reply: toReply(text), thoughts: [] }
+      if (!text) return []
       buffer += text
-      if (mode === 'probe') {
-        const head = buffer.replace(/^\s+/, '')
-        if (head.length < OPEN.length && OPEN.startsWith(head))
-          return { reply: '', thoughts: [] }
-        if (!head.startsWith(OPEN)) {
-          mode = 'reply'
-          const all = buffer
-          buffer = ''
-          return { reply: all, thoughts: [] }
-        }
-        mode = 'thought'
-        buffer = head.slice(OPEN.length)
-      }
-      return drainThought()
+      const lastBreak = buffer.lastIndexOf('\n')
+      if (lastBreak < 0) return []
+      const done = buffer.slice(0, lastBreak).split('\n')
+      buffer = buffer.slice(lastBreak + 1)
+      return done.flatMap(take)
     },
     end() {
-      if (mode === 'probe') {
-        const all = buffer
-        buffer = ''
-        mode = 'reply'
-        return { reply: all, thoughts: [] }
+      const out = take(buffer)
+      buffer = ''
+      if (heading) {
+        out.push(clip(heading))
+        heading = null
       }
-      if (mode === 'thought') {
-        const close = buffer.indexOf(CLOSE)
-        if (close >= 0) return drainThought()
-        const thoughts = lines(buffer)
-        buffer = ''
-        mode = 'reply'
-        return { reply: '', thoughts }
-      }
-      return { reply: '', thoughts: [] }
+      return out
     },
   }
 }

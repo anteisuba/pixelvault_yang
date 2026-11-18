@@ -484,7 +484,8 @@ export function assistantV3VerifiedOutputCap(
 }
 
 /**
- * 摆到模型眼前的图（看图、看片的帧）只收这三种 —— 五家都收。⚠ GIF 不收：Gemini 只认
+ * 摆到模型眼前的图（看图、看片的帧）只收这三种。⚠ 「五家都收」不对：xAI 文档只写 jpg / png
+ * （11-18），助手主循环发给 Grok 前把 WebP 转成 PNG（`models.ts` 的 `toGrokPicture`）。⚠ GIF 不收：Gemini 只认
  * PNG / JPEG / WEBP / HEIC，附一张 GIF 整步 400。⛔ SVG 不收（能带脚本）。格式按文件头判。
  */
 export const ASSISTANT_V3_PICTURE_FORMATS: ReadonlySet<string> = new Set([

@@ -246,24 +246,22 @@ async function* runEditOp(
       })
     }
     case ASSISTANT_V3_IMAGE_EDIT_OP_IDS.setSpecs: {
-      // 旧执行器要求比例与清晰度一起给：没说的那一格沿用台上现在的值；这个模型
-      // 本来没有清晰度档（Seedream Lite、NAI）时写 auto，与旧执行器同一口径。
+      // 旧执行器要求比例与清晰度一起给：没说的那一格沿用台上**此刻**的值（本轮前面改过的
+      // 也算）；台上清晰度没设（= 模型默认）或这个模型本来没有清晰度档时写 auto ——
+      // 表单里的「不设」态，规划器按「原样不动」认（11-17 真机：只改比例被整条拒）。
       const specs = snapshot.specs
-      const aspectRatio = op.aspectRatio ?? specs?.aspectRatio ?? null
+      const state = context.prepared.run.state
+      const aspectRatio = op.aspectRatio ?? state.aspectRatio ?? null
       const resolution =
-        op.resolution ??
-        specs?.resolution ??
-        (specs && specs.resolutionOptions.length === 0
-          ? SPECS_TIERLESS_RESOLUTION
-          : null)
-      if (!aspectRatio || !resolution)
+        op.resolution ?? state.resolution ?? SPECS_TIERLESS_RESOLUTION
+      if (!specs || !aspectRatio)
         return yield* refused(
           context,
           TOOL.setSpecs,
           text.specs,
           specs
-            ? `Give both aspectRatio and resolution: this bench has none set yet (aspect ratios ${specs.aspectRatioOptions.join(', ')}; resolutions ${specs.resolutionOptions.join(', ')}).`
-            : 'This model has no size controls.',
+            ? `Give aspectRatio: this bench has none set yet (aspect ratios ${specs.aspectRatioOptions.join(', ')}).`
+            : 'This model has no size controls: nothing changed.',
         )
       return yield* runOldTool(context, TOOL.setSpecs, text.specs, {
         aspectRatio,

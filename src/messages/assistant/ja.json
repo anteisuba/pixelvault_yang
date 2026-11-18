@@ -539,7 +539,8 @@
       "moveWorkAccepted": "{subject}",
       "moveWorkDeclined": "{subject}",
       "moveWorkDroppedReferences": "参照画像 {subject} 枚は持っていけませんでした（上限超過、またはアップロード未完了）。",
-      "autoReview": "自分で見直して再生成 · {subject} 回目"
+      "autoReview": "自分で見直して再生成 · {subject} 回目",
+      "restoredUndoStale": "この欄はその後も変更されているため、今の内容は上書きしませんでした。{count, plural, =0 {元の文章をコピーできませんでした。クリップボードの権限を確認してください。} other {元の文章はクリップボードにコピーしました。}}"
     },
     "attach": {
       "latestResult": "最新 · {label}",
@@ -984,7 +985,8 @@
       "nextVersion": "次の版",
       "versionOf": "{index} / {total}",
       "noProfile": "{name}はまだ設定がないため、チャットは作業モードの口調で返します。",
-      "noProfileAction": "設定を書く"
+      "noProfileAction": "設定を書く",
+      "greetingUserFallback": "あなた"
     },
     "mode": {
       "pickCharacter": "アシスタントの人格を切り替え",
@@ -1013,6 +1015,7 @@
       "turnOn": "音声をオン：返事を読み上げる",
       "turnOff": "音声をオフ",
       "speaking": "{name} が声で話しています",
+      "noVoice": "{name} にはまだ声がありません。声を選ぶと読み上げます",
       "pickVoice": "声を選ぶ",
       "model": "読み上げモデル",
       "models": {
@@ -1146,6 +1149,7 @@
     "memory": {
       "caption": "アシスタントの記憶はワークベンチごとに分かれています。すべてのワークベンチで使う記憶は、ここで明示的に共有できます。",
       "captionPaused": "アシスタントは新しく覚えません。既存の記憶は、選択されたワークベンチ内だけで使われます。",
+      "charactersNote": "ここにあるのは、あなたの作業を手伝う中で覚えたルールです。キャラクターが彼女自身として覚えたこと（話しかけたとき・おでかけ）はここではなく、各キャラクターページの「記憶」にあります。",
       "capture": "アシスタントに覚えさせる",
       "newLabel": "記憶を書く",
       "newPlaceholder": "一つ書いて Enter で保存。例：いつも日本語で返事して",

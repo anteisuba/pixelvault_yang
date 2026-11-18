@@ -4,7 +4,10 @@ import { createHash } from 'node:crypto'
 
 import { z } from 'zod'
 
-import { ASSISTANT_PERSONA_LIMITS } from '@/constants/assistant-persona'
+import {
+  ASSISTANT_PERSONA_LIMITS,
+  ASSISTANT_REASONING_EFFORT_IDS,
+} from '@/constants/assistant-persona'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { CARD_EXTENSIONS } from '@/constants/cards/character-card'
 import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
@@ -85,6 +88,8 @@ async function summarize(
   const { route, modelId } = await resolveAssistantRoute(userId)
   const raw = await llmTextCompletion({
     purpose: 'character-backstory-summary',
+    // 后台小活：显式 low（11-18；缺席 = 各家默认档，Claude / DeepSeek 默认 high 白花思考）。
+    reasoningEffort: ASSISTANT_REASONING_EFFORT_IDS.low,
     systemPrompt: buildSystemPrompt(maxChars),
     userPrompt: sanitizePrompt(backstory.slice(0, SUMMARY_INPUT_MAX_CHARS)),
     adapterType: route.adapterType,

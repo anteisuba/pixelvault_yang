@@ -72,6 +72,8 @@ export function StudioOperatorVoiceStrip() {
   const { on, modelId, setModel } = useOperatorVoice()
   const [picking, setPicking] = useState(false)
   const open = on && voice.characterCardId !== null
+  /** 她还没绑嗓子：⛔ 说「在用声音说话」、⛔ 让声波跳（11-18：没选音色时那句话是假的）。 */
+  const voiced = voice.voiceCardId !== null
 
   return (
     <div
@@ -95,6 +97,7 @@ export function StudioOperatorVoiceStrip() {
                   height,
                   // 收着的时候不跳（⛔ 在看不见的地方一直转）。
                   open &&
+                    voiced &&
                     (index % 2 === 0
                       ? 'animate-spinner-dot-1'
                       : 'animate-spinner-dot-2'),
@@ -105,8 +108,16 @@ export function StudioOperatorVoiceStrip() {
           </span>
           {/* 手机上一行放不下这句 + 嗓子 + 三档（375 宽它被挤成 0）：顶上「语音」胶囊和跳动的声波
               已经说了在念，这句只在宽屏上写，嗓子键吃掉剩下的宽。 */}
-          <span className="min-w-0 flex-1 truncate text-foreground max-md:hidden">
-            {t('speaking', { name: voice.personaName })}
+          <span
+            data-testid="operator-voice-status"
+            className={cn(
+              'min-w-0 flex-1 truncate max-md:hidden',
+              voiced ? 'text-foreground' : 'text-muted-foreground',
+            )}
+          >
+            {voiced
+              ? t('speaking', { name: voice.personaName })
+              : t('noVoice', { name: voice.personaName })}
           </span>
           <button
             type="button"

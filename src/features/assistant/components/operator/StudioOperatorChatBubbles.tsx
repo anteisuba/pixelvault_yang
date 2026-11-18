@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import Image from 'next/image'
 
 import { useChatBubbleReveal } from '@/hooks/use-chat-bubble-reveal'
-import { chatBubbles, stickerUrlOf } from '@/lib/chat-voice'
+import { chatBubbles, greetingParagraphs, stickerUrlOf } from '@/lib/chat-voice'
 import { cn } from '@/lib/utils'
 
 /** 表情包裸图的边长（与 `size-30` 同一个数）。 */
@@ -95,6 +95,39 @@ export function StudioOperatorChatBubbles({
         </span>
       ) : null}
       <span ref={endRef} aria-hidden />
+    </div>
+  )
+}
+
+/**
+ * 她卡上的开场白（11-18 真机：拆成 7 个小气泡读着碎）：开场白是卡作者写的一整段叙事，整块一个气泡，
+ * 一行一段、段间留行距；`*动作*` 去掉星号用次要色（⛔ 斜体：中文斜体是假斜体），台词正常色。
+ * ⚠ 只给开场白用：她平时的回复照旧一行一个气泡、动作藏掉（`StudioOperatorChatBubbles`）。
+ */
+export function StudioOperatorGreetingText({ text }: { text: string }) {
+  return (
+    <div
+      data-testid="operator-greeting-text"
+      className={cn(BUBBLE_CLASS, 'flex flex-col gap-3')}
+    >
+      {greetingParagraphs(text).map((runs, index) => (
+        <p key={index} data-testid="operator-greeting-paragraph">
+          {runs.map((run, at) => (
+            <span
+              key={at}
+              {...(run.action
+                ? {
+                    'data-testid': 'operator-greeting-action',
+                    className: 'text-muted-foreground',
+                  }
+                : {})}
+            >
+              {at > 0 ? ' ' : ''}
+              {run.text}
+            </span>
+          ))}
+        </p>
+      ))}
     </div>
   )
 }

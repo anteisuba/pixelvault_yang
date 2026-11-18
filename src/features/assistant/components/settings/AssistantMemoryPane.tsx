@@ -287,6 +287,13 @@ function MemorySection({
           onCheckedChange={(memoryCapture) => autosave.apply({ memoryCapture })}
         />
       </div>
+      {/* 两份记忆各管各的（11-18）：角色作为她自己记下的不在这儿，在她页「记忆」。 */}
+      <p
+        data-testid="assistant-memory-characters-note"
+        className="-mt-2 text-xs leading-5 text-muted-foreground"
+      >
+        {t('memory.charactersNote')}
+      </p>
 
       <Input
         ref={inputRef}

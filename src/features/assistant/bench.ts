@@ -103,7 +103,12 @@ import {
 } from '@/features/assistant/canvas'
 import { isLibraryChange, runLibraryChange } from '@/features/assistant/library'
 import { readTaggerFor } from '@/features/assistant/tagger'
+import {
+  imageBenchPriceLine,
+  renderImageBenchNow,
+} from '@/features/assistant/bench-state'
 import { renderLibraryView } from '@/features/assistant/library-view'
+import { renderVoiceBenchView } from '@/features/assistant/voice-bench-view'
 import {
   buildBenchScreenSheet,
   buildScreenSheet,
@@ -323,6 +328,19 @@ function currentSnapshot(context: V3Context): AssistantOperatorSnapshot {
     ...(snapshot.loras
       ? { loras: { ...snapshot.loras, items: state.loras } }
       : {}),
+    // 比例 / 清晰度 / 张数也按落下之后的读（11-17：改完再 look，板子上还是开轮那份 1:1）。
+    ...(snapshot.specs && state.aspectRatio
+      ? {
+          specs: {
+            ...snapshot.specs,
+            aspectRatio: state.aspectRatio,
+            resolution: state.resolution,
+          },
+        }
+      : {}),
+    ...(snapshot.count && typeof state.count === 'number'
+      ? { count: { ...snapshot.count, value: state.count } }
+      : {}),
   }
 }
 
@@ -339,6 +357,7 @@ export function renderBench(
   return renderBenchBody(context, attachedNames, latestUserText, aliases)
     .concat(benchScreenHint(context))
     .concat(renderLibraryView(context.request.libraryView))
+    .concat(renderVoiceBenchView(context.request.voiceBench))
 }
 
 export { renderLibraryView }
@@ -414,6 +433,7 @@ function renderBenchBody(
       )}`
       .concat(aliases ? `\n${aliases}` : '')
       .concat(SPENDING_LINE)
+      .concat(priceLineOf(context))
   if (context.face === ASSISTANT_V3_FACE_IDS.canvas)
     return renderCanvasBoard(context, attachedNames, latestUserText)
       .concat(aliases ? `\n${aliases}` : '')
@@ -451,6 +471,14 @@ function renderBenchBody(
     )
     .concat(aliases ? `\n${aliases}` : '')
     .concat(SPENDING_LINE)
+    .concat(priceLineOf(context))
+}
+
+/** 图片台 / 标签台 / 首页配方：板子末尾那一行价钱（与出图键旁同一个数，11-17）。别的台还没接。 */
+function priceLineOf(context: V3Context): string {
+  if (context.face !== ASSISTANT_V3_FACE_IDS.image) return ''
+  const line = imageBenchPriceLine(context.prepared.run.state)
+  return line ? `\n${line}` : ''
 }
 
 const NOTHING_TO_DO = 'Nothing was changed.'
@@ -1107,6 +1135,16 @@ export async function* runEdit(
       lines.push(`   · not applied: ${recipe.notes.join('; ')}`)
     if (recipe.changes.length === 0 && recipe.notes.length === 0)
       lines.push('   · nothing to change: the bench already matches.')
+  }
+  // 图片台 / 标签台：回执末尾写落下之后的真值与价钱；有没落成的先点名（11-17 真机）。
+  if (context.face === ASSISTANT_V3_FACE_IDS.image) {
+    if (failed > 0)
+      lines.unshift(
+        `NOT everything landed: ${failed} of ${total} change${total === 1 ? '' : 's'} did not happen (lines marked "not done" below). Tell the creator which ones did not change and why; never say they did.`,
+      )
+    lines.push(
+      renderImageBenchNow(context.prepared.run.state, context.request.snapshot),
+    )
   }
   return { output: lines.join('\n'), error: total > 0 && failed === total }
 }

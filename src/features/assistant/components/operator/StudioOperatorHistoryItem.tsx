@@ -22,6 +22,7 @@ import { Sparkles, type LucideIcon } from '@/components/icons'
 import { useFormatter, useTranslations } from 'next-intl'
 
 import type { AssistantOperatorTool } from '@/constants/assistant-operator'
+import { Button } from '@/components/ui/button'
 import { OPERATOR_TOOL_ICONS } from '@/features/assistant/components/operator/StudioOperatorLogItem'
 import {
   StudioOperatorChatMark,
@@ -33,7 +34,7 @@ import {
   StudioOperatorUserText,
 } from '@/features/assistant/components/operator/StudioOperatorMessageBody'
 import { StudioOperatorThoughts } from './StudioOperatorThoughts'
-import { withoutVoiceCuesInProse } from '@/lib/chat-voice'
+import { withoutThoughtMarkup, withoutVoiceCuesInProse } from '@/lib/chat-voice'
 import { describeSystemSubjects } from '@/lib/studio-operator-timeline'
 import { cn } from '@/lib/utils'
 import type {
@@ -49,6 +50,13 @@ interface StudioOperatorHistoryItemProps {
   /** 气泡里的 `@` 胶囊点一下去哪（与实时线程同一个，见 `StudioOperatorUserText`）。 */
   onMentionClick?: (mention: AssistantMention) => void
   isMentionMissing?: (mention: AssistantMention) => boolean
+  /**
+   * **跨页面撤销**（11-17）：只有本机还留着这一行撤销本钱（提示词 / 负面词，见
+   * `lib/studio-operator-undo-stash.ts`）时才给。⚠ 它不是 `inverse`：点下去先比对那一格
+   * 此刻是不是助手写下的那一版，不是就不盖（原文进剪贴板）—— 头注那条「历史里写不出做错
+   * 事的撤销钮」因此仍然成立。
+   */
+  onRestoredUndo?: () => void
 }
 
 export function StudioOperatorHistoryItem({
@@ -56,6 +64,7 @@ export function StudioOperatorHistoryItem({
   references,
   onMentionClick,
   isMentionMissing,
+  onRestoredUndo,
 }: StudioOperatorHistoryItemProps) {
   const t = useTranslations('StudioOperator')
   const format = useFormatter()
@@ -100,12 +109,15 @@ export function StudioOperatorHistoryItem({
               text={entry.text}
               streaming={false}
               references={references}
+              greeting={entry.greeting === true}
             />
           ) : (
             <StudioOperatorCollapsibleText
               // 念给你听的那段带着 `[soft tone]` 之类的念法记号：载回来也要洗掉（同实时线程）。
               text={
-                entry.spoken ? withoutVoiceCuesInProse(entry.text) : entry.text
+                entry.spoken
+                  ? withoutVoiceCuesInProse(withoutThoughtMarkup(entry.text))
+                  : withoutThoughtMarkup(entry.text)
               }
               references={references}
             />
@@ -121,7 +133,12 @@ export function StudioOperatorHistoryItem({
        * 模型，回答就是一段普通正文。那张卡把同一件事拆成「一段分工简报 + 一折
        * 参考依据」，而用户问的是「这是什么画风」。
        */
-      return <HistoryStepRow entry={entry} />
+      return (
+        <HistoryStepRow
+          entry={entry}
+          {...(onRestoredUndo ? { onRestoredUndo } : {})}
+        />
+      )
     case 'system':
       return (
         <p
@@ -152,7 +169,13 @@ export function StudioOperatorHistoryItem({
   }
 }
 
-function HistoryStepRow({ entry }: { entry: StudioOperatorHistoryStep }) {
+function HistoryStepRow({
+  entry,
+  onRestoredUndo,
+}: {
+  entry: StudioOperatorHistoryStep
+  onRestoredUndo?: () => void
+}) {
   const t = useTranslations('StudioOperator')
   const rejected = entry.status === 'error'
   const draft = rejected && entry.draft === true
@@ -225,6 +248,18 @@ function HistoryStepRow({ entry }: { entry: StudioOperatorHistoryStep }) {
             </span>
           ) : null}
         </div>
+        {onRestoredUndo && !entry.undone ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="xs"
+            data-testid="operator-history-restored-undo"
+            className="shrink-0"
+            onClick={onRestoredUndo}
+          >
+            {t('checkpoint.undo')}
+          </Button>
+        ) : null}
       </div>
     </div>
   )

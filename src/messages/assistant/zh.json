@@ -539,7 +539,8 @@
       "moveWorkAccepted": "{subject}",
       "moveWorkDeclined": "{subject}",
       "moveWorkDroppedReferences": "有 {subject} 张参考图没带过去（超过上限或还没传完）。",
-      "autoReview": "自己看图再改 · 第 {subject} 轮"
+      "autoReview": "自己看图再改 · 第 {subject} 轮",
+      "restoredUndoStale": "这一格之后又改过，没有盖掉现在的内容；{count, plural, =0 {原来那段没能复制，请检查剪贴板权限} other {原来那段已复制到剪贴板}}。"
     },
     "attach": {
       "latestResult": "最新 · {label}",
@@ -984,7 +985,8 @@
       "nextVersion": "下一版",
       "versionOf": "{index} / {total}",
       "noProfile": "{name}还没写设定，聊天先按工作的口吻回。",
-      "noProfileAction": "去写设定"
+      "noProfileAction": "去写设定",
+      "greetingUserFallback": "你"
     },
     "mode": {
       "pickCharacter": "换助手人设",
@@ -1013,6 +1015,7 @@
       "turnOn": "打开语音：她说的话念出来",
       "turnOff": "关掉语音",
       "speaking": "{name} 在用声音说话",
+      "noVoice": "{name} 还没有声音，挑一副嗓子她才会念",
       "pickVoice": "挑嗓子",
       "model": "念的型号",
       "models": {
@@ -1146,6 +1149,7 @@
     "memory": {
       "caption": "助手记忆按工作台分别保存。需要在所有工作台共用的记忆，可以在这里明确共享。",
       "captionPaused": "助手不再记新的；已有记忆只在各自选定的工作台生效。",
+      "charactersNote": "这里是助手替你干活时记住的规矩。角色作为她自己记下的事（和她聊、出门时记的）不在这儿，在角色页各自的「记忆」里。",
       "capture": "让助手记住",
       "newLabel": "写一条记忆",
       "newPlaceholder": "写一条，回车存下。例：以后都用中文回复",

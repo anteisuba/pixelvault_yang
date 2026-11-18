@@ -46,6 +46,7 @@ import {
   upsertAssistantConversationAPI,
 } from '@/lib/api-client'
 import { logger } from '@/lib/logger'
+import { syncOperatorUndoStash } from '@/lib/studio-operator-undo-stash'
 import {
   fromStoredOperatorMessages,
   pendingFromOperatorState,
@@ -196,6 +197,8 @@ function persistThread(request: ThreadSave): Promise<boolean> {
       setOperatorSession(sessionId, current.surface, identity)
       setOperatorSaveFailed(identity, false)
       savedThreads.set(id, current)
+      // 跨页面撤销（11-17）：会话 id 这一刻才定下来，提示词 / 负面词的撤销本钱跟着落到本机。
+      syncOperatorUndoStash(sessionId, current.snapshot.entries, Date.now())
       saved = true
     }
     return saved

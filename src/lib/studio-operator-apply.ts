@@ -568,6 +568,24 @@ function writtenOnBench(
 }
 
 /**
+ * 写提示词 / 负面词那一步落下之后的文字：追加接在后面（协议分隔符），否则整段 / 找句换句。
+ * ⭐ 应用这一步与「跨页面撤销」（`studio-operator-undo-stash.ts` 算「助手写下的那一版」）
+ *   共用这一份，⛔ 两处各算一遍 —— 对不上的表现是刷新回来撤销钮永远说「之后改过了」。
+ */
+export function operatorWrittenText(
+  current: string,
+  payload: {
+    value: string
+    mode?: string
+    edits?: readonly { find: string; replace: string }[]
+  },
+): string {
+  return payload.mode === ASSISTANT_OPERATOR_WRITE_MODES.append && current
+    ? `${current}${ASSISTANT_OPERATOR_APPEND_SEPARATOR}${payload.value}`
+    : writtenOnBench(current, payload)
+}
+
+/**
  * 应用一步。返回它动了哪个字段（登记簿据此记账），什么都没动就返回 `null`。
  */
 export function applyOperatorStep(
@@ -678,25 +696,20 @@ export function applyOperatorStep(
       return null
 
     case ASSISTANT_OPERATOR_TOOL_IDS.setPrompt: {
-      const current = ctx.getState().prompt
       // ⚠ 追加用的是**协议里那个分隔符**，不是 `appendPromptFragments`：服务端
       //    算 `inverse` 与 observation 时用的就是它，换一个客户端就与助手说的
       //    话对不上（它会以为提示词里多了个它没写过的顿号）。
-      const next =
-        step.payload.mode === ASSISTANT_OPERATOR_WRITE_MODES.append && current
-          ? `${current}${ASSISTANT_OPERATOR_APPEND_SEPARATOR}${step.payload.value}`
-          : writtenOnBench(current, step.payload)
+      const next = operatorWrittenText(ctx.getState().prompt, step.payload)
       ctx.dispatch({ type: 'SET_PROMPT', payload: next })
       return STUDIO_OPERATOR_FIELD_IDS.prompt
     }
 
     case ASSISTANT_OPERATOR_TOOL_IDS.setNegative: {
       const advancedParams = ctx.getState().advancedParams
-      const current = advancedParams.negativePrompt ?? ''
-      const next =
-        step.payload.mode === ASSISTANT_OPERATOR_WRITE_MODES.append && current
-          ? `${current}${ASSISTANT_OPERATOR_APPEND_SEPARATOR}${step.payload.value}`
-          : writtenOnBench(current, step.payload)
+      const next = operatorWrittenText(
+        advancedParams.negativePrompt ?? '',
+        step.payload,
+      )
       ctx.dispatch({
         type: 'SET_ADVANCED_PARAMS',
         payload: { ...advancedParams, negativePrompt: next },

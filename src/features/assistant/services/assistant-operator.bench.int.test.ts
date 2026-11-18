@@ -460,8 +460,8 @@ describe('同一轮先挂参考图再设要图的专属项（10-27 标签台真�
       expect(JSON.stringify(result)).not.toContain('only takes effect')
     }
     const img2img = await plan(ASSISTANT_OPERATOR_TOOL_IDS.setCapability, {
-      key: 'referenceStrength',
-      value: 0.8,
+      key: 'img2imgStrength',
+      value: 0.2,
     })
     expect(JSON.stringify(img2img)).toContain(
       'Ignored while novelAiReferenceMode is precise',

@@ -436,7 +436,30 @@ export const STUDIO_OPERATOR_SYSTEM_CODES = [
    * 这一行同时是替创作者说的那句「看看这批」（`userText`），模型据此看图、对着要求改。
    */
   'autoReview',
+  /**
+   * 载回来的那一轮点了「撤销」，可那一格之后又被改过（11-17 跨页面撤销）：⛔ 不盖掉现在的字，
+   * 原来那段复制到了剪贴板（`subject` = 字段 id，过 `field.*` 词表）。
+   */
+  'restoredUndoStale',
 ] as const
+
+/**
+ * **跨页面撤销**（11-17 真机：助手整段换掉 1000 多字的提示词，离开页面再回来「撤销」没了，原草稿
+ * 无处可找）：提示词 / 负面词这两格的撤销本钱落在本机（`lib/studio-operator-undo-stash.ts`）。
+ *
+ * - 只收这两格：别的格（模型 / 比例 / 参考图）撤了也找得回来，长文才是丢了就没了的那一样。
+ * - `maxRecords` 条、每段 `maxTextChars` 字、整份 `maxTotalChars` 字、留 `ttlMs`；超了先丢旧的，
+ *   **长草稿**（`draftMinChars` 字以上的原文）最后才丢。
+ * - 撤销前比对：那一格此刻不是助手写下的那一版（之后又手改过）就 ⛔ 不盖，原文进剪贴板并说一声。
+ */
+export const STUDIO_OPERATOR_UNDO_STASH = {
+  storageKey: 'pv:assistant-undo-stash:v1',
+  maxRecords: 24,
+  maxTextChars: 12_000,
+  maxTotalChars: 240_000,
+  ttlMs: 14 * 24 * 60 * 60 * 1000,
+  draftMinChars: 200,
+} as const
 
 export type StudioOperatorSystemCode =
   (typeof STUDIO_OPERATOR_SYSTEM_CODES)[number]

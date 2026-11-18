@@ -10,7 +10,7 @@ import type {
 import { ASSISTANT_NEXT_LIMITS } from '@/features/assistant/constants'
 import { skillBlocksIn } from '@/features/assistant/skills'
 import type { AssistantV3PictureRef } from '@/types/assistant-v3'
-import { withoutStageDirections } from '@/lib/chat-voice'
+import { withoutStageDirections, withoutThoughtMarkup } from '@/lib/chat-voice'
 
 /**
  * 发给模型的那一串消息怎么拼、怎么存（纯函数，循环与测试共用）。
@@ -266,18 +266,37 @@ export interface HistoryLine {
 /**
  * 之前几轮的对白（只有说的话）。取哪几轮由 `planAssistantV3History` 开窗（第 6 步：按块滑、滑出去的写成
  * 摘要），这里只把那一段排成消息。⚠ 开头那条必须是创作者说的（几家都要求先 user 后 assistant）。
+ * ⭐ 她先开的口（聊天里卡上的开场白，酒馆 first_mes）：那几句排在 `CHAT_START_LINE` 后面照留 ——
+ *   这串对话只有真从头开始时开头才会是助手行（客户端截历史、开窗都从创作者那句起）。
  */
+export const CHAT_START_LINE = '[Start of the chat]'
+
 export function historyMessages(lines: readonly HistoryLine[]): ModelMessage[] {
-  const kept = lines.filter((line) => line.content.trim())
-  const first = kept.findIndex((line) => line.role === 'user')
-  if (first < 0) return []
   // 她以前漏出来的动作（`*光翼暗了一点*`）不进历史：留着下一轮会照着学（owner 10-30）。
-  return kept.slice(first).map((line) => ({
-    role: line.role,
-    content:
+  // 旧消息里手写的 `<thought>`（11-17 前）也不进：留着它会照着接着写，想法改用原生思考摘要。
+  // ⚠ 先洗再判空：只剩想法的那条洗完是空的，空消息厂商会拒收。
+  const kept = lines
+    .map((line) =>
       line.role === 'assistant'
-        ? withoutStageDirections(line.content)
-        : line.content,
+        ? {
+            role: line.role,
+            content: withoutStageDirections(
+              line.content.includes('thought>')
+                ? withoutThoughtMarkup(line.content).trimStart()
+                : line.content,
+            ),
+          }
+        : line,
+    )
+    .filter((line) => line.content.trim())
+  if (kept.length === 0) return []
+  const lead: HistoryLine[] =
+    kept[0]!.role === 'assistant'
+      ? [{ role: 'user', content: CHAT_START_LINE }]
+      : []
+  return [...lead, ...kept].map((line) => ({
+    role: line.role,
+    content: line.content,
   }))
 }
 

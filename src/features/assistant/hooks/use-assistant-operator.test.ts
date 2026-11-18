@@ -4747,7 +4747,7 @@ describe('回合托管第 4 片：画布等载好再接；新会话第一轮补�
 })
 
 describe('「我的想法」（助手思考过程 C，11-11）', () => {
-  it('下一轮发给模型的历史里，上一段回复带着当时的想法（⛔ 照着没想法的样子不再写）', async () => {
+  it('下一轮发给模型的历史里，上一段回复只有正文（11-17：想法取自原生思考摘要，⛔ 拼 <thought> 教它手写）', async () => {
     const { result } = render()
     act(() => result.current.send('改成夜景'))
     await settle()
@@ -4767,7 +4767,7 @@ describe('「我的想法」（助手思考过程 C，11-11）', () => {
     }[]
     expect(messages.find((message) => message.role === 'assistant')).toEqual({
       role: 'assistant',
-      content: '<thought>\n只动环境。\n</thought>\n改好了。',
+      content: '改好了。',
     })
   })
 

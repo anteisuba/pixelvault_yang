@@ -3,6 +3,7 @@
  *（见 docs/design/features-migration.md）。
  */
 export { useAskAssistantAboutImage } from './use-ask-assistant-about-image'
+export { useAssistantMemories } from './use-assistant-memories'
 export {
   useHandMentionToAssistant,
   useHandToAssistant,

@@ -2,7 +2,10 @@
  * 助手域的对外入口（客户端）。域外只从这里引，⛔ 直引域内文件
  *（见 docs/design/features-migration.md）。
  */
-export { AssistantAvatarGlyph } from './components/operator/AssistantAvatarGlyph'
+export {
+  AssistantAvatarGlyph,
+  assistantGlyphLetterName,
+} from './components/operator/AssistantAvatarGlyph'
 export { AssistantSettingsDialog } from './components/operator/AssistantSettingsDialog'
 export {
   AvatarDisc,

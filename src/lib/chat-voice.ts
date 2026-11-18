@@ -134,6 +134,29 @@ function dropped(cut: string, offset: number, whole: string): string {
   return ' '
 }
 
+/** 合上的那一段「我的想法」`<thought>…</thought>`（整段藏）。 */
+const THOUGHT_BLOCK = /<thought>[\s\S]*?<\/thought>/g
+/** 落单的 `<thought>` / `</thought>`：不知道到哪结束，只藏标签。 */
+const THOUGHT_TAG = /<\/?thought>/g
+
+/**
+ * 「我的想法」只进想法那一栏（助手思考过程 C）：服务端只截开头那一段，模型写在别处的会漏进正文、
+ * 进而被 🔊 念成素材库里的音频标题（11-17 真机 `<thought> 她要的…`）。展示时整段藏掉，落单的标签藏标签。
+ */
+export function withoutThoughtMarkup(text: string): string {
+  if (!text.includes('thought>')) return text
+  return text.replace(THOUGHT_BLOCK, '').replace(THOUGHT_TAG, '')
+}
+
+/**
+ * **展示层唯一一道清洗**（11-17）：给人看的一段纯文字（素材库音频卡标题、对话气泡）里的内部标记全藏掉 ——
+ * 「我的想法」`<thought>`、念的语气提示 `[happy]` / Drama 3 成对标签。⚠ 只管展示：存储、发给 TTS 的字照旧。
+ * 带 markdown 的正文走 `withoutVoiceCuesInProse`（代码块里的方括号不动），想法照样先过 `withoutThoughtMarkup`。
+ */
+export function displayVoiceText(text: string): string {
+  return withoutVoiceCues(withoutThoughtMarkup(text))
+}
+
 /** `*光翼暗了一点*`：单星号包住的一段（⛔ `**加粗**`、⛔ `* 列表`）。 */
 const STAR_ACTION =
   /[ \t]*(?<![*\w])\*(?![\s*])[^*\n]{1,80}?(?<![\s*])\*(?![*\w])[ \t]*/g
@@ -156,10 +179,47 @@ export function withoutStageDirections(text: string): string {
 
 /** 一段回复按行拆成气泡（10-26 F：像发消息一样一句一条）；语气提示、动作藏掉，空行不算。 */
 export function chatBubbles(text: string): string[] {
-  return text
+  // 想法段可能跨行：先整段藏掉再按行拆。
+  return withoutThoughtMarkup(text)
     .split(/\n+/)
-    .map((line) => withoutVoiceCues(withoutStageDirections(line)))
+    .map((line) => displayVoiceText(withoutStageDirections(line)))
     .filter(Boolean)
+}
+
+export interface GreetingRun {
+  /** `*动作*` / 旁白那一段（显示时去掉星号、用次要色）；否则是台词。 */
+  action: boolean
+  text: string
+}
+
+/** 开场白里的 `*动作*`：成对单星号之间的一段，⛔ 长度上限（卡作者的旁白动辄一整句）。 */
+const GREETING_ACTION = /\*([^*\n]+)\*/g
+
+/**
+ * 卡上的开场白 → 段落 → 动作 / 台词（11-18 真机：拆成 7 个小气泡读着碎）。开场白是一整段叙事：
+ * 整块显示，一行一段，`*动作*` 去掉星号用次要色、台词正常色。⚠ 动作一个都不洗 —— 它是卡作者写的，
+ * 不是她漏出来的（`withoutStageDirections` 只管她自己的回复）。
+ */
+export function greetingParagraphs(text: string): GreetingRun[][] {
+  return withoutThoughtMarkup(text)
+    .split(/\n+/)
+    .map((line) => displayVoiceText(line.trim()))
+    .filter(Boolean)
+    .map((line) => {
+      const runs: GreetingRun[] = []
+      let last = 0
+      for (const match of line.matchAll(GREETING_ACTION)) {
+        const before = line.slice(last, match.index).trim()
+        if (before) runs.push({ action: false, text: before })
+        const action = match[1]!.trim()
+        if (action) runs.push({ action: true, text: action })
+        last = match.index + match[0].length
+      }
+      const rest = line.slice(last).trim()
+      if (rest) runs.push({ action: false, text: rest })
+      return runs
+    })
+    .filter((runs) => runs.length > 0)
 }
 
 export type ChatBubblePart = string | { cite: number; url: string }
@@ -224,6 +284,26 @@ export function spokenVoiceText(text: string, expressive = false): string {
     .replace(/[ \t]{2,}/g, ' ')
     .trim()
   return spoken || text
+}
+
+/** 官方表里的词 → 文案键（`happy` → `happy`，`in a hurry tone` → `hurried`）。 */
+const CUE_ID_BY_TAG: ReadonlyMap<string, string> = new Map(
+  VOICE_CUE_GROUPS.flatMap((group) =>
+    group.cues.map((cue) => [cue.tag, cue.id] as const),
+  ),
+)
+
+/**
+ * 一段台词里用了哪几个「语气」（配音台语气药丸显示用，11-17）：按出现顺序、去重，只认官方表里的词。
+ * 语气就写在台词里（`[标记]`），药丸上显示的是从字里读出来的 —— ⛔ 另存一份「已选语气」状态（删了字药丸还亮着）。
+ */
+export function voiceCueIdsIn(text: string): string[] {
+  const ids: string[] = []
+  for (const match of text.matchAll(/\[([^[\]\n]{1,40})\]/g)) {
+    const id = CUE_ID_BY_TAG.get(match[1]!.trim().toLowerCase())
+    if (id && !ids.includes(id)) ids.push(id)
+  }
+  return ids
 }
 
 /**

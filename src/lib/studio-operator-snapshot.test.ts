@@ -321,6 +321,15 @@ describe('buildImageOperatorSnapshot', () => {
     })
   }
 
+  it('型号声明了比例表就按它裁（与规格 chip 同一道），⛔ 给全集让助手设一个点不到的比例', () => {
+    const ideogram = buildImage(option(AI_MODELS.IDEOGRAM_45))
+    expect(ideogram.specs?.aspectRatioOptions).toEqual(['1:1'])
+    // 没声明比例表的照旧是全集。
+    expect(buildImage(option(PLAIN)).specs?.aspectRatioOptions).toEqual(
+      expect.arrayContaining(['1:1', '16:9', '9:16']),
+    )
+  })
+
   it('形状不变：按 modelId 去重、给 specs 与 count、⛔ 不带任何视频节', () => {
     const onWorkspace = option(PLAIN, { displayLabel: 'Seedream 5.0 Pro' })
     const saved = { ...onWorkspace, optionId: `saved:${PLAIN}` }

@@ -705,7 +705,7 @@ export function renderState(
       )
       if (resolveAdapterType(state.modelId ?? '') === AI_ADAPTER_TYPES.NOVELAI)
         lines.push(
-          `  On NovelAI a mounted reference is image-to-image: it carries the composition, and the prompt never contains @ImageN tokens or sentences — write what you keep from the reference as Danbooru tags. COPY: keep it mounted and set referenceStrength to 0.8 (higher = closer to the original); say that number and what it means in one clause. NEW SCENE on NovelAI V5: V5 has no character reference, so ask once with two options — stay on V5 with tags only (unmount the reference; newer style, lower likeness for an original character) or switch to NovelAI V4.5 Full (id: ${AI_MODELS.NOVELAI_V45_FULL}) and set novelAiReferenceMode to "precise" (closer likeness, older style). On V4.5 go straight to "precise".`,
+          `  On NovelAI a mounted reference is image-to-image: it carries the composition, and the prompt never contains @ImageN tokens or sentences — write what you keep from the reference as Danbooru tags. COPY: keep it mounted and set img2imgStrength to 0.2 (NovelAI's redraw strength: lower = closer to the original, higher = changes more); say that number and what it means in one clause. NEW SCENE on NovelAI V5: V5 has no character reference, so ask once with two options — stay on V5 with tags only (unmount the reference; newer style, lower likeness for an original character) or switch to NovelAI V4.5 Full (id: ${AI_MODELS.NOVELAI_V45_FULL}) and set novelAiReferenceMode to "precise" (closer likeness, older style). On V4.5 go straight to "precise".`,
         )
     }
     lines.push(

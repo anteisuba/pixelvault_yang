@@ -52,3 +52,47 @@ export const ASK_ONLY_REFUSAL =
 export function isAllowedInAskOnlyTurn(toolName: string): boolean {
   return ASK_ONLY_TOOLS.has(toolName)
 }
+
+/**
+ * **创作者明说「先别出图」→ 这一轮不许调 generate**（11-17 真机）。
+ *
+ * 「把提示词换成…比例改成 16:9。先别出图，告诉我这样出一张要多少钱。」—— 模型改完照样调了
+ * generate 弹确认卡（它看不到价钱，只能借确认卡报价）。没花钱，但违背了「先别」。同 ask 那一道：
+ * 提示词从来不是闸，服务端拦 generate，理由里告诉它价钱在哪。
+ *
+ * ⚠ 只认「出图 / 生成」这件事本身被否定，且否定词紧挨着它、后面是句读或句尾：
+ *   「不要生成文字」「别画眼镜」说的是画面内容，⛔ 不算。
+ * ⚠ 只拦 generate：改台、查、问照常。
+ */
+const NO_GENERATE_REQUEST =
+  /(?:先|暂时|暂且|还|也)?(?:别|不要|不用|先不|暂不|甭|不必)(?:急着|着急|马上)?(?:出图|生成|生图|出片|开跑|开始生成)(?=$|[\s，。,.!！？?；;、~～]|了|哦|啊|呢|吧)|\b(?:don'?t|do not|no need to|hold off on)\s+(?:generat\w*|render\w*)(?:\s+(?:it|yet|now|anything|this))*\s*(?=$|[.,!?;])|(?:まだ)?(?:生成|出力)(?:しないで|はまだ|は待って)/i
+
+export function wantsNoGenerateTurn(latestUserText: string): boolean {
+  return NO_GENERATE_REQUEST.test(ownWords(latestUserText))
+}
+
+export const NO_GENERATE_TURN_REMINDER =
+  'This turn the creator said NOT to generate yet. Change the bench if they asked, answer their question (the price is on the board / in the edit result), and do not call generate.'
+
+export const NO_GENERATE_REFUSAL =
+  'Refused: the creator said not to generate yet, so no confirm card was shown and nothing was generated. Answer what they asked instead — if it was the price, it is in the Price line on the board and at the end of every edit result.'
+
+/**
+ * **网上找到的东西摆出来了 → 等创作者挑**（owner 11-06「摆出来就停」，11-18 改闸）。
+ *
+ * 原来靠下一步把 `toolChoice` 切成 `none`：Anthropic 文档写明换 `tool_choice` 会作废整段消息的缓存
+ * （<https://platform.claude.com/docs/en/build-with-claude/prompt-caching>），每次找图都白付一遍历史。
+ * 现在 `toolChoice` 一直 `auto`：结果文字里告诉它「已经摆在眼前、等她挑」，它还是调了工具，服务端拒
+ * （同 `NO_GENERATE_REFUSAL` 那一道）。⛔ 换着词接着搜（11-06 真机一轮里连搜不停）。
+ * ⚠ 只拦我们自己的工具；厂商自己跑的联网（`nativeTools`）拦不到。
+ */
+export const FINDS_SHOWN =
+  'These are now in front of the creator as cards. Now wait for them to pick: in your next message say in a sentence or two which ones you would pick (by number) and why, judging only what you can actually see, and call no tools — they choose and hand the ones they want back to you.'
+
+export const FINDS_SHOWN_REFUSAL =
+  'Refused: the web finds are already in front of the creator, waiting for them to pick — nothing else runs this turn. Say in a sentence or two which ones you would pick (by number) and why; they hand the ones they want back to you.'
+
+/** 上一步把找到的摆出来了：这一步还调工具就拒（返回拒的那句；可以跑 = null）。 */
+export function findsShownRefusal(findsShown: boolean): string | null {
+  return findsShown ? FINDS_SHOWN_REFUSAL : null
+}

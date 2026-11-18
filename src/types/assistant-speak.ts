@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { TTS_SPEED_RANGE } from '@/constants/audio-options'
 import { STUDIO_OPERATOR_VOICE } from '@/constants/studio-operator-voice'
 
 /**
@@ -9,6 +10,12 @@ import { STUDIO_OPERATOR_VOICE } from '@/constants/studio-operator-voice'
 export const AssistantSpeakRequestSchema = z.object({
   text: z.string().trim().min(1).max(STUDIO_OPERATOR_VOICE.maxChars),
   modelId: z.enum(STUDIO_OPERATOR_VOICE.modelIds).optional(),
+  /** 语速（配音台「语速」药丸，和画布音频节点同一个值域）；不给 / 1.0 = 默认念法。 */
+  speed: z
+    .number()
+    .min(TTS_SPEED_RANGE.min)
+    .max(TTS_SPEED_RANGE.max)
+    .optional(),
 })
 
 export type AssistantSpeakRequest = z.infer<typeof AssistantSpeakRequestSchema>

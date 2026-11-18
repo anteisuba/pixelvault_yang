@@ -18,6 +18,51 @@ const ACTION_CLASS =
   'inline-flex h-7 items-center gap-1 rounded-md px-1.5 text-xs text-muted-foreground transition-colors duration-fast hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40 coarse:min-h-11'
 
 /**
+ * 「‹ 2 / 3 ›」左右切她那句的各版：重说留下的各版，和新聊天里她卡上开场白的各版（备选开场白）共用这一颗。
+ */
+export function StudioOperatorVersionSwitch({
+  shown,
+  total,
+  busy,
+  onSelect,
+}: {
+  shown: number
+  total: number
+  busy: boolean
+  onSelect(index: number): void
+}) {
+  const t = useTranslations('StudioOperator.chat')
+  return (
+    <span className="inline-flex items-center">
+      <button
+        type="button"
+        className={ACTION_CLASS}
+        aria-label={t('previousVersion')}
+        disabled={busy || shown <= 0}
+        onClick={() => onSelect(shown - 1)}
+      >
+        <ChevronLeft className="size-3.5" aria-hidden />
+      </button>
+      <span
+        data-testid="operator-reply-version"
+        className="min-w-8 text-center font-mono text-2xs text-muted-foreground tabular-nums"
+      >
+        {t('versionOf', { index: shown + 1, total })}
+      </span>
+      <button
+        type="button"
+        className={ACTION_CLASS}
+        aria-label={t('nextVersion')}
+        disabled={busy || shown >= total - 1}
+        onClick={() => onSelect(shown + 1)}
+      >
+        <ChevronRight className="size-3.5" aria-hidden />
+      </button>
+    </span>
+  )
+}
+
+/**
  * 聊天里她最新那句底下的一排（⑪ B，owner 10-31「可以加」）：有几版时「‹ 2 / 3 ›」左右切、
  * 「重说」按你最后那句再来一次、「改写」改成她该说的样子（下一轮接着改过的说，并存成卡上的示例）。
  * ⚠ 只挂在她最新那句上：更早的话改了，后面的对白就接不上了。
@@ -106,32 +151,12 @@ export function StudioOperatorReplyActions({
         className="flex items-center gap-0.5"
       >
         {versions ? (
-          <span className="inline-flex items-center">
-            <button
-              type="button"
-              className={ACTION_CLASS}
-              aria-label={t('previousVersion')}
-              disabled={busy || shown <= 0}
-              onClick={() => onSelectVersion(shown - 1)}
-            >
-              <ChevronLeft className="size-3.5" aria-hidden />
-            </button>
-            <span
-              data-testid="operator-reply-version"
-              className="min-w-8 text-center font-mono text-2xs text-muted-foreground tabular-nums"
-            >
-              {t('versionOf', { index: shown + 1, total: versions.length })}
-            </span>
-            <button
-              type="button"
-              className={ACTION_CLASS}
-              aria-label={t('nextVersion')}
-              disabled={busy || shown >= versions.length - 1}
-              onClick={() => onSelectVersion(shown + 1)}
-            >
-              <ChevronRight className="size-3.5" aria-hidden />
-            </button>
-          </span>
+          <StudioOperatorVersionSwitch
+            shown={shown}
+            total={versions.length}
+            busy={busy}
+            onSelect={onSelectVersion}
+          />
         ) : null}
         <button
           type="button"

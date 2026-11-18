@@ -73,9 +73,12 @@ import {
 import { listNextAssistantMemoriesForPrompt } from '@/features/assistant/services/assistant-memory.service'
 import {
   chatPlanThoughts,
-  createThoughtSplitter,
-  type ThoughtSplit,
+  createReasoningLines,
 } from '@/features/assistant/thought-stream'
+import {
+  planToolBatches,
+  runConcurrently,
+} from '@/features/assistant/concurrent-tools'
 import {
   LLM_TEXT_PROVIDER_ERROR_CODES,
   isLlmTextNetworkError,
@@ -174,8 +177,13 @@ import {
 import {
   ASK_ONLY_REFUSAL,
   ASK_ONLY_TURN_REMINDER,
+  FINDS_SHOWN,
+  findsShownRefusal,
   isAllowedInAskOnlyTurn,
+  NO_GENERATE_REFUSAL,
+  NO_GENERATE_TURN_REMINDER,
   wantsAskOnlyTurn,
+  wantsNoGenerateTurn,
 } from '@/features/assistant/ask-gate'
 import {
   clearOldToolResults,
@@ -192,7 +200,7 @@ import {
   buildNextSystemPrompt,
   chatCharacterOf,
   chatReminder,
-  THOUGHTS_REMINDER,
+  turnFactsSection,
   worldNotesSection,
 } from '@/features/assistant/prompt'
 import {
@@ -261,12 +269,6 @@ const CONTENT_FILTERED: Record<PromptAssistantResponseLanguage, string> = {
 
 const NOT_RUN_AFTER_STOP =
   'Not run: this turn stopped on a card to wait for the creator.'
-/**
- * 网上找到的东西摆出来了（owner 11-06「摆出来就停」）：下一次只说话、不调工具，说完这一轮就停，
- * 等创作者挑好按「交给她」。⛔ 换着词接着搜（11-06 真机一轮里连搜不停）。
- */
-const FINDS_SHOWN =
-  'These are now in front of the creator as cards, and this turn ends with your next message — you cannot call tools in it. Say in a sentence or two which ones you would pick (by number) and why, judging only what you can actually see; they choose and hand the ones they want back to you.'
 /** 画布：同一步里前面的 edit 还在落，板子还不是新的样子。 */
 const NOT_RUN_WHILE_BOARD_CHANGES =
   'Not run: an edit earlier in this step is still landing on the board. Call it again in your next step if you still need it.'
@@ -956,6 +958,34 @@ async function* runNextTurn(
   while (saved && model.path !== saved.modelPath && model.fallback)
     model = model.fallback
 
+  /**
+   * ⭐ 之前几轮（第 6 步）：按块开窗，滑出去的那几轮用后台写好的摘要接在这一轮的开场消息里（11-17 起
+   *   ⛔ 进系统提示）；缺口交给后台补（这一轮回完才跑，用这一轮的型号与 key、低档思考）。接力那几跳照第一跳
+   *   定下的窗口与摘要，逐字不变。⚠ 排在开场消息之前：摘要要拼进去。
+   */
+  const historyPlan = saved?.history
+    ? pinnedAssistantV3History(turns, saved.history)
+    : planAssistantV3History({
+        turns,
+        ...(summaries ?? (await loadAssistantV3HistorySummaries(historyOwner))),
+        window: NEXT_HISTORY_WINDOW,
+      })
+  if (!saved)
+    scheduleAssistantV3HistorySummary({
+      owner: historyOwner,
+      plan: historyPlan,
+      turns,
+      route,
+      modelId,
+      domain: request.domain,
+      cacheKey: operatorCacheKey(run, 'historySummary'),
+      ...(chat ? { kind: 'story' as const } : {}),
+    })
+  const pinnedHistory = {
+    turns: turns.length - historyPlan.start,
+    ...(historyPlan.summary ? { summary: historyPlan.summary } : {}),
+  }
+
   const transcript: AssistantV3Transcript = saved ? [...saved.transcript] : []
   let messages: ModelMessage[]
   if (saved) {
@@ -991,10 +1021,10 @@ async function* runNextTurn(
         ]
       : []
     /**
-     * 「别出戏」放在这一轮的消息里（⛔ 进系统提示：每轮都变会废掉缓存）。干活档换成一句「先写想法」
-     * （助手思考过程 C）：🔬 11-11 实跑，只在系统提示里教时，「一句话就行」那种短问它就跳过不写。
+     * 「别出戏」放在这一轮的消息里（⛔ 进系统提示：每轮都变会废掉缓存）。干活档没有这一句：「我的想法」
+     * 取自原生思考摘要，⛔ 再让模型手写 `<thought>`（11-17）。
      */
-    const reminder = chat ? chatReminder(persona, mood) : THOUGHTS_REMINDER
+    const reminder = chat ? chatReminder(persona, mood) : null
     // 会被念出来（聊天页开着声音）：方括号语气提示的写法，和薄管子同一段（⛔ 进系统提示：开关随时会变）。
     const voice = request.chatVoice
       ? `HOW YOUR VOICE SOUNDS\n${voiceCueRules(request.chatVoice.expressive)}\n- These cues are not stage directions: they are allowed, and they are how the voice gets its feeling.${
@@ -1008,11 +1038,18 @@ async function* runNextTurn(
     // 上一轮在网上找到的（`#n`）：冻进板子，「交给她」交回来的号才认得出（11-06）。
     const priorFinds = carriedWebFinds(request.priorFinds ?? [])
     /**
-     * 这一轮才有的几段（11-10 从系统提示挪过来）：新对话第一句「上次停在哪」、聊天时想起的见闻与话题小结、
-     * 这几句碰到的世界书条目。⛔ 放进系统提示：它们每轮都变，一变就连带后面整段历史的缓存作废；
-     * 接力那几跳还读不到见闻，连一轮之内的缓存都接不上。
+     * 这一轮才有的几段（11-10 / 11-17 从系统提示挪过来）：今天几号、记得的事、滑出窗口那几轮的摘要
+     * （`turnFactsSection`）、新对话第一句「上次停在哪」、聊天时想起的见闻与话题小结、这几句碰到的世界书条目。
+     * ⛔ 放进系统提示：它们会变，一变就连带后面整段历史的缓存作废；接力那几跳还读不到见闻，连一轮之内的
+     * 缓存都接不上。开场消息存在接力条里（`saved.messages`），一轮之内逐字不变。
      */
     const turnContext = [
+      turnFactsSection({
+        request,
+        persona,
+        memories,
+        historySummary: historyPlan.summary,
+      }),
       renderAssistantLastTime(lastTime),
       renderFindingsRecall(findings) + renderOutingDigestsRecall(digests),
       chat ? worldNotesSection(persona) : '',
@@ -1030,6 +1067,9 @@ async function* runNextTurn(
           reminder,
           !chat && wantsAskOnlyTurn(latestUserText)
             ? ASK_ONLY_TURN_REMINDER
+            : null,
+          !chat && wantsNoGenerateTurn(latestUserText)
+            ? NO_GENERATE_TURN_REMINDER
             : null,
         ]
           .filter(Boolean)
@@ -1120,32 +1160,6 @@ async function* runNextTurn(
     ])
   }
 
-  /**
-   * ⭐ 之前几轮（第 6 步）：按块开窗，滑出去的那几轮用后台写好的摘要接在系统提示里；缺口交给后台补
-   *   （这一轮回完才跑，用这一轮的型号与 key、低档思考）。接力那几跳照第一跳定下的窗口与摘要，逐字不变。
-   */
-  const historyPlan = saved?.history
-    ? pinnedAssistantV3History(turns, saved.history)
-    : planAssistantV3History({
-        turns,
-        ...(summaries ?? (await loadAssistantV3HistorySummaries(historyOwner))),
-        window: NEXT_HISTORY_WINDOW,
-      })
-  if (!saved)
-    scheduleAssistantV3HistorySummary({
-      owner: historyOwner,
-      plan: historyPlan,
-      turns,
-      route,
-      modelId,
-      domain: request.domain,
-      cacheKey: operatorCacheKey(run, 'historySummary'),
-      ...(chat ? { kind: 'story' as const } : {}),
-    })
-  const pinnedHistory = {
-    turns: turns.length - historyPlan.start,
-    ...(historyPlan.summary ? { summary: historyPlan.summary } : {}),
-  }
   const history = historyMessages(
     assistantV3HistoryMessages(turns, historyPlan.start),
   )
@@ -1154,8 +1168,6 @@ async function* runNextTurn(
     request,
     persona,
     rules,
-    memories,
-    historySummary: historyPlan.summary,
     accountName: user.displayName ?? user.username ?? null,
     language,
     skillsNote: skillsSettingsNote(skills),
@@ -1176,7 +1188,10 @@ async function* runNextTurn(
   const cacheKey = operatorCacheKey(run, 'next')
   const loadBytes = async (url: string) => {
     const picture = await loadPicture(context.pictures, url, signal)
-    return picture ? { data: picture.data, mediaType: picture.mediaType } : null
+    if (!picture) return null
+    const bytes = { data: picture.data, mediaType: picture.mediaType }
+    // 有的厂商只收部分格式（Grok：jpg / png）：交出去之前由那条接法换格式（11-18）。
+    return model.preparePicture ? model.preparePicture(bytes) : bytes
   }
   const text = TITLE_TEXT[language]
   const keepState = (pending?: NextTurnState['pending']) =>
@@ -1200,8 +1215,11 @@ async function* runNextTurn(
   /** 这一跳里失败过的调用（工具名 + 原样参数）→ 失败说明与当时做成过几步。 */
   const failedCalls = new Map<string, { output: string; okCount: number }>()
   let okCount = 0
-  /** 上一步把网上找到的东西摆出来了：这一步只说话（`FINDS_SHOWN`）。 */
-  let sayOnly = false
+  /**
+   * 网上找到的东西摆出来了（`FINDS_SHOWN`）：之后几步再调工具一律拒（`findsShownRefusal`）。
+   * ⛔ 切 `toolChoice`（11-18）：一切换整段消息的缓存就作废。
+   */
+  let findsShown = false
 
   for (let step = 0; ; step += 1) {
     if (signal.aborted) {
@@ -1280,33 +1298,32 @@ async function* runNextTurn(
       return { type: ASSISTANT_OPERATOR_EVENTS.thinking, ms }
     }
     /**
-     * 「我的想法」与正文分流（助手思考过程 C）：开口先写的 `<thought>` 一句一帧发出去，⛔ 进 `reply`
-     * （定稿帧、接力条里的那段话都只认正文）。⚠ 模型自己那条 assistant 消息里照样留着这段 —— 同一轮
-     * 后面几步它看得见自己刚才怎么想的。
+     * 「我的想法」（助手思考过程 C，11-17 起）= 原生思考摘要切成的一句一句（`createReasoningLines`）：
+     * 想的时候写完一句交一句，开口 / 调工具 / 流结束时把攒着的收尾。只在干活档 —— 聊天档的想法是回复前想的
+     * 那一步（上面 `chatPlanThoughts`），⛔ 两份混在一起。没有原生思考的接法这里什么都不出。
+     * `thinking` 帧照旧（摘要原文 + 想了几秒，另起一条消息的判断也靠它）。
      */
-    const splitter = createThoughtSplitter({
-      maxLineChars: ASSISTANT_OPERATOR_THOUGHT_LIMITS.maxLineChars,
-    })
+    const reasoning = chat
+      ? null
+      : createReasoningLines({
+          maxLineChars: ASSISTANT_OPERATOR_THOUGHT_LIMITS.maxLineChars,
+        })
     let thoughtLines = 0
-    const splitOut = function* (
-      split: ThoughtSplit,
+    const thoughtsOut = function* (
+      lines: readonly string[],
     ): Generator<AssistantOperatorEvent> {
-      for (const line of split.thoughts) {
+      for (const line of lines) {
         if (thoughtLines >= ASSISTANT_OPERATOR_THOUGHT_LIMITS.maxLinesPerCall)
-          break
+          return
         thoughtLines += 1
         yield { type: ASSISTANT_OPERATOR_EVENTS.thought, line }
       }
-      if (!split.reply) return
-      reply += split.reply
-      recording.timing.firstTextMs ??= Date.now() - recording.timing.startedAt
-      yield {
-        type: ASSISTANT_OPERATOR_EVENTS.messageDelta,
-        delta: split.reply,
-        ...(restart ? { restart: true as const } : {}),
-        ...chatReply,
-      }
-      restart = false
+    }
+    /** 想完这一段（开口 / 调工具 / 流结束）：攒着的想法先交，再交「想了几秒」那一帧。 */
+    const closeThinking = function* (): Generator<AssistantOperatorEvent> {
+      if (reasoning) yield* thoughtsOut(reasoning.end())
+      const thought = thoughtFrame()
+      if (thought) yield thought
     }
     let response: { messages: ModelMessage[] }
     try {
@@ -1327,7 +1344,7 @@ async function* runNextTurn(
           ...assistantNextTools(model.strictTools),
           ...model.nativeTools,
         },
-        toolChoice: sayOnly ? 'none' : 'auto',
+        toolChoice: 'auto',
         maxRetries: 2,
         ...(model.maxOutputTokens === undefined
           ? {}
@@ -1340,6 +1357,7 @@ async function* runNextTurn(
          * 收尾、接力重做。
          */
         abortSignal: signal,
+        ...(model.headers ? { headers: model.headers(cacheKey) } : {}),
         providerOptions: model.providerOptions(
           cacheKey,
           persona.reasoningEffort,
@@ -1360,22 +1378,31 @@ async function* runNextTurn(
                 ASSISTANT_OPERATOR_LIMITS.maxMessageChars,
               ),
             }
+            if (reasoning) yield* thoughtsOut(reasoning.push(part.text))
             break
-          case 'tool-input-start': {
-            const thought = thoughtFrame()
-            if (thought) yield thought
+          case 'reasoning-end':
+            if (reasoning) yield* thoughtsOut(reasoning.end())
             break
-          }
+          case 'tool-input-start':
+            yield* closeThinking()
+            break
           case 'text-delta': {
             if (!part.text) break
-            const thought = thoughtFrame()
-            if (thought) yield thought
-            yield* splitOut(splitter.push(part.text))
+            yield* closeThinking()
+            reply += part.text
+            recording.timing.firstTextMs ??=
+              Date.now() - recording.timing.startedAt
+            yield {
+              type: ASSISTANT_OPERATOR_EVENTS.messageDelta,
+              delta: part.text,
+              ...(restart ? { restart: true as const } : {}),
+              ...chatReply,
+            }
+            restart = false
             break
           }
           case 'tool-call': {
-            const thought = thoughtFrame()
-            if (thought) yield thought
+            yield* closeThinking()
             if (part.providerExecuted) {
               // 厂商自己跑的联网 / 读网页：时间线上一行「联网查 …」，结果由模型自己读。
               // 没有查询词也没有网址的（Claude 联网时自己跑的整理代码）不出行。
@@ -1431,14 +1458,11 @@ async function* runNextTurn(
             break
           case 'error':
             throw part.error
-          case 'finish': {
-            const thought = thoughtFrame()
-            if (thought) yield thought
-            yield* splitOut(splitter.end())
+          case 'finish':
+            yield* closeThinking()
             if (!reply && calls.length === 0)
               filtered = part.finishReason === 'content-filter'
             break
-          }
           default:
             break
         }
@@ -1523,6 +1547,14 @@ async function* runNextTurn(
         messages = stripForFallback(messages)
         continue
       }
+      // 已知注定被拒的接法（OpenAI 代理没开 Responses，11-18）：报那一句看得懂的话。
+      if (model.rejectedI18nKey && isRejectedByProvider(error))
+        throw new ProviderError(route.adapterType, providerReasonOf(error), {
+          ...(APICallError.isInstance(error)
+            ? { status: error.statusCode }
+            : {}),
+          i18nKey: model.rejectedI18nKey,
+        })
       throw toProviderError(route.adapterType, modelId, error)
     }
     succeededOnce = true
@@ -1665,111 +1697,142 @@ async function* runNextTurn(
       batch: CanvasBatch
     }[] = []
     /** 开台（第 9e 步）：这一步里那次 open（排在最后跑，存好再停）。 */
-    let opening: { call: ClientCall; opening: BenchOpening } | null = null
-    for (const call of calls) {
-      const settle = (result: BenchResult) => {
-        // 角色页搜完要接着看、接着提议（propose_images 自己就是停在卡上），⛔ 在这里停。
-        const shown =
-          face !== ASSISTANT_V3_FACE_IDS.cards &&
-          !result.error &&
-          Boolean(result.finds?.length)
-        if (shown) {
-          sayOnly = true
-          // 看得见图的模型：缩略图跟着下一步摆到它眼前，说哪几张好要凭看到的。
-          if (context.seesImages)
-            for (const find of result.finds ?? [])
-              if (
-                find.kind === 'image' &&
-                looked.length < ASSISTANT_V3_LIMITS.maxLookCards
-              )
-                looked.push({
-                  url: find.thumbnailUrl ?? find.imageUrl,
-                  label: `#${find.n}`,
-                })
-        }
-        const output = shown
-          ? `${result.output}\n${FINDS_SHOWN}`
-          : result.output
-        results.push({
-          type: 'tool-result',
-          toolCallId: call.toolCallId,
-          toolName: call.toolName,
-          output: result.error
-            ? { type: 'error-text', value: output }
-            : { type: 'text', value: output },
-        })
-        transcript.push({
-          type: ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.result,
-          id: call.toolCallId.slice(0, ASSISTANT_V3_LIMITS.maxCallIdChars),
-          tool: transcriptTool(call.toolName),
-          output: output.slice(0, ASSISTANT_V3_LIMITS.maxEntryChars),
-          error: result.error,
-          ...(result.pictures?.length
-            ? {
-                images: result.pictures.slice(
-                  0,
-                  ASSISTANT_V3_LIMITS.maxLookCards,
-                ),
-              }
-            : {}),
-          ...(result.finds?.length ? { finds: [...result.finds] } : {}),
-        })
-        // 画布出图前的核对按本轮记录认「已经报过」；联网找到的 `#n` 也按它换回那一张
-        // （v3 执行函数读 context 那一份）。
-        if (face === ASSISTANT_V3_FACE_IDS.canvas || result.finds?.length)
-          context.transcript.push(transcript[transcript.length - 1]!)
+    // ⚠ 写成 `as`：它在 `land` 里被赋值，按声明的 null 收窄后面就读不到了。
+    let opening = null as { call: ClientCall; opening: BenchOpening } | null
+    /** 上一步把找到的摆出来了：这一步的调用一律拒（11-18 取代切 `toolChoice`）。 */
+    const afterFinds = findsShownRefusal(findsShown)
+    const settle = (call: ClientCall, result: BenchResult) => {
+      // 角色页搜完要接着看、接着提议（propose_images 自己就是停在卡上），⛔ 在这里停。
+      const shown =
+        face !== ASSISTANT_V3_FACE_IDS.cards &&
+        !result.error &&
+        Boolean(result.finds?.length)
+      if (shown) {
+        findsShown = true
+        // 看得见图的模型：缩略图跟着下一步摆到它眼前，说哪几张好要凭看到的。
+        if (context.seesImages)
+          for (const find of result.finds ?? [])
+            if (
+              find.kind === 'image' &&
+              looked.length < ASSISTANT_V3_LIMITS.maxLookCards
+            )
+              looked.push({
+                url: find.thumbnailUrl ?? find.imageUrl,
+                label: `#${find.n}`,
+              })
       }
-      if (stopped) {
-        settle({ output: NOT_RUN_AFTER_STOP, error: true })
-        continue
-      }
-      if (opening) {
-        settle({ output: NOT_RUN_AFTER_OPEN, error: true })
-        continue
-      }
-      if (editFailed && call.toolName === ASSISTANT_NEXT_TOOL_IDS.generate) {
-        settle({ output: NOT_RUN_AFTER_FAILED_EDIT, error: true })
-        continue
-      }
+      const output = shown ? `${result.output}\n${FINDS_SHOWN}` : result.output
+      results.push({
+        type: 'tool-result',
+        toolCallId: call.toolCallId,
+        toolName: call.toolName,
+        output: result.error
+          ? { type: 'error-text', value: output }
+          : { type: 'text', value: output },
+      })
+      transcript.push({
+        type: ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.result,
+        id: call.toolCallId.slice(0, ASSISTANT_V3_LIMITS.maxCallIdChars),
+        tool: transcriptTool(call.toolName),
+        output: output.slice(0, ASSISTANT_V3_LIMITS.maxEntryChars),
+        error: result.error,
+        ...(result.pictures?.length
+          ? {
+              images: result.pictures.slice(
+                0,
+                ASSISTANT_V3_LIMITS.maxLookCards,
+              ),
+            }
+          : {}),
+        ...(result.finds?.length ? { finds: [...result.finds] } : {}),
+      })
+      // 画布出图前的核对按本轮记录认「已经报过」；联网找到的 `#n` 也按它换回那一张
+      // （v3 执行函数读 context 那一份）。
+      if (face === ASSISTANT_V3_FACE_IDS.canvas || result.finds?.length)
+        context.transcript.push(transcript[transcript.length - 1]!)
+    }
+    const keyOf = (call: ClientCall) =>
+      `${call.toolName}:${JSON.stringify(call.input)}`
+    /** 跑之前那几道闸：拦下 = 拒的那句；能跑 = null。 */
+    const blocked = (call: ClientCall): BenchResult | null => {
+      if (stopped) return { output: NOT_RUN_AFTER_STOP, error: true }
+      if (opening) return { output: NOT_RUN_AFTER_OPEN, error: true }
+      if (afterFinds) return { output: afterFinds, error: true }
+      if (editFailed && call.toolName === ASSISTANT_NEXT_TOOL_IDS.generate)
+        return { output: NOT_RUN_AFTER_FAILED_EDIT, error: true }
       if (
         boardEdits.length > 0 &&
         call.toolName !== ASSISTANT_NEXT_TOOL_IDS.edit
-      ) {
-        settle({ output: NOT_RUN_WHILE_BOARD_CHANGES, error: true })
-        continue
-      }
-      const callKey = `${call.toolName}:${JSON.stringify(call.input)}`
-      const failedBefore = failedCalls.get(callKey)
-      if (failedBefore && failedBefore.okCount === okCount) {
-        settle({
+      )
+        return { output: NOT_RUN_WHILE_BOARD_CHANGES, error: true }
+      const failedBefore = failedCalls.get(keyOf(call))
+      if (failedBefore && failedBefore.okCount === okCount)
+        return {
           output: `${NOT_RUN_REPEATED_FAILURE}${failedBefore.output}`,
           error: true,
-        })
-        continue
-      }
-      const result = yield* runTool(
-        context,
-        call,
-        attachedNames,
-        latestUserText,
-        aliases,
-      )
+        }
+      return null
+    }
+    /** 跑完一个：收结果、记账（失败过的、做成几步、看到的图、停没停）。 */
+    const land = (call: ClientCall, result: BenchResult) => {
       if (result.canvas) {
         boardEdits.push({ call, lines: result.output, batch: result.canvas })
-        continue
+        return
       }
       if (result.opening) {
         opening = { call, opening: result.opening }
-        continue
+        return
       }
-      settle(result)
+      settle(call, result)
       if (result.error)
-        failedCalls.set(callKey, { output: result.output, okCount })
+        failedCalls.set(keyOf(call), { output: result.output, okCount })
       else okCount += 1
       if (result.pictures?.length) looked.push(...result.pictures)
       if (result.stop) stopped = true
       if (result.error && call.toolName === ASSISTANT_NEXT_TOOL_IDS.edit)
         editFailed = true
+    }
+    /**
+     * 连着的 find / look 一起跑（`concurrent-tools.ts` 头注）；其余照原顺序一个一个跑。
+     * 结果一律按调用顺序收。⚠ 一起跑的那一串闸在开跑前一起判（只读调用不改闸里那几样，
+     * 只差「同一串里前一个做成了，重复失败的那个本来能再试」—— 这一串里它照旧被拦）。
+     */
+    for (const batch of planToolBatches(calls, isReadOnlyCall)) {
+      if (!batch.concurrent || batch.items.length === 1) {
+        for (const call of batch.items) {
+          const refused = blocked(call)
+          if (refused) {
+            settle(call, refused)
+            continue
+          }
+          land(
+            call,
+            yield* runTool(
+              context,
+              call,
+              attachedNames,
+              latestUserText,
+              aliases,
+            ),
+          )
+        }
+        continue
+      }
+      const gated = batch.items.map((call) => ({
+        call,
+        refused: blocked(call),
+      }))
+      const ran = yield* runConcurrently(
+        gated
+          .filter((item) => !item.refused)
+          .map((item) =>
+            runTool(context, item.call, attachedNames, latestUserText, aliases),
+          ),
+      )
+      let next = 0
+      for (const item of gated)
+        if (item.refused) settle(item.call, item.refused)
+        else land(item.call, ran[next++]!)
     }
     if (boardEdits.length > 0) {
       const settleBoard = (
@@ -1867,20 +1930,18 @@ async function* runNextTurn(
     }
 
     if (opening) {
+      const openCall = opening.call
       const settleOpen = (output: string) => {
         results.push({
           type: 'tool-result',
-          toolCallId: opening.call.toolCallId,
-          toolName: opening.call.toolName,
+          toolCallId: openCall.toolCallId,
+          toolName: openCall.toolName,
           output: { type: 'error-text', value: output },
         })
         transcript.push({
           type: ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.result,
-          id: opening.call.toolCallId.slice(
-            0,
-            ASSISTANT_V3_LIMITS.maxCallIdChars,
-          ),
-          tool: transcriptTool(opening.call.toolName),
+          id: openCall.toolCallId.slice(0, ASSISTANT_V3_LIMITS.maxCallIdChars),
+          tool: transcriptTool(openCall.toolName),
           output,
           error: true,
         })
@@ -1996,6 +2057,14 @@ function chatModeRefusal(call: ClientCall): BenchResult | null {
   }
 }
 
+/** 只读、能和同一步里别的只读调用一起跑的（`concurrent-tools.ts`）。 */
+function isReadOnlyCall(call: ClientCall): boolean {
+  return (
+    call.toolName === ASSISTANT_NEXT_TOOL_IDS.find ||
+    call.toolName === ASSISTANT_NEXT_TOOL_IDS.look
+  )
+}
+
 async function* runTool(
   context: V3Context,
   call: ClientCall,
@@ -2012,6 +2081,12 @@ async function* runTool(
     !isAllowedInAskOnlyTurn(call.toolName)
   ) {
     return { output: ASK_ONLY_REFUSAL, error: true }
+  }
+  if (
+    call.toolName === ASSISTANT_NEXT_TOOL_IDS.generate &&
+    wantsNoGenerateTurn(latestUserText)
+  ) {
+    return { output: NO_GENERATE_REFUSAL, error: true }
   }
   switch (call.toolName) {
     case ASSISTANT_NEXT_TOOL_IDS.find: {

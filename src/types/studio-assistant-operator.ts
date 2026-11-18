@@ -15,8 +15,6 @@
 import type { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type { AssistantMention } from '@/types/assistant-mention'
 import type { StudioOperatorResumeStep } from '@/types/studio-operator-resume'
-import type { ContextCardKindId } from '@/constants/context-cards'
-import type { ContextCardImage } from '@/types/context-cards'
 import type {
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS,
   ProjectRuleSourceId,
@@ -101,6 +99,11 @@ export interface StudioOperatorMessageEntry {
   versionIndex?: number
   /** 「她」在聊天（没开台 + 换成了某个角色，②c-2）：一行一个气泡，⛔ 走正文排版。 */
   chat?: true
+  /**
+   * 她卡上的开场白（酒馆 first_mes / 备选开场白里你选的那一版）：新的聊天里她说的第一句。
+   * 卡作者写的 `*动作*` 照原样显示（⛔ 像她自己的回复那样洗掉）。
+   */
+  greeting?: true
   /** 用着角色时说的（有嗓子，②c-2）：开着台的正文也藏掉方括号语气提示（owner 10-30「语音要情绪词，用户看不到」）。 */
   spoken?: true
   /** 🔊 开着时这段念到哪了（②c-2）。⛔ 不落库：念好的音频在素材库里。 */

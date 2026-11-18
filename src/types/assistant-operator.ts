@@ -2020,6 +2020,47 @@ export const ASSISTANT_LIBRARY_SHOW_LORA_SECTIONS = [
 /** 屏上那一页最多报几样（屏上前 N 个 / 多选前 N 个）。 */
 export const ASSISTANT_LIBRARY_SCREEN_LIMIT = 20
 
+/**
+ * 屏上一格的**一行摘要**上限（11-17 素材库「第 4 行那张粉头发的图」认不出）：类型 · 模型 · 时间 ·
+ * 提示词 / 名字前若干字。⭐ 只跟着屏上那 ≤20 格走，⛔ 不随已加载的整份列表（素材可上千条）。
+ */
+export const ASSISTANT_LIBRARY_TILE_ABOUT_LIMITS = {
+  typeChars: 16,
+  modelChars: 80,
+  textChars: 140,
+  atChars: 32,
+} as const
+
+const AssistantLibraryTileAboutSchema = z.object({
+  /** image / video / audio / model3d…（页面给的类型词）。 */
+  type: z
+    .string()
+    .trim()
+    .max(ASSISTANT_LIBRARY_TILE_ABOUT_LIMITS.typeChars)
+    .optional(),
+  /** 出这张用的模型（原样的模型 id）。 */
+  model: z
+    .string()
+    .trim()
+    .max(ASSISTANT_LIBRARY_TILE_ABOUT_LIMITS.modelChars)
+    .optional(),
+  /** 提示词 / 标题的前若干字。 */
+  text: z
+    .string()
+    .trim()
+    .max(ASSISTANT_LIBRARY_TILE_ABOUT_LIMITS.textChars)
+    .optional(),
+  /** 什么时候出的（`YYYY-MM-DD HH:mm`，UTC）。 */
+  at: z
+    .string()
+    .trim()
+    .max(ASSISTANT_LIBRARY_TILE_ABOUT_LIMITS.atChars)
+    .optional(),
+})
+export type AssistantLibraryTileAbout = z.infer<
+  typeof AssistantLibraryTileAboutSchema
+>
+
 export const AssistantLibraryViewSchema = z.object({
   library: z.enum(STUDIO_LIBRARY_CATEGORY_IDS),
   item: z
@@ -2056,6 +2097,8 @@ export const AssistantLibraryViewSchema = z.object({
           z.object({
             thumb: z.string().url().max(2_000).optional(),
             box: ScreenBoxSchema.optional(),
+            /** 这一格的一行摘要（`ASSISTANT_LIBRARY_TILE_ABOUT_LIMITS`）；页面没给 = 缺席。 */
+            about: AssistantLibraryTileAboutSchema.optional(),
           }),
         )
         .max(ASSISTANT_LIBRARY_SCREEN_LIMIT)
@@ -2074,6 +2117,40 @@ export type AssistantLibraryView = z.infer<typeof AssistantLibraryViewSchema>
 export type AssistantLibraryViewItem = NonNullable<AssistantLibraryView['item']>
 export type AssistantLibraryViewScreen = NonNullable<
   AssistantLibraryView['screen']
+>
+
+/**
+ * **配音台此刻的样子**（11-17：配音台没有宿主，助手看不见台词框 / 嗓子 / 语速）。
+ *
+ * ⭐ 与 `libraryView` 同一种「旁路报一句」：配音台不在 `ASSISTANT_OPERATOR_DOMAINS` 里
+ *   （owner 09-19 / 10-23 有意不给它一个域），这里⛔ 不新开域、⛔ 不给写入或念的工具 ——
+ *   只让助手看得见，改台词 / 念由创作者自己点。缺席 = 不在配音台。
+ * 体量：台词框 `draftChars` 字、最近 `recentLines` 句，每句 `lineChars` 字。
+ */
+export const ASSISTANT_VOICE_BENCH_VIEW_LIMITS = {
+  draftChars: 2_000,
+  recentLines: 5,
+  lineChars: 200,
+} as const
+
+export const AssistantVoiceBenchViewSchema = z.object({
+  /** 这一位的嗓子（音色名）；还没挑 = 缺席。 */
+  voice: z.string().trim().min(1).max(120).optional(),
+  /** 念的那一档（`STUDIO_OPERATOR_VOICE.modelIds` 之一，原样报，服务端不判）。 */
+  model: z.string().trim().min(1).max(80),
+  /** 语速倍数（`TTS_SPEED_RANGE`）。 */
+  speed: z.number().min(0.1).max(4),
+  /** 台词框里此刻打着的字（可带念法记号）。 */
+  draft: z.string().max(ASSISTANT_VOICE_BENCH_VIEW_LIMITS.draftChars),
+  /** 台上最近念过的几句，新的在后。 */
+  recent: z
+    .array(
+      z.string().trim().min(1).max(ASSISTANT_VOICE_BENCH_VIEW_LIMITS.lineChars),
+    )
+    .max(ASSISTANT_VOICE_BENCH_VIEW_LIMITS.recentLines),
+})
+export type AssistantVoiceBenchView = z.infer<
+  typeof AssistantVoiceBenchViewSchema
 >
 
 /**
@@ -2160,6 +2237,8 @@ export const AssistantOperatorRequestSchema = z.object({
    * 用户说「这个角色」时助手知道是谁。缺席 = 库没开。
    */
   libraryView: AssistantLibraryViewSchema.optional(),
+  /** **配音台此刻的样子**（11-17，`AssistantVoiceBenchViewSchema`）：缺席 = 不在配音台。 */
+  voiceBench: AssistantVoiceBenchViewSchema.optional(),
   /**
    * 创作者浏览器的 IANA 时区：联网时 Claude / GPT 据此偏向当地结果。
    * ⚠ 认不得的时区当没给（`catch`），⛔ 不为它让整轮 400。

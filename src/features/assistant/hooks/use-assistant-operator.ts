@@ -71,7 +71,6 @@ import {
   ASSISTANT_MENTION_SCOPE_IDS,
 } from '@/constants/assistant-mention'
 import { getAssistantRouteModelEntry } from '@/constants/assistant-persona'
-import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import {
   AI_ADAPTER_TYPES,
   getDefaultProviderConfig,
@@ -146,10 +145,12 @@ import {
   readLibraryView,
   requestLibraryShow,
 } from '@/hooks/use-library-view'
+import { readVoiceBenchView } from '@/hooks/use-voice-bench-view'
 import {
   getOperatorVoicePrefs,
   speakOperatorReply,
 } from '@/features/assistant/hooks/use-operator-voice'
+import { commitOperatorGreeting } from '@/features/assistant/hooks/use-operator-greeting'
 import { getGenerationErrorMessage } from '@/lib/api-error-message'
 import { splitSpokenSegments } from '@/lib/spoken-segments'
 import { studioBenchHref } from '@/lib/studio-shell-route'
@@ -215,7 +216,6 @@ import {
   describeChatModeSwitch,
   describeDomainSwitch,
   historyToOperatorMessages,
-  withOperatorThoughts,
   historyToPriorSteps,
   readOperatorReferenceProfiles,
   toOperatorHistoryEntry,
@@ -384,12 +384,8 @@ function buildMessages(
        */
       if (!entry.text.trim()) continue
       replied = true
-      messages.push({
-        role: 'assistant',
-        content: entry.chat
-          ? entry.text
-          : withOperatorThoughts(entry.text, entry.thoughts),
-      })
+      // 只带正文：「我的想法」取自原生思考摘要（11-17），⛔ 再拼 `<thought>` 教模型手写。
+      messages.push({ role: 'assistant', content: entry.text })
     } else if (entry.kind === 'system' && entry.userText) {
       /**
        * ⭐ **答过的题也是用户说过的话**（v2 §3.4 落账规则，2026-09-12 真机 bug）。
@@ -1442,6 +1438,7 @@ export function useAssistantOperator(
               : undefined,
           )
           const libraryView = readLibraryView()
+          const voiceBench = readVoiceBenchView()
           const authoredByAssistant = buildAuthoredByAssistant(
             entries,
             snapshot,
@@ -1538,6 +1535,8 @@ export function useAssistantOperator(
                 : {}),
               /** 库开着时报一句开着哪个库、点开了谁（`readLibraryView`）：「这个角色」才认得出。 */
               ...(libraryView ? { libraryView } : {}),
+              /** 配音台开着时报一句台词框 / 嗓子 / 档 / 语速 / 最近几句（`readVoiceBenchView`，11-17）。 */
+              ...(voiceBench ? { voiceBench } : {}),
               /**
                * ⭐ **这一轮属于哪段会话**（v2 §7.5 / §7.6，commit #12）—— 结账写库与
                * 下一轮注入唯一的落点：服务端零会话态，会话的身份一直由客户端持有
@@ -2451,6 +2450,8 @@ export function useAssistantOperator(
       // 用户自己开口了：这一枪的「出图后看一眼」作废（他要说的比这件事优先）。
       autoReviewRef.current = null
       autoReviewDoneRef.current = 0
+      // 和她聊的新会话：摆着的那版开场白先接进线程，成为她的第一句（酒馆 first_mes）。
+      commitOperatorGreeting()
       appendOperatorEntry({
         kind: 'user',
         id: nextOperatorEntryId('user'),

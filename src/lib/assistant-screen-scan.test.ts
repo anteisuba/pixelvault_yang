@@ -1,7 +1,16 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { scanScreen, screenItemProps } from './assistant-screen-scan'
+import {
+  ASSISTANT_LIBRARY_TILE_ABOUT_LIMITS,
+  AssistantLibraryViewSchema,
+} from '@/types/assistant-operator'
+import {
+  generationScreenAbout,
+  scanScreen,
+  screenItemAbout,
+  screenItemProps,
+} from './assistant-screen-scan'
 
 /** 摆一格：jsdom 不排版，位置由测试给。 */
 function tile(
@@ -103,5 +112,67 @@ describe('看屏：扫你眼前那一屏（10-30）', () => {
 
   it('屏上一格都没有：回 null', () => {
     expect(scanScreen('voice')).toBeNull()
+  })
+})
+
+describe('屏上每格带一行摘要（11-17「第 4 行那张粉头发女孩」认不出）', () => {
+  it('素材格子：类型 · 模型 · 时间 · 提示词前若干字跟着扫屏走', () => {
+    window.innerWidth = 1000
+    window.innerHeight = 800
+    const prompt = `pink hair girl reading a book by the window, ${'soft light, '.repeat(40)}`
+    tile(
+      screenItemProps(
+        'picture',
+        '图_0412',
+        'https://cdn/p.jpg',
+        generationScreenAbout({
+          outputType: 'IMAGE',
+          model: 'flux-2-pro',
+          prompt,
+          createdAt: new Date('2026-11-15T09:30:12Z'),
+        }),
+      ),
+      { left: 0, top: 0, width: 300, height: 300 },
+    )
+    const screen = scanScreen('picture')
+    const about = screen?.tiles[0]?.about
+    expect(about).toMatchObject({
+      type: 'image',
+      model: 'flux-2-pro',
+      at: '2026-11-15 09:30',
+    })
+    expect(about?.text?.startsWith('pink hair girl reading a book')).toBe(true)
+    // 体量上限：一格的提示词截到上限（素材可上千条，只有屏上那几格进请求）。
+    expect(about?.text?.length).toBe(
+      ASSISTANT_LIBRARY_TILE_ABOUT_LIMITS.textChars,
+    )
+    // 过得了请求那道 schema（一格不合规整条请求会被拒）。
+    expect(
+      AssistantLibraryViewSchema.safeParse({ library: 'assets', screen })
+        .success,
+    ).toBe(true)
+  })
+
+  it('格子上的摘要被改坏了：当没有，⛔ 拖垮整屏', () => {
+    window.innerWidth = 1000
+    window.innerHeight = 800
+    const props = screenItemProps('picture', '图_1', undefined, {
+      model: 'x',
+    })
+    props['data-screen-about'] = '{not json'
+    tile(props, { left: 0, top: 0, width: 300, height: 300 })
+    expect(scanScreen('picture')?.tiles[0]).toEqual({
+      box: [0, 0, 0.3, 0.375],
+    })
+  })
+
+  it('全空的摘要不挂属性', () => {
+    expect(
+      screenItemAbout({ type: ' ', model: null, text: '', at: 'bad date' }),
+    ).toBeNull()
+    expect(screenItemProps('picture', '图_1', undefined, {})).toEqual({
+      'data-screen-kind': 'picture',
+      'data-screen-name': '图_1',
+    })
   })
 })

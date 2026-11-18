@@ -1,94 +1,57 @@
 import { describe, expect, it } from 'vitest'
 
-import { chatPlanThoughts, createThoughtSplitter } from './thought-stream'
+import { chatPlanThoughts, createReasoningLines } from './thought-stream'
 
-/** 按给定分片喂一遍，收拢成「正文 + 想法」。 */
-function feed(chunks: readonly string[]) {
-  const splitter = createThoughtSplitter()
-  let reply = ''
-  const thoughts: string[] = []
-  for (const chunk of [
-    ...chunks.map((c) => splitter.push(c)),
-    splitter.end(),
-  ]) {
-    reply += chunk.reply
-    thoughts.push(...chunk.thoughts)
-  }
-  return { reply, thoughts }
+/** 按给定分片喂一遍（最后收一次尾），收拢成「我的想法」里的几句。 */
+function feed(chunks: readonly string[], maxLineChars?: number) {
+  const lines = createReasoningLines(
+    maxLineChars === undefined ? {} : { maxLineChars },
+  )
+  return [...chunks.flatMap((chunk) => lines.push(chunk)), ...lines.end()]
 }
 
-describe('「我的想法」与正文分流', () => {
-  it('开头一段想法：一行一句交出去，闭合之后才是正文（去掉开头空白）', () => {
-    expect(
-      feed([
-        '<thought>\n台上是雨天那张，**只动环境**。\n你说过喜欢冷色调〔记忆·偏好冷色调〕\n</thought>\n\n改好了。',
-      ]),
-    ).toEqual({
-      reply: '改好了。',
-      thoughts: [
-        '台上是雨天那张，**只动环境**。',
-        '你说过喜欢冷色调〔记忆·偏好冷色调〕',
-      ],
-    })
-  })
-
-  it('标签被切在分片中间：照样认出来，⛔ 把半个标签当正文发出去', () => {
-    expect(
-      feed([
-        '  <th',
-        'ought>第一句',
-        '\n第二',
-        '句</tho',
-        'ught>',
-        '\n好的',
-        '，马上。',
-      ]),
-    ).toEqual({ reply: '好的，马上。', thoughts: ['第一句', '第二句'] })
-  })
-
-  it('开头不是想法：整段原样是正文（含前面的空白与像标签的字）', () => {
-    expect(feed(['好的', '<thought>x</thought>'])).toEqual({
-      reply: '好的<thought>x</thought>',
-      thoughts: [],
-    })
-    expect(feed(['<p>段落</p>'])).toEqual({
-      reply: '<p>段落</p>',
-      thoughts: [],
-    })
-  })
-
-  it('想的时候一句写完就交，⛔ 等整段闭合', () => {
-    const splitter = createThoughtSplitter()
-    expect(splitter.push('<thought>第一句\n第')).toEqual({
-      reply: '',
-      thoughts: ['第一句'],
-    })
-    expect(splitter.push('二句\n')).toEqual({ reply: '', thoughts: ['第二句'] })
-  })
-
-  it('只有想法没有正文（接着调工具）：正文为空', () => {
-    expect(feed(['<thought>先查一下库\n</thought>'])).toEqual({
-      reply: '',
-      thoughts: ['先查一下库'],
-    })
-  })
-
-  it('流断在想法中间：攒着的那句照样交，⛔ 当正文', () => {
-    expect(feed(['<thought>第一句\n第二句没写完'])).toEqual({
-      reply: '',
-      thoughts: ['第一句', '第二句没写完'],
-    })
-  })
-
-  it('整段只有半个开头标签就结束：当正文放行', () => {
-    expect(feed(['<th'])).toEqual({ reply: '<th', thoughts: [] })
-  })
-
-  it('一句太长截到上限', () => {
-    const splitter = createThoughtSplitter({ maxLineChars: 5 })
-    expect(splitter.push('<thought>一二三四五六七\n').thoughts).toEqual([
-      '一二三四五',
+describe('原生思考摘要 → 「我的想法」里的一句一句', () => {
+  it('一行一句，空行不算', () => {
+    expect(feed(['先看台上那张。\n\n只动背景，', '人物不动。\n'])).toEqual([
+      '先看台上那张。',
+      '只动背景，人物不动。',
     ])
+  })
+
+  it('独占一行的加粗小标题和下一行并成一句（小标题照旧加粗）', () => {
+    expect(
+      feed([
+        '**Planning the edit**\n\n',
+        'One edit is enough.\n\n**Checking',
+        ' the price**\nIt is on the board.',
+      ]),
+    ).toEqual([
+      '**Planning the edit** One edit is enough.',
+      '**Checking the price** It is on the board.',
+    ])
+  })
+
+  it('写完一行就交，⛔ 等整段结束；半行攒着', () => {
+    const lines = createReasoningLines()
+    expect(lines.push('第一句\n第')).toEqual(['第一句'])
+    expect(lines.push('二句')).toEqual([])
+    expect(lines.push('\n')).toEqual(['第二句'])
+    expect(lines.end()).toEqual([])
+  })
+
+  it('一段结束时攒着的半行和落单的小标题照样交出去', () => {
+    expect(feed(['**Only a heading**'])).toEqual(['**Only a heading**'])
+    expect(feed(['**A**\n**B**\n正文'])).toEqual(['**A**', '**B** 正文'])
+    expect(feed(['没换行就结束了'])).toEqual(['没换行就结束了'])
+  })
+
+  it('一句太长截到上限（带省略号）', () => {
+    expect(feed(['一二三四五六七\n'], 5)).toEqual(['一二三四…'])
+  })
+
+  it('什么都没有就什么都不交', () => {
+    expect(feed([])).toEqual([])
+    expect(feed(['', '\n\n'])).toEqual([])
   })
 })
 

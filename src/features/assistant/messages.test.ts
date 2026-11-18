@@ -3,6 +3,7 @@ import type { ModelMessage } from 'ai'
 
 import {
   clearOldToolResults,
+  CHAT_START_LINE,
   historyMessages,
   hydratePictures,
   lookedPicturesMessage,
@@ -197,18 +198,59 @@ describe('厂商自己跑的调用要成对', () => {
 })
 
 describe('之前几轮的对白', () => {
-  it('开头必须是创作者说的，空白的不算', () => {
+  it('空白的不算；开头是她先开的口（开场白）时前面垫一句创作者那边的开场，开场白照留', () => {
     const lines = [
-      { role: 'assistant' as const, content: 'stray' },
+      { role: 'assistant' as const, content: '你来啦。' },
       { role: 'user' as const, content: 'a' },
       { role: 'assistant' as const, content: '  ' },
       { role: 'assistant' as const, content: 'b' },
     ]
-    expect(historyMessages(lines).map((line) => line.content)).toEqual([
-      'a',
-      'b',
+    expect(historyMessages(lines)).toEqual([
+      { role: 'user', content: CHAT_START_LINE },
+      { role: 'assistant', content: '你来啦。' },
+      { role: 'user', content: 'a' },
+      { role: 'assistant', content: 'b' },
     ])
-    expect(historyMessages([lines[0]!])).toEqual([])
+    // 第一句话发出去那一轮：之前的对白只有开场白。
+    expect(historyMessages([lines[0]!])).toEqual([
+      { role: 'user', content: CHAT_START_LINE },
+      { role: 'assistant', content: '你来啦。' },
+    ])
+    expect(historyMessages([lines[2]!])).toEqual([])
+  })
+
+  it('开场白里的 *动作* 进历史前照样洗掉（owner 10-30：留着会被照着学），只剩动作的整条不进', () => {
+    expect(
+      historyMessages([
+        { role: 'assistant', content: '*她抬起头* 你来啦。' },
+        { role: 'user', content: '嗯' },
+      ]).map((line) => line.content),
+    ).toEqual([CHAT_START_LINE, '你来啦。', '嗯'])
+    expect(
+      historyMessages([
+        { role: 'assistant', content: '*她抬起头*' },
+        { role: 'user', content: '嗯' },
+      ]).map((line) => line.content),
+    ).toEqual(['嗯'])
+  })
+
+  it('旧回复里手写的 <thought>（11-17 前）洗掉再进历史；只剩想法的那条整条不进', () => {
+    const lines = [
+      { role: 'user' as const, content: '改成夜景' },
+      {
+        role: 'assistant' as const,
+        content: '<thought>\n只动环境。\n</thought>\n改好了。',
+      },
+      { role: 'user' as const, content: '再暗一点' },
+      { role: 'assistant' as const, content: '<thought>想一下</thought>' },
+      { role: 'user' as const, content: '<thought>用户写的原样留着</thought>' },
+    ]
+    expect(historyMessages(lines).map((line) => line.content)).toEqual([
+      '改成夜景',
+      '改好了。',
+      '再暗一点',
+      '<thought>用户写的原样留着</thought>',
+    ])
   })
 })
 

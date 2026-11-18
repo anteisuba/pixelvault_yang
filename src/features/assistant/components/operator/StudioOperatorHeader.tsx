@@ -86,7 +86,10 @@ import {
   useStudioOperatorSelector,
 } from '@/hooks/use-studio-operator-store'
 import { useStudioConversationActivity } from '@/hooks/use-studio-conversation-activity'
-import { AssistantAvatarGlyph } from '@/features/assistant/components/operator/AssistantAvatarGlyph'
+import {
+  AssistantAvatarGlyph,
+  assistantGlyphLetterName,
+} from '@/features/assistant/components/operator/AssistantAvatarGlyph'
 import { ArrivalReveal } from '@/components/ui/load-reveal'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
@@ -345,7 +348,10 @@ export function StudioOperatorHeader({
             className="touch-target grid shrink-0 place-items-center rounded-full border border-border bg-card text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <span className="grid size-full place-items-center overflow-hidden rounded-full">
-              <AssistantAvatarGlyph presetId={persona?.avatarPreset ?? null} />
+              <AssistantAvatarGlyph
+                presetId={persona?.avatarPreset ?? null}
+                letterName={assistantGlyphLetterName(persona)}
+              />
             </span>
           </button>
         ) : board ? (

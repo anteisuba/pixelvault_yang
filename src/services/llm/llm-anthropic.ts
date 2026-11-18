@@ -119,6 +119,20 @@ function resolveAnthropicMaxTokens(input: LlmTextInput): number {
   )
 }
 
+/** 见 `ANTHROPIC_API.PROMPT_CACHE`：会重发的用途 + 够长的系统提示才打断点。 */
+function shouldCacheSystemPrompt(
+  input: LlmTextInput,
+  systemPrompt: string,
+): boolean {
+  const repeated: readonly string[] =
+    ANTHROPIC_API.PROMPT_CACHE.REPEATED_PURPOSES
+  return (
+    input.purpose !== undefined &&
+    repeated.includes(input.purpose) &&
+    systemPrompt.length >= ANTHROPIC_API.PROMPT_CACHE.MIN_SYSTEM_CHARS
+  )
+}
+
 function buildAnthropicMessagesRequest(input: LlmTextInput): {
   endpoint: string
   modelId: string
@@ -176,12 +190,15 @@ function buildAnthropicMessagesRequest(input: LlmTextInput): {
         : {}),
       // The operator re-sends the same system prompt on every step of a run;
       // the breakpoint lets steps 2..N read it from cache instead of paying
-      // full input price each time.
+      // full input price each time. One-off purposes skip it: a cache write
+      // costs 1.25x base input and nothing would ever read it (11-18).
       system: [
         {
           type: 'text',
           text: systemPrompt,
-          cache_control: { type: 'ephemeral' },
+          ...(shouldCacheSystemPrompt(input, systemPrompt)
+            ? { cache_control: { type: 'ephemeral' } }
+            : {}),
         },
       ],
       messages: [{ role: 'user', content: toAnthropicUserContent(input) }],

@@ -77,6 +77,34 @@ export function renderLibraryView(
   return `${where}, looking at ${handle}. When they say "this one", "her", "it" without naming it, they mean ${handle}: look ${handle} before you answer.${screen}`
 }
 
+/** 同一排的判据：上沿差不到视口高的这么多算同一排（与扫屏 `ROW_TOLERANCE_PX` 同一个意思）。 */
+const SCREEN_ROW_TOLERANCE = 0.03
+
+/**
+ * 每格在屏上第几排（从 1 数，按 `box` 的上沿；没有位置的那一格 `undefined`）。
+ * 创作者说「第 4 行那张」时模型靠它对号。
+ */
+export function screenRows(
+  tiles: NonNullable<AssistantLibraryView['screen']>['tiles'],
+): (number | undefined)[] {
+  if (!tiles) return []
+  const tops = tiles
+    .flatMap((tile) => (tile.box ? [tile.box[1]] : []))
+    .sort((a, b) => a - b)
+  const rowTops: number[] = []
+  for (const top of tops) {
+    const last = rowTops.at(-1)
+    if (last === undefined || top - last > SCREEN_ROW_TOLERANCE)
+      rowTops.push(top)
+  }
+  return tiles.map((tile) => {
+    if (!tile.box) return undefined
+    const top = tile.box[1]
+    const index = rowTops.findLastIndex((rowTop) => top >= rowTop - 1e-9)
+    return index === -1 ? undefined : index + 1
+  })
+}
+
 /**
  * 屏上那一页（owner 10-28）：范围、搜索词、屏上那几样、多选了哪几样。更多的叫它 `find`。
  * ⭐ 10-30 起屏上那几样是发请求那一刻扫到的（`tiles`）：按位置编了号，与 `look 屏幕` 那张
@@ -90,13 +118,36 @@ function renderLibraryScreen(
     names.map((name) => libraryHandle(screen.kind, name)).join(', ')
   const scanned = Boolean(screen.tiles?.length)
   const pictured = screen.tiles?.some((tile) => tile.thumb) ?? false
+  /**
+   * ⭐ 每格带一行摘要时（类型 · 模型 · 时间 · 提示词前若干字，11-17）一格一行：创作者用话描述
+   *   「最近那张粉头发女孩在窗边看书」时，模型先在这几行里对号，⛔ 只拿编号去库里瞎搜。
+   */
+  const described = screen.tiles?.some((tile) => tile.about) ?? false
+  const rows = screenRows(screen.tiles)
+  const tileLine = (name: string, index: number) => {
+    const about = screen.tiles?.[index]?.about
+    const row = rows[index]
+    const facts = about
+      ? [
+          row === undefined ? undefined : `screen row ${row}`,
+          about.type,
+          about.model,
+          about.at,
+          about.text ? `"${about.text}"` : undefined,
+        ].filter(Boolean)
+      : []
+    return `${index + 1} ${libraryHandle(screen.kind, name)}${facts.length ? ` — ${facts.join(' · ')}` : ''}`
+  }
   const visible = screen.visible.length
     ? scanned
-      ? `On their screen right now, numbered top-left first${screen.total === undefined ? '' : ` (${screen.total} in all)`}: ${screen.visible
-          .map(
-            (name, index) => `${index + 1} ${libraryHandle(screen.kind, name)}`,
-          )
-          .join(' · ')}.`
+      ? described
+        ? `On their screen right now, numbered top-left first, left to right then down${screen.total === undefined ? '' : ` (${screen.total} in all)`}:\n${screen.visible.map(tileLine).join('\n')}\nWhen they describe a picture in words or by place ("the one in row 4", "the pink-haired girl reading"), match it against these lines first; if one fits, that is the one — answer from its line (model, time) or look it by name for the full recipe. Only say it is not there after you have checked these lines${pictured ? ` and looked ${ASSISTANT_NEXT_HANDLE_PREFIXES.screen}` : ''}.`
+        : `On their screen right now, numbered top-left first${screen.total === undefined ? '' : ` (${screen.total} in all)`}: ${screen.visible
+            .map(
+              (name, index) =>
+                `${index + 1} ${libraryHandle(screen.kind, name)}`,
+            )
+            .join(' · ')}.`
       : `On screen (first ${screen.visible.length}${screen.total === undefined ? '' : ` of ${screen.total}`}): ${handles(screen.visible)}.`
     : 'Nothing on screen.'
   const lines = [

@@ -20,7 +20,11 @@ import { slotsCoverUrl } from '@/lib/card-bus'
 import { hasPersonaProfile } from '@/lib/character-persona-fields'
 import { withoutStageDirections } from '@/lib/chat-voice'
 import { ApiRequestError } from '@/lib/errors'
-import { readTavernAuthorNotes, readTavernWorldBook } from '@/lib/tavern-card'
+import {
+  fillCardMacros,
+  readTavernAuthorNotes,
+  readTavernWorldBook,
+} from '@/lib/tavern-card'
 import { readChatUserRole } from '@/features/cards/server'
 import { sanitizePrompt } from '@/services/kernel/prompt-guard'
 import { ensureUser } from '@/services/user.service'
@@ -465,16 +469,6 @@ export function sanitizeAddressUserAs(
 /** 截断并在截处留一个省略号（让模型知道后面还有）。 */
 function clipText(text: string, max: number): string {
   return text.length > max ? `${text.slice(0, Math.max(0, max - 1))}…` : text
-}
-
-/**
- * 酒馆卡里的宏（`{{char}}` / `{{user}}`，老卡写 `<BOT>` / `<USER>`）换成名字。
- * 导入时原样存，⛔ 不在导入时换：称呼会改，卡不该跟着被改写。
- */
-function fillCardMacros(text: string, char: string, user: string): string {
-  return text
-    .replace(/\{\{char\}\}|<BOT>/gi, char)
-    .replace(/\{\{user\}\}|<USER>/gi, user)
 }
 
 /**

@@ -6,11 +6,15 @@ import {
   withoutStageDirections,
   chatBubbles,
   chatBubbleParts,
+  displayVoiceText,
+  greetingParagraphs,
   leadingVoiceCues,
   spokenVoiceText,
   stickerUrlOf,
+  voiceCueIdsIn,
   voiceCueRules,
   withoutPictureHandles,
+  withoutThoughtMarkup,
 } from './chat-voice'
 
 describe('voiceCueRules', () => {
@@ -110,6 +114,28 @@ describe('chatBubbles', () => {
     expect(chatBubbles('')).toEqual([])
   })
 
+  it('greeting: one paragraph per line, every *action* kept (no length cap), asterisks dropped', () => {
+    const longAction = `*${'耳边的声音压得很低，带着笑。'.repeat(8)}*`
+    expect(
+      greetingParagraphs(
+        `*她从书堆后探出头* 你来啦。\n\n${longAction}\n*她把声音放得更轻，凑过来：*\n「坐吧。」*笑*`,
+      ),
+    ).toEqual([
+      [
+        { action: true, text: '她从书堆后探出头' },
+        { action: false, text: '你来啦。' },
+      ],
+      [{ action: true, text: longAction.slice(1, -1) }],
+      [{ action: true, text: '她把声音放得更轻，凑过来：' }],
+      [
+        { action: false, text: '「坐吧。」' },
+        { action: true, text: '笑' },
+      ],
+    ])
+    // 她自己的回复照旧洗掉动作。
+    expect(chatBubbles('*她从书堆后探出头* 你来啦。')).toEqual(['你来啦。'])
+  })
+
   it('hides the voice cues she writes for her voice', () => {
     expect(
       chatBubbles(
@@ -153,6 +179,57 @@ describe('picture handles in her reply', () => {
       ),
     ).toBe('[laughing] 看，很像吧？来源 官网')
     expect(spokenVoiceText('图_3')).toBe('图_3')
+  })
+})
+
+describe('displayVoiceText / withoutThoughtMarkup (11-17 内部标记泄漏)', () => {
+  it('素材库音频卡：语气提示与想法标签都藏掉，正文照留', () => {
+    expect(displayVoiceText('[curious] 我现在在…')).toBe('我现在在…')
+    expect(displayVoiceText('<thought> 她要的…')).toBe('她要的…')
+    expect(
+      displayVoiceText(
+        '<thought>\n她要的是冷色调\n</thought>\n[happy] 好的，改好了',
+      ),
+    ).toBe('好的，改好了')
+    expect(displayVoiceText('普通台词')).toBe('普通台词')
+  })
+
+  it('只动展示：想法整段藏、落单标签只藏标签，没有标记原样返回', () => {
+    expect(withoutThoughtMarkup('前<thought>想</thought>后')).toBe('前后')
+    expect(withoutThoughtMarkup('前</thought>后')).toBe('前后')
+    const plain = '[happy] 不归它管'
+    expect(withoutThoughtMarkup(plain)).toBe(plain)
+  })
+
+  it('念之前（voice-speak 服务的那一道）：句中的想法段整段不念，语气标记照发', () => {
+    const reply =
+      '[happy] 好呀～\n<thought>她要的是\n轻松一点的</thought>\n[whispering] 我们走吧。'
+    const spoken = spokenVoiceText(withoutThoughtMarkup(reply))
+    expect(spoken).not.toContain('thought')
+    expect(spoken).not.toContain('她要的是')
+    expect(spoken).toContain('[happy] 好呀～')
+    expect(spoken).toContain('[whispering] 我们走吧。')
+    // 只剩想法 = 没东西可念（服务端据此拒，⛔ 退回原文把想法念出来）。
+    expect(withoutThoughtMarkup('<thought>只是在想</thought>').trim()).toBe('')
+  })
+
+  it('对话气泡：开头漏进来的想法段（跨行）不成气泡', () => {
+    expect(
+      chatBubbles('<thought>\n她要的是冷色调\n再确认一下\n</thought>\n好的～'),
+    ).toEqual(['好的～'])
+    expect(chatBubbles('<thought> 她要的…')).toEqual(['她要的…'])
+  })
+})
+
+describe('voiceCueIdsIn (配音台语气药丸)', () => {
+  it('按出现顺序、去重，只认官方表里的词（含多词标记）', () => {
+    expect(voiceCueIdsIn('[happy] 你好')).toEqual(['happy'])
+    expect(
+      voiceCueIdsIn(
+        '[Happy] 你[in a hurry tone]快点 [happy] [不认识] [[1]](x)',
+      ),
+    ).toEqual(['happy', 'hurried'])
+    expect(voiceCueIdsIn('没有语气')).toEqual([])
   })
 })
 

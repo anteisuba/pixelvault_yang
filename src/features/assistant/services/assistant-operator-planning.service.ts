@@ -3216,11 +3216,30 @@ export function planSetSpecs(
 ): ToolPlan {
   const specs = run.request.snapshot.specs
   if (!specs?.aspectRatioOptions.includes(args.aspectRatio)) {
-    return reject(REJECT.unknownValue, `aspectRatio "${args.aspectRatio}"`)
+    return reject(
+      REJECT.unknownValue,
+      `aspectRatio "${args.aspectRatio}" is not an option for this model (options: ${specs?.aspectRatioOptions.join(', ') || 'none'}); the aspect ratio stays ${run.state.aspectRatio ?? '(not set)'}.`,
+    )
   }
   const tierless = hasNoResolutionTiers(run.request.snapshot)
-  if (!tierless && !specs.resolutionOptions.includes(args.resolution)) {
-    return reject(REJECT.unknownValue, `resolution "${args.resolution}"`)
+  /**
+   * ⭐ 「台上那一格原样不动」也是合法的清晰度（11-17 真机）：只改比例时调用方把台上现在的值
+   *   带过来，而它可能是 `null`（= 交给模型默认，界面上就是「没点过清晰度」）—— 那一档写成
+   *   `auto`（表单里的不设态，确认卡换比例时也这么写）。⛔ 别再拿它去对档位表：
+   *   Seedream Lite 的档位是 2K / 4K，「没设」对不上任何一档，只改比例的那一条就被整条拒了。
+   */
+  const unchanged =
+    args.resolution === run.state.resolution ||
+    (args.resolution === 'auto' && run.state.resolution === null)
+  if (
+    !tierless &&
+    !unchanged &&
+    !specs.resolutionOptions.includes(args.resolution)
+  ) {
+    return reject(
+      REJECT.unknownValue,
+      `resolution "${args.resolution}" is not an option for this model (options: ${specs.resolutionOptions.join(', ')}); nothing changed, the aspect ratio stays ${run.state.aspectRatio ?? '(not set)'}.`,
+    )
   }
   const resolution = tierless ? 'auto' : args.resolution
 
@@ -3293,7 +3312,11 @@ export function planSetSpecs(
       ...patch,
     },
     inverse: previous,
-    observation: `Specs are now ${args.aspectRatio} · ${resolution}.`,
+    observation: `Specs are now ${args.aspectRatio} · ${
+      resolution === 'auto'
+        ? 'resolution left to the model default'
+        : resolution
+    }.`,
     apply: () => {
       run.state.aspectRatio = args.aspectRatio
       run.state.resolution = resolution
@@ -3875,7 +3898,12 @@ export function referenceModeNote(run: OperatorRun, key: string): string {
     (key === 'preciseReferenceStrength' || key === 'preciseReferenceFidelity')
   )
     return ' It only takes effect once novelAiReferenceMode is precise.'
-  if (precise && (key === 'referenceStrength' || key === 'img2imgNoise'))
+  if (
+    precise &&
+    (key === 'referenceStrength' ||
+      key === 'img2imgStrength' ||
+      key === 'img2imgNoise')
+  )
     return ' Ignored while novelAiReferenceMode is precise — the character lock uses preciseReferenceStrength / preciseReferenceFidelity.'
   return ''
 }

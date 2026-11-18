@@ -44,7 +44,10 @@ import { useTranslations } from 'next-intl'
 import Image from 'next/image'
 
 import styles from './StudioOperatorDock.module.css'
-import { AssistantAvatarGlyph } from '@/features/assistant/components/operator/AssistantAvatarGlyph'
+import {
+  AssistantAvatarGlyph,
+  assistantGlyphLetterName,
+} from '@/features/assistant/components/operator/AssistantAvatarGlyph'
 import {
   STUDIO_OPERATOR_KEEP_OPEN_ATTR,
   STUDIO_OPERATOR_SHELL,
@@ -213,6 +216,7 @@ export function StudioOperatorAvatarToggle({
       ) : (
         <AssistantAvatarGlyph
           presetId={persona?.avatarPreset ?? null}
+          letterName={assistantGlyphLetterName(persona)}
           className="rounded-full"
         />
       )}

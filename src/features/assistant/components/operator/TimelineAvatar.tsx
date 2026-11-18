@@ -21,6 +21,7 @@ import { useTranslations } from 'next-intl'
 import { ASSISTANT_PERSONA_DEFAULTS } from '@/constants/assistant-persona'
 import {
   AssistantAvatarGlyph,
+  assistantGlyphLetterName,
   timelineInitials,
 } from '@/features/assistant/components/operator/AssistantAvatarGlyph'
 import { useMyProfile } from '@/hooks/use-my-profile'
@@ -91,6 +92,7 @@ export function AssistantTimelineAvatar({
             presetId={
               persona?.avatarPreset ?? ASSISTANT_PERSONA_DEFAULTS.avatarPreset
             }
+            letterName={assistantGlyphLetterName(persona)}
             className="size-full"
           />
         </span>

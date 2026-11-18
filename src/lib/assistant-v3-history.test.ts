@@ -301,7 +301,7 @@ describe('摘要', () => {
     expect(text).toBe(renderAssistantV3HistorySummary({ ...one }))
     expect(text).toBe(`
 
-${ASSISTANT_V3_HISTORY_SUMMARY_HEADING} — the first 8 turns of this conversation are no longer shown below; these notes are what they settled.
+${ASSISTANT_V3_HISTORY_SUMMARY_HEADING} — the first 8 turns of this conversation are no longer shown above; these notes are what they settled.
 Decided:
   - whole film in 16:9
 Names and ids:
@@ -312,7 +312,9 @@ Names and ids:
     // 和角色聊天：同一副四栏，按故事的标题摆。
     const story = renderAssistantV3HistorySummary(one, 'story')
     expect(story).toContain('these notes are what you remember of it.')
-    expect(story).toContain('What happened between you, and how you felt:\n  - whole film in 16:9')
+    expect(story).toContain(
+      'What happened between you, and how you felt:\n  - whole film in 16:9',
+    )
     expect(story).toContain('People and things that came up:')
     expect(story).not.toContain('Decided:')
   })

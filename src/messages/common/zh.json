@@ -353,6 +353,7 @@
       "accountLimitReached": "服务商账号为该模型设置的用量上限已触顶，模型服务已被暂停。重试不会有变化——请到服务商控制台调高或关闭该模型的用量限额，或先改用其它模型。",
       "outputBudgetExhausted": "该推理模型在写出回复前就用尽了输出额度。请重试、换非推理模型（如 Gemini / DeepSeek），或缩短提示词。",
       "contextLimitExceeded": "ANTEI 已压缩较早历史并自动重试一次，但仍超过该模型的上下文上限。请新建对话或移除较大的参考内容。",
+      "proxyNeedsResponsesApi": "这个 OpenAI 模型只能通过 Responses API 调用工具，而这把 Key 填的自定义地址不支持它。请改用 OpenAI 官方地址、支持 /responses 的代理，或换一个模型。",
       "refused": "所选模型依据其内容政策拒绝了本次请求。请换个说法，或选择其他 Agent Key。",
       "noOutput": "服务商完成了请求，但没有返回可用媒体。请调整提示词，或换一个模型重试。",
       "callbackTimeout": "暂时没有收到这次生成的结果。请先查看生成记录，确认结果后再决定是否重试。",
@@ -403,6 +404,7 @@
       "publish_blocked_search": "出图时用了 Google 搜索，按条款只能自己看，不能发布。",
       "unknown": "这次生成没有成功，暂时无法确定原因。请稍后重试；如果仍然失败，可将错误详情提供给管理员。",
       "unknownWithDetail": "这次生成没有成功，服务商返回：{detail}",
+      "upstream_not_ready": "没发出去：这张卡连着的上游卡这次没出结果。先把上游跑通，再重跑这张。",
       "execution_request_rejected": "生成服务没有接受这次请求：{detail}",
       "provider_unreachable": "这次没连上服务商（网络中断）。一般是临时的，稍后重试即可。",
       "lora_unreachable": "服务商下载不到这把 LoRA 的文件：链接可能过期、文件被删，或作者关了下载。重试一般没用，请重新导入或换一把 LoRA。"
@@ -504,7 +506,8 @@
     "assistantVoice": {
       "unbound": "这位还没有嗓子，先给她挑一副",
       "modelUnavailable": "当前没有可用的音频模型",
-      "voiceCardUnavailable": "这个音色已不可用"
+      "voiceCardUnavailable": "这个音色已不可用",
+      "nothingToSay": "没有可念的内容"
     },
     "voiceBench": {
       "noPersona": "先换成一个角色，再按她的说法改",

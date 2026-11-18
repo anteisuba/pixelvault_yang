@@ -297,6 +297,13 @@ describe('AssistantMemoryPane · 让助手记住', () => {
     expect(apply).toHaveBeenCalledWith({ memoryCapture: false })
   })
 
+  it('说清角色自己记的不在这儿（指回她页「记忆」）', () => {
+    renderPane([LEARNED])
+    expect(
+      screen.getByTestId('assistant-memory-characters-note'),
+    ).toHaveTextContent('AssistantSettings:memory.charactersNote')
+  })
+
   it('关着时说明换成「不再记新的，清单照样生效」', () => {
     renderPane([LEARNED], { memoryCapture: false })
     expect(

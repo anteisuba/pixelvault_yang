@@ -11,6 +11,7 @@ import { EASE_STANDARD, SHELL_MOTION } from '@/constants/motion'
 import { ChatCircle, Paintbrush } from '@/components/icons'
 import {
   AssistantAvatarGlyph,
+  assistantGlyphLetterName,
   timelineInitials,
 } from '@/features/assistant/components/operator/AssistantAvatarGlyph'
 import {
@@ -100,8 +101,12 @@ export function StudioOperatorCurrentAvatar() {
         (item) => item.character.id === chatCharacter.id,
       )
     : undefined
+  // 没图的角色：画她的首字母（⛔ 退成品牌图标，见 `assistantGlyphLetterName`）。
+  const letterName = assistantGlyphLetterName(persona)
   const disc = chatCharacter ? (
     <AvatarDisc url={chat?.avatarUrl} name={chatCharacter.name} />
+  ) : letterName ? (
+    <AvatarDisc url={null} name={letterName} working={working} />
   ) : (
     <AvatarDisc
       url={persona.avatarUrl}

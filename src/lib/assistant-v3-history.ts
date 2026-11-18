@@ -265,8 +265,9 @@ export const ASSISTANT_V3_HISTORY_SUMMARY_HEADING =
   'EARLIER IN THIS CONVERSATION'
 
 /**
- * 系统提示里的那一段（接在记忆之后、板上型号的写法之前）。同一份摘要逐字相同（四栏顺序固定、
- * 每栏照存的顺序）。四栏都空 = 不出这一段。
+ * 这一轮开场消息里的那一段（11-17 起 ⛔ 进系统提示：摘要一更新就作废整段历史的缓存；接在记忆之后）。
+ * 同一份摘要逐字相同（四栏顺序固定、每栏照存的顺序）。四栏都空 = 不出这一段。
+ * 「no longer shown above」：开场消息在保留下来的那几轮之后。
  */
 export function renderAssistantV3HistorySummary(
   summary: AssistantV3HistorySummary | null,
@@ -281,7 +282,7 @@ export function renderAssistantV3HistorySummary(
   if (sections.length === 0) return ''
   return `
 
-${ASSISTANT_V3_HISTORY_SUMMARY_HEADING} — the first ${summary.turns} turn${summary.turns === 1 ? '' : 's'} of this conversation are no longer shown below; ${kind === 'story' ? 'these notes are what you remember of it' : 'these notes are what they settled'}.
+${ASSISTANT_V3_HISTORY_SUMMARY_HEADING} — the first ${summary.turns} turn${summary.turns === 1 ? '' : 's'} of this conversation are no longer shown above; ${kind === 'story' ? 'these notes are what you remember of it' : 'these notes are what they settled'}.
 ${sections.join('\n')}
 - ${kind === 'story' ? 'Remember it the way a person does: let it shape how you talk now, without recapping it.' : 'Treat these as already agreed: build on them without asking again or reciting them back.'} What the creator says now wins over them.`
 }

@@ -59,6 +59,38 @@ describe('StudioOperatorHistoryItem', () => {
     expect(screen.queryByTestId('operator-message-expand')).toBeNull()
   })
 
+  it('她卡上的开场白载回来：整块一段叙事、每段动作都在（11-18 真机刷新后少两行动作），⛔ 拆气泡', () => {
+    const opening = [
+      '*阶梯教室里的灯一排排暗下去，只剩讲台那一盏，投影仪的风扇还在嗡嗡地响，她就坐在你旁边那排的空位上，托着下巴看你，像是已经等了很久很久。*',
+      '*耳边的声音压得很低，带着笑，凑得近到有点痒。你下意识抖了一下，旁边的人连头都没抬。*',
+      '「嘘——别出声。」',
+      '*她把声音放得更轻，凑过来：*',
+      '「下课等我。」',
+    ].join('\n')
+    render(
+      <StudioOperatorHistoryItem
+        entry={{
+          kind: 'message',
+          id: 'g1',
+          text: opening,
+          chat: true,
+          greeting: true,
+        }}
+      />,
+    )
+    expect(screen.getAllByTestId('operator-greeting-text')).toHaveLength(1)
+    expect(screen.queryByTestId('operator-chat-bubble')).toBeNull()
+    expect(screen.getAllByTestId('operator-greeting-paragraph')).toHaveLength(5)
+    const actions = screen.getAllByTestId('operator-greeting-action')
+    expect(actions.map((node) => node.textContent)).toEqual([
+      '阶梯教室里的灯一排排暗下去，只剩讲台那一盏，投影仪的风扇还在嗡嗡地响，她就坐在你旁边那排的空位上，托着下巴看你，像是已经等了很久很久。',
+      '耳边的声音压得很低，带着笑，凑得近到有点痒。你下意识抖了一下，旁边的人连头都没抬。',
+      '她把声音放得更轻，凑过来：',
+    ])
+    for (const node of actions)
+      expect(node).toHaveClass('text-muted-foreground')
+  })
+
   it('聊天气泡里的「图_N」换成缩略图（10-27 owner 真机：历史回放里只剩字）', async () => {
     resetPictureNumberCacheForTests()
     lookupMentions.mockResolvedValue({
@@ -104,5 +136,35 @@ describe('StudioOperatorHistoryItem', () => {
     expect(screen.getByTestId('operator-message-text').textContent).toBe(
       '改成夜景了。',
     )
+  })
+
+  it('跨页面撤销（11-17）：本机还留着原文才给撤销钮，点了交回调用方；撤过的不给', () => {
+    const step = {
+      kind: 'step' as const,
+      id: 'run-1:s1',
+      tool: 'set_prompt',
+      title: '改写提示词',
+      status: 'done' as const,
+      undone: false,
+    }
+    const onRestoredUndo = vi.fn()
+    const { rerender } = render(<StudioOperatorHistoryItem entry={step} />)
+    // 没给 = 历史照旧只读（头注那条「历史里写不出做错事的撤销钮」）。
+    expect(screen.queryByTestId('operator-history-restored-undo')).toBeNull()
+    rerender(
+      <StudioOperatorHistoryItem
+        entry={step}
+        onRestoredUndo={onRestoredUndo}
+      />,
+    )
+    fireEvent.click(screen.getByTestId('operator-history-restored-undo'))
+    expect(onRestoredUndo).toHaveBeenCalledTimes(1)
+    rerender(
+      <StudioOperatorHistoryItem
+        entry={{ ...step, undone: true }}
+        onRestoredUndo={onRestoredUndo}
+      />,
+    )
+    expect(screen.queryByTestId('operator-history-restored-undo')).toBeNull()
   })
 })

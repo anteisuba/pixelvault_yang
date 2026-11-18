@@ -399,6 +399,12 @@ export function buildImageOperatorSnapshot({
     }
   })
 
+  const declaredAspectRatios: readonly string[] =
+    (selectedModel
+      ? getCapabilityConfig(selectedModel.adapterType, selectedModel.modelId)
+          ?.aspectRatioOptions
+      : undefined) ?? STUDIO_IMAGE_ASPECT_RATIOS
+
   const resolutionOptions = selectedModel
     ? [
         ...(getCapabilityConfig(
@@ -486,7 +492,11 @@ export function buildImageOperatorSnapshot({
             ],
           }
         : {}),
-      aspectRatioOptions: [...STUDIO_IMAGE_ASPECT_RATIOS],
+      // ⚠ 型号声明了比例表（Ideogram 只收 1:1）就按它裁 —— 与规格 chip（`buildImageSpecChipModel`）
+      //   同一道过滤；⛔ 给全集，助手就能把台上设成一个 chip 上点不到、provider 也不收的比例。
+      aspectRatioOptions: STUDIO_IMAGE_ASPECT_RATIOS.filter((ratio) =>
+        declaredAspectRatios.includes(ratio),
+      ),
       resolutionOptions,
     },
     count: {

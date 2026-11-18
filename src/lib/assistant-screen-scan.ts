@@ -1,5 +1,7 @@
 import {
   ASSISTANT_LIBRARY_SCREEN_LIMIT,
+  ASSISTANT_LIBRARY_TILE_ABOUT_LIMITS as ABOUT_LIMITS,
+  type AssistantLibraryTileAbout,
   type AssistantLibraryViewScreen,
 } from '@/types/assistant-operator'
 
@@ -16,6 +18,8 @@ const ATTR = {
   kind: 'data-screen-kind',
   name: 'data-screen-name',
   thumb: 'data-screen-thumb',
+  /** 这一格的一行摘要（JSON：类型 · 模型 · 时间 · 提示词前若干字）。 */
+  about: 'data-screen-about',
 } as const
 
 /** 一格露出多少才算在屏上。 */
@@ -30,8 +34,10 @@ export function screenItemProps(
   kind: ScreenKind,
   name: string | null | undefined,
   thumb?: string | null,
+  about?: ScreenItemAboutInput | null,
 ): Record<string, string> {
   if (!name) return {}
+  const summary = about ? screenItemAbout(about) : null
   return {
     [ATTR.kind]: kind,
     [ATTR.name]: name,
@@ -39,7 +45,98 @@ export function screenItemProps(
     ...(thumb && /^https?:\/\//.test(thumb) && thumb.length <= 2_000
       ? { [ATTR.thumb]: thumb }
       : {}),
+    ...(summary ? { [ATTR.about]: JSON.stringify(summary) } : {}),
   }
+}
+
+/**
+ * 页面给一格的摘要（11-17 素材库：「第 4 行那张粉头发女孩」助手对不上号 —— 屏上只报了编号）。
+ * ⭐ 摘要挂在格子自己身上、跟着扫屏走：只有屏上那 ≤20 格进请求，⛔ 不随已加载的整份列表
+ *   （素材可上千条）。
+ */
+export interface ScreenItemAboutInput {
+  type?: string | null
+  model?: string | null
+  /** 提示词 / 标题；这里截到上限。 */
+  text?: string | null
+  /** 时间：`Date`、ISO 串，或已经写好的 `YYYY-MM-DD HH:mm`。 */
+  at?: Date | string | null
+}
+
+function clip(
+  value: string | null | undefined,
+  max: number,
+): string | undefined {
+  const text = value?.replace(/\s+/g, ' ').trim()
+  if (!text) return undefined
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text
+}
+
+const STAMP = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/
+
+function stamp(value: Date | string | null | undefined): string | undefined {
+  if (!value) return undefined
+  if (typeof value === 'string' && STAMP.test(value)) return value
+  const date = value instanceof Date ? value : new Date(value)
+  if (Number.isNaN(date.getTime())) return undefined
+  // UTC、精确到分：模型只要分得清「最近那张」。
+  return date.toISOString().slice(0, 16).replace('T', ' ')
+}
+
+/** 截好、去空：一格摘要不带空字段；全空 = `null`。 */
+export function screenItemAbout(
+  input: ScreenItemAboutInput,
+): AssistantLibraryTileAbout | null {
+  const about: AssistantLibraryTileAbout = {}
+  const type = clip(input.type?.toLowerCase(), ABOUT_LIMITS.typeChars)
+  const model = clip(input.model, ABOUT_LIMITS.modelChars)
+  const text = clip(input.text, ABOUT_LIMITS.textChars)
+  const at = stamp(input.at)
+  if (type) about.type = type
+  if (model) about.model = model
+  if (text) about.text = text
+  if (at) about.at = at
+  return Object.keys(about).length ? about : null
+}
+
+/** 素材 / 画廊里一件产物的那一行摘要（两处同一份写法，⛔ 各写各的）。 */
+export function generationScreenAbout(generation: {
+  outputType?: string | null
+  model?: string | null
+  prompt?: string | null
+  createdAt?: Date | string | null
+}): ScreenItemAboutInput {
+  return {
+    type: generation.outputType,
+    model: generation.model,
+    text: generation.prompt,
+    at: generation.createdAt,
+  }
+}
+
+/** 读回格子上那份摘要：不是 JSON / 形状不对就当没有（⛔ 一格坏的拖垮整条请求）。 */
+function readAbout(raw: string | null): AssistantLibraryTileAbout | undefined {
+  if (!raw) return undefined
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    return undefined
+  }
+  if (!parsed || typeof parsed !== 'object') return undefined
+  const record = parsed as Record<string, unknown>
+  const pick = (key: keyof AssistantLibraryTileAbout) => {
+    const value = record[key]
+    return typeof value === 'string' ? value : undefined
+  }
+  return (
+    screenItemAbout({
+      type: pick('type'),
+      model: pick('model'),
+      text: pick('text'),
+      at: pick('at'),
+    }) ?? undefined
+  )
 }
 
 export interface ScannedScreen {
@@ -67,6 +164,7 @@ export function scanScreen(
     kind: ScreenKind
     name: string
     thumb?: string
+    about?: AssistantLibraryTileAbout
     rect: DOMRect
   }[] = []
   for (const element of root.querySelectorAll<HTMLElement>(`[${ATTR.name}]`)) {
@@ -87,7 +185,14 @@ export function scanScreen(
     if (seen.has(key)) continue
     seen.add(key)
     const thumb = element.getAttribute(ATTR.thumb) ?? undefined
-    found.push({ kind: itemKind, name, thumb, rect })
+    const about = readAbout(element.getAttribute(ATTR.about))
+    found.push({
+      kind: itemKind,
+      name,
+      thumb,
+      ...(about ? { about } : {}),
+      rect,
+    })
   }
   if (found.length === 0) return null
   // 只留一类：没指定时取最多的那一类（库里同时露出两类格子极少见）。
@@ -109,6 +214,7 @@ export function scanScreen(
     visible: items.map((item) => item.name),
     tiles: items.map((item) => ({
       ...(item.thumb ? { thumb: item.thumb } : {}),
+      ...(item.about ? { about: item.about } : {}),
       box: [
         round(item.rect.left / width),
         round(item.rect.top / height),

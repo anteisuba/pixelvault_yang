@@ -25,6 +25,24 @@ export const LLM_STRUCTURED_OUTPUT_MODELS: Partial<
   ],
 }
 
+/**
+ * 带思考档时**只能在 Responses API 上调工具**的 OpenAI 型号（11-18 照各自模型页）：
+ * gpt-6.1-sol / gpt-6.1-terra「Tool calling requires the Responses API.」；gpt-6-luna「Chat
+ * Completions supports function calling only with `reasoning_effort` set to `none`.」（助手不发 none）。
+ * gpt-6-astra 的模型页两个端点都标支持 function calling，不在此列。
+ * 助手走 OpenAI 代理时，代理没开 `/responses` 就退到 Chat Completions —— 这几个型号在那里注定被拒，
+ * 报 `OPENAI_PROXY_NEEDS_RESPONSES_I18N_KEY` 那句话。
+ */
+export const OPENAI_TOOLS_NEED_RESPONSES_MODELS: ReadonlySet<string> = new Set([
+  LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_1_SOL,
+  LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_1_TERRA,
+  LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_LUNA,
+])
+
+/** `common` 文案里那句「这个代理没开 Responses API」的键。 */
+export const OPENAI_PROXY_NEEDS_RESPONSES_I18N_KEY =
+  'errors.provider.proxyNeedsResponsesApi'
+
 // Route tables allow multiple tiers per adapter since 2026-08-23; the first
 // entry for an adapter is that adapter's default tier. Enhance is short-in/
 // short-out high-frequency work, so the cheap tier leads.

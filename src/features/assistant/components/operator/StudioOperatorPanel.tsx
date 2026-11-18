@@ -140,7 +140,11 @@ import {
   StudioOperatorMessageBody,
   StudioOperatorUserText,
 } from '@/features/assistant/components/operator/StudioOperatorMessageBody'
-import { StudioOperatorReplyActions } from '@/features/assistant/components/operator/StudioOperatorReplyActions'
+import {
+  StudioOperatorReplyActions,
+  StudioOperatorVersionSwitch,
+} from '@/features/assistant/components/operator/StudioOperatorReplyActions'
+import { useOperatorGreeting } from '@/features/assistant/hooks/use-operator-greeting'
 import { toOperatorAnswerSources } from '@/features/assistant/components/operator/StudioOperatorAnswerSources'
 import { StudioOperatorPinnedEvidence } from '@/features/assistant/components/operator/StudioOperatorPinnedEvidence'
 import { StudioOperatorQuestionBlock } from '@/features/assistant/components/operator/StudioOperatorQuestionBlock'
@@ -180,6 +184,7 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import { readLibraryCardHands, useLibraryPills } from '@/hooks/use-library-view'
 import { StudioOperatorPhoneAddCard } from '@/features/assistant/components/operator/StudioOperatorPhoneAddCard'
 import { useStudioOperatorHost } from '@/contexts/studio-operator-host'
+import { useStudioOperatorRestoredUndo } from '@/features/assistant/hooks/use-studio-operator-restored-undo'
 import type { UseAssistantOperatorResult } from '@/features/assistant/hooks/use-assistant-operator'
 import type { UseStudioOperatorHistoryResult } from '@/hooks/use-studio-operator-history'
 import type { UseStudioOperatorUploadResult } from '@/features/assistant/hooks/use-studio-operator-upload'
@@ -478,6 +483,7 @@ export function StudioOperatorPanel({
     outOfSteps,
     saveFailed,
     chatCharacter,
+    sessionId: threadSessionId,
   } = useStudioOperatorState()
   /**
    * ⚠ 几类条目**留在数据里、不画**（owner 2026-09-24：小字「没什么有用的信息」）：
@@ -543,6 +549,8 @@ export function StudioOperatorPanel({
    * 要读它，而依赖列是**渲染期**求值的 —— 定义在下面会撞 TDZ。
    */
   const threadEmpty = entries.length === 0 && historyEntries.length === 0
+  /** 和她聊的新会话：她卡上的开场白摆在空态的位置上（发第一句时才接进线程，见 hook 头注）。 */
+  const greeting = useOperatorGreeting(threadEmpty)
   /**
    * 库页报的药丸（角色库「缺什么出什么」，第 ⑩ 步）—— 这是对话里唯一还在的一排药丸。
    * ⛔ 台上的空态起手药丸已删（ui-spec §2「对话里不放建议按钮」，owner 11-04）：
@@ -607,6 +615,11 @@ export function StudioOperatorPanel({
    */
   const { revertRound, countRoundChanges, roundChangeLabelKeys } =
     useStudioOperatorRevert()
+  /**
+   * 跨页面撤销（11-17）：载回来的提示词 / 负面词那几步，本机还留着原文的给一颗撤销。
+   * ⚠ 会话 id 取线程自己的（store），与存进本机时用的是同一个。
+   */
+  const restoredUndo = useStudioOperatorRestoredUndo(threadSessionId)
 
   /**
    * 素材库弹层开着与否（切片 #7c）—— 同样是一次性挑选动作，局部态。
@@ -2317,11 +2330,34 @@ export function StudioOperatorPanel({
                一套 flex 语义。 */
             className={cn(
               'relative px-4 pb-5 pt-3.5',
-              threadEmpty && 'flex h-full min-h-0 flex-col',
+              threadEmpty && !greeting.entry && 'flex h-full min-h-0 flex-col',
             )}
           >
-            {/* ── 空态（§4.2）—— ⛔ 不再是一行灰字：头像 + 自我介绍 + 三颗起手势。 */}
-            {threadEmpty ? (
+            {/* ── 空态（§4.2）—— ⛔ 不再是一行灰字：头像 + 自我介绍 + 三颗起手势。
+                和她聊的新会话里换成她卡上的开场白（她先开口，酒馆 first_mes）。 */}
+            {threadEmpty && greeting.entry ? (
+              <StudioOperatorTimelineRow
+                card={STUDIO_OPERATOR_CARD_KINDS.message}
+                {...(persona ? { persona } : {})}
+              >
+                <div
+                  data-testid="operator-greeting"
+                  className="flex w-full min-w-0 flex-col gap-1"
+                >
+                  <StudioOperatorMessageBody entry={greeting.entry} />
+                  {greeting.entry.versions ? (
+                    <div className="flex items-center">
+                      <StudioOperatorVersionSwitch
+                        shown={greeting.entry.versionIndex ?? 0}
+                        total={greeting.entry.versions.length}
+                        busy={working}
+                        onSelect={greeting.select}
+                      />
+                    </div>
+                  ) : null}
+                </div>
+              </StudioOperatorTimelineRow>
+            ) : threadEmpty ? (
               <StudioOperatorEmptyState
                 face={operatorHost.face}
                 {...(persona ? { persona } : {})}
@@ -2352,8 +2388,28 @@ export function StudioOperatorPanel({
                 位置在这里是稳定的身份。
               ⚠ 历史行**不画时间戳**：库里那份没有逐条时刻，拿「现在」去填是编数据。 */}
             {(() => {
+              /**
+               * 历史里这一步还撤得了吗（跨页面撤销，11-17）。
+               * ⚠ 条目 id 跨页面加载会撞号：同一个 id + 标题只认**最后**那一行。
+               */
+              const historyUndoRecordAt = (index: number) => {
+                const entry = historyEntries[index]
+                if (entry?.kind !== 'step' || entry.undone) return null
+                const shadowed = historyEntries
+                  .slice(index + 1)
+                  .some(
+                    (later) =>
+                      later.kind === 'step' &&
+                      later.id === entry.id &&
+                      later.title === entry.title,
+                  )
+                return shadowed
+                  ? null
+                  : restoredUndo.recordFor(entry.id, entry.title)
+              }
               const renderHistoryEntry = (index: number) => {
                 const entry = historyEntries[index]!
+                const undoRecord = historyUndoRecordAt(index)
                 return (
                   <StudioOperatorTimelineRow
                     key={`h:${index}:${entry.id}`}
@@ -2365,6 +2421,12 @@ export function StudioOperatorPanel({
                       references={messageImageReferences.get(entry.id)}
                       onMentionClick={openMention}
                       isMentionMissing={isMentionMissing}
+                      {...(undoRecord
+                        ? {
+                            onRestoredUndo: () =>
+                              void restoredUndo.undo(undoRecord),
+                          }
+                        : {})}
                     />
                   </StudioOperatorTimelineRow>
                 )
@@ -2438,6 +2500,40 @@ export function StudioOperatorPanel({
                       !step.undone &&
                       step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
                   )
+                  /**
+                   * ⭐ 跨页面撤销（11-17 真机）：顺利跑完的一轮在历史里**整组不画**（owner 09-30），
+                   * 撤销钮若只挂在步骤行上就永远看不见。所以这一组里有本机还留着原文的那几步时，
+                   * 照实时线程的样子补回「· 改了提示词 · 撤销」那半行（失败收尾的那一轮步骤行照画，
+                   * 钮挂在行上，这里不重复）。
+                   */
+                  const undoRecords = roundBlocker
+                    ? []
+                    : group.indexes.flatMap((index) => {
+                        const record = historyUndoRecordAt(index)
+                        return record ? [record] : []
+                      })
+                  const historyCheckpoint =
+                    undoRecords.length > 0 ? (
+                      <StudioOperatorCheckpointCard
+                        key={`history-checkpoint:${undoRecords.map((record) => record.entryId).join('|')}`}
+                        runKey={`history:${group.indexes[0]}`}
+                        count={undoRecords.length}
+                        fieldSummary={format.list([
+                          ...new Set(
+                            undoRecords.map((record) =>
+                              t(`field.${record.field}`),
+                            ),
+                          ),
+                        ])}
+                        onRevert={() => {
+                          // 倒着撤（与 `revertRound` 同一条理由）。
+                          void (async () => {
+                            for (const record of [...undoRecords].reverse())
+                              await restoredUndo.undo(record)
+                          })()
+                        }}
+                      />
+                    ) : null
                   return {
                     key: `history-tools:${group.indexes[0]}`,
                     speaker: STUDIO_OPERATOR_SPEAKERS.assistant,
@@ -2492,6 +2588,7 @@ export function StudioOperatorPanel({
                             )}
                           </StudioOperatorToolGroup>
                         ) : null}
+                        {historyCheckpoint}
                         {group.indexes.flatMap((index) =>
                           (historyRoundPlacement.byIndex.get(index) ?? []).map(
                             renderHistoryRound,

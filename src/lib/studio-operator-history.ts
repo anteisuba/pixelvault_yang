@@ -637,6 +637,7 @@ export function toOperatorHistoryEntry(
             }
           : {}),
         ...(entry.chat ? { chat: true as const } : {}),
+        ...(entry.greeting ? { greeting: true as const } : {}),
         ...(entry.spoken ? { spoken: true as const } : {}),
         ...(entry.thoughts?.length
           ? {
@@ -964,7 +965,24 @@ export function fromStoredOperatorMessages(
     const parsed = StudioOperatorHistoryEntrySchema.safeParse(message.operator)
     if (parsed.success) history.push(parsed.data)
   }
-  return history
+  // 存满了 = 开头被截掉过：那时排第一的是半路她的一句回复，⛔ 当开场白画。
+  return messages.length < ASSISTANT_CONVERSATION_LIMITS.maxMessages
+    ? withLeadingGreeting(history)
+    : history
+}
+
+/**
+ * 开场白的身份**按位置认**，不只认 `greeting` 那一格（11-18 真机：刷新后开场白少了两行动作 ——
+ * 那一格没跟着回来，整段就被当成她自己的回复洗动作，80 字以内的 `*动作*` 被藏、长的漏网）。
+ * 聊天会话里排在你第一句之前的那条她的话只可能是开场白（她不会没人说话就先回）：这条一律当开场白
+ * 画，刷新前后逐字一致；标记丢过的旧会话也就此复原。⚠ 只在会话没被从头截掉时认（见调用处）。
+ */
+function withLeadingGreeting(
+  history: StudioOperatorHistoryEntry[],
+): StudioOperatorHistoryEntry[] {
+  const first = history[0]
+  if (first?.kind !== 'message' || !first.chat || first.greeting) return history
+  return [{ ...first, greeting: true }, ...history.slice(1)]
 }
 
 /**
@@ -1021,12 +1039,8 @@ export function historyToOperatorMessages(
         content: `${entry.text}${attachmentNote}${describeMentionNote(entry.mentions ?? [])}`,
       })
     } else if (entry.kind === 'message') {
-      messages.push({
-        role: 'assistant',
-        content: entry.chat
-          ? entry.text
-          : withOperatorThoughts(entry.text, entry.thoughts),
-      })
+      // 只带正文：「我的想法」取自原生思考摘要（11-17），⛔ 再拼 `<thought>` 教模型手写。
+      messages.push({ role: 'assistant', content: entry.text })
     } else if (entry.kind === 'system' && entry.userText) {
       /**
        * ⭐ 答过的题**回到对话里**（§3.4 落账规则）—— 与 `buildMessages` 逐字
@@ -1056,7 +1070,15 @@ export function historyToOperatorMessages(
     }
   }
   flushSilentTurn()
-  return messages.slice(-STUDIO_OPERATOR_HISTORY.replayMessages)
+  const kept = messages.slice(-STUDIO_OPERATOR_HISTORY.replayMessages)
+  if (kept.length === messages.length) return kept
+  /**
+   * 截过就从截下来那段里你的第一句话起：开头的助手行只在它**真是对话开头**时才留 ——
+   * 那是她卡上的开场白，服务端据此知道是她先开的口（`historyMessages`）。截在半中间的
+   * 助手行留着会被当成开场。
+   */
+  const firstUser = kept.findIndex((message) => message.role === 'user')
+  return firstUser < 0 ? [] : kept.slice(firstUser)
 }
 
 /**
@@ -1088,18 +1110,4 @@ export function historyToPriorSteps(
     })
   }
   return steps
-}
-
-/**
- * 进对白的那一段回复，带上她当时写的「我的想法」（助手思考过程 C，11-11）。
- * 🔬 11-11 实跑：历史里的回复只有正文时，模型照着前几轮的样子不再写想法 —— 让它看到的格式前后一致。
- * ⚠ 只给模型看：服务端照旧从开口那段截下来，⛔ 进正文。
- * ⚠ 和角色聊天的回复（`chat`）⛔ 带：那一档的想法取自回复前想的那一步，主模型不写；带上反倒教它照着写一份。
- */
-export function withOperatorThoughts(
-  text: string,
-  thoughts: readonly string[] | undefined,
-): string {
-  if (!thoughts?.length) return text
-  return `<thought>\n${thoughts.join('\n')}\n</thought>\n${text}`
 }

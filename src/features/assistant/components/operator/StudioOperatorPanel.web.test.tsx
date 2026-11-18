@@ -12,6 +12,8 @@ import {
 } from 'vitest'
 
 import { ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE } from '@/constants/assistant-operator'
+import { ASSISTANT_PERSONA_DEFAULTS } from '@/constants/assistant-persona'
+import { ASSISTANT_CHAT_MODE_IDS } from '@/constants/assistant-protocol'
 import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { STUDIO_OPERATOR_SHELL } from '@/constants/studio-assistant-operator'
@@ -129,8 +131,14 @@ vi.mock('@/lib/api-client/assistant-mentions', () => ({
  */
 vi.mock('@/lib/api-client/cards', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/api-client/cards')>()),
-  listCharacterCardsAPI: async () => ({ success: true, data: [] }),
+  listCharacterCardsAPI: async () => ({
+    success: true,
+    data: greetingCards.list,
+  }),
 }))
+
+/** 她先开口（开场白）那一例才往角色卡列表里放她；别的用例照旧空表。 */
+const greetingCards = vi.hoisted(() => ({ list: [] as unknown[] }))
 
 const applyDispatch = vi.hoisted(() => vi.fn())
 
@@ -249,6 +257,7 @@ const setGenerationKnob = vi.fn()
 beforeEach(async () => {
   vi.resetModules()
   vi.clearAllMocks()
+  greetingCards.list = []
   HOST_SPEC.controls = null
   HOST_SPEC.trigger = null
   HOST_SPEC.noReferences = false
@@ -959,6 +968,68 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
     expect(screen.queryByTestId('operator-tool-group')).toBeNull()
     expect(screen.queryByText('检索资料')).toBeNull()
     expect(screen.getByText('已核实的最终结论')).toBeVisible()
+  })
+
+  it('⭐ 跨页面撤销（11-17 真机）：顺利跑完的改写那一轮，离开再回来「· 改了提示词 · 撤销」仍在，点了写回原稿', async () => {
+    const {
+      toOperatorHistory,
+      toStoredOperatorMessages,
+      fromStoredOperatorMessages,
+    } = await import('@/lib/studio-operator-history')
+    const { syncOperatorUndoStash } =
+      await import('@/lib/studio-operator-undo-stash')
+    const draft = `原稿：${'城市街角，黄昏，暖色路灯。'.repeat(30)}`
+    // 实时线程里那一轮的真实形状（真机：`run-2:n1-1` · 「改写提示词」）。
+    const live = [
+      {
+        kind: 'user' as const,
+        id: 'user-1',
+        text: '把提示词整段改写成雨夜版本，只改提示词，先别出图',
+        attachments: [],
+      },
+      {
+        kind: 'step' as const,
+        id: 'run-2:n1-1',
+        runKey: 'run-2',
+        undone: false,
+        step: {
+          id: 'n1-1',
+          title: '改写提示词',
+          status: 'done' as const,
+          tool: 'set_prompt' as const,
+          verb: 'apply' as const,
+          payload: { value: '原始提示词', mode: 'replace' as const },
+          inverse: { value: draft },
+        },
+      },
+      {
+        kind: 'message' as const,
+        id: 'message-2',
+        text: '改好了，换成了雨夜。',
+      },
+    ]
+    // 存库 → 读回：走真的落库形状（`toStoredOperatorMessages` / JSON / `fromStoredOperatorMessages`）。
+    const stored = JSON.parse(
+      JSON.stringify(toStoredOperatorMessages(toOperatorHistory(live))),
+    )
+    const history = fromStoredOperatorMessages(stored)
+    expect(history.some((entry) => entry.kind === 'step')).toBe(true)
+    syncOperatorUndoStash('conv-undo', live, Date.now())
+    store.loadOperatorThread({
+      sessionId: 'conv-undo',
+      sessionSurface: 'IMAGE_STUDIO',
+      history,
+    })
+    renderPanel()
+    // 顺利跑完的过程照旧不画（owner 09-30），但撤销那半行要在。
+    expect(screen.queryByTestId('operator-tool-group')).toBeNull()
+    fireEvent.click(screen.getByTestId('operator-checkpoint-undo'))
+    await act(async () => {})
+    expect(applyDispatch).toHaveBeenCalledWith({
+      type: 'SET_PROMPT',
+      payload: draft,
+    })
+    window.localStorage.clear()
   })
 
   it('历史调查默认折叠，最终结论与失败仍直接显示', () => {
@@ -2685,5 +2756,76 @@ describe('StudioOperatorPanel · 回车（owner 11-10）', () => {
     typeInto(editor, '画一只猫')
     fireEvent.keyDown(editor, { key: 'Enter' })
     expect(send).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('和她聊的新会话：她先开口', () => {
+  const DENIA = {
+    id: 'card-1',
+    name: 'Denia',
+    faceUrl: null,
+    hasSpeech: true,
+    hasProfile: true,
+  }
+
+  function chatWithDenia() {
+    greetingCards.list = [
+      {
+        id: 'card-1',
+        name: 'Denia',
+        tags: [],
+        looks: [],
+        voiceCardId: null,
+        persona: { opening: '*从书堆后探出头* {{user}}，你来啦。' },
+        tavern: { alternateGreetings: ['又是你。'] },
+      },
+    ]
+    fakeServer().on('GET', '/api/assistant/persona', () =>
+      Response.json({
+        success: true,
+        data: {
+          ...ASSISTANT_PERSONA_DEFAULTS,
+          name: 'Denia',
+          addressUserAs: '小林',
+          characterCardId: 'card-1',
+          character: DENIA,
+        },
+      }),
+    )
+    store.settleOperatorChatMode(ASSISTANT_CHAT_MODE_IDS.chat)
+  }
+
+  it('开场白画成她的第一条消息（宏换名字、动作次要色整块一段）+ 左右切；⛔ 空态', async () => {
+    chatWithDenia()
+    renderPanel()
+    const greeting = await screen.findByTestId('operator-greeting')
+    expect(greeting).toHaveTextContent('从书堆后探出头 小林，你来啦。')
+    // 整块一个气泡，⛔ 拆成一行一个；动作单独一段次要色。
+    expect(
+      within(greeting).getAllByTestId('operator-greeting-text'),
+    ).toHaveLength(1)
+    expect(within(greeting).queryByTestId('operator-chat-bubble')).toBeNull()
+    expect(
+      within(greeting).getByTestId('operator-greeting-action'),
+    ).toHaveTextContent('从书堆后探出头')
+    expect(screen.getByTestId('operator-reply-version')).toHaveTextContent(
+      'versionOf',
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'nextVersion' }))
+    expect(await screen.findByText('又是你。')).toBeInTheDocument()
+    // 线程还是空的：没开口前它不进对话（不留只有开场白的会话）。
+    expect(store.getOperatorState().entries).toEqual([])
+  })
+
+  it('工作档：不出开场白', async () => {
+    chatWithDenia()
+    store.switchOperatorChatMode(ASSISTANT_CHAT_MODE_IDS.work, {
+      id: DENIA.id,
+      name: DENIA.name,
+    })
+    renderPanel()
+    // 让人设与角色表那两条请求落定（⛔ 真等：只冲几轮微任务）。
+    for (let round = 0; round < 5; round += 1) await act(async () => {})
+    expect(screen.queryByTestId('operator-greeting')).toBeNull()
   })
 })

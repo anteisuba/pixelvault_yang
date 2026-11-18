@@ -353,6 +353,7 @@
       "accountLimitReached": "The provider account has hit the usage limit configured for this model, and the model service is paused. Retrying will not help — raise or remove that limit in the provider's console, or switch to a different model.",
       "outputBudgetExhausted": "This reasoning model used up its output budget before writing a reply. Retry, switch to a non-reasoning model (e.g. Gemini or DeepSeek), or shorten the prompt.",
       "contextLimitExceeded": "This conversation is still too long for the model, even after shortening older messages. Start a new conversation or remove large references.",
+      "proxyNeedsResponsesApi": "This OpenAI model can only use tools through the Responses API, and the custom endpoint on this key does not offer it. Use the official OpenAI endpoint, a proxy that supports /responses, or another model.",
       "refused": "The selected model declined this request under its content policy. Rephrase the request or choose another Agent Key.",
       "noOutput": "The provider completed the request but did not return usable media. Adjust the prompt or try another model.",
       "callbackTimeout": "The result has not arrived yet. Check your generation history before deciding whether to retry.",
@@ -403,6 +404,7 @@
       "publish_blocked_search": "This image used Google Search while it was made, so under Google's terms only you can see it — it can't be published.",
       "unknown": "Generation failed for an undetermined reason. Try again later. If it keeps failing, share the error details with the administrator.",
       "unknownWithDetail": "This generation failed. The provider said: {detail}",
+      "upstream_not_ready": "Not sent: a card this one is wired to didn't produce a result this run. Get the upstream card working, then run this one again.",
       "execution_request_rejected": "The generation service rejected this request: {detail}",
       "provider_unreachable": "We couldn't reach the provider (the connection dropped). This is usually temporary — try again shortly.",
       "lora_unreachable": "The provider couldn't download this LoRA's file: the link may have expired, the file may be gone, or the author disabled downloads. Retrying usually won't help — re-import it or pick another LoRA."
@@ -504,7 +506,8 @@
     "assistantVoice": {
       "unbound": "This persona has no voice yet — pick one first",
       "modelUnavailable": "No audio model is available right now",
-      "voiceCardUnavailable": "That voice is no longer available"
+      "voiceCardUnavailable": "That voice is no longer available",
+      "nothingToSay": "There's nothing to read aloud"
     },
     "voiceBench": {
       "noPersona": "Switch to a character first, then rewrite in her words",

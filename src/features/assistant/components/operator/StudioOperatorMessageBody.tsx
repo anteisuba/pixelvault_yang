@@ -59,7 +59,10 @@ import {
   useElapsedSince,
 } from './StudioOperatorThinkingRow'
 import { StudioOperatorThoughts } from './StudioOperatorThoughts'
-import { StudioOperatorChatBubbles } from './StudioOperatorChatBubbles'
+import {
+  StudioOperatorChatBubbles,
+  StudioOperatorGreetingText,
+} from './StudioOperatorChatBubbles'
 import { StudioOperatorChatVoice } from './StudioOperatorVoice'
 import { withFindRefs } from './StudioOperatorFindRef'
 import { openOperatorLightbox } from './StudioOperatorLightbox'
@@ -69,7 +72,11 @@ import {
   type OperatorFindRef,
 } from '@/lib/studio-operator-timeline'
 import { usePictureNumberReferences } from '@/hooks/use-picture-number-references'
-import { chatBubbleParts, withoutVoiceCuesInProse } from '@/lib/chat-voice'
+import {
+  chatBubbleParts,
+  withoutThoughtMarkup,
+  withoutVoiceCuesInProse,
+} from '@/lib/chat-voice'
 import { cn } from '@/lib/utils'
 import type { NamedImageReference } from '@/lib/studio-reference-mentions'
 import type { AssistantMention } from '@/types/assistant-mention'
@@ -561,10 +568,32 @@ export function StudioOperatorChatText({
   text,
   streaming,
   references = NO_REFERENCES,
+  greeting = false,
 }: {
   text: string
   streaming: boolean
   references?: readonly NamedImageReference[]
+  /** 卡上的开场白：整块一段叙事显示（`StudioOperatorGreetingText`），⛔ 拆成一行一个气泡。 */
+  greeting?: boolean
+}) {
+  if (greeting) return <StudioOperatorGreetingText text={text} />
+  return (
+    <StudioOperatorChatReply
+      text={text}
+      streaming={streaming}
+      references={references}
+    />
+  )
+}
+
+function StudioOperatorChatReply({
+  text,
+  streaming,
+  references,
+}: {
+  text: string
+  streaming: boolean
+  references: readonly NamedImageReference[]
 }) {
   const t = useTranslations('StudioOperator')
   const numbered = usePictureNumberReferences(streaming ? '' : text)
@@ -666,10 +695,15 @@ export function StudioOperatorMessageBody({
           text={entry.text}
           streaming={entry.streaming ?? false}
           references={references}
+          greeting={entry.greeting === true}
         />
       ) : (
         <StudioOperatorCollapsibleText
-          text={entry.spoken ? withoutVoiceCuesInProse(entry.text) : entry.text}
+          text={
+            entry.spoken
+              ? withoutVoiceCuesInProse(withoutThoughtMarkup(entry.text))
+              : withoutThoughtMarkup(entry.text)
+          }
           references={references}
           {...(findRefs ? { findRefs } : {})}
           streaming={entry.streaming ?? false}

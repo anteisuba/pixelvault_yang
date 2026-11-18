@@ -539,7 +539,8 @@
       "moveWorkAccepted": "{subject}",
       "moveWorkDeclined": "{subject}",
       "moveWorkDroppedReferences": "{subject} reference image(s) were left behind (over the limit or not uploaded yet).",
-      "autoReview": "Reviewing the pictures and trying again · round {subject}"
+      "autoReview": "Reviewing the pictures and trying again · round {subject}",
+      "restoredUndoStale": "That field was changed again afterwards, so the current text was kept. {count, plural, =0 {The original couldn't be copied; check clipboard permission.} other {The original text is on your clipboard.}}"
     },
     "attach": {
       "latestResult": "Latest · {label}",
@@ -984,7 +985,8 @@
       "nextVersion": "Next version",
       "versionOf": "{index} / {total}",
       "noProfile": "{name} has no profile yet, so chat replies in work mode.",
-      "noProfileAction": "Add a profile"
+      "noProfileAction": "Add a profile",
+      "greetingUserFallback": "you"
     },
     "mode": {
       "pickCharacter": "Switch assistant persona",
@@ -1013,6 +1015,7 @@
       "turnOn": "Turn on voice: read replies aloud",
       "turnOff": "Turn off voice",
       "speaking": "{name} is speaking aloud",
+      "noVoice": "{name} has no voice yet — pick one so she can speak",
       "pickVoice": "Pick a voice",
       "model": "Voice model",
       "models": {
@@ -1146,6 +1149,7 @@
     "memory": {
       "caption": "Assistant memories stay in their own workspace. You can explicitly share a memory across all workbenches.",
       "captionPaused": "The assistant won't save new memories. Existing memories apply only in their selected workspace.",
+      "charactersNote": "These are rules picked up while working for you. What a character remembers as herself (from chats and outings) isn’t here — it’s under Memory on that character’s page.",
       "capture": "Let the assistant remember",
       "newLabel": "Write a memory",
       "newPlaceholder": "Write one, press Enter to save. e.g. Always reply in English",

@@ -651,7 +651,12 @@ const AnthropicSearchResponseSchema = z.object({
         id: z.string().optional(),
         name: z.string().optional(),
         tool_use_id: z.string().optional(),
-        input: z.object({ query: z.string().optional() }).optional(),
+        input: z
+          .object({
+            query: z.string().optional(),
+            queries: z.array(z.string()).optional(),
+          })
+          .optional(),
         text: z.string().optional(),
         citations: z
           .array(
@@ -694,8 +699,8 @@ interface MessagesSearchTarget {
   modelId: string
   endpoint: string
   init: (body: string) => Omit<RequestInit, 'signal'>
-  /** `web_search` 工具上额外的参数（域名 / 地区）。 */
-  toolOptions: Record<string, unknown>
+  /** 整个联网工具声明：Claude 与 DeepSeek 的工具名、可带的参数都不一样。 */
+  tool: Record<string, unknown>
 }
 
 /**
@@ -720,7 +725,12 @@ function anthropicNativeWebSearch(
         body,
         input.providerConfig.anthropicWorkspaceId,
       ),
-    toolOptions: {
+    tool: {
+      type: ANTHROPIC_API.WEB_SEARCH_TOOL_TYPE,
+      name: 'web_search',
+      max_uses: input.maxUses ?? NATIVE_SEARCH_MAX_USES,
+      // 直接搜、不走动态过滤（理由见 `ANTHROPIC_API.WEB_SEARCH_DIRECT_CALLERS`）。
+      allowed_callers: ANTHROPIC_API.WEB_SEARCH_DIRECT_CALLERS,
       ...(domains
         ? domains.mode === 'allow'
           ? { allowed_domains: domains.domains }
@@ -732,8 +742,9 @@ function anthropicNativeWebSearch(
 }
 
 /**
- * DeepSeek：Anthropic 兼容入口上的同一个 `web_search` 工具（2026-10-14）。
- * ⚠ 只带 `max_uses`：兼容层没写收域名与地区，带了可能整次 400。也不带 Claude 那颗
+ * DeepSeek：Anthropic 兼容入口上的**它自己的** `deepseek_web_search`（11-18 照官方
+ * web_tools 文档改；之前发的是 Claude 的 `web_search_20250305`，文档里没有这个工具）。
+ * ⚠ 文档没写 `max_uses`，域名与地区参数会被拒：工具只带 type + name。也不带 Claude 那颗
  *   beta 头。搜不成时扇出层回落到 Serper，所以这里失败不会让这一轮空手。
  */
 function deepseekNativeWebSearch(
@@ -755,7 +766,10 @@ function deepseekNativeWebSearch(
       },
       body,
     }),
-    toolOptions: {},
+    tool: {
+      type: DEEPSEEK_ANTHROPIC_API.WEB_SEARCH_TOOL,
+      name: DEEPSEEK_ANTHROPIC_API.WEB_SEARCH_TOOL,
+    },
   })
 }
 
@@ -772,14 +786,7 @@ async function messagesNativeWebSearch(
         max_tokens: LLM_TEXT_DEFAULT_MAX_TOKENS.ANTHROPIC,
         system: input.systemPrompt,
         messages: [{ role: 'user', content: input.query }],
-        tools: [
-          {
-            type: ANTHROPIC_API.WEB_SEARCH_TOOL_TYPE,
-            name: 'web_search',
-            max_uses: input.maxUses ?? NATIVE_SEARCH_MAX_USES,
-            ...target.toolOptions,
-          },
-        ],
+        tools: [target.tool],
       }),
     ),
     { adapterType, modelId },
@@ -805,7 +812,7 @@ async function messagesNativeWebSearch(
   const calls = blocks.filter(
     (block) =>
       block.type === 'server_tool_use' &&
-      block.name === 'web_search' &&
+      block.name === target.tool.name &&
       block.id,
   )
   const callIds = new Set(calls.map((call) => call.id))
@@ -826,6 +833,16 @@ async function messagesNativeWebSearch(
           excerptKind: citation.cited_text ? 'source_excerpt' : 'none',
         })
       }
+    }
+    // DeepSeek 的 `deepseek_web_search` 点开页面（open_page / find_in_page）回的是
+    // `web_fetch_tool_result`（web_tools 文档）：只算这次调用有了回执，不当搜索结果。
+    if (
+      block.type === 'web_fetch_tool_result' &&
+      block.tool_use_id &&
+      callIds.has(block.tool_use_id)
+    ) {
+      returnedIds.add(block.tool_use_id)
+      continue
     }
     if (block.type === 'web_search_tool_result') {
       if (!block.tool_use_id || !callIds.has(block.tool_use_id)) {
@@ -888,7 +905,11 @@ async function messagesNativeWebSearch(
     sources,
     queries: [
       ...new Set(
-        calls.flatMap((call) => (call.input?.query ? [call.input.query] : [])),
+        // Claude 一次一个 `query`；DeepSeek 的 search 动作是 `queries` 数组（web_tools 文档）。
+        calls.flatMap((call) => [
+          ...(call.input?.query ? [call.input.query] : []),
+          ...(call.input?.queries ?? []),
+        ]),
       ),
     ],
     ...(error ? { error } : {}),

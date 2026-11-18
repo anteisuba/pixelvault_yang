@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { STUDIO_OPERATOR_HISTORY } from '@/constants/studio-assistant-operator'
+import { greetingParagraphs } from '@/lib/chat-voice'
 import {
   clampPlanAnswer,
   describeOperatorStepDetail,
@@ -13,7 +14,10 @@ import {
   toOperatorHistory,
   toStoredOperatorMessages,
 } from '@/lib/studio-operator-history'
-import { AssistantConversationMessageSchema } from '@/types/assistant-conversation'
+import {
+  ASSISTANT_CONVERSATION_LIMITS,
+  AssistantConversationMessageSchema,
+} from '@/types/assistant-conversation'
 import type { AssistantOperatorStep } from '@/types/assistant-operator'
 import type { StudioOperatorThreadEntry } from '@/types/studio-assistant-operator'
 import type { StudioOperatorHistoryEntry } from '@/types/studio-operator-history'
@@ -398,17 +402,80 @@ describe('历史 ↔ 库里的 messages', () => {
   })
 
   it('⭐ 她在聊天那几段的气泡记号跟着落库，读回来还是气泡（②c-2）', () => {
+    // 排在你第一句之前的她那句会被认成开场白（见下一例）：这里先有你一句。
     const history = toOperatorHistory([
+      { kind: 'user', id: 'u-1', text: '在吗', attachments: [] },
       { kind: 'message', id: 'm-1', text: '在呢\n怎么啦', chat: true },
       { kind: 'message', id: 'm-2', text: '改好了。' },
     ])
-    expect(history).toEqual([
+    expect(history.slice(1)).toEqual([
       { kind: 'message', id: 'm-1', text: '在呢\n怎么啦', chat: true },
       { kind: 'message', id: 'm-2', text: '改好了。' },
     ])
     expect(
       fromStoredOperatorMessages(toStoredOperatorMessages(history)),
     ).toEqual(history)
+  })
+
+  it('⭐ 开场白落线程 → 存库 → 重新水合：`greeting` 跟着回来，正文逐字不变（11-18 真机少两行动作）', () => {
+    const opening = [
+      '*阶梯教室里的灯一排排暗下去，只剩讲台那一盏，投影仪的风扇还在嗡嗡地响，她就坐在你旁边那排的空位上，托着下巴看你，像是已经等了很久很久。*',
+      '*耳边的声音压得很低，带着笑，凑得近到有点痒。你下意识抖了一下，旁边的人连头都没抬。*',
+      '「嘘——别出声。」',
+      '*她把声音放得更轻，凑过来：*',
+      '「下课等我。」',
+    ].join('\n')
+    const entries: StudioOperatorThreadEntry[] = [
+      { kind: 'message', id: 'g-1', text: opening, chat: true, greeting: true },
+      { kind: 'user', id: 'u-1', text: '好', attachments: [] },
+      { kind: 'message', id: 'm-1', text: '*笑* 乖。', chat: true },
+    ]
+    const stored = toStoredOperatorMessages(toOperatorHistory(entries))
+    // 过一遍线上那条路：JSON 进库、服务端 schema 洗一遍（保存与读出都过它）。
+    const roundTripped = (JSON.parse(JSON.stringify(stored)) as unknown[]).map(
+      (message) => AssistantConversationMessageSchema.parse(message),
+    )
+    const history = fromStoredOperatorMessages(roundTripped)
+    expect(history[0]).toEqual({
+      kind: 'message',
+      id: 'g-1',
+      text: opening,
+      chat: true,
+      greeting: true,
+    })
+    // 她自己的回复不被当成开场白。
+    expect(history[2]).not.toHaveProperty('greeting')
+    // 刷新前后同一个函数画：五段、三段动作一个不少（含 80 字以上那段长旁白）。
+    const before = greetingParagraphs(opening)
+    const after = greetingParagraphs(
+      history[0]?.kind === 'message' ? history[0].text : '',
+    )
+    expect(after).toEqual(before)
+    expect(after).toHaveLength(5)
+    expect(after.flat().filter((run) => run.action)).toHaveLength(3)
+  })
+
+  it('⭐ 旧会话里 `greeting` 那一格丢了：排在你第一句之前的她那句照样认成开场白；被截过头的不认', () => {
+    const history: StudioOperatorHistoryEntry[] = [
+      { kind: 'message', id: 'g-1', text: '*探头* 你来啦。', chat: true },
+      { kind: 'user', id: 'u-1', text: '嗯', attachments: [] },
+      { kind: 'message', id: 'm-1', text: '坐吧。', chat: true },
+    ]
+    const stored = toStoredOperatorMessages(history)
+    const restored = fromStoredOperatorMessages(stored)
+    expect(restored[0]).toMatchObject({ greeting: true })
+    expect(restored[2]).not.toHaveProperty('greeting')
+    // 工作会话（不是聊天气泡）开头的那句不动。
+    const work = toStoredOperatorMessages([
+      { kind: 'message', id: 'w-1', text: '改好了。' },
+    ])
+    expect(fromStoredOperatorMessages(work)[0]).not.toHaveProperty('greeting')
+    // 存满 = 头被截掉过：第一条是半路的回复，不认。
+    const full = Array.from(
+      { length: ASSISTANT_CONVERSATION_LIMITS.maxMessages },
+      (_, index) => ({ ...stored[index % stored.length]!, id: `x-${index}` }),
+    )
+    expect(fromStoredOperatorMessages(full)[0]).not.toHaveProperty('greeting')
   })
 
   it('⭐ NAI 标签核对那句灰字跟着写提示词那一步进历史，存了再读回来还在', () => {

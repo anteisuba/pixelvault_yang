@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { ASSISTANT_REASONING_EFFORT_IDS } from '@/constants/assistant-persona'
 import { VOICE_BENCH } from '@/constants/studio-operator-voice'
 import { db } from '@/lib/db'
 import { ApiRequestError } from '@/lib/errors'
@@ -94,6 +95,8 @@ export async function rewriteAsPersona(
   const { route, modelId } = await resolveAssistantRoute(user.id)
   const raw = await llmTextCompletion({
     purpose: 'voice-bench-rewrite',
+    // 后台小活：显式 low（11-18；缺席 = 各家默认档，Claude / DeepSeek 默认 high 白花思考）。
+    reasoningEffort: ASSISTANT_REASONING_EFFORT_IDS.low,
     systemPrompt: `${REWRITE_SYSTEM_PROMPT}\n\n${buildProfile(card.name, profile.data)}`,
     userPrompt: request.text,
     promptGuardMaxLength: VOICE_BENCH.rewriteMaxChars + 1,

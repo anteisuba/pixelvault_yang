@@ -69,9 +69,14 @@ function buildDeepseekChatRequest(input: LlmTextInput): {
     body: serializeLlmRequest(input, {
       model: modelId,
       messages,
+      // 思考默认开着（`reasoning_effort` 缺省 high，我们从不发 none），`max_tokens` 管思考 + 回答：
+      // 显式预算抬到思考地板，免得思考吃光回答（11-18，见 `LLM_TEXT_DEFAULT_MAX_TOKENS.THINKING_FLOOR`）。
       ...(!input.providerManagedOutput
         ? {
-            max_tokens: input.maxTokens ?? LLM_TEXT_DEFAULT_MAX_TOKENS.DEFAULT,
+            max_tokens: Math.max(
+              input.maxTokens ?? LLM_TEXT_DEFAULT_MAX_TOKENS.DEFAULT,
+              LLM_TEXT_DEFAULT_MAX_TOKENS.THINKING_FLOOR,
+            ),
           }
         : {}),
       ...(input.reasoningEffort

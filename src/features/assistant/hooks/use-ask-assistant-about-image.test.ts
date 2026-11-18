@@ -19,11 +19,11 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(),
 }))
 
-import { StudioProvider, useStudioForm } from '@/contexts/studio-context'
+import { useStudioForm } from '@/contexts/studio-context'
 import { useAskAssistantAboutImage } from '@/features/assistant/hooks/use-ask-assistant-about-image'
 import * as store from '@/hooks/use-studio-operator-store'
 import { renderHookWithApp } from '@/test/app-harness'
-import { studioServer } from '@/test/studio-harness'
+import { StudioFormProviders, studioServer } from '@/test/studio-harness'
 import type { GenerationRecord } from '@/types'
 
 const generation = {
@@ -36,7 +36,7 @@ const generation = {
 function renderAsk() {
   return renderHookWithApp(
     () => ({ form: useStudioForm(), ask: useAskAssistantAboutImage() }),
-    { inner: StudioProvider },
+    { inner: StudioFormProviders },
   )
 }
 

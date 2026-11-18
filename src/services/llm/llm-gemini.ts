@@ -8,7 +8,11 @@ import {
   VIDEO_ANALYSIS_MIN_OUTPUT_TOKENS,
 } from '@/constants/video-analysis'
 import { ASSISTANT_MEDIA_LIMITS } from '@/constants/assistant'
-import { AI_PROVIDER_ENDPOINTS, LLM_TEXT_TIMEOUTS_MS } from '@/constants/config'
+import {
+  AI_PROVIDER_ENDPOINTS,
+  LLM_TEXT_DEFAULT_MAX_TOKENS,
+  LLM_TEXT_TIMEOUTS_MS,
+} from '@/constants/config'
 import { classifyVideoLink, buildYoutubeWatchUrl } from '@/lib/video-link'
 import { VIDEO_LINK_KINDS } from '@/constants/video-link'
 import { fetchAsBuffer } from '@/services/storage/r2'
@@ -337,9 +341,13 @@ function resolveGeminiMaxOutputTokens(
   hasVideoPart: boolean,
 ): number | null {
   if (input.providerManagedOutput || !input.maxTokens) return null
-  return hasVideoPart
-    ? Math.max(input.maxTokens, VIDEO_ANALYSIS_MIN_OUTPUT_TOKENS)
-    : input.maxTokens
+  // 11-18：不止视频 —— 文档「maxOutputTokens … including thought tokens」，Gemini 3 / 4 的思考关不掉，
+  // 调用方给的 400 / 2400 是回答的长度，统一抬到思考地板（只抬不降）。
+  return Math.max(
+    input.maxTokens,
+    LLM_TEXT_DEFAULT_MAX_TOKENS.THINKING_FLOOR,
+    hasVideoPart ? VIDEO_ANALYSIS_MIN_OUTPUT_TOKENS : 0,
+  )
 }
 
 /**

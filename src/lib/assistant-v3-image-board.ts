@@ -82,7 +82,16 @@ function specsLine(snapshot: AssistantOperatorSnapshot): string {
   if (!specs) return 'Specs: this model has no size controls.'
   const parts = [
     choice('aspect ratio', specs.aspectRatio, specs.aspectRatioOptions),
-    choice('resolution', specs.resolution, specs.resolutionOptions),
+    // 没设（或表单的不设态 auto）= 交给模型默认：照实写，⛔ 写成「(not set)」模型会以为改比例前得先挑一档。
+    choice(
+      'resolution',
+      specs.resolution === null ||
+        (specs.resolution === 'auto' &&
+          !specs.resolutionOptions.includes('auto'))
+        ? 'model default'
+        : specs.resolution,
+      specs.resolutionOptions,
+    ),
     choice('quality', specs.quality ?? null, specs.qualityOptions),
     choice('background', specs.background ?? null, specs.backgroundOptions),
     choice('complexity', specs.complexity ?? null, specs.complexityOptions),

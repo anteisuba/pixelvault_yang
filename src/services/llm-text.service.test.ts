@@ -659,11 +659,14 @@ describe('llmTextCompletion - Gemini', () => {
     }
     // 800 实测得到 thoughtsTokenCount=765 / 正文 31 字 / MAX_TOKENS。
     expect(payload.generationConfig?.maxOutputTokens).toBe(
-      VIDEO_ANALYSIS_MIN_OUTPUT_TOKENS,
+      Math.max(
+        VIDEO_ANALYSIS_MIN_OUTPUT_TOKENS,
+        LLM_TEXT_DEFAULT_MAX_TOKENS.THINKING_FLOOR,
+      ),
     )
   })
 
-  it('leaves a text-only turn budget alone — the floor is video-only and never lowers', async () => {
+  it('raises a text-only explicit budget to the thinking floor too (11-18: thought tokens count against maxOutputTokens)', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(
         JSON.stringify({
@@ -689,7 +692,9 @@ describe('llmTextCompletion - Gemini', () => {
     const payload = readFetchJson(fetchMock) as {
       generationConfig?: { maxOutputTokens?: number }
     }
-    expect(payload.generationConfig?.maxOutputTokens).toBe(800)
+    expect(payload.generationConfig?.maxOutputTokens).toBe(
+      LLM_TEXT_DEFAULT_MAX_TOKENS.THINKING_FLOOR,
+    )
   })
 
   it('translates a 403 on a linked video into "video unreachable", not "bad API key"', async () => {
@@ -1287,8 +1292,8 @@ describe('llmTextCompletion - OpenAI', () => {
       },
       apiKey: 'sk-test',
       modelId: 'gpt-5.2',
-      // Above OPENAI_REASONING floor — must pass through unchanged.
-      maxTokens: 5000,
+      // Above OPENAI_REASONING floor (25K since 11-18) — must pass through unchanged.
+      maxTokens: 30_000,
       responseFormat: 'json_object',
     })
 
@@ -1309,7 +1314,7 @@ describe('llmTextCompletion - OpenAI', () => {
       expect.any(Object),
     )
     expect(payload.model).toBe('gpt-5.2')
-    expect(payload.max_completion_tokens).toBe(5000)
+    expect(payload.max_completion_tokens).toBe(30_000)
     expect(payload.response_format?.type).toBe('json_object')
   })
 })
@@ -1420,7 +1425,10 @@ describe('llmTextCompletion - DeepSeek', () => {
         expect.any(Object),
       )
       expect(payload.model).toBe(modelId ?? LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH)
-      expect(payload.max_tokens).toBe(2800)
+      // 11-18：思考默认开着、与回答共用 max_tokens，显式的 2800 抬到思考地板。
+      expect(payload.max_tokens).toBe(
+        LLM_TEXT_DEFAULT_MAX_TOKENS.THINKING_FLOOR,
+      )
       expect(payload.response_format?.type).toBe('json_object')
     },
   )
@@ -1787,6 +1795,38 @@ describe('llmTextCompletion - Claude (Anthropic)', () => {
     )
   })
 
+  it('只给会重发、且够长的系统提示打缓存断点（11-18）', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(
+        async () =>
+          new Response(
+            JSON.stringify({ content: [{ type: 'text', text: 'ok' }] }),
+            { status: 200 },
+          ),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+    const longSystem = 'x'.repeat(ANTHROPIC_API.PROMPT_CACHE.MIN_SYSTEM_CHARS)
+    const send = (purpose: string, systemPrompt: string) =>
+      llmTextCompletion({
+        purpose,
+        systemPrompt,
+        userPrompt: 'user',
+        adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+        providerConfig: ANTHROPIC_PROVIDER_CONFIG,
+        apiKey: 'sk-ant-test',
+      })
+    await send('assistant', longSystem)
+    await send('character-tidy', longSystem)
+    await send('assistant', 'short')
+
+    const systemOf = (index: number) =>
+      (readFetchJson(fetchMock, index).system as Record<string, unknown>[])[0]
+    expect(systemOf(0)).toMatchObject({ cache_control: { type: 'ephemeral' } })
+    expect(systemOf(1)).not.toHaveProperty('cache_control')
+    expect(systemOf(2)).not.toHaveProperty('cache_control')
+  })
+
   it('raises an explicit max_tokens below the Anthropic floor, keeps one above it', async () => {
     const fetchMock = vi
       .fn()
@@ -1866,13 +1906,11 @@ describe('llmTextCompletion - Claude (Anthropic)', () => {
       // 512 is below the Anthropic floor (thinking + answer share max_tokens).
       expect(payload.max_tokens).toBe(LLM_TEXT_DEFAULT_MAX_TOKENS.ANTHROPIC)
       // System prompt goes on the top-level `system` field — Anthropic has no
-      // role:'system' message — as one cached text block.
+      // role:'system' message — as one text block. A one-off call with a short
+      // prompt gets no cache breakpoint (11-18: a write costs 1.25x and a prompt
+      // under the minimum never caches).
       expect(payload.system).toEqual([
-        {
-          type: 'text',
-          text: 'You are helpful.',
-          cache_control: { type: 'ephemeral' },
-        },
+        { type: 'text', text: 'You are helpful.' },
       ])
       expect(payload.messages).toEqual([
         { role: 'user', content: 'Say hello.' },
@@ -3289,8 +3327,46 @@ describe('llmNativeWebSearch（owner 2026-09-30：各家用自带联网）', () 
       { status: 200 },
     )
 
-  it('DeepSeek：Anthropic 兼容入口上的 web_search，只带 max_uses、不带 Claude 的 beta 头', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(messagesSearchResponse())
+  it('DeepSeek：Anthropic 兼容入口上的 deepseek_web_search（web_tools 文档），工具只带 type + name、不带 Claude 的 beta 头', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          content: [
+            {
+              type: 'server_tool_use',
+              id: 'srv_1',
+              name: 'deepseek_web_search',
+              input: { action: 'search', queries: ['卡提希娅 官方立绘'] },
+            },
+            {
+              type: 'web_search_tool_result',
+              tool_use_id: 'srv_1',
+              content: [
+                {
+                  type: 'web_search_result',
+                  url: 'https://a.test',
+                  title: 'A',
+                },
+              ],
+            },
+            {
+              type: 'server_tool_use',
+              id: 'srv_2',
+              name: 'deepseek_web_search',
+              input: { action: 'open_page', url: 'https://a.test' },
+            },
+            {
+              type: 'web_fetch_tool_result',
+              tool_use_id: 'srv_2',
+              content: { type: 'web_fetch_result', url: 'https://a.test' },
+            },
+            { type: 'text', text: '她是鸣潮的角色。' },
+          ],
+          stop_reason: 'end_turn',
+        }),
+        { status: 200 },
+      ),
+    )
     vi.stubGlobal('fetch', fetchMock)
 
     const found = await llmNativeWebSearch({
@@ -3313,19 +3389,11 @@ describe('llmNativeWebSearch（owner 2026-09-30：各家用自带联网）', () 
     expect(headers?.['anthropic-beta']).toBeUndefined()
     expect(readFetchJson(fetchMock)).toMatchObject({
       model: LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH,
-      tools: [
-        {
-          type: ANTHROPIC_API.WEB_SEARCH_TOOL_TYPE,
-          name: 'web_search',
-          max_uses: 3,
-        },
-      ],
     })
-    // ⚠ 兼容层没写收地区：⛔ 不带 user_location。
-    const tool = (
-      readFetchJson(fetchMock).tools as Record<string, unknown>[]
-    )[0]
-    expect(tool).not.toHaveProperty('user_location')
+    // ⛔ 文档没写 max_uses，域名 / 地区参数会被拒：整个工具只有 type + name。
+    expect(readFetchJson(fetchMock).tools).toEqual([
+      { type: 'deepseek_web_search', name: 'deepseek_web_search' },
+    ])
     expect(found).toMatchObject({
       status: 'searched',
       answer: '她是鸣潮的角色。',
@@ -3358,6 +3426,7 @@ describe('llmNativeWebSearch（owner 2026-09-30：各家用自带联网）', () 
         type: ANTHROPIC_API.WEB_SEARCH_TOOL_TYPE,
         name: 'web_search',
         max_uses: 3,
+        allowed_callers: ['direct'],
         allowed_domains: ['moegirl.org.cn'],
         user_location: { type: 'approximate', timezone: 'Asia/Tokyo' },
       },
@@ -3367,9 +3436,12 @@ describe('llmNativeWebSearch（owner 2026-09-30：各家用自带联网）', () 
         type: ANTHROPIC_API.WEB_SEARCH_TOOL_TYPE,
         name: 'web_search',
         max_uses: 3,
+        allowed_callers: ['direct'],
         blocked_domains: ['zhihu.com'],
       },
     ])
+    // 11-18：全仓一个版本，与助手主循环的 `webSearch_20260209` 同版。
+    expect(ANTHROPIC_API.WEB_SEARCH_TOOL_TYPE).toBe('web_search_20260209')
   })
 
   it('GPT：白名单走 filters.allowed_domains，时区走 user_location', async () => {

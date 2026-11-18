@@ -106,7 +106,7 @@ export function CharacterImagePickGrid({
                 )
               }
               className={cn(
-                'relative aspect-4/5 overflow-hidden rounded-lg bg-muted outline-none transition-opacity duration-fast focus-visible:ring-2 focus-visible:ring-ring',
+                'relative aspect-3/4 overflow-hidden rounded-lg bg-muted outline-none transition-opacity duration-fast focus-visible:ring-2 focus-visible:ring-ring',
                 on && 'ring-2 ring-foreground',
                 blocked && 'cursor-not-allowed opacity-40',
               )}

@@ -3,6 +3,7 @@ import 'server-only'
 import { z } from 'zod'
 
 import { ASSISTANT_MEMORY_SCOPE_IDS } from '@/constants/assistant-memory'
+import { ASSISTANT_REASONING_EFFORT_IDS } from '@/constants/assistant-persona'
 import {
   CHARACTER_PERSONA_LIMITS,
   CHARACTER_REFLECTION,
@@ -257,6 +258,8 @@ export async function reflectOnChat(input: {
       .slice(-CHARACTER_REFLECTION.promptChars)
     const raw = await llmTextCompletion({
       purpose: 'character-reflection',
+      // 后台小活：显式 low（11-18；缺席 = 各家默认档，Claude / DeepSeek 默认 high 白花思考）。
+      reasoningEffort: ASSISTANT_REASONING_EFFORT_IDS.low,
       systemPrompt: systemPrompt(
         card.name,
         editableFields(pinned),

@@ -24,7 +24,11 @@ import { readPngTextChunks } from '@/lib/png-text-chunks'
  *   description → 经历（酒馆这一格什么都写，经历是我们最宽的一格）
  *   personality → 性格 · scenario → 情境 · first_mes → 开场白
  *   mes_example → 示例对白（按 `<START>` 切块）· creator_notes → 简介 · tags → 标签
- *   其余（世界书、卡自带系统提示词、历史之后的指令、备选开场白）→ `st.card` 原样存，⛔ 不注入
+ *   其余（世界书、卡自带系统提示词、历史之后的指令、备选开场白）→ `st.card` 原样存；
+ *   只在「和她聊」里用：系统提示词作为「卡作者的备注」放进我们的系统提示、历史之后的指令接在
+ *   最新一句后面（`readTavernAuthorNotes` → `prompt.ts`），世界书按关键词命中才进 ——
+ *   ⛔ 覆盖我们的系统提示，⛔ 进工作台
+ *   整张原卡 JSON 另存 `st.card.raw`（`keepRawTavernCard`，有上限）
  * ⚠ `{{char}}` / `{{user}}` 宏**原样存**：进提示词那一跳再换成名字（称呼会改）。
  */
 
@@ -53,10 +57,10 @@ export function extractTavernCardJson(bytes: Uint8Array): string | null {
   return null
 }
 
-/** JSON → 卡上的字段（V2 / V3 拆 `data`，否则按 V1 平铺）。没有名字就不是卡：`null`。 */
+/** JSON → 卡上的字段（V2 / V3 拆 `data`，否则按 V1 平铺）。没有名字就不是卡：`null`。`raw` = 交进来的原卡。 */
 export function parseTavernCard(
   json: unknown,
-): { spec: string; fields: TavernCardFields } | null {
+): { spec: string; fields: TavernCardFields; raw: unknown } | null {
   if (!json || typeof json !== 'object') return null
   const envelope = TavernCardEnvelopeSchema.safeParse(json)
   const fields = TavernCardFieldsSchema.parse(
@@ -66,7 +70,45 @@ export function parseTavernCard(
   return {
     spec: envelope.success ? envelope.data.spec : 'chara_card_v1',
     fields,
+    raw: json,
   }
+}
+
+function jsonBytes(value: unknown): number {
+  return new TextEncoder().encode(JSON.stringify(value) ?? '').byteLength
+}
+
+/** 去掉世界书（顶层与 V2/V3 `data` 里的 `character_book`），别的键原样。 */
+function withoutCharacterBook(
+  raw: Record<string, unknown>,
+): Record<string, unknown> {
+  const rest = { ...raw }
+  delete rest.character_book
+  const data = rest.data
+  if (data && typeof data === 'object' && !Array.isArray(data)) {
+    const dataRest = { ...(data as Record<string, unknown>) }
+    delete dataRest.character_book
+    rest.data = dataRest
+  }
+  return rest
+}
+
+/**
+ * 原卡怎么留进 `st.card`（11-18，⛔ 新列 ⛔ 迁移）：没超 `RAW_MAX_BYTES` 原样留；超了去掉
+ * `character_book`（世界书已另存 `characterBook`）再留并标 `rawTruncated`；还超就只标 `rawTruncated`。
+ */
+export function keepRawTavernCard(raw: unknown): {
+  raw?: unknown
+  rawTruncated?: true
+} {
+  if (raw === undefined) return {}
+  if (jsonBytes(raw) <= TAVERN_CARD.RAW_MAX_BYTES) return { raw }
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+    const slim = withoutCharacterBook(raw as Record<string, unknown>)
+    if (jsonBytes(slim) <= TAVERN_CARD.RAW_MAX_BYTES)
+      return { raw: slim, rawTruncated: true }
+  }
+  return { rawTruncated: true }
 }
 
 function clip(text: string, max: number): string {
@@ -142,6 +184,8 @@ export interface TavernCardImport {
 export function mapTavernCard(card: {
   spec: string
   fields: TavernCardFields
+  /** 交进来的原卡 JSON（文件导入 = 拆出来的那段；chub = 它的 definition）。 */
+  raw: unknown
 }): TavernCardImport {
   const { fields } = card
   const name = clip(fields.name, CHARACTER_CARD.NAME_MAX_LENGTH)
@@ -177,6 +221,7 @@ export function mapTavernCard(card: {
     ...(fields.description.trim().length > CHARACTER_PERSONA_LIMITS.backstory
       ? { description: fields.description }
       : {}),
+    ...keepRawTavernCard(card.raw),
   }
   return {
     name,
@@ -199,6 +244,46 @@ export function mapTavernCard(card: {
     },
     extensions: { [TAVERN_CARD.EXTENSION_KEY]: kept },
   }
+}
+
+/**
+ * 酒馆卡里的宏（`{{char}}` / `{{user}}`，老卡写 `<BOT>` / `<USER>`）换成名字。
+ * 导入时原样存，⛔ 不在导入时换：称呼会改，卡不该跟着被改写。进提示词（服务端）与
+ * 聊天里显示开场白（浏览器）都走这一个。
+ */
+export function fillCardMacros(
+  text: string,
+  char: string,
+  user: string,
+): string {
+  return text
+    .replace(/\{\{char\}\}|<BOT>/gi, char)
+    .replace(/\{\{user\}\}|<USER>/gi, user)
+}
+
+/**
+ * 新聊天里她先说的那一句的各版（酒馆：first_mes 是对话里真的第一条，alternate_greetings 是它左右切的版本）：
+ * 开场白在前、备选跟在后面；宏换成名字，空的、重复的不要。没写开场白 = 空（维持现状，不开口）。
+ * ⚠ `*动作*` 原样留着（显示用；进下一轮对白时由 `historyMessages` 洗掉）。
+ */
+export function cardGreetings(
+  card: {
+    name: string
+    opening: string
+    alternateGreetings: readonly string[]
+  },
+  user: string,
+): string[] {
+  if (!card.opening.trim()) return []
+  const seen = new Set<string>()
+  const greetings: string[] = []
+  for (const raw of [card.opening, ...card.alternateGreetings]) {
+    const text = fillCardMacros(raw, card.name, user).trim()
+    if (!text || seen.has(text)) continue
+    seen.add(text)
+    greetings.push(text)
+  }
+  return greetings
 }
 
 /**

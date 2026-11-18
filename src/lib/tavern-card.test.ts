@@ -143,6 +143,54 @@ describe('mapTavernCard', () => {
   })
 })
 
+describe('原卡原样留在 `st.card.raw`', () => {
+  const CARD_WITH_UNKNOWN = {
+    ...V2_CARD,
+    x_top_level: { anything: [1, 2, 3] },
+    data: {
+      ...V2_CARD.data,
+      depth_prompt: { prompt: '我们没拆的格子', depth: 4 },
+      extensions: { talkativeness: '0.5', fav: true, chub: { id: 42 } },
+    },
+  }
+
+  it('认不出的键（顶层、data 里、extensions 里）一个不少原样回来', () => {
+    const mapped = mapTavernCard(parseTavernCard(CARD_WITH_UNKNOWN)!)
+    const kept = mapped.extensions['st.card'] as Record<string, unknown>
+    expect(kept.raw).toEqual(CARD_WITH_UNKNOWN)
+    expect(kept.rawTruncated).toBeUndefined()
+    // 存进 JSON 列再读回来也一样（落库是 JSON 序列化）。
+    expect(JSON.parse(JSON.stringify(kept.raw))).toEqual(CARD_WITH_UNKNOWN)
+  })
+
+  it('超上限：去掉 character_book 再存并标 rawTruncated；世界书本身另存在 characterBook', () => {
+    const book = {
+      entries: [{ keys: ['雨'], content: 'x'.repeat(300 * 1024) }],
+    }
+    const big = {
+      ...CARD_WITH_UNKNOWN,
+      data: { ...CARD_WITH_UNKNOWN.data, character_book: book },
+    }
+    const kept = mapTavernCard(parseTavernCard(big)!).extensions[
+      'st.card'
+    ] as Record<string, unknown>
+    expect(kept.rawTruncated).toBe(true)
+    const raw = kept.raw as { data: Record<string, unknown> }
+    expect(raw.data.character_book).toBeUndefined()
+    expect(raw.data.depth_prompt).toEqual(CARD_WITH_UNKNOWN.data.depth_prompt)
+    expect(raw).toMatchObject({ x_top_level: { anything: [1, 2, 3] } })
+    expect(kept.characterBook).toEqual(book)
+  })
+
+  it('去掉世界书还超：不留原卡，只标 rawTruncated（经历全文另有 description 兜着）', () => {
+    const kept = mapTavernCard(
+      parseTavernCard({ name: 'Rei', description: 'x'.repeat(300 * 1024) })!,
+    ).extensions['st.card'] as Record<string, unknown>
+    expect(kept.raw).toBeUndefined()
+    expect(kept.rawTruncated).toBe(true)
+  })
+})
+
 describe('tavernCardMime', () => {
   it('PNG / JSON 按类型或后缀认（.json 的 type 常是空串），别的 null', () => {
     expect(tavernCardMime({ name: 'a.PNG', type: '' })).toBe('image/png')

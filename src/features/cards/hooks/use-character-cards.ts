@@ -78,6 +78,12 @@ export interface UseCharacterCardsReturn {
   lookIds: Readonly<Record<string, string>>
   /** 切一个角色的造型：挑的图属于原来那套，一起清掉。 */
   setLookId: (id: string, lookId: string | null) => void
+  /**
+   * 「造型主图做 NovelAI 精确参考」开关（每张 +5 Anlas）。**默认关**：开了以后 Opus 的
+   * 免 Anlas 出图也会改成按 Anlas 计，花钱的事要用户自己点开；标签本来就能认人。
+   */
+  novelAiPreciseReference: boolean
+  setNovelAiPreciseReference: (on: boolean) => void
   findCard: (id: string) => CharacterCardRecord | null
   /** Get all currently active cards as records */
   activeCards: CharacterCardRecord[]
@@ -126,6 +132,7 @@ export function useCharacterCards(): UseCharacterCardsReturn {
     Record<string, readonly CharacterImagePick[]>
   >({})
   const [lookIds, setLookIds] = useState<Record<string, string>>({})
+  const [novelAiPreciseReference, setNovelAiPreciseReference] = useState(false)
   /** 写请求失败的那句；列表拉不下来的那句从查询读。 */
   const [mutationError, setError] = useState<string | null>(null)
   const t = useTranslations('Toasts')
@@ -461,6 +468,8 @@ export function useCharacterCards(): UseCharacterCardsReturn {
     setImagePicks,
     lookIds,
     setLookId,
+    novelAiPreciseReference,
+    setNovelAiPreciseReference,
     findCard,
     activeCards,
     create,

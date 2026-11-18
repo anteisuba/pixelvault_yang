@@ -104,6 +104,23 @@ export async function loadCardBusCharacters(
   })
 }
 
+/**
+ * 只记归属的角色（LoRA 台）：留下本人、未删的那几位，顺序同传入；⛔ 不读卡内容。
+ */
+export async function ownedCharacterCardIds(
+  userId: string,
+  cardIds: readonly string[],
+): Promise<string[]> {
+  const ids = [...new Set(cardIds)]
+  if (ids.length === 0) return []
+  const rows = await db.characterCard.findMany({
+    where: { id: { in: ids }, userId, isDeleted: false },
+    select: { id: true },
+  })
+  const owned = new Set(rows.map((row) => row.id))
+  return ids.filter((id) => owned.has(id))
+}
+
 /** 挑的那几张 → 参考槽（按挑的顺序）；认不出的略过。 */
 function pickedSlots(
   picks: readonly CharacterImagePick[] | undefined,

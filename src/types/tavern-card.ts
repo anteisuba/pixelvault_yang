@@ -41,6 +41,10 @@ export const TavernCardKeptSchema = z.looseObject({
   characterBook: z.unknown().optional(),
   /** 经历一格装不下时的酒馆 description 全文（旧卡上限 6000 时导入的也在这）。 */
   description: z.string().optional().catch(undefined),
+  /** 导入时的整张原卡 JSON（只在服务端读写，⛔ 下发：见 `TAVERN_CARD.RAW_MAX_BYTES`）。 */
+  raw: z.unknown().optional(),
+  /** 原卡太大：存的是去掉 `character_book` 的版本（或干脆没存）。 */
+  rawTruncated: z.literal(true).optional().catch(undefined),
 })
 
 export type TavernCardKept = z.infer<typeof TavernCardKeptSchema>

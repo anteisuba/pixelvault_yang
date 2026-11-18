@@ -11,6 +11,7 @@ import {
   type CharacterPageTab,
 } from '@/constants/cards/chub-library'
 import { DURATION, DURATION_MS, EASE_STANDARD } from '@/constants/motion'
+import { STUDIO_CHARACTER_QUERY } from '@/constants/routes'
 import type { AssistantOperatorCharacterProfileField } from '@/types/assistant-operator'
 import { Copy, Pencil, Plus, Trash2, Upload } from '@/components/icons'
 import { DropOverlay } from '@/components/ui/drop-overlay'
@@ -55,6 +56,7 @@ import { appendSlotSources } from '@/features/cards/hooks/use-character-card-edi
 import { defaultLook } from '@/lib/card-bus'
 import { characterGaps } from '@/features/cards/lib/character-gaps'
 import { applyPersonaField } from '@/lib/character-persona-fields'
+import { pinDocumentTitlePrefix } from '@/lib/document-title-prefix'
 import { useCharacterCards } from '@/features/cards/hooks/use-character-cards'
 import { useCharacterRecentActivity } from '@/features/cards/hooks/use-character-recent-activity'
 import { useChubLibrary } from '@/features/cards/hooks/use-chub-library'
@@ -84,6 +86,35 @@ import { cn } from '@/lib/utils'
 const ROW_CLASS = 'flex h-9 shrink-0 items-center gap-3'
 const ROW_AVATAR_GAP_CLASS = 'pr-12'
 
+/**
+ * 把正在看的那一位写进地址栏（`?character=<id>`，11-17：详情可刷新、可后退）。
+ * - 从总览打开：压一条历史（后退 = 回总览）；详情里换人：替换当前这条（⛔ 越压越多）。
+ * - 关掉：这条是我们压的 → 后退一步；否则（刷新 / 深链进来的）原地去掉参数。
+ */
+function writeCharacterParam(id: string | null, pushed: { current: boolean }) {
+  const url = new URL(window.location.href)
+  const current = url.searchParams.get(STUDIO_CHARACTER_QUERY)
+  if (id) {
+    if (current === id) return
+    url.searchParams.set(STUDIO_CHARACTER_QUERY, id)
+    if (current) {
+      window.history.replaceState(window.history.state, '', url)
+      return
+    }
+    window.history.pushState(window.history.state, '', url)
+    pushed.current = true
+    return
+  }
+  if (!current) return
+  if (pushed.current) {
+    pushed.current = false
+    window.history.back()
+    return
+  }
+  url.searchParams.delete(STUDIO_CHARACTER_QUERY)
+  window.history.replaceState(window.history.state, '', url)
+}
+
 export function CharacterRoster() {
   const t = useTranslations('CharacterRoster')
   const tDrop = useTranslations('DropZone')
@@ -106,6 +137,8 @@ export function CharacterRoster() {
    *   完成回调可能永远不来 —— 09-27 真机上留下一层透明详情吞掉点击。
    */
   const closeTimer = useRef<number | null>(null)
+  /** 这次打开详情时是不是我们往历史里压了一条（是 → 关详情 = 后退一步，⛔ 再压一条）。 */
+  const pushedCharacterParam = useRef(false)
   /** 详情里正看着的那套造型（`null` = 默认）：图片带、外观、标签和「用她 ▾」训练都跟它。 */
   const [detailLookId, setDetailLookId] = useState<string | null>(null)
   const [query, setQuery] = useState('')
@@ -268,12 +301,20 @@ export function CharacterRoster() {
     refresh: characters.refresh,
   })
 
-  const openCharacter = useCallback((id: string) => {
+  /** 只改界面（地址栏变化回来时用这一份，⛔ 再写地址栏）。 */
+  const showCharacter = useCallback((id: string) => {
     if (closeTimer.current) window.clearTimeout(closeTimer.current)
     setClosingId(null)
     setDetailLookId(null)
     setOpenId(id)
   }, [])
+  const openCharacter = useCallback(
+    (id: string) => {
+      showCharacter(id)
+      writeCharacterParam(id, pushedCharacterParam)
+    },
+    [showCharacter],
+  )
   // 助手改了角色库：名册重读（库叠层里这一页不当宿主，宿主那条 `libraryChanged` 够不着）。
   useLibraryChanged('cards', characters.refresh)
   // 助手翻给你看：按名字打开那一位（找不到就搜这个名字），或搜那个词。
@@ -295,7 +336,7 @@ export function CharacterRoster() {
     },
     [],
   )
-  const closeDetail = useCallback(() => {
+  const hideDetail = useCallback(() => {
     setOpenId(null)
     if (closeTimer.current) window.clearTimeout(closeTimer.current)
     if (reducedMotion) {
@@ -308,6 +349,27 @@ export function CharacterRoster() {
       DURATION_MS.fast + DURATION_MS.fast,
     )
   }, [openId, reducedMotion])
+  const closeDetail = useCallback(() => {
+    hideDetail()
+    writeCharacterParam(null, pushedCharacterParam)
+  }, [hideDetail])
+  // 地址栏是详情的真身（11-17）：浏览器后退 / 前进带走或带回 `?character=`，界面跟着开合；
+  // 刷新时首帧已经从地址栏读了（`useState` 初值）。
+  const urlCharacterId = searchParams.get(STUDIO_CHARACTER_QUERY)
+  useEffect(() => {
+    if (urlCharacterId === openId) return
+    if (urlCharacterId) showCharacter(urlCharacterId)
+    else if (openId) hideDetail()
+    // ⚠ 只跟地址栏走：openId 变了（点开 / 关掉）时地址栏已经在同一拍写好了。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlCharacterId])
+  // 标签页标题跟着她（刷新 / 历史记录里认得出是谁）；关掉详情还原页面标题。
+  // ⚠ 钉住而不是写一次：流式 metadata 晚到会把名字盖掉（见 `pinDocumentTitlePrefix`）。
+  const selectedName = flatCards.find((card) => card.id === openId)?.name
+  useEffect(() => {
+    if (!selectedName) return
+    return pinDocumentTitlePrefix(selectedName)
+  }, [selectedName])
   const detailCard = useMemo(
     () => flatCards.find((card) => card.id === (openId ?? closingId)) ?? null,
     [closingId, flatCards, openId],

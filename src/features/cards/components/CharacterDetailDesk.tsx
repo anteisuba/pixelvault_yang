@@ -4,8 +4,10 @@ import { useState, type ReactNode } from 'react'
 import Image from 'next/image'
 import { useLocale, useTranslations } from 'next-intl'
 
+import { studioImageWithCharacterPath } from '@/constants/routes'
 import type { CharacterCardRecord } from '@/types'
 import { MoreHorizontal } from '@/components/icons'
+import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import {
   DropdownMenu,
@@ -31,6 +33,7 @@ import {
   useCharacterStickers,
 } from '@/features/cards/hooks'
 import { usePersonaSwitch } from '@/hooks/use-chat-persona'
+import { Link } from '@/i18n/navigation'
 import { characterCoverUrl } from '@/lib/card-bus'
 import { characterImageCount, characterWork } from '@/lib/character-works'
 
@@ -50,7 +53,8 @@ type PaneProps = Parameters<typeof CharacterPersonPane>[0]
  *
  * ⭐ 左栏只放她：头像 · 名字（⋯ 里删除）· 一句介绍 · 「和她聊」（这块板唯一的黑钮）·
  *   「她在意的东西」（第 ④ 步）·「现在」（出门调查，第 ⑤ 步）。⛔ 分割线、⛔「用她 ▾」。
- * ⭐ 右边页签：小房间（活动记录，11-05 由「最近」改名）· 人物 · 图片 · 模板（11-01）· LoRA · 记忆（第 ⑦ 步）· 表情包。各页内容先原样搬过来，
+ * ⭐ 「和她聊」旁边一颗「用她出图」（11-17，次级钮，去工作台并带上她）。
+ * ⭐ 右边页签：小房间（活动记录，11-05 由「最近」改名）· 人物（11-17 起默认）· 图片 · 造型（11-01 叫「模板」，11-17 改名）· LoRA · 记忆（第 ⑦ 步）· 表情包。各页内容先原样搬过来，
  *   后面几步一页一页改。
  * 手机见下面的 `CharacterDetailPhone`（同一套页签内容，换成顶上四段切换）。
  */
@@ -65,7 +69,8 @@ export function CharacterDetailDesk({
   const stickers = useCharacterStickers(card.id)
   const memories = useCharacterMemories(card.id)
   const personaSwitch = usePersonaSwitch()
-  const [tab, setTab] = useState<DetailTab>('recent')
+  // 默认进「人物」（11-17）：从名册点进来多半是来看 / 改她，不是看小房间。
+  const [tab, setTab] = useState<DetailTab>('person')
   const [confirmingDelete, setConfirmingDelete] = useState(false)
 
   const tabs = [
@@ -87,7 +92,7 @@ export function CharacterDetailDesk({
           locale={locale}
           onAskDelete={() => setConfirmingDelete(true)}
         />
-        <div>
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() =>
@@ -97,6 +102,17 @@ export function CharacterDetailDesk({
           >
             {t('recent.chatWith')}
           </button>
+          {/* 「用她出图」= 工作台深链（`?character=`），到了就把她带上 —— 与画廊「用她」同一条路。 */}
+          <Button
+            asChild
+            variant="secondary"
+            size="sm"
+            className="rounded-full"
+          >
+            <Link href={studioImageWithCharacterPath(card.id)}>
+              {t('recent.generateWith')}
+            </Link>
+          </Button>
         </div>
         <CharacterInterests card={card} onUpdate={paneProps.onUpdate} />
         <section className="flex flex-col gap-2">
@@ -182,18 +198,33 @@ export function CharacterPhoneTitle({ card }: { card: CharacterCardRecord }) {
   )
 }
 
-/** 手机详情导航条右边那颗「和她聊」（这一页唯一的黑钮，缩成药丸放顶上）。 */
+/**
+ * 手机详情导航条右边：「用她出图」（次要药丸，与电脑同一条 `?character=` 深链）+
+ * 「和她聊」（这一页唯一的黑钮，缩成药丸放顶上）。
+ */
 export function CharacterChatPill({ cardId }: { cardId: string }) {
   const t = useTranslations('CharacterRoster')
   const personaSwitch = usePersonaSwitch()
   return (
-    <button
-      type="button"
-      onClick={() => void personaSwitch.switchTo(cardId, { goHome: true })}
-      className="touch-target-y h-8 shrink-0 rounded-full bg-primary px-3.5 text-2sm font-semibold whitespace-nowrap text-primary-foreground transition-transform duration-fast ease-standard hover:tint-hover active:scale-[.98] focus-visible:outline-none focus-visible:shadow-focus"
-    >
-      {t('recent.chatWith')}
-    </button>
+    <span className="flex shrink-0 items-center gap-1.5">
+      <Button
+        asChild
+        variant="secondary"
+        size="sm"
+        className="rounded-full whitespace-nowrap"
+      >
+        <Link href={studioImageWithCharacterPath(cardId)}>
+          {t('recent.generateWith')}
+        </Link>
+      </Button>
+      <button
+        type="button"
+        onClick={() => void personaSwitch.switchTo(cardId, { goHome: true })}
+        className="touch-target-y h-8 shrink-0 rounded-full bg-primary px-3.5 text-2sm font-semibold whitespace-nowrap text-primary-foreground transition-transform duration-fast ease-standard hover:tint-hover active:scale-[.98] focus-visible:outline-none focus-visible:shadow-focus"
+      >
+        {t('recent.chatWith')}
+      </button>
+    </span>
   )
 }
 
@@ -217,7 +248,8 @@ export function CharacterDetailPhone({
   const growth = useCharacterGrowth(cardId)
   const stickers = useCharacterStickers(cardId)
   const memories = useCharacterMemories(cardId)
-  const [pane, setPane] = useState<PhonePane>('recent')
+  // 与电脑同口径：默认进「她」（人物）。
+  const [pane, setPane] = useState<PhonePane>('her')
   const panes = [
     { value: 'recent', label: t('detailTabs.recent') },
     { value: 'her', label: t('recent.paneHer') },

@@ -28,11 +28,22 @@ export const TAVERN_CARD = {
   FILE_NAME_MAX_LENGTH: 200,
   /**
    * 卡上我们没有对应格子的那几样原样存进这一个扩展键（世界书、卡自带的系统提示词、
-   * 「历史之后的指令」、备选开场白……）。⛔ 不注入：卡覆盖系统提示是安全问题。
+   * 「历史之后的指令」、备选开场白……）。
+   * ⚠ 卡自带的系统提示词 / 历史之后的指令**会注入**，只在「和她聊」里（owner 10-29 ⛔ 进工作台）：
+   *   系统提示词作为「卡作者的备注」一段放进我们自己的系统提示（`features/assistant/prompt.ts`
+   *   chatCardSection），历史之后的指令接在最新一句后面；两者都 ⛔ 覆盖我们的系统提示、工具规则、
+   *   确认与创作者的规矩。世界书按关键词命中才进。
    */
   EXTENSION_KEY: 'st.card',
   /** 备选开场白最多留几条。 */
   MAX_ALTERNATE_GREETINGS: 20,
+  /**
+   * 导入时整张原卡 JSON 原样留一份（`st.card.raw`，11-18）：我们没拆的键日后还能找回、能原样导出。
+   * 序列化后超过这个数就去掉最大的那块（`character_book`，它已经另存在 `characterBook`）再存，
+   * 并标 `rawTruncated`；去掉还超就不留原卡、只标 `rawTruncated`。
+   * ⚠ 原卡 ⛔ 下发给浏览器（卡列表一次几十张），服务端合并扩展键时替客户端留着它。
+   */
+  RAW_MAX_BYTES: 256 * 1024,
 } as const
 
 /** 导入失败的几种原因（前端按 `i18nKey` 说人话，`Errors.tavernCard.*`）。 */

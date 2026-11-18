@@ -2,6 +2,7 @@ import 'server-only'
 
 import { z } from 'zod'
 
+import { ASSISTANT_REASONING_EFFORT_IDS } from '@/constants/assistant-persona'
 import { CHARACTER_PERSONA_LIMITS } from '@/constants/cards/character-card'
 import { CHAT_LEARN_PHRASES } from '@/constants/chat-voice'
 import { db } from '@/lib/db'
@@ -110,6 +111,8 @@ export async function learnCreatorPhrases(input: {
 
     const raw = await llmTextCompletion({
       purpose: 'character-learned-phrases',
+      // 后台小活：显式 low（11-18；缺席 = 各家默认档，Claude / DeepSeek 默认 high 白花思考）。
+      reasoningEffort: ASSISTANT_REASONING_EFFORT_IDS.low,
       systemPrompt: LEARN_SYSTEM_PROMPT,
       userPrompt: said,
       promptGuardMaxLength:

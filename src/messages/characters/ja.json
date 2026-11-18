@@ -168,6 +168,7 @@
       "overviewTitle": "最近",
       "activityTitle": "活動記録",
       "chatWith": "話しかける",
+      "generateWith": "この子で生成",
       "today": "今日",
       "yesterday": "昨日",
       "sourceBilibili": "bilibili",
@@ -322,7 +323,7 @@
       "lora": "LoRA",
       "memory": "記憶",
       "stickers": "スタンプ",
-      "templates": "テンプレート"
+      "templates": "衣装"
     },
     "detailNow": "いま",
     "interestsTitle": "気にしていること",
@@ -370,7 +371,10 @@
       "deleteFailed": "削除できませんでした。もう一度お試しください",
       "limitReached": "あなたが書いた記憶はすでに {limit} 件です。先に一つ削除してください",
       "deleteTitle": "この記憶を削除しますか？",
-      "deleteBody": "削除すると彼女はもう覚えていません。"
+      "deleteBody": "削除すると彼女はもう覚えていません。",
+      "whereIntro": "ここには彼女が彼女自身として覚えたこと（話しかけたとき・おでかけ・あなたが代わりに書いたこと）だけが入ります。あなたの作業を手伝う中で覚えたルールは",
+      "workShelf": "アシスタント設定の記憶にあります",
+      "workShelfCount": "アシスタント設定の記憶にあります（{count} 件）"
     },
     "assistantPills": {
       "tidyImport": "取り込んだカードを整理",

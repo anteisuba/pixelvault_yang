@@ -136,7 +136,9 @@ describe('searchChubCardsAPI（浏览器直接问 chub）', () => {
 })
 
 describe('importChubCardAPI（浏览器取定义 → 我们的服务端建卡）', () => {
-  it('从 chub 取完整定义，只把落格要的几格连同路径递给服务端', async () => {
+  // 11-18 起 definition 是 looseObject：认不出的键原样带着（服务端整张存进 `st.card.raw`），
+  // 只有 node 上不落格的键（forks）还在客户端丢掉。
+  it('从 chub 取完整定义，node 只递落格要的几格，definition 整张带着', async () => {
     fetchMock
       .mockResolvedValueOnce(
         json({
@@ -145,7 +147,7 @@ describe('importChubCardAPI（浏览器取定义 → 我们的服务端建卡）
             topics: ['ROOT', 'Original'],
             max_res_url: 'https://avatars.charhub.io/avatars/maker/rei/a.png',
             forks: [1, 2, 3],
-            definition: { ...definition, extra: 'drop me' },
+            definition: { ...definition, extra: 'keep me' },
           },
         }),
       )
@@ -172,7 +174,7 @@ describe('importChubCardAPI（浏览器取定义 → 我们的服务端建卡）
         name: 'Rei',
         topics: ['ROOT', 'Original'],
         max_res_url: 'https://avatars.charhub.io/avatars/maker/rei/a.png',
-        definition,
+        definition: { ...definition, extra: 'keep me' },
       },
     })
     expect(result).toEqual({ success: true, data: { id: 'card_new' } })

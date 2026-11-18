@@ -2,6 +2,7 @@ import 'server-only'
 
 import { z } from 'zod'
 
+import { ASSISTANT_REASONING_EFFORT_IDS } from '@/constants/assistant-persona'
 import {
   CHARACTER_CARD,
   CHARACTER_PERSONA_LIMITS,
@@ -238,6 +239,8 @@ export async function tidyImportedCard(input: {
     const { route, modelId } = await resolveAssistantRoute(input.userId)
     const raw = await llmTextCompletion({
       purpose: 'character-tidy',
+      // 后台小活：显式 low（11-18；缺席 = 各家默认档，Claude / DeepSeek 默认 high 白花思考）。
+      reasoningEffort: ASSISTANT_REASONING_EFFORT_IDS.low,
       systemPrompt: tidySystemPrompt(input.locale),
       userPrompt: material,
       promptGuardMaxLength: CHARACTER_TIDY.promptChars,

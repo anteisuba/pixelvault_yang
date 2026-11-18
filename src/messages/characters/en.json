@@ -168,6 +168,7 @@
       "overviewTitle": "Recent",
       "activityTitle": "Activity",
       "chatWith": "Chat with her",
+      "generateWith": "Create with her",
       "today": "Today",
       "yesterday": "Yesterday",
       "sourceBilibili": "Bilibili",
@@ -322,7 +323,7 @@
       "lora": "LoRA",
       "memory": "Memory",
       "stickers": "Stickers",
-      "templates": "Templates"
+      "templates": "Looks"
     },
     "detailNow": "Now",
     "interestsTitle": "What she cares about",
@@ -370,7 +371,10 @@
       "deleteFailed": "Couldn’t delete. Try again.",
       "limitReached": "You’ve written {limit} for her already. Delete one first.",
       "deleteTitle": "Delete this memory?",
-      "deleteBody": "She won’t remember it anymore."
+      "deleteBody": "She won’t remember it anymore.",
+      "whereIntro": "Only what she remembers as herself lives here (chats with her, outings, things you added for her). Rules she picked up while working for you are in",
+      "workShelf": "Assistant settings → Memory",
+      "workShelfCount": "Assistant settings → Memory ({count})"
     },
     "assistantPills": {
       "tidyImport": "Tidy the imported card",

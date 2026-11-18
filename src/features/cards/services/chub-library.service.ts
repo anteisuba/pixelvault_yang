@@ -99,7 +99,8 @@ export async function importChubCard(
   })
   if (!card) throw chubNotFound()
 
-  const imported = mapTavernCard(card)
+  // 原卡 = chub 给的 definition 原样（含我们没拆的键，`ChubCardDefinitionSchema` 是 looseObject）。
+  const imported = mapTavernCard({ ...card, raw: definition })
   const stCard = imported.extensions[TAVERN_CARD.EXTENSION_KEY]
   const withSource = {
     ...imported,

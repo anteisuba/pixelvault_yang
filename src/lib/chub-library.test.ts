@@ -162,14 +162,19 @@ describe('parseChubSearch', () => {
 })
 
 describe('parseChubCharacter', () => {
-  it('只留落格要的几格；类型不对的格当空', () => {
+  it('node 只留落格要的几格；类型不对的格当空；definition 里认不出的键原样带着（存原卡用）', () => {
     const result = parseChubCharacter({
       node: {
         name: 'Rei',
         topics: ['ROOT', 'Original'],
         max_res_url: 42,
         forks: ['x'],
-        definition: { ...definition, scenario: null, extra: 'drop me' },
+        definition: {
+          ...definition,
+          scenario: null,
+          extensions: { depth_prompt: { prompt: 'keep me', depth: 4 } },
+          extra: 'keep me too',
+        },
       },
     })
 
@@ -179,7 +184,12 @@ describe('parseChubCharacter', () => {
         name: 'Rei',
         topics: ['ROOT', 'Original'],
         max_res_url: null,
-        definition: { ...definition, scenario: '' },
+        definition: {
+          ...definition,
+          scenario: '',
+          extensions: { depth_prompt: { prompt: 'keep me', depth: 4 } },
+          extra: 'keep me too',
+        },
       },
     })
   })

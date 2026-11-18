@@ -14,6 +14,14 @@ vi.mock('next-intl', () => {
   }
 })
 vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
+// 另一份记忆（助手设置里那份）：只假接口那一层，条数由它给。
+vi.mock('@/lib/api-client', async (original) => ({
+  ...(await original<object>()),
+  listAssistantMemoriesAPI: async () => ({
+    success: true,
+    data: [{ id: 'r1' }, { id: 'r2' }, { id: 'r3' }],
+  }),
+}))
 
 import { CharacterMemoryPane } from './CharacterMemoryPane'
 
@@ -150,6 +158,32 @@ describe('CharacterMemoryPane（她页「记忆」页签：只留记忆）', () 
         memories={hookOf(list({ remembered: [], dormant: [], findings: [] }))}
       />,
     )
+    expect(screen.getByText('emptyTitle')).toBeTruthy()
+  })
+
+  it('页头说清这页放的是哪份记忆，另一份带条数、点了开助手设置', async () => {
+    render(<CharacterMemoryPane memories={hookOf(list())} />)
+    const shelf = screen.getByTestId('character-memory-work-shelf')
+    expect(shelf).toHaveTextContent('whereIntro')
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'workShelfCount|3' }),
+    )
+    expect(
+      await screen.findByTestId('assistant-settings-dialog'),
+    ).toBeInTheDocument()
+    // 开的就是记忆那一页（那一页上有指回她页「记忆」的那句）。
+    expect(
+      await screen.findByTestId('assistant-memory-characters-note'),
+    ).toBeInTheDocument()
+  })
+
+  it('空着时那句话挪进空态（页头不重复）', () => {
+    render(
+      <CharacterMemoryPane
+        memories={hookOf(list({ remembered: [], dormant: [], findings: [] }))}
+      />,
+    )
+    expect(screen.getAllByTestId('character-memory-work-shelf')).toHaveLength(1)
     expect(screen.getByText('emptyTitle')).toBeTruthy()
   })
 

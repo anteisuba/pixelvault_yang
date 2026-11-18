@@ -3,5 +3,8 @@
  *（见 docs/design/features-migration.md）。hook 走 `@/features/cards/hooks`。
  */
 export { CardsPageContent } from './components/CardsPageContent'
-export { CharacterImagePickGrid } from './components/CharacterImagePickGrid'
+export {
+  CharacterImagePickGrid,
+  sameCharacterPick,
+} from './components/CharacterImagePickGrid'
 export { TavernLibraryDesk } from './components/TavernLibraryDesk'

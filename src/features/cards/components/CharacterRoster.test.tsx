@@ -11,7 +11,7 @@ import type { CharacterCardRecord, CharacterLookRecord } from '@/types'
 import { __resetRecipesCacheForTests } from '@/features/prompts/hooks/use-recipes'
 import { queryClient } from '@/lib/query-client'
 import { fakeServer } from '@/test/app-harness'
-import { DESKTOP_WIDTH, setViewport } from '@/test/viewport'
+import { DESKTOP_WIDTH, PHONE_WIDTH, setViewport } from '@/test/viewport'
 
 import { CharacterRoster } from './CharacterRoster'
 
@@ -40,6 +40,9 @@ vi.mock('next/navigation', () => ({
 }))
 
 vi.mock('@/i18n/navigation', () => ({
+  Link: ({ children, href }: { children: React.ReactNode; href: string }) => (
+    <a href={href}>{children}</a>
+  ),
   useRouter: () => ({ push: vi.fn() }),
 }))
 
@@ -208,7 +211,7 @@ describe('CharacterRoster（角色页 · 方向 A）', () => {
     expect(screen.getAllByTestId('roster-tile')).toHaveLength(2)
     openDenia('图片')
     expect(screen.queryByRole('group', { name: '造型' })).toBeNull()
-    fireEvent.click(screen.getByRole('tab', { name: '模板' }))
+    fireEvent.click(screen.getByRole('tab', { name: '造型' }))
     expect(
       await screen.findByText('还没有模板。在台上「存成模板」时挂到这套造型。'),
     ).toBeTruthy()
@@ -217,7 +220,7 @@ describe('CharacterRoster（角色页 · 方向 A）', () => {
     expect(looks).toHaveTextContent('Q版')
   })
 
-  it('点一个角色进整页详情：左栏她 + 右边页签（小房间 · 人物 · 图片 · 模板 · LoRA · 记忆 · 表情包）；「‹ 角色」回总览', async () => {
+  it('点一个角色进整页详情：左栏她 + 右边页签（小房间 · 人物 · 图片 · 造型 · LoRA · 记忆 · 表情包），默认停在「人物」；「‹ 角色」回总览', async () => {
     await renderLoaded()
     openDenia()
     const detail = screen.getByRole('region', { name: 'Denia' })
@@ -225,17 +228,50 @@ describe('CharacterRoster（角色页 · 方向 A）', () => {
       '小房间',
       '人物',
       '图片',
-      '模板',
+      '造型',
       'LoRA',
       '记忆',
       '表情包',
     ])
-    expect(screen.getByRole('button', { name: '和她聊' })).toBeTruthy()
-    expect(screen.queryByRole('button', { name: /用她/ })).toBeNull()
-    fireEvent.click(screen.getByRole('tab', { name: '人物' }))
+    expect(
+      screen.getByRole('tab', { name: '人物' }).getAttribute('aria-selected'),
+    ).toBe('true')
     expect(detail).toHaveTextContent('先替别人撑好伞')
+    expect(screen.getByRole('button', { name: '和她聊' })).toBeTruthy()
+    // 「用她出图」= 工作台深链，到了就带上她。
+    expect(
+      screen.getByRole('link', { name: '用她出图' }).getAttribute('href'),
+    ).toBe('/studio/image?character=denia')
     fireEvent.click(screen.getByRole('button', { name: '角色' }))
     expect(screen.queryByRole('region', { name: 'Denia' })).toBeNull()
+  })
+
+  it('手机详情顶条也有「用她出图」：与电脑同一条深链、同一句文案，挨着「和她聊」', async () => {
+    setViewport(PHONE_WIDTH)
+    mockSearch.value = 'character=denia'
+    await renderLoaded()
+    expect(screen.getByRole('button', { name: '和她聊' })).toBeTruthy()
+    expect(
+      screen.getByRole('link', { name: '用她出图' }).getAttribute('href'),
+    ).toBe('/studio/image?character=denia')
+  })
+
+  it('详情有自己的地址：打开压一条 `?character=`、标签页标题带上她；关掉后退回总览那一条', async () => {
+    window.history.replaceState(null, '', '/library/cards')
+    document.title = '角色'
+    const back = vi.spyOn(window.history, 'back').mockImplementation(() => {})
+    await renderLoaded()
+    const pageTitle = document.title
+    const before = window.history.length
+    openDenia()
+    expect(window.location.search).toBe('?character=denia')
+    expect(window.history.length).toBe(before + 1)
+    expect(document.title).toBe(`Denia · ${pageTitle}`)
+    fireEvent.click(screen.getByRole('button', { name: '角色' }))
+    expect(back).toHaveBeenCalledTimes(1)
+    expect(document.title).toBe(pageTitle)
+    back.mockRestore()
+    window.history.replaceState(null, '', '/')
   })
 
   it('设定里含酒馆字段：备选开场白弹框加一条；酒馆一组常开，世界书只读、不再写「只保存」', async () => {
@@ -299,8 +335,9 @@ describe('CharacterRoster（角色页 · 方向 A）', () => {
         name: '时夜',
       }),
     )
+    // 草稿收起、换成她的详情（11-17 起默认停在「人物」，那页也有一格「名字」—— 不是草稿那格了）。
     await vi.waitFor(() =>
-      expect(screen.queryByRole('textbox', { name: '名字' })).toBeNull(),
+      expect(screen.queryByRole('textbox', { name: '名字' })).not.toBe(name),
     )
   })
 

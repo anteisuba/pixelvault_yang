@@ -7,6 +7,7 @@ import type { CharacterReferenceSlot } from '@/types'
 import {
   compileImageOutlet,
   toCardBusCharacter,
+  willSendNovelAiCharacterReference,
   type CardBusCharacter,
   type ImageOutletOptions,
 } from './card-bus-compile'
@@ -252,6 +253,90 @@ describe('compileImageOutlet', () => {
     expect(plain).not.toContain('Denia looks')
   })
 
+  it('Nano Banana 人物参考上限：卡图按 maxCharacterReferenceImages 封顶', () => {
+    const outlet = compileImageOutlet(
+      [
+        character('A', [slot('a1', { isPrimary: true }), slot('a2')]),
+        character('B', [slot('b1', { isPrimary: true }), slot('b2')]),
+      ],
+      { ...MULTI, maxReferenceImages: 14, maxCharacterReferenceImages: 3 },
+    )
+    expect(outlet.referenceImages).toEqual([
+      'https://cdn.test/a1.png',
+      'https://cdn.test/a2.png',
+      'https://cdn.test/b1.png',
+    ])
+  })
+
+  describe('NovelAI 精确参考', () => {
+    const v45 = {
+      ...MULTI,
+      adapterType: AI_ADAPTER_TYPES.NOVELAI,
+      modelId: AI_MODELS.NOVELAI_V45_FULL,
+      maxReferenceImages: 1,
+      novelAiPreciseReference: true,
+    }
+    const denia = character('Denia', [slot('d1', { isPrimary: true })], {
+      tags: ['denia'],
+    })
+
+    it('开了 + 单角色 + 没挂自己的图：主图走精确参考，标签照样认人', () => {
+      const outlet = compileImageOutlet([denia], v45)
+      expect(outlet.novelAiPreciseReference).toBe(true)
+      expect(outlet.referenceImages).toEqual(['https://cdn.test/d1.png'])
+      expect(outlet.referenceLabels).toEqual([])
+      expect(outlet.novelAiLayout?.characters[0]?.prompt).toBe('denia')
+    })
+
+    it('默认关：不送卡图', () => {
+      const outlet = compileImageOutlet([denia], {
+        ...v45,
+        novelAiPreciseReference: false,
+      })
+      expect(outlet.novelAiPreciseReference).toBe(false)
+      expect(outlet.referenceImages).toEqual([])
+    })
+
+    it('多角色不送（官方：多张参考会混成一个人）', () => {
+      const outlet = compileImageOutlet(
+        [denia, character('B', [slot('b1', { isPrimary: true })])],
+        v45,
+      )
+      expect(outlet.novelAiPreciseReference).toBe(false)
+      expect(outlet.referenceImages).toEqual([])
+    })
+
+    it('用户自己挂了图 / 开了遮罩重绘 / V5：不送', () => {
+      expect(
+        compileImageOutlet([denia], { ...v45, userReferenceCount: 1 })
+          .referenceImages,
+      ).toEqual([])
+      expect(
+        compileImageOutlet([denia], { ...v45, hasInpaintMask: true })
+          .referenceImages,
+      ).toEqual([])
+      expect(
+        compileImageOutlet([denia], {
+          ...v45,
+          modelId: AI_MODELS.NOVELAI_V5_FULL,
+        }).referenceImages,
+      ).toEqual([])
+    })
+
+    it('没有卡图的角色：不送', () => {
+      expect(
+        willSendNovelAiCharacterReference({
+          modelId: AI_MODELS.NOVELAI_V45_CURATED,
+          enabled: true,
+          characterCount: 1,
+          characterHasImage: false,
+          userReferenceCount: 0,
+          hasInpaintMask: false,
+        }),
+      ).toBe(false)
+    })
+  })
+
   it('没有角色时什么都不出', () => {
     expect(compileImageOutlet([], MULTI)).toEqual({
       promptPrefix: null,
@@ -259,6 +344,7 @@ describe('compileImageOutlet', () => {
       referenceLabels: [],
       negative: null,
       novelAiLayout: null,
+      novelAiPreciseReference: false,
     })
   })
 })

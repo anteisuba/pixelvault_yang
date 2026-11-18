@@ -168,6 +168,7 @@
       "overviewTitle": "最近",
       "activityTitle": "活动记录",
       "chatWith": "和她聊",
+      "generateWith": "用她出图",
       "today": "今天",
       "yesterday": "昨天",
       "sourceBilibili": "B 站",
@@ -322,7 +323,7 @@
       "lora": "LoRA",
       "memory": "记忆",
       "stickers": "表情包",
-      "templates": "模板"
+      "templates": "造型"
     },
     "detailNow": "现在",
     "interestsTitle": "她在意的东西",
@@ -370,7 +371,10 @@
       "deleteFailed": "没删掉，再试一次",
       "limitReached": "你写给她的已经有 {limit} 条了，先删一条再写",
       "deleteTitle": "删除这条记忆？",
-      "deleteBody": "删了她就不记得了。"
+      "deleteBody": "删了她就不记得了。",
+      "whereIntro": "这里只放她作为她自己记下的事（和她聊、出门、你替她记的）。她替你干活时记住的规矩在",
+      "workShelf": "助手设置的记忆里",
+      "workShelfCount": "助手设置的记忆里（{count} 条）"
     },
     "assistantPills": {
       "tidyImport": "整理导入的卡",

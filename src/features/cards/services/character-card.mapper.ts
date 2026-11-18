@@ -112,7 +112,11 @@ function readTavernKept(extensions: unknown): TavernCardKept | null {
       : undefined
   if (value === undefined) return null
   const parsed = TavernCardKeptSchema.safeParse(value)
-  return parsed.success ? parsed.data : null
+  if (!parsed.success) return null
+  // 原卡 ⛔ 下发（卡列表一次几十张，每张最多 256 KB）；写回时由 `mergeCardExtensions` 替客户端留着。
+  const kept: TavernCardKept = { ...parsed.data }
+  delete kept.raw
+  return kept
 }
 
 /** 和这个角色聊天时你在故事里是谁；没写 / 不是字符串 = 空串。 */
@@ -176,6 +180,28 @@ export function mapCharacterCardRow(
 }
 
 /**
+ * `st.card` 里只住在服务端的那几格（导入时的原卡 `raw` / `rawTruncated`）：浏览器拿到的卡上
+ * 没有它们（`readTavernKept` 摘掉了），编辑器整键写回 `st.card` 时替它留着；写回里自己带了就听写回的。
+ */
+function keepServerOnlyTavernKeys(existing: unknown, next: unknown): unknown {
+  if (
+    !existing ||
+    typeof existing !== 'object' ||
+    Array.isArray(existing) ||
+    !next ||
+    typeof next !== 'object' ||
+    Array.isArray(next)
+  )
+    return next
+  const before = existing as Record<string, unknown>
+  const after = { ...(next as Record<string, unknown>) }
+  for (const key of ['raw', 'rawTruncated'] as const) {
+    if (!(key in after) && key in before) after[key] = before[key]
+  }
+  return after
+}
+
+/**
  * 扩展键袋按键合并：本次给了哪几个键就改哪几个，值为 `null` 的键删掉，
  * ⛔ 其余键（包括认不出的）原样保留 —— 任何服务端路径都不得丢掉它们。
  */
@@ -189,7 +215,11 @@ export function mergeCardExtensions(
       : {}
   for (const [key, value] of Object.entries(patch)) {
     if (value === null) delete merged[key]
-    else merged[key] = value
+    else
+      merged[key] =
+        key === TAVERN_CARD.EXTENSION_KEY
+          ? keepServerOnlyTavernKeys(merged[key], value)
+          : value
   }
   return JSON.parse(JSON.stringify(merged)) as Prisma.InputJsonValue
 }

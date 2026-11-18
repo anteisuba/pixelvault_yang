@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Spinner } from '@/components/ui/spinner'
+import { CharacterMemoryWorkShelf } from '@/features/cards/components/CharacterMemoryWorkShelf'
 import { CharacterFieldEditor } from '@/features/cards/components/CharacterTextField'
 import type {
   MemoryWriteResult,
@@ -92,9 +93,9 @@ export function CharacterMemoryPane({ memories }: { memories: Memories }) {
 
   const confirmDelete = async () => {
     if (!pending) return
-    const result = await memories.remove(pending.id)
+    // 那条先从列表里拿掉（hook 里乐观删），删失败放回原位 + 提示。
     setPending(null)
-    fail(result, 'deleteFailed')
+    fail(await memories.remove(pending.id), 'deleteFailed')
   }
 
   if (memories.isLoading && !list)
@@ -123,8 +124,15 @@ export function CharacterMemoryPane({ memories }: { memories: Memories }) {
       className="flex h-full min-w-0 flex-col gap-3.5 overflow-y-auto overflow-x-hidden pb-12"
       data-testid="character-memory-pane"
     >
-      <div className="flex items-center justify-end">
-        <Button variant="secondary" size="sm" onClick={() => setAdding(true)}>
+      {/* 页头：这一页放的是哪一份记忆、另一份在哪（空着时这句挪进空态）。 */}
+      <div className="flex items-start justify-between gap-3">
+        {nothing ? <span /> : <CharacterMemoryWorkShelf />}
+        <Button
+          variant="secondary"
+          size="sm"
+          className="shrink-0"
+          onClick={() => setAdding(true)}
+        >
           {t('add')}
         </Button>
       </div>
@@ -181,6 +189,7 @@ export function CharacterMemoryPane({ memories }: { memories: Memories }) {
           icon={<Brain aria-hidden />}
           title={t('emptyTitle')}
           description={t('emptyHint')}
+          action={<CharacterMemoryWorkShelf />}
         />
       ) : null}
 

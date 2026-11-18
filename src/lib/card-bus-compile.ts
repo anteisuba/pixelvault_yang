@@ -4,7 +4,8 @@
  * ⭐ 中间形态是「每个角色一组」：视觉文字 · 角色负面 · 排好序的参考槽。
  *   ⛔ 这一层不合并文本 —— 压平是各出口的事（图片在这里，视频是第 ⑦ 片）。
  * ⭐ 从库里读卡只有 `features/cards/services/card-bus.service.ts` 一处；本文件不碰库。
- * ⛔ `summary` · `tags` 不进任何出口（给人看的）。
+ * ⛔ `summary` 不进任何出口（给人看的）；造型 `tags` 只进 NovelAI 出口（它靠标签认人），
+ *   别的出口用外观文字。
  * 契约见 `docs/references/domains/cards.md`「编译层」。
  */
 
@@ -14,6 +15,7 @@ import {
   getNovelAiMaxCharacters,
   novelAiGridCellCenter,
   supportsNovelAiCharacters,
+  supportsNovelAiPreciseReference,
 } from '@/constants/novelai'
 import { referenceUrlKey } from '@/lib/card-bus'
 import type { CharacterReferenceSlot } from '@/types'
@@ -112,6 +114,42 @@ export interface ImageOutletOptions {
   userReferenceCount: number
   /** 用户已经手摆了 NovelAI 多角色，就不替他排。 */
   hasNovelAiLayout: boolean
+  /**
+   * 卡图里最多几张算人物参考（Nano Banana：Pro ≤5、Flash ≤4）。缺省 = 不另设。
+   * ⚠ 只卡卡图：用户自己挂的图是不是人物我们不知道。
+   */
+  maxCharacterReferenceImages?: number
+  /** 用户开了「造型主图做 NovelAI 精确参考」（每张 +5 Anlas，默认关）。 */
+  novelAiPreciseReference?: boolean
+  /** 这一次挂了遮罩重绘（NovelAI 精确参考与重绘不能同时用）。 */
+  hasInpaintMask?: boolean
+}
+
+/**
+ * 这一次会不会真的把角色主图送进 NovelAI 精确参考（服务端编译与界面价格提示共用这一条）。
+ *
+ * - 只有 V4.5 有精确参考；官方：「Multiple character references at once will currently
+ *   blend them together」→ ⛔ 多角色不送（会混成一个人），只走标签。
+ * - worker 只读第一张参考图，它同时是图生图底图 → 用户自己挂了图时让给用户的图。
+ * - 与遮罩重绘互斥（worker 会拒）。
+ * https://docs.novelai.net/en/image/precisereference/
+ */
+export function willSendNovelAiCharacterReference(input: {
+  modelId: string
+  enabled: boolean
+  characterCount: number
+  characterHasImage: boolean
+  userReferenceCount: number
+  hasInpaintMask: boolean
+}): boolean {
+  return (
+    input.enabled &&
+    supportsNovelAiPreciseReference(input.modelId) &&
+    input.characterCount === 1 &&
+    input.characterHasImage &&
+    input.userReferenceCount === 0 &&
+    !input.hasInpaintMask
+  )
 }
 
 export interface ImageOutlet {
@@ -125,6 +163,8 @@ export interface ImageOutlet {
   negative: string | null
   /** NovelAI 原生多角色；只在模型支持且用户没手摆时给。 */
   novelAiLayout: NovelAiCharacterLayout | null
+  /** 卡图走 NovelAI 精确参考（`novelAiReferenceMode: 'precise'`），⛔ 不是图生图底图。 */
+  novelAiPreciseReference: boolean
 }
 
 function slotLabel(slot: CharacterReferenceSlot): string {
@@ -182,11 +222,13 @@ function characterBlock(
 /**
  * 把中间形态压成**图片 provider 能收的**：一段正文前缀 + 一串扁平 URL + 负面。
  *
- * - 分到图的角色只写名字 + 图例 + 保持指令；没分到图的才写视觉文字认人。
- * - 多图模型：配额在角色间轮流分，正文里写图例「Image N = @handle 用途」。
+ * - 分到图的角色只写名字 + 图例 + 保持指令（不写外观）；没分到图的写整段视觉文字认人。
+ * - 多图模型：配额在角色间轮流分，正文里写图例「Image N = @handle 用途」；
+ *   官方另有人物上限的（Nano Banana）卡图再按它封顶。
  * - 单图模型：只送第一个（焦点）角色的主图，其余角色只进文字。
- * - NovelAI：⛔ 不送卡图（它的参考图是图生图底图，会把出图变成改卡图）；
- *   支持多角色的型号改用原生 `characterPrompts`，每个角色一条。
+ * - NovelAI：⛔ 不把卡图当图生图底图（会把出图变成改卡图）；支持多角色的型号用原生
+ *   `characterPrompts`（标签认人）。用户开了精确参考且只有一位时，她的主图走
+ *   Precise Reference（`willSendNovelAiCharacterReference`）。
  */
 export function compileImageOutlet(
   characters: readonly CardBusCharacter[],
@@ -199,6 +241,7 @@ export function compileImageOutlet(
       referenceLabels: [],
       negative: null,
       novelAiLayout: null,
+      novelAiPreciseReference: false,
     }
   }
 
@@ -208,6 +251,16 @@ export function compileImageOutlet(
       .join(', ') || null
 
   if (options.adapterType === AI_ADAPTER_TYPES.NOVELAI) {
+    const precise = willSendNovelAiCharacterReference({
+      modelId: options.modelId,
+      enabled: options.novelAiPreciseReference === true,
+      characterCount: characters.length,
+      characterHasImage: Boolean(characters[0]?.slots[0]),
+      userReferenceCount: options.userReferenceCount,
+      hasInpaintMask: options.hasInpaintMask === true,
+    })
+    const preciseImages =
+      precise && characters[0]?.slots[0] ? [characters[0].slots[0].url] : []
     const canLayout =
       !options.hasNovelAiLayout &&
       supportsNovelAiCharacters(options.modelId) &&
@@ -215,8 +268,9 @@ export function compileImageOutlet(
     if (canLayout) {
       return {
         promptPrefix: null,
-        referenceImages: [],
+        referenceImages: preciseImages,
         referenceLabels: [],
+        novelAiPreciseReference: precise,
         negative: null,
         novelAiLayout: {
           positioning: 'auto',
@@ -232,16 +286,20 @@ export function compileImageOutlet(
       promptPrefix: characters
         .map((character) => characterBlock(character, { preferTags: true }))
         .join('\n\n'),
-      referenceImages: [],
+      referenceImages: preciseImages,
       referenceLabels: [],
       negative,
       novelAiLayout: null,
+      novelAiPreciseReference: precise,
     }
   }
 
   const budget = Math.max(
     0,
-    options.maxReferenceImages - options.userReferenceCount,
+    Math.min(
+      options.maxReferenceImages - options.userReferenceCount,
+      options.maxCharacterReferenceImages ?? Infinity,
+    ),
   )
   const picked =
     options.maxReferenceImages > 1
@@ -288,5 +346,6 @@ export function compileImageOutlet(
     referenceLabels: legend,
     negative,
     novelAiLayout: null,
+    novelAiPreciseReference: false,
   }
 }

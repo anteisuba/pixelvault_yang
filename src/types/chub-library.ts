@@ -81,7 +81,11 @@ const LONG_TEXT = TAVERN_CARD.MAX_FILE_BYTES
  * chub 一张卡的 `definition`（`/api/characters/<作者>/<卡名>?full=true` 的 `node.definition`），
  * 只留落格要的几格（其余键在解析时丢掉，递给服务端的也只有这些）。
  */
-export const ChubCardDefinitionSchema = z.object({
+/**
+ * ⚠ looseObject：认不出的键原样带着（导入时整张 definition 作为原卡存进 `st.card.raw`，11-18）。
+ *   大小仍归 `isChubNodeWithinLimit` 管（整张 node 序列化后算）。
+ */
+export const ChubCardDefinitionSchema = z.looseObject({
   name: chubText(CHUB_LIBRARY.NODE_LIMITS.NAME),
   personality: chubText(LONG_TEXT),
   tavern_personality: chubText(LONG_TEXT),

@@ -39,11 +39,11 @@ import {
   studioConversationHref,
 } from '@/lib/studio-shell-route'
 
-/** 外壳左栏「工作台」那一组的几个台，按 `STUDIO_SHELL_BENCH_IDS` 的顺序（两指滑换台也按它）。 */
-export const STUDIO_SHELL_BENCH_ITEMS: readonly ShellNavItem[] =
-  STUDIO_SHELL_BENCH_IDS.flatMap((id) =>
-    SHELL_NAV_TOOLS.filter((item) => item.id === id),
-  )
+/**
+ * 外壳左栏「工作台」那一组的几个台（两指滑换台也按它）。顺序已由 `SHELL_NAV_TOOLS`
+ * 按 `STUDIO_SHELL_BENCH_IDS` 排好，手机 ＋ 卡读的是同一份。
+ */
+export const STUDIO_SHELL_BENCH_ITEMS: readonly ShellNavItem[] = SHELL_NAV_TOOLS
 
 /**
  * 左栏的台那几颗借台框里的「推 / 滑」（owner 11-04：台的入口搬进左栏）：左栏在台框外面，

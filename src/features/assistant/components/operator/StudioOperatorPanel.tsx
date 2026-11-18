@@ -117,12 +117,7 @@ import {
 } from '@/features/assistant/components/operator/StudioOperatorChangedCards'
 import { StudioOperatorHistoryItem } from '@/features/assistant/components/operator/StudioOperatorHistoryItem'
 import { StudioOperatorVoiceStrip } from '@/features/assistant/components/operator/StudioOperatorVoice'
-import { StudioOperatorChatModeBenchHint } from '@/features/assistant/components/operator/StudioOperatorAvatarSwitcher'
-import { useOperatorChatMode } from '@/hooks/use-chat-persona'
-import {
-  StudioOperatorChatMark,
-  StudioOperatorDomainMark,
-} from '@/features/assistant/components/operator/StudioOperatorChatMark'
+import { StudioOperatorDomainMark } from '@/features/assistant/components/operator/StudioOperatorChatMark'
 import { StudioOperatorLogItem } from '@/features/assistant/components/operator/StudioOperatorLogItem'
 import { StudioOperatorWebCandidateGrid } from '@/features/assistant/components/operator/StudioOperatorWebCandidateGrid'
 import { StudioOperatorWebVideoRow } from '@/features/assistant/components/operator/StudioOperatorWebVideoRow'
@@ -132,10 +127,7 @@ import {
   ASSISTANT_MENTION_LIMITS,
   ASSISTANT_MENTION_SCOPE_IDS,
 } from '@/constants/assistant-mention'
-import {
-  ASSISTANT_CHAT_MODE_IDS,
-  ASSISTANT_PROTOCOL_DOMAIN_IDS,
-} from '@/constants/assistant-protocol'
+import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import {
   MentionInput,
   type MentionInputHandle,
@@ -492,12 +484,13 @@ export function StudioOperatorPanel({
     sessionId: threadSessionId,
   } = useStudioOperatorState()
   /**
-   * 聊天档那一句占位（用户 11-18）：她这一档只陪你聊，「让她帮你改…」那句会骗人。
-   * 只看档位，⛔ 按域分叉（域上的那句仍是宿主那张脸的）。
+   * 有没有台（owner 11-18 去掉「聊天 / 工作」手动切换）：与规格行同一个判据 —— 工具脸 `specLine` 为真
+   * = 在台上，首页那张脸 = 没台。占位、开场白都按它分叉，⛔ 再看档位。
    */
-  const chatMode = useOperatorChatMode()
+  const onHome = !operatorHost.face.specLine
+  /** 没台又选着角色：「让她帮你改…」那句会骗人（没台她只看不改），换成和她说话的那句。 */
   const chattingPlaceholder =
-    chatMode.available && chatMode.mode === ASSISTANT_CHAT_MODE_IDS.chat
+    onHome && persona?.character && chatCharacter === null
       ? t('chat.placeholder', {
           name: persona?.character?.name ?? persona?.name ?? '',
         })
@@ -572,7 +565,7 @@ export function StudioOperatorPanel({
   )
   const threadEmpty = entries.length === 0 && historyEntries.length === 0
   /** 和她聊的新会话：她卡上的开场白摆在空态的位置上（发第一句时才接进线程，见 hook 头注）。 */
-  const greeting = useOperatorGreeting(threadEmpty)
+  const greeting = useOperatorGreeting(threadEmpty, onHome)
   /**
    * 库页报的药丸（角色库「缺什么出什么」，第 ⑩ 步）—— 这是对话里唯一还在的一排药丸。
    * ⛔ 台上的空态起手药丸已删（ui-spec §2「对话里不放建议按钮」，owner 11-04）：
@@ -2261,15 +2254,6 @@ export function StudioOperatorPanel({
             <StudioOperatorDomainMark domain={entry.domain} />
           </StudioOperatorTimelineRow>
         )
-      case 'chatMark':
-        return (
-          <StudioOperatorTimelineRow
-            key={entry.id}
-            card={STUDIO_OPERATOR_CARD_KINDS.system}
-          >
-            <StudioOperatorChatMark name={entry.character?.name ?? null} />
-          </StudioOperatorTimelineRow>
-        )
     }
   }
 
@@ -2504,7 +2488,6 @@ export function StudioOperatorPanel({
                     key: `h:${index}:${entry.id}`,
                     speaker: historyCardKind(entry.kind).speaker,
                     node: renderHistoryEntry(index),
-                    standalone: entry.kind === 'chatMark',
                   },
                   ...(historyRoundPlacement.byIndex.get(index) ?? []).map(
                     (summaryIndex) => ({
@@ -2708,8 +2691,6 @@ export function StudioOperatorPanel({
                         ? STUDIO_OPERATOR_SPEAKERS.user
                         : STUDIO_OPERATOR_SPEAKERS.assistant,
                     node: renderBlock(first),
-                    standalone:
-                      first.kind === 'entry' && first.entry.kind === 'chatMark',
                   }
                 },
               )
@@ -3106,12 +3087,6 @@ export function StudioOperatorPanel({
                   : {})}
               />
             )}
-
-            {/* 台上停在聊天档：先说一句、给一颗「切到工作」（用户 11-18），⛔ 等她拒绝一轮才知道。
-                「在台上」与规格行同一个判据（`face.specLine`，首页那张脸不画）。 */}
-            {operatorHost.face.specLine ? (
-              <StudioOperatorChatModeBenchHint />
-            ) : null}
 
             {/* ── 输入区（D12 A 定稿 · T-A）：**一个边框** = 文字 + 工具行 ──────────
           ⭐ 工具行：裸图标（上传 · 素材库）· 助手模型灰字 · 圆形发送键，

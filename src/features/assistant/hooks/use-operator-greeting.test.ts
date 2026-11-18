@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { ASSISTANT_CHAT_MODE_IDS } from '@/constants/assistant-protocol'
+import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import { QUERY_KEYS } from '@/constants/query'
 import { cardGreetings } from '@/lib/tavern-card'
 
@@ -31,7 +31,11 @@ beforeEach(async () => {
   queryClient.setQueryData(QUERY_KEYS.assistantPersona, {
     character: CHARACTER,
   })
-  store.settleOperatorChatMode(ASSISTANT_CHAT_MODE_IDS.chat)
+  // 开场白只摆在首页那张脸（没台）：11-18 起看的是有没有台，⛔ 再看「聊天 / 工作」档。
+  store.claimOperatorThreadScope(
+    'acct:home',
+    ASSISTANT_PROTOCOL_DOMAIN_IDS.home,
+  )
 })
 
 describe('cardGreetings', () => {
@@ -119,7 +123,7 @@ describe('发第一句时接进线程', () => {
     expect(store.getOperatorState().entries).toHaveLength(1)
   })
 
-  it('线程不空、换了会话、换到工作档、换了人：都不接', () => {
+  it('线程不空、换了会话、到了台上、换了人：都不接', () => {
     const threadId = store.getOperatorState().localThreadId
     // 换了会话
     greeting.offerOperatorGreeting('another-thread', CHARACTER.id, ['你来啦。'])
@@ -129,19 +133,19 @@ describe('发第一句时接进线程', () => {
     greeting.offerOperatorGreeting(threadId, 'card-2', ['你来啦。'])
     greeting.commitOperatorGreeting()
     expect(store.getOperatorState().entries).toEqual([])
-    // 工作档
-    store.switchOperatorChatMode(ASSISTANT_CHAT_MODE_IDS.work, {
-      id: CHARACTER.id,
-      name: CHARACTER.name,
-    })
+    // 到了台上（同一条线程换到图片台：开口就是干活，开场白不接）
+    store.claimOperatorThreadScope(
+      'acct:home',
+      ASSISTANT_PROTOCOL_DOMAIN_IDS.image,
+    )
     greeting.offerOperatorGreeting(threadId, CHARACTER.id, ['你来啦。'])
     greeting.commitOperatorGreeting()
     expect(store.getOperatorState().entries).toEqual([])
-    // 线程不空
-    store.switchOperatorChatMode(ASSISTANT_CHAT_MODE_IDS.chat, {
-      id: CHARACTER.id,
-      name: CHARACTER.name,
-    })
+    // 线程不空（回到首页）
+    store.claimOperatorThreadScope(
+      'acct:home',
+      ASSISTANT_PROTOCOL_DOMAIN_IDS.home,
+    )
     store.appendOperatorEntry({
       kind: 'user',
       id: 'user-1',

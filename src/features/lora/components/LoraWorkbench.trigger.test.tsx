@@ -1,4 +1,5 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor } from '@testing-library/react'
+import { toast } from 'sonner'
 import {
   afterAll,
   afterEach,
@@ -9,6 +10,10 @@ import {
   vi,
 } from 'vitest'
 
+import {
+  StudioLibraryPickProvider,
+  useSendRecipeToLoraBench,
+} from '@/contexts/studio-library-pick'
 import { __resetCivitaiLibraryCacheForTests } from '@/features/lora/hooks/use-civitai-lora-library'
 import { __resetMinedPromptsCacheForTests } from '@/features/lora/hooks/use-civitai-mined-prompts'
 import { __resetModelDescriptionCacheForTests } from '@/features/lora/hooks/use-civitai-model-description'
@@ -20,6 +25,7 @@ import {
   loraWorkbenchServer,
   minedRecipe,
   mountedLora,
+  mountedPills,
   promptBox,
   removeMountedLora,
   renderBench as renderWith,
@@ -324,5 +330,57 @@ describe('LoraWorkbench 触发词 — 写在正文里', () => {
 
     expect(promptBox()).toHaveValue('testlora, best quality, 1girl')
     expect((await generate()).freePrompt).toBe('testlora, best quality, 1girl')
+  })
+})
+
+// ── 从库整页「去 LoRA 台用」带过来（库先挂上，台落地后认领）：说一声「已挂上」，
+// 触发词写在提示里、⛔ 自动改正文；撤销 = 拿掉这一把。
+describe('LoraWorkbench — 从库带过来的那一把', () => {
+  function SendFromLibrary() {
+    const send = useSendRecipeToLoraBench()
+    return (
+      <button
+        type="button"
+        onClick={() => send?.({ assetId: 'lora-1', newlyMounted: true })}
+      >
+        send-from-library
+      </button>
+    )
+  }
+
+  it('announces the mount with its trigger words and an undo, without touching the prompt', async () => {
+    await renderWith(
+      <StudioLibraryPickProvider>
+        <SendFromLibrary />
+        <LoraWorkbench />
+      </StudioLibraryPickProvider>,
+    )
+    const before = (promptBox() as HTMLTextAreaElement).value
+    fireEvent.click(screen.getByRole('button', { name: 'send-from-library' }))
+
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith(
+        'LoraWorkbench.browse:arrivedMounted',
+        expect.objectContaining({
+          description: 'LoraWorkbench.browse:arrivedTriggers',
+          action: expect.objectContaining({ label: 'Feedback:undo' }),
+        }),
+      ),
+    )
+    expect((promptBox() as HTMLTextAreaElement).value).toBe(before)
+
+    const call = vi
+      .mocked(toast.success)
+      .mock.calls.find(
+        ([title]) => title === 'LoraWorkbench.browse:arrivedMounted',
+      )
+    const action = call?.[1]?.action
+    expect(action).toMatchObject({ label: 'Feedback:undo' })
+    act(() =>
+      (action as { onClick: (event: never) => void }).onClick(
+        undefined as never,
+      ),
+    )
+    await waitFor(() => expect(mountedPills()).toHaveLength(0))
   })
 })

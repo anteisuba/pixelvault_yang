@@ -1583,6 +1583,29 @@ const CivitaiImageMetaInnerSchema = z
 //   - Double-nested (when only modelId is set):
 //       img.meta = { id, meta: { prompt, resources, ... } }
 // We pass through both layers so the consumer can try inner-then-outer.
+
+/** 名字写法的分级 → 数值档（与 model-versions images[] 同一套：1 · 2 · 4 · 8 · 16）。 */
+const CIVITAI_NSFW_LEVEL_BY_NAME: Readonly<Record<string, number>> = {
+  none: 1,
+  soft: 2,
+  mature: 4,
+  x: 8,
+  xxx: 16,
+}
+
+/** /api/v1/images 的 `nsfwLevel`（数值或名字）→ 数值档；认不出 = 未知。 */
+export function civitaiImageNsfwLevel(
+  value: number | string | undefined,
+): number | undefined {
+  if (typeof value === 'number') {
+    return Number.isInteger(value) ? value : undefined
+  }
+  if (typeof value === 'string') {
+    return CIVITAI_NSFW_LEVEL_BY_NAME[value.trim().toLowerCase()]
+  }
+  return undefined
+}
+
 const CivitaiImageItemSchema = z
   .object({
     id: z.union([z.number(), z.string()]).optional(),
@@ -1595,6 +1618,9 @@ const CivitaiImageItemSchema = z
     // Present on /api/v1/images even when meta.civitaiResources is empty —
     // used to attach strong locators to name-only extras (P2).
     modelVersionIds: z.array(z.number().int().positive()).optional(),
+    // /api/v1/images 的分级：数值档或旧写法的名字（None / Soft / Mature / X / XXX），
+    // 统一换成数值档（`civitaiImageNsfwLevel`）。
+    nsfwLevel: z.union([z.number(), z.string()]).optional(),
     meta: z
       .object({
         prompt: z.string().optional(),
@@ -2098,6 +2124,7 @@ async function fetchModelVersionSourceRecipes(
       imageUrl: image.url,
       width: image.width,
       height: image.height,
+      ...(image.nsfwLevel !== undefined ? { nsfwLevel: image.nsfwLevel } : {}),
       source: 'model_version_image',
       prompt,
       ...extractRecipeMetaParams(image.meta ?? {}),
@@ -2456,10 +2483,12 @@ async function fetchCommunityImageRecipes(
     // 不在这里截到 CIVITAI_IMAGES_RECIPE_CAP：前几张常是作者自己那几张，
     // 得先和作者图去重再截（样本本身受 CIVITAI_IMAGES_SAMPLE_LIMIT 限制）。
     if (item.url && cleanedPrompt) {
+      const nsfwLevel = civitaiImageNsfwLevel(item.nsfwLevel)
       recipes.push({
         imageUrl: item.url,
         width: item.width,
         height: item.height,
+        ...(nsfwLevel !== undefined ? { nsfwLevel } : {}),
         source: 'community_image',
         prompt: cleanedPrompt,
         ...extractRecipeMetaParams(sdMeta),

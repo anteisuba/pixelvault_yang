@@ -43,10 +43,15 @@ import { parseHuggingFaceLoraSourceUrl } from '@/features/lora/lib/huggingface-l
 import { extraLoraKey } from '@/features/lora/lib/lora-recipe-extra-mount'
 import { buildLibraryFavoriteRequest } from '@/features/lora/lib/lora-source-snapshot'
 import { isLoraBaseModelMountCompatible } from '@/features/lora/lib/lora-model-compatibility'
+import {
+  isLoraSampleVisible,
+  loraSampleRating,
+} from '@/features/lora/lib/lora-sample-rating'
 import { cn } from '@/lib/utils'
 import type {
   CivitaiImageRecipe,
   CivitaiLoraLibraryItem,
+  CivitaiRecipeExtraLora,
   FavoriteLoraRequest,
   LoraCandidateLicense,
 } from '@/types'
@@ -121,6 +126,16 @@ interface LoraLibraryDetailPageProps {
   /** 各版本封面按这一档分级限定（与列表同一档）。 */
   nsfwFilter: LoraNsfwFilter
   onClose: () => void
+  /**
+   * 样例查看器里的「用这张的配方」：挂上当前这一版、带着这张的配方去 LoRA 台做同款。
+   * 不给 = 只能复制配方（框里、外壳外面）。
+   */
+  onUseRecipe?: (
+    item: CivitaiLoraLibraryItem,
+    recipe: CivitaiImageRecipe,
+    includeSeed: boolean,
+    extraLoras: readonly CivitaiRecipeExtraLora[],
+  ) => void
   /** 缺省 Civitai。 */
   origin?: LoraLibraryDetailOrigin
   /**
@@ -162,6 +177,7 @@ export function LoraLibraryDetailPage({
   onToggleFavorite,
   nsfwFilter,
   onClose,
+  onUseRecipe,
   origin = 'civitai',
   versions: givenVersions,
   extraMenu = [],
@@ -199,8 +215,6 @@ export function LoraLibraryDetailPage({
   const favorited = isFavorited(current)
   const canFavorite = origin !== 'trained'
   const license = licenseFacts(current, origin)
-  // 分级只有 Civitai 条目带；收藏记录与 Hugging Face 没有就不写，⛔ 默认成「安全」。
-  const rating = typeof current.isNsfw === 'boolean' ? current.isNsfw : null
 
   const pageRef = useRef<HTMLDivElement>(null)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -218,6 +232,28 @@ export function LoraLibraryDetailPage({
       if (copiedTimer.current) clearTimeout(copiedTimer.current)
     }
   }, [])
+
+  // 标签页标题带上这个 LoRA 的名字（「名字 · 库页标题」），关上还原。外壳换页时会重写
+  // `<title>`，盯着它：被改回库页标题就再写一次。
+  const titleName = current.name
+  useEffect(() => {
+    const baseTitle = document.title
+    document.title = baseTitle ? `${titleName} · ${baseTitle}` : titleName
+    // 读回来比（浏览器会折叠空白）。
+    const wanted = document.title
+    const observer = new MutationObserver(() => {
+      if (document.title === baseTitle) document.title = wanted
+    })
+    observer.observe(document.head, {
+      subtree: true,
+      childList: true,
+      characterData: true,
+    })
+    return () => {
+      observer.disconnect()
+      if (document.title === wanted) document.title = baseTitle
+    }
+  }, [titleName])
 
   // Esc：大图 / 菜单开着时它们自己收，这里只在最外层时关整页。
   useEffect(() => {
@@ -248,8 +284,34 @@ export function LoraLibraryDetailPage({
 
   // 样例：带配方的逐图配方在前，作者没带配方的示例图在后（作者的图必放）；
   // 都没有时退回作者示例图（Hugging Face 是 README 里的图），只看图。
+  // 高于浏览档位的样例一律不进样例墙与查看器（缩略条吃的也是这一份）。
+  const visibleRecipes = useMemo(
+    () =>
+      mined.recipes.filter((recipe) =>
+        isLoraSampleVisible(recipe.nsfwLevel, nsfwFilter),
+      ),
+    [mined.recipes, nsfwFilter],
+  )
+  const visiblePreviewImages = useMemo(
+    () =>
+      mined.previewImages.filter((image) =>
+        isLoraSampleVisible(image.nsfwLevel, nsfwFilter),
+      ),
+    [mined.previewImages, nsfwFilter],
+  )
+  // 分级如实写：按全部样例（含藏掉的）的最高档，⛔ 只信模型级标记。
+  const rating = isCivitai
+    ? loraSampleRating({
+        modelNsfw: typeof current.isNsfw === 'boolean' ? current.isNsfw : null,
+        sampleLevels: [
+          ...mined.recipes.map((recipe) => recipe.nsfwLevel),
+          ...mined.previewImages.map((image) => image.nsfwLevel),
+        ],
+        settled: mined.hasFetched && !mined.isLoading && !mined.error,
+      })
+    : null
   const samples = useMemo<readonly Sample[]>(() => {
-    const withRecipe = mined.recipes.map((recipe) => ({
+    const withRecipe = visibleRecipes.map((recipe) => ({
       url: recipe.imageUrl,
       hasRecipe: true,
       ratio:
@@ -258,7 +320,7 @@ export function LoraLibraryDetailPage({
     const recipeUrls = new Set(withRecipe.map((sample) => sample.url))
     const previews =
       mined.previewImages.length > 0
-        ? mined.previewImages.map((image) => ({
+        ? visiblePreviewImages.map((image) => ({
             url: image.imageUrl,
             videoUrl: image.videoUrl,
             hasRecipe: false,
@@ -277,15 +339,16 @@ export function LoraLibraryDetailPage({
     ]
   }, [
     current.previewImageUrls,
-    mined.previewImages,
-    mined.recipes,
+    mined.previewImages.length,
     showcase.images,
+    visiblePreviewImages,
+    visibleRecipes,
   ])
   const samplesLoading = mined.isLoading || showcase.isLoading
   // 查看器吃的是「配方」：没配方的样例补成只有图的一条（右栏写「这张没有公开配方」）。
   const viewerRecipes = useMemo<readonly CivitaiImageRecipe[]>(
     () => [
-      ...mined.recipes,
+      ...visibleRecipes,
       ...samples
         .filter((sample) => !sample.hasRecipe)
         .map((sample) => ({
@@ -295,9 +358,9 @@ export function LoraLibraryDetailPage({
           prompt: '',
         })),
     ],
-    [mined.recipes, samples],
+    [samples, visibleRecipes],
   )
-  const recipeCount = mined.recipes.length
+  const recipeCount = visibleRecipes.length
 
   // 查看器「这张还叠了」：挂载栈里已经有的（按 hash / 版本号认）写「已挂载」。
   const mountedExtraKeys = useMemo(() => {
@@ -845,7 +908,9 @@ export function LoraLibraryDetailPage({
                   <div className="flex flex-wrap gap-1.5 text-xs">
                     {rating !== null ? (
                       <span className={chip}>
-                        {rating ? tb('ratingMature') : tb('ratingSafe')}
+                        {rating === 'mature'
+                          ? tb('ratingMature')
+                          : tb('ratingSafe')}
                       </span>
                     ) : null}
                     {license && !license.known ? (
@@ -974,7 +1039,7 @@ export function LoraLibraryDetailPage({
         </AnimatePresence>
       </div>
 
-      {/* 样例大图：与生成台同一个查看器；库里没有「做同款」。 */}
+      {/* 样例大图：与生成台同一个查看器；库里的「做同款」= 带着配方去 LoRA 台。 */}
       <LoraRecipeViewer
         open={viewer.open}
         origin={viewer.origin}
@@ -987,6 +1052,14 @@ export function LoraLibraryDetailPage({
         assetName={current.name}
         sourceUrl={current.modelPageUrl}
         mountedExtraKeys={mountedExtraKeys}
+        applyLabel={tb('useRecipe')}
+        applyHint={tb('useRecipeHint')}
+        onApplyRecipe={
+          onUseRecipe
+            ? (recipe, includeSeed, extraLoras) =>
+                onUseRecipe(current, recipe, includeSeed, extraLoras)
+            : undefined
+        }
       />
     </motion.div>
   )

@@ -247,6 +247,12 @@
         "lineTitle": "{name} samples"
       },
       "emptyTitle": "What do you want to make?",
+      "starterDescription": "Mount a LoRA to lock a character or style, then describe the picture.",
+      "starterExamples": {
+        "a": "1girl, solo, upper body, smile, looking at viewer, outdoors",
+        "b": "full body, standing, city street, night, neon lights",
+        "c": "portrait, close-up, soft lighting, simple background"
+      },
       "busy": "Generating",
       "assistantBusy": "The bench is still busy (generating, or mounting recipe LoRAs) — ask again once it is done",
       "restoreShort": "Restore",
@@ -721,7 +727,13 @@
       "openDetail": "View details",
       "segmentCorrected": "Nothing for “{query}” · {count} for “{corrected}”",
       "segmentLive": "Not indexed yet · {count} found live on Civitai",
-      "segmentMeaning": "Similar in meaning"
+      "segmentMeaning": "Similar in meaning",
+      "useRecipe": "Use this recipe",
+      "useRecipeHint": "Mounts this LoRA and brings this image's prompt, size and more to the LoRA bench. If the bench already has input, you review it first and can undo. Nothing is generated yet.",
+      "detailNotFound": "This LoRA couldn't be found. Back to the library.",
+      "arrivedMounted": "Mounted {name}",
+      "arrivedTriggers": "Trigger words: {triggers} (add them to your prompt if needed)",
+      "arrivedIncompatible": "Not compatible with the current base {base}; it won't take effect."
     },
     "characterLoras": {
       "pickEntry": "From character",

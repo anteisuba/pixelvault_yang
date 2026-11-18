@@ -19,6 +19,7 @@ import {
   DEFAULT_LORA_NSFW_FILTER,
   LORA_CONTENT_TYPE_VALUES_BY_SOURCE,
   LORA_LIBRARY_BROWSE_PAGE_SIZE,
+  LORA_LIBRARY_DETAIL_PARAM,
   LORA_LIBRARY_FAMILY_VALUES_BY_SOURCE,
   LORA_LIBRARY_SOURCES,
   LORA_NSFW_FILTER_VALUES,
@@ -31,10 +32,14 @@ import {
   isCivitaiLoraSort,
   type LoraNsfwFilter,
 } from '@/constants/lora'
-import { useLoraBenchHandoff } from '@/contexts/studio-library-pick'
+import {
+  useSendRecipeToLoraBench,
+  useSendToLoraBench,
+} from '@/contexts/studio-library-pick'
 import { useActiveLoraStack } from '@/features/lora/hooks/use-active-lora-stack'
 import { useCivitaiDownloadGate } from '@/features/lora/hooks/use-civitai-download-gate'
 import { useCivitaiLoraLibraryWithUrl } from '@/features/lora/hooks/use-civitai-lora-library-url'
+import { useLibraryQuery } from '@/hooks/use-library-query'
 import { useLoadMoreOnScroll } from '@/hooks/use-load-more-on-scroll'
 import {
   consumeLoraLibrarySearch,
@@ -44,11 +49,23 @@ import {
 } from '@/features/lora/hooks/use-lora-library-agent'
 import { useHandMentionToAssistant } from '@/features/assistant/hooks'
 import { useLoraSearchHistory } from '@/features/lora/hooks/use-lora-search-history'
-import { listCivitaiLoraAssetsAPI } from '@/lib/api-client/lora-assets'
+import {
+  listCivitaiLoraAssetsAPI,
+  resolveCivitaiLoraAPI,
+} from '@/lib/api-client/lora-assets'
+import {
+  parseCivitaiLibraryItemId,
+  resolvedAssetToLibraryItem,
+} from '@/features/lora/lib/lora-asset-library-item'
 import { proxyCivitaiImageUrl } from '@/features/lora/lib/civitai-image-url'
 import { formatCompactNumber } from '@/lib/format-compact-number'
 import { cn } from '@/lib/utils'
-import type { CivitaiLoraLibraryItem, LoraAssetRecord } from '@/types'
+import type {
+  CivitaiImageRecipe,
+  CivitaiLoraLibraryItem,
+  CivitaiRecipeExtraLora,
+  LoraAssetRecord,
+} from '@/types'
 import { Button } from '@/components/ui/button'
 import { LIBRARY_GRID_CLASS, LibraryToolbar } from '@/components/ui/library-kit'
 import { LiquidSegmented } from '@/components/ui/liquid-segmented'
@@ -61,6 +78,7 @@ import {
 } from './lora-library-filter-labels'
 import { LoraLibraryFilterCombobox } from './LoraLibraryFilterCombobox'
 import { LoraLibrarySearchBox } from './LoraLibrarySearchBox'
+import { LoraLibrarySkeletonGrid } from './LoraLibrarySkeleton'
 import { LoraLibraryTile, loraMention } from './LoraLibraryTile'
 import { LoraLibraryTypeSparseCard } from './LoraLibraryTypeStates'
 
@@ -69,9 +87,6 @@ const NSFW_FILTER_LABEL_KEYS: Record<LoraNsfwFilter, string> = {
   nsfwOnly: 'nsfwFilterNsfwOnly',
   safe: 'nsfwFilterSafe',
 }
-
-/** 首屏还没有结果时铺几格占位（6 列 × 2 行）。 */
-const SKELETON_TILES = 12
 
 interface LoraLibraryBrowseProps {
   /** Civitai / Hugging Face 那颗分段（来源记在网址里，由上层持有）。 */
@@ -97,7 +112,7 @@ type Relaxation = {
  *
  * ⭐ 换筛选 / 搜新词：旧结果变淡到 42% 留在原地，新的第一段到了整批换掉 —— ⛔ 清成
  *   白屏、⛔ 转圈（hook 的 `accumulate`）。
- * ⭐ 挂载 = 过下载闸 → `push`，⛔ toast、⛔ 跳到生成台（左边竖条会多一张小封面）。
+ * ⭐ 挂载 = 过下载闸 → `push`；台没开时「去 LoRA 台用」跳过去，「已挂上」由台落地后说。
  * ⚠ 搜不到时给「放宽一项」，每颗带放宽以后的**真实**数量（只在结果为空时各问一次
  *   上游，⛔ 猜数）。
  */
@@ -111,7 +126,8 @@ export function LoraLibraryBrowse({
   const tb = useTranslations('LoraWorkbench.browse')
   const format = useFormatter()
   const stack = useActiveLoraStack()
-  const handoff = useLoraBenchHandoff()
+  const sendToBench = useSendToLoraBench()
+  const sendRecipe = useSendRecipeToLoraBench()
   const { ensureMountable } = useCivitaiDownloadGate()
   const library = useCivitaiLoraLibraryWithUrl({
     accumulate: true,
@@ -121,8 +137,75 @@ export function LoraLibraryBrowse({
   const agent = useLoraLibraryAgent()
   const hand = useHandMentionToAssistant()
   const [mountingId, setMountingId] = useState<string | null>(null)
-  // 打开的详情页：存这一项本身（往下滚接了新的一段、或换了筛选，它都还在）。
-  const [openItem, setOpenItem] = useState<CivitaiLoraLibraryItem | null>(null)
+  // 打开的详情页记在网址里（`?lora=<条目 id>`，刷新 / 分享回到它、浏览器后退关掉它）；
+  // 条目本身另存一份（往下滚接了新的一段、或换了筛选，它都还在）。
+  const query = useLibraryQuery()
+  const openKey = query.params.get(LORA_LIBRARY_DETAIL_PARAM)
+  const [opened, setOpened] = useState<{
+    key: string
+    item: CivitaiLoraLibraryItem
+  } | null>(null)
+  /** 这一次是点开的（记了一步历史）：关的时候后退，⛔ 再叠一步。 */
+  const pushedKeyRef = useRef<string | null>(null)
+  const openItem = openKey
+    ? opened?.key === openKey
+      ? opened.item
+      : (library.items.find((item) => item.id === openKey) ?? null)
+    : null
+  const openDetail = useCallback(
+    (item: CivitaiLoraLibraryItem) => {
+      setOpened({ key: item.id, item })
+      const params = new URLSearchParams(query.params.toString())
+      params.set(LORA_LIBRARY_DETAIL_PARAM, item.id)
+      pushedKeyRef.current = item.id
+      query.push(params)
+    },
+    [query],
+  )
+  const closeDetail = useCallback(() => {
+    if (query.back && pushedKeyRef.current === openKey) {
+      pushedKeyRef.current = null
+      query.back()
+      return
+    }
+    pushedKeyRef.current = null
+    const params = new URLSearchParams(query.params.toString())
+    params.delete(LORA_LIBRARY_DETAIL_PARAM)
+    query.replace(params)
+  }, [openKey, query])
+  // 刷新 / 贴来的链接：列表里没有这一把就按版本号取回来（取不到 = 去掉参数、说一声）。
+  const missingKey = openKey && !openItem && !library.isLoading ? openKey : null
+  const { replace: replaceQuery, params: queryParams } = query
+  useEffect(() => {
+    if (!missingKey) return
+    const ids = parseCivitaiLibraryItemId(missingKey)
+    const controller = new AbortController()
+    const dropParam = () => {
+      const params = new URLSearchParams(queryParams.toString())
+      params.delete(LORA_LIBRARY_DETAIL_PARAM)
+      replaceQuery(params)
+      toast.info(tb('detailNotFound'), { duration: LORA_TOAST_DURATION_MS })
+    }
+    if (!ids) {
+      dropParam()
+      return
+    }
+    void resolveCivitaiLoraAPI({ modelVersionId: ids.modelVersionId }).then(
+      (response) => {
+        if (controller.signal.aborted) return
+        if (!response.success || !response.data) {
+          dropParam()
+          return
+        }
+        const item = resolvedAssetToLibraryItem(response.data)
+        setOpened({
+          key: missingKey,
+          item: { ...item, modelId: item.modelId || ids.modelId },
+        })
+      },
+    )
+    return () => controller.abort()
+  }, [missingKey, queryParams, replaceQuery, tb])
   const scrollRef = useRef<HTMLDivElement>(null)
   const sentinelRef = useRef<HTMLDivElement>(null)
 
@@ -194,45 +277,85 @@ export function LoraLibraryBrowse({
   }, [agentActive, agentPending, filterKey, matchesAgent])
 
   // 连版本号一起认：从收藏挂上的（收藏记录的 id / 链接写法）也算这一版已挂。
-  const isMounted = useCallback(
+  const mountedEntry = useCallback(
     (item: CivitaiLoraLibraryItem) =>
-      stack.items.some(
+      stack.items.find(
         (entry) =>
           entry.asset.id === item.id ||
           entry.asset.loraUrl === item.loraUrl ||
           (item.modelVersionId > 0 &&
             entry.asset.modelVersionId === item.modelVersionId),
-      ),
+      ) ?? null,
     [stack.items],
+  )
+  const isMounted = useCallback(
+    (item: CivitaiLoraLibraryItem) => mountedEntry(item) !== null,
+    [mountedEntry],
+  )
+  /**
+   * 挂上这一把：过下载闸、能出图的家族才挂。返回挂载栈里那一把的 id 与是不是这一下才挂上的；
+   * 挂不上（闸拦了 / 去 Civitai 站内出图）= `null`。
+   */
+  const mountItem = useCallback(
+    async (
+      item: CivitaiLoraLibraryItem,
+    ): Promise<{ assetId: string; newlyMounted: boolean } | null> => {
+      const existing = mountedEntry(item)
+      if (existing) return { assetId: existing.asset.id, newlyMounted: false }
+      // ⛔ 作者关了下载的挂上去只是陷阱——判据在下载闸里（与库 modal 同一份）。
+      if (!(await ensureMountable(item))) return null
+      // 没有可用推理端点的家族：去 Civitai 站内出图，⛔ 挂上一个注定失败的。
+      if (!isCivitaiBaseModelGeneratable(item.baseModelFamily)) {
+        window.open(item.modelPageUrl, '_blank', 'noopener,noreferrer')
+        toast.info(t('externalUseRedirect', { name: item.name }), {
+          duration: LORA_TOAST_DURATION_MS,
+        })
+        return null
+      }
+      stack.push(item)
+      // 挂的是助手圈的那一把：那张撤圈，线程里落一行「你挂上了…」。
+      markLoraLibraryPickMounted(item.id)
+      return { assetId: item.id, newlyMounted: true }
+    },
+    [ensureMountable, mountedEntry, stack, t],
   )
   const handleMount = useCallback(
     async (item: CivitaiLoraLibraryItem) => {
       if (mountingId) return
-      if (isMounted(item)) {
-        handoff?.()
-        return
-      }
       setMountingId(item.id)
       try {
-        // ⛔ 作者关了下载的挂上去只是陷阱——判据在下载闸里（与库 modal 同一份）。
-        if (!(await ensureMountable(item))) return
-        // 没有可用推理端点的家族：去 Civitai 站内出图，⛔ 挂上一个注定失败的。
-        if (!isCivitaiBaseModelGeneratable(item.baseModelFamily)) {
-          window.open(item.modelPageUrl, '_blank', 'noopener,noreferrer')
-          toast.info(t('externalUseRedirect', { name: item.name }), {
-            duration: LORA_TOAST_DURATION_MS,
-          })
-          return
-        }
-        stack.push(item)
-        // 挂的是助手圈的那一把：那张撤圈，线程里落一行「你挂上了…」。
-        markLoraLibraryPickMounted(item.id)
-        handoff?.()
+        const mounted = await mountItem(item)
+        // 台没开：去台上，台落地后说「已挂上 XXX」（带撤销与触发词）。台开着留在原地。
+        if (mounted) sendToBench?.(mounted)
       } finally {
         setMountingId(null)
       }
     },
-    [ensureMountable, handoff, isMounted, mountingId, stack, t],
+    [mountItem, mountingId, sendToBench],
+  )
+  /** 「用这张的配方」：挂上这一把，带着这张的配方去台上走「做同款」。 */
+  const handleUseRecipe = useCallback(
+    async (
+      item: CivitaiLoraLibraryItem,
+      recipe: CivitaiImageRecipe,
+      includeSeed: boolean,
+      extraLoras: readonly CivitaiRecipeExtraLora[],
+    ) => {
+      if (mountingId || !sendRecipe) return
+      setMountingId(item.id)
+      try {
+        const mounted = await mountItem(item)
+        if (mounted) {
+          sendRecipe({
+            ...mounted,
+            recipe: { recipe, includeSeed, extraLoras },
+          })
+        }
+      } finally {
+        setMountingId(null)
+      }
+    },
+    [mountItem, mountingId, sendRecipe],
   )
   const handleFavoriteToggle = useCallback(
     async (item: CivitaiLoraLibraryItem) => {
@@ -411,7 +534,7 @@ export function LoraLibraryBrowse({
           !isMounted(item) &&
           agent.picks.some((pick) => pick.candidateId === item.id)
         }
-        onOpen={() => setOpenItem(item)}
+        onOpen={() => openDetail(item)}
         onMount={() => handleMount(item)}
         pickId={item.id}
         favorite={{
@@ -546,15 +669,7 @@ export function LoraLibraryBrowse({
         className="@container relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pt-1"
       >
         {library.isLoading ? (
-          <div className={LIBRARY_GRID_CLASS} aria-hidden>
-            {Array.from({ length: SKELETON_TILES }, (_, index) => (
-              <div key={index} className="flex flex-col gap-1.5">
-                <span className="block aspect-3/4 rounded-12 bg-muted" />
-                <span className="h-2.5 w-3/4 rounded bg-muted" />
-                <span className="h-2.5 w-1/2 rounded bg-muted" />
-              </div>
-            ))}
-          </div>
+          <LoraLibrarySkeletonGrid />
         ) : library.error && library.items.length === 0 ? (
           <div className="flex items-center justify-between gap-3 rounded-xl bg-status-risk-surface px-3.5 py-3 text-xs text-status-risk">
             <span className="flex items-start gap-2">
@@ -691,7 +806,18 @@ export function LoraLibraryBrowse({
             isFavorited={(target) => isFavorited(target.loraUrl)}
             onToggleFavorite={(target) => void handleFavoriteToggle(target)}
             nsfwFilter={library.nsfwFilter}
-            onClose={() => setOpenItem(null)}
+            onUseRecipe={
+              sendRecipe
+                ? (target, recipe, includeSeed, extraLoras) =>
+                    void handleUseRecipe(
+                      target,
+                      recipe,
+                      includeSeed,
+                      extraLoras,
+                    )
+                : undefined
+            }
+            onClose={closeDetail}
           />
         ) : null}
       </AnimatePresence>

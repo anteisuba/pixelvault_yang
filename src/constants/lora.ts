@@ -42,6 +42,8 @@ export const LORA_LIBRARY_FAMILY_PARAM = 'family'
 export const LORA_LIBRARY_SEARCH_PARAM = 'q'
 export const LORA_LIBRARY_SORT_PARAM = 'sort'
 export const LORA_LIBRARY_NSFW_PARAM = 'nsfw'
+/** 库里打开的那一个 LoRA 的详情（值 = 条目 id `civitai:<模型>:<版本>`；刷新 / 分享回到它）。 */
+export const LORA_LIBRARY_DETAIL_PARAM = 'lora'
 // source= 语义 = tab 切换（civitai/huggingface），默认 civitai 不入 URL。
 export const LORA_LIBRARY_SOURCE_PARAM = 'source'
 export const LORA_LIBRARY_SOURCES = {

@@ -22,10 +22,7 @@ import {
   ASSISTANT_OPERATOR_TOOL_VERBS,
 } from '@/constants/assistant-operator'
 import type { AssistantRouteModel } from '@/constants/assistant-persona'
-import {
-  ASSISTANT_CHAT_MODE_IDS,
-  ASSISTANT_PROTOCOL_DOMAIN_IDS,
-} from '@/constants/assistant-protocol'
+import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import {
   ASSISTANT_TURN_RECORD_LIMITS,
   ASSISTANT_TURN_RECORD_OUTCOME_IDS as TURN_OUTCOME,
@@ -169,9 +166,7 @@ import {
 } from '@/features/assistant/bench'
 import { benchAliases } from '@/features/assistant/workspace.service'
 import {
-  ASSISTANT_NEXT_EDIT_OP_IDS,
   ASSISTANT_NEXT_LIMITS,
-  ASSISTANT_NEXT_OPEN_LIBRARY_BENCH,
   ASSISTANT_NEXT_PROMPT_VERSION,
   ASSISTANT_NEXT_TOOL_IDS,
 } from '@/features/assistant/constants'
@@ -196,11 +191,12 @@ import {
   pairProviderToolParts,
   stripForFallback,
 } from '@/features/assistant/messages'
+import { isLibraryOp } from '@/features/assistant/library'
 import { resolveNextModel, type NextModel } from '@/features/assistant/models'
 import {
   buildNextSystemPrompt,
-  chatCharacterOf,
   chatReminder,
+  playedCharacterOf,
   turnFactsSection,
   worldNotesSection,
 } from '@/features/assistant/prompt'
@@ -288,6 +284,9 @@ const LANDING_UNKNOWN =
 /** 开台（第 9e 步）：同一步里排在 `open` 后面的调用 —— 到了新台再做。 */
 const NOT_RUN_AFTER_OPEN =
   'Not run: you opened another bench in this step. Do it there, after the result shows the new bench.'
+/** 没台却要改表单 / 出图（`benchlessRefusal`）：引模型自己开台，到了接着做。 */
+const BENCHLESS_REFUSAL =
+  'Not run: no bench is open, so there is no form to change and nothing to generate here. Open the bench this belongs on yourself with open (image, tags, video, lora or canvas) — the result is the new bench, and you carry on there in this same turn: make the change, and generate if they asked for a picture. Do not tell the creator to go there and ask again. If it is unclear which bench (an aspect ratio exists on both image and video), ask once with an ask card first. Library, settings and memory edits work without a bench: send those in an edit of their own.'
 /** 接力条没存下：这一次开不了台。 */
 const OPEN_NOT_KEPT =
   'Could not open it right now. Tell the creator which bench to switch to, or carry on here.'
@@ -368,7 +367,7 @@ interface NextTurnRecording {
     startedAt: number
     /** 开跑到第一次模型调用发出去（含下面的先想一步）。 */
     prepMs?: number
-    /** 聊天档回之前想的那一步（没想 = 缺席）。 */
+    /** 没台和角色聊时回之前想的那一步（没想 = 缺席）。 */
     planMs?: number
     /** 开跑到第一段正文发给浏览器。 */
     firstTextMs?: number
@@ -709,8 +708,8 @@ function distillTasteAfterTurn(input: Parameters<typeof maybeDistillTaste>[0]) {
 }
 
 /**
- * 没开台 = 和现在这位聊天（用户 10-26：她的对话只有一份，收台聊天、开台工作，⛔ 开关）。会话自己盖过章的
- * 旧聊天照它自己的。读不出来就照工作口吻答（⛔ 掀翻这一轮）。
+ * 没台的那一轮 = 和现在这位聊（用户 10-26 / 11-18：开台能干活、没台聊天，⛔ 开关）：把设置里那位记成这一轮的
+ * 会话角色，记忆按她记、按故事摘要。会话自己盖过章的旧聊天照它自己的。读不出来就照默认助手答（⛔ 掀翻这一轮）。
  */
 async function homeChatCharacter(clerkId: string): Promise<string | null> {
   try {
@@ -748,12 +747,18 @@ async function* runNextTurn(
   const homeDraft =
     initialRequest.domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.home &&
     isHomeDraftSnapshot(initialRequest.snapshot)
-  // 聊不聊看名字旁那枚胶囊（`chatMode`，跟着这段对话走）；没带的旧客户端照旧：首页聊、台上干活。
-  const wantsChat = initialRequest.chatMode
-    ? initialRequest.chatMode === ASSISTANT_CHAT_MODE_IDS.chat
-    : initialRequest.domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.home
+  /**
+   * ⭐ 这一轮能做什么只有一条规则（owner 11-18 去掉「聊天 / 工作」手动切换）：有可操作的台（图片 / 标签 /
+   *   视频 / LoRA 台、画布、角色页、首页带小配方）= 那台允许的全部工具；没有台 = 除了改表单和出图（没有台可改）
+   *   都照旧，要台就自己开台、到了接着做（`benchlessRefusal`；首页带小配方照图片台跑，所以工具那一头「脸是首页」
+   *   就是没台）。选没选角色都一样 —— 角色只管口吻与设定段。
+   *   ⚠ 请求里的 `chatMode` 已废弃，一律不读。
+   * 人设与有没有台无关：选了角色、卡上写了设定，她就是她（有台时角色人设由 `playSettingsCharacter` 读）。
+   */
+  const onBench =
+    homeDraft || initialRequest.domain !== ASSISTANT_PROTOCOL_DOMAIN_IDS.home
   const homeChatCharacterId =
-    wantsChat && !initialRequest.chatCharacterId
+    !onBench && !initialRequest.chatCharacterId
       ? await homeChatCharacter(clerkId)
       : null
   const request: AssistantOperatorRequest = {
@@ -771,11 +776,17 @@ async function* runNextTurn(
   const prepared = await prepareOperatorTurn(clerkId, request, signal, {
     skipPriorRounds: true,
     homeDraft,
+    playSettingsCharacter: onBench,
     ...(routeModel ? { routeModel } : {}),
   })
   const { user, persona, rules, route, run, modelId } = prepared
-  // 和角色聊天（第 7a 步 D）：自己的系统提示、记忆挂她身上、故事向摘要、每轮末尾一句「别出戏」。
-  const chat = chatCharacterOf(persona)
+  /** 她是哪位角色（有没有台都一样）：卡、世界书、表情包、每轮末尾那句提醒、她那份记忆都跟着。 */
+  const character = playedCharacterOf(persona)
+  /**
+   * 没台、又用着角色 = 和她聊的那一轮：回之前先想一步（`planChatTurn`）、想起见闻与话题小结、一行一个气泡、
+   * 故事向摘要、记忆默认记在她身上。有台的那一轮 ⛔ 这些（每改一次比例多等一次模型）。
+   */
+  const chat = onBench ? null : character
   /**
    * 她说的那几段带记号（②c-2）：在聊天 = 界面拆成一行一个气泡；用着角色 = 🔊 开着时念出来
    * （聊天整段念、开着台只念首尾段）。
@@ -871,7 +882,13 @@ async function* runNextTurn(
       }),
       // 台上的参考图 / 结果各自是哪一张（ref-N / result-N ↔ 图_N），每一跳现读。
       benchAliases(user.id, request.snapshot).catch(() => ''),
-      nextMemories(user.id, clerkId, request, chat?.id ?? null),
+      // 和她聊 = 她那份；有台时角色页开着的那位优先，其次是正在演的她（她记得你们之间的事）。
+      nextMemories(
+        user.id,
+        clerkId,
+        request,
+        chat?.id ?? request.snapshot.cards?.open?.id ?? character?.id ?? null,
+      ),
       token ? null : loadAssistantV3HistorySummaries(historyOwner),
       firstMessage
         ? loadAssistantLastTime(user.id, request.conversationId)
@@ -911,22 +928,25 @@ async function* runNextTurn(
     chat && !saved && request.incognito !== true
       ? recallOutingDigests({ userId: user.id, cardId: chat.id })
       : [],
-    // 4d：她手上能发的表情包（只在和她聊天时）。
-    chat && request.incognito !== true
-      ? loadChatStickers(user.id, chat.id).catch(() => null)
+    // 4d：她手上能发的表情包（用着角色就带，有没有台都一样；一次库读，与上面并着跑）。
+    character && request.incognito !== true
+      ? loadChatStickers(user.id, character.id).catch(() => null)
       : null,
   ])
-  // 和她聊天：你每说第 8 句，响应发完之后学一次你的说法（原在聊天页，用户 10-26 并进对话）。
-  if (chat && !saved && request.incognito !== true) {
+  /**
+   * 用着角色：你每说第 8 句学一次你的说法、攒够了写一篇日记 / 关系（都在响应发完之后的 `after` 里跑，
+   * ⛔ 拖慢这一轮），有没有台都跑（owner 11-18「回合后的后台学习可以保留」）。
+   */
+  if (character && !saved && request.incognito !== true) {
     learnPhrasesAfterTurn({
       userId: user.id,
-      cardId: chat.id,
+      cardId: character.id,
       messages: request.messages,
       assistant: { route, modelId },
     })
     reflectAfterTurn({
       userId: user.id,
-      cardId: chat.id,
+      cardId: character.id,
       messages: request.messages,
       assistant: { route, modelId },
       conversationId: request.conversationId,
@@ -940,7 +960,7 @@ async function* runNextTurn(
     yield { type: ASSISTANT_OPERATOR_EVENTS.done }
     return
   }
-  // 聊天档的「我的想法」= 刚才想的那一步（`chatPlanThoughts` 头注），挂在她这一段回复上。
+  // 没台和她聊的「我的想法」= 刚才想的那一步（`chatPlanThoughts` 头注），挂在她这一段回复上。
   if (mood)
     for (const line of chatPlanThoughts(mood.plan, language).slice(
       0,
@@ -1040,10 +1060,10 @@ async function* runNextTurn(
         ]
       : []
     /**
-     * 「别出戏」放在这一轮的消息里（⛔ 进系统提示：每轮都变会废掉缓存）。干活档没有这一句：「我的想法」
-     * 取自原生思考摘要，⛔ 再让模型手写 `<thought>`（11-17）。
+     * 「别出戏」放在这一轮的消息里（⛔ 进系统提示：每轮都变会废掉缓存）；用着角色就带（有台时没有心情那半句）。
+     * 「我的想法」有台时取自原生思考摘要，⛔ 再让模型手写 `<thought>`（11-17）。
      */
-    const reminder = chat ? chatReminder(persona, mood) : null
+    const reminder = character ? chatReminder(persona, mood) : null
     // 会被念出来（聊天页开着声音）：方括号语气提示的写法，和薄管子同一段（⛔ 进系统提示：开关随时会变）。
     const voice = request.chatVoice
       ? `HOW YOUR VOICE SOUNDS\n${voiceCueRules(request.chatVoice.expressive)}\n- These cues are not stage directions: they are allowed, and they are how the voice gets its feeling.${
@@ -1068,10 +1088,11 @@ async function* runNextTurn(
         persona,
         memories,
         historySummary: historyPlan.summary,
+        bench: onBench,
       }),
       renderAssistantLastTime(lastTime),
       renderFindingsRecall(findings) + renderOutingDigestsRecall(digests),
-      chat ? worldNotesSection(persona) : '',
+      character ? worldNotesSection(persona) : '',
     ]
       .map((part) => part.trim())
       .filter(Boolean)
@@ -1084,10 +1105,8 @@ async function* runNextTurn(
           called,
           voice,
           reminder,
-          !chat && wantsAskOnlyTurn(latestUserText)
-            ? ASK_ONLY_TURN_REMINDER
-            : null,
-          !chat && wantsNoGenerateTurn(latestUserText)
+          wantsAskOnlyTurn(latestUserText) ? ASK_ONLY_TURN_REMINDER : null,
+          wantsNoGenerateTurn(latestUserText)
             ? NO_GENERATE_TURN_REMINDER
             : null,
         ]
@@ -1210,6 +1229,7 @@ async function* runNextTurn(
   )
   const system = buildNextSystemPrompt({
     face: homeDraft ? ASSISTANT_V3_FACE_IDS.home : face,
+    bench: onBench,
     request,
     persona,
     rules,
@@ -1345,8 +1365,8 @@ async function* runNextTurn(
     }
     /**
      * 「我的想法」（助手思考过程 C，11-17 起）= 原生思考摘要切成的一句一句（`createReasoningLines`）：
-     * 想的时候写完一句交一句，开口 / 调工具 / 流结束时把攒着的收尾。只在干活档 —— 聊天档的想法是回复前想的
-     * 那一步（上面 `chatPlanThoughts`），⛔ 两份混在一起。没有原生思考的接法这里什么都不出。
+     * 想的时候写完一句交一句，开口 / 调工具 / 流结束时把攒着的收尾。有台的轮（以及没台的默认助手）都走这条 ——
+     * 没台和角色聊的那一轮，想法是回复前想的那一步（上面 `chatPlanThoughts`），⛔ 两份混在一起。没有原生思考的接法这里什么都不出。
      * `thinking` 帧照旧（摘要原文 + 想了几秒，另起一条消息的判断也靠它）。
      */
     const reasoning = chat
@@ -2127,35 +2147,23 @@ function searchStepEvent(
 }
 
 /**
- * 聊天档动不动手（owner 2026-10-28）：能找、能看、能问、能记、能在库里翻给你看；⛔ 改台、⛔ 出图、⛔ 换台。
- * 要干活时说一声，让创作者点名字旁的胶囊切到工作。
+ * 没台的那一轮（owner 11-18，⛔ 手动开关；选没选角色都一样）：唯一做不了的是改台上的表单和出图 —— 没有台可改。
+ * 改库 / 设置 / 记忆、开库、开台换台照旧。拒的那句回给模型，引她自己开对应的台、到了同一轮接着做
+ * （开台走 `bench_open` 接力，浏览器换好台自动续跳），⛔ 让创作者「去那个台再说一遍」。
  */
-function chatModeRefusal(call: ClientCall): BenchResult | null {
-  const editsOnlyMemory = (input: unknown) => {
+function benchlessRefusal(call: ClientCall): BenchResult | null {
+  const changesForm = (input: unknown) => {
     const parsed = EditInputSchema.safeParse(input)
     return (
       parsed.success &&
-      parsed.data.changes.every(
-        (change) => change.op === ASSISTANT_NEXT_EDIT_OP_IDS.remember,
-      )
+      parsed.data.changes.some((change) => !isLibraryOp(change.op))
     )
   }
-  const opensLibrary = (input: unknown) =>
-    OpenInputSchema.safeParse(input).data?.bench ===
-    ASSISTANT_NEXT_OPEN_LIBRARY_BENCH
-  const allowed =
-    call.toolName === ASSISTANT_NEXT_TOOL_IDS.find ||
-    call.toolName === ASSISTANT_NEXT_TOOL_IDS.look ||
-    call.toolName === ASSISTANT_NEXT_TOOL_IDS.ask ||
-    (call.toolName === ASSISTANT_NEXT_TOOL_IDS.edit &&
-      editsOnlyMemory(call.input)) ||
-    (call.toolName === ASSISTANT_NEXT_TOOL_IDS.open && opensLibrary(call.input))
-  if (allowed) return null
-  return {
-    output:
-      'You are in chat mode: you can find, look, ask and remember, but you do not change the bench or the library, generate, or open another bench. Say in your own voice what you would do and that they can switch to work mode with the 聊天 / 工作 switch at the top of the chat (say it in their language).',
-    error: true,
-  }
+  const refused =
+    call.toolName === ASSISTANT_NEXT_TOOL_IDS.generate ||
+    (call.toolName === ASSISTANT_NEXT_TOOL_IDS.edit && changesForm(call.input))
+  if (!refused) return null
+  return { output: BENCHLESS_REFUSAL, error: true }
 }
 
 /** 只读、能和同一步里别的只读调用一起跑的（`concurrent-tools.ts`）。 */
@@ -2173,8 +2181,9 @@ async function* runTool(
   latestUserText: string,
   aliases: string,
 ): AsyncGenerator<AssistantOperatorEvent, BenchResult> {
-  if (chatCharacterOf(context.prepared.persona)) {
-    const refused = chatModeRefusal(call)
+  // 没台（首页带小配方照图片台跑，脸不是首页）：只拦改表单与出图，引她自己开台。有台 = 那台允许的全部。
+  if (context.face === ASSISTANT_V3_FACE_IDS.home) {
+    const refused = benchlessRefusal(call)
     if (refused) return refused
   }
   if (

@@ -58,9 +58,12 @@
  *   （标题 + 四格液态分段）→ 舞台白卡（装配列 + 来源图带 + 结果）→ 输入框白卡，
  *   与图片台同一副外壳。这一套全用 Tailwind + 全局 `.workbench-card` 写在 JSX 里，
  *   本文件只给输入框里几行原位展开的动效（`.lora-mixwrap`）。
- * <1024 = 手机 / 平板（owner 2026-09-03 契约，本轮不动）：整页只有**一张**
- *   `.workbench-card`，卡内页头 `.lora-bar`（tab 行 + 助手）→ 结果流 `.lora-flow`
- *   → 输入条 `.lora-composer`，装配在抽屉里。下面这几个类只剩这一套在用。 */
+ * <768 = 手机（11-18 起照图片 / 视频 / 配音台的手机骨架，取代 09-03「整张大卡」）：
+ *   灰地台 `.lora-ground` 上**两张**白卡 —— 舞台卡 `.workbench-card.lora-card`（页头
+ *   `.lora-bar` 四格分段 → 结果流 `.lora-flow` / 库 / 收藏 / 训练）+ 底部输入卡
+ *   `.lora-composer`（共用 `STUDIO_MOBILE_COMPOSER_CARD_CLASS`，只在「生成」有，
+ *   portal 进地台底部那一格），装配在抽屉里。下面这几个类只剩这一套在用。
+ *   ⚠ 两套由 `useIsMobile`（768）挑，注释里旧的「1024」已过时。 */
 /* 生成 tab 锁高：值与 `.editorial-page` / `.studio-layout-v2`（globals.css）
  * 同一枚已验证的移动端顶栏预留（3.5rem）——`/studio/lora` 在 <1024 上方有一条
  * 不属于 domain-lora 的 App 顶栏，`h-dvh` 会把这段也算进来、把卡片顶出视口
@@ -112,7 +115,8 @@
   padding: 14px 12px;
 }
 
-/* 安全网（真机验证发现，2026-09-03）：composer 是 flex 列里的 shrink-0
+/* 安全网（真机验证发现，2026-09-03；11-18 起 composer 是舞台卡下面的另一张卡，
+   道理不变 —— 地台锁高，它太高会把舞台卡挤没）：composer 是 flex 列里的 shrink-0
    兄弟，`.lora-flow` 让不动它，遇到长负面 prompt / 多条警示这类内容比
    375 视口还高的边缘情况时，如果只靠上面把 textarea 收矮（JSX 的
    `min-h-24`）估算余量，估算一旦不够，`.workbench-card` 的

@@ -75,6 +75,8 @@
   },
   "Model3DGenerate": {
     "title": "Image-to-3D",
+    "starterTitle": "Start from one image",
+    "starterDescription": "Upload an image or pick one from your assets to get a 3D model you can turn around.",
     "description": "Pick a clean source image and generate a high-detail rotatable GLB model.",
     "modelLabel": "3D Model",
     "modelPlaceholder": "Select 3D model",
@@ -506,6 +508,13 @@
   },
   "VoiceBench": {
     "placeholder": "Write a line…",
+    "starterTitle": "Who should say what?",
+    "starterDescription": "Write a line and the selected voice reads it aloud.",
+    "starterExamples": {
+      "a": "Welcome back. You worked hard today.",
+      "b": "Wait… what did you just say?",
+      "c": "Attention passengers, the train is now arriving."
+    },
     "speak": "Read",
     "play": "Play",
     "stop": "Stop",

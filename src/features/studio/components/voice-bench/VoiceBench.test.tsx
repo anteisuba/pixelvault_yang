@@ -179,6 +179,17 @@ describe('VoiceBench（配音台 ③）', () => {
     expect(api.speak).not.toHaveBeenCalled()
   })
 
+  it('还没念过：起手屏三句例子，点了只放进输入框、⛔ 直接念', async () => {
+    api.bench = { characterCardId: 'c1', voiceCardId: 'v1', lines: [] }
+    renderBench()
+    const example = T('starterExamples.a')
+    fireEvent.click(await screen.findByRole('button', { name: example }))
+    expect(screen.getByRole('textbox', { name: T('placeholder') })).toHaveValue(
+      example,
+    )
+    expect(api.speak).not.toHaveBeenCalled()
+  })
+
   it('默认助手：先换个角色，⛔ 输入框', async () => {
     api.persona = { ...ASSISTANT_PERSONA_DEFAULTS, character: null }
     api.bench = { characterCardId: null, voiceCardId: null, lines: [] }

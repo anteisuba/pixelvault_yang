@@ -11,7 +11,30 @@
   "StudioEmptyState": {
     "title": {
       "image": "何を描きますか？",
+      "tags": "何を描きますか？",
       "video": "何を撮りますか？"
+    },
+    "description": {
+      "image": "一文で画面を説明すれば生成できます。参考画像も付けられます。",
+      "tags": "Danbooru タグをカンマ区切りで並べて画面を組み立てます。",
+      "video": "カメラワークと動きを説明します。最初のフレーム画像も付けられます。"
+    },
+    "examples": {
+      "image": {
+        "a": "雨の夜のネオン街、透明な傘をさす少女、映画風",
+        "b": "朝の森の木の小屋、水彩画風",
+        "c": "白背景の商品写真：陶器のコーヒーカップ、柔らかい光"
+      },
+      "tags": {
+        "a": "1girl, solo, silver hair, school uniform, cherry blossoms, smile",
+        "b": "1boy, armor, holding sword, night, full moon, dramatic lighting",
+        "c": "scenery, no humans, sky, clouds, ocean, sunset"
+      },
+      "video": {
+        "a": "カメラがゆっくり寄り、少女が振り返って微笑む、髪が風になびく",
+        "b": "ドローンで岩に打ち寄せる波を俯瞰、スローモーション",
+        "c": "猫が窓辺に飛び乗り、外の雪を眺める"
+      }
     }
   },
   "StudioPage": {
@@ -1162,13 +1185,7 @@
       "earlier": "それ以前"
     },
     "history": "会話履歴",
-    "switchPersona": "相手を切り替え（いまは {name}）",
-    "chatMode": {
-      "chat": "おしゃべり",
-      "work": "作業",
-      "toWork": "いまはおしゃべり。作業に切り替え",
-      "toChat": "いまは作業。おしゃべりに切り替え"
-    }
+    "switchPersona": "相手を切り替え（いまは {name}）"
   },
   "ImageRecipeImport": {
     "button": "画像から読む",

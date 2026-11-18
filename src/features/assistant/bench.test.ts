@@ -73,7 +73,7 @@ describe('首页那份小配方（第 9g 步）', () => {
 
   it('板子按首页写：说清在对话里出图、能改哪几格，下面接配方本身', () => {
     const board = renderBench(homeDraftContext(), [], '来张猫')
-    expect(board.startsWith('HOME — no bench is open')).toBe(true)
+    expect(board.startsWith('HOME — the draft is the bench')).toBe(true)
     expect(board).toContain(
       'edit ops on the draft: prompt, model, specs, count, add_reference, remove_reference, apply_recipe',
     )

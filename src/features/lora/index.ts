@@ -9,6 +9,7 @@ export {
   type LoraCoverPreviewState,
 } from './components/library/LoraCoverPreviewDialog'
 export { LoraLibraryOverlayView } from './components/library/LoraLibraryOverlayView'
+export { LoraLibrarySkeleton } from './components/library/LoraLibrarySkeleton'
 export {
   type LoraPickCollect,
   LoraPickerDialog,

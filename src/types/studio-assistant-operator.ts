@@ -217,18 +217,6 @@ export interface StudioOperatorRuleEntry {
   createdAt: string
 }
 
-/**
- * 切模式标记（owner 2026-10-16：头部「工作 / 聊天」同一段对话里切，记录不变）——
- * 时间线里那条细线「切到聊天 · 和 Rin」/「回到工作」。`character: null` = 回到工作。
- */
-export interface StudioOperatorChatMarkEntry {
-  kind: 'chatMark'
-  id: string
-  character: { id: string; name: string } | null
-  /** 切之前是什么模式（只在本次会话里用：连着切回原样时把这条标记拿掉，不存）。 */
-  previous: { id: string; name: string } | null
-}
-
 /** 切域标记（拍板 8：切域换工具不断会话）。 */
 export interface StudioOperatorDomainMarkEntry {
   kind: 'domainMark'
@@ -325,7 +313,6 @@ export type StudioOperatorThreadEntry =
   | StudioOperatorResultEntry
   | StudioOperatorRoundSummaryEntry
   | StudioOperatorDomainMarkEntry
-  | StudioOperatorChatMarkEntry
 
 /**
  * 改动登记簿的一格。

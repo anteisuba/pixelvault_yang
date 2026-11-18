@@ -247,6 +247,12 @@
         "lineTitle": "{name} の作例"
       },
       "emptyTitle": "何を描きますか？",
+      "starterDescription": "LoRA を載せてキャラや画風を固定し、画面を一文で書きます。",
+      "starterExamples": {
+        "a": "1girl, solo, upper body, smile, looking at viewer, outdoors",
+        "b": "full body, standing, city street, night, neon lights",
+        "c": "portrait, close-up, soft lighting, simple background"
+      },
       "busy": "生成中",
       "assistantBusy": "装備台がまだ処理中です（生成中、またはレシピの LoRA を装着中）。終わってからもう一度どうぞ",
       "restoreShort": "復元",
@@ -721,7 +727,13 @@
       "openDetail": "詳細を見る",
       "segmentCorrected": "「{query}」は 0 件 ·「{corrected}」で {count} 件",
       "segmentLive": "索引に未収録 · Civitai で直接 {count} 件",
-      "segmentMeaning": "意味が近いもの"
+      "segmentMeaning": "意味が近いもの",
+      "useRecipe": "このレシピを使う",
+      "useRecipeHint": "この LoRA を装着し、この画像のプロンプトやサイズなどを LoRA 台へ持っていきます。台に入力があれば先に確認でき、元に戻せます。生成はまだ始まりません。",
+      "detailNotFound": "この LoRA が見つかりません。ライブラリに戻りました。",
+      "arrivedMounted": "{name} を装着しました",
+      "arrivedTriggers": "トリガーワード：{triggers}（必要ならプロンプトに追加してください）",
+      "arrivedIncompatible": "現在のベースモデル {base} とは互換性がなく、生成時に効きません。"
     },
     "characterLoras": {
       "pickEntry": "キャラから選ぶ",

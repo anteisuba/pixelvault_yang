@@ -72,9 +72,11 @@ interface LoraRecipeViewerProps {
    */
   extraStatusByKey?: Readonly<Record<string, ExtraMountStatus>>
   /**
-   * 生成台才有「做同款」：只把配方写回装配台与输入（勾中的额外 LoRA 一起挂），
-   * ⛔ 不出图。库里不给，只有复制配方。
+   * 「做同款」：只把配方写回装配台与输入（勾中的额外 LoRA 一起挂），⛔ 不出图。
+   * 生成台就地写；库里是「用这张的配方」——挂上这个 LoRA、带着配方去 LoRA 台。
    */
+  applyLabel?: string
+  applyHint?: string
   onApplyRecipe?: (
     recipe: CivitaiImageRecipe,
     includeSeed: boolean,
@@ -104,6 +106,8 @@ export function LoraRecipeViewer({
   sourceUrl,
   mountedExtraKeys,
   extraStatusByKey,
+  applyLabel,
+  applyHint,
   onApplyRecipe,
 }: LoraRecipeViewerProps) {
   const t = useTranslations('LoraWorkbench')
@@ -533,7 +537,7 @@ export function LoraRecipeViewer({
               <div className="flex items-center gap-2.5">
                 <button
                   type="button"
-                  title={t('sourceRecipeApplyHint')}
+                  title={applyHint ?? t('sourceRecipeApplyHint')}
                   onClick={() => {
                     onApplyRecipe(recipe, includeSeed, selectedExtras)
                     onClose()
@@ -541,7 +545,7 @@ export function LoraRecipeViewer({
                   className="inline-flex h-8.5 items-center gap-1.5 rounded-full bg-primary px-3.5 text-2sm font-semibold text-primary-foreground transition-[background-color,transform] duration-fast hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus active:scale-[.98]"
                 >
                   <Wand2 className="size-3.5" aria-hidden />
-                  {t('sourceRecipeRemake')}
+                  {applyLabel ?? t('sourceRecipeRemake')}
                 </button>
                 {recipe.seed !== undefined ? (
                   <label className="inline-flex cursor-pointer items-center gap-1.5 text-2xs text-muted-foreground">

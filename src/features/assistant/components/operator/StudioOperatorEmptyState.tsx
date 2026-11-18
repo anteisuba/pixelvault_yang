@@ -31,11 +31,9 @@
 
 import { useTranslations } from 'next-intl'
 
-import { ASSISTANT_CHAT_MODE_IDS } from '@/constants/assistant-protocol'
 import { cardManagementPath } from '@/constants/routes'
 import { AssistantTimelineAvatar } from '@/features/assistant/components/operator/TimelineAvatar'
 import type { StudioOperatorFace } from '@/contexts/studio-operator-host'
-import { useOperatorChatMode } from '@/hooks/use-chat-persona'
 import { Link } from '@/i18n/navigation'
 import type {
   AssistantPersona,
@@ -88,8 +86,8 @@ export function StudioOperatorEmptyState({
 }
 
 /**
- * 「聊天」胶囊开着、她却一格设定都没写（owner 2026-11-12：胶囊留着，说出原因）：服务端这时照工作口吻答，
- * 不说一句就像聊天坏了。给一个去角色页补设定的入口。
+ * 选了角色、她却一格设定都没写（owner 2026-11-12 说出原因；11-18 起与有没有台无关）：服务端这时照默认
+ * 助手的口吻答，不说一句就像人设坏了。给一个去角色页补设定的入口。
  */
 function NoProfileHint({
   character,
@@ -97,10 +95,6 @@ function NoProfileHint({
   character: AssistantPersonaCharacter
 }) {
   const t = useTranslations('StudioOperator.chat')
-  const chatMode = useOperatorChatMode()
-  if (!chatMode.available || chatMode.mode !== ASSISTANT_CHAT_MODE_IDS.chat) {
-    return null
-  }
   return (
     <p
       data-testid="operator-empty-no-profile"

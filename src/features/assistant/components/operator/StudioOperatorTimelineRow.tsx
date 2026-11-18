@@ -307,8 +307,6 @@ export interface StudioOperatorThreadItem {
   key: string
   speaker: StudioOperatorSpeaker
   node: ReactNode
-  /** 分隔线（切模式标记）：自己占一行、把前后的框断开，⛔ 收进她那一框。 */
-  standalone?: boolean
 }
 
 /**
@@ -318,8 +316,7 @@ export interface StudioOperatorThreadItem {
  * ⭐ 段里装本轮的一切：正文、查证、确认卡、结果、续跑、错误 —— 调用方只管给每件
  *   东西标上是谁说的，⛔ 不在各处各自包框。
  * ⭐ **⛔ 灰框**（P4 第 1 项）：她的字直接铺在面板上，两侧只靠你那句象牙气泡分开。
- * ⭐ **名字只在开头出一次**（P4 第 7 项）：一串里第一段带头像名字，往后几轮不再重复；
- *   切模式那条细线之后重新出一次（换了模式，说话的人可能换了）。
+ * ⭐ **名字只在开头出一次**（P4 第 7 项）：一串里第一段带头像名字，往后几轮不再重复。
  * ⚠ 空条目（`null`）不算数：否则一段全是空的助手条目会画出一个空段。
  */
 export function StudioOperatorTurns({
@@ -332,7 +329,6 @@ export function StudioOperatorTurns({
   const runs: {
     key: string
     user: boolean
-    standalone?: boolean
     nodes: ReactNode[]
   }[] = []
   for (const item of items) {
@@ -340,14 +336,7 @@ export function StudioOperatorTurns({
       continue
     const user = item.speaker === STUDIO_OPERATOR_SPEAKERS.user
     const last = runs.at(-1)
-    if (item.standalone) {
-      runs.push({
-        key: item.key,
-        user: false,
-        standalone: true,
-        nodes: [<Fragment key={item.key}>{item.node}</Fragment>],
-      })
-    } else if (last && !last.user && !last.standalone && !user) {
+    if (last && !last.user && !user) {
       last.nodes.push(<Fragment key={item.key}>{item.node}</Fragment>)
     } else {
       runs.push({
@@ -359,14 +348,6 @@ export function StudioOperatorTurns({
   }
   let named = false
   return runs.map((run) => {
-    if (run.standalone) {
-      named = false
-      return (
-        <div key={run.key} className="mt-4 min-w-0 first:mt-0">
-          {run.nodes}
-        </div>
-      )
-    }
     if (run.user) return <Fragment key={run.key}>{run.nodes}</Fragment>
     const showName = !named
     named = true

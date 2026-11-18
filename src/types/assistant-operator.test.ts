@@ -1619,6 +1619,20 @@ describe('请求与快照契约', () => {
     expect(parsed.success).toBe(true)
   })
 
+  it('⭐ 旧客户端还带着已废弃的 chatMode（11-18 去掉开关）：照收不 400，值不论', () => {
+    for (const chatMode of ['chat', 'work', 'whatever']) {
+      expect(
+        AssistantOperatorRequestSchema.safeParse({
+          messages: [{ role: 'user', content: '把比例改成 16:9' }],
+          domain: 'image',
+          workspaceKey: 'image-natural',
+          snapshot: SNAPSHOT,
+          chatMode,
+        }).success,
+      ).toBe(true)
+    }
+  })
+
   it('负面框「缺席」与「空着」是两件事', () => {
     const absent = AssistantOperatorSnapshotSchema.parse({
       ...SNAPSHOT,

@@ -13,7 +13,6 @@ import {
 
 import { ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE } from '@/constants/assistant-operator'
 import { ASSISTANT_PERSONA_DEFAULTS } from '@/constants/assistant-persona'
-import { ASSISTANT_CHAT_MODE_IDS } from '@/constants/assistant-protocol'
 import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { STUDIO_OPERATOR_SHELL } from '@/constants/studio-assistant-operator'
@@ -2808,7 +2807,11 @@ describe('StudioOperatorPanel · 回车（owner 11-10）', () => {
   })
 })
 
-describe('和她聊的新会话：她先开口', () => {
+describe('和她聊的新会话：她先开口（11-18 起只看有没有台，⛔ 聊天 / 工作档）', () => {
+  // 首页那张脸 = 没台（`specLine: false`）；每例收尾放回台上那张脸。
+  afterEach(() => {
+    HOST_SPEC.specLine = true
+  })
   const DENIA = {
     id: 'card-1',
     name: 'Denia',
@@ -2841,7 +2844,7 @@ describe('和她聊的新会话：她先开口', () => {
         },
       }),
     )
-    store.settleOperatorChatMode(ASSISTANT_CHAT_MODE_IDS.chat)
+    HOST_SPEC.specLine = false
   }
 
   it('开场白画成她的第一条消息（宏换名字、动作次要色整块一段）+ 左右切；⛔ 空态', async () => {
@@ -2866,15 +2869,14 @@ describe('和她聊的新会话：她先开口', () => {
     expect(store.getOperatorState().entries).toEqual([])
   })
 
-  it('工作档：不出开场白', async () => {
+  it('⭐ 台上（同一位角色）：不出开场白；⛔ 头上「聊天 / 工作」胶囊与切换提示', async () => {
     chatWithDenia()
-    store.switchOperatorChatMode(ASSISTANT_CHAT_MODE_IDS.work, {
-      id: DENIA.id,
-      name: DENIA.name,
-    })
+    HOST_SPEC.specLine = true
     renderPanel()
     // 让人设与角色表那两条请求落定（⛔ 真等：只冲几轮微任务）。
     for (let round = 0; round < 5; round += 1) await act(async () => {})
     expect(screen.queryByTestId('operator-greeting')).toBeNull()
+    expect(screen.queryByTestId('studio-shell-chat-mode')).toBeNull()
+    expect(screen.queryByTestId('operator-chat-bench-hint')).toBeNull()
   })
 })

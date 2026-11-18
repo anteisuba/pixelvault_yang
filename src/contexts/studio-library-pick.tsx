@@ -13,6 +13,7 @@ import {
 import { ROUTES } from '@/constants/routes'
 import { useRouter } from '@/i18n/navigation'
 import type { LoraStageContextValue } from '@/features/lora'
+import type { CivitaiImageRecipe, CivitaiRecipeExtraLora } from '@/types'
 
 /**
  * 「选给 XX 台」（第 9f 步方向 E 规矩 1）：台上「参考图 / 角色 / 模板 / 添加 LoRA」打开的都是
@@ -48,12 +49,31 @@ export interface TagsLibraryAdder {
   toggleStyle: (name: string) => void
 }
 
+/**
+ * 从库带到 LoRA 台的那一把（库里「去 LoRA 台用」/「用这张的配方」）：库先挂上，台落地后
+ * 认领 —— 刚挂上的说一声「已挂上 XXX」（带撤销、触发词），带了配方的走台上原有的「做同款」。
+ */
+export interface LoraBenchArrival {
+  /** 挂载栈里那一把的 id。 */
+  assetId: string
+  /** 这一下才挂上的（已经挂着的不再说「已挂上」）。 */
+  newlyMounted: boolean
+  recipe?: {
+    recipe: CivitaiImageRecipe
+    includeSeed: boolean
+    extraLoras: readonly CivitaiRecipeExtraLora[]
+  }
+}
+
 interface StudioLibraryPickValue {
   lora: LoraStageContextValue | null
   setLora: (stage: LoraStageContextValue | null) => void
   tags: TagsLibraryAdder | null
   setTags: (adder: TagsLibraryAdder | null) => void
   openLoraBench: () => void
+  loraArrival: LoraBenchArrival | null
+  sendToLoraBench: (arrival: LoraBenchArrival) => void
+  clearLoraArrival: () => void
 }
 
 const StudioLibraryPickContext = createContext<StudioLibraryPickValue | null>(
@@ -68,10 +88,19 @@ export function StudioLibraryPickProvider({
   const [lora, setLora] = useState<LoraStageContextValue | null>(null)
   const [tags, setTags] = useState<TagsLibraryAdder | null>(null)
   const router = useRouter()
+  const [loraArrival, setLoraArrival] = useState<LoraBenchArrival | null>(null)
   const openLoraBench = useCallback(
     () => router.push(ROUTES.STUDIO_LORA),
     [router],
   )
+  const sendToLoraBench = useCallback(
+    (arrival: LoraBenchArrival) => {
+      setLoraArrival(arrival)
+      router.push(ROUTES.STUDIO_LORA)
+    },
+    [router],
+  )
+  const clearLoraArrival = useCallback(() => setLoraArrival(null), [])
   const value = useMemo<StudioLibraryPickValue>(
     () => ({
       lora,
@@ -79,8 +108,11 @@ export function StudioLibraryPickProvider({
       tags,
       setTags,
       openLoraBench,
+      loraArrival,
+      sendToLoraBench,
+      clearLoraArrival,
     }),
-    [lora, openLoraBench, tags],
+    [clearLoraArrival, lora, loraArrival, openLoraBench, sendToLoraBench, tags],
   )
   return (
     <StudioLibraryPickContext.Provider value={value}>
@@ -130,6 +162,46 @@ export function useLoraBenchHandoff(): (() => void) | null {
   if (!ctx || ctx.lora || off) return null
   return ctx.openLoraBench
 }
+
+/**
+ * 库里「去 LoRA 台用」带着话过去：挂上（或已挂着）之后交给台认领，台没开就顺手跳过去。
+ * 与 `useLoraBenchHandoff` 同一个条件（台开着 / 框里 / 外壳外面 = `null`）。
+ */
+export function useSendToLoraBench():
+  | ((arrival: LoraBenchArrival) => void)
+  | null {
+  const ctx = useContext(StudioLibraryPickContext)
+  const off = useContext(LoraBenchHandoffOffContext)
+  if (!ctx || ctx.lora || off) return null
+  return ctx.sendToLoraBench
+}
+
+/**
+ * 「用这张的配方」：台没开就跳过去，台开着（库盖在台上）也跳 —— 回到台上才看得见做同款改了
+ * 什么。框里 / 外壳外面 = `null`（库里不给这颗键）。
+ */
+export function useSendRecipeToLoraBench():
+  | ((arrival: LoraBenchArrival) => void)
+  | null {
+  const ctx = useContext(StudioLibraryPickContext)
+  const off = useContext(LoraBenchHandoffOffContext)
+  if (!ctx || off) return null
+  return ctx.sendToLoraBench
+}
+
+/** LoRA 台认领从库带来的那一把（见 `LoraBenchArrival`）；认领完 `clear`。 */
+export function useLoraBenchArrival(): {
+  arrival: LoraBenchArrival | null
+  clear: () => void
+} {
+  const ctx = useContext(StudioLibraryPickContext)
+  return {
+    arrival: ctx?.loraArrival ?? null,
+    clear: ctx?.clearLoraArrival ?? noop,
+  }
+}
+
+function noop() {}
 
 const LoraBenchHandoffOffContext = createContext(false)
 

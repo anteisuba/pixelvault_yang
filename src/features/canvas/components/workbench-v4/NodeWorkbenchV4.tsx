@@ -2290,10 +2290,6 @@ function NodeWorkbenchV4Inner() {
                     onDeleteProject={() => setDeleteConfirmOpen(true)}
                   />
                 }
-                assistantOpen={assistantOpen}
-                onOpenAssistant={() => {
-                  setAssistantOpen(!assistantOpen)
-                }}
                 assistant={benchDock}
                 onAddShot={addShotAtRailEnd}
                 onUploadFiles={(files) =>

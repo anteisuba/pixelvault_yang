@@ -4,18 +4,16 @@ import { useEffect, useMemo, useSyncExternalStore } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 
-import { ASSISTANT_CHAT_MODE_IDS } from '@/constants/assistant-protocol'
+import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import {
   getCachedAssistantCharacter,
   useAssistantPersona,
 } from '@/hooks/use-assistant-persona'
-import { useOperatorChatMode } from '@/hooks/use-chat-persona'
 import { useMyProfile } from '@/hooks/use-my-profile'
 import {
   appendOperatorEntry,
   getOperatorState,
   nextOperatorEntryId,
-  resolveOperatorChatMode,
   useStudioOperatorSelector,
 } from '@/hooks/use-studio-operator-store'
 import { characterCardsQuery } from '@/lib/character-cards-query'
@@ -32,7 +30,7 @@ import type { StudioOperatorMessageEntry } from '@/types/studio-assistant-operat
  * 自动保存会给「看了一眼就走」的人在历史里留一条只有开场白的会话，换档 / 换人还得把它摘掉。
  * 你发第一句的那一下（`send`）才把此刻选中的那一版接进线程，当作历史里第一条她的话进上下文。
  *
- * ⚠ 只在：线程是空的 · 人设是某个角色 · 这段在「聊天」档 · 她写了开场白。工作档、只读的旧聊天、
+ * ⚠ 只在：线程是空的 · 人设是某个角色 · 面板是首页那张脸 · 她写了开场白。台上、只读的旧聊天、
  *   没写开场白的角色一律不出。⛔ 不念（不触发 TTS）：它不是这一轮服务端说的话。
  */
 
@@ -116,12 +114,12 @@ export function commitOperatorGreeting(): void {
   const current = offered
   if (!current) return
   const thread = getOperatorState()
-  // 面板收着时换了档 / 换了人，摆着的那份没人撤：发出去这一刻再认一次「还在和她聊」。
+  // 面板收着时换了台 / 换了人，摆着的那份没人撤：发出去这一刻再认一次「还在首页、还是她」。
   const character = getCachedAssistantCharacter()
   if (
     character?.id !== current.characterId ||
     thread.chatCharacter !== null ||
-    resolveOperatorChatMode(thread, true) !== ASSISTANT_CHAT_MODE_IDS.chat ||
+    thread.domain !== ASSISTANT_PROTOCOL_DOMAIN_IDS.home ||
     current.threadId !== thread.localThreadId ||
     thread.entries.length > 0 ||
     thread.history.length > 0
@@ -141,22 +139,25 @@ export function commitOperatorGreeting(): void {
 
 /**
  * 面板用：算出这一刻该不该摆开场白、摆哪几版，并登记给 `send`。`threadEmpty` 由面板给（它数的
- * 是画出来的那两份条目）。
+ * 是画出来的那两份条目）；`onHome` = 面板此刻是首页那张脸（不是某个台的工具脸），只有那里摆开场白 ——
+ * 台上开口就是干活（11-18 去掉「聊天 / 工作」手动切换后，⛔ 再看档位）。
  */
-export function useOperatorGreeting(threadEmpty: boolean): {
+export function useOperatorGreeting(
+  threadEmpty: boolean,
+  onHome: boolean,
+): {
   entry: StudioOperatorMessageEntry | null
   select(index: number): void
 } {
   const t = useTranslations('StudioOperator.chat')
   const { persona } = useAssistantPersona()
-  const chatMode = useOperatorChatMode()
+  const chatCharacter = useStudioOperatorSelector(
+    (state) => state.chatCharacter,
+  )
   const { profile } = useMyProfile()
   const characterId = persona.character?.id ?? null
   const chatting =
-    threadEmpty &&
-    characterId !== null &&
-    chatMode.available &&
-    chatMode.mode === ASSISTANT_CHAT_MODE_IDS.chat
+    threadEmpty && onHome && characterId !== null && chatCharacter === null
   const cards = useQuery(
     { ...characterCardsQuery, enabled: chatting },
     queryClient,

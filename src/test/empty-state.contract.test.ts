@@ -71,9 +71,10 @@ const DELEGATED_ACTION: Record<string, string> = {
 /**
  * 长得像空态但**故意不走原语**的几处，每条都得说得出理由。
  *
- * · `StudioEmptyState` / `StudioOperatorEmptyState` —— 不是「一块区域没有内容」，
- *   是 owner 逐条定过的**起手屏**（示例卡 + 最近作品 / 一句话 + 起手药丸）。
- *   D7b ③ 的原话就是「一句话就是一句话，不再是标题 + 说明两段」。
+ * · `StudioStarterState`（工作台起手屏，图片 / 标签 / 视频经 `StudioEmptyState`、
+ *   LoRA / 配音 / 3D 直接挂）/ `StudioOperatorEmptyState` —— 不是「一块区域没有内容」，
+ *   是**起手屏**：回答「从哪下手」，给的是能点的例子（白药丸，点了只填输入），
+ *   ⛔ 黑色主钮 —— 台上唯一的主钮是生成键（11-18 手机第一轮）。助手空态仍是一句话。
  * · `AssetEmptyFolder` —— 空文件夹那一档随进度表 19 落地，⛔ 不提前收。
  * · 搜索无结果（`AssetEmptySearch` · 各卡片页的 `cardSearchEmpty`）——
  *   它回答的是「你的筛选太窄」，不是「这里还没有东西」，出口也只有一个
@@ -82,6 +83,7 @@ const DELEGATED_ACTION: Record<string, string> = {
  */
 const EXCEPTIONS = [
   'src/features/studio/components/StudioEmptyState.tsx',
+  'src/components/business/studio-shared/chrome/StudioStarterState.tsx',
   'src/features/assistant/components/operator/StudioOperatorEmptyState.tsx',
 ]
 

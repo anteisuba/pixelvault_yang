@@ -6,6 +6,7 @@ import { ROUTES } from '@/constants/routes'
 import {
   STUDIO_LIBRARY_CATEGORY_IDS,
   STUDIO_LIBRARY_TAB_IDS,
+  STUDIO_SHELL_BENCH_IDS,
 } from '@/constants/studio-shell'
 
 import {
@@ -122,8 +123,8 @@ export const SHELL_NAV_GO: readonly ShellNavItem[] = [
   },
 ] as const
 
-/** 工具 —— 最高频任务就是在这几个之间来回切，整套设计围绕它优化。 */
-export const SHELL_NAV_TOOLS: readonly ShellNavItem[] = [
+/** 工具 —— 最高频任务就是在这几个之间来回切，整套设计围绕它优化。顺序见下面的 `SHELL_NAV_TOOLS`。 */
+const SHELL_NAV_TOOL_ITEMS: readonly ShellNavItem[] = [
   {
     id: 'image',
     href: ROUTES.STUDIO_IMAGE,
@@ -173,6 +174,16 @@ export const SHELL_NAV_TOOLS: readonly ShellNavItem[] = [
     labelKey: 'StudioTools.tools.node.label',
   },
 ] as const
+
+/**
+ * 七个台**唯一的顺序**：照桌面左栏 `STUDIO_SHELL_BENCH_IDS`（图·标·LoRA·音·视·3D·画布）。
+ * 手机 ＋ 那张卡、台顶栏「工具 ▾」、长按 ＋ 的兜底、桌面左栏都读这一份（11-18 起，
+ * 之前手机是图·标·视·音·3D·LoRA·画布，两端各一套）。⛔ 在上面那张表里靠书写顺序排。
+ */
+export const SHELL_NAV_TOOLS: readonly ShellNavItem[] =
+  STUDIO_SHELL_BENCH_IDS.flatMap((id) =>
+    SHELL_NAV_TOOL_ITEMS.filter((item) => item.id === id),
+  )
 
 export const SHELL_NAV_SECTIONS: readonly ShellNavSection[] = [
   { id: 'go', labelKey: 'Navbar.groupLabel', items: SHELL_NAV_GO },

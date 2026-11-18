@@ -75,6 +75,8 @@
   },
   "Model3DGenerate": {
     "title": "图生 3D 模型",
+    "starterTitle": "从一张图开始",
+    "starterDescription": "上传一张图或从素材里选一张，生成能转着看的 3D 模型。",
     "description": "从图像档案选一张干净源图，生成可旋转的高细节 GLB 模型。",
     "modelLabel": "3D 模型",
     "modelPlaceholder": "选择 3D 模型",
@@ -506,6 +508,13 @@
   },
   "VoiceBench": {
     "placeholder": "写一句台词…",
+    "starterTitle": "想让谁说什么？",
+    "starterDescription": "写一句台词，选中的音色把它念出来。",
+    "starterExamples": {
+      "a": "欢迎回来，今天也辛苦了。",
+      "b": "等一下……你刚才说什么？",
+      "c": "各位旅客请注意，列车即将进站。"
+    },
     "speak": "念",
     "play": "播放",
     "stop": "停",

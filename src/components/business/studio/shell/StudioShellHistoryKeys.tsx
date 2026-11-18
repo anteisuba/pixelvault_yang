@@ -11,7 +11,6 @@ import { STUDIO_SHELL_RAIL } from '@/constants/studio-shell'
 import { ChevronDown, History } from '@/components/icons'
 import {
   StudioOperatorAvatarSwitcher,
-  StudioOperatorChatModeChip,
   StudioOperatorCurrentAvatar,
 } from '@/features/assistant'
 import { STUDIO_SHELL_AVATAR_ATTR } from '@/components/business/studio/shell/StudioShellAvatarFlight'
@@ -239,7 +238,6 @@ export function StudioShellPersonaKey() {
           />
         </button>
       </StudioOperatorAvatarSwitcher>
-      <StudioOperatorChatModeChip />
     </span>
   )
 }

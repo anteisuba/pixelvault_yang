@@ -10,6 +10,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { createPortal } from 'react-dom'
 import { useSearchParams } from 'next/navigation'
 import { useUser } from '@clerk/nextjs'
 import * as Toolbar from '@radix-ui/react-toolbar'
@@ -99,7 +100,11 @@ import { useStudioGenerationSession } from '@/contexts/studio-generation-session
 import { CommunitySourceBranch } from '@/features/lora/components/library/LoraLibraryTabs'
 import { LoraBenchLibraryPanel } from '@/features/lora/components/library/LoraBenchLibraryPanel'
 import { BenchLibrarySheet } from '@/components/business/studio-shared/chrome/BenchLibrarySheet'
-import { STUDIO_COMPOSER_CARD_CLASS } from '@/components/business/studio-shared/chrome/studio-composer-card'
+import {
+  STUDIO_COMPOSER_CARD_CLASS,
+  STUDIO_MOBILE_COMPOSER_CARD_CLASS,
+} from '@/components/business/studio-shared/chrome/studio-composer-card'
+import { StudioStarterState } from '@/components/business/studio-shared/chrome/StudioStarterState'
 import { useCivitaiMinedPrompts } from '@/features/lora/hooks/use-civitai-mined-prompts'
 import { useHuggingFaceLoraShowcase } from '@/features/lora/hooks/use-huggingface-lora-showcase'
 import { useRunnerUsage } from '@/features/lora/hooks/use-runner-usage'
@@ -249,7 +254,10 @@ import {
 import { AssistantLoraParametersSchema } from '@/types/assistant-operator'
 import { PromptTriggerHighlight } from '@/features/lora/components/PromptTriggerHighlight'
 import { LoraReferenceImageCards } from '@/features/lora/components/LoraReferenceImageCards'
-import { useRegisterLoraLibraryPick } from '@/contexts/studio-library-pick'
+import {
+  useLoraBenchArrival,
+  useRegisterLoraLibraryPick,
+} from '@/contexts/studio-library-pick'
 import { LoraScaleChip } from '@/features/lora/components/LoraScaleChip'
 import type { TriggerChipEntry } from '@/features/lora/components/TriggerChipRow'
 import {
@@ -321,6 +329,9 @@ export function LoraWorkbench() {
   // 里（civitai / HF 各一套），只把输入框 portal 进这个常驻槽，保住「这一格不随
   // 内层 crossfade 闪、只结果区淡入」。桌面是库 B（LoraLibraryStage），不走这里。
   const [librarySearchSlot, setLibrarySearchSlot] =
+    useState<HTMLDivElement | null>(null)
+  // 手机（<768）生成的输入卡落点：舞台卡外面、地台底部那一格（见手机那支 return）。
+  const [mobileComposerSlot, setMobileComposerSlot] =
     useState<HTMLDivElement | null>(null)
 
   const sectionParam = searchParams.get(LORA_WORKBENCH_SEARCH_PARAM)
@@ -454,6 +465,7 @@ export function LoraWorkbench() {
       onAssistantOpenChange={setAssistantOpen}
       onOpenLibrary={() => setActiveSection(LORA_WORKBENCH_SECTIONS.COMMUNITY)}
       libraryAssets={libraryAssets}
+      mobileComposerSlot={mobileComposerSlot}
     />
   ) : null
 
@@ -509,14 +521,16 @@ export function LoraWorkbench() {
     <CharacterLorasProvider value={characterLoras}>
       <div
         className={cn(
-          // 手机（<1024，owner 2026-09-03 契约）：整页一张 workbench-card，卡内页头
-          // tab 行 + 助手在顶。四个 tab 统一锁高——卡片始终撑满地台，内容区自己滚。
-          // ⚠ 不能直接用 `h-dvh`：`/studio/lora` 在 <1024 上方还有一条 App 顶栏，
-          // `.lora-locked-height`（lora.css）扣掉它。
+          // 手机（<768）照图片 / 视频 / 配音台的手机骨架：灰地台上「舞台一张白卡
+          // （顶上四格分段 + 结果流 / 库 / 训练）+ 底部输入框另一张白卡」。输入卡只在
+          // 「生成」有；库 / 收藏 / 训练没有输入，⛔ 渲染空卡。四个 tab 统一锁高——
+          // 舞台卡撑满剩余高度，内容区自己滚。
+          // ⚠ 不能直接用 `h-dvh`：手机上方还有一条壳顶栏，`.lora-locked-height`
+          // （lora.css）扣掉它。
           'domain-lora lora-locked-height flex w-full min-h-0 flex-col overflow-hidden',
         )}
       >
-        <div className="lora-ground flex min-h-0 flex-1 flex-col">
+        <div className="lora-ground flex min-h-0 flex-1 flex-col gap-2.5">
           <div className="workbench-card lora-card flex min-w-0 flex-1 flex-col">
             <div className="lora-bar flex w-full shrink-0 items-center gap-2 border-b border-border">
               <LiquidSegmented
@@ -563,6 +577,14 @@ export function LoraWorkbench() {
               ) : null}
             </div>
           </div>
+          {/* 底部输入卡那一格：生成那一支把输入框 portal 进来（和库的搜索框同一招），
+              这样它是舞台卡外面的另一张卡，四格分段也不用跟着重挂。 */}
+          {isGenerate ? (
+            <div
+              ref={setMobileComposerSlot}
+              className="flex min-w-0 shrink-0"
+            />
+          ) : null}
         </div>
       </div>
     </CharacterLorasProvider>
@@ -613,6 +635,9 @@ function normalizeRecordSeed(
 }
 
 const RUNNER_DEFAULT_SELECT_VALUE = '__model_default__'
+
+/** 手机起手屏三颗例子（`LoraWorkbench.generate.starterExamples.<id>`）。 */
+const LORA_STARTER_EXAMPLE_IDS = ['a', 'b', 'c'] as const
 
 /**
  * 本次 Runner 出图是不是这个底模在本会话里的**第一次**（= worker 多半是冷的，
@@ -681,6 +706,8 @@ interface GenerateBranchProps {
   onOpenLibrary: () => void
   /** 你自己库里的 LoRA（训练的 + 收藏的）：正文写 `<lora:名字>` 时按名字对上就挂。 */
   libraryAssets: readonly LoraAssetRecord[]
+  /** 手机：底部输入卡的落点（舞台卡外的那一格，root 持有）。桌面不用。 */
+  mobileComposerSlot?: HTMLElement | null
 }
 
 function GenerateBranch({
@@ -688,6 +715,7 @@ function GenerateBranch({
   onAssistantOpenChange,
   onOpenLibrary,
   libraryAssets,
+  mobileComposerSlot = null,
 }: GenerateBranchProps) {
   const { user } = useUser()
   const t = useTranslations('LoraWorkbench')
@@ -2034,14 +2062,27 @@ function GenerateBranch({
   const libraryOverStage = libraryPanel !== null && !isMobile
   // 面板示例图「做同款」：面板先挂上那把，这里把来源图分组切到它，等它真成了
   // `recipeGroupAsset` 再走台上原有的 `handleApplyRecipe`（⛔ 另写一份做同款）。
+  // 库整页「用这张的配方」也走这一条（带着「用 seed」与勾中的额外 LoRA）。
   const pendingMakeSameRef = useRef<{
     assetId: string
     recipe: CivitaiImageRecipe
+    options: ApplyRecipeOptions
   } | null>(null)
   const [makeSameTick, setMakeSameTick] = useState(0)
   const makeSameFromLibrary = useCallback(
-    (asset: LoraAssetRecord, recipe: CivitaiImageRecipe) => {
-      pendingMakeSameRef.current = { assetId: asset.id, recipe }
+    (
+      asset: Pick<LoraAssetRecord, 'id'>,
+      recipe: CivitaiImageRecipe,
+      options?: ApplyRecipeOptions,
+    ) => {
+      pendingMakeSameRef.current = {
+        assetId: asset.id,
+        recipe,
+        options: options ?? {
+          includeSeed: false,
+          extraLoras: recipe.extraLoras ?? [],
+        },
+      }
       setRecipeGroupAssetId(asset.id)
       setMakeSameTick((tick) => tick + 1)
     },
@@ -2052,11 +2093,64 @@ function GenerateBranch({
     const pending = pendingMakeSameRef.current
     if (!pending || pending.assetId !== recipeGroupAssetIdNow) return
     pendingMakeSameRef.current = null
-    handleApplyRecipe(pending.recipe, {
-      includeSeed: false,
-      extraLoras: pending.recipe.extraLoras ?? [],
-    })
+    handleApplyRecipe(pending.recipe, pending.options)
   }, [handleApplyRecipe, makeSameTick, recipeGroupAssetIdNow])
+
+  // 从库整页带过来的那一把（「去 LoRA 台用」/「用这张的配方」）：台落地后认领一次。
+  // 带配方的走上面的做同款（台上已有内容 → 搭配审阅卡 + 撤销，与台上做同款同一条）；
+  // 只挂上的说一声「已挂上 XXX」—— 触发词写在提示里（⛔ 自动改提示词），装不上当前
+  // 底模的多一句，带撤销（拿掉这一把）。
+  const loraArrival = useLoraBenchArrival()
+  const tBrowse = useTranslations('LoraWorkbench.browse')
+  const { arrival: pendingArrival, clear: clearArrival } = loraArrival
+  useEffect(() => {
+    if (!pendingArrival) return
+    const entry = stack.items.find(
+      (item) => item.asset.id === pendingArrival.assetId,
+    )
+    clearArrival()
+    if (!entry) return
+    const asset = entry.asset
+    if (pendingArrival.recipe) {
+      makeSameFromLibrary(asset, pendingArrival.recipe.recipe, {
+        includeSeed: pendingArrival.recipe.includeSeed,
+        extraLoras: pendingArrival.recipe.extraLoras,
+      })
+    }
+    if (!pendingArrival.newlyMounted) return
+    const triggers = asset.triggerWord.trim()
+    const incompatible =
+      selectedBase !== null &&
+      !isLoraBaseModelMountCompatible(
+        asset.baseModelFamily,
+        selectedBase.family,
+      )
+    const lines = [
+      triggers ? tBrowse('arrivedTriggers', { triggers }) : null,
+      incompatible
+        ? tBrowse('arrivedIncompatible', {
+            base: operatorBaseLabel(selectedBase),
+          })
+        : null,
+    ].filter((line): line is string => line !== null)
+    toast.success(tBrowse('arrivedMounted', { name: asset.name }), {
+      ...(lines.length > 0 ? { description: lines.join(' · ') } : {}),
+      duration: LORA_TOAST_DURATION_MS,
+      action: {
+        label: tFeedback('undo'),
+        onClick: () => stack.remove(asset.id),
+      },
+    })
+  }, [
+    clearArrival,
+    makeSameFromLibrary,
+    operatorBaseLabel,
+    pendingArrival,
+    selectedBase,
+    stack,
+    tBrowse,
+    tFeedback,
+  ])
   const libraryPanelElement = (variant: 'stage' | 'sheet') =>
     libraryPanel ? (
       <LoraBenchLibraryPanel
@@ -3580,9 +3674,17 @@ function GenerateBranch({
                     // 「想画什么？」，⛔ 手机另写一句操作提示。
                     <div className="flex size-full flex-col items-center justify-center gap-2 p-3 text-center">
                       {mobileGenerateFailure ?? (
-                        <h2 className="text-xl font-semibold text-foreground">
-                          {t('generate.emptyTitle')}
-                        </h2>
+                        // 起手屏共用一份（StudioStarterState）：点例子只填进提示词。
+                        <StudioStarterState
+                          className="px-0 py-0"
+                          title={t('generate.emptyTitle')}
+                          description={t('generate.starterDescription')}
+                          examples={LORA_STARTER_EXAMPLE_IDS.map((id) => ({
+                            id,
+                            text: t(`generate.starterExamples.${id}`),
+                          }))}
+                          onPickExample={setPrompt}
+                        />
                       )}
                     </div>
                   ) : (
@@ -3731,265 +3833,284 @@ function GenerateBranch({
               </div>
             </div>
 
-            {/* composer：flow 下方的输入条，border-top + shrink-0，flex 天然钉
-              在卡底——不再是 60/40 网格里的一格。深炭工作台输入面，语义色板走
-              标准暗主题 token（发丝边框 border-border / 浅灰次文本
-              muted-foreground / 白丸出图）——不再依赖已退役、且从未编译进样式表
-              的 .lora-generate-input 象牙 token 重定义（G3 contrast 修）。 */}
-            <div
-              data-testid="lora-composer-card"
-              // owner 验收发现（2026-09-04）：composer 重排时漏加了横向内距——
-              // `.lora-composer`（lora.css）本身只是定位类，实际间距要靠这里的
-              // Tailwind 工具类给，之前一个都没给，导致负面摘要贴着卡边渲染
-              // （真机量得只剩 1px）。补回 mock 的量（桌面 12px/16px，手机
-              // 10px/10px，`lg` 断点与 `useIsMobile` 同界）。
-              className="lora-composer shrink-0 space-y-2.5 border-t border-border px-2.5 py-2.5 lg:px-4 lg:py-3"
-            >
-              {isMountingExtras && (
-                <p role="status" className="text-2sm text-muted-foreground">
-                  {t('sourceRecipeMounting')}
-                </p>
-              )}
-              {/* 装配行（iOS 稿 owner 2026-10-16）：底模键（小字「底模」+ 名字 ▾）·
+            {/* composer：舞台卡外面、地台底部的另一张白卡（和图片 / 视频 / 配音台
+              同一份手机输入卡类）。portal 进 root 给的那一格；落点还没挂上的那一帧
+              不画（ref 回调里 setState，提交阶段同步补一次渲染，不会闪）。 */}
+            {mobileComposerSlot
+              ? createPortal(
+                  <div
+                    data-testid="lora-composer-card"
+                    className={cn(
+                      'lora-composer w-full min-w-0 space-y-2.5 pb-2',
+                      STUDIO_MOBILE_COMPOSER_CARD_CLASS,
+                    )}
+                  >
+                    {isMountingExtras && (
+                      <p
+                        role="status"
+                        className="text-2sm text-muted-foreground"
+                      >
+                        {t('sourceRecipeMounting')}
+                      </p>
+                    )}
+                    {/* 装配行（iOS 稿 owner 2026-10-16）：底模键（小字「底模」+ 名字 ▾）·
                 挂着的 LoRA 只画小图不带名字 · ＋ 去库里挑。底模键与小图点开的都是
                 同一个装配抽屉（底模 / LoRA 栈 / 参考图）。 */}
-              <div className="flex min-w-0 items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setAssemblySheetOpen(true)}
-                  aria-label={t('spine.openAssembly')}
-                  className="touch-target-y flex min-w-0 shrink items-center gap-2 rounded-xl py-0.5 pr-1.5 text-left transition-colors duration-fast ease-standard active:bg-muted"
-                >
-                  <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
-                    <Boxes className="size-4" aria-hidden />
-                  </span>
-                  <span className="flex min-w-0 flex-col leading-tight">
-                    <span className="text-2xs text-muted-foreground">
-                      {t('spine.baseModel')}
-                    </span>
-                    <span className="truncate text-md font-semibold text-foreground">
-                      {selectedBase
-                        ? selectedBase.translationKey
-                          ? t(`spine.${selectedBase.translationKey}`)
-                          : selectedBase.displayName
-                        : t('spine.baseModelPending')}
-                    </span>
-                  </span>
-                  <ChevronDown
-                    className="size-3.5 shrink-0 text-muted-foreground"
-                    aria-hidden
-                  />
-                </button>
-                <span aria-hidden className="h-6 w-px shrink-0 bg-border" />
-                {/* coarse 下四周让出 6px 再负边距抵回：横滚行会把 44 外扩裁回 32（u-audit-mobile）。 */}
-                <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto coarse:-m-1.5 coarse:p-1.5">
-                  {stack.items.map((item) => (
-                    <button
-                      key={item.asset.id}
-                      type="button"
-                      onClick={() => setAssemblySheetOpen(true)}
-                      aria-label={item.asset.name}
-                      className={cn(
-                        'touch-target grid size-8 shrink-0 place-items-center overflow-hidden rounded-lg border border-border/60 bg-muted text-muted-foreground',
-                        item.enabled === false && 'opacity-50',
-                      )}
-                    >
-                      {item.asset.coverImageUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={proxyCivitaiImageUrl(item.asset.coverImageUrl)}
-                          alt=""
-                          className="size-full object-cover"
-                          loading="lazy"
-                          decoding="async"
+                    <div className="flex min-w-0 items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setAssemblySheetOpen(true)}
+                        aria-label={t('spine.openAssembly')}
+                        className="touch-target-y flex min-w-0 shrink items-center gap-2 rounded-xl py-0.5 pr-1.5 text-left transition-colors duration-fast ease-standard active:bg-muted"
+                      >
+                        <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
+                          <Boxes className="size-4" aria-hidden />
+                        </span>
+                        <span className="flex min-w-0 flex-col leading-tight">
+                          <span className="text-2xs text-muted-foreground">
+                            {t('spine.baseModel')}
+                          </span>
+                          <span className="truncate text-md font-semibold text-foreground">
+                            {selectedBase
+                              ? selectedBase.translationKey
+                                ? t(`spine.${selectedBase.translationKey}`)
+                                : selectedBase.displayName
+                              : t('spine.baseModelPending')}
+                          </span>
+                        </span>
+                        <ChevronDown
+                          className="size-3.5 shrink-0 text-muted-foreground"
+                          aria-hidden
                         />
-                      ) : (
-                        <ImageIcon className="size-3.5" aria-hidden />
-                      )}
-                    </button>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={addLora}
-                    aria-label={t('spine.addLoraFull')}
-                    className="touch-target grid size-8 shrink-0 place-items-center rounded-lg border border-dashed border-border text-muted-foreground transition-colors duration-fast ease-standard active:bg-muted"
-                  >
-                    <Plus className="size-4" aria-hidden />
-                  </button>
-                </div>
-              </div>
-              {/* G3b-2b 搭配状态条（Prompt 上方单行）：一眼读到已应用来源配方 +
+                      </button>
+                      <span
+                        aria-hidden
+                        className="h-6 w-px shrink-0 bg-border"
+                      />
+                      {/* coarse 下四周让出 6px 再负边距抵回：横滚行会把 44 外扩裁回 32（u-audit-mobile）。 */}
+                      <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto coarse:-m-1.5 coarse:p-1.5">
+                        {stack.items.map((item) => (
+                          <button
+                            key={item.asset.id}
+                            type="button"
+                            onClick={() => setAssemblySheetOpen(true)}
+                            aria-label={item.asset.name}
+                            className={cn(
+                              'touch-target grid size-8 shrink-0 place-items-center overflow-hidden rounded-lg border border-border/60 bg-muted text-muted-foreground',
+                              item.enabled === false && 'opacity-50',
+                            )}
+                          >
+                            {item.asset.coverImageUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={proxyCivitaiImageUrl(
+                                  item.asset.coverImageUrl,
+                                )}
+                                alt=""
+                                className="size-full object-cover"
+                                loading="lazy"
+                                decoding="async"
+                              />
+                            ) : (
+                              <ImageIcon className="size-3.5" aria-hidden />
+                            )}
+                          </button>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={addLora}
+                          aria-label={t('spine.addLoraFull')}
+                          className="touch-target grid size-8 shrink-0 place-items-center rounded-lg border border-dashed border-border text-muted-foreground transition-colors duration-fast ease-standard active:bg-muted"
+                        >
+                          <Plus className="size-4" aria-hidden />
+                        </button>
+                      </div>
+                    </div>
+                    {/* G3b-2b 搭配状态条（Prompt 上方单行）：一眼读到已应用来源配方 +
                 触发词×N，点查看展开（配方参数 + 可停用的触发词 chip），点撤销把
                 做同款前的输入快照整批回滚。触发词 chips 并入其展开，不再独占一行。 */}
-              <LoraCollocationStatusBar
-                sourceKind="recipe"
-                recipeApplied={collocationRecipe != null}
-                recipeName={collocationRecipe?.assetName ?? null}
-                appliedParamLabels={collocationRecipe?.appliedParamLabels ?? []}
-                changedParams={collocationChanges.changed}
-                addedPromptTags={collocationChanges.addedPrompt}
-                keptLabels={collocationChanges.kept}
-                triggerEntries={triggerChipEntries}
-                disabledTriggerIds={disabledTriggerIds}
-                onToggleTrigger={handleToggleTriggerChip}
-                onUndo={handleUndoRecipe}
-                pendingReview={collocationPending}
-                onApplyPending={handleApplyPendingCollocation}
-                expanded={collocationExpanded}
-                onExpandedChange={setCollocationExpanded}
-              />
-              {/* owner 反馈（2026-09-04，对照 lora-b-mock.html 逐条改）：composer
+                    <LoraCollocationStatusBar
+                      sourceKind="recipe"
+                      recipeApplied={collocationRecipe != null}
+                      recipeName={collocationRecipe?.assetName ?? null}
+                      appliedParamLabels={
+                        collocationRecipe?.appliedParamLabels ?? []
+                      }
+                      changedParams={collocationChanges.changed}
+                      addedPromptTags={collocationChanges.addedPrompt}
+                      keptLabels={collocationChanges.kept}
+                      triggerEntries={triggerChipEntries}
+                      disabledTriggerIds={disabledTriggerIds}
+                      onToggleTrigger={handleToggleTriggerChip}
+                      onUndo={handleUndoRecipe}
+                      pendingReview={collocationPending}
+                      onApplyPending={handleApplyPendingCollocation}
+                      expanded={collocationExpanded}
+                      onExpandedChange={setCollocationExpanded}
+                    />
+                    {/* owner 反馈（2026-09-04，对照 lora-b-mock.html 逐条改）：composer
                 不再是一张带标签的高输入卡——提示词是单行起随内容增高的行内输入
                 （field-sizing: content，见 lora.css `.lora-prompt-input`），出图钮
                 挂在它右侧的黑色胶囊，不是压在卡底的通栏大按钮。整条输入条空态
                 目标高度 ~90–110px（12px×2 内距 + 单行输入 + chip 行）。 */}
-              <div className="flex items-end gap-2">
-                {/* CD④：触发词在正文里高亮。背板层排同一段字（透明）只负责画
+                    <div className="flex items-end gap-2">
+                      {/* CD④：触发词在正文里高亮。背板层排同一段字（透明）只负责画
                       底色 + 下边线，可见文字仍来自压在上面的 textarea——两层的
                       排版与内边距通过共同的 lora-prompt-layout 对齐。 */}
-                <div className="relative min-w-0 flex-1">
-                  <label htmlFor="lora-prompt" className="sr-only">
-                    {t('generate.promptLabel')}
-                  </label>
-                  <PromptTriggerHighlight
-                    text={prompt}
-                    phrases={triggerHighlightPhrases}
-                    backdropRef={promptBackdropRef}
-                  />
-                  <textarea
-                    id="lora-prompt"
-                    ref={promptTextareaRef}
-                    value={prompt}
-                    onChange={(event) => setPrompt(event.target.value)}
-                    onScroll={handlePromptScroll}
-                    placeholder={t('generate.promptPlaceholder')}
-                    rows={1}
-                    // `.lora-prompt-input`（lora.css）：field-sizing: content 让它
-                    // 跟着内容从一行长到约 4 行封顶，超过封顶内部滚动——不用 JS 量
-                    // 高度，`field-sizing` 不支持的浏览器退回单行高度（不会更糟）。
-                    className="lora-prompt-layout lora-prompt-input relative block w-full resize-none bg-transparent text-base leading-relaxed text-foreground outline-none placeholder:text-muted-foreground md:text-md md:leading-reading"
-                  />
-                  <PromptTagAutocomplete
-                    textareaRef={promptTextareaRef}
-                    value={prompt}
-                    onChange={setPrompt}
-                    polarity="positive"
-                  />
-                </div>
-              </div>
-              {/* 输入栏（iOS 稿 owner 2026-10-16，与标签台同步）：＋（忠实还原 · 负面）·
+                      <div className="relative min-w-0 flex-1">
+                        <label htmlFor="lora-prompt" className="sr-only">
+                          {t('generate.promptLabel')}
+                        </label>
+                        <PromptTriggerHighlight
+                          text={prompt}
+                          phrases={triggerHighlightPhrases}
+                          backdropRef={promptBackdropRef}
+                        />
+                        <textarea
+                          id="lora-prompt"
+                          ref={promptTextareaRef}
+                          value={prompt}
+                          onChange={(event) => setPrompt(event.target.value)}
+                          onScroll={handlePromptScroll}
+                          placeholder={t('generate.promptPlaceholder')}
+                          rows={1}
+                          // `.lora-prompt-input`（lora.css）：field-sizing: content 让它
+                          // 跟着内容从一行长到约 4 行封顶，超过封顶内部滚动——不用 JS 量
+                          // 高度，`field-sizing` 不支持的浏览器退回单行高度（不会更糟）。
+                          className="lora-prompt-layout lora-prompt-input relative block w-full resize-none bg-transparent text-base leading-relaxed text-foreground outline-none placeholder:text-muted-foreground md:text-md md:leading-reading"
+                        />
+                        <PromptTagAutocomplete
+                          textareaRef={promptTextareaRef}
+                          value={prompt}
+                          onChange={setPrompt}
+                          polarity="positive"
+                        />
+                      </div>
+                    </div>
+                    {/* 输入栏（iOS 稿 owner 2026-10-16，与标签台同步）：＋（忠实还原 · 负面）·
                 比例 · 参数 ……… 出图。弹层都从按钮正上方弹白卡。 */}
-              <div className="flex min-w-0 items-center gap-2">
-                <ResponsivePopoverPhoneCard>
-                  <div className="studio-mobile-chip-row flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
-                    <StudioMobileAddSheet
-                      attachments={false}
-                      disabled={isGenerating}
-                      hasHiddenSetting={negativePrompt.trim() !== ''}
-                      rows={[
-                        ...(activeAsset
-                          ? [
-                              {
-                                key: 'restore',
-                                icon: <Wand2 className="size-4" />,
-                                label: t('generate.restoreShort'),
-                                onSelect: handleRestore,
-                              },
-                            ]
-                          : []),
-                        ...(negativeInert
-                          ? []
-                          : [
-                              {
-                                key: 'negative',
-                                icon: <Ban className="size-4" />,
-                                label: t('generate.negativePromptLabel'),
-                                detail: negativePrompt.trim() || undefined,
-                                onSelect: () => {
-                                  setNegativePromptExpanded(true)
-                                  requestAnimationFrame(() =>
-                                    negativePromptTextareaRef.current?.focus(),
-                                  )
-                                },
-                              },
-                            ]),
-                      ]}
-                    />
-                    <LoraAspectRatioChip
-                      value={aspectRatio}
-                      onChange={handleAspectRatioChange}
-                      disabled={isGenerating}
-                    />
-                    {loraParamsChip}
-                  </div>
-                </ResponsivePopoverPhoneCard>
-                {loraGenerateButton}
-              </div>
-              {/* 展开/收起走 grid-rows 过渡（.lora-reveal），收起时 inert 挡住焦点
+                    <div className="flex min-w-0 items-center gap-2">
+                      <ResponsivePopoverPhoneCard>
+                        <div className="studio-mobile-chip-row flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
+                          <StudioMobileAddSheet
+                            attachments={false}
+                            disabled={isGenerating}
+                            hasHiddenSetting={negativePrompt.trim() !== ''}
+                            rows={[
+                              ...(activeAsset
+                                ? [
+                                    {
+                                      key: 'restore',
+                                      icon: <Wand2 className="size-4" />,
+                                      label: t('generate.restoreShort'),
+                                      onSelect: handleRestore,
+                                    },
+                                  ]
+                                : []),
+                              ...(negativeInert
+                                ? []
+                                : [
+                                    {
+                                      key: 'negative',
+                                      icon: <Ban className="size-4" />,
+                                      label: t('generate.negativePromptLabel'),
+                                      detail:
+                                        negativePrompt.trim() || undefined,
+                                      onSelect: () => {
+                                        setNegativePromptExpanded(true)
+                                        requestAnimationFrame(() =>
+                                          negativePromptTextareaRef.current?.focus(),
+                                        )
+                                      },
+                                    },
+                                  ]),
+                            ]}
+                          />
+                          <LoraAspectRatioChip
+                            value={aspectRatio}
+                            onChange={handleAspectRatioChange}
+                            disabled={isGenerating}
+                          />
+                          {loraParamsChip}
+                        </div>
+                      </ResponsivePopoverPhoneCard>
+                      {loraGenerateButton}
+                    </div>
+                    {/* 展开/收起走 grid-rows 过渡（.lora-reveal），收起时 inert 挡住焦点
                 与读屏。视觉上退成一个圈起来的小面板，紧贴在 chip 行下面。CFG 1 底模
                 时收起（内容留着，换回来原样展开）。 */}
-              <div
-                className="lora-reveal"
-                data-open={
-                  negativePromptExpanded && !negativeInert ? 'true' : 'false'
-                }
-              >
-                <div inert={!negativePromptExpanded || negativeInert}>
-                  <div className="space-y-1 rounded-xl border border-border bg-muted/20 px-3 py-2">
-                    <textarea
-                      ref={negativePromptTextareaRef}
-                      value={negativePrompt}
-                      onChange={(event) =>
-                        setNegativePrompt(event.target.value)
+                    <div
+                      className="lora-reveal"
+                      data-open={
+                        negativePromptExpanded && !negativeInert
+                          ? 'true'
+                          : 'false'
                       }
-                      placeholder={t('generate.negativePromptPlaceholder')}
-                      rows={2}
-                      className="w-full resize-none bg-transparent text-base outline-none placeholder:text-muted-foreground md:text-xs"
-                    />
-                    <PromptTagAutocomplete
-                      textareaRef={negativePromptTextareaRef}
-                      value={negativePrompt}
-                      onChange={setNegativePrompt}
-                      polarity="negative"
-                    />
-                  </div>
-                </div>
-              </div>
-              {/* §4.1 不兼容挂载警示：不阻断出图，与 runner 额度提示同区同形制
-                （琥珀 text-2xs）。互斥时退化成"卸载其一"，不给假建议。 */}
-              {incompatibleCount > 0 ? (
-                <p className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-2xs text-status-warning">
-                  <AlertTriangle className="size-3 shrink-0" aria-hidden />
-                  <span>
-                    {t('generate.incompatibleMountsWarning', {
-                      n: incompatibleCount,
-                    })}
-                  </span>
-                  {mountsMutuallyExclusive ? (
-                    <span>{t('generate.mountsMutuallyExclusive')}</span>
-                  ) : canSuggestBaseSwitch && suggestedBaseLabel ? (
-                    <button
-                      type="button"
-                      onClick={handleSwitchToSuggestedBase}
-                      className="underline underline-offset-2 hover:text-status-warning"
                     >
-                      {t('generate.switchToSuggestedBase', {
-                        base: suggestedBaseLabel,
-                      })}
-                    </button>
-                  ) : null}
-                </p>
-              ) : null}
-              {/* B 稿：主动额度提示已迁到 rail 底部（`runnerBudgetNote`，见
+                      <div inert={!negativePromptExpanded || negativeInert}>
+                        <div className="space-y-1 rounded-xl border border-border bg-muted/20 px-3 py-2">
+                          <textarea
+                            ref={negativePromptTextareaRef}
+                            value={negativePrompt}
+                            onChange={(event) =>
+                              setNegativePrompt(event.target.value)
+                            }
+                            placeholder={t(
+                              'generate.negativePromptPlaceholder',
+                            )}
+                            rows={2}
+                            className="w-full resize-none bg-transparent text-base outline-none placeholder:text-muted-foreground md:text-xs"
+                          />
+                          <PromptTagAutocomplete
+                            textareaRef={negativePromptTextareaRef}
+                            value={negativePrompt}
+                            onChange={setNegativePrompt}
+                            polarity="negative"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    {/* §4.1 不兼容挂载警示：不阻断出图，与 runner 额度提示同区同形制
+                （琥珀 text-2xs）。互斥时退化成"卸载其一"，不给假建议。 */}
+                    {incompatibleCount > 0 ? (
+                      <p className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-2xs text-status-warning">
+                        <AlertTriangle
+                          className="size-3 shrink-0"
+                          aria-hidden
+                        />
+                        <span>
+                          {t('generate.incompatibleMountsWarning', {
+                            n: incompatibleCount,
+                          })}
+                        </span>
+                        {mountsMutuallyExclusive ? (
+                          <span>{t('generate.mountsMutuallyExclusive')}</span>
+                        ) : canSuggestBaseSwitch && suggestedBaseLabel ? (
+                          <button
+                            type="button"
+                            onClick={handleSwitchToSuggestedBase}
+                            className="underline underline-offset-2 hover:text-status-warning"
+                          >
+                            {t('generate.switchToSuggestedBase', {
+                              base: suggestedBaseLabel,
+                            })}
+                          </button>
+                        ) : null}
+                      </p>
+                    ) : null}
+                    {/* B 稿：主动额度提示已迁到 rail 底部（`runnerBudgetNote`，见
                 assemblyColumn 定义处）——不再挤在 composer 里，composer 是卡内
                 固定钉底的输入条，多一行文字在窄屏会把它顶出卡/视口。 */}
-              {/* S2精修①-B：Runner 高级参数已迁到左装配栏（runnerParamsPanel）。 */}
-              {generateError ? (
-                <p role="alert" className="text-2xs text-destructive">
-                  {generateError}
-                </p>
-              ) : null}
-            </div>
+                    {/* S2精修①-B：Runner 高级参数已迁到左装配栏（runnerParamsPanel）。 */}
+                    {generateError ? (
+                      <p role="alert" className="text-2xs text-destructive">
+                        {generateError}
+                      </p>
+                    ) : null}
+                  </div>,
+                  mobileComposerSlot,
+                )
+              : null}
           </div>
         </section>
         <StudioOperatorBenchDock />

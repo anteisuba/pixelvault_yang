@@ -243,7 +243,7 @@ describe('记忆（第 6 步）', () => {
     })
   })
 
-  it('和角色聊天时没给角色：记进正在聊的那位', async () => {
+  it('请求带着会话角色（没台和她聊、或盖过章的旧聊天）时没给角色：记进她那份；11-18 起台上用着设置里的角色不带它，默认记「关于你」', async () => {
     const card = await createTestCard(owner.userId, {
       name: '马尔福',
       persona: { identity: '斯莱特林学生', speech: '拖长腔' },

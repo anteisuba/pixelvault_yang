@@ -75,7 +75,9 @@ import { GENERATED_VIEW_ANGLES } from '@/constants/three-d-ready-prompt'
 import { CLIENT_UPLOAD_MAX_BYTES } from '@/constants/uploads'
 import { AssetSelectorDialog } from '@/features/assets'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
-import { STUDIO_COMPOSER_CARD_CLASS } from '@/components/business/studio-shared/chrome/studio-composer-card'
+import { STUDIO_COMPOSER_CARD_RESPONSIVE_CLASS } from '@/components/business/studio-shared/chrome/studio-composer-card'
+import { StudioStarterState } from '@/components/business/studio-shared/chrome/StudioStarterState'
+import { StudioGenerateButton } from '@/components/business/studio-shared/workflow/StudioGenerateButton'
 import { ModelViewer } from '@/components/business/ModelViewer'
 import { StageStepperBar } from '@/components/business/StageStepperBar'
 import { WireframeModelPreview } from '@/components/business/WireframeModelPreview'
@@ -331,6 +333,7 @@ export function Studio3DWorkspace({
   const [multiViewQuickSetupOpen, setMultiViewQuickSetupOpen] = useState(false)
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const rodinPromptRef = useRef<HTMLTextAreaElement>(null)
   const [selectedModelId, setSelectedModelId] = useState<string>(
     AI_MODELS.RODIN_GEN_2_5,
   )
@@ -1166,54 +1169,6 @@ export function Studio3DWorkspace({
     isRodin && rodinTextMode
       ? rodinPrompt.trim().length > 0
       : Boolean(sourceImage) && sourceQualityIssues.length === 0
-  const generateBar = (
-    <div className={styles.generateBar}>
-      <div className="flex flex-wrap items-center justify-between gap-1 text-2xs text-muted-foreground">
-        <span>{t('estimatedCost')}</span>
-        <span>
-          {t('creditAmount', {
-            credits: isRodin
-              ? RODIN_TIER_CREDITS[rodinTier] +
-                (rodinHighPack ? RODIN_HIGHPACK_EXTRA_CREDITS : 0)
-              : (selectedModel?.cost ?? 0),
-          })}
-        </span>
-      </div>
-      {isRodin && (
-        <p className="text-2xs text-muted-foreground">
-          {t('estimatedMinutes', {
-            minutes: Math.round(RODIN_TIER_ESTIMATED_SECONDS[rodinTier] / 60),
-          })}
-        </p>
-      )}
-      <Button
-        type="button"
-        disabled={
-          isGenerating || (!generationKeyMissing && !hasGenerationInput)
-        }
-        onClick={() => {
-          if (generationKeyMissing) {
-            setQuickSetupOpen(true)
-            return
-          }
-          setSettingsOpen(false)
-          void handleGenerate()
-        }}
-        className="min-h-11 w-full rounded-xl"
-      >
-        {isGenerating ? <Spinner size="sm" /> : <Sparkles className="size-4" />}
-        {isGenerating
-          ? t('generating')
-          : generationKeyMissing
-            ? t('setupApiKeyButton')
-            : !hasGenerationInput
-              ? isRodin && rodinTextMode
-                ? t('enterPromptToGenerate')
-                : t('selectImageToGenerate')
-              : t('generateButton')}
-      </Button>
-    </div>
-  )
   const modelButton = (
     <>
       <button
@@ -1386,13 +1341,6 @@ export function Studio3DWorkspace({
               </Button>
             </div>
           )}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handleFileChange}
-          />
         </div>
       )}
 
@@ -2391,13 +2339,48 @@ export function Studio3DWorkspace({
       : rodinMode === 'mesh_first'
         ? t('rodinModeMeshFirstLabel')
         : t('rodinModeImageLabel')
+  const missingInputMessage = !hasGenerationInput
+    ? isRodin && rodinTextMode
+      ? t('enterPromptToGenerate')
+      : t('selectImageToGenerate')
+    : undefined
+  const costText = `${
+    isRodin
+      ? `${t('estimatedMinutes', {
+          minutes: Math.round(RODIN_TIER_ESTIMATED_SECONDS[rodinTier] / 60),
+        })} · `
+      : ''
+  }${t('creditAmount', { credits: generationCost })}`
+  /**
+   * 手机那颗圆键（和图像 / 视频 / 配音同一颗 `StudioGenerateButton`）。⛔ 硬禁用：
+   * 缺 key → 就地弹 QuickSetup（Hard Rule 8，键上 ⛔ 写「API Key」）；缺输入 → 文字模式
+   * 把焦点送进输入框、图片模式直接开素材选择。只有正在生成时才真的按不动。
+   */
+  const handleMobileGenerate = () => {
+    if (generationKeyMissing) {
+      setQuickSetupOpen(true)
+      return
+    }
+    if (!hasGenerationInput) {
+      if (isRodin && rodinTextMode) rodinPromptRef.current?.focus()
+      else setPickerOpen(true)
+      return
+    }
+    void handleGenerate()
+  }
+  // 一份输入框两档尺寸：类名走断点（手机底部浮卡 / 桌面浮起的输入框），⛔ 按
+  // `useIsMobile` 分两棵树 —— 那个钩子首帧恒为 false，手机会先闪一帧桌面版再换。
   const composer = (
     <section
       aria-label={t('settingsTitle')}
-      className={cn('flex shrink-0 flex-col gap-3', STUDIO_COMPOSER_CARD_CLASS)}
+      className={cn(
+        'flex shrink-0 flex-col gap-2.5 pb-2 lg:gap-3',
+        STUDIO_COMPOSER_CARD_RESPONSIVE_CLASS,
+      )}
     >
       {isRodin && rodinTextMode ? (
         <textarea
+          ref={rodinPromptRef}
           id="rodin-prompt-top"
           value={rodinPrompt}
           onChange={(e) => setRodinPrompt(e.target.value)}
@@ -2455,7 +2438,25 @@ export function Studio3DWorkspace({
           </span>
         </div>
       )}
-      <div className="flex flex-wrap items-center gap-1.5">
+      <div className="flex items-center gap-1.5 lg:flex-wrap">
+        {/* 手机：参数、模式、参考图来源都收进「模型设置」那张抽屉（一整列，比一排小弹层
+            好点），输入卡上只留一颗模型药丸 + 圆键。 */}
+        <button
+          type="button"
+          onClick={() => setSettingsOpen(true)}
+          aria-label={t('settingsTitle')}
+          aria-expanded={settingsOpen}
+          className={cn(
+            studioOutlineChipClass,
+            'max-w-48 bg-transparent pr-2 pl-2.5 text-foreground active:bg-muted lg:hidden',
+          )}
+        >
+          <SlidersHorizontal className="size-3.5 shrink-0" aria-hidden />
+          <span className="truncate">
+            {tModels(`${getModelMessageKey(selectedModelId)}.label`)}
+          </span>
+          <ChevronDown className="size-3.5 shrink-0" aria-hidden />
+        </button>
         {!(isRodin && rodinTextMode) && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -2465,7 +2466,7 @@ export function Studio3DWorkspace({
                 disabled={uploading || isGenerating}
                 className={cn(
                   studioOutlineChipClass,
-                  'w-8 justify-center px-0',
+                  'w-8 justify-center px-0 max-lg:hidden',
                 )}
               >
                 {uploading ? (
@@ -2493,7 +2494,10 @@ export function Studio3DWorkspace({
               <button
                 type="button"
                 aria-label={`${t('rodinModeLabel')} · ${rodinModeLabel}`}
-                className={cn(studioOutlineChipClass, 'text-foreground')}
+                className={cn(
+                  studioOutlineChipClass,
+                  'text-foreground max-lg:hidden',
+                )}
               >
                 {rodinModeLabel}
                 <ChevronDown className="size-3.5" aria-hidden />
@@ -2530,6 +2534,7 @@ export function Studio3DWorkspace({
               }
               className={cn(
                 studioOutlineChipClass,
+                'max-lg:hidden',
                 paramsSummary ? 'text-foreground' : 'w-8 justify-center px-0',
                 paramsOpen && studioOutlineChipOpenClass,
               )}
@@ -2550,30 +2555,42 @@ export function Studio3DWorkspace({
             {paramFields}
           </PopoverContent>
         </Popover>
-        <span className="ml-auto font-mono text-2xs text-muted-foreground">
-          {isRodin
-            ? `${t('estimatedMinutes', {
-                minutes: Math.round(
-                  RODIN_TIER_ESTIMATED_SECONDS[rodinTier] / 60,
-                ),
-              })} · `
-            : ''}
-          {t('creditAmount', { credits: generationCost })}
+        <span className="ml-auto font-mono text-2xs text-muted-foreground max-lg:min-w-0 max-lg:truncate">
+          {costText}
         </span>
         <button
           type="button"
           onClick={() => setModelPickerOpen(true)}
           aria-label={t('changeModelButton')}
-          className={cn(studioOutlineChipClass, 'max-w-60 text-foreground')}
+          className={cn(
+            studioOutlineChipClass,
+            'max-w-60 text-foreground max-lg:hidden',
+          )}
         >
           <span className="truncate">
             {tModels(`${getModelMessageKey(selectedModelId)}.label`)}
           </span>
           <ChevronDown className="size-3.5 shrink-0" aria-hidden />
         </button>
+        <StudioGenerateButton
+          variant="round"
+          className="lg:hidden"
+          label={t('generateButton')}
+          busyLabel={t('generating')}
+          ariaLabel={t('generateButton')}
+          blockedMessage={
+            generationKeyMissing ? undefined : missingInputMessage
+          }
+          isGenerating={isGenerating}
+          elapsedSeconds={elapsedSeconds}
+          canGenerate={generationKeyMissing || hasGenerationInput}
+          disabled={isGenerating}
+          onGenerate={handleMobileGenerate}
+        />
         <Button
           type="button"
           size="sm"
+          className="max-lg:hidden"
           disabled={
             isGenerating || (!generationKeyMissing && !hasGenerationInput)
           }
@@ -2601,7 +2618,7 @@ export function Studio3DWorkspace({
     </section>
   )
 
-  // 手机：参数照旧收在抽屉里，一整列（手机端等电脑端做完再定，ui-spec §1）。
+  // 手机：输入卡上那颗「模型设置」药丸打开的抽屉 —— 模型 / 模式 / 参考图 / 参数一整列。
   const settingsFields = (
     <div className={styles.fields}>
       {modelButton}
@@ -2615,10 +2632,8 @@ export function Studio3DWorkspace({
   return (
     <div className={styles.root}>
       <h1 className="sr-only">{t('title')}</h1>
-      <div
-        className={styles.workspace}
-        data-layout={isMobile ? undefined : 'stack'}
-      >
+      {/* 两档都是「舞台在上、输入卡在下」：间距差走 CSS 断点，⛔ 按 isMobile 切（首帧闪）。 */}
+      <div className={styles.workspace} data-layout="stack">
         <main className={styles.canvas}>
           {/* 台顶第一行（壳收起对话时头像落在这一行）：⛔ 角标字，留空行。 */}
           <div data-bench-header className={styles.stageHeader} />
@@ -2835,14 +2850,44 @@ export function Studio3DWorkspace({
                 <div className={styles.modelBody} />
                 <div className={styles.modelBase} />
               </div>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => setExistingModelPickerOpen(true)}
-              >
-                <FolderOpen className="size-4" />
-                {t('openExistingModel')}
-              </Button>
+              {/* 起手屏共用一份（StudioStarterState）：3D 吃图不吃字，⛔ 文字例子 ——
+                  换成「上传 / 从素材选」两颗入口 + 原来的「打开已有 3D」。 */}
+              <StudioStarterState
+                className="grow-0 py-0 lg:py-0"
+                title={t('starterTitle')}
+                description={t('starterDescription')}
+                action={
+                  <>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={handleUploadClick}
+                    >
+                      <Upload className="size-4" />
+                      {t('uploadButton')}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setPickerOpen(true)}
+                    >
+                      <ImageIcon className="size-4" />
+                      {t('selectFromAssets')}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setExistingModelPickerOpen(true)}
+                    >
+                      <FolderOpen className="size-4" />
+                      {t('openExistingModel')}
+                    </Button>
+                  </>
+                }
+              />
             </div>
           )}
 
@@ -2963,33 +3008,19 @@ export function Studio3DWorkspace({
           )}
         </main>
 
-        {!isMobile && composer}
+        {composer}
       </div>
 
-      {!isMobile && (
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={handleFileChange}
-        />
-      )}
+      {/* 只挂一份：手机桌面、抽屉开没开都是它（「上传」「＋」「起手屏」都点它）。 */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleFileChange}
+      />
       {isMobile && (
         <>
-          <div className={styles.mobileBar}>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setSettingsOpen(true)}
-              aria-expanded={settingsOpen}
-              className="min-h-11 rounded-xl"
-            >
-              <SlidersHorizontal className="size-4" />
-              {t('settingsTitle')}
-            </Button>
-            {generateBar}
-          </div>
           <ResponsiveDialog open={settingsOpen} onOpenChange={setSettingsOpen}>
             <ResponsiveDialogContent
               className="p-0"
@@ -3015,7 +3046,6 @@ export function Studio3DWorkspace({
                 </ResponsiveDialogDescription>
               </ResponsiveDialogHeader>
               {settingsFields}
-              {generateBar}
             </ResponsiveDialogContent>
           </ResponsiveDialog>
         </>

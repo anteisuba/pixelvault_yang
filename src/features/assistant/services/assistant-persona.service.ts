@@ -296,8 +296,8 @@ async function findPersonaRow(userId: string): Promise<PersonaRow | null> {
 }
 
 /**
- * 没开台时和谁聊（用户 10-26：她的对话只有一份，收台 = 聊天、开台 = 工作）：设置里「用哪个角色」那张卡。
- * 默认助手 / 卡删了 = `null`（照工作口吻答）。
+ * 没台的那一轮和谁聊（用户 10-26 / 11-18：开台能干活、没台聊天，⛔ 开关）：设置里「用哪个角色」那张卡。
+ * 默认助手 / 卡删了 = `null`（照默认助手答）。有台时她照样是她，由 `playSettingsCharacter` 读同一张卡。
  */
 export async function getHomeChatCharacterId(
   clerkId: string,
@@ -330,13 +330,24 @@ export async function getAssistantPersona(
 export async function getAssistantPersonaByUserId(
   userId: string,
   chatCharacterId?: string | null,
+  /**
+   * 没给 `chatCharacterId` 时，设置里「用哪个角色」那张卡也整份读成角色人设（卡、场景、世界书都带）——
+   * 11-18 起开着台她也保持角色（owner 去掉「聊天 / 工作」）。卡上一格设定都没写照旧退回下面那份。
+   */
+  options: { playSettingsCharacter?: boolean } = {},
 ): Promise<AssistantPromptPersona> {
   const row = await findPersonaRow(userId)
   const persona = toPersona(row)
-  if (chatCharacterId) {
+  const settingsCard = row?.characterCard
+  const playedId =
+    chatCharacterId ??
+    (options.playSettingsCharacter && settingsCard && !settingsCard.isDeleted
+      ? settingsCard.id
+      : null)
+  if (playedId) {
     const chatCard = await db.characterCard.findFirst({
-      where: { id: chatCharacterId, userId, isDeleted: false },
-      // 聊天多读卡上原样存的那份（世界书在里面）。
+      where: { id: playedId, userId, isDeleted: false },
+      // 角色人设多读卡上原样存的那份（世界书在里面）。
       select: {
         ...PERSONA_SELECT.characterCard.select,
         extensions: true,
@@ -347,7 +358,12 @@ export async function getAssistantPersonaByUserId(
         },
       },
     })
-    const chat = chatCard ? toChatPersona(persona, chatCard) : null
+    // 台上演设置里那位时尊重「口吻跟角色」那一格（owner 11-18：⛔ 静默作废设置）；会话盖过章的照旧整份演。
+    const chat = chatCard
+      ? toChatPersona(persona, chatCard, {
+          tone: chatCharacterId ? true : persona.toneFromCharacter,
+        })
+      : null
     if (chat) return chat
   }
   const card = row?.characterCard ?? null
@@ -366,9 +382,11 @@ export async function getAssistantPersonaByUserId(
 }
 
 /**
- * **聊天模式**这一轮按谁说话（附录L）：会话绑的那张卡，⛔ 不看设置里「用哪个角色」。
- * 名字、口吻都跟这张卡走（聊天里她就是她）；多带场景 / 开场白 / 示例对白三样。
- * 卡里一格设定都没写 → `null`，调用方照工作模式答（只剩名字的角色演不出来）。
+ * 这一轮演谁（附录L；11-18 起有台也演）：会话绑的那张卡，没绑时（有台、`playSettingsCharacter`）是设置里那张。
+ * 名字、口吻都跟这张卡走（她就是她）；多带场景 / 开场白 / 示例对白三样。
+ * 卡里一格设定都没写 → `null`，调用方照默认助手答（只剩名字的角色演不出来）。
+ * `tone: false`（设置里关了「口吻跟角色」）= 不带她的说话方式、口头禅、学来的说法与示例对白，⛔ 换掉你选的
+ * 语气；名字与其余设定（身份、性格、背景、边界、场景、世界书）照带。
  */
 function toChatPersona(
   persona: AssistantPersona,
@@ -376,23 +394,30 @@ function toChatPersona(
     extensions: unknown
     journals: readonly { text: string }[]
   },
+  options: { tone: boolean },
 ): AssistantPromptPersona | null {
   const profile = readCharacterProfile(card)
   if (!profile) return null
-  const speech = profile.speech.trim()
-  const promptCharacter = toPromptCharacter(card.name, profile, speech)
-  if (!promptCharacter) return null
+  const speech = options.tone ? profile.speech.trim() : ''
+  const built = toPromptCharacter(card.name, profile, speech)
+  if (!built) return null
+  // 口吻关着：口头禅、学来的说法、示例对白也是「她怎么说话」，一并不带。
+  const promptCharacter = options.tone
+    ? built
+    : { ...built, catchphrases: [], learnedPhrases: [] }
   const author = readTavernAuthorNotes(card.extensions)
   const roleplay: AssistantPromptRoleplay = {
     scenario: profile.scenario.trim(),
     // 酒馆卡的开场白 / 示例多半带 `*动作*`：进提示词前只留说出口的话（owner 10-30，⛔ 照着学）。
     opening: withoutStageDirections(profile.opening).trim(),
-    examples: profile.examples
-      .map((example) => ({
-        ...example,
-        reply: withoutStageDirections(example.reply),
-      }))
-      .filter((example) => example.user.trim() || example.reply.trim()),
+    examples: options.tone
+      ? profile.examples
+          .map((example) => ({
+            ...example,
+            reply: withoutStageDirections(example.reply),
+          }))
+          .filter((example) => example.user.trim() || example.reply.trim())
+      : [],
     world: readTavernWorldBook(card.extensions),
     /** 你在她的故事里是谁 —— 按角色记在卡上（owner 2026-10-16），每段聊天都带。 */
     userRole: readChatUserRole(card.extensions),

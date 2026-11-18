@@ -2,13 +2,9 @@
 
 import { useState, type ReactNode } from 'react'
 import Image from 'next/image'
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
 import { ASSISTANT_PERSONA_DEFAULTS } from '@/constants/assistant-persona'
-import { ASSISTANT_CHAT_MODE_IDS } from '@/constants/assistant-protocol'
-import { EASE_STANDARD, SHELL_MOTION } from '@/constants/motion'
-import { ChatCircle, Paintbrush } from '@/components/icons'
 import {
   AssistantAvatarGlyph,
   assistantGlyphLetterName,
@@ -26,11 +22,9 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
-import { Button } from '@/components/ui/button'
-import { studioOutlineChipClass } from '@/components/ui/chip'
 import { useAssistantPersona } from '@/hooks/use-assistant-persona'
 import { useChatCharacters } from '@/hooks/use-chat-characters'
-import { useOperatorChatMode, usePersonaSwitch } from '@/hooks/use-chat-persona'
+import { usePersonaSwitch } from '@/hooks/use-chat-persona'
 import { useStudioOperatorActions } from '@/features/assistant/hooks/use-studio-operator-actions'
 import { useStudioOperatorSelector } from '@/hooks/use-studio-operator-store'
 import { cn } from '@/lib/utils'
@@ -45,22 +39,14 @@ export function AvatarDisc({
   url,
   name,
   assistantPreset,
-  working = false,
 }: {
   url: string | null | undefined
   name: string
   /** 给了 = 这是助手那一颗（没图时画助手的图标而不是首字）。 */
   assistantPreset?: string | null
-  /** 在工作档（名字旁那枚胶囊）：方角；聊天档与没有档的都是圆的。 */
-  working?: boolean
 }) {
   return (
-    <span
-      className={cn(
-        'grid size-full place-items-center overflow-hidden bg-muted text-xs font-medium text-foreground transition-[border-radius] duration-base ease-standard motion-reduce:transition-none',
-        working ? 'rounded-lg' : 'rounded-full',
-      )}
-    >
+    <span className="grid size-full place-items-center overflow-hidden rounded-full bg-muted text-xs font-medium text-foreground">
       {url ? (
         <Image
           src={url}
@@ -93,9 +79,6 @@ export function StudioOperatorCurrentAvatar() {
   )
   const { persona } = useAssistantPersona()
   const characters = useChatCharacters(chatCharacter !== null)
-  const chatMode = useOperatorChatMode()
-  const working =
-    chatMode.available && chatMode.mode === ASSISTANT_CHAT_MODE_IDS.work
   const assistantName = persona.name ?? ''
   const chat = chatCharacter
     ? characters.characters.find(
@@ -107,13 +90,12 @@ export function StudioOperatorCurrentAvatar() {
   const disc = chatCharacter ? (
     <AvatarDisc url={chat?.avatarUrl} name={chatCharacter.name} />
   ) : letterName ? (
-    <AvatarDisc url={null} name={letterName} working={working} />
+    <AvatarDisc url={null} name={letterName} />
   ) : (
     <AvatarDisc
       url={persona.avatarUrl}
       name={assistantName}
       assistantPreset={persona.avatarPreset ?? null}
-      working={working}
     />
   )
   return <span className="block size-full">{disc}</span>
@@ -243,87 +225,5 @@ function PickItem({
       </span>
       <span className="min-w-0 truncate">{label}</span>
     </CommandItem>
-  )
-}
-
-/** 胶囊上字和图标换档时的那一下（同对话头换人那一档）。 */
-const CHIP_SWAP_HIDDEN = {
-  opacity: 0,
-  scale: SHELL_MOTION.personaSwapScale,
-  filter: `blur(${SHELL_MOTION.personaSwapBlurPx}px)`,
-}
-const CHIP_SWAP_SHOWN = { opacity: 1, scale: 1, filter: 'blur(0px)' }
-const CHIP_SWAP_TRANSITION = {
-  duration: SHELL_MOTION.personaSwapS,
-  ease: EASE_STANDARD,
-}
-
-/**
- * 名字旁那枚「聊天 / 工作」胶囊（owner 2026-10-28 B1）：头像和名字照旧换人，这一颗单独换档；头像
- * 形状跟着变（圆 = 聊天，方角 = 工作，见 `StudioOperatorCurrentAvatar`）。首页外壳与台上的面板头都挂它。默认助手只有工作，不出现。
- * ⛔ 换强调色（ui-spec ㉕：两档同一颗浅灰药丸）。
- */
-export function StudioOperatorChatModeChip() {
-  const t = useTranslations('StudioShell')
-  const { mode, available, toggle } = useOperatorChatMode()
-  const reduceMotion = useReducedMotion()
-  if (!available) return null
-  const chatting = mode === ASSISTANT_CHAT_MODE_IDS.chat
-  const Icon = chatting ? ChatCircle : Paintbrush
-  return (
-    <button
-      type="button"
-      data-testid="studio-shell-chat-mode"
-      data-mode={mode}
-      aria-label={t(chatting ? 'chatMode.toWork' : 'chatMode.toChat')}
-      title={t(chatting ? 'chatMode.toWork' : 'chatMode.toChat')}
-      onClick={toggle}
-      className={cn(studioOutlineChipClass, 'h-7 px-2.5')}
-    >
-      <AnimatePresence mode="popLayout" initial={false}>
-        <motion.span
-          key={mode}
-          className="flex items-center gap-1"
-          initial={reduceMotion ? false : CHIP_SWAP_HIDDEN}
-          animate={CHIP_SWAP_SHOWN}
-          exit={reduceMotion ? undefined : CHIP_SWAP_HIDDEN}
-          transition={CHIP_SWAP_TRANSITION}
-        >
-          <Icon aria-hidden />
-          {t(chatting ? 'chatMode.chat' : 'chatMode.work')}
-        </motion.span>
-      </AnimatePresence>
-    </button>
-  )
-}
-
-/**
- * 台上、聊天档时输入框上方那一行（用户 11-18）：角色页「和她聊」的会话跟到台上，面板停在聊天档，
- * 叫她改台子她只会回「切到工作」—— 这里先说一句，点「切到工作」= 点头上那枚胶囊（同一个 `toggle`）。
- * ⛔ 自动替用户切档、⛔ 改两档本身的行为。挂不挂在台上由面板判（规格行同一个判据）。
- */
-export function StudioOperatorChatModeBenchHint() {
-  const t = useTranslations('StudioOperator.chat')
-  const { mode, available, toggle } = useOperatorChatMode()
-  const { persona } = useAssistantPersona()
-  if (!available || mode !== ASSISTANT_CHAT_MODE_IDS.chat) return null
-  const name = persona.character?.name ?? persona.name ?? ''
-  return (
-    <p
-      data-testid="operator-chat-bench-hint"
-      className="flex shrink-0 flex-wrap items-center gap-x-1.5 px-4 pb-1.5 text-xs leading-relaxed text-muted-foreground"
-    >
-      <span>{t('benchHint', { name })}</span>
-      <Button
-        type="button"
-        variant="link"
-        size="xs"
-        data-testid="operator-chat-bench-hint-switch"
-        onClick={toggle}
-        className="h-auto px-0 text-xs font-medium underline underline-offset-2"
-      >
-        {t('benchHintAction')}
-      </Button>
-    </p>
   )
 }

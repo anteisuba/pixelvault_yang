@@ -996,19 +996,15 @@
       "previousVersion": "Previous version",
       "nextVersion": "Next version",
       "versionOf": "{index} / {total}",
-      "noProfile": "{name} has no profile yet, so chat replies in work mode.",
+      "noProfile": "{name} has no profile yet, so replies use the default assistant's voice.",
       "noProfileAction": "Add a profile",
       "placeholder": "Chat with {name}…",
-      "benchHint": "This is chat — {name} just talks and won't touch the bench.",
-      "benchHintAction": "Switch to work",
       "greetingUserFallback": "you"
     },
     "mode": {
       "pickCharacter": "Switch assistant persona",
       "defaultAssistant": "Default assistant",
       "searchCharacter": "Search characters",
-      "toChat": "Switched to chat · with {name}",
-      "toWork": "Back to work",
       "toDomain": "Moved to {domain}"
     },
     "phoneAdd": {

@@ -105,7 +105,7 @@ describe('StudioOperatorTimelineRow', () => {
     expect(screen.getByText('继续')).not.toBeNull()
   })
 
-  it('切模式的细线自己占一行，把前后断成两框', () => {
+  it('连着的几段她的话收进同一框（11-18 起没有切模式细线来断开）', () => {
     render(
       <StudioOperatorTurns
         items={[
@@ -113,12 +113,6 @@ describe('StudioOperatorTimelineRow', () => {
             key: 'a1',
             speaker: STUDIO_OPERATOR_SPEAKERS.assistant,
             node: <p>修好了</p>,
-          },
-          {
-            key: 'mark',
-            speaker: STUDIO_OPERATOR_SPEAKERS.assistant,
-            node: <p>切到聊天</p>,
-            standalone: true,
           },
           {
             key: 'a2',
@@ -129,8 +123,7 @@ describe('StudioOperatorTimelineRow', () => {
       />,
     )
     const frames = screen.getAllByTestId('operator-turn-frame')
-    expect(frames).toHaveLength(2)
-    for (const frame of frames) expect(frame).not.toHaveTextContent('切到聊天')
+    expect(frames).toHaveLength(1)
   })
 
   it('只有空条目的助手段不画空框', () => {

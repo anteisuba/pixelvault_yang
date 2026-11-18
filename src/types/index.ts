@@ -4364,6 +4364,9 @@ export const CivitaiImageRecipeSchema = z.object({
   // 目标 LoRA 在该图中的真实权重（meta.resources hash 匹配）。
   loraWeight: z.number().optional(),
   extraLoras: z.array(CivitaiRecipeExtraLoraSchema).optional(),
+  // 这张图的分级（Civitai 数值档 1 None · 2 Soft · 4 Mature · 8 X · 16 XXX）。库详情按
+  // 浏览档位藏掉高于档位的样例、「分级」那格按样例最高档如实写。没有 = 未知。
+  nsfwLevel: z.number().int().optional(),
 })
 export type CivitaiImageRecipe = z.infer<typeof CivitaiImageRecipeSchema>
 

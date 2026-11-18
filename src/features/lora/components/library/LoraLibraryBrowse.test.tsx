@@ -75,14 +75,48 @@ vi.mock('sonner', () => ({
   toast: { info: vi.fn(), success: vi.fn(), error: vi.fn() },
 }))
 
-// 库的筛选记在网址里：首帧读这份，写回网址这一跳不管。
-const nav = vi.hoisted(() => ({ query: '', params: new URLSearchParams() }))
-vi.mock('next/navigation', () => ({
-  useSearchParams: () => nav.params,
-}))
+// 库的筛选与打开的详情都记在网址里：replace 换掉当前这一步、push 记一步、back 退一步，
+// 订阅的组件跟着重画（详情开 / 关就是这一跳）。
+const nav = vi.hoisted(() => {
+  const listeners = new Set<() => void>()
+  const state = {
+    query: '',
+    params: new URLSearchParams(),
+    history: [] as string[],
+    subscribe(listener: () => void) {
+      listeners.add(listener)
+      return () => listeners.delete(listener)
+    },
+    go(query: string) {
+      state.query = query
+      state.params = new URLSearchParams(query)
+      listeners.forEach((listener) => listener())
+    },
+    push(href: string) {
+      state.history.push(state.query)
+      state.go(href.split('?')[1] ?? '')
+    },
+    back() {
+      const previous = state.history.pop()
+      if (previous !== undefined) state.go(previous)
+    },
+  }
+  return state
+})
+vi.mock('next/navigation', async () => {
+  const { useSyncExternalStore } = await import('react')
+  return {
+    useSearchParams: () =>
+      useSyncExternalStore(nav.subscribe, () => nav.params),
+  }
+})
 vi.mock('@/i18n/navigation', () => ({
   usePathname: () => '/studio/lora',
-  useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
+  useRouter: () => ({
+    replace: (href: string) => nav.go(href.split('?')[1] ?? ''),
+    push: (href: string) => nav.push(href),
+    back: () => nav.back(),
+  }),
 }))
 
 const civ = vi.hoisted(() => ({ list: vi.fn() }))
@@ -182,6 +216,7 @@ const gridCalls = (): ListParams[] =>
 function setQuery(query: string) {
   nav.query = query
   nav.params = new URLSearchParams(query)
+  nav.history = []
 }
 
 /** 挂载栈里现在有哪几把（按名字）。 */
@@ -422,10 +457,31 @@ describe('LoraLibraryBrowse（库 B · Civitai）', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Roccia' }))
     expect(await screen.findByTestId('lora-library-detail')).toBeInTheDocument()
+    // 详情记在网址里（刷新 / 分享回到它），标签页标题带上名字。
+    expect(nav.params.get('lora')).toBe('roccia')
+    expect(document.title).toContain('Roccia')
+
+    // ‹ = 浏览器后退那一步（⛔ 再叠一步历史）。
+    fireEvent.click(
+      screen.getByRole('button', { name: 'LoraWorkbench.browse:back' }),
+    )
+    await waitFor(() =>
+      expect(screen.queryByTestId('lora-library-detail')).toBeNull(),
+    )
+    expect(nav.params.get('lora')).toBeNull()
+    expect(nav.history).toEqual([])
+    expect(document.title).not.toContain('Roccia')
+  })
+
+  it('reopens the detail from the address (refresh) and closes it on back', async () => {
+    setQuery('lora=roccia')
+    renderBrowse()
+    expect(await screen.findByTestId('lora-library-detail')).toBeInTheDocument()
 
     fireEvent.click(
       screen.getByRole('button', { name: 'LoraWorkbench.browse:back' }),
     )
+    // 不是这一页点开的（没有那一步历史）：去掉参数，⛔ 后退离开库。
     await waitFor(() =>
       expect(screen.queryByTestId('lora-library-detail')).toBeNull(),
     )

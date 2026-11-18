@@ -46,6 +46,16 @@ const SOURCE_LABEL_KEYS: Record<LoraAssetRecord['source'], string> = {
   curated: 'sourceCurated',
 }
 
+/**
+ * 小卡里那一格「来源」。从库里直接挂上的（条目 id `civitai:` / `huggingface:` 开头）也是
+ * `imported`，但没进收藏 —— 写来源站名，⛔ 写「你的收藏」（挂载不会把它加进收藏）。
+ */
+function sourceLabelKey(asset: LoraAssetRecord): string {
+  if (asset.id.startsWith('civitai:')) return 'librarySourceCivitai'
+  if (asset.id.startsWith('huggingface:')) return 'librarySourceHuggingFace'
+  return `pill.${SOURCE_LABEL_KEYS[asset.source]}`
+}
+
 interface LoraMountPillsProps {
   selectedBase: LoraBaseModel | null
   /** 底模给的权重值域；不给时小卡里只写权重、没有滑杆。 */
@@ -162,6 +172,7 @@ function LoraPill({
   const family = familyKey
     ? t(`familyLabel.${familyKey}`)
     : asset.baseModelFamily
+  const incompatibleLine = t('spine.incompatibleLine', { family })
   const triggers = asset.triggerWord
     .split(',')
     .map((word) => word.trim())
@@ -195,11 +206,18 @@ function LoraPill({
         <button
           type="button"
           disabled={disabled}
-          aria-label={t('pill.openLabel', {
-            name: asset.name,
-            scale: scale.toFixed(1),
-          })}
-          title={asset.name}
+          aria-label={
+            bad
+              ? `${t('pill.openLabel', {
+                  name: asset.name,
+                  scale: scale.toFixed(1),
+                })} · ${incompatibleLine}`
+              : t('pill.openLabel', {
+                  name: asset.name,
+                  scale: scale.toFixed(1),
+                })
+          }
+          title={bad ? `${asset.name} · ${incompatibleLine}` : asset.name}
           className={cn(
             'inline-flex h-8 min-w-0 max-w-56 shrink-0 items-center gap-1.5 rounded-full bg-muted pr-3 pl-1 text-2sm text-foreground transition-[background-color,opacity] duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none',
             open && studioOutlineChipOpenClass,
@@ -240,7 +258,7 @@ function LoraPill({
               {asset.name}
             </p>
             <p className="truncate text-2xs text-muted-foreground">
-              {t(`pill.${SOURCE_LABEL_KEYS[asset.source]}`)} · {family}
+              {t(sourceLabelKey(asset))} · {family}
             </p>
           </div>
           <Switch
@@ -252,9 +270,7 @@ function LoraPill({
           />
         </div>
         {bad ? (
-          <p className="text-2xs text-status-warning">
-            {t('spine.incompatibleLine', { family })}
-          </p>
+          <p className="text-2xs text-status-warning">{incompatibleLine}</p>
         ) : null}
         <div className="flex items-center gap-3 text-2sm">
           <span className="w-12 shrink-0 text-muted-foreground">

@@ -134,11 +134,8 @@ import {
   useStudioOperatorState,
   takeOperatorQueue,
   upsertOperatorStep,
-  resolveOperatorChatMode,
-  settleOperatorChatMode,
   truncateOperatorHistoryAfter,
 } from '@/hooks/use-studio-operator-store'
-import { getCachedAssistantCharacter } from '@/hooks/use-assistant-persona'
 import {
   libraryShowSettled,
   readLibraryCardHands,
@@ -213,7 +210,6 @@ import {
   describeContextCardProposalText,
   clampPlanAnswer,
   describeLoraSetupDecisionText,
-  describeChatModeSwitch,
   describeDomainSwitch,
   historyToOperatorMessages,
   historyToPriorSteps,
@@ -286,16 +282,6 @@ import type {
  */
 const BENCH_FORM_REFUSED =
   'the bench form refused this value when it was applied (not a value the form accepts, or the model is not on the list), so nothing changed there'
-
-/** 这一轮在哪一档：还没定就按现在站在哪儿定下来（之后换台不跟着变）。 */
-function settledChatMode() {
-  const mode = resolveOperatorChatMode(
-    getOperatorState(),
-    getCachedAssistantCharacter() !== null,
-  )
-  settleOperatorChatMode(mode)
-  return mode
-}
 
 function speakIfVoiceOn(
   event: { text: string; chat?: true; spoken?: true },
@@ -415,11 +401,6 @@ function buildMessages(
         role: 'assistant',
         content:
           '[Workspace event: the creator restored a configuration checkpoint. Use the current form snapshot; earlier tool settings are historical.]',
-      })
-    } else if (entry.kind === 'chatMark') {
-      messages.push({
-        role: 'assistant',
-        content: describeChatModeSwitch(entry.character?.name ?? null),
       })
     } else if (entry.kind === 'domainMark') {
       messages.push({
@@ -1560,8 +1541,6 @@ export function useAssistantOperator(
               ...(getOperatorState().chatCharacter
                 ? { chatCharacterId: getOperatorState().chatCharacter?.id }
                 : {}),
-              // 聊天 / 工作那一档（名字旁那枚胶囊）：开口这一刻定下来，之后换台不跟着变。
-              chatMode: settledChatMode(),
               ...(searchWithGrok ? { searchWithGrok: true as const } : {}),
               ...(timeZone ? { timeZone } : {}),
               ...(videoClips?.length ? { videoClips } : {}),

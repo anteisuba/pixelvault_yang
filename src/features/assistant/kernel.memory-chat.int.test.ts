@@ -86,6 +86,21 @@ const run = (request: Parameters<typeof runAssistantNext>[1]) =>
 
 const sentPrompt = () => promptOf(fakeModels.main.doStreamCalls[0]!)
 
+/**
+ * 和她聊的那一轮 = 没台（11-18 去掉「聊天 / 工作」开关后只看这个）：首页、小配方还没挂上。
+ * ⚠ 台上带着 `chatCharacterId` 的旧聊天会话照样是干活那一套（有台 = 那台的全部工具）。
+ */
+const chatRequest = (
+  message: string,
+  overrides: Parameters<typeof imageRequest>[1] = {},
+) =>
+  imageRequest(message, {
+    domain: 'home',
+    workspaceKey: 'home',
+    snapshot: { prompt: '', availableModels: [] },
+    ...overrides,
+  })
+
 /** 响应发完之后排队的那几件，一件一件跑完（假模型回什么见上面）。 */
 async function runAfterTasks() {
   for (const [task] of vi.mocked(after).mock.calls)
@@ -185,7 +200,7 @@ describe('记忆与之前几轮（第 6 步）', () => {
     expect(prompt).toContain('换成雪地了。')
   })
 
-  it('和角色聊天：自己的系统提示、角色卡打头、记忆读她那份、故事向摘要、每轮末尾一句别出戏', async () => {
+  it('没台和角色聊：同一个稳定前缀 + 只看不改那张单子、角色卡在设置之前、记忆读她那份、故事向摘要、每轮末尾一句别出戏', async () => {
     const card = await malfoyCard()
     const other = await createTestCard(user.id, {
       name: '小雪',
@@ -215,7 +230,7 @@ describe('记忆与之前几轮（第 6 步）', () => {
     })
     fakeModels.main = scriptedModel([textTurn('哼，又是你。')])
     const events = await run(
-      imageRequest('你好呀', {
+      chatRequest('你好呀', {
         conversationId: conversation.id,
         chatCharacterId: card.id,
         chatVoice: { expressive: false },
@@ -236,8 +251,12 @@ describe('记忆与之前几轮（第 6 步）', () => {
     const prompt = sentPrompt()
     expect(prompt).toContain('you are them, talking the way they really talk')
     expect(prompt).not.toContain('STAY IN CHARACTER')
-    expect(prompt).not.toContain("You are ANTEI's creative assistant")
-    expect(prompt.indexOf('THIS CHAT — you are 马尔福')).toBeLessThan(
+    // 11-18：一个稳定前缀，按「有没有台」换段（⛔ 再有一整份聊天专用的系统提示）。
+    expect(prompt).toContain("You are ANTEI's creative assistant")
+    expect(prompt).toContain('WHAT YOU CAN DO WITHOUT A BENCH')
+    // 11-18 晚：没台也带干活那一整套（改库 / 设置 / 记忆、开台），只是没有表单可改。
+    expect(prompt).toContain('HOW YOU WORK')
+    expect(prompt.indexOf('THE CHARACTER — you are 马尔福')).toBeLessThan(
       prompt.indexOf("THIS CREATOR'S SETTINGS"),
     )
     expect(prompt).toContain('图书馆的午后')
@@ -293,7 +312,7 @@ describe('记忆与之前几轮（第 6 步）', () => {
     fakeModels.main = scriptedModel([textTurn('哼，又是你。')])
     const info = vi.spyOn(logger, 'info')
     const events = await run(
-      imageRequest('你好呀', { chatCharacterId: card.id }),
+      chatRequest('你好呀', { chatCharacterId: card.id }),
     )
     const logged = [...info.mock.calls]
     info.mockRestore()
@@ -348,7 +367,7 @@ describe('记忆与之前几轮（第 6 步）', () => {
     }
     fakeModels.main = scriptedModel([textTurn('哼。')])
     await run(
-      imageRequest('你好呀', {
+      chatRequest('你好呀', {
         chatCharacterId: card.id,
         v3: {
           transcript: [
@@ -377,7 +396,7 @@ describe('记忆与之前几轮（第 6 步）', () => {
     }
     fakeModels.main = scriptedModel([textTurn('不该出现')])
     const events = await run(
-      imageRequest('别不理我啊', { chatCharacterId: card.id }),
+      chatRequest('别不理我啊', { chatCharacterId: card.id }),
     )
     expect(
       sideModel.calls.some((call) => call.purpose === 'character-chat-mood'),

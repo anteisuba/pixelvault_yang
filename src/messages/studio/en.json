@@ -11,7 +11,30 @@
   "StudioEmptyState": {
     "title": {
       "image": "What do you want to make?",
+      "tags": "What do you want to make?",
       "video": "What do you want to shoot?"
+    },
+    "description": {
+      "image": "Describe the picture in one sentence. You can attach reference images too.",
+      "tags": "Build the picture from Danbooru tags, separated by commas.",
+      "video": "Describe the shot and the motion. You can attach a first frame too."
+    },
+    "examples": {
+      "image": {
+        "a": "A girl with a clear umbrella on a neon street at night, cinematic",
+        "b": "A wooden cabin in a morning forest, watercolor",
+        "c": "Product shot on white: a ceramic coffee cup, soft light"
+      },
+      "tags": {
+        "a": "1girl, solo, silver hair, school uniform, cherry blossoms, smile",
+        "b": "1boy, armor, holding sword, night, full moon, dramatic lighting",
+        "c": "scenery, no humans, sky, clouds, ocean, sunset"
+      },
+      "video": {
+        "a": "Slow push-in as the girl turns and smiles, wind in her hair",
+        "b": "Drone shot of waves crashing on rocks, slow motion",
+        "c": "A cat jumps onto the windowsill and watches the snow"
+      }
     }
   },
   "StudioPage": {
@@ -1162,13 +1185,7 @@
       "earlier": "Earlier"
     },
     "history": "Conversations",
-    "switchPersona": "Switch persona (now {name})",
-    "chatMode": {
-      "chat": "Chat",
-      "work": "Work",
-      "toWork": "Chatting now. Switch to work",
-      "toChat": "Working now. Switch to chat"
-    }
+    "switchPersona": "Switch persona (now {name})"
   },
   "ImageRecipeImport": {
     "button": "Read from image",

@@ -36,7 +36,6 @@ import {
   NOVELAI_V5_MAX_CHARACTERS,
 } from '@/constants/novelai'
 import { ASSISTANT_MEDIA_LIMITS } from '@/constants/assistant'
-import { ASSISTANT_CHAT_MODES } from '@/constants/assistant-protocol'
 import {
   ASSISTANT_MEMORY_KINDS,
   ASSISTANT_MEMORY_LIMITS,
@@ -2212,16 +2211,17 @@ export const AssistantOperatorRequestSchema = z.object({
    */
   incognito: z.boolean().optional(),
   /**
-   * **聊天模式**（附录L）：这段会话是和哪张角色卡聊。服务端按它读卡（只认自己的、没删的），
-   * 这一轮按这张卡扮演，⛔ 不看设置里「用哪个角色」。缺席 = 工作模式。
-   * ⚠ 模式跟会话走：客户端从会话上取、每轮上送，同一段会话不切。
+   * 以前「和角色聊」留下的会话（附录L）：这段会话绑的是哪张角色卡。服务端按它读卡（只认自己的、
+   * 没删的），这一轮按这张卡说话，⛔ 不看设置里「用哪个角色」。缺席 = 用设置里那位（11-18 起不分档）。
+   * ⚠ 跟会话走：客户端从会话上取、每轮上送，同一段会话不切。
    */
   chatCharacterId: z.string().uuid().optional(),
   /**
-   * 这段对话在哪一档（名字旁那枚胶囊）。`chat` = 用设置里的人设角色聊，哪个台上都一样；
-   * `work` = 首页也照常干活。缺席 = 旧行为（首页聊、台上干活）。
+   * ⛔ **已废弃（11-18，owner 去掉「聊天 / 工作」手动切换）**：现行客户端不再发，服务端不读 ——
+   * 这一轮能做什么只看有没有可操作的台（`kernel.ts` 的 `bench`）。只为旧客户端 / 旧会话还带着它时
+   * 不至于 400 才留着，什么值都收、一律忽略。
    */
-  chatMode: z.enum(ASSISTANT_CHAT_MODES).optional(),
+  chatMode: z.unknown().optional(),
   /**
    * **这段回复会被念出来**（聊天页开着声音，10-26）：内核在这一轮的消息里加上念法提示（方括号语气），
    * `expressive` = 用的是 Fish Drama 3（多认中文提示与成对标签）。缺席 = 只打字。

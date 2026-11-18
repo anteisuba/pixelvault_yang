@@ -75,6 +75,8 @@
   },
   "Model3DGenerate": {
     "title": "画像から3D",
+    "starterTitle": "1枚の画像から始める",
+    "starterDescription": "画像をアップロードするか素材から選ぶと、回して見られる3Dモデルを作ります。",
     "description": "被写体がはっきりした画像から、高精細な3Dモデル（GLB）を作れます。生成後は回して確認できます。",
     "modelLabel": "3Dモデル",
     "modelPlaceholder": "3Dモデルを選択",
@@ -506,6 +508,13 @@
   },
   "VoiceBench": {
     "placeholder": "セリフを書く…",
+    "starterTitle": "誰に何を言わせますか？",
+    "starterDescription": "セリフを書くと、選んだ声が読み上げます。",
+    "starterExamples": {
+      "a": "おかえりなさい。今日もお疲れさま。",
+      "b": "ちょっと待って……今なんて言った？",
+      "c": "まもなく電車がまいります。ご注意ください。"
+    },
     "speak": "読む",
     "play": "再生",
     "stop": "停止",

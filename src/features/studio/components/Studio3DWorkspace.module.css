@@ -134,28 +134,32 @@
   overscroll-behavior: contain;
   padding: 1.25rem;
 }
-.generateBar {
-  display: flex;
-  flex: none;
-  flex-direction: column;
-  gap: 0.5rem;
-  border-top: 1px solid var(--border);
-  background: var(--card);
-  padding: 1rem 1.25rem;
-}
-.mobileBar {
-  display: flex;
-  flex: none;
-  /* 和生成键底边对齐（费用那两行只在右边那一栏上面），⛔ 浮在半中间。 */
-  align-items: flex-end;
-  gap: 0.75rem;
-  padding-bottom: var(--keyboard-safe-area-bottom, 0px);
-}
-.mobileBar > .generateBar {
-  min-width: 0;
-  flex: 1;
-  border: 0;
-  padding: 0;
+/* 手机（<768）：和图像 / 视频 / 配音同一副骨架 —— 灰地（`--surface-workbench`）上一张
+   舞台卡（预览，圆角 / 影子取工作台脊柱）+ 底部一张输入卡（共用类，见
+   `studio-composer-card.ts`）。只写在 max-width 里，⛔ 动桌面那一副。 */
+@media (max-width: 767.98px) {
+  .root {
+    padding: var(--workbench-pad);
+    padding-bottom: calc(
+      var(--workbench-pad) + var(--keyboard-safe-area-bottom, 0px)
+    );
+    gap: var(--workbench-gap);
+    background: var(--surface-workbench);
+  }
+  .workspace[data-layout='stack'] {
+    gap: var(--workbench-gap);
+  }
+  .canvas {
+    border-radius: var(--workbench-card-radius);
+    box-shadow: var(--workbench-card-shadow);
+  }
+  .emptyStage {
+    padding: 1.5rem 0.5rem 4.5rem;
+  }
+  /* 装饰小人在手机上缩到 70%（连占位一起缩，正面 / 侧面那组键照旧转它）。 */
+  .modelObject {
+    zoom: 0.7;
+  }
 }
 @media (min-width: 768px) {
   .root {

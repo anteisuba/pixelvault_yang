@@ -602,6 +602,18 @@ describe('LoraWorkbench GenerateBranch — mobile generate layout', () => {
     expect(position & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
+  it('手机骨架：输入框是舞台卡外的另一张卡（灰地台上两张白卡）', async () => {
+    await renderBench()
+
+    const stage = resultCard().closest('.lora-card')
+    expect(stage).not.toBeNull()
+    expect(stage?.contains(composerCard())).toBe(false)
+    expect(composerCard().className).toContain('shadow-float')
+    expect(composerCard().parentElement?.parentElement).toBe(
+      stage?.parentElement,
+    )
+  })
+
   it('opens the assembly sheet from the composer chip-row summary button', async () => {
     await renderBench()
 

@@ -547,6 +547,37 @@ describe('历史 ↔ 库里的 messages', () => {
     ])
   })
 
+  it('⭐ 旧会话里的切模式细线（chatMark，11-18 起不再产出）照常载入、整条忽略，前后照旧', () => {
+    expect(
+      fromStoredOperatorMessages([
+        {
+          role: 'assistant',
+          content: '你来了。',
+          operator: { kind: 'message', id: 'message-1', text: '你来了。' },
+        },
+        {
+          role: 'assistant',
+          content: '[mode: work]',
+          operator: {
+            kind: 'chatMark',
+            id: 'chat-mark-1',
+            characterId: '11111111-1111-4111-8111-111111111111',
+            characterName: '莉莉',
+          } as never,
+        },
+        { role: 'user', content: '帮我改一下' },
+        {
+          role: 'assistant',
+          content: '[domain: video]',
+          operator: { kind: 'domainMark', id: 'domain-1', domain: 'video' },
+        },
+      ]),
+    ).toEqual([
+      { kind: 'message', id: 'message-1', text: '你来了。' },
+      { kind: 'domainMark', id: 'domain-1', domain: 'video' },
+    ])
+  })
+
   it('读不出来的载荷整条跳过，⛔ 不把半截东西渲染出去', () => {
     expect(
       fromStoredOperatorMessages([

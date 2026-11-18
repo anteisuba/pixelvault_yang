@@ -24,10 +24,7 @@ import { useFormatter, useTranslations } from 'next-intl'
 import type { AssistantOperatorTool } from '@/constants/assistant-operator'
 import { Button } from '@/components/ui/button'
 import { OPERATOR_TOOL_ICONS } from '@/features/assistant/components/operator/StudioOperatorLogItem'
-import {
-  StudioOperatorChatMark,
-  StudioOperatorDomainMark,
-} from '@/features/assistant/components/operator/StudioOperatorChatMark'
+import { StudioOperatorDomainMark } from '@/features/assistant/components/operator/StudioOperatorChatMark'
 import {
   StudioOperatorChatText,
   StudioOperatorCollapsibleText,
@@ -164,8 +161,6 @@ export function StudioOperatorHistoryItem({
       )
     case 'domainMark':
       return <StudioOperatorDomainMark domain={entry.domain} />
-    case 'chatMark':
-      return <StudioOperatorChatMark name={entry.characterName ?? null} />
   }
 }
 

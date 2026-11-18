@@ -85,7 +85,8 @@ async function mount() {
 }
 
 const promptField = () =>
-  screen.getByLabelText(new RegExp(T('rodinPromptLabel')))
+  // 认输入框本身：手机圆键的无障碍名里也会带「请输入提示词」那句。
+  screen.getByRole('textbox', { name: new RegExp(T('rodinPromptLabel')) })
 
 /**
  * 桌面的输入模式是输入框里的一颗药丸（owner 2026-11-11 小样 5 选 B）：Radix 菜单按下就开，
@@ -105,9 +106,13 @@ function pickMode(mode: 'text' | 'image') {
 
 /** 桌面的参数（质量 / 格式 / 高级）收在「参数」那颗药丸的弹层里。 */
 function openParams() {
-  fireEvent.click(
-    screen.getByRole('button', { name: new RegExp(`^${T('settingsTitle')}`) }),
-  )
+  // 手机那颗「模型设置」药丸（开抽屉）也叫这个名字，同在 DOM 里（断点只靠 CSS 藏）；
+  // 桌面参数药丸是弹层触发器，认 `aria-haspopup`。
+  const trigger = screen
+    .getAllByRole('button', { name: new RegExp(`^${T('settingsTitle')}`) })
+    .find((button) => button.getAttribute('aria-haspopup') === 'dialog')
+  if (!trigger) throw new Error('params trigger not found')
+  fireEvent.click(trigger)
 }
 
 function switchToText(prompt?: string) {
@@ -197,14 +202,36 @@ describe('Studio3DWorkspace 布局与生成', () => {
     expect(generateRequests()).toHaveLength(0)
   })
 
-  it('窄屏：模型设置收进弹窗', async () => {
+  it('窄屏：输入卡上的「模型设置」药丸打开抽屉', async () => {
     setViewportWidth(MOBILE_WIDTH)
     setup()
     await mount()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: T('settingsTitle') }))
+    const pill = screen
+      .getAllByRole('button', { name: T('settingsTitle') })
+      .find((button) => button.getAttribute('aria-haspopup') !== 'dialog')
+    fireEvent.click(pill!)
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).getByText(T('rodinModeLabel'))).toBeInTheDocument()
+  })
+
+  it('窄屏真缺 key：圆键上 ⛔ 写「API Key」，点了就地弹配置窗、⛔ 不发生成', async () => {
+    setViewportWidth(MOBILE_WIDTH)
+    setup([])
+    await mount()
+    const round = document.querySelector<HTMLButtonElement>(
+      'button[data-studio-generate]',
+    )
+    expect(round).not.toBeNull()
+    expect(round).toBeEnabled()
+    expect(round?.getAttribute('aria-label')).not.toContain(
+      T('setupApiKeyButton'),
+    )
+    fireEvent.click(round!)
+    expect(
+      await screen.findByLabelText(text('QuickSetup.step2')),
+    ).toBeInTheDocument()
+    expect(generateRequests()).toHaveLength(0)
   })
 
   // 服务端回的英文原话经真错误分类落成这一语言的那句，⛔ 原样贴英文。

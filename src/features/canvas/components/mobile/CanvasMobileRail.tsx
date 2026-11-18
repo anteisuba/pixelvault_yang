@@ -4,8 +4,9 @@
  * 手机端**镜头带视图**（node-canvas-v2 §7.x，画板 `MobileCanvas.dc.html` 方向 A）。
  *
  * < 768 宽时画布路由渲染的就是这一棵树 —— **桌面 ReactFlow 不挂载**（2026-09-11
- * owner 定稿：手机上不摆自由画布）。顶部项目胶囊 + 助手星标，分段控件
- * `镜头 / 图 / 语音 / 文本` 切四个列表，右下 FAB 新建镜头 / 上传，点卡进底部抽屉。
+ * owner 定稿：手机上不摆自由画布）。顶上直接是分段控件 `镜头 / 图 / 语音 / 文本`
+ * 切四个列表（11-18 起 ⛔ 自带一行页头：助手头像回壳顶栏右端那一格、和其它台同一颗
+ * `StudioOperatorDock` 收起态头像），左下项目胶囊、右下 FAB 新建镜头 / 上传，点卡进底部抽屉。
  *
  * ── 两条纪律 ──────────────────────────────────────────────────────────
  * ① **不另设数据**：四个列表是同一份 `state.nodes` 的投影（`mobile-rail-model`），
@@ -16,7 +17,7 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 import Image from 'next/image'
-import { FileUp, Plus, Sparkles } from '@/components/icons'
+import { FileUp, Plus } from '@/components/icons'
 
 import {
   NODE_MOBILE_LISTS,
@@ -50,12 +51,14 @@ import { MobileShotCard } from './MobileShotCard'
 import { buildMobileRailLists } from './mobile-rail-model'
 
 export interface CanvasMobileRailProps {
-  /** 左上项目胶囊（复用桌面那一颗 `ShellProjectPill`）。 */
+  /** 左下项目胶囊（复用桌面那一颗 `ShellProjectPill`，和右下 FAB 同一条底线）。 */
   readonly projectPill: ReactNode
-  /** 助手（移动端已是全屏 sheet）——⚠ 只在开着时挂，⛔ 不自动盖住列表。 */
+  /**
+   * 助手（`StudioOperatorDock`）：**一直挂着** —— 收起时它自己在壳顶栏右端画头像
+   * （和图片 / 视频 / LoRA 台同一颗），开着时是底部 Sheet；开合读宿主的 open。
+   * ⛔ 列表里再放一颗自己的入口。
+   */
   readonly assistant: ReactNode
-  readonly assistantOpen: boolean
-  onOpenAssistant(): void
   /** 新建镜头：落在镜头带末尾（`shotNo` 顺延）。 */
   onAddShot(): void
   /** 上传：按 MIME 落成图 / 声音 / 视频卡（与桌面拖投同一条 `dropFiles`）。 */
@@ -125,8 +128,6 @@ function MediaRow({
 export function CanvasMobileRail({
   projectPill,
   assistant,
-  assistantOpen,
-  onOpenAssistant,
   onAddShot,
   onUploadFiles,
 }: CanvasMobileRailProps) {
@@ -169,22 +170,7 @@ export function CanvasMobileRail({
       data-testid="canvas-mobile-rail"
       className="domain-canvas absolute inset-0 flex flex-col overflow-hidden bg-surface-sunken text-foreground"
     >
-      <header className="flex h-13 shrink-0 items-center gap-2 px-3.5">
-        {projectPill}
-        <span className="flex-1" />
-        <button
-          type="button"
-          onClick={onOpenAssistant}
-          aria-label={t('assistant')}
-          aria-pressed={assistantOpen}
-          data-testid="canvas-mobile-assistant"
-          className="canvas-glass flex size-11 items-center justify-center rounded-full text-foreground"
-        >
-          <Sparkles aria-hidden className="size-4" />
-        </button>
-      </header>
-
-      <div className="shrink-0 px-3.5 pb-2">
+      <div className="shrink-0 px-3.5 pt-2.5 pb-2">
         <LiquidSegmented<NodeMobileListId>
           size="row"
           fill
@@ -257,6 +243,16 @@ export function CanvasMobileRail({
         )}
       </div>
 
+      {/* 左下项目胶囊：和右下 FAB 同一条底线（拇指区），切 / 建 / 改名项目从这里进。 */}
+      <div
+        data-testid="canvas-mobile-project"
+        style={{ bottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}
+        // 右边让出 FAB（right-4 + 48 宽）那一截；胶囊自己按名字截断。
+        className="pointer-events-none absolute right-20 left-4 flex h-12 min-w-0 items-center"
+      >
+        {projectPill}
+      </div>
+
       {/* 右下 FAB：新建镜头 / 上传。⚠ 上传那一条挂的是**常驻**的隐藏 input ——
           菜单关掉之后系统对话框的 change 仍要有人接。 */}
       <DropdownMenu>
@@ -306,8 +302,8 @@ export function CanvasMobileRail({
       </DropdownMenu>
 
       <MobileNodeSheet node={openNode} onClose={() => setOpenNodeId(null)} />
-      {/* 助手只在开着时挂 —— 收起时列表是整屏的（S11b：⛔ 不自动盖住列表）。 */}
-      {assistantOpen ? assistant : null}
+      {/* 助手一直挂：收起态是壳顶栏右端的头像，开着才是 Sheet（⛔ 自动盖住列表）。 */}
+      {assistant}
     </div>
   )
 }

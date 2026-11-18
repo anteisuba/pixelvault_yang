@@ -61,7 +61,7 @@ import {
   ASSISTANT_NEXT_EDIT_OP_IDS as OP,
   type AssistantNextEditOp,
 } from '@/features/assistant/constants'
-import { chatCharacterOf } from '@/features/assistant/prompt'
+import { playedCharacterOf } from '@/features/assistant/prompt'
 import type { EditChange } from '@/features/assistant/tools'
 import {
   memoryHandle,
@@ -306,8 +306,13 @@ async function memoryTargetOf(
   character: string | null | undefined,
 ): Promise<{ ok: true; target: MemoryTarget } | { ok: false; error: string }> {
   if (!character?.trim()) {
-    // 和角色聊天：默认记到正在聊的那位身上（第 7a 步 D，补第 6 步漏的那一块）。
-    const chat = chatCharacterOf(context.prepared.persona)
+    /**
+     * 没台、和角色聊的那一轮（请求带着会话角色）：默认记到她身上（第 7a 步 D）。有台时她照样是她，
+     * 但台上的事默认记进「关于你」/ 这个项目（11-18，同 `memoryWriteScopeForRequest`）。
+     */
+    const chat = context.request.chatCharacterId
+      ? playedCharacterOf(context.prepared.persona)
+      : null
     // 画布：默认记进这个项目自己那份（一个项目一份，第 9a 步）。
     const projectId =
       context.face === ASSISTANT_V3_FACE_IDS.canvas

@@ -16,6 +16,10 @@ import { usePathname, useRouter } from '@/i18n/navigation'
 export interface LibraryQuery {
   readonly params: Pick<URLSearchParams, 'get' | 'toString'>
   replace: (next: URLSearchParams) => void
+  /** 记一步历史（打开详情：浏览器后退能关掉）。框里没有历史，同 `replace`。 */
+  push: (next: URLSearchParams) => void
+  /** 浏览器后退一步；框里没有历史 = `null`。 */
+  back: (() => void) | null
 }
 
 const LibraryQueryContext = createContext<LibraryQuery | null>(null)
@@ -36,7 +40,10 @@ export function LibraryQueryScope({
     (next: URLSearchParams) => setParams(new URLSearchParams(next)),
     [],
   )
-  const value = useMemo(() => ({ params, replace }), [params, replace])
+  const value = useMemo(
+    () => ({ params, replace, push: replace, back: null }),
+    [params, replace],
+  )
   return (
     <LibraryQueryContext.Provider value={value}>
       {children}
@@ -59,9 +66,19 @@ export function useLibraryQuery(): LibraryQuery {
     },
     [pathname, router],
   )
+  const push = useCallback(
+    (next: URLSearchParams) => {
+      const query = next.toString()
+      router.push(query ? `${pathname}?${query}` : pathname, {
+        scroll: false,
+      })
+    },
+    [pathname, router],
+  )
+  const back = useCallback(() => router.back(), [router])
   const url = useMemo(
-    () => ({ params: searchParams, replace }),
-    [replace, searchParams],
+    () => ({ params: searchParams, replace, push, back }),
+    [back, push, replace, searchParams],
   )
   return scoped ?? url
 }

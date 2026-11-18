@@ -108,8 +108,6 @@ function renderRail(
         <CanvasMobileRail
           projectPill={<span data-testid="pill">项目</span>}
           assistant={<div data-testid="assistant" />}
-          assistantOpen={false}
-          onOpenAssistant={vi.fn()}
           onAddShot={vi.fn()}
           onUploadFiles={vi.fn()}
           {...overrides}
@@ -142,10 +140,9 @@ describe('CanvasMobileRail', () => {
     ).toBeInTheDocument()
   })
 
-  it('点卡把这张卡递给抽屉；助手收起时不挂（⛔ 不自动盖住列表）', () => {
+  it('点卡把这张卡递给抽屉（一开始没有任何弹层盖住列表）', () => {
     const { container } = renderRail()
     expect(screen.queryByRole('dialog')).toBeNull()
-    expect(screen.queryByTestId('assistant')).toBeNull()
     fireEvent.click(container.querySelector('[data-mobile-shot-open]')!)
     expect(screen.getByRole('dialog')).toHaveTextContent('站台')
   })
@@ -164,8 +161,17 @@ describe('CanvasMobileRail', () => {
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 
-  it('助手开着时才挂那块 sheet', () => {
-    renderRail({ assistantOpen: true })
+  it('助手一直挂（收起态头像在壳顶栏右端），列表里 ⛔ 再放一颗自己的入口', () => {
+    renderRail()
     expect(screen.getByTestId('assistant')).toBeInTheDocument()
+    expect(screen.queryByTestId('canvas-mobile-assistant')).toBeNull()
+    expect(screen.queryByRole('banner')).toBeNull()
+  })
+
+  it('项目胶囊挪到左下，和 FAB 同一条底线', () => {
+    renderRail()
+    expect(screen.getByTestId('canvas-mobile-project')).toContainElement(
+      screen.getByTestId('pill'),
+    )
   })
 })

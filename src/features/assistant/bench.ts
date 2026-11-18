@@ -227,11 +227,17 @@ const HOME_DRAFT_OPS: readonly AssistantNextEditOp[] = [
   OP.applyRecipe,
 ]
 
-/** 首页的板子（第 9f 步）：没有台，说清能做什么、要干活先开台。 */
-const HOME_BOARD = `HOME — no bench is open: the creator is on the home page, talking with you before any work starts. There is no form here to change and nothing to generate. Talk the idea through; find and look work as usual, and library / settings / memory edits work everywhere. When it is time to make something, open the bench it belongs on (image, tags, video, lora, canvas) and carry on there. A character's profile and looks are not a bench: change them with edit right here.`
+/**
+ * 首页的板子（第 9f 步）：没有台（小配方还没挂上），说清能做什么。⚠ 11-18 起没台唯一做不了的是改表单与出图
+ * （`kernel.ts` 的 `benchlessRefusal`）：要台就自己开台、到了同一轮接着做，⛔ 叫创作者「去那个台再说一遍」。
+ */
+const HOME_BOARD = `HOME — no bench is open: the creator is on the home page. There is no form here to change and nothing to generate. Talk the idea through; find and look work as usual, and library / settings / memory edits work here too. When they want something made or changed that belongs on a bench, open it yourself (image, tags, video, lora or canvas) and carry on there in this same turn. A character's profile and looks are not a bench: change them with edit right here.`
 
-/** 首页那份小配方的开头（第 9g 步）：下面接图片台那块板子，只是能改的格子少。 */
-const HOME_DRAFT_BOARD = `HOME — no bench is open: the creator is on the home page. A simple picture is made right here in the conversation: below is the small draft it is made from (the confirm card shows it as a little form the creator can change). edit ops on the draft: ${HOME_DRAFT_OPS.join(', ')}. Library / settings / memory edits (a character's profile and looks, saved prompts, LoRAs in their library…) work here too, no bench needed. Anything more for the picture (negative prompt, model options, LoRAs, the tag bench's people, video, canvas) belongs on a bench: open it and carry on there.`
+/**
+ * 首页那份小配方的开头（第 9g 步）：这份小配方就是台（11-18：有台 = 那台全部工具），下面接图片台那块板子，
+ * 只是能改的格子少。
+ */
+const HOME_DRAFT_BOARD = `HOME — the draft is the bench: the creator is on the home page, and a simple picture is made right here in the conversation. Below is the small draft it is made from (the confirm card shows it as a little form the creator can change). edit ops on the draft: ${HOME_DRAFT_OPS.join(', ')}. Library / settings / memory edits (a character's profile and looks, saved prompts, LoRAs in their library…) work here too. Anything more for the picture (negative prompt, model options, LoRAs, the tag bench's people, video, canvas) belongs on a bigger bench: open it and carry on there.`
 
 export interface BenchResult {
   readonly output: string

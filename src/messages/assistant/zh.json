@@ -996,19 +996,15 @@
       "previousVersion": "上一版",
       "nextVersion": "下一版",
       "versionOf": "{index} / {total}",
-      "noProfile": "{name}还没写设定，聊天先按工作的口吻回。",
+      "noProfile": "{name}还没写设定，先按默认助手的口吻回。",
       "noProfileAction": "去写设定",
       "placeholder": "和{name}聊聊…",
-      "benchHint": "现在是聊天，{name}只陪你聊，不动台上的东西。",
-      "benchHintAction": "切到工作",
       "greetingUserFallback": "你"
     },
     "mode": {
       "pickCharacter": "换助手人设",
       "defaultAssistant": "默认助手",
       "searchCharacter": "搜角色",
-      "toChat": "切到聊天 · 和 {name}",
-      "toWork": "回到工作",
       "toDomain": "切到{domain}"
     },
     "phoneAdd": {

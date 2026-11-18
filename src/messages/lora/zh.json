@@ -247,6 +247,12 @@
         "lineTitle": "{name} 出过的图"
       },
       "emptyTitle": "想画什么？",
+      "starterDescription": "挂上 LoRA 锁定角色或画风，再写一句画面。",
+      "starterExamples": {
+        "a": "1girl, solo, upper body, smile, looking at viewer, outdoors",
+        "b": "full body, standing, city street, night, neon lights",
+        "c": "portrait, close-up, soft lighting, simple background"
+      },
       "busy": "出图中",
       "assistantBusy": "装配台这会儿还在忙（出图或补挂配方 LoRA），忙完再让助手生成",
       "restoreShort": "还原",
@@ -721,7 +727,13 @@
       "openDetail": "查看详情",
       "segmentCorrected": "没搜到「{query}」· 按「{corrected}」找到的 {count} 个",
       "segmentLive": "索引里还没有 · 现查 Civitai 找到的 {count} 个",
-      "segmentMeaning": "意思接近的"
+      "segmentMeaning": "意思接近的",
+      "useRecipe": "用这张的配方",
+      "useRecipeHint": "挂上这个 LoRA，把这张的提示词、尺寸等带到 LoRA 台；台上已有内容会先让你审阅，可撤销。不直接生成。",
+      "detailNotFound": "找不到这个 LoRA 了，已回到库。",
+      "arrivedMounted": "已挂上 {name}",
+      "arrivedTriggers": "触发词：{triggers}（需要时自己加进提示词）",
+      "arrivedIncompatible": "和当前底模 {base} 装不上，出图时不生效。"
     },
     "characterLoras": {
       "pickEntry": "从角色选",

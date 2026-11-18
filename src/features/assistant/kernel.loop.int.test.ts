@@ -47,6 +47,7 @@ import {
   type KernelUser,
 } from '@/test/assistant-bench/kernel-harness'
 import { createTestCard } from '@/test/int/cards'
+import { createTestGeneration } from '@/test/int/generations'
 import { resetDatabase } from '@/test/int/db'
 
 import { runAssistantNext } from './kernel'
@@ -88,46 +89,222 @@ describe('新内核主循环', () => {
     await run(imageRequest('来张猫', { domain: 'home', workspaceKey: 'home' }))
     const sent = promptOf(fakeModels.main.doStreamCalls[0]!)
     expect(sent).toContain('THE PAGE: HOME')
-    expect(sent).toContain('HOME — no bench is open')
+    expect(sent).toContain('HOME — the draft is the bench')
     expect(sent).toContain('THE DRAFT — what is in it right now.')
   })
 
-  it('没开台 = 和现在这位聊天（用户 10-26）：首页按设置里那张卡聊；台上 / 盖过章的照旧', async () => {
-    const card = await createTestCard(user.id, {
-      name: '小雪',
-      persona: { identity: '图书馆管理员', speech: '说话很轻' },
-    })
-    const stamped = await createTestCard(user.id, {
-      name: '阿澈',
-      persona: { identity: '剑道部部长', speech: '说话直接' },
-    })
-    await db.assistantPersona.create({
-      data: { userId: user.id, characterCardId: card.id },
-    })
-
-    fakeModels.main = scriptedModel([textTurn('在呢。')])
-    await run(imageRequest('嗨', { domain: 'home', workspaceKey: 'home' }))
-    expect(promptOf(fakeModels.main.doStreamCalls[0]!)).toContain(
-      'THIS CHAT — you are 小雪',
-    )
-
-    fakeModels.main = scriptedModel([textTurn('好。')])
-    await run(imageRequest('改一下'))
-    expect(promptOf(fakeModels.main.doStreamCalls[0]!)).not.toContain(
-      'THIS CHAT — you are',
-    )
-
-    fakeModels.main = scriptedModel([textTurn('嗯。')])
-    await run(
-      imageRequest('嗨', {
+  describe('有没有台（owner 11-18：去掉「聊天 / 工作」开关，只看这一条）', () => {
+    /** 首页、小配方还没挂上 = 没台。 */
+    const benchless = (
+      message: string,
+      overrides: Parameters<typeof imageRequest>[1] = {},
+    ) =>
+      imageRequest(message, {
         domain: 'home',
         workspaceKey: 'home',
-        chatCharacterId: stamped.id,
-      }),
+        snapshot: { prompt: '', availableModels: [] },
+        ...overrides,
+      })
+    const xiaoxue = async () => {
+      const card = await createTestCard(user.id, {
+        name: '小雪',
+        persona: { identity: '图书馆管理员', speech: '说话很轻' },
+      })
+      await db.assistantPersona.create({
+        data: { userId: user.id, characterCardId: card.id },
+      })
+      return card
+    }
+
+    it('⭐ 有台 + 选着角色：她的卡与干活规矩都在；改台照常落（⛔ 被拒）', async () => {
+      await xiaoxue()
+      fakeModels.main = scriptedModel([
+        toolTurn(editPrompt),
+        textTurn('改好了。'),
+      ])
+      const events = await run(imageRequest('把 girl 改成 boy'))
+      const sent = promptOf(fakeModels.main.doStreamCalls[0]!)
+      expect(sent).toContain('THE CHARACTER — you are 小雪')
+      expect(sent).toContain('图书馆管理员')
+      expect(sent).toContain('HOW YOU WORK')
+      expect(sent).toContain('THE BENCH: THE IMAGE WORKBENCH')
+      expect(sent).not.toContain('WHAT YOU CAN DO WITHOUT A BENCH')
+      // 改动照常落到台上（落一步就停下等浏览器读回，同上面「改提示词」那一例）。
+      expect(
+        stepsOf(events).map((step) => [step.tool, step.status]),
+      ).toContainEqual(['set_prompt', 'done'])
+    })
+
+    it('⭐ 有台 + 设置里关了「口吻跟角色」：她的名字与设定照带，说话方式那一段不带（⛔ 静默作废设置）', async () => {
+      const card = await createTestCard(user.id, {
+        name: '小雪',
+        persona: {
+          identity: '图书馆管理员',
+          speech: '说话很轻，句尾总带个呀',
+        },
+      })
+      await db.assistantPersona.create({
+        data: {
+          userId: user.id,
+          characterCardId: card.id,
+          toneFromCharacter: false,
+        },
+      })
+      fakeModels.main = scriptedModel([textTurn('好。')])
+      await run(imageRequest('嗨'))
+      const sent = promptOf(fakeModels.main.doStreamCalls[0]!)
+      expect(sent).toContain('THE CHARACTER — you are 小雪')
+      expect(sent).toContain('图书馆管理员')
+      expect(sent).not.toContain('句尾总带个呀')
+
+      // 打开那一格：台上照卡上的口吻说话。
+      await db.assistantPersona.update({
+        where: { userId: user.id },
+        data: { toneFromCharacter: true },
+      })
+      fakeModels.main = scriptedModel([textTurn('好呀。')])
+      await run(imageRequest('嗨'))
+      expect(promptOf(fakeModels.main.doStreamCalls[0]!)).toContain(
+        '句尾总带个呀',
+      )
+    })
+
+    it('⭐ 没台 + 选着角色：干活规矩照带；改表单 / 出图被拒，拒的那句引她自己开台（⛔ 叫人去那个台再说一遍）', async () => {
+      await xiaoxue()
+      fakeModels.main = scriptedModel([
+        toolTurn(editPrompt, {
+          id: 'g1',
+          name: 'generate',
+          input: { say: '出图' },
+        }),
+        textTurn('我去开图片台。'),
+      ])
+      await run(benchless('把 girl 改成 boy'))
+      const sent = promptOf(fakeModels.main.doStreamCalls[0]!)
+      expect(sent).toContain('THE CHARACTER — you are 小雪')
+      expect(sent).toContain('HOW YOU WORK')
+      expect(sent).toContain('WHAT YOU CAN DO WITHOUT A BENCH')
+      expect(sent).toContain('THE PAGE: NO BENCH OPEN')
+      const second = promptOf(fakeModels.main.doStreamCalls[1]!)
+      expect(second).toContain('Not run: no bench is open')
+      expect(second).toContain('Open the bench this belongs on yourself')
+      expect(second).not.toMatch(/ask again there|聊天 \/ 工作/)
+    })
+
+    it.each([
+      ['默认助手', false],
+      ['选着角色', true],
+    ])(
+      '⭐ 没台 + %s：打标签 / 收藏 / 改设置 / 记一条照常落（⛔ 被拒）',
+      async (_label, withCharacter) => {
+        if (withCharacter) await xiaoxue()
+        const pic = await createTestGeneration(user.id, {
+          seq: 1601,
+          url: 'https://cdn.test/1601.png',
+          outputType: 'IMAGE',
+          snapshot: {},
+        })
+        fakeModels.main = scriptedModel([
+          toolTurn({
+            id: 'e1',
+            name: 'edit',
+            input: {
+              changes: [
+                { op: 'tag_pictures', pictures: ['图_1601'], tags: ['冬装'] },
+                { op: 'favorite_pictures', pictures: ['图_1601'] },
+                { op: 'assistant_setting', key: 'Verbosity', value: 'concise' },
+                { op: 'remember', text: '喜欢冷色调' },
+              ],
+            },
+          }),
+          textTurn('都弄好了。'),
+        ])
+        await run(
+          benchless('给图_1601 打上冬装、收藏，回答简短点，记住我喜欢冷色调'),
+        )
+        const second = promptOf(fakeModels.main.doStreamCalls[1]!)
+        expect(second).not.toContain('Not run: no bench is open')
+        const row = await db.generation.findUniqueOrThrow({
+          where: { id: pic.id },
+        })
+        expect((row.snapshot as { tags?: string[] } | null)?.tags).toEqual([
+          '冬装',
+        ])
+        expect(
+          (
+            await db.assistantPersona.findUniqueOrThrow({
+              where: { userId: user.id },
+            })
+          ).verbosity,
+        ).toBe('concise')
+        expect(
+          (
+            await db.assistantMemory.findMany({ where: { userId: user.id } })
+          ).map((memory) => memory.text),
+        ).toContain('喜欢冷色调')
+      },
     )
-    expect(promptOf(fakeModels.main.doStreamCalls[0]!)).toContain(
-      'THIS CHAT — you are 阿澈',
-    )
+
+    it('⭐ 没台说「帮我把比例改成 16:9」：她开图片台（bench_open 接力），到了那一跳在台上改成 —— ⛔ 让人重说', async () => {
+      fakeModels.main = scriptedModel([
+        toolTurn({ id: 'o1', name: 'open', input: { bench: 'image' } }),
+      ])
+      const hop1 = await run(benchless('帮我把比例改成 16:9'))
+      expect(hop1.at(-1)).toMatchObject({
+        type: 'stopped',
+        reason: 'bench_open',
+        open: { workspace: 'image-natural' },
+      })
+
+      // 浏览器换好台、带着接力条自动续跳（同一句话，⛔ 创作者重说）。
+      fakeModels.main = scriptedModel([
+        toolTurn({
+          id: 'e1',
+          name: 'edit',
+          input: { changes: [{ op: 'specs', aspectRatio: '16:9' }] },
+        }),
+      ])
+      const hop2 = await run(
+        imageRequest('帮我把比例改成 16:9', {
+          v3: { transcript: relayOf(hop1) },
+        } as Parameters<typeof imageRequest>[1]),
+      )
+      expect(promptOf(fakeModels.main.doStreamCalls[0]!)).toContain(
+        'Opened the image bench',
+      )
+      expect(hop2.at(-1)).toMatchObject({
+        type: 'stopped',
+        reason: 'bench_sync',
+      })
+      const steps = stepsOf(hop2)
+      expect(steps.some((step) => step.status === 'error')).toBe(false)
+      expect(JSON.stringify(steps.map(payloadOf))).toContain('16:9')
+    })
+
+    it('会话盖过章的旧聊天（chatCharacterId）照它自己的角色；旧客户端带着 chatMode 也照常跑、一律忽略', async () => {
+      await xiaoxue()
+      const stamped = await createTestCard(user.id, {
+        name: '阿澈',
+        persona: { identity: '剑道部部长', speech: '说话直接' },
+      })
+      fakeModels.main = scriptedModel([textTurn('嗯。')])
+      await run(benchless('嗨', { chatCharacterId: stamped.id }))
+      expect(promptOf(fakeModels.main.doStreamCalls[0]!)).toContain(
+        'THE CHARACTER — you are 阿澈',
+      )
+
+      // 旧客户端：台上还带着 chatMode「chat」—— 不 400，也不因此收掉干活的工具。
+      fakeModels.main = scriptedModel([textTurn('好。')])
+      const events = await run(
+        imageRequest('改一下', {
+          chatMode: 'chat',
+        } as Parameters<typeof imageRequest>[1]),
+      )
+      expect(events.at(-1)).toMatchObject({ type: 'done' })
+      expect(promptOf(fakeModels.main.doStreamCalls[0]!)).toContain(
+        'HOW YOU WORK',
+      )
+    })
   })
 
   it('思考摘要流出来：摘要逐段发 thinking.delta，开口那一刻收一帧 thinking.ms', async () => {

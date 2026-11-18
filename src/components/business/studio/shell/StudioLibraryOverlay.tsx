@@ -312,12 +312,15 @@ const TAB_ACTIVE_CLASS = 'bg-muted font-semibold text-foreground'
  */
 export function StudioLibraryLoading({
   category,
+  children,
 }: {
   category: StudioShellOverlayId
+  /** 这一类自己的占位（与真页面同形的骨架）；不给 = 空着。 */
+  children?: ReactNode
 }) {
   return (
     <StudioLibraryOverlay category={category}>
-      <div aria-busy="true" className="h-full" />
+      {children ?? <div aria-busy="true" className="h-full" />}
     </StudioLibraryOverlay>
   )
 }

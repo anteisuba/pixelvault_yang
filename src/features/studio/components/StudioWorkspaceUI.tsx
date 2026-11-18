@@ -110,7 +110,7 @@ export function StudioWorkspaceUI() {
   /**
    * 移动端画布优先形态（owner 2026-09-03 拍板方向 A，需求卡
    * `docs/references/pages/studio-image-mobile-request.md` +
-   * `studio-video-mobile-request.md`）：`<1024` 且**图片 / 视频档**时参数栏整颗
+   * `studio-video-mobile-request.md`）：`<768`（`useIsMobile`）且**图片 / 视频档**时参数栏整颗
    * 不渲染，参数收进底部固定 composer 的 chip 行。
    *
    * ⚠ 二选一而不是 CSS 隐藏 —— `StudioPromptArea` 与 `StudioMobileComposer` 各自
@@ -247,7 +247,7 @@ export function StudioWorkspaceUI() {
     : null
   const templatesPanel = (
     <StudioTemplatesPanel
-      // 手机（<1024）走画板「模板 C · 手机」那一版：‹ 标题 ＋、搜索独占一行。
+      // 手机（<768）走画板「模板 C · 手机」那一版：‹ 标题 ＋、搜索独占一行。
       variant={isMobile ? 'phone' : 'stage'}
       // 提示词在舞台下面的只有底部输入框两种（桌面图片台 · 手机图片 / 视频）。
       promptBelow={isMobile && (isBottomComposer || useMobileComposer)}

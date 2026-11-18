@@ -10,7 +10,6 @@ export { AssistantSettingsDialog } from './components/operator/AssistantSettings
 export {
   AvatarDisc,
   StudioOperatorAvatarSwitcher,
-  StudioOperatorChatModeChip,
   StudioOperatorCurrentAvatar,
 } from './components/operator/StudioOperatorAvatarSwitcher'
 export { StudioOperatorBenchDock } from './components/operator/StudioOperatorBenchDock'

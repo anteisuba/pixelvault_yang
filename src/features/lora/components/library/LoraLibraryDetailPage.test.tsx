@@ -12,7 +12,7 @@ import { LoraStackProvider } from '@/features/lora/hooks/use-active-lora-stack'
 import { __resetMinedPromptsCacheForTests } from '@/features/lora/hooks/use-civitai-mined-prompts'
 import { __resetModelDescriptionCacheForTests } from '@/features/lora/hooks/use-civitai-model-description'
 import { LORA_STACK_CLERK_ID } from '@/test/lora-stack'
-import type { CivitaiLoraLibraryItem } from '@/types'
+import type { CivitaiImageRecipe, CivitaiLoraLibraryItem } from '@/types'
 
 import { LoraStageProvider } from '../lora-stage-context'
 import { LoraLibraryDetailPage } from './LoraLibraryDetailPage'
@@ -54,6 +54,7 @@ vi.mock('@clerk/nextjs', () => ({
 const api = vi.hoisted(() => ({
   versions: [] as unknown[],
   showcaseImages: [] as string[],
+  recipes: [] as CivitaiImageRecipe[],
 }))
 vi.mock('@/lib/api-client/lora-assets', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/api-client/lora-assets')>()),
@@ -67,7 +68,7 @@ vi.mock('@/lib/api-client/lora-assets', async (importOriginal) => ({
   }),
   mineCivitaiLoraPromptsAPI: async () => ({
     success: true,
-    data: { recipes: [], previewImages: [] },
+    data: { recipes: api.recipes, previewImages: [] },
   }),
 }))
 
@@ -150,6 +151,63 @@ describe('LoraLibraryDetailPage（库 B 详情页）', () => {
     __resetMinedPromptsCacheForTests()
     api.versions = []
     api.showcaseImages = []
+    api.recipes = []
+  })
+
+  /** 一张带配方的样例（Civitai 数值分级）。 */
+  function recipe(n: number, nsfwLevel: number): CivitaiImageRecipe {
+    return {
+      imageUrl: `https://image.civitai.com/x/${n}.jpeg`,
+      source: 'model_version_image',
+      prompt: `sample ${n}`,
+      seed: 100 + n,
+      nsfwLevel,
+    }
+  }
+
+  it('hides samples above the rating and says what the samples really are', async () => {
+    const version = makeVersion(2, 'Illustrious', 'roccia')
+    api.versions = [version]
+    api.recipes = [recipe(1, 1), recipe(2, 8)]
+    renderPage({ ...version, isNsfw: false })
+
+    // 「安全」档：X 那张不进样例墙；分级那格按样例最高档写，⛔ 写「安全」。
+    expect(
+      await screen.findAllByRole('button', {
+        name: /LoraWorkbench:viewer\.imageAlt/,
+      }),
+    ).toHaveLength(1)
+    expect(
+      await screen.findByText('LoraWorkbench.browse:ratingMature'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('LoraWorkbench.browse:ratingSafe')).toBeNull()
+  })
+
+  it('offers “use this recipe” in the sample viewer when the host can take it to the bench', async () => {
+    const version = makeVersion(2, 'Illustrious', 'roccia')
+    api.versions = [version]
+    api.recipes = [recipe(1, 1)]
+    const onUseRecipe = vi.fn()
+    renderPage(version, vi.fn(), { onUseRecipe })
+
+    fireEvent.click(
+      (
+        await screen.findAllByRole('button', {
+          name: /LoraWorkbench:viewer\.imageAlt/,
+        })
+      )[0]!,
+    )
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: /LoraWorkbench\.browse:useRecipe/,
+      }),
+    )
+    expect(onUseRecipe).toHaveBeenCalledWith(
+      version,
+      expect.objectContaining({ prompt: 'sample 1' }),
+      false,
+      [],
+    )
   })
 
   it('mounts whichever version is picked', async () => {

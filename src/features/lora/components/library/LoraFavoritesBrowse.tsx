@@ -22,7 +22,7 @@ import { useReportLibraryItem } from '@/hooks/use-library-view'
 import { useSearchExpansion } from '@/hooks/use-search-expansion'
 import { proxyCivitaiImageUrl } from '@/features/lora/lib/civitai-image-url'
 import { characterLorasToMount } from '@/features/lora/lib/character-lora-mount'
-import { getLoraAssetSourceUrl } from '@/features/lora/lib/lora-asset-source-url'
+import { assetToLibraryItem } from '@/features/lora/lib/lora-asset-library-item'
 import { buildLibraryFavoriteRequest } from '@/features/lora/lib/lora-source-snapshot'
 import { withWordMatches } from '@/lib/search-words'
 import { cn } from '@/lib/utils'
@@ -88,39 +88,6 @@ interface LoraFavoritesBrowseProps {
   isFavorited: (loraUrl: string) => boolean
   onGoLibrary: () => void
   onGoTrain: () => void
-}
-
-/**
- * 收藏记录 → 详情页吃的条目形状。缺的热度 / 作者留空（详情页没有就不写）；Civitai
- * 的收藏打开后会取回那一版的完整条目换上去（按版本号认）。
- */
-function assetToLibraryItem(asset: LoraAssetRecord): CivitaiLoraLibraryItem {
-  const license = asset.sourceSnapshot?.license
-  return {
-    ...asset,
-    modelId: asset.modelId ?? 0,
-    modelVersionId: asset.modelVersionId ?? 0,
-    versionName: asset.name,
-    creatorName: asset.sourceSnapshot?.author ?? null,
-    creatorAvatarUrl: null,
-    modelPageUrl: getLoraAssetSourceUrl(asset) ?? '',
-    tags: [],
-    downloadCount: 0,
-    thumbsUpCount: 0,
-    allowCommercialUse: license?.commercialUse ?? [],
-    allowDerivatives: license?.allowDerivatives ?? false,
-    allowNoCredit: license?.allowNoCredit ?? true,
-    thumbImageUrl: null,
-    cardImageUrl: null,
-    coverColor: null,
-    coverImageUrlOriginal: null,
-    triggerAlternates: [],
-    recommendedPrompt: asset.recommendedPrompt ?? null,
-    recommendedPromptAlternates: asset.recommendedPromptAlternates ?? [],
-    triggerSource: asset.triggerSource ?? 'official',
-    fileHashAutoV3: asset.fileHashAutoV3 ?? null,
-    fileSizeBytes: asset.sourceSnapshot?.fileSizeBytes ?? null,
-  }
 }
 
 /**

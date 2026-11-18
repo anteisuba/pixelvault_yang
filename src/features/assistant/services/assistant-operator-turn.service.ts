@@ -370,6 +370,11 @@ export interface PrepareOperatorTurnOptions {
    */
   readonly homeDraft?: boolean
   /**
+   * 请求里没绑会话角色时，设置里选的那位也读成整份角色人设（`getAssistantPersonaByUserId` 同名选项）：
+   * 开着台的那一轮她照样是她（11-18）。⚠ 只管人设；记忆往哪儿记仍只看 `request.chatCharacterId`。
+   */
+  readonly playSettingsCharacter?: boolean
+  /**
    * 这一轮用哪个文本模型，压过 persona 里那份：只给服务端自己的调用方（配音间底部那颗写词模型，
    * 用户 10-25 换新内核后照留），⛔ 不从请求体收（理由见下面 `resolveAssistantRoute` 那段头注）。
    */
@@ -450,7 +455,11 @@ export async function prepareOperatorTurn(
         withChatTurn(
           await withSummarizedBackstory(
             user.id,
-            await getAssistantPersonaByUserId(user.id, request.chatCharacterId),
+            await getAssistantPersonaByUserId(
+              user.id,
+              request.chatCharacterId,
+              { playSettingsCharacter: options.playSettingsCharacter === true },
+            ),
           ),
           request,
         ),

@@ -723,31 +723,7 @@ export function toOperatorHistoryEntry(
     case 'domainMark':
       if (!isOperatorDomain(entry.domain)) return null
       return { kind: 'domainMark', id: entry.id, domain: entry.domain }
-    case 'chatMark':
-      return {
-        kind: 'chatMark',
-        id: entry.id,
-        ...(entry.character
-          ? {
-              characterId: entry.character.id,
-              characterName: truncate(
-                entry.character.name,
-                LIMITS.maxTitleChars,
-              ),
-            }
-          : {}),
-      }
   }
-}
-
-/**
- * 切模式那一下给模型的一句话（同一段对话里切「工作 / 聊天」，owner 2026-10-16）。
- * 实时线程与载回来的历史共用这一句：⛔ 两处各写一版，刷新前后模型读到的就不一样。
- */
-export function describeChatModeSwitch(characterName: string | null): string {
-  return characterName
-    ? `[Workspace event: the creator switched this conversation to a chat with ${characterName}. Earlier lines are context; from here you are ${characterName}, talking with them.]`
-    : '[Workspace event: the creator switched this conversation back to work mode. Earlier roleplay lines are context; answer as the assistant from here.]'
 }
 
 /**
@@ -908,10 +884,6 @@ function operatorEntryPlainText(entry: StudioOperatorHistoryEntry): string {
       )
     case 'domainMark':
       return `[domain: ${entry.domain}]`
-    case 'chatMark':
-      return entry.characterName
-        ? `[mode: chat with ${entry.characterName}]`
-        : '[mode: work]'
   }
 }
 
@@ -1056,11 +1028,6 @@ export function historyToOperatorMessages(
         role: 'assistant',
         content:
           '[Workspace event: the creator restored a configuration checkpoint. Use the current form snapshot; earlier tool settings are historical.]',
-      })
-    } else if (entry.kind === 'chatMark') {
-      messages.push({
-        role: 'assistant',
-        content: describeChatModeSwitch(entry.characterName ?? null),
       })
     } else if (entry.kind === 'domainMark') {
       messages.push({

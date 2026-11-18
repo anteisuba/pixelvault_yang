@@ -11,7 +11,30 @@
   "StudioEmptyState": {
     "title": {
       "image": "想画什么？",
+      "tags": "想画什么？",
       "video": "想拍什么？"
+    },
+    "description": {
+      "image": "一句话描述画面就能出图，也可以挂参考图。",
+      "tags": "用 Danbooru 标签拼出画面，逗号隔开。",
+      "video": "描述镜头和动作，也可以挂一张首帧图。"
+    },
+    "examples": {
+      "image": {
+        "a": "雨夜霓虹街头，撑透明伞的少女，电影感",
+        "b": "清晨森林里的小木屋，水彩风格",
+        "c": "白底产品图：一只陶瓷咖啡杯，柔光"
+      },
+      "tags": {
+        "a": "1girl, solo, silver hair, school uniform, cherry blossoms, smile",
+        "b": "1boy, armor, holding sword, night, full moon, dramatic lighting",
+        "c": "scenery, no humans, sky, clouds, ocean, sunset"
+      },
+      "video": {
+        "a": "镜头缓缓推近，女孩回头微笑，风吹起头发",
+        "b": "无人机俯拍海浪拍打礁石，慢动作",
+        "c": "猫跳上窗台，看着窗外的雪"
+      }
     }
   },
   "StudioPage": {
@@ -1162,13 +1185,7 @@
       "earlier": "更早"
     },
     "history": "对话记录",
-    "switchPersona": "换人（现在是 {name}）",
-    "chatMode": {
-      "chat": "聊天",
-      "work": "工作",
-      "toWork": "现在是聊天，点一下切到工作",
-      "toChat": "现在是工作，点一下切到聊天"
-    }
+    "switchPersona": "换人（现在是 {name}）"
   },
   "ImageRecipeImport": {
     "button": "从图读串",

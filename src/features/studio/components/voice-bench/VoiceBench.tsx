@@ -25,6 +25,7 @@ import { AvatarDisc, StudioOperatorAvatarSwitcher } from '@/features/assistant'
 import { studioOutlineChipClass } from '@/components/ui/chip'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 import { STUDIO_COMPOSER_CARD_RESPONSIVE_CLASS } from '@/components/business/studio-shared/chrome/studio-composer-card'
+import { StudioStarterState } from '@/components/business/studio-shared/chrome/StudioStarterState'
 import { VoicePickerDialog } from '@/components/business/voices/VoicePickerDialog'
 import { Button } from '@/components/ui/button'
 import {
@@ -62,6 +63,9 @@ import type { VoiceBenchLine } from '@/types/voice-bench'
 
 /** 三档型号的文案键（和 `STUDIO_OPERATOR_VOICE.modelIds` 同序，和对话头语音条同一套）。 */
 const MODEL_LABEL_KEYS = ['free', 'pro', 'drama'] as const
+
+/** 起手屏三句台词（`VoiceBench.starterExamples.<id>`）。 */
+const VOICE_STARTER_EXAMPLE_IDS = ['a', 'b', 'c'] as const
 
 const ROW_CLASS =
   'flex min-h-12 items-center gap-2.5 rounded-12 bg-muted px-3 py-2'
@@ -269,6 +273,17 @@ export function VoiceBench() {
                   }
                 />
               </div>
+            ) : lines.length === 0 && bench.pending.length === 0 ? (
+              // 起手屏（共用一份）：点例子只把台词放进输入框，⛔ 直接念、⛔ 抢焦点。
+              <StudioStarterState
+                title={t('starterTitle')}
+                description={t('starterDescription')}
+                examples={VOICE_STARTER_EXAMPLE_IDS.map((id) => ({
+                  id,
+                  text: t(`starterExamples.${id}`),
+                }))}
+                onPickExample={setDraft}
+              />
             ) : null}
             {lines.map((line) => (
               <BenchLineRow

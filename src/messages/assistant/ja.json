@@ -996,19 +996,15 @@
       "previousVersion": "前の版",
       "nextVersion": "次の版",
       "versionOf": "{index} / {total}",
-      "noProfile": "{name}はまだ設定がないため、チャットは作業モードの口調で返します。",
+      "noProfile": "{name}はまだ設定がないため、デフォルトのアシスタントの口調で返します。",
       "noProfileAction": "設定を書く",
       "placeholder": "{name}とおしゃべり…",
-      "benchHint": "いまはおしゃべり中。{name}は台の上を操作しません。",
-      "benchHintAction": "作業に切り替え",
       "greetingUserFallback": "あなた"
     },
     "mode": {
       "pickCharacter": "アシスタントの人格を切り替え",
       "defaultAssistant": "デフォルトのアシスタント",
       "searchCharacter": "キャラを検索",
-      "toChat": "チャットに切替 · {name}と",
-      "toWork": "作業に戻る",
       "toDomain": "{domain}に移動"
     },
     "phoneAdd": {

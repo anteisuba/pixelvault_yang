@@ -64,12 +64,17 @@ interface StudioLibraryTarget {
   setOpenCategory: (category: StudioShellOverlayId | null) => void
   close: () => void
   /** 库里左上那颗助手头像：对话从左边出来接着聊（ui-spec §9「库 + 助手」）。 */
-  assistantOpen: boolean
   setAssistantOpen: (open: boolean) => void
 }
 
 export const StudioLibraryTargetContext =
   createContext<StudioLibraryTarget | null>(null)
+
+/**
+ * 库里助手开没开着，单独一份：⛔ 放进 `StudioLibraryTargetContext` —— 叫出 / 收起助手那一下
+ * 所有读落点的库页（素材页上千张格子）整页跟着重渲（11-18 实测 450–580ms 不出帧）。
+ */
+export const StudioLibraryAssistantOpenContext = createContext(false)
 
 /** 外壳把 `@library` 那一格包在这里面：库知道自己是拦截路由那一份还是 `children` 那一份。 */
 export const StudioLibrarySlotContext = createContext(false)
@@ -329,9 +334,10 @@ export function StudioLibraryAssistantAvatar({
 }) {
   const t = useTranslations('StudioShell')
   const slot = useContext(StudioLibraryTargetContext)
+  const assistantOpen = useContext(StudioLibraryAssistantOpenContext)
   const { persona } = useAssistantPersona()
   // 助手开着时对话头已经有它那颗头像（收起键也在那儿），这里让掉：左上只留一颗。
-  if (!slot || slot.assistantOpen) return null
+  if (!slot || assistantOpen) return null
   return (
     <button
       type="button"

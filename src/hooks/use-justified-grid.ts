@@ -1,6 +1,7 @@
 'use client'
 
 import {
+  startTransition,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -29,8 +30,14 @@ import {
  * `useLayoutEffect`（首帧绘制前）用真实值纠正，所以看不到中间态，也不会
  * hydration mismatch（两边首渲染用的是同一个假定值）。
  * justified 网格与文件夹门牌行共用这一条量法。
+ *
+ * `deferResize`：挂上之后的宽度变化走 `startTransition`（可切片、可让路），⛔ 一口气同步重渲。
+ * 整页库在外壳里被叫出 / 收起的助手挤窄放宽时（用户 11-18：素材页每次 300ms+ 的长任务，
+ * 期间页面卡住），一次宽度变化就是整页格子重渲。首次量宽仍同步（⛔ 先画一帧 SSR 假定宽）。
  */
-export function useContainerWidth(): {
+export function useContainerWidth({
+  deferResize = false,
+}: { deferResize?: boolean } = {}): {
   containerRef: (node: HTMLDivElement | null) => void
   containerWidth: number
 } {
@@ -51,15 +58,16 @@ export function useContainerWidth(): {
       if (next > 0) setContainerWidth(next)
     }
     measure()
+    const remeasure = deferResize ? () => startTransition(measure) : measure
 
     if (typeof ResizeObserver === 'undefined') {
-      window.addEventListener('resize', measure)
-      return () => window.removeEventListener('resize', measure)
+      window.addEventListener('resize', remeasure)
+      return () => window.removeEventListener('resize', remeasure)
     }
-    const observer = new ResizeObserver(measure)
+    const observer = new ResizeObserver(remeasure)
     observer.observe(element)
     return () => observer.disconnect()
-  }, [element])
+  }, [deferResize, element])
 
   return { containerRef, containerWidth }
 }
@@ -88,6 +96,8 @@ interface UseJustifiedGridOptions {
   gap?: number
   /** 给了就排等宽格（库整页），⛔ justified；`aspectRatios` 只取个数。 */
   uniform?: Omit<UniformGridOptions, 'containerWidth' | 'gap'>
+  /** 见 `useContainerWidth`。 */
+  deferResize?: boolean
 }
 
 interface UseJustifiedGridReturn {
@@ -109,8 +119,9 @@ export function useJustifiedGrid({
   targetRowHeight,
   gap = ASSET_GRID_GAP,
   uniform,
+  deferResize = false,
 }: UseJustifiedGridOptions): UseJustifiedGridReturn {
-  const { containerRef, containerWidth } = useContainerWidth()
+  const { containerRef, containerWidth } = useContainerWidth({ deferResize })
   const uniformMin = uniform?.minTileWidth
   const uniformMax = uniform?.maxColumns
   const uniformRatio = uniform?.aspectRatio

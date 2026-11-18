@@ -1491,6 +1491,8 @@ export function KreaAssetBrowser({
           maxColumns: LIBRARY_GRID.maxColumns,
           aspectRatio: LIBRARY_GRID.aspectRatio,
         },
+    // 外壳里叫出 / 收起助手会挤窄放宽整页（11-18）：宽度变化那一次整页格子重渲走 transition，⛔ 卡住页面。
+    deferResize: true,
   })
   // 数据到了每张图由糊变清，一批之内从左上往右下错开（「这一行第几格 + 离这一批第一行
   // 几行」）。justified 排版每行格数不一样，所以按「这一格在第几行」来数。
@@ -1554,26 +1556,30 @@ export function KreaAssetBrowser({
     return () => observer.disconnect()
   }, [gridRows, isEmpty])
 
+  /**
+   * 行高一变就让窗口化整体重算每行的起点（2026-11-17 生产实测：首屏下一行盖住上一行，过一会儿
+   * 才归位）。⚠ `@tanstack/virtual-core` 的测量缓存只认 count / gap / scrollMargin / getItemKey /
+   * lanes 这些选项，**不认 `estimateSize`**：容器宽度量到、骨架换真数据、密度 / 手机档切换让行高变了
+   * 但行数没变时，每行的 `start` 还是旧高度排出来的，于是行与行叠在一起。
+   * ⭐ 行高变了就换一个 `getItemKey`（键照旧是行号）：同一次渲染里就按新行高重排。
+   * ⛔ 改回 layout effect 里 `rowVirtualizer.measure()` —— 那是提交期里再同步整页重渲一遍
+   *（11-18 真机：外壳里叫出 / 收起助手，宽度一变就多出 ~160ms 的长任务）。
+   */
+  const gridRowHeightsKey = gridRows.map((row) => row.height).join(',')
+  const getGridRowKey = useCallback(
+    (index: number) => index,
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 故意按行高换引用，见上
+    [gridRowHeightsKey],
+  )
   const rowVirtualizer = useVirtualizer({
     count: gridRows.length,
     getScrollElement: () => scrollElementRef.current,
     estimateSize: (index) => gridRows[index]?.height ?? 0,
+    getItemKey: getGridRowKey,
     gap: ASSET_GRID_GAP,
     overscan: ASSET_GRID_ROW_OVERSCAN,
     scrollMargin: gridOffsetTop,
   })
-
-  /**
-   * 行高一变就让窗口化整体重算每行的起点（2026-11-17 生产实测：首屏下一行盖住上一行，过一会儿
-   * 才归位）。⚠ `@tanstack/virtual-core` 的测量缓存只认 count / gap / scrollMargin / lanes 这些
-   * 选项，**不认 `estimateSize`**：容器宽度量到、骨架换真数据、密度 / 手机档切换让行高变了但行数没变时，
-   * 每行的 `start` 还是旧高度排出来的，于是行与行叠在一起，直到 count 或 scrollMargin 碰巧变一次
-   *（下一批到了 / 顶栏高度变了）才归位。画廊那边同一处是按列宽 `virtualizer.measure()`。
-   */
-  const gridRowHeightsKey = gridRows.map((row) => row.height).join(',')
-  useLayoutEffect(() => {
-    rowVirtualizer.measure()
-  }, [gridRowHeightsKey, rowVirtualizer])
 
   // Per-section counts — fall back to live `total` only for the bucket the
   // user is currently viewing so the sidebar still moves on add/delete

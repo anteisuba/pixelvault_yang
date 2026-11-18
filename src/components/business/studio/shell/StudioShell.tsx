@@ -43,6 +43,7 @@ import { StudioOperatorDock } from '@/features/assistant'
 import { HomeDraftBench } from '@/components/business/studio/shell/HomeDraftBench'
 import { StudioConversationList } from '@/components/business/studio/shell/StudioConversationList'
 import {
+  StudioLibraryAssistantOpenContext,
   StudioLibrarySlotContext,
   StudioLibraryTargetContext,
 } from '@/components/business/studio/shell/StudioLibraryOverlay'
@@ -195,12 +196,12 @@ export function StudioShell({
       setOpenCategory: setLibraryCategory,
       // 从外壳里点开的 → 后退回到进来之前那一页（台还在）；直接打开的 → 回首页。
       close: () => (cameFromShell ? router.back() : router.push(ROUTES.STUDIO)),
-      assistantOpen: libraryAssistantOpen,
+      // ⚠ 开没开着走单独的 `StudioLibraryAssistantOpenContext`：放在这里，库里叫出 / 收起助手
+      //   那一下所有读这份 context 的库页（素材页上千张格子）整页跟着重渲（用户 11-18 量到 450–580ms 不出帧）。
       setAssistantOpen: setLibraryAssistantOpen,
     }),
     [
       cameFromShell,
-      libraryAssistantOpen,
       libraryInPlace,
       libraryTarget,
       pathname,
@@ -236,12 +237,28 @@ export function StudioShell({
   /** 左栏换台 / 收台借台框的「推 / 滑」（左栏在台框外面，台框在场时把两只手挂上来）。 */
   const benchNavRef = useRef<StudioBenchNav | null>(null)
 
+  /**
+   * 库的落点。⚠ `left` / `width` 只在落定时跳一次（开合的那一段走 `StudioShellStage` 里的
+   * transform），⛔ 再给它们挂过渡：每帧一次整页库（上千张格子）的重排（用户 11-18）。
+   */
   const libraryLayer = (
     <div
       ref={setLibraryTarget}
       data-testid="studio-library-target"
-      className="fixed inset-0 z-40 empty:hidden lg:absolute lg:overflow-hidden lg:inset-y-0 lg:right-auto lg:left-(--library-left) lg:z-10 lg:w-(--library-width) lg:transition-[left,width] lg:duration-slow lg:ease-standard motion-reduce:transition-none"
+      className="fixed inset-0 z-40 empty:hidden lg:absolute lg:overflow-hidden lg:inset-y-0 lg:right-auto lg:left-(--library-left) lg:z-10 lg:w-(--library-width) lg:bg-background lg:pr-(--library-pad)"
     />
+  )
+  /**
+   * 左栏、首页那份小配方按元素记住：库里叫出 / 收起助手只改外壳这一格 state，⛔ 顺手把它们重渲一遍。
+   * （它们要的东西都从 context / store 读，⛔ 靠外壳重渲取新值。）
+   */
+  const conversationList = useMemo(
+    () => <StudioConversationList className="hidden lg:flex" />,
+    [],
+  )
+  const homeDraftBench = useMemo(
+    () => <HomeDraftBench onHost={setDraftHost} />,
+    [],
   )
 
   return (
@@ -249,49 +266,54 @@ export function StudioShell({
       <StudioBenchNavContext.Provider value={benchNavRef}>
         <StudioShellHeaderSlotsProvider value={headerSlots}>
           <StudioLibraryTargetContext.Provider value={libraryContext}>
-            <StudioLibraryPickProvider>
-              <StudioOperatorHostSlotProvider fallback={homeHost}>
-                {() => (
-                  <div
-                    data-testid="studio-shell"
-                    data-kind={kind}
-                    data-library={libraryCategory ?? undefined}
-                    className="lg:flex lg:h-svh lg:overflow-hidden lg:bg-surface-sunken"
-                  >
-                    <StudioConversationList className="hidden lg:flex" />
-                    {kind === 'page' ? (
-                      <div
-                        className={cn(SHELL_BOARD_CLASS, 'lg:overflow-y-auto')}
-                        style={libraryWidth('100%')}
-                      >
-                        {/* 从台上过来的：`children` 还是那张台，库在 `@library` 那一格就地画。 */}
-                        {base === null ? children : null}
-                        {libraryLayer}
-                      </div>
-                    ) : (
-                      <StudioShellStage
-                        kind={kind}
-                        benchPathname={base?.pathname ?? ROUTES.STUDIO}
-                        shellDock={placement.owner === 'shell'}
-                        libraryOpen={libraryOpen}
-                        libraryAssistantOpen={libraryAssistantOpen}
-                        libraryLayer={libraryLayer}
-                        benchNavRef={benchNavRef}
-                        onCloseLibraryAssistant={closeLibraryAssistant}
-                      >
-                        {children}
-                      </StudioShellStage>
-                    )}
-                    <StudioLibrarySlotContext.Provider value>
-                      {library}
-                    </StudioLibrarySlotContext.Provider>
-                    {kind === 'home' ? (
-                      <HomeDraftBench onHost={setDraftHost} />
-                    ) : null}
-                  </div>
-                )}
-              </StudioOperatorHostSlotProvider>
-            </StudioLibraryPickProvider>
+            <StudioLibraryAssistantOpenContext.Provider
+              value={libraryAssistantOpen}
+            >
+              <StudioLibraryPickProvider>
+                <StudioOperatorHostSlotProvider fallback={homeHost}>
+                  {() => (
+                    <div
+                      data-testid="studio-shell"
+                      data-kind={kind}
+                      data-library={libraryCategory ?? undefined}
+                      className="lg:flex lg:h-svh lg:overflow-hidden lg:bg-surface-sunken"
+                    >
+                      {conversationList}
+                      {kind === 'page' ? (
+                        <div
+                          className={cn(
+                            SHELL_BOARD_CLASS,
+                            'lg:overflow-y-auto',
+                          )}
+                          style={libraryWidth('100%')}
+                        >
+                          {/* 从台上过来的：`children` 还是那张台，库在 `@library` 那一格就地画。 */}
+                          {base === null ? children : null}
+                          {libraryLayer}
+                        </div>
+                      ) : (
+                        <StudioShellStage
+                          kind={kind}
+                          benchPathname={base?.pathname ?? ROUTES.STUDIO}
+                          shellDock={placement.owner === 'shell'}
+                          libraryOpen={libraryOpen}
+                          libraryAssistantOpen={libraryAssistantOpen}
+                          libraryLayer={libraryLayer}
+                          benchNavRef={benchNavRef}
+                          onCloseLibraryAssistant={closeLibraryAssistant}
+                        >
+                          {children}
+                        </StudioShellStage>
+                      )}
+                      <StudioLibrarySlotContext.Provider value>
+                        {library}
+                      </StudioLibrarySlotContext.Provider>
+                      {kind === 'home' ? homeDraftBench : null}
+                    </div>
+                  )}
+                </StudioOperatorHostSlotProvider>
+              </StudioLibraryPickProvider>
+            </StudioLibraryAssistantOpenContext.Provider>
           </StudioLibraryTargetContext.Provider>
         </StudioShellHeaderSlotsProvider>
       </StudioBenchNavContext.Provider>
@@ -323,8 +345,17 @@ function StudioConversationUrlSync() {
  * 叠层落点的宽与左边距（≥768）：写进 `--library-width` / `--library-left`，⛔ 直接写
  * width / left（手机上落点是整屏）。助手贴左的那几页，库往右让出对话那一栏。
  */
-function libraryWidth(width: string, left = '0px'): CSSProperties {
-  return { '--library-width': width, '--library-left': left } as CSSProperties
+function libraryWidth(
+  width: string,
+  left = '0px',
+  /** 右边垫出的那一截（收起助手那一段：落点放宽、内容宽不变，见 `libraryPull`）。 */
+  pad = '0px',
+): CSSProperties {
+  return {
+    '--library-width': width,
+    '--library-left': left,
+    '--library-pad': pad,
+  } as CSSProperties
 }
 
 function StudioShellStage({
@@ -470,55 +501,19 @@ function StudioShellStage({
       if (pulling === 'collapse') setConversationCollapsed(true)
       setPulling(null)
     }
-    if (
-      !section ||
-      !column ||
-      typeof section.animate !== 'function' ||
-      typeof column.animate !== 'function'
-    ) {
+    if (!section || !column) {
       finish()
       return
     }
     const shift = section.offsetWidth + SHELL_DIVIDER_PX
     const [from, to] = pulling === 'collapse' ? [0, -shift] : [-shift, 0]
-    const timing: KeyframeAnimationOptions = {
-      duration: SHELL_MOTION.pullMs,
-      easing: EASE_STANDARD_CSS,
-      fill: 'forwards',
-    }
-    const slide = (element: HTMLElement, a: number, b: number) =>
-      element.animate(
-        [
-          { transform: `translate3d(${a}px, 0, 0)` },
-          { transform: `translate3d(${b}px, 0, 0)` },
-        ],
-        timing,
-      )
-    const animations = [
-      slide(section, from, to),
-      slide(column, from + shift, to + shift),
-    ]
-    let live = true
-    const settle = () => {
-      if (!live) return
-      live = false
-      finish()
-    }
-    void Promise.all(animations.map((animation) => animation.finished)).then(
-      settle,
-      // 中途被撤（卸载 / 换台）：⛔ 再落状态。
-      () => undefined,
+    return runShellPull(
+      [
+        [section, from, to],
+        [column, from + shift, to + shift],
+      ],
+      finish,
     )
-    // 后台标签页里动画时间线可能停着不回调：最多等时长再多一拍，⛔ 卡在半路。
-    const fallback = window.setTimeout(
-      settle,
-      SHELL_MOTION.pullMs + SHELL_PULL_GRACE_MS,
-    )
-    return () => {
-      live = false
-      window.clearTimeout(fallback)
-      for (const animation of animations) animation.cancel()
-    }
   }, [pulling, setConversationCollapsed])
 
   // 库是整页（ui-spec §9）：盖满白板；叫出助手时对话按记住的宽贴在左边、库往右让。
@@ -539,30 +534,75 @@ function StudioShellStage({
   const conversationWidth = `${split.conversationPx}px`
   /**
    * 库里叫出助手（所有库，owner 2026-11-18：和工作台、首页一致）：对话照首页那样从左排开
-   *（⛔ 浮在库上），库从它右边开始。展开 / 收起靠落点 `left` / `width` 的过渡
-   *（`duration-slow` + `ease-standard`，与工作台「拉」的 `SHELL_MOTION.pullMs` 同一段）。
+   *（⛔ 浮在库上），库从它右边开始。
    */
   const libraryChat = libraryOpen && libraryAssistantOpen
   /**
-   * 收起那一段：库从对话那一栏上盖回左边，走完 `pullMs` 再把对话藏起来 ——
-   * ⛔ 对话先没、库还在往回走，中间露出底下的台。
+   * 库里的「拉」（用户 11-18 真机：素材页点下去 450–580ms 不出帧、再一步跳过去）：和工作台同一套 ——
+   * 对话栏浮起来贴左边，两块只动 transform，⭐ **先动、后排**：库内容的宽在这一段里一律不变，
+   * 落定那一帧才换（整页库换宽 = 各页按宽重算格子的那次重渲，起步那一帧做它 = 动画等它排完才出第一帧）。
+   * · 叫出：库照整宽，栏 −W → 0，库 0 → +W（右边那截被白板裁掉）；落定后库按「让出 W」重排。
+   * · 收起：库照窄宽（`left: W`，内容宽仍 100%−W），落点右边垫出 W（`--library-pad`，底色同库）
+   *   把空出来的那截盖住；栏 0 → −W，库 0 → −W；落定后库按整宽重排。
+   * ⛔ 给落点的 `left` / `width` 挂过渡（每帧一次整页重排）。
+   * 在渲染里派生（⛔ effect 里 setState 多等一帧）：开着的那一下就进「拉」。
    */
   const [prevLibraryChat, setPrevLibraryChat] = useState(libraryChat)
-  const [libraryChatLeaving, setLibraryChatLeaving] = useState(false)
+  const [libraryPull, setLibraryPull] = useState<'open' | 'close' | null>(null)
   if (prevLibraryChat !== libraryChat) {
     setPrevLibraryChat(libraryChat)
-    setLibraryChatLeaving(!libraryChat && libraryOpen && !reduceMotion)
-  }
-  useEffect(() => {
-    if (!libraryChatLeaving) return
-    const timer = window.setTimeout(
-      () => setLibraryChatLeaving(false),
-      SHELL_MOTION.pullMs,
+    setLibraryPull(
+      libraryOpen && !reduceMotion ? (libraryChat ? 'open' : 'close') : null,
     )
-    return () => window.clearTimeout(timer)
-  }, [libraryChatLeaving])
-  const libraryChatShown = libraryChat || libraryChatLeaving
-  const libraryLeft = libraryChat ? conversationWidth : '0px'
+  }
+  if (!libraryOpen && libraryPull !== null) setLibraryPull(null)
+  const libraryPullRef = useRef(libraryPull)
+  useLayoutEffect(() => {
+    libraryPullRef.current = libraryPull
+  }, [libraryPull])
+  useLayoutEffect(() => {
+    if (!libraryPull) return
+    const section = conversationRef.current
+    const layer = stageRef.current?.querySelector<HTMLElement>(
+      '[data-testid="studio-library-target"]',
+    )
+    const finish = () => setLibraryPull(null)
+    // <1024 库是盖满屏幕的 `fixed` 叠层、对话不在它左边：⛔ 平移（会把整屏的库推出去 400px）。
+    if (!section || !layer || getComputedStyle(layer).position !== 'absolute') {
+      finish()
+      return
+    }
+    const shift = section.offsetWidth
+    return runShellPull(
+      libraryPull === 'open'
+        ? [
+            [section, -shift, 0],
+            [layer, 0, shift],
+          ]
+        : [
+            [section, 0, -shift],
+            [layer, 0, -shift],
+          ],
+      finish,
+    )
+  }, [libraryPull])
+  /** 这一段里再点收起 ⛔ 叠一段（叫出时反向由头像那颗键触发，派生里会接上）。 */
+  const closeLibraryChat = useCallback(() => {
+    if (libraryPullRef.current) return
+    onCloseLibraryAssistant()
+  }, [onCloseLibraryAssistant])
+  const libraryChatShown = libraryChat || libraryPull !== null
+  /** 对话在库左边、库已让出那一块（落定之后）。 */
+  const libraryChatSettled = libraryChat && libraryPull === null
+  /** 库内容按窄宽排着：叫出落定之后，以及收起的那一段（见上）。 */
+  const libraryNarrow = libraryChatSettled || libraryPull === 'close'
+  const libraryLayout = libraryNarrow
+    ? libraryWidth(
+        libraryPull === 'close' ? '100%' : `calc(100% - ${conversationWidth})`,
+        conversationWidth,
+        libraryPull === 'close' ? conversationWidth : '0px',
+      )
+    : libraryWidth('100%')
   /** 拖过头变淡那一下；「拉」本身走上面的 transform，⛔ 宽的过渡。 */
   const previewTransition =
     dragging || reduceMotion
@@ -579,16 +619,29 @@ function StudioShellStage({
    * 对话那一栏的 Dock 元素按「收起」回调记住：外壳为「拉」/ 头像飞重渲几次，
    * ⛔ 每次都把整块面板（时间线、输入区）跟着重渲一遍 —— 点下去到起步的空档就在这里。
    */
-  const collapseColumn = libraryChatShown
-    ? onCloseLibraryAssistant
+  const collapseHandler = libraryChatShown
+    ? closeLibraryChat
     : bench
       ? collapseConversation
       : undefined
+  /**
+   * 「收起」走一颗稳定的回调、按 ref 分派：台上开库再叫出助手，收起从「收对话」换成「收库里的助手」，
+   * ⛔ 因此换一个 Dock 元素、整块面板重渲。只有「有没有收起键」变了才换。
+   */
+  const collapseHandlerRef = useRef(collapseHandler)
+  useLayoutEffect(() => {
+    collapseHandlerRef.current = collapseHandler
+  }, [collapseHandler])
+  const hasCollapse = libraryChatShown || bench
+  const collapseColumn = useCallback(() => collapseHandlerRef.current?.(), [])
   const dock = useMemo(
     () => (
-      <StudioOperatorDock variant="column" onCollapseColumn={collapseColumn} />
+      <StudioOperatorDock
+        variant="column"
+        onCollapseColumn={hasCollapse ? collapseColumn : undefined}
+      />
     ),
-    [collapseColumn],
+    [collapseColumn, hasCollapse],
   )
 
   return (
@@ -600,10 +653,7 @@ function StudioShellStage({
         'lg:flex lg:overflow-hidden',
         flight && 'studio-shell-avatar-flying',
       )}
-      style={libraryWidth(
-        libraryChat ? `calc(100% - ${libraryLeft})` : '100%',
-        libraryLeft,
-      )}
+      style={libraryLayout}
     >
       <section
         ref={conversationRef}
@@ -616,12 +666,17 @@ function StudioShellStage({
             : 'flex h-page flex-1',
           conversationFloating && 'lg:absolute lg:inset-y-0 lg:left-0',
           conversationHidden && pulling === null && 'lg:invisible',
-          libraryOpen && !libraryChatShown && 'lg:hidden',
+          // 库开着而对话不在左边排着（收着 / 「拉」的那一段）：浮起来贴左边，宽照旧；
+          // 收着时 ⛔ `display: none`，只是看不见 —— 面板一直排着版，叫出那一拍直接起步。
+          libraryOpen &&
+            !libraryChatSettled &&
+            'lg:absolute lg:inset-y-0 lg:left-0',
+          libraryOpen && !libraryChatShown && 'lg:invisible',
           libraryChatShown &&
             'lg:flex lg:flex-none lg:border-r lg:border-border',
         )}
         style={
-          libraryChatShown
+          libraryOpen
             ? { width: conversationWidth }
             : bench
               ? {
@@ -699,6 +754,73 @@ function StudioShellStage({
       />
     </div>
   )
+}
+
+/**
+ * 「拉」的平移（工作台收 / 展对话、库里叫出 / 收起助手共用）：每块从 a 平移到 b，同一段
+ * `SHELL_MOTION.pullMs`、同一条缓动，WAAPI 只动 transform（合成线程跑）。走完调 `onDone`；
+ * 返回撤销（cleanup 里调）。
+ * ⚠ `fill: 'forwards'` 把终点钉住，直到调用方落定那次提交的 cleanup 才撤 —— ⛔ 先撤平移再换布局，中间闪一帧。
+ * ⚠ 没有 `element.animate`（jsdom）就直接落到终点。
+ */
+function runShellPull(
+  slides: ReadonlyArray<readonly [HTMLElement, number, number]>,
+  onDone: () => void,
+): (() => void) | undefined {
+  if (slides.some(([element]) => typeof element.animate !== 'function')) {
+    onDone()
+    return undefined
+  }
+  const timing: KeyframeAnimationOptions = {
+    duration: SHELL_MOTION.pullMs,
+    easing: EASE_STANDARD_CSS,
+    fill: 'forwards',
+  }
+  const animations = slides.map(([element, a, b]) =>
+    element.animate(
+      [
+        { transform: `translate3d(${a}px, 0, 0)` },
+        { transform: `translate3d(${b}px, 0, 0)` },
+      ],
+      timing,
+    ),
+  )
+  let live = true
+  const settle = () => {
+    if (!live) return
+    live = false
+    onDone()
+  }
+  void Promise.all(animations.map((animation) => animation.finished)).then(
+    settle,
+    // 中途被撤（卸载 / 换台 / 反向）：⛔ 再落状态。
+    () => undefined,
+  )
+  // 兜底（`finished` 迟迟不来）：从动画**真正起步**（`ready`，第一帧提交）起算时长再多一拍，
+  // ⛔ 从点击起算 —— 主线程被占着时兜底先到期，会把还没起步的动画直接撤成一步跳（用户 11-18 收起方向）。
+  let fallback: number | undefined
+  void Promise.all(animations.map((animation) => animation.ready)).then(
+    () => {
+      if (!live) return
+      fallback = window.setTimeout(
+        settle,
+        SHELL_MOTION.pullMs + SHELL_PULL_GRACE_MS,
+      )
+    },
+    () => undefined,
+  )
+  // 后台标签页里时间线停着、`ready` 也不来：看不见就直接落到终点，⛔ 卡在半路。
+  const onHidden = () => {
+    if (document.visibilityState === 'hidden') settle()
+  }
+  onHidden()
+  document.addEventListener('visibilitychange', onHidden)
+  return () => {
+    live = false
+    window.clearTimeout(fallback)
+    document.removeEventListener('visibilitychange', onHidden)
+    for (const animation of animations) animation.cancel()
+  }
 }
 
 type StudioShellCollapseSide = 'conversation' | 'bench' | null

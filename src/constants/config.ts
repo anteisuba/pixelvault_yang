@@ -603,11 +603,19 @@ export const ANTHROPIC_API = {
   VERSION: '2023-06-01',
   MESSAGES_PATH: '/messages',
   /**
-   * 服务端网搜工具。⚠ 不用带动态过滤的 `web_search_20260209`：它让 Claude 写代码
-   * 过滤结果，2026-10-10 对比里过滤代码报错、重试把次数用光，8 题只答对 3 题；
-   * 这一版同题 10–13 秒答对。
+   * 服务端网搜工具版本，**全仓一个**：助手主循环（`features/assistant/models.ts` 的
+   * `webSearch_20260209`）与单独联网调用（`llm-web-search.ts`）同版，有测试锁住。
+   * 官方 web-search-tool 文档：Opus 5.5 / Sonnet 5.5 / Fable / Haiku 5.5 都支持；
+   * `20260209` 起默认「写代码先筛结果」（dynamic filtering）。
    */
-  WEB_SEARCH_TOOL_TYPE: 'web_search_20250305',
+  WEB_SEARCH_TOOL_TYPE: 'web_search_20260209',
+  /**
+   * 单独联网调用关掉动态过滤、直接搜（文档：「To call web search directly, without dynamic
+   * filtering, set `allowed_callers: ["direct"]`」）。理由：2026-10-10 一次性查事实的对比里，
+   * 过滤代码报错、重试把次数用光，8 题只答对 3 题；直接搜同题 10–13 秒答对。
+   * 主循环是多步搜、读网页的长任务，保留动态过滤（文档：「reduces token use on search-heavy requests」）。
+   */
+  WEB_SEARCH_DIRECT_CALLERS: ['direct'],
   MODELS_PATH: '/models',
   /**
    * Beta header that unlocks `fallbacks: 'default'` on `/messages`. Claude
@@ -620,6 +628,25 @@ export const ANTHROPIC_API = {
   SERVER_SIDE_FALLBACK_BETA: 'server-side-fallback-2026-07-01',
   /** `stop_reason` value the classifiers return when they decline a request. */
   REFUSAL_STOP_REASON: 'refusal',
+  /**
+   * 后台缓冲调用什么时候给系统提示打缓存断点（11-18）。官方 prompt-caching：5 分钟缓存写入按
+   * 基础输入价的 1.25 倍计，命中 0.05–0.1 倍；「Shorter prompts cannot be cached, even if marked」
+   * —— 一次性的调用打了断点只多付 25%，太短的打了也白打。所以只给**同一段系统提示几分钟内会
+   * 重发**的用途打，且系统提示要够长。
+   */
+  PROMPT_CACHE: {
+    /**
+     * 同一段系统提示会在几分钟内重发的 `LlmTextInput.purpose`：
+     * `assistant` = 助手的规划 / 出门 / 收尾，一轮里同一段系统提示发好几次；
+     * `character-chat-mood` = 聊天里每一句都先想一步；`prompt-enhance` = 高频短调用（见 llm-capability）。
+     */
+    REPEATED_PURPOSES: ['assistant', 'character-chat-mood', 'prompt-enhance'],
+    /**
+     * 文档最低可缓存长度：Opus 5.5 / Sonnet 5.5 / Fable 5.x / Haiku 5.5 都是 512 tokens。按字符粗估
+     * （英文约 4 字符 / token，中文约 1 字符 / token），2048 字符保证英文也够 512。
+     */
+    MIN_SYSTEM_CHARS: 2_048,
+  },
 } as const
 
 /**
@@ -629,6 +656,25 @@ export const ANTHROPIC_API = {
  */
 export const DEEPSEEK_ANTHROPIC_API = {
   MESSAGES_PATH: '/anthropic/v1/messages',
+  /**
+   * DeepSeek 自己的联网工具（11-18 照 https://api-docs.deepseek.com/guides/web_tools 改）：
+   * `type` 与 `name` 都是 `deepseek_web_search`，⛔ 不是 Claude 的 `web_search_*`。
+   * ⚠ 文档错误表：「other tools cannot be used together with `deepseek_web_search`…」——
+   *   所以只用在单独的联网调用上，⛔ 不挂到带自家工具的助手主循环。
+   * ⚠ 文档没写 `max_uses`，且 `allowed_domains` / `blocked_domains` / `user_location` 会被拒。
+   */
+  WEB_SEARCH_TOOL: 'deepseek_web_search',
+} as const
+
+/** xAI（Grok）请求上的固定约定（11-18 照 docs.x.ai）。 */
+export const XAI_API = {
+  /**
+   * Chat Completions 的缓存路由头（prompt-caching「Maximizing cache hits」：「Set
+   * `x-grok-conv-id` (Chat Completions API)」）。Responses 用 body 的 `prompt_cache_key`。
+   */
+  CONVERSATION_ID_HEADER: 'x-grok-conv-id',
+  /** 看图只收这两种（image-understanding：「Supported image file types: jpg/jpeg or png」）。 */
+  IMAGE_MEDIA_TYPES: ['image/jpeg', 'image/png'],
 } as const
 
 export const LLM_TEXT_MODEL_IDS = {
@@ -660,9 +706,20 @@ export const LLM_TEXT_MODEL_IDS = {
   XAI_GROK_4_7: 'grok-4.7',
 } as const
 
+/**
+ * 思考模型显式预算的**统一地板**（11-18）。各家文档都把思考算进输出上限：Gemini「maxOutputTokens
+ * … including thought tokens」、DeepSeek 开思考时默认 64K、Claude adaptive 与回答共用 `max_tokens`。
+ * 调用方给的小数（400 / 1024 / 2400）是「回答大概多长」，不是硬上限 —— 原样当上限，思考先把它吃光，
+ * 回答被截断、JSON 静默解析失败。上限不是花费：短回答照样只按实际 token 计费。
+ */
+const LLM_THINKING_OUTPUT_FLOOR = 16_000
+
 export const LLM_TEXT_DEFAULT_MAX_TOKENS = {
   DEFAULT: 1024,
-  OPENAI_REASONING: 4096,
+  THINKING_FLOOR: LLM_THINKING_OUTPUT_FLOOR,
+  // OpenAI 推理模型单独更高：reasoning 指南「OpenAI recommends reserving at least 25,000 tokens
+  // for reasoning and outputs」（11-18；之前的 4096 不到建议值的六分之一）。
+  OPENAI_REASONING: 25_000,
   // Anthropic's Messages API requires `max_tokens` on every request — there
   // is no "omit for provider-managed" option like OpenAI/DeepSeek/Qwen. This
   // is both the provider-managed ceiling and the *floor* for explicit
@@ -670,7 +727,7 @@ export const LLM_TEXT_DEFAULT_MAX_TOKENS = {
   // and `max_tokens` caps thinking + answer together, so a caller budget
   // sized for a non-thinking adapter (the 1024 default) could be spent
   // entirely on reasoning and truncate the reply. It is a cap, not spend.
-  ANTHROPIC: 16_000,
+  ANTHROPIC: LLM_THINKING_OUTPUT_FLOOR,
   // Streaming Claude requests (today only the assistant kernel's AI SDK call,
   // via `ASSISTANT_V3_MAX_OUTPUT_TOKENS.anthropic`) get the wide ceiling: Sonnet 5.5 / Opus 5.5 /
   // Fable 5.2 output up to 128K and streaming has no HTTP-timeout reason to
@@ -684,7 +741,7 @@ export const LLM_TEXT_DEFAULT_MAX_TOKENS = {
   // on reasoning and the assistant never emits a reply. This floor is the
   // explicit-budget default; official "low" effort is the latency-sensitive
   // agentic / tool-calling tier.
-  XAI: 16_000,
+  XAI: LLM_THINKING_OUTPUT_FLOOR,
 } as const
 
 /**
@@ -844,6 +901,16 @@ export const PLATFORM_GENERATION_GUARD = {
    */
   ACTIVE_JOB_MAX_AGE_MS: 24 * 60 * 60 * 1000,
 } as const
+
+/**
+ * 画布多选运行同时最多跑几张卡（`lib/node-selection-run.ts`）。
+ *
+ * 取服务端平台掏钱时的并发闸同一个数：一次框十张、一把全发，超出的那几张在服务端
+ * 只会变成一排 429。⚠ 这是**卡数**：一张卡出 N 张图时是 N 个请求（见
+ * `planV4Generation` 的 `count`），服务端那道闸仍是最终判据。
+ */
+export const CANVAS_SELECTION_RUN_MAX_CONCURRENT_NODES =
+  PLATFORM_GENERATION_GUARD.MAX_ACTIVE_JOBS_PER_USER
 
 /**
  * 失控速率闸：拦「反复自动发起生成」的死循环/bug（2026-07-28 owner：「死循环还是

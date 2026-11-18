@@ -27,10 +27,10 @@ vi.mock('@clerk/nextjs', () => ({
   useAuth: () => ({ userId: 'user-a', isLoaded: true, isSignedIn: true }),
 }))
 
-import { StudioProvider, useStudioForm } from '@/contexts/studio-context'
+import { useStudioForm } from '@/contexts/studio-context'
 import { useDefaultImageModel } from '@/hooks/use-default-image-model'
 import { renderHookWithApp } from '@/test/app-harness'
-import { studioServer } from '@/test/studio-harness'
+import { StudioFormProviders, studioServer } from '@/test/studio-harness'
 
 const option = (
   optionId: string,
@@ -60,7 +60,7 @@ function renderBench(options: readonly StudioModelOption[] = OPTIONS) {
       useDefaultImageModel(options)
       return form
     },
-    { inner: StudioProvider },
+    { inner: StudioFormProviders },
   )
 }
 
@@ -147,7 +147,7 @@ describe('useDefaultImageModel', () => {
         useDefaultImageModel(options.current)
         return form
       },
-      { inner: StudioProvider },
+      { inner: StudioFormProviders },
     )
     act(() =>
       result.current.dispatch({ type: 'SET_OUTPUT_TYPE', payload: 'video' }),

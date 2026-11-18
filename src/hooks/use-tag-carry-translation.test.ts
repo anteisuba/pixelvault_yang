@@ -26,10 +26,14 @@ vi.mock('@/lib/api-client', async (importOriginal) => ({
 }))
 
 import { ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE } from '@/constants/assistant-operator'
-import { StudioProvider, useStudioForm } from '@/contexts/studio-context'
+import { useStudioForm } from '@/contexts/studio-context'
 import { useTagCarryTranslation } from '@/hooks/use-tag-carry-translation'
 import { renderHookWithApp } from '@/test/app-harness'
-import { carrySentenceToTags, studioServer } from '@/test/studio-harness'
+import {
+  carrySentenceToTags,
+  StudioFormProviders,
+  studioServer,
+} from '@/test/studio-harness'
 
 function renderBench(modelId?: string) {
   return renderHookWithApp(
@@ -37,7 +41,7 @@ function renderBench(modelId?: string) {
       form: useStudioForm(),
       carry: useTagCarryTranslation(modelId),
     }),
-    { inner: StudioProvider },
+    { inner: StudioFormProviders },
   )
 }
 

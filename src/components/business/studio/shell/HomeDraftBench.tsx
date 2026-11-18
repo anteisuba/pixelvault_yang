@@ -25,7 +25,7 @@ export const HomeDraftBench = memo(function HomeDraftBench({
   onHost(host: StudioOperatorHost | null): void
 }) {
   return (
-    <StudioProvider>
+    <StudioProvider generationSession="homeDraft">
       <HomeDraftHostSource onHost={onHost} />
       <HomeDraftGenerate />
     </StudioProvider>

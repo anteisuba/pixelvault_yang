@@ -4,6 +4,7 @@ import { useTranslations } from 'next-intl'
 import { StudioCanvas } from '@/components/business/studio-shared/chrome/StudioCanvas'
 import type { StudioImageEditTarget } from '@/components/business/studio-shared/editor/StudioImageEditStage'
 import { StudioStageSwap } from '@/components/business/studio-shared/chrome/StudioStageSwap'
+import { BenchLibrarySheet } from '@/components/business/studio-shared/chrome/BenchLibrarySheet'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { useStudioGen } from '@/contexts/studio-context'
@@ -13,8 +14,13 @@ import { StudioTagCastStage } from './StudioTagCastLayer'
 import { StudioTagsPromptArea } from './StudioTagsPromptArea'
 import { NovelAiCharacterComposer } from './NovelAiCharacterComposer'
 import { StudioDanbooruPanel } from './StudioDanbooruPanel'
+import { StudioTagFavoritesPanel } from './StudioTagFavoritesPanel'
 
-export type TagWorkbenchPanel = 'composition' | 'catalog' | 'templates'
+export type TagWorkbenchPanel =
+  | 'composition'
+  | 'catalog'
+  | 'favorites'
+  | 'templates'
 /** 标签台自己的两块面板（模板面板自带头部，走 `templates` 那一格）。 */
 type TagOwnPanel = Exclude<TagWorkbenchPanel, 'templates'>
 
@@ -27,12 +33,15 @@ type TagOwnPanel = Exclude<TagWorkbenchPanel, 'templates'>
 export function StudioTagsStage({
   panel,
   onClose,
+  onOpenPanel,
   bottom = false,
   templates,
   onEditImage,
 }: {
   panel: TagWorkbenchPanel | null
   onClose: () => void
+  /** 面板里跳去另一块（「收藏」空着时去查资料）。 */
+  onOpenPanel?: (panel: TagWorkbenchPanel) => void
   /** 桌面底部输入框：参考图住在输入框的附件行里，舞台不画参考轨。 */
   bottom?: boolean
   /** 模板面板（宿主给，它自带头部与「返回结果」）。 */
@@ -40,6 +49,7 @@ export function StudioTagsStage({
   onEditImage?: (target: StudioImageEditTarget) => void
 }) {
   const t = useTranslations('StudioTags.workbench')
+  const tFavorites = useTranslations('StudioTags.favoritesPanel')
   const c = useNovelAiCharacters()
   const { isGenerating } = useStudioGen()
   /** 打开面板的那颗按钮 —— 关掉时焦点回到它身上。 */
@@ -77,10 +87,22 @@ export function StudioTagsStage({
     trigger.current = null
   }
 
+  const openLookup = onOpenPanel ? () => onOpenPanel('catalog') : undefined
+  /**
+   * 收藏（11-18 工作台里开库）：桌面盖在舞台上；手机换成接近满屏的底部抽屉、舞台照旧是结果
+   * （`StudioStageSwap` 不换场）。
+   */
+  const favoritesInSheet = phone && panel === 'favorites'
   const renderOwnPanel = (key: TagOwnPanel) =>
     // 查资料自带头部（「查资料」+ 角色 | 画风 + 返回结果）与 Esc。
     key === 'catalog' ? (
       <StudioDanbooruPanel onClose={close} headingRef={focusHeading} />
+    ) : key === 'favorites' ? (
+      <StudioTagFavoritesPanel
+        onClose={close}
+        onOpenLookup={openLookup}
+        headingRef={focusHeading}
+      />
     ) : (
       <section
         className="studio-mobile-stage-panel flex min-h-0 scroll-mt-16 flex-col gap-4 overflow-y-auto pb-4 lg:h-auto lg:overflow-visible"
@@ -148,9 +170,9 @@ export function StudioTagsStage({
 
   return (
     // 人物层只在看结果时挂上去（第 ② 片）；包裹层一直在，结果区不因换模型重挂。
-    <StudioTagCastStage active={panel === null}>
+    <StudioTagCastStage active={panel === null || favoritesInSheet}>
       <StudioStageSwap
-        panelKey={panel}
+        panelKey={favoritesInSheet ? null : panel}
         renderResults={(motionClass) => (
           <StudioCanvas
             referenceRail={!bottom}
@@ -162,6 +184,20 @@ export function StudioTagsStage({
           key === 'templates' ? templates : renderOwnPanel(key as TagOwnPanel)
         }
       />
+      <BenchLibrarySheet
+        open={favoritesInSheet}
+        onOpenChange={(open) => {
+          if (!open) onClose()
+        }}
+        title={tFavorites('title')}
+        description={tFavorites('hint')}
+      >
+        <StudioTagFavoritesPanel
+          variant="sheet"
+          onClose={onClose}
+          onOpenLookup={openLookup}
+        />
+      </BenchLibrarySheet>
     </StudioTagCastStage>
   )
 }
@@ -204,6 +240,7 @@ export function StudioTagsWorkbench({
         <StudioTagsStage
           panel={panel}
           onClose={showResults}
+          onOpenPanel={openPanel}
           bottom
           templates={templates}
           onEditImage={onEditImage}

@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import Image from 'next/image'
 import { useLocale, useTranslations } from 'next-intl'
 
+import { supportsNovelAiPreciseReference } from '@/constants/novelai'
 import { cardManagementPath } from '@/constants/routes'
 import type { CharacterCardRecord } from '@/types'
 import {
@@ -13,10 +14,14 @@ import {
   Search,
   UserRound,
 } from '@/components/icons'
+import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
 import { CharacterImagePickGrid } from '@/features/cards'
+import { useStudioCharacterOutlet } from '@/features/studio/hooks/use-studio-character-outlet'
 import { useStudioData } from '@/contexts/studio-context'
+import { useStudioRunModels } from '@/hooks/use-studio-run-models'
 import { Link } from '@/i18n/navigation'
 import { findLook, slotsCoverUrl } from '@/lib/card-bus'
 import { lookLabel } from '@/lib/character-looks'
@@ -28,13 +33,14 @@ import { cn } from '@/lib/utils'
 /**
  * 工作台「角色」弹层（owner 09-27）。
  *
- * ⭐ 只剩角色（画风卡 · 背景卡 · 内置风格一起下线）。点一个角色，她那一行下面展开她的
- *   所有图（卡上的在前，用她出的在后），勾一张或几张 = 这次出图带这几张；一张都不勾 =
- *   她不在场。第一次展开默认勾主图。
+ * ⭐ 只剩角色（画风卡 · 背景卡 · 内置风格一起下线）。点一个角色只是**展开看看**（11-17：
+ *   展开不再替你选）；展开后顶上一排造型（只有一套也列出来），点一套 = 用这套带她、勾这套
+ *   的主图；点正在用的那套 = 这次不带她。下面是她的图（卡上的在前，用她出的在后），勾一张
+ *   或几张 = 这次带这几张；一张都不勾 = 她不在场。
  * ⭐ 张数按**这个模型一次能收的参考图**卡住（含你自己挂的参考图）：到上限，没勾的格子
- *   勾不上并写明原因。模型不收参考图时不展开，点一下只是让她在场（名字和标签进文字）。
- * ⭐ 她有好几套造型时（角色④），展开那一行顶上一排造型可切；默认用默认造型。切了造型，
- *   挑的图跟着清掉（图属于原来那套），再按新造型的主图默认勾一张。
+ *   勾不上并写明原因。模型不收参考图时不列图，点造型只是让她在场（名字和标签进文字）。
+ * ⭐ NovelAI V4.5 才出「造型主图做精确参考」开关（默认关：开了 Opus 的免费出图也变成
+ *   按 Anlas 计，每张 +5；标签本来就能认出角色）。
  * ⚠ 挑的图住在 `characters.imagePicks`、造型住在 `characters.lookIds`；出图时随请求送给
  *   卡片总线，服务端按本人校验。
  */
@@ -49,8 +55,19 @@ function toTimestampMs(value: Date | string | number | null | undefined) {
   return 0
 }
 
-export function StudioCardPicker() {
+export function StudioCardPicker({
+  fill = false,
+}: {
+  /** 舞台面板：列表吃满宿主给的高度（弹层 / 抽屉里仍按半屏收）。 */
+  fill?: boolean
+} = {}) {
   const { characters, projects, imageUpload } = useStudioData()
+  const { runModels } = useStudioRunModels()
+  const outlet = useStudioCharacterOutlet()
+  // NovelAI 精确参考只有 V4.5 有（官方），别的模型不出这个开关。
+  const showPreciseToggle = runModels.some((model) =>
+    supportsNovelAiPreciseReference(model.modelId),
+  )
   const t = useTranslations('StudioV2')
   const tLooks = useTranslations('CharacterLooks')
   const locale = useLocale()
@@ -86,47 +103,43 @@ export function StudioCardPicker() {
     )
   })
 
-  const openRow = (card: CharacterCardRecord) => {
-    if (noReferences) {
+  /** 展开 / 收起只是看，⛔ 不替用户选（11-17：点开看看就被带进这一枪是误伤）。 */
+  const toggleRow = (card: CharacterCardRecord) => {
+    setExpandedId((current) => (current === card.id ? null : card.id))
+  }
+
+  /**
+   * 点一套造型 = 用这套带她出场（有位子就勾这套的主图）；点正在用的那套 = 这次不带她。
+   * 模型不收参考图时同理，只是不勾图（名字和标签进文字）。
+   */
+  const pickLook = (card: CharacterCardRecord, lookId: string) => {
+    const active = characters.activeCardIds.includes(card.id)
+    const current = findLook(card, characters.lookIds[card.id])
+    const look = findLook(card, lookId)
+    if (active && current.id === look.id) {
       characters.toggleCardSelection(card.id)
       return
     }
-    if (expandedId === card.id) {
-      setExpandedId(null)
+    // 原来那套挑的图马上清掉（图属于原来那套），它们占的位子也让出来。
+    const room = remaining + (characters.imagePicks[card.id]?.length ?? 0)
+    characters.setLookId(card.id, look.isDefault ? null : look.id)
+    const primary =
+      look.referenceSlots.find((slot) => slot.isPrimary) ??
+      look.referenceSlots[0]
+    if (!noReferences && primary && room > 0) {
+      characters.setImagePicks(card.id, [{ slotId: primary.id }])
       return
     }
-    setExpandedId(card.id)
-    // 第一次展开一个还没挑图的角色：默认勾主图（有位子的话）。
-    if (!characters.imagePicks[card.id]?.length)
-      pickPrimary(card, characters.lookIds[card.id] ?? null, remaining)
-  }
-
-  /** 勾这套造型的主图（有位子的话）。 */
-  const pickPrimary = (
-    card: CharacterCardRecord,
-    lookId: string | null,
-    room: number,
-  ) => {
-    const slots = findLook(card, lookId).referenceSlots
-    const primary = slots.find((slot) => slot.isPrimary) ?? slots[0]
-    if (primary && room > 0)
-      characters.setImagePicks(card.id, [{ slotId: primary.id }])
-  }
-
-  /** 切造型：挑的图属于原来那套，清掉后按新造型的主图重勾。 */
-  const switchLook = (card: CharacterCardRecord, lookId: string) => {
-    const look = findLook(card, lookId)
-    characters.setLookId(card.id, look.isDefault ? null : look.id)
-    // 原来那套挑的图马上清掉，它们占的位子也让出来。
-    pickPrimary(
-      card,
-      look.id,
-      remaining + (characters.imagePicks[card.id]?.length ?? 0),
-    )
+    if (!active) characters.toggleCardSelection(card.id)
   }
 
   return (
-    <div className="flex max-h-full flex-col overflow-hidden rounded-xl">
+    <div
+      className={cn(
+        'flex flex-col overflow-hidden rounded-xl',
+        fill ? 'h-full min-h-0' : 'max-h-full',
+      )}
+    >
       <header className="flex flex-col gap-2.5 border-b border-border/40 px-4 py-3">
         <div className="flex items-center gap-2">
           <UserRound className="size-4 text-muted-foreground" />
@@ -136,13 +149,15 @@ export function StudioCardPicker() {
               <span className="rounded-full bg-muted px-2 py-0.5 text-2xs tabular-nums">
                 {characters.activeCardIds.length}
               </span>
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="xs"
                 onClick={() => characters.setActiveCardIds([])}
-                className="ml-auto text-2sm text-muted-foreground transition-colors duration-fast hover:text-foreground"
+                className="ml-auto text-2sm"
               >
                 {t('clearCharacters')}
-              </button>
+              </Button>
             </>
           ) : null}
         </div>
@@ -169,9 +184,38 @@ export function StudioCardPicker() {
                 })
               : null}
         </p>
+        {showPreciseToggle ? (
+          <div className="flex items-start gap-2.5 rounded-lg bg-muted/60 px-3 py-2">
+            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+              <label
+                htmlFor="studio-novelai-precise"
+                className="text-2sm font-semibold"
+              >
+                {t('novelAiPreciseReference')}
+              </label>
+              <p className="text-2xs text-muted-foreground">
+                {characters.novelAiPreciseReference &&
+                !outlet.novelAiPreciseReference
+                  ? t('novelAiPreciseReferenceIdle')
+                  : t('novelAiPreciseReferenceHint')}
+              </p>
+            </div>
+            <Switch
+              id="studio-novelai-precise"
+              checked={characters.novelAiPreciseReference}
+              onCheckedChange={characters.setNovelAiPreciseReference}
+            />
+          </div>
+        ) : null}
       </header>
 
-      <div className="max-h-[min(48vh,28rem)] overflow-y-auto p-2">
+      <div
+        className={cn(
+          'overflow-y-auto p-2',
+          // 舞台上整块高度都给列表；弹层里仍按半屏收着。
+          fill ? 'min-h-0 flex-1' : 'max-h-[min(48vh,28rem)]',
+        )}
+      >
         {characters.isLoading && characters.cards.length === 0 ? (
           <div className="flex h-32 items-center justify-center">
             <Spinner size="lg" className="text-muted-foreground" />
@@ -215,10 +259,9 @@ export function StudioCardPicker() {
                 >
                   <button
                     type="button"
-                    aria-expanded={noReferences ? undefined : expanded}
-                    aria-pressed={noReferences ? active : undefined}
-                    onClick={() => openRow(card)}
-                    className="flex w-full items-center gap-3 p-2 text-left"
+                    aria-expanded={expanded}
+                    onClick={() => toggleRow(card)}
+                    className="touch-target-y flex w-full items-center gap-3 p-2 text-left"
                   >
                     <span className="relative size-10 shrink-0 overflow-hidden rounded-lg bg-muted">
                       {thumb ? (
@@ -251,45 +294,52 @@ export function StudioCardPicker() {
                           .join(' · ')}
                       </span>
                     </span>
-                    {noReferences ? (
-                      active ? (
-                        <Check className="size-4 shrink-0" aria-hidden />
-                      ) : null
-                    ) : (
-                      <ChevronDown
-                        className={cn(
-                          'size-4 shrink-0 text-muted-foreground transition-transform duration-fast',
-                          expanded && 'rotate-180',
-                        )}
+                    {active ? (
+                      <Check
+                        className="size-4 shrink-0"
+                        data-testid="card-picker-active"
                         aria-hidden
                       />
-                    )}
+                    ) : null}
+                    <ChevronDown
+                      className={cn(
+                        'size-4 shrink-0 text-muted-foreground transition-transform duration-fast',
+                        expanded && 'rotate-180',
+                      )}
+                      aria-hidden
+                    />
                   </button>
-                  {expanded && card.looks.length > 1 ? (
+                  {expanded ? (
                     <div
                       role="group"
                       aria-label={tLooks('title')}
-                      className="flex flex-wrap gap-1 px-2 pb-2"
+                      className="flex flex-wrap items-center gap-1 px-2 pb-2"
                     >
-                      {card.looks.map((item) => (
-                        <button
-                          key={item.id}
-                          type="button"
-                          aria-pressed={item.id === look.id}
-                          onClick={() => switchLook(card, item.id)}
-                          className={cn(
-                            'rounded-full px-2.5 py-0.5 text-2sm transition-colors duration-fast coarse:min-h-11',
-                            item.id === look.id
-                              ? 'bg-foreground text-background'
-                              : 'bg-background text-muted-foreground hover:text-foreground',
-                          )}
-                        >
-                          {lookLabel(item, card.looks, tLooks)}
-                        </button>
-                      ))}
+                      {card.looks.map((item) => {
+                        const label = lookLabel(item, card.looks, tLooks)
+                        const pressed = active && item.id === look.id
+                        return (
+                          <Button
+                            key={item.id}
+                            type="button"
+                            size="xs"
+                            variant={pressed ? 'default' : 'secondary'}
+                            aria-pressed={pressed}
+                            onClick={() => pickLook(card, item.id)}
+                            className="rounded-full text-2sm"
+                          >
+                            {label}
+                          </Button>
+                        )
+                      })}
+                      {active ? null : (
+                        <span className="px-1 text-2xs text-muted-foreground">
+                          {t('pickHint')}
+                        </span>
+                      )}
                     </div>
                   ) : null}
-                  {expanded ? (
+                  {expanded && !noReferences ? (
                     <CharacterImagePickGrid
                       card={card}
                       look={look}

@@ -234,7 +234,13 @@ function RecipeRows({ reading }: { reading: ImageRecipeReading }) {
       advancedParams: state.advancedParams,
       aspectRatio: state.aspectRatio,
     }
-    const next = applyImageRecipe(reading, selected, before, characterModelId)
+    const next = applyImageRecipe(
+      reading,
+      selected,
+      before,
+      characterModelId,
+      runModels[0],
+    )
     dispatch({ type: 'SET_PROMPT', payload: next.prompt })
     dispatch({ type: 'SET_ADVANCED_PARAMS', payload: next.advancedParams })
     dispatch({ type: 'SET_ASPECT_RATIO', payload: next.aspectRatio })

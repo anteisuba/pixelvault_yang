@@ -179,12 +179,18 @@ export function getNovelAiImageDimensions(aspectRatio: string): {
 }
 
 /**
- * Opus 订阅的免费生成窗口：**单张 · ≤1024² · ≤28 步**。超出就开始烧 Anlas。
+ * Opus 订阅的免 Anlas 条件（官方 2026-11-17 核对）：**文生图 · 单张 · ≤1024² 像素
+ * 面积 · ≤28 步**。官方原话是「without any other image used as a base」——
+ * 图生图 / 遮罩重绘都带底图，不在里面；精确参考每张另加 5 Anlas（且随参考张数叠加）。
+ * - https://docs.novelai.net/en/subscription/
+ * - https://docs.novelai.net/en/image/precisereference/
  *
- * ⚠ 这里只放官方写过的那条判据，⛔ 不放一个「大约多少 Anlas」的公式 ——
- * NovelAI 没有公开逐档价目，凭社区逆向出来的系数摆在额度那一格上，比不报数更糟。
- * 画板那格写的「约 28 Anlas」是示意数，真值待官方口径。
- * https://docs.novelai.net/en/subscription/
+ * ⚠ V5 不是「不免」：官方 FAQ 写的是 Opus 用 V5 出免 Anlas 的图时**计入用量条**
+ * （约每月 7000 张 / 23 步 · 普通尺寸），条用完才按 Anlas 扣。所以 V5 单列一档。
+ * https://docs.novelai.net/en/faq/
+ *
+ * ⛔ 不放一个「大约多少 Anlas」的公式 —— NovelAI 没有公开逐档价目，凭社区逆向出来
+ * 的系数摆在额度那一格上，比不报数更糟；超出免费范围时如实说「按 Anlas 计」。
  */
 export const NOVELAI_OPUS_FREE_LIMITS = {
   maxPixels: 1024 * 1024,
@@ -192,18 +198,65 @@ export const NOVELAI_OPUS_FREE_LIMITS = {
   maxImages: 1,
 } as const
 
-export function isWithinNovelAiOpusFreeTier(input: {
+/**
+ * `free` = Opus 不扣 Anlas；`usageLimited` = 不扣 Anlas 但计入 V5 用量条；
+ * `metered` = 不在免费范围，按 Anlas 计。
+ */
+export type NovelAiOpusCost = 'free' | 'usageLimited' | 'metered'
+
+export function isNovelAiV5Model(modelId: string | undefined): boolean {
+  return (
+    modelId === AI_MODELS.NOVELAI_V5_FULL ||
+    modelId === AI_MODELS.NOVELAI_V5_CURATED
+  )
+}
+
+/**
+ * 这一轮在 Opus 下扣不扣 Anlas。`modelIds` 是这一轮里的 NAI 型号（多选时
+ * 只要有一个 V5 就报用量条）。
+ */
+export function getNovelAiOpusCost(input: {
   width: number
   height: number
   steps: number
   imageCount: number
-}): boolean {
-  return (
+  /** 挂了底图（图生图 / 遮罩重绘）或开了精确参考。 */
+  hasReferenceImage: boolean
+  modelIds: readonly string[]
+}): NovelAiOpusCost {
+  const free =
+    !input.hasReferenceImage &&
     input.width * input.height <= NOVELAI_OPUS_FREE_LIMITS.maxPixels &&
     input.steps <= NOVELAI_OPUS_FREE_LIMITS.maxSteps &&
     input.imageCount <= NOVELAI_OPUS_FREE_LIMITS.maxImages
-  )
+  if (!free) return 'metered'
+  return input.modelIds.some(isNovelAiV5Model) ? 'usageLimited' : 'free'
 }
+
+/**
+ * 官方网页端的预设缺省：质量标签**开**（Standard 档；Light 只有 V5 有），
+ * UC 预设 **Heavy**。缺省就是这两档 —— 请求里没写 = 用它们，界面上也照这两档画，
+ * ⛔ 不再有界面看不见的另一份缺省。
+ * - https://docs.novelai.net/en/image/qualitytags/（「enabled by default」）
+ * - https://docs.novelai.net/en/image/undesiredcontent/
+ * - NAI Launcher `image_params.dart`：`qualityToggle` true · `qualityTier` standard · `ucPreset` 0 = Heavy
+ */
+export const NOVELAI_DEFAULT_QUALITY_PRESET = 'standard'
+export const NOVELAI_DEFAULT_UC_PRESET = 'heavy'
+
+/**
+ * 图生图「重绘强度」= NovelAI 的 `strength` **原值**：越大改得越多（官方
+ * strengthnoise 页「Higher Strength values allow the AI free rein to reinterpret
+ * the image」）。缺省 0.7 与网页端一致（NAI Launcher `strength` @Default(0.7)）。
+ * ⛔ 不做 1 − x 翻转 —— 那是别家「参考强度（越高越像原图）」的口径。
+ * https://docs.novelai.net/en/image/strengthnoise
+ */
+export const NOVELAI_IMG2IMG_STRENGTH_RANGE = {
+  min: 0.01,
+  max: 0.99,
+  step: 0.01,
+  default: 0.7,
+} as const
 
 /**
  * NovelAI 采样器 —— 官方八档。⚠ worker 此前硬编 `k_euler_ancestral`，

@@ -57,7 +57,10 @@ import { useCivitaiToken } from '@/features/lora/hooks'
 import { usePromptEnhance } from '@/hooks/kernel/use-prompt-enhance'
 import { useImageUpload } from '@/hooks/use-image-upload'
 import { removeReferenceMentions } from '@/lib/studio-reference-mentions'
-import { useUnifiedGenerate } from '@/hooks/use-unified-generate'
+import {
+  useStudioGenerationSession,
+  type StudioGenerationSessionId,
+} from '@/contexts/studio-generation-sessions'
 import { useUsageSummary } from '@/hooks/use-usage-summary'
 import type { UseCharacterCardsReturn } from '@/features/cards/hooks'
 import type { UseUnifiedGenerateReturn } from '@/hooks/use-unified-generate'
@@ -726,7 +729,17 @@ const StudioGenContext = createContext<StudioGenContextValue | null>(null)
 // COMBINED PROVIDER
 // ═══════════════════════════════════════════════════════════════════
 
-export function StudioProvider({ children }: { children: ReactNode }) {
+export function StudioProvider({
+  children,
+  generationSession,
+}: {
+  children: ReactNode
+  /**
+   * 出图状态住在外壳的哪一槽（`studio-generation-sessions.tsx`）：换台卸掉这一份
+   * Provider 时，在飞那一单与结果留在槽里，切回来接着画。
+   */
+  generationSession: Exclude<StudioGenerationSessionId, 'lora'>
+}) {
   const { userId } = useAuth()
   const pathname = usePathname()
   // HOT — form state
@@ -778,8 +791,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     [characters, projects, imageUpload, promptEnhance, civitai, usageSummary],
   )
 
-  // COLD — generation
-  const generation = useUnifiedGenerate()
+  // COLD — generation（住在外壳那一槽，⛔ 本地 `useUnifiedGenerate()`：换台会连轮询一起丢）
+  const generation = useStudioGenerationSession(generationSession)
   const [lastEvaluation, setLastEvaluation] =
     useState<GenerationEvaluation | null>(null)
   const generationValue = useMemo<StudioGenContextValue>(

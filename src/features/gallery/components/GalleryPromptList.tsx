@@ -1,17 +1,18 @@
 'use client'
 /* eslint-disable @next/next/no-img-element -- stored generation thumbnails are already optimized R2 derivatives */
 
+import type { ReactNode } from 'react'
 import { Images, Sparkles } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
-import type { Route } from '@/constants/routes'
-import { Link } from '@/i18n/navigation'
 import { getGenerationPreviewUrl } from '@/lib/generation-media'
-import { screenItemProps } from '@/lib/assistant-screen-scan'
+import {
+  generationScreenAbout,
+  screenItemProps,
+} from '@/lib/assistant-screen-scan'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 
 import { CopyButton } from '@/components/ui/copy-button'
-import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import type { GenerationRecord } from '@/types'
 
@@ -19,8 +20,10 @@ interface GalleryPromptListProps {
   generations: GenerationRecord[]
   emptyTitle: string
   emptyDescription: string
-  emptyActionHref: Route
-  emptyActionLabel: string
+  /** 空态的出口（打开工作台 / 清除搜索 / 清除筛选），由 `GalleryFeed` 按 `galleryEmptyKind` 给。 */
+  emptyAction: ReactNode
+  /** 不给 = ✦；搜索 / 筛选没结果时给放大镜。 */
+  emptyIcon?: ReactNode
   feedLabel: string
   /** 点卡打开就地查看器；不给（平板）就只能读和复制。 */
   onOpen?: (generation: GenerationRecord) => void
@@ -35,22 +38,18 @@ export function GalleryPromptList({
   generations,
   emptyTitle,
   emptyDescription,
-  emptyActionHref,
-  emptyActionLabel,
+  emptyAction,
+  emptyIcon,
   feedLabel,
   onOpen,
 }: GalleryPromptListProps) {
   if (generations.length === 0) {
     return (
       <EmptyState
-        icon={<Sparkles aria-hidden />}
+        icon={emptyIcon ?? <Sparkles aria-hidden />}
         title={emptyTitle}
         description={emptyDescription}
-        action={
-          <Button asChild className="rounded-full px-5">
-            <Link href={emptyActionHref}>{emptyActionLabel}</Link>
-          </Button>
-        }
+        action={emptyAction}
       />
     )
   }
@@ -93,7 +92,12 @@ function GalleryPromptCard({
 
   return (
     <article
-      {...screenItemProps('gallery', generation.id, stillUrl)}
+      {...screenItemProps(
+        'gallery',
+        generation.id,
+        stillUrl,
+        generationScreenAbout(generation),
+      )}
       className="relative flex gap-3 rounded-2xl border border-border/70 bg-background p-3 shadow-sm transition-shadow duration-fast ease-linear hover:shadow-md"
     >
       <span className="relative shrink-0">

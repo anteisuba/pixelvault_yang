@@ -45,6 +45,12 @@ export const RUNNER_SCHEDULERS = [
 
 export type RunnerScheduler = (typeof RUNNER_SCHEDULERS)[number]
 
+/**
+ * 配方 clip skip 的上限（A1111 口径 1 = 不跳）：ComfyUI `CLIPSetLastLayer` 在 SDXL 的
+ * CLIP-L 上最多停到 -12。Worker 用相对路径读同一个数（本文件无 import）。
+ */
+export const RUNNER_CLIP_SKIP_MAX = 12
+
 const SAMPLER_ALIASES: Readonly<Record<string, RunnerSampler>> = {
   euler: 'euler',
   'euler a': 'euler_ancestral',
@@ -84,6 +90,21 @@ const SCHEDULER_ALIASES: Readonly<Record<string, RunnerScheduler>> = {
   beta: 'beta',
   'linear quadratic': 'linear_quadratic',
   'kl optimal': 'kl_optimal',
+  // A1111 的 Uniform = k-diffusion 的均匀 sigma，即 ComfyUI 的 normal。
+  uniform: 'normal',
+}
+
+/**
+ * A1111 / Forge 1.9+ 导出的 `Schedule type: Automatic` = 「用这个采样器自己的默认」。
+ * k-diffusion 系采样器的默认是均匀 sigma（ComfyUI normal）；DDIM 的默认是它自己的
+ * 均匀 timestep 间隔（ComfyUI ddim_uniform）。
+ */
+const AUTOMATIC_SCHEDULER_LABEL = 'automatic'
+const AUTOMATIC_SCHEDULER_DEFAULT: RunnerScheduler = 'normal'
+const AUTOMATIC_SCHEDULER_BY_SAMPLER: Readonly<
+  Partial<Record<RunnerSampler, RunnerScheduler>>
+> = {
+  ddim: 'ddim_uniform',
 }
 
 function normalizeLabel(value: string): string {
@@ -98,16 +119,18 @@ export interface NormalizedRunnerSampling {
 /**
  * Converts common A1111/Civitai labels such as `DPM++ 2M Karras` into the
  * exact ComfyUI values. Unknown parts stay undefined so callers can report
- * them as unsupported instead of silently substituting a different sampler.
+ * them as unsupported instead of silently substituting a different sampler —
+ * ⛔ never pass a raw label through: ComfyUI rejects an unknown scheduler
+ * with a 400. `Automatic` resolves to the sampler's own default.
  */
 export function normalizeCivitaiRunnerSampling(
   samplerRaw?: string,
   schedulerRaw?: string,
 ): NormalizedRunnerSampling {
   let samplerLabel = samplerRaw ? normalizeLabel(samplerRaw) : ''
-  let scheduler = schedulerRaw
-    ? SCHEDULER_ALIASES[normalizeLabel(schedulerRaw)]
-    : undefined
+  const schedulerLabel = schedulerRaw ? normalizeLabel(schedulerRaw) : ''
+  const isAutomatic = schedulerLabel === AUTOMATIC_SCHEDULER_LABEL
+  let scheduler = schedulerLabel ? SCHEDULER_ALIASES[schedulerLabel] : undefined
 
   if (samplerLabel) {
     for (const [alias, value] of Object.entries(SCHEDULER_ALIASES)) {
@@ -119,8 +142,11 @@ export function normalizeCivitaiRunnerSampling(
     }
   }
 
-  return {
-    sampler: samplerLabel ? SAMPLER_ALIASES[samplerLabel] : undefined,
-    scheduler,
+  const sampler = samplerLabel ? SAMPLER_ALIASES[samplerLabel] : undefined
+  if (isAutomatic && !scheduler) {
+    scheduler =
+      (sampler ? AUTOMATIC_SCHEDULER_BY_SAMPLER[sampler] : undefined) ??
+      AUTOMATIC_SCHEDULER_DEFAULT
   }
+  return { sampler, scheduler }
 }

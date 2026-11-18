@@ -5,11 +5,33 @@ import { AI_MODELS } from '@/constants/models'
 import {
   ADAPTER_CAPABILITIES,
   getCapabilityConfig,
+  getMaxCharacterReferenceImages,
   getMaxReferenceImages,
   hasCapability,
 } from '@/constants/provider-capabilities'
+import {
+  NOVELAI_DEFAULT_QUALITY_PRESET,
+  NOVELAI_DEFAULT_UC_PRESET,
+} from '@/constants/novelai'
 
 describe('provider-capabilities', () => {
+  it('Nano Banana 人物参考上限按官方（Pro 5 / Flash 4 / 2.1 4），合计仍 14；Lite 不另设', () => {
+    const gemini = AI_ADAPTER_TYPES.GEMINI
+    expect(getMaxReferenceImages(gemini, AI_MODELS.GEMINI_PRO_IMAGE)).toBe(14)
+    expect(
+      getMaxCharacterReferenceImages(gemini, AI_MODELS.GEMINI_PRO_IMAGE),
+    ).toBe(5)
+    expect(
+      getMaxCharacterReferenceImages(gemini, AI_MODELS.GEMINI_FLASH_IMAGE),
+    ).toBe(4)
+    expect(
+      getMaxCharacterReferenceImages(gemini, AI_MODELS.GEMINI_NANO_BANANA_21),
+    ).toBe(4)
+    expect(
+      getMaxCharacterReferenceImages(gemini, AI_MODELS.GEMINI_FLASH_LITE_IMAGE),
+    ).toBe(Infinity)
+  })
+
   it('exposes official Ideogram references and only universally valid generation quality levels', () => {
     const config = getCapabilityConfig(
       AI_ADAPTER_TYPES.IDEOGRAM,
@@ -161,9 +183,57 @@ describe('provider-capabilities', () => {
     expect(hasCapability(AI_ADAPTER_TYPES.NOVELAI, 'guidanceScale')).toBe(true)
     expect(hasCapability(AI_ADAPTER_TYPES.NOVELAI, 'steps')).toBe(true)
     expect(hasCapability(AI_ADAPTER_TYPES.NOVELAI, 'seed')).toBe(true)
-    expect(hasCapability(AI_ADAPTER_TYPES.NOVELAI, 'referenceStrength')).toBe(
+    expect(hasCapability(AI_ADAPTER_TYPES.NOVELAI, 'img2imgStrength')).toBe(
       true,
     )
+  })
+
+  // NovelAI 的图生图滑块是官方 Strength（越大改得越多，原样发），⛔ 不是跨家共用
+  // 的「参考强度」（越高越像原图、发送时 1 − x）。缺省 0.7 = 网页端缺省。
+  it('NovelAI 用重绘强度而不是参考强度，四个型号都一样', () => {
+    for (const modelId of [
+      AI_MODELS.NOVELAI_V45_FULL,
+      AI_MODELS.NOVELAI_V45_CURATED,
+      AI_MODELS.NOVELAI_V5_FULL,
+      AI_MODELS.NOVELAI_V5_CURATED,
+    ]) {
+      const config = getCapabilityConfig(AI_ADAPTER_TYPES.NOVELAI, modelId)
+      expect(config.capabilities).toContain('img2imgStrength')
+      expect(config.capabilities).not.toContain('referenceStrength')
+      expect(config.img2imgStrength?.default).toBe(0.7)
+    }
+  })
+
+  // 官方网页端缺省：质量标签开（Standard）、UC Heavy —— chip 的缺省档就是 options[0]。
+  it('NovelAI 质量标签 / UC 预设的缺省档与官方一致', () => {
+    for (const modelId of [
+      AI_MODELS.NOVELAI_V45_FULL,
+      AI_MODELS.NOVELAI_V45_CURATED,
+      AI_MODELS.NOVELAI_V5_FULL,
+      AI_MODELS.NOVELAI_V5_CURATED,
+    ]) {
+      const config = getCapabilityConfig(AI_ADAPTER_TYPES.NOVELAI, modelId)
+      expect(config.qualityToggleOptions?.[0]).toBe(
+        NOVELAI_DEFAULT_QUALITY_PRESET,
+      )
+      expect(config.ucPresetOptions?.[0]).toBe(NOVELAI_DEFAULT_UC_PRESET)
+      // 关得掉。
+      expect(config.qualityToggleOptions).toContain('off')
+      expect(config.ucPresetOptions).toContain('none')
+    }
+  })
+
+  it('V4.5 Curated 没有 Furry Focus（官方 undesiredcontent 页）', () => {
+    expect(
+      getCapabilityConfig(
+        AI_ADAPTER_TYPES.NOVELAI,
+        AI_MODELS.NOVELAI_V45_CURATED,
+      ).ucPresetOptions,
+    ).not.toContain('furry')
+    expect(
+      getCapabilityConfig(AI_ADAPTER_TYPES.NOVELAI, AI_MODELS.NOVELAI_V45_FULL)
+        .ucPresetOptions,
+    ).toContain('furry')
   })
 
   it('hasCapability returns false for unsupported capabilities', () => {
@@ -182,6 +252,7 @@ describe('provider-capabilities', () => {
         'guidanceScale',
         'steps',
         'referenceStrength',
+        'img2imgStrength',
       ] as const) {
         const range = config[rangeName]
         if (range) {

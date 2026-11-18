@@ -84,6 +84,7 @@ const TEXT_MAX_LENGTH_KEYS: Partial<
 const REFERENCE_DEPENDENT_CAPABILITIES: ReadonlySet<ProviderCapability> =
   new Set<ProviderCapability>([
     'referenceStrength',
+    'img2imgStrength',
     'img2imgNoise',
     'novelAiReferenceMode',
     'preciseReferenceStrength',
@@ -116,6 +117,7 @@ const SLIDER_RANGE_KEYS: Partial<
   guidanceScale: 'guidanceScale',
   steps: 'steps',
   referenceStrength: 'referenceStrength',
+  img2imgStrength: 'img2imgStrength',
   cfgRescale: 'cfgRescale',
   img2imgNoise: 'img2imgNoise',
   preciseReferenceStrength: 'preciseReferenceStrength',
@@ -357,6 +359,7 @@ export function isCapabilityChipVisible(
     return precise
   if (
     chip.capability === 'referenceStrength' ||
+    chip.capability === 'img2imgStrength' ||
     chip.capability === 'img2imgNoise'
   )
     return !precise

@@ -15,7 +15,6 @@ import { useTranslations } from 'next-intl'
 import { SHELL_MOTION } from '@/constants/motion'
 import { STUDIO_LIBRARY_ITEMS } from '@/constants/navigation'
 import {
-  LIBRARY_ASSISTANT_LEFT_CATEGORIES,
   STUDIO_LIBRARY_CATEGORY_IDS,
   STUDIO_LIBRARY_TAB_IDS,
   studioLibraryPath,
@@ -23,7 +22,10 @@ import {
 } from '@/constants/studio-shell'
 import { StudioOperatorDetachedScope } from '@/contexts/studio-operator-host'
 import { PanelLeft } from '@/components/icons'
-import { AssistantAvatarGlyph } from '@/features/assistant'
+import {
+  AssistantAvatarGlyph,
+  assistantGlyphLetterName,
+} from '@/features/assistant'
 import { useAssistantPersona } from '@/hooks/use-assistant-persona'
 import { useLibraryRailOpen } from '@/hooks/use-library-rail'
 import {
@@ -37,7 +39,7 @@ import { cn } from '@/lib/utils'
 /**
  * 库叠层（第 9f 步方向 E，9f-2a）：`/library/<类>` 的页面不在原地画，而是**传送**到外壳
  * 白板上的落点里 —— 库是整页（ui-spec §9「库 `LibraryPage`」）：盖满白板、台不卸载只是被盖住，
- * 对话收着，右上「助手」把对话从右边叫出来。
+ * 对话收着，左上那颗助手头像把对话从左边叫出来（和工作台、首页一致）。
  *
  * ⭐ 为什么传送：从外壳里点开库是软跳转，Next 把台留在 `children` 里不卸载，库走 `@library`
  *   那一格（拦截路由）；直接打开 / 刷新时库就是 `children` 本身。两种情况页面落在不同的位置，
@@ -61,7 +63,7 @@ interface StudioLibraryTarget {
   registerSlotOverlay: () => () => void
   setOpenCategory: (category: StudioShellOverlayId | null) => void
   close: () => void
-  /** 库里右上「助手」：对话从右边出来接着聊（ui-spec §9「库 + 助手」）。 */
+  /** 库里左上那颗助手头像：对话从左边出来接着聊（ui-spec §9「库 + 助手」）。 */
   assistantOpen: boolean
   setAssistantOpen: (open: boolean) => void
 }
@@ -115,13 +117,7 @@ export function StudioLibraryOverlay({
 
   return createPortal(
     <StudioOperatorDetachedScope>
-      <StudioLibraryFrame
-        category={category}
-        assistantOpen={slot.assistantOpen}
-        onToggleAssistant={() => slot.setAssistantOpen(!slot.assistantOpen)}
-      >
-        {children}
-      </StudioLibraryFrame>
+      <StudioLibraryFrame category={category}>{children}</StudioLibraryFrame>
     </StudioOperatorDetachedScope>,
     slot.target,
   )
@@ -185,24 +181,17 @@ function useLibraryFrameMotion(category: StudioShellOverlayId) {
 
 function StudioLibraryFrame({
   category,
-  assistantOpen,
-  onToggleAssistant,
   children,
 }: {
   category: StudioShellOverlayId
-  assistantOpen: boolean
-  onToggleAssistant: () => void
   children: ReactNode
 }) {
   const t = useTranslations('StudioShell')
   const tAll = useTranslations()
-  const { persona } = useAssistantPersona()
   const { frameRef, bodyRef } = useLibraryFrameMotion(category)
   const [railOpen, toggleRail] = useLibraryRailOpen()
   const hasRail = !NO_RAIL_CATEGORIES.includes(category)
-  const ownHeader = (
-    LIBRARY_ASSISTANT_LEFT_CATEGORIES as readonly string[]
-  ).includes(category)
+  const ownHeader = OWN_HEADER_CATEGORIES.includes(category)
   const pageItem = isLibraryTab(category)
     ? undefined
     : STUDIO_LIBRARY_ITEMS.find((item) => item.id === category)
@@ -218,10 +207,12 @@ function StudioLibraryFrame({
       <div
         className={cn(
           'flex h-13 shrink-0 items-center gap-1 px-3',
-          // 助手贴左的那几页（角色）顶上那一行自己画（最左一颗助手头像），桌面上这一行让掉。
+          // 自己画顶上那一行的几页（角色：最左一颗助手头像在它自己那一行），桌面上这一行让掉。
           ownHeader && 'lg:hidden',
         )}
       >
+        {/* 最左一颗助手头像（所有库同一颗，和工作台、首页一样从左边叫出助手）。 */}
+        <StudioLibraryAssistantAvatar />
         {hasRail ? (
           // 左栏收起 / 展开（用户 10-25）：≥768 才有左栏，手机上各库用抽屉。
           <button
@@ -267,21 +258,6 @@ function StudioLibraryFrame({
             })}
           </nav>
         )}
-        <button
-          type="button"
-          aria-pressed={assistantOpen}
-          data-testid="studio-library-assistant"
-          onClick={onToggleAssistant}
-          className={cn(
-            'ml-auto hidden h-9 shrink-0 items-center gap-2 rounded-full pr-3.5 pl-1 text-2sm font-medium text-foreground transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus lg:flex',
-            assistantOpen ? 'bg-fill-strong' : 'bg-raise shadow-soft',
-          )}
-        >
-          <span className="grid size-7 place-items-center overflow-hidden rounded-full">
-            <AssistantAvatarGlyph presetId={persona.avatarPreset ?? null} />
-          </span>
-          {t('libraryAssistant')}
-        </button>
       </div>
       <div
         ref={bodyRef}
@@ -302,6 +278,12 @@ const NO_RAIL_CATEGORIES: readonly StudioShellOverlayId[] = [
   'profile',
   'cards',
 ]
+
+/**
+ * 顶上那一行自己画的几页（角色：`CharacterRoster` 把最左那颗助手头像放进它自己那一行），
+ * 库框顶上那一行在桌面上让掉。
+ */
+const OWN_HEADER_CATEGORIES: readonly StudioShellOverlayId[] = ['cards']
 
 /** 顶上一排换类：库只放公开来源那几样（LoRA · 酒馆 · 标签 · 音色，用户 10-25）。 */
 const LIBRARY_TAB_ITEMS = STUDIO_LIBRARY_ITEMS.filter((item) =>
@@ -336,8 +318,8 @@ export function StudioLibraryLoading({
 }
 
 /**
- * 助手贴左那几页（`LIBRARY_ASSISTANT_LEFT_CATEGORIES`）顶上最左那颗助手头像（角色大项目 ①）：
- * 点一下叫出助手（对话从左边出来，和工作台对齐；收回走对话头的收起键）。`dot` = 有事要叫你（缺东西时）。
+ * 库顶上最左那颗助手头像（所有库同一颗；角色页放在它自己那一行，其余在库框顶上那一行）：
+ * 点一下叫出助手（对话从左边出来，和工作台、首页对齐；收回走对话头的收起键）。`dot` = 有事要叫你（缺东西时）。
  * 不在外壳里、或手机上不画。
  */
 export function StudioLibraryAssistantAvatar({
@@ -360,7 +342,10 @@ export function StudioLibraryAssistantAvatar({
       className="relative hidden size-8 shrink-0 place-items-center rounded-full bg-raise shadow-soft transition-transform duration-fast ease-standard active:scale-[.98] focus-visible:outline-none focus-visible:shadow-focus lg:grid"
     >
       <span className="grid size-7 place-items-center overflow-hidden rounded-full">
-        <AssistantAvatarGlyph presetId={persona.avatarPreset ?? null} />
+        <AssistantAvatarGlyph
+          presetId={persona.avatarPreset ?? null}
+          letterName={assistantGlyphLetterName(persona)}
+        />
       </span>
       {dot ? (
         <span

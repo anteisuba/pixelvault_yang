@@ -20,7 +20,8 @@ export default function StudioWorkspaceLayout({
   children: React.ReactNode
 }) {
   return (
-    <StudioProvider>
+    // 出图状态住在外壳的 `workspace` 槽：去配音台 / LoRA 台再回来，在飞那一单还在。
+    <StudioProvider generationSession="workspace">
       <StudioWorkspaceUI />
       {/* The page renders only <StudioModeSync mode=...> (invisible) — it
           exists in the tree purely so Next.js mounts the right side

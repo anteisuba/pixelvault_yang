@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 
 import { ImageIcon, Plus } from '@/components/icons'
+import { Button } from '@/components/ui/button'
 import type { LoraBaseModel } from '@/features/lora/constants/lora-base-models'
 import type { NumericRange } from '@/constants/provider-capabilities'
 import type { LoraAssetRecord } from '@/types'
@@ -25,7 +26,7 @@ import { isLoraBaseModelMountCompatible } from '@/features/lora/lib/lora-model-c
 import { cn } from '@/lib/utils'
 
 /** 家族 slug → `LoraWorkbench.familyLabel.*`；表外的原样显示。 */
-const FAMILY_LABEL_KEYS: Record<string, string> = {
+export const FAMILY_LABEL_KEYS: Record<string, string> = {
   illustrious: 'illustrious',
   flux: 'flux',
   sdxl: 'sdxl',
@@ -51,6 +52,8 @@ interface LoraMountPillsProps {
   loraScaleConfig: NumericRange | undefined
   /** 「+ LoRA」：弹挑 LoRA 的框（锁「和当前底模装得上」）。 */
   onAddLora: () => void
+  /** 小卡里「看详情」：回到「+ LoRA」那块面板、直接开这一把的详情（11-18 工作台里开库）。 */
+  onOpenDetail?: (asset: LoraAssetRecord) => void
   disabled?: boolean
 }
 
@@ -64,6 +67,7 @@ export function LoraMountPills({
   selectedBase,
   loraScaleConfig,
   onAddLora,
+  onOpenDetail,
   disabled = false,
 }: LoraMountPillsProps) {
   const t = useTranslations('LoraWorkbench')
@@ -100,6 +104,9 @@ export function LoraMountPills({
           onEnabledChange={(value) => stack.setEnabled(item.asset.id, value)}
           onScaleChange={(value) => stack.setScale(item.asset.id, value)}
           onRemove={() => stack.remove(item.asset.id)}
+          onOpenDetail={
+            onOpenDetail ? () => onOpenDetail(item.asset) : undefined
+          }
         />
       ))}
       <button
@@ -127,6 +134,7 @@ interface LoraPillProps {
   onEnabledChange: (enabled: boolean) => void
   onScaleChange: (scale: number) => void
   onRemove: () => void
+  onOpenDetail?: () => void
 }
 
 function LoraPill({
@@ -140,6 +148,7 @@ function LoraPill({
   onEnabledChange,
   onScaleChange,
   onRemove,
+  onOpenDetail,
 }: LoraPillProps) {
   const t = useTranslations('LoraWorkbench')
   const [open, setOpen] = useState(false)
@@ -287,7 +296,21 @@ function LoraPill({
             </div>
           </div>
         ) : null}
-        <div className="flex justify-end">
+        <div className="flex items-center justify-end gap-1">
+          {onOpenDetail ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="mr-auto"
+              onClick={() => {
+                setOpen(false)
+                onOpenDetail()
+              }}
+            >
+              {t('benchLibrary.openDetail')}
+            </Button>
+          ) : null}
           <button
             type="button"
             onClick={() => {

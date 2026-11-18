@@ -1,4 +1,5 @@
 import { StudioShell } from '@/components/business/studio/shell/StudioShell'
+import { StudioGenerationSessionsProvider } from '@/contexts/studio-generation-sessions'
 import { LoraStackProvider } from '@/features/lora/hooks'
 
 /**
@@ -13,6 +14,9 @@ import { LoraStackProvider } from '@/features/lora/hooks'
  * LoRA 挂载栈挂在这一层（9f-2b）：库叠层里的 LoRA 也往同一份栈里挂，台上的装配列当场看见。
  * 图片 / 视频台不读它（`use-studio-workbench-operator-host` 不给 `lora`）；`?style=` 与提示词
  * 标签栈仍在 `studio/lora/layout.tsx`。
+ *
+ * 各台在飞的那一单也挂在这一层（`StudioGenerationSessionsProvider`）：换台 = 上一张台卸载，
+ * 出图状态与轮询住在台自己身上时会一起丢（11-17 LoRA 台真机：切去配音台再回来，作业消失）。
  */
 export default function StudioShellLayout({
   children,
@@ -22,8 +26,10 @@ export default function StudioShellLayout({
   library: React.ReactNode
 }) {
   return (
-    <LoraStackProvider>
-      <StudioShell library={library}>{children}</StudioShell>
-    </LoraStackProvider>
+    <StudioGenerationSessionsProvider>
+      <LoraStackProvider>
+        <StudioShell library={library}>{children}</StudioShell>
+      </LoraStackProvider>
+    </StudioGenerationSessionsProvider>
   )
 }

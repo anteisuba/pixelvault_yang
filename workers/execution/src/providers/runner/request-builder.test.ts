@@ -231,8 +231,8 @@ describe('buildRunnerWorkflowFromRequest', () => {
     expect(workflow.checkpoint.inputs.ckpt_name).toBe(
       'waiIllustriousSDXL_v150.safetensors',
     )
-    // WAI's recommended sampler/scheduler/clipSkip from the manifest.
-    expect(workflow.sampler.inputs.sampler_name).toBe('ddim')
+    // WAI's author-recommended sampler (Euler a) / scheduler / clipSkip.
+    expect(workflow.sampler.inputs.sampler_name).toBe('euler_ancestral')
     expect(workflow.sampler.inputs.scheduler).toBe('normal')
     expect(workflow['clip-skip'].inputs.stop_at_clip_layer).toBe(-2)
   })
@@ -270,13 +270,13 @@ describe('buildRunnerWorkflowFromRequest', () => {
     expect(workflow.sampler.inputs.scheduler).toBe('karras')
   })
 
-  it('applies default steps/cfg when not provided', () => {
+  it("applies WAI's own steps/cfg when not provided (author: steps 25–40, CFG 5–7)", () => {
     const workflow = buildRunnerWorkflowFromRequest(
       baseRequest(),
       fixedRandomSeed,
     )
     expect(workflow.sampler.inputs.steps).toBe(30)
-    expect(workflow.sampler.inputs.cfg).toBe(7.5)
+    expect(workflow.sampler.inputs.cfg).toBe(6)
   })
 
   it('applies the app-provided LoRA filename + scale (v2: no allowlist resolve)', () => {
@@ -349,9 +349,46 @@ describe('buildRunnerWorkflowFromRequest', () => {
     expect(workflow.checkpoint.inputs.ckpt_name).toBe(
       'civitai-ckpt-597138.safetensors',
     )
-    // Override defaults, not WAI's manifest ddim.
+    // Override defaults, not WAI's manifest CFG 6.
     expect(workflow.sampler.inputs.sampler_name).toBe('euler_ancestral')
     expect(workflow.sampler.inputs.scheduler).toBe('normal')
+    expect(workflow.sampler.inputs.cfg).toBe(7.5)
+  })
+
+  it("uses the recipe's clipSkip over the checkpoint's own (CLIPSetLastLayer stays in the graph)", () => {
+    const fromRecipe = buildRunnerWorkflowFromRequest(
+      baseRequest({ clipSkip: 1 }),
+      fixedRandomSeed,
+    )
+    expect(fromRecipe['clip-skip'].inputs.stop_at_clip_layer).toBe(-1)
+
+    const overridden = buildRunnerWorkflowFromRequest(
+      baseRequest({
+        externalModelId: 'not-a-baked-checkpoint',
+        checkpointOverrideFilename: 'civitai-ckpt-597138.safetensors',
+        clipSkip: 3,
+      }),
+      fixedRandomSeed,
+    )
+    expect(overridden['clip-skip'].inputs.stop_at_clip_layer).toBe(-3)
+
+    // No recipe value → the checkpoint's own (WAI = 2).
+    const fallback = buildRunnerWorkflowFromRequest(
+      baseRequest(),
+      fixedRandomSeed,
+    )
+    expect(fallback['clip-skip'].inputs.stop_at_clip_layer).toBe(-2)
+  })
+
+  it('reads Pony defaults off the shared checkpoint table (author: Euler a · 25 steps · clip skip 2)', () => {
+    const workflow = buildRunnerWorkflowFromRequest(
+      baseRequest({ externalModelId: 'ponyDiffusionV6XL' }),
+      fixedRandomSeed,
+    )
+    expect(workflow.sampler.inputs.sampler_name).toBe('euler_ancestral')
+    expect(workflow.sampler.inputs.scheduler).toBe('normal')
+    expect(workflow.sampler.inputs.steps).toBe(25)
+    expect(workflow['clip-skip'].inputs.stop_at_clip_layer).toBe(-2)
   })
 
   it('SDXL override that names a manifest entry borrows its defaults (RIN Flanime downloaded on demand)', () => {

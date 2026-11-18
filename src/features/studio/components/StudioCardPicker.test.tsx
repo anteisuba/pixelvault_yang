@@ -132,14 +132,42 @@ describe('StudioCardPicker（工作台「角色」弹层，owner 09-27）', () =
     expect(screen.queryByText('背景卡')).toBeNull()
   })
 
-  it('点开一个角色：展开她的图（卡上 + 用她出的），第一次默认勾主图', async () => {
+  it('点开一个角色只是展开看（卡上 + 用她出的），⛔ 不替你选', async () => {
     const studio = await setup({})
     fireEvent.click(screen.getByRole('button', { name: /Denia/ }))
     // 卡上 2 张 + 用她出的 1 张（真用量 hook 拉回来的）。
     await waitForTiles(3)
+    expect(studio.current.characters.activeCardIds).toEqual([])
+    expect(studio.current.characters.imagePicks.denia).toBeUndefined()
+    expect(screen.getByText('点造型或图才会带上她')).toBeTruthy()
+  })
+
+  it('点一套造型 = 用这套带她、勾主图；再点同一套 = 这次不带她', async () => {
+    const studio = await setup({})
+    fireEvent.click(screen.getByRole('button', { name: /Denia/ }))
+    fireEvent.click(screen.getByRole('button', { name: '默认' }))
+    expect(studio.current.characters.activeCardIds).toEqual(['denia'])
     expect(studio.current.characters.imagePicks.denia).toEqual([
       { slotId: 'slot-1' },
     ])
+    fireEvent.click(screen.getByRole('button', { name: '默认' }))
+    expect(studio.current.characters.activeCardIds).toEqual([])
+  })
+
+  it('点一张图 = 带她这张', async () => {
+    const studio = await setup({})
+    fireEvent.click(screen.getByRole('button', { name: /Denia/ }))
+    await waitForTiles(3)
+    fireEvent.click(screen.getAllByTestId('card-picker-image')[1]!)
+    expect(studio.current.characters.activeCardIds).toEqual(['denia'])
+    expect(studio.current.characters.imagePicks.denia).toEqual([
+      { slotId: 'slot-2' },
+    ])
+  })
+
+  it('不是 NovelAI V4.5 就不出「精确参考」开关', async () => {
+    await setup({})
+    expect(screen.queryByRole('switch')).toBeNull()
   })
 
   it('勾一张「用她出的」就加进她挑的图里', async () => {
@@ -173,14 +201,18 @@ describe('StudioCardPicker（工作台「角色」弹层，owner 09-27）', () =
     expect(screen.getByText('已到这个模型的上限，先取消一张再勾')).toBeTruthy()
   })
 
-  it('模型不收参考图：不展开，点一下只让她在场', async () => {
+  it('模型不收参考图：展开不列图，点造型只让她在场', async () => {
     const studio = await setup({ maxImages: 0 })
     expect(screen.getByTestId('card-picker-limit').textContent).toContain(
       '不收参考图',
     )
     fireEvent.click(screen.getByRole('button', { name: /Denia/ }))
-    expect(studio.current.characters.activeCardIds).toEqual(['denia'])
+    expect(studio.current.characters.activeCardIds).toEqual([])
     expect(screen.queryByTestId('card-picker-image')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Q版' }))
+    expect(studio.current.characters.activeCardIds).toEqual(['denia'])
+    expect(studio.current.characters.lookIds.denia).toBe('denia-q')
+    expect(studio.current.characters.imagePicks.denia).toBeUndefined()
   })
 
   it('切造型（角色④）：记下她用哪套，挑的图换成那套的主图', async () => {

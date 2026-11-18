@@ -1,6 +1,7 @@
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { AI_MODELS } from '@/constants/models'
 import {
+  NOVELAI_IMG2IMG_STRENGTH_RANGE,
   NOVELAI_SAMPLER_OPTIONS,
   NOVELAI_REFERENCE_USAGES,
 } from '@/constants/novelai'
@@ -17,6 +18,8 @@ export type ProviderCapability =
   | 'steps'
   | 'seed'
   | 'referenceStrength'
+  /** NovelAI 图生图「重绘强度」= 官方 `strength` 原值（越大改得越多）。 */
+  | 'img2imgStrength'
   | 'cfgRescale'
   | 'img2imgNoise'
   | 'novelAiReferenceMode'
@@ -172,28 +175,36 @@ export const FAL_KLING_V3_MAX_REFERENCE_IMAGES =
  * 在提示词末尾的一串标签，V5 Full 与 Curated 用同一串：
  *   Light    → `, very aesthetic, amazing quality, no text`
  *   Standard → `, very aesthetic, masterpiece, no text`
- * 所以 `off` 必须排第一 —— chip 停在缺省上就是「一个字都不追加」，与 worker
- * 此前硬编的 `qualityToggle: false` 逐字等价。
+ * 排第一的是缺省档（chip 的 `options[0]`），必须等于 `NOVELAI_DEFAULT_QUALITY_PRESET`：
+ * 官方网页端「enabled by default」（2026-11-17 改，之前缺省 off）。worker 收到
+ * 没写这一项的请求按同一缺省拼，界面画的与发出去的是一回事；关掉要显式选 `off`。
  * https://docs.novelai.net/en/image/qualitytags/
  */
 export const NOVELAI_QUALITY_TOGGLE_OPTIONS = [
-  'off',
-  'light',
   'standard',
+  'light',
+  'off',
 ] as const
 
 /**
- * NovelAI Undesired Content 预设，官方五档。`none` 排第一同样是为了保住现状：
- * worker 此前硬编 `ucPreset: useStructuredPrompt ? 4 : 3`，两个数在各自的
- * params_version 下都是 None（不套预设，只发用户自己的 UC）。
+ * NovelAI Undesired Content 预设，官方五档。排第一的是缺省档，必须等于
+ * `NOVELAI_DEFAULT_UC_PRESET`（Heavy，网页端缺省；2026-11-17 改，之前缺省 none）。
  * https://docs.novelai.net/en/image/undesiredcontent/
  */
 export const NOVELAI_UC_PRESET_OPTIONS = [
-  'none',
   'heavy',
   'light',
   'furry',
   'human',
+  'none',
+] as const
+
+/** V4.5 Curated 官方只有 Heavy / Light / Human Focus，**没有 Furry Focus**。 */
+export const NOVELAI_V45_CURATED_UC_PRESET_OPTIONS = [
+  'heavy',
+  'light',
+  'human',
+  'none',
 ] as const
 
 /** Range constraints for numeric parameters */
@@ -210,6 +221,7 @@ export interface CapabilityConfig {
   guidanceScale?: NumericRange
   steps?: NumericRange
   referenceStrength?: NumericRange
+  img2imgStrength?: NumericRange
   cfgRescale?: NumericRange
   img2imgNoise?: NumericRange
   preciseReferenceStrength?: NumericRange
@@ -270,6 +282,11 @@ export interface CapabilityConfig {
   maxLoras?: number
   /** Maximum number of reference images supported (default: 1) */
   maxReferenceImages?: number
+  /**
+   * 其中最多几张可以是**人物**参考（角色卡图）。只在官方单独写了人物上限的型号上声明；
+   * 不声明 = 不另设（只受 `maxReferenceImages` 管）。读者：卡片总线图片出口。
+   */
+  maxCharacterReferenceImages?: number
   /** How this adapter handles reference images (default: 'img2img') */
   referenceImageMode?: ReferenceImageMode
   /**
@@ -288,7 +305,9 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
         'guidanceScale',
         'steps',
         'seed',
-        'referenceStrength',
+        // ⚠ NAI 不用跨家共用的 `referenceStrength`（越高越像原图、发送时 1 − x）：
+        // 官方的滑块叫 Strength、越大改得越多，这里原样发。
+        'img2imgStrength',
         'cfgRescale',
         'img2imgNoise',
         // UC 预设适用于所有 NAI 档（V3 / V4.5 / V5）；质量标签逐模型 override 声明。
@@ -302,7 +321,7 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
       samplerOptions: NOVELAI_SAMPLER_OPTIONS,
       guidanceScale: { min: 1, max: 20, step: 0.5, default: 5 },
       steps: { min: 1, max: 50, step: 1, default: 28 },
-      referenceStrength: { min: 0.01, max: 0.99, step: 0.01, default: 0.7 },
+      img2imgStrength: NOVELAI_IMG2IMG_STRENGTH_RANGE,
       cfgRescale: { min: 0, max: 1, step: 0.05, default: 0 },
       img2imgNoise: { min: 0, max: 1, step: 0.01, default: 0 },
       maxReferenceImages: 1,
@@ -548,6 +567,14 @@ const SEEDREAM_55_CAPABILITIES: Partial<CapabilityConfig> = {
 export const MODEL_CAPABILITY_OVERRIDES: Partial<
   Record<string, Partial<CapabilityConfig>>
 > = {
+  /**
+   * Nano Banana 系列：合计最多 14 张参考（adapter 默认），其中人物参考 Pro ≤5、
+   * 3.1 Flash / 2.1 ≤4（官方 2026-11-17 核对）。Flash Lite 官方没写人物上限，不声明。
+   * https://ai.google.dev/gemini-api/docs/image-generation
+   */
+  [AI_MODELS.GEMINI_PRO_IMAGE]: { maxCharacterReferenceImages: 5 },
+  [AI_MODELS.GEMINI_FLASH_IMAGE]: { maxCharacterReferenceImages: 4 },
+  [AI_MODELS.GEMINI_NANO_BANANA_21]: { maxCharacterReferenceImages: 4 },
   // Turbo（owner 11-02）：固定 8 步日程、CFG 1 —— 步数 / CFG / 负面词都不起作用，不摆出来。
   [AI_MODELS.QWEN_IMAGE_21_RUNNER]: {
     capabilities: ['seed'],
@@ -568,7 +595,7 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
     novelAiReferenceModeOptions: NOVELAI_REFERENCE_USAGES,
     preciseReferenceStrength: { min: 0, max: 1, step: 0.05, default: 1 },
     preciseReferenceFidelity: { min: 0, max: 1, step: 0.05, default: 1 },
-    qualityToggleOptions: ['off', 'standard'],
+    qualityToggleOptions: ['standard', 'off'],
   },
   [AI_MODELS.NOVELAI_V45_CURATED]: {
     capabilities: [
@@ -583,7 +610,9 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
     novelAiReferenceModeOptions: NOVELAI_REFERENCE_USAGES,
     preciseReferenceStrength: { min: 0, max: 1, step: 0.05, default: 1 },
     preciseReferenceFidelity: { min: 0, max: 1, step: 0.05, default: 1 },
-    qualityToggleOptions: ['off', 'standard'],
+    qualityToggleOptions: ['standard', 'off'],
+    // 官方 undesiredcontent 页：V4.5 Curated 没有 Furry Focus。
+    ucPresetOptions: NOVELAI_V45_CURATED_UC_PRESET_OPTIONS,
   },
   // Light 质量标签只在 V5 声明；V4.5 只有 standard 质量标签。画中文字（台词 / 画面文字）
   // 不是专属 chip，逐模型上限见 `NOVELAI_TEXT_LIMITS`。
@@ -596,7 +625,7 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
       'guidanceScale',
       'steps',
       'seed',
-      'referenceStrength',
+      'img2imgStrength',
       'cfgRescale',
       'img2imgNoise',
       'ucPreset',
@@ -619,7 +648,7 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
       'guidanceScale',
       'steps',
       'seed',
-      'referenceStrength',
+      'img2imgStrength',
       'cfgRescale',
       'img2imgNoise',
       'ucPreset',
@@ -997,6 +1026,16 @@ export function getMaxReferenceImages(
   return resolveConfig(adapterType, modelId).maxReferenceImages ?? 1
 }
 
+/** 人物参考图上限（角色卡图）；官方没单独写的型号 = 不另设（`Infinity`）。 */
+export function getMaxCharacterReferenceImages(
+  adapterType: AI_ADAPTER_TYPES,
+  modelId?: string,
+): number {
+  return (
+    resolveConfig(adapterType, modelId).maxCharacterReferenceImages ?? Infinity
+  )
+}
+
 /** Get how reference images are handled (default: 'img2img'), with optional model override */
 export function getReferenceImageMode(
   adapterType: AI_ADAPTER_TYPES,
@@ -1023,6 +1062,7 @@ export function getCapabilityFieldType(
     guidanceScale: 'slider',
     steps: 'slider',
     referenceStrength: 'slider',
+    img2imgStrength: 'slider',
     cfgRescale: 'slider',
     img2imgNoise: 'slider',
     novelAiReferenceMode: 'select',

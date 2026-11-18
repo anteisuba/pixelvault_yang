@@ -103,15 +103,35 @@ describe('标签台右列', () => {
   })
 
   // ⚠ 额度那一格报的是官方判据，⛔ 不是一个猜出来的 Anlas 数。
+  // V5 在免费条件内仍计入 Opus 用量条（官方 FAQ），V4.5 才是无条件免。
   it('分辩率报真尺寸与 Opus 免费窗口', () => {
     renderColumn()
     expect(screen.getByText('1024×1024')).toBeInTheDocument()
+    expect(screen.getByText(T('opusUsageLimited'))).toBeInTheDocument()
+    expect(screen.queryByText(T('opusFree'))).not.toBeInTheDocument()
+  })
+
+  it('V4.5 文生图在免费窗口里', () => {
+    renderColumn({}, { modelId: AI_MODELS.NOVELAI_V45_FULL })
     expect(screen.getByText(T('opusFree'))).toBeInTheDocument()
+  })
+
+  // 官方：「without any other image used as a base」—— 图生图不免。
+  it('挂了底图就按 Anlas 计', () => {
+    renderColumn(
+      {},
+      {
+        modelId: AI_MODELS.NOVELAI_V45_FULL,
+        references: ['https://example.com/ref.png'],
+      },
+    )
+    expect(screen.getByText(T('opusMetered'))).toBeInTheDocument()
+    expect(screen.queryByText(T('opusFree'))).not.toBeInTheDocument()
   })
 
   it('没有参考图时不显示无效的参考控件', () => {
     renderColumn()
-    expect(headings()).not.toContain(CAP('referenceStrength'))
+    expect(headings()).not.toContain(CAP('img2imgStrength'))
     expect(headings()).not.toContain(CAP('img2imgNoise'))
     expect(screen.queryByText(T('referenceUsage.vibe'))).not.toBeInTheDocument()
     expect(
@@ -119,9 +139,10 @@ describe('标签台右列', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('上传参考图后显示图生图强度和噪声', () => {
+  it('上传参考图后显示重绘强度和噪声', () => {
     renderColumn({}, { references: ['https://example.com/ref.png'] })
-    expect(headings()).toContain(CAP('referenceStrength'))
+    expect(headings()).toContain(CAP('img2imgStrength'))
+    expect(headings()).not.toContain(CAP('referenceStrength'))
     expect(headings()).toContain(CAP('img2imgNoise'))
     expect(screen.getByText(T('referenceUsage.standard'))).toBeInTheDocument()
   })
@@ -159,7 +180,7 @@ it('V4.5 switches between img2img and precise character controls', () => {
   })
   expect(headings()).toContain(CAP('preciseReferenceStrength'))
   expect(headings()).toContain(CAP('preciseReferenceFidelity'))
-  expect(headings()).not.toContain(CAP('referenceStrength'))
+  expect(headings()).not.toContain(CAP('img2imgStrength'))
   expect(headings()).not.toContain(CAP('img2imgNoise'))
   expect(screen.getByText(T('preciseReferenceCost'))).toBeInTheDocument()
   expect(screen.queryByText(T('opusFree'))).not.toBeInTheDocument()

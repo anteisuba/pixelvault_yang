@@ -33,6 +33,7 @@ import type {
 import type { PromptTagSelection } from '@/types/prompt-tags'
 
 import { ApiKeysProvider } from '@/contexts/api-keys-context'
+import { StudioGenerationSessionsProvider } from '@/contexts/studio-generation-sessions'
 import { LoraStackProvider } from '@/features/lora/hooks'
 import { PromptTagProvider } from '@/hooks/use-prompt-tag-stack'
 import { fakeServer } from '@/test/app-harness'
@@ -182,9 +183,11 @@ export function loraWorkbenchServer() {
 export function LoraWorkbenchProviders({ children }: { children: ReactNode }) {
   return (
     <ApiKeysProvider>
-      <LoraStackProvider>
-        <PromptTagProvider>{children}</PromptTagProvider>
-      </LoraStackProvider>
+      <StudioGenerationSessionsProvider>
+        <LoraStackProvider>
+          <PromptTagProvider>{children}</PromptTagProvider>
+        </LoraStackProvider>
+      </StudioGenerationSessionsProvider>
     </ApiKeysProvider>
   )
 }

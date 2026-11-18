@@ -22,6 +22,7 @@ import {
 } from './StudioTagCast'
 import { StudioTagTextField } from './StudioTagTextField'
 import { StudioTagPageTabs } from './StudioTagPageTabs'
+import { StudioTagPresetNote } from './StudioTagPresetNote'
 import { StudioTagAddCharacter } from './StudioTagAddCharacter'
 import {
   StudioTagCharacterMenuExtra,
@@ -262,6 +263,10 @@ export function StudioTagsDesktopEditor({
           status={!negativeView && activeIndex === null ? carry : undefined}
           onLookup={lookup}
         />
+        {/* 预设拼在整体的正面末尾 / 负面前面，不进角色栏 —— 只在整体页说。 */}
+        {activeIndex === null ? (
+          <StudioTagPresetNote polarity={polarity} disabled={disabled} />
+        ) : null}
       </motion.div>
       {followRow ? (
         <div className="flex min-h-8 flex-wrap items-center gap-1.5">

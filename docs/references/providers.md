@@ -308,11 +308,11 @@ adapter / Worker 抛错
 
 三颗控件全部走第 11 项的**能力表派生**，⛔ UI 里没有模型名分支：
 
-| 控件             | 能力键          | 官方口径                                                                                                                                                                                          | 发给 provider 的形状                                                                                                                                                                                 |
-| ---------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 质量标签         | `qualityToggle` | [qualitytags](https://docs.novelai.net/en/image/qualitytags/)：V5 Full 与 Curated 同串，Light = `, very aesthetic, amazing quality, no text`，Standard = `, very aesthetic, masterpiece, no text` | ⚠ **不是 API 字段**，是追加到 prompt 末尾的标签串。payload 里的 `qualityToggle` 保持 `false`（与 NAI 网页端同做法）。缺省档 `off` = 一个字都不追加，与接入前逐字等价                                 |
-| UC 预设          | `ucPreset`      | [undesiredcontent](https://docs.novelai.net/en/image/undesiredcontent/)：Heavy / Light / Furry Focus / Human Focus / None，各自一串 UC 标签                                                       | ⚠ 同样按标签串拼 —— 作为**前缀**接在用户自己的 UC 前面。payload 里那个数字 `ucPreset` 原样保持（V4/V5 发 4、V3 发 3，都是 None）：⛔ **数字档在各代之间的含义没有官方口径，社区 SDK 互相矛盾，不猜** |
-| `Text:` 文字渲染 | `textRendering` | [textrendering](https://docs.novelai.net/en/image/textrendering/)：放 prompt **最末**，V5 支持 EN/JA/ZH                                                                                           | `prompt` → 质量标签 → `, Text: …`（所以质量标签先拼）。上限 Full 750 / Curated 374 只作护栏，见上一节的单位说明                                                                                      |
+| 控件             | 能力键          | 官方口径                                                                                                                                                                                               | 发给 provider 的形状                                                                                                                                                                                                         |
+| ---------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 质量标签         | `qualityToggle` | [qualitytags](https://docs.novelai.net/en/image/qualitytags/)：V5 Full 与 Curated 同串，Light = `, very aesthetic, amazing quality, no text`，Standard = `, very aesthetic, masterpiece, no text`      | ⚠ **不是 API 字段**，是追加到 prompt 末尾的标签串。payload 里的 `qualityToggle` 保持 `false`（与 NAI 网页端同做法）。**缺省档 `standard`（2026-11-17 起对齐官方网页端，之前是 off）**；框底下明示并可就地关，见文末 11-17 节 |
+| UC 预设          | `ucPreset`      | [undesiredcontent](https://docs.novelai.net/en/image/undesiredcontent/)：Heavy / Light / Furry Focus / Human Focus / None，各自一串 UC 标签；**V4.5 Curated 没有 Furry Focus**；缺省 Heavy（11-17 起） | ⚠ 同样按标签串拼 —— 作为**前缀**接在用户自己的 UC 前面。payload 里那个数字 `ucPreset` 原样保持（V4/V5 发 4、V3 发 3，都是 None）：⛔ **数字档在各代之间的含义没有官方口径，社区 SDK 互相矛盾，不猜**                         |
+| `Text:` 文字渲染 | `textRendering` | [textrendering](https://docs.novelai.net/en/image/textrendering/)：放 prompt **最末**，V5 支持 EN/JA/ZH                                                                                                | `prompt` → 质量标签 → `, Text: …`（所以质量标签先拼）。上限 Full 750 / Curated 374 只作护栏，见上一节的单位说明                                                                                                              |
 
 - `Text:` 与 Light 质量标签仅限 V5；V4.5 也支持标准质量标签（2026-09-21 补核，见下节）。`ucPreset` 挂在 adapter 默认。服务端按逐模型能力声明校验，不支持的值返回 400。
 - **遮罩重绘（inpaint）**：NovelAI 的 infill 是**换模型 + 换 action**，不是加参数。`model` 换成 `nai-diffusion-5-full-inpainting`，`action` 换成 `infill`，`mask` 是与底图同规格的黑白 PNG（白 = 重画），并发 `add_original_image: true`。**V5 Curated 没有自己的 inpaint 模型，回落 `nai-diffusion-4-5-curated-inpainting`**（2026-10-23 按网页端改正，之前误配成 4-5-full）；V4.5 Full / Curated 各走自己的 `-inpainting`——界面上说出这句话（`StudioInpaintMaskChip`），⛔ 不让用户以为重绘还跑在 Curated 上。
@@ -330,8 +330,8 @@ adapter / Worker 抛错
 ## NovelAI 基础参数与精确角色参考（verified 2026-09-21）
 
 - Sources：[官方 Swagger](https://image.novelai.net/docs/doc.json)、[Precise Reference](https://docs.novelai.net/en/image/precisereference/)、[Quality Tags](https://docs.novelai.net/en/image/qualitytags/)。Method：逐字段核对公开契约；本地请求测试不等于线上联调。
-- 基础参数：`cfgRescale` → `cfg_rescale`；`img2imgNoise` → 图生图 `noise`。本仓开放 0–1，默认 0；没有参考图时隐藏参考强度与噪声。`noise_schedule` 保留既有 karras，未核实完整可选值集，不新增猜测选项。
-- V4.5 质量标签提供 off / standard：Full 追加 `, location, very aesthetic, masterpiece, no text`；Curated 追加 `, location, masterpiece, no text, -0.8::feet::, rating:general`。V5 保留既有 Light / Standard；缺省 off 不改提示词。
+- 基础参数：`cfgRescale` → `cfg_rescale`；`img2imgNoise` → 图生图 `noise`。本仓开放 0–1，默认 0；没有参考图时隐藏重绘强度（`img2imgStrength`，11-17 起）与噪声。`noise_schedule` 保留既有 karras，未核实完整可选值集，不新增猜测选项。
+- V4.5 质量标签提供 off / standard：Full 追加 `, location, very aesthetic, masterpiece, no text`；Curated 追加 `, location, masterpiece, no text, -0.8::feet::, rating:general`。V5 保留既有 Light / Standard；缺省 Standard（11-17 起，之前 off）。
 - 精确参考本轮仅接 **V4.5 Full / Curated、单张角色参考**。`advancedParams.novelAiReferenceMode=precise`，`preciseReferenceStrength` 与 `preciseReferenceFidelity` 为 0–1（本仓默认 1）。不与遮罩重绘组合；V5 不显示该模式，服务端与 Worker 拒绝不支持的请求。Vibe 不接入，也不保留禁用占位。
 - 服务端将图片旋正、等比缩放并补黑边到官方允许的 `1472×1472` PNG，再存 R2。Worker 用 `action=generate`，发送 `director_reference_images`、`director_reference_descriptions`（`caption.base_caption=character`）、`director_reference_information_extracted=[1]`、`director_reference_strength_values`、`director_reference_secondary_strength_values`（Fidelity）。不发送图生图 `image` / `strength` / `noise`。
 - 官方费用：每张生成、每张精确参考额外 **5 Anlas**。界面明示额外费用，精确参考不显示 Opus 免费提示。不承诺角色复现必然准确。
@@ -352,6 +352,15 @@ adapter / Worker 抛错
 - UC 预设文案逐代不同：V4.5 Full 的 light、V4.5 Curated 的 heavy / light / human 与 V5 不同，按模型取（`src/lib/novelai-compose.ts`）。
 - V5 缺省 CFG 4、28 步（网页端；之前 7 / 23）。V4.5 仍是 5 / 28（网页端 23 步，未改）。
 - 有意不同：重绘仍发 `add_original_image: true`（Launcher 在 infill 发 false，我们不在客户端合成，关掉会整张重画）。
+
+## NovelAI 标签台对齐官方（2026-11-17）
+
+- Sources：[Subscription](https://docs.novelai.net/en/subscription/)（Opus 免 Anlas = 单张 · ≤1024×1024 像素面积 · ≤28 步 · 不以别的图为底）、[FAQ](https://docs.novelai.net/en/faq/)（V5 在 Opus 下计入用量条）、[Precise Reference](https://docs.novelai.net/en/image/precisereference/)（每张 +5 Anlas）、[Quality Tags](https://docs.novelai.net/en/image/qualitytags/)、[Undesired Content](https://docs.novelai.net/en/image/undesiredcontent/)、[Strength & Noise](https://docs.novelai.net/en/image/strengthnoise)、NAI Launcher `image_params.dart` / `anlas_calculator.dart`。Method：读文档 + 本地定向单测；**未做真实出图**。
+- **Opus 免费提示**：`getNovelAiOpusCost`（`src/constants/novelai.ts`）三态：`free`（文生图且在上述三条内）/ `usageLimited`（同条件但含 V5：不扣 Anlas、计入用量条）/ `metered`（挂底图——图生图、重绘、精确参考——或超规格）。⚠ Launcher 的计算器把图生图算免费，与官方订阅页冲突，按官方页。官方无公开价目表，不给估算数，只写「按 Anlas 计」。
+- **重绘强度**：NAI 的图生图滑块是独立能力键 `img2imgStrength`（界面「重绘强度」，0.01–0.99，缺省 0.7 = 网页端缺省），**原样**发 `parameters.strength`，越大改得越多。⛔ 不再复用跨家共用的 `referenceStrength`（越高越像原图、发送时 1 − x）——那套语义 fal / replicate / HF / runner 照旧。存量 NAI 草稿里的 `referenceStrength` 由 `pruneIncompatibleCapabilityValues` 丢弃，落回 0.7，不做迁移/兼容层。
+- **预设缺省**：质量标签缺省 Standard、UC 缺省 Heavy（`NOVELAI_DEFAULT_QUALITY_PRESET` / `NOVELAI_DEFAULT_UC_PRESET`，UI chip 的 `options[0]` 与 worker 的 `resolveNovelAi*Preset` 同源）。worker 删掉了用户看不见的负面兜底 `lowres, bad anatomy, bad hands, missing fingers, extra digit`。标签台正面 / 负面框底下由 `StudioTagPresetNote` 明说「会加什么」并给一键关掉（off / none）。
+- **V4.5 Curated 无 Furry Focus**：能力表 `NOVELAI_V45_CURATED_UC_PRESET_OPTIONS` 去掉 furry，UC 文案表也不再展开 V5 那张；存量 furry 被 prune 后落回 Heavy。Launcher 在 V4+ 另有 Anime / Furry 数据集模式，本仓未实现。
+- **配方导入**：目标是 NovelAI 时 `applyImageRecipe` 剥掉配方里已拼好的质量标签串（末尾或 `Text:` 前）与 UC 预设串（开头），开关拨到同一档；NovelAI 原图认不出 = 当时关着 → off / none；别家配方认不出不碰开关。步数 / CFG 按目标模型能力表夹紧、采样器只收它认的档、尺寸落到 NAI 五档（832×1216 → 9:16，旧逻辑落 3:4 → 实出 768×1024）。
 
 ## PixAI 接入（2026-09-20 暂时下架；历史契约已核实）
 

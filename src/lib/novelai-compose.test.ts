@@ -4,10 +4,98 @@ import {
   checkNovelAiText,
   composeNovelAiCharacterCaptions,
   composeNovelAiPrompt,
+  composeNovelAiUndesiredContent,
   findNovelAiCharacterCountTags,
+  novelAiPresetFields,
   planNovelAiText,
+  resolveNovelAiQualityPreset,
+  resolveNovelAiUcPreset,
+  stripNovelAiQualityTags,
+  stripNovelAiUcPreset,
   suggestNovelAiCountTags,
 } from '@/lib/novelai-compose'
+
+describe('预设：缺省与官方一致、V4.5 Curated 没有 Furry', () => {
+  it('没写 = 质量标签 Standard · UC Heavy；显式关掉才不加', () => {
+    expect(resolveNovelAiQualityPreset(undefined)).toBe('standard')
+    expect(resolveNovelAiQualityPreset(null)).toBe('standard')
+    expect(resolveNovelAiQualityPreset('off')).toBe('off')
+    expect(resolveNovelAiUcPreset(undefined)).toBe('heavy')
+    expect(resolveNovelAiUcPreset('none')).toBe('none')
+  })
+
+  it('V4.5 Curated 选 furry 不拼任何 UC 串（官方没有这一档）', () => {
+    expect(
+      composeNovelAiUndesiredContent(
+        'hat',
+        'furry',
+        'nai-diffusion-4-5-curated',
+      ),
+    ).toBe('hat')
+    expect(
+      composeNovelAiUndesiredContent('hat', 'furry', 'nai-diffusion-4-5-full'),
+    ).toMatch(/^\{worst quality\}.*, hat$/)
+    expect(
+      novelAiPresetFields('furry', 'off', 'nai-diffusion-4-5-curated')
+        .ucPresetId,
+    ).toBe('none')
+  })
+
+  it('UC 没写也不再静默补别的词', () => {
+    expect(
+      composeNovelAiUndesiredContent('', 'none', 'nai-diffusion-5-full'),
+    ).toBe('')
+    expect(novelAiPresetFields('none', 'off', 'nai-diffusion-5-full')).toEqual({
+      ucPresetId: 'none',
+      qualityPresetId: 'none',
+      tag_hint_uc_preset: 0,
+      tag_hint_qt: 0,
+    })
+  })
+})
+
+describe('导入外部配方：剥掉已经拼好的预设串', () => {
+  it('正面末尾的质量标签串剥掉并报出档名（含 Text: 段之前、各代写法）', () => {
+    expect(
+      stripNovelAiQualityTags(
+        '1girl, rain, very aesthetic, masterpiece, no text',
+      ),
+    ).toEqual({ prompt: '1girl, rain', preset: 'standard' })
+    expect(
+      stripNovelAiQualityTags(
+        '1girl, very aesthetic, amazing quality, Text: hello',
+      ),
+    ).toEqual({ prompt: '1girl, Text: hello', preset: 'light' })
+    expect(
+      stripNovelAiQualityTags(
+        '1girl, location, masterpiece, no text, -0.8::feet::, rating:general',
+      ),
+    ).toEqual({ prompt: '1girl', preset: 'standard' })
+    // 中间出现的同名标签不是网页端拼的那串，不动。
+    expect(stripNovelAiQualityTags('masterpiece, 1girl')).toEqual({
+      prompt: 'masterpiece, 1girl',
+      preset: null,
+    })
+  })
+
+  it('负面开头的 UC 预设串剥掉，Human Focus 不被认成 Heavy', () => {
+    const heavy =
+      'lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page'
+    expect(stripNovelAiUcPreset(`${heavy}, hat`)).toEqual({
+      negative: 'hat',
+      preset: 'heavy',
+    })
+    expect(
+      stripNovelAiUcPreset(
+        `${heavy}, @_@, mismatched pupils, glowing eyes, bad anatomy, hat`,
+      ),
+    ).toEqual({ negative: 'hat', preset: 'human' })
+    expect(stripNovelAiUcPreset('lowres, hat')).toEqual({
+      negative: 'lowres, hat',
+      preset: null,
+    })
+  })
+})
 
 const left = { x: 0.3, y: 0.5 }
 const right = { x: 0.7, y: 0.5 }

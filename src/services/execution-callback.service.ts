@@ -12,6 +12,10 @@ import {
   GenerationSourceSurfaceSchema,
   SearchGroundingResultSchema,
 } from '@/types'
+import {
+  AudioVoiceMetaSchema,
+  audioVoiceGenerationFields,
+} from '@/lib/audio-voice-meta'
 import { db } from '@/lib/db'
 import type { Prisma } from '@/lib/generated/prisma/client'
 import { ApiRequestError, GenerationValidationError } from '@/lib/errors'
@@ -224,6 +228,8 @@ const WorkerJobMetadataSchema = ExecutionCallbackResultDataSchema.pick({
      */
     searchGrounding: SearchGroundingResultSchema.optional().catch(undefined),
   })
+  // 音频「谁念的」（voiceId / voiceName / 封面）：⛔ 漏掉 = 配音台认不出这一句（11-17 真机）。
+  .extend(AudioVoiceMetaSchema.shape)
 
 /**
  * The worker's queue metadata (including `referenceImages`) is stored in
@@ -727,6 +733,9 @@ async function finalizeExecutionResult(
           )
         : undefined
 
+    const audioVoice =
+      outputType === 'AUDIO' ? audioVoiceGenerationFields(metadata) : null
+
     const generation = await timer.measure(GENERATION_STAGE.DB_FINALIZE, () =>
       db.$transaction(async (tx) => {
         if (!(await claimRunningJobForFinalize(tx, job.id))) {
@@ -737,6 +746,7 @@ async function finalizeExecutionResult(
             url: uploadResult.publicUrl,
             storageKey,
             mimeType,
+            previewUrl: audioVoice?.previewUrl,
             thumbnailUrl: posterAsset?.thumbnailUrl,
             thumbnailStorageKey: posterAsset?.thumbnailStorageKey,
             width: outputType === 'VIDEO' ? (resultData.width ?? 0) : 0,
@@ -767,6 +777,7 @@ async function finalizeExecutionResult(
             displayLabel: metadata.displayLabel,
             snapshot: withGenerationObservability(
               {
+                ...audioVoice?.snapshot,
                 executionCallback: {
                   runId: payload.runId,
                   ts: payload.ts,

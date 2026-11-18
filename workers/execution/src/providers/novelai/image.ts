@@ -9,8 +9,11 @@ import {
   composeNovelAiUndesiredContent,
   novelAiPresetFields,
   planNovelAiText,
+  resolveNovelAiQualityPreset,
+  resolveNovelAiUcPreset,
 } from '../../../../../src/lib/novelai-compose'
 import {
+  NOVELAI_IMG2IMG_STRENGTH_RANGE,
   NOVELAI_SAMPLER_OPTIONS,
   getNovelAiImageDimensions,
   getNovelAiMaxCharacters,
@@ -32,7 +35,6 @@ import {
 import {
   getImageReferenceInputs,
   getWorkerImageOutputKey,
-  invertReferenceStrength,
   readAdvancedRecord,
   readReferenceImageAsBase64,
   uploadImageBytesToKey,
@@ -127,10 +129,20 @@ export async function generateNovelAiImage(
       'NovelAI inpainting needs one source image and a model with an inpainting counterpart.',
     )
   }
-  const negative = composeNovelAiUndesiredContent(
-    readStringField(advancedParams, 'negativePrompt') ??
-      'lowres, bad anatomy, bad hands, missing fingers, extra digit',
+  /**
+   * 预设缺省与官方网页端一致（质量标签开 · UC Heavy），且与界面 chip 的缺省档
+   * 是同一个常量 —— 请求里没写 = 界面上画着的那一档。⛔ 不再有界面看不见的
+   * 静默追加（之前没写负面时会塞一串 `lowres, bad anatomy, …`）。
+   */
+  const qualityPreset = resolveNovelAiQualityPreset(
+    readStringField(advancedParams, 'qualityToggle'),
+  )
+  const ucPreset = resolveNovelAiUcPreset(
     readStringField(advancedParams, 'ucPreset'),
+  )
+  const negative = composeNovelAiUndesiredContent(
+    readStringField(advancedParams, 'negativePrompt') ?? '',
+    ucPreset,
     externalModelId,
   )
   const configuredSeed = readNumberField(advancedParams, 'seed')
@@ -173,7 +185,7 @@ export async function generateNovelAiImage(
   })
   const composedPrompt = composeNovelAiPrompt(
     context.providerInput.prompt,
-    readStringField(advancedParams, 'qualityToggle'),
+    qualityPreset,
     textPlan,
     externalModelId,
   )
@@ -209,11 +221,7 @@ export async function generateNovelAiImage(
     sampler,
     steps: readPositiveNumberField(advancedParams, 'steps') ?? 28,
     n_samples: 1,
-    ...novelAiPresetFields(
-      readStringField(advancedParams, 'ucPreset'),
-      readStringField(advancedParams, 'qualityToggle'),
-      externalModelId,
-    ),
+    ...novelAiPresetFields(ucPreset, qualityPreset, externalModelId),
     ...(useStructuredPrompt
       ? { autoSmea: false }
       : { sm: false, sm_dyn: false }),
@@ -247,8 +255,15 @@ export async function generateNovelAiImage(
 
   if (referenceImage && isImg2Img) {
     parameters.image = await readReferenceImageAsBase64(referenceImage)
-    parameters.strength = invertReferenceStrength(
-      readNumberField(advancedParams, 'referenceStrength') ?? 0.7,
+    // 重绘强度 = NovelAI `strength` 原值（越大改得越多），⛔ 不做 1 − x。
+    // https://docs.novelai.net/en/image/strengthnoise
+    parameters.strength = Math.min(
+      NOVELAI_IMG2IMG_STRENGTH_RANGE.max,
+      Math.max(
+        NOVELAI_IMG2IMG_STRENGTH_RANGE.min,
+        readNumberField(advancedParams, 'img2imgStrength') ??
+          NOVELAI_IMG2IMG_STRENGTH_RANGE.default,
+      ),
     )
     parameters.noise = Math.min(
       1,
@@ -297,7 +312,8 @@ export async function generateNovelAiImage(
     parameters.mask = await readReferenceImageAsBase64(maskImage)
     // 遮罩外的像素原样贴回去 —— 不设它就等于整张重画一遍，遮罩白等于没画。
     parameters.add_original_image = true
-    // 重绘强度：我们没有这颗滑块，按网页端缺省 1（= 不另带 img2img 块）。
+    // 遮罩内的 img2img 强度：我们没有这颗滑块（图生图的 `img2imgStrength` 不管 infill），
+    // 按网页端缺省 1（= 不另带 img2img 块）。
     parameters.inpaintImg2ImgStrength = 1
   }
 

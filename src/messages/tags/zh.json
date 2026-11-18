@@ -93,12 +93,20 @@
       "k_euler_ancestral": "Euler a",
       "k_dpmpp_2s_ancestral": "DPM++ 2S a"
     },
-    "opusFreeShort": "Opus 订阅免费",
+    "opusFreeShort": "Opus 免 Anlas",
+    "opusUsageLimitedShort": "Opus 免 Anlas · 计用量",
     "opusMeteredShort": "按 Anlas 计",
     "backToWhole": "回到整体",
     "resolutionTitle": "分辩率 · 额度",
-    "opusFree": "在 Opus 免费范围内：有 Opus 订阅时不扣 Anlas，其他档位照常扣",
-    "opusMetered": "超出免费档，按 Anlas 计",
+    "opusFree": "在 Opus 免费范围内（文生图 · 单张 · ≤1024×1024 · ≤28 步）：Opus 订阅不扣 Anlas，其他档位照常扣",
+    "opusUsageLimited": "在 Opus 免费范围内，但 V5 计入 Opus 用量条：条没用完不扣 Anlas，用完后按 Anlas 计；其他档位照常扣",
+    "opusMetered": "不在 Opus 免费范围（要文生图 · 单张 · ≤1024×1024 · ≤28 步；带底图、遮罩重绘、精确参考都不免），按 Anlas 计",
+    "presetNote": {
+      "quality": "末尾自动加质量标签 · {preset}",
+      "uc": "负向前面自动加 UC 预设 · {preset}",
+      "turnOffQuality": "不加质量标签",
+      "turnOffUc": "不加 UC 预设"
+    },
     "referenceUsageTitle": "参考图用法",
     "referenceUsage": {
       "standard": "图生图"
@@ -114,6 +122,20 @@
     "characterCount": "{count, plural, =0 {无} other {# 人}}",
     "moreControls": "采样器 · 分辩率 · 更多",
     "preciseReferenceCost": "每张生成额外消耗 5 Anlas；仅参考角色外观。",
+    "favoritesPanel": {
+      "title": "收藏",
+      "hint": "点一下加进整体，再点一下拿掉",
+      "close": "收起",
+      "added": "已加入",
+      "addLabel": "把 {tag} 加进提示词",
+      "removeLabel": "从提示词拿掉 {tag}",
+      "emptyTitle": "还没有收藏的标签",
+      "emptyText": "在查资料里点名字旁边的星，收藏的标签会按类摆在这里。",
+      "goLookup": "去查资料",
+      "errorTitle": "收藏没取到",
+      "errorText": "网络或服务暂时出了问题，提示词没有被改动。",
+      "retry": "重试"
+    },
     "workbench": {
       "backToEditor": "返回编辑",
       "characterNumber": "角色 {number}",

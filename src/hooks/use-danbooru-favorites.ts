@@ -86,6 +86,9 @@ export function useDanbooruFavorites() {
 
   return {
     loaded,
+    /** 取收藏那一下失败了（还没有任何一份在手上）：给「重试」。 */
+    failed: query.isError && !query.data,
+    retry: () => void query.refetch(),
     of: (kind: DanbooruCatalogKind) =>
       favorites.filter((item) => item.kind === kind),
     has: (kind: DanbooruCatalogKind, name: string) => Boolean(find(kind, name)),

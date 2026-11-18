@@ -458,7 +458,7 @@ describe('NovelAI capability chips', () => {
     ).toEqual([
       'guidanceScale',
       'steps',
-      'referenceStrength',
+      'img2imgStrength',
       'cfgRescale',
       'img2imgNoise',
       'ucPreset',
@@ -473,7 +473,7 @@ describe('NovelAI capability chips', () => {
     ).toEqual([
       'guidanceScale',
       'steps',
-      'referenceStrength',
+      'img2imgStrength',
       'cfgRescale',
       'img2imgNoise',
       'ucPreset',
@@ -486,20 +486,25 @@ describe('NovelAI capability chips', () => {
   })
 
   it.each([
-    ['qualityToggle', 'off'],
-    ['ucPreset', 'none'],
+    // 官方网页端缺省：质量标签开（Standard）、UC Heavy（2026-11-17 改，之前缺省关）。
+    // worker 收到没写的请求按同一档拼 —— chip 停在缺省上 = 发出去的就是这一档。
+    ['qualityToggle', 'standard'],
+    ['ucPreset', 'heavy'],
     // 采样器的缺省必须是 worker 此前硬编的那一档 —— 停在缺省上逐字保住旧行为。
     ['sampler', 'k_euler_ancestral'],
-  ])('defaults %s to the no-op option so the chip idles', (cap, expected) => {
-    const chip = getModelCapabilityChips(
-      AI_ADAPTER_TYPES.NOVELAI,
-      AI_MODELS.NOVELAI_V5_FULL,
-    ).find((entry) => entry.capability === cap)
-    expect(chip?.kind).toBe('select')
-    expect(chip?.options?.[0]).toBe(expected)
-    expect(chip?.defaultValue).toBe(expected)
-    expect(isCapabilityChipSet(chip!, {})).toBe(false)
-  })
+  ])(
+    'defaults %s to the official default so the chip idles',
+    (cap, expected) => {
+      const chip = getModelCapabilityChips(
+        AI_ADAPTER_TYPES.NOVELAI,
+        AI_MODELS.NOVELAI_V5_FULL,
+      ).find((entry) => entry.capability === cap)
+      expect(chip?.kind).toBe('select')
+      expect(chip?.options?.[0]).toBe(expected)
+      expect(chip?.defaultValue).toBe(expected)
+      expect(isCapabilityChipSet(chip!, {})).toBe(false)
+    },
+  )
 
   // 画中文字不再是专属 chip（改成角色页的台词与整体页的画面文字，2026-10-07）。
   it.each([AI_MODELS.NOVELAI_V5_FULL, AI_MODELS.NOVELAI_V5_CURATED])(
@@ -524,5 +529,36 @@ describe('NovelAI capability chips', () => {
         AI_MODELS.NOVELAI_V45_FULL,
       ),
     ).toEqual({ ucPreset: 'heavy' })
+  })
+
+  it('hides the redraw strength without a source image or in precise mode', () => {
+    const chip = getModelCapabilityChips(
+      AI_ADAPTER_TYPES.NOVELAI,
+      AI_MODELS.NOVELAI_V45_FULL,
+    ).find((entry) => entry.capability === 'img2imgStrength')
+    expect(chip).toMatchObject({ kind: 'slider', defaultValue: 0.7 })
+    expect(isCapabilityChipVisible(chip!, {}, false)).toBe(false)
+    expect(isCapabilityChipVisible(chip!, {}, true)).toBe(true)
+    expect(
+      isCapabilityChipVisible(chip!, { novelAiReferenceMode: 'precise' }, true),
+    ).toBe(false)
+  })
+
+  // 跨家共用的「参考强度」与 NAI 的「重绘强度」方向相反，切模型时不互相带过去。
+  it('does not carry the redraw strength over to fal or a reference strength to NovelAI', () => {
+    expect(
+      pruneIncompatibleCapabilityValues(
+        { referenceStrength: 0.8 },
+        AI_ADAPTER_TYPES.NOVELAI,
+        AI_MODELS.NOVELAI_V5_FULL,
+      ),
+    ).toEqual({})
+    expect(
+      pruneIncompatibleCapabilityValues(
+        { img2imgStrength: 0.4 },
+        AI_ADAPTER_TYPES.FAL,
+        AI_MODELS.FLUX_LORA,
+      ),
+    ).toEqual({})
   })
 })

@@ -10,6 +10,7 @@ import { DURATION_MS } from '@/constants/motion'
 import { getProviderLabel } from '@/constants/providers'
 import { STUDIO_PREFILL_PROMPT_STORAGE_KEY } from '@/constants/studio'
 import { STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR } from '@/constants/studio-assistant-operator'
+import { hasNewRunItem } from '@/lib/studio-run-submission'
 import { landRecipeInComposer } from '@/lib/studio-workbench-motion'
 import { gateNonRasterInput } from '@/lib/svg-to-png-request'
 import { cn } from '@/lib/utils'
@@ -90,7 +91,7 @@ export function StudioWorkspaceUI() {
   const t = useTranslations('StudioPage')
   const { state, dispatch } = useStudioForm()
   const { imageUpload } = useStudioData()
-  const { isGenerating } = useStudioGen()
+  const { isGenerating, activeRun } = useStudioGen()
   const [editTarget, setEditTarget] = useState<StudioImageEditTarget | null>(
     null,
   )
@@ -213,6 +214,18 @@ export function StudioWorkspaceUI() {
     isTagsWorkbench === (stagePanel === 'cards')
   )
     setStagePanel(null)
+  /**
+   * 一提交舞台就回到结果（11-17 标签台真机：停在构图 / 模板 / 查资料面板上点发送，
+   * 进度卡与结果藏在面板后面，只有助手对话里看得见）。判据是「`activeRun` 里多了
+   * 一条没见过的」—— 出图键、助手出图、视频排队走的都是同一条 `generate`，所以
+   * ⛔ 不在每一颗发送键上各关一次。
+   */
+  const [stagePanelRun, setStagePanelRun] = useState(activeRun)
+  if (stagePanelRun !== activeRun) {
+    setStagePanelRun(activeRun)
+    if (stagePanel && hasNewRunItem(stagePanelRun, activeRun))
+      setStagePanel(null)
+  }
   /**
    * 模板 C（owner 2026-09-26）：模板在舞台上打开；点一张直接套用、回到结果，
    * 输入框正上方给 5 秒「撤销」。套用与撤销住在这里 —— 面板和那句撤销是两处，
@@ -526,6 +539,7 @@ export function StudioWorkspaceUI() {
                             <StudioTagsStage
                               panel={tagsPanel}
                               onClose={closeStagePanel}
+                              onOpenPanel={setStagePanel}
                               bottom
                               templates={templatesPanel}
                               onEditImage={beginEdit}

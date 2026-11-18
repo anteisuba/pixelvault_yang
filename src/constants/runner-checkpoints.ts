@@ -1,14 +1,14 @@
 /**
  * Comfy Runner (ComfyUI on Modal) checkpoint manifest.
  *
- * Single source of truth on the Next.js side for which model id maps to which
- * checkpoint and its own sampling defaults. LoRAs are not listed: any Civitai /
- * Hugging Face LoRA is fetched at request time (R2 → Volume).
+ * Single source of truth for which model id maps to which checkpoint and its
+ * own sampling defaults. LoRAs are not listed: any Civitai / Hugging Face LoRA
+ * is fetched at request time (R2 → Volume).
  *
- * The Cloudflare Worker (`workers/execution/src/providers/runner/checkpoints.ts`)
- * keeps an equivalent manifest — it's a separate package/build target and
- * can't import from `src/constants`, so the two are kept in sync by hand.
- * If you add/remove a checkpoint here, mirror the change there too.
+ * ⚠ No imports on purpose: the Cloudflare Worker reads this very file by
+ * relative path (`workers/execution/src/providers/runner/checkpoints.ts`
+ * re-exports it), and the LoRA prompt dialects derive their Runner parameter
+ * line from it — one table, no hand-kept mirror.
  *
  * See docs/references/domains/runner.md.
  */
@@ -66,8 +66,12 @@ export const RUNNER_CHECKPOINTS: readonly RunnerCheckpointManifestEntry[] = [
     displayName: 'WAI-Illustrious-SDXL v15.0',
     filename: 'waiIllustriousSDXL_v150.safetensors',
     civitaiModelVersionId: 2167369,
-    recommendedSampler: 'ddim',
+    // 作者推荐（civitai.com/models/827184「V5-V15 User Manual」，2026-11-17 核对）：
+    // Euler a · Steps 25–40 · CFG 5–7 · 尺寸大于 1024×1024。取区间中值。
+    recommendedSampler: 'euler_ancestral',
     recommendedScheduler: 'normal',
+    recommendedSteps: 30,
+    recommendedCfg: 6,
     clipSkip: 2,
   },
   // 不预装：首次出图由 app 下发 checkpoint_to_fetch，fork 从 Civitai 下到卷上缓存。
@@ -93,6 +97,9 @@ export const RUNNER_CHECKPOINTS: readonly RunnerCheckpointManifestEntry[] = [
     civitaiModelVersionId: 597138,
     recommendedSampler: 'euler_ancestral',
     recommendedScheduler: 'normal',
+    // 作者没给数值，只说「recommend to decrease CFG scale」（civitai.com/models/261336
+    // v3.0.0 版本说明）；v5.0.0 示例图元数据全是 CFG 5，社区配方中位数同为 5。
+    recommendedCfg: 5,
     clipSkip: 1,
   },
   {
@@ -101,8 +108,13 @@ export const RUNNER_CHECKPOINTS: readonly RunnerCheckpointManifestEntry[] = [
     displayName: 'Pony Diffusion V6 XL',
     filename: 'ponyDiffusionV6XL.safetensors',
     civitaiModelVersionId: 290640,
-    recommendedSampler: 'dpmpp_2m_sde',
-    recommendedScheduler: 'karras',
+    // 作者推荐（civitai.com/models/257749，2026-11-17 核对）：「Using Euler a with 25
+    // steps and resolution of 1024px」「clip skip 2」。作者没写 CFG —— 7 取社区配方
+    // 中位数（lora-prompt-dialects 的 2026-09-28 统计）。
+    recommendedSampler: 'euler_ancestral',
+    recommendedScheduler: 'normal',
+    recommendedSteps: 25,
+    recommendedCfg: 7,
     clipSkip: 2,
     recommendedPositivePrefix: 'score_9, score_8_up, score_7_up',
   },
@@ -215,6 +227,22 @@ export function getRunnerSourceCheckpointDefaultsId(
   return family === 'anima-dit' && /turbo/i.test(versionName)
     ? 'animaTurbo_v11'
     : undefined
+}
+
+/**
+ * 一条底模的出图默认写成一行（`euler_ancestral + normal, 30 steps, CFG 6`）。装配台参数
+ * chip、助手方言段都读这一行 —— ⛔ 别处另写一份采样器/步数/CFG。
+ */
+export function formatRunnerCheckpointSampling(
+  checkpoint: Pick<
+    RunnerCheckpointManifestEntry,
+    | 'recommendedSampler'
+    | 'recommendedScheduler'
+    | 'recommendedSteps'
+    | 'recommendedCfg'
+  >,
+): string {
+  return `${checkpoint.recommendedSampler} + ${checkpoint.recommendedScheduler}, ${checkpoint.recommendedSteps ?? RUNNER_DEFAULT_STEPS} steps, CFG ${checkpoint.recommendedCfg ?? RUNNER_DEFAULT_CFG}`
 }
 
 /** 这一档实际用的 CFG：用户填了用填的，没填用底模默认。 */

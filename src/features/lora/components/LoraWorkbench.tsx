@@ -68,7 +68,6 @@ import {
   getCompatibleBases,
   getDefaultBaseOnlyGenerationBase,
   getDefaultBase,
-  getLoraBaseArchitectureGroup,
   LORA_BASE_MODELS,
   type LoraBaseModel,
 } from '@/features/lora/constants/lora-base-models'
@@ -77,6 +76,7 @@ import {
   getRunnerCheckpointById,
   isRunnerNegativePromptInert,
 } from '@/constants/runner-checkpoints'
+import { getRunnerNativeDimensions } from '@/constants/runner-dimensions'
 import { RUNNER_SAMPLERS, RUNNER_SCHEDULERS } from '@/constants/runner-sampling'
 import { STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR } from '@/constants/studio-assistant-operator'
 import { studioLibraryPath } from '@/constants/studio-shell'
@@ -95,9 +95,10 @@ import {
   type RecipeRecord,
 } from '@/types'
 import { useActiveLoraStack } from '@/features/lora/hooks/use-active-lora-stack'
-import { useUnifiedGenerate } from '@/hooks/use-unified-generate'
+import { useStudioGenerationSession } from '@/contexts/studio-generation-sessions'
 import { CommunitySourceBranch } from '@/features/lora/components/library/LoraLibraryTabs'
-import { LoraPickerDialog } from '@/features/lora/components/library/LoraPickerDialog'
+import { LoraBenchLibraryPanel } from '@/features/lora/components/library/LoraBenchLibraryPanel'
+import { BenchLibrarySheet } from '@/components/business/studio-shared/chrome/BenchLibrarySheet'
 import { useCivitaiMinedPrompts } from '@/features/lora/hooks/use-civitai-mined-prompts'
 import { useHuggingFaceLoraShowcase } from '@/features/lora/hooks/use-huggingface-lora-showcase'
 import { useRunnerUsage } from '@/features/lora/hooks/use-runner-usage'
@@ -151,7 +152,11 @@ import { Slider } from '@/components/ui/slider'
 import { Spinner } from '@/components/ui/spinner'
 import { ImageAttachmentPreviewStrip } from '@/components/business/ImageAttachmentPreviewStrip'
 import { Switch } from '@/components/ui/switch'
-import { buildSourceMatchedLoraPrompt } from '@/features/lora/lib/lora-source-match-prompt'
+import { resolveLoraRestorePlan } from '@/features/lora/lib/lora-source-match-prompt'
+import {
+  characterAttributionIds,
+  characterLorasToMount,
+} from '@/features/lora/lib/character-lora-mount'
 import { getLoraAssetSourceUrl } from '@/features/lora/lib/lora-asset-source-url'
 import { resolveGeneratingStageKey } from '@/lib/generation-progress'
 import {
@@ -634,39 +639,6 @@ function parseOptionalRunnerNumber(value: string): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined
 }
 
-// 与 Worker 的默认尺寸同一张表：DiT 系（Anima · Z-Image）约 1MP，SDXL 系沿用通用尺寸。
-function getRunnerPreviewDimensions(
-  aspectRatio: AspectRatio,
-  isDit: boolean,
-): { width: number; height: number } {
-  if (isDit) {
-    switch (aspectRatio) {
-      case '16:9':
-        return { width: 1344, height: 768 }
-      case '9:16':
-        return { width: 768, height: 1344 }
-      case '4:3':
-        return { width: 1152, height: 864 }
-      case '3:4':
-        return { width: 864, height: 1152 }
-      default:
-        return { width: 1024, height: 1024 }
-    }
-  }
-  switch (aspectRatio) {
-    case '16:9':
-      return { width: 1792, height: 1024 }
-    case '9:16':
-      return { width: 1024, height: 1792 }
-    case '4:3':
-      return { width: 1024, height: 768 }
-    case '3:4':
-      return { width: 768, height: 1024 }
-    default:
-      return { width: 1024, height: 1024 }
-  }
-}
-
 /**
  * 给定底模的 providerModelId，判断当前用户有没有可用的 key 路由（保存的 key）。
  * 纯函数——GenerateBranch 用它算当前选中底模的状态，
@@ -736,7 +708,9 @@ function GenerateBranch({
     error: generateError,
     activeRun,
     cancelRunItem,
-  } = useUnifiedGenerate()
+    // 住在外壳的 `lora` 槽（⛔ 本地 `useUnifiedGenerate()`）：换去配音台再回来，
+    // 在飞那一单的进度与跑完的结果都还在（11-17 真机：本地那份随卸载连轮询一起丢）。
+  } = useStudioGenerationSession('lora')
   const tStudioV3 = useTranslations('StudioV3')
   const tCancel = useTranslations('GenerationCancel')
   // LoRA 出图是单次无批次，`activeRun.items[0]` 即这次请求的 pending 项——
@@ -1149,14 +1123,6 @@ function GenerateBranch({
     setPromptClamped(el.scrollHeight > restHeight + 1)
   }, [composerExpanded, prompt])
 
-  const handleRestore = useCallback(() => {
-    if (!activeAsset) return
-    const matched = buildSourceMatchedLoraPrompt(activeAsset)
-    setPrompt((prev) => keepPromptTriggers(prev, matched.prompt))
-    setNegativePrompt(matched.negativePrompt)
-    stack.setScale(activeAsset.id, matched.scale)
-  }, [activeAsset, keepPromptTriggers, stack])
-
   // B10 (D7④/§2①) 多挂载配方分组：来源图 strip 一次只展示一个挂载的源图集，
   // 上方分组 chips 切换（单挂时隐藏）。recipeGroupAsset = 当前被选中的分组，
   // 默认第一个挂载；指向已卸载的 LoRA 时回落到 items[0]。
@@ -1317,18 +1283,9 @@ function GenerateBranch({
     if (exactWidth && exactHeight && !runnerParameterError) {
       return { width: exactWidth, height: exactHeight }
     }
-    return getRunnerPreviewDimensions(
-      aspectRatio,
-      selectedBase != null &&
-        getLoraBaseArchitectureGroup(selectedBase.family) === 'dit',
-    )
-  }, [
-    aspectRatio,
-    runnerHeight,
-    runnerParameterError,
-    runnerWidth,
-    selectedBase?.family,
-  ])
+    // 与 Worker 出图同一张 ~1MP 表（SDXL 系与 DiT 系同档）。
+    return getRunnerNativeDimensions(aspectRatio)
+  }, [aspectRatio, runnerHeight, runnerParameterError, runnerWidth])
   const upscaleFinalWidth = previewDimensions.width * 4
   const upscaleFinalHeight = previewDimensions.height * 4
   const upscaleOutputIsLarge =
@@ -1817,6 +1774,38 @@ function GenerateBranch({
     ],
   )
 
+  // 「忠实还原」：来源图里有参数齐全的那张 → 走「做同款」同一条路原样复现（源 prompt /
+  // 负面 / sampler / steps / CFG / seed / 尺寸 / 权重，⛔ 不追加任何词）；没有 → 只能用
+  // 推荐提示词近似，并如实告诉用户（⛔ 不假装忠实）。对象是来源图带当前那一组挂载。
+  const handleRestore = useCallback(() => {
+    if (!recipeGroupAsset) return
+    const plan = resolveLoraRestorePlan(recipeGroupAsset, {
+      outfits: mined.outfits,
+      recipes: mined.recipes,
+    })
+    if (plan.kind === 'faithful') {
+      handleApplyRecipe(plan.recipe, {
+        includeSeed: true,
+        extraLoras: plan.recipe.extraLoras ?? [],
+      })
+      return
+    }
+    setPrompt((prev) => keepPromptTriggers(prev, plan.prompt))
+    setNegativePrompt(plan.negativePrompt)
+    toast.info(
+      plan.reliable
+        ? t('generate.restoreApproximate')
+        : t('generate.restoreApproximateSparse'),
+    )
+  }, [
+    handleApplyRecipe,
+    keepPromptTriggers,
+    mined.outfits,
+    mined.recipes,
+    recipeGroupAsset,
+    t,
+  ])
+
   // G3b-2b 撤销：把做同款前的输入快照整批写回（prompt/negative/aspect/seed/
   // runner 各参数 + 该分组 scale），清空 appliedRecipe。范围=输入回滚；做同款
   // 挂上的额外 LoRA 不自动卸载（由装配行 chip 单独管，避免撤销牵动挂载栈）。
@@ -1985,8 +1974,14 @@ function GenerateBranch({
   const handlePickCharacterLora = useCallback(
     (group: CharacterLoraGroup, lora: LoraAssetRecord) => {
       setCharacterPickOpen(false)
-      if (!stack.items.some((item) => item.asset.id === lora.id)) {
-        stack.push(lora)
+      // 点她的一个 = 连同这套造型的、她通用的一起挂上（11-17；同底模家族、去重，逐枚可拿掉）。
+      const picked = group.loras.find((item) => item.id === lora.id)
+      for (const item of picked
+        ? characterLorasToMount(group, picked)
+        : [lora]) {
+        if (!stack.items.some((entry) => entry.asset.id === item.id)) {
+          stack.push(item)
+        }
       }
       // 这个 LoRA 挂在哪套造型下就给哪套的标签；通用的给默认造型的（角色④）。
       const lookId = group.loras.find((item) => item.id === lora.id)?.lookId
@@ -2024,13 +2019,54 @@ function GenerateBranch({
     [operatorBaseLabel, selectedBase],
   )
   useRegisterLoraLibraryPick(stageContext)
-  // 桌面「＋ 添加 LoRA」= 挑 LoRA 框（ui-spec ㉔），台不动；手机仍切到卡里的库那一栏。
-  // 助手「打开库」照旧去库整页（`onOpenLibrary`）。
-  const [loraPickerOpen, setLoraPickerOpen] = useState(false)
-  const addLora = useCallback(() => {
-    if (isMobile) onOpenLibrary()
-    else setLoraPickerOpen(true)
-  }, [isMobile, onOpenLibrary])
+  // 「＋ LoRA」= 工作台里开库（11-18）：桌面盖在舞台上（左格右详情），手机换接近满屏的
+  // 底部抽屉；台不动。药丸小卡「看详情」带着那一把进来。助手「打开库」照旧去库整页。
+  const [libraryPanel, setLibraryPanel] = useState<{
+    focus: LoraAssetRecord | null
+  } | null>(null)
+  const addLora = useCallback(() => setLibraryPanel({ focus: null }), [])
+  const openLoraDetail = useCallback(
+    (asset: LoraAssetRecord) => setLibraryPanel({ focus: asset }),
+    [],
+  )
+  const closeLibraryPanel = useCallback(() => setLibraryPanel(null), [])
+  const libraryOverStage = libraryPanel !== null && !isMobile
+  // 面板示例图「做同款」：面板先挂上那把，这里把来源图分组切到它，等它真成了
+  // `recipeGroupAsset` 再走台上原有的 `handleApplyRecipe`（⛔ 另写一份做同款）。
+  const pendingMakeSameRef = useRef<{
+    assetId: string
+    recipe: CivitaiImageRecipe
+  } | null>(null)
+  const [makeSameTick, setMakeSameTick] = useState(0)
+  const makeSameFromLibrary = useCallback(
+    (asset: LoraAssetRecord, recipe: CivitaiImageRecipe) => {
+      pendingMakeSameRef.current = { assetId: asset.id, recipe }
+      setRecipeGroupAssetId(asset.id)
+      setMakeSameTick((tick) => tick + 1)
+    },
+    [],
+  )
+  const recipeGroupAssetIdNow = recipeGroupAsset?.id ?? null
+  useEffect(() => {
+    const pending = pendingMakeSameRef.current
+    if (!pending || pending.assetId !== recipeGroupAssetIdNow) return
+    pendingMakeSameRef.current = null
+    handleApplyRecipe(pending.recipe, {
+      includeSeed: false,
+      extraLoras: pending.recipe.extraLoras ?? [],
+    })
+  }, [handleApplyRecipe, makeSameTick, recipeGroupAssetIdNow])
+  const libraryPanelElement = (variant: 'stage' | 'sheet') =>
+    libraryPanel ? (
+      <LoraBenchLibraryPanel
+        key={libraryPanel.focus?.id ?? 'browse'}
+        variant={variant}
+        stage={stageContext}
+        initialAsset={libraryPanel.focus}
+        onClose={closeLibraryPanel}
+        onMakeSame={makeSameFromLibrary}
+      />
+    ) : null
   /**
    * 装配台自己那条结果列 → 结果行卡（§2.11，切片 3b）。
    *
@@ -2263,6 +2299,8 @@ function GenerateBranch({
           advanced.runnerUpscaler = runnerUpscaler
         }
 
+        // runnerClipSkip 没有界面控件：只随已应用的配方（recipeParams）原样带上，
+        // 撤销配方即随之消失；没配方 = Worker 用底模自己的。
         const activeRecipe = activeAppliedRecipe?.recipe
         if (
           activeRecipe?.checkpointHash &&
@@ -2298,12 +2336,18 @@ function GenerateBranch({
         delete advanced.runnerSeed
         delete advanced.runnerSampler
         delete advanced.runnerScheduler
+        delete advanced.runnerClipSkip
         delete advanced.runnerWidth
         delete advanced.runnerHeight
         delete advanced.runnerUpscaler
       }
       // 点「出图」这一刻结果卡就是主角：来源图带先收成一行，把高度让给它（§2.2）。
       setBandExpanded(false)
+      // 挂着她独有的 LoRA = 这张记到她名下（只归属，⛔ 不编她的卡进正文，11-17）。
+      const attributedCharacterIds = characterAttributionIds(
+        characterLorasContext?.groups ?? [],
+        enabledEntries.map((entry) => entry.asset),
+      )
       const record = await generate({
         mode: 'image',
         operatorResultOwner,
@@ -2317,6 +2361,9 @@ function GenerateBranch({
           advancedParams:
             Object.keys(advanced).length > 0 ? advanced : undefined,
           sourceSurface: 'LORA_WORKBENCH',
+          ...(attributedCharacterIds.length > 0
+            ? { characterAttributionIds: attributedCharacterIds }
+            : {}),
         },
       })
       // D7③: on success, prepend to the session filmstrip and select it as the
@@ -2357,6 +2404,7 @@ function GenerateBranch({
     [
       aspectRatio,
       appliedRecipe,
+      characterLorasContext,
       generate,
       imageUpload.referenceImages,
       isRunnerBase,
@@ -2387,16 +2435,12 @@ function GenerateBranch({
     (ratio: AspectRatio) => {
       setAspectRatio(ratio)
       if (isRunnerBase) {
-        const dimensions = getRunnerPreviewDimensions(
-          ratio,
-          selectedBase != null &&
-            getLoraBaseArchitectureGroup(selectedBase.family) === 'dit',
-        )
+        const dimensions = getRunnerNativeDimensions(ratio)
         setRunnerWidth(String(dimensions.width))
         setRunnerHeight(String(dimensions.height))
       }
     },
-    [isRunnerBase, selectedBase?.family],
+    [isRunnerBase],
   )
 
   // 主入口已经挪到「选底模」（见 handleSelectBase）。这里只是兜底：万一用户
@@ -4232,6 +4276,14 @@ function GenerateBranch({
             />
           </div>
         ) : null}
+        {libraryOverStage ? (
+          // 「+ LoRA」：同模板一样盖在结果上（结果层不卸载）；输入框只留药丸与工具行（11-18
+          // 真机：面板只到舞台一截）。⛔ 往上盖顶上那行：来源图药丸与助手头像画在更高层，
+          // 会压住面板标题（11-18 二次真机）。
+          <div className="absolute inset-0 z-10 flex flex-col overflow-hidden rounded-xl border border-border bg-background shadow-pop animate-in fade-in-0 slide-in-from-bottom-2 duration-base ease-standard motion-reduce:animate-none">
+            {libraryPanelElement('stage')}
+          </div>
+        ) : null}
       </section>
 
       {/* 输入框（§2.4）：搭配状态条 → 提示词 → 负面词（原位展开）→ 工具行。 */}
@@ -4285,6 +4337,7 @@ function GenerateBranch({
             selectedBase={selectedBase}
             loraScaleConfig={loraScaleConfig}
             onAddLora={addLora}
+            onOpenDetail={openLoraDetail}
           />
           {runnerBudgetBlocked ? runnerBudgetNote : null}
           {isMountingExtras ? (
@@ -4382,6 +4435,8 @@ function GenerateBranch({
             className={cn(
               'relative min-w-0',
               promptClamped && 'lora-prompt-clamped',
+              // 开库时提示词让位给面板（只藏不卸载，内容与焦点逻辑都不动）。
+              libraryOverStage && 'hidden',
             )}
           >
             <label htmlFor="lora-prompt" className="sr-only">
@@ -4675,11 +4730,18 @@ function GenerateBranch({
 
       {/* 助手：与图片台同一颗 Dock；桌面展开时 root 把工作台让出来（§2.5）。 */}
       <StudioOperatorBenchDock />
-      <LoraPickerDialog
-        open={loraPickerOpen}
-        onOpenChange={setLoraPickerOpen}
-        stage={stageContext}
-      />
+      {isMobile ? (
+        <BenchLibrarySheet
+          open={libraryPanel !== null}
+          onOpenChange={(open) => {
+            if (!open) closeLibraryPanel()
+          }}
+          title={t('benchLibrary.title')}
+          description={t('benchLibrary.hint')}
+        >
+          {libraryPanelElement('sheet')}
+        </BenchLibrarySheet>
+      ) : null}
       {templateDialogItem ? (
         <SaveGenerationTemplateDialog
           generation={{

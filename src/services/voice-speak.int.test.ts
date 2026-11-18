@@ -121,6 +121,32 @@ describe('speakAsPersona（真库，假 Worker）', () => {
     )
   })
 
+  it('句中的想法段不念、不存；语气标记照发（11-17）', async () => {
+    const voice = await voiceCard(me.id)
+    await bindPersona({ voiceCardId: voice.id })
+    await speakAsPersona(me.clerkId, {
+      text: '[happy] 好呀～\n<thought>她要的是轻松一点的</thought>\n我们走吧。',
+    })
+    const body = JSON.stringify(worker.bodies[0])
+    expect(body).not.toContain('thought')
+    expect(body).not.toContain('她要的是')
+    expect(body).toContain('[happy] 好呀～')
+
+    await expect(
+      speakAsPersona(me.clerkId, { text: '<thought>只是在想</thought>' }),
+    ).rejects.toMatchObject({ errorCode: 'ASSISTANT_VOICE_NOTHING_TO_SAY' })
+    expect(await db.generationJob.count()).toBe(1)
+  })
+
+  it('语速：1.0 不传；别的档照传到 Worker（11-17）', async () => {
+    const voice = await voiceCard(me.id)
+    await bindPersona({ voiceCardId: voice.id })
+    await speakAsPersona(me.clerkId, { text: '在呢', speed: 1 })
+    await speakAsPersona(me.clerkId, { text: '在呢', speed: 1.2 })
+    expect(JSON.stringify(worker.bodies[0])).not.toContain('"speed"')
+    expect(JSON.stringify(worker.bodies[1])).toContain('"speed":1.2')
+  })
+
   it('默认助手 / 没绑嗓子 / 卡删了：念不了，不建任务', async () => {
     const voice = await voiceCard(me.id)
     for (const card of [

@@ -1,4 +1,5 @@
 import type { AspectRatio } from '@/constants/config'
+import { clampRunnerDimensionsToNative } from '@/constants/runner-dimensions'
 import { normalizeCivitaiRunnerSampling } from '@/constants/runner-sampling'
 import { STUDIO_IMAGE_ASPECT_RATIOS } from '@/constants/studio'
 import { mergeNegativePrompt } from '@/features/lora/lib/lora-source-match-prompt'
@@ -39,28 +40,23 @@ function parseSizeRaw(
   return { width, height }
 }
 
-/** 原图超过这个像素数多半是放大过的成品，不能直接当出图尺寸。 */
-const NATIVE_SIZE_MAX_PIXELS = 1_600_000
-/** 放大过的原图按比例缩回这个面积（≈1MP，SDXL / Anima 的原生档）。 */
-const NATIVE_SIZE_TARGET_PIXELS = 1024 * 1024
-
+/**
+ * 配方的出图尺寸，夹进 Runner 的原生 ~1MP 档（与按比例出图同一张表的面积）：
+ * meta.Size / baseWidth 写的原样用；超线的（作者本地跑了 1536² 之类、或没写 Size 时
+ * 拿到的是放大后的成品图）按原比例缩回 ≈1MP。
+ */
 function parseBaseDimensions(
   recipe: CivitaiImageRecipe,
 ): { width: number; height: number } | null {
   if (recipe.baseWidth && recipe.baseHeight) {
-    return { width: recipe.baseWidth, height: recipe.baseHeight }
+    return clampRunnerDimensionsToNative(recipe.baseWidth, recipe.baseHeight)
   }
   const sized = parseSizeRaw(recipe.sizeRaw)
-  if (sized || recipe.sizeRaw !== undefined) return sized
-  // 元数据没写 Size：没放大过的原图本身就是出图尺寸；放大过的按比例缩回 ≈1MP。
+  if (sized) return clampRunnerDimensionsToNative(sized.width, sized.height)
+  if (recipe.sizeRaw !== undefined) return null
   const { width, height } = recipe
   if (!width || !height) return null
-  if (width * height <= NATIVE_SIZE_MAX_PIXELS) return { width, height }
-  const scale = Math.sqrt(NATIVE_SIZE_TARGET_PIXELS / (width * height))
-  return {
-    width: Math.round((width * scale) / 64) * 64,
-    height: Math.round((height * scale) / 64) * 64,
-  }
+  return clampRunnerDimensionsToNative(width, height)
 }
 
 /**
@@ -184,7 +180,17 @@ export function buildCivitaiRecipeGenerationPlan(
       skippedParams.push('scheduler')
     }
   }
-  if (recipe.clipSkip !== undefined) skippedParams.push('clipSkip')
+  if (recipe.clipSkip !== undefined) {
+    if (
+      AdvancedParamsSchema.shape.runnerClipSkip.safeParse(recipe.clipSkip)
+        .success
+    ) {
+      advanced.runnerClipSkip = recipe.clipSkip
+      appliedParams.push('clipSkip')
+    } else {
+      skippedParams.push('clipSkip')
+    }
+  }
 
   let loraScale: number | undefined
   if (recipe.loraWeight !== undefined) {
@@ -292,6 +298,9 @@ export function applyRecipePlanToAdvancedParams(
   }
   if (planParams.runnerScheduler !== undefined) {
     next.runnerScheduler = planParams.runnerScheduler
+  }
+  if (planParams.runnerClipSkip !== undefined) {
+    next.runnerClipSkip = planParams.runnerClipSkip
   }
   if (planParams.runnerWidth !== undefined) {
     next.runnerWidth = planParams.runnerWidth

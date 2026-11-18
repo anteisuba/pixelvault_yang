@@ -1,10 +1,17 @@
 import {
   NOVELAI_CHARACTER_GRID_SIZE,
+  NOVELAI_IMAGE_DIMENSIONS,
   NOVELAI_SAMPLER_OPTIONS,
   getNovelAiCharacterLayoutMode,
   getNovelAiMaxCharacters,
 } from '@/constants/novelai'
 import type { AspectRatio } from '@/constants/config'
+import { getCapabilityConfig } from '@/constants/provider-capabilities'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import {
+  stripNovelAiQualityTags,
+  stripNovelAiUcPreset,
+} from '@/lib/novelai-compose'
 import type { AdvancedParams } from '@/types'
 import type { ImageRecipeReading } from '@/types/image-recipe'
 import { NovelAiCharacterLayoutSchema } from '@/types/novelai'
@@ -127,6 +134,25 @@ export function imageRecipeRows(
   )
 }
 
+function clamp(value: number, range: { min: number; max: number }): number {
+  return Math.min(range.max, Math.max(range.min, value))
+}
+
+/** NovelAI 只有 `NOVELAI_IMAGE_DIMENSIONS` 那五档比例，挑最接近的一档。 */
+function closestNovelAiAspectRatio(width: number, height: number): AspectRatio {
+  const actual = Math.max(width, 1) / Math.max(height, 1)
+  let best = '1:1'
+  let bestGap = Infinity
+  for (const [ratio, size] of Object.entries(NOVELAI_IMAGE_DIMENSIONS)) {
+    const gap = Math.abs(size.width / size.height - actual)
+    if (gap < bestGap) {
+      best = ratio
+      bestGap = gap
+    }
+  }
+  return best as AspectRatio
+}
+
 /** 5×5 网格的格心（V4.5 只能落在格心上）。 */
 function snapToGrid(value: number): number {
   const cell = Math.min(
@@ -145,6 +171,8 @@ export function applyImageRecipe(
   selected: ReadonlySet<ImageRecipeRowKey>,
   current: ImageRecipeTarget,
   characterModelId: string | undefined,
+  /** 这一轮的主模型：参数按它的能力表夹紧；是 NovelAI 时剥掉重复的预设串。 */
+  targetModel?: { adapterType: AI_ADAPTER_TYPES; modelId: string },
 ): ImageRecipeTarget {
   const next: ImageRecipeTarget = {
     prompt: current.prompt,
@@ -163,14 +191,51 @@ export function applyImageRecipe(
 
   const mode = getNovelAiCharacterLayoutMode(characterModelId)
   const characters = selected.has('characters') ? recipe.characters : []
+  const config = targetModel
+    ? getCapabilityConfig(targetModel.adapterType, targetModel.modelId)
+    : undefined
+  const novelAi = targetModel?.adapterType === AI_ADAPTER_TYPES.NOVELAI
+  // NovelAI 写进图里的正面 / 负面已经带着网页端拼好的质量标签串与 UC 预设串；
+  // 台上的两个开关还会再拼一遍 —— 认得出的整串剥掉，开关拨到同一档。
+  // NovelAI 自己的图里认不出 = 当时那颗开关是关的；别家（A1111 / Civitai）的
+  // 配方认不出就不碰开关。
+  const fromNovelAi = recipe.source === 'novelai'
+  const setPreset = (
+    field: 'qualityToggle' | 'ucPreset',
+    options: readonly string[] | undefined,
+    detected: string | null,
+    off: string,
+  ) => {
+    const value = detected ?? (fromNovelAi ? off : null)
+    if (value && options?.includes(value)) {
+      next.advancedParams = { ...next.advancedParams, [field]: value }
+    }
+  }
+  let positive = recipe.prompt
+  if (novelAi && selected.has('positive')) {
+    const stripped = stripNovelAiQualityTags(positive)
+    positive = stripped.prompt
+    setPreset(
+      'qualityToggle',
+      config?.qualityToggleOptions,
+      stripped.preset,
+      'off',
+    )
+  }
+  let negative = recipe.negative
+  if (novelAi && selected.has('negative')) {
+    const stripped = stripNovelAiUcPreset(negative)
+    negative = stripped.negative
+    setPreset('ucPreset', config?.ucPresetOptions, stripped.preset, 'none')
+  }
   if (selected.has('positive')) {
     next.prompt =
       mode || characters.length === 0
-        ? recipe.prompt
-        : [recipe.prompt, ...characters.map((c) => c.prompt)].join(', ')
+        ? positive
+        : [positive, ...characters.map((c) => c.prompt)].join(', ')
   }
   if (selected.has('negative'))
-    next.advancedParams.negativePrompt = recipe.negative || undefined
+    next.advancedParams.negativePrompt = negative || undefined
   if (mode && characters.length > 0) {
     const layout = NovelAiCharacterLayoutSchema.safeParse({
       positioning: recipe.manualPositions ? 'manual' : 'auto',
@@ -191,17 +256,24 @@ export function applyImageRecipe(
     if (layout.success) next.advancedParams.novelAiLayout = layout.data
   }
   if (selected.has('params')) {
+    // 按目标模型的能力表夹紧：步数 / CFG 落在它的值域里，采样器只收它认的那几档，
+    // NovelAI 的尺寸只有五档（不在表里的比例 worker 会掉回 1024²）。
+    const stepsRange = config?.steps ?? { min: 1, max: 100 }
+    const cfgRange = config?.guidanceScale ?? { min: 0, max: 30 }
     if (recipe.steps !== null && Number.isInteger(recipe.steps))
-      next.advancedParams.steps = Math.min(100, Math.max(1, recipe.steps))
+      next.advancedParams.steps = clamp(recipe.steps, stepsRange)
     if (recipe.cfg !== null)
-      next.advancedParams.guidanceScale = Math.min(30, Math.max(0, recipe.cfg))
-    const sampler = NOVELAI_SAMPLER_OPTIONS.find((s) => s === recipe.sampler)
+      next.advancedParams.guidanceScale = clamp(recipe.cfg, cfgRange)
+    const samplers: readonly string[] =
+      config?.samplerOptions ?? NOVELAI_SAMPLER_OPTIONS
+    const sampler = NOVELAI_SAMPLER_OPTIONS.find(
+      (s) => s === recipe.sampler && samplers.includes(s),
+    )
     if (sampler) next.advancedParams.sampler = sampler
     if (recipe.width && recipe.height)
-      next.aspectRatio = resolveClosestStudioAspectRatio(
-        recipe.width,
-        recipe.height,
-      )
+      next.aspectRatio = novelAi
+        ? closestNovelAiAspectRatio(recipe.width, recipe.height)
+        : resolveClosestStudioAspectRatio(recipe.width, recipe.height)
   }
   const seed = seedOf(reading)
   if (selected.has('seed') && seed !== null) next.advancedParams.seed = seed

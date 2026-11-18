@@ -255,7 +255,13 @@ describe('GalleryFeed', () => {
       filters: { types: ['video'], models: ['some-model'], timeRange: 'week' },
     })
 
-    expect(screen.getByText(en('GalleryPage.emptyTitle'))).toBeInTheDocument()
+    // 旧链接带进来的模型 / 时间筛选算「收窄了」：说没找到，⛔ 说库是空的。
+    expect(
+      screen.getByText(en('GalleryPage.noResultsFilteredTitle')),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText(en('GalleryPage.emptyTitle')),
+    ).not.toBeInTheDocument()
     expect(
       screen.getByRole('tab', { name: en('GalleryPage.filters.type.video') }),
     ).toHaveAttribute('aria-selected', 'true')
@@ -271,6 +277,48 @@ describe('GalleryFeed', () => {
     expect(
       await screen.findAllByRole('link', { name: en('GalleryCard.openImage') }),
     ).toHaveLength(1)
+  })
+
+  it('搜索没结果：说「没有找到匹配」+「清除搜索」，⛔ 库是空的那句；点清除按无搜索重拉', async () => {
+    const server = galleryServer()
+    server.reply({ generations: [work('a')] })
+    window.history.pushState(null, '', '/zh/gallery?search=pink+hair')
+    renderFeed({ filters: { search: 'pink hair' } })
+
+    expect(
+      screen.getByText(
+        en('GalleryPage.noResultsSearchTitle').replace('{query}', 'pink hair'),
+      ),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText(en('GalleryPage.emptyTitle')),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('link', { name: en('GalleryPage.emptyAction') }),
+    ).not.toBeInTheDocument()
+
+    fireEvent.click(
+      screen.getByRole('button', { name: en('GalleryPage.clearSearch') }),
+    )
+
+    expect(window.location.pathname + window.location.search).toBe(
+      '/zh/gallery',
+    )
+    await waitFor(() => expect(server.queries).toHaveLength(1))
+    expect(server.queries[0]!.get('search')).toBeNull()
+    expect(
+      await screen.findAllByRole('link', { name: en('GalleryCard.openImage') }),
+    ).toHaveLength(1)
+  })
+
+  it('什么都没收窄、库本身空：照旧「还很安静」+「打开工作台」', () => {
+    galleryServer()
+    renderFeed()
+
+    expect(screen.getByText(en('GalleryPage.emptyTitle'))).toBeInTheDocument()
+    expect(
+      screen.getByRole('link', { name: en('GalleryPage.emptyAction') }),
+    ).toBeInTheDocument()
   })
 
   it('点卡就地打开查看器、页面不滚；换筛选就把查看器放下', async () => {

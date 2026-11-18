@@ -263,12 +263,15 @@ export function SpecChip({
     model.resolutionNote === null
       ? null
       : model.resolutionNote.kind === 'unsupported'
-        ? model.resolutionNote.maxSupported
-          ? t('resolutionCeiling', {
-              tier: model.resolutionNote.tier,
+        ? // 段标题这一行说的是**模型**，⛔ 不是当前选中的那一档：把不支持的档全列出来。
+          model.resolutionNote.maxSupported
+          ? t('resolutionCeilingNote', {
+              tiers: model.resolutionNote.tiers.join(' / '),
               max: model.resolutionNote.maxSupported,
             })
-          : t('tierUnsupported', { tier: model.resolutionNote.tier })
+          : t('resolutionUnsupportedNote', {
+              tiers: model.resolutionNote.tiers.join(' / '),
+            })
         : t('priceDelta', {
             tier: model.resolutionNote.tier,
             amount: formatUnitPriceAmount(model.resolutionNote.deltaPerSecond),

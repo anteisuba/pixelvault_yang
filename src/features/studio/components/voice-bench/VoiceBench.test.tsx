@@ -122,6 +122,48 @@ describe('VoiceBench（配音台 ③）', () => {
     expect(box.value).toBe('别回头[sighing]走吧')
   })
 
+  it('语气药丸显示台词里已写的语气（11-17：选了开心按钮还写着「语气」）；删了字就回到「语气」', async () => {
+    renderBench()
+    await lineRow()
+    const box = screen.getByRole('textbox') as HTMLTextAreaElement
+    const chip = screen.getByTestId('voice-bench-cues')
+    expect(chip).toHaveTextContent(T('cue'))
+    fireEvent.click(chip)
+    fireEvent.click(screen.getByTitle('[happy]'))
+    expect(box.value).toBe('[happy]')
+    expect(chip).toHaveTextContent(T('cues.happy'))
+    expect(chip).toHaveAttribute('data-picked', 'happy')
+
+    fireEvent.change(box, { target: { value: '没有语气了' } })
+    expect(chip).toHaveTextContent(T('cue'))
+    expect(chip).not.toHaveAttribute('data-picked')
+  })
+
+  it('语速药丸：默认 1.0 不带语速；挑了 1.2× 就照传，药丸上显示', async () => {
+    api.speak.mockReturnValue(new Promise(() => {}))
+    renderBench()
+    await lineRow()
+    const box = screen.getByRole('textbox', { name: T('placeholder') })
+    const chip = screen.getByTestId('voice-bench-speed')
+    expect(chip).toHaveTextContent(T('speed'))
+
+    fireEvent.change(box, { target: { value: '第一句' } })
+    fireEvent.keyDown(box, { key: 'Enter' })
+    await waitFor(() => expect(api.speak).toHaveBeenCalledTimes(1))
+    expect(api.speak.mock.calls[0]![0]).not.toHaveProperty('speed')
+
+    fireEvent.pointerDown(chip, { button: 0, ctrlKey: false })
+    fireEvent.click(await screen.findByRole('menuitemradio', { name: /1\.2×/ }))
+    expect(chip).toHaveTextContent('1.2×')
+    fireEvent.change(box, { target: { value: '第二句' } })
+    fireEvent.keyDown(box, { key: 'Enter' })
+    await waitFor(() => expect(api.speak).toHaveBeenCalledTimes(2))
+    expect(api.speak.mock.calls[1]![0]).toMatchObject({
+      text: '第二句',
+      speed: 1.2,
+    })
+  })
+
   it('按她说：改好的字回到输入框，⛔ 直接念', async () => {
     api.rewrite.mockResolvedValue({
       success: true,

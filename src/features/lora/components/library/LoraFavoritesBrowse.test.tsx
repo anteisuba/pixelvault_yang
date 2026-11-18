@@ -280,4 +280,55 @@ describe('LoraFavoritesBrowse（库 B · 收藏）', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Denia' }))
     expect(screen.queryByRole('button', { name: 'Qingxiao' })).toBeNull()
   })
+
+  it('characters section: mounting one of hers also mounts her same-look and general LoRAs (same family, deduped)', async () => {
+    const outfit = makeAsset('3003', 'Outfit', {
+      createdAt: '2026-08-01T00:00:00.000Z',
+    })
+    const general = makeAsset('3004', 'General', {
+      createdAt: '2026-08-02T00:00:00.000Z',
+    })
+    const otherLook = makeAsset('3005', 'OtherLook', {
+      createdAt: '2026-08-03T00:00:00.000Z',
+    })
+    renderFavorites({
+      section: 'characters',
+      characterGroups: [
+        {
+          characterCardId: 'c1',
+          name: 'Denia',
+          coverUrl: null,
+          looks: [],
+          loras: [
+            { ...roccia, lookId: 'look-a' },
+            { ...outfit, lookId: 'look-a' },
+            { ...general, lookId: null },
+            { ...otherLook, lookId: 'look-b' },
+            // 不同底模家族：不跟着挂
+            { ...qingxiao, lookId: null },
+          ],
+        },
+      ],
+    })
+
+    const tiles = screen
+      .getAllByRole('button', {
+        name: /^(Roccia|Qingxiao|Outfit|General|OtherLook)$/,
+      })
+      .map((button) => button.getAttribute('aria-label'))
+    openMore(tiles.indexOf('Roccia'))
+    fireEvent.click(
+      screen.getByRole('menuitem', {
+        name: 'LoraWorkbench.browse:mountLabel:{"name":"Roccia"}',
+      }),
+    )
+    await waitFor(() =>
+      expect(screen.getByRole('status', { name: 'stack' })).toHaveTextContent(
+        'Roccia,Outfit,General',
+      ),
+    )
+    expect(screen.getByRole('status', { name: 'stack' })).not.toHaveTextContent(
+      /OtherLook|Qingxiao/,
+    )
+  })
 })

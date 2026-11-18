@@ -263,4 +263,34 @@ describe('handleExecutionCallback · 语音', () => {
       duration: 3,
     })
   })
+
+  it('Worker 念好的那一句带着「谁念的」落库（配音台按 snapshot.voiceId 认台词，11-17）', async () => {
+    const job = await seedJob(me.id, {
+      modelId: 'fish-audio-s2-pro',
+      adapterType: 'fish_audio',
+      provider: 'Fish Audio',
+      metadata: {
+        outputType: 'AUDIO',
+        audioFormat: 'mp3',
+        voiceId: 'fish-voice-1',
+        voiceName: '晴',
+        audioCoverUrl: 'https://cdn.example.com/cover.png',
+      },
+    })
+
+    await sendCallback(job.id, 'result', {
+      artifactUrl: `${FAKE_CDN}/generations/worker.mp3`,
+      audioR2Key: 'generations/worker.mp3',
+      mimeType: 'audio/mpeg',
+      duration: 3,
+      requestCount: 1,
+    })
+
+    const generation = await onlyGeneration()
+    expect(generation.previewUrl).toBe('https://cdn.example.com/cover.png')
+    expect(generation.snapshot).toMatchObject({
+      voiceId: 'fish-voice-1',
+      voiceName: '晴',
+    })
+  })
 })

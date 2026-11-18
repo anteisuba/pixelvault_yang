@@ -293,6 +293,8 @@
   "VideoPlayer": {
     "play": "播放",
     "pause": "暂停",
+    "mute": "静音",
+    "unmute": "取消静音",
     "fullscreen": "全屏",
     "download": "下载",
     "errorPlayback": "无法播放此视频，请重试。"
@@ -516,6 +518,8 @@
     "loadFailed": "台词没读出来",
     "retry": "再试一次",
     "cue": "语气",
+    "speed": "语速",
+    "unlisted": "念好了，素材库稍后显示",
     "noPersonaTitle": "先换成一个角色",
     "noPersonaBody": "配音台用她的嗓子念，默认助手没有嗓子。",
     "switchPersona": "换一个角色",

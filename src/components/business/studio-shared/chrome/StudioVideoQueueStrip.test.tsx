@@ -55,3 +55,52 @@ describe('video queue user-facing errors', () => {
     expect(onRetry).toHaveBeenCalledWith('failed-video')
   })
 })
+
+describe('video queue cover', () => {
+  const done = (thumbnailUrl: string | null): RunItem => ({
+    id: 'done-video',
+    modelId: 'demo-video',
+    status: 'completed',
+    generation: {
+      id: 'gen-1',
+      url: 'https://cdn.example.com/take.mp4',
+      thumbnailUrl,
+    } as Extract<RunItem, { status: 'completed' }>['generation'],
+    error: null,
+  })
+
+  it.each(['cards', 'strip'] as const)(
+    '%s：没有封面时停在片子首帧，不留一块素色格子',
+    (variant) => {
+      const { container } = render(
+        <StudioVideoQueueStrip
+          items={[done(null)]}
+          focusedItemId={null}
+          onFocus={vi.fn()}
+          onRetry={vi.fn()}
+          variant={variant}
+        />,
+      )
+      const frame = screen.getByTestId('studio-video-queue-cover-frame')
+      expect(frame.getAttribute('src')).toBe(
+        'https://cdn.example.com/take.mp4#t=0.1',
+      )
+      expect(container.querySelector('img')).toBeNull()
+    },
+  )
+
+  it('有封面时用封面', () => {
+    const { container } = render(
+      <StudioVideoQueueStrip
+        items={[done('https://cdn.example.com/poster.jpg')]}
+        focusedItemId={null}
+        onFocus={vi.fn()}
+        onRetry={vi.fn()}
+      />,
+    )
+    expect(container.querySelector('img')?.getAttribute('src')).toBe(
+      'https://cdn.example.com/poster.jpg',
+    )
+    expect(screen.queryByTestId('studio-video-queue-cover-frame')).toBeNull()
+  })
+})

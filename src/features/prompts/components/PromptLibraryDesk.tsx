@@ -423,7 +423,14 @@ function PromptLibraryTile({
   }
 
   return (
-    <div className="min-w-0" {...screenItemProps('prompt', recipe.name, cover)}>
+    <div
+      className="min-w-0"
+      {...screenItemProps('prompt', recipe.name, cover, {
+        type: recipe.outputType,
+        model: modelLabel(recipe),
+        text: recipe.compiledPrompt,
+      })}
+    >
       <div className={`${MEDIA_TILE_CLASS} aspect-3/4`}>
         <button
           type="button"

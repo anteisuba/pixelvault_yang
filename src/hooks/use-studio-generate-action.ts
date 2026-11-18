@@ -569,6 +569,10 @@ export function useStudioGenerateAction() {
             ? { characterImagePicks }
             : {}),
           ...(Object.keys(characterLookIds).length ? { characterLookIds } : {}),
+          // 送不送由服务端按型号 / 人数 / 自己的图再判一次（`willSendNovelAiCharacterReference`）。
+          ...(characters.novelAiPreciseReference && characterCardIds.length
+            ? { characterNovelAiPreciseReference: true }
+            : {}),
         }
       }
       return null
@@ -585,6 +589,7 @@ export function useStudioGenerateAction() {
       characters.activeCards,
       characters.imagePicks,
       characters.lookIds,
+      characters.novelAiPreciseReference,
     ],
   )
 

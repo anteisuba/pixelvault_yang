@@ -253,3 +253,33 @@ describe('AssetTile GIF', () => {
     expect(imgSrcs(container)).toEqual([GIF_URL])
   })
 })
+
+describe('AssetTile 音频卡标题（11-17 内部标记泄漏）', () => {
+  function audioGeneration(prompt: string): GenerationRecord {
+    return {
+      ...FAKE_GENERATION,
+      outputType: 'AUDIO',
+      url: `${CDN}/generations/audio/line.mp3`,
+      storageKey: 'generations/audio/line.mp3',
+      mimeType: 'audio/mpeg',
+      prompt,
+      previewUrl: null,
+    } as GenerationRecord
+  }
+
+  it('语气提示 [curious] 与 <thought> 不上卡，只显示台词', () => {
+    const { container, unmount } = renderTile(
+      audioGeneration('[curious] 我现在在画室'),
+    )
+    expect(container).toHaveTextContent('我现在在画室')
+    expect(container).not.toHaveTextContent('[curious]')
+    expect(
+      screen.getByRole('button', { name: '我现在在画室' }),
+    ).toHaveAttribute('title', '我现在在画室')
+    unmount()
+
+    const second = renderTile(audioGeneration('<thought> 她要的是冷色调'))
+    expect(second.container).toHaveTextContent('她要的是冷色调')
+    expect(second.container).not.toHaveTextContent('<thought>')
+  })
+})

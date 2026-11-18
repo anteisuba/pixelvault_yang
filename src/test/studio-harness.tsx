@@ -13,6 +13,7 @@ import { API_ENDPOINTS } from '@/constants/config'
 import { QUERY_KEYS } from '@/constants/query'
 import { ApiKeysProvider } from '@/contexts/api-keys-context'
 import { StudioProvider, useStudioContext } from '@/contexts/studio-context'
+import { StudioGenerationSessionsProvider } from '@/contexts/studio-generation-sessions'
 import type { useStudioForm } from '@/contexts/studio-context'
 import { EMPTY_STUDIO_DRAFT } from '@/hooks/use-studio-draft'
 import type { AppLocale } from '@/i18n/routing'
@@ -40,10 +41,22 @@ export function fakeStudioServer() {
     .on('GET', API_ENDPOINTS.API_KEYS, () => ok([]))
 }
 
+/**
+ * 只要工作台表单（不要 key 列表）：真 `StudioProvider` + 它在外壳里读的出图槽
+ * （`(shell)/layout.tsx` 那一层，见 `studio-generation-sessions.tsx`）。
+ */
+export function StudioFormProviders({ children }: { children: ReactNode }) {
+  return (
+    <StudioGenerationSessionsProvider>
+      <StudioProvider generationSession="workspace">{children}</StudioProvider>
+    </StudioGenerationSessionsProvider>
+  )
+}
+
 export function StudioProviders({ children }: { children: ReactNode }) {
   return (
     <ApiKeysProvider>
-      <StudioProvider>{children}</StudioProvider>
+      <StudioFormProviders>{children}</StudioFormProviders>
     </ApiKeysProvider>
   )
 }

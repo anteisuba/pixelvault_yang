@@ -387,11 +387,13 @@
     },
     "cfgRescale": "CFG rescale",
     "img2imgNoise": "Image-to-image noise",
+    "img2imgStrength": "Redraw strength",
     "novelAiReferenceMode": "Reference usage",
     "preciseReferenceStrength": "Character reference strength",
     "preciseReferenceFidelity": "Character reference fidelity",
     "cfgRescaleHint": "Reduce overexposure at high CFG; 0 disables it.",
     "img2imgNoiseHint": "Add noise to the source image to allow more variation.",
+    "img2imgStrengthHint": "NovelAI's Strength: higher changes more, lower stays closer to the source image.",
     "preciseReferenceStrengthHint": "Higher values follow the reference character more closely.",
     "preciseReferenceFidelityHint": "Higher values enforce the reference more strictly; lower values allow more prompt influence.",
     "novelAiReferenceModeOption": {
@@ -596,7 +598,15 @@
     "noReferenceImages": "This model takes no reference images; a tap brings in only the name and tags",
     "pickedImages": "{count, plural, one {# image} other {# images}} picked",
     "autoImages": "Images picked automatically",
-    "originalWork": "Original"
+    "originalWork": "Original",
+    "characterStripLabel": "Images your characters bring",
+    "characterTextOnly": "Text only",
+    "removeCharacterImage": "Leave this image of {name} out",
+    "removeCharacter": "Leave {name} out",
+    "pickHint": "Pick a look or an image to bring her in",
+    "novelAiPreciseReference": "Use the look's main image as Precise Reference",
+    "novelAiPreciseReferenceHint": "Sent only on NovelAI V4.5, with one character and none of your own reference images. Costs 5 extra Anlas per image, and Opus no longer covers it for free.",
+    "novelAiPreciseReferenceIdle": "Not sent right now: needs V4.5, one character, and none of your own reference images"
   },
   "StudioPanels": {
     "reference": "Reference Images",
@@ -1000,6 +1010,7 @@
       "pixaiSize": "Output size",
       "cfgRescale": "CFG rescale",
       "img2imgNoise": "Image-to-image noise",
+      "img2imgStrength": "Redraw strength",
       "novelAiReferenceMode": "Reference usage",
       "preciseReferenceStrength": "Character reference strength",
       "preciseReferenceFidelity": "Character reference fidelity"
@@ -1015,6 +1026,8 @@
     "durationSeconds": "{seconds}s",
     "tierUnsupported": "{tier} · not supported by this model",
     "resolutionCeiling": "{tier} · this model tops out at {max}",
+    "resolutionUnsupportedNote": "This model doesn't support {tiers}",
+    "resolutionCeilingNote": "This model tops out at {max}, no {tiers}",
     "priceDelta": "{tier} +{amount} / s",
     "moreItem": {
       "batchCount": "Count"

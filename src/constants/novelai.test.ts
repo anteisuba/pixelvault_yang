@@ -4,7 +4,7 @@ import {
   getNovelAiCharacterLayoutMode,
   getNovelAiImageDimensions,
   getNovelAiMaxCharacters,
-  isWithinNovelAiOpusFreeTier,
+  getNovelAiOpusCost,
   novelAiGridCellCenter,
   novelAiInpaintFallsBack,
   resolveNovelAiInpaintModelId,
@@ -92,19 +92,58 @@ describe('NovelAI 出图尺寸与 Opus 免费窗口', () => {
     })
   })
 
-  // 官方判据：单张 · ≤1024² · ≤28 步。
-  it('三条都满足才在免费窗口里', () => {
-    const base = { width: 1024, height: 1024, steps: 28, imageCount: 1 }
-    expect(isWithinNovelAiOpusFreeTier(base)).toBe(true)
-    expect(isWithinNovelAiOpusFreeTier({ ...base, steps: 29 })).toBe(false)
-    expect(isWithinNovelAiOpusFreeTier({ ...base, imageCount: 2 })).toBe(false)
+  // 官方判据（subscription 页）：文生图 · 单张 · ≤1024² · ≤28 步；V5 计入用量条（FAQ）。
+  it('文生图 · 单张 · ≤1024² · ≤28 步才免', () => {
+    const base = {
+      width: 1024,
+      height: 1024,
+      steps: 28,
+      imageCount: 1,
+      hasReferenceImage: false,
+      modelIds: ['nai-diffusion-4-5-full'],
+    }
+    expect(getNovelAiOpusCost(base)).toBe('free')
+    expect(getNovelAiOpusCost({ ...base, steps: 29 })).toBe('metered')
+    expect(getNovelAiOpusCost({ ...base, imageCount: 2 })).toBe('metered')
     // 判据是**总像素**而不是两条边：官方的 Normal 档 1216×832 = 1,011,712 px
     // 仍在 1024² 以内，所以它是免费的；Large 档才越线。
+    expect(getNovelAiOpusCost({ ...base, width: 1216, height: 832 })).toBe(
+      'free',
+    )
+    expect(getNovelAiOpusCost({ ...base, width: 1728, height: 1024 })).toBe(
+      'metered',
+    )
+  })
+
+  it('带底图（图生图 / 重绘 / 精确参考）不免', () => {
     expect(
-      isWithinNovelAiOpusFreeTier({ ...base, width: 1216, height: 832 }),
-    ).toBe(true)
+      getNovelAiOpusCost({
+        width: 1024,
+        height: 1024,
+        steps: 28,
+        imageCount: 1,
+        hasReferenceImage: true,
+        modelIds: ['nai-diffusion-4-5-full'],
+      }),
+    ).toBe('metered')
+  })
+
+  it('V5 在免费条件内也计入用量条；超规格照样按 Anlas', () => {
+    const v5 = {
+      width: 1024,
+      height: 1024,
+      steps: 28,
+      imageCount: 1,
+      hasReferenceImage: false,
+      modelIds: ['nai-diffusion-5-curated'],
+    }
+    expect(getNovelAiOpusCost(v5)).toBe('usageLimited')
+    expect(getNovelAiOpusCost({ ...v5, steps: 40 })).toBe('metered')
     expect(
-      isWithinNovelAiOpusFreeTier({ ...base, width: 1728, height: 1024 }),
-    ).toBe(false)
+      getNovelAiOpusCost({
+        ...v5,
+        modelIds: ['nai-diffusion-4-5-full', 'nai-diffusion-5-full'],
+      }),
+    ).toBe('usageLimited')
   })
 })

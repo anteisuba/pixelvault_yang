@@ -12,7 +12,7 @@ import { createPortal } from 'react-dom'
 import { motion, useReducedMotion } from 'motion/react'
 
 import { ChevronLeft, ChevronRight } from '@/components/icons'
-import { DURATION, EASE_STANDARD, SPRING } from '@/constants/motion'
+import { DURATION, EASE_IN, EASE_STANDARD, SPRING } from '@/constants/motion'
 import { PhoneViewer } from '@/components/business/viewer/PhoneViewer'
 import { InPlaceViewerContext } from '@/components/business/viewer/in-place-viewer-context'
 import { cn } from '@/lib/utils'
@@ -212,10 +212,13 @@ function StageViewer<T extends { id: string }>({
     })
   }, [index, reducedMotion])
 
+  // 关上 = 站内弹窗的退场档（ui-defaults：`duration-base` + `ease-in`，与 QuickSetupDialog
+  // 缩回同一档）。⚠ 之前写死 0.24 + 标准曲线，真机 Esc 到消失约 418ms（2026-11-17），
+  // 比站内其它弹窗慢一截；ease-in 前段慢、尾段快，200 内就收干净。
   const fade = reducedMotion
     ? { duration: DURATION.fast, ease: 'linear' as const }
     : closing
-      ? { duration: 0.24, ease: EASE_STANDARD }
+      ? { duration: DURATION.base, ease: EASE_IN }
       : { duration: DURATION.slow, ease: EASE_STANDARD }
 
   const arrowClass =
@@ -356,10 +359,45 @@ function StageViewer<T extends { id: string }>({
   )
 }
 
-/** 邻居离当前那张多远（舞台宽度的比例）、缩多少、淡多少（原型 AC）。 */
-const REEL_STEP = 0.5
-const REEL_NEIGHBOR_SCALE = 0.78
+/**
+ * 邻居缩多少、淡多少（原型 AC），以及邻居与当前那张之间留的缝（px）。
+ * ⚠ 邻居的横向位置按**两张的真实宽度**排（当前半宽 + 缝 + 邻居缩后半宽），⛔ 按舞台宽度的
+ * 固定比例排：旧写法 `offset × 舞台宽 × 0.5` 在当前那张占满 62% 宽时，邻居左缘落在 25.8%、
+ * 当前右缘在 31%，两张叠了约 5% 舞台宽；而邻居在 DOM 里排在后面，半透明地盖在主图边上
+ *（2026-11-17 生产实测）。
+ */
+export const REEL_NEIGHBOR_GAP_PX = 16
+export const REEL_NEIGHBOR_SCALE = 0.78
 const REEL_NEIGHBOR_OPACITY = 0.45
+/**
+ * 舞台上一张的横向位移（中心相对舞台中心）。紧挨着的邻居贴在当前那张外侧、隔一道缝
+ *（露出多少由舞台 `overflow-hidden` 裁）；再远一格的是透明的，只是候场，直接放到舞台外面。
+ */
+export function reelOffsetX({
+  offset,
+  currentHalfWidth,
+  width,
+  stageWidth,
+}: {
+  offset: number
+  currentHalfWidth: number
+  /** 这一张没缩时的宽。 */
+  width: number
+  stageWidth: number
+}): number {
+  if (offset === 0) return 0
+  const side = Math.sign(offset)
+  if (Math.abs(offset) === 1) {
+    return (
+      side *
+      (currentHalfWidth +
+        REEL_NEIGHBOR_GAP_PX +
+        (width * REEL_NEIGHBOR_SCALE) / 2)
+    )
+  }
+  return side * stageWidth
+}
+
 /** 有邻居时当前那张最多占舞台宽的这么多，两边露出邻居。 */
 const REEL_CURRENT_MAX_WIDTH = 0.62
 /** 只摆当前左右各两张，再远的不挂。 */
@@ -409,6 +447,12 @@ function ViewerReel<T extends { id: string }>({
   const hasNeighbors = items.length > 1
   const maxWidth = area.width * (hasNeighbors ? REEL_CURRENT_MAX_WIDTH : 1)
   const spring = reducedMotion ? { duration: 0 } : SPRING.slot
+  const widthOf = (item: T) => {
+    const ratio = ratioOf(item) || 1
+    return Math.min(maxWidth, area.height * ratio)
+  }
+  const currentItem = items[index]
+  const currentHalf = currentItem ? widthOf(currentItem) / 2 : 0
 
   return (
     <div ref={areaRef} className="relative min-h-0 flex-1">
@@ -420,15 +464,21 @@ function ViewerReel<T extends { id: string }>({
         if (!measured && offset !== 0) return null
         const isCurrent = item.id === current.id
         const ratio = ratioOf(item) || 1
-        const width = Math.min(maxWidth, area.height * ratio)
+        const width = widthOf(item)
         const height = width / ratio
         const far = Math.min(1, Math.abs(offset))
+        const x = reelOffsetX({
+          offset,
+          currentHalfWidth: currentHalf,
+          width,
+          stageWidth: area.width,
+        })
         return (
           <motion.div
             key={item.id}
             initial={false}
             animate={{
-              x: offset * area.width * REEL_STEP,
+              x,
               scale: 1 - far * (1 - REEL_NEIGHBOR_SCALE),
               opacity:
                 Math.abs(offset) >= REEL_REACH
@@ -443,6 +493,8 @@ function ViewerReel<T extends { id: string }>({
                     height,
                     left: (area.width - width) / 2,
                     top: (area.height - height) / 2,
+                    // 翻图那一下弹簧途中也 ⛔ 让邻居盖到当前那张上。
+                    zIndex: isCurrent ? 1 : 0,
                   }
                 : { inset: 0 }
             }

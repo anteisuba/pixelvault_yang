@@ -10,6 +10,7 @@ import {
   type WorkflowId,
 } from '@/constants/workflows'
 import { StudioProvider, useStudioContext } from '@/contexts/studio-context'
+import { StudioGenerationSessionsProvider } from '@/contexts/studio-generation-sessions'
 import type { GenerationEvaluation } from '@/types'
 import { AppProviders } from '@/test/app-harness'
 import { fakeStudioServer } from '@/test/studio-harness'
@@ -39,7 +40,11 @@ afterEach(() => vi.unstubAllGlobals())
 function wrapper({ children }: { children: ReactNode }) {
   return (
     <AppProviders>
-      <StudioProvider>{children}</StudioProvider>
+      <StudioGenerationSessionsProvider>
+        <StudioProvider generationSession="workspace">
+          {children}
+        </StudioProvider>
+      </StudioGenerationSessionsProvider>
     </AppProviders>
   )
 }

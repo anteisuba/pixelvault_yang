@@ -55,7 +55,7 @@ import { getGenerationAudioSegments } from '@/lib/generation-media'
 import { resolveGeneratingStageKey } from '@/lib/generation-progress'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { studioRunForWorkspace } from '@/lib/studio-operator-result-run'
-import type { GenerationRecord } from '@/types'
+import type { GenerationRecord, PendingRunItem } from '@/types'
 import { useStudioDraggable } from '@/features/studio/hooks/use-studio-draggable'
 import { formatDuration } from '@/lib/video-utils'
 
@@ -78,6 +78,12 @@ interface GenerationPreviewProps {
    * `null` = 这一刻没有（收起）；不传 = 这一台没有这件事（视频 / 音频）。
    */
   searchGrounding?: SearchGroundingRailState | null
+  /**
+   * 视频台：舞台正在替它画进度的那一条（`resolveStudioVideoStageItem` 选的）。
+   * 视频提交即返回、全局 `isGenerating` 早已落下，「还在跑」只在这一条上 ——
+   * 给了它，舞台按它自己的 `startedAt` 计时、取消也只取消它。
+   */
+  pendingVideoItem?: PendingRunItem | null
 }
 
 /**
@@ -130,19 +136,33 @@ export const GenerationPreview = memo(function GenerationPreview({
   onRetry,
   fillStage = false,
   searchGrounding,
+  pendingVideoItem = null,
 }: GenerationPreviewProps) {
   const {
     error: rawRunError,
     errorCode,
     isGenerating: rawIsGenerating,
-    elapsedSeconds,
+    elapsedSeconds: runElapsedSeconds,
     activeRun: rawActiveRun,
     cancelRunItem,
   } = useStudioGen()
   const { state, dispatch } = useStudioForm()
   const activeRun = studioRunForWorkspace(rawActiveRun, state)
   const isCurrentRun = !rawActiveRun || activeRun !== null
-  const isGenerating = rawIsGenerating && isCurrentRun
+  // 视频那一条的秒表：全局计时器不为视频跑（提交即返回），按它自己的起点算。
+  const [videoNow, setVideoNow] = useState(() => Date.now())
+  const pendingVideoId = pendingVideoItem?.id ?? null
+  useEffect(() => {
+    if (pendingVideoId === null) return
+    const id = setInterval(() => setVideoNow(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [pendingVideoId])
+  const elapsedSeconds =
+    pendingVideoItem?.startedAt !== undefined
+      ? Math.max(0, Math.floor((videoNow - pendingVideoItem.startedAt) / 1000))
+      : runElapsedSeconds
+  const isGenerating =
+    (rawIsGenerating && isCurrentRun) || pendingVideoItem !== null
   const runError = isCurrentRun ? rawRunError : null
   // A video's failure is said on its queue line (reason + retry this one,
   // video workbench A ③), so the stage lays no second one over the last video.
@@ -181,7 +201,8 @@ export const GenerationPreview = memo(function GenerationPreview({
   // 单条批次时取当前 pending 项的 `executionStage`（runner 冷启动排队 /
   // GPU 出图中）压过按已用时长猜的阶段词，见 `resolveGeneratingStageKey`。
   const activeGenerateItem =
-    activeRun?.mode === 'single' ? activeRun.items[0] : undefined
+    pendingVideoItem ??
+    (activeRun?.mode === 'single' ? activeRun.items[0] : undefined)
   const activeExecutionStage =
     activeGenerateItem && 'executionStage' in activeGenerateItem
       ? activeGenerateItem.executionStage
@@ -199,8 +220,10 @@ export const GenerationPreview = memo(function GenerationPreview({
   // activeRun 与 isGenerating 在同一次同步 setState 批次里落地，故 isGenerating
   // 为 true 时 activeRun 必然已可用；items[0] 兜底 selectedItemId 尚未命中的边界。
   const activeRunModelId =
+    pendingVideoItem?.modelId ??
     activeRun?.items.find((item) => item.id === activeRun.selectedItemId)
-      ?.modelId ?? activeRun?.items[0]?.modelId
+      ?.modelId ??
+    activeRun?.items[0]?.modelId
   const activeRunModelLabel = activeRunModelId
     ? getTranslatedModelLabel(tModels, activeRunModelId)
     : null
@@ -316,6 +339,12 @@ export const GenerationPreview = memo(function GenerationPreview({
   )
   const previewUrl =
     previewItem?.status === 'generating' ? previewItem.previewUrl : undefined
+  // 取消键取消的是**舞台上这一条**：视频队列里 items[0] 可能是早已出完的上一条。
+  const cancelTargetId =
+    pendingVideoItem?.id ??
+    (isGenerating && activeRun?.mode === 'single'
+      ? (activeRun.items[0]?.id ?? null)
+      : null)
   if (!generation) {
     const requestedRatio = (() => {
       switch (state.aspectRatio) {
@@ -383,19 +412,17 @@ export const GenerationPreview = memo(function GenerationPreview({
               cornerRadiusVar="--radius-xl"
               failure={failure}
             />
-            {isGenerating &&
-              activeRun?.mode === 'single' &&
-              activeRun.items[0] && (
-                <button
-                  type="button"
-                  onClick={() => cancelRunItem(activeRun.items[0].id)}
-                  data-testid="generation-preview-cancel"
-                  className="absolute right-3 top-3 z-10 grid size-8 place-items-center rounded-full bg-background/85 text-muted-foreground backdrop-blur-sm transition-colors duration-fast ease-standard hover:text-foreground"
-                >
-                  <X className="size-4" />
-                  <span className="sr-only">{tCancel('cancel')}</span>
-                </button>
-              )}
+            {cancelTargetId !== null && (
+              <button
+                type="button"
+                onClick={() => cancelRunItem(cancelTargetId)}
+                data-testid="generation-preview-cancel"
+                className="absolute right-3 top-3 z-10 grid size-8 place-items-center rounded-full bg-background/85 text-muted-foreground backdrop-blur-sm transition-colors duration-fast ease-standard hover:text-foreground"
+              >
+                <X className="size-4" />
+                <span className="sr-only">{tCancel('cancel')}</span>
+              </button>
+            )}
           </div>
         </div>
       </>
@@ -629,17 +656,27 @@ export const GenerationPreview = memo(function GenerationPreview({
       : null,
   ].filter((part): part is string => Boolean(part))
 
-  const videoContainer = (
+  /**
+   * ⚠ 舞台有确定高度时（`fillStage`）框按舞台剩下的地方、按片子比例放到最大
+   * （与图片同一个 `studio-fit-box`），播放器撑满框、片子 contain。以前这里一律
+   * `fit="contain"`，片子按**视口** 72vh 封顶 —— 比视口矮的舞台里 960×960 被画成
+   * 585 高塞进 411 高的 overflow-hidden 框，上下各切一截、底部控件一起被切没
+   * （2026-11-17 真机）。
+   */
+  const videoFrame = (
     <div
       className={cn(
         'relative overflow-hidden rounded-2xl border bg-muted/10 p-2 transition-colors duration-base ease-linear',
         edgeBusy ? 'border-transparent' : 'border-border/60',
+        fillStage && 'studio-fit-box',
       )}
+      style={fillStage ? fitRatioStyle(imageRatio) : undefined}
     >
       <VideoPlayer
         src={generation.url ?? ''}
+        poster={generation.thumbnailUrl ?? undefined}
         className="rounded-xl"
-        fit="contain"
+        fit={fillStage ? 'box' : 'contain'}
       />
       {videoBadgeParts.length > 0 && !showGeneratingOverlay ? (
         <span
@@ -654,6 +691,13 @@ export const GenerationPreview = memo(function GenerationPreview({
 
       {renderGeneratingOverlay('2xl')}
     </div>
+  )
+  const videoContainer = fillStage ? (
+    <div className="studio-fit-area flex min-h-0 flex-1 items-center justify-center">
+      {videoFrame}
+    </div>
+  ) : (
+    videoFrame
   )
 
   const isAudio = generation.outputType === 'AUDIO'

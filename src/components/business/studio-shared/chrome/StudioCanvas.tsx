@@ -47,6 +47,7 @@ import {
 } from '@/lib/studio-operator-result-run'
 import { cn } from '@/lib/utils'
 import { searchGroundingForRun } from '@/lib/search-grounding'
+import { resolveStudioVideoStageItem } from '@/lib/studio-video-stage'
 import type { GenerationRecord } from '@/types'
 
 import { Wand2 } from '@/components/icons'
@@ -409,6 +410,16 @@ export const StudioCanvas = memo(function StudioCanvas({
    */
   const videoWithoutRail = state.outputType === 'video' && !referenceRail
   /**
+   * 队列里当前在播放器里看的那一条。null = 看最新结果（`lastGeneration`）。
+   *
+   * ⚠ 是**本地态**，不是 `selectedItemId` —— 后者是「定为最佳」，会落库
+   * （`selectWinner` 走服务端）。浏览的代价不该等于提交的代价，图片图墙那边
+   * 2026-08-23 已经为同一条理由把两者分开过一次。
+   */
+  const [focusedQueueItemId, setFocusedQueueItemId] = useState<string | null>(
+    null,
+  )
+  /**
    * 视频台还没出过结果、挂了首帧：舞台把首帧当封面（有尾帧就缩在右下角）——
    * 看得见「视频从哪一帧开始」（owner 09-27 视频台 A · 画板「首帧当封面」）。
    * ⚠ 只画这一枪**真发**的那几张（与素材排、发送口同一份 `send.unsent`）：换到只收一张图的
@@ -416,8 +427,24 @@ export const StudioCanvas = memo(function StudioCanvas({
    */
   const sentFrame = (url: string | null) =>
     url !== null && !videoSend?.unsent.images.includes(url) ? url : null
+  /**
+   * 视频队列（只在视频台）与舞台正在替它画进度的那一条。
+   *
+   * ⚠ 视频提交即返回，全局 `isGenerating` 只亮几百毫秒；「还在跑」只活在 run item
+   * 上。以前舞台只认 `isGenerating`，进度框几秒后离场、舞台回到空态（2026-11-17
+   * 生产真机）。判据见 `resolveStudioVideoStageItem`。
+   */
+  const videoQueueItems =
+    state.outputType === 'video' && activeRun?.outputType === 'VIDEO'
+      ? activeRun.items
+      : []
+  const stageVideoItem = resolveStudioVideoStageItem({
+    items: videoQueueItems,
+    focusedItemId: focusedQueueItemId,
+  })
+  const stageBusy = isGenerating || stageVideoItem !== null
   const posterFirst =
-    videoWithoutRail && !isGenerating && !lastGeneration
+    videoWithoutRail && !stageBusy && !lastGeneration
       ? sentFrame(state.videoFrameSlots.first)
       : null
   const videoPoster = posterFirst
@@ -460,20 +487,6 @@ export const StudioCanvas = memo(function StudioCanvas({
     referenceEntries.length,
   )
 
-  /**
-   * 队列里当前在播放器里看的那一条。null = 看最新结果（`lastGeneration`）。
-   *
-   * ⚠ 是**本地态**，不是 `selectedItemId` —— 后者是「定为最佳」，会落库
-   * （`selectWinner` 走服务端）。浏览的代价不该等于提交的代价，图片图墙那边
-   * 2026-08-23 已经为同一条理由把两者分开过一次。
-   */
-  const [focusedQueueItemId, setFocusedQueueItemId] = useState<string | null>(
-    null,
-  )
-  const videoQueueItems =
-    state.outputType === 'video' && activeRun?.outputType === 'VIDEO'
-      ? activeRun.items
-      : []
   const focusedQueueGeneration =
     videoQueueItems.find(
       (item) => item.id === focusedQueueItemId && item.status === 'completed',
@@ -488,7 +501,7 @@ export const StudioCanvas = memo(function StudioCanvas({
     activeRun?.mode !== 'compare' &&
     activeRun?.mode !== 'variant' &&
     ((focusedQueueGeneration ?? lastGeneration) !== null ||
-      isGenerating ||
+      stageBusy ||
       error !== null)
 
   // 这一轮重排后旧的聚焦项可能已经不在队列里（重试会把失败那条换掉），
@@ -733,7 +746,7 @@ export const StudioCanvas = memo(function StudioCanvas({
               )}
             </p>
           </div>
-        ) : !isGenerating &&
+        ) : !stageBusy &&
           !lastGeneration &&
           !error &&
           stageReference &&
@@ -777,7 +790,12 @@ export const StudioCanvas = memo(function StudioCanvas({
         ) : (
           <>
             <GenerationPreview
-              generation={focusedQueueGeneration ?? lastGeneration}
+              generation={
+                stageVideoItem
+                  ? null
+                  : (focusedQueueGeneration ?? lastGeneration)
+              }
+              pendingVideoItem={stageVideoItem}
               searchGrounding={
                 state.outputType === 'image' ? searchGrounding : undefined
               }

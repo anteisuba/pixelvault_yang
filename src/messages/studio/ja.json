@@ -387,11 +387,13 @@
     },
     "cfgRescale": "CFG リスケール",
     "img2imgNoise": "画像変換ノイズ",
+    "img2imgStrength": "再描画の強さ",
     "novelAiReferenceMode": "参照画像の用途",
     "preciseReferenceStrength": "キャラクター参照強度",
     "preciseReferenceFidelity": "キャラクター参照忠実度",
     "cfgRescaleHint": "高い CFG による白飛びを抑えます。0 で無効。",
     "img2imgNoiseHint": "元画像にノイズを加えて変化の幅を広げます。",
+    "img2imgStrengthHint": "NovelAI の Strength：大きいほど大きく変わり、小さいほど元画像に近づきます。",
     "preciseReferenceStrengthHint": "高いほど参照キャラクターの特徴に近づきます。",
     "preciseReferenceFidelityHint": "高いほど参照を厳密に反映し、低いほどプロンプトの影響を強めます。",
     "novelAiReferenceModeOption": {
@@ -596,7 +598,15 @@
     "noReferenceImages": "このモデルは参考画像を受け取りません。タップすると名前とタグだけが入ります",
     "pickedImages": "{count} 枚選択",
     "autoImages": "画像は自動で選択",
-    "originalWork": "オリジナル"
+    "originalWork": "オリジナル",
+    "characterStripLabel": "キャラクターが持ち込む画像",
+    "characterTextOnly": "テキストのみ",
+    "removeCharacterImage": "{name} のこの画像を今回は外す",
+    "removeCharacter": "今回は {name} を外す",
+    "pickHint": "衣装か画像を選ぶと彼女が入ります",
+    "novelAiPreciseReference": "衣装のメイン画像を精密参照に使う",
+    "novelAiPreciseReferenceHint": "NovelAI V4.5・キャラクター 1 人・自分の参照画像なしのときだけ送ります。1 枚ごとに 5 Anlas 追加で、Opus でも無料になりません。",
+    "novelAiPreciseReferenceIdle": "今は送りません：V4.5・キャラクター 1 人・自分の参照画像なしが条件です"
   },
   "StudioPanels": {
     "reference": "参照画像",
@@ -1000,6 +1010,7 @@
       "pixaiSize": "出力サイズ",
       "cfgRescale": "CFG リスケール",
       "img2imgNoise": "画像変換ノイズ",
+      "img2imgStrength": "再描画の強さ",
       "novelAiReferenceMode": "参照画像の用途",
       "preciseReferenceStrength": "キャラクター参照強度",
       "preciseReferenceFidelity": "キャラクター参照忠実度"
@@ -1015,6 +1026,8 @@
     "durationSeconds": "{seconds}s",
     "tierUnsupported": "{tier} · このモデルは非対応",
     "resolutionCeiling": "{tier} · このモデルは最大 {max}",
+    "resolutionUnsupportedNote": "このモデルは {tiers} 非対応",
+    "resolutionCeilingNote": "このモデルは最大 {max}（{tiers} 非対応）",
     "priceDelta": "{tier} +{amount} / s",
     "moreItem": {
       "batchCount": "枚数"

@@ -7,9 +7,9 @@ import {
   type LoraPromptDialect,
 } from '@/features/lora/constants/lora-prompt-dialects'
 import {
+  formatRunnerCheckpointSampling,
   getRunnerCheckpointById,
   isRunnerNegativePromptInert,
-  RUNNER_DEFAULT_CFG,
 } from '@/constants/runner-checkpoints'
 import type { AssistantOperatorRequest } from '@/types/assistant-operator'
 
@@ -58,7 +58,7 @@ export function loraBaseSamplingDefaults(baseId: string | null): string | null {
   if (!base || base.recipeCheckpointMode === 'source') return null
   const checkpoint = getRunnerCheckpointById(base.runnerCheckpointId)
   if (checkpoint?.recommendedSteps == null) return null
-  return `${checkpoint.recommendedSampler} + ${checkpoint.recommendedScheduler}, ${checkpoint.recommendedSteps} steps, CFG ${checkpoint.recommendedCfg ?? RUNNER_DEFAULT_CFG}`
+  return formatRunnerCheckpointSampling(checkpoint)
 }
 
 /**

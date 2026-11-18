@@ -21,6 +21,7 @@ import { useLocalPreference } from '@/hooks/use-local-preference'
 import { useReportLibraryItem } from '@/hooks/use-library-view'
 import { useSearchExpansion } from '@/hooks/use-search-expansion'
 import { proxyCivitaiImageUrl } from '@/features/lora/lib/civitai-image-url'
+import { characterLorasToMount } from '@/features/lora/lib/character-lora-mount'
 import { getLoraAssetSourceUrl } from '@/features/lora/lib/lora-asset-source-url'
 import { buildLibraryFavoriteRequest } from '@/features/lora/lib/lora-source-snapshot'
 import { withWordMatches } from '@/lib/search-words'
@@ -173,6 +174,26 @@ export function LoraFavoritesBrowse({
   const [deleting, setDeleting] = useState(false)
   const [mountingId, setMountingId] = useState<string | null>(null)
 
+  /**
+   * 「角色」格点她的一枚 → 连同这套造型的、她通用的一起挂（与手机端同一条
+   * `characterLorasToMount`）。选了某位角色就按她；「全部角色」下只有一位收了它才按那位，
+   * 好几位共收的认不出是谁 → 只挂点的那一枚。
+   */
+  const characterMountList = useCallback(
+    (asset: LoraAssetRecord): LoraAssetRecord[] => {
+      if (section !== 'characters') return [asset]
+      const owners = characterGroups.filter((group) =>
+        group.loras.some((lora) => lora.id === asset.id),
+      )
+      const group =
+        owners.find((item) => item.characterCardId === characterId) ??
+        (owners.length === 1 ? owners[0] : undefined)
+      const picked = group?.loras.find((lora) => lora.id === asset.id)
+      return group && picked ? characterLorasToMount(group, picked) : [asset]
+    },
+    [characterGroups, characterId, section],
+  )
+
   const activeCharacterId = characterGroups.some(
     (group) => group.characterCardId === characterId,
   )
@@ -266,12 +287,14 @@ export function LoraFavoritesBrowse({
       const version =
         target && target.modelVersionId !== asset.modelVersionId ? target : null
       if (mountingId) return
-      if (isMounted(version ?? asset)) {
+      if (!version) {
+        for (const item of characterMountList(asset)) {
+          if (!isMounted(item)) stack.push(item)
+        }
         handoff?.()
         return
       }
-      if (!version) {
-        stack.push(asset)
+      if (isMounted(version)) {
         handoff?.()
         return
       }
@@ -291,7 +314,15 @@ export function LoraFavoritesBrowse({
         setMountingId(null)
       }
     },
-    [ensureMountable, handoff, isMounted, mountingId, stack, t],
+    [
+      characterMountList,
+      ensureMountable,
+      handoff,
+      isMounted,
+      mountingId,
+      stack,
+      t,
+    ],
   )
 
   // 格子上的书签：收着就取消（按记录自己的链接），角色里没收藏的那把就收进来。

@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 import { animate, useReducedMotion } from 'motion/react'
 import { toast } from 'sonner'
 
+import { TTS_SPEED_RANGE, TTS_SPEED_STEPS } from '@/constants/audio-options'
 import { VOICE_CUE_GROUPS } from '@/constants/chat-voice'
 import { EASE_STANDARD, SHELL_MOTION } from '@/constants/motion'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
@@ -49,8 +50,12 @@ import {
 } from '@/features/assistant/hooks'
 import { usePersonaVoice } from '@/hooks/use-persona-voice'
 import { useVoiceBench, type VoiceBenchPending } from '@/hooks/use-voice-bench'
+import {
+  toVoiceBenchView,
+  useReportVoiceBench,
+} from '@/hooks/use-voice-bench-view'
 import { rewriteVoiceBenchTextAPI } from '@/lib/api-client'
-import { leadingVoiceCues } from '@/lib/chat-voice'
+import { leadingVoiceCues, voiceCueIdsIn } from '@/lib/chat-voice'
 import { cn } from '@/lib/utils'
 import type { VoiceBenchLine } from '@/types/voice-bench'
 
@@ -101,6 +106,8 @@ export function VoiceBench() {
   const { modelId, setModel } = useOperatorVoice()
   const playingId = usePlayingOperatorVoice()
   const [draft, setDraft] = useState('')
+  /** 语速（画布音频节点同三档 `TTS_SPEED_STEPS`）。 */
+  const [speed, setSpeed] = useState<number>(TTS_SPEED_RANGE.default)
   /** 就地挑嗓子 / 配 key；`retryKey` = 弄好之后接着念的那一句。 */
   const [dialog, setDialog] = useState<{
     kind: 'voice' | 'key'
@@ -113,6 +120,22 @@ export function VoiceBench() {
 
   const lines = bench.data?.lines ?? []
   const count = lines.length + bench.pending.length
+  // 助手看得见配音台（11-17）：台词框 / 嗓子 / 档 / 语速 / 最近几句，发请求时现读。
+  const benchView = useMemo(
+    () =>
+      toVoiceBenchView({
+        voice: voice.voiceName,
+        model: modelId,
+        speed,
+        draft,
+        recent: [
+          ...(bench.data?.lines ?? []).map((line) => line.text),
+          ...bench.pending.map((item) => item.text),
+        ],
+      }),
+    [voice.voiceName, modelId, speed, draft, bench.data, bench.pending],
+  )
+  useReportVoiceBench(benchView)
   // 新的一句挨着输入框：多了一句就滚到底。
   useEffect(() => {
     const list = listRef.current
@@ -121,7 +144,11 @@ export function VoiceBench() {
 
   const submit = () => {
     if (!draft.trim()) return
-    void bench.speak(draft)
+    // 1.0 = 默认念法：不带语速（和没有这颗药丸时一样）。
+    void bench.speak(
+      draft,
+      speed === TTS_SPEED_RANGE.default ? undefined : speed,
+    )
     setDraft('')
   }
 
@@ -251,6 +278,7 @@ export function VoiceBench() {
                 item={item}
                 avatarUrl={persona.avatarUrl}
                 name={voice.personaName}
+                playing={playingId === item.key}
                 onRetry={() => bench.retry(item.key)}
                 onPickVoice={() =>
                   setDialog({ kind: 'voice', retryKey: item.key })
@@ -291,7 +319,7 @@ export function VoiceBench() {
               className="max-h-40 w-full resize-none bg-transparent text-md leading-reading text-foreground outline-none placeholder:text-muted-foreground"
             />
             <div className="flex items-center gap-1.5">
-              <CueMenu onPick={insertCue} />
+              <CueMenu picked={voiceCueIdsIn(draft)} onPick={insertCue} />
               <ChipMenu
                 label={tv(
                   `models.${MODEL_LABEL_KEYS[STUDIO_OPERATOR_VOICE.modelIds.indexOf(modelId)] ?? 'free'}`,
@@ -303,6 +331,20 @@ export function VoiceBench() {
                 options={STUDIO_OPERATOR_VOICE.modelIds.map((id, index) => ({
                   id,
                   label: tv(`models.${MODEL_LABEL_KEYS[index]}`),
+                }))}
+              />
+              <ChipMenu
+                testId="voice-bench-speed"
+                label={
+                  speed === TTS_SPEED_RANGE.default
+                    ? t('speed')
+                    : `${t('speed')} ${speedLabel(speed)}`
+                }
+                value={String(speed)}
+                onChange={(next) => setSpeed(Number(next))}
+                options={TTS_SPEED_STEPS.map((step) => ({
+                  id: String(step),
+                  label: speedLabel(step),
                 }))}
               />
               <span className="flex-1" />
@@ -370,23 +412,36 @@ export function VoiceBench() {
 /**
  * 「语气」药丸（用户 10-27：情绪要齐）：点开按 情绪 · 更多情绪 · 语气 · 音效 · 停顿 分组，一组一排小药丸；
  * 点一个就插进台词、菜单收起。词表照 Fish 官方（`VOICE_CUE_GROUPS`）。
+ * 药丸上显示台词里已经写了的语气（`picked`，从字里读出来的，11-17 真机「选了开心按钮还写着语气」）。
  */
-function CueMenu({ onPick }: { onPick(tag: string): void }) {
+function CueMenu({
+  picked,
+  onPick,
+}: {
+  picked: readonly string[]
+  onPick(tag: string): void
+}) {
   const t = useTranslations('VoiceBench')
   const [open, setOpen] = useState(false)
+  const label = picked.length
+    ? picked.map((id) => t(`cues.${id}`)).join(' · ')
+    : t('cue')
   return (
     <Popover open={open} onOpenChange={setOpen} modal={false}>
       <PopoverTrigger asChild>
         <button
           type="button"
           data-testid="voice-bench-cues"
+          data-picked={picked.length ? picked.join(' ') : undefined}
+          title={picked.length ? `${t('cue')}: ${label}` : undefined}
           className={cn(
             studioOutlineChipClass,
-            'data-[state=open]:bg-fill-strong data-[state=open]:text-foreground',
+            'max-w-48 data-[state=open]:bg-fill-strong data-[state=open]:text-foreground',
+            picked.length ? 'text-foreground' : null,
           )}
         >
-          {t('cue')}
-          <ChevronDown className="size-3" aria-hidden />
+          <span className="truncate">{label}</span>
+          <ChevronDown className="size-3 shrink-0" aria-hidden />
         </button>
       </PopoverTrigger>
       <PopoverContent
@@ -424,23 +479,29 @@ function CueMenu({ onPick }: { onPick(tag: string): void }) {
   )
 }
 
+/** `1.2` → `1.2×`（和画布音频节点的语速分段条同一种写法）。 */
+const speedLabel = (step: number) => `${step.toFixed(1)}×`
+
 /** 输入框底下的参数药丸（ui-spec ㉕）：点开一个单选菜单。 */
 function ChipMenu({
   label,
   value,
   onChange,
   options,
+  testId,
 }: {
   label: string
   value: string
   onChange(next: string): void
   options: readonly { id: string; label: string }[]
+  testId?: string
 }) {
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
         <button
           type="button"
+          data-testid={testId}
           // 开着深一档（`studioOutlineChipOpenClass` 那一档）。
           className={cn(
             studioOutlineChipClass,
@@ -528,6 +589,7 @@ function PendingRow({
   item,
   avatarUrl,
   name,
+  playing,
   onRetry,
   onPickVoice,
   onSetupKey,
@@ -535,6 +597,7 @@ function PendingRow({
   item: VoiceBenchPending
   avatarUrl: string | null
   name: string
+  playing: boolean
   onRetry(): void
   onPickVoice(): void
   onSetupKey(): void
@@ -562,6 +625,18 @@ function PendingRow({
         action(t('pickVoice'), onPickVoice)
       ) : item.status === 'needsKey' ? (
         action(t('setupKey'), onSetupKey)
+      ) : item.status === 'unlisted' && item.url ? (
+        // 念好了、已计费，只是素材库这回没读到它：能放，⛔ 无声消失（11-17）。
+        <>
+          <span className="shrink-0 text-2xs text-muted-foreground">
+            {t('unlisted')}
+          </span>
+          {action(playing ? t('stop') : t('play'), () =>
+            playing
+              ? stopOperatorVoice()
+              : playOperatorVoice(item.key, item.url!),
+          )}
+        </>
       ) : (
         action(t('failed'), onRetry)
       )}

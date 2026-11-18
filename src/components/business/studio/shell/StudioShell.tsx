@@ -24,7 +24,6 @@ import {
 } from '@/constants/motion'
 import { ROUTES, STUDIO_CONVERSATION_QUERY } from '@/constants/routes'
 import {
-  LIBRARY_ASSISTANT_LEFT_CATEGORIES,
   STUDIO_SHELL_SPLIT,
   type StudioShellOverlayId,
   type StudioShellRouteKind,
@@ -172,7 +171,7 @@ export function StudioShell({
     setSlotOverlays((count) => count + 1)
     return () => setSlotOverlays((count) => count - 1)
   }, [])
-  /** 库里右上「助手」开着（对话从右边出来）；库收掉就复位。 */
+  /** 库里左上那颗助手头像叫出了对话（对话从左边出来）；库收掉就复位。 */
   const [libraryAssistantOpen, setLibraryAssistantOpen] = useState(false)
   if (!libraryOpen && libraryAssistantOpen) setLibraryAssistantOpen(false)
   const cameFromShell = base !== null
@@ -265,12 +264,6 @@ export function StudioShell({
                         shellDock={placement.owner === 'shell'}
                         libraryOpen={libraryOpen}
                         libraryAssistantOpen={libraryAssistantOpen}
-                        libraryAssistantLeft={
-                          libraryCategory !== null &&
-                          (
-                            LIBRARY_ASSISTANT_LEFT_CATEGORIES as readonly string[]
-                          ).includes(libraryCategory)
-                        }
                         libraryLayer={libraryLayer}
                         benchNavRef={benchNavRef}
                         onCloseLibraryAssistant={() =>
@@ -331,7 +324,6 @@ function StudioShellStage({
   shellDock,
   libraryOpen,
   libraryAssistantOpen,
-  libraryAssistantLeft,
   libraryLayer,
   benchNavRef,
   onCloseLibraryAssistant,
@@ -342,10 +334,8 @@ function StudioShellStage({
   benchPathname: string
   shellDock: boolean
   libraryOpen: boolean
-  /** 库里叫出了助手：对话贴到白板右边，库让出那一块。 */
+  /** 库里叫出了助手：对话贴在白板左边（和工作台、首页一致），库往右让出那一块。 */
   libraryAssistantOpen: boolean
-  /** 这一页的助手贴左边（`LIBRARY_ASSISTANT_LEFT_CATEGORIES`），库往右让。 */
-  libraryAssistantLeft: boolean
   libraryLayer: ReactNode
   /** 左栏借这两只手换台 / 收台（`StudioBenchNavContext`）。 */
   benchNavRef: RefObject<StudioBenchNav | null>
@@ -475,7 +465,7 @@ function StudioShellStage({
     )
   }, [reduceMotion, setConversationCollapsed, split.conversationPx, takeOff])
 
-  // 库是整页（ui-spec §9）：盖满白板；叫出助手时对话按记住的宽贴到右边。
+  // 库是整页（ui-spec §9）：盖满白板；叫出助手时对话按记住的宽贴在左边、库往右让。
   const conversationHidden =
     bench && split.conversationCollapsed && !libraryOpen
   // 头像在哪（用户 10-25 ① A）：一往左收就飞到台左上角，点它展开、飞回对话头。
@@ -491,13 +481,32 @@ function StudioShellStage({
     [],
   )
   const conversationWidth = `${split.conversationPx}px`
+  /**
+   * 库里叫出助手（所有库，owner 2026-11-18：和工作台、首页一致）：对话照首页那样从左排开
+   *（⛔ 浮在库上），库从它右边开始。展开 / 收起靠落点 `left` / `width` 的过渡
+   *（`duration-slow` + `ease-standard`，与工作台「拉」的 `SHELL_MOTION.pullMs` 同一段）。
+   */
   const libraryChat = libraryOpen && libraryAssistantOpen
   /**
-   * 助手贴左的那几页（角色，第 ① 步）：对话照首页那样从左排开（⛔ 浮在库上），
-   * 库从它右边开始。
+   * 收起那一段：库从对话那一栏上盖回左边，走完 `pullMs` 再把对话藏起来 ——
+   * ⛔ 对话先没、库还在往回走，中间露出底下的台。
    */
-  const libraryChatLeft = libraryChat && libraryAssistantLeft
-  const libraryLeft = libraryChatLeft ? conversationWidth : '0px'
+  const [prevLibraryChat, setPrevLibraryChat] = useState(libraryChat)
+  const [libraryChatLeaving, setLibraryChatLeaving] = useState(false)
+  if (prevLibraryChat !== libraryChat) {
+    setPrevLibraryChat(libraryChat)
+    setLibraryChatLeaving(!libraryChat && libraryOpen && !reduceMotion)
+  }
+  useEffect(() => {
+    if (!libraryChatLeaving) return
+    const timer = window.setTimeout(
+      () => setLibraryChatLeaving(false),
+      SHELL_MOTION.pullMs,
+    )
+    return () => window.clearTimeout(timer)
+  }, [libraryChatLeaving])
+  const libraryChatShown = libraryChat || libraryChatLeaving
+  const libraryLeft = libraryChat ? conversationWidth : '0px'
   const pullTransition =
     dragging || reduceMotion
       ? undefined
@@ -513,11 +522,7 @@ function StudioShellStage({
         flight && 'studio-shell-avatar-flying',
       )}
       style={libraryWidth(
-        libraryChatLeft
-          ? `calc(100% - ${libraryLeft})`
-          : libraryChat
-            ? `calc(100% - ${conversationWidth})`
-            : '100%',
+        libraryChat ? `calc(100% - ${libraryLeft})` : '100%',
         libraryLeft,
       )}
     >
@@ -531,14 +536,12 @@ function StudioShellStage({
             ? 'hidden lg:flex lg:shrink-0 lg:overflow-hidden'
             : 'flex h-page flex-1',
           conversationHidden && 'lg:hidden',
-          libraryOpen && !libraryAssistantOpen && 'lg:hidden',
-          libraryChat &&
-            (libraryChatLeft
-              ? 'lg:flex lg:flex-none lg:border-r lg:border-border'
-              : 'lg:absolute lg:inset-y-0 lg:right-0 lg:z-20 lg:flex lg:border-l lg:border-border'),
+          libraryOpen && !libraryChatShown && 'lg:hidden',
+          libraryChatShown &&
+            'lg:flex lg:flex-none lg:border-r lg:border-border',
         )}
         style={
-          libraryChat
+          libraryChatShown
             ? { width: conversationWidth }
             : bench
               ? {
@@ -566,7 +569,7 @@ function StudioShellStage({
             <StudioOperatorDock
               variant="column"
               onCollapseColumn={
-                libraryChat
+                libraryChatShown
                   ? onCloseLibraryAssistant
                   : bench
                     ? collapseConversation

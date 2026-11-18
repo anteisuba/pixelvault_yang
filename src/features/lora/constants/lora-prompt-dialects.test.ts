@@ -1,10 +1,18 @@
 import { describe, expect, it } from 'vitest'
 
+import {
+  formatRunnerCheckpointSampling,
+  getRunnerCheckpointById,
+} from '@/constants/runner-checkpoints'
 import { LORA_BASE_FAMILIES } from '@/features/lora/constants/lora-base-models'
 import {
   findForbiddenDialectHits,
   LORA_PROMPT_DIALECTS,
 } from '@/features/lora/constants/lora-prompt-dialects'
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
 
 describe('lora prompt dialects', () => {
   it('covers every base family', () => {
@@ -87,6 +95,35 @@ describe('lora prompt dialects', () => {
       if (family === 'flux' || family === 'sd15') expect(parameters).toBeNull()
       else expect(parameters).toEqual(expect.stringContaining('steps'))
     }
+  })
+
+  it("reads the SDXL families' Runner parameters from the checkpoint table (one source)", () => {
+    const expected = {
+      illustrious: 'waiIllustriousSDXL_v150',
+      pony: 'ponyDiffusionV6XL',
+      anima: 'animaPencilXL_v500',
+      sdxl: 'sdXL_v10VAEFix',
+    } as const
+    for (const [family, checkpointId] of Object.entries(expected)) {
+      const checkpoint = getRunnerCheckpointById(checkpointId)
+      expect(checkpoint).toBeDefined()
+      expect(
+        LORA_PROMPT_DIALECTS[family as keyof typeof expected].parameters,
+      ).toEqual(
+        expect.stringMatching(
+          new RegExp(
+            `^${escapeRegExp(formatRunnerCheckpointSampling(checkpoint!))}`,
+          ),
+        ),
+      )
+    }
+    // Author recommendations: WAI = Euler a, CFG 5–7; Pony = Euler a, 25 steps.
+    expect(LORA_PROMPT_DIALECTS.illustrious.parameters).toContain(
+      'euler_ancestral',
+    )
+    expect(LORA_PROMPT_DIALECTS.pony.parameters).toContain(
+      'euler_ancestral + normal, 25 steps',
+    )
   })
 
   it('flags the pony score prefix on flux but not on pony', () => {

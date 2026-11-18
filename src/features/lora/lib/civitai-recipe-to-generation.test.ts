@@ -124,7 +124,7 @@ describe('buildCivitaiRecipeGenerationPlan', () => {
     expect(plan.extraLoras).toEqual([])
   })
 
-  it('normalizes Civitai sampler+scheduler and keeps unsupported clipSkip visible', () => {
+  it('normalizes Civitai sampler+scheduler and carries the recipe clipSkip', () => {
     const plan = buildCivitaiRecipeGenerationPlan(
       makeRecipe({
         sampler: 'DPM++ 2M Karras',
@@ -138,9 +138,39 @@ describe('buildCivitaiRecipeGenerationPlan', () => {
       steps: 30,
       runnerSampler: 'dpmpp_2m',
       runnerScheduler: 'karras',
+      runnerClipSkip: 2,
     })
     expect(plan.skippedParams).not.toContain('sampler')
+    expect(plan.skippedParams).not.toContain('clipSkip')
+    expect(plan.appliedParams).toContain('clipSkip')
+  })
+
+  it('skips a clipSkip the Runner cannot apply instead of clamping it', () => {
+    const plan = buildCivitaiRecipeGenerationPlan(makeRecipe({ clipSkip: 0 }))
+    expect(plan.advancedParams).toBeUndefined()
     expect(plan.skippedParams).toContain('clipSkip')
+  })
+
+  it('maps the A1111 "Automatic" scheduler instead of dropping it', () => {
+    const plan = buildCivitaiRecipeGenerationPlan(
+      makeRecipe({ sampler: 'DPM++ 2M', scheduler: 'Automatic' }),
+    )
+    expect(plan.advancedParams).toEqual({
+      runnerSampler: 'dpmpp_2m',
+      runnerScheduler: 'normal',
+    })
+    expect(plan.skippedParams).not.toContain('scheduler')
+  })
+
+  it('clamps an oversized meta.Size back into the native ~1MP band, keeping its ratio', () => {
+    const plan = buildCivitaiRecipeGenerationPlan(
+      makeRecipe({ sizeRaw: '1536x1536' }),
+    )
+    expect(plan.advancedParams).toMatchObject({
+      runnerWidth: 1024,
+      runnerHeight: 1024,
+    })
+    expect(plan.aspectRatio).toBe('1:1')
   })
 
   it('skips out-of-bounds values instead of clamping them', () => {
@@ -279,6 +309,14 @@ describe('applyRecipePlanToAdvancedParams', () => {
     expect(next.runnerSeed).toBe('42')
     // unrelated existing params untouched
     expect(next.quality).toBe('high')
+  })
+
+  it('carries the recipe clipSkip into the request params', () => {
+    const plan = buildCivitaiRecipeGenerationPlan(makeRecipe({ clipSkip: 2 }))
+    expect(
+      applyRecipePlanToAdvancedParams(undefined, plan, { includeSeed: true })
+        .runnerClipSkip,
+    ).toBe(2)
   })
 
   it('skips seed when includeSeed is false (random toggle)', () => {

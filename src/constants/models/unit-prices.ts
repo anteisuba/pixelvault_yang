@@ -223,6 +223,25 @@ export const MODEL_UNIT_PRICES: Partial<Record<AI_MODELS, ModelUnitPrice>> = {
     source: '同 SEEDANCE_20_VOLCENGINE',
     verifiedAt: '2026-07-31',
   },
+  // ── Seedance 2.0 Fast · 火山方舟（cn）───────────────────────────────────
+  // 2026-11-17 补：model-pricing.md 价格总表（2026-08-01）早就记着火山 Fast 720p
+  // 4.00 元 / 5s，只是没进本表，于是工作台选择器在「2.0 Fast」这一行（默认走火山）
+  // 空着价。token 公式互校：720p 21,600 token/s × 37 元/M = 0.7992 元/s ×5 = 3.996 ✓。
+  // ⚠ 只填 720p 基准档：480p 官方没给每秒价（宽度没写死），⛔ 按公式推（同 BytePlus 口径）。
+  [AI_MODELS.SEEDANCE_20_FAST_VOLCENGINE]: {
+    amount: 0.113,
+    unit: 'second',
+    source:
+      '火山方舟定价页 doubao-seedance-2.0-fast：720p·5s·无输入视频 = 4.00 元（汇率 7.1）；token 单价 37 元/M 与公式互校',
+    verifiedAt: '2026-08-01',
+  },
+  [AI_MODELS.SEEDANCE_20_FAST_REFERENCE_VOLCENGINE]: {
+    amount: 0.113,
+    unit: 'second',
+    source:
+      '同 SEEDANCE_20_FAST_VOLCENGINE —— 火山按 token 计费不分端点，参考图不进计费',
+    verifiedAt: '2026-08-01',
+  },
 
   // ── fal ────────────────────────────────────────────────────────────────
   // 全部取自 fal 公开索引 `fal.ai/api/models` 的 `pricingInfoOverride` 官方文本

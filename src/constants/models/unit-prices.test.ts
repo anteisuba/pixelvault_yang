@@ -179,6 +179,10 @@ describe('model unit prices', () => {
         AI_MODELS.SEEDANCE_20_VOLCENGINE,
         AI_MODELS.SEEDANCE_20_REFERENCE_VOLCENGINE,
       ],
+      [
+        AI_MODELS.SEEDANCE_20_FAST_VOLCENGINE,
+        AI_MODELS.SEEDANCE_20_FAST_REFERENCE_VOLCENGINE,
+      ],
     ]
     for (const [plain, reference] of pairs) {
       const a = getModelUnitPrice(plain)

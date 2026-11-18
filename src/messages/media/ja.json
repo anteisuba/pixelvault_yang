@@ -293,6 +293,8 @@
   "VideoPlayer": {
     "play": "再生",
     "pause": "一時停止",
+    "mute": "ミュート",
+    "unmute": "ミュート解除",
     "fullscreen": "全画面",
     "download": "ダウンロード",
     "errorPlayback": "この動画を再生できません。もう一度お試しください。"
@@ -516,6 +518,8 @@
     "loadFailed": "セリフを読み込めませんでした",
     "retry": "もう一度",
     "cue": "トーン",
+    "speed": "話速",
+    "unlisted": "読み終わりました。素材にはまもなく表示されます",
     "noPersonaTitle": "先にキャラクターに切り替えてください",
     "noPersonaBody": "吹き替え台は彼女の声で読みます。デフォルトのアシスタントには声がありません。",
     "switchPersona": "キャラクターを切り替える",

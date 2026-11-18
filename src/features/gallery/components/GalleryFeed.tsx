@@ -4,7 +4,13 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 
 import { ROUTES } from '@/constants/routes'
-import { buildGalleryQueryString } from '@/features/gallery/lib/gallery-query'
+import {
+  buildGalleryQueryString,
+  clearGalleryNarrowing,
+  galleryEmptyKind,
+} from '@/features/gallery/lib/gallery-query'
+import { Link } from '@/i18n/navigation'
+import { Search } from '@/components/icons'
 
 import { GalleryHeader } from '@/features/gallery/components/GalleryHeader'
 import { GalleryPromptList } from '@/features/gallery/components/GalleryPromptList'
@@ -13,13 +19,18 @@ import { GallerySkeletonGrid } from '@/features/gallery/components/GallerySkelet
 import { FeedTail } from '@/components/business/FeedTail'
 import { GalleryGrid } from '@/features/gallery/components/GalleryGrid'
 import { PageLoadError } from '@/components/business/PageLoadError'
+import { Button } from '@/components/ui/button'
 import { useGallery, type GalleryFilters } from '@/hooks/use-gallery'
-import { useReportLibraryItem } from '@/hooks/use-library-view'
+import {
+  useReportLibraryItem,
+  useReportLibraryScreen,
+} from '@/hooks/use-library-view'
 import { useIsMobile, useIsTablet } from '@/hooks/use-mobile'
 import { useSamePromptWorks } from '@/hooks/use-same-prompt-works'
 import { useSlowLoadingNotice } from '@/hooks/use-slow-loading-notice'
 import { toggleLikeAPI } from '@/lib/api-client'
 import type { GenerationRecord } from '@/types'
+import { ASSISTANT_LIBRARY_SCREEN_LIMIT } from '@/types/assistant-operator'
 
 interface GalleryFeedProps {
   initialGenerations: GenerationRecord[]
@@ -86,6 +97,28 @@ export function GalleryFeed({
       : null
   // 助手认得出「这张」：画廊开着时把查看器里那一张报给它（`use-library-view`）。
   useReportLibraryItem(viewing ? { kind: 'gallery', name: viewing.id } : null)
+  /**
+   * 屏上那一页（11-17，同素材库）：搜了什么、哪些筛选、一共几张、已加载的前几张。
+   * ⭐ 屏上真在视口里的那几格与它们的一行摘要由扫屏补（`generationScreenAbout` 挂在格子上）。
+   */
+  useReportLibraryScreen({
+    kind: 'gallery',
+    scope: [
+      'public pictures by everyone',
+      filters.types.length ? `type ${filters.types.join('/')}` : '',
+      filters.models.length ? `models ${filters.models.join(', ')}` : '',
+      filters.timeRange === 'all' ? '' : `time ${filters.timeRange}`,
+      filters.liked ? 'liked only' : '',
+      `sorted ${filters.sort}`,
+    ]
+      .filter(Boolean)
+      .join(' · '),
+    ...(filters.search ? { search: filters.search } : {}),
+    total,
+    visible: generations
+      .slice(0, ASSISTANT_LIBRARY_SCREEN_LIMIT)
+      .map((generation) => generation.id),
+  })
   const images = useMemo(
     () =>
       (promptAnchorId ? promptWorks : generations).filter(
@@ -119,6 +152,40 @@ export function GalleryFeed({
     },
     [closeViewer, setFilters],
   )
+
+  /**
+   * 空态分三种（`galleryEmptyKind`）：带搜索词 / 收窄了筛选没结果，说「没找到」并给一颗
+   * 「清除」；什么都没收窄才是库本身空，照旧「还很安静」+「打开工作台」。
+   */
+  const emptyKind = galleryEmptyKind(filters)
+  const clearNarrowing = useCallback(() => {
+    if (emptyKind === 'library') return
+    handleFiltersChange(clearGalleryNarrowing(filters, emptyKind))
+  }, [emptyKind, filters, handleFiltersChange])
+  const narrowedEmpty =
+    emptyKind === 'search'
+      ? {
+          title: t('noResultsSearchTitle', { query: filters.search.trim() }),
+          description: t('noResultsSearchDescription'),
+          action: t('clearSearch'),
+        }
+      : emptyKind === 'filtered'
+        ? {
+            title: t('noResultsFilteredTitle'),
+            description: t('noResultsFilteredDescription'),
+            action: t('clearFilters'),
+          }
+        : null
+  const emptyAction = narrowedEmpty ? (
+    <Button className="rounded-full px-5" onClick={clearNarrowing}>
+      {narrowedEmpty.action}
+    </Button>
+  ) : (
+    <Button asChild className="rounded-full px-5">
+      <Link href={ROUTES.STUDIO}>{t('emptyAction')}</Link>
+    </Button>
+  )
+  const emptyIcon = narrowedEmpty ? <Search aria-hidden /> : undefined
 
   /**
    * ♥ 由画廊统一记：卡片与查看器看同一个数。先改（数字跳一下），请求没落库就
@@ -187,20 +254,24 @@ export function GalleryFeed({
         ) : filters.view === 'prompts' ? (
           <GalleryPromptList
             generations={generations}
-            emptyTitle={t('promptsEmptyTitle')}
-            emptyDescription={t('promptsEmptyDescription')}
-            emptyActionHref={ROUTES.STUDIO}
-            emptyActionLabel={t('emptyAction')}
+            emptyTitle={narrowedEmpty?.title ?? t('promptsEmptyTitle')}
+            emptyDescription={
+              narrowedEmpty?.description ?? t('promptsEmptyDescription')
+            }
+            emptyAction={emptyAction}
+            emptyIcon={emptyIcon}
             feedLabel={t('feedLabel')}
             onOpen={isTablet ? undefined : openPromptViewer}
           />
         ) : (
           <GalleryGrid
             generations={generations}
-            emptyTitle={t('emptyTitle')}
-            emptyDescription={t('emptyDescription')}
-            emptyActionHref={ROUTES.STUDIO}
-            emptyActionLabel={t('emptyAction')}
+            emptyTitle={narrowedEmpty?.title ?? t('emptyTitle')}
+            emptyDescription={
+              narrowedEmpty?.description ?? t('emptyDescription')
+            }
+            emptyAction={emptyAction}
+            emptyIcon={emptyIcon}
             feedLabel={t('feedLabel')}
             itemFallbackLabel={t('itemFallbackLabel')}
             onOpen={isTablet ? undefined : openViewer}

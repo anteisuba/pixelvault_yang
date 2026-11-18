@@ -82,6 +82,9 @@ export const TTS_SPEED_RANGE = {
   default: 1.0,
 } as const
 
+/** 语速三档（画布音频节点 / 配音台同一套，画板 0.8 / 1.0 / 1.2）—— 值域在 `TTS_SPEED_RANGE` 之内。 */
+export const TTS_SPEED_STEPS = [0.8, TTS_SPEED_RANGE.default, 1.2] as const
+
 export const TTS_VOLUME_RANGE = {
   min: -20,
   max: 20,

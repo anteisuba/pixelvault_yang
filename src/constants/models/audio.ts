@@ -28,6 +28,19 @@ export const FISH_AUDIO_SPEECH_MODEL_IDS: readonly string[] = [
   AI_MODELS.FISH_AUDIO_DRAMA_3,
 ]
 
+/**
+ * 这个音频型号能不能吃一段「音色参考」（`referenceAudioUrl` + `referenceText`）。
+ *
+ * 只有 Fish 的说话型号：Fish `/v1/tts` 的 `references`（音频 + 原文成对，
+ * https://docs.fish.audio/api-reference/endpoint/openapi-v1/text-to-speech），服务端
+ * `fish-audio.adapter.ts` 与 worker `providers/fish-audio/audio.ts` 都只在没有
+ * `reference_id` 时才带它。ElevenLabs 的音效 / 音乐端点没有这个参数。
+ * ⚠ fal F5-TTS 也吃参考音频，但它只在声音库克隆里用，不在 `AUDIO_MODEL_OPTIONS`。
+ */
+export function audioModelAcceptsReferenceAudio(modelId: string): boolean {
+  return FISH_AUDIO_SPEECH_MODEL_IDS.includes(modelId)
+}
+
 export const AUDIO_MODEL_OPTIONS: ModelOption[] = [
   {
     id: AI_MODELS.FISH_AUDIO_S2_PRO,

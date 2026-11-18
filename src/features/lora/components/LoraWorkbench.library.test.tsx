@@ -5,20 +5,17 @@ import {
   waitFor,
   within,
 } from '@testing-library/react'
-import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { API_ENDPOINTS } from '@/constants/config'
 import type { CivitaiLoraLibraryItem } from '@/types'
 
-import { ApiKeysProvider } from '@/contexts/api-keys-context'
-import { LoraStackProvider } from '@/features/lora/hooks/use-active-lora-stack'
 import { __resetCivitaiLibraryCacheForTests } from '@/features/lora/hooks/use-civitai-lora-library'
 import { __resetMinedPromptsCacheForTests } from '@/features/lora/hooks/use-civitai-mined-prompts'
 import { __resetModelDescriptionCacheForTests } from '@/features/lora/hooks/use-civitai-model-description'
-import { PromptTagProvider } from '@/hooks/use-prompt-tag-stack'
 import { fakeServer } from '@/test/app-harness'
 import { LORA_STACK_CLERK_ID } from '@/test/lora-stack'
+import { LoraWorkbenchProviders } from '@/test/lora-workbench'
 import { MOBILE_WIDTH, setViewportWidth } from '@/test/viewport'
 
 import { LoraWorkbench } from './LoraWorkbench'
@@ -218,18 +215,9 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-function Providers({ children }: { children: ReactNode }) {
-  return (
-    <ApiKeysProvider>
-      <LoraStackProvider>
-        <PromptTagProvider>{children}</PromptTagProvider>
-      </LoraStackProvider>
-    </ApiKeysProvider>
-  )
-}
-
+// 与其余 LoraWorkbench 测试同一份外壳（含 11-17 起必需的 StudioGenerationSessionsProvider）。
 function renderWorkbench() {
-  return render(<LoraWorkbench />, { wrapper: Providers })
+  return render(<LoraWorkbench />, { wrapper: LoraWorkbenchProviders })
 }
 
 async function renderLoaded() {

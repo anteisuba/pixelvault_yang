@@ -1177,7 +1177,7 @@ html:lang(ja) {
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border outline-ring;
     scrollbar-color: color-mix(
         in oklab,
         var(--muted-foreground) 58%,
@@ -1185,6 +1185,16 @@ html:lang(ja) {
       )
       var(--background);
     scrollbar-width: thin;
+  }
+
+  /* 焦点环（ui-spec §8 / ui-defaults §4 同一句）：只在键盘焦点（`:focus-visible`）
+     出 2px 实色 `ring`（= `highlight`）、离边 2px、不透明、不做动画；鼠标点下的
+     按钮不出环。贴圆角 / 压在图上的控件自己写 `focus-visible:shadow-focus` +
+     `outline-none`（同一观感：2px 板色间隙 + 2px highlight），工具类层盖得过这里。 */
+  :focus-visible {
+    outline-style: solid;
+    outline-width: 2px;
+    outline-offset: 2px;
   }
 
   *::-webkit-scrollbar {
@@ -1573,6 +1583,24 @@ html:lang(ja) {
 @import '../styles/search-grounding.css';
 
 @import '../styles/toast.css';
+
+/* ── 底部抽屉（vaul）开合节拍对齐脊柱 ─────────────────────────────────
+   vaul 1.1.2 运行时往 <head> 注入 `[data-vaul-drawer] { animation-duration: .5s;
+   cubic-bezier(.32,.72,0,1) }`，开合走的是 CSS animation（Radix Presence 等
+   animationend 再卸载），所以这里多一个属性选择器把特异度抬过它，开 `slow` +
+   `ease-standard`、关降一档 `base` + `ease-in`，与 Sheet 同一套。
+   ⚠ 管不到的：拖拽松手回弹 / 吸附点那几段是 vaul 用 JS 写进行内 style 的 0.5s
+   transition，不加 !important 盖不掉，不硬改。减弱动效下由文件末尾的降级块整体压掉。 */
+[data-vaul-drawer][data-vaul-drawer-direction][data-state='open'],
+[data-vaul-overlay][data-vaul-snap-points][data-state='open'] {
+  animation-duration: var(--duration-slow);
+  animation-timing-function: var(--ease-standard);
+}
+[data-vaul-drawer][data-vaul-drawer-direction][data-state='closed'],
+[data-vaul-overlay][data-vaul-snap-points][data-state='closed'] {
+  animation-duration: var(--duration-base);
+  animation-timing-function: var(--ease-in);
+}
 
 /* ── B7: Reduced motion preference ──────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {

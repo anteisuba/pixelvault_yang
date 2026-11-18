@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { AI_MODELS } from '@/constants/models/enum'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type { ImageRecipeReading } from '@/types/image-recipe'
 import {
   applyImageRecipe,
@@ -161,5 +162,90 @@ describe('applyImageRecipe', () => {
     )
     expect(next.prompt).toBe('artist:wlop, 1girl')
     expect(next.advancedParams).toEqual(CURRENT.advancedParams)
+  })
+})
+
+describe('applyImageRecipe → NovelAI 目标', () => {
+  const NAI_TARGET = {
+    adapterType: AI_ADAPTER_TYPES.NOVELAI,
+    modelId: AI_MODELS.NOVELAI_V45_FULL,
+  }
+  const HEAVY_V45 =
+    'lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page'
+
+  // 图里存的是网页端拼好之后的整串；台上的开关还会再拼一遍 → 剥掉、开关拨到同一档。
+  it('剥掉配方里已经拼好的质量标签串与 UC 预设串，开关拨到同一档', () => {
+    const next = applyImageRecipe(
+      {
+        recipe: {
+          ...NAI.recipe!,
+          prompt: '1girl, rain, location, very aesthetic, masterpiece, no text',
+          negative: `${HEAVY_V45}, hat`,
+          characters: [],
+        },
+        tags: null,
+      },
+      pick('positive', 'negative'),
+      CURRENT,
+      AI_MODELS.NOVELAI_V45_FULL,
+      NAI_TARGET,
+    )
+    expect(next.prompt).toBe('1girl, rain')
+    expect(next.advancedParams).toMatchObject({
+      negativePrompt: 'hat',
+      qualityToggle: 'standard',
+      ucPreset: 'heavy',
+    })
+  })
+
+  // NovelAI 自己的图里认不出预设串 = 当时那颗开关是关的；不关就会多拼一遍官方缺省。
+  it('NovelAI 原图里没有预设串 → 两颗开关拨到关', () => {
+    const next = applyImageRecipe(
+      NAI,
+      pick('positive', 'negative'),
+      CURRENT,
+      AI_MODELS.NOVELAI_V45_FULL,
+      NAI_TARGET,
+    )
+    expect(next.advancedParams).toMatchObject({
+      qualityToggle: 'off',
+      ucPreset: 'none',
+    })
+  })
+
+  it('别家（Civitai / A1111）的配方认不出预设串时不碰开关', () => {
+    const next = applyImageRecipe(
+      { recipe: { ...NAI.recipe!, source: 'a1111' }, tags: null },
+      pick('positive', 'negative'),
+      CURRENT,
+      AI_MODELS.NOVELAI_V45_FULL,
+      NAI_TARGET,
+    )
+    expect(next.advancedParams.qualityToggle).toBeUndefined()
+    expect(next.advancedParams.ucPreset).toBeUndefined()
+  })
+
+  it('参数按目标模型的能力表夹紧，尺寸落到 NovelAI 的五档上', () => {
+    const next = applyImageRecipe(
+      {
+        recipe: {
+          ...NAI.recipe!,
+          steps: 80,
+          cfg: 30,
+          sampler: 'dpmpp_2m_karras_custom',
+        },
+        tags: null,
+      },
+      pick('params'),
+      CURRENT,
+      AI_MODELS.NOVELAI_V45_FULL,
+      NAI_TARGET,
+    )
+    expect(next.advancedParams.steps).toBe(50)
+    expect(next.advancedParams.guidanceScale).toBe(20)
+    // 认不得的采样器不写，留着原值（这里原本没有）。
+    expect(next.advancedParams.sampler).toBeUndefined()
+    // 832×1216 是 NAI 的竖版档 9:16；旧逻辑落 3:4 → NAI 实际出 768×1024。
+    expect(next.aspectRatio).toBe('9:16')
   })
 })

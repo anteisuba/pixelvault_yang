@@ -177,7 +177,10 @@ import {
 } from '@/lib/api-client/generation'
 import { readAudioFileMetadata } from '@/lib/audio-metadata'
 import { buildGenerationTag } from '@/lib/generation-name'
-import { screenItemProps } from '@/lib/assistant-screen-scan'
+import {
+  generationScreenAbout,
+  screenItemProps,
+} from '@/lib/assistant-screen-scan'
 import { getGenerationThumbnailUrl } from '@/lib/generation-media'
 import { getApiErrorMessage } from '@/lib/api-error-message'
 import { prepareImageUpload } from '@/lib/prepare-image-upload'
@@ -1560,6 +1563,18 @@ export function KreaAssetBrowser({
     scrollMargin: gridOffsetTop,
   })
 
+  /**
+   * 行高一变就让窗口化整体重算每行的起点（2026-11-17 生产实测：首屏下一行盖住上一行，过一会儿
+   * 才归位）。⚠ `@tanstack/virtual-core` 的测量缓存只认 count / gap / scrollMargin / lanes 这些
+   * 选项，**不认 `estimateSize`**：容器宽度量到、骨架换真数据、密度 / 手机档切换让行高变了但行数没变时，
+   * 每行的 `start` 还是旧高度排出来的，于是行与行叠在一起，直到 count 或 scrollMargin 碰巧变一次
+   *（下一批到了 / 顶栏高度变了）才归位。画廊那边同一处是按列宽 `virtualizer.measure()`。
+   */
+  const gridRowHeightsKey = gridRows.map((row) => row.height).join(',')
+  useLayoutEffect(() => {
+    rowVirtualizer.measure()
+  }, [gridRowHeightsKey, rowVirtualizer])
+
   // Per-section counts — fall back to live `total` only for the bucket the
   // user is currently viewing so the sidebar still moves on add/delete
   // before the next refreshCounts() lands.
@@ -2627,6 +2642,7 @@ export function KreaAssetBrowser({
                                 'picture',
                                 buildGenerationTag(gen),
                                 audioCoverUrl ?? getGenerationThumbnailUrl(gen),
+                                generationScreenAbout(gen),
                               )}
                               className={cn(
                                 'shrink-0 transition-[scale,opacity] duration-base ease-standard motion-reduce:transition-none',

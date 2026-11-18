@@ -167,6 +167,72 @@ describe('LoraWorkbench 做同款 — 来源图配方', () => {
     ).toBeInTheDocument()
   })
 
+  it('忠实还原 replays a complete source recipe verbatim — clip skip included, no words appended', async () => {
+    bench.minedRecipes = [
+      minedRecipe({
+        prompt: 'best quality, 1girl, white hood',
+        negativePrompt: 'worst quality',
+        sampler: 'Euler a',
+        scheduler: 'Automatic',
+        steps: 28,
+        cfgScale: 5,
+        seed: 4242,
+        clipSkip: 2,
+        sizeRaw: '832x1216',
+      }),
+    ]
+    await renderBench()
+    openSourceBand()
+    await screen.findByRole('button', {
+      name: /LoraPromptControl\.generate:sourceImagePreviewLabel/,
+    })
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'LoraWorkbench:generate.restoreHint',
+      }),
+    )
+
+    // 正文里原有的触发词留着（与做同款同一条 keepPromptTriggers），其余就是源 prompt。
+    await waitFor(() =>
+      expect(promptBox()).toHaveValue(
+        'testlora, best quality, 1girl, white hood',
+      ),
+    )
+    const request = await generate()
+    expect(request.advancedParams).toMatchObject({
+      negativePrompt: 'worst quality',
+      runnerSampler: 'euler_ancestral',
+      runnerScheduler: 'normal',
+      steps: 28,
+      guidanceScale: 5,
+      runnerSeed: '4242',
+      runnerClipSkip: 2,
+      runnerWidth: 832,
+      runnerHeight: 1216,
+    })
+  })
+
+  it('忠实还原 says it can only approximate when no source recipe has full settings', async () => {
+    const { toast } = await import('sonner')
+    bench.minedRecipes = [minedRecipe({ prompt: 'best quality, 1girl' })]
+    await renderBench()
+    openSourceBand()
+    await screen.findByRole('button', {
+      name: /LoraPromptControl\.generate:sourceImagePreviewLabel/,
+    })
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'LoraWorkbench:generate.restoreHint',
+      }),
+    )
+
+    await waitFor(() =>
+      expect(vi.mocked(toast.info)).toHaveBeenCalledWith(
+        expect.stringMatching(/LoraWorkbench:generate\.restoreApproximate/),
+      ),
+    )
+  })
+
   it('applies Civitai recipe steps and CFG to the real generation request', async () => {
     bench.minedRecipes = [
       minedRecipe({
@@ -202,10 +268,12 @@ describe('LoraWorkbench 做同款 — 来源图配方', () => {
         name: 'LoraWorkbench:generate.aspectRatioLabel',
       }),
     )
+    // SDXL 系与 DiT 同一张 ~1MP 表（RUNNER_NATIVE_DIMENSIONS）。
     for (const [ratio, width, height] of [
-      ['4:3', 1024, 768],
+      ['4:3', 1152, 864],
       ['1:1', 1024, 1024],
-      ['3:4', 768, 1024],
+      ['3:4', 864, 1152],
+      ['16:9', 1344, 768],
     ] as const) {
       fireEvent.click(screen.getByRole('radio', { name: ratio }))
       expect((await generate()).advancedParams).toMatchObject({

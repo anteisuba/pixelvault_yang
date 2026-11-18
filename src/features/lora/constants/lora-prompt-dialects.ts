@@ -1,3 +1,7 @@
+import {
+  formatRunnerCheckpointSampling,
+  getRunnerCheckpointById,
+} from '@/constants/runner-checkpoints'
 import type { LoraBaseFamily } from '@/features/lora/constants/lora-base-models'
 
 /**
@@ -20,15 +24,13 @@ export interface LoraPromptDialect {
   order: string
   skeleton: { subject: string; style: string }
   weightedParens: boolean
-  /** Tags appended to a source-matched recipe so it keeps the family's look. */
-  sourceMatchTags: readonly string[]
-  /** Negative tags only a source-matched recipe adds (keeps an anime source from drifting 3D). */
-  sourceMatchNegative: readonly string[]
   negative: readonly string[]
   /**
-   * The Runner settings real recipes on this family usually use, in the
-   * Runner's own sampler / scheduler names. `null` = no Runner base serves
-   * this family, so there is nothing to set.
+   * The Runner settings to start from on this family, in the Runner's own
+   * sampler / scheduler names. SDXL families read them off their default
+   * checkpoint in `RUNNER_CHECKPOINTS` (⛔ never a second hand-written copy —
+   * Pony once said euler_ancestral here while the checkpoint ran
+   * dpmpp_2m_sde). `null` = no Runner base serves this family.
    */
   parameters: string | null
   forbidden: readonly { pattern: RegExp | string; why: string }[]
@@ -42,26 +44,17 @@ const PONY_SCORE_UP_PATTERN = /\bscore_\d_up\b/i
 const TAG_ORDER =
   'quality tags → 1girl / 1boy / solo → character (series) → artist / style → appearance → clothing → expression → pose and gaze → framing → background → lighting'
 
-const ANIME_SOURCE_MATCH_TAGS = [
-  '2d style',
-  'anime illustration',
-  'clean lineart',
-  'cel shading',
-] as const
+/**
+ * An SDXL family's Runner parameter line: its default checkpoint's own
+ * sampling defaults (one table), then the size habit real recipes use.
+ */
+function sdxlRunnerParameters(checkpointId: string, size: string): string {
+  const checkpoint = getRunnerCheckpointById(checkpointId)
+  if (!checkpoint) throw new Error(`Unknown Runner checkpoint: ${checkpointId}`)
+  return `${formatRunnerCheckpointSampling(checkpoint)}, ${size}`
+}
 
-const ANIME_SOURCE_MATCH_NEGATIVE = [
-  '3d',
-  '3d render',
-  'cgi',
-  'blender',
-  'realistic',
-  'photorealistic',
-  'doll',
-  'plastic skin',
-  'shiny skin',
-  'smooth face',
-  'game render',
-] as const
+const SDXL_PORTRAIT_OR_SQUARE = '832×1216 portrait or 1024×1024 square'
 
 const SDXL_QUALITY_NEGATIVE = [
   'lowres',
@@ -92,11 +85,11 @@ const SDXL_DIALECT: LoraPromptDialect = {
       'masterpiece, best quality, {trigger}, {style}, beautiful scenery, soft cinematic lighting, highly detailed',
   },
   weightedParens: true,
-  sourceMatchTags: ANIME_SOURCE_MATCH_TAGS,
-  sourceMatchNegative: ANIME_SOURCE_MATCH_NEGATIVE,
   negative: SDXL_QUALITY_NEGATIVE,
-  parameters:
-    'euler_ancestral (or dpmpp_2m + karras), 25–30 steps, CFG 5 (4–7), 832×1216 portrait or 1024×1024 square',
+  parameters: sdxlRunnerParameters(
+    'waiIllustriousSDXL_v150',
+    SDXL_PORTRAIT_OR_SQUARE,
+  ),
   forbidden: SDXL_FORBIDDEN,
 }
 
@@ -109,8 +102,7 @@ const SDXL_BASE_DIALECT: LoraPromptDialect = {
   fingerprint:
     'Danbooru tags for anime; for a photo a short descriptive sentence, then detail tags; (tag:1.2) weighting, no score prefix',
   order: `photo: "photo of …" sentence → subject and appearance → clothing → action → scene → light → 8k, highly detailed, sharp focus; anime: ${TAG_ORDER}`,
-  parameters:
-    'dpmpp_2m + karras (or euler_ancestral), 30 steps, CFG 5–7, 832×1216 portrait or 1024×1024 square',
+  parameters: sdxlRunnerParameters('sdXL_v10VAEFix', SDXL_PORTRAIT_OR_SQUARE),
 }
 
 export const LORA_PROMPT_DIALECTS: Record<LoraBaseFamily, LoraPromptDialect> = {
@@ -126,8 +118,6 @@ export const LORA_PROMPT_DIALECTS: Record<LoraBaseFamily, LoraPromptDialect> = {
         '{trigger}, a wide scenic view rendered in {style}, soft cinematic lighting, richly detailed',
     },
     weightedParens: false,
-    sourceMatchTags: [],
-    sourceMatchNegative: [],
     // FLUX.1-dev runs on distilled guidance, where a negative prompt does nothing.
     negative: [],
     parameters: null,
@@ -160,8 +150,6 @@ export const LORA_PROMPT_DIALECTS: Record<LoraBaseFamily, LoraPromptDialect> = {
         '{trigger}, a wide scenic view rendered in {style}; the composition leads the eye to one clear focal point, the background is rich with atmospheric detail, and soft cinematic light shapes the whole scene',
     },
     weightedParens: false,
-    sourceMatchTags: [],
-    sourceMatchNegative: [],
     // Z-Image Turbo runs at CFG 1, where ComfyUI skips the negative branch entirely.
     negative: [],
     parameters:
@@ -192,8 +180,6 @@ export const LORA_PROMPT_DIALECTS: Record<LoraBaseFamily, LoraPromptDialect> = {
         '{trigger}, a wide scene rendered in {style}; one clear focal point anchors the composition, atmospheric detail fills the background, and warm directional light shapes the forms',
     },
     weightedParens: false,
-    sourceMatchTags: [],
-    sourceMatchNegative: [],
     // Krea 2 Turbo runs at CFG 1, where ComfyUI skips the negative branch entirely.
     negative: [],
     parameters: 'euler + simple, 8 steps (8–10), CFG 1, about 1 MP',
@@ -221,21 +207,22 @@ export const LORA_PROMPT_DIALECTS: Record<LoraBaseFamily, LoraPromptDialect> = {
         'score_9, score_8_up, score_7_up, {trigger}, {style}, beautiful scenery, soft cinematic lighting, highly detailed',
     },
     weightedParens: true,
-    sourceMatchTags: ANIME_SOURCE_MATCH_TAGS,
-    sourceMatchNegative: ANIME_SOURCE_MATCH_NEGATIVE,
     negative: ['score_6', 'score_5', 'score_4', ...SDXL_QUALITY_NEGATIVE],
-    parameters:
-      'euler_ancestral (or dpmpp_2m + karras), 25–30 steps, CFG 7 (4–7), 832×1216 portrait',
+    parameters: sdxlRunnerParameters('ponyDiffusionV6XL', '832×1216 portrait'),
     forbidden: [],
   },
   sd15: {
     ...SDXL_DIALECT,
-    sourceMatchTags: [],
-    sourceMatchNegative: [],
     parameters: null,
     forbidden: [],
   },
-  anima: SDXL_DIALECT,
+  anima: {
+    ...SDXL_DIALECT,
+    parameters: sdxlRunnerParameters(
+      'animaPencilXL_v500',
+      SDXL_PORTRAIT_OR_SQUARE,
+    ),
+  },
   // The model page (Civitai 2458426) sets these habits: its own score_N tags,
   // `@` before an artist, weighting that needs more than SDXL's 1.2.
   'anima-dit': {
@@ -250,8 +237,6 @@ export const LORA_PROMPT_DIALECTS: Record<LoraBaseFamily, LoraPromptDialect> = {
         'masterpiece, best quality, score_7, safe, {trigger}, {style}, beautiful scenery, soft cinematic lighting, highly detailed',
     },
     weightedParens: true,
-    sourceMatchTags: ANIME_SOURCE_MATCH_TAGS,
-    sourceMatchNegative: ANIME_SOURCE_MATCH_NEGATIVE,
     negative: [
       'worst quality',
       'low quality',

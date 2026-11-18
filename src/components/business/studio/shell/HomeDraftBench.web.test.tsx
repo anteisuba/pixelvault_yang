@@ -1,7 +1,8 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useState, type ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiKeysProvider } from '@/contexts/api-keys-context'
+import { StudioGenerationSessionsProvider } from '@/contexts/studio-generation-sessions'
 import { renderWithApp } from '@/test/app-harness'
 import { fakeStudioServer } from '@/test/studio-harness'
 
@@ -31,6 +32,17 @@ afterEach(() => vi.unstubAllGlobals())
 
 const hostHandoffs = vi.fn()
 
+/** 真外壳那一层：出图槽挂在 `(shell)/layout.tsx`。 */
+function ShellProviders({ children }: { children: ReactNode }) {
+  return (
+    <ApiKeysProvider>
+      <StudioGenerationSessionsProvider>
+        {children}
+      </StudioGenerationSessionsProvider>
+    </ApiKeysProvider>
+  )
+}
+
 function Shell() {
   const [host, setHostState] = useState<StudioOperatorHost | null>(null)
   // 稳的 setter（外壳给的就是 useState 的 setter），顺手数一下交了几次。
@@ -49,7 +61,7 @@ function Shell() {
 describe('HomeDraftBench', () => {
   it('⭐ 宿主交给外壳不会死循环（外壳重渲染不带着它重算）', () => {
     hostHandoffs.mockClear()
-    const view = renderWithApp(<Shell />, { inner: ApiKeysProvider })
+    const view = renderWithApp(<Shell />, { inner: ShellProviders })
     expect(view.getByTestId('has-host')).toHaveTextContent('yes')
     // 死循环时这里会一直交（React 到 50 次报 #185）；挡住了就只有挂载那几次。
     expect(hostHandoffs.mock.calls.length).toBeLessThanOrEqual(4)
@@ -58,7 +70,7 @@ describe('HomeDraftBench', () => {
   it('卸下时把宿主收回（外壳退回普通首页宿主）', () => {
     const onHost = vi.fn()
     const view = renderWithApp(<HomeDraftBench onHost={onHost} />, {
-      inner: ApiKeysProvider,
+      inner: ShellProviders,
     })
     view.unmount()
     expect(onHost).toHaveBeenLastCalledWith(null)

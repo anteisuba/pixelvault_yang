@@ -93,12 +93,20 @@
       "k_euler_ancestral": "Euler a",
       "k_dpmpp_2s_ancestral": "DPM++ 2S a"
     },
-    "opusFreeShort": "Free on Opus",
+    "opusFreeShort": "No Anlas on Opus",
+    "opusUsageLimitedShort": "No Anlas on Opus · uses quota",
     "opusMeteredShort": "Billed in Anlas",
     "backToWhole": "Back to the whole image",
     "resolutionTitle": "Resolution · quota",
-    "opusFree": "Inside the Opus free window: no Anlas with an Opus subscription, other tiers still pay",
-    "opusMetered": "Outside the free window — burns Anlas",
+    "opusFree": "Inside the Opus free window (text-to-image · one image · ≤1024×1024 · ≤28 steps): no Anlas with an Opus subscription, other tiers still pay",
+    "opusUsageLimited": "Inside the Opus free window, but V5 counts against the Opus usage bar: no Anlas until the bar runs out, then billed in Anlas; other tiers still pay",
+    "opusMetered": "Outside the Opus free window (needs text-to-image · one image · ≤1024×1024 · ≤28 steps; a base image, inpainting or Precise Reference are never free) — billed in Anlas",
+    "presetNote": {
+      "quality": "Quality tags added at the end · {preset}",
+      "uc": "UC preset added before the negative · {preset}",
+      "turnOffQuality": "Don't add quality tags",
+      "turnOffUc": "Don't add the UC preset"
+    },
     "referenceUsageTitle": "Reference use",
     "referenceUsage": {
       "standard": "Image to image"
@@ -114,6 +122,20 @@
     "characterCount": "{count, plural, =0 {none} one {# character} other {# characters}}",
     "moreControls": "Sampler · resolution · more",
     "preciseReferenceCost": "Adds 5 Anlas per generated image; references character appearance only.",
+    "favoritesPanel": {
+      "title": "Favorites",
+      "hint": "Tap to add to the prompt, tap again to remove",
+      "close": "Close",
+      "added": "Added",
+      "addLabel": "Add {tag} to the prompt",
+      "removeLabel": "Remove {tag} from the prompt",
+      "emptyTitle": "No favorite tags yet",
+      "emptyText": "Star a tag in Look up and it will show up here, grouped by type.",
+      "goLookup": "Look up",
+      "errorTitle": "Couldn't load favorites",
+      "errorText": "The network or service had a problem. Your prompt wasn't changed.",
+      "retry": "Retry"
+    },
     "workbench": {
       "backToEditor": "Back to editor",
       "characterNumber": "Character {number}",

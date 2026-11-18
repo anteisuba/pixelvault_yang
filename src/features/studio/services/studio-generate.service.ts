@@ -2,12 +2,18 @@ import 'server-only'
 
 import type { StudioGenerateRequest, StudioGenerateResponseData } from '@/types'
 import { getModelById } from '@/constants/models'
-import { getMaxReferenceImages } from '@/constants/provider-capabilities'
+import {
+  getMaxCharacterReferenceImages,
+  getMaxReferenceImages,
+} from '@/constants/provider-capabilities'
 import {
   compileImageOutlet,
   type CardBusCharacter,
 } from '@/lib/card-bus-compile'
-import { loadCardBusCharacters } from '@/features/cards/server'
+import {
+  loadCardBusCharacters,
+  ownedCharacterCardIds,
+} from '@/features/cards/server'
 import { submitImageGeneration } from '@/services/image/submit-image.service'
 import { ensureUser } from '@/services/user.service'
 import { GenerationValidationError } from '@/lib/errors'
@@ -70,9 +76,29 @@ export async function compileAndGenerate(
     maxReferenceImages: catalogModel
       ? getMaxReferenceImages(catalogModel.adapterType, input.modelId)
       : 1,
+    ...(catalogModel
+      ? {
+          maxCharacterReferenceImages: getMaxCharacterReferenceImages(
+            catalogModel.adapterType,
+            input.modelId,
+          ),
+        }
+      : {}),
     userReferenceCount: userReferences.length,
     hasNovelAiLayout: advanced.novelAiLayout !== undefined,
+    novelAiPreciseReference: input.characterNovelAiPreciseReference === true,
+    hasInpaintMask: typeof advanced.inpaintMask === 'string',
   })
+  // 只记归属的角色（LoRA 台）：本人的才记，已在场（走了编译）的不重复。
+  const attributedIds = input.characterAttributionIds?.length
+    ? (
+        await ownedCharacterCardIds(dbUser.id, input.characterAttributionIds)
+      ).filter((id) => !characters.some((character) => character.cardId === id))
+    : []
+  const linkedCardIds = [
+    ...characters.map((character) => character.cardId),
+    ...attributedIds,
+  ]
 
   const freePrompt = [
     outlet.promptPrefix,
@@ -106,6 +132,10 @@ export async function compileAndGenerate(
     ...advanced,
     ...(negativePrompt ? { negativePrompt } : {}),
     ...(outlet.novelAiLayout ? { novelAiLayout: outlet.novelAiLayout } : {}),
+    // 卡图走精确参考：⛔ 不能落成图生图底图（worker 按这一项分辨）。
+    ...(outlet.novelAiPreciseReference
+      ? { novelAiReferenceMode: 'precise' as const }
+      : {}),
     ...(input.seed != null ? { seed: input.seed } : {}),
   }
 
@@ -127,9 +157,9 @@ export async function compileAndGenerate(
         : undefined,
     projectId: input.projectId,
     recipeUsage: input.recipeUsage,
-    ...(characters.length
+    ...(linkedCardIds.length
       ? {
-          characterCardIds: characters.map((character) => character.cardId),
+          characterCardIds: linkedCardIds,
           characterLookIds: characterLookIdsOf(characters),
         }
       : {}),

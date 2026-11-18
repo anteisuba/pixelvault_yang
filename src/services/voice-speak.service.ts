@@ -2,12 +2,16 @@ import 'server-only'
 
 import { db } from '@/lib/db'
 import { ApiRequestError } from '@/lib/errors'
-import { AUDIO_KIND, type AudioKind } from '@/constants/audio-options'
+import {
+  AUDIO_KIND,
+  TTS_SPEED_RANGE,
+  type AudioKind,
+} from '@/constants/audio-options'
 import { VOICE_BENCH } from '@/constants/studio-operator-voice'
 import { AI_MODELS, getAvailableAudioModels } from '@/constants/models'
 import { resolveAudioKind } from '@/constants/models/audio'
 import { characterCoverUrl } from '@/lib/card-bus'
-import { spokenVoiceText } from '@/lib/chat-voice'
+import { spokenVoiceText, withoutThoughtMarkup } from '@/lib/chat-voice'
 import {
   CHARACTER_LOOKS_INCLUDE,
   mapCharacterLookRow,
@@ -59,8 +63,21 @@ export async function speakWithVoiceCard(params: {
   text: string
   /** 不给 = 目录里第一个可用的。 */
   modelId?: string
+  /** 语速（Fish `prosody.speed`）；不给 = 不传，Fish 按 1.0 念。 */
+  speed?: number
 }): Promise<string> {
-  const { clerkId, userId, voiceCardId, text, modelId } = params
+  const { clerkId, userId, voiceCardId, modelId, speed } = params
+  // 「我的想法」`<thought>…</thought>` 只给想法栏看：服务端只截开头那一段，写在别处的会漏进正文 ——
+  // 送 TTS 之前整段拿掉（11-17），⛔ 念出来、⛔ 存进素材库的字里。语气标记 `[xxx]` 照留照发。
+  const text = withoutThoughtMarkup(params.text).trim()
+  if (!text) {
+    throw new ApiRequestError(
+      'ASSISTANT_VOICE_NOTHING_TO_SAY',
+      400,
+      'errors.assistantVoice.nothingToSay',
+      'Nothing to read aloud',
+    )
+  }
   const [card, character] = await Promise.all([
     db.voiceCard.findFirst({
       where: { id: voiceCardId, userId, isDeleted: false },
@@ -92,6 +109,7 @@ export async function speakWithVoiceCard(params: {
       resolvedModelId === AI_MODELS.FISH_AUDIO_DRAMA_3,
     ),
     modelId: resolvedModelId,
+    ...(speed !== undefined ? { speed } : {}),
     voiceId: card.voiceId,
     // 素材库靠这两个把音频卡画成「头像 + 名字」。
     voiceName: character?.name ?? card.name,
@@ -138,6 +156,10 @@ export async function speakAsPersona(
     voiceCardId,
     text: request.text,
     ...(request.modelId ? { modelId: request.modelId } : {}),
+    // 1.0 = 默认念法：不传，和没有语速控件时一模一样。
+    ...(request.speed !== undefined && request.speed !== TTS_SPEED_RANGE.default
+      ? { speed: request.speed }
+      : {}),
   })
   return { jobId }
 }

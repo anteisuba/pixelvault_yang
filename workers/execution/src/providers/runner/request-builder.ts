@@ -12,6 +12,8 @@ import {
 } from './dit-workflow-builder'
 import {
   getRunnerCheckpointById,
+  RUNNER_DEFAULT_CFG,
+  RUNNER_DEFAULT_STEPS,
   type RunnerCheckpointDefinition,
 } from './checkpoints'
 import type { RunnerSampler, RunnerScheduler } from './sampling'
@@ -30,8 +32,8 @@ export function isDitArchitecture(
   return architecture !== 'sdxl'
 }
 
-const DEFAULT_STEPS = 30
-const DEFAULT_CFG = 7.5
+const DEFAULT_STEPS = RUNNER_DEFAULT_STEPS
+const DEFAULT_CFG = RUNNER_DEFAULT_CFG
 // v3 T1 底模覆盖档：任意下载来的 checkpoint 没有 manifest 推荐参数，用保守的
 // SDXL-anime 默认（sampler/clipSkip 在当前配方 UX 里本就标「未应用」）。
 const OVERRIDE_SAMPLER = 'euler_ancestral'
@@ -66,6 +68,11 @@ export interface RunnerGenerationRequestInput {
   cfg?: number
   sampler?: RunnerSampler
   scheduler?: RunnerScheduler
+  /**
+   * 来源图配方写的 clip skip（A1111 口径：1 = 不跳，2 = 停在 -2）。缺省用底模自己的。
+   * SDXL 图才用（DiT 没有 CLIPSetLastLayer）。
+   */
+  clipSkip?: number
   loras: readonly RunnerLoraRequestInput[]
   /**
    * img2img: filename of the reference image uploaded alongside the workflow
@@ -211,6 +218,7 @@ export function buildRunnerWorkflowFromRequest(
   }
   samplerName = input.sampler ?? samplerName
   scheduler = input.scheduler ?? scheduler
+  clipSkip = input.clipSkip ?? clipSkip
 
   const loras: RunnerWorkflowLora[] = input.loras.map((lora) => {
     const strength = lora.scale ?? 1

@@ -387,11 +387,13 @@
     },
     "cfgRescale": "CFG 重缩放",
     "img2imgNoise": "图生图噪声",
+    "img2imgStrength": "重绘强度",
     "novelAiReferenceMode": "参考图用法",
     "preciseReferenceStrength": "角色参考强度",
     "preciseReferenceFidelity": "角色参考保真度",
     "cfgRescaleHint": "缓解高 CFG 导致的过曝；0 表示关闭。",
     "img2imgNoiseHint": "增加底图噪声，为重绘留出更多变化。",
+    "img2imgStrengthHint": "NovelAI 的 Strength：越大改得越多，越小越贴近原图。",
     "preciseReferenceStrengthHint": "越高越贴近参考角色的视觉特征。",
     "preciseReferenceFidelityHint": "越高越严格遵循参考；降低可增加提示词的影响。",
     "novelAiReferenceModeOption": {
@@ -596,7 +598,15 @@
     "noReferenceImages": "这个模型不收参考图，点一下只带角色的名字和标签",
     "pickedImages": "已挑 {count} 张",
     "autoImages": "自动挑图",
-    "originalWork": "原创"
+    "originalWork": "原创",
+    "characterStripLabel": "角色带进来的图",
+    "characterTextOnly": "只带文字",
+    "removeCharacterImage": "这次不带 {name} 的这张图",
+    "removeCharacter": "这次不带 {name}",
+    "pickHint": "点造型或图才会带上她",
+    "novelAiPreciseReference": "用造型主图做精确参考",
+    "novelAiPreciseReferenceHint": "只有 NovelAI V4.5、单个角色、没挂你自己的参考图时会送；每张额外 5 Anlas，Opus 的这张也不再免费。",
+    "novelAiPreciseReferenceIdle": "现在不会送：要 V4.5、只带一个角色、且没挂你自己的参考图"
   },
   "StudioPanels": {
     "reference": "参考图",
@@ -1000,6 +1010,7 @@
       "pixaiSize": "出图尺寸",
       "cfgRescale": "CFG 重缩放",
       "img2imgNoise": "图生图噪声",
+      "img2imgStrength": "重绘强度",
       "novelAiReferenceMode": "参考图用法",
       "preciseReferenceStrength": "角色参考强度",
       "preciseReferenceFidelity": "角色参考保真度"
@@ -1015,6 +1026,8 @@
     "durationSeconds": "{seconds}s",
     "tierUnsupported": "{tier} · 此模型不支持",
     "resolutionCeiling": "{tier} · 此模型最高 {max}",
+    "resolutionUnsupportedNote": "此模型不支持 {tiers}",
+    "resolutionCeilingNote": "此模型最高 {max}，不支持 {tiers}",
     "priceDelta": "{tier} +{amount} / s",
     "moreItem": {
       "batchCount": "张数"

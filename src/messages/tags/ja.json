@@ -93,12 +93,20 @@
       "k_euler_ancestral": "Euler a",
       "k_dpmpp_2s_ancestral": "DPM++ 2S a"
     },
-    "opusFreeShort": "Opus なら無料",
+    "opusFreeShort": "Opus なら Anlas 不要",
+    "opusUsageLimitedShort": "Opus なら Anlas 不要 · 使用量に計上",
     "opusMeteredShort": "Anlas 消費",
     "backToWhole": "全体に戻る",
     "resolutionTitle": "解像度 · 消費",
-    "opusFree": "Opus 無料枠の範囲内：Opus 加入中なら Anlas を消費しません。他のプランでは消費します",
-    "opusMetered": "無料枠外 — Anlas を消費",
+    "opusFree": "Opus 無料枠の範囲内（テキストから生成 · 1 枚 · 1024×1024 以下 · 28 ステップ以下）：Opus 加入中なら Anlas を消費しません。他のプランでは消費します",
+    "opusUsageLimited": "Opus 無料枠の範囲内ですが、V5 は Opus 使用量バーに計上されます。バーが残っている間は Anlas 不要、使い切ると Anlas を消費します。他のプランでは消費します",
+    "opusMetered": "Opus 無料枠外（テキストから生成 · 1 枚 · 1024×1024 以下 · 28 ステップ以下が条件。元画像あり・インペイント・精密参照は対象外）— Anlas を消費",
+    "presetNote": {
+      "quality": "末尾に品質タグを自動追加 · {preset}",
+      "uc": "ネガティブの前に UC プリセットを自動追加 · {preset}",
+      "turnOffQuality": "品質タグを付けない",
+      "turnOffUc": "UC プリセットを付けない"
+    },
     "referenceUsageTitle": "参照画像の使い方",
     "referenceUsage": {
       "standard": "画像から生成"
@@ -114,6 +122,20 @@
     "characterCount": "{count, plural, =0 {なし} other {# 人}}",
     "moreControls": "サンプラー · 解像度 · その他",
     "preciseReferenceCost": "生成画像ごとに 5 Anlas が追加されます。キャラクターの外観のみを参照します。",
+    "favoritesPanel": {
+      "title": "お気に入り",
+      "hint": "タップでプロンプトに追加、もう一度タップで外す",
+      "close": "閉じる",
+      "added": "追加済み",
+      "addLabel": "{tag} をプロンプトに追加",
+      "removeLabel": "{tag} をプロンプトから外す",
+      "emptyTitle": "お気に入りのタグはまだありません",
+      "emptyText": "「資料を探す」で名前の横の星を押すと、種類ごとにここに並びます。",
+      "goLookup": "資料を探す",
+      "errorTitle": "お気に入りを読み込めませんでした",
+      "errorText": "ネットワークまたはサービスに問題が発生しました。プロンプトは変更されていません。",
+      "retry": "再試行"
+    },
     "workbench": {
       "backToEditor": "編集に戻る",
       "characterNumber": "キャラクター {number}",

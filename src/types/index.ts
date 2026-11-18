@@ -46,7 +46,11 @@ import {
 import { AI_MODELS, getModelById } from '@/constants/models'
 import { NODE_STUDIO_REFERENCE_ROLES } from '@/constants/node-studio'
 import { RESEARCH_MODE_VALUES } from '@/constants/research'
-import { RUNNER_SAMPLERS, RUNNER_SCHEDULERS } from '@/constants/runner-sampling'
+import {
+  RUNNER_CLIP_SKIP_MAX,
+  RUNNER_SAMPLERS,
+  RUNNER_SCHEDULERS,
+} from '@/constants/runner-sampling'
 import {
   DEFAULT_HUGGINGFACE_LORA_SORT,
   DEFAULT_LORA_CONTENT_TYPE,
@@ -268,6 +272,11 @@ export const AdvancedParamsSchema = z.object({
   /** Runner-only allowlisted ComfyUI sampling controls. */
   runnerSampler: z.enum(RUNNER_SAMPLERS).optional(),
   runnerScheduler: z.enum(RUNNER_SCHEDULERS).optional(),
+  /**
+   * Runner-only clip skip from a source recipe (A1111 convention: 1 = no skip,
+   * 2 = stop at -2). Omitted = the checkpoint's own.
+   */
+  runnerClipSkip: z.number().int().min(1).max(RUNNER_CLIP_SKIP_MAX).optional(),
   /** Runner-only source generation dimensions (not the final upscaled image). */
   runnerWidth: RunnerDimensionSchema.optional(),
   runnerHeight: RunnerDimensionSchema.optional(),
@@ -283,6 +292,8 @@ export const AdvancedParamsSchema = z.object({
     .strict()
     .optional(),
   referenceStrength: z.number().min(0.01).max(0.99).optional(),
+  /** NovelAI 图生图重绘强度 = 官方 `strength` 原值（越大改得越多）。 */
+  img2imgStrength: z.number().min(0.01).max(0.99).optional(),
   cfgRescale: z.number().min(0).max(1).optional(),
   img2imgNoise: z.number().min(0).max(1).optional(),
   novelAiReferenceMode: z.enum(['standard', 'precise']).optional(),
@@ -3691,6 +3702,19 @@ export const StudioGenerateSchema = z.object({
     .optional(),
   /** 每个在场角色用哪套造型（角色④，工作台角色胶囊上切）；没有键 = 默认造型。 */
   characterLookIds: CharacterLookIdsSchema.optional(),
+  /**
+   * 用户开了「造型主图做 NovelAI 精确参考」（每张 +5 Anlas，默认关）。只有 V4.5、
+   * 单角色、没挂自己的图、没开遮罩重绘时真的送（`willSendNovelAiCharacterReference`）。
+   */
+  characterNovelAiPreciseReference: z.boolean().optional(),
+  /**
+   * **只记归属、不编译**的角色（LoRA 台「从角色选」挂的 LoRA 属于她）：作品归到她名下，
+   * ⛔ 不往正文 / 参考图里塞她的卡（那会把她的主图当底图）。服务端按本人校验。
+   */
+  characterAttributionIds: z
+    .array(z.string().trim().min(1))
+    .max(CHARACTER_CARD.MAX_ACTIVE_CARDS)
+    .optional(),
   freePrompt: z.string().trim().max(PROMPT_TEXT_GUARD_MAX_CHARS).optional(),
   aspectRatio: z.enum(['1:1', '16:9', '9:16', '4:3', '3:4']).default('1:1'),
   projectId: z.string().optional(),
@@ -4313,7 +4337,8 @@ export const CivitaiImageRecipeSchema = z.object({
   seed: z.union([z.number().int(), RunnerSeedStringSchema]).optional(),
   steps: z.number().int().optional(),
   cfgScale: z.number().optional(),
-  // sampler/clipSkip 当前生成链路不支持 — 保留供 UI 列入"未应用参数"。
+  // A1111 / Civitai 原文；映射层（normalizeCivitaiRunnerSampling）换成 ComfyUI 值，
+  // 认不出的列入"未应用参数"。clipSkip 经 advancedParams.runnerClipSkip 下发。
   sampler: z.string().optional(),
   scheduler: z.string().optional(),
   clipSkip: z.number().int().optional(),

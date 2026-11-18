@@ -293,6 +293,8 @@
   "VideoPlayer": {
     "play": "Play",
     "pause": "Pause",
+    "mute": "Mute",
+    "unmute": "Unmute",
     "fullscreen": "Fullscreen",
     "download": "Download",
     "errorPlayback": "Unable to play this video. Please try again."
@@ -516,6 +518,8 @@
     "loadFailed": "Couldn't load the lines",
     "retry": "Try again",
     "cue": "Tone",
+    "speed": "Speed",
+    "unlisted": "Done — it'll show in your library shortly",
     "noPersonaTitle": "Switch to a character first",
     "noPersonaBody": "The voice bench reads in her voice, and the default assistant has none.",
     "switchPersona": "Switch character",

@@ -111,6 +111,58 @@ describe('useVoiceBench（配音台 ③）', () => {
     expect(played).toEqual(['https://cdn.test/g2.mp3'])
   })
 
+  it('念好了但重读的列表里没有它：⛔ 无声删掉，留成能放的一行；下次读到再换成真的', async () => {
+    mocks.speakAssistantReplyAPI.mockResolvedValue({
+      success: true,
+      data: { jobId: 'job-1' },
+    })
+    mocks.checkAudioStatusAPI.mockResolvedValue({
+      success: true,
+      data: {
+        status: 'COMPLETED',
+        generation: { url: 'https://cdn.test/g2.mp3' },
+      },
+    })
+    const { result } = renderHook(() => useVoiceBench('c1|v1'))
+    await waitFor(() => expect(result.current.data?.lines).toHaveLength(1))
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+
+    await act(async () => {
+      void result.current.speak('欢迎来到图书馆。', 1.2)
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    expect(mocks.speakAssistantReplyAPI).toHaveBeenCalledWith({
+      text: '欢迎来到图书馆。',
+      modelId: getOperatorVoicePrefs().modelId,
+      speed: 1.2,
+    })
+    // 列表照旧只有 g1（新的那条还没读到）。
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(STUDIO_OPERATOR_VOICE.pollMs)
+    })
+    expect(result.current.pending).toHaveLength(1)
+    expect(result.current.pending[0]).toMatchObject({
+      status: 'unlisted',
+      url: 'https://cdn.test/g2.mp3',
+    })
+    expect(played).toEqual(['https://cdn.test/g2.mp3'])
+
+    vi.useRealTimers()
+    mocks.getVoiceBenchAPI.mockResolvedValue({
+      success: true,
+      data: {
+        characterCardId: 'c1',
+        voiceCardId: 'v1',
+        lines: [line('g1', '在吗'), line('g2', '欢迎来到图书馆。')],
+      },
+    })
+    await act(async () => {
+      await result.current.refresh()
+    })
+    expect(result.current.pending).toHaveLength(0)
+    expect(result.current.data?.lines).toHaveLength(2)
+  })
+
   it('没嗓子 / 缺 key：那一句标出来，就地处理完再念', async () => {
     mocks.speakAssistantReplyAPI.mockResolvedValueOnce({
       success: false,

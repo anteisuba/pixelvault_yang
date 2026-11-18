@@ -43,7 +43,7 @@ const BASE: SpecChipModel = {
   pricePerSecond: null,
   totalPrice: null,
   summary: '1:1 · 2K',
-  resolutionNote: { kind: 'unsupported', tier: '4K', maxSupported: '2K' },
+  resolutionNote: { kind: 'unsupported', tiers: ['4K'], maxSupported: '2K' },
   isEmpty: false,
 }
 
@@ -137,7 +137,25 @@ describe('SpecChip · 分段', () => {
   it('段标题右侧那行小字先说不支持的档（带这个模型的上限）', () => {
     renderChip()
     openChip()
-    expect(screen.getByText('resolutionCeiling:4K,2K')).toBeInTheDocument()
+    expect(screen.getByText('resolutionCeilingNote:4K,2K')).toBeInTheDocument()
+  })
+
+  it('选着 2K、1K 不支持：小字说「此模型不支持 1K」，⛔ 不写成「1K · 此模型不支持」', () => {
+    renderChip({
+      resolutions: [
+        { value: '1K', supported: false, pricePerSecond: null },
+        { value: '2K', supported: true, pricePerSecond: null },
+        { value: '4K', supported: true, pricePerSecond: null },
+      ],
+      resolutionNote: {
+        kind: 'unsupported',
+        tiers: ['1K'],
+        maxSupported: null,
+      },
+    })
+    openChip()
+    expect(screen.getByText('resolutionUnsupportedNote:1K')).toBeInTheDocument()
+    expect(screen.queryByText('tierUnsupported:1K')).toBeNull()
   })
 
   it('有价差时那行小字写价差', () => {

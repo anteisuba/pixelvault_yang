@@ -435,7 +435,7 @@ describe('LoraWorkbench GenerateBranch — negative prompt visibility', () => {
 })
 
 describe('LoraWorkbench 挑 LoRA 与分区深链（桌面）', () => {
-  it('「＋ 添加 LoRA」弹「挑 LoRA」框（ui-spec ㉔），台不走', async () => {
+  it('「＋ LoRA」在舞台上开库（11-18：不再弹居中框），台不走；收起回到原来那一屏', async () => {
     await renderBench()
     expect(screen.queryByRole('dialog')).toBeNull()
 
@@ -443,12 +443,21 @@ describe('LoraWorkbench 挑 LoRA 与分区深链（桌面）', () => {
       screen.getByRole('button', { name: 'LoraWorkbench:pill.addLabel' }),
     )
 
-    expect(
-      await screen.findByRole('dialog', {
-        name: 'LoraWorkbench.picker:title',
-      }),
-    ).toBeInTheDocument()
+    const panel = await screen.findByRole('region', {
+      name: 'LoraWorkbench.benchLibrary:title',
+    })
+    expect(screen.queryByRole('dialog')).toBeNull()
     expect(nav.push).not.toHaveBeenCalled()
+    fireEvent.click(
+      within(panel).getByRole('button', {
+        name: 'LoraWorkbench.benchLibrary:close',
+      }),
+    )
+    expect(
+      screen.queryByRole('region', {
+        name: 'LoraWorkbench.benchLibrary:title',
+      }),
+    ).toBeNull()
   })
 
   // 桌面台上没有「生成 / 训练」切换了（ui-spec ㊲）：训练从 LoRA 库「自训」第一格进来

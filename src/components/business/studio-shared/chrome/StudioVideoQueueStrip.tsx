@@ -35,6 +35,41 @@ interface StudioVideoQueueStripProps {
   onCancelAll?: () => void
 }
 
+/**
+ * 出完那一格的封面。
+ *
+ * ⚠ 视频的 `thumbnailUrl` 常常是空的：服务端只在 provider 回传了封面时才做封面
+ * （`execution-callback.service.ts` 的 `tryCreateVideoPosterAsset`，Wan 3.0 不回传），
+ * 于是这一格以前完成后也是一块素色（2026-11-17 真机）。没封面就让 `<video>` 停在
+ * 第一帧（`#t=` —— Safari 不给 0 秒那一帧），与画布 `MentionMediaThumb` 同一个做法。
+ */
+function QueueTakeCover({ item }: { item: RunItem }) {
+  const generation = item.generation
+  if (!generation) return null
+  if (generation.thumbnailUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={generation.thumbnailUrl}
+        alt=""
+        className="size-full object-cover"
+      />
+    )
+  }
+  if (!generation.url) return null
+  return (
+    <video
+      aria-hidden
+      data-testid="studio-video-queue-cover-frame"
+      src={`${generation.url}#t=0.1`}
+      muted
+      playsInline
+      preload="metadata"
+      className="pointer-events-none size-full object-cover"
+    />
+  )
+}
+
 /** `mm:ss`，给每条自己的已用时长用。 */
 function formatElapsed(seconds: number): string {
   const safe = Math.max(0, Math.floor(seconds))
@@ -132,14 +167,9 @@ export const StudioVideoQueueStrip = memo(function StudioVideoQueueStrip({
                   <Spinner size="sm" className="text-muted-foreground" />
                 ) : item.status === 'failed' ? (
                   <AlertTriangle className="size-4 text-destructive/60" />
-                ) : item.generation?.thumbnailUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={item.generation.thumbnailUrl}
-                    alt=""
-                    className="size-full object-cover"
-                  />
-                ) : null}
+                ) : (
+                  <QueueTakeCover item={item} />
+                )}
               </div>
 
               <div className="flex min-w-0 flex-1 flex-col gap-1">
@@ -320,16 +350,8 @@ export const StudioVideoQueueStrip = memo(function StudioVideoQueueStrip({
                     'focus-visible:outline-2 focus-visible:outline-primary',
                   )}
                 >
-                  {/* ⚠ 视频的缩略图可能是空的（素材域记过这一条：视频零缩略图）。
-                      缺图时不画一个坏掉的 img，留素色格子 + 时长即可。 */}
-                  {item.generation?.thumbnailUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={item.generation.thumbnailUrl}
-                      alt=""
-                      className="size-full object-cover"
-                    />
-                  ) : null}
+                  {/* ⚠ 视频的缩略图常是空的（素材域记过：视频零缩略图）—— 没有就停在首帧。 */}
+                  <QueueTakeCover item={item} />
                   {item.generation?.duration ? (
                     <span className="absolute bottom-1 left-1.5 font-mono text-2xs tabular-nums text-muted-foreground">
                       {`${Math.round(item.generation.duration)}s`}

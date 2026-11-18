@@ -486,6 +486,52 @@ describe('视频台桌面（没有参考轨）', () => {
     expect(screen.queryByAltText(EDIT('sourceAlt'))).toBeNull()
     expect(screen.queryByAltText(SLOTS('firstFrame'))).toBeNull()
   })
+
+  it('⭐ 只有一条在跑：提交返回后舞台仍画它的进度（回归：几秒后掉回空态），出完直接换成结果', async () => {
+    const TAKE = generationFixture({
+      id: 'gen-video-1',
+      outputType: 'VIDEO',
+      url: 'https://cdn.example.com/take.mp4',
+      width: 960,
+      height: 960,
+    })
+    let done = false
+    server
+      .on('POST', API_ENDPOINTS.GENERATE_VIDEO, () =>
+        ok({ jobId: 'video-job-1', requestId: 'req-v1' }),
+      )
+      .on('GET', API_ENDPOINTS.GENERATE_VIDEO_STATUS, () =>
+        ok(
+          done
+            ? { jobId: 'video-job-1', status: 'COMPLETED', generation: TAKE }
+            : { jobId: 'video-job-1', status: 'IN_PROGRESS' },
+        ),
+      )
+    const view = await videoStage(AI_MODELS.WAN_30, null, null, false)
+    await act(async () => {
+      await view.studio.current.generation.generate({
+        mode: 'video',
+        video: {
+          modelId: AI_MODELS.WAN_30,
+          prompt: 'a cat walks',
+          aspectRatio: '1:1',
+          duration: 5,
+        },
+      })
+    })
+    // 提交已经返回：全局 isGenerating 落下，但这一条还在跑。
+    expect(view.studio.current.generation.isGenerating).toBe(false)
+    await tick(10_000)
+    expect(screen.getByTestId('generation-preview-cancel')).toBeInTheDocument()
+    expect(document.querySelector('video[src$="take.mp4"]')).toBeNull()
+
+    done = true
+    await tick(10_000)
+    expect(screen.queryByTestId('generation-preview-cancel')).toBeNull()
+    expect(
+      document.querySelector('video[src="https://cdn.example.com/take.mp4"]'),
+    ).toBeInTheDocument()
+  })
 })
 
 describe('拖放（原生 HTML5）', () => {

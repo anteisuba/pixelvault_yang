@@ -15,8 +15,15 @@ import type { VoiceBenchData } from '@/types/voice-bench'
 export interface VoiceBenchPending {
   key: string
   text: string
-  /** `unbound` = 她还没嗓子（就地挑）；`needsKey` = 缺 Fish key（就地配）。 */
-  status: 'pending' | 'failed' | 'unbound' | 'needsKey'
+  /**
+   * `unbound` = 她还没嗓子（就地挑）；`needsKey` = 缺 Fish key（就地配）；
+   * `unlisted` = 念好了（已计费）但重读的列表里还没有它 —— 留着这一行能放（`url`），⛔ 无声消失（11-17）。
+   */
+  status: 'pending' | 'failed' | 'unbound' | 'needsKey' | 'unlisted'
+  /** 语速（配音台「语速」药丸）；不给 = 默认念法。重念沿用这一句当时的语速。 */
+  speed?: number
+  /** `unlisted` 时念好的那条音频。 */
+  url?: string
 }
 
 /** 打了几行就是几句（一行一句），太长的截掉。 */
@@ -56,6 +63,13 @@ export function useVoiceBench(personaKey: string) {
     }
     setData(result.data)
     setError(null)
+    // 先前没在列表里的那几句，这回读到了就换成真的那一行。
+    const listed = new Set(result.data.lines.map((line) => line.url))
+    setPending((list) =>
+      list.some((item) => item.url && listed.has(item.url))
+        ? list.filter((item) => !(item.url && listed.has(item.url)))
+        : list,
+    )
     return result.data
   }, [])
 
@@ -76,6 +90,7 @@ export function useVoiceBench(personaKey: string) {
       const submitted = await speakAssistantReplyAPI({
         text: item.text,
         modelId: getOperatorVoicePrefs().modelId,
+        ...(item.speed !== undefined ? { speed: item.speed } : {}),
       })
       if (!submitted.success) {
         patch(item.key, {
@@ -95,9 +110,11 @@ export function useVoiceBench(personaKey: string) {
         return
       }
       const fresh = await refresh()
-      patch(item.key, null)
+      if (!alive.current) return
       // 念好就放一遍（和对话里 🔊 一样）；放的那一行按素材库里那条认。
       const line = fresh?.lines.find((entry) => entry.url === url)
+      // 列表里找不到它（还没落库 / 读列表失败）：⛔ 删掉 —— 钱已经花了。留成能放的一行，下次读到再换。
+      patch(item.key, line ? null : { status: 'unlisted', url })
       playOperatorVoice(line?.id ?? item.key, url)
     },
     [refresh],
@@ -105,12 +122,13 @@ export function useVoiceBench(personaKey: string) {
 
   /** 念：打了几行就排几句，一句念完再念下一句（顺序就是台上的顺序）。 */
   const speak = useCallback(
-    async (text: string) => {
+    async (text: string, speed?: number) => {
       const items = voiceBenchLines(text).map(
         (line): VoiceBenchPending => ({
           key: `p${(pendingSeq += 1)}`,
           text: line,
           status: 'pending',
+          ...(speed !== undefined ? { speed } : {}),
         }),
       )
       setPending((list) => [...list, ...items])

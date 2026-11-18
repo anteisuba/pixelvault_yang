@@ -10,7 +10,8 @@ import { cn } from '@/lib/utils'
  * 菜单浮层的两档动效。⛔ 别在调用方用 className 去覆盖 —— tw-animate 的
  * 那些类不在 tailwind-merge 的组里，覆盖不掉，只会两套变量一起生效。
  *
- * - `zoom`：shadcn 原样。缩放 95 → 100 + 按侧滑入 8px，200ms。
+ * - `zoom`：缩放 95 → 100 + 按侧滑入 8px；开 `duration-base` + `ease-standard`，
+ *   关降一档 `duration-fast` + `ease-in`（与 popover / select / dialog 同一套）。
  * - `grow`：从触发器那一行**长出来**（owner 2026-10-08 侧栏原型 v1 账号菜单）。
  *   开：靠触发器那条边不动，另一条边走 `--spring-slot` 弹簧推出去（clip-path）+
  *   由糊变清；关：反着收回、`duration-fast`。往哪边长看 Radix 的 `data-side`
@@ -19,7 +20,7 @@ import { cn } from '@/lib/utils'
  *   一个独立弹窗。
  */
 const DROPDOWN_MENU_MOTION = {
-  zoom: 'data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 duration-200 ease-standard',
+  zoom: 'data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 duration-base ease-standard data-[state=closed]:duration-fast data-[state=closed]:ease-in',
   grow: 'data-[state=open]:animate-menu-grow data-[state=closed]:animate-menu-shrink motion-reduce:animate-none',
 } as const
 

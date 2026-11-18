@@ -35,6 +35,7 @@ vi.mock('@clerk/nextjs', () => ({
 
 import { ApiKeysProvider } from '@/contexts/api-keys-context'
 import { StudioProvider, useStudioForm } from '@/contexts/studio-context'
+import { StudioGenerationSessionsProvider } from '@/contexts/studio-generation-sessions'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { renderHookWithApp } from '@/test/app-harness'
 import { studioServer } from '@/test/studio-harness'
@@ -42,7 +43,11 @@ import { studioServer } from '@/test/studio-harness'
 function Bench({ children }: { children: ReactNode }) {
   return (
     <ApiKeysProvider autoLoad={false}>
-      <StudioProvider>{children}</StudioProvider>
+      <StudioGenerationSessionsProvider>
+        <StudioProvider generationSession="workspace">
+          {children}
+        </StudioProvider>
+      </StudioGenerationSessionsProvider>
     </ApiKeysProvider>
   )
 }

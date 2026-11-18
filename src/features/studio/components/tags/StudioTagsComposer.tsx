@@ -7,9 +7,10 @@ import * as Toolbar from '@radix-ui/react-toolbar'
 
 import { EASE_STANDARD, LIQUID_TIMING } from '@/constants/motion'
 import {
+  NOVELAI_OPUS_FREE_LIMITS,
   getNovelAiCharacterLayoutMode,
   getNovelAiImageDimensions,
-  isWithinNovelAiOpusFreeTier,
+  getNovelAiOpusCost,
 } from '@/constants/novelai'
 import { getCapabilityConfig } from '@/constants/provider-capabilities'
 import { STUDIO_REFERENCE_DRAG_MIME } from '@/constants/studio'
@@ -28,6 +29,7 @@ import { useNovelAiCharacters } from '@/hooks/use-novelai-characters'
 import { useTagLookupAdder } from '@/hooks/use-tag-lookup-adder'
 import { useReferenceReceiverNotice } from '@/hooks/use-reference-receiver-notice'
 import { useStudioGenerateAction } from '@/hooks/use-studio-generate-action'
+import { useStudioCharacterOutlet } from '@/features/studio/hooks/use-studio-character-outlet'
 import { useStudioShortcuts } from '@/features/studio/hooks/use-studio-shortcuts'
 import { useTagTargetFlash } from '@/hooks/use-tag-target-flash'
 import { useTagCarryTranslation } from '@/hooks/use-tag-carry-translation'
@@ -48,6 +50,7 @@ import {
   ScanText,
   Search,
   SlidersHorizontal,
+  Star,
   X,
 } from '@/components/icons'
 import { LiquidSegmented } from '@/components/ui/liquid-segmented'
@@ -58,6 +61,7 @@ import {
 import { Spinner } from '@/components/ui/spinner'
 import { Switch } from '@/components/ui/switch'
 import { ImageAttachmentPreviewStrip } from '@/components/business/ImageAttachmentPreviewStrip'
+import { StudioCharacterReferenceStrip } from '@/features/studio/components/StudioCharacterReferenceStrip'
 import { MainModelPicker } from '@/components/business/studio-shared/pickers'
 import { ImageRecipeImportChip } from '@/components/business/studio-shared/image-recipe/ImageRecipeImportChip'
 import {
@@ -98,6 +102,7 @@ import {
 } from './StudioTagCast'
 import { StudioTagCarryNote } from './StudioTagCarryNote'
 import { StudioTagTextField } from './StudioTagTextField'
+import { StudioTagPresetNote } from './StudioTagPresetNote'
 import { StudioTagsControlColumn } from './StudioTagsControlColumn'
 import { StudioTagsDesktopEditor } from './StudioTagsDesktopEditor'
 import type { TagWorkbenchPanel } from './StudioTagsWorkbench'
@@ -187,6 +192,9 @@ export function StudioTagsComposer({
   // 查资料在舞台出图那块打开（10-25 用户定：桌面也一样，⛔ 跳去标签库）。
   const openLookup = () =>
     onOpenPanel(activePanel === 'catalog' ? null : 'catalog')
+  // 收藏（11-18 工作台里开库）：盖在舞台上，点一下加、再点拿掉；再点这颗收起。
+  const openFavorites = () =>
+    onOpenPanel(activePanel === 'favorites' ? null : 'favorites')
   /** 查资料刚往哪一位角色里加了标签（那一页亮个小点）。 */
   const flashing = useTagTargetFlash()
   const referenceNotice = useReferenceReceiverNotice(
@@ -279,6 +287,12 @@ export function StudioTagsComposer({
       onSelect: () => onOpenPanel('catalog'),
     },
     {
+      key: 'favorites',
+      icon: <Star className="size-4" />,
+      label: t('favoritesPanel.title'),
+      onSelect: () => onOpenPanel('favorites'),
+    },
+    {
       key: 'recipe-import',
       icon: <ScanText className="size-4" />,
       label: tRecipe('button'),
@@ -337,6 +351,7 @@ export function StudioTagsComposer({
               {...referenceStripProps}
               variant="composer"
             />
+            <StudioCharacterReferenceStrip />
             {referenceStatus}
 
             {/* 编辑谁 —— 只有支持角色构图的模型才有这一行。 */}
@@ -447,6 +462,12 @@ export function StudioTagsComposer({
                     ) : undefined
                   }
                 />
+                {activeIndex === null ? (
+                  <StudioTagPresetNote
+                    polarity="positive"
+                    disabled={isGenerating}
+                  />
+                ) : null}
               </div>
               {characters.mode ? (
                 <StudioTagCountHint
@@ -494,6 +515,12 @@ export function StudioTagsComposer({
                     disabled={isGenerating || characterDisabled}
                     onChange={(chips) => setChips('negative', chips)}
                   />
+                  {activeIndex === null ? (
+                    <StudioTagPresetNote
+                      polarity="negative"
+                      disabled={isGenerating}
+                    />
+                  ) : null}
                 </div>
               ) : null}
               {characters.mode ? (
@@ -521,10 +548,13 @@ export function StudioTagsComposer({
               />
             }
             referenceStrip={
-              <ImageAttachmentPreviewStrip
-                {...referenceStripProps}
-                variant="tabs"
-              />
+              <>
+                <ImageAttachmentPreviewStrip
+                  {...referenceStripProps}
+                  variant="tabs"
+                />
+                <StudioCharacterReferenceStrip variant="tabs" />
+              </>
             }
             referenceStatus={referenceStatus}
           />
@@ -644,6 +674,21 @@ export function StudioTagsComposer({
                   <Search className="size-4" aria-hidden />
                   <span className={studioOutlineChipCompactLabelClass}>
                     {t('workbench.lookup')}
+                  </span>
+                </Toolbar.Button>
+                <Toolbar.Button
+                  type="button"
+                  aria-label={t('favoritesPanel.title')}
+                  aria-pressed={activePanel === 'favorites'}
+                  onClick={openFavorites}
+                  className={cn(
+                    studioOutlineChipClass,
+                    studioOutlineChipCompactClass,
+                  )}
+                >
+                  <Star className="size-4" aria-hidden />
+                  <span className={studioOutlineChipCompactLabelClass}>
+                    {t('favoritesPanel.title')}
                   </span>
                 </Toolbar.Button>
                 <ImageRecipeImportChip disabled={isGenerating} />
@@ -892,6 +937,8 @@ function TagQuotaLine({
   const t = useTranslations('StudioTags')
   const { state } = useStudioForm()
   const { imageUpload, characters } = useStudioData()
+  // 角色主图走精确参考也算「挂了图」：每张 +5 Anlas，Opus 免费不再适用（11-17）。
+  const characterOutlet = useStudioCharacterOutlet()
   const novelAi = runModels.some((model) =>
     getNovelAiCharacterLayoutMode(model.modelId),
   )
@@ -919,19 +966,31 @@ function TagQuotaLine({
     )
   }
   const { width, height } = getNovelAiImageDimensions(state.aspectRatio)
-  const free =
-    isWithinNovelAiOpusFreeTier({
-      width,
-      height,
-      steps: state.advancedParams.steps ?? 28,
-      imageCount: state.imageBatchCount,
-    }) && state.advancedParams.novelAiReferenceMode !== 'precise'
+  // 官方判据：文生图 · 单张 · ≤1024² · ≤28 步才免；挂底图（图生图 / 重绘 / 精确
+  // 参考）一律按 Anlas 计；V5 免 Anlas 但计入用量条。
+  const cost = getNovelAiOpusCost({
+    width,
+    height,
+    steps: state.advancedParams.steps ?? NOVELAI_OPUS_FREE_LIMITS.maxSteps,
+    imageCount: state.imageBatchCount,
+    hasReferenceImage:
+      imageUpload.referenceImages.length > 0 ||
+      characterOutlet.novelAiPreciseReference,
+    modelIds: runModels
+      .filter((model) => getNovelAiCharacterLayoutMode(model.modelId))
+      .map((model) => model.modelId),
+  })
+  const message = {
+    free: ['opusFree', 'opusFreeShort'],
+    usageLimited: ['opusUsageLimited', 'opusUsageLimitedShort'],
+    metered: ['opusMetered', 'opusMeteredShort'],
+  } as const
   return (
     <span
-      title={t(free ? 'opusFree' : 'opusMetered')}
+      title={t(message[cost][0])}
       className="whitespace-nowrap text-2xs text-muted-foreground"
     >
-      {t(free ? 'opusFreeShort' : 'opusMeteredShort')}
+      {t(message[cost][1])}
     </span>
   )
 }

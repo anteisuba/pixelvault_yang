@@ -56,6 +56,19 @@ const LANDING_POINTS = [
 ]
 
 /**
+ * 主动作由**调用方**造好再递进来（`action={emptyAction}`）的落点 → 那颗黑丸写在哪个文件。
+ * 画廊（11-18）：网格与提示词列表共用 `GalleryFeed` 里的同一颗——没结果时它是「清除筛选」，
+ * 真空时是「去工作台」，落点自己不知道该是哪一颗。⚠ 只是把「去哪查黑丸」改指过去，
+ * 一句话与 `action=` 仍然要求写在落点里。
+ */
+const DELEGATED_ACTION: Record<string, string> = {
+  'src/features/gallery/components/GalleryGrid.tsx':
+    'src/features/gallery/components/GalleryFeed.tsx',
+  'src/features/gallery/components/GalleryPromptList.tsx':
+    'src/features/gallery/components/GalleryFeed.tsx',
+}
+
+/**
  * 长得像空态但**故意不走原语**的几处，每条都得说得出理由。
  *
  * · `StudioEmptyState` / `StudioOperatorEmptyState` —— 不是「一块区域没有内容」，
@@ -114,7 +127,13 @@ describe('空态 · 全站只有一种长相', () => {
       const source = readFileSync(join(process.cwd(), point), 'utf8')
       const hasDescription = /description=\{/.test(source)
       const hasAction = /\n\s+action=\{/.test(source)
-      const hasPill = /rounded-full/.test(source)
+      const delegate = DELEGATED_ACTION[point]
+      const pillSource = delegate
+        ? readFileSync(join(process.cwd(), delegate), 'utf8')
+        : source
+      const hasPill = delegate
+        ? /<Button[^>]*className="[^"]*rounded-full/.test(pillSource)
+        : /rounded-full/.test(pillSource)
       if (!hasDescription || !hasAction || !hasPill) thin.push(point)
     }
 

@@ -40,6 +40,7 @@ import type {
   GenerationRecord,
   WorkerRunContext,
 } from '@/types'
+import { AudioVoiceMetaSchema } from '@/lib/audio-voice-meta'
 import { getProviderAdapter } from '@/services/providers/registry'
 import { ProviderError } from '@/services/providers/types'
 import {
@@ -125,17 +126,18 @@ const AudioQueueRequestSchema = z.object({
 
 type AudioQueueRequest = z.infer<typeof AudioQueueRequestSchema>
 
-const AudioQueueMetadataSchema = z.object({
-  requestId: z.string().min(1).optional(),
-  statusUrl: z.string().url().optional(),
-  responseUrl: z.string().url().optional(),
-  route: AudioRouteIdentitySchema,
-  workerManaged: z.boolean().optional(),
-  outputType: z.literal('AUDIO').optional(),
-  workflowInstanceId: z.string().min(1).optional(),
-  audioFormat: z.string().min(1).optional(),
-  voiceId: z.string().min(1).max(200).optional(),
-})
+const AudioQueueMetadataSchema = z
+  .object({
+    requestId: z.string().min(1).optional(),
+    statusUrl: z.string().url().optional(),
+    responseUrl: z.string().url().optional(),
+    route: AudioRouteIdentitySchema,
+    workerManaged: z.boolean().optional(),
+    outputType: z.literal('AUDIO').optional(),
+    workflowInstanceId: z.string().min(1).optional(),
+    audioFormat: z.string().min(1).optional(),
+  })
+  .extend(AudioVoiceMetaSchema.shape)
 
 type AudioQueueMetadata = z.infer<typeof AudioQueueMetadataSchema>
 
@@ -624,10 +626,9 @@ export async function generateAudioForUser(
               voiceId: request.voiceId,
               // 说话人的**名字**。素材库一直能拿到音色的脸（previewUrl）和 id，
               // 却没有名字可印——`voiceId` 是给 provider 看的句柄，不是给人看的。
-              // ⚠ 只在这条同步路径上写。异步 provider 的落库在
-              // `getReadyAudioQueueMetadata` 那条线上，它有自己的 outbox payload
-              // schema，要带 voiceName 得把字段一路穿过序列化。配音间用的 Fish
-              // 是同步返回，走的就是这里；等真有异步语音 provider 进来再补那条。
+              // ⚠ Fish 带用户 key 时走 Worker（`submitAudioWorkerRun`），那条路由
+              // 回调落库，同形字段经 `audio-voice-meta.ts` 穿过去；outbox 那条异步
+              // 队列路只带 voiceId。
               voiceName: request.voiceName,
               timestamps: result.timestamps,
             },
@@ -1192,7 +1193,10 @@ async function submitAudioWorkerRun(params: {
     workerManaged: true,
     outputType: 'AUDIO',
     audioFormat: request.format,
+    // 回调落库靠这三样把「谁念的」写回去（配音台按 voiceId 认台词）—— 见 `audio-voice-meta.ts`。
     voiceId: request.voiceId,
+    voiceName: request.voiceName,
+    audioCoverUrl: request.coverImageUrl,
   }
   const outputStorageKey = generateStorageKey(
     'AUDIO',

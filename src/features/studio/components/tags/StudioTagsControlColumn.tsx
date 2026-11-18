@@ -9,9 +9,11 @@ import { AdvancedParamsSchema } from '@/types'
 import { NovelAiCharacterComposer } from '@/features/studio/components/tags/NovelAiCharacterComposer'
 import { StudioTagCapabilityControl } from '@/features/studio/components/tags/StudioTagCapabilityControl'
 import {
+  NOVELAI_OPUS_FREE_LIMITS,
   getNovelAiCharacterLayoutMode,
   getNovelAiImageDimensions,
-  isWithinNovelAiOpusFreeTier,
+  getNovelAiOpusCost,
+  type NovelAiOpusCost,
 } from '@/constants/novelai'
 import {
   useStudioData,
@@ -19,6 +21,7 @@ import {
   useStudioGen,
 } from '@/contexts/studio-context'
 import { useStudioRunModels } from '@/hooks/use-studio-run-models'
+import { useStudioCharacterOutlet } from '@/features/studio/hooks/use-studio-character-outlet'
 import { isCapabilityChipVisible } from '@/lib/model-capability-chips'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import {
@@ -73,6 +76,8 @@ export function StudioTagsControlColumn({
   const { isGenerating } = useStudioGen()
   const { imageUpload } = useStudioData()
   const hasReferenceImage = imageUpload.referenceImages.length > 0
+  // 角色主图走 NovelAI 精确参考（角色弹层里的开关）：计价跟「挂了图」一样（11-17）。
+  const characterPrecise = useStudioCharacterOutlet().novelAiPreciseReference
 
   const controls = useMemo(
     () => getTagWorkbenchControls(runModels),
@@ -199,8 +204,9 @@ export function StudioTagsControlColumn({
         )
       })}
 
-      {hasReferenceImage &&
-      state.advancedParams.novelAiReferenceMode === 'precise' ? (
+      {characterPrecise ||
+      (hasReferenceImage &&
+        state.advancedParams.novelAiReferenceMode === 'precise') ? (
         <p className="text-2xs text-muted-foreground">
           {t('preciseReferenceCost')}
         </p>
@@ -236,7 +242,11 @@ export function StudioTagsControlColumn({
         </label>
       ) : null}
       {inPopover ? null : (
-        <ResolutionCard runModels={runModels} note={onlyForNote} />
+        <ResolutionCard
+          runModels={runModels}
+          hasReferenceImage={hasReferenceImage || characterPrecise}
+          note={onlyForNote}
+        />
       )}
       {hasReferenceImage &&
       !controls.some(
@@ -294,18 +304,26 @@ function ControlCard({
 
 type OnlyForNote = (supportedBy: readonly string[]) => string | null
 
+const NOVELAI_OPUS_COST_MESSAGE = {
+  free: 'opusFree',
+  usageLimited: 'opusUsageLimited',
+  metered: 'opusMetered',
+} as const satisfies Record<NovelAiOpusCost, string>
+
 /**
  * 分辩率 · 额度。
  *
- * ⚠ 额度这一格报的是**官方写过的那条判据**（Opus 免费窗口：单张 · ≤1024² ·
- * ≤28 步），⛔ 不报一个「大约多少 Anlas」的数 —— NovelAI 没有公开逐档价目，
- * 摆一个凭社区逆向出来的系数比不报更糟。画板那格的「约 28 Anlas」是示意数。
+ * ⚠ 额度这一格报的是**官方写过的那条判据**（`getNovelAiOpusCost`：文生图 · 单张 ·
+ * ≤1024² · ≤28 步；V5 计入用量条），⛔ 不报一个「大约多少 Anlas」的数 ——
+ * NovelAI 没有公开逐档价目，摆一个凭社区逆向出来的系数比不报更糟。
  */
 function ResolutionCard({
   runModels,
+  hasReferenceImage,
   note,
 }: {
   runModels: readonly StudioModelOption[]
+  hasReferenceImage: boolean
   note: OnlyForNote
 }) {
   const t = useTranslations('StudioTags')
@@ -317,11 +335,13 @@ function ResolutionCard({
   if (novelAi.length === 0) return null
 
   const { width, height } = getNovelAiImageDimensions(state.aspectRatio)
-  const free = isWithinNovelAiOpusFreeTier({
+  const cost = getNovelAiOpusCost({
     width,
     height,
-    steps: state.advancedParams.steps ?? 28,
+    steps: state.advancedParams.steps ?? NOVELAI_OPUS_FREE_LIMITS.maxSteps,
     imageCount: state.imageBatchCount,
+    hasReferenceImage,
+    modelIds: novelAi.map((model) => model.modelId),
   })
 
   return (
@@ -334,9 +354,7 @@ function ResolutionCard({
           {width}×{height}
         </span>
         <span className="truncate text-2xs text-muted-foreground">
-          {free && state.advancedParams.novelAiReferenceMode !== 'precise'
-            ? t('opusFree')
-            : t('opusMetered')}
+          {t(NOVELAI_OPUS_COST_MESSAGE[cost])}
         </span>
       </div>
     </ControlCard>

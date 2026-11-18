@@ -8,6 +8,20 @@ import {
 } from '@/lib/spec-chip-model'
 
 describe('buildImageSpecChipModel', () => {
+  it('不支持的档全部列出（选着 2K、只缺 1K → tiers=[1K]、不说上限）', () => {
+    const model = buildImageSpecChipModel({
+      adapterType: AI_ADAPTER_TYPES.VOLCENGINE,
+      modelId: undefined,
+      aspectRatio: '1:1',
+      resolution: '2K',
+    })
+    expect(model.resolutionNote).toEqual({
+      kind: 'unsupported',
+      tiers: ['1K'],
+      maxSupported: null,
+    })
+  })
+
   it('limits Ideogram generation to verified native presets', () => {
     const model = buildImageSpecChipModel({
       adapterType: AI_ADAPTER_TYPES.IDEOGRAM,

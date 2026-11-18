@@ -1,4 +1,6 @@
 import {
+  NOVELAI_DEFAULT_QUALITY_PRESET,
+  NOVELAI_DEFAULT_UC_PRESET,
   findNovelAiInteractionPreset,
   getNovelAiTextLimit,
 } from '../constants/novelai'
@@ -54,8 +56,9 @@ const UC_PRESET_TAGS_BY_MODEL: Record<string, Record<string, string>> = {
     light:
       'lowres, artistic error, scan artifacts, worst quality, bad quality, jpeg artifacts, multiple views, very displeasing, too many watermarks, negative space, blank page',
   },
+  // ⚠ 不展开 V5 那张表：官方 V4.5 Curated 只有 Heavy / Light / Human Focus，
+  // 没有 Furry Focus（undesiredcontent 页 2026-11-17 核对）。
   'nai-diffusion-4-5-curated': {
-    ...V5_UC_PRESET_TAGS,
     heavy:
       'blurry, lowres, upscaled, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, halftone, multiple views, logo, too many watermarks, negative space, blank page',
     light:
@@ -351,7 +354,13 @@ export function novelAiPresetFields(
   tag_hint_uc_preset: number
   tag_hint_qt: number
 } {
-  const uc = (ucPreset && UC_PRESET_IDS[ucPreset]) || UC_PRESET_IDS.none!
+  // 只记这个模型真的拼进去了的那一档（V4.5 Curated 上的 furry 没有串 → 记 none）。
+  const table =
+    (externalModelId && UC_PRESET_TAGS_BY_MODEL[externalModelId]) ||
+    V5_UC_PRESET_TAGS
+  const uc =
+    (ucPreset && table[ucPreset] && UC_PRESET_IDS[ucPreset]) ||
+    UC_PRESET_IDS.none!
   const quality = qualitySuffix(qualityToggle, externalModelId)
     ? qualityToggle === 'light'
       ? { id: 'light', hint: 3 }
@@ -377,6 +386,82 @@ export function composeNovelAiUndesiredContent(
   const preset = ucPreset ? table[ucPreset] : undefined
   if (!preset) return negative
   return negative ? `${preset}, ${negative}` : preset
+}
+
+/**
+ * 请求里没写质量标签 / UC 预设时用哪一档 —— 官方网页端缺省（质量标签开、UC Heavy），
+ * 与界面 chip 的缺省档（`options[0]`）是同一个常量。关掉要显式写 `off` / `none`。
+ */
+export function resolveNovelAiQualityPreset(value: Quality): string {
+  return value || NOVELAI_DEFAULT_QUALITY_PRESET
+}
+
+export function resolveNovelAiUcPreset(
+  value: string | null | undefined,
+): string {
+  return value || NOVELAI_DEFAULT_UC_PRESET
+}
+
+/** 认得出的质量标签串（各代、含有字时去掉 `no text` 的那一版）→ 档名，长的先比。 */
+const KNOWN_QUALITY_SUFFIXES: readonly { text: string; preset: string }[] = [
+  ...Object.entries(QUALITY_SUFFIXES).map(([preset, text]) => ({
+    text,
+    preset,
+  })),
+  ...Object.values(V45_QUALITY_SUFFIXES).map((text) => ({
+    text,
+    preset: 'standard',
+  })),
+]
+  .flatMap((entry) => [
+    entry,
+    { text: entry.text.replace(', no text', ''), preset: entry.preset },
+  ])
+  .sort((a, b) => b.text.length - a.text.length)
+
+/** 认得出的 UC 预设串（各代）→ 档名，长的先比（Human Focus 以 Heavy 开头）。 */
+const KNOWN_UC_PRESETS: readonly { text: string; preset: string }[] = [
+  V5_UC_PRESET_TAGS,
+  ...Object.values(UC_PRESET_TAGS_BY_MODEL),
+]
+  .flatMap((table) =>
+    Object.entries(table).map(([preset, text]) => ({ text, preset })),
+  )
+  .sort((a, b) => b.text.length - a.text.length)
+
+/**
+ * 外部配方（NovelAI 写进 PNG 的那份）里的正面已经带着网页端拼上的质量标签串。
+ * 原样导进来再被我们的开关拼一遍就是两份 —— 把认得出的那串剥掉，并报出它是哪一档，
+ * 由调用方把开关拨到同一档。只认出现在末尾（或末尾 `Text:` 段之前）的整串。
+ */
+export function stripNovelAiQualityTags(prompt: string): {
+  prompt: string
+  preset: string | null
+} {
+  for (const { text, preset } of KNOWN_QUALITY_SUFFIXES) {
+    const at = prompt.lastIndexOf(text)
+    if (at < 0) continue
+    const rest = prompt.slice(at + text.length)
+    if (rest.trim() === '' || rest.startsWith(', Text:')) {
+      return { prompt: (prompt.slice(0, at) + rest).trim(), preset }
+    }
+  }
+  return { prompt, preset: null }
+}
+
+/** 同上，负面开头那串 UC 预设。 */
+export function stripNovelAiUcPreset(negative: string): {
+  negative: string
+  preset: string | null
+} {
+  const value = negative.trim()
+  for (const { text, preset } of KNOWN_UC_PRESETS) {
+    if (value === text) return { negative: '', preset }
+    if (value.startsWith(`${text},`)) {
+      return { negative: value.slice(text.length + 1).trim(), preset }
+    }
+  }
+  return { negative, preset: null }
 }
 
 const SINGLE_COUNT_TAGS = new Set(['1girl', '1boy', 'solo'])

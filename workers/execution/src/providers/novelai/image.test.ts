@@ -247,18 +247,33 @@ describe('generateNovelAiImage', () => {
     context.providerInput.advancedParams = {
       img2imgNoise: 0.3,
       cfgRescale: 0.25,
-      referenceStrength: 0.8,
+      img2imgStrength: 0.8,
     }
     await generateNovelAiImage(makeEnv(), context, 'nai-test-key')
     const body = JSON.parse(String(fetchMock.mock.calls[1][1].body))
     expect(body.action).toBe('img2img')
     expect(body.parameters.noise).toBe(0.3)
     expect(body.parameters.cfg_rescale).toBe(0.25)
-    expect(body.parameters.strength).toBeCloseTo(0.2)
+    // 官方 Strength 原样发（越大改得越多），⛔ 不再 1 − x。
+    expect(body.parameters.strength).toBe(0.8)
     // 网页端带底图时固定 seed - 1。
     expect(body.parameters.extra_noise_seed).toBe(body.parameters.seed - 1)
     expect(body.parameters.color_correct).toBe(false)
     expect(body.parameters.director_reference_images).toBeUndefined()
+  })
+
+  it('defaults img2img strength to the web client 0.7 and ignores the cross-provider reference strength', async () => {
+    const fetchMock = stubNovelAiZipResponse()
+    fetchMock.mockResolvedValueOnce(
+      new Response(Uint8Array.from([137, 80, 78, 71])),
+    )
+    const context = makeContext(NOVELAI_V5_FULL, [
+      'https://example.com/ref.png',
+    ])
+    context.providerInput.advancedParams = { referenceStrength: 0.8 }
+    await generateNovelAiImage(makeEnv(), context, 'nai-test-key')
+    const body = JSON.parse(String(fetchMock.mock.calls[1][1].body))
+    expect(body.parameters.strength).toBe(0.7)
   })
 
   it('rejects precise reference on V5 before fetching', async () => {
@@ -320,6 +335,8 @@ describe('generateNovelAiImage', () => {
     const fetchMock = stubNovelAiZipResponse()
     const context = makeContext(NOVELAI_V5_FULL)
     context.providerInput.advancedParams = {
+      // 只看台词怎么落；质量标签缺省开（官方缺省），这里关掉免得混进断言。
+      qualityToggle: 'off',
       novelAiLayout: {
         positioning: 'auto',
         characters: [
@@ -520,7 +537,7 @@ describe('generateNovelAiImage', () => {
     expect(body.parameters.qualityPresetId).toBe('standard')
   })
 
-  it('leaves the prompt untouched on the default quality tag option', async () => {
+  it('leaves the prompt untouched when quality tags are turned off', async () => {
     const fetchMock = stubNovelAiZipResponse()
     const context = makeContext(NOVELAI_V5_FULL)
     context.providerInput.advancedParams = { qualityToggle: 'off' }
@@ -568,6 +585,8 @@ describe('generateNovelAiImage', () => {
   })
 
   // 对齐网页端的请求体（NAI Launcher 2026-10-23 核对）。
+  // 预设缺省 = 官方网页端缺省：质量标签 Standard、UC Heavy（2026-11-17 起；之前缺省关、
+  // 另有一串用户看不见的负面兜底，已删）。
   it('matches the web client defaults on a plain V5 request', async () => {
     const fetchMock = stubNovelAiZipResponse()
     await generateNovelAiImage(
@@ -586,14 +605,40 @@ describe('generateNovelAiImage', () => {
       autoSmea: false,
       image_format: 'png',
       legacy_uc: false,
-      ucPresetId: 'none',
-      qualityPresetId: 'none',
-      tag_hint_uc_preset: 0,
-      tag_hint_qt: 0,
+      ucPresetId: 'heavy',
+      qualityPresetId: 'standard',
+      tag_hint_uc_preset: 2,
+      tag_hint_qt: 1,
     })
+    expect(body.input).toBe(
+      'masterpiece, best quality, 1girl, blue hair, very aesthetic, masterpiece, no text',
+    )
+    expect(body.parameters.negative_prompt).toBe(
+      'lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page',
+    )
     expect(body.parameters).not.toHaveProperty('sm')
     expect(body.parameters).not.toHaveProperty('sm_dyn')
     expect(body.parameters).not.toHaveProperty('extra_noise_seed')
+  })
+
+  // 用户把两样都关掉 = 发出去的负面就是空串，⛔ 不再静默补
+  // 'lowres, bad anatomy, bad hands, missing fingers, extra digit'。
+  it('sends an empty negative when both presets are off and nothing is typed', async () => {
+    const fetchMock = stubNovelAiZipResponse()
+    const context = makeContext(NOVELAI_V5_FULL)
+    context.providerInput.advancedParams = {
+      qualityToggle: 'off',
+      ucPreset: 'none',
+    }
+    await generateNovelAiImage(makeEnv(), context, 'nai-test-key')
+    const body = JSON.parse(String(fetchMock.mock.calls[0][1].body))
+    expect(body.parameters.negative_prompt).toBe('')
+    expect(body.parameters.v4_negative_prompt.caption.base_caption).toBe('')
+    expect(body.input).toBe('masterpiece, best quality, 1girl, blue hair')
+    expect(body.parameters).toMatchObject({
+      ucPresetId: 'none',
+      qualityPresetId: 'none',
+    })
   })
 
   // 进度表 26 切片 2。NovelAI 的 infill 是换模型 + 换 action，不是加参数。

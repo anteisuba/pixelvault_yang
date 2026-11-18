@@ -36,6 +36,7 @@ import { PromptInput, PromptInputTextarea } from '@/components/ui/prompt-input'
 import { ResponsivePopoverPhoneCard } from '@/components/ui/responsive-popover'
 import { Spinner } from '@/components/ui/spinner'
 import { ImageAttachmentPreviewStrip } from '@/components/business/ImageAttachmentPreviewStrip'
+import { StudioCharacterReferenceStrip } from '@/features/studio/components/StudioCharacterReferenceStrip'
 import { StudioReferencePromptInput } from './StudioReferencePromptInput'
 import { StudioCostPreview } from '@/features/studio/components/StudioCostPreview'
 import { StudioCardPicker } from '@/features/studio/components/StudioCardPicker'
@@ -282,6 +283,7 @@ export const StudioMobileComposer = memo(function StudioMobileComposer({
               variant="composer"
               dragMime={STUDIO_REFERENCE_DRAG_MIME}
             />
+            <StudioCharacterReferenceStrip />
             {imageUpload.isUploading ? (
               <div
                 role="status"

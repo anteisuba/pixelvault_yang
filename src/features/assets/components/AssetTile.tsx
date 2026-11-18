@@ -13,6 +13,7 @@ import {
   getGenerationThumbnailUrl,
   getGenerationVideoPosterUrl,
 } from '@/lib/generation-media'
+import { displayVoiceText } from '@/lib/chat-voice'
 import { isGifMimeType } from '@/lib/gif-image'
 import { cn } from '@/lib/utils'
 import {
@@ -114,9 +115,15 @@ export function AssetTile({
       ? formatDuration(Math.round(generation.duration))
       : null
   // 音频卡的常显说明条（台账 E）：台词 / 提示词，没有就退到模型名。
+  // 台词里的语气提示 `[curious]`、漏进来的 `<thought>` 只给嗓子 / 模型看，卡上藏掉（11-17）。
+  const audioLine = isAudio
+    ? displayVoiceText(generation.prompt ?? '')
+    : (generation.prompt?.trim() ?? '')
   const audioCaption =
-    generation.prompt?.trim() ||
+    audioLine ||
     (generation.model === USER_UPLOAD_PROVIDER ? '' : generation.model)
+  /** 整格「打开」键的名字：音频用洗过的台词，其余照旧用提示词。 */
+  const tileLabel = isAudio ? audioLine : generation.prompt
 
   return (
     <div
@@ -249,9 +256,9 @@ export function AssetTile({
       <button
         type="button"
         onClick={onClick}
-        aria-label={generation.prompt || generation.id}
+        aria-label={tileLabel || generation.id}
         aria-pressed={selectionMode ? selected : undefined}
-        title={generation.prompt || undefined}
+        title={tileLabel || undefined}
         className="absolute inset-0 z-10 rounded-12 focus-visible:outline-none focus-visible:shadow-focus"
       />
 

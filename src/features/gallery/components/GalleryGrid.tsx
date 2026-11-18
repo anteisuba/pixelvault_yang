@@ -1,10 +1,17 @@
 'use client'
 
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
 import { Sparkles } from '@/components/icons'
 import { useWindowVirtualizer } from '@tanstack/react-virtual'
 
-import type { Route } from '@/constants/routes'
 import {
   GALLERY_GRID_COLUMN_BREAKPOINTS,
   GALLERY_GRID_GAP_X,
@@ -12,13 +19,14 @@ import {
   GALLERY_GRID_OVERSCAN,
   GALLERY_GRID_SSR_ITEM_COUNT,
 } from '@/features/gallery/constants'
-import { Link } from '@/i18n/navigation'
 
 import { ImageCard } from '@/components/business/ImageCard'
-import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { revealStep, useRevealBatchStart } from '@/components/ui/load-reveal'
-import { screenItemProps } from '@/lib/assistant-screen-scan'
+import {
+  generationScreenAbout,
+  screenItemProps,
+} from '@/lib/assistant-screen-scan'
 import { getGenerationThumbnailUrl } from '@/lib/generation-media'
 import type { GenerationRecord } from '@/types'
 
@@ -27,8 +35,9 @@ interface GalleryGridProps {
   emptyTitle: string
   emptyDescription: string
   /** §7「一句说明 + 一个可点动作」—— 空态的出口是必给的，⛔ 不留白板。 */
-  emptyActionHref: Route
-  emptyActionLabel: string
+  emptyAction: ReactNode
+  /** 不给 = ✦；搜索 / 筛选没结果时 `GalleryFeed` 给放大镜。 */
+  emptyIcon?: ReactNode
   feedLabel: string
   itemFallbackLabel: string
   /** 桌面 / 平板点开交给就地查看器；不给 = 手机，卡自己开全屏详情。 */
@@ -124,8 +133,8 @@ export function GalleryGrid({
   generations,
   emptyTitle,
   emptyDescription,
-  emptyActionHref,
-  emptyActionLabel,
+  emptyAction,
+  emptyIcon,
   feedLabel,
   itemFallbackLabel,
   onOpen,
@@ -240,14 +249,10 @@ export function GalleryGrid({
   if (generations.length === 0) {
     return (
       <EmptyState
-        icon={<Sparkles aria-hidden />}
+        icon={emptyIcon ?? <Sparkles aria-hidden />}
         title={emptyTitle}
         description={emptyDescription}
-        action={
-          <Button asChild className="rounded-full px-5">
-            <Link href={emptyActionHref}>{emptyActionLabel}</Link>
-          </Button>
-        }
+        action={emptyAction}
       />
     )
   }
@@ -365,6 +370,7 @@ const GalleryGridItem = memo(function GalleryGridItem({
         'gallery',
         generation.id,
         getGenerationThumbnailUrl(generation),
+        generationScreenAbout(generation),
       )}
       className="rounded-xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
     >

@@ -1,4 +1,6 @@
 import { EXECUTION_PROGRESS_STAGES } from '../../../../../src/constants/generation-progress'
+import { getRunnerNativeDimensions } from '../../../../../src/constants/runner-dimensions'
+import { RUNNER_CLIP_SKIP_MAX } from '../../../../../src/constants/runner-sampling'
 import type { ExecutionEnv, WorkerImageRunContext } from '../../index'
 import { reportExecutionStage, reportProviderJobId } from '../../lib/app-bridge'
 import { base64ToBytes, randomUint32 } from '../../lib/bytes'
@@ -10,7 +12,6 @@ import {
 } from '../../lib/fields'
 import {
   getImageReferenceInputs,
-  getStandardImageDimensions,
   invertReferenceStrength,
   readAdvancedRecord,
   uploadImageBytesToKey,
@@ -286,27 +287,6 @@ export function readRunnerSeed(
   return seed != null && seed >= 0 ? Math.round(seed) : undefined
 }
 
-export function getRunnerDefaultDimensions(
-  aspectRatio: string,
-  architecture: RunnerArchitecture,
-): { width: number; height: number } {
-  // DiT（Anima · Z-Image）按约 1MP 的表出，SDXL 系沿用通用尺寸。
-  if (!isDitArchitecture(architecture))
-    return getStandardImageDimensions(aspectRatio)
-  switch (aspectRatio) {
-    case '16:9':
-      return { width: 1344, height: 768 }
-    case '9:16':
-      return { width: 768, height: 1344 }
-    case '4:3':
-      return { width: 1152, height: 864 }
-    case '3:4':
-      return { width: 864, height: 1152 }
-    default:
-      return { width: 1024, height: 1024 }
-  }
-}
-
 export function getRunnerDimensions(
   advancedParams: Record<string, unknown>,
   aspectRatio: string,
@@ -315,7 +295,8 @@ export function getRunnerDimensions(
   const width = readNumberField(advancedParams, 'runnerWidth')
   const height = readNumberField(advancedParams, 'runnerHeight')
   if (width == null && height == null) {
-    return getRunnerDefaultDimensions(aspectRatio, architecture)
+    // SDXL 系与 DiT 系同一张 ~1MP 表，前端装配台预览读的也是它。
+    return getRunnerNativeDimensions(aspectRatio)
   }
   // Anima 沿用 1536 的上限；Z-Image 与 SDXL 到 2048。
   const max = architecture === 'anima' ? 1536 : 2048
@@ -364,6 +345,27 @@ export function readRunnerSampling(advancedParams: Record<string, unknown>): {
     sampler: sampler as RunnerSampler | undefined,
     scheduler: scheduler as RunnerScheduler | undefined,
   }
+}
+
+/** 来源图配方带来的 clip skip（`advancedParams.runnerClipSkip`）；没有 = 用底模自己的。 */
+export function readRunnerClipSkip(
+  advancedParams: Record<string, unknown>,
+): number | undefined {
+  const value = advancedParams.runnerClipSkip
+  if (value === undefined) return undefined
+  if (
+    typeof value !== 'number' ||
+    !Number.isInteger(value) ||
+    value < 1 ||
+    value > RUNNER_CLIP_SKIP_MAX
+  ) {
+    throw new WorkerProviderError({
+      message: `Unsupported Runner clip skip: ${String(value)}`,
+      provider: 'runner',
+      phase: 'request_validation',
+    })
+  }
+  return value
 }
 
 export function readRunnerUpscaler(advancedParams: Record<string, unknown>) {
@@ -483,6 +485,7 @@ export async function submitRunnerImageJob(
             cfg: readNumberField(advancedParams, 'guidanceScale') ?? undefined,
             sampler: sampling.sampler,
             scheduler: sampling.scheduler,
+            clipSkip: readRunnerClipSkip(advancedParams),
             loras: runnerLoras.map((lora) => ({
               filename: lora.filename,
               scale: lora.scale,

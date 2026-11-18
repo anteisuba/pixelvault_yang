@@ -55,8 +55,12 @@ export interface SpecResolutionTier extends SpecTier {
 export type SpecResolutionNote =
   | {
       readonly kind: 'unsupported'
-      readonly tier: string
-      /** 这个模型最高能到哪一档；不是「档位高于上限」时为 null。 */
+      /**
+       * **全部**不支持的档（按档序）。⚠ 之前只带第一个：选着 2K 时标题写
+       * 「1K · 此模型不支持」，读起来像是在说当前这一档（owner 2026-11-18）。
+       */
+      readonly tiers: readonly string[]
+      /** 这个模型最高能到哪一档；不支持的档不全在上限之上时为 null。 */
       readonly maxSupported: string | null
     }
   | {
@@ -114,15 +118,17 @@ function resolveResolutionNote(
   currentPrice: number | null,
 ): SpecResolutionNote | null {
   const supported = resolutions.filter((tier) => tier.supported)
-  const unsupported = resolutions.find((tier) => !tier.supported)
-  if (unsupported) {
+  const unsupported = resolutions.filter((tier) => !tier.supported)
+  if (unsupported.length > 0) {
     const highest = supported[supported.length - 1]
     const aboveCeiling =
       highest !== undefined &&
-      resolutions.indexOf(unsupported) > resolutions.indexOf(highest)
+      unsupported.every(
+        (tier) => resolutions.indexOf(tier) > resolutions.indexOf(highest),
+      )
     return {
       kind: 'unsupported',
-      tier: unsupported.value,
+      tiers: unsupported.map((tier) => tier.value),
       maxSupported: aboveCeiling ? highest.value : null,
     }
   }
@@ -226,6 +232,50 @@ export function buildImageSpecChipModel(
     }),
     resolutionNote: resolveResolutionNote(resolutions, null),
     isEmpty: ratios.length === 0 && resolutions.length === 0,
+  }
+}
+
+/**
+ * 卡上存的比例 / 清晰度落到**当前模型**的档上（画布图片卡：chip 显示与发送读同一份）。
+ *
+ * 切过模型的卡，存着的可能是上一个模型的档（Seedream 的 1K 换到只有 2K/4K 的火山）。
+ * 之前 chip 认不出就**不写**，发送照原样发出去 → 服务端 400 或被静默改档。现在：
+ * - 比例不在这个模型的名单里 → `1:1`（不支持就名单首档）；
+ * - 清晰度不在名单里 → 不高于原档的最高一档，没有就最低一档（⛔ 落到 `auto`）；
+ * - 这个模型整段没有清晰度 → 不发这个字段。
+ * 没存过的保持没存（交给模型默认），⛔ 这里不替用户填一个。
+ */
+export function clampImageSpecToModel(input: ImageSpecChipInput): {
+  readonly aspectRatio?: string
+  readonly resolution?: string
+} {
+  const capability = imageCapabilityOf(input.adapterType, input.modelId)
+  const ratioNames: readonly string[] =
+    capability?.aspectRatioOptions ?? STUDIO_IMAGE_ASPECT_RATIOS
+  const supportedResolutions: readonly string[] =
+    capability?.resolutionOptions ?? []
+  let aspectRatio = input.aspectRatio ?? undefined
+  if (aspectRatio && !ratioNames.includes(aspectRatio)) {
+    aspectRatio = ratioNames.includes('1:1') ? '1:1' : ratioNames[0]
+  }
+  let resolution = input.resolution ?? undefined
+  if (resolution && !supportedResolutions.includes(resolution)) {
+    const ladder: readonly string[] = SPEC_IMAGE_RESOLUTION_TIERS
+    const supportedLadder = ladder.filter((tier) =>
+      supportedResolutions.includes(tier),
+    )
+    const at = ladder.indexOf(resolution)
+    const below = supportedLadder.filter((tier) => ladder.indexOf(tier) <= at)
+    resolution =
+      supportedLadder.length === 0
+        ? undefined
+        : at >= 0 && below.length > 0
+          ? below[below.length - 1]
+          : supportedLadder[0]
+  }
+  return {
+    ...(aspectRatio ? { aspectRatio } : {}),
+    ...(resolution ? { resolution } : {}),
   }
 }
 

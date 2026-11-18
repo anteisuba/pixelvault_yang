@@ -144,13 +144,13 @@ describe('StudioModelCapabilityChips', () => {
     })
   })
 
-  it('shows reference strength only after a reference image is attached', () => {
-    // 还在册、认参考强度的是 NovelAI V5（标签台）；FLUX LoRA 已下架选不到。
+  it('shows the redraw strength only after a reference image is attached', () => {
+    // NovelAI V5（标签台）的图生图滑块是官方 Strength =「重绘强度」，不是参考强度。
     const { studio } = renderChips({
       dialect: 'tags',
       modelId: AI_MODELS.NOVELAI_V5_FULL,
     })
-    const name = T('capability.referenceStrength')
+    const name = T('capability.img2imgStrength')
     expect(screen.queryByRole('button', { name })).not.toBeInTheDocument()
     apply(studio.current, { referenceImages: ['https://example.com/a.png'] })
     expect(screen.getByRole('button', { name })).toBeEnabled()

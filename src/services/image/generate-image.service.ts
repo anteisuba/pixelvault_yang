@@ -792,6 +792,7 @@ export async function resolveImageRouteAndValidate(
       }
     }
     for (const field of [
+      'img2imgStrength',
       'cfgRescale',
       'img2imgNoise',
       'preciseReferenceStrength',

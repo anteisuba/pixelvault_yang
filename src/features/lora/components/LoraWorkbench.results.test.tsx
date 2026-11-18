@@ -670,3 +670,63 @@ describe('LoraWorkbench GenerateBranch — mobile generate layout', () => {
     scrollIntoView.mockRestore()
   })
 })
+
+// 11-17 真机：出图 28% 时点侧边栏去配音台再回来，舞台上这一单整个不见了。换台 = 这张台
+// 卸载；出图状态住在外壳那一槽（`studio-generation-sessions`），卸掉台不丢、轮询不停。
+// `rerender` 换掉台而保留 wrapper —— 就是外壳还在、台被换走。
+describe('LoraWorkbench 换台再回来', () => {
+  beforeEach(() => {
+    seedLoraStack([])
+  })
+
+  it('还在出的那一单：回来进度卡还在', async () => {
+    const view = await renderBench(0)
+    fireEvent.change(promptBox(), { target: { value: 'sunset railway' } })
+    await startGenerating()
+    await screen.findByRole('progressbar')
+
+    view.rerender(<></>)
+    expect(screen.queryByRole('progressbar')).toBeNull()
+
+    view.rerender(<LoraWorkbench />)
+    const progress = await screen.findByRole('progressbar')
+    expect(resultBox()).toContainElement(progress)
+  })
+
+  it('不在台上时跑完了：回来看见那张结果', async () => {
+    const view = await renderBench(0)
+    fireEvent.change(promptBox(), { target: { value: 'sunset railway' } })
+    takeOverPolling()
+    const record = generation('gen-away', 'https://example.com/away.png', 7)
+    api.studioGenerateAPI.mockResolvedValueOnce({
+      success: true,
+      data: { jobId: 'job-away' },
+    })
+    api.checkImageGenerationStatusAPI.mockResolvedValueOnce({
+      success: true,
+      data: { jobId: 'job-away', status: 'COMPLETED', generation: record },
+    })
+    fireEvent.click(generateButton())
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    expect(api.studioGenerateAPI).toHaveBeenCalledTimes(1)
+
+    // 换走台，轮询照常问到「出好了」。
+    view.rerender(<></>)
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(IMAGE_GENERATION.POLL_INTERVAL_MS)
+    })
+    expect(api.checkImageGenerationStatusAPI).toHaveBeenCalled()
+
+    view.rerender(<LoraWorkbench />)
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(GENERATION_COMPLETE_TOTAL_MS + 100)
+    })
+    expect(screen.queryByRole('progressbar')).toBeNull()
+    expect(resultBox()?.querySelector('img')).toHaveAttribute(
+      'src',
+      'https://example.com/away.png',
+    )
+  })
+})

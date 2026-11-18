@@ -9,6 +9,7 @@ import { StudioReferenceRail } from '@/components/business/studio-shared/chrome/
 import { StudioVideoQueueStrip } from '@/components/business/studio-shared/chrome/StudioVideoQueueStrip'
 import { GenerationPreview } from '@/features/studio'
 import { StudioProvider } from '@/contexts/studio-context'
+import { StudioGenerationSessionsProvider } from '@/contexts/studio-generation-sessions'
 import { cn } from '@/lib/utils'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Button } from '@/components/ui/button'
@@ -48,7 +49,7 @@ export function UiStateGallery() {
       : (active.items[active.selectedIndex]?.generation?.id ?? null)
 
   return (
-    <StudioProvider>
+    <UiStateStudioProvider>
       <div className="flex min-h-0 flex-1 flex-col lg:h-svh lg:flex-none lg:flex-row">
         <div className="studio-param-panel flex shrink-0 flex-col gap-3 border-b border-border/60 p-3 lg:w-72 lg:overflow-y-auto lg:border-r lg:border-b-0 lg:p-4">
           <p className="text-xs font-medium text-muted-foreground">
@@ -226,6 +227,15 @@ export function UiStateGallery() {
           )}
         </div>
       </div>
-    </StudioProvider>
+    </UiStateStudioProvider>
+  )
+}
+
+/** 样板间不在外壳里：自己挂一份出图槽（外壳那一层见 `(shell)/layout.tsx`）。 */
+function UiStateStudioProvider({ children }: { children: React.ReactNode }) {
+  return (
+    <StudioGenerationSessionsProvider>
+      <StudioProvider generationSession="workspace">{children}</StudioProvider>
+    </StudioGenerationSessionsProvider>
   )
 }

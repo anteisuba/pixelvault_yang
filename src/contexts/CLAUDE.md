@@ -38,7 +38,7 @@ StudioDataContext initializes these hooks at mount time:
 - `useCivitaiToken` (external token)
 - `usePromptEnhance` (LLM prompt enhancement)
 - `useImageUpload` (reference image upload)
-- `useUnifiedGenerate` (core generation orchestrator)
+- `useUnifiedGenerate` (core generation orchestrator) —— ⚠ 不在 StudioProvider 里调：实例住在外壳 `(shell)/layout.tsx` 的 `StudioGenerationSessionsProvider`（`studio-generation-sessions.tsx`，槽 `workspace` / `homeDraft` / `lora`），StudioProvider 用必填 `generationSession` 取。换台卸载台时在飞那一单与结果不丢（11-17 LoRA 台真机）。测试用 `test/studio-harness` 的 `StudioFormProviders` / `StudioProviders`
 - `useUsageSummary` (credit display)
 
 ## Consumer Hooks

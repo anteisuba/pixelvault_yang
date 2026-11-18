@@ -43,6 +43,7 @@ import { focusStudioPrompt } from '@/lib/focus-studio-prompt'
 import { floatComposerChips } from '@/lib/studio-workbench-motion'
 import { MainModelPicker } from '@/components/business/studio-shared/pickers'
 import { ImageAttachmentPreviewStrip } from '@/components/business/ImageAttachmentPreviewStrip'
+import { StudioCharacterReferenceStrip } from '@/features/studio/components/StudioCharacterReferenceStrip'
 // 参数栏直接组合这几颗 —— 它们本来就是独立组件，不用经过一层横向工具条
 // （`StudioToolbarPanels` / `StudioToolbar` 已随 dock 一起退役）。
 import { ReferenceImageChip } from '@/features/studio/components/ReferenceImageChip'
@@ -459,6 +460,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
                 variant="composer"
                 dragMime={STUDIO_REFERENCE_DRAG_MIME}
               />
+              <StudioCharacterReferenceStrip />
               {referenceNotice ? (
                 <p className="text-2xs text-muted-foreground">
                   {referenceNotice}
@@ -810,6 +812,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
               variant="composer"
               dragMime={STUDIO_REFERENCE_DRAG_MIME}
             />
+            {isImageMode ? <StudioCharacterReferenceStrip /> : null}
             {imageUpload.isUploading && (
               <div
                 role="status"

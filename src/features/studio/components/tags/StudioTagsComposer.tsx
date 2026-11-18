@@ -318,7 +318,10 @@ export function StudioTagsComposer({
             type="button"
             onClick={onExpand}
             aria-label={t('compactExpand')}
-            className="flex min-h-11 w-full min-w-0 items-center gap-2 rounded-xl bg-muted/60 px-3 text-left text-md focus-visible:outline-none focus-visible:shadow-focus"
+            // 摘要直接写在输入框白卡上，和图片台手机那行提示词同一副（字 16 / 行高 24、
+            // 占位 `ink-3`）：⛔ 卡里再套一块灰底框（ui-spec §9「填字框」——嵌在输入框里的
+            // 提示词外观由宿主出）。命中区仍是整行 44 高。
+            className="flex min-h-11 w-full min-w-0 items-center gap-2 rounded-xl text-left text-base leading-6 focus-visible:outline-none focus-visible:shadow-focus"
           >
             {characters.mode ? (
               <span className="shrink-0 text-md font-semibold">
@@ -330,7 +333,7 @@ export function StudioTagsComposer({
             <span
               className={cn(
                 'min-w-0 flex-1 truncate',
-                positive.length === 0 && 'text-muted-foreground/60',
+                positive.length === 0 && 'text-muted-foreground',
               )}
             >
               {positive.length > 0

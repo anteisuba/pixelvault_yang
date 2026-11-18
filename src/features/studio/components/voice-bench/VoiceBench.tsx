@@ -43,6 +43,7 @@ import {
 import { Spinner } from '@/components/ui/spinner'
 import { useAssistantPersona } from '@/hooks/use-assistant-persona'
 import { useErrorText } from '@/hooks/use-error-text'
+import { useIsMobile } from '@/hooks/use-mobile'
 import {
   playOperatorVoice,
   stopOperatorVoice,
@@ -99,6 +100,12 @@ export function VoiceBench() {
   const t = useTranslations('VoiceBench')
   const tv = useTranslations('StudioOperator.voice')
   const errText = useErrorText()
+  /**
+   * 手机（<768）照图片 / 标签 / 视频台的手机骨架：灰底地台上「舞台一张白卡 + 输入框另一张白卡」
+   * （工作台脊柱 `.workbench-card`，owner 2026-10-04「像 PC 一样上下两张卡」）。
+   * 桌面不动：台面直接落在白板上（ui-spec §1「板里不再套卡」）。
+   */
+  const isMobile = useIsMobile()
   const voice = usePersonaVoice()
   const { persona } = useAssistantPersona()
   const bench = useVoiceBench(
@@ -203,7 +210,11 @@ export function VoiceBench() {
   return (
     <div
       data-testid="voice-bench"
-      className="flex h-page min-h-0 w-full flex-col gap-3 p-3 lg:p-8"
+      className={cn(
+        'flex h-page min-h-0 w-full flex-col gap-3 p-3 lg:p-8',
+        // 地台灰与内距 / 行距同脊柱手机档（`--workbench-pad` / `--workbench-gap` = 10）。
+        isMobile && 'gap-2.5 bg-surface-workbench p-2.5',
+      )}
     >
       <div data-bench-header className="flex h-9 shrink-0 items-center">
         {voice.characterCardId ? (
@@ -244,7 +255,10 @@ export function VoiceBench() {
           <div
             ref={listRef}
             data-testid="voice-bench-lines"
-            className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto lg:mb-4"
+            className={cn(
+              'flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto lg:mb-4',
+              isMobile && 'workbench-card p-3',
+            )}
           >
             {bench.loading ? (
               <div className="grid flex-1 place-items-center">

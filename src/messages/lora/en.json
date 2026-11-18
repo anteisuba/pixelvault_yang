@@ -179,7 +179,6 @@
       "runnerBudgetSite": "Site Runner budget: {remaining}/{limit} left this month (no limit for you)",
       "runnerBudgetExhausted": "Runner's monthly budget is used up — resets next month, or use a hosted base model",
       "runnerUnavailable": "Runner generation is currently turned off. Choose a hosted base model, or ask the site admin to enable Runner.",
-      "resultEmptyHint": "Enter a prompt, then hit Generate",
       "eta": "Runner usually takes {min}–{max}s per image",
       "etaColdStart": "First run loads the base model — usually {min}–{max} minutes",
       "resultFailedRetry": "Retry",

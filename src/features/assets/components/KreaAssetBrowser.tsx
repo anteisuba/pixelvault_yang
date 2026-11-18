@@ -2152,7 +2152,9 @@ export function KreaAssetBrowser({
   return (
     <div
       className={cn(
-        'flex h-page flex-col bg-surface-workbench md:bg-background',
+        // 整页白底（ui-spec §1，owner 2026-11-05「⛔ 板里再垫暖灰底」）：手机也和画廊 /
+        // 角色 / 音色 / 提示词同一张白底，⛔ 留着工作台灰（那是 09-20 推灰时的残留）。
+        'flex h-page flex-col bg-background',
         // 手机：图一直铺到屏幕底，从浮起的底栏后面滑过去（owner 2026-10-17）。
         !isPickerMode && 'max-md:h-page-behind-tabbar',
         className,

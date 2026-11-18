@@ -179,7 +179,6 @@
       "runnerBudgetSite": "サイト全体の今月の Runner 残り {remaining}/{limit} 回（あなたは無制限）",
       "runnerBudgetExhausted": "今月の Runner 生成枠を使い切りました。翌月リセット、またはホスト型モデルをご利用ください",
       "runnerUnavailable": "Runner は現在利用できません。クラウドのベースモデルを選ぶか、サイト管理者に有効化を依頼してください。",
-      "resultEmptyHint": "プロンプトを入力して「生成」を押してください",
       "eta": "Runner での生成は通常 {min}〜{max} 秒かかります",
       "etaColdStart": "初回は基盤モデルの読み込みから始まるため、通常 {min}〜{max} 分かかります",
       "resultFailedRetry": "再試行",

@@ -3575,13 +3575,14 @@ function GenerateBranch({
                     // 没失败才是空态。⚠ `mobileGenerateFailure` 在桌面恒 null，
                     // 桌面永远走空态那一支，与改动前一致。owner 反馈
                     // （2026-09-04，对照 mock）：真空态不要图标、不要两行标题——
-                    // mock 就是卡内居中一句小字，`text-muted-foreground/60`≈mock
-                    // 的 `--ink-3`。
+                    // mock 就是卡内居中一句小字。11-18 起这一句和桌面 `LoraResultStage`、
+                    // 图片 / 视频台的起手屏同一句同一副字（ui-spec §2 / §4 `head`）：
+                    // 「想画什么？」，⛔ 手机另写一句操作提示。
                     <div className="flex size-full flex-col items-center justify-center gap-2 p-3 text-center">
                       {mobileGenerateFailure ?? (
-                        <p className="text-2xs text-muted-foreground/60">
-                          {t('generate.resultEmptyHint')}
-                        </p>
+                        <h2 className="text-xl font-semibold text-foreground">
+                          {t('generate.emptyTitle')}
+                        </h2>
                       )}
                     </div>
                   ) : (

@@ -580,6 +580,69 @@ export function loraNameKeysMatch(a: string, b: string): boolean {
   return rest === '' || /^\d{1,3}$/.test(rest)
 }
 
+/** 训练存档尾巴：`_000013250` / `-000034`（≥6 位，轮次或步数）。 */
+const TRAINING_SAVE_SUFFIX_RE = /[-_](\d{6,})$/
+/** 去掉尾巴后，短的那个名字至少这么长才认——太短的（`style`）谁都能是谁的后缀。 */
+const TRAINING_RUN_NAME_MIN_KEY_LENGTH = 8
+
+/**
+ * 同一份训练存档的两个叫法：A1111 的 `Lora hashes` 记的是文件名
+ * （`a Thousand Years_000013250`，带 hash），正文 `<lora:>` 记的是作者改过的叫法
+ * （`One Dream, a Thousand Years_000013250`，带权重）。两边尾巴那串步数一字不差，
+ * 一个名字是另一个的后缀。
+ */
+export function isSameTrainingRunLoraName(a: string, b: string): boolean {
+  const ma = a.trim().match(TRAINING_SAVE_SUFFIX_RE)
+  const mb = b.trim().match(TRAINING_SAVE_SUFFIX_RE)
+  if (!ma || !mb || ma[1] !== mb[1]) return false
+  const ka = normalizeLoraNameKey(a.trim().slice(0, ma.index))
+  const kb = normalizeLoraNameKey(b.trim().slice(0, mb.index))
+  const [shorter, longer] = ka.length <= kb.length ? [ka, kb] : [kb, ka]
+  if (shorter.length < TRAINING_RUN_NAME_MIN_KEY_LENGTH) return false
+  return longer.endsWith(shorter)
+}
+
+/**
+ * 把「只有名字」的 extra 并进同一份训练存档的「带 hash」那份（就地改）：hash 是定位，
+ * 名字那份留着只会再去按名字搜一遍，算成两个 LoRA。只并「一份有 hash、一份啥定位
+ * 都没有」——两份都带 hash 就是两个文件，不并。
+ */
+function foldSameTrainingRunExtras(
+  extras: CivitaiRecipeExtraLora[],
+  targetResourceName: string | undefined,
+): void {
+  for (let index = extras.length - 1; index >= 0; index -= 1) {
+    const extra = extras[index]!
+    if (
+      !extra.name ||
+      extra.hash !== undefined ||
+      extra.modelVersionId !== undefined
+    ) {
+      continue
+    }
+    // 同理，按 hash 认出的这把 LoRA 自己换个叫法出现在正文里，也不是「还叠了」。
+    if (
+      targetResourceName &&
+      isSameTrainingRunLoraName(targetResourceName, extra.name)
+    ) {
+      extras.splice(index, 1)
+      continue
+    }
+    const owner = extras.find(
+      (candidate) =>
+        candidate !== extra &&
+        candidate.hash !== undefined &&
+        candidate.name !== undefined &&
+        isSameTrainingRunLoraName(candidate.name, extra.name!),
+    )
+    if (!owner) continue
+    if (owner.weight === undefined && extra.weight !== undefined) {
+      owner.weight = extra.weight
+    }
+    extras.splice(index, 1)
+  }
+}
+
 function isKnownTargetLoraName(
   name: string | null | undefined,
   knownTargetNames: ReadonlySet<string>,
@@ -742,7 +805,12 @@ async function resolveFirstExactCivitaiVersionCandidate(
   return null
 }
 
-type NameStemResolution =
+/**
+ * 配方里一个 LoRA 引用的解析结论。`ambiguous` 与 `miss` 分开：前者是「Civitai 上
+ * 有好几个作者的同名 LoRA，认不出是哪一个」，后者才是「Civitai 上没有」——
+ * 两种提示给用户的补救动作不一样（去库里自己挑 vs 多半是作者私有，挂不了）。
+ */
+export type CivitaiLoraReferenceResolution =
   | { kind: 'hit'; item: CivitaiLoraLibraryItem }
   | { kind: 'ambiguous'; modelIds: number[] }
   | { kind: 'miss' }
@@ -759,7 +827,7 @@ function matchLibraryItemByFileStem(
   items: readonly z.infer<typeof CivitaiModelSchema>[],
   targetNameKey: string,
   baseModelFamily: string | null | undefined,
-): NameStemResolution {
+): CivitaiLoraReferenceResolution {
   const matches: {
     model: z.infer<typeof CivitaiModelSchema>
     versions: z.infer<typeof CivitaiModelVersionSchema>[]
@@ -799,7 +867,7 @@ function matchLibraryItemByFileStem(
 async function resolveCivitaiLoraByNameStem(
   name: string,
   baseModelFamily: string | null | undefined,
-): Promise<NameStemResolution> {
+): Promise<CivitaiLoraReferenceResolution> {
   const trimmed = name.trim()
   if (!trimmed) return { kind: 'miss' }
 
@@ -848,9 +916,9 @@ async function resolveCivitaiLoraByNameStem(
 async function resolveCivitaiLoraByWebSearchNameStem(
   name: string,
   baseModelFamily: string | null | undefined,
-): Promise<CivitaiLoraLibraryItem | null> {
+): Promise<CivitaiLoraReferenceResolution> {
   const trimmed = name.trim()
-  if (!trimmed) return null
+  if (!trimmed) return { kind: 'miss' }
 
   const queries = buildCivitaiLoraNameSearchQueries(trimmed)
   const filter = buildCivitaiSearchFilters(baseModelFamily)
@@ -873,11 +941,11 @@ async function resolveCivitaiLoraByWebSearchNameStem(
       baseModelFamily: baseModelFamily ?? null,
       error: error instanceof Error ? error.message : 'Unknown',
     })
-    return null
+    return { kind: 'miss' }
   }
 
   const parsed = CivitaiModelSearchResponseSchema.safeParse(payload)
-  if (!parsed.success) return null
+  if (!parsed.success) return { kind: 'miss' }
 
   const target = normalizeLoraNameKey(trimmed)
   const candidates: CivitaiSearchVersionCandidate[] = []
@@ -908,14 +976,15 @@ async function resolveCivitaiLoraByWebSearchNameStem(
       name: trimmed,
       modelIds: [...confirmedModelIds],
     })
-    return null
+    return { kind: 'ambiguous', modelIds: [...confirmedModelIds] }
   }
 
-  return resolveFirstExactCivitaiVersionCandidate(
+  const item = await resolveFirstExactCivitaiVersionCandidate(
     candidates,
     target,
     baseModelFamily,
   )
+  return item ? { kind: 'hit', item } : { kind: 'miss' }
 }
 
 export interface CivitaiCheckpointResolution {
@@ -1030,25 +1099,24 @@ export async function resolveCivitaiLoraByReference({
   modelVersionId,
   name,
   baseModelFamily,
-}: ResolveCivitaiLoraReference): Promise<CivitaiLoraLibraryItem | null> {
+}: ResolveCivitaiLoraReference): Promise<CivitaiLoraReferenceResolution> {
   if (hash || modelVersionId) {
     const direct = await resolveCivitaiLoraByLocator(hash, modelVersionId)
-    if (direct) return direct
+    if (direct) return { kind: 'hit', item: direct }
   }
   if (name) {
     const official = await resolveCivitaiLoraByNameStem(name, baseModelFamily)
-    if (official.kind === 'hit') return official.item
     // 歧义就是歧义：换网页搜索只会搜出同一批同名 LoRA，不往下兜。
     if (official.kind === 'ambiguous') {
       logger.info('Civitai LoRA name resolve ambiguous', {
         name,
         modelIds: official.modelIds,
       })
-      return null
     }
+    if (official.kind !== 'miss') return official
     return resolveCivitaiLoraByWebSearchNameStem(name, baseModelFamily)
   }
-  return null
+  return { kind: 'miss' }
 }
 
 // ── Creator Controls：这把 LoRA 的权重到底能不能被下走 ────────────────────
@@ -2052,6 +2120,12 @@ function resolveRecipeLoraSignals({
     seenNames.add(key)
     extras.push({ name: tag.name, weight: tag.weight })
   }
+  foldSameTrainingRunExtras(
+    extras,
+    matchedResource?.name
+      ? stripLoraFolderPath(repairUtf8Mojibake(matchedResource.name))
+      : undefined,
+  )
 
   // P2: community images often expose top-level modelVersionIds even when
   // civitaiResources is empty. Only bind when the mapping is unambiguous

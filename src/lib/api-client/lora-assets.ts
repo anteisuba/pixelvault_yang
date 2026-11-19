@@ -3,6 +3,7 @@ import {
   DEFAULT_LORA_CONTENT_TYPE,
   DEFAULT_LORA_NSFW_FILTER,
   HUGGINGFACE_LORA_DEFAULT_FAMILY,
+  LORA_REFERENCE_AMBIGUOUS_ERROR_CODE,
   type CivitaiLoraBaseModel,
   type CivitaiLoraSort,
   type HuggingFaceLoraSort,
@@ -372,6 +373,8 @@ interface ResolveCivitaiLoraResponse {
   error?: string
   /** 404：本地库和 Civitai 都没有（多半是作者本地私有的 LoRA），与网络/上游失败分开。 */
   notFound?: boolean
+  /** 409：Civitai 上有好几个作者的同名 LoRA，认不出是哪一个，故意不挂。 */
+  ambiguous?: boolean
 }
 
 /**
@@ -401,10 +404,12 @@ export async function resolveCivitaiLoraAPI(params: {
       `${API_ENDPOINTS.LORA_ASSETS_CIVITAI_RESOLVE}?${query.toString()}`,
     )
     if (!response.ok) {
+      const payload = await getErrorPayload(response)
       return {
         success: false,
         notFound: response.status === 404,
-        ...(await getErrorPayload(response)),
+        ambiguous: payload.errorCode === LORA_REFERENCE_AMBIGUOUS_ERROR_CODE,
+        ...payload,
       }
     }
     return (await response.json()) as ResolveCivitaiLoraResponse

@@ -151,6 +151,13 @@ export const LORA_OFTEN_MOUNTED_MIN_COUNT = 2
 export const LORA_OFTEN_MOUNTED_MAX_RESULTS = 3
 
 /**
+ * 做同款补挂：按名字搜到**好几个作者**的同名 LoRA，认不出是哪一个，不挂。
+ * resolve 路由以 409 + 这个 errorCode 回，前端据此说「同名的有好几个」，
+ * 不跟「Civitai 上没有」（404）混在一起。
+ */
+export const LORA_REFERENCE_AMBIGUOUS_ERROR_CODE = 'LORA_REFERENCE_AMBIGUOUS'
+
+/**
  * 收藏 / 加到角色时外部 LoRA 名字的上限：名字原样照抄来源，只防畸形请求。
  * Civitai 上多角色合集的名字常超过一百字（2026-10-23 一把「绝区零…三合一」被
  * 旧的 120 上限拒成 Invalid body，收藏与加到角色都失败）；数据库列是无长度的

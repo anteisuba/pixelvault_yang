@@ -22,6 +22,11 @@ export interface RecipeExtraMountResult {
    * say so instead of a vague "还原度受限" (nothing the user can fix there).
    */
   notFound: number
+  /**
+   * Resolve found several authors' LoRAs with this name and refused to guess.
+   * Not "not on Civitai" — the remedy is picking the right one in the library.
+   */
+  ambiguous: number
   /** Resolved but rejected for base-model architecture mismatch. */
   incompatible: number
   /**
@@ -49,6 +54,7 @@ interface ResolveRecipeExtraLoraResponse {
   success: boolean
   data?: LoraAssetRecord
   notFound?: boolean
+  ambiguous?: boolean
 }
 
 interface MountRecipeExtraLorasOptions {
@@ -163,6 +169,7 @@ export async function mountRecipeExtraLoras({
   let newlyMounted = 0
   let missing = 0
   let notFound = 0
+  let ambiguous = 0
   let incompatible = 0
   let overCapacity = 0
   const projectedIds = new Set(stackItems.map((entry) => entry.asset.id))
@@ -212,7 +219,8 @@ export async function mountRecipeExtraLoras({
 
     if (!result.success || !result.data) {
       setStatus?.(key, 'failed')
-      if (result.notFound) notFound += 1
+      if (result.ambiguous) ambiguous += 1
+      else if (result.notFound) notFound += 1
       else missing += 1
       continue
     }
@@ -250,7 +258,14 @@ export async function mountRecipeExtraLoras({
     setStatus?.(key, 'mounted', item.id)
   }
 
-  return { newlyMounted, missing, notFound, incompatible, overCapacity }
+  return {
+    newlyMounted,
+    missing,
+    notFound,
+    ambiguous,
+    incompatible,
+    overCapacity,
+  }
 }
 
 // ── §4.2「常与它同挂」聚合（lora-workbench.md §4.2）──────────────────────

@@ -70,6 +70,7 @@ describe('mountRecipeExtraLoras', () => {
       newlyMounted: 2,
       missing: 0,
       notFound: 0,
+      ambiguous: 0,
       incompatible: 0,
       overCapacity: 0,
     })
@@ -84,14 +85,20 @@ describe('mountRecipeExtraLoras', () => {
     ])
   })
 
-  it('counts "not on Civitai" apart from resolve failures', async () => {
+  it('counts "not on Civitai" and "several authors share the name" apart from resolve failures', async () => {
     const result = await mountRecipeExtraLoras({
-      extras: [{ name: 'zi_lora-000004' }, { name: 'kibro_anima' }],
+      extras: [
+        { name: 'zi_lora-000004' },
+        { name: 'kibro_anima' },
+        { name: 'rororo' },
+      ],
       stackItems: [{ asset: makeAsset() }],
       resolveLora: vi.fn(async (params) =>
         params.name === 'zi_lora-000004'
           ? { success: false, notFound: true }
-          : { success: false },
+          : params.name === 'rororo'
+            ? { success: false, ambiguous: true }
+            : { success: false },
       ),
       pushLora: vi.fn(),
       setLoraScale: vi.fn(),
@@ -102,6 +109,7 @@ describe('mountRecipeExtraLoras', () => {
       newlyMounted: 0,
       missing: 1,
       notFound: 1,
+      ambiguous: 1,
       incompatible: 0,
       overCapacity: 0,
     })
@@ -202,6 +210,7 @@ describe('mountRecipeExtraLoras', () => {
       newlyMounted: 0,
       missing: 0,
       notFound: 0,
+      ambiguous: 0,
       incompatible: 0,
       overCapacity: 0,
     })
@@ -263,6 +272,7 @@ describe('mountRecipeExtraLoras', () => {
       newlyMounted: 0,
       missing: 0,
       notFound: 0,
+      ambiguous: 0,
       incompatible: 1,
       overCapacity: 0,
     })
@@ -344,6 +354,7 @@ describe('mountRecipeExtraLoras', () => {
       newlyMounted: 1,
       missing: 0,
       notFound: 0,
+      ambiguous: 0,
       incompatible: 0,
       overCapacity: 1,
     })
@@ -393,6 +404,7 @@ describe('mountRecipeExtraLoras', () => {
       newlyMounted: 1,
       missing: 0,
       notFound: 0,
+      ambiguous: 0,
       incompatible: 1,
       overCapacity: 0,
     })

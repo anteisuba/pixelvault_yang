@@ -4,6 +4,7 @@ import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
+import { LORA_REFERENCE_AMBIGUOUS_ERROR_CODE } from '@/constants/lora'
 import {
   normalizeOptionalCivitaiHash,
   stripLoraFolderPath,
@@ -58,6 +59,7 @@ interface SuccessBody {
 interface ErrorBody {
   success: false
   error: string
+  errorCode?: string
 }
 
 export async function GET(
@@ -93,14 +95,28 @@ export async function GET(
       return response
     }
 
-    const data = await resolveCivitaiLoraByReference(parsed.data)
-    if (!data) {
+    const resolution = await resolveCivitaiLoraByReference(parsed.data)
+    if (resolution.kind === 'ambiguous') {
+      // 不进长缓存：作者改名/下架后歧义会消失。
+      return NextResponse.json<ErrorBody>(
+        {
+          success: false,
+          error: 'Several Civitai LoRAs share this name',
+          errorCode: LORA_REFERENCE_AMBIGUOUS_ERROR_CODE,
+        },
+        { status: 409 },
+      )
+    }
+    if (resolution.kind === 'miss') {
       return NextResponse.json<ErrorBody>(
         { success: false, error: 'LoRA not found locally or on Civitai' },
         { status: 404 },
       )
     }
-    const response = NextResponse.json<SuccessBody>({ success: true, data })
+    const response = NextResponse.json<SuccessBody>({
+      success: true,
+      data: resolution.item,
+    })
     response.headers.set('Cache-Control', CIVITAI_CACHE_CONTROL)
     return response
   } catch (error) {

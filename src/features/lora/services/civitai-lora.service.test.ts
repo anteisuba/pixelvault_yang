@@ -12,6 +12,7 @@ import {
   mineCivitaiUserPrompts,
   resolveCivitaiCheckpointByReference,
   resolveCivitaiLoraByReference,
+  isSameTrainingRunLoraName,
   resolveCivitaiModelPageUrlByVersion,
 } from '@/features/lora/services/civitai-lora.service'
 
@@ -39,6 +40,46 @@ function jsonResponse(body: unknown, status = 200): Response {
     headers: { 'Content-Type': 'application/json' },
   })
 }
+
+/** 只关心「挂上了哪一个」的用例：命中取条目，歧义/没有都当 null。 */
+async function resolveLoraItem(
+  reference: Parameters<typeof resolveCivitaiLoraByReference>[0],
+) {
+  const resolution = await resolveCivitaiLoraByReference(reference)
+  return resolution.kind === 'hit' ? resolution.item : null
+}
+
+describe('isSameTrainingRunLoraName', () => {
+  it('matches a renamed tag ending in the same file name and save number', () => {
+    expect(
+      isSameTrainingRunLoraName(
+        'a Thousand Years_000013250',
+        'One Dream, a Thousand Years_000013250',
+      ),
+    ).toBe(true)
+  })
+
+  it('does not match different save numbers, short names, or unrelated names', () => {
+    expect(
+      isSameTrainingRunLoraName(
+        'a Thousand Years_000013250',
+        'One Dream, a Thousand Years_000012000',
+      ),
+    ).toBe(false)
+    // 去掉尾巴只剩 `style`，谁都能是谁的后缀。
+    expect(
+      isSameTrainingRunLoraName('style_000010', 'anime style_000010'),
+    ).toBe(false)
+    expect(
+      isSameTrainingRunLoraName(
+        'my_style_000013250',
+        'a Thousand Years_000013250',
+      ),
+    ).toBe(false)
+    // 没有存档尾巴的不归这条管（`ssa` ↔ `ssa-000034` 走 loraNameKeysMatch）。
+    expect(isSameTrainingRunLoraName('lighting', 'dark lighting')).toBe(false)
+  })
+})
 
 describe('resolveCivitaiModelPageUrlByVersion', () => {
   it('resolves a concrete Civitai model page from a model version id', async () => {
@@ -1452,6 +1493,56 @@ describe('mineCivitaiUserPrompts', () => {
     ])
   })
 
+  // 真机：`Lora hashes` 记文件名 `a Thousand Years_000013250`（带 hash），正文
+  // `<lora:>` 记的是作者的叫法 `One Dream, a Thousand Years_000013250`（带权重）——
+  // 同一份存档被算成两个 LoRA，名字那份还会去模糊搜。
+  it('folds a renamed in-prompt tag into the hashed resource of the same training save', async () => {
+    mockFetch.mockImplementation(async (input) => {
+      const url = new URL(String(input))
+      if (url.pathname === '/api/v1/model-versions/555') {
+        return jsonResponse({ id: 555, name: 'v1', images: [] })
+      }
+      if (url.pathname === '/api/v1/images') {
+        return jsonResponse({
+          items: [
+            {
+              url: 'https://image.civitai.com/x/15b23f62-2222-3333-4444-555555555555/a.jpeg',
+              nsfwLevel: 1,
+              meta: {
+                prompt:
+                  '1girl <lora:One Dream, a Thousand Years_000013250:0.5> <lora:my_style_000013250:0.7>',
+                resources: [
+                  {
+                    name: 'a Thousand Years_000013250',
+                    type: 'lora',
+                    hash: 'D6D5EFC147',
+                  },
+                ],
+              },
+            },
+          ],
+        })
+      }
+      return jsonResponse({})
+    })
+
+    const result = await mineCivitaiUserPrompts({
+      modelId: 444,
+      modelVersionId: 555,
+      fileHashAutoV3: null,
+    })
+
+    expect(result.recipes?.[0]?.extraLoras).toEqual([
+      {
+        name: 'a Thousand Years_000013250',
+        weight: 0.5,
+        hash: 'd6d5efc147',
+      },
+      // 同一串步数、但名字不是后缀关系——是另一把，不并。
+      { name: 'my_style_000013250', weight: 0.7 },
+    ])
+  })
+
   // 真机：`9_0rizuru`（作者本地改名）↔ 上架文件 `0rizuruIllustrious`、模型名
   // 「0rizuru Style」，名字认不出；同图没被认领的版本号里权重 0.4 的只有它一个。
   it('pairs a renamed extra by weight only when the pairing is unique', async () => {
@@ -1564,7 +1655,7 @@ describe('resolveCivitaiLoraByReference — name search guards', () => {
         ],
       }),
     )
-    const item = await resolveCivitaiLoraByReference({
+    const item = await resolveLoraItem({
       name: 'rororo',
       baseModelFamily: 'Illustrious',
     })
@@ -1584,11 +1675,12 @@ describe('resolveCivitaiLoraByReference — name search guards', () => {
         ],
       }),
     )
-    const item = await resolveCivitaiLoraByReference({
+    const resolution = await resolveCivitaiLoraByReference({
       name: 'lighting',
       baseModelFamily: 'Illustrious',
     })
-    expect(item).toBeNull()
+    // 歧义要单独报出来（前端说「同名的有好几个」），不能和「Civitai 上没有」混。
+    expect(resolution).toEqual({ kind: 'ambiguous', modelIds: [1, 2] })
     // 歧义不往网页搜索兜：那边搜出来的是同一批同名 LoRA。
     expect(
       mockFetch.mock.calls.some((call) =>
@@ -1607,7 +1699,7 @@ describe('resolveCivitaiLoraByReference — name search guards', () => {
         ],
       }),
     )
-    const item = await resolveCivitaiLoraByReference({
+    const item = await resolveLoraItem({
       name: 'solo_style',
       baseModelFamily: 'Illustrious',
     })
@@ -1628,7 +1720,7 @@ describe('resolveCivitaiLoraByReference — name search guards', () => {
         ],
       }),
     )
-    const item = await resolveCivitaiLoraByReference({ name: 'ssa' })
+    const item = await resolveLoraItem({ name: 'ssa' })
     expect(item?.id).toBe('civitai:2484469:2793270')
   })
 })
@@ -1826,7 +1918,7 @@ describe('resolveCivitaiLoraByReference', () => {
   it('resolves a hash into a mountable library item', async () => {
     mockFetch.mockResolvedValueOnce(jsonResponse(VERSION_PAYLOAD))
 
-    const item = await resolveCivitaiLoraByReference({ hash: '9C783C8CE46C' })
+    const item = await resolveLoraItem({ hash: '9C783C8CE46C' })
 
     const requestUrl = new URL(String(mockFetch.mock.calls[0]?.[0]))
     expect(requestUrl.pathname).toBe(
@@ -1852,13 +1944,13 @@ describe('resolveCivitaiLoraByReference', () => {
         files: [{ ...VERSION_PAYLOAD.files[0], sizeKB: 56075.02734375 }],
       }),
     )
-    const withSize = await resolveCivitaiLoraByReference({
+    const withSize = await resolveLoraItem({
       modelVersionId: 135867,
     })
     expect(withSize?.fileSizeBytes).toBe(Math.round(56075.02734375 * 1024))
 
     mockFetch.mockResolvedValueOnce(jsonResponse(VERSION_PAYLOAD))
-    const withoutSize = await resolveCivitaiLoraByReference({
+    const withoutSize = await resolveLoraItem({
       modelVersionId: 135867,
     })
     expect(withoutSize?.fileSizeBytes).toBeNull()
@@ -1867,7 +1959,7 @@ describe('resolveCivitaiLoraByReference', () => {
   it('resolves a modelVersionId via the /:id endpoint', async () => {
     mockFetch.mockResolvedValueOnce(jsonResponse(VERSION_PAYLOAD))
 
-    const item = await resolveCivitaiLoraByReference({ modelVersionId: 135867 })
+    const item = await resolveLoraItem({ modelVersionId: 135867 })
 
     const requestUrl = new URL(String(mockFetch.mock.calls[0]?.[0]))
     expect(requestUrl.pathname).toBe('/api/v1/model-versions/135867')
@@ -1886,7 +1978,7 @@ describe('resolveCivitaiLoraByReference', () => {
           model: { name: 'StarSigilArt ckxl rf', type },
         }),
       )
-      const item = await resolveCivitaiLoraByReference({
+      const item = await resolveLoraItem({
         modelVersionId: 135867,
       })
       expect(item?.id).toBe('civitai:122359:135867')
@@ -1895,7 +1987,7 @@ describe('resolveCivitaiLoraByReference', () => {
 
   it('searches LoCon / DoRA alongside LORA when resolving by name', async () => {
     mockFetch.mockResolvedValue(jsonResponse({ items: [] }))
-    await resolveCivitaiLoraByReference({ name: 'ssa-000034' })
+    await resolveLoraItem({ name: 'ssa-000034' })
     const restCall = mockFetch.mock.calls.find((call) =>
       String(call[0]).includes('/api/v1/models?'),
     )
@@ -1912,10 +2004,8 @@ describe('resolveCivitaiLoraByReference', () => {
         model: { name: 'Some Checkpoint', type: 'Checkpoint' },
       }),
     )
-    expect(
-      await resolveCivitaiLoraByReference({ hash: 'aabbccddeeff' }),
-    ).toBeNull()
-    expect(await resolveCivitaiLoraByReference({})).toBeNull()
+    expect(await resolveLoraItem({ hash: 'aabbccddeeff' })).toBeNull()
+    expect(await resolveLoraItem({})).toBeNull()
   })
 
   it('falls back to name search with exact file-stem matching when the hash misses', async () => {
@@ -1974,7 +2064,7 @@ describe('resolveCivitaiLoraByReference', () => {
         }),
       )
 
-    const item = await resolveCivitaiLoraByReference({
+    const item = await resolveLoraItem({
       hash: 'aaaaaaaaaaaa', // 作者本地文件 hash，索引里没有
       name: 'EnchantingEyesIllustrious',
     })
@@ -2022,7 +2112,7 @@ describe('resolveCivitaiLoraByReference', () => {
       }),
     )
 
-    const item = await resolveCivitaiLoraByReference({
+    const item = await resolveLoraItem({
       name: 'ææ¥æ¹èç»æ«å°å²ä»£çäºº',
     })
 
@@ -2068,7 +2158,7 @@ describe('resolveCivitaiLoraByReference', () => {
     })
 
     expect(
-      await resolveCivitaiLoraByReference({
+      await resolveLoraItem({
         name: 'detailed hand focus style illustriousXL v1.1',
       }),
     ).toBeNull()
@@ -2145,7 +2235,7 @@ describe('resolveCivitaiLoraByReference', () => {
       return jsonResponse({ items: [] })
     })
 
-    const item = await resolveCivitaiLoraByReference({
+    const item = await resolveLoraItem({
       name: 'detailed hand focus style illustriousXL v1.1',
       baseModelFamily: 'Illustrious',
     })
@@ -2228,7 +2318,7 @@ describe('resolveCivitaiLoraByReference', () => {
       return jsonResponse({ results: [{ hits: [] }] })
     })
 
-    const item = await resolveCivitaiLoraByReference({
+    const item = await resolveLoraItem({
       name: 'illus01_style_collection_elpe_v0.22',
       baseModelFamily: 'Illustrious',
     })
@@ -2274,7 +2364,7 @@ describe('resolveCivitaiLoraByReference', () => {
     })
 
     expect(
-      await resolveCivitaiLoraByReference({
+      await resolveLoraItem({
         name: 'detailed hand focus style illustriousXL v1.1',
         baseModelFamily: 'Illustrious',
       }),

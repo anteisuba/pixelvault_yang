@@ -1617,6 +1617,7 @@ function GenerateBranch({
       const unresolved =
         result.missing +
         result.notFound +
+        result.ambiguous +
         result.incompatible +
         result.overCapacity
       if (unresolved > 0) {
@@ -1626,6 +1627,10 @@ function GenerateBranch({
         const reasons = [
           result.notFound > 0
             ? tExtra('recipeExtraNotOnCivitai', { count: result.notFound })
+            : null,
+          // 同名的有好几个作者：不是「没有」，是认不出——去库里按名字自己挑。
+          result.ambiguous > 0
+            ? tExtra('recipeExtraAmbiguous', { count: result.ambiguous })
             : null,
           result.incompatible > 0 ? tExtra('recipeExtraIncompatible') : null,
         ].filter((reason): reason is string => reason !== null)

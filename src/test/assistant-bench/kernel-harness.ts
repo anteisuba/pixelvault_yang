@@ -119,14 +119,16 @@ export async function turnRecords(
   userId: string,
   until: (rows: TurnRecordRow[]) => boolean = (rows) => rows.length > 0,
 ) {
+  // 按时间等而不是按次数：原来 20 × 5ms = 100ms，CI 满负载时后一跳的改写还没落库，
+  // 读到前一跳那份（hops 1）就红（11-19 两次打断上线）。
+  const deadline = Date.now() + 5_000
   let rows: TurnRecordRow[] = []
-  for (let i = 0; i < 20; i += 1) {
+  for (;;) {
     rows = await db.assistantTurnRecord.findMany({
       where: { userId },
       orderBy: { createdAt: 'asc' },
     })
-    if (until(rows)) return rows
-    await new Promise((resolve) => setTimeout(resolve, 5))
+    if (until(rows) || Date.now() > deadline) return rows
+    await new Promise((resolve) => setTimeout(resolve, 20))
   }
-  return rows
 }

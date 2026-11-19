@@ -397,7 +397,7 @@ export function LoraFavoritesBrowse({
           }
         />
         {section === 'characters' && characterGroups.length > 1 ? (
-          <div className="flex">
+          <div className="scrollbar-none flex min-w-0 overflow-x-auto">
             <LiquidSegmented
               ariaLabel={t('librarySectionCharacters')}
               value={activeCharacterId}

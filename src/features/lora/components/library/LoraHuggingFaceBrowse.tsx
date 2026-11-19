@@ -404,7 +404,7 @@ export function LoraHuggingFaceBrowse({
             />
           }
         />
-        <div className="flex">
+        <div className="scrollbar-none flex min-w-0 overflow-x-auto">
           <LiquidSegmented
             ariaLabel={t('typeFilterLabel')}
             value={library.contentType}

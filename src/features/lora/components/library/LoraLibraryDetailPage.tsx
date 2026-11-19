@@ -672,7 +672,7 @@ export function LoraLibraryDetailPage({
       </header>
 
       {/* 整页往下滚：样例与右栏一起走；切版本时两边先淡出再淡入这一版的。 */}
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-4.5">
+      <div className="@container min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-4.5 max-md:px-3">
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={currentKey}
@@ -685,11 +685,11 @@ export function LoraLibraryDetailPage({
               opacity: 0,
               transition: { duration: DURATION.fast, ease: 'linear' },
             }}
-            className="flex gap-6 pb-5"
+            className="flex flex-col gap-6 pb-5 @2xl:flex-row"
           >
             <div className="min-w-0 flex-1">
               {samplesLoading && samples.length === 0 ? (
-                <div className="columns-3 gap-3" aria-hidden>
+                <div className="columns-2 gap-3 @xl:columns-3" aria-hidden>
                   {[3 / 4, 2 / 3, 1, 4 / 5, 2 / 3, 3 / 4].map(
                     (ratio, index) => (
                       <span
@@ -705,7 +705,7 @@ export function LoraLibraryDetailPage({
                   {tb('samplesEmpty')}
                 </p>
               ) : (
-                <div className="columns-3 gap-3">
+                <div className="columns-2 gap-3 @xl:columns-3">
                   {samples.map((sample, index) => (
                     <button
                       key={sample.url}
@@ -751,7 +751,7 @@ export function LoraLibraryDetailPage({
 
             <aside
               aria-label={tb('sideLabel')}
-              className="flex w-75 shrink-0 flex-col gap-4.5"
+              className="flex w-full shrink-0 flex-col gap-4.5 @2xl:w-75"
             >
               <section className="flex flex-col gap-2">
                 <h5 className={blockTitle}>

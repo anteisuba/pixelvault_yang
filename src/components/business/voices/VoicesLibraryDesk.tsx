@@ -231,7 +231,7 @@ export function VoicesLibraryDesk({
     )
 
   return (
-    <div className="flex min-h-0 flex-1 gap-8">
+    <div className="@container flex min-h-0 flex-1 gap-4 @4xl:gap-8">
       <VoiceLibrarySectionRail
         library={library}
         onSelect={select}
@@ -240,7 +240,7 @@ export function VoicesLibraryDesk({
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* 手机没有左栏：「全部 · 收藏 · 我的克隆」收成顶上一条切换条（2026-11-12 手机端，同提示词库）。 */}
-        <div className="mb-3 flex shrink-0 md:hidden">
+        <div className="scrollbar-none mb-3 flex min-w-0 shrink-0 overflow-x-auto md:hidden">
           <LiquidSegmented
             ariaLabel={t('title')}
             semantics="tabs"
@@ -362,7 +362,7 @@ export function VoiceLibraryFilters({
         }
       />
       {onAll ? (
-        <div className="mt-3 flex shrink-0">
+        <div className="scrollbar-none mt-3 flex min-w-0 shrink-0 overflow-x-auto">
           <LiquidSegmented
             ariaLabel={tLib('languages')}
             value={library.language}

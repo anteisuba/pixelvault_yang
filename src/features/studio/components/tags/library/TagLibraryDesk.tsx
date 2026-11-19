@@ -360,7 +360,7 @@ export function TagLibraryDesk() {
     )
 
   return (
-    <div className="flex h-full min-h-0 gap-8 pt-3 pr-5.5">
+    <div className="@container flex h-full min-h-0 gap-4 pt-3 pr-5.5 @4xl:gap-8">
       <LibraryRail label={tLibrary('viewLabel')} className="pt-0.5">
         <LibraryRailRow
           icon={<LayoutGrid aria-hidden />}
@@ -418,7 +418,7 @@ export function TagLibraryDesk() {
                 />
               }
             />
-            <div className="mt-3 flex shrink-0">
+            <div className="scrollbar-none mt-3 flex min-w-0 shrink-0 overflow-x-auto">
               <LiquidSegmented
                 ariaLabel={t('tabsLabel')}
                 value={kind}
@@ -439,10 +439,10 @@ export function TagLibraryDesk() {
           </>
         )}
         <div className="mt-3 flex min-h-0 flex-1 pb-4">
-          <div className="flex w-80 shrink-0 flex-col gap-2.5 overflow-y-auto border-r border-border/60 pr-4.5">
+          <div className="flex w-56 shrink-0 flex-col gap-2.5 overflow-y-auto border-r border-border/60 pr-3 @3xl:w-68 @4xl:pr-4.5 @5xl:w-80">
             {column}
           </div>
-          <div className="flex min-w-0 flex-1 flex-col pl-6.5">
+          <div className="flex min-w-0 flex-1 flex-col pl-4 @4xl:pl-6.5">
             <FadeSwap
               swapKey={paneKey}
               reduced={Boolean(reducedMotion)}

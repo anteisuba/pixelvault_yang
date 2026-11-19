@@ -153,7 +153,7 @@ export function StudioTagPageTabs({
         ref={rowRef}
         role="tablist"
         aria-label={t('characterTitle')}
-        className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto"
+        className="-m-1 flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto p-1"
       >
         <TabPreview
           text={whole.preview}
@@ -199,6 +199,11 @@ export function StudioTagPageTabs({
                       aria-hidden
                       className="relative size-1.5 rounded-full bg-foreground"
                     />
+                  ) : character.dirty ? (
+                    <span
+                      aria-hidden
+                      className="relative size-1.5 rounded-full bg-muted-foreground/60"
+                    />
                   ) : null}
                   <span
                     className={cn(
@@ -217,6 +222,7 @@ export function StudioTagPageTabs({
                   index={index}
                   enabled={character.enabled !== false}
                   disabled={disabled}
+                  extra={character.menuExtra}
                   onEnabledChange={onEnabledChange}
                   onRemove={onRemove}
                 />

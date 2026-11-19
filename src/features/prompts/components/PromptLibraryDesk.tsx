@@ -274,7 +274,7 @@ export function PromptLibraryDesk({
     )
 
   return (
-    <div className="flex min-h-0 flex-1 gap-8">
+    <div className="@container flex min-h-0 flex-1 gap-4 @4xl:gap-8">
       <LibraryRail label={t('pageTitle')} className="pt-0.5 max-md:hidden">
         <LibraryRailRow
           icon={<LayoutGrid aria-hidden />}

@@ -453,17 +453,17 @@ export function PromptTemplateDetailPage({
         )}
       </header>
 
-      <div className="flex min-h-0 flex-1 gap-6 overflow-hidden p-5 max-lg:flex-col max-lg:overflow-y-auto">
+      <div className="@container flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto p-5 @3xl:flex-row @3xl:overflow-hidden">
         <section
           aria-label={t('generatedAssets')}
-          className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 max-lg:flex-none"
+          className="flex min-h-0 min-w-0 flex-none flex-col gap-3 @3xl:flex-1"
         >
           {loadState === 'loading' ? (
             <div className="min-h-64 flex-1 rounded-xl bg-muted" />
           ) : shown ? (
             <>
               <div
-                className="relative min-h-64 flex-1 overflow-hidden rounded-xl bg-muted max-lg:flex-none max-lg:aspect-(--media-ratio)"
+                className="relative aspect-(--media-ratio) min-h-64 flex-none overflow-hidden rounded-xl bg-muted @3xl:aspect-auto @3xl:flex-1"
                 style={
                   shown.width > 0 && shown.height > 0
                     ? ({
@@ -516,8 +516,8 @@ export function PromptTemplateDetailPage({
               ) : null}
             </>
           ) : (
-            // 手机上没出过图就是一行字，⛔ 占一块 256 高的空灰框把提示词压到下面。
-            <div className="grid min-h-64 flex-1 place-items-center rounded-xl bg-muted text-2sm text-muted-foreground max-lg:h-14 max-lg:min-h-0 max-lg:flex-none">
+            // 窄栏或手机上没出过图就是一行字，⛔ 占一块 256 高的空灰框把提示词压到下面。
+            <div className="grid h-14 min-h-0 flex-none place-items-center rounded-xl bg-muted text-2sm text-muted-foreground @3xl:h-auto @3xl:min-h-64 @3xl:flex-1">
               <span className="inline-flex items-center gap-2">
                 <ImageOff aria-hidden className="size-4" />
                 {t('noWorks')}
@@ -528,7 +528,7 @@ export function PromptTemplateDetailPage({
 
         <aside
           aria-label={title}
-          className="flex w-95 shrink-0 flex-col gap-4.5 overflow-y-auto max-lg:w-full"
+          className="flex w-full shrink-0 flex-col gap-4.5 @3xl:w-95 @3xl:overflow-y-auto"
         >
           {loadState === 'failed' ? (
             <div role="alert" className="space-y-3 text-2sm">

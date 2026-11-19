@@ -320,10 +320,7 @@ export function StudioOperatorHeader({
       data-shell-part="head"
       /* ⚠ 头部**不铺自己的底**（§12.1）：它坐在面板那层玻璃上，给它一层
          `bg-card` 等于在玻璃上又糊一块不透明白 —— 分层交给那条下边线。 */
-      className={cn(
-        'shrink-0 border-b',
-        board ? 'border-border/60' : 'border-border',
-      )}
+      className={cn('shrink-0', !board && 'border-b border-border')}
     >
       {/* `@container/operator-head`：这一行按自己的宽收（外壳那一栏默认 400、可拖宽），
           ⛔ 按视口 —— 窄栏里「语音」胶囊拉长会把名字挤成「Ae…」（用户 11-18）。 */}

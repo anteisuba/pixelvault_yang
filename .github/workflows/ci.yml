@@ -120,6 +120,27 @@ jobs:
           NODE_ENV: test
           TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/antei_test
 
+  # 汇总闸（2026-11-19）：Vercel Deployment Checks 按名字等检查。分片后名字带「(n/4)」，
+  # 旧名「Integration Tests」再也不会出现，生产部署就一直等下去。这两个 job 的名字固定，
+  # 分片数以后怎么变都不用再去改 Vercel；Vercel 里登记这两个名字即可。
+  integration-test-gate:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: integration-test
+    if: always()
+    steps:
+      - name: All integration shards passed
+        run: test "${{ needs.integration-test.result }}" = "success"
+
+  unit-test-gate:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    needs: test
+    if: always()
+    steps:
+      - name: All unit shards passed
+        run: test "${{ needs.test.result }}" = "success"
+
   e2e-smoke:
     name: E2E Smoke
     # 钉 24.04：ubuntu-latest 2026-11-12 换成 26.04，Playwright 还装不了 Chromium（「does not

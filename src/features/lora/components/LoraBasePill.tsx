@@ -94,7 +94,7 @@ export function LoraBasePill({
           }`}
           className={cn(
             studioOutlineChipClass,
-            'max-w-56 text-foreground',
+            'min-w-0 max-w-48 text-foreground group-data-compact/toolrow:max-w-32',
             open && studioOutlineChipOpenClass,
           )}
         >

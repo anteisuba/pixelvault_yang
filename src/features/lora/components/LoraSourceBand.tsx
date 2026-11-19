@@ -137,18 +137,18 @@ export function LoraSourceBand({
         inert={!floating}
         data-testid="lora-source-band-overlay"
         className={cn(
-          'absolute top-full left-0 mt-1.5 flex w-full min-w-120 origin-top-left flex-col gap-2.5 rounded-16 bg-popover px-4 pt-3.5 pb-4 shadow-pop transition-[opacity,translate,scale,filter] duration-base ease-standard motion-reduce:transition-opacity',
+          'absolute top-full left-0 mt-1.5 flex w-max max-w-2xl min-w-120 origin-top-left flex-col gap-3 rounded-16 border border-border/70 bg-popover px-4 pt-3.5 pb-4 shadow-pop transition-[opacity,translate,scale,filter] duration-base ease-standard motion-reduce:transition-opacity',
           floating
             ? 'translate-y-0 scale-100 opacity-100 blur-none'
             : 'pointer-events-none -translate-y-2 scale-96 opacity-0 blur-xs',
         )}
       >
-        <div className="flex min-w-0 items-center gap-3">
+        <div className="flex min-w-0 items-center gap-2.5">
           {/* 分组 = 挂着的那几把，靠封面认（名字常常很长、截掉一半）；选中的那一格浅底。 */}
           <div
             role="group"
             aria-label={t('groupsLabel')}
-            className="lora-scrollbar-hide flex min-w-0 gap-1 overflow-x-auto"
+            className="lora-scrollbar-hide flex min-w-0 flex-1 items-center gap-1 overflow-x-auto py-0.5"
           >
             {groups.map((group) => {
               const active = group.id === (activeGroupId ?? groups[0]?.id)
@@ -160,9 +160,9 @@ export function LoraSourceBand({
                   title={group.name}
                   onClick={() => onSelectGroup(group.id)}
                   className={cn(
-                    'inline-flex h-8 max-w-44 shrink-0 items-center gap-1.5 rounded-full py-0.5 pr-2.5 pl-0.5 text-2sm transition-colors duration-fast focus-visible:outline-none focus-visible:shadow-focus',
+                    'inline-flex h-8 max-w-44 shrink-0 items-center gap-1.5 rounded-full py-0.5 pr-2.5 pl-1 text-2sm transition-colors duration-fast focus-visible:outline-none focus-visible:shadow-focus',
                     active
-                      ? 'bg-muted text-foreground'
+                      ? 'bg-muted font-medium text-foreground shadow-ring'
                       : 'text-muted-foreground hover:tint-hover hover:text-foreground',
                   )}
                 >
@@ -192,7 +192,7 @@ export function LoraSourceBand({
             })}
           </div>
           {count !== null ? (
-            <span className="shrink-0 text-2xs tabular-nums text-muted-foreground">
+            <span className="shrink-0 border-l border-border/60 pl-2.5 text-2xs tabular-nums text-muted-foreground">
               {t('groupCount', { count })}
             </span>
           ) : null}

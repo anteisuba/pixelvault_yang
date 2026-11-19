@@ -33,8 +33,8 @@ export function CanvasMiniMap({
       aria-hidden={hidden}
       className={
         hidden
-          ? 'pointer-events-none absolute bottom-4 right-4'
-          : 'pointer-events-auto absolute bottom-4 right-4'
+          ? 'pointer-events-none absolute right-4 bottom-18 @5xl:bottom-4'
+          : 'pointer-events-auto absolute right-4 bottom-18 @5xl:bottom-4'
       }
     >
       <button

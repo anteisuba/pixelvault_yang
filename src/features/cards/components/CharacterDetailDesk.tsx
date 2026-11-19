@@ -86,7 +86,7 @@ export function CharacterDetailDesk({
   return (
     <div className="flex h-full gap-10 pt-3">
       {/* 左右各让出 12 给「现在」卡的投影：滚动容器会把投影裁成一道竖边。 */}
-      <aside className="-mx-3 flex w-64 shrink-0 flex-col gap-5 overflow-y-auto px-3 pb-12">
+      <aside className="-mx-3 flex w-68 shrink-0 flex-col gap-5 overflow-x-hidden overflow-y-auto px-3 pb-12">
         <HerHead
           card={card}
           locale={locale}
@@ -311,7 +311,7 @@ function HerHead({
   const work = characterWork(card, locale)
   return (
     <div className="flex flex-col gap-3">
-      <span className="relative grid size-18 place-items-center overflow-hidden rounded-full bg-muted text-md font-semibold text-ink-2">
+      <span className="relative grid size-18 place-items-center overflow-hidden rounded-full bg-muted text-md font-semibold text-ink-2 ring-2 ring-border shadow-soft">
         {cover ? (
           <Image
             src={cover}

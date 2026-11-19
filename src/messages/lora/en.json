@@ -172,7 +172,24 @@
         "incompatible": "{count} LoRA doesn't fit this base model and is skipped this time",
         "switchBase": "Change base model",
         "rowRecipe": "Remake",
-        "rowAssistant": "Assistant"
+        "rowAssistant": "Assistant",
+        "paramNames": {
+          "prompt": "Prompt",
+          "negativePrompt": "Negative",
+          "cfg": "CFG",
+          "steps": "Steps",
+          "seed": "Seed",
+          "sampler": "Sampler",
+          "scheduler": "Scheduler",
+          "clipSkip": "Clip skip",
+          "loraWeight": "LoRA weight",
+          "size": "Size",
+          "hiresUpscale": "Hires upscale",
+          "hiresUpscaler": "Upscaler",
+          "denoisingStrength": "Denoising",
+          "hiresSteps": "Hires steps",
+          "hiresCfgScale": "Hires CFG"
+        }
       },
       "promptPlaceholder": "Describe the image you want…",
       "restore": "Faithful restore",

@@ -1112,7 +1112,7 @@ export function StudioOperatorDock({
           {...(onCollapseColumn
             ? { onKeyDown: collapseOnEscape(onCollapseColumn) }
             : {})}
-          className="assistant-type flex size-full min-h-0 min-w-0 flex-col bg-card"
+          className="assistant-type flex size-full min-h-0 min-w-0 flex-col bg-transparent"
         >
           {panel}
         </section>

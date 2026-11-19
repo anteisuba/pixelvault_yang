@@ -326,7 +326,9 @@ export function TagLibraryDesk() {
     ? `${selectedKind}:${candidate.name}:${found ? 'ready' : detail.error ? 'error' : 'loading'}`
     : 'blank'
   const pane =
-    missing && selectedName ? (
+    searching && !searchData && !search.error ? (
+      <LookupDetailSkeleton label={t('loading')} />
+    ) : missing && selectedName ? (
       <LookupSay
         title={t('noneTitle', { query: displayDanbooruTag(selectedName) })}
         text={tLibrary('notATag')}

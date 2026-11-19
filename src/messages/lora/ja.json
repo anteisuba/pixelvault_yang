@@ -172,7 +172,24 @@
         "incompatible": "{count} 個の LoRA がベースモデルに合わず、今回は無効",
         "switchBase": "ベースモデルを変更",
         "rowRecipe": "同じ設定",
-        "rowAssistant": "アシスタント"
+        "rowAssistant": "アシスタント",
+        "paramNames": {
+          "prompt": "プロンプト",
+          "negativePrompt": "ネガティブ",
+          "cfg": "CFG",
+          "steps": "ステップ数",
+          "seed": "シード",
+          "sampler": "サンプラー",
+          "scheduler": "スケジューラー",
+          "clipSkip": "Clip Skip",
+          "loraWeight": "LoRA 強度",
+          "size": "サイズ",
+          "hiresUpscale": "高解像度倍率",
+          "hiresUpscaler": "アップスケーラー",
+          "denoisingStrength": "デノイズ強度",
+          "hiresSteps": "高解像度ステップ",
+          "hiresCfgScale": "高解像度 CFG"
+        }
       },
       "promptPlaceholder": "生成したい画像を入力…",
       "restore": "忠実再現",

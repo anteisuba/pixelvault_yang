@@ -3260,14 +3260,15 @@ function GenerateBranch({
   )
   const closeViewer = useCallback(() => {
     // 缩回**当前这一张**的缩略图（翻过页就不是打开时那一张了），焦点也还给它。
-    const thumb = stageRightRef.current?.querySelector<HTMLElement>(
-      `[data-recipe-thumb="${viewerIndex}"]`,
+    const index = Math.min(viewerIndex, Math.max(0, mined.recipes.length - 1))
+    const thumb = document.querySelector<HTMLElement>(
+      `[data-recipe-thumb="${index}"]`,
     )
     const origin = originOf(thumb ?? null)
     if (origin) setViewerOrigin(origin)
     setViewerOpen(false)
     thumb?.focus({ preventScroll: true })
-  }, [originOf, viewerIndex])
+  }, [mined.recipes.length, originOf, viewerIndex])
   // 换了一组来源图（点了别的挂载）：查看器里那一组已经不在了，收起。
   const [viewerGroupKey, setViewerGroupKey] = useState(recipeGroupKey)
   if (viewerGroupKey !== recipeGroupKey) {
@@ -3865,7 +3866,7 @@ function GenerateBranch({
                     {/* 装配行（iOS 稿 owner 2026-10-16）：底模键（小字「底模」+ 名字 ▾）·
                 挂着的 LoRA 只画小图不带名字 · ＋ 去库里挑。底模键与小图点开的都是
                 同一个装配抽屉（底模 / LoRA 栈 / 参考图）。 */}
-                    <div className="flex min-w-0 items-center gap-2">
+                    <div className="flex min-w-0 items-center gap-1.5">
                       <button
                         type="button"
                         onClick={() => setAssemblySheetOpen(true)}
@@ -3998,7 +3999,7 @@ function GenerateBranch({
                     </div>
                     {/* 输入栏（iOS 稿 owner 2026-10-16，与标签台同步）：＋（忠实还原 · 负面）·
                 比例 · 参数 ……… 出图。弹层都从按钮正上方弹白卡。 */}
-                    <div className="flex min-w-0 items-center gap-2">
+                    <div className="flex min-w-0 items-center gap-1.5">
                       <ResponsivePopoverPhoneCard>
                         <div className="studio-mobile-chip-row flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
                           <StudioMobileAddSheet
@@ -4131,7 +4132,7 @@ function GenerateBranch({
   // 顶上一行「{LoRA} 出过的图 N ›」：没挂 LoRA 不出现，点它长出浮层盖在图上。
   const bandMode: LoraSourceBandMode = !hasLora
     ? 'hidden'
-    : bandExpanded
+    : bandExpanded && !viewerOpen && !templatesOpen && !libraryOverStage
       ? 'open'
       : 'line'
   // 台面上那一格格：这次出的图（新的在前）；会话里还没记着、但钩子手上有上一张的，补它一格。
@@ -4291,7 +4292,12 @@ function GenerateBranch({
       <div data-bench-header className="flex h-9 shrink-0 items-center">
         <LoraSourceBand
           mode={bandMode}
-          onExpand={() => setBandExpanded(true)}
+          onExpand={() => {
+            if (viewerOpen) setViewerOpen(false)
+            if (templatesOpen) setTemplatesOpen(false)
+            if (libraryOverStage) closeLibraryPanel()
+            setBandExpanded(true)
+          }}
           onFold={() => setBandExpanded(false)}
           // 样例大图开着时点外面 / Esc 交给大图，浮层留着接着挑。
           dismissible={!viewerOpen}
@@ -4377,9 +4383,10 @@ function GenerateBranch({
           }
           mountedExtraKeys={mountedExtraKeys}
           extraStatusByKey={extraMountStatusByKey}
-          onApplyRecipe={(recipe, includeSeed, extraLoras) =>
+          onApplyRecipe={(recipe, includeSeed, extraLoras) => {
+            setBandExpanded(false)
             handleApplyRecipe(recipe, { includeSeed, extraLoras })
-          }
+          }}
         />
         {templatesOpen ? (
           // 盖在结果上（结果层不卸载，收起就回到原来那一屏）。
@@ -4722,7 +4729,7 @@ function GenerateBranch({
                 'flex min-w-0 items-center gap-2',
               )}
             >
-              <div className="flex min-w-0 items-center gap-2">
+              <div className="flex min-w-0 items-center gap-1.5">
                 {collocationVisible && collocationSlim && !composerExpanded ? (
                   <LoraCollocationChip
                     sourceKind="recipe"
@@ -4814,7 +4821,7 @@ function GenerateBranch({
                   </button>
                 </LoraNegativeInertHint>
               </div>
-              <div className="ml-auto flex shrink-0 items-center gap-2">
+              <div className="ml-auto flex shrink-0 items-center gap-1.5">
                 <LoraBasePill
                   compatibleBases={compatibleBases}
                   selectedBase={selectedBase}

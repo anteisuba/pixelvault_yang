@@ -151,104 +151,110 @@ export function SettingsConnectionsSection() {
 
       <PendingGenerations />
 
-      <div className="mt-5 flex flex-col gap-3 @md:flex-row @md:items-start">
-        <div className="min-w-0 flex-1">
-          <h3 className="text-sm font-medium">
-            {t('connections.claudeCode.title')}
-          </h3>
-          <p className="mt-0.5 text-2sm leading-relaxed text-muted-foreground">
-            {t('connections.claudeCode.description')}
-          </p>
-        </div>
-        <Button
-          size="sm"
-          className="w-full coarse:h-11 @md:w-auto"
-          disabled={isFull || naming !== null || !showList}
-          onClick={openNaming}
-        >
-          <Plus />
-          {t('connections.create')}
-        </Button>
-      </div>
-      {isFull ? (
-        <p className="mt-1.5 text-xs text-muted-foreground @md:text-right">
-          {t('connections.limit', { count: MCP_MAX_ACTIVE_TOKENS })}
-        </p>
-      ) : null}
-      {failure && failure !== 'load' ? (
-        <p role="alert" className="mt-2 text-xs text-status-risk">
-          {t(`connections.failed.${failure}`, { count: MCP_MAX_ACTIVE_TOKENS })}
-        </p>
-      ) : null}
-
-      {isLoading && tokens.length === 0 ? (
-        <div className="mt-3 flex items-center gap-2 border-t border-border py-6 text-sm text-muted-foreground">
-          <Spinner size="md" />
-          {t('connections.loading')}
-        </div>
-      ) : null}
-
-      {failure === 'load' && tokens.length === 0 && !isLoading ? (
-        <div className="mt-3 flex items-center gap-3 border-t border-border py-3.5 text-sm">
-          <span className="flex-1 text-status-risk">
-            {t('connections.failed.load')}
-          </span>
-          <Button variant="secondary" size="sm" onClick={() => void reload()}>
-            {t('connections.retry')}
+      <div className="mt-4 rounded-16 border border-border/70 bg-card p-5 shadow-ring">
+        <div className="flex flex-col gap-3 @md:flex-row @md:items-start">
+          <div className="min-w-0 flex-1">
+            <h3 className="text-sm font-semibold">
+              {t('connections.claudeCode.title')}
+            </h3>
+            <p className="mt-0.5 text-2sm leading-relaxed text-muted-foreground">
+              {t('connections.claudeCode.description')}
+            </p>
+          </div>
+          <Button
+            size="sm"
+            className="w-full coarse:h-11 @md:w-auto"
+            disabled={isFull || naming !== null || !showList}
+            onClick={openNaming}
+          >
+            <Plus />
+            {t('connections.create')}
           </Button>
         </div>
-      ) : null}
+        {isFull ? (
+          <p className="mt-1.5 text-xs text-muted-foreground @md:text-right">
+            {t('connections.limit', { count: MCP_MAX_ACTIVE_TOKENS })}
+          </p>
+        ) : null}
+        {failure && failure !== 'load' ? (
+          <p role="alert" className="mt-2 text-xs text-status-risk">
+            {t(`connections.failed.${failure}`, {
+              count: MCP_MAX_ACTIVE_TOKENS,
+            })}
+          </p>
+        ) : null}
 
-      {showList && !hasRows ? (
-        <p className="mt-3 border-t border-border py-6 text-2sm leading-relaxed text-muted-foreground">
-          {t('connections.empty')}
-        </p>
-      ) : null}
+        {isLoading && tokens.length === 0 ? (
+          <div className="mt-3 flex items-center gap-2 border-t border-border/60 pt-5 pb-2 text-sm text-muted-foreground">
+            <Spinner size="md" />
+            {t('connections.loading')}
+          </div>
+        ) : null}
 
-      {showList && hasRows ? (
-        <ul className="mt-3 flex flex-col">
-          <AnimatePresence initial={false}>
-            {naming && slot && slot.tokenId === null ? (
-              <motion.li key={slot.key} {...motionProps}>
-                <GrowingSlot swapKey="naming">
-                  <NamingRow
-                    autoFocus={naming.focus}
-                    busy={creating}
-                    onSubmit={(name) => void submitName(name)}
-                    onCancel={cancelNaming}
-                  />
-                </GrowingSlot>
-              </motion.li>
-            ) : null}
-            {tokens.map((token) => {
-              const isSlot = slot?.tokenId === token.id
-              const isFresh = created?.id === token.id
-              return (
-                <motion.li
-                  key={isSlot && slot ? slot.key : token.id}
-                  {...motionProps}
-                >
-                  <GrowingSlot swapKey={isFresh ? 'created' : 'row'}>
-                    {isFresh && created ? (
-                      <CreatedCard
-                        created={created}
-                        onDone={() => setCreated(null)}
-                      />
-                    ) : (
-                      <TokenRow
-                        token={token}
-                        now={now}
-                        onAccess={(access) => void setAccess(token.id, access)}
-                        onRevoke={() => void revokeToken(token)}
-                      />
-                    )}
+        {failure === 'load' && tokens.length === 0 && !isLoading ? (
+          <div className="mt-3 flex items-center gap-3 border-t border-border/60 pt-4 text-sm">
+            <span className="flex-1 text-status-risk">
+              {t('connections.failed.load')}
+            </span>
+            <Button variant="secondary" size="sm" onClick={() => void reload()}>
+              {t('connections.retry')}
+            </Button>
+          </div>
+        ) : null}
+
+        {showList && !hasRows ? (
+          <p className="mt-3 border-t border-border/60 pt-5 pb-1 text-2sm leading-relaxed text-muted-foreground">
+            {t('connections.empty')}
+          </p>
+        ) : null}
+
+        {showList && hasRows ? (
+          <ul className="mt-3 flex flex-col">
+            <AnimatePresence initial={false}>
+              {naming && slot && slot.tokenId === null ? (
+                <motion.li key={slot.key} {...motionProps}>
+                  <GrowingSlot swapKey="naming">
+                    <NamingRow
+                      autoFocus={naming.focus}
+                      busy={creating}
+                      onSubmit={(name) => void submitName(name)}
+                      onCancel={cancelNaming}
+                    />
                   </GrowingSlot>
                 </motion.li>
-              )
-            })}
-          </AnimatePresence>
-        </ul>
-      ) : null}
+              ) : null}
+              {tokens.map((token) => {
+                const isSlot = slot?.tokenId === token.id
+                const isFresh = created?.id === token.id
+                return (
+                  <motion.li
+                    key={isSlot && slot ? slot.key : token.id}
+                    {...motionProps}
+                  >
+                    <GrowingSlot swapKey={isFresh ? 'created' : 'row'}>
+                      {isFresh && created ? (
+                        <CreatedCard
+                          created={created}
+                          onDone={() => setCreated(null)}
+                        />
+                      ) : (
+                        <TokenRow
+                          token={token}
+                          now={now}
+                          onAccess={(access) =>
+                            void setAccess(token.id, access)
+                          }
+                          onRevoke={() => void revokeToken(token)}
+                        />
+                      )}
+                    </GrowingSlot>
+                  </motion.li>
+                )
+              })}
+            </AnimatePresence>
+          </ul>
+        ) : null}
+      </div>
 
       <ConnectorBlock />
     </section>
@@ -262,9 +268,9 @@ export function SettingsConnectionsSection() {
 function ConnectorBlock() {
   const t = useTranslations('Settings')
   return (
-    <div className="mt-6 grid gap-2.5">
+    <div className="mt-4 grid gap-3 rounded-16 border border-border/70 bg-card p-5 shadow-ring">
       <div>
-        <h3 className="text-sm font-medium">
+        <h3 className="text-sm font-semibold">
           {t('connections.connector.title')}
         </h3>
         <p className="mt-0.5 text-2sm leading-relaxed text-muted-foreground">

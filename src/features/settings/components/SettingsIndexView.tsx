@@ -29,6 +29,7 @@ import { useProviderKeyRows } from '@/features/settings/hooks/use-provider-key-r
 import { Link, useRouter } from '@/i18n/navigation'
 
 import { ProfileAvatar } from '@/components/layout/ProfileAvatar'
+import { Skeleton } from '@/components/ui/skeleton'
 import { SettingsPreferenceRows } from '@/features/settings/components/SettingsPreferencesSection'
 import { SettingsSignOutButton } from '@/features/settings/components/SettingsShell'
 
@@ -71,70 +72,104 @@ export function SettingsIndexView() {
   }, [])
 
   return (
-    <main className="min-h-full bg-background px-4 py-4 lg:hidden">
-      <header className="flex min-h-11 items-center gap-2">
-        {/* 底栏「我的」是根页，没有返回；从别处带着 `from` 进来才给一颗 ←。 */}
-        {from ? (
-          <Link
-            href={from}
-            aria-label={t('back')}
-            className="-ml-2 inline-flex size-11 items-center justify-center rounded-md text-foreground transition-colors duration-fast hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <ArrowLeft className="size-5" />
-          </Link>
-        ) : null}
-        <h1 className="text-2xl font-semibold">{tMobile('tabs.profile')}</h1>
-      </header>
+    <>
+      {/* 桌面跳转 `/settings/keys` 前的过渡骨架：与 SettingsShell 同形，避免首帧闪空屏。 */}
+      <div
+        aria-hidden
+        className="hidden min-h-svh flex-col bg-surface-sunken p-2 pl-0 lg:flex"
+      >
+        <div className="flex flex-1 overflow-hidden rounded-20 bg-background shadow-ring">
+          <div className="flex w-settings-nav shrink-0 flex-col gap-2 border-r border-border/70 bg-surface-companion/75 px-3.5 py-6">
+            <Skeleton className="mb-3 ml-2.5 h-5 w-14 rounded-sm" />
+            {Array.from({ length: 5 }, (_, index) => (
+              <Skeleton key={index} className="h-9 w-full rounded-lg" />
+            ))}
+          </div>
+          <div className="min-w-0 flex-1 px-10 py-8">
+            <div className="max-w-3xl space-y-4">
+              <Skeleton className="h-6 w-28 rounded-sm" />
+              <div className="overflow-hidden rounded-16 border border-border/70 bg-card p-4">
+                {Array.from({ length: 6 }, (_, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-3 border-t border-border/60 py-3 first:border-t-0"
+                  >
+                    <Skeleton className="size-2 rounded-full" />
+                    <Skeleton className="h-3.5 w-28 rounded-sm" />
+                    <Skeleton className="h-3 flex-1 rounded-sm" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
-      <ProfileRow />
+      <main className="min-h-full bg-background px-4 py-4 lg:hidden">
+        <header className="flex min-h-11 items-center gap-2">
+          {/* 底栏「我的」是根页，没有返回；从别处带着 `from` 进来才给一颗 ←。 */}
+          {from ? (
+            <Link
+              href={from}
+              aria-label={t('back')}
+              className="-ml-2 inline-flex size-11 items-center justify-center rounded-md text-foreground transition-colors duration-fast hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <ArrowLeft className="size-5" />
+            </Link>
+          ) : null}
+          <h1 className="text-2xl font-semibold">{tMobile('tabs.profile')}</h1>
+        </header>
 
-      <ul className={GROUP_CLASS}>
-        <li>
-          <HubRow
-            href={ROUTES.PROMPTS}
-            icon={FileText}
-            label={tMobile('me.prompts')}
-          />
-        </li>
-      </ul>
+        <ProfileRow />
 
-      {/* 「库」那一组（LoRA 模型 · 酒馆 · 标签词库 · 音色，同电脑左栏，`STUDIO_LIBRARY_TAB_IDS`）：
-          底栏放不下，手机上从这里进 —— 之前音色管理页在手机上没有入口（2026-11-12）。 */}
-      <ul className={GROUP_CLASS}>
-        {LIBRARY_ROWS.map((item) => (
-          <li key={item.id}>
+        <ul className={GROUP_CLASS}>
+          <li>
             <HubRow
-              href={item.href}
-              icon={item.icon}
-              label={tRoot(item.labelKey)}
+              href={ROUTES.PROMPTS}
+              icon={FileText}
+              label={tMobile('me.prompts')}
             />
           </li>
-        ))}
-      </ul>
+        </ul>
 
-      <SectionGroup
-        sections={[SETTINGS_SECTION_IDS.keys, SETTINGS_SECTION_IDS.usage]}
-        from={from}
-      />
-      <SectionGroup
-        sections={[
-          SETTINGS_SECTION_IDS.assistant,
-          SETTINGS_SECTION_IDS.connections,
-        ]}
-        from={from}
-      />
+        {/* 「库」那一组（LoRA 模型 · 酒馆 · 标签词库 · 音色，同电脑左栏，`STUDIO_LIBRARY_TAB_IDS`）：
+          底栏放不下，手机上从这里进 —— 之前音色管理页在手机上没有入口（2026-11-12）。 */}
+        <ul className={GROUP_CLASS}>
+          {LIBRARY_ROWS.map((item) => (
+            <li key={item.id}>
+              <HubRow
+                href={item.href}
+                icon={item.icon}
+                label={tRoot(item.labelKey)}
+              />
+            </li>
+          ))}
+        </ul>
 
-      <h2 className="mt-6 px-3.5 text-xs text-muted-foreground">
-        {t('sections.preferences')}
-      </h2>
-      <div className="mt-1.5 overflow-hidden rounded-xl border border-border bg-card px-3.5">
-        <SettingsPreferenceRows className="*:first:border-t-0" />
-      </div>
+        <SectionGroup
+          sections={[SETTINGS_SECTION_IDS.keys, SETTINGS_SECTION_IDS.usage]}
+          from={from}
+        />
+        <SectionGroup
+          sections={[
+            SETTINGS_SECTION_IDS.assistant,
+            SETTINGS_SECTION_IDS.connections,
+          ]}
+          from={from}
+        />
 
-      <div className="mt-6 mb-4 flex justify-center rounded-xl border border-border bg-card">
-        <SettingsSignOutButton className="min-h-12 self-center px-3.5 text-destructive hover:text-destructive" />
-      </div>
-    </main>
+        <h2 className="mt-6 px-3.5 text-xs text-muted-foreground">
+          {t('sections.preferences')}
+        </h2>
+        <div className="mt-1.5 overflow-hidden rounded-xl border border-border bg-card px-3.5">
+          <SettingsPreferenceRows className="*:first:border-t-0" />
+        </div>
+
+        <div className="mt-6 mb-4 flex justify-center rounded-xl border border-border bg-card">
+          <SettingsSignOutButton className="min-h-12 self-center px-3.5 text-destructive hover:text-destructive" />
+        </div>
+      </main>
+    </>
   )
 }
 

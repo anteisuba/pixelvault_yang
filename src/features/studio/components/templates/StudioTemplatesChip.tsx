@@ -32,6 +32,8 @@ export function StudioTemplatesChip({
     <Toolbar.Button
       type="button"
       disabled={disabled}
+      aria-label={t('templatePicker')}
+      title={t('templatePicker')}
       aria-expanded={open}
       aria-controls={open ? STUDIO_TEMPLATES_PANEL_ID : undefined}
       onClick={onToggle}

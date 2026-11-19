@@ -72,12 +72,12 @@ const MODEL_LABEL_KEYS = ['free', 'pro', 'drama'] as const
 const VOICE_STARTER_EXAMPLE_IDS = ['a', 'b', 'c'] as const
 
 const ROW_CLASS =
-  'flex min-h-12 items-center gap-2.5 rounded-12 bg-muted px-3 py-2'
+  'flex shrink-0 items-start gap-3 rounded-16 border border-border/70 bg-muted/65 px-3.5 py-3 transition-[background-color,border-color,box-shadow] duration-fast ease-standard hover:border-border hover:bg-muted/95 motion-reduce:transition-none'
 
 const ROUND_KEY_CLASS =
-  'grid size-8 shrink-0 place-items-center rounded-full transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none [&>svg]:size-3.5'
+  'grid size-8 shrink-0 place-items-center rounded-full transition-[background-color,color,transform] duration-fast ease-standard active:scale-95 focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none [&>svg]:size-3.5'
 
-/** 一句台词的字：句首方括号语气灰色等宽摆前面，正文照常。 */
+/** 一句台词的字：句首方括号语气收成精致等宽胶囊摆前面，正文照常。 */
 function LineText({ text, muted }: { text: string; muted?: boolean }) {
   const { cues, rest } = leadingVoiceCues(text)
   return (
@@ -88,8 +88,15 @@ function LineText({ text, muted }: { text: string; muted?: boolean }) {
       )}
     >
       {cues.length ? (
-        <span className="mr-1.5 font-mono text-2xs text-muted-foreground">
-          {cues.join(' ')}
+        <span className="mr-1.5 inline-flex flex-wrap items-center gap-1 align-baseline">
+          {cues.map((cue, index) => (
+            <span
+              key={`${cue}-${index}`}
+              className="inline-flex items-center rounded-md border border-border/80 bg-background/90 px-1.5 py-0.5 font-mono text-2xs leading-tight text-ink-2"
+            >
+              {cue}
+            </span>
+          ))}
         </span>
       ) : null}
       {rest}
@@ -565,7 +572,7 @@ function ChipMenu({
 
 function RowAvatar({ url, name }: { url: string | null; name: string }) {
   return (
-    <span className="size-8 shrink-0">
+    <span className="mt-0.5 size-8 shrink-0">
       <AvatarDisc url={url} name={name} />
     </span>
   )
@@ -586,35 +593,44 @@ function BenchLineRow({
 }) {
   const t = useTranslations('VoiceBench')
   return (
-    <div data-testid="voice-bench-line" className={ROW_CLASS}>
+    <div
+      data-testid="voice-bench-line"
+      data-playing={playing || undefined}
+      className={cn(
+        ROW_CLASS,
+        playing && 'border-foreground/25 bg-card shadow-soft hover:bg-card',
+      )}
+    >
       <RowAvatar url={avatarUrl} name={name} />
       <LineText text={line.text} />
-      <button
-        type="button"
-        aria-label={playing ? t('stop') : t('play')}
-        aria-pressed={playing}
-        onClick={() =>
-          playing ? stopOperatorVoice() : playOperatorVoice(line.id, line.url)
-        }
-        className={cn(
-          ROUND_KEY_CLASS,
-          'bg-primary text-primary-foreground hover:tint-hover',
-        )}
-      >
-        {playing ? <Square weight="fill" /> : <Play weight="fill" />}
-      </button>
-      <button
-        type="button"
-        aria-label={t('editLine')}
-        title={t('editLine')}
-        onClick={onEdit}
-        className={cn(
-          ROUND_KEY_CLASS,
-          'text-ink-2 hover:tint-hover hover:text-foreground',
-        )}
-      >
-        <PencilLine />
-      </button>
+      <div className="mt-0.5 flex shrink-0 items-center gap-1.5">
+        <button
+          type="button"
+          aria-label={playing ? t('stop') : t('play')}
+          aria-pressed={playing}
+          onClick={() =>
+            playing ? stopOperatorVoice() : playOperatorVoice(line.id, line.url)
+          }
+          className={cn(
+            ROUND_KEY_CLASS,
+            'bg-primary text-primary-foreground shadow-soft hover:tint-hover',
+          )}
+        >
+          {playing ? <Square weight="fill" /> : <Play weight="fill" />}
+        </button>
+        <button
+          type="button"
+          aria-label={t('editLine')}
+          title={t('editLine')}
+          onClick={onEdit}
+          className={cn(
+            ROUND_KEY_CLASS,
+            'text-ink-2 hover:tint-hover hover:text-foreground',
+          )}
+        >
+          <PencilLine />
+        </button>
+      </div>
     </div>
   )
 }

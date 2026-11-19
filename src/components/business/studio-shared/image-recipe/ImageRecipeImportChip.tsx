@@ -19,6 +19,7 @@ export function ImageRecipeImportChip({ disabled }: { disabled?: boolean }) {
     <Toolbar.Button
       type="button"
       aria-label={t('button')}
+      title={t('button')}
       disabled={disabled}
       onClick={openImageRecipePicker}
       className={cn(studioOutlineChipClass, studioOutlineChipCompactClass)}

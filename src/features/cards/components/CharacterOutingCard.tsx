@@ -1065,16 +1065,16 @@ export function OutingCard({
       className={
         variant === 'row'
           ? 'border-b border-border pb-3'
-          : 'rounded-20 bg-card px-4.5 py-3.5 shadow-card'
+          : 'rounded-20 border border-border/70 bg-card px-4 py-3.5 shadow-card'
       }
       data-testid="character-outing-card"
     >
       {outing.running ? (
         <RunningNow run={outing.running} growth={data} />
       ) : (
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-3">
-            <span className="min-w-0 flex-1 text-2sm">
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span className="min-w-0 flex-1 truncate text-2sm">
               {when ? tOuting('lastOut', { when }) : tOuting('never')}
             </span>
             <WhiteButton
@@ -1094,7 +1094,7 @@ export function OutingCard({
                 setPrefill(last.topic?.text ?? '')
                 setDialogOpen(true)
               }}
-              className="min-w-0 self-start truncate text-left text-xs text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none"
+              className="w-full min-w-0 max-w-full self-start truncate text-left text-xs text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none"
             >
               {tOuting('topicLast', { topic: last.topic.text })}
             </button>

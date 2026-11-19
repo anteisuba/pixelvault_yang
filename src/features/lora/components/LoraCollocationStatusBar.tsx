@@ -55,6 +55,31 @@ interface LoraCollocationStatusBarProps {
   onExpandedChange: (expanded: boolean) => void
 }
 
+const KNOWN_RECIPE_PARAM_KEYS = new Set([
+  'prompt',
+  'negativePrompt',
+  'cfg',
+  'steps',
+  'seed',
+  'sampler',
+  'scheduler',
+  'clipSkip',
+  'loraWeight',
+  'size',
+  'hiresUpscale',
+  'hiresUpscaler',
+  'denoisingStrength',
+  'hiresSteps',
+  'hiresCfgScale',
+])
+
+function formatAppliedParamLabel(
+  key: string,
+  translate: (messageKey: string) => string,
+): string {
+  return KNOWN_RECIPE_PARAM_KEYS.has(key) ? translate(`paramNames.${key}`) : key
+}
+
 export function LoraCollocationStatusBar({
   recipeApplied,
   recipeName,
@@ -202,7 +227,11 @@ export function LoraCollocationStatusBar({
               </div>
             ) : appliedParamLabels.length > 0 ? (
               <p className="text-muted-foreground">
-                {t('appliedParams', { params: appliedParamLabels.join(', ') })}
+                {t('appliedParams', {
+                  params: appliedParamLabels
+                    .map((key) => formatAppliedParamLabel(key, t))
+                    .join(', '),
+                })}
               </p>
             ) : null}
 
@@ -273,21 +302,24 @@ export function LoraCollocationChip({
   onClick: () => void
 }) {
   const tc = useTranslations('LoraWorkbench.generate.collocation')
+  const statusText =
+    sourceKind === 'assistant' ? tc('assistantApplied') : tc('recipeApplied')
   return (
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex h-8 min-w-0 shrink items-center gap-1.75 rounded-full px-2.5 text-2sm whitespace-nowrap text-muted-foreground transition-colors duration-fast ease-linear animate-in fade-in-0 hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus"
+      title={`${tc('label')} · ${statusText}`}
+      className="inline-flex h-8 min-w-0 max-w-52 shrink items-center gap-1.5 overflow-hidden rounded-full border border-border/70 bg-muted/60 px-2.5 text-2sm whitespace-nowrap text-muted-foreground transition-colors duration-fast ease-linear animate-in fade-in-0 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus group-data-compact/toolrow:max-w-36 group-data-compact/toolrow:px-2"
     >
       <span
         aria-hidden
         className="size-1.5 shrink-0 rounded-full bg-foreground"
       />
-      <b className="shrink-0 font-semibold text-foreground">{tc('label')}</b>
-      <span className="min-w-0 truncate">
-        {sourceKind === 'assistant'
-          ? tc('assistantApplied')
-          : tc('recipeApplied')}
+      <b className="min-w-0 truncate font-semibold text-foreground">
+        {tc('label')}
+      </b>
+      <span className="min-w-0 truncate group-data-compact/toolrow:hidden">
+        {statusText}
       </span>
     </button>
   )
@@ -356,7 +388,11 @@ export function LoraCollocationBar({
     changedParams.length > 0
       ? changedParams.map((c) => `${c.label} ${c.from}→${c.to}`).join(' · ')
       : appliedParamLabels.length > 0
-        ? tc('appliedParams', { params: appliedParamLabels.join(', ') })
+        ? tc('appliedParams', {
+            params: appliedParamLabels
+              .map((key) => formatAppliedParamLabel(key, tc))
+              .join(', '),
+          })
         : null,
   ].filter((part): part is string => part !== null)
 
@@ -411,7 +447,7 @@ export function LoraCollocationBar({
               type="button"
               onClick={() => onExpandedChange(!expanded)}
               aria-expanded={expanded}
-              className="shrink-0 font-semibold text-foreground underline underline-offset-3"
+              className="shrink-0 rounded-full px-2 py-0.5 text-2xs font-medium text-foreground transition-colors duration-fast hover:bg-muted focus-visible:outline-none focus-visible:shadow-focus"
             >
               {expanded ? tc('collapse') : tc('view')}
             </button>
@@ -423,10 +459,10 @@ export function LoraCollocationBar({
         data-open={expanded && hasDetail ? 'true' : 'false'}
       >
         <div inert={!(expanded && hasDetail)}>
-          <div className="flex flex-col gap-2.5 rounded-xl bg-muted/60 px-3.5 py-3 text-2sm ring-1 ring-inset ring-border/70">
+          <div className="flex flex-col gap-2.5 rounded-12 border border-border/70 bg-surface-companion/80 px-3.5 py-2.5 text-2sm">
             {recipeApplied ? (
-              <div className="flex items-baseline gap-2.5">
-                <span className="w-16 shrink-0 font-semibold text-foreground/80">
+              <div className="flex items-start gap-3">
+                <span className="w-16 shrink-0 pt-0.5 font-semibold text-foreground/80">
                   {isAssistant ? tc('rowAssistant') : tc('rowRecipe')}
                 </span>
                 <span className="min-w-0 flex-1 text-muted-foreground">
@@ -434,32 +470,34 @@ export function LoraCollocationBar({
                     ? tc('willChangeAssistant')
                     : tc('willChange', { name: recipeName ?? '' })}
                   {recipeLine.length > 0 ? (
-                    <span className="mt-0.5 block font-mono text-2xs text-foreground/80">
+                    <span className="mt-1 block text-2xs leading-relaxed text-foreground/80">
                       {recipeLine.join(' · ')}
                     </span>
                   ) : null}
                   {keptLabels.length > 0 ? (
-                    <span className="mt-0.5 block text-2xs">
+                    <span className="mt-0.5 block text-2xs text-muted-foreground/85">
                       {tc('keptUnchanged', { items: keptLabels.join(' · ') })}
                     </span>
                   ) : null}
                 </span>
-                {isPending ? (
+                <div className="flex shrink-0 items-center gap-1.5 pt-0.5">
+                  {isPending ? (
+                    <button
+                      type="button"
+                      onClick={onApplyPending}
+                      className="inline-flex h-7 shrink-0 items-center rounded-full bg-foreground px-3 text-xs font-semibold text-background transition-colors duration-fast hover:bg-foreground/90 active:scale-[0.98] focus-visible:outline-none focus-visible:shadow-focus"
+                    >
+                      {tc('apply')}
+                    </button>
+                  ) : null}
                   <button
                     type="button"
-                    onClick={onApplyPending}
-                    className="shrink-0 font-semibold text-foreground underline underline-offset-3"
+                    onClick={onUndo}
+                    className="inline-flex h-7 shrink-0 items-center rounded-full border border-border bg-card px-2.5 text-xs font-medium text-foreground transition-colors duration-fast hover:bg-muted active:scale-[0.98] focus-visible:outline-none focus-visible:shadow-focus"
                   >
-                    {tc('apply')}
+                    {tc('undo')}
                   </button>
-                ) : null}
-                <button
-                  type="button"
-                  onClick={onUndo}
-                  className="shrink-0 font-semibold text-foreground underline underline-offset-3"
-                >
-                  {tc('undo')}
-                </button>
+                </div>
               </div>
             ) : null}
           </div>

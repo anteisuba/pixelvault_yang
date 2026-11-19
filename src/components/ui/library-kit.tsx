@@ -149,7 +149,7 @@ export function LibraryRail({
       className={cn(
         'flex shrink-0 flex-col gap-0.5 overflow-x-hidden overflow-y-auto transition-[width,padding,opacity] duration-slow ease-standard motion-reduce:transition-none',
         open
-          ? 'w-52 border-r border-border/60 bg-surface-companion/50 px-2.5 py-2.5 opacity-100'
+          ? 'w-52 border-r border-border/70 bg-surface-companion/75 px-2.5 py-3 opacity-100'
           : 'w-0 border-r-0 px-0 py-0 opacity-0',
         className,
       )}
@@ -182,10 +182,10 @@ export function LibraryRailRow({
         'relative flex h-8 w-full shrink-0 items-center gap-2 rounded-lg px-2 text-left text-2sm transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:shadow-focus',
         active
           ? cn(
-              'bg-muted font-semibold text-foreground',
+              'bg-background font-semibold text-foreground shadow-ring dark:bg-raise',
               LIBRARY_RAIL_ACTIVE_LINE_CLASS,
             )
-          : 'text-foreground hover:tint-hover',
+          : 'text-ink-2 hover:bg-fill-strong/55 hover:text-foreground',
       )}
     >
       <span className="grid size-5 shrink-0 place-items-center text-muted-foreground [&>svg]:size-4">
@@ -238,9 +238,12 @@ export function LibraryNewTile({
     <button
       type="button"
       onClick={onClick}
-      className="flex aspect-3/4 w-full flex-col items-center justify-center gap-1.5 rounded-12 border border-dashed border-input text-2sm text-ink-2 transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus"
+      className="group flex aspect-3/4 w-full flex-col items-center justify-center gap-2 rounded-12 border border-dashed border-input bg-surface-companion/45 text-2sm text-ink-2 transition-[background-color,border-color,color] duration-fast ease-standard hover:border-foreground/30 hover:bg-surface-companion hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus"
     >
-      <span aria-hidden className="[&_svg]:size-4.5">
+      <span
+        aria-hidden
+        className="grid size-9 place-items-center rounded-full bg-background text-foreground shadow-ring transition-transform duration-fast ease-standard group-hover:scale-105 dark:bg-raise [&_svg]:size-4"
+      >
         {icon ?? <Plus />}
       </span>
       {label}

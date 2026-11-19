@@ -425,6 +425,9 @@ type TileLayout = 'strip' | { width: number; height: number; hidden: boolean }
  * 电脑上的排法：按原比例一行行铺满，先露两行；多出来的行**照样挂在 DOM 上只是藏着**
  * —— 回复里的 `#n` 点到藏着的那张时，格子自己叫一声把它们放出来再滚过去。
  */
+/** 窄分屏里保底格宽：极瘦竖图不压成细条，避免 `#n` 与右上选择圈撞车。 */
+const MIN_TILE_ASPECT = 0.82
+
 function JustifiedRows({
   images,
   expanded,
@@ -444,9 +447,12 @@ function JustifiedRows({
   const aspectRatios = useMemo(
     () =>
       images.map((image) =>
-        image.width && image.height
-          ? toLayoutAspectRatio(image.width, image.height)
-          : UNKNOWN_ASPECT,
+        Math.max(
+          MIN_TILE_ASPECT,
+          image.width && image.height
+            ? toLayoutAspectRatio(image.width, image.height)
+            : UNKNOWN_ASPECT,
+        ),
       ),
     [images],
   )
@@ -636,7 +642,7 @@ function WebCandidateTile({
               onError={thumb.onError}
               style={revealStyle}
               className={cn(
-                'size-full object-cover',
+                'size-full object-cover transition-transform duration-base ease-standard group-hover:scale-103 motion-reduce:transform-none',
                 viewOnly && 'opacity-60',
                 revealClassName,
               )}
@@ -706,7 +712,7 @@ function WebCandidateTile({
             aria-label={selectLabel}
             disabled={state === 'saving' || state === 'saved'}
             onClick={onSelect}
-            className="absolute right-0 top-0 grid size-11 place-items-center focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-ring disabled:cursor-default"
+            className="absolute right-1 top-1 grid size-7 place-items-center coarse:right-0 coarse:top-0 coarse:size-11 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-ring disabled:cursor-default"
           >
             <span
               className={cn(

@@ -217,8 +217,10 @@ export function StudioConversationList({ className }: { className?: string }) {
         onPointerOver={indicator.onPointerOver}
         onPointerLeave={indicator.onPointerLeave}
         className={cn(
-          'scrollbar-none absolute inset-y-0 left-0 z-50 flex flex-col items-start gap-0.5 overflow-x-hidden overflow-y-auto bg-sidebar px-2 py-3 transition-[width,box-shadow] duration-base ease-standard motion-reduce:transition-none',
-          expanded ? 'w-56 rounded-r-16 shadow-pop' : 'w-14',
+          'scrollbar-none absolute inset-y-0 left-0 flex flex-col items-start gap-0.5 overflow-x-hidden overflow-y-auto bg-sidebar px-2 py-3 transition-[width,box-shadow] duration-base ease-standard motion-reduce:transition-none',
+          expanded
+            ? 'z-40 w-56 rounded-r-16 border-r border-border/80 shadow-pop'
+            : 'z-30 w-14',
         )}
       >
         {/* 整栏唯一的两个运动主体（app-shell.md §5.1），排在格子前面 = 画在格子下面。 */}

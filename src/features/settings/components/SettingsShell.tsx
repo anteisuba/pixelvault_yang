@@ -11,7 +11,16 @@ import {
 import { useSearchParams, useSelectedLayoutSegment } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { motion, useReducedMotion } from 'motion/react'
-import { ArrowLeft, LogOut } from '@/components/icons'
+import {
+  ArrowLeft,
+  Gauge,
+  KeyRound,
+  Link2,
+  LogOut,
+  MessagesSquare,
+  SlidersHorizontal,
+  type Icon,
+} from '@/components/icons'
 
 import {
   DURATION,
@@ -67,10 +76,10 @@ export function SettingsShell({ section, children }: SettingsShellProps) {
   const swap = useBlurSwapIn(section, SETTINGS_SECTION_SWAP)
 
   return (
-    <main className="min-h-full bg-background px-4 py-4 lg:flex lg:min-h-svh lg:flex-col lg:bg-surface-sunken lg:p-2 lg:pl-0">
-      <div className="flex w-full lg:flex-1 lg:overflow-hidden lg:rounded-20 lg:bg-background lg:shadow-ring">
+    <main className="min-h-full bg-background px-4 py-4 lg:flex lg:h-svh lg:flex-col lg:overflow-hidden lg:bg-surface-sunken lg:p-2 lg:pl-0">
+      <div className="flex w-full lg:min-h-0 lg:flex-1 lg:overflow-hidden lg:rounded-20 lg:bg-background lg:shadow-ring">
         <SettingsNav section={section} from={from} />
-        <div className="min-w-0 flex-1 lg:px-8 lg:py-6">
+        <div className="min-w-0 flex-1 lg:overflow-y-auto lg:px-10 lg:py-8">
           <header className="mb-4 flex items-center gap-2 lg:hidden">
             <Link
               href={settingsPath(ROUTES.SETTINGS, from)}
@@ -110,6 +119,14 @@ interface SlotRect {
  * 鼠标（`SPRING.press`，无过冲）；行自己⛔ 不再各画背景。↑ / ↓ 在行上直接换分区。
  * 悬停块划过当前行时让位（灰块赢）；触屏没有悬停块。
  */
+const SETTINGS_NAV_ICONS: Record<SettingsSection, Icon> = {
+  keys: KeyRound,
+  usage: Gauge,
+  preferences: SlidersHorizontal,
+  assistant: MessagesSquare,
+  connections: Link2,
+}
+
 function SettingsNav({
   section,
   from,
@@ -185,7 +202,7 @@ function SettingsNav({
           current ? { ...current, visible: false } : current,
         )
       }
-      className="relative hidden w-settings-nav shrink-0 flex-col gap-0.5 border-r border-border/70 bg-surface-companion/70 px-3.5 py-5 lg:flex"
+      className="relative hidden w-settings-nav shrink-0 flex-col gap-0.5 border-r border-border/70 bg-surface-companion/75 px-3.5 py-6 lg:flex"
     >
       {hover ? (
         <motion.span
@@ -215,30 +232,40 @@ function SettingsNav({
           transition={slide}
         />
       ) : null}
-      <h1 className="relative px-2.5 pb-3 text-lg font-semibold">
+      <h1 className="relative px-2.5 pb-4 text-lg font-semibold tracking-tight">
         {t('title')}
       </h1>
-      {SETTINGS_SECTIONS.map((item, index) => (
-        <Link
-          key={item}
-          ref={(node: HTMLAnchorElement | null) => {
-            if (node) linkRefs.current.set(item, node)
-            else linkRefs.current.delete(item)
-          }}
-          href={settingsPath(SETTINGS_SECTION_ROUTES[item], from)}
-          data-settings-nav-item={item}
-          aria-current={item === section ? 'page' : undefined}
-          onKeyDown={(event) => onKeyDown(event, index)}
-          className={cn(
-            'relative rounded-md px-2.5 py-2 text-sm transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-            item === section
-              ? 'font-medium text-foreground'
-              : 'text-muted-foreground hover:text-foreground',
-          )}
-        >
-          {t(`sections.${item}`)}
-        </Link>
-      ))}
+      {SETTINGS_SECTIONS.map((item, index) => {
+        const SectionIcon = SETTINGS_NAV_ICONS[item]
+        return (
+          <Link
+            key={item}
+            ref={(node: HTMLAnchorElement | null) => {
+              if (node) linkRefs.current.set(item, node)
+              else linkRefs.current.delete(item)
+            }}
+            href={settingsPath(SETTINGS_SECTION_ROUTES[item], from)}
+            data-settings-nav-item={item}
+            aria-current={item === section ? 'page' : undefined}
+            onKeyDown={(event) => onKeyDown(event, index)}
+            className={cn(
+              'relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-2sm transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              item === section
+                ? 'font-semibold text-foreground'
+                : 'text-ink-2 hover:text-foreground',
+            )}
+          >
+            <SectionIcon
+              className={cn(
+                'size-4 shrink-0',
+                item === section ? 'text-foreground' : 'text-muted-foreground',
+              )}
+              aria-hidden
+            />
+            {t(`sections.${item}`)}
+          </Link>
+        )
+      })}
       <div className="flex-1" />
       <SettingsSignOutButton className="relative px-2.5 py-2" />
     </nav>

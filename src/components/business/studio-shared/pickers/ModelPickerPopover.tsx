@@ -1227,7 +1227,7 @@ export function ModelPickerPopover({
           className={cn(
             canvasCompact
               ? 'min-h-0 flex-1 overflow-y-auto px-1.5 pb-1.5'
-              : 'mt-1 max-h-80 overflow-y-auto',
+              : 'mt-1 max-h-80 overflow-y-auto pb-1.5',
           )}
         >
           {empty ? (

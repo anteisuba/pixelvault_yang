@@ -40,46 +40,46 @@ export function SettingsUsageSection() {
       </h2>
 
       {isLoading ? (
-        <div className="mt-3 flex items-center gap-2 border-t border-border py-6 text-sm text-muted-foreground">
+        <div className="mt-4 flex items-center gap-2 rounded-16 border border-border/70 bg-card px-5 py-6 text-sm text-muted-foreground shadow-ring">
           <Spinner size="md" />
           {t('usage.loading')}
         </div>
       ) : (
         <>
           {providers.length === 0 ? (
-            <p className="mt-3 border-t border-border py-6 text-sm text-muted-foreground">
+            <p className="mt-4 rounded-16 border border-border/70 bg-card px-5 py-6 text-sm text-muted-foreground shadow-ring">
               {t('usage.empty')}
             </p>
           ) : (
-            <div className="mt-3">
+            <div className="mt-4">
               <p
                 id="settings-usage-cost-note"
                 className="text-xs text-muted-foreground"
               >
                 {t('usage.costNote')}
               </p>
-              <div className="mt-2 overflow-x-auto">
+              <div className="mt-3 overflow-x-auto rounded-16 border border-border/70 bg-card shadow-ring">
                 <table
                   aria-describedby="settings-usage-cost-note"
                   className="w-full border-collapse text-sm lg:min-w-96"
                 >
                   <thead>
-                    <tr className="text-2xs text-muted-foreground">
+                    <tr className="bg-surface-companion/70 text-2xs text-muted-foreground dark:bg-muted/60">
                       <th
                         scope="col"
-                        className="px-2 py-2 lg:px-3.5 text-left font-normal"
+                        className="px-4 py-2.5 text-left font-medium"
                       >
                         {t('usage.columnProvider')}
                       </th>
                       <th
                         scope="col"
-                        className="px-2 py-2 lg:px-3.5 text-right font-normal"
+                        className="px-4 py-2.5 text-right font-medium"
                       >
                         {t('usage.columnRequests')}
                       </th>
                       <th
                         scope="col"
-                        className="px-2 py-2 lg:px-3.5 text-right font-normal"
+                        className="px-4 py-2.5 text-right font-medium"
                       >
                         {t('usage.columnCost')}
                       </th>
@@ -89,30 +89,28 @@ export function SettingsUsageSection() {
                     {providers.map((provider) => (
                       <tr
                         key={provider.adapterType}
-                        className="border-t border-border"
+                        className="border-t border-border/60 transition-colors duration-fast hover:bg-surface-companion/50 dark:hover:bg-muted/40"
                       >
-                        <td className="px-2 py-2.5 lg:px-3.5">
+                        <td className="px-4 py-3 font-medium">
                           {provider.label}
                         </td>
-                        <td className="px-2 py-2.5 lg:px-3.5 text-right font-mono text-xs">
+                        <td className="px-4 py-3 text-right font-mono text-xs tabular-nums">
                           <CountUp
                             value={provider.requests}
                             format={formatCount}
                           />
                         </td>
-                        <td className="px-2 py-2.5 lg:px-3.5 text-right font-mono text-xs">
+                        <td className="px-4 py-3 text-right font-mono text-xs tabular-nums">
                           <CostCell amount={provider.estimatedCostUsd} />
                         </td>
                       </tr>
                     ))}
-                    <tr className="border-t border-border font-medium">
-                      <td className="px-2 py-2.5 lg:px-3.5">
-                        {t('usage.total')}
-                      </td>
-                      <td className="px-2 py-2.5 lg:px-3.5 text-right font-mono text-xs">
+                    <tr className="border-t border-border bg-surface-companion/50 font-semibold dark:bg-muted/50">
+                      <td className="px-4 py-3">{t('usage.total')}</td>
+                      <td className="px-4 py-3 text-right font-mono text-xs tabular-nums">
                         <CountUp value={totalRequests} format={formatCount} />
                       </td>
-                      <td className="px-2 py-2.5 lg:px-3.5 text-right font-mono text-xs">
+                      <td className="px-4 py-3 text-right font-mono text-xs tabular-nums">
                         <CostCell amount={totalEstimatedCostUsd} />
                       </td>
                     </tr>
@@ -151,14 +149,19 @@ function RunnerQuota({ runner }: { runner: RunnerUsageResult }) {
     day: '2-digit',
   })
 
+  const ratio =
+    !runner.exempt && runner.limit > 0
+      ? Math.min(100, Math.round((runner.used / runner.limit) * 100))
+      : null
+
   return (
     <div
       data-testid="settings-runner-quota"
-      className="mt-8 border-t border-border pt-4"
+      className="mt-5 rounded-16 border border-border/70 bg-card p-4 shadow-ring"
     >
       <div className="flex items-baseline justify-between gap-3">
-        <h3 className="text-sm font-medium">{t('usage.runnerTitle')}</h3>
-        <span className="font-mono text-sm">
+        <h3 className="text-sm font-semibold">{t('usage.runnerTitle')}</h3>
+        <span className="font-mono text-sm tabular-nums">
           {runner.exempt
             ? runner.used
             : t('usage.runnerQuota', {
@@ -167,7 +170,18 @@ function RunnerQuota({ runner }: { runner: RunnerUsageResult }) {
               })}
         </span>
       </div>
-      <p className="mt-1 text-xs text-muted-foreground">
+      {ratio !== null ? (
+        <div
+          aria-hidden
+          className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-muted"
+        >
+          <div
+            className="h-full rounded-full bg-foreground transition-[width] duration-slow ease-standard"
+            style={{ width: `${ratio}%` }}
+          />
+        </div>
+      ) : null}
+      <p className="mt-2 text-xs text-muted-foreground">
         {runner.exempt
           ? t('usage.runnerExplainExempt', { date })
           : t('usage.runnerExplain', { limit: runner.limit, date })}

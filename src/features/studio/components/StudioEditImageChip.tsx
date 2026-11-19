@@ -31,6 +31,7 @@ export function StudioEditImageChip({
       type="button"
       disabled={disabled}
       aria-label={t('toolChip')}
+      title={t('toolChip')}
       onClick={onEdit}
       className={cn(chip.trigger, chip.compact)}
     >

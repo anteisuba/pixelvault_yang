@@ -35,6 +35,7 @@ import {
   MediaTileMoreTrigger,
   MediaTileShade,
 } from '@/components/ui/media-tile'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
 import { VoiceAvatarButton } from '@/components/business/voices/VoiceAvatar'
 import type { UseVoiceLibraryReturn } from '@/hooks/use-voice-library'
@@ -167,60 +168,67 @@ export function VoicesLibraryDesk({
 
   const empty =
     !library.isLoading && mine.length === 0 && publicVoices.length === 0
-  const body = library.isLoading ? (
-    <div className="flex justify-center py-16">
-      <Spinner size="lg" className="text-muted-foreground" />
-    </div>
-  ) : library.error && empty ? (
-    <EmptyState tone="error" title={library.error} />
-  ) : empty && library.tab === 'favorites' && !needle ? (
-    <EmptyState
-      icon={<Bookmark aria-hidden />}
-      title={t('emptyFavorites')}
-      description={tLib('emptyFavoritesHint')}
-      action={
-        <Button
-          type="button"
-          size="sm"
-          className="rounded-full"
-          onClick={() => select('public')}
-        >
-          {tLib('all')}
-        </Button>
-      }
-    />
-  ) : (
-    <div className="flex flex-col gap-6">
+  const body =
+    library.isLoading && mine.length === 0 && publicVoices.length === 0 ? (
       <LibraryGrid>
-        {library.tab === 'favorites' || needle ? null : (
-          <LibraryNewTile
-            label={t('clone')}
-            icon={<Mic aria-hidden />}
-            onClick={onClone}
-          />
-        )}
-        {mine.map(renderCard)}
-        {publicVoices.map(renderAsset)}
+        {Array.from({ length: 8 }, (_, index) => (
+          <div key={index} className="min-w-0">
+            <Skeleton className="aspect-3/4 w-full rounded-12" />
+            <Skeleton className="mt-2 h-3.5 w-3/4 rounded-sm" />
+            <Skeleton className="mt-1 h-2.5 w-1/2 rounded-sm" />
+          </div>
+        ))}
       </LibraryGrid>
-      {empty && needle ? (
-        <p className="py-10 text-center text-2sm text-muted-foreground">
-          {t('emptyPublic')}
-        </p>
-      ) : null}
-      {onAll && library.hasMore ? (
-        <Button
-          type="button"
-          variant="secondary"
-          className="self-center rounded-full"
-          disabled={library.isLoadingMore}
-          onClick={library.loadMore}
-        >
-          {library.isLoadingMore ? <Spinner size="sm" /> : null}
-          {t('loadMore')}
-        </Button>
-      ) : null}
-    </div>
-  )
+    ) : library.error && empty ? (
+      <EmptyState tone="error" title={library.error} />
+    ) : empty && library.tab === 'favorites' && !needle ? (
+      <EmptyState
+        icon={<Bookmark aria-hidden />}
+        title={t('emptyFavorites')}
+        description={tLib('emptyFavoritesHint')}
+        action={
+          <Button
+            type="button"
+            size="sm"
+            className="rounded-full"
+            onClick={() => select('public')}
+          >
+            {tLib('all')}
+          </Button>
+        }
+      />
+    ) : (
+      <div className="flex flex-col gap-6">
+        <LibraryGrid>
+          {library.tab === 'favorites' || needle ? null : (
+            <LibraryNewTile
+              label={t('clone')}
+              icon={<Mic aria-hidden />}
+              onClick={onClone}
+            />
+          )}
+          {mine.map(renderCard)}
+          {publicVoices.map(renderAsset)}
+        </LibraryGrid>
+        {empty && needle ? (
+          <p className="py-10 text-center text-2sm text-muted-foreground">
+            {t('emptyPublic')}
+          </p>
+        ) : null}
+        {onAll && library.hasMore ? (
+          <Button
+            type="button"
+            variant="secondary"
+            className="self-center rounded-full"
+            disabled={library.isLoadingMore}
+            onClick={library.loadMore}
+          >
+            {library.isLoadingMore ? <Spinner size="sm" /> : null}
+            {t('loadMore')}
+          </Button>
+        ) : null}
+      </div>
+    )
 
   return (
     <div className="flex min-h-0 flex-1 gap-8">

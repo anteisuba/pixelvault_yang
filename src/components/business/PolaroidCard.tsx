@@ -120,9 +120,9 @@ export function PolaroidCard({
         data-gallery-tile-id={id}
         aria-label={`${t('imageBy')} ${model}, ${dateStr}`}
         className={cn(
-          'group cursor-pointer transition-transform duration-300 ease-out',
-          'hover:scale-105 hover:z-20 focus-visible:scale-105 focus-visible:z-20',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-sm',
+          'group cursor-pointer transition-[transform,box-shadow] duration-base ease-standard',
+          'hover:scale-103 hover:z-20 focus-visible:scale-103 focus-visible:z-20',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-md',
           'motion-reduce:transform-none',
           className,
         )}
@@ -134,13 +134,12 @@ export function PolaroidCard({
         onKeyDown={handleKeyDown}
       >
         <div
-          className="rounded-sm shadow-md overflow-hidden"
+          className="relative overflow-hidden rounded-md p-2 pb-9 shadow-card ring-1 ring-black/8 transition-shadow duration-base ease-standard group-hover:shadow-pop"
           style={{
-            border: `8px solid ${PROFILE.POLAROID_BORDER_COLOR}`,
-            borderBottom: `32px solid ${PROFILE.POLAROID_BORDER_COLOR}`,
+            backgroundColor: PROFILE.POLAROID_BORDER_COLOR,
           }}
         >
-          <div className="relative aspect-square overflow-hidden bg-muted">
+          <div className="relative aspect-square overflow-hidden rounded-xs bg-muted ring-1 ring-inset ring-black/6">
             {isVideo ? (
               <video
                 src={url}
@@ -164,27 +163,30 @@ export function PolaroidCard({
                 }
                 fill
                 sizes="200px"
-                className="object-cover"
+                className="object-cover transition-transform duration-reveal ease-standard group-hover:scale-103"
                 loading="lazy"
               />
             )}
             {isFeatured && (
-              <div className="absolute top-1.5 right-1.5 bg-primary/90 text-primary-foreground rounded-full p-1">
+              <div className="absolute top-1.5 right-1.5 rounded-full bg-black/75 p-1 text-white shadow-media-action">
                 <Sparkles className="size-3" />
               </div>
             )}
           </div>
-        </div>
-        {/* Like indicator below polaroid */}
-        <div className="flex items-center justify-between px-1 mt-1 text-xs text-muted-foreground">
-          <span className="truncate">{model}</span>
-          <span className="flex items-center gap-0.5">
-            <Heart
-              weight={isLiked ? 'fill' : 'bold'}
-              className={cn('size-3', isLiked && 'text-primary')}
-            />
-            {likeCount > 0 && likeCount}
-          </span>
+          {/* Caption & like count neatly inscribed inside the polaroid paper chin */}
+          <div
+            className="absolute inset-x-2.5 bottom-2 flex items-center justify-between gap-2 text-2xs"
+            style={{ color: '#5b564b' }}
+          >
+            <span className="min-w-0 truncate font-mono">{model}</span>
+            <span className="flex shrink-0 items-center gap-0.5 font-mono tabular-nums">
+              <Heart
+                weight={isLiked ? 'fill' : 'regular'}
+                className={cn('size-3', isLiked && 'text-destructive')}
+              />
+              {likeCount > 0 && likeCount}
+            </span>
+          </div>
         </div>
       </div>
 

@@ -599,6 +599,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
                       )
                     }}
                     aria-label={tPromptArea('negativePromptLabel')}
+                    title={tPromptArea('negativePromptLabel')}
                     className={cn(
                       studioOutlineChipClass,
                       studioOutlineChipCompactClass,
@@ -682,7 +683,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
                       popoverAlign="end"
                       contentClassName="w-80"
                       className={cn(
-                        'h-8 max-w-48 group-data-compact/toolrow:max-w-36',
+                        'h-8',
                         runModels.length > 0 && studioOutlineChipSetClass,
                       )}
                     />

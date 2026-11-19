@@ -2439,7 +2439,7 @@ export function Studio3DWorkspace({
           </span>
         </div>
       )}
-      <div className="flex items-center gap-1.5 lg:flex-wrap">
+      <div className="flex min-w-0 items-center gap-1.5">
         {/* 手机：参数、模式、参考图来源都收进「模型设置」那张抽屉（一整列，比一排小弹层
             好点），输入卡上只留一颗模型药丸 + 圆键。 */}
         <button
@@ -2556,7 +2556,7 @@ export function Studio3DWorkspace({
             {paramFields}
           </PopoverContent>
         </Popover>
-        <span className="ml-auto font-mono text-2xs text-muted-foreground max-lg:min-w-0 max-lg:truncate">
+        <span className="ml-auto min-w-0 truncate font-mono text-2xs text-muted-foreground">
           {costText}
         </span>
         <button
@@ -2565,7 +2565,7 @@ export function Studio3DWorkspace({
           aria-label={t('changeModelButton')}
           className={cn(
             studioOutlineChipClass,
-            'max-w-60 text-foreground max-lg:hidden',
+            'max-w-44 shrink text-foreground max-lg:hidden',
           )}
         >
           <span className="truncate">
@@ -2591,7 +2591,25 @@ export function Studio3DWorkspace({
         <Button
           type="button"
           size="sm"
-          className="max-lg:hidden"
+          className="shrink-0 whitespace-nowrap max-lg:hidden"
+          aria-label={
+            isGenerating
+              ? t('generating')
+              : generationKeyMissing
+                ? t('setupApiKeyButton')
+                : !hasGenerationInput
+                  ? isRodin && rodinTextMode
+                    ? t('enterPromptToGenerate')
+                    : t('selectImageToGenerate')
+                  : t('generateButton')
+          }
+          title={
+            !isGenerating && !generationKeyMissing && !hasGenerationInput
+              ? isRodin && rodinTextMode
+                ? t('enterPromptToGenerate')
+                : t('selectImageToGenerate')
+              : undefined
+          }
           disabled={
             isGenerating || (!generationKeyMissing && !hasGenerationInput)
           }
@@ -2609,11 +2627,7 @@ export function Studio3DWorkspace({
             ? t('generating')
             : generationKeyMissing
               ? t('setupApiKeyButton')
-              : !hasGenerationInput
-                ? isRodin && rodinTextMode
-                  ? t('enterPromptToGenerate')
-                  : t('selectImageToGenerate')
-                : t('generateButton')}
+              : t('generateButton')}
         </Button>
       </div>
     </section>

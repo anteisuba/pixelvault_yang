@@ -119,7 +119,7 @@ export function LoraSourceRecipeStrip({
       <div
         className={cn(
           'lora-scrollbar-hide flex overflow-x-auto',
-          band ? 'gap-2.5' : 'mt-1 gap-1.5 pb-1',
+          band ? '-m-0.5 gap-2.5 p-0.5' : 'mt-1 gap-1.5 pb-1',
         )}
       >
         {recipes.map((recipe, idx) => {
@@ -142,7 +142,7 @@ export function LoraSourceRecipeStrip({
               className={cn(
                 'shrink-0 cursor-zoom-in overflow-hidden outline-none transition-shadow focus-visible:shadow-focus',
                 band
-                  ? 'rounded-lg bg-muted hover:ring-2 hover:ring-foreground/15'
+                  ? 'rounded-lg bg-muted ring-1 ring-inset ring-border/50 hover:ring-2 hover:ring-foreground/20'
                   : 'rounded-md border border-border/60 hover:border-primary/40',
               )}
             >

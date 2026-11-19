@@ -256,9 +256,9 @@ export function LoraRecipeViewer({
           }
           style={{ transformOrigin: `${origin.x}px ${origin.y}px` }}
           data-testid="lora-recipe-viewer"
-          className="absolute inset-0 z-20 flex bg-card"
+          className="absolute inset-0 z-20 flex overflow-hidden rounded-16 border border-border/80 bg-card shadow-pop"
         >
-          <div className="relative flex min-w-0 flex-1 flex-col bg-surface-workbench">
+          <div className="relative flex min-w-0 flex-1 flex-col bg-surface-companion/55">
             {/* 大图按左边剩下的地方等比放到最大（与结果区同一套 `studio-fit-*`）：
                 比例取配方记下的宽高，没记就等图加载完按原图算。 */}
             <div className="flex min-h-0 flex-1 flex-col px-17.5 pb-2 pt-5.5">
@@ -375,7 +375,7 @@ export function LoraRecipeViewer({
             ) : null}
           </div>
 
-          <aside className="flex w-85 shrink-0 flex-col gap-3.5 px-5 py-4">
+          <aside className="flex w-85 shrink-0 flex-col gap-3.5 border-l border-border/70 px-5 py-4">
             <div className="flex items-center gap-2.5">
               <b className="text-2sm font-semibold text-foreground">
                 {t('viewer.title')}
@@ -396,7 +396,7 @@ export function LoraRecipeViewer({
 
             {/* 作者示例图没带生成参数时只看图：右栏一句话，⛔ 画一排空格子。 */}
             {recipe.prompt ? (
-              <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
+              <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pr-1">
                 {row(
                   t('viewer.prompt'),
                   codeBlock(recipe.prompt, 'sourceRecipePromptCopied'),

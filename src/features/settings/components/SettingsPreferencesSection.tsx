@@ -41,7 +41,7 @@ export function SettingsPreferencesSection() {
       <h2 className="text-xl font-semibold max-lg:sr-only">
         {t('sections.preferences')}
       </h2>
-      <SettingsPreferenceRows className="mt-3" />
+      <SettingsPreferenceRows className="mt-4 overflow-hidden rounded-16 border border-border/70 bg-card px-4 shadow-ring *:first:border-t-0" />
     </section>
   )
 }

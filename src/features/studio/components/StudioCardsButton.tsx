@@ -39,6 +39,7 @@ export function StudioCardsButton({
       type="button"
       disabled={disabled}
       aria-label={t('characters')}
+      title={t('characters')}
       aria-pressed={open}
       onClick={onToggle}
       className={cn(

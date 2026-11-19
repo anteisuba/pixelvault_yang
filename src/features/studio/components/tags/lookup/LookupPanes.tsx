@@ -190,7 +190,7 @@ export function TagPane({
         </div>
         {addBar ? (
           <div className="flex shrink-0 flex-col gap-2.5 border-t border-border/60 pt-2.5">
-            <div className="flex items-center gap-2.5 overflow-x-auto">
+            <div className="-my-1 flex items-center gap-2.5 overflow-x-auto py-1">
               <span className="shrink-0 text-2xs font-semibold text-foreground/80">
                 {texts.addTo}
               </span>
@@ -226,7 +226,7 @@ export function TagPane({
           <span className="shrink-0 text-2xs font-semibold text-foreground/80">
             {texts.addTo}
           </span>
-          <div className="min-w-0 overflow-x-auto">{where}</div>
+          <div className="-m-1 min-w-0 overflow-x-auto p-1">{where}</div>
           <span className="flex-1" />
           <LookupAddButton {...addBar.add} />
         </div>

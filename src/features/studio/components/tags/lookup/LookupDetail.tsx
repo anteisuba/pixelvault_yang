@@ -120,7 +120,7 @@ export function LookupShots({
     )
   }
   return (
-    <div className="flex h-60 min-h-0 shrink gap-2 short:h-auto short:w-1/2">
+    <div className="flex h-60 min-h-0 shrink gap-2.5 short:h-auto short:w-1/2">
       {zoom}
       {slots.map((slot) => {
         const shot = shots[slot]
@@ -130,7 +130,7 @@ export function LookupShots({
             type="button"
             onClick={() => setZoomed(shot)}
             // 矮屏左右排时贴顶，与右边「要加入的标签」同一条顶边。
-            className="flex h-full min-w-0 flex-1 cursor-zoom-in items-center justify-center rounded-xl focus-visible:outline-none focus-visible:shadow-focus short:items-start"
+            className="flex h-full min-w-0 flex-1 cursor-zoom-in items-center justify-center rounded-12 bg-surface-companion/65 p-1.5 ring-1 ring-inset ring-border/50 transition-colors duration-fast hover:bg-surface-companion focus-visible:outline-none focus-visible:shadow-focus short:items-start"
           >
             {/* ⚠ 不用 next/image 的 fill：要的是图自己的比例，不是一个固定框 —— 图框就是图，
                 圆角才落在图上。 */}
@@ -138,11 +138,15 @@ export function LookupShots({
               src={shot.url}
               fallback={shot.thumbUrl}
               alt={shot.alt}
-              className="max-h-full max-w-full animate-in rounded-xl fade-in-0 duration-base ease-linear motion-reduce:animate-none"
+              className="max-h-full max-w-full animate-in rounded-lg fade-in-0 duration-base ease-linear motion-reduce:animate-none"
             />
           </button>
         ) : (
-          <span key={`empty-${slot}`} className="min-w-0 flex-1" aria-hidden />
+          <span
+            key={`empty-${slot}`}
+            className="min-w-0 flex-1 rounded-12 bg-surface-companion/35"
+            aria-hidden
+          />
         )
       })}
     </div>

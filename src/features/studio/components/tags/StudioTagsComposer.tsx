@@ -667,6 +667,7 @@ export function StudioTagsComposer({
                 <Toolbar.Button
                   type="button"
                   aria-label={t('workbench.lookup')}
+                  title={t('workbench.lookup')}
                   aria-pressed={activePanel === 'catalog'}
                   onClick={openLookup}
                   className={cn(
@@ -682,6 +683,7 @@ export function StudioTagsComposer({
                 <Toolbar.Button
                   type="button"
                   aria-label={t('favoritesPanel.title')}
+                  title={t('favoritesPanel.title')}
                   aria-pressed={activePanel === 'favorites'}
                   onClick={openFavorites}
                   className={cn(
@@ -705,6 +707,7 @@ export function StudioTagsComposer({
                   <Toolbar.Button
                     type="button"
                     aria-label={t('workbench.composition')}
+                    title={t('workbench.composition')}
                     onClick={() => onOpenPanel('composition')}
                     className={cn(
                       studioOutlineChipClass,
@@ -751,7 +754,7 @@ export function StudioTagsComposer({
                     // ⚠ 单选 chip 写「型号名 · 版本」，宽屏用它自己的 240（⛔ 压到 192 把名字挤成
                     //   「Novel… Diffusion V5 …」）；工具行放不下、收成图标时才收到 144，保证一行不折。
                     className={cn(
-                      'h-8 group-data-compact/toolrow:max-w-36',
+                      'h-8',
                       runModels.length > 0 && studioOutlineChipSetClass,
                     )}
                   />

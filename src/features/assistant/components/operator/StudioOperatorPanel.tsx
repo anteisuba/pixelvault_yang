@@ -702,6 +702,18 @@ export function StudioOperatorPanel({
       clientHeight: node.clientHeight,
     })
   }, [])
+  // 当底部规格行出现 / 隐藏或窗口缩放令容器变矮时，若原本贴着底则保持贴底，避免裁掉最后半行字。
+  useEffect(() => {
+    const node = threadRef.current
+    if (!node || typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(() => {
+      if (stickRef.current) {
+        node.scrollTop = node.scrollHeight
+      }
+    })
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [])
   // 「问助手」/「按这张继续」按完要把焦点还给输入框（§3.1 ⑲「chip 插入并聚焦」）
   // —— 不还的话用户得再点一次输入框才能接着说，而他刚刚明明就在说话。
   const inputRef = useRef<MentionInputHandle>(null)
@@ -2473,9 +2485,9 @@ export function StudioOperatorPanel({
                ⚠ 只在空态换布局：有内容时这里是一串按顺序堆的行，⛔ 不给它们换
                一套 flex 语义。 */
             className={cn(
-              'relative px-4 pb-5 pt-3.5',
+              'relative px-4 pt-4 pb-8',
               headerAvatar === 'boardStatic' &&
-                'mx-auto w-full max-w-3xl px-6 pt-8 pb-8',
+                'mx-auto w-full max-w-3xl px-6 pt-8 pb-10',
               threadEmpty && !greeting.entry && 'flex h-full min-h-0 flex-col',
             )}
           >

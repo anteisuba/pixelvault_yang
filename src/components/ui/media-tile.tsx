@@ -25,7 +25,7 @@ export function MediaTileShade({ className }: { className?: string }) {
     <span
       aria-hidden
       className={cn(
-        'pointer-events-none absolute inset-0 bg-black/0 transition-colors duration-fast ease-standard group-hover/tile:bg-black/15 group-has-focus-visible/tile:bg-black/15 motion-reduce:transition-none',
+        'pointer-events-none absolute inset-0 bg-linear-to-t from-black/35 via-black/5 to-transparent opacity-0 transition-opacity duration-fast ease-standard group-hover/tile:opacity-100 group-has-focus-visible/tile:opacity-100 motion-reduce:transition-none',
         className,
       )}
     />

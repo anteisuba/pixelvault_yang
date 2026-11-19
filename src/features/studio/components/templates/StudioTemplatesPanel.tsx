@@ -676,10 +676,10 @@ export function StudioTemplatesPanel({
             <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-slow ease-standard motion-reduce:animate-none">
               <div
                 className={cn(
-                  'flex h-full flex-col gap-2.5 rounded-xl border p-1.5 pb-2.5 transition-colors duration-base ease-linear',
+                  'flex h-full flex-col gap-2.5 rounded-12 border p-2 pb-3 transition-colors duration-base ease-linear',
                   saved
                     ? 'border-transparent bg-surface-fill'
-                    : 'border-dashed border-border',
+                    : 'border-dashed border-border/80 bg-surface-companion/35',
                 )}
               >
                 <TemplateCover url={lastCover} />

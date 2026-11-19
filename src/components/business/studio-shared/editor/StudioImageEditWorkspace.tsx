@@ -44,12 +44,18 @@ function ImageEditSourcePicker({
 
   return (
     <div
-      className="m-auto flex w-full max-w-xl flex-col items-center gap-4 py-8 text-center"
+      className="m-auto flex w-full max-w-md flex-col items-center gap-4 rounded-20 border border-dashed border-border/80 bg-surface-companion/50 px-8 py-10 text-center shadow-ring"
       onDragEnter={handleDragEnter}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
+      <div
+        aria-hidden
+        className="grid size-11 place-items-center rounded-14 border border-border/70 bg-card text-muted-foreground shadow-ring"
+      >
+        <ImagePlus className="size-5" />
+      </div>
       <p className="text-sm text-muted-foreground">{t('chooseSourceHint')}</p>
       <div className="flex flex-wrap items-center justify-center gap-2">
         <Button

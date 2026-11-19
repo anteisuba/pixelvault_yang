@@ -53,14 +53,14 @@ export function StudioStarterState({
         className,
       )}
     >
-      <h2 className="text-2xl font-semibold tracking-tight text-foreground">
+      <h2 className="text-2xl font-semibold tracking-tight text-foreground lg:text-3xl">
         {title}
       </h2>
       <p className="max-w-md text-2sm leading-relaxed text-muted-foreground">
         {description}
       </p>
       {examples.length > 0 || action ? (
-        <div className="mt-2.5 flex w-full max-w-lg flex-wrap justify-center gap-2">
+        <div className="mt-4 flex w-full max-w-xl flex-wrap justify-center gap-2">
           {examples.map((example) => (
             <Button
               key={example.id}
@@ -69,7 +69,7 @@ export function StudioStarterState({
               size="sm"
               data-starter-example={example.id}
               onClick={() => onPickExample?.(example.text)}
-              className="max-w-full bg-muted/85 text-foreground shadow-none ring-1 ring-border transition-all duration-fast ease-standard hover:bg-fill-strong hover:ring-input"
+              className="h-9 max-w-full rounded-full border border-border/80 bg-surface-companion px-4 text-2sm font-normal text-foreground shadow-ring transition-[background-color,border-color,transform,box-shadow] duration-fast ease-standard hover:-translate-y-0.5 hover:border-input hover:bg-card hover:shadow-soft active:translate-y-0 dark:bg-muted/80 dark:hover:bg-raise motion-reduce:transform-none"
             >
               <span className="truncate">{example.text}</span>
             </Button>

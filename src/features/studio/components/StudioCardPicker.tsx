@@ -268,8 +268,13 @@ export function StudioCardPicker({
                   key={card.id}
                   data-testid="card-picker-character"
                   className={cn(
-                    'rounded-xl transition-colors duration-fast',
-                    active ? 'bg-muted/60' : 'hover:tint-hover',
+                    'rounded-12 transition-colors duration-fast',
+                    fill && 'border border-border/70 bg-card shadow-ring',
+                    active
+                      ? 'bg-muted/60'
+                      : fill
+                        ? 'hover:border-border hover:bg-surface-companion/55'
+                        : 'hover:tint-hover',
                   )}
                 >
                   <button

@@ -43,7 +43,7 @@ export function StudioCardsStagePanel({ onClose }: { onClose: () => void }) {
         </Button>
       </div>
       {/* 列表自己滚、吃满舞台高度（11-17：不再按半屏收着，下面空一大截）。 */}
-      <div className="flex min-h-0 flex-1 flex-col">
+      <div className="mx-auto flex min-h-0 w-full max-w-4xl flex-1 flex-col">
         <StudioCardPicker fill hideTitle />
       </div>
     </section>

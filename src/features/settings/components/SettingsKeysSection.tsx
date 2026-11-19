@@ -116,29 +116,30 @@ export function SettingsKeysSection() {
           role="status"
           aria-label={t('keys.loading')}
           data-testid="settings-keys-skeleton"
-          className="mt-3 flex flex-col"
+          className="mt-4 flex flex-col overflow-hidden rounded-16 border border-border/70 bg-card shadow-ring"
         >
           {rows.map((row) => (
             <li
               key={row.adapterType}
               aria-hidden
-              className="flex items-center gap-3 border-t border-border py-3"
+              className="flex items-center gap-3 border-t border-border/60 px-4 py-3.5 first:border-t-0"
             >
               <Skeleton className="size-2 shrink-0 rounded-full" />
               <Skeleton className="h-3.5 w-28 rounded-sm" />
               <Skeleton className="h-3 w-16 rounded-sm" />
               <Skeleton className="h-3 flex-1 rounded-sm" />
-              <Skeleton className="h-7 w-16 rounded-md" />
+              <Skeleton className="h-7 w-16 rounded-full" />
             </li>
           ))}
         </ul>
       ) : (
-        <ul className="mt-3 flex flex-col">
+        <ul className="mt-4 flex flex-col overflow-hidden rounded-16 border border-border/70 bg-card shadow-ring">
           {rows.map((row, index) => (
             <motion.li
               key={row.adapterType}
               layout="position"
               transition={springTransition('slot', reduceMotion)}
+              className="border-t border-border/60 first:border-t-0"
             >
               <LoadReveal play={arrived} step={index}>
                 <ProviderRow
@@ -267,8 +268,8 @@ function ProviderRow({
             : t(`keys.status.${row.state}`)
 
   return (
-    <div className="border-t border-border/70">
-      <div className="-mx-2.5 flex items-center gap-3 rounded-lg px-2.5 py-3 text-sm transition-colors duration-fast ease-standard hover:bg-muted/50">
+    <div>
+      <div className="flex items-center gap-3 px-4 py-3.5 text-sm transition-colors duration-fast ease-standard hover:bg-surface-companion/70 dark:hover:bg-muted/60">
         <span
           data-testid="provider-state-dot"
           data-state={row.state}
@@ -281,7 +282,7 @@ function ProviderRow({
         {/* 桌面一行排成几列；手机名字独占一行，型号数 · 状态 · 本月花费排在下面一行
             （⛔ 挤成几根窄列、「已配置 · 未校验」折成两行）。 */}
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-0.5">
-          <span className="min-w-28 font-medium max-lg:basis-full">
+          <span className="min-w-28 font-semibold text-foreground max-lg:basis-full">
             {row.label}
           </span>
           {row.modelCount > 0 ? (
@@ -293,14 +294,14 @@ function ProviderRow({
             className={cn(
               'text-xs lg:flex-1',
               row.state === 'invalid'
-                ? 'text-destructive'
+                ? 'font-medium text-destructive'
                 : 'text-muted-foreground',
             )}
           >
             {statusText}
           </span>
           {spendUsd !== null ? (
-            <span className="text-xs text-muted-foreground">
+            <span className="rounded-full bg-muted px-2.5 py-0.5 font-mono text-2xs text-ink-2 tabular-nums">
               {t('keys.monthlySpend', {
                 amount: formatUnitPriceAmount(spendUsd),
               })}
@@ -332,7 +333,7 @@ function ProviderRow({
             }}
             className="overflow-hidden"
           >
-            <div className="mb-3 flex flex-col gap-2 rounded-12 bg-muted py-3 pl-9 pr-3.5">
+            <div className="mx-3 mb-3 flex flex-col gap-2 rounded-12 border border-border/60 bg-surface-companion py-3 pr-3.5 pl-6 dark:bg-muted/80">
               <AnimatePresence initial={false}>
                 {row.keys.map((key) => (
                   <motion.div

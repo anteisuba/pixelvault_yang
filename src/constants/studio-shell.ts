@@ -31,7 +31,8 @@ export type StudioShellRouteKind = 'home' | 'bench' | 'page' | 'library'
 /** 宽窄那一根分隔线（对话栏的像素宽，台吃掉剩下的）。 */
 export const STUDIO_SHELL_SPLIT = {
   /** localStorage：对话栏宽 + 收没收起。 */
-  storageKey: 'pv:studio-shell:split',
+  // v2（11-19）：换键让旧的「收起」记录作废，所有人回到展开。
+  storageKey: 'pv:studio-shell:split:v2',
   defaultConversationPx: 400,
   /** 对话栏拖到比这还窄 = 收起对话（台顶出现「‹ 对话名」）。 */
   minConversationPx: 320,

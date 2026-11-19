@@ -393,21 +393,16 @@ function StudioShellStage({
   const contentRef = useRef<HTMLDivElement | null>(null)
   const bench = kind === 'bench'
   const activeId = bench ? activeBenchId(benchPathname) : undefined
-  const hasChat = useStudioOperatorSelector(
-    (state) =>
-      state.history.length > 0 ||
-      state.entries.some((entry) => entry.kind === 'user'),
-  )
   /**
-   * 从首页点进台（用户 10-25）：这段对话聊过 → 对话和台并排；还没聊过 → 台直接全屏
-   *（对话收起，头像在台左上角）。⚠ 只在「没台 → 有台」那一下定，进台之后照用户自己拖的。
+   * 从首页点进台：对话一律和台并排（owner 11-19「都展开」）。
+   * ⚠ 只在「没台 → 有台」那一下定，进台之后照用户自己拖的。
    */
   const benchBefore = useRef(bench)
   useLayoutEffect(() => {
     const entering = bench && !benchBefore.current
     benchBefore.current = bench
-    if (entering) setConversationCollapsed(!hasChat)
-  }, [bench, hasChat, setConversationCollapsed])
+    if (entering) setConversationCollapsed(false)
+  }, [bench, setConversationCollapsed])
   const { closeBench, switchBench } = useStudioBenchMotion({
     bench,
     activeId,

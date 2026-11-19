@@ -33,26 +33,8 @@ vi.mock('next/navigation', () => ({
 
 vi.mock('@/i18n/navigation', () => ({
   usePathname: () => mockNavigationState.pathname,
-  Link: ({
-    href,
-    locale,
-    children,
-    ...props
-  }: {
-    href: string
-    locale?: string
-    children: React.ReactNode
-    [key: string]: unknown
-  }) => {
-    const normalizedHref =
-      href === '/' ? `/${locale ?? ''}` : `/${locale ?? ''}${href}`
-
-    return (
-      <a href={normalizedHref} data-locale={locale} {...props}>
-        {children}
-      </a>
-    )
-  },
+  getPathname: ({ locale, href }: { locale: string; href: string }) =>
+    href === '/' ? `/${locale}` : `/${locale}${href}`,
 }))
 
 describe('LocaleSwitcher', () => {
@@ -76,6 +58,15 @@ describe('LocaleSwitcher', () => {
       'href',
       '/ja/studio?view=compact',
     )
+  })
+
+  it('switches with a full-page navigation (plain <a>), not a soft next-intl Link', () => {
+    // 软导航在 `/library/*` 上会被 `(.)library/*` 拦截路由接走：地址换了界面没换。
+    render(<LocaleSwitcher />)
+
+    const japanese = screen.getByRole('link', { name: 'Japanese' })
+    expect(japanese).toHaveAttribute('hreflang', 'ja')
+    expect(japanese).not.toHaveAttribute('data-locale')
   })
 
   it('can render as a vertical switcher for collapsed navigation', () => {

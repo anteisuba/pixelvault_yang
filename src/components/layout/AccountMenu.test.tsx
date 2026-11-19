@@ -15,7 +15,8 @@ import { AccountMenu } from './AccountMenu'
  *  ② ⭐ 语言是一行分段条（owner 2026-10-08 侧栏原型 v1，复用 `LiquidSegmented`），
  *     只有 en / ja / zh 三档，⛔ 不再展二级子菜单；
  *  ③ ⭐ 语言与设置 → 偏好**同一条路**：落点是当前地址 + 原样带回 query，
- *     切换走 next-intl 的 `router.replace(href, { locale })`，⛔ 菜单里没有第二份状态；
+ *     切换是整页导航（`useLocaleSwitch().switchLocale`），⛔ 软导航（会被拦截路由接走），
+ *     ⛔ 菜单里没有第二份状态；
  *  ④ ⭐ 当前语言不只靠颜色：`aria-checked`（分段条的选中块之外）；
  *  ⑤ ⭐ 退出登录走 `/settings` 同一条路（Clerk `signOut` + 回首页），
  *     ⛔ 没有二次确认；
@@ -52,11 +53,28 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams('tab=lora'),
 }))
 
-const replace = vi.hoisted(() => vi.fn())
+// 切语言是整页导航（`location.assign`）；jsdom 的真 `assign` 只报「Not implemented」，
+// 这里换成只记落点的那一支（同 `api-client/shared.test.ts`），其余字段照旧。
+const navigate = vi.fn()
+const realLocation = window.location
+beforeEach(() => {
+  navigate.mockClear()
+  Object.defineProperty(window, 'location', {
+    configurable: true,
+    value: Object.assign(new URL(realLocation.href), { assign: navigate }),
+  })
+})
+afterEach(() => {
+  Object.defineProperty(window, 'location', {
+    configurable: true,
+    value: realLocation,
+  })
+})
 
 vi.mock('@/i18n/navigation', () => ({
   usePathname: () => '/studio/image',
-  useRouter: () => ({ replace }),
+  getPathname: ({ locale, href }: { locale: string; href: string }) =>
+    `/${locale}${href}`,
   Link: ({
     href,
     locale,
@@ -196,52 +214,65 @@ describe('AccountMenu（D11 ④）', () => {
     ).toEqual(['false', 'false', 'true'])
   })
 
-  it('语言切换与设置 → 偏好同一条路：当前地址 + 原样带回 query', async () => {
-    replace.mockClear()
+  it('语言切换与设置 → 偏好同一条路：整页导航到换了前缀的当前地址 + 原样带回 query', async () => {
+    navigate.mockClear()
     openMenu()
 
     const { options } = await findLanguageRow()
     fireEvent.click(options[1])
     // 选中块先滑到新格，滑完才换地址。
     expect(options[1]).toHaveAttribute('aria-checked', 'true')
-    expect(replace).not.toHaveBeenCalled()
+    expect(navigate).not.toHaveBeenCalled()
+    // ⭐ 整页导航，⛔ 软导航（会被 `(.)library/*` 拦截路由接走：地址换了界面没换）。
     await waitFor(() =>
-      expect(replace).toHaveBeenCalledWith('/studio/image?tab=lora', {
-        locale: 'ja',
-      }),
+      expect(navigate).toHaveBeenCalledWith('/ja/studio/image?tab=lora'),
     )
     // 换语言不是关菜单的动作：菜单还开着。
     expect(screen.getByText(M('LocaleSwitcher.label'))).toBeInTheDocument()
 
     // 点当前那一格什么都不做（等过滑块那一段也没换地址）。
-    replace.mockClear()
+    navigate.mockClear()
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     try {
       fireEvent.click(options[1])
       await vi.advanceTimersByTimeAsync(400)
-      expect(replace).not.toHaveBeenCalled()
+      expect(navigate).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('滑块那一拍里连点两格：只去最后那一种，⛔ 排两次导航', async () => {
+    navigate.mockClear()
+    openMenu()
+
+    const { options } = await findLanguageRow()
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    try {
+      fireEvent.click(options[1])
+      fireEvent.click(options[0])
+      await vi.advanceTimersByTimeAsync(1000)
+      expect(navigate).toHaveBeenCalledTimes(1)
+      expect(navigate).toHaveBeenCalledWith('/en/studio/image?tab=lora')
     } finally {
       vi.useRealTimers()
     }
   })
 
   it('键盘落在语言行上：←/→ 换语言（分段条里的格子在菜单里键盘到不了）', async () => {
-    replace.mockClear()
+    navigate.mockClear()
     openMenu()
 
     const { item } = await findLanguageRow()
     fireEvent.keyDown(item, { key: 'ArrowRight' })
     await waitFor(() =>
-      expect(replace).toHaveBeenLastCalledWith('/studio/image?tab=lora', {
-        locale: 'en',
-      }),
+      expect(navigate).toHaveBeenLastCalledWith('/en/studio/image?tab=lora'),
     )
-    // 从刚滑到的那一格（en）往左 = zh。
+    // 从刚滑到的那一格（en）往左 = ja（当前 zh 不再导航）。
+    fireEvent.keyDown(item, { key: 'ArrowLeft' })
     fireEvent.keyDown(item, { key: 'ArrowLeft' })
     await waitFor(() =>
-      expect(replace).toHaveBeenLastCalledWith('/studio/image?tab=lora', {
-        locale: 'zh',
-      }),
+      expect(navigate).toHaveBeenLastCalledWith('/ja/studio/image?tab=lora'),
     )
   })
 

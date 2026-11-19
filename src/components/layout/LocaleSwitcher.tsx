@@ -5,7 +5,6 @@ import { motion, useReducedMotion } from 'motion/react'
 
 import { DURATION, EASE_STANDARD } from '@/constants/motion'
 import { cn } from '@/lib/utils'
-import { Link } from '@/i18n/navigation'
 import { useLocaleSwitch } from '@/hooks/use-locale-switch'
 
 interface LocaleSwitcherProps {
@@ -23,7 +22,9 @@ export function LocaleSwitcher({
 }: LocaleSwitcherProps) {
   // 当前值 / 落点 / 名册都来自那一条共用的路 —— 侧栏账号菜单里的语言行
   // 调的是同一支（`use-locale-switch.ts`）。
-  const { locale, href, locales } = useLocaleSwitch()
+  // ⚠ 用原生 `<a>`（整页导航），⛔ 换回 next-intl `<Link locale>`：软导航会被
+  //   `(.)library/*` 拦截路由接走，地址换了界面没换（hook 里有完整说明）。
+  const { locale, hrefFor, locales } = useLocaleSwitch()
   const t = useTranslations('LocaleSwitcher')
   const reducedMotion = useReducedMotion()
   const isVertical = orientation === 'vertical'
@@ -53,10 +54,10 @@ export function LocaleSwitcher({
         const isActive = locale === option
 
         return (
-          <Link
+          <a
             key={option}
-            href={href}
-            locale={option}
+            href={hrefFor(option)}
+            hrefLang={option}
             aria-current={isActive ? 'page' : undefined}
             aria-label={t(`names.${option}`)}
             title={t(`names.${option}`)}
@@ -100,7 +101,7 @@ export function LocaleSwitcher({
               />
             )}
             <span className="relative z-10">{t(`options.${option}`)}</span>
-          </Link>
+          </a>
         )
       })}
     </nav>

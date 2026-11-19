@@ -16,6 +16,8 @@ vi.mock('next/navigation', () => ({
 }))
 vi.mock('@/i18n/navigation', () => ({
   usePathname: () => '/settings/preferences',
+  getPathname: ({ locale, href }: { locale: string; href: string }) =>
+    `/${locale}${href}`,
   Link: ({ children, href }: { children: React.ReactNode; href: string }) => (
     <a href={href}>{children}</a>
   ),

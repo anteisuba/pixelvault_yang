@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 
 import { Globe, LogOut, Moon, Settings, User } from '@/components/icons'
 import { useTranslations } from 'next-intl'
@@ -8,7 +8,7 @@ import { useTranslations } from 'next-intl'
 import { DURATION_MS } from '@/constants/motion'
 import { ROUTES, settingsPath } from '@/constants/routes'
 import { THEMES } from '@/constants/theme'
-import { Link, usePathname, useRouter } from '@/i18n/navigation'
+import { Link, usePathname } from '@/i18n/navigation'
 import { ProfileAvatar } from '@/components/layout/ProfileAvatar'
 import {
   Tooltip,
@@ -131,13 +131,13 @@ function AccountMenuHeader() {
  * 语言 —— 一行分段条（en / ja / zh，⛔ 不多不少；owner 2026-10-08 侧栏原型 v1），
  * 复用 `LiquidSegmented`：选中块两条边各一根弹簧滑过去，⛔ 不再展二级子菜单。
  *
- * 当前值、落点和名册全部来自 `useLocaleSwitch()`，与设置 → 偏好**同一条路**：
- * ⛔ 这里不另存一份当前值、⛔ 不另写一遍落点，否则「界面显示的」和
- * 「服务端认得的」会开始漂（判据三）。切换 = next-intl 的 `router.replace(href,
- * { locale })`，与 `<Link locale>` 重写的是同一个地址前缀。
+ * 当前值、落点、名册和切法全部来自 `useLocaleSwitch()`，与设置 → 偏好**同一条路**：
+ * ⛔ 这里不另存一份当前值、⛔ 不另写一遍落点、⛔ 不另写一种切法（尤其别换回
+ * `router.replace(href, { locale })` 软导航 —— 在 `/library/*` 上会被拦截路由接走，
+ * 地址换了界面没换，见 `use-locale-switch.ts`）。
  *
- * ⚠ 换 locale = 换 `[locale]` 段，整棵树重挂，选中块来不及滑。所以先让分段条滑到新格
- *   （`sliding` 只活这一拍，不是第二份当前值），滑完再 `router.replace`。
+ * ⚠ 切语言是整页导航，页面一换选中块就没了。所以先让分段条滑到新格
+ *   （`sliding` 只活这一拍，不是第二份当前值），滑完再 `switchLocale`。
  *
  * ⚠ 整行是一颗 `menuitem`：Radix 菜单里 Tab 被吃掉、方向键只在菜单项之间走，
  *   分段条里的按钮键盘到不了。所以键盘落在这一行上，←/→ 换语言；鼠标直接点格子。
@@ -145,16 +145,20 @@ function AccountMenuHeader() {
  */
 function AccountMenuLanguage() {
   const t = useTranslations('LocaleSwitcher')
-  const { locale, href, locales } = useLocaleSwitch()
-  const router = useRouter()
+  const { locale, locales, switchLocale } = useLocaleSwitch()
   const [sliding, setSliding] = useState<AppLocale | null>(null)
+  // 滑块那一拍里又点了别的格：只去最后点的那一种，⛔ 排两次整页导航互相抢。
+  const pendingSwitch = useRef<number | null>(null)
   const shown = sliding ?? locale
 
   const switchTo = (next: AppLocale) => {
     if (next === shown) return
     setSliding(next)
-    window.setTimeout(
-      () => router.replace(href, { locale: next }),
+    if (pendingSwitch.current !== null) {
+      window.clearTimeout(pendingSwitch.current)
+    }
+    pendingSwitch.current = window.setTimeout(
+      () => switchLocale(next),
       DURATION_MS.slow,
     )
   }
